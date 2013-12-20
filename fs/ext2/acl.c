@@ -308,7 +308,7 @@ ext2_acl_chmod(struct inode *inode)
 	acl = ext2_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
-	error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	error = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (error)
 		return error;
 	error = ext2_set_acl(inode, ACL_TYPE_ACCESS, acl);

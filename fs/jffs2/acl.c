@@ -335,7 +335,7 @@ int jffs2_acl_chmod(struct inode *inode)
 	acl = jffs2_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
-	rc = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	rc = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (rc)
 		return rc;
 	rc = jffs2_set_acl(inode, ACL_TYPE_ACCESS, acl);

@@ -256,7 +256,7 @@ int btrfs_acl_chmod(struct inode *inode)
 	if (IS_ERR_OR_NULL(acl))
 		return PTR_ERR(acl);
 
-	ret = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	ret = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (ret)
 		return ret;
 	ret = btrfs_set_acl(NULL, inode, acl, ACL_TYPE_ACCESS);

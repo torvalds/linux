@@ -158,7 +158,7 @@ generic_acl_chmod(struct inode *inode)
 		return -EOPNOTSUPP;
 	acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
 	if (acl) {
-		error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+		error = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 		if (error)
 			return error;
 		set_cached_acl(inode, ACL_TYPE_ACCESS, acl);

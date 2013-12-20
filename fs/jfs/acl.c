@@ -161,7 +161,7 @@ int jfs_acl_chmod(struct inode *inode)
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
 
-	rc = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	rc = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (rc)
 		return rc;
 

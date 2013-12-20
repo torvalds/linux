@@ -167,7 +167,7 @@ int hfsplus_posix_acl_chmod(struct inode *inode)
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
 
-	err = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	err = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (unlikely(err))
 		return err;
 

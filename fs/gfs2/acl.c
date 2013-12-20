@@ -162,7 +162,7 @@ int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 	if (!acl)
 		return gfs2_setattr_simple(inode, attr);
 
-	error = posix_acl_chmod(&acl, GFP_NOFS, attr->ia_mode);
+	error = __posix_acl_chmod(&acl, GFP_NOFS, attr->ia_mode);
 	if (error)
 		return error;
 

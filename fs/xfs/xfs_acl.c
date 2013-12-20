@@ -334,7 +334,7 @@ xfs_acl_chmod(struct inode *inode)
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
 
-	error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	error = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (error)
 		return error;
 

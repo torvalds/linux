@@ -364,7 +364,7 @@ static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 /*
  * Modify the ACL for the chmod syscall.
  */
-static int posix_acl_chmod_masq(struct posix_acl *acl, umode_t mode)
+static int __posix_acl_chmod_masq(struct posix_acl *acl, umode_t mode)
 {
 	struct posix_acl_entry *group_obj = NULL, *mask_obj = NULL;
 	struct posix_acl_entry *pa, *pe;
@@ -428,12 +428,12 @@ posix_acl_create(struct posix_acl **acl, gfp_t gfp, umode_t *mode_p)
 EXPORT_SYMBOL(posix_acl_create);
 
 int
-posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
+__posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
 {
 	struct posix_acl *clone = posix_acl_clone(*acl, gfp);
 	int err = -ENOMEM;
 	if (clone) {
-		err = posix_acl_chmod_masq(clone, mode);
+		err = __posix_acl_chmod_masq(clone, mode);
 		if (err) {
 			posix_acl_release(clone);
 			clone = NULL;
@@ -442,6 +442,30 @@ posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
 	posix_acl_release(*acl);
 	*acl = clone;
 	return err;
+}
+EXPORT_SYMBOL(__posix_acl_chmod);
+
+int
+posix_acl_chmod(struct inode *inode)
+{
+	struct posix_acl *acl;
+	int ret = 0;
+
+	if (!IS_POSIXACL(inode))
+		return 0;
+	if (!inode->i_op->set_acl)
+		return -EOPNOTSUPP;
+
+	acl = get_acl(inode, ACL_TYPE_ACCESS);
+	if (IS_ERR_OR_NULL(acl))
+		return PTR_ERR(acl);
+
+	ret = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	if (ret)
+		return ret;
+	ret = inode->i_op->set_acl(inode, acl, ACL_TYPE_ACCESS);
+	posix_acl_release(acl);
+	return ret;
 }
 EXPORT_SYMBOL(posix_acl_chmod);
 
