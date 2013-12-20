@@ -276,7 +276,7 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 	unsigned int try;
 	int prev_no;
 	struct ddcb *prev_ddcb;
-	u32 old, new, icrc_hsi_shi;
+	__be32 old, new, icrc_hsi_shi;
 	u64 num;
 
 	/*
@@ -623,9 +623,9 @@ int __genwqe_purge_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 	unsigned long flags;
 	struct ddcb_queue *queue = req->queue;
 	struct pci_dev *pci_dev = cd->pci_dev;
-	u32 icrc_hsi_shi = 0x0000;
 	u64 queue_status;
-	u32 old, new;
+	__be32 icrc_hsi_shi = 0x0000;
+	__be32 old, new;
 
 	/* unsigned long flags; */
 	if (genwqe_ddcb_software_timeout <= 0) {
@@ -839,8 +839,8 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 		       &req->cmd.__asiv[0],	/* source */
 		       DDCB_ASIV_LENGTH);	/* req->cmd.asiv_length */
 	} else {
-		pddcb->n.ats_64 = req->cmd.ats;
-		memcpy(&pddcb->n.asiv[0],		/* destination */
+		pddcb->n.ats_64 = cpu_to_be64(req->cmd.ats);
+		memcpy(&pddcb->n.asiv[0],	/* destination */
 			&req->cmd.asiv[0],	/* source */
 			DDCB_ASIV_LENGTH_ATS);	/* req->cmd.asiv_length */
 	}
@@ -915,7 +915,8 @@ int __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
 		goto err_exit;
 
 	if (ddcb_requ_collect_debug_data(req)) {
-		if (copy_to_user((void __user *)cmd->ddata_addr,
+		if (copy_to_user((struct genwqe_debug_data __user *)
+				 (unsigned long)cmd->ddata_addr,
 				 &req->debug_data,
 				 sizeof(struct genwqe_debug_data)))
 			return -EFAULT;
@@ -938,7 +939,8 @@ int __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
 	__genwqe_purge_ddcb(cd, req);
 
 	if (ddcb_requ_collect_debug_data(req)) {
-		if (copy_to_user((void __user *)cmd->ddata_addr,
+		if (copy_to_user((struct genwqe_debug_data __user *)
+				 (unsigned long)cmd->ddata_addr,
 				 &req->debug_data,
 				 sizeof(struct genwqe_debug_data)))
 			return -EFAULT;

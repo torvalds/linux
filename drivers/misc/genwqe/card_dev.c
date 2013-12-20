@@ -587,30 +587,31 @@ static int do_flash_update(struct genwqe_file *cfile,
 
 		/* prepare invariant values */
 		if (genwqe_get_slu_id(cd) <= 0x2) {
-			*(u64 *)&req->__asiv[0]  = cpu_to_be64(dma_addr);
-			*(u64 *)&req->__asiv[8]  = cpu_to_be64(tocopy);
-			*(u64 *)&req->__asiv[16] = cpu_to_be64(flash);
-			*(u32 *)&req->__asiv[24] = cpu_to_be32(0);
+			*(__be64 *)&req->__asiv[0]  = cpu_to_be64(dma_addr);
+			*(__be64 *)&req->__asiv[8]  = cpu_to_be64(tocopy);
+			*(__be64 *)&req->__asiv[16] = cpu_to_be64(flash);
+			*(__be32 *)&req->__asiv[24] = cpu_to_be32(0);
 			req->__asiv[24]	       = load->uid;
-			*(u32 *)&req->__asiv[28] = cpu_to_be32(crc);
+			*(__be32 *)&req->__asiv[28] = cpu_to_be32(crc);
 
 			/* for simulation only */
-			*(u64 *)&req->__asiv[88] = cpu_to_be64(load->slu_id);
-			*(u64 *)&req->__asiv[96] = cpu_to_be64(load->app_id);
+			*(__be64 *)&req->__asiv[88] = cpu_to_be64(load->slu_id);
+			*(__be64 *)&req->__asiv[96] = cpu_to_be64(load->app_id);
 			req->asiv_length = 32; /* bytes included in crc calc */
 		} else {	/* setup DDCB for ATS architecture */
-			*(u64 *)&req->asiv[0]  = cpu_to_be64(dma_addr);
-			*(u32 *)&req->asiv[8]  = cpu_to_be32(tocopy);
-			*(u32 *)&req->asiv[12] = cpu_to_be32(0); /* resvd */
-			*(u64 *)&req->asiv[16] = cpu_to_be64(flash);
-			*(u32 *)&req->asiv[24] = cpu_to_be32(load->uid<<24);
-			*(u32 *)&req->asiv[28] = cpu_to_be32(crc);
+			*(__be64 *)&req->asiv[0]  = cpu_to_be64(dma_addr);
+			*(__be32 *)&req->asiv[8]  = cpu_to_be32(tocopy);
+			*(__be32 *)&req->asiv[12] = cpu_to_be32(0); /* resvd */
+			*(__be64 *)&req->asiv[16] = cpu_to_be64(flash);
+			*(__be32 *)&req->asiv[24] = cpu_to_be32(load->uid<<24);
+			*(__be32 *)&req->asiv[28] = cpu_to_be32(crc);
 
 			/* for simulation only */
-			*(u64 *)&req->asiv[80] = cpu_to_be64(load->slu_id);
-			*(u64 *)&req->asiv[88] = cpu_to_be64(load->app_id);
+			*(__be64 *)&req->asiv[80] = cpu_to_be64(load->slu_id);
+			*(__be64 *)&req->asiv[88] = cpu_to_be64(load->app_id);
 
-			req->ats = cpu_to_be64(0x4ULL << 44);	/* Rd only */
+			/* Rd only */
+			req->ats = 0x4ULL << 44;
 			req->asiv_length = 40; /* bytes included in crc calc */
 		}
 		req->asv_length  = 8;
@@ -729,21 +730,23 @@ static int do_flash_read(struct genwqe_file *cfile,
 
 		/* prepare invariant values */
 		if (genwqe_get_slu_id(cd) <= 0x2) {
-			*(u64 *)&cmd->__asiv[0]  = cpu_to_be64(dma_addr);
-			*(u64 *)&cmd->__asiv[8]  = cpu_to_be64(tocopy);
-			*(u64 *)&cmd->__asiv[16] = cpu_to_be64(flash);
-			*(u32 *)&cmd->__asiv[24] = cpu_to_be32(0);
+			*(__be64 *)&cmd->__asiv[0]  = cpu_to_be64(dma_addr);
+			*(__be64 *)&cmd->__asiv[8]  = cpu_to_be64(tocopy);
+			*(__be64 *)&cmd->__asiv[16] = cpu_to_be64(flash);
+			*(__be32 *)&cmd->__asiv[24] = cpu_to_be32(0);
 			cmd->__asiv[24] = load->uid;
-			*(u32 *)&cmd->__asiv[28] = cpu_to_be32(0)  /* CRC */;
+			*(__be32 *)&cmd->__asiv[28] = cpu_to_be32(0)  /* CRC */;
 			cmd->asiv_length = 32; /* bytes included in crc calc */
 		} else {	/* setup DDCB for ATS architecture */
-			*(u64 *)&cmd->asiv[0]  = cpu_to_be64(dma_addr);
-			*(u32 *)&cmd->asiv[8]  = cpu_to_be32(tocopy);
-			*(u32 *)&cmd->asiv[12] = cpu_to_be32(0); /* resvd */
-			*(u64 *)&cmd->asiv[16] = cpu_to_be64(flash);
-			*(u32 *)&cmd->asiv[24] = cpu_to_be32(load->uid<<24);
-			*(u32 *)&cmd->asiv[28] = cpu_to_be32(0); /* CRC */
-			cmd->ats = cpu_to_be64(0x5ULL << 44);	/* rd/wr */
+			*(__be64 *)&cmd->asiv[0]  = cpu_to_be64(dma_addr);
+			*(__be32 *)&cmd->asiv[8]  = cpu_to_be32(tocopy);
+			*(__be32 *)&cmd->asiv[12] = cpu_to_be32(0); /* resvd */
+			*(__be64 *)&cmd->asiv[16] = cpu_to_be64(flash);
+			*(__be32 *)&cmd->asiv[24] = cpu_to_be32(load->uid<<24);
+			*(__be32 *)&cmd->asiv[28] = cpu_to_be32(0); /* CRC */
+
+			/* rd/wr */
+			cmd->ats = 0x5ULL << 44;
 			cmd->asiv_length = 40; /* bytes included in crc calc */
 		}
 		cmd->asv_length  = 8;
@@ -911,9 +914,9 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 		u64 u_addr, d_addr;
 		u32 u_size = 0;
-		unsigned long ats_flags;
+		u64 ats_flags;
 
-		ats_flags = ATS_GET_FLAGS(be64_to_cpu(cmd->ats), asiv_offs);
+		ats_flags = ATS_GET_FLAGS(cmd->ats, asiv_offs);
 
 		switch (ats_flags) {
 
@@ -922,9 +925,9 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 		case ATS_TYPE_FLAT_RDWR:
 		case ATS_TYPE_FLAT_RD: {
-			u_addr = be64_to_cpu(*((u64 *)&cmd->
+			u_addr = be64_to_cpu(*((__be64 *)&cmd->
 					       asiv[asiv_offs]));
-			u_size = be32_to_cpu(*((u32 *)&cmd->
+			u_size = be32_to_cpu(*((__be32 *)&cmd->
 					       asiv[asiv_offs + 0x08]));
 
 			/*
@@ -933,7 +936,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 			 * fetch the buffer.
 			 */
 			if (u_size == 0x0) {
-				*((u64 *)&cmd->asiv[asiv_offs]) =
+				*((__be64 *)&cmd->asiv[asiv_offs]) =
 					cpu_to_be64(0x0);
 				break;
 			}
@@ -945,7 +948,8 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 				goto err_out;
 			}
 
-			*((u64 *)&cmd->asiv[asiv_offs]) = cpu_to_be64(d_addr);
+			*((__be64 *)&cmd->asiv[asiv_offs]) =
+				cpu_to_be64(d_addr);
 			break;
 		}
 
@@ -953,9 +957,10 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 		case ATS_TYPE_SGL_RD: {
 			int page_offs, nr_pages, offs;
 
-			u_addr = be64_to_cpu(*((u64 *)&cmd->asiv[asiv_offs]));
-			u_size = be32_to_cpu(*((u32 *)&cmd->asiv[asiv_offs +
-								 0x08]));
+			u_addr = be64_to_cpu(*((__be64 *)
+					       &cmd->asiv[asiv_offs]));
+			u_size = be32_to_cpu(*((__be32 *)
+					       &cmd->asiv[asiv_offs + 0x08]));
 
 			/*
 			 * No data available. Ignore u_addr in this
@@ -963,7 +968,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 			 * fetch the empty sgl.
 			 */
 			if (u_size == 0x0) {
-				*((u64 *)&cmd->asiv[asiv_offs]) =
+				*((__be64 *)&cmd->asiv[asiv_offs]) =
 					cpu_to_be64(0x0);
 				break;
 			}
@@ -1007,14 +1012,14 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 					page_offs,
 					nr_pages);
 
-			*((u64 *)&cmd->asiv[asiv_offs]) =
+			*((__be64 *)&cmd->asiv[asiv_offs]) =
 				cpu_to_be64(req->sgl_dma_addr[i]);
 
 			break;
 		}
 		default:
 			dev_err(&pci_dev->dev,
-				"[%s] err: invalid ATS flags %01lx\n",
+				"[%s] err: invalid ATS flags %01llx\n",
 				__func__, ats_flags);
 			rc = -EINVAL;
 			goto err_out;
@@ -1211,7 +1216,8 @@ static long genwqe_ioctl(struct file *filp, unsigned int cmd,
 		if ((filp->f_flags & O_ACCMODE) == O_RDONLY)
 			return -EPERM;
 
-		if (copy_from_user(&load, (void __user *)arg, sizeof(load))) {
+		if (copy_from_user(&load, (void __user *)arg,
+				   sizeof(load))) {
 			dev_err(&pci_dev->dev,
 				"err: could not copy params from user\n");
 			return -EFAULT;
@@ -1236,7 +1242,8 @@ static long genwqe_ioctl(struct file *filp, unsigned int cmd,
 		if (genwqe_flash_readback_fails(cd))
 			return -ENOSPC;	 /* known to fail for old versions */
 
-		if (copy_from_user(&load, (void __user *)arg, sizeof(load))) {
+		if (copy_from_user(&load, (void __user *)arg,
+				   sizeof(load))) {
 			dev_err(&pci_dev->dev,
 				"err: could not copy params from user\n");
 			return -EFAULT;
@@ -1256,7 +1263,8 @@ static long genwqe_ioctl(struct file *filp, unsigned int cmd,
 	case GENWQE_PIN_MEM: {
 		struct genwqe_mem m;
 
-		if (copy_from_user(&m, (void __user *)arg, sizeof(m))) {
+		if (copy_from_user(&m, (void __user *)arg,
+				   sizeof(m))) {
 			dev_err(&pci_dev->dev,
 				"err: could not copy params from user\n");
 			return -EFAULT;
@@ -1267,7 +1275,8 @@ static long genwqe_ioctl(struct file *filp, unsigned int cmd,
 	case GENWQE_UNPIN_MEM: {
 		struct genwqe_mem m;
 
-		if (copy_from_user(&m, (void __user *)arg, sizeof(m))) {
+		if (copy_from_user(&m, (void __user *)arg,
+				   sizeof(m))) {
 			dev_err(&pci_dev->dev,
 				"err: could not copy params from user\n");
 			return -EFAULT;

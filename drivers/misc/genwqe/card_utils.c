@@ -59,7 +59,7 @@ int __genwqe_writeq(struct genwqe_dev *cd, u64 byte_offs, u64 val)
 	if (cd->mmio == NULL)
 		return -EIO;
 
-	__raw_writeq(cpu_to_be64((val)), (cd->mmio + byte_offs));
+	__raw_writeq((__force u32)cpu_to_be64(val), cd->mmio + byte_offs);
 	return 0;
 }
 
@@ -72,8 +72,6 @@ int __genwqe_writeq(struct genwqe_dev *cd, u64 byte_offs, u64 val)
  */
 u64 __genwqe_readq(struct genwqe_dev *cd, u64 byte_offs)
 {
-	u64 val;
-
 	if (cd->err_inject & GENWQE_INJECT_HARDWARE_FAILURE)
 		return 0xffffffffffffffffull;
 
@@ -88,8 +86,7 @@ u64 __genwqe_readq(struct genwqe_dev *cd, u64 byte_offs)
 	if (cd->mmio == NULL)
 		return 0xffffffffffffffffull;
 
-	val = be64_to_cpu(__raw_readq(cd->mmio + byte_offs));
-	return val;
+	return be64_to_cpu((__force __be64)__raw_readq(cd->mmio + byte_offs));
 }
 
 /**
@@ -108,7 +105,7 @@ int __genwqe_writel(struct genwqe_dev *cd, u64 byte_offs, u32 val)
 	if (cd->mmio == NULL)
 		return -EIO;
 
-	__raw_writel(cpu_to_be32((val)), cd->mmio + byte_offs);
+	__raw_writel((__force u32)cpu_to_be32(val), cd->mmio + byte_offs);
 	return 0;
 }
 
@@ -127,7 +124,7 @@ u32 __genwqe_readl(struct genwqe_dev *cd, u64 byte_offs)
 	if (cd->mmio == NULL)
 		return 0xffffffff;
 
-	return be32_to_cpu(__raw_readl(cd->mmio + byte_offs));
+	return be32_to_cpu((__force __be32)__raw_readl(cd->mmio + byte_offs));
 }
 
 /**

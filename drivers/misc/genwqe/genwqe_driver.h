@@ -31,8 +31,9 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include <asm/byteorder.h>
+#include <linux/dynamic_debug.h>
 
+#include <asm/byteorder.h>
 #include <linux/genwqe/genwqe_card.h>
 
 #define DRV_VERS_STRING		"2.0.0"
