@@ -106,7 +106,7 @@ static int rsnd_src_set_route_if_gen1(struct rsnd_priv *priv,
 	return 0;
 }
 
-static int rsnd_scu_set_hpbif(struct rsnd_priv *priv,
+static int rsnd_scu_rate_ctrl(struct rsnd_priv *priv,
 			      struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
@@ -181,7 +181,7 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_scu_set_hpbif(priv, mod, rdai, io);
+	ret = rsnd_scu_rate_ctrl(priv, mod, rdai, io);
 	if (ret < 0)
 		return ret;
 
