@@ -924,7 +924,7 @@ _func_enter_;
 
 	rtw_hal_sreset_init(padapter);
 
-	_rtw_spinlock_init(&padapter->br_ext_lock);
+	spin_lock_init(&padapter->br_ext_lock);
 
 exit:
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_init_drv_sw\n"));

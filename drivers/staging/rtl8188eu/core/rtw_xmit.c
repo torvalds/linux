@@ -43,7 +43,7 @@ void	_rtw_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv)
 {
 _func_enter_;
 	_rtw_memset((unsigned char *)psta_xmitpriv, 0, sizeof (struct sta_xmit_priv));
-	_rtw_spinlock_init(&psta_xmitpriv->lock);
+	spin_lock_init(&psta_xmitpriv->lock);
 	_init_txservq(&psta_xmitpriv->be_q);
 	_init_txservq(&psta_xmitpriv->bk_q);
 	_init_txservq(&psta_xmitpriv->vi_q);
@@ -67,7 +67,7 @@ _func_enter_;
 
 	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by rtw_zvmalloc(). */
 
-	_rtw_spinlock_init(&pxmitpriv->lock);
+	spin_lock_init(&pxmitpriv->lock);
 	_rtw_init_sema(&pxmitpriv->xmit_sema, 0);
 	_rtw_init_sema(&pxmitpriv->terminate_xmitthread_sema, 0);
 

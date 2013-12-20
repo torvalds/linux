@@ -33,7 +33,7 @@ void init_mlme_ap_info(struct adapter *padapter)
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 
 
-	_rtw_spinlock_init(&pmlmepriv->bcn_update_lock);
+	spin_lock_init(&pmlmepriv->bcn_update_lock);
 
 	/* for ACL */
 	_rtw_init_queue(&pacl_list->acl_node_q);

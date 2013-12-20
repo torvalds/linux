@@ -49,7 +49,7 @@ _func_enter_;
 
 	_rtw_memset((u8 *)psta_recvpriv, 0, sizeof (struct sta_recv_priv));
 
-	_rtw_spinlock_init(&psta_recvpriv->lock);
+	spin_lock_init(&psta_recvpriv->lock);
 
 	_rtw_init_queue(&psta_recvpriv->defrag_q);
 
@@ -65,7 +65,7 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	int	res = _SUCCESS;
 
 _func_enter_;
-	_rtw_spinlock_init(&precvpriv->lock);
+	spin_lock_init(&precvpriv->lock);
 
 	_rtw_init_queue(&precvpriv->free_recv_queue);
 	_rtw_init_queue(&precvpriv->recv_pending_queue);

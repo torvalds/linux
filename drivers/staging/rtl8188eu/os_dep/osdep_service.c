@@ -193,11 +193,6 @@ void	_rtw_mutex_free(struct mutex *pmutex)
 	mutex_destroy(pmutex);
 }
 
-void	_rtw_spinlock_init(spinlock_t *plock)
-{
-	spin_lock_init(plock);
-}
-
 void	_rtw_spinlock_free(spinlock_t *plock)
 {
 }
@@ -205,7 +200,7 @@ void	_rtw_spinlock_free(spinlock_t *plock)
 void	_rtw_init_queue(struct __queue *pqueue)
 {
 	_rtw_init_listhead(&(pqueue->queue));
-	_rtw_spinlock_init(&(pqueue->lock));
+	spin_lock_init(&(pqueue->lock));
 }
 
 u32	  _rtw_queue_empty(struct __queue *pqueue)
