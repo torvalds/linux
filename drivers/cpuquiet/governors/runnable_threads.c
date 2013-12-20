@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2012-2014 NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -284,10 +284,10 @@ static int runnables_start(void)
 	runnables_timer.function = runnables_avg_sampler;
 
 	for(i = 0; i < ARRAY_SIZE(nr_run_thresholds); ++i) {
-		if (i < ARRAY_SIZE(default_thresholds))
-			nr_run_thresholds[i] = default_thresholds[i];
-		else if (i == (ARRAY_SIZE(nr_run_thresholds) - 1))
+		if (i == (ARRAY_SIZE(nr_run_thresholds) - 1))
 			nr_run_thresholds[i] = UINT_MAX;
+		else if (i < ARRAY_SIZE(default_thresholds))
+			nr_run_thresholds[i] = default_thresholds[i];
 		else
 			nr_run_thresholds[i] = i + 1 +
 				NR_FSHIFT / default_threshold_level;
