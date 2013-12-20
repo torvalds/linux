@@ -674,8 +674,9 @@ static int snd_usb_gamecon780_boot_quirk(struct usb_device *dev)
 
 /*
  * Novation Twitch DJ controller
+ * Focusrite Novation Saffire 6 USB audio card
  */
-static int snd_usb_twitch_boot_quirk(struct usb_device *dev)
+static int snd_usb_novation_boot_quirk(struct usb_device *dev)
 {
 	/* preemptively set up the device because otherwise the
 	 * raw MIDI endpoints are not active */
@@ -984,9 +985,9 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		/* Digidesign Mbox 2 */
 		return snd_usb_mbox2_boot_quirk(dev);
 
-	case USB_ID(0x1235, 0x0018):
-		/* Focusrite Novation Twitch */
-		return snd_usb_twitch_boot_quirk(dev);
+	case USB_ID(0x1235, 0x0010): /* Focusrite Novation Saffire 6 USB */
+	case USB_ID(0x1235, 0x0018): /* Focusrite Novation Twitch */
+		return snd_usb_novation_boot_quirk(dev);
 
 	case USB_ID(0x133e, 0x0815):
 		/* Access Music VirusTI Desktop */
