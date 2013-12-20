@@ -2206,6 +2206,12 @@ static int b44_init_one(struct ssb_device *sdev,
 		goto err_out_powerdown;
 	}
 
+	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY) {
+		dev_err(sdev->dev, "No PHY present on this MAC, aborting\n");
+		err = -ENODEV;
+		goto err_out_powerdown;
+	}
+
 	bp->mii_if.dev = dev;
 	bp->mii_if.mdio_read = b44_mii_read;
 	bp->mii_if.mdio_write = b44_mii_write;

@@ -282,6 +282,7 @@ struct ring_info {
 
 #define B44_MCAST_TABLE_SIZE		32
 #define B44_PHY_ADDR_NO_LOCAL_PHY	30 /* no local phy regs */
+#define B44_PHY_ADDR_NO_PHY		31 /* no phy present at all */
 #define B44_MDC_RATIO			5000000
 
 #define	B44_STAT_REG_DECLARE		\
