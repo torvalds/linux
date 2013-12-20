@@ -417,10 +417,8 @@ out:
 static int ti_qspi_runtime_resume(struct device *dev)
 {
 	struct ti_qspi      *qspi;
-	struct spi_master       *master;
 
-	master = dev_get_drvdata(dev);
-	qspi = spi_master_get_devdata(master);
+	qspi = dev_get_drvdata(dev);
 	ti_qspi_restore_ctx(qspi);
 
 	return 0;
