@@ -234,9 +234,17 @@ config GPIO_TS5500
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
-	depends on PPC_OF || MICROBLAZE
+	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
+	select GENERIC_IRQ_CHIP
 	help
-	  Say yes here to support the Xilinx FPGA GPIO device
+	  Say yes here to support the Xilinx AXI/XPS GPIO device
+
+config GPIO_XILINX_PS
+	tristate "Xilinx GPIO PS"
+	depends on ARCH_ZYNQ
+	select GENERIC_IRQ_CHIP
+	help
+	  Say yes here to support Xilinx GPIO PS controller
 
 config GPIO_VR41XX
 	tristate "NEC VR4100 series General-purpose I/O Uint support"
