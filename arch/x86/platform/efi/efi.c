@@ -76,6 +76,9 @@ static __initdata efi_config_table_type_t arch_tables[] = {
 	{NULL_GUID, NULL, NULL},
 };
 
+static void *efi_runtime_map;
+static int nr_efi_runtime_map;
+
 /*
  * Returns 1 if 'facility' is enabled, 0 otherwise.
  */
@@ -824,6 +827,39 @@ static void __init get_systab_virt_addr(efi_memory_desc_t *md)
 	}
 }
 
+static int __init save_runtime_map(void)
+{
+	efi_memory_desc_t *md;
+	void *tmp, *p, *q = NULL;
+	int count = 0;
+
+	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+		md = p;
+
+		if (!(md->attribute & EFI_MEMORY_RUNTIME) ||
+		    (md->type == EFI_BOOT_SERVICES_CODE) ||
+		    (md->type == EFI_BOOT_SERVICES_DATA))
+			continue;
+		tmp = krealloc(q, (count + 1) * memmap.desc_size, GFP_KERNEL);
+		if (!tmp)
+			goto out;
+		q = tmp;
+
+		memcpy(q + count * memmap.desc_size, md, memmap.desc_size);
+		count++;
+	}
+
+	efi_runtime_map = q;
+	nr_efi_runtime_map = count;
+	efi_runtime_map_setup(efi_runtime_map, nr_efi_runtime_map,
+			      boot_params.efi_info.efi_memdesc_size);
+
+	return 0;
+out:
+	kfree(q);
+	return -ENOMEM;
+}
+
 /*
  * Map efi memory ranges for runtime serivce and update new_memmap with virtual
  * addresses.
@@ -849,7 +885,7 @@ static void * __init efi_map_regions(int *count)
 		tmp = krealloc(new_memmap, (*count + 1) * memmap.desc_size,
 			       GFP_KERNEL);
 		if (!tmp)
-			goto out_krealloc;
+			goto out;
 		new_memmap = tmp;
 		memcpy(new_memmap + (*count * memmap.desc_size), md,
 		       memmap.desc_size);
@@ -857,7 +893,7 @@ static void * __init efi_map_regions(int *count)
 	}
 
 	return new_memmap;
-out_krealloc:
+out:
 	kfree(new_memmap);
 	return NULL;
 }
@@ -883,7 +919,7 @@ void __init efi_enter_virtual_mode(void)
 {
 	efi_status_t status;
 	void *new_memmap = NULL;
-	int count = 0;
+	int err, count = 0;
 
 	efi.systab = NULL;
 
@@ -903,6 +939,10 @@ void __init efi_enter_virtual_mode(void)
 		pr_err("Error reallocating memory, EFI runtime non-functional!\n");
 		return;
 	}
+
+	err = save_runtime_map();
+	if (err)
+		pr_err("Error saving runtime map, efi runtime on kexec non-functional!!\n");
 
 	BUG_ON(!efi.systab);
 
