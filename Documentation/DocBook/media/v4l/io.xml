@@ -1005,6 +1005,12 @@ should set this to 0.</entry>
 	    <entry>Buffer for video output overlay (OSD), see <xref
 		linkend="osd" />.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant></entry>
+	    <entry>11</entry>
+	    <entry>Buffer for Software Defined Radio (SDR), see <xref
+		linkend="sdr" />.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
