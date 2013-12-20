@@ -141,6 +141,7 @@ struct fsl_ssi_private {
 	bool imx_ac97;
 	bool use_dma;
 	bool baudclk_locked;
+	bool irq_stats;
 	u8 i2s_mode;
 	spinlock_t baudclk_lock;
 	struct clk *baudclk;
@@ -1224,6 +1225,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		ret = devm_request_irq(&pdev->dev, ssi_private->irq,
 					fsl_ssi_isr, 0, ssi_private->name,
 					ssi_private);
+		ssi_private->irq_stats = true;
 		if (ret < 0) {
 			dev_err(&pdev->dev, "could not claim irq %u\n",
 					ssi_private->irq);
@@ -1274,11 +1276,11 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 			ret = imx_pcm_fiq_init(pdev, &ssi_private->fiq_params);
 			if (ret)
-				goto error_dev;
+				goto error_pcm;
 		} else {
 			ret = imx_pcm_dma_init(pdev);
 			if (ret)
-				goto error_dev;
+				goto error_pcm;
 		}
 	}
 
@@ -1320,6 +1322,10 @@ done:
 	return 0;
 
 error_dai:
+	if (ssi_private->ssi_on_imx && !ssi_private->use_dma)
+		imx_pcm_fiq_exit(pdev);
+
+error_pcm:
 	snd_soc_unregister_component(&pdev->dev);
 
 error_dev:
@@ -1333,7 +1339,8 @@ error_clk:
 	}
 
 error_irqmap:
-	irq_dispose_mapping(ssi_private->irq);
+	if (ssi_private->irq_stats)
+		irq_dispose_mapping(ssi_private->irq);
 
 	return ret;
 }
@@ -1351,7 +1358,8 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 			clk_disable_unprepare(ssi_private->baudclk);
 		clk_disable_unprepare(ssi_private->clk);
 	}
-	irq_dispose_mapping(ssi_private->irq);
+	if (ssi_private->irq_stats)
+		irq_dispose_mapping(ssi_private->irq);
 
 	return 0;
 }
