@@ -41,7 +41,14 @@ enum rsnd_reg {
 	RSND_REG_SSI_MODE1,
 	RSND_REG_BUSIF_MODE,
 	RSND_REG_INT_ENABLE,		/* for Gen2 */
+	RSND_REG_SRC_ROUTE_MODE0,
+	RSND_REG_SRC_SWRSR,
+	RSND_REG_SRC_SRCIR,
 	RSND_REG_SRC_ADINR,
+	RSND_REG_SRC_IFSCR,
+	RSND_REG_SRC_IFSVR,
+	RSND_REG_SRC_SRCCR,
+	RSND_REG_SRC_MNFSR,
 
 	/* ADG */
 	RSND_REG_BRRA,
@@ -50,6 +57,9 @@ enum rsnd_reg {
 	RSND_REG_AUDIO_CLK_SEL0,
 	RSND_REG_AUDIO_CLK_SEL1,
 	RSND_REG_AUDIO_CLK_SEL2,
+	RSND_REG_AUDIO_CLK_SEL3,	/* for Gen1 */
+	RSND_REG_AUDIO_CLK_SEL4,	/* for Gen1 */
+	RSND_REG_AUDIO_CLK_SEL5,	/* for Gen1 */
 
 	/* SSI */
 	RSND_REG_SSICR,
@@ -227,6 +237,10 @@ int rsnd_adg_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 void rsnd_adg_remove(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
+int rsnd_adg_set_convert_clk(struct rsnd_priv *priv,
+			     struct rsnd_mod *mod,
+			     unsigned int src_rate,
+			     unsigned int dst_rate);
 
 /*
  *	R-Car sound priv
@@ -280,6 +294,10 @@ void rsnd_scu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
 bool rsnd_scu_hpbif_is_enable(struct rsnd_mod *mod);
+unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
+				   struct rsnd_mod *ssi_mod,
+				   struct snd_pcm_runtime *runtime);
+
 #define rsnd_scu_nr(priv) ((priv)->scu_nr)
 
 /*

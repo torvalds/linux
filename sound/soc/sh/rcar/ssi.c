@@ -200,7 +200,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 		1, 2, 4, 8, 16, 6, 12,
 	};
 	unsigned int main_rate;
-	unsigned int rate = runtime->rate;
+	unsigned int rate = rsnd_scu_get_ssi_rate(priv, &ssi->mod, runtime);
 
 	/*
 	 * Find best clock, and try to start ADG
