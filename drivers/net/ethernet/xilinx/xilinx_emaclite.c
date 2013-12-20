@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
@@ -44,7 +45,7 @@
 #define XEL_RPLR_OFFSET		0x100C		/* Rx packet length */
 #define XEL_RSR_OFFSET		0x17FC		/* Rx status */
 
-#define XEL_BUFFER_OFFSET	0x0800		/* Next Tx/Rx buffer's offset */
+#define XEL_BUFFER_OFFSET	0x0800		/* Next Tx/Rx buffer offset */
 
 /* MDIO Address Register Bit Masks */
 #define XEL_MDIOADDR_REGADR_MASK  0x0000001F	/* Register Address */
@@ -110,8 +111,8 @@
  * @next_rx_buf_to_use:	next Rx buffer to read from
  * @base_addr:		base address of the Emaclite device
  * @reset_lock:		lock used for synchronization
- * @deferred_skb:	holds an skb (for transmission at a later time) when the
- *			Tx buffer is not free
+ * @deferred_skb:	holds an skb (for transmission at a later time) when
+ *			the Tx buffer is not free
  * @phy_dev:		pointer to the PHY device
  * @phy_node:		pointer to the PHY device node
  * @mii_bus:		pointer to the MII bus
@@ -151,8 +152,8 @@ struct net_local {
  * xemaclite_enable_interrupts - Enable the interrupts for the EmacLite device
  * @drvdata:	Pointer to the Emaclite device private data
  *
- * This function enables the Tx and Rx interrupts for the Emaclite device along
- * with the Global Interrupt Enable.
+ * This function enables the Tx and Rx interrupts for the Emaclite device
+ * along with the Global Interrupt Enable.
  */
 static void xemaclite_enable_interrupts(struct net_local *drvdata)
 {
@@ -174,7 +175,8 @@ static void xemaclite_enable_interrupts(struct net_local *drvdata)
 	}
 
 	/* Enable the Rx interrupts for the first buffer */
-	__raw_writel(XEL_RSR_RECV_IE_MASK, drvdata->base_addr + XEL_RSR_OFFSET);
+	__raw_writel(XEL_RSR_RECV_IE_MASK, drvdata->base_addr +
+			XEL_RSR_OFFSET);
 
 	/* Enable the Rx interrupts for the second Buffer if
 	 * configured in HW */
@@ -188,7 +190,8 @@ static void xemaclite_enable_interrupts(struct net_local *drvdata)
 }
 
 /**
- * xemaclite_disable_interrupts - Disable the interrupts for the EmacLite device
+ * xemaclite_disable_interrupts - Disable the interrupts for the EmacLite
+ * device.
  * @drvdata:	Pointer to the Emaclite device private data
  *
  * This function disables the Tx and Rx interrupts for the Emaclite device,
@@ -209,8 +212,8 @@ static void xemaclite_disable_interrupts(struct net_local *drvdata)
 	/* Disable the Tx interrupts for the second Buffer
 	 * if configured in HW */
 	if (drvdata->tx_ping_pong != 0) {
-		reg_data = __raw_readl(drvdata->base_addr + XEL_BUFFER_OFFSET +
-				   XEL_TSR_OFFSET);
+		reg_data = __raw_readl(drvdata->base_addr +
+			XEL_BUFFER_OFFSET + XEL_TSR_OFFSET);
 		__raw_writel(reg_data & (~XEL_TSR_XMIT_IE_MASK),
 			     drvdata->base_addr + XEL_BUFFER_OFFSET +
 			     XEL_TSR_OFFSET);
@@ -225,8 +228,8 @@ static void xemaclite_disable_interrupts(struct net_local *drvdata)
 	 * if configured in HW */
 	if (drvdata->rx_ping_pong != 0) {
 
-		reg_data = __raw_readl(drvdata->base_addr + XEL_BUFFER_OFFSET +
-				   XEL_RSR_OFFSET);
+		reg_data = __raw_readl(drvdata->base_addr +
+			XEL_BUFFER_OFFSET + XEL_RSR_OFFSET);
 		__raw_writel(reg_data & (~XEL_RSR_RECV_IE_MASK),
 			     drvdata->base_addr + XEL_BUFFER_OFFSET +
 			     XEL_RSR_OFFSET);
@@ -234,7 +237,8 @@ static void xemaclite_disable_interrupts(struct net_local *drvdata)
 }
 
 /**
- * xemaclite_aligned_write - Write from 16-bit aligned to 32-bit aligned address
+ * xemaclite_aligned_write - Write from 16-bit aligned to 32-bit aligned
+ * address.
  * @src_ptr:	Void pointer to the 16-bit aligned source address
  * @dest_ptr:	Pointer to the 32-bit aligned destination address
  * @length:	Number bytes to write from source to destination
@@ -283,8 +287,8 @@ static void xemaclite_aligned_write(void *src_ptr, u32 *dest_ptr,
  * @dest_ptr:	Pointer to the 16-bit aligned destination address
  * @length:	Number bytes to read from source to destination
  *
- * This function reads data from a 32-bit aligned address in the EmacLite device
- * to a 16-bit aligned buffer.
+ * This function reads data from a 32-bit aligned address in the EmacLite
+ * device to a 16-bit aligned buffer.
  */
 static void xemaclite_aligned_read(u32 *src_ptr, u8 *dest_ptr,
 				   unsigned length)
@@ -326,14 +330,14 @@ static void xemaclite_aligned_read(u32 *src_ptr, u8 *dest_ptr,
  * @data:	Pointer to the data to be sent
  * @byte_count:	Total frame size, including header
  *
- * This function checks if the Tx buffer of the Emaclite device is free to send
- * data. If so, it fills the Tx buffer with data for transmission. Otherwise, it
- * returns an error.
+ * This function checks if the Tx buffer of the Emaclite device is free to
+ * send data. If so, it fills the Tx buffer with data for transmission.
+ * Otherwise, it returns an error.
  *
  * Return:	0 upon success or -1 if the buffer(s) are full.
  *
- * Note:	The maximum Tx packet size can not be more than Ethernet header
- *		(14 Bytes) + Maximum MTU (1500 bytes). This is excluding FCS.
+ * Note: The maximum Tx packet size can not be more than Ethernet header
+ *	(14 Bytes) + Maximum MTU (1500 bytes). This is excluding FCS.
  */
 static int xemaclite_send_data(struct net_local *drvdata, u8 *data,
 			       unsigned int byte_count)
@@ -687,7 +691,8 @@ static irqreturn_t xemaclite_interrupt(int irq, void *dev_id)
 	}
 
 	/* Check if the Transmission for the second buffer is completed */
-	tx_status = __raw_readl(base_addr + XEL_BUFFER_OFFSET + XEL_TSR_OFFSET);
+	tx_status = __raw_readl(base_addr + XEL_BUFFER_OFFSET +
+				XEL_TSR_OFFSET);
 	if (((tx_status & XEL_TSR_XMIT_BUSY_MASK) == 0) &&
 		(tx_status & XEL_TSR_XMIT_ACTIVE_MASK) != 0) {
 
@@ -1053,7 +1058,7 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 		 * current transmission is complete */
 		netif_stop_queue(dev);
 		lp->deferred_skb = new_skb;
-		/* Take the time stamp now, since we can't do this in an ISR. */
+		/* Take the time stamp now, since we can't do this in an ISR */
 		skb_tx_timestamp(new_skb);
 		spin_unlock_irqrestore(&lp->reset_lock, flags);
 		return 0;
@@ -1090,7 +1095,7 @@ static void xemaclite_remove_ndev(struct net_device *ndev)
  * This function looks for a property in the device node and returns the value
  * of the property if its found or 0 if the property is not found.
  *
- * Return:	Value of the parameter if the parameter is found, or 0 otherwise
+ * Return: Value of the parameter if the parameter is found, or 0 otherwise
  */
 static bool get_bool(struct platform_device *ofdev, const char *s)
 {
@@ -1172,7 +1177,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 
 	if (mac_address)
 		/* Set the MAC address. */
-		memcpy(ndev->dev_addr, mac_address, ETH_ALEN);
+		memcpy(ndev->dev_addr, mac_address, 6);
 	else
 		dev_warn(dev, "No MAC address found\n");
 

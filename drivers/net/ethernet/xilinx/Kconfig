@@ -27,18 +27,25 @@ config XILINX_EMACLITE
 
 config XILINX_AXI_EMAC
 	tristate "Xilinx 10/100/1000 AXI Ethernet support"
-	depends on MICROBLAZE
+	depends on (MICROBLAZE || ARCH_ZYNQ)
 	select PHYLIB
 	---help---
 	  This driver supports the 10/100/1000 Ethernet from Xilinx for the
 	  AXI bus interface used in Xilinx Virtex FPGAs.
 
-config XILINX_LL_TEMAC
-	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"
-	depends on (PPC || MICROBLAZE)
+config XILINX_PS_EMAC
+	tristate "Xilinx PS tri-speed EMAC support"
+	depends on ARCH_ZYNQ
 	select PHYLIB
 	---help---
-	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
-	  core used in Xilinx Spartan and Virtex FPGAs
+	  This driver supports tri-speed EMAC.
+
+config XILINX_PS_EMAC_HWTSTAMP
+	bool "Generate hardware packet timestamps"
+	depends on XILINX_PS_EMAC
+	default n
+	---help---
+	  Generate hardare packet timestamps. This is to facilitate IEE 1588.
+
 
 endif # NET_VENDOR_XILINX

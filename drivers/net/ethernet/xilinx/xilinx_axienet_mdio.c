@@ -120,7 +120,8 @@ static int axienet_mdio_write(struct mii_bus *bus, int phy_id, int reg,
  * @np:		Pointer to device node
  *
  * returns:	0 on success, -ETIMEDOUT on a timeout, -ENOMEM when
- *		mdiobus_alloc (to allocate memory for mii bus structure) fails.
+ *		mdiobus_alloc (to allocate memory for mii bus structure)
+ *		fails.
  *
  * Sets up the MDIO interface by initializing the MDIO clock and enabling the
  * MDIO interface in hardware. Register the MDIO interface.
@@ -128,11 +129,12 @@ static int axienet_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 {
 	int ret;
-	u32 clk_div, host_clock;
-	u32 *property_p;
+	u32 clk_div;
 	struct mii_bus *bus;
 	struct resource res;
 	struct device_node *np1;
+	/* the ethernet controller device node */
+	struct device_node *npp = NULL;
 
 	/* clk_div can be calculated by deriving it from the equation:
 	 * fMDIO = fHOST / ((1 + clk_div) * 2)
@@ -158,42 +160,50 @@ int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 	 * fHOST can be read from the flattened device tree as property
 	 * "clock-frequency" from the CPU
 	 */
-
-	np1 = of_find_node_by_name(NULL, "cpu");
-	if (!np1) {
-		printk(KERN_WARNING "%s(): Could not find CPU device node.",
-		       __func__);
-		printk(KERN_WARNING "Setting MDIO clock divisor to "
-		       "default %d\n", DEFAULT_CLOCK_DIVISOR);
+	np1 = of_get_parent(lp->phy_node);
+	if (np1)
+		npp = of_get_parent(np1);
+	if (!npp) {
+		dev_warn(lp->dev,
+			"Could not find ethernet controller device node.");
+		dev_warn(lp->dev,
+			 "Setting MDIO clock divisor to default %d\n",
+			DEFAULT_CLOCK_DIVISOR);
 		clk_div = DEFAULT_CLOCK_DIVISOR;
-		goto issue;
+	} else {
+		u32 *property_p;
+
+		property_p = (uint32_t *)of_get_property(npp,
+						"clock-frequency", NULL);
+		if (!property_p) {
+			dev_warn(lp->dev,
+				"Could not find clock ethernet "
+				"controller property.");
+			dev_warn(lp->dev,
+				 "Setting MDIO clock divisor to default %d\n",
+							DEFAULT_CLOCK_DIVISOR);
+			clk_div = DEFAULT_CLOCK_DIVISOR;
+		} else {
+			u32 host_clock = be32_to_cpup(property_p);
+
+			clk_div = (host_clock / (MAX_MDIO_FREQ * 2)) - 1;
+
+			/* If there is any remainder from the division of
+			 * fHOST / (MAX_MDIO_FREQ * 2), then we need to add 1
+			 * to the clock divisor or we will surely be
+			 * above 2.5 MHz
+			 */
+			if (host_clock % (MAX_MDIO_FREQ * 2))
+				clk_div++;
+			dev_dbg(lp->dev,
+				"Setting MDIO clock divisor to %u "
+				"based on %u Hz host clock.\n",
+				clk_div, host_clock);
+		}
 	}
-	property_p = (u32 *) of_get_property(np1, "clock-frequency", NULL);
-	if (!property_p) {
-		printk(KERN_WARNING "%s(): Could not find CPU property: "
-		       "clock-frequency.", __func__);
-		printk(KERN_WARNING "Setting MDIO clock divisor to "
-		       "default %d\n", DEFAULT_CLOCK_DIVISOR);
-		clk_div = DEFAULT_CLOCK_DIVISOR;
-		of_node_put(np1);
-		goto issue;
-	}
 
-	host_clock = be32_to_cpup(property_p);
-	clk_div = (host_clock / (MAX_MDIO_FREQ * 2)) - 1;
-	/* If there is any remainder from the division of
-	 * fHOST / (MAX_MDIO_FREQ * 2), then we need to add
-	 * 1 to the clock divisor or we will surely be above 2.5 MHz */
-	if (host_clock % (MAX_MDIO_FREQ * 2))
-		clk_div++;
-
-	printk(KERN_DEBUG "%s(): Setting MDIO clock divisor to %u based "
-	       "on %u Hz host clock.\n", __func__, clk_div, host_clock);
-
-	of_node_put(np1);
-issue:
-	axienet_iow(lp, XAE_MDIO_MC_OFFSET,
-		    (((u32) clk_div) | XAE_MDIO_MC_MDIOEN_MASK));
+	axienet_iow(lp, XAE_MDIO_MC_OFFSET, (((u32)clk_div) |
+						XAE_MDIO_MC_MDIOEN_MASK));
 
 	ret = axienet_mdio_wait_until_ready(lp);
 	if (ret < 0)
@@ -203,8 +213,7 @@ issue:
 	if (!bus)
 		return -ENOMEM;
 
-	np1 = of_get_parent(lp->phy_node);
-	of_address_to_resource(np1, 0, &res);
+	of_address_to_resource(npp, 0, &res);
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%.8llx",
 		 (unsigned long long) res.start);
 
@@ -233,7 +242,6 @@ issue:
 void axienet_mdio_teardown(struct axienet_local *lp)
 {
 	mdiobus_unregister(lp->mii_bus);
-	kfree(lp->mii_bus->irq);
 	mdiobus_free(lp->mii_bus);
 	lp->mii_bus = NULL;
 }

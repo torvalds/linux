@@ -9,18 +9,19 @@
 #define XILINX_AXIENET_H
 
 #include <linux/netdevice.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/if_vlan.h>
 
 /* Packet size info */
 #define XAE_HDR_SIZE			14 /* Size of Ethernet header */
-#define XAE_HDR_VLAN_SIZE		18 /* Size of an Ethernet hdr + VLAN */
 #define XAE_TRL_SIZE			 4 /* Size of Ethernet trailer (FCS) */
 #define XAE_MTU			      1500 /* Max MTU of an Ethernet frame */
 #define XAE_JUMBO_MTU		      9000 /* Max MTU of a jumbo Eth. frame */
 
 #define XAE_MAX_FRAME_SIZE	 (XAE_MTU + XAE_HDR_SIZE + XAE_TRL_SIZE)
-#define XAE_MAX_VLAN_FRAME_SIZE  (XAE_MTU + XAE_HDR_VLAN_SIZE + XAE_TRL_SIZE)
+#define XAE_MAX_VLAN_FRAME_SIZE  (XAE_MTU + VLAN_ETH_HLEN + XAE_TRL_SIZE)
 #define XAE_MAX_JUMBO_FRAME_SIZE (XAE_JUMBO_MTU + XAE_HDR_SIZE + XAE_TRL_SIZE)
 
 /* Configuration options */
@@ -66,20 +67,20 @@
 
 /* Axi DMA Register definitions */
 
-#define XAXIDMA_TX_CR_OFFSET	0x00000000 /* Channel control */
-#define XAXIDMA_TX_SR_OFFSET	0x00000004 /* Status */
-#define XAXIDMA_TX_CDESC_OFFSET	0x00000008 /* Current descriptor pointer */
-#define XAXIDMA_TX_TDESC_OFFSET	0x00000010 /* Tail descriptor pointer */
+#define XAXIDMA_TX_CR_OFFSET    0x00000000 /* Channel control */
+#define XAXIDMA_TX_SR_OFFSET    0x00000004 /* Status */
+#define XAXIDMA_TX_CDESC_OFFSET 0x00000008 /* Current descriptor pointer */
+#define XAXIDMA_TX_TDESC_OFFSET 0x00000010 /* Tail descriptor pointer */
 
-#define XAXIDMA_RX_CR_OFFSET	0x00000030 /* Channel control */
-#define XAXIDMA_RX_SR_OFFSET	0x00000034 /* Status */
-#define XAXIDMA_RX_CDESC_OFFSET	0x00000038 /* Current descriptor pointer */
-#define XAXIDMA_RX_TDESC_OFFSET	0x00000040 /* Tail descriptor pointer */
+#define XAXIDMA_RX_CR_OFFSET    0x00000030 /* Channel control */
+#define XAXIDMA_RX_SR_OFFSET    0x00000034 /* Status */
+#define XAXIDMA_RX_CDESC_OFFSET 0x00000038 /* Current descriptor pointer */
+#define XAXIDMA_RX_TDESC_OFFSET 0x00000040 /* Tail descriptor pointer */
 
-#define XAXIDMA_CR_RUNSTOP_MASK	0x00000001 /* Start/stop DMA channel */
-#define XAXIDMA_CR_RESET_MASK	0x00000004 /* Reset DMA engine */
+#define XAXIDMA_CR_RUNSTOP_MASK 0x00000001 /* Start/stop DMA channel */
+#define XAXIDMA_CR_RESET_MASK   0x00000004 /* Reset DMA engine */
 
-#define XAXIDMA_BD_NDESC_OFFSET		0x00 /* Next descriptor pointer */
+#define XAXIDMA_BD_NDESC_OFFSET	0x00 /* Next descriptor pointer */
 #define XAXIDMA_BD_BUFA_OFFSET		0x08 /* Buffer address */
 #define XAXIDMA_BD_CTRL_LEN_OFFSET	0x18 /* Control/buffer length */
 #define XAXIDMA_BD_STS_OFFSET		0x1C /* Status */
@@ -93,8 +94,8 @@
 #define XAXIDMA_BD_HAS_DRE_OFFSET	0x3C /* Whether has DRE */
 
 #define XAXIDMA_BD_HAS_DRE_SHIFT	8 /* Whether has DRE shift */
-#define XAXIDMA_BD_HAS_DRE_MASK		0xF00 /* Whether has DRE mask */
-#define XAXIDMA_BD_WORDLEN_MASK		0xFF /* Whether has DRE mask */
+#define XAXIDMA_BD_HAS_DRE_MASK	0xF00 /* Whether has DRE mask */
+#define XAXIDMA_BD_WORDLEN_MASK	0xFF /* Whether has DRE mask */
 
 #define XAXIDMA_BD_CTRL_LENGTH_MASK	0x007FFFFF /* Requested len */
 #define XAXIDMA_BD_CTRL_TXSOF_MASK	0x08000000 /* First tx packet */
@@ -130,7 +131,7 @@
 #define XAXIDMA_BD_STS_ALL_ERR_MASK	0x70000000 /* All errors */
 #define XAXIDMA_BD_STS_RXSOF_MASK	0x08000000 /* First rx pkt */
 #define XAXIDMA_BD_STS_RXEOF_MASK	0x04000000 /* Last rx pkt */
-#define XAXIDMA_BD_STS_ALL_MASK		0xFC000000 /* All status bits */
+#define XAXIDMA_BD_STS_ALL_MASK	0xFC000000 /* All status bits */
 
 #define XAXIDMA_BD_MINIMUM_ALIGNMENT	0x40
 
@@ -158,7 +159,7 @@
 #define XAE_MDIO_MCR_OFFSET	0x00000504 /* MII Management Control */
 #define XAE_MDIO_MWD_OFFSET	0x00000508 /* MII Management Write Data */
 #define XAE_MDIO_MRD_OFFSET	0x0000050C /* MII Management Read Data */
-#define XAE_MDIO_MIS_OFFSET	0x00000600 /* MII Management Interrupt Status */
+#define XAE_MDIO_MIS_OFFSET	0x00000600 /* MII Management Int. Status */
 #define XAE_MDIO_MIP_OFFSET	0x00000620 /* MII Mgmt Interrupt Pending
 					    * register offset */
 #define XAE_MDIO_MIE_OFFSET	0x00000640 /* MII Management Interrupt Enable
@@ -180,16 +181,16 @@
 						    * destination address */
 #define XAE_RAF_BCSTREJ_MASK		0x00000004 /* Reject receive broadcast
 						    * destination address */
-#define XAE_RAF_TXVTAGMODE_MASK		0x00000018 /* Tx VLAN TAG mode */
-#define XAE_RAF_RXVTAGMODE_MASK		0x00000060 /* Rx VLAN TAG mode */
+#define XAE_RAF_TXVTAGMODE_MASK	0x00000018 /* Tx VLAN TAG mode */
+#define XAE_RAF_RXVTAGMODE_MASK	0x00000060 /* Rx VLAN TAG mode */
 #define XAE_RAF_TXVSTRPMODE_MASK	0x00000180 /* Tx VLAN STRIP mode */
 #define XAE_RAF_RXVSTRPMODE_MASK	0x00000600 /* Rx VLAN STRIP mode */
-#define XAE_RAF_NEWFNCENBL_MASK		0x00000800 /* New function mode */
+#define XAE_RAF_NEWFNCENBL_MASK	0x00000800 /* New function mode */
 #define XAE_RAF_EMULTIFLTRENBL_MASK	0x00001000 /* Exteneded Multicast
 						    * Filtering mode
 						    */
 #define XAE_RAF_STATSRST_MASK		0x00002000 /* Stats. Counter Reset */
-#define XAE_RAF_RXBADFRMEN_MASK		0x00004000 /* Recv Bad Frame Enable */
+#define XAE_RAF_RXBADFRMEN_MASK	0x00004000 /* Recv Bad Frame Enable */
 #define XAE_RAF_TXVTAGMODE_SHIFT	3 /* Tx Tag mode shift bits */
 #define XAE_RAF_RXVTAGMODE_SHIFT	5 /* Rx Tag mode shift bits */
 #define XAE_RAF_TXVSTRPMODE_SHIFT	7 /* Tx strip mode shift bits*/
@@ -273,22 +274,22 @@
 #define XAE_PHYC_SGMIILINKSPEED_MASK	0xC0000000 /* SGMII link speed mask*/
 #define XAE_PHYC_RGMIILINKSPEED_MASK	0x0000000C /* RGMII link speed */
 #define XAE_PHYC_RGMIIHD_MASK		0x00000002 /* RGMII Half-duplex */
-#define XAE_PHYC_RGMIILINK_MASK		0x00000001 /* RGMII link status */
+#define XAE_PHYC_RGMIILINK_MASK	0x00000001 /* RGMII link status */
 #define XAE_PHYC_RGLINKSPD_10		0x00000000 /* RGMII link 10 Mbit */
 #define XAE_PHYC_RGLINKSPD_100		0x00000004 /* RGMII link 100 Mbit */
-#define XAE_PHYC_RGLINKSPD_1000		0x00000008 /* RGMII link 1000 Mbit */
+#define XAE_PHYC_RGLINKSPD_1000	0x00000008 /* RGMII link 1000 Mbit */
 #define XAE_PHYC_SGLINKSPD_10		0x00000000 /* SGMII link 10 Mbit */
 #define XAE_PHYC_SGLINKSPD_100		0x40000000 /* SGMII link 100 Mbit */
-#define XAE_PHYC_SGLINKSPD_1000		0x80000000 /* SGMII link 1000 Mbit */
+#define XAE_PHYC_SGLINKSPD_1000	0x80000000 /* SGMII link 1000 Mbit */
 
 /* Bit masks for Axi Ethernet MDIO interface MC register */
-#define XAE_MDIO_MC_MDIOEN_MASK		0x00000040 /* MII management enable */
+#define XAE_MDIO_MC_MDIOEN_MASK	0x00000040 /* MII management enable */
 #define XAE_MDIO_MC_CLOCK_DIVIDE_MAX	0x3F	   /* Maximum MDIO divisor */
 
 /* Bit masks for Axi Ethernet MDIO interface MCR register */
-#define XAE_MDIO_MCR_PHYAD_MASK		0x1F000000 /* Phy Address Mask */
+#define XAE_MDIO_MCR_PHYAD_MASK	0x1F000000 /* Phy Address Mask */
 #define XAE_MDIO_MCR_PHYAD_SHIFT	24	   /* Phy Address Shift */
-#define XAE_MDIO_MCR_REGAD_MASK		0x001F0000 /* Reg Address Mask */
+#define XAE_MDIO_MCR_REGAD_MASK	0x001F0000 /* Reg Address Mask */
 #define XAE_MDIO_MCR_REGAD_SHIFT	16	   /* Reg Address Shift */
 #define XAE_MDIO_MCR_OP_MASK		0x0000C000 /* Operation Code Mask */
 #define XAE_MDIO_MCR_OP_SHIFT		13	   /* Operation Code Shift */
@@ -312,13 +313,13 @@
 
 #define XAE_MDIO_DIV_DFT		29 /* Default MDIO clock divisor */
 
-/* Defines for different options for C_PHY_TYPE parameter in Axi Ethernet IP */
+/* Defines different options for C_PHY_TYPE parameter in Axi Ethernet IP */
 #define XAE_PHY_TYPE_MII		0
 #define XAE_PHY_TYPE_GMII		1
 #define XAE_PHY_TYPE_RGMII_1_3		2
 #define XAE_PHY_TYPE_RGMII_2_0		3
 #define XAE_PHY_TYPE_SGMII		4
-#define XAE_PHY_TYPE_1000BASE_X		5
+#define XAE_PHY_TYPE_1000BASE_X	5
 
 #define XAE_MULTICAST_CAM_TABLE_NUM	4 /* Total number of entries in the
 					   * hardware multicast table. */
@@ -336,6 +337,14 @@
 #define XAE_IP_TCP_CSUM_VALIDATED	0x00000002
 
 #define DELAY_OF_ONE_MILLISEC		1000
+
+/* Read/Write access to the registers */
+#ifndef out_be32
+#ifdef CONFIG_ARCH_ZYNQ
+#define in_be32(offset)		__raw_readl(offset)
+#define out_be32(offset, val)	__raw_writel(val, offset)
+#endif
+#endif
 
 /**
  * struct axidma_bd - Axi Dma buffer descriptor layout
@@ -408,8 +417,9 @@ struct axidma_bd {
  *		  Txed/Rxed in the existing hardware. If jumbo option is
  *		  supported, the maximum frame size would be 9k. Else it is
  *		  1522 bytes (assuming support for basic VLAN)
- * @jumbo_support: Stores hardware configuration for jumbo support. If hardware
- *		   can handle jumbo packets, this entry will be 1, else 0.
+ * @jumbo_support: Stores hardware configuration for jumbo support. If
+ *		hardware can handle jumbo packets, this entry will be 1,
+ *		else 0.
  */
 struct axienet_local {
 	struct net_device *ndev;
@@ -434,7 +444,7 @@ struct axienet_local {
 	u32 temac_type;
 	u32 phy_type;
 
-	u32 options;			/* Current options word */
+	u32 options; /* Current options word */
 	u32 last_link;
 	u32 features;
 
@@ -448,7 +458,7 @@ struct axienet_local {
 	u32 rx_bd_ci;
 
 	u32 max_frm_size;
-	u32 jumbo_support;
+	u32 rxmem;
 
 	int csum_offload_on_tx_path;
 	int csum_offload_on_rx_path;

@@ -63,6 +63,7 @@ int temac_mdio_setup(struct temac_local *lp, struct device_node *np)
 	int clk_div;
 	int rc, size;
 	struct resource res;
+	struct device_node *np1 = of_get_parent(lp->phy_node);
 
 	/* Calculate a reasonable divisor for the clock rate */
 	clk_div = 0x3f; /* worst-case default setting */
@@ -85,7 +86,7 @@ int temac_mdio_setup(struct temac_local *lp, struct device_node *np)
 	if (!bus)
 		return -ENOMEM;
 
-	of_address_to_resource(np, 0, &res);
+	of_address_to_resource(np1, 0, &res);
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%.8llx",
 		 (unsigned long long)res.start);
 	bus->priv = lp;
@@ -97,7 +98,7 @@ int temac_mdio_setup(struct temac_local *lp, struct device_node *np)
 
 	lp->mii_bus = bus;
 
-	rc = of_mdiobus_register(bus, np);
+	rc = of_mdiobus_register(bus, np1);
 	if (rc)
 		goto err_register;
 
