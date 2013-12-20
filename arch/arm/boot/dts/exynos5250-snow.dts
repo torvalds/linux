@@ -85,7 +85,7 @@
 				        keypad,num-rows = <8>;
 				        keypad,num-columns = <13>;
 				        google,needs-ghost-filter;
-					linux,keymap = <0x0001003a	/* CAPSLK */
+					linux,keymap = <0x0001007d	/* L_META */
 							0x0002003b	/* F1 */
 							0x00030030	/* B */
 							0x00040044	/* F10 */
