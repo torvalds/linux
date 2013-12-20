@@ -41,6 +41,7 @@
 #include "vfs.h"
 #include "current_stateid.h"
 #include "netns.h"
+#include "acl.h"
 
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 #include <linux/security.h>

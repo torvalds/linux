@@ -37,8 +37,13 @@
 #include <linux/slab.h>
 #include <linux/nfs_fs.h>
 #include <linux/export.h>
+#include "nfsfh.h"
 #include "acl.h"
+#include "vfs.h"
 
+#define NFS4_ACL_TYPE_DEFAULT	0x01
+#define NFS4_ACL_DIR		0x02
+#define NFS4_ACL_OWNER		0x04
 
 /* mode bit translations: */
 #define NFS4_READ_MODE (NFS4_ACE_READ_DATA)
@@ -130,36 +135,50 @@ static short ace2type(struct nfs4_ace *);
 static void _posix_to_nfsv4_one(struct posix_acl *, struct nfs4_acl *,
 				unsigned int);
 
-struct nfs4_acl *
-nfs4_acl_posix_to_nfsv4(struct posix_acl *pacl, struct posix_acl *dpacl,
-			unsigned int flags)
+int
+nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
+		struct nfs4_acl **acl)
 {
-	struct nfs4_acl *acl;
+	struct inode *inode = dentry->d_inode;
+	int error = 0;
+	struct posix_acl *pacl = NULL, *dpacl = NULL;
+	unsigned int flags = 0;
 	int size = 0;
 
-	if (pacl) {
-		if (posix_acl_valid(pacl) < 0)
-			return ERR_PTR(-EINVAL);
-		size += 2*pacl->a_count;
-	}
-	if (dpacl) {
-		if (posix_acl_valid(dpacl) < 0)
-			return ERR_PTR(-EINVAL);
-		size += 2*dpacl->a_count;
+	pacl = get_acl(inode, ACL_TYPE_ACCESS);
+	if (!pacl) {
+		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+		if (IS_ERR(pacl))
+			return PTR_ERR(pacl);
+		/* allocate for worst case: one (deny, allow) pair each: */
+		size += 2 * pacl->a_count;
 	}
 
-	/* Allocate for worst case: one (deny, allow) pair each: */
-	acl = nfs4_acl_new(size);
-	if (acl == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (S_ISDIR(inode->i_mode)) {
+		flags = NFS4_ACL_DIR;
+		dpacl = get_acl(inode, ACL_TYPE_DEFAULT);
+		if (dpacl)
+			size += 2 * dpacl->a_count;
+	} else {
+		dpacl = NULL;
+	}
+
+	*acl = nfs4_acl_new(size);
+	if (*acl == NULL) {
+		error = -ENOMEM;
+		goto out;
+	}
 
 	if (pacl)
-		_posix_to_nfsv4_one(pacl, acl, flags & ~NFS4_ACL_TYPE_DEFAULT);
+		_posix_to_nfsv4_one(pacl, *acl, flags & ~NFS4_ACL_TYPE_DEFAULT);
 
 	if (dpacl)
-		_posix_to_nfsv4_one(dpacl, acl, flags | NFS4_ACL_TYPE_DEFAULT);
+		_posix_to_nfsv4_one(dpacl, *acl, flags | NFS4_ACL_TYPE_DEFAULT);
 
-	return acl;
+ out:
+	posix_acl_release(pacl);
+	posix_acl_release(dpacl);
+	return error;
 }
 
 struct posix_acl_summary {
@@ -719,8 +738,9 @@ static void process_one_v4_ace(struct posix_acl_state *state,
 	}
 }
 
-int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *acl, struct posix_acl **pacl,
-			    struct posix_acl **dpacl, unsigned int flags)
+static int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *acl,
+		struct posix_acl **pacl, struct posix_acl **dpacl,
+		unsigned int flags)
 {
 	struct posix_acl_state effective_acl_state, default_acl_state;
 	struct nfs4_ace *ace;
@@ -780,6 +800,57 @@ out_estate:
 	return ret;
 }
 
+__be32
+nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		struct nfs4_acl *acl)
+{
+	__be32 error;
+	int host_error;
+	struct dentry *dentry;
+	struct inode *inode;
+	struct posix_acl *pacl = NULL, *dpacl = NULL;
+	unsigned int flags = 0;
+
+	/* Get inode */
+	error = fh_verify(rqstp, fhp, 0, NFSD_MAY_SATTR);
+	if (error)
+		return error;
+
+	dentry = fhp->fh_dentry;
+	inode = dentry->d_inode;
+
+	if (!inode->i_op->set_acl || !IS_POSIXACL(inode))
+		return nfserr_attrnotsupp;
+
+	if (S_ISDIR(inode->i_mode))
+		flags = NFS4_ACL_DIR;
+
+	host_error = nfs4_acl_nfsv4_to_posix(acl, &pacl, &dpacl, flags);
+	if (host_error == -EINVAL)
+		return nfserr_attrnotsupp;
+	if (host_error < 0)
+		goto out_nfserr;
+
+	host_error = inode->i_op->set_acl(inode, pacl, ACL_TYPE_ACCESS);
+	if (host_error < 0)
+		goto out_release;
+
+	if (S_ISDIR(inode->i_mode)) {
+		host_error = inode->i_op->set_acl(inode, dpacl,
+						  ACL_TYPE_DEFAULT);
+	}
+
+out_release:
+	posix_acl_release(pacl);
+	posix_acl_release(dpacl);
+out_nfserr:
+	if (host_error == -EOPNOTSUPP)
+		return nfserr_attrnotsupp;
+	else
+		return nfserrno(host_error);
+}
+
+
 static short
 ace2type(struct nfs4_ace *ace)
 {
@@ -797,9 +868,6 @@ ace2type(struct nfs4_ace *ace)
 	BUG();
 	return -1;
 }
-
-EXPORT_SYMBOL(nfs4_acl_posix_to_nfsv4);
-EXPORT_SYMBOL(nfs4_acl_nfsv4_to_posix);
 
 struct nfs4_acl *
 nfs4_acl_new(int n)
@@ -862,7 +930,3 @@ nfs4_acl_write_who(int who, char *p)
 	BUG();
 	return -1;
 }
-
-EXPORT_SYMBOL(nfs4_acl_new);
-EXPORT_SYMBOL(nfs4_acl_get_whotype);
-EXPORT_SYMBOL(nfs4_acl_write_who);
