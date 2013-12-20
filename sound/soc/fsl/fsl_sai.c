@@ -108,18 +108,14 @@ static int fsl_sai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq,
 					FSL_FMT_TRANSMITTER);
 	if (ret) {
-		dev_err(cpu_dai->dev,
-				"Cannot set SAI's transmitter sysclk: %d\n",
-				ret);
+		dev_err(cpu_dai->dev, "Cannot set tx sysclk: %d\n", ret);
 		goto err_clk;
 	}
 
 	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq,
 					FSL_FMT_RECEIVER);
 	if (ret) {
-		dev_err(cpu_dai->dev,
-				"Cannot set SAI's receiver sysclk: %d\n",
-				ret);
+		dev_err(cpu_dai->dev, "Cannot set rx sysclk: %d\n", ret);
 		goto err_clk;
 	}
 
@@ -220,17 +216,13 @@ static int fsl_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, FSL_FMT_TRANSMITTER);
 	if (ret) {
-		dev_err(cpu_dai->dev,
-				"Cannot set SAI's transmitter format: %d\n",
-				ret);
+		dev_err(cpu_dai->dev, "Cannot set tx format: %d\n", ret);
 		goto err_clk;
 	}
 
 	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, FSL_FMT_RECEIVER);
 	if (ret) {
-		dev_err(cpu_dai->dev,
-				"Cannot set SAI's receiver format: %d\n",
-				ret);
+		dev_err(cpu_dai->dev, "Cannot set rx format: %d\n", ret);
 		goto err_clk;
 	}
 
