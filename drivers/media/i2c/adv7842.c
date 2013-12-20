@@ -2541,9 +2541,10 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 	hdmi_write_and_or(sd, 0x1a, 0xf1, 0x08); /* Wait 1 s before unmute */
 
 	/* Drive strength */
-	io_write_and_or(sd, 0x14, 0xc0, pdata->drive_strength.data<<4 |
-			pdata->drive_strength.clock<<2 |
-			pdata->drive_strength.sync);
+	io_write_and_or(sd, 0x14, 0xc0,
+			pdata->dr_str_data << 4 |
+			pdata->dr_str_clk << 2 |
+			pdata->dr_str_sync);
 
 	/* HDMI free run */
 	cp_write_and_or(sd, 0xba, 0xfc, pdata->hdmi_free_run_enable |

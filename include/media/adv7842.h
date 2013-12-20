@@ -108,6 +108,13 @@ enum adv7842_select_input {
 	ADV7842_SELECT_SDP_YC,
 };
 
+enum adv7842_drive_strength {
+	ADV7842_DR_STR_LOW = 0,
+	ADV7842_DR_STR_MEDIUM_LOW = 1,
+	ADV7842_DR_STR_MEDIUM_HIGH = 2,
+	ADV7842_DR_STR_HIGH = 3,
+};
+
 struct adv7842_sdp_csc_coeff {
 	bool manual;
 	uint16_t scaling;
@@ -186,11 +193,9 @@ struct adv7842_platform_data {
 	unsigned output_bus_lsb_to_msb:1;
 
 	/* IO register 0x14 */
-	struct {
-		unsigned data:2;
-		unsigned clock:2;
-		unsigned sync:2;
-	} drive_strength;
+	enum adv7842_drive_strength dr_str_data;
+	enum adv7842_drive_strength dr_str_clk;
+	enum adv7842_drive_strength dr_str_sync;
 
 	/*
 	 * IO register 0x19: Adjustment to the LLC DLL phase in
