@@ -47,6 +47,8 @@ void __init efi_map_region(efi_memory_desc_t *md)
 	old_map_region(md);
 }
 
+void __init efi_map_region_fixed(efi_memory_desc_t *md) {}
+
 void efi_call_phys_prelog(void)
 {
 	struct desc_ptr gdt_descr;
