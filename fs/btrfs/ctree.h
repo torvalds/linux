@@ -3838,7 +3838,7 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 
 static inline void assfail(char *expr, char *file, int line)
 {
-	printk(KERN_ERR "BTRFS assertion failed: %s, file: %s, line: %d",
+	pr_err("BTRFS: assertion failed: %s, file: %s, line: %d",
 	       expr, file, line);
 	BUG();
 }
@@ -3876,7 +3876,7 @@ static inline void __btrfs_set_fs_incompat(struct btrfs_fs_info *fs_info,
 		if (!(features & flag)) {
 			features |= flag;
 			btrfs_set_super_incompat_flags(disk_super, features);
-			printk(KERN_INFO "btrfs: setting %llu feature flag\n",
+			btrfs_info(fs_info, "setting %llu feature flag",
 					 flag);
 		}
 		spin_unlock(&fs_info->super_lock);

@@ -59,7 +59,7 @@ void btrfs_leak_debug_check(void)
 
 	while (!list_empty(&states)) {
 		state = list_entry(states.next, struct extent_state, leak_list);
-		printk(KERN_ERR "btrfs state leak: start %llu end %llu "
+		printk(KERN_ERR "BTRFS: state leak: start %llu end %llu "
 		       "state %lu in tree %p refs %d\n",
 		       state->start, state->end, state->state, state->tree,
 		       atomic_read(&state->refs));
@@ -69,7 +69,7 @@ void btrfs_leak_debug_check(void)
 
 	while (!list_empty(&buffers)) {
 		eb = list_entry(buffers.next, struct extent_buffer, leak_list);
-		printk(KERN_ERR "btrfs buffer leak start %llu len %lu "
+		printk(KERN_ERR "BTRFS: buffer leak start %llu len %lu "
 		       "refs %d\n",
 		       eb->start, eb->len, atomic_read(&eb->refs));
 		list_del(&eb->leak_list);
@@ -92,7 +92,7 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 	isize = i_size_read(inode);
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		printk_ratelimited(KERN_DEBUG
-		    "btrfs: %s: ino %llu isize %llu odd range [%llu,%llu]\n",
+		    "BTRFS: %s: ino %llu isize %llu odd range [%llu,%llu]\n",
 				caller, btrfs_ino(inode), isize, start, end);
 	}
 }
@@ -423,7 +423,7 @@ static int insert_state(struct extent_io_tree *tree,
 	struct rb_node *node;
 
 	if (end < start)
-		WARN(1, KERN_ERR "btrfs end < start %llu %llu\n",
+		WARN(1, KERN_ERR "BTRFS: end < start %llu %llu\n",
 		       end, start);
 	state->start = start;
 	state->end = end;
@@ -434,7 +434,7 @@ static int insert_state(struct extent_io_tree *tree,
 	if (node) {
 		struct extent_state *found;
 		found = rb_entry(node, struct extent_state, rb_node);
-		printk(KERN_ERR "btrfs found node %llu %llu on insert of "
+		printk(KERN_ERR "BTRFS: found node %llu %llu on insert of "
 		       "%llu %llu\n",
 		       found->start, found->end, start, end);
 		return -EEXIST;
@@ -2054,9 +2054,10 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 		return -EIO;
 	}
 
-	printk_ratelimited_in_rcu(KERN_INFO "btrfs read error corrected: ino %lu off %llu "
-		      "(dev %s sector %llu)\n", page->mapping->host->i_ino,
-		      start, rcu_str_deref(dev->name), sector);
+	printk_ratelimited_in_rcu(KERN_INFO
+			"BTRFS: read error corrected: ino %lu off %llu "
+		    "(dev %s sector %llu)\n", page->mapping->host->i_ino,
+		    start, rcu_str_deref(dev->name), sector);
 
 	bio_put(bio);
 	return 0;
@@ -2386,11 +2387,17 @@ static void end_bio_extent_writepage(struct bio *bio, int err)
 		 * advance bv_offset and adjust bv_len to compensate.
 		 * Print a warning for nonzero offsets, and an error
 		 * if they don't add up to a full page.  */
-		if (bvec->bv_offset || bvec->bv_len != PAGE_CACHE_SIZE)
-			printk("%s page write in btrfs with offset %u and length %u\n",
-			       bvec->bv_offset + bvec->bv_len != PAGE_CACHE_SIZE
-			       ? KERN_ERR "partial" : KERN_INFO "incomplete",
-			       bvec->bv_offset, bvec->bv_len);
+		if (bvec->bv_offset || bvec->bv_len != PAGE_CACHE_SIZE) {
+			if (bvec->bv_offset + bvec->bv_len != PAGE_CACHE_SIZE)
+				btrfs_err(BTRFS_I(page->mapping->host)->root->fs_info,
+				   "partial page write in btrfs with offset %u and length %u",
+					bvec->bv_offset, bvec->bv_len);
+			else
+				btrfs_info(BTRFS_I(page->mapping->host)->root->fs_info,
+				   "incomplete page write in btrfs with offset %u and "
+				   "length %u",
+					bvec->bv_offset, bvec->bv_len);
+		}
 
 		start = page_offset(page);
 		end = start + bvec->bv_offset + bvec->bv_len - 1;
@@ -2463,11 +2470,17 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		 * advance bv_offset and adjust bv_len to compensate.
 		 * Print a warning for nonzero offsets, and an error
 		 * if they don't add up to a full page.  */
-		if (bvec->bv_offset || bvec->bv_len != PAGE_CACHE_SIZE)
-			printk("%s page read in btrfs with offset %u and length %u\n",
-			       bvec->bv_offset + bvec->bv_len != PAGE_CACHE_SIZE
-			       ? KERN_ERR "partial" : KERN_INFO "incomplete",
-			       bvec->bv_offset, bvec->bv_len);
+		if (bvec->bv_offset || bvec->bv_len != PAGE_CACHE_SIZE) {
+			if (bvec->bv_offset + bvec->bv_len != PAGE_CACHE_SIZE)
+				btrfs_err(BTRFS_I(page->mapping->host)->root->fs_info,
+				   "partial page read in btrfs with offset %u and length %u",
+					bvec->bv_offset, bvec->bv_len);
+			else
+				btrfs_info(BTRFS_I(page->mapping->host)->root->fs_info,
+				   "incomplete page read in btrfs with offset %u and "
+				   "length %u",
+					bvec->bv_offset, bvec->bv_len);
+		}
 
 		start = page_offset(page);
 		end = start + bvec->bv_offset + bvec->bv_len - 1;
@@ -3327,8 +3340,8 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 			set_range_writeback(tree, cur, cur + iosize - 1);
 			if (!PageWriteback(page)) {
-				printk(KERN_ERR "btrfs warning page %lu not "
-				       "writeback, cur %llu end %llu\n",
+				btrfs_err(BTRFS_I(inode)->root->fs_info,
+					   "page %lu not writeback, cur %llu end %llu",
 				       page->index, cur, end);
 			}
 
@@ -5149,12 +5162,12 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	unsigned long src_i;
 
 	if (src_offset + len > dst->len) {
-		printk(KERN_ERR "btrfs memmove bogus src_offset %lu move "
+		printk(KERN_ERR "BTRFS: memmove bogus src_offset %lu move "
 		       "len %lu dst len %lu\n", src_offset, len, dst->len);
 		BUG_ON(1);
 	}
 	if (dst_offset + len > dst->len) {
-		printk(KERN_ERR "btrfs memmove bogus dst_offset %lu move "
+		printk(KERN_ERR "BTRFS: memmove bogus dst_offset %lu move "
 		       "len %lu dst len %lu\n", dst_offset, len, dst->len);
 		BUG_ON(1);
 	}
@@ -5196,12 +5209,12 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	unsigned long src_i;
 
 	if (src_offset + len > dst->len) {
-		printk(KERN_ERR "btrfs memmove bogus src_offset %lu move "
+		printk(KERN_ERR "BTRFS: memmove bogus src_offset %lu move "
 		       "len %lu len %lu\n", src_offset, len, dst->len);
 		BUG_ON(1);
 	}
 	if (dst_offset + len > dst->len) {
-		printk(KERN_ERR "btrfs memmove bogus dst_offset %lu move "
+		printk(KERN_ERR "BTRFS: memmove bogus dst_offset %lu move "
 		       "len %lu len %lu\n", dst_offset, len, dst->len);
 		BUG_ON(1);
 	}

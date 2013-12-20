@@ -1234,7 +1234,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	if (!backref_ctx->found_itself) {
 		/* found a bug in backref code? */
 		ret = -EIO;
-		printk(KERN_ERR "btrfs: ERROR did not find backref in "
+		btrfs_err(sctx->send_root->fs_info, "did not find backref in "
 				"send_root. inode=%llu, offset=%llu, "
 				"disk_byte=%llu found extent=%llu\n",
 				ino, data_offset, disk_byte, found_key.objectid);
@@ -4648,7 +4648,7 @@ static int full_send_tree(struct send_ctx *sctx)
 	spin_unlock(&send_root->root_item_lock);
 
 	if (ctransid != start_ctransid) {
-		WARN(1, KERN_WARNING "btrfs: the root that you're trying to "
+		WARN(1, KERN_WARNING "BTRFS: the root that you're trying to "
 				     "send was modified in between. This is "
 				     "probably a bug.\n");
 		ret = -EIO;

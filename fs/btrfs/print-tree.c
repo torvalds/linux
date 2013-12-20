@@ -154,7 +154,7 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 			    u32 item_size)
 {
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
-		pr_warn("btrfs: uuid item with illegal size %lu!\n",
+		pr_warn("BTRFS: uuid item with illegal size %lu!\n",
 			(unsigned long)item_size);
 		return;
 	}

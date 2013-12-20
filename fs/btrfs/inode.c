@@ -6966,8 +6966,8 @@ static void btrfs_end_dio_bio(struct bio *bio, int err)
 	struct btrfs_dio_private *dip = bio->bi_private;
 
 	if (err) {
-		printk(KERN_ERR "btrfs direct IO failed ino %llu rw %lu "
-		      "sector %#Lx len %u err no %d\n",
+		btrfs_err(BTRFS_I(dip->inode)->root->fs_info,
+			  "direct IO failed ino %llu rw %lu sector %#Lx len %u err no %d",
 		      btrfs_ino(dip->inode), bio->bi_rw,
 		      (unsigned long long)bio->bi_sector, bio->bi_size, err);
 		dip->errors = 1;

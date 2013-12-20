@@ -4245,7 +4245,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 		goto out;
 	}
 
-	printk(KERN_INFO "btrfs: relocating block group %llu flags %llu\n",
+	btrfs_info(extent_root->fs_info, "relocating block group %llu flags %llu",
 	       rc->block_group->key.objectid, rc->block_group->flags);
 
 	ret = btrfs_start_delalloc_roots(fs_info, 0);
@@ -4267,7 +4267,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 		if (rc->extents_found == 0)
 			break;
 
-		printk(KERN_INFO "btrfs: found %llu extents\n",
+		btrfs_info(extent_root->fs_info, "found %llu extents",
 			rc->extents_found);
 
 		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {

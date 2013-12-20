@@ -198,10 +198,10 @@ loop:
 	 */
 	smp_mb();
 	if (!list_empty(&fs_info->tree_mod_seq_list))
-		WARN(1, KERN_ERR "btrfs: tree_mod_seq_list not empty when "
+		WARN(1, KERN_ERR "BTRFS: tree_mod_seq_list not empty when "
 			"creating a fresh transaction\n");
 	if (!RB_EMPTY_ROOT(&fs_info->tree_mod_log))
-		WARN(1, KERN_ERR "btrfs: tree_mod_log rb tree not empty when "
+		WARN(1, KERN_ERR "BTRFS: tree_mod_log rb tree not empty when "
 			"creating a fresh transaction\n");
 	atomic64_set(&fs_info->tree_mod_seq, 0);
 
@@ -1107,7 +1107,7 @@ int btrfs_defrag_root(struct btrfs_root *root)
 			break;
 
 		if (btrfs_defrag_cancelled(root->fs_info)) {
-			printk(KERN_DEBUG "btrfs: defrag_root cancelled\n");
+			pr_debug("BTRFS: defrag_root cancelled\n");
 			ret = -EAGAIN;
 			break;
 		}
@@ -1981,7 +1981,7 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	list_del_init(&root->root_list);
 	spin_unlock(&fs_info->trans_lock);
 
-	pr_debug("btrfs: cleaner removing %llu\n", root->objectid);
+	pr_debug("BTRFS: cleaner removing %llu\n", root->objectid);
 
 	btrfs_kill_all_delayed_nodes(root);
 

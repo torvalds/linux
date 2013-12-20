@@ -347,8 +347,8 @@ static int io_ctl_prepare_pages(struct io_ctl *io_ctl, struct inode *inode,
 			btrfs_readpage(NULL, page);
 			lock_page(page);
 			if (!PageUptodate(page)) {
-				printk(KERN_ERR "btrfs: error reading free "
-				       "space cache\n");
+				btrfs_err(BTRFS_I(inode)->root->fs_info,
+					   "error reading free space cache");
 				io_ctl_drop_pages(io_ctl);
 				return -EIO;
 			}
@@ -405,7 +405,7 @@ static int io_ctl_check_generation(struct io_ctl *io_ctl, u64 generation)
 
 	gen = io_ctl->cur;
 	if (le64_to_cpu(*gen) != generation) {
-		printk_ratelimited(KERN_ERR "btrfs: space cache generation "
+		printk_ratelimited(KERN_ERR "BTRFS: space cache generation "
 				   "(%Lu) does not match inode (%Lu)\n", *gen,
 				   generation);
 		io_ctl_unmap_page(io_ctl);
@@ -463,7 +463,7 @@ static int io_ctl_check_crc(struct io_ctl *io_ctl, int index)
 			      PAGE_CACHE_SIZE - offset);
 	btrfs_csum_final(crc, (char *)&crc);
 	if (val != crc) {
-		printk_ratelimited(KERN_ERR "btrfs: csum mismatch on free "
+		printk_ratelimited(KERN_ERR "BTRFS: csum mismatch on free "
 				   "space cache\n");
 		io_ctl_unmap_page(io_ctl);
 		return -EIO;
@@ -1902,7 +1902,7 @@ out:
 	spin_unlock(&ctl->tree_lock);
 
 	if (ret) {
-		printk(KERN_CRIT "btrfs: unable to add free space :%d\n", ret);
+		printk(KERN_CRIT "BTRFS: unable to add free space :%d\n", ret);
 		ASSERT(ret != -EEXIST);
 	}
 
@@ -2011,14 +2011,15 @@ void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
 		if (info->bytes >= bytes && !block_group->ro)
 			count++;
-		printk(KERN_CRIT "entry offset %llu, bytes %llu, bitmap %s\n",
-		       info->offset, info->bytes,
+		btrfs_crit(block_group->fs_info,
+			   "entry offset %llu, bytes %llu, bitmap %s",
+			   info->offset, info->bytes,
 		       (info->bitmap) ? "yes" : "no");
 	}
-	printk(KERN_INFO "block group has cluster?: %s\n",
+	btrfs_info(block_group->fs_info, "block group has cluster?: %s",
 	       list_empty(&block_group->cluster_list) ? "no" : "yes");
-	printk(KERN_INFO "%d blocks of free space at or bigger than bytes is"
-	       "\n", count);
+	btrfs_info(block_group->fs_info,
+		   "%d blocks of free space at or bigger than bytes is", count);
 }
 
 void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group)

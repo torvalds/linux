@@ -44,7 +44,7 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 	if (!need_reset && btrfs_root_generation(item)
 		!= btrfs_root_generation_v2(item)) {
 		if (btrfs_root_generation_v2(item) != 0) {
-			printk(KERN_WARNING "btrfs: mismatching "
+			printk(KERN_WARNING "BTRFS: mismatching "
 					"generation and generation_v2 "
 					"found in root item. This root "
 					"was probably mounted with an "
@@ -154,7 +154,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	if (ret != 0) {
 		btrfs_print_leaf(root, path->nodes[0]);
-		printk(KERN_CRIT "unable to update root key %llu %u %llu\n",
+		btrfs_crit(root->fs_info, "unable to update root key %llu %u %llu",
 		       key->objectid, key->type, key->offset);
 		BUG_ON(1);
 	}

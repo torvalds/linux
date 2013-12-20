@@ -1262,7 +1262,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			break;
 
 		if (btrfs_defrag_cancelled(root->fs_info)) {
-			printk(KERN_DEBUG "btrfs: defrag_file cancelled\n");
+			printk(KERN_DEBUG "BTRFS: defrag_file cancelled\n");
 			ret = -EAGAIN;
 			break;
 		}
@@ -1424,20 +1424,20 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 			ret = -EINVAL;
 			goto out_free;
 		}
-		printk(KERN_INFO "btrfs: resizing devid %llu\n", devid);
+		btrfs_info(root->fs_info, "resizing devid %llu", devid);
 	}
 
 	device = btrfs_find_device(root->fs_info, devid, NULL, NULL);
 	if (!device) {
-		printk(KERN_INFO "btrfs: resizer unable to find device %llu\n",
+		btrfs_info(root->fs_info, "resizer unable to find device %llu",
 		       devid);
 		ret = -ENODEV;
 		goto out_free;
 	}
 
 	if (!device->writeable) {
-		printk(KERN_INFO "btrfs: resizer unable to apply on "
-		       "readonly device %llu\n",
+		btrfs_info(root->fs_info,
+			   "resizer unable to apply on readonly device %llu",
 		       devid);
 		ret = -EPERM;
 		goto out_free;
@@ -1489,7 +1489,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	do_div(new_size, root->sectorsize);
 	new_size *= root->sectorsize;
 
-	printk_in_rcu(KERN_INFO "btrfs: new size for %s is %llu\n",
+	printk_in_rcu(KERN_INFO "BTRFS: new size for %s is %llu\n",
 		      rcu_str_deref(device->name), new_size);
 
 	if (new_size > old_size) {
@@ -1550,8 +1550,8 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 
 		src_inode = file_inode(src.file);
 		if (src_inode->i_sb != file_inode(file)->i_sb) {
-			printk(KERN_INFO "btrfs: Snapshot src from "
-			       "another FS\n");
+			btrfs_info(BTRFS_I(src_inode)->root->fs_info,
+				   "Snapshot src from another FS");
 			ret = -EINVAL;
 		} else {
 			ret = btrfs_mksubvol(&file->f_path, name, namelen,
@@ -1934,7 +1934,7 @@ static noinline int search_ioctl(struct inode *inode,
 		key.offset = (u64)-1;
 		root = btrfs_read_fs_root_no_name(info, &key);
 		if (IS_ERR(root)) {
-			printk(KERN_ERR "could not find root %llu\n",
+			printk(KERN_ERR "BTRFS: could not find root %llu\n",
 			       sk->tree_id);
 			btrfs_free_path(path);
 			return -ENOENT;
@@ -2024,7 +2024,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	key.offset = (u64)-1;
 	root = btrfs_read_fs_root_no_name(info, &key);
 	if (IS_ERR(root)) {
-		printk(KERN_ERR "could not find root %llu\n", tree_id);
+		printk(KERN_ERR "BTRFS: could not find root %llu\n", tree_id);
 		ret = -ENOENT;
 		goto out;
 	}
@@ -3367,8 +3367,8 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	if (IS_ERR_OR_NULL(di)) {
 		btrfs_free_path(path);
 		btrfs_end_transaction(trans, root);
-		printk(KERN_ERR "Umm, you don't have the default dir item, "
-		       "this isn't going to work\n");
+		btrfs_err(new_root->fs_info, "Umm, you don't have the default dir"
+			   "item, this isn't going to work");
 		ret = -ENOENT;
 		goto out;
 	}
@@ -4469,8 +4469,8 @@ static int btrfs_ioctl_get_fslabel(struct file *file, void __user *arg)
 	len = strnlen(label, BTRFS_LABEL_SIZE);
 
 	if (len == BTRFS_LABEL_SIZE) {
-		pr_warn("btrfs: label is too long, return the first %zu bytes\n",
-			--len);
+		btrfs_warn(root->fs_info,
+			"label is too long, return the first %zu bytes", --len);
 	}
 
 	ret = copy_to_user(arg, label, len);
@@ -4493,7 +4493,7 @@ static int btrfs_ioctl_set_fslabel(struct file *file, void __user *arg)
 		return -EFAULT;
 
 	if (strnlen(label, BTRFS_LABEL_SIZE) == BTRFS_LABEL_SIZE) {
-		pr_err("btrfs: unable to set label with more than %d bytes\n",
+		btrfs_err(root->fs_info, "unable to set label with more than %d bytes",
 		       BTRFS_LABEL_SIZE - 1);
 		return -EINVAL;
 	}

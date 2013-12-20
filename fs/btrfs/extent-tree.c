@@ -6637,12 +6637,12 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 	int index = 0;
 
 	spin_lock(&info->lock);
-	printk(KERN_INFO "space_info %llu has %llu free, is %sfull\n",
+	printk(KERN_INFO "BTRFS: space_info %llu has %llu free, is %sfull\n",
 	       info->flags,
 	       info->total_bytes - info->bytes_used - info->bytes_pinned -
 	       info->bytes_reserved - info->bytes_readonly,
 	       (info->full) ? "" : "not ");
-	printk(KERN_INFO "space_info total=%llu, used=%llu, pinned=%llu, "
+	printk(KERN_INFO "BTRFS: space_info total=%llu, used=%llu, pinned=%llu, "
 	       "reserved=%llu, may_use=%llu, readonly=%llu\n",
 	       info->total_bytes, info->bytes_used, info->bytes_pinned,
 	       info->bytes_reserved, info->bytes_may_use,
@@ -6656,7 +6656,9 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 again:
 	list_for_each_entry(cache, &info->block_groups[index], list) {
 		spin_lock(&cache->lock);
-		printk(KERN_INFO "block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %s\n",
+		printk(KERN_INFO "BTRFS: "
+			   "block group %llu has %llu bytes, "
+			   "%llu used %llu pinned %llu reserved %s\n",
 		       cache->key.objectid, cache->key.offset,
 		       btrfs_block_group_used(&cache->item), cache->pinned,
 		       cache->reserved, cache->ro ? "[readonly]" : "");
@@ -7019,7 +7021,7 @@ again:
 				/*DEFAULT_RATELIMIT_BURST*/ 1);
 		if (__ratelimit(&_rs))
 			WARN(1, KERN_DEBUG
-				"btrfs: block rsv returned %d\n", ret);
+				"BTRFS: block rsv returned %d\n", ret);
 	}
 try_reserve:
 	ret = reserve_metadata_bytes(root, block_rsv, blocksize,
@@ -7767,7 +7769,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 
 			btrfs_end_transaction_throttle(trans, tree_root);
 			if (!for_reloc && btrfs_need_cleaner_sleep(root)) {
-				pr_debug("btrfs: drop snapshot early exit\n");
+				pr_debug("BTRFS: drop snapshot early exit\n");
 				err = -EAGAIN;
 				goto out_free;
 			}
@@ -8427,7 +8429,7 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 		ret = kobject_add(kobj, &space_info->kobj, "%s",
 				  get_raid_name(index));
 		if (ret) {
-			pr_warn("btrfs: failed to add kobject for block cache. ignoring.\n");
+			pr_warn("BTRFS: failed to add kobject for block cache. ignoring.\n");
 			kobject_put(&space_info->kobj);
 		}
 	}

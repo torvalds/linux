@@ -1480,8 +1480,8 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		old = read_tree_block(root, logical, blocksize, 0);
 		if (WARN_ON(!old || !extent_buffer_uptodate(old))) {
 			free_extent_buffer(old);
-			pr_warn("btrfs: failed to read tree block %llu from get_old_root\n",
-				logical);
+			btrfs_warn(root->fs_info,
+				"failed to read tree block %llu from get_old_root", logical);
 		} else {
 			eb = btrfs_clone_extent_buffer(old);
 			free_extent_buffer(old);
@@ -3611,8 +3611,8 @@ noinline int btrfs_leaf_free_space(struct btrfs_root *root,
 	int ret;
 	ret = BTRFS_LEAF_DATA_SIZE(root) - leaf_space_used(leaf, 0, nritems);
 	if (ret < 0) {
-		printk(KERN_CRIT "leaf free space ret %d, leaf data size %lu, "
-		       "used %d nritems %d\n",
+		btrfs_crit(root->fs_info,
+			"leaf free space ret %d, leaf data size %lu, used %d nritems %d",
 		       ret, (unsigned long) BTRFS_LEAF_DATA_SIZE(root),
 		       leaf_space_used(leaf, 0, nritems), nritems);
 	}
@@ -4702,7 +4702,7 @@ void btrfs_extend_item(struct btrfs_root *root, struct btrfs_path *path,
 	BUG_ON(slot < 0);
 	if (slot >= nritems) {
 		btrfs_print_leaf(root, leaf);
-		printk(KERN_CRIT "slot %d too large, nritems %d\n",
+		btrfs_crit(root->fs_info, "slot %d too large, nritems %d",
 		       slot, nritems);
 		BUG_ON(1);
 	}
@@ -4765,7 +4765,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 
 	if (btrfs_leaf_free_space(root, leaf) < total_size) {
 		btrfs_print_leaf(root, leaf);
-		printk(KERN_CRIT "not enough freespace need %u have %d\n",
+		btrfs_crit(root->fs_info, "not enough freespace need %u have %d",
 		       total_size, btrfs_leaf_free_space(root, leaf));
 		BUG();
 	}
@@ -4775,7 +4775,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 
 		if (old_data < data_end) {
 			btrfs_print_leaf(root, leaf);
-			printk(KERN_CRIT "slot %d old_data %d data_end %d\n",
+			btrfs_crit(root->fs_info, "slot %d old_data %d data_end %d",
 			       slot, old_data, data_end);
 			BUG_ON(1);
 		}
@@ -5510,7 +5510,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 
 			if (!left_start_ctransid || !right_start_ctransid) {
 				WARN(1, KERN_WARNING
-					"btrfs: btrfs_compare_tree detected "
+					"BTRFS: btrfs_compare_tree detected "
 					"a change in one of the trees while "
 					"iterating. This is probably a "
 					"bug.\n");

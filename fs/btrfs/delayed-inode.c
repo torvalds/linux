@@ -1472,9 +1472,9 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&delayed_node->mutex);
 	ret = __btrfs_add_delayed_insertion_item(delayed_node, delayed_item);
 	if (unlikely(ret)) {
-		printk(KERN_ERR "err add delayed dir index item(name: %.*s) "
+		btrfs_err(root->fs_info, "err add delayed dir index item(name: %.*s) "
 				"into the insertion tree of the delayed node"
-				"(root id: %llu, inode id: %llu, errno: %d)\n",
+				"(root id: %llu, inode id: %llu, errno: %d)",
 				name_len, name, delayed_node->root->objectid,
 				delayed_node->inode_id, ret);
 		BUG();
@@ -1544,9 +1544,9 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&node->mutex);
 	ret = __btrfs_add_delayed_deletion_item(node, item);
 	if (unlikely(ret)) {
-		printk(KERN_ERR "err add delayed dir index item(index: %llu) "
+		btrfs_err(root->fs_info, "err add delayed dir index item(index: %llu) "
 				"into the deletion tree of the delayed node"
-				"(root id: %llu, inode id: %llu, errno: %d)\n",
+				"(root id: %llu, inode id: %llu, errno: %d)",
 				index, node->root->objectid, node->inode_id,
 				ret);
 		BUG();

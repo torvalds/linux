@@ -505,7 +505,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	 * hold all of the paths here
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
-		printk_in_rcu(KERN_WARNING "btrfs: %s at logical %llu on dev "
+		printk_in_rcu(KERN_WARNING "BTRFS: %s at logical %llu on dev "
 			"%s, sector %llu, root %llu, inode %llu, offset %llu, "
 			"length %llu, links %u (path: %s)\n", swarn->errstr,
 			swarn->logical, rcu_str_deref(swarn->dev->name),
@@ -517,7 +517,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	return 0;
 
 err:
-	printk_in_rcu(KERN_WARNING "btrfs: %s at logical %llu on dev "
+	printk_in_rcu(KERN_WARNING "BTRFS: %s at logical %llu on dev "
 		"%s, sector %llu, root %llu, inode %llu, offset %llu: path "
 		"resolving failed with ret=%d\n", swarn->errstr,
 		swarn->logical, rcu_str_deref(swarn->dev->name),
@@ -580,7 +580,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 			ret = tree_backref_for_extent(&ptr, eb, ei, item_size,
 							&ref_root, &ref_level);
 			printk_in_rcu(KERN_WARNING
-				"btrfs: %s at logical %llu on dev %s, "
+				"BTRFS: %s at logical %llu on dev %s, "
 				"sector %llu: metadata %s (level %d) in tree "
 				"%llu\n", errstr, swarn.logical,
 				rcu_str_deref(dev->name),
@@ -782,8 +782,8 @@ out:
 		btrfs_dev_replace_stats_inc(
 			&sctx->dev_root->fs_info->dev_replace.
 			num_uncorrectable_read_errors);
-		printk_ratelimited_in_rcu(KERN_ERR
-			"btrfs: unable to fixup (nodatasum) error at logical %llu on dev %s\n",
+		printk_ratelimited_in_rcu(KERN_ERR "BTRFS: "
+		    "unable to fixup (nodatasum) error at logical %llu on dev %s\n",
 			fixup->logical, rcu_str_deref(fixup->dev->name));
 	}
 
@@ -1184,7 +1184,7 @@ corrected_error:
 			sctx->stat.corrected_errors++;
 			spin_unlock(&sctx->stat_lock);
 			printk_ratelimited_in_rcu(KERN_ERR
-				"btrfs: fixed up error at logical %llu on dev %s\n",
+				"BTRFS: fixed up error at logical %llu on dev %s\n",
 				logical, rcu_str_deref(dev->name));
 		}
 	} else {
@@ -1193,7 +1193,7 @@ did_not_correct_error:
 		sctx->stat.uncorrectable_errors++;
 		spin_unlock(&sctx->stat_lock);
 		printk_ratelimited_in_rcu(KERN_ERR
-			"btrfs: unable to fixup (regular) error at logical %llu on dev %s\n",
+			"BTRFS: unable to fixup (regular) error at logical %llu on dev %s\n",
 			logical, rcu_str_deref(dev->name));
 	}
 
@@ -1441,8 +1441,9 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 		int ret;
 
 		if (!page_bad->dev->bdev) {
-			printk_ratelimited(KERN_WARNING
-				"btrfs: scrub_repair_page_from_good_copy(bdev == NULL) is unexpected!\n");
+			printk_ratelimited(KERN_WARNING "BTRFS: "
+				"scrub_repair_page_from_good_copy(bdev == NULL) "
+				"is unexpected!\n");
 			return -EIO;
 		}
 
@@ -1900,7 +1901,7 @@ static void scrub_submit(struct scrub_ctx *sctx)
 		 * This case is handled correctly (but _very_ slowly).
 		 */
 		printk_ratelimited(KERN_WARNING
-			"btrfs: scrub_submit(bio bdev == NULL) is unexpected!\n");
+			"BTRFS: scrub_submit(bio bdev == NULL) is unexpected!\n");
 		bio_endio(sbio->bio, -EIO);
 	} else {
 		btrfsic_submit_bio(READ, sbio->bio);
@@ -2440,9 +2441,9 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 
 			if (key.objectid < logical &&
 			    (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)) {
-				printk(KERN_ERR
-				       "btrfs scrub: tree block %llu spanning "
-				       "stripes, ignored. logical=%llu\n",
+				btrfs_err(fs_info,
+					   "scrub: tree block %llu spanning "
+					   "stripes, ignored. logical=%llu",
 				       key.objectid, logical);
 				goto next;
 			}
@@ -2812,8 +2813,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	 * check some assumptions
 	 */
 	if (fs_info->chunk_root->nodesize != fs_info->chunk_root->leafsize) {
-		printk(KERN_ERR
-		       "btrfs_scrub: size assumption nodesize == leafsize (%d == %d) fails\n",
+		btrfs_err(fs_info,
+			   "scrub: size assumption nodesize == leafsize (%d == %d) fails",
 		       fs_info->chunk_root->nodesize,
 		       fs_info->chunk_root->leafsize);
 		return -EINVAL;
@@ -2825,16 +2826,17 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		 * the way scrub is implemented. Do not handle this
 		 * situation at all because it won't ever happen.
 		 */
-		printk(KERN_ERR
-		       "btrfs_scrub: size assumption nodesize <= BTRFS_STRIPE_LEN (%d <= %d) fails\n",
+		btrfs_err(fs_info,
+			   "scrub: size assumption nodesize <= BTRFS_STRIPE_LEN (%d <= %d) fails",
 		       fs_info->chunk_root->nodesize, BTRFS_STRIPE_LEN);
 		return -EINVAL;
 	}
 
 	if (fs_info->chunk_root->sectorsize != PAGE_SIZE) {
 		/* not supported for data w/o checksums */
-		printk(KERN_ERR
-		       "btrfs_scrub: size assumption sectorsize != PAGE_SIZE (%d != %lu) fails\n",
+		btrfs_err(fs_info,
+			   "scrub: size assumption sectorsize != PAGE_SIZE "
+			   "(%d != %lu) fails",
 		       fs_info->chunk_root->sectorsize, PAGE_SIZE);
 		return -EINVAL;
 	}
@@ -2847,7 +2849,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		 * would exhaust the array bounds of pagev member in
 		 * struct scrub_block
 		 */
-		pr_err("btrfs_scrub: size assumption nodesize and sectorsize <= SCRUB_MAX_PAGES_PER_BLOCK (%d <= %d && %d <= %d) fails\n",
+		btrfs_err(fs_info, "scrub: size assumption nodesize and sectorsize "
+			   "<= SCRUB_MAX_PAGES_PER_BLOCK (%d <= %d && %d <= %d) fails",
 		       fs_info->chunk_root->nodesize,
 		       SCRUB_MAX_PAGES_PER_BLOCK,
 		       fs_info->chunk_root->sectorsize,
@@ -3163,7 +3166,8 @@ static void copy_nocow_pages_worker(struct btrfs_work *work)
 	ret = iterate_inodes_from_logical(logical, fs_info, path,
 					  record_inode_for_nocow, nocow_ctx);
 	if (ret != 0 && ret != -ENOENT) {
-		pr_warn("iterate_inodes_from_logical() failed: log %llu, phys %llu, len %llu, mir %u, ret %d\n",
+		btrfs_warn(fs_info, "iterate_inodes_from_logical() failed: log %llu, "
+			"phys %llu, len %llu, mir %u, ret %d",
 			logical, physical_for_dev_replace, len, mirror_num,
 			ret);
 		not_written = 1;
@@ -3285,7 +3289,7 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 again:
 		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
 		if (!page) {
-			pr_err("find_or_create_page() failed\n");
+			btrfs_err(fs_info, "find_or_create_page() failed");
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -3357,7 +3361,7 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 		return -EIO;
 	if (!dev->bdev) {
 		printk_ratelimited(KERN_WARNING
-			"btrfs: scrub write_page_nocow(bdev == NULL) is unexpected!\n");
+			"BTRFS: scrub write_page_nocow(bdev == NULL) is unexpected!\n");
 		return -EIO;
 	}
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);

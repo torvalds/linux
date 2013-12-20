@@ -336,13 +336,14 @@ int btrfs_dec_test_first_ordered_pending(struct inode *inode,
 		      entry->len);
 	*file_offset = dec_end;
 	if (dec_start > dec_end) {
-		printk(KERN_CRIT "bad ordering dec_start %llu end %llu\n",
-		       dec_start, dec_end);
+		btrfs_crit(BTRFS_I(inode)->root->fs_info,
+			"bad ordering dec_start %llu end %llu", dec_start, dec_end);
 	}
 	to_dec = dec_end - dec_start;
 	if (to_dec > entry->bytes_left) {
-		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
-		       entry->bytes_left, to_dec);
+		btrfs_crit(BTRFS_I(inode)->root->fs_info,
+			"bad ordered accounting left %llu size %llu",
+			entry->bytes_left, to_dec);
 	}
 	entry->bytes_left -= to_dec;
 	if (!uptodate)
@@ -401,7 +402,8 @@ have_entry:
 	}
 
 	if (io_size > entry->bytes_left) {
-		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
+		btrfs_crit(BTRFS_I(inode)->root->fs_info,
+			   "bad ordered accounting left %llu size %llu",
 		       entry->bytes_left, io_size);
 	}
 	entry->bytes_left -= io_size;
