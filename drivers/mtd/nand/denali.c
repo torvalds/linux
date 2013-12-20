@@ -125,7 +125,6 @@ static void reset_buf(struct denali_nand_info *denali)
 
 static void write_byte_to_buf(struct denali_nand_info *denali, uint8_t byte)
 {
-	BUG_ON(denali->buf.tail >= sizeof(denali->buf.buf));
 	denali->buf.buf[denali->buf.tail++] = byte;
 }
 
@@ -1429,20 +1428,12 @@ int denali_init(struct denali_nand_info *denali)
 		}
 	}
 
-	/* Is 32-bit DMA supported? */
-	ret = dma_set_mask(denali->dev, DMA_BIT_MASK(32));
-	if (ret) {
-		pr_err("Spectra: no usable DMA configuration\n");
-		return ret;
-	}
-	denali->buf.dma_buf = dma_map_single(denali->dev, denali->buf.buf,
-					     DENALI_BUF_SIZE,
-					     DMA_BIDIRECTIONAL);
+	/* allocate a temporary buffer for nand_scan_ident() */
+	denali->buf.buf = devm_kzalloc(denali->dev, PAGE_SIZE,
+					GFP_DMA | GFP_KERNEL);
+	if (!denali->buf.buf)
+		return -ENOMEM;
 
-	if (dma_mapping_error(denali->dev, denali->buf.dma_buf)) {
-		dev_err(denali->dev, "Spectra: failed to map DMA buffer\n");
-		return -EIO;
-	}
 	denali->mtd.dev.parent = denali->dev;
 	denali_hw_init(denali);
 	denali_drv_init(denali);
@@ -1475,12 +1466,29 @@ int denali_init(struct denali_nand_info *denali)
 		goto failed_req_irq;
 	}
 
-	/* MTD supported page sizes vary by kernel. We validate our
-	 * kernel supports the device here.
-	 */
-	if (denali->mtd.writesize > NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE) {
-		ret = -ENODEV;
-		pr_err("Spectra: device size not supported by this version of MTD.");
+	/* allocate the right size buffer now */
+	devm_kfree(denali->dev, denali->buf.buf);
+	denali->buf.buf = devm_kzalloc(denali->dev,
+			     denali->mtd.writesize + denali->mtd.oobsize,
+			     GFP_KERNEL);
+	if (!denali->buf.buf) {
+		ret = -ENOMEM;
+		goto failed_req_irq;
+	}
+
+	/* Is 32-bit DMA supported? */
+	ret = dma_set_mask(denali->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		pr_err("Spectra: no usable DMA configuration\n");
+		goto failed_req_irq;
+	}
+
+	denali->buf.dma_buf = dma_map_single(denali->dev, denali->buf.buf,
+			     denali->mtd.writesize + denali->mtd.oobsize,
+			     DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(denali->dev, denali->buf.dma_buf)) {
+		dev_err(denali->dev, "Spectra: failed to map DMA buffer\n");
+		ret = -EIO;
 		goto failed_req_irq;
 	}
 
@@ -1602,7 +1610,8 @@ EXPORT_SYMBOL(denali_init);
 void denali_remove(struct denali_nand_info *denali)
 {
 	denali_irq_cleanup(denali->irq, denali);
-	dma_unmap_single(denali->dev, denali->buf.dma_buf, DENALI_BUF_SIZE,
+	dma_unmap_single(denali->dev, denali->buf.dma_buf,
+			denali->mtd.writesize + denali->mtd.oobsize,
 			DMA_BIDIRECTIONAL);
 }
 EXPORT_SYMBOL(denali_remove);
