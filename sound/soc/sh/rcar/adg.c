@@ -30,41 +30,41 @@ struct rsnd_adg {
 	     i++, (pos) = adg->clk[i])
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
-static enum rsnd_reg rsnd_adg_ssi_reg_get(int id)
+static void rsnd_adg_set_ssi_clk(struct rsnd_mod *mod, u32 val)
 {
-	enum rsnd_reg reg;
+	int id = rsnd_mod_id(mod);
+	int shift = (id % 4) * 8;
+	u32 mask = 0xFF << shift;
+
+	val = val << shift;
 
 	/*
 	 * SSI 8 is not connected to ADG.
 	 * it works with SSI 7
 	 */
 	if (id == 8)
-		return RSND_REG_MAX;
+		return;
 
-	if (0 <= id && id <= 3)
-		reg = RSND_REG_AUDIO_CLK_SEL0;
-	else if (4 <= id && id <= 7)
-		reg = RSND_REG_AUDIO_CLK_SEL1;
-	else
-		reg = RSND_REG_AUDIO_CLK_SEL2;
-
-	return reg;
+	switch (id / 4) {
+	case 0:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL0, mask, val);
+		break;
+	case 1:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL1, mask, val);
+		break;
+	case 2:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL2, mask, val);
+		break;
+	}
 }
 
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	enum rsnd_reg reg;
-	int id;
-
 	/*
 	 * "mod" = "ssi" here.
 	 * we can get "ssi id" from mod
 	 */
-	id  = rsnd_mod_id(mod);
-	reg = rsnd_adg_ssi_reg_get(id);
-
-	rsnd_write(priv, mod, reg, 0);
+	rsnd_adg_set_ssi_clk(mod, 0);
 
 	return 0;
 }
@@ -75,8 +75,7 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
-	enum rsnd_reg reg;
-	int id, shift, i;
+	int i;
 	u32 data;
 	int sel_table[] = {
 		[CLKA] = 0x1,
@@ -125,19 +124,10 @@ found_clock:
 	 * This "mod" = "ssi" here.
 	 * we can get "ssi id" from mod
 	 */
-	id  = rsnd_mod_id(mod);
-	reg = rsnd_adg_ssi_reg_get(id);
+	rsnd_adg_set_ssi_clk(mod, data);
 
-	dev_dbg(dev, "ADG: ssi%d selects clk%d = %d", id, i, rate);
-
-	/*
-	 * Enable SSIx clock
-	 */
-	shift = (id % 4) * 8;
-
-	rsnd_bset(priv, mod, reg,
-		   0xFF << shift,
-		   data << shift);
+	dev_dbg(dev, "ADG: ssi%d selects clk%d = %d",
+		rsnd_mod_id(mod), i, rate);
 
 	return 0;
 }
