@@ -142,6 +142,9 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (ret < 0)
 		return ret;
 
+	if (!info->cpu_dai.name || !info->codec_dai.name)
+		return -EINVAL;
+
 	/* card name is created from CPU/CODEC dai name */
 	name = devm_kzalloc(dev,
 			    strlen(info->cpu_dai.name)   +
