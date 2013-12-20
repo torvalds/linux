@@ -1395,16 +1395,16 @@ static enum pool_mode get_pool_mode(struct pool *pool)
 	return pool->pf.mode;
 }
 
-static void set_pool_mode(struct pool *pool, enum pool_mode mode)
+static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 {
 	int r;
+	enum pool_mode old_mode = pool->pf.mode;
 
-	pool->pf.mode = mode;
-
-	switch (mode) {
+	switch (new_mode) {
 	case PM_FAIL:
-		DMERR("%s: switching pool to failure mode",
-		      dm_device_name(pool->pool_md));
+		if (old_mode != new_mode)
+			DMERR("%s: switching pool to failure mode",
+			      dm_device_name(pool->pool_md));
 		dm_pool_metadata_read_only(pool->pmd);
 		pool->process_bio = process_bio_fail;
 		pool->process_discard = process_bio_fail;
@@ -1413,13 +1413,15 @@ static void set_pool_mode(struct pool *pool, enum pool_mode mode)
 		break;
 
 	case PM_READ_ONLY:
-		DMERR("%s: switching pool to read-only mode",
-		      dm_device_name(pool->pool_md));
+		if (old_mode != new_mode)
+			DMERR("%s: switching pool to read-only mode",
+			      dm_device_name(pool->pool_md));
 		r = dm_pool_abort_metadata(pool->pmd);
 		if (r) {
 			DMERR("%s: aborting transaction failed",
 			      dm_device_name(pool->pool_md));
-			set_pool_mode(pool, PM_FAIL);
+			new_mode = PM_FAIL;
+			set_pool_mode(pool, new_mode);
 		} else {
 			dm_pool_metadata_read_only(pool->pmd);
 			pool->process_bio = process_bio_read_only;
@@ -1430,6 +1432,9 @@ static void set_pool_mode(struct pool *pool, enum pool_mode mode)
 		break;
 
 	case PM_WRITE:
+		if (old_mode != new_mode)
+			DMINFO("%s: switching pool to write mode",
+			       dm_device_name(pool->pool_md));
 		dm_pool_metadata_read_write(pool->pmd);
 		pool->process_bio = process_bio;
 		pool->process_discard = process_discard;
@@ -1437,6 +1442,8 @@ static void set_pool_mode(struct pool *pool, enum pool_mode mode)
 		pool->process_prepared_discard = process_prepared_discard;
 		break;
 	}
+
+	pool->pf.mode = new_mode;
 }
 
 /*----------------------------------------------------------------*/
@@ -1653,6 +1660,17 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	enum pool_mode new_mode = pt->adjusted_pf.mode;
 
 	/*
+	 * Don't change the pool's mode until set_pool_mode() below.
+	 * Otherwise the pool's process_* function pointers may
+	 * not match the desired pool mode.
+	 */
+	pt->adjusted_pf.mode = old_mode;
+
+	pool->ti = ti;
+	pool->pf = pt->adjusted_pf;
+	pool->low_water_blocks = pt->low_water_blocks;
+
+	/*
 	 * If we were in PM_FAIL mode, rollback of metadata failed.  We're
 	 * not going to recover without a thin_repair.  So we never let the
 	 * pool move out of the old mode.  On the other hand a PM_READ_ONLY
@@ -1661,10 +1679,6 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	 */
 	if (old_mode == PM_FAIL)
 		new_mode = old_mode;
-
-	pool->ti = ti;
-	pool->low_water_blocks = pt->low_water_blocks;
-	pool->pf = pt->adjusted_pf;
 
 	set_pool_mode(pool, new_mode);
 
