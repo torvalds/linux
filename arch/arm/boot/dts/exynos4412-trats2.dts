@@ -442,13 +442,25 @@
 		};
 	};
 
-	sdhci@12510000 {
-		bus-width = <8>;
+	mmc@12550000 {
+		num-slots = <1>;
+		supports-highspeed;
+		broken-cd;
 		non-removable;
-		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
-		pinctrl-names = "default";
+		card-detect-delay = <200>;
 		vmmc-supply = <&vemmc_reg>;
+		clock-frequency = <400000000>;
+		samsung,dw-mshc-ciu-div = <0>;
+		samsung,dw-mshc-sdr-timing = <2 3>;
+		samsung,dw-mshc-ddr-timing = <1 2>;
+		pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
+		pinctrl-names = "default";
 		status = "okay";
+
+		slot@0 {
+			reg = <0>;
+			bus-width = <8>;
+		};
 	};
 
 	serial@13800000 {
