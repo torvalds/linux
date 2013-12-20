@@ -3951,7 +3951,7 @@ static u32 dib8000_get_time_us(struct dvb_frontend *fe, int layer)
 	struct dib8000_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &state->fe[0]->dtv_property_cache;
 	int ini_layer, end_layer, i;
-	u64 time_us;
+	u64 time_us, tmp64;
 	u32 tmp, denom;
 	int guard, rate_num, rate_denum, bits_per_symbol, nsegs;
 	int interleaving, fft_div;
@@ -4048,7 +4048,9 @@ static u32 dib8000_get_time_us(struct dvb_frontend *fe, int layer)
 
 	/* Estimate the period for the total bit rate */
 	time_us = rate_denum * (1008 * 1562500L);
-	time_us = time_us + time_us / guard;
+	tmp64 = time_us;
+	do_div(tmp64, guard);
+	time_us = time_us + tmp64;
 	time_us += denom / 2;
 	do_div(time_us, denom);
 
