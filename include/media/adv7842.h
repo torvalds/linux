@@ -192,8 +192,18 @@ struct adv7842_platform_data {
 	unsigned sd_ram_size; /* ram size in MB */
 	unsigned sd_ram_ddr:1; /* ddr or sdr sdram */
 
-	/* Free run */
-	unsigned hdmi_free_run_mode;
+	/* HDMI free run, CP-reg 0xBA */
+	unsigned hdmi_free_run_enable:1;
+	/* 0 = Mode 0: run when there is no TMDS clock
+	   1 = Mode 1: run when there is no TMDS clock or the
+	       video resolution does not match programmed one. */
+	unsigned hdmi_free_run_mode:1;
+
+	/* SDP free run, CP-reg 0xDD */
+	unsigned sdp_free_run_auto:1;
+	unsigned sdp_free_run_man_col_en:1;
+	unsigned sdp_free_run_cbar_en:1;
+	unsigned sdp_free_run_force:1;
 
 	struct adv7842_sdp_csc_coeff sdp_csc_coeff;
 
