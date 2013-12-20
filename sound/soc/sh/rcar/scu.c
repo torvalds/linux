@@ -36,7 +36,8 @@ struct rsnd_scu {
 		     ((pos) = (struct rsnd_scu *)(priv)->scu + i);	\
 	     i++)
 
-static int rsnd_scu_set_route(struct rsnd_priv *priv,
+/* Gen1 only */
+static int rsnd_src_set_route_if_gen1(struct rsnd_priv *priv,
 			      struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
@@ -174,7 +175,8 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 	}
 
 	/* it use DMA transter */
-	ret = rsnd_scu_set_route(priv, mod, rdai, io);
+
+	ret = rsnd_src_set_route_if_gen1(priv, mod, rdai, io);
 	if (ret < 0)
 		return ret;
 
