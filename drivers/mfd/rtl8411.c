@@ -470,7 +470,7 @@ static const u32 rtl8411b_qfn48_ms_pull_ctl_disable_tbl[] = {
 	0,
 };
 
-void rtl8411_init_common_params(struct rtsx_pcr *pcr)
+static void rtl8411_init_common_params(struct rtsx_pcr *pcr)
 {
 	pcr->extra_caps = EXTRA_CAPS_SD_SDR50 | EXTRA_CAPS_SD_SDR104;
 	pcr->num_slots = 2;
