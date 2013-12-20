@@ -40,20 +40,20 @@ static DEFINE_RWLOCK(cls_mod_lock);
 
 static const struct tcf_proto_ops *tcf_proto_lookup_ops(struct nlattr *kind)
 {
-	const struct tcf_proto_ops *t = NULL;
+	const struct tcf_proto_ops *t, *res = NULL;
 
 	if (kind) {
 		read_lock(&cls_mod_lock);
 		list_for_each_entry(t, &tcf_proto_base, head) {
 			if (nla_strcmp(kind, t->kind) == 0) {
-				if (!try_module_get(t->owner))
-					t = NULL;
+				if (try_module_get(t->owner))
+					res = t;
 				break;
 			}
 		}
 		read_unlock(&cls_mod_lock);
 	}
-	return t;
+	return res;
 }
 
 /* Register(unregister) new classifier type */
@@ -82,15 +82,13 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 	int rc = -ENOENT;
 
 	write_lock(&cls_mod_lock);
-	list_for_each_entry(t, &tcf_proto_base, head)
-		if (t == ops)
+	list_for_each_entry(t, &tcf_proto_base, head) {
+		if (t == ops) {
+			list_del(&t->head);
+			rc = 0;
 			break;
-
-	if (!t)
-		goto out;
-	list_del(&t->head);
-	rc = 0;
-out:
+		}
+	}
 	write_unlock(&cls_mod_lock);
 	return rc;
 }
