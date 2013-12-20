@@ -165,7 +165,6 @@ struct pool {
 
 	struct pool_features pf;
 	bool low_water_triggered:1;	/* A dm event has been sent */
-	bool no_free_space:1;		/* bios will be requeued if set */
 
 	struct dm_bio_prison *prison;
 	struct dm_kcopyd_client *copier;
@@ -991,10 +990,10 @@ static void handle_unserviceable_bio(struct pool *pool, struct bio *bio)
 	 */
 	WARN_ON_ONCE(get_pool_mode(pool) != PM_READ_ONLY);
 
-	if (pool->no_free_space)
-		retry_on_resume(bio);
-	else
+	if (pool->pf.error_if_no_space)
 		bio_io_error(bio);
+	else
+		retry_on_resume(bio);
 }
 
 static void retry_bios_on_resume(struct pool *pool, struct dm_bio_prison_cell *cell)
@@ -1437,18 +1436,6 @@ static void set_pool_mode(struct pool *pool, enum pool_mode mode)
 	}
 }
 
-static void set_no_free_space(struct pool *pool)
-{
-	unsigned long flags;
-
-	if (pool->pf.error_if_no_space)
-		return;
-
-	spin_lock_irqsave(&pool->lock, flags);
-	pool->no_free_space = true;
-	spin_unlock_irqrestore(&pool->lock, flags);
-}
-
 /*
  * Rather than calling set_pool_mode directly, use these which describe the
  * reason for mode degradation.
@@ -1457,7 +1444,6 @@ static void out_of_data_space(struct pool *pool)
 {
 	DMERR_LIMIT("%s: no free data space available.",
 		    dm_device_name(pool->pool_md));
-	set_no_free_space(pool);
 	set_pool_mode(pool, PM_READ_ONLY);
 }
 
@@ -1470,11 +1456,9 @@ static void metadata_operation_failed(struct pool *pool, const char *op, int r)
 
 	if (r == -ENOSPC &&
 	    !dm_pool_get_free_metadata_block_count(pool->pmd, &free_blocks) &&
-	    !free_blocks) {
+	    !free_blocks)
 		DMERR_LIMIT("%s: no free metadata space available.",
 			    dm_device_name(pool->pool_md));
-		set_no_free_space(pool);
-	}
 
 	set_pool_mode(pool, PM_READ_ONLY);
 }
@@ -1819,7 +1803,6 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	INIT_LIST_HEAD(&pool->prepared_mappings);
 	INIT_LIST_HEAD(&pool->prepared_discards);
 	pool->low_water_triggered = false;
-	pool->no_free_space = false;
 	bio_list_init(&pool->retry_on_resume_list);
 
 	pool->shared_read_ds = dm_deferred_set_create();
@@ -2346,7 +2329,6 @@ static void pool_resume(struct dm_target *ti)
 
 	spin_lock_irqsave(&pool->lock, flags);
 	pool->low_water_triggered = false;
-	pool->no_free_space = false;
 	__requeue_bios(pool);
 	spin_unlock_irqrestore(&pool->lock, flags);
 
