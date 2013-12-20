@@ -19,8 +19,8 @@
 struct rsnd_adg {
 	struct clk *clk[CLKMAX];
 
-	int rate_of_441khz_div_6;
-	int rate_of_48khz_div_6;
+	int rbga_rate_for_441khz_div_6;	/* RBGA */
+	int rbgb_rate_for_48khz_div_6;	/* RBGB */
 	u32 ckr;
 };
 
@@ -101,12 +101,12 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 	/*
 	 * find 1/6 clock from BRGA/BRGB
 	 */
-	if (rate == adg->rate_of_441khz_div_6) {
+	if (rate == adg->rbga_rate_for_441khz_div_6) {
 		data = 0x10;
 		goto found_clock;
 	}
 
-	if (rate == adg->rate_of_48khz_div_6) {
+	if (rate == adg->rbgb_rate_for_48khz_div_6) {
 		data = 0x20;
 		goto found_clock;
 	}
@@ -156,8 +156,8 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 	 *	rsnd_adg_ssi_clk_try_start()
 	 */
 	ckr = 0;
-	adg->rate_of_441khz_div_6 = 0;
-	adg->rate_of_48khz_div_6  = 0;
+	adg->rbga_rate_for_441khz_div_6 = 0;
+	adg->rbgb_rate_for_48khz_div_6  = 0;
 	for_each_rsnd_clk(clk, adg, i) {
 		rate = clk_get_rate(clk);
 
@@ -165,14 +165,14 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 			continue;
 
 		/* RBGA */
-		if (!adg->rate_of_441khz_div_6 && (0 == rate % 44100)) {
-			adg->rate_of_441khz_div_6 = rate / 6;
+		if (!adg->rbga_rate_for_441khz_div_6 && (0 == rate % 44100)) {
+			adg->rbga_rate_for_441khz_div_6 = rate / 6;
 			ckr |= brg_table[i] << 20;
 		}
 
 		/* RBGB */
-		if (!adg->rate_of_48khz_div_6 && (0 == rate % 48000)) {
-			adg->rate_of_48khz_div_6 = rate / 6;
+		if (!adg->rbgb_rate_for_48khz_div_6 && (0 == rate % 48000)) {
+			adg->rbgb_rate_for_48khz_div_6 = rate / 6;
 			ckr |= brg_table[i] << 16;
 		}
 	}
