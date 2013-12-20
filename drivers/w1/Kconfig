@@ -26,7 +26,7 @@ config W1_CON
 	  3. Replies to userspace commands.
 
 config W1_SUNXI
-	depends on GPIO_SUNXI
+	depends on GPIO_SUNXI && W1_MASTER_GPIO
 	tristate "1-wire sunxi support"
 	default n
 	--- help ---
