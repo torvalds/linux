@@ -207,25 +207,25 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 /* when opcode modifier = 1 */
 #define QUERY_FUNC_CAP_PHYS_PORT_OFFSET		0x3
-#define QUERY_FUNC_CAP_RDMA_PROPS_OFFSET	0x8
-#define QUERY_FUNC_CAP_ETH_PROPS_OFFSET		0xc
+#define QUERY_FUNC_CAP_FLAGS0_OFFSET		0x8
+#define QUERY_FUNC_CAP_FLAGS1_OFFSET		0xc
 
 #define QUERY_FUNC_CAP_QP0_TUNNEL		0x10
 #define QUERY_FUNC_CAP_QP0_PROXY		0x14
 #define QUERY_FUNC_CAP_QP1_TUNNEL		0x18
 #define QUERY_FUNC_CAP_QP1_PROXY		0x1c
+#define QUERY_FUNC_CAP_PHYS_PORT_ID		0x28
 
-#define QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC	0x40
-#define QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN	0x80
+#define QUERY_FUNC_CAP_FLAGS1_FORCE_MAC		0x40
+#define QUERY_FUNC_CAP_FLAGS1_FORCE_VLAN	0x80
+#define QUERY_FUNC_CAP_FLAGS1_NIC_INFO			0x10
 
-#define QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID 0x80
+#define QUERY_FUNC_CAP_FLAGS0_FORCE_PHY_WQE_GID 0x80
 
 	if (vhcr->op_modifier == 1) {
-		field = 0;
-		/* ensure force vlan and force mac bits are not set */
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
-		/* ensure that phy_wqe_gid bit is not set */
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+		/* Set nic_info bit to mark new fields support */
+		field  = QUERY_FUNC_CAP_FLAGS1_NIC_INFO;
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS1_OFFSET);
 
 		field = vhcr->in_modifier; /* phys-port = logical-port */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
@@ -242,6 +242,9 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 		size += 2;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP1_PROXY);
+
+		MLX4_PUT(outbox->buf, dev->caps.phys_port_id[vhcr->in_modifier],
+			 QUERY_FUNC_CAP_PHYS_PORT_ID);
 
 	} else if (vhcr->op_modifier == 0) {
 		/* enable rdma and ethernet interfaces, and new quota locations */
@@ -391,22 +394,22 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 		goto out;
 	}
 
+	MLX4_GET(func_cap->flags1, outbox, QUERY_FUNC_CAP_FLAGS1_OFFSET);
 	if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_ETH) {
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
-		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN) {
+		if (func_cap->flags1 & QUERY_FUNC_CAP_FLAGS1_OFFSET) {
 			mlx4_err(dev, "VLAN is enforced on this port\n");
 			err = -EPROTONOSUPPORT;
 			goto out;
 		}
 
-		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC) {
+		if (func_cap->flags1 & QUERY_FUNC_CAP_FLAGS1_FORCE_MAC) {
 			mlx4_err(dev, "Force mac is enabled on this port\n");
 			err = -EPROTONOSUPPORT;
 			goto out;
 		}
 	} else if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_IB) {
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
-		if (field & QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS0_OFFSET);
+		if (field & QUERY_FUNC_CAP_FLAGS0_FORCE_PHY_WQE_GID) {
 			mlx4_err(dev, "phy_wqe_gid is "
 				 "enforced on this ib port\n");
 			err = -EPROTONOSUPPORT;
@@ -432,6 +435,10 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_PROXY);
 	func_cap->qp1_proxy_qpn = size & 0xFFFFFF;
+
+	if (func_cap->flags1 & QUERY_FUNC_CAP_FLAGS1_NIC_INFO)
+		MLX4_GET(func_cap->phys_port_id, outbox,
+			 QUERY_FUNC_CAP_PHYS_PORT_ID);
 
 	/* All other resources are allocated by the master, but we still report
 	 * 'num' and 'reserved' capabilities as follows:
@@ -1711,6 +1718,43 @@ int mlx4_NOP(struct mlx4_dev *dev)
 {
 	/* Input modifier of 0x1f means "finish as soon as possible." */
 	return mlx4_cmd(dev, 0, 0x1f, 0, MLX4_CMD_NOP, 100, MLX4_CMD_NATIVE);
+}
+
+int mlx4_get_phys_port_id(struct mlx4_dev *dev)
+{
+	u8 port;
+	u32 *outbox;
+	struct mlx4_cmd_mailbox *mailbox;
+	u32 in_mod;
+	u32 guid_hi, guid_lo;
+	int err, ret = 0;
+#define MOD_STAT_CFG_PORT_OFFSET 8
+#define MOD_STAT_CFG_GUID_H	 0X14
+#define MOD_STAT_CFG_GUID_L	 0X1c
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
+
+	for (port = 1; port <= dev->caps.num_ports; port++) {
+		in_mod = port << MOD_STAT_CFG_PORT_OFFSET;
+		err = mlx4_cmd_box(dev, 0, mailbox->dma, in_mod, 0x2,
+				   MLX4_CMD_MOD_STAT_CFG, MLX4_CMD_TIME_CLASS_A,
+				   MLX4_CMD_NATIVE);
+		if (err) {
+			mlx4_err(dev, "Fail to get port %d uplink guid\n",
+				 port);
+			ret = err;
+		} else {
+			MLX4_GET(guid_hi, outbox, MOD_STAT_CFG_GUID_H);
+			MLX4_GET(guid_lo, outbox, MOD_STAT_CFG_GUID_L);
+			dev->caps.phys_port_id[port] = (u64)guid_lo |
+						       (u64)guid_hi << 32;
+		}
+	}
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return ret;
 }
 
 #define MLX4_WOL_SETUP_MODE (5 << 28)
