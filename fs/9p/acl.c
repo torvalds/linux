@@ -200,7 +200,7 @@ int v9fs_acl_mode(struct inode *dir, umode_t *modep,
 	if (acl) {
 		if (S_ISDIR(mode))
 			*dpacl = posix_acl_dup(acl);
-		retval = posix_acl_create(&acl, GFP_NOFS, &mode);
+		retval = __posix_acl_create(&acl, GFP_NOFS, &mode);
 		if (retval < 0)
 			return retval;
 		if (retval > 0)

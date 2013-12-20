@@ -137,7 +137,7 @@ int hfsplus_init_posix_acl(struct inode *inode, struct inode *dir)
 				goto init_acl_cleanup;
 		}
 
-		err = posix_acl_create(&acl, GFP_NOFS, &inode->i_mode);
+		err = __posix_acl_create(&acl, GFP_NOFS, &inode->i_mode);
 		if (unlikely(err < 0))
 			return err;
 

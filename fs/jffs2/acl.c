@@ -295,7 +295,7 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, umode_t *i_mode
 		if (S_ISDIR(*i_mode))
 			set_cached_acl(inode, ACL_TYPE_DEFAULT, acl);
 
-		rc = posix_acl_create(&acl, GFP_KERNEL, i_mode);
+		rc = __posix_acl_create(&acl, GFP_KERNEL, i_mode);
 		if (rc < 0)
 			return rc;
 		if (rc > 0)

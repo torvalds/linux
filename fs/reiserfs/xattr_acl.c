@@ -378,7 +378,7 @@ reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
 
 		/* Now we reconcile the new ACL and the mode,
 		   potentially modifying both */
-		err = posix_acl_create(&acl, GFP_NOFS, &inode->i_mode);
+		err = __posix_acl_create(&acl, GFP_NOFS, &inode->i_mode);
 		if (err < 0)
 			return err;
 

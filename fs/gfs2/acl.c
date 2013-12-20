@@ -131,7 +131,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct inode *inode)
 			goto out;
 	}
 
-	error = posix_acl_create(&acl, GFP_NOFS, &mode);
+	error = __posix_acl_create(&acl, GFP_NOFS, &mode);
 	if (error < 0)
 		return error;
 

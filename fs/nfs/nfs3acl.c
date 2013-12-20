@@ -428,7 +428,7 @@ int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
 	if (!dfacl)
 		return 0;
 	acl = posix_acl_dup(dfacl);
-	error = posix_acl_create(&acl, GFP_KERNEL, &mode);
+	error = __posix_acl_create(&acl, GFP_KERNEL, &mode);
 	if (error < 0)
 		goto out_release_dfacl;
 	error = nfs3_proc_setacls(inode, acl, S_ISDIR(inode->i_mode) ?

@@ -88,14 +88,16 @@ extern int posix_acl_valid(const struct posix_acl *);
 extern int posix_acl_permission(struct inode *, const struct posix_acl *, int);
 extern struct posix_acl *posix_acl_from_mode(umode_t, gfp_t);
 extern int posix_acl_equiv_mode(const struct posix_acl *, umode_t *);
-extern int posix_acl_create(struct posix_acl **, gfp_t, umode_t *);
+extern int __posix_acl_create(struct posix_acl **, gfp_t, umode_t *);
 extern int __posix_acl_chmod(struct posix_acl **, gfp_t, umode_t);
 
 extern struct posix_acl *get_posix_acl(struct inode *, int);
 extern int set_posix_acl(struct inode *, int, struct posix_acl *);
 
 #ifdef CONFIG_FS_POSIX_ACL
-extern int posix_acl_chmod(struct inode *);
+extern int posix_acl_chmod(struct inode *, umode_t);
+extern int posix_acl_create(struct inode *, umode_t *, struct posix_acl **,
+		struct posix_acl **);
 
 static inline struct posix_acl **acl_by_type(struct inode *inode, int type)
 {
@@ -174,13 +176,20 @@ static inline void cache_no_acl(struct inode *inode)
 	inode->i_default_acl = NULL;
 }
 #else
-static inline int posix_acl_chmod(struct inode *inode)
+static inline int posix_acl_chmod(struct inode *inode, umode_t mode)
 {
 	return 0;
 }
 
 static inline void cache_no_acl(struct inode *inode)
 {
+}
+
+static inline int posix_acl_create(struct inode *inode, umode_t *mode,
+		struct posix_acl **default_acl, struct posix_acl **acl)
+{
+	*default_acl = *acl = NULL;
+	return 0;
 }
 #endif /* CONFIG_FS_POSIX_ACL */
 

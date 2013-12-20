@@ -222,7 +222,7 @@ int btrfs_init_acl(struct btrfs_trans_handle *trans,
 			if (ret)
 				goto failed;
 		}
-		ret = posix_acl_create(&acl, GFP_NOFS, &inode->i_mode);
+		ret = __posix_acl_create(&acl, GFP_NOFS, &inode->i_mode);
 		if (ret < 0)
 			return ret;
 

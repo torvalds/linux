@@ -401,7 +401,7 @@ int ocfs2_init_acl(handle_t *handle,
 				goto cleanup;
 		}
 		mode = inode->i_mode;
-		ret = posix_acl_create(&acl, GFP_NOFS, &mode);
+		ret = __posix_acl_create(&acl, GFP_NOFS, &mode);
 		if (ret < 0)
 			return ret;
 

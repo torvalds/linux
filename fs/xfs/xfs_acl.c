@@ -297,12 +297,12 @@ xfs_inherit_acl(struct inode *inode, struct posix_acl *acl)
 			goto out;
 	}
 
-	error = posix_acl_create(&acl, GFP_KERNEL, &mode);
+	error = __posix_acl_create(&acl, GFP_KERNEL, &mode);
 	if (error < 0)
 		return error;
 
 	/*
-	 * If posix_acl_create returns a positive value we need to
+	 * If __posix_acl_create returns a positive value we need to
 	 * inherit a permission that can't be represented using the Unix
 	 * mode bits and we actually need to set an ACL.
 	 */

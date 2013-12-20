@@ -128,7 +128,7 @@ generic_acl_init(struct inode *inode, struct inode *dir)
 	if (acl) {
 		if (S_ISDIR(inode->i_mode))
 			set_cached_acl(inode, ACL_TYPE_DEFAULT, acl);
-		error = posix_acl_create(&acl, GFP_KERNEL, &inode->i_mode);
+		error = __posix_acl_create(&acl, GFP_KERNEL, &inode->i_mode);
 		if (error < 0)
 			return error;
 		if (error > 0)

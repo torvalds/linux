@@ -410,7 +410,7 @@ static int __posix_acl_chmod_masq(struct posix_acl *acl, umode_t mode)
 }
 
 int
-posix_acl_create(struct posix_acl **acl, gfp_t gfp, umode_t *mode_p)
+__posix_acl_create(struct posix_acl **acl, gfp_t gfp, umode_t *mode_p)
 {
 	struct posix_acl *clone = posix_acl_clone(*acl, gfp);
 	int err = -ENOMEM;
@@ -425,7 +425,7 @@ posix_acl_create(struct posix_acl **acl, gfp_t gfp, umode_t *mode_p)
 	*acl = clone;
 	return err;
 }
-EXPORT_SYMBOL(posix_acl_create);
+EXPORT_SYMBOL(__posix_acl_create);
 
 int
 __posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
@@ -446,7 +446,7 @@ __posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
 EXPORT_SYMBOL(__posix_acl_chmod);
 
 int
-posix_acl_chmod(struct inode *inode)
+posix_acl_chmod(struct inode *inode, umode_t mode)
 {
 	struct posix_acl *acl;
 	int ret = 0;
@@ -460,7 +460,7 @@ posix_acl_chmod(struct inode *inode)
 	if (IS_ERR_OR_NULL(acl))
 		return PTR_ERR(acl);
 
-	ret = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
 	if (ret)
 		return ret;
 	ret = inode->i_op->set_acl(inode, acl, ACL_TYPE_ACCESS);
@@ -468,6 +468,55 @@ posix_acl_chmod(struct inode *inode)
 	return ret;
 }
 EXPORT_SYMBOL(posix_acl_chmod);
+
+int
+posix_acl_create(struct inode *dir, umode_t *mode,
+		struct posix_acl **default_acl, struct posix_acl **acl)
+{
+	struct posix_acl *p;
+	int ret;
+
+	if (S_ISLNK(*mode) || !IS_POSIXACL(dir))
+		goto no_acl;
+
+	p = get_acl(dir, ACL_TYPE_DEFAULT);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
+	if (!p) {
+		*mode &= ~current_umask();
+		goto no_acl;
+	}
+
+	*acl = posix_acl_clone(p, GFP_NOFS);
+	if (!*acl)
+		return -ENOMEM;
+
+	ret = posix_acl_create_masq(*acl, mode);
+	if (ret < 0) {
+		posix_acl_release(*acl);
+		return -ENOMEM;
+	}
+
+	if (ret == 0) {
+		posix_acl_release(*acl);
+		*acl = NULL;
+	}
+
+	if (!S_ISDIR(*mode)) {
+		posix_acl_release(p);
+		*default_acl = NULL;
+	} else {
+		*default_acl = p;
+	}
+	return 0;
+
+no_acl:
+	*default_acl = NULL;
+	*acl = NULL;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(posix_acl_create);
 
 /*
  * Fix up the uids and gids in posix acl extended attributes in place.
