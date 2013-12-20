@@ -191,6 +191,10 @@ static inline int posix_acl_create(struct inode *inode, umode_t *mode,
 	*default_acl = *acl = NULL;
 	return 0;
 }
+
+static inline void forget_all_cached_acls(struct inode *inode)
+{
+}
 #endif /* CONFIG_FS_POSIX_ACL */
 
 struct posix_acl *get_acl(struct inode *inode, int type);
