@@ -1360,7 +1360,10 @@ static void b44_halt(struct b44 *bp)
 	bw32(bp, B44_MAC_CTRL, MAC_CTRL_PHY_PDOWN);
 	/* now reset the chip, but without enabling the MAC&PHY
 	 * part of it. This has to be done _after_ we shut down the PHY */
-	b44_chip_reset(bp, B44_CHIP_RESET_PARTIAL);
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		b44_chip_reset(bp, B44_CHIP_RESET_FULL);
+	else
+		b44_chip_reset(bp, B44_CHIP_RESET_PARTIAL);
 }
 
 /* bp->lock is held. */
