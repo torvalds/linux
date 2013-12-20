@@ -278,10 +278,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 		val_cr5 |= FSL_SAI_CR5_FBT(0);
 
 	val_cr4 |= FSL_SAI_CR4_FRSZ(channels);
-	if (channels == 2 || channels == 1)
-		val_mr = ~0UL - ((1 << channels) - 1);
-	else
-		return -EINVAL;
+	val_mr = ~0UL - ((1 << channels) - 1);
 
 	sai_writel(sai, val_cr4, sai->base + reg_cr4);
 	sai_writel(sai, val_cr5, sai->base + reg_cr5);
