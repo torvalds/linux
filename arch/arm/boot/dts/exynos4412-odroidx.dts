@@ -38,9 +38,7 @@
 		};
 	};
 
-	mshc@12550000 {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	mmc@12550000 {
 		pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
 		pinctrl-names = "default";
 		vmmc-supply = <&ldo20_reg &buck8_reg>;
@@ -49,7 +47,6 @@
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
