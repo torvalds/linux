@@ -1290,7 +1290,8 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
 	};
 
 	pwo = resource->write_ordering;
-	wo = min(pwo, wo);
+	if (wo != WO_bdev_flush)
+		wo = min(pwo, wo);
 	rcu_read_lock();
 	idr_for_each_entry(&resource->devices, device, vnr) {
 		if (get_ldev(device)) {
@@ -1300,10 +1301,11 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
 			put_ldev(device);
 		}
 	}
-	rcu_read_unlock();
 
 	if (bdev)
 		wo = max_allowed_wo(bdev, wo);
+
+	rcu_read_unlock();
 
 	resource->write_ordering = wo;
 	if (pwo != resource->write_ordering || wo == WO_bdev_flush)
