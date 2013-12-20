@@ -92,12 +92,6 @@ struct __packed al_transaction_on_disk {
 	__be32	context[AL_CONTEXT_PER_TRANSACTION];
 };
 
-struct update_odbm_work {
-	struct drbd_work w;
-	struct drbd_device *device;
-	unsigned int enr;
-};
-
 struct update_al_work {
 	struct drbd_work w;
 	struct drbd_device *device;
@@ -452,15 +446,6 @@ static unsigned int al_extent_to_bm_page(unsigned int al_enr)
 		 (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT));
 }
 
-static unsigned int rs_extent_to_bm_page(unsigned int rs_enr)
-{
-	return rs_enr >>
-		/* bit to page */
-		((PAGE_SHIFT + 3) -
-		/* resync extent number to bit */
-		 (BM_EXT_SHIFT - BM_BLOCK_SHIFT));
-}
-
 static sector_t al_tr_number_to_on_disk_sector(struct drbd_device *device)
 {
 	const unsigned int stripes = device->ldev->md.al_stripes;
@@ -682,40 +667,6 @@ int drbd_initialize_al(struct drbd_device *device, void *buffer)
 	return 0;
 }
 
-static int w_update_odbm(struct drbd_work *w, int unused)
-{
-	struct update_odbm_work *udw = container_of(w, struct update_odbm_work, w);
-	struct drbd_device *device = udw->device;
-	struct sib_info sib = { .sib_reason = SIB_SYNC_PROGRESS, };
-
-	if (!get_ldev(device)) {
-		if (__ratelimit(&drbd_ratelimit_state))
-			drbd_warn(device, "Can not update on disk bitmap, local IO disabled.\n");
-		kfree(udw);
-		return 0;
-	}
-
-	drbd_bm_write_page(device, rs_extent_to_bm_page(udw->enr));
-	put_ldev(device);
-
-	kfree(udw);
-
-	if (drbd_bm_total_weight(device) <= device->rs_failed) {
-		switch (device->state.conn) {
-		case C_SYNC_SOURCE:  case C_SYNC_TARGET:
-		case C_PAUSED_SYNC_S: case C_PAUSED_SYNC_T:
-			drbd_resync_finished(device);
-		default:
-			/* nothing to do */
-			break;
-		}
-	}
-	drbd_bcast_event(device, &sib);
-
-	return 0;
-}
-
-
 /* ATTENTION. The AL's extents are 4MB each, while the extents in the
  * resync LRU-cache are 16MB each.
  * The caller of this function has to hold an get_ldev() reference.
@@ -726,8 +677,6 @@ static void drbd_try_clear_on_disk_bm(struct drbd_device *device, sector_t secto
 				      int count, int success)
 {
 	struct lc_element *e;
-	struct update_odbm_work *udw;
-
 	unsigned int enr;
 
 	D_ASSERT(device, atomic_read(&device->local_cnt));
@@ -791,17 +740,7 @@ static void drbd_try_clear_on_disk_bm(struct drbd_device *device, sector_t secto
 
 		if (ext->rs_left == ext->rs_failed) {
 			ext->rs_failed = 0;
-
-			udw = kmalloc(sizeof(*udw), GFP_ATOMIC);
-			if (udw) {
-				udw->enr = ext->lce.lc_number;
-				udw->w.cb = w_update_odbm;
-				udw->device = device;
-				drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
-						      &udw->w);
-			} else {
-				drbd_warn(device, "Could not kmalloc an udw\n");
-			}
+			wake_up(&first_peer_device(device)->connection->sender_work.q_wait);
 		}
 	} else {
 		drbd_err(device, "lc_get() failed! locked=%d/%d flags=%lu\n",

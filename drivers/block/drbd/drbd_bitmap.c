@@ -1203,6 +1203,16 @@ int drbd_bm_write_all(struct drbd_device *device) __must_hold(local)
 }
 
 /**
+ * drbd_bm_write_lazy() - Write bitmap pages 0 to @upper_idx-1, if they have changed.
+ * @device:	DRBD device.
+ * @upper_idx:	0: write all changed pages; +ve: page index to stop scanning for changed pages
+ */
+int drbd_bm_write_lazy(struct drbd_device *device, unsigned upper_idx) __must_hold(local)
+{
+	return bm_rw(device, BM_AIO_COPY_PAGES, upper_idx);
+}
+
+/**
  * drbd_bm_write_copy_pages() - Write the whole bitmap to its on disk location.
  * @device:	DRBD device.
  *
@@ -1225,61 +1235,6 @@ int drbd_bm_write_copy_pages(struct drbd_device *device) __must_hold(local)
 int drbd_bm_write_hinted(struct drbd_device *device) __must_hold(local)
 {
 	return bm_rw(device, WRITE, BM_AIO_WRITE_HINTED | BM_AIO_COPY_PAGES, 0);
-}
-
-/**
- * drbd_bm_write_page() - Writes a PAGE_SIZE aligned piece of bitmap
- * @device:	DRBD device.
- * @idx:	bitmap page index
- *
- * We don't want to special case on logical_block_size of the backend device,
- * so we submit PAGE_SIZE aligned pieces.
- * Note that on "most" systems, PAGE_SIZE is 4k.
- *
- * In case this becomes an issue on systems with larger PAGE_SIZE,
- * we may want to change this again to write 4k aligned 4k pieces.
- */
-int drbd_bm_write_page(struct drbd_device *device, unsigned int idx) __must_hold(local)
-{
-	struct bm_aio_ctx *ctx;
-	int err;
-
-	if (bm_test_page_unchanged(device->bitmap->bm_pages[idx])) {
-		dynamic_drbd_dbg(device, "skipped bm page write for idx %u\n", idx);
-		return 0;
-	}
-
-	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_NOIO);
-	if (!ctx)
-		return -ENOMEM;
-
-	*ctx = (struct bm_aio_ctx) {
-		.device = device,
-		.in_flight = ATOMIC_INIT(1),
-		.done = 0,
-		.flags = BM_AIO_COPY_PAGES,
-		.error = 0,
-		.kref = { ATOMIC_INIT(2) },
-	};
-
-	if (!get_ldev(device)) {  /* put is in bm_aio_ctx_destroy() */
-		drbd_err(device, "ASSERT FAILED: get_ldev_if_state() == 1 in drbd_bm_write_page()\n");
-		kfree(ctx);
-		return -ENODEV;
-	}
-
-	bm_page_io_async(ctx, idx, WRITE_SYNC);
-	wait_until_done_or_force_detached(device, device->ldev, &ctx->done);
-
-	if (ctx->error)
-		drbd_chk_io_error(device, 1, DRBD_META_IO_ERROR);
-		/* that causes us to detach, so the in memory bitmap will be
-		 * gone in a moment as well. */
-
-	device->bm_writ_cnt++;
-	err = atomic_read(&ctx->in_flight) ? -EIO : ctx->error;
-	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
-	return err;
 }
 
 /* NOTE

@@ -1804,6 +1804,58 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 	mutex_unlock(device->state_mutex);
 }
 
+static void update_on_disk_bitmap(struct drbd_device *device)
+{
+	struct sib_info sib = { .sib_reason = SIB_SYNC_PROGRESS, };
+	device->rs_last_bcast = jiffies;
+
+	if (!get_ldev(device))
+		return;
+
+	drbd_bm_write_lazy(device, 0);
+	if (drbd_bm_total_weight(device) <= device->rs_failed)
+		drbd_resync_finished(device);
+	drbd_bcast_event(device, &sib);
+	/* update timestamp, in case it took a while to write out stuff */
+	device->rs_last_bcast = jiffies;
+	put_ldev(device);
+}
+
+bool wants_lazy_bitmap_update(struct drbd_device *device)
+{
+	enum drbd_conns connection_state = device->state.conn;
+	return
+	/* only do a lazy writeout, if device is in some resync state */
+	   (connection_state == C_SYNC_SOURCE
+	||  connection_state == C_SYNC_TARGET
+	||  connection_state == C_PAUSED_SYNC_S
+	||  connection_state == C_PAUSED_SYNC_T) &&
+	/* AND
+	 * either we just finished, or the last lazy update
+	 * was some time ago already. */
+	   (drbd_bm_total_weight(device) <= device->rs_failed
+	||  time_after(jiffies, device->rs_last_bcast + 2*HZ));
+}
+
+static void try_update_all_on_disk_bitmaps(struct drbd_connection *connection)
+{
+	struct drbd_peer_device *peer_device;
+	int vnr;
+
+	rcu_read_lock();
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
+		if (!wants_lazy_bitmap_update(device))
+			continue;
+		kref_get(&device->kref);
+		rcu_read_unlock();
+		update_on_disk_bitmap(device);
+		kref_put(&device->kref, drbd_destroy_device);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
+}
+
 static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_list)
 {
 	spin_lock_irq(&queue->q_lock);
@@ -1882,6 +1934,8 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
 		/* may be woken up for other things but new work, too,
 		 * e.g. if the current epoch got closed.
 		 * In which case we send the barrier above. */
+
+		try_update_all_on_disk_bitmaps(connection);
 	}
 	finish_wait(&connection->sender_work.q_wait, &wait);
 
