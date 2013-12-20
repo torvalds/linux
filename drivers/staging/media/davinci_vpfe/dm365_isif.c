@@ -19,6 +19,7 @@
  *      Prabhakar Lad <prabhakar.lad@ti.com>
  */
 
+#include <linux/delay.h>
 #include "dm365_isif.h"
 #include "vpfe_mc_capture.h"
 
