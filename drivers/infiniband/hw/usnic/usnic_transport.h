@@ -28,6 +28,10 @@ const char *usnic_transport_to_str(enum usnic_transport_type trans_type);
  */
 int usnic_transport_sock_to_str(char *buf, int buf_sz,
 					struct socket *sock);
+/*
+ * Reserve a port. If "port_num" is set, then the function will try
+ * to reserve that particular port.
+ */
 u16 usnic_transport_rsrv_port(enum usnic_transport_type type, u16 port_num);
 void usnic_transport_unrsrv_port(enum usnic_transport_type type, u16 port_num);
 /*

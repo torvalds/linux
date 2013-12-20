@@ -184,7 +184,6 @@ int usnic_transport_sock_get_addr(struct socket *sock, int *proto,
 	return 0;
 }
 
-
 int usnic_transport_init(void)
 {
 	roce_bitmap = kzalloc(ROCE_BITMAP_SZ, GFP_KERNEL);
