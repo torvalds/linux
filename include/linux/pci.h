@@ -352,7 +352,7 @@ struct pci_dev {
 	struct bin_attribute *res_attr_wc[DEVICE_COUNT_RESOURCE]; /* sysfs file for WC mapping of resources */
 #ifdef CONFIG_PCI_MSI
 	struct list_head msi_list;
-	struct kset *msi_kset;
+	const struct attribute_group **msi_irq_groups;
 #endif
 	struct pci_vpd *vpd;
 #ifdef CONFIG_PCI_ATS
@@ -1167,15 +1167,15 @@ struct msix_entry {
 
 
 #ifndef CONFIG_PCI_MSI
-static inline int pci_enable_msi_block(struct pci_dev *dev, unsigned int nvec)
+static inline int pci_enable_msi_block(struct pci_dev *dev, int nvec)
 {
-	return -1;
+	return -ENOSYS;
 }
 
 static inline int
-pci_enable_msi_block_auto(struct pci_dev *dev, unsigned int *maxvec)
+pci_enable_msi_block_auto(struct pci_dev *dev, int *maxvec)
 {
-	return -1;
+	return -ENOSYS;
 }
 
 static inline void pci_msi_shutdown(struct pci_dev *dev)
@@ -1190,7 +1190,7 @@ static inline int pci_msix_table_size(struct pci_dev *dev)
 static inline int pci_enable_msix(struct pci_dev *dev,
 				  struct msix_entry *entries, int nvec)
 {
-	return -1;
+	return -ENOSYS;
 }
 
 static inline void pci_msix_shutdown(struct pci_dev *dev)
@@ -1208,8 +1208,8 @@ static inline int pci_msi_enabled(void)
 	return 0;
 }
 #else
-int pci_enable_msi_block(struct pci_dev *dev, unsigned int nvec);
-int pci_enable_msi_block_auto(struct pci_dev *dev, unsigned int *maxvec);
+int pci_enable_msi_block(struct pci_dev *dev, int nvec);
+int pci_enable_msi_block_auto(struct pci_dev *dev, int *maxvec);
 void pci_msi_shutdown(struct pci_dev *dev);
 void pci_disable_msi(struct pci_dev *dev);
 int pci_msix_table_size(struct pci_dev *dev);
