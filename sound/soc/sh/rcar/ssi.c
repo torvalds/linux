@@ -209,7 +209,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 			/*
 			 * this driver is assuming that
 			 * system word is 64fs (= 2 x 32bit)
-			 * see rsnd_ssi_start()
+			 * see rsnd_ssi_init()
 			 */
 			main_rate = rate / adg_clk_div_table[i]
 				* 32 * 2 * ssi_clk_mul_table[j];
