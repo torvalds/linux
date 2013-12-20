@@ -203,7 +203,7 @@ MODULE_LICENSE("GPL");
 
 static int __init skbedit_init_module(void)
 {
-	int err = tcf_hashinfo_init(&skbedit_hash_info, SKBEDIT_TAB_MASK+1);
+	int err = tcf_hashinfo_init(&skbedit_hash_info, SKBEDIT_TAB_MASK);
 	if (err)
 		return err;
 	return tcf_register_action(&act_skbedit_ops);

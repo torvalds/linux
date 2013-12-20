@@ -310,7 +310,7 @@ MODULE_LICENSE("GPL");
 
 static int __init nat_init_module(void)
 {
-	int err = tcf_hashinfo_init(&nat_hash_info, NAT_TAB_MASK+1);
+	int err = tcf_hashinfo_init(&nat_hash_info, NAT_TAB_MASK);
 	if (err)
 		return err;
 	return tcf_register_action(&act_nat_ops);

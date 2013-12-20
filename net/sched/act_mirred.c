@@ -276,7 +276,7 @@ static int __init mirred_init_module(void)
 	if (err)
 		return err;
 
-	err = tcf_hashinfo_init(&mirred_hash_info, MIRRED_TAB_MASK+1);
+	err = tcf_hashinfo_init(&mirred_hash_info, MIRRED_TAB_MASK);
 	if (err) {
 		unregister_netdevice_notifier(&mirred_device_notifier);
 		return err;
@@ -287,9 +287,9 @@ static int __init mirred_init_module(void)
 
 static void __exit mirred_cleanup_module(void)
 {
-	unregister_netdevice_notifier(&mirred_device_notifier);
-	tcf_hashinfo_destroy(&mirred_hash_info);
 	tcf_unregister_action(&act_mirred_ops);
+	tcf_hashinfo_destroy(&mirred_hash_info);
+	unregister_netdevice_notifier(&mirred_device_notifier);
 }
 
 module_init(mirred_init_module);

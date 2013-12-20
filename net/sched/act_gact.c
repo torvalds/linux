@@ -208,7 +208,7 @@ MODULE_LICENSE("GPL");
 
 static int __init gact_init_module(void)
 {
-	int err = tcf_hashinfo_init(&gact_hash_info, GACT_TAB_MASK+1);
+	int err = tcf_hashinfo_init(&gact_hash_info, GACT_TAB_MASK);
 	if (err)
 		return err;
 #ifdef CONFIG_GACT_PROB

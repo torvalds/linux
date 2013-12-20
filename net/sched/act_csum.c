@@ -586,7 +586,7 @@ MODULE_LICENSE("GPL");
 
 static int __init csum_init_module(void)
 {
-	int err = tcf_hashinfo_init(&csum_hash_info, CSUM_TAB_MASK+1);
+	int err = tcf_hashinfo_init(&csum_hash_info, CSUM_TAB_MASK);
 	if (err)
 		return err;
 

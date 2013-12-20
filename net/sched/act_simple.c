@@ -203,7 +203,7 @@ MODULE_LICENSE("GPL");
 static int __init simp_init_module(void)
 {
 	int err, ret;
-	err = tcf_hashinfo_init(&simp_hash_info, SIMP_TAB_MASK+1);
+	err = tcf_hashinfo_init(&simp_hash_info, SIMP_TAB_MASK);
 	if (err)
 		return err;
 

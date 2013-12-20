@@ -246,7 +246,7 @@ MODULE_LICENSE("GPL");
 
 static int __init pedit_init_module(void)
 {
-	int err = tcf_hashinfo_init(&pedit_hash_info, PEDIT_TAB_MASK+1);
+	int err = tcf_hashinfo_init(&pedit_hash_info, PEDIT_TAB_MASK);
 	if (err)
 		return err;
 	return tcf_register_action(&act_pedit_ops);

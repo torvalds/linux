@@ -396,7 +396,7 @@ static struct tc_action_ops act_police_ops = {
 static int __init
 police_init_module(void)
 {
-	int err = tcf_hashinfo_init(&police_hash_info, POL_TAB_MASK+1);
+	int err = tcf_hashinfo_init(&police_hash_info, POL_TAB_MASK);
 	if (err)
 		return err;
 	err = tcf_register_action(&act_police_ops);
