@@ -738,8 +738,9 @@
 			fec: ethernet@02188000 {
 				compatible = "fsl,imx6q-fec";
 				reg = <0x02188000 0x4000>;
-				interrupts = <0 118 IRQ_TYPE_LEVEL_HIGH>,
-					     <0 119 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended =
+					<&intc 0 118 IRQ_TYPE_LEVEL_HIGH>,
+					<&intc 0 119 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks 117>, <&clks 117>, <&clks 190>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
