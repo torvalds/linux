@@ -1496,6 +1496,7 @@ static void find_phase_handler(struct adapter *padapter)
 {
 	struct wifidirect_info  *pwdinfo = &padapter->wdinfo;
 	struct ndis_802_11_ssid	ssid;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 _func_enter_;
 
@@ -1505,6 +1506,9 @@ _func_enter_;
 
 	rtw_p2p_set_state(pwdinfo, P2P_STATE_FIND_PHASE_SEARCH);
 
+        spin_lock_bh(&pmlmepriv->lock);
+        rtw_sitesurvey_cmd(padapter, &ssid, 1, NULL, 0);
+        spin_unlock_bh(&pmlmepriv->lock);
 _func_exit_;
 }
 
