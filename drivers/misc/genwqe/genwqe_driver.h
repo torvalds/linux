@@ -31,7 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include <linux/dynamic_debug.h>
+#include <linux/printk.h>
 
 #include <asm/byteorder.h>
 #include <linux/genwqe/genwqe_card.h>
@@ -69,7 +69,9 @@ static inline void genwqe_hexdump(struct pci_dev *pci_dev,
 
 	scnprintf(prefix, sizeof(prefix), "%s %s: ",
 		  GENWQE_DEVNAME, pci_name(pci_dev));
-	dynamic_hex_dump(prefix, DUMP_PREFIX_OFFSET, 16, 1, buff, size, true);
+
+	print_hex_dump_debug(prefix, DUMP_PREFIX_OFFSET, 16, 1, buff,
+			     size, true);
 }
 
 #endif	/* __GENWQE_DRIVER_H__ */
