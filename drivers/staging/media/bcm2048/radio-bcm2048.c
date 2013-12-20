@@ -2252,7 +2252,7 @@ static ssize_t bcm2048_fops_read(struct file *file, char __user *buf,
 		if (copy_to_user(buf+i, tmpbuf, 3)) {
 			retval = -EFAULT;
 			break;
-		};
+		}
 		i += 3;
 	}
 
