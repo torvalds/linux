@@ -443,19 +443,8 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = snd_dmaengine_pcm_register(&pdev->dev, NULL,
+	return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
 			SND_DMAENGINE_PCM_FLAG_NO_RESIDUE);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int fsl_sai_remove(struct platform_device *pdev)
-{
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id fsl_sai_ids[] = {
@@ -465,8 +454,6 @@ static const struct of_device_id fsl_sai_ids[] = {
 
 static struct platform_driver fsl_sai_driver = {
 	.probe = fsl_sai_probe,
-	.remove = fsl_sai_remove,
-
 	.driver = {
 		.name = "fsl-sai",
 		.owner = THIS_MODULE,
