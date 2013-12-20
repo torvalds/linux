@@ -123,8 +123,10 @@ initialization with a pointer to a structure describing the driver
 
 
 The ID table is an array of struct pci_device_id entries ending with an
-all-zero entry; use of the macro DEFINE_PCI_DEVICE_TABLE is the preferred
-method of declaring the table.  Each entry consists of:
+all-zero entry.  Definitions with static const are generally preferred.
+Use of the deprecated macro DEFINE_PCI_DEVICE_TABLE should be avoided.
+
+Each entry consists of:
 
 	vendor,device	Vendor and device ID to match (or PCI_ANY_ID)
 
