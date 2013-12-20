@@ -1593,9 +1593,6 @@ static void select_input(struct v4l2_subdev *sd,
 		afe_write(sd, 0x00, 0x00); /* power up ADC */
 		afe_write(sd, 0xc8, 0x00); /* phase control */
 
-		io_write(sd, 0x19, 0x83); /* LLC DLL phase */
-		io_write(sd, 0x33, 0x40); /* LLC DLL enable */
-
 		io_write(sd, 0xdd, 0x90); /* Manual 2x output clock */
 		/* script says register 0xde, which don't exist in manual */
 
@@ -2609,8 +2606,7 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 	io_write_and_or(sd, 0x20, 0xcf, 0x00);
 
 	/* LLC */
-	/* Set phase to 16. TODO: get this from platform_data */
-	io_write(sd, 0x19, 0x90);
+	io_write(sd, 0x19, 0x80 | pdata->llc_dll_phase);
 	io_write(sd, 0x33, 0x40);
 
 	/* interrupts */

@@ -192,6 +192,12 @@ struct adv7842_platform_data {
 		unsigned sync:2;
 	} drive_strength;
 
+	/*
+	 * IO register 0x19: Adjustment to the LLC DLL phase in
+	 * increments of 1/32 of a clock period.
+	 */
+	unsigned llc_dll_phase:5;
+
 	/* External RAM for 3-D comb or frame synchronizer */
 	unsigned sd_ram_size; /* ram size in MB */
 	unsigned sd_ram_ddr:1; /* ddr or sdr sdram */

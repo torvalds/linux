@@ -1027,6 +1027,7 @@ static struct adv7842_platform_data adv7842_data = {
 	.vid_std_select = ADV7842_SDP_VID_STD_CVBS_SD_4x1,
 	.hdmi_free_run_enable = 1,
 	.sdp_free_run_auto = 1,
+	.llc_dll_phase = 0x10,
 	.i2c_sdp_io = 0x40,
 	.i2c_sdp = 0x41,
 	.i2c_cp = 0x42,
