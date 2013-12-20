@@ -253,11 +253,6 @@ void rtw_usleep_os(int us)
 		msleep((us/1000) + 1);
 }
 
-void rtw_udelay_os(int us)
-{
-	udelay((unsigned long)us);
-}
-
 void rtw_yield_os(void)
 {
 	yield();

@@ -135,10 +135,6 @@ void ODM_ScheduleWorkItem(void *pRtWorkItem);
 void ODM_IsWorkItemScheduled(void *pRtWorkItem);
 
 /*  ODM Timer relative API. */
-void ODM_StallExecution(u32 usDelay);
-
-void ODM_delay_us(u32 us);
-
 void ODM_sleep_us(u32 us);
 
 void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer,

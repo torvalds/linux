@@ -574,7 +574,7 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 			DBG_88E("%s: Polling FW ready success!! REG_MCUFWDL:0x%08x\n", __func__, value32);
 			return _SUCCESS;
 		}
-		rtw_udelay_os(5);
+		udelay(5);
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
 	DBG_88E("%s: Polling FW ready fail!! REG_MCUFWDL:0x%08x\n", __func__, value32);
