@@ -299,7 +299,7 @@ static inline int b44_writephy(struct b44 *bp, int reg, u32 val)
 }
 
 /* miilib interface */
-static int b44_mii_read(struct net_device *dev, int phy_id, int location)
+static int b44_mdio_read_mii(struct net_device *dev, int phy_id, int location)
 {
 	u32 val;
 	struct b44 *bp = netdev_priv(dev);
@@ -309,8 +309,8 @@ static int b44_mii_read(struct net_device *dev, int phy_id, int location)
 	return val;
 }
 
-static void b44_mii_write(struct net_device *dev, int phy_id, int location,
-			 int val)
+static void b44_mdio_write_mii(struct net_device *dev, int phy_id, int location,
+			       int val)
 {
 	struct b44 *bp = netdev_priv(dev);
 	__b44_writephy(bp, phy_id, location, val);
@@ -2213,8 +2213,8 @@ static int b44_init_one(struct ssb_device *sdev,
 	}
 
 	bp->mii_if.dev = dev;
-	bp->mii_if.mdio_read = b44_mii_read;
-	bp->mii_if.mdio_write = b44_mii_write;
+	bp->mii_if.mdio_read = b44_mdio_read_mii;
+	bp->mii_if.mdio_write = b44_mdio_write_mii;
 	bp->mii_if.phy_id = bp->phy_addr;
 	bp->mii_if.phy_id_mask = 0x1f;
 	bp->mii_if.reg_num_mask = 0x1f;
