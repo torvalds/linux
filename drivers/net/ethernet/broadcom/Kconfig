@@ -23,6 +23,7 @@ config B44
 	depends on SSB_POSSIBLE && HAS_DMA
 	select SSB
 	select MII
+	select PHYLIB
 	---help---
 	  If you have a network (Ethernet) controller of this type, say Y
 	  or M and read the Ethernet-HOWTO, available from
