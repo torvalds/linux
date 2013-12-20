@@ -6,14 +6,12 @@
  * published by the Free Software Foundation.
  */
 
-/dts-v1/;
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 #include "skeleton.dtsi"
 
 / {
 	model = "Texas Instruments Keystone 2 SoC";
-	compatible =  "ti,keystone-evm";
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&gic>;
@@ -64,7 +62,11 @@
 		#address-cells = <1>;
 		interrupt-controller;
 		reg = <0x0 0x02561000 0x0 0x1000>,
-		      <0x0 0x02562000 0x0 0x2000>;
+		      <0x0 0x02562000 0x0 0x2000>,
+		      <0x0 0x02564000 0x0 0x1000>,
+		      <0x0 0x02566000 0x0 0x2000>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) |
+				IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
 	timer {
@@ -178,6 +180,33 @@
 			ti,davinci-spi-intr-line = <0>;
 			interrupts = <GIC_SPI 300 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkspi>;
+		};
+
+		usb_phy: usb_phy@2620738 {
+			compatible = "ti,keystone-usbphy";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2620738 32>;
+			status = "disabled";
+		};
+
+		usb: usb@2680000 {
+			compatible = "ti,keystone-dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2680000 0x10000>;
+			clocks = <&clkusb>;
+			clock-names = "usb";
+			interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
+			ranges;
+			status = "disabled";
+
+			dwc3@2690000 {
+				compatible = "synopsys,dwc3";
+				reg = <0x2690000 0x70000>;
+				interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
+				usb-phy = <&usb_phy>, <&usb_phy>;
+			};
 		};
 	};
 };
