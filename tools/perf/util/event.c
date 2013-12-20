@@ -129,7 +129,8 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 		goto out;
 	}
 
-	snprintf(filename, sizeof(filename), "/proc/%d/task", pid);
+	snprintf(filename, sizeof(filename), "%s/proc/%d/task",
+		 machine->root_dir, pid);
 
 	tasks = opendir(filename);
 	if (tasks == NULL) {
@@ -178,7 +179,8 @@ static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	FILE *fp;
 	int rc = 0;
 
-	snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
+	snprintf(filename, sizeof(filename), "%s/proc/%d/maps",
+		 machine->root_dir, pid);
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
@@ -387,6 +389,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 				   struct machine *machine, bool mmap_data)
 {
 	DIR *proc;
+	char proc_path[PATH_MAX];
 	struct dirent dirent, *next;
 	union perf_event *comm_event, *mmap_event;
 	int err = -1;
@@ -399,7 +402,9 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
-	proc = opendir("/proc");
+	snprintf(proc_path, sizeof(proc_path), "%s/proc", machine->root_dir);
+	proc = opendir(proc_path);
+
 	if (proc == NULL)
 		goto out_free_mmap;
 
