@@ -1299,7 +1299,7 @@ _func_enter_;
 		}
 	}
 
-	_exit_critical(&pfree_queue->lock, &irql);
+	spin_unlock_irqrestore(&pfree_queue->lock, irql);
 
 _func_exit_;
 
@@ -1323,7 +1323,7 @@ _func_enter_;
 	rtw_list_insert_tail(&(pxmitbuf->list), get_list_head(pfree_queue));
 	pxmitpriv->free_xmit_extbuf_cnt++;
 
-	_exit_critical(&pfree_queue->lock, &irql);
+	spin_unlock_irqrestore(&pfree_queue->lock, irql);
 
 _func_exit_;
 
@@ -1363,7 +1363,7 @@ _func_enter_;
 			rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_ALLOC);
 		}
 	}
-	_exit_critical(&pfree_xmitbuf_queue->lock, &irql);
+	spin_unlock_irqrestore(&pfree_xmitbuf_queue->lock, irql);
 
 _func_exit_;
 
@@ -1394,7 +1394,7 @@ _func_enter_;
 		rtw_list_insert_tail(&(pxmitbuf->list), get_list_head(pfree_xmitbuf_queue));
 
 		pxmitpriv->free_xmitbuf_cnt++;
-		_exit_critical(&pfree_xmitbuf_queue->lock, &irql);
+		spin_unlock_irqrestore(&pfree_xmitbuf_queue->lock, irql);
 	}
 
 _func_exit_;

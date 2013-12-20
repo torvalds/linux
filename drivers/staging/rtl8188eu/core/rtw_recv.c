@@ -331,7 +331,7 @@ int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue)
 	rtw_list_delete(&precvbuf->list);
 
 	rtw_list_insert_tail(&precvbuf->list, get_list_head(queue));
-	_exit_critical_ex(&queue->lock, &irqL);
+	spin_unlock_irqrestore(&queue->lock, irqL);
 	return _SUCCESS;
 }
 
@@ -355,7 +355,7 @@ struct recv_buf *rtw_dequeue_recvbuf (struct __queue *queue)
 		rtw_list_delete(&precvbuf->list);
 	}
 
-	_exit_critical_ex(&queue->lock, &irqL);
+	spin_unlock_irqrestore(&queue->lock, irqL);
 
 	return precvbuf;
 }

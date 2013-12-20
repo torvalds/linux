@@ -213,7 +213,7 @@ _func_enter_;
 		break;
 	}
 
-	_exit_critical(&pxmitpriv->lock, &irqL);
+	spin_unlock_irqrestore(&pxmitpriv->lock, irqL);
 
 	purb	= pxmitbuf->pxmit_urb[0];
 

@@ -157,7 +157,7 @@ _func_enter_;
 
 	rtw_list_insert_tail(&obj->list, &queue->queue);
 
-	_exit_critical(&queue->lock, &irqL);
+	spin_unlock_irqrestore(&queue->lock, irqL);
 
 exit:
 
@@ -181,7 +181,7 @@ _func_enter_;
 		rtw_list_delete(&obj->list);
 	}
 
-	_exit_critical(&queue->lock, &irqL);
+	spin_unlock_irqrestore(&queue->lock, irqL);
 
 _func_exit_;
 
