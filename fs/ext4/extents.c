@@ -1772,8 +1772,7 @@ static unsigned int ext4_ext_check_overlap(struct ext4_sb_info *sbi,
 	depth = ext_depth(inode);
 	if (!path[depth].p_ext)
 		goto out;
-	b2 = le32_to_cpu(path[depth].p_ext->ee_block);
-	b2 &= ~(sbi->s_cluster_ratio - 1);
+	b2 = EXT4_LBLK_CMASK(sbi, le32_to_cpu(path[depth].p_ext->ee_block));
 
 	/*
 	 * get the next allocated block if the extent in the path
@@ -1783,7 +1782,7 @@ static unsigned int ext4_ext_check_overlap(struct ext4_sb_info *sbi,
 		b2 = ext4_ext_next_allocated_block(path);
 		if (b2 == EXT_MAX_BLOCKS)
 			goto out;
-		b2 &= ~(sbi->s_cluster_ratio - 1);
+		b2 = EXT4_LBLK_CMASK(sbi, b2);
 	}
 
 	/* check for wrap through zero on extent logical start block*/
@@ -2444,7 +2443,7 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 		 * truncate operation has removed all of the blocks in
 		 * the cluster.
 		 */
-		if (pblk & (sbi->s_cluster_ratio - 1) &&
+		if (EXT4_PBLK_COFF(sbi, pblk) &&
 		    (ee_len == num))
 			*partial_cluster = EXT4_B2C(sbi, pblk);
 		else
@@ -3675,7 +3674,7 @@ int ext4_find_delalloc_cluster(struct inode *inode, ext4_lblk_t lblk)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	ext4_lblk_t lblk_start, lblk_end;
-	lblk_start = lblk & (~(sbi->s_cluster_ratio - 1));
+	lblk_start = EXT4_LBLK_CMASK(sbi, lblk);
 	lblk_end = lblk_start + sbi->s_cluster_ratio - 1;
 
 	return ext4_find_delalloc_range(inode, lblk_start, lblk_end);
@@ -3734,9 +3733,9 @@ get_reserved_cluster_alloc(struct inode *inode, ext4_lblk_t lblk_start,
 	trace_ext4_get_reserved_cluster_alloc(inode, lblk_start, num_blks);
 
 	/* Check towards left side */
-	c_offset = lblk_start & (sbi->s_cluster_ratio - 1);
+	c_offset = EXT4_LBLK_COFF(sbi, lblk_start);
 	if (c_offset) {
-		lblk_from = lblk_start & (~(sbi->s_cluster_ratio - 1));
+		lblk_from = EXT4_LBLK_CMASK(sbi, lblk_start);
 		lblk_to = lblk_from + c_offset - 1;
 
 		if (ext4_find_delalloc_range(inode, lblk_from, lblk_to))
@@ -3744,7 +3743,7 @@ get_reserved_cluster_alloc(struct inode *inode, ext4_lblk_t lblk_start,
 	}
 
 	/* Now check towards right. */
-	c_offset = (lblk_start + num_blks) & (sbi->s_cluster_ratio - 1);
+	c_offset = EXT4_LBLK_COFF(sbi, lblk_start + num_blks);
 	if (allocated_clusters && c_offset) {
 		lblk_from = lblk_start + num_blks;
 		lblk_to = lblk_from + (sbi->s_cluster_ratio - c_offset) - 1;
@@ -3952,7 +3951,7 @@ static int get_implied_cluster_alloc(struct super_block *sb,
 				     struct ext4_ext_path *path)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	ext4_lblk_t c_offset = map->m_lblk & (sbi->s_cluster_ratio-1);
+	ext4_lblk_t c_offset = EXT4_LBLK_COFF(sbi, map->m_lblk);
 	ext4_lblk_t ex_cluster_start, ex_cluster_end;
 	ext4_lblk_t rr_cluster_start;
 	ext4_lblk_t ee_block = le32_to_cpu(ex->ee_block);
@@ -3970,8 +3969,7 @@ static int get_implied_cluster_alloc(struct super_block *sb,
 	    (rr_cluster_start == ex_cluster_start)) {
 		if (rr_cluster_start == ex_cluster_end)
 			ee_start += ee_len - 1;
-		map->m_pblk = (ee_start & ~(sbi->s_cluster_ratio - 1)) +
-			c_offset;
+		map->m_pblk = EXT4_PBLK_CMASK(sbi, ee_start) + c_offset;
 		map->m_len = min(map->m_len,
 				 (unsigned) sbi->s_cluster_ratio - c_offset);
 		/*
@@ -4125,7 +4123,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	 */
 	map->m_flags &= ~EXT4_MAP_FROM_CLUSTER;
 	newex.ee_block = cpu_to_le32(map->m_lblk);
-	cluster_offset = map->m_lblk & (sbi->s_cluster_ratio-1);
+	cluster_offset = EXT4_LBLK_CMASK(sbi, map->m_lblk);
 
 	/*
 	 * If we are doing bigalloc, check to see if the extent returned
@@ -4193,7 +4191,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	 * needed so that future calls to get_implied_cluster_alloc()
 	 * work correctly.
 	 */
-	offset = map->m_lblk & (sbi->s_cluster_ratio - 1);
+	offset = EXT4_LBLK_COFF(sbi, map->m_lblk);
 	ar.len = EXT4_NUM_B2C(sbi, offset+allocated);
 	ar.goal -= offset;
 	ar.logical -= offset;
