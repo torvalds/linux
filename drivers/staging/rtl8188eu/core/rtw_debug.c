@@ -882,7 +882,7 @@ int proc_get_all_sta_info(char *page, char **start,
 			}
 		}
 	}
-	_exit_critical_bh(&pstapriv->sta_hash_lock, &irqL);
+	spin_unlock_bh(&pstapriv->sta_hash_lock);
 
 	*eof = 1;
 	return len;

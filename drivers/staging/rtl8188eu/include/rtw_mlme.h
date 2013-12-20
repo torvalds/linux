@@ -526,48 +526,38 @@ static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, int state)
  */
 static inline void clr_fwstate(struct mlme_priv *pmlmepriv, int state)
 {
-	unsigned long irql;
-
 	spin_lock_bh(&pmlmepriv->lock);
 	if (check_fwstate(pmlmepriv, state) == true)
 		pmlmepriv->fw_state ^= state;
-	_exit_critical_bh(&pmlmepriv->lock, &irql);
+	spin_unlock_bh(&pmlmepriv->lock);
 }
 
 static inline void clr_fwstate_ex(struct mlme_priv *pmlmepriv, int state)
 {
-	unsigned long irql;
-
 	spin_lock_bh(&pmlmepriv->lock);
 	_clr_fwstate_(pmlmepriv, state);
-	_exit_critical_bh(&pmlmepriv->lock, &irql);
+	spin_unlock_bh(&pmlmepriv->lock);
 }
 
 static inline void up_scanned_network(struct mlme_priv *pmlmepriv)
 {
-	unsigned long irql;
-
 	spin_lock_bh(&pmlmepriv->lock);
 	pmlmepriv->num_of_scanned++;
-	_exit_critical_bh(&pmlmepriv->lock, &irql);
+	spin_unlock_bh(&pmlmepriv->lock);
 }
 
 static inline void down_scanned_network(struct mlme_priv *pmlmepriv)
 {
-	unsigned long irql;
-
 	spin_lock_bh(&pmlmepriv->lock);
 	pmlmepriv->num_of_scanned--;
-	_exit_critical_bh(&pmlmepriv->lock, &irql);
+	spin_unlock_bh(&pmlmepriv->lock);
 }
 
 static inline void set_scanned_network_val(struct mlme_priv *pmlmepriv, int val)
 {
-	unsigned long irql;
-
 	spin_lock_bh(&pmlmepriv->lock);
 	pmlmepriv->num_of_scanned = val;
-	_exit_critical_bh(&pmlmepriv->lock, &irql);
+	spin_unlock_bh(&pmlmepriv->lock);
 }
 
 u16 rtw_get_capability(struct wlan_bssid_ex *bss);

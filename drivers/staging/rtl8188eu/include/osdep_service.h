@@ -97,11 +97,6 @@ static inline void _exit_critical_ex(spinlock_t *plock, unsigned long *pirqL)
 	spin_unlock_irqrestore(plock, *pirqL);
 }
 
-static inline void _exit_critical_bh(spinlock_t *plock, unsigned long *pirqL)
-{
-	spin_unlock_bh(plock);
-}
-
 static inline int _enter_critical_mutex(struct mutex *pmutex,
 					unsigned long *pirqL)
 {

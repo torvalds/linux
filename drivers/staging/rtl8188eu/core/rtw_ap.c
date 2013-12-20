@@ -64,7 +64,7 @@ void free_mlme_ap_info(struct adapter *padapter)
 	psta = rtw_get_bcmc_stainfo(padapter);
 	spin_lock_bh(&(pstapriv->sta_hash_lock));
 	rtw_free_stainfo(padapter, psta);
-	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+	spin_unlock_bh(&(pstapriv->sta_hash_lock));
 
 	_rtw_spinlock_free(&pmlmepriv->bcn_update_lock);
 }
@@ -305,18 +305,18 @@ void	expire_timeout_chk(struct adapter *padapter)
 				DBG_88E("auth expire %6ph\n",
 					psta->hwaddr);
 
-				_exit_critical_bh(&pstapriv->auth_list_lock, &irqL);
+				spin_unlock_bh(&pstapriv->auth_list_lock);
 
 				spin_lock_bh(&(pstapriv->sta_hash_lock));
 				rtw_free_stainfo(padapter, psta);
-				_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+				spin_unlock_bh(&(pstapriv->sta_hash_lock));
 
 				spin_lock_bh(&pstapriv->auth_list_lock);
 			}
 		}
 
 	}
-	_exit_critical_bh(&pstapriv->auth_list_lock, &irqL);
+	spin_unlock_bh(&pstapriv->auth_list_lock);
 
 	psta = NULL;
 
@@ -387,7 +387,7 @@ void	expire_timeout_chk(struct adapter *padapter)
 		}
 	}
 
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 	if (chk_alive_num) {
 		u8 backup_oper_channel = 0;
@@ -428,7 +428,7 @@ void	expire_timeout_chk(struct adapter *padapter)
 			rtw_list_delete(&psta->asoc_list);
 			pstapriv->asoc_list_cnt--;
 			updated = ap_free_sta(padapter, psta, true, WLAN_REASON_DEAUTH_LEAVING);
-			_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+			spin_unlock_bh(&pstapriv->asoc_list_lock);
 		}
 
 		if (backup_oper_channel > 0) /* back to the original operation channel */
@@ -606,7 +606,7 @@ static void update_bmc_sta(struct adapter *padapter)
 
 		spin_lock_bh(&psta->lock);
 		psta->state = _FW_LINKED;
-		_exit_critical_bh(&psta->lock, &irqL);
+		spin_unlock_bh(&psta->lock);
 
 	} else {
 		DBG_88E("add_RATid_bmc_sta error!\n");
@@ -681,7 +681,7 @@ void update_sta_info_apmode(struct adapter *padapter, struct sta_info *psta)
 
 	spin_lock_bh(&psta->lock);
 	psta->state |= _FW_LINKED;
-	_exit_critical_bh(&psta->lock, &irqL);
+	spin_unlock_bh(&psta->lock);
 }
 
 static void update_hw_ht_param(struct adapter *padapter)
@@ -1166,7 +1166,7 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 		}
 	}
 
-	_exit_critical_bh(&(pacl_node_q->lock), &irqL);
+	spin_unlock_bh(&(pacl_node_q->lock));
 
 	if (added)
 		return ret;
@@ -1193,7 +1193,7 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 
 	DBG_88E("%s, acl_num =%d\n", __func__, pacl_list->num);
 
-	_exit_critical_bh(&(pacl_node_q->lock), &irqL);
+	spin_unlock_bh(&(pacl_node_q->lock));
 
 	return ret;
 }
@@ -1230,7 +1230,7 @@ int rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 		}
 	}
 
-	_exit_critical_bh(&(pacl_node_q->lock), &irqL);
+	spin_unlock_bh(&(pacl_node_q->lock));
 
 	DBG_88E("%s, acl_num =%d\n", __func__, pacl_list->num);
 	return ret;
@@ -1416,7 +1416,7 @@ void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 
 	pmlmepriv->update_bcn = true;
 
-	_exit_critical_bh(&pmlmepriv->bcn_update_lock, &irqL);
+	spin_unlock_bh(&pmlmepriv->bcn_update_lock);
 
 	if (tx)
 		set_tx_beacon_cmd(padapter);
@@ -1523,7 +1523,7 @@ void associated_clients_update(struct adapter *padapter, u8 updated)
 
 			VCS_update(padapter, psta);
 		}
-		_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+		spin_unlock_bh(&pstapriv->asoc_list_lock);
 	}
 }
 
@@ -1755,7 +1755,7 @@ u8 ap_free_sta(struct adapter *padapter, struct sta_info *psta,
 
 	spin_lock_bh(&psta->lock);
 	psta->state &= ~_FW_LINKED;
-	_exit_critical_bh(&psta->lock, &irqL);
+	spin_unlock_bh(&psta->lock);
 
 	rtw_indicate_sta_disassoc_event(padapter, psta);
 
@@ -1765,7 +1765,7 @@ u8 ap_free_sta(struct adapter *padapter, struct sta_info *psta,
 
 	spin_lock_bh(&(pstapriv->sta_hash_lock));
 	rtw_free_stainfo(padapter, psta);
-	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+	spin_unlock_bh(&(pstapriv->sta_hash_lock));
 
 	return beacon_updated;
 }
@@ -1799,7 +1799,7 @@ int rtw_ap_inform_ch_switch(struct adapter *padapter, u8 new_ch, u8 ch_offset)
 		issue_action_spct_ch_switch(padapter, psta->hwaddr, new_ch, ch_offset);
 		psta->expire_to = ((pstapriv->expire_to * 2) > 5) ? 5 : (pstapriv->expire_to * 2);
 	}
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 	issue_action_spct_ch_switch(padapter, bc_addr, new_ch, ch_offset);
 
@@ -1837,7 +1837,7 @@ int rtw_sta_flush(struct adapter *padapter)
 
 		ap_free_sta(padapter, psta, true, WLAN_REASON_DEAUTH_LEAVING);
 	}
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 
 	issue_deauth(padapter, bc_addr, WLAN_REASON_DEAUTH_LEAVING);
@@ -1969,7 +1969,7 @@ void stop_ap_mode(struct adapter *padapter)
 			pacl_list->num--;
 		}
 	}
-	_exit_critical_bh(&(pacl_node_q->lock), &irqL);
+	spin_unlock_bh(&(pacl_node_q->lock));
 
 	DBG_88E("%s, free acl_node_queue, num =%d\n", __func__, pacl_list->num);
 
@@ -1981,7 +1981,7 @@ void stop_ap_mode(struct adapter *padapter)
 	psta = rtw_get_bcmc_stainfo(padapter);
 	spin_lock_bh(&(pstapriv->sta_hash_lock));
 	rtw_free_stainfo(padapter, psta);
-	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+	spin_unlock_bh(&(pstapriv->sta_hash_lock));
 
 	rtw_init_bcmc_stainfo(padapter);
 

@@ -68,7 +68,6 @@ _func_exit_;
 
 u8 rtw_do_join(struct adapter *padapter)
 {
-	unsigned long	irqL;
 	struct list_head *plist, *phead;
 	u8 *pibss = NULL;
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
@@ -92,7 +91,7 @@ _func_enter_;
 	pmlmepriv->to_join = true;
 
 	if (_rtw_queue_empty(queue)) {
-		_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
+		spin_unlock_bh(&(pmlmepriv->scanned_queue.lock));
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 
 		/* when set_ssid/set_bssid for rtw_do_join(), but scanning queue is empty */
@@ -116,7 +115,7 @@ _func_enter_;
 	} else {
 		int select_ret;
 
-		_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
+		spin_unlock_bh(&(pmlmepriv->scanned_queue.lock));
 		select_ret = rtw_select_and_join_from_scanned_queue(pmlmepriv);
 		if (select_ret == _SUCCESS) {
 			pmlmepriv->to_join = false;
@@ -178,7 +177,6 @@ _func_exit_;
 
 u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid)
 {
-	unsigned long irqL;
 	u8 status = _SUCCESS;
 	u32 cur_time = 0;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -253,7 +251,7 @@ handle_tkip_countermeasure:
 		status = rtw_do_join(padapter);
 
 release_mlme_lock:
-	_exit_critical_bh(&pmlmepriv->lock, &irqL);
+	spin_unlock_bh(&pmlmepriv->lock);
 
 exit:
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
@@ -266,7 +264,6 @@ _func_exit_;
 
 u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 {
-	unsigned long irqL;
 	u8 status = _SUCCESS;
 	u32 cur_time = 0;
 
@@ -367,7 +364,7 @@ handle_tkip_countermeasure:
 	}
 
 release_mlme_lock:
-	_exit_critical_bh(&pmlmepriv->lock, &irqL);
+	spin_unlock_bh(&pmlmepriv->lock);
 
 exit:
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
@@ -379,7 +376,6 @@ _func_exit_;
 u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 	enum ndis_802_11_network_infra networktype)
 {
-	unsigned long irqL;
 	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct	wlan_network	*cur_network = &pmlmepriv->cur_network;
 	enum ndis_802_11_network_infra *pold_state = &(cur_network->network.InfrastructureMode);
@@ -439,7 +435,7 @@ _func_enter_;
 		case Ndis802_11InfrastructureMax:
 			break;
 		}
-		_exit_critical_bh(&pmlmepriv->lock, &irqL);
+		spin_unlock_bh(&pmlmepriv->lock);
 	}
 
 _func_exit_;
@@ -450,7 +446,6 @@ _func_exit_;
 
 u8 rtw_set_802_11_disassociate(struct adapter *padapter)
 {
-	unsigned long irqL;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 _func_enter_;
@@ -467,7 +462,7 @@ _func_enter_;
 		rtw_pwr_wakeup(padapter);
 	}
 
-	_exit_critical_bh(&pmlmepriv->lock, &irqL);
+	spin_unlock_bh(&pmlmepriv->lock);
 
 _func_exit_;
 
@@ -476,7 +471,6 @@ _func_exit_;
 
 u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_ssid *pssid, int ssid_max_num)
 {
-	unsigned long	irqL;
 	struct	mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	u8	res = true;
 
@@ -516,7 +510,7 @@ _func_enter_;
 
 		res = rtw_sitesurvey_cmd(padapter, pssid, ssid_max_num, NULL, 0);
 
-		_exit_critical_bh(&pmlmepriv->lock, &irqL);
+		spin_unlock_bh(&pmlmepriv->lock);
 	}
 exit:
 
