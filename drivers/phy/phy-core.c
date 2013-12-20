@@ -94,19 +94,31 @@ static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
 
 int phy_pm_runtime_get(struct phy *phy)
 {
+	int ret;
+
 	if (!pm_runtime_enabled(&phy->dev))
 		return -ENOTSUPP;
 
-	return pm_runtime_get(&phy->dev);
+	ret = pm_runtime_get(&phy->dev);
+	if (ret < 0 && ret != -EINPROGRESS)
+		pm_runtime_put_noidle(&phy->dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_get);
 
 int phy_pm_runtime_get_sync(struct phy *phy)
 {
+	int ret;
+
 	if (!pm_runtime_enabled(&phy->dev))
 		return -ENOTSUPP;
 
-	return pm_runtime_get_sync(&phy->dev);
+	ret = pm_runtime_get_sync(&phy->dev);
+	if (ret < 0)
+		pm_runtime_put_sync(&phy->dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_get_sync);
 
