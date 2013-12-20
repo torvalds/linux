@@ -50,7 +50,7 @@ void musb_host_finish_resume(struct work_struct *work)
 	unsigned long flags;
 	u8 power;
 
-	musb = container_of(work, struct musb, deassert_reset_work.work);
+	musb = container_of(work, struct musb, finish_resume_work.work);
 
 	spin_lock_irqsave(&musb->lock, flags);
 
