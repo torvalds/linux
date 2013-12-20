@@ -48,7 +48,7 @@ static struct llc_sap *llc_sap_alloc(void)
 
 static struct llc_sap *__llc_sap_find(unsigned char sap_value)
 {
-	struct llc_sap* sap;
+	struct llc_sap *sap;
 
 	list_for_each_entry(sap, &llc_sap_list, node)
 		if (sap->laddr.lsap == sap_value)
