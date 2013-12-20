@@ -3926,6 +3926,7 @@ int sep_crypto_setup(void)
 err_algs:
 	for (k = 0; k < i; k++)
 		crypto_unregister_ahash(&hash_algs[k]);
+	destroy_workqueue(sep_dev->workqueue);
 	return err;
 
 err_crypto_algs:
@@ -3944,6 +3945,7 @@ void sep_crypto_takedown(void)
 	for (i = 0; i < ARRAY_SIZE(crypto_algs); i++)
 		crypto_unregister_alg(&crypto_algs[i]);
 
+	destroy_workqueue(sep_dev->workqueue);
 	tasklet_kill(&sep_dev->finish_tasklet);
 }
 
