@@ -1474,6 +1474,10 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		}
 		new_size = old_size - new_size;
 	} else if (mod > 0) {
+		if (new_size > ULLONG_MAX - old_size) {
+			ret = -EINVAL;
+			goto out_free;
+		}
 		new_size = old_size + new_size;
 	}
 
