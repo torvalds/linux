@@ -29,5 +29,10 @@
 				     <1 1 0xf08>;
 			clock-frequency = <19200000>;
 		};
+
+		restart@fc4ab000 {
+			compatible = "qcom,pshold";
+			reg = <0xfc4ab000 0x4>;
+		};
 	};
 };
