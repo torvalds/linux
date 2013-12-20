@@ -84,15 +84,6 @@
 	  (~BIT_OFFSET_LEN_MASK_32(__BitOffset, __BitLen)) \
 	)
 
-#define SET_BITS_TO_LE_4BYTE(__pStart, __BitOffset, __BitLen, __Value) \
-	*((u32 *)(__pStart)) = \
-	EF4Byte( \
-	LE_BITS_CLEARED_TO_4BYTE(__pStart, __BitOffset, __BitLen) \
-	| \
-	((((u32)__Value) & BIT_LEN_MASK_32(__BitLen)) << (__BitOffset)) \
-	);
-
-
 #define BIT_LEN_MASK_16(__BitLen) \
 	(0xFFFF >> (16 - (__BitLen)))
 
@@ -109,21 +100,6 @@
 	  BIT_LEN_MASK_16(__BitLen) \
 	)
 
-#define LE_BITS_CLEARED_TO_2BYTE(__pStart, __BitOffset, __BitLen) \
-	( \
-	  LE_P2BYTE_TO_HOST_2BYTE(__pStart) \
-	  & \
-	  (~BIT_OFFSET_LEN_MASK_16(__BitOffset, __BitLen)) \
-	)
-
-#define SET_BITS_TO_LE_2BYTE(__pStart, __BitOffset, __BitLen, __Value) \
-	*((u16 *)(__pStart)) = \
-	EF2Byte( \
-		LE_BITS_CLEARED_TO_2BYTE(__pStart, __BitOffset, __BitLen) \
-		| ((((u16)__Value) & BIT_LEN_MASK_16(__BitLen)) <<	\
-		(__BitOffset)) \
-	);
-
 #define BIT_LEN_MASK_8(__BitLen) \
 	(0xFF >> (8 - (__BitLen)))
 
@@ -139,20 +115,6 @@
 	  & \
 	  BIT_LEN_MASK_8(__BitLen) \
 	)
-
-#define LE_BITS_CLEARED_TO_1BYTE(__pStart, __BitOffset, __BitLen) \
-	( \
-	  LE_P1BYTE_TO_HOST_1BYTE(__pStart) \
-	  & \
-	  (~BIT_OFFSET_LEN_MASK_8(__BitOffset, __BitLen)) \
-	)
-
-#define SET_BITS_TO_LE_1BYTE(__pStart, __BitOffset, __BitLen, __Value)	\
-	*((u8 *)(__pStart)) = EF1Byte(					\
-		LE_BITS_CLEARED_TO_1BYTE(__pStart, __BitOffset, __BitLen) \
-		| ((((u8)__Value) & BIT_LEN_MASK_8(__BitLen)) <<	\
-		(__BitOffset))						\
-	);
 
 #define	N_BYTE_ALIGMENT(__Value, __Aligment)			\
 	 ((__Aligment == 1) ? (__Value) : (((__Value + __Aligment - 1) / \
