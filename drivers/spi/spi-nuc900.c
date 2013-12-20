@@ -368,12 +368,6 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	hw->bitbang.txrx_bufs      = nuc900_spi_txrx;
 
 	hw->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (hw->res == NULL) {
-		dev_err(&pdev->dev, "Cannot get IORESOURCE_MEM\n");
-		err = -ENOENT;
-		goto err_pdata;
-	}
-
 	hw->regs = devm_ioremap_resource(&pdev->dev, hw->res);
 	if (IS_ERR(hw->regs)) {
 		err = PTR_ERR(hw->regs);
