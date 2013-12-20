@@ -3084,14 +3084,14 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 	trigger_mask &= timer_table->timer_mask;
 	thresh_mask &= timer_table->timer_mask;
 
-	trigger_mask &= ~thresh_mask;
-
 	for_each_set_bit(index, &thresh_mask, ARRAY_SIZE(timer_table->timers)) {
 		timer = timer_table->timers[index];
 		if (!timer)
 		    continue;
 		if (!timer->overflow)
 		    continue;
+
+		trigger_mask &= ~BIT(index);
 		timer->overflow(timer->arg);
 	}
 
