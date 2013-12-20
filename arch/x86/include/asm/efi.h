@@ -133,6 +133,18 @@ extern void efi_sync_low_kernel_mappings(void);
 extern void efi_setup_page_tables(void);
 extern void __init old_map_region(efi_memory_desc_t *md);
 
+struct efi_setup_data {
+	u64 fw_vendor;
+	u64 runtime;
+	u64 tables;
+	u64 smbios;
+	u64 reserved[8];
+};
+
+extern u64 efi_setup;
+extern u32 efi_data_len;
+extern void parse_efi_setup(u64 phys_addr, u32 data_len);
+
 #ifdef CONFIG_EFI
 
 static inline bool efi_is_native(void)

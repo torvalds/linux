@@ -48,6 +48,7 @@ void __init efi_map_region(efi_memory_desc_t *md)
 }
 
 void __init efi_map_region_fixed(efi_memory_desc_t *md) {}
+void __init parse_efi_setup(u64 phys_addr, u32 data_len) {}
 
 void efi_call_phys_prelog(void)
 {
