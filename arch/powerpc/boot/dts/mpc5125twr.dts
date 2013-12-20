@@ -188,6 +188,10 @@
 			reg = <0xA000 0x1000>;
 		};
 
+		// disable USB1 port
+		// TODO:
+		// correct pinmux config and fix USB3320 ulpi dependency
+		// before re-enabling it
 		usb@3000 {
 			compatible = "fsl,mpc5121-usb2-dr";
 			reg = <0x3000 0x400>;
@@ -196,6 +200,7 @@
 			interrupts = <43 0x8>;
 			dr_mode = "host";
 			phy_type = "ulpi";
+			status = "disabled";
 		};
 
 		// 5125 PSCs are not 52xx or 5121 PSC compatible
