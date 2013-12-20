@@ -20,6 +20,7 @@ obj-$(CONFIG_ARCH_U300)		+= clk-u300.o
 obj-$(CONFIG_COMMON_CLK_VERSATILE) += versatile/
 obj-$(CONFIG_ARCH_PRIMA2)	+= clk-prima2.o
 obj-$(CONFIG_PLAT_ORION)	+= mvebu/
+obj-$(CONFIG_ARCH_ROCKCHIP)	+= rockchip/
 ifeq ($(CONFIG_COMMON_CLK), y)
 obj-$(CONFIG_ARCH_MMP)		+= mmp/
 endif

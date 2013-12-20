@@ -220,6 +220,7 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	val = readl(divider->reg);
 	val &= ~(div_mask(divider) << divider->shift);
 	val |= value << divider->shift;
+	val |= (div_mask(divider) << (divider->shift + 16));
 	writel(val, divider->reg);
 
 	if (divider->lock)

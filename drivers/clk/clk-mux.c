@@ -89,6 +89,8 @@ static int clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	val = readl(mux->reg);
 	val &= ~(mux->mask << mux->shift);
 	val |= index << mux->shift;
+	val |= (mux->mask << (mux->shift + 16));
+
 	writel(val, mux->reg);
 
 	if (mux->lock)
