@@ -2237,7 +2237,7 @@ static int b44_init_one(struct ssb_device *sdev,
 
 	/* do a phy reset to test if there is an active phy */
 	if (b44_phy_reset(bp) < 0)
-		bp->phy_addr = B44_PHY_ADDR_NO_PHY;
+		bp->phy_addr = B44_PHY_ADDR_NO_LOCAL_PHY;
 
 	netdev_info(dev, "%s %pM\n", DRV_DESCRIPTION, dev->dev_addr);
 

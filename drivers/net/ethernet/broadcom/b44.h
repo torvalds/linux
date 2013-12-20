@@ -280,9 +280,9 @@ struct ring_info {
 	dma_addr_t	mapping;
 };
 
-#define B44_MCAST_TABLE_SIZE	32
-#define B44_PHY_ADDR_NO_PHY	30
-#define B44_MDC_RATIO		5000000
+#define B44_MCAST_TABLE_SIZE		32
+#define B44_PHY_ADDR_NO_LOCAL_PHY	30 /* no local phy regs */
+#define B44_MDC_RATIO			5000000
 
 #define	B44_STAT_REG_DECLARE		\
 	_B44(tx_good_octets)		\
