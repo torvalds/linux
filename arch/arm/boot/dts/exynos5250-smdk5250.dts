@@ -77,6 +77,9 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 
+			clocks = <&codec_mclk>;
+			clock-names = "MCLK1";
+
 			AVDD2-supply = <&vdd>;
 			CPVDD-supply = <&vdd>;
 			DBVDD-supply = <&dbvdd>;
@@ -270,6 +273,12 @@
 		xxti {
 			compatible = "samsung,clock-xxti";
 			clock-frequency = <24000000>;
+		};
+
+		codec_mclk: codec-mclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <16934000>;
 		};
 	};
 };
