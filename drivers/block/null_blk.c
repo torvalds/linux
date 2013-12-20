@@ -1,4 +1,5 @@
 #include <linux/module.h>
+
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -346,8 +347,37 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
 
 static struct blk_mq_hw_ctx *null_alloc_hctx(struct blk_mq_reg *reg, unsigned int hctx_index)
 {
-	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL,
-				hctx_index);
+	int b_size = DIV_ROUND_UP(reg->nr_hw_queues, nr_online_nodes);
+	int tip = (reg->nr_hw_queues % nr_online_nodes);
+	int node = 0, i, n;
+
+	/*
+	 * Split submit queues evenly wrt to the number of nodes. If uneven,
+	 * fill the first buckets with one extra, until the rest is filled with
+	 * no extra.
+	 */
+	for (i = 0, n = 1; i < hctx_index; i++, n++) {
+		if (n % b_size == 0) {
+			n = 0;
+			node++;
+
+			tip--;
+			if (!tip)
+				b_size = reg->nr_hw_queues / nr_online_nodes;
+		}
+	}
+
+	/*
+	 * A node might not be online, therefore map the relative node id to the
+	 * real node id.
+	 */
+	for_each_online_node(n) {
+		if (!node)
+			break;
+		node--;
+	}
+
+	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL, n);
 }
 
 static void null_free_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_index)
@@ -591,10 +621,11 @@ static int __init null_init(void)
 #endif
 
 	if (queue_mode == NULL_Q_MQ && use_per_node_hctx) {
-		if (submit_queues > 0)
+		if (submit_queues < nr_online_nodes) {
 			pr_warn("null_blk: submit_queues param is set to %u.",
 							nr_online_nodes);
-		submit_queues = nr_online_nodes;
+			submit_queues = nr_online_nodes;
+		}
 	} else if (submit_queues > nr_cpu_ids)
 		submit_queues = nr_cpu_ids;
 	else if (!submit_queues)
