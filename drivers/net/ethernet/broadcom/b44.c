@@ -284,7 +284,7 @@ static int __b44_writephy(struct b44 *bp, int phy_addr, int reg, u32 val)
 
 static inline int b44_readphy(struct b44 *bp, int reg, u32 *val)
 {
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY)
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		return 0;
 
 	return __b44_readphy(bp, bp->phy_addr, reg, val);
@@ -292,7 +292,7 @@ static inline int b44_readphy(struct b44 *bp, int reg, u32 *val)
 
 static inline int b44_writephy(struct b44 *bp, int reg, u32 val)
 {
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY)
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		return 0;
 
 	return __b44_writephy(bp, bp->phy_addr, reg, val);
@@ -321,7 +321,7 @@ static int b44_phy_reset(struct b44 *bp)
 	u32 val;
 	int err;
 
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY)
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		return 0;
 	err = b44_writephy(bp, MII_BMCR, BMCR_RESET);
 	if (err)
@@ -423,7 +423,7 @@ static int b44_setup_phy(struct b44 *bp)
 
 	b44_wap54g10_workaround(bp);
 
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY)
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		return 0;
 	if ((err = b44_readphy(bp, B44_MII_ALEDCTRL, &val)) != 0)
 		goto out;
@@ -521,7 +521,7 @@ static void b44_check_phy(struct b44 *bp)
 {
 	u32 bmsr, aux;
 
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY) {
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
 		bp->flags |= B44_FLAG_100_BASE_T;
 		bp->flags |= B44_FLAG_FULL_DUPLEX;
 		if (!netif_carrier_ok(bp->dev)) {
@@ -1315,7 +1315,7 @@ static void b44_chip_reset(struct b44 *bp, int reset_kind)
 	if (!(br32(bp, B44_DEVCTRL) & DEVCTRL_IPP)) {
 		bw32(bp, B44_ENET_CTRL, ENET_CTRL_EPSEL);
 		br32(bp, B44_ENET_CTRL);
-		bp->flags &= ~B44_FLAG_INTERNAL_PHY;
+		bp->flags |= B44_FLAG_EXTERNAL_PHY;
 	} else {
 		u32 val = br32(bp, B44_DEVCTRL);
 
@@ -1324,7 +1324,7 @@ static void b44_chip_reset(struct b44 *bp, int reset_kind)
 			br32(bp, B44_DEVCTRL);
 			udelay(100);
 		}
-		bp->flags |= B44_FLAG_INTERNAL_PHY;
+		bp->flags &= ~B44_FLAG_EXTERNAL_PHY;
 	}
 }
 
@@ -1828,8 +1828,8 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port = 0;
 	cmd->phy_address = bp->phy_addr;
-	cmd->transceiver = (bp->flags & B44_FLAG_INTERNAL_PHY) ?
-		XCVR_INTERNAL : XCVR_EXTERNAL;
+	cmd->transceiver = (bp->flags & B44_FLAG_EXTERNAL_PHY) ?
+		XCVR_EXTERNAL : XCVR_INTERNAL;
 	cmd->autoneg = (bp->flags & B44_FLAG_FORCE_LINK) ?
 		AUTONEG_DISABLE : AUTONEG_ENABLE;
 	if (cmd->autoneg == AUTONEG_ENABLE)
