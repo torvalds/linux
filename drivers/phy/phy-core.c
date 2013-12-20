@@ -167,13 +167,14 @@ int phy_init(struct phy *phy)
 		return ret;
 
 	mutex_lock(&phy->mutex);
-	if (phy->init_count++ == 0 && phy->ops->init) {
+	if (phy->init_count == 0 && phy->ops->init) {
 		ret = phy->ops->init(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy init failed --> %d\n", ret);
 			goto out;
 		}
 	}
+	++phy->init_count;
 
 out:
 	mutex_unlock(&phy->mutex);
@@ -191,13 +192,14 @@ int phy_exit(struct phy *phy)
 		return ret;
 
 	mutex_lock(&phy->mutex);
-	if (--phy->init_count == 0 && phy->ops->exit) {
+	if (phy->init_count == 1 && phy->ops->exit) {
 		ret = phy->ops->exit(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy exit failed --> %d\n", ret);
 			goto out;
 		}
 	}
+	--phy->init_count;
 
 out:
 	mutex_unlock(&phy->mutex);
@@ -215,16 +217,20 @@ int phy_power_on(struct phy *phy)
 		return ret;
 
 	mutex_lock(&phy->mutex);
-	if (phy->power_count++ == 0 && phy->ops->power_on) {
+	if (phy->power_count == 0 && phy->ops->power_on) {
 		ret = phy->ops->power_on(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy poweron failed --> %d\n", ret);
 			goto out;
 		}
 	}
+	++phy->power_count;
+	mutex_unlock(&phy->mutex);
+	return 0;
 
 out:
 	mutex_unlock(&phy->mutex);
+	phy_pm_runtime_put_sync(phy);
 
 	return ret;
 }
@@ -235,19 +241,19 @@ int phy_power_off(struct phy *phy)
 	int ret = -ENOTSUPP;
 
 	mutex_lock(&phy->mutex);
-	if (--phy->power_count == 0 && phy->ops->power_off) {
+	if (phy->power_count == 1 && phy->ops->power_off) {
 		ret =  phy->ops->power_off(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy poweroff failed --> %d\n", ret);
-			goto out;
+			mutex_unlock(&phy->mutex);
+			return ret;
 		}
 	}
-
-out:
+	--phy->power_count;
 	mutex_unlock(&phy->mutex);
 	phy_pm_runtime_put(phy);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(phy_power_off);
 
