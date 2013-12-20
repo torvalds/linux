@@ -102,6 +102,8 @@ static struct pci_bus_region pci_32_bit = {0, 0xffffffffULL};
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 static struct pci_bus_region pci_64_bit = {0,
 				(dma_addr_t) 0xffffffffffffffffULL};
+static struct pci_bus_region pci_high = {(dma_addr_t) 0x100000000ULL,
+				(dma_addr_t) 0xffffffffffffffffULL};
 #endif
 
 /*
@@ -198,8 +200,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
  * alignment and type, try to find an acceptable resource allocation
  * for a specific device resource.
  */
-int
-pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
+int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		resource_size_t size, resource_size_t align,
 		resource_size_t min, unsigned int type_mask,
 		resource_size_t (*alignf)(void *,
@@ -209,10 +210,19 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		void *alignf_data)
 {
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	if (res->flags & IORESOURCE_MEM_64)
+	int rc;
+
+	if (res->flags & IORESOURCE_MEM_64) {
+		rc = pci_bus_alloc_from_region(bus, res, size, align, min,
+					       type_mask, alignf, alignf_data,
+					       &pci_high);
+		if (rc == 0)
+			return 0;
+
 		return pci_bus_alloc_from_region(bus, res, size, align, min,
 						 type_mask, alignf, alignf_data,
 						 &pci_64_bit);
+	}
 #endif
 
 	return pci_bus_alloc_from_region(bus, res, size, align, min,
