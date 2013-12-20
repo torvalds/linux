@@ -786,3 +786,39 @@ const struct xattr_handler posix_acl_default_xattr_handler = {
 	.set = posix_acl_xattr_set,
 };
 EXPORT_SYMBOL_GPL(posix_acl_default_xattr_handler);
+
+int simple_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+{
+	int error;
+
+	if (type == ACL_TYPE_ACCESS) {
+		error = posix_acl_equiv_mode(acl, &inode->i_mode);
+		if (error < 0)
+			return 0;
+		if (error == 0)
+			acl = NULL;
+	}
+
+	inode->i_ctime = CURRENT_TIME;
+	set_cached_acl(inode, type, acl);
+	return 0;
+}
+
+int simple_acl_create(struct inode *dir, struct inode *inode)
+{
+	struct posix_acl *default_acl, *acl;
+	int error;
+
+	error = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
+	if (error)
+		return error;
+
+	set_cached_acl(inode, ACL_TYPE_DEFAULT, default_acl);
+	set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
+
+	if (default_acl)
+		posix_acl_release(default_acl);
+	if (acl)
+		posix_acl_release(acl);
+	return 0;
+}

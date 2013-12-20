@@ -99,6 +99,9 @@ extern int posix_acl_chmod(struct inode *, umode_t);
 extern int posix_acl_create(struct inode *, umode_t *, struct posix_acl **,
 		struct posix_acl **);
 
+extern int simple_set_acl(struct inode *, struct posix_acl *, int);
+extern int simple_acl_create(struct inode *, struct inode *);
+
 static inline struct posix_acl **acl_by_type(struct inode *inode, int type)
 {
 	switch (type) {
@@ -181,6 +184,12 @@ static inline int posix_acl_chmod(struct inode *inode, umode_t mode)
 	return 0;
 }
 
+#define simple_set_acl		NULL
+
+static inline int simple_acl_create(struct inode *dir, struct inode *inode)
+{
+	return 0;
+}
 static inline void cache_no_acl(struct inode *inode)
 {
 }
