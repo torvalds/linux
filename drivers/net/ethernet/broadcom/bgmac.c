@@ -725,11 +725,9 @@ static void bgmac_phy_reset(struct bgmac *bgmac)
 	if (bgmac->phyaddr == BGMAC_PHY_NOREGS)
 		return;
 
-	bgmac_phy_write(bgmac, bgmac->phyaddr, BGMAC_PHY_CTL,
-			BGMAC_PHY_CTL_RESET);
+	bgmac_phy_write(bgmac, bgmac->phyaddr, MII_BMCR, BMCR_RESET);
 	udelay(100);
-	if (bgmac_phy_read(bgmac, bgmac->phyaddr, BGMAC_PHY_CTL) &
-	    BGMAC_PHY_CTL_RESET)
+	if (bgmac_phy_read(bgmac, bgmac->phyaddr, MII_BMCR) & BMCR_RESET)
 		bgmac_err(bgmac, "PHY reset failed\n");
 	bgmac_phy_init(bgmac);
 }

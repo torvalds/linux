@@ -220,27 +220,6 @@
 #define BGMAC_RX_STATUS				0xb38
 #define BGMAC_TX_STATUS				0xb3c
 
-#define BGMAC_PHY_CTL				0x00
-#define  BGMAC_PHY_CTL_SPEED_MSB		0x0040
-#define  BGMAC_PHY_CTL_DUPLEX			0x0100		/* duplex mode */
-#define  BGMAC_PHY_CTL_RESTART			0x0200		/* restart autonegotiation */
-#define  BGMAC_PHY_CTL_ANENAB			0x1000		/* enable autonegotiation */
-#define  BGMAC_PHY_CTL_SPEED			0x2000
-#define  BGMAC_PHY_CTL_LOOP			0x4000		/* loopback */
-#define  BGMAC_PHY_CTL_RESET			0x8000		/* reset */
-/* Helpers */
-#define  BGMAC_PHY_CTL_SPEED_10			0
-#define  BGMAC_PHY_CTL_SPEED_100		BGMAC_PHY_CTL_SPEED
-#define  BGMAC_PHY_CTL_SPEED_1000		BGMAC_PHY_CTL_SPEED_MSB
-#define BGMAC_PHY_ADV				0x04
-#define  BGMAC_PHY_ADV_10HALF			0x0020		/* advertise 10MBits/s half duplex */
-#define  BGMAC_PHY_ADV_10FULL			0x0040		/* advertise 10MBits/s full duplex */
-#define  BGMAC_PHY_ADV_100HALF			0x0080		/* advertise 100MBits/s half duplex */
-#define  BGMAC_PHY_ADV_100FULL			0x0100		/* advertise 100MBits/s full duplex */
-#define BGMAC_PHY_ADV2				0x09
-#define  BGMAC_PHY_ADV2_1000HALF		0x0100		/* advertise 1000MBits/s half duplex */
-#define  BGMAC_PHY_ADV2_1000FULL		0x0200		/* advertise 1000MBits/s full duplex */
-
 /* BCMA GMAC core specific IO Control (BCMA_IOCTL) flags */
 #define BGMAC_BCMA_IOCTL_SW_CLKEN		0x00000004	/* PHY Clock Enable */
 #define BGMAC_BCMA_IOCTL_SW_RESET		0x00000008	/* PHY Reset */
