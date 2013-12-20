@@ -65,7 +65,8 @@ hw_queue_depth=[0..qdepth]: Default: 64
 
 III: Multi-queue specific parameters
 
-use_per_node_hctx=[0/1]: Default: 1
-  If 1, the multi-queue block layer is instantiated with a hardware dispatch
-  queue for each CPU node in the system. If 0, it is instantiated with the
-  number of queues defined in the submit_queues parameter.
+use_per_node_hctx=[0/1]: Default: 0
+  0: The number of submit queues are set to the value of the submit_queues
+     parameter.
+  1: The multi-queue block layer is instantiated with a hardware dispatch
+     queue for each CPU node in the system.

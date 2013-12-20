@@ -101,9 +101,9 @@ static int hw_queue_depth = 64;
 module_param(hw_queue_depth, int, S_IRUGO);
 MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
 
-static bool use_per_node_hctx = true;
+static bool use_per_node_hctx = false;
 module_param(use_per_node_hctx, bool, S_IRUGO);
-MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: true");
+MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
 
 static void put_tag(struct nullb_queue *nq, unsigned int tag)
 {
