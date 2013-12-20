@@ -2412,8 +2412,11 @@ static int b44_init_one(struct ssb_device *sdev,
 	b44_chip_reset(bp, B44_CHIP_RESET_FULL);
 
 	/* do a phy reset to test if there is an active phy */
-	if (b44_phy_reset(bp) < 0)
-		bp->phy_addr = B44_PHY_ADDR_NO_LOCAL_PHY;
+	err = b44_phy_reset(bp);
+	if (err < 0) {
+		dev_err(sdev->dev, "phy reset failed\n");
+		goto err_out_unregister_netdev;
+	}
 
 	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
 		err = b44_register_phy_one(bp);
