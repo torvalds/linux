@@ -187,9 +187,10 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
-				     unsigned int rate)
+				     struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int i, j, ret;
 	int adg_clk_div_table[] = {
@@ -199,6 +200,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 		1, 2, 4, 8, 16, 6, 12,
 	};
 	unsigned int main_rate;
+	unsigned int rate = runtime->rate;
 
 	/*
 	 * Find best clock, and try to start ADG
@@ -251,14 +253,10 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		clk_enable(ssi->clk);
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
-			struct snd_pcm_runtime *runtime;
-
-			runtime = rsnd_io_to_runtime(io);
-
 			if (rsnd_ssi_clk_from_parent(ssi))
 				rsnd_ssi_hw_start(ssi->parent, rdai, io);
 			else
-				rsnd_ssi_master_clk_start(ssi, runtime->rate);
+				rsnd_ssi_master_clk_start(ssi, io);
 		}
 	}
 
