@@ -1151,7 +1151,8 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 
 static void cls_parse_modem(struct channel_t *ch, uchar signals)
 {
-	volatile uchar msignals = signals;
+	uchar msignals = signals;
+	ulong lock_flags;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
@@ -1163,6 +1164,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 	 * Do altpin switching. Altpin switches DCD and DSR.
 	 * This prolly breaks DSRPACE, so we should be more clever here.
 	 */
+	DGNC_LOCK(ch->ch_lock, lock_flags);
 	if (ch->ch_digi.digi_flags & DIGI_ALTPIN) {
 		uchar mswap = signals;
 		if (mswap & UART_MSR_DDCD) {
@@ -1182,6 +1184,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 			msignals |= UART_MSR_DCD;
 		}
 	}
+	DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 	/*
 	 * Scrub off lower bits. They signify delta's, which I don't
@@ -1189,6 +1192,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 	 */
 	signals &= 0xf0;
 
+	DGNC_LOCK(ch->ch_lock, lock_flags);
 	if (msignals & UART_MSR_DCD)
 		ch->ch_mistat |= UART_MSR_DCD;
 	else
@@ -1208,6 +1212,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 		ch->ch_mistat |= UART_MSR_CTS;
 	else
 		ch->ch_mistat &= ~UART_MSR_CTS;
+	DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 
 	DPR_MSIGS((
