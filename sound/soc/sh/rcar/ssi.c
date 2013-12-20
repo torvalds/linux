@@ -457,8 +457,9 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 	/* enable PIO IRQ */
 	ssi->cr_etc = UIEN | OIEN | DIEN;
 
-	/* enable PIO interrupt */
-	rsnd_mod_write(&ssi->mod, INT_ENABLE, 0x0f000000);
+	/* enable PIO interrupt if gen2 */
+	if (rsnd_is_gen2(priv))
+		rsnd_mod_write(&ssi->mod, INT_ENABLE, 0x0f000000);
 
 	rsnd_ssi_hw_start(ssi, rdai, io);
 
