@@ -833,6 +833,7 @@
 #define TPS65910_REG_VAUX2				10
 #define TPS65910_REG_VAUX33				11
 #define TPS65910_REG_VMMC				12
+#define TPS65910_REG_VBB				13
 
 #define TPS65911_REG_VDDCTRL				4
 #define TPS65911_REG_LDO1				5
@@ -845,7 +846,7 @@
 #define TPS65911_REG_LDO8				12
 
 /* Max number of TPS65910/11 regulators */
-#define TPS65910_NUM_REGS				13
+#define TPS65910_NUM_REGS				14
 
 /* External sleep controls through EN1/EN2/EN3/SLEEP inputs */
 #define TPS65910_SLEEP_CONTROL_EXT_INPUT_EN1		0x1
