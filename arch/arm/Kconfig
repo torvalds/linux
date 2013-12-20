@@ -925,9 +925,9 @@ source "arch/arm/mach-footbridge/Kconfig"
 
 source "arch/arm/mach-gemini/Kconfig"
 
-source "arch/arm/mach-hi3xxx/Kconfig"
-
 source "arch/arm/mach-highbank/Kconfig"
+
+source "arch/arm/mach-hisi/Kconfig"
 
 source "arch/arm/mach-integrator/Kconfig"
 

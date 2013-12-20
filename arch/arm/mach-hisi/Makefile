@@ -1,7 +1,7 @@
 #
-# Makefile for Hisilicon Hi36xx/Hi37xx processors line
+# Makefile for Hisilicon processors family
 #
 
-obj-y	+= hi3xxx.o
+obj-y	+= hisilicon.o
 obj-$(CONFIG_SMP)		+= platsmp.o
 obj-$(CONFIG_HOTPLUG_CPU)	+= hotplug.o

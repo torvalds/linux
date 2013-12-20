@@ -1,5 +1,5 @@
 /*
- * (Hisilicon's Hi36xx/Hi37xx SoC based) flattened device tree enabled machine
+ * (Hisilicon's SoC based) flattened device tree enabled machine
  *
  * Copyright (c) 2012-2013 Hisilicon Ltd.
  * Copyright (c) 2012-2013 Linaro Ltd.
