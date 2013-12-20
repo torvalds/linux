@@ -53,8 +53,8 @@ static inline void sai_writel(struct fsl_sai *sai,
 static int fsl_sai_set_dai_sysclk_tr(struct snd_soc_dai *cpu_dai,
 		int clk_id, unsigned int freq, int fsl_dir)
 {
-	u32 val_cr2, reg_cr2;
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	u32 val_cr2, reg_cr2;
 
 	if (fsl_dir == FSL_FMT_TRANSMITTER)
 		reg_cr2 = FSL_SAI_TCR2;
@@ -90,8 +90,8 @@ static int fsl_sai_set_dai_sysclk_tr(struct snd_soc_dai *cpu_dai,
 static int fsl_sai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		int clk_id, unsigned int freq, int dir)
 {
-	int ret;
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	int ret;
 
 	if (dir == SND_SOC_CLOCK_IN)
 		return 0;
@@ -128,8 +128,8 @@ err_clk:
 static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 				unsigned int fmt, int fsl_dir)
 {
-	u32 val_cr2, val_cr3, val_cr4, reg_cr2, reg_cr3, reg_cr4;
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	u32 val_cr2, val_cr3, val_cr4, reg_cr2, reg_cr3, reg_cr4;
 
 	if (fsl_dir == FSL_FMT_TRANSMITTER) {
 		reg_cr2 = FSL_SAI_TCR2;
@@ -207,8 +207,8 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 
 static int fsl_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
-	int ret;
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	int ret;
 
 	ret = clk_prepare_enable(sai->clk);
 	if (ret)
@@ -236,9 +236,9 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params,
 		struct snd_soc_dai *cpu_dai)
 {
+	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	u32 val_cr4, val_cr5, val_mr, reg_cr4, reg_cr5, reg_mr;
 	unsigned int channels = params_channels(params);
-	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	u32 word_width = snd_pcm_format_width(params_format(params));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -383,10 +383,10 @@ static const struct snd_soc_component_driver fsl_component = {
 
 static int fsl_sai_probe(struct platform_device *pdev)
 {
-	int ret;
+	struct device_node *np = pdev->dev.of_node;
 	struct fsl_sai *sai;
 	struct resource *res;
-	struct device_node *np = pdev->dev.of_node;
+	int ret;
 
 	sai = devm_kzalloc(&pdev->dev, sizeof(*sai), GFP_KERNEL);
 	if (!sai)
