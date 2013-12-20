@@ -919,7 +919,7 @@ static void uwb_rsv_alien_bp_work(struct work_struct *work)
 
 	list_for_each_entry(rsv, &rc->reservations, rc_node) {
 		if (rsv->type != UWB_DRP_TYPE_ALIEN_BP) {
-			rsv->callback(rsv);
+			uwb_rsv_callback(rsv);
 		}
 	}
 
