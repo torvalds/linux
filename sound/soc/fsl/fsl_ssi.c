@@ -127,6 +127,7 @@ static inline void write_ssi_mask(u32 __iomem *addr, u32 clear, u32 set)
 enum fsl_ssi_type {
 	FSL_SSI_MCP8610,
 	FSL_SSI_MX21,
+	FSL_SSI_MX35,
 	FSL_SSI_MX51,
 };
 
@@ -151,6 +152,7 @@ struct fsl_ssi_private {
 	struct snd_soc_dai_driver cpu_dai_drv;
 	struct platform_device *pdev;
 
+	enum fsl_ssi_type hw_type;
 	bool new_binding;
 	bool ssi_on_imx;
 	bool imx_ac97;
@@ -199,6 +201,7 @@ struct fsl_ssi_private {
 static const struct of_device_id fsl_ssi_ids[] = {
 	{ .compatible = "fsl,mpc8610-ssi", .data = (void *) FSL_SSI_MCP8610},
 	{ .compatible = "fsl,imx51-ssi", .data = (void *) FSL_SSI_MX51},
+	{ .compatible = "fsl,imx35-ssi", .data = (void *) FSL_SSI_MX35},
 	{ .compatible = "fsl,imx21-ssi", .data = (void *) FSL_SSI_MX21},
 	{}
 };
@@ -222,7 +225,26 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
 	irqreturn_t ret = IRQ_NONE;
 	__be32 sisr;
-	__be32 sisr2 = 0;
+	__be32 sisr2;
+	__be32 sisr_write_mask = 0;
+
+	switch (ssi_private->hw_type) {
+	case FSL_SSI_MX21:
+		sisr_write_mask = 0;
+		break;
+
+	case FSL_SSI_MCP8610:
+	case FSL_SSI_MX35:
+		sisr_write_mask = CCSR_SSI_SISR_RFRC | CCSR_SSI_SISR_TFRC |
+			CCSR_SSI_SISR_ROE0 | CCSR_SSI_SISR_ROE1 |
+			CCSR_SSI_SISR_TUE0 | CCSR_SSI_SISR_TUE1;
+		break;
+
+	case FSL_SSI_MX51:
+		sisr_write_mask = CCSR_SSI_SISR_ROE0 | CCSR_SSI_SISR_ROE1 |
+			CCSR_SSI_SISR_TUE0 | CCSR_SSI_SISR_TUE1;
+		break;
+	}
 
 	/* We got an interrupt, so read the status register to see what we
 	   were interrupted for.  We mask it with the Interrupt Enable register
@@ -232,13 +254,11 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 
 	if (sisr & CCSR_SSI_SISR_RFRC) {
 		ssi_private->stats.rfrc++;
-		sisr2 |= CCSR_SSI_SISR_RFRC;
 		ret = IRQ_HANDLED;
 	}
 
 	if (sisr & CCSR_SSI_SISR_TFRC) {
 		ssi_private->stats.tfrc++;
-		sisr2 |= CCSR_SSI_SISR_TFRC;
 		ret = IRQ_HANDLED;
 	}
 
@@ -279,25 +299,21 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 
 	if (sisr & CCSR_SSI_SISR_ROE1) {
 		ssi_private->stats.roe1++;
-		sisr2 |= CCSR_SSI_SISR_ROE1;
 		ret = IRQ_HANDLED;
 	}
 
 	if (sisr & CCSR_SSI_SISR_ROE0) {
 		ssi_private->stats.roe0++;
-		sisr2 |= CCSR_SSI_SISR_ROE0;
 		ret = IRQ_HANDLED;
 	}
 
 	if (sisr & CCSR_SSI_SISR_TUE1) {
 		ssi_private->stats.tue1++;
-		sisr2 |= CCSR_SSI_SISR_TUE1;
 		ret = IRQ_HANDLED;
 	}
 
 	if (sisr & CCSR_SSI_SISR_TUE0) {
 		ssi_private->stats.tue0++;
-		sisr2 |= CCSR_SSI_SISR_TUE0;
 		ret = IRQ_HANDLED;
 	}
 
@@ -341,6 +357,7 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 	}
 
+	sisr2 = sisr & sisr_write_mask;
 	/* Clear the bits that we set */
 	if (sisr2)
 		write_ssi(sisr2, &ssi->sisr);
@@ -1180,6 +1197,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 	ssi_private->use_dma = !of_property_read_bool(np,
 			"fsl,fiq-stream-filter");
+	ssi_private->hw_type = hw_type;
 
 	if (ac97) {
 		memcpy(&ssi_private->cpu_dai_drv, &fsl_ssi_ac97_dai,
@@ -1299,7 +1317,13 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 			dma_events[0], shared ? IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI);
 		imx_pcm_dma_params_init_data(&ssi_private->filter_data_rx,
 			dma_events[1], shared ? IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI);
-	} else if (ssi_private->use_dma) {
+	}
+
+	/*
+	 * Enable interrupts only for MCP8610 and MX51. The other MXs have
+	 * different writeable interrupt status registers.
+	 */
+	if (ssi_private->use_dma) {
 		/* The 'name' should not have any slashes in it. */
 		ret = devm_request_irq(&pdev->dev, ssi_private->irq,
 					fsl_ssi_isr, 0, ssi_private->name,
