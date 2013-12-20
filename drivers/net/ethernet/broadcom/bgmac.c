@@ -1198,27 +1198,11 @@ static int bgmac_set_mac_address(struct net_device *net_dev, void *addr)
 static int bgmac_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
-	struct mii_ioctl_data *data = if_mii(ifr);
 
-	switch (cmd) {
-	case SIOCGMIIPHY:
-		data->phy_id = bgmac->phyaddr;
-		/* fallthru */
-	case SIOCGMIIREG:
-		if (!netif_running(net_dev))
-			return -EAGAIN;
-		data->val_out = bgmac_phy_read(bgmac, data->phy_id,
-					       data->reg_num & 0x1f);
-		return 0;
-	case SIOCSMIIREG:
-		if (!netif_running(net_dev))
-			return -EAGAIN;
-		bgmac_phy_write(bgmac, data->phy_id, data->reg_num & 0x1f,
-				data->val_in);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
+	if (!netif_running(net_dev))
+		return -EINVAL;
+
+	return phy_mii_ioctl(bgmac->phy_dev, ifr, cmd);
 }
 
 static const struct net_device_ops bgmac_netdev_ops = {
