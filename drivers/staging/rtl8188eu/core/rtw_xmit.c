@@ -1273,7 +1273,7 @@ struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv)
 
 _func_enter_;
 
-	_enter_critical(&pfree_queue->lock, &irql);
+	spin_lock_irqsave(&pfree_queue->lock, irql);
 
 	if (_rtw_queue_empty(pfree_queue) == true) {
 		pxmitbuf = NULL;
@@ -1316,7 +1316,7 @@ _func_enter_;
 	if (pxmitbuf == NULL)
 		return _FAIL;
 
-	_enter_critical(&pfree_queue->lock, &irql);
+	spin_lock_irqsave(&pfree_queue->lock, irql);
 
 	rtw_list_delete(&pxmitbuf->list);
 
@@ -1341,7 +1341,7 @@ _func_enter_;
 
 	/* DBG_88E("+rtw_alloc_xmitbuf\n"); */
 
-	_enter_critical(&pfree_xmitbuf_queue->lock, &irql);
+	spin_lock_irqsave(&pfree_xmitbuf_queue->lock, irql);
 
 	if (_rtw_queue_empty(pfree_xmitbuf_queue) == true) {
 		pxmitbuf = NULL;
@@ -1387,7 +1387,7 @@ _func_enter_;
 	if (pxmitbuf->ext_tag) {
 		rtw_free_xmitbuf_ext(pxmitpriv, pxmitbuf);
 	} else {
-		_enter_critical(&pfree_xmitbuf_queue->lock, &irql);
+		spin_lock_irqsave(&pfree_xmitbuf_queue->lock, irql);
 
 		rtw_list_delete(&pxmitbuf->list);
 

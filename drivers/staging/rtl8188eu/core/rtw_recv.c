@@ -326,7 +326,7 @@ int rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue
 int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue)
 {
 	unsigned long irqL;
-	_enter_critical_ex(&queue->lock, &irqL);
+	spin_lock_irqsave(&queue->lock, irqL);
 
 	rtw_list_delete(&precvbuf->list);
 
@@ -341,7 +341,7 @@ struct recv_buf *rtw_dequeue_recvbuf (struct __queue *queue)
 	struct recv_buf *precvbuf;
 	struct list_head *plist, *phead;
 
-	_enter_critical_ex(&queue->lock, &irqL);
+	spin_lock_irqsave(&queue->lock, irqL);
 
 	if (_rtw_queue_empty(queue)) {
 		precvbuf = NULL;

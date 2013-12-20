@@ -153,7 +153,7 @@ _func_enter_;
 	if (obj == NULL)
 		goto exit;
 
-	_enter_critical(&queue->lock, &irqL);
+	spin_lock_irqsave(&queue->lock, irqL);
 
 	rtw_list_insert_tail(&obj->list, &queue->queue);
 
@@ -173,7 +173,7 @@ struct	cmd_obj	*_rtw_dequeue_cmd(struct __queue *queue)
 
 _func_enter_;
 
-	_enter_critical(&queue->lock, &irqL);
+	spin_lock_irqsave(&queue->lock, irqL);
 	if (rtw_is_list_empty(&(queue->queue))) {
 		obj = NULL;
 	} else {
