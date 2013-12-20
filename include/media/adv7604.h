@@ -78,6 +78,12 @@ enum adv7604_op_format_sel {
 	ADV7604_OP_FORMAT_SEL_SDR_ITU656_24_MODE2 = 0x8a,
 };
 
+enum adv7604_drive_strength {
+	ADV7604_DR_STR_MEDIUM_LOW = 1,
+	ADV7604_DR_STR_MEDIUM_HIGH = 2,
+	ADV7604_DR_STR_HIGH = 3,
+};
+
 /* Platform dependent definition */
 struct adv7604_platform_data {
 	/* connector - HDMI or DVI? */
@@ -109,6 +115,11 @@ struct adv7604_platform_data {
 	unsigned insert_av_codes:1;
 	unsigned replicate_av_codes:1;
 	unsigned invert_cbcr:1;
+
+	/* IO register 0x14 */
+	enum adv7604_drive_strength dr_str_data;
+	enum adv7604_drive_strength dr_str_clk;
+	enum adv7604_drive_strength dr_str_sync;
 
 	/* IO register 0x30 */
 	unsigned output_bus_lsb_to_msb:1;

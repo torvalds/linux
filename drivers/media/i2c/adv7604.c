@@ -1942,7 +1942,12 @@ static int adv7604_core_init(struct v4l2_subdev *sd)
 	/* TODO from platform data */
 	cp_write(sd, 0x69, 0x30);   /* Enable CP CSC */
 	io_write(sd, 0x06, 0xa6);   /* positive VS and HS */
-	io_write(sd, 0x14, 0x7f);   /* Drive strength adjusted to max */
+
+	/* Adjust drive strength */
+	io_write(sd, 0x14, 0x40 | pdata->dr_str_data << 4 |
+				pdata->dr_str_clk << 2 |
+				pdata->dr_str_sync);
+
 	cp_write(sd, 0xba, (pdata->hdmi_free_run_mode << 1) | 0x01); /* HDMI free run */
 	cp_write(sd, 0xf3, 0xdc); /* Low threshold to enter/exit free run mode */
 	cp_write(sd, 0xf9, 0x23); /*  STDI ch. 1 - LCVS change threshold -
