@@ -469,15 +469,17 @@ static int __cmd_report(struct report *rep)
 		desc);
 	}
 
-	if (verbose > 3)
-		perf_session__fprintf(session, stdout);
+	if (use_browser == 0) {
+		if (verbose > 3)
+			perf_session__fprintf(session, stdout);
 
-	if (verbose > 2)
-		perf_session__fprintf_dsos(session, stdout);
+		if (verbose > 2)
+			perf_session__fprintf_dsos(session, stdout);
 
-	if (dump_trace) {
-		perf_session__fprintf_nr_events(session, stdout);
-		return 0;
+		if (dump_trace) {
+			perf_session__fprintf_nr_events(session, stdout);
+			return 0;
+		}
 	}
 
 	nr_samples = 0;
