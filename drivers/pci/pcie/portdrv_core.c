@@ -344,11 +344,12 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 	device_enable_async_suspend(device);
 
 	retval = device_register(device);
-	if (retval)
-		kfree(pcie);
-	else
-		get_device(device);
-	return retval;
+	if (retval) {
+		put_device(device);
+		return retval;
+	}
+
+	return 0;
 }
 
 /**
@@ -454,10 +455,8 @@ int pcie_port_device_resume(struct device *dev)
 
 static int remove_iter(struct device *dev, void *data)
 {
-	if (dev->bus == &pcie_port_bus_type) {
-		put_device(dev);
+	if (dev->bus == &pcie_port_bus_type)
 		device_unregister(dev);
-	}
 	return 0;
 }
 
@@ -498,12 +497,12 @@ static int pcie_port_probe_service(struct device *dev)
 
 	pciedev = to_pcie_device(dev);
 	status = driver->probe(pciedev);
-	if (!status) {
-		dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n",
-			driver->name);
-		get_device(dev);
-	}
-	return status;
+	if (status)
+		return status;
+
+	dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n", driver->name);
+	get_device(dev);
+	return 0;
 }
 
 /**
