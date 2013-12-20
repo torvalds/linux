@@ -523,7 +523,6 @@ static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 	struct f2fs_io_info fio = {
 		.type = DATA,
 		.rw = WRITE_SYNC,
-		.rw_flag = 0,
 	};
 
 	if (gc_type == BG_GC) {

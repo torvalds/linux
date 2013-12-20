@@ -94,8 +94,7 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 	int i;
 	struct f2fs_io_info fio = {
 		.type = META,
-		.rw = READ_SYNC,
-		.rw_flag = REQ_META | REQ_PRIO
+		.rw = READ_SYNC | REQ_META | REQ_PRIO
 	};
 
 
@@ -1581,8 +1580,7 @@ static int ra_sum_pages(struct f2fs_sb_info *sbi, struct list_head *pages,
 	int page_idx = start;
 	struct f2fs_io_info fio = {
 		.type = META,
-		.rw = READ_SYNC,
-		.rw_flag = REQ_META | REQ_PRIO
+		.rw = READ_SYNC | REQ_META | REQ_PRIO
 	};
 
 	for (; page_idx < start + nrpages; page_idx++) {

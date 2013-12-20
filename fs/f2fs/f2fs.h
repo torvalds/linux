@@ -368,9 +368,8 @@ enum page_type {
 };
 
 struct f2fs_io_info {
-	enum page_type type;		/* contains DATA/NODE/META/META_FLUSH */
-	int rw;				/* contains R/RS/W/WS */
-	int rw_flag;			/* contains REQ_META/REQ_PRIO */
+	enum page_type type;	/* contains DATA/NODE/META/META_FLUSH */
+	int rw;			/* contains R/RS/W/WS with REQ_META/REQ_PRIO */
 };
 
 #define is_read_io(rw)	(((rw) & 1) == READ)

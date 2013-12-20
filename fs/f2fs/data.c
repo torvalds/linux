@@ -105,7 +105,7 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
 	if (!io->bio)
 		return;
 
-	rw = fio->rw | fio->rw_flag;
+	rw = fio->rw;
 
 	if (is_read_io(rw)) {
 		trace_f2fs_submit_read_bio(io->sbi->sb, rw,
@@ -760,7 +760,6 @@ static int f2fs_write_data_page(struct page *page,
 	struct f2fs_io_info fio = {
 		.type = DATA,
 		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC: WRITE,
-		.rw_flag = 0,
 	};
 
 	if (page->index < end_index)
