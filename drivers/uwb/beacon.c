@@ -516,13 +516,13 @@ int uwbd_evt_handle_rc_bp_slot_change(struct uwb_event *evt)
 	}
 	bpsc = container_of(evt->notif.rceb, struct uwb_rc_evt_bp_slot_change, rceb);
 
-	mutex_lock(&rc->uwb_dev.mutex);
 	if (uwb_rc_evt_bp_slot_change_no_slot(bpsc)) {
 		dev_err(dev, "stopped beaconing: No free slots in BP\n");
+		mutex_lock(&rc->uwb_dev.mutex);
 		rc->beaconing = -1;
+		mutex_unlock(&rc->uwb_dev.mutex);
 	} else
 		rc->uwb_dev.beacon_slot = uwb_rc_evt_bp_slot_change_slot_num(bpsc);
-	mutex_unlock(&rc->uwb_dev.mutex);
 
 	return 0;
 }
