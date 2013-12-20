@@ -356,7 +356,6 @@ static int txx9spi_probe(struct platform_device *dev)
 	}
 	ret = clk_enable(c->clk);
 	if (ret) {
-		clk_put(c->clk);
 		c->clk = NULL;
 		goto exit;
 	}
