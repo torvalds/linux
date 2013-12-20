@@ -768,6 +768,7 @@ types exist:
 VFL_TYPE_GRABBER: videoX for video input/output devices
 VFL_TYPE_VBI: vbiX for vertical blank data (i.e. closed captions, teletext)
 VFL_TYPE_RADIO: radioX for radio tuners
+VFL_TYPE_SDR: swradioX for Software Defined Radio tuners
 
 The last argument gives you a certain amount of control over the device
 device node number used (i.e. the X in videoX). Normally you will pass -1
