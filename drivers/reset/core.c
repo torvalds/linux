@@ -126,15 +126,16 @@ int reset_control_deassert(struct reset_control *rstc)
 EXPORT_SYMBOL_GPL(reset_control_deassert);
 
 /**
- * reset_control_get - Lookup and obtain a reference to a reset controller.
- * @dev: device to be reset by the controller
+ * of_reset_control_get - Lookup and obtain a reference to a reset controller.
+ * @node: device to be reset by the controller
  * @id: reset line name
  *
  * Returns a struct reset_control or IS_ERR() condition containing errno.
  *
  * Use of id names is optional.
  */
-struct reset_control *reset_control_get(struct device *dev, const char *id)
+struct reset_control *of_reset_control_get(struct device_node *node,
+					   const char *id)
 {
 	struct reset_control *rstc = ERR_PTR(-EPROBE_DEFER);
 	struct reset_controller_dev *r, *rcdev;
@@ -143,13 +144,10 @@ struct reset_control *reset_control_get(struct device *dev, const char *id)
 	int rstc_id;
 	int ret;
 
-	if (!dev)
-		return ERR_PTR(-EINVAL);
-
 	if (id)
-		index = of_property_match_string(dev->of_node,
+		index = of_property_match_string(node,
 						 "reset-names", id);
-	ret = of_parse_phandle_with_args(dev->of_node, "resets", "#reset-cells",
+	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
 					 index, &args);
 	if (ret)
 		return ERR_PTR(ret);
@@ -184,9 +182,32 @@ struct reset_control *reset_control_get(struct device *dev, const char *id)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	rstc->dev = dev;
 	rstc->rcdev = rcdev;
 	rstc->id = rstc_id;
+
+	return rstc;
+}
+EXPORT_SYMBOL_GPL(of_reset_control_get);
+
+/**
+ * reset_control_get - Lookup and obtain a reference to a reset controller.
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Returns a struct reset_control or IS_ERR() condition containing errno.
+ *
+ * Use of id names is optional.
+ */
+struct reset_control *reset_control_get(struct device *dev, const char *id)
+{
+	struct reset_control *rstc;
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	rstc = of_reset_control_get(dev->of_node, id);
+	if (!IS_ERR(rstc))
+		rstc->dev = dev;
 
 	return rstc;
 }
