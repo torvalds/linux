@@ -40,9 +40,6 @@ MODULE_AUTHOR("www.silicom.co.il");
 
 MODULE_LICENSE("GPL");
 
-int init_lib_module(void);
-void cleanup_lib_module(void);
-
 static int do_cmd(struct net_device *dev, struct ifreq *ifr, int cmd, int *data)
 {
 	int ret = -1;
@@ -151,9 +148,10 @@ static int is_bypass_dev(int if_index)
 	int data = 0;
 
 	while ((pdev = pci_get_class(PCI_CLASS_NETWORK_ETHERNET << 8, pdev))) {
-		if ((dev = pci_get_drvdata(pdev)) != NULL)
-			if (((dev = pci_get_drvdata(pdev)) != NULL) &&
-			    (dev->ifindex == if_index)) {
+		dev = pci_get_drvdata(pdev);
+		if (dev != NULL) {
+			dev = pci_get_drvdata(pdev);
+			if ((dev != NULL) && (dev->ifindex == if_index)) {
 				if ((pdev->vendor == SILICOM_VID) &&
 				    (pdev->device >= SILICOM_BP_PID_MIN) &&
 				    (pdev->device <= SILICOM_BP_PID_MAX)) {
@@ -183,6 +181,7 @@ static int is_bypass_dev(int if_index)
 #endif
 				return -1;
 			}
+		}
 	}
  send_cmd:
 	ret = do_cmd(dev, &ifr, IS_BYPASS, &data);
@@ -526,13 +525,13 @@ static int get_bypass_info(int if_index, struct bp_info *bp_info)
 }
 EXPORT_SYMBOL(get_bypass_info);
 
-int init_lib_module(void)
+int __init init_lib_module(void)
 {
 	printk(VERSION);
 	return 0;
 }
 
-void cleanup_lib_module(void)
+void __exit cleanup_lib_module(void)
 {
 }
 
