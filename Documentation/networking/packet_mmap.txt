@@ -517,8 +517,6 @@ where 'tpacket_version' can be TPACKET_V1 (default), TPACKET_V2, TPACKET_V3.
 TPACKET_V1:
 	- Default if not otherwise specified by setsockopt(2)
 	- RX_RING, TX_RING available
-	- VLAN metadata information available for packets
-	  (TP_STATUS_VLAN_VALID)
 
 TPACKET_V1 --> TPACKET_V2:
 	- Made 64 bit clean due to unsigned long usage in TPACKET_V1
@@ -526,6 +524,13 @@ TPACKET_V1 --> TPACKET_V2:
 	  userspace and the like
 	- Timestamp resolution in nanoseconds instead of microseconds
 	- RX_RING, TX_RING available
+	- VLAN metadata information available for packets
+	  (TP_STATUS_VLAN_VALID, TP_STATUS_VLAN_TPID_VALID),
+	  in the tpacket2_hdr structure:
+		- TP_STATUS_VLAN_VALID bit being set into the tp_status field indicates
+		  that the tp_vlan_tci field has valid VLAN TCI value
+		- TP_STATUS_VLAN_TPID_VALID bit being set into the tp_status field
+		  indicates that the tp_vlan_tpid field has valid VLAN TPID value
 	- How to switch to TPACKET_V2:
 		1. Replace struct tpacket_hdr by struct tpacket2_hdr
 		2. Query header len and save
