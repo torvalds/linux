@@ -98,6 +98,91 @@ void pci_bus_remove_resources(struct pci_bus *bus)
 	}
 }
 
+static struct pci_bus_region pci_32_bit = {0, 0xffffffffULL};
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+static struct pci_bus_region pci_64_bit = {0,
+				(dma_addr_t) 0xffffffffffffffffULL};
+#endif
+
+/*
+ * @res contains CPU addresses.  Clip it so the corresponding bus addresses
+ * on @bus are entirely within @region.  This is used to control the bus
+ * addresses of resources we allocate, e.g., we may need a resource that
+ * can be mapped by a 32-bit BAR.
+ */
+static void pci_clip_resource_to_region(struct pci_bus *bus,
+					struct resource *res,
+					struct pci_bus_region *region)
+{
+	struct pci_bus_region r;
+
+	pcibios_resource_to_bus(bus, &r, res);
+	if (r.start < region->start)
+		r.start = region->start;
+	if (r.end > region->end)
+		r.end = region->end;
+
+	if (r.end < r.start)
+		res->end = res->start - 1;
+	else
+		pcibios_bus_to_resource(bus, res, &r);
+}
+
+static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
+		resource_size_t size, resource_size_t align,
+		resource_size_t min, unsigned int type_mask,
+		resource_size_t (*alignf)(void *,
+					  const struct resource *,
+					  resource_size_t,
+					  resource_size_t),
+		void *alignf_data,
+		struct pci_bus_region *region)
+{
+	int i, ret;
+	struct resource *r, avail;
+	resource_size_t max;
+
+	type_mask |= IORESOURCE_IO | IORESOURCE_MEM;
+
+	pci_bus_for_each_resource(bus, r, i) {
+		if (!r)
+			continue;
+
+		/* type_mask must match */
+		if ((res->flags ^ r->flags) & type_mask)
+			continue;
+
+		/* We cannot allocate a non-prefetching resource
+		   from a pre-fetching area */
+		if ((r->flags & IORESOURCE_PREFETCH) &&
+		    !(res->flags & IORESOURCE_PREFETCH))
+			continue;
+
+		avail = *r;
+		pci_clip_resource_to_region(bus, &avail, region);
+		if (!resource_size(&avail))
+			continue;
+
+		/*
+		 * "min" is typically PCIBIOS_MIN_IO or PCIBIOS_MIN_MEM to
+		 * protect badly documented motherboard resources, but if
+		 * this is an already-configured bridge window, its start
+		 * overrides "min".
+		 */
+		if (avail.start)
+			min = avail.start;
+
+		max = avail.end;
+
+		/* Ok, try it out.. */
+		ret = allocate_resource(r, res, size, min, max,
+					align, alignf, alignf_data);
+		if (ret == 0)
+			return 0;
+	}
+	return -ENOMEM;
+}
+
 /**
  * pci_bus_alloc_resource - allocate a resource from a parent bus
  * @bus: PCI bus
@@ -123,46 +208,16 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 					  resource_size_t),
 		void *alignf_data)
 {
-	int i, ret = -ENOMEM;
-	struct resource *r;
-	resource_size_t max = -1;
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	if (res->flags & IORESOURCE_MEM_64)
+		return pci_bus_alloc_from_region(bus, res, size, align, min,
+						 type_mask, alignf, alignf_data,
+						 &pci_64_bit);
+#endif
 
-	type_mask |= IORESOURCE_IO | IORESOURCE_MEM;
-
-	/* don't allocate too high if the pref mem doesn't support 64bit*/
-	if (!(res->flags & IORESOURCE_MEM_64))
-		max = PCIBIOS_MAX_MEM_32;
-
-	pci_bus_for_each_resource(bus, r, i) {
-		if (!r)
-			continue;
-
-		/* type_mask must match */
-		if ((res->flags ^ r->flags) & type_mask)
-			continue;
-
-		/* We cannot allocate a non-prefetching resource
-		   from a pre-fetching area */
-		if ((r->flags & IORESOURCE_PREFETCH) &&
-		    !(res->flags & IORESOURCE_PREFETCH))
-			continue;
-
-		/*
-		 * "min" is typically PCIBIOS_MIN_IO or PCIBIOS_MIN_MEM to
-		 * protect badly documented motherboard resources, but if
-		 * this is an already-configured bridge window, its start
-		 * overrides "min".
-		 */
-		if (r->start)
-			min = r->start;
-
-		/* Ok, try it out.. */
-		ret = allocate_resource(r, res, size, min, max,
-					align, alignf, alignf_data);
-		if (ret == 0)
-			break;
-	}
-	return ret;
+	return pci_bus_alloc_from_region(bus, res, size, align, min,
+					 type_mask, alignf, alignf_data,
+					 &pci_32_bit);
 }
 
 void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
