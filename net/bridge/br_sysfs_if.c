@@ -26,7 +26,7 @@ struct brport_attribute {
 	int (*store)(struct net_bridge_port *, unsigned long);
 };
 
-#define BRPORT_ATTR(_name,_mode,_show,_store)		        \
+#define BRPORT_ATTR(_name, _mode, _show, _store)		\
 const struct brport_attribute brport_attr_##_name = { 	        \
 	.attr = {.name = __stringify(_name), 			\
 		 .mode = _mode },				\
@@ -209,21 +209,21 @@ static const struct brport_attribute *brport_attrs[] = {
 #define to_brport_attr(_at) container_of(_at, struct brport_attribute, attr)
 #define to_brport(obj)	container_of(obj, struct net_bridge_port, kobj)
 
-static ssize_t brport_show(struct kobject * kobj,
-			   struct attribute * attr, char * buf)
+static ssize_t brport_show(struct kobject *kobj,
+			   struct attribute *attr, char *buf)
 {
-	struct brport_attribute * brport_attr = to_brport_attr(attr);
-	struct net_bridge_port * p = to_brport(kobj);
+	struct brport_attribute *brport_attr = to_brport_attr(attr);
+	struct net_bridge_port *p = to_brport(kobj);
 
 	return brport_attr->show(p, buf);
 }
 
-static ssize_t brport_store(struct kobject * kobj,
-			    struct attribute * attr,
-			    const char * buf, size_t count)
+static ssize_t brport_store(struct kobject *kobj,
+			    struct attribute *attr,
+			    const char *buf, size_t count)
 {
-	struct brport_attribute * brport_attr = to_brport_attr(attr);
-	struct net_bridge_port * p = to_brport(kobj);
+	struct brport_attribute *brport_attr = to_brport_attr(attr);
+	struct net_bridge_port *p = to_brport(kobj);
 	ssize_t ret = -EINVAL;
 	char *endp;
 	unsigned long val;
