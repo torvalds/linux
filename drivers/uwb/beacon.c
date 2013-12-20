@@ -117,6 +117,7 @@ int uwb_rc_beacon(struct uwb_rc *rc, int channel, unsigned bpst_offset)
 	int result;
 	struct device *dev = &rc->uwb_dev.dev;
 
+	dev_dbg(dev, "%s: channel = %d\n", __func__, channel);
 	if (channel < 0)
 		channel = -1;
 	if (channel == -1)
@@ -517,7 +518,7 @@ int uwbd_evt_handle_rc_bp_slot_change(struct uwb_event *evt)
 
 	mutex_lock(&rc->uwb_dev.mutex);
 	if (uwb_rc_evt_bp_slot_change_no_slot(bpsc)) {
-		dev_info(dev, "stopped beaconing: No free slots in BP\n");
+		dev_err(dev, "stopped beaconing: No free slots in BP\n");
 		rc->beaconing = -1;
 	} else
 		rc->uwb_dev.beacon_slot = uwb_rc_evt_bp_slot_change_slot_num(bpsc);
