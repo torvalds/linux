@@ -74,7 +74,7 @@ static inline struct pcie_port *sys_to_pcie(struct pci_sys_data *sys)
 	return sys->private_data;
 }
 
-int cfg_read(void __iomem *addr, int where, int size, u32 *val)
+int dw_pcie_cfg_read(void __iomem *addr, int where, int size, u32 *val)
 {
 	*val = readl(addr);
 
@@ -88,7 +88,7 @@ int cfg_read(void __iomem *addr, int where, int size, u32 *val)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-int cfg_write(void __iomem *addr, int where, int size, u32 val)
+int dw_pcie_cfg_write(void __iomem *addr, int where, int size, u32 val)
 {
 	if (size == 4)
 		writel(val, addr);
@@ -126,7 +126,8 @@ static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	if (pp->ops->rd_own_conf)
 		ret = pp->ops->rd_own_conf(pp, where, size, val);
 	else
-		ret = cfg_read(pp->dbi_base + (where & ~0x3), where, size, val);
+		ret = dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3), where,
+				size, val);
 
 	return ret;
 }
@@ -139,8 +140,8 @@ static int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 	if (pp->ops->wr_own_conf)
 		ret = pp->ops->wr_own_conf(pp, where, size, val);
 	else
-		ret = cfg_write(pp->dbi_base + (where & ~0x3), where, size,
-				val);
+		ret = dw_pcie_cfg_write(pp->dbi_base + (where & ~0x3), where,
+				size, val);
 
 	return ret;
 }
@@ -167,11 +168,13 @@ void dw_handle_msi_irq(struct pcie_port *pp)
 			while ((pos = find_next_bit(&val, 32, pos)) != 32) {
 				irq = irq_find_mapping(pp->irq_domain,
 						i * 32 + pos);
+				dw_pcie_wr_own_conf(pp,
+						PCIE_MSI_INTR0_STATUS + i * 12,
+						4, 1 << pos);
 				generic_handle_irq(irq);
 				pos++;
 			}
 		}
-		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12, 4, val);
 	}
 }
 
@@ -415,6 +418,7 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 					   + global_io_offset);
 			pp->config.io_size = resource_size(&pp->io);
 			pp->config.io_bus_addr = range.pci_addr;
+			pp->io_base = range.cpu_addr;
 		}
 		if (restype == IORESOURCE_MEM) {
 			of_pci_range_to_resource(&range, np, &pp->mem);
@@ -440,7 +444,6 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 
 	pp->cfg0_base = pp->cfg.start;
 	pp->cfg1_base = pp->cfg.start + pp->config.cfg0_size;
-	pp->io_base = pp->io.start;
 	pp->mem_base = pp->mem.start;
 
 	pp->va_cfg0_base = devm_ioremap(pp->dev, pp->cfg0_base,
@@ -572,11 +575,13 @@ static int dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 
 	if (bus->parent->number == pp->root_bus_nr) {
 		dw_pcie_prog_viewport_cfg0(pp, busdev);
-		ret = cfg_read(pp->va_cfg0_base + address, where, size, val);
+		ret = dw_pcie_cfg_read(pp->va_cfg0_base + address, where, size,
+				val);
 		dw_pcie_prog_viewport_mem_outbound(pp);
 	} else {
 		dw_pcie_prog_viewport_cfg1(pp, busdev);
-		ret = cfg_read(pp->va_cfg1_base + address, where, size, val);
+		ret = dw_pcie_cfg_read(pp->va_cfg1_base + address, where, size,
+				val);
 		dw_pcie_prog_viewport_io_outbound(pp);
 	}
 
@@ -595,17 +600,18 @@ static int dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 
 	if (bus->parent->number == pp->root_bus_nr) {
 		dw_pcie_prog_viewport_cfg0(pp, busdev);
-		ret = cfg_write(pp->va_cfg0_base + address, where, size, val);
+		ret = dw_pcie_cfg_write(pp->va_cfg0_base + address, where, size,
+				val);
 		dw_pcie_prog_viewport_mem_outbound(pp);
 	} else {
 		dw_pcie_prog_viewport_cfg1(pp, busdev);
-		ret = cfg_write(pp->va_cfg1_base + address, where, size, val);
+		ret = dw_pcie_cfg_write(pp->va_cfg1_base + address, where, size,
+				val);
 		dw_pcie_prog_viewport_io_outbound(pp);
 	}
 
 	return ret;
 }
-
 
 static int dw_pcie_valid_config(struct pcie_port *pp,
 				struct pci_bus *bus, int dev)
@@ -700,7 +706,7 @@ static int dw_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	if (global_io_offset < SZ_1M && pp->config.io_size > 0) {
 		sys->io_offset = global_io_offset - pp->config.io_bus_addr;
-		pci_ioremap_io(sys->io_offset, pp->io.start);
+		pci_ioremap_io(global_io_offset, pp->io_base);
 		global_io_offset += SZ_64K;
 		pci_add_resource_offset(&sys->resources, &pp->io,
 					sys->io_offset);
