@@ -10,6 +10,7 @@
 #define FIMC_MDEVICE_H_
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -89,6 +90,12 @@ struct fimc_sensor_info {
 	struct fimc_dev *host;
 };
 
+struct cam_clk {
+	struct clk_hw hw;
+	struct fimc_md *fmd;
+};
+#define to_cam_clk(_hw) container_of(_hw, struct cam_clk, hw)
+
 /**
  * struct fimc_md - fimc media device information
  * @csis: MIPI CSIS subdevs data
@@ -105,6 +112,7 @@ struct fimc_sensor_info {
  * @pinctrl: camera port pinctrl handle
  * @state_default: pinctrl default state handle
  * @state_idle: pinctrl idle state handle
+ * @cam_clk_provider: CAMCLK clock provider structure
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @slock: spinlock protecting @sensor array
  */
@@ -122,13 +130,22 @@ struct fimc_md {
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
+
 	struct fimc_pinctrl {
 		struct pinctrl *pinctrl;
 		struct pinctrl_state *state_default;
 		struct pinctrl_state *state_idle;
 	} pinctl;
-	bool user_subdev_api;
 
+	struct cam_clk_provider {
+		struct clk *clks[FIMC_MAX_CAMCLKS];
+		struct clk_onecell_data clk_data;
+		struct device_node *of_node;
+		struct cam_clk camclk[FIMC_MAX_CAMCLKS];
+		int num_clocks;
+	} clk_provider;
+
+	bool user_subdev_api;
 	spinlock_t slock;
 	struct list_head pipelines;
 };
