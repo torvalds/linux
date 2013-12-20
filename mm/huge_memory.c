@@ -1481,8 +1481,18 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
 		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
 		VM_BUG_ON(!pmd_none(*new_pmd));
 		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
-		if (new_ptl != old_ptl)
+		if (new_ptl != old_ptl) {
+			pgtable_t pgtable;
+
+			/*
+			 * Move preallocated PTE page table if new_pmd is on
+			 * different PMD page table.
+			 */
+			pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
+			pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
+
 			spin_unlock(new_ptl);
+		}
 		spin_unlock(old_ptl);
 	}
 out:

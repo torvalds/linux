@@ -393,7 +393,7 @@ struct s5c73m3 {
 
 	/* External master clock frequency */
 	u32 mclk_frequency;
-	/* Video bus type - MIPI-CSI2/paralell */
+	/* Video bus type - MIPI-CSI2/parallel */
 	enum v4l2_mbus_type bus_type;
 
 	const struct s5c73m3_frame_size *sensor_pix_size[2];

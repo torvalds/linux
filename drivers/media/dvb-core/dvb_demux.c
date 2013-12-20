@@ -435,7 +435,7 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 		dprintk_tscheck("TEI detected. "
 				"PID=0x%x data1=0x%x\n",
 				pid, buf[1]);
-		/* data in this packet cant be trusted - drop it unless
+		/* data in this packet can't be trusted - drop it unless
 		 * module option dvb_demux_feed_err_pkts is set */
 		if (!dvb_demux_feed_err_pkts)
 			return;
@@ -1032,8 +1032,13 @@ static int dmx_section_feed_release_filter(struct dmx_section_feed *feed,
 		return -EINVAL;
 	}
 
-	if (feed->is_filtering)
+	if (feed->is_filtering) {
+		/* release dvbdmx->mutex as far as it is
+		   acquired by stop_filtering() itself */
+		mutex_unlock(&dvbdmx->mutex);
 		feed->stop_filtering(feed);
+		mutex_lock(&dvbdmx->mutex);
+	}
 
 	spin_lock_irq(&dvbdmx->lock);
 	f = dvbdmxfeed->filter;
