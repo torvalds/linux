@@ -858,11 +858,11 @@ static u32 rtw_GetPSDData(struct adapter *pAdapter, u32 point)
 	psd_val |= point;
 
 	rtw_write32(pAdapter, 0x808, psd_val);
-	rtw_mdelay_os(1);
+	mdelay(1);
 	psd_val |= 0x00400000;
 
 	rtw_write32(pAdapter, 0x808, psd_val);
-	rtw_mdelay_os(1);
+	mdelay(1);
 	psd_val = rtw_read32(pAdapter, 0x8B4);
 
 	psd_val &= 0x0000FFFF;

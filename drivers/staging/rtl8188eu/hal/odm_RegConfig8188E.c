@@ -27,9 +27,9 @@ void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
     if (Addr == 0xffe) {
 		msleep(50);
 	} else if (Addr == 0xfd) {
-		ODM_delay_ms(5);
+		mdelay(5);
 	} else if (Addr == 0xfc) {
-		ODM_delay_ms(1);
+		mdelay(1);
 	} else if (Addr == 0xfb) {
 		ODM_delay_us(50);
 	} else if (Addr == 0xfa) {
@@ -85,9 +85,9 @@ void odm_ConfigBB_PHY_REG_PG_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 	if (Addr == 0xfe) {
 		msleep(50);
 	} else if (Addr == 0xfd) {
-		ODM_delay_ms(5);
+		mdelay(5);
 	} else if (Addr == 0xfc) {
-		ODM_delay_ms(1);
+		mdelay(1);
 	} else if (Addr == 0xfb) {
 		ODM_delay_us(50);
 	} else if (Addr == 0xfa) {
@@ -107,9 +107,9 @@ void odm_ConfigBB_PHY_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask
 	if (Addr == 0xfe) {
 		msleep(50);
 	} else if (Addr == 0xfd) {
-		ODM_delay_ms(5);
+		mdelay(5);
 	} else if (Addr == 0xfc) {
-		ODM_delay_ms(1);
+		mdelay(1);
 	} else if (Addr == 0xfb) {
 		ODM_delay_us(50);
 	} else if (Addr == 0xfa) {

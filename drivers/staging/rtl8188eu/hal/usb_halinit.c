@@ -1894,7 +1894,7 @@ _func_enter_;
 				/* RQPN Load 0 */
 				rtw_write16(Adapter, REG_RQPN_NPQ, 0x0);
 				rtw_write32(Adapter, REG_RQPN, 0x80000000);
-				rtw_mdelay_os(10);
+				mdelay(10);
 			}
 		}
 		break;

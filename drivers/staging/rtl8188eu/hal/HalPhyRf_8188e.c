@@ -502,7 +502,7 @@ phy_PathA_IQK_8188E(struct adapter *adapt, bool configPathB)
 	/*  delay x ms */
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Delay %d ms for One shot, path A LOK & IQK.\n", IQK_DELAY_TIME_88E));
 	/* PlatformStallExecution(IQK_DELAY_TIME_88E*1000); */
-	ODM_delay_ms(IQK_DELAY_TIME_88E);
+	mdelay(IQK_DELAY_TIME_88E);
 
 	/*  Check failed */
 	regeac = ODM_GetBBReg(dm_odm, rRx_Power_After_IQK_A_2, bMaskDWord);
@@ -568,7 +568,7 @@ phy_PathA_RxIQK(struct adapter *adapt, bool configPathB)
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
 		     ("Delay %d ms for One shot, path A LOK & IQK.\n",
 		     IQK_DELAY_TIME_88E));
-	ODM_delay_ms(IQK_DELAY_TIME_88E);
+	mdelay(IQK_DELAY_TIME_88E);
 
 	/*  Check failed */
 	regeac = ODM_GetBBReg(dm_odm, rRx_Power_After_IQK_A_2, bMaskDWord);
@@ -623,7 +623,7 @@ phy_PathA_RxIQK(struct adapter *adapt, bool configPathB)
 	/*  delay x ms */
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Delay %d ms for One shot, path A LOK & IQK.\n", IQK_DELAY_TIME_88E));
 	/* PlatformStallExecution(IQK_DELAY_TIME_88E*1000); */
-	ODM_delay_ms(IQK_DELAY_TIME_88E);
+	mdelay(IQK_DELAY_TIME_88E);
 
 	/*  Check failed */
 	regeac = ODM_GetBBReg(dm_odm, rRx_Power_After_IQK_A_2, bMaskDWord);
@@ -667,7 +667,7 @@ phy_PathB_IQK_8188E(struct adapter *adapt)
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
 		     ("Delay %d ms for One shot, path B LOK & IQK.\n",
 		     IQK_DELAY_TIME_88E));
-	ODM_delay_ms(IQK_DELAY_TIME_88E);
+	mdelay(IQK_DELAY_TIME_88E);
 
 	/*  Check failed */
 	regeac = ODM_GetBBReg(dm_odm, rRx_Power_After_IQK_A_2, bMaskDWord);
@@ -1447,7 +1447,7 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 		return;
 
 	while (*(dm_odm->pbScanInProcess) && timecount < timeout) {
-		ODM_delay_ms(50);
+		mdelay(50);
 		timecount += 50;
 	}
 

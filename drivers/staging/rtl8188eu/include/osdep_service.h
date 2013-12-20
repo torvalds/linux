@@ -279,7 +279,6 @@ void rtw_usleep_os(int us);
 
 u32  rtw_atoi(u8 *s);
 
-void rtw_mdelay_os(int ms);
 void rtw_udelay_os(int us);
 
 void rtw_yield_os(void);

@@ -152,11 +152,6 @@ void ODM_StallExecution(u32 usDelay)
 	rtw_udelay_os(usDelay);
 }
 
-void ODM_delay_ms(u32 ms)
-{
-	rtw_mdelay_os(ms);
-}
-
 void ODM_delay_us(u32 us)
 {
 	rtw_udelay_os(us);
