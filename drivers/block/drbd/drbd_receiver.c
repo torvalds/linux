@@ -2417,13 +2417,14 @@ out_interrupted:
  * The current sync rate used here uses only the most recent two step marks,
  * to have a short time average so we can react faster.
  */
-bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
+bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector,
+		bool throttle_if_app_is_waiting)
 {
 	struct lc_element *tmp;
-	bool throttle = true;
+	bool throttle = drbd_rs_c_min_rate_throttle(device);
 
-	if (!drbd_rs_c_min_rate_throttle(device))
-		return false;
+	if (!throttle || throttle_if_app_is_waiting)
+		return throttle;
 
 	spin_lock_irq(&device->al_lock);
 	tmp = lc_find(device->resync, BM_SECT_TO_EXT(sector));
@@ -2431,7 +2432,8 @@ bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
 		struct bm_extent *bm_ext = lc_entry(tmp, struct bm_extent, lce);
 		if (test_bit(BME_PRIORITY, &bm_ext->flags))
 			throttle = false;
-		/* Do not slow down if app IO is already waiting for this extent */
+		/* Do not slow down if app IO is already waiting for this extent,
+		 * and our progress is necessary for application IO to complete. */
 	}
 	spin_unlock_irq(&device->al_lock);
 
@@ -2456,7 +2458,9 @@ bool drbd_rs_c_min_rate_throttle(struct drbd_device *device)
 	curr_events = (int)part_stat_read(&disk->part0, sectors[0]) +
 		      (int)part_stat_read(&disk->part0, sectors[1]) -
 			atomic_read(&device->rs_sect_ev);
-	if (!device->rs_last_events || curr_events - device->rs_last_events > 64) {
+
+	if (atomic_read(&device->ap_actlog_cnt)
+	    || !device->rs_last_events || curr_events - device->rs_last_events > 64) {
 		unsigned long rs_left;
 		int i;
 
@@ -2646,7 +2650,8 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 	 * we would also throttle its application reads.
 	 * In that case, throttling is done on the SyncTarget only.
 	 */
-	if (device->state.peer != R_PRIMARY && drbd_rs_should_slow_down(device, sector))
+	if (device->state.peer != R_PRIMARY
+	&& drbd_rs_should_slow_down(device, sector, false))
 		schedule_timeout_uninterruptible(HZ/10);
 	if (drbd_rs_begin_io(device, sector))
 		goto out_free_e;

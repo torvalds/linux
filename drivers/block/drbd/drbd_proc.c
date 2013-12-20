@@ -335,6 +335,9 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			lc_seq_printf_stats(seq, device->act_log);
 			put_ldev(device);
 		}
+
+		if (proc_details >= 2)
+			seq_printf(seq, "\tblocked on activity log: %d\n", atomic_read(&device->ap_actlog_cnt));
 	}
 	rcu_read_unlock();
 

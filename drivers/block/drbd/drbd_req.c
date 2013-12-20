@@ -1218,6 +1218,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 	if (rw == WRITE && req->private_bio && req->i.size
 	&& !test_bit(AL_SUSPENDED, &device->flags)) {
 		if (!drbd_al_begin_io_fastpath(device, &req->i)) {
+			atomic_inc(&device->ap_actlog_cnt);
 			drbd_queue_write(device, req);
 			return NULL;
 		}
@@ -1354,6 +1355,7 @@ static void submit_fast_path(struct drbd_device *device, struct list_head *incom
 
 			req->rq_state |= RQ_IN_ACT_LOG;
 			req->in_actlog_jif = jiffies;
+			atomic_dec(&device->ap_actlog_cnt);
 		}
 
 		list_del_init(&req->tl_requests);
@@ -1439,6 +1441,7 @@ skip_fast_path:
 		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
 			req->rq_state |= RQ_IN_ACT_LOG;
 			req->in_actlog_jif = jiffies;
+			atomic_dec(&device->ap_actlog_cnt);
 			list_del_init(&req->tl_requests);
 			drbd_send_and_submit(device, req);
 		}
@@ -1454,6 +1457,7 @@ skip_fast_path:
 			if (!was_cold) {
 				req->rq_state |= RQ_IN_ACT_LOG;
 				req->in_actlog_jif = jiffies;
+				atomic_dec(&device->ap_actlog_cnt);
 				/* Corresponding extent was hot after all? */
 				drbd_send_and_submit(device, req);
 			} else {

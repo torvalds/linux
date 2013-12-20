@@ -1909,6 +1909,7 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	drbd_set_defaults(device);
 
 	atomic_set(&device->ap_bio_cnt, 0);
+	atomic_set(&device->ap_actlog_cnt, 0);
 	atomic_set(&device->ap_pending_cnt, 0);
 	atomic_set(&device->rs_pending_cnt, 0);
 	atomic_set(&device->unacked_cnt, 0);
