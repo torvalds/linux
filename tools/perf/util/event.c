@@ -220,7 +220,10 @@ static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		/*
 		 * Just like the kernel, see __perf_event_mmap in kernel/perf_event.c
 		 */
-		event->header.misc = PERF_RECORD_MISC_USER;
+		if (machine__is_host(machine))
+			event->header.misc = PERF_RECORD_MISC_USER;
+		else
+			event->header.misc = PERF_RECORD_MISC_GUEST_USER;
 
 		if (prot[2] != 'x') {
 			if (!mmap_data || prot[0] != 'r')
