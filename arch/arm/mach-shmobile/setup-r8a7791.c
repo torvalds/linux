@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
@@ -30,6 +31,58 @@
 #include <mach/r8a7791.h>
 #include <mach/rcar-gen2.h>
 #include <asm/mach/arch.h>
+
+static const struct resource pfc_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6060000, 0x250),
+};
+
+#define r8a7791_register_pfc()						\
+	platform_device_register_simple("pfc-r8a7791", -1, pfc_resources, \
+					ARRAY_SIZE(pfc_resources))
+
+#define R8A7791_GPIO(idx, base, nr)					\
+static const struct resource r8a7791_gpio##idx##_resources[] __initconst = { \
+	DEFINE_RES_MEM((base), 0x50),					\
+	DEFINE_RES_IRQ(gic_spi(4 + (idx))),				\
+};									\
+									\
+static const struct gpio_rcar_config					\
+r8a7791_gpio##idx##_platform_data __initconst = {			\
+	.gpio_base	= 32 * (idx),					\
+	.irq_base	= 0,						\
+	.number_of_pins	= (nr),						\
+	.pctl_name	= "pfc-r8a7791",				\
+	.has_both_edge_trigger = 1,					\
+};									\
+
+R8A7791_GPIO(0, 0xe6050000, 32);
+R8A7791_GPIO(1, 0xe6051000, 32);
+R8A7791_GPIO(2, 0xe6052000, 32);
+R8A7791_GPIO(3, 0xe6053000, 32);
+R8A7791_GPIO(4, 0xe6054000, 32);
+R8A7791_GPIO(5, 0xe6055000, 32);
+R8A7791_GPIO(6, 0xe6055400, 32);
+R8A7791_GPIO(7, 0xe6055800, 26);
+
+#define r8a7791_register_gpio(idx)					\
+	platform_device_register_resndata(&platform_bus, "gpio_rcar", idx, \
+		r8a7791_gpio##idx##_resources,				\
+		ARRAY_SIZE(r8a7791_gpio##idx##_resources),		\
+		&r8a7791_gpio##idx##_platform_data,			\
+		sizeof(r8a7791_gpio##idx##_platform_data))
+
+void __init r8a7791_pinmux_init(void)
+{
+	r8a7791_register_pfc();
+	r8a7791_register_gpio(0);
+	r8a7791_register_gpio(1);
+	r8a7791_register_gpio(2);
+	r8a7791_register_gpio(3);
+	r8a7791_register_gpio(4);
+	r8a7791_register_gpio(5);
+	r8a7791_register_gpio(6);
+	r8a7791_register_gpio(7);
+}
 
 #define SCIF_COMMON(scif_type, baseaddr, irq)			\
 	.type		= scif_type,				\
@@ -136,6 +189,17 @@ static struct resource irqc0_resources[] = {
 					  &irqc##idx##_data,		\
 					  sizeof(struct renesas_irqc_config))
 
+static const struct resource thermal_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe61f0000, 0x14),
+	DEFINE_RES_MEM(0xe61f0100, 0x38),
+	DEFINE_RES_IRQ(gic_spi(69)),
+};
+
+#define r8a7791_register_thermal()					\
+	platform_device_register_simple("rcar_thermal", -1,		\
+					thermal_resources,		\
+					ARRAY_SIZE(thermal_resources))
+
 void __init r8a7791_add_dt_devices(void)
 {
 	r8a7791_register_scif(SCIFA0);
@@ -160,6 +224,7 @@ void __init r8a7791_add_standard_devices(void)
 {
 	r8a7791_add_dt_devices();
 	r8a7791_register_irqc(0);
+	r8a7791_register_thermal();
 }
 
 void __init r8a7791_init_early(void)

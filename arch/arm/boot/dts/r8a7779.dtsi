@@ -11,6 +11,8 @@
 
 /include/ "skeleton.dtsi"
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	compatible = "renesas,r8a7779";
 
@@ -40,6 +42,12 @@
 		};
 	};
 
+	aliases {
+		spi0 = &hspi0;
+		spi1 = &hspi1;
+		spi2 = &hspi2;
+	};
+
         gic: interrupt-controller@f0001000 {
                 compatible = "arm,cortex-a9-gic";
                 #interrupt-cells = <3>;
@@ -52,7 +60,7 @@
 		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
 		reg = <0xffc40000 0x2c>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 141 0x4>;
+		interrupts = <0 141 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 0 32>;
@@ -64,7 +72,7 @@
 		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
 		reg = <0xffc41000 0x2c>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 142 0x4>;
+		interrupts = <0 142 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 32 32>;
@@ -76,7 +84,7 @@
 		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
 		reg = <0xffc42000 0x2c>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 143 0x4>;
+		interrupts = <0 143 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 64 32>;
@@ -88,7 +96,7 @@
 		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
 		reg = <0xffc43000 0x2c>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 144 0x4>;
+		interrupts = <0 144 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 96 32>;
@@ -100,7 +108,7 @@
 		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
 		reg = <0xffc44000 0x2c>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 145 0x4>;
+		interrupts = <0 145 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 128 32>;
@@ -112,7 +120,7 @@
 		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
 		reg = <0xffc45000 0x2c>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 146 0x4>;
+		interrupts = <0 146 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 160 32>;
@@ -124,7 +132,7 @@
 		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
 		reg = <0xffc46000 0x2c>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 147 0x4>;
+		interrupts = <0 147 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 192 9>;
@@ -133,7 +141,7 @@
 	};
 
 	irqpin0: irqpin@fe780010 {
-		compatible = "renesas,intc-irqpin";
+		compatible = "renesas,intc-irqpin-r8a7779", "renesas,intc-irqpin";
 		#interrupt-cells = <2>;
 		status = "disabled";
 		interrupt-controller;
@@ -143,50 +151,50 @@
 			<0xfe780044 4>,
 			<0xfe780064 4>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 27 0x4
-				0 28 0x4
-				0 29 0x4
-				0 30 0x4>;
+		interrupts = <0 27 IRQ_TYPE_LEVEL_HIGH
+			      0 28 IRQ_TYPE_LEVEL_HIGH
+			      0 29 IRQ_TYPE_LEVEL_HIGH
+			      0 30 IRQ_TYPE_LEVEL_HIGH>;
 		sense-bitfield-width = <2>;
 	};
 
 	i2c0: i2c@ffc70000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,i2c-r8a7779";
 		reg = <0xffc70000 0x1000>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 79 0x4>;
+		interrupts = <0 79 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
 	i2c1: i2c@ffc71000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,i2c-r8a7779";
 		reg = <0xffc71000 0x1000>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 82 0x4>;
+		interrupts = <0 82 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
 	i2c2: i2c@ffc72000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,i2c-r8a7779";
 		reg = <0xffc72000 0x1000>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 80 0x4>;
+		interrupts = <0 80 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
 	i2c3: i2c@ffc73000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,i2c-r8a7779";
 		reg = <0xffc73000 0x1000>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 81 0x4>;
+		interrupts = <0 81 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -204,6 +212,70 @@
 		compatible = "renesas,rcar-sata";
 		reg = <0xfc600000 0x2000>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 100 0x4>;
+		interrupts = <0 100 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	sdhi0: sd@ffe4c000 {
+		compatible = "renesas,sdhi-r8a7779";
+		reg = <0xffe4c000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 104 IRQ_TYPE_LEVEL_HIGH>;
+		cap-sd-highspeed;
+		cap-sdio-irq;
+		status = "disabled";
+	};
+
+	sdhi1: sd@ffe4d000 {
+		compatible = "renesas,sdhi-r8a7779";
+		reg = <0xffe4d000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>;
+		cap-sd-highspeed;
+		cap-sdio-irq;
+		status = "disabled";
+	};
+
+	sdhi2: sd@ffe4e000 {
+		compatible = "renesas,sdhi-r8a7779";
+		reg = <0xffe4e000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
+		cap-sd-highspeed;
+		cap-sdio-irq;
+		status = "disabled";
+	};
+
+	sdhi3: sd@ffe4f000 {
+		compatible = "renesas,sdhi-r8a7779";
+		reg = <0xffe4f000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 106 IRQ_TYPE_LEVEL_HIGH>;
+		cap-sd-highspeed;
+		cap-sdio-irq;
+		status = "disabled";
+	};
+
+	hspi0: spi@fffc7000 {
+		compatible = "renesas,hspi";
+		reg = <0xfffc7000 0x18>;
+		interrupt-controller = <&gic>;
+		interrupts = <0 73 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	hspi1: spi@fffc8000 {
+		compatible = "renesas,hspi";
+		reg = <0xfffc8000 0x18>;
+		interrupt-controller = <&gic>;
+		interrupts = <0 74 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	hspi2: spi@fffc6000 {
+		compatible = "renesas,hspi";
+		reg = <0xfffc6000 0x18>;
+		interrupt-controller = <&gic>;
+		interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
 	};
 };
