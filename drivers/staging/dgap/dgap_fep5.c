@@ -75,7 +75,7 @@ void dgap_do_config_load(uchar __user *uaddr, int len)
 	char buf[U2BSIZE];
 	int n;
 
-	to_addr = dgap_config_buf = dgap_driver_kzmalloc(len + 1, GFP_ATOMIC);
+	to_addr = dgap_config_buf = kzalloc(len + 1, GFP_ATOMIC);
 	if (!dgap_config_buf) {
 		DPR_INIT(("dgap_do_config_load - unable to allocate memory for file\n"));
 		dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
@@ -130,8 +130,8 @@ int dgap_after_config_loaded(void)
 		/*
 		 * allocate flip buffer for board.
 		 */
-		dgap_Board[i]->flipbuf = dgap_driver_kzmalloc(MYFLIPLEN, GFP_ATOMIC);
-		dgap_Board[i]->flipflagbuf = dgap_driver_kzmalloc(MYFLIPLEN, GFP_ATOMIC);
+		dgap_Board[i]->flipbuf = kzalloc(MYFLIPLEN, GFP_ATOMIC);
+		dgap_Board[i]->flipflagbuf = kzalloc(MYFLIPLEN, GFP_ATOMIC);
 	}
 
 	return rc;

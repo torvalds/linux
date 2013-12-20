@@ -233,7 +233,7 @@ int dgap_tty_register(struct board_t *brd)
 	brd->SerialDriver->flags = (TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK);
 
 	/* The kernel wants space to store pointers to tty_structs */
-	brd->SerialDriver->ttys = dgap_driver_kzmalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->SerialDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->SerialDriver->ttys)
 		return(-ENOMEM);
 
@@ -266,7 +266,7 @@ int dgap_tty_register(struct board_t *brd)
 	brd->PrintDriver->flags = (TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK);
 
 	/* The kernel wants space to store pointers to tty_structs */
-	brd->PrintDriver->ttys = dgap_driver_kzmalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->PrintDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->PrintDriver->ttys)
 		return(-ENOMEM);
 
@@ -380,7 +380,7 @@ int dgap_tty_init(struct board_t *brd)
 	 */
 	for (i = 0; i < brd->nasync; i++) {
 		if (!brd->channels[i]) {
-			brd->channels[i] = dgap_driver_kzmalloc(sizeof(struct channel_t), GFP_ATOMIC);
+			brd->channels[i] = kzalloc(sizeof(struct channel_t), GFP_ATOMIC);
 			if (!brd->channels[i]) {
 				DPR_CORE(("%s:%d Unable to allocate memory for channel struct\n",
 				    __FILE__, __LINE__));
