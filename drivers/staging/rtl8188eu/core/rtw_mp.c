@@ -609,7 +609,7 @@ static int mp_xmit_packet_thread(void *context)
 			    padapter->bDriverStopped) {
 				goto exit;
 			} else {
-				rtw_msleep_os(1);
+				msleep(1);
 				continue;
 			}
 		}
@@ -915,7 +915,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 		i++;
 	}
 
-	rtw_msleep_os(100);
+	msleep(100);
 	return strlen(data)+1;
 }
 

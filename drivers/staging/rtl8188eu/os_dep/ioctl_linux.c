@@ -1431,7 +1431,7 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	wait_status = _FW_UNDER_SURVEY | _FW_UNDER_LINKING;
 
 	while (check_fwstate(pmlmepriv, wait_status)) {
-		rtw_msleep_os(30);
+		msleep(30);
 		cnt++;
 		if (cnt > wait_for_surveydone)
 			break;
@@ -2588,7 +2588,7 @@ static int rtw_get_ap_info(struct net_device *dev,
 	}
 
 	while ((check_fwstate(pmlmepriv, (_FW_UNDER_SURVEY|_FW_UNDER_LINKING)))) {
-		rtw_msleep_os(30);
+		msleep(30);
 		cnt++;
 		if (cnt > 100)
 			break;
@@ -7039,7 +7039,7 @@ static int rtw_mp_ctx(struct net_device *dev,
 		struct mp_priv *pmp_priv = &padapter->mppriv;
 		if (pmp_priv->tx.stop == 0) {
 			pmp_priv->tx.stop = 1;
-			rtw_msleep_os(5);
+			msleep(5);
 		}
 		pmp_priv->tx.stop = 0;
 		pmp_priv->tx.count = 1;
@@ -7254,7 +7254,7 @@ static int rtw_mp_reset_stats(struct net_device *dev,
 
 	/* reset phy counter */
 	write_bbreg(padapter, 0xf14, BIT16, 0x1);
-	rtw_msleep_os(10);
+	msleep(10);
 	write_bbreg(padapter, 0xf14, BIT16, 0x0);
 
 	return 0;
@@ -7531,7 +7531,7 @@ static int rtw_mp_get(struct net_device *dev,
 		break;
 	}
 
-	rtw_msleep_os(10); /* delay 5ms for sending pkt before exit adb shell operation */
+	msleep(10); /* delay 5ms for sending pkt before exit adb shell operation */
 	return 0;
 }
 

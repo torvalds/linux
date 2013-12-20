@@ -1258,7 +1258,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	/* 4. Set LC calibration begin	bit15 */
 	ODM_SetRFReg(dm_odm, RF_PATH_A, RF_CHNLBW, bMask12Bits, LC_Cal|0x08000);
 
-	ODM_sleep_ms(100);
+	msleep(100);
 
 	/* Restore original situation */
 	if ((tmpreg&0x70) != 0) {
