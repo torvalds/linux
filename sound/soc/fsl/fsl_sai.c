@@ -244,9 +244,10 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params,
 		struct snd_soc_dai *cpu_dai)
 {
-	u32 val_cr4, val_cr5, val_mr, reg_cr4, reg_cr5, reg_mr, word_width;
+	u32 val_cr4, val_cr5, val_mr, reg_cr4, reg_cr5, reg_mr;
 	unsigned int channels = params_channels(params);
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	u32 word_width = snd_pcm_format_width(params_format(params));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		reg_cr4 = FSL_SAI_TCR4;
@@ -266,20 +267,6 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	val_cr5 &= ~FSL_SAI_CR5_WNW_MASK;
 	val_cr5 &= ~FSL_SAI_CR5_W0W_MASK;
 	val_cr5 &= ~FSL_SAI_CR5_FBT_MASK;
-
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		word_width = 16;
-		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		word_width = 20;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		word_width = 24;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	val_cr4 |= FSL_SAI_CR4_SYWD(word_width);
 	val_cr5 |= FSL_SAI_CR5_WNW(word_width);
