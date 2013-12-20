@@ -18,7 +18,7 @@ The following instances are possible:
     - Bio-based. IO requests are submitted directly to the device driver.
     - Directly accepts bio data structure and returns them.
 
-All of them has a completion queue for each core in the system.
+All of them have a completion queue for each core in the system.
 
 II. Module parameters applicable for all instances:
 
@@ -30,7 +30,7 @@ queue_mode=[0-2]: Default: 2-Multi-queue
   2: Multi-queue.
 
 home_node=[0--nr_nodes]: Default: NUMA_NO_NODE
-  Selects what socket the data structures is allocated from.
+  Selects what CPU node the data structures are allocated from.
 
 gb=[Size in GB]: Default: 250GB
   The size of the device reported to the system.
@@ -38,34 +38,34 @@ gb=[Size in GB]: Default: 250GB
 bs=[Block size (in bytes)]: Default: 512 bytes
   The block size reported to the system.
 
-nr_devices=[Num. devices]: Default: 2
+nr_devices=[Number of devices]: Default: 2
   Number of block devices instantiated. They are instantiated as /dev/nullb0,
   etc.
 
-irq_mode=[0-2]: Default: Soft-irq
+irq_mode=[0-2]: Default: 1-Soft-irq
   The completion mode used for completing IOs to the block-layer.
 
   0: None.
-  1: Soft-irq. Uses ipi to complete IOs across sockets. Simulates the overhead
-     when IOs are issued from another socket than the home the device is
+  1: Soft-irq. Uses IPI to complete IOs across CPU nodes. Simulates the overhead
+     when IOs are issued from another CPU node than the home the device is
      connected to.
   2: Timer: Waits a specific period (completion_nsec) for each IO before
      completion.
 
-completion_nsec=[Num. ns]: Default: 10.000ns
+completion_nsec=[ns]: Default: 10.000ns
   Combined with irq_mode=2 (timer). The time each completion event must wait.
 
 submit_queues=[0..nr_cpus]:
   The number of submission queues attached to the device driver. If unset, it
   defaults to 1 on single-queue and bio-based instances. For multi-queue,
-  its ignored when use_per_node_hctx module parameter is 1.
+  it is ignored when use_per_node_hctx module parameter is 1.
 
-hw_queue_depth=[0..qdepth]: Defaults: 64
+hw_queue_depth=[0..qdepth]: Default: 64
   The hardware queue depth of the device.
 
 III: Multi-queue specific parameters
 
-use_per_node_hctx=[0/1]: Defaults: 1
+use_per_node_hctx=[0/1]: Default: 1
   If 1, the multi-queue block layer is instantiated with a hardware dispatch
   queue for each CPU node in the system. If 0, it is instantiated with the
   number of queues defined in the submit_queues parameter.
