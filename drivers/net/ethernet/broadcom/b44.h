@@ -345,6 +345,9 @@ B44_STAT_REG_DECLARE
 	struct u64_stats_sync	syncp;
 };
 
+#define	B44_BOARDFLAG_ROBO		0x0010  /* Board has robo switch */
+#define	B44_BOARDFLAG_ADM		0x0080  /* Board has ADMtek switch */
+
 struct ssb_device;
 
 struct b44 {

@@ -2233,6 +2233,7 @@ static int b44_register_phy_one(struct b44 *bp)
 	struct ssb_device *sdev = bp->sdev;
 	struct phy_device *phydev;
 	char bus_id[MII_BUS_ID_SIZE + 3];
+	struct ssb_sprom *sprom = &sdev->bus->sprom;
 	int err;
 
 	mii_bus = mdiobus_alloc();
@@ -2266,7 +2267,20 @@ static int b44_register_phy_one(struct b44 *bp)
 		goto err_out_mdiobus_irq;
 	}
 
-	snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, mii_bus->id, bp->phy_addr);
+	if (!bp->mii_bus->phy_map[bp->phy_addr] &&
+	    (sprom->boardflags_lo & (B44_BOARDFLAG_ROBO | B44_BOARDFLAG_ADM))) {
+
+		dev_info(sdev->dev,
+			 "could not find PHY at %i, use fixed one\n",
+			 bp->phy_addr);
+
+		bp->phy_addr = 0;
+		snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, "fixed-0",
+			 bp->phy_addr);
+	} else {
+		snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, mii_bus->id,
+			 bp->phy_addr);
+	}
 
 	phydev = phy_connect(bp->dev, bus_id, &b44_adjust_link,
 			     PHY_INTERFACE_MODE_MII);
