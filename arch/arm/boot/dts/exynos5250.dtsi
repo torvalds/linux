@@ -244,6 +244,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c0_bus>;
+		status = "disabled";
 	};
 
 	i2c_1: i2c@12C70000 {
@@ -256,6 +257,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c1_bus>;
+		status = "disabled";
 	};
 
 	i2c_2: i2c@12C80000 {
@@ -268,6 +270,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c2_bus>;
+		status = "disabled";
 	};
 
 	i2c_3: i2c@12C90000 {
@@ -280,6 +283,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3_bus>;
+		status = "disabled";
 	};
 
 	i2c_4: i2c@12CA0000 {
@@ -292,6 +296,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c4_bus>;
+		status = "disabled";
 	};
 
 	i2c_5: i2c@12CB0000 {
@@ -304,6 +309,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c5_bus>;
+		status = "disabled";
 	};
 
 	i2c_6: i2c@12CC0000 {
@@ -316,6 +322,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c6_bus>;
+		status = "disabled";
 	};
 
 	i2c_7: i2c@12CD0000 {
@@ -328,6 +335,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c7_bus>;
+		status = "disabled";
 	};
 
 	i2c_8: i2c@12CE0000 {
@@ -338,6 +346,7 @@
 		#size-cells = <0>;
 		clocks = <&clock 302>;
 		clock-names = "i2c";
+		status = "disabled";
 	};
 
 	i2c@121D0000 {
@@ -347,6 +356,7 @@
                 #size-cells = <0>;
 		clocks = <&clock 288>;
 		clock-names = "i2c";
+		status = "disabled";
 	};
 
 	spi_0: spi@12d20000 {
