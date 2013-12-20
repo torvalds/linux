@@ -291,12 +291,12 @@ int tcf_unregister_action(struct tc_action_ops *act)
 	int err = -ENOENT;
 
 	write_lock(&act_mod_lock);
-	list_for_each_entry(a, &act_base, head)
-		if (a == act)
+	list_for_each_entry(a, &act_base, head) {
+		if (a == act) {
+			list_del(&act->head);
+			err = 0;
 			break;
-	if (a) {
-		list_del(&act->head);
-		err = 0;
+		}
 	}
 	write_unlock(&act_mod_lock);
 	return err;
@@ -306,67 +306,40 @@ EXPORT_SYMBOL(tcf_unregister_action);
 /* lookup by name */
 static struct tc_action_ops *tc_lookup_action_n(char *kind)
 {
-	struct tc_action_ops *a = NULL;
+	struct tc_action_ops *a, *res = NULL;
 
 	if (kind) {
 		read_lock(&act_mod_lock);
 		list_for_each_entry(a, &act_base, head) {
 			if (strcmp(kind, a->kind) == 0) {
-				if (!try_module_get(a->owner)) {
-					read_unlock(&act_mod_lock);
-					return NULL;
-				}
+				if (try_module_get(a->owner))
+					res = a;
 				break;
 			}
 		}
 		read_unlock(&act_mod_lock);
 	}
-	return a;
+	return res;
 }
 
 /* lookup by nlattr */
 static struct tc_action_ops *tc_lookup_action(struct nlattr *kind)
 {
-	struct tc_action_ops *a = NULL;
+	struct tc_action_ops *a, *res = NULL;
 
 	if (kind) {
 		read_lock(&act_mod_lock);
 		list_for_each_entry(a, &act_base, head) {
 			if (nla_strcmp(kind, a->kind) == 0) {
-				if (!try_module_get(a->owner)) {
-					read_unlock(&act_mod_lock);
-					return NULL;
-				}
+				if (try_module_get(a->owner))
+					res = a;
 				break;
 			}
 		}
 		read_unlock(&act_mod_lock);
 	}
-	return a;
+	return res;
 }
-
-#if 0
-/* lookup by id */
-static struct tc_action_ops *tc_lookup_action_id(u32 type)
-{
-	struct tc_action_ops *a = NULL;
-
-	if (type) {
-		read_lock(&act_mod_lock);
-		for (a = act_base; a; a = a->next) {
-			if (a->type == type) {
-				if (!try_module_get(a->owner)) {
-					read_unlock(&act_mod_lock);
-					return NULL;
-				}
-				break;
-			}
-		}
-		read_unlock(&act_mod_lock);
-	}
-	return a;
-}
-#endif
 
 int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
 		    struct tcf_result *res)
