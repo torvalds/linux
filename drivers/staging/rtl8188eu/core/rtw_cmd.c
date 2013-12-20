@@ -420,7 +420,7 @@ post_process:
 
 _func_exit_;
 
-	thread_exit();
+	complete_and_exit(NULL, 0);
 }
 
 u8 rtw_setstandby_cmd(struct adapter *padapter, uint action)

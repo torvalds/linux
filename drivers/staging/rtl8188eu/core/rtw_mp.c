@@ -643,7 +643,7 @@ exit:
 	pmptx->pallocated_buf = NULL;
 	pmptx->stop = 1;
 
-	thread_exit();
+	complete_and_exit(NULL, 0);
 }
 
 void fill_txdesc_for_mp(struct adapter *padapter, struct tx_desc *ptxdesc)
