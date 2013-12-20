@@ -204,6 +204,9 @@ static int fimc_is_register_subdevs(struct fimc_is *is)
 	if (ret < 0)
 		return ret;
 
+	/* Initialize memory allocator context for the ISP DMA. */
+	is->isp.alloc_ctx = is->alloc_ctx;
+
 	for_each_compatible_node(i2c_bus, NULL, FIMC_IS_I2C_COMPATIBLE) {
 		for_each_available_child_of_node(i2c_bus, child) {
 			ret = fimc_is_parse_sensor_config(is, index, child);

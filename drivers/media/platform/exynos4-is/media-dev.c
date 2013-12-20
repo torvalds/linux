@@ -684,7 +684,15 @@ static int register_csis_entity(struct fimc_md *fmd,
 static int register_fimc_is_entity(struct fimc_md *fmd, struct fimc_is *is)
 {
 	struct v4l2_subdev *sd = &is->isp.subdev;
+	struct exynos_media_pipeline *ep;
 	int ret;
+
+	/* Allocate pipeline object for the ISP capture video node. */
+	ep = fimc_md_pipeline_create(fmd);
+	if (!ep)
+		return -ENOMEM;
+
+	v4l2_set_subdev_hostdata(sd, ep);
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
 	if (ret) {
@@ -959,16 +967,17 @@ static int __fimc_md_create_flite_source_links(struct fimc_md *fmd)
 /* Create FIMC-IS links */
 static int __fimc_md_create_fimc_is_links(struct fimc_md *fmd)
 {
+	struct fimc_isp *isp = &fmd->fimc_is->isp;
 	struct media_entity *source, *sink;
 	int i, ret;
 
-	source = &fmd->fimc_is->isp.subdev.entity;
+	source = &isp->subdev.entity;
 
 	for (i = 0; i < FIMC_MAX_DEVS; i++) {
 		if (fmd->fimc[i] == NULL)
 			continue;
 
-		/* Link from IS-ISP subdev to FIMC */
+		/* Link from FIMC-IS-ISP subdev to FIMC */
 		sink = &fmd->fimc[i]->vid_cap.subdev.entity;
 		ret = media_entity_create_link(source, FIMC_ISP_SD_PAD_SRC_FIFO,
 					       sink, FIMC_SD_PAD_SINK_FIFO, 0);
@@ -976,7 +985,15 @@ static int __fimc_md_create_fimc_is_links(struct fimc_md *fmd)
 			return ret;
 	}
 
-	return ret;
+	/* Link from FIMC-IS-ISP subdev to fimc-is-isp.capture video node */
+	sink = &isp->video_capture.ve.vdev.entity;
+
+	/* Skip this link if the fimc-is-isp video node driver isn't built-in */
+	if (sink->num_pads == 0)
+		return 0;
+
+	return media_entity_create_link(source, FIMC_ISP_SD_PAD_SRC_DMA,
+					sink, 0, 0);
 }
 
 /**

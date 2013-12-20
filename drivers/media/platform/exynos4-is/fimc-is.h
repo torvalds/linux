@@ -292,6 +292,11 @@ static inline struct fimc_is *fimc_isp_to_is(struct fimc_isp *isp)
 	return container_of(isp, struct fimc_is, isp);
 }
 
+static inline struct chain_config *__get_curr_is_config(struct fimc_is *is)
+{
+	return &is->config[is->config_index];
+}
+
 static inline void fimc_is_mem_barrier(void)
 {
 	mb();
