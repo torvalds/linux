@@ -7,6 +7,7 @@ representation in the device tree should be done as under:-
 Required properties:
 
 - compatible : should be one of
+	"arm,armv8-pmuv3"
 	"arm,cortex-a15-pmu"
 	"arm,cortex-a9-pmu"
 	"arm,cortex-a8-pmu"

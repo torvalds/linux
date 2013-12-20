@@ -570,10 +570,8 @@ static int ideapad_input_init(struct ideapad_private *priv)
 	int error;
 
 	inputdev = input_allocate_device();
-	if (!inputdev) {
-		pr_info("Unable to allocate input device\n");
+	if (!inputdev)
 		return -ENOMEM;
-	}
 
 	inputdev->name = "Ideapad extra buttons";
 	inputdev->phys = "ideapad/input0";

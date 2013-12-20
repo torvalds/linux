@@ -82,6 +82,7 @@ static const char version[] =
 #include <linux/mii.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -2184,6 +2185,15 @@ static void smc_release_datacs(struct platform_device *pdev, struct net_device *
 	}
 }
 
+#if IS_BUILTIN(CONFIG_OF)
+static const struct of_device_id smc91x_match[] = {
+	{ .compatible = "smsc,lan91c94", },
+	{ .compatible = "smsc,lan91c111", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, smc91x_match);
+#endif
+
 /*
  * smc_init(void)
  *   Input parameters:
@@ -2198,6 +2208,7 @@ static void smc_release_datacs(struct platform_device *pdev, struct net_device *
 static int smc_drv_probe(struct platform_device *pdev)
 {
 	struct smc91x_platdata *pd = dev_get_platdata(&pdev->dev);
+	const struct of_device_id *match = NULL;
 	struct smc_local *lp;
 	struct net_device *ndev;
 	struct resource *res, *ires;
@@ -2217,11 +2228,34 @@ static int smc_drv_probe(struct platform_device *pdev)
 	 */
 
 	lp = netdev_priv(ndev);
+	lp->cfg.flags = 0;
 
 	if (pd) {
 		memcpy(&lp->cfg, pd, sizeof(lp->cfg));
 		lp->io_shift = SMC91X_IO_SHIFT(lp->cfg.flags);
-	} else {
+	}
+
+#if IS_BUILTIN(CONFIG_OF)
+	match = of_match_device(of_match_ptr(smc91x_match), &pdev->dev);
+	if (match) {
+		struct device_node *np = pdev->dev.of_node;
+		u32 val;
+
+		/* Combination of IO widths supported, default to 16-bit */
+		if (!of_property_read_u32(np, "reg-io-width", &val)) {
+			if (val & 1)
+				lp->cfg.flags |= SMC91X_USE_8BIT;
+			if ((val == 0) || (val & 2))
+				lp->cfg.flags |= SMC91X_USE_16BIT;
+			if (val & 4)
+				lp->cfg.flags |= SMC91X_USE_32BIT;
+		} else {
+			lp->cfg.flags |= SMC91X_USE_16BIT;
+		}
+	}
+#endif
+
+	if (!pd && !match) {
 		lp->cfg.flags |= (SMC_CAN_USE_8BIT)  ? SMC91X_USE_8BIT  : 0;
 		lp->cfg.flags |= (SMC_CAN_USE_16BIT) ? SMC91X_USE_16BIT : 0;
 		lp->cfg.flags |= (SMC_CAN_USE_32BIT) ? SMC91X_USE_32BIT : 0;
@@ -2369,15 +2403,6 @@ static int smc_drv_resume(struct device *dev)
 	}
 	return 0;
 }
-
-#ifdef CONFIG_OF
-static const struct of_device_id smc91x_match[] = {
-	{ .compatible = "smsc,lan91c94", },
-	{ .compatible = "smsc,lan91c111", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, smc91x_match);
-#endif
 
 static struct dev_pm_ops smc_drv_pm_ops = {
 	.suspend	= smc_drv_suspend,

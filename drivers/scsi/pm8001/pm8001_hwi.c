@@ -3403,6 +3403,7 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	unsigned long flags;
 	u8 deviceType = pPayload->sas_identify.dev_type;
 	port->port_state =  portstate;
+	phy->phy_state = PHY_STATE_LINK_UP_SPC;
 	PM8001_MSG_DBG(pm8001_ha,
 		pm8001_printk("HW_EVENT_SAS_PHY_UP port id = %d, phy id = %d\n",
 		port_id, phy_id));
@@ -3483,6 +3484,7 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_printk("HW_EVENT_SATA_PHY_UP port id = %d,"
 		" phy id = %d\n", port_id, phy_id));
 	port->port_state =  portstate;
+	phy->phy_state = PHY_STATE_LINK_UP_SPC;
 	port->port_attached = 1;
 	pm8001_get_lrate_mode(phy, link_rate);
 	phy->phy_type |= PORT_TYPE_SATA;

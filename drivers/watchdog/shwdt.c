@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/pm_runtime.h>
 #include <linux/fs.h>

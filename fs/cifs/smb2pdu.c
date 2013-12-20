@@ -454,6 +454,81 @@ neg_exit:
 	return rc;
 }
 
+int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
+{
+	int rc = 0;
+	struct validate_negotiate_info_req vneg_inbuf;
+	struct validate_negotiate_info_rsp *pneg_rsp;
+	u32 rsplen;
+
+	cifs_dbg(FYI, "validate negotiate\n");
+
+	/*
+	 * validation ioctl must be signed, so no point sending this if we
+	 * can not sign it.  We could eventually change this to selectively
+	 * sign just this, the first and only signed request on a connection.
+	 * This is good enough for now since a user who wants better security
+	 * would also enable signing on the mount. Having validation of
+	 * negotiate info for signed connections helps reduce attack vectors
+	 */
+	if (tcon->ses->server->sign == false)
+		return 0; /* validation requires signing */
+
+	vneg_inbuf.Capabilities =
+			cpu_to_le32(tcon->ses->server->vals->req_capabilities);
+	memcpy(vneg_inbuf.Guid, cifs_client_guid, SMB2_CLIENT_GUID_SIZE);
+
+	if (tcon->ses->sign)
+		vneg_inbuf.SecurityMode =
+			cpu_to_le16(SMB2_NEGOTIATE_SIGNING_REQUIRED);
+	else if (global_secflags & CIFSSEC_MAY_SIGN)
+		vneg_inbuf.SecurityMode =
+			cpu_to_le16(SMB2_NEGOTIATE_SIGNING_ENABLED);
+	else
+		vneg_inbuf.SecurityMode = 0;
+
+	vneg_inbuf.DialectCount = cpu_to_le16(1);
+	vneg_inbuf.Dialects[0] =
+		cpu_to_le16(tcon->ses->server->vals->protocol_id);
+
+	rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
+		FSCTL_VALIDATE_NEGOTIATE_INFO, true /* is_fsctl */,
+		(char *)&vneg_inbuf, sizeof(struct validate_negotiate_info_req),
+		(char **)&pneg_rsp, &rsplen);
+
+	if (rc != 0) {
+		cifs_dbg(VFS, "validate protocol negotiate failed: %d\n", rc);
+		return -EIO;
+	}
+
+	if (rsplen != sizeof(struct validate_negotiate_info_rsp)) {
+		cifs_dbg(VFS, "invalid size of protocol negotiate response\n");
+		return -EIO;
+	}
+
+	/* check validate negotiate info response matches what we got earlier */
+	if (pneg_rsp->Dialect !=
+			cpu_to_le16(tcon->ses->server->vals->protocol_id))
+		goto vneg_out;
+
+	if (pneg_rsp->SecurityMode != cpu_to_le16(tcon->ses->server->sec_mode))
+		goto vneg_out;
+
+	/* do not validate server guid because not saved at negprot time yet */
+
+	if ((le32_to_cpu(pneg_rsp->Capabilities) | SMB2_NT_FIND |
+	      SMB2_LARGE_FILES) != tcon->ses->server->capabilities)
+		goto vneg_out;
+
+	/* validate negotiate successful */
+	cifs_dbg(FYI, "validate negotiate info successful\n");
+	return 0;
+
+vneg_out:
+	cifs_dbg(VFS, "protocol revalidation - security settings mismatch\n");
+	return -EIO;
+}
+
 int
 SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 		const struct nls_table *nls_cp)
@@ -829,6 +904,8 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	    ((tcon->share_flags & SHI1005_FLAGS_DFS) == 0))
 		cifs_dbg(VFS, "DFS capability contradicts DFS flag\n");
 	init_copy_chunk_defaults(tcon);
+	if (tcon->ses->server->ops->validate_negotiate)
+		rc = tcon->ses->server->ops->validate_negotiate(xid, tcon);
 tcon_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	kfree(unc_path);
@@ -1214,10 +1291,17 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	rc = SendReceive2(xid, ses, iov, num_iovecs, &resp_buftype, 0);
 	rsp = (struct smb2_ioctl_rsp *)iov[0].iov_base;
 
-	if (rc != 0) {
+	if ((rc != 0) && (rc != -EINVAL)) {
 		if (tcon)
 			cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
 		goto ioctl_exit;
+	} else if (rc == -EINVAL) {
+		if ((opcode != FSCTL_SRV_COPYCHUNK_WRITE) &&
+		    (opcode != FSCTL_SRV_COPYCHUNK)) {
+			if (tcon)
+				cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
+			goto ioctl_exit;
+		}
 	}
 
 	/* check if caller wants to look at return data or just return rc */
@@ -2154,11 +2238,9 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SendReceive2(xid, ses, iov, num, &resp_buftype, 0);
 	rsp = (struct smb2_set_info_rsp *)iov[0].iov_base;
 
-	if (rc != 0) {
+	if (rc != 0)
 		cifs_stats_fail_inc(tcon, SMB2_SET_INFO_HE);
-		goto out;
-	}
-out:
+
 	free_rsp_buf(resp_buftype, rsp);
 	kfree(iov);
 	return rc;

@@ -61,6 +61,14 @@
 		vcc-supply = <&hsusb2_power>;
 	};
 
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "omap3beagle";
+
+		ti,mcbsp = <&mcbsp2>;
+		ti,codec = <&twl_audio>;
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 
@@ -120,6 +128,12 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
+
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			codec {
+			};
+		};
 	};
 };
 
@@ -177,4 +191,11 @@
 	phy-names = "usb2-phy";
 	mode = <3>;
 	power = <50>;
+};
+
+&vaux2 {
+	regulator-name = "vdd_ehci";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-always-on;
 };

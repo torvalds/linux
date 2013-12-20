@@ -215,10 +215,10 @@ static bool loss_4state(struct netem_sched_data *q)
 		if (rnd < clg->a4) {
 			clg->state = 4;
 			return true;
-		} else if (clg->a4 < rnd && rnd < clg->a1) {
+		} else if (clg->a4 < rnd && rnd < clg->a1 + clg->a4) {
 			clg->state = 3;
 			return true;
-		} else if (clg->a1 < rnd)
+		} else if (clg->a1 + clg->a4 < rnd)
 			clg->state = 1;
 
 		break;
@@ -268,10 +268,11 @@ static bool loss_gilb_ell(struct netem_sched_data *q)
 			clg->state = 2;
 		if (net_random() < clg->a4)
 			return true;
+		break;
 	case 2:
 		if (net_random() < clg->a2)
 			clg->state = 1;
-		if (clg->a3 > net_random())
+		if (net_random() > clg->a3)
 			return true;
 	}
 

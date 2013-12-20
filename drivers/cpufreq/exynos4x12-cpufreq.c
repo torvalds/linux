@@ -211,4 +211,3 @@ err_moutcore:
 	pr_debug("%s: failed initialization\n", __func__);
 	return -EINVAL;
 }
-EXPORT_SYMBOL(exynos4x12_cpufreq_init);

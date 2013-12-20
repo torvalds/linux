@@ -516,7 +516,7 @@ int drm_sysfs_device_add(struct drm_minor *minor)
                 minor_str = "card%d";
 
 	minor->kdev = kzalloc(sizeof(*minor->kdev), GFP_KERNEL);
-	if (!minor->dev) {
+	if (!minor->kdev) {
 		r = -ENOMEM;
 		goto error;
 	}

@@ -2464,8 +2464,16 @@ void be_detect_error(struct be_adapter *adapter)
 	 */
 	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
 		adapter->hw_error = true;
-		dev_err(&adapter->pdev->dev,
-			"Error detected in the card\n");
+		/* Do not log error messages if its a FW reset */
+		if (sliport_err1 == SLIPORT_ERROR_FW_RESET1 &&
+		    sliport_err2 == SLIPORT_ERROR_FW_RESET2) {
+			dev_info(&adapter->pdev->dev,
+				 "Firmware update in progress\n");
+			return;
+		} else {
+			dev_err(&adapter->pdev->dev,
+				"Error detected in the card\n");
+		}
 	}
 
 	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
@@ -2658,8 +2666,8 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	for_all_evt_queues(adapter, eqo, i) {
-		if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
+	if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
+		for_all_evt_queues(adapter, eqo, i) {
 			napi_disable(&eqo->napi);
 			be_disable_busy_poll(eqo);
 		}
@@ -2932,27 +2940,34 @@ static void be_cancel_worker(struct be_adapter *adapter)
 	}
 }
 
-static int be_clear(struct be_adapter *adapter)
+static void be_mac_clear(struct be_adapter *adapter)
 {
 	int i;
 
+	if (adapter->pmac_id) {
+		for (i = 0; i < (adapter->uc_macs + 1); i++)
+			be_cmd_pmac_del(adapter, adapter->if_handle,
+					adapter->pmac_id[i], 0);
+		adapter->uc_macs = 0;
+
+		kfree(adapter->pmac_id);
+		adapter->pmac_id = NULL;
+	}
+}
+
+static int be_clear(struct be_adapter *adapter)
+{
 	be_cancel_worker(adapter);
 
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
 	/* delete the primary mac along with the uc-mac list */
-	for (i = 0; i < (adapter->uc_macs + 1); i++)
-		be_cmd_pmac_del(adapter, adapter->if_handle,
-				adapter->pmac_id[i], 0);
-	adapter->uc_macs = 0;
+	be_mac_clear(adapter);
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
 
 	be_clear_queues(adapter);
-
-	kfree(adapter->pmac_id);
-	adapter->pmac_id = NULL;
 
 	be_msix_disable(adapter);
 	return 0;
@@ -3253,12 +3268,10 @@ static int be_mac_setup(struct be_adapter *adapter)
 		memcpy(mac, adapter->netdev->dev_addr, ETH_ALEN);
 	}
 
-	/* On BE3 VFs this cmd may fail due to lack of privilege.
-	 * Ignore the failure as in this case pmac_id is fetched
-	 * in the IFACE_CREATE cmd.
-	 */
-	be_cmd_pmac_add(adapter, mac, adapter->if_handle,
-			&adapter->pmac_id[0], 0);
+	/* For BE3-R VFs, the PF programs the initial MAC address */
+	if (!(BEx_chip(adapter) && be_virtfn(adapter)))
+		be_cmd_pmac_add(adapter, mac, adapter->if_handle,
+				&adapter->pmac_id[0], 0);
 	return 0;
 }
 
@@ -3814,6 +3827,8 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	}
 
 	if (change_status == LANCER_FW_RESET_NEEDED) {
+		dev_info(&adapter->pdev->dev,
+			 "Resetting adapter to activate new FW\n");
 		status = lancer_physdev_ctrl(adapter,
 					     PHYSDEV_CONTROL_FW_RESET_MASK);
 		if (status) {
@@ -4365,13 +4380,13 @@ static int lancer_recover_func(struct be_adapter *adapter)
 			goto err;
 	}
 
-	dev_err(dev, "Error recovery successful\n");
+	dev_err(dev, "Adapter recovery successful\n");
 	return 0;
 err:
 	if (status == -EAGAIN)
 		dev_err(dev, "Waiting for resource provisioning\n");
 	else
-		dev_err(dev, "Error recovery failed\n");
+		dev_err(dev, "Adapter recovery failed\n");
 
 	return status;
 }
@@ -4599,6 +4614,7 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (adapter->wol)
 		be_setup_wol(adapter, true);
 
+	be_intr_set(adapter, false);
 	cancel_delayed_work_sync(&adapter->func_recovery_work);
 
 	netif_device_detach(netdev);
@@ -4634,6 +4650,7 @@ static int be_resume(struct pci_dev *pdev)
 	if (status)
 		return status;
 
+	be_intr_set(adapter, true);
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);
 	if (status)
