@@ -36,14 +36,9 @@ struct mmp_dma_data {
 		SNDRV_PCM_INFO_PAUSE |		\
 		SNDRV_PCM_INFO_RESUME)
 
-#define MMP_PCM_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
-			 SNDRV_PCM_FMTBIT_S24_LE | \
-			 SNDRV_PCM_FMTBIT_S32_LE)
-
 static struct snd_pcm_hardware mmp_pcm_hardware[] = {
 	{
 		.info			= MMP_PCM_INFO,
-		.formats		= MMP_PCM_FORMATS,
 		.period_bytes_min	= 1024,
 		.period_bytes_max	= 2048,
 		.periods_min		= 2,
@@ -53,7 +48,6 @@ static struct snd_pcm_hardware mmp_pcm_hardware[] = {
 	},
 	{
 		.info			= MMP_PCM_INFO,
-		.formats		= MMP_PCM_FORMATS,
 		.period_bytes_min	= 1024,
 		.period_bytes_max	= 2048,
 		.periods_min		= 2,
