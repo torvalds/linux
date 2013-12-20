@@ -106,22 +106,6 @@ static int rsnd_src_set_route_if_gen1(struct rsnd_priv *priv,
 	return 0;
 }
 
-static int rsnd_scu_set_mode(struct rsnd_priv *priv,
-			     struct rsnd_mod *mod,
-			     struct rsnd_dai *rdai,
-			     struct rsnd_dai_stream *io)
-{
-	int id = rsnd_mod_id(mod);
-	u32 val;
-
-	if (rsnd_is_gen1(priv)) {
-		val = (1 << id);
-		rsnd_mod_bset(mod, SRC_ROUTE_CTRL, val, val);
-	}
-
-	return 0;
-}
-
 static int rsnd_scu_set_hpbif(struct rsnd_priv *priv,
 			      struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
@@ -141,8 +125,25 @@ static int rsnd_scu_set_hpbif(struct rsnd_priv *priv,
 		return -EIO;
 	}
 
-	rsnd_mod_write(mod, BUSIF_MODE, 1);
 	rsnd_mod_write(mod, SRC_ADINR, adinr);
+
+	return 0;
+}
+
+static int rsnd_scu_transfer_start(struct rsnd_priv *priv,
+				   struct rsnd_mod *mod,
+				   struct rsnd_dai *rdai,
+				   struct rsnd_dai_stream *io)
+{
+	int id = rsnd_mod_id(mod);
+	u32 val;
+
+	if (rsnd_is_gen1(priv)) {
+		val = (1 << id);
+		rsnd_mod_bset(mod, SRC_ROUTE_CTRL, val, val);
+	}
+
+	rsnd_mod_write(mod, BUSIF_MODE, 1);
 
 	return 0;
 }
@@ -180,11 +181,11 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_scu_set_mode(priv, mod, rdai, io);
+	ret = rsnd_scu_set_hpbif(priv, mod, rdai, io);
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_scu_set_hpbif(priv, mod, rdai, io);
+	ret = rsnd_scu_transfer_start(priv, mod, rdai, io);
 	if (ret < 0)
 		return ret;
 
