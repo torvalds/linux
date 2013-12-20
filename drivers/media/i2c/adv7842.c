@@ -1034,34 +1034,60 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 {
 	struct adv7842_state *state = to_state(sd);
 
+	v4l2_dbg(2, debug, sd, "%s: rgb_quantization_range = %d\n",
+		       __func__, state->rgb_quantization_range);
+
 	switch (state->rgb_quantization_range) {
 	case V4L2_DV_RGB_RANGE_AUTO:
-		/* automatic */
-		if (is_digital_input(sd) && !(hdmi_read(sd, 0x05) & 0x80)) {
-			/* receiving DVI-D signal */
+		if (state->mode == ADV7842_MODE_RGB) {
+			/* Receiving analog RGB signal
+			 * Set RGB full range (0-255) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x10);
+			break;
+		}
 
-			/* ADV7842 selects RGB limited range regardless of
-			   input format (CE/IT) in automatic mode */
-			if (state->timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
-				/* RGB limited range (16-235) */
-				io_write_and_or(sd, 0x02, 0x0f, 0x00);
-
-			} else {
-				/* RGB full range (0-255) */
-				io_write_and_or(sd, 0x02, 0x0f, 0x10);
-			}
-		} else {
-			/* receiving HDMI or analog signal, set automode */
+		if (state->mode == ADV7842_MODE_COMP) {
+			/* Receiving analog YPbPr signal
+			 * Set automode */
 			io_write_and_or(sd, 0x02, 0x0f, 0xf0);
+			break;
+		}
+
+		if (hdmi_read(sd, 0x05) & 0x80) {
+			/* Receiving HDMI signal
+			 * Set automode */
+			io_write_and_or(sd, 0x02, 0x0f, 0xf0);
+			break;
+		}
+
+		/* Receiving DVI-D signal
+		 * ADV7842 selects RGB limited range regardless of
+		 * input format (CE/IT) in automatic mode */
+		if (state->timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
+			/* RGB limited range (16-235) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x00);
+		} else {
+			/* RGB full range (0-255) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x10);
 		}
 		break;
 	case V4L2_DV_RGB_RANGE_LIMITED:
-		/* RGB limited range (16-235) */
-		io_write_and_or(sd, 0x02, 0x0f, 0x00);
+		if (state->mode == ADV7842_MODE_COMP) {
+			/* YCrCb limited range (16-235) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x20);
+		} else {
+			/* RGB limited range (16-235) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x00);
+		}
 		break;
 	case V4L2_DV_RGB_RANGE_FULL:
-		/* RGB full range (0-255) */
-		io_write_and_or(sd, 0x02, 0x0f, 0x10);
+		if (state->mode == ADV7842_MODE_COMP) {
+			/* YCrCb full range (0-255) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x60);
+		} else {
+			/* RGB full range (0-255) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x10);
+		}
 		break;
 	}
 }
@@ -1299,7 +1325,7 @@ static int adv7842_dv_timings_cap(struct v4l2_subdev *sd,
 }
 
 /* Fill the optional fields .standards and .flags in struct v4l2_dv_timings
-   if the format is listed in adv7604_timings[] */
+   if the format is listed in adv7842_timings[] */
 static void adv7842_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 		struct v4l2_dv_timings *timings)
 {
@@ -1442,6 +1468,8 @@ static int adv7842_g_dv_timings(struct v4l2_subdev *sd,
 static void enable_input(struct v4l2_subdev *sd)
 {
 	struct adv7842_state *state = to_state(sd);
+
+	set_rgb_quantization_range(sd);
 	switch (state->mode) {
 	case ADV7842_MODE_SDP:
 	case ADV7842_MODE_COMP:
@@ -1586,6 +1614,13 @@ static void select_input(struct v4l2_subdev *sd,
 
 		afe_write(sd, 0x00, 0x00); /* power up ADC */
 		afe_write(sd, 0xc8, 0x00); /* phase control */
+		if (state->mode == ADV7842_MODE_COMP) {
+			/* force to YCrCb */
+			io_write_and_or(sd, 0x02, 0x0f, 0x60);
+		} else {
+			/* force to RGB */
+			io_write_and_or(sd, 0x02, 0x0f, 0x10);
+		}
 
 		/* set ADI recommended settings for digitizer */
 		/* "ADV7842 Register Settings Recommendations
@@ -1681,19 +1716,19 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 
 	switch (input) {
 	case ADV7842_SELECT_HDMI_PORT_A:
-		/* TODO select HDMI_COMP or HDMI_GR */
 		state->mode = ADV7842_MODE_HDMI;
 		state->vid_std_select = ADV7842_HDMI_COMP_VID_STD_HD_1250P;
 		state->hdmi_port_a = true;
 		break;
 	case ADV7842_SELECT_HDMI_PORT_B:
-		/* TODO select HDMI_COMP or HDMI_GR */
 		state->mode = ADV7842_MODE_HDMI;
 		state->vid_std_select = ADV7842_HDMI_COMP_VID_STD_HD_1250P;
 		state->hdmi_port_a = false;
 		break;
 	case ADV7842_SELECT_VGA_COMP:
-		v4l2_info(sd, "%s: VGA component: todo\n", __func__);
+		state->mode = ADV7842_MODE_COMP;
+		state->vid_std_select = ADV7842_RGB_VID_STD_AUTO_GRAPH_MODE;
+		break;
 	case ADV7842_SELECT_VGA_RGB:
 		state->mode = ADV7842_MODE_RGB;
 		state->vid_std_select = ADV7842_RGB_VID_STD_AUTO_GRAPH_MODE;
@@ -2112,7 +2147,7 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 	static const char * const input_color_space_txt[16] = {
 		"RGB limited range (16-235)", "RGB full range (0-255)",
 		"YCbCr Bt.601 (16-235)", "YCbCr Bt.709 (16-235)",
-		"XvYCC Bt.601", "XvYCC Bt.709",
+		"xvYCC Bt.601", "xvYCC Bt.709",
 		"YCbCr Bt.601 (0-255)", "YCbCr Bt.709 (0-255)",
 		"invalid", "invalid", "invalid", "invalid", "invalid",
 		"invalid", "invalid", "automatic"
@@ -2341,9 +2376,10 @@ static int adv7842_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
 
 /* ----------------------------------------------------------------------- */
 
-static int adv7842_core_init(struct v4l2_subdev *sd,
-		const struct adv7842_platform_data *pdata)
+static int adv7842_core_init(struct v4l2_subdev *sd)
 {
+	struct adv7842_state *state = to_state(sd);
+	struct adv7842_platform_data *pdata = &state->pdata;
 	hdmi_write(sd, 0x48,
 		   (pdata->disable_pwrdnb ? 0x80 : 0) |
 		   (pdata->disable_cable_det_rst ? 0x40 : 0));
@@ -2356,7 +2392,7 @@ static int adv7842_core_init(struct v4l2_subdev *sd,
 
 	/* video format */
 	io_write(sd, 0x02,
-		 pdata->inp_color_space << 4 |
+		 0xf0 |
 		 pdata->alt_gamma << 3 |
 		 pdata->op_656_range << 2 |
 		 pdata->rgb_out << 1 |
@@ -2570,7 +2606,7 @@ static int adv7842_command_ram_test(struct v4l2_subdev *sd)
 	adv7842_rewrite_i2c_addresses(sd, pdata);
 
 	/* and re-init chip and state */
-	adv7842_core_init(sd, pdata);
+	adv7842_core_init(sd);
 
 	disable_input(sd);
 

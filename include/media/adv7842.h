@@ -163,9 +163,6 @@ struct adv7842_platform_data {
 	/* Video standard */
 	enum adv7842_vid_std_select vid_std_select;
 
-	/* Input Color Space */
-	enum adv7842_inp_color_space inp_color_space;
-
 	/* Select output format */
 	enum adv7842_op_format_sel op_format_sel;
 
