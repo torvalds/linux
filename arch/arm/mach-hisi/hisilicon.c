@@ -51,12 +51,6 @@ static void __init hi3620_map_io(void)
 	iotable_init(hi3620_io_desc, ARRAY_SIZE(hi3620_io_desc));
 }
 
-static void __init hi3xxx_timer_init(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
-}
-
 static void hi3xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device_node *np;
@@ -90,7 +84,6 @@ static const char *hi3xxx_compat[] __initconst = {
 
 DT_MACHINE_START(HI3620, "Hisilicon Hi3620 (Flattened Device Tree)")
 	.map_io		= hi3620_map_io,
-	.init_time	= hi3xxx_timer_init,
 	.dt_compat	= hi3xxx_compat,
 	.smp		= smp_ops(hi3xxx_smp_ops),
 	.restart	= hi3xxx_restart,
