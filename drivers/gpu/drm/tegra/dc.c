@@ -17,6 +17,7 @@
 
 struct tegra_dc_soc_info {
 	bool supports_interlacing;
+	bool supports_cursor;
 };
 
 struct tegra_plane {
@@ -477,6 +478,109 @@ void tegra_dc_disable_vblank(struct tegra_dc *dc)
 	spin_unlock_irqrestore(&dc->lock, flags);
 }
 
+static int tegra_dc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file,
+				uint32_t handle, uint32_t width,
+				uint32_t height, int32_t hot_x, int32_t hot_y)
+{
+	unsigned long value = CURSOR_CLIP_DISPLAY;
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	struct drm_gem_object *gem;
+	struct tegra_bo *bo = NULL;
+
+	if (!dc->soc->supports_cursor)
+		return -ENXIO;
+
+	if (width != height)
+		return -EINVAL;
+
+	switch (width) {
+	case 32:
+		value |= CURSOR_SIZE_32x32;
+		break;
+
+	case 64:
+		value |= CURSOR_SIZE_64x64;
+		break;
+
+	case 128:
+		value |= CURSOR_SIZE_128x128;
+
+	case 256:
+		value |= CURSOR_SIZE_256x256;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (handle) {
+		gem = drm_gem_object_lookup(crtc->dev, file, handle);
+		if (!gem)
+			return -ENOENT;
+
+		bo = to_tegra_bo(gem);
+	}
+
+	if (bo) {
+		unsigned long addr = (bo->paddr & 0xfffffc00) >> 10;
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		unsigned long high = (bo->paddr & 0xfffffffc) >> 32;
+#endif
+
+		tegra_dc_writel(dc, value | addr, DC_DISP_CURSOR_START_ADDR);
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		tegra_dc_writel(dc, high, DC_DISP_CURSOR_START_ADDR_HI);
+#endif
+
+		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+		value |= CURSOR_ENABLE;
+		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+
+		value = tegra_dc_readl(dc, DC_DISP_BLEND_CURSOR_CONTROL);
+		value &= ~CURSOR_DST_BLEND_MASK;
+		value &= ~CURSOR_SRC_BLEND_MASK;
+		value |= CURSOR_MODE_NORMAL;
+		value |= CURSOR_DST_BLEND_NEG_K1_TIMES_SRC;
+		value |= CURSOR_SRC_BLEND_K1_TIMES_SRC;
+		value |= CURSOR_ALPHA;
+		tegra_dc_writel(dc, value, DC_DISP_BLEND_CURSOR_CONTROL);
+	} else {
+		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+		value &= ~CURSOR_ENABLE;
+		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+	}
+
+	tegra_dc_writel(dc, CURSOR_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, CURSOR_ACT_REQ, DC_CMD_STATE_CONTROL);
+
+	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+
+	return 0;
+}
+
+static int tegra_dc_cursor_move(struct drm_crtc *crtc, int x, int y)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	unsigned long value;
+
+	if (!dc->soc->supports_cursor)
+		return -ENXIO;
+
+	value = ((y & 0x3fff) << 16) | (x & 0x3fff);
+	tegra_dc_writel(dc, value, DC_DISP_CURSOR_POSITION);
+
+	tegra_dc_writel(dc, CURSOR_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, CURSOR_ACT_REQ, DC_CMD_STATE_CONTROL);
+
+	/* XXX: only required on generations earlier than Tegra124? */
+	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+
+	return 0;
+}
+
 static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 {
 	struct drm_device *drm = dc->base.dev;
@@ -553,6 +657,8 @@ static void tegra_dc_destroy(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
+	.cursor_set2 = tegra_dc_cursor_set2,
+	.cursor_move = tegra_dc_cursor_move,
 	.page_flip = tegra_dc_page_flip,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = tegra_dc_destroy,
@@ -999,6 +1105,8 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 	DUMP_REG(DC_DISP_SD_BL_CONTROL);
 	DUMP_REG(DC_DISP_SD_HW_K_VALUES);
 	DUMP_REG(DC_DISP_SD_MAN_K_VALUES);
+	DUMP_REG(DC_DISP_CURSOR_START_ADDR_HI);
+	DUMP_REG(DC_DISP_BLEND_CURSOR_CONTROL);
 	DUMP_REG(DC_WIN_WIN_OPTIONS);
 	DUMP_REG(DC_WIN_BYTE_SWAP);
 	DUMP_REG(DC_WIN_BUFFER_CONTROL);
@@ -1168,14 +1276,17 @@ static const struct host1x_client_ops dc_client_ops = {
 
 static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 	.supports_interlacing = false,
+	.supports_cursor = false,
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 	.supports_interlacing = false,
+	.supports_cursor = false,
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.supports_interlacing = true,
+	.supports_cursor = true,
 };
 
 static const struct of_device_id tegra_dc_of_match[] = {
