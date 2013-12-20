@@ -1865,7 +1865,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	/* Save TSF before chip reset, a cold reset clears it */
 	tsf = ath9k_hw_gettsf64(ah);
 	getrawmonotonic(&ts);
-	usec = ts.tv_sec * 1000 + ts.tv_nsec / 1000;
+	usec = ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000;
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
 		(AR_CFG_LED_ASSOC_CTL | AR_CFG_LED_MODE_SEL |
@@ -1899,7 +1899,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	/* Restore TSF */
 	getrawmonotonic(&ts);
-	usec = ts.tv_sec * 1000 + ts.tv_nsec / 1000 - usec;
+	usec = ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000 - usec;
 	ath9k_hw_settsf64(ah, tsf + usec);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
