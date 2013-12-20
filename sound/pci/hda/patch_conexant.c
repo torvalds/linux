@@ -3243,7 +3243,7 @@ enum {
 #if IS_ENABLED(CONFIG_THINKPAD_ACPI)
 
 #include <linux/thinkpad_acpi.h>
-#include <acpi/acpi.h>
+#include <linux/acpi.h>
 
 static int (*led_set_func)(int, bool);
 

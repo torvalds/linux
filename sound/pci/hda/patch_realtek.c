@@ -3779,7 +3779,7 @@ static void alc290_fixup_mono_speakers(struct hda_codec *codec,
 #if IS_ENABLED(CONFIG_THINKPAD_ACPI)
 
 #include <linux/thinkpad_acpi.h>
-#include <acpi/acpi.h>
+#include <linux/acpi.h>
 
 static int (*led_set_func)(int, bool);
 
