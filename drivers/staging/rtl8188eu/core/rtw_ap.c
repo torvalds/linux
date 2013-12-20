@@ -65,8 +65,6 @@ void free_mlme_ap_info(struct adapter *padapter)
 	spin_lock_bh(&(pstapriv->sta_hash_lock));
 	rtw_free_stainfo(padapter, psta);
 	spin_unlock_bh(&(pstapriv->sta_hash_lock));
-
-	_rtw_spinlock_free(&pmlmepriv->bcn_update_lock);
 }
 
 static void update_BCNTIM(struct adapter *padapter)
