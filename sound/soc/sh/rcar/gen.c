@@ -314,11 +314,11 @@ static int rsnd_gen1_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 		RSND_GEN1_S_REG(gen, SRU,	SRC_TMG_SEL0,	0x08),
 		RSND_GEN1_S_REG(gen, SRU,	SRC_TMG_SEL1,	0x0c),
 		RSND_GEN1_S_REG(gen, SRU,	SRC_TMG_SEL2,	0x10),
-		RSND_GEN1_S_REG(gen, SRU,	SRC_CTRL,	0xc0),
+		RSND_GEN1_S_REG(gen, SRU,	SRC_ROUTE_CTRL,	0xc0),
 		RSND_GEN1_S_REG(gen, SRU,	SSI_MODE0,	0xD0),
 		RSND_GEN1_S_REG(gen, SRU,	SSI_MODE1,	0xD4),
 		RSND_GEN1_M_REG(gen, SRU,	BUSIF_MODE,	0x20,	0x4),
-		RSND_GEN1_M_REG(gen, SRU,	BUSIF_ADINR,	0x214,	0x40),
+		RSND_GEN1_M_REG(gen, SRU,	SRC_ADINR,	0x214,	0x40),
 
 		RSND_GEN1_S_REG(gen, ADG,	BRRA,		0x00),
 		RSND_GEN1_S_REG(gen, ADG,	BRRB,		0x04),

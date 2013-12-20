@@ -115,7 +115,7 @@ static int rsnd_scu_set_mode(struct rsnd_priv *priv,
 
 	if (rsnd_is_gen1(priv)) {
 		val = (1 << id);
-		rsnd_mod_bset(mod, SRC_CTRL, val, val);
+		rsnd_mod_bset(mod, SRC_ROUTE_CTRL, val, val);
 	}
 
 	return 0;
@@ -141,7 +141,7 @@ static int rsnd_scu_set_hpbif(struct rsnd_priv *priv,
 	}
 
 	rsnd_mod_write(mod, BUSIF_MODE, 1);
-	rsnd_mod_write(mod, BUSIF_ADINR, adinr);
+	rsnd_mod_write(mod, SRC_ADINR, adinr);
 
 	return 0;
 }
