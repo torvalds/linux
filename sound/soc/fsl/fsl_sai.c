@@ -334,12 +334,9 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 static int fsl_sai_startup(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *cpu_dai)
 {
-	int ret;
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 
-	ret = clk_prepare_enable(sai->clk);
-
-	return ret;
+	return clk_prepare_enable(sai->clk);
 }
 
 static void fsl_sai_shutdown(struct snd_pcm_substream *substream,
