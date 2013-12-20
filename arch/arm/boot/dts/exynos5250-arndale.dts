@@ -302,11 +302,13 @@
 				buck7_reg: BUCK7 {
 					regulator-name = "PVDD_BUCK7";
 					regulator-always-on;
+					op_mode = <1>;
 				};
 
 				buck8_reg: BUCK8 {
 					regulator-name = "PVDD_BUCK8";
 					regulator-always-on;
+					op_mode = <1>;
 				};
 
 				buck9_reg: BUCK9 {
