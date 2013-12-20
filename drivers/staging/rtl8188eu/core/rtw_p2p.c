@@ -1958,7 +1958,7 @@ void init_wifidirect_info(struct adapter *padapter, enum P2P_ROLE role)
 
 	rtw_p2p_findphase_ex_set(pwdinfo, P2P_FINDPHASE_EX_NONE);
 
-	pwdinfo->listen_dwell = (u8) ((rtw_get_current_time() % 3) + 1);
+	pwdinfo->listen_dwell = (u8) ((jiffies % 3) + 1);
 
 	_rtw_memset(&pwdinfo->tx_prov_disc_info, 0x00, sizeof(struct tx_provdisc_req_info));
 	pwdinfo->tx_prov_disc_info.wps_config_method_request = WPS_CM_NONE;

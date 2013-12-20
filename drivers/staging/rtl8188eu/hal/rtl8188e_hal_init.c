@@ -60,7 +60,7 @@ static s32 iol_execute(struct adapter *padapter, u8 control)
 	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
 	rtw_write8(padapter, REG_HMEBOX_E0,  reg_0x88|control);
 
-	start = rtw_get_current_time();
+	start = jiffies;
 	while ((reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0)) & control &&
 	       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 		;
@@ -238,7 +238,7 @@ static void efuse_read_phymap_from_txpktbuf(
 		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr+i);
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
-		start = rtw_get_current_time();
+		start = jiffies;
 		while (!(reg_0x143 = rtw_read8(adapter, REG_TXPKTBUF_DBG)) &&
 		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, rtw_read8(adapter, 0x106));
@@ -660,7 +660,7 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	}
 
 	_FWDownloadEnable(padapter, true);
-	fwdl_start_time = rtw_get_current_time();
+	fwdl_start_time = jiffies;
 	while (1) {
 		/* reset the FWDL chksum */
 		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);

@@ -146,7 +146,7 @@ _func_enter_;
 	}
 
 	haldata = GET_HAL_DATA(padapter);
-	haldata->srestpriv.last_tx_complete_time = rtw_get_current_time();
+	haldata->srestpriv.last_tx_complete_time = jiffies;
 
 check_completion:
 	rtw_sctx_done_err(&pxmitbuf->sctx,
@@ -230,7 +230,7 @@ _func_enter_;
 	if (!status) {
 		struct hal_data_8188e	*haldata = GET_HAL_DATA(padapter);
 
-		haldata->srestpriv.last_tx_time = rtw_get_current_time();
+		haldata->srestpriv.last_tx_time = jiffies;
 	} else {
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
 		DBG_88E("usb_write_port, status =%d\n", status);

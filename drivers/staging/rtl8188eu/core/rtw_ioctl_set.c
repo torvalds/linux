@@ -231,7 +231,7 @@ handle_tkip_countermeasure:
 	/* should we add something here...? */
 
 	if (padapter->securitypriv.btkip_countermeasure) {
-		cur_time = rtw_get_current_time();
+		cur_time = jiffies;
 
 		if ((cur_time - padapter->securitypriv.btkip_countermeasure_time) > 60 * HZ) {
 			padapter->securitypriv.btkip_countermeasure = false;
@@ -343,7 +343,7 @@ _func_enter_;
 handle_tkip_countermeasure:
 
 	if (padapter->securitypriv.btkip_countermeasure) {
-		cur_time = rtw_get_current_time();
+		cur_time = jiffies;
 
 		if ((cur_time - padapter->securitypriv.btkip_countermeasure_time) > 60 * HZ) {
 			padapter->securitypriv.btkip_countermeasure = false;

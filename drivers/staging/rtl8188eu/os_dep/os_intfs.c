@@ -1154,7 +1154,7 @@ netdev_open_error:
 int rtw_ips_pwr_up(struct adapter *padapter)
 {
 	int result;
-	u32 start_time = rtw_get_current_time();
+	u32 start_time = jiffies;
 	DBG_88E("===>  rtw_ips_pwr_up..............\n");
 	rtw_reset_drv_sw(padapter);
 
@@ -1168,7 +1168,7 @@ int rtw_ips_pwr_up(struct adapter *padapter)
 
 void rtw_ips_pwr_down(struct adapter *padapter)
 {
-	u32 start_time = rtw_get_current_time();
+	u32 start_time = jiffies;
 	DBG_88E("===> rtw_ips_pwr_down...................\n");
 
 	padapter->bCardDisableWOHSM = true;

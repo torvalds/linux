@@ -529,7 +529,7 @@ _func_enter_;
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
 	if (res == _SUCCESS) {
-		pmlmepriv->scan_start_time = rtw_get_current_time();
+		pmlmepriv->scan_start_time = jiffies;
 
 		_set_timer(&pmlmepriv->scan_to_timer, SCANNING_TIMEOUT);
 
@@ -1717,7 +1717,7 @@ _func_enter_;
 		break;
 	case LPS_CTRL_SPECIAL_PACKET:
 		/* DBG_88E("LPS_CTRL_SPECIAL_PACKET\n"); */
-		pwrpriv->DelayLPSLastTimeStamp = rtw_get_current_time();
+		pwrpriv->DelayLPSLastTimeStamp = jiffies;
 		LPS_Leave(padapter);
 		break;
 	case LPS_CTRL_LEAVE:
@@ -2279,7 +2279,7 @@ _func_enter_;
 				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 				goto createbss_cmd_fail;
 			}
-			pwlan->last_scanned = rtw_get_current_time();
+			pwlan->last_scanned = jiffies;
 		} else {
 			rtw_list_insert_tail(&(pwlan->list), &pmlmepriv->scanned_queue.queue);
 		}
