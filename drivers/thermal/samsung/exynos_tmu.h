@@ -43,6 +43,7 @@ enum soc_type {
 	SOC_ARCH_EXYNOS4210 = 1,
 	SOC_ARCH_EXYNOS4412,
 	SOC_ARCH_EXYNOS5250,
+	SOC_ARCH_EXYNOS5260,
 	SOC_ARCH_EXYNOS5420_TRIMINFO,
 	SOC_ARCH_EXYNOS5440,
 };
@@ -150,6 +151,7 @@ struct exynos_tmu_registers {
 	u32	triminfo_85_shift;
 
 	u32	triminfo_ctrl;
+	u32	triminfo_ctrl1;
 	u32	triminfo_reload_shift;
 
 	u32	tmu_ctrl;

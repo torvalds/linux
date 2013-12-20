@@ -87,6 +87,7 @@
 #define EXYNOS_TMU_INTEN_FALL0_SHIFT	16
 #define EXYNOS_TMU_INTEN_FALL1_SHIFT	20
 #define EXYNOS_TMU_INTEN_FALL2_SHIFT	24
+#define EXYNOS_TMU_INTEN_FALL3_SHIFT	28
 
 #define EXYNOS_EMUL_TIME	0x57F0
 #define EXYNOS_EMUL_TIME_MASK	0xffff
@@ -96,6 +97,17 @@
 #define EXYNOS_EMUL_ENABLE	0x1
 
 #define EXYNOS_MAX_TRIGGER_PER_REG	4
+
+/* Exynos5260 specific */
+#define EXYNOS_TMU_REG_CONTROL1			0x24
+#define EXYNOS5260_TMU_REG_INTEN		0xC0
+#define EXYNOS5260_TMU_REG_INTSTAT		0xC4
+#define EXYNOS5260_TMU_REG_INTCLEAR		0xC8
+#define EXYNOS5260_TMU_CLEAR_RISE_INT		0x1111
+#define EXYNOS5260_TMU_CLEAR_FALL_INT		(0x1111 << 16)
+#define EXYNOS5260_TMU_RISE_INT_MASK		0x1111
+#define EXYNOS5260_TMU_FALL_INT_MASK		0x1111
+#define EXYNOS5260_EMUL_CON			0x100
 
 /* Exynos4412 specific */
 #define EXYNOS4412_MUX_ADDR_VALUE          6
@@ -155,6 +167,13 @@ extern struct exynos_tmu_init_data const exynos5250_default_tmu_data;
 #define EXYNOS5250_TMU_DRV_DATA (&exynos5250_default_tmu_data)
 #else
 #define EXYNOS5250_TMU_DRV_DATA (NULL)
+#endif
+
+#if defined(CONFIG_SOC_EXYNOS5260)
+extern struct exynos_tmu_init_data const exynos5260_default_tmu_data;
+#define EXYNOS5260_TMU_DRV_DATA (&exynos5260_default_tmu_data)
+#else
+#define EXYNOS5260_TMU_DRV_DATA (NULL)
 #endif
 
 #if defined(CONFIG_SOC_EXYNOS5420)
