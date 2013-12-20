@@ -117,8 +117,6 @@ static int mfd_add_device(struct device *parent, int id,
 			}
 		}
 	}
-	if (!pdev->dev.of_node)
-		pdev->dev.of_node = parent->of_node;
 
 	if (cell->pdata_size) {
 		ret = platform_device_add_data(pdev,
