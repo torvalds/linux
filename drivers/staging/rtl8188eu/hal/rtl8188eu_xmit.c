@@ -535,7 +535,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 		phwxmit = pxmitpriv->hwxmits + 2;
 		break;
 	}
-	_enter_critical_bh(&pxmitpriv->lock, &irql);
+	spin_lock_bh(&pxmitpriv->lock);
 
 	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
 	xmitframe_plist = get_next(xmitframe_phead);
@@ -648,7 +648,7 @@ static s32 pre_xmitframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct mlme_priv *pmlmepriv = &adapt->mlmepriv;
 
-	_enter_critical_bh(&pxmitpriv->lock, &irql);
+	spin_lock_bh(&pxmitpriv->lock);
 
 	if (rtw_txframes_sta_ac_pending(adapt, pattrib) > 0)
 		goto enqueue;

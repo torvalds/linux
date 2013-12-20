@@ -331,7 +331,7 @@ static inline int __nat25_network_hash(unsigned char *networkAddr)
 static inline void __network_hash_link(struct adapter *priv,
 				struct nat25_network_db_entry *ent, int hash)
 {
-	/*  Caller must _enter_critical_bh already! */
+	/*  Caller must spin_lock_bh already! */
 	ent->next_hash = priv->nethash[hash];
 	if (ent->next_hash != NULL)
 		ent->next_hash->pprev_hash = &ent->next_hash;
@@ -341,7 +341,7 @@ static inline void __network_hash_link(struct adapter *priv,
 
 static inline void __network_hash_unlink(struct nat25_network_db_entry *ent)
 {
-	/*  Caller must _enter_critical_bh already! */
+	/*  Caller must spin_lock_bh already! */
 	*(ent->pprev_hash) = ent->next_hash;
 	if (ent->next_hash != NULL)
 		ent->next_hash->pprev_hash = ent->pprev_hash;
@@ -354,7 +354,7 @@ static int __nat25_db_network_lookup_and_replace(struct adapter *priv,
 {
 	struct nat25_network_db_entry *db;
 	unsigned long irqL;
-	_enter_critical_bh(&priv->br_ext_lock, &irqL);
+	spin_lock_bh(&priv->br_ext_lock);
 
 	db = priv->nethash[__nat25_network_hash(networkAddr)];
 	while (db != NULL) {
@@ -406,7 +406,7 @@ static void __nat25_db_network_insert(struct adapter *priv,
 	int hash;
 	unsigned long irqL;
 
-	_enter_critical_bh(&priv->br_ext_lock, &irqL);
+	spin_lock_bh(&priv->br_ext_lock);
 	hash = __nat25_network_hash(networkAddr);
 	db = priv->nethash[hash];
 	while (db != NULL) {
@@ -445,7 +445,7 @@ void nat25_db_cleanup(struct adapter *priv)
 {
 	int i;
 	unsigned long irqL;
-	_enter_critical_bh(&priv->br_ext_lock, &irqL);
+	spin_lock_bh(&priv->br_ext_lock);
 
 	for (i = 0; i < NAT25_HASH_SIZE; i++) {
 		struct nat25_network_db_entry *f;
@@ -471,7 +471,7 @@ void nat25_db_expire(struct adapter *priv)
 {
 	int i;
 	unsigned long irqL;
-	_enter_critical_bh(&priv->br_ext_lock, &irqL);
+	spin_lock_bh(&priv->br_ext_lock);
 
 	for (i = 0; i < NAT25_HASH_SIZE; i++) {
 		struct nat25_network_db_entry *f;
@@ -1061,7 +1061,7 @@ int nat25_handle_frame(struct adapter *priv, struct sk_buff *skb)
 
 		if (!priv->ethBrExtInfo.nat25_disable) {
 			unsigned long irqL;
-			_enter_critical_bh(&priv->br_ext_lock, &irqL);
+			spin_lock_bh(&priv->br_ext_lock);
 			/*
 			 *	This function look up the destination network address from
 			 *	the NAT2.5 database. Return value = -1 means that the
@@ -1178,8 +1178,6 @@ void *scdb_findEntry(struct adapter *priv, unsigned char *macAddr,
 	unsigned char networkAddr[MAX_NETWORK_ADDR_LEN];
 	struct nat25_network_db_entry *db;
 	int hash;
-	/* unsigned long irqL; */
-	/* _enter_critical_bh(&priv->br_ext_lock, &irqL); */
 
 	__nat25_generate_ipv4_network_addr(networkAddr, (unsigned int *)ipAddr);
 	hash = __nat25_network_hash(networkAddr);

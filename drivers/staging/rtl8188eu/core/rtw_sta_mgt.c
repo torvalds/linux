@@ -197,7 +197,7 @@ void rtw_mfree_all_stainfo(struct sta_priv *pstapriv)
 
 _func_enter_;
 
-	_enter_critical_bh(&pstapriv->sta_hash_lock, &irql);
+	spin_lock_bh(&pstapriv->sta_hash_lock);
 
 	phead = get_list_head(&pstapriv->free_sta_queue);
 	plist = get_next(phead);
@@ -246,7 +246,7 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 _func_enter_;
 	if (pstapriv) {
 		/*	delete all reordering_ctrl_timer		*/
-		_enter_critical_bh(&pstapriv->sta_hash_lock, &irql);
+		spin_lock_bh(&pstapriv->sta_hash_lock);
 		for (index = 0; index < NUM_STA; index++) {
 			phead = &(pstapriv->sta_hash[index]);
 			plist = get_next(phead);
@@ -290,7 +290,7 @@ _func_enter_;
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 
-	_enter_critical_bh(&(pfree_sta_queue->lock), &irql);
+	spin_lock_bh(&(pfree_sta_queue->lock));
 
 	if (_rtw_queue_empty(pfree_sta_queue) == true) {
 		_exit_critical_bh(&(pfree_sta_queue->lock), &irql);
@@ -310,7 +310,7 @@ _func_enter_;
 		}
 		phash_list = &(pstapriv->sta_hash[index]);
 
-		_enter_critical_bh(&(pstapriv->sta_hash_lock), &irql2);
+		spin_lock_bh(&(pstapriv->sta_hash_lock));
 
 		rtw_list_insert_tail(&psta->hash_list, phash_list);
 
@@ -384,7 +384,7 @@ _func_enter_;
 
 	pstaxmitpriv = &psta->sta_xmitpriv;
 
-	_enter_critical_bh(&pxmitpriv->lock, &irql0);
+	spin_lock_bh(&pxmitpriv->lock);
 
 	rtw_free_xmitframe_queue(pxmitpriv, &psta->sleep_q);
 	psta->sleepq_len = 0;
@@ -431,7 +431,7 @@ _func_enter_;
 
 		ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 
-		_enter_critical_bh(&ppending_recvframe_queue->lock, &irql);
+		spin_lock_bh(&ppending_recvframe_queue->lock);
 
 		phead =		get_list_head(ppending_recvframe_queue);
 		plist = get_next(phead);
@@ -454,7 +454,7 @@ _func_enter_;
 
 #ifdef CONFIG_88EU_AP_MODE
 
-	_enter_critical_bh(&pstapriv->auth_list_lock, &irql0);
+	spin_lock_bh(&pstapriv->auth_list_lock);
 	if (!rtw_is_list_empty(&psta->auth_list)) {
 		rtw_list_delete(&psta->auth_list);
 		pstapriv->auth_list_cnt--;
@@ -485,7 +485,7 @@ _func_enter_;
 
 #endif	/*  CONFIG_88EU_AP_MODE */
 
-	_enter_critical_bh(&(pfree_sta_queue->lock), &irql0);
+	spin_lock_bh(&(pfree_sta_queue->lock));
 	rtw_list_insert_tail(&psta->list, get_list_head(pfree_sta_queue));
 	_exit_critical_bh(&(pfree_sta_queue->lock), &irql0);
 
@@ -511,7 +511,7 @@ _func_enter_;
 	if (pstapriv->asoc_sta_count == 1)
 		goto exit;
 
-	_enter_critical_bh(&pstapriv->sta_hash_lock, &irql);
+	spin_lock_bh(&pstapriv->sta_hash_lock);
 
 	for (index = 0; index < NUM_STA; index++) {
 		phead = &(pstapriv->sta_hash[index]);
@@ -556,7 +556,7 @@ _func_enter_;
 
 	index = wifi_mac_hash(addr);
 
-	_enter_critical_bh(&pstapriv->sta_hash_lock, &irql);
+	spin_lock_bh(&pstapriv->sta_hash_lock);
 
 	phead = &(pstapriv->sta_hash[index]);
 	plist = get_next(phead);
@@ -625,7 +625,7 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 	struct __queue *pacl_node_q = &pacl_list->acl_node_q;
 
-	_enter_critical_bh(&(pacl_node_q->lock), &irql);
+	spin_lock_bh(&(pacl_node_q->lock));
 	phead = get_list_head(pacl_node_q);
 	plist = get_next(phead);
 	while ((!rtw_end_of_queue_search(phead, plist))) {
