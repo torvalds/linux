@@ -333,6 +333,15 @@
 		non-removable;
 	};
 
+	usb@7d004000 {
+		status = "okay";
+	};
+
+	phy2: usb-phy@7d004000 {
+		vbus-supply = <&sys_3v3_reg>;
+		status = "okay";
+	};
+
 	usb@7d008000 {
 		status = "okay";
 	};
