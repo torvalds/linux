@@ -385,19 +385,8 @@ static int fsl_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
-static int fsl_sai_dai_remove(struct snd_soc_dai *cpu_dai)
-{
-	cpu_dai->playback_dma_data = NULL;
-	cpu_dai->capture_dma_data = NULL;
-
-	snd_soc_dai_set_drvdata(cpu_dai, NULL);
-
-	return 0;
-}
-
 static struct snd_soc_dai_driver fsl_sai_dai = {
 	.probe = fsl_sai_dai_probe,
-	.remove = fsl_sai_dai_remove,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
