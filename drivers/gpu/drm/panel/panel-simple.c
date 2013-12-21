@@ -338,6 +338,28 @@ static const struct panel_desc chunghwa_claa101wb01 = {
 	},
 };
 
+static const struct drm_display_mode samsung_ltn101nt05_mode = {
+	.clock = 54030,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 24,
+	.hsync_end = 1024 + 24 + 136,
+	.htotal = 1024 + 24 + 136 + 160,
+	.vdisplay = 600,
+	.vsync_start = 600 + 3,
+	.vsync_end = 600 + 3 + 6,
+	.vtotal = 600 + 3 + 6 + 61,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc samsung_ltn101nt05 = {
+	.modes = &samsung_ltn101nt05_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 1024,
+		.height = 600,
+	},
+};
+
 static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "auo,b101aw03",
@@ -345,6 +367,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "chunghwa,claa101wb01",
 		.data = &chunghwa_claa101wb01
+	}, {
+		.compatible = "samsung,ltn101nt05",
+		.data = &samsung_ltn101nt05,
 	}, {
 		.compatible = "simple-panel",
 	}, {
