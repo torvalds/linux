@@ -3113,7 +3113,7 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
  **/
 int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool request)
 {
-	int ret;
+	int ret = 0;
 
 	/* do rx first for enable and last for disable */
 	if (request) {
@@ -3122,10 +3122,9 @@ int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool request)
 			return ret;
 		ret = i40e_vsi_control_tx(vsi, request);
 	} else {
-		ret = i40e_vsi_control_tx(vsi, request);
-		if (ret)
-			return ret;
-		ret = i40e_vsi_control_rx(vsi, request);
+		/* Ignore return value, we need to shutdown whatever we can */
+		i40e_vsi_control_tx(vsi, request);
+		i40e_vsi_control_rx(vsi, request);
 	}
 
 	return ret;
