@@ -63,6 +63,8 @@ struct nlm_soc_info {
 
 extern struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
 #define nlm_get_node(i)		(&nlm_nodes[i])
+#define nlm_node_present(n)	((n) >= 0 && (n) < NLM_NR_NODES && \
+					nlm_get_node(n)->coremask != 0)
 #ifdef CONFIG_CPU_XLR
 #define nlm_current_node()	(&nlm_nodes[0])
 #else

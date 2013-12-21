@@ -235,7 +235,6 @@ static inline void xlp_config_pci_bswap(int node, int link) {}
 
 static int __init pcibios_init(void)
 {
-	struct nlm_soc_info *nodep;
 	uint64_t pciebase;
 	int link, n;
 	u32 reg;
@@ -249,9 +248,8 @@ static int __init pcibios_init(void)
 	ioport_resource.end   = ~0;
 
 	for (n = 0; n < NLM_NR_NODES; n++) {
-		nodep = nlm_get_node(n);
-		if (!nodep->coremask)
-			continue;	/* node does not exist */
+		if (!nlm_node_present(n))
+			continue;
 
 		for (link = 0; link < PCIE_NLINKS; link++) {
 			pciebase = nlm_get_pcie_base(n, link);
