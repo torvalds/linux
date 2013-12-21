@@ -424,6 +424,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 
 		f2fs_set_link(new_dir, new_entry, new_page, old_inode);
+		F2FS_I(old_inode)->i_pino = new_dir->i_ino;
 
 		new_inode->i_ctime = CURRENT_TIME;
 		if (old_dir_entry)
@@ -457,6 +458,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (old_dir != new_dir) {
 			f2fs_set_link(old_inode, old_dir_entry,
 						old_dir_page, new_dir);
+			F2FS_I(old_inode)->i_pino = new_dir->i_ino;
 		} else {
 			kunmap(old_dir_page);
 			f2fs_put_page(old_dir_page, 0);

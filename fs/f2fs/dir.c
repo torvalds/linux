@@ -259,9 +259,6 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(dir);
 
-	/* update parent inode number before releasing dentry page */
-	F2FS_I(inode)->i_pino = dir->i_ino;
-
 	f2fs_put_page(page, 1);
 }
 
