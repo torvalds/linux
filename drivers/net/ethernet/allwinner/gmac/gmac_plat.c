@@ -140,7 +140,7 @@ static int gmac_sys_request(struct platform_device *pdev, struct gmac_priv *priv
 
 	priv->gpiobase = ioremap(io_gpio->start, resource_size(io_gpio));
 	if (unlikely(!priv->gpiobase)) {
-		printk(KERN_ERR "%s: ERROR: memory mapping failed", __func__);
+		printk(KERN_ERR "%s: ERROR: memory mapping failed\n", __func__);
 		ret = -ENOMEM;
 		goto out_release_gpio;
 	}
@@ -215,7 +215,7 @@ static int gmac_pltfr_probe(struct platform_device *pdev)
 
 	addr = ioremap(io_gmac->start, resource_size(io_gmac));
 	if (!addr) {
-		pr_err("%s: ERROR: memory mapping failed", __func__);
+		pr_err("%s: ERROR: memory mapping failed\n", __func__);
 		ret = -ENOMEM;
 		goto out_release_region;
 	}
@@ -231,7 +231,7 @@ static int gmac_pltfr_probe(struct platform_device *pdev)
 
 	priv = gmac_dvr_probe(&(pdev->dev), addr, irq);
 	if (!priv) {
-		printk("[gmac]: %s: main driver probe failed", __func__);
+		printk("[gmac]: %s: main driver probe failed\n", __func__);
 		goto out_unmap;
 	}
 
@@ -245,7 +245,7 @@ static int gmac_pltfr_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, priv->ndev);
 
-	printk("[gmac]: sun6i_gmac platform driver registration completed");
+	printk("[gmac]: sun6i_gmac platform driver registration completed\n");
 
 	return 0;
 
