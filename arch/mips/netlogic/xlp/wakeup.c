@@ -99,7 +99,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 {
 	struct nlm_soc_info *nodep;
 	uint64_t syspcibase;
-	uint32_t syscoremask;
+	uint32_t syscoremask, mask, fusemask;
 	int core, n, cpu;
 
 	for (n = 0; n < NLM_NR_NODES; n++) {
@@ -111,12 +111,31 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		if (n != 0)
 			nlm_node_init(n);
 		nodep = nlm_get_node(n);
-		syscoremask = nlm_read_sys_reg(nodep->sysbase, SYS_CPU_RESET);
-		/* The boot cpu */
-		if (n == 0) {
-			syscoremask |= 1;
-			nodep->coremask = 1;
+
+		fusemask = nlm_read_sys_reg(nodep->sysbase,
+					SYS_EFUSE_DEVICE_CFG_STATUS0);
+		switch (read_c0_prid() & 0xff00) {
+		case PRID_IMP_NETLOGIC_XLP3XX:
+			mask = 0xf;
+			break;
+		case PRID_IMP_NETLOGIC_XLP2XX:
+			mask = 0x3;
+			break;
+		case PRID_IMP_NETLOGIC_XLP8XX:
+		default:
+			mask = 0xff;
+			break;
 		}
+
+		/*
+		 * Fused out cores are set in the fusemask, and the remaining
+		 * cores are renumbered to range 0 .. nactive-1
+		 */
+		syscoremask = (1 << hweight32(~fusemask & mask)) - 1;
+
+		/* The boot cpu */
+		if (n == 0)
+			nodep->coremask = 1;
 
 		for (core = 0; core < NLM_CORES_PER_NODE; core++) {
 			/* we will be on node 0 core 0 */
