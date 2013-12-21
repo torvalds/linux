@@ -128,7 +128,7 @@ static void i40e_free_adminq_arq(struct i40e_hw *hw)
 
 /**
  *  i40e_alloc_arq_bufs - Allocate pre-posted buffers for the receive queue
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  **/
 static i40e_status i40e_alloc_arq_bufs(struct i40e_hw *hw)
 {
@@ -195,7 +195,7 @@ unwind_alloc_arq_bufs:
 
 /**
  *  i40e_alloc_asq_bufs - Allocate empty buffer structs for the send queue
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  **/
 static i40e_status i40e_alloc_asq_bufs(struct i40e_hw *hw)
 {
@@ -235,7 +235,7 @@ unwind_alloc_asq_bufs:
 
 /**
  *  i40e_free_arq_bufs - Free receive queue buffer info elements
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  **/
 static void i40e_free_arq_bufs(struct i40e_hw *hw)
 {
@@ -254,7 +254,7 @@ static void i40e_free_arq_bufs(struct i40e_hw *hw)
 
 /**
  *  i40e_free_asq_bufs - Free send queue buffer info elements
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  **/
 static void i40e_free_asq_bufs(struct i40e_hw *hw)
 {
@@ -277,7 +277,7 @@ static void i40e_free_asq_bufs(struct i40e_hw *hw)
 
 /**
  *  i40e_config_asq_regs - configure ASQ registers
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  *
  *  Configure base address and length registers for the transmit queue
  **/
@@ -304,7 +304,7 @@ static void i40e_config_asq_regs(struct i40e_hw *hw)
 
 /**
  *  i40e_config_arq_regs - ARQ register configuration
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  *
  * Configure base address and length registers for the receive (event queue)
  **/
@@ -334,7 +334,7 @@ static void i40e_config_arq_regs(struct i40e_hw *hw)
 
 /**
  *  i40e_init_asq - main initialization routine for ASQ
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  *
  *  This is the main initialization routine for the Admin Send Queue
  *  Prior to calling this function, drivers *MUST* set the following fields
@@ -391,7 +391,7 @@ init_adminq_exit:
 
 /**
  *  i40e_init_arq - initialize ARQ
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  *
  *  The main initialization routine for the Admin Receive (Event) Queue.
  *  Prior to calling this function, drivers *MUST* set the following fields
@@ -448,7 +448,7 @@ init_adminq_exit:
 
 /**
  *  i40e_shutdown_asq - shutdown the ASQ
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  *
  *  The main shutdown routine for the Admin Send Queue
  **/
@@ -479,7 +479,7 @@ static i40e_status i40e_shutdown_asq(struct i40e_hw *hw)
 
 /**
  *  i40e_shutdown_arq - shutdown ARQ
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  *
  *  The main shutdown routine for the Admin Receive Queue
  **/
@@ -510,7 +510,7 @@ static i40e_status i40e_shutdown_arq(struct i40e_hw *hw)
 
 /**
  *  i40e_init_adminq - main initialization routine for Admin Queue
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  *
  *  Prior to calling this function, drivers *MUST* set the following fields
  *  in the hw->aq structure:
@@ -607,7 +607,7 @@ init_adminq_exit:
 
 /**
  *  i40e_shutdown_adminq - shutdown routine for the Admin Queue
- *  @hw:     pointer to the hardware structure
+ *  @hw: pointer to the hardware structure
  **/
 i40e_status i40e_shutdown_adminq(struct i40e_hw *hw)
 {
@@ -626,7 +626,7 @@ i40e_status i40e_shutdown_adminq(struct i40e_hw *hw)
 
 /**
  *  i40e_clean_asq - cleans Admin send queue
- *  @asq: pointer to the adminq send ring
+ *  @hw: pointer to the hardware structure
  *
  *  returns the number of free desc
  **/

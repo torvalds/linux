@@ -244,6 +244,7 @@ i40e_status i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
 /**
  *  i40e_calc_nvm_checksum - Calculates and returns the checksum
  *  @hw: pointer to hardware structure
+ *  @checksum: pointer to the checksum
  *
  *  This function calculate SW Checksum that covers the whole 64kB shadow RAM
  *  except the VPD and PCIe ALT Auto-load modules. The structure and size of VPD
