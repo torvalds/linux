@@ -30,9 +30,12 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/lcd.h>
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+
+#include <linux/regulator/consumer.h>
 
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
@@ -177,8 +180,9 @@ struct imxfb_info {
 	struct backlight_device *bl;
 #endif
 
-	void (*lcd_power)(int);
 	void (*backlight_power)(int);
+
+	struct regulator	*lcd_pwr;
 };
 
 static struct platform_device_id imxfb_devtype[] = {
@@ -591,8 +595,6 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 
 	if (fbi->backlight_power)
 		fbi->backlight_power(1);
-	if (fbi->lcd_power)
-		fbi->lcd_power(1);
 }
 
 static void imxfb_disable_controller(struct imxfb_info *fbi)
@@ -604,8 +606,6 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 
 	if (fbi->backlight_power)
 		fbi->backlight_power(0);
-	if (fbi->lcd_power)
-		fbi->lcd_power(0);
 
 	clk_disable_unprepare(fbi->clk_per);
 	clk_disable_unprepare(fbi->clk_ipg);
@@ -796,7 +796,6 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 		fbi->lscr1			= pdata->lscr1;
 		fbi->dmacr			= pdata->dmacr;
 		fbi->pwmr			= pdata->pwmr;
-		fbi->lcd_power			= pdata->lcd_power;
 		fbi->backlight_power		= pdata->backlight_power;
 	} else {
 		np = pdev->dev.of_node;
@@ -810,9 +809,6 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 
 		of_property_read_u32(np, "fsl,dmacr", &fbi->dmacr);
 
-		/* These two function pointers could be used by some specific
-		 * platforms. */
-		fbi->lcd_power = NULL;
 		fbi->backlight_power = NULL;
 	}
 
@@ -856,9 +852,50 @@ static int imxfb_of_read_mode(struct device *dev, struct device_node *np,
 	return 0;
 }
 
+static int imxfb_lcd_check_fb(struct lcd_device *lcddev, struct fb_info *fi)
+{
+	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
+
+	if (!fi || fi->par == fbi)
+		return 1;
+
+	return 0;
+}
+
+static int imxfb_lcd_get_power(struct lcd_device *lcddev)
+{
+	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
+
+	if (!IS_ERR(fbi->lcd_pwr))
+		return regulator_is_enabled(fbi->lcd_pwr);
+
+	return 1;
+}
+
+static int imxfb_lcd_set_power(struct lcd_device *lcddev, int power)
+{
+	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
+
+	if (!IS_ERR(fbi->lcd_pwr)) {
+		if (power)
+			return regulator_enable(fbi->lcd_pwr);
+		else
+			return regulator_disable(fbi->lcd_pwr);
+	}
+
+	return 0;
+}
+
+static struct lcd_ops imxfb_lcd_ops = {
+	.check_fb	= imxfb_lcd_check_fb,
+	.get_power	= imxfb_lcd_get_power,
+	.set_power	= imxfb_lcd_set_power,
+};
+
 static int imxfb_probe(struct platform_device *pdev)
 {
 	struct imxfb_info *fbi;
+	struct lcd_device *lcd;
 	struct fb_info *info;
 	struct imx_fb_platform_data *pdata;
 	struct resource *res;
@@ -1020,6 +1057,19 @@ static int imxfb_probe(struct platform_device *pdev)
 		goto failed_register;
 	}
 
+	fbi->lcd_pwr = devm_regulator_get(&pdev->dev, "lcd");
+	if (IS_ERR(fbi->lcd_pwr) && (PTR_ERR(fbi->lcd_pwr) == -EPROBE_DEFER)) {
+		ret = -EPROBE_DEFER;
+		goto failed_lcd;
+	}
+
+	lcd = devm_lcd_device_register(&pdev->dev, "imxfb-lcd", &pdev->dev, fbi,
+				       &imxfb_lcd_ops);
+	if (IS_ERR(lcd)) {
+		ret = PTR_ERR(lcd);
+		goto failed_lcd;
+	}
+
 	imxfb_enable_controller(fbi);
 	fbi->pdev = pdev;
 #ifdef PWMR_BACKLIGHT_AVAILABLE
@@ -1027,6 +1077,9 @@ static int imxfb_probe(struct platform_device *pdev)
 #endif
 
 	return 0;
+
+failed_lcd:
+	unregister_framebuffer(info);
 
 failed_register:
 	fb_dealloc_cmap(&info->cmap);

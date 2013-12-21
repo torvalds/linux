@@ -76,7 +76,6 @@ struct imx_fb_platform_data {
 	int (*init)(struct platform_device *);
 	void (*exit)(struct platform_device *);
 
-	void (*lcd_power)(int);
 	void (*backlight_power)(int);
 };
 

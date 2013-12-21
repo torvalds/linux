@@ -15,6 +15,7 @@ Required nodes:
 	- fsl,pcr: LCDC PCR value
 
 Optional properties:
+- lcd-supply: Regulator for LCD supply voltage.
 - fsl,dmacr: DMA Control Register value. This is optional. By default, the
 	register is not modified as recommended by the datasheet.
 - fsl,lscr1: LCDC Sharp Configuration Register value.
