@@ -41,6 +41,7 @@ struct clk {
 	unsigned long		flags;
 	unsigned int		enable_count;
 	unsigned int		prepare_count;
+	unsigned long		accuracy;
 	struct hlist_head	children;
 	struct hlist_node	child_node;
 	unsigned int		notifier_count;

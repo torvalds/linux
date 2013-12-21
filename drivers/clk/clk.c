@@ -104,10 +104,11 @@ static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
 	if (!c)
 		return;
 
-	seq_printf(s, "%*s%-*s %-11d %-12d %-10lu",
+	seq_printf(s, "%*s%-*s %-11d %-12d %-10lu %-11lu",
 		   level * 3 + 1, "",
 		   30 - level * 3, c->name,
-		   c->enable_count, c->prepare_count, clk_get_rate(c));
+		   c->enable_count, c->prepare_count, clk_get_rate(c),
+		   clk_get_accuracy(c));
 	seq_printf(s, "\n");
 }
 
@@ -129,8 +130,8 @@ static int clk_summary_show(struct seq_file *s, void *data)
 {
 	struct clk *c;
 
-	seq_printf(s, "   clock                        enable_cnt  prepare_cnt  rate\n");
-	seq_printf(s, "---------------------------------------------------------------------\n");
+	seq_printf(s, "   clock                        enable_cnt  prepare_cnt  rate        accuracy\n");
+	seq_printf(s, "---------------------------------------------------------------------------------\n");
 
 	clk_prepare_lock();
 
@@ -167,6 +168,7 @@ static void clk_dump_one(struct seq_file *s, struct clk *c, int level)
 	seq_printf(s, "\"enable_count\": %d,", c->enable_count);
 	seq_printf(s, "\"prepare_count\": %d,", c->prepare_count);
 	seq_printf(s, "\"rate\": %lu", clk_get_rate(c));
+	seq_printf(s, "\"accuracy\": %lu", clk_get_accuracy(c));
 }
 
 static void clk_dump_subtree(struct seq_file *s, struct clk *c, int level)
@@ -245,6 +247,11 @@ static int clk_debug_create_one(struct clk *clk, struct dentry *pdentry)
 
 	d = debugfs_create_u32("clk_rate", S_IRUGO, clk->dentry,
 			(u32 *)&clk->rate);
+	if (!d)
+		goto err_out;
+
+	d = debugfs_create_u32("clk_accuracy", S_IRUGO, clk->dentry,
+			(u32 *)&clk->accuracy);
 	if (!d)
 		goto err_out;
 
@@ -601,6 +608,14 @@ unsigned long __clk_get_rate(struct clk *clk)
 
 out:
 	return ret;
+}
+
+unsigned long __clk_get_accuracy(struct clk *clk)
+{
+	if (!clk)
+		return 0;
+
+	return clk->accuracy;
 }
 
 unsigned long __clk_get_flags(struct clk *clk)
@@ -1015,6 +1030,59 @@ static int __clk_notify(struct clk *clk, unsigned long msg,
 
 	return ret;
 }
+
+/**
+ * __clk_recalc_accuracies
+ * @clk: first clk in the subtree
+ *
+ * Walks the subtree of clks starting with clk and recalculates accuracies as
+ * it goes.  Note that if a clk does not implement the .recalc_accuracy
+ * callback then it is assumed that the clock will take on the accuracy of it's
+ * parent.
+ *
+ * Caller must hold prepare_lock.
+ */
+static void __clk_recalc_accuracies(struct clk *clk)
+{
+	unsigned long parent_accuracy = 0;
+	struct clk *child;
+
+	if (clk->parent)
+		parent_accuracy = clk->parent->accuracy;
+
+	if (clk->ops->recalc_accuracy)
+		clk->accuracy = clk->ops->recalc_accuracy(clk->hw,
+							  parent_accuracy);
+	else
+		clk->accuracy = parent_accuracy;
+
+	hlist_for_each_entry(child, &clk->children, child_node)
+		__clk_recalc_accuracies(child);
+}
+
+/**
+ * clk_get_accuracy - return the accuracy of clk
+ * @clk: the clk whose accuracy is being returned
+ *
+ * Simply returns the cached accuracy of the clk, unless
+ * CLK_GET_ACCURACY_NOCACHE flag is set, which means a recalc_rate will be
+ * issued.
+ * If clk is NULL then returns 0.
+ */
+long clk_get_accuracy(struct clk *clk)
+{
+	unsigned long accuracy;
+
+	clk_prepare_lock();
+	if (clk && (clk->flags & CLK_GET_ACCURACY_NOCACHE))
+		__clk_recalc_accuracies(clk);
+
+	accuracy = __clk_get_accuracy(clk);
+	clk_prepare_unlock();
+
+	return accuracy;
+}
+EXPORT_SYMBOL_GPL(clk_get_accuracy);
 
 /**
  * __clk_recalc_rates
@@ -1552,6 +1620,7 @@ void __clk_reparent(struct clk *clk, struct clk *new_parent)
 {
 	clk_reparent(clk, new_parent);
 	clk_debug_reparent(clk, new_parent);
+	__clk_recalc_accuracies(clk);
 	__clk_recalc_rates(clk, POST_RATE_CHANGE);
 }
 
@@ -1622,11 +1691,13 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	/* do the re-parent */
 	ret = __clk_set_parent(clk, parent, p_index);
 
-	/* propagate rate recalculation accordingly */
-	if (ret)
+	/* propagate rate an accuracy recalculation accordingly */
+	if (ret) {
 		__clk_recalc_rates(clk, ABORT_RATE_CHANGE);
-	else
+	} else {
 		__clk_recalc_rates(clk, POST_RATE_CHANGE);
+		__clk_recalc_accuracies(clk);
+	}
 
 out:
 	clk_prepare_unlock();
@@ -1729,6 +1800,21 @@ int __clk_init(struct device *dev, struct clk *clk)
 		hlist_add_head(&clk->child_node, &clk_root_list);
 	else
 		hlist_add_head(&clk->child_node, &clk_orphan_list);
+
+	/*
+	 * Set clk's accuracy.  The preferred method is to use
+	 * .recalc_accuracy. For simple clocks and lazy developers the default
+	 * fallback is to use the parent's accuracy.  If a clock doesn't have a
+	 * parent (or is orphaned) then accuracy is set to zero (perfect
+	 * clock).
+	 */
+	if (clk->ops->recalc_accuracy)
+		clk->accuracy = clk->ops->recalc_accuracy(clk->hw,
+					__clk_get_accuracy(clk->parent));
+	else if (clk->parent)
+		clk->accuracy = clk->parent->accuracy;
+	else
+		clk->accuracy = 0;
 
 	/*
 	 * Set clk's rate.  The preferred method is to use .recalc_rate.  For
