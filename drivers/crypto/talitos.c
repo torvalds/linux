@@ -2495,8 +2495,6 @@ static int talitos_remove(struct platform_device *ofdev)
 
 	iounmap(priv->reg);
 
-	dev_set_drvdata(dev, NULL);
-
 	kfree(priv);
 
 	return 0;
