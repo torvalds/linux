@@ -551,8 +551,8 @@ int raw_pci_write(unsigned int domain, unsigned int bus, unsigned int devfn,
 		  int reg, int len, u32 val);
 
 struct pci_bus_region {
-	resource_size_t start;
-	resource_size_t end;
+	dma_addr_t start;
+	dma_addr_t end;
 };
 
 struct pci_dynids {
