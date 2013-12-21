@@ -165,7 +165,7 @@ enum {
 	LOOKUP_NODE,			/* look up a node without readahead */
 	LOOKUP_NODE_RA,			/*
 					 * look up a node with readahead called
-					 * by get_datablock_ro.
+					 * by get_data_block.
 					 */
 };
 

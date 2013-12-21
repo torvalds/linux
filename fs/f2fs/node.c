@@ -393,8 +393,8 @@ got:
 
 /*
  * Caller should call f2fs_put_dnode(dn).
- * Also, it should grab and release a mutex by calling mutex_lock_op() and
- * mutex_unlock_op() only if ro is not set RDONLY_NODE.
+ * Also, it should grab and release a rwsem by calling f2fs_lock_op() and
+ * f2fs_unlock_op() only if ro is not set RDONLY_NODE.
  * In the case of RDONLY_NODE, we don't need to care about mutex.
  */
 int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
@@ -802,8 +802,8 @@ int truncate_xattr_node(struct inode *inode, struct page *page)
 }
 
 /*
- * Caller should grab and release a mutex by calling mutex_lock_op() and
- * mutex_unlock_op().
+ * Caller should grab and release a rwsem by calling f2fs_lock_op() and
+ * f2fs_unlock_op().
  */
 void remove_inode_page(struct inode *inode)
 {

@@ -432,8 +432,8 @@ next:
 }
 
 /*
- * Caller should grab and release a mutex by calling mutex_lock_op() and
- * mutex_unlock_op().
+ * Caller should grab and release a rwsem by calling f2fs_lock_op() and
+ * f2fs_unlock_op().
  */
 int __f2fs_add_link(struct inode *dir, const struct qstr *name, struct inode *inode)
 {

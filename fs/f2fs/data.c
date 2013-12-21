@@ -508,8 +508,8 @@ repeat:
  * Caller ensures that this data page is never allocated.
  * A new zero-filled data page is allocated in the page cache.
  *
- * Also, caller should grab and release a mutex by calling mutex_lock_op() and
- * mutex_unlock_op().
+ * Also, caller should grab and release a rwsem by calling f2fs_lock_op() and
+ * f2fs_unlock_op().
  * Note that, npage is set only by make_empty_dir.
  */
 struct page *get_new_data_page(struct inode *inode,
@@ -595,10 +595,12 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 }
 
 /*
- * This function should be used by the data read flow only where it
- * does not check the "create" flag that indicates block allocation.
- * The reason for this special functionality is to exploit VFS readahead
- * mechanism.
+ * get_data_block() now supported readahead/bmap/rw direct_IO with mapped bh.
+ * If original data blocks are allocated, then give them to blockdev.
+ * Otherwise,
+ *     a. preallocate requested block addresses
+ *     b. do not use extent cache for better performance
+ *     c. give the block addresses to blockdev
  */
 static int get_data_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
