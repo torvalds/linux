@@ -223,10 +223,24 @@
 				MX27_PAD_I2C2_SCL__I2C2_SCL 0x0
 			>;
 		};
+
+		pinctrl_nfc: nfcgrp {
+			fsl,pins = <
+				MX27_PAD_NFRB__NFRB 0x0
+				MX27_PAD_NFCLE__NFCLE 0x0
+				MX27_PAD_NFWP_B__NFWP_B 0x0
+				MX27_PAD_NFCE_B__NFCE_B 0x0
+				MX27_PAD_NFALE__NFALE 0x0
+				MX27_PAD_NFRE_B__NFRE_B 0x0
+				MX27_PAD_NFWE_B__NFWE_B 0x0
+			>;
+		};
 	};
 };
 
 &nfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nfc>;
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
 	nand-on-flash-bbt;
