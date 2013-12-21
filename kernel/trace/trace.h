@@ -588,6 +588,8 @@ void tracing_start_sched_switch_record(void);
 int register_tracer(struct tracer *type);
 int is_tracing_stopped(void);
 
+loff_t tracing_lseek(struct file *file, loff_t offset, int whence);
+
 extern cpumask_var_t __read_mostly tracing_buffer_mask;
 
 #define for_each_tracing_cpu(cpu)	\

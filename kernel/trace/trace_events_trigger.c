@@ -281,7 +281,7 @@ const struct file_operations event_trigger_fops = {
 	.open = event_trigger_open,
 	.read = seq_read,
 	.write = event_trigger_write,
-	.llseek = ftrace_filter_lseek,
+	.llseek = tracing_lseek,
 	.release = event_trigger_release,
 };
 
