@@ -24,7 +24,7 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex);
 *
 * Returns     - TRUE(If address matches) else FAIL .
 *********************************************************************/
-bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulSrcIP)
+static bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulSrcIP)
 {
 	UCHAR ucLoopIndex = 0;
 
@@ -58,7 +58,7 @@ bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulSr
 *
 * Returns     - TRUE(If address matches) else FAIL .
 *********************************************************************/
-bool MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulDestIP)
+static bool MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulDestIP)
 {
 	UCHAR ucLoopIndex = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -91,7 +91,7 @@ bool MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulD
 *
 * Returns     - TRUE(If address matches) else FAIL.
 **************************************************************************/
-bool MatchTos(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucTypeOfService)
+static bool MatchTos(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucTypeOfService)
 {
 
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
