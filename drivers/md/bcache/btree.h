@@ -113,28 +113,7 @@ struct btree_write {
 	int			prio_blocked;
 };
 
-struct btree_keys_ops {
-	bool			(*sort_cmp)(struct btree_iter_set,
-					    struct btree_iter_set);
-	struct bkey		*(*sort_fixup)(struct btree_iter *,
-					       struct bkey *);
-	bool			(*key_invalid)(struct btree *,
-					       const struct bkey *);
-	bool			(*key_bad)(struct btree *,
-					   const struct bkey *);
-	bool			(*key_merge)(struct btree *,
-					     struct bkey *, struct bkey *);
-
-
-	/*
-	 * Only used for deciding whether to use START_KEY(k) or just the key
-	 * itself in a couple places
-	 */
-	bool		is_extents;
-};
-
 struct btree {
-	const struct btree_keys_ops	*ops;
 	/* Hottest entries first */
 	struct hlist_node	hash;
 
@@ -151,17 +130,8 @@ struct btree {
 	unsigned long		flags;
 	uint16_t		written;	/* would be nice to kill */
 	uint8_t			level;
-	uint8_t			nsets;
-	uint8_t			page_order;
 
-	/*
-	 * Set of sorted keys - the real btree node - plus a binary search tree
-	 *
-	 * sets[0] is special; set[0]->tree, set[0]->prev and set[0]->data point
-	 * to the memory we have allocated for this btree node. Additionally,
-	 * set[0]->data points to the entire btree node as it exists on disk.
-	 */
-	struct bset_tree	sets[MAX_BSETS];
+	struct btree_keys	keys;
 
 	/* For outstanding btree writes, used as a lock - protects write_idx */
 	struct closure		io;
@@ -201,75 +171,24 @@ static inline struct btree_write *btree_prev_write(struct btree *b)
 	return b->writes + (btree_node_write_idx(b) ^ 1);
 }
 
-static inline struct bset_tree *bset_tree_last(struct btree *b)
-{
-	return b->sets + b->nsets;
-}
-
 static inline struct bset *btree_bset_first(struct btree *b)
 {
-	return b->sets->data;
+	return b->keys.set->data;
 }
 
 static inline struct bset *btree_bset_last(struct btree *b)
 {
-	return bset_tree_last(b)->data;
-}
-
-static inline unsigned bset_byte_offset(struct btree *b, struct bset *i)
-{
-	return ((size_t) i) - ((size_t) b->sets->data);
-}
-
-static inline unsigned bset_sector_offset(struct btree *b, struct bset *i)
-{
-	return (((void *) i) - ((void *) btree_bset_first(b))) >> 9;
+	return bset_tree_last(&b->keys)->data;
 }
 
 static inline unsigned bset_block_offset(struct btree *b, struct bset *i)
 {
-	return bset_sector_offset(b, i) >> b->c->block_bits;
-}
-
-static inline struct bset *write_block(struct btree *b)
-{
-	return ((void *) b->sets[0].data) + b->written * block_bytes(b->c);
-}
-
-static inline bool bset_written(struct btree *b, struct bset_tree *t)
-{
-	return t->data < write_block(b);
-}
-
-static inline bool bkey_written(struct btree *b, struct bkey *k)
-{
-	return k < write_block(b)->start;
+	return bset_sector_offset(&b->keys, i) >> b->c->block_bits;
 }
 
 static inline void set_gc_sectors(struct cache_set *c)
 {
 	atomic_set(&c->sectors_to_gc, c->sb.bucket_size * c->nbuckets / 16);
-}
-
-static inline bool bch_ptr_invalid(struct btree *b, const struct bkey *k)
-{
-	return b->ops->key_invalid(b, k);
-}
-
-static inline bool bch_ptr_bad(struct btree *b, const struct bkey *k)
-{
-	return b->ops->key_bad(b, k);
-}
-
-/*
- * Tries to merge l and r: l should be lower than r
- * Returns true if we were able to merge. If we did merge, l will be the merged
- * key, r will be untouched.
- */
-static inline bool bch_bkey_try_merge(struct btree *b,
-				      struct bkey *l, struct bkey *r)
-{
-	return b->ops->key_merge ?  b->ops->key_merge(b, l, r) : false;
 }
 
 void bkey_put(struct cache_set *c, struct bkey *k);
@@ -284,7 +203,7 @@ void bkey_put(struct cache_set *c, struct bkey *k);
 
 #define for_each_key_filter(b, k, iter, filter)				\
 	for (bch_btree_iter_init((b), (iter), NULL);			\
-	     ((k) = bch_btree_iter_next_filter((iter), b, filter));)
+	     ((k) = bch_btree_iter_next_filter((iter), &(b)->keys, filter));)
 
 #define for_each_key(b, k, iter)					\
 	for (bch_btree_iter_init((b), (iter), NULL);			\

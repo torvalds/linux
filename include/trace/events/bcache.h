@@ -247,7 +247,7 @@ TRACE_EVENT(bcache_btree_write,
 	TP_fast_assign(
 		__entry->bucket	= PTR_BUCKET_NR(b->c, &b->key, 0);
 		__entry->block	= b->written;
-		__entry->keys	= b->sets[b->nsets].data->keys;
+		__entry->keys	= b->keys.set[b->keys.nsets].data->keys;
 	),
 
 	TP_printk("bucket %zu", __entry->bucket)

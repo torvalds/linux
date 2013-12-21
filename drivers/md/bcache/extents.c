@@ -81,8 +81,9 @@ bad:
 	return true;
 }
 
-static bool bch_btree_ptr_invalid(struct btree *b, const struct bkey *k)
+static bool bch_btree_ptr_invalid(struct btree_keys *bk, const struct bkey *k)
 {
+	struct btree *b = container_of(bk, struct btree, keys);
 	return __bch_btree_ptr_invalid(b->c, k);
 }
 
@@ -118,13 +119,14 @@ err:
 	return true;
 }
 
-static bool bch_btree_ptr_bad(struct btree *b, const struct bkey *k)
+static bool bch_btree_ptr_bad(struct btree_keys *bk, const struct bkey *k)
 {
+	struct btree *b = container_of(bk, struct btree, keys);
 	unsigned i;
 
 	if (!bkey_cmp(k, &ZERO_KEY) ||
 	    !KEY_PTRS(k) ||
-	    bch_ptr_invalid(b, k))
+	    bch_ptr_invalid(bk, k))
 		return true;
 
 	for (i = 0; i < KEY_PTRS(k); i++)
@@ -209,8 +211,9 @@ static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 	return NULL;
 }
 
-static bool bch_extent_invalid(struct btree *b, const struct bkey *k)
+static bool bch_extent_invalid(struct btree_keys *bk, const struct bkey *k)
 {
+	struct btree *b = container_of(bk, struct btree, keys);
 	char buf[80];
 
 	if (!KEY_SIZE(k))
@@ -259,13 +262,14 @@ err:
 	return true;
 }
 
-static bool bch_extent_bad(struct btree *b, const struct bkey *k)
+static bool bch_extent_bad(struct btree_keys *bk, const struct bkey *k)
 {
+	struct btree *b = container_of(bk, struct btree, keys);
 	struct bucket *g;
 	unsigned i, stale;
 
 	if (!KEY_PTRS(k) ||
-	    bch_extent_invalid(b, k))
+	    bch_extent_invalid(bk, k))
 		return true;
 
 	for (i = 0; i < KEY_PTRS(k); i++)
@@ -303,8 +307,9 @@ static uint64_t merge_chksums(struct bkey *l, struct bkey *r)
 		~((uint64_t)1 << 63);
 }
 
-static bool bch_extent_merge(struct btree *b, struct bkey *l, struct bkey *r)
+static bool bch_extent_merge(struct btree_keys *bk, struct bkey *l, struct bkey *r)
 {
+	struct btree *b = container_of(bk, struct btree, keys);
 	unsigned i;
 
 	if (key_merging_disabled(b->c))

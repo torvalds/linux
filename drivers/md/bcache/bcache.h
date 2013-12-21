@@ -679,9 +679,9 @@ struct cache_set {
 	unsigned		error_decay;
 
 	unsigned short		journal_delay_ms;
+	bool			expensive_debug_checks;
 	unsigned		verify:1;
 	unsigned		key_merging_disabled:1;
-	unsigned		expensive_debug_checks:1;
 	unsigned		gc_always_rewrite:1;
 	unsigned		shrinker_disabled:1;
 	unsigned		copy_gc_enabled:1;

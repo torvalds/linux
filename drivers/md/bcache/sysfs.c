@@ -433,7 +433,7 @@ lock_root:
 
 		mutex_lock(&c->bucket_lock);
 		list_for_each_entry(b, &c->btree_cache, list)
-			ret += 1 << (b->page_order + PAGE_SHIFT);
+			ret += 1 << (b->keys.page_order + PAGE_SHIFT);
 
 		mutex_unlock(&c->bucket_lock);
 		return ret;

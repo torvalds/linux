@@ -113,9 +113,9 @@ static void bch_dump_bucket(struct btree *b)
 	unsigned i;
 
 	console_lock();
-	for (i = 0; i <= b->nsets; i++)
-		dump_bset(b, b->sets[i].data,
-			  bset_block_offset(b, b->sets[i].data));
+	for (i = 0; i <= b->keys.nsets; i++)
+		dump_bset(b, b->keys.set[i].data,
+			  bset_block_offset(b, b->keys.set[i].data));
 	console_unlock();
 }
 
@@ -139,13 +139,13 @@ void bch_btree_verify(struct btree *b)
 	mutex_lock(&b->c->verify_lock);
 
 	ondisk = b->c->verify_ondisk;
-	sorted = b->c->verify_data->sets->data;
-	inmemory = b->sets->data;
+	sorted = b->c->verify_data->keys.set->data;
+	inmemory = b->keys.set->data;
 
 	bkey_copy(&v->key, &b->key);
 	v->written = 0;
 	v->level = b->level;
-	v->ops = b->ops;
+	v->keys.ops = b->keys.ops;
 
 	bio = bch_bbio_alloc(b->c);
 	bio->bi_bdev		= PTR_CACHE(b->c, &b->key, 0)->bdev;
@@ -159,7 +159,7 @@ void bch_btree_verify(struct btree *b)
 	memcpy(ondisk, sorted, KEY_SIZE(&v->key) << 9);
 
 	bch_btree_node_read_done(v);
-	sorted = v->sets->data;
+	sorted = v->keys.set->data;
 
 	if (inmemory->keys != sorted->keys ||
 	    memcmp(inmemory->start,
@@ -264,14 +264,14 @@ void __bch_check_keys(struct btree *b, const char *fmt, ...)
 			if (p && bkey_cmp(&START_KEY(p), &START_KEY(k)) > 0)
 				goto bug;
 
-			if (bch_ptr_invalid(b, k))
+			if (bch_ptr_invalid(&b->keys, k))
 				continue;
 
 			err =  "Overlapping keys";
 			if (p && bkey_cmp(p, &START_KEY(k)) > 0)
 				goto bug;
 		} else {
-			if (bch_ptr_bad(b, k))
+			if (bch_ptr_bad(&b->keys, k))
 				continue;
 
 			err = "Duplicate keys";
