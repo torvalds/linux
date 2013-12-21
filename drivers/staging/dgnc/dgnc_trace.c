@@ -35,6 +35,7 @@
 #include <linux/vmalloc.h>
 
 #include "dgnc_driver.h"
+#include "dgnc_trace.h"
 
 #define TRC_TO_CONSOLE 1
 
