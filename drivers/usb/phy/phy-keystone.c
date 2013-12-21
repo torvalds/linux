@@ -129,7 +129,7 @@ static struct platform_driver keystone_usbphy_driver = {
 	.driver         = {
 		.name   = "keystone-usbphy",
 		.owner  = THIS_MODULE,
-		.of_match_table = of_match_ptr(keystone_usbphy_ids),
+		.of_match_table = keystone_usbphy_ids,
 	},
 };
 
