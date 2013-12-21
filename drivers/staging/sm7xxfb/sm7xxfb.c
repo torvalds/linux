@@ -585,7 +585,7 @@ static void smtc_set_timing(struct smtcfb_info *sfb)
 	}
 }
 
-void smtcfb_setmode(struct smtcfb_info *sfb)
+static void smtcfb_setmode(struct smtcfb_info *sfb)
 {
 	switch (sfb->fb.var.bits_per_pixel) {
 	case 32:
