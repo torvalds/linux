@@ -2,6 +2,7 @@
 #ifndef _BCACHE_UTIL_H
 #define _BCACHE_UTIL_H
 
+#include <linux/blkdev.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/llist.h>
@@ -390,6 +391,11 @@ struct time_stats {
 };
 
 void bch_time_stats_update(struct time_stats *stats, uint64_t time);
+
+static inline unsigned local_clock_us(void)
+{
+	return local_clock() >> 10;
+}
 
 #define NSEC_PER_ns			1L
 #define NSEC_PER_us			NSEC_PER_USEC

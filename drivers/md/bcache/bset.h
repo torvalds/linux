@@ -142,6 +142,8 @@
  * first key in that range of bytes again.
  */
 
+struct cache_set;
+
 /* Btree key comparison/iteration */
 
 #define MAX_BSETS		4U
@@ -281,25 +283,6 @@ bool bch_btree_ptr_invalid(struct cache_set *, const struct bkey *);
 bool bch_extent_ptr_invalid(struct cache_set *, const struct bkey *);
 
 bool bch_ptr_bad(struct btree *, const struct bkey *);
-
-static inline uint8_t gen_after(uint8_t a, uint8_t b)
-{
-	uint8_t r = a - b;
-	return r > 128U ? 0 : r;
-}
-
-static inline uint8_t ptr_stale(struct cache_set *c, const struct bkey *k,
-				unsigned i)
-{
-	return gen_after(PTR_BUCKET(c, k, i)->gen, PTR_GEN(k, i));
-}
-
-static inline bool ptr_available(struct cache_set *c, const struct bkey *k,
-				 unsigned i)
-{
-	return (PTR_DEV(k, i) < MAX_CACHES_PER_SET) && PTR_CACHE(c, k, i);
-}
-
 
 typedef bool (*ptr_filter_fn)(struct btree *, const struct bkey *);
 
