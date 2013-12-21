@@ -220,7 +220,6 @@ int __max730x_probe(struct max7301 *ts)
 	return ret;
 
 exit_destroy:
-	dev_set_drvdata(dev, NULL);
 	mutex_destroy(&ts->lock);
 	return ret;
 }
@@ -233,8 +232,6 @@ int __max730x_remove(struct device *dev)
 
 	if (ts == NULL)
 		return -ENODEV;
-
-	dev_set_drvdata(dev, NULL);
 
 	/* Power down the chip and disable IRQ output */
 	ts->write(dev, 0x04, 0x00);
