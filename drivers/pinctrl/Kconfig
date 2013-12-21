@@ -104,6 +104,18 @@ config PINCTRL_BCM2835
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_CAPRI
+	bool "Broadcom Capri pinctrl driver"
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  Say Y here to support Broadcom Capri pinctrl driver, which is used for
+	  the BCM281xx SoC family, including BCM11130, BCM11140, BCM11351,
+	  BCM28145, and BCM28155 SoCs.  This driver requires the pinctrl
+	  framework.  GPIO is provided by a separate GPIO driver.
+
 config PINCTRL_IMX
 	bool
 	select PINMUX
