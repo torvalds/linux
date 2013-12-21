@@ -46,7 +46,7 @@ config ISP1301_OMAP
 	  Instruments OMAP processors.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called isp1301_omap.
+	  will be called phy-isp1301-omap.
 
 config KEYSTONE_USB_PHY
 	tristate "Keystone USB PHY Driver"
@@ -159,7 +159,7 @@ config OMAP_OTG
 	  controller is needed to switch between host and peripheral modes.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called omap-otg.
+	  will be called phy-omap-otg.
 
 config TAHVO_USB
 	tristate "Tahvo USB transceiver driver"
@@ -187,7 +187,7 @@ config USB_ISP1301
 	  and OTG drivers (to be selected separately).
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called isp1301.
+	  module will be called phy-isp1301.
 
 config USB_MSM_OTG
 	tristate "OTG support for Qualcomm on-chip USB controller"
