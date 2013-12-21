@@ -59,6 +59,7 @@ struct nlm_soc_info {
 	uint64_t	picbase;	/* PIC block base */
 	spinlock_t	piclock;	/* lock for PIC access */
 	cpumask_t	cpumask;	/* logical cpu mask for node */
+	unsigned int	socbus;
 };
 
 extern struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
