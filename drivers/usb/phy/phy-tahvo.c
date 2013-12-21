@@ -200,9 +200,6 @@ static int tahvo_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 
 	dev_dbg(&tu->pt_dev->dev, "%s %p\n", __func__, host);
 
-	if (otg == NULL)
-		return -ENODEV;
-
 	mutex_lock(&tu->serialize);
 
 	if (host == NULL) {
@@ -231,9 +228,6 @@ static int tahvo_usb_set_peripheral(struct usb_otg *otg,
 	struct tahvo_usb *tu = container_of(otg->phy, struct tahvo_usb, phy);
 
 	dev_dbg(&tu->pt_dev->dev, "%s %p\n", __func__, gadget);
-
-	if (!otg)
-		return -ENODEV;
 
 	mutex_lock(&tu->serialize);
 
