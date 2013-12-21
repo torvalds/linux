@@ -36,6 +36,7 @@
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/cacheops.h>
 #include <asm/regdef.h>
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
@@ -74,10 +75,18 @@
 .endm
 
 /*
- * Low level flush for L1D cache on XLP, the normal cache ops does
- * not do the complete and correct cache flush.
+ * L1D cache has to be flushed before enabling threads in XLP.
+ * On XLP8xx/XLP3xx, we do a low level flush using processor control
+ * registers. On XLPII CPUs, usual cache instructions work.
  */
 .macro	xlp_flush_l1_dcache
+	mfc0	t0, CP0_EBASE, 0
+	andi	t0, t0, 0xff00
+	slt	t1, t0, 0x1200
+	beqz	t1, 15f
+	nop
+
+	/* XLP8xx low level cache flush */
 	li	t0, LSU_DEBUG_DATA0
 	li	t1, LSU_DEBUG_ADDR
 	li	t2, 0		/* index */
@@ -103,6 +112,18 @@
 	addi	t2, 1
 	bne	t3, t2, 11b
 	nop
+	b	17f
+	nop
+
+	/* XLPII CPUs, Invalidate all 64k of L1 D-cache */
+15:
+	li	t0, 0x80000000
+	li	t1, 0x80010000
+16:	cache	Index_Writeback_Inv_D, 0(t0)
+	addiu	t0, t0, 32
+	bne	t0, t1, 16b
+	nop
+17:
 .endm
 
 /*
