@@ -48,6 +48,7 @@
 #include <linux/time.h> /* For struct timeval */
 #include <linux/slab.h>
 #include <net/ip.h>
+#include <net/ip6_route.h>
 #include <net/icmp.h>
 #include <net/snmp.h>
 #include <net/sock.h>
