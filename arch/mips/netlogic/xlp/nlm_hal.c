@@ -174,7 +174,10 @@ unsigned int nlm_get_core_frequency(int node, int core)
 	uint64_t num, sysbase;
 
 	sysbase = nlm_get_node(node)->sysbase;
-	rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
+	if (cpu_is_xlp9xx())
+		rstval = nlm_read_sys_reg(sysbase, SYS_9XX_POWER_ON_RESET_CFG);
+	else
+		rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
 	if (cpu_is_xlpii()) {
 		num = 1000000ULL * (400 * 3 + 100 * (rstval >> 26));
 		denom = 3;

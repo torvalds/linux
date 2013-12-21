@@ -56,7 +56,10 @@ static void nlm_linux_exit(void)
 {
 	uint64_t sysbase = nlm_get_node(0)->sysbase;
 
-	nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
+	if (cpu_is_xlp9xx())
+		nlm_write_sys_reg(sysbase, SYS_9XX_CHIP_RESET, 1);
+	else
+		nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
 	for ( ; ; )
 		cpu_wait();
 }

@@ -159,6 +159,13 @@ FEXPORT(nlm_reset_entry)
 	nop
 
 1:	/* Entry point on core wakeup */
+	mfc0	t0, CP0_EBASE, 0	/* processor ID */
+	andi	t0, 0xff00
+	li	t1, 0x1500		/* XLP 9xx */
+	beq	t0, t1, 2f		/* does not need to set coherent */
+	nop
+
+	/* set bit in SYS coherent register for the core */
 	mfc0	t0, CP0_EBASE, 1
 	mfc0	t1, CP0_EBASE, 1
 	srl	t1, 5
@@ -180,6 +187,7 @@ FEXPORT(nlm_reset_entry)
 	lw	t1, 0(t2)
 	sync
 
+2:
 	/* Configure LSU on Non-0 Cores. */
 	xlp_config_lsu
 	/* FALL THROUGH */
