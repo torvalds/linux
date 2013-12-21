@@ -51,4 +51,23 @@
 #define NLM_THREADS_PER_CORE	4
 #define NLM_CPUS_PER_NODE	(NLM_CORES_PER_NODE * NLM_THREADS_PER_CORE)
 
+struct nlm_soc_info {
+	unsigned long	coremask;	/* cores enabled on the soc */
+	unsigned long	ebase;		/* not used now */
+	uint64_t	irqmask;	/* EIMR for the node */
+	uint64_t	sysbase;	/* only for XLP - sys block base */
+	uint64_t	picbase;	/* PIC block base */
+	spinlock_t	piclock;	/* lock for PIC access */
+	cpumask_t	cpumask;	/* logical cpu mask for node */
+};
+
+extern struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
+#define nlm_get_node(i)		(&nlm_nodes[i])
+#ifdef CONFIG_CPU_XLR
+#define nlm_current_node()	(&nlm_nodes[0])
+#else
+#define nlm_current_node()	(&nlm_nodes[nlm_nodeid()])
+#endif
+void nlm_node_init(int node);
+
 #endif

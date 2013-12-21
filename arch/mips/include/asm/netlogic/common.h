@@ -84,7 +84,6 @@ nlm_set_nmi_handler(void *handler)
  */
 void nlm_init_boot_cpu(void);
 unsigned int nlm_get_cpu_frequency(void);
-void nlm_node_init(int node);
 extern struct plat_smp_ops nlm_smp_ops;
 extern char nlm_reset_entry[], nlm_reset_entry_end[];
 
@@ -93,22 +92,6 @@ extern struct dma_map_ops nlm_swiotlb_dma_ops;
 
 extern unsigned int nlm_threads_per_core;
 extern cpumask_t nlm_cpumask;
-
-struct nlm_soc_info {
-	unsigned long coremask; /* cores enabled on the soc */
-	unsigned long ebase;
-	uint64_t irqmask;
-	uint64_t sysbase;	/* only for XLP */
-	uint64_t picbase;
-	spinlock_t piclock;
-};
-
-#define nlm_get_node(i)		(&nlm_nodes[i])
-#ifdef CONFIG_CPU_XLR
-#define nlm_current_node()	(&nlm_nodes[0])
-#else
-#define nlm_current_node()	(&nlm_nodes[nlm_nodeid()])
-#endif
 
 struct irq_data;
 uint64_t nlm_pci_irqmask(int node);
@@ -128,7 +111,6 @@ static inline int nlm_irq_to_xirq(int node, int irq)
 	return node * NR_IRQS / NLM_NR_NODES + irq;
 }
 
-extern struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
 extern int nlm_cpu_ready[];
 #endif
 #endif /* _NETLOGIC_COMMON_H_ */
