@@ -517,7 +517,7 @@ MODULE_DEVICE_TABLE(of, clk_si570_of_match);
 static struct i2c_driver si570_driver = {
 	.driver = {
 		.name = "si570",
-		.of_match_table = of_match_ptr(clk_si570_of_match),
+		.of_match_table = clk_si570_of_match,
 	},
 	.probe		= si570_probe,
 	.remove		= si570_remove,
