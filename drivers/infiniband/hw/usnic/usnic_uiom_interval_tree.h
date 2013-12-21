@@ -19,7 +19,6 @@
 #ifndef USNIC_UIOM_INTERVAL_TREE_H_
 #define USNIC_UIOM_INTERVAL_TREE_H_
 
-#include <linux/version.h>
 #include <linux/rbtree.h>
 
 struct usnic_uiom_interval_node {

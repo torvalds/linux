@@ -21,7 +21,6 @@
 
 #include <linux/iommu.h>
 #include <linux/netdevice.h>
-#include <linux/version.h>
 
 #include <rdma/ib_verbs.h>
 

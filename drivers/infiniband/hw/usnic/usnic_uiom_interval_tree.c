@@ -2,7 +2,6 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/list_sort.h>
-#include <linux/version.h>
 
 #include <linux/interval_tree_generic.h>
 #include "usnic_uiom_interval_tree.h"
