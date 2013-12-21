@@ -76,10 +76,7 @@ static __initdata efi_config_table_type_t arch_tables[] = {
 	{NULL_GUID, NULL, NULL},
 };
 
-static void *efi_runtime_map;
-static int nr_efi_runtime_map;
 u64 efi_setup;		/* efi setup_data physical address */
-u32 efi_data_len;	/* efi setup_data payload length */
 
 /*
  * Returns 1 if 'facility' is enabled, 0 otherwise.
@@ -702,15 +699,6 @@ out:
 	return ret;
 }
 
-static void get_nr_runtime_map(void)
-{
-	if (!efi_setup)
-		return;
-
-	nr_efi_runtime_map = (efi_data_len - sizeof(struct efi_setup_data)) /
-			     sizeof(efi_memory_desc_t);
-}
-
 void __init efi_init(void)
 {
 	efi_char16_t *c16;
@@ -718,7 +706,6 @@ void __init efi_init(void)
 	int i = 0;
 	void *tmp;
 
-	get_nr_runtime_map();
 #ifdef CONFIG_X86_32
 	if (boot_params.efi_info.efi_systab_hi ||
 	    boot_params.efi_info.efi_memmap_hi) {
@@ -933,10 +920,7 @@ static int __init save_runtime_map(void)
 		count++;
 	}
 
-	efi_runtime_map = q;
-	nr_efi_runtime_map = count;
-	efi_runtime_map_setup(efi_runtime_map, nr_efi_runtime_map,
-			      boot_params.efi_info.efi_memdesc_size);
+	efi_runtime_map_setup(q, count, memmap.desc_size);
 
 	return 0;
 out:
