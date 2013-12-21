@@ -9,6 +9,7 @@
 #include "bcache.h"
 #include "btree.h"
 #include "debug.h"
+#include "extents.h"
 #include "request.h"
 #include "writeback.h"
 
@@ -399,7 +400,7 @@ static char *uuid_read(struct cache_set *c, struct jset *j, struct closure *cl)
 {
 	struct bkey *k = &j->uuid_bucket;
 
-	if (bch_btree_ptr_invalid(c, k))
+	if (__bch_btree_ptr_invalid(c, k))
 		return "bad uuid pointer";
 
 	bkey_copy(&c->uuid_bucket, k);
@@ -1575,7 +1576,7 @@ static void run_cache_set(struct cache_set *c)
 		k = &j->btree_root;
 
 		err = "bad btree root";
-		if (bch_btree_ptr_invalid(c, k))
+		if (__bch_btree_ptr_invalid(c, k))
 			goto err;
 
 		err = "error reading btree root";

@@ -113,7 +113,28 @@ struct btree_write {
 	int			prio_blocked;
 };
 
+struct btree_keys_ops {
+	bool			(*sort_cmp)(struct btree_iter_set,
+					    struct btree_iter_set);
+	struct bkey		*(*sort_fixup)(struct btree_iter *,
+					       struct bkey *);
+	bool			(*key_invalid)(struct btree *,
+					       const struct bkey *);
+	bool			(*key_bad)(struct btree *,
+					   const struct bkey *);
+	bool			(*key_merge)(struct btree *,
+					     struct bkey *, struct bkey *);
+
+
+	/*
+	 * Only used for deciding whether to use START_KEY(k) or just the key
+	 * itself in a couple places
+	 */
+	bool		is_extents;
+};
+
 struct btree {
+	const struct btree_keys_ops	*ops;
 	/* Hottest entries first */
 	struct hlist_node	hash;
 
@@ -232,10 +253,23 @@ static inline void set_gc_sectors(struct cache_set *c)
 
 static inline bool bch_ptr_invalid(struct btree *b, const struct bkey *k)
 {
-	if (b->level)
-		return bch_btree_ptr_invalid(b->c, k);
-	else
-		return bch_extent_ptr_invalid(b->c, k);
+	return b->ops->key_invalid(b, k);
+}
+
+static inline bool bch_ptr_bad(struct btree *b, const struct bkey *k)
+{
+	return b->ops->key_bad(b, k);
+}
+
+/*
+ * Tries to merge l and r: l should be lower than r
+ * Returns true if we were able to merge. If we did merge, l will be the merged
+ * key, r will be untouched.
+ */
+static inline bool bch_bkey_try_merge(struct btree *b,
+				      struct bkey *l, struct bkey *r)
+{
+	return b->ops->key_merge ?  b->ops->key_merge(b, l, r) : false;
 }
 
 void bkey_put(struct cache_set *c, struct bkey *k);

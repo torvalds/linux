@@ -23,6 +23,7 @@
 #include "bcache.h"
 #include "btree.h"
 #include "debug.h"
+#include "extents.h"
 #include "writeback.h"
 
 #include <linux/slab.h>
@@ -930,6 +931,11 @@ out:
 	lock_set_subclass(&b->lock.dep_map, level + 1, _THIS_IP_);
 	b->level	= level;
 	b->parent	= (void *) ~0UL;
+
+	if (!b->level)
+		b->ops	= &bch_extent_keys_ops;
+	else
+		b->ops	= &bch_btree_keys_ops;
 
 	mca_reinit(b);
 

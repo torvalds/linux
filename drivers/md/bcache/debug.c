@@ -145,6 +145,7 @@ void bch_btree_verify(struct btree *b)
 	bkey_copy(&v->key, &b->key);
 	v->written = 0;
 	v->level = b->level;
+	v->ops = b->ops;
 
 	bio = bch_bbio_alloc(b->c);
 	bio->bi_bdev		= PTR_CACHE(b->c, &b->key, 0)->bdev;
