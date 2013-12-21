@@ -188,6 +188,9 @@
 #define PCI_DEVICE_ID_NLM_MMC		0x1018
 #define PCI_DEVICE_ID_NLM_XHCI		0x101d
 
+#define PCI_DEVICE_ID_XLP9XX_SATA	0x901A
+#define PCI_DEVICE_ID_XLP9XX_XHCI	0x901D
+
 #ifndef __ASSEMBLY__
 
 #define nlm_read_pci_reg(b, r)		nlm_read_reg(b, r)

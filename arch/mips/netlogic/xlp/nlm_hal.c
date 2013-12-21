@@ -72,6 +72,10 @@ int nlm_irq_to_irt(int irq)
 	/* bypass for 9xx */
 	if (cpu_is_xlp9xx()) {
 		switch (irq) {
+		case PIC_9XX_XHCI_0_IRQ:
+			return 114;
+		case PIC_9XX_XHCI_1_IRQ:
+			return 115;
 		case PIC_UART_0_IRQ:
 			return 133;
 		case PIC_UART_1_IRQ:
