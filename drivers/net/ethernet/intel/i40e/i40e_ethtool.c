@@ -1634,7 +1634,7 @@ static int i40e_set_channels(struct net_device *dev,
 	 * class queue mapping
 	 */
 	new_count = i40e_reconfig_rss_queues(pf, count);
-	if (new_count > 1)
+	if (new_count > 0)
 		return 0;
 	else
 		return -EINVAL;
