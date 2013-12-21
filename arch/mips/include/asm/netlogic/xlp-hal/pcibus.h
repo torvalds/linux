@@ -63,6 +63,12 @@
 #define PCIE_INT_EN0			0x261
 #define PCIE_INT_EN1			0x262
 
+/* XLP9XX has basic changes */
+#define PCIE_9XX_BYTE_SWAP_MEM_BASE	0x25c
+#define PCIE_9XX_BYTE_SWAP_MEM_LIM	0x25d
+#define PCIE_9XX_BYTE_SWAP_IO_BASE	0x25e
+#define PCIE_9XX_BYTE_SWAP_IO_LIM	0x25f
+
 /* other */
 #define PCIE_NLINKS			4
 
@@ -78,8 +84,8 @@
 
 #define nlm_read_pcie_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_pcie_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_pcie_base(node, inst)	\
-			nlm_pcicfg_base(XLP_IO_PCIE_OFFSET(node, inst))
+#define nlm_get_pcie_base(node, inst)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+	XLP9XX_IO_PCIE_OFFSET(node, inst) : XLP_IO_PCIE_OFFSET(node, inst))
 
 #ifdef CONFIG_PCI_MSI
 void xlp_init_node_msi_irqs(int node, int link);

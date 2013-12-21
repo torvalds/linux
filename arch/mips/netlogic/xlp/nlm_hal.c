@@ -76,6 +76,11 @@ int nlm_irq_to_irt(int irq)
 			return 133;
 		case PIC_UART_1_IRQ:
 			return 134;
+		case PIC_PCIE_LINK_LEGACY_IRQ(0):
+		case PIC_PCIE_LINK_LEGACY_IRQ(1):
+		case PIC_PCIE_LINK_LEGACY_IRQ(2):
+		case PIC_PCIE_LINK_LEGACY_IRQ(3):
+			return 191 + irq - PIC_PCIE_LINK_LEGACY_IRQ_BASE;
 		}
 		return -1;
 	}

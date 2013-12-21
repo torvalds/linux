@@ -84,6 +84,9 @@ void xlp_mmu_init(void);
 void nlm_hal_init(void);
 int xlp_get_dram_map(int n, uint64_t *dram_map);
 
+struct pci_dev;
+int xlp_socdev_to_node(const struct pci_dev *dev);
+
 /* Device tree related */
 void xlp_early_init_devtree(void);
 void *xlp_dt_init(void *fdtp);
