@@ -50,8 +50,8 @@
 #include <asm/netlogic/mips-extns.h>
 
 #include <asm/netlogic/xlp-hal/iomap.h>
-#include <asm/netlogic/xlp-hal/pic.h>
 #include <asm/netlogic/xlp-hal/xlp.h>
+#include <asm/netlogic/xlp-hal/pic.h>
 #include <asm/netlogic/xlp-hal/pcibus.h>
 #include <asm/netlogic/xlp-hal/bridge.h>
 

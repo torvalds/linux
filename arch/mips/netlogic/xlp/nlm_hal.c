@@ -69,6 +69,17 @@ int nlm_irq_to_irt(int irq)
 	uint64_t pcibase;
 	int devoff, irt;
 
+	/* bypass for 9xx */
+	if (cpu_is_xlp9xx()) {
+		switch (irq) {
+		case PIC_UART_0_IRQ:
+			return 133;
+		case PIC_UART_1_IRQ:
+			return 134;
+		}
+		return -1;
+	}
+
 	devoff = 0;
 	switch (irq) {
 	case PIC_UART_0_IRQ:
@@ -277,6 +288,10 @@ static unsigned int nlm_2xx_get_pic_frequency(int node)
 
 unsigned int nlm_get_pic_frequency(int node)
 {
+	/* TODO Has to calculate freq as like 2xx */
+	if (cpu_is_xlp9xx())
+		return 250000000;
+
 	if (cpu_is_xlpii())
 		return nlm_2xx_get_pic_frequency(node);
 	else
