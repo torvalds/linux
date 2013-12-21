@@ -109,7 +109,7 @@ enum i40e_hmc_lan_object_size {
 #define I40E_HMC_L2OBJ_BASE_ALIGNMENT 512
 #define I40E_HMC_OBJ_SIZE_TXQ         128
 #define I40E_HMC_OBJ_SIZE_RXQ         32
-#define I40E_HMC_OBJ_SIZE_FCOE_CNTX   64
+#define I40E_HMC_OBJ_SIZE_FCOE_CNTX   128
 #define I40E_HMC_OBJ_SIZE_FCOE_FILT   64
 
 enum i40e_hmc_lan_rsrc_type {

@@ -32,6 +32,7 @@
 
 #define I40E_FW_API_VERSION_MAJOR  0x0001
 #define I40E_FW_API_VERSION_MINOR  0x0001
+#define I40E_FW_API_VERSION_A0_MINOR  0x0000
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -1198,6 +1199,9 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 #define I40E_AQC_ADD_CLOUD_FILTER_SHIFT                 0
 #define I40E_AQC_ADD_CLOUD_FILTER_MASK                  (0x3F << \
 					I40E_AQC_ADD_CLOUD_FILTER_SHIFT)
+#define I40E_AQC_ADD_CLOUD_FILTER_OIP_GRE               0x0002
+#define I40E_AQC_ADD_CLOUD_FILTER_IMAC_IVLAN_GRE        0x0004
+#define I40E_AQC_ADD_CLOUD_FILTER_IMAC_IVLAN_VNL        0x0007
 /* 0x0000 reserved */
 #define I40E_AQC_ADD_CLOUD_FILTER_OIP                   0x0001
 /* 0x0002 reserved */
@@ -1977,7 +1981,9 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_add_udp_tunnel_completion);
 struct i40e_aqc_remove_udp_tunnel {
 	u8     reserved[2];
 	u8     index; /* 0 to 15 */
-	u8     reserved2[13];
+	u8     pf_filters;
+	u8     total_filters;
+	u8     reserved2[11];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_remove_udp_tunnel);
@@ -1987,12 +1993,30 @@ struct i40e_aqc_del_udp_tunnel_completion {
 	u8     index; /* 0 to 15 */
 	u8     multiple_pfs;
 	u8     total_filters_used;
-	u8     reserved1[11];
+	u8     reserved;
+	u8     tunnels_free;
+	u8     reserved1[9];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_del_udp_tunnel_completion);
 
 /* tunnel key structure 0x0B10 */
+
+struct i40e_aqc_tunnel_key_structure_A0 {
+	__le16     key1_off;
+	__le16     key1_len;
+	__le16     key2_off;
+	__le16     key2_len;
+	__le16     flags;
+#define I40E_AQC_TUNNEL_KEY_STRUCT_OVERRIDE 0x01
+/* response flags */
+#define I40E_AQC_TUNNEL_KEY_STRUCT_SUCCESS    0x01
+#define I40E_AQC_TUNNEL_KEY_STRUCT_MODIFIED   0x02
+#define I40E_AQC_TUNNEL_KEY_STRUCT_OVERRIDDEN 0x03
+	u8         resreved[6];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_tunnel_key_structure_A0);
 
 struct i40e_aqc_tunnel_key_structure {
 	u8	key1_off;
