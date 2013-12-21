@@ -1077,6 +1077,14 @@ int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 						  resource_size_t),
 			void *alignf_data);
 
+static inline dma_addr_t pci_bus_address(struct pci_dev *pdev, int bar)
+{
+	struct pci_bus_region region;
+
+	pcibios_resource_to_bus(pdev->bus, &region, &pdev->resource[bar]);
+	return region.start;
+}
+
 /* Proper probing supporting hot-pluggable devices */
 int __must_check __pci_register_driver(struct pci_driver *, struct module *,
 				       const char *mod_name);
