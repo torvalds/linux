@@ -1355,67 +1355,6 @@ BeceemFlashBulkWriteStatus_EXIT:
 }
 
 /*
- * Procedure:	PropagateCalParamsFromEEPROMToMemory
- *
- * Description: Dumps the calibration section of EEPROM to DDR.
- *
- * Arguments:
- *		Adapter    - ptr to Adapter object instance
- * Returns:
- *		OSAL_STATUS_CODE
- *
- */
-
-int PropagateCalParamsFromEEPROMToMemory(struct bcm_mini_adapter *Adapter)
-{
-	PCHAR pBuff = kmalloc(BUFFER_4K, GFP_KERNEL);
-	unsigned int uiEepromSize = 0;
-	unsigned int uiIndex = 0;
-	unsigned int uiBytesToCopy = 0;
-	unsigned int uiCalStartAddr = EEPROM_CALPARAM_START;
-	unsigned int uiMemoryLoc = EEPROM_CAL_DATA_INTERNAL_LOC;
-	unsigned int value;
-	int Status = 0;
-
-	if (!pBuff)
-		return -ENOMEM;
-
-	if (0 != BeceemEEPROMBulkRead(Adapter, &uiEepromSize, EEPROM_SIZE_OFFSET, 4)) {
-		kfree(pBuff);
-		return -1;
-	}
-
-	uiEepromSize >>= 16;
-	if (uiEepromSize > 1024 * 1024) {
-		kfree(pBuff);
-		return -1;
-	}
-
-	uiBytesToCopy = MIN(BUFFER_4K, uiEepromSize);
-
-	while (uiBytesToCopy) {
-		if (0 != BeceemEEPROMBulkRead(Adapter, (PUINT)pBuff, uiCalStartAddr, uiBytesToCopy)) {
-			Status = -1;
-			break;
-		}
-		wrm(Adapter, uiMemoryLoc, (PCHAR)(((PULONG)pBuff) + uiIndex), uiBytesToCopy);
-		uiMemoryLoc += uiBytesToCopy;
-		uiEepromSize -= uiBytesToCopy;
-		uiCalStartAddr += uiBytesToCopy;
-		uiIndex += uiBytesToCopy / 4;
-		uiBytesToCopy = MIN(BUFFER_4K, uiEepromSize);
-
-	}
-	value = 0xbeadbead;
-	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 4, &value, sizeof(value));
-	value = 0xbeadbead;
-	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 8, &value, sizeof(value));
-	kfree(pBuff);
-
-	return Status;
-}
-
-/*
  * Procedure:	PropagateCalParamsFromFlashToMemory
  *
  * Description: Dumps the calibration section of EEPROM to DDR.
