@@ -50,8 +50,8 @@
 #include <asm/netlogic/xlp-hal/cpucontrol.h>
 
 #define CP0_EBASE	$15
-#define SYS_CPU_COHERENT_BASE(node)	CKSEG1ADDR(XLP_DEFAULT_IO_BASE) + \
-			XLP_IO_SYS_OFFSET(node) + XLP_IO_PCI_HDRSZ + \
+#define SYS_CPU_COHERENT_BASE	CKSEG1ADDR(XLP_DEFAULT_IO_BASE) + \
+			XLP_IO_SYS_OFFSET(0) + XLP_IO_PCI_HDRSZ + \
 			SYS_CPU_NONCOHERENT_MODE * 4
 
 /* Enable XLP features and workarounds in the LSU */
@@ -82,26 +82,26 @@
 	li	t1, LSU_DEBUG_ADDR
 	li	t2, 0		/* index */
 	li	t3, 0x1000	/* loop count */
-1:
+11:
 	sll	v0, t2, 5
 	mtcr	zero, t0
 	ori	v1, v0, 0x3	/* way0 | write_enable | write_active */
 	mtcr	v1, t1
-2:
+12:
 	mfcr	v1, t1
 	andi	v1, 0x1		/* wait for write_active == 0 */
-	bnez	v1, 2b
+	bnez	v1, 12b
 	nop
 	mtcr	zero, t0
 	ori	v1, v0, 0x7	/* way1 | write_enable | write_active */
 	mtcr	v1, t1
-3:
+13:
 	mfcr	v1, t1
 	andi	v1, 0x1		/* wait for write_active == 0 */
-	bnez	v1, 3b
+	bnez	v1, 13b
 	nop
 	addi	t2, 1
-	bne	t3, t2, 1b
+	bne	t3, t2, 11b
 	nop
 .endm
 
@@ -149,7 +149,7 @@ FEXPORT(nlm_reset_entry)
 	li	t1, 0x1
 	sll	t0, t1, t0
 	nor	t0, t0, zero		/* t0 <- ~(1 << core) */
-	li	t2, SYS_CPU_COHERENT_BASE(0)
+	li	t2, SYS_CPU_COHERENT_BASE
 	add	t2, t2, t3		/* t2 <- SYS offset for node */
 	lw	t1, 0(t2)
 	and	t1, t1, t0
@@ -164,8 +164,7 @@ FEXPORT(nlm_reset_entry)
 	/* FALL THROUGH */
 
 /*
- * Wake up sibling threads from the initial thread in
- * a core.
+ * Wake up sibling threads from the initial thread in a core.
  */
 EXPORT(nlm_boot_siblings)
 	/* core L1D flush before enable threads */
@@ -181,8 +180,10 @@ EXPORT(nlm_boot_siblings)
 	/*
 	 * The new hardware thread starts at the next instruction
 	 * For all the cases other than core 0 thread 0, we will
-	* jump to the secondary wait function.
-	*/
+	 * jump to the secondary wait function.
+
+	 * NOTE: All GPR contents are lost after the mtcr above!
+	 */
 	mfc0	v0, CP0_EBASE, 1
 	andi	v0, 0x3ff		/* v0 <- node/core */
 
@@ -196,7 +197,7 @@ EXPORT(nlm_boot_siblings)
 #endif
 	mtc0	t1, CP0_STATUS
 
-	/* mark CPU ready, careful here, previous mtcr trashed registers */
+	/* mark CPU ready */
 	li	t3, CKSEG1ADDR(RESET_DATA_PHYS)
 	ADDIU	t1, t3, BOOT_CPU_READY
 	sll	v1, v0, 2
