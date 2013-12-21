@@ -37,10 +37,9 @@
 
 #define PIC_UART_0_IRQ			17
 #define PIC_UART_1_IRQ			18
-#define PIC_PCIE_LINK_0_IRQ		19
-#define PIC_PCIE_LINK_1_IRQ		20
-#define PIC_PCIE_LINK_2_IRQ		21
-#define PIC_PCIE_LINK_3_IRQ		22
+
+#define PIC_PCIE_LINK_LEGACY_IRQ_BASE	19
+#define PIC_PCIE_LINK_LEGACY_IRQ(i)	(19 + (i))
 
 #define PIC_EHCI_0_IRQ			23
 #define PIC_EHCI_1_IRQ			24
@@ -57,6 +56,23 @@
 #define PIC_I2C_1_IRQ			31
 #define PIC_I2C_2_IRQ			32
 #define PIC_I2C_3_IRQ			33
+
+#define PIC_PCIE_LINK_MSI_IRQ_BASE	44	/* 44 - 47 MSI IRQ */
+#define PIC_PCIE_LINK_MSI_IRQ(i)	(44 + (i))
+
+/* MSI-X with second link-level dispatch */
+#define PIC_PCIE_MSIX_IRQ_BASE		48	/* 48 - 51 MSI-X IRQ */
+#define PIC_PCIE_MSIX_IRQ(i)		(48 + (i))
+
+#define NLM_MSIX_VEC_BASE		96	/* 96 - 127 - MSIX mapped */
+#define NLM_MSI_VEC_BASE		128	/* 128 -255 - MSI mapped */
+
+#define NLM_PIC_INDIRECT_VEC_BASE	512
+#define NLM_GPIO_VEC_BASE		768
+
+#define PIC_IRQ_BASE			8
+#define PIC_IRT_FIRST_IRQ		PIC_IRQ_BASE
+#define PIC_IRT_LAST_IRQ		63
 
 #ifndef __ASSEMBLY__
 

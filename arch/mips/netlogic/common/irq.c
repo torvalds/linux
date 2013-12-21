@@ -180,6 +180,7 @@ static void __init nlm_init_percpu_irqs(void)
 #endif
 }
 
+
 void nlm_setup_pic_irq(int node, int picirq, int irq, int irt)
 {
 	struct nlm_pic_irq *pic_data;
@@ -207,24 +208,24 @@ void nlm_set_pic_extra_ack(int node, int irq, void (*xack)(struct irq_data *))
 
 static void nlm_init_node_irqs(int node)
 {
-	int i, irt;
-	uint64_t irqmask;
 	struct nlm_soc_info *nodep;
+	int i, irt;
 
 	pr_info("Init IRQ for node %d\n", node);
 	nodep = nlm_get_node(node);
-	irqmask = PERCPU_IRQ_MASK;
+	nodep->irqmask = PERCPU_IRQ_MASK;
 	for (i = PIC_IRT_FIRST_IRQ; i <= PIC_IRT_LAST_IRQ; i++) {
 		irt = nlm_irq_to_irt(i);
-		if (irt == -1)
+		if (irt == -1)		/* unused irq */
 			continue;
-		nlm_setup_pic_irq(node, i, i, irt);
-		/* set interrupts to first cpu in node */
+		nodep->irqmask |= 1ull << i;
+		if (irt == -2)		/* not a direct PIC irq */
+			continue;
+
 		nlm_pic_init_irt(nodep->picbase, irt, i,
 					node * NLM_CPUS_PER_NODE, 0);
-		irqmask |= (1ull << i);
+		nlm_setup_pic_irq(node, i, i, irt);
 	}
-	nodep->irqmask = irqmask;
 }
 
 void nlm_smp_irq_init(int hwcpuid)
@@ -256,6 +257,18 @@ asmlinkage void plat_irq_dispatch(void)
 		return;
 	}
 
+#if defined(CONFIG_PCI_MSI) && defined(CONFIG_CPU_XLP)
+	/* PCI interrupts need a second level dispatch for MSI bits */
+	if (i >= PIC_PCIE_LINK_MSI_IRQ(0) && i <= PIC_PCIE_LINK_MSI_IRQ(3)) {
+		nlm_dispatch_msi(node, i);
+		return;
+	}
+	if (i >= PIC_PCIE_MSIX_IRQ(0) && i <= PIC_PCIE_MSIX_IRQ(3)) {
+		nlm_dispatch_msix(node, i);
+		return;
+	}
+
+#endif
 	/* top level irq handling */
 	do_IRQ(nlm_irq_to_xirq(node, i));
 }

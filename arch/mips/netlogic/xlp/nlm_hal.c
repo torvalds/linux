@@ -135,9 +135,17 @@ int nlm_irq_to_irt(int irq)
 		case PIC_I2C_3_IRQ:
 			irt = irt + 3; break;
 		}
-	} else if (irq >= PIC_PCIE_LINK_0_IRQ && irq <= PIC_PCIE_LINK_3_IRQ) {
+	} else if (irq >= PIC_PCIE_LINK_LEGACY_IRQ(0) &&
+			irq <= PIC_PCIE_LINK_LEGACY_IRQ(3)) {
 		/* HW bug, PCI IRT entries are bad on early silicon, fix */
-		irt = PIC_IRT_PCIE_LINK_INDEX(irq - PIC_PCIE_LINK_0_IRQ);
+		irt = PIC_IRT_PCIE_LINK_INDEX(irq -
+					PIC_PCIE_LINK_LEGACY_IRQ_BASE);
+	} else if (irq >= PIC_PCIE_LINK_MSI_IRQ(0) &&
+			irq <= PIC_PCIE_LINK_MSI_IRQ(3)) {
+		irt = -2;
+	} else if (irq >= PIC_PCIE_MSIX_IRQ(0) &&
+			irq <= PIC_PCIE_MSIX_IRQ(3)) {
+		irt = -2;
 	} else {
 		irt = -1;
 	}

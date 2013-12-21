@@ -193,13 +193,8 @@
 #define PIC_IRT_PCIE_LINK_INDEX(num)	((num) + PIC_IRT_PCIE_LINK_0_INDEX)
 
 #define PIC_CLOCK_TIMER			7
-#define PIC_IRQ_BASE			8
 
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
-
-#define PIC_IRT_FIRST_IRQ		(PIC_IRQ_BASE)
-#define PIC_IRT_LAST_IRQ		63
-#define PIC_IRQ_IS_IRT(irq)		((irq) >= PIC_IRT_FIRST_IRQ)
 
 /*
  *   Misc

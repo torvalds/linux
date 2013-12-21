@@ -112,7 +112,13 @@ struct nlm_soc_info {
 
 struct irq_data;
 uint64_t nlm_pci_irqmask(int node);
+void nlm_setup_pic_irq(int node, int picirq, int irq, int irt);
 void nlm_set_pic_extra_ack(int node, int irq,  void (*xack)(struct irq_data *));
+
+#ifdef CONFIG_PCI_MSI
+void nlm_dispatch_msi(int node, int lirq);
+void nlm_dispatch_msix(int node, int msixirq);
+#endif
 
 /*
  * The NR_IRQs is divided between nodes, each of them has a separate irq space

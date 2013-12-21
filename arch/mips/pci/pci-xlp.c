@@ -47,6 +47,7 @@
 #include <asm/netlogic/interrupt.h>
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/common.h>
+#include <asm/netlogic/mips-extns.h>
 
 #include <asm/netlogic/xlp-hal/iomap.h>
 #include <asm/netlogic/xlp-hal/pic.h>
@@ -162,7 +163,7 @@ struct pci_controller nlm_pci_controller = {
 	.io_offset	= 0x00000000UL,
 };
 
-static struct pci_dev *xlp_get_pcie_link(const struct pci_dev *dev)
+struct pci_dev *xlp_get_pcie_link(const struct pci_dev *dev)
 {
 	struct pci_bus *bus, *p;
 
@@ -172,11 +173,6 @@ static struct pci_dev *xlp_get_pcie_link(const struct pci_dev *dev)
 		bus = p;
 
 	return p ? bus->self : NULL;
-}
-
-static inline int nlm_pci_link_to_irq(int link)
-{
-	return PIC_PCIE_LINK_0_IRQ + link;
 }
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
@@ -193,7 +189,7 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		return 0;
 	lnkfunc = PCI_FUNC(lnkdev->devfn);
 	lnkslot = PCI_SLOT(lnkdev->devfn);
-	return nlm_irq_to_xirq(lnkslot / 8, nlm_pci_link_to_irq(lnkfunc));
+	return nlm_irq_to_xirq(lnkslot / 8, PIC_PCIE_LINK_LEGACY_IRQ(lnkfunc));
 }
 
 /* Do platform specific device initialization at pci_enable_device() time */
@@ -257,16 +253,17 @@ static int __init pcibios_init(void)
 		if (!nodep->coremask)
 			continue;	/* node does not exist */
 
-		for (link = 0; link < 4; link++) {
+		for (link = 0; link < PCIE_NLINKS; link++) {
 			pciebase = nlm_get_pcie_base(n, link);
 			if (nlm_read_pci_reg(pciebase, 0) == 0xffffffff)
 				continue;
 			xlp_config_pci_bswap(n, link);
+			xlp_init_node_msi_irqs(n, link);
 
 			/* put in intpin and irq - u-boot does not */
 			reg = nlm_read_pci_reg(pciebase, 0xf);
 			reg &= ~0x1fu;
-			reg |= (1 << 8) | nlm_pci_link_to_irq(link);
+			reg |= (1 << 8) | PIC_PCIE_LINK_LEGACY_IRQ(link);
 			nlm_write_pci_reg(pciebase, 0xf, reg);
 			pr_info("XLP PCIe: Link %d-%d initialized.\n", n, link);
 		}
