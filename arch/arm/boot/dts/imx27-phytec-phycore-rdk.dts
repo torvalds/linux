@@ -44,6 +44,12 @@
 			>;
 		};
 
+		pinctrl_owire1: owire1grp {
+			fsl,pins = <
+				MX27_PAD_RTCK__OWIRE 0x0
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX27_PAD_UART1_TXD__UART1_TXD 0x0
@@ -62,6 +68,12 @@
 			>;
 		};
 	};
+};
+
+&owire {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_owire1>;
+	status = "okay";
 };
 
 &sdhci2 {
