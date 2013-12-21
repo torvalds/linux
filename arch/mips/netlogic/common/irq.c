@@ -274,8 +274,6 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 #ifdef CONFIG_OF
-static struct irq_domain *xlp_pic_domain;
-
 static const struct irq_domain_ops xlp_pic_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
@@ -284,8 +282,9 @@ static int __init xlp_of_pic_init(struct device_node *node,
 					struct device_node *parent)
 {
 	const int n_picirqs = PIC_IRT_LAST_IRQ - PIC_IRQ_BASE + 1;
+	struct irq_domain *xlp_pic_domain;
 	struct resource res;
-	int socid, ret;
+	int socid, ret, bus;
 
 	/* we need a hack to get the PIC's SoC chip id */
 	ret = of_address_to_resource(node, 0, &res);
@@ -293,7 +292,34 @@ static int __init xlp_of_pic_init(struct device_node *node,
 		pr_err("PIC %s: reg property not found!\n", node->name);
 		return -EINVAL;
 	}
-	socid = (res.start >> 18) & 0x3;
+
+	if (cpu_is_xlp9xx()) {
+		bus = (res.start >> 20) & 0xf;
+		for (socid = 0; socid < NLM_NR_NODES; socid++) {
+			if (!nlm_node_present(socid))
+				continue;
+			if (nlm_get_node(socid)->socbus == bus)
+				break;
+		}
+		if (socid == NLM_NR_NODES) {
+			pr_err("PIC %s: Node mapping for bus %d not found!\n",
+					node->name, bus);
+			return -EINVAL;
+		}
+	} else {
+		socid = (res.start >> 18) & 0x3;
+		if (!nlm_node_present(socid)) {
+			pr_err("PIC %s: node %d does not exist!\n",
+							node->name, socid);
+			return -EINVAL;
+		}
+	}
+
+	if (!nlm_node_present(socid)) {
+		pr_err("PIC %s: node %d does not exist!\n", node->name, socid);
+		return -EINVAL;
+	}
+
 	xlp_pic_domain = irq_domain_add_legacy(node, n_picirqs,
 		nlm_irq_to_xirq(socid, PIC_IRQ_BASE), PIC_IRQ_BASE,
 		&xlp_pic_irq_domain_ops, NULL);
@@ -301,8 +327,7 @@ static int __init xlp_of_pic_init(struct device_node *node,
 		pr_err("PIC %s: Creating legacy domain failed!\n", node->name);
 		return -EINVAL;
 	}
-	pr_info("Node %d: IRQ domain created for PIC@%pa\n", socid,
-							&res.start);
+	pr_info("Node %d: IRQ domain created for PIC@%pR\n", socid, &res);
 	return 0;
 }
 
