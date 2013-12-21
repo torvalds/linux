@@ -3008,11 +3008,13 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 			continue;
 
 		/* turn on/off the queue */
-		if (enable)
+		if (enable) {
+			wr32(hw, I40E_QTX_HEAD(pf_q), 0);
 			tx_reg |= I40E_QTX_ENA_QENA_REQ_MASK |
 				  I40E_QTX_ENA_QENA_STAT_MASK;
-		else
+		} else {
 			tx_reg &= ~I40E_QTX_ENA_QENA_REQ_MASK;
+		}
 
 		wr32(hw, I40E_QTX_ENA(pf_q), tx_reg);
 
