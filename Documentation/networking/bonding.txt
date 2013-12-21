@@ -853,6 +853,14 @@ resend_igmp
 
 	This option was added for bonding version 3.7.0.
 
+lp_interval
+
+	Specifies the number of seconds between instances where the bonding
+	driver sends learning packets to each slaves peer switch.
+
+	The valid range is 1 - 0x7fffffff; the default value is 1. This Option
+	has effect only in balance-tlb and balance-alb modes.
+
 3. Configuring Bonding Devices
 ==============================
 
