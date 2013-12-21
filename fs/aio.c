@@ -244,9 +244,14 @@ static void aio_free_ring(struct kioctx *ctx)
 	int i;
 
 	for (i = 0; i < ctx->nr_pages; i++) {
+		struct page *page;
 		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
 				page_count(ctx->ring_pages[i]));
-		put_page(ctx->ring_pages[i]);
+		page = ctx->ring_pages[i];
+		if (!page)
+			continue;
+		ctx->ring_pages[i] = NULL;
+		put_page(page);
 	}
 
 	put_aio_ring_file(ctx);
@@ -280,17 +285,37 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
 	unsigned long flags;
 	int rc;
 
+	rc = 0;
+
+	/* Make sure the old page hasn't already been changed */
+	spin_lock(&mapping->private_lock);
+	ctx = mapping->private_data;
+	if (ctx) {
+		pgoff_t idx;
+		spin_lock_irqsave(&ctx->completion_lock, flags);
+		idx = old->index;
+		if (idx < (pgoff_t)ctx->nr_pages) {
+			if (ctx->ring_pages[idx] != old)
+				rc = -EAGAIN;
+		} else
+			rc = -EINVAL;
+		spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	} else
+		rc = -EINVAL;
+	spin_unlock(&mapping->private_lock);
+
+	if (rc != 0)
+		return rc;
+
 	/* Writeback must be complete */
 	BUG_ON(PageWriteback(old));
-	put_page(old);
+	get_page(new);
 
-	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode);
+	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode, 1);
 	if (rc != MIGRATEPAGE_SUCCESS) {
-		get_page(old);
+		put_page(new);
 		return rc;
 	}
-
-	get_page(new);
 
 	/* We can potentially race against kioctx teardown here.  Use the
 	 * address_space's private data lock to protect the mapping's
@@ -303,12 +328,23 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
 		spin_lock_irqsave(&ctx->completion_lock, flags);
 		migrate_page_copy(new, old);
 		idx = old->index;
-		if (idx < (pgoff_t)ctx->nr_pages)
-			ctx->ring_pages[idx] = new;
+		if (idx < (pgoff_t)ctx->nr_pages) {
+			/* And only do the move if things haven't changed */
+			if (ctx->ring_pages[idx] == old)
+				ctx->ring_pages[idx] = new;
+			else
+				rc = -EAGAIN;
+		} else
+			rc = -EINVAL;
 		spin_unlock_irqrestore(&ctx->completion_lock, flags);
 	} else
 		rc = -EBUSY;
 	spin_unlock(&mapping->private_lock);
+
+	if (rc == MIGRATEPAGE_SUCCESS)
+		put_page(old);
+	else
+		put_page(new);
 
 	return rc;
 }
