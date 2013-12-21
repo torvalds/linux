@@ -577,7 +577,7 @@ Each memcg's numa_stat file includes "total", "file", "anon" and "unevictable"
 per-node page counts including "hierarchical_<counter>" which sums up all
 hierarchical children's values in addition to the memcg's own value.
 
-The ouput format of memory.numa_stat is:
+The output format of memory.numa_stat is:
 
 total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
 file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
@@ -670,7 +670,7 @@ page tables.
 
 8.1 Interface
 
-This feature is disabled by default. It can be enabledi (and disabled again) by
+This feature is disabled by default. It can be enabled (and disabled again) by
 writing to memory.move_charge_at_immigrate of the destination cgroup.
 
 If you want to enable it:
