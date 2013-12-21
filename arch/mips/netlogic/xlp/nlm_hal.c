@@ -314,21 +314,33 @@ int xlp_get_dram_map(int n, uint64_t *dram_map)
 {
 	uint64_t bridgebase, base, lim;
 	uint32_t val;
+	unsigned int barreg, limreg, xlatreg;
 	int i, node, rv;
 
 	/* Look only at mapping on Node 0, we don't handle crazy configs */
 	bridgebase = nlm_get_bridge_regbase(0);
 	rv = 0;
 	for (i = 0; i < 8; i++) {
-		val = nlm_read_bridge_reg(bridgebase,
-					BRIDGE_DRAM_NODE_TRANSLN(i));
-		node = (val >> 1) & 0x3;
-		if (n >= 0 && n != node)
-			continue;
-		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_BAR(i));
+		if (cpu_is_xlp9xx()) {
+			barreg = BRIDGE_9XX_DRAM_BAR(i);
+			limreg = BRIDGE_9XX_DRAM_LIMIT(i);
+			xlatreg = BRIDGE_9XX_DRAM_NODE_TRANSLN(i);
+		} else {
+			barreg = BRIDGE_DRAM_BAR(i);
+			limreg = BRIDGE_DRAM_LIMIT(i);
+			xlatreg = BRIDGE_DRAM_NODE_TRANSLN(i);
+		}
+		if (n >= 0) {
+			/* node specified, get node mapping of BAR */
+			val = nlm_read_bridge_reg(bridgebase, xlatreg);
+			node = (val >> 1) & 0x3;
+			if (n != node)
+				continue;
+		}
+		val = nlm_read_bridge_reg(bridgebase, barreg);
 		val = (val >>  12) & 0xfffff;
 		base = (uint64_t) val << 20;
-		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_LIMIT(i));
+		val = nlm_read_bridge_reg(bridgebase, limreg);
 		val = (val >>  12) & 0xfffff;
 		if (val == 0)   /* BAR not used */
 			continue;
