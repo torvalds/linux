@@ -80,6 +80,13 @@
 				MX27_PAD_UART2_RTS__UART2_RTS 0x0
 			>;
 		};
+
+		pinctrl_weim: weimgrp {
+			fsl,pins = <
+				MX27_PAD_CS4_B__CS4_B		0x0 /* CS4 */
+				MX27_PAD_SD1_D1__GPIO5_19	0x0 /* CAN IRQ */
+			>;
+		};
 	};
 };
 
@@ -114,6 +121,9 @@
 };
 
 &weim {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim>;
+
 	can@d4000000 {
 		compatible = "nxp,sja1000";
 		reg = <4 0x00000000 0x00000100>;
