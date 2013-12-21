@@ -61,8 +61,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "fsl,mc13783";
-		spi-max-frequency = <20000000>;
 		reg = <0>;
+		spi-cs-high;
+		spi-max-frequency = <20000000>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 		fsl,mc13xxx-uses-adc;
