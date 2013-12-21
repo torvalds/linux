@@ -4071,8 +4071,8 @@ static int bond_check_params(struct bond_params *params)
 		num_peer_notif = 1;
 	}
 
-	/* reset values for 802.3ad */
-	if (bond_mode == BOND_MODE_8023AD) {
+	/* reset values for 802.3ad/TLB/ALB */
+	if (BOND_NO_USES_ARP(bond_mode)) {
 		if (!miimon) {
 			pr_warning("Warning: miimon must be specified, otherwise bonding will not detect link failure, speed and duplex which are essential for 802.3ad operation\n");
 			pr_warning("Forcing miimon to 100msec\n");
@@ -4105,16 +4105,6 @@ static int bond_check_params(struct bond_params *params)
 		pr_warn("Warning: packets_per_slave (%d) should be between 0 and %u resetting to 1\n",
 			packets_per_slave, USHRT_MAX);
 		packets_per_slave = 1;
-	}
-
-	/* reset values for TLB/ALB */
-	if ((bond_mode == BOND_MODE_TLB) ||
-	    (bond_mode == BOND_MODE_ALB)) {
-		if (!miimon) {
-			pr_warning("Warning: miimon must be specified, otherwise bonding will not detect link failure and link speed which are essential for TLB/ALB load balancing\n");
-			pr_warning("Forcing miimon to 100msec\n");
-			miimon = BOND_DEFAULT_MIIMON;
-		}
 	}
 
 	if (bond_mode == BOND_MODE_ALB) {
