@@ -92,8 +92,15 @@ static inline int cpu_is_xlpii(void)
 {
 	int chip = read_c0_prid() & 0xff00;
 
-	return chip == PRID_IMP_NETLOGIC_XLP2XX;
+	return chip == PRID_IMP_NETLOGIC_XLP2XX ||
+		chip == PRID_IMP_NETLOGIC_XLP9XX;
 }
 
+static inline int cpu_is_xlp9xx(void)
+{
+	int chip = read_c0_prid() & 0xff00;
+
+	return chip == PRID_IMP_NETLOGIC_XLP9XX;
+}
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_NLM_XLP_H */

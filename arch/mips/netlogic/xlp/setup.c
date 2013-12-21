@@ -111,6 +111,7 @@ void __init plat_mem_setup(void)
 const char *get_system_type(void)
 {
 	switch (read_c0_prid() & 0xff00) {
+	case PRID_IMP_NETLOGIC_XLP9XX:
 	case PRID_IMP_NETLOGIC_XLP2XX:
 		return "Broadcom XLPII Series";
 	default:
