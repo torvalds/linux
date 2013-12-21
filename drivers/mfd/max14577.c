@@ -221,7 +221,7 @@ static struct i2c_driver max14577_i2c_driver = {
 		.name = "max14577",
 		.owner = THIS_MODULE,
 		.pm = &max14577_pm,
-		.of_match_table = of_match_ptr(max14577_dt_match),
+		.of_match_table = max14577_dt_match,
 	},
 	.probe = max14577_i2c_probe,
 	.remove = max14577_i2c_remove,
