@@ -247,7 +247,6 @@ e_bar0:
 
 e_device:
 	pci_disable_device(pdev);
-	dev_set_drvdata(dev, NULL);
 
 e_regions:
 	pci_release_regions(pdev);
@@ -273,7 +272,6 @@ static void ccp_pci_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, ccp->io_map);
 
 	pci_disable_device(pdev);
-	dev_set_drvdata(dev, NULL);
 
 	pci_release_regions(pdev);
 
