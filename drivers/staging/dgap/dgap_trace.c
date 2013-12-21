@@ -37,6 +37,7 @@
 #include <linux/vmalloc.h>
 
 #include "dgap_driver.h"
+#include "dgap_trace.h"
 
 #define TRC_TO_CONSOLE 1
 
