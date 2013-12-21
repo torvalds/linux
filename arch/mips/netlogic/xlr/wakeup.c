@@ -70,7 +70,7 @@ int xlr_wakeup_secondary_cpus(void)
 
 	/* Fill up the coremask early */
 	nodep->coremask = 1;
-	for (i = 1; i < NLM_CORES_PER_NODE; i++) {
+	for (i = 1; i < nlm_cores_per_node(); i++) {
 		for (j = 1000000; j > 0; j--) {
 			if (cpu_ready[i * NLM_THREADS_PER_CORE])
 				break;

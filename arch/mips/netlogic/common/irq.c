@@ -223,7 +223,7 @@ static void nlm_init_node_irqs(int node)
 			continue;
 
 		nlm_pic_init_irt(nodep->picbase, irt, i,
-					node * NLM_CPUS_PER_NODE, 0);
+				node * nlm_threads_per_node(), 0);
 		nlm_setup_pic_irq(node, i, i, irt);
 	}
 }
@@ -232,8 +232,8 @@ void nlm_smp_irq_init(int hwcpuid)
 {
 	int node, cpu;
 
-	node = hwcpuid / NLM_CPUS_PER_NODE;
-	cpu  = hwcpuid % NLM_CPUS_PER_NODE;
+	node = nlm_cpuid_to_node(hwcpuid);
+	cpu  = hwcpuid % nlm_threads_per_node();
 
 	if (cpu == 0 && node != 0)
 		nlm_init_node_irqs(node);

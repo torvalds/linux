@@ -280,7 +280,7 @@ static int xlp_setup_msi(uint64_t lnkbase, int node, int link,
 		irt = PIC_IRT_PCIE_LINK_INDEX(link);
 		nlm_setup_pic_irq(node, lirq, lirq, irt);
 		nlm_pic_init_irt(nlm_get_node(node)->picbase, irt, lirq,
-				 node * NLM_CPUS_PER_NODE, 1 /*en */);
+				 node * nlm_threads_per_node(), 1 /*en */);
 	}
 
 	/* allocate a MSI vec, and tell the bridge about it */
@@ -443,7 +443,7 @@ void __init xlp_init_node_msi_irqs(int node, int link)
 		msixvec = link * XLP_MSIXVEC_PER_LINK + i;
 		irt = PIC_IRT_PCIE_MSIX_INDEX(msixvec);
 		nlm_pic_init_irt(nodep->picbase, irt, PIC_PCIE_MSIX_IRQ(link),
-			node * NLM_CPUS_PER_NODE, 1 /* enable */);
+			node * nlm_threads_per_node(), 1 /* enable */);
 
 		/* Initialize MSI-X extended irq space for the link  */
 		irq = nlm_irq_to_xirq(node, nlm_link_msixirq(link, i));

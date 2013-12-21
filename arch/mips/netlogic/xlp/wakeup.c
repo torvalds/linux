@@ -165,7 +165,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 			nodep->coremask = 1;
 
 		pr_info("Node %d - SYS/FUSE coremask %x\n", n, syscoremask);
-		for (core = 0; core < NLM_CORES_PER_NODE; core++) {
+		for (core = 0; core < nlm_cores_per_node(); core++) {
 			/* we will be on node 0 core 0 */
 			if (n == 0 && core == 0)
 				continue;
@@ -175,7 +175,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 				continue;
 
 			/* see if at least the first hw thread is enabled */
-			cpu = (n * NLM_CORES_PER_NODE + core)
+			cpu = (n * nlm_cores_per_node() + core)
 						* NLM_THREADS_PER_CORE;
 			if (!cpumask_test_cpu(cpu, wakeup_mask))
 				continue;
