@@ -113,6 +113,7 @@ static int all_slaves_active;
 static struct bond_params bonding_defaults;
 static int resend_igmp = BOND_DEFAULT_RESEND_IGMP;
 static int packets_per_slave = 1;
+static int lp_interval = BOND_ALB_DEFAULT_LP_INTERVAL;
 
 module_param(max_bonds, int, 0);
 MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
@@ -189,6 +190,10 @@ module_param(packets_per_slave, int, 0);
 MODULE_PARM_DESC(packets_per_slave, "Packets to send per slave in balance-rr "
 				    "mode; 0 for a random slave, 1 packet per "
 				    "slave (default), >1 packets per slave.");
+module_param(lp_interval, uint, 0);
+MODULE_PARM_DESC(lp_interval, "The number of seconds between instances where "
+			      "the bonding driver sends learning packets to "
+			      "each slaves peer switch. The default is 1.");
 
 /*----------------------------- Global variables ----------------------------*/
 
@@ -4271,6 +4276,12 @@ static int bond_check_params(struct bond_params *params)
 		fail_over_mac_value = BOND_FOM_NONE;
 	}
 
+	if (lp_interval == 0) {
+		pr_warning("Warning: ip_interval must be between 1 and %d, so it was reset to %d\n",
+			   INT_MAX, BOND_ALB_DEFAULT_LP_INTERVAL);
+		lp_interval = BOND_ALB_DEFAULT_LP_INTERVAL;
+	}
+
 	/* fill params struct with the proper values */
 	params->mode = bond_mode;
 	params->xmit_policy = xmit_hashtype;
@@ -4290,7 +4301,7 @@ static int bond_check_params(struct bond_params *params)
 	params->all_slaves_active = all_slaves_active;
 	params->resend_igmp = resend_igmp;
 	params->min_links = min_links;
-	params->lp_interval = BOND_ALB_DEFAULT_LP_INTERVAL;
+	params->lp_interval = lp_interval;
 	if (packets_per_slave > 1)
 		params->packets_per_slave = reciprocal_value(packets_per_slave);
 	else
