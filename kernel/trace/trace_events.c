@@ -1855,19 +1855,6 @@ __trace_add_event_dirs(struct trace_array *tr)
 	}
 }
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-
-/* Avoid typos */
-#define ENABLE_EVENT_STR	"enable_event"
-#define DISABLE_EVENT_STR	"disable_event"
-
-struct event_probe_data {
-	struct ftrace_event_file	*file;
-	unsigned long			count;
-	int				ref;
-	bool				enable;
-};
-
 struct ftrace_event_file *
 find_event_file(struct trace_array *tr, const char *system,  const char *event)
 {
@@ -1890,6 +1877,19 @@ find_event_file(struct trace_array *tr, const char *system,  const char *event)
 	}
 	return NULL;
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+/* Avoid typos */
+#define ENABLE_EVENT_STR	"enable_event"
+#define DISABLE_EVENT_STR	"disable_event"
+
+struct event_probe_data {
+	struct ftrace_event_file	*file;
+	unsigned long			count;
+	int				ref;
+	bool				enable;
+};
 
 static void
 event_enable_probe(unsigned long ip, unsigned long parent_ip, void **_data)
