@@ -3114,6 +3114,8 @@ static void cik_setup_rb(struct radeon_device *rdev,
 		mask <<= 1;
 	}
 
+	rdev->config.cik.backend_enable_mask = enabled_rbs;
+
 	for (i = 0; i < se_num; i++) {
 		cik_select_se_sh(rdev, i, 0xffffffff);
 		data = 0;
