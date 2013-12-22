@@ -522,10 +522,6 @@ _func_enter_;
 _func_exit_;
 }
 
-void rtw_free_pwrctrl_priv(struct adapter *adapter)
-{
-}
-
 u8 rtw_interface_ps_func(struct adapter *padapter, enum hal_intf_ps_func efunc_id, u8 *val)
 {
 	u8 bResult = true;
