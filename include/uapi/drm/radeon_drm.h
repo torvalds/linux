@@ -981,6 +981,8 @@ struct drm_radeon_cs {
 #define RADEON_INFO_SI_TILE_MODE_ARRAY	0x16
 /* query if CP DMA is supported on the compute ring */
 #define RADEON_INFO_SI_CP_DMA_COMPUTE	0x17
+/* query the number of render backends */
+#define RADEON_INFO_SI_BACKEND_ENABLED_MASK	0x19
 
 
 struct drm_radeon_info {
