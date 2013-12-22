@@ -1282,6 +1282,22 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
+static int generic_hdmi_init_per_pins(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	int pin_idx;
+
+	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
+		struct hdmi_eld *eld = &per_pin->sink_eld;
+
+		per_pin->codec = codec;
+		INIT_DELAYED_WORK(&per_pin->work, hdmi_repoll_eld);
+		snd_hda_eld_proc_new(codec, eld, pin_idx);
+	}
+	return 0;
+}
+
 static int generic_hdmi_init(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -1290,14 +1306,9 @@ static int generic_hdmi_init(struct hda_codec *codec)
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
 		hda_nid_t pin_nid = per_pin->pin_nid;
-		struct hdmi_eld *eld = &per_pin->sink_eld;
 
 		hdmi_init_pin(codec, pin_nid);
 		snd_hda_jack_detect_enable(codec, pin_nid, pin_nid);
-
-		per_pin->codec = codec;
-		INIT_DELAYED_WORK(&per_pin->work, hdmi_repoll_eld);
-		snd_hda_eld_proc_new(codec, eld, pin_idx);
 	}
 	snd_hda_jack_report_sync(codec);
 	return 0;
@@ -1343,6 +1354,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		return -EINVAL;
 	}
 	codec->patch_ops = generic_hdmi_patch_ops;
+	generic_hdmi_init_per_pins(codec);
 
 	init_channel_allocations();
 

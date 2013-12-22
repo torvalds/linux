@@ -413,6 +413,7 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 				hubs->hp_startup_mode);
 			break;
 		}
+		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, WM8993_CHARGE_PUMP_1,

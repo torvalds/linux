@@ -1343,9 +1343,8 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (sx25) {
 		sx25->sx25_family = AF_X25;
 		sx25->sx25_addr   = x25->dest_addr;
+		msg->msg_namelen = sizeof(*sx25);
 	}
-
-	msg->msg_namelen = sizeof(struct sockaddr_x25);
 
 	x25_check_rbuf(sk);
 	rc = copied;

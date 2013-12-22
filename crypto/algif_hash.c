@@ -114,6 +114,9 @@ static ssize_t hash_sendpage(struct socket *sock, struct page *page,
 	struct hash_ctx *ctx = ask->private;
 	int err;
 
+	if (flags & MSG_SENDPAGE_NOTLAST)
+		flags |= MSG_MORE;
+
 	lock_sock(sk);
 	sg_init_table(ctx->sgl.sg, 1);
 	sg_set_page(ctx->sgl.sg, page, size, offset);
@@ -160,8 +163,6 @@ static int hash_recvmsg(struct kiocb *unused, struct socket *sock,
 		len = ds;
 	else if (len < ds)
 		msg->msg_flags |= MSG_TRUNC;
-
-	msg->msg_namelen = 0;
 
 	lock_sock(sk);
 	if (ctx->more) {
