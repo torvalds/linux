@@ -247,52 +247,52 @@ void rtw_sleep_schedulable(int ms)
 
 #define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
 
-inline void ATOMIC_SET(ATOMIC_T *v, int i)
+inline void ATOMIC_SET(atomic_t *v, int i)
 {
 	atomic_set(v, i);
 }
 
-inline int ATOMIC_READ(ATOMIC_T *v)
+inline int ATOMIC_READ(atomic_t *v)
 {
 	return atomic_read(v);
 }
 
-inline void ATOMIC_ADD(ATOMIC_T *v, int i)
+inline void ATOMIC_ADD(atomic_t *v, int i)
 {
 	atomic_add(i, v);
 }
 
-inline void ATOMIC_SUB(ATOMIC_T *v, int i)
+inline void ATOMIC_SUB(atomic_t *v, int i)
 {
 	atomic_sub(i, v);
 }
 
-inline void ATOMIC_INC(ATOMIC_T *v)
+inline void ATOMIC_INC(atomic_t *v)
 {
 	atomic_inc(v);
 }
 
-inline void ATOMIC_DEC(ATOMIC_T *v)
+inline void ATOMIC_DEC(atomic_t *v)
 {
 	atomic_dec(v);
 }
 
-inline int ATOMIC_ADD_RETURN(ATOMIC_T *v, int i)
+inline int ATOMIC_ADD_RETURN(atomic_t *v, int i)
 {
 	return atomic_add_return(i, v);
 }
 
-inline int ATOMIC_SUB_RETURN(ATOMIC_T *v, int i)
+inline int ATOMIC_SUB_RETURN(atomic_t *v, int i)
 {
 	return atomic_sub_return(i, v);
 }
 
-inline int ATOMIC_INC_RETURN(ATOMIC_T *v)
+inline int ATOMIC_INC_RETURN(atomic_t *v)
 {
 	return atomic_inc_return(v);
 }
 
-inline int ATOMIC_DEC_RETURN(ATOMIC_T *v)
+inline int ATOMIC_DEC_RETURN(atomic_t *v)
 {
 	return atomic_dec_return(v);
 }
