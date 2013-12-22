@@ -33,10 +33,10 @@
 		gsc1 = &gsc_1;
 		gsc2 = &gsc_2;
 		gsc3 = &gsc_3;
-		mshc0 = &dwmmc_0;
-		mshc1 = &dwmmc_1;
-		mshc2 = &dwmmc_2;
-		mshc3 = &dwmmc_3;
+		mshc0 = &mmc_0;
+		mshc1 = &mmc_1;
+		mshc2 = &mmc_2;
+		mshc3 = &mmc_3;
 		i2c0 = &i2c_0;
 		i2c1 = &i2c_1;
 		i2c2 = &i2c_2;
@@ -392,25 +392,43 @@
 		pinctrl-0 = <&spi2_bus>;
 	};
 
-	dwmmc_0: dwmmc0@12200000 {
+	mmc_0: mmc@12200000 {
+		compatible = "samsung,exynos5250-dw-mshc";
+		interrupts = <0 75 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		reg = <0x12200000 0x1000>;
 		clocks = <&clock 280>, <&clock 139>;
 		clock-names = "biu", "ciu";
+		fifo-depth = <0x80>;
+		status = "disabled";
 	};
 
-	dwmmc_1: dwmmc1@12210000 {
+	mmc_1: mmc@12210000 {
+		compatible = "samsung,exynos5250-dw-mshc";
+		interrupts = <0 76 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		reg = <0x12210000 0x1000>;
 		clocks = <&clock 281>, <&clock 140>;
 		clock-names = "biu", "ciu";
+		fifo-depth = <0x80>;
+		status = "disabled";
 	};
 
-	dwmmc_2: dwmmc2@12220000 {
+	mmc_2: mmc@12220000 {
+		compatible = "samsung,exynos5250-dw-mshc";
+		interrupts = <0 77 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		reg = <0x12220000 0x1000>;
 		clocks = <&clock 282>, <&clock 141>;
 		clock-names = "biu", "ciu";
+		fifo-depth = <0x80>;
+		status = "disabled";
 	};
 
-	dwmmc_3: dwmmc3@12230000 {
+	mmc_3: mmc@12230000 {
 		compatible = "samsung,exynos5250-dw-mshc";
 		reg = <0x12230000 0x1000>;
 		interrupts = <0 78 0>;
@@ -418,6 +436,8 @@
 		#size-cells = <0>;
 		clocks = <&clock 283>, <&clock 142>;
 		clock-names = "biu", "ciu";
+		fifo-depth = <0x80>;
+		status = "disabled";
 	};
 
 	i2s0: i2s@03830000 {

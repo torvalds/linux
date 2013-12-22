@@ -140,11 +140,11 @@
 		};
 	};
 
-	dwmmc0@12200000 {
+	mmc@12200000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -158,14 +158,10 @@
 		};
 	};
 
-	dwmmc1@12210000 {
-		status = "disabled";
-	};
-
-	dwmmc2@12220000 {
+	mmc@12220000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -178,10 +174,6 @@
 			bus-width = <4>;
 			disable-wp;
 		};
-	};
-
-	dwmmc3@12230000 {
-		status = "disabled";
 	};
 
 	spi_0: spi@12d20000 {

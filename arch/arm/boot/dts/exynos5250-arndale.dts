@@ -266,7 +266,7 @@
 
 				buck2_reg: BUCK2 {
 					regulator-name = "vdd_arm";
-					regulator-min-microvolt = <925000>;
+					regulator-min-microvolt = <912500>;
 					regulator-max-microvolt = <1300000>;
 					regulator-always-on;
 					regulator-boot-on;
@@ -384,11 +384,11 @@
 		status = "disabled";
 	};
 
-	dwmmc_0: dwmmc0@12200000 {
+	mmc_0: mmc@12200000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -403,14 +403,10 @@
 		};
 	};
 
-	dwmmc_1: dwmmc1@12210000 {
-		status = "disabled";
-	};
-
-	dwmmc_2: dwmmc2@12220000 {
+	mmc_2: mmc@12220000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -424,10 +420,6 @@
 			bus-width = <4>;
 			disable-wp;
 		};
-	};
-
-	dwmmc_3: dwmmc3@12230000 {
-		status = "disabled";
 	};
 
 	i2s0: i2s@03830000 {
