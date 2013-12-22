@@ -51,7 +51,7 @@ ODM_REG(DIG,_pDM_Odm)
 
 #define _cat(_name, _ic_type, _func)					\
 	(								\
-		((_ic_type) & ODM_IC_11N_SERIES) ? _func##_11N(_name) :	\
+		(_ic_type) ? _func##_11N(_name) :			\
 		_func##_11AC(_name)					\
 	)
 

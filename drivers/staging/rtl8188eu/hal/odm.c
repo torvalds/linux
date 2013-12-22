@@ -206,18 +206,8 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 	odm_FalseAlarmCounterStatistics(pDM_Odm);
 	odm_RSSIMonitorCheck(pDM_Odm);
 
-	/* For CE Platform(SPRD or Tablet) */
-	/* 8723A or 8189ES platform */
-	/* NeilChen--2012--08--24-- */
 	/* Fix Leave LPS issue */
-	if ((pDM_Odm->Adapter->pwrctrlpriv.pwr_mode != PS_MODE_ACTIVE) &&/*  in LPS mode */
-	    (pDM_Odm->SupportInterface  == ODM_ITRF_SDIO)) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("----Step1: odm_DIG is in LPS mode\n"));
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("---Step2: 8723AS is in LPS mode\n"));
-		odm_DIGbyRSSI_LPS(pDM_Odm);
-	} else {
-		odm_DIG(pDM_Odm);
-	}
+	odm_DIG(pDM_Odm);
 	odm_CCKPacketDetectionThresh(pDM_Odm);
 
 	if (*(pDM_Odm->pbPowerSaving))

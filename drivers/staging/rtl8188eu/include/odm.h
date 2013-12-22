@@ -454,29 +454,7 @@ enum odm_ability_def {
 	ODM_RF_CALIBRATION		= BIT26,
 };
 
-/* 	ODM_CMNINFO_INTERFACE */
-enum odm_interface_def {
-	ODM_ITRF_PCIE	=	0x1,
-	ODM_ITRF_USB	=	0x2,
-	ODM_ITRF_SDIO	=	0x4,
-	ODM_ITRF_ALL	=	0x7,
-};
-
-/*  ODM_CMNINFO_IC_TYPE */
-enum odm_ic_type {
-	ODM_RTL8192S	=	BIT0,
-	ODM_RTL8192C	=	BIT1,
-	ODM_RTL8192D	=	BIT2,
-	ODM_RTL8723A	=	BIT3,
-	ODM_RTL8188E	=	BIT4,
-	ODM_RTL8812	=	BIT5,
-	ODM_RTL8821	=	BIT6,
-};
-
-#define ODM_IC_11N_SERIES						\
-	(ODM_RTL8192S | ODM_RTL8192C | ODM_RTL8192D |			\
-	 ODM_RTL8723A | ODM_RTL8188E)
-#define ODM_IC_11AC_SERIES		(ODM_RTL8812)
+#define ODM_RTL8188E		BIT4
 
 /* ODM_CMNINFO_CUT_VER */
 enum odm_cut_version {
