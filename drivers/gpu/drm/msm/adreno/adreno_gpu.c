@@ -260,6 +260,24 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 }
 #endif
 
+/* would be nice to not have to duplicate the _show() stuff with printk(): */
+void adreno_dump(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+
+	printk("revision: %d (%d.%d.%d.%d)\n",
+			adreno_gpu->info->revn, adreno_gpu->rev.core,
+			adreno_gpu->rev.major, adreno_gpu->rev.minor,
+			adreno_gpu->rev.patchid);
+
+	printk("fence:    %d/%d\n", adreno_gpu->memptrs->fence,
+			gpu->submitted_fence);
+	printk("rptr:     %d\n", adreno_gpu->memptrs->rptr);
+	printk("wptr:     %d\n", adreno_gpu->memptrs->wptr);
+	printk("rb wptr:  %d\n", get_wptr(gpu->rb));
+
+}
+
 void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);

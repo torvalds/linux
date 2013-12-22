@@ -35,6 +35,12 @@
 	 A3XX_INT0_CP_AHB_ERROR_HALT |     \
 	 A3XX_INT0_UCHE_OOB_ACCESS)
 
+
+static bool hang_debug = false;
+MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
+module_param_named(hang_debug, hang_debug, bool, 0600);
+static void a3xx_dump(struct msm_gpu *gpu);
+
 static struct platform_device *a3xx_pdev;
 
 static void a3xx_me_init(struct msm_gpu *gpu)
@@ -291,6 +297,9 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 
 static void a3xx_recover(struct msm_gpu *gpu)
 {
+	/* dump registers before resetting gpu, if enabled: */
+	if (hang_debug)
+		a3xx_dump(gpu);
 	gpu_write(gpu, REG_A3XX_RBBM_SW_RESET_CMD, 1);
 	gpu_read(gpu, REG_A3XX_RBBM_SW_RESET_CMD);
 	gpu_write(gpu, REG_A3XX_RBBM_SW_RESET_CMD, 0);
@@ -352,7 +361,6 @@ static irqreturn_t a3xx_irq(struct msm_gpu *gpu)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_DEBUG_FS
 static const unsigned int a3xx_registers[] = {
 	0x0000, 0x0002, 0x0010, 0x0012, 0x0018, 0x0018, 0x0020, 0x0027,
 	0x0029, 0x002b, 0x002e, 0x0033, 0x0040, 0x0042, 0x0050, 0x005c,
@@ -392,6 +400,7 @@ static const unsigned int a3xx_registers[] = {
 	0x303c, 0x303c, 0x305e, 0x305f,
 };
 
+#ifdef CONFIG_DEBUG_FS
 static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
 	int i;
@@ -414,6 +423,29 @@ static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
 	}
 }
 #endif
+
+/* would be nice to not have to duplicate the _show() stuff with printk(): */
+static void a3xx_dump(struct msm_gpu *gpu)
+{
+	int i;
+
+	adreno_dump(gpu);
+	printk("status:   %08x\n",
+			gpu_read(gpu, REG_A3XX_RBBM_STATUS));
+
+	/* dump these out in a form that can be parsed by demsm: */
+	printk("IO:region %s 00000000 00020000\n", gpu->name);
+	for (i = 0; i < ARRAY_SIZE(a3xx_registers); i += 2) {
+		uint32_t start = a3xx_registers[i];
+		uint32_t end   = a3xx_registers[i+1];
+		uint32_t addr;
+
+		for (addr = start; addr <= end; addr++) {
+			uint32_t val = gpu_read(gpu, addr);
+			printk("IO:R %08x %08x\n", addr<<2, val);
+		}
+	}
+}
 
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
