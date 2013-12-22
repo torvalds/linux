@@ -38,9 +38,7 @@ Drivers
 
 The firewire-ohci driver in drivers/firewire uses filtered physical
 DMA by default, which is more secure but not suitable for remote debugging.
-Compile the driver with CONFIG_FIREWIRE_OHCI_REMOTE_DMA (Kernel hacking menu:
-Remote debugging over FireWire with firewire-ohci) to get unfiltered physical
-DMA.
+Pass the remote_dma=1 parameter to the driver to get unfiltered physical DMA.
 
 Because the firewire-ohci driver depends on the PCI enumeration to be
 completed, an initialization routine which runs pretty early has been
