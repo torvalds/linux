@@ -358,7 +358,6 @@ static inline u32 bitshift(u32 bitmask)
 #define PATH_LENGTH_MAX PATH_MAX
 
 /* Atomic integer operations */
-void ATOMIC_SET(atomic_t *v, int i);
 int ATOMIC_READ(atomic_t *v);
 void ATOMIC_ADD(atomic_t *v, int i);
 void ATOMIC_SUB(atomic_t *v, int i);

@@ -247,11 +247,6 @@ void rtw_sleep_schedulable(int ms)
 
 #define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
 
-inline void ATOMIC_SET(atomic_t *v, int i)
-{
-	atomic_set(v, i);
-}
-
 inline int ATOMIC_READ(atomic_t *v)
 {
 	return atomic_read(v);
