@@ -37,6 +37,7 @@
 		i2c2 = &i2c2;
 		ssc0 = &ssc0;
 		ssc1 = &ssc1;
+		pwm0 = &pwm0;
 	};
 	cpus {
 		#address-cells = <1>;
@@ -176,6 +177,15 @@
 				pinctrl-0 = <&pinctrl_usart1>;
 				clocks = <&usart1_clk>;
 				clock-names = "usart";
+				status = "disabled";
+			};
+
+			pwm0: pwm@f002c000 {
+				compatible = "atmel,sama5d3-pwm";
+				reg = <0xf002c000 0x300>;
+				interrupts = <28 IRQ_TYPE_LEVEL_HIGH 4>;
+				#pwm-cells = <3>;
+				clocks = <&pwm_clk>;
 				status = "disabled";
 			};
 
@@ -340,6 +350,8 @@
 				interrupts = <42 IRQ_TYPE_LEVEL_HIGH 0>;
 				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(17)>;
 				dma-names = "tx";
+				clocks = <&sha_clk>;
+				clock-names = "sha_clk";
 			};
 
 			aes@f8038000 {
@@ -349,6 +361,8 @@
 				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(18)>,
 				       <&dma1 2 AT91_DMA_CFG_PER_ID(19)>;
 				dma-names = "tx", "rx";
+				clocks = <&aes_clk>;
+				clock-names = "aes_clk";
 			};
 
 			tdes@f803c000 {
@@ -358,6 +372,8 @@
 				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(20)>,
 				       <&dma1 2 AT91_DMA_CFG_PER_ID(21)>;
 				dma-names = "tx", "rx";
+				clocks = <&tdes_clk>;
+				clock-names = "tdes_clk";
 			};
 
 			dma0: dma-controller@ffffe600 {

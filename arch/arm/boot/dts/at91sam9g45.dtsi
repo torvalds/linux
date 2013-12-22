@@ -37,6 +37,7 @@
 		i2c1 = &i2c1;
 		ssc0 = &ssc0;
 		ssc1 = &ssc1;
+		pwm0 = &pwm0;
 	};
 	cpus {
 		#address-cells = <0>;
@@ -668,6 +669,14 @@
 					trigger-name = "continuous";
 					trigger-value = <0x6>;
 				};
+			};
+
+			pwm0: pwm@fffb8000 {
+				compatible = "atmel,at91sam9rl-pwm";
+				reg = <0xfffb8000 0x300>;
+				interrupts = <19 IRQ_TYPE_LEVEL_HIGH 4>;
+				#pwm-cells = <3>;
+				status = "disabled";
 			};
 
 			mmc0: mmc@fff80000 {
