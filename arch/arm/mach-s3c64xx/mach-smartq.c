@@ -106,7 +106,7 @@ static void smartq_usb_host_enableoc(struct s3c2410_hcd_info *info, int on)
 
 	if (on) {
 		ret = request_irq(gpio_to_irq(S3C64XX_GPL(10)),
-				  smartq_usb_host_ocirq, IRQF_DISABLED |
+				  smartq_usb_host_ocirq,
 				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				  "USB host overcurrent", info);
 		if (ret != 0)

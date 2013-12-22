@@ -36,7 +36,7 @@
 
 #include "common.h"
 
-static struct sleep_save exynos4_set_clksrc[] = {
+static const struct sleep_save exynos4_set_clksrc[] = {
 	{ .reg = EXYNOS4_CLKSRC_MASK_TOP		, .val = 0x00000001, },
 	{ .reg = EXYNOS4_CLKSRC_MASK_CAM		, .val = 0x11111111, },
 	{ .reg = EXYNOS4_CLKSRC_MASK_TV			, .val = 0x00000111, },
@@ -48,7 +48,7 @@ static struct sleep_save exynos4_set_clksrc[] = {
 	{ .reg = EXYNOS4_CLKSRC_MASK_DMC		, .val = 0x00010000, },
 };
 
-static struct sleep_save exynos4210_set_clksrc[] = {
+static const struct sleep_save exynos4210_set_clksrc[] = {
 	{ .reg = EXYNOS4210_CLKSRC_MASK_LCD1		, .val = 0x00001111, },
 };
 
