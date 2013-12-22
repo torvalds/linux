@@ -24,41 +24,9 @@
 
 #include "nv04.h"
 
-static int
-nv04_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
-{
-	struct nv04_instmem_priv *priv = (void *)engine;
-	struct nv04_instobj_priv *node;
-	int ret, align;
-
-	align = (unsigned long)data;
-	if (!align)
-		align = 1;
-
-	ret = nouveau_instobj_create(parent, engine, oclass, &node);
-	*pobject = nv_object(node);
-	if (ret)
-		return ret;
-
-	ret = nouveau_mm_head(&priv->heap, 1, size, size, align, &node->mem);
-	if (ret)
-		return ret;
-
-	node->base.addr = node->mem->offset;
-	node->base.size = node->mem->length;
-	return 0;
-}
-
-static void
-nv04_instobj_dtor(struct nouveau_object *object)
-{
-	struct nv04_instmem_priv *priv = (void *)object->engine;
-	struct nv04_instobj_priv *node = (void *)object;
-	nouveau_mm_free(&priv->heap, &node->mem);
-	nouveau_instobj_destroy(&node->base);
-}
+/******************************************************************************
+ * instmem object implementation
+ *****************************************************************************/
 
 static u32
 nv04_instobj_rd32(struct nouveau_object *object, u64 addr)
@@ -74,9 +42,46 @@ nv04_instobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
 	nv_wo32(object->engine, node->mem->offset + addr, data);
 }
 
-struct nouveau_oclass
+static void
+nv04_instobj_dtor(struct nouveau_object *object)
+{
+	struct nv04_instmem_priv *priv = (void *)object->engine;
+	struct nv04_instobj_priv *node = (void *)object;
+	nouveau_mm_free(&priv->heap, &node->mem);
+	nouveau_instobj_destroy(&node->base);
+}
+
+static int
+nv04_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *data, u32 size,
+		  struct nouveau_object **pobject)
+{
+	struct nv04_instmem_priv *priv = (void *)engine;
+	struct nv04_instobj_priv *node;
+	struct nouveau_instobj_args *args = data;
+	int ret;
+
+	if (!args->align)
+		args->align = 1;
+
+	ret = nouveau_instobj_create(parent, engine, oclass, &node);
+	*pobject = nv_object(node);
+	if (ret)
+		return ret;
+
+	ret = nouveau_mm_head(&priv->heap, 1, args->size, args->size,
+			      args->align, &node->mem);
+	if (ret)
+		return ret;
+
+	node->base.addr = node->mem->offset;
+	node->base.size = node->mem->length;
+	return 0;
+}
+
+struct nouveau_instobj_impl
 nv04_instobj_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_instobj_ctor,
 		.dtor = nv04_instobj_dtor,
 		.init = _nouveau_instobj_init,
@@ -173,5 +178,5 @@ nv04_instmem_oclass = &(struct nouveau_instmem_impl) {
 		.rd32 = nv04_instmem_rd32,
 		.wr32 = nv04_instmem_wr32,
 	},
-	.instobj = &nv04_instobj_oclass,
+	.instobj = &nv04_instobj_oclass.base,
 }.base;

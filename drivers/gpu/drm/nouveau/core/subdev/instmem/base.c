@@ -24,6 +24,23 @@
 
 #include "priv.h"
 
+/******************************************************************************
+ * instmem object base implementation
+ *****************************************************************************/
+
+void
+_nouveau_instobj_dtor(struct nouveau_object *object)
+{
+	struct nouveau_instmem *imem = (void *)object->engine;
+	struct nouveau_instobj *iobj = (void *)object;
+
+	mutex_lock(&nv_subdev(imem)->mutex);
+	list_del(&iobj->head);
+	mutex_unlock(&nv_subdev(imem)->mutex);
+
+	return nouveau_object_destroy(&iobj->base);
+}
+
 int
 nouveau_instobj_create_(struct nouveau_object *parent,
 			struct nouveau_object *engine,
@@ -46,25 +63,6 @@ nouveau_instobj_create_(struct nouveau_object *parent,
 	return 0;
 }
 
-void
-nouveau_instobj_destroy(struct nouveau_instobj *iobj)
-{
-	struct nouveau_subdev *subdev = nv_subdev(iobj->base.engine);
-
-	mutex_lock(&subdev->mutex);
-	list_del(&iobj->head);
-	mutex_unlock(&subdev->mutex);
-
-	return nouveau_object_destroy(&iobj->base);
-}
-
-void
-_nouveau_instobj_dtor(struct nouveau_object *object)
-{
-	struct nouveau_instobj *iobj = (void *)object;
-	return nouveau_instobj_destroy(iobj);
-}
-
 /******************************************************************************
  * instmem subdev base implementation
  *****************************************************************************/
@@ -76,14 +74,9 @@ nouveau_instmem_alloc(struct nouveau_instmem *imem,
 {
 	struct nouveau_object *engine = nv_object(imem);
 	struct nouveau_instmem_impl *impl = (void *)engine->oclass;
-	int ret;
-
-	ret = nouveau_object_ctor(parent, engine, impl->instobj,
-				  (void *)(unsigned long)align, size, pobject);
-	if (ret)
-		return ret;
-
-	return 0;
+	struct nouveau_instobj_args args = { .size = size, .align = align };
+	return nouveau_object_ctor(parent, engine, impl->instobj, &args,
+				   sizeof(args), pobject);
 }
 
 int

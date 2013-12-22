@@ -134,5 +134,5 @@ nv40_instmem_oclass = &(struct nouveau_instmem_impl) {
 		.rd32 = nv40_instmem_rd32,
 		.wr32 = nv40_instmem_wr32,
 	},
-	.instobj = &nv04_instobj_oclass,
+	.instobj = &nv04_instobj_oclass.base,
 }.base;

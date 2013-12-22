@@ -38,42 +38,9 @@ struct nv50_instobj_priv {
 	struct nouveau_mem *mem;
 };
 
-static int
-nv50_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
-{
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nv50_instobj_priv *node;
-	u32 align = (unsigned long)data;
-	int ret;
-
-	size  = max((size  + 4095) & ~4095, (u32)4096);
-	align = max((align + 4095) & ~4095, (u32)4096);
-
-	ret = nouveau_instobj_create(parent, engine, oclass, &node);
-	*pobject = nv_object(node);
-	if (ret)
-		return ret;
-
-	ret = pfb->ram->get(pfb, size, align, 0, 0x800, &node->mem);
-	if (ret)
-		return ret;
-
-	node->base.addr = node->mem->offset;
-	node->base.size = node->mem->size << 12;
-	node->mem->page_shift = 12;
-	return 0;
-}
-
-static void
-nv50_instobj_dtor(struct nouveau_object *object)
-{
-	struct nv50_instobj_priv *node = (void *)object;
-	struct nouveau_fb *pfb = nouveau_fb(object);
-	pfb->ram->put(pfb, &node->mem);
-	nouveau_instobj_destroy(&node->base);
-}
+/******************************************************************************
+ * instmem object implementation
+ *****************************************************************************/
 
 static u32
 nv50_instobj_rd32(struct nouveau_object *object, u64 offset)
@@ -113,9 +80,46 @@ nv50_instobj_wr32(struct nouveau_object *object, u64 offset, u32 data)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static struct nouveau_oclass
+static void
+nv50_instobj_dtor(struct nouveau_object *object)
+{
+	struct nv50_instobj_priv *node = (void *)object;
+	struct nouveau_fb *pfb = nouveau_fb(object);
+	pfb->ram->put(pfb, &node->mem);
+	nouveau_instobj_destroy(&node->base);
+}
+
+static int
+nv50_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *data, u32 size,
+		  struct nouveau_object **pobject)
+{
+	struct nouveau_fb *pfb = nouveau_fb(parent);
+	struct nouveau_instobj_args *args = data;
+	struct nv50_instobj_priv *node;
+	int ret;
+
+	args->size  = max((args->size  + 4095) & ~4095, (u32)4096);
+	args->align = max((args->align + 4095) & ~4095, (u32)4096);
+
+	ret = nouveau_instobj_create(parent, engine, oclass, &node);
+	*pobject = nv_object(node);
+	if (ret)
+		return ret;
+
+	ret = pfb->ram->get(pfb, args->size, args->align, 0, 0x800, &node->mem);
+	if (ret)
+		return ret;
+
+	node->base.addr = node->mem->offset;
+	node->base.size = node->mem->size << 12;
+	node->mem->page_shift = 12;
+	return 0;
+}
+
+static struct nouveau_instobj_impl
 nv50_instobj_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_instobj_ctor,
 		.dtor = nv50_instobj_dtor,
 		.init = _nouveau_instobj_init,
@@ -163,5 +167,5 @@ nv50_instmem_oclass = &(struct nouveau_instmem_impl) {
 		.init = _nouveau_instmem_init,
 		.fini = nv50_instmem_fini,
 	},
-	.instobj = &nv50_instobj_oclass,
+	.instobj = &nv50_instobj_oclass.base,
 }.base;

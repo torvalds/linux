@@ -7,7 +7,7 @@
 
 #include "priv.h"
 
-extern struct nouveau_oclass nv04_instobj_oclass;
+extern struct nouveau_instobj_impl nv04_instobj_oclass;
 
 struct nv04_instmem_priv {
 	struct nouveau_instmem base;
