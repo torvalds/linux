@@ -25,6 +25,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -38,11 +40,6 @@
 #include "common.h"
 
 void __iomem *zynq_scu_base;
-
-static struct of_device_id zynq_of_bus_ids[] __initdata = {
-	{ .compatible = "simple-bus", },
-	{}
-};
 
 static struct platform_device zynq_cpuidle_device = {
 	.name = "cpuidle-zynq",
@@ -59,7 +56,7 @@ static void __init zynq_init_machine(void)
 	 */
 	l2x0_of_init(0x02060000, 0xF0F0FFFF);
 
-	of_platform_bus_probe(NULL, zynq_of_bus_ids, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	platform_device_register(&zynq_cpuidle_device);
 }
@@ -97,6 +94,12 @@ static void __init zynq_map_io(void)
 	zynq_scu_map_io();
 }
 
+static void __init zynq_irq_init(void)
+{
+	gic_arch_extn.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
+	irqchip_init();
+}
+
 static void zynq_system_reset(enum reboot_mode mode, const char *cmd)
 {
 	zynq_slcr_system_reset();
@@ -110,6 +113,7 @@ static const char * const zynq_dt_match[] = {
 DT_MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
 	.smp		= smp_ops(zynq_smp_ops),
 	.map_io		= zynq_map_io,
+	.init_irq	= zynq_irq_init,
 	.init_machine	= zynq_init_machine,
 	.init_time	= zynq_timer_init,
 	.dt_compat	= zynq_dt_match,
