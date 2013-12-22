@@ -1057,7 +1057,7 @@ struct event_trigger_data {
 	int				ref;
 	struct event_trigger_ops	*ops;
 	struct event_command		*cmd_ops;
-	struct event_filter		*filter;
+	struct event_filter __rcu	*filter;
 	char				*filter_str;
 	void				*private_data;
 	struct list_head		list;

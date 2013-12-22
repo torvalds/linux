@@ -67,6 +67,7 @@ event_triggers_call(struct ftrace_event_file *file, void *rec)
 {
 	struct event_trigger_data *data;
 	enum event_trigger_type tt = ETT_NONE;
+	struct event_filter *filter;
 
 	if (list_empty(&file->triggers))
 		return tt;
@@ -76,7 +77,8 @@ event_triggers_call(struct ftrace_event_file *file, void *rec)
 			data->ops->func(data);
 			continue;
 		}
-		if (data->filter && !filter_match_preds(data->filter, rec))
+		filter = rcu_dereference(data->filter);
+		if (filter && !filter_match_preds(filter, rec))
 			continue;
 		if (data->cmd_ops->post_trigger) {
 			tt |= data->cmd_ops->trigger_type;
@@ -703,7 +705,7 @@ static int set_trigger_filter(char *filter_str,
 	if (ret)
 		goto out;
  assign:
-	tmp = data->filter;
+	tmp = rcu_access_pointer(data->filter);
 
 	rcu_assign_pointer(data->filter, filter);
 
@@ -719,7 +721,7 @@ static int set_trigger_filter(char *filter_str,
 	if (filter_str) {
 		data->filter_str = kstrdup(filter_str, GFP_KERNEL);
 		if (!data->filter_str) {
-			free_event_filter(data->filter);
+			free_event_filter(rcu_access_pointer(data->filter));
 			data->filter = NULL;
 			ret = -ENOMEM;
 		}
