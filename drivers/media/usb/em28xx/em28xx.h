@@ -26,6 +26,8 @@
 #ifndef _EM28XX_H
 #define _EM28XX_H
 
+#define EM28XX_VERSION "0.2.0"
+
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
@@ -522,9 +524,12 @@ struct em28xx {
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
 	enum em28xx_chip_id chip_id;
-	unsigned int is_em25xx:1;	/* em25xx/em276x/7x/8x family bridge */
 
+	unsigned int is_em25xx:1;	/* em25xx/em276x/7x/8x family bridge */
 	unsigned char disconnected:1;	/* device has been diconnected */
+	unsigned int has_audio_class:1;
+	unsigned int has_alsa_audio:1;
+	unsigned int is_audio_only:1;
 
 	int audio_ifnum;
 
@@ -543,10 +548,6 @@ struct em28xx {
 
 	/* Vinmode/Vinctl used at the driver */
 	int vinmode, vinctl;
-
-	unsigned int has_audio_class:1;
-	unsigned int has_alsa_audio:1;
-	unsigned int is_audio_only:1;
 
 	/* Controls audio streaming */
 	struct work_struct wq_trigger;	/* Trigger to start/stop audio for alsa module */

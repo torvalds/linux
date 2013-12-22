@@ -51,8 +51,6 @@
 
 #define DRIVER_DESC         "Empia em28xx based USB video device driver"
 
-#define EM28XX_VERSION "0.2.0"
-
 static unsigned int isoc_debug;
 module_param(isoc_debug, int, 0644);
 MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");

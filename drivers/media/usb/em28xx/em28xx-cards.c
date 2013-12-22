@@ -2106,7 +2106,7 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	/* 1b80:e1cc Delock 61959
 	 * Empia EM2874B + Micronas DRX 3913KA2 + NXP TDA18271HDC2
-         * mostly the same as MaxMedia UB-425-TC but different remote */
+	 * mostly the same as MaxMedia UB-425-TC but different remote */
 	[EM2874_BOARD_DELOCK_61959] = {
 		.name          = "Delock 61959",
 		.tuner_type    = TUNER_ABSENT,
