@@ -242,7 +242,8 @@ static int ltv350qv_probe(struct spi_device *spi)
 	if (!lcd->buffer)
 		return -ENOMEM;
 
-	ld = lcd_device_register("ltv350qv", &spi->dev, lcd, &ltv_ops);
+	ld = devm_lcd_device_register(&spi->dev, "ltv350qv", &spi->dev, lcd,
+					&ltv_ops);
 	if (IS_ERR(ld))
 		return PTR_ERR(ld);
 
@@ -250,15 +251,11 @@ static int ltv350qv_probe(struct spi_device *spi)
 
 	ret = ltv350qv_power(lcd, FB_BLANK_UNBLANK);
 	if (ret)
-		goto out_unregister;
+		return ret;
 
 	spi_set_drvdata(spi, lcd);
 
 	return 0;
-
-out_unregister:
-	lcd_device_unregister(ld);
-	return ret;
 }
 
 static int ltv350qv_remove(struct spi_device *spi)
@@ -266,8 +263,6 @@ static int ltv350qv_remove(struct spi_device *spi)
 	struct ltv350qv *lcd = spi_get_drvdata(spi);
 
 	ltv350qv_power(lcd, FB_BLANK_POWERDOWN);
-	lcd_device_unregister(lcd->ld);
-
 	return 0;
 }
 

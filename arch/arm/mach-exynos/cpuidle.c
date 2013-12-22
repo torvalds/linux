@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/export.h>
 #include <linux/time.h>
+#include <linux/platform_device.h>
 
 #include <asm/proc-fns.h>
 #include <asm/smp_scu.h>
@@ -192,7 +193,7 @@ static void __init exynos5_core_down_clk(void)
 	__raw_writel(tmp, EXYNOS5_PWR_CTRL2);
 }
 
-static int __init exynos4_init_cpuidle(void)
+static int exynos_cpuidle_probe(struct platform_device *pdev)
 {
 	int cpu_id, ret;
 	struct cpuidle_device *device;
@@ -205,7 +206,7 @@ static int __init exynos4_init_cpuidle(void)
 
 	ret = cpuidle_register_driver(&exynos4_idle_driver);
 	if (ret) {
-		printk(KERN_ERR "CPUidle failed to register driver\n");
+		dev_err(&pdev->dev, "failed to register cpuidle driver\n");
 		return ret;
 	}
 
@@ -219,11 +220,20 @@ static int __init exynos4_init_cpuidle(void)
 
 		ret = cpuidle_register_device(device);
 		if (ret) {
-			printk(KERN_ERR "CPUidle register device failed\n");
+			dev_err(&pdev->dev, "failed to register cpuidle device\n");
 			return ret;
 		}
 	}
 
 	return 0;
 }
-device_initcall(exynos4_init_cpuidle);
+
+static struct platform_driver exynos_cpuidle_driver = {
+	.probe	= exynos_cpuidle_probe,
+	.driver = {
+		.name = "exynos_cpuidle",
+		.owner = THIS_MODULE,
+	},
+};
+
+module_platform_driver(exynos_cpuidle_driver);

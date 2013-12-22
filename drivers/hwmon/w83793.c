@@ -808,7 +808,7 @@ show_sf_ctrl(struct device *dev, struct device_attribute *attr, char *buf)
 	if (nr == TEMP_FAN_MAP) {
 		val = data->temp_fan_map[index];
 	} else if (nr == TEMP_PWM_ENABLE) {
-		/* +2 to transfrom into 2 and 3 to conform with sysfs intf */
+		/* +2 to transform into 2 and 3 to conform with sysfs intf */
 		val = ((data->pwm_enable >> index) & 0x01) + 2;
 	} else if (nr == TEMP_CRUISE) {
 		val = TEMP_FROM_REG(data->temp_cruise[index] & 0x7f);
@@ -1199,7 +1199,8 @@ static void w83793_init_client(struct i2c_client *client)
 
 static int watchdog_set_timeout(struct w83793_data *data, int timeout)
 {
-	int ret, mtimeout;
+	unsigned int mtimeout;
+	int ret;
 
 	mtimeout = DIV_ROUND_UP(timeout, 60);
 

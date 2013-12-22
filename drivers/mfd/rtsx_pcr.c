@@ -1149,7 +1149,7 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 	pcr->remap_addr = ioremap_nocache(base, len);
 	if (!pcr->remap_addr) {
 		ret = -ENOMEM;
-		goto free_host;
+		goto free_handle;
 	}
 
 	pcr->rtsx_resv_buf = dma_alloc_coherent(&(pcidev->dev),
@@ -1209,8 +1209,6 @@ disable_msi:
 			pcr->rtsx_resv_buf, pcr->rtsx_resv_buf_addr);
 unmap:
 	iounmap(pcr->remap_addr);
-free_host:
-	dev_set_drvdata(&pcidev->dev, NULL);
 free_handle:
 	kfree(handle);
 free_pcr:
@@ -1242,7 +1240,6 @@ static void rtsx_pci_remove(struct pci_dev *pcidev)
 		pci_disable_msi(pcr->pci);
 	iounmap(pcr->remap_addr);
 
-	dev_set_drvdata(&pcidev->dev, NULL);
 	pci_release_regions(pcidev);
 	pci_disable_device(pcidev);
 

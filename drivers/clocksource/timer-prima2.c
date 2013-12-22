@@ -165,9 +165,9 @@ static struct irqaction sirfsoc_timer_irq = {
 };
 
 /* Overwrite weak default sched_clock with more precise one */
-static u32 notrace sirfsoc_read_sched_clock(void)
+static u64 notrace sirfsoc_read_sched_clock(void)
 {
-	return (u32)(sirfsoc_timer_read(NULL) & 0xffffffff);
+	return sirfsoc_timer_read(NULL);
 }
 
 static void __init sirfsoc_clockevent_init(void)
@@ -206,7 +206,7 @@ static void __init sirfsoc_prima2_timer_init(struct device_node *np)
 
 	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, CLOCK_TICK_RATE));
 
-	setup_sched_clock(sirfsoc_read_sched_clock, 32, CLOCK_TICK_RATE);
+	sched_clock_register(sirfsoc_read_sched_clock, 64, CLOCK_TICK_RATE);
 
 	BUG_ON(setup_irq(sirfsoc_timer_irq.irq, &sirfsoc_timer_irq));
 

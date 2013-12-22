@@ -39,21 +39,28 @@
 #include "../cxgb4/t4fw_api.h"
 
 #define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
-#define CHELSIO_CHIP_VERSION(code) ((code) >> 4)
+#define CHELSIO_CHIP_VERSION(code) (((code) >> 4) & 0xf)
 #define CHELSIO_CHIP_RELEASE(code) ((code) & 0xf)
 
+/* All T4 and later chips have their PCI-E Device IDs encoded as 0xVFPP where:
+ *
+ *   V  = "4" for T4; "5" for T5, etc. or
+ *      = "a" for T4 FPGA; "b" for T4 FPGA, etc.
+ *   F  = "0" for PF 0..3; "4".."7" for PF4..7; and "8" for VFs
+ *   PP = adapter product designation
+ */
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
 
 enum chip_type {
-	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 0),
-	T4_A2 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
-	T4_A3 = CHELSIO_CHIP_CODE(CHELSIO_T4, 2),
+	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
+	T4_A2 = CHELSIO_CHIP_CODE(CHELSIO_T4, 2),
 	T4_FIRST_REV	= T4_A1,
-	T4_LAST_REV	= T4_A3,
+	T4_LAST_REV	= T4_A2,
 
-	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
-	T5_FIRST_REV	= T5_A1,
+	T5_A0 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
+	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
+	T5_FIRST_REV	= T5_A0,
 	T5_LAST_REV	= T5_A1,
 };
 
@@ -203,6 +210,7 @@ struct adapter_params {
 	struct vpd_params vpd;		/* Vital Product Data */
 	struct rss_params rss;		/* Receive Side Scaling */
 	struct vf_resources vfres;	/* Virtual Function Resource limits */
+	enum chip_type chip;		/* chip code */
 	u8 nports;			/* # of Ethernet "ports" */
 };
 
@@ -253,7 +261,7 @@ static inline int t4vf_wr_mbox_ns(struct adapter *adapter, const void *cmd,
 
 static inline int is_t4(enum chip_type chip)
 {
-	return (chip >= T4_FIRST_REV && chip <= T4_LAST_REV);
+	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T4;
 }
 
 int t4vf_wait_dev_ready(struct adapter *);

@@ -29,7 +29,7 @@
 #include <asm/mach/time.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/mfd/mc13xxx.h>
 
 #include "common.h"

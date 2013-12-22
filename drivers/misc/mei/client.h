@@ -115,4 +115,13 @@ void mei_cl_all_disconnect(struct mei_device *dev);
 void mei_cl_all_wakeup(struct mei_device *dev);
 void mei_cl_all_write_clear(struct mei_device *dev);
 
+#define MEI_CL_FMT "cl:host=%02d me=%02d "
+#define MEI_CL_PRM(cl) (cl)->host_client_id, (cl)->me_client_id
+
+#define cl_dbg(dev, cl, format, arg...) \
+	dev_dbg(&(dev)->pdev->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+
+#define cl_err(dev, cl, format, arg...) \
+	dev_err(&(dev)->pdev->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+
 #endif /* _MEI_CLIENT_H_ */

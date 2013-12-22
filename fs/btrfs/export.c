@@ -5,7 +5,6 @@
 #include "btrfs_inode.h"
 #include "print-tree.h"
 #include "export.h"
-#include "compat.h"
 
 #define BTRFS_FID_SIZE_NON_CONNECTABLE (offsetof(struct btrfs_fid, \
 						 parent_objectid) / 4)

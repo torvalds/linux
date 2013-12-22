@@ -19,14 +19,23 @@
 #include <asm/smp.h>
 #include <asm/smp_plat.h>
 
-static int mcpm_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static void cpu_to_pcpu(unsigned int cpu,
+			unsigned int *pcpu, unsigned int *pcluster)
 {
-	unsigned int mpidr, pcpu, pcluster, ret;
-	extern void secondary_startup(void);
+	unsigned int mpidr;
 
 	mpidr = cpu_logical_map(cpu);
-	pcpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-	pcluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	*pcpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+	*pcluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+}
+
+static int mcpm_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	unsigned int pcpu, pcluster, ret;
+	extern void secondary_startup(void);
+
+	cpu_to_pcpu(cpu, &pcpu, &pcluster);
+
 	pr_debug("%s: logical CPU %d is physical CPU %d cluster %d\n",
 		 __func__, cpu, pcpu, pcluster);
 
@@ -46,6 +55,15 @@ static void mcpm_secondary_init(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+
+static int mcpm_cpu_kill(unsigned int cpu)
+{
+	unsigned int pcpu, pcluster;
+
+	cpu_to_pcpu(cpu, &pcpu, &pcluster);
+
+	return !mcpm_cpu_power_down_finish(pcpu, pcluster);
+}
 
 static int mcpm_cpu_disable(unsigned int cpu)
 {
@@ -73,6 +91,7 @@ static struct smp_operations __initdata mcpm_smp_ops = {
 	.smp_boot_secondary	= mcpm_boot_secondary,
 	.smp_secondary_init	= mcpm_secondary_init,
 #ifdef CONFIG_HOTPLUG_CPU
+	.cpu_kill		= mcpm_cpu_kill,
 	.cpu_disable		= mcpm_cpu_disable,
 	.cpu_die		= mcpm_cpu_die,
 #endif

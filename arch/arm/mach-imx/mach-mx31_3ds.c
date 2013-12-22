@@ -311,7 +311,7 @@ static int mx31_3ds_sdhc1_init(struct device *dev,
 	}
 
 	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1)),
-			  detect_irq, IRQF_DISABLED |
+			  detect_irq,
 			  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			  "sdhc1-detect", data);
 	if (ret) {

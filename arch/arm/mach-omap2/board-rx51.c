@@ -2,6 +2,8 @@
  * Board support file for Nokia N900 (aka RX-51).
  *
  * Copyright (C) 2007, 2008 Nokia
+ * Copyright (C) 2012 Ivaylo Dimitrov <freemangordon@abv.bg>
+ * Copyright (C) 2013 Pali Rohár <pali.rohar@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,7 +33,9 @@
 #include "mux.h"
 #include "gpmc.h"
 #include "pm.h"
+#include "soc.h"
 #include "sdram-nokia.h"
+#include "omap-secure.h"
 
 #define RX51_GPIO_SLEEP_IND 162
 
@@ -102,6 +106,14 @@ static void __init rx51_init(void)
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(&musb_board_data);
 	rx51_peripherals_init();
+
+	if (omap_type() == OMAP2_DEVICE_TYPE_SEC) {
+#ifdef CONFIG_ARM_ERRATA_430973
+		pr_info("RX-51: Enabling ARM errata 430973 workaround\n");
+		/* set IBE to 1 */
+		rx51_secure_update_aux_cr(BIT(6), 0);
+#endif
+	}
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);

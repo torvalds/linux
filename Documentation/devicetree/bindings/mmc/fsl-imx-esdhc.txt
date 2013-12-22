@@ -12,6 +12,11 @@ Required properties:
 Optional properties:
 - fsl,cd-controller : Indicate to use controller internal card detection
 - fsl,wp-controller : Indicate to use controller internal write protection
+- fsl,delay-line : Specify the number of delay cells for override mode.
+  This is used to set the clock delay for DLL(Delay Line) on override mode
+  to select a proper data sampling window in case the clock quality is not good
+  due to signal path is too long on the board. Please refer to eSDHC/uSDHC
+  chapter, DLL (Delay Line) section in RM for details.
 
 Examples:
 

@@ -132,6 +132,33 @@ struct iwl_powertable_cmd {
 } __packed;
 
 /**
+ * enum iwl_device_power_flags - masks for device power command flags
+ * @DEVIC_POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
+ *	receiver and transmitter. '0' - does not allow. This flag should be
+ *	always set to '1' unless one need to disable actual power down for debug
+ *	purposes.
+ * @DEVICE_POWER_FLAGS_CAM_MSK: '1' CAM (Continuous Active Mode) is set, meaning
+ *	that power management is disabled. '0' Power management is enabled, one
+ *	of power schemes is applied.
+*/
+enum iwl_device_power_flags {
+	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK	= BIT(0),
+	DEVICE_POWER_FLAGS_CAM_MSK		= BIT(13),
+};
+
+/**
+ * struct iwl_device_power_cmd - device wide power command.
+ * DEVICE_POWER_CMD = 0x77 (command, has simple generic response)
+ *
+ * @flags:	Power table command flags from DEVICE_POWER_FLAGS_*
+ */
+struct iwl_device_power_cmd {
+	/* PM_POWER_TABLE_CMD_API_S_VER_6 */
+	__le16 flags;
+	__le16 reserved;
+} __packed;
+
+/**
  * struct iwl_mac_power_cmd - New power command containing uAPSD support
  * MAC_PM_POWER_TABLE = 0xA9 (command, has simple generic response)
  * @id_and_color:	MAC contex identifier
@@ -290,7 +317,7 @@ struct iwl_beacon_filter_cmd {
 #define IWL_BF_ESCAPE_TIMER_MIN 0
 
 #define IWL_BA_ESCAPE_TIMER_DEFAULT 6
-#define IWL_BA_ESCAPE_TIMER_D3 6
+#define IWL_BA_ESCAPE_TIMER_D3 9
 #define IWL_BA_ESCAPE_TIMER_MAX 1024
 #define IWL_BA_ESCAPE_TIMER_MIN 0
 

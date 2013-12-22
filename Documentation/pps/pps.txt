@@ -66,6 +66,21 @@ In LinuxPPS the PPS sources are simply char devices usually mapped
 into files /dev/pps0, /dev/pps1, etc..
 
 
+PPS with USB to serial devices
+------------------------------
+
+It is possible to grab the PPS from an USB to serial device. However,
+you should take into account the latencies and jitter introduced by
+the USB stack. Users has reported clock instability around +-1ms when
+synchronized with PPS through USB. This isn't suited for time server
+synchronization.
+
+If your device doesn't report PPS, you can check that the feature is
+supported by its driver. Most of the time, you only need to add a call
+to usb_serial_handle_dcd_change after checking the DCD status (see
+ch341 and pl2303 examples).
+
+
 Coding example
 --------------
 

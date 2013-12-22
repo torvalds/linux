@@ -29,19 +29,16 @@
 #include <linux/export.h>
 #include "wusbhc.h"
 
-static void wusbhc_set_gtk_callback(struct urb *urb);
-static void wusbhc_gtk_rekey_done_work(struct work_struct *work);
+static void wusbhc_gtk_rekey_work(struct work_struct *work);
 
 int wusbhc_sec_create(struct wusbhc *wusbhc)
 {
 	wusbhc->gtk.descr.bLength = sizeof(wusbhc->gtk.descr) + sizeof(wusbhc->gtk.data);
 	wusbhc->gtk.descr.bDescriptorType = USB_DT_KEY;
 	wusbhc->gtk.descr.bReserved = 0;
+	wusbhc->gtk_index = 0;
 
-	wusbhc->gtk_index = wusb_key_index(0, WUSB_KEY_INDEX_TYPE_GTK,
-					   WUSB_KEY_INDEX_ORIGINATOR_HOST);
-
-	INIT_WORK(&wusbhc->gtk_rekey_done_work, wusbhc_gtk_rekey_done_work);
+	INIT_WORK(&wusbhc->gtk_rekey_work, wusbhc_gtk_rekey_work);
 
 	return 0;
 }
@@ -113,7 +110,7 @@ int wusbhc_sec_start(struct wusbhc *wusbhc)
 	wusbhc_generate_gtk(wusbhc);
 
 	result = wusbhc->set_gtk(wusbhc, wusbhc->gtk_tkid,
-				 &wusbhc->gtk.descr.bKeyData, key_size);
+				&wusbhc->gtk.descr.bKeyData, key_size);
 	if (result < 0)
 		dev_err(wusbhc->dev, "cannot set GTK for the host: %d\n",
 			result);
@@ -129,7 +126,7 @@ int wusbhc_sec_start(struct wusbhc *wusbhc)
  */
 void wusbhc_sec_stop(struct wusbhc *wusbhc)
 {
-	cancel_work_sync(&wusbhc->gtk_rekey_done_work);
+	cancel_work_sync(&wusbhc->gtk_rekey_work);
 }
 
 
@@ -185,12 +182,14 @@ static int wusb_dev_set_encryption(struct usb_device *usb_dev, int value)
 static int wusb_dev_set_gtk(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 {
 	struct usb_device *usb_dev = wusb_dev->usb_dev;
+	u8 key_index = wusb_key_index(wusbhc->gtk_index,
+		WUSB_KEY_INDEX_TYPE_GTK, WUSB_KEY_INDEX_ORIGINATOR_HOST);
 
 	return usb_control_msg(
 		usb_dev, usb_sndctrlpipe(usb_dev, 0),
 		USB_REQ_SET_DESCRIPTOR,
 		USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-		USB_DT_KEY << 8 | wusbhc->gtk_index, 0,
+		USB_DT_KEY << 8 | key_index, 0,
 		&wusbhc->gtk.descr, wusbhc->gtk.descr.bLength,
 		1000);
 }
@@ -520,24 +519,55 @@ error_kzalloc:
  * Once all connected and authenticated devices have received the new
  * GTK, switch the host to using it.
  */
-static void wusbhc_gtk_rekey_done_work(struct work_struct *work)
+static void wusbhc_gtk_rekey_work(struct work_struct *work)
 {
-	struct wusbhc *wusbhc = container_of(work, struct wusbhc, gtk_rekey_done_work);
+	struct wusbhc *wusbhc = container_of(work,
+					struct wusbhc, gtk_rekey_work);
 	size_t key_size = sizeof(wusbhc->gtk.data);
+	int port_idx;
+	struct wusb_dev *wusb_dev, *wusb_dev_next;
+	LIST_HEAD(rekey_list);
 
 	mutex_lock(&wusbhc->mutex);
+	/* generate the new key */
+	wusbhc_generate_gtk(wusbhc);
+	/* roll the gtk index. */
+	wusbhc->gtk_index = (wusbhc->gtk_index + 1) % (WUSB_KEY_INDEX_MAX + 1);
+	/*
+	 * Save all connected devices on a list while holding wusbhc->mutex and
+	 * take a reference to each one.  Then submit the set key request to
+	 * them after releasing the lock in order to avoid a deadlock.
+	 */
+	for (port_idx = 0; port_idx < wusbhc->ports_max; port_idx++) {
+		wusb_dev = wusbhc->port[port_idx].wusb_dev;
+		if (!wusb_dev || !wusb_dev->usb_dev
+			|| !wusb_dev->usb_dev->authenticated)
+			continue;
 
-	if (--wusbhc->pending_set_gtks == 0)
-		wusbhc->set_gtk(wusbhc, wusbhc->gtk_tkid, &wusbhc->gtk.descr.bKeyData, key_size);
-
+		wusb_dev_get(wusb_dev);
+		list_add_tail(&wusb_dev->rekey_node, &rekey_list);
+	}
 	mutex_unlock(&wusbhc->mutex);
-}
 
-static void wusbhc_set_gtk_callback(struct urb *urb)
-{
-	struct wusbhc *wusbhc = urb->context;
+	/* Submit the rekey requests without holding wusbhc->mutex. */
+	list_for_each_entry_safe(wusb_dev, wusb_dev_next, &rekey_list,
+		rekey_node) {
+		list_del_init(&wusb_dev->rekey_node);
+		dev_dbg(&wusb_dev->usb_dev->dev, "%s: rekey device at port %d\n",
+			__func__, wusb_dev->port_idx);
 
-	queue_work(wusbd, &wusbhc->gtk_rekey_done_work);
+		if (wusb_dev_set_gtk(wusbhc, wusb_dev) < 0) {
+			dev_err(&wusb_dev->usb_dev->dev, "%s: rekey device at port %d failed\n",
+				__func__, wusb_dev->port_idx);
+		}
+		wusb_dev_put(wusb_dev);
+	}
+
+	/* Switch the host controller to use the new GTK. */
+	mutex_lock(&wusbhc->mutex);
+	wusbhc->set_gtk(wusbhc, wusbhc->gtk_tkid,
+		&wusbhc->gtk.descr.bKeyData, key_size);
+	mutex_unlock(&wusbhc->mutex);
 }
 
 /**
@@ -553,26 +583,12 @@ static void wusbhc_set_gtk_callback(struct urb *urb)
  */
 void wusbhc_gtk_rekey(struct wusbhc *wusbhc)
 {
-	static const size_t key_size = sizeof(wusbhc->gtk.data);
-	int p;
-
-	wusbhc_generate_gtk(wusbhc);
-
-	for (p = 0; p < wusbhc->ports_max; p++) {
-		struct wusb_dev *wusb_dev;
-
-		wusb_dev = wusbhc->port[p].wusb_dev;
-		if (!wusb_dev || !wusb_dev->usb_dev || !wusb_dev->usb_dev->authenticated)
-			continue;
-
-		usb_fill_control_urb(wusb_dev->set_gtk_urb, wusb_dev->usb_dev,
-				     usb_sndctrlpipe(wusb_dev->usb_dev, 0),
-				     (void *)wusb_dev->set_gtk_req,
-				     &wusbhc->gtk.descr, wusbhc->gtk.descr.bLength,
-				     wusbhc_set_gtk_callback, wusbhc);
-		if (usb_submit_urb(wusb_dev->set_gtk_urb, GFP_KERNEL) == 0)
-			wusbhc->pending_set_gtks++;
-	}
-	if (wusbhc->pending_set_gtks == 0)
-		wusbhc->set_gtk(wusbhc, wusbhc->gtk_tkid, &wusbhc->gtk.descr.bKeyData, key_size);
+	/*
+	 * We need to submit a URB to the downstream WUSB devices in order to
+	 * change the group key.  This can't be done while holding the
+	 * wusbhc->mutex since that is also taken in the urb_enqueue routine
+	 * and will cause a deadlock.  Instead, queue a work item to do
+	 * it when the lock is not held
+	 */
+	queue_work(wusbd, &wusbhc->gtk_rekey_work);
 }

@@ -1134,7 +1134,7 @@ static int sep_crypto_block_data(struct ablkcipher_request *req)
 
 	if (int_error < 0) {
 		dev_warn(&ta_ctx->sep_used->pdev->dev, "oddball page error\n");
-		return -ENOMEM;
+		return int_error;
 	} else if (int_error == 1) {
 		ta_ctx->src_sg = new_sg;
 		ta_ctx->src_sg_hold = new_sg;
@@ -1149,7 +1149,7 @@ static int sep_crypto_block_data(struct ablkcipher_request *req)
 	if (int_error < 0) {
 		dev_warn(&ta_ctx->sep_used->pdev->dev, "walk phys error %x\n",
 			int_error);
-		return -ENOMEM;
+		return int_error;
 	} else if (int_error == 1) {
 		ta_ctx->dst_sg = new_sg;
 		ta_ctx->dst_sg_hold = new_sg;

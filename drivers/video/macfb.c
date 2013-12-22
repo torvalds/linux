@@ -913,8 +913,7 @@ static int __init macfb_init(void)
 	if (err)
 		goto fail_dealloc;
 
-	pr_info("fb%d: %s frame buffer device\n",
-	        fb_info.node, fb_info.fix.id);
+	fb_info(&fb_info, "%s frame buffer device\n", fb_info.fix.id);
 
 	return 0;
 

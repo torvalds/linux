@@ -51,7 +51,7 @@ static const struct hc_driver ehci_octeon_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -116,8 +116,10 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 	 * We can DMA from anywhere. But the descriptors must be in
 	 * the lower 4GB.
 	 */
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	pdev->dev.dma_mask = &ehci_octeon_dma_mask;
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	hcd = usb_create_hcd(&ehci_octeon_hc_driver, &pdev->dev, "octeon");
 	if (!hcd)

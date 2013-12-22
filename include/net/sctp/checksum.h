@@ -42,56 +42,38 @@
 #include <linux/types.h>
 #include <net/sctp/sctp.h>
 #include <linux/crc32c.h>
+#include <linux/crc32.h>
 
-static inline __u32 sctp_crc32c(__u32 crc, u8 *buffer, u16 length)
+static inline __wsum sctp_csum_update(const void *buff, int len, __wsum sum)
 {
-	return crc32c(crc, buffer, length);
-}
-
-static inline __u32 sctp_start_cksum(__u8 *buffer, __u16 length)
-{
-	__u32 crc = ~(__u32)0;
-	__u8  zero[sizeof(__u32)] = {0};
-
-	/* Optimize this routine to be SCTP specific, knowing how
-	 * to skip the checksum field of the SCTP header.
+	/* This uses the crypto implementation of crc32c, which is either
+	 * implemented w/ hardware support or resolves to __crc32c_le().
 	 */
-
-	/* Calculate CRC up to the checksum. */
-	crc = sctp_crc32c(crc, buffer, sizeof(struct sctphdr) - sizeof(__u32));
-
-	/* Skip checksum field of the header. */
-	crc = sctp_crc32c(crc, zero, sizeof(__u32));
-
-	/* Calculate the rest of the CRC. */
-	crc = sctp_crc32c(crc, &buffer[sizeof(struct sctphdr)],
-			    length - sizeof(struct sctphdr));
-	return crc;
+	return crc32c(sum, buff, len);
 }
 
-static inline __u32 sctp_update_cksum(__u8 *buffer, __u16 length, __u32 crc32)
+static inline __wsum sctp_csum_combine(__wsum csum, __wsum csum2,
+				       int offset, int len)
 {
-	return sctp_crc32c(crc32, buffer, length);
+	return __crc32c_le_combine(csum, csum2, len);
 }
 
-static inline __le32 sctp_end_cksum(__u32 crc32)
-{
-	return cpu_to_le32(~crc32);
-}
-
-/* Calculate the CRC32C checksum of an SCTP packet.  */
 static inline __le32 sctp_compute_cksum(const struct sk_buff *skb,
 					unsigned int offset)
 {
-	const struct sk_buff *iter;
+	struct sctphdr *sh = sctp_hdr(skb);
+        __le32 ret, old = sh->checksum;
+	const struct skb_checksum_ops ops = {
+		.update  = sctp_csum_update,
+		.combine = sctp_csum_combine,
+	};
 
-	__u32 crc32 = sctp_start_cksum(skb->data + offset,
-				       skb_headlen(skb) - offset);
-	skb_walk_frags(skb, iter)
-		crc32 = sctp_update_cksum((__u8 *) iter->data,
-					  skb_headlen(iter), crc32);
+	sh->checksum = 0;
+	ret = cpu_to_le32(~__skb_checksum(skb, offset, skb->len - offset,
+					  ~(__u32)0, &ops));
+	sh->checksum = old;
 
-	return sctp_end_cksum(crc32);
+	return ret;
 }
 
 #endif /* __sctp_checksum_h__ */

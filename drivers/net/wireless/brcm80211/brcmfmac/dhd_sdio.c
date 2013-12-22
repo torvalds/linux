@@ -275,11 +275,6 @@ struct rte_console {
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
 
-#define BRCMF_SDIO_FW_NAME	"brcm/brcmfmac-sdio.bin"
-#define BRCMF_SDIO_NV_NAME	"brcm/brcmfmac-sdio.txt"
-MODULE_FIRMWARE(BRCMF_SDIO_FW_NAME);
-MODULE_FIRMWARE(BRCMF_SDIO_NV_NAME);
-
 #define BRCMF_IDLE_IMMEDIATE	(-1)	/* Enter idle immediately */
 #define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
 					 * when idle
@@ -454,9 +449,6 @@ struct brcmf_sdio {
 	struct work_struct datawork;
 	atomic_t dpc_tskcnt;
 
-	const struct firmware *firmware;
-	u32 fw_ptr;
-
 	bool txoff;		/* Transmit flow-controlled */
 	struct brcmf_sdio_count sdcnt;
 	bool sr_enabled; /* SaveRestore enabled */
@@ -492,6 +484,100 @@ enum brcmf_sdio_frmtype {
 	BRCMF_SDIO_FT_SUPER,
 	BRCMF_SDIO_FT_SUB,
 };
+
+#define BCM43143_FIRMWARE_NAME		"brcm/brcmfmac43143-sdio.bin"
+#define BCM43143_NVRAM_NAME		"brcm/brcmfmac43143-sdio.txt"
+#define BCM43241B0_FIRMWARE_NAME	"brcm/brcmfmac43241b0-sdio.bin"
+#define BCM43241B0_NVRAM_NAME		"brcm/brcmfmac43241b0-sdio.txt"
+#define BCM43241B4_FIRMWARE_NAME	"brcm/brcmfmac43241b4-sdio.bin"
+#define BCM43241B4_NVRAM_NAME		"brcm/brcmfmac43241b4-sdio.txt"
+#define BCM4329_FIRMWARE_NAME		"brcm/brcmfmac4329-sdio.bin"
+#define BCM4329_NVRAM_NAME		"brcm/brcmfmac4329-sdio.txt"
+#define BCM4330_FIRMWARE_NAME		"brcm/brcmfmac4330-sdio.bin"
+#define BCM4330_NVRAM_NAME		"brcm/brcmfmac4330-sdio.txt"
+#define BCM4334_FIRMWARE_NAME		"brcm/brcmfmac4334-sdio.bin"
+#define BCM4334_NVRAM_NAME		"brcm/brcmfmac4334-sdio.txt"
+#define BCM4335_FIRMWARE_NAME		"brcm/brcmfmac4335-sdio.bin"
+#define BCM4335_NVRAM_NAME		"brcm/brcmfmac4335-sdio.txt"
+
+MODULE_FIRMWARE(BCM43143_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM43143_NVRAM_NAME);
+MODULE_FIRMWARE(BCM43241B0_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM43241B0_NVRAM_NAME);
+MODULE_FIRMWARE(BCM43241B4_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM43241B4_NVRAM_NAME);
+MODULE_FIRMWARE(BCM4329_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM4329_NVRAM_NAME);
+MODULE_FIRMWARE(BCM4330_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM4330_NVRAM_NAME);
+MODULE_FIRMWARE(BCM4334_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM4334_NVRAM_NAME);
+MODULE_FIRMWARE(BCM4335_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM4335_NVRAM_NAME);
+
+struct brcmf_firmware_names {
+	u32 chipid;
+	u32 revmsk;
+	const char *bin;
+	const char *nv;
+};
+
+enum brcmf_firmware_type {
+	BRCMF_FIRMWARE_BIN,
+	BRCMF_FIRMWARE_NVRAM
+};
+
+#define BRCMF_FIRMWARE_NVRAM(name) \
+	name ## _FIRMWARE_NAME, name ## _NVRAM_NAME
+
+static const struct brcmf_firmware_names brcmf_fwname_data[] = {
+	{ BCM43143_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43143) },
+	{ BCM43241_CHIP_ID, 0x0000001F, BRCMF_FIRMWARE_NVRAM(BCM43241B0) },
+	{ BCM43241_CHIP_ID, 0xFFFFFFE0, BRCMF_FIRMWARE_NVRAM(BCM43241B4) },
+	{ BCM4329_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4329) },
+	{ BCM4330_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4330) },
+	{ BCM4334_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4334) },
+	{ BCM4335_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4335) }
+};
+
+
+static const struct firmware *brcmf_sdbrcm_get_fw(struct brcmf_sdio *bus,
+						  enum brcmf_firmware_type type)
+{
+	const struct firmware *fw;
+	const char *name;
+	int err, i;
+
+	for (i = 0; i < ARRAY_SIZE(brcmf_fwname_data); i++) {
+		if (brcmf_fwname_data[i].chipid == bus->ci->chip &&
+		    brcmf_fwname_data[i].revmsk & BIT(bus->ci->chiprev)) {
+			switch (type) {
+			case BRCMF_FIRMWARE_BIN:
+				name = brcmf_fwname_data[i].bin;
+				break;
+			case BRCMF_FIRMWARE_NVRAM:
+				name = brcmf_fwname_data[i].nv;
+				break;
+			default:
+				brcmf_err("invalid firmware type (%d)\n", type);
+				return NULL;
+			}
+			goto found;
+		}
+	}
+	brcmf_err("Unknown chipid %d [%d]\n",
+		  bus->ci->chip, bus->ci->chiprev);
+	return NULL;
+
+found:
+	err = request_firmware(&fw, name, &bus->sdiodev->func[2]->dev);
+	if ((err) || (!fw)) {
+		brcmf_err("fail to request firmware %s (%d)\n", name, err);
+		return NULL;
+	}
+
+	return fw;
+}
 
 static void pkt_align(struct sk_buff *p, int len, int align)
 {
@@ -1061,6 +1147,8 @@ static int brcmf_sdio_hdparse(struct brcmf_sdio *bus, u8 *header,
 	u8 rx_seq, fc, tx_seq_max;
 	u32 swheader;
 
+	trace_brcmf_sdpcm_hdr(false, header);
+
 	/* hw header */
 	len = get_unaligned_le16(header);
 	checksum = get_unaligned_le16(header + sizeof(u16));
@@ -1183,6 +1271,7 @@ static void brcmf_sdio_hdpack(struct brcmf_sdio *bus, u8 *header,
 		     SDPCM_DOFFSET_MASK;
 	*(((__le32 *)header) + 1) = cpu_to_le32(sw_header);
 	*(((__le32 *)header) + 2) = 0;
+	trace_brcmf_sdpcm_hdr(true, header);
 }
 
 static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
@@ -1303,7 +1392,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		sdio_claim_host(bus->sdiodev->func[1]);
 		errcode = brcmf_sdcard_recv_chain(bus->sdiodev,
 				bus->sdiodev->sbwad,
-				SDIO_FUNC_2, F2SYNC, &bus->glom);
+				SDIO_FUNC_2, F2SYNC, &bus->glom, dlen);
 		sdio_release_host(bus->sdiodev->func[1]);
 		bus->sdcnt.f2rxdata++;
 
@@ -1406,13 +1495,12 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 					   bus->glom.qlen, pfirst, pfirst->data,
 					   pfirst->len, pfirst->next,
 					   pfirst->prev);
+			skb_unlink(pfirst, &bus->glom);
+			brcmf_rx_frame(bus->sdiodev->dev, pfirst);
+			bus->sdcnt.rxglompkts++;
 		}
-		/* sent any remaining packets up */
-		if (bus->glom.qlen)
-			brcmf_rx_frames(bus->sdiodev->dev, &bus->glom);
 
 		bus->sdcnt.rxglomframes++;
-		bus->sdcnt.rxglompkts += bus->glom.qlen;
 	}
 	return num;
 }
@@ -1557,7 +1645,6 @@ static void brcmf_pad(struct brcmf_sdio *bus, u16 *pad, u16 *rdlen)
 static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 {
 	struct sk_buff *pkt;		/* Packet for event or data frames */
-	struct sk_buff_head pktlist;	/* needed for bus interface */
 	u16 pad;		/* Number of pad bytes to read */
 	uint rxleft = 0;	/* Remaining number of frames allowed */
 	int ret;		/* Return code from calls */
@@ -1759,9 +1846,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 			continue;
 		}
 
-		skb_queue_head_init(&pktlist);
-		skb_queue_tail(&pktlist, pkt);
-		brcmf_rx_frames(bus->sdiodev->dev, &pktlist);
+		brcmf_rx_frame(bus->sdiodev->dev, pkt);
 	}
 
 	rxcount = maxframes - rxleft;
@@ -1786,10 +1871,65 @@ brcmf_sdbrcm_wait_event_wakeup(struct brcmf_sdio *bus)
 	return;
 }
 
+/**
+ * struct brcmf_skbuff_cb reserves first two bytes in sk_buff::cb for
+ * bus layer usage.
+ */
 /* flag marking a dummy skb added for DMA alignment requirement */
-#define DUMMY_SKB_FLAG		0x10000
+#define ALIGN_SKB_FLAG		0x8000
 /* bit mask of data length chopped from the previous packet */
-#define DUMMY_SKB_CHOP_LEN_MASK	0xffff
+#define ALIGN_SKB_CHOP_LEN_MASK	0x7fff
+
+static int brcmf_sdio_txpkt_prep_sg(struct brcmf_sdio_dev *sdiodev,
+				    struct sk_buff_head *pktq,
+				    struct sk_buff *pkt, uint chan)
+{
+	struct sk_buff *pkt_pad;
+	u16 tail_pad, tail_chop, sg_align;
+	unsigned int blksize;
+	u8 *dat_buf;
+	int ntail;
+
+	blksize = sdiodev->func[SDIO_FUNC_2]->cur_blksize;
+	sg_align = 4;
+	if (sdiodev->pdata && sdiodev->pdata->sd_sgentry_align > 4)
+		sg_align = sdiodev->pdata->sd_sgentry_align;
+	/* sg entry alignment should be a divisor of block size */
+	WARN_ON(blksize % sg_align);
+
+	/* Check tail padding */
+	pkt_pad = NULL;
+	tail_chop = pkt->len % sg_align;
+	tail_pad = sg_align - tail_chop;
+	tail_pad += blksize - (pkt->len + tail_pad) % blksize;
+	if (skb_tailroom(pkt) < tail_pad && pkt->len > blksize) {
+		pkt_pad = brcmu_pkt_buf_get_skb(tail_pad + tail_chop);
+		if (pkt_pad == NULL)
+			return -ENOMEM;
+		memcpy(pkt_pad->data,
+		       pkt->data + pkt->len - tail_chop,
+		       tail_chop);
+		*(u32 *)(pkt_pad->cb) = ALIGN_SKB_FLAG + tail_chop;
+		skb_trim(pkt, pkt->len - tail_chop);
+		__skb_queue_after(pktq, pkt, pkt_pad);
+	} else {
+		ntail = pkt->data_len + tail_pad -
+			(pkt->end - pkt->tail);
+		if (skb_cloned(pkt) || ntail > 0)
+			if (pskb_expand_head(pkt, 0, ntail, GFP_ATOMIC))
+				return -ENOMEM;
+		if (skb_linearize(pkt))
+			return -ENOMEM;
+		dat_buf = (u8 *)(pkt->data);
+		__skb_put(pkt, tail_pad);
+	}
+
+	if (pkt_pad)
+		return pkt->len + tail_chop;
+	else
+		return pkt->len - tail_pad;
+}
+
 /**
  * brcmf_sdio_txpkt_prep - packet preparation for transmit
  * @bus: brcmf_sdio structure pointer
@@ -1806,24 +1946,16 @@ static int
 brcmf_sdio_txpkt_prep(struct brcmf_sdio *bus, struct sk_buff_head *pktq,
 		      uint chan)
 {
-	u16 head_pad, tail_pad, tail_chop, head_align, sg_align;
-	int ntail;
-	struct sk_buff *pkt_next, *pkt_new;
+	u16 head_pad, head_align;
+	struct sk_buff *pkt_next;
 	u8 *dat_buf;
-	unsigned blksize = bus->sdiodev->func[SDIO_FUNC_2]->cur_blksize;
+	int err;
 	struct brcmf_sdio_hdrinfo hd_info = {0};
 
 	/* SDIO ADMA requires at least 32 bit alignment */
 	head_align = 4;
-	sg_align = 4;
-	if (bus->sdiodev->pdata) {
-		head_align = bus->sdiodev->pdata->sd_head_align > 4 ?
-			     bus->sdiodev->pdata->sd_head_align : 4;
-		sg_align = bus->sdiodev->pdata->sd_sgentry_align > 4 ?
-			   bus->sdiodev->pdata->sd_sgentry_align : 4;
-	}
-	/* sg entry alignment should be a divisor of block size */
-	WARN_ON(blksize % sg_align);
+	if (bus->sdiodev->pdata && bus->sdiodev->pdata->sd_head_align > 4)
+		head_align = bus->sdiodev->pdata->sd_head_align;
 
 	pkt_next = pktq->next;
 	dat_buf = (u8 *)(pkt_next->data);
@@ -1842,40 +1974,20 @@ brcmf_sdio_txpkt_prep(struct brcmf_sdio *bus, struct sk_buff_head *pktq,
 		memset(dat_buf, 0, head_pad + bus->tx_hdrlen);
 	}
 
-	/* Check tail padding */
-	pkt_new = NULL;
-	tail_chop = pkt_next->len % sg_align;
-	tail_pad = sg_align - tail_chop;
-	tail_pad += blksize - (pkt_next->len + tail_pad) % blksize;
-	if (skb_tailroom(pkt_next) < tail_pad && pkt_next->len > blksize) {
-		pkt_new = brcmu_pkt_buf_get_skb(tail_pad + tail_chop);
-		if (pkt_new == NULL)
-			return -ENOMEM;
-		memcpy(pkt_new->data,
-		       pkt_next->data + pkt_next->len - tail_chop,
-		       tail_chop);
-		*(u32 *)(pkt_new->cb) = DUMMY_SKB_FLAG + tail_chop;
-		skb_trim(pkt_next, pkt_next->len - tail_chop);
-		__skb_queue_after(pktq, pkt_next, pkt_new);
+	if (bus->sdiodev->sg_support && pktq->qlen > 1) {
+		err = brcmf_sdio_txpkt_prep_sg(bus->sdiodev, pktq,
+					       pkt_next, chan);
+		if (err < 0)
+			return err;
+		hd_info.len = (u16)err;
 	} else {
-		ntail = pkt_next->data_len + tail_pad -
-			(pkt_next->end - pkt_next->tail);
-		if (skb_cloned(pkt_next) || ntail > 0)
-			if (pskb_expand_head(pkt_next, 0, ntail, GFP_ATOMIC))
-				return -ENOMEM;
-		if (skb_linearize(pkt_next))
-			return -ENOMEM;
-		dat_buf = (u8 *)(pkt_next->data);
-		__skb_put(pkt_next, tail_pad);
+		hd_info.len = pkt_next->len;
 	}
 
-	/* Now prep the header */
-	if (pkt_new)
-		hd_info.len = pkt_next->len + tail_chop;
-	else
-		hd_info.len = pkt_next->len - tail_pad;
 	hd_info.channel = chan;
 	hd_info.dat_offset = head_pad + bus->tx_hdrlen;
+
+	/* Now fill the header */
 	brcmf_sdio_hdpack(bus, dat_buf, &hd_info);
 
 	if (BRCMF_BYTES_ON() &&
@@ -1908,8 +2020,8 @@ brcmf_sdio_txpkt_postp(struct brcmf_sdio *bus, struct sk_buff_head *pktq)
 
 	skb_queue_walk_safe(pktq, pkt_next, tmp) {
 		dummy_flags = *(u32 *)(pkt_next->cb);
-		if (dummy_flags & DUMMY_SKB_FLAG) {
-			chop_len = dummy_flags & DUMMY_SKB_CHOP_LEN_MASK;
+		if (dummy_flags & ALIGN_SKB_FLAG) {
+			chop_len = dummy_flags & ALIGN_SKB_CHOP_LEN_MASK;
 			if (chop_len) {
 				pkt_prev = pkt_next->prev;
 				memcpy(pkt_prev->data + pkt_prev->len,
@@ -3037,69 +3149,43 @@ static bool brcmf_sdbrcm_download_state(struct brcmf_sdio *bus, bool enter)
 	return true;
 }
 
-static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_sdio *bus)
-{
-	if (bus->firmware->size < bus->fw_ptr + len)
-		len = bus->firmware->size - bus->fw_ptr;
-
-	memcpy(buf, &bus->firmware->data[bus->fw_ptr], len);
-	bus->fw_ptr += len;
-	return len;
-}
-
 static int brcmf_sdbrcm_download_code_file(struct brcmf_sdio *bus)
 {
+	const struct firmware *fw;
+	int err;
 	int offset;
-	uint len;
-	u8 *memblock = NULL, *memptr;
-	int ret;
-	u8 idx;
+	int address;
+	int len;
 
-	brcmf_dbg(INFO, "Enter\n");
+	fw = brcmf_sdbrcm_get_fw(bus, BRCMF_FIRMWARE_BIN);
+	if (fw == NULL)
+		return -ENOENT;
 
-	ret = request_firmware(&bus->firmware, BRCMF_SDIO_FW_NAME,
-			       &bus->sdiodev->func[2]->dev);
-	if (ret) {
-		brcmf_err("Fail to request firmware %d\n", ret);
-		return ret;
-	}
-	bus->fw_ptr = 0;
+	if (brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_ARM_CR4) !=
+	    BRCMF_MAX_CORENUM)
+		memcpy(&bus->ci->rst_vec, fw->data, sizeof(bus->ci->rst_vec));
 
-	memptr = memblock = kmalloc(MEMBLOCK + BRCMF_SDALIGN, GFP_ATOMIC);
-	if (memblock == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
-	if ((u32)(unsigned long)memblock % BRCMF_SDALIGN)
-		memptr += (BRCMF_SDALIGN -
-			   ((u32)(unsigned long)memblock % BRCMF_SDALIGN));
-
-	offset = bus->ci->rambase;
-
-	/* Download image */
-	len = brcmf_sdbrcm_get_image((char *)memptr, MEMBLOCK, bus);
-	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_ARM_CR4);
-	if (BRCMF_MAX_CORENUM != idx)
-		memcpy(&bus->ci->rst_vec, memptr, sizeof(bus->ci->rst_vec));
-	while (len) {
-		ret = brcmf_sdio_ramrw(bus->sdiodev, true, offset, memptr, len);
-		if (ret) {
+	err = 0;
+	offset = 0;
+	address = bus->ci->rambase;
+	while (offset < fw->size) {
+		len = ((offset + MEMBLOCK) < fw->size) ? MEMBLOCK :
+		      fw->size - offset;
+		err = brcmf_sdio_ramrw(bus->sdiodev, true, address,
+				       (u8 *)&fw->data[offset], len);
+		if (err) {
 			brcmf_err("error %d on writing %d membytes at 0x%08x\n",
-				  ret, MEMBLOCK, offset);
-			goto err;
+				  err, len, address);
+			goto failure;
 		}
-
-		offset += MEMBLOCK;
-		len = brcmf_sdbrcm_get_image((char *)memptr, MEMBLOCK, bus);
+		offset += len;
+		address += len;
 	}
 
-err:
-	kfree(memblock);
+failure:
+	release_firmware(fw);
 
-	release_firmware(bus->firmware);
-	bus->fw_ptr = 0;
-
-	return ret;
+	return err;
 }
 
 /*
@@ -3111,7 +3197,8 @@ err:
  * by two NULs.
 */
 
-static int brcmf_process_nvram_vars(struct brcmf_sdio *bus)
+static int brcmf_process_nvram_vars(struct brcmf_sdio *bus,
+				    const struct firmware *nv)
 {
 	char *varbuf;
 	char *dp;
@@ -3120,12 +3207,12 @@ static int brcmf_process_nvram_vars(struct brcmf_sdio *bus)
 	int ret = 0;
 	uint buf_len, n, len;
 
-	len = bus->firmware->size;
+	len = nv->size;
 	varbuf = vmalloc(len);
 	if (!varbuf)
 		return -ENOMEM;
 
-	memcpy(varbuf, bus->firmware->data, len);
+	memcpy(varbuf, nv->data, len);
 	dp = varbuf;
 
 	findNewline = false;
@@ -3177,18 +3264,16 @@ err:
 
 static int brcmf_sdbrcm_download_nvram(struct brcmf_sdio *bus)
 {
+	const struct firmware *nv;
 	int ret;
 
-	ret = request_firmware(&bus->firmware, BRCMF_SDIO_NV_NAME,
-			       &bus->sdiodev->func[2]->dev);
-	if (ret) {
-		brcmf_err("Fail to request nvram %d\n", ret);
-		return ret;
-	}
+	nv = brcmf_sdbrcm_get_fw(bus, BRCMF_FIRMWARE_NVRAM);
+	if (nv == NULL)
+		return -ENOENT;
 
-	ret = brcmf_process_nvram_vars(bus);
+	ret = brcmf_process_nvram_vars(bus, nv);
 
-	release_firmware(bus->firmware);
+	release_firmware(nv);
 
 	return ret;
 }

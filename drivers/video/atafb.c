@@ -3246,11 +3246,8 @@ int __init atafb_init(void)
 		return -EINVAL;
 	}
 
-	// FIXME: mode needs setting!
-	//printk("fb%d: %s frame buffer device, using %dK of video memory\n",
-	//       fb_info.node, fb_info.mode->name, screen_len>>10);
-	printk("fb%d: frame buffer device, using %dK of video memory\n",
-	       fb_info.node, screen_len >> 10);
+	fb_info(&fb_info, "frame buffer device, using %dK of video memory\n",
+		screen_len >> 10);
 
 	/* TODO: This driver cannot be unloaded yet */
 	return 0;

@@ -65,6 +65,7 @@
 #include <linux/acpi.h>
 #include <linux/acpi_dma.h>
 #include <linux/of_dma.h>
+#include <linux/mempool.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
 static DEFINE_IDR(dma_idr);
@@ -901,98 +902,132 @@ void dma_async_device_unregister(struct dma_device *device)
 }
 EXPORT_SYMBOL(dma_async_device_unregister);
 
-/**
- * dma_async_memcpy_buf_to_buf - offloaded copy between virtual addresses
- * @chan: DMA channel to offload copy to
- * @dest: destination address (virtual)
- * @src: source address (virtual)
- * @len: length
- *
- * Both @dest and @src must be mappable to a bus address according to the
- * DMA mapping API rules for streaming mappings.
- * Both @dest and @src must stay memory resident (kernel memory or locked
- * user space pages).
- */
-dma_cookie_t
-dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
-			void *src, size_t len)
+struct dmaengine_unmap_pool {
+	struct kmem_cache *cache;
+	const char *name;
+	mempool_t *pool;
+	size_t size;
+};
+
+#define __UNMAP_POOL(x) { .size = x, .name = "dmaengine-unmap-" __stringify(x) }
+static struct dmaengine_unmap_pool unmap_pool[] = {
+	__UNMAP_POOL(2),
+	#if IS_ENABLED(CONFIG_DMA_ENGINE_RAID)
+	__UNMAP_POOL(16),
+	__UNMAP_POOL(128),
+	__UNMAP_POOL(256),
+	#endif
+};
+
+static struct dmaengine_unmap_pool *__get_unmap_pool(int nr)
 {
-	struct dma_device *dev = chan->device;
-	struct dma_async_tx_descriptor *tx;
-	dma_addr_t dma_dest, dma_src;
-	dma_cookie_t cookie;
-	unsigned long flags;
+	int order = get_count_order(nr);
 
-	dma_src = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
-	dma_dest = dma_map_single(dev->dev, dest, len, DMA_FROM_DEVICE);
-	flags = DMA_CTRL_ACK |
-		DMA_COMPL_SRC_UNMAP_SINGLE |
-		DMA_COMPL_DEST_UNMAP_SINGLE;
-	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, flags);
+	switch (order) {
+	case 0 ... 1:
+		return &unmap_pool[0];
+	case 2 ... 4:
+		return &unmap_pool[1];
+	case 5 ... 7:
+		return &unmap_pool[2];
+	case 8:
+		return &unmap_pool[3];
+	default:
+		BUG();
+		return NULL;
+	}
+}
 
-	if (!tx) {
-		dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
-		dma_unmap_single(dev->dev, dma_dest, len, DMA_FROM_DEVICE);
-		return -ENOMEM;
+static void dmaengine_unmap(struct kref *kref)
+{
+	struct dmaengine_unmap_data *unmap = container_of(kref, typeof(*unmap), kref);
+	struct device *dev = unmap->dev;
+	int cnt, i;
+
+	cnt = unmap->to_cnt;
+	for (i = 0; i < cnt; i++)
+		dma_unmap_page(dev, unmap->addr[i], unmap->len,
+			       DMA_TO_DEVICE);
+	cnt += unmap->from_cnt;
+	for (; i < cnt; i++)
+		dma_unmap_page(dev, unmap->addr[i], unmap->len,
+			       DMA_FROM_DEVICE);
+	cnt += unmap->bidi_cnt;
+	for (; i < cnt; i++) {
+		if (unmap->addr[i] == 0)
+			continue;
+		dma_unmap_page(dev, unmap->addr[i], unmap->len,
+			       DMA_BIDIRECTIONAL);
+	}
+	mempool_free(unmap, __get_unmap_pool(cnt)->pool);
+}
+
+void dmaengine_unmap_put(struct dmaengine_unmap_data *unmap)
+{
+	if (unmap)
+		kref_put(&unmap->kref, dmaengine_unmap);
+}
+EXPORT_SYMBOL_GPL(dmaengine_unmap_put);
+
+static void dmaengine_destroy_unmap_pool(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(unmap_pool); i++) {
+		struct dmaengine_unmap_pool *p = &unmap_pool[i];
+
+		if (p->pool)
+			mempool_destroy(p->pool);
+		p->pool = NULL;
+		if (p->cache)
+			kmem_cache_destroy(p->cache);
+		p->cache = NULL;
+	}
+}
+
+static int __init dmaengine_init_unmap_pool(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(unmap_pool); i++) {
+		struct dmaengine_unmap_pool *p = &unmap_pool[i];
+		size_t size;
+
+		size = sizeof(struct dmaengine_unmap_data) +
+		       sizeof(dma_addr_t) * p->size;
+
+		p->cache = kmem_cache_create(p->name, size, 0,
+					     SLAB_HWCACHE_ALIGN, NULL);
+		if (!p->cache)
+			break;
+		p->pool = mempool_create_slab_pool(1, p->cache);
+		if (!p->pool)
+			break;
 	}
 
-	tx->callback = NULL;
-	cookie = tx->tx_submit(tx);
+	if (i == ARRAY_SIZE(unmap_pool))
+		return 0;
 
-	preempt_disable();
-	__this_cpu_add(chan->local->bytes_transferred, len);
-	__this_cpu_inc(chan->local->memcpy_count);
-	preempt_enable();
-
-	return cookie;
+	dmaengine_destroy_unmap_pool();
+	return -ENOMEM;
 }
-EXPORT_SYMBOL(dma_async_memcpy_buf_to_buf);
 
-/**
- * dma_async_memcpy_buf_to_pg - offloaded copy from address to page
- * @chan: DMA channel to offload copy to
- * @page: destination page
- * @offset: offset in page to copy to
- * @kdata: source address (virtual)
- * @len: length
- *
- * Both @page/@offset and @kdata must be mappable to a bus address according
- * to the DMA mapping API rules for streaming mappings.
- * Both @page/@offset and @kdata must stay memory resident (kernel memory or
- * locked user space pages)
- */
-dma_cookie_t
-dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
-			unsigned int offset, void *kdata, size_t len)
+struct dmaengine_unmap_data *
+dmaengine_get_unmap_data(struct device *dev, int nr, gfp_t flags)
 {
-	struct dma_device *dev = chan->device;
-	struct dma_async_tx_descriptor *tx;
-	dma_addr_t dma_dest, dma_src;
-	dma_cookie_t cookie;
-	unsigned long flags;
+	struct dmaengine_unmap_data *unmap;
 
-	dma_src = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
-	dma_dest = dma_map_page(dev->dev, page, offset, len, DMA_FROM_DEVICE);
-	flags = DMA_CTRL_ACK | DMA_COMPL_SRC_UNMAP_SINGLE;
-	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, flags);
+	unmap = mempool_alloc(__get_unmap_pool(nr)->pool, flags);
+	if (!unmap)
+		return NULL;
 
-	if (!tx) {
-		dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
-		dma_unmap_page(dev->dev, dma_dest, len, DMA_FROM_DEVICE);
-		return -ENOMEM;
-	}
+	memset(unmap, 0, sizeof(*unmap));
+	kref_init(&unmap->kref);
+	unmap->dev = dev;
 
-	tx->callback = NULL;
-	cookie = tx->tx_submit(tx);
-
-	preempt_disable();
-	__this_cpu_add(chan->local->bytes_transferred, len);
-	__this_cpu_inc(chan->local->memcpy_count);
-	preempt_enable();
-
-	return cookie;
+	return unmap;
 }
-EXPORT_SYMBOL(dma_async_memcpy_buf_to_pg);
+EXPORT_SYMBOL(dmaengine_get_unmap_data);
 
 /**
  * dma_async_memcpy_pg_to_pg - offloaded copy from page to page
@@ -1015,24 +1050,33 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 {
 	struct dma_device *dev = chan->device;
 	struct dma_async_tx_descriptor *tx;
-	dma_addr_t dma_dest, dma_src;
+	struct dmaengine_unmap_data *unmap;
 	dma_cookie_t cookie;
 	unsigned long flags;
 
-	dma_src = dma_map_page(dev->dev, src_pg, src_off, len, DMA_TO_DEVICE);
-	dma_dest = dma_map_page(dev->dev, dest_pg, dest_off, len,
-				DMA_FROM_DEVICE);
+	unmap = dmaengine_get_unmap_data(dev->dev, 2, GFP_NOWAIT);
+	if (!unmap)
+		return -ENOMEM;
+
+	unmap->to_cnt = 1;
+	unmap->from_cnt = 1;
+	unmap->addr[0] = dma_map_page(dev->dev, src_pg, src_off, len,
+				      DMA_TO_DEVICE);
+	unmap->addr[1] = dma_map_page(dev->dev, dest_pg, dest_off, len,
+				      DMA_FROM_DEVICE);
+	unmap->len = len;
 	flags = DMA_CTRL_ACK;
-	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, flags);
+	tx = dev->device_prep_dma_memcpy(chan, unmap->addr[1], unmap->addr[0],
+					 len, flags);
 
 	if (!tx) {
-		dma_unmap_page(dev->dev, dma_src, len, DMA_TO_DEVICE);
-		dma_unmap_page(dev->dev, dma_dest, len, DMA_FROM_DEVICE);
+		dmaengine_unmap_put(unmap);
 		return -ENOMEM;
 	}
 
-	tx->callback = NULL;
+	dma_set_unmap(tx, unmap);
 	cookie = tx->tx_submit(tx);
+	dmaengine_unmap_put(unmap);
 
 	preempt_disable();
 	__this_cpu_add(chan->local->bytes_transferred, len);
@@ -1042,6 +1086,52 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 	return cookie;
 }
 EXPORT_SYMBOL(dma_async_memcpy_pg_to_pg);
+
+/**
+ * dma_async_memcpy_buf_to_buf - offloaded copy between virtual addresses
+ * @chan: DMA channel to offload copy to
+ * @dest: destination address (virtual)
+ * @src: source address (virtual)
+ * @len: length
+ *
+ * Both @dest and @src must be mappable to a bus address according to the
+ * DMA mapping API rules for streaming mappings.
+ * Both @dest and @src must stay memory resident (kernel memory or locked
+ * user space pages).
+ */
+dma_cookie_t
+dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
+			    void *src, size_t len)
+{
+	return dma_async_memcpy_pg_to_pg(chan, virt_to_page(dest),
+					 (unsigned long) dest & ~PAGE_MASK,
+					 virt_to_page(src),
+					 (unsigned long) src & ~PAGE_MASK, len);
+}
+EXPORT_SYMBOL(dma_async_memcpy_buf_to_buf);
+
+/**
+ * dma_async_memcpy_buf_to_pg - offloaded copy from address to page
+ * @chan: DMA channel to offload copy to
+ * @page: destination page
+ * @offset: offset in page to copy to
+ * @kdata: source address (virtual)
+ * @len: length
+ *
+ * Both @page/@offset and @kdata must be mappable to a bus address according
+ * to the DMA mapping API rules for streaming mappings.
+ * Both @page/@offset and @kdata must stay memory resident (kernel memory or
+ * locked user space pages)
+ */
+dma_cookie_t
+dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
+			   unsigned int offset, void *kdata, size_t len)
+{
+	return dma_async_memcpy_pg_to_pg(chan, page, offset,
+					 virt_to_page(kdata),
+					 (unsigned long) kdata & ~PAGE_MASK, len);
+}
+EXPORT_SYMBOL(dma_async_memcpy_buf_to_pg);
 
 void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 	struct dma_chan *chan)
@@ -1062,7 +1152,7 @@ dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 	unsigned long dma_sync_wait_timeout = jiffies + msecs_to_jiffies(5000);
 
 	if (!tx)
-		return DMA_SUCCESS;
+		return DMA_COMPLETE;
 
 	while (tx->cookie == -EBUSY) {
 		if (time_after_eq(jiffies, dma_sync_wait_timeout)) {
@@ -1116,6 +1206,10 @@ EXPORT_SYMBOL_GPL(dma_run_dependencies);
 
 static int __init dma_bus_init(void)
 {
+	int err = dmaengine_init_unmap_pool();
+
+	if (err)
+		return err;
 	return class_register(&dma_devclass);
 }
 arch_initcall(dma_bus_init);

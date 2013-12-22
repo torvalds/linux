@@ -140,6 +140,6 @@ struct brcmu_d11inf {
 	void (*decchspec)(struct brcmu_chan *ch);
 };
 
-extern void brcmu_d11_attach(struct brcmu_d11inf *d11inf);
+void brcmu_d11_attach(struct brcmu_d11inf *d11inf);
 
 #endif	/* _BRCMU_CHANNELS_H_ */

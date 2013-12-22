@@ -179,7 +179,7 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 		pHeadTD = pHeadTD->next;
 	}
 
-	pLastTD->pTDInfo->skb = 0;
+	pLastTD->pTDInfo->skb = NULL;
 	pLastTD->pTDInfo->byFlags = 0;
 
 	pDevice->apCurrTD[TYPE_AC0DMA] = pHeadTD;

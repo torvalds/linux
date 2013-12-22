@@ -139,6 +139,20 @@ static int ad198x_suspend(struct hda_codec *codec)
 }
 #endif
 
+/* follow EAPD via vmaster hook */
+static void ad_vmaster_eapd_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct ad198x_spec *spec = codec->spec;
+
+	if (!spec->eapd_nid)
+		return;
+	if (codec->inv_eapd)
+		enabled = !enabled;
+	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
+				   AC_VERB_SET_EAPD_BTLENABLE,
+				   enabled ? 0x02 : 0x00);
+}
 
 /*
  * Automatic parse of I/O pins from the BIOS configuration
@@ -219,8 +233,14 @@ static int alloc_ad_spec(struct hda_codec *codec)
 static void ad_fixup_inv_jack_detect(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
 {
-	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+	struct ad198x_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		codec->inv_jack_detect = 1;
+		spec->gen.keep_eapd_on = 1;
+		spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		spec->eapd_nid = 0x1b;
+	}
 }
 
 enum {
@@ -320,6 +340,14 @@ static int patch_ad1986a(struct hda_codec *codec)
 {
 	int err;
 	struct ad198x_spec *spec;
+	static hda_nid_t preferred_pairs[] = {
+		0x1a, 0x03,
+		0x1b, 0x03,
+		0x1c, 0x04,
+		0x1d, 0x05,
+		0x1e, 0x03,
+		0
+	};
 
 	err = alloc_ad_spec(codec);
 	if (err < 0)
@@ -340,6 +368,11 @@ static int patch_ad1986a(struct hda_codec *codec)
 	 * So, let's disable the shared stream.
 	 */
 	spec->gen.multiout.no_share_stream = 1;
+	/* give fixed DAC/pin pairs */
+	spec->gen.preferred_dacs = preferred_pairs;
+
+	/* AD1986A can't manage the dynamic pin on/off smoothly */
+	spec->gen.auto_mute_via_amp = 1;
 
 	snd_hda_pick_fixup(codec, ad1986a_fixup_models, ad1986a_fixup_tbl,
 			   ad1986a_fixups);
@@ -464,19 +497,6 @@ static int patch_ad1983(struct hda_codec *codec)
 /*
  * AD1981 HD specific
  */
-
-/* follow EAPD via vmaster hook */
-static void ad_vmaster_eapd_hook(void *private_data, int enabled)
-{
-	struct hda_codec *codec = private_data;
-	struct ad198x_spec *spec = codec->spec;
-
-	if (!spec->eapd_nid)
-		return;
-	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
-				   AC_VERB_SET_EAPD_BTLENABLE,
-				   enabled ? 0x02 : 0x00);
-}
 
 static void ad1981_fixup_hp_eapd(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action)
@@ -957,6 +977,7 @@ static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		spec->gen.vmaster_mute.hook = ad1884_vmaster_hp_gpio_hook;
+		spec->gen.own_eapd_ctl = 1;
 		snd_hda_sequence_write_cache(codec, gpio_init_verbs);
 		break;
 	case HDA_FIXUP_ACT_PROBE:
@@ -965,6 +986,18 @@ static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
 		else
 			spec->eapd_nid = spec->gen.autocfg.speaker_pins[0];
 		break;
+	}
+}
+
+static void ad1884_fixup_thinkpad(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+	struct ad198x_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gen.keep_eapd_on = 1;
+		spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		spec->eapd_nid = 0x12;
 	}
 }
 
@@ -979,6 +1012,7 @@ enum {
 	AD1884_FIXUP_AMP_OVERRIDE,
 	AD1884_FIXUP_HP_EAPD,
 	AD1884_FIXUP_DMIC_COEF,
+	AD1884_FIXUP_THINKPAD,
 	AD1884_FIXUP_HP_TOUCHSMART,
 };
 
@@ -997,6 +1031,12 @@ static const struct hda_fixup ad1884_fixups[] = {
 		.type = HDA_FIXUP_VERBS,
 		.v.verbs = ad1884_dmic_init_verbs,
 	},
+	[AD1884_FIXUP_THINKPAD] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = ad1884_fixup_thinkpad,
+		.chained = true,
+		.chain_id = AD1884_FIXUP_DMIC_COEF,
+	},
 	[AD1884_FIXUP_HP_TOUCHSMART] = {
 		.type = HDA_FIXUP_VERBS,
 		.v.verbs = ad1884_dmic_init_verbs,
@@ -1008,7 +1048,7 @@ static const struct hda_fixup ad1884_fixups[] = {
 static const struct snd_pci_quirk ad1884_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x2a82, "HP Touchsmart", AD1884_FIXUP_HP_TOUCHSMART),
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1884_FIXUP_HP_EAPD),
-	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo Thinkpad", AD1884_FIXUP_DMIC_COEF),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo Thinkpad", AD1884_FIXUP_THINKPAD),
 	{}
 };
 

@@ -1165,7 +1165,7 @@ static int udc_proc_read(struct seq_file *m, void *v)
 				s = "invalid"; break;
 			default:
 				s = "?"; break;
-			}; s; }),
+			} s; }),
 			(tmp & EPxSTATUS_TOGGLE) ? "data1" : "data0",
 			(tmp & EPxSTATUS_SUSPEND) ? " suspend" : "",
 			(tmp & EPxSTATUS_FIFO_DISABLE) ? " disable" : "",
@@ -1701,7 +1701,6 @@ static void goku_remove(struct pci_dev *pdev)
 	if (dev->enabled)
 		pci_disable_device(pdev);
 
-	pci_set_drvdata(pdev, NULL);
 	dev->regs = NULL;
 
 	INFO(dev, "unbind\n");

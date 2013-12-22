@@ -45,6 +45,7 @@ nva3_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info,
 	lM = max(lM, (int)info->vco1.min_m);
 	hM = (info->refclk + info->vco1.min_inputfreq) / info->vco1.min_inputfreq;
 	hM = min(hM, (int)info->vco1.max_m);
+	lM = min(lM, hM);
 
 	for (M = lM; M <= hM; M++) {
 		u32 tmp = freq * *P * M;

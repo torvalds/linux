@@ -394,7 +394,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 
 		} else {
 			// Key Table Full
-			if (!compare_ether_addr(&param->addr[0], pDevice->abyBSSID)) {
+			if (ether_addr_equal(param->addr, pDevice->abyBSSID)) {
 				//DBG_PRN_WLAN03(("return NDIS_STATUS_INVALID_DATA -Key Table Full.2\n"));
 				//spin_unlock_irq(&pDevice->lock);
 				return -EINVAL;

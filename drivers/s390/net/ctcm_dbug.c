@@ -66,7 +66,7 @@ void ctcm_dbf_longtext(enum ctcm_dbf_names dbf_nix, int level, char *fmt, ...)
 	char dbf_txt_buf[64];
 	va_list args;
 
-	if (level > (ctcm_dbf[dbf_nix].id)->level)
+	if (!debug_level_enabled(ctcm_dbf[dbf_nix].id, level))
 		return;
 	va_start(args, fmt);
 	vsnprintf(dbf_txt_buf, sizeof(dbf_txt_buf), fmt, args);

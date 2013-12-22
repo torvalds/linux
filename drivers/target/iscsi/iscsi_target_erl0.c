@@ -757,7 +757,7 @@ int iscsit_check_post_dataout(
 static void iscsit_handle_time2retain_timeout(unsigned long data)
 {
 	struct iscsi_session *sess = (struct iscsi_session *) data;
-	struct iscsi_portal_group *tpg = ISCSI_TPG_S(sess);
+	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 
 	spin_lock_bh(&se_tpg->session_lock);
@@ -785,7 +785,7 @@ static void iscsit_handle_time2retain_timeout(unsigned long data)
 		tiqn->sess_err_stats.last_sess_failure_type =
 				ISCSI_SESS_ERR_CXN_TIMEOUT;
 		tiqn->sess_err_stats.cxn_timeout_errors++;
-		sess->conn_timeout_errors++;
+		atomic_long_inc(&sess->conn_timeout_errors);
 		spin_unlock(&tiqn->sess_err_stats.lock);
 	}
 	}
@@ -801,9 +801,9 @@ void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 	 * Only start Time2Retain timer when the associated TPG is still in
 	 * an ACTIVE (eg: not disabled or shutdown) state.
 	 */
-	spin_lock(&ISCSI_TPG_S(sess)->tpg_state_lock);
-	tpg_active = (ISCSI_TPG_S(sess)->tpg_state == TPG_STATE_ACTIVE);
-	spin_unlock(&ISCSI_TPG_S(sess)->tpg_state_lock);
+	spin_lock(&sess->tpg->tpg_state_lock);
+	tpg_active = (sess->tpg->tpg_state == TPG_STATE_ACTIVE);
+	spin_unlock(&sess->tpg->tpg_state_lock);
 
 	if (!tpg_active)
 		return;
@@ -829,7 +829,7 @@ void iscsit_start_time2retain_handler(struct iscsi_session *sess)
  */
 int iscsit_stop_time2retain_timer(struct iscsi_session *sess)
 {
-	struct iscsi_portal_group *tpg = ISCSI_TPG_S(sess);
+	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 
 	if (sess->time2retain_timer_flags & ISCSI_TF_EXPIRED)

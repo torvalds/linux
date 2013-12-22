@@ -228,24 +228,26 @@ static void psb_intel_sdvo_write_sdvox(struct psb_intel_sdvo *psb_intel_sdvo, u3
 {
 	struct drm_device *dev = psb_intel_sdvo->base.base.dev;
 	u32 bval = val, cval = val;
-	int i;
+	int i, j;
+	int need_aux = IS_MRST(dev) ? 1 : 0;
 
-	if (psb_intel_sdvo->sdvo_reg == SDVOB) {
-		cval = REG_READ(SDVOC);
-	} else {
-		bval = REG_READ(SDVOB);
-	}
-	/*
-	 * Write the registers twice for luck. Sometimes,
-	 * writing them only once doesn't appear to 'stick'.
-	 * The BIOS does this too. Yay, magic
-	 */
-	for (i = 0; i < 2; i++)
-	{
-		REG_WRITE(SDVOB, bval);
-		REG_READ(SDVOB);
-		REG_WRITE(SDVOC, cval);
-		REG_READ(SDVOC);
+	for (j = 0; j <= need_aux; j++) {
+		if (psb_intel_sdvo->sdvo_reg == SDVOB)
+			cval = REG_READ_WITH_AUX(SDVOC, j);
+		else
+			bval = REG_READ_WITH_AUX(SDVOB, j);
+
+		/*
+		* Write the registers twice for luck. Sometimes,
+		* writing them only once doesn't appear to 'stick'.
+		* The BIOS does this too. Yay, magic
+		*/
+		for (i = 0; i < 2; i++) {
+			REG_WRITE_WITH_AUX(SDVOB, bval, j);
+			REG_READ_WITH_AUX(SDVOB, j);
+			REG_WRITE_WITH_AUX(SDVOC, cval, j);
+			REG_READ_WITH_AUX(SDVOC, j);
+		}
 	}
 }
 
@@ -995,6 +997,7 @@ static void psb_intel_sdvo_mode_set(struct drm_encoder *encoder,
 	struct psb_intel_sdvo_dtd input_dtd;
 	int pixel_multiplier = psb_intel_mode_get_pixel_multiplier(adjusted_mode);
 	int rate;
+	int need_aux = IS_MRST(dev) ? 1 : 0;
 
 	if (!mode)
 		return;
@@ -1060,7 +1063,11 @@ static void psb_intel_sdvo_mode_set(struct drm_encoder *encoder,
 		return;
 
 	/* Set the SDVO control regs. */
-	sdvox = REG_READ(psb_intel_sdvo->sdvo_reg);
+	if (need_aux)
+		sdvox = REG_READ_AUX(psb_intel_sdvo->sdvo_reg);
+	else
+		sdvox = REG_READ(psb_intel_sdvo->sdvo_reg);
+
 	switch (psb_intel_sdvo->sdvo_reg) {
 	case SDVOB:
 		sdvox &= SDVOB_PRESERVE_MASK;
@@ -1090,6 +1097,8 @@ static void psb_intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_sdvo *psb_intel_sdvo = to_psb_intel_sdvo(encoder);
 	u32 temp;
+	int i;
+	int need_aux = IS_MRST(dev) ? 1 : 0;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -1108,19 +1117,27 @@ static void psb_intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 			psb_intel_sdvo_set_encoder_power_state(psb_intel_sdvo, mode);
 
 		if (mode == DRM_MODE_DPMS_OFF) {
-			temp = REG_READ(psb_intel_sdvo->sdvo_reg);
+			if (need_aux)
+				temp = REG_READ_AUX(psb_intel_sdvo->sdvo_reg);
+			else
+				temp = REG_READ(psb_intel_sdvo->sdvo_reg);
+
 			if ((temp & SDVO_ENABLE) != 0) {
 				psb_intel_sdvo_write_sdvox(psb_intel_sdvo, temp & ~SDVO_ENABLE);
 			}
 		}
 	} else {
 		bool input1, input2;
-		int i;
 		u8 status;
 
-		temp = REG_READ(psb_intel_sdvo->sdvo_reg);
+		if (need_aux)
+			temp = REG_READ_AUX(psb_intel_sdvo->sdvo_reg);
+		else
+			temp = REG_READ(psb_intel_sdvo->sdvo_reg);
+
 		if ((temp & SDVO_ENABLE) == 0)
 			psb_intel_sdvo_write_sdvox(psb_intel_sdvo, temp | SDVO_ENABLE);
+
 		for (i = 0; i < 2; i++)
 			gma_wait_for_vblank(dev);
 

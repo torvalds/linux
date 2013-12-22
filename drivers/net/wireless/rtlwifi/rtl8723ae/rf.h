@@ -32,12 +32,11 @@
 
 #define RF6052_MAX_TX_PWR		0x3F
 
-extern void rtl8723ae_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw,
-					    u8 bandwidth);
-extern void rtl8723ae_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
-					      u8 *ppowerlevel);
-extern void rtl8723ae_phy_rf6052_set_ofdm_txpower(struct ieee80211_hw *hw,
-					       u8 *ppowerlevel, u8 channel);
-extern bool rtl8723ae_phy_rf6052_config(struct ieee80211_hw *hw);
+void rtl8723ae_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth);
+void rtl8723ae_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
+					  u8 *ppowerlevel);
+void rtl8723ae_phy_rf6052_set_ofdm_txpower(struct ieee80211_hw *hw,
+					   u8 *ppowerlevel, u8 channel);
+bool rtl8723ae_phy_rf6052_config(struct ieee80211_hw *hw);
 
 #endif

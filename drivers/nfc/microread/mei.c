@@ -18,6 +18,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/nfc.h>
@@ -58,8 +60,6 @@ static int microread_mei_probe(struct mei_cl_device *device,
 static int microread_mei_remove(struct mei_cl_device *device)
 {
 	struct nfc_mei_phy *phy = mei_cl_get_drvdata(device);
-
-	pr_info("Removing microread\n");
 
 	microread_remove(phy->hdev);
 

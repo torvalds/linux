@@ -45,6 +45,7 @@
 #include <asm/cputype.h>
 #include <asm/elf.h>
 #include <asm/cputable.h>
+#include <asm/cpu_ops.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp_plat.h>
@@ -59,6 +60,16 @@ EXPORT_SYMBOL(processor_id);
 
 unsigned long elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
+
+#ifdef CONFIG_COMPAT
+#define COMPAT_ELF_HWCAP_DEFAULT	\
+				(COMPAT_HWCAP_HALF|COMPAT_HWCAP_THUMB|\
+				 COMPAT_HWCAP_FAST_MULT|COMPAT_HWCAP_EDSP|\
+				 COMPAT_HWCAP_TLS|COMPAT_HWCAP_VFP|\
+				 COMPAT_HWCAP_VFPv3|COMPAT_HWCAP_VFPv4|\
+				 COMPAT_HWCAP_NEON|COMPAT_HWCAP_IDIV)
+unsigned int compat_elf_hwcap __read_mostly = COMPAT_ELF_HWCAP_DEFAULT;
+#endif
 
 static const char *cpu_name;
 static const char *machine_name;
@@ -97,6 +108,11 @@ void __init early_print(const char *str, ...)
 	printk("%s", buf);
 }
 
+bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
+{
+	return phys_id == cpu_logical_map(cpu);
+}
+
 static void __init setup_processor(void)
 {
 	struct cpu_info *cpu_info;
@@ -118,76 +134,24 @@ static void __init setup_processor(void)
 	printk("CPU: %s [%08x] revision %d\n",
 	       cpu_name, read_cpuid_id(), read_cpuid_id() & 15);
 
-	sprintf(init_utsname()->machine, "aarch64");
+	sprintf(init_utsname()->machine, ELF_PLATFORM);
 	elf_hwcap = 0;
 }
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
-	struct boot_param_header *devtree;
-	unsigned long dt_root;
-
-	/* Check we have a non-NULL DT pointer */
-	if (!dt_phys) {
-		early_print("\n"
-			"Error: NULL or invalid device tree blob\n"
-			"The dtb must be 8-byte aligned and passed in the first 512MB of memory\n"
-			"\nPlease check your bootloader.\n");
-
-		while (true)
-			cpu_relax();
-
-	}
-
-	devtree = phys_to_virt(dt_phys);
-
-	/* Check device tree validity */
-	if (be32_to_cpu(devtree->magic) != OF_DT_HEADER) {
+	if (!dt_phys || !early_init_dt_scan(phys_to_virt(dt_phys))) {
 		early_print("\n"
 			"Error: invalid device tree blob at physical address 0x%p (virtual address 0x%p)\n"
-			"Expected 0x%x, found 0x%x\n"
+			"The dtb must be 8-byte aligned and passed in the first 512MB of memory\n"
 			"\nPlease check your bootloader.\n",
-			dt_phys, devtree, OF_DT_HEADER,
-			be32_to_cpu(devtree->magic));
+			dt_phys, phys_to_virt(dt_phys));
 
 		while (true)
 			cpu_relax();
 	}
 
-	initial_boot_params = devtree;
-	dt_root = of_get_flat_dt_root();
-
-	machine_name = of_get_flat_dt_prop(dt_root, "model", NULL);
-	if (!machine_name)
-		machine_name = of_get_flat_dt_prop(dt_root, "compatible", NULL);
-	if (!machine_name)
-		machine_name = "<unknown>";
-	pr_info("Machine: %s\n", machine_name);
-
-	/* Retrieve various information from the /chosen node */
-	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
-	/* Initialize {size,address}-cells info */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	/* Setup memory, calling early_init_dt_add_memory_arch */
-	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-}
-
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	base &= PAGE_MASK;
-	size &= PAGE_MASK;
-	if (base + size < PHYS_OFFSET) {
-		pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
-			   base, base + size);
-		return;
-	}
-	if (base < PHYS_OFFSET) {
-		pr_warning("Ignoring memory range 0x%llx - 0x%llx\n",
-			   base, PHYS_OFFSET);
-		size -= PHYS_OFFSET - base;
-		base = PHYS_OFFSET;
-	}
-	memblock_add(base, size);
+	machine_name = of_flat_dt_get_machine_name();
 }
 
 /*
@@ -241,6 +205,11 @@ u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
 
 void __init setup_arch(char **cmdline_p)
 {
+	/*
+	 * Unmask asynchronous aborts early to catch possible system errors.
+	 */
+	local_async_enable();
+
 	setup_processor();
 
 	setup_machine_fdt(__fdt_pointer);
@@ -264,6 +233,7 @@ void __init setup_arch(char **cmdline_p)
 	psci_init();
 
 	cpu_logical_map(0) = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
+	cpu_read_bootcpu_ops();
 #ifdef CONFIG_SMP
 	smp_init_cpus();
 #endif
@@ -304,6 +274,7 @@ subsys_initcall(topology_init);
 static const char *hwcap_str[] = {
 	"fp",
 	"asimd",
+	"evtstrm",
 	NULL
 };
 

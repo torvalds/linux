@@ -480,18 +480,24 @@ receive:
 			tipc_node_unlock(node);
 			tipc_link_recv_bundle(buf);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
-			int ret = tipc_link_recv_fragment(&node->bclink.defragm,
-						      &buf, &msg);
-			if (ret < 0)
+			int ret;
+			ret = tipc_link_recv_fragment(&node->bclink.reasm_head,
+						      &node->bclink.reasm_tail,
+						      &buf);
+			if (ret == LINK_REASM_ERROR)
 				goto unlock;
 			spin_lock_bh(&bc_lock);
 			bclink_accept_pkt(node, seqno);
 			bcl->stats.recv_fragments++;
-			if (ret > 0)
+			if (ret == LINK_REASM_COMPLETE) {
 				bcl->stats.recv_fragmented++;
+				/* Point msg to inner header */
+				msg = buf_msg(buf);
+				spin_unlock_bh(&bc_lock);
+				goto receive;
+			}
 			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
-			tipc_net_route_msg(buf);
 		} else if (msg_user(msg) == NAME_DISTRIBUTOR) {
 			spin_lock_bh(&bc_lock);
 			bclink_accept_pkt(node, seqno);

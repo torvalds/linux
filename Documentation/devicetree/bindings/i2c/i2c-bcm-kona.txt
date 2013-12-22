@@ -1,0 +1,35 @@
+Broadcom Kona Family I2C
+=========================
+
+This I2C controller is used in the following Broadcom SoCs:
+
+  BCM11130
+  BCM11140
+  BCM11351
+  BCM28145
+  BCM28155
+
+Required Properties
+-------------------
+- compatible: "brcm,bcm11351-i2c", "brcm,kona-i2c"
+- reg: Physical base address and length of controller registers
+- interrupts: The interrupt number used by the controller
+- clocks: clock specifier for the kona i2c external clock
+- clock-frequency: The I2C bus frequency in Hz
+- #address-cells: Should be <1>
+- #size-cells: Should be <0>
+
+Refer to clocks/clock-bindings.txt for generic clock consumer
+properties.
+
+Example:
+
+i2c@3e016000 {
+	compatible = "brcm,bcm11351-i2c","brcm,kona-i2c";
+	reg = <0x3e016000 0x80>;
+	interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&bsc1_clk>;
+	clock-frequency = <400000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+};

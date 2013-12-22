@@ -296,23 +296,21 @@ DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_ready,
 
 TRACE_EVENT(
 	kvm_async_pf_completed,
-	TP_PROTO(unsigned long address, struct page *page, u64 gva),
-	TP_ARGS(address, page, gva),
+	TP_PROTO(unsigned long address, u64 gva),
+	TP_ARGS(address, gva),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, address)
-		__field(pfn_t, pfn)
 		__field(u64, gva)
 		),
 
 	TP_fast_assign(
 		__entry->address = address;
-		__entry->pfn = page ? page_to_pfn(page) : 0;
 		__entry->gva = gva;
 		),
 
-	TP_printk("gva %#llx address %#lx pfn %#llx",  __entry->gva,
-		  __entry->address, __entry->pfn)
+	TP_printk("gva %#llx address %#lx",  __entry->gva,
+		  __entry->address)
 );
 
 #endif

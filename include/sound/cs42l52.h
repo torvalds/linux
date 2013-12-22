@@ -31,6 +31,8 @@ struct cs42l52_platform_data {
 	/* Charge Pump Freq. Check datasheet Pg73 */
 	unsigned int chgfreq;
 
+	/* Reset GPIO */
+	unsigned int reset_gpio;
 };
 
 #endif /* __CS42L52_H */

@@ -187,21 +187,21 @@ enum ixgb_state_t {
 };
 
 /* Exported from other modules */
-extern void ixgb_check_options(struct ixgb_adapter *adapter);
-extern void ixgb_set_ethtool_ops(struct net_device *netdev);
+void ixgb_check_options(struct ixgb_adapter *adapter);
+void ixgb_set_ethtool_ops(struct net_device *netdev);
 extern char ixgb_driver_name[];
 extern const char ixgb_driver_version[];
 
-extern void ixgb_set_speed_duplex(struct net_device *netdev);
+void ixgb_set_speed_duplex(struct net_device *netdev);
 
-extern int ixgb_up(struct ixgb_adapter *adapter);
-extern void ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog);
-extern void ixgb_reset(struct ixgb_adapter *adapter);
-extern int ixgb_setup_rx_resources(struct ixgb_adapter *adapter);
-extern int ixgb_setup_tx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_free_rx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_free_tx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_update_stats(struct ixgb_adapter *adapter);
+int ixgb_up(struct ixgb_adapter *adapter);
+void ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog);
+void ixgb_reset(struct ixgb_adapter *adapter);
+int ixgb_setup_rx_resources(struct ixgb_adapter *adapter);
+int ixgb_setup_tx_resources(struct ixgb_adapter *adapter);
+void ixgb_free_rx_resources(struct ixgb_adapter *adapter);
+void ixgb_free_tx_resources(struct ixgb_adapter *adapter);
+void ixgb_update_stats(struct ixgb_adapter *adapter);
 
 
 #endif /* _IXGB_H_ */

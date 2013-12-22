@@ -231,7 +231,7 @@ u16 r8712_efuse_get_current_size(struct _adapter *padapter)
 			/* read next header */
 			efuse_addr = efuse_addr + (word_cnts * 2) + 1;
 		} else
-			bContinual = false ;
+			bContinual = false;
 	}
 	return efuse_addr;
 }

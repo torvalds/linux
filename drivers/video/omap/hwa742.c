@@ -947,7 +947,7 @@ static int hwa742_init(struct omapfb_device *fbdev, int ext_mode,
 	hwa742.extif = fbdev->ext_if;
 	hwa742.int_ctrl = fbdev->int_ctrl;
 
-	omapfb_conf = fbdev->dev->platform_data;
+	omapfb_conf = dev_get_platdata(fbdev->dev);
 
 	hwa742.sys_ck = clk_get(NULL, "hwa_sys_ck");
 

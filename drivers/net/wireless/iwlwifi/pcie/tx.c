@@ -207,7 +207,7 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
 			le32_to_cpu(txq->scratchbufs[i].scratch));
 
-	iwl_op_mode_nic_error(trans->op_mode);
+	iwl_nic_error(trans);
 }
 
 /*
@@ -1023,7 +1023,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		if (nfreed++ > 0) {
 			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n",
 				idx, q->write_ptr, q->read_ptr);
-			iwl_op_mode_nic_error(trans->op_mode);
+			iwl_nic_error(trans);
 		}
 	}
 
@@ -1102,6 +1102,8 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		 * non-AGG queue.
 		 */
 		iwl_clear_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+
+		ssn = trans_pcie->txq[txq_id].q.read_ptr;
 	}
 
 	/* Place first TFD at index corresponding to start sequence number.
@@ -1463,7 +1465,8 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	spin_unlock_bh(&txq->lock);
 }
 
-#define HOST_COMPLETE_TIMEOUT (2 * HZ)
+#define HOST_COMPLETE_TIMEOUT	(2 * HZ)
+#define COMMAND_POKE_TIMEOUT	(HZ / 10)
 
 static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 				    struct iwl_host_cmd *cmd)
@@ -1491,16 +1494,16 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int cmd_idx;
 	int ret;
+	int timeout = HOST_COMPLETE_TIMEOUT;
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 		       get_cmd_string(trans_pcie, cmd->id));
 
-	if (WARN_ON(test_and_set_bit(STATUS_HCMD_ACTIVE,
-				     &trans_pcie->status))) {
-		IWL_ERR(trans, "Command %s: a command is already active!\n",
-			get_cmd_string(trans_pcie, cmd->id));
+	if (WARN(test_and_set_bit(STATUS_HCMD_ACTIVE,
+				  &trans_pcie->status),
+		 "Command %s: a command is already active!\n",
+		 get_cmd_string(trans_pcie, cmd->id)))
 		return -EIO;
-	}
 
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
 		       get_cmd_string(trans_pcie, cmd->id));
@@ -1515,10 +1518,29 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		return ret;
 	}
 
-	ret = wait_event_timeout(trans_pcie->wait_command_queue,
-				 !test_bit(STATUS_HCMD_ACTIVE,
-					   &trans_pcie->status),
-				 HOST_COMPLETE_TIMEOUT);
+	while (timeout > 0) {
+		unsigned long flags;
+
+		timeout -= COMMAND_POKE_TIMEOUT;
+		ret = wait_event_timeout(trans_pcie->wait_command_queue,
+					 !test_bit(STATUS_HCMD_ACTIVE,
+						   &trans_pcie->status),
+					 COMMAND_POKE_TIMEOUT);
+		if (ret)
+			break;
+		/* poke the device - it may have lost the command */
+		if (iwl_trans_grab_nic_access(trans, true, &flags)) {
+			iwl_trans_release_nic_access(trans, &flags);
+			IWL_DEBUG_INFO(trans,
+				       "Tried to wake NIC for command %s\n",
+				       get_cmd_string(trans_pcie, cmd->id));
+		} else {
+			IWL_ERR(trans, "Failed to poke NIC for command %s\n",
+				get_cmd_string(trans_pcie, cmd->id));
+			break;
+		}
+	}
+
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status)) {
 			struct iwl_txq *txq =
@@ -1539,6 +1561,9 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 				       "Clearing HCMD_ACTIVE for command %s\n",
 				       get_cmd_string(trans_pcie, cmd->id));
 			ret = -ETIMEDOUT;
+
+			iwl_nic_error(trans);
+
 			goto cancel;
 		}
 	}

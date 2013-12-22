@@ -560,7 +560,7 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 		break;
 	}
 
-      exit:
+exit:
 	return_ACPI_STATUS(status);
 }
 

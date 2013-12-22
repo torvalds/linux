@@ -1,6 +1,10 @@
 #
 # Bridge netfilter configuration
 #
+#
+config NF_TABLES_BRIDGE
+	depends on NF_TABLES
+	tristate "Ethernet Bridge nf_tables support"
 
 menuconfig BRIDGE_NF_EBTABLES
 	tristate "Ethernet Bridge tables (ebtables) support"

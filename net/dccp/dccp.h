@@ -53,7 +53,7 @@ extern struct inet_hashinfo dccp_hashinfo;
 
 extern struct percpu_counter dccp_orphan_count;
 
-extern void dccp_time_wait(struct sock *sk, int state, int timeo);
+void dccp_time_wait(struct sock *sk, int state, int timeo);
 
 /*
  *  Set safe upper bounds for header and option length. Since Data Offset is 8
@@ -224,114 +224,108 @@ static inline void dccp_csum_outgoing(struct sk_buff *skb)
 	skb->csum = skb_checksum(skb, 0, (cov > skb->len)? skb->len : cov, 0);
 }
 
-extern void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb);
+void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 
-extern int  dccp_retransmit_skb(struct sock *sk);
+int dccp_retransmit_skb(struct sock *sk);
 
-extern void dccp_send_ack(struct sock *sk);
-extern void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
-				struct request_sock *rsk);
+void dccp_send_ack(struct sock *sk);
+void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+			 struct request_sock *rsk);
 
-extern void dccp_send_sync(struct sock *sk, const u64 seq,
-			   const enum dccp_pkt_type pkt_type);
+void dccp_send_sync(struct sock *sk, const u64 seq,
+		    const enum dccp_pkt_type pkt_type);
 
 /*
  * TX Packet Dequeueing Interface
  */
-extern void		dccp_qpolicy_push(struct sock *sk, struct sk_buff *skb);
-extern bool		dccp_qpolicy_full(struct sock *sk);
-extern void		dccp_qpolicy_drop(struct sock *sk, struct sk_buff *skb);
-extern struct sk_buff	*dccp_qpolicy_top(struct sock *sk);
-extern struct sk_buff	*dccp_qpolicy_pop(struct sock *sk);
-extern bool		dccp_qpolicy_param_ok(struct sock *sk, __be32 param);
+void dccp_qpolicy_push(struct sock *sk, struct sk_buff *skb);
+bool dccp_qpolicy_full(struct sock *sk);
+void dccp_qpolicy_drop(struct sock *sk, struct sk_buff *skb);
+struct sk_buff *dccp_qpolicy_top(struct sock *sk);
+struct sk_buff *dccp_qpolicy_pop(struct sock *sk);
+bool dccp_qpolicy_param_ok(struct sock *sk, __be32 param);
 
 /*
  * TX Packet Output and TX Timers
  */
-extern void   dccp_write_xmit(struct sock *sk);
-extern void   dccp_write_space(struct sock *sk);
-extern void   dccp_flush_write_queue(struct sock *sk, long *time_budget);
+void dccp_write_xmit(struct sock *sk);
+void dccp_write_space(struct sock *sk);
+void dccp_flush_write_queue(struct sock *sk, long *time_budget);
 
-extern void dccp_init_xmit_timers(struct sock *sk);
+void dccp_init_xmit_timers(struct sock *sk);
 static inline void dccp_clear_xmit_timers(struct sock *sk)
 {
 	inet_csk_clear_xmit_timers(sk);
 }
 
-extern unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu);
+unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu);
 
-extern const char *dccp_packet_name(const int type);
+const char *dccp_packet_name(const int type);
 
-extern void dccp_set_state(struct sock *sk, const int state);
-extern void dccp_done(struct sock *sk);
+void dccp_set_state(struct sock *sk, const int state);
+void dccp_done(struct sock *sk);
 
-extern int  dccp_reqsk_init(struct request_sock *rq, struct dccp_sock const *dp,
-			    struct sk_buff const *skb);
+int dccp_reqsk_init(struct request_sock *rq, struct dccp_sock const *dp,
+		    struct sk_buff const *skb);
 
-extern int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
+int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
-extern struct sock *dccp_create_openreq_child(struct sock *sk,
-					      const struct request_sock *req,
-					      const struct sk_buff *skb);
+struct sock *dccp_create_openreq_child(struct sock *sk,
+				       const struct request_sock *req,
+				       const struct sk_buff *skb);
 
-extern int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
+int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
 
-extern struct sock *dccp_v4_request_recv_sock(struct sock *sk,
-					      struct sk_buff *skb,
-					      struct request_sock *req,
-					      struct dst_entry *dst);
-extern struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
-				   struct request_sock *req,
-				   struct request_sock **prev);
+struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
+				       struct request_sock *req,
+				       struct dst_entry *dst);
+struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
+			    struct request_sock *req,
+			    struct request_sock **prev);
 
-extern int dccp_child_process(struct sock *parent, struct sock *child,
-			      struct sk_buff *skb);
-extern int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
-				  struct dccp_hdr *dh, unsigned int len);
-extern int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
-				const struct dccp_hdr *dh, const unsigned int len);
+int dccp_child_process(struct sock *parent, struct sock *child,
+		       struct sk_buff *skb);
+int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
+			   struct dccp_hdr *dh, unsigned int len);
+int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
+			 const struct dccp_hdr *dh, const unsigned int len);
 
-extern int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized);
-extern void dccp_destroy_sock(struct sock *sk);
+int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized);
+void dccp_destroy_sock(struct sock *sk);
 
-extern void		dccp_close(struct sock *sk, long timeout);
-extern struct sk_buff	*dccp_make_response(struct sock *sk,
-					    struct dst_entry *dst,
-					    struct request_sock *req);
+void dccp_close(struct sock *sk, long timeout);
+struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
+				   struct request_sock *req);
 
-extern int	   dccp_connect(struct sock *sk);
-extern int	   dccp_disconnect(struct sock *sk, int flags);
-extern int	   dccp_getsockopt(struct sock *sk, int level, int optname,
-				   char __user *optval, int __user *optlen);
-extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,
-				   char __user *optval, unsigned int optlen);
+int dccp_connect(struct sock *sk);
+int dccp_disconnect(struct sock *sk, int flags);
+int dccp_getsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user *optlen);
+int dccp_setsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, unsigned int optlen);
 #ifdef CONFIG_COMPAT
-extern int	   compat_dccp_getsockopt(struct sock *sk,
-				int level, int optname,
-				char __user *optval, int __user *optlen);
-extern int	   compat_dccp_setsockopt(struct sock *sk,
-				int level, int optname,
-				char __user *optval, unsigned int optlen);
+int compat_dccp_getsockopt(struct sock *sk, int level, int optname,
+			   char __user *optval, int __user *optlen);
+int compat_dccp_setsockopt(struct sock *sk, int level, int optname,
+			   char __user *optval, unsigned int optlen);
 #endif
-extern int	   dccp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-extern int	   dccp_sendmsg(struct kiocb *iocb, struct sock *sk,
-				struct msghdr *msg, size_t size);
-extern int	   dccp_recvmsg(struct kiocb *iocb, struct sock *sk,
-				struct msghdr *msg, size_t len, int nonblock,
-				int flags, int *addr_len);
-extern void	   dccp_shutdown(struct sock *sk, int how);
-extern int	   inet_dccp_listen(struct socket *sock, int backlog);
-extern unsigned int dccp_poll(struct file *file, struct socket *sock,
-			     poll_table *wait);
-extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
-				   int addr_len);
+int dccp_ioctl(struct sock *sk, int cmd, unsigned long arg);
+int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
+		 size_t size);
+int dccp_recvmsg(struct kiocb *iocb, struct sock *sk,
+		 struct msghdr *msg, size_t len, int nonblock, int flags,
+		 int *addr_len);
+void dccp_shutdown(struct sock *sk, int how);
+int inet_dccp_listen(struct socket *sock, int backlog);
+unsigned int dccp_poll(struct file *file, struct socket *sock,
+		       poll_table *wait);
+int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 
-extern struct sk_buff *dccp_ctl_make_reset(struct sock *sk,
-					   struct sk_buff *skb);
-extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
-extern void	   dccp_send_close(struct sock *sk, const int active);
-extern int	   dccp_invalid_packet(struct sk_buff *skb);
-extern u32	   dccp_sample_rtt(struct sock *sk, long delta);
+struct sk_buff *dccp_ctl_make_reset(struct sock *sk, struct sk_buff *skb);
+int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
+void dccp_send_close(struct sock *sk, const int active);
+int dccp_invalid_packet(struct sk_buff *skb);
+u32 dccp_sample_rtt(struct sock *sk, long delta);
 
 static inline int dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
@@ -475,25 +469,25 @@ static inline int dccp_ack_pending(const struct sock *sk)
 	return dccp_ackvec_pending(sk) || inet_csk_ack_scheduled(sk);
 }
 
-extern int  dccp_feat_signal_nn_change(struct sock *sk, u8 feat, u64 nn_val);
-extern int  dccp_feat_finalise_settings(struct dccp_sock *dp);
-extern int  dccp_feat_server_ccid_dependencies(struct dccp_request_sock *dreq);
-extern int  dccp_feat_insert_opts(struct dccp_sock*, struct dccp_request_sock*,
-				  struct sk_buff *skb);
-extern int  dccp_feat_activate_values(struct sock *sk, struct list_head *fn);
-extern void dccp_feat_list_purge(struct list_head *fn_list);
+int dccp_feat_signal_nn_change(struct sock *sk, u8 feat, u64 nn_val);
+int dccp_feat_finalise_settings(struct dccp_sock *dp);
+int dccp_feat_server_ccid_dependencies(struct dccp_request_sock *dreq);
+int dccp_feat_insert_opts(struct dccp_sock*, struct dccp_request_sock*,
+			  struct sk_buff *skb);
+int dccp_feat_activate_values(struct sock *sk, struct list_head *fn);
+void dccp_feat_list_purge(struct list_head *fn_list);
 
-extern int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
-extern int dccp_insert_options_rsk(struct dccp_request_sock*, struct sk_buff*);
-extern int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed);
-extern u32 dccp_timestamp(void);
-extern void dccp_timestamping_init(void);
-extern int dccp_insert_option(struct sk_buff *skb, unsigned char option,
-			      const void *value, unsigned char len);
+int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
+int dccp_insert_options_rsk(struct dccp_request_sock *, struct sk_buff *);
+int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed);
+u32 dccp_timestamp(void);
+void dccp_timestamping_init(void);
+int dccp_insert_option(struct sk_buff *skb, unsigned char option,
+		       const void *value, unsigned char len);
 
 #ifdef CONFIG_SYSCTL
-extern int dccp_sysctl_init(void);
-extern void dccp_sysctl_exit(void);
+int dccp_sysctl_init(void);
+void dccp_sysctl_exit(void);
 #else
 static inline int dccp_sysctl_init(void)
 {

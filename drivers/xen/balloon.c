@@ -350,17 +350,19 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 
 		pfn = page_to_pfn(page);
 
-		set_phys_to_machine(pfn, frame_list[i]);
-
 #ifdef CONFIG_XEN_HAVE_PVMMU
-		/* Link back into the page tables if not highmem. */
-		if (xen_pv_domain() && !PageHighMem(page)) {
-			int ret;
-			ret = HYPERVISOR_update_va_mapping(
-				(unsigned long)__va(pfn << PAGE_SHIFT),
-				mfn_pte(frame_list[i], PAGE_KERNEL),
-				0);
-			BUG_ON(ret);
+		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+			set_phys_to_machine(pfn, frame_list[i]);
+
+			/* Link back into the page tables if not highmem. */
+			if (!PageHighMem(page)) {
+				int ret;
+				ret = HYPERVISOR_update_va_mapping(
+						(unsigned long)__va(pfn << PAGE_SHIFT),
+						mfn_pte(frame_list[i], PAGE_KERNEL),
+						0);
+				BUG_ON(ret);
+			}
 		}
 #endif
 
@@ -378,7 +380,6 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	enum bp_state state = BP_DONE;
 	unsigned long  pfn, i;
 	struct page   *page;
-	struct page   *scratch_page;
 	int ret;
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
@@ -411,27 +412,29 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 
 		scrub_page(page);
 
+#ifdef CONFIG_XEN_HAVE_PVMMU
 		/*
 		 * Ballooned out frames are effectively replaced with
 		 * a scratch frame.  Ensure direct mappings and the
 		 * p2m are consistent.
 		 */
-		scratch_page = get_balloon_scratch_page();
-#ifdef CONFIG_XEN_HAVE_PVMMU
-		if (xen_pv_domain() && !PageHighMem(page)) {
-			ret = HYPERVISOR_update_va_mapping(
-				(unsigned long)__va(pfn << PAGE_SHIFT),
-				pfn_pte(page_to_pfn(scratch_page),
-					PAGE_KERNEL_RO), 0);
-			BUG_ON(ret);
-		}
-#endif
 		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 			unsigned long p;
+			struct page   *scratch_page = get_balloon_scratch_page();
+
+			if (!PageHighMem(page)) {
+				ret = HYPERVISOR_update_va_mapping(
+						(unsigned long)__va(pfn << PAGE_SHIFT),
+						pfn_pte(page_to_pfn(scratch_page),
+							PAGE_KERNEL_RO), 0);
+				BUG_ON(ret);
+			}
 			p = page_to_pfn(scratch_page);
 			__set_phys_to_machine(pfn, pfn_to_mfn(p));
+
+			put_balloon_scratch_page();
 		}
-		put_balloon_scratch_page();
+#endif
 
 		balloon_append(pfn_to_page(pfn));
 	}
@@ -596,7 +599,7 @@ static void __init balloon_add_region(unsigned long start_pfn,
 	}
 }
 
-static int __cpuinit balloon_cpu_notify(struct notifier_block *self,
+static int balloon_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	int cpu = (long)hcpu;
@@ -616,7 +619,7 @@ static int __cpuinit balloon_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block balloon_cpu_notifier __cpuinitdata = {
+static struct notifier_block balloon_cpu_notifier = {
 	.notifier_call	= balloon_cpu_notify,
 };
 
@@ -627,21 +630,23 @@ static int __init balloon_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	for_each_online_cpu(cpu)
-	{
-		per_cpu(balloon_scratch_page, cpu) = alloc_page(GFP_KERNEL);
-		if (per_cpu(balloon_scratch_page, cpu) == NULL) {
-			pr_warn("Failed to allocate balloon_scratch_page for cpu %d\n", cpu);
-			return -ENOMEM;
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		for_each_online_cpu(cpu)
+		{
+			per_cpu(balloon_scratch_page, cpu) = alloc_page(GFP_KERNEL);
+			if (per_cpu(balloon_scratch_page, cpu) == NULL) {
+				pr_warn("Failed to allocate balloon_scratch_page for cpu %d\n", cpu);
+				return -ENOMEM;
+			}
 		}
+		register_cpu_notifier(&balloon_cpu_notifier);
 	}
-	register_cpu_notifier(&balloon_cpu_notifier);
 
 	pr_info("Initialising balloon driver\n");
 
 	balloon_stats.current_pages = xen_pv_domain()
 		? min(xen_start_info->nr_pages - xen_released_pages, max_pfn)
-		: max_pfn;
+		: get_num_physpages();
 	balloon_stats.target_pages  = balloon_stats.current_pages;
 	balloon_stats.balloon_low   = 0;
 	balloon_stats.balloon_high  = 0;

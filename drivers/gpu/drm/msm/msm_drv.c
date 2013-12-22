@@ -187,6 +187,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	init_waitqueue_head(&priv->fence_event);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
+	INIT_LIST_HEAD(&priv->fence_cbs);
 
 	drm_mode_config_init(dev);
 
@@ -539,15 +540,36 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 	return ret;
 }
 
-/* call under struct_mutex */
+/* called from workqueue */
 void msm_update_fence(struct drm_device *dev, uint32_t fence)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 
-	if (fence > priv->completed_fence) {
-		priv->completed_fence = fence;
-		wake_up_all(&priv->fence_event);
+	mutex_lock(&dev->struct_mutex);
+	priv->completed_fence = max(fence, priv->completed_fence);
+
+	while (!list_empty(&priv->fence_cbs)) {
+		struct msm_fence_cb *cb;
+
+		cb = list_first_entry(&priv->fence_cbs,
+				struct msm_fence_cb, work.entry);
+
+		if (cb->fence > priv->completed_fence)
+			break;
+
+		list_del_init(&cb->work.entry);
+		queue_work(priv->wq, &cb->work);
 	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	wake_up_all(&priv->fence_event);
+}
+
+void __msm_fence_worker(struct work_struct *work)
+{
+	struct msm_fence_cb *cb = container_of(work, struct msm_fence_cb, work);
+	cb->func(cb);
 }
 
 /*
@@ -650,13 +672,13 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(MSM_GET_PARAM,    msm_ioctl_get_param,    DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_NEW,      msm_ioctl_gem_new,      DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_INFO,     msm_ioctl_gem_info,     DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_PREP, msm_ioctl_gem_cpu_prep, DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_FINI, msm_ioctl_gem_cpu_fini, DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_SUBMIT,   msm_ioctl_gem_submit,   DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_WAIT_FENCE,   msm_ioctl_wait_fence,   DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MSM_GET_PARAM,    msm_ioctl_get_param,    DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_NEW,      msm_ioctl_gem_new,      DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_INFO,     msm_ioctl_gem_info,     DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_PREP, msm_ioctl_gem_cpu_prep, DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_FINI, msm_ioctl_gem_cpu_fini, DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_SUBMIT,   msm_ioctl_gem_submit,   DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_WAIT_FENCE,   msm_ioctl_wait_fence,   DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
 static const struct vm_operations_struct vm_ops = {
@@ -680,7 +702,11 @@ static const struct file_operations fops = {
 };
 
 static struct drm_driver msm_driver = {
-	.driver_features    = DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET,
+	.driver_features    = DRIVER_HAVE_IRQ |
+				DRIVER_GEM |
+				DRIVER_PRIME |
+				DRIVER_RENDER |
+				DRIVER_MODESET,
 	.load               = msm_load,
 	.unload             = msm_unload,
 	.open               = msm_open,
@@ -698,6 +724,16 @@ static struct drm_driver msm_driver = {
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
 	.dumb_destroy       = drm_gem_dumb_destroy,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export   = drm_gem_prime_export,
+	.gem_prime_import   = drm_gem_prime_import,
+	.gem_prime_pin      = msm_gem_prime_pin,
+	.gem_prime_unpin    = msm_gem_prime_unpin,
+	.gem_prime_get_sg_table = msm_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
+	.gem_prime_vmap     = msm_gem_prime_vmap,
+	.gem_prime_vunmap   = msm_gem_prime_vunmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
 	.debugfs_cleanup    = msm_debugfs_cleanup,

@@ -145,10 +145,8 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 		return -EINVAL;
 
 	spin_lock_irqsave(&zdev->dma_table_lock, irq_flags);
-	if (!zdev->dma_table) {
-		dev_err(&zdev->pdev->dev, "Missing DMA table\n");
+	if (!zdev->dma_table)
 		goto no_refresh;
-	}
 
 	for (i = 0; i < nr_pages; i++) {
 		dma_update_cpu_trans(zdev, page_addr, dma_addr, flags);
@@ -280,11 +278,8 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 	size = nr_pages * PAGE_SIZE;
 
 	dma_addr = zdev->start_dma + iommu_page_index * PAGE_SIZE;
-	if (dma_addr + size > zdev->end_dma) {
-		dev_err(dev, "(dma_addr: 0x%16.16LX + size: 0x%16.16lx) > end_dma: 0x%16.16Lx\n",
-			 dma_addr, size, zdev->end_dma);
+	if (dma_addr + size > zdev->end_dma)
 		goto out_free;
-	}
 
 	if (direction == DMA_NONE || direction == DMA_TO_DEVICE)
 		flags |= ZPCI_TABLE_PROTECTED;
@@ -297,7 +292,8 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 out_free:
 	dma_free_iommu(zdev, iommu_page_index, nr_pages);
 out_err:
-	dev_err(dev, "Failed to map addr: %lx\n", pa);
+	zpci_err("map error:\n");
+	zpci_err_hex(&pa, sizeof(pa));
 	return DMA_ERROR_CODE;
 }
 
@@ -312,8 +308,10 @@ static void s390_dma_unmap_pages(struct device *dev, dma_addr_t dma_addr,
 	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 	dma_addr = dma_addr & PAGE_MASK;
 	if (dma_update_trans(zdev, 0, dma_addr, npages * PAGE_SIZE,
-			     ZPCI_TABLE_PROTECTED | ZPCI_PTE_INVALID))
-		dev_err(dev, "Failed to unmap addr: %Lx\n", dma_addr);
+			     ZPCI_TABLE_PROTECTED | ZPCI_PTE_INVALID)) {
+		zpci_err("unmap error:\n");
+		zpci_err_hex(&dma_addr, sizeof(dma_addr));
+	}
 
 	atomic64_add(npages, (atomic64_t *) &zdev->fmb->unmapped_pages);
 	iommu_page_index = (dma_addr - zdev->start_dma) >> PAGE_SHIFT;

@@ -1090,8 +1090,7 @@ unreg_dev:
 
 static int m2mtest_remove(struct platform_device *pdev)
 {
-	struct m2mtest_dev *dev =
-		(struct m2mtest_dev *)platform_get_drvdata(pdev);
+	struct m2mtest_dev *dev = platform_get_drvdata(pdev);
 
 	v4l2_info(&dev->v4l2_dev, "Removing " MEM2MEM_TEST_MODULE_NAME);
 	v4l2_m2m_release(dev->m2m_dev);

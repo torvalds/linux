@@ -308,36 +308,6 @@ struct fscache_cache_ops {
 	void (*dissociate_pages)(struct fscache_cache *cache);
 };
 
-/*
- * data file or index object cookie
- * - a file will only appear in one cache
- * - a request to cache a file may or may not be honoured, subject to
- *   constraints such as disk space
- * - indices are created on disk just-in-time
- */
-struct fscache_cookie {
-	atomic_t			usage;		/* number of users of this cookie */
-	atomic_t			n_children;	/* number of children of this cookie */
-	atomic_t			n_active;	/* number of active users of netfs ptrs */
-	spinlock_t			lock;
-	spinlock_t			stores_lock;	/* lock on page store tree */
-	struct hlist_head		backing_objects; /* object(s) backing this file/index */
-	const struct fscache_cookie_def	*def;		/* definition */
-	struct fscache_cookie		*parent;	/* parent of this entry */
-	void				*netfs_data;	/* back pointer to netfs */
-	struct radix_tree_root		stores;		/* pages to be stored on this cookie */
-#define FSCACHE_COOKIE_PENDING_TAG	0		/* pages tag: pending write to cache */
-#define FSCACHE_COOKIE_STORING_TAG	1		/* pages tag: writing to cache */
-
-	unsigned long			flags;
-#define FSCACHE_COOKIE_LOOKING_UP	0	/* T if non-index cookie being looked up still */
-#define FSCACHE_COOKIE_NO_DATA_YET	1	/* T if new object with no cached data yet */
-#define FSCACHE_COOKIE_UNAVAILABLE	2	/* T if cookie is unavailable (error, etc) */
-#define FSCACHE_COOKIE_INVALIDATING	3	/* T if cookie is being invalidated */
-#define FSCACHE_COOKIE_RELINQUISHED	4	/* T if cookie has been relinquished */
-#define FSCACHE_COOKIE_RETIRED		5	/* T if cookie was retired */
-};
-
 extern struct fscache_cookie fscache_fsdef_index;
 
 /*
@@ -400,6 +370,7 @@ struct fscache_object {
 #define FSCACHE_OBJECT_IS_LIVE		3	/* T if object is not withdrawn or relinquished */
 #define FSCACHE_OBJECT_IS_LOOKED_UP	4	/* T if object has been looked up */
 #define FSCACHE_OBJECT_IS_AVAILABLE	5	/* T if object has become active */
+#define FSCACHE_OBJECT_RETIRED		6	/* T if object was retired on relinquishment */
 
 	struct list_head	cache_link;	/* link in cache->object_list */
 	struct hlist_node	cookie_link;	/* link in cookie->backing_objects */
@@ -511,6 +482,11 @@ static inline void fscache_end_io(struct fscache_retrieval *op,
 	op->end_io_func(page, op->context, error);
 }
 
+static inline void __fscache_use_cookie(struct fscache_cookie *cookie)
+{
+	atomic_inc(&cookie->n_active);
+}
+
 /**
  * fscache_use_cookie - Request usage of cookie attached to an object
  * @object: Object description
@@ -524,6 +500,16 @@ static inline bool fscache_use_cookie(struct fscache_object *object)
 	return atomic_inc_not_zero(&cookie->n_active) != 0;
 }
 
+static inline bool __fscache_unuse_cookie(struct fscache_cookie *cookie)
+{
+	return atomic_dec_and_test(&cookie->n_active);
+}
+
+static inline void __fscache_wake_unused_cookie(struct fscache_cookie *cookie)
+{
+	wake_up_atomic_t(&cookie->n_active);
+}
+
 /**
  * fscache_unuse_cookie - Cease usage of cookie attached to an object
  * @object: Object description
@@ -534,8 +520,8 @@ static inline bool fscache_use_cookie(struct fscache_object *object)
 static inline void fscache_unuse_cookie(struct fscache_object *object)
 {
 	struct fscache_cookie *cookie = object->cookie;
-	if (atomic_dec_and_test(&cookie->n_active))
-		wake_up_atomic_t(&cookie->n_active);
+	if (__fscache_unuse_cookie(cookie))
+		__fscache_wake_unused_cookie(cookie);
 }
 
 /*

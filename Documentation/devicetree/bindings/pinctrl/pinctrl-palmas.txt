@@ -41,7 +41,7 @@ pinctrl-bindings.txt:
 
 Required: pins
 Options: function, bias-disable, bias-pull-up, bias-pull-down,
-	 bias-pin-default, drive-open-drain.
+	 drive-open-drain.
 
 Note that many of these properties are only valid for certain specific pins.
 See the Palmas device datasheet for complete details regarding which pins

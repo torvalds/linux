@@ -27,7 +27,7 @@ static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 	while (!pci_is_root_bus(pbus))
 		pbus = pbus->parent;
 
-	return DEVICE_ACPI_HANDLE(pbus->bridge);
+	return ACPI_HANDLE(pbus->bridge);
 }
 
 static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
@@ -39,7 +39,7 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 	else
 		dev = &pbus->self->dev;
 
-	return DEVICE_ACPI_HANDLE(dev);
+	return ACPI_HANDLE(dev);
 }
 
 void acpi_pci_add_bus(struct pci_bus *bus);

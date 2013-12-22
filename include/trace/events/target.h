@@ -144,7 +144,7 @@ TRACE_EVENT(target_sequencer_start,
 	),
 
 	TP_fast_assign(
-		__entry->unpacked_lun	= cmd->se_lun->unpacked_lun;
+		__entry->unpacked_lun	= cmd->orig_fe_lun;
 		__entry->opcode		= cmd->t_task_cdb[0];
 		__entry->data_length	= cmd->data_length;
 		__entry->task_attribute	= cmd->sam_task_attr;
@@ -182,7 +182,7 @@ TRACE_EVENT(target_cmd_complete,
 	),
 
 	TP_fast_assign(
-		__entry->unpacked_lun	= cmd->se_lun->unpacked_lun;
+		__entry->unpacked_lun	= cmd->orig_fe_lun;
 		__entry->opcode		= cmd->t_task_cdb[0];
 		__entry->data_length	= cmd->data_length;
 		__entry->task_attribute	= cmd->sam_task_attr;

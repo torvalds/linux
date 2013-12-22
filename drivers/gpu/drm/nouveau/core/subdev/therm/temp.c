@@ -180,8 +180,6 @@ alarm_timer_callback(struct nouveau_alarm *alarm)
 
 	spin_lock_irqsave(&priv->sensor.alarm_program_lock, flags);
 
-	nv_debug(therm, "polling the internal temperature\n");
-
 	nouveau_therm_threshold_hyst_polling(therm, &sensor->thrs_fan_boost,
 					     NOUVEAU_THERM_THRS_FANBOOST);
 

@@ -440,7 +440,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 		info++;
 	}
 
-      exit:
+exit:
 	if (!flags_mode) {
 
 		/* Round the resource struct length up to the next boundary (32 or 64) */
@@ -783,7 +783,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 		info++;
 	}
 
-      exit:
+exit:
 	return_ACPI_STATUS(AE_OK);
 }
 

@@ -172,6 +172,7 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 		#define SHARED_HW_CFG_LED_MAC4                       0x000c0000
 		#define SHARED_HW_CFG_LED_PHY8                       0x000d0000
 		#define SHARED_HW_CFG_LED_EXTPHY1                    0x000e0000
+		#define SHARED_HW_CFG_LED_EXTPHY2                    0x000f0000
 
 
 	#define SHARED_HW_CFG_AN_ENABLE_MASK                0x3f000000

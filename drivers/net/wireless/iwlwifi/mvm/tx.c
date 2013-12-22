@@ -417,7 +417,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	spin_unlock(&mvmsta->lock);
 
-	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE)
+	if (txq_id < mvm->first_agg_queue)
 		atomic_inc(&mvm->pending_frames[mvmsta->sta_id]);
 
 	return 0;
@@ -511,16 +511,10 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status)
 }
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
-/**
- * translate ucode response to mac80211 tx status control values
- */
-static void iwl_mvm_hwrate_to_tx_control(u32 rate_n_flags,
-					 struct ieee80211_tx_info *info)
+void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
+			       enum ieee80211_band band,
+			       struct ieee80211_tx_rate *r)
 {
-	struct ieee80211_tx_rate *r = &info->status.rates[0];
-
-	info->status.antenna =
-		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
 	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
 		r->flags |= IEEE80211_TX_RC_GREEN_FIELD;
 	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
@@ -549,8 +543,21 @@ static void iwl_mvm_hwrate_to_tx_control(u32 rate_n_flags,
 		r->flags |= IEEE80211_TX_RC_VHT_MCS;
 	} else {
 		r->idx = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
-							     info->band);
+							     band);
 	}
+}
+
+/**
+ * translate ucode response to mac80211 tx status control values
+ */
+static void iwl_mvm_hwrate_to_tx_status(u32 rate_n_flags,
+					struct ieee80211_tx_info *info)
+{
+	struct ieee80211_tx_rate *r = &info->status.rates[0];
+
+	info->status.antenna =
+		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
+	iwl_mvm_hwrate_to_tx_rate(rate_n_flags, info->band, r);
 }
 
 static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
@@ -602,11 +609,11 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		}
 
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
-		iwl_mvm_hwrate_to_tx_control(le32_to_cpu(tx_resp->initial_rate),
-					     info);
+		iwl_mvm_hwrate_to_tx_status(le32_to_cpu(tx_resp->initial_rate),
+					    info);
 
 		/* Single frame failure in an AMPDU queue => send BAR */
-		if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE &&
+		if (txq_id >= mvm->first_agg_queue &&
 		    !(info->flags & IEEE80211_TX_STAT_ACK))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
@@ -619,7 +626,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		ieee80211_tx_status_ni(mvm->hw, skb);
 	}
 
-	if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE) {
+	if (txq_id >= mvm->first_agg_queue) {
 		/* If this is an aggregation queue, we use the ssn since:
 		 * ssn = wifi seq_num % 256.
 		 * The seq_ctl is the sequence control of the packet to which
@@ -668,10 +675,6 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			iwl_mvm_check_ratid_empty(mvm, sta, tid);
 			spin_unlock_bh(&mvmsta->lock);
 		}
-
-#ifdef CONFIG_PM_SLEEP
-		mvmsta->last_seq_ctl = seq_ctl;
-#endif
 	} else {
 		sta = NULL;
 		mvmsta = NULL;
@@ -681,7 +684,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	 * If the txq is not an AMPDU queue, there is no chance we freed
 	 * several skbs. Check that out...
 	 */
-	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE && !WARN_ON(skb_freed > 1) &&
+	if (txq_id < mvm->first_agg_queue && !WARN_ON(skb_freed > 1) &&
 	    atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id])) {
 		if (mvmsta) {
 			/*
@@ -777,7 +780,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct ieee80211_sta *sta;
 
-	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < IWL_MVM_FIRST_AGG_QUEUE))
+	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < mvm->first_agg_queue))
 		return;
 
 	if (WARN_ON_ONCE(tid == IWL_TID_NON_QOS))
@@ -904,8 +907,8 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			info->flags |= IEEE80211_TX_STAT_AMPDU;
 			info->status.ampdu_ack_len = ba_notif->txed_2_done;
 			info->status.ampdu_len = ba_notif->txed;
-			iwl_mvm_hwrate_to_tx_control(tid_data->rate_n_flags,
-						     info);
+			iwl_mvm_hwrate_to_tx_status(tid_data->rate_n_flags,
+						    info);
 		}
 	}
 

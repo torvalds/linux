@@ -30,8 +30,10 @@ multiqueue
 
 This policy is the default.
 
-The multiqueue policy has two sets of 16 queues: one set for entries
-waiting for the cache and another one for those in the cache.
+The multiqueue policy has three sets of 16 queues: one set for entries
+waiting for the cache and another two for those in the cache (a set for
+clean entries and a set for dirty entries).
+
 Cache entries in the queues are aged based on logical time. Entry into
 the cache is based on variable thresholds and queue selection is based
 on hit count on entry. The policy aims to take different cache miss

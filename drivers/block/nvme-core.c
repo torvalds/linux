@@ -1949,12 +1949,9 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	if (pci_request_selected_regions(pdev, bars, "nvme"))
 		goto disable_pci;
 
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)))
-		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-	else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)))
-		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-	else
-		goto disable_pci;
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) &&
+	    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))
+		goto disable;
 
 	pci_set_drvdata(pdev, dev);
 	dev->bar = ioremap(pci_resource_start(pdev, 0), 8192);
@@ -2168,6 +2165,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	INIT_LIST_HEAD(&dev->namespaces);
 	dev->pci_dev = pdev;
+
 	result = nvme_set_instance(dev);
 	if (result)
 		goto free;

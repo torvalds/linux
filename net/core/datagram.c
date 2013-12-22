@@ -577,7 +577,7 @@ EXPORT_SYMBOL(skb_copy_datagram_from_iovec);
 /**
  *	zerocopy_sg_from_iovec - Build a zerocopy datagram from an iovec
  *	@skb: buffer to copy
- *	@from: io vector to copy to
+ *	@from: io vector to copy from
  *	@offset: offset in the io vector to start copying from
  *	@count: amount of vectors to copy to buffer from
  *

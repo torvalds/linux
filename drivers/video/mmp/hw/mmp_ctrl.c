@@ -53,15 +53,14 @@ static irqreturn_t ctrl_handle_irq(int irq, void *dev_id)
 		tmp = readl_relaxed(ctrl->reg_base + SPU_IRQ_ISR);
 		if (tmp & isr)
 			writel_relaxed(~isr, ctrl->reg_base + SPU_IRQ_ISR);
-	} while ((isr = readl(ctrl->reg_base + SPU_IRQ_ISR)) & imask);
+	} while ((isr = readl_relaxed(ctrl->reg_base + SPU_IRQ_ISR)) & imask);
 
 	return IRQ_HANDLED;
 }
 
 static u32 fmt_to_reg(struct mmp_overlay *overlay, int pix_fmt)
 {
-	u32 link_config = path_to_path_plat(overlay->path)->link_config;
-	u32 rbswap, uvswap = 0, yuvswap = 0,
+	u32 rbswap = 0, uvswap = 0, yuvswap = 0,
 		csc_en = 0, val = 0,
 		vid = overlay_is_vid(overlay);
 
@@ -71,27 +70,23 @@ static u32 fmt_to_reg(struct mmp_overlay *overlay, int pix_fmt)
 	case PIXFMT_RGB888PACK:
 	case PIXFMT_RGB888UNPACK:
 	case PIXFMT_RGBA888:
-		rbswap = !(link_config & 0x1);
+		rbswap = 1;
 		break;
 	case PIXFMT_VYUY:
 	case PIXFMT_YVU422P:
 	case PIXFMT_YVU420P:
-		rbswap = link_config & 0x1;
 		uvswap = 1;
 		break;
 	case PIXFMT_YUYV:
-		rbswap = link_config & 0x1;
 		yuvswap = 1;
 		break;
 	default:
-		rbswap = link_config & 0x1;
 		break;
 	}
 
 	switch (pix_fmt) {
 	case PIXFMT_RGB565:
 	case PIXFMT_BGR565:
-		val = 0;
 		break;
 	case PIXFMT_RGB1555:
 	case PIXFMT_BGR1555:
@@ -147,17 +142,27 @@ static void dmafetch_set_fmt(struct mmp_overlay *overlay)
 static void overlay_set_win(struct mmp_overlay *overlay, struct mmp_win *win)
 {
 	struct lcd_regs *regs = path_regs(overlay->path);
-	u32 pitch;
 
 	/* assert win supported */
 	memcpy(&overlay->win, win, sizeof(struct mmp_win));
 
 	mutex_lock(&overlay->access_ok);
-	pitch = win->xsrc * pixfmt_to_stride(win->pix_fmt);
-	writel_relaxed(pitch, &regs->g_pitch);
-	writel_relaxed((win->ysrc << 16) | win->xsrc, &regs->g_size);
-	writel_relaxed((win->ydst << 16) | win->xdst, &regs->g_size_z);
-	writel_relaxed(0, &regs->g_start);
+
+	if (overlay_is_vid(overlay)) {
+		writel_relaxed(win->pitch[0], &regs->v_pitch_yc);
+		writel_relaxed(win->pitch[2] << 16 |
+				win->pitch[1], &regs->v_pitch_uv);
+
+		writel_relaxed((win->ysrc << 16) | win->xsrc, &regs->v_size);
+		writel_relaxed((win->ydst << 16) | win->xdst, &regs->v_size_z);
+		writel_relaxed(win->ypos << 16 | win->xpos, &regs->v_start);
+	} else {
+		writel_relaxed(win->pitch[0], &regs->g_pitch);
+
+		writel_relaxed((win->ysrc << 16) | win->xsrc, &regs->g_size);
+		writel_relaxed((win->ydst << 16) | win->xdst, &regs->g_size_z);
+		writel_relaxed(win->ypos << 16 | win->xpos, &regs->g_start);
+	}
 
 	dmafetch_set_fmt(overlay);
 	mutex_unlock(&overlay->access_ok);
@@ -239,7 +244,13 @@ static int overlay_set_addr(struct mmp_overlay *overlay, struct mmp_addr *addr)
 
 	/* FIXME: assert addr supported */
 	memcpy(&overlay->addr, addr, sizeof(struct mmp_addr));
-	writel(addr->phys[0], &regs->g_0);
+
+	if (overlay_is_vid(overlay)) {
+		writel_relaxed(addr->phys[0], &regs->v_y0);
+		writel_relaxed(addr->phys[1], &regs->v_u0);
+		writel_relaxed(addr->phys[2], &regs->v_v0);
+	} else
+		writel_relaxed(addr->phys[0], &regs->g_0);
 
 	return overlay->addr.phys[0];
 }
@@ -248,7 +259,8 @@ static void path_set_mode(struct mmp_path *path, struct mmp_mode *mode)
 {
 	struct lcd_regs *regs = path_regs(path);
 	u32 total_x, total_y, vsync_ctrl, tmp, sclk_src, sclk_div,
-		link_config = path_to_path_plat(path)->link_config;
+		link_config = path_to_path_plat(path)->link_config,
+		dsi_rbswap = path_to_path_plat(path)->link_config;
 
 	/* FIXME: assert videomode supported */
 	memcpy(&path->mode, mode, sizeof(struct mmp_mode));
@@ -262,6 +274,12 @@ static void path_set_mode(struct mmp_path *path, struct mmp_mode *mode)
 	tmp |= link_config & CFG_DUMBMODE_MASK;
 	tmp |= CFG_DUMB_ENA(1);
 	writel_relaxed(tmp, ctrl_regs(path) + intf_ctrl(path->id));
+
+	/* interface rb_swap setting */
+	tmp = readl_relaxed(ctrl_regs(path) + intf_rbswap_ctrl(path->id)) &
+		(~(CFG_INTFRBSWAP_MASK));
+	tmp |= dsi_rbswap & CFG_INTFRBSWAP_MASK;
+	writel_relaxed(tmp, ctrl_regs(path) + intf_rbswap_ctrl(path->id));
 
 	writel_relaxed((mode->yres << 16) | mode->xres, &regs->screen_active);
 	writel_relaxed((mode->left_margin << 16) | mode->right_margin,
@@ -370,20 +388,12 @@ static void path_set_default(struct mmp_path *path)
 	 * bus arbiter for faster read if not tv path;
 	 * 2.enable horizontal smooth filter;
 	 */
-	if (PATH_PN == path->id) {
-		mask = CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK
-			| CFG_ARBFAST_ENA(1);
-		tmp = readl_relaxed(ctrl_regs(path) + dma_ctrl(0, path->id));
-		tmp |= mask;
-		writel_relaxed(tmp, ctrl_regs(path) + dma_ctrl(0, path->id));
-	} else if (PATH_TV == path->id) {
-		mask = CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK
-			| CFG_ARBFAST_ENA(1);
-		tmp = readl_relaxed(ctrl_regs(path) + dma_ctrl(0, path->id));
-		tmp &= ~mask;
-		tmp |= CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK;
-		writel_relaxed(tmp, ctrl_regs(path) + dma_ctrl(0, path->id));
-	}
+	mask = CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK | CFG_ARBFAST_ENA(1);
+	tmp = readl_relaxed(ctrl_regs(path) + dma_ctrl(0, path->id));
+	tmp |= mask;
+	if (PATH_TV == path->id)
+		tmp &= ~CFG_ARBFAST_ENA(1);
+	writel_relaxed(tmp, ctrl_regs(path) + dma_ctrl(0, path->id));
 }
 
 static int path_init(struct mmphw_path_plat *path_plat,
@@ -419,6 +429,7 @@ static int path_init(struct mmphw_path_plat *path_plat,
 	path_plat->path = path;
 	path_plat->path_config = config->path_config;
 	path_plat->link_config = config->link_config;
+	path_plat->dsi_rbswap = config->dsi_rbswap;
 	path_set_default(path);
 
 	kfree(path_info);

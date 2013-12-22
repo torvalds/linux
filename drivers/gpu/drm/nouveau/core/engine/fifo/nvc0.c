@@ -494,13 +494,6 @@ nvc0_fifo_isr_subfifo_intr(struct nvc0_fifo_priv *priv, int unit)
 	u32 mthd = (addr & 0x00003ffc);
 	u32 show = stat;
 
-	if (stat & 0x00200000) {
-		if (mthd == 0x0054) {
-			if (!nvc0_fifo_swmthd(priv, chid, 0x0500, 0x00000000))
-				show &= ~0x00200000;
-		}
-	}
-
 	if (stat & 0x00800000) {
 		if (!nvc0_fifo_swmthd(priv, chid, mthd, data))
 			show &= ~0x00800000;
@@ -720,8 +713,8 @@ nvc0_fifo_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_fifo_oclass = {
+struct nouveau_oclass *
+nvc0_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_fifo_ctor,

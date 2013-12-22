@@ -223,13 +223,13 @@
 		reg = <0xe2000 0x1000>;
 	};
 
-/include/ "qoriq-dma-0.dtsi"
+/include/ "elo3-dma-0.dtsi"
 	dma@100300 {
 		fsl,iommu-parent = <&pamu0>;
 		fsl,liodn-reg = <&guts 0x580>; /* DMA1LIODNR */
 	};
 
-/include/ "qoriq-dma-1.dtsi"
+/include/ "elo3-dma-1.dtsi"
 	dma@101300 {
 		fsl,iommu-parent = <&pamu0>;
 		fsl,liodn-reg = <&guts 0x584>; /* DMA2LIODNR */

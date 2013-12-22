@@ -24,9 +24,15 @@ static int	total_ref_count;
 static int perf_trace_event_perm(struct ftrace_event_call *tp_event,
 				 struct perf_event *p_event)
 {
+	if (tp_event->perf_perm) {
+		int ret = tp_event->perf_perm(tp_event, p_event);
+		if (ret)
+			return ret;
+	}
+
 	/* The ftrace function trace is allowed only for root. */
 	if (ftrace_event_is_function(tp_event) &&
-	    perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN))
+	    perf_paranoid_tracepoint_raw() && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* No tracing, just counting, so no obvious leak */
@@ -173,7 +179,7 @@ static int perf_trace_event_init(struct ftrace_event_call *tp_event,
 int perf_trace_init(struct perf_event *p_event)
 {
 	struct ftrace_event_call *tp_event;
-	int event_id = p_event->attr.config;
+	u64 event_id = p_event->attr.config;
 	int ret = -EINVAL;
 
 	mutex_lock(&event_mutex);

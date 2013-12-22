@@ -1641,7 +1641,7 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 	struct wlan_network	*cur_network = &adapter->mlmepriv.cur_network;
 
 	pdev_network->Privacy = cpu_to_le32(psecuritypriv->PrivacyAlgrthm
-					    > 0 ? 1 : 0) ; /* adhoc no 802.1x */
+					    > 0 ? 1 : 0); /* adhoc no 802.1x */
 	pdev_network->Rssi = 0;
 	switch (pregistrypriv->wireless_mode) {
 	case WIRELESS_11B:
@@ -1786,7 +1786,7 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 	psta = r8712_get_stainfo(&padapter->stapriv,
 				 pcur_network->network.MacAddress);
 	if (psta) {
-		for (i = 0; i < 16 ; i++) {
+		for (i = 0; i < 16; i++) {
 			preorder_ctrl = &psta->recvreorder_ctrl[i];
 			preorder_ctrl->indicate_seq = 0xffff;
 			preorder_ctrl->wend_b = 0xffff;

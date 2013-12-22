@@ -214,7 +214,7 @@ void irq_enable(struct irq_desc *desc)
 }
 
 /**
- * irq_disable - Mark interupt disabled
+ * irq_disable - Mark interrupt disabled
  * @desc:	irq descriptor which should be disabled
  *
  * If the chip does not implement the irq_disable callback, we

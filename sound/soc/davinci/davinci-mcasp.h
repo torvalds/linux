@@ -43,6 +43,18 @@ struct davinci_audio_dev {
 	/* McASP FIFO related */
 	u8	txnumevt;
 	u8	rxnumevt;
+
+#ifdef CONFIG_PM_SLEEP
+	struct {
+		u32	txfmtctl;
+		u32	rxfmtctl;
+		u32	txfmt;
+		u32	rxfmt;
+		u32	aclkxctl;
+		u32	aclkrctl;
+		u32	pdir;
+	} context;
+#endif
 };
 
 #endif	/* DAVINCI_MCASP_H */

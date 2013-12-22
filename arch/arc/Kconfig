@@ -8,6 +8,7 @@
 
 config ARC
 	def_bool y
+	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
 	select DEVTMPFS if !INITRAMFS_SOURCE=""
@@ -34,6 +35,12 @@ config ARC
 	select OF_EARLY_FLATTREE
 	select PERF_USE_VMALLOC
 	select HAVE_DEBUG_STACKOVERFLOW
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -119,7 +126,6 @@ config ARC_PLAT_NEEDS_CPU_TO_DMA
 config SMP
 	bool "Symmetric Multi-Processing (Incomplete)"
 	default n
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -130,17 +136,14 @@ if SMP
 config ARC_HAS_COH_CACHES
 	def_bool n
 
-config ARC_HAS_COH_RTSC
-	def_bool n
-
 config ARC_HAS_REENTRANT_IRQ_LV2
 	def_bool n
 
 endif
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-32)"
-	range 2 32
+	int "Maximum number of CPUs (2-4096)"
+	range 2 4096
 	depends on SMP
 	default "2"
 
@@ -326,8 +329,7 @@ config ARC_HAS_RTSC
 	bool "Insn: RTSC (64-bit r/o cycle counter)"
 	default y
 	depends on ARC_CPU_REL_4_10
-	# if SMP, enable RTSC only if counter is coherent across cores
-	depends on !SMP || ARC_HAS_COH_RTSC
+	depends on !SMP
 
 endmenu   # "ARC CPU Configuration"
 

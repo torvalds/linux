@@ -174,7 +174,6 @@ out_dev_reg_failed:
 out_dev_create_file_failed:
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
 out_dev_create_temp_file_failed:
-	spi_set_drvdata(spi, NULL);
 	return status;
 }
 
@@ -185,7 +184,6 @@ static int lm70_remove(struct spi_device *spi)
 	hwmon_device_unregister(p_lm70->hwmon_dev);
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
 	device_remove_file(&spi->dev, &dev_attr_name);
-	spi_set_drvdata(spi, NULL);
 
 	return 0;
 }

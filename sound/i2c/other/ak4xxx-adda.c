@@ -583,7 +583,7 @@ static int ak4xxx_capture_source_info(struct snd_kcontrol *kcontrol,
 	if (idx >= num_names)
 		return -EINVAL;
 	input_names = ak->adc_info[mixer_ch].input_names;
-	strncpy(uinfo->value.enumerated.name, input_names[idx],
+	strlcpy(uinfo->value.enumerated.name, input_names[idx],
 		sizeof(uinfo->value.enumerated.name));
 	return 0;
 }

@@ -30,7 +30,12 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
-void storage_key_init_range(unsigned long start, unsigned long end);
+static inline void storage_key_init_range(unsigned long start, unsigned long end)
+{
+#if PAGE_DEFAULT_KEY
+	__storage_key_init_range(start, end);
+#endif
+}
 
 static inline void clear_page(void *page)
 {
@@ -43,33 +48,21 @@ static inline void clear_page(void *page)
 		: "memory", "cc");
 }
 
+/*
+ * copy_page uses the mvcl instruction with 0xb0 padding byte in order to
+ * bypass caches when copying a page. Especially when copying huge pages
+ * this keeps L1 and L2 data caches alive.
+ */
 static inline void copy_page(void *to, void *from)
 {
-	if (MACHINE_HAS_MVPG) {
-		register unsigned long reg0 asm ("0") = 0;
-		asm volatile(
-			"	mvpg	%0,%1"
-			: : "a" (to), "a" (from), "d" (reg0)
-			: "memory", "cc");
-	} else
-		asm volatile(
-			"	mvc	0(256,%0),0(%1)\n"
-			"	mvc	256(256,%0),256(%1)\n"
-			"	mvc	512(256,%0),512(%1)\n"
-			"	mvc	768(256,%0),768(%1)\n"
-			"	mvc	1024(256,%0),1024(%1)\n"
-			"	mvc	1280(256,%0),1280(%1)\n"
-			"	mvc	1536(256,%0),1536(%1)\n"
-			"	mvc	1792(256,%0),1792(%1)\n"
-			"	mvc	2048(256,%0),2048(%1)\n"
-			"	mvc	2304(256,%0),2304(%1)\n"
-			"	mvc	2560(256,%0),2560(%1)\n"
-			"	mvc	2816(256,%0),2816(%1)\n"
-			"	mvc	3072(256,%0),3072(%1)\n"
-			"	mvc	3328(256,%0),3328(%1)\n"
-			"	mvc	3584(256,%0),3584(%1)\n"
-			"	mvc	3840(256,%0),3840(%1)\n"
-			: : "a" (to), "a" (from) : "memory");
+	register void *reg2 asm ("2") = to;
+	register unsigned long reg3 asm ("3") = 0x1000;
+	register void *reg4 asm ("4") = from;
+	register unsigned long reg5 asm ("5") = 0xb0001000;
+	asm volatile(
+		"	mvcl	2,4"
+		: "+d" (reg2), "+d" (reg3), "+d" (reg4), "+d" (reg5)
+		: : "memory", "cc");
 }
 
 #define clear_user_page(page, vaddr, pg)	clear_page(page)

@@ -703,7 +703,7 @@ static int lpddr_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 #define DO_XXLOCK_LOCK		1
 #define DO_XXLOCK_UNLOCK	2
-int do_xxlock(struct mtd_info *mtd, loff_t adr, uint32_t len, int thunk)
+static int do_xxlock(struct mtd_info *mtd, loff_t adr, uint32_t len, int thunk)
 {
 	int ret = 0;
 	struct map_info *map = mtd->priv;

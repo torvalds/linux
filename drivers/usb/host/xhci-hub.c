@@ -296,7 +296,7 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	/* Wait for last stop endpoint command to finish */
 	timeleft = wait_for_completion_interruptible_timeout(
 			cmd->completion,
-			USB_CTRL_SET_TIMEOUT);
+			XHCI_CMD_DEFAULT_TIMEOUT);
 	if (timeleft <= 0) {
 		xhci_warn(xhci, "%s while waiting for stop endpoint command\n",
 				timeleft == 0 ? "Timeout" : "Signal");
@@ -524,7 +524,8 @@ static void xhci_hub_report_usb3_link_state(u32 *status, u32 status_reg)
  * the compliance mode timer is deleted. A port won't enter
  * compliance mode if it has previously entered U0.
  */
-void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status, u16 wIndex)
+static void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status,
+				    u16 wIndex)
 {
 	u32 all_ports_seen_u0 = ((1 << xhci->num_usb3_ports)-1);
 	bool port_in_u0 = ((status & PORT_PLS_MASK) == XDEV_U0);
@@ -1157,18 +1158,6 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 		t1 = xhci_port_state_to_neutral(t1);
 		if (t1 != t2)
 			xhci_writel(xhci, t2, port_array[port_index]);
-
-		if (hcd->speed != HCD_USB3) {
-			/* enable remote wake up for USB 2.0 */
-			__le32 __iomem *addr;
-			u32 tmp;
-
-			/* Get the port power control register address. */
-			addr = port_array[port_index] + PORTPMSC;
-			tmp = xhci_readl(xhci, addr);
-			tmp |= PORT_RWE;
-			xhci_writel(xhci, tmp, addr);
-		}
 	}
 	hcd->state = HC_STATE_SUSPENDED;
 	bus_state->next_statechange = jiffies + msecs_to_jiffies(10);
@@ -1247,20 +1236,6 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 				xhci_ring_device(xhci, slot_id);
 		} else
 			xhci_writel(xhci, temp, port_array[port_index]);
-
-		if (hcd->speed != HCD_USB3) {
-			/* disable remote wake up for USB 2.0 */
-			__le32 __iomem *addr;
-			u32 tmp;
-
-			/* Add one to the port status register address to get
-			 * the port power control register address.
-			 */
-			addr = port_array[port_index] + PORTPMSC;
-			tmp = xhci_readl(xhci, addr);
-			tmp &= ~PORT_RWE;
-			xhci_writel(xhci, tmp, addr);
-		}
 	}
 
 	(void) xhci_readl(xhci, &xhci->op_regs->command);

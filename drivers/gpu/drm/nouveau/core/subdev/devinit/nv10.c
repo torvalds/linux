@@ -38,11 +38,17 @@ static void
 nv10_devinit_meminit(struct nouveau_devinit *devinit)
 {
 	struct nv10_devinit_priv *priv = (void *)devinit;
-	const int mem_width[] = { 0x10, 0x00, 0x20 };
-	const int mem_width_count = nv_device(priv)->chipset >= 0x17 ? 3 : 2;
+	static const int mem_width[] = { 0x10, 0x00, 0x20 };
+	int mem_width_count;
 	uint32_t patt = 0xdeadbeef;
 	struct io_mapping *fb;
 	int i, j, k;
+
+	if (nv_device(priv)->card_type >= NV_11 &&
+	    nv_device(priv)->chipset >= 0x17)
+		mem_width_count = 3;
+	else
+		mem_width_count = 2;
 
 	/* Map the framebuffer aperture */
 	fb = fbmem_init(nv_device(priv)->pdev);

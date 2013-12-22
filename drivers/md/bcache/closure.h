@@ -155,21 +155,6 @@
  * delayed_work embeds a work item and a timer_list. The important thing is, use
  * it exactly like you would a regular closure and closure_put() will magically
  * handle everything for you.
- *
- * We've got closures that embed timers, too. They're called, appropriately
- * enough:
- * struct closure_with_timer;
- *
- * This gives you access to closure_delay(). It takes a refcount for a specified
- * number of jiffies - you could then call closure_sync() (for a slightly
- * convoluted version of msleep()) or continue_at() - which gives you the same
- * effect as using a delayed work item, except you can reuse the work_struct
- * already embedded in struct closure.
- *
- * Lastly, there's struct closure_with_waitlist_and_timer. It does what you
- * probably expect, if you happen to need the features of both. (You don't
- * really want to know how all this is implemented, but if I've done my job
- * right you shouldn't have to care).
  */
 
 struct closure;
@@ -182,16 +167,11 @@ struct closure_waitlist {
 enum closure_type {
 	TYPE_closure				= 0,
 	TYPE_closure_with_waitlist		= 1,
-	TYPE_closure_with_timer			= 2,
-	TYPE_closure_with_waitlist_and_timer	= 3,
-	MAX_CLOSURE_TYPE			= 3,
+	MAX_CLOSURE_TYPE			= 1,
 };
 
 enum closure_state {
 	/*
-	 * CLOSURE_BLOCKING: Causes closure_wait_event() to block, instead of
-	 * waiting asynchronously
-	 *
 	 * CLOSURE_WAITING: Set iff the closure is on a waitlist. Must be set by
 	 * the thread that owns the closure, and cleared by the thread that's
 	 * waking up the closure.
@@ -199,10 +179,6 @@ enum closure_state {
 	 * CLOSURE_SLEEPING: Must be set before a thread uses a closure to sleep
 	 * - indicates that cl->task is valid and closure_put() may wake it up.
 	 * Only set or cleared by the thread that owns the closure.
-	 *
-	 * CLOSURE_TIMER: Analagous to CLOSURE_WAITING, indicates that a closure
-	 * has an outstanding timer. Must be set by the thread that owns the
-	 * closure, and cleared by the timer function when the timer goes off.
 	 *
 	 * The rest are for debugging and don't affect behaviour:
 	 *
@@ -218,19 +194,17 @@ enum closure_state {
 	 * closure with this flag set
 	 */
 
-	CLOSURE_BITS_START	= (1 << 19),
-	CLOSURE_DESTRUCTOR	= (1 << 19),
-	CLOSURE_BLOCKING	= (1 << 21),
-	CLOSURE_WAITING		= (1 << 23),
-	CLOSURE_SLEEPING	= (1 << 25),
-	CLOSURE_TIMER		= (1 << 27),
+	CLOSURE_BITS_START	= (1 << 23),
+	CLOSURE_DESTRUCTOR	= (1 << 23),
+	CLOSURE_WAITING		= (1 << 25),
+	CLOSURE_SLEEPING	= (1 << 27),
 	CLOSURE_RUNNING		= (1 << 29),
 	CLOSURE_STACK		= (1 << 31),
 };
 
 #define CLOSURE_GUARD_MASK					\
-	((CLOSURE_DESTRUCTOR|CLOSURE_BLOCKING|CLOSURE_WAITING|	\
-	  CLOSURE_SLEEPING|CLOSURE_TIMER|CLOSURE_RUNNING|CLOSURE_STACK) << 1)
+	((CLOSURE_DESTRUCTOR|CLOSURE_WAITING|CLOSURE_SLEEPING|	\
+	  CLOSURE_RUNNING|CLOSURE_STACK) << 1)
 
 #define CLOSURE_REMAINING_MASK		(CLOSURE_BITS_START - 1)
 #define CLOSURE_REMAINING_INITIALIZER	(1|CLOSURE_RUNNING)
@@ -268,17 +242,6 @@ struct closure_with_waitlist {
 	struct closure_waitlist	wait;
 };
 
-struct closure_with_timer {
-	struct closure		cl;
-	struct timer_list	timer;
-};
-
-struct closure_with_waitlist_and_timer {
-	struct closure		cl;
-	struct closure_waitlist	wait;
-	struct timer_list	timer;
-};
-
 extern unsigned invalid_closure_type(void);
 
 #define __CLOSURE_TYPE(cl, _t)						\
@@ -289,14 +252,11 @@ extern unsigned invalid_closure_type(void);
 (									\
 	__CLOSURE_TYPE(cl, closure)					\
 	__CLOSURE_TYPE(cl, closure_with_waitlist)			\
-	__CLOSURE_TYPE(cl, closure_with_timer)				\
-	__CLOSURE_TYPE(cl, closure_with_waitlist_and_timer)		\
 	invalid_closure_type()						\
 )
 
 void closure_sub(struct closure *cl, int v);
 void closure_put(struct closure *cl);
-void closure_queue(struct closure *cl);
 void __closure_wake_up(struct closure_waitlist *list);
 bool closure_wait(struct closure_waitlist *list, struct closure *cl);
 void closure_sync(struct closure *cl);
@@ -304,12 +264,6 @@ void closure_sync(struct closure *cl);
 bool closure_trylock(struct closure *cl, struct closure *parent);
 void __closure_lock(struct closure *cl, struct closure *parent,
 		    struct closure_waitlist *wait_list);
-
-void do_closure_timer_init(struct closure *cl);
-bool __closure_delay(struct closure *cl, unsigned long delay,
-		     struct timer_list *timer);
-void __closure_flush(struct closure *cl, struct timer_list *timer);
-void __closure_flush_sync(struct closure *cl, struct timer_list *timer);
 
 #ifdef CONFIG_BCACHE_CLOSURES_DEBUG
 
@@ -354,11 +308,6 @@ static inline void closure_set_stopped(struct closure *cl)
 	atomic_sub(CLOSURE_RUNNING, &cl->remaining);
 }
 
-static inline bool closure_is_stopped(struct closure *cl)
-{
-	return !(atomic_read(&cl->remaining) & CLOSURE_RUNNING);
-}
-
 static inline bool closure_is_unlocked(struct closure *cl)
 {
 	return atomic_read(&cl->remaining) == -1;
@@ -367,14 +316,6 @@ static inline bool closure_is_unlocked(struct closure *cl)
 static inline void do_closure_init(struct closure *cl, struct closure *parent,
 				   bool running)
 {
-	switch (cl->type) {
-	case TYPE_closure_with_timer:
-	case TYPE_closure_with_waitlist_and_timer:
-		do_closure_timer_init(cl);
-	default:
-		break;
-	}
-
 	cl->parent = parent;
 	if (parent)
 		closure_get(parent);
@@ -429,8 +370,7 @@ do {								\
 static inline void closure_init_stack(struct closure *cl)
 {
 	memset(cl, 0, sizeof(struct closure));
-	atomic_set(&cl->remaining, CLOSURE_REMAINING_INITIALIZER|
-		   CLOSURE_BLOCKING|CLOSURE_STACK);
+	atomic_set(&cl->remaining, CLOSURE_REMAINING_INITIALIZER|CLOSURE_STACK);
 }
 
 /**
@@ -461,24 +401,6 @@ do {								\
 #define closure_lock(cl, parent)				\
 	__closure_lock(__to_internal_closure(cl), parent, &(cl)->wait)
 
-/**
- * closure_delay() - delay some number of jiffies
- * @cl:		the closure that will sleep
- * @delay:	the delay in jiffies
- *
- * Takes a refcount on @cl which will be released after @delay jiffies; this may
- * be used to have a function run after a delay with continue_at(), or
- * closure_sync() may be used for a convoluted version of msleep().
- */
-#define closure_delay(cl, delay)			\
-	__closure_delay(__to_internal_closure(cl), delay, &(cl)->timer)
-
-#define closure_flush(cl)				\
-	__closure_flush(__to_internal_closure(cl), &(cl)->timer)
-
-#define closure_flush_sync(cl)				\
-	__closure_flush_sync(__to_internal_closure(cl), &(cl)->timer)
-
 static inline void __closure_end_sleep(struct closure *cl)
 {
 	__set_current_state(TASK_RUNNING);
@@ -495,40 +417,6 @@ static inline void __closure_start_sleep(struct closure *cl)
 
 	if (!(atomic_read(&cl->remaining) & CLOSURE_SLEEPING))
 		atomic_add(CLOSURE_SLEEPING, &cl->remaining);
-}
-
-/**
- * closure_blocking() - returns true if the closure is in blocking mode.
- *
- * If a closure is in blocking mode, closure_wait_event() will sleep until the
- * condition is true instead of waiting asynchronously.
- */
-static inline bool closure_blocking(struct closure *cl)
-{
-	return atomic_read(&cl->remaining) & CLOSURE_BLOCKING;
-}
-
-/**
- * set_closure_blocking() - put a closure in blocking mode.
- *
- * If a closure is in blocking mode, closure_wait_event() will sleep until the
- * condition is true instead of waiting asynchronously.
- *
- * Not thread safe - can only be called by the thread running the closure.
- */
-static inline void set_closure_blocking(struct closure *cl)
-{
-	if (!closure_blocking(cl))
-		atomic_add(CLOSURE_BLOCKING, &cl->remaining);
-}
-
-/*
- * Not thread safe - can only be called by the thread running the closure.
- */
-static inline void clear_closure_blocking(struct closure *cl)
-{
-	if (closure_blocking(cl))
-		atomic_sub(CLOSURE_BLOCKING, &cl->remaining);
 }
 
 /**
@@ -561,63 +449,36 @@ static inline void closure_wake_up(struct closure_waitlist *list)
  * refcount on our closure. If this was a stack allocated closure, that would be
  * bad.
  */
-#define __closure_wait_event(list, cl, condition, _block)		\
+#define closure_wait_event(list, cl, condition)				\
 ({									\
-	bool block = _block;						\
 	typeof(condition) ret;						\
 									\
 	while (1) {							\
 		ret = (condition);					\
 		if (ret) {						\
 			__closure_wake_up(list);			\
-			if (block)					\
-				closure_sync(cl);			\
-									\
+			closure_sync(cl);				\
 			break;						\
 		}							\
 									\
-		if (block)						\
-			__closure_start_sleep(cl);			\
+		__closure_start_sleep(cl);				\
 									\
-		if (!closure_wait(list, cl)) {				\
-			if (!block)					\
-				break;					\
-									\
+		if (!closure_wait(list, cl))				\
 			schedule();					\
-		}							\
 	}								\
 									\
 	ret;								\
 })
 
-/**
- * closure_wait_event() - wait on a condition, synchronously or asynchronously.
- * @list:	the wait list to wait on
- * @cl:		the closure that is doing the waiting
- * @condition:	a C expression for the event to wait for
- *
- * If the closure is in blocking mode, sleeps until the @condition evaluates to
- * true - exactly like wait_event().
- *
- * If the closure is not in blocking mode, waits asynchronously; if the
- * condition is currently false the @cl is put onto @list and returns. @list
- * owns a refcount on @cl; closure_sync() or continue_at() may be used later to
- * wait for another thread to wake up @list, which drops the refcount on @cl.
- *
- * Returns the value of @condition; @cl will be on @list iff @condition was
- * false.
- *
- * closure_wake_up(@list) must be called after changing any variable that could
- * cause @condition to become true.
- */
-#define closure_wait_event(list, cl, condition)				\
-	__closure_wait_event(list, cl, condition, closure_blocking(cl))
-
-#define closure_wait_event_async(list, cl, condition)			\
-	__closure_wait_event(list, cl, condition, false)
-
-#define closure_wait_event_sync(list, cl, condition)			\
-	__closure_wait_event(list, cl, condition, true)
+static inline void closure_queue(struct closure *cl)
+{
+	struct workqueue_struct *wq = cl->wq;
+	if (wq) {
+		INIT_WORK(&cl->work, cl->work.func);
+		BUG_ON(!queue_work(wq, &cl->work));
+	} else
+		cl->fn(cl);
+}
 
 static inline void set_closure_fn(struct closure *cl, closure_fn *fn,
 				  struct workqueue_struct *wq)
@@ -642,7 +503,7 @@ do {									\
 #define continue_at_nobarrier(_cl, _fn, _wq)				\
 do {									\
 	set_closure_fn(_cl, _fn, _wq);					\
-	closure_queue(cl);						\
+	closure_queue(_cl);						\
 	return;								\
 } while (0)
 

@@ -198,7 +198,6 @@ static void btuart_receive(btuart_info_t *info)
 
 		if (info->rx_state == RECV_WAIT_PACKET_TYPE) {
 
-			info->rx_skb->dev = (void *) info->hdev;
 			bt_cb(info->rx_skb)->pkt_type = inb(iobase + UART_RX);
 
 			switch (bt_cb(info->rx_skb)->pkt_type) {
@@ -265,7 +264,7 @@ static void btuart_receive(btuart_info_t *info)
 					break;
 
 				case RECV_WAIT_DATA:
-					hci_recv_frame(info->rx_skb);
+					hci_recv_frame(info->hdev, info->rx_skb);
 					info->rx_skb = NULL;
 					break;
 
@@ -424,17 +423,9 @@ static int btuart_hci_close(struct hci_dev *hdev)
 }
 
 
-static int btuart_hci_send_frame(struct sk_buff *skb)
+static int btuart_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	btuart_info_t *info;
-	struct hci_dev *hdev = (struct hci_dev *)(skb->dev);
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
-		return -ENODEV;
-	}
-
-	info = hci_get_drvdata(hdev);
+	btuart_info_t *info = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -455,12 +446,6 @@ static int btuart_hci_send_frame(struct sk_buff *skb)
 	btuart_write_wakeup(info);
 
 	return 0;
-}
-
-
-static int btuart_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
 }
 
 
@@ -495,11 +480,10 @@ static int btuart_open(btuart_info_t *info)
 	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
-	hdev->open     = btuart_hci_open;
-	hdev->close    = btuart_hci_close;
-	hdev->flush    = btuart_hci_flush;
-	hdev->send     = btuart_hci_send_frame;
-	hdev->ioctl    = btuart_hci_ioctl;
+	hdev->open  = btuart_hci_open;
+	hdev->close = btuart_hci_close;
+	hdev->flush = btuart_hci_flush;
+	hdev->send  = btuart_hci_send_frame;
 
 	spin_lock_irqsave(&(info->lock), flags);
 

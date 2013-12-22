@@ -162,7 +162,8 @@ int wl1271_acx_mem_map(struct wl1271 *wl, struct acx_header *mem_map,
 
 	wl1271_debug(DEBUG_ACX, "acx mem map");
 
-	ret = wl1271_cmd_interrogate(wl, ACX_MEM_MAP, mem_map, len);
+	ret = wl1271_cmd_interrogate(wl, ACX_MEM_MAP, mem_map,
+				     sizeof(struct acx_header), len);
 	if (ret < 0)
 		return ret;
 
@@ -722,6 +723,7 @@ int wl1271_acx_statistics(struct wl1271 *wl, void *stats)
 	wl1271_debug(DEBUG_ACX, "acx statistics");
 
 	ret = wl1271_cmd_interrogate(wl, ACX_STATISTICS, stats,
+				     sizeof(struct acx_header),
 				     wl->stats.fw_stats_len);
 	if (ret < 0) {
 		wl1271_warning("acx statistics failed: %d", ret);
@@ -1470,8 +1472,8 @@ int wl12xx_acx_tsf_info(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	tsf_info->role_id = wlvif->role_id;
 
-	ret = wl1271_cmd_interrogate(wl, ACX_TSF_INFO,
-				     tsf_info, sizeof(*tsf_info));
+	ret = wl1271_cmd_interrogate(wl, ACX_TSF_INFO, tsf_info,
+				sizeof(struct acx_header), sizeof(*tsf_info));
 	if (ret < 0) {
 		wl1271_warning("acx tsf info interrogate failed");
 		goto out;
@@ -1752,7 +1754,7 @@ int wlcore_acx_average_rssi(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	acx->role_id = wlvif->role_id;
 	ret = wl1271_cmd_interrogate(wl, ACX_ROAMING_STATISTICS_TBL,
-				     acx, sizeof(*acx));
+				     acx, sizeof(*acx), sizeof(*acx));
 	if (ret	< 0) {
 		wl1271_warning("acx roaming statistics failed: %d", ret);
 		ret = -ENOMEM;

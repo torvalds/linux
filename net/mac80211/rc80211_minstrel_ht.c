@@ -226,7 +226,7 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
 
 	nsecs += minstrel_mcs_groups[group].duration[rate];
-	tp = 1000000 * ((mr->probability * 1000) / nsecs);
+	tp = 1000000 * ((prob * 1000) / nsecs);
 
 	mr->cur_tp = MINSTREL_TRUNC(tp);
 }
@@ -277,13 +277,15 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 			if (!(mg->supported & BIT(i)))
 				continue;
 
+			index = MCS_GROUP_RATES * group + i;
+
 			/* initialize rates selections starting indexes */
 			if (!mg_rates_valid) {
 				mg->max_tp_rate = mg->max_tp_rate2 =
 					mg->max_prob_rate = i;
 				if (!mi_rates_valid) {
 					mi->max_tp_rate = mi->max_tp_rate2 =
-						mi->max_prob_rate = i;
+						mi->max_prob_rate = index;
 					mi_rates_valid = true;
 				}
 				mg_rates_valid = true;
@@ -291,7 +293,6 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 
 			mr = &mg->rates[i];
 			mr->retry_updated = false;
-			index = MCS_GROUP_RATES * group + i;
 			minstrel_calc_rate_ewma(mr);
 			minstrel_ht_calc_tp(mi, group, i);
 
@@ -365,6 +366,14 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		}
 	}
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* use fixed index if set */
+	if (mp->fixed_rate_idx != -1) {
+		mi->max_tp_rate = mp->fixed_rate_idx;
+		mi->max_tp_rate2 = mp->fixed_rate_idx;
+		mi->max_prob_rate = mp->fixed_rate_idx;
+	}
+#endif
 
 	mi->stats_update = jiffies;
 }
@@ -774,22 +783,17 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	info->flags |= mi->tx_flags;
 	minstrel_ht_check_cck_shortpreamble(mp, mi, txrc->short_preamble);
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (mp->fixed_rate_idx != -1)
+		return;
+#endif
+
 	/* Don't use EAPOL frames for sampling on non-mrr hw */
 	if (mp->hw->max_rates == 1 &&
 	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		sample_idx = -1;
 	else
 		sample_idx = minstrel_get_sample_rate(mp, mi);
-
-#ifdef CONFIG_MAC80211_DEBUGFS
-	/* use fixed index if set */
-	if (mp->fixed_rate_idx != -1) {
-		mi->max_tp_rate = mp->fixed_rate_idx;
-		mi->max_tp_rate2 = mp->fixed_rate_idx;
-		mi->max_prob_rate = mp->fixed_rate_idx;
-		sample_idx = -1;
-	}
-#endif
 
 	mi->total_packets++;
 

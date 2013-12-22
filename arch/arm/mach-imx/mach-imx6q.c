@@ -11,11 +11,8 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
-#include <linux/clocksource.h>
 #include <linux/cpu.h>
-#include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -25,7 +22,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/phy.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
@@ -39,64 +36,6 @@
 #include "common.h"
 #include "cpuidle.h"
 #include "hardware.h"
-
-static u32 chip_revision;
-
-int imx6q_revision(void)
-{
-	return chip_revision;
-}
-
-static void __init imx6q_init_revision(void)
-{
-	u32 rev = imx_anatop_get_digprog();
-
-	switch (rev & 0xff) {
-	case 0:
-		chip_revision = IMX_CHIP_REVISION_1_0;
-		break;
-	case 1:
-		chip_revision = IMX_CHIP_REVISION_1_1;
-		break;
-	case 2:
-		chip_revision = IMX_CHIP_REVISION_1_2;
-		break;
-	default:
-		chip_revision = IMX_CHIP_REVISION_UNKNOWN;
-	}
-
-	mxc_set_cpu_type(rev >> 16 & 0xff);
-}
-
-static void imx6q_restart(enum reboot_mode mode, const char *cmd)
-{
-	struct device_node *np;
-	void __iomem *wdog_base;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-wdt");
-	wdog_base = of_iomap(np, 0);
-	if (!wdog_base)
-		goto soft;
-
-	imx_src_prepare_restart();
-
-	/* enable wdog */
-	writew_relaxed(1 << 2, wdog_base);
-	/* write twice to ensure the request will not get ignored */
-	writew_relaxed(1 << 2, wdog_base);
-
-	/* wait for reset to assert ... */
-	mdelay(500);
-
-	pr_err("Watchdog reset failed to assert reset\n");
-
-	/* delay to allow the serial port to show the message */
-	mdelay(50);
-
-soft:
-	/* we'll take a jump through zero as a poor second */
-	soft_restart(0);
-}
 
 /* For imx6q sabrelite board: set KSZ9021RN RGMII pad skew */
 static int ksz9021rn_phy_fixup(struct phy_device *phydev)
@@ -192,9 +131,20 @@ static void __init imx6q_1588_init(void)
 
 static void __init imx6q_init_machine(void)
 {
+	struct device *parent;
+
+	imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
+			      imx_get_soc_revision());
+
+	mxc_arch_reset_init_dt();
+
+	parent = imx_soc_device_init();
+	if (parent == NULL)
+		pr_warn("failed to initialize soc device\n");
+
 	imx6q_enet_phy_init();
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
 
 	imx_anatop_init();
 	imx6q_pm_init();
@@ -226,7 +176,7 @@ static void __init imx6q_opp_check_1p2ghz(struct device *cpu_dev)
 	val = readl_relaxed(base + OCOTP_CFG3);
 	val >>= OCOTP_CFG3_SPEED_SHIFT;
 	if ((val & 0x3) != OCOTP_CFG3_SPEED_1P2GHZ)
-		if (opp_disable(cpu_dev, 1200000000))
+		if (dev_pm_opp_disable(cpu_dev, 1200000000))
 			pr_warn("failed to disable 1.2 GHz OPP\n");
 
 put_node:
@@ -269,7 +219,7 @@ static void __init imx6q_init_late(void)
 	 * WAIT mode is broken on TO 1.0 and 1.1, so there is no point
 	 * to run cpuidle on them.
 	 */
-	if (imx6q_revision() > IMX_CHIP_REVISION_1_1)
+	if (imx_get_soc_revision() > IMX_CHIP_REVISION_1_1)
 		imx6q_cpuidle_init();
 
 	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ)) {
@@ -286,19 +236,11 @@ static void __init imx6q_map_io(void)
 
 static void __init imx6q_init_irq(void)
 {
-	imx6q_init_revision();
+	imx_init_revision_from_anatop();
 	imx_init_l2cache();
 	imx_src_init();
 	imx_gpc_init();
 	irqchip_init();
-}
-
-static void __init imx6q_timer_init(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
-	imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
-			      imx6q_revision());
 }
 
 static const char *imx6q_dt_compat[] __initdata = {
@@ -311,9 +253,8 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad/DualLite (Device Tree)")
 	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,
-	.init_time	= imx6q_timer_init,
 	.init_machine	= imx6q_init_machine,
 	.init_late      = imx6q_init_late,
 	.dt_compat	= imx6q_dt_compat,
-	.restart	= imx6q_restart,
+	.restart	= mxc_restart,
 MACHINE_END

@@ -326,8 +326,6 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			regp->MiscOutReg = 0x23;	/* +hsync +vsync */
 	}
 
-	regp->MiscOutReg |= (mode->clock_index & 0x03) << 2;
-
 	/*
 	 * Time Sequencer
 	 */

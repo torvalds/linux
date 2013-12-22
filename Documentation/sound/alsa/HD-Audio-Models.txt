@@ -28,6 +28,7 @@ ALC269/270/275/276/28x/29x
   alc269-dmic		Enable ALC269(VA) digital mic workaround
   alc271-dmic		Enable ALC271X digital mic workaround
   inv-dmic		Inverted internal mic workaround
+  headset-mic		Indicates a combined headset (headphone+mic) jack
   lenovo-dock   	Enables docking station I/O for some Lenovos
   dell-headset-multi	Headset jack, which can also be used as mic-in
   dell-headset-dock	Headset jack (without mic-in), and also dock I/O

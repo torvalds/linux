@@ -156,7 +156,7 @@ static int qlcnic_82xx_store_beacon(struct qlcnic_adapter *adapter,
 				    const char *buf, size_t len)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	int err, max_sds_rings = adapter->max_sds_rings;
+	int err, drv_sds_rings = adapter->drv_sds_rings;
 	u16 beacon;
 	u8 h_beacon_state, b_state, b_rate;
 
@@ -211,7 +211,7 @@ static int qlcnic_82xx_store_beacon(struct qlcnic_adapter *adapter,
 	}
 
 	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
-		qlcnic_diag_free_res(adapter->netdev, max_sds_rings);
+		qlcnic_diag_free_res(adapter->netdev, drv_sds_rings);
 
 out:
 	if (!ahw->beacon_state)
@@ -1272,7 +1272,6 @@ void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter)
 void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
-	u32 state;
 
 	if (device_create_bin_file(dev, &bin_attr_port_stats))
 		dev_info(dev, "failed to create port stats sysfs entry");
@@ -1286,8 +1285,7 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 	if (device_create_bin_file(dev, &bin_attr_mem))
 		dev_info(dev, "failed to create mem sysfs entry\n");
 
-	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
-	if (state == QLCNIC_DEV_FAILED || state == QLCNIC_DEV_BADBAD)
+	if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state))
 		return;
 
 	if (device_create_bin_file(dev, &bin_attr_pci_config))
@@ -1313,7 +1311,6 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
-	u32 state;
 
 	device_remove_bin_file(dev, &bin_attr_port_stats);
 
@@ -1323,8 +1320,7 @@ void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 	device_remove_bin_file(dev, &bin_attr_crb);
 	device_remove_bin_file(dev, &bin_attr_mem);
 
-	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
-	if (state == QLCNIC_DEV_FAILED || state == QLCNIC_DEV_BADBAD)
+	if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state))
 		return;
 
 	device_remove_bin_file(dev, &bin_attr_pci_config);

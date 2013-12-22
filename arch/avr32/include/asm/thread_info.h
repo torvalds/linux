@@ -66,8 +66,6 @@ static inline struct thread_info *current_thread_info(void)
 
 #endif /* !__ASSEMBLY__ */
 
-#define PREEMPT_ACTIVE		0x40000000
-
 /*
  * Thread information flags
  * - these are process state flags that various assembly files may need to access

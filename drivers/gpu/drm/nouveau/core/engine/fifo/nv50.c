@@ -33,6 +33,7 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 
+#include "nv04.h"
 #include "nv50.h"
 
 /*******************************************************************************
@@ -460,6 +461,8 @@ nv50_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->intr = nv04_fifo_intr;
 	nv_engine(priv)->cclass = &nv50_fifo_cclass;
 	nv_engine(priv)->sclass = nv50_fifo_sclass;
+	priv->base.pause = nv04_fifo_pause;
+	priv->base.start = nv04_fifo_start;
 	return 0;
 }
 
@@ -502,8 +505,8 @@ nv50_fifo_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nv50_fifo_oclass = {
+struct nouveau_oclass *
+nv50_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0x50),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_fifo_ctor,

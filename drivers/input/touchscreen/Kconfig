@@ -906,6 +906,17 @@ config TOUCHSCREEN_STMPE
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmpe-ts.
 
+config TOUCHSCREEN_SUR40
+	tristate "Samsung SUR40 (Surface 2.0/PixelSense) touchscreen"
+	depends on USB
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want support for the Samsung SUR40 touchscreen
+	  (also known as Microsoft Surface 2.0 or Microsoft PixelSense).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sur40.
+
 config TOUCHSCREEN_TPS6507X
 	tristate "TPS6507x based touchscreens"
 	depends on I2C
@@ -918,5 +929,18 @@ config TOUCHSCREEN_TPS6507X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tps6507x_ts.
+
+config TOUCHSCREEN_ZFORCE
+	tristate "Neonode zForce infrared touchscreens"
+	depends on I2C
+	depends on GPIOLIB
+	help
+	  Say Y here if you have a touchscreen using the zforce
+	  infraread technology from Neonode.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zforce_ts.
 
 endif

@@ -3625,6 +3625,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		shost->max_lun = 1;
 		shost->max_channel = 1;
 		shost->max_cmd_len = 16;
+		shost->no_write_same = 1;
 
 		/* Schedule policy is determined by ->qc_defer()
 		 * callback and it needs to see every deferred qc.
@@ -3679,7 +3680,6 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
 				scsi_device_put(sdev);
-				ata_scsi_acpi_bind(dev);
 			} else {
 				dev->sdev = NULL;
 			}
@@ -3766,8 +3766,6 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	struct scsi_device *sdev;
 	unsigned long flags;
-
-	ata_scsi_acpi_unbind(dev);
 
 	/* Alas, we need to grab scan_mutex to ensure SCSI device
 	 * state doesn't change underneath us and thus

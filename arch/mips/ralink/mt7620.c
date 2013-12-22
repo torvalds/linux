@@ -350,7 +350,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		name = "MT7620A";
 		soc_info->compatible = "ralink,mt7620a-soc";
 	} else {
-		panic("mt7620: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
+		panic("mt7620: unknown SoC, n0:%08x n1:%08x", n0, n1);
 	}
 
 	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);

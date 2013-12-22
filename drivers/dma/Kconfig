@@ -62,6 +62,7 @@ config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
+	select DMA_ENGINE_RAID
 	select DCA
 	help
 	  Enable support for the Intel(R) I/OAT DMA engine present
@@ -89,14 +90,15 @@ config AT_HDMAC
 	  Support the Atmel AHB DMA controller.
 
 config FSL_DMA
-	tristate "Freescale Elo and Elo Plus DMA support"
+	tristate "Freescale Elo series DMA support"
 	depends on FSL_SOC
 	select DMA_ENGINE
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	---help---
-	  Enable support for the Freescale Elo and Elo Plus DMA controllers.
-	  The Elo is the DMA controller on some 82xx and 83xx parts, and the
-	  Elo Plus is the DMA controller on 85xx and 86xx parts.
+	  Enable support for the Freescale Elo series DMA controllers.
+	  The Elo is the DMA controller on some mpc82xx and mpc83xx parts, the
+	  EloPlus is on mpc85xx and mpc86xx and Pxxx parts, and the Elo3 is on
+	  some Txxx and Bxxx parts.
 
 config MPC512X_DMA
 	tristate "Freescale MPC512x built-in DMA engine support"
@@ -111,6 +113,7 @@ config MV_XOR
 	bool "Marvell XOR engine support"
 	depends on PLAT_ORION
 	select DMA_ENGINE
+	select DMA_ENGINE_RAID
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	---help---
 	  Enable support for the Marvell XOR engine.
@@ -154,6 +157,18 @@ config TEGRA20_APB_DMA
 	  This DMA controller transfers data from memory to peripheral fifo
 	  or vice versa. It does not support memory to memory data transfer.
 
+config S3C24XX_DMAC
+	tristate "Samsung S3C24XX DMA support"
+	depends on ARCH_S3C24XX && !S3C24XX_DMA
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the Samsung S3C24XX DMA controller driver. The
+	  DMA controller is having multiple DMA channels which can be
+	  configured for different peripherals like audio, UART, SPI.
+	  The DMA controller can transfer data from memory to peripheral,
+	  periphal to memory, periphal to periphal and memory to memory.
+
 source "drivers/dma/sh/Kconfig"
 
 config COH901318
@@ -174,6 +189,7 @@ config AMCC_PPC440SPE_ADMA
 	tristate "AMCC PPC440SPe ADMA support"
 	depends on 440SPe || 440SP
 	select DMA_ENGINE
+	select DMA_ENGINE_RAID
 	select ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
@@ -195,9 +211,10 @@ config SIRF_DMA
 
 config TI_EDMA
 	bool "TI EDMA support"
-	depends on ARCH_DAVINCI || ARCH_OMAP
+	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
+	select TI_PRIV_EDMA
 	default n
 	help
 	  Enable support for the TI EDMA controller. This DMA
@@ -300,7 +317,7 @@ config MMP_PDMA
 	depends on (ARCH_MMP || ARCH_PXA)
 	select DMA_ENGINE
 	help
-	  Support the MMP PDMA engine for PXA and MMP platfrom.
+	  Support the MMP PDMA engine for PXA and MMP platform.
 
 config DMA_JZ4740
 	tristate "JZ4740 DMA support"
@@ -338,6 +355,7 @@ config NET_DMA
 	bool "Network: TCP receive copy offload"
 	depends on DMA_ENGINE && NET
 	default (INTEL_IOATDMA || FSL_DMA)
+	depends on BROKEN
 	help
 	  This enables the use of DMA engines in the network stack to
 	  offload receive copy-to-user operations, freeing CPU cycles.
@@ -362,5 +380,8 @@ config DMATEST
 	help
 	  Simple DMA test client. Say N unless you're debugging a
 	  DMA Device driver.
+
+config DMA_ENGINE_RAID
+	bool
 
 endif

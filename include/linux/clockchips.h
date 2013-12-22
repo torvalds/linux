@@ -60,6 +60,7 @@ enum clock_event_mode {
  * Core shall set the interrupt affinity dynamically in broadcast mode
  */
 #define CLOCK_EVT_FEAT_DYNIRQ		0x000020
+#define CLOCK_EVT_FEAT_PERCPU		0x000040
 
 /**
  * struct clock_event_device - clock event device descriptor

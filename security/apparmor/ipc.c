@@ -54,15 +54,14 @@ static int aa_audit_ptrace(struct aa_profile *profile,
 
 /**
  * aa_may_ptrace - test if tracer task can trace the tracee
- * @tracer_task: task who will do the tracing  (NOT NULL)
  * @tracer: profile of the task doing the tracing  (NOT NULL)
  * @tracee: task to be traced
  * @mode: whether PTRACE_MODE_READ || PTRACE_MODE_ATTACH
  *
  * Returns: %0 else error code if permission denied or error
  */
-int aa_may_ptrace(struct task_struct *tracer_task, struct aa_profile *tracer,
-		  struct aa_profile *tracee, unsigned int mode)
+int aa_may_ptrace(struct aa_profile *tracer, struct aa_profile *tracee,
+		  unsigned int mode)
 {
 	/* TODO: currently only based on capability, not extended ptrace
 	 *       rules,
@@ -72,7 +71,7 @@ int aa_may_ptrace(struct task_struct *tracer_task, struct aa_profile *tracer,
 	if (unconfined(tracer) || tracer == tracee)
 		return 0;
 	/* log this capability request */
-	return aa_capable(tracer_task, tracer, CAP_SYS_PTRACE, 1);
+	return aa_capable(tracer, CAP_SYS_PTRACE, 1);
 }
 
 /**
@@ -101,7 +100,7 @@ int aa_ptrace(struct task_struct *tracer, struct task_struct *tracee,
 	if (!unconfined(tracer_p)) {
 		struct aa_profile *tracee_p = aa_get_task_profile(tracee);
 
-		error = aa_may_ptrace(tracer, tracer_p, tracee_p, mode);
+		error = aa_may_ptrace(tracer_p, tracee_p, mode);
 		error = aa_audit_ptrace(tracer_p, tracee_p, error);
 
 		aa_put_profile(tracee_p);

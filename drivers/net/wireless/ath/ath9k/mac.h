@@ -603,8 +603,6 @@ enum ath9k_tx_queue_flags {
 #define ATH9K_TXQ_USE_LOCKOUT_BKOFF_DIS 0x00000001
 
 #define ATH9K_DECOMP_MASK_SIZE     128
-#define ATH9K_READY_TIME_LO_BOUND  50
-#define ATH9K_READY_TIME_HI_BOUND  96
 
 enum ath9k_pkt_type {
 	ATH9K_PKT_TYPE_NORMAL = 0,

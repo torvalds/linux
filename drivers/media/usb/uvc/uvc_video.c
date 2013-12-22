@@ -556,7 +556,7 @@ static u16 uvc_video_clock_host_sof(const struct uvc_clock_sample *sample)
  *
  * SOF = ((SOF2 - SOF1) * PTS + SOF1 * STC2 - SOF2 * STC1) / (STC2 - STC1)   (1)
  *
- * to avoid loosing precision in the division. Similarly, the host timestamp is
+ * to avoid losing precision in the division. Similarly, the host timestamp is
  * computed with
  *
  * TS = ((TS2 - TS1) * PTS + TS1 * SOF2 - TS2 * SOF1) / (SOF2 - SOF1)	     (2)
@@ -680,7 +680,8 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 		  stream->dev->name,
 		  sof >> 16, div_u64(((u64)sof & 0xffff) * 1000000LLU, 65536),
 		  y, ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC,
-		  v4l2_buf->timestamp.tv_sec, v4l2_buf->timestamp.tv_usec,
+		  v4l2_buf->timestamp.tv_sec,
+		  (unsigned long)v4l2_buf->timestamp.tv_usec,
 		  x1, first->host_sof, first->dev_sof,
 		  x2, last->host_sof, last->dev_sof, y1, y2);
 

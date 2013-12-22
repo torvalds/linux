@@ -1089,7 +1089,7 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 		} else {
 			struct lustre_md *md;
 			md = &info->eti_md;
-			memset(md, 0, sizeof *md);
+			memset(md, 0, sizeof(*md));
 			md->lsm = lsm;
 			conf->eoc_cl.u.coc_md = md;
 		}

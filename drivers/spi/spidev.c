@@ -37,7 +37,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 /*
@@ -206,9 +206,9 @@ spidev_write(struct file *filp, const char __user *buf,
 
 	mutex_lock(&spidev->buf_lock);
 	missing = copy_from_user(spidev->buffer, buf, count);
-	if (missing == 0) {
+	if (missing == 0)
 		status = spidev_sync_write(spidev, count);
-	} else
+	else
 		status = -EFAULT;
 	mutex_unlock(&spidev->buf_lock);
 
@@ -629,7 +629,6 @@ static int spidev_remove(struct spi_device *spi)
 	/* make sure ops on existing fds can abort cleanly */
 	spin_lock_irq(&spidev->spi_lock);
 	spidev->spi = NULL;
-	spi_set_drvdata(spi, NULL);
 	spin_unlock_irq(&spidev->spi_lock);
 
 	/* prevent new opens */

@@ -29,7 +29,6 @@
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/ip_tunnels.h>
-#include <net/udp.h>
 #include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/dsfield.h>
@@ -173,7 +172,7 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 
 	skb->local_df = 1;
 
-	inet_get_local_port_range(&port_min, &port_max);
+	inet_get_local_port_range(net, &port_min, &port_max);
 	src_port = vxlan_src_port(port_min, port_max, skb);
 
 	err = vxlan_xmit_skb(vxlan_port->vs, rt, skb,

@@ -174,11 +174,6 @@ extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 extern void evergreen_program_aspm(struct radeon_device *rdev);
 extern void sumo_rlc_fini(struct radeon_device *rdev);
 extern int sumo_rlc_init(struct radeon_device *rdev);
-extern void cayman_dma_vm_set_page(struct radeon_device *rdev,
-				   struct radeon_ib *ib,
-				   uint64_t pe,
-				   uint64_t addr, unsigned count,
-				   uint32_t incr, uint32_t flags);
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/BARTS_pfp.bin");
@@ -804,6 +799,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 			       fw_name);
 			release_firmware(rdev->smc_fw);
 			rdev->smc_fw = NULL;
+			err = 0;
 		} else if (rdev->smc_fw->size != smc_req_size) {
 			printk(KERN_ERR
 			       "ni_mc: Bogus length %zu in firmware \"%s\"\n",
@@ -2397,77 +2393,6 @@ void cayman_vm_decode_fault(struct radeon_device *rdev,
 	       protections, vmid, addr,
 	       (status & MEMORY_CLIENT_RW_MASK) ? "write" : "read",
 	       block, mc_id);
-}
-
-#define R600_ENTRY_VALID   (1 << 0)
-#define R600_PTE_SYSTEM    (1 << 1)
-#define R600_PTE_SNOOPED   (1 << 2)
-#define R600_PTE_READABLE  (1 << 5)
-#define R600_PTE_WRITEABLE (1 << 6)
-
-uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags)
-{
-	uint32_t r600_flags = 0;
-	r600_flags |= (flags & RADEON_VM_PAGE_VALID) ? R600_ENTRY_VALID : 0;
-	r600_flags |= (flags & RADEON_VM_PAGE_READABLE) ? R600_PTE_READABLE : 0;
-	r600_flags |= (flags & RADEON_VM_PAGE_WRITEABLE) ? R600_PTE_WRITEABLE : 0;
-	if (flags & RADEON_VM_PAGE_SYSTEM) {
-		r600_flags |= R600_PTE_SYSTEM;
-		r600_flags |= (flags & RADEON_VM_PAGE_SNOOPED) ? R600_PTE_SNOOPED : 0;
-	}
-	return r600_flags;
-}
-
-/**
- * cayman_vm_set_page - update the page tables using the CP
- *
- * @rdev: radeon_device pointer
- * @ib: indirect buffer to fill with commands
- * @pe: addr of the page entry
- * @addr: dst addr to write into pe
- * @count: number of page entries to update
- * @incr: increase next addr by incr bytes
- * @flags: access flags
- *
- * Update the page tables using the CP (cayman/TN).
- */
-void cayman_vm_set_page(struct radeon_device *rdev,
-			struct radeon_ib *ib,
-			uint64_t pe,
-			uint64_t addr, unsigned count,
-			uint32_t incr, uint32_t flags)
-{
-	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
-	uint64_t value;
-	unsigned ndw;
-
-	if (rdev->asic->vm.pt_ring_index == RADEON_RING_TYPE_GFX_INDEX) {
-		while (count) {
-			ndw = 1 + count * 2;
-			if (ndw > 0x3FFF)
-				ndw = 0x3FFF;
-
-			ib->ptr[ib->length_dw++] = PACKET3(PACKET3_ME_WRITE, ndw);
-			ib->ptr[ib->length_dw++] = pe;
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			for (; ndw > 1; ndw -= 2, --count, pe += 8) {
-				if (flags & RADEON_VM_PAGE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & RADEON_VM_PAGE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
-				}
-				addr += incr;
-				value |= r600_flags;
-				ib->ptr[ib->length_dw++] = value;
-				ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			}
-		}
-	} else {
-		cayman_dma_vm_set_page(rdev, ib, pe, addr, count, incr, flags);
-	}
 }
 
 /**

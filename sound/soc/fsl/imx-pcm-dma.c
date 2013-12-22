@@ -25,12 +25,10 @@
 
 static bool filter(struct dma_chan *chan, void *param)
 {
-	struct snd_dmaengine_dai_dma_data *dma_data = param;
-
 	if (!imx_dma_is_general_purpose(chan))
 		return false;
 
-	chan->private = dma_data->filter_data;
+	chan->private = param;
 
 	return true;
 }

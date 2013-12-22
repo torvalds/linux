@@ -198,8 +198,8 @@ void svga_settile(struct fb_info *info, struct fb_tilemap *map)
 
 	if ((map->width != 8) || (map->height != 16) ||
 	    (map->depth != 1) || (map->length != 256)) {
-	    	printk(KERN_ERR "fb%d: unsupported font parameters: width %d, height %d, depth %d, length %d\n",
-			info->node, map->width, map->height, map->depth, map->length);
+		fb_err(info, "unsupported font parameters: width %d, height %d, depth %d, length %d\n",
+		       map->width, map->height, map->depth, map->length);
 		return;
 	}
 

@@ -68,8 +68,6 @@
 #include <asm/hugetlb.h>
 #include <asm/epapr_hcalls.h>
 
-#include "setup.h"
-
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
 #else

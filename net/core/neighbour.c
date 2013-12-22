@@ -867,7 +867,7 @@ static void neigh_invalidate(struct neighbour *neigh)
 static void neigh_probe(struct neighbour *neigh)
 	__releases(neigh->lock)
 {
-	struct sk_buff *skb = skb_peek(&neigh->arp_queue);
+	struct sk_buff *skb = skb_peek_tail(&neigh->arp_queue);
 	/* keep skb alive even if arp_queue overflows */
 	if (skb)
 		skb = skb_copy(skb, GFP_ATOMIC);
@@ -1161,6 +1161,7 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 						 neigh->parms->reachable_time :
 						 0)));
 		neigh->nud_state = new;
+		notify = 1;
 	}
 
 	if (lladdr != neigh->ha) {

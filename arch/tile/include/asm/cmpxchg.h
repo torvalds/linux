@@ -35,10 +35,10 @@ int _atomic_xchg(int *ptr, int n);
 int _atomic_xchg_add(int *v, int i);
 int _atomic_xchg_add_unless(int *v, int a, int u);
 int _atomic_cmpxchg(int *ptr, int o, int n);
-u64 _atomic64_xchg(u64 *v, u64 n);
-u64 _atomic64_xchg_add(u64 *v, u64 i);
-u64 _atomic64_xchg_add_unless(u64 *v, u64 a, u64 u);
-u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n);
+long long _atomic64_xchg(long long *v, long long n);
+long long _atomic64_xchg_add(long long *v, long long i);
+long long _atomic64_xchg_add_unless(long long *v, long long a, long long u);
+long long _atomic64_cmpxchg(long long *v, long long o, long long n);
 
 #define xchg(ptr, n)							\
 	({								\
@@ -53,7 +53,8 @@ u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n);
 		if (sizeof(*(ptr)) != 4)				\
 			__cmpxchg_called_with_bad_pointer();		\
 		smp_mb();						\
-		(typeof(*(ptr)))_atomic_cmpxchg((int *)ptr, (int)o, (int)n); \
+		(typeof(*(ptr)))_atomic_cmpxchg((int *)ptr, (int)o,	\
+						(int)n);		\
 	})
 
 #define xchg64(ptr, n)							\
@@ -61,7 +62,8 @@ u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n);
 		if (sizeof(*(ptr)) != 8)				\
 			__xchg_called_with_bad_pointer();		\
 		smp_mb();						\
-		(typeof(*(ptr)))_atomic64_xchg((u64 *)(ptr), (u64)(n));	\
+		(typeof(*(ptr)))_atomic64_xchg((long long *)(ptr),	\
+						(long long)(n));	\
 	})
 
 #define cmpxchg64(ptr, o, n)						\
@@ -69,7 +71,8 @@ u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n);
 		if (sizeof(*(ptr)) != 8)				\
 			__cmpxchg_called_with_bad_pointer();		\
 		smp_mb();						\
-		(typeof(*(ptr)))_atomic64_cmpxchg((u64 *)ptr, (u64)o, (u64)n); \
+		(typeof(*(ptr)))_atomic64_cmpxchg((long long *)ptr,	\
+					(long long)o, (long long)n);	\
 	})
 
 #else
@@ -81,10 +84,11 @@ u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n);
 		switch (sizeof(*(ptr))) {				\
 		case 4:							\
 			__x = (typeof(__x))(unsigned long)		\
-				__insn_exch4((ptr), (u32)(unsigned long)(n)); \
+				__insn_exch4((ptr),			\
+					(u32)(unsigned long)(n));	\
 			break;						\
 		case 8:							\
-			__x = (typeof(__x))			\
+			__x = (typeof(__x))				\
 				__insn_exch((ptr), (unsigned long)(n));	\
 			break;						\
 		default:						\
@@ -103,10 +107,12 @@ u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n);
 		switch (sizeof(*(ptr))) {				\
 		case 4:							\
 			__x = (typeof(__x))(unsigned long)		\
-				__insn_cmpexch4((ptr), (u32)(unsigned long)(n)); \
+				__insn_cmpexch4((ptr),			\
+					(u32)(unsigned long)(n));	\
 			break;						\
 		case 8:							\
-			__x = (typeof(__x))__insn_cmpexch((ptr), (u64)(n)); \
+			__x = (typeof(__x))__insn_cmpexch((ptr),	\
+						(long long)(n));	\
 			break;						\
 		default:						\
 			__cmpxchg_called_with_bad_pointer();		\

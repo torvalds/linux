@@ -211,13 +211,23 @@ nla_put_failure:
 }
 
 static int
-dump_counters(struct sk_buff *skb, u64 pkts, u64 bytes,
-	      enum ip_conntrack_dir dir)
+dump_counters(struct sk_buff *skb, struct nf_conn_acct *acct,
+	      enum ip_conntrack_dir dir, int type)
 {
-	enum ctattr_type type = dir ? CTA_COUNTERS_REPLY: CTA_COUNTERS_ORIG;
+	enum ctattr_type attr = dir ? CTA_COUNTERS_REPLY: CTA_COUNTERS_ORIG;
+	struct nf_conn_counter *counter = acct->counter;
 	struct nlattr *nest_count;
+	u64 pkts, bytes;
 
-	nest_count = nla_nest_start(skb, type | NLA_F_NESTED);
+	if (type == IPCTNL_MSG_CT_GET_CTRZERO) {
+		pkts = atomic64_xchg(&counter[dir].packets, 0);
+		bytes = atomic64_xchg(&counter[dir].bytes, 0);
+	} else {
+		pkts = atomic64_read(&counter[dir].packets);
+		bytes = atomic64_read(&counter[dir].bytes);
+	}
+
+	nest_count = nla_nest_start(skb, attr | NLA_F_NESTED);
 	if (!nest_count)
 		goto nla_put_failure;
 
@@ -234,24 +244,19 @@ nla_put_failure:
 }
 
 static int
-ctnetlink_dump_counters(struct sk_buff *skb, const struct nf_conn *ct,
-			enum ip_conntrack_dir dir, int type)
+ctnetlink_dump_acct(struct sk_buff *skb, const struct nf_conn *ct, int type)
 {
-	struct nf_conn_counter *acct;
-	u64 pkts, bytes;
+	struct nf_conn_acct *acct = nf_conn_acct_find(ct);
 
-	acct = nf_conn_acct_find(ct);
 	if (!acct)
 		return 0;
 
-	if (type == IPCTNL_MSG_CT_GET_CTRZERO) {
-		pkts = atomic64_xchg(&acct[dir].packets, 0);
-		bytes = atomic64_xchg(&acct[dir].bytes, 0);
-	} else {
-		pkts = atomic64_read(&acct[dir].packets);
-		bytes = atomic64_read(&acct[dir].bytes);
-	}
-	return dump_counters(skb, pkts, bytes, dir);
+	if (dump_counters(skb, acct, IP_CT_DIR_ORIGINAL, type) < 0)
+		return -1;
+	if (dump_counters(skb, acct, IP_CT_DIR_REPLY, type) < 0)
+		return -1;
+
+	return 0;
 }
 
 static int
@@ -488,8 +493,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 
 	if (ctnetlink_dump_status(skb, ct) < 0 ||
 	    ctnetlink_dump_timeout(skb, ct) < 0 ||
-	    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL, type) < 0 ||
-	    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY, type) < 0 ||
+	    ctnetlink_dump_acct(skb, ct, type) < 0 ||
 	    ctnetlink_dump_timestamp(skb, ct) < 0 ||
 	    ctnetlink_dump_protoinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_helpinfo(skb, ct) < 0 ||
@@ -530,7 +534,7 @@ ctnetlink_proto_size(const struct nf_conn *ct)
 }
 
 static inline size_t
-ctnetlink_counters_size(const struct nf_conn *ct)
+ctnetlink_acct_size(const struct nf_conn *ct)
 {
 	if (!nf_ct_ext_exist(ct, NF_CT_EXT_ACCT))
 		return 0;
@@ -579,7 +583,7 @@ ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       + 3 * nla_total_size(sizeof(u_int8_t)) /* CTA_PROTO_NUM */
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_ID */
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_STATUS */
-	       + ctnetlink_counters_size(ct)
+	       + ctnetlink_acct_size(ct)
 	       + ctnetlink_timestamp_size(ct)
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_TIMEOUT */
 	       + nla_total_size(0) /* CTA_PROTOINFO */
@@ -673,10 +677,7 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 		goto nla_put_failure;
 
 	if (events & (1 << IPCT_DESTROY)) {
-		if (ctnetlink_dump_counters(skb, ct,
-					    IP_CT_DIR_ORIGINAL, type) < 0 ||
-		    ctnetlink_dump_counters(skb, ct,
-					    IP_CT_DIR_REPLY, type) < 0 ||
+		if (ctnetlink_dump_acct(skb, ct, type) < 0 ||
 		    ctnetlink_dump_timestamp(skb, ct) < 0)
 			goto nla_put_failure;
 	} else {

@@ -150,7 +150,6 @@ asmlinkage void start_secondary(void)
 void __irq_entry smp_call_function_interrupt(void)
 {
 	irq_enter();
-	generic_smp_call_function_single_interrupt();
 	generic_smp_call_function_interrupt();
 	irq_exit();
 }

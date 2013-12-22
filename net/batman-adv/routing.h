@@ -30,23 +30,26 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 			    struct batadv_hard_iface *recv_if);
 int batadv_recv_unicast_packet(struct sk_buff *skb,
 			       struct batadv_hard_iface *recv_if);
-int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
-				  struct batadv_hard_iface *recv_if);
+int batadv_recv_frag_packet(struct sk_buff *skb,
+			    struct batadv_hard_iface *iface);
 int batadv_recv_bcast_packet(struct sk_buff *skb,
 			     struct batadv_hard_iface *recv_if);
-int batadv_recv_vis_packet(struct sk_buff *skb,
-			   struct batadv_hard_iface *recv_if);
 int batadv_recv_tt_query(struct sk_buff *skb,
 			 struct batadv_hard_iface *recv_if);
 int batadv_recv_roam_adv(struct sk_buff *skb,
 			 struct batadv_hard_iface *recv_if);
+int batadv_recv_unicast_tvlv(struct sk_buff *skb,
+			     struct batadv_hard_iface *recv_if);
+int batadv_recv_unhandled_unicast_packet(struct sk_buff *skb,
+					 struct batadv_hard_iface *recv_if);
 struct batadv_neigh_node *
 batadv_find_router(struct batadv_priv *bat_priv,
 		   struct batadv_orig_node *orig_node,
 		   const struct batadv_hard_iface *recv_if);
 void batadv_bonding_candidate_del(struct batadv_orig_node *orig_node,
 				  struct batadv_neigh_node *neigh_node);
-void batadv_bonding_candidate_add(struct batadv_orig_node *orig_node,
+void batadv_bonding_candidate_add(struct batadv_priv *bat_priv,
+				  struct batadv_orig_node *orig_node,
 				  struct batadv_neigh_node *neigh_node);
 void batadv_bonding_save_primary(const struct batadv_orig_node *orig_node,
 				 struct batadv_orig_node *orig_neigh_node,

@@ -137,6 +137,11 @@ core number and the number of online logical processors on that physical process
 After starting the program, wait msecs before measuring. This is useful to
 filter out the startup phase of the program, which is often very different.
 
+-T::
+--transaction::
+
+Print statistics of transactional execution if supported.
+
 EXAMPLES
 --------
 

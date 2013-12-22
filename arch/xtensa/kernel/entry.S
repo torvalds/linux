@@ -1122,7 +1122,7 @@ ENDPROC(fast_syscall_spill_registers)
  * a3: exctable, original value in excsave1
  */
 
-fast_syscall_spill_registers_fixup:
+ENTRY(fast_syscall_spill_registers_fixup)
 
 	rsr	a2, windowbase	# get current windowbase (a2 is saved)
 	xsr	a0, depc	# restore depc and a0
@@ -1134,22 +1134,26 @@ fast_syscall_spill_registers_fixup:
 	 */
 
 	xsr	a3, excsave1	# get spill-mask
-	slli	a2, a3, 1	# shift left by one
+	slli	a3, a3, 1	# shift left by one
 
-	slli	a3, a2, 32-WSBITS
-	src	a2, a2, a3	# a1 = xxwww1yyxxxwww1yy......
+	slli	a2, a3, 32-WSBITS
+	src	a2, a3, a2	# a2 = xxwww1yyxxxwww1yy......
 	wsr	a2, windowstart	# set corrected windowstart
 
-	rsr	a3, excsave1
-	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE	# restore a2
-	l32i	a3, a3, EXC_TABLE_PARAM	# original WB (in user task)
+	srli	a3, a3, 1
+	rsr	a2, excsave1
+	l32i	a2, a2, EXC_TABLE_DOUBLE_SAVE	# restore a2
+	xsr	a2, excsave1
+	s32i	a3, a2, EXC_TABLE_DOUBLE_SAVE	# save a3
+	l32i	a3, a2, EXC_TABLE_PARAM	# original WB (in user task)
+	xsr	a2, excsave1
 
 	/* Return to the original (user task) WINDOWBASE.
 	 * We leave the following frame behind:
 	 * a0, a1, a2	same
-	 * a3:		trashed (saved in excsave_1)
+	 * a3:		trashed (saved in EXC_TABLE_DOUBLE_SAVE)
 	 * depc:	depc (we have to return to that address)
-	 * excsave_1:	a3
+	 * excsave_1:	exctable
 	 */
 
 	wsr	a3, windowbase
@@ -1159,9 +1163,9 @@ fast_syscall_spill_registers_fixup:
 	 *  a0: return address
 	 *  a1: used, stack pointer
 	 *  a2: kernel stack pointer
-	 *  a3: available, saved in EXCSAVE_1
+	 *  a3: available
 	 *  depc: exception address
-	 *  excsave: a3
+	 *  excsave: exctable
 	 * Note: This frame might be the same as above.
 	 */
 
@@ -1181,9 +1185,12 @@ fast_syscall_spill_registers_fixup:
 	rsr	a0, exccause
 	addx4	a0, a0, a3              	# find entry in table
 	l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
+	l32i	a3, a3, EXC_TABLE_DOUBLE_SAVE
 	jx	a0
 
-fast_syscall_spill_registers_fixup_return:
+ENDPROC(fast_syscall_spill_registers_fixup)
+
+ENTRY(fast_syscall_spill_registers_fixup_return)
 
 	/* When we return here, all registers have been restored (a2: DEPC) */
 
@@ -1191,13 +1198,13 @@ fast_syscall_spill_registers_fixup_return:
 
 	/* Restore fixup handler. */
 
-	xsr	a3, excsave1
-	movi	a2, fast_syscall_spill_registers_fixup
-	s32i	a2, a3, EXC_TABLE_FIXUP
-	s32i	a0, a3, EXC_TABLE_DOUBLE_SAVE
-	rsr	a2, windowbase
-	s32i	a2, a3, EXC_TABLE_PARAM
-	l32i	a2, a3, EXC_TABLE_KSTK
+	rsr	a2, excsave1
+	s32i	a3, a2, EXC_TABLE_DOUBLE_SAVE
+	movi	a3, fast_syscall_spill_registers_fixup
+	s32i	a3, a2, EXC_TABLE_FIXUP
+	rsr	a3, windowbase
+	s32i	a3, a2, EXC_TABLE_PARAM
+	l32i	a2, a2, EXC_TABLE_KSTK
 
 	/* Load WB at the time the exception occurred. */
 
@@ -1206,8 +1213,12 @@ fast_syscall_spill_registers_fixup_return:
 	wsr	a3, windowbase
 	rsync
 
+	rsr	a3, excsave1
+	l32i	a3, a3, EXC_TABLE_DOUBLE_SAVE
+
 	rfde
 
+ENDPROC(fast_syscall_spill_registers_fixup_return)
 
 /*
  * spill all registers.

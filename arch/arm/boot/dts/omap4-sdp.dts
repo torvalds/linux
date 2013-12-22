@@ -155,23 +155,9 @@
 	};
 };
 
-&omap4_pmx_wkup {
-	pinctrl-names = "default";
-	pinctrl-0 = <
-			&twl6030_wkup_pins
-	>;
-
-	twl6030_wkup_pins: pinmux_twl6030_wkup_pins {
-		pinctrl-single,pins = <
-			0x14 (PIN_OUTPUT | MUX_MODE2)		/* fref_clk0_out.sys_drm_msecure */
-		>;
-	};
-};
-
 &omap4_pmx_core {
 	pinctrl-names = "default";
 	pinctrl-0 = <
-			&twl6030_pins
 			&twl6040_pins
 			&mcpdm_pins
 			&dmic_pins
@@ -203,12 +189,6 @@
 		pinctrl-single,pins = <
 			0x11c (PIN_INPUT | MUX_MODE0)		/* uart4_rx.uart4_rx */
 			0x11e (PIN_OUTPUT | MUX_MODE0)		/* uart4_tx.uart4_tx */
-		>;
-	};
-
-	twl6030_pins: pinmux_twl6030_pins {
-		pinctrl-single,pins = <
-			0x15e (WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE0)	/* sys_nirq1.sys_nirq1 */
 		>;
 	};
 
@@ -320,12 +300,12 @@
 	wl12xx_pins: pinmux_wl12xx_pins {
 		pinctrl-single,pins = <
 			0x3a (PIN_INPUT | MUX_MODE3)		/* gpmc_ncs3.gpio_53 */
-			0x108 (PIN_OUTPUT | MUX_MODE3)		/* sdmmc5_clk.sdmmc5_clk */
-			0x10a (PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc5_cmd.sdmmc5_cmd */
-			0x10c (PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc5_dat0.sdmmc5_dat0 */
-			0x10e (PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc5_dat1.sdmmc5_dat1 */
-			0x110 (PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc5_dat2.sdmmc5_dat2 */
-			0x112 (PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc5_dat3.sdmmc5_dat3 */
+			0x108 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_clk.sdmmc5_clk */
+			0x10a (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_cmd.sdmmc5_cmd */
+			0x10c (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat0.sdmmc5_dat0 */
+			0x10e (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat1.sdmmc5_dat1 */
+			0x110 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat2.sdmmc5_dat2 */
+			0x112 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat3.sdmmc5_dat3 */
 		>;
 	};
 };
@@ -370,6 +350,7 @@
 };
 
 #include "twl6030.dtsi"
+#include "twl6030_omap4.dtsi"
 
 &i2c2 {
 	pinctrl-names = "default";

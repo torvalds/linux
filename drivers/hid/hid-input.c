@@ -192,6 +192,7 @@ static int hidinput_setkeycode(struct input_dev *dev,
 	return -EINVAL;
 }
 
+
 /**
  * hidinput_calc_abs_res - calculate an absolute axis resolution
  * @field: the HID report field to calculate resolution for
@@ -234,23 +235,17 @@ __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 	case ABS_MT_TOOL_Y:
 	case ABS_MT_TOUCH_MAJOR:
 	case ABS_MT_TOUCH_MINOR:
-		if (field->unit & 0xffffff00)		/* Not a length */
-			return 0;
-		unit_exponent += hid_snto32(field->unit >> 4, 4) - 1;
-		switch (field->unit & 0xf) {
-		case 0x1:				/* If centimeters */
+		if (field->unit == 0x11) {		/* If centimeters */
 			/* Convert to millimeters */
 			unit_exponent += 1;
-			break;
-		case 0x3:				/* If inches */
+		} else if (field->unit == 0x13) {	/* If inches */
 			/* Convert to millimeters */
 			prev = physical_extents;
 			physical_extents *= 254;
 			if (physical_extents < prev)
 				return 0;
 			unit_exponent -= 1;
-			break;
-		default:
+		} else {
 			return 0;
 		}
 		break;

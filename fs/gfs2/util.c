@@ -268,23 +268,3 @@ int gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	return rv;
 }
 
-void gfs2_icbit_munge(struct gfs2_sbd *sdp, unsigned char **bitmap,
-		      unsigned int bit, int new_value)
-{
-	unsigned int c, o, b = bit;
-	int old_value;
-
-	c = b / (8 * PAGE_SIZE);
-	b %= 8 * PAGE_SIZE;
-	o = b / 8;
-	b %= 8;
-
-	old_value = (bitmap[c][o] & (1 << b));
-	gfs2_assert_withdraw(sdp, !old_value != !new_value);
-
-	if (new_value)
-		bitmap[c][o] |= 1 << b;
-	else
-		bitmap[c][o] &= ~(1 << b);
-}
-

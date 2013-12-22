@@ -93,9 +93,6 @@ void inet_frags_init(struct inet_frags *f)
 	}
 	rwlock_init(&f->lock);
 
-	f->rnd = (u32) ((totalram_pages ^ (totalram_pages >> 7)) ^
-				   (jiffies ^ (jiffies >> 6)));
-
 	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
 			(unsigned long)f);
 	f->secret_timer.expires = jiffies + f->secret_interval;

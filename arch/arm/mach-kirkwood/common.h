@@ -58,6 +58,12 @@ void kirkwood_cpufreq_init(void);
 void kirkwood_restart(enum reboot_mode, const char *);
 void kirkwood_clk_init(void);
 
+#ifdef CONFIG_PM
+void kirkwood_pm_init(void);
+#else
+static inline void kirkwood_pm_init(void) {};
+#endif
+
 /* board init functions for boards not fully converted to fdt */
 #ifdef CONFIG_MACH_MV88F6281GTW_GE_DT
 void mv88f6281gtw_ge_init(void);

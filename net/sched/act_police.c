@@ -231,14 +231,14 @@ override:
 	}
 	if (R_tab) {
 		police->rate_present = true;
-		psched_ratecfg_precompute(&police->rate, &R_tab->rate);
+		psched_ratecfg_precompute(&police->rate, &R_tab->rate, 0);
 		qdisc_put_rtab(R_tab);
 	} else {
 		police->rate_present = false;
 	}
 	if (P_tab) {
 		police->peak_present = true;
-		psched_ratecfg_precompute(&police->peak, &P_tab->rate);
+		psched_ratecfg_precompute(&police->peak, &P_tab->rate, 0);
 		qdisc_put_rtab(P_tab);
 	} else {
 		police->peak_present = false;
@@ -407,7 +407,6 @@ static struct tc_action_ops act_police_ops = {
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,
 	.cleanup	=	tcf_act_police_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_act_police_locate,
 	.walk		=	tcf_act_police_walker
 };

@@ -330,14 +330,13 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	enum iwl_ucode_type old_type;
 	static const u8 alive_cmd[] = { REPLY_ALIVE };
 
+	fw = iwl_get_ucode_image(priv, ucode_type);
+	if (WARN_ON(!fw))
+		return -EINVAL;
+
 	old_type = priv->cur_ucode;
 	priv->cur_ucode = ucode_type;
-	fw = iwl_get_ucode_image(priv, ucode_type);
-
 	priv->ucode_loaded = false;
-
-	if (!fw)
-		return -EINVAL;
 
 	iwl_init_notification_wait(&priv->notif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),

@@ -41,7 +41,8 @@ enum calibration_mode {
 
 enum soc_type {
 	SOC_ARCH_EXYNOS4210 = 1,
-	SOC_ARCH_EXYNOS,
+	SOC_ARCH_EXYNOS4412,
+	SOC_ARCH_EXYNOS5250,
 	SOC_ARCH_EXYNOS5440,
 };
 
@@ -84,6 +85,7 @@ enum soc_type {
  * @triminfo_reload_shift: shift of triminfo reload enable bit in triminfo_ctrl
 	reg.
  * @tmu_ctrl: TMU main controller register.
+ * @test_mux_addr_shift: shift bits of test mux address.
  * @buf_vref_sel_shift: shift bits of reference voltage in tmu_ctrl register.
  * @buf_vref_sel_mask: mask bits of reference voltage in tmu_ctrl register.
  * @therm_trip_mode_shift: shift bits of tripping mode in tmu_ctrl register.
@@ -150,6 +152,7 @@ struct exynos_tmu_registers {
 	u32	triminfo_reload_shift;
 
 	u32	tmu_ctrl;
+	u32     test_mux_addr_shift;
 	u32	buf_vref_sel_shift;
 	u32	buf_vref_sel_mask;
 	u32	therm_trip_mode_shift;
@@ -257,6 +260,7 @@ struct exynos_tmu_registers {
  * @first_point_trim: temp value of the first point trimming
  * @second_point_trim: temp value of the second point trimming
  * @default_temp_offset: default temperature offset in case of no trimming
+ * @test_mux; information if SoC supports test MUX
  * @cal_type: calibration type for temperature
  * @cal_mode: calibration mode for temperature
  * @freq_clip_table: Table representing frequency reduction percentage.
@@ -286,6 +290,7 @@ struct exynos_tmu_platform_data {
 	u8 first_point_trim;
 	u8 second_point_trim;
 	u8 default_temp_offset;
+	u8 test_mux;
 
 	enum calibration_type cal_type;
 	enum calibration_mode cal_mode;

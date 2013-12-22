@@ -127,6 +127,211 @@ static int can_set_xattr(struct inode *inode, const char *name,
 	return 0;
 }
 
+static void hfsplus_init_header_node(struct inode *attr_file,
+					u32 clump_size,
+					char *buf, u16 node_size)
+{
+	struct hfs_bnode_desc *desc;
+	struct hfs_btree_header_rec *head;
+	u16 offset;
+	__be16 *rec_offsets;
+	u32 hdr_node_map_rec_bits;
+	char *bmp;
+	u32 used_nodes;
+	u32 used_bmp_bytes;
+	loff_t tmp;
+
+	hfs_dbg(ATTR_MOD, "init_hdr_attr_file: clump %u, node_size %u\n",
+				clump_size, node_size);
+
+	/* The end of the node contains list of record offsets */
+	rec_offsets = (__be16 *)(buf + node_size);
+
+	desc = (struct hfs_bnode_desc *)buf;
+	desc->type = HFS_NODE_HEADER;
+	desc->num_recs = cpu_to_be16(HFSPLUS_BTREE_HDR_NODE_RECS_COUNT);
+	offset = sizeof(struct hfs_bnode_desc);
+	*--rec_offsets = cpu_to_be16(offset);
+
+	head = (struct hfs_btree_header_rec *)(buf + offset);
+	head->node_size = cpu_to_be16(node_size);
+	tmp = i_size_read(attr_file);
+	do_div(tmp, node_size);
+	head->node_count = cpu_to_be32(tmp);
+	head->free_nodes = cpu_to_be32(be32_to_cpu(head->node_count) - 1);
+	head->clump_size = cpu_to_be32(clump_size);
+	head->attributes |= cpu_to_be32(HFS_TREE_BIGKEYS | HFS_TREE_VARIDXKEYS);
+	head->max_key_len = cpu_to_be16(HFSPLUS_ATTR_KEYLEN - sizeof(u16));
+	offset += sizeof(struct hfs_btree_header_rec);
+	*--rec_offsets = cpu_to_be16(offset);
+	offset += HFSPLUS_BTREE_HDR_USER_BYTES;
+	*--rec_offsets = cpu_to_be16(offset);
+
+	hdr_node_map_rec_bits = 8 * (node_size - offset - (4 * sizeof(u16)));
+	if (be32_to_cpu(head->node_count) > hdr_node_map_rec_bits) {
+		u32 map_node_bits;
+		u32 map_nodes;
+
+		desc->next = cpu_to_be32(be32_to_cpu(head->leaf_tail) + 1);
+		map_node_bits = 8 * (node_size - sizeof(struct hfs_bnode_desc) -
+					(2 * sizeof(u16)) - 2);
+		map_nodes = (be32_to_cpu(head->node_count) -
+				hdr_node_map_rec_bits +
+				(map_node_bits - 1)) / map_node_bits;
+		be32_add_cpu(&head->free_nodes, 0 - map_nodes);
+	}
+
+	bmp = buf + offset;
+	used_nodes =
+		be32_to_cpu(head->node_count) - be32_to_cpu(head->free_nodes);
+	used_bmp_bytes = used_nodes / 8;
+	if (used_bmp_bytes) {
+		memset(bmp, 0xFF, used_bmp_bytes);
+		bmp += used_bmp_bytes;
+		used_nodes %= 8;
+	}
+	*bmp = ~(0xFF >> used_nodes);
+	offset += hdr_node_map_rec_bits / 8;
+	*--rec_offsets = cpu_to_be16(offset);
+}
+
+static int hfsplus_create_attributes_file(struct super_block *sb)
+{
+	int err = 0;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
+	struct inode *attr_file;
+	struct hfsplus_inode_info *hip;
+	u32 clump_size;
+	u16 node_size = HFSPLUS_ATTR_TREE_NODE_SIZE;
+	char *buf;
+	int index, written;
+	struct address_space *mapping;
+	struct page *page;
+	int old_state = HFSPLUS_EMPTY_ATTR_TREE;
+
+	hfs_dbg(ATTR_MOD, "create_attr_file: ino %d\n", HFSPLUS_ATTR_CNID);
+
+check_attr_tree_state_again:
+	switch (atomic_read(&sbi->attr_tree_state)) {
+	case HFSPLUS_EMPTY_ATTR_TREE:
+		if (old_state != atomic_cmpxchg(&sbi->attr_tree_state,
+						old_state,
+						HFSPLUS_CREATING_ATTR_TREE))
+			goto check_attr_tree_state_again;
+		break;
+	case HFSPLUS_CREATING_ATTR_TREE:
+		/*
+		 * This state means that another thread is in process
+		 * of AttributesFile creation. Theoretically, it is
+		 * possible to be here. But really __setxattr() method
+		 * first of all calls hfs_find_init() for lookup in
+		 * B-tree of CatalogFile. This method locks mutex of
+		 * CatalogFile's B-tree. As a result, if some thread
+		 * is inside AttributedFile creation operation then
+		 * another threads will be waiting unlocking of
+		 * CatalogFile's B-tree's mutex. However, if code will
+		 * change then we will return error code (-EAGAIN) from
+		 * here. Really, it means that first try to set of xattr
+		 * fails with error but second attempt will have success.
+		 */
+		return -EAGAIN;
+	case HFSPLUS_VALID_ATTR_TREE:
+		return 0;
+	case HFSPLUS_FAILED_ATTR_TREE:
+		return -EOPNOTSUPP;
+	default:
+		BUG();
+	}
+
+	attr_file = hfsplus_iget(sb, HFSPLUS_ATTR_CNID);
+	if (IS_ERR(attr_file)) {
+		pr_err("failed to load attributes file\n");
+		return PTR_ERR(attr_file);
+	}
+
+	BUG_ON(i_size_read(attr_file) != 0);
+
+	hip = HFSPLUS_I(attr_file);
+
+	clump_size = hfsplus_calc_btree_clump_size(sb->s_blocksize,
+						    node_size,
+						    sbi->sect_count,
+						    HFSPLUS_ATTR_CNID);
+
+	mutex_lock(&hip->extents_lock);
+	hip->clump_blocks = clump_size >> sbi->alloc_blksz_shift;
+	mutex_unlock(&hip->extents_lock);
+
+	if (sbi->free_blocks <= (hip->clump_blocks << 1)) {
+		err = -ENOSPC;
+		goto end_attr_file_creation;
+	}
+
+	while (hip->alloc_blocks < hip->clump_blocks) {
+		err = hfsplus_file_extend(attr_file);
+		if (unlikely(err)) {
+			pr_err("failed to extend attributes file\n");
+			goto end_attr_file_creation;
+		}
+		hip->phys_size = attr_file->i_size =
+			(loff_t)hip->alloc_blocks << sbi->alloc_blksz_shift;
+		hip->fs_blocks = hip->alloc_blocks << sbi->fs_shift;
+		inode_set_bytes(attr_file, attr_file->i_size);
+	}
+
+	buf = kzalloc(node_size, GFP_NOFS);
+	if (!buf) {
+		pr_err("failed to allocate memory for header node\n");
+		err = -ENOMEM;
+		goto end_attr_file_creation;
+	}
+
+	hfsplus_init_header_node(attr_file, clump_size, buf, node_size);
+
+	mapping = attr_file->i_mapping;
+
+	index = 0;
+	written = 0;
+	for (; written < node_size; index++, written += PAGE_CACHE_SIZE) {
+		void *kaddr;
+
+		page = read_mapping_page(mapping, index, NULL);
+		if (IS_ERR(page)) {
+			err = PTR_ERR(page);
+			goto failed_header_node_init;
+		}
+
+		kaddr = kmap_atomic(page);
+		memcpy(kaddr, buf + written,
+			min_t(size_t, PAGE_CACHE_SIZE, node_size - written));
+		kunmap_atomic(kaddr);
+
+		set_page_dirty(page);
+		page_cache_release(page);
+	}
+
+	hfsplus_mark_inode_dirty(attr_file, HFSPLUS_I_ATTR_DIRTY);
+
+	sbi->attr_tree = hfs_btree_open(sb, HFSPLUS_ATTR_CNID);
+	if (!sbi->attr_tree)
+		pr_err("failed to load attributes file\n");
+
+failed_header_node_init:
+	kfree(buf);
+
+end_attr_file_creation:
+	iput(attr_file);
+
+	if (!err)
+		atomic_set(&sbi->attr_tree_state, HFSPLUS_VALID_ATTR_TREE);
+	else if (err == -ENOSPC)
+		atomic_set(&sbi->attr_tree_state, HFSPLUS_EMPTY_ATTR_TREE);
+	else
+		atomic_set(&sbi->attr_tree_state, HFSPLUS_FAILED_ATTR_TREE);
+
+	return err;
+}
+
 int __hfsplus_setxattr(struct inode *inode, const char *name,
 			const void *value, size_t size, int flags)
 {
@@ -211,8 +416,9 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 	}
 
 	if (!HFSPLUS_SB(inode->i_sb)->attr_tree) {
-		err = -EOPNOTSUPP;
-		goto end_setxattr;
+		err = hfsplus_create_attributes_file(inode->i_sb);
+		if (unlikely(err))
+			goto end_setxattr;
 	}
 
 	if (hfsplus_attr_exists(inode, name)) {

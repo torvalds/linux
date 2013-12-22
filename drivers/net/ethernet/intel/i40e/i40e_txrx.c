@@ -37,6 +37,7 @@ static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 			   ((u64)td_tag  << I40E_TXD_QW1_L2TAG1_SHIFT));
 }
 
+#define I40E_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
 /**
  * i40e_program_fdir_filter - Program a Flow Director filter
  * @fdir_input: Packet data that will be filter parameters
@@ -50,6 +51,7 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	struct i40e_tx_buffer *tx_buf;
 	struct i40e_tx_desc *tx_desc;
 	struct i40e_ring *tx_ring;
+	unsigned int fpt, dcc;
 	struct i40e_vsi *vsi;
 	struct device *dev;
 	dma_addr_t dma;
@@ -64,92 +66,77 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	if (!vsi)
 		return -ENOENT;
 
-	tx_ring = &vsi->tx_rings[0];
+	tx_ring = vsi->tx_rings[0];
 	dev = tx_ring->dev;
 
 	dma = dma_map_single(dev, fdir_data->raw_packet,
-				I40E_FDIR_MAX_RAW_PACKET_LOOKUP, DMA_TO_DEVICE);
+			     I40E_FDIR_MAX_RAW_PACKET_LOOKUP, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma))
 		goto dma_fail;
 
 	/* grab the next descriptor */
-	fdir_desc = I40E_TX_FDIRDESC(tx_ring, tx_ring->next_to_use);
-	tx_buf = &tx_ring->tx_bi[tx_ring->next_to_use];
-	tx_ring->next_to_use++;
-	if (tx_ring->next_to_use == tx_ring->count)
-		tx_ring->next_to_use = 0;
+	i = tx_ring->next_to_use;
+	fdir_desc = I40E_TX_FDIRDESC(tx_ring, i);
+	tx_buf = &tx_ring->tx_bi[i];
 
-	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32((fdir_data->q_index
-					     << I40E_TXD_FLTR_QW0_QINDEX_SHIFT)
-					     & I40E_TXD_FLTR_QW0_QINDEX_MASK);
+	tx_ring->next_to_use = (i + 1 < tx_ring->count) ? i + 1 : 0;
 
-	fdir_desc->qindex_flex_ptype_vsi |= cpu_to_le32((fdir_data->flex_off
-					    << I40E_TXD_FLTR_QW0_FLEXOFF_SHIFT)
-					    & I40E_TXD_FLTR_QW0_FLEXOFF_MASK);
+	fpt = (fdir_data->q_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT) &
+	      I40E_TXD_FLTR_QW0_QINDEX_MASK;
 
-	fdir_desc->qindex_flex_ptype_vsi |= cpu_to_le32((fdir_data->pctype
-					     << I40E_TXD_FLTR_QW0_PCTYPE_SHIFT)
-					     & I40E_TXD_FLTR_QW0_PCTYPE_MASK);
+	fpt |= (fdir_data->flex_off << I40E_TXD_FLTR_QW0_FLEXOFF_SHIFT) &
+	       I40E_TXD_FLTR_QW0_FLEXOFF_MASK;
+
+	fpt |= (fdir_data->pctype << I40E_TXD_FLTR_QW0_PCTYPE_SHIFT) &
+	       I40E_TXD_FLTR_QW0_PCTYPE_MASK;
 
 	/* Use LAN VSI Id if not programmed by user */
 	if (fdir_data->dest_vsi == 0)
-		fdir_desc->qindex_flex_ptype_vsi |=
-					  cpu_to_le32((pf->vsi[pf->lan_vsi]->id)
-					   << I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT);
+		fpt |= (pf->vsi[pf->lan_vsi]->id) <<
+		       I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT;
 	else
-		fdir_desc->qindex_flex_ptype_vsi |=
-					    cpu_to_le32((fdir_data->dest_vsi
-					    << I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
-					    & I40E_TXD_FLTR_QW0_DEST_VSI_MASK);
+		fpt |= ((u32)fdir_data->dest_vsi <<
+			I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT) &
+		       I40E_TXD_FLTR_QW0_DEST_VSI_MASK;
 
-	fdir_desc->dtype_cmd_cntindex =
-				    cpu_to_le32(I40E_TX_DESC_DTYPE_FILTER_PROG);
+	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(fpt);
+
+	dcc = I40E_TX_DESC_DTYPE_FILTER_PROG;
 
 	if (add)
-		fdir_desc->dtype_cmd_cntindex |= cpu_to_le32(
-				       I40E_FILTER_PROGRAM_DESC_PCMD_ADD_UPDATE
-					<< I40E_TXD_FLTR_QW1_PCMD_SHIFT);
+		dcc |= I40E_FILTER_PROGRAM_DESC_PCMD_ADD_UPDATE <<
+		       I40E_TXD_FLTR_QW1_PCMD_SHIFT;
 	else
-		fdir_desc->dtype_cmd_cntindex |= cpu_to_le32(
-					   I40E_FILTER_PROGRAM_DESC_PCMD_REMOVE
-					   << I40E_TXD_FLTR_QW1_PCMD_SHIFT);
+		dcc |= I40E_FILTER_PROGRAM_DESC_PCMD_REMOVE <<
+		       I40E_TXD_FLTR_QW1_PCMD_SHIFT;
 
-	fdir_desc->dtype_cmd_cntindex |= cpu_to_le32((fdir_data->dest_ctl
-					  << I40E_TXD_FLTR_QW1_DEST_SHIFT)
-					  & I40E_TXD_FLTR_QW1_DEST_MASK);
+	dcc |= (fdir_data->dest_ctl << I40E_TXD_FLTR_QW1_DEST_SHIFT) &
+	       I40E_TXD_FLTR_QW1_DEST_MASK;
 
-	fdir_desc->dtype_cmd_cntindex |= cpu_to_le32(
-		     (fdir_data->fd_status << I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT)
-		      & I40E_TXD_FLTR_QW1_FD_STATUS_MASK);
+	dcc |= (fdir_data->fd_status << I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT) &
+	       I40E_TXD_FLTR_QW1_FD_STATUS_MASK;
 
 	if (fdir_data->cnt_index != 0) {
-		fdir_desc->dtype_cmd_cntindex |=
-				    cpu_to_le32(I40E_TXD_FLTR_QW1_CNT_ENA_MASK);
-		fdir_desc->dtype_cmd_cntindex |=
-					    cpu_to_le32((fdir_data->cnt_index
-					    << I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT)
-					    & I40E_TXD_FLTR_QW1_CNTINDEX_MASK);
+		dcc |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
+		dcc |= ((u32)fdir_data->cnt_index <<
+			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
+		       I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
 	}
 
+	fdir_desc->dtype_cmd_cntindex = cpu_to_le32(dcc);
 	fdir_desc->fd_id = cpu_to_le32(fdir_data->fd_id);
 
 	/* Now program a dummy descriptor */
-	tx_desc = I40E_TX_DESC(tx_ring, tx_ring->next_to_use);
-	tx_buf = &tx_ring->tx_bi[tx_ring->next_to_use];
-	tx_ring->next_to_use++;
-	if (tx_ring->next_to_use == tx_ring->count)
-		tx_ring->next_to_use = 0;
+	i = tx_ring->next_to_use;
+	tx_desc = I40E_TX_DESC(tx_ring, i);
+
+	tx_ring->next_to_use = (i + 1 < tx_ring->count) ? i + 1 : 0;
 
 	tx_desc->buffer_addr = cpu_to_le64(dma);
-	td_cmd = I40E_TX_DESC_CMD_EOP |
-		 I40E_TX_DESC_CMD_RS  |
-		 I40E_TX_DESC_CMD_DUMMY;
+	td_cmd = I40E_TXD_CMD | I40E_TX_DESC_CMD_DUMMY;
 
 	tx_desc->cmd_type_offset_bsz =
 		build_ctob(td_cmd, 0, I40E_FDIR_MAX_RAW_PACKET_LOOKUP, 0);
-
-	/* Mark the data descriptor to be watched */
-	tx_buf->next_to_watch = tx_desc;
 
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only
@@ -157,6 +144,9 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	 * such as IA-64).
 	 */
 	wmb();
+
+	/* Mark the data descriptor to be watched */
+	tx_buf->next_to_watch = tx_desc;
 
 	writel(tx_ring->next_to_use, tx_ring->tail);
 	return 0;
@@ -188,27 +178,30 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u32 qw, u8 prog_id)
 }
 
 /**
- * i40e_unmap_tx_resource - Release a Tx buffer
+ * i40e_unmap_and_free_tx_resource - Release a Tx buffer
  * @ring:      the ring that owns the buffer
  * @tx_buffer: the buffer to free
  **/
-static inline void i40e_unmap_tx_resource(struct i40e_ring *ring,
-					  struct i40e_tx_buffer *tx_buffer)
+static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
+					    struct i40e_tx_buffer *tx_buffer)
 {
-	if (tx_buffer->dma) {
-		if (tx_buffer->tx_flags & I40E_TX_FLAGS_MAPPED_AS_PAGE)
-			dma_unmap_page(ring->dev,
-				       tx_buffer->dma,
-				       tx_buffer->length,
-				       DMA_TO_DEVICE);
-		else
+	if (tx_buffer->skb) {
+		dev_kfree_skb_any(tx_buffer->skb);
+		if (dma_unmap_len(tx_buffer, len))
 			dma_unmap_single(ring->dev,
-					 tx_buffer->dma,
-					 tx_buffer->length,
+					 dma_unmap_addr(tx_buffer, dma),
+					 dma_unmap_len(tx_buffer, len),
 					 DMA_TO_DEVICE);
+	} else if (dma_unmap_len(tx_buffer, len)) {
+		dma_unmap_page(ring->dev,
+			       dma_unmap_addr(tx_buffer, dma),
+			       dma_unmap_len(tx_buffer, len),
+			       DMA_TO_DEVICE);
 	}
-	tx_buffer->dma = 0;
-	tx_buffer->time_stamp = 0;
+	tx_buffer->next_to_watch = NULL;
+	tx_buffer->skb = NULL;
+	dma_unmap_len_set(tx_buffer, len, 0);
+	/* tx_buffer must be completely set up in the transmit path */
 }
 
 /**
@@ -217,7 +210,6 @@ static inline void i40e_unmap_tx_resource(struct i40e_ring *ring,
  **/
 void i40e_clean_tx_ring(struct i40e_ring *tx_ring)
 {
-	struct i40e_tx_buffer *tx_buffer;
 	unsigned long bi_size;
 	u16 i;
 
@@ -226,13 +218,8 @@ void i40e_clean_tx_ring(struct i40e_ring *tx_ring)
 		return;
 
 	/* Free all the Tx ring sk_buffs */
-	for (i = 0; i < tx_ring->count; i++) {
-		tx_buffer = &tx_ring->tx_bi[i];
-		i40e_unmap_tx_resource(tx_ring, tx_buffer);
-		if (tx_buffer->skb)
-			dev_kfree_skb_any(tx_buffer->skb);
-		tx_buffer->skb = NULL;
-	}
+	for (i = 0; i < tx_ring->count; i++)
+		i40e_unmap_and_free_tx_resource(tx_ring, &tx_ring->tx_bi[i]);
 
 	bi_size = sizeof(struct i40e_tx_buffer) * tx_ring->count;
 	memset(tx_ring->tx_bi, 0, bi_size);
@@ -242,6 +229,13 @@ void i40e_clean_tx_ring(struct i40e_ring *tx_ring)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+
+	if (!tx_ring->netdev)
+		return;
+
+	/* cleanup Tx queue statistics */
+	netdev_tx_reset_queue(netdev_get_tx_queue(tx_ring->netdev,
+						  tx_ring->queue_index));
 }
 
 /**
@@ -300,14 +294,14 @@ static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
 	 * run the check_tx_hang logic with a transmit completion
 	 * pending but without time to complete it yet.
 	 */
-	if ((tx_ring->tx_stats.tx_done_old == tx_ring->tx_stats.packets) &&
+	if ((tx_ring->tx_stats.tx_done_old == tx_ring->stats.packets) &&
 	    tx_pending) {
 		/* make sure it is true for two checks in a row */
 		ret = test_and_set_bit(__I40E_HANG_CHECK_ARMED,
 				       &tx_ring->state);
 	} else {
 		/* update completed stats and disarm the hang check */
-		tx_ring->tx_stats.tx_done_old = tx_ring->tx_stats.packets;
+		tx_ring->tx_stats.tx_done_old = tx_ring->stats.packets;
 		clear_bit(__I40E_HANG_CHECK_ARMED, &tx_ring->state);
 	}
 
@@ -331,62 +325,88 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 
 	tx_buf = &tx_ring->tx_bi[i];
 	tx_desc = I40E_TX_DESC(tx_ring, i);
+	i -= tx_ring->count;
 
-	for (; budget; budget--) {
-		struct i40e_tx_desc *eop_desc;
-
-		eop_desc = tx_buf->next_to_watch;
+	do {
+		struct i40e_tx_desc *eop_desc = tx_buf->next_to_watch;
 
 		/* if next_to_watch is not set then there is no work pending */
 		if (!eop_desc)
 			break;
+
+		/* prevent any other reads prior to eop_desc */
+		read_barrier_depends();
 
 		/* if the descriptor isn't done, no work yet to do */
 		if (!(eop_desc->cmd_type_offset_bsz &
 		      cpu_to_le64(I40E_TX_DESC_DTYPE_DESC_DONE)))
 			break;
 
-		/* count the packet as being completed */
-		tx_ring->tx_stats.completed++;
+		/* clear next_to_watch to prevent false hangs */
 		tx_buf->next_to_watch = NULL;
-		tx_buf->time_stamp = 0;
 
-		/* set memory barrier before eop_desc is verified */
-		rmb();
+		/* update the statistics for this packet */
+		total_bytes += tx_buf->bytecount;
+		total_packets += tx_buf->gso_segs;
 
-		do {
-			i40e_unmap_tx_resource(tx_ring, tx_buf);
+		/* free the skb */
+		dev_kfree_skb_any(tx_buf->skb);
 
-			/* clear dtype status */
-			tx_desc->cmd_type_offset_bsz &=
-				~cpu_to_le64(I40E_TXD_QW1_DTYPE_MASK);
+		/* unmap skb header data */
+		dma_unmap_single(tx_ring->dev,
+				 dma_unmap_addr(tx_buf, dma),
+				 dma_unmap_len(tx_buf, len),
+				 DMA_TO_DEVICE);
 
-			if (likely(tx_desc == eop_desc)) {
-				eop_desc = NULL;
+		/* clear tx_buffer data */
+		tx_buf->skb = NULL;
+		dma_unmap_len_set(tx_buf, len, 0);
 
-				dev_kfree_skb_any(tx_buf->skb);
-				tx_buf->skb = NULL;
-
-				total_bytes += tx_buf->bytecount;
-				total_packets += tx_buf->gso_segs;
-			}
+		/* unmap remaining buffers */
+		while (tx_desc != eop_desc) {
 
 			tx_buf++;
 			tx_desc++;
 			i++;
-			if (unlikely(i == tx_ring->count)) {
-				i = 0;
+			if (unlikely(!i)) {
+				i -= tx_ring->count;
 				tx_buf = tx_ring->tx_bi;
 				tx_desc = I40E_TX_DESC(tx_ring, 0);
 			}
-		} while (eop_desc);
-	}
 
+			/* unmap any remaining paged data */
+			if (dma_unmap_len(tx_buf, len)) {
+				dma_unmap_page(tx_ring->dev,
+					       dma_unmap_addr(tx_buf, dma),
+					       dma_unmap_len(tx_buf, len),
+					       DMA_TO_DEVICE);
+				dma_unmap_len_set(tx_buf, len, 0);
+			}
+		}
+
+		/* move us one more past the eop_desc for start of next pkt */
+		tx_buf++;
+		tx_desc++;
+		i++;
+		if (unlikely(!i)) {
+			i -= tx_ring->count;
+			tx_buf = tx_ring->tx_bi;
+			tx_desc = I40E_TX_DESC(tx_ring, 0);
+		}
+
+		/* update budget accounting */
+		budget--;
+	} while (likely(budget));
+
+	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
-	tx_ring->tx_stats.bytes += total_bytes;
-	tx_ring->tx_stats.packets += total_packets;
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->stats.bytes += total_bytes;
+	tx_ring->stats.packets += total_packets;
+	u64_stats_update_end(&tx_ring->syncp);
 	tx_ring->q_vector->tx.total_bytes += total_bytes;
 	tx_ring->q_vector->tx.total_packets += total_packets;
+
 	if (check_for_tx_hang(tx_ring) && i40e_check_tx_hang(tx_ring)) {
 		/* schedule immediate reset if we believe we hung */
 		dev_info(tx_ring->dev, "Detected Tx Unit Hang\n"
@@ -413,6 +433,10 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		/* the adapter is about to reset, no point in enabling stuff */
 		return true;
 	}
+
+	netdev_tx_completed_queue(netdev_get_tx_queue(tx_ring->netdev,
+						      tx_ring->queue_index),
+				  total_packets, total_bytes);
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	if (unlikely(total_packets && netif_carrier_ok(tx_ring->netdev) &&
@@ -524,8 +548,6 @@ static void i40e_update_dynamic_itr(struct i40e_q_vector *q_vector)
 	i40e_set_new_dynamic_itr(&q_vector->tx);
 	if (old_itr != q_vector->tx.itr)
 		wr32(hw, reg_addr, q_vector->tx.itr);
-
-	i40e_flush(hw);
 }
 
 /**
@@ -1042,8 +1064,10 @@ next_desc:
 	}
 
 	rx_ring->next_to_clean = i;
-	rx_ring->rx_stats.packets += total_rx_packets;
-	rx_ring->rx_stats.bytes += total_rx_bytes;
+	u64_stats_update_begin(&rx_ring->syncp);
+	rx_ring->stats.packets += total_rx_packets;
+	rx_ring->stats.bytes += total_rx_bytes;
+	u64_stats_update_end(&rx_ring->syncp);
 	rx_ring->q_vector->rx.total_packets += total_rx_packets;
 	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
 
@@ -1067,27 +1091,28 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	struct i40e_q_vector *q_vector =
 			       container_of(napi, struct i40e_q_vector, napi);
 	struct i40e_vsi *vsi = q_vector->vsi;
+	struct i40e_ring *ring;
 	bool clean_complete = true;
 	int budget_per_ring;
-	int i;
 
 	if (test_bit(__I40E_DOWN, &vsi->state)) {
 		napi_complete(napi);
 		return 0;
 	}
 
-	/* We attempt to distribute budget to each Rx queue fairly, but don't
-	 * allow the budget to go below 1 because that would exit polling early.
-	 * Since the actual Tx work is minimal, we can give the Tx a larger
+	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
+	i40e_for_each_ring(ring, q_vector->tx)
+		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
+
+	/* We attempt to distribute budget to each Rx queue fairly, but don't
+	 * allow the budget to go below 1 because that would exit polling early.
+	 */
 	budget_per_ring = max(budget/q_vector->num_ringpairs, 1);
-	for (i = 0; i < q_vector->num_ringpairs; i++) {
-		clean_complete &= i40e_clean_tx_irq(q_vector->tx.ring[i],
-						    vsi->work_limit);
-		clean_complete &= i40e_clean_rx_irq(q_vector->rx.ring[i],
-						    budget_per_ring);
-	}
+
+	i40e_for_each_ring(ring, q_vector->rx)
+		clean_complete &= i40e_clean_rx_irq(ring, budget_per_ring);
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete)
@@ -1117,7 +1142,8 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 			qval = rd32(hw, I40E_QINT_TQCTL(0));
 			qval |= I40E_QINT_TQCTL_CAUSE_ENA_MASK;
 			wr32(hw, I40E_QINT_TQCTL(0), qval);
-			i40e_flush(hw);
+
+			i40e_irq_dynamic_enable_icr0(vsi->back);
 		}
 	}
 
@@ -1144,6 +1170,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	struct tcphdr *th;
 	unsigned int hlen;
 	u32 flex_ptype, dtype_cmd;
+	u16 i;
 
 	/* make sure ATR is enabled */
 	if (!(pf->flags & I40E_FLAG_FDIR_ATR_ENABLED))
@@ -1183,10 +1210,11 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	tx_ring->atr_count = 0;
 
 	/* grab the next descriptor */
-	fdir_desc = I40E_TX_FDIRDESC(tx_ring, tx_ring->next_to_use);
-	tx_ring->next_to_use++;
-	if (tx_ring->next_to_use == tx_ring->count)
-		tx_ring->next_to_use = 0;
+	i = tx_ring->next_to_use;
+	fdir_desc = I40E_TX_FDIRDESC(tx_ring, i);
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
 	flex_ptype = (tx_ring->queue_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT) &
 		      I40E_TXD_FLTR_QW0_QINDEX_MASK;
@@ -1216,7 +1244,6 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	fdir_desc->dtype_cmd_cntindex = cpu_to_le32(dtype_cmd);
 }
 
-#define I40E_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
 /**
  * i40e_tx_prepare_vlan_flags - prepare generic TX VLAN tagging flags for HW
  * @skb:     send buffer
@@ -1273,27 +1300,6 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 	}
 	*flags = tx_flags;
 	return 0;
-}
-
-/**
- * i40e_tx_csum - is checksum offload requested
- * @tx_ring:  ptr to the ring to send
- * @skb:      ptr to the skb we're sending
- * @tx_flags: the collected send information
- * @protocol: the send protocol
- *
- * Returns true if checksum offload is requested
- **/
-static bool i40e_tx_csum(struct i40e_ring *tx_ring, struct sk_buff *skb,
-			 u32 tx_flags, __be16 protocol)
-{
-	if ((skb->ip_summed != CHECKSUM_PARTIAL) &&
-	    !(tx_flags & I40E_TX_FLAGS_TXSW)) {
-		if (!(tx_flags & I40E_TX_FLAGS_HW_VLAN))
-			return false;
-	}
-
-	return skb->ip_summed == CHECKSUM_PARTIAL;
 }
 
 /**
@@ -1482,15 +1488,16 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 			       const u32 cd_tunneling, const u32 cd_l2tag2)
 {
 	struct i40e_tx_context_desc *context_desc;
+	int i = tx_ring->next_to_use;
 
 	if (!cd_type_cmd_tso_mss && !cd_tunneling && !cd_l2tag2)
 		return;
 
 	/* grab the next descriptor */
-	context_desc = I40E_TX_CTXTDESC(tx_ring, tx_ring->next_to_use);
-	tx_ring->next_to_use++;
-	if (tx_ring->next_to_use == tx_ring->count)
-		tx_ring->next_to_use = 0;
+	context_desc = I40E_TX_CTXTDESC(tx_ring, i);
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
 	/* cpu_to_le32 and assign to struct fields */
 	context_desc->tunneling_params = cpu_to_le32(cd_tunneling);
@@ -1512,22 +1519,15 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			struct i40e_tx_buffer *first, u32 tx_flags,
 			const u8 hdr_len, u32 td_cmd, u32 td_offset)
 {
-	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
-	struct device *dev = tx_ring->dev;
-	u32 paylen = skb->len - hdr_len;
-	u16 i = tx_ring->next_to_use;
+	struct skb_frag_struct *frag;
 	struct i40e_tx_buffer *tx_bi;
 	struct i40e_tx_desc *tx_desc;
-	u32 buf_offset = 0;
+	u16 i = tx_ring->next_to_use;
 	u32 td_tag = 0;
 	dma_addr_t dma;
 	u16 gso_segs;
-
-	dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, dma))
-		goto dma_error;
 
 	if (tx_flags & I40E_TX_FLAGS_HW_VLAN) {
 		td_cmd |= I40E_TX_DESC_CMD_IL2TAG1;
@@ -1535,16 +1535,36 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			 I40E_TX_FLAGS_VLAN_SHIFT;
 	}
 
+	if (tx_flags & (I40E_TX_FLAGS_TSO | I40E_TX_FLAGS_FSO))
+		gso_segs = skb_shinfo(skb)->gso_segs;
+	else
+		gso_segs = 1;
+
+	/* multiply data chunks by size of headers */
+	first->bytecount = skb->len - hdr_len + (gso_segs * hdr_len);
+	first->gso_segs = gso_segs;
+	first->skb = skb;
+	first->tx_flags = tx_flags;
+
+	dma = dma_map_single(tx_ring->dev, skb->data, size, DMA_TO_DEVICE);
+
 	tx_desc = I40E_TX_DESC(tx_ring, i);
-	for (;;) {
-		while (size > I40E_MAX_DATA_PER_TXD) {
-			tx_desc->buffer_addr = cpu_to_le64(dma + buf_offset);
+	tx_bi = first;
+
+	for (frag = &skb_shinfo(skb)->frags[0];; frag++) {
+		if (dma_mapping_error(tx_ring->dev, dma))
+			goto dma_error;
+
+		/* record length, and DMA address */
+		dma_unmap_len_set(tx_bi, len, size);
+		dma_unmap_addr_set(tx_bi, dma, dma);
+
+		tx_desc->buffer_addr = cpu_to_le64(dma);
+
+		while (unlikely(size > I40E_MAX_DATA_PER_TXD)) {
 			tx_desc->cmd_type_offset_bsz =
 				build_ctob(td_cmd, td_offset,
 					   I40E_MAX_DATA_PER_TXD, td_tag);
-
-			buf_offset += I40E_MAX_DATA_PER_TXD;
-			size -= I40E_MAX_DATA_PER_TXD;
 
 			tx_desc++;
 			i++;
@@ -1552,28 +1572,18 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 				tx_desc = I40E_TX_DESC(tx_ring, 0);
 				i = 0;
 			}
+
+			dma += I40E_MAX_DATA_PER_TXD;
+			size -= I40E_MAX_DATA_PER_TXD;
+
+			tx_desc->buffer_addr = cpu_to_le64(dma);
 		}
-
-		tx_bi = &tx_ring->tx_bi[i];
-		tx_bi->length = buf_offset + size;
-		tx_bi->tx_flags = tx_flags;
-		tx_bi->dma = dma;
-
-		tx_desc->buffer_addr = cpu_to_le64(dma + buf_offset);
-		tx_desc->cmd_type_offset_bsz = build_ctob(td_cmd, td_offset,
-							  size, td_tag);
 
 		if (likely(!data_len))
 			break;
 
-		size = skb_frag_size(frag);
-		data_len -= size;
-		buf_offset = 0;
-		tx_flags |= I40E_TX_FLAGS_MAPPED_AS_PAGE;
-
-		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, dma))
-			goto dma_error;
+		tx_desc->cmd_type_offset_bsz = build_ctob(td_cmd, td_offset,
+							  size, td_tag);
 
 		tx_desc++;
 		i++;
@@ -1582,31 +1592,25 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			i = 0;
 		}
 
-		frag++;
+		size = skb_frag_size(frag);
+		data_len -= size;
+
+		dma = skb_frag_dma_map(tx_ring->dev, frag, 0, size,
+				       DMA_TO_DEVICE);
+
+		tx_bi = &tx_ring->tx_bi[i];
 	}
 
-	tx_desc->cmd_type_offset_bsz |=
-		       cpu_to_le64((u64)I40E_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT);
+	tx_desc->cmd_type_offset_bsz =
+		build_ctob(td_cmd, td_offset, size, td_tag) |
+		cpu_to_le64((u64)I40E_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT);
 
-	i++;
-	if (i == tx_ring->count)
-		i = 0;
+	netdev_tx_sent_queue(netdev_get_tx_queue(tx_ring->netdev,
+						 tx_ring->queue_index),
+			     first->bytecount);
 
-	tx_ring->next_to_use = i;
-
-	if (tx_flags & (I40E_TX_FLAGS_TSO | I40E_TX_FLAGS_FSO))
-		gso_segs = skb_shinfo(skb)->gso_segs;
-	else
-		gso_segs = 1;
-
-	/* multiply data chunks by size of headers */
-	tx_bi->bytecount = paylen + (gso_segs * hdr_len);
-	tx_bi->gso_segs = gso_segs;
-	tx_bi->skb = skb;
-
-	/* set the timestamp and next to watch values */
+	/* set the timestamp */
 	first->time_stamp = jiffies;
-	first->next_to_watch = tx_desc;
 
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only
@@ -1615,24 +1619,33 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 */
 	wmb();
 
+	/* set next_to_watch value indicating a packet is present */
+	first->next_to_watch = tx_desc;
+
+	i++;
+	if (i == tx_ring->count)
+		i = 0;
+
+	tx_ring->next_to_use = i;
+
+	/* notify HW of packet */
 	writel(i, tx_ring->tail);
+
 	return;
 
 dma_error:
-	dev_info(dev, "TX DMA map failed\n");
+	dev_info(tx_ring->dev, "TX DMA map failed\n");
 
 	/* clear dma mappings for failed tx_bi map */
 	for (;;) {
 		tx_bi = &tx_ring->tx_bi[i];
-		i40e_unmap_tx_resource(tx_ring, tx_bi);
+		i40e_unmap_and_free_tx_resource(tx_ring, tx_bi);
 		if (tx_bi == first)
 			break;
 		if (i == 0)
 			i = tx_ring->count;
 		i--;
 	}
-
-	dev_kfree_skb_any(skb);
 
 	tx_ring->next_to_use = i;
 }
@@ -1758,16 +1771,16 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	/* Always offload the checksum, since it's in the data descriptor */
-	if (i40e_tx_csum(tx_ring, skb, tx_flags, protocol))
-		tx_flags |= I40E_TX_FLAGS_CSUM;
-
-	/* always enable offload insertion */
+	/* always enable CRC insertion offload */
 	td_cmd |= I40E_TX_DESC_CMD_ICRC;
 
-	if (tx_flags & I40E_TX_FLAGS_CSUM)
+	/* Always offload the checksum, since it's in the data descriptor */
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		tx_flags |= I40E_TX_FLAGS_CSUM;
+
 		i40e_tx_enable_csum(skb, tx_flags, &td_cmd, &td_offset,
 				    tx_ring, &cd_tunneling);
+	}
 
 	i40e_create_tx_ctx(tx_ring, cd_type_cmd_tso_mss,
 			   cd_tunneling, cd_l2tag2);
@@ -1801,7 +1814,7 @@ netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
-	struct i40e_ring *tx_ring = &vsi->tx_rings[skb->queue_mapping];
+	struct i40e_ring *tx_ring = vsi->tx_rings[skb->queue_mapping];
 
 	/* hardware can't handle really short frames, hardware padding works
 	 * beyond this point

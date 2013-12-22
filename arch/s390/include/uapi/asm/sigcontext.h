@@ -49,6 +49,7 @@ typedef struct
 typedef struct
 {
 	unsigned int fpc;
+	unsigned int pad;
 	double   fprs[__NUM_FPRS];
 } _s390_fp_regs;
 

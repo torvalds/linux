@@ -756,7 +756,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
 	} else if (rc != -EACCES) {
-		cifs_dbg(VFS, "Unexpected lookup error %d\n", rc);
+		cifs_dbg(FYI, "Unexpected lookup error %d\n", rc);
 		/* We special case check for Access Denied - since that
 		is a common return code */
 	}

@@ -21,10 +21,10 @@
  * 8192 entries of 8 bytes each, occupying a 64KB page. Levels 0 and 1 are not
  * used. The 2nd level table (PGD for Linux) can cover a range of 4TB, each
  * entry representing 512MB. The user and kernel address spaces are limited to
- * 512GB and therefore we only use 1024 entries in the PGD.
+ * 4TB in the 64KB page configuration.
  */
 #define PTRS_PER_PTE		8192
-#define PTRS_PER_PGD		1024
+#define PTRS_PER_PGD		8192
 
 /*
  * PGDIR_SHIFT determines the size a top-level page table entry can map.

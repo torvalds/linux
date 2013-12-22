@@ -433,4 +433,3 @@ MODULE_AUTHOR("Scott and Bill Jennings");
 MODULE_DESCRIPTION(
 	"Driver for watchdog timer in AMD \"Elan\" SC520 uProcessor");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

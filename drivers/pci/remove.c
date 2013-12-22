@@ -7,7 +7,7 @@ static void pci_free_resources(struct pci_dev *dev)
 {
 	int i;
 
- 	msi_remove_pci_irq_vectors(dev);
+	msi_remove_pci_irq_vectors(dev);
 
 	pci_cleanup_rom(dev);
 	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
@@ -24,7 +24,7 @@ static void pci_stop_dev(struct pci_dev *dev)
 	if (dev->is_added) {
 		pci_proc_detach_device(dev);
 		pci_remove_sysfs_dev_files(dev);
-		device_del(&dev->dev);
+		device_release_driver(&dev->dev);
 		dev->is_added = 0;
 	}
 
@@ -34,6 +34,8 @@ static void pci_stop_dev(struct pci_dev *dev)
 
 static void pci_destroy_dev(struct pci_dev *dev)
 {
+	device_del(&dev->dev);
+
 	down_write(&pci_bus_sem);
 	list_del(&dev->bus_list);
 	up_write(&pci_bus_sem);

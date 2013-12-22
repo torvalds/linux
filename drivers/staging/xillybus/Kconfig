@@ -16,14 +16,14 @@ if XILLYBUS
 
 config XILLYBUS_PCIE
 	tristate "Xillybus over PCIe"
-	depends on XILLYBUS && PCI
+	depends on PCI
 	help
 	  Set to M if you want Xillybus to use PCI Express for communicating
 	  with the FPGA.
 
 config XILLYBUS_OF
 	tristate "Xillybus over Device Tree"
-	depends on XILLYBUS && OF_ADDRESS && OF_IRQ
+	depends on OF_ADDRESS && OF_IRQ
 	help
 	  Set to M if you want Xillybus to find its resources from the
 	  Open Firmware Flattened Device Tree. If the target is an embedded

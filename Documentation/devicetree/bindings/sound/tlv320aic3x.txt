@@ -24,10 +24,36 @@ Optional properties:
 	3 - MICBIAS output is connected to AVDD,
 	If this node is not mentioned or if the value is incorrect, then MicBias
 	is powered down.
+- AVDD-supply, IOVDD-supply, DRVDD-supply, DVDD-supply : power supplies for the
+  device as covered in Documentation/devicetree/bindings/regulator/regulator.txt
+
+CODEC output pins:
+  * LLOUT
+  * RLOUT
+  * MONO_LOUT
+  * HPLOUT
+  * HPROUT
+  * HPLCOM
+  * HPRCOM
+
+CODEC input pins:
+  * MIC3L
+  * MIC3R
+  * LINE1L
+  * LINE2L
+  * LINE1R
+  * LINE2R
+
+The pins can be used in referring sound node's audio-routing property.
 
 Example:
 
 tlv320aic3x: tlv320aic3x@1b {
 	compatible = "ti,tlv320aic3x";
 	reg = <0x1b>;
+
+	AVDD-supply = <&regulator>;
+	IOVDD-supply = <&regulator>;
+	DRVDD-supply = <&regulator>;
+	DVDD-supply = <&regulator>;
 };

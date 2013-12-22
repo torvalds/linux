@@ -454,14 +454,14 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	tstats->rx_bytes += skb->len;
 	u64_stats_update_end(&tstats->syncp);
 
+	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(tunnel->dev)));
+
 	if (tunnel->dev->type == ARPHRD_ETHER) {
 		skb->protocol = eth_type_trans(skb, tunnel->dev);
 		skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 	} else {
 		skb->dev = tunnel->dev;
 	}
-
-	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(tunnel->dev)));
 
 	gro_cells_receive(&tunnel->gro_cells, skb);
 	return 0;
@@ -976,12 +976,18 @@ int ip_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
-	int err;
+	int i, err;
 
 	dev->destructor	= ip_tunnel_dev_free;
 	dev->tstats = alloc_percpu(struct pcpu_tstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct pcpu_tstats *ipt_stats;
+		ipt_stats = per_cpu_ptr(dev->tstats, i);
+		u64_stats_init(&ipt_stats->syncp);
+	}
 
 	err = gro_cells_init(&tunnel->gro_cells, dev);
 	if (err) {

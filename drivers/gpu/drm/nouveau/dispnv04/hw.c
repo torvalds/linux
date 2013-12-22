@@ -27,6 +27,7 @@
 #include "hw.h"
 
 #include <subdev/bios/pll.h>
+#include <subdev/fb.h>
 #include <subdev/clock.h>
 #include <subdev/timer.h>
 
@@ -220,7 +221,7 @@ nouveau_hw_get_clock(struct drm_device *dev, enum nvbios_pll_type plltype)
 	int ret;
 
 	if (plltype == PLL_MEMORY &&
-	    (dev->pci_device & 0x0ff0) == CHIPSET_NFORCE) {
+	    (dev->pdev->device & 0x0ff0) == CHIPSET_NFORCE) {
 		uint32_t mpllP;
 
 		pci_read_config_dword(pci_get_bus_and_slot(0, 3), 0x6c, &mpllP);
@@ -230,7 +231,7 @@ nouveau_hw_get_clock(struct drm_device *dev, enum nvbios_pll_type plltype)
 		return 400000 / mpllP;
 	} else
 	if (plltype == PLL_MEMORY &&
-	    (dev->pci_device & 0xff0) == CHIPSET_NFORCE2) {
+	    (dev->pdev->device & 0xff0) == CHIPSET_NFORCE2) {
 		uint32_t clock;
 
 		pci_read_config_dword(pci_get_bus_and_slot(0, 5), 0x4c, &clock);
@@ -664,6 +665,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_timer *ptimer = nouveau_timer(device);
+	struct nouveau_fb *pfb = nouveau_fb(device);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	uint32_t reg900;
 	int i;
@@ -680,10 +682,10 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		nv_wr32(device, NV_PVIDEO_INTR_EN, 0);
 		nv_wr32(device, NV_PVIDEO_OFFSET_BUFF(0), 0);
 		nv_wr32(device, NV_PVIDEO_OFFSET_BUFF(1), 0);
-		nv_wr32(device, NV_PVIDEO_LIMIT(0), 0); //drm->fb_available_size - 1);
-		nv_wr32(device, NV_PVIDEO_LIMIT(1), 0); //drm->fb_available_size - 1);
-		nv_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(0), 0); //drm->fb_available_size - 1);
-		nv_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(1), 0); //drm->fb_available_size - 1);
+		nv_wr32(device, NV_PVIDEO_LIMIT(0), pfb->ram->size - 1);
+		nv_wr32(device, NV_PVIDEO_LIMIT(1), pfb->ram->size - 1);
+		nv_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(0), pfb->ram->size - 1);
+		nv_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(1), pfb->ram->size - 1);
 		nv_wr32(device, NV_PBUS_POWERCTRL_2, 0);
 
 		NVWriteCRTC(dev, head, NV_PCRTC_CURSOR_CONFIG, regp->cursor_cfg);
@@ -740,7 +742,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 	}
 	/* NV11 and NV20 stop at 0x52. */
 	if (nv_gf4_disp_arch(dev)) {
-		if (nv_device(drm->device)->card_type == NV_10) {
+		if (nv_device(drm->device)->card_type < NV_20) {
 			/* Not waiting for vertical retrace before modifying
 			   CRE_53/CRE_54 causes lockups. */
 			nouveau_timer_wait_eq(ptimer, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x8);

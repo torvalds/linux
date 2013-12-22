@@ -24,6 +24,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/dma-rcar-hpbdma.h>
 #include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
@@ -95,28 +96,45 @@ static struct sh_timer_config sh_tmu1_platform_data __initdata = {
 		&sh_tmu##idx##_platform_data,		\
 		sizeof(sh_tmu##idx##_platform_data))
 
-/* USB */
-static struct usb_phy *phy;
+int r8a7778_usb_phy_power(bool enable)
+{
+	static struct usb_phy *phy = NULL;
+	int ret = 0;
 
+	if (!phy)
+		phy = usb_get_phy(USB_PHY_TYPE_USB2);
+
+	if (IS_ERR(phy)) {
+		pr_err("kernel doesn't have usb phy driver\n");
+		return PTR_ERR(phy);
+	}
+
+	if (enable)
+		ret = usb_phy_init(phy);
+	else
+		usb_phy_shutdown(phy);
+
+	return ret;
+}
+
+/* USB */
 static int usb_power_on(struct platform_device *pdev)
 {
-	if (IS_ERR(phy))
-		return PTR_ERR(phy);
+	int ret = r8a7778_usb_phy_power(true);
+
+	if (ret)
+		return ret;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
-
-	usb_phy_init(phy);
 
 	return 0;
 }
 
 static void usb_power_off(struct platform_device *pdev)
 {
-	if (IS_ERR(phy))
+	if (r8a7778_usb_phy_power(false))
 		return;
-
-	usb_phy_shutdown(phy);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -173,20 +191,6 @@ static struct platform_device_info hci##_info __initdata = {	\
 
 USB_PLATFORM_INFO(ehci);
 USB_PLATFORM_INFO(ohci);
-
-/* Ether */
-static struct resource ether_resources[] __initdata = {
-	DEFINE_RES_MEM(0xfde00000, 0x400),
-	DEFINE_RES_IRQ(gic_iid(0x89)),
-};
-
-void __init r8a7778_add_ether_device(struct sh_eth_plat_data *pdata)
-{
-	platform_device_register_resndata(&platform_bus, "r8a777x-ether", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  pdata, sizeof(*pdata));
-}
 
 /* PFC/GPIO */
 static struct resource pfc_resources[] __initdata = {
@@ -272,47 +276,13 @@ static struct resource hspi_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_iid(0x75)),
 };
 
-void __init r8a7778_register_hspi(int id)
+static void __init r8a7778_register_hspi(int id)
 {
 	BUG_ON(id < 0 || id > 2);
 
 	platform_device_register_simple(
 		"sh-hspi", id,
 		hspi_resources + (2 * id), 2);
-}
-
-/* VIN */
-#define R8A7778_VIN(idx)						\
-static struct resource vin##idx##_resources[] __initdata = {		\
-	DEFINE_RES_MEM(0xffc50000 + 0x1000 * (idx), 0x1000),		\
-	DEFINE_RES_IRQ(gic_iid(0x5a)),					\
-};									\
-									\
-static struct platform_device_info vin##idx##_info __initdata = {	\
-	.parent		= &platform_bus,				\
-	.name		= "r8a7778-vin",				\
-	.id		= idx,						\
-	.res		= vin##idx##_resources,				\
-	.num_res	= ARRAY_SIZE(vin##idx##_resources),		\
-	.dma_mask	= DMA_BIT_MASK(32),				\
-}
-
-R8A7778_VIN(0);
-R8A7778_VIN(1);
-
-static struct platform_device_info *vin_info_table[] __initdata = {
-	&vin0_info,
-	&vin1_info,
-};
-
-void __init r8a7778_add_vin_device(int id, struct rcar_vin_platform_data *pdata)
-{
-	BUG_ON(id < 0 || id > 1);
-
-	vin_info_table[id]->data = pdata;
-	vin_info_table[id]->size_data = sizeof(*pdata);
-
-	platform_device_register_full(vin_info_table[id]);
 }
 
 void __init r8a7778_add_dt_devices(void)
@@ -339,6 +309,88 @@ void __init r8a7778_add_dt_devices(void)
 	r8a7778_register_tmu(1);
 }
 
+/* HPB-DMA */
+
+/* Asynchronous mode register (ASYNCMDR) bits */
+#define HPB_DMAE_ASYNCMDR_ASMD22_MASK	BIT(2)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_SINGLE	BIT(2)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_MULTI	0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_MASK	BIT(1)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_SINGLE	BIT(1)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_MULTI	0	/* SDHI0 */
+
+static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
+	{
+		.id	= HPBDMA_SLAVE_SDHI0_TX,
+		.addr	= 0xffe4c000 + 0x30,
+		.dcr	= HPB_DMAE_DCR_SPDS_16BIT |
+			  HPB_DMAE_DCR_DMDL |
+			  HPB_DMAE_DCR_DPDS_16BIT,
+		.rstr	= HPB_DMAE_ASYNCRSTR_ASRST21 |
+			  HPB_DMAE_ASYNCRSTR_ASRST22 |
+			  HPB_DMAE_ASYNCRSTR_ASRST23,
+		.mdr	= HPB_DMAE_ASYNCMDR_ASMD21_MULTI,
+		.mdm	= HPB_DMAE_ASYNCMDR_ASMD21_MASK,
+		.port	= 0x0D0C,
+		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+		.dma_ch	= 21,
+	}, {
+		.id	= HPBDMA_SLAVE_SDHI0_RX,
+		.addr	= 0xffe4c000 + 0x30,
+		.dcr	= HPB_DMAE_DCR_SMDL |
+			  HPB_DMAE_DCR_SPDS_16BIT |
+			  HPB_DMAE_DCR_DPDS_16BIT,
+		.rstr	= HPB_DMAE_ASYNCRSTR_ASRST21 |
+			  HPB_DMAE_ASYNCRSTR_ASRST22 |
+			  HPB_DMAE_ASYNCRSTR_ASRST23,
+		.mdr	= HPB_DMAE_ASYNCMDR_ASMD22_MULTI,
+		.mdm	= HPB_DMAE_ASYNCMDR_ASMD22_MASK,
+		.port	= 0x0D0C,
+		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+		.dma_ch	= 22,
+	},
+};
+
+static const struct hpb_dmae_channel hpb_dmae_channels[] = {
+	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_TX), /* ch. 21 */
+	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_RX), /* ch. 22 */
+};
+
+static struct hpb_dmae_pdata dma_platform_data __initdata = {
+	.slaves			= hpb_dmae_slaves,
+	.num_slaves		= ARRAY_SIZE(hpb_dmae_slaves),
+	.channels		= hpb_dmae_channels,
+	.num_channels		= ARRAY_SIZE(hpb_dmae_channels),
+	.ts_shift		= {
+		[XMIT_SZ_8BIT]	= 0,
+		[XMIT_SZ_16BIT]	= 1,
+		[XMIT_SZ_32BIT]	= 2,
+	},
+	.num_hw_channels	= 39,
+};
+
+static struct resource hpb_dmae_resources[] __initdata = {
+	/* Channel registers */
+	DEFINE_RES_MEM(0xffc08000, 0x1000),
+	/* Common registers */
+	DEFINE_RES_MEM(0xffc09000, 0x170),
+	/* Asynchronous reset registers */
+	DEFINE_RES_MEM(0xffc00300, 4),
+	/* Asynchronous mode registers */
+	DEFINE_RES_MEM(0xffc00400, 4),
+	/* IRQ for DMA channels */
+	DEFINE_RES_NAMED(gic_iid(0x7b), 5, NULL, IORESOURCE_IRQ),
+};
+
+static void __init r8a7778_register_hpb_dmae(void)
+{
+	platform_device_register_resndata(&platform_bus, "hpb-dma-engine", -1,
+					  hpb_dmae_resources,
+					  ARRAY_SIZE(hpb_dmae_resources),
+					  &dma_platform_data,
+					  sizeof(dma_platform_data));
+}
+
 void __init r8a7778_add_standard_devices(void)
 {
 	r8a7778_add_dt_devices();
@@ -349,12 +401,12 @@ void __init r8a7778_add_standard_devices(void)
 	r8a7778_register_hspi(0);
 	r8a7778_register_hspi(1);
 	r8a7778_register_hspi(2);
+
+	r8a7778_register_hpb_dmae();
 }
 
 void __init r8a7778_init_late(void)
 {
-	phy = usb_get_phy(USB_PHY_TYPE_USB2);
-
 	platform_device_register_full(&ehci_info);
 	platform_device_register_full(&ohci_info);
 }
@@ -376,7 +428,7 @@ static struct resource irqpin_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_iid(0x3e)), /* IRQ3 */
 };
 
-void __init r8a7778_init_irq_extpin(int irlm)
+void __init r8a7778_init_irq_extpin_dt(int irlm)
 {
 	void __iomem *icr0 = ioremap_nocache(0xfe780000, PAGE_SIZE);
 	unsigned long tmp;
@@ -394,7 +446,11 @@ void __init r8a7778_init_irq_extpin(int irlm)
 	tmp |= (1 << 21); /* LVLMODE = 1 */
 	iowrite32(tmp, icr0);
 	iounmap(icr0);
+}
 
+void __init r8a7778_init_irq_extpin(int irlm)
+{
+	r8a7778_init_irq_extpin_dt(irlm);
 	if (irlm)
 		platform_device_register_resndata(
 			&platform_bus, "renesas_intc_irqpin", -1,

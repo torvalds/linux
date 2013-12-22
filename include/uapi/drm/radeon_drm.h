@@ -981,6 +981,8 @@ struct drm_radeon_cs {
 #define RADEON_INFO_SI_TILE_MODE_ARRAY	0x16
 /* query if CP DMA is supported on the compute ring */
 #define RADEON_INFO_SI_CP_DMA_COMPUTE	0x17
+/* CIK macrotile mode array */
+#define RADEON_INFO_CIK_MACROTILE_MODE_ARRAY	0x18
 
 
 struct drm_radeon_info {

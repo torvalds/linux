@@ -525,12 +525,13 @@ static int __init intel_irq_remapping_supported(void)
 	if (disable_irq_remap)
 		return 0;
 	if (irq_remap_broken) {
-		WARN_TAINT(1, TAINT_FIRMWARE_WORKAROUND,
-			   "This system BIOS has enabled interrupt remapping\n"
-			   "on a chipset that contains an erratum making that\n"
-			   "feature unstable.  To maintain system stability\n"
-			   "interrupt remapping is being disabled.  Please\n"
-			   "contact your BIOS vendor for an update\n");
+		printk(KERN_WARNING
+			"This system BIOS has enabled interrupt remapping\n"
+			"on a chipset that contains an erratum making that\n"
+			"feature unstable.  To maintain system stability\n"
+			"interrupt remapping is being disabled.  Please\n"
+			"contact your BIOS vendor for an update\n");
+		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
 		disable_irq_remap = 1;
 		return 0;
 	}
@@ -686,12 +687,12 @@ static void ir_parse_one_hpet_scope(struct acpi_dmar_device_scope *scope,
 		 * Access PCI directly due to the PCI
 		 * subsystem isn't initialized yet.
 		 */
-		bus = read_pci_config_byte(bus, path->dev, path->fn,
+		bus = read_pci_config_byte(bus, path->device, path->function,
 					   PCI_SECONDARY_BUS);
 		path++;
 	}
 	ir_hpet[ir_hpet_num].bus   = bus;
-	ir_hpet[ir_hpet_num].devfn = PCI_DEVFN(path->dev, path->fn);
+	ir_hpet[ir_hpet_num].devfn = PCI_DEVFN(path->device, path->function);
 	ir_hpet[ir_hpet_num].iommu = iommu;
 	ir_hpet[ir_hpet_num].id    = scope->enumeration_id;
 	ir_hpet_num++;
@@ -714,13 +715,13 @@ static void ir_parse_one_ioapic_scope(struct acpi_dmar_device_scope *scope,
 		 * Access PCI directly due to the PCI
 		 * subsystem isn't initialized yet.
 		 */
-		bus = read_pci_config_byte(bus, path->dev, path->fn,
+		bus = read_pci_config_byte(bus, path->device, path->function,
 					   PCI_SECONDARY_BUS);
 		path++;
 	}
 
 	ir_ioapic[ir_ioapic_num].bus   = bus;
-	ir_ioapic[ir_ioapic_num].devfn = PCI_DEVFN(path->dev, path->fn);
+	ir_ioapic[ir_ioapic_num].devfn = PCI_DEVFN(path->device, path->function);
 	ir_ioapic[ir_ioapic_num].iommu = iommu;
 	ir_ioapic[ir_ioapic_num].id    = scope->enumeration_id;
 	ir_ioapic_num++;

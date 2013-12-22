@@ -2183,7 +2183,6 @@ static void ipg_remove(struct pci_dev *pdev)
 
 	free_netdev(dev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static const struct net_device_ops ipg_netdev_ops = {

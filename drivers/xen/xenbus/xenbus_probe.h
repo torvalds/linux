@@ -54,7 +54,7 @@ enum xenstore_init {
 	XS_LOCAL,
 };
 
-extern struct device_attribute xenbus_dev_attrs[];
+extern const struct attribute_group *xenbus_dev_groups[];
 
 extern int xenbus_match(struct device *_dev, struct device_driver *_drv);
 extern int xenbus_dev_probe(struct device *_dev);

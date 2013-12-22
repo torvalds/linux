@@ -1411,7 +1411,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 
 		if (res) {
 			del_timer(&task->slow_task->timer);
-			mv_printk("executing internel task failed:%d\n", res);
+			mv_printk("executing internal task failed:%d\n", res);
 			goto ex_err;
 		}
 

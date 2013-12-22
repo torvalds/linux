@@ -245,6 +245,23 @@ static void pSeries_lpar_hptab_clear(void)
 					&(ptes[j].pteh), &(ptes[j].ptel));
 		}
 	}
+
+#ifdef __LITTLE_ENDIAN__
+	/* Reset exceptions to big endian */
+	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+		long rc;
+
+		rc = pseries_big_endian_exceptions();
+		/*
+		 * At this point it is unlikely panic() will get anything
+		 * out to the user, but at least this will stop us from
+		 * continuing on further and creating an even more
+		 * difficult to debug situation.
+		 */
+		if (rc)
+			panic("Could not enable big endian exceptions");
+	}
+#endif
 }
 
 /*

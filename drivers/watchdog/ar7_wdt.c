@@ -46,7 +46,6 @@
 MODULE_AUTHOR("Nicolas Thill <nico@openwrt.org>");
 MODULE_DESCRIPTION(LONGNAME);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 static int margin = 60;
 module_param(margin, int, 0);

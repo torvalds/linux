@@ -163,14 +163,14 @@ enum LED_STRATEGY_871x {
 void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
 
 struct led_priv{
-	/* add for led controll */
+	/* add for led control */
 	struct LED_871x			SwLed0;
 	struct LED_871x			SwLed1;
 	enum LED_STRATEGY_871x	LedStrategy;
 	u8	bRegUseLed;
 	void (*LedControlHandler)(struct adapter *padapter,
 				  enum LED_CTL_MODE LedAction);
-	/* add for led controll */
+	/* add for led control */
 };
 
 #define rtw_led_control(adapt, action) \

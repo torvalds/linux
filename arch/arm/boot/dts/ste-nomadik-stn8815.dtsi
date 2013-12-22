@@ -653,6 +653,7 @@
 		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
 		clocks = <&hclksmc>;
 		status = "okay";
+		timings = /bits/ 8 <0 0 0 0x10 0x0a 0>;
 
 		partition@0 {
 		label = "X-Loader(NAND)";
@@ -707,8 +708,14 @@
 		pinctrl-0 = <&i2c0_default_mux>, <&i2c0_default_mode>;
 
 		stw4811@2d {
-			   compatible = "st,stw4811";
-			   reg = <0x2d>;
+			compatible = "st,stw4811";
+			reg = <0x2d>;
+			vmmc_regulator: vmmc {
+				compatible = "st,stw481x-vmmc";
+				regulator-name = "VMMC";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
 		};
 	};
 
@@ -839,6 +846,7 @@
 			cd-inverted;
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmcsd_default_mux>, <&mmcsd_default_mode>;
+			vmmc-supply = <&vmmc_regulator>;
 		};
 	};
 };

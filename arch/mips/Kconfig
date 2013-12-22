@@ -1,6 +1,7 @@
 config MIPS
 	bool
 	default y
+	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
@@ -8,6 +9,7 @@ config MIPS
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_TRACEHOOK
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
@@ -18,6 +20,7 @@ config MIPS
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_SYSCALL_TRACEPOINTS
 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
 	select RTC_LIB if !MACH_LOONGSON
@@ -146,6 +149,7 @@ config MIPS_COBALT
 	select CSRC_R4K
 	select CEVT_GT641XX
 	select DMA_NONCOHERENT
+	select EARLY_PRINTK_8250 if EARLY_PRINTK
 	select HW_HAS_PCI
 	select I8253
 	select I8259
@@ -411,23 +415,6 @@ config PMC_MSP
 	  Processor System-On-A-Chips.  These parts include a number
 	  of integrated peripherals, interfaces and DSPs in addition to
 	  a variety of MIPS cores.
-
-config POWERTV
-	bool "Cisco PowerTV"
-	select BOOT_ELF32
-	select CEVT_R4K
-	select CPU_MIPSR2_IRQ_VI
-	select CPU_MIPSR2_IRQ_EI
-	select CSRC_POWERTV
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HIGHMEM
-	select USB_OHCI_LITTLE_ENDIAN
-	help
-	  This enables support for the Cisco PowerTV Platform.
 
 config RALINK
 	bool "Ralink based machines"
@@ -811,7 +798,6 @@ source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmcs-msp71xx/Kconfig"
-source "arch/mips/powertv/Kconfig"
 source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
@@ -888,9 +874,6 @@ config CSRC_BCM1480
 	bool
 
 config CSRC_IOASIC
-	bool
-
-config CSRC_POWERTV
 	bool
 
 config CSRC_R4K
@@ -1489,8 +1472,10 @@ config SYS_SUPPORTS_ZBOOT
 	bool
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZ4
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
 
 config SYS_SUPPORTS_ZBOOT_UART16550
 	bool
@@ -1977,6 +1962,7 @@ config MIPS_VPE_APSP_API
 config MIPS_CMP
 	bool "MIPS CMP framework support"
 	depends on SYS_SUPPORTS_MIPS_CMP
+	select SMP
 	select SYNC_R4K
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_SCHED_SMT if SMP
@@ -2140,7 +2126,6 @@ source "mm/Kconfig"
 config SMP
 	bool "Multi-Processing support"
 	depends on SYS_SUPPORTS_SMP
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If

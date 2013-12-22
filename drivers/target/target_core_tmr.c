@@ -386,9 +386,7 @@ int core_tmr_lun_reset(
 		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");
 	}
 
-	spin_lock_irq(&dev->stats_lock);
-	dev->num_resets++;
-	spin_unlock_irq(&dev->stats_lock);
+	atomic_long_inc(&dev->num_resets);
 
 	pr_debug("LUN_RESET: %s for [%s] Complete\n",
 			(preempt_and_abort_list) ? "Preempt" : "TMR",

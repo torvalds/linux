@@ -43,12 +43,12 @@ static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
 
 /* Update system visible IP port range */
-static void set_local_port_range(int range[2])
+static void set_local_port_range(struct net *net, int range[2])
 {
-	write_seqlock(&sysctl_local_ports.lock);
-	sysctl_local_ports.range[0] = range[0];
-	sysctl_local_ports.range[1] = range[1];
-	write_sequnlock(&sysctl_local_ports.lock);
+	write_seqlock(&net->ipv4.sysctl_local_ports.lock);
+	net->ipv4.sysctl_local_ports.range[0] = range[0];
+	net->ipv4.sysctl_local_ports.range[1] = range[1];
+	write_sequnlock(&net->ipv4.sysctl_local_ports.lock);
 }
 
 /* Validate changes from /proc interface. */
@@ -56,6 +56,8 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 				 void __user *buffer,
 				 size_t *lenp, loff_t *ppos)
 {
+	struct net *net =
+		container_of(table->data, struct net, ipv4.sysctl_local_ports.range);
 	int ret;
 	int range[2];
 	struct ctl_table tmp = {
@@ -66,14 +68,15 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 		.extra2 = &ip_local_port_range_max,
 	};
 
-	inet_get_local_port_range(range, range + 1);
+	inet_get_local_port_range(net, &range[0], &range[1]);
+
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
 		if (range[1] < range[0])
 			ret = -EINVAL;
 		else
-			set_local_port_range(range);
+			set_local_port_range(net, range);
 	}
 
 	return ret;
@@ -83,23 +86,27 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 static void inet_get_ping_group_range_table(struct ctl_table *table, kgid_t *low, kgid_t *high)
 {
 	kgid_t *data = table->data;
+	struct net *net =
+		container_of(table->data, struct net, ipv4.sysctl_ping_group_range);
 	unsigned int seq;
 	do {
-		seq = read_seqbegin(&sysctl_local_ports.lock);
+		seq = read_seqbegin(&net->ipv4.sysctl_local_ports.lock);
 
 		*low = data[0];
 		*high = data[1];
-	} while (read_seqretry(&sysctl_local_ports.lock, seq));
+	} while (read_seqretry(&net->ipv4.sysctl_local_ports.lock, seq));
 }
 
 /* Update system visible IP port range */
 static void set_ping_group_range(struct ctl_table *table, kgid_t low, kgid_t high)
 {
 	kgid_t *data = table->data;
-	write_seqlock(&sysctl_local_ports.lock);
+	struct net *net =
+		container_of(table->data, struct net, ipv4.sysctl_ping_group_range);
+	write_seqlock(&net->ipv4.sysctl_local_ports.lock);
 	data[0] = low;
 	data[1] = high;
-	write_sequnlock(&sysctl_local_ports.lock);
+	write_sequnlock(&net->ipv4.sysctl_local_ports.lock);
 }
 
 /* Validate changes from /proc interface. */
@@ -193,49 +200,6 @@ static int proc_allowed_congestion_control(struct ctl_table *ctl,
 	return ret;
 }
 
-static int ipv4_tcp_mem(struct ctl_table *ctl, int write,
-			   void __user *buffer, size_t *lenp,
-			   loff_t *ppos)
-{
-	int ret;
-	unsigned long vec[3];
-	struct net *net = current->nsproxy->net_ns;
-#ifdef CONFIG_MEMCG_KMEM
-	struct mem_cgroup *memcg;
-#endif
-
-	struct ctl_table tmp = {
-		.data = &vec,
-		.maxlen = sizeof(vec),
-		.mode = ctl->mode,
-	};
-
-	if (!write) {
-		ctl->data = &net->ipv4.sysctl_tcp_mem;
-		return proc_doulongvec_minmax(ctl, write, buffer, lenp, ppos);
-	}
-
-	ret = proc_doulongvec_minmax(&tmp, write, buffer, lenp, ppos);
-	if (ret)
-		return ret;
-
-#ifdef CONFIG_MEMCG_KMEM
-	rcu_read_lock();
-	memcg = mem_cgroup_from_task(current);
-
-	tcp_prot_mem(memcg, vec[0], 0);
-	tcp_prot_mem(memcg, vec[1], 1);
-	tcp_prot_mem(memcg, vec[2], 2);
-	rcu_read_unlock();
-#endif
-
-	net->ipv4.sysctl_tcp_mem[0] = vec[0];
-	net->ipv4.sysctl_tcp_mem[1] = vec[1];
-	net->ipv4.sysctl_tcp_mem[2] = vec[2];
-
-	return 0;
-}
-
 static int proc_tcp_fastopen_key(struct ctl_table *ctl, int write,
 				 void __user *buffer, size_t *lenp,
 				 loff_t *ppos)
@@ -267,6 +231,11 @@ static int proc_tcp_fastopen_key(struct ctl_table *ctl, int write,
 			ret = -EINVAL;
 			goto bad_key;
 		}
+		/* Generate a dummy secret but don't publish it. This
+		 * is needed so we don't regenerate a new key on the
+		 * first invocation of tcp_fastopen_cookie_gen
+		 */
+		tcp_fastopen_init_key_once(false);
 		tcp_fastopen_reset_cipher(user_key, TCP_FASTOPEN_KEY_LENGTH);
 	}
 
@@ -475,13 +444,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "ip_local_port_range",
-		.data		= &sysctl_local_ports.range,
-		.maxlen		= sizeof(sysctl_local_ports.range),
-		.mode		= 0644,
-		.proc_handler	= ipv4_local_port_range,
-	},
-	{
 		.procname	= "ip_local_reserved_ports",
 		.data		= NULL, /* initialized in sysctl_ipv4_init */
 		.maxlen		= 65536,
@@ -550,6 +512,13 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "tcp_mem",
+		.maxlen		= sizeof(sysctl_tcp_mem),
+		.data		= &sysctl_tcp_mem,
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
 	},
 	{
 		.procname	= "tcp_wmem",
@@ -732,13 +701,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler   = proc_allowed_congestion_control,
 	},
 	{
-		.procname	= "tcp_max_ssthresh",
-		.data		= &sysctl_tcp_max_ssthresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
 		.procname       = "tcp_thin_linear_timeouts",
 		.data           = &sysctl_tcp_thin_linear_timeouts,
 		.maxlen         = sizeof(int),
@@ -854,10 +816,11 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "tcp_mem",
-		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_mem),
+		.procname	= "ip_local_port_range",
+		.maxlen		= sizeof(init_net.ipv4.sysctl_local_ports.range),
+		.data		= &init_net.ipv4.sysctl_local_ports.range,
 		.mode		= 0644,
-		.proc_handler	= ipv4_tcp_mem,
+		.proc_handler	= ipv4_local_port_range,
 	},
 	{ }
 };
@@ -868,30 +831,15 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 
 	table = ipv4_net_table;
 	if (!net_eq(net, &init_net)) {
+		int i;
+
 		table = kmemdup(table, sizeof(ipv4_net_table), GFP_KERNEL);
 		if (table == NULL)
 			goto err_alloc;
 
-		table[0].data =
-			&net->ipv4.sysctl_icmp_echo_ignore_all;
-		table[1].data =
-			&net->ipv4.sysctl_icmp_echo_ignore_broadcasts;
-		table[2].data =
-			&net->ipv4.sysctl_icmp_ignore_bogus_error_responses;
-		table[3].data =
-			&net->ipv4.sysctl_icmp_errors_use_inbound_ifaddr;
-		table[4].data =
-			&net->ipv4.sysctl_icmp_ratelimit;
-		table[5].data =
-			&net->ipv4.sysctl_icmp_ratemask;
-		table[6].data =
-			&net->ipv4.sysctl_ping_group_range;
-		table[7].data =
-			&net->ipv4.sysctl_tcp_ecn;
-
-		/* Don't export sysctls to unprivileged users */
-		if (net->user_ns != &init_user_ns)
-			table[0].procname = NULL;
+		/* Update the variables to point into the current struct net */
+		for (i = 0; i < ARRAY_SIZE(ipv4_net_table) - 1; i++)
+			table[i].data += (void *)net - (void *)&init_net;
 	}
 
 	/*
@@ -901,7 +849,12 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 	net->ipv4.sysctl_ping_group_range[0] = make_kgid(&init_user_ns, 1);
 	net->ipv4.sysctl_ping_group_range[1] = make_kgid(&init_user_ns, 0);
 
-	tcp_init_mem(net);
+	/*
+	 * Set defaults for local port range
+	 */
+	seqlock_init(&net->ipv4.sysctl_local_ports.lock);
+	net->ipv4.sysctl_local_ports.range[0] =  32768;
+	net->ipv4.sysctl_local_ports.range[1] =  61000;
 
 	net->ipv4.ipv4_hdr = register_net_sysctl(net, "net/ipv4", table);
 	if (net->ipv4.ipv4_hdr == NULL)

@@ -19,8 +19,9 @@ config AB8500_USB
 	  in host mode, low speed.
 
 config FSL_USB2_OTG
-	bool "Freescale USB OTG Transceiver Driver"
+	tristate "Freescale USB OTG Transceiver Driver"
 	depends on USB_EHCI_FSL && USB_FSL_USB2 && PM_RUNTIME
+	depends on USB
 	select USB_OTG
 	select USB_PHY
 	help
@@ -29,6 +30,7 @@ config FSL_USB2_OTG
 config ISP1301_OMAP
 	tristate "Philips ISP1301 with OMAP OTG"
 	depends on I2C && ARCH_OMAP_OTG
+	depends on USB
 	select USB_PHY
 	help
 	  If you say yes here you get support for the Philips ISP1301
@@ -66,17 +68,6 @@ config OMAP_CONTROL_USB
 	  power on the USB2 PHY is present in OMAP4 and OMAP5. OMAP5 has an
 	  additional register to power on USB3 PHY.
 
-config OMAP_USB2
-	tristate "OMAP USB2 PHY Driver"
-	depends on ARCH_OMAP2PLUS
-	select OMAP_CONTROL_USB
-	select USB_PHY
-	help
-	  Enable this to support the transceiver that is part of SOC. This
-	  driver takes care of all the PHY functionality apart from comparator.
-	  The USB OTG controller communicates with the comparator using this
-	  driver.
-
 config OMAP_USB3
 	tristate "OMAP USB3 PHY Driver"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
@@ -93,6 +84,7 @@ config AM335X_CONTROL_USB
 
 config AM335X_PHY_USB
 	tristate "AM335x USB PHY Driver"
+	depends on ARM || COMPILE_TEST
 	select USB_PHY
 	select AM335X_CONTROL_USB
 	select NOP_USB_XCEIV
@@ -122,16 +114,6 @@ config SAMSUNG_USB3PHY
 	help
 	  Enable this to support Samsung USB 3.0 (Super Speed) phy controller
 	  for samsung SoCs.
-
-config TWL4030_USB
-	tristate "TWL4030 USB Transceiver Driver"
-	depends on TWL4030_CORE && REGULATOR_TWL4030 && USB_MUSB_OMAP2PLUS
-	select USB_PHY
-	help
-	  Enable this to support the USB OTG transceiver on TWL4030
-	  family chips (including the TWL5030 and TPS659x0 devices).
-	  This transceiver supports high and full speed devices plus,
-	  in host mode, low speed.
 
 config TWL6030_USB
 	tristate "TWL6030 USB Transceiver Driver"
@@ -213,6 +195,19 @@ config USB_RCAR_PHY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called phy-rcar-usb.
+
+config USB_RCAR_GEN2_PHY
+	tristate "Renesas R-Car Gen2 USB PHY support"
+	depends on ARCH_R8A7790 || ARCH_R8A7791 || COMPILE_TEST
+	select USB_PHY
+	help
+	  Say Y here to add support for the Renesas R-Car Gen2 USB PHY driver.
+	  It is typically used to control internal USB PHY for USBHS,
+	  and to configure shared USB channels 0 and 2.
+	  This driver supports R8A7790 and R8A7791.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phy-rcar-gen2-usb.
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"

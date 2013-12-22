@@ -274,13 +274,17 @@ struct x86_emulate_ctxt {
 
 	bool guest_mode; /* guest running a nested guest */
 	bool perm_ok; /* do not check permissions if true */
-	bool only_vendor_specific_insn;
+	bool ud;	/* inject an #UD if host doesn't support insn */
 
 	bool have_exception;
 	struct x86_exception exception;
 
-	/* decode cache */
-	u8 twobyte;
+	/*
+	 * decode cache
+	 */
+
+	/* current opcode length in bytes */
+	u8 opcode_len;
 	u8 b;
 	u8 intercept;
 	u8 lock_prefix;

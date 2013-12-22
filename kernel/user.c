@@ -51,6 +51,10 @@ struct user_namespace init_user_ns = {
 	.owner = GLOBAL_ROOT_UID,
 	.group = GLOBAL_ROOT_GID,
 	.proc_inum = PROC_USER_INIT_INO,
+#ifdef CONFIG_PERSISTENT_KEYRINGS
+	.persistent_keyring_register_sem =
+	__RWSEM_INITIALIZER(init_user_ns.persistent_keyring_register_sem),
+#endif
 };
 EXPORT_SYMBOL_GPL(init_user_ns);
 

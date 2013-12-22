@@ -737,7 +737,8 @@ static int __init iss_net_setup(char *str)
 		return 1;
 	}
 
-	if ((new = alloc_bootmem(sizeof new)) == NULL) {
+	new = alloc_bootmem(sizeof(*new));
+	if (new == NULL) {
 		printk("Alloc_bootmem failed\n");
 		return 1;
 	}
