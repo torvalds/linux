@@ -558,6 +558,7 @@ static int getIGIForDiff(int value_IGI)
 void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 {
 	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct adapter *adapter = pDM_Odm->Adapter;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
 		     ("ODM_REG(IGI_A,pDM_Odm)=0x%x, ODM_BIT(IGI,pDM_Odm)=0x%x\n",
@@ -565,25 +566,25 @@ void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 
 	if (pDM_DigTable->CurIGValue != CurrentIGI) {
 		if (pDM_Odm->SupportPlatform & (ODM_CE|ODM_MP)) {
-			ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
+			PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 				if (pDM_Odm->SupportICType != ODM_RTL8188E)
-				ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
+				PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 		} else if (pDM_Odm->SupportPlatform & (ODM_AP|ODM_ADSL)) {
 			switch (*(pDM_Odm->pOnePathCCA)) {
 			case ODM_CCA_2R:
-				ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
+				PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 					if (pDM_Odm->SupportICType != ODM_RTL8188E)
-					ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
+					PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 				break;
 			case ODM_CCA_1R_A:
-				ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
+				PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 					if (pDM_Odm->SupportICType != ODM_RTL8188E)
-					ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), getIGIForDiff(CurrentIGI));
+					PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), getIGIForDiff(CurrentIGI));
 				break;
 			case ODM_CCA_1R_B:
-				ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), getIGIForDiff(CurrentIGI));
+				PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), getIGIForDiff(CurrentIGI));
 					if (pDM_Odm->SupportICType != ODM_RTL8188E)
-					ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
+					PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 					break;
 				}
 		}
@@ -916,6 +917,7 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 
 void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 {
+	struct adapter *adapter = pDM_Odm->Adapter;
 	u32 ret_value;
 	struct false_alarm_stats *FalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
 
@@ -924,8 +926,8 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 
 	if (pDM_Odm->SupportICType & ODM_IC_11N_SERIES) {
 		/* hold ofdm counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT31, 1); /* hold page C counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT31, 1); /* hold page D counter */
+		PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_HOLDC_11N, BIT31, 1); /* hold page C counter */
+		PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RSTD_11N, BIT31, 1); /* hold page D counter */
 
 		ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE1_11N, bMaskDWord);
 		FalseAlmCnt->Cnt_Fast_Fsync = (ret_value&0xffff);
@@ -950,8 +952,8 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 		}
 
 		/* hold cck counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT12, 1);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT14, 1);
+		PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11N, BIT12, 1);
+		PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11N, BIT14, 1);
 
 		ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_LSB_11N, bMaskByte0);
 		FalseAlmCnt->Cnt_Cck_fail = ret_value;
@@ -973,20 +975,20 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 
 		if (pDM_Odm->SupportICType >= ODM_RTL8723A) {
 			/* reset false alarm counter registers */
-			ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTC_11N, BIT31, 1);
-			ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTC_11N, BIT31, 0);
-			ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT27, 1);
-			ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT27, 0);
+			PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RSTC_11N, BIT31, 1);
+			PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RSTC_11N, BIT31, 0);
+			PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RSTD_11N, BIT27, 1);
+			PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RSTD_11N, BIT27, 0);
 			/* update ofdm counter */
-			ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT31, 0); /* update page C counter */
-			ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT31, 0); /* update page D counter */
+			PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_HOLDC_11N, BIT31, 0); /* update page C counter */
+			PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RSTD_11N, BIT31, 0); /* update page D counter */
 
 			/* reset CCK CCA counter */
-			ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT13|BIT12, 0);
-			ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT13|BIT12, 2);
+			PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11N, BIT13|BIT12, 0);
+			PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11N, BIT13|BIT12, 2);
 			/* reset CCK FA counter */
-			ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT15|BIT14, 0);
-			ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT15|BIT14, 2);
+			PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11N, BIT15|BIT14, 0);
+			PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11N, BIT15|BIT14, 2);
 		}
 
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Enter odm_FalseAlarmCounterStatistics\n"));
@@ -1006,11 +1008,11 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 		FalseAlmCnt->Cnt_all = FalseAlmCnt->Cnt_Ofdm_fail + FalseAlmCnt->Cnt_Cck_fail;
 
 		/*  reset OFDM FA coutner */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RST_11AC, BIT17, 1);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RST_11AC, BIT17, 0);
+		PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RST_11AC, BIT17, 1);
+		PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RST_11AC, BIT17, 0);
 		/*  reset CCK FA counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11AC, BIT15, 0);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11AC, BIT15, 1);
+		PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11AC, BIT15, 0);
+		PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11AC, BIT15, 1);
 	}
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Cck_fail=%d\n", FalseAlmCnt->Cnt_Cck_fail));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Ofdm_fail=%d\n", FalseAlmCnt->Cnt_Ofdm_fail));
@@ -1097,6 +1099,7 @@ void odm_DynamicBBPowerSaving(struct odm_dm_struct *pDM_Odm)
 
 void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
 {
+	struct adapter *adapter = pDM_Odm->Adapter;
 	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
 
 	if (pDM_Odm->RSSI_Min != 0xFF) {
@@ -1118,11 +1121,11 @@ void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
 	if (pDM_PSTable->PreCCAState != pDM_PSTable->CurCCAState) {
 		if (pDM_PSTable->CurCCAState == CCA_1R) {
 			if (pDM_Odm->RFType == ODM_2T2R)
-				ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x13);
+				PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x13);
 			else
-				ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x23);
+				PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x23);
 		} else {
-			ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x33);
+			PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x33);
 		}
 		pDM_PSTable->PreCCAState = pDM_PSTable->CurCCAState;
 	}
@@ -1130,6 +1133,7 @@ void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
 
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 {
+	struct adapter *adapter = pDM_Odm->Adapter;
 	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
 	u8 Rssi_Up_bound = 30;
 	u8 Rssi_Low_bound = 25;
@@ -1171,23 +1175,23 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 			/*  <tynli_note> 8723 RSSI report will be wrong. Set 0x874[5]=1 when enter BB power saving mode. */
 			/*  Suggested by SD3 Yu-Nan. 2011.01.20. */
 			if (pDM_Odm->SupportICType == ODM_RTL8723A)
-				ODM_SetBBReg(pDM_Odm, 0x874  , BIT5, 0x1); /* Reg874[5]=1b'1 */
-			ODM_SetBBReg(pDM_Odm, 0x874  , 0x1C0000, 0x2); /* Reg874[20:18]=3'b010 */
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT3, 0); /* RegC70[3]=1'b0 */
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, 0x63); /* Reg85C[31:24]=0x63 */
-			ODM_SetBBReg(pDM_Odm, 0x874, 0xC000, 0x2); /* Reg874[15:14]=2'b10 */
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, 0x3); /* RegA75[7:4]=0x3 */
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT28, 0x0); /* Reg818[28]=1'b0 */
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT28, 0x1); /* Reg818[28]=1'b1 */
+				PHY_SetBBReg(adapter, 0x874  , BIT5, 0x1); /* Reg874[5]=1b'1 */
+			PHY_SetBBReg(adapter, 0x874  , 0x1C0000, 0x2); /* Reg874[20:18]=3'b010 */
+			PHY_SetBBReg(adapter, 0xc70, BIT3, 0); /* RegC70[3]=1'b0 */
+			PHY_SetBBReg(adapter, 0x85c, 0xFF000000, 0x63); /* Reg85C[31:24]=0x63 */
+			PHY_SetBBReg(adapter, 0x874, 0xC000, 0x2); /* Reg874[15:14]=2'b10 */
+			PHY_SetBBReg(adapter, 0xa74, 0xF000, 0x3); /* RegA75[7:4]=0x3 */
+			PHY_SetBBReg(adapter, 0x818, BIT28, 0x0); /* Reg818[28]=1'b0 */
+			PHY_SetBBReg(adapter, 0x818, BIT28, 0x1); /* Reg818[28]=1'b1 */
 		} else {
-			ODM_SetBBReg(pDM_Odm, 0x874  , 0x1CC000, pDM_PSTable->Reg874);
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT3, pDM_PSTable->RegC70);
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, pDM_PSTable->Reg85C);
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, pDM_PSTable->RegA74);
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT28, 0x0);
+			PHY_SetBBReg(adapter, 0x874  , 0x1CC000, pDM_PSTable->Reg874);
+			PHY_SetBBReg(adapter, 0xc70, BIT3, pDM_PSTable->RegC70);
+			PHY_SetBBReg(adapter, 0x85c, 0xFF000000, pDM_PSTable->Reg85C);
+			PHY_SetBBReg(adapter, 0xa74, 0xF000, pDM_PSTable->RegA74);
+			PHY_SetBBReg(adapter, 0x818, BIT28, 0x0);
 
 			if (pDM_Odm->SupportICType == ODM_RTL8723A)
-				ODM_SetBBReg(pDM_Odm, 0x874, BIT5, 0x0); /* Reg874[5]=1b'0 */
+				PHY_SetBBReg(adapter, 0x874, BIT5, 0x0); /* Reg874[5]=1b'0 */
 		}
 		pDM_PSTable->PreRFState = pDM_PSTable->CurRFState;
 	}
@@ -1860,16 +1864,17 @@ dm_CheckEdcaTurbo_EXIT:
 
 u32 GetPSDData(struct odm_dm_struct *pDM_Odm, unsigned int point, u8 initial_gain_psd)
 {
+	struct adapter *adapter = pDM_Odm->Adapter;
 	u32 psd_report;
 
 	/* Set DCO frequency index, offset=(40MHz/SamplePts)*point */
-	ODM_SetBBReg(pDM_Odm, 0x808, 0x3FF, point);
+	PHY_SetBBReg(adapter, 0x808, 0x3FF, point);
 
 	/* Start PSD calculation, Reg808[22]=0->1 */
-	ODM_SetBBReg(pDM_Odm, 0x808, BIT22, 1);
+	PHY_SetBBReg(adapter, 0x808, BIT22, 1);
 	/* Need to wait for HW PSD report */
 	udelay(30);
-	ODM_SetBBReg(pDM_Odm, 0x808, BIT22, 0);
+	PHY_SetBBReg(adapter, 0x808, BIT22, 0);
 	/* Read PSD report, Reg8B4[15:0] */
 	psd_report = ODM_GetBBReg(pDM_Odm, 0x8B4, bMaskDWord) & 0x0000FFFF;
 
@@ -1924,6 +1929,7 @@ void ODM_SingleDualAntennaDefaultSetting(struct odm_dm_struct *pDM_Odm)
 
 static void odm_PHY_SaveAFERegisters(struct odm_dm_struct *pDM_Odm, u32 *AFEReg, u32 *AFEBackup, u32 RegisterNum)
 {
+	struct adapter *adapter = pDM_Odm->Adapter;
 	u32 i;
 
 	/* RTPRINT(FINIT, INIT_IQK, ("Save ADDA parameters.\n")); */
@@ -1933,10 +1939,11 @@ static void odm_PHY_SaveAFERegisters(struct odm_dm_struct *pDM_Odm, u32 *AFEReg,
 
 static void odm_PHY_ReloadAFERegisters(struct odm_dm_struct *pDM_Odm, u32 *AFEReg, u32 *AFEBackup, u32 RegiesterNum)
 {
+	struct adapter *adapter = pDM_Odm->Adapter;
 	u32 i;
 
 	for (i = 0; i < RegiesterNum; i++)
-		ODM_SetBBReg(pDM_Odm, AFEReg[i], bMaskDWord, AFEBackup[i]);
+		PHY_SetBBReg(adapter, AFEReg[i], bMaskDWord, AFEBackup[i]);
 }
 
 /* 2 8723A ANT DETECT */
@@ -1945,6 +1952,7 @@ static void odm_PHY_ReloadAFERegisters(struct odm_dm_struct *pDM_Odm, u32 *AFERe
 /* 	This function is cooperated with BB team Neil. */
 bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 {
+	struct adapter *adapter = pDM_Odm->Adapter;
 	struct sw_ant_switch *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
 	u32 CurrentChannel, RfLoopReg;
 	u8 n;
@@ -1972,18 +1980,18 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 
 	if (pDM_Odm->SupportICType == ODM_RTL8192C) {
 		/* Which path in ADC/DAC is turnned on for PSD: both I/Q */
-		ODM_SetBBReg(pDM_Odm, 0x808, BIT10|BIT11, 0x3);
+		PHY_SetBBReg(adapter, 0x808, BIT10|BIT11, 0x3);
 		/* Ageraged number: 8 */
-		ODM_SetBBReg(pDM_Odm, 0x808, BIT12|BIT13, 0x1);
+		PHY_SetBBReg(adapter, 0x808, BIT12|BIT13, 0x1);
 		/* pts = 128; */
-		ODM_SetBBReg(pDM_Odm, 0x808, BIT14|BIT15, 0x0);
+		PHY_SetBBReg(adapter, 0x808, BIT14|BIT15, 0x0);
 	}
 
 	/* 1 Backup Current RF/BB Settings */
 
 	CurrentChannel = ODM_GetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask);
 	RfLoopReg = ODM_GetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, ODM_DPDT, Antenna_A);  /*  change to Antenna A */
+	PHY_SetBBReg(adapter, rFPGA0_XA_RFInterfaceOE, ODM_DPDT, Antenna_A);  /*  change to Antenna A */
 	/*  Step 1: USE IQK to transmitter single tone */
 
 	udelay(10);
@@ -1998,56 +2006,56 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 	odm_PHY_SaveAFERegisters(pDM_Odm, AFE_REG_8723A, AFE_Backup, 16);
 
 	/* Set PSD 128 pts */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_PSDFunction, BIT14|BIT15, 0x0);  /* 128 pts */
+	PHY_SetBBReg(adapter, rFPGA0_PSDFunction, BIT14|BIT15, 0x0);  /* 128 pts */
 
 	/*  To SET CH1 to do */
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask, 0x01);     /* Channel 1 */
 
 	/*  AFE all on step */
-	ODM_SetBBReg(pDM_Odm, rRx_Wait_CCA, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_CCK_RFON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_CCK_BBON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_OFDM_RFON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_OFDM_BBON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_To_Rx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_To_Tx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_CCK, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_OFDM, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_Wait_RIFS, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_TO_Rx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rStandby, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rSleep, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rPMPD_ANAEN, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_SwitchControl, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rBlue_Tooth, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rRx_Wait_CCA, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rTx_CCK_RFON, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rTx_CCK_BBON, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rTx_OFDM_RFON, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rTx_OFDM_BBON, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rTx_To_Rx, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rTx_To_Tx, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rRx_CCK, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rRx_OFDM, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rRx_Wait_RIFS, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rRx_TO_Rx, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rStandby, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rSleep, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rPMPD_ANAEN, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rFPGA0_XCD_SwitchControl, bMaskDWord, 0x6FDB25A4);
+	PHY_SetBBReg(adapter, rBlue_Tooth, bMaskDWord, 0x6FDB25A4);
 
 	/*  3 wire Disable */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_AnalogParameter4, bMaskDWord, 0xCCF000C0);
+	PHY_SetBBReg(adapter, rFPGA0_AnalogParameter4, bMaskDWord, 0xCCF000C0);
 
 	/* BB IQK Setting */
-	ODM_SetBBReg(pDM_Odm, rOFDM0_TRMuxPar, bMaskDWord, 0x000800E4);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22208000);
+	PHY_SetBBReg(adapter, rOFDM0_TRMuxPar, bMaskDWord, 0x000800E4);
+	PHY_SetBBReg(adapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22208000);
 
 	/* IQK setting tone@ 4.34Mhz */
-	ODM_SetBBReg(pDM_Odm, rTx_IQK_Tone_A, bMaskDWord, 0x10008C1C);
-	ODM_SetBBReg(pDM_Odm, rTx_IQK, bMaskDWord, 0x01007c00);
+	PHY_SetBBReg(adapter, rTx_IQK_Tone_A, bMaskDWord, 0x10008C1C);
+	PHY_SetBBReg(adapter, rTx_IQK, bMaskDWord, 0x01007c00);
 
 
 	/* Page B init */
-	ODM_SetBBReg(pDM_Odm, rConfig_AntA, bMaskDWord, 0x00080000);
-	ODM_SetBBReg(pDM_Odm, rConfig_AntA, bMaskDWord, 0x0f600000);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK, bMaskDWord, 0x01004800);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK_Tone_A, bMaskDWord, 0x10008c1f);
-	ODM_SetBBReg(pDM_Odm, rTx_IQK_PI_A, bMaskDWord, 0x82150008);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK_PI_A, bMaskDWord, 0x28150008);
-	ODM_SetBBReg(pDM_Odm, rIQK_AGC_Rsp, bMaskDWord, 0x001028d0);
+	PHY_SetBBReg(adapter, rConfig_AntA, bMaskDWord, 0x00080000);
+	PHY_SetBBReg(adapter, rConfig_AntA, bMaskDWord, 0x0f600000);
+	PHY_SetBBReg(adapter, rRx_IQK, bMaskDWord, 0x01004800);
+	PHY_SetBBReg(adapter, rRx_IQK_Tone_A, bMaskDWord, 0x10008c1f);
+	PHY_SetBBReg(adapter, rTx_IQK_PI_A, bMaskDWord, 0x82150008);
+	PHY_SetBBReg(adapter, rRx_IQK_PI_A, bMaskDWord, 0x28150008);
+	PHY_SetBBReg(adapter, rIQK_AGC_Rsp, bMaskDWord, 0x001028d0);
 
 	/* RF loop Setting */
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x0, 0xFFFFF, 0x50008);
 
 	/* IQK Single tone start */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_IQK, bMaskDWord, 0x80800000);
-	ODM_SetBBReg(pDM_Odm, rIQK_AGC_Pts, bMaskDWord, 0xf8000000);
+	PHY_SetBBReg(adapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
+	PHY_SetBBReg(adapter, rIQK_AGC_Pts, bMaskDWord, 0xf8000000);
 	udelay(1000);
 	PSD_report_tmp = 0x0;
 
@@ -2059,7 +2067,7 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 
 	PSD_report_tmp = 0x0;
 
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_B);  /*  change to Antenna B */
+	PHY_SetBBReg(adapter, rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_B);  /*  change to Antenna B */
 	udelay(10);
 
 
@@ -2070,7 +2078,7 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 	}
 
 	/*  change to open case */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, 0);  /*  change to Ant A and B all open case */
+	PHY_SetBBReg(adapter, rFPGA0_XA_RFInterfaceOE, 0x300, 0);  /*  change to Ant A and B all open case */
 	udelay(10);
 
 	for (n = 0; n < 2; n++) {
@@ -2080,16 +2088,16 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 	}
 
 	/* Close IQK Single Tone function */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_IQK, bMaskDWord, 0x00000000);
+	PHY_SetBBReg(adapter, rFPGA0_IQK, bMaskDWord, 0x00000000);
 	PSD_report_tmp = 0x0;
 
 	/* 1 Return to antanna A */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_A);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_AnalogParameter4, bMaskDWord, Reg88c);
-	ODM_SetBBReg(pDM_Odm, rOFDM0_TRMuxPar, bMaskDWord, Regc08);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, Reg874);
-	ODM_SetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, 0x7F, 0x40);
-	ODM_SetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, bMaskDWord, Regc50);
+	PHY_SetBBReg(adapter, rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_A);
+	PHY_SetBBReg(adapter, rFPGA0_AnalogParameter4, bMaskDWord, Reg88c);
+	PHY_SetBBReg(adapter, rOFDM0_TRMuxPar, bMaskDWord, Regc08);
+	PHY_SetBBReg(adapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, Reg874);
+	PHY_SetBBReg(adapter, rOFDM0_XAAGCCore1, 0x7F, 0x40);
+	PHY_SetBBReg(adapter, rOFDM0_XAAGCCore1, bMaskDWord, Regc50);
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, CurrentChannel);
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask, RfLoopReg);
 
@@ -2142,12 +2150,12 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 			if (AntB_report > (AntA_report+2)) {
 				pDM_SWAT_Table->ANTA_ON = false;
 				pDM_SWAT_Table->ANTB_ON = true;
-				ODM_SetBBReg(pDM_Odm,  rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_B);
+				PHY_SetBBReg(adapter,  rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_B);
 				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("ODM_SingleDualAntennaDetection(): Single Antenna B\n"));
 			} else if (AntA_report > (AntB_report+2)) {
 				pDM_SWAT_Table->ANTA_ON = true;
 				pDM_SWAT_Table->ANTB_ON = false;
-				ODM_SetBBReg(pDM_Odm,  rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_A);
+				PHY_SetBBReg(adapter,  rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_A);
 				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("ODM_SingleDualAntennaDetection(): Single Antenna A\n"));
 			} else {
 				pDM_SWAT_Table->ANTA_ON = true;

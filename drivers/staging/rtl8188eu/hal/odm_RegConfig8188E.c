@@ -70,7 +70,9 @@ void odm_ConfigMAC_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u8 Data)
 
 void odm_ConfigBB_AGC_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask, u32 Data)
 {
-	ODM_SetBBReg(pDM_Odm, Addr, Bitmask, Data);
+	struct adapter *adapter = pDM_Odm->Adapter;
+
+	PHY_SetBBReg(adapter, Addr, Bitmask, Data);
 	/*  Add 1us delay between BB/RF register setting. */
 	udelay(1);
 
@@ -104,6 +106,8 @@ void odm_ConfigBB_PHY_REG_PG_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 
 void odm_ConfigBB_PHY_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask, u32 Data)
 {
+	struct adapter *adapter = pDM_Odm->Adapter;
+
 	if (Addr == 0xfe) {
 		msleep(50);
 	} else if (Addr == 0xfd) {
@@ -119,7 +123,7 @@ void odm_ConfigBB_PHY_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask
 	} else {
 		if (Addr == 0xa24)
 			pDM_Odm->RFCalibrateInfo.RegA24 = Data;
-		ODM_SetBBReg(pDM_Odm, Addr, Bitmask, Data);
+		PHY_SetBBReg(adapter, Addr, Bitmask, Data);
 
 		/*  Add 1us delay between BB/RF register setting. */
 		udelay(1);
