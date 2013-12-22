@@ -50,7 +50,8 @@ Example:
 	};
 
 RAMC SDRAM/DDR Controller required properties:
-- compatible: Should be "atmel,at91sam9260-sdramc",
+- compatible: Should be "atmel,at91rm9200-sdramc",
+			"atmel,at91sam9260-sdramc",
 			"atmel,at91sam9g45-ddramc",
 - reg: Should contain registers location and length
   For at91sam9263 and at91sam9g45 you must specify 2 entries.
