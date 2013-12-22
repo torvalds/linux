@@ -262,7 +262,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
 	/* currently FW API supports only one optional cipher scheme */
-	if (mvm->fw->cs && mvm->fw->cs->cipher) {
+	if (mvm->fw->cs->cipher) {
 		mvm->hw->n_cipher_schemes = 1;
 		mvm->hw->cipher_schemes = mvm->fw->cs;
 	}

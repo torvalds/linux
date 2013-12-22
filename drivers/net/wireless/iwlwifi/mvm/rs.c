@@ -700,7 +700,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 	u8 num_of_ant = get_num_of_ant_from_rate(ucode_rate);
 	u8 nss;
 
-	memset(rate, 0, sizeof(struct rs_rate));
+	memset(rate, 0, sizeof(*rate));
 	rate->index = iwl_hwrate_to_plcp_idx(ucode_rate);
 
 	if (rate->index == IWL_RATE_INVALID) {
@@ -2446,7 +2446,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 	struct iwl_lq_cmd *lq_cmd = &lq_sta->lq;
 	bool toggle_ant = false;
 
-	memcpy(&rate, initial_rate, sizeof(struct rs_rate));
+	memcpy(&rate, initial_rate, sizeof(rate));
 
 	if (mvm)
 		valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
