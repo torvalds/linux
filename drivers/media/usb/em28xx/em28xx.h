@@ -748,6 +748,7 @@ void em28xx_init_extension(struct em28xx *dev);
 void em28xx_close_extension(struct em28xx *dev);
 
 /* Provided by em28xx-video.c */
+void em28xx_tuner_setup(struct em28xx *dev);
 int em28xx_vb2_setup(struct em28xx *dev);
 int em28xx_register_analog_devices(struct em28xx *dev);
 void em28xx_release_analog_resources(struct em28xx *dev);
