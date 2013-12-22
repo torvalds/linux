@@ -245,11 +245,6 @@ void rtw_sleep_schedulable(int ms)
 		return;
 }
 
-void rtw_yield_os(void)
-{
-	yield();
-}
-
 #define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
 
 inline void rtw_suspend_lock_init(void)

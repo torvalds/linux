@@ -277,8 +277,6 @@ void rtw_sleep_schedulable(int ms);
 
 u32  rtw_atoi(u8 *s);
 
-void rtw_yield_os(void);
-
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 {
 	return del_timer_sync(ptimer);
