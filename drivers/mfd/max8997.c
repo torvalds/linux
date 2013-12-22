@@ -133,7 +133,6 @@ int max8997_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 }
 EXPORT_SYMBOL_GPL(max8997_update_reg);
 
-#ifdef CONFIG_OF
 /*
  * Only the common platform data elements for max8997 are parsed here from the
  * device tree. Other sub-modules of max8997 such as pmic, rtc and others have
@@ -164,24 +163,15 @@ static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
 
 	return pd;
 }
-#else
-static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
-					struct device *dev)
-{
-	return 0;
-}
-#endif
 
 static inline int max8997_i2c_get_driver_data(struct i2c_client *i2c,
 						const struct i2c_device_id *id)
 {
-#ifdef CONFIG_OF
-	if (i2c->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(max8997_pmic_dt_match, i2c->dev.of_node);
 		return (int)match->data;
 	}
-#endif
 	return (int)id->driver_data;
 }
 
@@ -203,7 +193,7 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	max8997->type = max8997_i2c_get_driver_data(i2c, id);
 	max8997->irq = i2c->irq;
 
-	if (max8997->dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && max8997->dev->of_node) {
 		pdata = max8997_i2c_parse_dt_pdata(max8997->dev);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
