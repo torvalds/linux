@@ -358,15 +358,8 @@ static inline u32 bitshift(u32 bitmask)
 #define PATH_LENGTH_MAX PATH_MAX
 
 /* Atomic integer operations */
-int ATOMIC_READ(atomic_t *v);
-void ATOMIC_ADD(atomic_t *v, int i);
-void ATOMIC_SUB(atomic_t *v, int i);
 void ATOMIC_INC(atomic_t *v);
-void ATOMIC_DEC(atomic_t *v);
-int ATOMIC_ADD_RETURN(atomic_t *v, int i);
-int ATOMIC_SUB_RETURN(atomic_t *v, int i);
 int ATOMIC_INC_RETURN(atomic_t *v);
-int ATOMIC_DEC_RETURN(atomic_t *v);
 
 struct rtw_netdev_priv_indicator {
 	void *priv;
