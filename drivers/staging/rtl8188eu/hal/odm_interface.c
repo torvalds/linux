@@ -146,12 +146,6 @@ void ODM_IsWorkItemScheduled(void *pRtWorkItem)
 {
 }
 
-/*  ODM Timer relative API. */
-void ODM_sleep_us(u32 us)
-{
-	rtw_usleep_os(us);
-}
-
 void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer, u32 msDelay)
 {
 	_set_timer(pTimer, msDelay); /* ms */

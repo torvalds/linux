@@ -663,18 +663,18 @@ void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 
 		if (is92C) {
 			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT19, 0x01);
-			rtw_usleep_os(100);
+			msleep(1);
 			if (rfPath == RF_PATH_A)
 				write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x10000); /*  PAD all on. */
 			else if (rfPath == RF_PATH_B)
 				write_rfreg(pAdapter, RF_PATH_A, 0x00, 0x10000); /*  PAD all on. */
 			write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); /*  PAD all on. */
-			rtw_usleep_os(100);
+			msleep(1);
 		} else {
 			write_rfreg(pAdapter, rfPath, 0x21, 0xd4000);
-			rtw_usleep_os(100);
+			msleep(1);
 			write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); /*  PAD all on. */
-			rtw_usleep_os(100);
+			msleep(1);
 		}
 
 		/* for dynamic set Power index. */
@@ -696,15 +696,15 @@ void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
 		if (is92C) {
 			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT19, 0x00);
-			rtw_usleep_os(100);
+			msleep(1);
 			write_rfreg(pAdapter, RF_PATH_A, 0x00, 0x32d75); /*  PAD all on. */
 			write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x32d75); /*  PAD all on. */
-			rtw_usleep_os(100);
+			msleep(1);
 		} else {
 			write_rfreg(pAdapter, rfPath, 0x21, 0x54000);
-			rtw_usleep_os(100);
+			msleep(1);
 			write_rfreg(pAdapter, rfPath, 0x00, 0x30000); /*  PAD all on. */
-			rtw_usleep_os(100);
+			msleep(1);
 		}
 
 		/* Stop for dynamic set Power index. */

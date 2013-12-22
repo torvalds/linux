@@ -245,14 +245,6 @@ void rtw_sleep_schedulable(int ms)
 		return;
 }
 
-void rtw_usleep_os(int us)
-{
-	if (1 < (us/1000))
-		msleep(1);
-	else
-		msleep((us/1000) + 1);
-}
-
 void rtw_yield_os(void)
 {
 	yield();

@@ -242,7 +242,7 @@ static void efuse_read_phymap_from_txpktbuf(
 		while (!(reg_0x143 = rtw_read8(adapter, REG_TXPKTBUF_DBG)) &&
 		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, rtw_read8(adapter, 0x106));
-			rtw_usleep_os(100);
+			msleep(1);
 		}
 
 		lo32 = rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L);
@@ -372,7 +372,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 	if (pbuf) {
 		for (addr = 0; addr < data_cnts; addr++) {
 			rtw_write32(Adapter, 0x140, addr);
-			rtw_usleep_os(2);
+			msleep(1);
 			loop = 0;
 			do {
 				rstatus = (reg_140 = rtw_read32(Adapter, REG_PKTBUF_DBG_CTRL)&BIT24);
@@ -383,7 +383,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 					fifo_data = rtw_read32(Adapter, REG_PKTBUF_DBG_DATA_H);
 					memcpy(pbuf+(addr*8+4), &fifo_data, 4);
 				}
-				rtw_usleep_os(2);
+				msleep(1);
 			} while (!rstatus && (loop++ < 10));
 		}
 		rtw_IOL_cmd_buf_dump(Adapter, data_len, pbuf);
