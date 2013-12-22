@@ -184,9 +184,6 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 
 void ODM_AntennaDiversityInit_88E(struct odm_dm_struct *dm_odm)
 {
-	if (dm_odm->SupportICType != ODM_RTL8188E)
-		return;
-
 	ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("dm_odm->AntDivType=%d\n", dm_odm->AntDivType));
 	ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("dm_odm->bIsMPChip=%s\n", (dm_odm->bIsMPChip ? "true" : "false")));
 
@@ -349,7 +346,7 @@ void ODM_AntennaDiversity_88E(struct odm_dm_struct *dm_odm)
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
 	struct adapter *adapter = dm_odm->Adapter;
 
-	if ((dm_odm->SupportICType != ODM_RTL8188E) || (!(dm_odm->SupportAbility & ODM_BB_ANT_DIV)))
+	if (!(dm_odm->SupportAbility & ODM_BB_ANT_DIV))
 		return;
 	if (!dm_odm->bLinked) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("ODM_AntennaDiversity_88E(): No Link.\n"));
