@@ -284,9 +284,6 @@ static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 
 static inline void thread_enter(char *name)
 {
-#ifdef daemonize
-	daemonize("%s", name);
-#endif
 	allow_signal(SIGTERM);
 }
 
