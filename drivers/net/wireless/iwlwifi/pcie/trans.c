@@ -607,7 +607,9 @@ static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	bool hw_rfkill;
+	bool hw_rfkill, was_hw_rfkill;
+
+	was_hw_rfkill = iwl_is_rfkill_set(trans);
 
 	/* tell the device to stop sending interrupts */
 	spin_lock(&trans_pcie->irq_lock);
@@ -669,13 +671,20 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	 * all the interrupts were disabled, in this case we couldn't
 	 * receive the RF kill interrupt and update the state in the
 	 * op_mode.
+	 * Don't call the op_mode if the rkfill state hasn't changed.
+	 * This allows the op_mode to call stop_device from the rfkill
+	 * notification without endless recursion. Under very rare
+	 * circumstances, we might have a small recursion if the rfkill
+	 * state changed exactly now while we were called from stop_device.
+	 * This is very unlikely but can happen and is supported.
 	 */
 	hw_rfkill = iwl_is_rfkill_set(trans);
 	if (hw_rfkill)
 		set_bit(STATUS_RFKILL, &trans->status);
 	else
 		clear_bit(STATUS_RFKILL, &trans->status);
-	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
+	if (hw_rfkill != was_hw_rfkill)
+		iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 }
 
 static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
