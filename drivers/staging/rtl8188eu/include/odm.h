@@ -1146,10 +1146,6 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm);
 bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI,
 		      bool bForceUpdate, u8 *pRATRState);
 
-#define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
-void ODM_SwAntDivChkPerPktRssi(struct odm_dm_struct *pDM_Odm, u8 StationID,
-			       struct odm_phy_status_info *pPhyInfo);
-
 u32 ConvertTo_dB(u32 Value);
 
 u32 GetPSDData(struct odm_dm_struct *pDM_Odm, unsigned int point,

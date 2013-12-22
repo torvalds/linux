@@ -195,8 +195,6 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 		    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV) ||
 		    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
 			odm_InitHybridAntDiv(pDM_Odm);
-		else if (pDM_Odm->AntDivType == CGCS_RX_SW_ANTDIV)
-			odm_SwAntDivInit(pDM_Odm);
 	}
 }
 
@@ -206,7 +204,6 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 {
 	/* 2012.05.03 Luke: For all IC series */
-	odm_GlobalAdapterCheck();
 	odm_CmnInfoHook_Debug(pDM_Odm);
 	odm_CmnInfoUpdate_Debug(pDM_Odm);
 	odm_CommonInfoSelfUpdate(pDM_Odm);
@@ -240,8 +237,6 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
 		odm_HwAntDiv(pDM_Odm);
-	else if (pDM_Odm->AntDivType == CGCS_RX_SW_ANTDIV)
-		odm_SwAntDivChkAntSwitch(pDM_Odm, SWAW_STEP_PEAK);
 
 	if (pDM_Odm->SupportICType & ODM_IC_11AC_SERIES) {
 		;
@@ -250,7 +245,6 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 	      odm_EdcaTurboCheck(pDM_Odm);
 		odm_DynamicTxPower(pDM_Odm);
 	}
-	odm_dtc(pDM_Odm);
 }
 
 /*  Init /.. Fixed HW value. Only init time. */
@@ -1453,7 +1447,6 @@ void odm_DynamicTxPower(struct odm_dm_struct *pDM_Odm)
 		odm_DynamicTxPowerNIC(pDM_Odm);
 		break;
 	case	ODM_AP:
-		odm_DynamicTxPowerAP(pDM_Odm);
 		break;
 	case	ODM_ADSL:
 		break;
@@ -1469,10 +1462,6 @@ void odm_DynamicTxPowerNIC(struct odm_dm_struct *pDM_Odm)
 		/*  ??? */
 		/*  This part need to be redefined. */
 	}
-}
-
-void odm_DynamicTxPowerAP(struct odm_dm_struct *pDM_Odm)
-{
 }
 
 /* 3============================================================ */
@@ -1491,13 +1480,11 @@ void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 	/*  */
 	switch	(pDM_Odm->SupportPlatform) {
 	case	ODM_MP:
-		odm_RSSIMonitorCheckMP(pDM_Odm);
 		break;
 	case	ODM_CE:
 		odm_RSSIMonitorCheckCE(pDM_Odm);
 		break;
 	case	ODM_AP:
-		odm_RSSIMonitorCheckAP(pDM_Odm);
 		break;
 	case	ODM_ADSL:
 		/* odm_DIGAP(pDM_Odm); */
@@ -1505,10 +1492,6 @@ void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 	}
 
 }	/*  odm_RSSIMonitorCheck */
-
-void odm_RSSIMonitorCheckMP(struct odm_dm_struct *pDM_Odm)
-{
-}
 
 static void FindMinimumRSSI(struct adapter *pAdapter)
 {
@@ -1582,10 +1565,6 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 	ODM_CmnInfoUpdate(&pHalData->odmpriv , ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 }
 
-void odm_RSSIMonitorCheckAP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 void ODM_InitAllTimers(struct odm_dm_struct *pDM_Odm)
 {
 	ODM_InitializeTimer(pDM_Odm, &pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer,
@@ -1625,13 +1604,11 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
 	/*  HW dynamic mechanism. */
 	switch	(pDM_Odm->SupportPlatform) {
 	case	ODM_MP:
-		odm_TXPowerTrackingCheckMP(pDM_Odm);
 		break;
 	case	ODM_CE:
 		odm_TXPowerTrackingCheckCE(pDM_Odm);
 		break;
 	case	ODM_AP:
-		odm_TXPowerTrackingCheckAP(pDM_Odm);
 		break;
 	case	ODM_ADSL:
 		break;
@@ -1656,14 +1633,6 @@ void odm_TXPowerTrackingCheckCE(struct odm_dm_struct *pDM_Odm)
 	}
 }
 
-void odm_TXPowerTrackingCheckMP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
-void odm_TXPowerTrackingCheckAP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 /* antenna mapping info */
 /*  1: right-side antenna */
 /*  2/0: left-side antenna */
@@ -1675,21 +1644,6 @@ void odm_TXPowerTrackingCheckAP(struct odm_dm_struct *pDM_Odm)
 /* 3============================================================ */
 /* 3 SW Antenna Diversity */
 /* 3============================================================ */
-void odm_SwAntDivInit(struct odm_dm_struct *pDM_Odm)
-{
-}
-
-void ODM_SwAntDivChkPerPktRssi(struct odm_dm_struct *pDM_Odm, u8 StationID, struct odm_phy_status_info *pPhyInfo)
-{
-}
-
-void odm_SwAntDivChkAntSwitch(struct odm_dm_struct *pDM_Odm, u8 Step)
-{
-}
-
-void ODM_SwAntDivRestAfterLink(struct odm_dm_struct *pDM_Odm)
-{
-}
 
 void odm_SwAntDivChkAntSwitchCallback(void *FunctionContext)
 {
@@ -1903,11 +1857,6 @@ u32 ConvertTo_dB(u32 Value)
 
 	return dB;
 }
-
-/*  2011/09/22 MH Add for 92D global spin lock utilization. */
-void odm_GlobalAdapterCheck(void)
-{
-}	/*  odm_GlobalAdapterCheck */
 
 /*  Description: */
 /* 	Set Single/Dual Antenna default setting for products that do not do detection in advance. */
@@ -2167,9 +2116,4 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 		}
 	}
 	return bResult;
-}
-
-/* Justin: According to the current RRSI to adjust Response Frame TX power, 2012/11/05 */
-void odm_dtc(struct odm_dm_struct *pDM_Odm)
-{
 }
