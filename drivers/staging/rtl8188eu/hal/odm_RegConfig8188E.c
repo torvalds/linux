@@ -24,7 +24,9 @@ void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 			   u32 Data, enum ODM_RF_RADIO_PATH RF_PATH,
 			   u32 RegAddr)
 {
-    if (Addr == 0xffe) {
+	struct adapter *adapter = pDM_Odm->Adapter;
+
+	if (Addr == 0xffe) {
 		msleep(50);
 	} else if (Addr == 0xfd) {
 		mdelay(5);
@@ -37,7 +39,7 @@ void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 	} else if (Addr == 0xf9) {
 		udelay(1);
 	} else {
-		ODM_SetRFReg(pDM_Odm, RF_PATH, RegAddr, bRFRegOffsetMask, Data);
+		PHY_SetRFReg(adapter, RF_PATH, RegAddr, bRFRegOffsetMask, Data);
 		/*  Add 1us delay between BB/RF register setting. */
 		udelay(1);
 	}

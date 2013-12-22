@@ -2012,7 +2012,7 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 	PHY_SetBBReg(adapter, rFPGA0_PSDFunction, BIT14|BIT15, 0x0);  /* 128 pts */
 
 	/*  To SET CH1 to do */
-	ODM_SetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask, 0x01);     /* Channel 1 */
+	PHY_SetRFReg(adapter, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask, 0x01);     /* Channel 1 */
 
 	/*  AFE all on step */
 	PHY_SetBBReg(adapter, rRx_Wait_CCA, bMaskDWord, 0x6FDB25A4);
@@ -2054,7 +2054,7 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 	PHY_SetBBReg(adapter, rIQK_AGC_Rsp, bMaskDWord, 0x001028d0);
 
 	/* RF loop Setting */
-	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x0, 0xFFFFF, 0x50008);
+	PHY_SetRFReg(adapter, RF_PATH_A, 0x0, 0xFFFFF, 0x50008);
 
 	/* IQK Single tone start */
 	PHY_SetBBReg(adapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
@@ -2101,8 +2101,8 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 	PHY_SetBBReg(adapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, Reg874);
 	PHY_SetBBReg(adapter, rOFDM0_XAAGCCore1, 0x7F, 0x40);
 	PHY_SetBBReg(adapter, rOFDM0_XAAGCCore1, bMaskDWord, Regc50);
-	ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, CurrentChannel);
-	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask, RfLoopReg);
+	PHY_SetRFReg(adapter, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, CurrentChannel);
+	PHY_SetRFReg(adapter, RF_PATH_A, 0x00, bRFRegOffsetMask, RfLoopReg);
 
 	/* Reload AFE Registers */
 	odm_PHY_ReloadAFERegisters(pDM_Odm, AFE_REG_8723A, AFE_Backup, 16);
