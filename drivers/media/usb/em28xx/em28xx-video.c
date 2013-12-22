@@ -2045,6 +2045,24 @@ static struct video_device em28xx_radio_template = {
 	.ioctl_ops 	      = &radio_ioctl_ops,
 };
 
+/* I2C possible address to saa7115, tvp5150, msp3400, tvaudio */
+static unsigned short saa711x_addrs[] = {
+	0x4a >> 1, 0x48 >> 1,   /* SAA7111, SAA7111A and SAA7113 */
+	0x42 >> 1, 0x40 >> 1,   /* SAA7114, SAA7115 and SAA7118 */
+	I2C_CLIENT_END };
+
+static unsigned short tvp5150_addrs[] = {
+	0xb8 >> 1,
+	0xba >> 1,
+	I2C_CLIENT_END
+};
+
+static unsigned short msp3400_addrs[] = {
+	0x80 >> 1,
+	0x88 >> 1,
+	I2C_CLIENT_END
+};
+
 /******************************** usb interface ******************************/
 
 
@@ -2186,9 +2204,128 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	u8 val;
 	int ret;
 	unsigned int maxw;
+	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
+
+	if (dev->is_audio_only) {
+		/* This device does not support the v4l2 extension */
+		return 0;
+	}
 
 	printk(KERN_INFO "%s: v4l2 driver version %s\n",
 		dev->name, EM28XX_VERSION);
+
+	ret = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
+	if (ret < 0) {
+		em28xx_errdev("Call to v4l2_device_register() failed!\n");
+		goto err;
+	}
+
+	v4l2_ctrl_handler_init(hdl, 8);
+	dev->v4l2_dev.ctrl_handler = hdl;
+
+	/*
+	 * Default format, used for tvp5150 or saa711x output formats
+	 */
+	dev->vinmode = 0x10;
+	dev->vinctl  = EM28XX_VINCTRL_INTERLACED |
+		       EM28XX_VINCTRL_CCIR656_ENABLE;
+
+	/* request some modules */
+
+	if (dev->board.has_msp34xx)
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
+			"msp3400", 0, msp3400_addrs);
+
+	if (dev->board.decoder == EM28XX_SAA711X)
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
+			"saa7115_auto", 0, saa711x_addrs);
+
+	if (dev->board.decoder == EM28XX_TVP5150)
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
+			"tvp5150", 0, tvp5150_addrs);
+
+	if (dev->board.adecoder == EM28XX_TVAUDIO)
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
+			"tvaudio", dev->board.tvaudio_addr, NULL);
+
+	/* Initialize tuner and camera */
+
+	if (dev->board.tuner_type != TUNER_ABSENT) {
+		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
+
+		if (dev->board.radio.type)
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
+				"tuner", dev->board.radio_addr, NULL);
+
+		if (has_demod)
+			v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap[dev->def_i2c_bus], "tuner",
+				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+		if (dev->tuner_addr == 0) {
+			enum v4l2_i2c_tuner_type type =
+				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
+			struct v4l2_subdev *sd;
+
+			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap[dev->def_i2c_bus], "tuner",
+				0, v4l2_i2c_tuner_addrs(type));
+
+			if (sd)
+				dev->tuner_addr = v4l2_i2c_subdev_addr(sd);
+		} else {
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
+				"tuner", dev->tuner_addr, NULL);
+		}
+	}
+
+	em28xx_tuner_setup(dev);
+	em28xx_init_camera(dev);
+
+	/* Configure audio */
+	ret = em28xx_audio_setup(dev);
+	if (ret < 0) {
+		em28xx_errdev("%s: Error while setting audio - error [%d]!\n",
+			__func__, ret);
+		goto unregister_dev;
+	}
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
+			V4L2_CID_AUDIO_VOLUME, 0, 0x1f, 1, 0x1f);
+	} else {
+		/* install the em28xx notify callback */
+		v4l2_ctrl_notify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_MUTE),
+				em28xx_ctrl_notify, dev);
+		v4l2_ctrl_notify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_VOLUME),
+				em28xx_ctrl_notify, dev);
+	}
+
+	/* wake i2c devices */
+	em28xx_wake_i2c(dev);
+
+	/* init video dma queues */
+	INIT_LIST_HEAD(&dev->vidq.active);
+	INIT_LIST_HEAD(&dev->vbiq.active);
+
+	if (dev->board.has_msp34xx) {
+		/* Send a reset to other chips via gpio */
+		ret = em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xf7);
+		if (ret < 0) {
+			em28xx_errdev("%s: em28xx_write_reg - msp34xx(1) failed! error [%d]\n",
+				      __func__, ret);
+			goto unregister_dev;
+		}
+		msleep(3);
+
+		ret = em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xff);
+		if (ret < 0) {
+			em28xx_errdev("%s: em28xx_write_reg - msp34xx(2) failed! error [%d]\n",
+				      __func__, ret);
+			goto unregister_dev;
+		}
+		msleep(3);
+	}
 
 	/* set default norm */
 	dev->norm = V4L2_STD_PAL;
@@ -2252,14 +2389,16 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	/* Reset image controls */
 	em28xx_colorlevels_set_default(dev);
 	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
-	if (dev->ctrl_handler.error)
-		return dev->ctrl_handler.error;
+	ret = dev->ctrl_handler.error;
+	if (ret)
+		goto unregister_dev;
 
 	/* allocate and fill video video_device struct */
 	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");
 	if (!dev->vdev) {
 		em28xx_errdev("cannot allocate video_device.\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unregister_dev;
 	}
 	dev->vdev->queue = &dev->vb_vidq;
 	dev->vdev->queue->lock = &dev->vb_queue_lock;
@@ -2289,7 +2428,7 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	if (ret) {
 		em28xx_errdev("unable to register video device (error=%i).\n",
 			      ret);
-		return ret;
+		goto unregister_dev;
 	}
 
 	/* Allocate and fill vbi video_device struct */
@@ -2318,7 +2457,7 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 					    vbi_nr[dev->devno]);
 		if (ret < 0) {
 			em28xx_errdev("unable to register vbi device\n");
-			return ret;
+			goto unregister_dev;
 		}
 	}
 
@@ -2327,13 +2466,14 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 						  "radio");
 		if (!dev->radio_dev) {
 			em28xx_errdev("cannot allocate video_device.\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto unregister_dev;
 		}
 		ret = video_register_device(dev->radio_dev, VFL_TYPE_RADIO,
 					    radio_nr[dev->devno]);
 		if (ret < 0) {
 			em28xx_errdev("can't register radio device\n");
-			return ret;
+			goto unregister_dev;
 		}
 		em28xx_info("Registered radio device as %s\n",
 			    video_device_node_name(dev->radio_dev));
@@ -2346,5 +2486,17 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 		em28xx_info("V4L2 VBI device registered as %s\n",
 			    video_device_node_name(dev->vbi_dev));
 
+	/* Save some power by putting tuner to sleep */
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
+
+	/* initialize videobuf2 stuff */
+	em28xx_vb2_setup(dev);
+
 	return 0;
+
+unregister_dev:
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+	v4l2_device_unregister(&dev->v4l2_dev);
+err:
+	return ret;
 }
