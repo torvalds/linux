@@ -1992,8 +1992,8 @@ bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode)
 
 	/* 1 Backup Current RF/BB Settings */
 
-	CurrentChannel = ODM_GetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask);
-	RfLoopReg = ODM_GetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask);
+	CurrentChannel = PHY_QueryRFReg(adapter, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask);
+	RfLoopReg = PHY_QueryRFReg(adapter, RF_PATH_A, 0x00, bRFRegOffsetMask);
 	PHY_SetBBReg(adapter, rFPGA0_XA_RFInterfaceOE, ODM_DPDT, Antenna_A);  /*  change to Antenna A */
 	/*  Step 1: USE IQK to transmitter single tone */
 
