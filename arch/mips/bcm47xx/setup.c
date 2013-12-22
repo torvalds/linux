@@ -32,6 +32,7 @@
 #include <linux/ssb/ssb_embedded.h>
 #include <linux/bcma/bcma_soc.h>
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
 #include <asm/prom.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
@@ -199,6 +200,15 @@ static void __init bcm47xx_register_bcma(void)
 		panic("Failed to initialize BCMA bus (err %d)", err);
 
 	bcm47xx_fill_bcma_boardinfo(&bcm47xx_bus.bcma.bus.boardinfo, NULL);
+
+	/* The BCM4706 has a problem with the CPU wait instruction.
+	 * When r4k_wait or r4k_wait_irqoff is used will just hang and
+	 * not return from a msleep(). Removing the cpu_wait
+	 * functionality is a workaround for this problem. The BCM4716
+	 * does not have this problem.
+	 */
+	if (bcm47xx_bus.bcma.bus.chipinfo.id == BCMA_CHIP_ID_BCM4706)
+		cpu_wait = NULL;
 }
 #endif
 
