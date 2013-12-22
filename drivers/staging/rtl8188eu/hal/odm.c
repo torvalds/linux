@@ -522,9 +522,6 @@ void odm_CmnInfoHook_Debug(struct odm_dm_struct *pDM_Odm)
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbScanInProcess=%d\n", *(pDM_Odm->pbScanInProcess)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbPowerSaving=%d\n", *(pDM_Odm->pbPowerSaving)));
-
-	if (pDM_Odm->SupportPlatform & (ODM_AP|ODM_ADSL))
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pOnePathCCA=%d\n", *(pDM_Odm->pOnePathCCA)));
 }
 
 void odm_CmnInfoUpdate_Debug(struct odm_dm_struct *pDM_Odm)
@@ -534,21 +531,6 @@ void odm_CmnInfoUpdate_Debug(struct odm_dm_struct *pDM_Odm)
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bWIFI_Display=%d\n", pDM_Odm->bWIFI_Display));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bLinked=%d\n", pDM_Odm->bLinked));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("RSSI_Min=%d\n", pDM_Odm->RSSI_Min));
-}
-
-static int getIGIForDiff(int value_IGI)
-{
-	#define ONERCCA_LOW_TH		0x30
-	#define ONERCCA_LOW_DIFF	8
-
-	if (value_IGI < ONERCCA_LOW_TH) {
-		if ((ONERCCA_LOW_TH - value_IGI) < ONERCCA_LOW_DIFF)
-			return ONERCCA_LOW_TH;
-		else
-			return value_IGI + ONERCCA_LOW_DIFF;
-	} else {
-		return value_IGI;
-	}
 }
 
 void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
@@ -561,29 +543,9 @@ void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 		     ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm)));
 
 	if (pDM_DigTable->CurIGValue != CurrentIGI) {
-		if (pDM_Odm->SupportPlatform & (ODM_CE|ODM_MP)) {
-			PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-				if (pDM_Odm->SupportICType != ODM_RTL8188E)
-				PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-		} else if (pDM_Odm->SupportPlatform & (ODM_AP|ODM_ADSL)) {
-			switch (*(pDM_Odm->pOnePathCCA)) {
-			case ODM_CCA_2R:
-				PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-					if (pDM_Odm->SupportICType != ODM_RTL8188E)
-					PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-				break;
-			case ODM_CCA_1R_A:
-				PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-					if (pDM_Odm->SupportICType != ODM_RTL8188E)
-					PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), getIGIForDiff(CurrentIGI));
-				break;
-			case ODM_CCA_1R_B:
-				PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), getIGIForDiff(CurrentIGI));
-					if (pDM_Odm->SupportICType != ODM_RTL8188E)
-					PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-					break;
-				}
-		}
+		PHY_SetBBReg(adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
+		if (pDM_Odm->SupportICType != ODM_RTL8188E)
+			PHY_SetBBReg(adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("CurrentIGI(0x%02x).\n", CurrentIGI));
 		/* pDM_DigTable->PreIGValue = pDM_DigTable->CurIGValue; */
 		pDM_DigTable->CurIGValue = CurrentIGI;
@@ -734,24 +696,13 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 	/* 1 Boundary Decision */
 	if ((pDM_Odm->SupportICType & (ODM_RTL8192C|ODM_RTL8723A)) &&
 	    ((pDM_Odm->BoardType == ODM_BOARD_HIGHPWR) || pDM_Odm->ExtLNA)) {
-		if (pDM_Odm->SupportPlatform & (ODM_AP|ODM_ADSL)) {
-			dm_dig_max = DM_DIG_MAX_AP_HP;
-			dm_dig_min = DM_DIG_MIN_AP_HP;
-		} else {
-			dm_dig_max = DM_DIG_MAX_NIC_HP;
-			dm_dig_min = DM_DIG_MIN_NIC_HP;
-		}
+		dm_dig_max = DM_DIG_MAX_NIC_HP;
+		dm_dig_min = DM_DIG_MIN_NIC_HP;
 		DIG_MaxOfMin = DM_DIG_MAX_AP_HP;
 	} else {
-		if (pDM_Odm->SupportPlatform & (ODM_AP|ODM_ADSL)) {
-			dm_dig_max = DM_DIG_MAX_AP;
-			dm_dig_min = DM_DIG_MIN_AP;
-			DIG_MaxOfMin = dm_dig_max;
-		} else {
-			dm_dig_max = DM_DIG_MAX_NIC;
-			dm_dig_min = DM_DIG_MIN_NIC;
-			DIG_MaxOfMin = DM_DIG_MAX_AP;
-		}
+		dm_dig_max = DM_DIG_MAX_NIC;
+		dm_dig_min = DM_DIG_MIN_NIC;
+		DIG_MaxOfMin = DM_DIG_MAX_AP;
 	}
 	if (pDM_Odm->bLinked) {
 	      /* 2 8723A Series, offset need to be 10 */
@@ -1080,8 +1031,6 @@ void odm_DynamicBBPowerSaving(struct odm_dm_struct *pDM_Odm)
 		return;
 	if (!(pDM_Odm->SupportAbility & ODM_BB_PWR_SAVE))
 		return;
-	if (!(pDM_Odm->SupportPlatform & (ODM_MP|ODM_CE)))
-		return;
 
 	/* 1 2.Power Saving for 92C */
 	if ((pDM_Odm->SupportICType == ODM_RTL8192C) && (pDM_Odm->RFType == ODM_2T2R)) {
@@ -1317,18 +1266,7 @@ void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
 	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
 	/*  HW dynamic mechanism. */
 	/*  */
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-		odm_RefreshRateAdaptiveMaskMP(pDM_Odm);
-		break;
-	case	ODM_CE:
-		odm_RefreshRateAdaptiveMaskCE(pDM_Odm);
-		break;
-	case	ODM_AP:
-	case	ODM_ADSL:
-		odm_RefreshRateAdaptiveMaskAPADSL(pDM_Odm);
-		break;
-	}
+	odm_RefreshRateAdaptiveMaskCE(pDM_Odm);
 }
 
 void odm_RefreshRateAdaptiveMaskMP(struct odm_dm_struct *pDM_Odm)
@@ -1441,16 +1379,7 @@ void odm_DynamicTxPower(struct odm_dm_struct *pDM_Odm)
 	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
 	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
 	/*  HW dynamic mechanism. */
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-	case	ODM_CE:
-		odm_DynamicTxPowerNIC(pDM_Odm);
-		break;
-	case	ODM_AP:
-		break;
-	case	ODM_ADSL:
-		break;
-	}
+	odm_DynamicTxPowerNIC(pDM_Odm);
 }
 
 void odm_DynamicTxPowerNIC(struct odm_dm_struct *pDM_Odm)
@@ -1478,19 +1407,7 @@ void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
 	/*  HW dynamic mechanism. */
 	/*  */
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-		break;
-	case	ODM_CE:
-		odm_RSSIMonitorCheckCE(pDM_Odm);
-		break;
-	case	ODM_AP:
-		break;
-	case	ODM_ADSL:
-		/* odm_DIGAP(pDM_Odm); */
-		break;
-	}
-
+	odm_RSSIMonitorCheckCE(pDM_Odm);
 }	/*  odm_RSSIMonitorCheck */
 
 static void FindMinimumRSSI(struct adapter *pAdapter)
@@ -1602,17 +1519,7 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
 	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
 	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
 	/*  HW dynamic mechanism. */
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-		break;
-	case	ODM_CE:
-		odm_TXPowerTrackingCheckCE(pDM_Odm);
-		break;
-	case	ODM_AP:
-		break;
-	case	ODM_ADSL:
-		break;
-	}
+	odm_TXPowerTrackingCheckCE(pDM_Odm);
 }
 
 void odm_TXPowerTrackingCheckCE(struct odm_dm_struct *pDM_Odm)
@@ -1722,16 +1629,7 @@ void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
 	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
 		return;
 
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-		break;
-	case	ODM_CE:
-		odm_EdcaTurboCheckCE(pDM_Odm);
-		break;
-	case	ODM_AP:
-	case	ODM_ADSL:
-		break;
-	}
+	odm_EdcaTurboCheckCE(pDM_Odm);
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("<========================odm_EdcaTurboCheck\n"));
 }	/*  odm_CheckEdcaTurbo */
 

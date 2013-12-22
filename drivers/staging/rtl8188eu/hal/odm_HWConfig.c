@@ -39,16 +39,6 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 
 /*  2012/01/12 MH MOve some signal strength smooth method to MP HAL layer. */
 /*  IF other SW team do not support the feature, remove this section.?? */
-static s32 odm_sig_patch_lenove(struct odm_dm_struct *dm_odm, s32 CurrSig)
-{
-	return 0;
-}
-
-static s32 odm_sig_patch_netcore(struct odm_dm_struct *dm_odm, s32 CurrSig)
-{
-	return 0;
-}
-
 static s32 odm_SignalScaleMapping_92CSeries(struct odm_dm_struct *dm_odm, s32 CurrSig)
 {
 	s32 RetSig = 0;
@@ -77,23 +67,7 @@ static s32 odm_SignalScaleMapping_92CSeries(struct odm_dm_struct *dm_odm, s32 Cu
 
 static s32 odm_SignalScaleMapping(struct odm_dm_struct *dm_odm, s32 CurrSig)
 {
-	if ((dm_odm->SupportPlatform == ODM_MP) &&
-	    (dm_odm->SupportInterface != ODM_ITRF_PCIE) && /* USB & SDIO */
-	    (dm_odm->PatchID == 10))
-		return odm_sig_patch_netcore(dm_odm, CurrSig);
-	else if ((dm_odm->SupportPlatform == ODM_MP) &&
-		 (dm_odm->SupportInterface == ODM_ITRF_PCIE) &&
-		 (dm_odm->PatchID == 19))
-		return odm_sig_patch_lenove(dm_odm, CurrSig);
-	else
-		return odm_SignalScaleMapping_92CSeries(dm_odm, CurrSig);
-}
-
-/* pMgntInfo->CustomerID == RT_CID_819x_Lenovo */
-static u8 odm_SQ_process_patch_RT_CID_819x_Lenovo(struct odm_dm_struct *dm_odm,
-	u8 isCCKrate, u8 PWDB_ALL, u8 path, u8 RSSI)
-{
-	return 0;
+	return odm_SignalScaleMapping_92CSeries(dm_odm, CurrSig);
 }
 
 static u8 odm_EVMdbToPercentage(s8 Value)
@@ -269,9 +243,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		if (pPktinfo->bPacketMatchBSSID) {
 			u8 SQ, SQ_rpt;
 
-			if ((dm_odm->SupportPlatform == ODM_MP) && (dm_odm->PatchID == 19)) {
-				SQ = odm_SQ_process_patch_RT_CID_819x_Lenovo(dm_odm, isCCKrate, PWDB_ALL, 0, 0);
-			} else if (pPhyInfo->RxPWDBAll > 40 && !dm_odm->bInHctTest) {
+			if (pPhyInfo->RxPWDBAll > 40 && !dm_odm->bInHctTest) {
 				SQ = 100;
 			} else {
 				SQ_rpt = pPhyStaRpt->cck_sig_qual_ofdm_pwdb_all;
@@ -321,14 +293,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			/* Get Rx snr value in DB */
 			pPhyInfo->RxSNR[i] = (s32)(pPhyStaRpt->path_rxsnr[i]/2);
 			dm_odm->PhyDbgInfo.RxSNRdB[i] = (s32)(pPhyStaRpt->path_rxsnr[i]/2);
-
-			/* Record Signal Strength for next packet */
-			if (pPktinfo->bPacketMatchBSSID) {
-				if ((dm_odm->SupportPlatform == ODM_MP) && (dm_odm->PatchID == 19)) {
-					if (i == ODM_RF_PATH_A)
-						pPhyInfo->SignalQuality = odm_SQ_process_patch_RT_CID_819x_Lenovo(dm_odm, isCCKrate, PWDB_ALL, i, RSSI);
-				}
-			}
 		}
 		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
 		rx_pwr_all = (((pPhyStaRpt->cck_sig_qual_ofdm_pwdb_all) >> 1) & 0x7f) - 110;
@@ -341,26 +305,22 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		pPhyInfo->RxPower = rx_pwr_all;
 		pPhyInfo->RecvSignalPower = rx_pwr_all;
 
-		if ((dm_odm->SupportPlatform == ODM_MP) && (dm_odm->PatchID == 19)) {
-			/* do nothing */
-		} else {
-			/*  (3)EVM of HT rate */
-			if (pPktinfo->Rate >= DESC92C_RATEMCS8 && pPktinfo->Rate <= DESC92C_RATEMCS15)
-				Max_spatial_stream = 2; /* both spatial stream make sense */
-			else
-				Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
+		/*  (3)EVM of HT rate */
+		if (pPktinfo->Rate >= DESC92C_RATEMCS8 && pPktinfo->Rate <= DESC92C_RATEMCS15)
+			Max_spatial_stream = 2; /* both spatial stream make sense */
+		else
+			Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
 
-			for (i = 0; i < Max_spatial_stream; i++) {
-				/*  Do not use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
-				/*  fill most significant bit to "zero" when doing shifting operation which may change a negative */
-				/*  value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore. */
-				EVM = odm_EVMdbToPercentage((pPhyStaRpt->stream_rxevm[i]));	/* dbm */
+		for (i = 0; i < Max_spatial_stream; i++) {
+			/*  Do not use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
+			/*  fill most significant bit to "zero" when doing shifting operation which may change a negative */
+			/*  value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore. */
+			EVM = odm_EVMdbToPercentage((pPhyStaRpt->stream_rxevm[i]));	/* dbm */
 
-				if (pPktinfo->bPacketMatchBSSID) {
-					if (i == ODM_RF_PATH_A) /*  Fill value in RFD, Get the first spatial stream only */
-						pPhyInfo->SignalQuality = (u8)(EVM & 0xff);
-					pPhyInfo->RxMIMOSignalQuality[i] = (u8)(EVM & 0xff);
-				}
+			if (pPktinfo->bPacketMatchBSSID) {
+				if (i == ODM_RF_PATH_A) /*  Fill value in RFD, Get the first spatial stream only */
+					pPhyInfo->SignalQuality = (u8)(EVM & 0xff);
+				pPhyInfo->RxMIMOSignalQuality[i] = (u8)(EVM & 0xff);
 			}
 		}
 	}
