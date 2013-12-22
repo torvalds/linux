@@ -11,3 +11,5 @@ way to enable these options would be:
 This will generate a .config that can then be used to save a new defconfig or
 compile a new kernel with Android features enabled.
 
+Because there is no tool to consistently generate these config fragments,
+lets keep them alphabetically sorted instead of random.

@@ -18,7 +18,7 @@
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
- * $Id: typedefs.h 286783 2011-09-29 06:18:57Z $
+ * $Id: typedefs.h 397286 2013-04-18 01:42:19Z $
  */
 
 #ifndef _TYPEDEFS_H_
@@ -121,7 +121,7 @@ typedef long unsigned int size_t;
 #if defined(__GNUC__) && defined(__STRICT_ANSI__)
 #define TYPEDEF_INT64
 #define TYPEDEF_UINT64
-#endif
+#endif /* defined(__GNUC__) && defined(__STRICT_ANSI__) */
 
 /* ICL accepts unsigned 64 bit type only, and complains in ANSI mode
  * for signed or unsigned
