@@ -26,7 +26,7 @@
 #ifndef _EM28XX_H
 #define _EM28XX_H
 
-#define EM28XX_VERSION "0.2.0"
+#define EM28XX_VERSION "0.2.1"
 
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
@@ -474,6 +474,7 @@ struct em28xx_eeprom {
 #define EM28XX_AUDIO   0x10
 #define EM28XX_DVB     0x20
 #define EM28XX_RC      0x30
+#define EM28XX_V4L2    0x40
 
 /* em28xx resource types (used for res_get/res_lock etc */
 #define EM28XX_RESOURCE_VIDEO 0x01
@@ -527,6 +528,7 @@ struct em28xx {
 
 	unsigned int is_em25xx:1;	/* em25xx/em276x/7x/8x family bridge */
 	unsigned char disconnected:1;	/* device has been diconnected */
+	unsigned int has_video:1;
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
 	unsigned int is_audio_only:1;
@@ -723,14 +725,9 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val);
 int em28xx_audio_analog_set(struct em28xx *dev);
 int em28xx_audio_setup(struct em28xx *dev);
 
-int em28xx_colorlevels_set_default(struct em28xx *dev);
 const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
 					 enum em28xx_led_role role);
 int em28xx_capture_start(struct em28xx *dev, int start);
-int em28xx_vbi_supported(struct em28xx *dev);
-int em28xx_set_outfmt(struct em28xx *dev);
-int em28xx_resolution_set(struct em28xx *dev);
-int em28xx_set_alternate(struct em28xx *dev);
 int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		      int num_bufs, int max_pkt_size, int packet_multiplier);
 int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
@@ -742,30 +739,16 @@ void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode);
 void em28xx_stop_urbs(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
-void em28xx_wake_i2c(struct em28xx *dev);
 int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
 void em28xx_init_extension(struct em28xx *dev);
 void em28xx_close_extension(struct em28xx *dev);
-
-/* Provided by em28xx-video.c */
-void em28xx_tuner_setup(struct em28xx *dev);
-int em28xx_vb2_setup(struct em28xx *dev);
-int em28xx_register_analog_devices(struct em28xx *dev);
-void em28xx_release_analog_resources(struct em28xx *dev);
-void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv);
-int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count);
-int em28xx_stop_vbi_streaming(struct vb2_queue *vq);
-extern const struct v4l2_ctrl_ops em28xx_ctrl_ops;
 
 /* Provided by em28xx-cards.c */
 extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
-
-/* Provided by em28xx-vbi.c */
-extern struct vb2_ops em28xx_vbi_qops;
 
 /* Provided by em28xx-camera.c */
 int em28xx_detect_sensor(struct em28xx *dev);

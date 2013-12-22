@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 
 #include "em28xx.h"
+#include "em28xx-v4l.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
@@ -141,7 +142,7 @@ static struct em28xx_fmt format[] = {
 	},
 };
 
-int em28xx_vbi_supported(struct em28xx *dev)
+static int em28xx_vbi_supported(struct em28xx *dev)
 {
 	/* Modprobe option to manually disable */
 	if (disable_vbi == 1)
@@ -164,7 +165,7 @@ int em28xx_vbi_supported(struct em28xx *dev)
  * em28xx_wake_i2c()
  * configure i2c attached devices
  */
-void em28xx_wake_i2c(struct em28xx *dev)
+static void em28xx_wake_i2c(struct em28xx *dev)
 {
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core,  reset, 0);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
@@ -172,7 +173,7 @@ void em28xx_wake_i2c(struct em28xx *dev)
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
 }
 
-int em28xx_colorlevels_set_default(struct em28xx *dev)
+static int em28xx_colorlevels_set_default(struct em28xx *dev)
 {
 	em28xx_write_reg(dev, EM28XX_R20_YGAIN, CONTRAST_DEFAULT);
 	em28xx_write_reg(dev, EM28XX_R21_YOFFSET, BRIGHTNESS_DEFAULT);
@@ -190,7 +191,7 @@ int em28xx_colorlevels_set_default(struct em28xx *dev)
 	return em28xx_write_reg(dev, EM28XX_R1A_BOFFSET, 0x00);
 }
 
-int em28xx_set_outfmt(struct em28xx *dev)
+static int em28xx_set_outfmt(struct em28xx *dev)
 {
 	int ret;
 	u8 fmt, vinctrl;
@@ -297,7 +298,7 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 }
 
 /* FIXME: this only function read values from dev */
-int em28xx_resolution_set(struct em28xx *dev)
+static int em28xx_resolution_set(struct em28xx *dev)
 {
 	int width, height;
 	width = norm_maxw(dev);
@@ -330,7 +331,7 @@ int em28xx_resolution_set(struct em28xx *dev)
 }
 
 /* Set USB alternate setting for analog video */
-int em28xx_set_alternate(struct em28xx *dev)
+static int em28xx_set_alternate(struct em28xx *dev)
 {
 	int errCode;
 	int i;
@@ -1020,7 +1021,7 @@ static struct vb2_ops em28xx_video_qops = {
 	.wait_finish    = vb2_ops_wait_finish,
 };
 
-int em28xx_vb2_setup(struct em28xx *dev)
+static int em28xx_vb2_setup(struct em28xx *dev)
 {
 	int rc;
 	struct vb2_queue *q;
@@ -1088,7 +1089,7 @@ static void video_mux(struct em28xx *dev, int index)
 	em28xx_audio_analog_set(dev);
 }
 
-void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv)
+static void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv)
 {
 	struct em28xx *dev = priv;
 
@@ -1625,7 +1626,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 		reg->val = ret;
 	} else {
 		__le16 val = 0;
-		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
+		ret = dev->em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
 		if (ret < 0)
 			return ret;
@@ -1872,14 +1873,16 @@ static int em28xx_v4l2_open(struct file *filp)
 }
 
 /*
- * em28xx_realease_resources()
+ * em28xx_v4l2_fini()
  * unregisters the v4l2,i2c and usb devices
  * called when the device gets disconected or at module unload
 */
-void em28xx_release_analog_resources(struct em28xx *dev)
+static int em28xx_v4l2_fini(struct em28xx *dev)
 {
-
-	/*FIXME: I2C IR should be disconnected */
+	if (!dev->has_video) {
+		/* This device does not support the v4l2 extension */
+		return 0;
+	}
 
 	if (dev->radio_dev) {
 		if (video_is_registered(dev->radio_dev))
@@ -1906,6 +1909,8 @@ void em28xx_release_analog_resources(struct em28xx *dev)
 			video_device_release(dev->vdev);
 		dev->vdev = NULL;
 	}
+
+	return 0;
 }
 
 /*
@@ -1927,12 +1932,13 @@ static int em28xx_v4l2_close(struct file *filp)
 	if (dev->users == 1) {
 		/* the device is already disconnect,
 		   free the remaining resources */
+
 		if (dev->disconnected) {
 			em28xx_release_resources(dev);
+			v4l2_ctrl_handler_free(&dev->ctrl_handler);
+			v4l2_device_unregister(&dev->v4l2_dev);
 			kfree(dev->alt_max_pkt_size_isoc);
-			mutex_unlock(&dev->lock);
-			kfree(dev);
-			return 0;
+			goto exit;
 		}
 
 		/* Save some power by putting tuner to sleep */
@@ -1951,6 +1957,7 @@ static int em28xx_v4l2_close(struct file *filp)
 		}
 	}
 
+exit:
 	dev->users--;
 	mutex_unlock(&dev->lock);
 	return 0;
@@ -2065,8 +2072,6 @@ static unsigned short msp3400_addrs[] = {
 
 /******************************** usb interface ******************************/
 
-
-
 static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 					const struct video_device *template,
 					const char *type_name)
@@ -2140,7 +2145,7 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	}
 }
 
-void em28xx_tuner_setup(struct em28xx *dev)
+static void em28xx_tuner_setup(struct em28xx *dev)
 {
 	struct tuner_setup           tun_setup;
 	struct v4l2_frequency        f;
@@ -2199,20 +2204,22 @@ void em28xx_tuner_setup(struct em28xx *dev)
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 }
 
-int em28xx_register_analog_devices(struct em28xx *dev)
+static int em28xx_v4l2_init(struct em28xx *dev)
 {
 	u8 val;
 	int ret;
 	unsigned int maxw;
 	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
 
-	if (dev->is_audio_only) {
+	if (!dev->has_video) {
 		/* This device does not support the v4l2 extension */
 		return 0;
 	}
 
 	printk(KERN_INFO "%s: v4l2 driver version %s\n",
 		dev->name, EM28XX_VERSION);
+
+	mutex_lock(&dev->lock);
 
 	ret = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
 	if (ret < 0) {
@@ -2492,11 +2499,33 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	/* initialize videobuf2 stuff */
 	em28xx_vb2_setup(dev);
 
+	mutex_unlock(&dev->lock);
 	return 0;
 
 unregister_dev:
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	v4l2_device_unregister(&dev->v4l2_dev);
 err:
+	mutex_unlock(&dev->lock);
 	return ret;
 }
+
+static struct em28xx_ops v4l2_ops = {
+	.id   = EM28XX_V4L2,
+	.name = "Em28xx v4l2 Extension",
+	.init = em28xx_v4l2_init,
+	.fini = em28xx_v4l2_fini,
+};
+
+static int __init em28xx_video_register(void)
+{
+	return em28xx_register_extension(&v4l2_ops);
+}
+
+static void __exit em28xx_video_unregister(void)
+{
+	em28xx_unregister_extension(&v4l2_ops);
+}
+
+module_init(em28xx_video_register);
+module_exit(em28xx_video_unregister);

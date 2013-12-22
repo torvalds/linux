@@ -2159,6 +2159,8 @@ struct em28xx_board em28xx_boards[] = {
 		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
 };
+EXPORT_SYMBOL_GPL(em28xx_boards);
+
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
 /* table of devices that work with this driver */
@@ -2780,11 +2782,12 @@ static void request_module_async(struct work_struct *work)
 	em28xx_init_extension(dev);
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
+	if (dev->has_video)
+		request_module("em28xx-v4l");
 	if (dev->has_audio_class)
 		request_module("snd-usb-audio");
 	else if (dev->has_alsa_audio)
 		request_module("em28xx-alsa");
-
 	if (dev->board.has_dvb)
 		request_module("em28xx-dvb");
 	if (dev->board.buttons ||
@@ -2813,17 +2816,11 @@ void em28xx_release_resources(struct em28xx *dev)
 {
 	/*FIXME: I2C IR should be disconnected */
 
-	em28xx_release_analog_resources(dev);
-
 	if (dev->def_i2c_bus)
 		em28xx_i2c_unregister(dev, 1);
 	em28xx_i2c_unregister(dev, 0);
 	if (dev->clk)
 		v4l2_clk_unregister_fixed(dev->clk);
-
-	v4l2_ctrl_handler_free(&dev->ctrl_handler);
-
-	v4l2_device_unregister(&dev->v4l2_dev);
 
 	usb_put_dev(dev->udev);
 
@@ -2999,18 +2996,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
 
-	retval = em28xx_register_analog_devices(dev);
-	if (retval < 0)
-		goto fail;
-
 	return 0;
-
-fail:
-	if (dev->def_i2c_bus)
-		em28xx_i2c_unregister(dev, 1);
-	em28xx_i2c_unregister(dev, 0);
-
-	return retval;
 }
 
 /* high bandwidth multiplier, as encoded in highspeed endpoint descriptors */
@@ -3213,6 +3199,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev->alt   = -1;
 	dev->is_audio_only = has_audio && !(has_video || has_dvb);
 	dev->has_alsa_audio = has_audio;
+	dev->has_video = has_video;
 	dev->audio_ifnum = ifnum;
 
 	/* Checks if audio is provided by some interface */
@@ -3252,10 +3239,9 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* allocate device struct */
 	mutex_init(&dev->lock);
-	mutex_lock(&dev->lock);
 	retval = em28xx_init_dev(dev, udev, interface, nr);
 	if (retval) {
-		goto unlock_and_free;
+		goto err_free;
 	}
 
 	if (usb_xfer_mode < 0) {
@@ -3298,7 +3284,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		if (retval) {
 			printk(DRIVER_NAME
 			       ": Failed to pre-allocate USB transfer buffers for DVB.\n");
-			goto unlock_and_free;
+			goto err_free;
 		}
 	}
 
@@ -3307,12 +3293,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* Should be the last thing to do, to avoid newer udev's to
 	   open the device before fully initializing it
 	 */
-	mutex_unlock(&dev->lock);
 
 	return 0;
-
-unlock_and_free:
-	mutex_unlock(&dev->lock);
 
 err_free:
 	kfree(dev->alt_max_pkt_size_isoc);
