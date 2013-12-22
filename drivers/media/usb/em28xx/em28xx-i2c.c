@@ -736,10 +736,16 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned bus,
 		em28xx_info("\tAC97 audio (5 sample rates)\n");
 		break;
 	case 2:
-		em28xx_info("\tI2S audio, sample rate=32k\n");
+		if (dev->chip_id < CHIP_ID_EM2860)
+			em28xx_info("\tI2S audio, sample rate=32k\n");
+		else
+			em28xx_info("\tI2S audio, 3 sample rates\n");
 		break;
 	case 3:
-		em28xx_info("\tI2S audio, 3 sample rates\n");
+		if (dev->chip_id < CHIP_ID_EM2860)
+			em28xx_info("\tI2S audio, 3 sample rates\n");
+		else
+			em28xx_info("\tI2S audio, 5 sample rates\n");
 		break;
 	}
 

@@ -517,17 +517,19 @@ int em28xx_audio_setup(struct em28xx *dev)
 		dev->has_alsa_audio = false;
 		dev->audio_mode.has_audio = false;
 		return 0;
-	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		   EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
-		em28xx_info("I2S Audio (3 sample rates)\n");
-		dev->audio_mode.i2s_3rates = 1;
-	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		   EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
-		em28xx_info("I2S Audio (5 sample rates)\n");
-		dev->audio_mode.i2s_5rates = 1;
-	}
-
-	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+		if (dev->chip_id < CHIP_ID_EM2860 &&
+	            (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		    EM2820_CHIPCFG_I2S_1_SAMPRATE)
+			dev->audio_mode.i2s_samplerates = 1;
+		else if (dev->chip_id >= CHIP_ID_EM2860 &&
+			 (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+			 EM2860_CHIPCFG_I2S_5_SAMPRATES)
+			dev->audio_mode.i2s_samplerates = 5;
+		else
+			dev->audio_mode.i2s_samplerates = 3;
+		em28xx_info("I2S Audio (%d sample rate(s))\n",
+					       dev->audio_mode.i2s_samplerates);
 		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
