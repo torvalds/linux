@@ -247,16 +247,6 @@ void rtw_sleep_schedulable(int ms)
 
 #define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
 
-inline void ATOMIC_INC(atomic_t *v)
-{
-	atomic_inc(v);
-}
-
-inline int ATOMIC_INC_RETURN(atomic_t *v)
-{
-	return atomic_inc_return(v);
-}
-
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
 						    void *old_priv)
 {
