@@ -74,22 +74,6 @@ s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2, u
 	return _rtw_memcmp(pBuf1, pBuf2, length);
 }
 
-/*  ODM MISC relative API. */
-void ODM_AcquireSpinLock(struct odm_dm_struct *pDM_Odm, enum RT_SPINLOCK_TYPE type)
-{
-}
-
-void ODM_ReleaseSpinLock(struct odm_dm_struct *pDM_Odm, enum RT_SPINLOCK_TYPE type)
-{
-}
-
-/*  Work item relative API. FOr MP driver only~! */
-void ODM_InitializeWorkItem(struct odm_dm_struct *pDM_Odm, void *pRtWorkItem,
-			    RT_WORKITEM_CALL_BACK RtWorkItemCallback,
-			    void *pContext, const char *szID)
-{
-}
-
 void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer, u32 msDelay)
 {
 	_set_timer(pTimer, msDelay); /* ms */
@@ -106,10 +90,6 @@ void ODM_InitializeTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTime
 void ODM_CancelTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer)
 {
 	_cancel_timer_ex(pTimer);
-}
-
-void ODM_ReleaseTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer)
-{
 }
 
 /*  ODM FW relative API. */
