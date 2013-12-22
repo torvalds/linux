@@ -152,6 +152,7 @@ struct tun_flow_entry {
 	struct tun_struct *tun;
 
 	u32 rxhash;
+	u32 rps_rxhash;
 	int queue_index;
 	unsigned long updated;
 };
@@ -220,6 +221,7 @@ static struct tun_flow_entry *tun_flow_create(struct tun_struct *tun,
 			  rxhash, queue_index);
 		e->updated = jiffies;
 		e->rxhash = rxhash;
+		e->rps_rxhash = 0;
 		e->queue_index = queue_index;
 		e->tun = tun;
 		hlist_add_head_rcu(&e->hash_link, head);
@@ -232,6 +234,7 @@ static void tun_flow_delete(struct tun_struct *tun, struct tun_flow_entry *e)
 {
 	tun_debug(KERN_INFO, tun, "delete flow: hash %u index %u\n",
 		  e->rxhash, e->queue_index);
+	sock_rps_reset_flow_hash(e->rps_rxhash);
 	hlist_del_rcu(&e->hash_link);
 	kfree_rcu(e, rcu);
 	--tun->flow_count;
@@ -325,6 +328,7 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 		/* TODO: keep queueing to old queue until it's empty? */
 		e->queue_index = queue_index;
 		e->updated = jiffies;
+		sock_rps_record_flow_hash(e->rps_rxhash);
 	} else {
 		spin_lock_bh(&tun->lock);
 		if (!tun_flow_find(head, rxhash) &&
@@ -339,6 +343,18 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 
 unlock:
 	rcu_read_unlock();
+}
+
+/**
+ * Save the hash received in the stack receive path and update the
+ * flow_hash table accordingly.
+ */
+static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
+{
+	if (unlikely(e->rps_rxhash != hash)) {
+		sock_rps_reset_flow_hash(e->rps_rxhash);
+		e->rps_rxhash = hash;
+	}
 }
 
 /* We try to identify a flow through its rxhash first. The reason that
@@ -361,9 +377,10 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb)
 	txq = skb_get_hash(skb);
 	if (txq) {
 		e = tun_flow_find(&tun->flows[tun_hashfn(txq)], txq);
-		if (e)
+		if (e) {
 			txq = e->queue_index;
-		else
+			tun_flow_save_rps_rxhash(e, txq);
+		} else
 			/* use multiply and shift instead of expensive divide */
 			txq = ((u64)txq * numqueues) >> 32;
 	} else if (likely(skb_rx_queue_recorded(skb))) {
@@ -727,6 +744,22 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Drop packet if interface is not attached */
 	if (txq >= tun->numqueues)
 		goto drop;
+
+	if (tun->numqueues == 1) {
+		/* Select queue was not called for the skbuff, so we extract the
+		 * RPS hash and save it into the flow_table here.
+		 */
+		__u32 rxhash;
+
+		rxhash = skb_get_hash(skb);
+		if (rxhash) {
+			struct tun_flow_entry *e;
+			e = tun_flow_find(&tun->flows[tun_hashfn(rxhash)],
+					rxhash);
+			if (e)
+				tun_flow_save_rps_rxhash(e, rxhash);
+		}
+	}
 
 	tun_debug(KERN_INFO, tun, "tun_net_xmit %d\n", skb->len);
 
