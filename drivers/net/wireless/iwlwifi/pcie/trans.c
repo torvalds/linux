@@ -75,33 +75,6 @@
 #include "iwl-agn-hw.h"
 #include "internal.h"
 
-static void __iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans,
-						  u32 reg, u32 mask, u32 value)
-{
-	u32 v;
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	WARN_ON_ONCE(value & ~mask);
-#endif
-
-	v = iwl_read32(trans, reg);
-	v &= ~mask;
-	v |= value;
-	iwl_write32(trans, reg, v);
-}
-
-static inline void __iwl_trans_pcie_clear_bit(struct iwl_trans *trans,
-					      u32 reg, u32 mask)
-{
-	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, 0);
-}
-
-static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
-					    u32 reg, u32 mask)
-{
-	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, mask);
-}
-
 static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 {
 	if (vaux && pci_pme_capable(to_pci_dev(trans->dev), PCI_D3cold))
@@ -929,6 +902,9 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
 
 	spin_lock_irqsave(&trans_pcie->reg_lock, *flags);
 
+	if (trans_pcie->cmd_in_flight)
+		goto out;
+
 	/* this bit wakes up the NIC */
 	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 				 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
@@ -968,6 +944,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
 		}
 	}
 
+out:
 	/*
 	 * Fool sparse by faking we release the lock - sparse will
 	 * track nic_access anyway.
@@ -989,6 +966,9 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 	 */
 	__acquire(&trans_pcie->reg_lock);
 
+	if (trans_pcie->cmd_in_flight)
+		goto out;
+
 	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
 				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	/*
@@ -998,6 +978,7 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 	 * scheduled on different CPUs (after we drop reg_lock).
 	 */
 	mmiowb();
+out:
 	spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
 }
 

@@ -262,6 +262,7 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @rx_page_order: page order for receive buffer size
  * @wd_timeout: queue watchdog timeout (jiffies)
  * @reg_lock: protect hw register access
+ * @cmd_in_flight: true when we have a host command in flight
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq rxq;
@@ -310,6 +311,7 @@ struct iwl_trans_pcie {
 
 	/*protect hw register */
 	spinlock_t reg_lock;
+	bool cmd_in_flight;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
@@ -457,6 +459,33 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 {
 	return !(iwl_read32(trans, CSR_GP_CNTRL) &
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
+}
+
+static inline void __iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans,
+						  u32 reg, u32 mask, u32 value)
+{
+	u32 v;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	WARN_ON_ONCE(value & ~mask);
+#endif
+
+	v = iwl_read32(trans, reg);
+	v &= ~mask;
+	v |= value;
+	iwl_write32(trans, reg, v);
+}
+
+static inline void __iwl_trans_pcie_clear_bit(struct iwl_trans *trans,
+					      u32 reg, u32 mask)
+{
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, 0);
+}
+
+static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
+					    u32 reg, u32 mask)
+{
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, mask);
 }
 
 #endif /* __iwl_trans_int_pcie_h__ */

@@ -1001,6 +1001,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
+	unsigned long flags;
 	int nfreed = 0;
 
 	lockdep_assert_held(&txq->lock);
@@ -1021,6 +1022,16 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 				idx, q->write_ptr, q->read_ptr);
 			iwl_trans_fw_error(trans);
 		}
+	}
+
+	if (q->read_ptr == q->write_ptr) {
+		spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+		WARN_ON(!trans_pcie->cmd_in_flight);
+		trans_pcie->cmd_in_flight = false;
+		__iwl_trans_pcie_clear_bit(trans,
+					   CSR_GP_CNTRL,
+					   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 	}
 
 	iwl_pcie_txq_progress(trans_pcie, txq);
@@ -1174,12 +1185,13 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	struct iwl_queue *q = &txq->q;
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
+	unsigned long flags;
 	void *dup_buf = NULL;
 	dma_addr_t phys_addr;
 	int idx;
 	u16 copy_size, cmd_size, scratch_size;
 	bool had_nocopy = false;
-	int i;
+	int i, ret;
 	u32 cmd_pos;
 	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
@@ -1377,9 +1389,37 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	if (q->read_ptr == q->write_ptr && trans_pcie->wd_timeout)
 		mod_timer(&txq->stuck_timer, jiffies + trans_pcie->wd_timeout);
 
+	spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+
+	/*
+	 * wake up the NIC to make sure that the firmware will see the host
+	 * command - we will let the NIC sleep once all the host commands
+	 * returned.
+	 */
+	if (!trans_pcie->cmd_in_flight) {
+		trans_pcie->cmd_in_flight = true;
+		__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
+					 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
+				   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
+				    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP),
+				   15000);
+		if (ret < 0) {
+			__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+			trans_pcie->cmd_in_flight = false;
+			idx = -EIO;
+			goto out;
+		}
+	}
+
 	/* Increment and update queue's write index */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_pcie_txq_inc_wr_ptr(trans, txq);
+
+	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 
  out:
 	spin_unlock_bh(&txq->lock);
@@ -1462,7 +1502,6 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 }
 
 #define HOST_COMPLETE_TIMEOUT	(2 * HZ)
-#define COMMAND_POKE_TIMEOUT	(HZ / 10)
 
 static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 				    struct iwl_host_cmd *cmd)
@@ -1490,7 +1529,6 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int cmd_idx;
 	int ret;
-	int timeout = HOST_COMPLETE_TIMEOUT;
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 		       get_cmd_string(trans_pcie, cmd->id));
@@ -1514,29 +1552,10 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		return ret;
 	}
 
-	while (timeout > 0) {
-		unsigned long flags;
-
-		timeout -= COMMAND_POKE_TIMEOUT;
-		ret = wait_event_timeout(trans_pcie->wait_command_queue,
-					 !test_bit(STATUS_SYNC_HCMD_ACTIVE,
-						   &trans->status),
-					 COMMAND_POKE_TIMEOUT);
-		if (ret)
-			break;
-		/* poke the device - it may have lost the command */
-		if (iwl_trans_grab_nic_access(trans, true, &flags)) {
-			iwl_trans_release_nic_access(trans, &flags);
-			IWL_DEBUG_INFO(trans,
-				       "Tried to wake NIC for command %s\n",
-				       get_cmd_string(trans_pcie, cmd->id));
-		} else {
-			IWL_ERR(trans, "Failed to poke NIC for command %s\n",
-				get_cmd_string(trans_pcie, cmd->id));
-			break;
-		}
-	}
-
+	ret = wait_event_timeout(trans_pcie->wait_command_queue,
+				 !test_bit(STATUS_SYNC_HCMD_ACTIVE,
+					   &trans->status),
+				 HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
 		struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
 		struct iwl_queue *q = &txq->q;
