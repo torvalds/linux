@@ -104,11 +104,28 @@
 			};
 		};
 
+		thermal@10078 {
+			compatible = "marvell,kirkwood-thermal";
+			reg = <0x10078 0x4>;
+			status = "okay";
+		};
+
 		rtc@10300 {
 			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
 			reg = <0x10300 0x20>;
 			interrupts = <53>;
 			clocks = <&gate_clk 7>;
+		};
+
+		i2c@11100 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0x11100 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <32>;
+			clock-frequency = <100000>;
+			clocks = <&gate_clk 7>;
+			status = "disabled";
 		};
 
 		sata@80000 {
@@ -135,23 +152,5 @@
 			cap-mmc-highspeed;
 			status = "disabled";
 		};
-
-		thermal@10078 {
-			compatible = "marvell,kirkwood-thermal";
-			reg = <0x10078 0x4>;
-			status = "okay";
-		};
-
-		i2c@11100 {
-			compatible = "marvell,mv64xxx-i2c";
-			reg = <0x11100 0x20>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			interrupts = <32>;
-			clock-frequency = <100000>;
-			clocks = <&gate_clk 7>;
-			status = "disabled";
-		};
-
 	};
 };
