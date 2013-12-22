@@ -1348,17 +1348,6 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 	ODM_CmnInfoUpdate(&pHalData->odmpriv , ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 }
 
-void ODM_InitAllTimers(struct odm_dm_struct *pDM_Odm)
-{
-	ODM_InitializeTimer(pDM_Odm, &pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer,
-			    (void *)odm_SwAntDivChkAntSwitchCallback, NULL, "SwAntennaSwitchTimer");
-}
-
-void ODM_CancelAllTimers(struct odm_dm_struct *pDM_Odm)
-{
-	ODM_CancelTimer(pDM_Odm, &pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer);
-}
-
 /* 3============================================================ */
 /* 3 Tx Power Tracking */
 /* 3============================================================ */
@@ -1434,27 +1423,6 @@ void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm)
 	}
 
 	ODM_AntennaDiversityInit_88E(pDM_Odm);
-}
-
-void ODM_AntselStatistics_88C(struct odm_dm_struct *pDM_Odm, u8 MacId, u32 PWDBAll, bool isCCKrate)
-{
-	struct sw_ant_switch *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
-
-	if (pDM_SWAT_Table->antsel == 1) {
-		if (isCCKrate) {
-			pDM_SWAT_Table->CCK_Ant1_Cnt[MacId]++;
-		} else {
-			pDM_SWAT_Table->OFDM_Ant1_Cnt[MacId]++;
-			pDM_SWAT_Table->RSSI_Ant1_Sum[MacId] += PWDBAll;
-		}
-	} else {
-		if (isCCKrate) {
-			pDM_SWAT_Table->CCK_Ant2_Cnt[MacId]++;
-		} else {
-			pDM_SWAT_Table->OFDM_Ant2_Cnt[MacId]++;
-			pDM_SWAT_Table->RSSI_Ant2_Sum[MacId] += PWDBAll;
-		}
-	}
 }
 
 void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
@@ -1569,30 +1537,6 @@ dm_CheckEdcaTurbo_EXIT:
 	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
 }
 
-/*  need to ODM CE Platform */
-/* move to here for ANT detection mechanism using */
-
-u32 GetPSDData(struct odm_dm_struct *pDM_Odm, unsigned int point, u8 initial_gain_psd)
-{
-	struct adapter *adapter = pDM_Odm->Adapter;
-	u32 psd_report;
-
-	/* Set DCO frequency index, offset=(40MHz/SamplePts)*point */
-	PHY_SetBBReg(adapter, 0x808, 0x3FF, point);
-
-	/* Start PSD calculation, Reg808[22]=0->1 */
-	PHY_SetBBReg(adapter, 0x808, BIT22, 1);
-	/* Need to wait for HW PSD report */
-	udelay(30);
-	PHY_SetBBReg(adapter, 0x808, BIT22, 0);
-	/* Read PSD report, Reg8B4[15:0] */
-	psd_report = PHY_QueryBBReg(adapter, 0x8B4, bMaskDWord) & 0x0000FFFF;
-
-	psd_report = (u32) (ConvertTo_dB(psd_report))+(u32)(initial_gain_psd-0x1c);
-
-	return psd_report;
-}
-
 u32 ConvertTo_dB(u32 Value)
 {
 	u8 i;
@@ -1616,15 +1560,4 @@ u32 ConvertTo_dB(u32 Value)
 	dB = i*12 + j + 1;
 
 	return dB;
-}
-
-/*  Description: */
-/* 	Set Single/Dual Antenna default setting for products that do not do detection in advance. */
-/*  Added by Joseph, 2012.03.22 */
-void ODM_SingleDualAntennaDefaultSetting(struct odm_dm_struct *pDM_Odm)
-{
-	struct sw_ant_switch *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
-
-	pDM_SWAT_Table->ANTA_ON = true;
-	pDM_SWAT_Table->ANTB_ON = true;
 }
