@@ -99,7 +99,7 @@ struct reportpwrstate_parm {
 
 static inline void _init_pwrlock(struct semaphore  *plock)
 {
-	_rtw_init_sema(plock, 1);
+	sema_init(plock, 1);
 }
 
 static inline void _free_pwrlock(struct semaphore  *plock)

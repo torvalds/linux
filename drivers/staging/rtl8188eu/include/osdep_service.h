@@ -256,7 +256,6 @@ void rtw_list_insert_head(struct list_head *plist, struct list_head *phead);
 void rtw_list_insert_tail(struct list_head *plist, struct list_head *phead);
 void rtw_list_delete(struct list_head *plist);
 
-void _rtw_init_sema(struct semaphore *sema, int init_val);
 void _rtw_free_sema(struct semaphore *sema);
 void _rtw_up_sema(struct semaphore *sema);
 u32  _rtw_down_sema(struct semaphore *sema);

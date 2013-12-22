@@ -240,7 +240,7 @@ _func_enter_;
 	}
 
 	/* 3 misc */
-	_rtw_init_sema(&(pdvobjpriv->usb_suspend_sema), 0);
+	sema_init(&(pdvobjpriv->usb_suspend_sema), 0);
 	rtw_reset_continual_urb_error(pdvobjpriv);
 
 	usb_get_dev(pusbd);

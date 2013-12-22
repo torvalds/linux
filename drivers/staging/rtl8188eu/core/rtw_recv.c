@@ -102,7 +102,7 @@ _func_enter_;
 	}
 	precvpriv->rx_pending_cnt = 1;
 
-	_rtw_init_sema(&precvpriv->allrxreturnevt, 0);
+	sema_init(&precvpriv->allrxreturnevt, 0);
 
 	res = rtw_hal_init_recv_priv(padapter);
 
