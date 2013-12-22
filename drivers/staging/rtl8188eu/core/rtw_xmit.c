@@ -219,7 +219,7 @@ _func_enter_;
 	pxmitpriv->voq_cnt = 0;
 
 	pxmitpriv->ack_tx = false;
-	_rtw_mutex_init(&pxmitpriv->ack_tx_mutex);
+	mutex_init(&pxmitpriv->ack_tx_mutex);
 	rtw_sctx_init(&pxmitpriv->ack_tx_ops, 0);
 
 	rtw_hal_init_xmit_priv(padapter);
@@ -229,12 +229,6 @@ exit:
 _func_exit_;
 
 	return res;
-}
-
-static void  rtw_mfree_xmit_priv_lock (struct xmit_priv *pxmitpriv)
-{
-	_rtw_free_sema(&pxmitpriv->xmit_sema);
-	_rtw_free_sema(&pxmitpriv->terminate_xmitthread_sema);
 }
 
 void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv)
@@ -249,8 +243,6 @@ void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv)
  _func_enter_;
 
 	rtw_hal_free_xmit_priv(padapter);
-
-	rtw_mfree_xmit_priv_lock(pxmitpriv);
 
 	if (pxmitpriv->pxmit_frame_buf == NULL)
 		goto out;

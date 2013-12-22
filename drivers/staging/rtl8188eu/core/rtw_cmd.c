@@ -121,9 +121,6 @@ void _rtw_free_cmd_priv (struct	cmd_priv *pcmdpriv)
 _func_enter_;
 
 	if (pcmdpriv) {
-		_rtw_free_sema(&(pcmdpriv->cmd_queue_sema));
-		_rtw_free_sema(&(pcmdpriv->terminate_cmdthread_sema));
-
 		if (pcmdpriv->cmd_allocated_buf)
 			kfree(pcmdpriv->cmd_allocated_buf);
 
@@ -257,7 +254,7 @@ _func_enter_;
 	res = _rtw_enqueue_cmd(&pcmdpriv->cmd_queue, cmd_obj);
 
 	if (res == _SUCCESS)
-		_rtw_up_sema(&pcmdpriv->cmd_queue_sema);
+		up(&pcmdpriv->cmd_queue_sema);
 
 exit:
 
@@ -282,7 +279,7 @@ void rtw_cmd_clr_isr(struct	cmd_priv *pcmdpriv)
 {
 _func_enter_;
 	pcmdpriv->cmd_done_cnt++;
-	/* _rtw_up_sema(&(pcmdpriv->cmd_done_sema)); */
+	/* up(&(pcmdpriv->cmd_done_sema)); */
 _func_exit_;
 }
 
@@ -325,7 +322,7 @@ _func_enter_;
 	pcmdbuf = pcmdpriv->cmd_buf;
 
 	pcmdpriv->cmdthd_running = true;
-	_rtw_up_sema(&pcmdpriv->terminate_cmdthread_sema);
+	up(&pcmdpriv->terminate_cmdthread_sema);
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("start r871x rtw_cmd_thread !!!!\n"));
 
@@ -411,7 +408,7 @@ post_process:
 		rtw_free_cmd_obj(pcmd);
 	} while (1);
 
-	_rtw_up_sema(&pcmdpriv->terminate_cmdthread_sema);
+	up(&pcmdpriv->terminate_cmdthread_sema);
 
 _func_exit_;
 

@@ -761,7 +761,7 @@ void rtw_stop_drv_threads(struct adapter *padapter)
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_stop_drv_threads\n"));
 
 	/* Below is to termindate rtw_cmd_thread & event_thread... */
-	_rtw_up_sema(&padapter->cmdpriv.cmd_queue_sema);
+	up(&padapter->cmdpriv.cmd_queue_sema);
 	if (padapter->cmdThread)
 		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
 
@@ -989,8 +989,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	_rtw_free_sta_priv(&padapter->stapriv); /* will free bcmc_stainfo here */
 
 	_rtw_free_recv_priv(&padapter->recvpriv);
-
-	rtw_free_pwrctrl_priv(padapter);
 
 	rtw_hal_free_data(padapter);
 

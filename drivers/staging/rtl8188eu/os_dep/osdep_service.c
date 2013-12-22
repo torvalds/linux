@@ -161,26 +161,12 @@ void rtw_list_insert_tail(struct list_head *plist, struct list_head *phead)
 Caller must check if the list is empty before calling rtw_list_delete
 */
 
-void _rtw_free_sema(struct semaphore *sema)
-{
-}
-
-void _rtw_up_sema(struct semaphore *sema)
-{
-	up(sema);
-}
-
 u32 _rtw_down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
 		return _FAIL;
 	else
 		return _SUCCESS;
-}
-
-void	_rtw_mutex_init(struct mutex *pmutex)
-{
-	mutex_init(pmutex);
 }
 
 void	_rtw_mutex_free(struct mutex *pmutex)

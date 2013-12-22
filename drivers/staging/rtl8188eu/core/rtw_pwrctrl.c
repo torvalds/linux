@@ -524,13 +524,6 @@ _func_exit_;
 
 void rtw_free_pwrctrl_priv(struct adapter *adapter)
 {
-	struct pwrctrl_priv *pwrctrlpriv = &adapter->pwrctrlpriv;
-
-_func_enter_;
-
-	_free_pwrlock(&pwrctrlpriv->lock);
-
-_func_exit_;
 }
 
 u8 rtw_interface_ps_func(struct adapter *padapter, enum hal_intf_ps_func efunc_id, u8 *val)
