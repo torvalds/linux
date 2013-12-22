@@ -108,16 +108,6 @@ void ODM_InitializeWorkItem(struct odm_dm_struct *pDM_Odm, void *pRtWorkItem,
 			    RT_WORKITEM_CALL_BACK RtWorkItemCallback,
 			    void *pContext, const char *szID);
 
-void ODM_StartWorkItem(void *pRtWorkItem);
-
-void ODM_StopWorkItem(void *pRtWorkItem);
-
-void ODM_FreeWorkItem(void *pRtWorkItem);
-
-void ODM_ScheduleWorkItem(void *pRtWorkItem);
-
-void ODM_IsWorkItemScheduled(void *pRtWorkItem);
-
 /*  ODM Timer relative API. */
 void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer,
 		  u32 msDelay);
