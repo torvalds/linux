@@ -22,8 +22,6 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/fb.h>
-
 #include "nv04.h"
 
 static int
@@ -76,7 +74,7 @@ nv04_instobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
 	nv_wo32(object->engine, node->mem->offset + addr, data);
 }
 
-static struct nouveau_oclass
+struct nouveau_oclass
 nv04_instobj_oclass = {
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_instobj_ctor,
@@ -88,19 +86,34 @@ nv04_instobj_oclass = {
 	},
 };
 
-int
-nv04_instmem_alloc(struct nouveau_instmem *imem, struct nouveau_object *parent,
-		   u32 size, u32 align, struct nouveau_object **pobject)
+/******************************************************************************
+ * instmem subdev implementation
+ *****************************************************************************/
+
+static u32
+nv04_instmem_rd32(struct nouveau_object *object, u64 addr)
 {
-	struct nouveau_object *engine = nv_object(imem);
-	int ret;
+	return nv_rd32(object, 0x700000 + addr);
+}
 
-	ret = nouveau_object_ctor(parent, engine, &nv04_instobj_oclass,
-				  (void *)(unsigned long)align, size, pobject);
-	if (ret)
-		return ret;
+static void
+nv04_instmem_wr32(struct nouveau_object *object, u64 addr, u32 data)
+{
+	return nv_wr32(object, 0x700000 + addr, data);
+}
 
-	return 0;
+void
+nv04_instmem_dtor(struct nouveau_object *object)
+{
+	struct nv04_instmem_priv *priv = (void *)object;
+	nouveau_gpuobj_ref(NULL, &priv->ramfc);
+	nouveau_gpuobj_ref(NULL, &priv->ramro);
+	nouveau_ramht_ref(NULL, &priv->ramht);
+	nouveau_gpuobj_ref(NULL, &priv->vbios);
+	nouveau_mm_fini(&priv->heap);
+	if (priv->iomem)
+		iounmap(priv->iomem);
+	nouveau_instmem_destroy(&priv->base);
 }
 
 static int
@@ -118,7 +131,6 @@ nv04_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	/* PRAMIN aperture maps over the end of VRAM, reserve it */
 	priv->base.reserved = 512 * 1024;
-	priv->base.alloc    = nv04_instmem_alloc;
 
 	ret = nouveau_mm_init(&priv->heap, 0, priv->base.reserved, 1);
 	if (ret)
@@ -150,36 +162,10 @@ nv04_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-void
-nv04_instmem_dtor(struct nouveau_object *object)
-{
-	struct nv04_instmem_priv *priv = (void *)object;
-	nouveau_gpuobj_ref(NULL, &priv->ramfc);
-	nouveau_gpuobj_ref(NULL, &priv->ramro);
-	nouveau_ramht_ref(NULL, &priv->ramht);
-	nouveau_gpuobj_ref(NULL, &priv->vbios);
-	nouveau_mm_fini(&priv->heap);
-	if (priv->iomem)
-		iounmap(priv->iomem);
-	nouveau_instmem_destroy(&priv->base);
-}
-
-static u32
-nv04_instmem_rd32(struct nouveau_object *object, u64 addr)
-{
-	return nv_rd32(object, 0x700000 + addr);
-}
-
-static void
-nv04_instmem_wr32(struct nouveau_object *object, u64 addr, u32 data)
-{
-	return nv_wr32(object, 0x700000 + addr, data);
-}
-
-struct nouveau_oclass
-nv04_instmem_oclass = {
-	.handle = NV_SUBDEV(INSTMEM, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nv04_instmem_oclass = &(struct nouveau_instmem_impl) {
+	.base.handle = NV_SUBDEV(INSTMEM, 0x04),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_instmem_ctor,
 		.dtor = nv04_instmem_dtor,
 		.init = _nouveau_instmem_init,
@@ -187,4 +173,5 @@ nv04_instmem_oclass = {
 		.rd32 = nv04_instmem_rd32,
 		.wr32 = nv04_instmem_wr32,
 	},
-};
+	.instobj = &nv04_instobj_oclass,
+}.base;

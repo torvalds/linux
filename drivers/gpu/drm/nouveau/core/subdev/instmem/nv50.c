@@ -22,10 +22,10 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/instmem.h>
 #include <subdev/fb.h>
-
 #include <core/mm.h>
+
+#include "priv.h"
 
 struct nv50_instmem_priv {
 	struct nouveau_instmem base;
@@ -125,13 +125,16 @@ nv50_instobj_oclass = {
 	},
 };
 
+/******************************************************************************
+ * instmem subdev implementation
+ *****************************************************************************/
+
 static int
-nv50_instmem_alloc(struct nouveau_instmem *imem, struct nouveau_object *parent,
-		   u32 size, u32 align, struct nouveau_object **pobject)
+nv50_instmem_fini(struct nouveau_object *object, bool suspend)
 {
-	struct nouveau_object *engine = nv_object(imem);
-	return nouveau_object_ctor(parent, engine, &nv50_instobj_oclass,
-				   (void *)(unsigned long)align, size, pobject);
+	struct nv50_instmem_priv *priv = (void *)object;
+	priv->addr = ~0ULL;
+	return nouveau_instmem_fini(&priv->base, suspend);
 }
 
 static int
@@ -148,25 +151,17 @@ nv50_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	spin_lock_init(&priv->lock);
-	priv->base.alloc = nv50_instmem_alloc;
 	return 0;
 }
 
-static int
-nv50_instmem_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nv50_instmem_priv *priv = (void *)object;
-	priv->addr = ~0ULL;
-	return nouveau_instmem_fini(&priv->base, suspend);
-}
-
-struct nouveau_oclass
-nv50_instmem_oclass = {
-	.handle = NV_SUBDEV(INSTMEM, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nv50_instmem_oclass = &(struct nouveau_instmem_impl) {
+	.base.handle = NV_SUBDEV(INSTMEM, 0x50),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_instmem_ctor,
 		.dtor = _nouveau_instmem_dtor,
 		.init = _nouveau_instmem_init,
 		.fini = nv50_instmem_fini,
 	},
-};
+	.instobj = &nv50_instobj_oclass,
+}.base;
