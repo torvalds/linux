@@ -234,7 +234,7 @@ choice
 
 	config DEBUG_HIP04_UART
 		bool "Hisilicon HiP01 Debug UART"
-		depends on ARCH_HIP0x
+		depends on ARCH_HIP04
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
