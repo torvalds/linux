@@ -116,11 +116,17 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 {
 	struct device_node *np;
 	char *name;
-	int ret = 0;
+	int ret;
 
 	/* get CPU/CODEC common format via simple-audio-card,format */
 	info->daifmt = snd_soc_of_parse_daifmt(node, "simple-audio-card,") &
 		(SND_SOC_DAIFMT_FORMAT_MASK | SND_SOC_DAIFMT_INV_MASK);
+
+	/* DAPM routes */
+	ret = snd_soc_of_parse_audio_routing(&info->snd_card,
+					"simple-audio-routing");
+	if (ret)
+		return ret;
 
 	/* CPU sub-node */
 	ret = -EINVAL;
@@ -182,6 +188,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		cinfo = devm_kzalloc(dev, sizeof(*cinfo), GFP_KERNEL);
 		if (cinfo) {
 			int ret;
+			cinfo->snd_card.dev = &pdev->dev;
 			ret = asoc_simple_card_parse_of(np, cinfo, dev,
 							&of_cpu,
 							&of_codec,
@@ -193,6 +200,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			}
 		}
 	} else {
+		cinfo->snd_card.dev = &pdev->dev;
 		cinfo = pdev->dev.platform_data;
 	}
 
@@ -232,7 +240,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	cinfo->snd_card.owner		= THIS_MODULE;
 	cinfo->snd_card.dai_link	= &cinfo->snd_link;
 	cinfo->snd_card.num_links	= 1;
-	cinfo->snd_card.dev		= &pdev->dev;
 
 	return devm_snd_soc_register_card(&pdev->dev, &cinfo->snd_card);
 }
