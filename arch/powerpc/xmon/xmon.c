@@ -309,12 +309,12 @@ static void get_output_lock(void)
 
 	if (xmon_speaker == me)
 		return;
+
 	for (;;) {
-		if (xmon_speaker == 0) {
-			last_speaker = cmpxchg(&xmon_speaker, 0, me);
-			if (last_speaker == 0)
-				return;
-		}
+		last_speaker = cmpxchg(&xmon_speaker, 0, me);
+		if (last_speaker == 0)
+			return;
+
 		timeout = 10000000;
 		while (xmon_speaker == last_speaker) {
 			if (--timeout > 0)
