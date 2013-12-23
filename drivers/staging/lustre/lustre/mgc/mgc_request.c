@@ -70,7 +70,7 @@ static int mgc_name2resid(char *name, int len, struct ldlm_res_id *res_id,
 	memset(res_id, 0, sizeof(*res_id));
 	res_id->name[0] = cpu_to_le64(resname);
 	/* XXX: unfortunately, sptlprc and config llog share one lock */
-	switch(type) {
+	switch (type) {
 	case CONFIG_T_CONFIG:
 	case CONFIG_T_SPTLRPC:
 		resname = 0;
@@ -1800,7 +1800,7 @@ static int mgc_process_config(struct obd_device *obd, obd_count len, void *buf)
 	char *logname;
 	int rc = 0;
 
-	switch(lcfg->lcfg_command) {
+	switch (lcfg->lcfg_command) {
 	case LCFG_LOV_ADD_OBD: {
 		/* Overloading this cfg command: register a new target */
 		struct mgs_target_info *mti;
