@@ -475,6 +475,15 @@ spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	struct se_device *dev = cmd->se_dev;
 
 	buf[3] = 0x3c;
+	/*
+	 * Set GRD_CHK + REF_CHK for TYPE1 protection, or GRD_CHK
+	 * only for TYPE3 protection.
+	 */
+	if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
+		buf[4] = 0x5;
+	else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT)
+		buf[4] = 0x4;
+
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
 
