@@ -295,6 +295,47 @@ static void sun4i_get_apb1_factors(u32 *freq, u32 parent_rate,
 
 
 /**
+ * sun4i_get_mod0_factors() - calculates m, n factors for MOD0-style clocks
+ * MMC rate is calculated as follows
+ * rate = (parent_rate >> p) / (m + 1);
+ */
+
+static void sun4i_get_mod0_factors(u32 *freq, u32 parent_rate,
+				   u8 *n, u8 *k, u8 *m, u8 *p)
+{
+	u8 div, calcm, calcp;
+
+	/* These clocks can only divide, so we will never be able to achieve
+	 * frequencies higher than the parent frequency */
+	if (*freq > parent_rate)
+		*freq = parent_rate;
+
+	div = parent_rate / *freq;
+
+	if (div < 16)
+		calcp = 0;
+	else if (div / 2 < 16)
+		calcp = 1;
+	else if (div / 4 < 16)
+		calcp = 2;
+	else
+		calcp = 3;
+
+	calcm = DIV_ROUND_UP(div, 1 << calcp);
+
+	*freq = (parent_rate >> calcp) / calcm;
+
+	/* we were called to round the frequency, we can now return */
+	if (n == NULL)
+		return;
+
+	*m = calcm - 1;
+	*p = calcp;
+}
+
+
+
+/**
  * sunxi_factors_clk_setup() - Setup function for factor clocks
  */
 
@@ -341,6 +382,14 @@ static struct clk_factors_config sun4i_apb1_config = {
 	.pwidth = 2,
 };
 
+/* user manual says "n" but it's really "p" */
+static struct clk_factors_config sun4i_mod0_config = {
+	.mshift = 0,
+	.mwidth = 4,
+	.pshift = 16,
+	.pwidth = 2,
+};
+
 static const struct factors_data sun4i_pll1_data __initconst = {
 	.enable = 31,
 	.table = &sun4i_pll1_config,
@@ -362,6 +411,13 @@ static const struct factors_data sun4i_pll5_data __initconst = {
 static const struct factors_data sun4i_apb1_data __initconst = {
 	.table = &sun4i_apb1_config,
 	.getter = sun4i_get_apb1_factors,
+};
+
+static const struct factors_data sun4i_mod0_data __initconst = {
+	.enable = 31,
+	.mux = 24,
+	.table = &sun4i_mod0_config,
+	.getter = sun4i_get_mod0_factors,
 };
 
 static struct clk * __init sunxi_factors_clk_setup(struct device_node *node,
@@ -852,6 +908,7 @@ static const struct of_device_id clk_factors_match[] __initconst = {
 	{.compatible = "allwinner,sun4i-pll1-clk", .data = &sun4i_pll1_data,},
 	{.compatible = "allwinner,sun6i-a31-pll1-clk", .data = &sun6i_a31_pll1_data,},
 	{.compatible = "allwinner,sun4i-apb1-clk", .data = &sun4i_apb1_data,},
+	{.compatible = "allwinner,sun4i-mod0-clk", .data = &sun4i_mod0_data,},
 	{}
 };
 
