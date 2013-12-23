@@ -390,7 +390,7 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			rc = cx231xx_i2c_recv_bytes(i2c_adap, &msgs[i]);
 			if (i2c_debug >= 2) {
 				for (byte = 0; byte < msgs[i].len; byte++)
-					printk(" %02x", msgs[i].buf[byte]);
+					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 			}
 		} else if (i + 1 < num && (msgs[i + 1].flags & I2C_M_RD) &&
 			   msgs[i].addr == msgs[i + 1].addr
@@ -398,7 +398,8 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			/* write bytes */
 			if (i2c_debug >= 2) {
 				for (byte = 0; byte < msgs[i].len; byte++)
-					printk(" %02x", msgs[i].buf[byte]);
+					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
+				printk(KERN_CONT "\n");
 			}
 			/* read bytes */
 			dprintk2(2, "plus %s %s addr=0x%x len=%d:",
@@ -409,21 +410,21 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 							       &msgs[i + 1]);
 			if (i2c_debug >= 2) {
 				for (byte = 0; byte < msgs[i+1].len; byte++)
-					printk(" %02x", msgs[i+1].buf[byte]);
+					printk(KERN_CONT " %02x", msgs[i+1].buf[byte]);
 			}
 			i++;
 		} else {
 			/* write bytes */
 			if (i2c_debug >= 2) {
 				for (byte = 0; byte < msgs[i].len; byte++)
-					printk(" %02x", msgs[i].buf[byte]);
+					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 			}
 			rc = cx231xx_i2c_send_bytes(i2c_adap, &msgs[i]);
 		}
 		if (rc < 0)
 			goto err;
 		if (i2c_debug >= 2)
-			printk("\n");
+			printk(KERN_CONT "\n");
 	}
 	mutex_unlock(&dev->i2c_lock);
 	return num;
