@@ -441,6 +441,15 @@ static struct clk * __init sunxi_factors_clk_setup(struct device_node *node,
 	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
 		i++;
 
+	/* Nodes should be providing the name via clock-output-names
+	 * but originally our dts didn't, and so we used node->name.
+	 * The new, better nodes look like clk@deadbeef, so we pull the
+	 * name just in this case */
+	if (!strcmp("clk", clk_name)) {
+		of_property_read_string_index(node, "clock-output-names",
+					      0, &clk_name);
+	}
+
 	factors = kzalloc(sizeof(struct clk_factors), GFP_KERNEL);
 	if (!factors)
 		return NULL;
