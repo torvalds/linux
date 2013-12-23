@@ -858,6 +858,19 @@ static int spc_modesense_control(struct se_device *dev, u8 pc, u8 *p)
 	 * status (see SAM-4).
 	 */
 	p[5] = (dev->dev_attrib.emulate_tas) ? 0x40 : 0x00;
+	/*
+	 * From spc4r30, section 7.5.7 Control mode page
+	 *
+	 * Application Tag Owner (ATO) bit set to one.
+	 *
+	 * If the ATO bit is set to one the device server shall not modify the
+	 * LOGICAL BLOCK APPLICATION TAG field and, depending on the protection
+	 * type, shall not modify the contents of the LOGICAL BLOCK REFERENCE
+	 * TAG field.
+	 */
+	if (dev->dev_attrib.pi_prot_type)
+		p[5] |= 0x80;
+
 	p[8] = 0xff;
 	p[9] = 0xff;
 	p[11] = 30;
