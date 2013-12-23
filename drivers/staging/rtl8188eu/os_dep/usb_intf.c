@@ -864,7 +864,6 @@ static int __init rtw_drv_entry(void)
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_entry\n"));
 
 	DBG_88E(DRV_NAME " driver version=%s\n", DRIVERVERSION);
-	DBG_88E("build time: %s %s\n", __DATE__, __TIME__);
 
 	mutex_init(&usb_drv->hw_init_mutex);
 
