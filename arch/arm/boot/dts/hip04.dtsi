@@ -1,0 +1,126 @@
+/*
+ * Hisilicon Ltd. HiP01 SoC
+ *
+ * Copyright (C) 2013-2014 Hisilicon Ltd.
+ * Copyright (C) 2013-2014 Linaro Ltd.
+ *
+ * Author: Haojian Zhuang <haojian.zhuang@linaro.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ */
+
+#include <dt-bindings/clock/hip04-clock.h>
+
+/ {
+	/* memory bus is 64-bit */
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+				core2 {
+					cpu = <&CPU2>;
+				};
+				core3 {
+					cpu = <&CPU3>;
+				};
+			};
+		};
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0>;
+		};
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <1>;
+		};
+		CPU2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <2>;
+		};
+		CPU3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <3>;
+		};
+	};
+
+	soc {
+		/* It's a 32-bit SoC. */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "arm,amba-bus", "simple-bus";
+		device_type = "soc";
+		interrupt-parent = <&gic>;
+		ranges = <0 0 0xe0000000 0x10000000>;
+
+		gic: interrupt-controller@c01000 {
+			compatible = "hisilicon,hip04-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			interrupt-controller;
+
+			/* gic dist base, gic cpu base */
+			reg = <0xc01000 0x1000>, <0xc02000 0x1000>;
+		};
+
+		mcpm: mcpm {
+			compatible = "hisilicon,hip04-mcpm";
+			reg = <0x100 0x1000>, <0x3e00000 0x00100000>,
+			      <0x302a000 0x1000>;
+		};
+
+		clock: clock {
+			compatible = "hisilicon,hip04-clock";
+			/* FIXME: the base of clock controller */
+			reg = <0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		dual_timer0: dual_timer@3000000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x3000000 0x1000>;
+			interrupts = <0 224 4>;
+			clocks = <&clock HIP04_CLK_50M>;
+			clock-names = "apb_pclk";
+			status = "ok";
+		};
+
+		timer {
+			compatible = "arm,armv7-timer";
+			interrupts = <1 13 0xf08>,
+				     <1 14 0xf08>,
+				     <1 11 0xf08>,
+				     <1 10 0xf08>;
+		};
+
+		uart0: uart@4007000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x4007000 0x1000>;
+			interrupts = <0 381 4>;
+			clocks = <&clock HIP04_CLK_168M>;
+			clock-names = "uartclk";
+			reg-shift = <2>;
+			status = "disabled";
+		};
+	};
+};

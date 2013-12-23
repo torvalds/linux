@@ -1,0 +1,74 @@
+/*
+ *  Copyright (C) 2013-2014 Linaro Ltd.
+ *  Author: Haojian Zhuang <haojian.zhuang@linaro.org>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  publishhed by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "hip04.dtsi"
+
+/ {
+	/* memory bus is 64-bit */
+	#address-cells = <2>;
+	#size-cells = <1>;
+	model = "Hisilicon D01 Development Board";
+	compatible = "hisilicon,hip04-d01";
+
+	memory@0 {
+		device_type = "memory";
+		/*
+		 * Bootloader loads kernel image into 0x1000_0000 region,
+		 * so disables the region between [0000_0000 - 1000_0000]
+		 * temporarily.
+		 * Because the PHYS_TO_VIRT_OFFSET is calculated based on
+		 * the original region that kenrel is loaded.
+		 * This workaround will be removed only after UEFI updated.
+		 */
+		reg = <0x00000000 0x10000000 0xc0000000>;
+	};
+
+	memory@00000004c0000000 {
+		device_type = "memory";
+		reg = <0x00000004 0xc0000000 0x40000000>;
+	};
+
+	memory@0000000500000000 {
+		device_type = "memory";
+		reg = <0x00000005 0x00000000 0x80000000>;
+	};
+
+	memory@0000000580000000 {
+		device_type = "memory";
+		reg = <0x00000005 0x80000000 0x80000000>;
+	};
+
+	memory@0000000600000000 {
+		device_type = "memory";
+		reg = <0x00000006 0x00000000 0x80000000>;
+	};
+
+	memory@0000000680000000 {
+		device_type = "memory";
+		reg = <0x00000006 0x80000000 0x80000000>;
+	};
+
+	memory@0000000700000000 {
+		device_type = "memory";
+		reg = <0x00000007 0x00000000 0x80000000>;
+	};
+
+	memory@0000000780000000 {
+		device_type = "memory";
+		reg = <0x00000007 0x80000000 0x80000000>;
+	};
+
+	soc {
+		uart0: uart@4007000 {
+			status = "ok";
+		};
+	};
+};
