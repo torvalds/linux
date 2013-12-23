@@ -404,7 +404,6 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	}
 
 	xmon_fault_jmp[cpu] = recurse_jmp;
-	cpumask_set_cpu(cpu, &cpus_in_xmon);
 
 	bp = NULL;
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_64BIT)) == (MSR_IR|MSR_64BIT))
@@ -425,6 +424,8 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			       "can't continue\n");
 		release_output_lock();
 	}
+
+	cpumask_set_cpu(cpu, &cpus_in_xmon);
 
  waiting:
 	secondary = 1;
