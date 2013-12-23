@@ -31,6 +31,7 @@ struct tegra_bo {
 	struct drm_gem_object gem;
 	struct host1x_bo base;
 	unsigned long flags;
+	struct sg_table *sgt;
 	dma_addr_t paddr;
 	void *vaddr;
 };
@@ -39,8 +40,6 @@ static inline struct tegra_bo *to_tegra_bo(struct drm_gem_object *gem)
 {
 	return container_of(gem, struct tegra_bo, gem);
 }
-
-extern const struct host1x_bo_ops tegra_bo_ops;
 
 struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 				 unsigned long flags);
@@ -58,5 +57,11 @@ int tegra_bo_dumb_map_offset(struct drm_file *file, struct drm_device *drm,
 int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma);
 
 extern const struct vm_operations_struct tegra_bo_vm_ops;
+
+struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
+				       struct drm_gem_object *gem,
+				       int flags);
+struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,
+					      struct dma_buf *buf);
 
 #endif

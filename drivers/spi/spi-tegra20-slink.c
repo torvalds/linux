@@ -33,8 +33,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/reset.h>
 #include <linux/spi/spi.h>
-#include <linux/clk/tegra.h>
 
 #define SLINK_COMMAND			0x000
 #define SLINK_BIT_LENGTH(x)		(((x) & 0x1f) << 0)
@@ -167,10 +167,10 @@ struct tegra_slink_data {
 	spinlock_t				lock;
 
 	struct clk				*clk;
+	struct reset_control			*rst;
 	void __iomem				*base;
 	phys_addr_t				phys;
 	unsigned				irq;
-	int					dma_req_sel;
 	u32					spi_max_frequency;
 	u32					cur_speed;
 
@@ -629,15 +629,15 @@ static int tegra_slink_init_dma_param(struct tegra_slink_data *tspi,
 	dma_addr_t dma_phys;
 	int ret;
 	struct dma_slave_config dma_sconfig;
-	dma_cap_mask_t mask;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	dma_chan = dma_request_channel(mask, NULL, NULL);
-	if (!dma_chan) {
-		dev_err(tspi->dev,
-			"Dma channel is not available, will try later\n");
-		return -EPROBE_DEFER;
+	dma_chan = dma_request_slave_channel_reason(tspi->dev,
+						dma_to_memory ? "rx" : "tx");
+	if (IS_ERR(dma_chan)) {
+		ret = PTR_ERR(dma_chan);
+		if (ret != -EPROBE_DEFER)
+			dev_err(tspi->dev,
+				"Dma channel is not available: %d\n", ret);
+		return ret;
 	}
 
 	dma_buf = dma_alloc_coherent(tspi->dev, tspi->dma_buf_size,
@@ -648,7 +648,6 @@ static int tegra_slink_init_dma_param(struct tegra_slink_data *tspi,
 		return -ENOMEM;
 	}
 
-	dma_sconfig.slave_id = tspi->dma_req_sel;
 	if (dma_to_memory) {
 		dma_sconfig.src_addr = tspi->phys + SLINK_RX_FIFO;
 		dma_sconfig.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -884,9 +883,9 @@ static irqreturn_t handle_cpu_based_xfer(struct tegra_slink_data *tspi)
 		dev_err(tspi->dev,
 			"CpuXfer 0x%08x:0x%08x:0x%08x\n", tspi->command_reg,
 				tspi->command2_reg, tspi->dma_control_reg);
-		tegra_periph_reset_assert(tspi->clk);
+		reset_control_assert(tspi->rst);
 		udelay(2);
-		tegra_periph_reset_deassert(tspi->clk);
+		reset_control_deassert(tspi->rst);
 		complete(&tspi->xfer_completion);
 		goto exit;
 	}
@@ -957,9 +956,9 @@ static irqreturn_t handle_dma_based_xfer(struct tegra_slink_data *tspi)
 		dev_err(tspi->dev,
 			"DmaXfer 0x%08x:0x%08x:0x%08x\n", tspi->command_reg,
 				tspi->command2_reg, tspi->dma_control_reg);
-		tegra_periph_reset_assert(tspi->clk);
+		reset_control_assert(tspi->rst);
 		udelay(2);
-		tegra_periph_reset_deassert(tspi->clk);
+		reset_control_assert(tspi->rst);
 		complete(&tspi->xfer_completion);
 		spin_unlock_irqrestore(&tspi->lock, flags);
 		return IRQ_HANDLED;
@@ -1020,11 +1019,6 @@ static irqreturn_t tegra_slink_isr(int irq, void *context_data)
 static void tegra_slink_parse_dt(struct tegra_slink_data *tspi)
 {
 	struct device_node *np = tspi->dev->of_node;
-	u32 of_dma[2];
-
-	if (of_property_read_u32_array(np, "nvidia,dma-request-selector",
-				of_dma, 2) >= 0)
-		tspi->dma_req_sel = of_dma[1];
 
 	if (of_property_read_u32(np, "spi-max-frequency",
 					&tspi->spi_max_frequency))
@@ -1118,25 +1112,25 @@ static int tegra_slink_probe(struct platform_device *pdev)
 		goto exit_free_irq;
 	}
 
+	tspi->rst = devm_reset_control_get(&pdev->dev, "spi");
+	if (IS_ERR(tspi->rst)) {
+		dev_err(&pdev->dev, "can not get reset\n");
+		ret = PTR_ERR(tspi->rst);
+		goto exit_free_irq;
+	}
+
 	tspi->max_buf_size = SLINK_FIFO_DEPTH << 2;
 	tspi->dma_buf_size = DEFAULT_SPI_DMA_BUF_LEN;
 
-	if (tspi->dma_req_sel) {
-		ret = tegra_slink_init_dma_param(tspi, true);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "RxDma Init failed, err %d\n", ret);
-			goto exit_free_irq;
-		}
-
-		ret = tegra_slink_init_dma_param(tspi, false);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "TxDma Init failed, err %d\n", ret);
-			goto exit_rx_dma_free;
-		}
-		tspi->max_buf_size = tspi->dma_buf_size;
-		init_completion(&tspi->tx_dma_complete);
-		init_completion(&tspi->rx_dma_complete);
-	}
+	ret = tegra_slink_init_dma_param(tspi, true);
+	if (ret < 0)
+		goto exit_free_irq;
+	ret = tegra_slink_init_dma_param(tspi, false);
+	if (ret < 0)
+		goto exit_rx_dma_free;
+	tspi->max_buf_size = tspi->dma_buf_size;
+	init_completion(&tspi->tx_dma_complete);
+	init_completion(&tspi->rx_dma_complete);
 
 	init_completion(&tspi->xfer_completion);
 

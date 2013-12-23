@@ -1,0 +1,7 @@
+Panasonic Corporation 10.1" WUXGA TFT LCD panel
+
+Required properties:
+- compatible: should be "panasonic,vvx10f004b00"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.
