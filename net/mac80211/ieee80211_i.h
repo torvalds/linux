@@ -232,6 +232,7 @@ struct ieee80211_rx_data {
 struct beacon_data {
 	u8 *head, *tail;
 	int head_len, tail_len;
+	struct ieee80211_meshconf_ie *meshconf;
 	struct rcu_head rcu_head;
 };
 
@@ -540,7 +541,10 @@ struct ieee80211_mesh_sync_ops {
 			     struct ieee80211_mgmt *mgmt,
 			     struct ieee802_11_elems *elems,
 			     struct ieee80211_rx_status *rx_status);
-	void (*adjust_tbtt)(struct ieee80211_sub_if_data *sdata);
+
+	/* should be called with beacon_data under RCU read lock */
+	void (*adjust_tbtt)(struct ieee80211_sub_if_data *sdata,
+			    struct beacon_data *beacon);
 	/* add other framework functions here */
 };
 
@@ -614,6 +618,9 @@ struct ieee80211_if_mesh {
 	bool chsw_init;
 	u8 chsw_ttl;
 	u16 pre_value;
+
+	/* offset from skb->data while building IE */
+	int meshconf_offset;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -775,10 +782,6 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_mesh mesh;
 		u32 mntr_flags;
 	} u;
-
-	spinlock_t cleanup_stations_lock;
-	struct list_head cleanup_stations;
-	struct work_struct cleanup_stations_wk;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
@@ -1117,6 +1120,7 @@ struct ieee80211_local {
 
 	struct work_struct sched_scan_stopped_work;
 	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
+	struct cfg80211_sched_scan_request *sched_scan_req;
 
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;
@@ -1425,6 +1429,9 @@ void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss);
 
 /* scheduled scan handling */
+int
+__ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
+				     struct cfg80211_sched_scan_request *req);
 int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 				       struct cfg80211_sched_scan_request *req);
 int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata);
@@ -1443,6 +1450,8 @@ void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc);
 
 /* channel switch handling */
 void ieee80211_csa_finalize_work(struct work_struct *work);
+int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+			     struct cfg80211_csa_settings *params);
 
 /* interface handling */
 int ieee80211_iface_init(void);
@@ -1465,8 +1474,6 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
-int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
-			    struct cfg80211_beacon_data *params);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {

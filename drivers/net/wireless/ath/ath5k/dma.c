@@ -616,7 +616,16 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		 * SISRs will also clear PISR so no need to worry here.
 		 */
 
-		pisr_clear = pisr & ~AR5K_ISR_BITS_FROM_SISRS;
+		/* XXX: There seems to be  an issue on some cards
+		 *	with tx interrupt flags not being updated
+		 *	on PISR despite that all Tx interrupt bits
+		 * 	are cleared on SISRs. Since we handle all
+		 *	Tx queues all together it shouldn't be an
+		 *	issue if we clear Tx interrupt flags also
+		 * 	on PISR to avoid that.
+		 */
+		pisr_clear = (pisr & ~AR5K_ISR_BITS_FROM_SISRS) |
+					(pisr & AR5K_INT_TX_ALL);
 
 		/*
 		 * Write to clear them...

@@ -32,6 +32,7 @@
 #include <net/lib80211.h>
 #include <linux/firmware.h>
 #include <linux/ctype.h>
+#include <linux/of.h>
 
 #include "decl.h"
 #include "ioctl.h"
@@ -739,6 +740,7 @@ struct mwifiex_adapter {
 	u8 scan_delay_cnt;
 	u8 empty_tx_q_cnt;
 	const struct firmware *cal_data;
+	struct device_node *dt_node;
 
 	/* 11AC */
 	u32 is_hw_11ac_capable;
@@ -1151,6 +1153,8 @@ void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
 void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 			      struct mwifiex_bssdescriptor *bss_desc);
 int mwifiex_11h_handle_event_chanswann(struct mwifiex_private *priv);
+int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
+			    struct device_node *node, const char *prefix);
 
 extern const struct ethtool_ops mwifiex_ethtool_ops;
 

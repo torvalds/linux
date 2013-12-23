@@ -486,20 +486,16 @@ void iwl_mvm_dump_sram(struct iwl_mvm *mvm)
  * this case to clear the state indicating that station creation is in
  * progress.
  */
-int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
-			u8 flags, bool init)
+int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 {
 	struct iwl_host_cmd cmd = {
 		.id = LQ_CMD,
 		.len = { sizeof(struct iwl_lq_cmd), },
-		.flags = flags,
+		.flags = init ? CMD_SYNC : CMD_ASYNC,
 		.data = { lq, },
 	};
 
 	if (WARN_ON(lq->sta_id == IWL_MVM_STATION_COUNT))
-		return -EINVAL;
-
-	if (WARN_ON(init && (cmd.flags & CMD_ASYNC)))
 		return -EINVAL;
 
 	return iwl_mvm_send_cmd(mvm, &cmd);
@@ -522,6 +518,11 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int i;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	/* SMPS is irrelevant for NICs that don't have at least 2 RX antenna */
+	if (num_of_ant(iwl_fw_valid_rx_ant(mvm->fw)) == 1)
+		return;
+
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	mvmvif->smps_requests[req_type] = smps_request;
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {

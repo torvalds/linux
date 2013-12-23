@@ -750,6 +750,17 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
+bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
+{
+	if (sec_level == BT_SECURITY_LOW)
+		return true;
+
+	if (hcon->sec_level >= sec_level)
+		return true;
+
+	return false;
+}
+
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
@@ -761,10 +772,7 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags))
 		return 1;
 
-	if (sec_level == BT_SECURITY_LOW)
-		return 1;
-
-	if (hcon->sec_level >= sec_level)
+	if (smp_sufficient_security(hcon, sec_level))
 		return 1;
 
 	if (hcon->link_mode & HCI_LM_MASTER)

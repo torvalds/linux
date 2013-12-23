@@ -2549,7 +2549,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 			 */
 			skb = dev_alloc_skb(local->tx_headroom +
 					    beacon->head_len +
-					    beacon->tail_len + 256);
+					    beacon->tail_len + 256 +
+					    local->hw.extra_beacon_tailroom);
 			if (!skb)
 				goto out;
 
@@ -2581,7 +2582,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 			ieee80211_update_csa(sdata, presp);
 
 
-		skb = dev_alloc_skb(local->tx_headroom + presp->head_len);
+		skb = dev_alloc_skb(local->tx_headroom + presp->head_len +
+				    local->hw.extra_beacon_tailroom);
 		if (!skb)
 			goto out;
 		skb_reserve(skb, local->tx_headroom);
@@ -2602,13 +2604,13 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 			ieee80211_update_csa(sdata, bcn);
 
 		if (ifmsh->sync_ops)
-			ifmsh->sync_ops->adjust_tbtt(
-						sdata);
+			ifmsh->sync_ops->adjust_tbtt(sdata, bcn);
 
 		skb = dev_alloc_skb(local->tx_headroom +
 				    bcn->head_len +
 				    256 + /* TIM IE */
-				    bcn->tail_len);
+				    bcn->tail_len +
+				    local->hw.extra_beacon_tailroom);
 		if (!skb)
 			goto out;
 		skb_reserve(skb, local->tx_headroom);

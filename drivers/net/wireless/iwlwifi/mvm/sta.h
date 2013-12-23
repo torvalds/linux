@@ -298,6 +298,12 @@ struct iwl_mvm_sta {
 	bool tt_tx_protection;
 };
 
+static inline struct iwl_mvm_sta *
+iwl_mvm_sta_from_mac80211(struct ieee80211_sta *sta)
+{
+	return (void *)sta->drv_priv;
+}
+
 /**
  * struct iwl_mvm_int_sta - representation of an internal station (auxiliary or
  * broadcast)

@@ -470,7 +470,6 @@ static int ath9k_init_queues(struct ath_softc *sc)
 
 	sc->beacon.beaconq = ath9k_hw_beaconq_setup(sc->sc_ah);
 	sc->beacon.cabq = ath_txq_setup(sc, ATH9K_TX_QUEUE_CAB, 0);
-
 	ath_cabq_update(sc);
 
 	sc->tx.uapsdq = ath_txq_setup(sc, ATH9K_TX_QUEUE_UAPSD, 0);
@@ -705,7 +704,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ah->reg_ops.read = ath9k_ioread32;
 	ah->reg_ops.write = ath9k_iowrite32;
 	ah->reg_ops.rmw = ath9k_reg_rmw;
-	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
 	pCap = &ah->caps;
 
@@ -899,7 +897,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
-void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
+static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);

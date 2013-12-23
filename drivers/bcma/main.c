@@ -176,6 +176,7 @@ static int bcma_register_cores(struct bcma_bus *bus)
 			bcma_err(bus,
 				 "Could not register dev for core 0x%03X\n",
 				 core->id.id);
+			put_device(&core->dev);
 			continue;
 		}
 		core->dev_registered = true;

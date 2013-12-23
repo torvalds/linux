@@ -31,7 +31,7 @@
 
 #include "common.h"
 
-void
+static void
 il_clear_traffic_stats(struct il_priv *il)
 {
 	memset(&il->tx_stats, 0, sizeof(struct traffic_stats));

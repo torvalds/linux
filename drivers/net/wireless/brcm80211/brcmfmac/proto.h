@@ -17,14 +17,14 @@
 #define BRCMFMAC_PROTO_H
 
 struct brcmf_proto {
-	void (*hdrpush)(struct brcmf_pub *drvr, int ifidx, u8 offset,
-			struct sk_buff *skb);
 	int (*hdrpull)(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 		       struct sk_buff *skb);
 	int (*query_dcmd)(struct brcmf_pub *drvr, int ifidx, uint cmd,
 			  void *buf, uint len);
 	int (*set_dcmd)(struct brcmf_pub *drvr, int ifidx, uint cmd, void *buf,
 			uint len);
+	int (*txdata)(struct brcmf_pub *drvr, int ifidx, u8 offset,
+		      struct sk_buff *skb);
 	void *pd;
 };
 
@@ -32,11 +32,6 @@ struct brcmf_proto {
 int brcmf_proto_attach(struct brcmf_pub *drvr);
 void brcmf_proto_detach(struct brcmf_pub *drvr);
 
-static inline void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
-				       u8 offset, struct sk_buff *skb)
-{
-	drvr->proto->hdrpush(drvr, ifidx, offset, skb);
-}
 static inline int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 				      u8 *ifidx, struct sk_buff *skb)
 {
@@ -51,6 +46,11 @@ static inline int brcmf_proto_set_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len)
 {
 	return drvr->proto->set_dcmd(drvr, ifidx, cmd, buf, len);
+}
+static inline int brcmf_proto_txdata(struct brcmf_pub *drvr, int ifidx,
+				       u8 offset, struct sk_buff *skb)
+{
+	return drvr->proto->txdata(drvr, ifidx, offset, skb);
 }
 
 

@@ -838,7 +838,7 @@ static void brcmf_fws_cleanup(struct brcmf_fws_info *fws, int ifidx)
 	brcmf_fws_hanger_cleanup(fws, matchfn, ifidx);
 }
 
-static int brcmf_fws_hdrpush(struct brcmf_fws_info *fws, struct sk_buff *skb)
+static u8 brcmf_fws_hdrpush(struct brcmf_fws_info *fws, struct sk_buff *skb)
 {
 	struct brcmf_fws_mac_descriptor *entry = brcmf_skbcb(skb)->mac;
 	u8 *wlh;
@@ -887,9 +887,7 @@ static int brcmf_fws_hdrpush(struct brcmf_fws_info *fws, struct sk_buff *skb)
 	if (fillers)
 		memset(wlh, BRCMF_FWS_TYPE_FILLER, fillers);
 
-	brcmf_proto_hdrpush(fws->drvr, brcmf_skb_if_flags_get_field(skb, INDEX),
-			    data_offset >> 2, skb);
-	return 0;
+	return (u8)(data_offset >> 2);
 }
 
 static bool brcmf_fws_tim_update(struct brcmf_fws_info *fws,
@@ -897,10 +895,11 @@ static bool brcmf_fws_tim_update(struct brcmf_fws_info *fws,
 				 int fifo, bool send_immediately)
 {
 	struct sk_buff *skb;
-	struct brcmf_bus *bus;
 	struct brcmf_skbuff_cb *skcb;
 	s32 err;
 	u32 len;
+	u8 data_offset;
+	int ifidx;
 
 	/* check delayedQ and suppressQ in one call using bitmap */
 	if (brcmu_pktq_mlen(&entry->psq, 3 << (fifo * 2)) == 0)
@@ -928,13 +927,11 @@ static bool brcmf_fws_tim_update(struct brcmf_fws_info *fws,
 		skcb->state = BRCMF_FWS_SKBSTATE_TIM;
 		skcb->htod = 0;
 		skcb->htod_seq = 0;
-		bus = fws->drvr->bus_if;
-		err = brcmf_fws_hdrpush(fws, skb);
-		if (err == 0) {
-			brcmf_fws_unlock(fws);
-			err = brcmf_bus_txdata(bus, skb);
-			brcmf_fws_lock(fws);
-		}
+		data_offset = brcmf_fws_hdrpush(fws, skb);
+		ifidx = brcmf_skb_if_flags_get_field(skb, INDEX);
+		brcmf_fws_unlock(fws);
+		err = brcmf_proto_txdata(fws->drvr, ifidx, data_offset, skb);
+		brcmf_fws_lock(fws);
 		if (err)
 			brcmu_pkt_buf_free_skb(skb);
 		return true;
@@ -1393,7 +1390,7 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 	entry->generation = genbit;
 
 	ret = brcmf_proto_hdrpull(fws->drvr, false, &ifidx, skb);
-	if (ret == 0)
+	if (ret == 0) {
 		brcmf_skb_htod_tag_set_field(skb, GENERATION, genbit);
 		brcmf_skbcb(skb)->htod_seq = seq;
 		if (brcmf_skb_htod_seq_get_field(skb, FROMFW)) {
@@ -1404,6 +1401,8 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 		}
 		ret = brcmf_fws_enq(fws, BRCMF_FWS_SKBSTATE_SUPPRESSED, fifo,
 				    skb);
+	}
+
 	if (ret != 0) {
 		/* suppress q is full or hdrpull failed, drop this packet */
 		brcmf_fws_hanger_poppkt(&fws->hanger, hslot, &skb,
@@ -1717,7 +1716,7 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 	return 0;
 }
 
-static void brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,
+static u8 brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,
 				   struct sk_buff *p)
 {
 	struct brcmf_skbuff_cb *skcb = brcmf_skbcb(p);
@@ -1735,7 +1734,7 @@ static void brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,
 		flags |= BRCMF_FWS_HTOD_FLAG_PKT_REQUESTED;
 	}
 	brcmf_skb_htod_tag_set_field(p, FLAGS, flags);
-	brcmf_fws_hdrpush(fws, p);
+	return brcmf_fws_hdrpush(fws, p);
 }
 
 static void brcmf_fws_rollback_toq(struct brcmf_fws_info *fws,
@@ -1803,20 +1802,21 @@ static int brcmf_fws_commit_skb(struct brcmf_fws_info *fws, int fifo,
 {
 	struct brcmf_skbuff_cb *skcb = brcmf_skbcb(skb);
 	struct brcmf_fws_mac_descriptor *entry;
-	struct brcmf_bus *bus = fws->drvr->bus_if;
 	int rc;
 	u8 ifidx;
+	u8 data_offset;
 
 	entry = skcb->mac;
 	if (IS_ERR(entry))
 		return PTR_ERR(entry);
 
-	brcmf_fws_precommit_skb(fws, fifo, skb);
+	data_offset = brcmf_fws_precommit_skb(fws, fifo, skb);
 	entry->transit_count++;
 	if (entry->suppressed)
 		entry->suppr_transit_count++;
+	ifidx = brcmf_skb_if_flags_get_field(skb, INDEX);
 	brcmf_fws_unlock(fws);
-	rc = brcmf_bus_txdata(bus, skb);
+	rc = brcmf_proto_txdata(fws->drvr, ifidx, data_offset, skb);
 	brcmf_fws_lock(fws);
 	brcmf_dbg(DATA, "%s flags %X htod %X bus_tx %d\n", entry->name,
 		  skcb->if_flags, skcb->htod, rc);
@@ -1977,10 +1977,9 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 							&skb, true);
 				ifidx = brcmf_skb_if_flags_get_field(skb,
 								     INDEX);
-				brcmf_proto_hdrpush(drvr, ifidx, 0, skb);
-				/* Use bus module to send data frame */
+				/* Use proto layer to send data frame */
 				brcmf_fws_unlock(fws);
-				ret = brcmf_bus_txdata(drvr->bus_if, skb);
+				ret = brcmf_proto_txdata(drvr, ifidx, 0, skb);
 				brcmf_fws_lock(fws);
 				if (ret < 0)
 					brcmf_txfinalize(drvr, skb, false);

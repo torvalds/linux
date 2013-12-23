@@ -102,6 +102,9 @@
 /* Device system time */
 #define DEVICE_SYSTEM_TIME_REG 0xA0206C
 
+/* Device NMI register */
+#define DEVICE_SET_NMI_REG 0x00a01c30
+
 /*****************************************************************************
  *                        7000/3000 series SHR DTS addresses                 *
  *****************************************************************************/
