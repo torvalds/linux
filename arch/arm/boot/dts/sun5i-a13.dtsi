@@ -74,6 +74,22 @@
 			clocks = <&osc24M>;
 		};
 
+		pll5: pll5@01c20020 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-pll5-clk";
+			reg = <0x01c20020 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll5_ddr", "pll5_other";
+		};
+
+		pll6: pll6@01c20028 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-pll6-clk";
+			reg = <0x01c20028 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll6_sata", "pll6_other", "pll6";
+		};
+
 		/* dummy is 200M */
 		cpu: cpu@01c20054 {
 			#clock-cells = <0>;
@@ -132,12 +148,11 @@
 			clock-output-names = "apb0_codec", "apb0_pio", "apb0_ir";
 		};
 
-		/* dummy is pll6 */
 		apb1_mux: apb1_mux@01c20058 {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun4i-apb1-mux-clk";
 			reg = <0x01c20058 0x4>;
-			clocks = <&osc24M>, <&dummy>, <&osc32k>;
+			clocks = <&osc24M>, <&pll6 1>, <&osc32k>;
 		};
 
 		apb1: apb1@01c20058 {
