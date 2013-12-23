@@ -384,7 +384,7 @@ config REGULATOR_PCF50633
 	 on PCF50633
 
 config REGULATOR_PFUZE100
-	tristate "Support regulators on Freescale PFUZE100 PMIC"
+	tristate "Freescale PFUZE100 regulator driver"
 	depends on I2C
 	select REGMAP_I2C
 	help
