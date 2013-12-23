@@ -1134,16 +1134,6 @@ static void timekeeping_adjust(struct timekeeper *tk, s64 offset)
 		 * we can adjust by 1.
 		 */
 		error >>= 2;
-		/*
-		 * XXX - In update_wall_time, we round up to the next
-		 * nanosecond, and store the amount rounded up into
-		 * the error. This causes the likely below to be unlikely.
-		 *
-		 * The proper fix is to avoid rounding up by using
-		 * the high precision tk->xtime_nsec instead of
-		 * xtime.tv_nsec everywhere. Fixing this will take some
-		 * time.
-		 */
 		if (likely(error <= interval))
 			adj = 1;
 		else
