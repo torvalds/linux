@@ -67,6 +67,13 @@
 			clocks = <&osc24M>;
 		};
 
+		pll4: pll4@01c20018 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-pll1-clk";
+			reg = <0x01c20018 0x4>;
+			clocks = <&osc24M>;
+		};
+
 		/* dummy is 200M */
 		cpu: cpu@01c20054 {
 			#clock-cells = <0>;
