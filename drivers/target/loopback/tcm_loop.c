@@ -217,7 +217,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 			scsi_bufflen(sc), tcm_loop_sam_attr(sc),
 			sc->sc_data_direction, 0,
 			scsi_sglist(sc), scsi_sg_count(sc),
-			sgl_bidi, sgl_bidi_count);
+			sgl_bidi, sgl_bidi_count, NULL, 0);
 	if (rc < 0) {
 		set_host_byte(sc, DID_NO_CONNECT);
 		goto out_done;

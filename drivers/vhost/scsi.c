@@ -889,7 +889,7 @@ static void tcm_vhost_submission_work(struct work_struct *work)
 			cmd->tvc_lun, cmd->tvc_exp_data_len,
 			cmd->tvc_task_attr, cmd->tvc_data_direction,
 			TARGET_SCF_ACK_KREF, sg_ptr, cmd->tvc_sgl_count,
-			sg_bidi_ptr, sg_no_bidi);
+			sg_bidi_ptr, sg_no_bidi, NULL, 0);
 	if (rc < 0) {
 		transport_send_check_condition_and_sense(se_cmd,
 				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
