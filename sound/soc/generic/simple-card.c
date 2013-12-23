@@ -90,14 +90,29 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	 * dai->sysclk come from
 	 *  "clocks = <&xxx>" (if system has common clock)
 	 *  or "system-clock-frequency = <xxx>"
+	 *  or device's module clock.
 	 */
-	clk = of_clk_get(np, 0);
-	if (IS_ERR(clk))
+	if (of_property_read_bool(np, "clocks")) {
+		clk = of_clk_get(np, 0);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			goto parse_error;
+		}
+
+		dai->sysclk = clk_get_rate(clk);
+	} else if (of_property_read_bool(np, "system-clock-frequency")) {
 		of_property_read_u32(np,
 				     "system-clock-frequency",
 				     &dai->sysclk);
-	else
+	} else {
+		clk = of_clk_get(*node, 0);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			goto parse_error;
+		}
+
 		dai->sysclk = clk_get_rate(clk);
+	}
 
 	ret = 0;
 
