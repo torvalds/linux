@@ -112,8 +112,6 @@ void __iomem *reg_start = 0;
 #define RKCLK_FRAC_TYPE	(1 << 3)
 #define RKCLK_GATE_TYPE	(1 << 4)
 
-#define CLK_GATE_SET_TO_DISABLE		BIT(0)
-#define CLK_GATE_HIWORD_MASK		BIT(1)
 static int rkclk_init_muxinfo(struct device_node *np,
 		struct rkclk_muxinfo *mux, void __iomem *addr)
 {
@@ -368,10 +366,8 @@ static int __init rkclk_init_gatecon(struct device_node *np)
 	const char *clk_name;
 	void __iomem *reg;
 	void __iomem *reg_idx;
-	int flags;
 	int cnt;
 	int reg_bit;
-	int clkflags = CLK_SET_RATE_PARENT;
 	int i;
 	struct rkclk_gateinfo *gateinfo;
 	u8 found = 0;
@@ -402,8 +398,6 @@ static int __init rkclk_init_gatecon(struct device_node *np)
 			return -ENOMEM;
 		}
 
-		flags = CLK_GATE_HIWORD_MASK | CLK_GATE_SET_TO_DISABLE;
-
 		for (i = 0; i < cnt; i++) {
 			of_property_read_string_index(node, "clock-output-names",
 					i, &clk_name);
@@ -413,8 +407,6 @@ static int __init rkclk_init_gatecon(struct device_node *np)
 				continue;
 
 			clk_parent = of_clk_get_parent_name(node, i);
-
-			clkflags |= CLK_IGNORE_UNUSED;
 
 			reg_idx = reg + (4 * (i / 16));
 			reg_bit = (i % 16);
@@ -442,7 +434,7 @@ static int __init rkclk_init_gatecon(struct device_node *np)
 				rkclk->clk_name = gateinfo->clk_name;
 				rkclk->gate_info = gateinfo;
 				rkclk->clk_type |= RKCLK_GATE_TYPE;
-				rkclk->np = np;
+				rkclk->np = node;
 				clk_debug("%s: creat %s\n", __func__, rkclk->clk_name);
 
 				list_add_tail(&rkclk->node, &rk_clks);
@@ -517,7 +509,7 @@ static int __init rkclk_init_pllcon(struct device_node *np)
 				rkclk->clk_name = pllinfo->clk_name;
 				rkclk->pll_info = pllinfo;
 				rkclk->clk_type |= RKCLK_PLL_TYPE;
-				rkclk->np = np;
+				rkclk->np = node;
 
 				list_add_tail(&rkclk->node, &rk_clks);
 			}
@@ -625,6 +617,7 @@ static int rkclk_register(struct rkclk *rkclk)
 		div->reg = rkclk->pll_info->addr;
 		div->shift = 0;
 		div->width = rkclk->pll_info->width;
+		div->flags = CLK_DIVIDER_HIWORD_MASK;
 		rate_hw = &div->hw;
 
 		parent_num = 1;
@@ -639,6 +632,7 @@ static int rkclk_register(struct rkclk *rkclk)
 		div->reg = rkclk->frac_info->addr;
 		div->shift = (u8)rkclk->frac_info->shift;
 		div->width = rkclk->frac_info->width;
+		div->flags = CLK_DIVIDER_HIWORD_MASK;
 		rate_hw = &div->hw;
 
 		parent_num = 1;
@@ -653,7 +647,7 @@ static int rkclk_register(struct rkclk *rkclk)
 		div->reg = rkclk->div_info->addr;
 		div->shift = (u8)rkclk->div_info->shift;
 		div->width = rkclk->div_info->width;
-		div->flags = rkclk->div_info->div_type;
+		div->flags = CLK_DIVIDER_HIWORD_MASK | rkclk->div_info->div_type;
 		rate_hw = &div->hw;
 		if (rkclk->div_info->div_table)
 			div->table = rkclk->div_info->div_table;
@@ -673,7 +667,7 @@ static int rkclk_register(struct rkclk *rkclk)
 		mux->reg = rkclk->mux_info->addr;
 		mux->shift = (u8)rkclk->mux_info->shift;
 		mux->mask = (1 << rkclk->mux_info->width) - 1;
-		mux->flags = 0;
+		mux->flags = CLK_MUX_HIWORD_MASK;
 		mux_ops = &clk_mux_ops;
 		if (rkclk->mux_info->clkops_idx != CLKOPS_TABLE_END) {
 			rate_hw = kzalloc(sizeof(struct clk_hw), GFP_KERNEL);

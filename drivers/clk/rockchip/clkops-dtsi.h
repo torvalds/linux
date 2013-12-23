@@ -22,8 +22,10 @@
 #define CLK_DIVIDER_ONE_BASED		BIT(0)
 #define CLK_DIVIDER_POWER_OF_TWO	BIT(1)
 #define CLK_DIVIDER_ALLOW_ZERO		BIT(2)
-#define CLK_DIVIDER_FIXED		BIT(3)
-#define CLK_DIVIDER_USER_DEFINE		BIT(4)
-/* CLK_DIVIDER_MAX defined the bits been used above */
-#define CLK_DIVIDER_MASK		(0x1F)
+
+/* Rockchip special defined */
+#define CLK_DIVIDER_FIXED		BIT(6)
+#define CLK_DIVIDER_USER_DEFINE		BIT(7)
+/* CLK_DIVIDER_MASK defined the bits been used above */
+#define CLK_DIVIDER_MASK		(0xFF)
 #endif /* __RK_CLKOPS_H */
