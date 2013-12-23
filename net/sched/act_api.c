@@ -126,9 +126,10 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 	for (i = 0; i < (hinfo->hmask + 1); i++) {
 		head = &hinfo->htab[tcf_hash(i, hinfo->hmask)];
 		hlist_for_each_entry_safe(p, n, head, tcfc_head) {
-			if (ACT_P_DELETED == tcf_hash_release(p, 0, hinfo))
+			if (ACT_P_DELETED == tcf_hash_release(p, 0, hinfo)) {
 				module_put(a->ops->owner);
-			n_i++;
+				n_i++;
+			}
 		}
 	}
 	if (nla_put_u32(skb, TCA_FCNT, n_i))
