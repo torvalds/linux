@@ -577,7 +577,7 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 		} else if (exts->police) {
 			struct tc_action *act = tcf_exts_first_act(exts);
 			nest = nla_nest_start(skb, exts->police);
-			if (nest == NULL)
+			if (nest == NULL || !act)
 				goto nla_put_failure;
 			if (tcf_action_dump_old(skb, act, 0, 0) < 0)
 				goto nla_put_failure;

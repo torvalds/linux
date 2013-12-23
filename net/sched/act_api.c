@@ -352,18 +352,16 @@ int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
 	}
 	list_for_each_entry(a, actions, list) {
 repeat:
-		if (a->ops) {
-			ret = a->ops->act(skb, a, res);
-			if (TC_MUNGED & skb->tc_verd) {
-				/* copied already, allow trampling */
-				skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
-				skb->tc_verd = CLR_TC_MUNGED(skb->tc_verd);
-			}
-			if (ret == TC_ACT_REPEAT)
-				goto repeat;	/* we need a ttl - JHS */
-			if (ret != TC_ACT_PIPE)
-				goto exec_done;
+		ret = a->ops->act(skb, a, res);
+		if (TC_MUNGED & skb->tc_verd) {
+			/* copied already, allow trampling */
+			skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
+			skb->tc_verd = CLR_TC_MUNGED(skb->tc_verd);
 		}
+		if (ret == TC_ACT_REPEAT)
+			goto repeat;	/* we need a ttl - JHS */
+		if (ret != TC_ACT_PIPE)
+			goto exec_done;
 	}
 exec_done:
 	return ret;
@@ -375,27 +373,16 @@ void tcf_action_destroy(struct list_head *actions, int bind)
 	struct tc_action *a, *tmp;
 
 	list_for_each_entry_safe(a, tmp, actions, list) {
-		if (a->ops) {
-			if (a->ops->cleanup(a, bind) == ACT_P_DELETED)
-				module_put(a->ops->owner);
-			list_del(&a->list);
-			kfree(a);
-		} else {
-			/*FIXME: Remove later - catch insertion bugs*/
-			WARN(1, "tcf_action_destroy: BUG? destroying NULL ops\n");
-			list_del(&a->list);
-			kfree(a);
-		}
+		if (a->ops->cleanup(a, bind) == ACT_P_DELETED)
+			module_put(a->ops->owner);
+		list_del(&a->list);
+		kfree(a);
 	}
 }
 
 int
 tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
-	int err = -EINVAL;
-
-	if (a->ops == NULL)
-		return err;
 	return a->ops->dump(skb, a, bind, ref);
 }
 
@@ -405,9 +392,6 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	int err = -EINVAL;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
-
-	if (a->ops == NULL)
-		return err;
 
 	if (nla_put_string(skb, TCA_KIND, a->ops->kind))
 		goto nla_put_failure;
@@ -684,7 +668,7 @@ tcf_action_get_1(struct nlattr *nla, struct nlmsghdr *n, u32 portid)
 	INIT_LIST_HEAD(&a->list);
 	err = -EINVAL;
 	a->ops = tc_lookup_action(tb[TCA_ACT_KIND]);
-	if (a->ops == NULL)
+	if (a->ops == NULL) /* could happen in batch of actions */
 		goto err_free;
 	err = -ENOENT;
 	if (a->ops->lookup(a, index) == 0)
@@ -760,7 +744,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	err = -EINVAL;
 	kind = tb[TCA_ACT_KIND];
 	a->ops = tc_lookup_action(kind);
-	if (a->ops == NULL)
+	if (a->ops == NULL) /*some idjot trying to flush unknown action */
 		goto err_out;
 
 	nlh = nlmsg_put(skb, portid, n->nlmsg_seq, RTM_DELACTION, sizeof(*t), 0);
