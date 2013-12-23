@@ -1638,15 +1638,15 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 
 static void mce_start_timer(unsigned int cpu, struct timer_list *t)
 {
-	unsigned long iv = mce_adjust_timer(check_interval * HZ);
-
-	__this_cpu_write(mce_next_interval, iv);
+	unsigned long iv = check_interval * HZ;
 
 	if (mca_cfg.ignore_ce || !iv)
 		return;
 
+	per_cpu(mce_next_interval, cpu) = iv;
+
 	t->expires = round_jiffies(jiffies + iv);
-	add_timer_on(t, smp_processor_id());
+	add_timer_on(t, cpu);
 }
 
 static void __mcheck_cpu_init_timer(void)
