@@ -995,12 +995,9 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 	 * --yoshfuji
 	 */
 	if ((ifp->flags & IFA_F_PERMANENT) && onlink < 1) {
-		struct in6_addr prefix;
 		struct rt6_info *rt;
 
-		ipv6_addr_prefix(&prefix, &ifp->addr, ifp->prefix_len);
-
-		rt = addrconf_get_prefix_route(&prefix,
+		rt = addrconf_get_prefix_route(&ifp->addr,
 					       ifp->prefix_len,
 					       ifp->idev->dev,
 					       0, RTF_GATEWAY | RTF_DEFAULT);
