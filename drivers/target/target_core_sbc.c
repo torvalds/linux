@@ -106,6 +106,11 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	buf[9] = (dev->dev_attrib.block_size >> 16) & 0xff;
 	buf[10] = (dev->dev_attrib.block_size >> 8) & 0xff;
 	buf[11] = dev->dev_attrib.block_size & 0xff;
+	/*
+	 * Set P_TYPE and PROT_EN bits for DIF support
+	 */
+	if (dev->dev_attrib.pi_prot_type)
+		buf[12] = (dev->dev_attrib.pi_prot_type - 1) << 1 | 0x1;
 
 	if (dev->transport->get_lbppbe)
 		buf[13] = dev->transport->get_lbppbe(dev) & 0x0f;
