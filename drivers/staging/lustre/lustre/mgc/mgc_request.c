@@ -1090,18 +1090,18 @@ int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 			return -EINVAL;
 
 		rc = mgc_fs_setup(exp->exp_obd, sb);
-		if (rc) {
+		if (rc)
 			CERROR("set_fs got %d\n", rc);
-		}
+
 		return rc;
 	}
 	if (KEY_IS(KEY_CLEAR_FS)) {
 		if (vallen != 0)
 			return -EINVAL;
 		rc = mgc_fs_cleanup(exp->exp_obd);
-		if (rc) {
+		if (rc)
 			CERROR("clear_fs got %d\n", rc);
-		}
+
 		return rc;
 	}
 	if (KEY_IS(KEY_SET_INFO)) {
