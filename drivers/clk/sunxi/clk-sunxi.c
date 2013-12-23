@@ -420,13 +420,14 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 {
 	struct clk *clk;
 	const char *clk_name = node->name;
-	const char *parents[5];
+	const char *parents[SUNXI_MAX_PARENTS];
 	void *reg;
 	int i = 0;
 
 	reg = of_iomap(node, 0);
 
-	while (i < 5 && (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
+	while (i < SUNXI_MAX_PARENTS &&
+	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
 		i++;
 
 	clk = clk_register_mux(NULL, clk_name, parents, i,
