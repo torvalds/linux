@@ -468,6 +468,20 @@ static void invalidate_nid_path(struct hda_codec *codec, int idx)
 	memset(path, 0, sizeof(*path));
 }
 
+/* return a DAC if paired to the given pin by codec driver */
+static hda_nid_t get_preferred_dac(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	const hda_nid_t *list = spec->preferred_dacs;
+
+	if (!list)
+		return 0;
+	for (; *list; list += 2)
+		if (*list == pin)
+			return list[1];
+	return 0;
+}
+
 /* look for an empty DAC slot */
 static hda_nid_t look_for_dac(struct hda_codec *codec, hda_nid_t pin,
 			      bool is_digital)
@@ -1134,7 +1148,14 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 			continue;
 		}
 
-		dacs[i] = look_for_dac(codec, pin, false);
+		dacs[i] = get_preferred_dac(codec, pin);
+		if (dacs[i]) {
+			if (is_dac_already_used(codec, dacs[i]))
+				badness += bad->shared_primary;
+		}
+
+		if (!dacs[i])
+			dacs[i] = look_for_dac(codec, pin, false);
 		if (!dacs[i] && !i) {
 			/* try to steal the DAC of surrounds for the front */
 			for (j = 1; j < num_outs; j++) {
@@ -4201,6 +4222,26 @@ static unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 	return AC_PWRST_D3;
 }
 
+/* mute all aamix inputs initially; parse up to the first leaves */
+static void mute_all_mixer_nid(struct hda_codec *codec, hda_nid_t mix)
+{
+	int i, nums;
+	const hda_nid_t *conn;
+	bool has_amp;
+
+	nums = snd_hda_get_conn_list(codec, mix, &conn);
+	has_amp = nid_has_mute(codec, mix, HDA_INPUT);
+	for (i = 0; i < nums; i++) {
+		if (has_amp)
+			snd_hda_codec_amp_stereo(codec, mix,
+						 HDA_INPUT, i,
+						 0xff, HDA_AMP_MUTE);
+		else if (nid_has_volume(codec, conn[i], HDA_OUTPUT))
+			snd_hda_codec_amp_stereo(codec, conn[i],
+						 HDA_OUTPUT, 0,
+						 0xff, HDA_AMP_MUTE);
+	}
+}
 
 /*
  * Parse the given BIOS configuration and set up the hda_gen_spec
@@ -4338,6 +4379,10 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 				return err;
 		}
 	}
+
+	/* mute all aamix input initially */
+	if (spec->mixer_nid)
+		mute_all_mixer_nid(codec, spec->mixer_nid);
 
  dig_only:
 	parse_digital(codec);

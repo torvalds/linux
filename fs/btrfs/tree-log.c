@@ -3314,7 +3314,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 		btrfs_set_token_file_extent_type(leaf, fi,
 						 BTRFS_FILE_EXTENT_REG,
 						 &token);
-		if (em->block_start == 0)
+		if (em->block_start == EXTENT_MAP_HOLE)
 			skip_csum = true;
 	}
 
