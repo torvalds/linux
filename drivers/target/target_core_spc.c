@@ -100,6 +100,11 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	 */
 	if (dev->dev_attrib.emulate_3pc)
 		buf[5] |= 0x8;
+	/*
+	 * Set Protection (PROTECT) bit when DIF has been enabled.
+	 */
+	if (dev->dev_attrib.pi_prot_type)
+		buf[5] |= 0x1;
 
 	buf[7] = 0x2; /* CmdQue=1 */
 
