@@ -958,8 +958,9 @@ static int rspi_probe(struct platform_device *pdev)
 	INIT_WORK(&rspi->ws, rspi_work);
 	init_waitqueue_head(&rspi->wait);
 
-	master->num_chipselect = rspi_pd->num_chipselect;
-	if (!master->num_chipselect)
+	if (rspi_pd && rspi_pd->num_chipselect)
+		master->num_chipselect = rspi_pd->num_chipselect;
+	else
 		master->num_chipselect = 2; /* default */
 
 	master->bus_num = pdev->id;
