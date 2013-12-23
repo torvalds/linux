@@ -239,6 +239,13 @@ static void netlink_deliver_tap(struct sk_buff *skb)
 	rcu_read_unlock();
 }
 
+static void netlink_deliver_tap_kernel(struct sock *dst, struct sock *src,
+				       struct sk_buff *skb)
+{
+	if (!(netlink_is_kernel(dst) && netlink_is_kernel(src)))
+		netlink_deliver_tap(skb);
+}
+
 static void netlink_overrun(struct sock *sk)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -1697,14 +1704,10 @@ static int netlink_unicast_kernel(struct sock *sk, struct sk_buff *skb,
 
 	ret = -ECONNREFUSED;
 	if (nlk->netlink_rcv != NULL) {
-		/* We could do a netlink_deliver_tap(skb) here as well
-		 * but since this is intended for the kernel only, we
-		 * should rather let it stay under the hood.
-		 */
-
 		ret = skb->len;
 		netlink_skb_set_owner_r(skb, sk);
 		NETLINK_CB(skb).sk = ssk;
+		netlink_deliver_tap_kernel(sk, ssk, skb);
 		nlk->netlink_rcv(skb);
 		consume_skb(skb);
 	} else {
