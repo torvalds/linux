@@ -608,7 +608,7 @@ void xenvif_rx_action(struct xenvif *vif)
 	if (!npo.copy_prod)
 		return;
 
-	BUG_ON(npo.copy_prod > ARRAY_SIZE(vif->grant_copy_op));
+	BUG_ON(npo.copy_prod > MAX_GRANT_COPY_OPS);
 	gnttab_batch_copy(vif->grant_copy_op, npo.copy_prod);
 
 	while ((skb = __skb_dequeue(&rxq)) != NULL) {
