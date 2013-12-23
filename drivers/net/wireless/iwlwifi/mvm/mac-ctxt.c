@@ -85,35 +85,15 @@ struct iwl_mvm_mac_iface_iterator_data {
 	bool found_vif;
 };
 
-static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
-				       struct ieee80211_vif *vif)
+static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
+				    struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_mac_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	u32 ac;
 
-	/* Iterator may already find the interface being added -- skip it */
-	if (vif == data->vif) {
-		data->found_vif = true;
+	/* Skip the interface for which we are trying to assign a tsf_id  */
+	if (vif == data->vif)
 		return;
-	}
-
-	/* Mark the queues used by the vif */
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
-			__set_bit(vif->hw_queue[ac], data->used_hw_queues);
-
-	if (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE)
-		__set_bit(vif->cab_queue, data->used_hw_queues);
-
-	/*
-	 * Mark MAC IDs as used by clearing the available bit, and
-	 * (below) mark TSFs as used if their existing use is not
-	 * compatible with the new interface type.
-	 * No locking or atomic bit operations are needed since the
-	 * data is on the stack of the caller function.
-	 */
-	__clear_bit(mvmvif->id, data->available_mac_ids);
 
 	/*
 	 * The TSF is a hardware/firmware resource, there are 4 and
@@ -135,21 +115,26 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 	case NL80211_IFTYPE_STATION:
 		/*
 		 * The new interface is client, so if the existing one
-		 * we're iterating is an AP, the TSF should be used to
+		 * we're iterating is an AP, and both interfaces have the
+		 * same beacon interval, the same TSF should be used to
 		 * avoid drift between the new client and existing AP,
 		 * the existing AP will get drift updates from the new
 		 * client context in this case
 		 */
 		if (vif->type == NL80211_IFTYPE_AP) {
 			if (data->preferred_tsf == NUM_TSF_IDS &&
-			    test_bit(mvmvif->tsf_id, data->available_tsf_ids))
+			    test_bit(mvmvif->tsf_id, data->available_tsf_ids) &&
+			    (vif->bss_conf.beacon_int ==
+			     data->vif->bss_conf.beacon_int)) {
 				data->preferred_tsf = mvmvif->tsf_id;
-			return;
+				return;
+			}
 		}
 		break;
 	case NL80211_IFTYPE_AP:
 		/*
-		 * The new interface is AP/GO, so should get drift
+		 * The new interface is AP/GO, so in case both interfaces
+		 * have the same beacon interval, it should get drift
 		 * updates from an existing client or use the same
 		 * TSF as an existing GO. There's no drift between
 		 * TSFs internally but if they used different TSFs
@@ -159,9 +144,12 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 		if (vif->type == NL80211_IFTYPE_STATION ||
 		    vif->type == NL80211_IFTYPE_AP) {
 			if (data->preferred_tsf == NUM_TSF_IDS &&
-			    test_bit(mvmvif->tsf_id, data->available_tsf_ids))
+			    test_bit(mvmvif->tsf_id, data->available_tsf_ids) &&
+			    (vif->bss_conf.beacon_int ==
+			     data->vif->bss_conf.beacon_int)) {
 				data->preferred_tsf = mvmvif->tsf_id;
-			return;
+				return;
+			}
 		}
 		break;
 	default:
@@ -187,6 +175,39 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 		data->preferred_tsf = NUM_TSF_IDS;
 }
 
+static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_mac_iface_iterator_data *data = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 ac;
+
+	/* Iterator may already find the interface being added -- skip it */
+	if (vif == data->vif) {
+		data->found_vif = true;
+		return;
+	}
+
+	/* Mark the queues used by the vif */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
+			__set_bit(vif->hw_queue[ac], data->used_hw_queues);
+
+	if (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE)
+		__set_bit(vif->cab_queue, data->used_hw_queues);
+
+	/* Mark MAC IDs as used by clearing the available bit, and
+	 * (below) mark TSFs as used if their existing use is not
+	 * compatible with the new interface type.
+	 * No locking or atomic bit operations are needed since the
+	 * data is on the stack of the caller function.
+	 */
+	__clear_bit(mvmvif->id, data->available_mac_ids);
+
+	/* find a suitable tsf_id */
+	iwl_mvm_mac_tsf_id_iter(_data, mac, vif);
+}
+
 /*
  * Get the mask of the queus used by the vif
  */
@@ -203,6 +224,29 @@ u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 			qmask |= BIT(vif->hw_queue[ac]);
 
 	return qmask;
+}
+
+void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_mac_iface_iterator_data data = {
+		.mvm = mvm,
+		.vif = vif,
+		.available_tsf_ids = { (1 << NUM_TSF_IDS) - 1 },
+		/* no preference yet */
+		.preferred_tsf = NUM_TSF_IDS,
+	};
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		iwl_mvm_mac_tsf_id_iter, &data);
+
+	if (data.preferred_tsf != NUM_TSF_IDS)
+		mvmvif->tsf_id = data.preferred_tsf;
+	else if (!test_bit(mvmvif->tsf_id, data.available_tsf_ids))
+		mvmvif->tsf_id = find_first_bit(data.available_tsf_ids,
+						NUM_TSF_IDS);
 }
 
 static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,

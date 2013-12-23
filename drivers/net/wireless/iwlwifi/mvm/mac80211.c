@@ -866,6 +866,14 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
+	/*
+	 * Re-calculate the tsf id, as the master-slave relations depend on the
+	 * beacon interval, which was not known when the station interface was
+	 * added.
+	 */
+	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc)
+		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
+
 	ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
 	if (ret)
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
@@ -978,6 +986,13 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	ret = iwl_mvm_mac_ctxt_beacon_changed(mvm, vif);
 	if (ret)
 		goto out_unlock;
+
+	/*
+	 * Re-calculate the tsf id, as the master-slave relations depend on the
+	 * beacon interval, which was not known when the AP interface was added.
+	 */
+	if (vif->type == NL80211_IFTYPE_AP)
+		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
 
 	/* Add the mac context */
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
