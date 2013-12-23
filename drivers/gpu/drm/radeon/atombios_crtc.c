@@ -1180,19 +1180,12 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
 
 	if (rdev->family >= CHIP_BONAIRE) {
-		u32 num_pipe_configs = rdev->config.cik.max_tile_pipes;
-		u32 num_rb = rdev->config.cik.max_backends_per_se;
-		if (num_pipe_configs > 8)
-			num_pipe_configs = 8;
-		if (num_pipe_configs == 8)
-			fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P8_32x32_16x16);
-		else if (num_pipe_configs == 4) {
-			if (num_rb == 4)
-				fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P4_16x16);
-			else if (num_rb < 4)
-				fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P4_8x16);
-		} else if (num_pipe_configs == 2)
-			fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P2);
+		/* Read the pipe config from the 2D TILED SCANOUT mode.
+		 * It should be the same for the other modes too, but not all
+		 * modes set the pipe config field. */
+		u32 pipe_config = (rdev->config.cik.tile_mode_array[10] >> 6) & 0x1f;
+
+		fb_format |= CIK_GRPH_PIPE_CONFIG(pipe_config);
 	} else if ((rdev->family == CHIP_TAHITI) ||
 		   (rdev->family == CHIP_PITCAIRN))
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P8_32x32_8x16);
