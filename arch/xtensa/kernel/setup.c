@@ -239,7 +239,7 @@ void __init early_init_devtree(void *params)
 
 static int __init xtensa_device_probe(void)
 {
-	of_platform_populate(NULL, NULL, NULL, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }
 
