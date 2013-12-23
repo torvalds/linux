@@ -1056,30 +1056,30 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 			break;
 
 		switch (ch->type) {
-		    case SCTP_CID_AUTH:
-			    have_auth = chunk_num;
-			    break;
+		case SCTP_CID_AUTH:
+			have_auth = chunk_num;
+			break;
 
-		    case SCTP_CID_COOKIE_ECHO:
-			    /* If a packet arrives containing an AUTH chunk as
-			     * a first chunk, a COOKIE-ECHO chunk as the second
-			     * chunk, and possibly more chunks after them, and
-			     * the receiver does not have an STCB for that
-			     * packet, then authentication is based on
-			     * the contents of the COOKIE- ECHO chunk.
-			     */
-			    if (have_auth == 1 && chunk_num == 2)
-				    return NULL;
-			    break;
+		case SCTP_CID_COOKIE_ECHO:
+			/* If a packet arrives containing an AUTH chunk as
+			 * a first chunk, a COOKIE-ECHO chunk as the second
+			 * chunk, and possibly more chunks after them, and
+			 * the receiver does not have an STCB for that
+			 * packet, then authentication is based on
+			 * the contents of the COOKIE- ECHO chunk.
+			 */
+			if (have_auth == 1 && chunk_num == 2)
+				return NULL;
+			break;
 
-		    case SCTP_CID_ASCONF:
-			    if (have_auth || net->sctp.addip_noauth)
-				    asoc = __sctp_rcv_asconf_lookup(
-							net, ch, laddr,
-							sctp_hdr(skb)->source,
-							transportp);
-		    default:
-			    break;
+		case SCTP_CID_ASCONF:
+			if (have_auth || net->sctp.addip_noauth)
+				asoc = __sctp_rcv_asconf_lookup(
+						net, ch, laddr,
+						sctp_hdr(skb)->source,
+						transportp);
+		default:
+			break;
 		}
 
 		if (asoc)

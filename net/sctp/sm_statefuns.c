@@ -3681,8 +3681,7 @@ sctp_disposition_t sctp_sf_do_asconf(struct net *net,
 	asconf_ack->dest = chunk->source;
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(asconf_ack));
 	if (asoc->new_transport) {
-	        sctp_sf_heartbeat(ep, asoc, type, asoc->new_transport,
-                    commands);
+		sctp_sf_heartbeat(ep, asoc, type, asoc->new_transport, commands);
 		((struct sctp_association *)asoc)->new_transport = NULL;
 	}
 
@@ -6207,7 +6206,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 */
 	if (*sk->sk_prot_creator->memory_pressure) {
 		if (sctp_tsnmap_has_gap(map) &&
-	           (sctp_tsnmap_get_ctsn(map) + 1) == tsn) {
+		    (sctp_tsnmap_get_ctsn(map) + 1) == tsn) {
 			pr_debug("%s: under pressure, reneging for tsn:%u\n",
 				 __func__, tsn);
 			deliver = SCTP_CMD_RENEGE;

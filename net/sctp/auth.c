@@ -647,15 +647,15 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 	 */
 	for (i = 0; !found && i < len; i++) {
 		switch (param->chunks[i]) {
-		    case SCTP_CID_INIT:
-		    case SCTP_CID_INIT_ACK:
-		    case SCTP_CID_SHUTDOWN_COMPLETE:
-		    case SCTP_CID_AUTH:
+		case SCTP_CID_INIT:
+		case SCTP_CID_INIT_ACK:
+		case SCTP_CID_SHUTDOWN_COMPLETE:
+		case SCTP_CID_AUTH:
 			break;
 
-		    default:
+		default:
 			if (param->chunks[i] == chunk)
-			    found = 1;
+				found = 1;
 			break;
 		}
 	}

@@ -280,7 +280,7 @@ static sctp_xmit_t __sctp_packet_append_chunk(struct sctp_packet *packet,
 
 	/* We believe that this chunk is OK to add to the packet */
 	switch (chunk->chunk_hdr->type) {
-	    case SCTP_CID_DATA:
+	case SCTP_CID_DATA:
 		/* Account for the data being in the packet */
 		sctp_packet_append_data(packet, chunk);
 		/* Disallow SACK bundling after DATA. */
@@ -292,17 +292,17 @@ static sctp_xmit_t __sctp_packet_append_chunk(struct sctp_packet *packet,
 		/* timestamp the chunk for rtx purposes */
 		chunk->sent_at = jiffies;
 		break;
-	    case SCTP_CID_COOKIE_ECHO:
+	case SCTP_CID_COOKIE_ECHO:
 		packet->has_cookie_echo = 1;
 		break;
 
-	    case SCTP_CID_SACK:
+	case SCTP_CID_SACK:
 		packet->has_sack = 1;
 		if (chunk->asoc)
 			chunk->asoc->stats.osacks++;
 		break;
 
-	    case SCTP_CID_AUTH:
+	case SCTP_CID_AUTH:
 		packet->has_auth = 1;
 		packet->auth = chunk;
 		break;
@@ -540,8 +540,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		} else {
 			/* no need to seed pseudo checksum for SCTP */
 			nskb->ip_summed = CHECKSUM_PARTIAL;
-			nskb->csum_start = (skb_transport_header(nskb) -
-			                    nskb->head);
+			nskb->csum_start = skb_transport_header(nskb) - nskb->head;
 			nskb->csum_offset = offsetof(struct sctphdr, checksum);
 		}
 	}
