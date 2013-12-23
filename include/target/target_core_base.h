@@ -435,6 +435,34 @@ struct se_tmr_req {
 	struct list_head	tmr_list;
 };
 
+enum target_prot_op {
+	TARGET_PROT_NORMAL = 0,
+	TARGET_PROT_DIN_INSERT,
+	TARGET_PROT_DOUT_INSERT,
+	TARGET_PROT_DIN_STRIP,
+	TARGET_PROT_DOUT_STRIP,
+	TARGET_PROT_DIN_PASS,
+	TARGET_PROT_DOUT_PASS,
+};
+
+enum target_prot_ho {
+	PROT_SEPERATED,
+	PROT_INTERLEAVED,
+};
+
+enum target_prot_type {
+	TARGET_DIF_TYPE0_PROT,
+	TARGET_DIF_TYPE1_PROT,
+	TARGET_DIF_TYPE2_PROT,
+	TARGET_DIF_TYPE3_PROT,
+};
+
+struct se_dif_v1_tuple {
+	__be16			guard_tag;
+	__be16			app_tag;
+	__be32			ref_tag;
+};
+
 struct se_cmd {
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;
@@ -519,6 +547,17 @@ struct se_cmd {
 
 	/* Used for lun->lun_ref counting */
 	bool			lun_ref_active;
+
+	/* DIF related members */
+	enum target_prot_op	prot_op;
+	enum target_prot_type	prot_type;
+	u32			prot_length;
+	u32			reftag_seed;
+	struct scatterlist	*t_prot_sg;
+	unsigned int		t_prot_nents;
+	enum target_prot_ho	prot_handover;
+	sense_reason_t		pi_err;
+	u32			block_num;
 };
 
 struct se_ua {
@@ -629,6 +668,9 @@ struct se_dev_attrib {
 	int		emulate_tpws;
 	int		emulate_caw;
 	int		emulate_3pc;
+	int		pi_prot_format;
+	enum target_prot_type pi_prot_type;
+	enum target_prot_type hw_pi_prot_type;
 	int		enforce_pr_isids;
 	int		is_nonrot;
 	int		emulate_rest_reord;
@@ -759,6 +801,8 @@ struct se_device {
 	/* Linked list for struct se_hba struct se_device list */
 	struct list_head	dev_list;
 	struct se_lun		xcopy_lun;
+	/* Protection Information */
+	int			prot_length;
 };
 
 struct se_hba {

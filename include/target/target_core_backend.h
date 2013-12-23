@@ -41,6 +41,9 @@ struct se_subsystem_api {
 	unsigned int (*get_io_opt)(struct se_device *);
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);
 	bool (*get_write_cache)(struct se_device *);
+	int (*init_prot)(struct se_device *);
+	int (*format_prot)(struct se_device *);
+	void (*free_prot)(struct se_device *);
 };
 
 struct sbc_ops {
