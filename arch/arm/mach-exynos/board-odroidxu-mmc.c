@@ -187,11 +187,13 @@ static void exynos_dwmci2_cfg_gpio(int width)
 	unsigned int gpio;
 
 	/* set to pull up pin for write protection */
+	/* odroidxu write protection pin is open, default pull down	*/
+	/*
 	gpio = EXYNOS5410_GPM5(0);
 	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
 	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
 	s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV4);
-	
+	*/	
 	// T-Flash CD_TYPE INTERNAL
 	for (gpio = EXYNOS5410_GPC2(0); gpio < EXYNOS5410_GPC2(3); gpio++) {
 		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
