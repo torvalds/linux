@@ -517,7 +517,7 @@ static void rspi_receive_init(struct rspi_data *rspi)
 		rspi_read16(rspi, RSPI_SPDR);	/* dummy read */
 	if (spsr & SPSR_OVRF)
 		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPSR) & ~SPSR_OVRF,
-			    RSPI_SPCR);
+			    RSPI_SPSR);
 }
 
 static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
