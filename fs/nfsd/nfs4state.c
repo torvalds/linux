@@ -1915,7 +1915,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		return status;
 	status = check_backchannel_attrs(&cr_ses->back_channel);
 	if (status)
-		return status;
+		goto out_release_drc_mem;
 	status = nfserr_jukebox;
 	new = alloc_session(&cr_ses->fore_channel);
 	if (!new)
