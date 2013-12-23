@@ -2731,6 +2731,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	lowest_level = p->lowest_level;
 	WARN_ON(lowest_level && ins_len > 0);
 	WARN_ON(p->nodes[0] != NULL);
+	BUG_ON(!cow && ins_len);
 
 	if (ins_len < 0) {
 		lowest_unlock = 2;
@@ -2839,8 +2840,6 @@ again:
 			}
 		}
 cow_done:
-		BUG_ON(!cow && ins_len);
-
 		p->nodes[level] = b;
 		btrfs_clear_path_blocking(p, NULL, 0);
 
@@ -2850,13 +2849,19 @@ cow_done:
 		 * It is safe to drop the lock on our parent before we
 		 * go through the expensive btree search on b.
 		 *
-		 * If cow is true, then we might be changing slot zero,
-		 * which may require changing the parent.  So, we can't
-		 * drop the lock until after we know which slot we're
-		 * operating on.
+		 * If we're inserting or deleting (ins_len != 0), then we might
+		 * be changing slot zero, which may require changing the parent.
+		 * So, we can't drop the lock until after we know which slot
+		 * we're operating on.
 		 */
-		if (!cow)
-			btrfs_unlock_up_safe(p, level + 1);
+		if (!ins_len && !p->keep_locks) {
+			int u = level + 1;
+
+			if (u < BTRFS_MAX_LEVEL && p->locks[u]) {
+				btrfs_tree_unlock_rw(p->nodes[u], p->locks[u]);
+				p->locks[u] = 0;
+			}
+		}
 
 		ret = key_search(b, key, level, &prev_cmp, &slot);
 
@@ -2884,7 +2889,7 @@ cow_done:
 			 * which means we must have a write lock
 			 * on the parent
 			 */
-			if (slot == 0 && cow &&
+			if (slot == 0 && ins_len &&
 			    write_lock_level < level + 1) {
 				write_lock_level = level + 1;
 				btrfs_release_path(p);

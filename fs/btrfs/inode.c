@@ -3515,7 +3515,6 @@ static noinline int btrfs_update_inode_item(struct btrfs_trans_handle *trans,
 		goto failed;
 	}
 
-	btrfs_unlock_up_safe(path, 1);
 	leaf = path->nodes[0];
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_inode_item);
