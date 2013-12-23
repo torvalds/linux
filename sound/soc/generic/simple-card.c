@@ -25,7 +25,7 @@ static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 
 	daifmt |= set->fmt;
 
-	if (!ret && daifmt)
+	if (daifmt)
 		ret = snd_soc_dai_set_fmt(dai, daifmt);
 
 	if (ret == -ENOTSUPP) {
