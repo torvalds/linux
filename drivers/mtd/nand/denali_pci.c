@@ -131,7 +131,6 @@ static struct pci_driver denali_pci_driver = {
 
 static int denali_init_pci(void)
 {
-	pr_info("Spectra MTD driver built on %s @ %s\n", __DATE__, __TIME__);
 	return pci_register_driver(&denali_pci_driver);
 }
 module_init(denali_init_pci);
