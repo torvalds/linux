@@ -3564,7 +3564,7 @@ static const unsigned int vin3_sync_pins[] = {
 };
 static const unsigned int vin3_sync_mux[] = {
 	VI3_HSYNC_N_MARK,
-	VI2_VSYNC_N_MARK,
+	VI3_VSYNC_N_MARK,
 };
 static const unsigned int vin3_field_pins[] = {
 	RCAR_GP_PIN(1, 15),
