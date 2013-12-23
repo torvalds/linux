@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
 
 #define DRV_NAME			"gpio-sch311x"
 
