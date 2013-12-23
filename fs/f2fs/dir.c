@@ -190,9 +190,6 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 	unsigned int max_depth;
 	unsigned int level;
 
-	if (unlikely(namelen > F2FS_NAME_LEN))
-		return NULL;
-
 	if (npages == 0)
 		return NULL;
 
