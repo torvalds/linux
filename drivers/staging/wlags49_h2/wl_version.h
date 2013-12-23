@@ -129,11 +129,7 @@ err: define bus type;
 #endif  /* HERMES25 */
 #endif  /* BUS_XXX */
 
-#ifdef DBG
-#define MODULE_DATE         __DATE__ " " __TIME__
-#else
 #define MODULE_DATE         "07/18/2004 13:30:00"
-#endif // DBG
 
 //#define STR2(m) #m
 //#define STR1(m) STR2(m)
