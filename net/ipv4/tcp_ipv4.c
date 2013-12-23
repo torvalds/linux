@@ -827,7 +827,7 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct flowi4 fl4;
 	int err = -1;
-	struct sk_buff * skb;
+	struct sk_buff *skb;
 
 	/* First, grab a route. */
 	if (!dst && (dst = inet_csk_route_req(sk, &fl4, req)) == NULL)
