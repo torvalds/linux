@@ -43,9 +43,9 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal helpers.  */
-static struct sctp_ulpevent * sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
+static struct sctp_ulpevent *sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
 					      struct sctp_ulpevent *);
-static struct sctp_ulpevent * sctp_ulpq_order(struct sctp_ulpq *,
+static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *,
 					      struct sctp_ulpevent *);
 static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq);
 

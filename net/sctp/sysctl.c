@@ -424,7 +424,7 @@ void sctp_sysctl_net_unregister(struct net *net)
 	kfree(table);
 }
 
-static struct ctl_table_header * sctp_sysctl_header;
+static struct ctl_table_header *sctp_sysctl_header;
 
 /* Sysctl registration.  */
 void sctp_sysctl_register(void)

@@ -97,7 +97,7 @@ static void sctp_objcnt_seq_stop(struct seq_file *seq, void *v)
 {
 }
 
-static void * sctp_objcnt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+static void *sctp_objcnt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
 	return (*pos >= ARRAY_SIZE(sctp_dbg_objcnt)) ? NULL : (void *)pos;
