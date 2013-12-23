@@ -461,14 +461,14 @@ static unsigned char asn1_oid_decode(struct asn1_ctx *ctx,
 	}
 
 	if (subid < 40) {
-		optr [0] = 0;
-		optr [1] = subid;
+		optr[0] = 0;
+		optr[1] = subid;
 	} else if (subid < 80) {
-		optr [0] = 1;
-		optr [1] = subid - 40;
+		optr[0] = 1;
+		optr[1] = subid - 40;
 	} else {
-		optr [0] = 2;
-		optr [1] = subid - 80;
+		optr[0] = 2;
+		optr[1] = subid - 80;
 	}
 
 	*len = 2;

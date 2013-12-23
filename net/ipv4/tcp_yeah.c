@@ -214,9 +214,9 @@ static u32 tcp_yeah_ssthresh(struct sock *sk) {
 	if (yeah->doing_reno_now < TCP_YEAH_RHO) {
 		reduction = yeah->lastQ;
 
-		reduction = min( reduction, max(tp->snd_cwnd>>1, 2U) );
+		reduction = min(reduction, max(tp->snd_cwnd>>1, 2U));
 
-		reduction = max( reduction, tp->snd_cwnd >> TCP_YEAH_DELTA);
+		reduction = max(reduction, tp->snd_cwnd >> TCP_YEAH_DELTA);
 	} else
 		reduction = max(tp->snd_cwnd>>1, 2U);
 
