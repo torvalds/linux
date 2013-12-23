@@ -436,6 +436,7 @@ struct mlx4_en_mc_list {
 	enum mlx4_en_mclist_act	action;
 	u8			addr[ETH_ALEN];
 	u64			reg_id;
+	u64			tunnel_reg_id;
 };
 
 struct mlx4_en_frag_info {
@@ -567,7 +568,7 @@ struct mlx4_en_priv {
 	struct list_head filters;
 	struct hlist_head filter_hash[1 << MLX4_EN_FILTER_HASH_SHIFT];
 #endif
-
+	u64 tunnel_reg_id;
 };
 
 enum mlx4_en_wol {
