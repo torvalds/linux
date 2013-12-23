@@ -199,6 +199,13 @@
 					regulator-always-on;
 				};
 
+				ldo23_reg: LDO23 {
+					regulator-name = "vdd_ldo23";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+
 				ldo24_reg: LDO24 {
 					regulator-name = "tsp_io";
 					regulator-min-microvolt = <2800000>;
