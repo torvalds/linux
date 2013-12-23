@@ -697,7 +697,8 @@ const u16 __sw_id_hw[] = {
 	[MLX4_NET_TRANS_RULE_ID_IPV6]    = 0xE003,
 	[MLX4_NET_TRANS_RULE_ID_IPV4]    = 0xE002,
 	[MLX4_NET_TRANS_RULE_ID_TCP]     = 0xE004,
-	[MLX4_NET_TRANS_RULE_ID_UDP]     = 0xE006
+	[MLX4_NET_TRANS_RULE_ID_UDP]     = 0xE006,
+	[MLX4_NET_TRANS_RULE_ID_VXLAN]	 = 0xE008
 };
 
 int mlx4_map_sw_to_hw_steering_id(struct mlx4_dev *dev,
@@ -722,7 +723,9 @@ static const int __rule_hw_sz[] = {
 	[MLX4_NET_TRANS_RULE_ID_TCP] =
 		sizeof(struct mlx4_net_trans_rule_hw_tcp_udp),
 	[MLX4_NET_TRANS_RULE_ID_UDP] =
-		sizeof(struct mlx4_net_trans_rule_hw_tcp_udp)
+		sizeof(struct mlx4_net_trans_rule_hw_tcp_udp),
+	[MLX4_NET_TRANS_RULE_ID_VXLAN] =
+		sizeof(struct mlx4_net_trans_rule_hw_vxlan)
 };
 
 int mlx4_hw_rule_sz(struct mlx4_dev *dev,
@@ -785,6 +788,13 @@ static int parse_trans_rule(struct mlx4_dev *dev, struct mlx4_spec_list *spec,
 		rule_hw->tcp_udp.dst_port_msk = spec->tcp_udp.dst_port_msk;
 		rule_hw->tcp_udp.src_port = spec->tcp_udp.src_port;
 		rule_hw->tcp_udp.src_port_msk = spec->tcp_udp.src_port_msk;
+		break;
+
+	case MLX4_NET_TRANS_RULE_ID_VXLAN:
+		rule_hw->vxlan.vni =
+			cpu_to_be32(be32_to_cpu(spec->vxlan.vni) << 8);
+		rule_hw->vxlan.vni_mask =
+			cpu_to_be32(be32_to_cpu(spec->vxlan.vni_mask) << 8);
 		break;
 
 	default:

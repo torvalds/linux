@@ -119,6 +119,11 @@ static inline const char *mlx4_steering_mode_str(int steering_mode)
 }
 
 enum {
+	MLX4_TUNNEL_OFFLOAD_MODE_NONE,
+	MLX4_TUNNEL_OFFLOAD_MODE_VXLAN
+};
+
+enum {
 	MLX4_DEV_CAP_FLAG_RC		= 1LL <<  0,
 	MLX4_DEV_CAP_FLAG_UC		= 1LL <<  1,
 	MLX4_DEV_CAP_FLAG_UD		= 1LL <<  2,
@@ -160,7 +165,8 @@ enum {
 	MLX4_DEV_CAP_FLAG2_TS			= 1LL <<  5,
 	MLX4_DEV_CAP_FLAG2_VLAN_CONTROL		= 1LL <<  6,
 	MLX4_DEV_CAP_FLAG2_FSM			= 1LL <<  7,
-	MLX4_DEV_CAP_FLAG2_UPDATE_QP		= 1LL <<  8
+	MLX4_DEV_CAP_FLAG2_UPDATE_QP		= 1LL <<  8,
+	MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS	= 1LL <<  9
 };
 
 enum {
@@ -455,6 +461,7 @@ struct mlx4_caps {
 	u32			function_caps;  /* VFs must be aware of these */
 	u16			hca_core_clock;
 	u64			phys_port_id[MLX4_MAX_PORTS + 1];
+	int			tunnel_offload_mode;
 };
 
 struct mlx4_buf_list {
@@ -909,6 +916,7 @@ enum mlx4_net_trans_rule_id {
 	MLX4_NET_TRANS_RULE_ID_IPV4,
 	MLX4_NET_TRANS_RULE_ID_TCP,
 	MLX4_NET_TRANS_RULE_ID_UDP,
+	MLX4_NET_TRANS_RULE_ID_VXLAN,
 	MLX4_NET_TRANS_RULE_NUM, /* should be last */
 };
 
@@ -966,6 +974,12 @@ struct mlx4_spec_ib {
 	u8	dst_gid_msk[16];
 };
 
+struct mlx4_spec_vxlan {
+	__be32 vni;
+	__be32 vni_mask;
+
+};
+
 struct mlx4_spec_list {
 	struct	list_head list;
 	enum	mlx4_net_trans_rule_id id;
@@ -974,6 +988,7 @@ struct mlx4_spec_list {
 		struct mlx4_spec_ib ib;
 		struct mlx4_spec_ipv4 ipv4;
 		struct mlx4_spec_tcp_udp tcp_udp;
+		struct mlx4_spec_vxlan vxlan;
 	};
 };
 
@@ -1060,6 +1075,15 @@ struct mlx4_net_trans_rule_hw_ipv4 {
 	__be32	src_ip_msk;
 } __packed;
 
+struct mlx4_net_trans_rule_hw_vxlan {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	__be32	rsvd1;
+	__be32	vni;
+	__be32	vni_mask;
+} __packed;
+
 struct _rule_hw {
 	union {
 		struct {
@@ -1071,8 +1095,18 @@ struct _rule_hw {
 		struct mlx4_net_trans_rule_hw_ib ib;
 		struct mlx4_net_trans_rule_hw_ipv4 ipv4;
 		struct mlx4_net_trans_rule_hw_tcp_udp tcp_udp;
+		struct mlx4_net_trans_rule_hw_vxlan vxlan;
 	};
 };
+
+enum {
+	VXLAN_STEER_BY_OUTER_MAC	= 1 << 0,
+	VXLAN_STEER_BY_OUTER_VLAN	= 1 << 1,
+	VXLAN_STEER_BY_VSID_VNI		= 1 << 2,
+	VXLAN_STEER_BY_INNER_MAC	= 1 << 3,
+	VXLAN_STEER_BY_INNER_VLAN	= 1 << 4,
+};
+
 
 int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port, u32 qpn,
 				enum mlx4_net_trans_promisc_mode mode);
@@ -1096,6 +1130,7 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc);
 int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 		u8 *pg, u16 *ratelimit);
+int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering);
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
 void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan);

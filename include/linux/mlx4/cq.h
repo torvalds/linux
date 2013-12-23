@@ -81,7 +81,12 @@ struct mlx4_ts_cqe {
 } __packed;
 
 enum {
+	MLX4_CQE_L2_TUNNEL_IPOK		= 1 << 31,
 	MLX4_CQE_VLAN_PRESENT_MASK	= 1 << 29,
+	MLX4_CQE_L2_TUNNEL		= 1 << 27,
+	MLX4_CQE_L2_TUNNEL_CSUM		= 1 << 26,
+	MLX4_CQE_L2_TUNNEL_IPV4		= 1 << 25,
+
 	MLX4_CQE_QPN_MASK		= 0xffffff,
 };
 

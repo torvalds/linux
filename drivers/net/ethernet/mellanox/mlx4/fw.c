@@ -134,7 +134,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[5] = "Time stamping support",
 		[6] = "VST (control vlan insertion/stripping) support",
 		[7] = "FSM (MAC anti-spoofing) support",
-		[8] = "Dynamic QP updates support"
+		[8] = "Dynamic QP updates support",
+		[9] = "TCP/IP offloads/flow-steering for VXLAN support"
 	};
 	int i;
 
@@ -536,6 +537,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
 #define QUERY_DEV_CAP_FW_REASSIGN_MAC		0x9d
+#define QUERY_DEV_CAP_VXLAN			0x9e
 
 	dev_cap->flags2 = 0;
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -701,6 +703,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FW_REASSIGN_MAC);
 	if (field & 1<<6)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_REASSIGN_MAC_EN;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_VXLAN);
+	if (field & 1<<3)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS;
 	MLX4_GET(dev_cap->max_icm_sz, outbox,
 		 QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET);
 	if (dev_cap->flags & MLX4_DEV_CAP_FLAG_COUNTERS)
@@ -848,6 +853,11 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET);
 	field &= 0x7f;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET);
+
+	/* For guests, disable vxlan tunneling */
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_VXLAN);
+	field &= 0xf7;
+	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_VXLAN);
 
 	/* For guests, report Blueflame disabled */
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_BF_OFFSET);
@@ -1274,6 +1284,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define INIT_HCA_IN_SIZE		 0x200
 #define INIT_HCA_VERSION_OFFSET		 0x000
 #define	 INIT_HCA_VERSION		 2
+#define INIT_HCA_VXLAN_OFFSET		 0x0c
 #define INIT_HCA_CACHELINE_SZ_OFFSET	 0x0e
 #define INIT_HCA_FLAGS_OFFSET		 0x014
 #define INIT_HCA_QPC_OFFSET		 0x020
@@ -1431,6 +1442,12 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 
 	MLX4_PUT(inbox, param->uar_page_sz,	INIT_HCA_UAR_PAGE_SZ_OFFSET);
 	MLX4_PUT(inbox, param->log_uar_sz,      INIT_HCA_LOG_UAR_SZ_OFFSET);
+
+	/* set parser VXLAN attributes */
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS) {
+		u8 parser_params = 0;
+		MLX4_PUT(inbox, parser_params,	INIT_HCA_VXLAN_OFFSET);
+	}
 
 	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_INIT_HCA, 10000,
 		       MLX4_CMD_NATIVE);
