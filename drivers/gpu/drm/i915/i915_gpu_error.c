@@ -247,12 +247,11 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
 	err_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
 	err_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
-	if (ring == RCS && INTEL_INFO(dev)->gen >= 4)
-		err_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr);
-	if (INTEL_INFO(dev)->gen >= 4)
+	if (INTEL_INFO(dev)->gen >= 4) {
+		err_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr[ring]);
 		err_printf(m, "  BB_STATE: 0x%08x\n", error->bbstate[ring]);
-	if (INTEL_INFO(dev)->gen >= 4)
 		err_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
+	}
 	err_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
 	err_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 	if (INTEL_INFO(dev)->gen >= 6) {
@@ -725,8 +724,9 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
 		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
 		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
-		if (ring->id == RCS)
-			error->bbaddr = I915_READ64(BB_ADDR);
+		error->bbaddr[ring->id] = I915_READ(RING_BBADDR(ring->mmio_base));
+		if (INTEL_INFO(dev)->gen >= 8)
+			error->bbaddr[ring->id] |= (u64) I915_READ(RING_BBADDR_UDW(ring->mmio_base)) << 32;
 		error->bbstate[ring->id] = I915_READ(RING_BBSTATE(ring->mmio_base));
 	} else {
 		error->faddr[ring->id] = I915_READ(DMA_FADD_I8XX);

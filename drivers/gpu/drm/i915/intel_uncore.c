@@ -150,6 +150,13 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
 
+	/* On VLV, FIFO will be shared by both SW and HW.
+	 * So, we need to read the FREE_ENTRIES everytime */
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		dev_priv->uncore.fifo_count =
+			__raw_i915_read32(dev_priv, GTFIFOCTL) &
+						GT_FIFO_FREE_ENTRIES_MASK;
+
 	if (dev_priv->uncore.fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
 		int loop = 500;
 		u32 fifo = __raw_i915_read32(dev_priv, GTFIFOCTL) & GT_FIFO_FREE_ENTRIES_MASK;
@@ -325,6 +332,11 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
 	}
 
+	/* clear out old GT FIFO errors */
+	if (IS_GEN6(dev) || IS_GEN7(dev))
+		__raw_i915_write32(dev_priv, GTFIFODBG,
+				   __raw_i915_read32(dev_priv, GTFIFODBG));
+
 	intel_uncore_forcewake_reset(dev);
 }
 
@@ -332,8 +344,6 @@ void intel_uncore_sanitize(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg_val;
-
-	intel_uncore_forcewake_reset(dev);
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_disable_gt_powersave(dev);
@@ -364,6 +374,8 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
+
+	intel_runtime_pm_get(dev_priv);
 
 	/* Redirect to VLV specific routine */
 	if (IS_VALLEYVIEW(dev_priv->dev))
@@ -398,6 +410,8 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 				 1);
 	}
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 /* We give fast paths for the really cool registers */
@@ -430,6 +444,13 @@ hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 		DRM_ERROR("Unclaimed write to %x\n", reg);
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 	}
+}
+
+static void
+assert_device_not_suspended(struct drm_i915_private *dev_priv)
+{
+	WARN(HAS_RUNTIME_PM(dev_priv->dev) && dev_priv->pm.suspended,
+	     "Device suspended\n");
 }
 
 #define REG_READ_HEADER(x) \
@@ -535,12 +556,15 @@ __gen4_read(64)
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
 
+#define REG_WRITE_FOOTER \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags)
+
 #define __gen4_write(x) \
 static void \
 gen4_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	REG_WRITE_HEADER; \
 	__raw_i915_write##x(dev_priv, reg, val); \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 #define __gen5_write(x) \
@@ -549,7 +573,7 @@ gen5_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	REG_WRITE_HEADER; \
 	ilk_dummy_write(dev_priv); \
 	__raw_i915_write##x(dev_priv, reg, val); \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 #define __gen6_write(x) \
@@ -560,11 +584,12 @@ gen6_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
+	assert_device_not_suspended(dev_priv); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 #define __hsw_write(x) \
@@ -575,13 +600,14 @@ hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
+	assert_device_not_suspended(dev_priv); \
 	hsw_unclaimed_reg_clear(dev_priv, reg); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
 	hsw_unclaimed_reg_check(dev_priv, reg); \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 static const u32 gen8_shadowed_regs[] = {
@@ -608,7 +634,7 @@ static bool is_gen8_shadowed(struct drm_i915_private *dev_priv, u32 reg)
 #define __gen8_write(x) \
 static void \
 gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
-	bool __needs_put = !is_gen8_shadowed(dev_priv, reg); \
+	bool __needs_put = reg < 0x40000 && !is_gen8_shadowed(dev_priv, reg); \
 	REG_WRITE_HEADER; \
 	if (__needs_put) { \
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, \
@@ -619,7 +645,7 @@ gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, \
 							FORCEWAKE_ALL); \
 	} \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 __gen8_write(8)
@@ -648,6 +674,7 @@ __gen4_write(64)
 #undef __gen6_write
 #undef __gen5_write
 #undef __gen4_write
+#undef REG_WRITE_FOOTER
 #undef REG_WRITE_HEADER
 
 void intel_uncore_init(struct drm_device *dev)

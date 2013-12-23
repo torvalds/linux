@@ -64,7 +64,7 @@ struct opregion_header {
 	u8 driver_ver[16];
 	u32 mboxes;
 	u8 reserved[164];
-} __attribute__((packed));
+} __packed;
 
 /* OpRegion mailbox #1: public ACPI methods */
 struct opregion_acpi {
@@ -86,7 +86,7 @@ struct opregion_acpi {
 	u32 cnot;       /* current OS notification */
 	u32 nrdy;       /* driver status */
 	u8 rsvd2[60];
-} __attribute__((packed));
+} __packed;
 
 /* OpRegion mailbox #2: SWSCI */
 struct opregion_swsci {
@@ -94,7 +94,7 @@ struct opregion_swsci {
 	u32 parm;       /* command parameters */
 	u32 dslp;       /* driver sleep time-out */
 	u8 rsvd[244];
-} __attribute__((packed));
+} __packed;
 
 /* OpRegion mailbox #3: ASLE */
 struct opregion_asle {
@@ -115,7 +115,7 @@ struct opregion_asle {
 	u32 srot;       /* supported rotation angles */
 	u32 iuer;       /* IUER events */
 	u8 rsvd[86];
-} __attribute__((packed));
+} __packed;
 
 /* Driver readiness indicator */
 #define ASLE_ARDY_READY		(1 << 0)

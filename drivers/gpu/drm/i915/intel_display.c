@@ -90,8 +90,8 @@ intel_fdi_link_freq(struct drm_device *dev)
 
 static const intel_limit_t intel_limits_i8xx_dac = {
 	.dot = { .min = 25000, .max = 350000 },
-	.vco = { .min = 930000, .max = 1400000 },
-	.n = { .min = 3, .max = 16 },
+	.vco = { .min = 908000, .max = 1512000 },
+	.n = { .min = 2, .max = 16 },
 	.m = { .min = 96, .max = 140 },
 	.m1 = { .min = 18, .max = 26 },
 	.m2 = { .min = 6, .max = 16 },
@@ -103,8 +103,8 @@ static const intel_limit_t intel_limits_i8xx_dac = {
 
 static const intel_limit_t intel_limits_i8xx_dvo = {
 	.dot = { .min = 25000, .max = 350000 },
-	.vco = { .min = 930000, .max = 1400000 },
-	.n = { .min = 3, .max = 16 },
+	.vco = { .min = 908000, .max = 1512000 },
+	.n = { .min = 2, .max = 16 },
 	.m = { .min = 96, .max = 140 },
 	.m1 = { .min = 18, .max = 26 },
 	.m2 = { .min = 6, .max = 16 },
@@ -116,8 +116,8 @@ static const intel_limit_t intel_limits_i8xx_dvo = {
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
 	.dot = { .min = 25000, .max = 350000 },
-	.vco = { .min = 930000, .max = 1400000 },
-	.n = { .min = 3, .max = 16 },
+	.vco = { .min = 908000, .max = 1512000 },
+	.n = { .min = 2, .max = 16 },
 	.m = { .min = 96, .max = 140 },
 	.m1 = { .min = 18, .max = 26 },
 	.m2 = { .min = 6, .max = 16 },
@@ -329,6 +329,8 @@ static void vlv_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m1 * clock->m2;
 	clock->p = clock->p1 * clock->p2;
+	if (WARN_ON(clock->n == 0 || clock->p == 0))
+		return;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
 }
@@ -430,6 +432,8 @@ static void pineview_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m2 + 2;
 	clock->p = clock->p1 * clock->p2;
+	if (WARN_ON(clock->n == 0 || clock->p == 0))
+		return;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
 }
@@ -443,6 +447,8 @@ static void i9xx_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = i9xx_dpll_compute_m(clock);
 	clock->p = clock->p1 * clock->p2;
+	if (WARN_ON(clock->n + 2 == 0 || clock->p == 0))
+		return;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n + 2);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
 }
@@ -1360,6 +1366,10 @@ static void intel_init_dpio(struct drm_device *dev)
 
 	if (!IS_VALLEYVIEW(dev))
 		return;
+
+	/* Enable the CRI clock source so we can get at the display */
+	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+		   DPLL_INTEGRATED_CRI_CLK_VLV);
 
 	DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO;
 	/*
@@ -4751,9 +4761,8 @@ static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
 		refclk = 100000;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
-		refclk = dev_priv->vbt.lvds_ssc_freq * 1000;
-		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
-			      refclk / 1000);
+		refclk = dev_priv->vbt.lvds_ssc_freq;
+		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
 	} else if (!IS_GEN2(dev)) {
 		refclk = 96000;
 	} else {
@@ -5899,9 +5908,9 @@ static int ironlake_get_refclk(struct drm_crtc *crtc)
 	}
 
 	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
-		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
+		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n",
 			      dev_priv->vbt.lvds_ssc_freq);
-		return dev_priv->vbt.lvds_ssc_freq * 1000;
+		return dev_priv->vbt.lvds_ssc_freq;
 	}
 
 	return 120000;
@@ -6163,7 +6172,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	factor = 21;
 	if (is_lvds) {
 		if ((intel_panel_use_ssc(dev_priv) &&
-		     dev_priv->vbt.lvds_ssc_freq == 100) ||
+		     dev_priv->vbt.lvds_ssc_freq == 100000) ||
 		    (HAS_PCH_IBX(dev) && intel_is_dual_link_lvds(dev)))
 			factor = 25;
 	} else if (intel_crtc->config.sdvo_tv_clock)
@@ -6484,7 +6493,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	uint32_t val;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
-		WARN(crtc->base.enabled, "CRTC for pipe %c enabled\n",
+		WARN(crtc->active, "CRTC for pipe %c enabled\n",
 		     pipe_name(crtc->pipe));
 
 	WARN(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on\n");
@@ -6504,7 +6513,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	val = I915_READ(DEIMR);
-	WARN((val & ~DE_PCH_EVENT_IVB) != val,
+	WARN((val | DE_PCH_EVENT_IVB) != 0xffffffff,
 	     "Unexpected DEIMR bits enabled: 0x%x\n", val);
 	val = I915_READ(SDEIMR);
 	WARN((val | SDE_HOTPLUG_MASK_CPT) != 0xffffffff,
@@ -6628,6 +6637,8 @@ void hsw_enable_pc8_work(struct work_struct *__work)
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
 
+	WARN_ON(!HAS_PC8(dev));
+
 	if (dev_priv->pc8.enabled)
 		return;
 
@@ -6644,6 +6655,8 @@ void hsw_enable_pc8_work(struct work_struct *__work)
 	lpt_disable_clkout_dp(dev);
 	hsw_pc8_disable_interrupts(dev);
 	hsw_disable_lcpll(dev_priv, true, true);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
@@ -6673,11 +6686,15 @@ static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 	if (dev_priv->pc8.disable_count != 1)
 		return;
 
+	WARN_ON(!HAS_PC8(dev));
+
 	cancel_delayed_work_sync(&dev_priv->pc8.enable_work);
 	if (!dev_priv->pc8.enabled)
 		return;
 
 	DRM_DEBUG_KMS("Disabling package C8+\n");
+
+	intel_runtime_pm_get(dev_priv);
 
 	hsw_restore_lcpll(dev_priv);
 	hsw_pc8_restore_interrupts(dev);
@@ -6885,8 +6902,9 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int ret;
 
-	if (!intel_ddi_pll_mode_set(crtc))
+	if (!intel_ddi_pll_select(intel_crtc))
 		return -EINVAL;
+	intel_ddi_pll_enable(intel_crtc);
 
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
@@ -7870,7 +7888,7 @@ static int i9xx_pll_refclk(struct drm_device *dev,
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
 
 	if ((dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
-		return dev_priv->vbt.lvds_ssc_freq * 1000;
+		return dev_priv->vbt.lvds_ssc_freq;
 	else if (HAS_PCH_SPLIT(dev))
 		return 120000;
 	else if (!IS_GEN2(dev))
@@ -7933,12 +7951,17 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		else
 			i9xx_clock(refclk, &clock);
 	} else {
-		bool is_lvds = (pipe == 1) && (I915_READ(LVDS) & LVDS_PORT_EN);
+		u32 lvds = I915_READ(LVDS);
+		bool is_lvds = (pipe == 1) && (lvds & LVDS_PORT_EN);
 
 		if (is_lvds) {
 			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
 				       DPLL_FPA01_P1_POST_DIV_SHIFT);
-			clock.p2 = 14;
+
+			if (lvds & LVDS_CLKB_POWER_UP)
+				clock.p2 = 7;
+			else
+				clock.p2 = 14;
 		} else {
 			if (dpll & PLL_P1_DIVIDE_BY_TWO)
 				clock.p1 = 2;
@@ -10122,10 +10145,13 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		intel_crtc->lut_b[i] = i;
 	}
 
-	/* Swap pipes & planes for FBC on pre-965 */
+	/*
+	 * On gen2/3 only plane A can do fbc, but the panel fitter and lvds port
+	 * is hooked to plane B. Hence we want plane A feeding pipe B.
+	 */
 	intel_crtc->pipe = pipe;
 	intel_crtc->plane = pipe;
-	if (IS_MOBILE(dev) && IS_GEN3(dev)) {
+	if (IS_MOBILE(dev) && INTEL_INFO(dev)->gen < 4) {
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = !pipe;
 	}
@@ -10779,16 +10805,9 @@ static void i915_disable_vga(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	intel_prepare_ddi(dev);
 
 	intel_init_clock_gating(dev);
-
-	/* Enable the CRI clock source so we can get at the display */
-	if (IS_VALLEYVIEW(dev))
-		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
-			   DPLL_INTEGRATED_CRI_CLK_VLV);
 
 	intel_init_dpio(dev);
 

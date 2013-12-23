@@ -362,6 +362,7 @@
 #define   IOSF_PORT_CCK				0x14
 #define   IOSF_PORT_CCU				0xA9
 #define   IOSF_PORT_GPS_CORE			0x48
+#define   IOSF_PORT_FLISDSI			0x1B
 #define VLV_IOSF_DATA				(VLV_DISPLAY_BASE + 0x2104)
 #define VLV_IOSF_ADDR				(VLV_DISPLAY_BASE + 0x2108)
 
@@ -734,6 +735,8 @@
 #define HWSTAM		0x02098
 #define DMA_FADD_I8XX	0x020d0
 #define RING_BBSTATE(base)	((base)+0x110)
+#define RING_BBADDR(base)	((base)+0x140)
+#define RING_BBADDR_UDW(base)	((base)+0x168) /* gen8+ */
 
 #define ERROR_GEN6	0x040a0
 #define GEN7_ERR_INT	0x44040
@@ -924,7 +927,6 @@
 #define   CM0_COLOR_EVICT_DISABLE (1<<3)
 #define   CM0_DEPTH_WRITE_DISABLE (1<<1)
 #define   CM0_RC_OP_FLUSH_DISABLE (1<<0)
-#define BB_ADDR		0x02140 /* 8 bytes */
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
 #define GFX_FLSH_CNTL_GEN6	0x101008
 #define   GFX_FLSH_CNTL_EN	(1<<0)
@@ -1001,6 +1003,7 @@
 
 #define GEN7_FF_THREAD_MODE		0x20a0
 #define   GEN7_FF_SCHED_MASK		0x0077070
+#define   GEN8_FF_DS_REF_CNT_FFME	(1 << 19)
 #define   GEN7_FF_TS_SCHED_HS1		(0x5<<16)
 #define   GEN7_FF_TS_SCHED_HS0		(0x3<<16)
 #define   GEN7_FF_TS_SCHED_LOAD_BALANCE	(0x1<<16)
@@ -1028,14 +1031,14 @@
 #define   FBC_CTL_UNCOMPRESSIBLE (1<<14)
 #define   FBC_CTL_C3_IDLE	(1<<13)
 #define   FBC_CTL_STRIDE_SHIFT	(5)
-#define   FBC_CTL_FENCENO	(1<<0)
+#define   FBC_CTL_FENCENO_SHIFT	(0)
 #define FBC_COMMAND		0x0320c
 #define   FBC_CMD_COMPRESS	(1<<0)
 #define FBC_STATUS		0x03210
 #define   FBC_STAT_COMPRESSING	(1<<31)
 #define   FBC_STAT_COMPRESSED	(1<<30)
 #define   FBC_STAT_MODIFIED	(1<<29)
-#define   FBC_STAT_CURRENT_LINE	(1<<0)
+#define   FBC_STAT_CURRENT_LINE_SHIFT	(0)
 #define FBC_CONTROL2		0x03214
 #define   FBC_CTL_FENCE_DBL	(0<<4)
 #define   FBC_CTL_IDLE_IMM	(0<<2)
@@ -4164,6 +4167,10 @@
 
 #define GEN7_L3SQCREG4				0xb034
 #define  L3SQ_URB_READ_CAM_MATCH_DISABLE	(1<<27)
+
+/* GEN8 chicken */
+#define HDC_CHICKEN0				0x7300
+#define  HDC_FORCE_NON_COHERENT			(1<<4)
 
 /* WaCatErrorRejectionIssue */
 #define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030

@@ -249,3 +249,17 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 		return;
 	}
 }
+
+u32 vlv_flisdsi_read(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val = 0;
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_FLISDSI,
+					DPIO_OPCODE_REG_READ, reg, &val);
+	return val;
+}
+
+void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
+{
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_FLISDSI,
+					DPIO_OPCODE_REG_WRITE, reg, &val);
+}

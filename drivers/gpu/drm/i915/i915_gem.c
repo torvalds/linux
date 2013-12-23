@@ -1015,9 +1015,11 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			struct drm_i915_file_private *file_priv)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
+	const bool irq_test_in_progress =
+		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_ring_flag(ring);
 	struct timespec before, now;
 	DEFINE_WAIT(wait);
-	long timeout_jiffies;
+	unsigned long timeout_expire;
 	int ret;
 
 	WARN(dev_priv->pc8.irqs_disabled, "IRQs disabled\n");
@@ -1025,7 +1027,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
 		return 0;
 
-	timeout_jiffies = timeout ? timespec_to_jiffies_timeout(timeout) : 1;
+	timeout_expire = timeout ? jiffies + timespec_to_jiffies_timeout(timeout) : 0;
 
 	if (dev_priv->info->gen >= 6 && can_wait_boost(file_priv)) {
 		gen6_rps_boost(dev_priv);
@@ -1035,8 +1037,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 					 msecs_to_jiffies(100));
 	}
 
-	if (!(dev_priv->gpu_error.test_irq_rings & intel_ring_flag(ring)) &&
-	    WARN_ON(!ring->irq_get(ring)))
+	if (!irq_test_in_progress && WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;
 
 	/* Record current time in case interrupted by signal, or wedged */
@@ -1044,7 +1045,6 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	getrawmonotonic(&before);
 	for (;;) {
 		struct timer_list timer;
-		unsigned long expire;
 
 		prepare_to_wait(&ring->irq_queue, &wait,
 				interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
@@ -1070,22 +1070,21 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			break;
 		}
 
-		if (timeout_jiffies <= 0) {
+		if (timeout && time_after_eq(jiffies, timeout_expire)) {
 			ret = -ETIME;
 			break;
 		}
 
 		timer.function = NULL;
 		if (timeout || missed_irq(dev_priv, ring)) {
+			unsigned long expire;
+
 			setup_timer_on_stack(&timer, fake_irq, (unsigned long)current);
-			expire = jiffies + (missed_irq(dev_priv, ring) ? 1: timeout_jiffies);
+			expire = missed_irq(dev_priv, ring) ? jiffies + 1 : timeout_expire;
 			mod_timer(&timer, expire);
 		}
 
 		io_schedule();
-
-		if (timeout)
-			timeout_jiffies = expire - jiffies;
 
 		if (timer.function) {
 			del_singleshot_timer_sync(&timer);
@@ -1095,7 +1094,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	getrawmonotonic(&now);
 	trace_i915_gem_request_wait_end(ring, seqno);
 
-	ring->irq_put(ring);
+	if (!irq_test_in_progress)
+		ring->irq_put(ring);
 
 	finish_wait(&ring->irq_queue, &wait);
 
@@ -1380,6 +1380,8 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int ret = 0;
 	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
 
+	intel_runtime_pm_get(dev_priv);
+
 	/* We don't use vmf->pgoff since that has the fake offset */
 	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
 		PAGE_SHIFT;
@@ -1427,8 +1429,10 @@ out:
 		/* If this -EIO is due to a gpu hang, give the reset code a
 		 * chance to clean up the mess. Otherwise return the proper
 		 * SIGBUS. */
-		if (i915_terminally_wedged(&dev_priv->gpu_error))
-			return VM_FAULT_SIGBUS;
+		if (i915_terminally_wedged(&dev_priv->gpu_error)) {
+			ret = VM_FAULT_SIGBUS;
+			break;
+		}
 	case -EAGAIN:
 		/*
 		 * EAGAIN means the gpu is hung and we'll wait for the error
@@ -1443,15 +1447,22 @@ out:
 		 * EBUSY is ok: this just means that another thread
 		 * already did the job.
 		 */
-		return VM_FAULT_NOPAGE;
+		ret = VM_FAULT_NOPAGE;
+		break;
 	case -ENOMEM:
-		return VM_FAULT_OOM;
+		ret = VM_FAULT_OOM;
+		break;
 	case -ENOSPC:
-		return VM_FAULT_SIGBUS;
+		ret = VM_FAULT_SIGBUS;
+		break;
 	default:
 		WARN_ONCE(ret, "unhandled error in i915_gem_fault: %i\n", ret);
-		return VM_FAULT_SIGBUS;
+		ret = VM_FAULT_SIGBUS;
+		break;
 	}
+
+	intel_runtime_pm_put(dev_priv);
+	return ret;
 }
 
 /**
@@ -2746,7 +2757,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 		obj->has_aliasing_ppgtt_mapping = 0;
 	}
 	i915_gem_gtt_finish_object(obj);
-	i915_gem_object_unpin_pages(obj);
 
 	list_del(&vma->mm_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
@@ -2754,13 +2764,18 @@ int i915_vma_unbind(struct i915_vma *vma)
 		obj->map_and_fenceable = true;
 
 	drm_mm_remove_node(&vma->node);
-
 	i915_gem_vma_destroy(vma);
 
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist. */
 	if (list_empty(&obj->vma_list))
 		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
+
+	/* And finally now the object is completely decoupled from this vma,
+	 * we can drop its hold on the backing storage and allow it to be
+	 * reaped by the shrinker.
+	 */
+	i915_gem_object_unpin_pages(obj);
 
 	return 0;
 }
@@ -4165,6 +4180,8 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct i915_vma *vma, *next;
 
+	intel_runtime_pm_get(dev_priv);
+
 	trace_i915_gem_object_destroy(obj);
 
 	if (obj->phys_obj)
@@ -4209,6 +4226,8 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	kfree(obj->bit_17);
 	i915_gem_object_free(obj);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,

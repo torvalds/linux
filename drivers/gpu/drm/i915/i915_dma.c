@@ -42,6 +42,8 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <acpi/video.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 
 #define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
 
@@ -1667,6 +1669,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
 
+	intel_init_runtime_pm(dev_priv);
+
 	return 0;
 
 out_power_well:
@@ -1706,6 +1710,14 @@ int i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	ret = i915_gem_suspend(dev);
+	if (ret) {
+		DRM_ERROR("failed to idle hardware: %d\n", ret);
+		return ret;
+	}
+
+	intel_fini_runtime_pm(dev_priv);
+
 	intel_gpu_ips_teardown();
 
 	/* The i915.ko module is still not prepared to be loaded when
@@ -1718,10 +1730,6 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (dev_priv->mm.inactive_shrinker.scan_objects)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
-
-	ret = i915_gem_suspend(dev);
-	if (ret)
-		DRM_ERROR("failed to idle hardware: %d\n", ret);
 
 	io_mapping_free(dev_priv->gtt.mappable);
 	arch_phys_wc_del(dev_priv->gtt.mtrr);

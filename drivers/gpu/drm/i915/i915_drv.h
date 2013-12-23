@@ -323,7 +323,7 @@ struct drm_i915_error_state {
 	u32 instps[I915_NUM_RINGS];
 	u32 extra_instdone[I915_NUM_INSTDONE_REG];
 	u32 seqno[I915_NUM_RINGS];
-	u64 bbaddr;
+	u64 bbaddr[I915_NUM_RINGS];
 	u32 fault_reg[I915_NUM_RINGS];
 	u32 done_reg;
 	u32 faddr[I915_NUM_RINGS];
@@ -372,7 +372,7 @@ struct dpll;
 
 struct drm_i915_display_funcs {
 	bool (*fbc_enabled)(struct drm_device *dev);
-	void (*enable_fbc)(struct drm_crtc *crtc, unsigned long interval);
+	void (*enable_fbc)(struct drm_crtc *crtc);
 	void (*disable_fbc)(struct drm_device *dev);
 	int (*get_display_clock_speed)(struct drm_device *dev);
 	int (*get_fifo_size)(struct drm_device *dev, int plane);
@@ -695,7 +695,6 @@ struct i915_fbc {
 		struct delayed_work work;
 		struct drm_crtc *crtc;
 		struct drm_framebuffer *fb;
-		int interval;
 	} *fbc_work;
 
 	enum no_fbc_reason {
@@ -1289,6 +1288,10 @@ struct i915_package_c8 {
 	} regsave;
 };
 
+struct i915_runtime_pm {
+	bool suspended;
+};
+
 enum intel_pipe_crc_source {
 	INTEL_PIPE_CRC_SOURCE_NONE,
 	INTEL_PIPE_CRC_SOURCE_PLANE1,
@@ -1518,6 +1521,8 @@ typedef struct drm_i915_private {
 	} wm;
 
 	struct i915_package_c8 pc8;
+
+	struct i915_runtime_pm pm;
 
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
@@ -1843,6 +1848,7 @@ struct drm_i915_file_private {
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev))
 #define HAS_PC8(dev)		(IS_HASWELL(dev)) /* XXX HSW:ULX */
+#define HAS_RUNTIME_PM(dev)	false
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
@@ -2468,6 +2474,8 @@ u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 		   enum intel_sbi_destination destination);
 void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 		     enum intel_sbi_destination destination);
+u32 vlv_flisdsi_read(struct drm_i915_private *dev_priv, u32 reg);
+void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);

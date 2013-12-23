@@ -327,12 +327,12 @@ static int intel_bios_ssc_frequency(struct drm_device *dev,
 {
 	switch (INTEL_INFO(dev)->gen) {
 	case 2:
-		return alternate ? 66 : 48;
+		return alternate ? 66667 : 48000;
 	case 3:
 	case 4:
-		return alternate ? 100 : 96;
+		return alternate ? 100000 : 96000;
 	default:
-		return alternate ? 100 : 120;
+		return alternate ? 100000 : 120000;
 	}
 }
 
@@ -796,7 +796,7 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	 */
 	dev_priv->vbt.lvds_ssc_freq = intel_bios_ssc_frequency(dev,
 			!HAS_PCH_SPLIT(dev));
-	DRM_DEBUG_KMS("Set default to SSC at %dMHz\n", dev_priv->vbt.lvds_ssc_freq);
+	DRM_DEBUG_KMS("Set default to SSC at %d kHz\n", dev_priv->vbt.lvds_ssc_freq);
 
 	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
 		struct ddi_vbt_port_info *info =

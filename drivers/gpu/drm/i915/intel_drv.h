@@ -155,6 +155,7 @@ struct intel_encoder {
 
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
+	struct drm_display_mode *downclock_mode;
 	int fitting_mode;
 
 	/* backlight */
@@ -454,7 +455,7 @@ struct intel_hdmi {
 	bool rgb_quant_range_selectable;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
-				const uint8_t *frame, ssize_t len);
+				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode);
 };
@@ -612,7 +613,8 @@ void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
 void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
 void intel_ddi_setup_hw_pll_state(struct drm_device *dev);
-bool intel_ddi_pll_mode_set(struct drm_crtc *crtc);
+bool intel_ddi_pll_select(struct intel_crtc *crtc);
+void intel_ddi_pll_enable(struct intel_crtc *crtc);
 void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
@@ -702,7 +704,6 @@ void
 ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
 				int dotclock);
 bool intel_crtc_active(struct drm_crtc *crtc);
-void i915_disable_vga_mem(struct drm_device *dev);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
 void intel_display_set_init_power(struct drm_device *dev, bool enable);
@@ -823,7 +824,10 @@ void intel_panel_disable_backlight(struct intel_connector *connector);
 void intel_panel_destroy_backlight(struct drm_connector *connector);
 void intel_panel_init_backlight_funcs(struct drm_device *dev);
 enum drm_connector_status intel_panel_detect(struct drm_device *dev);
-
+extern struct drm_display_mode *intel_find_panel_downclock(
+				struct drm_device *dev,
+				struct drm_display_mode *fixed_mode,
+				struct drm_connector *connector);
 
 /* intel_pm.c */
 void intel_init_clock_gating(struct drm_device *dev);
@@ -858,6 +862,10 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
+void intel_init_runtime_pm(struct drm_i915_private *dev_priv);
+void intel_fini_runtime_pm(struct drm_i915_private *dev_priv);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 
 

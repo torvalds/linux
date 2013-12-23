@@ -172,6 +172,7 @@ static const struct intel_device_info intel_i85x_info = {
 	.gen = 2, .is_i85x = 1, .is_mobile = 1, .num_pipes = 2,
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
+	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
 };
 
@@ -191,6 +192,7 @@ static const struct intel_device_info intel_i915gm_info = {
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
+	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
 };
 static const struct intel_device_info intel_i945g_info = {
@@ -203,6 +205,7 @@ static const struct intel_device_info intel_i945gm_info = {
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
+	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
 };
 
@@ -502,6 +505,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 
+	intel_runtime_pm_get(dev_priv);
+
 	/* ignore lid events during suspend */
 	mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_SUSPENDED;
@@ -688,6 +693,8 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_DONE;
 	mutex_unlock(&dev_priv->modeset_restore_lock);
+
+	intel_runtime_pm_put(dev_priv);
 	return error;
 }
 
@@ -902,6 +909,38 @@ static int i915_pm_poweroff(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
+static int i915_runtime_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	WARN_ON(!HAS_RUNTIME_PM(dev));
+
+	DRM_DEBUG_KMS("Suspending device\n");
+
+	dev_priv->pm.suspended = true;
+	intel_opregion_notify_adapter(dev, PCI_D3cold);
+
+	return 0;
+}
+
+static int i915_runtime_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	WARN_ON(!HAS_RUNTIME_PM(dev));
+
+	DRM_DEBUG_KMS("Resuming device\n");
+
+	intel_opregion_notify_adapter(dev, PCI_D0);
+	dev_priv->pm.suspended = false;
+
+	return 0;
+}
+
 static const struct dev_pm_ops i915_pm_ops = {
 	.suspend = i915_pm_suspend,
 	.resume = i915_pm_resume,
@@ -909,6 +948,8 @@ static const struct dev_pm_ops i915_pm_ops = {
 	.thaw = i915_pm_thaw,
 	.poweroff = i915_pm_poweroff,
 	.restore = i915_pm_resume,
+	.runtime_suspend = i915_runtime_suspend,
+	.runtime_resume = i915_runtime_resume,
 };
 
 static const struct vm_operations_struct i915_gem_vm_ops = {

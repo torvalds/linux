@@ -30,7 +30,9 @@
 #include "intel_drv.h"
 #include "../../../platform/x86/intel_ips.h"
 #include <linux/module.h>
+#include <linux/vgaarb.h>
 #include <drm/i915_powerwell.h>
+#include <linux/pm_runtime.h>
 
 /**
  * RC6 is a special power stage which allows the GPU to enter an very
@@ -86,7 +88,7 @@ static void i8xx_disable_fbc(struct drm_device *dev)
 	DRM_DEBUG_KMS("disabled FBC\n");
 }
 
-static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+static void i8xx_enable_fbc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -96,32 +98,40 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int cfb_pitch;
 	int plane, i;
-	u32 fbc_ctl, fbc_ctl2;
+	u32 fbc_ctl;
 
 	cfb_pitch = dev_priv->fbc.size / FBC_LL_SIZE;
 	if (fb->pitches[0] < cfb_pitch)
 		cfb_pitch = fb->pitches[0];
 
-	/* FBC_CTL wants 64B units */
-	cfb_pitch = (cfb_pitch / 64) - 1;
+	/* FBC_CTL wants 32B or 64B units */
+	if (IS_GEN2(dev))
+		cfb_pitch = (cfb_pitch / 32) - 1;
+	else
+		cfb_pitch = (cfb_pitch / 64) - 1;
 	plane = intel_crtc->plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB;
 
 	/* Clear old tags */
 	for (i = 0; i < (FBC_LL_SIZE / 32) + 1; i++)
 		I915_WRITE(FBC_TAG + (i * 4), 0);
 
-	/* Set it up... */
-	fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | FBC_CTL_CPU_FENCE;
-	fbc_ctl2 |= plane;
-	I915_WRITE(FBC_CONTROL2, fbc_ctl2);
-	I915_WRITE(FBC_FENCE_OFF, crtc->y);
+	if (IS_GEN4(dev)) {
+		u32 fbc_ctl2;
+
+		/* Set it up... */
+		fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | FBC_CTL_CPU_FENCE;
+		fbc_ctl2 |= plane;
+		I915_WRITE(FBC_CONTROL2, fbc_ctl2);
+		I915_WRITE(FBC_FENCE_OFF, crtc->y);
+	}
 
 	/* enable it... */
-	fbc_ctl = FBC_CTL_EN | FBC_CTL_PERIODIC;
+	fbc_ctl = I915_READ(FBC_CONTROL);
+	fbc_ctl &= 0x3fff << FBC_CTL_INTERVAL_SHIFT;
+	fbc_ctl |= FBC_CTL_EN | FBC_CTL_PERIODIC;
 	if (IS_I945GM(dev))
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
 	fbc_ctl |= (cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
-	fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
 	fbc_ctl |= obj->fence_reg;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
@@ -136,7 +146,7 @@ static bool i8xx_fbc_enabled(struct drm_device *dev)
 	return I915_READ(FBC_CONTROL) & FBC_CTL_EN;
 }
 
-static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+static void g4x_enable_fbc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -145,16 +155,12 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane = intel_crtc->plane == 0 ? DPFC_CTL_PLANEA : DPFC_CTL_PLANEB;
-	unsigned long stall_watermark = 200;
 	u32 dpfc_ctl;
 
 	dpfc_ctl = plane | DPFC_SR_EN | DPFC_CTL_LIMIT_1X;
 	dpfc_ctl |= DPFC_CTL_FENCE_EN | obj->fence_reg;
 	I915_WRITE(DPFC_CHICKEN, DPFC_HT_MODIFY);
 
-	I915_WRITE(DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
-		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
-		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
 	I915_WRITE(DPFC_FENCE_YOFF, crtc->y);
 
 	/* enable it... */
@@ -210,7 +216,7 @@ static void sandybridge_blit_fbc_update(struct drm_device *dev)
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_MEDIA);
 }
 
-static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+static void ironlake_enable_fbc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -219,7 +225,6 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane = intel_crtc->plane == 0 ? DPFC_CTL_PLANEA : DPFC_CTL_PLANEB;
-	unsigned long stall_watermark = 200;
 	u32 dpfc_ctl;
 
 	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
@@ -232,9 +237,6 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		dpfc_ctl |= obj->fence_reg;
 	I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
 
-	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
-		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
-		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
 	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->y);
 	I915_WRITE(ILK_FBC_RT_BASE, i915_gem_obj_ggtt_offset(obj) | ILK_FBC_RT_VALID);
 	/* enable it... */
@@ -272,7 +274,7 @@ static bool ironlake_fbc_enabled(struct drm_device *dev)
 	return I915_READ(ILK_DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
-static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+static void gen7_enable_fbc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -329,8 +331,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		 * the prior work.
 		 */
 		if (work->crtc->fb == work->fb) {
-			dev_priv->display.enable_fbc(work->crtc,
-						     work->interval);
+			dev_priv->display.enable_fbc(work->crtc);
 
 			dev_priv->fbc.plane = to_intel_crtc(work->crtc)->plane;
 			dev_priv->fbc.fb_id = work->crtc->fb->base.id;
@@ -367,7 +368,7 @@ static void intel_cancel_fbc_work(struct drm_i915_private *dev_priv)
 	dev_priv->fbc.fbc_work = NULL;
 }
 
-static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+static void intel_enable_fbc(struct drm_crtc *crtc)
 {
 	struct intel_fbc_work *work;
 	struct drm_device *dev = crtc->dev;
@@ -381,13 +382,12 @@ static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL) {
 		DRM_ERROR("Failed to allocate FBC work structure\n");
-		dev_priv->display.enable_fbc(crtc, interval);
+		dev_priv->display.enable_fbc(crtc);
 		return;
 	}
 
 	work->crtc = crtc;
 	work->fb = crtc->fb;
-	work->interval = interval;
 	INIT_DELAYED_WORK(&work->work, intel_fbc_work_fn);
 
 	dev_priv->fbc.fbc_work = work;
@@ -537,10 +537,10 @@ void intel_update_fbc(struct drm_device *dev)
 			DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
 	}
-	if ((IS_I915GM(dev) || IS_I945GM(dev) || IS_HASWELL(dev)) &&
-	    intel_crtc->plane != 0) {
+	if ((INTEL_INFO(dev)->gen < 4 || IS_HASWELL(dev)) &&
+	    intel_crtc->plane != PLANE_A) {
 		if (set_no_fbc_reason(dev_priv, FBC_BAD_PLANE))
-			DRM_DEBUG_KMS("plane not 0, disabling compression\n");
+			DRM_DEBUG_KMS("plane not A, disabling compression\n");
 		goto out_disable;
 	}
 
@@ -602,7 +602,7 @@ void intel_update_fbc(struct drm_device *dev)
 		intel_disable_fbc(dev);
 	}
 
-	intel_enable_fbc(crtc, 500);
+	intel_enable_fbc(crtc);
 	dev_priv->fbc.no_fbc_reason = FBC_OK;
 	return;
 
@@ -5257,19 +5257,33 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_HALF_SLICE_CHICKEN1,
 		   _MASKED_BIT_ENABLE(GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE));
 
-	/* WaSwitchSolVfFArbitrationPriority */
+	/* WaSwitchSolVfFArbitrationPriority:bdw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
-	/* WaPsrDPAMaskVBlankInSRD */
+	/* WaPsrDPAMaskVBlankInSRD:bdw */
 	I915_WRITE(CHICKEN_PAR1_1,
 		   I915_READ(CHICKEN_PAR1_1) | DPA_MASK_VBLANK_SRD);
 
-	/* WaPsrDPRSUnmaskVBlankInSRD */
+	/* WaPsrDPRSUnmaskVBlankInSRD:bdw */
 	for_each_pipe(i) {
 		I915_WRITE(CHICKEN_PIPESL_1(i),
 			   I915_READ(CHICKEN_PIPESL_1(i) |
 				     DPRS_MASK_VBLANK_SRD));
 	}
+
+	/* Use Force Non-Coherent whenever executing a 3D context. This is a
+	 * workaround for for a possible hang in the unlikely event a TLB
+	 * invalidation occurs during a PSD flush.
+	 */
+	I915_WRITE(HDC_CHICKEN0,
+		   I915_READ(HDC_CHICKEN0) |
+		   _MASKED_BIT_ENABLE(HDC_FORCE_NON_COHERENT));
+
+	/* WaVSRefCountFullforceMissDisable:bdw */
+	/* WaDSRefCountFullforceMissDisable:bdw */
+	I915_WRITE(GEN7_FF_THREAD_MODE,
+		   I915_READ(GEN7_FF_THREAD_MODE) &
+		   ~(GEN8_FF_DS_REF_CNT_FFME | GEN7_FF_VS_REF_CNT_FFME));
 }
 
 static void haswell_init_clock_gating(struct drm_device *dev)
@@ -5681,13 +5695,70 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	return is_enabled;
 }
 
+static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	unsigned long irqflags;
+
+	/*
+	 * After we re-enable the power well, if we touch VGA register 0x3d5
+	 * we'll get unclaimed register interrupts. This stops after we write
+	 * anything to the VGA MSR register. The vgacon module uses this
+	 * register all the time, so if we unbind our driver and, as a
+	 * consequence, bind vgacon, we'll get stuck in an infinite loop at
+	 * console_unlock(). So make here we touch the VGA MSR register, making
+	 * sure vgacon can keep working normally without triggering interrupts
+	 * and error messages.
+	 */
+	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
+	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+
+	if (IS_BROADWELL(dev)) {
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_B),
+			   dev_priv->de_irq_mask[PIPE_B]);
+		I915_WRITE(GEN8_DE_PIPE_IER(PIPE_B),
+			   ~dev_priv->de_irq_mask[PIPE_B] |
+			   GEN8_PIPE_VBLANK);
+		I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_C),
+			   dev_priv->de_irq_mask[PIPE_C]);
+		I915_WRITE(GEN8_DE_PIPE_IER(PIPE_C),
+			   ~dev_priv->de_irq_mask[PIPE_C] |
+			   GEN8_PIPE_VBLANK);
+		POSTING_READ(GEN8_DE_PIPE_IER(PIPE_C));
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	}
+}
+
+static void hsw_power_well_post_disable(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	enum pipe p;
+	unsigned long irqflags;
+
+	/*
+	 * After this, the registers on the pipes that are part of the power
+	 * well will become zero, so we have to adjust our counters according to
+	 * that.
+	 *
+	 * FIXME: Should we do this in general in drm_vblank_post_modeset?
+	 */
+	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	for_each_pipe(p)
+		if (p != PIPE_A)
+			dev->vblank[p].last = 0;
+	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+}
+
 static void hsw_set_power_well(struct drm_device *dev,
 			       struct i915_power_well *power_well, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
-	unsigned long irqflags;
 	uint32_t tmp;
+
+	WARN_ON(dev_priv->pc8.enabled);
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	is_enabled = tmp & HSW_PWR_WELL_STATE_ENABLED;
@@ -5705,42 +5776,14 @@ static void hsw_set_power_well(struct drm_device *dev,
 				DRM_ERROR("Timeout enabling power well\n");
 		}
 
-		if (IS_BROADWELL(dev)) {
-			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_B),
-				   dev_priv->de_irq_mask[PIPE_B]);
-			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_B),
-				   ~dev_priv->de_irq_mask[PIPE_B] |
-				   GEN8_PIPE_VBLANK);
-			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_C),
-				   dev_priv->de_irq_mask[PIPE_C]);
-			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_C),
-				   ~dev_priv->de_irq_mask[PIPE_C] |
-				   GEN8_PIPE_VBLANK);
-			POSTING_READ(GEN8_DE_PIPE_IER(PIPE_C));
-			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-		}
+		hsw_power_well_post_enable(dev_priv);
 	} else {
 		if (enable_requested) {
-			enum pipe p;
-
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
 
-			/*
-			 * After this, the registers on the pipes that are part
-			 * of the power well will become zero, so we have to
-			 * adjust our counters according to that.
-			 *
-			 * FIXME: Should we do this in general in
-			 * drm_vblank_post_modeset?
-			 */
-			spin_lock_irqsave(&dev->vbl_lock, irqflags);
-			for_each_pipe(p)
-				if (p != PIPE_A)
-					dev->vblank[p].last = 0;
-			spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+			hsw_power_well_post_disable(dev_priv);
 		}
 	}
 }
@@ -5748,17 +5791,26 @@ static void hsw_set_power_well(struct drm_device *dev,
 static void __intel_power_well_get(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
-	if (!power_well->count++ && power_well->set)
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!power_well->count++ && power_well->set) {
+		hsw_disable_package_c8(dev_priv);
 		power_well->set(dev, power_well, true);
+	}
 }
 
 static void __intel_power_well_put(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	WARN_ON(!power_well->count);
 
-	if (!--power_well->count && power_well->set && i915_disable_power_well)
+	if (!--power_well->count && power_well->set &&
+	    i915_disable_power_well) {
 		power_well->set(dev, power_well, false);
+		hsw_enable_package_c8(dev_priv);
+	}
 }
 
 void intel_display_power_get(struct drm_device *dev,
@@ -5951,31 +6003,86 @@ void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv)
 	hsw_enable_package_c8(dev_priv);
 }
 
+void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	pm_runtime_get_sync(device);
+	WARN(dev_priv->pm.suspended, "Device still suspended.\n");
+}
+
+void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	pm_runtime_mark_last_busy(device);
+	pm_runtime_put_autosuspend(device);
+}
+
+void intel_init_runtime_pm(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	dev_priv->pm.suspended = false;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	pm_runtime_set_active(device);
+
+	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
+	pm_runtime_mark_last_busy(device);
+	pm_runtime_use_autosuspend(device);
+}
+
+void intel_fini_runtime_pm(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	/* Make sure we're not suspended first. */
+	pm_runtime_get_sync(device);
+	pm_runtime_disable(device);
+}
+
 /* Set up chip specific power management-related functions */
 void intel_init_pm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (I915_HAS_FBC(dev)) {
-		if (HAS_PCH_SPLIT(dev)) {
+		if (INTEL_INFO(dev)->gen >= 7) {
 			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
-			if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
-				dev_priv->display.enable_fbc =
-					gen7_enable_fbc;
-			else
-				dev_priv->display.enable_fbc =
-					ironlake_enable_fbc;
+			dev_priv->display.enable_fbc = gen7_enable_fbc;
+			dev_priv->display.disable_fbc = ironlake_disable_fbc;
+		} else if (INTEL_INFO(dev)->gen >= 5) {
+			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
+			dev_priv->display.enable_fbc = ironlake_enable_fbc;
 			dev_priv->display.disable_fbc = ironlake_disable_fbc;
 		} else if (IS_GM45(dev)) {
 			dev_priv->display.fbc_enabled = g4x_fbc_enabled;
 			dev_priv->display.enable_fbc = g4x_enable_fbc;
 			dev_priv->display.disable_fbc = g4x_disable_fbc;
-		} else if (IS_CRESTLINE(dev)) {
+		} else {
 			dev_priv->display.fbc_enabled = i8xx_fbc_enabled;
 			dev_priv->display.enable_fbc = i8xx_enable_fbc;
 			dev_priv->display.disable_fbc = i8xx_disable_fbc;
+
+			/* This value was pulled out of someone's hat */
+			I915_WRITE(FBC_CONTROL, 500 << FBC_CTL_INTERVAL_SHIFT);
 		}
-		/* 855GM needs testing */
 	}
 
 	/* For cxsr */
