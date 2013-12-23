@@ -270,3 +270,4 @@ module_exit(max14577_regulator_exit);
 MODULE_AUTHOR("Krzysztof Kozlowski <k.kozlowski@samsung.com>");
 MODULE_DESCRIPTION("MAXIM 14577 regulator driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:max14577-regulator");
