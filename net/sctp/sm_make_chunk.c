@@ -2308,7 +2308,7 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 	 * added as the primary transport.  The source address seems to
 	 * be a a better choice than any of the embedded addresses.
 	 */
-	if(!sctp_assoc_add_peer(asoc, peer_addr, gfp, SCTP_ACTIVE))
+	if (!sctp_assoc_add_peer(asoc, peer_addr, gfp, SCTP_ACTIVE))
 		goto nomem;
 
 	if (sctp_cmp_addr_exact(sctp_source(chunk), peer_addr))
@@ -3334,7 +3334,7 @@ static __be16 sctp_get_asconf_response(struct sctp_chunk *asconf_ack,
 
 	while (asconf_ack_len > 0) {
 		if (asconf_ack_param->crr_id == asconf_param->crr_id) {
-			switch(asconf_ack_param->param_hdr.type) {
+			switch (asconf_ack_param->param_hdr.type) {
 			case SCTP_PARAM_SUCCESS_REPORT:
 				return SCTP_ERROR_NO_ERROR;
 			case SCTP_PARAM_ERR_CAUSE:

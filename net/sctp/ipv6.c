@@ -402,7 +402,7 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 }
 
 /* Initialize a sockaddr_storage from in incoming skb. */
-static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
+static void sctp_v6_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 			     int is_saddr)
 {
 	__be16 *port;

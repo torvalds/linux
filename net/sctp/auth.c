@@ -41,7 +41,7 @@ static struct sctp_hmac sctp_hmac_list[SCTP_AUTH_NUM_HMACS] = {
 	},
 	{
 		.hmac_id = SCTP_AUTH_HMAC_ID_SHA1,
-		.hmac_name="hmac(sha1)",
+		.hmac_name = "hmac(sha1)",
 		.hmac_len = SCTP_SHA1_SIG_SIZE,
 	},
 	{
@@ -51,7 +51,7 @@ static struct sctp_hmac sctp_hmac_list[SCTP_AUTH_NUM_HMACS] = {
 #if defined (CONFIG_CRYPTO_SHA256) || defined (CONFIG_CRYPTO_SHA256_MODULE)
 	{
 		.hmac_id = SCTP_AUTH_HMAC_ID_SHA256,
-		.hmac_name="hmac(sha256)",
+		.hmac_name = "hmac(sha256)",
 		.hmac_len = SCTP_SHA256_SIG_SIZE,
 	}
 #endif
@@ -163,7 +163,7 @@ static int sctp_auth_compare_vectors(struct sctp_auth_bytes *vector1,
 		 * lead-zero padded.  If it is not, it
 		 * is automatically larger numerically.
 		 */
-		for (i = 0; i < abs(diff); i++ ) {
+		for (i = 0; i < abs(diff); i++) {
 			if (longer[i] != 0)
 				return diff;
 		}

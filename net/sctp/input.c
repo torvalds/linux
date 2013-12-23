@@ -119,7 +119,7 @@ int sctp_rcv(struct sk_buff *skb)
 	struct sctp_af *af;
 	struct net *net = dev_net(skb->dev);
 
-	if (skb->pkt_type!=PACKET_HOST)
+	if (skb->pkt_type != PACKET_HOST)
 		goto discard_it;
 
 	SCTP_INC_STATS_BH(net, SCTP_MIB_INSCTPPACKS);
@@ -1055,7 +1055,7 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 		if (ch_end > skb_tail_pointer(skb))
 			break;
 
-		switch(ch->type) {
+		switch (ch->type) {
 		    case SCTP_CID_AUTH:
 			    have_auth = chunk_num;
 			    break;

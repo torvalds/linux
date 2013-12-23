@@ -110,7 +110,7 @@ static inline int sctp_cacc_skip_3_1_d(struct sctp_transport *primary,
 				       struct sctp_transport *transport,
 				       int count_of_newacks)
 {
-	if (count_of_newacks >=2 && transport != primary)
+	if (count_of_newacks >= 2 && transport != primary)
 		return 1;
 	return 0;
 }
@@ -470,7 +470,7 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 	struct net *net = sock_net(q->asoc->base.sk);
 	int error = 0;
 
-	switch(reason) {
+	switch (reason) {
 	case SCTP_RTXR_T3_RTX:
 		SCTP_INC_STATS(net, SCTP_MIB_T3_RETRANSMITS);
 		sctp_transport_lower_cwnd(transport, SCTP_LOWER_CWND_T3_RTX);
@@ -1088,7 +1088,7 @@ sctp_flush_out:
 	 *
 	 * --xguo
 	 */
-	while ((ltransport = sctp_list_dequeue(&transport_list)) != NULL ) {
+	while ((ltransport = sctp_list_dequeue(&transport_list)) != NULL) {
 		struct sctp_transport *t = list_entry(ltransport,
 						      struct sctp_transport,
 						      send_ready);
@@ -1217,7 +1217,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 		 * destinations for which cacc_saw_newack is set.
 		 */
 		if (transport->cacc.cacc_saw_newack)
-			count_of_newacks ++;
+			count_of_newacks++;
 	}
 
 	/* Move the Cumulative TSN Ack Point if appropriate.  */

@@ -1568,7 +1568,7 @@ static int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
 	struct sctp_endpoint *ep;
-	struct sctp_association *new_asoc=NULL, *asoc=NULL;
+	struct sctp_association *new_asoc = NULL, *asoc = NULL;
 	struct sctp_transport *transport, *chunk_tp;
 	struct sctp_chunk *chunk;
 	union sctp_addr to;
@@ -2462,7 +2462,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	int hb_change, pmtud_change, sackdelay_change;
 
 	if (optlen != sizeof(struct sctp_paddrparams))
-		return - EINVAL;
+		return -EINVAL;
 
 	if (copy_from_user(&params, optval, optlen))
 		return -EFAULT;
@@ -2483,7 +2483,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	/* If an address other than INADDR_ANY is specified, and
 	 * no transport is found, then the request is invalid.
 	 */
-	if (!sctp_is_any(sk, ( union sctp_addr *)&params.spp_address)) {
+	if (!sctp_is_any(sk, (union sctp_addr *)&params.spp_address)) {
 		trans = sctp_addr_id2transport(sk, &params.spp_address,
 					       params.spp_assoc_id);
 		if (!trans)
@@ -2588,7 +2588,7 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 		else
 			params.sack_freq = 0;
 	} else
-		return - EINVAL;
+		return -EINVAL;
 
 	/* Validate value parameter. */
 	if (params.sack_delay > 500)
@@ -3332,7 +3332,7 @@ static int sctp_setsockopt_hmac_ident(struct sock *sk,
 	if (optlen < sizeof(struct sctp_hmacalgo))
 		return -EINVAL;
 
-	hmacs= memdup_user(optval, optlen);
+	hmacs = memdup_user(optval, optlen);
 	if (IS_ERR(hmacs))
 		return PTR_ERR(hmacs);
 
@@ -3370,7 +3370,7 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 	if (optlen <= sizeof(struct sctp_authkey))
 		return -EINVAL;
 
-	authkey= memdup_user(optval, optlen);
+	authkey = memdup_user(optval, optlen);
 	if (IS_ERR(authkey))
 		return PTR_ERR(authkey);
 
@@ -4467,7 +4467,7 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 	/* If an address other than INADDR_ANY is specified, and
 	 * no transport is found, then the request is invalid.
 	 */
-	if (!sctp_is_any(sk, ( union sctp_addr *)&params.spp_address)) {
+	if (!sctp_is_any(sk, (union sctp_addr *)&params.spp_address)) {
 		trans = sctp_addr_id2transport(sk, &params.spp_address,
 					       params.spp_assoc_id);
 		if (!trans) {
@@ -4578,7 +4578,7 @@ static int sctp_getsockopt_delayed_ack(struct sock *sk, int len,
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else
-		return - EINVAL;
+		return -EINVAL;
 
 	/* Get association, if sack_assoc_id != 0 and the socket is a one
 	 * to many style socket, and an association was not found, then
@@ -4668,8 +4668,8 @@ static int sctp_getsockopt_peer_addrs(struct sock *sk, int len,
 	if (!asoc)
 		return -EINVAL;
 
-	to = optval + offsetof(struct sctp_getaddrs,addrs);
-	space_left = len - offsetof(struct sctp_getaddrs,addrs);
+	to = optval + offsetof(struct sctp_getaddrs, addrs);
+	space_left = len - offsetof(struct sctp_getaddrs, addrs);
 
 	list_for_each_entry(from, &asoc->peer.transport_addr_list,
 				transports) {
@@ -4729,7 +4729,7 @@ static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 		memcpy(to, &temp, addrlen);
 
 		to += addrlen;
-		cnt ++;
+		cnt++;
 		space_left -= addrlen;
 		*bytes_copied += addrlen;
 	}
@@ -4778,8 +4778,8 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 		bp = &asoc->base.bind_addr;
 	}
 
-	to = optval + offsetof(struct sctp_getaddrs,addrs);
-	space_left = len - offsetof(struct sctp_getaddrs,addrs);
+	to = optval + offsetof(struct sctp_getaddrs, addrs);
+	space_left = len - offsetof(struct sctp_getaddrs, addrs);
 
 	addrs = kmalloc(space_left, GFP_KERNEL);
 	if (!addrs)
@@ -4818,7 +4818,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 		memcpy(buf, &temp, addrlen);
 		buf += addrlen;
 		bytes_copied += addrlen;
-		cnt ++;
+		cnt++;
 		space_left -= addrlen;
 	}
 
@@ -5090,7 +5090,7 @@ static int sctp_getsockopt_associnfo(struct sock *sk, int len,
 		assocparams.sasoc_cookie_life = ktime_to_ms(asoc->cookie_life);
 
 		list_for_each(pos, &asoc->peer.transport_addr_list) {
-			cnt ++;
+			cnt++;
 		}
 
 		assocparams.sasoc_number_peer_destinations = cnt;
