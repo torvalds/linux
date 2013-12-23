@@ -474,7 +474,8 @@ static ssize_t __iscsi_##prefix##_store_##name(				\
 									\
 	if (!capable(CAP_SYS_ADMIN))					\
 		return -EPERM;						\
-									\
+	if (count >= sizeof(auth->name))				\
+		return -EINVAL;						\
 	snprintf(auth->name, sizeof(auth->name), "%s", page);		\
 	if (!strncmp("NULL", auth->name, 4))				\
 		auth->naf_flags &= ~flags;				\

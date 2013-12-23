@@ -7,7 +7,8 @@ config USB_PHY
 	def_bool n
 
 config USB_OTG_FSM
-	bool "USB 2.0 OTG FSM implementation"
+	tristate "USB 2.0 OTG FSM implementation"
+	depends on USB
 	select USB_OTG
 	select USB_PHY
 	help
@@ -37,6 +38,7 @@ config FSL_USB2_OTG
 config ISP1301_OMAP
 	tristate "Philips ISP1301 with OMAP OTG"
 	depends on I2C && ARCH_OMAP_OTG
+	depends on USB
 	select USB_PHY
 	help
 	  If you say yes here you get support for the Philips ISP1301

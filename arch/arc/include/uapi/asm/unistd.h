@@ -8,7 +8,11 @@
 
 /******** no-legacy-syscalls-ABI *******/
 
-#ifndef _UAPI_ASM_ARC_UNISTD_H
+/*
+ * Non-typical guard macro to enable inclusion twice in ARCH sys.c
+ * That is how the Generic syscall wrapper generator works
+ */
+#if !defined(_UAPI_ASM_ARC_UNISTD_H) || defined(__SYSCALL)
 #define _UAPI_ASM_ARC_UNISTD_H
 
 #define __ARCH_WANT_SYS_EXECVE
@@ -35,5 +39,7 @@ __SYSCALL(__NR_arc_gettls, sys_arc_gettls)
 /* Generic syscall (fs/filesystems.c - lost in asm-generic/unistd.h */
 #define __NR_sysfs		(__NR_arch_specific_syscall + 3)
 __SYSCALL(__NR_sysfs, sys_sysfs)
+
+#undef __SYSCALL
 
 #endif
