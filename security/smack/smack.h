@@ -241,7 +241,8 @@ u32 smack_to_secid(const char *);
 extern int smack_cipso_direct;
 extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;
-extern char *smack_onlycap;
+extern struct smack_known *smack_onlycap;
+extern struct smack_known *smack_syslog_label;
 extern const char *smack_cipso_option;
 
 extern struct smack_known smack_known_floor;
@@ -312,7 +313,7 @@ static inline int smack_privileged(int cap)
 
 	if (!capable(cap))
 		return 0;
-	if (smack_onlycap == NULL || smack_onlycap == skp->smk_known)
+	if (smack_onlycap == NULL || smack_onlycap == skp)
 		return 1;
 	return 0;
 }

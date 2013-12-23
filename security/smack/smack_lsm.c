@@ -219,8 +219,6 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
  * smack_syslog - Smack approval on syslog
  * @type: message type
  *
- * Require that the task has the floor label
- *
  * Returns 0 on success, error code otherwise.
  */
 static int smack_syslog(int typefrom_file)
@@ -231,7 +229,7 @@ static int smack_syslog(int typefrom_file)
 	if (smack_privileged(CAP_MAC_OVERRIDE))
 		return 0;
 
-	 if (skp != &smack_known_floor)
+	 if (smack_syslog_label != NULL && smack_syslog_label != skp)
 		rc = -EACCES;
 
 	return rc;
