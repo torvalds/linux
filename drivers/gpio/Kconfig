@@ -110,7 +110,7 @@ comment "Memory mapped GPIO drivers:"
 
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
-	depends on ARCH_CLPS711X
+	depends on ARCH_CLPS711X || COMPILE_TEST
 	select GPIO_GENERIC
 	help
 	  Say yes here to support GPIO on CLPS711X SoCs.
