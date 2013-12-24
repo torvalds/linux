@@ -87,9 +87,9 @@
 		interrupts = <1 9 0xf04>;
 	};
 
-	gpio0: gpio@ffc40000 {
+	gpio0: gpio@e6050000 {
 		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
-		reg = <0 0xffc40000 0 0x2c>;
+		reg = <0 0xe6050000 0 0x50>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 4 0x4>;
 		#gpio-cells = <2>;
@@ -99,9 +99,9 @@
 		interrupt-controller;
 	};
 
-	gpio1: gpio@ffc41000 {
+	gpio1: gpio@e6051000 {
 		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
-		reg = <0 0xffc41000 0 0x2c>;
+		reg = <0 0xe6051000 0 0x50>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 5 0x4>;
 		#gpio-cells = <2>;
@@ -111,9 +111,9 @@
 		interrupt-controller;
 	};
 
-	gpio2: gpio@ffc42000 {
+	gpio2: gpio@e6052000 {
 		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
-		reg = <0 0xffc42000 0 0x2c>;
+		reg = <0 0xe6052000 0 0x50>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 6 0x4>;
 		#gpio-cells = <2>;
@@ -123,9 +123,9 @@
 		interrupt-controller;
 	};
 
-	gpio3: gpio@ffc43000 {
+	gpio3: gpio@e6053000 {
 		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
-		reg = <0 0xffc43000 0 0x2c>;
+		reg = <0 0xe6053000 0 0x50>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 7 0x4>;
 		#gpio-cells = <2>;
@@ -135,9 +135,9 @@
 		interrupt-controller;
 	};
 
-	gpio4: gpio@ffc44000 {
+	gpio4: gpio@e6054000 {
 		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
-		reg = <0 0xffc44000 0 0x2c>;
+		reg = <0 0xe6054000 0 0x50>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 8 0x4>;
 		#gpio-cells = <2>;
@@ -147,9 +147,9 @@
 		interrupt-controller;
 	};
 
-	gpio5: gpio@ffc45000 {
+	gpio5: gpio@e6055000 {
 		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
-		reg = <0 0xffc45000 0 0x2c>;
+		reg = <0 0xe6055000 0 0x50>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 9 0x4>;
 		#gpio-cells = <2>;

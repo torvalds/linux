@@ -130,7 +130,8 @@ static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 {
 	struct device_node *dn;
 	struct pci_dn *pdn;
-	const u32 *req_msi;
+	const __be32 *p;
+	u32 req_msi;
 
 	pdn = pci_get_pdn(pdev);
 	if (!pdn)
@@ -138,19 +139,20 @@ static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 
 	dn = pdn->node;
 
-	req_msi = of_get_property(dn, prop_name, NULL);
-	if (!req_msi) {
+	p = of_get_property(dn, prop_name, NULL);
+	if (!p) {
 		pr_debug("rtas_msi: No %s on %s\n", prop_name, dn->full_name);
 		return -ENOENT;
 	}
 
-	if (*req_msi < nvec) {
+	req_msi = be32_to_cpup(p);
+	if (req_msi < nvec) {
 		pr_debug("rtas_msi: %s requests < %d MSIs\n", prop_name, nvec);
 
-		if (*req_msi == 0) /* Be paranoid */
+		if (req_msi == 0) /* Be paranoid */
 			return -ENOSPC;
 
-		return *req_msi;
+		return req_msi;
 	}
 
 	return 0;
@@ -171,7 +173,7 @@ static int check_req_msix(struct pci_dev *pdev, int nvec)
 static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 {
 	struct device_node *dn;
-	const u32 *p;
+	const __be32 *p;
 
 	dn = of_node_get(pci_device_to_OF_node(dev));
 	while (dn) {
@@ -179,7 +181,7 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 		if (p) {
 			pr_debug("rtas_msi: found prop on dn %s\n",
 				dn->full_name);
-			*total = *p;
+			*total = be32_to_cpup(p);
 			return dn;
 		}
 
@@ -232,13 +234,13 @@ struct msi_counts {
 static void *count_non_bridge_devices(struct device_node *dn, void *data)
 {
 	struct msi_counts *counts = data;
-	const u32 *p;
+	const __be32 *p;
 	u32 class;
 
 	pr_debug("rtas_msi: counting %s\n", dn->full_name);
 
 	p = of_get_property(dn, "class-code", NULL);
-	class = p ? *p : 0;
+	class = p ? be32_to_cpup(p) : 0;
 
 	if ((class >> 8) != PCI_CLASS_BRIDGE_PCI)
 		counts->num_devices++;
@@ -249,7 +251,7 @@ static void *count_non_bridge_devices(struct device_node *dn, void *data)
 static void *count_spare_msis(struct device_node *dn, void *data)
 {
 	struct msi_counts *counts = data;
-	const u32 *p;
+	const __be32 *p;
 	int req;
 
 	if (dn == counts->requestor)
@@ -260,11 +262,11 @@ static void *count_spare_msis(struct device_node *dn, void *data)
 		req = 0;
 		p = of_get_property(dn, "ibm,req#msi", NULL);
 		if (p)
-			req = *p;
+			req = be32_to_cpup(p);
 
 		p = of_get_property(dn, "ibm,req#msi-x", NULL);
 		if (p)
-			req = max(req, (int)*p);
+			req = max(req, (int)be32_to_cpup(p));
 	}
 
 	if (req < counts->quota)
