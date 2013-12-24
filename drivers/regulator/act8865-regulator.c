@@ -334,17 +334,6 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int act8865_pmic_remove(struct i2c_client *client)
-{
-	struct act8865 *act8865 = i2c_get_clientdata(client);
-	int i;
-
-	for (i = 0; i < ACT8865_REG_NUM; i++)
-		regulator_unregister(act8865->rdev[i]);
-
-	return 0;
-}
-
 static const struct i2c_device_id act8865_ids[] = {
 	{ "act8865", 0 },
 	{ },
@@ -357,7 +346,6 @@ static struct i2c_driver act8865_pmic_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= act8865_pmic_probe,
-	.remove		= act8865_pmic_remove,
 	.id_table	= act8865_ids,
 };
 
