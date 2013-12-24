@@ -81,6 +81,39 @@ _ENTRY(_start);
 	mr	r23,r3
 	mr	r25,r4
 
+	bl	0f
+0:	mflr	r8
+	addis	r3,r8,(is_second_reloc - 0b)@ha
+	lwz	r19,(is_second_reloc - 0b)@l(r3)
+
+	/* Check if this is the second relocation. */
+	cmpwi	r19,1
+	bne	1f
+
+	/*
+	 * For the second relocation, we already get the real memstart_addr
+	 * from device tree. So we will map PAGE_OFFSET to memstart_addr,
+	 * then the virtual address of start kernel should be:
+	 *          PAGE_OFFSET + (kernstart_addr - memstart_addr)
+	 * Since the offset between kernstart_addr and memstart_addr should
+	 * never be beyond 1G, so we can just use the lower 32bit of them
+	 * for the calculation.
+	 */
+	lis	r3,PAGE_OFFSET@h
+
+	addis	r4,r8,(kernstart_addr - 0b)@ha
+	addi	r4,r4,(kernstart_addr - 0b)@l
+	lwz	r5,4(r4)
+
+	addis	r6,r8,(memstart_addr - 0b)@ha
+	addi	r6,r6,(memstart_addr - 0b)@l
+	lwz	r7,4(r6)
+
+	subf	r5,r7,r5
+	add	r3,r3,r5
+	b	2f
+
+1:
 	/*
 	 * We have the runtime (virutal) address of our base.
 	 * We calculate our shift of offset from a 64M page.
@@ -94,7 +127,14 @@ _ENTRY(_start);
 	subf	r3,r5,r6			/* r3 = r6 - r5 */
 	add	r3,r4,r3			/* Required Virtual Address */
 
-	bl	relocate
+2:	bl	relocate
+
+	/*
+	 * For the second relocation, we already set the right tlb entries
+	 * for the kernel space, so skip the code in fsl_booke_entry_mapping.S
+	*/
+	cmpwi	r19,1
+	beq	set_ivor
 #endif
 
 /* We try to not make any assumptions about how the boot loader
@@ -122,6 +162,7 @@ _ENTRY(__early_start)
 #include "fsl_booke_entry_mapping.S"
 #undef ENTRY_MAPPING_BOOT_SETUP
 
+set_ivor:
 	/* Establish the interrupt vector offsets */
 	SET_IVOR(0,  CriticalInput);
 	SET_IVOR(1,  MachineCheck);
@@ -207,11 +248,13 @@ _ENTRY(__early_start)
 	bl	early_init
 
 #ifdef CONFIG_RELOCATABLE
+	mr	r3,r30
+	mr	r4,r31
 #ifdef CONFIG_PHYS_64BIT
-	mr	r3,r23
-	mr	r4,r25
+	mr	r5,r23
+	mr	r6,r25
 #else
-	mr	r3,r25
+	mr	r5,r25
 #endif
 	bl	relocate_init
 #endif
@@ -1207,6 +1250,9 @@ _GLOBAL(switch_to_as1)
 /*
  * Restore to the address space 0 and also invalidate the tlb entry created
  * by switch_to_as1.
+ * r3 - the tlb entry which should be invalidated
+ * r4 - __pa(PAGE_OFFSET in AS1) - __pa(PAGE_OFFSET in AS0)
+ * r5 - device tree virtual address. If r4 is 0, r5 is ignored.
 */
 _GLOBAL(restore_to_as0)
 	mflr	r0
@@ -1215,7 +1261,15 @@ _GLOBAL(restore_to_as0)
 0:	mflr	r9
 	addi	r9,r9,1f - 0b
 
-	mfmsr	r7
+	/*
+	 * We may map the PAGE_OFFSET in AS0 to a different physical address,
+	 * so we need calculate the right jump and device tree address based
+	 * on the offset passed by r4.
+	 */
+	add	r9,r9,r4
+	add	r5,r5,r4
+
+2:	mfmsr	r7
 	li	r8,(MSR_IS | MSR_DS)
 	andc	r7,r7,r8
 
@@ -1234,8 +1288,18 @@ _GLOBAL(restore_to_as0)
 	mtspr	SPRN_MAS1,r9
 	tlbwe
 	isync
+
+	cmpwi	r4,0
+	bne	3f
 	mtlr	r0
 	blr
+
+	/*
+	 * The PAGE_OFFSET will map to a different physical address,
+	 * jump to _start to do another relocation again.
+	*/
+3:	mr	r3,r5
+	bl	_start
 
 /*
  * We put a few things here that have to be page-aligned. This stuff
