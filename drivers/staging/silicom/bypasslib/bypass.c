@@ -525,13 +525,13 @@ static int get_bypass_info(int if_index, struct bp_info *bp_info)
 }
 EXPORT_SYMBOL(get_bypass_info);
 
-int __init init_lib_module(void)
+static int __init init_lib_module(void)
 {
 	printk(VERSION);
 	return 0;
 }
 
-void __exit cleanup_lib_module(void)
+static void __exit cleanup_lib_module(void)
 {
 }
 
