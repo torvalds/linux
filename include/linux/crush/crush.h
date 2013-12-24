@@ -49,6 +49,8 @@ enum {
 
 	CRUSH_RULE_SET_CHOOSE_TRIES = 8, /* override choose_total_tries */
 	CRUSH_RULE_SET_CHOOSELEAF_TRIES = 9, /* override chooseleaf_descend_once */
+	CRUSH_RULE_SET_CHOOSE_LOCAL_TRIES = 10,
+	CRUSH_RULE_SET_CHOOSE_LOCAL_FALLBACK_TRIES = 11,
 };
 
 /*
