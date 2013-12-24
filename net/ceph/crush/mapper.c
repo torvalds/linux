@@ -565,7 +565,7 @@ int crush_do_rule(const struct crush_map *map,
 				/* copy final _leaf_ values to output set */
 				memcpy(o, c, osize*sizeof(*o));
 
-			/* swap t and w arrays */
+			/* swap o and w arrays */
 			tmp = o;
 			o = w;
 			w = tmp;
