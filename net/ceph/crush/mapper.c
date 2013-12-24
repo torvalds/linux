@@ -460,7 +460,8 @@ static void crush_choose_indep(const struct crush_map *map,
 			       int x, int left, int numrep, int type,
 			      int *out, int outpos,
 			      int recurse_to_leaf,
-			      int *out2)
+			       int *out2,
+			       int parent_r)
 {
 	struct crush_bucket *in = bucket;
 	int endpos = outpos + left;
@@ -499,7 +500,7 @@ static void crush_choose_indep(const struct crush_map *map,
 				 * this will involve more devices in data
 				 * movement and tend to distribute the load.
 				 */
-				r = rep;
+				r = rep + parent_r;
 
 				/* be careful */
 				if (in->alg == CRUSH_BUCKET_UNIFORM &&
@@ -567,7 +568,7 @@ static void crush_choose_indep(const struct crush_map *map,
 								   weight, weight_max,
 								   x, 1, numrep, 0,
 								   out2, rep,
-								   0, NULL);
+								   0, NULL, r);
 						if (out2[rep] == CRUSH_ITEM_NONE) {
 							/* placed nothing; no leaf */
 							break;
@@ -702,7 +703,8 @@ int crush_do_rule(const struct crush_map *map,
 						curstep->arg2,
 						o+osize, j,
 						recurse_to_leaf,
-						c+osize);
+						c+osize,
+						0);
 					osize += numrep;
 				}
 			}
