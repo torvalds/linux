@@ -83,11 +83,6 @@ static int keystone_usbphy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing usb phy resource\n");
-		return -EINVAL;
-	}
-
 	k_phy->phy_ctrl = devm_ioremap_resource(dev, res);
 	if (IS_ERR(k_phy->phy_ctrl))
 		return PTR_ERR(k_phy->phy_ctrl);
