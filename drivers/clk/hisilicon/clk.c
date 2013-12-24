@@ -68,6 +68,7 @@ void __init hisi_clk_register_fixed_rate(struct hisi_fixed_rate_clock *clks,
 			       __func__, clks[i].name);
 			continue;
 		}
+		clk_table[clks[i].id] = clk;
 	}
 }
 
@@ -87,6 +88,7 @@ void __init hisi_clk_register_fixed_factor(struct hisi_fixed_factor_clock *clks,
 			       __func__, clks[i].name);
 			continue;
 		}
+		clk_table[clks[i].id] = clk;
 	}
 }
 
