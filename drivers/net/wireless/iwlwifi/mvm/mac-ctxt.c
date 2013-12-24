@@ -1191,10 +1191,18 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 					 struct ieee80211_vif *vif)
 {
-	u16 *id = _data;
+	struct iwl_missed_beacons_notif *missed_beacons = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (mvmvif->id == *id)
+	if (mvmvif->id != (u16)le32_to_cpu(missed_beacons->mac_id))
+		return;
+
+	/*
+	 * TODO: the threshold should be adjusted based on latency conditions,
+	 * and/or in case of a CS flow on one of the other AP vifs.
+	 */
+	if (le32_to_cpu(missed_beacons->consec_missed_beacons_since_last_rx) >
+	     IWL_MVM_MISSED_BEACONS_THRESHOLD)
 		ieee80211_beacon_loss(vif);
 }
 
@@ -1203,12 +1211,19 @@ int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 				    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_missed_beacons_notif *missed_beacons = (void *)pkt->data;
-	u16 id = (u16)le32_to_cpu(missed_beacons->mac_id);
+	struct iwl_missed_beacons_notif *mb = (void *)pkt->data;
+
+	IWL_DEBUG_INFO(mvm,
+		       "missed bcn mac_id=%u, consecutive=%u (%u, %u, %u)\n",
+		       le32_to_cpu(mb->mac_id),
+		       le32_to_cpu(mb->consec_missed_beacons),
+		       le32_to_cpu(mb->consec_missed_beacons_since_last_rx),
+		       le32_to_cpu(mb->num_recvd_beacons),
+		       le32_to_cpu(mb->num_expected_beacons));
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_beacon_loss_iterator,
-						   &id);
+						   mb);
 	return 0;
 }
