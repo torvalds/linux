@@ -455,8 +455,12 @@ reject:
 		} while (retry_descent);
 
 		if (skip_rep) {
-			dprintk("skip rep\n");
-			continue;
+			if (firstn) {
+				dprintk("skip rep\n");
+				continue;
+			}
+			dprintk("undef rep, continuing\n");
+			item = CRUSH_ITEM_UNDEF;
 		}
 
 		dprintk("CHOOSE got %d\n", item);
