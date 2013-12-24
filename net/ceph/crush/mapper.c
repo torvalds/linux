@@ -478,15 +478,17 @@ reject:
  * @result_max: maximum result size
  * @weight: weight vector (for map leaves)
  * @weight_max: size of weight vector
+ * @scratch: scratch vector for private use; must be >= 3 * result_max
  */
 int crush_do_rule(const struct crush_map *map,
 		  int ruleno, int x, int *result, int result_max,
-		  const __u32 *weight, int weight_max)
+		  const __u32 *weight, int weight_max,
+		  int *scratch)
 {
 	int result_len;
-	int a[CRUSH_MAX_SET];
-	int b[CRUSH_MAX_SET];
-	int c[CRUSH_MAX_SET];
+	int *a = scratch;
+	int *b = scratch + result_max;
+	int *c = scratch + result_max*2;
 	int recurse_to_leaf;
 	int *w;
 	int wsize = 0;

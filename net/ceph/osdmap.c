@@ -1110,6 +1110,16 @@ int ceph_calc_ceph_pg(struct ceph_pg *pg, const char *oid,
 }
 EXPORT_SYMBOL(ceph_calc_ceph_pg);
 
+static int crush_do_rule_ary(const struct crush_map *map, int ruleno, int x,
+			     int *result, int result_max,
+			     const __u32 *weight, int weight_max)
+{
+	int scratch[result_max * 3];
+
+	return crush_do_rule(map, ruleno, x, result, result_max,
+			     weight, weight_max, scratch);
+}
+
 /*
  * Calculate raw osd vector for the given pgid.  Return pointer to osd
  * array, or NULL on failure.
@@ -1163,9 +1173,9 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 				      pool->pgp_num_mask) +
 			(unsigned)pgid.pool;
 	}
-	r = crush_do_rule(osdmap->crush, ruleno, pps, osds,
-			  min_t(int, pool->size, *num),
-			  osdmap->osd_weight, osdmap->max_osd);
+	r = crush_do_rule_ary(osdmap->crush, ruleno, pps,
+			      osds, min_t(int, pool->size, *num),
+			      osdmap->osd_weight, osdmap->max_osd);
 	if (r < 0) {
 		pr_err("error %d from crush rule: pool %lld ruleset %d type %d"
 		       " size %d\n", r, pgid.pool, pool->crush_ruleset,
