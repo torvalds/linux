@@ -63,7 +63,7 @@ static const struct ceph_connection_operations mds_con_ops;
  */
 static int parse_reply_info_in(void **p, void *end,
 			       struct ceph_mds_reply_info_in *info,
-			       int features)
+			       u64 features)
 {
 	int err = -EIO;
 
@@ -98,7 +98,7 @@ bad:
  */
 static int parse_reply_info_trace(void **p, void *end,
 				  struct ceph_mds_reply_info_parsed *info,
-				  int features)
+				  u64 features)
 {
 	int err;
 
@@ -145,7 +145,7 @@ out_bad:
  */
 static int parse_reply_info_dir(void **p, void *end,
 				struct ceph_mds_reply_info_parsed *info,
-				int features)
+				u64 features)
 {
 	u32 num, i = 0;
 	int err;
@@ -217,7 +217,7 @@ out_bad:
  */
 static int parse_reply_info_filelock(void **p, void *end,
 				     struct ceph_mds_reply_info_parsed *info,
-				     int features)
+				     u64 features)
 {
 	if (*p + sizeof(*info->filelock_reply) > end)
 		goto bad;
@@ -238,7 +238,7 @@ bad:
  */
 static int parse_reply_info_create(void **p, void *end,
 				  struct ceph_mds_reply_info_parsed *info,
-				  int features)
+				  u64 features)
 {
 	if (features & CEPH_FEATURE_REPLY_CREATE_INODE) {
 		if (*p == end) {
@@ -262,7 +262,7 @@ bad:
  */
 static int parse_reply_info_extra(void **p, void *end,
 				  struct ceph_mds_reply_info_parsed *info,
-				  int features)
+				  u64 features)
 {
 	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
 		return parse_reply_info_filelock(p, end, info, features);
@@ -280,7 +280,7 @@ static int parse_reply_info_extra(void **p, void *end,
  */
 static int parse_reply_info(struct ceph_msg *msg,
 			    struct ceph_mds_reply_info_parsed *info,
-			    int features)
+			    u64 features)
 {
 	void *p, *end;
 	u32 len;
