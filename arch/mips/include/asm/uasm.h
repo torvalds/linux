@@ -141,6 +141,7 @@ Ip_u2u1u3(_sra);
 Ip_u2u1u3(_srl);
 Ip_u3u1u2(_subu);
 Ip_u2s3u1(_sw);
+Ip_u1(_sync);
 Ip_u1(_syscall);
 Ip_0(_tlbp);
 Ip_0(_tlbr);
