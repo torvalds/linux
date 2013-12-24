@@ -904,7 +904,7 @@ static int rspi_probe(struct platform_device *pdev)
 	struct rspi_data *rspi;
 	int ret, irq;
 	char clk_name[16];
-	struct rspi_plat_data *rspi_pd = pdev->dev.platform_data;
+	struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
 	const struct spi_ops *ops;
 	const struct platform_device_id *id_entry = pdev->id_entry;
 
