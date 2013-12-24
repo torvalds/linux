@@ -474,6 +474,148 @@ reject:
 
 
 /**
+ * choose indep: alternative breadth-first positionally stable mapping
+ *
+ */
+static void crush_choose_indep(const struct crush_map *map,
+			      struct crush_bucket *bucket,
+			      const __u32 *weight, int weight_max,
+			      int x, int numrep, int type,
+			      int *out, int outpos,
+			      int recurse_to_leaf,
+			      int *out2)
+{
+	struct crush_bucket *in = bucket;
+	int left = numrep - outpos;
+	int rep;
+	unsigned int ftotal;
+	int r;
+	int i;
+	int item = 0;
+	int itemtype;
+	int collide;
+
+	dprintk("CHOOSE%s INDEP bucket %d x %d outpos %d numrep %d\n", recurse_to_leaf ? "_LEAF" : "",
+		bucket->id, x, outpos, numrep);
+
+	/* initially my result is undefined */
+	for (rep = outpos; rep < numrep; rep++) {
+		out[rep] = CRUSH_ITEM_UNDEF;
+		if (out2)
+			out2[rep] = CRUSH_ITEM_UNDEF;
+	}
+
+	for (ftotal = 0; left > 0 && ftotal < map->choose_total_tries; ftotal++) {
+		for (rep = outpos; rep < numrep; rep++) {
+			if (out[rep] != CRUSH_ITEM_UNDEF)
+				continue;
+
+			in = bucket;  /* initial bucket */
+
+			/* choose through intervening buckets */
+			for (;;) {
+				r = rep;
+
+				/* be careful */
+				if (in->alg == CRUSH_BUCKET_UNIFORM &&
+				    in->size % numrep == 0)
+					/* r'=r+(n+1)*f_total */
+					r += (numrep+1) * ftotal;
+				else
+					/* r' = r + n*f_total */
+					r += numrep * ftotal;
+
+				/* bucket choose */
+				if (in->size == 0) {
+					dprintk("   empty bucket\n");
+					break;
+				}
+
+				item = crush_bucket_choose(in, x, r);
+				if (item >= map->max_devices) {
+					dprintk("   bad item %d\n", item);
+					out[rep] = CRUSH_ITEM_NONE;
+					if (out2)
+						out2[rep] = CRUSH_ITEM_NONE;
+					left--;
+					break;
+				}
+
+				/* desired type? */
+				if (item < 0)
+					itemtype = map->buckets[-1-item]->type;
+				else
+					itemtype = 0;
+				dprintk("  item %d type %d\n", item, itemtype);
+
+				/* keep going? */
+				if (itemtype != type) {
+					if (item >= 0 ||
+					    (-1-item) >= map->max_buckets) {
+						dprintk("   bad item type %d\n", type);
+						out[rep] = CRUSH_ITEM_NONE;
+						if (out2)
+							out2[rep] =
+								CRUSH_ITEM_NONE;
+						left--;
+						break;
+					}
+					in = map->buckets[-1-item];
+					continue;
+				}
+
+				/* collision? */
+				collide = 0;
+				for (i = outpos; i < numrep; i++) {
+					if (out[i] == item) {
+						collide = 1;
+						break;
+					}
+				}
+				if (collide)
+					break;
+
+				if (recurse_to_leaf) {
+					if (item < 0) {
+						crush_choose_indep(map,
+								   map->buckets[-1-item],
+								   weight, weight_max,
+								   x, rep+1, 0,
+								   out2, rep,
+								   0, NULL);
+						if (out2[rep] == CRUSH_ITEM_NONE) {
+							/* placed nothing; no leaf */
+							break;
+						}
+					} else {
+						/* we already have a leaf! */
+						out2[rep] = item;
+					}
+				}
+
+				/* out? */
+				if (itemtype == 0 &&
+				    is_out(map, weight, weight_max, item, x))
+					break;
+
+				/* yay! */
+				out[rep] = item;
+				left--;
+				break;
+			}
+		}
+	}
+	for (rep = outpos; rep < numrep; rep++) {
+		if (out[rep] == CRUSH_ITEM_UNDEF) {
+			out[rep] = CRUSH_ITEM_NONE;
+		}
+		if (out2 && out2[rep] == CRUSH_ITEM_UNDEF) {
+			out2[rep] = CRUSH_ITEM_NONE;
+		}
+	}
+}
+
+/**
  * crush_do_rule - calculate a mapping with the given input and rule
  * @map: the crush_map
  * @ruleno: the rule id
@@ -556,15 +698,27 @@ int crush_do_rule(const struct crush_map *map,
 						continue;
 				}
 				j = 0;
-				osize += crush_choose(map,
-						      map->buckets[-1-w[i]],
-						      weight, weight_max,
-						      x, numrep,
-						      curstep->arg2,
-						      o+osize, j,
-						      firstn,
-						      recurse_to_leaf,
-						      descend_once, c+osize);
+				if (firstn) {
+					osize += crush_choose(map,
+							      map->buckets[-1-w[i]],
+							      weight, weight_max,
+							      x, numrep,
+							      curstep->arg2,
+							      o+osize, j,
+							      firstn,
+							      recurse_to_leaf,
+							      descend_once, c+osize);
+				} else {
+					crush_choose_indep(map,
+							   map->buckets[-1-w[i]],
+							   weight, weight_max,
+							   x, numrep,
+							   curstep->arg2,
+							   o+osize, j,
+							   recurse_to_leaf,
+							   c+osize);
+					osize += numrep;
+				}
 			}
 
 			if (recurse_to_leaf)

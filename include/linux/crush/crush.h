@@ -22,7 +22,8 @@
 #define CRUSH_MAX_DEPTH 10  /* max crush hierarchy depth */
 
 
-#define CRUSH_ITEM_UNDEF  0x7fffffff  /* undefined result */
+#define CRUSH_ITEM_UNDEF  0x7ffffffe  /* undefined result (internal use only) */
+#define CRUSH_ITEM_NONE   0x7fffffff  /* no result */
 
 /*
  * CRUSH uses user-defined "rules" to describe how inputs should be
