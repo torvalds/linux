@@ -457,6 +457,11 @@ void ath9k_tasklet(unsigned long data)
 
 	if ((ah->config.hw_hang_checks & HW_BB_WATCHDOG) &&
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
+		spin_lock(&common->cc_lock);
+		ath_hw_cycle_counters_update(common);
+		ar9003_hw_bb_watchdog_dbg_info(ah);
+		spin_unlock(&common->cc_lock);
+
 		if (ar9003_hw_bb_watchdog_check(ah)) {
 			type = RESET_TYPE_BB_WATCHDOG;
 			ath9k_queue_reset(sc, type);
@@ -593,15 +598,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 		goto chip_reset;
 
 	if ((ah->config.hw_hang_checks & HW_BB_WATCHDOG) &&
-	    (status & ATH9K_INT_BB_WATCHDOG)) {
-
-		spin_lock(&common->cc_lock);
-		ath_hw_cycle_counters_update(common);
-		ar9003_hw_bb_watchdog_dbg_info(ah);
-		spin_unlock(&common->cc_lock);
-
+	    (status & ATH9K_INT_BB_WATCHDOG))
 		goto chip_reset;
-	}
 
 #ifdef CONFIG_ATH9K_WOW
 	if (status & ATH9K_INT_BMISS) {
