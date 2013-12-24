@@ -1731,11 +1731,11 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, const struct 
 		return -EMSGSIZE;
 
 	id = nlmsg_data(nlh);
-	memcpy(&id->sa_id.daddr, &x->id.daddr,sizeof(x->id.daddr));
+	memcpy(&id->sa_id.daddr, &x->id.daddr, sizeof(x->id.daddr));
 	id->sa_id.spi = x->id.spi;
 	id->sa_id.family = x->props.family;
 	id->sa_id.proto = x->id.proto;
-	memcpy(&id->saddr, &x->props.saddr,sizeof(x->props.saddr));
+	memcpy(&id->saddr, &x->props.saddr, sizeof(x->props.saddr));
 	id->reqid = x->props.reqid;
 	id->flags = c->data.aevent;
 
