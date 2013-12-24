@@ -264,8 +264,12 @@ static int crush_bucket_choose(struct crush_bucket *in, int x, int r)
  * true if device is marked "out" (failed, fully offloaded)
  * of the cluster
  */
-static int is_out(const struct crush_map *map, const __u32 *weight, int item, int x)
+static int is_out(const struct crush_map *map,
+		  const __u32 *weight, int weight_max,
+		  int item, int x)
 {
+	if (item >= weight_max)
+		return 1;
 	if (weight[item] >= 0x10000)
 		return 0;
 	if (weight[item] == 0)
@@ -292,7 +296,7 @@ static int is_out(const struct crush_map *map, const __u32 *weight, int item, in
  */
 static int crush_choose(const struct crush_map *map,
 			struct crush_bucket *bucket,
-			const __u32 *weight,
+			const __u32 *weight, int weight_max,
 			int x, int numrep, int type,
 			int *out, int outpos,
 			int firstn, int recurse_to_leaf,
@@ -396,7 +400,7 @@ static int crush_choose(const struct crush_map *map,
 					if (item < 0) {
 						if (crush_choose(map,
 							 map->buckets[-1-item],
-							 weight,
+							 weight, weight_max,
 							 x, outpos+1, 0,
 							 out2, outpos,
 							 firstn, 0,
@@ -414,6 +418,7 @@ static int crush_choose(const struct crush_map *map,
 					/* out? */
 					if (itemtype == 0)
 						reject = is_out(map, weight,
+								weight_max,
 								item, x);
 					else
 						reject = 0;
@@ -470,10 +475,12 @@ reject:
  * @x: hash input
  * @result: pointer to result vector
  * @result_max: maximum result size
+ * @weight: weight vector (for map leaves)
+ * @weight_max: size of weight vector
  */
 int crush_do_rule(const struct crush_map *map,
 		  int ruleno, int x, int *result, int result_max,
-		  const __u32 *weight)
+		  const __u32 *weight, int weight_max)
 {
 	int result_len;
 	int a[CRUSH_MAX_SET];
@@ -545,7 +552,7 @@ int crush_do_rule(const struct crush_map *map,
 				j = 0;
 				osize += crush_choose(map,
 						      map->buckets[-1-w[i]],
-						      weight,
+						      weight, weight_max,
 						      x, numrep,
 						      curstep->arg2,
 						      o+osize, j,

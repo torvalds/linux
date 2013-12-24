@@ -1165,7 +1165,7 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	}
 	r = crush_do_rule(osdmap->crush, ruleno, pps, osds,
 			  min_t(int, pool->size, *num),
-			  osdmap->osd_weight);
+			  osdmap->osd_weight, osdmap->max_osd);
 	if (r < 0) {
 		pr_err("error %d from crush rule: pool %lld ruleset %d type %d"
 		       " size %d\n", r, pgid.pool, pool->crush_ruleset,
