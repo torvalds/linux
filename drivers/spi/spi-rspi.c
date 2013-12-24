@@ -160,7 +160,7 @@ struct rspi_data {
 	wait_queue_head_t wait;
 	spinlock_t lock;
 	struct clk *clk;
-	unsigned char spsr;
+	u8 spsr;
 	const struct spi_ops *ops;
 
 	/* for dmaengine */
@@ -514,7 +514,7 @@ end_nomap:
 
 static void rspi_receive_init(const struct rspi_data *rspi)
 {
-	unsigned char spsr;
+	u8 spsr;
 
 	spsr = rspi_read8(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPRF)
@@ -562,7 +562,7 @@ static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 
 static void qspi_receive_init(const struct rspi_data *rspi)
 {
-	unsigned char spsr;
+	u8 spsr;
 
 	spsr = rspi_read8(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPRF)
@@ -807,9 +807,9 @@ static void rspi_cleanup(struct spi_device *spi)
 static irqreturn_t rspi_irq(int irq, void *_sr)
 {
 	struct rspi_data *rspi = _sr;
-	unsigned long spsr;
+	u8 spsr;
 	irqreturn_t ret = IRQ_NONE;
-	unsigned char disable_irq = 0;
+	u8 disable_irq = 0;
 
 	rspi->spsr = spsr = rspi_read8(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPRF)
