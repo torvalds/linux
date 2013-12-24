@@ -149,7 +149,7 @@ extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(unsigned long top);
 extern void adjust_total_lowmem(void);
 extern int switch_to_as1(void);
-extern void restore_to_as0(int esel, int offset, void *dt_ptr);
+extern void restore_to_as0(int esel, int offset, void *dt_ptr, int bootcpu);
 #endif
 extern void loadcam_entry(unsigned int index);
 

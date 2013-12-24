@@ -216,8 +216,7 @@ set_ivor:
 	/* Check to see if we're the second processor, and jump
 	 * to the secondary_start code if so
 	 */
-	lis	r24, boot_cpuid@h
-	ori	r24, r24, boot_cpuid@l
+	LOAD_REG_ADDR_PIC(r24, boot_cpuid)
 	lwz	r24, 0(r24)
 	cmpwi	r24, -1
 	mfspr   r24,SPRN_PIR
@@ -1146,6 +1145,29 @@ _GLOBAL(__flush_disable_L1)
 /* When we get here, r24 needs to hold the CPU # */
 	.globl __secondary_start
 __secondary_start:
+	LOAD_REG_ADDR_PIC(r3, tlbcam_index)
+	lwz	r3,0(r3)
+	mtctr	r3
+	li	r26,0		/* r26 safe? */
+
+	bl	switch_to_as1
+	mr	r27,r3		/* tlb entry */
+	/* Load each CAM entry */
+1:	mr	r3,r26
+	bl	loadcam_entry
+	addi	r26,r26,1
+	bdnz	1b
+	mr	r3,r27		/* tlb entry */
+	LOAD_REG_ADDR_PIC(r4, memstart_addr)
+	lwz	r4,0(r4)
+	mr	r5,r25		/* phys kernel start */
+	rlwinm	r5,r5,0,~0x3ffffff	/* aligned 64M */
+	subf	r4,r5,r4	/* memstart_addr - phys kernel start */
+	li	r5,0		/* no device tree */
+	li	r6,0		/* not boot cpu */
+	bl	restore_to_as0
+
+
 	lis	r3,__secondary_hold_acknowledge@h
 	ori	r3,r3,__secondary_hold_acknowledge@l
 	stw	r24,0(r3)
@@ -1153,17 +1175,6 @@ __secondary_start:
 	li	r3,0
 	mr	r4,r24		/* Why? */
 	bl	call_setup_cpu
-
-	lis	r3,tlbcam_index@ha
-	lwz	r3,tlbcam_index@l(r3)
-	mtctr	r3
-	li	r26,0		/* r26 safe? */
-
-	/* Load each CAM entry */
-1:	mr	r3,r26
-	bl	loadcam_entry
-	addi	r26,r26,1
-	bdnz	1b
 
 	/* get current_thread_info and current */
 	lis	r1,secondary_ti@ha
@@ -1253,6 +1264,7 @@ _GLOBAL(switch_to_as1)
  * r3 - the tlb entry which should be invalidated
  * r4 - __pa(PAGE_OFFSET in AS1) - __pa(PAGE_OFFSET in AS0)
  * r5 - device tree virtual address. If r4 is 0, r5 is ignored.
+ * r6 - boot cpu
 */
 _GLOBAL(restore_to_as0)
 	mflr	r0
@@ -1268,6 +1280,7 @@ _GLOBAL(restore_to_as0)
 	 */
 	add	r9,r9,r4
 	add	r5,r5,r4
+	add	r0,r0,r4
 
 2:	mfmsr	r7
 	li	r8,(MSR_IS | MSR_DS)
@@ -1290,7 +1303,9 @@ _GLOBAL(restore_to_as0)
 	isync
 
 	cmpwi	r4,0
-	bne	3f
+	cmpwi	cr1,r6,0
+	cror	eq,4*cr1+eq,eq
+	bne	3f			/* offset != 0 && is_boot_cpu */
 	mtlr	r0
 	blr
 

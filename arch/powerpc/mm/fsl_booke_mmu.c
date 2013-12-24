@@ -231,7 +231,7 @@ void __init adjust_total_lowmem(void)
 
 	i = switch_to_as1();
 	__max_low_memory = map_mem_in_cams(ram, CONFIG_LOWMEM_CAM_NUM);
-	restore_to_as0(i, 0, 0);
+	restore_to_as0(i, 0, 0, 1);
 
 	pr_info("Memory CAM mapping: ");
 	for (i = 0; i < tlbcam_index - 1; i++)
@@ -302,7 +302,7 @@ notrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
 		else
 			map_mem_in_cams_addr(start, PAGE_OFFSET + offset,
 					0x4000000, CONFIG_LOWMEM_CAM_NUM);
-		restore_to_as0(n, offset, __va(dt_ptr));
+		restore_to_as0(n, offset, __va(dt_ptr), 1);
 		/* We should never reach here */
 		panic("Relocation error");
 	}
