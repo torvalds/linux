@@ -1350,8 +1350,8 @@ static enum selection_rect s5k5baf_get_sel_rect(u32 pad, u32 target)
 
 static int s5k5baf_is_bound_target(u32 target)
 {
-	return (target == V4L2_SEL_TGT_CROP_BOUNDS ||
-		target == V4L2_SEL_TGT_COMPOSE_BOUNDS);
+	return target == V4L2_SEL_TGT_CROP_BOUNDS ||
+		target == V4L2_SEL_TGT_COMPOSE_BOUNDS;
 }
 
 static int s5k5baf_get_selection(struct v4l2_subdev *sd,
