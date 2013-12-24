@@ -55,15 +55,7 @@ static struct attribute *iio_trig_dev_attrs[] = {
 	&dev_attr_name.attr,
 	NULL,
 };
-
-static struct attribute_group iio_trig_attr_group = {
-	.attrs	= iio_trig_dev_attrs,
-};
-
-static const struct attribute_group *iio_trig_attr_groups[] = {
-	&iio_trig_attr_group,
-	NULL
-};
+ATTRIBUTE_GROUPS(iio_trig_dev);
 
 int iio_trigger_register(struct iio_trigger *trig_info)
 {
@@ -403,7 +395,7 @@ static void iio_trig_release(struct device *device)
 
 static struct device_type iio_trig_type = {
 	.release = iio_trig_release,
-	.groups = iio_trig_attr_groups,
+	.groups = iio_trig_dev_groups,
 };
 
 static void iio_trig_subirqmask(struct irq_data *d)

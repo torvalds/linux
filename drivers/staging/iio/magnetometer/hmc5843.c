@@ -639,7 +639,7 @@ static struct i2c_driver hmc5843_driver = {
 	.driver = {
 		.name	= "hmc5843",
 		.pm	= HMC5843_PM_OPS,
-		.of_match_table = of_match_ptr(hmc5843_of_match),
+		.of_match_table = hmc5843_of_match,
 	},
 	.id_table	= hmc5843_id,
 	.probe		= hmc5843_probe,

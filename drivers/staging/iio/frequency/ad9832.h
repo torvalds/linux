@@ -92,9 +92,9 @@ struct ad9832_state {
 	 * transfer buffers to live in their own cache lines.
 	 */
 	union {
-		unsigned short		freq_data[4]____cacheline_aligned;
-		unsigned short		phase_data[2];
-		unsigned short		data;
+		__be16			freq_data[4]____cacheline_aligned;
+		__be16			phase_data[2];
+		__be16			data;
 	};
 };
 

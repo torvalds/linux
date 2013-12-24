@@ -676,10 +676,10 @@ static const struct attribute_group lis3l02dq_attribute_group = {
 static const struct iio_info lis3l02dq_info = {
 	.read_raw = &lis3l02dq_read_raw,
 	.write_raw = &lis3l02dq_write_raw,
-	.read_event_value_new = &lis3l02dq_read_thresh,
-	.write_event_value_new = &lis3l02dq_write_thresh,
-	.write_event_config_new = &lis3l02dq_write_event_config,
-	.read_event_config_new = &lis3l02dq_read_event_config,
+	.read_event_value = &lis3l02dq_read_thresh,
+	.write_event_value = &lis3l02dq_write_thresh,
+	.write_event_config = &lis3l02dq_write_event_config,
+	.read_event_config = &lis3l02dq_read_event_config,
 	.driver_module = THIS_MODULE,
 	.attrs = &lis3l02dq_attribute_group,
 };

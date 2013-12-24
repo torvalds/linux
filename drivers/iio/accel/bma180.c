@@ -455,7 +455,12 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),	\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
 	.scan_index = (_index),						\
-	.scan_type = IIO_ST('s', 14, 16, 2),				\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = 14,						\
+		.storagebits = 16,					\
+		.shift = 2,						\
+	},								\
 	.ext_info = bma180_ext_info,					\
 }
 

@@ -97,7 +97,7 @@ struct ad5755_state {
 	 */
 
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data[2] ____cacheline_aligned;
 };
@@ -392,7 +392,12 @@ static const struct iio_chan_spec_ext_info ad5755_ext_info[] = {
 		BIT(IIO_CHAN_INFO_OFFSET) |			\
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
 		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
-	.scan_type = IIO_ST('u', (_bits), 16, 16 - (_bits)),	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (_bits),				\
+		.storagebits = 16,				\
+		.shift = 16 - (_bits),				\
+	},							\
 	.ext_info = ad5755_ext_info,				\
 }
 
