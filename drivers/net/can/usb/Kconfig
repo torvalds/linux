@@ -13,6 +13,14 @@ config CAN_ESD_USB2
           This driver supports the CAN-USB/2 interface
           from esd electronic system design gmbh (http://www.esd.eu).
 
+config CAN_GS_USB
+	tristate "Geschwister Schneider UG interfaces"
+	---help---
+	  This driver supports the Geschwister Schneider USB/CAN devices.
+	  If unsure choose N,
+	  choose Y for built in support,
+	  M to compile as module (module will be named: gs_usb).
+
 config CAN_KVASER_USB
 	tristate "Kvaser CAN/USB interface"
 	---help---
