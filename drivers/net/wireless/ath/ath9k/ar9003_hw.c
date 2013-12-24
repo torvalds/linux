@@ -872,6 +872,26 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 	}
 }
 
+static void ar9003_hw_init_hang_checks(struct ath_hw *ah)
+{
+	/*
+	 * All chips support detection of BB/MAC hangs.
+	 */
+	ah->config.hw_hang_checks |= HW_BB_WATCHDOG;
+	ah->config.hw_hang_checks |= HW_MAC_HANG;
+
+	/*
+	 * This is not required for AR9580 1.0
+	 */
+	if (AR_SREV_9300_22(ah))
+		ah->config.hw_hang_checks |= HW_PHYRESTART_CLC_WAR;
+
+	if (AR_SREV_9330(ah))
+		ah->bb_watchdog_timeout_ms = 85;
+	else
+		ah->bb_watchdog_timeout_ms = 25;
+}
+
 /* Sets up the AR9003 hardware familiy callbacks */
 void ar9003_hw_attach_ops(struct ath_hw *ah)
 {
@@ -880,6 +900,7 @@ void ar9003_hw_attach_ops(struct ath_hw *ah)
 
 	ar9003_hw_init_mode_regs(ah);
 	priv_ops->init_mode_gain_regs = ar9003_hw_init_mode_gain_regs;
+	priv_ops->init_hang_checks = ar9003_hw_init_hang_checks;
 
 	ops->config_pci_powersave = ar9003_hw_configpcipowersave;
 

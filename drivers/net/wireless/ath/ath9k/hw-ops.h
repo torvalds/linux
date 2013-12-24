@@ -107,6 +107,11 @@ static inline void ath9k_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 
 /* Private hardware call ops */
 
+static inline void ath9k_hw_init_hang_checks(struct ath_hw *ah)
+{
+	ath9k_hw_private_ops(ah)->init_hang_checks(ah);
+}
+
 /* PHY ops */
 
 static inline int ath9k_hw_rf_set_freq(struct ath_hw *ah,
