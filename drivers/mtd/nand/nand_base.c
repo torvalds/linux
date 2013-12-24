@@ -814,6 +814,11 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	int status, state = chip->state;
 	unsigned long timeo = (state == FL_ERASING ? 400 : 20);
 
+#if defined(ARCH_ZYNQ) && (CONFIG_HZ == 20)
+		/* Xilinx Zynq NAND work around for HZ=20 */
+		timeo += 1;
+#endif
+
 	led_trigger_event(nand_led_trigger, LED_FULL);
 
 	/*
@@ -2858,11 +2863,18 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 	int i;
 	int val;
 
+#ifdef CONFIG_MTD_NAND_XILINX_PS
+	uint8_t *buf;
+	unsigned int options;
+	int j;
+#endif
+
 	/* ONFI need to be probed in 8 bits mode, and 16 bits should be selected with NAND_BUSWIDTH_AUTO */
 	if (chip->options & NAND_BUSWIDTH_16) {
 		pr_err("Trying ONFI probe in 16 bits mode, aborting !\n");
 		return 0;
 	}
+
 	/* Try ONFI for unknown chip or LP */
 	chip->cmdfunc(mtd, NAND_CMD_READID, 0x20, -1);
 	if (chip->read_byte(mtd) != 'O' || chip->read_byte(mtd) != 'N' ||
@@ -2871,7 +2883,13 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 
 	chip->cmdfunc(mtd, NAND_CMD_PARAM, 0, -1);
 	for (i = 0; i < 3; i++) {
+#ifdef CONFIG_MTD_NAND_XILINX_PS
+		buf = (uint8_t *)p;
+		for (j = 0; j < 256; j++)
+			buf[j] = chip->read_byte(mtd);
+#else
 		chip->read_buf(mtd, (uint8_t *)p, sizeof(*p));
+#endif
 		if (onfi_crc16(ONFI_CRC_BASE, (uint8_t *)p, 254) ==
 				le16_to_cpu(p->crc)) {
 			pr_info("ONFI param page %d valid\n", i);
@@ -2924,7 +2942,17 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 	if (le16_to_cpu(p->features) & 1)
 		*busw = NAND_BUSWIDTH_16;
 
+#ifdef CONFIG_MTD_NAND_XILINX_PS
+	/* Read the chip options before clearing the bits */
+	options = chip->options;
+#endif
+
 	pr_info("ONFI flash detected\n");
+#ifdef CONFIG_MTD_NAND_XILINX_PS
+	/* set the bus width option */
+	if (options & NAND_BUSWIDTH_16)
+		chip->options |= NAND_BUSWIDTH_16;
+#endif
 	return 1;
 }
 
