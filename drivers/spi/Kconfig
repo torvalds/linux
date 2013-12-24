@@ -474,11 +474,31 @@ config SPI_XILINX
 	select SPI_BITBANG
 	help
 	  This exposes the SPI controller IP from the Xilinx EDK.
-
 	  See the "OPB Serial Peripheral Interface (SPI) (v1.00e)"
 	  Product Specification document (DS464) for hardware details.
-
 	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
+
+config SPI_XILINX_PS_QSPI
+	tristate "Xilinx PS QSPI controller"
+	depends on ARCH_ZYNQ
+	depends on SPI_MASTER
+	help
+	  This selects the PS Quad SPI controller master driver from the Xilinx.
+
+config SPI_XILINX_PS_QSPI_DUAL_STACKED
+	bool "Xilinx PS QSPI Dual stacked configuration"
+	depends on SPI_XILINX_PS_QSPI
+	help
+	  This selects the PS Quad SPI controller in dual stacked mode.
+	  Enable this option if your hw design is using dual stacked
+	  configuration.
+
+config SPI_XILINX_PS_SPI
+	tristate "Xilinx PS SPI controller"
+	depends on ARCH_ZYNQ
+	depends on SPI_MASTER
+	help
+	  This selects the PS SPI controller master driver from the Xilinx.
 
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"

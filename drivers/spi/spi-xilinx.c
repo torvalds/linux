@@ -82,7 +82,7 @@ struct xilinx_spi {
 	struct completion done;
 	void __iomem	*regs;	/* virt. address of the control registers */
 
-	int		irq;
+	int irq;
 
 	u8 *rx_ptr;		/* pointer in the Tx buffer */
 	const u8 *tx_ptr;	/* pointer in the Rx buffer */
@@ -232,6 +232,21 @@ static int xilinx_spi_setup_transfer(struct spi_device *spi,
 	return 0;
 }
 
+static int xilinx_spi_setup(struct spi_device *spi)
+{
+	/* always return 0, we can not check the number of bits.
+	 * There are cases when SPI setup is called before any driver is
+	 * there, in that case the SPI core defaults to 8 bits, which we
+	 * do not support in some cases. But if we return an error, the
+	 * SPI device would not be registered and no driver can get hold of it
+	 * When the driver is there, it will call SPI setup again with the
+	 * correct number of bits per transfer.
+	 * If a driver setups with the wrong bit number, it will fail when
+	 * it tries to do a transfer
+	 */
+	return 0;
+}
+
 static void xilinx_spi_fill_tx_fifo(struct xilinx_spi *xspi)
 {
 	u8 sr;
@@ -300,7 +315,7 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 		}
 
 		/* See if there is more data to send */
-		if (xspi->remaining_bytes <= 0)
+		if (!xspi->remaining_bytes > 0)
 			break;
 	}
 
@@ -349,7 +364,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	u32 tmp;
 	u8 i;
 
-	pdata = dev_get_platdata(&pdev->dev);
+	pdata = pdev->dev.platform_data;
 	if (pdata) {
 		num_cs = pdata->num_chipselect;
 		bits_per_word = pdata->bits_per_word;
@@ -368,14 +383,18 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENODEV;
 
+	/* clear the dma_mask, to try to disable use of dma */
+	master->dev.dma_mask = 0;
+
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 
 	xspi = spi_master_get_devdata(master);
-	xspi->bitbang.master = master;
+	xspi->bitbang.master = spi_master_get(master);
 	xspi->bitbang.chipselect = xilinx_spi_chipselect;
 	xspi->bitbang.setup_transfer = xilinx_spi_setup_transfer;
 	xspi->bitbang.txrx_bufs = xilinx_spi_txrx_bufs;
+	xspi->bitbang.master->setup = xilinx_spi_setup;
 	init_completion(&xspi->done);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
