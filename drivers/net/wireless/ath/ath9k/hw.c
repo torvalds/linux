@@ -1935,10 +1935,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);
 
-	if (AR_SREV_9300_20_OR_LATER(ah)) {
+	if (AR_SREV_9300_20_OR_LATER(ah))
 		ar9003_hw_bb_watchdog_config(ah);
+
+	if (ah->config.hw_hang_checks & HW_PHYRESTART_CLC_WAR)
 		ar9003_hw_disable_phy_restart(ah);
-	}
 
 	ath9k_hw_apply_gpio_override(ah);
 
