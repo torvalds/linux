@@ -1536,7 +1536,7 @@ static struct of_device_id charger_manager_match[] = {
 	{},
 };
 
-struct charger_desc *of_cm_parse_desc(struct device *dev)
+static struct charger_desc *of_cm_parse_desc(struct device *dev)
 {
 	struct charger_desc *desc;
 	struct device_node *np = dev->of_node;
