@@ -427,12 +427,6 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 	an->vif = vif;
 
 	ath_tx_node_init(sc, an);
-
-	if (sta->ht_cap.ht_supported) {
-		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
-				     sta->ht_cap.ampdu_factor);
-		an->mpdudensity = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
-	}
 }
 
 static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
