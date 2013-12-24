@@ -241,4 +241,32 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* 64M mapped initially according to head_fsl_booke.S */
 	memblock_set_current_limit(min_t(u64, limit, 0x04000000));
 }
+
+#ifdef CONFIG_RELOCATABLE
+notrace void __init relocate_init(phys_addr_t start)
+{
+	unsigned long base = KERNELBASE;
+
+	/*
+	 * Relocatable kernel support based on processing of dynamic
+	 * relocation entries.
+	 * Compute the virt_phys_offset :
+	 * virt_phys_offset = stext.run - kernstart_addr
+	 *
+	 * stext.run = (KERNELBASE & ~0x3ffffff) + (kernstart_addr & 0x3ffffff)
+	 * When we relocate, we have :
+	 *
+	 *	(kernstart_addr & 0x3ffffff) = (stext.run & 0x3ffffff)
+	 *
+	 * hence:
+	 *  virt_phys_offset = (KERNELBASE & ~0x3ffffff) -
+	 *                              (kernstart_addr & ~0x3ffffff)
+	 *
+	 */
+	kernstart_addr = start;
+	start &= ~0x3ffffff;
+	base &= ~0x3ffffff;
+	virt_phys_offset = base - start;
+}
+#endif
 #endif

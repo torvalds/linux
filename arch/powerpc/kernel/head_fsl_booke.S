@@ -73,6 +73,30 @@ _ENTRY(_start);
 	li	r24,0			/* CPU number */
 	li	r23,0			/* phys kernel start (high) */
 
+#ifdef CONFIG_RELOCATABLE
+	LOAD_REG_ADDR_PIC(r3, _stext)	/* Get our current runtime base */
+
+	/* Translate _stext address to physical, save in r23/r25 */
+	bl	get_phys_addr
+	mr	r23,r3
+	mr	r25,r4
+
+	/*
+	 * We have the runtime (virutal) address of our base.
+	 * We calculate our shift of offset from a 64M page.
+	 * We could map the 64M page we belong to at PAGE_OFFSET and
+	 * get going from there.
+	 */
+	lis	r4,KERNELBASE@h
+	ori	r4,r4,KERNELBASE@l
+	rlwinm	r6,r25,0,0x3ffffff		/* r6 = PHYS_START % 64M */
+	rlwinm	r5,r4,0,0x3ffffff		/* r5 = KERNELBASE % 64M */
+	subf	r3,r5,r6			/* r3 = r6 - r5 */
+	add	r3,r4,r3			/* Required Virtual Address */
+
+	bl	relocate
+#endif
+
 /* We try to not make any assumptions about how the boot loader
  * setup or used the TLBs.  We invalidate all mappings from the
  * boot loader and load a single entry in TLB1[0] to map the
@@ -181,6 +205,16 @@ _ENTRY(__early_start)
 	stw	r24, TI_CPU(r22)
 
 	bl	early_init
+
+#ifdef CONFIG_RELOCATABLE
+#ifdef CONFIG_PHYS_64BIT
+	mr	r3,r23
+	mr	r4,r25
+#else
+	mr	r3,r25
+#endif
+	bl	relocate_init
+#endif
 
 #ifdef CONFIG_DYNAMIC_MEMSTART
 	lis	r3,kernstart_addr@ha
