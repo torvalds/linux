@@ -132,6 +132,21 @@ config XPS_USB_HCD_XILINX
 		support both high speed and full speed devices, or high speed
 		devices only.
 
+config USB_XUSBPS_DR_OF
+	tristate
+	select USB_PHY
+	select USB_ULPI
+	select USB_ULPI_VIEWPORT
+
+config USB_EHCI_XUSBPS
+	bool "Support for Xilinx PS EHCI USB controller"
+	depends on USB_EHCI_HCD && ARCH_ZYNQ
+	select USB_EHCI_ROOT_HUB_TT
+	select USB_XUSBPS_DR_OF
+	---help---
+		Xilinx PS USB host controller core is EHCI compilant and has
+		transaction translator built-in.
+
 config USB_EHCI_FSL
 	bool "Support for Freescale PPC on-chip EHCI USB controller"
 	depends on FSL_SOC

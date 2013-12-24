@@ -220,6 +220,21 @@ static int ehci_hcd_xilinx_of_remove(struct platform_device *op)
 	return 0;
 }
 
+/**
+ * ehci_hcd_xilinx_of_shutdown - shutdown the hcd
+ * @op:		pointer to platform_device structure that is to be removed
+ *
+ * Properly shutdown the hcd, call driver's shutdown routine.
+ */
+static void ehci_hcd_xilinx_of_shutdown(struct platform_device *op)
+{
+	struct usb_hcd *hcd = platform_get_drvdata(op);
+
+	if (hcd->driver->shutdown)
+		hcd->driver->shutdown(hcd);
+}
+
+
 static const struct of_device_id ehci_hcd_xilinx_of_match[] = {
 		{.compatible = "xlnx,xps-usb-host-1.00.a",},
 	{},
@@ -229,7 +244,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_xilinx_of_match);
 static struct platform_driver ehci_hcd_xilinx_of_driver = {
 	.probe		= ehci_hcd_xilinx_of_probe,
 	.remove		= ehci_hcd_xilinx_of_remove,
-	.shutdown	= usb_hcd_platform_shutdown,
+	.shutdown	= ehci_hcd_xilinx_of_shutdown,
 	.driver = {
 		.name = "xilinx-of-ehci",
 		.owner = THIS_MODULE,

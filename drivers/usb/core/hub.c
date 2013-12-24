@@ -1689,7 +1689,11 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	pm_runtime_set_autosuspend_delay(&hdev->dev, 0);
 
 	/* Hubs have proper suspend/resume support. */
+#ifdef CONFIG_USB_ZYNQ_PHY
+	usb_disable_autosuspend(hdev);
+#else
 	usb_enable_autosuspend(hdev);
+#endif
 
 	if (hdev->level == MAX_TOPO_LEVEL) {
 		dev_err(&intf->dev,

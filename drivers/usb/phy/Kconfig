@@ -210,4 +210,16 @@ config USB_ULPI_VIEWPORT
 	  Provides read/write operations to the ULPI phy register set for
 	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
 
+config USB_ZYNQ_PHY
+	tristate "Xilinx Zynq USB OTG dual-role support"
+	depends on USB && ARCH_ZYNQ && USB_EHCI_XUSBPS && USB_GADGET_XUSBPS && USB_OTG
+	select USB_OTG_UTILS
+	help
+	  Say Y here if you want to build Xilinx USB PS OTG
+	  driver in kernel. This driver implements role
+	  switch between EHCI host driver and USB gadget driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xilinx_usbps_otg.
+
 endif # USB_PHY

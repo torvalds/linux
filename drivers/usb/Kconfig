@@ -45,6 +45,7 @@ config USB_ARCH_HAS_EHCI
 	default y if PLAT_S5P
 	default y if ARCH_MSM
 	default y if MICROBLAZE
+	default y if ARCH_ZYNQ
 	default y if SPARC_LEON
 	default y if ARCH_MMP
 	default y if MACH_LOONGSON1
