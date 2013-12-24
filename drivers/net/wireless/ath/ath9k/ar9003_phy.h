@@ -1334,4 +1334,6 @@
 #define AR_PHY_65NM_RXRF_AGC_AGC_OUT                   0x00000004
 #define AR_PHY_65NM_RXRF_AGC_AGC_OUT_S                 2
 
+#define AR9300_DFS_FIRPWR -28
+
 #endif  /* AR9003_PHY_H */

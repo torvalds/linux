@@ -1814,6 +1814,68 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	memcpy(ah->nf_regs, ar9300_cca_regs, sizeof(ah->nf_regs));
 }
 
+/*
+ * Baseband Watchdog signatures:
+ *
+ * 0x04000539: BB hang when operating in HT40 DFS Channel.
+ *             Full chip reset is not required, but a recovery
+ *             mechanism is needed.
+ *
+ * 0x1300000a: Related to CAC deafness.
+ *             Chip reset is not required.
+ *
+ * 0x0400000a: Related to CAC deafness.
+ *             Full chip reset is required.
+ *
+ * 0x04000b09: RX state machine gets into an illegal state
+ *             when a packet with unsupported rate is received.
+ *             Full chip reset is required and PHY_RESTART has
+ *             to be disabled.
+ *
+ * 0x04000409: Packet stuck on receive.
+ *             Full chip reset is required for all chips except AR9340.
+ */
+
+/*
+ * ar9003_hw_bb_watchdog_check(): Returns true if a chip reset is required.
+ */
+bool ar9003_hw_bb_watchdog_check(struct ath_hw *ah)
+{
+	u32 val;
+
+	switch(ah->bb_watchdog_last_status) {
+	case 0x04000539:
+		val = REG_READ(ah, AR_PHY_RADAR_0);
+		val &= (~AR_PHY_RADAR_0_FIRPWR);
+		val |= SM(0x7f, AR_PHY_RADAR_0_FIRPWR);
+		REG_WRITE(ah, AR_PHY_RADAR_0, val);
+		udelay(1);
+		val = REG_READ(ah, AR_PHY_RADAR_0);
+		val &= ~AR_PHY_RADAR_0_FIRPWR;
+		val |= SM(AR9300_DFS_FIRPWR, AR_PHY_RADAR_0_FIRPWR);
+		REG_WRITE(ah, AR_PHY_RADAR_0, val);
+
+		return false;
+	case 0x1300000a:
+		return false;
+	case 0x0400000a:
+	case 0x04000b09:
+		return true;
+	case 0x04000409:
+		if (AR_SREV_9340(ah))
+			return false;
+		else
+			return true;
+	default:
+		/*
+		 * For any other unknown signatures, do a
+		 * full chip reset.
+		 */
+		return true;
+	}
+}
+EXPORT_SYMBOL(ar9003_hw_bb_watchdog_check);
+
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
