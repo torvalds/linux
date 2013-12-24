@@ -922,11 +922,29 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah)
 			mask2 |= AR_IMR_S2_CST;
 	}
 
+	if (ah->config.hw_hang_checks & HW_BB_WATCHDOG) {
+		if (ints & ATH9K_INT_BB_WATCHDOG) {
+			mask |= AR_IMR_BCNMISC;
+			mask2 |= AR_IMR_S2_BB_WATCHDOG;
+		}
+	}
+
 	ath_dbg(common, INTERRUPT, "new IMR 0x%x\n", mask);
 	REG_WRITE(ah, AR_IMR, mask);
-	ah->imrs2_reg &= ~(AR_IMR_S2_TIM | AR_IMR_S2_DTIM | AR_IMR_S2_DTIMSYNC |
-			   AR_IMR_S2_CABEND | AR_IMR_S2_CABTO |
-			   AR_IMR_S2_TSFOOR | AR_IMR_S2_GTT | AR_IMR_S2_CST);
+	ah->imrs2_reg &= ~(AR_IMR_S2_TIM |
+			   AR_IMR_S2_DTIM |
+			   AR_IMR_S2_DTIMSYNC |
+			   AR_IMR_S2_CABEND |
+			   AR_IMR_S2_CABTO |
+			   AR_IMR_S2_TSFOOR |
+			   AR_IMR_S2_GTT |
+			   AR_IMR_S2_CST);
+
+	if (ah->config.hw_hang_checks & HW_BB_WATCHDOG) {
+		if (ints & ATH9K_INT_BB_WATCHDOG)
+			ah->imrs2_reg &= ~AR_IMR_S2_BB_WATCHDOG;
+	}
+
 	ah->imrs2_reg |= mask2;
 	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
 

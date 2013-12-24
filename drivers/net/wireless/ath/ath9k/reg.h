@@ -304,6 +304,7 @@
 #define AR_IMR_S2              0x00ac
 #define AR_IMR_S2_QCU_TXURN    0x000003FF
 #define AR_IMR_S2_QCU_TXURN_S  0
+#define AR_IMR_S2_BB_WATCHDOG  0x00010000
 #define AR_IMR_S2_CST          0x00400000
 #define AR_IMR_S2_GTT          0x00800000
 #define AR_IMR_S2_TIM          0x01000000

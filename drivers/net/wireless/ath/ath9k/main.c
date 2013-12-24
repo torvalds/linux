@@ -587,7 +587,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	    !(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)))
 		goto chip_reset;
 
-	if ((ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
+	if ((ah->config.hw_hang_checks & HW_BB_WATCHDOG) &&
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
 
 		spin_lock(&common->cc_lock);
@@ -726,10 +726,12 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		ah->imask |= ATH9K_INT_RXHP |
-			     ATH9K_INT_RXLP |
-			     ATH9K_INT_BB_WATCHDOG;
+			     ATH9K_INT_RXLP;
 	else
 		ah->imask |= ATH9K_INT_RX;
+
+	if (ah->config.hw_hang_checks & HW_BB_WATCHDOG)
+		ah->imask |= ATH9K_INT_BB_WATCHDOG;
 
 	ah->imask |= ATH9K_INT_GTT;
 
