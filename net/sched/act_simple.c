@@ -201,7 +201,6 @@ static struct tc_action_ops act_simp_ops = {
 	.dump		=	tcf_simp_dump,
 	.cleanup	=	tcf_simp_cleanup,
 	.init		=	tcf_simp_init,
-	.walk		=	tcf_generic_walker,
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2005)");

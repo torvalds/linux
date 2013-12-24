@@ -339,7 +339,7 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 #endif
 }
 
-static void prime_debug_regs(struct thread_struct *thread)
+static void prime_debug_regs(struct debug_reg *debug)
 {
 	/*
 	 * We could have inherited MSR_DE from userspace, since
@@ -348,22 +348,22 @@ static void prime_debug_regs(struct thread_struct *thread)
 	 */
 	mtmsr(mfmsr() & ~MSR_DE);
 
-	mtspr(SPRN_IAC1, thread->debug.iac1);
-	mtspr(SPRN_IAC2, thread->debug.iac2);
+	mtspr(SPRN_IAC1, debug->iac1);
+	mtspr(SPRN_IAC2, debug->iac2);
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
-	mtspr(SPRN_IAC3, thread->debug.iac3);
-	mtspr(SPRN_IAC4, thread->debug.iac4);
+	mtspr(SPRN_IAC3, debug->iac3);
+	mtspr(SPRN_IAC4, debug->iac4);
 #endif
-	mtspr(SPRN_DAC1, thread->debug.dac1);
-	mtspr(SPRN_DAC2, thread->debug.dac2);
+	mtspr(SPRN_DAC1, debug->dac1);
+	mtspr(SPRN_DAC2, debug->dac2);
 #if CONFIG_PPC_ADV_DEBUG_DVCS > 0
-	mtspr(SPRN_DVC1, thread->debug.dvc1);
-	mtspr(SPRN_DVC2, thread->debug.dvc2);
+	mtspr(SPRN_DVC1, debug->dvc1);
+	mtspr(SPRN_DVC2, debug->dvc2);
 #endif
-	mtspr(SPRN_DBCR0, thread->debug.dbcr0);
-	mtspr(SPRN_DBCR1, thread->debug.dbcr1);
+	mtspr(SPRN_DBCR0, debug->dbcr0);
+	mtspr(SPRN_DBCR1, debug->dbcr1);
 #ifdef CONFIG_BOOKE
-	mtspr(SPRN_DBCR2, thread->debug.dbcr2);
+	mtspr(SPRN_DBCR2, debug->dbcr2);
 #endif
 }
 /*
@@ -371,11 +371,11 @@ static void prime_debug_regs(struct thread_struct *thread)
  * debug registers, set the debug registers from the values
  * stored in the new thread.
  */
-void switch_booke_debug_regs(struct thread_struct *new_thread)
+void switch_booke_debug_regs(struct debug_reg *new_debug)
 {
 	if ((current->thread.debug.dbcr0 & DBCR0_IDM)
-		|| (new_thread->debug.dbcr0 & DBCR0_IDM))
-			prime_debug_regs(new_thread);
+		|| (new_debug->dbcr0 & DBCR0_IDM))
+			prime_debug_regs(new_debug);
 }
 EXPORT_SYMBOL_GPL(switch_booke_debug_regs);
 #else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
@@ -683,7 +683,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	switch_booke_debug_regs(&new->thread);
+	switch_booke_debug_regs(&new->thread.debug);
 #else
 /*
  * For PPC_BOOK3S_64, we use the hw-breakpoint interfaces that would

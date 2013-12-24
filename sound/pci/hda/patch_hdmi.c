@@ -2337,8 +2337,9 @@ static int simple_playback_build_controls(struct hda_codec *codec)
 	int err;
 
 	per_cvt = get_cvt(spec, 0);
-	err = snd_hda_create_spdif_out_ctls(codec, per_cvt->cvt_nid,
-					    per_cvt->cvt_nid);
+	err = snd_hda_create_dig_out_ctls(codec, per_cvt->cvt_nid,
+					  per_cvt->cvt_nid,
+					  HDA_PCM_TYPE_HDMI);
 	if (err < 0)
 		return err;
 	return simple_hdmi_build_jack(codec, 0);
