@@ -469,6 +469,14 @@ void ISAFUNC(uasm_il_b)(u32 **p, struct uasm_reloc **r, int lid)
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_b));
 
+void ISAFUNC(uasm_il_beq)(u32 **p, struct uasm_reloc **r, unsigned int r1,
+			  unsigned int r2, int lid)
+{
+	uasm_r_mips_pc16(r, *p, lid);
+	ISAFUNC(uasm_i_beq)(p, r1, r2, 0);
+}
+UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_beq));
+
 void ISAFUNC(uasm_il_beqz)(u32 **p, struct uasm_reloc **r, unsigned int reg,
 			   int lid)
 {

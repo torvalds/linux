@@ -264,6 +264,8 @@ void uasm_il_bbit0(u32 **p, struct uasm_reloc **r, unsigned int reg,
 		   unsigned int bit, int lid);
 void uasm_il_bbit1(u32 **p, struct uasm_reloc **r, unsigned int reg,
 		   unsigned int bit, int lid);
+void uasm_il_beq(u32 **p, struct uasm_reloc **r, unsigned int r1,
+		 unsigned int r2, int lid);
 void uasm_il_beqz(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
 void uasm_il_beqzl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
 void uasm_il_bgezl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
