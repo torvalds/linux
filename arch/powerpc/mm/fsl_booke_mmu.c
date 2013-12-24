@@ -171,11 +171,10 @@ unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
 	return 1UL << camsize;
 }
 
-unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx)
+static unsigned long map_mem_in_cams_addr(phys_addr_t phys, unsigned long virt,
+					unsigned long ram, int max_cam_idx)
 {
 	int i;
-	unsigned long virt = PAGE_OFFSET;
-	phys_addr_t phys = memstart_addr;
 	unsigned long amount_mapped = 0;
 
 	/* Calculate CAM values */
@@ -193,6 +192,14 @@ unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx)
 	tlbcam_index = i;
 
 	return amount_mapped;
+}
+
+unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx)
+{
+	unsigned long virt = PAGE_OFFSET;
+	phys_addr_t phys = memstart_addr;
+
+	return map_mem_in_cams_addr(phys, virt, ram, max_cam_idx);
 }
 
 #ifdef CONFIG_PPC32
