@@ -40,4 +40,11 @@ config TEGRA30_MC
 	  analysis, especially for IOMMU/SMMU(System Memory Management
 	  Unit) module.
 
+config ZYNQ_SMC
+	bool "Zynq Static Memory Controller(SMC) driver"
+	default y
+	depends on ARCH_ZYNQ
+	help
+	  This driver is for the Static Memory Controller(SMC) module available
+	  in Zynq SoCs.
 endif
