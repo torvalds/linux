@@ -45,10 +45,14 @@ static struct hisi_fixed_rate_clock hip04_fixed_rate_clks[] __initdata = {
 
 static void __init hip04_clk_init(struct device_node *np)
 {
-	hisi_clk_init(np, HIP04_NR_CLKS);
+	struct hisi_clock_data *clk_data;
+
+	clk_data = hisi_clk_init(np, HIP04_NR_CLKS);
+	if (!clk_data)
+		return;
 
 	hisi_clk_register_fixed_rate(hip04_fixed_rate_clks,
 				     ARRAY_SIZE(hip04_fixed_rate_clks),
-				     NULL);
+				     clk_data);
 }
 CLK_OF_DECLARE(hip04_clk, "hisilicon,hip04-clock", hip04_clk_init);
