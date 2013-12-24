@@ -666,25 +666,25 @@ int crush_do_rule(const struct crush_map *map,
 				choose_tries = curstep->arg1;
 			break;
 
-		case CRUSH_RULE_SET_CHOOSE_LEAF_TRIES:
+		case CRUSH_RULE_SET_CHOOSELEAF_TRIES:
 			if (curstep->arg1 > 0)
 				choose_leaf_tries = curstep->arg1;
 			break;
 
-		case CRUSH_RULE_CHOOSE_LEAF_FIRSTN:
+		case CRUSH_RULE_CHOOSELEAF_FIRSTN:
 		case CRUSH_RULE_CHOOSE_FIRSTN:
 			firstn = 1;
 			/* fall through */
-		case CRUSH_RULE_CHOOSE_LEAF_INDEP:
+		case CRUSH_RULE_CHOOSELEAF_INDEP:
 		case CRUSH_RULE_CHOOSE_INDEP:
 			if (wsize == 0)
 				break;
 
 			recurse_to_leaf =
 				curstep->op ==
-				 CRUSH_RULE_CHOOSE_LEAF_FIRSTN ||
+				 CRUSH_RULE_CHOOSELEAF_FIRSTN ||
 				curstep->op ==
-				CRUSH_RULE_CHOOSE_LEAF_INDEP;
+				CRUSH_RULE_CHOOSELEAF_INDEP;
 
 			/* reset output */
 			osize = 0;
