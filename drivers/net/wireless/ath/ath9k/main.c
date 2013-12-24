@@ -448,14 +448,8 @@ void ath9k_tasklet(unsigned long data)
 	ath9k_ps_wakeup(sc);
 	spin_lock(&sc->sc_pcu_lock);
 
-	if ((status & ATH9K_INT_FATAL) ||
-	    (status & ATH9K_INT_BB_WATCHDOG)) {
-
-		if (status & ATH9K_INT_FATAL)
-			type = RESET_TYPE_FATAL_INT;
-		else
-			type = RESET_TYPE_BB_WATCHDOG;
-
+	if (status & ATH9K_INT_FATAL) {
+		type = RESET_TYPE_FATAL_INT;
 		ath9k_queue_reset(sc, type);
 
 		/*
@@ -465,6 +459,23 @@ void ath9k_tasklet(unsigned long data)
 		atomic_inc(&ah->intr_ref_cnt);
 		ath_dbg(common, ANY, "FATAL: Skipping interrupts\n");
 		goto out;
+	}
+
+	if ((ah->config.hw_hang_checks & HW_BB_WATCHDOG) &&
+	    (status & ATH9K_INT_BB_WATCHDOG)) {
+		if (ar9003_hw_bb_watchdog_check(ah)) {
+			type = RESET_TYPE_BB_WATCHDOG;
+			ath9k_queue_reset(sc, type);
+
+			/*
+			 * Increment the ref. counter here so that
+			 * interrupts are enabled in the reset routine.
+			 */
+			atomic_inc(&ah->intr_ref_cnt);
+			ath_dbg(common, ANY,
+				"BB_WATCHDOG: Skipping interrupts\n");
+			goto out;
+		}
 	}
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
