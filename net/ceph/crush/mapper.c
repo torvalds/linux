@@ -661,6 +661,11 @@ int crush_do_rule(const struct crush_map *map,
 			wsize = 1;
 			break;
 
+		case CRUSH_RULE_SET_CHOOSE_TRIES:
+			if (curstep->arg1 > 0)
+				choose_tries = curstep->arg1;
+			break;
+
 		case CRUSH_RULE_SET_CHOOSE_LEAF_TRIES:
 			if (curstep->arg1 > 0)
 				choose_leaf_tries = curstep->arg1;

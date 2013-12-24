@@ -47,7 +47,8 @@ enum {
 	CRUSH_RULE_CHOOSE_LEAF_FIRSTN = 6,
 	CRUSH_RULE_CHOOSE_LEAF_INDEP = 7,
 
-	CRUSH_RULE_SET_CHOOSE_LEAF_TRIES = 9,
+	CRUSH_RULE_SET_CHOOSE_TRIES = 8, /* override choose_total_tries */
+	CRUSH_RULE_SET_CHOOSE_LEAF_TRIES = 9, /* override chooseleaf_descend_once */
 };
 
 /*
