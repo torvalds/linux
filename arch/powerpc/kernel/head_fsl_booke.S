@@ -82,7 +82,9 @@ _ENTRY(_start);
 	and	r19,r3,r18		/* r19 = page offset */
 	andc	r31,r20,r18		/* r31 = page base */
 	or	r31,r31,r19		/* r31 = devtree phys addr */
+#ifdef CONFIG_PHYS_64BIT
 	mfspr	r30,SPRN_MAS7
+#endif
 
 	li	r25,0			/* phys kernel start (low) */
 	li	r24,0			/* CPU number */
