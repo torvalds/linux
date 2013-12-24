@@ -559,6 +559,29 @@ static void dell_update_rfkill(struct work_struct *ignored)
 }
 static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
 
+static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
+			      struct serio *port)
+{
+	static bool extended;
+
+	if (str & 0x20)
+		return false;
+
+	if (unlikely(data == 0xe0)) {
+		extended = true;
+		return false;
+	} else if (unlikely(extended)) {
+		switch (data) {
+		case 0x8:
+			schedule_delayed_work(&dell_rfkill_work,
+					      round_jiffies_relative(HZ / 4));
+			break;
+		}
+		extended = false;
+	}
+
+	return false;
+}
 
 static int __init dell_setup_rfkill(void)
 {
@@ -636,7 +659,16 @@ static int __init dell_setup_rfkill(void)
 			goto err_wwan;
 	}
 
+	ret = i8042_install_filter(dell_laptop_i8042_filter);
+	if (ret) {
+		pr_warn("Unable to install key filter\n");
+		goto err_filter;
+	}
+
 	return 0;
+err_filter:
+	if (wwan_rfkill)
+		rfkill_unregister(wwan_rfkill);
 err_wwan:
 	rfkill_destroy(wwan_rfkill);
 	if (bluetooth_rfkill)
@@ -758,30 +790,6 @@ static void touchpad_led_exit(void)
 	led_classdev_unregister(&touchpad_led);
 }
 
-static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
-			      struct serio *port)
-{
-	static bool extended;
-
-	if (str & 0x20)
-		return false;
-
-	if (unlikely(data == 0xe0)) {
-		extended = true;
-		return false;
-	} else if (unlikely(extended)) {
-		switch (data) {
-		case 0x8:
-			schedule_delayed_work(&dell_rfkill_work,
-					      round_jiffies_relative(HZ / 4));
-			break;
-		}
-		extended = false;
-	}
-
-	return false;
-}
-
 static int __init dell_init(void)
 {
 	int max_intensity = 0;
@@ -829,12 +837,6 @@ static int __init dell_init(void)
 	if (ret) {
 		pr_warn("Unable to setup rfkill\n");
 		goto fail_rfkill;
-	}
-
-	ret = i8042_install_filter(dell_laptop_i8042_filter);
-	if (ret) {
-		pr_warn("Unable to install key filter\n");
-		goto fail_filter;
 	}
 
 	if (quirks && quirks->touchpad_led)
@@ -888,7 +890,6 @@ static int __init dell_init(void)
 fail_backlight:
 	i8042_remove_filter(dell_laptop_i8042_filter);
 	cancel_delayed_work_sync(&dell_rfkill_work);
-fail_filter:
 	dell_cleanup_rfkill();
 fail_rfkill:
 	free_page((unsigned long)bufferpage);
