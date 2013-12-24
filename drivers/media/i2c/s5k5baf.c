@@ -359,7 +359,7 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
 	int ret;
 
 	if (count < S5K5BAG_FW_TAG_LEN + 1) {
-		dev_err(dev, "firmware file too short (%d)\n", count);
+		dev_err(dev, "firmware file too short (%zu)\n", count);
 		return -EINVAL;
 	}
 
@@ -379,7 +379,7 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
 
 	f = (struct s5k5baf_fw *)d;
 	if (count < 1 + 2 * f->count) {
-		dev_err(dev, "invalid firmware header (count=%d size=%d)\n",
+		dev_err(dev, "invalid firmware header (count=%d size=%zu)\n",
 			f->count, 2 * (count + S5K5BAG_FW_TAG_LEN));
 		return -EINVAL;
 	}
