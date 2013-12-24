@@ -455,11 +455,13 @@ reject:
  *
  */
 static void crush_choose_indep(const struct crush_map *map,
-			      struct crush_bucket *bucket,
-			      const __u32 *weight, int weight_max,
+			       struct crush_bucket *bucket,
+			       const __u32 *weight, int weight_max,
 			       int x, int left, int numrep, int type,
-			      int *out, int outpos,
-			      int recurse_to_leaf,
+			       int *out, int outpos,
+			       unsigned int attempts,
+			       unsigned int recurse_attempts,
+			       int recurse_to_leaf,
 			       int *out2,
 			       int parent_r)
 {
@@ -483,7 +485,7 @@ static void crush_choose_indep(const struct crush_map *map,
 			out2[rep] = CRUSH_ITEM_UNDEF;
 	}
 
-	for (ftotal = 0; left > 0 && ftotal < map->choose_total_tries; ftotal++) {
+	for (ftotal = 0; left > 0 && ftotal < attempts; ftotal++) {
 		for (rep = outpos; rep < endpos; rep++) {
 			if (out[rep] != CRUSH_ITEM_UNDEF)
 				continue;
@@ -564,11 +566,12 @@ static void crush_choose_indep(const struct crush_map *map,
 				if (recurse_to_leaf) {
 					if (item < 0) {
 						crush_choose_indep(map,
-								   map->buckets[-1-item],
-								   weight, weight_max,
-								   x, 1, numrep, 0,
-								   out2, rep,
-								   0, NULL, r);
+						   map->buckets[-1-item],
+						   weight, weight_max,
+						   x, 1, numrep, 0,
+						   out2, rep,
+						   recurse_attempts, 0,
+						   0, NULL, r);
 						if (out2[rep] == CRUSH_ITEM_NONE) {
 							/* placed nothing; no leaf */
 							break;
@@ -631,6 +634,7 @@ int crush_do_rule(const struct crush_map *map,
 	__u32 step;
 	int i, j;
 	int numrep;
+	int choose_leaf_tries = 1;
 	const int descend_once = 0;
 
 	if ((__u32)ruleno >= map->max_rules) {
@@ -651,6 +655,11 @@ int crush_do_rule(const struct crush_map *map,
 		case CRUSH_RULE_TAKE:
 			w[0] = curstep->arg1;
 			wsize = 1;
+			break;
+
+		case CRUSH_RULE_SET_CHOOSE_LEAF_TRIES:
+			if (curstep->arg1 > 0)
+				choose_leaf_tries = curstep->arg1;
 			break;
 
 		case CRUSH_RULE_CHOOSE_LEAF_FIRSTN:
@@ -702,6 +711,8 @@ int crush_do_rule(const struct crush_map *map,
 						x, numrep, numrep,
 						curstep->arg2,
 						o+osize, j,
+						map->choose_total_tries,
+						choose_leaf_tries,
 						recurse_to_leaf,
 						c+osize,
 						0);
