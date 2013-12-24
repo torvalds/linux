@@ -79,27 +79,27 @@ static struct lu_kmem_descr ccc_caches[] = {
 	{
 		.ckd_cache = &ccc_lock_kmem,
 		.ckd_name  = "ccc_lock_kmem",
-		.ckd_size  = sizeof (struct ccc_lock)
+		.ckd_size  = sizeof(struct ccc_lock)
 	},
 	{
 		.ckd_cache = &ccc_object_kmem,
 		.ckd_name  = "ccc_object_kmem",
-		.ckd_size  = sizeof (struct ccc_object)
+		.ckd_size  = sizeof(struct ccc_object)
 	},
 	{
 		.ckd_cache = &ccc_thread_kmem,
 		.ckd_name  = "ccc_thread_kmem",
-		.ckd_size  = sizeof (struct ccc_thread_info),
+		.ckd_size  = sizeof(struct ccc_thread_info),
 	},
 	{
 		.ckd_cache = &ccc_session_kmem,
 		.ckd_name  = "ccc_session_kmem",
-		.ckd_size  = sizeof (struct ccc_session)
+		.ckd_size  = sizeof(struct ccc_session)
 	},
 	{
 		.ckd_cache = &ccc_req_kmem,
 		.ckd_name  = "ccc_req_kmem",
-		.ckd_size  = sizeof (struct ccc_req)
+		.ckd_size  = sizeof(struct ccc_req)
 	},
 	{
 		.ckd_cache = NULL
