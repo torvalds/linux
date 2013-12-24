@@ -168,6 +168,8 @@ static struct renesas_usbhs_platform_info usbhs_info __initdata = {
 	},
 	.driver_param = {
 		.buswait_bwait	= 4,
+		.d0_tx_id	= HPBDMA_SLAVE_USBFUNC_TX,
+		.d1_rx_id	= HPBDMA_SLAVE_USBFUNC_RX,
 	},
 };
 
