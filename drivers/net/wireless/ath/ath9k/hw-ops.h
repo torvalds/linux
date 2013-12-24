@@ -112,6 +112,16 @@ static inline void ath9k_hw_init_hang_checks(struct ath_hw *ah)
 	ath9k_hw_private_ops(ah)->init_hang_checks(ah);
 }
 
+static inline bool ath9k_hw_detect_mac_hang(struct ath_hw *ah)
+{
+	return ath9k_hw_private_ops(ah)->detect_mac_hang(ah);
+}
+
+static inline bool ath9k_hw_detect_bb_hang(struct ath_hw *ah)
+{
+	return ath9k_hw_private_ops(ah)->detect_bb_hang(ah);
+}
+
 /* PHY ops */
 
 static inline int ath9k_hw_rf_set_freq(struct ath_hw *ah,
