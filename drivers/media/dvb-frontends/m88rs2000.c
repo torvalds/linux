@@ -110,6 +110,52 @@ static u8 m88rs2000_readreg(struct m88rs2000_state *state, u8 reg)
 	return b1[0];
 }
 
+static u32 m88rs2000_get_mclk(struct dvb_frontend *fe)
+{
+	struct m88rs2000_state *state = fe->demodulator_priv;
+	u32 mclk;
+	u8 reg;
+	/* Must not be 0x00 or 0xff */
+	reg = m88rs2000_readreg(state, 0x86);
+	if (!reg || reg == 0xff)
+		return 0;
+
+	reg /= 2;
+	reg += 1;
+
+	mclk = (u32)(reg * RS2000_FE_CRYSTAL_KHZ + 28 / 2) / 28;
+
+	return mclk;
+}
+
+static int m88rs2000_set_carrieroffset(struct dvb_frontend *fe, s16 offset)
+{
+	struct m88rs2000_state *state = fe->demodulator_priv;
+	u32 mclk;
+	s32 tmp;
+	u8 reg;
+	int ret;
+
+	mclk = m88rs2000_get_mclk(fe);
+	if (!mclk)
+		return -EINVAL;
+
+	tmp = (offset * 4096 + (s32)mclk / 2) / (s32)mclk;
+	if (tmp < 0)
+		tmp += 4096;
+
+	/* Carrier Offset */
+	ret = m88rs2000_writereg(state, 0x9c, (u8)(tmp >> 4));
+
+	reg = m88rs2000_readreg(state, 0x9d);
+	reg &= 0xf;
+	reg |= (u8)(tmp & 0xf) << 4;
+
+	ret |= m88rs2000_writereg(state, 0x9d, reg);
+
+	return ret;
+}
+
 static int m88rs2000_set_symbolrate(struct dvb_frontend *fe, u32 srate)
 {
 	struct m88rs2000_state *state = fe->demodulator_priv;
@@ -540,9 +586,8 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	fe_status_t status;
 	int i, ret = 0;
-	s32 tmp;
 	u32 tuner_freq;
-	u16 offset = 0;
+	s16 offset = 0;
 	u8 reg;
 
 	state->no_lock_count = 0;
@@ -567,26 +612,18 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return -ENODEV;
 
-	offset = tuner_freq - c->frequency;
+	offset = (s16)((s32)tuner_freq - c->frequency);
 
-	/* calculate offset assuming 96000kHz*/
-	tmp = offset;
-	tmp *= 65536;
+	/* default mclk value 96.4285 * 2 * 1000 = 192857 */
+	if (((c->frequency % 192857) >= (192857 - 3000)) ||
+				(c->frequency % 192857) <= 3000)
+		ret = m88rs2000_writereg(state, 0x86, 0xc2);
+	else
+		ret = m88rs2000_writereg(state, 0x86, 0xc6);
 
-	tmp = (2 * tmp + 96000) / (2 * 96000);
-	if (tmp < 0)
-		tmp += 65536;
-
-	offset = tmp & 0xffff;
-
-	ret = m88rs2000_writereg(state, 0x9a, 0x30);
-	/* Unknown usually 0xc6 sometimes 0xc1 */
-	reg = m88rs2000_readreg(state, 0x86);
-	ret |= m88rs2000_writereg(state, 0x86, reg);
-	/* Offset lower nibble always 0 */
-	ret |= m88rs2000_writereg(state, 0x9c, (offset >> 8));
-	ret |= m88rs2000_writereg(state, 0x9d, offset & 0xf0);
-
+	ret |= m88rs2000_set_carrieroffset(fe, offset);
+	if (ret < 0)
+		return -ENODEV;
 
 	/* Reset Demod */
 	ret = m88rs2000_tab_set(state, fe_reset);
