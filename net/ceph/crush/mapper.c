@@ -298,8 +298,8 @@ static int crush_choose_firstn(const struct crush_map *map,
 			       const __u32 *weight, int weight_max,
 			       int x, int numrep, int type,
 			       int *out, int outpos,
-			       unsigned int attempts,
-			       unsigned int recurse_attempts,
+			       unsigned int tries,
+			       unsigned int recurse_tries,
 			       unsigned int local_tries,
 			       unsigned int local_fallback_tries,
 			       int recurse_to_leaf,
@@ -388,7 +388,7 @@ static int crush_choose_firstn(const struct crush_map *map,
 							 weight, weight_max,
 							 x, outpos+1, 0,
 							 out2, outpos,
-							 recurse_attempts, 0,
+							 recurse_tries, 0,
 							 local_tries,
 							 local_fallback_tries,
 							 0,
@@ -423,7 +423,7 @@ reject:
 						 flocal <= in->size + local_fallback_tries)
 						/* exhaustive bucket search */
 						retry_bucket = 1;
-					else if (ftotal <= attempts)
+					else if (ftotal <= tries)
 						/* then retry descent */
 						retry_descent = 1;
 					else
@@ -461,8 +461,8 @@ static void crush_choose_indep(const struct crush_map *map,
 			       const __u32 *weight, int weight_max,
 			       int x, int left, int numrep, int type,
 			       int *out, int outpos,
-			       unsigned int attempts,
-			       unsigned int recurse_attempts,
+			       unsigned int tries,
+			       unsigned int recurse_tries,
 			       int recurse_to_leaf,
 			       int *out2,
 			       int parent_r)
@@ -487,7 +487,7 @@ static void crush_choose_indep(const struct crush_map *map,
 			out2[rep] = CRUSH_ITEM_UNDEF;
 	}
 
-	for (ftotal = 0; left > 0 && ftotal < attempts; ftotal++) {
+	for (ftotal = 0; left > 0 && ftotal < tries; ftotal++) {
 		for (rep = outpos; rep < endpos; rep++) {
 			if (out[rep] != CRUSH_ITEM_UNDEF)
 				continue;
@@ -572,7 +572,7 @@ static void crush_choose_indep(const struct crush_map *map,
 						   weight, weight_max,
 						   x, 1, numrep, 0,
 						   out2, rep,
-						   recurse_attempts, 0,
+						   recurse_tries, 0,
 						   0, NULL, r);
 						if (out2[rep] == CRUSH_ITEM_NONE) {
 							/* placed nothing; no leaf */
