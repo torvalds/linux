@@ -514,6 +514,14 @@ static void crush_choose_indep(const struct crush_map *map,
 
 			/* choose through intervening buckets */
 			for (;;) {
+				/* note: we base the choice on the position
+				 * even in the nested call.  that means that
+				 * if the first layer chooses the same bucket
+				 * in a different position, we will tend to
+				 * choose a different item in that bucket.
+				 * this will involve more devices in data
+				 * movement and tend to distribute the load.
+				 */
 				r = rep;
 
 				/* be careful */
