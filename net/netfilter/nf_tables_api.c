@@ -2098,17 +2098,21 @@ static int nf_tables_dump_sets_all(struct nft_ctx *ctx, struct sk_buff *skb,
 				   struct netlink_callback *cb)
 {
 	const struct nft_set *set;
-	unsigned int idx = 0, s_idx = cb->args[0];
+	unsigned int idx, s_idx = cb->args[0];
 	struct nft_table *table, *cur_table = (struct nft_table *)cb->args[2];
 
 	if (cb->args[1])
 		return skb->len;
 
 	list_for_each_entry(table, &ctx->afi->tables, list) {
-		if (cur_table && cur_table != table)
-			continue;
+		if (cur_table) {
+			if (cur_table != table)
+				continue;
 
+			cur_table = NULL;
+		}
 		ctx->table = table;
+		idx = 0;
 		list_for_each_entry(set, &ctx->table->sets, list) {
 			if (idx < s_idx)
 				goto cont;
