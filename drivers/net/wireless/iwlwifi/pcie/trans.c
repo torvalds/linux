@@ -207,6 +207,22 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	}
 
 	/*
+	 * Enable the oscillator to count wake up time for L1 exit. This
+	 * consumes slightly more power (100uA) - but allows to be sure
+	 * that we wake up from L1 on time.
+	 *
+	 * This looks weird: read twice the same register, discard the
+	 * value, set a bit, and yet again, read that same register
+	 * just to discard the value. But that's the way the hardware
+	 * seems to like it.
+	 */
+	iwl_read_prph(trans, OSC_CLK);
+	iwl_read_prph(trans, OSC_CLK);
+	iwl_set_bits_prph(trans, OSC_CLK, OSC_CLK_FORCE_CONTROL);
+	iwl_read_prph(trans, OSC_CLK);
+	iwl_read_prph(trans, OSC_CLK);
+
+	/*
 	 * Enable DMA clock and wait for it to stabilize.
 	 *
 	 * Write to "CLK_EN_REG"; "1" bits enable clocks, while "0" bits
