@@ -149,6 +149,8 @@
 #define SPBFCR_TXRST		0x80	/* qspi only */
 #define SPBFCR_RXRST		0x40	/* qspi only */
 
+#define DUMMY_DATA		0x00
+
 struct rspi_data {
 	void __iomem *addr;
 	u32 max_speed_hz;
@@ -541,7 +543,7 @@ static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 			return -ETIMEDOUT;
 		}
 		/* dummy write for generate clock */
-		rspi_write16(rspi, 0x00, RSPI_SPDR);
+		rspi_write16(rspi, DUMMY_DATA, RSPI_SPDR);
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
 			dev_err(&rspi->master->dev,
@@ -586,7 +588,7 @@ static int qspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 			return -ETIMEDOUT;
 		}
 		/* dummy write for generate clock */
-		rspi_write8(rspi, 0x00, RSPI_SPDR);
+		rspi_write8(rspi, DUMMY_DATA, RSPI_SPDR);
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
 			dev_err(&rspi->master->dev,
