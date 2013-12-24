@@ -162,7 +162,7 @@ struct lu_context_key ccc_session_key = {
 
 
 /* type constructor/destructor: ccc_type_{init,fini,start,stop}(). */
-// LU_TYPE_INIT_FINI(ccc, &ccc_key, &ccc_session_key);
+/* LU_TYPE_INIT_FINI(ccc, &ccc_key, &ccc_session_key); */
 
 int ccc_device_init(const struct lu_env *env, struct lu_device *d,
 			   const char *name, struct lu_device *next)
