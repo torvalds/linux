@@ -1077,10 +1077,6 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	}
 
 	rx_stats->is_mybeacon = ath9k_is_mybeacon(sc, hdr);
-	if (rx_stats->is_mybeacon) {
-		sc->hw_busy_count = 0;
-		ath_start_rx_poll(sc, 3);
-	}
 
 	if (ath9k_process_rate(common, hw, rx_stats, rx_status)) {
 		ret =-EINVAL;

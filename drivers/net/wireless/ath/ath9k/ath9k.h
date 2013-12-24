@@ -455,10 +455,8 @@ bool ath9k_csa_is_finished(struct ath_softc *sc);
 
 void ath_tx_complete_poll_work(struct work_struct *work);
 void ath_reset_work(struct work_struct *work);
-void ath_hw_check(struct work_struct *work);
+bool ath_hw_check(struct ath_softc *sc);
 void ath_hw_pll_work(struct work_struct *work);
-void ath_rx_poll(unsigned long data);
-void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 void ath_start_ani(struct ath_softc *sc);
@@ -722,12 +720,10 @@ struct ath_softc {
 	spinlock_t sc_pcu_lock;
 	struct mutex mutex;
 	struct work_struct paprd_work;
-	struct work_struct hw_check_work;
 	struct work_struct hw_reset_work;
 	struct completion paprd_complete;
 	wait_queue_head_t tx_wait;
 
-	unsigned int hw_busy_count;
 	unsigned long sc_flags;
 	unsigned long driver_data;
 
@@ -761,7 +757,6 @@ struct ath_softc {
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
 	struct delayed_work hw_pll_work;
-	struct timer_list rx_poll_timer;
 	struct timer_list sleep_timer;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT

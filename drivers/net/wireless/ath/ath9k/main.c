@@ -170,7 +170,6 @@ void ath9k_ps_restore(struct ath_softc *sc)
 static void __ath_cancel_work(struct ath_softc *sc)
 {
 	cancel_work_sync(&sc->paprd_work);
-	cancel_work_sync(&sc->hw_check_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_delayed_work_sync(&sc->hw_pll_work);
 
@@ -194,7 +193,6 @@ void ath_restart_work(struct ath_softc *sc)
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work,
 				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
 
-	ath_start_rx_poll(sc, 3);
 	ath_start_ani(sc);
 }
 
@@ -204,11 +202,7 @@ static bool ath_prepare_reset(struct ath_softc *sc)
 	bool ret = true;
 
 	ieee80211_stop_queues(sc->hw);
-
-	sc->hw_busy_count = 0;
 	ath_stop_ani(sc);
-	del_timer_sync(&sc->rx_poll_timer);
-
 	ath9k_hw_disable_interrupts(ah);
 
 	if (!ath_drain_all_txq(sc))
@@ -867,7 +861,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
-	del_timer_sync(&sc->rx_poll_timer);
 
 	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
