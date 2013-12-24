@@ -1316,9 +1316,9 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, const struct flowi *fl,
 			error = (x->km.state == XFRM_STATE_ERROR ?
 				 -EINVAL : -EAGAIN);
 			xfrm_state_put(x);
-		}
-		else if (error == -ESRCH)
+		} else if (error == -ESRCH) {
 			error = -EAGAIN;
+		}
 
 		if (!tmpl->optional)
 			goto fail;
