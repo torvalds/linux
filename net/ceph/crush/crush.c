@@ -116,11 +116,14 @@ void crush_destroy(struct crush_map *map)
 	if (map->rules) {
 		__u32 b;
 		for (b = 0; b < map->max_rules; b++)
-			kfree(map->rules[b]);
+			crush_destroy_rule(map->rules[b]);
 		kfree(map->rules);
 	}
 
 	kfree(map);
 }
 
-
+void crush_destroy_rule(struct crush_rule *rule)
+{
+	kfree(rule);
+}
