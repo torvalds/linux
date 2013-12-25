@@ -3077,7 +3077,7 @@ void rtl8180_commit(struct net_device *dev)
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
 	if (priv->up == 0)
-		return ;
+		return;
 
 	del_timer_sync(&priv->watch_dog_timer);
 	del_timer_sync(&priv->rateadapter_timer);
@@ -3435,7 +3435,7 @@ static void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 
 	default:
 		spin_unlock_irqrestore(&priv->tx_lock, flag);
-		return ;
+		return;
 	}
 
 	nicv = (u32 *)((nic - nicbegin) + (u8 *)begin);

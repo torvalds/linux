@@ -643,7 +643,7 @@ short rtl8180_tx(struct net_device *dev, u8 *skbuf, int len, int priority,
 
 u8 read_nic_byte(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);
-u16 read_nic_word(struct net_device *dev, int x) ;
+u16 read_nic_word(struct net_device *dev, int x);
 void write_nic_byte(struct net_device *dev, int x, u8 y);
 void write_nic_word(struct net_device *dev, int x, u16 y);
 void write_nic_dword(struct net_device *dev, int x, u32 y);
