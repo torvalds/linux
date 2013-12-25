@@ -85,8 +85,6 @@ static struct regulator_ops act8865_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
-	.set_suspend_enable	= regulator_enable_regmap,
-	.set_suspend_disable	= regulator_disable_regmap,
 };
 
 static const struct regulator_desc act8865_reg[] = {
