@@ -88,7 +88,7 @@ struct netem_sched_data {
 	u32 duplicate;
 	u32 reorder;
 	u32 corrupt;
-	u32 rate;
+	u64 rate;
 	s32 packet_overhead;
 	u32 cell_size;
 	u32 cell_size_reciprocal;
@@ -782,6 +782,7 @@ static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
 	[TCA_NETEM_RATE]	= { .len = sizeof(struct tc_netem_rate) },
 	[TCA_NETEM_LOSS]	= { .type = NLA_NESTED },
 	[TCA_NETEM_ECN]		= { .type = NLA_U32 },
+	[TCA_NETEM_RATE64]	= { .type = NLA_U64 },
 };
 
 static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
@@ -851,6 +852,10 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 
 	if (tb[TCA_NETEM_RATE])
 		get_rate(sch, tb[TCA_NETEM_RATE]);
+
+	if (tb[TCA_NETEM_RATE64])
+		q->rate = max_t(u64, q->rate,
+				nla_get_u64(tb[TCA_NETEM_RATE64]));
 
 	if (tb[TCA_NETEM_ECN])
 		q->ecn = nla_get_u32(tb[TCA_NETEM_ECN]);
@@ -974,7 +979,13 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (nla_put(skb, TCA_NETEM_CORRUPT, sizeof(corrupt), &corrupt))
 		goto nla_put_failure;
 
-	rate.rate = q->rate;
+	if (q->rate >= (1ULL << 32)) {
+		if (nla_put_u64(skb, TCA_NETEM_RATE64, q->rate))
+			goto nla_put_failure;
+		rate.rate = ~0U;
+	} else {
+		rate.rate = q->rate;
+	}
 	rate.packet_overhead = q->packet_overhead;
 	rate.cell_size = q->cell_size;
 	rate.cell_overhead = q->cell_overhead;
