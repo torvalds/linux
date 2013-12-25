@@ -3285,8 +3285,11 @@ static void nand_decode_ext_id(struct mtd_info *mtd, struct nand_chip *chip,
 			mtd->oobsize = 512;
 			break;
 		case 6:
-		default: /* Other cases are "reserved" (unknown) */
 			mtd->oobsize = 640;
+			break;
+		case 7:
+		default: /* Other cases are "reserved" (unknown) */
+			mtd->oobsize = 1024;
 			break;
 		}
 		extid >>= 2;
