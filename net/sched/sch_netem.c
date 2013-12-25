@@ -495,7 +495,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 				now = netem_skb_cb(last)->time_to_send;
 			}
 
-			delay += packet_len_2_sched_time(skb->len, q);
+			delay += packet_len_2_sched_time(qdisc_pkt_len(skb), q);
 		}
 
 		cb->time_to_send = now + delay;
