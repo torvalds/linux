@@ -775,7 +775,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 		return -ENODEV;
 
 	if (args->ctx_id == DEFAULT_CONTEXT_ID)
-		return -EPERM;
+		return -ENOENT;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
