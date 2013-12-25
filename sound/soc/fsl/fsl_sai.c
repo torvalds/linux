@@ -124,20 +124,17 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 				unsigned int fmt, int fsl_dir)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
-	u32 val_cr2, val_cr3, val_cr4, reg_cr2, reg_cr3, reg_cr4;
+	u32 val_cr2, val_cr4, reg_cr2, reg_cr4;
 
 	if (fsl_dir == FSL_FMT_TRANSMITTER) {
 		reg_cr2 = FSL_SAI_TCR2;
-		reg_cr3 = FSL_SAI_TCR3;
 		reg_cr4 = FSL_SAI_TCR4;
 	} else {
 		reg_cr2 = FSL_SAI_RCR2;
-		reg_cr3 = FSL_SAI_RCR3;
 		reg_cr4 = FSL_SAI_RCR4;
 	}
 
 	val_cr2 = sai_readl(sai, sai->base + reg_cr2);
-	val_cr3 = sai_readl(sai, sai->base + reg_cr3);
 	val_cr4 = sai_readl(sai, sai->base + reg_cr4);
 
 	if (sai->big_endian_data)
@@ -188,13 +185,10 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 		return -EINVAL;
 	}
 
-	val_cr3 |= FSL_SAI_CR3_TRCE;
-
 	if (fsl_dir == FSL_FMT_RECEIVER)
 		val_cr2 |= FSL_SAI_CR2_SYNC;
 
 	sai_writel(sai, val_cr2, sai->base + reg_cr2);
-	sai_writel(sai, val_cr3, sai->base + reg_cr3);
 	sai_writel(sai, val_cr4, sai->base + reg_cr4);
 
 	return 0;
@@ -278,7 +272,7 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
-	unsigned int tcsr, rcsr;
+	u32 tcsr, rcsr, val_cr3, reg_cr3;
 
 	tcsr = sai_readl(sai, sai->base + FSL_SAI_TCSR);
 	rcsr = sai_readl(sai, sai->base + FSL_SAI_RCSR);
@@ -286,10 +280,14 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		tcsr |= FSL_SAI_CSR_FRDE;
 		rcsr &= ~FSL_SAI_CSR_FRDE;
+		reg_cr3 = FSL_SAI_TCR3;
 	} else {
 		rcsr |= FSL_SAI_CSR_FRDE;
 		tcsr &= ~FSL_SAI_CSR_FRDE;
+		reg_cr3 = FSL_SAI_RCR3;
 	}
+
+	val_cr3 = sai_readl(sai, sai->base + reg_cr3);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -297,6 +295,9 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		tcsr |= FSL_SAI_CSR_TERE;
 		rcsr |= FSL_SAI_CSR_TERE;
+		val_cr3 |= FSL_SAI_CR3_TRCE;
+
+		sai_writel(sai, val_cr3, sai->base + reg_cr3);
 		sai_writel(sai, rcsr, sai->base + FSL_SAI_RCSR);
 		sai_writel(sai, tcsr, sai->base + FSL_SAI_TCSR);
 		break;
@@ -308,8 +309,12 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 			tcsr &= ~FSL_SAI_CSR_TERE;
 			rcsr &= ~FSL_SAI_CSR_TERE;
 		}
+
+		val_cr3 &= ~FSL_SAI_CR3_TRCE;
+
 		sai_writel(sai, tcsr, sai->base + FSL_SAI_TCSR);
 		sai_writel(sai, rcsr, sai->base + FSL_SAI_RCSR);
+		sai_writel(sai, val_cr3, sai->base + reg_cr3);
 		break;
 	default:
 		return -EINVAL;
