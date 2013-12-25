@@ -1035,6 +1035,7 @@ static const struct of_device_id pci_ids[] = {
 	{ .compatible = "fsl,mpc8548-pcie", },
 	{ .compatible = "fsl,mpc8610-pci", },
 	{ .compatible = "fsl,mpc8641-pcie", },
+	{ .compatible = "fsl,qoriq-pcie", },
 	{ .compatible = "fsl,qoriq-pcie-v2.1", },
 	{ .compatible = "fsl,qoriq-pcie-v2.2", },
 	{ .compatible = "fsl,qoriq-pcie-v2.3", },
