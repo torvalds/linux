@@ -402,6 +402,9 @@ MACHINE_START(SUN4I, "sun4i")
 	.init_machine   = sw_core_init,
 	.reserve        = sw_core_reserve,
 	.restart	= sun4i_restart,
+#ifdef CONFIG_ZONE_DMA
+	.dma_zone_size	= SZ_256M,
+#endif
 MACHINE_END
 
 MACHINE_START(SUN5I, "sun5i")
@@ -413,6 +416,9 @@ MACHINE_START(SUN5I, "sun5i")
 	.init_machine   = sw_core_init,
 	.reserve        = sw_core_reserve,
 	.restart	= sun4i_restart,
+#ifdef CONFIG_ZONE_DMA
+	.dma_zone_size	= SZ_256M,
+#endif
 MACHINE_END
 
 MACHINE_START(SUN7I, "sun7i")

@@ -710,6 +710,7 @@ config ARCH_SUN4I
 	select ARM_L1_CACHE_SHIFT_6
 	select NEED_MACH_IO_H
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ZONE_DMA
 	help
 	  This enables support for Allwinner Technology Co., Ltd A10 SoC based systems
 
@@ -724,6 +725,7 @@ config ARCH_SUN5I
         select ARM_L1_CACHE_SHIFT_6
 	select NEED_MACH_IO_H
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ZONE_DMA
         help
 	  This enables support for Allwinner Technology Co., Ltd A10s/A13 SoC based systems
 
