@@ -3327,6 +3327,9 @@ static bool find_full_id_nand(struct mtd_info *mtd, struct nand_chip *chip,
 
 		*busw = type->options & NAND_BUSWIDTH_16;
 
+		if (!mtd->name)
+			mtd->name = type->name;
+
 		return true;
 	}
 	return false;
