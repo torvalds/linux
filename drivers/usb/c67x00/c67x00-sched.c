@@ -362,6 +362,13 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 	struct c67x00_hcd *c67x00 = hcd_to_c67x00_hcd(hcd);
 	int port = get_root_port(urb->dev)-1;
 
+	/* Allocate and initialize urb private data */
+	urbp = kzalloc(sizeof(*urbp), mem_flags);
+	if (!urbp) {
+		ret = -ENOMEM;
+		goto err_urbp;
+	}
+
 	spin_lock_irqsave(&c67x00->lock, flags);
 
 	/* Make sure host controller is running */
@@ -373,13 +380,6 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret)
 		goto err_not_linked;
-
-	/* Allocate and initialize urb private data */
-	urbp = kzalloc(sizeof(*urbp), mem_flags);
-	if (!urbp) {
-		ret = -ENOMEM;
-		goto err_urbp;
-	}
 
 	INIT_LIST_HEAD(&urbp->hep_node);
 	urbp->urb = urb;
@@ -443,11 +443,11 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 	return 0;
 
 err_epdata:
-	kfree(urbp);
-err_urbp:
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 err_not_linked:
 	spin_unlock_irqrestore(&c67x00->lock, flags);
+	kfree(urbp);
+err_urbp:
 
 	return ret;
 }
