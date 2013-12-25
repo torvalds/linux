@@ -1038,7 +1038,7 @@ static int r8180_wx_set_channelplan(struct net_device *dev,
 		/* Set new channel map */
 		for (i = 1; i <= DefaultChannelPlan[*val].Len; i++)
 			GET_DOT11D_INFO(priv->ieee80211)->channel_map[DefaultChannelPlan[*val].Channel[i-1]] = 1;
-		
+
 	}
 	up(&priv->wx_sem);
 
