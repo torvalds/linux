@@ -649,7 +649,6 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "isp", .dev_id = "tegra_camera", .dt_id = TEGRA30_CLK_ISP },
 	{ .con_id = "pcie", .dev_id = "tegra-pcie", .dt_id = TEGRA30_CLK_PCIE },
 	{ .con_id = "afi", .dev_id = "tegra-pcie", .dt_id = TEGRA30_CLK_AFI },
-	{ .con_id = "pciex", .dev_id = "tegra-pcie", .dt_id = TEGRA30_CLK_PCIEX },
 	{ .con_id = "fuse", .dt_id = TEGRA30_CLK_FUSE },
 	{ .con_id = "fuse_burn", .dev_id = "fuse-tegra", .dt_id = TEGRA30_CLK_FUSE_BURN },
 	{ .con_id = "apbif", .dev_id = "tegra30-ahub", .dt_id = TEGRA30_CLK_APBIF },
@@ -1150,11 +1149,6 @@ static void __init tegra30_periph_clk_init(void)
 				    periph_clk_enb_refcnt);
 	clks[TEGRA30_CLK_AFI] = clk;
 
-	/* pciex */
-	clk = tegra_clk_register_periph_gate("pciex", "pll_e", 0, clk_base, 0,
-				    74, periph_clk_enb_refcnt);
-	clks[TEGRA30_CLK_PCIEX] = clk;
-
 	/* emc */
 	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,
 			       ARRAY_SIZE(mux_pllmcp_clkm),
@@ -1395,7 +1389,6 @@ static struct tegra_clk_duplicate tegra_clk_duplicates[] = {
 	TEGRA_CLK_DUPLICATE(TEGRA30_CLK_BSEA, "nvavp", "bsea"),
 	TEGRA_CLK_DUPLICATE(TEGRA30_CLK_CML1, "tegra_sata_cml", NULL),
 	TEGRA_CLK_DUPLICATE(TEGRA30_CLK_CML0, "tegra_pcie", "cml"),
-	TEGRA_CLK_DUPLICATE(TEGRA30_CLK_PCIEX, "tegra_pcie", "pciex"),
 	TEGRA_CLK_DUPLICATE(TEGRA30_CLK_VCP, "nvavp", "vcp"),
 	TEGRA_CLK_DUPLICATE(TEGRA30_CLK_CLK_MAX, NULL, NULL), /* MUST be the last entry */
 };
@@ -1427,7 +1420,8 @@ static void __init tegra30_clock_init(struct device_node *np)
 		BUG();
 	}
 
-	clks = tegra_clk_init(TEGRA30_CLK_CLK_MAX, TEGRA30_CLK_PERIPH_BANKS);
+	clks = tegra_clk_init(clk_base, TEGRA30_CLK_CLK_MAX,
+				TEGRA30_CLK_PERIPH_BANKS);
 	if (!clks)
 		return;
 

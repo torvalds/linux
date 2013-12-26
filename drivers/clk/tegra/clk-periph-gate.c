@@ -36,8 +36,6 @@ static DEFINE_SPINLOCK(periph_ref_lock);
 
 #define read_rst(gate) \
 	readl_relaxed(gate->clk_base + (gate->regs->rst_reg))
-#define write_rst_set(val, gate) \
-	writel_relaxed(val, gate->clk_base + (gate->regs->rst_set_reg))
 #define write_rst_clr(val, gate) \
 	writel_relaxed(val, gate->clk_base + (gate->regs->rst_clr_reg))
 
@@ -121,26 +119,6 @@ static void clk_periph_disable(struct clk_hw *hw)
 	write_enb_clr(periph_clk_to_bit(gate), gate);
 
 	spin_unlock_irqrestore(&periph_ref_lock, flags);
-}
-
-void tegra_periph_reset(struct tegra_clk_periph_gate *gate, bool assert)
-{
-	if (gate->flags & TEGRA_PERIPH_NO_RESET)
-		return;
-
-	if (assert) {
-		/*
-		 * If peripheral is in the APB bus then read the APB bus to
-		 * flush the write operation in apb bus. This will avoid the
-		 * peripheral access after disabling clock
-		 */
-		if (gate->flags & TEGRA_PERIPH_ON_APB)
-			tegra_read_chipid();
-
-		write_rst_set(periph_clk_to_bit(gate), gate);
-	} else {
-		write_rst_clr(periph_clk_to_bit(gate), gate);
-	}
 }
 
 const struct clk_ops tegra_clk_periph_gate_ops = {

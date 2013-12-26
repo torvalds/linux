@@ -2,6 +2,7 @@ config DRM_TEGRA
 	bool "NVIDIA Tegra DRM"
 	depends on ARCH_TEGRA || ARCH_MULTIPLATFORM
 	depends on DRM
+	depends on RESET_CONTROLLER
 	select TEGRA_HOST1X
 	select DRM_KMS_HELPER
 	select DRM_KMS_FB_HELPER

@@ -18,6 +18,8 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/clk/tegra.h>
+#include <linux/reset-controller.h>
+#include <linux/tegra-soc.h>
 
 #include "clk.h"
 
@@ -121,6 +123,35 @@ static struct tegra_clk_periph_regs periph_regs[] = {
 	},
 };
 
+static void __iomem *clk_base;
+
+static int tegra_clk_rst_assert(struct reset_controller_dev *rcdev,
+		unsigned long id)
+{
+	/*
+	 * If peripheral is on the APB bus then we must read the APB bus to
+	 * flush the write operation in apb bus. This will avoid peripheral
+	 * access after disabling clock. Since the reset driver has no
+	 * knowledge of which reset IDs represent which devices, simply do
+	 * this all the time.
+	 */
+	tegra_read_chipid();
+
+	writel_relaxed(BIT(id % 32),
+			clk_base + periph_regs[id / 32].rst_set_reg);
+
+	return 0;
+}
+
+static int tegra_clk_rst_deassert(struct reset_controller_dev *rcdev,
+		unsigned long id)
+{
+	writel_relaxed(BIT(id % 32),
+			clk_base + periph_regs[id / 32].rst_clr_reg);
+
+	return 0;
+}
+
 struct tegra_clk_periph_regs *get_reg_bank(int clkid)
 {
 	int reg_bank = clkid / 32;
@@ -133,8 +164,10 @@ struct tegra_clk_periph_regs *get_reg_bank(int clkid)
 	}
 }
 
-struct clk ** __init tegra_clk_init(int num, int banks)
+struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
 {
+	clk_base = regs;
+
 	if (WARN_ON(banks > ARRAY_SIZE(periph_regs)))
 		return NULL;
 
@@ -203,6 +236,17 @@ void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
 	}
 }
 
+static struct reset_control_ops rst_ops = {
+	.assert = tegra_clk_rst_assert,
+	.deassert = tegra_clk_rst_deassert,
+};
+
+static struct reset_controller_dev rst_ctlr = {
+	.ops = &rst_ops,
+	.owner = THIS_MODULE,
+	.of_reset_n_cells = 1,
+};
+
 void __init tegra_add_of_provider(struct device_node *np)
 {
 	int i;
@@ -220,6 +264,10 @@ void __init tegra_add_of_provider(struct device_node *np)
 	clk_data.clks = clks;
 	clk_data.clk_num = clk_num;
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+
+	rst_ctlr.of_node = np;
+	rst_ctlr.nr_resets = clk_num * 32;
+	reset_controller_register(&rst_ctlr);
 }
 
 void __init tegra_register_devclks(struct tegra_devclk *dev_clks, int num)

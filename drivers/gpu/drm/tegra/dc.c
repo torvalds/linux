@@ -8,8 +8,8 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk/tegra.h>
 #include <linux/debugfs.h>
+#include <linux/reset.h>
 
 #include "dc.h"
 #include "drm.h"
@@ -712,7 +712,7 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 	unsigned long value;
 
 	/* hardware initialization */
-	tegra_periph_reset_deassert(dc->clk);
+	reset_control_deassert(dc->rst);
 	usleep_range(10000, 20000);
 
 	if (dc->pipe)
@@ -1185,6 +1185,12 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	if (IS_ERR(dc->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return PTR_ERR(dc->clk);
+	}
+
+	dc->rst = devm_reset_control_get(&pdev->dev, "dc");
+	if (IS_ERR(dc->rst)) {
+		dev_err(&pdev->dev, "failed to get reset\n");
+		return PTR_ERR(dc->rst);
 	}
 
 	err = clk_prepare_enable(dc->clk);

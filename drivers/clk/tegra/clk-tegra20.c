@@ -468,7 +468,6 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "isp", .dev_id = "tegra_camera", .dt_id = TEGRA20_CLK_ISP },
 	{ .con_id = "pex", .dt_id = TEGRA20_CLK_PEX },
 	{ .con_id = "afi", .dt_id = TEGRA20_CLK_AFI },
-	{ .con_id = "pcie_xclk", .dt_id = TEGRA20_CLK_PCIE_XCLK },
 	{ .con_id = "cdev1", .dt_id = TEGRA20_CLK_CDEV1 },
 	{ .con_id = "cdev2", .dt_id = TEGRA20_CLK_CDEV2 },
 	{ .con_id = "clk_32k", .dt_id = TEGRA20_CLK_CLK_32K },
@@ -834,11 +833,6 @@ static void __init tegra20_periph_clk_init(void)
 				    periph_clk_enb_refcnt);
 	clks[TEGRA20_CLK_PEX] = clk;
 
-	/* pcie_xclk */
-	clk = tegra_clk_register_periph_gate("pcie_xclk", "clk_m", 0, clk_base,
-				    0, 74, periph_clk_enb_refcnt);
-	clks[TEGRA20_CLK_PCIE_XCLK] = clk;
-
 	/* cdev1 */
 	clk = clk_register_fixed_rate(NULL, "cdev1_fixed", NULL, CLK_IS_ROOT,
 				      26000000);
@@ -1109,7 +1103,8 @@ static void __init tegra20_clock_init(struct device_node *np)
 		BUG();
 	}
 
-	clks = tegra_clk_init(TEGRA20_CLK_CLK_MAX, TEGRA20_CLK_PERIPH_BANKS);
+	clks = tegra_clk_init(clk_base, TEGRA20_CLK_CLK_MAX,
+				TEGRA20_CLK_PERIPH_BANKS);
 	if (!clks)
 		return;
 

@@ -1398,7 +1398,7 @@ static void __init tegra124_clock_init(struct device_node *np)
 		return;
 	}
 
-	clks = tegra_clk_init(TEGRA124_CLK_CLK_MAX, 6);
+	clks = tegra_clk_init(clk_base, TEGRA124_CLK_CLK_MAX, 6);
 	if (!clks)
 		return;
 
