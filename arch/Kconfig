@@ -142,6 +142,9 @@ config HAVE_ARCH_TRACEHOOK
 config HAVE_DMA_ATTRS
 	bool
 
+config HAVE_DMA_CONTIGUOUS
+	bool
+
 config USE_GENERIC_SMP_HELPERS
 	bool
 
