@@ -101,10 +101,8 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 
 void perf_evlist__exit(struct perf_evlist *evlist)
 {
-	free(evlist->mmap);
-	free(evlist->pollfd);
-	evlist->mmap = NULL;
-	evlist->pollfd = NULL;
+	zfree(&evlist->mmap);
+	zfree(&evlist->pollfd);
 }
 
 void perf_evlist__delete(struct perf_evlist *evlist)
@@ -587,8 +585,7 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 	for (i = 0; i < evlist->nr_mmaps; i++)
 		__perf_evlist__munmap(evlist, i);
 
-	free(evlist->mmap);
-	evlist->mmap = NULL;
+	zfree(&evlist->mmap);
 }
 
 static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)

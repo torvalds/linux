@@ -750,8 +750,7 @@ void perf_evsel__free_id(struct perf_evsel *evsel)
 {
 	xyarray__delete(evsel->sample_id);
 	evsel->sample_id = NULL;
-	free(evsel->id);
-	evsel->id = NULL;
+	zfree(&evsel->id);
 }
 
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -1960,8 +1959,7 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 		evsel->attr.type   = PERF_TYPE_SOFTWARE;
 		evsel->attr.config = PERF_COUNT_SW_CPU_CLOCK;
 
-		free(evsel->name);
-		evsel->name = NULL;
+		zfree(&evsel->name);
 		return true;
 	}
 

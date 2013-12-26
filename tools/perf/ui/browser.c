@@ -256,8 +256,7 @@ int ui_browser__show(struct ui_browser *browser, const char *title,
 	__ui_browser__show_title(browser, title);
 
 	browser->title = title;
-	free(browser->helpline);
-	browser->helpline = NULL;
+	zfree(&browser->helpline);
 
 	va_start(ap, helpline);
 	err = vasprintf(&browser->helpline, helpline, ap);
@@ -272,8 +271,7 @@ void ui_browser__hide(struct ui_browser *browser)
 {
 	pthread_mutex_lock(&ui__lock);
 	ui_helpline__pop();
-	free(browser->helpline);
-	browser->helpline = NULL;
+	zfree(&browser->helpline);
 	pthread_mutex_unlock(&ui__lock);
 }
 

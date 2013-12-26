@@ -488,8 +488,7 @@ static const char *cat_backtrace(union perf_event *event,
 				 * It seems the callchain is corrupted.
 				 * Discard all.
 				 */
-				free(p);
-				p = NULL;
+				zfree(&p);
 				goto exit;
 			}
 			continue;

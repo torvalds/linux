@@ -9,6 +9,7 @@
 #include "strlist.h"
 #include <string.h>
 #include "thread_map.h"
+#include "util.h"
 
 /* Skip "." and ".." directories */
 static int filter(const struct dirent *dir)
@@ -138,8 +139,7 @@ out_free_namelist:
 	free(namelist);
 
 out_free_closedir:
-	free(threads);
-	threads = NULL;
+	zfree(&threads);
 	goto out_closedir;
 }
 
@@ -210,8 +210,7 @@ out_free_namelist:
 	free(namelist);
 
 out_free_threads:
-	free(threads);
-	threads = NULL;
+	zfree(&threads);
 	goto out;
 }
 
@@ -262,8 +261,7 @@ out:
 	return threads;
 
 out_free_threads:
-	free(threads);
-	threads = NULL;
+	zfree(&threads);
 	goto out;
 }
 

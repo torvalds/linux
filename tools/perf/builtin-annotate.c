@@ -180,8 +180,7 @@ find_next:
 			 * symbol, free he->ms.sym->src to signal we already
 			 * processed this symbol.
 			 */
-			free(notes->src);
-			notes->src = NULL;
+			zfree(&notes->src);
 		}
 	}
 }

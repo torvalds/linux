@@ -1267,10 +1267,8 @@ static inline void free_popup_options(char **options, int n)
 {
 	int i;
 
-	for (i = 0; i < n; ++i) {
-		free(options[i]);
-		options[i] = NULL;
-	}
+	for (i = 0; i < n; ++i)
+		zfree(&options[i]);
 }
 
 /* Check whether the browser is for 'top' or 'report' */

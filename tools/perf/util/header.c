@@ -1324,8 +1324,7 @@ read_event_desc(struct perf_header *ph, int fd)
 		}
 	}
 out:
-	if (buf)
-		free(buf);
+	free(buf);
 	return events;
 error:
 	if (events)

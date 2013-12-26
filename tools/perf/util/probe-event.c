@@ -506,15 +506,13 @@ static int get_real_path(const char *raw_path, const char *comp_dir,
 		case EFAULT:
 			raw_path = strchr(++raw_path, '/');
 			if (!raw_path) {
-				free(*new_path);
-				*new_path = NULL;
+				zfree(new_path);
 				return -ENOENT;
 			}
 			continue;
 
 		default:
-			free(*new_path);
-			*new_path = NULL;
+			zfree(new_path);
 			return -errno;
 		}
 	}

@@ -185,8 +185,7 @@ static int lock__parse(struct ins_operands *ops)
 	return 0;
 
 out_free_ops:
-	free(ops->locked.ops);
-	ops->locked.ops = NULL;
+	zfree(&ops->locked.ops);
 	return 0;
 }
 
@@ -256,8 +255,7 @@ static int mov__parse(struct ins_operands *ops)
 	return 0;
 
 out_free_source:
-	free(ops->source.raw);
-	ops->source.raw = NULL;
+	zfree(&ops->source.raw);
 	return -1;
 }
 
@@ -560,8 +558,7 @@ static int disasm_line__parse(char *line, char **namep, char **rawp)
 	return 0;
 
 out_free_name:
-	free(*namep);
-	*namep = NULL;
+	zfree(namep);
 	return -1;
 }
 
@@ -1113,8 +1110,7 @@ static void symbol__free_source_line(struct symbol *sym, int len)
 		src_line = (void *)src_line + sizeof_src_line;
 	}
 
-	free(notes->src->lines);
-	notes->src->lines = NULL;
+	zfree(&notes->src->lines);
 }
 
 /* Get the filename:line for the colored entries */

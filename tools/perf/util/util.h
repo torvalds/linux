@@ -186,6 +186,8 @@ static inline void *zalloc(size_t size)
 	return calloc(1, size);
 }
 
+#define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
+
 static inline int has_extension(const char *filename, const char *ext)
 {
 	size_t len = strlen(filename);

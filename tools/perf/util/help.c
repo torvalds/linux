@@ -263,9 +263,8 @@ static void add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
 
 	for (i = 0; i < old->cnt; i++)
 		cmds->names[cmds->cnt++] = old->names[i];
-	free(old->names);
+	zfree(&old->names);
 	old->cnt = 0;
-	old->names = NULL;
 }
 
 const char *help_unknown_cmd(const char *cmd)
