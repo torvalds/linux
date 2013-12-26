@@ -12,6 +12,10 @@ config RK3026_LVDS
 	bool "RK3026/RK3028A lvds transmitter support"
 	default y	
 
+config RK319x_LVDS
+	bool "RK319x lvds transmitter support"
+	depends on ARCH_RK319X && RK_TRSM
+
 config RK610_LVDS
 	bool "RK610(Jetta) lvds transmitter support"
 	depends on MFD_RK610 && RK_TRSM 
