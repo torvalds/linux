@@ -194,23 +194,15 @@ const struct address_space_operations f2fs_meta_aops = {
 
 int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 {
-	unsigned int max_orphans;
 	int err = 0;
 
-	/*
-	 * considering 512 blocks in a segment 8 blocks are needed for cp
-	 * and log segment summaries. Remaining blocks are used to keep
-	 * orphan entries with the limitation one reserved segment
-	 * for cp pack we can have max 1020*504 orphan entries
-	 */
-	max_orphans = (sbi->blocks_per_seg - 2 - NR_CURSEG_TYPE)
-				* F2FS_ORPHANS_PER_BLOCK;
 	mutex_lock(&sbi->orphan_inode_mutex);
-	if (unlikely(sbi->n_orphans >= max_orphans))
+	if (unlikely(sbi->n_orphans >= sbi->max_orphans))
 		err = -ENOSPC;
 	else
 		sbi->n_orphans++;
 	mutex_unlock(&sbi->orphan_inode_mutex);
+
 	return err;
 }
 
@@ -834,6 +826,14 @@ void init_orphan_info(struct f2fs_sb_info *sbi)
 	mutex_init(&sbi->orphan_inode_mutex);
 	INIT_LIST_HEAD(&sbi->orphan_inode_list);
 	sbi->n_orphans = 0;
+	/*
+	 * considering 512 blocks in a segment 8 blocks are needed for cp
+	 * and log segment summaries. Remaining blocks are used to keep
+	 * orphan entries with the limitation one reserved segment
+	 * for cp pack we can have max 1020*504 orphan entries
+	 */
+	sbi->max_orphans = (sbi->blocks_per_seg - 2 - NR_CURSEG_TYPE)
+				* F2FS_ORPHANS_PER_BLOCK;
 }
 
 int __init create_checkpoint_caches(void)

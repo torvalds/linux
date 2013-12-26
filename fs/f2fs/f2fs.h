@@ -414,6 +414,7 @@ struct f2fs_sb_info {
 	struct list_head orphan_inode_list;	/* orphan inode list */
 	struct mutex orphan_inode_mutex;	/* for orphan inode list */
 	unsigned int n_orphans;			/* # of orphan inodes */
+	unsigned int max_orphans;		/* max orphan inodes */
 
 	/* for directory inode management */
 	struct list_head dir_inode_list;	/* dir inode list */
