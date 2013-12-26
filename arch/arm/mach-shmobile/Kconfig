@@ -45,6 +45,7 @@ config MACH_GENMAI
 config MACH_KOELSCH
 	bool "Koelsch board"
 	depends on ARCH_R8A7791
+	select MICREL_PHY if SH_ETH
 
 config MACH_KZM9D
 	bool "KZM9D board"
