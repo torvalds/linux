@@ -19,6 +19,8 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
 
+struct reset_control;
+
 struct tegra_fb {
 	struct drm_framebuffer base;
 	struct tegra_bo **planes;
@@ -93,6 +95,7 @@ struct tegra_dc {
 	int pipe;
 
 	struct clk *clk;
+	struct reset_control *rst;
 	void __iomem *regs;
 	int irq;
 

@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 static void devm_component_release(struct device *dev, void *res)
 {
@@ -84,3 +85,43 @@ int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_snd_soc_register_card);
+
+#ifdef CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM
+
+static void devm_dmaengine_pcm_release(struct device *dev, void *res)
+{
+	snd_dmaengine_pcm_unregister(*(struct device **)res);
+}
+
+/**
+ * devm_snd_dmaengine_pcm_register - resource managed dmaengine PCM registration
+ * @dev: The parent device for the PCM device
+ * @config: Platform specific PCM configuration
+ * @flags: Platform specific quirks
+ *
+ * Register a dmaengine based PCM device with automatic unregistration when the
+ * device is unregistered.
+ */
+int devm_snd_dmaengine_pcm_register(struct device *dev,
+	const struct snd_dmaengine_pcm_config *config, unsigned int flags)
+{
+	struct device **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_dmaengine_pcm_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = snd_dmaengine_pcm_register(dev, config, flags);
+	if (ret == 0) {
+		*ptr = dev;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_snd_dmaengine_pcm_register);
+
+#endif
