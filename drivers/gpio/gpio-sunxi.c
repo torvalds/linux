@@ -343,6 +343,30 @@ static void __devinit sunxi_gpio_eint_probe(void)
 
 		gpio_eint_list = a10;
 		gpio_eint_count = 32;
+	} else if (sunxi_is_a10s()) {
+		/*
+		 * Pins that can be used as interrupt source:
+		 * PG00 - PG13, PE00 - PE01, PB02 - PB14, PB19 - PB20, PA17
+		 * All in mux6 mode.
+		 * A-0 B-1 C-2 D-3 E-4 F-5 G-6
+		 */
+
+		static struct gpio_eint_data a10s[] = {
+		{6,  0, 6,  0}, {6,  1, 6,  1}, {6,  2, 6,  2}, {6,  3, 6,  3},
+		{6,  4, 6,  4}, {6,  5, 6,  5}, {6,  6, 6,  6}, {6,  7, 6,  7},
+		{6,  8, 6,  8}, {6,  9, 6,  9}, {6, 10, 6, 10}, {6, 11, 6, 11},
+		{6, 12, 6, 12}, {6, 13, 6, 13},
+		{4,  0, 6, 14}, {4,  1, 6, 15},
+		{1,  2, 6, 16}, {1,  3, 6, 17},	{1,  4, 6, 18}, {1,  5, 6, 19},
+		{1,  6, 6, 20}, {1,  7, 6, 21}, {1,  8, 6, 22}, {1,  9, 6, 23},
+		{1, 10, 6, 24}, {1, 11, 6, 25}, {1, 12, 6, 26}, {1, 13, 6, 27},
+		{1, 14, 6, 28}, {1, 19, 6, 29}, {1, 20, 6, 30}, {0, 17, 6, 31},
+
+		{-1, -1, -1, -1},
+		};
+
+		gpio_eint_list = a10s;
+		gpio_eint_count = 32;
 	} else if (sunxi_is_a13()) {
 		/* Pins that can be used as interrupt source  */
 		/* PG00 - PG04, PG09 - PG12, PE00 - PE01, PB02 - PB04, PB10 (all in mux6 mode) */
