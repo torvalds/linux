@@ -2454,7 +2454,7 @@ static noinline_for_stack
 struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 				     struct reloc_control *rc,
 				     struct backref_node *node,
-				     struct backref_edge *edges[], int *nr)
+				     struct backref_edge *edges[])
 {
 	struct backref_node *next;
 	struct btrfs_root *root;
@@ -2496,7 +2496,6 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 	if (!root)
 		return NULL;
 
-	*nr = index;
 	next = node;
 	/* setup backref node path for btrfs_reloc_cow_block */
 	while (1) {
@@ -2643,7 +2642,6 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 	u32 blocksize;
 	u64 bytenr;
 	u64 generation;
-	int nr;
 	int slot;
 	int ret;
 	int err = 0;
@@ -2656,7 +2654,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		cond_resched();
 
 		upper = edge->node[UPPER];
-		root = select_reloc_root(trans, rc, upper, edges, &nr);
+		root = select_reloc_root(trans, rc, upper, edges);
 		BUG_ON(!root);
 
 		if (upper->eb && !upper->locked) {
