@@ -3298,6 +3298,8 @@ static void bnx2x_drv_info_ether_stat(struct bnx2x *bp)
 
 	ether_stat->txq_size = bp->tx_ring_size;
 	ether_stat->rxq_size = bp->rx_ring_size;
+
+	ether_stat->vf_cnt = IS_SRIOV(bp) ? bp->vfdb->sriov.nr_virtfn : 0;
 }
 
 static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
