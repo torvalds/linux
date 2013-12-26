@@ -113,7 +113,6 @@ enum {
 };
 
 struct request_queue *blk_mq_init_queue(struct blk_mq_reg *, void *);
-void blk_mq_free_queue(struct request_queue *);
 int blk_mq_register_disk(struct gendisk *);
 void blk_mq_unregister_disk(struct gendisk *);
 void blk_mq_init_commands(struct request_queue *, void (*init)(void *data, struct blk_mq_hw_ctx *, struct request *, unsigned int), void *data);
