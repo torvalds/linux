@@ -60,6 +60,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/mbus.h>
@@ -564,6 +565,12 @@ struct mv_host_priv {
 	 */
 	struct clk		*clk;
 	struct clk              **port_clks;
+	/*
+	 * Some devices have a SATA PHY which can be enabled/disabled
+	 * in order to save power. These are optional: if the platform
+	 * devices does not have any phy, they won't be used.
+	 */
+	struct phy		**port_phys;
 	/*
 	 * These consistent DMA memory pools give us guaranteed
 	 * alignment for hardware-accessed data structures,
@@ -4091,6 +4098,11 @@ static int mv_platform_probe(struct platform_device *pdev)
 					GFP_KERNEL);
 	if (!hpriv->port_clks)
 		return -ENOMEM;
+	hpriv->port_phys = devm_kzalloc(&pdev->dev,
+					sizeof(struct phy *) * n_ports,
+					GFP_KERNEL);
+	if (!hpriv->port_phys)
+		return -ENOMEM;
 	host->private_data = hpriv;
 	hpriv->n_ports = n_ports;
 	hpriv->board_idx = chip_soc;
@@ -4112,6 +4124,17 @@ static int mv_platform_probe(struct platform_device *pdev)
 		hpriv->port_clks[port] = clk_get(&pdev->dev, port_number);
 		if (!IS_ERR(hpriv->port_clks[port]))
 			clk_prepare_enable(hpriv->port_clks[port]);
+
+		sprintf(port_number, "port%d", port);
+		hpriv->port_phys[port] = devm_phy_get(&pdev->dev, port_number);
+		if (IS_ERR(hpriv->port_phys[port])) {
+			rc = PTR_ERR(hpriv->port_phys[port]);
+			hpriv->port_phys[port] = NULL;
+			if ((rc != -EPROBE_DEFER) && (rc != -ENODEV))
+				dev_warn(&pdev->dev, "error getting phy");
+			goto err;
+		} else
+			phy_power_on(hpriv->port_phys[port]);
 	}
 
 	/*
@@ -4156,6 +4179,8 @@ err:
 			clk_disable_unprepare(hpriv->port_clks[port]);
 			clk_put(hpriv->port_clks[port]);
 		}
+		if (hpriv->port_phys[port])
+			phy_power_off(hpriv->port_phys[port]);
 	}
 
 	return rc;
@@ -4185,6 +4210,8 @@ static int mv_platform_remove(struct platform_device *pdev)
 			clk_disable_unprepare(hpriv->port_clks[port]);
 			clk_put(hpriv->port_clks[port]);
 		}
+		if (hpriv->port_phys[port])
+			phy_power_off(hpriv->port_phys[port]);
 	}
 	return 0;
 }
