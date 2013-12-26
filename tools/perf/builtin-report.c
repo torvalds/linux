@@ -123,6 +123,8 @@ static int report__add_mem_hist_entry(struct report *rep, struct addr_location *
 
 	evsel->hists.stats.total_period += cost;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+	if (!he->filtered)
+		evsel->hists.stats.nr_non_filtered_samples++;
 	err = hist_entry__append_callchain(he, sample);
 out:
 	return err;
@@ -176,6 +178,8 @@ static int report__add_branch_hist_entry(struct report *rep, struct addr_locatio
 
 			evsel->hists.stats.total_period += 1;
 			hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+			if (!he->filtered)
+				evsel->hists.stats.nr_non_filtered_samples++;
 		} else
 			goto out;
 	}
@@ -209,6 +213,8 @@ static int report__add_hist_entry(struct report *rep, struct perf_evsel *evsel,
 		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
 
 	evsel->hists.stats.total_period += sample->period;
+	if (!he->filtered)
+		evsel->hists.stats.nr_non_filtered_samples++;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 out:
 	return err;
