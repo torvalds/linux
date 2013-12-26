@@ -48,6 +48,9 @@ struct btrfs_delayed_root {
 	wait_queue_head_t wait;
 };
 
+#define BTRFS_DELAYED_NODE_IN_LIST	0
+#define BTRFS_DELAYED_NODE_INODE_DIRTY	1
+
 struct btrfs_delayed_node {
 	u64 inode_id;
 	u64 bytes_reserved;
@@ -65,8 +68,7 @@ struct btrfs_delayed_node {
 	struct btrfs_inode_item inode_item;
 	atomic_t refs;
 	u64 index_cnt;
-	bool in_list;
-	bool inode_dirty;
+	unsigned long flags;
 	int count;
 };
 

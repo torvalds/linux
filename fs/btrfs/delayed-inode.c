@@ -55,8 +55,7 @@ static inline void btrfs_init_delayed_node(
 	delayed_node->inode_id = inode_id;
 	atomic_set(&delayed_node->refs, 0);
 	delayed_node->count = 0;
-	delayed_node->in_list = 0;
-	delayed_node->inode_dirty = 0;
+	delayed_node->flags = 0;
 	delayed_node->ins_root = RB_ROOT;
 	delayed_node->del_root = RB_ROOT;
 	mutex_init(&delayed_node->mutex);
@@ -172,7 +171,7 @@ static void btrfs_queue_delayed_node(struct btrfs_delayed_root *root,
 				     int mod)
 {
 	spin_lock(&root->lock);
-	if (node->in_list) {
+	if (test_bit(BTRFS_DELAYED_NODE_IN_LIST, &node->flags)) {
 		if (!list_empty(&node->p_list))
 			list_move_tail(&node->p_list, &root->prepare_list);
 		else if (mod)
@@ -182,7 +181,7 @@ static void btrfs_queue_delayed_node(struct btrfs_delayed_root *root,
 		list_add_tail(&node->p_list, &root->prepare_list);
 		atomic_inc(&node->refs);	/* inserted into list */
 		root->nodes++;
-		node->in_list = 1;
+		set_bit(BTRFS_DELAYED_NODE_IN_LIST, &node->flags);
 	}
 	spin_unlock(&root->lock);
 }
@@ -192,13 +191,13 @@ static void btrfs_dequeue_delayed_node(struct btrfs_delayed_root *root,
 				       struct btrfs_delayed_node *node)
 {
 	spin_lock(&root->lock);
-	if (node->in_list) {
+	if (test_bit(BTRFS_DELAYED_NODE_IN_LIST, &node->flags)) {
 		root->nodes--;
 		atomic_dec(&node->refs);	/* not in the list */
 		list_del_init(&node->n_list);
 		if (!list_empty(&node->p_list))
 			list_del_init(&node->p_list);
-		node->in_list = 0;
+		clear_bit(BTRFS_DELAYED_NODE_IN_LIST, &node->flags);
 	}
 	spin_unlock(&root->lock);
 }
@@ -231,7 +230,8 @@ static struct btrfs_delayed_node *btrfs_next_delayed_node(
 
 	delayed_root = node->root->fs_info->delayed_root;
 	spin_lock(&delayed_root->lock);
-	if (!node->in_list) {	/* not in the list */
+	if (!test_bit(BTRFS_DELAYED_NODE_IN_LIST, &node->flags)) {
+		/* not in the list */
 		if (list_empty(&delayed_root->node_list))
 			goto out;
 		p = delayed_root->node_list.next;
@@ -1004,9 +1004,10 @@ static void btrfs_release_delayed_inode(struct btrfs_delayed_node *delayed_node)
 {
 	struct btrfs_delayed_root *delayed_root;
 
-	if (delayed_node && delayed_node->inode_dirty) {
+	if (delayed_node &&
+	    test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
 		BUG_ON(!delayed_node->root);
-		delayed_node->inode_dirty = 0;
+		clear_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags);
 		delayed_node->count--;
 
 		delayed_root = delayed_node->root->fs_info->delayed_root;
@@ -1059,7 +1060,7 @@ static inline int btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 	int ret;
 
 	mutex_lock(&node->mutex);
-	if (!node->inode_dirty) {
+	if (!test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &node->flags)) {
 		mutex_unlock(&node->mutex);
 		return 0;
 	}
@@ -1203,7 +1204,7 @@ int btrfs_commit_inode_delayed_inode(struct inode *inode)
 		return 0;
 
 	mutex_lock(&delayed_node->mutex);
-	if (!delayed_node->inode_dirty) {
+	if (!test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
 		mutex_unlock(&delayed_node->mutex);
 		btrfs_release_delayed_node(delayed_node);
 		return 0;
@@ -1227,7 +1228,7 @@ int btrfs_commit_inode_delayed_inode(struct inode *inode)
 	trans->block_rsv = &delayed_node->root->fs_info->delayed_block_rsv;
 
 	mutex_lock(&delayed_node->mutex);
-	if (delayed_node->inode_dirty)
+	if (test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags))
 		ret = __btrfs_update_delayed_inode(trans, delayed_node->root,
 						   path, delayed_node);
 	else
@@ -1721,7 +1722,7 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev)
 		return -ENOENT;
 
 	mutex_lock(&delayed_node->mutex);
-	if (!delayed_node->inode_dirty) {
+	if (!test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
 		mutex_unlock(&delayed_node->mutex);
 		btrfs_release_delayed_node(delayed_node);
 		return -ENOENT;
@@ -1772,7 +1773,7 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 		return PTR_ERR(delayed_node);
 
 	mutex_lock(&delayed_node->mutex);
-	if (delayed_node->inode_dirty) {
+	if (test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
 		fill_stack_inode_item(trans, &delayed_node->inode_item, inode);
 		goto release_node;
 	}
@@ -1783,7 +1784,7 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 		goto release_node;
 
 	fill_stack_inode_item(trans, &delayed_node->inode_item, inode);
-	delayed_node->inode_dirty = 1;
+	set_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags);
 	delayed_node->count++;
 	atomic_inc(&root->fs_info->delayed_root->items);
 release_node:
@@ -1814,7 +1815,7 @@ static void __btrfs_kill_delayed_node(struct btrfs_delayed_node *delayed_node)
 		btrfs_release_delayed_item(prev_item);
 	}
 
-	if (delayed_node->inode_dirty) {
+	if (test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
 		btrfs_delayed_inode_release_metadata(root, delayed_node);
 		btrfs_release_delayed_inode(delayed_node);
 	}
