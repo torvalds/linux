@@ -330,7 +330,6 @@ static int ath_set_channel(struct ath_softc *sc, struct cfg80211_chan_def *chand
 	struct ieee80211_hw *hw = sc->hw;
 	struct ath9k_channel *hchan;
 	struct ieee80211_channel *chan = chandef->chan;
-	unsigned long flags;
 	bool offchannel;
 	int pos = chan->hw_value;
 	int old_pos = -1;
@@ -348,9 +347,9 @@ static int ath_set_channel(struct ath_softc *sc, struct cfg80211_chan_def *chand
 		chan->center_freq, chandef->width);
 
 	/* update survey stats for the old channel before switching */
-	spin_lock_irqsave(&common->cc_lock, flags);
+	spin_lock_bh(&common->cc_lock);
 	ath_update_survey_stats(sc);
-	spin_unlock_irqrestore(&common->cc_lock, flags);
+	spin_unlock_bh(&common->cc_lock);
 
 	ath9k_cmn_get_channel(hw, ah, chandef);
 
@@ -1788,13 +1787,12 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
-	unsigned long flags;
 	int pos;
 
 	if (config_enabled(CONFIG_ATH9K_TX99))
 		return -EOPNOTSUPP;
 
-	spin_lock_irqsave(&common->cc_lock, flags);
+	spin_lock_bh(&common->cc_lock);
 	if (idx == 0)
 		ath_update_survey_stats(sc);
 
@@ -1808,7 +1806,7 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 		sband = hw->wiphy->bands[IEEE80211_BAND_5GHZ];
 
 	if (!sband || idx >= sband->n_channels) {
-		spin_unlock_irqrestore(&common->cc_lock, flags);
+		spin_unlock_bh(&common->cc_lock);
 		return -ENOENT;
 	}
 
@@ -1816,7 +1814,7 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	pos = chan->hw_value;
 	memcpy(survey, &sc->survey[pos], sizeof(*survey));
 	survey->channel = chan;
-	spin_unlock_irqrestore(&common->cc_lock, flags);
+	spin_unlock_bh(&common->cc_lock);
 
 	return 0;
 }
