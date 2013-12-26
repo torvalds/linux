@@ -692,6 +692,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 		return 0;
 	}
 
+	em28xx_info("Registering input extension\n");
+
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device();
 	if (!ir || !rc)
@@ -784,6 +786,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 	err = rc_register_device(rc);
 	if (err)
 		goto error;
+
+	em28xx_info("Input extension successfully initalized\n");
 
 	return 0;
 

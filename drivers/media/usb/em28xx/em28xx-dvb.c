@@ -274,7 +274,7 @@ static int em28xx_stop_feed(struct dvb_demux_feed *feed)
 static int em28xx_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 {
 	struct em28xx_i2c_bus *i2c_bus = fe->dvb->priv;
-        struct em28xx *dev = i2c_bus->dev;
+	struct em28xx *dev = i2c_bus->dev;
 
 	if (acquire)
 		return em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
@@ -992,9 +992,10 @@ static int em28xx_dvb_init(struct em28xx *dev)
 
 	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
-		printk(KERN_INFO "em28xx_dvb: This device does not support the extension\n");
 		return 0;
 	}
+
+	em28xx_info("Binding DVB extension\n");
 
 	dvb = kzalloc(sizeof(struct em28xx_dvb), GFP_KERNEL);
 
@@ -1407,7 +1408,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	/* MFE lock */
 	dvb->adapter.mfe_shared = mfe_shared;
 
-	em28xx_info("Successfully loaded em28xx-dvb\n");
+	em28xx_info("DVB extension successfully initialized\n");
 ret:
 	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	mutex_unlock(&dev->lock);
