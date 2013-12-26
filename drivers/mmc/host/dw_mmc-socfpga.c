@@ -26,7 +26,7 @@
 
 #define SYSMGR_SDMMCGRP_CTRL_OFFSET		0x108
 #define DRV_CLK_PHASE_SHIFT_SEL_MASK	0x7
-#define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel)		\ 
+#define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel)\
 	((((smplsel) & 0x7) << 3) | (((drvsel) & 0x7) << 0))
 
 /* SOCFPGA implementation specific driver private data */
