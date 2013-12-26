@@ -521,7 +521,7 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (memcmp(wl->mac_addr, vif->addr, ETH_ALEN)) {
+	if (!ether_addr_equal_unaligned(wl->mac_addr, vif->addr)) {
 		memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 		SET_IEEE80211_PERM_ADDR(wl->hw, wl->mac_addr);
 		ret = wl1251_acx_station_id(wl);
