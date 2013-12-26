@@ -2281,7 +2281,7 @@ static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
 	struct perf_probe_point *pp = &pev->point;
 	struct symbol *sym;
 	struct map *map = NULL;
-	char *function = NULL, *name = NULL;
+	char *function = NULL;
 	int ret = -EINVAL;
 	unsigned long long vaddr = 0;
 
@@ -2297,12 +2297,7 @@ static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
 		goto out;
 	}
 
-	name = realpath(exec, NULL);
-	if (!name) {
-		pr_warning("Cannot find realpath for %s.\n", exec);
-		goto out;
-	}
-	map = dso__new_map(name);
+	map = dso__new_map(exec);
 	if (!map) {
 		pr_warning("Cannot find appropriate DSO for %s.\n", exec);
 		goto out;
@@ -2367,7 +2362,5 @@ out:
 	}
 	if (function)
 		free(function);
-	if (name)
-		free(name);
 	return ret;
 }

@@ -169,6 +169,7 @@ static int opt_set_target(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
 	int ret = -ENOENT;
+	char *tmp;
 
 	if  (str && !params.target) {
 		if (!strcmp(opt->long_name, "exec"))
@@ -180,7 +181,19 @@ static int opt_set_target(const struct option *opt, const char *str,
 		else
 			return ret;
 
-		params.target = str;
+		/* Expand given path to absolute path, except for modulename */
+		if (params.uprobes || strchr(str, '/')) {
+			tmp = realpath(str, NULL);
+			if (!tmp) {
+				pr_warning("Failed to get the absolute path of %s: %m\n", str);
+				return ret;
+			}
+		} else {
+			tmp = strdup(str);
+			if (!tmp)
+				return -ENOMEM;
+		}
+		params.target = tmp;
 		ret = 0;
 	}
 
