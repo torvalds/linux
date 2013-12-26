@@ -251,7 +251,7 @@ static void truncate_partial_data_page(struct inode *inode, u64 from)
 	f2fs_put_page(page, 1);
 }
 
-static int truncate_blocks(struct inode *inode, u64 from)
+int truncate_blocks(struct inode *inode, u64 from)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	unsigned int blocksize = inode->i_sb->s_blocksize;

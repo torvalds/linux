@@ -169,3 +169,51 @@ int f2fs_write_inline_data(struct inode *inode,
 
 	return 0;
 }
+
+int recover_inline_data(struct inode *inode, struct page *npage)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_inode *ri = NULL;
+	void *src_addr, *dst_addr;
+	struct page *ipage;
+
+	/*
+	 * The inline_data recovery policy is as follows.
+	 * [prev.] [next] of inline_data flag
+	 *    o       o  -> recover inline_data
+	 *    o       x  -> remove inline_data, and then recover data blocks
+	 *    x       o  -> remove inline_data, and then recover inline_data
+	 *    x       x  -> recover data blocks
+	 */
+	if (IS_INODE(npage))
+		ri = F2FS_INODE(npage);
+
+	if (f2fs_has_inline_data(inode) &&
+			ri && ri->i_inline & F2FS_INLINE_DATA) {
+process_inline:
+		ipage = get_node_page(sbi, inode->i_ino);
+		f2fs_bug_on(IS_ERR(ipage));
+
+		src_addr = inline_data_addr(npage);
+		dst_addr = inline_data_addr(ipage);
+		memcpy(dst_addr, src_addr, MAX_INLINE_DATA);
+		update_inode(inode, ipage);
+		f2fs_put_page(ipage, 1);
+		return -1;
+	}
+
+	if (f2fs_has_inline_data(inode)) {
+		ipage = get_node_page(sbi, inode->i_ino);
+		f2fs_bug_on(IS_ERR(ipage));
+		zero_user_segment(ipage, INLINE_DATA_OFFSET,
+				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);
+		clear_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
+		update_inode(inode, ipage);
+		f2fs_put_page(ipage, 1);
+	} else if (ri && ri->i_inline & F2FS_INLINE_DATA) {
+		truncate_blocks(inode, 0);
+		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
+		goto process_inline;
+	}
+	return 0;
+}
