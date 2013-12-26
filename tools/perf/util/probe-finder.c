@@ -1414,10 +1414,8 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 	if (ret < 0) {
 		/* Free vlist for error */
 		while (af.nvls--) {
-			if (af.vls[af.nvls].point.symbol)
-				free(af.vls[af.nvls].point.symbol);
-			if (af.vls[af.nvls].vars)
-				strlist__delete(af.vls[af.nvls].vars);
+			free(af.vls[af.nvls].point.symbol);
+			strlist__delete(af.vls[af.nvls].vars);
 		}
 		free(af.vls);
 		*vls = NULL;
@@ -1524,10 +1522,8 @@ post:
 	if (fname) {
 		ppt->file = strdup(fname);
 		if (ppt->file == NULL) {
-			if (ppt->function) {
-				free(ppt->function);
-				ppt->function = NULL;
-			}
+			free(ppt->function);
+			ppt->function = NULL;
 			ret = -ENOMEM;
 			goto end;
 		}

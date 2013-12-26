@@ -401,9 +401,7 @@ static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
 		}
 	}
 
-	if (tmp)
-		free(tmp);
-
+	free(tmp);
 	return ret;
 }
 
@@ -1382,8 +1380,7 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 error:
 	pr_debug("Failed to synthesize perf probe point: %s\n",
 		 strerror(-ret));
-	if (buf)
-		free(buf);
+	free(buf);
 	return NULL;
 }
 
@@ -1584,34 +1581,25 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 	struct perf_probe_arg_field *field, *next;
 	int i;
 
-	if (pev->event)
-		free(pev->event);
-	if (pev->group)
-		free(pev->group);
-	if (pp->file)
-		free(pp->file);
-	if (pp->function)
-		free(pp->function);
-	if (pp->lazy_line)
-		free(pp->lazy_line);
+	free(pev->event);
+	free(pev->group);
+	free(pp->file);
+	free(pp->function);
+	free(pp->lazy_line);
+
 	for (i = 0; i < pev->nargs; i++) {
-		if (pev->args[i].name)
-			free(pev->args[i].name);
-		if (pev->args[i].var)
-			free(pev->args[i].var);
-		if (pev->args[i].type)
-			free(pev->args[i].type);
+		free(pev->args[i].name);
+		free(pev->args[i].var);
+		free(pev->args[i].type);
 		field = pev->args[i].field;
 		while (field) {
 			next = field->next;
-			if (field->name)
-				free(field->name);
+			free(field->name);
 			free(field);
 			field = next;
 		}
 	}
-	if (pev->args)
-		free(pev->args);
+	free(pev->args);
 	memset(pev, 0, sizeof(*pev));
 }
 
@@ -1620,21 +1608,14 @@ static void clear_probe_trace_event(struct probe_trace_event *tev)
 	struct probe_trace_arg_ref *ref, *next;
 	int i;
 
-	if (tev->event)
-		free(tev->event);
-	if (tev->group)
-		free(tev->group);
-	if (tev->point.symbol)
-		free(tev->point.symbol);
-	if (tev->point.module)
-		free(tev->point.module);
+	free(tev->event);
+	free(tev->group);
+	free(tev->point.symbol);
+	free(tev->point.module);
 	for (i = 0; i < tev->nargs; i++) {
-		if (tev->args[i].name)
-			free(tev->args[i].name);
-		if (tev->args[i].value)
-			free(tev->args[i].value);
-		if (tev->args[i].type)
-			free(tev->args[i].type);
+		free(tev->args[i].name);
+		free(tev->args[i].value);
+		free(tev->args[i].type);
 		ref = tev->args[i].ref;
 		while (ref) {
 			next = ref->next;
@@ -1642,8 +1623,7 @@ static void clear_probe_trace_event(struct probe_trace_event *tev)
 			ref = next;
 		}
 	}
-	if (tev->args)
-		free(tev->args);
+	free(tev->args);
 	memset(tev, 0, sizeof(*tev));
 }
 

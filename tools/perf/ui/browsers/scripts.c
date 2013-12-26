@@ -173,8 +173,7 @@ int script_browse(const char *script_opt)
 	if (script.b.width > AVERAGE_LINE_LEN)
 		script.b.width = AVERAGE_LINE_LEN;
 
-	if (line)
-		free(line);
+	free(line);
 	pclose(fp);
 
 	script.nr_lines = nr_entries;
