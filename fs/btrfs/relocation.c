@@ -2311,9 +2311,6 @@ void free_reloc_roots(struct list_head *list)
 		reloc_root = list_entry(list->next, struct btrfs_root,
 					root_list);
 		__del_reloc_root(reloc_root);
-		free_extent_buffer(reloc_root->node);
-		free_extent_buffer(reloc_root->commit_root);
-		kfree(reloc_root);
 	}
 }
 
@@ -2355,10 +2352,9 @@ again:
 
 			ret = merge_reloc_root(rc, root);
 			if (ret) {
-				__del_reloc_root(reloc_root);
-				free_extent_buffer(reloc_root->node);
-				free_extent_buffer(reloc_root->commit_root);
-				kfree(reloc_root);
+				if (list_empty(&reloc_root->root_list))
+					list_add_tail(&reloc_root->root_list,
+						      &reloc_roots);
 				goto out;
 			}
 		} else {
