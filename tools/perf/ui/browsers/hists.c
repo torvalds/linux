@@ -1400,6 +1400,35 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	char script_opt[64];
 	int delay_secs = hbt ? hbt->refresh : 0;
 
+#define HIST_BROWSER_HELP_COMMON					\
+	"h/?/F1        Show this window\n"				\
+	"UP/DOWN/PGUP\n"						\
+	"PGDN/SPACE    Navigate\n"					\
+	"q/ESC/CTRL+C  Exit browser\n\n"				\
+	"For multiple event sessions:\n\n"				\
+	"TAB/UNTAB     Switch events\n\n"				\
+	"For symbolic views (--sort has sym):\n\n"			\
+	"->            Zoom into DSO/Threads & Annotate current symbol\n" \
+	"<-            Zoom out\n"					\
+	"a             Annotate current symbol\n"			\
+	"C             Collapse all callchains\n"			\
+	"d             Zoom into current DSO\n"				\
+	"E             Expand all callchains\n"				\
+
+	/* help messages are sorted by lexical order of the hotkey */
+	const char report_help[] = HIST_BROWSER_HELP_COMMON
+	"P             Print histograms to perf.hist.N\n"
+	"r             Run available scripts\n"
+	"s             Switch to another data file in PWD\n"
+	"t             Zoom into current Thread\n"
+	"V             Verbose (DSO names in callchains, etc)\n"
+	"/             Filter symbol by name";
+	const char top_help[] = HIST_BROWSER_HELP_COMMON
+	"P             Print histograms to perf.hist.N\n"
+	"t             Zoom into current Thread\n"
+	"V             Verbose (DSO names in callchains, etc)\n"
+	"/             Filter symbol by name";
+
 	if (browser == NULL)
 		return -1;
 
@@ -1488,25 +1517,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		case 'h':
 		case '?':
 			ui_browser__help_window(&browser->b,
-					"h/?/F1        Show this window\n"
-					"UP/DOWN/PGUP\n"
-					"PGDN/SPACE    Navigate\n"
-					"q/ESC/CTRL+C  Exit browser\n\n"
-					"For multiple event sessions:\n\n"
-					"TAB/UNTAB Switch events\n\n"
-					"For symbolic views (--sort has sym):\n\n"
-					"->            Zoom into DSO/Threads & Annotate current symbol\n"
-					"<-            Zoom out\n"
-					"a             Annotate current symbol\n"
-					"C             Collapse all callchains\n"
-					"E             Expand all callchains\n"
-					"d             Zoom into current DSO\n"
-					"t             Zoom into current Thread\n"
-					"r             Run available scripts('perf report' only)\n"
-					"s             Switch to another data file in PWD ('perf report' only)\n"
-					"P             Print histograms to perf.hist.N\n"
-					"V             Verbose (DSO names in callchains, etc)\n"
-					"/             Filter symbol by name");
+				is_report_browser(hbt) ? report_help : top_help);
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
