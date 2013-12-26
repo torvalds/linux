@@ -847,7 +847,6 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 	if (!fsl_lbc_ctrl_dev->nand) {
 		elbc_fcm_ctrl = kzalloc(sizeof(*elbc_fcm_ctrl), GFP_KERNEL);
 		if (!elbc_fcm_ctrl) {
-			dev_err(dev, "failed to allocate memory\n");
 			mutex_unlock(&fsl_elbc_nand_mutex);
 			ret = -ENOMEM;
 			goto err;
