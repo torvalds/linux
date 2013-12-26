@@ -2060,14 +2060,14 @@ static int atmel_nand_probe(struct platform_device *pdev)
 		}
 
 		if (gpio_get_value(host->board.det_pin)) {
-			printk(KERN_INFO "No SmartMedia card inserted.\n");
+			dev_info(&pdev->dev, "No SmartMedia card inserted.\n");
 			res = -ENXIO;
 			goto err_no_card;
 		}
 	}
 
 	if (host->board.on_flash_bbt || on_flash_bbt) {
-		printk(KERN_INFO "atmel_nand: Use On Flash BBT\n");
+		dev_info(&pdev->dev, "Use On Flash BBT\n");
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 	}
 
