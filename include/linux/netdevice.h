@@ -3017,6 +3017,19 @@ static inline void netif_set_gso_max_size(struct net_device *dev,
 	dev->gso_max_size = size;
 }
 
+static inline void skb_gso_error_unwind(struct sk_buff *skb, __be16 protocol,
+					int pulled_hlen, u16 mac_offset,
+					int mac_len)
+{
+	skb->protocol = protocol;
+	skb->encapsulation = 1;
+	skb_push(skb, pulled_hlen);
+	skb_reset_transport_header(skb);
+	skb->mac_header = mac_offset;
+	skb->network_header = skb->mac_header + mac_len;
+	skb->mac_len = mac_len;
+}
+
 static inline bool netif_is_macvlan(struct net_device *dev)
 {
 	return dev->priv_flags & IFF_MACVLAN;
