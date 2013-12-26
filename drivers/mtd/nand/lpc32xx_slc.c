@@ -791,8 +791,8 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 	if (host->ncfg->wp_gpio == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
-	if (gpio_is_valid(host->ncfg->wp_gpio) &&
-			gpio_request(host->ncfg->wp_gpio, "NAND WP")) {
+	if (gpio_is_valid(host->ncfg->wp_gpio) && devm_gpio_request(&pdev->dev,
+			host->ncfg->wp_gpio, "NAND WP")) {
 		dev_err(&pdev->dev, "GPIO not available\n");
 		return -EBUSY;
 	}
@@ -808,7 +808,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	mtd->dev.parent = &pdev->dev;
 
 	/* Get NAND clock */
-	host->clk = clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "Clock failure\n");
 		res = -ENOENT;
@@ -927,10 +927,8 @@ err_exit3:
 	dma_release_channel(host->dma_chan);
 err_exit2:
 	clk_disable(host->clk);
-	clk_put(host->clk);
 err_exit1:
 	lpc32xx_wp_enable(host);
-	gpio_free(host->ncfg->wp_gpio);
 
 	return res;
 }
@@ -953,9 +951,7 @@ static int lpc32xx_nand_remove(struct platform_device *pdev)
 	writel(tmp, SLC_CTRL(host->io_base));
 
 	clk_disable(host->clk);
-	clk_put(host->clk);
 	lpc32xx_wp_enable(host);
-	gpio_free(host->ncfg->wp_gpio);
 
 	return 0;
 }
