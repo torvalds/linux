@@ -1144,7 +1144,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
-	unsigned long size, m32map_off, iomap_off, pemap_off;
+	unsigned long size, m32map_off, pemap_off, iomap_off = 0;
 	const __be64 *prop64;
 	const __be32 *prop32;
 	int len;
@@ -1231,7 +1231,6 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	size = _ALIGN_UP(phb->ioda.total_pe / 8, sizeof(unsigned long));
 	m32map_off = size;
 	size += phb->ioda.total_pe * sizeof(phb->ioda.m32_segmap[0]);
-	iomap_off = size;
 	if (phb->type == PNV_PHB_IODA1) {
 		iomap_off = size;
 		size += phb->ioda.total_pe * sizeof(phb->ioda.io_segmap[0]);
