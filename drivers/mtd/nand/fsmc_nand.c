@@ -889,10 +889,8 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 
 	pdata->nand_timings = devm_kzalloc(&pdev->dev,
 				sizeof(*pdata->nand_timings), GFP_KERNEL);
-	if (!pdata->nand_timings) {
-		dev_err(&pdev->dev, "no memory for nand_timing\n");
+	if (!pdata->nand_timings)
 		return -ENOMEM;
-	}
 	of_property_read_u8_array(np, "timings", (u8 *)pdata->nand_timings,
 						sizeof(*pdata->nand_timings));
 
@@ -950,10 +948,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
-	if (!host) {
-		dev_err(&pdev->dev, "failed to allocate device structure\n");
+	if (!host)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
 	host->data_va = devm_ioremap_resource(&pdev->dev, res);
