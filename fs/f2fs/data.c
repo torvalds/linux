@@ -626,11 +626,13 @@ static int get_data_block(struct inode *inode, sector_t iblock,
 	/* When reading holes, we need its node page */
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, pgofs, mode);
-	if (err || dn.data_blkaddr == NEW_ADDR) {
+	if (err) {
 		if (err == -ENOENT)
 			err = 0;
 		goto unlock_out;
 	}
+	if (dn.data_blkaddr == NEW_ADDR)
+		goto put_out;
 
 	if (dn.data_blkaddr != NULL_ADDR) {
 		map_bh(bh_result, inode->i_sb, dn.data_blkaddr);
@@ -659,11 +661,14 @@ get_next:
 
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, pgofs, mode);
-		if (err || dn.data_blkaddr == NEW_ADDR) {
+		if (err) {
 			if (err == -ENOENT)
 				err = 0;
 			goto unlock_out;
 		}
+		if (dn.data_blkaddr == NEW_ADDR)
+			goto put_out;
+
 		end_offset = IS_INODE(dn.node_page) ?
 			ADDRS_PER_INODE(F2FS_I(inode)) : ADDRS_PER_BLOCK;
 	}
