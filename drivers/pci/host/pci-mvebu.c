@@ -342,8 +342,6 @@ static void mvebu_pcie_handle_iobase_change(struct mvebu_pcie_port *port)
 	mvebu_mbus_add_window_remap_by_id(port->io_target, port->io_attr,
 					  port->iowin_base, port->iowin_size,
 					  iobase);
-
-	pci_ioremap_io(iobase, port->iowin_base);
 }
 
 static void mvebu_pcie_handle_membase_change(struct mvebu_pcie_port *port)
@@ -988,6 +986,10 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	}
 
 	pcie->nports = i;
+
+	for (i = 0; i < (IO_SPACE_LIMIT - SZ_64K); i += SZ_64K)
+		pci_ioremap_io(i, pcie->io.start + i);
+
 	mvebu_pcie_msi_enable(pcie);
 	mvebu_pcie_enable(pcie);
 
