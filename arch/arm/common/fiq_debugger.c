@@ -739,7 +739,7 @@ static void switch_cpu(struct fiq_debugger_state *state, int cpu)
 {
 	if (!debug_have_fiq(state))
 		smp_call_function_single(cpu, take_affinity, state, false);
-#ifdef CONFIG_PLAT_RK
+#ifdef CONFIG_ARCH_ROCKCHIP
 	else {
 		struct cpumask cpumask;
 
