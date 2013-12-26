@@ -134,7 +134,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	/* map physical address */
 	sharpsl->io = ioremap(r->start, resource_size(r));
 	if (!sharpsl->io) {
-		printk("ioremap to access Sharp SL NAND chip failed\n");
+		dev_err(&pdev->dev, "ioremap to access Sharp SL NAND chip failed\n");
 		err = -EIO;
 		goto err_ioremap;
 	}
