@@ -15,6 +15,9 @@ Required properties :
   In clock consumers, this cell represents the clock ID exposed by the
   CAR. The assignments may be found in header file
   <dt-bindings/clock/tegra114-car.h>.
+- #reset-cells : Should be 1.
+  In clock consumers, this cell represents the bit number in the CAR's
+  array of CLK_RST_CONTROLLER_RST_DEVICES_* registers.
 
 Example SoC include file:
 
@@ -23,6 +26,7 @@ Example SoC include file:
 		compatible = "nvidia,tegra114-car";
 		reg = <0x60006000 0x1000>;
 		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	usb@c5004000 {

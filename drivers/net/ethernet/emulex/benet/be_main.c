@@ -2658,8 +2658,8 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	for_all_evt_queues(adapter, eqo, i) {
-		if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
+	if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
+		for_all_evt_queues(adapter, eqo, i) {
 			napi_disable(&eqo->napi);
 			be_disable_busy_poll(eqo);
 		}
@@ -3253,12 +3253,10 @@ static int be_mac_setup(struct be_adapter *adapter)
 		memcpy(mac, adapter->netdev->dev_addr, ETH_ALEN);
 	}
 
-	/* On BE3 VFs this cmd may fail due to lack of privilege.
-	 * Ignore the failure as in this case pmac_id is fetched
-	 * in the IFACE_CREATE cmd.
-	 */
-	be_cmd_pmac_add(adapter, mac, adapter->if_handle,
-			&adapter->pmac_id[0], 0);
+	/* For BE3-R VFs, the PF programs the initial MAC address */
+	if (!(BEx_chip(adapter) && be_virtfn(adapter)))
+		be_cmd_pmac_add(adapter, mac, adapter->if_handle,
+				&adapter->pmac_id[0], 0);
 	return 0;
 }
 
@@ -4599,6 +4597,7 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (adapter->wol)
 		be_setup_wol(adapter, true);
 
+	be_intr_set(adapter, false);
 	cancel_delayed_work_sync(&adapter->func_recovery_work);
 
 	netif_device_detach(netdev);
@@ -4634,6 +4633,7 @@ static int be_resume(struct pci_dev *pdev)
 	if (status)
 		return status;
 
+	be_intr_set(adapter, true);
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);
 	if (status)

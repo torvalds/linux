@@ -503,6 +503,7 @@ struct be_adapter {
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
+#define be_virtfn(adapter)		(adapter->virtfn)
 #define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
 #define sriov_want(adapter)             (be_physfn(adapter) &&	\
 					 (num_vfs || pci_num_vf(adapter->pdev)))

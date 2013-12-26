@@ -11,6 +11,7 @@
 #include <linux/host1x.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/tegra-powergate.h>
 
 #include "drm.h"
@@ -22,6 +23,8 @@ struct gr3d {
 	struct host1x_channel *channel;
 	struct clk *clk_secondary;
 	struct clk *clk;
+	struct reset_control *rst_secondary;
+	struct reset_control *rst;
 
 	DECLARE_BITMAP(addr_regs, GR3D_NUM_REGS);
 };
@@ -255,15 +258,29 @@ static int gr3d_probe(struct platform_device *pdev)
 		return PTR_ERR(gr3d->clk);
 	}
 
+	gr3d->rst = devm_reset_control_get(&pdev->dev, "3d");
+	if (IS_ERR(gr3d->rst)) {
+		dev_err(&pdev->dev, "cannot get reset\n");
+		return PTR_ERR(gr3d->rst);
+	}
+
 	if (of_device_is_compatible(np, "nvidia,tegra30-gr3d")) {
 		gr3d->clk_secondary = devm_clk_get(&pdev->dev, "3d2");
 		if (IS_ERR(gr3d->clk)) {
 			dev_err(&pdev->dev, "cannot get secondary clock\n");
 			return PTR_ERR(gr3d->clk);
 		}
+
+		gr3d->rst_secondary = devm_reset_control_get(&pdev->dev,
+								"3d2");
+		if (IS_ERR(gr3d->rst_secondary)) {
+			dev_err(&pdev->dev, "cannot get secondary reset\n");
+			return PTR_ERR(gr3d->rst_secondary);
+		}
 	}
 
-	err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_3D, gr3d->clk);
+	err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_3D, gr3d->clk,
+						gr3d->rst);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to power up 3D unit\n");
 		return err;
@@ -271,7 +288,8 @@ static int gr3d_probe(struct platform_device *pdev)
 
 	if (gr3d->clk_secondary) {
 		err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_3D1,
-							gr3d->clk_secondary);
+							gr3d->clk_secondary,
+							gr3d->rst_secondary);
 		if (err < 0) {
 			dev_err(&pdev->dev,
 				"failed to power up secondary 3D unit\n");

@@ -893,33 +893,17 @@ static struct dma_chan *mmp_pdma_dma_xlate(struct of_phandle_args *dma_spec,
 					   struct of_dma *ofdma)
 {
 	struct mmp_pdma_device *d = ofdma->of_dma_data;
-	struct dma_chan *chan, *candidate;
+	struct dma_chan *chan;
+	struct mmp_pdma_chan *c;
 
-retry:
-	candidate = NULL;
-
-	/* walk the list of channels registered with the current instance and
-	 * find one that is currently unused */
-	list_for_each_entry(chan, &d->device.channels, device_node)
-		if (chan->client_count == 0) {
-			candidate = chan;
-			break;
-		}
-
-	if (!candidate)
+	chan = dma_get_any_slave_channel(&d->device);
+	if (!chan)
 		return NULL;
 
-	/* dma_get_slave_channel will return NULL if we lost a race between
-	 * the lookup and the reservation */
-	chan = dma_get_slave_channel(candidate);
+	c = to_mmp_pdma_chan(chan);
+	c->drcmr = dma_spec->args[0];
 
-	if (chan) {
-		struct mmp_pdma_chan *c = to_mmp_pdma_chan(chan);
-		c->drcmr = dma_spec->args[0];
-		return chan;
-	}
-
-	goto retry;
+	return chan;
 }
 
 static int mmp_pdma_probe(struct platform_device *op)

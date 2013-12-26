@@ -36,8 +36,6 @@ static DEFINE_SPINLOCK(periph_ref_lock);
 
 #define read_rst(gate) \
 	readl_relaxed(gate->clk_base + (gate->regs->rst_reg))
-#define write_rst_set(val, gate) \
-	writel_relaxed(val, gate->clk_base + (gate->regs->rst_set_reg))
 #define write_rst_clr(val, gate) \
 	writel_relaxed(val, gate->clk_base + (gate->regs->rst_clr_reg))
 
@@ -123,26 +121,6 @@ static void clk_periph_disable(struct clk_hw *hw)
 	spin_unlock_irqrestore(&periph_ref_lock, flags);
 }
 
-void tegra_periph_reset(struct tegra_clk_periph_gate *gate, bool assert)
-{
-	if (gate->flags & TEGRA_PERIPH_NO_RESET)
-		return;
-
-	if (assert) {
-		/*
-		 * If peripheral is in the APB bus then read the APB bus to
-		 * flush the write operation in apb bus. This will avoid the
-		 * peripheral access after disabling clock
-		 */
-		if (gate->flags & TEGRA_PERIPH_ON_APB)
-			tegra_read_chipid();
-
-		write_rst_set(periph_clk_to_bit(gate), gate);
-	} else {
-		write_rst_clr(periph_clk_to_bit(gate), gate);
-	}
-}
-
 const struct clk_ops tegra_clk_periph_gate_ops = {
 	.is_enabled = clk_periph_is_enabled,
 	.enable = clk_periph_enable,
@@ -151,12 +129,16 @@ const struct clk_ops tegra_clk_periph_gate_ops = {
 
 struct clk *tegra_clk_register_periph_gate(const char *name,
 		const char *parent_name, u8 gate_flags, void __iomem *clk_base,
-		unsigned long flags, int clk_num,
-		struct tegra_clk_periph_regs *pregs, int *enable_refcnt)
+		unsigned long flags, int clk_num, int *enable_refcnt)
 {
 	struct tegra_clk_periph_gate *gate;
 	struct clk *clk;
 	struct clk_init_data init;
+	struct tegra_clk_periph_regs *pregs;
+
+	pregs = get_reg_bank(clk_num);
+	if (!pregs)
+		return ERR_PTR(-EINVAL);
 
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate) {
