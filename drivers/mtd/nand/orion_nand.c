@@ -100,7 +100,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	io_base = ioremap(res->start, resource_size(res));
 	if (!io_base) {
-		printk(KERN_ERR "orion_nand: ioremap failed\n");
+		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -EIO;
 		goto no_res;
 	}
