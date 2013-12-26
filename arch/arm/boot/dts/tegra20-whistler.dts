@@ -1,5 +1,6 @@
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "tegra20.dtsi"
 
 / {
@@ -10,8 +11,8 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 
 			vdd-supply = <&hdmi_vdd_reg>;
@@ -23,7 +24,7 @@
 		};
 	};
 
-	pinmux {
+	pinmux@70000014 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -189,8 +190,8 @@
 					"kbcf", "sdc", "sdd", "spie", "spig",
 					"spih", "uaa", "uab", "uad", "uca",
 					"ucb";
-				nvidia,pull = <2>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_atd {
 				nvidia,pins = "atd", "ate", "cdev1", "csus",
@@ -198,54 +199,54 @@
 					"dtf", "gpu", "gpu7", "gpv", "i2cp",
 					"rm", "sdio1", "slxa", "slxc", "slxd",
 					"slxk", "spdi", "spdo", "uac", "uda";
-				nvidia,pull = <0>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_cdev2 {
 				nvidia,pins = "cdev2", "spia", "spib";
-				nvidia,pull = <1>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "lc", "pmca",
 					"pmcb", "pmcc", "pmcd", "xm2c",
 					"xm2d";
-				nvidia,pull = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 			};
 			conf_crtp {
 				nvidia,pins = "crtp";
-				nvidia,pull = <0>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_dta {
 				nvidia,pins = "dta", "dtb", "dtc", "dtd",
 					"spid", "spif";
-				nvidia,pull = <1>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_gme {
 				nvidia,pins = "gme", "owc", "pta", "spic";
-				nvidia,pull = <2>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_ld17_0 {
 				nvidia,pins = "ld17_0", "ld19_18", "ld21_20",
 					"ld23_22";
-				nvidia,pull = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
 			};
 			conf_ls {
 				nvidia,pins = "ls", "pmce";
-				nvidia,pull = <2>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 			};
 			drive_dap1 {
 				nvidia,pins = "drive_dap1";
-				nvidia,high-speed-mode = <0>;
-				nvidia,schmitt = <1>;
-				nvidia,low-power-mode = <0>;
+				nvidia,high-speed-mode = <TEGRA_PIN_DISABLE>;
+				nvidia,schmitt = <TEGRA_PIN_ENABLE>;
+				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_8>;
 				nvidia,pull-down-strength = <0>;
 				nvidia,pull-up-strength = <0>;
-				nvidia,slew-rate-rising = <0>;
-				nvidia,slew-rate-falling = <0>;
+				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
+				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_FASTEST>;
 			};
 		};
 	};
@@ -495,7 +496,20 @@
 		};
 	};
 
-	pmc {
+	kbc@7000e200 {
+		status = "okay";
+		nvidia,debounce-delay-ms = <20>;
+		nvidia,repeat-delay-ms = <160>;
+		nvidia,kbc-row-pins = <0 1 2>;
+		nvidia,kbc-col-pins = <16 17>;
+		nvidia,wakeup-source;
+		linux,keymap = <MATRIX_KEY(0x00, 0x00, KEY_POWER)
+				MATRIX_KEY(0x01, 0x00, KEY_HOME)
+				MATRIX_KEY(0x01, 0x01, KEY_BACK)
+				MATRIX_KEY(0x02, 0x01, KEY_MENU)>;
+	};
+
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <2000>;
@@ -543,7 +557,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk32k_in: clock {
+		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
 			reg=<0>;
 			#clock-cells = <0>;
@@ -551,25 +565,12 @@
 		};
 	};
 
-	kbc {
-		status = "okay";
-		nvidia,debounce-delay-ms = <20>;
-		nvidia,repeat-delay-ms = <160>;
-		nvidia,kbc-row-pins = <0 1 2>;
-		nvidia,kbc-col-pins = <16 17>;
-		nvidia,wakeup-source;
-		linux,keymap = <0x00000074	/* KEY_POWER */
-				0x01000066	/* KEY_HOME */
-				0x0101009E	/* KEY_BACK */
-				0x0201008B>;	/* KEY_MENU */
-	};
-
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		usb0_vbus_reg: regulator {
+		usb0_vbus_reg: regulator@0 {
 			compatible = "regulator-fixed";
 			reg = <0>;
 			regulator-name = "usb0_vbus";
