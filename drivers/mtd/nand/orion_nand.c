@@ -87,7 +87,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	nc = kzalloc(sizeof(struct nand_chip) + sizeof(struct mtd_info), GFP_KERNEL);
 	if (!nc) {
-		printk(KERN_ERR "orion_nand: failed to allocate device structure.\n");
 		ret = -ENOMEM;
 		goto no_res;
 	}
@@ -110,7 +109,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		board = devm_kzalloc(&pdev->dev, sizeof(struct orion_nand_data),
 					GFP_KERNEL);
 		if (!board) {
-			printk(KERN_ERR "orion_nand: failed to allocate board structure.\n");
 			ret = -ENOMEM;
 			goto no_res;
 		}
