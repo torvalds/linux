@@ -1300,33 +1300,6 @@ again:
 	trans->block_rsv = &root->fs_info->delayed_block_rsv;
 
 	__btrfs_commit_inode_delayed_items(trans, path, delayed_node);
-	/*
-	 * Maybe new delayed items have been inserted, so we need requeue
-	 * the work. Besides that, we must dequeue the empty delayed nodes
-	 * to avoid the race between delayed items balance and the worker.
-	 * The race like this:
-	 * 	Task1				Worker thread
-	 * 					count == 0, needn't requeue
-	 * 					  also needn't insert the
-	 * 					  delayed node into prepare
-	 * 					  list again.
-	 * 	add lots of delayed items
-	 * 	queue the delayed node
-	 * 	  already in the list,
-	 * 	  and not in the prepare
-	 * 	  list, it means the delayed
-	 * 	  node is being dealt with
-	 * 	  by the worker.
-	 * 	do delayed items balance
-	 * 	  the delayed node is being
-	 * 	  dealt with by the worker
-	 * 	  now, just wait.
-	 * 	  				the worker goto idle.
-	 * Task1 will sleep until the transaction is commited.
-	 */
-	mutex_lock(&delayed_node->mutex);
-	btrfs_dequeue_delayed_node(root->fs_info->delayed_root, delayed_node);
-	mutex_unlock(&delayed_node->mutex);
 
 	trans->block_rsv = block_rsv;
 	btrfs_end_transaction_dmeta(trans, root);
