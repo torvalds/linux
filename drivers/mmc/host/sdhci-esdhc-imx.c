@@ -558,19 +558,17 @@ static unsigned int esdhc_pltfm_get_max_clock(struct sdhci_host *host)
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 
-	u32 f_host = clk_get_rate(pltfm_host->clk);
-
-	if (boarddata->f_max && (boarddata->f_max < f_host))
+	if (boarddata->f_max && (boarddata->f_max < pltfm_host->clock))
 		return boarddata->f_max;
 	else
-		return f_host;
+		return pltfm_host->clock;
 }
 
 static unsigned int esdhc_pltfm_get_min_clock(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 
-	return clk_get_rate(pltfm_host->clk) / 256 / 16;
+	return pltfm_host->clock / 256 / 16;
 }
 
 static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
@@ -578,7 +576,7 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
-	unsigned int host_clock = clk_get_rate(pltfm_host->clk);
+	unsigned int host_clock = pltfm_host->clock;
 	int pre_div = 2;
 	int div = 1;
 	u32 temp, val;
@@ -976,7 +974,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	}
 
 	pltfm_host->clk = imx_data->clk_per;
-
+	pltfm_host->clock = clk_get_rate(pltfm_host->clk);
 	clk_prepare_enable(imx_data->clk_per);
 	clk_prepare_enable(imx_data->clk_ipg);
 	clk_prepare_enable(imx_data->clk_ahb);
