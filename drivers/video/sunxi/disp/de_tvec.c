@@ -344,7 +344,7 @@ __s32 TVE_set_vga_mode(__u32 sel)
 	__u32 readval;
 
 	TVE_WUINT32(sel, TVE_004, 0x20000000);
-	TVE_WUINT32(sel, TVE_008, 0x403f1ac7);
+	TVE_WUINT32(sel, TVE_008, 0x403e1ac7);
 
 	readval = TVE_RUINT32(sel, TVE_024);
 	TVE_WUINT32(sel, TVE_024, readval & 0xff000000);
