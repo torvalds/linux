@@ -1058,7 +1058,6 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 
 	buf = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "DiskOnChip mediaheader kmalloc failed!\n");
 		return 0;
 	}
 	if (!(numheaders = find_media_headers(mtd, buf, "ANAND", 1)))
@@ -1166,7 +1165,6 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 
 	buf = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "DiskOnChip mediaheader kmalloc failed!\n");
 		return 0;
 	}
 
@@ -1564,7 +1562,6 @@ static int __init doc_probe(unsigned long physadr)
 	    sizeof(struct nand_chip) + sizeof(struct doc_priv) + (2 * sizeof(struct nand_bbt_descr));
 	mtd = kzalloc(len, GFP_KERNEL);
 	if (!mtd) {
-		printk(KERN_ERR "DiskOnChip kmalloc (%d bytes) failed!\n", len);
 		ret = -ENOMEM;
 		goto fail;
 	}
