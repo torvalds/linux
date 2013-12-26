@@ -1440,7 +1440,6 @@ void blk_mq_free_queue(struct request_queue *q)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		cancel_delayed_work_sync(&hctx->delayed_work);
 		kfree(hctx->ctx_map);
 		kfree(hctx->ctxs);
 		blk_mq_free_rq_map(hctx);
