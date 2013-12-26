@@ -1395,6 +1395,7 @@ void btrfs_balance_delayed_items(struct btrfs_root *root)
 				break;
 		}
 		finish_wait(&delayed_root->wait, &__wait);
+		return;
 	}
 
 	btrfs_wq_run_delayed_node(delayed_root, root, BTRFS_DELAYED_BATCH);
