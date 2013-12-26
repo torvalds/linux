@@ -738,6 +738,14 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 	iter->he = he;
 	he_cache[iter->curr++] = he;
 
+	callchain_append(he->callchain, &callchain_cursor, sample->period);
+
+	/*
+	 * We need to re-initialize the cursor since callchain_append()
+	 * advanced the cursor to the end.
+	 */
+	callchain_cursor_commit(&callchain_cursor);
+
 	/*
 	 * The iter->he will be over-written after ->add_next_entry()
 	 * called so inc stats for the original entry now.
@@ -759,8 +767,6 @@ iter_next_cumulative_entry(struct hist_entry_iter *iter,
 	node = callchain_cursor_current(&callchain_cursor);
 	if (node == NULL)
 		return 0;
-
-	callchain_cursor_advance(&callchain_cursor);
 
 	return fill_callchain_info(al, node, iter->hide_unresolved);
 }
@@ -785,6 +791,11 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 		.parent = iter->parent,
 	};
 	int i;
+	struct callchain_cursor cursor;
+
+	callchain_cursor_snapshot(&cursor, &callchain_cursor);
+
+	callchain_cursor_advance(&callchain_cursor);
 
 	/*
 	 * Check if there's duplicate entries in the callchain.
@@ -804,6 +815,7 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	iter->he = he;
 	he_cache[iter->curr++] = he;
 
+	callchain_append(he->callchain, &cursor, sample->period);
 	return 0;
 }
 
