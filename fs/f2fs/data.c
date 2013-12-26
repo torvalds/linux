@@ -953,11 +953,33 @@ static int f2fs_write_end(struct file *file,
 	return copied;
 }
 
+static int check_direct_IO(struct inode *inode, int rw,
+		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
+{
+	unsigned blocksize_mask = inode->i_sb->s_blocksize - 1;
+	int i;
+
+	if (rw == READ)
+		return 0;
+
+	if (offset & blocksize_mask)
+		return -EINVAL;
+
+	for (i = 0; i < nr_segs; i++)
+		if (iov[i].iov_len & blocksize_mask)
+			return -EINVAL;
+	return 0;
+}
+
 static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
 		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
+
+	if (check_direct_IO(inode, rw, iov, offset, nr_segs))
+		return 0;
+
 	return blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
 							get_data_block);
 }
