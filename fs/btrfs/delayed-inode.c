@@ -1349,52 +1349,40 @@ void btrfs_assert_delayed_root_empty(struct btrfs_root *root)
 	WARN_ON(btrfs_first_delayed_node(delayed_root));
 }
 
-static int refs_newer(struct btrfs_delayed_root *delayed_root,
-		      int seq, int count)
+static int could_end_wait(struct btrfs_delayed_root *delayed_root, int seq)
 {
 	int val = atomic_read(&delayed_root->items_seq);
 
-	if (val < seq || val >= seq + count)
+	if (val < seq || val >= seq + BTRFS_DELAYED_BATCH)
 		return 1;
+
+	if (atomic_read(&delayed_root->items) < BTRFS_DELAYED_BACKGROUND)
+		return 1;
+
 	return 0;
 }
 
 void btrfs_balance_delayed_items(struct btrfs_root *root)
 {
 	struct btrfs_delayed_root *delayed_root;
-	int seq;
 
 	delayed_root = btrfs_get_delayed_root(root);
 
 	if (atomic_read(&delayed_root->items) < BTRFS_DELAYED_BACKGROUND)
 		return;
 
-	seq = atomic_read(&delayed_root->items_seq);
-
 	if (atomic_read(&delayed_root->items) >= BTRFS_DELAYED_WRITEBACK) {
+		int seq;
 		int ret;
-		DEFINE_WAIT(__wait);
+
+		seq = atomic_read(&delayed_root->items_seq);
 
 		ret = btrfs_wq_run_delayed_node(delayed_root, root, 0);
 		if (ret)
 			return;
 
-		while (1) {
-			prepare_to_wait(&delayed_root->wait, &__wait,
-					TASK_INTERRUPTIBLE);
-
-			if (refs_newer(delayed_root, seq,
-				       BTRFS_DELAYED_BATCH) ||
-			    atomic_read(&delayed_root->items) <
-			    BTRFS_DELAYED_BACKGROUND) {
-				break;
-			}
-			if (!signal_pending(current))
-				schedule();
-			else
-				break;
-		}
-		finish_wait(&delayed_root->wait, &__wait);
+		wait_event_interruptible(delayed_root->wait,
+					 could_end_wait(delayed_root, seq));
 		return;
 	}
 
