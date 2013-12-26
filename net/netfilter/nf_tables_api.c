@@ -1904,12 +1904,14 @@ static int nft_ctx_init_from_setattr(struct nft_ctx *ctx,
 {
 	struct net *net = sock_net(skb->sk);
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	const struct nft_af_info *afi;
+	const struct nft_af_info *afi = NULL;
 	const struct nft_table *table = NULL;
 
-	afi = nf_tables_afinfo_lookup(net, nfmsg->nfgen_family, false);
-	if (IS_ERR(afi))
-		return PTR_ERR(afi);
+	if (nfmsg->nfgen_family != NFPROTO_UNSPEC) {
+		afi = nf_tables_afinfo_lookup(net, nfmsg->nfgen_family, false);
+		if (IS_ERR(afi))
+			return PTR_ERR(afi);
+	}
 
 	if (nla[NFTA_SET_TABLE] != NULL) {
 		table = nf_tables_table_lookup(afi, nla[NFTA_SET_TABLE]);
@@ -2078,8 +2080,8 @@ done:
 	return skb->len;
 }
 
-static int nf_tables_dump_sets_all(struct nft_ctx *ctx, struct sk_buff *skb,
-				   struct netlink_callback *cb)
+static int nf_tables_dump_sets_family(struct nft_ctx *ctx, struct sk_buff *skb,
+				      struct netlink_callback *cb)
 {
 	const struct nft_set *set;
 	unsigned int idx = 0, s_idx = cb->args[0];
@@ -2111,6 +2113,61 @@ done:
 	return skb->len;
 }
 
+static int nf_tables_dump_sets_all(struct nft_ctx *ctx, struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	const struct nft_set *set;
+	unsigned int idx, s_idx = cb->args[0];
+	const struct nft_af_info *afi;
+	struct nft_table *table, *cur_table = (struct nft_table *)cb->args[2];
+	struct net *net = sock_net(skb->sk);
+	int cur_family = cb->args[3];
+
+	if (cb->args[1])
+		return skb->len;
+
+	list_for_each_entry(afi, &net->nft.af_info, list) {
+		if (cur_family) {
+			if (afi->family != cur_family)
+				continue;
+
+			cur_family = 0;
+		}
+
+		list_for_each_entry(table, &afi->tables, list) {
+			if (cur_table) {
+				if (cur_table != table)
+					continue;
+
+				cur_table = NULL;
+			}
+
+			ctx->table = table;
+			ctx->afi = afi;
+			idx = 0;
+			list_for_each_entry(set, &ctx->table->sets, list) {
+				if (idx < s_idx)
+					goto cont;
+				if (nf_tables_fill_set(skb, ctx, set,
+						       NFT_MSG_NEWSET,
+						       NLM_F_MULTI) < 0) {
+					cb->args[0] = idx;
+					cb->args[2] = (unsigned long) table;
+					cb->args[3] = afi->family;
+					goto done;
+				}
+cont:
+				idx++;
+			}
+			if (s_idx)
+				s_idx = 0;
+		}
+	}
+	cb->args[1] = 1;
+done:
+	return skb->len;
+}
+
 static int nf_tables_dump_sets(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
@@ -2127,9 +2184,12 @@ static int nf_tables_dump_sets(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err < 0)
 		return err;
 
-	if (ctx.table == NULL)
-		ret = nf_tables_dump_sets_all(&ctx, skb, cb);
-	else
+	if (ctx.table == NULL) {
+		if (ctx.afi == NULL)
+			ret = nf_tables_dump_sets_all(&ctx, skb, cb);
+		else
+			ret = nf_tables_dump_sets_family(&ctx, skb, cb);
+	} else
 		ret = nf_tables_dump_sets_table(&ctx, skb, cb);
 
 	return ret;
@@ -2142,6 +2202,7 @@ static int nf_tables_getset(struct sock *nlsk, struct sk_buff *skb,
 	const struct nft_set *set;
 	struct nft_ctx ctx;
 	struct sk_buff *skb2;
+	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	int err;
 
 	/* Verify existance before starting dump */
@@ -2155,6 +2216,10 @@ static int nf_tables_getset(struct sock *nlsk, struct sk_buff *skb,
 		};
 		return netlink_dump_start(nlsk, skb, nlh, &c);
 	}
+
+	/* Only accept unspec with dump */
+	if (nfmsg->nfgen_family == NFPROTO_UNSPEC)
+		return -EAFNOSUPPORT;
 
 	set = nf_tables_set_lookup(ctx.table, nla[NFTA_SET_NAME]);
 	if (IS_ERR(set))
@@ -2325,6 +2390,7 @@ static int nf_tables_delset(struct sock *nlsk, struct sk_buff *skb,
 			    const struct nlmsghdr *nlh,
 			    const struct nlattr * const nla[])
 {
+	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	struct nft_set *set;
 	struct nft_ctx ctx;
 	int err;
@@ -2335,6 +2401,9 @@ static int nf_tables_delset(struct sock *nlsk, struct sk_buff *skb,
 	err = nft_ctx_init_from_setattr(&ctx, skb, nlh, nla);
 	if (err < 0)
 		return err;
+
+	if (nfmsg->nfgen_family == NFPROTO_UNSPEC)
+		return -EAFNOSUPPORT;
 
 	set = nf_tables_set_lookup(ctx.table, nla[NFTA_SET_NAME]);
 	if (IS_ERR(set))
