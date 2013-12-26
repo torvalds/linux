@@ -172,6 +172,52 @@ const char *kernel_get_module_path(const char *module)
 	return (dso) ? dso->long_name : NULL;
 }
 
+/* Copied from unwind.c */
+static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
+				    GElf_Shdr *shp, const char *name)
+{
+	Elf_Scn *sec = NULL;
+
+	while ((sec = elf_nextscn(elf, sec)) != NULL) {
+		char *str;
+
+		gelf_getshdr(sec, shp);
+		str = elf_strptr(elf, ep->e_shstrndx, shp->sh_name);
+		if (!strcmp(name, str))
+			break;
+	}
+
+	return sec;
+}
+
+static int get_text_start_address(const char *exec, unsigned long *address)
+{
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	int fd, ret = -ENOENT;
+
+	fd = open(exec, O_RDONLY);
+	if (fd < 0)
+		return -errno;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		return -EINVAL;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out;
+
+	if (!elf_section_by_name(elf, &ehdr, &shdr, ".text"))
+		goto out;
+
+	*address = shdr.sh_addr - shdr.sh_offset;
+	ret = 0;
+out:
+	elf_end(elf);
+	return ret;
+}
+
 static int init_user_exec(void)
 {
 	int ret = 0;
@@ -183,6 +229,37 @@ static int init_user_exec(void)
 	if (ret < 0)
 		pr_debug("Failed to init symbol map.\n");
 
+	return ret;
+}
+
+static int convert_exec_to_group(const char *exec, char **result)
+{
+	char *ptr1, *ptr2, *exec_copy;
+	char buf[64];
+	int ret;
+
+	exec_copy = strdup(exec);
+	if (!exec_copy)
+		return -ENOMEM;
+
+	ptr1 = basename(exec_copy);
+	if (!ptr1) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ptr2 = strpbrk(ptr1, "-._");
+	if (ptr2)
+		*ptr2 = '\0';
+	ret = e_snprintf(buf, 64, "%s_%s", PERFPROBE_GROUP, ptr1);
+	if (ret < 0)
+		goto out;
+
+	*result = strdup(buf);
+	ret = *result ? 0 : -ENOMEM;
+
+out:
+	free(exec_copy);
 	return ret;
 }
 
@@ -261,6 +338,40 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 	return 0;
 }
 
+static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
+					  int ntevs, const char *exec)
+{
+	int i, ret = 0;
+	unsigned long offset, stext = 0;
+	char buf[32];
+
+	if (!exec)
+		return 0;
+
+	ret = get_text_start_address(exec, &stext);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ntevs && ret >= 0; i++) {
+		offset = tevs[i].point.address - stext;
+		offset += tevs[i].point.offset;
+		tevs[i].point.offset = 0;
+		free(tevs[i].point.symbol);
+		ret = e_snprintf(buf, 32, "0x%lx", offset);
+		if (ret < 0)
+			break;
+		tevs[i].point.module = strdup(exec);
+		tevs[i].point.symbol = strdup(buf);
+		if (!tevs[i].point.symbol || !tevs[i].point.module) {
+			ret = -ENOMEM;
+			break;
+		}
+		tevs[i].uprobes = true;
+	}
+
+	return ret;
+}
+
 static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
 					    int ntevs, const char *module)
 {
@@ -305,15 +416,6 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	struct debuginfo *dinfo;
 	int ntevs, ret = 0;
 
-	if (pev->uprobes) {
-		if (need_dwarf) {
-			pr_warning("Debuginfo-analysis is not yet supported"
-					" with -x/--exec option.\n");
-			return -ENOSYS;
-		}
-		return convert_name_to_addr(pev, target);
-	}
-
 	dinfo = open_debuginfo(target);
 
 	if (!dinfo) {
@@ -332,9 +434,14 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 
 	if (ntevs > 0) {	/* Succeeded to find trace events */
 		pr_debug("find %d probe_trace_events.\n", ntevs);
-		if (target)
-			ret = add_module_to_probe_trace_events(*tevs, ntevs,
-							       target);
+		if (target) {
+			if (pev->uprobes)
+				ret = add_exec_to_probe_trace_events(*tevs,
+						 ntevs, target);
+			else
+				ret = add_module_to_probe_trace_events(*tevs,
+						 ntevs, target);
+		}
 		return ret < 0 ? ret : ntevs;
 	}
 
@@ -653,9 +760,6 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 		pr_warning("Debuginfo-analysis is not supported.\n");
 		return -ENOSYS;
 	}
-
-	if (pev->uprobes)
-		return convert_name_to_addr(pev, target);
 
 	return 0;
 }
@@ -1913,13 +2017,28 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 					  int max_tevs, const char *target)
 {
 	struct symbol *sym;
-	int ret = 0, i;
+	int ret, i;
 	struct probe_trace_event *tev;
+
+	if (pev->uprobes && !pev->group) {
+		/* Replace group name if not given */
+		ret = convert_exec_to_group(target, &pev->group);
+		if (ret != 0) {
+			pr_warning("Failed to make a group name.\n");
+			return ret;
+		}
+	}
 
 	/* Convert perf_probe_event with debuginfo */
 	ret = try_to_find_probe_trace_events(pev, tevs, max_tevs, target);
 	if (ret != 0)
 		return ret;	/* Found in debuginfo or got an error */
+
+	if (pev->uprobes) {
+		ret = convert_name_to_addr(pev, target);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Allocate trace event buffer */
 	tev = *tevs = zalloc(sizeof(struct probe_trace_event));

@@ -424,7 +424,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 #ifdef HAVE_DWARF_SUPPORT
-	if (params.show_lines && !params.uprobes) {
+	if (params.show_lines) {
 		if (params.mod_events) {
 			pr_err("  Error: Don't use --line with"
 			       " --add/--del.\n");
