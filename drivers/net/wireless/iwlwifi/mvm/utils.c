@@ -514,7 +514,7 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 enum ieee80211_smps_mode smps_request)
 {
 	struct iwl_mvm_vif *mvmvif;
-	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
+	enum ieee80211_smps_mode smps_mode;
 	int i;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -522,6 +522,11 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	/* SMPS is irrelevant for NICs that don't have at least 2 RX antenna */
 	if (num_of_ant(iwl_fw_valid_rx_ant(mvm->fw)) == 1)
 		return;
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		smps_mode = IEEE80211_SMPS_OFF;
+	else
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	mvmvif->smps_requests[req_type] = smps_request;

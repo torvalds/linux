@@ -568,28 +568,73 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	struct iwl_mvm *mvm = data->mvm;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	enum ieee80211_smps_mode smps_mode;
+	u32 bt_activity_grading;
 	int ave_rssi;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (vif->type != NL80211_IFTYPE_STATION &&
-	    vif->type != NL80211_IFTYPE_AP)
-		return;
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		/* default smps_mode for BSS / P2P client is AUTOMATIC */
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+		data->num_bss_ifaces++;
 
-	smps_mode = IEEE80211_SMPS_AUTOMATIC;
+		/*
+		 * Count unassoc BSSes, relax SMSP constraints
+		 * and disable reduced Tx Power
+		 */
+		if (!vif->bss_conf.assoc) {
+			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+					    smps_mode);
+			if (iwl_mvm_bt_coex_reduced_txp(mvm,
+							mvmvif->ap_sta_id,
+							false))
+				IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
+			return;
+		}
+		break;
+	case NL80211_IFTYPE_AP:
+		/* default smps_mode for AP / GO is OFF */
+		smps_mode = IEEE80211_SMPS_OFF;
+		if (!mvmvif->ap_ibss_active) {
+			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+					    smps_mode);
+			return;
+		}
+
+		/* the Ack / Cts kill mask must be default if AP / GO */
+		data->reduced_tx_power = false;
+		break;
+	default:
+		return;
+	}
 
 	chanctx_conf = rcu_dereference(vif->chanctx_conf);
 
 	/* If channel context is invalid or not on 2.4GHz .. */
 	if ((!chanctx_conf ||
 	     chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ)) {
-		/* ... and it is an associated STATION, relax constraints */
-		if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc)
-			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-					    smps_mode);
-		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
+		/* ... relax constraints and disable rssi events */
+		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+				    smps_mode);
+		if (vif->type == NL80211_IFTYPE_STATION)
+			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}
+
+	bt_activity_grading = le32_to_cpu(data->notif->bt_activity_grading);
+	if (bt_activity_grading >= BT_HIGH_TRAFFIC)
+		smps_mode = IEEE80211_SMPS_STATIC;
+	else if (bt_activity_grading >= BT_LOW_TRAFFIC)
+		smps_mode = vif->type == NL80211_IFTYPE_AP ?
+				IEEE80211_SMPS_OFF :
+				IEEE80211_SMPS_DYNAMIC;
+	IWL_DEBUG_COEX(data->mvm,
+		       "mac %d: bt_status %d bt_activity_grading %d smps_req %d\n",
+		       mvmvif->id, data->notif->bt_status, bt_activity_grading,
+		       smps_mode);
+
+	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX, smps_mode);
 
 	/* low latency is always primary */
 	if (iwl_mvm_vif_low_latency(mvmvif)) {
@@ -602,9 +647,6 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (vif->type == NL80211_IFTYPE_AP) {
 		if (!mvmvif->ap_ibss_active)
 			return;
-
-		/* the Ack / Cts kill mask must be default if AP / GO */
-		data->reduced_tx_power = false;
 
 		if (chanctx_conf == data->primary)
 			return;
@@ -623,12 +665,6 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		return;
 	}
 
-	data->num_bss_ifaces++;
-
-	/* we are now a STA / P2P Client, and take associated ones only */
-	if (!vif->bss_conf.assoc)
-		return;
-
 	/*
 	 * STA / P2P Client, try to be primary if first vif. If we are in low
 	 * latency mode, we are already in primary and just don't do much
@@ -638,19 +674,6 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	else if (!data->secondary)
 		/* if secondary is not NULL, it might be a GO */
 		data->secondary = chanctx_conf;
-
-	if (le32_to_cpu(data->notif->bt_activity_grading) >= BT_HIGH_TRAFFIC)
-		smps_mode = IEEE80211_SMPS_STATIC;
-	else if (le32_to_cpu(data->notif->bt_activity_grading) >=
-		 BT_LOW_TRAFFIC)
-		smps_mode = IEEE80211_SMPS_DYNAMIC;
-
-	IWL_DEBUG_COEX(data->mvm,
-		       "mac %d: bt_status %d bt_activity_grading %d smps_req %d\n",
-		       mvmvif->id,  data->notif->bt_status,
-		       data->notif->bt_activity_grading, smps_mode);
-
-	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX, smps_mode);
 
 	/* don't reduce the Tx power if in loose scheme */
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
