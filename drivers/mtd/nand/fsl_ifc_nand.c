@@ -1060,7 +1060,6 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	if (!fsl_ifc_ctrl_dev->nand) {
 		ifc_nand_ctrl = kzalloc(sizeof(*ifc_nand_ctrl), GFP_KERNEL);
 		if (!ifc_nand_ctrl) {
-			dev_err(&dev->dev, "failed to allocate memory\n");
 			mutex_unlock(&fsl_ifc_nand_mutex);
 			return -ENOMEM;
 		}
