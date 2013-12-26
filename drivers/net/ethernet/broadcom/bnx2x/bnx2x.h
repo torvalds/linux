@@ -1546,6 +1546,7 @@ struct bnx2x {
 #define INTERRUPTS_ENABLED_FLAG		(1 << 23)
 #define BC_SUPPORTS_RMMOD_CMD		(1 << 24)
 #define HAS_PHYS_PORT_ID		(1 << 25)
+#define AER_ENABLED			(1 << 26)
 
 #define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
 

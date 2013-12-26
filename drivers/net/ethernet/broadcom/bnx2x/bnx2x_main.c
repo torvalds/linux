@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/aer.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -12225,6 +12226,14 @@ static int bnx2x_set_coherency_mask(struct bnx2x *bp)
 	return 0;
 }
 
+static void bnx2x_disable_pcie_error_reporting(struct bnx2x *bp)
+{
+	if (bp->flags & AER_ENABLED) {
+		pci_disable_pcie_error_reporting(bp->pdev);
+		bp->flags &= ~AER_ENABLED;
+	}
+}
+
 static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 			  struct net_device *dev, unsigned long board_type)
 {
@@ -12331,6 +12340,14 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	/* clean indirect addresses */
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
 			       PCICFG_VENDOR_ID_OFFSET);
+
+	/* AER (Advanced Error reporting) configuration */
+	rc = pci_enable_pcie_error_reporting(pdev);
+	if (!rc)
+		bp->flags |= AER_ENABLED;
+	else
+		BNX2X_DEV_INFO("Failed To configure PCIe AER [%d]\n", rc);
+
 	/*
 	 * Clean the following indirect addresses for all functions since it
 	 * is not used by the driver.
@@ -12938,6 +12955,8 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	return 0;
 
 init_one_exit:
+	bnx2x_disable_pcie_error_reporting(bp);
+
 	if (bp->regview)
 		iounmap(bp->regview);
 
@@ -13010,6 +13029,8 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 		pci_wake_from_d3(pdev, bp->wol);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
+
+	bnx2x_disable_pcie_error_reporting(bp);
 
 	if (bp->regview)
 		iounmap(bp->regview);
@@ -13187,6 +13208,14 @@ static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
 	}
 
 	rtnl_unlock();
+
+	/* If AER, perform cleanup of the PCIe registers */
+	if (bp->flags & AER_ENABLED) {
+		if (pci_cleanup_aer_uncorrect_error_status(pdev))
+			BNX2X_ERR("pci_cleanup_aer_uncorrect_error_status failed\n");
+		else
+			DP(NETIF_MSG_HW, "pci_cleanup_aer_uncorrect_error_status succeeded\n");
+	}
 
 	return PCI_ERS_RESULT_RECOVERED;
 }
