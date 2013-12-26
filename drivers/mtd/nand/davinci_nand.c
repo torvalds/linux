@@ -619,10 +619,8 @@ static int nand_davinci_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		dev_err(&pdev->dev, "unable to allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, info);
 
