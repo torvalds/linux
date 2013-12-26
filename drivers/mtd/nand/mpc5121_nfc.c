@@ -653,10 +653,8 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	}
 
 	prv = devm_kzalloc(dev, sizeof(*prv), GFP_KERNEL);
-	if (!prv) {
-		dev_err(dev, "Memory exhausted!\n");
+	if (!prv)
 		return -ENOMEM;
-	}
 
 	mtd = &prv->mtd;
 	chip = &prv->chip;
