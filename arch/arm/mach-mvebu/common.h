@@ -20,6 +20,5 @@
 void mvebu_restart(enum reboot_mode mode, const char *cmd);
 
 void armada_xp_cpu_die(unsigned int cpu);
-void armada_xp_secondary_startup(void);
-extern struct smp_operations armada_xp_smp_ops;
+
 #endif
