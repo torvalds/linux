@@ -1058,10 +1058,8 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 
 	pdata = devm_kzalloc(dev, sizeof(struct sh_flctl_platform_data),
 								GFP_KERNEL);
-	if (!pdata) {
-		dev_err(dev, "%s: failed to allocate config data\n", __func__);
+	if (!pdata)
 		return NULL;
-	}
 
 	/* set SoC specific options */
 	pdata->flcmncr_val = config->flcmncr_val;
@@ -1092,10 +1090,8 @@ static int flctl_probe(struct platform_device *pdev)
 	struct mtd_part_parser_data ppdata = {};
 
 	flctl = devm_kzalloc(&pdev->dev, sizeof(struct sh_flctl), GFP_KERNEL);
-	if (!flctl) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	if (!flctl)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	flctl->reg = devm_ioremap_resource(&pdev->dev, res);
