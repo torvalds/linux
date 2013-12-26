@@ -40,8 +40,7 @@ static struct fsync_inode_entry *get_fsync_inode(struct list_head *head,
 
 static int recover_dentry(struct page *ipage, struct inode *inode)
 {
-	struct f2fs_node *raw_node = F2FS_NODE(ipage);
-	struct f2fs_inode *raw_inode = &(raw_node->i);
+	struct f2fs_inode *raw_inode = F2FS_INODE(ipage);
 	nid_t pino = le32_to_cpu(raw_inode->i_pino);
 	struct f2fs_dir_entry *de;
 	struct qstr name;
@@ -105,8 +104,7 @@ out:
 
 static int recover_inode(struct inode *inode, struct page *node_page)
 {
-	struct f2fs_node *raw_node = F2FS_NODE(node_page);
-	struct f2fs_inode *raw_inode = &(raw_node->i);
+	struct f2fs_inode *raw_inode = F2FS_INODE(node_page);
 
 	if (!IS_INODE(node_page))
 		return 0;

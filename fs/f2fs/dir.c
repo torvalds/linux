@@ -261,12 +261,12 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 
 static void init_dent_inode(const struct qstr *name, struct page *ipage)
 {
-	struct f2fs_node *rn;
+	struct f2fs_inode *ri;
 
 	/* copy name info. to this inode page */
-	rn = F2FS_NODE(ipage);
-	rn->i.i_namelen = cpu_to_le32(name->len);
-	memcpy(rn->i.i_name, name->name, name->len);
+	ri = F2FS_INODE(ipage);
+	ri->i_namelen = cpu_to_le32(name->len);
+	memcpy(ri->i_name, name->name, name->len);
 	set_page_dirty(ipage);
 }
 

@@ -498,6 +498,11 @@ static inline struct f2fs_node *F2FS_NODE(struct page *page)
 	return (struct f2fs_node *)page_address(page);
 }
 
+static inline struct f2fs_inode *F2FS_INODE(struct page *page)
+{
+	return &((struct f2fs_node *)page_address(page))->i;
+}
+
 static inline struct f2fs_nm_info *NM_I(struct f2fs_sb_info *sbi)
 {
 	return (struct f2fs_nm_info *)(sbi->nm_info);

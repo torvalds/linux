@@ -67,7 +67,6 @@ static int do_read_inode(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct page *node_page;
-	struct f2fs_node *rn;
 	struct f2fs_inode *ri;
 
 	/* Check if ino is within scope */
@@ -81,8 +80,7 @@ static int do_read_inode(struct inode *inode)
 	if (IS_ERR(node_page))
 		return PTR_ERR(node_page);
 
-	rn = F2FS_NODE(node_page);
-	ri = &(rn->i);
+	ri = F2FS_INODE(node_page);
 
 	inode->i_mode = le16_to_cpu(ri->i_mode);
 	i_uid_write(inode, le32_to_cpu(ri->i_uid));
@@ -175,13 +173,11 @@ bad_inode:
 
 void update_inode(struct inode *inode, struct page *node_page)
 {
-	struct f2fs_node *rn;
 	struct f2fs_inode *ri;
 
 	f2fs_wait_on_page_writeback(node_page, NODE, false);
 
-	rn = F2FS_NODE(node_page);
-	ri = &(rn->i);
+	ri = F2FS_INODE(node_page);
 
 	ri->i_mode = cpu_to_le16(inode->i_mode);
 	ri->i_advise = F2FS_I(inode)->i_advise;
