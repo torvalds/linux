@@ -50,6 +50,7 @@ struct btrfs_delayed_root {
 
 #define BTRFS_DELAYED_NODE_IN_LIST	0
 #define BTRFS_DELAYED_NODE_INODE_DIRTY	1
+#define BTRFS_DELAYED_NODE_DEL_IREF	2
 
 struct btrfs_delayed_node {
 	u64 inode_id;
@@ -127,6 +128,7 @@ int btrfs_commit_inode_delayed_inode(struct inode *inode);
 int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, struct inode *inode);
 int btrfs_fill_inode(struct inode *inode, u32 *rdev);
+int btrfs_delayed_delete_inode_ref(struct inode *inode);
 
 /* Used for drop dead root */
 void btrfs_kill_all_delayed_nodes(struct btrfs_root *root);

@@ -3309,6 +3309,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_timespec *tspec;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key location;
+	unsigned long ptr;
 	int maybe_acls;
 	u32 rdev;
 	int ret;
@@ -3332,7 +3333,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	leaf = path->nodes[0];
 
 	if (filled)
-		goto cache_acl;
+		goto cache_index;
 
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_inode_item);
@@ -3375,6 +3376,30 @@ static void btrfs_read_locked_inode(struct inode *inode)
 
 	BTRFS_I(inode)->index_cnt = (u64)-1;
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
+
+cache_index:
+	path->slots[0]++;
+	if (inode->i_nlink != 1 ||
+	    path->slots[0] >= btrfs_header_nritems(leaf))
+		goto cache_acl;
+
+	btrfs_item_key_to_cpu(leaf, &location, path->slots[0]);
+	if (location.objectid != btrfs_ino(inode))
+		goto cache_acl;
+
+	ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+	if (location.type == BTRFS_INODE_REF_KEY) {
+		struct btrfs_inode_ref *ref;
+
+		ref = (struct btrfs_inode_ref *)ptr;
+		BTRFS_I(inode)->dir_index = btrfs_inode_ref_index(leaf, ref);
+	} else if (location.type == BTRFS_INODE_EXTREF_KEY) {
+		struct btrfs_inode_extref *extref;
+
+		extref = (struct btrfs_inode_extref *)ptr;
+		BTRFS_I(inode)->dir_index = btrfs_inode_extref_index(leaf,
+								     extref);
+	}
 cache_acl:
 	/*
 	 * try to precache a NULL acl entry for files that don't have
@@ -3587,6 +3612,24 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		goto err;
 	btrfs_release_path(path);
 
+	/*
+	 * If we don't have dir index, we have to get it by looking up
+	 * the inode ref, since we get the inode ref, remove it directly,
+	 * it is unnecessary to do delayed deletion.
+	 *
+	 * But if we have dir index, needn't search inode ref to get it.
+	 * Since the inode ref is close to the inode item, it is better
+	 * that we delay to delete it, and just do this deletion when
+	 * we update the inode item.
+	 */
+	if (BTRFS_I(inode)->dir_index) {
+		ret = btrfs_delayed_delete_inode_ref(inode);
+		if (!ret) {
+			index = BTRFS_I(inode)->dir_index;
+			goto skip_backref;
+		}
+	}
+
 	ret = btrfs_del_inode_ref(trans, root, name, name_len, ino,
 				  dir_ino, &index);
 	if (ret) {
@@ -3596,7 +3639,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, root, ret);
 		goto err;
 	}
-
+skip_backref:
 	ret = btrfs_delete_delayed_dir_index(trans, root, dir, index);
 	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
@@ -5465,6 +5508,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	 * number
 	 */
 	BTRFS_I(inode)->index_cnt = 2;
+	BTRFS_I(inode)->dir_index = *index;
 	BTRFS_I(inode)->root = root;
 	BTRFS_I(inode)->generation = trans->transid;
 	inode->i_generation = BTRFS_I(inode)->generation;
@@ -5809,6 +5853,8 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		goto fail;
 	}
 
+	/* There are several dir indexes for this inode, clear the cache. */
+	BTRFS_I(inode)->dir_index = 0ULL;
 	inc_nlink(inode);
 	inode_inc_iversion(inode);
 	inode->i_ctime = CURRENT_TIME;
@@ -7861,6 +7907,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->flags = 0;
 	ei->csum_bytes = 0;
 	ei->index_cnt = (u64)-1;
+	ei->dir_index = 0;
 	ei->last_unlink_trans = 0;
 	ei->last_log_commit = 0;
 
@@ -8148,6 +8195,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (ret)
 		goto out_fail;
 
+	BTRFS_I(old_inode)->dir_index = 0ULL;
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		/* force full log commit if subvolume involved. */
 		root->fs_info->last_trans_log_full_commit = trans->transid;
@@ -8235,6 +8283,9 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		btrfs_abort_transaction(trans, root, ret);
 		goto out_fail;
 	}
+
+	if (old_inode->i_nlink == 1)
+		BTRFS_I(old_inode)->dir_index = index;
 
 	if (old_ino != BTRFS_FIRST_FREE_OBJECTID) {
 		struct dentry *parent = new_dentry->d_parent;
