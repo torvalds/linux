@@ -1104,8 +1104,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 			host->ecc_place = &fsmc_ecc4_lp_place;
 			break;
 		default:
-			printk(KERN_WARNING "No oob scheme defined for "
-			       "oobsize %d\n", mtd->oobsize);
+			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
+				 mtd->oobsize);
 			BUG();
 		}
 	} else {
@@ -1120,8 +1120,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 			nand->ecc.layout = &fsmc_ecc1_128_layout;
 			break;
 		default:
-			printk(KERN_WARNING "No oob scheme defined for "
-			       "oobsize %d\n", mtd->oobsize);
+			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
+				 mtd->oobsize);
 			BUG();
 		}
 	}
