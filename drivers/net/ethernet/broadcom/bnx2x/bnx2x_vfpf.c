@@ -1420,6 +1420,14 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				setup_q->rxq.cache_line_log;
 			rxq_params->sb_cq_index = setup_q->rxq.sb_index;
 
+			/* rx setup - multicast engine */
+			if (bnx2x_vfq_is_leading(q)) {
+				u8 mcast_id = FW_VF_HANDLE(vf->abs_vfid);
+
+				rxq_params->mcast_engine_id = mcast_id;
+				__set_bit(BNX2X_Q_FLG_MCAST, &setup_p->flags);
+			}
+
 			bnx2x_vfop_qctor_dump_rx(bp, vf, init_p, setup_p,
 						 q->index, q->sb_idx);
 		}

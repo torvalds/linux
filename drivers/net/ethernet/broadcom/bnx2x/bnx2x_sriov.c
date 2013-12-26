@@ -166,6 +166,7 @@ enum bnx2x_vfop_qteardown_state {
 	   BNX2X_VFOP_QTEARDOWN_RXMODE,
 	   BNX2X_VFOP_QTEARDOWN_CLR_VLAN,
 	   BNX2X_VFOP_QTEARDOWN_CLR_MAC,
+	   BNX2X_VFOP_QTEARDOWN_CLR_MCAST,
 	   BNX2X_VFOP_QTEARDOWN_QDTOR,
 	   BNX2X_VFOP_QTEARDOWN_DONE
 };
@@ -1112,7 +1113,10 @@ static void bnx2x_vfop_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	switch (state) {
 	case BNX2X_VFOP_MCAST_DEL:
 		/* clear existing mcasts */
-		vfop->state = BNX2X_VFOP_MCAST_ADD;
+		vfop->state = (args->mc_num) ? BNX2X_VFOP_MCAST_ADD
+					     : BNX2X_VFOP_MCAST_CHK_DONE;
+		mcast->mcast_list_len = vf->mcast_list_len;
+		vf->mcast_list_len = args->mc_num;
 		vfop->rc = bnx2x_config_mcast(bp, mcast, BNX2X_MCAST_CMD_DEL);
 		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_CONT);
 
@@ -1120,17 +1124,17 @@ static void bnx2x_vfop_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		if (raw->check_pending(raw))
 			goto op_pending;
 
-		if (args->mc_num) {
-			/* update mcast list on the ramrod params */
-			INIT_LIST_HEAD(&mcast->mcast_list);
-			for (i = 0; i < args->mc_num; i++)
-				list_add_tail(&(args->mc[i].link),
-					      &mcast->mcast_list);
-			/* add new mcasts */
-			vfop->state = BNX2X_VFOP_MCAST_CHK_DONE;
-			vfop->rc = bnx2x_config_mcast(bp, mcast,
-						      BNX2X_MCAST_CMD_ADD);
-		}
+		/* update mcast list on the ramrod params */
+		INIT_LIST_HEAD(&mcast->mcast_list);
+		for (i = 0; i < args->mc_num; i++)
+			list_add_tail(&(args->mc[i].link),
+				      &mcast->mcast_list);
+		mcast->mcast_list_len = args->mc_num;
+
+		/* add new mcasts */
+		vfop->state = BNX2X_VFOP_MCAST_CHK_DONE;
+		vfop->rc = bnx2x_config_mcast(bp, mcast,
+					      BNX2X_MCAST_CMD_ADD);
 		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
 
 	case BNX2X_VFOP_MCAST_CHK_DONE:
@@ -1303,8 +1307,15 @@ static void bnx2x_vfop_qdown(struct bnx2x *bp, struct bnx2x_virtf *vf)
 
 	case BNX2X_VFOP_QTEARDOWN_CLR_MAC:
 		/* mac-clear-all: consume credit */
-		vfop->state = BNX2X_VFOP_QTEARDOWN_QDTOR;
+		vfop->state = BNX2X_VFOP_QTEARDOWN_CLR_MCAST;
 		vfop->rc = bnx2x_vfop_mac_delall_cmd(bp, vf, &cmd, qid, false);
+		if (vfop->rc)
+			goto op_err;
+		return;
+
+	case BNX2X_VFOP_QTEARDOWN_CLR_MCAST:
+		vfop->state = BNX2X_VFOP_QTEARDOWN_QDTOR;
+		vfop->rc = bnx2x_vfop_mcast_cmd(bp, vf, &cmd, NULL, 0, false);
 		if (vfop->rc)
 			goto op_err;
 		return;
@@ -2188,6 +2199,7 @@ int bnx2x_iov_nic_init(struct bnx2x *bp)
 		 *  It needs to be initialized here so that it can be safely
 		 *  handled by a subsequent FLR flow.
 		 */
+		vf->mcast_list_len = 0;
 		bnx2x_init_mcast_obj(bp, &vf->mcast_obj, 0xFF,
 				     0xFF, 0xFF, 0xFF,
 				     bnx2x_vf_sp(bp, vf, mcast_rdata),
@@ -2848,13 +2860,9 @@ static void bnx2x_vfop_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 				goto op_err;
 			return;
 		}
-
-		/* remove multicasts */
 		vfop->state = BNX2X_VFOP_CLOSE_HW;
-		vfop->rc = bnx2x_vfop_mcast_cmd(bp, vf, &cmd, NULL, 0, false);
-		if (vfop->rc)
-			goto op_err;
-		return;
+		vfop->rc = 0;
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_CONT);
 
 	case BNX2X_VFOP_CLOSE_HW:
 
@@ -2888,6 +2896,9 @@ op_done:
 
 	DP(BNX2X_MSG_IOV, "set state to acquired\n");
 	bnx2x_vfop_end(bp, vf, vfop);
+op_pending:
+	/* Not supported at the moment; Exists for macros only */
+	return;
 }
 
 int bnx2x_vfop_close_cmd(struct bnx2x *bp,
