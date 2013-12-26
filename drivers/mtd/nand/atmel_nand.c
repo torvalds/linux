@@ -1961,10 +1961,8 @@ static int atmel_nand_probe(struct platform_device *pdev)
 
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
-	if (!host) {
-		printk(KERN_ERR "atmel_nand: failed to allocate device structure.\n");
+	if (!host)
 		return -ENOMEM;
-	}
 
 	res = platform_driver_register(&atmel_nand_nfc_driver);
 	if (res)
