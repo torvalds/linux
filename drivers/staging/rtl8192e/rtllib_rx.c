@@ -211,7 +211,7 @@ rtllib_rx_frame_mgmt(struct rtllib_device *ieee, struct sk_buff *skb,
 	 * this is not mandatory.... but seems that the probe
 	 * response parser uses it
 	 */
-	struct rtllib_hdr_3addr * hdr = (struct rtllib_hdr_3addr *)skb->data;
+	struct rtllib_hdr_3addr *hdr = (struct rtllib_hdr_3addr *)skb->data;
 
 	rx_stats->len = skb->len;
 	rtllib_rx_mgt(ieee, skb, rx_stats);

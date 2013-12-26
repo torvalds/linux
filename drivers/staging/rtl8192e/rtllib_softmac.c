@@ -1451,7 +1451,7 @@ static void rtllib_associate_abort_cb(unsigned long dev)
 	rtllib_associate_abort((struct rtllib_device *) dev);
 }
 
-static void rtllib_associate_step1(struct rtllib_device *ieee, u8 * daddr)
+static void rtllib_associate_step1(struct rtllib_device *ieee, u8 *daddr)
 {
 	struct rtllib_network *beacon = &ieee->current_network;
 	struct sk_buff *skb;
@@ -1785,7 +1785,7 @@ void rtllib_softmac_check_all_nets(struct rtllib_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
-static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
+static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 {
 	struct rtllib_authentication *a;
 	u8 *t;
