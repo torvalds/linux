@@ -800,14 +800,18 @@ int bnx2x_vfpf_config_rss(struct bnx2x *bp,
 	}
 
 	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
-		BNX2X_ERR("failed to send rss message to PF over Vf PF channel %d\n",
-			  resp->hdr.status);
-		rc = -EINVAL;
+		/* Since older drivers don't support this feature (and VF has
+		 * no way of knowing other than failing this), don't propagate
+		 * an error in this case.
+		 */
+		DP(BNX2X_MSG_IOV,
+		   "Failed to send rss message to PF over VF-PF channel [%d]\n",
+		   resp->hdr.status);
 	}
 out:
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
 
-	return 0;
+	return rc;
 }
 
 int bnx2x_vfpf_set_mcast(struct net_device *dev)
