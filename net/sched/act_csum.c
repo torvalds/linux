@@ -585,9 +585,7 @@ static struct tc_action_ops act_csum_ops = {
 	.act		= tcf_csum,
 	.dump		= tcf_csum_dump,
 	.cleanup	= tcf_csum_cleanup,
-	.lookup		= tcf_hash_search,
 	.init		= tcf_csum_init,
-	.walk		= tcf_generic_walker
 };
 
 MODULE_DESCRIPTION("Checksum updating actions");

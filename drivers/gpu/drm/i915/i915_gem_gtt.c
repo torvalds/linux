@@ -57,7 +57,9 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define HSW_WB_LLC_AGE3			HSW_CACHEABILITY_CONTROL(0x2)
 #define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
+#define HSW_WB_ELLC_LLC_AGE3		HSW_CACHEABILITY_CONTROL(0x8)
 #define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
+#define HSW_WT_ELLC_LLC_AGE3		HSW_CACHEABILITY_CONTROL(0x7)
 
 #define GEN8_PTES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_gtt_pte_t))
 #define GEN8_PDES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_ppgtt_pde_t))
@@ -185,10 +187,10 @@ static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 	case I915_CACHE_NONE:
 		break;
 	case I915_CACHE_WT:
-		pte |= HSW_WT_ELLC_LLC_AGE0;
+		pte |= HSW_WT_ELLC_LLC_AGE3;
 		break;
 	default:
-		pte |= HSW_WB_ELLC_LLC_AGE0;
+		pte |= HSW_WB_ELLC_LLC_AGE3;
 		break;
 	}
 
