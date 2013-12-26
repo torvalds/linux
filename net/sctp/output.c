@@ -387,7 +387,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	int err = 0;
 	int padding;		/* How much padding do we need?  */
 	__u8 has_data = 0;
-	struct dst_entry *dst = tp->dst;
+	struct dst_entry *dst;
 	unsigned char *auth = NULL;	/* pointer to auth in skb data */
 
 	pr_debug("%s: packet:%p\n", __func__, packet);
@@ -420,9 +420,9 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		}
 	}
 	dst = dst_clone(tp->dst);
-	skb_dst_set(nskb, dst);
 	if (!dst)
 		goto no_route;
+	skb_dst_set(nskb, dst);
 
 	/* Build the SCTP header.  */
 	sh = (struct sctphdr *)skb_push(nskb, sizeof(struct sctphdr));
