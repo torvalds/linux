@@ -845,6 +845,7 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 			}
 			as3722_regs->desc[id].uV_step = 10000;
 			as3722_regs->desc[id].linear_min_sel = 1;
+			as3722_regs->desc[id].enable_time = 600;
 			break;
 		case AS3722_REGULATOR_ID_SD2:
 		case AS3722_REGULATOR_ID_SD3:
