@@ -38,6 +38,7 @@
 
 #include "blk.h"
 #include "blk-cgroup.h"
+#include "blk-mq.h"
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
@@ -497,8 +498,13 @@ void blk_cleanup_queue(struct request_queue *q)
 	 * Drain all requests queued before DYING marking. Set DEAD flag to
 	 * prevent that q->request_fn() gets invoked after draining finished.
 	 */
-	spin_lock_irq(lock);
-	__blk_drain_queue(q, true);
+	if (q->mq_ops) {
+		blk_mq_drain_queue(q);
+		spin_lock_irq(lock);
+	} else {
+		spin_lock_irq(lock);
+		__blk_drain_queue(q, true);
+	}
 	queue_flag_set(QUEUE_FLAG_DEAD, q);
 	spin_unlock_irq(lock);
 

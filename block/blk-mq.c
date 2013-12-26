@@ -106,10 +106,13 @@ static int blk_mq_queue_enter(struct request_queue *q)
 
 	spin_lock_irq(q->queue_lock);
 	ret = wait_event_interruptible_lock_irq(q->mq_freeze_wq,
-		!blk_queue_bypass(q), *q->queue_lock);
+		!blk_queue_bypass(q) || blk_queue_dying(q),
+		*q->queue_lock);
 	/* inc usage with lock hold to avoid freeze_queue runs here */
-	if (!ret)
+	if (!ret && !blk_queue_dying(q))
 		__percpu_counter_add(&q->mq_usage_counter, 1, 1000000);
+	else if (blk_queue_dying(q))
+		ret = -ENODEV;
 	spin_unlock_irq(q->queue_lock);
 
 	return ret;
@@ -118,6 +121,22 @@ static int blk_mq_queue_enter(struct request_queue *q)
 static void blk_mq_queue_exit(struct request_queue *q)
 {
 	__percpu_counter_add(&q->mq_usage_counter, -1, 1000000);
+}
+
+static void __blk_mq_drain_queue(struct request_queue *q)
+{
+	while (true) {
+		s64 count;
+
+		spin_lock_irq(q->queue_lock);
+		count = percpu_counter_sum(&q->mq_usage_counter);
+		spin_unlock_irq(q->queue_lock);
+
+		if (count == 0)
+			break;
+		blk_mq_run_queues(q, false);
+		msleep(10);
+	}
 }
 
 /*
@@ -133,21 +152,13 @@ static void blk_mq_freeze_queue(struct request_queue *q)
 	queue_flag_set(QUEUE_FLAG_BYPASS, q);
 	spin_unlock_irq(q->queue_lock);
 
-	if (!drain)
-		return;
+	if (drain)
+		__blk_mq_drain_queue(q);
+}
 
-	while (true) {
-		s64 count;
-
-		spin_lock_irq(q->queue_lock);
-		count = percpu_counter_sum(&q->mq_usage_counter);
-		spin_unlock_irq(q->queue_lock);
-
-		if (count == 0)
-			break;
-		blk_mq_run_queues(q, false);
-		msleep(10);
-	}
+void blk_mq_drain_queue(struct request_queue *q)
+{
+	__blk_mq_drain_queue(q);
 }
 
 static void blk_mq_unfreeze_queue(struct request_queue *q)
