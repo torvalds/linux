@@ -2436,7 +2436,8 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 
 #define GOOD_ME_REG(me_reg) (((me_reg) & ME_REG_VF_VALID) && \
 			    (!((me_reg) & ME_REG_VF_ERR)))
-int bnx2x_nic_load_analyze_req(struct bnx2x *bp, u32 load_code);
+int bnx2x_compare_fw_ver(struct bnx2x *bp, u32 load_code, bool print_err);
+
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE			0
 #define CMNG_FNS_MINMAX			1
