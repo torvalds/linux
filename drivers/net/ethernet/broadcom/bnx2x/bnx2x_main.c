@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/aer.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -3297,6 +3298,8 @@ static void bnx2x_drv_info_ether_stat(struct bnx2x *bp)
 
 	ether_stat->txq_size = bp->tx_ring_size;
 	ether_stat->rxq_size = bp->rx_ring_size;
+
+	ether_stat->vf_cnt = IS_SRIOV(bp) ? bp->vfdb->sriov.nr_virtfn : 0;
 }
 
 static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
@@ -9854,6 +9857,64 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 #define BNX2X_PREV_UNDI_BD(val)		((val) >> 16 & 0xffff)
 #define BNX2X_PREV_UNDI_PROD(rcq, bd)	((bd) << 16 | (rcq))
 
+#define BCM_5710_UNDI_FW_MF_MAJOR	(0x07)
+#define BCM_5710_UNDI_FW_MF_MINOR	(0x08)
+#define BCM_5710_UNDI_FW_MF_VERS	(0x05)
+#define BNX2X_PREV_UNDI_MF_PORT(p)	(0x1a150c + ((p) << 4))
+#define BNX2X_PREV_UNDI_MF_FUNC(f)	(0x1a184c + ((f) << 4))
+static bool bnx2x_prev_unload_undi_fw_supports_mf(struct bnx2x *bp)
+{
+	u8 major, minor, version;
+	u32 fw;
+
+	/* Must check that FW is loaded */
+	if (!(REG_RD(bp, MISC_REG_RESET_REG_1) &
+	     MISC_REGISTERS_RESET_REG_1_RST_XSEM)) {
+		BNX2X_DEV_INFO("XSEM is reset - UNDI MF FW is not loaded\n");
+		return false;
+	}
+
+	/* Read Currently loaded FW version */
+	fw = REG_RD(bp, XSEM_REG_PRAM);
+	major = fw & 0xff;
+	minor = (fw >> 0x8) & 0xff;
+	version = (fw >> 0x10) & 0xff;
+	BNX2X_DEV_INFO("Loaded FW: 0x%08x: Major 0x%02x Minor 0x%02x Version 0x%02x\n",
+		       fw, major, minor, version);
+
+	if (major > BCM_5710_UNDI_FW_MF_MAJOR)
+		return true;
+
+	if ((major == BCM_5710_UNDI_FW_MF_MAJOR) &&
+	    (minor > BCM_5710_UNDI_FW_MF_MINOR))
+		return true;
+
+	if ((major == BCM_5710_UNDI_FW_MF_MAJOR) &&
+	    (minor == BCM_5710_UNDI_FW_MF_MINOR) &&
+	    (version >= BCM_5710_UNDI_FW_MF_VERS))
+		return true;
+
+	return false;
+}
+
+static void bnx2x_prev_unload_undi_mf(struct bnx2x *bp)
+{
+	int i;
+
+	/* Due to legacy (FW) code, the first function on each engine has a
+	 * different offset macro from the rest of the functions.
+	 * Setting this for all 8 functions is harmless regardless of whether
+	 * this is actually a multi-function device.
+	 */
+	for (i = 0; i < 2; i++)
+		REG_WR(bp, BNX2X_PREV_UNDI_MF_PORT(i), 1);
+
+	for (i = 2; i < 8; i++)
+		REG_WR(bp, BNX2X_PREV_UNDI_MF_FUNC(i - 2), 1);
+
+	BNX2X_DEV_INFO("UNDI FW (MF) set to discard\n");
+}
+
 static void bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 port, u8 inc)
 {
 	u16 rcq, bd;
@@ -10054,7 +10115,7 @@ static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 	 * the one required, then FLR will be sufficient to clean any residue
 	 * left by previous driver
 	 */
-	rc = bnx2x_nic_load_analyze_req(bp, FW_MSG_CODE_DRV_LOAD_FUNCTION);
+	rc = bnx2x_compare_fw_ver(bp, FW_MSG_CODE_DRV_LOAD_FUNCTION, false);
 
 	if (!rc) {
 		/* fw version is good */
@@ -10142,10 +10203,17 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 			else
 				timer_count--;
 
-			/* If UNDI resides in memory, manually increment it */
-			if (prev_undi)
+			/* New UNDI FW supports MF and contains better
+			 * cleaning methods - might be redundant but harmless.
+			 */
+			if (bnx2x_prev_unload_undi_fw_supports_mf(bp)) {
+				bnx2x_prev_unload_undi_mf(bp);
+			} else if (prev_undi) {
+				/* If UNDI resides in memory,
+				 * manually increment it
+				 */
 				bnx2x_prev_unload_undi_inc(bp, BP_PORT(bp), 1);
-
+			}
 			udelay(10);
 		}
 
@@ -10265,8 +10333,8 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 	} while (--time_counter);
 
 	if (!time_counter || rc) {
-		BNX2X_ERR("Failed unloading previous driver, aborting\n");
-		rc = -EBUSY;
+		BNX2X_DEV_INFO("Unloading previous driver did not occur, Possibly due to MF UNDI\n");
+		rc = -EPROBE_DEFER;
 	}
 
 	/* Mark function if its port was used to boot from SAN */
@@ -11636,7 +11704,11 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 							DRV_MSG_SEQ_NUMBER_MASK;
 		BNX2X_DEV_INFO("fw_seq 0x%08x\n", bp->fw_seq);
 
-		bnx2x_prev_unload(bp);
+		rc = bnx2x_prev_unload(bp);
+		if (rc) {
+			bnx2x_free_mem_bp(bp);
+			return rc;
+		}
 	}
 
 	if (CHIP_REV_IS_FPGA(bp))
@@ -12156,6 +12228,14 @@ static int bnx2x_set_coherency_mask(struct bnx2x *bp)
 	return 0;
 }
 
+static void bnx2x_disable_pcie_error_reporting(struct bnx2x *bp)
+{
+	if (bp->flags & AER_ENABLED) {
+		pci_disable_pcie_error_reporting(bp->pdev);
+		bp->flags &= ~AER_ENABLED;
+	}
+}
+
 static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 			  struct net_device *dev, unsigned long board_type)
 {
@@ -12262,6 +12342,14 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	/* clean indirect addresses */
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
 			       PCICFG_VENDOR_ID_OFFSET);
+
+	/* AER (Advanced Error reporting) configuration */
+	rc = pci_enable_pcie_error_reporting(pdev);
+	if (!rc)
+		bp->flags |= AER_ENABLED;
+	else
+		BNX2X_DEV_INFO("Failed To configure PCIe AER [%d]\n", rc);
+
 	/*
 	 * Clean the following indirect addresses for all functions since it
 	 * is not used by the driver.
@@ -12869,6 +12957,8 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	return 0;
 
 init_one_exit:
+	bnx2x_disable_pcie_error_reporting(bp);
+
 	if (bp->regview)
 		iounmap(bp->regview);
 
@@ -12941,6 +13031,8 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 		pci_wake_from_d3(pdev, bp->wol);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
+
+	bnx2x_disable_pcie_error_reporting(bp);
 
 	if (bp->regview)
 		iounmap(bp->regview);
@@ -13118,6 +13210,14 @@ static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
 	}
 
 	rtnl_unlock();
+
+	/* If AER, perform cleanup of the PCIe registers */
+	if (bp->flags & AER_ENABLED) {
+		if (pci_cleanup_aer_uncorrect_error_status(pdev))
+			BNX2X_ERR("pci_cleanup_aer_uncorrect_error_status failed\n");
+		else
+			DP(NETIF_MSG_HW, "pci_cleanup_aer_uncorrect_error_status succeeded\n");
+	}
 
 	return PCI_ERS_RESULT_RECOVERED;
 }

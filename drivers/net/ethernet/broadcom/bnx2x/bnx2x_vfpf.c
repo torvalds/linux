@@ -800,14 +800,18 @@ int bnx2x_vfpf_config_rss(struct bnx2x *bp,
 	}
 
 	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
-		BNX2X_ERR("failed to send rss message to PF over Vf PF channel %d\n",
-			  resp->hdr.status);
-		rc = -EINVAL;
+		/* Since older drivers don't support this feature (and VF has
+		 * no way of knowing other than failing this), don't propagate
+		 * an error in this case.
+		 */
+		DP(BNX2X_MSG_IOV,
+		   "Failed to send rss message to PF over VF-PF channel [%d]\n",
+		   resp->hdr.status);
 	}
 out:
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
 
-	return 0;
+	return rc;
 }
 
 int bnx2x_vfpf_set_mcast(struct net_device *dev)
@@ -1415,6 +1419,14 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			rxq_params->cache_line_log =
 				setup_q->rxq.cache_line_log;
 			rxq_params->sb_cq_index = setup_q->rxq.sb_index;
+
+			/* rx setup - multicast engine */
+			if (bnx2x_vfq_is_leading(q)) {
+				u8 mcast_id = FW_VF_HANDLE(vf->abs_vfid);
+
+				rxq_params->mcast_engine_id = mcast_id;
+				__set_bit(BNX2X_Q_FLG_MCAST, &setup_p->flags);
+			}
 
 			bnx2x_vfop_qctor_dump_rx(bp, vf, init_p, setup_p,
 						 q->index, q->sb_idx);
