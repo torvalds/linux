@@ -1149,9 +1149,11 @@ static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	clk_disable_unprepare(imx_data->clk_per);
-	clk_disable_unprepare(imx_data->clk_ipg);
-	clk_disable_unprepare(imx_data->clk_ahb);
+	if (!IS_ENABLED(CONFIG_PM_RUNTIME)) {
+		clk_disable_unprepare(imx_data->clk_per);
+		clk_disable_unprepare(imx_data->clk_ipg);
+		clk_disable_unprepare(imx_data->clk_ahb);
+	}
 
 	sdhci_pltfm_free(pdev);
 
