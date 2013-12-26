@@ -164,7 +164,6 @@ static int __init cmx270_init(void)
 				  sizeof(struct nand_chip),
 				  GFP_KERNEL);
 	if (!cmx270_nand_mtd) {
-		pr_debug("Unable to allocate CM-X270 NAND MTD device structure.\n");
 		ret = -ENOMEM;
 		goto err_kzalloc;
 	}
