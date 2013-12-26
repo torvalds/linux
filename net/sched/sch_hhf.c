@@ -711,7 +711,7 @@ static int hhf_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	return gnet_stats_copy_app(d, &st, sizeof(st));
 }
 
-struct Qdisc_ops hhf_qdisc_ops __read_mostly = {
+static struct Qdisc_ops hhf_qdisc_ops __read_mostly = {
 	.id		=	"hhf",
 	.priv_size	=	sizeof(struct hhf_sched_data),
 
@@ -727,7 +727,6 @@ struct Qdisc_ops hhf_qdisc_ops __read_mostly = {
 	.dump_stats	=	hhf_dump_stats,
 	.owner		=	THIS_MODULE,
 };
-EXPORT_SYMBOL(hhf_qdisc_ops);
 
 static int __init hhf_module_init(void)
 {
