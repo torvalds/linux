@@ -1302,7 +1302,7 @@ again:
 	__btrfs_commit_inode_delayed_items(trans, path, delayed_node);
 
 	trans->block_rsv = block_rsv;
-	btrfs_end_transaction_dmeta(trans, root);
+	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty_nodelay(root);
 
 release_path:

@@ -790,12 +790,6 @@ int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 	return __btrfs_end_transaction(trans, root, 1);
 }
 
-int btrfs_end_transaction_dmeta(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root)
-{
-	return __btrfs_end_transaction(trans, root, 1);
-}
-
 /*
  * when btree blocks are allocated, they have some corresponding bits set for
  * them in one of two extent_io trees.  This is used to make sure all of

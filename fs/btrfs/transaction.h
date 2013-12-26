@@ -154,8 +154,6 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 				   int wait_for_unblock);
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root);
-int btrfs_end_transaction_dmeta(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root);
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root);
 void btrfs_throttle(struct btrfs_root *root);
