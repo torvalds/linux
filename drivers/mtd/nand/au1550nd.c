@@ -418,10 +418,8 @@ static int au1550nd_probe(struct platform_device *pdev)
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
-		dev_err(&pdev->dev, "no memory for NAND context\n");
+	if (!ctx)
 		return -ENOMEM;
-	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
