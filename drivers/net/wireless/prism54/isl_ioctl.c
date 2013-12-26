@@ -24,6 +24,7 @@
 #include <linux/if_arp.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/etherdevice.h>
 
 #include <asm/uaccess.h>
 
@@ -1860,7 +1861,7 @@ prism54_del_mac(struct net_device *ndev, struct iw_request_info *info,
 	if (mutex_lock_interruptible(&acl->lock))
 		return -ERESTARTSYS;
 	list_for_each_entry(entry, &acl->mac_list, _list) {
-		if (memcmp(entry->addr, addr->sa_data, ETH_ALEN) == 0) {
+		if (ether_addr_equal(entry->addr, addr->sa_data)) {
 			list_del(&entry->_list);
 			acl->size--;
 			kfree(entry);
