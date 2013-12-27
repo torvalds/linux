@@ -354,7 +354,7 @@ static int release(struct socket *sock)
 	 * Delete TIPC port; this ensures no more messages are queued
 	 * (also disconnects an active connection & sends a 'FIN-' to peer)
 	 */
-	res = tipc_deleteport(tport->ref);
+	res = tipc_deleteport(tport);
 
 	/* Discard any remaining (connection-based) messages in receive queue */
 	__skb_queue_purge(&sk->sk_receive_queue);
@@ -386,30 +386,46 @@ static int release(struct socket *sock)
  */
 static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 {
+	struct sock *sk = sock->sk;
 	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)uaddr;
-	u32 portref = tipc_sk_port(sock->sk)->ref;
+	struct tipc_port *tport = tipc_sk_port(sock->sk);
+	int res = -EINVAL;
 
-	if (unlikely(!uaddr_len))
-		return tipc_withdraw(portref, 0, NULL);
+	lock_sock(sk);
+	if (unlikely(!uaddr_len)) {
+		res = tipc_withdraw(tport, 0, NULL);
+		goto exit;
+	}
 
-	if (uaddr_len < sizeof(struct sockaddr_tipc))
-		return -EINVAL;
-	if (addr->family != AF_TIPC)
-		return -EAFNOSUPPORT;
+	if (uaddr_len < sizeof(struct sockaddr_tipc)) {
+		res = -EINVAL;
+		goto exit;
+	}
+	if (addr->family != AF_TIPC) {
+		res = -EAFNOSUPPORT;
+		goto exit;
+	}
 
 	if (addr->addrtype == TIPC_ADDR_NAME)
 		addr->addr.nameseq.upper = addr->addr.nameseq.lower;
-	else if (addr->addrtype != TIPC_ADDR_NAMESEQ)
-		return -EAFNOSUPPORT;
+	else if (addr->addrtype != TIPC_ADDR_NAMESEQ) {
+		res = -EAFNOSUPPORT;
+		goto exit;
+	}
 
 	if ((addr->addr.nameseq.type < TIPC_RESERVED_TYPES) &&
 	    (addr->addr.nameseq.type != TIPC_TOP_SRV) &&
-	    (addr->addr.nameseq.type != TIPC_CFG_SRV))
-		return -EACCES;
+	    (addr->addr.nameseq.type != TIPC_CFG_SRV)) {
+		res = -EACCES;
+		goto exit;
+	}
 
-	return (addr->scope > 0) ?
-		tipc_publish(portref, addr->scope, &addr->addr.nameseq) :
-		tipc_withdraw(portref, -addr->scope, &addr->addr.nameseq);
+	res = (addr->scope > 0) ?
+		tipc_publish(tport, addr->scope, &addr->addr.nameseq) :
+		tipc_withdraw(tport, -addr->scope, &addr->addr.nameseq);
+exit:
+	release_sock(sk);
+	return res;
 }
 
 /**
