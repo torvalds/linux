@@ -2382,7 +2382,9 @@ static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
 	enum nft_registers dreg;
 
 	dreg = nft_type_to_reg(set->dtype);
-	return nft_validate_data_load(ctx, dreg, &elem->data, set->dtype);
+	return nft_validate_data_load(ctx, dreg, &elem->data,
+				      set->dtype == NFT_DATA_VERDICT ?
+				      NFT_DATA_VERDICT : NFT_DATA_VALUE);
 }
 
 int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
