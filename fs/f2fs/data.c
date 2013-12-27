@@ -916,8 +916,10 @@ repeat:
 			goto inline_data;
 	} else if (f2fs_has_inline_data(inode)) {
 		err = f2fs_convert_inline_data(inode, page, flags);
-		if (err)
+		if (err) {
+			f2fs_put_page(page, 1);
 			return err;
+		}
 	}
 
 	f2fs_lock_op(sbi);
