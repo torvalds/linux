@@ -462,25 +462,9 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	loff_t off_start, off_end;
 	int ret = 0;
 
-	if (f2fs_has_inline_data(inode)) {
-		struct page *page;
-		unsigned flags = AOP_FLAG_NOFS;
-		page = grab_cache_page_write_begin(inode->i_mapping, 0, flags);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
-		if (offset + len > MAX_INLINE_DATA) {
-			ret = f2fs_convert_inline_data(inode, page, flags);
-			f2fs_put_page(page, 1);
-			if (ret)
-				return ret;
-		} else {
-			zero_user_segment(page, offset, offset + len);
-			SetPageUptodate(page);
-			set_page_dirty(page);
-			f2fs_put_page(page, 1);
-			return ret;
-		}
-	}
+	ret = f2fs_convert_inline_data(inode, NULL, AOP_FLAG_NOFS);
+	if (ret)
+		return ret;
 
 	pg_start = ((unsigned long long) offset) >> PAGE_CACHE_SHIFT;
 	pg_end = ((unsigned long long) offset + len) >> PAGE_CACHE_SHIFT;
