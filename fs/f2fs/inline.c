@@ -101,6 +101,7 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 	dst_addr = kmap(page);
 	memcpy(dst_addr, src_addr, MAX_INLINE_DATA);
 	kunmap(page);
+	SetPageUptodate(page);
 
 	/* write data page to try to make data consistent */
 	set_page_writeback(page);
@@ -120,25 +121,22 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 	return err;
 }
 
-int f2fs_convert_inline_data(struct inode *inode,
-			     struct page *p, unsigned flags)
+int f2fs_convert_inline_data(struct inode *inode, pgoff_t to_size)
 {
-	int err;
 	struct page *page;
+	int err;
 
-	if (!p || p->index) {
-		page = grab_cache_page_write_begin(inode->i_mapping, 0, flags);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
-	} else {
-		page = p;
-	}
+	if (!f2fs_has_inline_data(inode))
+		return 0;
+	else if (to_size <= MAX_INLINE_DATA)
+		return 0;
+
+	page = grab_cache_page_write_begin(inode->i_mapping, 0, AOP_FLAG_NOFS);
+	if (!page)
+		return -ENOMEM;
 
 	err = __f2fs_convert_inline_data(inode, page);
-
-	if (!p || p->index)
-		f2fs_put_page(page, 1);
-
+	f2fs_put_page(page, 1);
 	return err;
 }
 

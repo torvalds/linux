@@ -906,21 +906,17 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 
 	f2fs_balance_fs(sbi);
 repeat:
+	err = f2fs_convert_inline_data(inode, pos + len);
+	if (err)
+		return err;
+
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
 
-	if ((pos + len) < MAX_INLINE_DATA) {
-		if (f2fs_has_inline_data(inode))
-			goto inline_data;
-	} else if (f2fs_has_inline_data(inode)) {
-		err = f2fs_convert_inline_data(inode, page, flags);
-		if (err) {
-			f2fs_put_page(page, 1);
-			return err;
-		}
-	}
+	if (f2fs_has_inline_data(inode) && (pos + len) <= MAX_INLINE_DATA)
+		goto inline_data;
 
 	f2fs_lock_op(sbi);
 	set_new_dnode(&dn, inode, NULL, NULL, 0);

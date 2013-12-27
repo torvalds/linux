@@ -370,17 +370,12 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
 			attr->ia_size != i_size_read(inode)) {
-		if (f2fs_has_inline_data(inode) &&
-				(attr->ia_size > MAX_INLINE_DATA)) {
-			unsigned flags = AOP_FLAG_NOFS;
-			err = f2fs_convert_inline_data(inode, NULL, flags);
-			if (err)
-				return err;
-		}
+		err = f2fs_convert_inline_data(inode, attr->ia_size);
+		if (err)
+			return err;
 
 		truncate_setsize(inode, attr->ia_size);
-		if (!f2fs_has_inline_data(inode))
-			f2fs_truncate(inode);
+		f2fs_truncate(inode);
 		f2fs_balance_fs(F2FS_SB(inode->i_sb));
 	}
 
@@ -462,7 +457,7 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	loff_t off_start, off_end;
 	int ret = 0;
 
-	ret = f2fs_convert_inline_data(inode, NULL, AOP_FLAG_NOFS);
+	ret = f2fs_convert_inline_data(inode, MAX_INLINE_DATA + 1);
 	if (ret)
 		return ret;
 
@@ -512,13 +507,11 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 	loff_t off_start, off_end;
 	int ret = 0;
 
-	if (f2fs_has_inline_data(inode) && (offset + len > MAX_INLINE_DATA)) {
-		ret = f2fs_convert_inline_data(inode, NULL, AOP_FLAG_NOFS);
-		if (ret)
-			return ret;
-	}
-
 	ret = inode_newsize_ok(inode, (len + offset));
+	if (ret)
+		return ret;
+
+	ret = f2fs_convert_inline_data(inode, offset + len);
 	if (ret)
 		return ret;
 
