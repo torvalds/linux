@@ -258,13 +258,16 @@ int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
 	bool need_put = dn->inode_page ? false : true;
 	int err;
 
+	/* if inode_page exists, index should be zero */
+	f2fs_bug_on(!need_put && index);
+
 	err = get_dnode_of_data(dn, index, ALLOC_NODE);
 	if (err)
 		return err;
+
 	if (dn->data_blkaddr == NULL_ADDR)
 		err = reserve_new_block(dn);
-
-	if (need_put)
+	if (err || need_put)
 		f2fs_put_dnode(dn);
 	return err;
 }
@@ -510,10 +513,10 @@ repeat:
  *
  * Also, caller should grab and release a rwsem by calling f2fs_lock_op() and
  * f2fs_unlock_op().
- * Note that, npage is set only by make_empty_dir.
+ * Note that, ipage is set only by make_empty_dir.
  */
 struct page *get_new_data_page(struct inode *inode,
-		struct page *npage, pgoff_t index, bool new_i_size)
+		struct page *ipage, pgoff_t index, bool new_i_size)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct address_space *mapping = inode->i_mapping;
@@ -521,14 +524,16 @@ struct page *get_new_data_page(struct inode *inode,
 	struct dnode_of_data dn;
 	int err;
 
-	set_new_dnode(&dn, inode, npage, npage, 0);
+	set_new_dnode(&dn, inode, ipage, NULL, 0);
 	err = f2fs_reserve_block(&dn, index);
 	if (err)
 		return ERR_PTR(err);
 repeat:
 	page = grab_cache_page(mapping, index);
-	if (!page)
-		return ERR_PTR(-ENOMEM);
+	if (!page) {
+		err = -ENOMEM;
+		goto put_err;
+	}
 
 	if (PageUptodate(page))
 		return page;
@@ -540,11 +545,13 @@ repeat:
 		err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
 								READ_SYNC);
 		if (err)
-			return ERR_PTR(err);
+			goto put_err;
+
 		lock_page(page);
 		if (unlikely(!PageUptodate(page))) {
 			f2fs_put_page(page, 1);
-			return ERR_PTR(-EIO);
+			err = -EIO;
+			goto put_err;
 		}
 		if (unlikely(page->mapping != mapping)) {
 			f2fs_put_page(page, 1);
@@ -560,6 +567,10 @@ repeat:
 		mark_inode_dirty_sync(inode);
 	}
 	return page;
+
+put_err:
+	f2fs_put_dnode(&dn);
+	return ERR_PTR(err);
 }
 
 static int __allocate_data_block(struct dnode_of_data *dn)

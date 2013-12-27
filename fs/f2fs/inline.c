@@ -81,10 +81,9 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 	 * i_addr[0] is not used for inline data,
 	 * so reserving new block will not destroy inline data
 	 */
-	set_new_dnode(&dn, inode, ipage, ipage, 0);
+	set_new_dnode(&dn, inode, ipage, NULL, 0);
 	err = f2fs_reserve_block(&dn, 0);
 	if (err) {
-		f2fs_put_page(ipage, 1);
 		f2fs_unlock_op(sbi);
 		return err;
 	}
@@ -111,9 +110,8 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 	stat_dec_inline_inode(inode);
 
 	sync_inode_page(&dn);
-	f2fs_put_page(ipage, 1);
+	f2fs_put_dnode(&dn);
 	f2fs_unlock_op(sbi);
-
 	return err;
 }
 

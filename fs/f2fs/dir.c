@@ -342,11 +342,11 @@ static struct page *init_inode_metadata(struct inode *inode,
 
 		err = f2fs_init_acl(inode, dir, page);
 		if (err)
-			goto error;
+			goto put_error;
 
 		err = f2fs_init_security(inode, dir, name, page);
 		if (err)
-			goto error;
+			goto put_error;
 
 		wait_on_page_writeback(page);
 	} else {
@@ -370,8 +370,9 @@ static struct page *init_inode_metadata(struct inode *inode,
 	}
 	return page;
 
-error:
+put_error:
 	f2fs_put_page(page, 1);
+error:
 	remove_inode_page(inode);
 	return ERR_PTR(err);
 }
