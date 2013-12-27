@@ -41,7 +41,7 @@ struct thread_map *thread_map__new_by_pid(pid_t pid)
 	}
 
 	for (i=0; i<items; i++)
-		free(namelist[i]);
+		zfree(&namelist[i]);
 	free(namelist);
 
 	return threads;
@@ -118,7 +118,7 @@ struct thread_map *thread_map__new_by_uid(uid_t uid)
 			threads->map[threads->nr + i] = atoi(namelist[i]->d_name);
 
 		for (i = 0; i < items; i++)
-			free(namelist[i]);
+			zfree(&namelist[i]);
 		free(namelist);
 
 		threads->nr += items;
@@ -135,7 +135,7 @@ out_free_threads:
 
 out_free_namelist:
 	for (i = 0; i < items; i++)
-		free(namelist[i]);
+		zfree(&namelist[i]);
 	free(namelist);
 
 out_free_closedir:
@@ -194,7 +194,7 @@ static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
 
 		for (i = 0; i < items; i++) {
 			threads->map[j++] = atoi(namelist[i]->d_name);
-			free(namelist[i]);
+			zfree(&namelist[i]);
 		}
 		threads->nr = total_tasks;
 		free(namelist);
@@ -206,7 +206,7 @@ out:
 
 out_free_namelist:
 	for (i = 0; i < items; i++)
-		free(namelist[i]);
+		zfree(&namelist[i]);
 	free(namelist);
 
 out_free_threads:

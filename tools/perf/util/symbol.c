@@ -796,7 +796,7 @@ static void delete_modules(struct rb_root *modules)
 		mi = rb_entry(next, struct module_info, rb_node);
 		next = rb_next(&mi->rb_node);
 		rb_erase(&mi->rb_node, modules);
-		free(mi->name);
+		zfree(&mi->name);
 		free(mi);
 	}
 }

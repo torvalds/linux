@@ -1,4 +1,5 @@
 #include "symbol.h"
+#include "util.h"
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -275,7 +276,7 @@ bool symsrc__has_symtab(struct symsrc *ss __maybe_unused)
 
 void symsrc__destroy(struct symsrc *ss)
 {
-	free(ss->name);
+	zfree(&ss->name);
 	close(ss->fd);
 }
 

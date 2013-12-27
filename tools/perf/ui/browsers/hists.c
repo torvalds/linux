@@ -1327,7 +1327,7 @@ static int switch_data_file(void)
 
 			abs_path[nr_options] = strdup(path);
 			if (!abs_path[nr_options]) {
-				free(options[nr_options]);
+				zfree(&options[nr_options]);
 				ui__warning("Can't search all data files due to memory shortage.\n");
 				fclose(file);
 				break;

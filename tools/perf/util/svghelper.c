@@ -21,6 +21,7 @@
 
 #include "perf.h"
 #include "svghelper.h"
+#include "util.h"
 #include "cpumap.h"
 
 static u64 first_time, last_time;
@@ -708,8 +709,8 @@ int svg_build_topology_map(char *sib_core, int sib_core_nr,
 	return 0;
 
 exit:
-	free(t.sib_core);
-	free(t.sib_thr);
+	zfree(&t.sib_core);
+	zfree(&t.sib_thr);
 
 	return -1;
 }

@@ -132,18 +132,18 @@ static void perf_session__delete_threads(struct perf_session *session)
 
 static void perf_session_env__delete(struct perf_session_env *env)
 {
-	free(env->hostname);
-	free(env->os_release);
-	free(env->version);
-	free(env->arch);
-	free(env->cpu_desc);
-	free(env->cpuid);
+	zfree(&env->hostname);
+	zfree(&env->os_release);
+	zfree(&env->version);
+	zfree(&env->arch);
+	zfree(&env->cpu_desc);
+	zfree(&env->cpuid);
 
-	free(env->cmdline);
-	free(env->sibling_cores);
-	free(env->sibling_threads);
-	free(env->numa_nodes);
-	free(env->pmu_mappings);
+	zfree(&env->cmdline);
+	zfree(&env->sibling_cores);
+	zfree(&env->sibling_threads);
+	zfree(&env->numa_nodes);
+	zfree(&env->pmu_mappings);
 }
 
 void perf_session__delete(struct perf_session *session)

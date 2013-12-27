@@ -372,7 +372,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 			 * This mem info was allocated from machine__resolve_mem
 			 * and will not be used anymore.
 			 */
-			free(entry->mem_info);
+			zfree(&entry->mem_info);
 
 			/* If the map of an existing hist_entry has
 			 * become out-of-date due to an exec() or
@@ -475,8 +475,8 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 
 void hist_entry__free(struct hist_entry *he)
 {
-	free(he->branch_info);
-	free(he->mem_info);
+	zfree(&he->branch_info);
+	zfree(&he->mem_info);
 	free_srcline(he->srcline);
 	free(he);
 }

@@ -356,7 +356,7 @@ static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
 		offset = tevs[i].point.address - stext;
 		offset += tevs[i].point.offset;
 		tevs[i].point.offset = 0;
-		free(tevs[i].point.symbol);
+		zfree(&tevs[i].point.symbol);
 		ret = e_snprintf(buf, 32, "0x%lx", offset);
 		if (ret < 0)
 			break;
@@ -683,7 +683,7 @@ static int show_available_vars_at(struct debuginfo *dinfo,
 		 */
 		fprintf(stdout, "\t@<%s+%lu>\n", vl->point.symbol,
 			vl->point.offset);
-		free(vl->point.symbol);
+		zfree(&vl->point.symbol);
 		nvars = 0;
 		if (vl->vars) {
 			strlist__for_each(node, vl->vars) {
@@ -1592,7 +1592,7 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 		field = pev->args[i].field;
 		while (field) {
 			next = field->next;
-			free(field->name);
+			zfree(&field->name);
 			free(field);
 			field = next;
 		}
@@ -2153,7 +2153,7 @@ end:
 	for (i = 0; i < npevs; i++) {
 		for (j = 0; j < pkgs[i].ntevs; j++)
 			clear_probe_trace_event(&pkgs[i].tevs[j]);
-		free(pkgs[i].tevs);
+		zfree(&pkgs[i].tevs);
 	}
 	free(pkgs);
 

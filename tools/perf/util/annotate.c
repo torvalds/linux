@@ -26,10 +26,10 @@ static int disasm_line__parse(char *line, char **namep, char **rawp);
 
 static void ins__delete(struct ins_operands *ops)
 {
-	free(ops->source.raw);
-	free(ops->source.name);
-	free(ops->target.raw);
-	free(ops->target.name);
+	zfree(&ops->source.raw);
+	zfree(&ops->source.name);
+	zfree(&ops->target.raw);
+	zfree(&ops->target.name);
 }
 
 static int ins__raw_scnprintf(struct ins *ins, char *bf, size_t size,
@@ -204,9 +204,9 @@ static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
 
 static void lock__delete(struct ins_operands *ops)
 {
-	free(ops->locked.ops);
-	free(ops->target.raw);
-	free(ops->target.name);
+	zfree(&ops->locked.ops);
+	zfree(&ops->target.raw);
+	zfree(&ops->target.name);
 }
 
 static struct ins_ops lock_ops = {
@@ -583,7 +583,7 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privs
 	return dl;
 
 out_free_line:
-	free(dl->line);
+	zfree(&dl->line);
 out_delete:
 	free(dl);
 	return NULL;
@@ -591,8 +591,8 @@ out_delete:
 
 void disasm_line__free(struct disasm_line *dl)
 {
-	free(dl->line);
-	free(dl->name);
+	zfree(&dl->line);
+	zfree(&dl->name);
 	if (dl->ins && dl->ins->ops->free)
 		dl->ins->ops->free(&dl->ops);
 	else

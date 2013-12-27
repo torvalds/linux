@@ -397,8 +397,8 @@ put_tracepoints_path(struct tracepoint_path *tps)
 		struct tracepoint_path *t = tps;
 
 		tps = tps->next;
-		free(t->name);
-		free(t->system);
+		zfree(&t->name);
+		zfree(&t->system);
 		free(t);
 	}
 }

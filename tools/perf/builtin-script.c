@@ -1102,9 +1102,9 @@ static struct script_desc *script_desc__new(const char *name)
 
 static void script_desc__delete(struct script_desc *s)
 {
-	free(s->name);
-	free(s->half_liner);
-	free(s->args);
+	zfree(&s->name);
+	zfree(&s->half_liner);
+	zfree(&s->args);
 	free(s);
 }
 

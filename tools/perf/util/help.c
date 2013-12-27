@@ -22,8 +22,8 @@ static void clean_cmdnames(struct cmdnames *cmds)
 	unsigned int i;
 
 	for (i = 0; i < cmds->cnt; ++i)
-		free(cmds->names[i]);
-	free(cmds->names);
+		zfree(&cmds->names[i]);
+	zfree(&cmds->names);
 	cmds->cnt = 0;
 	cmds->alloc = 0;
 }

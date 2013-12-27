@@ -1409,7 +1409,7 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 	if (ret < 0) {
 		/* Free vlist for error */
 		while (af.nvls--) {
-			free(af.vls[af.nvls].point.symbol);
+			zfree(&af.vls[af.nvls].point.symbol);
 			strlist__delete(af.vls[af.nvls].vars);
 		}
 		zfree(vls);

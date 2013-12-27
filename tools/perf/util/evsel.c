@@ -208,7 +208,7 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 	return evsel;
 
 out_free:
-	free(evsel->name);
+	zfree(&evsel->name);
 	free(evsel);
 	return NULL;
 }
@@ -766,7 +766,7 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 
 void perf_evsel__free_counts(struct perf_evsel *evsel)
 {
-	free(evsel->counts);
+	zfree(&evsel->counts);
 }
 
 void perf_evsel__exit(struct perf_evsel *evsel)
@@ -780,10 +780,10 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 {
 	perf_evsel__exit(evsel);
 	close_cgroup(evsel->cgrp);
-	free(evsel->group_name);
+	zfree(&evsel->group_name);
 	if (evsel->tp_format)
 		pevent_free_format(evsel->tp_format);
-	free(evsel->name);
+	zfree(&evsel->name);
 	free(evsel);
 }
 

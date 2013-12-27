@@ -128,7 +128,7 @@ void argv_free(char **argv)
 {
 	char **p;
 	for (p = argv; *p; p++)
-		free(*p);
+		zfree(p);
 
 	free(argv);
 }
