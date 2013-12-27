@@ -1678,9 +1678,6 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 			if ((xfer->tx_nbits == SPI_NBITS_QUAD) &&
 				!(spi->mode & SPI_TX_QUAD))
 				return -EINVAL;
-			if ((spi->mode & SPI_3WIRE) &&
-				(xfer->tx_nbits != SPI_NBITS_SINGLE))
-				return -EINVAL;
 		}
 		/* check transfer rx_nbits */
 		if (xfer->rx_buf) {
@@ -1693,9 +1690,6 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				return -EINVAL;
 			if ((xfer->rx_nbits == SPI_NBITS_QUAD) &&
 				!(spi->mode & SPI_RX_QUAD))
-				return -EINVAL;
-			if ((spi->mode & SPI_3WIRE) &&
-				(xfer->rx_nbits != SPI_NBITS_SINGLE))
 				return -EINVAL;
 		}
 	}
