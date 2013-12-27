@@ -2531,6 +2531,10 @@ static inline void sw_tx_timestamp(struct sk_buff *skb)
  * Ethernet MAC Drivers should call this function in their hard_xmit()
  * function immediately before giving the sk_buff to the MAC hardware.
  *
+ * Specifically, one should make absolutely sure that this function is
+ * called before TX completion of this packet can trigger.  Otherwise
+ * the packet could potentially already be freed.
+ *
  * @skb: A socket buffer.
  */
 static inline void skb_tx_timestamp(struct sk_buff *skb)
