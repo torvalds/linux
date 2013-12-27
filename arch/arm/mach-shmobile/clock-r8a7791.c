@@ -103,6 +103,7 @@ SH_FIXED_RATIO_CLK_SET(hp_clk,			pll1_clk,	1, 12);
 SH_FIXED_RATIO_CLK_SET(p_clk,			pll1_clk,	1, 24);
 SH_FIXED_RATIO_CLK_SET(rclk_clk,		pll1_clk,	1, (48 * 1024));
 SH_FIXED_RATIO_CLK_SET(mp_clk,			pll1_div2_clk,	1, 15);
+SH_FIXED_RATIO_CLK_SET(zg_clk,			pll1_clk,	1, 3);
 SH_FIXED_RATIO_CLK_SET(zx_clk,			pll1_clk,	1, 3);
 
 static struct clk *main_clks[] = {
@@ -117,6 +118,7 @@ static struct clk *main_clks[] = {
 	&rclk_clk,
 	&mp_clk,
 	&cp_clk,
+	&zg_clk,
 	&zx_clk,
 };
 
@@ -124,6 +126,7 @@ static struct clk *main_clks[] = {
 enum {
 	MSTP931, MSTP930, MSTP929, MSTP928, MSTP927, MSTP925,
 	MSTP813,
+	MSTP811, MSTP810, MSTP809,
 	MSTP726, MSTP724, MSTP723, MSTP721, MSTP720,
 	MSTP719, MSTP718, MSTP715, MSTP714,
 	MSTP522,
@@ -141,6 +144,9 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP927] = SH_CLK_MSTP32(&p_clk, SMSTPCR9, 27, 0), /* I2C4 */
 	[MSTP925] = SH_CLK_MSTP32(&p_clk, SMSTPCR9, 25, 0), /* I2C5 */
 	[MSTP813] = SH_CLK_MSTP32(&p_clk, SMSTPCR8, 13, 0), /* Ether */
+	[MSTP811] = SH_CLK_MSTP32(&zg_clk, SMSTPCR8, 11, 0), /* VIN0 */
+	[MSTP810] = SH_CLK_MSTP32(&zg_clk, SMSTPCR8, 10, 0), /* VIN1 */
+	[MSTP809] = SH_CLK_MSTP32(&zg_clk, SMSTPCR8,  9, 0), /* VIN2 */
 	[MSTP726] = SH_CLK_MSTP32(&zx_clk, SMSTPCR7, 26, 0), /* LVDS0 */
 	[MSTP724] = SH_CLK_MSTP32(&zx_clk, SMSTPCR7, 24, 0), /* DU0 */
 	[MSTP723] = SH_CLK_MSTP32(&zx_clk, SMSTPCR7, 23, 0), /* DU1 */
@@ -172,6 +178,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pll1",		&pll1_clk),
 	CLKDEV_CON_ID("pll1_div2",	&pll1_div2_clk),
 	CLKDEV_CON_ID("pll3",		&pll3_clk),
+	CLKDEV_CON_ID("zg",		&zg_clk),
 	CLKDEV_CON_ID("hp",		&hp_clk),
 	CLKDEV_CON_ID("p",		&p_clk),
 	CLKDEV_CON_ID("rclk",		&rclk_clk),
@@ -208,6 +215,9 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("i2c-rcar_gen2.4", &mstp_clks[MSTP927]),
 	CLKDEV_DEV_ID("i2c-rcar_gen2.5", &mstp_clks[MSTP925]),
 	CLKDEV_DEV_ID("r8a7791-ether", &mstp_clks[MSTP813]), /* Ether */
+	CLKDEV_DEV_ID("r8a7791-vin.0", &mstp_clks[MSTP811]),
+	CLKDEV_DEV_ID("r8a7791-vin.1", &mstp_clks[MSTP810]),
+	CLKDEV_DEV_ID("r8a7791-vin.2", &mstp_clks[MSTP809]),
 };
 
 #define R8A7791_CLOCK_ROOT(e, m, p0, p1, p30, p31)		\
