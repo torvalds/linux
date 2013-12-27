@@ -836,7 +836,8 @@ static void __exit em28xx_rc_unregister(void)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
-MODULE_DESCRIPTION("Em28xx Input driver");
+MODULE_DESCRIPTION(DRIVER_DESC " - input interface");
+MODULE_VERSION(EM28XX_VERSION);
 
 module_init(em28xx_rc_register);
 module_exit(em28xx_rc_unregister);

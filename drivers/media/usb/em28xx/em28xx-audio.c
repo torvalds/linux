@@ -747,7 +747,8 @@ static void __exit em28xx_alsa_unregister(void)
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Markus Rechberger <mrechberger@gmail.com>");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
-MODULE_DESCRIPTION("Em28xx Audio driver");
+MODULE_DESCRIPTION(DRIVER_DESC " - audio interface");
+MODULE_VERSION(EM28XX_VERSION);
 
 module_init(em28xx_alsa_register);
 module_exit(em28xx_alsa_unregister);

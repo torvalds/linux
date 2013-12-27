@@ -38,8 +38,6 @@
 		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
 		      "Sascha Sommer <saschasommer@freenet.de>"
 
-#define DRIVER_DESC         "Empia em28xx based USB core driver"
-
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

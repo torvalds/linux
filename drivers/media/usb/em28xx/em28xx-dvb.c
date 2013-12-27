@@ -54,9 +54,11 @@
 #include "m88ds3103.h"
 #include "m88ts2022.h"
 
-MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION(DRIVER_DESC " - digital TV interface");
+MODULE_VERSION(EM28XX_VERSION);
+
 
 static unsigned int debug;
 module_param(debug, int, 0644);

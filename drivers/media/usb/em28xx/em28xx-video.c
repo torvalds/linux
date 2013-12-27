@@ -50,8 +50,6 @@
 		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
 		      "Sascha Sommer <saschasommer@freenet.de>"
 
-#define DRIVER_DESC         "Empia em28xx based USB video device driver"
-
 static unsigned int isoc_debug;
 module_param(isoc_debug, int, 0644);
 MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");
@@ -78,7 +76,7 @@ do {\
   } while (0)
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_DESCRIPTION(DRIVER_DESC " - v4l2 interface");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(EM28XX_VERSION);
 

@@ -27,6 +27,7 @@
 #define _EM28XX_H
 
 #define EM28XX_VERSION "0.2.1"
+#define DRIVER_DESC    "Empia em28xx device driver"
 
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
