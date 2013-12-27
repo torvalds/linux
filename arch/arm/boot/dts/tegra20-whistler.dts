@@ -7,6 +7,11 @@
 	model = "NVIDIA Tegra20 Whistler evaluation board";
 	compatible = "nvidia,whistler", "nvidia,tegra20";
 
+	aliases {
+		rtc0 = "/i2c@7000d000/max8907@3c";
+		rtc1 = "/rtc@7000e000";
+	};
+
 	memory {
 		reg = <0x00000000 0x20000000>;
 	};

@@ -785,7 +785,7 @@
 		compatible = "nvidia,tegra30-ehci", "usb-ehci";
 		reg = <0x7d004000 0x4000>;
 		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
-		phy_type = "ulpi";
+		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA30_CLK_USB2>;
 		resets = <&tegra_car 58>;
 		reset-names = "usb";
@@ -795,12 +795,23 @@
 
 	phy2: usb-phy@7d004000 {
 		compatible = "nvidia,tegra30-usb-phy";
-		reg = <0x7d004000 0x4000>;
-		phy_type = "ulpi";
+		reg = <0x7d004000 0x4000 0x7d000000 0x4000>;
+		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA30_CLK_USB2>,
 			 <&tegra_car TEGRA30_CLK_PLL_U>,
-			 <&tegra_car TEGRA30_CLK_CDEV2>;
-		clock-names = "reg", "pll_u", "ulpi-link";
+			 <&tegra_car TEGRA30_CLK_USBD>;
+		clock-names = "reg", "pll_u", "utmi-pads";
+		nvidia,hssync-start-delay = <9>;
+		nvidia,idle-wait-delay = <17>;
+		nvidia,elastic-limit = <16>;
+		nvidia,term-range-adj = <6>;
+		nvidia,xcvr-setup = <51>;
+		nvidia.xcvr-setup-use-fuses;
+		nvidia,xcvr-lsfslew = <2>;
+		nvidia,xcvr-lsrslew = <2>;
+		nvidia,xcvr-hsslew = <32>;
+		nvidia,hssquelch-level = <2>;
+		nvidia,hsdiscon-level = <5>;
 		status = "disabled";
 	};
 

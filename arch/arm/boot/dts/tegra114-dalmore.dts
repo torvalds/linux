@@ -7,8 +7,39 @@
 	model = "NVIDIA Tegra114 Dalmore evaluation board";
 	compatible = "nvidia,dalmore", "nvidia,tegra114";
 
+	aliases {
+		rtc0 = "/i2c@7000d000/tps65913@58";
+		rtc1 = "/rtc@7000e000";
+	};
+
 	memory {
 		reg = <0x80000000 0x40000000>;
+	};
+
+	host1x@50000000 {
+		hdmi@54280000 {
+			status = "okay";
+
+			vdd-supply = <&vdd_hdmi_reg>;
+			pll-supply = <&palmas_smps3_reg>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio =
+				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
+		};
+
+		dsi@54300000 {
+			status = "okay";
+
+			panel@0 {
+				compatible = "panasonic,vvx10f004b00",
+					     "simple-panel";
+				reg = <0>;
+
+				power-supply = <&avdd_lcd_reg>;
+				backlight = <&backlight>;
+			};
+		};
 	};
 
 	pinmux@70000868 {
@@ -718,6 +749,10 @@
 		status = "okay";
 	};
 
+	pwm@7000a000 {
+		status = "okay";
+	};
+
 	i2c@7000c000 {
 		status = "okay";
 		clock-frequency = <100000>;
@@ -747,6 +782,10 @@
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(O, 4) IRQ_TYPE_LEVEL_LOW>;
 		};
+	};
+
+	hdmi_ddc: i2c@7000c700 {
+		status = "okay";
 	};
 
 	i2c@7000d000 {
@@ -806,7 +845,7 @@
 					regulator-boot-on;
 				};
 
-				fet1 {
+				vdd_bl_reg: fet1 {
 					regulator-name = "vdd-lcd-bl";
 				};
 
@@ -814,7 +853,7 @@
 					regulator-name = "vdd-modem-3v3";
 				};
 
-				fet4 {
+				avdd_lcd_reg: fet4 {
 					regulator-name = "avdd-lcd";
 				};
 
@@ -1084,6 +1123,17 @@
 		vbus-supply = <&usb3_vbus_reg>;
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+
+		enable-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
+		power-supply = <&vdd_bl_reg>;
+		pwms = <&pwm 1 1000000>;
+
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -1148,16 +1198,6 @@
 			regulator-max-microvolt = <1800000>;
 			enable-active-high;
 			gpio = <&gpio TEGRA_GPIO(H, 5) GPIO_ACTIVE_HIGH>;
-		};
-
-		lcd_bl_en_reg: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "lcd_bl_en";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
 		};
 
 		usb1_vbus_reg: regulator@3 {
