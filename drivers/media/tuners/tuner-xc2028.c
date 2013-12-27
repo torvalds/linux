@@ -134,15 +134,6 @@ struct xc2028_data {
 	_rc;								\
 })
 
-#define i2c_rcv(priv, buf, size) ({					\
-	int _rc;							\
-	_rc = tuner_i2c_xfer_recv(&priv->i2c_props, buf, size);		\
-	if (size != _rc)						\
-		tuner_err("i2c input error: rc = %d (should be %d)\n",	\
-			   _rc, (int)size); 				\
-	_rc;								\
-})
-
 #define i2c_send_recv(priv, obuf, osize, ibuf, isize) ({		\
 	int _rc;							\
 	_rc = tuner_i2c_xfer_send_recv(&priv->i2c_props, obuf, osize,	\
