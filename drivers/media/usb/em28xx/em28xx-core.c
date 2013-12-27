@@ -506,8 +506,18 @@ int em28xx_audio_setup(struct em28xx *dev)
 	int vid1, vid2, feat, cfg;
 	u32 vid;
 
-	if (!dev->audio_mode.has_audio)
+	if (dev->chip_id == CHIP_ID_EM2870 ||
+	    dev->chip_id == CHIP_ID_EM2874 ||
+	    dev->chip_id == CHIP_ID_EM28174 ||
+	    dev->chip_id == CHIP_ID_EM28178) {
+		/* Digital only device - don't load any alsa module */
+		dev->audio_mode.has_audio = false;
+		dev->has_audio_class = false;
+		dev->has_alsa_audio = false;
 		return 0;
+	}
+
+	dev->audio_mode.has_audio = true;
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);

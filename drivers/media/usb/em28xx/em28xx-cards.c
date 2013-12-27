@@ -3098,16 +3098,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		}
 	}
 
-	if (dev->chip_id == CHIP_ID_EM2870 ||
-	    dev->chip_id == CHIP_ID_EM2874 ||
-	    dev->chip_id == CHIP_ID_EM28174 ||
-	    dev->chip_id == CHIP_ID_EM28178) {
-		/* Digital only device - don't load any alsa module */
-		dev->audio_mode.has_audio = false;
-		dev->has_audio_class = false;
-		dev->has_alsa_audio = false;
-	}
-
 	if (chip_name != default_chip_name)
 		printk(KERN_INFO DRIVER_NAME
 		       ": chip ID is %s\n", chip_name);
@@ -3377,7 +3367,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev->alt   = -1;
 	dev->is_audio_only = has_audio && !(has_video || has_dvb);
 	dev->has_alsa_audio = has_audio;
-	dev->audio_mode.has_audio = has_audio;
 	dev->has_video = has_video;
 	dev->ifnum = ifnum;
 
