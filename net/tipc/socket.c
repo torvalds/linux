@@ -751,13 +751,10 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 
 	/* Handle special cases where there is no connection */
 	if (unlikely(sock->state != SS_CONNECTED)) {
-		res = -ENOTCONN;
-
 		if (sock->state == SS_UNCONNECTED)
 			res = send_packet(NULL, sock, m, total_len);
-		else if (sock->state == SS_DISCONNECTING)
-			res = -EPIPE;
-
+		else
+			res = sock->state == SS_DISCONNECTING ? -EPIPE : -ENOTCONN;
 		goto exit;
 	}
 
