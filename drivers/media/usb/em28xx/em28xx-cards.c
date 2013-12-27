@@ -3485,9 +3485,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	dev->disconnected = 1;
 
 	if (dev->is_audio_only) {
-		mutex_lock(&dev->lock);
 		em28xx_close_extension(dev);
-		mutex_unlock(&dev->lock);
 		return;
 	}
 
@@ -3506,10 +3504,13 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
 		em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
 	}
+	mutex_unlock(&dev->lock);
 
 	em28xx_close_extension(dev);
+
 	/* NOTE: must be called BEFORE the resources are released */
 
+	mutex_lock(&dev->lock);
 	if (!dev->users)
 		em28xx_release_resources(dev);
 
