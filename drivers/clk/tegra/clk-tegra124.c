@@ -619,12 +619,11 @@ static struct tegra_clk_pll_params pll_d_params = {
 };
 
 static struct tegra_clk_pll_freq_table tegra124_pll_d2_freq_table[] = {
-	{ 12000000, 148500000,  99, 1, 8},
-	{ 12000000, 594000000,  99, 1, 1},
-	{ 13000000, 594000000,  91, 1, 1},      /* actual: 591.5 MHz */
-	{ 16800000, 594000000,  71, 1, 1},      /* actual: 596.4 MHz */
-	{ 19200000, 594000000,  62, 1, 1},      /* actual: 595.2 MHz */
-	{ 26000000, 594000000,  91, 2, 1},      /* actual: 591.5 MHz */
+	{ 12000000, 594000000,  99, 1, 2},
+	{ 13000000, 594000000,  91, 1, 2},      /* actual: 591.5 MHz */
+	{ 16800000, 594000000,  71, 1, 2},      /* actual: 596.4 MHz */
+	{ 19200000, 594000000,  62, 1, 2},      /* actual: 595.2 MHz */
+	{ 26000000, 594000000,  91, 2, 2},      /* actual: 591.5 MHz */
 	{ 0, 0, 0, 0, 0, 0 },
 };
 
@@ -1295,9 +1294,9 @@ static void __init tegra124_pll_init(void __iomem *clk_base,
 	clk_register_clkdev(clk, "pll_d2", NULL);
 	clks[TEGRA124_CLK_PLL_D2] = clk;
 
-	/* PLLD2_OUT0 ?? */
+	/* PLLD2_OUT0 */
 	clk = clk_register_fixed_factor(NULL, "pll_d2_out0", "pll_d2",
-					CLK_SET_RATE_PARENT, 1, 2);
+					CLK_SET_RATE_PARENT, 1, 1);
 	clk_register_clkdev(clk, "pll_d2_out0", NULL);
 	clks[TEGRA124_CLK_PLL_D2_OUT0] = clk;
 
