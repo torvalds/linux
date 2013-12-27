@@ -728,9 +728,9 @@ static resource_size_t mvebu_pcie_align_resource(struct pci_dev *dev,
 	 * aligned on their size
 	 */
 	if (res->flags & IORESOURCE_IO)
-		return round_up(start, max((resource_size_t)SZ_64K, size));
+		return round_up(start, max_t(resource_size_t, SZ_64K, size));
 	else if (res->flags & IORESOURCE_MEM)
-		return round_up(start, max((resource_size_t)SZ_1M, size));
+		return round_up(start, max_t(resource_size_t, SZ_1M, size));
 	else
 		return start;
 }
