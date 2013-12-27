@@ -186,6 +186,9 @@
 /* time in msecs to wait for i2c writes to finish */
 #define EM2800_I2C_XFER_TIMEOUT		20
 
+/* time in msecs to wait for AC97 xfers to finish */
+#define EM28XX_AC97_XFER_TIMEOUT	100
+
 /* max. number of button state polling addresses */
 #define EM28XX_NUM_BUTTON_ADDRESSES_MAX		5
 

@@ -23,6 +23,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -252,16 +253,18 @@ EXPORT_SYMBOL_GPL(em28xx_toggle_reg_bits);
  */
 static int em28xx_is_ac97_ready(struct em28xx *dev)
 {
-	int ret, i;
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_AC97_XFER_TIMEOUT);
+	int ret;
 
 	/* Wait up to 50 ms for AC97 command to complete */
-	for (i = 0; i < 10; i++, msleep(5)) {
+	while (time_is_after_jiffies(timeout)) {
 		ret = em28xx_read_reg(dev, EM28XX_R43_AC97BUSY);
 		if (ret < 0)
 			return ret;
 
 		if (!(ret & 0x01))
 			return 0;
+		msleep(5);
 	}
 
 	em28xx_warn("AC97 command still being executed: not handled properly!\n");
