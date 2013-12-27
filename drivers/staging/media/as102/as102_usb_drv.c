@@ -401,14 +401,21 @@ static int as102_usb_probe(struct usb_interface *intf,
 	/* request buffer allocation for streaming */
 	ret = as102_alloc_usb_stream_buffer(as102_dev);
 	if (ret != 0)
-		goto failed;
+		goto failed_stream;
 
 	/* register dvb layer */
 	ret = as102_dvb_register(as102_dev);
+	if (ret != 0)
+		goto failed_dvb;
 
 	return ret;
 
+failed_dvb:
+	as102_free_usb_stream_buffer(as102_dev);
+failed_stream:
+	usb_deregister_dev(intf, &as102_usb_class_driver);
 failed:
+	usb_put_dev(as102_dev->bus_adap.usb_dev);
 	usb_set_intfdata(intf, NULL);
 	kfree(as102_dev);
 	return ret;
