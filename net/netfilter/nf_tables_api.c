@@ -312,6 +312,9 @@ static int nf_tables_table_enable(struct nft_table *table)
 	int err, i = 0;
 
 	list_for_each_entry(chain, &table->chains, list) {
+		if (!(chain->flags & NFT_BASE_CHAIN))
+			continue;
+
 		err = nf_register_hook(&nft_base_chain(chain)->ops);
 		if (err < 0)
 			goto err;
@@ -321,6 +324,9 @@ static int nf_tables_table_enable(struct nft_table *table)
 	return 0;
 err:
 	list_for_each_entry(chain, &table->chains, list) {
+		if (!(chain->flags & NFT_BASE_CHAIN))
+			continue;
+
 		if (i-- <= 0)
 			break;
 
@@ -333,8 +339,10 @@ static int nf_tables_table_disable(struct nft_table *table)
 {
 	struct nft_chain *chain;
 
-	list_for_each_entry(chain, &table->chains, list)
-		nf_unregister_hook(&nft_base_chain(chain)->ops);
+	list_for_each_entry(chain, &table->chains, list) {
+		if (chain->flags & NFT_BASE_CHAIN)
+			nf_unregister_hook(&nft_base_chain(chain)->ops);
+	}
 
 	return 0;
 }
