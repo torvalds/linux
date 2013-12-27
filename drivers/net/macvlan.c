@@ -290,8 +290,8 @@ xmit_world:
 	return dev_queue_xmit(skb);
 }
 
-netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
-			       struct net_device *dev)
+static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	unsigned int len = skb->len;
 	int ret;
@@ -317,7 +317,6 @@ netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(macvlan_start_xmit);
 
 static int macvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
 			       unsigned short type, const void *daddr,
