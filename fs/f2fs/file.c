@@ -261,13 +261,13 @@ static int truncate_blocks(struct inode *inode, u64 from)
 
 	trace_f2fs_truncate_blocks_enter(inode, from);
 
+	if (f2fs_has_inline_data(inode))
+		goto done;
+
 	free_from = (pgoff_t)
 			((from + blocksize - 1) >> (sbi->log_blocksize));
 
 	f2fs_lock_op(sbi);
-
-	if (f2fs_has_inline_data(inode))
-		goto done;
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, free_from, LOOKUP_NODE);
@@ -295,9 +295,8 @@ static int truncate_blocks(struct inode *inode, u64 from)
 	f2fs_put_dnode(&dn);
 free_next:
 	err = truncate_inode_blocks(inode, free_from);
-done:
 	f2fs_unlock_op(sbi);
-
+done:
 	/* lastly zero out the first data page */
 	truncate_partial_data_page(inode, from);
 
