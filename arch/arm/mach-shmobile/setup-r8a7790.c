@@ -81,7 +81,7 @@ static struct resource i2c_resources[] __initdata = {
 
 #define r8a7790_register_i2c(idx)		\
 	platform_device_register_simple(	\
-		"i2c-rcar", idx,		\
+		"i2c-rcar_gen2", idx,		\
 		i2c_resources + (2 * idx), 2);	\
 
 void __init r8a7790_pinmux_init(void)
