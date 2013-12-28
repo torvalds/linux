@@ -37,18 +37,6 @@ MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
 MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static int __init ath9k_init(void)
-{
-	return 0;
-}
-module_init(ath9k_init);
-
-static void __exit ath9k_exit(void)
-{
-	return;
-}
-module_exit(ath9k_exit);
-
 /* Private hardware callbacks */
 
 static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
