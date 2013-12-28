@@ -541,33 +541,38 @@ static int m88rs2000_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int m88rs2000_set_fec(struct m88rs2000_state *state,
 		fe_code_rate_t fec)
 {
-	u16 fec_set;
+	u8 fec_set, reg;
+	int ret;
+
 	switch (fec) {
-	/* This is not confirmed kept for reference */
-/*	case FEC_1_2:
-		fec_set = 0x88;
+	case FEC_1_2:
+		fec_set = 0x8;
 		break;
 	case FEC_2_3:
-		fec_set = 0x68;
+		fec_set = 0x10;
 		break;
 	case FEC_3_4:
-		fec_set = 0x48;
+		fec_set = 0x20;
 		break;
 	case FEC_5_6:
-		fec_set = 0x28;
+		fec_set = 0x40;
 		break;
 	case FEC_7_8:
-		fec_set = 0x18;
-		break; */
+		fec_set = 0x80;
+		break;
 	case FEC_AUTO:
 	default:
-		fec_set = 0x08;
+		fec_set = 0x0;
 	}
-	m88rs2000_writereg(state, 0x76, fec_set);
 
-	return 0;
+	reg = m88rs2000_readreg(state, 0x70);
+	reg &= 0x7;
+	ret = m88rs2000_writereg(state, 0x70, reg | fec_set);
+
+	ret |= m88rs2000_writereg(state, 0x76, 0x8);
+
+	return ret;
 }
-
 
 static fe_code_rate_t m88rs2000_get_fec(struct m88rs2000_state *state)
 {
@@ -650,12 +655,8 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return -ENODEV;
 
-	/* Unknown */
-	reg = m88rs2000_readreg(state, 0x70);
-	ret = m88rs2000_writereg(state, 0x70, reg);
-
 	/* Set FEC */
-	ret |= m88rs2000_set_fec(state, c->fec_inner);
+	ret = m88rs2000_set_fec(state, c->fec_inner);
 	ret |= m88rs2000_writereg(state, 0x85, 0x1);
 	ret |= m88rs2000_writereg(state, 0x8a, 0xbf);
 	ret |= m88rs2000_writereg(state, 0x8d, 0x1e);
