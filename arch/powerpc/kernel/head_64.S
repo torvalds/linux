@@ -80,6 +80,7 @@ END_FTR_SECTION(0, 1)
 	 * of the function that the cpu should jump to to continue
 	 * initialization.
 	 */
+	.balign 8
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
 	.llong	0x0
