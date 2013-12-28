@@ -350,7 +350,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 
 	ah->config.dma_beacon_response_time = 1;
 	ah->config.sw_beacon_response_time = 6;
-	ah->config.ack_6mb = 0x0;
 	ah->config.cwm_ignore_extcca = 0;
 	ah->config.analog_shiftreg = 1;
 
@@ -1552,7 +1551,6 @@ static void ath9k_hw_reset_opmode(struct ath_hw *ah,
 
 	REG_RMW(ah, AR_STA_ID1, macStaId1
 		  | AR_STA_ID1_RTS_USE_DEF
-		  | (ah->config.ack_6mb ? AR_STA_ID1_ACKCTS_6MB : 0)
 		  | ah->sta_id1_defaults,
 		  ~AR_STA_ID1_SADH_MASK);
 	ath_hw_setbssidmask(common);

@@ -295,7 +295,6 @@ enum ath9k_hw_hang_checks {
 struct ath9k_ops_config {
 	int dma_beacon_response_time;
 	int sw_beacon_response_time;
-	int ack_6mb;
 	u32 cwm_ignore_extcca;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
