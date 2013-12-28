@@ -13,9 +13,10 @@
 #include <linux/kernel.h>
 #include <linux/bug.h>
 
-#include <mach/regs-clock.h>
+#include <plat/cpu.h>
 
 #include "common.h"
+#include "regs-pmu.h"
 
 static const struct exynos_pmu_conf *exynos_pmu_config;
 

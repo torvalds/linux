@@ -19,10 +19,10 @@
 #include <asm/cp15.h>
 #include <asm/smp_plat.h>
 
-#include <mach/regs-pmu.h>
 #include <plat/cpu.h>
 
 #include "common.h"
+#include "regs-pmu.h"
 
 static inline void cpu_enter_lowpower_a9(void)
 {

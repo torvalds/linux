@@ -22,8 +22,9 @@
 #include <linux/of_platform.h>
 #include <linux/sched.h>
 
-#include <mach/regs-pmu.h>
 #include <plat/devs.h>
+
+#include "regs-pmu.h"
 
 /*
  * Exynos specific wrapper around the generic power domain
@@ -183,9 +184,3 @@ static __init int exynos4_pm_init_power_domain(void)
 	return 0;
 }
 arch_initcall(exynos4_pm_init_power_domain);
-
-int __init exynos_pm_late_initcall(void)
-{
-	pm_genpd_poweroff_unused();
-	return 0;
-}
