@@ -1671,6 +1671,63 @@ i40e_status i40e_aq_start_lldp(struct i40e_hw *hw,
 }
 
 /**
+ * i40e_aq_add_udp_tunnel
+ * @hw: pointer to the hw struct
+ * @udp_port: the UDP port to add
+ * @header_len: length of the tunneling header length in DWords
+ * @protocol_index: protocol index type
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
+				u16 udp_port, u8 header_len,
+				u8 protocol_index, u8 *filter_index,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_add_udp_tunnel *cmd =
+		(struct i40e_aqc_add_udp_tunnel *)&desc.params.raw;
+	struct i40e_aqc_del_udp_tunnel_completion *resp =
+		(struct i40e_aqc_del_udp_tunnel_completion *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_add_udp_tunnel);
+
+	cmd->udp_port = cpu_to_le16(udp_port);
+	cmd->header_len = header_len;
+	cmd->protocol_index = protocol_index;
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	if (!status)
+		*filter_index = resp->index;
+
+	return status;
+}
+
+/**
+ * i40e_aq_del_udp_tunnel
+ * @hw: pointer to the hw struct
+ * @index: filter index
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_del_udp_tunnel(struct i40e_hw *hw, u8 index,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_remove_udp_tunnel *cmd =
+		(struct i40e_aqc_remove_udp_tunnel *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_del_udp_tunnel);
+
+	cmd->index = index;
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
  * i40e_aq_delete_element - Delete switch element
  * @hw: pointer to the hw struct
  * @seid: the SEID to delete from the switch

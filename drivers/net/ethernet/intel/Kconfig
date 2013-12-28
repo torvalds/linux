@@ -259,6 +259,19 @@ config I40E
 	  To compile this driver as a module, choose M here. The module
 	  will be called i40e.
 
+config I40E_VXLAN
+	bool "Virtual eXtensible Local Area Network Support"
+	default n
+	depends on I40E && VXLAN && !(I40E=y && VXLAN=m)
+	---help---
+	  This allows one to create VXLAN virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  Say Y here if you want to use Virtual eXtensible Local Area Network
+	  (VXLAN) in the driver.
+
+	  If unsure, say N.
+
 config I40EVF
 	tristate "Intel(R) XL710 X710 Virtual Function Ethernet support"
 	depends on PCI_MSI

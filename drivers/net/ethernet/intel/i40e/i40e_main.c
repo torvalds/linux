@@ -27,6 +27,9 @@
 
 /* Local includes */
 #include "i40e.h"
+#ifdef CONFIG_I40E_VXLAN
+#include <net/vxlan.h>
+#endif
 
 const char i40e_driver_name[] = "i40e";
 static const char i40e_driver_string[] =
@@ -3993,6 +3996,9 @@ static int i40e_open(struct net_device *netdev)
 				    "couldn't set broadcast err %d aq_err %d\n",
 				    err, pf->hw.aq.asq_last_status);
 	}
+#ifdef CONFIG_I40E_VXLAN
+	vxlan_get_rx_port(netdev);
+#endif
 
 	return 0;
 
@@ -5016,6 +5022,52 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 	i40e_flush(hw);
 }
 
+#ifdef CONFIG_I40E_VXLAN
+/**
+ * i40e_sync_vxlan_filters_subtask - Sync the VSI filter list with HW
+ * @pf: board private structure
+ **/
+static void i40e_sync_vxlan_filters_subtask(struct i40e_pf *pf)
+{
+	const int vxlan_hdr_qwords = 4;
+	struct i40e_hw *hw = &pf->hw;
+	i40e_status ret;
+	u8 filter_index;
+	__be16 port;
+	int i;
+
+	if (!(pf->flags & I40E_FLAG_VXLAN_FILTER_SYNC))
+		return;
+
+	pf->flags &= ~I40E_FLAG_VXLAN_FILTER_SYNC;
+
+	for (i = 0; i < I40E_MAX_PF_UDP_OFFLOAD_PORTS; i++) {
+		if (pf->pending_vxlan_bitmap & (1 << i)) {
+			pf->pending_vxlan_bitmap &= ~(1 << i);
+			port = pf->vxlan_ports[i];
+			ret = port ?
+			      i40e_aq_add_udp_tunnel(hw, ntohs(port),
+						     vxlan_hdr_qwords,
+						     I40E_AQC_TUNNEL_TYPE_VXLAN,
+						     &filter_index, NULL)
+			      : i40e_aq_del_udp_tunnel(hw, i, NULL);
+
+			if (ret) {
+				dev_info(&pf->pdev->dev, "Failed to execute AQ command for %s port %d with index %d\n",
+					 port ? "adding" : "deleting",
+					 ntohs(port), port ? i : i);
+
+				pf->vxlan_ports[i] = 0;
+			} else {
+				dev_info(&pf->pdev->dev, "%s port %d with AQ command with index %d\n",
+					 port ? "Added" : "Deleted",
+					 ntohs(port), port ? i : filter_index);
+			}
+		}
+	}
+}
+
+#endif
 /**
  * i40e_service_task - Run the driver's async subtasks
  * @work: pointer to work_struct containing our data
@@ -5034,6 +5086,9 @@ static void i40e_service_task(struct work_struct *work)
 	i40e_fdir_reinit_subtask(pf);
 	i40e_check_hang_subtask(pf);
 	i40e_sync_filters_subtask(pf);
+#ifdef CONFIG_I40E_VXLAN
+	i40e_sync_vxlan_filters_subtask(pf);
+#endif
 	i40e_clean_adminq_subtask(pf);
 
 	i40e_service_event_complete(pf);
@@ -5900,6 +5955,104 @@ static int i40e_set_features(struct net_device *netdev,
 	return 0;
 }
 
+#ifdef CONFIG_I40E_VXLAN
+/**
+ * i40e_get_vxlan_port_idx - Lookup a possibly offloaded for Rx UDP port
+ * @pf: board private structure
+ * @port: The UDP port to look up
+ *
+ * Returns the index number or I40E_MAX_PF_UDP_OFFLOAD_PORTS if port not found
+ **/
+static u8 i40e_get_vxlan_port_idx(struct i40e_pf *pf, __be16 port)
+{
+	u8 i;
+
+	for (i = 0; i < I40E_MAX_PF_UDP_OFFLOAD_PORTS; i++) {
+		if (pf->vxlan_ports[i] == port)
+			return i;
+	}
+
+	return i;
+}
+
+/**
+ * i40e_add_vxlan_port - Get notifications about VXLAN ports that come up
+ * @netdev: This physical port's netdev
+ * @sa_family: Socket Family that VXLAN is notifying us about
+ * @port: New UDP port number that VXLAN started listening to
+ **/
+static void i40e_add_vxlan_port(struct net_device *netdev,
+				sa_family_t sa_family, __be16 port)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	u8 next_idx;
+	u8 idx;
+
+	if (sa_family == AF_INET6)
+		return;
+
+	idx = i40e_get_vxlan_port_idx(pf, port);
+
+	/* Check if port already exists */
+	if (idx < I40E_MAX_PF_UDP_OFFLOAD_PORTS) {
+		netdev_info(netdev, "Port %d already offloaded\n", ntohs(port));
+		return;
+	}
+
+	/* Now check if there is space to add the new port */
+	next_idx = i40e_get_vxlan_port_idx(pf, 0);
+
+	if (next_idx == I40E_MAX_PF_UDP_OFFLOAD_PORTS) {
+		netdev_info(netdev, "Maximum number of UDP ports reached, not adding port %d\n",
+			    ntohs(port));
+		return;
+	}
+
+	/* New port: add it and mark its index in the bitmap */
+	pf->vxlan_ports[next_idx] = port;
+	pf->pending_vxlan_bitmap |= (1 << next_idx);
+
+	pf->flags |= I40E_FLAG_VXLAN_FILTER_SYNC;
+}
+
+/**
+ * i40e_del_vxlan_port - Get notifications about VXLAN ports that go away
+ * @netdev: This physical port's netdev
+ * @sa_family: Socket Family that VXLAN is notifying us about
+ * @port: UDP port number that VXLAN stopped listening to
+ **/
+static void i40e_del_vxlan_port(struct net_device *netdev,
+				sa_family_t sa_family, __be16 port)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	u8 idx;
+
+	if (sa_family == AF_INET6)
+		return;
+
+	idx = i40e_get_vxlan_port_idx(pf, port);
+
+	/* Check if port already exists */
+	if (idx < I40E_MAX_PF_UDP_OFFLOAD_PORTS) {
+		/* if port exists, set it to 0 (mark for deletion)
+		 * and make it pending
+		 */
+		pf->vxlan_ports[idx] = 0;
+
+		pf->pending_vxlan_bitmap |= (1 << idx);
+
+		pf->flags |= I40E_FLAG_VXLAN_FILTER_SYNC;
+	} else {
+		netdev_warn(netdev, "Port %d was not found, not deleting\n",
+			    ntohs(port));
+	}
+}
+
+#endif
 static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_open		= i40e_open,
 	.ndo_stop		= i40e_close,
@@ -5921,6 +6074,10 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_vlan	= i40e_ndo_set_vf_port_vlan,
 	.ndo_set_vf_tx_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
+#ifdef CONFIG_I40E_VXLAN
+	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
+	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
+#endif
 };
 
 /**

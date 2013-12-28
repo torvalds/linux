@@ -207,6 +207,11 @@ struct i40e_pf {
 	u8 atr_sample_rate;
 	bool wol_en;
 
+#ifdef CONFIG_I40E_VXLAN
+	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
+	u16 pending_vxlan_bitmap;
+
+#endif
 	enum i40e_interrupt_policy int_policy;
 	u16 rx_itr_default;
 	u16 tx_itr_default;
@@ -238,7 +243,10 @@ struct i40e_pf {
 #define I40E_FLAG_DCB_ENABLED                  (u64)(1 << 21)
 #define I40E_FLAG_FDIR_ENABLED                 (u64)(1 << 22)
 #define I40E_FLAG_FDIR_ATR_ENABLED             (u64)(1 << 23)
-#define I40E_FLAG_MFP_ENABLED                  (u64)(1 << 27)
+#define I40E_FLAG_MFP_ENABLED                  (u64)(1 << 26)
+#ifdef CONFIG_I40E_VXLAN
+#define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
+#endif
 
 	u16 num_tx_queues;
 	u16 num_rx_queues;
