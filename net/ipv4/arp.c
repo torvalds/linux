@@ -1112,7 +1112,7 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 	return err;
 }
 
-int arp_invalidate(struct net_device *dev, __be32 ip)
+static int arp_invalidate(struct net_device *dev, __be32 ip)
 {
 	struct neighbour *neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	int err = -ENXIO;
@@ -1127,7 +1127,6 @@ int arp_invalidate(struct net_device *dev, __be32 ip)
 
 	return err;
 }
-EXPORT_SYMBOL(arp_invalidate);
 
 static int arp_req_delete_public(struct net *net, struct arpreq *r,
 		struct net_device *dev)
