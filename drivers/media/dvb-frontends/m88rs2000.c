@@ -581,18 +581,20 @@ static fe_code_rate_t m88rs2000_get_fec(struct m88rs2000_state *state)
 	reg = m88rs2000_readreg(state, 0x76);
 	m88rs2000_writereg(state, 0x9a, 0xb0);
 
+	reg &= 0xf0;
+	reg >>= 5;
+
 	switch (reg) {
-	case 0x88:
+	case 0x4:
 		return FEC_1_2;
-	case 0x68:
+	case 0x3:
 		return FEC_2_3;
-	case 0x48:
+	case 0x2:
 		return FEC_3_4;
-	case 0x28:
+	case 0x1:
 		return FEC_5_6;
-	case 0x18:
+	case 0x0:
 		return FEC_7_8;
-	case 0x08:
 	default:
 		break;
 	}
