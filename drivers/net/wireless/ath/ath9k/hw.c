@@ -474,6 +474,30 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 	ath9k_hw_read_revisions(ah);
 
+	switch (ah->hw_version.macVersion) {
+	case AR_SREV_VERSION_5416_PCI:
+	case AR_SREV_VERSION_5416_PCIE:
+	case AR_SREV_VERSION_9160:
+	case AR_SREV_VERSION_9100:
+	case AR_SREV_VERSION_9280:
+	case AR_SREV_VERSION_9285:
+	case AR_SREV_VERSION_9287:
+	case AR_SREV_VERSION_9271:
+	case AR_SREV_VERSION_9300:
+	case AR_SREV_VERSION_9330:
+	case AR_SREV_VERSION_9485:
+	case AR_SREV_VERSION_9340:
+	case AR_SREV_VERSION_9462:
+	case AR_SREV_VERSION_9550:
+	case AR_SREV_VERSION_9565:
+		break;
+	default:
+		ath_err(common,
+			"Mac Chip Rev 0x%02x.%x is not supported by this driver\n",
+			ah->hw_version.macVersion, ah->hw_version.macRev);
+		return -EOPNOTSUPP;
+	}
+
 	/*
 	 * Read back AR_WA into a permanent copy and set bits 14 and 17.
 	 * We need to do this to avoid RMW of this register. We cannot
@@ -526,30 +550,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD >> 1;
 	else
 		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
-
-	switch (ah->hw_version.macVersion) {
-	case AR_SREV_VERSION_5416_PCI:
-	case AR_SREV_VERSION_5416_PCIE:
-	case AR_SREV_VERSION_9160:
-	case AR_SREV_VERSION_9100:
-	case AR_SREV_VERSION_9280:
-	case AR_SREV_VERSION_9285:
-	case AR_SREV_VERSION_9287:
-	case AR_SREV_VERSION_9271:
-	case AR_SREV_VERSION_9300:
-	case AR_SREV_VERSION_9330:
-	case AR_SREV_VERSION_9485:
-	case AR_SREV_VERSION_9340:
-	case AR_SREV_VERSION_9462:
-	case AR_SREV_VERSION_9550:
-	case AR_SREV_VERSION_9565:
-		break;
-	default:
-		ath_err(common,
-			"Mac Chip Rev 0x%02x.%x is not supported by this driver\n",
-			ah->hw_version.macVersion, ah->hw_version.macRev);
-		return -EOPNOTSUPP;
-	}
 
 	if (AR_SREV_9271(ah) || AR_SREV_9100(ah) || AR_SREV_9340(ah) ||
 	    AR_SREV_9330(ah) || AR_SREV_9550(ah))
