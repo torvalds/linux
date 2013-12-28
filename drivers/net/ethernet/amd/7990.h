@@ -98,7 +98,7 @@ struct lance_init_block {
  * drivers to add things...
  */
 struct lance_private {
-	char *name;
+	const char *name;
 	unsigned long base;
 	volatile struct lance_init_block *init_block; /* CPU address of RAM */
 	volatile struct lance_init_block *lance_init_block; /* LANCE address of RAM */

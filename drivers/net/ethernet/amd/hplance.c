@@ -149,7 +149,7 @@ static void hplance_init(struct net_device *dev, struct dio_dev *d)
 	}
 
 	lp = netdev_priv(dev);
-	lp->lance.name = (char *)d->name;                /* discards const, shut up gcc */
+	lp->lance.name = d->name;
 	lp->lance.base = va;
 	lp->lance.init_block = (struct lance_init_block *)(va + HPLANCE_MEMOFF); /* CPU addr */
 	lp->lance.lance_init_block = NULL;              /* LANCE addr of same RAM */

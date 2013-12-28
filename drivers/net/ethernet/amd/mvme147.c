@@ -118,7 +118,7 @@ struct net_device * __init mvme147lance_probe(int unit)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	lp->lance.name = (char *)name;                   /* discards const, shut up gcc */
+	lp->lance.name = name;
 	lp->lance.base = dev->base_addr;
 	lp->lance.init_block = (struct lance_init_block *)(lp->ram); /* CPU addr */
 	lp->lance.lance_init_block = (struct lance_init_block *)(lp->ram);                 /* LANCE addr of same RAM */
