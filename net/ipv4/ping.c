@@ -53,8 +53,12 @@
 #include <net/transp_v6.h>
 #endif
 
+struct ping_table {
+	struct hlist_nulls_head	hash[PING_HTABLE_SIZE];
+	rwlock_t		lock;
+};
 
-struct ping_table ping_table;
+static struct ping_table ping_table;
 struct pingv6_ops pingv6_ops;
 EXPORT_SYMBOL_GPL(pingv6_ops);
 
@@ -668,8 +672,8 @@ int ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
 }
 EXPORT_SYMBOL_GPL(ping_common_sendmsg);
 
-int ping_v4_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		    size_t len)
+static int ping_v4_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
+			   size_t len)
 {
 	struct net *net = sock_net(sk);
 	struct flowi4 fl4;
