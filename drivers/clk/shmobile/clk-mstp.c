@@ -205,8 +205,8 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 			continue;
 		}
 
-		clks[clkidx] = cpg_mstp_clock_register(name, parent_name, i,
-						       group);
+		clks[clkidx] = cpg_mstp_clock_register(name, parent_name,
+						       clkidx, group);
 		if (!IS_ERR(clks[clkidx])) {
 			group->data.clk_num = max(group->data.clk_num, clkidx);
 			/*
