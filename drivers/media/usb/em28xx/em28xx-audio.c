@@ -64,16 +64,22 @@ static int em28xx_deinit_isoc_audio(struct em28xx *dev)
 
 	dprintk("Stopping isoc\n");
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
+		struct urb *urb = dev->adev.urb[i];
+
 		if (!irqs_disabled())
-			usb_kill_urb(dev->adev.urb[i]);
+			usb_kill_urb(urb);
 		else
-			usb_unlink_urb(dev->adev.urb[i]);
+			usb_unlink_urb(urb);
 
-		usb_free_urb(dev->adev.urb[i]);
-		dev->adev.urb[i] = NULL;
+		usb_free_coherent(dev->udev,
+				  urb->transfer_buffer_length,
+				  dev->adev.transfer_buffer[i],
+				  urb->transfer_dma);
 
-		kfree(dev->adev.transfer_buffer[i]);
 		dev->adev.transfer_buffer[i] = NULL;
+
+		usb_free_urb(urb);
+		dev->adev.urb[i] = NULL;
 	}
 
 	return 0;
@@ -176,12 +182,8 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		struct urb *urb;
 		int j, k;
+		void *buf;
 
-		dev->adev.transfer_buffer[i] = kmalloc(sb_size, GFP_ATOMIC);
-		if (!dev->adev.transfer_buffer[i])
-			return -ENOMEM;
-
-		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(EM28XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
 		if (!urb) {
 			em28xx_errdev("usb_alloc_urb failed!\n");
@@ -192,10 +194,17 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 			return -ENOMEM;
 		}
 
+		buf = usb_alloc_coherent(dev->udev, sb_size, GFP_ATOMIC,
+					 &urb->transfer_dma);
+		if (!buf)
+			return -ENOMEM;
+		dev->adev.transfer_buffer[i] = buf;
+		memset(buf, 0x80, sb_size);
+
 		urb->dev = dev->udev;
 		urb->context = dev;
 		urb->pipe = usb_rcvisocpipe(dev->udev, EM28XX_EP_AUDIO);
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->interval = 1;
 		urb->complete = em28xx_audio_isocirq;
