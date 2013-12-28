@@ -14,6 +14,15 @@
 
 #include <linux/reboot.h>
 
+#ifdef CONFIG_COMMON_CLK_S5PV210
+void s5pv210_clk_init(unsigned long xxti_f, unsigned long xusbxti_f,
+		      void __iomem *reg_base);
+#else
+static inline void s5pv210_clk_init(unsigned long xxti_f,
+				    unsigned long xusbxti_f,
+				    void __iomem *reg_base) {}
+#endif
+
 void s5pv210_init_io(struct map_desc *mach_desc, int size);
 void s5pv210_init_irq(void);
 
