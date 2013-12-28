@@ -544,7 +544,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath9k_int status;
-	u32 sync_cause;
+	u32 sync_cause = 0;
 	bool sched = false;
 
 	/*
