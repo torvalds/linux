@@ -509,6 +509,18 @@ static void handle_initial_delay(void)
 	}
 }
 
+static volatile bool workload_exec_failed;
+
+/*
+ * perf_evlist__prepare_workload will send a SIGUSR1
+ * if the fork fails, since we asked by setting its
+ * want_signal to true.
+ */
+static void workload_exec_failed_signal(int signo __maybe_unused)
+{
+	workload_exec_failed = true;
+}
+
 static int __run_perf_stat(int argc, const char **argv)
 {
 	char msg[512];
@@ -529,7 +541,7 @@ static int __run_perf_stat(int argc, const char **argv)
 
 	if (forks) {
 		if (perf_evlist__prepare_workload(evsel_list, &target, argv,
-						  false, false) < 0) {
+						  false, true) < 0) {
 			perror("failed to prepare workload");
 			return -1;
 		}
@@ -584,6 +596,14 @@ static int __run_perf_stat(int argc, const char **argv)
 	clock_gettime(CLOCK_MONOTONIC, &ref_time);
 
 	if (forks) {
+		/*
+		 * perf_evlist__prepare_workload will, after we call
+		 * perf_evlist__start_Workload, send a SIGUSR1 if the exec call
+		 * fails, that we will catch in workload_signal to flip
+		 * workload_exec_failed.
+ 		 */
+		signal(SIGUSR1, workload_exec_failed_signal);
+
 		perf_evlist__start_workload(evsel_list);
 		handle_initial_delay();
 
@@ -594,6 +614,10 @@ static int __run_perf_stat(int argc, const char **argv)
 			}
 		}
 		wait(&status);
+
+		if (workload_exec_failed)
+			return -1;
+
 		if (WIFSIGNALED(status))
 			psignal(WTERMSIG(status), argv[0]);
 	} else {
