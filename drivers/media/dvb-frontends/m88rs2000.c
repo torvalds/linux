@@ -469,7 +469,7 @@ static int m88rs2000_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	*status = 0;
 
-	if ((reg & 0x7) == 0x7) {
+	if ((reg & 0xee) == 0xee) {
 		*status = FE_HAS_CARRIER | FE_HAS_SIGNAL | FE_HAS_VITERBI
 			| FE_HAS_SYNC | FE_HAS_LOCK;
 		if (state->config->set_ts_params)
@@ -677,7 +677,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 
 	for (i = 0; i < 25; i++) {
 		reg = m88rs2000_readreg(state, 0x8c);
-		if ((reg & 0x7) == 0x7) {
+		if ((reg & 0xee) == 0xee) {
 			status = FE_HAS_LOCK;
 			break;
 		}
