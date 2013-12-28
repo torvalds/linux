@@ -692,10 +692,11 @@ static int do_switch(struct intel_ring_buffer *ring,
 		i915_gem_context_unreference(from);
 	}
 
+	to->is_initialized = true;
+
 done:
 	i915_gem_context_reference(to);
 	ring->last_context = to;
-	to->is_initialized = true;
 	to->last_ring = ring;
 
 	return 0;
