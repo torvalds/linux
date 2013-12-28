@@ -247,4 +247,31 @@ static inline void ath9k_hw_set_radar_params(struct ath_hw *ah)
 	ath9k_hw_private_ops(ah)->set_radar_params(ah, &ah->radar_conf);
 }
 
+static inline void ath9k_hw_init_cal_settings(struct ath_hw *ah)
+{
+	ath9k_hw_private_ops(ah)->init_cal_settings(ah);
+}
+
+static inline u32 ath9k_hw_compute_pll_control(struct ath_hw *ah,
+					       struct ath9k_channel *chan)
+{
+	return ath9k_hw_private_ops(ah)->compute_pll_control(ah, chan);
+}
+
+static inline void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
+{
+	if (!ath9k_hw_private_ops(ah)->init_mode_gain_regs)
+		return;
+
+	ath9k_hw_private_ops(ah)->init_mode_gain_regs(ah);
+}
+
+static inline void ath9k_hw_ani_cache_ini_regs(struct ath_hw *ah)
+{
+	if (!ath9k_hw_private_ops(ah)->ani_cache_ini_regs)
+		return;
+
+	ath9k_hw_private_ops(ah)->ani_cache_ini_regs(ah);
+}
+
 #endif /* ATH9K_HW_OPS_H */

@@ -37,45 +37,6 @@ MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
 MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
-/* Private hardware callbacks */
-
-static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
-{
-	ath9k_hw_private_ops(ah)->init_cal_settings(ah);
-}
-
-static u32 ath9k_hw_compute_pll_control(struct ath_hw *ah,
-					struct ath9k_channel *chan)
-{
-	return ath9k_hw_private_ops(ah)->compute_pll_control(ah, chan);
-}
-
-static void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
-{
-	if (!ath9k_hw_private_ops(ah)->init_mode_gain_regs)
-		return;
-
-	ath9k_hw_private_ops(ah)->init_mode_gain_regs(ah);
-}
-
-static void ath9k_hw_ani_cache_ini_regs(struct ath_hw *ah)
-{
-	/* You will not have this callback if using the old ANI */
-	if (!ath9k_hw_private_ops(ah)->ani_cache_ini_regs)
-		return;
-
-	ath9k_hw_private_ops(ah)->ani_cache_ini_regs(ah);
-}
-
-/********************/
-/* Helper Functions */
-/********************/
-
-#ifdef CONFIG_ATH9K_DEBUGFS
-
-#endif
-
-
 static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
