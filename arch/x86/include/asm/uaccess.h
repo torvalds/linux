@@ -41,7 +41,7 @@
  * Test whether a block of memory is a valid user space address.
  * Returns 0 if the range is valid, nonzero otherwise.
  */
-static inline int __chk_range_not_ok(unsigned long addr, unsigned long size, unsigned long limit)
+static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, unsigned long limit)
 {
 	/*
 	 * If we have used "sizeof()" for the size,
@@ -55,7 +55,9 @@ static inline int __chk_range_not_ok(unsigned long addr, unsigned long size, uns
 
 	/* Arbitrary sizes? Be careful about overflow */
 	addr += size;
-	return (addr < size) || (addr > limit);
+	if (addr < size)
+		return true;
+	return addr > limit;
 }
 
 #define __range_not_ok(addr, size, limit)				\
@@ -84,7 +86,7 @@ static inline int __chk_range_not_ok(unsigned long addr, unsigned long size, uns
  * this function, memory access functions may still return -EFAULT.
  */
 #define access_ok(type, addr, size) \
-	(likely(__range_not_ok(addr, size, user_addr_max()) == 0))
+	likely(!__range_not_ok(addr, size, user_addr_max()))
 
 /*
  * The exception table consists of pairs of addresses relative to the
