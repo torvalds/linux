@@ -280,21 +280,21 @@ module_param_string(path, fw_path_para, sizeof(fw_path_para), 0644);
 MODULE_PARM_DESC(path, "customized firmware image search path with a higher priority than default path");
 
 /* Don't inline this: 'struct kstat' is biggish */
-static noinline_for_stack long fw_file_size(struct file *file)
+static noinline_for_stack int fw_file_size(struct file *file)
 {
 	struct kstat st;
 	if (vfs_getattr(&file->f_path, &st))
 		return -1;
 	if (!S_ISREG(st.mode))
 		return -1;
-	if (st.size != (long)st.size)
+	if (st.size != (int)st.size)
 		return -1;
 	return st.size;
 }
 
 static int fw_read_file_contents(struct file *file, struct firmware_buf *fw_buf)
 {
-	long size;
+	int size;
 	char *buf;
 	int rc;
 
