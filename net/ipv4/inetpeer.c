@@ -109,13 +109,6 @@ static inline void flush_check(struct inet_peer_base *base, int family)
 	}
 }
 
-void inetpeer_invalidate_family(int family)
-{
-	atomic_t *fp = inetpeer_seq_ptr(family);
-
-	atomic_inc(fp);
-}
-
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
 
 /* Exported for sysctl_net_ipv4.  */
