@@ -41,6 +41,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_data/gpio_backlight.h>
 #include <linux/pm_clock.h>
 #include <linux/regulator/fixed.h>
@@ -548,9 +549,9 @@ static void __init hdmi_init_pm_clock(void)
 		 clk_get_rate(&sh7372_pllc2_clk));
 
 	rate = clk_round_rate(&sh7372_pllc2_clk, 594000000);
-	if (rate < 0) {
+	if (rate <= 0) {
 		pr_err("Cannot get suitable rate: %ld\n", rate);
-		ret = rate;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -1311,6 +1312,10 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
+static unsigned long pin_pulldown_conf[] = {
+	PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 0),
+};
+
 static const struct pinctrl_map mackerel_pinctrl_map[] = {
 	/* ADXL34X */
 	PIN_MAP_MUX_GROUP_DEFAULT("1-0053", "pfc-sh7372",
@@ -1396,17 +1401,19 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 	/* USBHS0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.0", "pfc-sh7372",
 				  "usb0_vbus", "usb0"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("renesas_usbhs.0", "pfc-sh7372",
+				      "usb0_vbus", pin_pulldown_conf),
 	/* USBHS1 */
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
 				  "usb1_vbus", "usb1"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("renesas_usbhs.&", "pfc-sh7372",
+				      "usb1_vbus", pin_pulldown_conf),
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
 				  "usb1_otg_id_0", "usb1"),
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
 #define GPIO_PORT10CR	IOMEM(0xE605100A)
-#define GPIO_PORT167CR	IOMEM(0xE60520A7)
-#define GPIO_PORT168CR	IOMEM(0xE60520A8)
 #define SRCR4		IOMEM(0xe61580bc)
 #define USCCR1		IOMEM(0xE6058144)
 static void __init mackerel_init(void)
@@ -1445,12 +1452,6 @@ static void __init mackerel_init(void)
 	sh7372_pinmux_init();
 
 	gpio_request_one(151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
-
-	/* USBHS0 */
-	gpio_request_pulldown(GPIO_PORT168CR); /* VBUS0_0 pull down */
-
-	/* USBHS1 */
-	gpio_request_pulldown(GPIO_PORT167CR); /* VBUS0_1 pull down */
 
 	/* FSI2 port A (ak4643) */
 	gpio_request_one(161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
