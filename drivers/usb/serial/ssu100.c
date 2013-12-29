@@ -342,8 +342,6 @@ static int ssu100_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s cmd 0x%04x\n", __func__, cmd);
-
 	switch (cmd) {
 	case TIOCGSERIAL:
 		return get_serial_info(port,
@@ -351,8 +349,6 @@ static int ssu100_ioctl(struct tty_struct *tty,
 	default:
 		break;
 	}
-
-	dev_dbg(&port->dev, "%s arg not supported\n", __func__);
 
 	return -ENOIOCTLCMD;
 }

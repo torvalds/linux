@@ -648,8 +648,6 @@ static int pl2303_ioctl(struct tty_struct *tty,
 	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s cmd = 0x%04x\n", __func__, cmd);
-
 	switch (cmd) {
 	case TIOCGSERIAL:
 		memset(&ser, 0, sizeof ser);
@@ -663,7 +661,6 @@ static int pl2303_ioctl(struct tty_struct *tty,
 
 		return 0;
 	default:
-		dev_dbg(&port->dev, "%s not supported = 0x%04x\n", __func__, cmd);
 		break;
 	}
 	return -ENOIOCTLCMD;

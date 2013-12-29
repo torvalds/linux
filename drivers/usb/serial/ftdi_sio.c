@@ -2383,8 +2383,6 @@ static int ftdi_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s cmd 0x%04x\n", __func__, cmd);
-
 	/* Based on code from acm.c and others */
 	switch (cmd) {
 
@@ -2401,11 +2399,7 @@ static int ftdi_ioctl(struct tty_struct *tty,
 	default:
 		break;
 	}
-	/* This is not necessarily an error - turns out the higher layers
-	 * will do some ioctls themselves (see comment above)
-	 */
-	dev_dbg(&port->dev, "%s arg not supported - it was 0x%04x - check /usr/include/asm/ioctls.h\n",
-		__func__, cmd);
+
 	return -ENOIOCTLCMD;
 }
 

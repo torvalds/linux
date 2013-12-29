@@ -367,8 +367,6 @@ static int opticon_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s - cmd = 0x%x\n", __func__, cmd);
-
 	switch (cmd) {
 	case TIOCGSERIAL:
 		return get_serial_info(port,

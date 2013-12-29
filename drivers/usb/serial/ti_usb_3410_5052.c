@@ -683,8 +683,6 @@ static int ti_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
 
-	dev_dbg(&port->dev, "%s - cmd = 0x%04X\n", __func__, cmd);
-
 	if (tport == NULL)
 		return -ENODEV;
 

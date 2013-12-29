@@ -455,8 +455,6 @@ static int whiteheat_ioctl(struct tty_struct *tty,
 	struct serial_struct serstruct;
 	void __user *user_arg = (void __user *)arg;
 
-	dev_dbg(&port->dev, "%s - cmd 0x%.4x\n", __func__, cmd);
-
 	switch (cmd) {
 	case TIOCGSERIAL:
 		memset(&serstruct, 0, sizeof(serstruct));

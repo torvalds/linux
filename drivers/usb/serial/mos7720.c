@@ -1885,8 +1885,6 @@ static int mos7720_ioctl(struct tty_struct *tty,
 	if (mos7720_port == NULL)
 		return -ENODEV;
 
-	dev_dbg(&port->dev, "%s - cmd = 0x%x", __func__, cmd);
-
 	switch (cmd) {
 	case TIOCSERGETLSR:
 		dev_dbg(&port->dev, "%s TIOCSERGETLSR\n", __func__);

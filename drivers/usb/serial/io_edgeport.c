@@ -1593,8 +1593,6 @@ static int edge_ioctl(struct tty_struct *tty,
 	DEFINE_WAIT(wait);
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 
-	dev_dbg(&port->dev, "%s - cmd = 0x%x\n", __func__, cmd);
-
 	switch (cmd) {
 	case TIOCSERGETLSR:
 		dev_dbg(&port->dev, "%s TIOCSERGETLSR\n", __func__);
