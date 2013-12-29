@@ -143,7 +143,7 @@ static int ti_download_firmware(struct ti_device *tdev);
 static int closing_wait = TI_DEFAULT_CLOSING_WAIT;
 
 /* supported devices */
-static struct usb_device_id ti_id_table_3410[] = {
+static const struct usb_device_id ti_id_table_3410[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -163,7 +163,7 @@ static struct usb_device_id ti_id_table_3410[] = {
 	{ }	/* terminator */
 };
 
-static struct usb_device_id ti_id_table_5052[] = {
+static const struct usb_device_id ti_id_table_5052[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5152_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_EEPROM_PRODUCT_ID) },
@@ -171,7 +171,7 @@ static struct usb_device_id ti_id_table_5052[] = {
 	{ }	/* terminator */
 };
 
-static struct usb_device_id ti_id_table_combined[] = {
+static const struct usb_device_id ti_id_table_combined[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },

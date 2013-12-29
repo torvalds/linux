@@ -43,7 +43,7 @@ struct metrousb_private {
 };
 
 /* Device table list. */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_BI) },
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_UNI) },
 	{ }, /* Terminating entry. */

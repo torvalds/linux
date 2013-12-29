@@ -51,7 +51,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 static int palm_os_4_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_VISOR_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_3_probe },
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_TREO_ID),
@@ -113,18 +113,18 @@ static struct usb_device_id id_table [] = {
 	{ }					/* Terminating entry */
 };
 
-static struct usb_device_id clie_id_5_table [] = {
+static const struct usb_device_id clie_id_5_table[] = {
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_UX50_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ }					/* Terminating entry */
 };
 
-static struct usb_device_id clie_id_3_5_table [] = {
+static const struct usb_device_id clie_id_3_5_table[] = {
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_3_5_ID) },
 	{ }					/* Terminating entry */
 };
 
-static struct usb_device_id id_table_combined [] = {
+static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_VISOR_ID) },
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_TREO_ID) },
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_TREO600_ID) },
