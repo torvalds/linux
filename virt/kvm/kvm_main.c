@@ -95,6 +95,12 @@ static int hardware_enable_all(void);
 static void hardware_disable_all(void);
 
 static void kvm_io_bus_destroy(struct kvm_io_bus *bus);
+static void update_memslots(struct kvm_memslots *slots,
+			    struct kvm_memory_slot *new, u64 last_generation);
+
+static void kvm_release_pfn_dirty(pfn_t pfn);
+static void mark_page_dirty_in_slot(struct kvm *kvm,
+				    struct kvm_memory_slot *memslot, gfn_t gfn);
 
 bool kvm_rebooting;
 EXPORT_SYMBOL_GPL(kvm_rebooting);
@@ -553,7 +559,7 @@ static void kvm_free_physmem_slot(struct kvm *kvm, struct kvm_memory_slot *free,
 	free->npages = 0;
 }
 
-void kvm_free_physmem(struct kvm *kvm)
+static void kvm_free_physmem(struct kvm *kvm)
 {
 	struct kvm_memslots *slots = kvm->memslots;
 	struct kvm_memory_slot *memslot;
@@ -675,8 +681,9 @@ static void sort_memslots(struct kvm_memslots *slots)
 		slots->id_to_index[slots->memslots[i].id] = i;
 }
 
-void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new,
-		     u64 last_generation)
+static void update_memslots(struct kvm_memslots *slots,
+			    struct kvm_memory_slot *new,
+			    u64 last_generation)
 {
 	if (new) {
 		int id = new->id;
@@ -924,8 +931,8 @@ int kvm_set_memory_region(struct kvm *kvm,
 }
 EXPORT_SYMBOL_GPL(kvm_set_memory_region);
 
-int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
-				   struct kvm_userspace_memory_region *mem)
+static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
+					  struct kvm_userspace_memory_region *mem)
 {
 	if (mem->slot >= KVM_USER_MEM_SLOTS)
 		return -EINVAL;
@@ -1047,7 +1054,7 @@ static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
 }
 
 unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot,
-				 gfn_t gfn)
+					gfn_t gfn)
 {
 	return gfn_to_hva_many(slot, gfn, NULL);
 }
@@ -1387,18 +1394,11 @@ void kvm_release_page_dirty(struct page *page)
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
 
-void kvm_release_pfn_dirty(pfn_t pfn)
+static void kvm_release_pfn_dirty(pfn_t pfn)
 {
 	kvm_set_pfn_dirty(pfn);
 	kvm_release_pfn_clean(pfn);
 }
-EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
-
-void kvm_set_page_dirty(struct page *page)
-{
-	kvm_set_pfn_dirty(page_to_pfn(page));
-}
-EXPORT_SYMBOL_GPL(kvm_set_page_dirty);
 
 void kvm_set_pfn_dirty(pfn_t pfn)
 {
@@ -1640,8 +1640,9 @@ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
 }
 EXPORT_SYMBOL_GPL(kvm_clear_guest);
 
-void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			     gfn_t gfn)
+static void mark_page_dirty_in_slot(struct kvm *kvm,
+				    struct kvm_memory_slot *memslot,
+				    gfn_t gfn)
 {
 	if (memslot && memslot->dirty_bitmap) {
 		unsigned long rel_gfn = gfn - memslot->base_gfn;
@@ -1757,7 +1758,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_yield_to);
  *  locking does not harm. It may result in trying to yield to  same VCPU, fail
  *  and continue with next VCPU and so on.
  */
-bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
+static bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 {
 	bool eligible;
 

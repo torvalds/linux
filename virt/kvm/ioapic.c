@@ -520,7 +520,7 @@ static int ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	return 0;
 }
 
-void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
+static void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
 {
 	int i;
 
