@@ -1207,21 +1207,7 @@ static int tps65910_probe(struct platform_device *pdev)
 		pmic->desc[i].type = REGULATOR_VOLTAGE;
 		pmic->desc[i].owner = THIS_MODULE;
 		pmic->desc[i].enable_reg = pmic->get_ctrl_reg(i);
-
-		switch (i) {
-		case TPS65910_REG_VBB:
-			if (tps65910_chip_id(tps65910) == TPS65910)
-				pmic->desc[i].enable_mask = BBCH_BBCHEN_MASK;
-			else
-				pmic->desc[i].enable_mask =
-					TPS65910_SUPPLY_STATE_ENABLED;
-			break;
-
-		default:
-			pmic->desc[i].enable_mask =
-				TPS65910_SUPPLY_STATE_ENABLED;
-			break;
-		}
+		pmic->desc[i].enable_mask = TPS65910_SUPPLY_STATE_ENABLED;
 
 		config.dev = tps65910->dev;
 		config.init_data = reg_data;

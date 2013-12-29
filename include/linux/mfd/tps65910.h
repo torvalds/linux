@@ -358,8 +358,6 @@
 /*Register BBCH  (0x80) register.RegisterDescription */
 #define BBCH_BBSEL_MASK					0x06
 #define BBCH_BBSEL_SHIFT				1
-#define BBCH_BBCHEN_MASK				0x01
-#define BBCH_BBCHEN_SHIFT				0
 
 
 /*Register DCDCCTRL  (0x80) register.RegisterDescription */
