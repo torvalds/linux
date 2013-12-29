@@ -205,6 +205,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 skip_calib_data:
 	if (pdata->max_trigger_level > MAX_THRESHOLD_LEVS) {
 		dev_err(&pdev->dev, "Invalid max trigger level\n");
+		ret = -EINVAL;
 		goto out;
 	}
 
