@@ -344,6 +344,52 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	dev_dbg(&port->dev, "baud set = %d\n", baud);
 }
 
+static int pl2303_get_line_request(struct usb_serial_port *port,
+							unsigned char buf[7])
+{
+	struct usb_device *udev = port->serial->dev;
+	int ret;
+
+	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+				GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
+				0, 0, buf, 7, 100);
+	if (ret != 7) {
+		dev_err(&port->dev, "%s - failed: %d\n", __func__, ret);
+
+		if (ret > 0)
+			ret = -EIO;
+
+		return ret;
+	}
+
+	dev_dbg(&port->dev, "%s - %7ph\n", __func__, buf);
+
+	return 0;
+}
+
+static int pl2303_set_line_request(struct usb_serial_port *port,
+							unsigned char buf[7])
+{
+	struct usb_device *udev = port->serial->dev;
+	int ret;
+
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				SET_LINE_REQUEST, SET_LINE_REQUEST_TYPE,
+				0, 0, buf, 7, 100);
+	if (ret != 7) {
+		dev_err(&port->dev, "%s - failed: %d\n", __func__, ret);
+
+		if (ret > 0)
+			ret = -EIO;
+
+		return ret;
+	}
+
+	dev_dbg(&port->dev, "%s - %7ph\n", __func__, buf);
+
+	return 0;
+}
+
 static void pl2303_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
@@ -352,7 +398,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	unsigned char *buf;
-	int i;
+	int ret;
 	u8 control;
 
 	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
@@ -366,10 +412,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		return;
 	}
 
-	i = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-			    GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
-			    0, 0, buf, 7, 100);
-	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
+	pl2303_get_line_request(port, buf);
 
 	switch (C_CSIZE(tty)) {
 	case CS5:
@@ -451,14 +494,8 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	 *       only used in set_termios, which is serialised against itself.
 	 */
 	if (!old_termios || memcmp(buf, priv->line_settings, 7)) {
-		i = usb_control_msg(serial->dev,
-				    usb_sndctrlpipe(serial->dev, 0),
-				    SET_LINE_REQUEST, SET_LINE_REQUEST_TYPE,
-				    0, 0, buf, 7, 100);
-
-		dev_dbg(&port->dev, "0x21:0x20:0:0  %d\n", i);
-
-		if (i == 7)
+		ret = pl2303_set_line_request(port, buf);
+		if (!ret)
 			memcpy(priv->line_settings, buf, 7);
 	}
 
@@ -478,10 +515,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	}
 
 	memset(buf, 0, 7);
-	i = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-			    GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
-			    0, 0, buf, 7, 100);
-	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
+	pl2303_get_line_request(port, buf);
 
 	if (C_CRTSCTS(tty)) {
 		if (spriv->type == HX)
