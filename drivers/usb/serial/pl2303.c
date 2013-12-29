@@ -523,7 +523,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		/* For reference buf[5]=3 is mark parity */
 		/* For reference buf[5]=4 is space parity */
 		if (C_PARODD(tty)) {
-			if (tty->termios.c_cflag & CMSPAR) {
+			if (C_CMSPAR(tty)) {
 				buf[5] = 3;
 				dev_dbg(&port->dev, "parity = mark\n");
 			} else {
@@ -531,7 +531,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 				dev_dbg(&port->dev, "parity = odd\n");
 			}
 		} else {
-			if (tty->termios.c_cflag & CMSPAR) {
+			if (C_CMSPAR(tty)) {
 				buf[5] = 4;
 				dev_dbg(&port->dev, "parity = space\n");
 			} else {
