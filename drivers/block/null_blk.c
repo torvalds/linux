@@ -495,23 +495,23 @@ static int null_add_dev(void)
 
 	spin_lock_init(&nullb->lock);
 
+	if (queue_mode == NULL_Q_MQ && use_per_node_hctx)
+		submit_queues = nr_online_nodes;
+
 	if (setup_queues(nullb))
 		goto err;
 
 	if (queue_mode == NULL_Q_MQ) {
 		null_mq_reg.numa_node = home_node;
 		null_mq_reg.queue_depth = hw_queue_depth;
+		null_mq_reg.nr_hw_queues = submit_queues;
 
 		if (use_per_node_hctx) {
 			null_mq_reg.ops->alloc_hctx = null_alloc_hctx;
 			null_mq_reg.ops->free_hctx = null_free_hctx;
-
-			null_mq_reg.nr_hw_queues = nr_online_nodes;
 		} else {
 			null_mq_reg.ops->alloc_hctx = blk_mq_alloc_single_hw_queue;
 			null_mq_reg.ops->free_hctx = blk_mq_free_single_hw_queue;
-
-			null_mq_reg.nr_hw_queues = submit_queues;
 		}
 
 		nullb->q = blk_mq_init_queue(&null_mq_reg, nullb);

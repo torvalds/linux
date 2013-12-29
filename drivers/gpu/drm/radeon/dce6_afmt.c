@@ -93,10 +93,12 @@ void dce6_afmt_select_pin(struct drm_encoder *encoder)
 	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	u32 offset = dig->afmt->offset;
+	u32 offset;
 
-	if (!dig->afmt->pin)
+	if (!dig || !dig->afmt || !dig->afmt->pin)
 		return;
+
+	offset = dig->afmt->offset;
 
 	WREG32(AFMT_AUDIO_SRC_CONTROL + offset,
 	       AFMT_AUDIO_SRC_SELECT(dig->afmt->pin->id));
@@ -112,7 +114,7 @@ void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
 	struct radeon_connector *radeon_connector = NULL;
 	u32 tmp = 0, offset;
 
-	if (!dig->afmt->pin)
+	if (!dig || !dig->afmt || !dig->afmt->pin)
 		return;
 
 	offset = dig->afmt->pin->offset;
@@ -156,7 +158,7 @@ void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	u8 *sadb;
 	int sad_count;
 
-	if (!dig->afmt->pin)
+	if (!dig || !dig->afmt || !dig->afmt->pin)
 		return;
 
 	offset = dig->afmt->pin->offset;
@@ -217,7 +219,7 @@ void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
 		{ AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR13, HDMI_AUDIO_CODING_TYPE_WMA_PRO },
 	};
 
-	if (!dig->afmt->pin)
+	if (!dig || !dig->afmt || !dig->afmt->pin)
 		return;
 
 	offset = dig->afmt->pin->offset;

@@ -962,7 +962,7 @@ static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 static void pxa3xx_nand_free_buff(struct pxa3xx_nand_info *info)
 {
 	struct platform_device *pdev = info->pdev;
-	if (use_dma) {
+	if (info->use_dma) {
 		pxa_free_dma(info->data_dma_ch);
 		dma_free_coherent(&pdev->dev, info->buf_size,
 				  info->data_buff, info->data_buff_phys);
@@ -1258,10 +1258,6 @@ static struct of_device_id pxa3xx_nand_dt_ids[] = {
 	{
 		.compatible = "marvell,pxa3xx-nand",
 		.data       = (void *)PXA3XX_NAND_VARIANT_PXA,
-	},
-	{
-		.compatible = "marvell,armada370-nand",
-		.data       = (void *)PXA3XX_NAND_VARIANT_ARMADA370,
 	},
 	{}
 };
