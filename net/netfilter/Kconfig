@@ -414,7 +414,7 @@ config NETFILTER_SYNPROXY
 endif # NF_CONNTRACK
 
 config NF_TABLES
-	depends on NETFILTER_NETLINK
+	select NETFILTER_NETLINK
 	tristate "Netfilter nf_tables support"
 
 config NFT_EXTHDR
