@@ -31,6 +31,9 @@
 #include <asm/unaligned.h>
 #include "pl2303.h"
 
+
+#define PL2303_QUIRK_UART_STATE_IDX0		BIT(0)
+
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID) },
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_RSAQ2) },
@@ -58,9 +61,12 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(SITECOM_VENDOR_ID, SITECOM_PRODUCT_ID) },
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_ID) },
 	{ USB_DEVICE(SAMSUNG_VENDOR_ID, SAMSUNG_PRODUCT_ID) },
-	{ USB_DEVICE(SIEMENS_VENDOR_ID, SIEMENS_PRODUCT_ID_SX1) },
-	{ USB_DEVICE(SIEMENS_VENDOR_ID, SIEMENS_PRODUCT_ID_X65) },
-	{ USB_DEVICE(SIEMENS_VENDOR_ID, SIEMENS_PRODUCT_ID_X75) },
+	{ USB_DEVICE(SIEMENS_VENDOR_ID, SIEMENS_PRODUCT_ID_SX1),
+		.driver_info = PL2303_QUIRK_UART_STATE_IDX0 },
+	{ USB_DEVICE(SIEMENS_VENDOR_ID, SIEMENS_PRODUCT_ID_X65),
+		.driver_info = PL2303_QUIRK_UART_STATE_IDX0 },
+	{ USB_DEVICE(SIEMENS_VENDOR_ID, SIEMENS_PRODUCT_ID_X75),
+		.driver_info = PL2303_QUIRK_UART_STATE_IDX0 },
 	{ USB_DEVICE(SIEMENS_VENDOR_ID, SIEMENS_PRODUCT_ID_EF81) },
 	{ USB_DEVICE(BENQ_VENDOR_ID, BENQ_PRODUCT_ID_S81) }, /* Benq/Siemens S81 */
 	{ USB_DEVICE(SYNTECH_VENDOR_ID, SYNTECH_PRODUCT_ID) },
@@ -110,7 +116,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define VENDOR_READ_REQUEST_TYPE	0xc0
 #define VENDOR_READ_REQUEST		0x01
 
-#define UART_STATE			0x08
+#define UART_STATE_INDEX		8
 #define UART_STATE_TRANSIENT_MASK	0x74
 #define UART_DCD			0x01
 #define UART_DSR			0x02
@@ -130,6 +136,7 @@ enum pl2303_type {
 
 struct pl2303_serial_private {
 	enum pl2303_type type;
+	unsigned long quirks;
 };
 
 struct pl2303_private {
@@ -182,6 +189,14 @@ static int pl2303_vendor_write(struct usb_serial *serial, u16 value, u16 index)
 	return 0;
 }
 
+static int pl2303_probe(struct usb_serial *serial,
+					const struct usb_device_id *id)
+{
+	usb_set_serial_data(serial, (void *)id->driver_info);
+
+	return 0;
+}
+
 static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_serial_private *spriv;
@@ -209,6 +224,8 @@ static int pl2303_startup(struct usb_serial *serial)
 	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
 
 	spriv->type = type;
+	spriv->quirks = (unsigned long)usb_get_serial_data(serial);
+
 	usb_set_serial_data(serial, spriv);
 
 	pl2303_vendor_read(serial, 0x8484, buf);
@@ -739,27 +756,18 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 				      unsigned char *data,
 				      unsigned int actual_length)
 {
+	struct usb_serial *serial = port->serial;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
 	unsigned long flags;
-	u8 status_idx = UART_STATE;
-	u8 length = UART_STATE + 1;
+	unsigned int status_idx = UART_STATE_INDEX;
 	u8 prev_line_status;
-	u16 idv, idp;
 
-	idv = le16_to_cpu(port->serial->dev->descriptor.idVendor);
-	idp = le16_to_cpu(port->serial->dev->descriptor.idProduct);
+	if (spriv->quirks & PL2303_QUIRK_UART_STATE_IDX0)
+		status_idx = 0;
 
-	if (idv == SIEMENS_VENDOR_ID) {
-		if (idp == SIEMENS_PRODUCT_ID_X65 ||
-		    idp == SIEMENS_PRODUCT_ID_SX1 ||
-		    idp == SIEMENS_PRODUCT_ID_X75) {
-			length = 1;
-			status_idx = 0;
-		}
-	}
-
-	if (actual_length < length)
+	if (actual_length < status_idx + 1)
 		return;
 
 	/* Save off the uart status for others to look at */
@@ -892,6 +900,7 @@ static struct usb_serial_driver pl2303_device = {
 	.tiocmiwait =		pl2303_tiocmiwait,
 	.process_read_urb =	pl2303_process_read_urb,
 	.read_int_callback =	pl2303_read_int_callback,
+	.probe =		pl2303_probe,
 	.attach =		pl2303_startup,
 	.release =		pl2303_release,
 	.port_probe =		pl2303_port_probe,
