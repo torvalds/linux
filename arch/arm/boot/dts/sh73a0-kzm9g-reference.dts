@@ -152,6 +152,20 @@
 			label = "SW1";
 		};
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "left_j";
+		simple-audio-card,cpu {
+			sound-dai = <&sh_fsi2 0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&ak4648>;
+			bitclock-master;
+			frame-master;
+			system-clock-frequency = <11289600>;
+		};
+	};
 };
 
 &i2c0 {
@@ -226,6 +240,12 @@
 			};
 		};
 	};
+
+	ak4648: ak4648@0x12 {
+		#sound-dai-cells = <0>;
+		compatible = "asahi-kasei,ak4648";
+		reg = <0x12>;
+	};
 };
 
 &i2c3 {
@@ -289,6 +309,12 @@
 		renesas,groups = "sdhi2_data4", "sdhi2_ctrl";
 		renesas,function = "sdhi2";
 	};
+
+	fsia_pins: sounda {
+		renesas,groups = "fsia_mclk_in", "fsia_sclk_in",
+				 "fsia_data_in", "fsia_data_out";
+		renesas,function = "fsia";
+	};
 };
 
 &sdhi0 {
@@ -307,5 +333,12 @@
 	vmmc-supply = <&vmmc_sdhi2>;
 	bus-width = <4>;
 	broken-cd;
+	status = "okay";
+};
+
+&sh_fsi2 {
+	pinctrl-0 = <&fsia_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };

@@ -243,4 +243,13 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+
+	sh_fsi2: sound@ec230000 {
+		#sound-dai-cells = <1>;
+		compatible = "renesas,sh_fsi2";
+		reg = <0xec230000 0x400>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 146 0x4>;
+		status = "disabled";
+	};
 };
