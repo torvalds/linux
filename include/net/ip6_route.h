@@ -51,26 +51,6 @@ static inline unsigned int rt6_flags2srcprefs(int flags)
 	return (flags >> 3) & 7;
 }
 
-void rt6_bind_peer(struct rt6_info *rt, int create);
-
-static inline struct inet_peer *__rt6_get_peer(struct rt6_info *rt, int create)
-{
-	if (rt6_has_peer(rt))
-		return rt6_peer_ptr(rt);
-
-	rt6_bind_peer(rt, create);
-	return (rt6_has_peer(rt) ? rt6_peer_ptr(rt) : NULL);
-}
-
-static inline struct inet_peer *rt6_get_peer(struct rt6_info *rt)
-{
-	return __rt6_get_peer(rt, 0);
-}
-
-static inline struct inet_peer *rt6_get_peer_create(struct rt6_info *rt)
-{
-	return __rt6_get_peer(rt, 1);
-}
 
 void ip6_route_input(struct sk_buff *skb);
 
