@@ -706,7 +706,9 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 			     WRITE : READ, __GFP_WAIT);
 
 	if (cgc->buflen) {
-		if (blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen, __GFP_WAIT))
+		ret = blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen,
+				      __GFP_WAIT);
+		if (ret)
 			goto out;
 	}
 
