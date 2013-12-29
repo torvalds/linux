@@ -132,10 +132,16 @@ MODULE_DEVICE_TABLE(usb, id_table);
 enum pl2303_type {
 	TYPE_01,	/* Type 0 and 1 (difference unknown) */
 	TYPE_HX,	/* HX version of the pl2303 chip */
+	TYPE_COUNT
+};
+
+struct pl2303_type_data {
+	speed_t max_baud_rate;
+	unsigned long quirks;
 };
 
 struct pl2303_serial_private {
-	enum pl2303_type type;
+	struct pl2303_type_data *type;
 	unsigned long quirks;
 };
 
@@ -145,6 +151,13 @@ struct pl2303_private {
 	u8 line_status;
 
 	u8 line_settings[7];
+};
+
+static struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
+	[TYPE_01] = {
+		.max_baud_rate =	1228800,
+		.quirks =		PL2303_QUIRK_LEGACY,
+	},
 };
 
 static int pl2303_vendor_read(struct usb_serial *serial, u16 value,
@@ -223,10 +236,9 @@ static int pl2303_startup(struct usb_serial *serial)
 		type = TYPE_01;		/* type 1 */
 	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
 
-	spriv->type = type;
+	spriv->type = &pl2303_type_data[type];
 	spriv->quirks = (unsigned long)usb_get_serial_data(serial);
-	if (type == TYPE_01)
-		spriv->quirks |= PL2303_QUIRK_LEGACY;
+	spriv->quirks |= spriv->type->quirks;
 
 	usb_set_serial_data(serial, spriv);
 
@@ -336,9 +348,8 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	else
 		baud = baud_sup[i];
 
-	/* type_0, type_1 only support up to 1228800 baud */
-	if (spriv->type == TYPE_01)
-		baud = min_t(speed_t, baud, 1228800);
+	if (spriv->type->max_baud_rate)
+		baud = min_t(speed_t, baud, spriv->type->max_baud_rate);
 
 	if (baud <= 115200) {
 		put_unaligned_le32(baud, buf);
