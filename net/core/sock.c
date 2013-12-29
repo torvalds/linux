@@ -1308,7 +1308,7 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 	module_put(owner);
 }
 
-#if IS_ENABLED(CONFIG_NETPRIO_CGROUP)
+#if IS_ENABLED(CONFIG_CGROUP_NET_PRIO)
 void sock_update_netprioidx(struct sock *sk)
 {
 	if (in_interrupt())
