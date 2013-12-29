@@ -12,7 +12,6 @@
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
- *
  */
 
 #include <linux/kernel.h>
@@ -31,11 +30,6 @@
 #include <linux/usb/serial.h>
 #include <asm/unaligned.h>
 #include "pl2303.h"
-
-/*
- * Version Information
- */
-#define DRIVER_DESC "Prolific PL2303 USB to serial adaptor driver"
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID) },
@@ -146,27 +140,34 @@ struct pl2303_private {
 	u8 line_settings[7];
 };
 
-static int pl2303_vendor_read(__u16 value, __u16 index,
+static int pl2303_vendor_read(u16 value, u16 index,
 		struct usb_serial *serial, unsigned char *buf)
 {
-	int res = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+	int res;
+
+	res = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			VENDOR_READ_REQUEST, VENDOR_READ_REQUEST_TYPE,
 			value, index, buf, 1, 100);
+
 	dev_dbg(&serial->interface->dev, "0x%x:0x%x:0x%x:0x%x  %d - %x\n",
 		VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, value, index,
 		res, buf[0]);
+
 	return res;
 }
 
-static int pl2303_vendor_write(__u16 value, __u16 index,
-		struct usb_serial *serial)
+static int pl2303_vendor_write(u16 value, u16 index, struct usb_serial *serial)
 {
-	int res = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+	int res;
+
+	res = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			VENDOR_WRITE_REQUEST, VENDOR_WRITE_REQUEST_TYPE,
 			value, index, NULL, 0, 100);
+
 	dev_dbg(&serial->interface->dev, "0x%x:0x%x:0x%x:0x%x  %d\n",
 		VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, value, index,
 		res);
+
 	return res;
 }
 
@@ -215,14 +216,14 @@ static int pl2303_startup(struct usb_serial *serial)
 		pl2303_vendor_write(2, 0x24, serial);
 
 	kfree(buf);
+
 	return 0;
 }
 
 static void pl2303_release(struct usb_serial *serial)
 {
-	struct pl2303_serial_private *spriv;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 
-	spriv = usb_get_serial_data(serial);
 	kfree(spriv);
 }
 
@@ -245,9 +246,8 @@ static int pl2303_port_probe(struct usb_serial_port *port)
 
 static int pl2303_port_remove(struct usb_serial_port *port)
 {
-	struct pl2303_private *priv;
+	struct pl2303_private *priv = usb_get_serial_port_data(port);
 
-	priv = usb_get_serial_port_data(port);
 	kfree(priv);
 
 	return 0;
@@ -261,8 +261,10 @@ static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 				 SET_CONTROL_REQUEST, SET_CONTROL_REQUEST_TYPE,
 				 value, 0, NULL, 0, 100);
+
 	dev_dbg(&port->dev, "%s - value = %d, retval = %d\n", __func__,
 		value, retval);
+
 	return retval;
 }
 
@@ -488,13 +490,13 @@ static void pl2303_dtr_rts(struct usb_serial_port *port, int on)
 	u8 control;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	/* Change DTR and RTS */
 	if (on)
 		priv->line_control |= (CONTROL_DTR | CONTROL_RTS);
 	else
 		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
+
 	pl2303_set_control_lines(port, control);
 }
 
@@ -525,8 +527,8 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result) {
-		dev_err(&port->dev, "%s - failed submitting interrupt urb,"
-			" error %d\n", __func__, result);
+		dev_err(&port->dev, "failed to submit interrupt urb: %d\n",
+			result);
 		return result;
 	}
 
@@ -596,8 +598,10 @@ static int pl2303_tiocmget(struct tty_struct *tty)
 static int pl2303_carrier_raised(struct usb_serial_port *port)
 {
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
+
 	if (priv->line_status & UART_DCD)
 		return 1;
+
 	return 0;
 }
 
@@ -662,6 +666,7 @@ static int pl2303_ioctl(struct tty_struct *tty,
 	default:
 		break;
 	}
+
 	return -ENOIOCTLCMD;
 }
 
@@ -676,6 +681,7 @@ static void pl2303_break_ctl(struct tty_struct *tty, int break_state)
 		state = BREAK_OFF;
 	else
 		state = BREAK_ON;
+
 	dev_dbg(&port->dev, "%s - turning break %s\n", __func__,
 			state == BREAK_OFF ? "off" : "on");
 
@@ -690,7 +696,6 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 				      unsigned char *data,
 				      unsigned int actual_length)
 {
-
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
 	unsigned long flags;
@@ -702,12 +707,10 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	idv = le16_to_cpu(port->serial->dev->descriptor.idVendor);
 	idp = le16_to_cpu(port->serial->dev->descriptor.idProduct);
 
-
 	if (idv == SIEMENS_VENDOR_ID) {
 		if (idp == SIEMENS_PRODUCT_ID_X65 ||
 		    idp == SIEMENS_PRODUCT_ID_SX1 ||
 		    idp == SIEMENS_PRODUCT_ID_X75) {
-
 			length = 1;
 			status_idx = 0;
 		}
@@ -721,8 +724,10 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	prev_line_status = priv->line_status;
 	priv->line_status = data[status_idx];
 	spin_unlock_irqrestore(&priv->lock, flags);
+
 	if (priv->line_status & UART_BREAK_ERROR)
 		usb_serial_handle_break(port);
+
 	wake_up_interruptible(&port->port.delta_msr_wait);
 
 	tty = tty_port_tty_get(&port->port);
@@ -766,10 +771,11 @@ static void pl2303_read_int_callback(struct urb *urb)
 
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
-	if (retval)
+	if (retval) {
 		dev_err(&port->dev,
 			"%s - usb_submit_urb failed with result %d\n",
 			__func__, retval);
+	}
 }
 
 static void pl2303_process_read_urb(struct urb *urb)
@@ -791,8 +797,10 @@ static void pl2303_process_read_urb(struct urb *urb)
 	if (!urb->actual_length)
 		return;
 
-	/* break takes precedence over parity, */
-	/* which takes precedence over framing errors */
+	/*
+	 * Break takes precedence over parity, which takes precedence over
+	 * framing errors.
+	 */
 	if (line_status & UART_BREAK_ERROR)
 		tty_flag = TTY_BREAK;
 	else if (line_status & UART_PARITY_ERROR)
@@ -820,7 +828,6 @@ static void pl2303_process_read_urb(struct urb *urb)
 	tty_flip_buffer_push(&port->port);
 }
 
-/* All of the device info needed for the PL2303 SIO serial converter */
 static struct usb_serial_driver pl2303_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -832,7 +839,7 @@ static struct usb_serial_driver pl2303_device = {
 	.bulk_out_size =	256,
 	.open =			pl2303_open,
 	.close =		pl2303_close,
-	.dtr_rts = 		pl2303_dtr_rts,
+	.dtr_rts =		pl2303_dtr_rts,
 	.carrier_raised =	pl2303_carrier_raised,
 	.ioctl =		pl2303_ioctl,
 	.break_ctl =		pl2303_break_ctl,
@@ -854,5 +861,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 module_usb_serial_driver(serial_drivers, id_table);
 
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_DESCRIPTION("Prolific PL2303 USB to serial adaptor driver");
 MODULE_LICENSE("GPL");
