@@ -4674,7 +4674,7 @@ void btrfs_block_rsv_release(struct btrfs_root *root,
 			     u64 num_bytes)
 {
 	struct btrfs_block_rsv *global_rsv = &root->fs_info->global_block_rsv;
-	if (global_rsv->full || global_rsv == block_rsv ||
+	if (global_rsv == block_rsv ||
 	    block_rsv->space_info != global_rsv->space_info)
 		global_rsv = NULL;
 	block_rsv_release_bytes(root->fs_info, block_rsv, global_rsv,
