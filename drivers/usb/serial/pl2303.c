@@ -351,6 +351,9 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 	dev_dbg(&port->dev, "baud requested = %u\n", baud);
 	if (!baud)
 		return;
+
+	if (spriv->type->max_baud_rate)
+		baud = min_t(speed_t, baud, spriv->type->max_baud_rate);
 	/*
 	 * Set baud rate to nearest supported value.
 	 *
@@ -358,9 +361,6 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 	 *       use 9600 baud.
 	 */
 	baud = pl2303_get_supported_baud_rate(baud);
-
-	if (spriv->type->max_baud_rate)
-		baud = min_t(speed_t, baud, spriv->type->max_baud_rate);
 
 	if (baud <= 115200) {
 		put_unaligned_le32(baud, buf);
