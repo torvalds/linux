@@ -39,6 +39,7 @@ header-y += xt_TEE.h
 header-y += xt_TPROXY.h
 header-y += xt_addrtype.h
 header-y += xt_bpf.h
+header-y += xt_cgroup.h
 header-y += xt_cluster.h
 header-y += xt_comment.h
 header-y += xt_connbytes.h
