@@ -311,31 +311,19 @@ static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
 	return retval;
 }
 
-static void pl2303_encode_baud_rate(struct tty_struct *tty,
-					struct usb_serial_port *port,
-					u8 buf[4])
+/*
+ * Returns the nearest supported baud rate.
+ */
+static speed_t pl2303_get_supported_baud_rate(speed_t baud)
 {
-	const speed_t baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
-	                         4800, 7200, 9600, 14400, 19200, 28800, 38400,
-	                         57600, 115200, 230400, 460800, 500000, 614400,
-	                         921600, 1228800, 2457600, 3000000, 6000000 };
+	static const speed_t baud_sup[] = {
+		75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600,
+		14400, 19200, 28800, 38400, 57600, 115200, 230400, 460800,
+		500000, 614400, 921600, 1228800, 2457600, 3000000, 6000000
+	};
 
-	struct usb_serial *serial = port->serial;
-	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
-	speed_t baud;
-	int i;
+	unsigned i;
 
-	/*
-	 * NOTE: Only the values defined in baud_sup are supported!
-	 *       => if unsupported values are set, the PL2303 seems to use
-	 *          9600 baud (at least my PL2303X always does)
-	 */
-	baud = tty_get_baud_rate(tty);
-	dev_dbg(&port->dev, "baud requested = %u\n", baud);
-	if (!baud)
-		return;
-
-	/* Set baud rate to nearest supported value */
 	for (i = 0; i < ARRAY_SIZE(baud_sup); ++i) {
 		if (baud_sup[i] > baud)
 			break;
@@ -347,6 +335,29 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 		baud = baud_sup[i - 1];
 	else
 		baud = baud_sup[i];
+
+	return baud;
+}
+
+static void pl2303_encode_baud_rate(struct tty_struct *tty,
+					struct usb_serial_port *port,
+					u8 buf[4])
+{
+	struct usb_serial *serial = port->serial;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
+	speed_t baud;
+
+	baud = tty_get_baud_rate(tty);
+	dev_dbg(&port->dev, "baud requested = %u\n", baud);
+	if (!baud)
+		return;
+	/*
+	 * Set baud rate to nearest supported value.
+	 *
+	 * NOTE: If unsupported values are set directly, the PL2303 seems to
+	 *       use 9600 baud.
+	 */
+	baud = pl2303_get_supported_baud_rate(baud);
 
 	if (spriv->type->max_baud_rate)
 		baud = min_t(speed_t, baud, spriv->type->max_baud_rate);
