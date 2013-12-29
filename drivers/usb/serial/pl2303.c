@@ -312,14 +312,15 @@ static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
 }
 
 /*
- * Returns the nearest supported baud rate.
+ * Returns the nearest supported baud rate that can be set directly without
+ * using divisors.
  */
 static speed_t pl2303_get_supported_baud_rate(speed_t baud)
 {
 	static const speed_t baud_sup[] = {
 		75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600,
 		14400, 19200, 28800, 38400, 57600, 115200, 230400, 460800,
-		500000, 614400, 921600, 1228800, 2457600, 3000000, 6000000
+		614400, 921600, 1228800, 2457600, 3000000, 6000000
 	};
 
 	unsigned i;
@@ -379,6 +380,7 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 {
 	struct usb_serial *serial = port->serial;
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
+	speed_t	baud_sup;
 	speed_t baud;
 
 	baud = tty_get_baud_rate(tty);
@@ -388,14 +390,17 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 
 	if (spriv->type->max_baud_rate)
 		baud = min_t(speed_t, baud, spriv->type->max_baud_rate);
+	/*
+	 * Set baud rate to nearest supported value.
+	 *
+	 * NOTE: Baud rate 500k can only be set using divisors.
+	 */
+	baud_sup = pl2303_get_supported_baud_rate(baud);
 
-	/* Set baud rate to nearest supported value. */
-	baud = pl2303_get_supported_baud_rate(baud);
-
-	if (baud <= 115200)
-		baud = pl2303_encode_baud_rate_direct(buf, baud);
-	else
+	if (baud == 500000)
 		baud = pl2303_encode_baud_rate_divisor(buf, baud);
+	else
+		baud = pl2303_encode_baud_rate_direct(buf, baud_sup);
 
 	/* Save resulting baud rate */
 	tty_encode_baud_rate(tty, baud, baud);
