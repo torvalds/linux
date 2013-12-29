@@ -129,9 +129,8 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 
 enum pl2303_type {
-	type_0,		/* don't know the difference between type 0 and */
-	type_1,		/* type 1, until someone from prolific tells us... */
-	HX,		/* HX version of the pl2303 chip */
+	TYPE_01,	/* Type 0 and 1 (difference unknown) */
+	TYPE_HX,	/* HX version of the pl2303 chip */
 };
 
 struct pl2303_serial_private {
@@ -200,7 +199,7 @@ static int pl2303_probe(struct usb_serial *serial,
 static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_serial_private *spriv;
-	enum pl2303_type type = type_0;
+	enum pl2303_type type = TYPE_01;
 	unsigned char *buf;
 
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
@@ -214,13 +213,13 @@ static int pl2303_startup(struct usb_serial *serial)
 	}
 
 	if (serial->dev->descriptor.bDeviceClass == 0x02)
-		type = type_0;
+		type = TYPE_01;		/* type 0 */
 	else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40)
-		type = HX;
+		type = TYPE_HX;
 	else if (serial->dev->descriptor.bDeviceClass == 0x00)
-		type = type_1;
+		type = TYPE_01;		/* type 1 */
 	else if (serial->dev->descriptor.bDeviceClass == 0xFF)
-		type = type_1;
+		type = TYPE_01;		/* type 1 */
 	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
 
 	spriv->type = type;
@@ -238,10 +237,10 @@ static int pl2303_startup(struct usb_serial *serial)
 	pl2303_vendor_read(serial, 0x8383, buf);
 	pl2303_vendor_write(serial, 0, 1);
 	pl2303_vendor_write(serial, 1, 0);
-	if (type == HX)
-		pl2303_vendor_write(serial, 2, 0x44);
-	else
+	if (type == TYPE_01)
 		pl2303_vendor_write(serial, 2, 0x24);
+	else
+		pl2303_vendor_write(serial, 2, 0x44);
 
 	kfree(buf);
 
@@ -335,7 +334,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 		baud = baud_sup[i];
 
 	/* type_0, type_1 only support up to 1228800 baud */
-	if (spriv->type != HX)
+	if (spriv->type == TYPE_01)
 		baud = min_t(speed_t, baud, 1228800);
 
 	if (baud <= 115200) {
@@ -532,10 +531,10 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	}
 
 	if (C_CRTSCTS(tty)) {
-		if (spriv->type == HX)
-			pl2303_vendor_write(serial, 0x0, 0x61);
-		else
+		if (spriv->type == TYPE_01)
 			pl2303_vendor_write(serial, 0x0, 0x41);
+		else
+			pl2303_vendor_write(serial, 0x0, 0x61);
 	} else {
 		pl2303_vendor_write(serial, 0x0, 0x0);
 	}
@@ -572,7 +571,7 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	int result;
 
-	if (spriv->type != HX) {
+	if (spriv->type == TYPE_01) {
 		usb_clear_halt(serial->dev, port->write_urb->pipe);
 		usb_clear_halt(serial->dev, port->read_urb->pipe);
 	} else {
