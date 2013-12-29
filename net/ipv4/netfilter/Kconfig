@@ -40,10 +40,6 @@ config NF_TABLES_IPV4
 	depends on NF_TABLES
 	tristate "IPv4 nf_tables support"
 
-config NFT_REJECT_IPV4
-	depends on NF_TABLES_IPV4
-	tristate "nf_tables IPv4 reject support"
-
 config NFT_CHAIN_ROUTE_IPV4
 	depends on NF_TABLES_IPV4
 	tristate "IPv4 nf_tables route chain support"

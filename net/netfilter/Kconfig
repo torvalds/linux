@@ -465,6 +465,12 @@ config NFT_QUEUE
 	  This is required if you intend to use the userspace queueing
 	  infrastructure (also known as NFQUEUE) from nftables.
 
+config NFT_REJECT
+	depends on NF_TABLES
+	depends on NF_TABLES_IPV6 || !NF_TABLES_IPV6
+	default m if NETFILTER_ADVANCED=n
+	tristate "Netfilter nf_tables reject support"
+
 config NFT_COMPAT
 	depends on NF_TABLES
 	depends on NETFILTER_XTABLES
