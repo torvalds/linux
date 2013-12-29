@@ -1133,6 +1133,7 @@ static int __init printer_bind_config(struct usb_configuration *c)
 				  NULL, "g_printer");
 	if (IS_ERR(dev->pdev)) {
 		ERROR(dev, "Failed to create device: g_printer\n");
+		status = PTR_ERR(dev->pdev);
 		goto fail;
 	}
 
