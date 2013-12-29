@@ -55,6 +55,13 @@ static void f81232_update_line_status(struct usb_serial_port *port,
 				      unsigned char *data,
 				      unsigned int actual_length)
 {
+	/*
+	 * FIXME: Call
+	 *
+	 *		wake_up_interruptible(&port->port.delta_msr_wait);
+	 *
+	 *	  on MSR changes.
+	 */
 }
 
 static void f81232_read_int_callback(struct urb *urb)
@@ -110,7 +117,6 @@ static void f81232_process_read_urb(struct urb *urb)
 	line_status = priv->line_status;
 	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	wake_up_interruptible(&port->port.delta_msr_wait);
 
 	if (!urb->actual_length)
 		return;
