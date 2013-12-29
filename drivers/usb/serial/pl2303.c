@@ -339,6 +339,28 @@ static speed_t pl2303_get_supported_baud_rate(speed_t baud)
 	return baud;
 }
 
+static speed_t pl2303_encode_baud_rate_divisor(unsigned char buf[4],
+								speed_t baud)
+{
+	unsigned int tmp;
+
+	/*
+	 * Apparently the formula is:
+	 * baudrate = 12M * 32 / (2^buf[1]) / buf[0]
+	 */
+	tmp = 12000000 * 32 / baud;
+	buf[3] = 0x80;
+	buf[2] = 0;
+	buf[1] = (tmp >= 256);
+	while (tmp >= 256) {
+		tmp >>= 2;
+		buf[1] <<= 1;
+	}
+	buf[0] = tmp;
+
+	return baud;
+}
+
 static void pl2303_encode_baud_rate(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					u8 buf[4])
@@ -362,23 +384,10 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 	 */
 	baud = pl2303_get_supported_baud_rate(baud);
 
-	if (baud <= 115200) {
+	if (baud <= 115200)
 		put_unaligned_le32(baud, buf);
-	} else {
-		/*
-		 * Apparently the formula for higher speeds is:
-		 * baudrate = 12M * 32 / (2^buf[1]) / buf[0]
-		 */
-		unsigned tmp = 12000000 * 32 / baud;
-		buf[3] = 0x80;
-		buf[2] = 0;
-		buf[1] = (tmp >= 256);
-		while (tmp >= 256) {
-			tmp >>= 2;
-			buf[1] <<= 1;
-		}
-		buf[0] = tmp;
-	}
+	else
+		baud = pl2303_encode_baud_rate_divisor(buf, baud);
 
 	/* Save resulting baud rate */
 	tty_encode_baud_rate(tty, baud, baud);
