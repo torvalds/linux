@@ -126,7 +126,7 @@ acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 
-static bool acpi_scan_is_offline(struct acpi_device *adev)
+bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent)
 {
 	struct acpi_device_physical_node *pn;
 	bool offline = true;
@@ -135,7 +135,9 @@ static bool acpi_scan_is_offline(struct acpi_device *adev)
 
 	list_for_each_entry(pn, &adev->physical_node_list, node)
 		if (device_supports_offline(pn->dev) && !pn->dev->offline) {
-			kobject_uevent(&pn->dev->kobj, KOBJ_CHANGE);
+			if (uevent)
+				kobject_uevent(&pn->dev->kobj, KOBJ_CHANGE);
+
 			offline = false;
 			break;
 		}
@@ -267,7 +269,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	acpi_status status;
 
 	if (device->handler->hotplug.demand_offline && !acpi_force_hot_remove) {
-		if (!acpi_scan_is_offline(device))
+		if (!acpi_scan_is_offline(device, true))
 			return -EBUSY;
 	} else {
 		int error = acpi_scan_try_to_offline(device);

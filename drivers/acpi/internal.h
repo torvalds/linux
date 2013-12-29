@@ -73,6 +73,7 @@ static inline void acpi_lpss_init(void) {}
 #endif
 
 bool acpi_queue_hotplug_work(struct work_struct *work);
+bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
 
 /* --------------------------------------------------------------------------
                      Device Node Initialization / Removal
