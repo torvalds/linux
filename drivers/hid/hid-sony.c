@@ -585,6 +585,7 @@ static int sony_leds_init(struct hid_device *hdev)
 		led = kzalloc(sizeof(struct led_classdev) + name_sz, GFP_KERNEL);
 		if (!led) {
 			hid_err(hdev, "Couldn't allocate memory for LED %d\n", n);
+			ret = -ENOMEM;
 			goto error_leds;
 		}
 
@@ -596,7 +597,8 @@ static int sony_leds_init(struct hid_device *hdev)
 		led->brightness_get = sony_led_get_brightness;
 		led->brightness_set = sony_led_set_brightness;
 
-		if (led_classdev_register(&hdev->dev, led)) {
+		ret = led_classdev_register(&hdev->dev, led);
+		if (ret) {
 			hid_err(hdev, "Failed to register LED %d\n", n);
 			kfree(led);
 			goto error_leds;
