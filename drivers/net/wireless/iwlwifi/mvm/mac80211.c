@@ -1649,7 +1649,8 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ONCE((phy_ctxt->ref > 1) &&
 		      (changed & ~(IEEE80211_CHANCTX_CHANGE_WIDTH |
 				   IEEE80211_CHANCTX_CHANGE_RX_CHAINS |
-				   IEEE80211_CHANCTX_CHANGE_RADAR)),
+				   IEEE80211_CHANCTX_CHANGE_RADAR |
+				   IEEE80211_CHANCTX_CHANGE_MIN_WIDTH)),
 		      "Cannot change PHY. Ref=%d, changed=0x%X\n",
 		      phy_ctxt->ref, changed))
 		return;
