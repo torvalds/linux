@@ -346,7 +346,6 @@ static void pl2303_set_termios(struct tty_struct *tty,
 
 	buf = kzalloc(7, GFP_KERNEL);
 	if (!buf) {
-		dev_err(&port->dev, "%s - out of memory.\n", __func__);
 		/* Report back no change occurred */
 		if (old_termios)
 			tty->termios = *old_termios;

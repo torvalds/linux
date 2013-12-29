@@ -324,11 +324,8 @@ static int palm_os_3_probe(struct usb_serial *serial,
 	int num_ports = 0;
 
 	transfer_buffer = kmalloc(sizeof(*connection_info), GFP_KERNEL);
-	if (!transfer_buffer) {
-		dev_err(dev, "%s - kmalloc(%Zd) failed.\n", __func__,
-			sizeof(*connection_info));
+	if (!transfer_buffer)
 		return -ENOMEM;
-	}
 
 	/* send a get connection info request */
 	retval = usb_control_msg(serial->dev,
@@ -419,11 +416,8 @@ static int palm_os_4_probe(struct usb_serial *serial,
 	int retval;
 
 	transfer_buffer =  kmalloc(sizeof(*connection_info), GFP_KERNEL);
-	if (!transfer_buffer) {
-		dev_err(dev, "%s - kmalloc(%Zd) failed.\n", __func__,
-			sizeof(*connection_info));
+	if (!transfer_buffer)
 		return -ENOMEM;
-	}
 
 	retval = usb_control_msg(serial->dev,
 				  usb_rcvctrlpipe(serial->dev, 0),

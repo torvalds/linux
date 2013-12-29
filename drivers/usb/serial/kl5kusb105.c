@@ -182,11 +182,9 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	dev_info(&port->serial->dev->dev, "sending SIO Poll request\n");
 
 	status_buf = kmalloc(KLSI_STATUSBUF_LEN, GFP_KERNEL);
-	if (!status_buf) {
-		dev_err(&port->dev, "%s - out of memory for status buffer.\n",
-				__func__);
+	if (!status_buf)
 		return -ENOMEM;
-	}
+
 	status_buf[0] = 0xff;
 	status_buf[1] = 0xff;
 	rc = usb_control_msg(port->serial->dev,
@@ -273,11 +271,9 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 	 * priv->line_state.
 	 */
 	cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
-	if (!cfg) {
-		dev_err(&port->dev, "%s - out of memory for config buffer.\n",
-				__func__);
+	if (!cfg)
 		return -ENOMEM;
-	}
+
 	cfg->pktlen   = 5;
 	cfg->baudrate = kl5kusb105a_sio_b9600;
 	cfg->databits = kl5kusb105a_dtb_8;
@@ -417,10 +413,8 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	speed_t baud;
 
 	cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
-	if (!cfg) {
-		dev_err(dev, "%s - out of memory for config buffer.\n", __func__);
+	if (!cfg)
 		return;
-	}
 
 	/* lock while we are modifying the settings */
 	spin_lock_irqsave(&priv->lock, flags);

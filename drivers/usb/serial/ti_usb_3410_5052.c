@@ -301,10 +301,9 @@ static int ti_startup(struct usb_serial *serial)
 
 	/* create device structure */
 	tdev = kzalloc(sizeof(struct ti_device), GFP_KERNEL);
-	if (tdev == NULL) {
-		dev_err(&dev->dev, "%s - out of memory\n", __func__);
+	if (!tdev)
 		return -ENOMEM;
-	}
+
 	mutex_init(&tdev->td_open_close_lock);
 	tdev->td_serial = serial;
 	usb_set_serial_data(serial, tdev);
@@ -722,10 +721,8 @@ static void ti_set_termios(struct tty_struct *tty,
 		return;
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
-	if (!config) {
-		dev_err(&port->dev, "%s - out of memory\n", __func__);
+	if (!config)
 		return;
-	}
 
 	config->wFlags = 0;
 
@@ -1194,10 +1191,8 @@ static int ti_get_lsr(struct ti_port *tport, u8 *lsr)
 
 	size = sizeof(struct ti_port_status);
 	data = kmalloc(size, GFP_KERNEL);
-	if (!data) {
-		dev_err(&port->dev, "%s - out of memory\n", __func__);
+	if (!data)
 		return -ENOMEM;
-	}
 
 	status = ti_command_in_sync(tdev, TI_GET_PORT_STATUS,
 		(__u8)(TI_UART1_PORT+port_number), 0, (__u8 *)data, size);
@@ -1397,10 +1392,8 @@ static int ti_write_byte(struct usb_serial_port *port,
 
 	size = sizeof(struct ti_write_data_bytes) + 2;
 	data = kmalloc(size, GFP_KERNEL);
-	if (!data) {
-		dev_err(&port->dev, "%s - out of memory\n", __func__);
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->bAddrType = TI_RW_DATA_ADDR_XDATA;
 	data->bDataType = TI_RW_DATA_BYTE;
@@ -1516,7 +1509,6 @@ static int ti_download_firmware(struct ti_device *tdev)
 		status = ti_do_download(dev, pipe, buffer, fw_p->size);
 		kfree(buffer);
 	} else {
-		dev_dbg(&dev->dev, "%s ENOMEM\n", __func__);
 		status = -ENOMEM;
 	}
 	release_firmware(fw_p);

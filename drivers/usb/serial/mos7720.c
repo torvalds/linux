@@ -362,15 +362,13 @@ static int write_parport_reg_nonblock(struct mos7715_parport *mos_parport,
 
 	/* create and initialize the control urb and containing urbtracker */
 	urbtrack = kmalloc(sizeof(struct urbtracker), GFP_ATOMIC);
-	if (urbtrack == NULL) {
-		dev_err(&usbdev->dev, "out of memory");
+	if (!urbtrack)
 		return -ENOMEM;
-	}
+
 	kref_get(&mos_parport->ref_count);
 	urbtrack->mos_parport = mos_parport;
 	urbtrack->urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (urbtrack->urb == NULL) {
-		dev_err(&usbdev->dev, "out of urbs");
+	if (!urbtrack->urb) {
 		kfree(urbtrack);
 		return -ENOMEM;
 	}
@@ -702,10 +700,9 @@ static int mos7715_parport_init(struct usb_serial *serial)
 
 	/* allocate and initialize parallel port control struct */
 	mos_parport = kzalloc(sizeof(struct mos7715_parport), GFP_KERNEL);
-	if (mos_parport == NULL) {
-		dev_dbg(&serial->dev->dev, "%s: kzalloc failed\n", __func__);
+	if (!mos_parport)
 		return -ENOMEM;
-	}
+
 	mos_parport->msg_pending = false;
 	kref_init(&mos_parport->ref_count);
 	spin_lock_init(&mos_parport->listlock);
@@ -1018,18 +1015,12 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 	for (j = 0; j < NUM_URBS; ++j) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		mos7720_port->write_urb_pool[j] = urb;
-
-		if (urb == NULL) {
-			dev_err(&port->dev, "No more urbs???\n");
+		if (!urb)
 			continue;
-		}
 
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_KERNEL);
 		if (!urb->transfer_buffer) {
-			dev_err(&port->dev,
-				"%s-out of memory for urb buffers.\n",
-				__func__);
 			usb_free_urb(mos7720_port->write_urb_pool[j]);
 			mos7720_port->write_urb_pool[j] = NULL;
 			continue;
@@ -1250,11 +1241,8 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (urb->transfer_buffer == NULL) {
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_KERNEL);
-		if (urb->transfer_buffer == NULL) {
-			dev_err_console(port, "%s no more kernel memory...\n",
-				__func__);
+		if (!urb->transfer_buffer)
 			goto exit;
-		}
 	}
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 

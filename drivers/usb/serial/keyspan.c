@@ -1226,10 +1226,8 @@ static struct urb *keyspan_setup_urb(struct usb_serial *serial, int endpoint,
 
 	dev_dbg(&serial->interface->dev, "%s - alloc for endpoint %d.\n", __func__, endpoint);
 	urb = usb_alloc_urb(0, GFP_KERNEL);		/* No ISO */
-	if (urb == NULL) {
-		dev_dbg(&serial->interface->dev, "%s - alloc for endpoint %d failed.\n", __func__, endpoint);
+	if (!urb)
 		return NULL;
-	}
 
 	if (endpoint == 0) {
 		/* control EP filled in when used */
@@ -2312,10 +2310,8 @@ static int keyspan_startup(struct usb_serial *serial)
 
 	/* Setup private data for serial driver */
 	s_priv = kzalloc(sizeof(struct keyspan_serial_private), GFP_KERNEL);
-	if (!s_priv) {
-		dev_dbg(&serial->dev->dev, "%s - kmalloc for keyspan_serial_private failed.\n", __func__);
+	if (!s_priv)
 		return -ENOMEM;
-	}
 
 	s_priv->instat_buf = kzalloc(INSTAT_BUFLEN, GFP_KERNEL);
 	if (!s_priv->instat_buf)

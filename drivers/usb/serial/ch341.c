@@ -384,10 +384,8 @@ static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 	uint8_t *break_reg;
 
 	break_reg = kmalloc(2, GFP_KERNEL);
-	if (!break_reg) {
-		dev_err(&port->dev, "%s - kmalloc failed\n", __func__);
+	if (!break_reg)
 		return;
-	}
 
 	r = ch341_control_in(port->serial->dev, CH341_REQ_READ_REG,
 			ch341_break_reg, 0, break_reg, 2);

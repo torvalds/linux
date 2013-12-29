@@ -200,8 +200,7 @@ static void setup_line(struct work_struct *work)
 	int result;
 
 	new_setup = kmalloc(OTI6858_CTRL_PKT_SIZE, GFP_KERNEL);
-	if (new_setup == NULL) {
-		dev_err(&port->dev, "%s(): out of memory!\n", __func__);
+	if (!new_setup) {
 		/* we will try again */
 		schedule_delayed_work(&priv->delayed_setup_work,
 						msecs_to_jiffies(2));
@@ -287,11 +286,9 @@ static void send_data(struct work_struct *work)
 
 	if (count != 0) {
 		allow = kmalloc(1, GFP_KERNEL);
-		if (!allow) {
-			dev_err_console(port, "%s(): kmalloc failed\n",
-					__func__);
+		if (!allow)
 			return;
-		}
+
 		result = usb_control_msg(port->serial->dev,
 				usb_rcvctrlpipe(port->serial->dev, 0),
 				OTI6858_REQ_T_CHECK_TXBUFF,
@@ -517,10 +514,8 @@ static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port)
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
 
 	buf = kmalloc(OTI6858_CTRL_PKT_SIZE, GFP_KERNEL);
-	if (buf == NULL) {
-		dev_err(&port->dev, "%s(): out of memory!\n", __func__);
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 				OTI6858_REQ_T_GET_STATUS,

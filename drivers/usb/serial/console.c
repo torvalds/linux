@@ -135,7 +135,6 @@ static int usb_console_setup(struct console *co, char *options)
 			tty = kzalloc(sizeof(*tty), GFP_KERNEL);
 			if (!tty) {
 				retval = -ENOMEM;
-				dev_err(&port->dev, "no more memory\n");
 				goto reset_open_count;
 			}
 			kref_init(&tty->kref);
@@ -144,7 +143,6 @@ static int usb_console_setup(struct console *co, char *options)
 			tty->index = co->index;
 			if (tty_init_termios(tty)) {
 				retval = -ENOMEM;
-				dev_err(&port->dev, "no more memory\n");
 				goto free_tty;
 			}
 		}

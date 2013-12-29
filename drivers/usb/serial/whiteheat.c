@@ -288,12 +288,8 @@ static int whiteheat_attach(struct usb_serial *serial)
 
 	command_info = kmalloc(sizeof(struct whiteheat_command_private),
 								GFP_KERNEL);
-	if (command_info == NULL) {
-		dev_err(&serial->dev->dev,
-			"%s: Out of memory for port structures\n",
-			serial->type->description);
+	if (!command_info)
 		goto no_command_private;
-	}
 
 	mutex_init(&command_info->mutex);
 	command_info->port_running = 0;
