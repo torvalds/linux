@@ -301,14 +301,14 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					u8 buf[4])
 {
-	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
+	const speed_t baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
 	                         4800, 7200, 9600, 14400, 19200, 28800, 38400,
 	                         57600, 115200, 230400, 460800, 500000, 614400,
 	                         921600, 1228800, 2457600, 3000000, 6000000 };
 
 	struct usb_serial *serial = port->serial;
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
-	int baud;
+	speed_t baud;
 	int i;
 
 	/*
@@ -317,7 +317,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	 *          9600 baud (at least my PL2303X always does)
 	 */
 	baud = tty_get_baud_rate(tty);
-	dev_dbg(&port->dev, "baud requested = %d\n", baud);
+	dev_dbg(&port->dev, "baud requested = %u\n", baud);
 	if (!baud)
 		return;
 
@@ -336,7 +336,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 
 	/* type_0, type_1 only support up to 1228800 baud */
 	if (spriv->type != HX)
-		baud = min_t(int, baud, 1228800);
+		baud = min_t(speed_t, baud, 1228800);
 
 	if (baud <= 115200) {
 		put_unaligned_le32(baud, buf);
@@ -358,7 +358,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 
 	/* Save resulting baud rate */
 	tty_encode_baud_rate(tty, baud, baud);
-	dev_dbg(&port->dev, "baud set = %d\n", baud);
+	dev_dbg(&port->dev, "baud set = %u\n", baud);
 }
 
 static int pl2303_get_line_request(struct usb_serial_port *port,
