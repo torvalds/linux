@@ -269,12 +269,13 @@ static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
 	struct usb_device *dev = port->serial->dev;
 	int retval;
 
+	dev_dbg(&port->dev, "%s - %02x\n", __func__, value);
+
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 				 SET_CONTROL_REQUEST, SET_CONTROL_REQUEST_TYPE,
 				 value, 0, NULL, 0, 100);
-
-	dev_dbg(&port->dev, "%s - value = %d, retval = %d\n", __func__,
-		value, retval);
+	if (retval)
+		dev_err(&port->dev, "%s - failed: %d\n", __func__, retval);
 
 	return retval;
 }
