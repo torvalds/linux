@@ -339,6 +339,18 @@ static speed_t pl2303_get_supported_baud_rate(speed_t baud)
 	return baud;
 }
 
+/*
+ * NOTE: If unsupported baud rates are set directly, the PL2303 seems to
+ *       use 9600 baud.
+ */
+static speed_t pl2303_encode_baud_rate_direct(unsigned char buf[4],
+								speed_t baud)
+{
+	put_unaligned_le32(baud, buf);
+
+	return baud;
+}
+
 static speed_t pl2303_encode_baud_rate_divisor(unsigned char buf[4],
 								speed_t baud)
 {
@@ -376,16 +388,12 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 
 	if (spriv->type->max_baud_rate)
 		baud = min_t(speed_t, baud, spriv->type->max_baud_rate);
-	/*
-	 * Set baud rate to nearest supported value.
-	 *
-	 * NOTE: If unsupported values are set directly, the PL2303 seems to
-	 *       use 9600 baud.
-	 */
+
+	/* Set baud rate to nearest supported value. */
 	baud = pl2303_get_supported_baud_rate(baud);
 
 	if (baud <= 115200)
-		put_unaligned_le32(baud, buf);
+		baud = pl2303_encode_baud_rate_direct(buf, baud);
 	else
 		baud = pl2303_encode_baud_rate_divisor(buf, baud);
 
