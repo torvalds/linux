@@ -311,7 +311,7 @@ static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
 	return retval;
 }
 
-static void pl2303_encode_baudrate(struct tty_struct *tty,
+static void pl2303_encode_baud_rate(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					u8 buf[4])
 {
@@ -335,7 +335,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	if (!baud)
 		return;
 
-	/* Set baudrate to nearest supported value */
+	/* Set baud rate to nearest supported value */
 	for (i = 0; i < ARRAY_SIZE(baud_sup); ++i) {
 		if (baud_sup[i] > baud)
 			break;
@@ -461,7 +461,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	dev_dbg(&port->dev, "data bits = %d\n", buf[6]);
 
 	/* For reference buf[0]:buf[3] baud rate value */
-	pl2303_encode_baudrate(tty, port, &buf[0]);
+	pl2303_encode_baud_rate(tty, port, &buf[0]);
 
 	/* For reference buf[4]=0 is 1 stop bits */
 	/* For reference buf[4]=1 is 1.5 stop bits */
