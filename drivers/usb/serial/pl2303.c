@@ -514,9 +514,6 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
-	memset(buf, 0, 7);
-	pl2303_get_line_request(port, buf);
-
 	if (C_CRTSCTS(tty)) {
 		if (spriv->type == HX)
 			pl2303_vendor_write(serial, 0x0, 0x61);
