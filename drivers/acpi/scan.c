@@ -126,6 +126,24 @@ acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 
+static bool acpi_scan_is_offline(struct acpi_device *adev)
+{
+	struct acpi_device_physical_node *pn;
+	bool offline = true;
+
+	mutex_lock(&adev->physical_node_lock);
+
+	list_for_each_entry(pn, &adev->physical_node_list, node)
+		if (device_supports_offline(pn->dev) && !pn->dev->offline) {
+			kobject_uevent(&pn->dev->kobj, KOBJ_CHANGE);
+			offline = false;
+			break;
+		}
+
+	mutex_unlock(&adev->physical_node_lock);
+	return offline;
+}
+
 static acpi_status acpi_bus_offline(acpi_handle handle, u32 lvl, void *data,
 				    void **ret_p)
 {
@@ -196,12 +214,11 @@ static acpi_status acpi_bus_online(acpi_handle handle, u32 lvl, void *data,
 	return AE_OK;
 }
 
-static int acpi_scan_hot_remove(struct acpi_device *device)
+static int acpi_scan_try_to_offline(struct acpi_device *device)
 {
 	acpi_handle handle = device->handle;
-	struct device *errdev;
+	struct device *errdev = NULL;
 	acpi_status status;
-	unsigned long long sta;
 
 	/*
 	 * Carry out two passes here and ignore errors in the first pass,
@@ -212,7 +229,6 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	 *
 	 * If the first pass is successful, the second one isn't needed, though.
 	 */
-	errdev = NULL;
 	status = acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
 				     NULL, acpi_bus_offline, (void *)false,
 				     (void **)&errdev);
@@ -240,6 +256,23 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 					    NULL, NULL, NULL);
 			return -EBUSY;
 		}
+	}
+	return 0;
+}
+
+static int acpi_scan_hot_remove(struct acpi_device *device)
+{
+	acpi_handle handle = device->handle;
+	unsigned long long sta;
+	acpi_status status;
+
+	if (device->handler->hotplug.demand_offline && !acpi_force_hot_remove) {
+		if (!acpi_scan_is_offline(device))
+			return -EBUSY;
+	} else {
+		int error = acpi_scan_try_to_offline(device);
+		if (error)
+			return error;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,

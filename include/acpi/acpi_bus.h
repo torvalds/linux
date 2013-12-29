@@ -91,8 +91,9 @@ struct acpi_device;
 
 struct acpi_hotplug_profile {
 	struct kobject kobj;
-	bool enabled:1;
 	int (*scan_dependent)(struct acpi_device *adev);
+	bool enabled:1;
+	bool demand_offline:1;
 };
 
 static inline struct acpi_hotplug_profile *to_acpi_hotplug_profile(
