@@ -140,35 +140,46 @@ struct pl2303_private {
 	u8 line_settings[7];
 };
 
-static int pl2303_vendor_read(u16 value, u16 index,
-		struct usb_serial *serial, unsigned char *buf)
+static int pl2303_vendor_read(struct usb_serial *serial, u16 value,
+							unsigned char buf[1])
 {
+	struct device *dev = &serial->interface->dev;
 	int res;
 
 	res = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			VENDOR_READ_REQUEST, VENDOR_READ_REQUEST_TYPE,
-			value, index, buf, 1, 100);
+			value, 0, buf, 1, 100);
+	if (res != 1) {
+		dev_err(dev, "%s - failed to read [%04x]: %d\n", __func__,
+								value, res);
+		if (res >= 0)
+			res = -EIO;
 
-	dev_dbg(&serial->interface->dev, "0x%x:0x%x:0x%x:0x%x  %d - %x\n",
-		VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, value, index,
-		res, buf[0]);
+		return res;
+	}
 
-	return res;
+	dev_dbg(dev, "%s - [%04x] = %02x\n", __func__, value, buf[0]);
+
+	return 0;
 }
 
-static int pl2303_vendor_write(u16 value, u16 index, struct usb_serial *serial)
+static int pl2303_vendor_write(struct usb_serial *serial, u16 value, u16 index)
 {
+	struct device *dev = &serial->interface->dev;
 	int res;
+
+	dev_dbg(dev, "%s - [%04x] = %02x\n", __func__, value, index);
 
 	res = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			VENDOR_WRITE_REQUEST, VENDOR_WRITE_REQUEST_TYPE,
 			value, index, NULL, 0, 100);
+	if (res) {
+		dev_err(dev, "%s - failed to write [%04x]: %d\n", __func__,
+								value, res);
+		return res;
+	}
 
-	dev_dbg(&serial->interface->dev, "0x%x:0x%x:0x%x:0x%x  %d\n",
-		VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, value, index,
-		res);
-
-	return res;
+	return 0;
 }
 
 static int pl2303_startup(struct usb_serial *serial)
@@ -181,7 +192,7 @@ static int pl2303_startup(struct usb_serial *serial)
 	if (!spriv)
 		return -ENOMEM;
 
-	buf = kmalloc(10, GFP_KERNEL);
+	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf) {
 		kfree(spriv);
 		return -ENOMEM;
@@ -200,20 +211,20 @@ static int pl2303_startup(struct usb_serial *serial)
 	spriv->type = type;
 	usb_set_serial_data(serial, spriv);
 
-	pl2303_vendor_read(0x8484, 0, serial, buf);
-	pl2303_vendor_write(0x0404, 0, serial);
-	pl2303_vendor_read(0x8484, 0, serial, buf);
-	pl2303_vendor_read(0x8383, 0, serial, buf);
-	pl2303_vendor_read(0x8484, 0, serial, buf);
-	pl2303_vendor_write(0x0404, 1, serial);
-	pl2303_vendor_read(0x8484, 0, serial, buf);
-	pl2303_vendor_read(0x8383, 0, serial, buf);
-	pl2303_vendor_write(0, 1, serial);
-	pl2303_vendor_write(1, 0, serial);
+	pl2303_vendor_read(serial, 0x8484, buf);
+	pl2303_vendor_write(serial, 0x0404, 0);
+	pl2303_vendor_read(serial, 0x8484, buf);
+	pl2303_vendor_read(serial, 0x8383, buf);
+	pl2303_vendor_read(serial, 0x8484, buf);
+	pl2303_vendor_write(serial, 0x0404, 1);
+	pl2303_vendor_read(serial, 0x8484, buf);
+	pl2303_vendor_read(serial, 0x8383, buf);
+	pl2303_vendor_write(serial, 0, 1);
+	pl2303_vendor_write(serial, 1, 0);
 	if (type == HX)
-		pl2303_vendor_write(2, 0x44, serial);
+		pl2303_vendor_write(serial, 2, 0x44);
 	else
-		pl2303_vendor_write(2, 0x24, serial);
+		pl2303_vendor_write(serial, 2, 0x24);
 
 	kfree(buf);
 
@@ -473,11 +484,11 @@ static void pl2303_set_termios(struct tty_struct *tty,
 
 	if (C_CRTSCTS(tty)) {
 		if (spriv->type == HX)
-			pl2303_vendor_write(0x0, 0x61, serial);
+			pl2303_vendor_write(serial, 0x0, 0x61);
 		else
-			pl2303_vendor_write(0x0, 0x41, serial);
+			pl2303_vendor_write(serial, 0x0, 0x41);
 	} else {
-		pl2303_vendor_write(0x0, 0x0, serial);
+		pl2303_vendor_write(serial, 0x0, 0x0);
 	}
 
 	kfree(buf);
@@ -517,8 +528,8 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 		usb_clear_halt(serial->dev, port->read_urb->pipe);
 	} else {
 		/* reset upstream data pipes */
-		pl2303_vendor_write(8, 0, serial);
-		pl2303_vendor_write(9, 0, serial);
+		pl2303_vendor_write(serial, 8, 0);
+		pl2303_vendor_write(serial, 9, 0);
 	}
 
 	/* Setup termios */
