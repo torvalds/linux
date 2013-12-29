@@ -3511,7 +3511,7 @@ unwind:
  * it fails, it tries to find the first available slave for transmission.
  * The skb is consumed in all cases, thus the function is void.
  */
-void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int slave_id)
+static void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int slave_id)
 {
 	struct list_head *iter;
 	struct slave *slave;
