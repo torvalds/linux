@@ -11,5 +11,6 @@ config ARCH_SUNXI
 	select HAVE_SMP
 	select PINCTRL
 	select PINCTRL_SUNXI
+	select RESET_CONTROLLER
 	select SPARSE_IRQ
 	select SUN4I_TIMER
