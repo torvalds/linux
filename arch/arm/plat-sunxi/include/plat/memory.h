@@ -30,13 +30,7 @@
 /* default ATAG_MEM size */
 #define MEM_SIZE	(512*1024*1024)
 
-#ifdef CONFIG_ARCH_SUN7I
-#define __phys_to_bus(x) (((x)>=PLAT_PHYS_OFFSET)?(x)-PLAT_PHYS_OFFSET:(x))
-#define __bus_to_phys(x) (((x)<PLAT_PHYS_OFFSET)?(x)+PLAT_PHYS_OFFSET:(x))
-#else
-#define __phys_to_bus(x) (x)
-#define __bus_to_phys(x) (x)
-#endif
-
+#define __phys_to_bus(x) ((x) - PLAT_PHYS_OFFSET)
+#define __bus_to_phys(x) ((x) + PLAT_PHYS_OFFSET)
 
 #endif
