@@ -6521,11 +6521,8 @@ static bool nested_vmx_exit_handled_io(struct kvm_vcpu *vcpu,
 	int size;
 	u8 b;
 
-	if (nested_cpu_has(vmcs12, CPU_BASED_UNCOND_IO_EXITING))
-		return 1;
-
 	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_IO_BITMAPS))
-		return 0;
+		return nested_cpu_has(vmcs12, CPU_BASED_UNCOND_IO_EXITING);
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
