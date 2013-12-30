@@ -274,7 +274,6 @@
 #include <net/tcp.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
-#include <net/netdma.h>
 #include <net/sock.h>
 
 #include <asm/uaccess.h>
@@ -1454,39 +1453,6 @@ static void tcp_prequeue_process(struct sock *sk)
 	tp->ucopy.memory = 0;
 }
 
-#ifdef CONFIG_NET_DMA
-static void tcp_service_net_dma(struct sock *sk, bool wait)
-{
-	dma_cookie_t done, used;
-	dma_cookie_t last_issued;
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (!tp->ucopy.dma_chan)
-		return;
-
-	last_issued = tp->ucopy.dma_cookie;
-	dma_async_issue_pending(tp->ucopy.dma_chan);
-
-	do {
-		if (dma_async_is_tx_complete(tp->ucopy.dma_chan,
-					      last_issued, &done,
-					      &used) == DMA_COMPLETE) {
-			/* Safe to free early-copied skbs now */
-			__skb_queue_purge(&sk->sk_async_wait_queue);
-			break;
-		} else {
-			struct sk_buff *skb;
-			while ((skb = skb_peek(&sk->sk_async_wait_queue)) &&
-			       (dma_async_is_complete(skb->dma_cookie, done,
-						      used) == DMA_COMPLETE)) {
-				__skb_dequeue(&sk->sk_async_wait_queue);
-				kfree_skb(skb);
-			}
-		}
-	} while (wait);
-}
-#endif
-
 static struct sk_buff *tcp_recv_skb(struct sock *sk, u32 seq, u32 *off)
 {
 	struct sk_buff *skb;
@@ -1504,7 +1470,7 @@ static struct sk_buff *tcp_recv_skb(struct sock *sk, u32 seq, u32 *off)
 		 * splitted a fat GRO packet, while we released socket lock
 		 * in skb_splice_bits()
 		 */
-		sk_eat_skb(sk, skb, false);
+		sk_eat_skb(sk, skb);
 	}
 	return NULL;
 }
@@ -1570,11 +1536,11 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 				continue;
 		}
 		if (tcp_hdr(skb)->fin) {
-			sk_eat_skb(sk, skb, false);
+			sk_eat_skb(sk, skb);
 			++seq;
 			break;
 		}
-		sk_eat_skb(sk, skb, false);
+		sk_eat_skb(sk, skb);
 		if (!desc->count)
 			break;
 		tp->copied_seq = seq;
@@ -1612,7 +1578,6 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	int target;		/* Read at least this many bytes */
 	long timeo;
 	struct task_struct *user_recv = NULL;
-	bool copied_early = false;
 	struct sk_buff *skb;
 	u32 urg_hole = 0;
 
@@ -1654,28 +1619,6 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	}
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
-
-#ifdef CONFIG_NET_DMA
-	tp->ucopy.dma_chan = NULL;
-	preempt_disable();
-	skb = skb_peek_tail(&sk->sk_receive_queue);
-	{
-		int available = 0;
-
-		if (skb)
-			available = TCP_SKB_CB(skb)->seq + skb->len - (*seq);
-		if ((available < target) &&
-		    (len > sysctl_tcp_dma_copybreak) && !(flags & MSG_PEEK) &&
-		    !sysctl_tcp_low_latency &&
-		    net_dma_find_channel()) {
-			preempt_enable();
-			tp->ucopy.pinned_list =
-					dma_pin_iovec_pages(msg->msg_iov, len);
-		} else {
-			preempt_enable();
-		}
-	}
-#endif
 
 	do {
 		u32 offset;
@@ -1807,27 +1750,12 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			/* __ Set realtime policy in scheduler __ */
 		}
 
-#ifdef CONFIG_NET_DMA
-		if (tp->ucopy.dma_chan) {
-			if (tp->rcv_wnd == 0 &&
-			    !skb_queue_empty(&sk->sk_async_wait_queue)) {
-				tcp_service_net_dma(sk, true);
-				tcp_cleanup_rbuf(sk, copied);
-			} else
-				dma_async_issue_pending(tp->ucopy.dma_chan);
-		}
-#endif
 		if (copied >= target) {
 			/* Do not sleep, just process backlog. */
 			release_sock(sk);
 			lock_sock(sk);
 		} else
 			sk_wait_data(sk, &timeo);
-
-#ifdef CONFIG_NET_DMA
-		tcp_service_net_dma(sk, false);  /* Don't block */
-		tp->ucopy.wakeup = 0;
-#endif
 
 		if (user_recv) {
 			int chunk;
@@ -1886,43 +1814,13 @@ do_prequeue:
 		}
 
 		if (!(flags & MSG_TRUNC)) {
-#ifdef CONFIG_NET_DMA
-			if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
-				tp->ucopy.dma_chan = net_dma_find_channel();
-
-			if (tp->ucopy.dma_chan) {
-				tp->ucopy.dma_cookie = dma_skb_copy_datagram_iovec(
-					tp->ucopy.dma_chan, skb, offset,
-					msg->msg_iov, used,
-					tp->ucopy.pinned_list);
-
-				if (tp->ucopy.dma_cookie < 0) {
-
-					pr_alert("%s: dma_cookie < 0\n",
-						 __func__);
-
-					/* Exception. Bailout! */
-					if (!copied)
-						copied = -EFAULT;
-					break;
-				}
-
-				dma_async_issue_pending(tp->ucopy.dma_chan);
-
-				if ((offset + used) == skb->len)
-					copied_early = true;
-
-			} else
-#endif
-			{
-				err = skb_copy_datagram_iovec(skb, offset,
-						msg->msg_iov, used);
-				if (err) {
-					/* Exception. Bailout! */
-					if (!copied)
-						copied = -EFAULT;
-					break;
-				}
+			err = skb_copy_datagram_iovec(skb, offset,
+						      msg->msg_iov, used);
+			if (err) {
+				/* Exception. Bailout! */
+				if (!copied)
+					copied = -EFAULT;
+				break;
 			}
 		}
 
@@ -1942,19 +1840,15 @@ skip_copy:
 
 		if (tcp_hdr(skb)->fin)
 			goto found_fin_ok;
-		if (!(flags & MSG_PEEK)) {
-			sk_eat_skb(sk, skb, copied_early);
-			copied_early = false;
-		}
+		if (!(flags & MSG_PEEK))
+			sk_eat_skb(sk, skb);
 		continue;
 
 	found_fin_ok:
 		/* Process the FIN. */
 		++*seq;
-		if (!(flags & MSG_PEEK)) {
-			sk_eat_skb(sk, skb, copied_early);
-			copied_early = false;
-		}
+		if (!(flags & MSG_PEEK))
+			sk_eat_skb(sk, skb);
 		break;
 	} while (len > 0);
 
@@ -1976,16 +1870,6 @@ skip_copy:
 		tp->ucopy.task = NULL;
 		tp->ucopy.len = 0;
 	}
-
-#ifdef CONFIG_NET_DMA
-	tcp_service_net_dma(sk, true);  /* Wait for queue to drain */
-	tp->ucopy.dma_chan = NULL;
-
-	if (tp->ucopy.pinned_list) {
-		dma_unpin_iovec_pages(tp->ucopy.pinned_list);
-		tp->ucopy.pinned_list = NULL;
-	}
-#endif
 
 	/* According to UNIX98, msg_name/msg_namelen are ignored
 	 * on connected socket. I was just happy when found this 8) --ANK
@@ -2330,9 +2214,6 @@ int tcp_disconnect(struct sock *sk, int flags)
 	__skb_queue_purge(&sk->sk_receive_queue);
 	tcp_write_queue_purge(sk);
 	__skb_queue_purge(&tp->out_of_order_queue);
-#ifdef CONFIG_NET_DMA
-	__skb_queue_purge(&sk->sk_async_wait_queue);
-#endif
 
 	inet->inet_dport = 0;
 

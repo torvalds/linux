@@ -1655,7 +1655,6 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	err = ioat_probe(device);
 	if (err)
 		return err;
-	ioat_set_tcp_copy_break(262144);
 
 	list_for_each_entry(c, &dma->channels, device_node) {
 		chan = to_chan_common(c);

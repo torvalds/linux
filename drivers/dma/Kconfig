@@ -368,18 +368,6 @@ config DMA_OF
 comment "DMA Clients"
 	depends on DMA_ENGINE
 
-config NET_DMA
-	bool "Network: TCP receive copy offload"
-	depends on DMA_ENGINE && NET
-	default (INTEL_IOATDMA || FSL_DMA)
-	depends on BROKEN
-	help
-	  This enables the use of DMA engines in the network stack to
-	  offload receive copy-to-user operations, freeing CPU cycles.
-
-	  Say Y here if you enabled INTEL_IOATDMA or FSL_DMA, otherwise
-	  say N.
-
 config ASYNC_TX_DMA
 	bool "Async_tx: Offload support for the async_tx api"
 	depends on DMA_ENGINE

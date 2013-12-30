@@ -27,7 +27,6 @@
 #include <linux/cache.h>
 #include <linux/percpu.h>
 #include <linux/skbuff.h>
-#include <linux/dmaengine.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
 #include <linux/kref.h>
@@ -267,7 +266,6 @@ extern int sysctl_tcp_adv_win_scale;
 extern int sysctl_tcp_tw_reuse;
 extern int sysctl_tcp_frto;
 extern int sysctl_tcp_low_latency;
-extern int sysctl_tcp_dma_copybreak;
 extern int sysctl_tcp_nometrics_save;
 extern int sysctl_tcp_moderate_rcvbuf;
 extern int sysctl_tcp_tso_win_divisor;
@@ -1023,12 +1021,6 @@ static inline void tcp_prequeue_init(struct tcp_sock *tp)
 	tp->ucopy.len = 0;
 	tp->ucopy.memory = 0;
 	skb_queue_head_init(&tp->ucopy.prequeue);
-#ifdef CONFIG_NET_DMA
-	tp->ucopy.dma_chan = NULL;
-	tp->ucopy.wakeup = 0;
-	tp->ucopy.pinned_list = NULL;
-	tp->ucopy.dma_cookie = 0;
-#endif
 }
 
 bool tcp_prequeue(struct sock *sk, struct sk_buff *skb);

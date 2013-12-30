@@ -72,7 +72,6 @@
 #include <net/inet_common.h>
 #include <net/timewait_sock.h>
 #include <net/xfrm.h>
-#include <net/netdma.h>
 #include <net/secure_seq.h>
 #include <net/tcp_memcontrol.h>
 #include <net/busy_poll.h>
@@ -1999,18 +1998,8 @@ process:
 	bh_lock_sock_nested(sk);
 	ret = 0;
 	if (!sock_owned_by_user(sk)) {
-#ifdef CONFIG_NET_DMA
-		struct tcp_sock *tp = tcp_sk(sk);
-		if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
-			tp->ucopy.dma_chan = net_dma_find_channel();
-		if (tp->ucopy.dma_chan)
+		if (!tcp_prequeue(sk, skb))
 			ret = tcp_v4_do_rcv(sk, skb);
-		else
-#endif
-		{
-			if (!tcp_prequeue(sk, skb))
-				ret = tcp_v4_do_rcv(sk, skb);
-		}
 	} else if (unlikely(sk_add_backlog(sk, skb,
 					   sk->sk_rcvbuf + sk->sk_sndbuf))) {
 		bh_unlock_sock(sk);
@@ -2167,11 +2156,6 @@ void tcp_v4_destroy_sock(struct sock *sk)
 		kfree_rcu(tp->md5sig_info, rcu);
 		tp->md5sig_info = NULL;
 	}
-#endif
-
-#ifdef CONFIG_NET_DMA
-	/* Cleans up our sk_async_wait_queue */
-	__skb_queue_purge(&sk->sk_async_wait_queue);
 #endif
 
 	/* Clean prequeue, it must be empty really */

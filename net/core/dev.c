@@ -1266,7 +1266,6 @@ static int __dev_open(struct net_device *dev)
 		clear_bit(__LINK_STATE_START, &dev->state);
 	else {
 		dev->flags |= IFF_UP;
-		net_dmaengine_get();
 		dev_set_rx_mode(dev);
 		dev_activate(dev);
 		add_device_randomness(dev->dev_addr, dev->addr_len);
@@ -1342,7 +1341,6 @@ static int __dev_close_many(struct list_head *head)
 			ops->ndo_stop(dev);
 
 		dev->flags &= ~IFF_UP;
-		net_dmaengine_put();
 	}
 
 	return 0;
@@ -4404,14 +4402,6 @@ static void net_rx_action(struct softirq_action *h)
 	}
 out:
 	net_rps_action_and_irq_enable(sd);
-
-#ifdef CONFIG_NET_DMA
-	/*
-	 * There may not be any more sk_buffs coming right now, so push
-	 * any pending DMA copies to hardware
-	 */
-	dma_issue_pending_all();
-#endif
 
 	return;
 
