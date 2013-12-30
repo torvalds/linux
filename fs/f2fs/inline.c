@@ -43,8 +43,7 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 	if (IS_ERR(ipage))
 		return PTR_ERR(ipage);
 
-	zero_user_segment(page, INLINE_DATA_OFFSET,
-				INLINE_DATA_OFFSET + MAX_INLINE_DATA);
+	zero_user_segment(page, MAX_INLINE_DATA, PAGE_CACHE_SIZE);
 
 	/* Copy the whole inline data block */
 	src_addr = inline_data_addr(ipage);
@@ -88,7 +87,7 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 		return err;
 	}
 
-	zero_user_segment(page, 0, PAGE_CACHE_SIZE);
+	zero_user_segment(page, MAX_INLINE_DATA, PAGE_CACHE_SIZE);
 
 	/* Copy the whole inline data block */
 	src_addr = inline_data_addr(ipage);
