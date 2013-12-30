@@ -62,7 +62,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	dwsmmio->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dwsmmio->clk))
 		return PTR_ERR(dwsmmio->clk);
-	ret = clk_enable(dwsmmio->clk);
+	ret = clk_prepare_enable(dwsmmio->clk);
 	if (ret)
 		return ret;
 
@@ -78,7 +78,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	return 0;
 
 out:
-	clk_disable(dwsmmio->clk);
+	clk_disable_unprepare(dwsmmio->clk);
 	return ret;
 }
 
@@ -86,7 +86,7 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 {
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 
-	clk_disable(dwsmmio->clk);
+	clk_disable_unprepare(dwsmmio->clk);
 	dw_spi_remove_host(&dwsmmio->dws);
 
 	return 0;
