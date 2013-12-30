@@ -775,18 +775,16 @@ static void spi_hw_init(struct dw_spi *dws)
 	}
 }
 
-int dw_spi_add_host(struct dw_spi *dws)
+int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 {
 	struct spi_master *master;
 	int ret;
 
 	BUG_ON(dws == NULL);
 
-	master = spi_alloc_master(dws->parent_dev, 0);
-	if (!master) {
-		ret = -ENOMEM;
-		goto exit;
-	}
+	master = spi_alloc_master(dev, 0);
+	if (!master)
+		return -ENOMEM;
 
 	dws->master = master;
 	dws->type = SSI_MOTO_SPI;
@@ -796,7 +794,7 @@ int dw_spi_add_host(struct dw_spi *dws)
 	snprintf(dws->name, sizeof(dws->name), "dw_spi%d",
 			dws->bus_num);
 
-	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED,
+	ret = devm_request_irq(dev, dws->irq, dw_spi_irq, IRQF_SHARED,
 			dws->name, dws);
 	if (ret < 0) {
 		dev_err(&master->dev, "can not get IRQ\n");
@@ -835,7 +833,7 @@ int dw_spi_add_host(struct dw_spi *dws)
 	}
 
 	spi_master_set_devdata(master, dws);
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(dev, master);
 	if (ret) {
 		dev_err(&master->dev, "problem registering spi master\n");
 		goto err_queue_alloc;
@@ -850,10 +848,8 @@ err_queue_alloc:
 		dws->dma_ops->dma_exit(dws);
 err_diable_hw:
 	spi_enable_chip(dws, 0);
-	free_irq(dws->irq, dws);
 err_free_master:
 	spi_master_put(master);
-exit:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dw_spi_add_host);
@@ -877,10 +873,6 @@ void dw_spi_remove_host(struct dw_spi *dws)
 	spi_enable_chip(dws, 0);
 	/* Disable clk */
 	spi_set_clk(dws, 0);
-	free_irq(dws->irq, dws);
-
-	/* Disconnect from the SPI framework */
-	spi_unregister_master(dws->master);
 }
 EXPORT_SYMBOL_GPL(dw_spi_remove_host);
 
