@@ -1368,7 +1368,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 			changed |=
 			      ieee80211_mps_set_sta_local_pm(sta,
 							     params->local_pm);
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_mbss_info_change_notify(sdata, changed);
 #endif
 	}
 
@@ -2488,8 +2488,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
-	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
 	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
@@ -3120,9 +3119,17 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		    params->chandef.chan->band)
 			return -EINVAL;
 
+		ifmsh->chsw_init = true;
+		if (!ifmsh->pre_value)
+			ifmsh->pre_value = 1;
+		else
+			ifmsh->pre_value++;
+
 		err = ieee80211_mesh_csa_beacon(sdata, params, true);
-		if (err < 0)
+		if (err < 0) {
+			ifmsh->chsw_init = false;
 			return err;
+		}
 		break;
 #endif
 	default:

@@ -965,6 +965,7 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 	} else if (IS_GEN6(ring->dev)) {
 		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
 	} else {
+		/* XXX: gen8 returns to sanity */
 		mmio = RING_HWS_PGA(ring->mmio_base);
 	}
 

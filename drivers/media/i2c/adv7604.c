@@ -877,7 +877,7 @@ static void configure_custom_video_timings(struct v4l2_subdev *sd,
 		break;
 	case ADV7604_MODE_HDMI:
 		/* set default prim_mode/vid_std for HDMI
-		   accoring to [REF_03, c. 4.2] */
+		   according to [REF_03, c. 4.2] */
 		io_write(sd, 0x00, 0x02); /* video std */
 		io_write(sd, 0x01, 0x06); /* prim mode */
 		break;

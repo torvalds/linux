@@ -22,7 +22,7 @@ struct key *system_trusted_keyring;
 EXPORT_SYMBOL_GPL(system_trusted_keyring);
 
 extern __initconst const u8 system_certificate_list[];
-extern __initconst const u8 system_certificate_list_end[];
+extern __initconst const unsigned long system_certificate_list_size;
 
 /*
  * Load the compiled-in keys
@@ -60,8 +60,8 @@ static __init int load_system_certificate_list(void)
 
 	pr_notice("Loading compiled-in X.509 certificates\n");
 
-	end = system_certificate_list_end;
 	p = system_certificate_list;
+	end = p + system_certificate_list_size;
 	while (p < end) {
 		/* Each cert begins with an ASN.1 SEQUENCE tag and must be more
 		 * than 256 bytes in size.

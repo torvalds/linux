@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
+#include <linux/of.h>
 #include <linux/omap-dma.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -89,17 +90,6 @@
 #define OMAP_MMC_CMDTYPE_BCR	1
 #define OMAP_MMC_CMDTYPE_AC	2
 #define OMAP_MMC_CMDTYPE_ADTC	3
-
-#define OMAP_DMA_MMC_TX		21
-#define OMAP_DMA_MMC_RX		22
-#define OMAP_DMA_MMC2_TX	54
-#define OMAP_DMA_MMC2_RX	55
-
-#define OMAP24XX_DMA_MMC2_TX	47
-#define OMAP24XX_DMA_MMC2_RX	48
-#define OMAP24XX_DMA_MMC1_TX	61
-#define OMAP24XX_DMA_MMC1_RX	62
-
 
 #define DRIVER_NAME "mmci-omap"
 
@@ -1330,7 +1320,7 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	struct mmc_omap_host *host = NULL;
 	struct resource *res;
 	dma_cap_mask_t mask;
-	unsigned sig;
+	unsigned sig = 0;
 	int i, ret = 0;
 	int irq;
 
@@ -1340,7 +1330,7 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	}
 	if (pdata->nr_slots == 0) {
 		dev_err(&pdev->dev, "no slots\n");
-		return -ENXIO;
+		return -EPROBE_DEFER;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1407,19 +1397,20 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	host->dma_tx_burst = -1;
 	host->dma_rx_burst = -1;
 
-	if (mmc_omap2())
-		sig = host->id == 0 ? OMAP24XX_DMA_MMC1_TX : OMAP24XX_DMA_MMC2_TX;
-	else
-		sig = host->id == 0 ? OMAP_DMA_MMC_TX : OMAP_DMA_MMC2_TX;
-	host->dma_tx = dma_request_channel(mask, omap_dma_filter_fn, &sig);
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
+	if (res)
+		sig = res->start;
+	host->dma_tx = dma_request_slave_channel_compat(mask,
+				omap_dma_filter_fn, &sig, &pdev->dev, "tx");
 	if (!host->dma_tx)
 		dev_warn(host->dev, "unable to obtain TX DMA engine channel %u\n",
 			sig);
-	if (mmc_omap2())
-		sig = host->id == 0 ? OMAP24XX_DMA_MMC1_RX : OMAP24XX_DMA_MMC2_RX;
-	else
-		sig = host->id == 0 ? OMAP_DMA_MMC_RX : OMAP_DMA_MMC2_RX;
-	host->dma_rx = dma_request_channel(mask, omap_dma_filter_fn, &sig);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
+	if (res)
+		sig = res->start;
+	host->dma_rx = dma_request_slave_channel_compat(mask,
+				omap_dma_filter_fn, &sig, &pdev->dev, "rx");
 	if (!host->dma_rx)
 		dev_warn(host->dev, "unable to obtain RX DMA engine channel %u\n",
 			sig);
@@ -1512,12 +1503,20 @@ static int mmc_omap_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if IS_BUILTIN(CONFIG_OF)
+static const struct of_device_id mmc_omap_match[] = {
+	{ .compatible = "ti,omap2420-mmc", },
+	{ },
+};
+#endif
+
 static struct platform_driver mmc_omap_driver = {
 	.probe		= mmc_omap_probe,
 	.remove		= mmc_omap_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(mmc_omap_match),
 	},
 };
 

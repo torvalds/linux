@@ -1276,6 +1276,10 @@ static void ath_tx_fill_desc(struct ath_softc *sc, struct ath_buf *bf,
 				if (!rts_thresh || (len > rts_thresh))
 					rts = true;
 			}
+
+			if (!aggr)
+				len = fi->framelen;
+
 			ath_buf_set_rate(sc, bf, &info, len, rts);
 		}
 

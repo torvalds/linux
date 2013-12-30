@@ -416,7 +416,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 #if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
-			int len)		/* interrput packet length */
+			int len)		/* interrupt packet length */
 {
 	int ret = -EINVAL;
 

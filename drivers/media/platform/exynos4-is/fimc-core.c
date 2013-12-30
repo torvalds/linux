@@ -1039,7 +1039,7 @@ static int fimc_runtime_resume(struct device *dev)
 
 	dbg("fimc%d: state: 0x%lx", fimc->id, fimc->state);
 
-	/* Enable clocks and perform basic initalization */
+	/* Enable clocks and perform basic initialization */
 	clk_enable(fimc->clock[CLK_GATE]);
 	fimc_hw_reset(fimc);
 

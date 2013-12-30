@@ -3114,6 +3114,11 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 {
 	struct bnx2x *bp = netdev_priv(pci_get_drvdata(dev));
 
+	if (!IS_SRIOV(bp)) {
+		BNX2X_ERR("failed to configure SR-IOV since vfdb was not allocated. Check dmesg for errors in probe stage\n");
+		return -EINVAL;
+	}
+
 	DP(BNX2X_MSG_IOV, "bnx2x_sriov_configure called with %d, BNX2X_NR_VIRTFN(bp) was %d\n",
 	   num_vfs_param, BNX2X_NR_VIRTFN(bp));
 

@@ -893,19 +893,14 @@ F:	arch/arm/include/asm/hardware/dec21285.h
 F:	arch/arm/mach-footbridge/
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
+M:	Shawn Guo <shawn.guo@linaro.org>
 M:	Sascha Hauer <kernel@pengutronix.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	git git://git.pengutronix.de/git/imx/linux-2.6.git
-F:	arch/arm/mach-imx/
-F:	arch/arm/configs/imx*_defconfig
-
-ARM/FREESCALE IMX6
-M:	Shawn Guo <shawn.guo@linaro.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
 T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
-F:	arch/arm/mach-imx/*imx6*
+F:	arch/arm/mach-imx/
+F:	arch/arm/boot/dts/imx*
+F:	arch/arm/configs/imx*_defconfig
 
 ARM/FREESCALE MXS ARM ARCHITECTURE
 M:	Shawn Guo <shawn.guo@linaro.org>
@@ -1013,6 +1008,8 @@ M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-keystone/
+F:	drivers/clk/keystone/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
 
 ARM/LOGICPD PXA270 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1934,7 +1931,8 @@ S:	Maintained
 F:	drivers/gpio/gpio-bt8xx.c
 
 BTRFS FILE SYSTEM
-M:	Chris Mason <chris.mason@fusionio.com>
+M:	Chris Mason <clm@fb.com>
+M:	Josef Bacik <jbacik@fb.com>
 L:	linux-btrfs@vger.kernel.org
 W:	http://btrfs.wiki.kernel.org/
 Q:	http://patchwork.kernel.org/project/linux-btrfs/list/
@@ -2137,7 +2135,8 @@ S:	Maintained
 F:	Documentation/zh_CN/
 
 CHIPIDEA USB HIGH SPEED DUAL ROLE CONTROLLER
-M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+M:	Peter Chen <Peter.Chen@freescale.com>
+T:	git://github.com/hzpeterchen/linux-usb.git
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/chipidea/
@@ -3764,9 +3763,11 @@ F:	include/uapi/linux/gigaset_dev.h
 
 GPIO SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
-S:	Maintained
+M:	Alexandre Courbot <gnurou@gmail.com>
 L:	linux-gpio@vger.kernel.org
-F:	Documentation/gpio.txt
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
+S:	Maintained
+F:	Documentation/gpio/
 F:	drivers/gpio/
 F:	include/linux/gpio*
 F:	include/asm-generic/gpio.h
@@ -3833,6 +3834,12 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/gspca/
+
+GUID PARTITION TABLE (GPT)
+M:	Davidlohr Bueso <davidlohr@hp.com>
+L:	linux-efi@vger.kernel.org
+S:	Maintained
+F:	block/partitions/efi.*
 
 STK1160 USB VIDEO CAPTURE DRIVER
 M:	Ezequiel Garcia <elezegarcia@gmail.com>
@@ -4043,11 +4050,25 @@ W:	http://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi
 S:	Maintained
 F:	fs/hpfs/
 
+HSI SUBSYSTEM
+M:	Sebastian Reichel <sre@debian.org>
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-bus-hsi
+F:	drivers/hsi/
+F:	include/linux/hsi/
+F:	include/uapi/linux/hsi/
+
 HSO 3G MODEM DRIVER
 M:	Jan Dumon <j.dumon@option.com>
 W:	http://www.pharscape.org
 S:	Maintained
 F:	drivers/net/usb/hso.c
+
+HSR NETWORK PROTOCOL
+M:	Arvid Brodin <arvid.brodin@alten.se>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	net/hsr/
 
 HTCPEN TOUCHSCREEN DRIVER
 M:	Pau Oliva Fora <pof@eslack.org>
@@ -4455,10 +4476,8 @@ M:	Bruce Allan <bruce.w.allan@intel.com>
 M:	Carolyn Wyborny <carolyn.wyborny@intel.com>
 M:	Don Skidmore <donald.c.skidmore@intel.com>
 M:	Greg Rose <gregory.v.rose@intel.com>
-M:	Peter P Waskiewicz Jr <peter.p.waskiewicz.jr@intel.com>
 M:	Alex Duyck <alexander.h.duyck@intel.com>
 M:	John Ronciak <john.ronciak@intel.com>
-M:	Tushar Dave <tushar.n.dave@intel.com>
 L:	e1000-devel@lists.sourceforge.net
 W:	http://www.intel.com/support/feedback.htm
 W:	http://e1000.sourceforge.net/
@@ -5261,7 +5280,7 @@ S:	Maintained
 F:	Documentation/lockdep*.txt
 F:	Documentation/lockstat.txt
 F:	include/linux/lockdep.h
-F:	kernel/lockdep*
+F:	kernel/locking/
 
 LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP/Vista Dynamic Disks)
 M:	"Richard Russon (FlatCap)" <ldm@flatcap.org>
@@ -5902,12 +5921,21 @@ M:	Steffen Klassert <steffen.klassert@secunet.com>
 M:	Herbert Xu <herbert@gondor.apana.org.au>
 M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/klassert/ipsec.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/klassert/ipsec-next.git
 S:	Maintained
 F:	net/xfrm/
 F:	net/key/
 F:	net/ipv4/xfrm*
+F:	net/ipv4/esp4.c
+F:	net/ipv4/ah4.c
+F:	net/ipv4/ipcomp.c
+F:	net/ipv4/ip_vti.c
 F:	net/ipv6/xfrm*
+F:	net/ipv6/esp6.c
+F:	net/ipv6/ah6.c
+F:	net/ipv6/ipcomp6.c
+F:	net/ipv6/ip6_vti.c
 F:	include/uapi/linux/xfrm.h
 F:	include/net/xfrm.h
 
@@ -5973,10 +6001,10 @@ F:	drivers/nfc/
 F:	include/linux/platform_data/pn544.h
 
 NFS, SUNRPC, AND LOCKD CLIENTS
-M:	Trond Myklebust <Trond.Myklebust@netapp.com>
+M:	Trond Myklebust <trond.myklebust@primarydata.com>
 L:	linux-nfs@vger.kernel.org
 W:	http://client.linux-nfs.org
-T:	git git://git.linux-nfs.org/pub/linux/nfs-2.6.git
+T:	git git://git.linux-nfs.org/projects/trondmy/linux-nfs.git
 S:	Maintained
 F:	fs/lockd/
 F:	fs/nfs/
@@ -6243,8 +6271,8 @@ OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
 M:	Rob Herring <rob.herring@calxeda.com>
 M:	Pawel Moll <pawel.moll@arm.com>
 M:	Mark Rutland <mark.rutland@arm.com>
-M:	Stephen Warren <swarren@wwwdotorg.org>
 M:	Ian Campbell <ijc+devicetree@hellion.org.uk>
+M:	Kumar Gala <galak@codeaurora.org>
 L:	devicetree@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/
@@ -6454,18 +6482,51 @@ F:	drivers/pci/
 F:	include/linux/pci*
 F:	arch/x86/pci/
 
+PCI DRIVER FOR IMX6
+M:	Richard Zhu <r65037@freescale.com>
+M:	Shawn Guo <shawn.guo@linaro.org>
+L:	linux-pci@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/pci/host/*imx6*
+
+PCI DRIVER FOR MVEBU (Marvell Armada 370 and Armada XP SOC support)
+M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Jason Cooper <jason@lakedaemon.net>
+L:	linux-pci@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/pci/host/*mvebu*
+
 PCI DRIVER FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
 L:	linux-tegra@vger.kernel.org
+L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/pci/nvidia,tegra20-pcie.txt
 F:	drivers/pci/host/pci-tegra.c
 
+PCI DRIVER FOR RENESAS R-CAR
+M:	Simon Horman <horms@verge.net.au>
+L:	linux-pci@vger.kernel.org
+L:	linux-sh@vger.kernel.org
+S:	Maintained
+F:	drivers/pci/host/*rcar*
+
 PCI DRIVER FOR SAMSUNG EXYNOS
 M:	Jingoo Han <jg1.han@samsung.com>
 L:	linux-pci@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/pci/host/pci-exynos.c
+
+PCI DRIVER FOR SYNOPSIS DESIGNWARE
+M:	Mohit Kumar <mohit.kumar@st.com>
+M:	Jingoo Han <jg1.han@samsung.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	drivers/pci/host/*designware*
 
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team
@@ -7385,7 +7446,6 @@ S:	Maintained
 F:	kernel/sched/
 F:	include/linux/sched.h
 F:	include/uapi/linux/sched.h
-F:	kernel/wait.c
 F:	include/linux/wait.h
 
 SCORE ARCHITECTURE
@@ -9530,7 +9590,7 @@ F:	drivers/xen/*swiotlb*
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
-M:	Dave Chinner <dchinner@fromorbit.com>
+M:	Dave Chinner <david@fromorbit.com>
 M:	Ben Myers <bpm@sgi.com>
 M:	xfs@oss.sgi.com
 L:	xfs@oss.sgi.com

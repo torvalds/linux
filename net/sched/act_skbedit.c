@@ -203,7 +203,6 @@ static struct tc_action_ops act_skbedit_ops = {
 	.dump		=	tcf_skbedit_dump,
 	.cleanup	=	tcf_skbedit_cleanup,
 	.init		=	tcf_skbedit_init,
-	.walk		=	tcf_generic_walker,
 };
 
 MODULE_AUTHOR("Alexander Duyck, <alexander.h.duyck@intel.com>");

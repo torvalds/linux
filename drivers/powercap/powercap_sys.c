@@ -377,9 +377,14 @@ static void create_power_zone_common_attributes(
 	if (power_zone->ops->get_max_energy_range_uj)
 		power_zone->zone_dev_attrs[count++] =
 					&dev_attr_max_energy_range_uj.attr;
-	if (power_zone->ops->get_energy_uj)
+	if (power_zone->ops->get_energy_uj) {
+		if (power_zone->ops->reset_energy_uj)
+			dev_attr_energy_uj.attr.mode = S_IWUSR | S_IRUGO;
+		else
+			dev_attr_energy_uj.attr.mode = S_IRUGO;
 		power_zone->zone_dev_attrs[count++] =
 					&dev_attr_energy_uj.attr;
+	}
 	if (power_zone->ops->get_power_uw)
 		power_zone->zone_dev_attrs[count++] =
 					&dev_attr_power_uw.attr;

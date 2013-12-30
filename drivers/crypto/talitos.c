@@ -790,7 +790,7 @@ static void ipsec_esp_unmap(struct device *dev,
 
 	if (edesc->assoc_chained)
 		talitos_unmap_sg_chain(dev, areq->assoc, DMA_TO_DEVICE);
-	else
+	else if (areq->assoclen)
 		/* assoc_nents counts also for IV in non-contiguous cases */
 		dma_unmap_sg(dev, areq->assoc,
 			     edesc->assoc_nents ? edesc->assoc_nents - 1 : 1,
@@ -973,7 +973,11 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 		dma_sync_single_for_device(dev, edesc->dma_link_tbl,
 					   edesc->dma_len, DMA_BIDIRECTIONAL);
 	} else {
-		to_talitos_ptr(&desc->ptr[1], sg_dma_address(areq->assoc));
+		if (areq->assoclen)
+			to_talitos_ptr(&desc->ptr[1],
+				       sg_dma_address(areq->assoc));
+		else
+			to_talitos_ptr(&desc->ptr[1], edesc->iv_dma);
 		desc->ptr[1].j_extent = 0;
 	}
 
@@ -1108,7 +1112,8 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 						 unsigned int authsize,
 						 unsigned int ivsize,
 						 int icv_stashing,
-						 u32 cryptoflags)
+						 u32 cryptoflags,
+						 bool encrypt)
 {
 	struct talitos_edesc *edesc;
 	int assoc_nents = 0, src_nents, dst_nents, alloc_len, dma_len;
@@ -1122,10 +1127,10 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (iv)
+	if (ivsize)
 		iv_dma = dma_map_single(dev, iv, ivsize, DMA_TO_DEVICE);
 
-	if (assoc) {
+	if (assoclen) {
 		/*
 		 * Currently it is assumed that iv is provided whenever assoc
 		 * is.
@@ -1141,19 +1146,17 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 			assoc_nents = assoc_nents ? assoc_nents + 1 : 2;
 	}
 
-	src_nents = sg_count(src, cryptlen + authsize, &src_chained);
-	src_nents = (src_nents == 1) ? 0 : src_nents;
-
-	if (!dst) {
-		dst_nents = 0;
-	} else {
-		if (dst == src) {
-			dst_nents = src_nents;
-		} else {
-			dst_nents = sg_count(dst, cryptlen + authsize,
-					     &dst_chained);
-			dst_nents = (dst_nents == 1) ? 0 : dst_nents;
-		}
+	if (!dst || dst == src) {
+		src_nents = sg_count(src, cryptlen + authsize, &src_chained);
+		src_nents = (src_nents == 1) ? 0 : src_nents;
+		dst_nents = dst ? src_nents : 0;
+	} else { /* dst && dst != src*/
+		src_nents = sg_count(src, cryptlen + (encrypt ? 0 : authsize),
+				     &src_chained);
+		src_nents = (src_nents == 1) ? 0 : src_nents;
+		dst_nents = sg_count(dst, cryptlen + (encrypt ? authsize : 0),
+				     &dst_chained);
+		dst_nents = (dst_nents == 1) ? 0 : dst_nents;
 	}
 
 	/*
@@ -1173,9 +1176,16 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 
 	edesc = kmalloc(alloc_len, GFP_DMA | flags);
 	if (!edesc) {
-		talitos_unmap_sg_chain(dev, assoc, DMA_TO_DEVICE);
+		if (assoc_chained)
+			talitos_unmap_sg_chain(dev, assoc, DMA_TO_DEVICE);
+		else if (assoclen)
+			dma_unmap_sg(dev, assoc,
+				     assoc_nents ? assoc_nents - 1 : 1,
+				     DMA_TO_DEVICE);
+
 		if (iv_dma)
 			dma_unmap_single(dev, iv_dma, ivsize, DMA_TO_DEVICE);
+
 		dev_err(dev, "could not allocate edescriptor\n");
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1197,7 +1207,7 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 }
 
 static struct talitos_edesc *aead_edesc_alloc(struct aead_request *areq, u8 *iv,
-					      int icv_stashing)
+					      int icv_stashing, bool encrypt)
 {
 	struct crypto_aead *authenc = crypto_aead_reqtfm(areq);
 	struct talitos_ctx *ctx = crypto_aead_ctx(authenc);
@@ -1206,7 +1216,7 @@ static struct talitos_edesc *aead_edesc_alloc(struct aead_request *areq, u8 *iv,
 	return talitos_edesc_alloc(ctx->dev, areq->assoc, areq->src, areq->dst,
 				   iv, areq->assoclen, areq->cryptlen,
 				   ctx->authsize, ivsize, icv_stashing,
-				   areq->base.flags);
+				   areq->base.flags, encrypt);
 }
 
 static int aead_encrypt(struct aead_request *req)
@@ -1216,7 +1226,7 @@ static int aead_encrypt(struct aead_request *req)
 	struct talitos_edesc *edesc;
 
 	/* allocate extended descriptor */
-	edesc = aead_edesc_alloc(req, req->iv, 0);
+	edesc = aead_edesc_alloc(req, req->iv, 0, true);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
@@ -1239,7 +1249,7 @@ static int aead_decrypt(struct aead_request *req)
 	req->cryptlen -= authsize;
 
 	/* allocate extended descriptor */
-	edesc = aead_edesc_alloc(req, req->iv, 1);
+	edesc = aead_edesc_alloc(req, req->iv, 1, false);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
@@ -1285,7 +1295,7 @@ static int aead_givencrypt(struct aead_givcrypt_request *req)
 	struct talitos_edesc *edesc;
 
 	/* allocate extended descriptor */
-	edesc = aead_edesc_alloc(areq, req->giv, 0);
+	edesc = aead_edesc_alloc(areq, req->giv, 0, true);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
@@ -1441,7 +1451,7 @@ static int common_nonsnoop(struct talitos_edesc *edesc,
 }
 
 static struct talitos_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request *
-						    areq)
+						    areq, bool encrypt)
 {
 	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(areq);
 	struct talitos_ctx *ctx = crypto_ablkcipher_ctx(cipher);
@@ -1449,7 +1459,7 @@ static struct talitos_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request *
 
 	return talitos_edesc_alloc(ctx->dev, NULL, areq->src, areq->dst,
 				   areq->info, 0, areq->nbytes, 0, ivsize, 0,
-				   areq->base.flags);
+				   areq->base.flags, encrypt);
 }
 
 static int ablkcipher_encrypt(struct ablkcipher_request *areq)
@@ -1459,7 +1469,7 @@ static int ablkcipher_encrypt(struct ablkcipher_request *areq)
 	struct talitos_edesc *edesc;
 
 	/* allocate extended descriptor */
-	edesc = ablkcipher_edesc_alloc(areq);
+	edesc = ablkcipher_edesc_alloc(areq, true);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
@@ -1476,7 +1486,7 @@ static int ablkcipher_decrypt(struct ablkcipher_request *areq)
 	struct talitos_edesc *edesc;
 
 	/* allocate extended descriptor */
-	edesc = ablkcipher_edesc_alloc(areq);
+	edesc = ablkcipher_edesc_alloc(areq, false);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
@@ -1628,7 +1638,7 @@ static struct talitos_edesc *ahash_edesc_alloc(struct ahash_request *areq,
 	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
 
 	return talitos_edesc_alloc(ctx->dev, NULL, req_ctx->psrc, NULL, NULL, 0,
-				   nbytes, 0, 0, 0, areq->base.flags);
+				   nbytes, 0, 0, 0, areq->base.flags, false);
 }
 
 static int ahash_init(struct ahash_request *areq)
