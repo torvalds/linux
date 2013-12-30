@@ -125,12 +125,12 @@ static struct davinci_i2c_platform_data davinci_i2c_platform_data_default = {
 static inline void davinci_i2c_write_reg(struct davinci_i2c_dev *i2c_dev,
 					 int reg, u16 val)
 {
-	__raw_writew(val, i2c_dev->base + reg);
+	writew_relaxed(val, i2c_dev->base + reg);
 }
 
 static inline u16 davinci_i2c_read_reg(struct davinci_i2c_dev *i2c_dev, int reg)
 {
-	return __raw_readw(i2c_dev->base + reg);
+	return readw_relaxed(i2c_dev->base + reg);
 }
 
 /* Generate a pulse on the i2c clock pin. */

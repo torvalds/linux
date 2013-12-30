@@ -132,6 +132,7 @@ static int tb10x_gpio_direction_out(struct gpio_chip *chip,
 	int mask = BIT(offset);
 	int val = TB10X_GPIO_DIR_OUT << offset;
 
+	tb10x_gpio_set(chip, offset, value);
 	tb10x_set_bits(tb10x_gpio, OFFSET_TO_REG_DDR, mask, val);
 
 	return 0;

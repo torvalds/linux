@@ -298,8 +298,10 @@ static int __init set_abdac_rate(struct platform_device *pdev)
 	 */
 	retval = clk_round_rate(pll1,
 			CONFIG_BOARD_FAVR32_ABDAC_RATE * 256 * 16);
-	if (retval < 0)
+	if (retval <= 0) {
+		retval = -EINVAL;
 		goto out_abdac;
+	}
 
 	retval = clk_set_rate(pll1, retval);
 	if (retval != 0)

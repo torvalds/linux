@@ -1,5 +1,6 @@
 #include <linux/export.h>
 #include <linux/lockref.h>
+#include <linux/mutex.h>
 
 #if USE_CMPXCHG_LOCKREF
 
@@ -9,14 +10,6 @@
  */
 #ifndef cmpxchg64_relaxed
 # define cmpxchg64_relaxed cmpxchg64
-#endif
-
-/*
- * Allow architectures to override the default cpu_relax() within CMPXCHG_LOOP.
- * This is useful for architectures with an expensive cpu_relax().
- */
-#ifndef arch_mutex_cpu_relax
-# define arch_mutex_cpu_relax() cpu_relax()
 #endif
 
 /*

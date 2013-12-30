@@ -1064,7 +1064,7 @@ static inline unsigned int mk_adap_vers(const struct adapter *adapter)
 	/*
 	 * Chip version 4, revision 0x3f (cxgb4vf).
 	 */
-	return CHELSIO_CHIP_VERSION(adapter->chip) | (0x3f << 10);
+	return CHELSIO_CHIP_VERSION(adapter->params.chip) | (0x3f << 10);
 }
 
 /*
@@ -1551,9 +1551,13 @@ static void cxgb4vf_get_regs(struct net_device *dev,
 	reg_block_dump(adapter, regbuf,
 		       T4VF_MPS_BASE_ADDR + T4VF_MOD_MAP_MPS_FIRST,
 		       T4VF_MPS_BASE_ADDR + T4VF_MOD_MAP_MPS_LAST);
+
+	/* T5 adds new registers in the PL Register map.
+	 */
 	reg_block_dump(adapter, regbuf,
 		       T4VF_PL_BASE_ADDR + T4VF_MOD_MAP_PL_FIRST,
-		       T4VF_PL_BASE_ADDR + T4VF_MOD_MAP_PL_LAST);
+		       T4VF_PL_BASE_ADDR + (is_t4(adapter->params.chip)
+		       ? A_PL_VF_WHOAMI : A_PL_VF_REVISION));
 	reg_block_dump(adapter, regbuf,
 		       T4VF_CIM_BASE_ADDR + T4VF_MOD_MAP_CIM_FIRST,
 		       T4VF_CIM_BASE_ADDR + T4VF_MOD_MAP_CIM_LAST);
@@ -2087,6 +2091,7 @@ static int adap_init0(struct adapter *adapter)
 	unsigned int ethqsets;
 	int err;
 	u32 param, val = 0;
+	unsigned int chipid;
 
 	/*
 	 * Wait for the device to become ready before proceeding ...
@@ -2114,12 +2119,14 @@ static int adap_init0(struct adapter *adapter)
 		return err;
 	}
 
+	adapter->params.chip = 0;
 	switch (adapter->pdev->device >> 12) {
 	case CHELSIO_T4:
-		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
+		adapter->params.chip = CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
 		break;
 	case CHELSIO_T5:
-		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T5, 0);
+		chipid = G_REV(t4_read_reg(adapter, A_PL_VF_REV));
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, chipid);
 		break;
 	}
 
