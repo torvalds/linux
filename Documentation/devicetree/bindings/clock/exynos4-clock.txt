@@ -6,7 +6,7 @@ SoC's in the Exynos4 family.
 
 Required Properties:
 
-- comptible: should be one of the following.
+- compatible: should be one of the following.
   - "samsung,exynos4210-clock" - controller compatible with Exynos4210 SoC.
   - "samsung,exynos4412-clock" - controller compatible with Exynos4412 SoC.
 

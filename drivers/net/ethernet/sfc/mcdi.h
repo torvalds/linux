@@ -75,6 +75,8 @@ struct efx_mcdi_mon {
 	unsigned long last_update;
 	struct device *device;
 	struct efx_mcdi_mon_attribute *attrs;
+	struct attribute_group group;
+	const struct attribute_group *groups[2];
 	unsigned int n_attrs;
 };
 

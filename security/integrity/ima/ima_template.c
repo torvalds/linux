@@ -110,7 +110,7 @@ static int template_desc_init_fields(const char *template_fmt,
 				     struct ima_template_field ***fields,
 				     int *num_fields)
 {
-	char *c, *template_fmt_copy;
+	char *c, *template_fmt_copy, *template_fmt_ptr;
 	int template_num_fields = template_fmt_size(template_fmt);
 	int i, result = 0;
 
@@ -127,7 +127,9 @@ static int template_desc_init_fields(const char *template_fmt,
 		result = -ENOMEM;
 		goto out;
 	}
-	for (i = 0; (c = strsep(&template_fmt_copy, "|")) != NULL &&
+
+	template_fmt_ptr = template_fmt_copy;
+	for (i = 0; (c = strsep(&template_fmt_ptr, "|")) != NULL &&
 	     i < template_num_fields; i++) {
 		struct ima_template_field *f = lookup_template_field(c);
 

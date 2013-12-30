@@ -198,10 +198,12 @@ void __init tegra_init_fuse(void)
 	switch (tegra_chip_id) {
 	case TEGRA20:
 		tegra20_fuse_init_randomness();
+		break;
 	case TEGRA30:
 	case TEGRA114:
 	default:
 		tegra30_fuse_init_randomness();
+		break;
 	}
 
 	pr_info("Tegra Revision: %s SKU: %d CPU Process: %d Core Process: %d\n",

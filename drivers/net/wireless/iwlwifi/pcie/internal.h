@@ -477,4 +477,12 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 }
 
+static inline void iwl_nic_error(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	set_bit(STATUS_FW_ERROR, &trans_pcie->status);
+	iwl_op_mode_nic_error(trans->op_mode);
+}
+
 #endif /* __iwl_trans_int_pcie_h__ */

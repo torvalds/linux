@@ -42,6 +42,8 @@ struct hid_sensor_hub_attribute_info {
 	s32 units;
 	s32 unit_expo;
 	s32 size;
+	s32 logical_minimum;
+	s32 logical_maximum;
 };
 
 /**

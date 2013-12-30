@@ -509,7 +509,7 @@ static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 	u32 val;
 	if (q->pend_cred >= 8) {
 		val = PIDX(q->pend_cred / 8);
-		if (!is_t4(adap->chip))
+		if (!is_t4(adap->params.chip))
 			val |= DBTYPE(1);
 		wmb();
 		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL), DBPRIO(1) |
@@ -847,7 +847,7 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 	wmb();            /* write descriptors before telling HW */
 	spin_lock(&q->db_lock);
 	if (!q->db_disabled) {
-		if (is_t4(adap->chip)) {
+		if (is_t4(adap->params.chip)) {
 			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
 				     QID(q->cntxt_id) | PIDX(n));
 		} else {
@@ -1596,7 +1596,7 @@ static noinline int handle_trace_pkt(struct adapter *adap,
 		return 0;
 	}
 
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		__skb_pull(skb, sizeof(struct cpl_trace_pkt));
 	else
 		__skb_pull(skb, sizeof(struct cpl_t5_trace_pkt));
@@ -1661,7 +1661,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	const struct cpl_rx_pkt *pkt;
 	struct sge_eth_rxq *rxq = container_of(q, struct sge_eth_rxq, rspq);
 	struct sge *s = &q->adap->sge;
-	int cpl_trace_pkt = is_t4(q->adap->chip) ?
+	int cpl_trace_pkt = is_t4(q->adap->params.chip) ?
 			    CPL_TRACE_PKT : CPL_TRACE_PKT_T5;
 
 	if (unlikely(*(u8 *)rsp == cpl_trace_pkt))
@@ -2182,7 +2182,7 @@ err:
 static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
 {
 	q->cntxt_id = id;
-	if (!is_t4(adap->chip)) {
+	if (!is_t4(adap->params.chip)) {
 		unsigned int s_qpp;
 		unsigned short udb_density;
 		unsigned long qpshift;
@@ -2641,7 +2641,7 @@ static int t4_sge_init_hard(struct adapter *adap)
 	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
 	 * and generate an interrupt when this occurs so we can recover.
 	 */
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
 				 V_HP_INT_THRESH(M_HP_INT_THRESH) |
 				 V_LP_INT_THRESH(M_LP_INT_THRESH),
