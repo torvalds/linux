@@ -62,7 +62,6 @@ extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern void __netlink_clear_multicast_users(struct sock *sk, unsigned int group);
-extern void netlink_clear_multicast_users(struct sock *sk, unsigned int group);
 extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
 extern int netlink_has_listeners(struct sock *sk, unsigned int group);
 extern struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
@@ -168,7 +167,6 @@ struct netlink_tap {
 };
 
 extern int netlink_add_tap(struct netlink_tap *nt);
-extern int __netlink_remove_tap(struct netlink_tap *nt);
 extern int netlink_remove_tap(struct netlink_tap *nt);
 
 #endif	/* __LINUX_NETLINK_H */

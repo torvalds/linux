@@ -131,7 +131,7 @@ int netlink_add_tap(struct netlink_tap *nt)
 }
 EXPORT_SYMBOL_GPL(netlink_add_tap);
 
-int __netlink_remove_tap(struct netlink_tap *nt)
+static int __netlink_remove_tap(struct netlink_tap *nt)
 {
 	bool found = false;
 	struct netlink_tap *tmp;
@@ -155,7 +155,6 @@ out:
 
 	return found ? 0 : -ENODEV;
 }
-EXPORT_SYMBOL_GPL(__netlink_remove_tap);
 
 int netlink_remove_tap(struct netlink_tap *nt)
 {
@@ -2538,21 +2537,6 @@ void __netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
 
 	sk_for_each_bound(sk, &tbl->mc_list)
 		netlink_update_socket_mc(nlk_sk(sk), group, 0);
-}
-
-/**
- * netlink_clear_multicast_users - kick off multicast listeners
- *
- * This function removes all listeners from the given group.
- * @ksk: The kernel netlink socket, as returned by
- *	netlink_kernel_create().
- * @group: The multicast group to clear.
- */
-void netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
-{
-	netlink_table_grab();
-	__netlink_clear_multicast_users(ksk, group);
-	netlink_table_ungrab();
 }
 
 struct nlmsghdr *
