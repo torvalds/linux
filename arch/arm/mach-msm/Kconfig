@@ -16,6 +16,7 @@ config ARCH_MSM7X00A
 	select MACH_TROUT if !MACH_HALIBUT
 	select MSM_PROC_COMM
 	select MSM_SMD
+	select MSM_TIMER
 	select MSM_SMD_PKG3
 
 config ARCH_MSM7X30
@@ -27,6 +28,7 @@ config ARCH_MSM7X30
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select MSM_SMD
+	select MSM_TIMER
 	select MSM_VIC
 
 config ARCH_QSD8X50
@@ -38,6 +40,7 @@ config ARCH_QSD8X50
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select MSM_SMD
+	select MSM_TIMER
 	select MSM_VIC
 
 endchoice
@@ -50,6 +53,7 @@ config ARCH_MSM8X60
 	select GPIO_MSM_V2
 	select HAVE_SMP
 	select MSM_SCM if SMP
+	select MSM_TIMER
 
 config ARCH_MSM8960
 	bool "MSM8960"
@@ -59,6 +63,7 @@ config ARCH_MSM8960
 	select HAVE_SMP
 	select GPIO_MSM_V2
 	select MSM_SCM if SMP
+	select MSM_TIMER
 
 config ARCH_MSM8974
 	bool "MSM8974"
@@ -145,4 +150,8 @@ config MSM_GPIOMUX
 
 config MSM_SCM
 	bool
+
+config MSM_TIMER
+	bool
+
 endif
