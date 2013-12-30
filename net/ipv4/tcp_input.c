@@ -5148,19 +5148,15 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			}
 		} else {
 			int eaten = 0;
-			int copied_early = 0;
 			bool fragstolen = false;
 
-			if (tp->copied_seq == tp->rcv_nxt &&
-			    len - tcp_header_len <= tp->ucopy.len) {
-				if (tp->ucopy.task == current &&
-				    sock_owned_by_user(sk) && !copied_early) {
-					__set_current_state(TASK_RUNNING);
+			if (tp->ucopy.task == current &&
+			    tp->copied_seq == tp->rcv_nxt &&
+			    len - tcp_header_len <= tp->ucopy.len &&
+			    sock_owned_by_user(sk)) {
+				__set_current_state(TASK_RUNNING);
 
-					if (!tcp_copy_to_iovec(sk, skb, tcp_header_len))
-						eaten = 1;
-				}
-				if (eaten) {
+				if (!tcp_copy_to_iovec(sk, skb, tcp_header_len)) {
 					/* Predicted packet is in window by definition.
 					 * seq == rcv_nxt and rcv_wup <= rcv_nxt.
 					 * Hence, check seq<=rcv_wup reduces to:
@@ -5176,9 +5172,8 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 					__skb_pull(skb, tcp_header_len);
 					tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 					NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPHPHITSTOUSER);
+					eaten = 1;
 				}
-				if (copied_early)
-					tcp_cleanup_rbuf(sk, skb->len);
 			}
 			if (!eaten) {
 				if (tcp_checksum_complete_user(sk, skb))
@@ -5215,8 +5210,7 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 					goto no_ack;
 			}
 
-			if (!copied_early || tp->rcv_nxt != tp->rcv_wup)
-				__tcp_ack_snd_check(sk, 0);
+			__tcp_ack_snd_check(sk, 0);
 no_ack:
 			if (eaten)
 				kfree_skb_partial(skb, fragstolen);
