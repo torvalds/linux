@@ -39,6 +39,11 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 	struct page *ipage;
 	void *src_addr, *dst_addr;
 
+	if (page->index) {
+		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
+		goto out;
+	}
+
 	ipage = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(ipage))
 		return PTR_ERR(ipage);
@@ -52,6 +57,7 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 	kunmap(page);
 	f2fs_put_page(ipage, 1);
 
+out:
 	SetPageUptodate(page);
 	unlock_page(page);
 
