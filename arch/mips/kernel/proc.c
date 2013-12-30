@@ -65,26 +65,25 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				cpu_data[n].watch_reg_masks[i]);
 		seq_printf(m, "]\n");
 	}
-	if (cpu_has_mips_r) {
-		seq_printf(m, "isa\t\t\t: mips1");
-		if (cpu_has_mips_2)
-			seq_printf(m, "%s", " mips2");
-		if (cpu_has_mips_3)
-			seq_printf(m, "%s", " mips3");
-		if (cpu_has_mips_4)
-			seq_printf(m, "%s", " mips4");
-		if (cpu_has_mips_5)
-			seq_printf(m, "%s", " mips5");
-		if (cpu_has_mips32r1)
-			seq_printf(m, "%s", " mips32r1");
-		if (cpu_has_mips32r2)
-			seq_printf(m, "%s", " mips32r2");
-		if (cpu_has_mips64r1)
-			seq_printf(m, "%s", " mips64r1");
-		if (cpu_has_mips64r2)
-			seq_printf(m, "%s", " mips64r2");
-		seq_printf(m, "\n");
-	}
+
+	seq_printf(m, "isa\t\t\t: mips1");
+	if (cpu_has_mips_2)
+		seq_printf(m, "%s", " mips2");
+	if (cpu_has_mips_3)
+		seq_printf(m, "%s", " mips3");
+	if (cpu_has_mips_4)
+		seq_printf(m, "%s", " mips4");
+	if (cpu_has_mips_5)
+		seq_printf(m, "%s", " mips5");
+	if (cpu_has_mips32r1)
+		seq_printf(m, "%s", " mips32r1");
+	if (cpu_has_mips32r2)
+		seq_printf(m, "%s", " mips32r2");
+	if (cpu_has_mips64r1)
+		seq_printf(m, "%s", " mips64r1");
+	if (cpu_has_mips64r2)
+		seq_printf(m, "%s", " mips64r2");
+	seq_printf(m, "\n");
 
 	seq_printf(m, "ASEs implemented\t:");
 	if (cpu_has_mips16)	seq_printf(m, "%s", " mips16");
