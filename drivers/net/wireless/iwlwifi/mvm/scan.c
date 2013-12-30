@@ -807,6 +807,8 @@ int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	profile_cfg->active_clients = SCAN_CLIENT_SCHED_SCAN;
 	profile_cfg->pass_match = SCAN_CLIENT_SCHED_SCAN;
 	profile_cfg->match_notify = SCAN_CLIENT_SCHED_SCAN;
+	if (!req->n_match_sets || !req->match_sets[0].ssid.ssid_len)
+		profile_cfg->any_beacon_notify = SCAN_CLIENT_SCHED_SCAN;
 
 	for (i = 0; i < req->n_match_sets; i++) {
 		profile = &profile_cfg->profiles[i];
