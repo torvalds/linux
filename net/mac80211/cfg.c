@@ -3854,7 +3854,7 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
 		new_qos_map = NULL;
 	}
 
-	old_qos_map = rtnl_dereference(sdata->qos_map);
+	old_qos_map = sdata_dereference(sdata->qos_map, sdata);
 	rcu_assign_pointer(sdata->qos_map, new_qos_map);
 	if (old_qos_map)
 		kfree_rcu(old_qos_map, rcu_head);
