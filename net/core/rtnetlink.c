@@ -403,34 +403,16 @@ static const struct rtnl_af_ops *rtnl_af_lookup(const int family)
 }
 
 /**
- * __rtnl_af_register - Register rtnl_af_ops with rtnetlink.
- * @ops: struct rtnl_af_ops * to register
- *
- * The caller must hold the rtnl_mutex.
- *
- * Returns 0 on success or a negative error code.
- */
-int __rtnl_af_register(struct rtnl_af_ops *ops)
-{
-	list_add_tail(&ops->list, &rtnl_af_ops);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(__rtnl_af_register);
-
-/**
  * rtnl_af_register - Register rtnl_af_ops with rtnetlink.
  * @ops: struct rtnl_af_ops * to register
  *
  * Returns 0 on success or a negative error code.
  */
-int rtnl_af_register(struct rtnl_af_ops *ops)
+void rtnl_af_register(struct rtnl_af_ops *ops)
 {
-	int err;
-
 	rtnl_lock();
-	err = __rtnl_af_register(ops);
+	list_add_tail(&ops->list, &rtnl_af_ops);
 	rtnl_unlock();
-	return err;
 }
 EXPORT_SYMBOL_GPL(rtnl_af_register);
 
