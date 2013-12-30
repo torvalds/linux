@@ -82,7 +82,8 @@ dtb-$(CONFIG_ARCH_HIGHBANK) += highbank.dtb \
 dtb-$(CONFIG_ARCH_INTEGRATOR) += integratorap.dtb \
 	integratorcp.dtb
 dtb-$(CONFIG_ARCH_LPC32XX) += ea3250.dtb phy3250.dtb
-dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-cloudbox.dtb \
+dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-b3.dtb \
+	kirkwood-cloudbox.dtb \
 	kirkwood-db-88f6281.dtb \
 	kirkwood-db-88f6282.dtb \
 	kirkwood-dns320.dtb \
