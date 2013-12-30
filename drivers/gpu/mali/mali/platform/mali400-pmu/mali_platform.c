@@ -52,8 +52,7 @@ _mali_osk_errcode_t mali_platform_init(void)
 		_mali_osk_resource_t fb_resource = {
 			.type = MEM_VALIDATION,
 			.description = "Framebuffer",
-			.cpu_usage_adjust = 0x40000000,
-			.base = __phys_to_bus(fb_start),
+			.base = fb_start,
 			.size = fb_size,
 			.flags = 0
 		};

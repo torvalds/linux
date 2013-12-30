@@ -82,7 +82,6 @@ int mem_map_ext_wrapper(struct mali_session_data *session_data, _mali_uk_map_ext
 	}
 
 	uk_args.ctx = session_data;
-	uk_args.phys_addr = __phys_to_bus(uk_args.phys_addr);
 
 	err_code = _mali_ukk_map_external_mem( &uk_args );
 

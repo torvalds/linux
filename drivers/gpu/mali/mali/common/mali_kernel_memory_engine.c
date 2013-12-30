@@ -8,6 +8,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <asm/memory.h>  /* For PHYS_OFFSET */
+
 #include "mali_kernel_common.h"
 #include "mali_kernel_core.h"
 #include "mali_kernel_memory_engine.h"
@@ -220,6 +222,23 @@ _mali_osk_errcode_t mali_allocation_engine_map_physical(mali_allocation_engine m
 
 	MALI_DEBUG_ASSERT_POINTER(engine);
 	MALI_DEBUG_ASSERT_POINTER(descriptor);
+
+	/*
+	 * Hack: Override the 'cpu_usage_adjust' function argument, because we
+	 *       know that it should be equal to PHYS_OFFSET. Also if 'phys'
+	 *       is not MALI_MEMORY_ALLOCATION_OS_ALLOCATED_PHYSADDR_MAGIC
+	 *       (OS allocated memory), then convert it to the bus address
+	 *       right here (this should handle both UMP buffers and external
+	 *       memory).
+	 *
+	 * Note: Apparently mali driver uses a bit different terminology, which
+	 *       may be a source of confusion:
+	 *           linux       : "physical address"     and "bus address"
+	 *           mali driver : "cpu physical address" and "physical address"
+	 */
+	cpu_usage_adjust = PHYS_OFFSET;
+	if (MALI_MEMORY_ALLOCATION_OS_ALLOCATED_PHYSADDR_MAGIC != phys)
+		phys -= cpu_usage_adjust;
 
 	MALI_DEBUG_PRINT(7, ("Mapping phys 0x%08X length 0x%08X at offset 0x%08X\n", phys, size, offset));
 
