@@ -300,7 +300,7 @@ static ssize_t iowarrior_read(struct file *file, char __user *buffer,
 	do {
 		atomic_set(&dev->overflow_flag, 0);
 		if ((read_idx = read_index(dev)) == -1) {
-			/* queue emty */
+			/* queue empty */
 			if (file->f_flags & O_NONBLOCK)
 				return -EAGAIN;
 			else {
