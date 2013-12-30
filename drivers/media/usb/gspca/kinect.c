@@ -158,7 +158,7 @@ static int send_cmd(struct gspca_dev *gspca_dev, uint16_t cmd, void *cmdbuf,
 	PDEBUG(D_USBO, "Control reply: %d", res);
 	if (actual_len < sizeof(*rhdr)) {
 		pr_err("send_cmd: Input control transfer failed (%d)\n", res);
-		return res;
+		return actual_len < 0 ? actual_len : -EREMOTEIO;
 	}
 	actual_len -= sizeof(*rhdr);
 
