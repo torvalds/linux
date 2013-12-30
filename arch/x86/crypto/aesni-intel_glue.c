@@ -1473,6 +1473,7 @@ static int __init aesni_init(void)
 
 	if (!x86_match_cpu(aesni_cpu_id))
 		return -ENODEV;
+#ifdef CONFIG_X86_64
 #ifdef CONFIG_AS_AVX2
 	if (boot_cpu_has(X86_FEATURE_AVX2)) {
 		pr_info("AVX2 version of gcm_enc/dec engaged.\n");
@@ -1492,6 +1493,7 @@ static int __init aesni_init(void)
 		aesni_gcm_enc_tfm = aesni_gcm_enc;
 		aesni_gcm_dec_tfm = aesni_gcm_dec;
 	}
+#endif
 
 	err = crypto_fpu_init();
 	if (err)
