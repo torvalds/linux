@@ -982,7 +982,7 @@ static bool ath9k_is_mybeacon(struct ath_softc *sc, struct ieee80211_hdr *hdr)
 	if (ieee80211_is_beacon(hdr->frame_control)) {
 		RX_STAT_INC(rx_beacons);
 		if (!is_zero_ether_addr(common->curbssid) &&
-		    ether_addr_equal(hdr->addr3, common->curbssid))
+		    ether_addr_equal_64bits(hdr->addr3, common->curbssid))
 			return true;
 	}
 
