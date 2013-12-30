@@ -26,9 +26,9 @@
 #include <linux/pci.h>
 #include "stmmac.h"
 
-struct plat_stmmacenet_data plat_dat;
-struct stmmac_mdio_bus_data mdio_data;
-struct stmmac_dma_cfg dma_cfg;
+static struct plat_stmmacenet_data plat_dat;
+static struct stmmac_mdio_bus_data mdio_data;
+static struct stmmac_dma_cfg dma_cfg;
 
 static void stmmac_default_data(void)
 {

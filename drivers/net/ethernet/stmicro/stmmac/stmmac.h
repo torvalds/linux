@@ -108,8 +108,6 @@ struct stmmac_priv {
 	spinlock_t ptp_lock;
 };
 
-extern int phyaddr;
-
 int stmmac_mdio_unregister(struct net_device *ndev);
 int stmmac_mdio_register(struct net_device *ndev);
 void stmmac_set_ethtool_ops(struct net_device *netdev);
