@@ -1689,7 +1689,7 @@ static void rockchip_irq_demux(unsigned int irq, struct irq_desc *desc)
 	u32 pend;
 	bool edge_changed = false;
 
-	dev_dbg(bank->drvdata->dev, "got irq for bank %s\n", bank->name);
+	DBG_PINCTRL("%s:got irq for bank %s\n", __func__, bank->name);
 
 	chained_irq_enter(chip, desc);
 
@@ -1830,9 +1830,11 @@ static inline void rockchip_gpio_bit_op(void __iomem *reg_base, unsigned int off
 {
 	u32 val = __raw_readl(reg_base + offset);
 	if (flag)
-		val |= bit;
+		val |= BIT(bit);
 	else
-		val &= ~bit;
+		val &= ~BIT(bit);
+
+	
 	__raw_writel(val, reg_base + offset);
 }
 
