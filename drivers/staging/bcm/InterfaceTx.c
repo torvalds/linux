@@ -13,15 +13,11 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	if (unlikely(netif_msg_tx_done(Adapter)))
 		pr_info(PFX "%s: transmit status %d\n", Adapter->dev->name, urb->status);
 
-	if (urb->status != STATUS_SUCCESS)
-	{
-		if (urb->status == -EPIPE)
-		{
+	if (urb->status != STATUS_SUCCESS) {
+		if (urb->status == -EPIPE) {
 			psIntfAdapter->psAdapter->bEndPointHalted = TRUE;
 			wake_up(&psIntfAdapter->psAdapter->tx_packet_wait_queue);
-		}
-		else
-		{
+		} else {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Tx URB has got cancelled. status :%d", urb->status);
 		}
 	}
@@ -31,17 +27,13 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 
 
 
-	if (TRUE == psAdapter->bPreparingForLowPowerMode)
-	{
+	if (TRUE == psAdapter->bPreparingForLowPowerMode) {
 
 		if (((pControlMsg->szData[0] == GO_TO_IDLE_MODE_PAYLOAD) &&
-			(pControlMsg->szData[1] == TARGET_CAN_GO_TO_IDLE_MODE)))
-
-		{
+			(pControlMsg->szData[1] == TARGET_CAN_GO_TO_IDLE_MODE))) {
 			bpowerDownMsg = TRUE;
 			//This covers the bus err while Idle Request msg sent down.
-			if (urb->status != STATUS_SUCCESS)
-			{
+			if (urb->status != STATUS_SUCCESS) {
 				psAdapter->bPreparingForLowPowerMode = false;
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Idle Mode Request msg failed to reach to Modem");
 				//Signalling the cntrl pkt path in Ioctl
@@ -50,8 +42,7 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 				goto err_exit;
 			}
 
-			if (psAdapter->bDoSuspend == false)
-			{
+			if (psAdapter->bDoSuspend == false) {
 				psAdapter->IdleMode = TRUE;
 				//since going in Idle mode completed hence making this var false;
 				psAdapter->bPreparingForLowPowerMode = false;
@@ -61,15 +52,12 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 				wake_up(&psAdapter->lowpower_mode_wait_queue);
 			}
 
-		}
-		else if ((pControlMsg->Leader.Status == LINK_UP_CONTROL_REQ) &&
+		} else if ((pControlMsg->Leader.Status == LINK_UP_CONTROL_REQ) &&
 			(pControlMsg->szData[0] == LINK_UP_ACK) &&
 			(pControlMsg->szData[1] == LINK_SHUTDOWN_REQ_FROM_FIRMWARE)  &&
-			(pControlMsg->szData[2] == SHUTDOWN_ACK_FROM_DRIVER))
-		{
+			(pControlMsg->szData[2] == SHUTDOWN_ACK_FROM_DRIVER)) {
 			//This covers the bus err while shutdown Request msg sent down.
-			if (urb->status != STATUS_SUCCESS)
-			{
+			if (urb->status != STATUS_SUCCESS) {
 				psAdapter->bPreparingForLowPowerMode = false;
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Shutdown Request Msg failed to reach to Modem");
 				//Signalling the cntrl pkt path in Ioctl
@@ -79,8 +67,7 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 			}
 
 			bpowerDownMsg = TRUE;
-			if (psAdapter->bDoSuspend == false)
-			{
+			if (psAdapter->bDoSuspend == false) {
 				psAdapter->bShutStatus = TRUE;
 				//since going in shutdown mode completed hence making this var false;
 				psAdapter->bPreparingForLowPowerMode = false;
@@ -90,8 +77,7 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 			}
 		}
 
-		if (psAdapter->bDoSuspend && bpowerDownMsg)
-		{
+		if (psAdapter->bDoSuspend && bpowerDownMsg) {
 			//issuing bus suspend request
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Issuing the Bus suspend request to USB stack");
 			psIntfAdapter->bPreparingForBusSuspend = TRUE;
@@ -113,8 +99,7 @@ static struct bcm_usb_tcb *GetBulkOutTcb(struct bcm_interface_adapter *psIntfAda
 	UINT index = 0;
 
 	if ((atomic_read(&psIntfAdapter->uNumTcbUsed) < MAXIMUM_USB_TCB) &&
-		(psIntfAdapter->psAdapter->StopAllXaction == false))
-	{
+		(psIntfAdapter->psAdapter->StopAllXaction == false)) {
 		index = atomic_read(&psIntfAdapter->uCurrTcb);
 		pTcb = &psIntfAdapter->asUsbTcb[index];
 		pTcb->bUsed = TRUE;
@@ -136,8 +121,7 @@ static int TransmitTcb(struct bcm_interface_adapter *psIntfAdapter, struct bcm_u
 
 	urb->transfer_buffer = usb_alloc_coherent(psIntfAdapter->udev, len,
 						GFP_ATOMIC, &urb->transfer_dma);
-	if (!urb->transfer_buffer)
-	{
+	if (!urb->transfer_buffer) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Error allocating memory\n");
 		return  -ENOMEM;
 	}
@@ -146,15 +130,12 @@ static int TransmitTcb(struct bcm_interface_adapter *psIntfAdapter, struct bcm_u
 
 	BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Sending Bulk out packet\n");
 	//For T3B,INT OUT end point will be used as bulk out end point
-	if ((psIntfAdapter->psAdapter->chip_id == T3B) && (psIntfAdapter->bHighSpeedDevice == TRUE))
-	{
+	if ((psIntfAdapter->psAdapter->chip_id == T3B) && (psIntfAdapter->bHighSpeedDevice == TRUE)) {
 		usb_fill_int_urb(urb, psIntfAdapter->udev,
 			psIntfAdapter->sBulkOut.bulk_out_pipe,
 			urb->transfer_buffer, len, write_bulk_callback, pTcb,
 			psIntfAdapter->sBulkOut.int_out_interval);
-	}
-	else
-	{
+	} else {
 	usb_fill_bulk_urb(urb, psIntfAdapter->udev,
 		  psIntfAdapter->sBulkOut.bulk_out_pipe,
 		  urb->transfer_buffer, len, write_bulk_callback, pTcb);
@@ -164,14 +145,11 @@ static int TransmitTcb(struct bcm_interface_adapter *psIntfAdapter, struct bcm_u
 	if (false == psIntfAdapter->psAdapter->device_removed &&
 	   false == psIntfAdapter->psAdapter->bEndPointHalted &&
 	   false == psIntfAdapter->bSuspended &&
-	   false == psIntfAdapter->bPreparingForBusSuspend)
-	{
+	   false == psIntfAdapter->bPreparingForBusSuspend) {
 		retval = usb_submit_urb(urb, GFP_ATOMIC);
-		if (retval)
-		{
+		if (retval) {
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "failed submitting write urb, error %d", retval);
-			if (retval == -EPIPE)
-			{
+			if (retval == -EPIPE) {
 				psIntfAdapter->psAdapter->bEndPointHalted = TRUE;
 				wake_up(&psIntfAdapter->psAdapter->tx_packet_wait_queue);
 			}
@@ -186,8 +164,7 @@ int InterfaceTransmitPacket(PVOID arg, PVOID data, UINT len)
 
 	struct bcm_interface_adapter *psIntfAdapter = arg;
 	pTcb = GetBulkOutTcb(psIntfAdapter);
-	if (pTcb == NULL)
-	{
+	if (pTcb == NULL) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "No URB to transmit packet, dropping packet");
 		return -EFAULT;
 	}
