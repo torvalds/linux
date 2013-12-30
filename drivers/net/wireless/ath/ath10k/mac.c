@@ -2205,7 +2205,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	enum wmi_sta_powersave_param param;
 	int ret = 0;
-	u32 value;
+	u32 value, param_id;
 	int bit;
 	u32 vdev_param;
 
@@ -2297,6 +2297,13 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 			ath10k_warn("Failed to create peer for AP: %d\n", ret);
 			goto err_vdev_delete;
 		}
+
+		param_id = ar->wmi.pdev_param->sta_kickout_th;
+
+		/* Disable STA KICKOUT functionality in FW */
+		ret = ath10k_wmi_pdev_set_param(ar, param_id, 0);
+		if (ret)
+			ath10k_warn("Failed to disable STA KICKOUT\n");
 	}
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_STA) {
