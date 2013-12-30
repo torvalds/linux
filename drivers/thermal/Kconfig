@@ -192,6 +192,13 @@ config X86_PKG_TEMP_THERMAL
 	  two trip points which can be set by user to get notifications via thermal
 	  notification methods.
 
+config ACPI_INT3403_THERMAL
+	tristate "ACPI INT3403 thermal driver"
+	depends on X86 && ACPI
+	help
+	  This driver uses ACPI INT3403 device objects. If present, it will
+	  register each INT3403 thermal sensor as a thermal zone.
+
 menu "Texas Instruments thermal drivers"
 source "drivers/thermal/ti-soc-thermal/Kconfig"
 endmenu
