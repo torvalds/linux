@@ -172,12 +172,14 @@ struct pnv_phb {
 		} ioda;
 	};
 
-	/* PHB status structure */
+	/* PHB and hub status structure */
 	union {
 		unsigned char			blob[PNV_PCI_DIAG_BUF_SIZE];
 		struct OpalIoP7IOCPhbErrorData	p7ioc;
 		struct OpalIoPhb3ErrorData	phb3;
+		struct OpalIoP7IOCErrorData 	hub_diag;
 	} diag;
+
 };
 
 extern struct pci_ops pnv_pci_ops;
