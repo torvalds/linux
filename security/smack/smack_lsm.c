@@ -229,7 +229,7 @@ static int smack_syslog(int typefrom_file)
 	if (smack_privileged(CAP_MAC_OVERRIDE))
 		return 0;
 
-	 if (smack_syslog_label != NULL && smack_syslog_label != skp)
+	if (smack_syslog_label != NULL && smack_syslog_label != skp)
 		rc = -EACCES;
 
 	return rc;
@@ -339,10 +339,12 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 	struct inode *inode = root->d_inode;
 	struct superblock_smack *sp = sb->s_security;
 	struct inode_smack *isp;
+	struct smack_known *skp;
 	char *op;
 	char *commap;
 	char *nsp;
 	int transmute = 0;
+	int specified = 0;
 
 	if (sp->smk_initialized)
 		return 0;
@@ -357,34 +359,56 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 		if (strncmp(op, SMK_FSHAT, strlen(SMK_FSHAT)) == 0) {
 			op += strlen(SMK_FSHAT);
 			nsp = smk_import(op, 0);
-			if (nsp != NULL)
+			if (nsp != NULL) {
 				sp->smk_hat = nsp;
+				specified = 1;
+			}
 		} else if (strncmp(op, SMK_FSFLOOR, strlen(SMK_FSFLOOR)) == 0) {
 			op += strlen(SMK_FSFLOOR);
 			nsp = smk_import(op, 0);
-			if (nsp != NULL)
+			if (nsp != NULL) {
 				sp->smk_floor = nsp;
+				specified = 1;
+			}
 		} else if (strncmp(op, SMK_FSDEFAULT,
 				   strlen(SMK_FSDEFAULT)) == 0) {
 			op += strlen(SMK_FSDEFAULT);
 			nsp = smk_import(op, 0);
-			if (nsp != NULL)
+			if (nsp != NULL) {
 				sp->smk_default = nsp;
+				specified = 1;
+			}
 		} else if (strncmp(op, SMK_FSROOT, strlen(SMK_FSROOT)) == 0) {
 			op += strlen(SMK_FSROOT);
 			nsp = smk_import(op, 0);
-			if (nsp != NULL)
+			if (nsp != NULL) {
 				sp->smk_root = nsp;
+				specified = 1;
+			}
 		} else if (strncmp(op, SMK_FSTRANS, strlen(SMK_FSTRANS)) == 0) {
 			op += strlen(SMK_FSTRANS);
 			nsp = smk_import(op, 0);
 			if (nsp != NULL) {
 				sp->smk_root = nsp;
 				transmute = 1;
+				specified = 1;
 			}
 		}
 	}
 
+	if (!smack_privileged(CAP_MAC_ADMIN)) {
+		/*
+		 * Unprivileged mounts don't get to specify Smack values.
+		 */
+		if (specified)
+			return -EPERM;
+		/*
+		 * Unprivileged mounts get root and default from the caller.
+		 */
+		skp = smk_of_current();
+		sp->smk_root = skp->smk_known;
+		sp->smk_default = skp->smk_known;
+	}
 	/*
 	 * Initialize the root inode.
 	 */
@@ -419,53 +443,6 @@ static int smack_sb_statfs(struct dentry *dentry)
 
 	rc = smk_curacc(sbp->smk_floor, MAY_READ, &ad);
 	return rc;
-}
-
-/**
- * smack_sb_mount - Smack check for mounting
- * @dev_name: unused
- * @path: mount point
- * @type: unused
- * @flags: unused
- * @data: unused
- *
- * Returns 0 if current can write the floor of the filesystem
- * being mounted on, an error code otherwise.
- */
-static int smack_sb_mount(const char *dev_name, struct path *path,
-			  const char *type, unsigned long flags, void *data)
-{
-	struct superblock_smack *sbp = path->dentry->d_sb->s_security;
-	struct smk_audit_info ad;
-
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
-	smk_ad_setfield_u_fs_path(&ad, *path);
-
-	return smk_curacc(sbp->smk_floor, MAY_WRITE, &ad);
-}
-
-/**
- * smack_sb_umount - Smack check for unmounting
- * @mnt: file system to unmount
- * @flags: unused
- *
- * Returns 0 if current can write the floor of the filesystem
- * being unmounted, an error code otherwise.
- */
-static int smack_sb_umount(struct vfsmount *mnt, int flags)
-{
-	struct superblock_smack *sbp;
-	struct smk_audit_info ad;
-	struct path path;
-
-	path.dentry = mnt->mnt_root;
-	path.mnt = mnt;
-
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
-	smk_ad_setfield_u_fs_path(&ad, path);
-
-	sbp = path.dentry->d_sb->s_security;
-	return smk_curacc(sbp->smk_floor, MAY_WRITE, &ad);
 }
 
 /*
@@ -3762,8 +3739,6 @@ struct security_operations smack_ops = {
 	.sb_copy_data = 		smack_sb_copy_data,
 	.sb_kern_mount = 		smack_sb_kern_mount,
 	.sb_statfs = 			smack_sb_statfs,
-	.sb_mount = 			smack_sb_mount,
-	.sb_umount = 			smack_sb_umount,
 
 	.bprm_set_creds =		smack_bprm_set_creds,
 	.bprm_committing_creds =	smack_bprm_committing_creds,
