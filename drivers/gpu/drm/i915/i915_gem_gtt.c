@@ -1438,6 +1438,9 @@ static int i915_gmch_probe(struct drm_device *dev,
 	dev_priv->gtt.base.clear_range = i915_ggtt_clear_range;
 	dev_priv->gtt.base.insert_entries = i915_ggtt_insert_entries;
 
+	if (unlikely(dev_priv->gtt.do_idle_maps))
+		DRM_INFO("applying Ironlake quirks for intel_iommu\n");
+
 	return 0;
 }
 
