@@ -1587,9 +1587,12 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 irqreturn_t musb_interrupt(struct musb *musb)
 {
 	irqreturn_t	retval = IRQ_NONE;
+	unsigned long	status;
+	unsigned long	epnum;
 	u8		devctl;
-	int		ep_num;
-	u32		reg;
+
+	if (!musb->int_usb && !musb->int_tx && !musb->int_rx)
+		return IRQ_NONE;
 
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
@@ -1618,43 +1621,36 @@ irqreturn_t musb_interrupt(struct musb *musb)
 	 */
 
 	if (musb->int_usb)
-		retval |= musb_stage0_irq(musb, musb->int_usb,
-				devctl);
+		retval |= musb_stage0_irq(musb, musb->int_usb, devctl);
 
 	if (musb->int_tx & 1) {
 		if (is_host_active(musb))
 			retval |= musb_h_ep0_irq(musb);
 		else
 			retval |= musb_g_ep0_irq(musb);
+
+		/* we have just handled endpoint 0 IRQ, clear it */
+		musb->int_tx &= ~BIT(0);
 	}
 
-	reg = musb->int_tx >> 1;
-	ep_num = 1;
-	while (reg) {
-		if (reg & 1) {
-			retval = IRQ_HANDLED;
-			if (is_host_active(musb))
-				musb_host_tx(musb, ep_num);
-			else
-				musb_g_tx(musb, ep_num);
-		}
-		reg >>= 1;
-		ep_num++;
+	status = musb->int_tx;
+
+	for_each_set_bit(epnum, &status, 16) {
+		retval = IRQ_HANDLED;
+		if (is_host_active(musb))
+			musb_host_tx(musb, epnum);
+		else
+			musb_g_tx(musb, epnum);
 	}
 
-	reg = musb->int_rx >> 1;
-	ep_num = 1;
-	while (reg) {
-		if (reg & 1) {
-			retval = IRQ_HANDLED;
-			if (is_host_active(musb))
-				musb_host_rx(musb, ep_num);
-			else
-				musb_g_rx(musb, ep_num);
-		}
+	status = musb->int_rx;
 
-		reg >>= 1;
-		ep_num++;
+	for_each_set_bit(epnum, &status, 16) {
+		retval = IRQ_HANDLED;
+		if (is_host_active(musb))
+			musb_host_rx(musb, epnum);
+		else
+			musb_g_rx(musb, epnum);
 	}
 
 	return retval;
