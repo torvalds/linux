@@ -1714,7 +1714,7 @@ static void bnx2x_vf_mbx_set_q_filters(struct bnx2x *bp,
 
 		/* ...and only the mac set by the ndo */
 		if (filters->n_mac_vlan_filters == 1 &&
-		    memcmp(filters->filters->mac, bulletin->mac, ETH_ALEN)) {
+		    !ether_addr_equal(filters->filters->mac, bulletin->mac)) {
 			BNX2X_ERR("VF[%d] requested the addition of a mac address not matching the one configured by set_vf_mac ndo\n",
 				  vf->abs_vfid);
 
