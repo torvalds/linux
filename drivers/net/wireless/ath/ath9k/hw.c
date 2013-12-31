@@ -245,6 +245,9 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 	case AR9300_DEVID_QCA955X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9550;
 		return;
+	case AR9300_DEVID_AR953X:
+		ah->hw_version.macVersion = AR_SREV_VERSION_9531;
+		return;
 	}
 
 	val = REG_READ(ah, AR_SREV) & AR_SREV_ID;
@@ -518,6 +521,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	case AR_SREV_VERSION_9462:
 	case AR_SREV_VERSION_9550:
 	case AR_SREV_VERSION_9565:
+	case AR_SREV_VERSION_9531:
 		break;
 	default:
 		ath_err(common,
@@ -617,6 +621,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9462:
 	case AR9485_DEVID_AR1111:
 	case AR9300_DEVID_AR9565:
+	case AR9300_DEVID_AR953X:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
