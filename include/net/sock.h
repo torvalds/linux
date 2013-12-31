@@ -846,12 +846,16 @@ static inline void sock_rps_reset_flow_hash(__u32 hash)
 
 static inline void sock_rps_record_flow(const struct sock *sk)
 {
+#ifdef CONFIG_RPS
 	sock_rps_record_flow_hash(sk->sk_rxhash);
+#endif
 }
 
 static inline void sock_rps_reset_flow(const struct sock *sk)
 {
+#ifdef CONFIG_RPS
 	sock_rps_reset_flow_hash(sk->sk_rxhash);
+#endif
 }
 
 static inline void sock_rps_save_rxhash(struct sock *sk,
