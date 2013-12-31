@@ -19,6 +19,4 @@ extern struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp;
 int nf_conntrack_ipv4_compat_init(void);
 void nf_conntrack_ipv4_compat_fini(void);
 
-void need_ipv4_conntrack(void);
-
 #endif /*_NF_CONNTRACK_IPV4_H*/
