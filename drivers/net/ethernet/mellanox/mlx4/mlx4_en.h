@@ -45,6 +45,7 @@
 #include <linux/dcbnl.h>
 #endif
 #include <linux/cpu_rmap.h>
+#include <linux/ptp_clock_kernel.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/qp.h>
@@ -375,10 +376,14 @@ struct mlx4_en_dev {
 	u32                     priv_pdn;
 	spinlock_t              uar_lock;
 	u8			mac_removed[MLX4_MAX_PORTS + 1];
+	rwlock_t		clock_lock;
+	u32			nominal_c_mult;
 	struct cyclecounter	cycles;
 	struct timecounter	clock;
 	unsigned long		last_overflow_check;
 	unsigned long		overflow_period;
+	struct ptp_clock	*ptp_clock;
+	struct ptp_clock_info	ptp_clock_info;
 };
 
 
@@ -791,6 +796,7 @@ void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
 			    struct skb_shared_hwtstamps *hwts,
 			    u64 timestamp);
 void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev);
+void mlx4_en_remove_timestamp(struct mlx4_en_dev *mdev);
 int mlx4_en_timestamp_config(struct net_device *dev,
 			     int tx_type,
 			     int rx_filter);
