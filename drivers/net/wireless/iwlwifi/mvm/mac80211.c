@@ -1015,9 +1015,13 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	/* must be set before quota calculations */
 	mvmvif->ap_ibss_active = true;
 
+	/* power updated needs to be done before quotas */
+	mvm->bound_vif_cnt++;
+	iwl_mvm_power_update_binding(mvm, vif, true);
+
 	ret = iwl_mvm_update_quotas(mvm, vif);
 	if (ret)
-		goto out_rm_bcast;
+		goto out_quota_failed;
 
 	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
@@ -1028,7 +1032,9 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 	return 0;
 
-out_rm_bcast:
+out_quota_failed:
+	mvm->bound_vif_cnt--;
+	iwl_mvm_power_update_binding(mvm, vif, false);
 	mvmvif->ap_ibss_active = false;
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 out_unbind:
@@ -1061,6 +1067,10 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	iwl_mvm_update_quotas(mvm, NULL);
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 	iwl_mvm_binding_remove_vif(mvm, vif);
+
+	mvm->bound_vif_cnt--;
+	iwl_mvm_power_update_binding(mvm, vif, false);
+
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
 	mutex_unlock(&mvm->mutex);
@@ -1772,11 +1782,11 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	}
 
 	iwl_mvm_binding_remove_vif(mvm, vif);
-out_unlock:
-	mvmvif->phy_ctxt = NULL;
 	mvm->bound_vif_cnt--;
 	iwl_mvm_power_update_binding(mvm, vif, false);
 
+out_unlock:
+	mvmvif->phy_ctxt = NULL;
 	mutex_unlock(&mvm->mutex);
 }
 
