@@ -757,7 +757,7 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		/* program BB PLL phase_shift */
 		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL3,
 			      AR_CH0_BB_DPLL3_PHASE_SHIFT, 0x1);
-	} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah)) {
+	} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
 		u32 regval, pll2_divint, pll2_divfrac, refdiv;
 
 		REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x1142c);
@@ -767,9 +767,15 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		udelay(100);
 
 		if (ah->is_clk_25mhz) {
-			pll2_divint = 0x54;
-			pll2_divfrac = 0x1eb85;
-			refdiv = 3;
+			if (AR_SREV_9531(ah)) {
+				pll2_divint = 0x1c;
+				pll2_divfrac = 0xa3d2;
+				refdiv = 1;
+			} else {
+				pll2_divint = 0x54;
+				pll2_divfrac = 0x1eb85;
+				refdiv = 3;
+			}
 		} else {
 			if (AR_SREV_9340(ah)) {
 				pll2_divint = 88;
@@ -783,7 +789,10 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		}
 
 		regval = REG_READ(ah, AR_PHY_PLL_MODE);
-		regval |= (0x1 << 16);
+		if (AR_SREV_9531(ah))
+			regval |= (0x1 << 22);
+		else
+			regval |= (0x1 << 16);
 		REG_WRITE(ah, AR_PHY_PLL_MODE, regval);
 		udelay(100);
 
@@ -793,14 +802,33 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 
 		regval = REG_READ(ah, AR_PHY_PLL_MODE);
 		if (AR_SREV_9340(ah))
-			regval = (regval & 0x80071fff) | (0x1 << 30) |
-				 (0x1 << 13) | (0x4 << 26) | (0x18 << 19);
+			regval = (regval & 0x80071fff) |
+				(0x1 << 30) |
+				(0x1 << 13) |
+				(0x4 << 26) |
+				(0x18 << 19);
+		else if (AR_SREV_9531(ah))
+			regval = (regval & 0x01c00fff) |
+				(0x1 << 31) |
+				(0x2 << 29) |
+				(0xa << 25) |
+				(0x1 << 19) |
+				(0x6 << 12);
 		else
-			regval = (regval & 0x80071fff) | (0x3 << 30) |
-				 (0x1 << 13) | (0x4 << 26) | (0x60 << 19);
+			regval = (regval & 0x80071fff) |
+				(0x3 << 30) |
+				(0x1 << 13) |
+				(0x4 << 26) |
+				(0x60 << 19);
 		REG_WRITE(ah, AR_PHY_PLL_MODE, regval);
-		REG_WRITE(ah, AR_PHY_PLL_MODE,
-			  REG_READ(ah, AR_PHY_PLL_MODE) & 0xfffeffff);
+
+		if (AR_SREV_9531(ah))
+			REG_WRITE(ah, AR_PHY_PLL_MODE,
+				  REG_READ(ah, AR_PHY_PLL_MODE) & 0xffbfffff);
+		else
+			REG_WRITE(ah, AR_PHY_PLL_MODE,
+				  REG_READ(ah, AR_PHY_PLL_MODE) & 0xfffeffff);
+
 		udelay(1000);
 	}
 
@@ -1614,7 +1642,7 @@ static void ath9k_hw_init_desc(struct ath_hw *ah)
 		}
 #ifdef __BIG_ENDIAN
 		else if (AR_SREV_9330(ah) || AR_SREV_9340(ah) ||
-			 AR_SREV_9550(ah))
+			 AR_SREV_9550(ah) || AR_SREV_9531(ah))
 			REG_RMW(ah, AR_CFG, AR_CFG_SWRB | AR_CFG_SWTB, 0);
 		else
 			REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);

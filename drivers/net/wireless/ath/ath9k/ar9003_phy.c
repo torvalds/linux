@@ -103,7 +103,7 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			} else {
 				channelSel = CHANSEL_2G(freq) >> 1;
 			}
-		} else if (AR_SREV_9550(ah)) {
+		} else if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
 			if (ah->is_clk_25mhz)
 				div = 75;
 			else
@@ -118,7 +118,7 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 		/* Set to 2G mode */
 		bMode = 1;
 	} else {
-		if ((AR_SREV_9340(ah) || AR_SREV_9550(ah)) &&
+		if ((AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah)) &&
 		    ah->is_clk_25mhz) {
 			channelSel = freq / 75;
 			chan_frac = ((freq % 75) * 0x20000) / 75;
@@ -810,10 +810,12 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	/*
 	 * TXGAIN initvals.
 	 */
-	if (AR_SREV_9550(ah)) {
-		int modes_txgain_index;
+	if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
+		int modes_txgain_index = 1;
 
-		modes_txgain_index = ar9550_hw_get_modes_txgain_index(ah, chan);
+		if (AR_SREV_9550(ah))
+			modes_txgain_index = ar9550_hw_get_modes_txgain_index(ah, chan);
+
 		if (modes_txgain_index < 0)
 			return -EINVAL;
 
@@ -1862,7 +1864,7 @@ bool ar9003_hw_bb_watchdog_check(struct ath_hw *ah)
 	case 0x04000b09:
 		return true;
 	case 0x04000409:
-		if (AR_SREV_9340(ah))
+		if (AR_SREV_9340(ah) || AR_SREV_9531(ah))
 			return false;
 		else
 			return true;
