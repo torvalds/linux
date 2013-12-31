@@ -105,10 +105,7 @@ struct tcf_common *tcf_hash_lookup(u32 index, struct tcf_hashinfo *hinfo);
 void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo);
 int tcf_hash_release(struct tcf_common *p, int bind,
 		     struct tcf_hashinfo *hinfo);
-int tcf_generic_walker(struct sk_buff *skb, struct netlink_callback *cb,
-		       int type, struct tc_action *a);
 u32 tcf_hash_new_index(u32 *idx_gen, struct tcf_hashinfo *hinfo);
-int tcf_hash_search(struct tc_action *a, u32 index);
 struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a,
 				  int bind, struct tcf_hashinfo *hinfo);
 struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est,
