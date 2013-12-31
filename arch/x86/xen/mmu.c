@@ -1198,44 +1198,40 @@ static void __init xen_cleanhighmap(unsigned long vaddr,
 	 * instead of somewhere later and be confusing. */
 	xen_mc_flush();
 }
-#endif
-static void __init xen_pagetable_init(void)
+static void __init xen_pagetable_p2m_copy(void)
 {
-#ifdef CONFIG_X86_64
 	unsigned long size;
 	unsigned long addr;
-#endif
-	paging_init();
-	xen_setup_shared_info();
-#ifdef CONFIG_X86_64
-	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-		unsigned long new_mfn_list;
+	unsigned long new_mfn_list;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
+	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+
+	/* On 32-bit, we get zero so this never gets executed. */
+	new_mfn_list = xen_revector_p2m_tree();
+	if (new_mfn_list && new_mfn_list != xen_start_info->mfn_list) {
+		/* using __ka address and sticking INVALID_P2M_ENTRY! */
+		memset((void *)xen_start_info->mfn_list, 0xff, size);
+
+		/* We should be in __ka space. */
+		BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
+		addr = xen_start_info->mfn_list;
+		/* We roundup to the PMD, which means that if anybody at this stage is
+		 * using the __ka address of xen_start_info or xen_start_info->shared_info
+		 * they are in going to crash. Fortunatly we have already revectored
+		 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
+		size = roundup(size, PMD_SIZE);
+		xen_cleanhighmap(addr, addr + size);
 
 		size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+		memblock_free(__pa(xen_start_info->mfn_list), size);
+		/* And revector! Bye bye old array */
+		xen_start_info->mfn_list = new_mfn_list;
+	} else
+		return;
 
-		/* On 32-bit, we get zero so this never gets executed. */
-		new_mfn_list = xen_revector_p2m_tree();
-		if (new_mfn_list && new_mfn_list != xen_start_info->mfn_list) {
-			/* using __ka address and sticking INVALID_P2M_ENTRY! */
-			memset((void *)xen_start_info->mfn_list, 0xff, size);
-
-			/* We should be in __ka space. */
-			BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
-			addr = xen_start_info->mfn_list;
-			/* We roundup to the PMD, which means that if anybody at this stage is
-			 * using the __ka address of xen_start_info or xen_start_info->shared_info
-			 * they are in going to crash. Fortunatly we have already revectored
-			 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
-			size = roundup(size, PMD_SIZE);
-			xen_cleanhighmap(addr, addr + size);
-
-			size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
-			memblock_free(__pa(xen_start_info->mfn_list), size);
-			/* And revector! Bye bye old array */
-			xen_start_info->mfn_list = new_mfn_list;
-		} else
-			goto skip;
-	}
 	/* At this stage, cleanup_highmap has already cleaned __ka space
 	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
 	 * the ramdisk). We continue on, erasing PMD entries that point to page
@@ -1255,7 +1251,15 @@ static void __init xen_pagetable_init(void)
 	 * anything at this stage. */
 	xen_cleanhighmap(MODULES_VADDR, roundup(MODULES_VADDR, PUD_SIZE) - 1);
 #endif
-skip:
+}
+#endif
+
+static void __init xen_pagetable_init(void)
+{
+	paging_init();
+	xen_setup_shared_info();
+#ifdef CONFIG_X86_64
+	xen_pagetable_p2m_copy();
 #endif
 	xen_post_allocator_init();
 }
