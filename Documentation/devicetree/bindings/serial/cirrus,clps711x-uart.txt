@@ -9,7 +9,6 @@ Required properties:
 
 Optional properties:
 - uart-use-ms: Indicate the UART has modem signal (DCD, DSR, CTS).
-- uart-use-irda: Indicate the UART use IRDA mode.
 
 Note: Each UART port should have an alias correctly numbered
 in "aliases" node.

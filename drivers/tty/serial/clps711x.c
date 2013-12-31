@@ -232,6 +232,16 @@ static void uart_clps711x_break_ctl(struct uart_port *port, int break_state)
 	writel_relaxed(ubrlcr, port->membase + UBRLCR_OFFSET);
 }
 
+static void uart_clps711x_set_ldisc(struct uart_port *port, int ld)
+{
+	if (!port->line) {
+		struct clps711x_port *s = dev_get_drvdata(port->dev);
+
+		regmap_update_bits(s->syscon, SYSCON_OFFSET, SYSCON1_SIREN,
+				   (ld == N_IRDA) ? SYSCON1_SIREN : 0);
+	}
+}
+
 static int uart_clps711x_startup(struct uart_port *port)
 {
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
@@ -342,6 +352,7 @@ static const struct uart_ops uart_clps711x_ops = {
 	.stop_rx	= uart_clps711x_nop_void,
 	.enable_ms	= uart_clps711x_nop_void,
 	.break_ctl	= uart_clps711x_break_ctl,
+	.set_ldisc	= uart_clps711x_set_ldisc,
 	.startup	= uart_clps711x_startup,
 	.shutdown	= uart_clps711x_shutdown,
 	.set_termios	= uart_clps711x_set_termios,
@@ -482,15 +493,8 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 		if (IS_ERR(s->syscon))
 			return PTR_ERR(s->syscon);
 
-		if (!index) {
-			bool use_irda;
-
+		if (!index)
 			s->use_ms = of_property_read_bool(np, "uart-use-ms");
-			use_irda = of_property_read_bool(np, "uart-use-irda");
-			regmap_update_bits(s->syscon, SYSCON_OFFSET,
-					   SYSCON1_SIREN,
-					   use_irda ? SYSCON1_SIREN : 0);
-		}
 	}
 
 	s->port.line		= index;
