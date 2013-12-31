@@ -103,7 +103,7 @@ int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 		return 0;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	mvm->led.name = kasprintf(GFP_KERNEL, "%s-led",
 				   wiphy_name(mvm->hw->wiphy));
