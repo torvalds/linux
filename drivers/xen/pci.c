@@ -26,7 +26,9 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 #include "../pci/pci.h"
+#ifdef CONFIG_PCI_MMCONFIG
 #include <asm/pci_x86.h>
+#endif
 
 static bool __read_mostly pci_seg_supported = true;
 
