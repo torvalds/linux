@@ -113,6 +113,10 @@
 			reg = <0x7e980000 0x10000>;
 			interrupts = <1 9>;
 		};
+
+		arm-pmu {
+			compatible = "arm,arm1176-pmu";
+		};
 	};
 
 	clocks {
