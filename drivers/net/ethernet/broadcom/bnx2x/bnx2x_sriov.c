@@ -3616,7 +3616,7 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 
 	/* the mac address in bulletin board is valid and is new */
 	if (bulletin.valid_bitmap & 1 << MAC_ADDR_VALID &&
-	    memcmp(bulletin.mac, bp->old_bulletin.mac, ETH_ALEN)) {
+	    !ether_addr_equal(bulletin.mac, bp->old_bulletin.mac)) {
 		/* update new mac to net device */
 		memcpy(bp->dev->dev_addr, bulletin.mac, ETH_ALEN);
 	}
