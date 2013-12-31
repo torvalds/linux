@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 
 #include <linux/platform_data/ata-samsung_cf.h>
-#include <plat/regs-ata.h>
+#include "pata_samsung_cf.h"
 
 #define DRV_NAME "pata_samsung_cf"
 #define DRV_VERSION "0.1"

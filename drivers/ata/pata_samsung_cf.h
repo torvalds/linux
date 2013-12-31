@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-samsung/include/plat/regs-ata.h
- *
+/*
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
@@ -10,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_PLAT_REGS_ATA_H
-#define __ASM_PLAT_REGS_ATA_H __FILE__
+#ifndef __PATA_SAMSUNG_CF_H
+#define __PATA_SAMSUNG_CF_H
 
 #define S3C_CFATA_REG(x)	(x)
 
@@ -53,4 +52,4 @@
 #define S3C_ATA_CFG_SWAP	0x40
 #define S3C_ATA_CFG_IORDYEN	0x02
 
-#endif /* __ASM_PLAT_REGS_ATA_H */
+#endif /* __PATA_SAMSUNG_CF_H */
