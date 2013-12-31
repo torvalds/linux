@@ -371,7 +371,6 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			 const struct tcphdr *th, unsigned int len);
 void tcp_rcv_space_adjust(struct sock *sk);
-void tcp_cleanup_rbuf(struct sock *sk, int copied);
 int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp);
 void tcp_twsk_destructor(struct sock *sk);
 ssize_t tcp_splice_read(struct socket *sk, loff_t *ppos,
