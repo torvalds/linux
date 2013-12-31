@@ -1012,6 +1012,9 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unbind;
 
+	/* must be set before quota calculations */
+	mvmvif->ap_ibss_active = true;
+
 	ret = iwl_mvm_update_quotas(mvm, vif);
 	if (ret)
 		goto out_rm_bcast;
@@ -1026,6 +1029,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	return 0;
 
 out_rm_bcast:
+	mvmvif->ap_ibss_active = false;
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 out_unbind:
 	iwl_mvm_binding_remove_vif(mvm, vif);
