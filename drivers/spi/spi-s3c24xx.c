@@ -29,7 +29,6 @@
 
 #include <plat/regs-spi.h>
 
-#include <plat/fiq.h>
 #include <asm/fiq.h>
 
 #include "spi-s3c24xx-fiq.h"
@@ -83,7 +82,6 @@ struct s3c24xx_spi {
 	struct device		*dev;
 	struct s3c2410_spi_info *pdata;
 };
-
 
 #define SPCON_DEFAULT (S3C2410_SPCON_MSTR | S3C2410_SPCON_SMOD_INT)
 #define SPPIN_DEFAULT (S3C2410_SPPIN_KEEP)
