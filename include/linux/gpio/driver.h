@@ -2,9 +2,12 @@
 #define __LINUX_GPIO_DRIVER_H
 
 #include <linux/types.h>
+#include <linux/module.h>
 
 struct device;
 struct gpio_desc;
+struct of_phandle_args;
+struct device_node;
 struct seq_file;
 
 /**
@@ -125,6 +128,13 @@ extern struct gpio_chip *gpiochip_find(void *data,
 int gpiod_lock_as_irq(struct gpio_desc *desc);
 void gpiod_unlock_as_irq(struct gpio_desc *desc);
 
+enum gpio_lookup_flags {
+	GPIO_ACTIVE_HIGH = (0 << 0),
+	GPIO_ACTIVE_LOW = (1 << 0),
+	GPIO_OPEN_DRAIN = (1 << 1),
+	GPIO_OPEN_SOURCE = (1 << 2),
+};
+
 /**
  * Lookup table for associating GPIOs to specific devices and functions using
  * platform data.
@@ -152,9 +162,9 @@ struct gpiod_lookup {
 	 */
 	unsigned int idx;
 	/*
-	 * mask of GPIOF_* values
+	 * mask of GPIO_* values
 	 */
-	unsigned long flags;
+	enum gpio_lookup_flags flags;
 };
 
 /*

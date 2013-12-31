@@ -59,7 +59,7 @@ hash_netnet4_data_equal(const struct hash_netnet4_elem *ip1,
 		     u32 *multi)
 {
 	return ip1->ipcmp == ip2->ipcmp &&
-	       ip2->ccmp == ip2->ccmp;
+	       ip1->ccmp == ip2->ccmp;
 }
 
 static inline int

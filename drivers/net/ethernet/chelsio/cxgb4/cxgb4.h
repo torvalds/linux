@@ -49,13 +49,15 @@
 #include <asm/io.h>
 #include "cxgb4_uld.h"
 
-#define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 4
-#define FW_VERSION_MICRO 0
+#define T4FW_VERSION_MAJOR 0x01
+#define T4FW_VERSION_MINOR 0x06
+#define T4FW_VERSION_MICRO 0x18
+#define T4FW_VERSION_BUILD 0x00
 
-#define FW_VERSION_MAJOR_T5 0
-#define FW_VERSION_MINOR_T5 0
-#define FW_VERSION_MICRO_T5 0
+#define T5FW_VERSION_MAJOR 0x01
+#define T5FW_VERSION_MINOR 0x08
+#define T5FW_VERSION_MICRO 0x1C
+#define T5FW_VERSION_BUILD 0x00
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
 
@@ -240,6 +242,26 @@ struct pci_params {
 	unsigned char width;
 };
 
+#define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
+#define CHELSIO_CHIP_FPGA          0x100
+#define CHELSIO_CHIP_VERSION(code) (((code) >> 4) & 0xf)
+#define CHELSIO_CHIP_RELEASE(code) ((code) & 0xf)
+
+#define CHELSIO_T4		0x4
+#define CHELSIO_T5		0x5
+
+enum chip_type {
+	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
+	T4_A2 = CHELSIO_CHIP_CODE(CHELSIO_T4, 2),
+	T4_FIRST_REV	= T4_A1,
+	T4_LAST_REV	= T4_A2,
+
+	T5_A0 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
+	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
+	T5_FIRST_REV	= T5_A0,
+	T5_LAST_REV	= T5_A1,
+};
+
 struct adapter_params {
 	struct tp_params  tp;
 	struct vpd_params vpd;
@@ -259,13 +281,30 @@ struct adapter_params {
 
 	unsigned char nports;             /* # of ethernet ports */
 	unsigned char portvec;
-	unsigned char rev;                /* chip revision */
+	enum chip_type chip;               /* chip code */
 	unsigned char offload;
 
 	unsigned char bypass;
 
 	unsigned int ofldq_wr_cred;
 };
+
+#include "t4fw_api.h"
+
+#define FW_VERSION(chip) ( \
+		FW_HDR_FW_VER_MAJOR_GET(chip##FW_VERSION_MAJOR) | \
+		FW_HDR_FW_VER_MINOR_GET(chip##FW_VERSION_MINOR) | \
+		FW_HDR_FW_VER_MICRO_GET(chip##FW_VERSION_MICRO) | \
+		FW_HDR_FW_VER_BUILD_GET(chip##FW_VERSION_BUILD))
+#define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
+
+struct fw_info {
+	u8 chip;
+	char *fs_name;
+	char *fw_mod_name;
+	struct fw_hdr fw_hdr;
+};
+
 
 struct trace_params {
 	u32 data[TRACE_LEN / 4];
@@ -512,25 +551,6 @@ struct sge {
 
 struct l2t_data;
 
-#define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
-#define CHELSIO_CHIP_VERSION(code) ((code) >> 4)
-#define CHELSIO_CHIP_RELEASE(code) ((code) & 0xf)
-
-#define CHELSIO_T4		0x4
-#define CHELSIO_T5		0x5
-
-enum chip_type {
-	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 0),
-	T4_A2 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
-	T4_A3 = CHELSIO_CHIP_CODE(CHELSIO_T4, 2),
-	T4_FIRST_REV	= T4_A1,
-	T4_LAST_REV	= T4_A3,
-
-	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
-	T5_FIRST_REV	= T5_A1,
-	T5_LAST_REV	= T5_A1,
-};
-
 #ifdef CONFIG_PCI_IOV
 
 /* T4 supports SRIOV on PF0-3 and T5 on PF0-7.  However, the Serial
@@ -715,12 +735,12 @@ enum {
 
 static inline int is_t5(enum chip_type chip)
 {
-	return (chip >= T5_FIRST_REV && chip <= T5_LAST_REV);
+	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T5;
 }
 
 static inline int is_t4(enum chip_type chip)
 {
-	return (chip >= T4_FIRST_REV && chip <= T4_LAST_REV);
+	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T4;
 }
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)
@@ -900,7 +920,11 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
-int t4_check_fw_version(struct adapter *adapter);
+int t4_get_fw_version(struct adapter *adapter, u32 *vers);
+int t4_get_tp_version(struct adapter *adapter, u32 *vers);
+int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
+	       const u8 *fw_data, unsigned int fw_size,
+	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
 int t4_prep_adapter(struct adapter *adapter);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);

@@ -566,11 +566,11 @@ err_unload:
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 err_primary_node:
-	drm_put_minor(dev->primary);
+	drm_unplug_minor(dev->primary);
 err_render_node:
-	drm_put_minor(dev->render);
+	drm_unplug_minor(dev->render);
 err_control_node:
-	drm_put_minor(dev->control);
+	drm_unplug_minor(dev->control);
 err_agp:
 	if (dev->driver->bus->agp_destroy)
 		dev->driver->bus->agp_destroy(dev);

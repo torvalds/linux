@@ -273,34 +273,23 @@ static struct hwrng caam_rng = {
 
 static void __exit caam_rng_exit(void)
 {
+	caam_jr_free(rng_ctx.jrdev);
 	hwrng_unregister(&caam_rng);
 }
 
 static int __init caam_rng_init(void)
 {
-	struct device_node *dev_node;
-	struct platform_device *pdev;
-	struct device *ctrldev;
-	struct caam_drv_private *priv;
+	struct device *dev;
 
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node) {
-		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
-		if (!dev_node)
-			return -ENODEV;
+	dev = caam_jr_alloc();
+	if (IS_ERR(dev)) {
+		pr_err("Job Ring Device allocation for transform failed\n");
+		return PTR_ERR(dev);
 	}
 
-	pdev = of_find_device_by_node(dev_node);
-	if (!pdev)
-		return -ENODEV;
+	caam_init_rng(&rng_ctx, dev);
 
-	ctrldev = &pdev->dev;
-	priv = dev_get_drvdata(ctrldev);
-	of_node_put(dev_node);
-
-	caam_init_rng(&rng_ctx, priv->jrdev[0]);
-
-	dev_info(priv->jrdev[0], "registering rng-caam\n");
+	dev_info(dev, "registering rng-caam\n");
 	return hwrng_register(&caam_rng);
 }
 

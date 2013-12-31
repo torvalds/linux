@@ -14,6 +14,8 @@
 
 struct tegra_rgb {
 	struct tegra_output output;
+	struct tegra_dc *dc;
+
 	struct clk *clk_parent;
 	struct clk *clk;
 };
@@ -84,18 +86,18 @@ static void tegra_dc_write_regs(struct tegra_dc *dc,
 
 static int tegra_output_rgb_enable(struct tegra_output *output)
 {
-	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
+	struct tegra_rgb *rgb = to_rgb(output);
 
-	tegra_dc_write_regs(dc, rgb_enable, ARRAY_SIZE(rgb_enable));
+	tegra_dc_write_regs(rgb->dc, rgb_enable, ARRAY_SIZE(rgb_enable));
 
 	return 0;
 }
 
 static int tegra_output_rgb_disable(struct tegra_output *output)
 {
-	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
+	struct tegra_rgb *rgb = to_rgb(output);
 
-	tegra_dc_write_regs(dc, rgb_disable, ARRAY_SIZE(rgb_disable));
+	tegra_dc_write_regs(rgb->dc, rgb_disable, ARRAY_SIZE(rgb_disable));
 
 	return 0;
 }
@@ -146,6 +148,7 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 
 	rgb->output.dev = dc->dev;
 	rgb->output.of_node = np;
+	rgb->dc = dc;
 
 	err = tegra_output_probe(&rgb->output);
 	if (err < 0)

@@ -2518,9 +2518,8 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 						     calldata->roc_barrier);
 			nfs_set_open_stateid(state, &calldata->res.stateid, 0);
 			renew_lease(server, calldata->timestamp);
-			nfs4_close_clear_stateid_flags(state,
-					calldata->arg.fmode);
 			break;
+		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_OLD_STATEID:
 		case -NFS4ERR_BAD_STATEID:
@@ -2528,9 +2527,13 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			if (calldata->arg.fmode == 0)
 				break;
 		default:
-			if (nfs4_async_handle_error(task, server, state) == -EAGAIN)
+			if (nfs4_async_handle_error(task, server, state) == -EAGAIN) {
 				rpc_restart_call_prepare(task);
+				goto out_release;
+			}
 	}
+	nfs4_close_clear_stateid_flags(state, calldata->arg.fmode);
+out_release:
 	nfs_release_seqid(calldata->arg.seqid);
 	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
 	dprintk("%s: done, ret = %d!\n", __func__, task->tk_status);
@@ -4802,7 +4805,7 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 			dprintk("%s ERROR %d, Reset session\n", __func__,
 				task->tk_status);
 			nfs4_schedule_session_recovery(clp->cl_session, task->tk_status);
-			goto restart_call;
+			goto wait_on_recovery;
 #endif /* CONFIG_NFS_V4_1 */
 		case -NFS4ERR_DELAY:
 			nfs_inc_server_stats(server, NFSIOS_DELAY);
@@ -4987,10 +4990,16 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 
 	trace_nfs4_delegreturn_exit(&data->args, &data->res, task->tk_status);
 	switch (task->tk_status) {
-	case -NFS4ERR_STALE_STATEID:
-	case -NFS4ERR_EXPIRED:
 	case 0:
 		renew_lease(data->res.server, data->timestamp);
+		break;
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_DELEG_REVOKED:
+	case -NFS4ERR_BAD_STATEID:
+	case -NFS4ERR_OLD_STATEID:
+	case -NFS4ERR_STALE_STATEID:
+	case -NFS4ERR_EXPIRED:
+		task->tk_status = 0;
 		break;
 	default:
 		if (nfs4_async_handle_error(task, data->res.server, NULL) ==
@@ -7589,7 +7598,14 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 		return;
 
 	server = NFS_SERVER(lrp->args.inode);
-	if (nfs4_async_handle_error(task, server, NULL) == -EAGAIN) {
+	switch (task->tk_status) {
+	default:
+		task->tk_status = 0;
+	case 0:
+		break;
+	case -NFS4ERR_DELAY:
+		if (nfs4_async_handle_error(task, server, NULL) != -EAGAIN)
+			break;
 		rpc_restart_call_prepare(task);
 		return;
 	}

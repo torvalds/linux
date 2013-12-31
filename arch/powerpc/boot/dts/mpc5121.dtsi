@@ -77,7 +77,6 @@
 		compatible = "fsl,mpc5121-immr";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		ranges = <0x0 0x80000000 0x400000>;
 		reg = <0x80000000 0x400000>;
 		bus-frequency = <66000000>;	/* 66 MHz ips bus */

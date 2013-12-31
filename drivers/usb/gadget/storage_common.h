@@ -119,10 +119,6 @@ static inline bool fsg_lun_is_open(struct fsg_lun *curlun)
 	return curlun->filp != NULL;
 }
 
-/* Big enough to hold our biggest descriptor */
-#define EP0_BUFSIZE	256
-#define DELAYED_STATUS	(EP0_BUFSIZE + 999)	/* An impossibly large value */
-
 /* Default size of buffer length. */
 #define FSG_BUFLEN	((u32)16384)
 

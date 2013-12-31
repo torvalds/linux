@@ -1180,6 +1180,7 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 }
 
 static void s3c_hsotg_enqueue_setup(struct s3c_hsotg *hsotg);
+static void s3c_hsotg_disconnect(struct s3c_hsotg *hsotg);
 
 /**
  * s3c_hsotg_process_control - process a control request
@@ -1221,6 +1222,7 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
 		switch (ctrl->bRequest) {
 		case USB_REQ_SET_ADDRESS:
+			s3c_hsotg_disconnect(hsotg);
 			dcfg = readl(hsotg->regs + DCFG);
 			dcfg &= ~DCFG_DevAddr_MASK;
 			dcfg |= ctrl->wValue << DCFG_DevAddr_SHIFT;
@@ -1245,7 +1247,9 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 	/* as a fallback, try delivering it to the driver to deal with */
 
 	if (ret == 0 && hsotg->driver) {
+		spin_unlock(&hsotg->lock);
 		ret = hsotg->driver->setup(&hsotg->gadget, ctrl);
+		spin_lock(&hsotg->lock);
 		if (ret < 0)
 			dev_dbg(hsotg->dev, "driver->setup() ret %d\n", ret);
 	}
@@ -1308,10 +1312,12 @@ static void s3c_hsotg_complete_setup(struct usb_ep *ep,
 		return;
 	}
 
+	spin_lock(&hsotg->lock);
 	if (req->actual == 0)
 		s3c_hsotg_enqueue_setup(hsotg);
 	else
 		s3c_hsotg_process_control(hsotg, req->buf);
+	spin_unlock(&hsotg->lock);
 }
 
 /**
@@ -2533,7 +2539,6 @@ irq_retry:
 		writel(GINTSTS_USBSusp, hsotg->regs + GINTSTS);
 
 		call_gadget(hsotg, suspend);
-		s3c_hsotg_disconnect(hsotg);
 	}
 
 	if (gintsts & GINTSTS_WkUpInt) {

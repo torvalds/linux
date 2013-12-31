@@ -79,6 +79,7 @@ struct kvmppc_host_state {
 	ulong vmhandler;
 	ulong scratch0;
 	ulong scratch1;
+	ulong scratch2;
 	u8 in_guest;
 	u8 restore_hid5;
 	u8 napping;
@@ -106,6 +107,7 @@ struct kvmppc_host_state {
 };
 
 struct kvmppc_book3s_shadow_vcpu {
+	bool in_use;
 	ulong gpr[14];
 	u32 cr;
 	u32 xer;

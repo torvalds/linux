@@ -162,5 +162,6 @@ extern int smb2_lockv(const unsigned int xid, struct cifs_tcon *tcon,
 		      struct smb2_lock_element *buf);
 extern int SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 			    __u8 *lease_key, const __le32 lease_state);
+extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
 #endif			/* _SMB2PROTO_H */
