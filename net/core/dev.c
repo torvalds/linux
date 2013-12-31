@@ -4030,7 +4030,7 @@ gro_result_t napi_gro_frags(struct napi_struct *napi)
 EXPORT_SYMBOL(napi_gro_frags);
 
 /*
- * net_rps_action sends any pending IPI's for rps.
+ * net_rps_action_and_irq_enable sends any pending IPI's for rps.
  * Note: called with local irq disabled, but exits with local irq enabled.
  */
 static void net_rps_action_and_irq_enable(struct softnet_data *sd)
