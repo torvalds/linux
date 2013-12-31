@@ -832,10 +832,11 @@ static void nfsd4_put_drc_mem(struct nfsd4_channel_attrs *ca)
 	spin_unlock(&nfsd_drc_lock);
 }
 
-static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *attrs)
+static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
+					   struct nfsd4_channel_attrs *battrs)
 {
-	int numslots = attrs->maxreqs;
-	int slotsize = slot_bytes(attrs);
+	int numslots = fattrs->maxreqs;
+	int slotsize = slot_bytes(fattrs);
 	struct nfsd4_session *new;
 	int mem, i;
 
@@ -852,6 +853,10 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *attrs)
 		if (!new->se_slots[i])
 			goto out_free;
 	}
+
+	memcpy(&new->se_fchannel, fattrs, sizeof(struct nfsd4_channel_attrs));
+	memcpy(&new->se_bchannel, battrs, sizeof(struct nfsd4_channel_attrs));
+
 	return new;
 out_free:
 	while (i--)
@@ -997,10 +1002,7 @@ static void init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, stru
 	list_add(&new->se_perclnt, &clp->cl_sessions);
 	spin_unlock(&clp->cl_lock);
 	spin_unlock(&nn->client_lock);
-	memcpy(&new->se_fchannel, &cses->fore_channel,
-			sizeof(struct nfsd4_channel_attrs));
-	memcpy(&new->se_bchannel, &cses->back_channel,
-			sizeof(struct nfsd4_channel_attrs));
+
 	if (cses->flags & SESSION4_BACK_CHAN) {
 		struct sockaddr *sa = svc_addr(rqstp);
 		/*
@@ -1922,7 +1924,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	if (status)
 		goto out_release_drc_mem;
 	status = nfserr_jukebox;
-	new = alloc_session(&cr_ses->fore_channel);
+	new = alloc_session(&cr_ses->fore_channel, &cr_ses->back_channel);
 	if (!new)
 		goto out_release_drc_mem;
 	conn = alloc_conn_from_crses(rqstp, cr_ses);
