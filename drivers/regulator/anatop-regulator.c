@@ -259,3 +259,4 @@ MODULE_AUTHOR("Nancy Chen <Nancy.Chen@freescale.com>");
 MODULE_AUTHOR("Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org>");
 MODULE_DESCRIPTION("ANATOP Regulator driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:anatop_regulator");
