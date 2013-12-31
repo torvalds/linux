@@ -1954,11 +1954,14 @@ static int nf_tables_set_alloc_name(struct nft_ctx *ctx, struct nft_set *set,
 			return -ENOMEM;
 
 		list_for_each_entry(i, &ctx->table->sets, list) {
-			if (!sscanf(i->name, name, &n))
+			int tmp;
+
+			if (!sscanf(i->name, name, &tmp))
 				continue;
-			if (n < 0 || n > BITS_PER_LONG * PAGE_SIZE)
+			if (tmp < 0 || tmp > BITS_PER_LONG * PAGE_SIZE)
 				continue;
-			set_bit(n, inuse);
+
+			set_bit(tmp, inuse);
 		}
 
 		n = find_first_zero_bit(inuse, BITS_PER_LONG * PAGE_SIZE);
