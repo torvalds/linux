@@ -382,6 +382,12 @@
 			reg = <0x01c23800 0x10>;
 		};
 
+		rtp: rtp@01c25000 {
+			compatible = "allwinner,sun4i-ts";
+			reg = <0x01c25000 0x100>;
+			interrupts = <29>;
+		};
+
 		uart0: serial@01c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
