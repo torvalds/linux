@@ -135,7 +135,7 @@ static DEFINE_RWLOCK(qdisc_mod_lock);
 
 static struct Qdisc_ops *qdisc_base;
 
-/* Register/uregister queueing discipline */
+/* Register/unregister queueing discipline */
 
 int register_qdisc(struct Qdisc_ops *qops)
 {
