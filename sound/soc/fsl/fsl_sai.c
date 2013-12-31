@@ -145,7 +145,6 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		val_cr4 |= FSL_SAI_CR4_FSE;
-		val_cr4 |= FSL_SAI_CR4_FSP;
 		break;
 	default:
 		return -EINVAL;
@@ -184,9 +183,6 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 	default:
 		return -EINVAL;
 	}
-
-	if (fsl_dir == FSL_FMT_RECEIVER)
-		val_cr2 |= FSL_SAI_CR2_SYNC;
 
 	sai_writel(sai, val_cr2, sai->base + reg_cr2);
 	sai_writel(sai, val_cr4, sai->base + reg_cr4);
@@ -253,6 +249,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	val_cr5 |= FSL_SAI_CR5_WNW(word_width);
 	val_cr5 |= FSL_SAI_CR5_W0W(word_width);
 
+	val_cr5 &= ~FSL_SAI_CR5_FBT_MASK;
 	if (sai->big_endian_data)
 		val_cr5 |= FSL_SAI_CR5_FBT(word_width - 1);
 	else
@@ -272,7 +269,15 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
-	u32 tcsr, rcsr, val_cr3, reg_cr3;
+	u32 tcsr, rcsr, val_cr2, val_cr3, reg_cr3;
+
+	val_cr2 = sai_readl(sai, sai->base + FSL_SAI_TCR2);
+	val_cr2 &= ~FSL_SAI_CR2_SYNC;
+	sai_writel(sai, val_cr2, sai->base + FSL_SAI_TCR2);
+
+	val_cr2 = sai_readl(sai, sai->base + FSL_SAI_RCR2);
+	val_cr2 |= FSL_SAI_CR2_SYNC;
+	sai_writel(sai, val_cr2, sai->base + FSL_SAI_RCR2);
 
 	tcsr = sai_readl(sai, sai->base + FSL_SAI_TCSR);
 	rcsr = sai_readl(sai, sai->base + FSL_SAI_RCSR);
