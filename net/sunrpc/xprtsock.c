@@ -837,6 +837,7 @@ static void xs_error_report(struct sock *sk)
 		goto out;
 	dprintk("RPC:       xs_error_report client %p, error=%d...\n",
 			xprt, -err);
+	trace_rpc_socket_error(xprt, sk->sk_socket, err);
 	xprt_wake_pending_tasks(xprt, err);
  out:
 	read_unlock_bh(&sk->sk_callback_lock);
