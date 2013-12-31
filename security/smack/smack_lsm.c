@@ -1351,7 +1351,7 @@ static int smack_file_receive(struct file *file)
 	int may = 0;
 	struct smk_audit_info ad;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 	/*
 	 * This code relies on bitmasks.
