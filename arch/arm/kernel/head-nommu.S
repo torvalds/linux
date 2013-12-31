@@ -68,7 +68,7 @@ ENTRY(stext)
 
 #ifdef CONFIG_ARM_MPU
 	/* Calculate the size of a region covering just the kernel */
-	ldr	r5, =PHYS_OFFSET		@ Region start: PHYS_OFFSET
+	ldr	r5, =PLAT_PHYS_OFFSET		@ Region start: PHYS_OFFSET
 	ldr     r6, =(_end)			@ Cover whole kernel
 	sub	r6, r6, r5			@ Minimum size of region to map
 	clz	r6, r6				@ Region size must be 2^N...
@@ -213,7 +213,7 @@ ENTRY(__setup_mpu)
 	set_region_nr r0, #MPU_RAM_REGION
 	isb
 	/* Full access from PL0, PL1, shared for CONFIG_SMP, cacheable */
-	ldr	r0, =PHYS_OFFSET		@ RAM starts at PHYS_OFFSET
+	ldr	r0, =PLAT_PHYS_OFFSET		@ RAM starts at PHYS_OFFSET
 	ldr	r5,=(MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL)
 
 	setup_region r0, r5, r6, MPU_DATA_SIDE	@ PHYS_OFFSET, shared, enabled

@@ -451,6 +451,15 @@ int wiphy_register(struct wiphy *wiphy)
 	int i;
 	u16 ifmodes = wiphy->interface_modes;
 
+	/* support for 5/10 MHz is broken due to nl80211 API mess - disable */
+	wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_5_10_MHZ;
+
+	/*
+	 * There are major locking problems in nl80211/mac80211 for CSA,
+	 * disable for all drivers until this has been reworked.
+	 */
+	wiphy->flags &= ~WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+
 #ifdef CONFIG_PM
 	if (WARN_ON(wiphy->wowlan &&
 		    (wiphy->wowlan->flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&

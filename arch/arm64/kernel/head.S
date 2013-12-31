@@ -282,8 +282,9 @@ ENDPROC(secondary_holding_pen)
 	 * be used where CPUs are brought online dynamically by the kernel.
 	 */
 ENTRY(secondary_entry)
-	bl	__calc_phys_offset		// x2=phys offset
 	bl	el2_setup			// Drop to EL1
+	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
+	bl	set_cpu_boot_mode_flag
 	b	secondary_startup
 ENDPROC(secondary_entry)
 

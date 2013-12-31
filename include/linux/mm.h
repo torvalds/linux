@@ -1317,7 +1317,7 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
 #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
 
 #if USE_SPLIT_PTE_PTLOCKS
-#if BLOATED_SPINLOCKS
+#if ALLOC_SPLIT_PTLOCKS
 extern bool ptlock_alloc(struct page *page);
 extern void ptlock_free(struct page *page);
 
@@ -1325,7 +1325,7 @@ static inline spinlock_t *ptlock_ptr(struct page *page)
 {
 	return page->ptl;
 }
-#else /* BLOATED_SPINLOCKS */
+#else /* ALLOC_SPLIT_PTLOCKS */
 static inline bool ptlock_alloc(struct page *page)
 {
 	return true;
@@ -1339,7 +1339,7 @@ static inline spinlock_t *ptlock_ptr(struct page *page)
 {
 	return &page->ptl;
 }
-#endif /* BLOATED_SPINLOCKS */
+#endif /* ALLOC_SPLIT_PTLOCKS */
 
 static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
 {
