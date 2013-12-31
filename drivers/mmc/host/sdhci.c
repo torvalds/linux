@@ -144,9 +144,11 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 static void sdhci_set_card_detection(struct sdhci_host *host, bool enable)
 {
 	u32 present;
+	int gpio_cd = mmc_gpio_get_cd(host->mmc);
 
 	if ((host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION) ||
-	    (host->mmc->caps & MMC_CAP_NONREMOVABLE))
+	    (host->mmc->caps & MMC_CAP_NONREMOVABLE) ||
+	    !IS_ERR_VALUE(gpio_cd))
 		return;
 
 	if (enable) {
