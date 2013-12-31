@@ -138,9 +138,9 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 	val_cr4 = sai_readl(sai, sai->base + reg_cr4);
 
 	if (sai->big_endian_data)
-		val_cr4 |= FSL_SAI_CR4_MF;
-	else
 		val_cr4 &= ~FSL_SAI_CR4_MF;
+	else
+		val_cr4 |= FSL_SAI_CR4_MF;
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
@@ -251,9 +251,9 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 
 	val_cr5 &= ~FSL_SAI_CR5_FBT_MASK;
 	if (sai->big_endian_data)
-		val_cr5 |= FSL_SAI_CR5_FBT(word_width - 1);
-	else
 		val_cr5 |= FSL_SAI_CR5_FBT(0);
+	else
+		val_cr5 |= FSL_SAI_CR5_FBT(word_width - 1);
 
 	val_cr4 |= FSL_SAI_CR4_FRSZ(channels);
 	val_mr = ~0UL - ((1 << channels) - 1);
