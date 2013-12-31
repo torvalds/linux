@@ -581,21 +581,23 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	unsigned act_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	struct sg_page_iter sg_iter;
 
-	pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
+	pt_vaddr = NULL;
 	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
-		dma_addr_t page_addr;
+		if (pt_vaddr == NULL)
+			pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
 
-		page_addr = sg_page_iter_dma_address(&sg_iter);
-		pt_vaddr[act_pte] = vm->pte_encode(page_addr, cache_level, true);
+		pt_vaddr[act_pte] =
+			vm->pte_encode(sg_page_iter_dma_address(&sg_iter),
+				       cache_level, true);
 		if (++act_pte == I915_PPGTT_PT_ENTRIES) {
 			kunmap_atomic(pt_vaddr);
+			pt_vaddr = NULL;
 			act_pt++;
-			pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
 			act_pte = 0;
-
 		}
 	}
-	kunmap_atomic(pt_vaddr);
+	if (pt_vaddr)
+		kunmap_atomic(pt_vaddr);
 }
 
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
