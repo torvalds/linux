@@ -720,28 +720,20 @@ bool CARDbClearCurrentTSF(struct vnt_private *pDevice)
  */
 u64 CARDqGetNextTBTT(u64 qwTSF, u16 wBeaconInterval)
 {
+	u32 uBeaconInterval;
 
-    unsigned int    uLowNextTBTT;
-    unsigned int    uHighRemain, uLowRemain;
-    unsigned int    uBeaconInterval;
+	uBeaconInterval = wBeaconInterval * 1024;
 
-    uBeaconInterval = wBeaconInterval * 1024;
-    // Next TBTT = ((local_current_TSF / beacon_interval) + 1 ) * beacon_interval
-	uLowNextTBTT = ((qwTSF & 0xffffffffULL) >> 10) << 10;
-	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
-	uHighRemain = ((0x80000000 % uBeaconInterval) * 2 * (u32)(qwTSF >> 32))
-		% uBeaconInterval;
-	uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
-	uLowRemain = uBeaconInterval - uLowRemain;
+	/* Next TBTT =
+	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	*/
+	if (uBeaconInterval) {
+		do_div(qwTSF, uBeaconInterval);
+		qwTSF += 1;
+		qwTSF *= uBeaconInterval;
+	}
 
-    // check if carry when add one beacon interval
-	if ((~uLowNextTBTT) < uLowRemain)
-		qwTSF = ((qwTSF >> 32) + 1) << 32;
-
-	qwTSF = (qwTSF & 0xffffffff00000000ULL) |
-		(u64)(uLowNextTBTT + uLowRemain);
-
-    return (qwTSF);
+	return qwTSF;
 }
 
 /*
