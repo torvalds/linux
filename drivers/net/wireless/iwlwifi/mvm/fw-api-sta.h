@@ -97,9 +97,6 @@ enum iwl_sta_flags {
 					   STA_FLG_FLG_ANT_B),
 
 	STA_FLG_PS			= BIT(8),
-	STA_FLG_INVALID			= BIT(9),
-	STA_FLG_DLP_EN			= BIT(10),
-	STA_FLG_SET_ALL_KEYS		= BIT(11),
 	STA_FLG_DRAIN_FLOW		= BIT(12),
 	STA_FLG_PAN			= BIT(13),
 	STA_FLG_CLASS_AUTH		= BIT(14),
