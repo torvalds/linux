@@ -227,4 +227,174 @@ int read_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 
 	return kvm_read_guest(vcpu->kvm, gpa, data, len);
 }
+
+int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+		 unsigned long len, int write);
+
+int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
+		      void *data, unsigned long len, int write);
+
+/**
+ * write_guest - copy data from kernel space to guest space
+ * @vcpu: virtual cpu
+ * @ga: guest address
+ * @data: source address in kernel space
+ * @len: number of bytes to copy
+ *
+ * Copy @len bytes from @data (kernel space) to @ga (guest address).
+ * In order to copy data to guest space the PSW of the vcpu is inspected:
+ * If DAT is off data will be copied to guest real or absolute memory.
+ * If DAT is on data will be copied to the address space as specified by
+ * the address space bits of the PSW:
+ * Primary, secondory or home space (access register mode is currently not
+ * implemented).
+ * The addressing mode of the PSW is also inspected, so that address wrap
+ * around is taken into account for 24-, 31- and 64-bit addressing mode,
+ * if the to be copied data crosses page boundaries in guest address space.
+ * In addition also low address and DAT protection are inspected before
+ * copying any data (key protection is currently not implemented).
+ *
+ * This function modifies the 'struct kvm_s390_pgm_info pgm' member of @vcpu.
+ * In case of an access exception (e.g. protection exception) pgm will contain
+ * all data necessary so that a subsequent call to 'kvm_s390_inject_prog_vcpu()'
+ * will inject a correct exception into the guest.
+ * If no access exception happened, the contents of pgm are undefined when
+ * this function returns.
+ *
+ * Returns:  - zero on success
+ *	     - a negative value if e.g. the guest mapping is broken or in
+ *	       case of out-of-memory. In this case the contents of pgm are
+ *	       undefined. Also parts of @data may have been copied to guest
+ *	       space.
+ *	     - a positive value if an access exception happened. In this case
+ *	       the returned value is the program interruption code and the
+ *	       contents of pgm may be used to inject an exception into the
+ *	       guest. No data has been copied to guest space.
+ *
+ * Note: in case an access exception is recognized no data has been copied to
+ *	 guest space (this is also true, if the to be copied data would cross
+ *	 one or more page boundaries in guest space).
+ *	 Therefore this function may be used for nullifying and suppressing
+ *	 instruction emulation.
+ *	 It may also be used for terminating instructions, if it is undefined
+ *	 if data has been changed in guest space in case of an exception.
+ */
+static inline __must_check
+int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+		unsigned long len)
+{
+	return access_guest(vcpu, ga, data, len, 1);
+}
+
+/**
+ * read_guest - copy data from guest space to kernel space
+ * @vcpu: virtual cpu
+ * @ga: guest address
+ * @data: destination address in kernel space
+ * @len: number of bytes to copy
+ *
+ * Copy @len bytes from @ga (guest address) to @data (kernel space).
+ *
+ * The behaviour of read_guest is identical to write_guest, except that
+ * data will be copied from guest space to kernel space.
+ */
+static inline __must_check
+int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+	       unsigned long len)
+{
+	return access_guest(vcpu, ga, data, len, 0);
+}
+
+/**
+ * write_guest_abs - copy data from kernel space to guest space absolute
+ * @vcpu: virtual cpu
+ * @gpa: guest physical (absolute) address
+ * @data: source address in kernel space
+ * @len: number of bytes to copy
+ *
+ * Copy @len bytes from @data (kernel space) to @gpa (guest absolute address).
+ * It is up to the caller to ensure that the entire guest memory range is
+ * valid memory before calling this function.
+ * Guest low address and key protection are not checked.
+ *
+ * Returns zero on success or -EFAULT on error.
+ *
+ * If an error occurs data may have been copied partially to guest memory.
+ */
+static inline __must_check
+int write_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
+		    unsigned long len)
+{
+	return kvm_write_guest(vcpu->kvm, gpa, data, len);
+}
+
+/**
+ * read_guest_abs - copy data from guest space absolute to kernel space
+ * @vcpu: virtual cpu
+ * @gpa: guest physical (absolute) address
+ * @data: destination address in kernel space
+ * @len: number of bytes to copy
+ *
+ * Copy @len bytes from @gpa (guest absolute address) to @data (kernel space).
+ * It is up to the caller to ensure that the entire guest memory range is
+ * valid memory before calling this function.
+ * Guest key protection is not checked.
+ *
+ * Returns zero on success or -EFAULT on error.
+ *
+ * If an error occurs data may have been copied partially to kernel space.
+ */
+static inline __must_check
+int read_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
+		   unsigned long len)
+{
+	return kvm_read_guest(vcpu->kvm, gpa, data, len);
+}
+
+/**
+ * write_guest_real - copy data from kernel space to guest space real
+ * @vcpu: virtual cpu
+ * @gra: guest real address
+ * @data: source address in kernel space
+ * @len: number of bytes to copy
+ *
+ * Copy @len bytes from @data (kernel space) to @gra (guest real address).
+ * It is up to the caller to ensure that the entire guest memory range is
+ * valid memory before calling this function.
+ * Guest low address and key protection are not checked.
+ *
+ * Returns zero on success or -EFAULT on error.
+ *
+ * If an error occurs data may have been copied partially to guest memory.
+ */
+static inline __must_check
+int write_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
+		     unsigned long len)
+{
+	return access_guest_real(vcpu, gra, data, len, 1);
+}
+
+/**
+ * read_guest_real - copy data from guest space real to kernel space
+ * @vcpu: virtual cpu
+ * @gra: guest real address
+ * @data: destination address in kernel space
+ * @len: number of bytes to copy
+ *
+ * Copy @len bytes from @gra (guest real address) to @data (kernel space).
+ * It is up to the caller to ensure that the entire guest memory range is
+ * valid memory before calling this function.
+ * Guest key protection is not checked.
+ *
+ * Returns zero on success or -EFAULT on error.
+ *
+ * If an error occurs data may have been copied partially to kernel space.
+ */
+static inline __must_check
+int read_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
+		    unsigned long len)
+{
+	return access_guest_real(vcpu, gra, data, len, 0);
+}
+
 #endif /* __KVM_S390_GACCESS_H */
