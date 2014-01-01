@@ -30,6 +30,31 @@ static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
 	return gaddr;
 }
 
+/**
+ * kvm_s390_logical_to_effective - convert guest logical to effective address
+ * @vcpu: guest virtual cpu
+ * @ga: guest logical address
+ *
+ * Convert a guest vcpu logical address to a guest vcpu effective address by
+ * applying the rules of the vcpu's addressing mode defined by PSW bits 31
+ * and 32 (extendended/basic addressing mode).
+ *
+ * Depending on the vcpu's addressing mode the upper 40 bits (24 bit addressing
+ * mode), 33 bits (31 bit addressing mode) or no bits (64 bit addressing mode)
+ * of @ga will be zeroed and the remaining bits will be returned.
+ */
+static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
+							  unsigned long ga)
+{
+	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+
+	if (psw_bits(*psw).eaba == PSW_AMODE_64BIT)
+		return ga;
+	if (psw_bits(*psw).eaba == PSW_AMODE_31BIT)
+		return ga & ((1UL << 31) - 1);
+	return ga & ((1UL << 24) - 1);
+}
+
 static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,
 					  void __user *gptr,
 					  int prefixing)
