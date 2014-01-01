@@ -840,6 +840,13 @@ static inline hpa_t pfn_to_hpa(pfn_t pfn)
 	return (hpa_t)pfn << PAGE_SHIFT;
 }
 
+static inline bool kvm_is_error_gpa(struct kvm *kvm, gpa_t gpa)
+{
+	unsigned long hva = gfn_to_hva(kvm, gpa_to_gfn(gpa));
+
+	return kvm_is_error_hva(hva);
+}
+
 static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)
 {
 	set_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests);
