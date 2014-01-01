@@ -468,8 +468,6 @@ enum P2P_MODES {
 #define MWIFIEX_CRITERIA_UNICAST	BIT(1)
 #define MWIFIEX_CRITERIA_MULTICAST	BIT(3)
 
-#define CFG_DATA_TYPE_CAL		2
-
 struct mwifiex_ie_types_header {
 	__le16 type;
 	__le16 len;
@@ -1592,12 +1590,6 @@ struct mwifiex_ie_list {
 	struct mwifiex_ie ie_list[MAX_MGMT_IE_INDEX];
 } __packed;
 
-struct host_cmd_ds_802_11_cfg_data {
-	__le16 action;
-	__le16 type;
-	__le16 data_len;
-} __packed;
-
 struct coalesce_filt_field_param {
 	u8 operation;
 	u8 operand_len;
@@ -1678,7 +1670,6 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_sys_config uap_sys_config;
 		struct host_cmd_ds_sta_deauth sta_deauth;
 		struct host_cmd_11ac_vht_cfg vht_cfg;
-		struct host_cmd_ds_802_11_cfg_data cfg_data;
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
 	} params;
 } __packed;

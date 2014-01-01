@@ -508,6 +508,9 @@ void ath9k_tasklet(unsigned long data)
 		wake_up(&sc->tx_wait);
 	}
 
+	if (status & ATH9K_INT_GENTIMER)
+		ath_gen_timer_isr(sc->sc_ah);
+
 	ath9k_btcoex_handle_interrupt(sc, status);
 
 	/* re-enable hardware interrupt */
@@ -538,6 +541,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath9k_int status;
+	u32 sync_cause;
 	bool sched = false;
 
 	/*
@@ -564,7 +568,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 	 * bits we haven't explicitly enabled so we mask the
 	 * value to insure we only process bits we requested.
 	 */
-	ath9k_hw_getisr(ah, &status);	/* NB: clears ISR too */
+	ath9k_hw_getisr(ah, &status, &sync_cause); /* NB: clears ISR too */
+	ath9k_debug_sync_cause(sc, sync_cause);
 	status &= ah->imask;	/* discard unasked-for bits */
 
 	/*
@@ -756,6 +761,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * semi-random values after suspend/resume.
 	 */
 	ath9k_cmn_init_crypto(sc->sc_ah);
+
+	ath9k_hw_reset_tsf(ah);
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
@@ -1657,13 +1664,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
-	    (changed & BSS_CHANGED_BEACON_INT)) {
-		if (ah->opmode == NL80211_IFTYPE_AP &&
-		    bss_conf->enable_beacon)
-			ath9k_set_tsfadjust(sc, vif);
-		if (ath9k_allow_beacon_config(sc, vif))
-			ath9k_beacon_config(sc, vif, changed);
-	}
+	    (changed & BSS_CHANGED_BEACON_INT))
+		ath9k_beacon_config(sc, vif, changed);
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		if (bss_conf->use_short_slot)

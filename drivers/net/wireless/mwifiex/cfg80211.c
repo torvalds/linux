@@ -538,23 +538,40 @@ static void mwifiex_reg_notifier(struct wiphy *wiphy,
 				 struct regulatory_request *request)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv = mwifiex_get_priv(adapter,
+							MWIFIEX_BSS_ROLE_ANY);
 
 	wiphy_dbg(wiphy, "info: cfg80211 regulatory domain callback for %c%c\n",
 		  request->alpha2[0], request->alpha2[1]);
-
-	memcpy(adapter->country_code, request->alpha2, sizeof(request->alpha2));
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_DRIVER:
 	case NL80211_REGDOM_SET_BY_CORE:
 	case NL80211_REGDOM_SET_BY_USER:
-		break;
-		/* Todo: apply driver specific changes in channel flags based
-		   on the request initiator if necessary. */
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
 		break;
+	default:
+		wiphy_err(wiphy, "unknown regdom initiator: %d\n",
+			  request->initiator);
+		return;
 	}
-	mwifiex_send_domain_info_cmd_fw(wiphy);
+
+	/* Don't send world or same regdom info to firmware */
+	if (strncmp(request->alpha2, "00", 2) &&
+	    strncmp(request->alpha2, adapter->country_code,
+		    sizeof(request->alpha2))) {
+		memcpy(adapter->country_code, request->alpha2,
+		       sizeof(request->alpha2));
+		mwifiex_send_domain_info_cmd_fw(wiphy);
+
+		if (adapter->dt_node) {
+			char txpwr[] = {"marvell,00_txpwrlimit"};
+
+			memcpy(&txpwr[8], adapter->country_code, 2);
+			mwifiex_dnld_dt_cfgdata(priv, adapter->dt_node,
+						txpwr);
+		}
+	}
 }
 
 /*
@@ -1171,10 +1188,10 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 	else
 		bitmap_rates[1] = mask->control[band].legacy;
 
-	/* Fill MCS rates */
-	bitmap_rates[2] = mask->control[band].mcs[0];
+	/* Fill HT MCS rates */
+	bitmap_rates[2] = mask->control[band].ht_mcs[0];
 	if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2)
-		bitmap_rates[2] |= mask->control[band].mcs[1] << 8;
+		bitmap_rates[2] |= mask->control[band].ht_mcs[1] << 8;
 
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TX_RATE_CFG,
 				     HostCmd_ACT_GEN_SET, 0, bitmap_rates);

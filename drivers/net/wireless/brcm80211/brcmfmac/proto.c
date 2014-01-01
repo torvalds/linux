@@ -39,7 +39,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 	if (brcmf_proto_bcdc_attach(drvr))
 		goto fail;
 
-	if ((proto->hdrpush == NULL) || (proto->hdrpull == NULL) ||
+	if ((proto->txdata == NULL) || (proto->hdrpull == NULL) ||
 	    (proto->query_dcmd == NULL) || (proto->set_dcmd == NULL)) {
 		brcmf_err("Not all proto handlers have been installed\n");
 		goto fail;

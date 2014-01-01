@@ -203,17 +203,8 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 
 	rdev->opencount--;
 
-	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
-		/*
-		 * If the scan request wasn't notified as done, set it
-		 * to aborted and leak it after a warning. The driver
-		 * should have notified us that it ended at the latest
-		 * during rdev_stop_p2p_device().
-		 */
-		if (WARN_ON(!rdev->scan_req->notified))
-			rdev->scan_req->aborted = true;
-		___cfg80211_scan_done(rdev, !rdev->scan_req->notified);
-	}
+	WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev &&
+		!rdev->scan_req->notified);
 }
 
 static int cfg80211_rfkill_set_block(void *data, bool blocked)
@@ -765,13 +756,16 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 {
 	struct net_device *dev = wdev->netdev;
 
+	ASSERT_RTNL();
+
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_ADHOC:
 		cfg80211_leave_ibss(rdev, dev, true);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
-		__cfg80211_stop_sched_scan(rdev, false);
+		if (rdev->sched_scan_req && dev == rdev->sched_scan_req->dev)
+			__cfg80211_stop_sched_scan(rdev, false);
 
 		wdev_lock(wdev);
 #ifdef CONFIG_CFG80211_WEXT
@@ -865,11 +859,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		break;
 	case NETDEV_DOWN:
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
-		if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
-			if (WARN_ON(!rdev->scan_req->notified))
-				rdev->scan_req->aborted = true;
-			___cfg80211_scan_done(rdev, true);
-		}
+		WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev &&
+			!rdev->scan_req->notified);
 
 		if (WARN_ON(rdev->sched_scan_req &&
 			    rdev->sched_scan_req->dev == wdev->netdev)) {

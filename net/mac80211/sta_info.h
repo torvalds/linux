@@ -247,6 +247,7 @@ struct ieee80211_tx_latency_stat {
  * mac80211 is communicating with.
  *
  * @list: global linked list entry
+ * @free_list: list entry for keeping track of stations to free
  * @hnext: hash table linked list pointer
  * @local: pointer to the global information
  * @sdata: virtual interface this station belongs to
@@ -329,7 +330,7 @@ struct ieee80211_tx_latency_stat {
  */
 struct sta_info {
 	/* General information, mostly static */
-	struct list_head list;
+	struct list_head list, free_list;
 	struct rcu_head rcu_head;
 	struct sta_info __rcu *hnext;
 	struct ieee80211_local *local;
@@ -605,21 +606,6 @@ void sta_info_recalc_tim(struct sta_info *sta);
 
 void sta_info_init(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
-int sta_info_flush_defer(struct ieee80211_sub_if_data *sdata);
-
-/**
- * sta_info_flush_cleanup - flush the sta_info cleanup queue
- * @sdata: the interface
- *
- * Flushes the sta_info cleanup queue for a given interface;
- * this is necessary before the interface is removed or, for
- * AP/mesh interfaces, before it is deconfigured.
- *
- * Note an rcu_barrier() must precede the function, after all
- * stations have been flushed/removed to ensure the call_rcu()
- * calls that add stations to the cleanup queue have completed.
- */
-void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata);
 
 /**
  * sta_info_flush - flush matching STA entries from the STA table
@@ -627,15 +613,13 @@ void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata);
  * Returns the number of removed STA entries.
  *
  * @sdata: sdata to remove all stations from
+ * @vlans: if the given interface is an AP interface, also flush VLANs
  */
+int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans);
+
 static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata)
 {
-	int ret = sta_info_flush_defer(sdata);
-
-	rcu_barrier();
-	sta_info_flush_cleanup(sdata);
-
-	return ret;
+	return __sta_info_flush(sdata, false);
 }
 
 void sta_set_rate_info_tx(struct sta_info *sta,
@@ -650,7 +634,5 @@ u8 sta_info_tx_streams(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
-
-void ieee80211_cleanup_sdata_stas(struct ieee80211_sub_if_data *sdata);
 
 #endif /* STA_INFO_H */

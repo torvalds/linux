@@ -207,7 +207,7 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
 			le32_to_cpu(txq->scratchbufs[i].scratch));
 
-	iwl_nic_error(trans);
+	iwl_trans_fw_error(trans);
 }
 
 /*
@@ -300,10 +300,8 @@ void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 		iwl_write32(trans, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
 	} else {
-		struct iwl_trans_pcie *trans_pcie =
-			IWL_TRANS_GET_PCIE_TRANS(trans);
 		/* if we're trying to save power */
-		if (test_bit(STATUS_TPOWER_PMI, &trans_pcie->status)) {
+		if (test_bit(STATUS_TPOWER_PMI, &trans->status)) {
 			/* wake up nic if it's powered down ...
 			 * uCode will wake up, and interrupt us again, so next
 			 * time we'll skip this part. */
@@ -1023,7 +1021,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		if (nfreed++ > 0) {
 			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n",
 				idx, q->write_ptr, q->read_ptr);
-			iwl_nic_error(trans);
+			iwl_trans_fw_error(trans);
 		}
 	}
 
@@ -1449,12 +1447,12 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	iwl_pcie_cmdq_reclaim(trans, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
-		if (!test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status)) {
+		if (!test_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status)) {
 			IWL_WARN(trans,
 				 "HCMD_ACTIVE already clear for command %s\n",
 				 get_cmd_string(trans_pcie, cmd->hdr.cmd));
 		}
-		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
+		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(trans_pcie, cmd->hdr.cmd));
 		wake_up(&trans_pcie->wait_command_queue);
@@ -1499,8 +1497,8 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 		       get_cmd_string(trans_pcie, cmd->id));
 
-	if (WARN(test_and_set_bit(STATUS_HCMD_ACTIVE,
-				  &trans_pcie->status),
+	if (WARN(test_and_set_bit(STATUS_SYNC_HCMD_ACTIVE,
+				  &trans->status),
 		 "Command %s: a command is already active!\n",
 		 get_cmd_string(trans_pcie, cmd->id)))
 		return -EIO;
@@ -1511,7 +1509,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	cmd_idx = iwl_pcie_enqueue_hcmd(trans, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
-		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
+		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
 			get_cmd_string(trans_pcie, cmd->id), ret);
@@ -1523,8 +1521,8 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 		timeout -= COMMAND_POKE_TIMEOUT;
 		ret = wait_event_timeout(trans_pcie->wait_command_queue,
-					 !test_bit(STATUS_HCMD_ACTIVE,
-						   &trans_pcie->status),
+					 !test_bit(STATUS_SYNC_HCMD_ACTIVE,
+						   &trans->status),
 					 COMMAND_POKE_TIMEOUT);
 		if (ret)
 			break;
@@ -1552,17 +1550,17 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		IWL_ERR(trans, "Current CMD queue read_ptr %d write_ptr %d\n",
 			q->read_ptr, q->write_ptr);
 
-		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
+		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(trans_pcie, cmd->id));
 		ret = -ETIMEDOUT;
 
-		iwl_nic_error(trans);
+		iwl_trans_fw_error(trans);
 
 		goto cancel;
 	}
 
-	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status)) {
+	if (test_bit(STATUS_FW_ERROR, &trans->status)) {
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
 			get_cmd_string(trans_pcie, cmd->id));
 		dump_stack();
@@ -1571,7 +1569,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	}
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL, &trans_pcie->status)) {
+	    test_bit(STATUS_RFKILL, &trans->status)) {
 		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
@@ -1608,13 +1606,8 @@ cancel:
 
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status))
-		return -EIO;
-
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL, &trans_pcie->status)) {
+	    test_bit(STATUS_RFKILL, &trans->status)) {
 		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
 				  cmd->id);
 		return -ERFKILL;
