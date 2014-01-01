@@ -198,7 +198,6 @@ static int handle_ipte_interlock(struct kvm_vcpu *vcpu)
 
 static int handle_test_block(struct kvm_vcpu *vcpu)
 {
-	unsigned long hva;
 	gpa_t addr;
 	int reg2;
 
@@ -209,14 +208,13 @@ static int handle_test_block(struct kvm_vcpu *vcpu)
 	addr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
 	addr = kvm_s390_real_to_abs(vcpu, addr);
 
-	hva = gfn_to_hva(vcpu->kvm, gpa_to_gfn(addr));
-	if (kvm_is_error_hva(hva))
+	if (kvm_is_error_gpa(vcpu->kvm, addr))
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	/*
 	 * We don't expect errors on modern systems, and do not care
 	 * about storage keys (yet), so let's just clear the page.
 	 */
-	if (clear_user((void __user *)hva, PAGE_SIZE) != 0)
+	if (kvm_clear_guest(vcpu->kvm, addr, PAGE_SIZE))
 		return -EFAULT;
 	kvm_s390_set_psw_cc(vcpu, 0);
 	vcpu->run->s.regs.gprs[0] = 0;
