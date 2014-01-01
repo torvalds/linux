@@ -10841,9 +10841,9 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 			   (1<<11));
 
 	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-			(phy->speed_cap_mask &
-			PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) ||
-			(phy->req_line_speed == SPEED_1000)) {
+	     (phy->speed_cap_mask &
+	      PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) ||
+	    (phy->req_line_speed == SPEED_1000)) {
 		an_1000_val |= (1<<8);
 		autoneg_val |= (1<<9 | 1<<12);
 		if (phy->req_duplex == DUPLEX_FULL)
@@ -10859,30 +10859,32 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 			0x09,
 			&an_1000_val);
 
-	/* Set 100 speed advertisement */
-	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-			(phy->speed_cap_mask &
-			(PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
-			PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF)))) {
-		an_10_100_val |= (1<<7);
-		/* Enable autoneg and restart autoneg for legacy speeds */
-		autoneg_val |= (1<<9 | 1<<12);
-
-		if (phy->req_duplex == DUPLEX_FULL)
-			an_10_100_val |= (1<<8);
-		DP(NETIF_MSG_LINK, "Advertising 100M\n");
-	}
-
-	/* Set 10 speed advertisement */
-	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-			(phy->speed_cap_mask &
-			(PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL |
-			PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF)))) {
-		an_10_100_val |= (1<<5);
-		autoneg_val |= (1<<9 | 1<<12);
-		if (phy->req_duplex == DUPLEX_FULL)
+	/* Advertise 10/100 link speed */
+	if (phy->req_line_speed == SPEED_AUTO_NEG) {
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF) {
+			an_10_100_val |= (1<<5);
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 10M-HD\n");
+		}
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL) {
 			an_10_100_val |= (1<<6);
-		DP(NETIF_MSG_LINK, "Advertising 10M\n");
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 10M-FD\n");
+		}
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF) {
+			an_10_100_val |= (1<<7);
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 100M-HD\n");
+		}
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL) {
+			an_10_100_val |= (1<<8);
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 100M-FD\n");
+		}
 	}
 
 	/* Only 10/100 are allowed to work in FORCE mode */
