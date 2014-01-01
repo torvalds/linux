@@ -577,25 +577,23 @@ static int ad799x_probe(struct i2c_client *client,
 		goto error_disable_reg;
 
 	if (client->irq > 0) {
-		ret = request_threaded_irq(client->irq,
-					   NULL,
-					   ad799x_event_handler,
-					   IRQF_TRIGGER_FALLING |
-					   IRQF_ONESHOT,
-					   client->name,
-					   indio_dev);
+		ret = devm_request_threaded_irq(&client->dev,
+						client->irq,
+						NULL,
+						ad799x_event_handler,
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						client->name,
+						indio_dev);
 		if (ret)
 			goto error_cleanup_ring;
 	}
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_irq;
+		goto error_cleanup_ring;
 
 	return 0;
 
-error_free_irq:
-	if (client->irq > 0)
-		free_irq(client->irq, indio_dev);
 error_cleanup_ring:
 	ad799x_ring_cleanup(indio_dev);
 error_disable_reg:
@@ -611,8 +609,6 @@ static int ad799x_remove(struct i2c_client *client)
 	struct ad799x_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (client->irq > 0)
-		free_irq(client->irq, indio_dev);
 
 	ad799x_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg))
