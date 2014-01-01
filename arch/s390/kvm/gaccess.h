@@ -19,16 +19,24 @@
 #include <linux/ptrace.h>
 #include "kvm-s390.h"
 
-/* Convert real to absolute address by applying the prefix of the CPU */
+/**
+ * kvm_s390_real_to_abs - convert guest real address to guest absolute address
+ * @vcpu - guest virtual cpu
+ * @gra - guest real address
+ *
+ * Returns the guest absolute address that corresponds to the passed guest real
+ * address @gra of a virtual guest cpu by applying its prefix.
+ */
 static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
-						 unsigned long gaddr)
+						 unsigned long gra)
 {
-	unsigned long prefix  = vcpu->arch.sie_block->prefix;
-	if (gaddr < 2 * PAGE_SIZE)
-		gaddr += prefix;
-	else if (gaddr >= prefix && gaddr < prefix + 2 * PAGE_SIZE)
-		gaddr -= prefix;
-	return gaddr;
+	unsigned long prefix = vcpu->arch.sie_block->prefix;
+
+	if (gra < 2 * PAGE_SIZE)
+		gra += prefix;
+	else if (gra >= prefix && gra < prefix + 2 * PAGE_SIZE)
+		gra -= prefix;
+	return gra;
 }
 
 /**
