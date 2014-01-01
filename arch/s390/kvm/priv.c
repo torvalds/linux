@@ -134,23 +134,26 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 
 static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 {
-	u64 useraddr;
+	u16 vcpu_id = vcpu->vcpu_id;
+	u64 ga;
+	int rc;
 
 	vcpu->stat.instruction_stap++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	useraddr = kvm_s390_get_base_disp_s(vcpu);
+	ga = kvm_s390_get_base_disp_s(vcpu);
 
-	if (useraddr & 1)
+	if (ga & 1)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	if (put_guest(vcpu, vcpu->vcpu_id, (u16 __user *)useraddr))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = write_guest(vcpu, ga, &vcpu_id, sizeof(vcpu_id));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 
-	VCPU_EVENT(vcpu, 5, "storing cpu address to %llx", useraddr);
-	trace_kvm_s390_handle_stap(vcpu, useraddr);
+	VCPU_EVENT(vcpu, 5, "storing cpu address to %llx", ga);
+	trace_kvm_s390_handle_stap(vcpu, ga);
 	return 0;
 }
 
