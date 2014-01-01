@@ -224,9 +224,12 @@ static int handle_test_block(struct kvm_vcpu *vcpu)
 static int handle_tpi(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_interrupt_info *inti;
+	unsigned long len;
+	u32 tpi_data[3];
+	int cc, rc;
 	u64 addr;
-	int cc;
 
+	rc = 0;
 	addr = kvm_s390_get_base_disp_s(vcpu);
 	if (addr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -235,30 +238,33 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	if (!inti)
 		goto no_interrupt;
 	cc = 1;
+	tpi_data[0] = inti->io.subchannel_id << 16 | inti->io.subchannel_nr;
+	tpi_data[1] = inti->io.io_int_parm;
+	tpi_data[2] = inti->io.io_int_word;
 	if (addr) {
 		/*
 		 * Store the two-word I/O interruption code into the
 		 * provided area.
 		 */
-		if (put_guest(vcpu, inti->io.subchannel_id, (u16 __user *)addr)
-		    || put_guest(vcpu, inti->io.subchannel_nr, (u16 __user *)(addr + 2))
-		    || put_guest(vcpu, inti->io.io_int_parm, (u32 __user *)(addr + 4)))
-			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+		len = sizeof(tpi_data) - 4;
+		rc = write_guest(vcpu, addr, &tpi_data, len);
+		if (rc)
+			return kvm_s390_inject_prog_cond(vcpu, rc);
 	} else {
 		/*
 		 * Store the three-word I/O interruption code into
 		 * the appropriate lowcore area.
 		 */
-		put_guest(vcpu, inti->io.subchannel_id, (u16 __user *) __LC_SUBCHANNEL_ID);
-		put_guest(vcpu, inti->io.subchannel_nr, (u16 __user *) __LC_SUBCHANNEL_NR);
-		put_guest(vcpu, inti->io.io_int_parm, (u32 __user *) __LC_IO_INT_PARM);
-		put_guest(vcpu, inti->io.io_int_word, (u32 __user *) __LC_IO_INT_WORD);
+		len = sizeof(tpi_data);
+		if (write_guest_lc(vcpu, __LC_SUBCHANNEL_ID, &tpi_data, len))
+			rc = -EFAULT;
 	}
 	kfree(inti);
 no_interrupt:
 	/* Set condition code and we're done. */
-	kvm_s390_set_psw_cc(vcpu, cc);
-	return 0;
+	if (!rc)
+		kvm_s390_set_psw_cc(vcpu, cc);
+	return rc ? -EFAULT : 0;
 }
 
 static int handle_tsch(struct kvm_vcpu *vcpu)
