@@ -530,9 +530,10 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 		break;
 	}
 
-	if (copy_to_guest_absolute(vcpu, operand2, (void *) mem, PAGE_SIZE)) {
-		rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		goto out_exception;
+	rc = write_guest(vcpu, operand2, (void *)mem, PAGE_SIZE);
+	if (rc) {
+		rc = kvm_s390_inject_prog_cond(vcpu, rc);
+		goto out;
 	}
 	trace_kvm_s390_handle_stsi(vcpu, fc, sel1, sel2, operand2);
 	free_page(mem);
@@ -541,7 +542,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	return 0;
 out_no_data:
 	kvm_s390_set_psw_cc(vcpu, 3);
-out_exception:
+out:
 	free_page(mem);
 	return rc;
 }
