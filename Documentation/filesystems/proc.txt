@@ -547,7 +547,7 @@ Table 1-5: Kernel info in /proc
  sys         See chapter 2                                     
  sysvipc     Info of SysVIPC Resources (msg, sem, shm)		(2.4)
  tty	     Info of tty drivers
- uptime      System uptime                                     
+ uptime      Wall clock since boot, combined idle time of all cpus
  version     Kernel version                                    
  video	     bttv info of video resources			(2.4)
  vmallocinfo Show vmalloced areas
