@@ -170,6 +170,39 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
 int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
 			     struct kvm_s390_pgm_info *pgm_info);
 
+/**
+ * kvm_s390_inject_prog_cond - conditionally inject a program check
+ * @vcpu: virtual cpu
+ * @rc: original return/error code
+ *
+ * This function is supposed to be used after regular guest access functions
+ * failed, to conditionally inject a program check to a vcpu. The typical
+ * pattern would look like
+ *
+ * rc = write_guest(vcpu, addr, data, len);
+ * if (rc)
+ *	return kvm_s390_inject_prog_cond(vcpu, rc);
+ *
+ * A negative return code from guest access functions implies an internal error
+ * like e.g. out of memory. In these cases no program check should be injected
+ * to the guest.
+ * A positive value implies that an exception happened while accessing a guest's
+ * memory. In this case all data belonging to the corresponding program check
+ * has been stored in vcpu->arch.pgm and can be injected with
+ * kvm_s390_inject_prog_irq().
+ *
+ * Returns: - the original @rc value if @rc was negative (internal error)
+ *	    - zero if @rc was already zero
+ *	    - zero or error code from injecting if @rc was positive
+ *	      (program check injected to @vcpu)
+ */
+static inline int kvm_s390_inject_prog_cond(struct kvm_vcpu *vcpu, int rc)
+{
+	if (rc <= 0)
+		return rc;
+	return kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
+}
+
 /* implemented in interrupt.c */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int psw_extint_disabled(struct kvm_vcpu *vcpu);

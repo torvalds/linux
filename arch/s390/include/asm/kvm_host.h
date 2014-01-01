@@ -286,6 +286,7 @@ struct kvm_vcpu_arch {
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
 	struct tasklet_struct tasklet;
+	struct kvm_s390_pgm_info pgm;
 	union  {
 		struct cpuid	cpu_id;
 		u64		stidp_data;
