@@ -381,6 +381,7 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 	psw_t *gpsw = &vcpu->arch.sie_block->gpsw;
 	psw_compat_t new_psw;
 	u64 addr;
+	int rc;
 
 	if (gpsw->mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -388,8 +389,10 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 	addr = kvm_s390_get_base_disp_s(vcpu);
 	if (addr & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-	if (copy_from_guest(vcpu, &new_psw, addr, sizeof(new_psw)))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+
+	rc = read_guest(vcpu, addr, &new_psw, sizeof(new_psw));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 	if (!(new_psw.mask & PSW32_MASK_BASE))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	gpsw->mask = (new_psw.mask & ~PSW32_MASK_BASE) << 32;
@@ -405,6 +408,7 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 {
 	psw_t new_psw;
 	u64 addr;
+	int rc;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -412,8 +416,9 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 	addr = kvm_s390_get_base_disp_s(vcpu);
 	if (addr & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-	if (copy_from_guest(vcpu, &new_psw, addr, sizeof(new_psw)))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = read_guest(vcpu, addr, &new_psw, sizeof(new_psw));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 	vcpu->arch.sie_block->gpsw = new_psw;
 	if (!is_valid_psw(&vcpu->arch.sie_block->gpsw))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
