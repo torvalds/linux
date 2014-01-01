@@ -111,18 +111,22 @@ static int handle_instruction(struct kvm_vcpu *vcpu)
 
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
+	struct kvm_s390_itdb *itdb;
+	int rc;
+
 	vcpu->stat.exit_program_interruption++;
 
 	/* Restore ITDB to Program-Interruption TDB in guest memory */
-	if (IS_TE_ENABLED(vcpu) &&
-	    !(current->thread.per_flags & PER_FLAG_NO_TE) &&
-	    IS_ITDB_VALID(vcpu)) {
-		copy_to_guest(vcpu, TDB_ADDR, vcpu->arch.sie_block->itdba,
-			      sizeof(struct kvm_s390_itdb));
-		memset((void *) vcpu->arch.sie_block->itdba, 0,
-		       sizeof(struct kvm_s390_itdb));
-	}
-
+	if (!IS_TE_ENABLED(vcpu) || !IS_ITDB_VALID(vcpu))
+		goto skip_itdb;
+	if (current->thread.per_flags & PER_FLAG_NO_TE)
+		goto skip_itdb;
+	itdb = (struct kvm_s390_itdb *)vcpu->arch.sie_block->itdba;
+	rc = write_guest_lc(vcpu, TDB_ADDR, itdb, sizeof(*itdb));
+	if (rc)
+		return rc;
+	memset(itdb, 0, sizeof(*itdb));
+skip_itdb:
 	trace_kvm_s390_intercept_prog(vcpu, vcpu->arch.sie_block->iprcc);
 	return kvm_s390_inject_program_int(vcpu, vcpu->arch.sie_block->iprcc);
 }
