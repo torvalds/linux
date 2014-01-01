@@ -106,6 +106,7 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 {
 	u64 operand2;
 	u32 address;
+	int rc;
 
 	vcpu->stat.instruction_stpx++;
 
@@ -122,8 +123,9 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 	address = address & 0x7fffe000u;
 
 	/* get the value */
-	if (put_guest(vcpu, address, (u32 __user *)operand2))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = write_guest(vcpu, operand2, &address, sizeof(address));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 
 	VCPU_EVENT(vcpu, 5, "storing prefix to %x", address);
 	trace_kvm_s390_handle_prefix(vcpu, 0, address);
