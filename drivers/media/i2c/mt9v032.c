@@ -17,6 +17,8 @@
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -26,6 +28,7 @@
 #include <media/mt9v032.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-of.h>
 #include <media/v4l2-subdev.h>
 
 /* The first four rows are black rows. The active area spans 753x481 pixels. */
@@ -876,10 +879,58 @@ static const struct regmap_config mt9v032_regmap_config = {
  * Driver initialization and probing
  */
 
+static struct mt9v032_platform_data *
+mt9v032_get_pdata(struct i2c_client *client)
+{
+	struct mt9v032_platform_data *pdata;
+	struct v4l2_of_endpoint endpoint;
+	struct device_node *np;
+	struct property *prop;
+
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+		return client->dev.platform_data;
+
+	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	if (!np)
+		return NULL;
+
+	if (v4l2_of_parse_endpoint(np, &endpoint) < 0)
+		goto done;
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		goto done;
+
+	prop = of_find_property(np, "link-frequencies", NULL);
+	if (prop) {
+		u64 *link_freqs;
+		size_t size = prop->length / sizeof(*link_freqs);
+
+		link_freqs = devm_kcalloc(&client->dev, size,
+					  sizeof(*link_freqs), GFP_KERNEL);
+		if (!link_freqs)
+			goto done;
+
+		if (of_property_read_u64_array(np, "link-frequencies",
+					       link_freqs, size) < 0)
+			goto done;
+
+		pdata->link_freqs = link_freqs;
+		pdata->link_def_freq = link_freqs[0];
+	}
+
+	pdata->clk_pol = !!(endpoint.bus.parallel.flags &
+			    V4L2_MBUS_PCLK_SAMPLE_RISING);
+
+done:
+	of_node_put(np);
+	return pdata;
+}
+
 static int mt9v032_probe(struct i2c_client *client,
 		const struct i2c_device_id *did)
 {
-	struct mt9v032_platform_data *pdata = client->dev.platform_data;
+	struct mt9v032_platform_data *pdata = mt9v032_get_pdata(client);
 	struct mt9v032 *mt9v032;
 	unsigned int i;
 	int ret;
@@ -1037,9 +1088,25 @@ static const struct i2c_device_id mt9v032_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mt9v032_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id mt9v032_of_match[] = {
+	{ .compatible = "aptina,mt9v022" },
+	{ .compatible = "aptina,mt9v022m" },
+	{ .compatible = "aptina,mt9v024" },
+	{ .compatible = "aptina,mt9v024m" },
+	{ .compatible = "aptina,mt9v032" },
+	{ .compatible = "aptina,mt9v032m" },
+	{ .compatible = "aptina,mt9v034" },
+	{ .compatible = "aptina,mt9v034m" },
+	{ /* Sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mt9v032_of_match);
+#endif
+
 static struct i2c_driver mt9v032_driver = {
 	.driver = {
 		.name = "mt9v032",
+		.of_match_table = of_match_ptr(mt9v032_of_match),
 	},
 	.probe		= mt9v032_probe,
 	.remove		= mt9v032_remove,
