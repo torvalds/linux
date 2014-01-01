@@ -42,52 +42,12 @@
 #include <asm/rtlx.h>
 #include <asm/setup.h>
 
-static struct rtlx_info *rtlx;
-static int major;
-static char module_name[] = "rtlx";
-
-static struct chan_waitqueues {
-	wait_queue_head_t rt_queue;
-	wait_queue_head_t lx_queue;
-	atomic_t in_open;
-	struct mutex mutex;
-} channel_wqs[RTLX_CHANNELS];
-
-static struct vpe_notifications notify;
 static int sp_stopping;
-
-extern void *vpe_get_shared(int index);
-
-static void rtlx_dispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ);
-}
-
-
-/* Interrupt handler may be called before rtlx_init has otherwise had
-   a chance to run.
-*/
-static irqreturn_t rtlx_interrupt(int irq, void *dev_id)
-{
-	unsigned int vpeflags;
-	unsigned long flags;
-	int i;
-
-	/* Ought not to be strictly necessary for SMTC builds */
-	local_irq_save(flags);
-	vpeflags = dvpe();
-	set_c0_status(0x100 << MIPS_CPU_RTLX_IRQ);
-	irq_enable_hazard();
-	evpe(vpeflags);
-	local_irq_restore(flags);
-
-	for (i = 0; i < RTLX_CHANNELS; i++) {
-			wake_up(&channel_wqs[i].lx_queue);
-			wake_up(&channel_wqs[i].rt_queue);
-	}
-
-	return IRQ_HANDLED;
-}
+struct rtlx_info *rtlx;
+struct chan_waitqueues channel_wqs[RTLX_CHANNELS];
+struct vpe_notifications rtlx_notify;
+void (*aprp_hook)(void) = NULL;
+EXPORT_SYMBOL(aprp_hook);
 
 static void __used dump_rtlx(void)
 {
@@ -127,7 +87,7 @@ static int rtlx_init(struct rtlx_info *rtlxi)
 }
 
 /* notifications */
-static void starting(int vpe)
+void rtlx_starting(int vpe)
 {
 	int i;
 	sp_stopping = 0;
@@ -140,7 +100,7 @@ static void starting(int vpe)
 		wake_up_interruptible(&channel_wqs[i].lx_queue);
 }
 
-static void stopping(int vpe)
+void rtlx_stopping(int vpe)
 {
 	int i;
 
@@ -384,6 +344,8 @@ out:
 	smp_wmb();
 	mutex_unlock(&channel_wqs[index].mutex);
 
+	_interrupt_sp();
+
 	return count;
 }
 
@@ -454,7 +416,7 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 	return rtlx_write(minor, buffer, count);
 }
 
-static const struct file_operations rtlx_fops = {
+const struct file_operations rtlx_fops = {
 	.owner =   THIS_MODULE,
 	.open =	   file_open,
 	.release = file_release,
@@ -463,90 +425,6 @@ static const struct file_operations rtlx_fops = {
 	.poll =	   file_poll,
 	.llseek =  noop_llseek,
 };
-
-static struct irqaction rtlx_irq = {
-	.handler	= rtlx_interrupt,
-	.name		= "RTLX",
-};
-
-static int rtlx_irq_num = MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ;
-
-static char register_chrdev_failed[] __initdata =
-	KERN_ERR "rtlx_module_init: unable to register device\n";
-
-static int __init rtlx_module_init(void)
-{
-	struct device *dev;
-	int i, err;
-
-	if (!cpu_has_mipsmt) {
-		printk("VPE loader: not a MIPS MT capable processor\n");
-		return -ENODEV;
-	}
-
-	if (tclimit == 0) {
-		printk(KERN_WARNING "No TCs reserved for AP/SP, not "
-		       "initializing RTLX.\nPass maxtcs=<n> argument as kernel "
-		       "argument\n");
-
-		return -ENODEV;
-	}
-
-	major = register_chrdev(0, module_name, &rtlx_fops);
-	if (major < 0) {
-		printk(register_chrdev_failed);
-		return major;
-	}
-
-	/* initialise the wait queues */
-	for (i = 0; i < RTLX_CHANNELS; i++) {
-		init_waitqueue_head(&channel_wqs[i].rt_queue);
-		init_waitqueue_head(&channel_wqs[i].lx_queue);
-		atomic_set(&channel_wqs[i].in_open, 0);
-		mutex_init(&channel_wqs[i].mutex);
-
-		dev = device_create(mt_class, NULL, MKDEV(major, i), NULL,
-				    "%s%d", module_name, i);
-		if (IS_ERR(dev)) {
-			err = PTR_ERR(dev);
-			goto out_chrdev;
-		}
-	}
-
-	/* set up notifiers */
-	notify.start = starting;
-	notify.stop = stopping;
-	vpe_notify(tclimit, &notify);
-
-	if (cpu_has_vint)
-		set_vi_handler(MIPS_CPU_RTLX_IRQ, rtlx_dispatch);
-	else {
-		pr_err("APRP RTLX init on non-vectored-interrupt processor\n");
-		err = -ENODEV;
-		goto out_chrdev;
-	}
-
-	rtlx_irq.dev_id = rtlx;
-	setup_irq(rtlx_irq_num, &rtlx_irq);
-
-	return 0;
-
-out_chrdev:
-	for (i = 0; i < RTLX_CHANNELS; i++)
-		device_destroy(mt_class, MKDEV(major, i));
-
-	return err;
-}
-
-static void __exit rtlx_module_exit(void)
-{
-	int i;
-
-	for (i = 0; i < RTLX_CHANNELS; i++)
-		device_destroy(mt_class, MKDEV(major, i));
-
-	unregister_chrdev(major, module_name);
-}
 
 module_init(rtlx_module_init);
 module_exit(rtlx_module_exit);

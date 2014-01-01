@@ -59,6 +59,7 @@ obj-$(CONFIG_MIPS_VPE_LOADER)	+= vpe.o
 obj-$(CONFIG_MIPS_VPE_LOADER_CMP) += vpe-cmp.o
 obj-$(CONFIG_MIPS_VPE_LOADER_MT) += vpe-mt.o
 obj-$(CONFIG_MIPS_VPE_APSP_API) += rtlx.o
+obj-$(CONFIG_MIPS_VPE_APSP_API_MT) += rtlx-mt.o
 
 obj-$(CONFIG_I8259)		+= i8259.o
 obj-$(CONFIG_IRQ_CPU)		+= irq_cpu.o
