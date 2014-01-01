@@ -2343,9 +2343,15 @@ bnx2_init_copper_phy(struct bnx2 *bp, int reset_phy)
 	}
 
 	/* ethernet@wirespeed */
-	bnx2_write_phy(bp, 0x18, 0x7007);
-	bnx2_read_phy(bp, 0x18, &val);
-	bnx2_write_phy(bp, 0x18, val | (1 << 15) | (1 << 4));
+	bnx2_write_phy(bp, MII_BNX2_AUX_CTL, AUX_CTL_MISC_CTL);
+	bnx2_read_phy(bp, MII_BNX2_AUX_CTL, &val);
+	val |=  AUX_CTL_MISC_CTL_WR | AUX_CTL_MISC_CTL_WIRESPEED;
+
+	/* auto-mdix */
+	if (BNX2_CHIP(bp) == BNX2_CHIP_5709)
+		val |=  AUX_CTL_MISC_CTL_AUTOMDIX;
+
+	bnx2_write_phy(bp, MII_BNX2_AUX_CTL, val);
 	return 0;
 }
 

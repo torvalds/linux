@@ -6471,6 +6471,12 @@ struct l2_fhdr {
 
 #define BCM5708S_TX_ACTL3			0x17
 
+#define MII_BNX2_AUX_CTL			0x18
+#define AUX_CTL_MISC_CTL			 0x7007
+#define AUX_CTL_MISC_CTL_WIRESPEED		  (1 << 4)
+#define AUX_CTL_MISC_CTL_AUTOMDIX		  (1 << 9)
+#define AUX_CTL_MISC_CTL_WR			  (1 << 15)
+
 #define MII_BNX2_DSP_RW_PORT			0x15
 #define MII_BNX2_DSP_ADDRESS			0x17
 #define MII_BNX2_DSP_EXPAND_REG			 0x0f00
