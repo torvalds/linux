@@ -1810,6 +1810,7 @@ enum {
 	ALC882_FIXUP_ACER_ASPIRE_7736,
 	ALC882_FIXUP_ASUS_W90V,
 	ALC889_FIXUP_CD,
+	ALC889_FIXUP_FRONT_HP_NO_PRESENCE,
 	ALC889_FIXUP_VAIO_TT,
 	ALC888_FIXUP_EEE1601,
 	ALC882_FIXUP_EAPD,
@@ -2026,6 +2027,15 @@ static const struct hda_fixup alc882_fixups[] = {
 			{ 0x1c, 0x993301f0 }, /* CD */
 			{ }
 		}
+	},
+	[ALC889_FIXUP_FRONT_HP_NO_PRESENCE] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x1b, 0x02214120 }, /* Front HP jack is flaky, disable jack detect */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC889_FIXUP_CD,
 	},
 	[ALC889_FIXUP_VAIO_TT] = {
 		.type = HDA_FIXUP_PINS,
@@ -2258,7 +2268,7 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC882_FIXUP_EAPD),
 	SND_PCI_QUIRK(0x1462, 0x7350, "MSI-7350", ALC889_FIXUP_CD),
 	SND_PCI_QUIRK_VENDOR(0x1462, "MSI", ALC882_FIXUP_GPIO3),
-	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte EP45-DS3", ALC889_FIXUP_CD),
+	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte EP45-DS3/Z87X-UD3H", ALC889_FIXUP_FRONT_HP_NO_PRESENCE),
 	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", ALC882_FIXUP_ABIT_AW9D_MAX),
 	SND_PCI_QUIRK_VENDOR(0x1558, "Clevo laptop", ALC882_FIXUP_EAPD),
 	SND_PCI_QUIRK(0x161f, 0x2054, "Medion laptop", ALC883_FIXUP_EAPD),
