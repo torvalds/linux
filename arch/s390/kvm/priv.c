@@ -428,7 +428,9 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 
 static int handle_stidp(struct kvm_vcpu *vcpu)
 {
+	u64 stidp_data = vcpu->arch.stidp_data;
 	u64 operand2;
+	int rc;
 
 	vcpu->stat.instruction_stidp++;
 
@@ -440,8 +442,9 @@ static int handle_stidp(struct kvm_vcpu *vcpu)
 	if (operand2 & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	if (put_guest(vcpu, vcpu->arch.stidp_data, (u64 __user *)operand2))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = write_guest(vcpu, operand2, &stidp_data, sizeof(stidp_data));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 
 	VCPU_EVENT(vcpu, 5, "%s", "store cpu id");
 	return 0;
