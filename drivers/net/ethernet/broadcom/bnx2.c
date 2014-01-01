@@ -1197,6 +1197,8 @@ bnx2_copper_linkup(struct bnx2 *bp)
 {
 	u32 bmcr;
 
+	bp->phy_flags &= ~BNX2_PHY_FLAG_MDIX;
+
 	bnx2_read_phy(bp, bp->mii_bmcr, &bmcr);
 	if (bmcr & BMCR_ANENABLE) {
 		u32 local_adv, remote_adv, common;
@@ -1253,6 +1255,14 @@ bnx2_copper_linkup(struct bnx2 *bp)
 		else {
 			bp->duplex = DUPLEX_HALF;
 		}
+	}
+
+	if (bp->link_up) {
+		u32 ext_status;
+
+		bnx2_read_phy(bp, MII_BNX2_EXT_STATUS, &ext_status);
+		if (ext_status & EXT_STATUS_MDIX)
+			bp->phy_flags |= BNX2_PHY_FLAG_MDIX;
 	}
 
 	return 0;
@@ -6874,6 +6884,12 @@ bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (netif_carrier_ok(dev)) {
 		ethtool_cmd_speed_set(cmd, bp->line_speed);
 		cmd->duplex = bp->duplex;
+		if (!(bp->phy_flags & BNX2_PHY_FLAG_SERDES)) {
+			if (bp->phy_flags & BNX2_PHY_FLAG_MDIX)
+				cmd->eth_tp_mdix = ETH_TP_MDI_X;
+			else
+				cmd->eth_tp_mdix = ETH_TP_MDI;
+		}
 	}
 	else {
 		ethtool_cmd_speed_set(cmd, -1);
