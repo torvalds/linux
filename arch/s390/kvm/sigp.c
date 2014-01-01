@@ -235,7 +235,6 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	struct kvm_vcpu *dst_vcpu = NULL;
 	struct kvm_s390_interrupt_info *inti;
 	int rc;
-	u8 tmp;
 
 	if (cpu_addr < KVM_MAX_VCPUS)
 		dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
@@ -243,10 +242,13 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 		return SIGP_CC_NOT_OPERATIONAL;
 	li = &dst_vcpu->arch.local_int;
 
-	/* make sure that the new value is valid memory */
-	address = address & 0x7fffe000u;
-	if (copy_from_guest_absolute(vcpu, &tmp, address, 1) ||
-	   copy_from_guest_absolute(vcpu, &tmp, address + PAGE_SIZE, 1)) {
+	/*
+	 * Make sure the new value is valid memory. We only need to check the
+	 * first page, since address is 8k aligned and memory pieces are always
+	 * at least 1MB aligned and have at least a size of 1MB.
+	 */
+	address &= 0x7fffe000u;
+	if (kvm_is_error_gpa(vcpu->kvm, address)) {
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INVALID_PARAMETER;
 		return SIGP_CC_STATUS_STORED;

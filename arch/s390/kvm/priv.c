@@ -65,8 +65,8 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 static int handle_set_prefix(struct kvm_vcpu *vcpu)
 {
 	u64 operand2;
-	u32 address = 0;
-	u8 tmp;
+	u32 address;
+	int rc;
 
 	vcpu->stat.instruction_spx++;
 
@@ -80,14 +80,18 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	/* get the value */
-	if (get_guest(vcpu, address, (u32 __user *) operand2))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = read_guest(vcpu, operand2, &address, sizeof(address));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 
-	address = address & 0x7fffe000u;
+	address &= 0x7fffe000u;
 
-	/* make sure that the new value is valid memory */
-	if (copy_from_guest_absolute(vcpu, &tmp, address, 1) ||
-	   (copy_from_guest_absolute(vcpu, &tmp, address + PAGE_SIZE, 1)))
+	/*
+	 * Make sure the new value is valid memory. We only need to check the
+	 * first page, since address is 8k aligned and memory pieces are always
+	 * at least 1MB aligned and have at least a size of 1MB.
+	 */
+	if (kvm_is_error_gpa(vcpu->kvm, address))
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 
 	kvm_s390_set_prefix(vcpu, address);
