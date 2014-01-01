@@ -35,8 +35,8 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu *cpup;
 	s64 hostclk, val;
+	int i, rc;
 	u64 op2;
-	int i;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -44,8 +44,9 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 	op2 = kvm_s390_get_base_disp_s(vcpu);
 	if (op2 & 7)	/* Operand must be on a doubleword boundary */
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-	if (get_guest(vcpu, val, (u64 __user *) op2))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = read_guest(vcpu, op2, &val, sizeof(val));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 
 	if (store_tod_clock(&hostclk)) {
 		kvm_s390_set_psw_cc(vcpu, 3);
