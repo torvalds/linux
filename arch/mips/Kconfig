@@ -1956,6 +1956,11 @@ config MIPS_VPE_APSP_API
 	depends on MIPS_VPE_LOADER
 	help
 
+config MIPS_VPE_APSP_API_CMP
+	bool
+	default "y"
+	depends on MIPS_VPE_APSP_API && MIPS_CMP
+
 config MIPS_VPE_APSP_API_MT
 	bool
 	default "y"
