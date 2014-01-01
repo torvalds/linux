@@ -447,3 +447,13 @@ unsigned long randomize_et_dyn(unsigned long base)
 {
 	return randomize_base(base);
 }
+
+void arch_cpu_idle_enter(void)
+{
+	idle_notifier_call_chain(IDLE_START);
+}
+
+void arch_cpu_idle_exit(void)
+{
+	idle_notifier_call_chain(IDLE_END);
+}
