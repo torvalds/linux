@@ -2505,9 +2505,8 @@ static int nf_tables_dump_set(struct sk_buff *skb, struct netlink_callback *cb)
 	u32 portid, seq;
 	int event, err;
 
-	nfmsg = nlmsg_data(cb->nlh);
-	err = nlmsg_parse(cb->nlh, sizeof(*nfmsg), nla, NFTA_SET_ELEM_LIST_MAX,
-			  nft_set_elem_list_policy);
+	err = nlmsg_parse(cb->nlh, sizeof(struct nfgenmsg), nla,
+			  NFTA_SET_ELEM_LIST_MAX, nft_set_elem_list_policy);
 	if (err < 0)
 		return err;
 
