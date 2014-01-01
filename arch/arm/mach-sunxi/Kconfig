@@ -3,6 +3,7 @@ config ARCH_SUNXI
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC
+	select ARM_PSCI
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select COMMON_CLK
