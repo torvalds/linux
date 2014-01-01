@@ -389,6 +389,20 @@
 				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
+
+			clk_out_a_pins_a: clk_out_a@0 {
+				allwinner,pins = "PI12";
+				allwinner,function = "clk_out_a";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			clk_out_b_pins_a: clk_out_b@0 {
+				allwinner,pins = "PI13";
+				allwinner,function = "clk_out_b";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
 		};
 
 		timer@01c20c00 {
