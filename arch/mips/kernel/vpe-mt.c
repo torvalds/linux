@@ -26,7 +26,7 @@ static int hw_tcs, hw_vpes;
 int vpe_run(struct vpe *v)
 {
 	unsigned long flags, val, dmt_flag;
-	struct vpe_notifications *n;
+	struct vpe_notifications *notifier;
 	unsigned int vpeflags;
 	struct tc *t;
 
@@ -139,8 +139,8 @@ int vpe_run(struct vpe *v)
 	emt(dmt_flag);
 	local_irq_restore(flags);
 
-	list_for_each_entry(n, &v->notify, list)
-		n->start(VPE_MODULE_MINOR);
+	list_for_each_entry(notifier, &v->notify, list)
+		notifier->start(VPE_MODULE_MINOR);
 
 	return 0;
 }

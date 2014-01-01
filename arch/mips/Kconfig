@@ -1950,7 +1950,6 @@ config MIPS_VPE_LOADER_TOM
 	  you to ensure the amount you put in the option and the space your
 	  program requires is less or equal to the amount physically present.
 
-# this should possibly be in drivers/char, but it is rather cpu related. Hmmm
 config MIPS_VPE_APSP_API
 	bool "Enable support for AP/SP API (RTLX)"
 	depends on MIPS_VPE_LOADER

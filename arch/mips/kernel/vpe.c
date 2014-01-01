@@ -1,37 +1,22 @@
 /*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
  * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Technologies Ltd.
  *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- */
-
-/*
- * VPE support module
- *
- * Provides support for loading a MIPS SP program on VPE1.
- * The SP environment is rather simple, no tlb's.  It needs to be relocatable
- * (or partially linked). You should initialise your stack in the startup
- * code. This loader looks for the symbol __start and sets up
- * execution to resume from there. The MIPS SDE kit contains suitable examples.
- *
- * To load and run, simply cat a SP 'program file' to /dev/vpe1.
- * i.e cat spapp >/dev/vpe1.
+ * VPE spport module for loading a MIPS SP program into VPE1. The SP
+ * environment is rather simple since there are no TLBs. It needs
+ * to be relocatable (or partiall linked). Initialize your stack in
+ * the startup-code. The loader looks for the symbol __start and sets
+ * up the execution to resume from there. To load and run, simply do
+ * a cat SP 'binary' to the /dev/vpe1 device.
  */
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/vmalloc.h>
@@ -46,7 +31,6 @@
 #include <asm/mipsmtregs.h>
 #include <asm/cacheflush.h>
 #include <linux/atomic.h>
-#include <asm/cpu.h>
 #include <asm/mips_mt.h>
 #include <asm/processor.h>
 #include <asm/vpe.h>
@@ -109,8 +93,9 @@ struct vpe *alloc_vpe(int minor)
 {
 	struct vpe *v;
 
-	if ((v = kzalloc(sizeof(struct vpe), GFP_KERNEL)) == NULL)
-		return NULL;
+	v = kzalloc(sizeof(struct vpe), GFP_KERNEL);
+	if (v == NULL)
+		goto out;
 
 	INIT_LIST_HEAD(&v->tc);
 	spin_lock(&vpecontrol.vpe_list_lock);
@@ -120,6 +105,7 @@ struct vpe *alloc_vpe(int minor)
 	INIT_LIST_HEAD(&v->notify);
 	v->minor = VPE_MODULE_MINOR;
 
+out:
 	return v;
 }
 
@@ -128,7 +114,8 @@ struct tc *alloc_tc(int index)
 {
 	struct tc *tc;
 
-	if ((tc = kzalloc(sizeof(struct tc), GFP_KERNEL)) == NULL)
+	tc = kzalloc(sizeof(struct tc), GFP_KERNEL);
+	if (tc == NULL)
 		goto out;
 
 	INIT_LIST_HEAD(&tc->tc);
@@ -151,7 +138,7 @@ void release_vpe(struct vpe *v)
 	kfree(v);
 }
 
-/* Find some VPE program space	*/
+/* Find some VPE program space */
 void *alloc_progmem(unsigned long len)
 {
 	void *addr;
@@ -179,7 +166,7 @@ void release_progmem(void *ptr)
 }
 
 /* Update size with this section: return offset. */
-static long get_offset(unsigned long *size, Elf_Shdr * sechdr)
+static long get_offset(unsigned long *size, Elf_Shdr *sechdr)
 {
 	long ret;
 
@@ -192,8 +179,8 @@ static long get_offset(unsigned long *size, Elf_Shdr * sechdr)
    might -- code, read-only data, read-write data, small data.	Tally
    sizes, and place the offsets into sh_entsize fields: high bit means it
    belongs in init. */
-static void layout_sections(struct module *mod, const Elf_Ehdr * hdr,
-			    Elf_Shdr * sechdrs, const char *secstrings)
+static void layout_sections(struct module *mod, const Elf_Ehdr *hdr,
+			    Elf_Shdr *sechdrs, const char *secstrings)
 {
 	static unsigned long const masks[][2] = {
 		/* NOTE: all executable code must be the first section
@@ -213,7 +200,6 @@ static void layout_sections(struct module *mod, const Elf_Ehdr * hdr,
 		for (i = 0; i < hdr->e_shnum; ++i) {
 			Elf_Shdr *s = &sechdrs[i];
 
-			//  || strncmp(secstrings + s->sh_name, ".init", 5) == 0)
 			if ((s->sh_flags & masks[m][0]) != masks[m][0]
 			    || (s->sh_flags & masks[m][1])
 			    || s->sh_entsize != ~0UL)
@@ -227,7 +213,6 @@ static void layout_sections(struct module *mod, const Elf_Ehdr * hdr,
 
 	}
 }
-
 
 /* from module-elf32.c, but subverted a little */
 
@@ -251,20 +236,18 @@ static int apply_r_mips_gprel16(struct module *me, uint32_t *location,
 {
 	int rel;
 
-	if( !(*location & 0xffff) ) {
+	if (!(*location & 0xffff)) {
 		rel = (int)v - gp_addr;
-	}
-	else {
+	} else {
 		/* .sbss + gp(relative) + offset */
 		/* kludge! */
 		rel =  (int)(short)((int)v + gp_offs +
 				    (int)(short)(*location & 0xffff) - gp_addr);
 	}
 
-	if( (rel > 32768) || (rel < -32768) ) {
-		printk(KERN_DEBUG "VPE loader: apply_r_mips_gprel16: "
-		       "relative address 0x%x out of range of gp register\n",
-		       rel);
+	if ((rel > 32768) || (rel < -32768)) {
+		pr_debug("VPE loader: apply_r_mips_gprel16: relative address 0x%x out of range of gp register\n",
+			 rel);
 		return -ENOEXEC;
 	}
 
@@ -278,12 +261,12 @@ static int apply_r_mips_pc16(struct module *me, uint32_t *location,
 {
 	int rel;
 	rel = (((unsigned int)v - (unsigned int)location));
-	rel >>= 2;		// because the offset is in _instructions_ not bytes.
-	rel -= 1;		// and one instruction less due to the branch delay slot.
+	rel >>= 2; /* because the offset is in _instructions_ not bytes. */
+	rel -= 1;  /* and one instruction less due to the branch delay slot. */
 
-	if( (rel > 32768) || (rel < -32768) ) {
-		printk(KERN_DEBUG "VPE loader: "
-		       "apply_r_mips_pc16: relative address out of range 0x%x\n", rel);
+	if ((rel > 32768) || (rel < -32768)) {
+		pr_debug("VPE loader: apply_r_mips_pc16: relative address out of range 0x%x\n",
+			 rel);
 		return -ENOEXEC;
 	}
 
@@ -304,8 +287,7 @@ static int apply_r_mips_26(struct module *me, uint32_t *location,
 			   Elf32_Addr v)
 {
 	if (v % 4) {
-		printk(KERN_DEBUG "VPE loader: apply_r_mips_26 "
-		       " unaligned relocation\n");
+		pr_debug("VPE loader: apply_r_mips_26: unaligned relocation\n");
 		return -ENOEXEC;
 	}
 
@@ -336,7 +318,7 @@ static int apply_r_mips_hi16(struct module *me, uint32_t *location,
 	 * the carry we need to add.  Save the information, and let LO16 do the
 	 * actual relocation.
 	 */
-	n = kmalloc(sizeof *n, GFP_KERNEL);
+	n = kmalloc(sizeof(*n), GFP_KERNEL);
 	if (!n)
 		return -ENOMEM;
 
@@ -368,9 +350,7 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 			 * The value for the HI16 had best be the same.
 			 */
 			if (v != l->value) {
-				printk(KERN_DEBUG "VPE loader: "
-				       "apply_r_mips_lo16/hi16: \t"
-				       "inconsistent value information\n");
+				pr_debug("VPE loader: apply_r_mips_lo16/hi16: inconsistent value information\n");
 				goto out_free;
 			}
 
@@ -466,20 +446,19 @@ static int apply_relocations(Elf32_Shdr *sechdrs,
 			+ ELF32_R_SYM(r_info);
 
 		if (!sym->st_value) {
-			printk(KERN_DEBUG "%s: undefined weak symbol %s\n",
-			       me->name, strtab + sym->st_name);
+			pr_debug("%s: undefined weak symbol %s\n",
+				 me->name, strtab + sym->st_name);
 			/* just print the warning, dont barf */
 		}
 
 		v = sym->st_value;
 
 		res = reloc_handlers[ELF32_R_TYPE(r_info)](me, location, v);
-		if( res ) {
+		if (res) {
 			char *r = rstrs[ELF32_R_TYPE(r_info)];
-			printk(KERN_WARNING "VPE loader: .text+0x%x "
-			       "relocation type %s for symbol \"%s\" failed\n",
-			       rel[i].r_offset, r ? r : "UNKNOWN",
-			       strtab + sym->st_name);
+			pr_warn("VPE loader: .text+0x%x relocation type %s for symbol \"%s\" failed\n",
+				rel[i].r_offset, r ? r : "UNKNOWN",
+				strtab + sym->st_name);
 			return res;
 		}
 	}
@@ -494,10 +473,8 @@ static inline void save_gp_address(unsigned int secbase, unsigned int rel)
 }
 /* end module-elf32.c */
 
-
-
 /* Change all symbols so that sh_value encodes the pointer directly. */
-static void simplify_symbols(Elf_Shdr * sechdrs,
+static void simplify_symbols(Elf_Shdr *sechdrs,
 			    unsigned int symindex,
 			    const char *strtab,
 			    const char *secstrings,
@@ -538,18 +515,16 @@ static void simplify_symbols(Elf_Shdr * sechdrs,
 			break;
 
 		case SHN_MIPS_SCOMMON:
-			printk(KERN_DEBUG "simplify_symbols: ignoring SHN_MIPS_SCOMMON "
-			       "symbol <%s> st_shndx %d\n", strtab + sym[i].st_name,
-			       sym[i].st_shndx);
-			// .sbss section
+			pr_debug("simplify_symbols: ignoring SHN_MIPS_SCOMMON symbol <%s> st_shndx %d\n",
+				 strtab + sym[i].st_name, sym[i].st_shndx);
+			/* .sbss section */
 			break;
 
 		default:
 			secbase = sechdrs[sym[i].st_shndx].sh_addr;
 
-			if (strncmp(strtab + sym[i].st_name, "_gp", 3) == 0) {
+			if (strncmp(strtab + sym[i].st_name, "_gp", 3) == 0)
 				save_gp_address(secbase, sym[i].st_value);
-			}
 
 			sym[i].st_value += secbase;
 			break;
@@ -558,21 +533,21 @@ static void simplify_symbols(Elf_Shdr * sechdrs,
 }
 
 #ifdef DEBUG_ELFLOADER
-static void dump_elfsymbols(Elf_Shdr * sechdrs, unsigned int symindex,
+static void dump_elfsymbols(Elf_Shdr *sechdrs, unsigned int symindex,
 			    const char *strtab, struct module *mod)
 {
 	Elf_Sym *sym = (void *)sechdrs[symindex].sh_addr;
 	unsigned int i, n = sechdrs[symindex].sh_size / sizeof(Elf_Sym);
 
-	printk(KERN_DEBUG "dump_elfsymbols: n %d\n", n);
+	pr_debug("dump_elfsymbols: n %d\n", n);
 	for (i = 1; i < n; i++) {
-		printk(KERN_DEBUG " i %d name <%s> 0x%x\n", i,
-		       strtab + sym[i].st_name, sym[i].st_value);
+		pr_debug(" i %d name <%s> 0x%x\n", i, strtab + sym[i].st_name,
+			 sym[i].st_value);
 	}
 }
 #endif
 
-static int find_vpe_symbols(struct vpe * v, Elf_Shdr * sechdrs,
+static int find_vpe_symbols(struct vpe *v, Elf_Shdr *sechdrs,
 				      unsigned int symindex, const char *strtab,
 				      struct module *mod)
 {
@@ -580,16 +555,14 @@ static int find_vpe_symbols(struct vpe * v, Elf_Shdr * sechdrs,
 	unsigned int i, n = sechdrs[symindex].sh_size / sizeof(Elf_Sym);
 
 	for (i = 1; i < n; i++) {
-		if (strcmp(strtab + sym[i].st_name, "__start") == 0) {
+		if (strcmp(strtab + sym[i].st_name, "__start") == 0)
 			v->__start = sym[i].st_value;
-		}
 
-		if (strcmp(strtab + sym[i].st_name, "vpe_shared") == 0) {
+		if (strcmp(strtab + sym[i].st_name, "vpe_shared") == 0)
 			v->shared_ptr = (void *)sym[i].st_value;
-		}
 	}
 
-	if ( (v->__start == 0) || (v->shared_ptr == NULL))
+	if ((v->__start == 0) || (v->shared_ptr == NULL))
 		return -1;
 
 	return 0;
@@ -600,14 +573,14 @@ static int find_vpe_symbols(struct vpe * v, Elf_Shdr * sechdrs,
  * contents of the program (p)buffer performing relocatations/etc, free's it
  * when finished.
  */
-static int vpe_elfload(struct vpe * v)
+static int vpe_elfload(struct vpe *v)
 {
 	Elf_Ehdr *hdr;
 	Elf_Shdr *sechdrs;
 	long err = 0;
 	char *secstrings, *strtab = NULL;
 	unsigned int len, i, symindex = 0, strindex = 0, relocate = 0;
-	struct module mod;	// so we can re-use the relocations code
+	struct module mod; /* so we can re-use the relocations code */
 
 	memset(&mod, 0, sizeof(struct module));
 	strcpy(mod.name, "VPE loader");
@@ -621,8 +594,7 @@ static int vpe_elfload(struct vpe * v)
 	    || (hdr->e_type != ET_REL && hdr->e_type != ET_EXEC)
 	    || !elf_check_arch(hdr)
 	    || hdr->e_shentsize != sizeof(*sechdrs)) {
-		printk(KERN_WARNING
-		       "VPE loader: program wrong arch or weird elf version\n");
+		pr_warn("VPE loader: program wrong arch or weird elf version\n");
 
 		return -ENOEXEC;
 	}
@@ -631,8 +603,7 @@ static int vpe_elfload(struct vpe * v)
 		relocate = 1;
 
 	if (len < hdr->e_shoff + hdr->e_shnum * sizeof(Elf_Shdr)) {
-		printk(KERN_ERR "VPE loader: program length %u truncated\n",
-		       len);
+		pr_err("VPE loader: program length %u truncated\n", len);
 
 		return -ENOEXEC;
 	}
@@ -647,22 +618,24 @@ static int vpe_elfload(struct vpe * v)
 
 	if (relocate) {
 		for (i = 1; i < hdr->e_shnum; i++) {
-			if (sechdrs[i].sh_type != SHT_NOBITS
-			    && len < sechdrs[i].sh_offset + sechdrs[i].sh_size) {
-				printk(KERN_ERR "VPE program length %u truncated\n",
+			if ((sechdrs[i].sh_type != SHT_NOBITS) &&
+			    (len < sechdrs[i].sh_offset + sechdrs[i].sh_size)) {
+				pr_err("VPE program length %u truncated\n",
 				       len);
 				return -ENOEXEC;
 			}
 
 			/* Mark all sections sh_addr with their address in the
 			   temporary image. */
-			sechdrs[i].sh_addr = (size_t) hdr + sechdrs[i].sh_offset;
+			sechdrs[i].sh_addr = (size_t) hdr +
+				sechdrs[i].sh_offset;
 
 			/* Internal symbols and strings. */
 			if (sechdrs[i].sh_type == SHT_SYMTAB) {
 				symindex = i;
 				strindex = sechdrs[i].sh_link;
-				strtab = (char *)hdr + sechdrs[strindex].sh_offset;
+				strtab = (char *)hdr +
+					sechdrs[strindex].sh_offset;
 			}
 		}
 		layout_sections(&mod, hdr, sechdrs, secstrings);
@@ -689,8 +662,9 @@ static int vpe_elfload(struct vpe * v)
 			/* Update sh_addr to point to copy in image. */
 			sechdrs[i].sh_addr = (unsigned long)dest;
 
-			printk(KERN_DEBUG " section sh_name %s sh_addr 0x%x\n",
-			       secstrings + sechdrs[i].sh_name, sechdrs[i].sh_addr);
+			pr_debug(" section sh_name %s sh_addr 0x%x\n",
+				 secstrings + sechdrs[i].sh_name,
+				 sechdrs[i].sh_addr);
 		}
 
 		/* Fix up syms, so that st_value is a pointer to location. */
@@ -711,17 +685,18 @@ static int vpe_elfload(struct vpe * v)
 				continue;
 
 			if (sechdrs[i].sh_type == SHT_REL)
-				err = apply_relocations(sechdrs, strtab, symindex, i,
-							&mod);
+				err = apply_relocations(sechdrs, strtab,
+							symindex, i, &mod);
 			else if (sechdrs[i].sh_type == SHT_RELA)
-				err = apply_relocate_add(sechdrs, strtab, symindex, i,
-							 &mod);
+				err = apply_relocate_add(sechdrs, strtab,
+							 symindex, i, &mod);
 			if (err < 0)
 				return err;
 
 		}
 	} else {
-		struct elf_phdr *phdr = (struct elf_phdr *) ((char *)hdr + hdr->e_phoff);
+		struct elf_phdr *phdr = (struct elf_phdr *)
+						((char *)hdr + hdr->e_phoff);
 
 		for (i = 0; i < hdr->e_phnum; i++) {
 			if (phdr->p_type == PT_LOAD) {
@@ -739,11 +714,15 @@ static int vpe_elfload(struct vpe * v)
 			if (sechdrs[i].sh_type == SHT_SYMTAB) {
 				symindex = i;
 				strindex = sechdrs[i].sh_link;
-				strtab = (char *)hdr + sechdrs[strindex].sh_offset;
+				strtab = (char *)hdr +
+					sechdrs[strindex].sh_offset;
 
-				/* mark the symtab's address for when we try to find the
-				   magic symbols */
-				sechdrs[i].sh_addr = (size_t) hdr + sechdrs[i].sh_offset;
+				/*
+				 * mark symtab's address for when we try
+				 * to find the magic symbols
+				 */
+				sechdrs[i].sh_addr = (size_t) hdr +
+					sechdrs[i].sh_offset;
 			}
 		}
 	}
@@ -754,18 +733,16 @@ static int vpe_elfload(struct vpe * v)
 
 	if ((find_vpe_symbols(v, sechdrs, symindex, strtab, &mod)) < 0) {
 		if (v->__start == 0) {
-			printk(KERN_WARNING "VPE loader: program does not contain "
-			       "a __start symbol\n");
+			pr_warn("VPE loader: program does not contain a __start symbol\n");
 			return -ENOEXEC;
 		}
 
 		if (v->shared_ptr == NULL)
-			printk(KERN_WARNING "VPE loader: "
-			       "program does not contain vpe_shared symbol.\n"
-			       " Unable to use AMVP (AP/SP) facilities.\n");
+			pr_warn("VPE loader: program does not contain vpe_shared symbol.\n"
+				" Unable to use AMVP (AP/SP) facilities.\n");
 	}
 
-	printk(" elf loaded\n");
+	pr_info(" elf loaded\n");
 	return 0;
 }
 
@@ -788,30 +765,30 @@ static int getcwd(char *buff, int size)
 static int vpe_open(struct inode *inode, struct file *filp)
 {
 	enum vpe_state state;
-	struct vpe_notifications *not;
+	struct vpe_notifications *notifier;
 	struct vpe *v;
 	int ret;
 
 	if (VPE_MODULE_MINOR != iminor(inode)) {
 		/* assume only 1 device at the moment. */
-		pr_warning("VPE loader: only vpe1 is supported\n");
+		pr_warn("VPE loader: only vpe1 is supported\n");
 
 		return -ENODEV;
 	}
 
-	if ((v = get_vpe(aprp_cpu_index())) == NULL) {
-		pr_warning("VPE loader: unable to get vpe\n");
+	v = get_vpe(aprp_cpu_index());
+	if (v == NULL) {
+		pr_warn("VPE loader: unable to get vpe\n");
 
 		return -ENODEV;
 	}
 
 	state = xchg(&v->state, VPE_STATE_INUSE);
 	if (state != VPE_STATE_UNUSED) {
-		printk(KERN_DEBUG "VPE loader: tc in use dumping regs\n");
+		pr_debug("VPE loader: tc in use dumping regs\n");
 
-		list_for_each_entry(not, &v->notify, list) {
-			not->stop(aprp_cpu_index());
-		}
+		list_for_each_entry(notifier, &v->notify, list)
+			notifier->stop(aprp_cpu_index());
 
 		release_progmem(v->load_addr);
 		cleanup_tc(get_tc(aprp_cpu_index()));
@@ -820,7 +797,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	/* this of-course trashes what was there before... */
 	v->pbuffer = vmalloc(P_SIZE);
 	if (!v->pbuffer) {
-		pr_warning("VPE loader: unable to allocate memory\n");
+		pr_warn("VPE loader: unable to allocate memory\n");
 		return -ENOMEM;
 	}
 	v->plen = P_SIZE;
@@ -833,7 +810,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->cwd[0] = 0;
 	ret = getcwd(v->cwd, VPE_PATH_MAX);
 	if (ret < 0)
-		printk(KERN_WARNING "VPE loader: open, getcwd returned %d\n", ret);
+		pr_warn("VPE loader: open, getcwd returned %d\n", ret);
 
 	v->shared_ptr = NULL;
 	v->__start = 0;
@@ -856,11 +833,11 @@ static int vpe_release(struct inode *inode, struct file *filp)
 		if ((vpe_elfload(v) >= 0) && vpe_run) {
 			vpe_run(v);
 		} else {
-			printk(KERN_WARNING "VPE loader: ELF load failed.\n");
+			pr_warn("VPE loader: ELF load failed.\n");
 			ret = -ENOEXEC;
 		}
 	} else {
-		printk(KERN_WARNING "VPE loader: only elf files are supported\n");
+		pr_warn("VPE loader: only elf files are supported\n");
 		ret = -ENOEXEC;
 	}
 
@@ -878,8 +855,8 @@ static int vpe_release(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static ssize_t vpe_write(struct file *file, const char __user * buffer,
-			 size_t count, loff_t * ppos)
+static ssize_t vpe_write(struct file *file, const char __user *buffer,
+			 size_t count, loff_t *ppos)
 {
 	size_t ret = count;
 	struct vpe *v;
@@ -888,12 +865,12 @@ static ssize_t vpe_write(struct file *file, const char __user * buffer,
 		return -ENODEV;
 
 	v = get_vpe(aprp_cpu_index());
+
 	if (v == NULL)
 		return -ENODEV;
 
 	if ((count + v->len) > v->plen) {
-		printk(KERN_WARNING
-		       "VPE loader: elf size too big. Perhaps strip uneeded symbols\n");
+		pr_warn("VPE loader: elf size too big. Perhaps strip uneeded symbols\n");
 		return -ENOMEM;
 	}
 
@@ -915,63 +892,58 @@ const struct file_operations vpe_fops = {
 
 void *vpe_get_shared(int index)
 {
-	struct vpe *v;
+	struct vpe *v = get_vpe(index);
 
-	if ((v = get_vpe(index)) == NULL)
+	if (v == NULL)
 		return NULL;
 
 	return v->shared_ptr;
 }
-
 EXPORT_SYMBOL(vpe_get_shared);
 
 int vpe_getuid(int index)
 {
-	struct vpe *v;
+	struct vpe *v = get_vpe(index);
 
-	if ((v = get_vpe(index)) == NULL)
+	if (v == NULL)
 		return -1;
 
 	return v->uid;
 }
-
 EXPORT_SYMBOL(vpe_getuid);
 
 int vpe_getgid(int index)
 {
-	struct vpe *v;
+	struct vpe *v = get_vpe(index);
 
-	if ((v = get_vpe(index)) == NULL)
+	if (v == NULL)
 		return -1;
 
 	return v->gid;
 }
-
 EXPORT_SYMBOL(vpe_getgid);
 
 int vpe_notify(int index, struct vpe_notifications *notify)
 {
-	struct vpe *v;
+	struct vpe *v = get_vpe(index);
 
-	if ((v = get_vpe(index)) == NULL)
+	if (v == NULL)
 		return -1;
 
 	list_add(&notify->list, &v->notify);
 	return 0;
 }
-
 EXPORT_SYMBOL(vpe_notify);
 
 char *vpe_getcwd(int index)
 {
-	struct vpe *v;
+	struct vpe *v = get_vpe(index);
 
-	if ((v = get_vpe(index)) == NULL)
+	if (v == NULL)
 		return NULL;
 
 	return v->cwd;
 }
-
 EXPORT_SYMBOL(vpe_getcwd);
 
 module_init(vpe_module_init);
