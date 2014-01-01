@@ -13360,6 +13360,10 @@ static u8 bnx2x_analyze_link_error(struct link_params *params,
 	DP(NETIF_MSG_LINK, "Link changed:[%x %x]->%x\n", vars->link_up,
 	   old_status, status);
 
+	/* Do not touch the link in case physical link down */
+	if ((vars->phy_flags & PHY_PHYSICAL_LINK_FLAG) == 0)
+		return 1;
+
 	/* a. Update shmem->link_status accordingly
 	 * b. Update link_vars->link_up
 	 */
