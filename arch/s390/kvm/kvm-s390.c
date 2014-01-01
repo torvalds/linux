@@ -1058,8 +1058,9 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu)
 	if (!vcpu->arch.gmap->pfault_enabled)
 		return 0;
 
-	hva = gmap_fault(current->thread.gmap_addr, vcpu->arch.gmap);
-	if (copy_from_guest(vcpu, &arch.pfault_token, vcpu->arch.pfault_token, 8))
+	hva = gfn_to_hva(vcpu->kvm, gpa_to_gfn(current->thread.gmap_addr));
+	hva += current->thread.gmap_addr & ~PAGE_MASK;
+	if (read_guest_real(vcpu, vcpu->arch.pfault_token, &arch.pfault_token, 8))
 		return 0;
 
 	rc = kvm_setup_async_pf(vcpu, current->thread.gmap_addr, hva, &arch);
