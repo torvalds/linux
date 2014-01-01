@@ -1138,7 +1138,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	int ret;
 	int write = !V4L2_TYPE_IS_OUTPUT(q->type);
 
-	/* Verify and copy relevant information provided by the userspace */
+	/* Copy relevant information provided by the userspace */
 	__fill_vb2_buffer(vb, b, planes);
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
