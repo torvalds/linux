@@ -23,35 +23,34 @@
 
 #undef DEBUG
 
-#include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/sh_dma.h>
-#include <linux/timer.h>
-#include <linux/interrupt.h>
-#include <linux/tty.h>
-#include <linux/tty_flip.h>
-#include <linux/serial.h>
-#include <linux/major.h>
-#include <linux/string.h>
-#include <linux/sysrq.h>
-#include <linux/ioport.h>
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/console.h>
-#include <linux/platform_device.h>
-#include <linux/serial_sci.h>
-#include <linux/notifier.h>
-#include <linux/pm_runtime.h>
-#include <linux/cpufreq.h>
 #include <linux/clk.h>
+#include <linux/console.h>
 #include <linux/ctype.h>
-#include <linux/err.h>
+#include <linux/cpufreq.h>
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/ioport.h>
+#include <linux/major.h>
+#include <linux/module.h>
+#include <linux/mm.h>
+#include <linux/notifier.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
+#include <linux/serial.h>
+#include <linux/serial_sci.h>
+#include <linux/sh_dma.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
+#include <linux/string.h>
+#include <linux/sysrq.h>
+#include <linux/timer.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
 
 #ifdef CONFIG_SUPERH
 #include <asm/sh_bios.h>
@@ -64,6 +63,10 @@ struct sci_port {
 
 	/* Platform configuration */
 	struct plat_sci_port	*cfg;
+	int			overrun_bit;
+	unsigned int		error_mask;
+	unsigned int		sampling_rate;
+
 
 	/* Break timer */
 	struct timer_list	break_timer;
@@ -74,8 +77,8 @@ struct sci_port {
 	/* Function clock */
 	struct clk		*fclk;
 
+	int			irqs[SCIx_NR_IRQS];
 	char			*irqstr[SCIx_NR_IRQS];
-	char			*gpiostr[SCIx_NR_FNS];
 
 	struct dma_chan			*chan_tx;
 	struct dma_chan			*chan_rx;
@@ -759,19 +762,15 @@ static int sci_handle_errors(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	struct sci_port *s = to_sci_port(port);
 
-	/*
-	 * Handle overruns, if supported.
-	 */
-	if (s->cfg->overrun_bit != SCIx_NOT_SUPPORTED) {
-		if (status & (1 << s->cfg->overrun_bit)) {
-			port->icount.overrun++;
+	/* Handle overruns */
+	if (status & (1 << s->overrun_bit)) {
+		port->icount.overrun++;
 
-			/* overrun error */
-			if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
-				copied++;
+		/* overrun error */
+		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
+			copied++;
 
-			dev_notice(port->dev, "overrun error");
-		}
+		dev_notice(port->dev, "overrun error");
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -833,7 +832,7 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 	if (!reg->size)
 		return 0;
 
-	if ((serial_port_in(port, SCLSR) & (1 << s->cfg->overrun_bit))) {
+	if ((serial_port_in(port, SCLSR) & (1 << s->overrun_bit))) {
 		serial_port_out(port, SCLSR, 0);
 
 		port->icount.overrun++;
@@ -1079,19 +1078,19 @@ static int sci_request_irq(struct sci_port *port)
 
 	for (i = j = 0; i < SCIx_NR_IRQS; i++, j++) {
 		struct sci_irq_desc *desc;
-		unsigned int irq;
+		int irq;
 
 		if (SCIx_IRQ_IS_MUXED(port)) {
 			i = SCIx_MUX_IRQ;
 			irq = up->irq;
 		} else {
-			irq = port->cfg->irqs[i];
+			irq = port->irqs[i];
 
 			/*
 			 * Certain port types won't support all of the
 			 * available interrupt sources.
 			 */
-			if (unlikely(!irq))
+			if (unlikely(irq < 0))
 				continue;
 		}
 
@@ -1116,7 +1115,7 @@ static int sci_request_irq(struct sci_port *port)
 
 out_noirq:
 	while (--i >= 0)
-		free_irq(port->cfg->irqs[i], port);
+		free_irq(port->irqs[i], port);
 
 out_nomem:
 	while (--j >= 0)
@@ -1134,16 +1133,16 @@ static void sci_free_irq(struct sci_port *port)
 	 * IRQ first.
 	 */
 	for (i = 0; i < SCIx_NR_IRQS; i++) {
-		unsigned int irq = port->cfg->irqs[i];
+		int irq = port->irqs[i];
 
 		/*
 		 * Certain port types won't support all of the available
 		 * interrupt sources.
 		 */
-		if (unlikely(!irq))
+		if (unlikely(irq < 0))
 			continue;
 
-		free_irq(port->cfg->irqs[i], port);
+		free_irq(port->irqs[i], port);
 		kfree(port->irqstr[i]);
 
 		if (SCIx_IRQ_IS_MUXED(port)) {
@@ -1151,67 +1150,6 @@ static void sci_free_irq(struct sci_port *port)
 			return;
 		}
 	}
-}
-
-static const char *sci_gpio_names[SCIx_NR_FNS] = {
-	"sck", "rxd", "txd", "cts", "rts",
-};
-
-static const char *sci_gpio_str(unsigned int index)
-{
-	return sci_gpio_names[index];
-}
-
-static void sci_init_gpios(struct sci_port *port)
-{
-	struct uart_port *up = &port->port;
-	int i;
-
-	if (!port->cfg)
-		return;
-
-	for (i = 0; i < SCIx_NR_FNS; i++) {
-		const char *desc;
-		int ret;
-
-		if (!port->cfg->gpios[i])
-			continue;
-
-		desc = sci_gpio_str(i);
-
-		port->gpiostr[i] = kasprintf(GFP_KERNEL, "%s:%s",
-					     dev_name(up->dev), desc);
-
-		/*
-		 * If we've failed the allocation, we can still continue
-		 * on with a NULL string.
-		 */
-		if (!port->gpiostr[i])
-			dev_notice(up->dev, "%s string allocation failure\n",
-				   desc);
-
-		ret = gpio_request(port->cfg->gpios[i], port->gpiostr[i]);
-		if (unlikely(ret != 0)) {
-			dev_notice(up->dev, "failed %s gpio request\n", desc);
-
-			/*
-			 * If we can't get the GPIO for whatever reason,
-			 * no point in keeping the verbose string around.
-			 */
-			kfree(port->gpiostr[i]);
-		}
-	}
-}
-
-static void sci_free_gpios(struct sci_port *port)
-{
-	int i;
-
-	for (i = 0; i < SCIx_NR_FNS; i++)
-		if (port->cfg->gpios[i]) {
-			gpio_free(port->cfg->gpios[i]);
-			kfree(port->gpiostr[i]);
-		}
 }
 
 static unsigned int sci_tx_empty(struct uart_port *port)
@@ -1659,7 +1597,7 @@ static void rx_timer_fn(unsigned long arg)
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 		scr &= ~0x4000;
-		enable_irq(s->cfg->irqs[1]);
+		enable_irq(s->irqs[SCIx_RXI_IRQ]);
 	}
 	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
 	dev_dbg(port->dev, "DMA Rx timed out\n");
@@ -1813,20 +1751,21 @@ static void sci_shutdown(struct uart_port *port)
 	sci_free_irq(s);
 }
 
-static unsigned int sci_scbrr_calc(unsigned int algo_id, unsigned int bps,
+static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 				   unsigned long freq)
 {
-	switch (algo_id) {
+	if (s->sampling_rate)
+		return DIV_ROUND_CLOSEST(freq, s->sampling_rate * bps) - 1;
+
+	switch (s->cfg->scbrr_algo_id) {
 	case SCBRR_ALGO_1:
-		return ((freq + 16 * bps) / (16 * bps) - 1);
+		return freq / (16 * bps);
 	case SCBRR_ALGO_2:
-		return ((freq + 16 * bps) / (32 * bps) - 1);
+		return DIV_ROUND_CLOSEST(freq, 32 * bps) - 1;
 	case SCBRR_ALGO_3:
-		return (((freq * 2) + 16 * bps) / (16 * bps) - 1);
+		return freq / (8 * bps);
 	case SCBRR_ALGO_4:
-		return (((freq * 2) + 16 * bps) / (32 * bps) - 1);
-	case SCBRR_ALGO_5:
-		return (((freq * 1000 / 32) / bps) - 1);
+		return DIV_ROUND_CLOSEST(freq, 16 * bps) - 1;
 	}
 
 	/* Warn, but use a safe default */
@@ -1908,12 +1847,11 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
 	if (likely(baud && port->uartclk)) {
-		if (s->cfg->scbrr_algo_id == SCBRR_ALGO_6) {
+		if (s->cfg->type == PORT_HSCIF) {
 			sci_baud_calc_hscif(baud, port->uartclk, &t, &srr,
 					    &cks);
 		} else {
-			t = sci_scbrr_calc(s->cfg->scbrr_algo_id, baud,
-					   port->uartclk);
+			t = sci_scbrr_calc(s, baud, port->uartclk);
 			for (cks = 0; t >= 256 && cks <= 3; cks++)
 				t >>= 2;
 		}
@@ -2120,10 +2058,6 @@ static void sci_config_port(struct uart_port *port, int flags)
 
 static int sci_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	struct sci_port *s = to_sci_port(port);
-
-	if (ser->irq != s->cfg->irqs[SCIx_TXI_IRQ] || ser->irq > nr_irqs)
-		return -EINVAL;
 	if (ser->baud_base < 2400)
 		/* No paper tape reader for Mitch.. */
 		return -EINVAL;
@@ -2156,11 +2090,13 @@ static struct uart_ops sci_uart_ops = {
 };
 
 static int sci_init_single(struct platform_device *dev,
-				     struct sci_port *sci_port,
-				     unsigned int index,
-				     struct plat_sci_port *p)
+			   struct sci_port *sci_port, unsigned int index,
+			   struct plat_sci_port *p, bool early)
 {
 	struct uart_port *port = &sci_port->port;
+	const struct resource *res;
+	unsigned int sampling_rate;
+	unsigned int i;
 	int ret;
 
 	sci_port->cfg	= p;
@@ -2169,22 +2105,36 @@ static int sci_init_single(struct platform_device *dev,
 	port->iotype	= UPIO_MEM;
 	port->line	= index;
 
-	switch (p->type) {
-	case PORT_SCIFB:
-		port->fifosize = 256;
-		break;
-	case PORT_HSCIF:
-		port->fifosize = 128;
-		break;
-	case PORT_SCIFA:
-		port->fifosize = 64;
-		break;
-	case PORT_SCIF:
-		port->fifosize = 16;
-		break;
-	default:
-		port->fifosize = 1;
-		break;
+	if (dev->num_resources) {
+		/* Device has resources, use them. */
+		res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+		if (res == NULL)
+			return -ENOMEM;
+
+		port->mapbase = res->start;
+
+		for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
+			sci_port->irqs[i] = platform_get_irq(dev, i);
+
+		/* The SCI generates several interrupts. They can be muxed
+		 * together or connected to different interrupt lines. In the
+		 * muxed case only one interrupt resource is specified. In the
+		 * non-muxed case three or four interrupt resources are
+		 * specified, as the BRI interrupt is optional.
+		 */
+		if (sci_port->irqs[0] < 0)
+			return -ENXIO;
+
+		if (sci_port->irqs[1] < 0) {
+			sci_port->irqs[1] = sci_port->irqs[0];
+			sci_port->irqs[2] = sci_port->irqs[0];
+			sci_port->irqs[3] = sci_port->irqs[0];
+		}
+	} else {
+		/* No resources, use old-style platform data. */
+		port->mapbase = p->mapbase;
+		for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
+			sci_port->irqs[i] = p->irqs[i] ? p->irqs[i] : -ENXIO;
 	}
 
 	if (p->regtype == SCIx_PROBE_REGTYPE) {
@@ -2193,7 +2143,52 @@ static int sci_init_single(struct platform_device *dev,
 			return ret;
 	}
 
-	if (dev) {
+	switch (p->type) {
+	case PORT_SCIFB:
+		port->fifosize = 256;
+		sci_port->overrun_bit = 9;
+		sampling_rate = 16;
+		break;
+	case PORT_HSCIF:
+		port->fifosize = 128;
+		sampling_rate = 0;
+		sci_port->overrun_bit = 0;
+		break;
+	case PORT_SCIFA:
+		port->fifosize = 64;
+		sci_port->overrun_bit = 9;
+		sampling_rate = 16;
+		break;
+	case PORT_SCIF:
+		port->fifosize = 16;
+		if (p->regtype == SCIx_SH7705_SCIF_REGTYPE) {
+			sci_port->overrun_bit = 9;
+			sampling_rate = 16;
+		} else {
+			sci_port->overrun_bit = 0;
+			sampling_rate = 32;
+		}
+		break;
+	default:
+		port->fifosize = 1;
+		sci_port->overrun_bit = 5;
+		sampling_rate = 32;
+		break;
+	}
+
+	/* Set the sampling rate if the baud rate calculation algorithm isn't
+	 * specified.
+	 */
+	if (p->scbrr_algo_id == SCBRR_ALGO_NONE) {
+		/* SCIFA on sh7723 and sh7724 need a custom sampling rate that
+		 * doesn't match the SoC datasheet, this should be investigated.
+		 * Let platform data override the sampling rate for now.
+		 */
+		sci_port->sampling_rate = p->sampling_rate ? p->sampling_rate
+					: sampling_rate;
+	}
+
+	if (!early) {
 		sci_port->iclk = clk_get(&dev->dev, "sci_ick");
 		if (IS_ERR(sci_port->iclk)) {
 			sci_port->iclk = clk_get(&dev->dev, "peripheral_clk");
@@ -2213,8 +2208,6 @@ static int sci_init_single(struct platform_device *dev,
 
 		port->dev = &dev->dev;
 
-		sci_init_gpios(sci_port);
-
 		pm_runtime_enable(&dev->dev);
 	}
 
@@ -2225,32 +2218,22 @@ static int sci_init_single(struct platform_device *dev,
 	/*
 	 * Establish some sensible defaults for the error detection.
 	 */
-	if (!p->error_mask)
-		p->error_mask = (p->type == PORT_SCI) ?
+	sci_port->error_mask = (p->type == PORT_SCI) ?
 			SCI_DEFAULT_ERROR_MASK : SCIF_DEFAULT_ERROR_MASK;
 
 	/*
 	 * Establish sensible defaults for the overrun detection, unless
 	 * the part has explicitly disabled support for it.
 	 */
-	if (p->overrun_bit != SCIx_NOT_SUPPORTED) {
-		if (p->type == PORT_SCI)
-			p->overrun_bit = 5;
-		else if (p->scbrr_algo_id == SCBRR_ALGO_4)
-			p->overrun_bit = 9;
-		else
-			p->overrun_bit = 0;
 
-		/*
-		 * Make the error mask inclusive of overrun detection, if
-		 * supported.
-		 */
-		p->error_mask |= (1 << p->overrun_bit);
-	}
+	/*
+	 * Make the error mask inclusive of overrun detection, if
+	 * supported.
+	 */
+	sci_port->error_mask |= 1 << sci_port->overrun_bit;
 
-	port->mapbase		= p->mapbase;
 	port->type		= p->type;
-	port->flags		= p->flags;
+	port->flags		= UPF_FIXED_PORT | p->flags;
 	port->regshift		= p->regshift;
 
 	/*
@@ -2260,7 +2243,7 @@ static int sci_init_single(struct platform_device *dev,
 	 *
 	 * For the muxed case there's nothing more to do.
 	 */
-	port->irq		= p->irqs[SCIx_RXI_IRQ];
+	port->irq		= sci_port->irqs[SCIx_RXI_IRQ];
 	port->irqflags		= 0;
 
 	port->serial_in		= sci_serial_in;
@@ -2275,8 +2258,6 @@ static int sci_init_single(struct platform_device *dev,
 
 static void sci_cleanup_single(struct sci_port *port)
 {
-	sci_free_gpios(port);
-
 	clk_put(port->iclk);
 	clk_put(port->fclk);
 
@@ -2392,7 +2373,7 @@ static int sci_probe_earlyprintk(struct platform_device *pdev)
 
 	early_serial_console.index = pdev->id;
 
-	sci_init_single(NULL, &sci_ports[pdev->id], pdev->id, cfg);
+	sci_init_single(pdev, &sci_ports[pdev->id], pdev->id, cfg, true);
 
 	serial_console_setup(&early_serial_console, early_serial_buf);
 
@@ -2459,7 +2440,7 @@ static int sci_probe_single(struct platform_device *dev,
 		return -EINVAL;
 	}
 
-	ret = sci_init_single(dev, sciport, index, p);
+	ret = sci_init_single(dev, sciport, index, p, false);
 	if (ret)
 		return ret;
 
