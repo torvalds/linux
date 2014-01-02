@@ -160,6 +160,7 @@ enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 int omap_crtc_apply(struct drm_crtc *crtc,
 		struct omap_drm_apply *apply);
 void omap_crtc_pre_init(void);
+void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, enum omap_channel channel, int id);
 

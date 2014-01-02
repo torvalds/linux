@@ -87,6 +87,43 @@ static bool channel_used(struct drm_device *dev, enum omap_channel channel)
 	return false;
 }
 
+static int omap_connect_dssdevs(void)
+{
+	int r;
+	struct omap_dss_device *dssdev = NULL;
+	bool no_displays = true;
+
+	for_each_dss_dev(dssdev) {
+		r = dssdev->driver->connect(dssdev);
+		if (r == -EPROBE_DEFER) {
+			omap_dss_put_device(dssdev);
+			goto cleanup;
+		} else if (r) {
+			dev_warn(dssdev->dev, "could not connect display: %s\n",
+				dssdev->name);
+		} else {
+			no_displays = false;
+		}
+	}
+
+	if (no_displays)
+		return -EPROBE_DEFER;
+
+	return 0;
+
+cleanup:
+	/*
+	 * if we are deferring probe, we disconnect the devices we previously
+	 * connected
+	 */
+	dssdev = NULL;
+
+	for_each_dss_dev(dssdev)
+		dssdev->driver->disconnect(dssdev);
+
+	return r;
+}
+
 static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
@@ -95,9 +132,6 @@ static int omap_modeset_init(struct drm_device *dev)
 	int num_mgrs = dss_feat_get_num_mgrs();
 	int num_crtcs;
 	int i, id = 0;
-	int r;
-
-	omap_crtc_pre_init();
 
 	drm_mode_config_init(dev);
 
@@ -119,26 +153,8 @@ static int omap_modeset_init(struct drm_device *dev)
 		enum omap_channel channel;
 		struct omap_overlay_manager *mgr;
 
-		if (!dssdev->driver) {
-			dev_warn(dev->dev, "%s has no driver.. skipping it\n",
-					dssdev->name);
+		if (!omapdss_device_is_connected(dssdev))
 			continue;
-		}
-
-		if (!(dssdev->driver->get_timings ||
-					dssdev->driver->read_edid)) {
-			dev_warn(dev->dev, "%s driver does not support "
-				"get_timings or read_edid.. skipping it!\n",
-				dssdev->name);
-			continue;
-		}
-
-		r = dssdev->driver->connect(dssdev);
-		if (r) {
-			dev_err(dev->dev, "could not connect display: %s\n",
-					dssdev->name);
-			continue;
-		}
 
 		encoder = omap_encoder_init(dev, dssdev);
 
@@ -655,8 +671,18 @@ static void pdev_shutdown(struct platform_device *device)
 
 static int pdev_probe(struct platform_device *device)
 {
+	int r;
+
 	if (omapdss_is_initialized() == false)
 		return -EPROBE_DEFER;
+
+	omap_crtc_pre_init();
+
+	r = omap_connect_dssdevs();
+	if (r) {
+		omap_crtc_pre_uninit();
+		return r;
+	}
 
 	DBG("%s", device->name);
 	return drm_platform_init(&omap_drm_driver, device);

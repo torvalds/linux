@@ -623,6 +623,11 @@ void omap_crtc_pre_init(void)
 	dss_install_mgr_ops(&mgr_ops);
 }
 
+void omap_crtc_pre_uninit(void)
+{
+	dss_uninstall_mgr_ops();
+}
+
 /* initialize crtc */
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, enum omap_channel channel, int id)
