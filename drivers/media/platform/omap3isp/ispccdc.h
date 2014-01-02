@@ -46,6 +46,12 @@ enum ccdc_input_entity {
 
 #define	OMAP3ISP_CCDC_NEVENTS	16
 
+struct ispccdc_fpc {
+	void *addr;
+	dma_addr_t dma;
+	unsigned int fpnum;
+};
+
 enum ispccdc_lsc_state {
 	LSC_STATE_STOPPED = 0,
 	LSC_STATE_STOPPING = 1,
@@ -140,7 +146,7 @@ struct isp_ccdc_device {
 		     fpc_en:1;
 	struct omap3isp_ccdc_blcomp blcomp;
 	struct omap3isp_ccdc_bclamp clamp;
-	struct omap3isp_ccdc_fpc fpc;
+	struct ispccdc_fpc fpc;
 	struct ispccdc_lsc lsc;
 	unsigned int update;
 	unsigned int shadow_update;
