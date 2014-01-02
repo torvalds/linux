@@ -17,13 +17,30 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
+#include <linux/cpu.h>
+#include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/pm_opp.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
 
 #include <asm/cacheflush.h>
 
 #define SPCLOG "vexpress-spc: "
+
+#define PERF_LVL_A15		0x00
+#define PERF_REQ_A15		0x04
+#define PERF_LVL_A7		0x08
+#define PERF_REQ_A7		0x0c
+#define COMMS			0x10
+#define COMMS_REQ		0x14
+#define PWC_STATUS		0x18
+#define PWC_FLAG		0x1c
 
 /* SPC wake-up IRQs status and mask */
 #define WAKE_INT_MASK		0x24
@@ -36,11 +53,44 @@
 #define A15_BX_ADDR0		0x68
 #define A7_BX_ADDR0		0x78
 
+/* SPC system config interface registers */
+#define SYSCFG_WDATA		0x70
+#define SYSCFG_RDATA		0x74
+
+/* A15/A7 OPP virtual register base */
+#define A15_PERFVAL_BASE	0xC10
+#define A7_PERFVAL_BASE		0xC30
+
+/* Config interface control bits */
+#define SYSCFG_START		(1 << 31)
+#define SYSCFG_SCC		(6 << 20)
+#define SYSCFG_STAT		(14 << 20)
+
 /* wake-up interrupt masks */
 #define GBL_WAKEUP_INT_MSK	(0x3 << 10)
 
 /* TC2 static dual-cluster configuration */
 #define MAX_CLUSTERS		2
+
+/*
+ * Even though the SPC takes max 3-5 ms to complete any OPP/COMMS
+ * operation, the operation could start just before jiffie is about
+ * to be incremented. So setting timeout value of 20ms = 2jiffies@100Hz
+ */
+#define TIMEOUT_US	20000
+
+#define MAX_OPPS	8
+#define CA15_DVFS	0
+#define CA7_DVFS	1
+#define SPC_SYS_CFG	2
+#define STAT_COMPLETE(type)	((1 << 0) << (type << 2))
+#define STAT_ERR(type)		((1 << 1) << (type << 2))
+#define RESPONSE_MASK(type)	(STAT_COMPLETE(type) | STAT_ERR(type))
+
+struct ve_spc_opp {
+	unsigned long freq;
+	unsigned long u_volt;
+};
 
 struct ve_spc_drvdata {
 	void __iomem *baseaddr;
@@ -49,6 +99,12 @@ struct ve_spc_drvdata {
 	 * It corresponds to A15 processors MPIDR[15:8] bitfield
 	 */
 	u32 a15_clusid;
+	uint32_t cur_rsp_mask;
+	uint32_t cur_rsp_stat;
+	struct semaphore sem;
+	struct completion done;
+	struct ve_spc_opp *opps[MAX_CLUSTERS];
+	int num_opps[MAX_CLUSTERS];
 };
 
 static struct ve_spc_drvdata *info;
@@ -157,8 +213,197 @@ void ve_spc_powerdown(u32 cluster, bool enable)
 	writel_relaxed(enable, info->baseaddr + pwdrn_reg);
 }
 
-int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid)
+static int ve_spc_get_performance(int cluster, u32 *freq)
 {
+	struct ve_spc_opp *opps = info->opps[cluster];
+	u32 perf_cfg_reg = 0;
+	u32 perf;
+
+	perf_cfg_reg = cluster_is_a15(cluster) ? PERF_LVL_A15 : PERF_LVL_A7;
+
+	perf = readl_relaxed(info->baseaddr + perf_cfg_reg);
+	if (perf >= info->num_opps[cluster])
+		return -EINVAL;
+
+	opps += perf;
+	*freq = opps->freq;
+
+	return 0;
+}
+
+/* find closest match to given frequency in OPP table */
+static int ve_spc_round_performance(int cluster, u32 freq)
+{
+	int idx, max_opp = info->num_opps[cluster];
+	struct ve_spc_opp *opps = info->opps[cluster];
+	u32 fmin = 0, fmax = ~0, ftmp;
+
+	freq /= 1000; /* OPP entries in kHz */
+	for (idx = 0; idx < max_opp; idx++, opps++) {
+		ftmp = opps->freq;
+		if (ftmp >= freq) {
+			if (ftmp <= fmax)
+				fmax = ftmp;
+		} else {
+			if (ftmp >= fmin)
+				fmin = ftmp;
+		}
+	}
+	if (fmax != ~0)
+		return fmax * 1000;
+	else
+		return fmin * 1000;
+}
+
+static int ve_spc_find_performance_index(int cluster, u32 freq)
+{
+	int idx, max_opp = info->num_opps[cluster];
+	struct ve_spc_opp *opps = info->opps[cluster];
+
+	for (idx = 0; idx < max_opp; idx++, opps++)
+		if (opps->freq == freq)
+			break;
+	return (idx == max_opp) ? -EINVAL : idx;
+}
+
+static int ve_spc_waitforcompletion(int req_type)
+{
+	int ret = wait_for_completion_interruptible_timeout(
+			&info->done, usecs_to_jiffies(TIMEOUT_US));
+	if (ret == 0)
+		ret = -ETIMEDOUT;
+	else if (ret > 0)
+		ret = info->cur_rsp_stat & STAT_COMPLETE(req_type) ? 0 : -EIO;
+	return ret;
+}
+
+static int ve_spc_set_performance(int cluster, u32 freq)
+{
+	u32 perf_cfg_reg, perf_stat_reg;
+	int ret, perf, req_type;
+
+	if (cluster_is_a15(cluster)) {
+		req_type = CA15_DVFS;
+		perf_cfg_reg = PERF_LVL_A15;
+		perf_stat_reg = PERF_REQ_A15;
+	} else {
+		req_type = CA7_DVFS;
+		perf_cfg_reg = PERF_LVL_A7;
+		perf_stat_reg = PERF_REQ_A7;
+	}
+
+	perf = ve_spc_find_performance_index(cluster, freq);
+
+	if (perf < 0)
+		return perf;
+
+	if (down_timeout(&info->sem, usecs_to_jiffies(TIMEOUT_US)))
+		return -ETIME;
+
+	init_completion(&info->done);
+	info->cur_rsp_mask = RESPONSE_MASK(req_type);
+
+	writel(perf, info->baseaddr + perf_cfg_reg);
+	ret = ve_spc_waitforcompletion(req_type);
+
+	info->cur_rsp_mask = 0;
+	up(&info->sem);
+
+	return ret;
+}
+
+static int ve_spc_read_sys_cfg(int func, int offset, uint32_t *data)
+{
+	int ret;
+
+	if (down_timeout(&info->sem, usecs_to_jiffies(TIMEOUT_US)))
+		return -ETIME;
+
+	init_completion(&info->done);
+	info->cur_rsp_mask = RESPONSE_MASK(SPC_SYS_CFG);
+
+	/* Set the control value */
+	writel(SYSCFG_START | func | offset >> 2, info->baseaddr + COMMS);
+	ret = ve_spc_waitforcompletion(SPC_SYS_CFG);
+
+	if (ret == 0)
+		*data = readl(info->baseaddr + SYSCFG_RDATA);
+
+	info->cur_rsp_mask = 0;
+	up(&info->sem);
+
+	return ret;
+}
+
+static irqreturn_t ve_spc_irq_handler(int irq, void *data)
+{
+	struct ve_spc_drvdata *drv_data = data;
+	uint32_t status = readl_relaxed(drv_data->baseaddr + PWC_STATUS);
+
+	if (info->cur_rsp_mask & status) {
+		info->cur_rsp_stat = status;
+		complete(&drv_data->done);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/*
+ *  +--------------------------+
+ *  | 31      20 | 19        0 |
+ *  +--------------------------+
+ *  |   u_volt   |  freq(kHz)  |
+ *  +--------------------------+
+ */
+#define MULT_FACTOR	20
+#define VOLT_SHIFT	20
+#define FREQ_MASK	(0xFFFFF)
+static int ve_spc_populate_opps(uint32_t cluster)
+{
+	uint32_t data = 0, off, ret, idx;
+	struct ve_spc_opp *opps;
+
+	opps = kzalloc(sizeof(*opps) * MAX_OPPS, GFP_KERNEL);
+	if (!opps)
+		return -ENOMEM;
+
+	info->opps[cluster] = opps;
+
+	off = cluster_is_a15(cluster) ? A15_PERFVAL_BASE : A7_PERFVAL_BASE;
+	for (idx = 0; idx < MAX_OPPS; idx++, off += 4, opps++) {
+		ret = ve_spc_read_sys_cfg(SYSCFG_SCC, off, &data);
+		if (!ret) {
+			opps->freq = (data & FREQ_MASK) * MULT_FACTOR;
+			opps->u_volt = data >> VOLT_SHIFT;
+		} else {
+			break;
+		}
+	}
+	info->num_opps[cluster] = idx;
+
+	return ret;
+}
+
+static int ve_init_opp_table(struct device *cpu_dev)
+{
+	int cluster = topology_physical_package_id(cpu_dev->id);
+	int idx, ret = 0, max_opp = info->num_opps[cluster];
+	struct ve_spc_opp *opps = info->opps[cluster];
+
+	for (idx = 0; idx < max_opp; idx++, opps++) {
+		ret = dev_pm_opp_add(cpu_dev, opps->freq * 1000, opps->u_volt);
+		if (ret) {
+			dev_warn(cpu_dev, "failed to add opp %lu %lu\n",
+				 opps->freq, opps->u_volt);
+			return ret;
+		}
+	}
+	return ret;
+}
+
+int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid, int irq)
+{
+	int ret;
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		pr_err(SPCLOG "unable to allocate mem\n");
@@ -168,6 +413,25 @@ int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid)
 	info->baseaddr = baseaddr;
 	info->a15_clusid = a15_clusid;
 
+	if (irq <= 0) {
+		pr_err(SPCLOG "Invalid IRQ %d\n", irq);
+		kfree(info);
+		return -EINVAL;
+	}
+
+	init_completion(&info->done);
+
+	readl_relaxed(info->baseaddr + PWC_STATUS);
+
+	ret = request_irq(irq, ve_spc_irq_handler, IRQF_TRIGGER_HIGH
+				| IRQF_ONESHOT, "vexpress-spc", info);
+	if (ret) {
+		pr_err(SPCLOG "IRQ %d request failed\n", irq);
+		kfree(info);
+		return -ENODEV;
+	}
+
+	sema_init(&info->sem, 1);
 	/*
 	 * Multi-cluster systems may need this data when non-coherent, during
 	 * cluster power-up/power-down. Make sure driver info reaches main
@@ -178,3 +442,103 @@ int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid)
 
 	return 0;
 }
+
+struct clk_spc {
+	struct clk_hw hw;
+	int cluster;
+};
+
+#define to_clk_spc(spc) container_of(spc, struct clk_spc, hw)
+static unsigned long spc_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	struct clk_spc *spc = to_clk_spc(hw);
+	u32 freq;
+
+	if (ve_spc_get_performance(spc->cluster, &freq))
+		return -EIO;
+
+	return freq * 1000;
+}
+
+static long spc_round_rate(struct clk_hw *hw, unsigned long drate,
+		unsigned long *parent_rate)
+{
+	struct clk_spc *spc = to_clk_spc(hw);
+
+	return ve_spc_round_performance(spc->cluster, drate);
+}
+
+static int spc_set_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct clk_spc *spc = to_clk_spc(hw);
+
+	return ve_spc_set_performance(spc->cluster, rate / 1000);
+}
+
+static struct clk_ops clk_spc_ops = {
+	.recalc_rate = spc_recalc_rate,
+	.round_rate = spc_round_rate,
+	.set_rate = spc_set_rate,
+};
+
+static struct clk *ve_spc_clk_register(struct device *cpu_dev)
+{
+	struct clk_init_data init;
+	struct clk_spc *spc;
+
+	spc = kzalloc(sizeof(*spc), GFP_KERNEL);
+	if (!spc) {
+		pr_err("could not allocate spc clk\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	spc->hw.init = &init;
+	spc->cluster = topology_physical_package_id(cpu_dev->id);
+
+	init.name = dev_name(cpu_dev);
+	init.ops = &clk_spc_ops;
+	init.flags = CLK_IS_ROOT | CLK_GET_RATE_NOCACHE;
+	init.num_parents = 0;
+
+	return devm_clk_register(cpu_dev, &spc->hw);
+}
+
+static int __init ve_spc_clk_init(void)
+{
+	int cpu;
+	struct clk *clk;
+
+	if (!info)
+		return 0; /* Continue only if SPC is initialised */
+
+	if (ve_spc_populate_opps(0) || ve_spc_populate_opps(1)) {
+		pr_err("failed to build OPP table\n");
+		return -ENODEV;
+	}
+
+	for_each_possible_cpu(cpu) {
+		struct device *cpu_dev = get_cpu_device(cpu);
+		if (!cpu_dev) {
+			pr_warn("failed to get cpu%d device\n", cpu);
+			continue;
+		}
+		clk = ve_spc_clk_register(cpu_dev);
+		if (IS_ERR(clk)) {
+			pr_warn("failed to register cpu%d clock\n", cpu);
+			continue;
+		}
+		if (clk_register_clkdev(clk, NULL, dev_name(cpu_dev))) {
+			pr_warn("failed to register cpu%d clock lookup\n", cpu);
+			continue;
+		}
+
+		if (ve_init_opp_table(cpu_dev))
+			pr_warn("failed to initialise cpu%d opp table\n", cpu);
+	}
+
+	platform_device_register_simple("vexpress-spc-cpufreq", -1, NULL, 0);
+	return 0;
+}
+module_init(ve_spc_clk_init);

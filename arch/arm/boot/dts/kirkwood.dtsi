@@ -13,6 +13,7 @@
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "marvell,feroceon";
+			reg = <0>;
 			clocks = <&core_clk 1>, <&core_clk 3>, <&gate_clk 11>;
 			clock-names = "cpu_clk", "ddrclk", "powersave";
 		};
@@ -27,16 +28,43 @@
 		compatible = "marvell,kirkwood-mbus", "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
+		/* If a board file needs to change this ranges it must replace it completely */
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000	/* internal-regs */
+			  MBUS_ID(0x01, 0x2f) 0 0xf4000000 0x10000	/* nand flash */
+			  MBUS_ID(0x03, 0x01) 0 0xf5000000 0x10000	/* crypto sram */
+			  >;
 		controller = <&mbusc>;
 		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256 MiB memory space */
 		pcie-io-aperture  = <0xf2000000 0x100000>;   /*   1 MiB    I/O space */
+
+		crypto@0301 {
+			compatible = "marvell,orion-crypto";
+			reg = <MBUS_ID(0xf0, 0x01) 0x30000 0x10000>,
+			      <MBUS_ID(0x03, 0x01) 0 0x800>;
+			reg-names = "regs", "sram";
+			interrupts = <22>;
+			clocks = <&gate_clk 17>;
+			status = "okay";
+		};
+
+		nand: nand@012f {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			cle = <0>;
+			ale = <1>;
+			bank-width = <1>;
+			compatible = "marvell,orion-nand";
+			reg = <MBUS_ID(0x01, 0x2f) 0 0x400>;
+			chip-delay = <25>;
+			/* set partition map and/or chip-delay in board dts */
+			clocks = <&gate_clk 7>;
+			status = "disabled";
+		};
 	};
 
 	ocp@f1000000 {
 		compatible = "simple-bus";
-		ranges = <0x00000000 0xf1000000 0x0100000
-		          0xf4000000 0xf4000000 0x0000400
-		          0xf5000000 0xf5000000 0x0000400>;
+		ranges = <0x00000000 0xf1000000 0x0100000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -167,7 +195,7 @@
 		xor@60900 {
 			compatible = "marvell,orion-xor";
 			reg = <0x60900 0x100
-			       0xd0B00 0x100>;
+			       0x60B00 0x100>;
 			status = "okay";
 			clocks = <&gate_clk 16>;
 
@@ -192,20 +220,6 @@
 			status = "okay";
 		};
 
-		nand@3000000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			cle = <0>;
-			ale = <1>;
-			bank-width = <1>;
-			compatible = "marvell,orion-nand";
-			reg = <0xf4000000 0x400>;
-			chip-delay = <25>;
-			/* set partition map and/or chip-delay in board dts */
-			clocks = <&gate_clk 7>;
-			status = "disabled";
-		};
-
 		i2c@11000 {
 			compatible = "marvell,mv64xxx-i2c";
 			reg = <0x11000 0x20>;
@@ -215,16 +229,6 @@
 			clock-frequency = <100000>;
 			clocks = <&gate_clk 7>;
 			status = "disabled";
-		};
-
-		crypto@30000 {
-			compatible = "marvell,orion-crypto";
-			reg = <0x30000 0x10000>,
-			      <0xf5000000 0x800>;
-			reg-names = "regs", "sram";
-			interrupts = <22>;
-			clocks = <&gate_clk 17>;
-			status = "okay";
 		};
 
 		mdio: mdio-bus@72004 {

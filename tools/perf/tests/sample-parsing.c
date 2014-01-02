@@ -121,6 +121,9 @@ static bool samples_same(const struct perf_sample *s1,
 	if (type & PERF_SAMPLE_DATA_SRC)
 		COMP(data_src);
 
+	if (type & PERF_SAMPLE_TRANSACTION)
+		COMP(transaction);
+
 	return true;
 }
 
@@ -165,6 +168,7 @@ static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
 		.cpu		= 110,
 		.raw_size	= sizeof(raw_data),
 		.data_src	= 111,
+		.transaction	= 112,
 		.raw_data	= (void *)raw_data,
 		.callchain	= &callchain.callchain,
 		.branch_stack	= &branch_stack.branch_stack,
@@ -273,10 +277,11 @@ int test__sample_parsing(void)
 
 	/*
 	 * Fail the test if it has not been updated when new sample format bits
-	 * were added.
+	 * were added.  Please actually update the test rather than just change
+	 * the condition below.
 	 */
-	if (PERF_SAMPLE_MAX > PERF_SAMPLE_IDENTIFIER << 1) {
-		pr_debug("sample format has changed - test needs updating\n");
+	if (PERF_SAMPLE_MAX > PERF_SAMPLE_TRANSACTION << 1) {
+		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}
 

@@ -335,7 +335,7 @@ static int wl1271_probe(struct spi_device *spi)
 	if (!pdev_data)
 		goto out;
 
-	pdev_data->pdata = spi->dev.platform_data;
+	pdev_data->pdata = dev_get_platdata(&spi->dev);
 	if (!pdev_data->pdata) {
 		dev_err(&spi->dev, "no platform data\n");
 		ret = -ENODEV;

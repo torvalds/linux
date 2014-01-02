@@ -310,8 +310,6 @@ void exynos_report_trigger(struct thermal_sensor_conf *conf)
 	}
 
 	th_zone = conf->pzone_data;
-	if (th_zone->therm_dev)
-		return;
 
 	if (th_zone->bind == false) {
 		for (i = 0; i < th_zone->cool_dev_size; i++) {

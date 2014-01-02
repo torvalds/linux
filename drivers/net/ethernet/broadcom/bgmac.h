@@ -333,7 +333,7 @@
 
 #define BGMAC_CHIPCTL_1_IF_TYPE_MASK		0x00000030
 #define BGMAC_CHIPCTL_1_IF_TYPE_RMII		0x00000000
-#define BGMAC_CHIPCTL_1_IF_TYPE_MI		0x00000010
+#define BGMAC_CHIPCTL_1_IF_TYPE_MII		0x00000010
 #define BGMAC_CHIPCTL_1_IF_TYPE_RGMII		0x00000020
 #define BGMAC_CHIPCTL_1_SW_TYPE_MASK		0x000000C0
 #define BGMAC_CHIPCTL_1_SW_TYPE_EPHY		0x00000000
@@ -384,6 +384,8 @@ struct bgmac_dma_ring {
 	u16 mmio_base;
 	struct bgmac_dma_desc *cpu_base;
 	dma_addr_t dma_base;
+	u32 index_base; /* Used for unaligned rings only, otherwise 0 */
+	bool unaligned;
 
 	struct bgmac_slot_info slots[BGMAC_RX_RING_SLOTS];
 };

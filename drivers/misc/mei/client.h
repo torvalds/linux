@@ -90,6 +90,12 @@ static inline bool mei_cl_is_connected(struct mei_cl *cl)
 		cl->dev->dev_state == MEI_DEV_ENABLED &&
 		cl->state == MEI_FILE_CONNECTED);
 }
+static inline bool mei_cl_is_transitioning(struct mei_cl *cl)
+{
+	return (MEI_FILE_INITIALIZING == cl->state ||
+		MEI_FILE_DISCONNECTED == cl->state ||
+		MEI_FILE_DISCONNECTING == cl->state);
+}
 
 bool mei_cl_is_other_connecting(struct mei_cl *cl);
 int mei_cl_disconnect(struct mei_cl *cl);
@@ -108,5 +114,14 @@ void mei_host_client_init(struct work_struct *work);
 void mei_cl_all_disconnect(struct mei_device *dev);
 void mei_cl_all_wakeup(struct mei_device *dev);
 void mei_cl_all_write_clear(struct mei_device *dev);
+
+#define MEI_CL_FMT "cl:host=%02d me=%02d "
+#define MEI_CL_PRM(cl) (cl)->host_client_id, (cl)->me_client_id
+
+#define cl_dbg(dev, cl, format, arg...) \
+	dev_dbg(&(dev)->pdev->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+
+#define cl_err(dev, cl, format, arg...) \
+	dev_err(&(dev)->pdev->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
 #endif /* _MEI_CLIENT_H_ */

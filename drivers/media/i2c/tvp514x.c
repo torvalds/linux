@@ -35,6 +35,7 @@
 #include <linux/videodev2.h>
 #include <linux/module.h>
 #include <linux/v4l2-mediabus.h>
+#include <linux/of.h>
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>

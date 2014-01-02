@@ -72,6 +72,7 @@
 
 int selinux_policycap_netpeer;
 int selinux_policycap_openperm;
+int selinux_policycap_alwaysnetwork;
 
 static DEFINE_RWLOCK(policy_rwlock);
 
@@ -1812,6 +1813,8 @@ static void security_load_policycaps(void)
 						  POLICYDB_CAPABILITY_NETPEER);
 	selinux_policycap_openperm = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_OPENPERM);
+	selinux_policycap_alwaysnetwork = ebitmap_get_bit(&policydb.policycaps,
+						  POLICYDB_CAPABILITY_ALWAYSNETWORK);
 }
 
 static int security_preserve_bools(struct policydb *p);
@@ -2323,43 +2326,74 @@ out:
 
 /**
  * security_fs_use - Determine how to handle labeling for a filesystem.
- * @fstype: filesystem type
- * @behavior: labeling behavior
- * @sid: SID for filesystem (superblock)
+ * @sb: superblock in question
  */
-int security_fs_use(
-	const char *fstype,
-	unsigned int *behavior,
-	u32 *sid)
+int security_fs_use(struct super_block *sb)
 {
 	int rc = 0;
 	struct ocontext *c;
+	struct superblock_security_struct *sbsec = sb->s_security;
+	const char *fstype = sb->s_type->name;
+	const char *subtype = (sb->s_subtype && sb->s_subtype[0]) ? sb->s_subtype : NULL;
+	struct ocontext *base = NULL;
 
 	read_lock(&policy_rwlock);
 
-	c = policydb.ocontexts[OCON_FSUSE];
-	while (c) {
-		if (strcmp(fstype, c->u.name) == 0)
+	for (c = policydb.ocontexts[OCON_FSUSE]; c; c = c->next) {
+		char *sub;
+		int baselen;
+
+		baselen = strlen(fstype);
+
+		/* if base does not match, this is not the one */
+		if (strncmp(fstype, c->u.name, baselen))
+			continue;
+
+		/* if there is no subtype, this is the one! */
+		if (!subtype)
 			break;
-		c = c->next;
+
+		/* skip past the base in this entry */
+		sub = c->u.name + baselen;
+
+		/* entry is only a base. save it. keep looking for subtype */
+		if (sub[0] == '\0') {
+			base = c;
+			continue;
+		}
+
+		/* entry is not followed by a subtype, so it is not a match */
+		if (sub[0] != '.')
+			continue;
+
+		/* whew, we found a subtype of this fstype */
+		sub++; /* move past '.' */
+
+		/* exact match of fstype AND subtype */
+		if (!strcmp(subtype, sub))
+			break;
 	}
 
+	/* in case we had found an fstype match but no subtype match */
+	if (!c)
+		c = base;
+
 	if (c) {
-		*behavior = c->v.behavior;
+		sbsec->behavior = c->v.behavior;
 		if (!c->sid[0]) {
 			rc = sidtab_context_to_sid(&sidtab, &c->context[0],
 						   &c->sid[0]);
 			if (rc)
 				goto out;
 		}
-		*sid = c->sid[0];
+		sbsec->sid = c->sid[0];
 	} else {
-		rc = security_genfs_sid(fstype, "/", SECCLASS_DIR, sid);
+		rc = security_genfs_sid(fstype, "/", SECCLASS_DIR, &sbsec->sid);
 		if (rc) {
-			*behavior = SECURITY_FS_USE_NONE;
+			sbsec->behavior = SECURITY_FS_USE_NONE;
 			rc = 0;
 		} else {
-			*behavior = SECURITY_FS_USE_GENFS;
+			sbsec->behavior = SECURITY_FS_USE_GENFS;
 		}
 	}
 

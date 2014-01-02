@@ -12,6 +12,7 @@
 #include <linux/oprofile.h>
 #include <linux/smp.h>
 #include <asm/cpu-info.h>
+#include <asm/cpu-type.h>
 
 #include "op_impl.h"
 

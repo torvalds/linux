@@ -27,6 +27,50 @@ TRACE_EVENT(radeon_bo_create,
 	    TP_printk("bo=%p, pages=%u", __entry->bo, __entry->pages)
 );
 
+TRACE_EVENT(radeon_cs,
+	    TP_PROTO(struct radeon_cs_parser *p),
+	    TP_ARGS(p),
+	    TP_STRUCT__entry(
+			     __field(u32, ring)
+			     __field(u32, dw)
+			     __field(u32, fences)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->ring = p->ring;
+			   __entry->dw = p->chunks[p->chunk_ib_idx].length_dw;
+			   __entry->fences = radeon_fence_count_emitted(
+				p->rdev, p->ring);
+			   ),
+	    TP_printk("ring=%u, dw=%u, fences=%u",
+		      __entry->ring, __entry->dw,
+		      __entry->fences)
+);
+
+TRACE_EVENT(radeon_vm_set_page,
+	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
+		     uint32_t incr, uint32_t flags),
+	    TP_ARGS(pe, addr, count, incr, flags),
+	    TP_STRUCT__entry(
+			     __field(u64, pe)
+			     __field(u64, addr)
+			     __field(u32, count)
+			     __field(u32, incr)
+			     __field(u32, flags)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pe = pe;
+			   __entry->addr = addr;
+			   __entry->count = count;
+			   __entry->incr = incr;
+			   __entry->flags = flags;
+			   ),
+	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%08x, count=%u",
+		      __entry->pe, __entry->addr, __entry->incr,
+		      __entry->flags, __entry->count)
+);
+
 DECLARE_EVENT_CLASS(radeon_fence_request,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
@@ -53,13 +97,6 @@ DEFINE_EVENT(radeon_fence_request, radeon_fence_emit,
 	    TP_ARGS(dev, seqno)
 );
 
-DEFINE_EVENT(radeon_fence_request, radeon_fence_retire,
-
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
-
-	    TP_ARGS(dev, seqno)
-);
-
 DEFINE_EVENT(radeon_fence_request, radeon_fence_wait_begin,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
@@ -72,6 +109,42 @@ DEFINE_EVENT(radeon_fence_request, radeon_fence_wait_end,
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
 
 	    TP_ARGS(dev, seqno)
+);
+
+DECLARE_EVENT_CLASS(radeon_semaphore_request,
+
+	    TP_PROTO(int ring, struct radeon_semaphore *sem),
+
+	    TP_ARGS(ring, sem),
+
+	    TP_STRUCT__entry(
+			     __field(int, ring)
+			     __field(signed, waiters)
+			     __field(uint64_t, gpu_addr)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->ring = ring;
+			   __entry->waiters = sem->waiters;
+			   __entry->gpu_addr = sem->gpu_addr;
+			   ),
+
+	    TP_printk("ring=%u, waiters=%d, addr=%010Lx", __entry->ring,
+		      __entry->waiters, __entry->gpu_addr)
+);
+
+DEFINE_EVENT(radeon_semaphore_request, radeon_semaphore_signale,
+
+	    TP_PROTO(int ring, struct radeon_semaphore *sem),
+
+	    TP_ARGS(ring, sem)
+);
+
+DEFINE_EVENT(radeon_semaphore_request, radeon_semaphore_wait,
+
+	    TP_PROTO(int ring, struct radeon_semaphore *sem),
+
+	    TP_ARGS(ring, sem)
 );
 
 #endif

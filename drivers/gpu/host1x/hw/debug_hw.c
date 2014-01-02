@@ -15,18 +15,10 @@
  *
  */
 
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/mm.h>
-#include <linux/scatterlist.h>
-
-#include <linux/io.h>
-
-#include "dev.h"
-#include "debug.h"
-#include "cdma.h"
-#include "channel.h"
-#include "host1x_bo.h"
+#include "../dev.h"
+#include "../debug.h"
+#include "../cdma.h"
+#include "../channel.h"
 
 #define HOST1X_DEBUG_MAX_PAGE_OFFSET 102400
 

@@ -190,16 +190,10 @@ struct eeepc_laptop {
  */
 static int write_acpi_int(acpi_handle handle, const char *method, int val)
 {
-	struct acpi_object_list params;
-	union acpi_object in_obj;
 	acpi_status status;
 
-	params.count = 1;
-	params.pointer = &in_obj;
-	in_obj.type = ACPI_TYPE_INTEGER;
-	in_obj.integer.value = val;
+	status = acpi_execute_simple_method(handle, (char *)method, val);
 
-	status = acpi_evaluate_object(handle, (char *)method, &params, NULL);
 	return (status == AE_OK ? 0 : -1);
 }
 

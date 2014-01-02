@@ -68,6 +68,9 @@
 #define  TG3PCI_DEVICE_TIGON3_5762	 0x1687
 #define  TG3PCI_DEVICE_TIGON3_5725	 0x1643
 #define  TG3PCI_DEVICE_TIGON3_5727	 0x16f3
+#define  TG3PCI_DEVICE_TIGON3_57764	 0x1642
+#define  TG3PCI_DEVICE_TIGON3_57767	 0x1683
+#define  TG3PCI_DEVICE_TIGON3_57787	 0x1641
 /* 0x04 --> 0x2c unused */
 #define TG3PCI_SUBVENDOR_ID_BROADCOM		PCI_VENDOR_ID_BROADCOM
 #define TG3PCI_SUBDEVICE_ID_BROADCOM_95700A6	0x1644
@@ -3234,7 +3237,6 @@ struct tg3 {
 	u8				pci_lat_timer;
 
 	int				pci_fn;
-	int				pm_cap;
 	int				msi_cap;
 	int				pcix_cap;
 	int				pcie_readrq;

@@ -97,7 +97,6 @@ int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address, page);
 	switch (ret) {
 	case -EAGAIN:
-		set_need_resched();
 	case 0:
 	case -ERESTARTSYS:
 		return VM_FAULT_NOPAGE;
@@ -106,13 +105,6 @@ int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	default:
 		return VM_FAULT_SIGBUS;
 	}
-}
-
-int udl_gem_init_object(struct drm_gem_object *obj)
-{
-	BUG();
-
-	return 0;
 }
 
 static int udl_gem_get_pages(struct udl_gem_object *obj, gfp_t gfpmask)

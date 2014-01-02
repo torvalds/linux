@@ -151,7 +151,7 @@ static int check_timer_create(int which)
 	fflush(stdout);
 
 	done = 0;
-	timer_create(which, NULL, &id);
+	err = timer_create(which, NULL, &id);
 	if (err < 0) {
 		perror("Can't create timer\n");
 		return -1;

@@ -39,6 +39,8 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/apei.h>
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
@@ -49,10 +51,10 @@ static int acpi_pci_root_add(struct acpi_device *device,
 			     const struct acpi_device_id *not_used);
 static void acpi_pci_root_remove(struct acpi_device *device);
 
-#define ACPI_PCIE_REQ_SUPPORT (OSC_EXT_PCI_CONFIG_SUPPORT \
-				| OSC_ACTIVE_STATE_PWR_SUPPORT \
-				| OSC_CLOCK_PWR_CAPABILITY_SUPPORT \
-				| OSC_MSI_SUPPORT)
+#define ACPI_PCIE_REQ_SUPPORT (OSC_PCI_EXT_CONFIG_SUPPORT \
+				| OSC_PCI_ASPM_SUPPORT \
+				| OSC_PCI_CLOCK_PM_SUPPORT \
+				| OSC_PCI_MSI_SUPPORT)
 
 static const struct acpi_device_id root_device_ids[] = {
 	{"PNP0A03", 0},
@@ -127,6 +129,55 @@ static acpi_status try_get_root_bridge_busnr(acpi_handle handle,
 	return AE_OK;
 }
 
+struct pci_osc_bit_struct {
+	u32 bit;
+	char *desc;
+};
+
+static struct pci_osc_bit_struct pci_osc_support_bit[] = {
+	{ OSC_PCI_EXT_CONFIG_SUPPORT, "ExtendedConfig" },
+	{ OSC_PCI_ASPM_SUPPORT, "ASPM" },
+	{ OSC_PCI_CLOCK_PM_SUPPORT, "ClockPM" },
+	{ OSC_PCI_SEGMENT_GROUPS_SUPPORT, "Segments" },
+	{ OSC_PCI_MSI_SUPPORT, "MSI" },
+};
+
+static struct pci_osc_bit_struct pci_osc_control_bit[] = {
+	{ OSC_PCI_EXPRESS_NATIVE_HP_CONTROL, "PCIeHotplug" },
+	{ OSC_PCI_SHPC_NATIVE_HP_CONTROL, "SHPCHotplug" },
+	{ OSC_PCI_EXPRESS_PME_CONTROL, "PME" },
+	{ OSC_PCI_EXPRESS_AER_CONTROL, "AER" },
+	{ OSC_PCI_EXPRESS_CAPABILITY_CONTROL, "PCIeCapability" },
+};
+
+static void decode_osc_bits(struct acpi_pci_root *root, char *msg, u32 word,
+			    struct pci_osc_bit_struct *table, int size)
+{
+	char buf[80];
+	int i, len = 0;
+	struct pci_osc_bit_struct *entry;
+
+	buf[0] = '\0';
+	for (i = 0, entry = table; i < size; i++, entry++)
+		if (word & entry->bit)
+			len += snprintf(buf + len, sizeof(buf) - len, "%s%s",
+					len ? " " : "", entry->desc);
+
+	dev_info(&root->device->dev, "_OSC: %s [%s]\n", msg, buf);
+}
+
+static void decode_osc_support(struct acpi_pci_root *root, char *msg, u32 word)
+{
+	decode_osc_bits(root, msg, word, pci_osc_support_bit,
+			ARRAY_SIZE(pci_osc_support_bit));
+}
+
+static void decode_osc_control(struct acpi_pci_root *root, char *msg, u32 word)
+{
+	decode_osc_bits(root, msg, word, pci_osc_control_bit,
+			ARRAY_SIZE(pci_osc_control_bit));
+}
+
 static u8 pci_osc_uuid_str[] = "33DB4D5B-1FF7-401C-9657-7441C03DD766";
 
 static acpi_status acpi_pci_run_osc(acpi_handle handle,
@@ -158,14 +209,14 @@ static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root,
 	support &= OSC_PCI_SUPPORT_MASKS;
 	support |= root->osc_support_set;
 
-	capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	capbuf[OSC_SUPPORT_TYPE] = support;
+	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
+	capbuf[OSC_SUPPORT_DWORD] = support;
 	if (control) {
 		*control &= OSC_PCI_CONTROL_MASKS;
-		capbuf[OSC_CONTROL_TYPE] = *control | root->osc_control_set;
+		capbuf[OSC_CONTROL_DWORD] = *control | root->osc_control_set;
 	} else {
 		/* Run _OSC query only with existing controls. */
-		capbuf[OSC_CONTROL_TYPE] = root->osc_control_set;
+		capbuf[OSC_CONTROL_DWORD] = root->osc_control_set;
 	}
 
 	status = acpi_pci_run_osc(root->device->handle, capbuf, &result);
@@ -180,11 +231,7 @@ static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root,
 static acpi_status acpi_pci_osc_support(struct acpi_pci_root *root, u32 flags)
 {
 	acpi_status status;
-	acpi_handle tmp;
 
-	status = acpi_get_handle(root->device->handle, "_OSC", &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
 	mutex_lock(&osc_lock);
 	status = acpi_pci_query_osc(root, flags, NULL);
 	mutex_unlock(&osc_lock);
@@ -316,9 +363,8 @@ EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
 acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 {
 	struct acpi_pci_root *root;
-	acpi_status status;
+	acpi_status status = AE_OK;
 	u32 ctrl, capbuf[3];
-	acpi_handle tmp;
 
 	if (!mask)
 		return AE_BAD_PARAMETER;
@@ -330,10 +376,6 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 	root = acpi_pci_find_root(handle);
 	if (!root)
 		return AE_NOT_EXIST;
-
-	status = acpi_get_handle(handle, "_OSC", &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
 
 	mutex_lock(&osc_lock);
 
@@ -349,17 +391,21 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 			goto out;
 		if (ctrl == *mask)
 			break;
+		decode_osc_control(root, "platform does not support",
+				   ctrl & ~(*mask));
 		ctrl = *mask;
 	}
 
 	if ((ctrl & req) != req) {
+		decode_osc_control(root, "not requesting control; platform does not support",
+				   req & ~(ctrl));
 		status = AE_SUPPORT;
 		goto out;
 	}
 
-	capbuf[OSC_QUERY_TYPE] = 0;
-	capbuf[OSC_SUPPORT_TYPE] = root->osc_support_set;
-	capbuf[OSC_CONTROL_TYPE] = ctrl;
+	capbuf[OSC_QUERY_DWORD] = 0;
+	capbuf[OSC_SUPPORT_DWORD] = root->osc_support_set;
+	capbuf[OSC_CONTROL_DWORD] = ctrl;
 	status = acpi_pci_run_osc(handle, capbuf, mask);
 	if (ACPI_SUCCESS(status))
 		root->osc_control_set = *mask;
@@ -369,6 +415,87 @@ out:
 }
 EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
+static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
+				 int *clear_aspm)
+{
+	u32 support, control, requested;
+	acpi_status status;
+	struct acpi_device *device = root->device;
+	acpi_handle handle = device->handle;
+
+	/*
+	 * All supported architectures that use ACPI have support for
+	 * PCI domains, so we indicate this in _OSC support capabilities.
+	 */
+	support = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
+	if (pci_ext_cfg_avail())
+		support |= OSC_PCI_EXT_CONFIG_SUPPORT;
+	if (pcie_aspm_support_enabled())
+		support |= OSC_PCI_ASPM_SUPPORT | OSC_PCI_CLOCK_PM_SUPPORT;
+	if (pci_msi_enabled())
+		support |= OSC_PCI_MSI_SUPPORT;
+
+	decode_osc_support(root, "OS supports", support);
+	status = acpi_pci_osc_support(root, support);
+	if (ACPI_FAILURE(status)) {
+		dev_info(&device->dev, "_OSC failed (%s); disabling ASPM\n",
+			 acpi_format_exception(status));
+		*no_aspm = 1;
+		return;
+	}
+
+	if (pcie_ports_disabled) {
+		dev_info(&device->dev, "PCIe port services disabled; not requesting _OSC control\n");
+		return;
+	}
+
+	if ((support & ACPI_PCIE_REQ_SUPPORT) != ACPI_PCIE_REQ_SUPPORT) {
+		decode_osc_support(root, "not requesting OS control; OS requires",
+				   ACPI_PCIE_REQ_SUPPORT);
+		return;
+	}
+
+	control = OSC_PCI_EXPRESS_CAPABILITY_CONTROL
+		| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
+		| OSC_PCI_EXPRESS_PME_CONTROL;
+
+	if (pci_aer_available()) {
+		if (aer_acpi_firmware_first())
+			dev_info(&device->dev,
+				 "PCIe AER handled by firmware\n");
+		else
+			control |= OSC_PCI_EXPRESS_AER_CONTROL;
+	}
+
+	requested = control;
+	status = acpi_pci_osc_control_set(handle, &control,
+					  OSC_PCI_EXPRESS_CAPABILITY_CONTROL);
+	if (ACPI_SUCCESS(status)) {
+		decode_osc_control(root, "OS now controls", control);
+		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
+			/*
+			 * We have ASPM control, but the FADT indicates
+			 * that it's unsupported. Clear it.
+			 */
+			*clear_aspm = 1;
+		}
+	} else {
+		decode_osc_control(root, "OS requested", requested);
+		decode_osc_control(root, "platform willing to grant", control);
+		dev_info(&device->dev, "_OSC failed (%s); disabling ASPM\n",
+			acpi_format_exception(status));
+
+		/*
+		 * We want to disable ASPM here, but aspm_disabled
+		 * needs to remain in its state from boot so that we
+		 * properly handle PCIe 1.1 devices.  So we set this
+		 * flag here, to defer the action until after the ACPI
+		 * root scan.
+		 */
+		*no_aspm = 1;
+	}
+}
+
 static int acpi_pci_root_add(struct acpi_device *device,
 			     const struct acpi_device_id *not_used)
 {
@@ -376,9 +503,8 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	acpi_status status;
 	int result;
 	struct acpi_pci_root *root;
-	u32 flags, base_flags;
 	acpi_handle handle = device->handle;
-	bool no_aspm = false, clear_aspm = false;
+	int no_aspm = 0, clear_aspm = 0;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
@@ -431,81 +557,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(handle);
 
-	/*
-	 * All supported architectures that use ACPI have support for
-	 * PCI domains, so we indicate this in _OSC support capabilities.
-	 */
-	flags = base_flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
-	acpi_pci_osc_support(root, flags);
-
-	if (pci_ext_cfg_avail())
-		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
-	if (pcie_aspm_support_enabled()) {
-		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
-		OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
-	}
-	if (pci_msi_enabled())
-		flags |= OSC_MSI_SUPPORT;
-	if (flags != base_flags) {
-		status = acpi_pci_osc_support(root, flags);
-		if (ACPI_FAILURE(status)) {
-			dev_info(&device->dev, "ACPI _OSC support "
-				"notification failed, disabling PCIe ASPM\n");
-			no_aspm = true;
-			flags = base_flags;
-		}
-	}
-
-	if (!pcie_ports_disabled
-	    && (flags & ACPI_PCIE_REQ_SUPPORT) == ACPI_PCIE_REQ_SUPPORT) {
-		flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL
-			| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
-			| OSC_PCI_EXPRESS_PME_CONTROL;
-
-		if (pci_aer_available()) {
-			if (aer_acpi_firmware_first())
-				dev_dbg(&device->dev,
-					"PCIe errors handled by BIOS.\n");
-			else
-				flags |= OSC_PCI_EXPRESS_AER_CONTROL;
-		}
-
-		dev_info(&device->dev,
-			"Requesting ACPI _OSC control (0x%02x)\n", flags);
-
-		status = acpi_pci_osc_control_set(handle, &flags,
-				       OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-		if (ACPI_SUCCESS(status)) {
-			dev_info(&device->dev,
-				"ACPI _OSC control (0x%02x) granted\n", flags);
-			if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
-				/*
-				 * We have ASPM control, but the FADT indicates
-				 * that it's unsupported. Clear it.
-				 */
-				clear_aspm = true;
-			}
-		} else {
-			dev_info(&device->dev,
-				"ACPI _OSC request failed (%s), "
-				"returned control mask: 0x%02x\n",
-				acpi_format_exception(status), flags);
-			dev_info(&device->dev,
-				 "ACPI _OSC control for PCIe not granted, disabling ASPM\n");
-			/*
-			 * We want to disable ASPM here, but aspm_disabled
-			 * needs to remain in its state from boot so that we
-			 * properly handle PCIe 1.1 devices.  So we set this
-			 * flag here, to defer the action until after the ACPI
-			 * root scan.
-			 */
-			no_aspm = true;
-		}
-	} else {
-		dev_info(&device->dev,
-			 "Unable to request _OSC control "
-			 "(_OSC support mask: 0x%02x)\n", flags);
-	}
+	negotiate_os_control(root, &no_aspm, &clear_aspm);
 
 	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
@@ -523,6 +575,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		dev_err(&device->dev,
 			"Bus %04x:%02x not present in PCI namespace\n",
 			root->segment, (unsigned int)root->secondary.start);
+		device->driver_data = NULL;
 		result = -ENODEV;
 		goto end;
 	}
@@ -590,39 +643,10 @@ static void handle_root_bridge_insertion(acpi_handle handle)
 		acpi_handle_err(handle, "cannot add bridge to acpi list\n");
 }
 
-static void handle_root_bridge_removal(struct acpi_device *device)
+static void hotplug_event_root(void *data, u32 type)
 {
-	acpi_status status;
-	struct acpi_eject_event *ej_event;
-
-	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
-	if (!ej_event) {
-		/* Inform firmware the hot-remove operation has error */
-		(void) acpi_evaluate_hotplug_ost(device->handle,
-					ACPI_NOTIFY_EJECT_REQUEST,
-					ACPI_OST_SC_NON_SPECIFIC_FAILURE,
-					NULL);
-		return;
-	}
-
-	ej_event->device = device;
-	ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
-
-	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, ej_event);
-	if (ACPI_FAILURE(status))
-		kfree(ej_event);
-}
-
-static void _handle_hotplug_event_root(struct work_struct *work)
-{
+	acpi_handle handle = data;
 	struct acpi_pci_root *root;
-	struct acpi_hp_work *hp_work;
-	acpi_handle handle;
-	u32 type;
-
-	hp_work = container_of(work, struct acpi_hp_work, work);
-	handle = hp_work->handle;
-	type = hp_work->type;
 
 	acpi_scan_lock_acquire();
 
@@ -652,9 +676,15 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 		/* request device eject */
 		acpi_handle_printk(KERN_DEBUG, handle,
 				   "Device eject notify on %s\n", __func__);
-		if (root)
-			handle_root_bridge_removal(root->device);
-		break;
+		if (!root)
+			break;
+
+		get_device(&root->device->dev);
+
+		acpi_scan_lock_release();
+
+		acpi_bus_device_eject(root->device, ACPI_NOTIFY_EJECT_REQUEST);
+		return;
 	default:
 		acpi_handle_warn(handle,
 				 "notify_handler: unknown event type 0x%x\n",
@@ -663,14 +693,12 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 	}
 
 	acpi_scan_lock_release();
-	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
 }
 
 static void handle_hotplug_event_root(acpi_handle handle, u32 type,
 					void *context)
 {
-	alloc_acpi_hp_work(handle, type, context,
-				_handle_hotplug_event_root);
+	acpi_hotplug_execute(hotplug_event_root, handle, type);
 }
 
 static acpi_status __init

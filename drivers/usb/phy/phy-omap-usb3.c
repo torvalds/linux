@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
 #include <linux/usb/omap_control_usb.h>
+#include <linux/of_platform.h>
 
 #define	PLL_STATUS		0x00000004
 #define	PLL_GO			0x00000008
@@ -79,7 +80,7 @@ static struct usb_dpll_params *omap_usb3_get_dpll_params(unsigned long rate)
 			return &dpll_map[i].params;
 	}
 
-	return 0;
+	return NULL;
 }
 
 static int omap_usb3_suspend(struct usb_phy *x, int suspend)
@@ -100,7 +101,7 @@ static int omap_usb3_suspend(struct usb_phy *x, int suspend)
 			udelay(1);
 		} while (--timeout);
 
-		omap_control_usb3_phy_power(phy->control_dev, 0);
+		omap_control_usb_phy_power(phy->control_dev, 0);
 
 		phy->is_suspended	= 1;
 	} else if (!suspend && phy->is_suspended) {
@@ -189,15 +190,21 @@ static int omap_usb3_init(struct usb_phy *x)
 	if (ret)
 		return ret;
 
-	omap_control_usb3_phy_power(phy->control_dev, 1);
+	omap_control_usb_phy_power(phy->control_dev, 1);
 
 	return 0;
 }
 
 static int omap_usb3_probe(struct platform_device *pdev)
 {
-	struct omap_usb			*phy;
-	struct resource			*res;
+	struct omap_usb *phy;
+	struct resource *res;
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *control_node;
+	struct platform_device *control_pdev;
+
+	if (!node)
+		return -EINVAL;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy) {
@@ -239,13 +246,20 @@ static int omap_usb3_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	phy->control_dev = omap_get_control_dev();
-	if (IS_ERR(phy->control_dev)) {
-		dev_dbg(&pdev->dev, "Failed to get control device\n");
-		return -ENODEV;
+	control_node = of_parse_phandle(node, "ctrl-module", 0);
+	if (!control_node) {
+		dev_err(&pdev->dev, "Failed to get control device phandle\n");
+		return -EINVAL;
+	}
+	control_pdev = of_find_device_by_node(control_node);
+	if (!control_pdev) {
+		dev_err(&pdev->dev, "Failed to get control device\n");
+		return -EINVAL;
 	}
 
-	omap_control_usb3_phy_power(phy->control_dev, 0);
+	phy->control_dev = &control_pdev->dev;
+
+	omap_control_usb_phy_power(phy->control_dev, 0);
 	usb_add_phy_dev(&phy->phy);
 
 	platform_set_drvdata(pdev, phy);

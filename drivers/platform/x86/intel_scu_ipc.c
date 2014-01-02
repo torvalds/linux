@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/sfi.h>
 #include <linux/module.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 #include <asm/intel_scu_ipc.h>
 
 /* IPC defines the following message types */
@@ -579,7 +579,7 @@ static struct pci_driver ipc_driver = {
 
 static int __init intel_scu_ipc_init(void)
 {
-	platform = mrst_identify_cpu();
+	platform = intel_mid_identify_cpu();
 	if (platform == 0)
 		return -ENODEV;
 	return  pci_register_driver(&ipc_driver);

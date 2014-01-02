@@ -9,6 +9,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 
+#if PAGE_DEFAULT_KEY
 static inline unsigned long sske_frame(unsigned long addr, unsigned char skey)
 {
 	asm volatile(".insn rrf,0xb22b0000,%[skey],%[addr],9,0"
@@ -16,7 +17,7 @@ static inline unsigned long sske_frame(unsigned long addr, unsigned char skey)
 	return addr;
 }
 
-void storage_key_init_range(unsigned long start, unsigned long end)
+void __storage_key_init_range(unsigned long start, unsigned long end)
 {
 	unsigned long boundary, size;
 
@@ -36,6 +37,7 @@ void storage_key_init_range(unsigned long start, unsigned long end)
 		start += PAGE_SIZE;
 	}
 }
+#endif
 
 static pte_t *walk_page_table(unsigned long addr)
 {

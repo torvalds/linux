@@ -39,10 +39,14 @@ void arc_init_IRQ(void)
 	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ5_LV2) << 5;
 	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ6_LV2) << 6;
 
-	if (level_mask) {
+	/*
+	 * Write to register, even if no LV2 IRQs configured to reset it
+	 * in case bootloader had mucked with it
+	 */
+	write_aux_reg(AUX_IRQ_LEV, level_mask);
+
+	if (level_mask)
 		pr_info("Level-2 interrupts bitset %x\n", level_mask);
-		write_aux_reg(AUX_IRQ_LEV, level_mask);
-	}
 }
 
 /*
@@ -146,7 +150,7 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-int __init get_hw_config_num_irq(void)
+int get_hw_config_num_irq(void)
 {
 	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
 

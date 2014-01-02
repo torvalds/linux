@@ -42,8 +42,7 @@ void apei_mce_report_mem_error(int corrected, struct cper_sec_mem_err *mem_err)
 	struct mce m;
 
 	/* Only corrected MC is reported */
-	if (!corrected || !(mem_err->validation_bits &
-				CPER_MEM_VALID_PHYSICAL_ADDRESS))
+	if (!corrected || !(mem_err->validation_bits & CPER_MEM_VALID_PA))
 		return;
 
 	mce_setup(&m);

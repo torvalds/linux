@@ -162,6 +162,8 @@ static void uhci_shutdown(struct pci_dev *pdev)
 
 #ifdef CONFIG_PM
 
+static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated);
+
 static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
@@ -173,12 +175,6 @@ static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	spin_lock_irq(&uhci->lock);
 	if (!HCD_HW_ACCESSIBLE(hcd) || uhci->dead)
 		goto done_okay;		/* Already suspended or dead */
-
-	if (uhci->rh_state > UHCI_RH_SUSPENDED) {
-		dev_warn(uhci_dev(uhci), "Root hub isn't suspended!\n");
-		rc = -EBUSY;
-		goto done;
-	};
 
 	/* All PCI host controllers are required to disable IRQ generation
 	 * at the source, so we must turn off PIRQ.
@@ -195,8 +191,15 @@ static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 
 done_okay:
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-done:
 	spin_unlock_irq(&uhci->lock);
+
+	synchronize_irq(hcd->irq);
+
+	/* Check for race with a wakeup request */
+	if (do_wakeup && HCD_WAKEUP_PENDING(hcd)) {
+		uhci_pci_resume(hcd, false);
+		rc = -EBUSY;
+	}
 	return rc;
 }
 
@@ -293,9 +296,11 @@ static struct pci_driver uhci_pci_driver = {
 	.remove =	usb_hcd_pci_remove,
 	.shutdown =	uhci_shutdown,
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.driver =	{
 		.pm =	&usb_hcd_pci_pm_ops
 	},
 #endif
 };
+
+MODULE_SOFTDEP("pre: ehci_pci");

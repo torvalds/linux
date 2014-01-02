@@ -58,15 +58,16 @@ void fscache_cookie_init_once(void *_cookie)
 struct fscache_cookie *__fscache_acquire_cookie(
 	struct fscache_cookie *parent,
 	const struct fscache_cookie_def *def,
-	void *netfs_data)
+	void *netfs_data,
+	bool enable)
 {
 	struct fscache_cookie *cookie;
 
 	BUG_ON(!def);
 
-	_enter("{%s},{%s},%p",
+	_enter("{%s},{%s},%p,%u",
 	       parent ? (char *) parent->def->name : "<no-parent>",
-	       def->name, netfs_data);
+	       def->name, netfs_data, enable);
 
 	fscache_stat(&fscache_n_acquires);
 
@@ -106,7 +107,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	cookie->def		= def;
 	cookie->parent		= parent;
 	cookie->netfs_data	= netfs_data;
-	cookie->flags		= 0;
+	cookie->flags		= (1 << FSCACHE_COOKIE_NO_DATA_YET);
 
 	/* radix tree insertion won't use the preallocation pool unless it's
 	 * told it may not wait */
@@ -124,16 +125,22 @@ struct fscache_cookie *__fscache_acquire_cookie(
 		break;
 	}
 
-	/* if the object is an index then we need do nothing more here - we
-	 * create indices on disk when we need them as an index may exist in
-	 * multiple caches */
-	if (cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX) {
-		if (fscache_acquire_non_index_cookie(cookie) < 0) {
-			atomic_dec(&parent->n_children);
-			__fscache_cookie_put(cookie);
-			fscache_stat(&fscache_n_acquires_nobufs);
-			_leave(" = NULL");
-			return NULL;
+	if (enable) {
+		/* if the object is an index then we need do nothing more here
+		 * - we create indices on disk when we need them as an index
+		 * may exist in multiple caches */
+		if (cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX) {
+			if (fscache_acquire_non_index_cookie(cookie) == 0) {
+				set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
+			} else {
+				atomic_dec(&parent->n_children);
+				__fscache_cookie_put(cookie);
+				fscache_stat(&fscache_n_acquires_nobufs);
+				_leave(" = NULL");
+				return NULL;
+			}
+		} else {
+			set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
 		}
 	}
 
@@ -142,6 +149,39 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	return cookie;
 }
 EXPORT_SYMBOL(__fscache_acquire_cookie);
+
+/*
+ * Enable a cookie to permit it to accept new operations.
+ */
+void __fscache_enable_cookie(struct fscache_cookie *cookie,
+			     bool (*can_enable)(void *data),
+			     void *data)
+{
+	_enter("%p", cookie);
+
+	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
+			 fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+
+	if (test_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags))
+		goto out_unlock;
+
+	if (can_enable && !can_enable(data)) {
+		/* The netfs decided it didn't want to enable after all */
+	} else if (cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX) {
+		/* Wait for outstanding disablement to complete */
+		__fscache_wait_on_invalidate(cookie);
+
+		if (fscache_acquire_non_index_cookie(cookie) == 0)
+			set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
+	} else {
+		set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
+	}
+
+out_unlock:
+	clear_bit_unlock(FSCACHE_COOKIE_ENABLEMENT_LOCK, &cookie->flags);
+	wake_up_bit(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK);
+}
+EXPORT_SYMBOL(__fscache_enable_cookie);
 
 /*
  * acquire a non-index cookie
@@ -157,7 +197,7 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
 
 	_enter("");
 
-	cookie->flags = 1 << FSCACHE_COOKIE_UNAVAILABLE;
+	set_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
 
 	/* now we need to see whether the backing objects for this cookie yet
 	 * exist, if not there'll be nothing to search */
@@ -180,9 +220,7 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
 
 	_debug("cache %s", cache->tag->name);
 
-	cookie->flags =
-		(1 << FSCACHE_COOKIE_LOOKING_UP) |
-		(1 << FSCACHE_COOKIE_NO_DATA_YET);
+	set_bit(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags);
 
 	/* ask the cache to allocate objects for this cookie and its parent
 	 * chain */
@@ -398,7 +436,8 @@ void __fscache_invalidate(struct fscache_cookie *cookie)
 	if (!hlist_empty(&cookie->backing_objects)) {
 		spin_lock(&cookie->lock);
 
-		if (!hlist_empty(&cookie->backing_objects) &&
+		if (fscache_cookie_enabled(cookie) &&
+		    !hlist_empty(&cookie->backing_objects) &&
 		    !test_and_set_bit(FSCACHE_COOKIE_INVALIDATING,
 				      &cookie->flags)) {
 			object = hlist_entry(cookie->backing_objects.first,
@@ -452,10 +491,14 @@ void __fscache_update_cookie(struct fscache_cookie *cookie)
 
 	spin_lock(&cookie->lock);
 
-	/* update the index entry on disk in each cache backing this cookie */
-	hlist_for_each_entry(object,
-			     &cookie->backing_objects, cookie_link) {
-		fscache_raise_event(object, FSCACHE_OBJECT_EV_UPDATE);
+	if (fscache_cookie_enabled(cookie)) {
+		/* update the index entry on disk in each cache backing this
+		 * cookie.
+		 */
+		hlist_for_each_entry(object,
+				     &cookie->backing_objects, cookie_link) {
+			fscache_raise_event(object, FSCACHE_OBJECT_EV_UPDATE);
+		}
 	}
 
 	spin_unlock(&cookie->lock);
@@ -464,15 +507,80 @@ void __fscache_update_cookie(struct fscache_cookie *cookie)
 EXPORT_SYMBOL(__fscache_update_cookie);
 
 /*
+ * Disable a cookie to stop it from accepting new requests from the netfs.
+ */
+void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
+{
+	struct fscache_object *object;
+	bool awaken = false;
+
+	_enter("%p,%u", cookie, invalidate);
+
+	ASSERTCMP(atomic_read(&cookie->n_active), >, 0);
+
+	if (atomic_read(&cookie->n_children) != 0) {
+		printk(KERN_ERR "FS-Cache: Cookie '%s' still has children\n",
+		       cookie->def->name);
+		BUG();
+	}
+
+	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
+			 fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+	if (!test_and_clear_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags))
+		goto out_unlock_enable;
+
+	/* If the cookie is being invalidated, wait for that to complete first
+	 * so that we can reuse the flag.
+	 */
+	__fscache_wait_on_invalidate(cookie);
+
+	/* Dispose of the backing objects */
+	set_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags);
+
+	spin_lock(&cookie->lock);
+	if (!hlist_empty(&cookie->backing_objects)) {
+		hlist_for_each_entry(object, &cookie->backing_objects, cookie_link) {
+			if (invalidate)
+				set_bit(FSCACHE_OBJECT_RETIRED, &object->flags);
+			fscache_raise_event(object, FSCACHE_OBJECT_EV_KILL);
+		}
+	} else {
+		if (test_and_clear_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags))
+			awaken = true;
+	}
+	spin_unlock(&cookie->lock);
+	if (awaken)
+		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING);
+
+	/* Wait for cessation of activity requiring access to the netfs (when
+	 * n_active reaches 0).  This makes sure outstanding reads and writes
+	 * have completed.
+	 */
+	if (!atomic_dec_and_test(&cookie->n_active))
+		wait_on_atomic_t(&cookie->n_active, fscache_wait_atomic_t,
+				 TASK_UNINTERRUPTIBLE);
+
+	/* Reset the cookie state if it wasn't relinquished */
+	if (!test_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags)) {
+		atomic_inc(&cookie->n_active);
+		set_bit(FSCACHE_COOKIE_NO_DATA_YET, &cookie->flags);
+	}
+
+out_unlock_enable:
+	clear_bit_unlock(FSCACHE_COOKIE_ENABLEMENT_LOCK, &cookie->flags);
+	wake_up_bit(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK);
+	_leave("");
+}
+EXPORT_SYMBOL(__fscache_disable_cookie);
+
+/*
  * release a cookie back to the cache
  * - the object will be marked as recyclable on disk if retire is true
  * - all dependents of this cookie must have already been unregistered
  *   (indices/files/pages)
  */
-void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
+void __fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
 {
-	struct fscache_object *object;
-
 	fscache_stat(&fscache_n_relinquishes);
 	if (retire)
 		fscache_stat(&fscache_n_relinquishes_retire);
@@ -487,31 +595,10 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 	       cookie, cookie->def->name, cookie->netfs_data,
 	       atomic_read(&cookie->n_active), retire);
 
-	ASSERTCMP(atomic_read(&cookie->n_active), >, 0);
-
-	if (atomic_read(&cookie->n_children) != 0) {
-		printk(KERN_ERR "FS-Cache: Cookie '%s' still has children\n",
-		       cookie->def->name);
-		BUG();
-	}
-
 	/* No further netfs-accessing operations on this cookie permitted */
 	set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags);
-	if (retire)
-		set_bit(FSCACHE_COOKIE_RETIRED, &cookie->flags);
 
-	spin_lock(&cookie->lock);
-	hlist_for_each_entry(object, &cookie->backing_objects, cookie_link) {
-		fscache_raise_event(object, FSCACHE_OBJECT_EV_KILL);
-	}
-	spin_unlock(&cookie->lock);
-
-	/* Wait for cessation of activity requiring access to the netfs (when
-	 * n_active reaches 0).
-	 */
-	if (!atomic_dec_and_test(&cookie->n_active))
-		wait_on_atomic_t(&cookie->n_active, fscache_wait_atomic_t,
-				 TASK_UNINTERRUPTIBLE);
+	__fscache_disable_cookie(cookie, retire);
 
 	/* Clear pointers back to the netfs */
 	cookie->netfs_data	= NULL;
@@ -568,6 +655,7 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 {
 	struct fscache_operation *op;
 	struct fscache_object *object;
+	bool wake_cookie = false;
 	int ret;
 
 	_enter("%p,", cookie);
@@ -586,11 +674,13 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 
 	fscache_operation_init(op, NULL, NULL);
 	op->flags = FSCACHE_OP_MYTHREAD |
-		(1 << FSCACHE_OP_WAITING);
+		(1 << FSCACHE_OP_WAITING) |
+		(1 << FSCACHE_OP_UNUSE_COOKIE);
 
 	spin_lock(&cookie->lock);
 
-	if (hlist_empty(&cookie->backing_objects))
+	if (!fscache_cookie_enabled(cookie) ||
+	    hlist_empty(&cookie->backing_objects))
 		goto inconsistent;
 	object = hlist_entry(cookie->backing_objects.first,
 			     struct fscache_object, cookie_link);
@@ -599,7 +689,7 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 
 	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
 
-	atomic_inc(&cookie->n_active);
+	__fscache_use_cookie(cookie);
 	if (fscache_submit_op(object, op) < 0)
 		goto submit_failed;
 
@@ -621,9 +711,11 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 	return ret;
 
 submit_failed:
-	atomic_dec(&cookie->n_active);
+	wake_cookie = __fscache_unuse_cookie(cookie);
 inconsistent:
 	spin_unlock(&cookie->lock);
+	if (wake_cookie)
+		__fscache_wake_unused_cookie(cookie);
 	kfree(op);
 	_leave(" = -ESTALE");
 	return -ESTALE;

@@ -188,6 +188,7 @@ enum dwc2_lx_state {
  *                      bits defined by GAHBCFG_CTRL_MASK are controlled
  *                      by the driver and are ignored in this
  *                      configuration value.
+ * @uframe_sched:       True to enable the microframe scheduler
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -224,6 +225,7 @@ struct dwc2_core_params {
 	int ts_dline;
 	int reload_ctl;
 	int ahbcfg;
+	int uframe_sched;
 };
 
 /**
@@ -292,7 +294,7 @@ struct dwc2_hw_params {
 	unsigned dev_token_q_depth:5;
 	unsigned max_transfer_size:26;
 	unsigned max_packet_count:11;
-	unsigned host_channels:4;
+	unsigned host_channels:5;
 	unsigned hs_phy_type:2;
 	unsigned fs_phy_type:2;
 	unsigned i2c_enable:1;
@@ -370,6 +372,7 @@ struct dwc2_hw_params {
  *                      This value is in microseconds per (micro)frame. The
  *                      assumption is that all periodic transfers may occur in
  *                      the same (micro)frame.
+ * @frame_usecs:        Internal variable used by the microframe scheduler
  * @frame_number:       Frame number read from the core at SOF. The value ranges
  *                      from 0 to HFNUM_MAX_FRNUM.
  * @periodic_qh_count:  Count of periodic QHs, if using several eps. Used for
@@ -382,6 +385,8 @@ struct dwc2_hw_params {
  *                      host channel is available for non-periodic transactions.
  * @non_periodic_channels: Number of host channels assigned to non-periodic
  *                      transfers
+ * @available_host_channels Number of host channels available for the microframe
+ *                      scheduler to use
  * @hc_ptr_array:       Array of pointers to the host channel descriptors.
  *                      Allows accessing a host channel descriptor given the
  *                      host channel number. This is useful in interrupt
@@ -436,6 +441,7 @@ struct dwc2_hsotg {
 	struct list_head periodic_sched_assigned;
 	struct list_head periodic_sched_queued;
 	u16 periodic_usecs;
+	u16 frame_usecs[8];
 	u16 frame_number;
 	u16 periodic_qh_count;
 
@@ -451,6 +457,7 @@ struct dwc2_hsotg {
 	struct list_head free_hc_list;
 	int periodic_channels;
 	int non_periodic_channels;
+	int available_host_channels;
 	struct dwc2_host_chan *hc_ptr_array[MAX_EPS_CHANNELS];
 	u8 *status_buf;
 	dma_addr_t status_buf_dma;

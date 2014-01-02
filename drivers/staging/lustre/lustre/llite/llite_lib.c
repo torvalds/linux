@@ -1973,10 +1973,10 @@ void ll_umount_begin(struct super_block *sb)
 	OBD_ALLOC_PTR(ioc_data);
 	if (ioc_data) {
 		obd_iocontrol(IOC_OSC_SET_ACTIVE, sbi->ll_md_exp,
-			      sizeof *ioc_data, ioc_data, NULL);
+			      sizeof(*ioc_data), ioc_data, NULL);
 
 		obd_iocontrol(IOC_OSC_SET_ACTIVE, sbi->ll_dt_exp,
-			      sizeof *ioc_data, ioc_data, NULL);
+			      sizeof(*ioc_data), ioc_data, NULL);
 
 		OBD_FREE_PTR(ioc_data);
 	}

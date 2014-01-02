@@ -401,6 +401,6 @@ struct fsl_otg_config {
 #define GET_A_BUS_REQ		_IOR(OTG_IOCTL_MAGIC, 8, int)
 #define GET_B_BUS_REQ		_IOR(OTG_IOCTL_MAGIC, 9, int)
 
-void fsl_otg_add_timer(void *timer);
-void fsl_otg_del_timer(void *timer);
+void fsl_otg_add_timer(struct otg_fsm *fsm, void *timer);
+void fsl_otg_del_timer(struct otg_fsm *fsm, void *timer);
 void fsl_otg_pulse_vbus(void);

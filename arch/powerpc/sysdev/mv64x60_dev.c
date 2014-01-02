@@ -228,7 +228,7 @@ static struct platform_device * __init mv64x60_eth_register_shared_pdev(
 
 	if (id == 0) {
 		pdev = platform_device_register_simple("orion-mdio", -1, &r[1], 1);
-		if (!pdev)
+		if (IS_ERR(pdev))
 			return pdev;
 	}
 

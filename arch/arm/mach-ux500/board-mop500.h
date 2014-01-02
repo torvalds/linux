@@ -79,7 +79,6 @@
 #define SNOWBALL_EN_3V3_ETH_GPIO	MOP500_AB8500_PIN_GPIO(26)	/* GPIO26 */
 
 struct device;
-struct i2c_board_info;
 extern struct mmci_platform_data mop500_sdi0_data;
 extern struct mmci_platform_data mop500_sdi1_data;
 extern struct mmci_platform_data mop500_sdi2_data;
@@ -88,25 +87,10 @@ extern struct msp_i2s_platform_data msp0_platform_data;
 extern struct msp_i2s_platform_data msp1_platform_data;
 extern struct msp_i2s_platform_data msp2_platform_data;
 extern struct msp_i2s_platform_data msp3_platform_data;
-extern struct arm_pmu_platdata db8500_pmu_platdata;
-extern struct amba_pl011_data uart0_plat;
-extern struct amba_pl011_data uart1_plat;
-extern struct amba_pl011_data uart2_plat;
 extern struct pl022_ssp_controller ssp0_plat;
-extern struct stedma40_platform_data dma40_plat_data;
 
-extern void mop500_sdi_init(struct device *parent);
-extern void snowball_sdi_init(struct device *parent);
-extern void hrefv60_sdi_init(struct device *parent);
-extern void mop500_sdi_tc35892_init(struct device *parent);
-void __init mop500_u8500uib_init(void);
-void __init mop500_stuib_init(void);
 void __init mop500_pinmaps_init(void);
 void __init snowball_pinmaps_init(void);
 void __init hrefv60_pinmaps_init(void);
-void mop500_audio_init(struct device *parent);
 
-int __init mop500_uib_init(void);
-void mop500_uib_i2c_add(int busnum, struct i2c_board_info *info,
-		unsigned n);
 #endif

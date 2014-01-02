@@ -1474,7 +1474,8 @@ enum determine_dev_size {
 	DS_ERROR = -1,
 	DS_UNCHANGED = 0,
 	DS_SHRUNK = 1,
-	DS_GREW = 2
+	DS_GREW = 2,
+	DS_GREW_FROM_ZERO = 3,
 };
 extern enum determine_dev_size
 drbd_determine_dev_size(struct drbd_conf *, enum dds_flags, struct resize_parms *) __must_hold(local);

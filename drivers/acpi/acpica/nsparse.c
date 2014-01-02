@@ -140,7 +140,7 @@ acpi_ns_one_complete_parse(u32 pass_number,
 			  pass_number));
 	status = acpi_ps_parse_aml(walk_state);
 
-      cleanup:
+cleanup:
 	acpi_ps_delete_parse_tree(parse_root);
 	return_ACPI_STATUS(status);
 }

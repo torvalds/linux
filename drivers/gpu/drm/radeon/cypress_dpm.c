@@ -299,7 +299,9 @@ void cypress_program_response_times(struct radeon_device *rdev)
 static int cypress_pcie_performance_request(struct radeon_device *rdev,
 					    u8 perf_req, bool advertise)
 {
+#if defined(CONFIG_ACPI)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+#endif
 	u32 tmp;
 
 	udelay(10);
@@ -2013,12 +2015,6 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
-
-	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
-		return ret;
-	}
 
 	return 0;
 }

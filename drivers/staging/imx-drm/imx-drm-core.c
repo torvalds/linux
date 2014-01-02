@@ -41,7 +41,6 @@ struct imx_drm_device {
 	struct list_head			encoder_list;
 	struct list_head			connector_list;
 	struct mutex				mutex;
-	int					references;
 	int					pipes;
 	struct drm_fbdev_cma			*fbhelper;
 };
@@ -68,6 +67,11 @@ struct imx_drm_connector {
 	struct list_head			list;
 	struct module				*owner;
 };
+
+int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
+{
+	return crtc->pipe;
+}
 
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
@@ -111,18 +115,12 @@ int imx_drm_crtc_panel_format_pins(struct drm_crtc *crtc, u32 encoder_type,
 	struct imx_drm_crtc *imx_crtc;
 	struct imx_drm_crtc_helper_funcs *helper;
 
-	mutex_lock(&imxdrm->mutex);
-
 	list_for_each_entry(imx_crtc, &imxdrm->crtc_list, list)
 		if (imx_crtc->crtc == crtc)
 			goto found;
 
-	mutex_unlock(&imxdrm->mutex);
-
 	return -EINVAL;
 found:
-	mutex_unlock(&imxdrm->mutex);
-
 	helper = &imx_crtc->imx_drm_helper_funcs;
 	if (helper->set_interface_pix_fmt)
 		return helper->set_interface_pix_fmt(crtc,
@@ -192,6 +190,18 @@ static void imx_drm_disable_vblank(struct drm_device *drm, int crtc)
 	imx_drm_crtc->imx_drm_helper_funcs.disable_vblank(imx_drm_crtc->crtc);
 }
 
+static void imx_drm_driver_preclose(struct drm_device *drm,
+		struct drm_file *file)
+{
+	int i;
+
+	if (!file->is_master)
+		return;
+
+	for (i = 0; i < 4; i++)
+		imx_drm_disable_vblank(drm , i);
+}
+
 static const struct file_operations imx_drm_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -241,8 +251,6 @@ struct drm_device *imx_drm_device_get(void)
 		}
 	}
 
-	imxdrm->references++;
-
 	return imxdrm->drm;
 
 unwind_crtc:
@@ -279,8 +287,6 @@ void imx_drm_device_put(void)
 
 	list_for_each_entry(enc, &imxdrm->encoder_list, list)
 		module_put(enc->owner);
-
-	imxdrm->references--;
 
 	mutex_unlock(&imxdrm->mutex);
 }
@@ -401,14 +407,14 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 
 	/*
 	 * enable drm irq mode.
-	 * - with irq_enabled = 1, we can use the vblank feature.
+	 * - with irq_enabled = true, we can use the vblank feature.
 	 *
 	 * P.S. note that we wouldn't use drm irq handler but
 	 *      just specific driver own one instead because
 	 *      drm framework supports only one irq handler and
 	 *      drivers can well take care of their interrupts
 	 */
-	drm->irq_enabled = 1;
+	drm->irq_enabled = true;
 
 	drm_mode_config_init(drm);
 	imx_drm_mode_config_init(drm);
@@ -428,11 +434,11 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		goto err_init;
 
 	/*
-	 * with vblank_disable_allowed = 1, vblank interrupt will be disabled
+	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
 	 * by drm timer once a current process gives up ownership of
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
-	imxdrm->drm->vblank_disable_allowed = 1;
+	imxdrm->drm->vblank_disable_allowed = true;
 
 	if (!imx_drm_device_get())
 		ret = -EINVAL;
@@ -485,7 +491,7 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 
 	mutex_lock(&imxdrm->mutex);
 
-	if (imxdrm->references) {
+	if (imxdrm->drm->open_count) {
 		ret = -EBUSY;
 		goto err_busy;
 	}
@@ -564,7 +570,7 @@ int imx_drm_add_encoder(struct drm_encoder *encoder,
 
 	mutex_lock(&imxdrm->mutex);
 
-	if (imxdrm->references) {
+	if (imxdrm->drm->open_count) {
 		ret = -EBUSY;
 		goto err_busy;
 	}
@@ -652,20 +658,14 @@ int imx_drm_encoder_get_mux_id(struct imx_drm_encoder *imx_drm_encoder,
 	struct imx_drm_crtc *imx_crtc;
 	int i = 0;
 
-	mutex_lock(&imxdrm->mutex);
-
 	list_for_each_entry(imx_crtc, &imxdrm->crtc_list, list) {
 		if (imx_crtc->crtc == crtc)
 			goto found;
 		i++;
 	}
 
-	mutex_unlock(&imxdrm->mutex);
-
 	return -EINVAL;
 found:
-	mutex_unlock(&imxdrm->mutex);
-
 	return i;
 }
 EXPORT_SYMBOL_GPL(imx_drm_encoder_get_mux_id);
@@ -709,7 +709,7 @@ int imx_drm_add_connector(struct drm_connector *connector,
 
 	mutex_lock(&imxdrm->mutex);
 
-	if (imxdrm->references) {
+	if (imxdrm->drm->open_count) {
 		ret = -EBUSY;
 		goto err_busy;
 	}
@@ -779,16 +779,26 @@ static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 };
 
 static struct drm_driver imx_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load			= imx_drm_driver_load,
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
+	.preclose		= imx_drm_driver_preclose,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.dumb_destroy		= drm_gem_dumb_destroy,
 
+	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
+	.gem_prime_import	= drm_gem_prime_import,
+	.gem_prime_export	= drm_gem_prime_export,
+	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
+	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
+	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
+	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
+	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= imx_drm_enable_vblank,
 	.disable_vblank		= imx_drm_disable_vblank,
@@ -805,6 +815,12 @@ static struct drm_driver imx_drm_driver = {
 
 static int imx_drm_platform_probe(struct platform_device *pdev)
 {
+	int ret;
+
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
 	imx_drm_device->dev = &pdev->dev;
 
 	return drm_platform_init(&imx_drm_driver, pdev);
@@ -842,12 +858,10 @@ static int __init imx_drm_init(void)
 	INIT_LIST_HEAD(&imx_drm_device->encoder_list);
 
 	imx_drm_pdev = platform_device_register_simple("imx-drm", -1, NULL, 0);
-	if (!imx_drm_pdev) {
-		ret = -EINVAL;
+	if (IS_ERR(imx_drm_pdev)) {
+		ret = PTR_ERR(imx_drm_pdev);
 		goto err_pdev;
 	}
-
-	imx_drm_pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32),
 
 	ret = platform_driver_register(&imx_drm_pdrv);
 	if (ret)

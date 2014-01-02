@@ -878,9 +878,9 @@ static void css_reset(void)
 			atomic_inc(&chpid_reset_count);
 	}
 	/* Wait for machine check for all channel paths. */
-	timeout = get_tod_clock() + (RCHP_TIMEOUT << 12);
+	timeout = get_tod_clock_fast() + (RCHP_TIMEOUT << 12);
 	while (atomic_read(&chpid_reset_count) != 0) {
-		if (get_tod_clock() > timeout)
+		if (get_tod_clock_fast() > timeout)
 			break;
 		cpu_relax();
 	}

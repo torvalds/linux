@@ -15,7 +15,7 @@
 #ifndef __SPC_H_
 #define __SPC_H_
 
-int __init ve_spc_init(void __iomem *base, u32 a15_clusid);
+int __init ve_spc_init(void __iomem *base, u32 a15_clusid, int irq);
 void ve_spc_global_wakeup_irq(bool set);
 void ve_spc_cpu_wakeup_irq(u32 cluster, u32 cpu, bool set);
 void ve_spc_set_resume_addr(u32 cluster, u32 cpu, u32 addr);

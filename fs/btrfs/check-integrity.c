@@ -77,6 +77,15 @@
  * the integrity of (super)-block write requests, do not
  * enable the config option BTRFS_FS_CHECK_INTEGRITY to
  * include and compile the integrity check tool.
+ *
+ * Expect millions of lines of information in the kernel log with an
+ * enabled check_int_print_mask. Therefore set LOG_BUF_SHIFT in the
+ * kernel config to at least 26 (which is 64MB). Usually the value is
+ * limited to 21 (which is 2MB) in init/Kconfig. The file needs to be
+ * changed like this before LOG_BUF_SHIFT can be set to a high value:
+ * config LOG_BUF_SHIFT
+ *       int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
+ *       range 12 30
  */
 
 #include <linux/sched.h>
@@ -124,6 +133,7 @@
 #define BTRFSIC_PRINT_MASK_INITIAL_DATABASE			0x00000400
 #define BTRFSIC_PRINT_MASK_NUM_COPIES				0x00000800
 #define BTRFSIC_PRINT_MASK_TREE_WITH_ALL_MIRRORS		0x00001000
+#define BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH_VERBOSE		0x00002000
 
 struct btrfsic_dev_state;
 struct btrfsic_state;
@@ -1038,7 +1048,7 @@ leaf_item_out_of_bounce_error:
 						     disk_item_offset,
 						     sizeof(struct btrfs_item));
 			item_offset = btrfs_stack_item_offset(&disk_item);
-			item_size = btrfs_stack_item_offset(&disk_item);
+			item_size = btrfs_stack_item_size(&disk_item);
 			disk_key = &disk_item.key;
 			type = btrfs_disk_key_type(disk_key);
 
@@ -1900,7 +1910,9 @@ again:
 							       dev_state,
 							       dev_bytenr);
 			}
-			if (block->logical_bytenr != bytenr) {
+			if (block->logical_bytenr != bytenr &&
+			    !(!block->is_metadata &&
+			      block->logical_bytenr == 0))
 				printk(KERN_INFO
 				       "Written block @%llu (%s/%llu/%d)"
 				       " found in hash table, %c,"
@@ -1910,15 +1922,14 @@ again:
 				       block->mirror_num,
 				       btrfsic_get_block_type(state, block),
 				       block->logical_bytenr);
-				block->logical_bytenr = bytenr;
-			} else if (state->print_mask &
-				   BTRFSIC_PRINT_MASK_VERBOSE)
+			else if (state->print_mask & BTRFSIC_PRINT_MASK_VERBOSE)
 				printk(KERN_INFO
 				       "Written block @%llu (%s/%llu/%d)"
 				       " found in hash table, %c.\n",
 				       bytenr, dev_state->name, dev_bytenr,
 				       block->mirror_num,
 				       btrfsic_get_block_type(state, block));
+			block->logical_bytenr = bytenr;
 		} else {
 			if (num_pages * PAGE_CACHE_SIZE <
 			    state->datablock_size) {
@@ -2463,10 +2474,8 @@ static int btrfsic_process_written_superblock(
 		}
 	}
 
-	if (-1 == btrfsic_check_all_ref_blocks(state, superblock, 0)) {
-		WARN_ON(1);
+	if (WARN_ON(-1 == btrfsic_check_all_ref_blocks(state, superblock, 0)))
 		btrfsic_dump_tree(state);
-	}
 
 	return 0;
 }
@@ -2906,7 +2915,7 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 		btrfsic_release_block_ctx(&block_ctx);
 	}
 
-	if (!match) {
+	if (WARN_ON(!match)) {
 		printk(KERN_INFO "btrfs: attempt to write M-block which contains logical bytenr that doesn't map to dev+physical bytenr of submit_bio,"
 		       " buffer->log_bytenr=%llu, submit_bio(bdev=%s,"
 		       " phys_bytenr=%llu)!\n",
@@ -2923,7 +2932,6 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 			       bytenr, block_ctx.dev->name,
 			       block_ctx.dev_bytenr, mirror_num);
 		}
-		WARN_ON(1);
 	}
 }
 
@@ -3017,6 +3025,7 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 	    (rw & WRITE) && NULL != bio->bi_io_vec) {
 		unsigned int i;
 		u64 dev_bytenr;
+		u64 cur_bytenr;
 		int bio_is_patched;
 		char **mapped_datav;
 
@@ -3035,6 +3044,7 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 				       GFP_NOFS);
 		if (!mapped_datav)
 			goto leave;
+		cur_bytenr = dev_bytenr;
 		for (i = 0; i < bio->bi_vcnt; i++) {
 			BUG_ON(bio->bi_io_vec[i].bv_len != PAGE_CACHE_SIZE);
 			mapped_datav[i] = kmap(bio->bi_io_vec[i].bv_page);
@@ -3046,16 +3056,13 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 				kfree(mapped_datav);
 				goto leave;
 			}
-			if ((BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH |
-			     BTRFSIC_PRINT_MASK_VERBOSE) ==
-			    (dev_state->state->print_mask &
-			     (BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH |
-			      BTRFSIC_PRINT_MASK_VERBOSE)))
+			if (dev_state->state->print_mask &
+			    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH_VERBOSE)
 				printk(KERN_INFO
-				       "#%u: page=%p, len=%u, offset=%u\n",
-				       i, bio->bi_io_vec[i].bv_page,
-				       bio->bi_io_vec[i].bv_len,
+				       "#%u: bytenr=%llu, len=%u, offset=%u\n",
+				       i, cur_bytenr, bio->bi_io_vec[i].bv_len,
 				       bio->bi_io_vec[i].bv_offset);
+			cur_bytenr += bio->bi_io_vec[i].bv_len;
 		}
 		btrfsic_process_written_block(dev_state, dev_bytenr,
 					      mapped_datav, bio->bi_vcnt,

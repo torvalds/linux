@@ -379,10 +379,14 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
 
 	/*
 	 * Initialize pte walk starting at the already pinned page where we
-	 * are sure that there is a pte.
+	 * are sure that there is a pte, as it was pinned under the same
+	 * mmap_sem write op.
 	 */
 	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
-	end = min(end, pmd_addr_end(start, end));
+	/* Make sure we do not cross the page table boundary */
+	end = pgd_addr_end(start, end);
+	end = pud_addr_end(start, end);
+	end = pmd_addr_end(start, end);
 
 	/* The page next to the pinned page is the first we will try to get */
 	start += PAGE_SIZE;
@@ -736,6 +740,7 @@ static int do_mlockall(int flags)
 
 		/* Ignore errors */
 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
+		cond_resched();
 	}
 out:
 	return 0;

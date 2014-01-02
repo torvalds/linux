@@ -141,6 +141,8 @@ struct efx_special_buffer {
  * @len: Length of this fragment.
  *	This field is zero when the queue slot is empty.
  * @unmap_len: Length of this fragment to unmap
+ * @dma_offset: Offset of @dma_addr from the address of the backing DMA mapping.
+ * Only valid if @unmap_len != 0.
  */
 struct efx_tx_buffer {
 	union {
@@ -154,6 +156,7 @@ struct efx_tx_buffer {
 	unsigned short flags;
 	unsigned short len;
 	unsigned short unmap_len;
+	unsigned short dma_offset;
 };
 #define EFX_TX_BUF_CONT		1	/* not last descriptor of packet */
 #define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
@@ -182,6 +185,9 @@ struct efx_tx_buffer {
  * @tsoh_page: Array of pages of TSO header buffers
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
+ * @piobuf: PIO buffer region for this TX queue (shared with its partner).
+ *	Size of the region is efx_piobuf_size.
+ * @piobuf_offset: Buffer offset to be specified in PIO descriptors
  * @initialised: Has hardware queue been initialised?
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
@@ -209,6 +215,7 @@ struct efx_tx_buffer {
  *	blocks
  * @tso_packets: Number of packets via the TSO xmit path
  * @pushes: Number of times the TX push feature has been used
+ * @pio_packets: Number of times the TX PIO feature has been used
  * @empty_read_count: If the completion path has seen the queue as empty
  *	and the transmission path has not yet checked this, the value of
  *	@read_count bitwise-added to %EFX_EMPTY_COUNT_VALID; otherwise 0.
@@ -223,6 +230,8 @@ struct efx_tx_queue {
 	struct efx_buffer *tsoh_page;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
+	void __iomem *piobuf;
+	unsigned int piobuf_offset;
 	bool initialised;
 
 	/* Members used mainly on the completion path */
@@ -238,6 +247,7 @@ struct efx_tx_queue {
 	unsigned int tso_long_headers;
 	unsigned int tso_packets;
 	unsigned int pushes;
+	unsigned int pio_packets;
 
 	/* Members shared between paths and sometimes updated */
 	unsigned int empty_read_count ____cacheline_aligned_in_smp;

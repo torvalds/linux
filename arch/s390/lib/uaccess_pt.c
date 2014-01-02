@@ -461,9 +461,7 @@ int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
 
 struct uaccess_ops uaccess_pt = {
 	.copy_from_user		= copy_from_user_pt,
-	.copy_from_user_small	= copy_from_user_pt,
 	.copy_to_user		= copy_to_user_pt,
-	.copy_to_user_small	= copy_to_user_pt,
 	.copy_in_user		= copy_in_user_pt,
 	.clear_user		= clear_user_pt,
 	.strnlen_user		= strnlen_user_pt,

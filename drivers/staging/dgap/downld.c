@@ -52,7 +52,7 @@ char		*pgm;
 void		myperror();
 
 /*
-**  This structure is used to keep track of the diferent images available
+**  This structure is used to keep track of the different images available
 **  to give to the driver.  It is arranged so that the things that are
 **  constants or that have defaults are first inthe strucutre to simplify
 **  the table of initializers.
@@ -789,7 +789,7 @@ int main(int argc, char **argv)
 /*
 ** myperror()
 **
-**  Same as normal perror(), but places the program name at the begining
+**  Same as normal perror(), but places the program name at the beginning
 **  of the message.
 */
 void myperror(char *s)

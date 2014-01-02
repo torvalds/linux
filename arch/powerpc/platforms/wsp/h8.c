@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 
 #include "wsp.h"
 

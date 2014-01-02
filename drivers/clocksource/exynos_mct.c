@@ -428,7 +428,6 @@ static int exynos4_local_timer_setup(struct clock_event_device *evt)
 				evt->irq);
 			return -EIO;
 		}
-		irq_set_affinity(evt->irq, cpumask_of(cpu));
 	} else {
 		enable_percpu_irq(mct_irqs[MCT_L0_IRQ], 0);
 	}
@@ -449,6 +448,7 @@ static int exynos4_mct_cpu_notify(struct notifier_block *self,
 					   unsigned long action, void *hcpu)
 {
 	struct mct_clock_event_device *mevt;
+	unsigned int cpu;
 
 	/*
 	 * Grab cpu pointer in each case to avoid spurious
@@ -458,6 +458,12 @@ static int exynos4_mct_cpu_notify(struct notifier_block *self,
 	case CPU_STARTING:
 		mevt = this_cpu_ptr(&percpu_mct_tick);
 		exynos4_local_timer_setup(&mevt->evt);
+		break;
+	case CPU_ONLINE:
+		cpu = (unsigned long)hcpu;
+		if (mct_int_type == MCT_INT_SPI)
+			irq_set_affinity(mct_irqs[MCT_L0_IRQ + cpu],
+						cpumask_of(cpu));
 		break;
 	case CPU_DYING:
 		mevt = this_cpu_ptr(&percpu_mct_tick);
@@ -500,6 +506,8 @@ static void __init exynos4_timer_resources(struct device_node *np, void __iomem 
 					 &percpu_mct_tick);
 		WARN(err, "MCT: can't request IRQ %d (%d)\n",
 		     mct_irqs[MCT_L0_IRQ], err);
+	} else {
+		irq_set_affinity(mct_irqs[MCT_L0_IRQ], cpumask_of(0));
 	}
 
 	err = register_cpu_notifier(&exynos4_mct_cpu_nb);

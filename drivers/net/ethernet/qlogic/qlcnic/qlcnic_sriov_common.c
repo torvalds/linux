@@ -500,6 +500,7 @@ static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
 static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 				 int pci_using_dac)
 {
+	struct qlcnic_dcb *dcb;
 	int err;
 
 	INIT_LIST_HEAD(&adapter->vf_mc_list);
@@ -507,7 +508,11 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 		dev_warn(&adapter->pdev->dev,
 			 "Device does not support MSI interrupts\n");
 
-	err = qlcnic_setup_intr(adapter, 1, 0);
+	/* compute and set default and max tx/sds rings */
+	qlcnic_set_tx_ring_count(adapter, QLCNIC_SINGLE_RING);
+	qlcnic_set_sds_ring_count(adapter, QLCNIC_SINGLE_RING);
+
+	err = qlcnic_setup_intr(adapter);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to setup interrupt\n");
 		goto err_out_disable_msi;
@@ -533,8 +538,10 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	if (err)
 		goto err_out_send_channel_term;
 
-	if (adapter->dcb && qlcnic_dcb_attach(adapter))
-		qlcnic_clear_dcb_ops(adapter);
+	dcb = adapter->dcb;
+
+	if (dcb && qlcnic_dcb_attach(dcb))
+		qlcnic_clear_dcb_ops(dcb);
 
 	err = qlcnic_setup_netdev(adapter, adapter->netdev, pci_using_dac);
 	if (err)
@@ -1561,6 +1568,7 @@ static int qlcnic_sriov_vf_reinit_driver(struct qlcnic_adapter *adapter)
 {
 	int err;
 
+	adapter->need_fw_reset = 0;
 	qlcnic_83xx_reinit_mbx_work(adapter->ahw->mailbox);
 	qlcnic_83xx_enable_mbx_interrupt(adapter);
 
@@ -1576,7 +1584,7 @@ static int qlcnic_sriov_vf_reinit_driver(struct qlcnic_adapter *adapter)
 	if (err)
 		goto err_out_term_channel;
 
-	qlcnic_dcb_get_info(adapter);
+	qlcnic_dcb_get_info(adapter->dcb);
 
 	return 0;
 

@@ -283,7 +283,6 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No regulator type set\n");
 		ret = -EINVAL;
 		goto err_memgpio;
-		break;
 	}
 
 	drvdata->nr_gpios = config->nr_gpios;

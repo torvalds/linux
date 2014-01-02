@@ -89,6 +89,7 @@ static struct platform_device *smdk2413_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_iis,
 	&s3c_device_usbgadget,
+	&s3c2412_device_dma,
 };
 
 static void __init smdk2413_fixup(struct tag *tags, char **cmdline,

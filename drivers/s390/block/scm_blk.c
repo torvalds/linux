@@ -118,22 +118,6 @@ static void scm_request_done(struct scm_request *scmrq)
 	spin_unlock_irqrestore(&list_lock, flags);
 }
 
-static int scm_open(struct block_device *blkdev, fmode_t mode)
-{
-	return scm_get_ref();
-}
-
-static void scm_release(struct gendisk *gendisk, fmode_t mode)
-{
-	scm_put_ref();
-}
-
-static const struct block_device_operations scm_blk_devops = {
-	.owner = THIS_MODULE,
-	.open = scm_open,
-	.release = scm_release,
-};
-
 static bool scm_permit_request(struct scm_blk_dev *bdev, struct request *req)
 {
 	return rq_data_dir(req) != WRITE || bdev->state != SCM_WR_PROHIBIT;
@@ -223,8 +207,12 @@ static void scm_blk_request(struct request_queue *rq)
 	int ret;
 
 	while ((req = blk_peek_request(rq))) {
-		if (req->cmd_type != REQ_TYPE_FS)
+		if (req->cmd_type != REQ_TYPE_FS) {
+			blk_start_request(req);
+			blk_dump_rq_flags(req, KMSG_COMPONENT " bad request");
+			blk_end_request_all(req, -EIO);
 			continue;
+		}
 
 		if (!scm_permit_request(bdev, req)) {
 			scm_ensure_queue_restart(bdev);
@@ -252,7 +240,7 @@ static void scm_blk_request(struct request_queue *rq)
 		atomic_inc(&bdev->queued_reqs);
 		blk_start_request(req);
 
-		ret = scm_start_aob(scmrq->aob);
+		ret = eadm_start_aob(scmrq->aob);
 		if (ret) {
 			SCM_LOG(5, "no subchannel");
 			scm_request_requeue(scmrq);
@@ -316,7 +304,7 @@ static void scm_blk_handle_error(struct scm_request *scmrq)
 	}
 
 restart:
-	if (!scm_start_aob(scmrq->aob))
+	if (!eadm_start_aob(scmrq->aob))
 		return;
 
 requeue:
@@ -358,6 +346,10 @@ static void scm_blk_tasklet(struct scm_blk_dev *bdev)
 	/* Look out for more requests. */
 	blk_run_queue(bdev->rq);
 }
+
+static const struct block_device_operations scm_blk_devops = {
+	.owner = THIS_MODULE,
+};
 
 int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 {

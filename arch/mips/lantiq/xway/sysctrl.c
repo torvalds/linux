@@ -128,7 +128,7 @@ static int pmu_enable(struct clk *clk)
 	do {} while (--retry && (pmu_r32(PWDSR(clk->module)) & clk->bits));
 
 	if (!retry)
-		panic("activating PMU module failed!\n");
+		panic("activating PMU module failed!");
 
 	return 0;
 }

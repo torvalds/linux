@@ -20,6 +20,7 @@ static struct rb_node *intlist__node_new(struct rblist *rblist __maybe_unused,
 
 	if (node != NULL) {
 		node->i = i;
+		node->priv = NULL;
 		rc = &node->rb_node;
 	}
 
@@ -57,20 +58,34 @@ void intlist__remove(struct intlist *ilist, struct int_node *node)
 	rblist__remove_node(&ilist->rblist, &node->rb_node);
 }
 
-struct int_node *intlist__find(struct intlist *ilist, int i)
+static struct int_node *__intlist__findnew(struct intlist *ilist,
+					   int i, bool create)
 {
-	struct int_node *node;
+	struct int_node *node = NULL;
 	struct rb_node *rb_node;
 
 	if (ilist == NULL)
 		return NULL;
 
-	node = NULL;
-	rb_node = rblist__find(&ilist->rblist, (void *)((long)i));
+	if (create)
+		rb_node = rblist__findnew(&ilist->rblist, (void *)((long)i));
+	else
+		rb_node = rblist__find(&ilist->rblist, (void *)((long)i));
+
 	if (rb_node)
 		node = container_of(rb_node, struct int_node, rb_node);
 
 	return node;
+}
+
+struct int_node *intlist__find(struct intlist *ilist, int i)
+{
+	return __intlist__findnew(ilist, i, false);
+}
+
+struct int_node *intlist__findnew(struct intlist *ilist, int i)
+{
+	return __intlist__findnew(ilist, i, true);
 }
 
 static int intlist__parse_list(struct intlist *ilist, const char *s)

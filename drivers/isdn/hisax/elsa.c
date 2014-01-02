@@ -535,7 +535,7 @@ check_arcofi(struct IsdnCardState *cs)
 		t = tmp;
 		t += sprintf(tmp, "Arcofi data");
 		QuickHex(t, p, cs->dc.isac.mon_rxp);
-		debugl1(cs, tmp);
+		debugl1(cs, "%s", tmp);
 		if ((cs->dc.isac.mon_rxp == 2) && (cs->dc.isac.mon_rx[0] == 0xa0)) {
 			switch (cs->dc.isac.mon_rx[1]) {
 			case 0x80:

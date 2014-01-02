@@ -556,7 +556,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		goto err_db;
 	}
 	mlx5_ib_populate_pas(dev, cq->buf.umem, page_shift, (*cqb)->pas, 0);
-	(*cqb)->ctx.log_pg_sz = page_shift - PAGE_SHIFT;
+	(*cqb)->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 
 	*index = to_mucontext(context)->uuari.uars[0].index;
 
@@ -620,7 +620,7 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	}
 	mlx5_fill_page_array(&cq->buf.buf, (*cqb)->pas);
 
-	(*cqb)->ctx.log_pg_sz = cq->buf.buf.page_shift - PAGE_SHIFT;
+	(*cqb)->ctx.log_pg_sz = cq->buf.buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	*index = dev->mdev.priv.uuari.uars[0].index;
 
 	return 0;
@@ -653,8 +653,11 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
 	int eqn;
 	int err;
 
+	if (entries < 0)
+		return ERR_PTR(-EINVAL);
+
 	entries = roundup_pow_of_two(entries + 1);
-	if (entries < 1 || entries > dev->mdev.caps.max_cqes)
+	if (entries > dev->mdev.caps.max_cqes)
 		return ERR_PTR(-EINVAL);
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
@@ -747,17 +750,9 @@ int mlx5_ib_destroy_cq(struct ib_cq *cq)
 	return 0;
 }
 
-static int is_equal_rsn(struct mlx5_cqe64 *cqe64, struct mlx5_ib_srq *srq,
-			u32 rsn)
+static int is_equal_rsn(struct mlx5_cqe64 *cqe64, u32 rsn)
 {
-	u32 lrsn;
-
-	if (srq)
-		lrsn = be32_to_cpu(cqe64->srqn) & 0xffffff;
-	else
-		lrsn = be32_to_cpu(cqe64->sop_drop_qpn) & 0xffffff;
-
-	return rsn == lrsn;
+	return rsn == (ntohl(cqe64->sop_drop_qpn) & 0xffffff);
 }
 
 void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 rsn, struct mlx5_ib_srq *srq)
@@ -787,8 +782,8 @@ void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 rsn, struct mlx5_ib_srq *srq)
 	while ((int) --prod_index - (int) cq->mcq.cons_index >= 0) {
 		cqe = get_cqe(cq, prod_index & cq->ibcq.cqe);
 		cqe64 = (cq->mcq.cqe_sz == 64) ? cqe : cqe + 64;
-		if (is_equal_rsn(cqe64, srq, rsn)) {
-			if (srq)
+		if (is_equal_rsn(cqe64, rsn)) {
+			if (srq && (ntohl(cqe64->srqn) & 0xffffff))
 				mlx5_ib_free_srq_wqe(srq, be16_to_cpu(cqe64->wqe_counter));
 			++nfreed;
 		} else if (nfreed) {

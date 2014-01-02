@@ -27,6 +27,29 @@ config APDS9300
 	 To compile this driver as a module, choose M here: the
 	 module will be called apds9300.
 
+config CM36651
+	depends on I2C
+	tristate "CM36651 driver"
+	help
+	 Say Y here if you use cm36651.
+	 This option enables proximity & RGB sensor using
+	 Capella cm36651 device driver.
+
+	 To compile this driver as a module, choose M here:
+	 the module will be called cm36651.
+
+config GP2AP020A00F
+	tristate "Sharp GP2AP020A00F Proximity/ALS sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you have a Sharp GP2AP020A00F proximity/ALS combo-chip
+	  hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gp2ap020a00f.
+
 config HID_SENSOR_ALS
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
@@ -55,6 +78,16 @@ config SENSORS_LM3533
 	  changes. The ALS-control output values can be set per zone for the
 	  three current output channels.
 
+config TCS3472
+	tristate "TAOS TCS3472 color light-to-digital converter"
+	depends on I2C
+	help
+	 If you say yes here you get support for the TAOS TCS3472
+	 family of color light-to-digital converters with IR filter.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called tcs3472.
+
 config SENSORS_TSL2563
 	tristate "TAOS TSL2560, TSL2561, TSL2562 and TSL2563 ambient light sensors"
 	depends on I2C
@@ -64,6 +97,16 @@ config SENSORS_TSL2563
 
 	 This driver can also be built as a module.  If so, the module
 	 will be called tsl2563.
+
+config TSL4531
+	tristate "TAOS TSL4531 ambient light sensors"
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the TAOS TSL4531 family
+	 of ambient light sensors with direct lux output.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called tsl4531.
 
 config VCNL4000
 	tristate "VCNL4000 combined ALS and proximity sensor"

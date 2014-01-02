@@ -214,10 +214,14 @@ static netdev_features_t xenvif_fix_features(struct net_device *dev,
 
 	if (!vif->can_sg)
 		features &= ~NETIF_F_SG;
-	if (!vif->gso && !vif->gso_prefix)
+	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV4))
 		features &= ~NETIF_F_TSO;
-	if (!vif->csum)
+	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV6))
+		features &= ~NETIF_F_TSO6;
+	if (!vif->ip_csum)
 		features &= ~NETIF_F_IP_CSUM;
+	if (!vif->ipv6_csum)
+		features &= ~NETIF_F_IPV6_CSUM;
 
 	return features;
 }
@@ -306,18 +310,19 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->domid  = domid;
 	vif->handle = handle;
 	vif->can_sg = 1;
-	vif->csum = 1;
+	vif->ip_csum = 1;
 	vif->dev = dev;
 
 	vif->credit_bytes = vif->remaining_credit = ~0UL;
 	vif->credit_usec  = 0UL;
 	init_timer(&vif->credit_timeout);
-	/* Initialize 'expires' now: it's used to track the credit window. */
-	vif->credit_timeout.expires = jiffies;
+	vif->credit_window_start = get_jiffies_64();
 
 	dev->netdev_ops	= &xenvif_netdev_ops;
-	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
-	dev->features = dev->hw_features;
+	dev->hw_features = NETIF_F_SG |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6;
+	dev->features = dev->hw_features | NETIF_F_RXCSUM;
 	SET_ETHTOOL_OPS(dev, &xenvif_ethtool_ops);
 
 	dev->tx_queue_len = XENVIF_QUEUE_LENGTH;
@@ -353,6 +358,9 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	}
 
 	netdev_dbg(dev, "Successfully created xenvif\n");
+
+	__module_get(THIS_MODULE);
+
 	return vif;
 }
 
@@ -365,8 +373,6 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	/* Already connected through? */
 	if (vif->tx_irq)
 		return 0;
-
-	__module_get(THIS_MODULE);
 
 	err = xenvif_map_frontend_rings(vif, tx_ring_ref, rx_ring_ref);
 	if (err < 0)
@@ -406,7 +412,7 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 
 	init_waitqueue_head(&vif->wq);
 	vif->task = kthread_create(xenvif_kthread,
-				   (void *)vif, vif->dev->name);
+				   (void *)vif, "%s", vif->dev->name);
 	if (IS_ERR(vif->task)) {
 		pr_warn("Could not allocate kthread for %s\n", vif->dev->name);
 		err = PTR_ERR(vif->task);
@@ -452,14 +458,11 @@ void xenvif_carrier_off(struct xenvif *vif)
 
 void xenvif_disconnect(struct xenvif *vif)
 {
-	/* Disconnect funtion might get called by generic framework
-	 * even before vif connects, so we need to check if we really
-	 * need to do a module_put.
-	 */
-	int need_module_put = 0;
-
 	if (netif_carrier_ok(vif->dev))
 		xenvif_carrier_off(vif);
+
+	if (vif->task)
+		kthread_stop(vif->task);
 
 	if (vif->tx_irq) {
 		if (vif->tx_irq == vif->rx_irq)
@@ -468,23 +471,19 @@ void xenvif_disconnect(struct xenvif *vif)
 			unbind_from_irqhandler(vif->tx_irq, vif);
 			unbind_from_irqhandler(vif->rx_irq, vif);
 		}
-		/* vif->irq is valid, we had a module_get in
-		 * xenvif_connect.
-		 */
-		need_module_put = 1;
+		vif->tx_irq = 0;
 	}
 
-	if (vif->task)
-		kthread_stop(vif->task);
+	xenvif_unmap_frontend_rings(vif);
+}
 
+void xenvif_free(struct xenvif *vif)
+{
 	netif_napi_del(&vif->napi);
 
 	unregister_netdev(vif->dev);
 
-	xenvif_unmap_frontend_rings(vif);
-
 	free_netdev(vif->dev);
 
-	if (need_module_put)
-		module_put(THIS_MODULE);
+	module_put(THIS_MODULE);
 }

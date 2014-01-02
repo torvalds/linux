@@ -14,11 +14,9 @@
 #include <linux/module.h>
 #include <linux/sysfs.h>
 #include <linux/device.h>
-#include <linux/usb.h>
 #include <linux/hid.h>
 #include <linux/input.h>
 #include <linux/leds.h>
-#include "usbhid/usbhid.h"
 
 #include "hid-ids.h"
 
@@ -41,10 +39,9 @@ static int tpkbd_input_mapping(struct hid_device *hdev,
 		struct hid_input *hi, struct hid_field *field,
 		struct hid_usage *usage, unsigned long **bit, int *max)
 {
-	struct usbhid_device *uhdev;
-
-	uhdev = (struct usbhid_device *) hdev->driver_data;
-	if (uhdev->ifnum == 1 && usage->hid == (HID_UP_BUTTON | 0x0010)) {
+	if (usage->hid == (HID_UP_BUTTON | 0x0010)) {
+		/* mark the device as pointer */
+		hid_set_drvdata(hdev, (void *)1);
 		map_key_clear(KEY_MICMUTE);
 		return 1;
 	}
@@ -339,14 +336,24 @@ static int tpkbd_probe_tp(struct hid_device *hdev)
 	struct tpkbd_data_pointer *data_pointer;
 	size_t name_sz = strlen(dev_name(dev)) + 16;
 	char *name_mute, *name_micmute;
-	int ret;
+	int i;
+
+	/* Validate required reports. */
+	for (i = 0; i < 4; i++) {
+		if (!hid_validate_values(hdev, HID_FEATURE_REPORT, 4, i, 1))
+			return -ENODEV;
+	}
+	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, 3, 0, 2))
+		return -ENODEV;
 
 	if (sysfs_create_group(&hdev->dev.kobj,
 				&tpkbd_attr_group_pointer)) {
 		hid_warn(hdev, "Could not create sysfs group\n");
 	}
 
-	data_pointer = kzalloc(sizeof(struct tpkbd_data_pointer), GFP_KERNEL);
+	data_pointer = devm_kzalloc(&hdev->dev,
+				    sizeof(struct tpkbd_data_pointer),
+				    GFP_KERNEL);
 	if (data_pointer == NULL) {
 		hid_err(hdev, "Could not allocate memory for driver data\n");
 		return -ENOMEM;
@@ -356,20 +363,13 @@ static int tpkbd_probe_tp(struct hid_device *hdev)
 	data_pointer->sensitivity = 0xa0;
 	data_pointer->press_speed = 0x38;
 
-	name_mute = kzalloc(name_sz, GFP_KERNEL);
-	if (name_mute == NULL) {
+	name_mute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
+	name_micmute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
+	if (name_mute == NULL || name_micmute == NULL) {
 		hid_err(hdev, "Could not allocate memory for led data\n");
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 	snprintf(name_mute, name_sz, "%s:amber:mute", dev_name(dev));
-
-	name_micmute = kzalloc(name_sz, GFP_KERNEL);
-	if (name_micmute == NULL) {
-		hid_err(hdev, "Could not allocate memory for led data\n");
-		ret = -ENOMEM;
-		goto err2;
-	}
 	snprintf(name_micmute, name_sz, "%s:amber:micmute", dev_name(dev));
 
 	hid_set_drvdata(hdev, data_pointer);
@@ -389,39 +389,36 @@ static int tpkbd_probe_tp(struct hid_device *hdev)
 	tpkbd_features_set(hdev);
 
 	return 0;
-
-err2:
-	kfree(name_mute);
-err:
-	kfree(data_pointer);
-	return ret;
 }
 
 static int tpkbd_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
 	int ret;
-	struct usbhid_device *uhdev;
 
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "hid_parse failed\n");
-		goto err_free;
+		goto err;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hid_hw_start failed\n");
-		goto err_free;
+		goto err;
 	}
 
-	uhdev = (struct usbhid_device *) hdev->driver_data;
-
-	if (uhdev->ifnum == 1)
-		return tpkbd_probe_tp(hdev);
+	if (hid_get_drvdata(hdev)) {
+		hid_set_drvdata(hdev, NULL);
+		ret = tpkbd_probe_tp(hdev);
+		if (ret)
+			goto err_hid;
+	}
 
 	return 0;
-err_free:
+err_hid:
+	hid_hw_stop(hdev);
+err:
 	return ret;
 }
 
@@ -436,17 +433,11 @@ static void tpkbd_remove_tp(struct hid_device *hdev)
 	led_classdev_unregister(&data_pointer->led_mute);
 
 	hid_set_drvdata(hdev, NULL);
-	kfree(data_pointer->led_micmute.name);
-	kfree(data_pointer->led_mute.name);
-	kfree(data_pointer);
 }
 
 static void tpkbd_remove(struct hid_device *hdev)
 {
-	struct usbhid_device *uhdev;
-
-	uhdev = (struct usbhid_device *) hdev->driver_data;
-	if (uhdev->ifnum == 1)
+	if (hid_get_drvdata(hdev))
 		tpkbd_remove_tp(hdev);
 
 	hid_hw_stop(hdev);

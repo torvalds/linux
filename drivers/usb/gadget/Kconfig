@@ -58,6 +58,20 @@ config USB_GADGET_DEBUG
 	   trying to track down.  Never enable these messages for a
 	   production build.
 
+config USB_GADGET_VERBOSE
+	bool "Verbose debugging Messages (DEVELOPMENT)"
+	depends on USB_GADGET_DEBUG
+	help
+	   Many controller and gadget drivers will print verbose debugging
+	   messages if you use this option to ask for those messages.
+
+	   Avoid enabling these messages, even if you're actively
+	   debugging such a driver.  Many drivers will emit so many
+	   messages that the driver timings are affected, which will
+	   either create new failure modes or remove the one you're
+	   trying to track down.  Never enable these messages for a
+	   production build.
+
 config USB_GADGET_DEBUG_FILES
 	boolean "Debugging information files (DEVELOPMENT)"
 	depends on PROC_FS
@@ -525,6 +539,9 @@ config USB_F_SUBSET
 config USB_F_RNDIS
 	tristate
 
+config USB_F_MASS_STORAGE
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
@@ -661,6 +678,16 @@ config USB_CONFIGFS_PHONET
 	select USB_F_PHONET
 	help
 	  The Phonet protocol implementation for USB device.
+
+config USB_CONFIGFS_MASS_STORAGE
+	boolean "Mass storage"
+	depends on USB_CONFIGFS
+	select USB_F_MASS_STORAGE
+	help
+	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
+	  As its storage repository it can use a regular file or a block
+	  device (in much the same way as the "loop" device driver),
+	  specified as a module parameter or sysfs option.
 
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
@@ -878,6 +905,7 @@ config USB_MASS_STORAGE
 	tristate "Mass Storage Gadget"
 	depends on BLOCK
 	select USB_LIBCOMPOSITE
+	select USB_F_MASS_STORAGE
 	help
 	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
 	  As its storage repository it can use a regular file or a block
@@ -1001,6 +1029,7 @@ config USB_G_ACM_MS
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
 	select USB_F_ACM
+	select USB_F_MASS_STORAGE
 	help
 	  This driver provides two functions in one configuration:
 	  a mass storage, and a CDC ACM (serial port) link.
@@ -1015,8 +1044,8 @@ config USB_G_MULTI
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
 	select USB_U_ETHER
-	select USB_U_RNDIS
 	select USB_F_ACM
+	select USB_F_MASS_STORAGE
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS
 	  and/or CDC Ethernet), mass storage and ACM serial link
@@ -1035,6 +1064,8 @@ config USB_G_MULTI
 config USB_G_MULTI_RNDIS
 	bool "RNDIS + CDC Serial + Storage configuration"
 	depends on USB_G_MULTI
+	select USB_U_RNDIS
+	select USB_F_RNDIS
 	default y
 	help
 	  This option enables a configuration with RNDIS, CDC Serial and
@@ -1048,6 +1079,7 @@ config USB_G_MULTI_CDC
 	bool "CDC Ethernet + CDC Serial + Storage configuration"
 	depends on USB_G_MULTI
 	default n
+	select USB_F_ECM
 	help
 	  This option enables a configuration with CDC Ethernet (ECM), CDC
 	  Serial and Mass Storage functions available in the Multifunction

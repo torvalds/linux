@@ -19,7 +19,7 @@
 #include "ath9k.h"
 #include "ar9003_mac.h"
 
-#define SKB_CB_ATHBUF(__skb)	(*((struct ath_buf **)__skb->cb))
+#define SKB_CB_ATHBUF(__skb)	(*((struct ath_rxbuf **)__skb->cb))
 
 static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
 {
@@ -35,7 +35,7 @@ static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
  * buffer (or rx fifo). This can incorrectly acknowledge packets
  * to a sender if last desc is self-linked.
  */
-static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
+static void ath_rx_buf_link(struct ath_softc *sc, struct ath_rxbuf *bf)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -68,7 +68,7 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 	sc->rx.rxlink = &ds->ds_link;
 }
 
-static void ath_rx_buf_relink(struct ath_softc *sc, struct ath_buf *bf)
+static void ath_rx_buf_relink(struct ath_softc *sc, struct ath_rxbuf *bf)
 {
 	if (sc->rx.buf_hold)
 		ath_rx_buf_link(sc, sc->rx.buf_hold);
@@ -112,13 +112,13 @@ static bool ath_rx_edma_buf_link(struct ath_softc *sc,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_rx_edma *rx_edma;
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 
 	rx_edma = &sc->rx.rx_edma[qtype];
 	if (skb_queue_len(&rx_edma->rx_fifo) >= rx_edma->rx_fifo_hwsize)
 		return false;
 
-	bf = list_first_entry(&sc->rx.rxbuf, struct ath_buf, list);
+	bf = list_first_entry(&sc->rx.rxbuf, struct ath_rxbuf, list);
 	list_del_init(&bf->list);
 
 	skb = bf->bf_mpdu;
@@ -138,7 +138,7 @@ static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 				  enum ath9k_rx_qtype qtype)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_buf *bf, *tbf;
+	struct ath_rxbuf *bf, *tbf;
 
 	if (list_empty(&sc->rx.rxbuf)) {
 		ath_dbg(common, QUEUE, "No free rx buf available\n");
@@ -154,7 +154,7 @@ static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 static void ath_rx_remove_buffer(struct ath_softc *sc,
 				 enum ath9k_rx_qtype qtype)
 {
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	struct ath_rx_edma *rx_edma;
 	struct sk_buff *skb;
 
@@ -171,7 +171,7 @@ static void ath_rx_edma_cleanup(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 
 	ath_rx_remove_buffer(sc, ATH9K_RX_QUEUE_LP);
 	ath_rx_remove_buffer(sc, ATH9K_RX_QUEUE_HP);
@@ -199,7 +199,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	int error = 0, i;
 	u32 size;
 
@@ -211,7 +211,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 	ath_rx_edma_init_queue(&sc->rx.rx_edma[ATH9K_RX_QUEUE_HP],
 			       ah->caps.rx_hp_qdepth);
 
-	size = sizeof(struct ath_buf) * nbufs;
+	size = sizeof(struct ath_rxbuf) * nbufs;
 	bf = devm_kzalloc(sc->dev, size, GFP_KERNEL);
 	if (!bf)
 		return -ENOMEM;
@@ -271,7 +271,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	int error = 0;
 
 	spin_lock_init(&sc->sc_pcu_lock);
@@ -332,7 +332,7 @@ void ath_rx_cleanup(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		ath_rx_edma_cleanup(sc);
@@ -374,6 +374,9 @@ void ath_rx_cleanup(struct ath_softc *sc)
 u32 ath_calcrxfilter(struct ath_softc *sc)
 {
 	u32 rfilt;
+
+	if (config_enabled(CONFIG_ATH9K_TX99))
+		return 0;
 
 	rfilt = ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
 		| ATH9K_RX_FILTER_MCAST;
@@ -427,7 +430,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 int ath_startrecv(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_buf *bf, *tbf;
+	struct ath_rxbuf *bf, *tbf;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		ath_edma_start_recv(sc);
@@ -447,7 +450,7 @@ int ath_startrecv(struct ath_softc *sc)
 	if (list_empty(&sc->rx.rxbuf))
 		goto start_recv;
 
-	bf = list_first_entry(&sc->rx.rxbuf, struct ath_buf, list);
+	bf = list_first_entry(&sc->rx.rxbuf, struct ath_rxbuf, list);
 	ath9k_hw_putrxbuf(ah, bf->bf_daddr);
 	ath9k_hw_rxena(ah);
 
@@ -603,13 +606,13 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb, bool mybeacon)
 static bool ath_edma_get_buffers(struct ath_softc *sc,
 				 enum ath9k_rx_qtype qtype,
 				 struct ath_rx_status *rs,
-				 struct ath_buf **dest)
+				 struct ath_rxbuf **dest)
 {
 	struct ath_rx_edma *rx_edma = &sc->rx.rx_edma[qtype];
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	int ret;
 
 	skb = skb_peek(&rx_edma->rx_fifo);
@@ -653,11 +656,11 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 	return true;
 }
 
-static struct ath_buf *ath_edma_get_next_rx_buf(struct ath_softc *sc,
+static struct ath_rxbuf *ath_edma_get_next_rx_buf(struct ath_softc *sc,
 						struct ath_rx_status *rs,
 						enum ath9k_rx_qtype qtype)
 {
-	struct ath_buf *bf = NULL;
+	struct ath_rxbuf *bf = NULL;
 
 	while (ath_edma_get_buffers(sc, qtype, rs, &bf)) {
 		if (!bf)
@@ -668,13 +671,13 @@ static struct ath_buf *ath_edma_get_next_rx_buf(struct ath_softc *sc,
 	return NULL;
 }
 
-static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
+static struct ath_rxbuf *ath_get_next_rx_buf(struct ath_softc *sc,
 					   struct ath_rx_status *rs)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_desc *ds;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	int ret;
 
 	if (list_empty(&sc->rx.rxbuf)) {
@@ -682,7 +685,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 		return NULL;
 	}
 
-	bf = list_first_entry(&sc->rx.rxbuf, struct ath_buf, list);
+	bf = list_first_entry(&sc->rx.rxbuf, struct ath_rxbuf, list);
 	if (bf == sc->rx.buf_hold)
 		return NULL;
 
@@ -702,7 +705,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 	ret = ath9k_hw_rxprocdesc(ah, ds, rs);
 	if (ret == -EINPROGRESS) {
 		struct ath_rx_status trs;
-		struct ath_buf *tbf;
+		struct ath_rxbuf *tbf;
 		struct ath_desc *tds;
 
 		memset(&trs, 0, sizeof(trs));
@@ -711,7 +714,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 			return NULL;
 		}
 
-		tbf = list_entry(bf->list.next, struct ath_buf, list);
+		tbf = list_entry(bf->list.next, struct ath_rxbuf, list);
 
 		/*
 		 * On some hardware the descriptor status words could
@@ -972,14 +975,15 @@ static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 {
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath_hw *ah = sc->sc_ah;
-	u8 bins[SPECTRAL_HT20_NUM_BINS];
-	u8 *vdata = (u8 *)hdr;
-	struct fft_sample_ht20 fft_sample;
+	u8 num_bins, *bins, *vdata = (u8 *)hdr;
+	struct fft_sample_ht20 fft_sample_20;
+	struct fft_sample_ht20_40 fft_sample_40;
+	struct fft_sample_tlv *tlv;
 	struct ath_radar_info *radar_info;
-	struct ath_ht20_mag_info *mag_info;
 	int len = rs->rs_datalen;
 	int dc_pos;
-	u16 length, max_magnitude;
+	u16 fft_len, length, freq = ah->curchan->chan->center_freq;
+	enum nl80211_channel_type chan_type;
 
 	/* AR9280 and before report via ATH9K_PHYERR_RADAR, AR93xx and newer
 	 * via ATH9K_PHYERR_SPECTRAL. Haven't seen ATH9K_PHYERR_FALSE_RADAR_EXT
@@ -997,45 +1001,44 @@ static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
 		return 0;
 
-	/* Variation in the data length is possible and will be fixed later.
-	 * Note that we only support HT20 for now.
-	 *
-	 * TODO: add HT20_40 support as well.
-	 */
-	if ((len > SPECTRAL_HT20_TOTAL_DATA_LEN + 2) ||
-	    (len < SPECTRAL_HT20_TOTAL_DATA_LEN - 1))
+	chan_type = cfg80211_get_chandef_type(&sc->hw->conf.chandef);
+	if ((chan_type == NL80211_CHAN_HT40MINUS) ||
+	    (chan_type == NL80211_CHAN_HT40PLUS)) {
+		fft_len = SPECTRAL_HT20_40_TOTAL_DATA_LEN;
+		num_bins = SPECTRAL_HT20_40_NUM_BINS;
+		bins = (u8 *)fft_sample_40.data;
+	} else {
+		fft_len = SPECTRAL_HT20_TOTAL_DATA_LEN;
+		num_bins = SPECTRAL_HT20_NUM_BINS;
+		bins = (u8 *)fft_sample_20.data;
+	}
+
+	/* Variation in the data length is possible and will be fixed later */
+	if ((len > fft_len + 2) || (len < fft_len - 1))
 		return 1;
 
-	fft_sample.tlv.type = ATH_FFT_SAMPLE_HT20;
-	length = sizeof(fft_sample) - sizeof(fft_sample.tlv);
-	fft_sample.tlv.length = __cpu_to_be16(length);
-
-	fft_sample.freq = __cpu_to_be16(ah->curchan->chan->center_freq);
-	fft_sample.rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
-	fft_sample.noise = ah->noise;
-
-	switch (len - SPECTRAL_HT20_TOTAL_DATA_LEN) {
+	switch (len - fft_len) {
 	case 0:
 		/* length correct, nothing to do. */
-		memcpy(bins, vdata, SPECTRAL_HT20_NUM_BINS);
+		memcpy(bins, vdata, num_bins);
 		break;
 	case -1:
 		/* first byte missing, duplicate it. */
-		memcpy(&bins[1], vdata, SPECTRAL_HT20_NUM_BINS - 1);
+		memcpy(&bins[1], vdata, num_bins - 1);
 		bins[0] = vdata[0];
 		break;
 	case 2:
 		/* MAC added 2 extra bytes at bin 30 and 32, remove them. */
 		memcpy(bins, vdata, 30);
 		bins[30] = vdata[31];
-		memcpy(&bins[31], &vdata[33], SPECTRAL_HT20_NUM_BINS - 31);
+		memcpy(&bins[31], &vdata[33], num_bins - 31);
 		break;
 	case 1:
 		/* MAC added 2 extra bytes AND first byte is missing. */
 		bins[0] = vdata[0];
-		memcpy(&bins[0], vdata, 30);
+		memcpy(&bins[1], vdata, 30);
 		bins[31] = vdata[31];
-		memcpy(&bins[32], &vdata[33], SPECTRAL_HT20_NUM_BINS - 32);
+		memcpy(&bins[32], &vdata[33], num_bins - 32);
 		break;
 	default:
 		return 1;
@@ -1044,23 +1047,93 @@ static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 	/* DC value (value in the middle) is the blind spot of the spectral
 	 * sample and invalid, interpolate it.
 	 */
-	dc_pos = SPECTRAL_HT20_NUM_BINS / 2;
+	dc_pos = num_bins / 2;
 	bins[dc_pos] = (bins[dc_pos + 1] + bins[dc_pos - 1]) / 2;
 
-	/* mag data is at the end of the frame, in front of radar_info */
-	mag_info = ((struct ath_ht20_mag_info *)radar_info) - 1;
+	if ((chan_type == NL80211_CHAN_HT40MINUS) ||
+	    (chan_type == NL80211_CHAN_HT40PLUS)) {
+		s8 lower_rssi, upper_rssi;
+		s16 ext_nf;
+		u8 lower_max_index, upper_max_index;
+		u8 lower_bitmap_w, upper_bitmap_w;
+		u16 lower_mag, upper_mag;
+		struct ath9k_hw_cal_data *caldata = ah->caldata;
+		struct ath_ht20_40_mag_info *mag_info;
 
-	/* copy raw bins without scaling them */
-	memcpy(fft_sample.data, bins, SPECTRAL_HT20_NUM_BINS);
-	fft_sample.max_exp = mag_info->max_exp & 0xf;
+		if (caldata)
+			ext_nf = ath9k_hw_getchan_noise(ah, ah->curchan,
+					caldata->nfCalHist[3].privNF);
+		else
+			ext_nf = ATH_DEFAULT_NOISE_FLOOR;
 
-	max_magnitude = spectral_max_magnitude(mag_info->all_bins);
-	fft_sample.max_magnitude = __cpu_to_be16(max_magnitude);
-	fft_sample.max_index = spectral_max_index(mag_info->all_bins);
-	fft_sample.bitmap_weight = spectral_bitmap_weight(mag_info->all_bins);
-	fft_sample.tsf = __cpu_to_be64(tsf);
+		length = sizeof(fft_sample_40) - sizeof(struct fft_sample_tlv);
+		fft_sample_40.tlv.type = ATH_FFT_SAMPLE_HT20_40;
+		fft_sample_40.tlv.length = __cpu_to_be16(length);
+		fft_sample_40.freq = __cpu_to_be16(freq);
+		fft_sample_40.channel_type = chan_type;
 
-	ath_debug_send_fft_sample(sc, &fft_sample.tlv);
+		if (chan_type == NL80211_CHAN_HT40PLUS) {
+			lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
+			upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ext0);
+
+			fft_sample_40.lower_noise = ah->noise;
+			fft_sample_40.upper_noise = ext_nf;
+		} else {
+			lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ext0);
+			upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
+
+			fft_sample_40.lower_noise = ext_nf;
+			fft_sample_40.upper_noise = ah->noise;
+		}
+		fft_sample_40.lower_rssi = lower_rssi;
+		fft_sample_40.upper_rssi = upper_rssi;
+
+		mag_info = ((struct ath_ht20_40_mag_info *)radar_info) - 1;
+		lower_mag = spectral_max_magnitude(mag_info->lower_bins);
+		upper_mag = spectral_max_magnitude(mag_info->upper_bins);
+		fft_sample_40.lower_max_magnitude = __cpu_to_be16(lower_mag);
+		fft_sample_40.upper_max_magnitude = __cpu_to_be16(upper_mag);
+		lower_max_index = spectral_max_index(mag_info->lower_bins);
+		upper_max_index = spectral_max_index(mag_info->upper_bins);
+		fft_sample_40.lower_max_index = lower_max_index;
+		fft_sample_40.upper_max_index = upper_max_index;
+		lower_bitmap_w = spectral_bitmap_weight(mag_info->lower_bins);
+		upper_bitmap_w = spectral_bitmap_weight(mag_info->upper_bins);
+		fft_sample_40.lower_bitmap_weight = lower_bitmap_w;
+		fft_sample_40.upper_bitmap_weight = upper_bitmap_w;
+		fft_sample_40.max_exp = mag_info->max_exp & 0xf;
+
+		fft_sample_40.tsf = __cpu_to_be64(tsf);
+
+		tlv = (struct fft_sample_tlv *)&fft_sample_40;
+	} else {
+		u8 max_index, bitmap_w;
+		u16 magnitude;
+		struct ath_ht20_mag_info *mag_info;
+
+		length = sizeof(fft_sample_20) - sizeof(struct fft_sample_tlv);
+		fft_sample_20.tlv.type = ATH_FFT_SAMPLE_HT20;
+		fft_sample_20.tlv.length = __cpu_to_be16(length);
+		fft_sample_20.freq = __cpu_to_be16(freq);
+
+		fft_sample_20.rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
+		fft_sample_20.noise = ah->noise;
+
+		mag_info = ((struct ath_ht20_mag_info *)radar_info) - 1;
+		magnitude = spectral_max_magnitude(mag_info->all_bins);
+		fft_sample_20.max_magnitude = __cpu_to_be16(magnitude);
+		max_index = spectral_max_index(mag_info->all_bins);
+		fft_sample_20.max_index = max_index;
+		bitmap_w = spectral_bitmap_weight(mag_info->all_bins);
+		fft_sample_20.bitmap_weight = bitmap_w;
+		fft_sample_20.max_exp = mag_info->max_exp & 0xf;
+
+		fft_sample_20.tsf = __cpu_to_be64(tsf);
+
+		tlv = (struct fft_sample_tlv *)&fft_sample_20;
+	}
+
+	ath_debug_send_fft_sample(sc, tlv);
 	return 1;
 #else
 	return 0;
@@ -1270,13 +1343,6 @@ static void ath9k_antenna_check(struct ath_softc *sc,
 		return;
 
 	/*
-	 * All MPDUs in an aggregate will use the same LNA
-	 * as the first MPDU.
-	 */
-	if (rs->rs_isaggr && !rs->rs_firstaggr)
-		return;
-
-	/*
 	 * Change the default rx antenna if rx diversity
 	 * chooses the other antenna 3 times in a row.
 	 */
@@ -1315,7 +1381,7 @@ static void ath9k_apply_ampdu_details(struct ath_softc *sc,
 
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	struct sk_buff *skb = NULL, *requeue_skb, *hdr_skb;
 	struct ieee80211_rx_status *rxs;
 	struct ath_hw *ah = sc->sc_ah;

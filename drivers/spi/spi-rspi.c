@@ -59,6 +59,14 @@
 #define RSPI_SPCMD6		0x1c
 #define RSPI_SPCMD7		0x1e
 
+/*qspi only */
+#define QSPI_SPBFCR		0x18
+#define QSPI_SPBDCR		0x1a
+#define QSPI_SPBMUL0		0x1c
+#define QSPI_SPBMUL1		0x20
+#define QSPI_SPBMUL2		0x24
+#define QSPI_SPBMUL3		0x28
+
 /* SPCR */
 #define SPCR_SPRIE		0x80
 #define SPCR_SPE		0x40
@@ -126,6 +134,8 @@
 #define SPCMD_LSBF		0x1000
 #define SPCMD_SPB_MASK		0x0f00
 #define SPCMD_SPB_8_TO_16(bit)	(((bit - 1) << 8) & SPCMD_SPB_MASK)
+#define SPCMD_SPB_8BIT		0x0000	/* qspi only */
+#define SPCMD_SPB_16BIT		0x0100
 #define SPCMD_SPB_20BIT		0x0000
 #define SPCMD_SPB_24BIT		0x0100
 #define SPCMD_SPB_32BIT		0x0200
@@ -134,6 +144,10 @@
 #define SPCMD_BRDV_MASK		0x000c
 #define SPCMD_CPOL		0x0002
 #define SPCMD_CPHA		0x0001
+
+/* SPBFCR */
+#define SPBFCR_TXRST		0x80	/* qspi only */
+#define SPBFCR_RXRST		0x40	/* qspi only */
 
 struct rspi_data {
 	void __iomem *addr;
@@ -145,6 +159,7 @@ struct rspi_data {
 	spinlock_t lock;
 	struct clk *clk;
 	unsigned char spsr;
+	const struct spi_ops *ops;
 
 	/* for dmaengine */
 	struct dma_chan *chan_tx;
@@ -165,6 +180,11 @@ static void rspi_write16(struct rspi_data *rspi, u16 data, u16 offset)
 	iowrite16(data, rspi->addr + offset);
 }
 
+static void rspi_write32(struct rspi_data *rspi, u32 data, u16 offset)
+{
+	iowrite32(data, rspi->addr + offset);
+}
+
 static u8 rspi_read8(struct rspi_data *rspi, u16 offset)
 {
 	return ioread8(rspi->addr + offset);
@@ -175,16 +195,102 @@ static u16 rspi_read16(struct rspi_data *rspi, u16 offset)
 	return ioread16(rspi->addr + offset);
 }
 
-static unsigned char rspi_calc_spbr(struct rspi_data *rspi)
+/* optional functions */
+struct spi_ops {
+	int (*set_config_register)(struct rspi_data *rspi, int access_size);
+	int (*send_pio)(struct rspi_data *rspi, struct spi_message *mesg,
+			struct spi_transfer *t);
+	int (*receive_pio)(struct rspi_data *rspi, struct spi_message *mesg,
+			   struct spi_transfer *t);
+
+};
+
+/*
+ * functions for RSPI
+ */
+static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
 {
-	int tmp;
-	unsigned char spbr;
+	int spbr;
 
-	tmp = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz) - 1;
-	spbr = clamp(tmp, 0, 255);
+	/* Sets output mode(CMOS) and MOSI signal(from previous transfer) */
+	rspi_write8(rspi, 0x00, RSPI_SPPCR);
 
-	return spbr;
+	/* Sets transfer bit rate */
+	spbr = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz) - 1;
+	rspi_write8(rspi, clamp(spbr, 0, 255), RSPI_SPBR);
+
+	/* Sets number of frames to be used: 1 frame */
+	rspi_write8(rspi, 0x00, RSPI_SPDCR);
+
+	/* Sets RSPCK, SSL, next-access delay value */
+	rspi_write8(rspi, 0x00, RSPI_SPCKD);
+	rspi_write8(rspi, 0x00, RSPI_SSLND);
+	rspi_write8(rspi, 0x00, RSPI_SPND);
+
+	/* Sets parity, interrupt mask */
+	rspi_write8(rspi, 0x00, RSPI_SPCR2);
+
+	/* Sets SPCMD */
+	rspi_write16(rspi, SPCMD_SPB_8_TO_16(access_size) | SPCMD_SSLKP,
+		     RSPI_SPCMD0);
+
+	/* Sets RSPI mode */
+	rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
+
+	return 0;
 }
+
+/*
+ * functions for QSPI
+ */
+static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
+{
+	u16 spcmd;
+	int spbr;
+
+	/* Sets output mode(CMOS) and MOSI signal(from previous transfer) */
+	rspi_write8(rspi, 0x00, RSPI_SPPCR);
+
+	/* Sets transfer bit rate */
+	spbr = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz);
+	rspi_write8(rspi, clamp(spbr, 0, 255), RSPI_SPBR);
+
+	/* Sets number of frames to be used: 1 frame */
+	rspi_write8(rspi, 0x00, RSPI_SPDCR);
+
+	/* Sets RSPCK, SSL, next-access delay value */
+	rspi_write8(rspi, 0x00, RSPI_SPCKD);
+	rspi_write8(rspi, 0x00, RSPI_SSLND);
+	rspi_write8(rspi, 0x00, RSPI_SPND);
+
+	/* Data Length Setting */
+	if (access_size == 8)
+		spcmd = SPCMD_SPB_8BIT;
+	else if (access_size == 16)
+		spcmd = SPCMD_SPB_16BIT;
+	else if (access_size == 32)
+		spcmd = SPCMD_SPB_32BIT;
+
+	spcmd |= SPCMD_SCKDEN | SPCMD_SLNDEN | SPCMD_SSLKP | SPCMD_SPNDEN;
+
+	/* Resets transfer data length */
+	rspi_write32(rspi, 0, QSPI_SPBMUL0);
+
+	/* Resets transmit and receive buffer */
+	rspi_write8(rspi, SPBFCR_TXRST | SPBFCR_RXRST, QSPI_SPBFCR);
+	/* Sets buffer to allow normal operation */
+	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
+
+	/* Sets SPCMD */
+	rspi_write16(rspi, spcmd, RSPI_SPCMD0);
+
+	/* Enables SPI function in a master mode */
+	rspi_write8(rspi, SPCR_SPE | SPCR_MSTR, RSPI_SPCR);
+
+	return 0;
+}
+
+#define set_config_register(spi, n) spi->ops->set_config_register(spi, n)
 
 static void rspi_enable_irq(struct rspi_data *rspi, u8 enable)
 {
@@ -220,35 +326,6 @@ static void rspi_negate_ssl(struct rspi_data *rspi)
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_SPE, RSPI_SPCR);
 }
 
-static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
-{
-	/* Sets output mode(CMOS) and MOSI signal(from previous transfer) */
-	rspi_write8(rspi, 0x00, RSPI_SPPCR);
-
-	/* Sets transfer bit rate */
-	rspi_write8(rspi, rspi_calc_spbr(rspi), RSPI_SPBR);
-
-	/* Sets number of frames to be used: 1 frame */
-	rspi_write8(rspi, 0x00, RSPI_SPDCR);
-
-	/* Sets RSPCK, SSL, next-access delay value */
-	rspi_write8(rspi, 0x00, RSPI_SPCKD);
-	rspi_write8(rspi, 0x00, RSPI_SSLND);
-	rspi_write8(rspi, 0x00, RSPI_SPND);
-
-	/* Sets parity, interrupt mask */
-	rspi_write8(rspi, 0x00, RSPI_SPCR2);
-
-	/* Sets SPCMD */
-	rspi_write16(rspi, SPCMD_SPB_8_TO_16(access_size) | SPCMD_SSLKP,
-		     RSPI_SPCMD0);
-
-	/* Sets RSPI mode */
-	rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
-
-	return 0;
-}
-
 static int rspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 			 struct spi_transfer *t)
 {
@@ -276,6 +353,43 @@ static int rspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 
 	return 0;
 }
+
+static int qspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
+			 struct spi_transfer *t)
+{
+	int remain = t->len;
+	u8 *data;
+
+	rspi_write8(rspi, SPBFCR_TXRST, QSPI_SPBFCR);
+	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
+
+	data = (u8 *)t->tx_buf;
+	while (remain > 0) {
+
+		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
+			dev_err(&rspi->master->dev,
+				"%s: tx empty timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+		rspi_write8(rspi, *data++, RSPI_SPDR);
+
+		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
+			dev_err(&rspi->master->dev,
+				"%s: receive timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+		rspi_read8(rspi, RSPI_SPDR);
+
+		remain--;
+	}
+
+	/* Waiting for the last transmition */
+	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+
+	return 0;
+}
+
+#define send_pio(spi, mesg, t) spi->ops->send_pio(spi, mesg, t)
 
 static void rspi_dma_complete(void *arg)
 {
@@ -442,6 +556,51 @@ static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 	return 0;
 }
 
+static void qspi_receive_init(struct rspi_data *rspi)
+{
+	unsigned char spsr;
+
+	spsr = rspi_read8(rspi, RSPI_SPSR);
+	if (spsr & SPSR_SPRF)
+		rspi_read8(rspi, RSPI_SPDR);   /* dummy read */
+	rspi_write8(rspi, SPBFCR_TXRST | SPBFCR_RXRST, QSPI_SPBFCR);
+	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
+}
+
+static int qspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
+			    struct spi_transfer *t)
+{
+	int remain = t->len;
+	u8 *data;
+
+	qspi_receive_init(rspi);
+
+	data = (u8 *)t->rx_buf;
+	while (remain > 0) {
+
+		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
+			dev_err(&rspi->master->dev,
+				"%s: tx empty timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+		/* dummy write for generate clock */
+		rspi_write8(rspi, 0x00, RSPI_SPDR);
+
+		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
+			dev_err(&rspi->master->dev,
+				"%s: receive timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+		/* SPDR allows 8, 16 or 32-bit access */
+		*data++ = rspi_read8(rspi, RSPI_SPDR);
+		remain--;
+	}
+
+	return 0;
+}
+
+#define receive_pio(spi, mesg, t) spi->ops->receive_pio(spi, mesg, t)
+
 static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	struct scatterlist sg, sg_dummy;
@@ -581,7 +740,7 @@ static void rspi_work(struct work_struct *work)
 				if (rspi_is_dma(rspi, t))
 					ret = rspi_send_dma(rspi, t);
 				else
-					ret = rspi_send_pio(rspi, mesg, t);
+					ret = send_pio(rspi, mesg, t);
 				if (ret < 0)
 					goto error;
 			}
@@ -589,7 +748,7 @@ static void rspi_work(struct work_struct *work)
 				if (rspi_is_dma(rspi, t))
 					ret = rspi_receive_dma(rspi, t);
 				else
-					ret = rspi_receive_pio(rspi, mesg, t);
+					ret = receive_pio(rspi, mesg, t);
 				if (ret < 0)
 					goto error;
 			}
@@ -616,7 +775,7 @@ static int rspi_setup(struct spi_device *spi)
 		spi->bits_per_word = 8;
 	rspi->max_speed_hz = spi->max_speed_hz;
 
-	rspi_set_config_register(rspi, 8);
+	set_config_register(rspi, 8);
 
 	return 0;
 }
@@ -745,7 +904,16 @@ static int rspi_probe(struct platform_device *pdev)
 	struct rspi_data *rspi;
 	int ret, irq;
 	char clk_name[16];
+	struct rspi_plat_data *rspi_pd = pdev->dev.platform_data;
+	const struct spi_ops *ops;
+	const struct platform_device_id *id_entry = pdev->id_entry;
 
+	ops = (struct spi_ops *)id_entry->driver_data;
+	/* ops parameter check */
+	if (!ops->set_config_register) {
+		dev_err(&pdev->dev, "there is no set_config_register\n");
+		return -ENODEV;
+	}
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (unlikely(res == NULL)) {
@@ -767,7 +935,7 @@ static int rspi_probe(struct platform_device *pdev)
 
 	rspi = spi_master_get_devdata(master);
 	platform_set_drvdata(pdev, rspi);
-
+	rspi->ops = ops;
 	rspi->master = master;
 	rspi->addr = ioremap(res->start, resource_size(res));
 	if (rspi->addr == NULL) {
@@ -776,7 +944,7 @@ static int rspi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
-	snprintf(clk_name, sizeof(clk_name), "rspi%d", pdev->id);
+	snprintf(clk_name, sizeof(clk_name), "%s%d", id_entry->name, pdev->id);
 	rspi->clk = clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(rspi->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
@@ -790,7 +958,10 @@ static int rspi_probe(struct platform_device *pdev)
 	INIT_WORK(&rspi->ws, rspi_work);
 	init_waitqueue_head(&rspi->wait);
 
-	master->num_chipselect = 2;
+	master->num_chipselect = rspi_pd->num_chipselect;
+	if (!master->num_chipselect)
+		master->num_chipselect = 2; /* default */
+
 	master->bus_num = pdev->id;
 	master->setup = rspi_setup;
 	master->transfer = rspi_transfer;
@@ -832,11 +1003,32 @@ error1:
 	return ret;
 }
 
+static struct spi_ops rspi_ops = {
+	.set_config_register =		rspi_set_config_register,
+	.send_pio =			rspi_send_pio,
+	.receive_pio =			rspi_receive_pio,
+};
+
+static struct spi_ops qspi_ops = {
+	.set_config_register =		qspi_set_config_register,
+	.send_pio =			qspi_send_pio,
+	.receive_pio =			qspi_receive_pio,
+};
+
+static struct platform_device_id spi_driver_ids[] = {
+	{ "rspi",	(kernel_ulong_t)&rspi_ops },
+	{ "qspi",	(kernel_ulong_t)&qspi_ops },
+	{},
+};
+
+MODULE_DEVICE_TABLE(platform, spi_driver_ids);
+
 static struct platform_driver rspi_driver = {
 	.probe =	rspi_probe,
 	.remove =	rspi_remove,
+	.id_table =	spi_driver_ids,
 	.driver		= {
-		.name = "rspi",
+		.name = "renesas_spi",
 		.owner	= THIS_MODULE,
 	},
 };

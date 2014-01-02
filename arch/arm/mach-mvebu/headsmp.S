@@ -21,12 +21,16 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
+#include <asm/assembler.h>
+
 /*
  * Armada XP specific entry point for secondary CPUs.
  * We add the CPU to the coherency fabric and then jump to secondary
  * startup
  */
 ENTRY(armada_xp_secondary_startup)
+ ARM_BE8(setend	be )			@ go BE8 if entered LE
+
 	/* Get coherency fabric base physical address */
 	adr	r0, 1f
 	ldr	r1, [r0]

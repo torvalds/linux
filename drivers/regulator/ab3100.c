@@ -535,7 +535,7 @@ static int ab3100_regulator_register(struct platform_device *pdev,
 	config.dev = &pdev->dev;
 	config.driver_data = reg;
 
-	rdev = regulator_register(desc, &config);
+	rdev = devm_regulator_register(&pdev->dev, desc, &config);
 	if (IS_ERR(rdev)) {
 		err = PTR_ERR(rdev);
 		dev_err(&pdev->dev,
@@ -616,7 +616,6 @@ static int ab3100_regulators_remove(struct platform_device *pdev)
 	for (i = 0; i < AB3100_NUM_REGULATORS; i++) {
 		struct ab3100_regulator *reg = &ab3100_regulators[i];
 
-		regulator_unregister(reg->rdev);
 		reg->rdev = NULL;
 	}
 	return 0;

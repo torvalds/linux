@@ -79,7 +79,7 @@ static const struct backlight_ops genericbl_ops = {
 static int genericbl_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
-	struct generic_bl_info *machinfo = pdev->dev.platform_data;
+	struct generic_bl_info *machinfo = dev_get_platdata(&pdev->dev);
 	const char *name = "generic-bl";
 	struct backlight_device *bd;
 
@@ -93,8 +93,8 @@ static int genericbl_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = machinfo->max_intensity;
-	bd = backlight_device_register(name, &pdev->dev, NULL, &genericbl_ops,
-				       &props);
+	bd = devm_backlight_device_register(&pdev->dev, name, &pdev->dev,
+					NULL, &genericbl_ops, &props);
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
 
@@ -117,8 +117,6 @@ static int genericbl_remove(struct platform_device *pdev)
 	bd->props.power = 0;
 	bd->props.brightness = 0;
 	backlight_update_status(bd);
-
-	backlight_device_unregister(bd);
 
 	dev_info(&pdev->dev, "Generic Backlight Driver Unloaded\n");
 	return 0;

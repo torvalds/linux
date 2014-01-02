@@ -128,8 +128,6 @@ int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->cq_max_count = cpu_to_be16(count);
 	cq_context->cq_period    = cpu_to_be16(period);
 
@@ -153,8 +151,6 @@ int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->logsize_usrpage = cpu_to_be32(ilog2(entries) << 24);
 	cq_context->log_page_size   = mtt->page_shift - 12;
 	mtt_addr = mlx4_mtt_addr(dev, mtt);
@@ -274,8 +270,6 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	}
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->flags	    = cpu_to_be32(!!collapsed << 18);
 	if (timestamp_en)
 		cq_context->flags  |= cpu_to_be32(1 << 19);

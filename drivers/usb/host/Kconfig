@@ -54,7 +54,7 @@ config USB_EHCI_HCD
 
 config USB_EHCI_ROOT_HUB_TT
 	bool "Root Hub Transaction Translators"
-	depends on USB_EHCI_HCD || USB_CHIPIDEA_HOST
+	depends on USB_EHCI_HCD
 	---help---
 	  Some EHCI chips have vendor-specific extensions to integrate
 	  transaction translators, so that no OHCI or UHCI companion
@@ -66,7 +66,7 @@ config USB_EHCI_ROOT_HUB_TT
 
 config USB_EHCI_TT_NEWSCHED
 	bool "Improved Transaction Translator scheduling"
-	depends on USB_EHCI_HCD || USB_CHIPIDEA_HOST
+	depends on USB_EHCI_HCD
 	default y
 	---help---
 	  This changes the periodic scheduling code to fill more of the low
@@ -203,12 +203,11 @@ config USB_EHCI_SH
 	  Enables support for the on-chip EHCI controller on the SuperH.
 	  If you use the PCI EHCI controller, this option is not necessary.
 
-config USB_EHCI_S5P
+config USB_EHCI_EXYNOS
        tristate "EHCI support for Samsung S5P/EXYNOS SoC Series"
        depends on PLAT_S5P || ARCH_EXYNOS
        help
-	Enable support for the Samsung S5Pxxxx and Exynos3/4/5 SOC's
-	on-chip EHCI controller.
+	Enable support for the Samsung Exynos SOC's on-chip EHCI controller.
 
 config USB_EHCI_MV
 	bool "EHCI support for Marvell PXA/MMP USB controller"
@@ -224,7 +223,7 @@ config USB_EHCI_MV
 	  on-chip EHCI USB controller" for those.
 
 config USB_W90X900_EHCI
-	bool "W90X900(W90P910) EHCI support"
+	tristate "W90X900(W90P910) EHCI support"
 	depends on ARCH_W90X900
 	---help---
 		Enables support for the W90X900 USB controller
@@ -367,14 +366,54 @@ config USB_OHCI_HCD
 if USB_OHCI_HCD
 
 config USB_OHCI_HCD_OMAP1
-	bool "OHCI support for OMAP1/2 chips"
+	tristate "OHCI support for OMAP1/2 chips"
 	depends on ARCH_OMAP1
 	default y
 	---help---
 	  Enables support for the OHCI controller on OMAP1/2 chips.
 
+config USB_OHCI_HCD_SPEAR
+        tristate "Support for ST SPEAr on-chip OHCI USB controller"
+        depends on USB_OHCI_HCD && PLAT_SPEAR
+        default y
+        ---help---
+          Enables support for the on-chip OHCI controller on
+          ST SPEAr chips.
+
+config USB_OHCI_HCD_S3C2410
+        tristate "OHCI support for Samsung S3C24xx/S3C64xx SoC series"
+        depends on USB_OHCI_HCD && (ARCH_S3C24XX || ARCH_S3C64XX)
+        default y
+        ---help---
+          Enables support for the on-chip OHCI controller on
+          S3C24xx/S3C64xx chips.
+
+config USB_OHCI_HCD_LPC32XX
+	tristate "Support for LPC on-chip OHCI USB controller"
+	depends on USB_OHCI_HCD && ARCH_LPC32XX
+	default y
+	---help---
+          Enables support for the on-chip OHCI controller on
+          NXP chips.
+
+config USB_OHCI_HCD_PXA27X
+	tristate "Support for PXA27X/PXA3XX on-chip OHCI USB controller"
+	depends on USB_OHCI_HCD && (PXA27x || PXA3xx)
+	default y
+	---help---
+	  Enables support for the on-chip OHCI controller on
+	  PXA27x/PXA3xx chips.
+
+config USB_OHCI_HCD_AT91
+        tristate "Support for Atmel on-chip OHCI USB controller"
+        depends on USB_OHCI_HCD && ARCH_AT91
+        default y
+        ---help---
+          Enables support for the on-chip OHCI controller on
+          Atmel chips.
+
 config USB_OHCI_HCD_OMAP3
-	bool "OHCI support for OMAP3 and later chips"
+	tristate "OHCI support for OMAP3 and later chips"
 	depends on (ARCH_OMAP3 || ARCH_OMAP4)
 	default y
 	---help---
@@ -454,8 +493,8 @@ config USB_OHCI_SH
 	  If you use the PCI OHCI controller, this option is not necessary.
 
 config USB_OHCI_EXYNOS
-	boolean "OHCI support for Samsung EXYNOS SoC Series"
-	depends on ARCH_EXYNOS
+	tristate "OHCI support for Samsung S5P/EXYNOS SoC Series"
+	depends on PLAT_S5P || ARCH_EXYNOS
 	help
 	 Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
 

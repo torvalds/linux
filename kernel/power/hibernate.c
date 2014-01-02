@@ -846,7 +846,7 @@ static int software_resume(void)
 	goto Finish;
 }
 
-late_initcall(software_resume);
+late_initcall_sync(software_resume);
 
 
 static const char * const hibernation_modes[] = {

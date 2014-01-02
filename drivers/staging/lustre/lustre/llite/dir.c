@@ -743,7 +743,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 
 	/* In the following we use the fact that LOV_USER_MAGIC_V1 and
 	 LOV_USER_MAGIC_V3 have the same initial fields so we do not
-	 need the make the distiction between the 2 versions */
+	 need to make the distinction between the 2 versions */
 	if (set_default && mgc->u.cli.cl_mgc_mgsexp) {
 		char *param = NULL;
 		char *buf;

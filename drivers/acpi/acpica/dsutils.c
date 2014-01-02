@@ -299,7 +299,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		goto result_used;
 	}
 
-      result_used:
+result_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "Result of [%s] used by Parent [%s] Op=%p\n",
 			  acpi_ps_get_opcode_name(op->common.aml_opcode),
@@ -308,7 +308,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 	return_UINT8(TRUE);
 
-      result_not_used:
+result_not_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "Result of [%s] not used by Parent [%s] Op=%p\n",
 			  acpi_ps_get_opcode_name(op->common.aml_opcode),
@@ -752,7 +752,7 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 
 	return_ACPI_STATUS(status);
 
-      cleanup:
+cleanup:
 	/*
 	 * We must undo everything done above; meaning that we must
 	 * pop everything off of the operand stack and delete those
@@ -851,7 +851,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state)
 		goto exit;
 	}
 
-      push_result:
+push_result:
 
 	walk_state->result_obj = new_obj_desc;
 
@@ -863,7 +863,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state)
 		op->common.flags |= ACPI_PARSEOP_IN_STACK;
 	}
 
-      exit:
+exit:
 
 	return_ACPI_STATUS(status);
 }

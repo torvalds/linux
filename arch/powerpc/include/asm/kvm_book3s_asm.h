@@ -83,7 +83,7 @@ struct kvmppc_host_state {
 	u8 restore_hid5;
 	u8 napping;
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	u8 hwthread_req;
 	u8 hwthread_state;
 	u8 host_ipi;
@@ -101,6 +101,7 @@ struct kvmppc_host_state {
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	u64 cfar;
+	u64 ppr;
 #endif
 };
 
@@ -108,14 +109,14 @@ struct kvmppc_book3s_shadow_vcpu {
 	ulong gpr[14];
 	u32 cr;
 	u32 xer;
-
-	u32 fault_dsisr;
-	u32 last_inst;
 	ulong ctr;
 	ulong lr;
 	ulong pc;
+
 	ulong shadow_srr1;
 	ulong fault_dar;
+	u32 fault_dsisr;
+	u32 last_inst;
 
 #ifdef CONFIG_PPC_BOOK3S_32
 	u32     sr[16];			/* Guest SRs */

@@ -22,6 +22,12 @@
 
 #define BATADV_SYSFS_IF_MESH_SUBDIR "mesh"
 #define BATADV_SYSFS_IF_BAT_SUBDIR "batman_adv"
+/**
+ * BATADV_SYSFS_VLAN_SUBDIR_PREFIX - prefix of the subfolder that will be
+ *  created in the sysfs hierarchy for each VLAN interface. The subfolder will
+ *  be named "BATADV_SYSFS_VLAN_SUBDIR_PREFIX%vid".
+ */
+#define BATADV_SYSFS_VLAN_SUBDIR_PREFIX "vlan"
 
 struct batadv_attribute {
 	struct attribute attr;
@@ -36,6 +42,10 @@ void batadv_sysfs_del_meshif(struct net_device *dev);
 int batadv_sysfs_add_hardif(struct kobject **hardif_obj,
 			    struct net_device *dev);
 void batadv_sysfs_del_hardif(struct kobject **hardif_obj);
+int batadv_sysfs_add_vlan(struct net_device *dev,
+			  struct batadv_softif_vlan *vlan);
+void batadv_sysfs_del_vlan(struct batadv_priv *bat_priv,
+			   struct batadv_softif_vlan *vlan);
 int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 			enum batadv_uev_action action, const char *data);
 

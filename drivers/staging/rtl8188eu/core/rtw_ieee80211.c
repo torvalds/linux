@@ -157,8 +157,8 @@ _func_enter_;
 
 	*frlen = *frlen + (len + 2);
 
-	return pbuf + len + 2;
 _func_exit_;
+	return pbuf + len + 2;
 }
 
 inline u8 *rtw_set_ie_ch_switch (u8 *buf, u32 *buf_len, u8 ch_switch_mode,
@@ -1129,7 +1129,7 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 		mac[3] = 0x87;
 		mac[4] = 0x00;
 		mac[5] = 0x00;
-		/*  use default mac addresss */
+		/*  use default mac address */
 		memcpy(mac_addr, mac, ETH_ALEN);
 		DBG_88E("MAC Address from efuse error, assign default one !!!\n");
 	}

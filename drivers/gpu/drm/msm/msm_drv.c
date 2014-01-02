@@ -18,8 +18,6 @@
 #include "msm_drv.h"
 #include "msm_gpu.h"
 
-#include <mach/iommu.h>
-
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -62,6 +60,8 @@ int msm_iommu_attach(struct drm_device *dev, struct iommu_domain *iommu,
 	int i, ret;
 
 	for (i = 0; i < cnt; i++) {
+		/* TODO maybe some day msm iommu won't require this hack: */
+		struct device *msm_iommu_get_ctx(const char *ctx_name);
 		struct device *ctx = msm_iommu_get_ctx(names[i]);
 		if (!ctx)
 			continue;
@@ -187,6 +187,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	init_waitqueue_head(&priv->fence_event);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
+	INIT_LIST_HEAD(&priv->fence_cbs);
 
 	drm_mode_config_init(dev);
 
@@ -199,7 +200,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		 * imx drm driver on iMX5
 		 */
 		dev_err(dev->dev, "failed to load kms\n");
-		ret = PTR_ERR(priv->kms);
+		ret = PTR_ERR(kms);
 		goto fail;
 	}
 
@@ -499,39 +500,76 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 		struct timespec *timeout)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	unsigned long timeout_jiffies = timespec_to_jiffies(timeout);
-	unsigned long start_jiffies = jiffies;
-	unsigned long remaining_jiffies;
 	int ret;
 
-	if (time_after(start_jiffies, timeout_jiffies))
-		remaining_jiffies = 0;
-	else
-		remaining_jiffies = timeout_jiffies - start_jiffies;
+	if (!priv->gpu)
+		return 0;
 
-	ret = wait_event_interruptible_timeout(priv->fence_event,
-			priv->completed_fence >= fence,
-			remaining_jiffies);
-	if (ret == 0) {
-		DBG("timeout waiting for fence: %u (completed: %u)",
-				fence, priv->completed_fence);
-		ret = -ETIMEDOUT;
-	} else if (ret != -ERESTARTSYS) {
-		ret = 0;
+	if (fence > priv->gpu->submitted_fence) {
+		DRM_ERROR("waiting on invalid fence: %u (of %u)\n",
+				fence, priv->gpu->submitted_fence);
+		return -EINVAL;
+	}
+
+	if (!timeout) {
+		/* no-wait: */
+		ret = fence_completed(dev, fence) ? 0 : -EBUSY;
+	} else {
+		unsigned long timeout_jiffies = timespec_to_jiffies(timeout);
+		unsigned long start_jiffies = jiffies;
+		unsigned long remaining_jiffies;
+
+		if (time_after(start_jiffies, timeout_jiffies))
+			remaining_jiffies = 0;
+		else
+			remaining_jiffies = timeout_jiffies - start_jiffies;
+
+		ret = wait_event_interruptible_timeout(priv->fence_event,
+				fence_completed(dev, fence),
+				remaining_jiffies);
+
+		if (ret == 0) {
+			DBG("timeout waiting for fence: %u (completed: %u)",
+					fence, priv->completed_fence);
+			ret = -ETIMEDOUT;
+		} else if (ret != -ERESTARTSYS) {
+			ret = 0;
+		}
 	}
 
 	return ret;
 }
 
-/* call under struct_mutex */
+/* called from workqueue */
 void msm_update_fence(struct drm_device *dev, uint32_t fence)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 
-	if (fence > priv->completed_fence) {
-		priv->completed_fence = fence;
-		wake_up_all(&priv->fence_event);
+	mutex_lock(&dev->struct_mutex);
+	priv->completed_fence = max(fence, priv->completed_fence);
+
+	while (!list_empty(&priv->fence_cbs)) {
+		struct msm_fence_cb *cb;
+
+		cb = list_first_entry(&priv->fence_cbs,
+				struct msm_fence_cb, work.entry);
+
+		if (cb->fence > priv->completed_fence)
+			break;
+
+		list_del_init(&cb->work.entry);
+		queue_work(priv->wq, &cb->work);
 	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	wake_up_all(&priv->fence_event);
+}
+
+void __msm_fence_worker(struct work_struct *work)
+{
+	struct msm_fence_cb *cb = container_of(work, struct msm_fence_cb, work);
+	cb->func(cb);
 }
 
 /*
@@ -634,13 +672,13 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(MSM_GET_PARAM,    msm_ioctl_get_param,    DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_NEW,      msm_ioctl_gem_new,      DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_INFO,     msm_ioctl_gem_info,     DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_PREP, msm_ioctl_gem_cpu_prep, DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_FINI, msm_ioctl_gem_cpu_fini, DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_SUBMIT,   msm_ioctl_gem_submit,   DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(MSM_WAIT_FENCE,   msm_ioctl_wait_fence,   DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MSM_GET_PARAM,    msm_ioctl_get_param,    DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_NEW,      msm_ioctl_gem_new,      DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_INFO,     msm_ioctl_gem_info,     DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_PREP, msm_ioctl_gem_cpu_prep, DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_FINI, msm_ioctl_gem_cpu_fini, DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_SUBMIT,   msm_ioctl_gem_submit,   DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_WAIT_FENCE,   msm_ioctl_wait_fence,   DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
 static const struct vm_operations_struct vm_ops = {
@@ -664,7 +702,11 @@ static const struct file_operations fops = {
 };
 
 static struct drm_driver msm_driver = {
-	.driver_features    = DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET,
+	.driver_features    = DRIVER_HAVE_IRQ |
+				DRIVER_GEM |
+				DRIVER_PRIME |
+				DRIVER_RENDER |
+				DRIVER_MODESET,
 	.load               = msm_load,
 	.unload             = msm_unload,
 	.open               = msm_open,
@@ -681,7 +723,17 @@ static struct drm_driver msm_driver = {
 	.gem_vm_ops         = &vm_ops,
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
-	.dumb_destroy       = msm_gem_dumb_destroy,
+	.dumb_destroy       = drm_gem_dumb_destroy,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export   = drm_gem_prime_export,
+	.gem_prime_import   = drm_gem_prime_import,
+	.gem_prime_pin      = msm_gem_prime_pin,
+	.gem_prime_unpin    = msm_gem_prime_unpin,
+	.gem_prime_get_sg_table = msm_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
+	.gem_prime_vmap     = msm_gem_prime_vmap,
+	.gem_prime_vunmap   = msm_gem_prime_vunmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
 	.debugfs_cleanup    = msm_debugfs_cleanup,

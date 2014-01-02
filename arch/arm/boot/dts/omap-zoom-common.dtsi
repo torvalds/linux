@@ -1,0 +1,33 @@
+/*
+ * Common features on the Zoom debug board
+ */
+
+#include "omap-gpmc-smsc911x.dtsi"
+
+&gpmc {
+	ranges = <3 0 0x10000000 0x00000400>,
+		 <7 0 0x2c000000 0x01000000>;
+
+	/*
+	 * Four port TL16CP754C serial port on GPMC,
+	 * they probably share the same GPIO IRQ
+	 * REVISIT: Add timing support from slls644g.pdf
+	 */
+	8250@3,0 {
+		compatible = "ns16550a";
+		reg = <3 0 0x100>;
+		bank-width = <2>;
+		reg-shift = <1>;
+		reg-io-width = <1>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <6 IRQ_TYPE_EDGE_RISING>;	/* gpio102 */
+		clock-frequency = <1843200>;
+		current-speed = <115200>;
+	};
+
+	ethernet@gpmc {
+		reg = <7 0 0xff>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <30 IRQ_TYPE_LEVEL_LOW>;	/* gpio158 */
+	};
+};

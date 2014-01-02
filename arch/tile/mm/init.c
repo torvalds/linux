@@ -828,10 +828,6 @@ void __init mem_init(void)
 	printk(KERN_DEBUG "  PKMAP   %#lx - %#lx\n",
 	       PKMAP_BASE, PKMAP_ADDR(LAST_PKMAP) - 1);
 #endif
-#ifdef CONFIG_HUGEVMAP
-	printk(KERN_DEBUG "  HUGEMAP %#lx - %#lx\n",
-	       HUGE_VMAP_BASE, HUGE_VMAP_END - 1);
-#endif
 	printk(KERN_DEBUG "  VMALLOC %#lx - %#lx\n",
 	       _VMALLOC_START, _VMALLOC_END - 1);
 #ifdef __tilegx__

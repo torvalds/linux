@@ -75,6 +75,7 @@
 #define ICE			0x1
 #define ICS			0x2
 #define CEN			(1 << 2)
+#define CLKD_MAX		0x3FF		/* max clock divisor: 1023 */
 #define CLKD_MASK		0x0000FFC0
 #define CLKD_SHIFT		6
 #define DTO_MASK		0x000F0000
@@ -119,7 +120,8 @@
 		BRR_EN | BWR_EN | TC_EN | CC_EN)
 
 #define MMC_AUTOSUSPEND_DELAY	100
-#define MMC_TIMEOUT_MS		20
+#define MMC_TIMEOUT_MS		20		/* 20 mSec */
+#define MMC_TIMEOUT_US		20000		/* 20000 micro Sec */
 #define OMAP_MMC_MIN_CLOCK	400000
 #define OMAP_MMC_MAX_CLOCK	52000000
 #define DRIVER_NAME		"omap_hsmmc"
@@ -171,6 +173,10 @@ struct omap_hsmmc_host {
 	unsigned char		bus_mode;
 	unsigned char		power_mode;
 	int			suspended;
+	u32			con;
+	u32			hctl;
+	u32			sysctl;
+	u32			capa;
 	int			irq;
 	int			use_dma, dma_ch;
 	struct dma_chan		*tx_chan;
@@ -183,7 +189,6 @@ struct omap_hsmmc_host {
 	int			use_reg;
 	int			req_in_progress;
 	struct omap_hsmmc_next	next_data;
-
 	struct	omap_mmc_platform_data	*pdata;
 };
 
@@ -493,8 +498,8 @@ static u16 calc_divisor(struct omap_hsmmc_host *host, struct mmc_ios *ios)
 
 	if (ios->clock) {
 		dsor = DIV_ROUND_UP(clk_get_rate(host->fclk), ios->clock);
-		if (dsor > 250)
-			dsor = 250;
+		if (dsor > CLKD_MAX)
+			dsor = CLKD_MAX;
 	}
 
 	return dsor;
@@ -597,24 +602,19 @@ static void omap_hsmmc_set_bus_mode(struct omap_hsmmc_host *host)
 static int omap_hsmmc_context_restore(struct omap_hsmmc_host *host)
 {
 	struct mmc_ios *ios = &host->mmc->ios;
-	struct omap_mmc_platform_data *pdata = host->pdata;
-	int context_loss = 0;
 	u32 hctl, capa;
 	unsigned long timeout;
 
-	if (pdata->get_context_loss_count) {
-		context_loss = pdata->get_context_loss_count(host->dev);
-		if (context_loss < 0)
-			return 1;
-	}
-
-	dev_dbg(mmc_dev(host->mmc), "context was %slost\n",
-		context_loss == host->context_loss ? "not " : "");
-	if (host->context_loss == context_loss)
-		return 1;
-
 	if (!OMAP_HSMMC_READ(host->base, SYSSTATUS) & RESETDONE)
 		return 1;
+
+	if (host->con == OMAP_HSMMC_READ(host->base, CON) &&
+	    host->hctl == OMAP_HSMMC_READ(host->base, HCTL) &&
+	    host->sysctl == OMAP_HSMMC_READ(host->base, SYSCTL) &&
+	    host->capa == OMAP_HSMMC_READ(host->base, CAPA))
+		return 0;
+
+	host->context_loss++;
 
 	if (host->pdata->controller_flags & OMAP_HSMMC_SUPPORTS_DUAL_VOLT) {
 		if (host->power_mode != MMC_POWER_OFF &&
@@ -655,9 +655,8 @@ static int omap_hsmmc_context_restore(struct omap_hsmmc_host *host)
 	omap_hsmmc_set_bus_mode(host);
 
 out:
-	host->context_loss = context_loss;
-
-	dev_dbg(mmc_dev(host->mmc), "context is restored\n");
+	dev_dbg(mmc_dev(host->mmc), "context is restored: restore count %d\n",
+		host->context_loss);
 	return 0;
 }
 
@@ -666,15 +665,10 @@ out:
  */
 static void omap_hsmmc_context_save(struct omap_hsmmc_host *host)
 {
-	struct omap_mmc_platform_data *pdata = host->pdata;
-	int context_loss;
-
-	if (pdata->get_context_loss_count) {
-		context_loss = pdata->get_context_loss_count(host->dev);
-		if (context_loss < 0)
-			return;
-		host->context_loss = context_loss;
-	}
+	host->con =  OMAP_HSMMC_READ(host->base, CON);
+	host->hctl = OMAP_HSMMC_READ(host->base, HCTL);
+	host->sysctl =  OMAP_HSMMC_READ(host->base, SYSCTL);
+	host->capa = OMAP_HSMMC_READ(host->base, CAPA);
 }
 
 #else
@@ -975,8 +969,7 @@ static inline void omap_hsmmc_reset_controller_fsm(struct omap_hsmmc_host *host,
 						   unsigned long bit)
 {
 	unsigned long i = 0;
-	unsigned long limit = (loops_per_jiffy *
-				msecs_to_jiffies(MMC_TIMEOUT_MS));
+	unsigned long limit = MMC_TIMEOUT_US;
 
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
 			 OMAP_HSMMC_READ(host->base, SYSCTL) | bit);
@@ -988,13 +981,13 @@ static inline void omap_hsmmc_reset_controller_fsm(struct omap_hsmmc_host *host,
 	if (mmc_slot(host).features & HSMMC_HAS_UPDATED_RESET) {
 		while ((!(OMAP_HSMMC_READ(host->base, SYSCTL) & bit))
 					&& (i++ < limit))
-			cpu_relax();
+			udelay(1);
 	}
 	i = 0;
 
 	while ((OMAP_HSMMC_READ(host->base, SYSCTL) & bit) &&
 		(i++ < limit))
-		cpu_relax();
+		udelay(1);
 
 	if (OMAP_HSMMC_READ(host->base, SYSCTL) & bit)
 		dev_err(mmc_dev(host->mmc),
@@ -1177,9 +1170,6 @@ static irqreturn_t omap_hsmmc_detect(int irq, void *dev_id)
 	struct omap_hsmmc_host *host = dev_id;
 	struct omap_mmc_slot_data *slot = &mmc_slot(host);
 	int carddetect;
-
-	if (host->suspended)
-		return IRQ_HANDLED;
 
 	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
 
@@ -1635,18 +1625,9 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 {
 	struct mmc_host *mmc = s->private;
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
-	int context_loss = 0;
 
-	if (host->pdata->get_context_loss_count)
-		context_loss = host->pdata->get_context_loss_count(host->dev);
-
-	seq_printf(s, "mmc%d:\n ctx_loss:\t%d:%d\n\nregs:\n",
-			mmc->index, host->context_loss, context_loss);
-
-	if (host->suspended) {
-		seq_printf(s, "host suspended, can't read registers\n");
-		return 0;
-	}
+	seq_printf(s, "mmc%d:\n ctx_loss:\t%d\n\nregs:\n",
+			mmc->index, host->context_loss);
 
 	pm_runtime_get_sync(host->dev);
 
@@ -1838,13 +1819,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	mmc->ops	= &omap_hsmmc_ops;
 
-	/*
-	 * If regulator_disable can only put vcc_aux to sleep then there is
-	 * no off state.
-	 */
-	if (mmc_slot(host).vcc_aux_disable_is_sleep)
-		mmc_slot(host).no_off = 1;
-
 	mmc->f_min = OMAP_MMC_MIN_CLOCK;
 
 	if (pdata->max_freq > 0)
@@ -1874,7 +1848,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	omap_hsmmc_context_save(host);
 
 	/* This can be removed once we support PBIAS with DT */
-	if (host->dev->of_node && host->mapbase == 0x4809c000)
+	if (host->dev->of_node && res->start == 0x4809c000)
 		host->pbias_disable = 1;
 
 	host->dbclk = clk_get(&pdev->dev, "mmchsdb_fck");
@@ -2119,23 +2093,12 @@ static void omap_hsmmc_complete(struct device *dev)
 
 static int omap_hsmmc_suspend(struct device *dev)
 {
-	int ret = 0;
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
 
 	if (!host)
 		return 0;
 
-	if (host && host->suspended)
-		return 0;
-
 	pm_runtime_get_sync(host->dev);
-	host->suspended = 1;
-	ret = mmc_suspend_host(host->mmc);
-
-	if (ret) {
-		host->suspended = 0;
-		goto err;
-	}
 
 	if (!(host->mmc->pm_flags & MMC_PM_KEEP_POWER)) {
 		omap_hsmmc_disable_irq(host);
@@ -2145,21 +2108,17 @@ static int omap_hsmmc_suspend(struct device *dev)
 
 	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
-err:
+
 	pm_runtime_put_sync(host->dev);
-	return ret;
+	return 0;
 }
 
 /* Routine to resume the MMC device */
 static int omap_hsmmc_resume(struct device *dev)
 {
-	int ret = 0;
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
 
 	if (!host)
-		return 0;
-
-	if (host && !host->suspended)
 		return 0;
 
 	pm_runtime_get_sync(host->dev);
@@ -2172,16 +2131,9 @@ static int omap_hsmmc_resume(struct device *dev)
 
 	omap_hsmmc_protect_card(host);
 
-	/* Notify the core to resume the host */
-	ret = mmc_resume_host(host->mmc);
-	if (ret == 0)
-		host->suspended = 0;
-
 	pm_runtime_mark_last_busy(host->dev);
 	pm_runtime_put_autosuspend(host->dev);
-
-	return ret;
-
+	return 0;
 }
 
 #else

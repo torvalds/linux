@@ -61,7 +61,6 @@
 #define QLC_83XX_HOST_SDS_MBX_IDX		8
 
 #define QLCNIC_HOST_RDS_MBX_IDX			88
-#define QLCNIC_MAX_RING_SETS			8
 
 /* Pause control registers */
 #define QLC_83XX_SRE_SHIM_REG		0x0D200284
@@ -183,8 +182,8 @@ struct qlcnic_rcv_mbx_out {
 	u8	num_pci_func;
 	u8	state;
 #endif
-	u32	host_csmr[QLCNIC_MAX_RING_SETS];
-	struct __host_producer_mbx host_prod[QLCNIC_MAX_RING_SETS];
+	u32	host_csmr[QLCNIC_MAX_SDS_RINGS];
+	struct __host_producer_mbx host_prod[QLCNIC_MAX_SDS_RINGS];
 } __packed;
 
 struct qlcnic_add_rings_mbx_out {
@@ -197,8 +196,8 @@ struct qlcnic_add_rings_mbx_out {
 	u8	sts_num;
 	u8	rcv_num;
 #endif
-	u32  host_csmr[QLCNIC_MAX_RING_SETS];
-	struct __host_producer_mbx host_prod[QLCNIC_MAX_RING_SETS];
+	u32  host_csmr[QLCNIC_MAX_SDS_RINGS];
+	struct __host_producer_mbx host_prod[QLCNIC_MAX_SDS_RINGS];
 } __packed;
 
 /* Transmit context mailbox inbox registers
@@ -363,6 +362,9 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_LINK_EEE(data)		((data) & BIT_13)
 #define QLC_83XX_DCBX(data)			(((data) >> 28) & 7)
 #define QLC_83XX_AUTONEG(data)			((data) & BIT_15)
+#define QLC_83XX_TX_PAUSE			0x10
+#define QLC_83XX_RX_PAUSE			0x20
+#define QLC_83XX_TX_RX_PAUSE			0x30
 #define QLC_83XX_CFG_STD_PAUSE			(1 << 5)
 #define QLC_83XX_CFG_STD_TX_PAUSE		(1 << 20)
 #define QLC_83XX_CFG_STD_RX_PAUSE		(2 << 20)
@@ -412,8 +414,6 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_GET_VLAN_ALIGN_CAPABILITY(val)	(val & 0x4000)
 #define QLC_83XX_GET_FW_LRO_MSS_CAPABILITY(val)	(val & 0x20000)
 #define QLC_83XX_ESWITCH_CAPABILITY			BIT_23
-#define QLC_83XX_VIRTUAL_NIC_MODE			0xFF
-#define QLC_83XX_DEFAULT_MODE				0x0
 #define QLC_83XX_SRIOV_MODE				0x1
 #define QLCNIC_BRDTYPE_83XX_10G			0x0083
 
@@ -521,7 +521,7 @@ enum qlc_83xx_ext_regs {
 /* 83xx funcitons */
 int qlcnic_83xx_get_fw_version(struct qlcnic_adapter *);
 int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *, struct qlcnic_cmd_args *);
-int qlcnic_83xx_setup_intr(struct qlcnic_adapter *, u8, int);
+int qlcnic_83xx_setup_intr(struct qlcnic_adapter *);
 void qlcnic_83xx_get_func_no(struct qlcnic_adapter *);
 int qlcnic_83xx_cam_lock(struct qlcnic_adapter *);
 void qlcnic_83xx_cam_unlock(struct qlcnic_adapter *);
@@ -626,7 +626,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *);
 int qlcnic_83xx_get_vnic_vport_info(struct qlcnic_adapter *,
 				    struct qlcnic_info *, u8);
 int qlcnic_83xx_get_vnic_pf_info(struct qlcnic_adapter *, struct qlcnic_info *);
-int qlcnic_83xx_enable_port_eswitch(struct qlcnic_adapter *, int);
+int qlcnic_83xx_set_port_eswitch_status(struct qlcnic_adapter *, int, int *);
 
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *);
 void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data);

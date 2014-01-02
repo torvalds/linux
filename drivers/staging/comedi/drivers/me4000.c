@@ -427,7 +427,7 @@ static int xilinx_download(struct comedi_device *dev)
 static void me4000_reset(struct comedi_device *dev)
 {
 	struct me4000_info *info = dev->private;
-	unsigned long val;
+	unsigned int val;
 	int chan;
 
 	/* Make a hardware reset */
@@ -480,9 +480,9 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
 
-	unsigned long entry = 0;
-	unsigned long tmp;
-	long lval;
+	unsigned int entry = 0;
+	unsigned int tmp;
+	unsigned int lval;
 
 	if (insn->n == 0) {
 		return 0;
@@ -586,7 +586,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 static int me4000_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	unsigned long tmp;
+	unsigned int tmp;
 
 	/* Stop any running conversion */
 	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
@@ -783,7 +783,7 @@ static int ai_prepare(struct comedi_device *dev,
 		      unsigned int scan_ticks, unsigned int chan_ticks)
 {
 
-	unsigned long tmp = 0;
+	unsigned int tmp = 0;
 
 	/* Write timer arguments */
 	ai_write_timer(dev, init_ticks, scan_ticks, chan_ticks);
@@ -1108,7 +1108,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i;
 	int c = 0;
-	long lval;
+	unsigned int lval;
 
 	if (!dev->attached)
 		return IRQ_NONE;
@@ -1252,7 +1252,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
-	unsigned long tmp;
+	unsigned int tmp;
 
 	if (insn->n == 0) {
 		return 0;
@@ -1313,29 +1313,12 @@ static int me4000_ao_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-/*=============================================================================
-  Digital I/O section
-  ===========================================================================*/
-
 static int me4000_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	/*
-	 * The insn data consists of a mask in data[0] and the new data
-	 * in data[1]. The mask defines which bits we are concerning about.
-	 * The new data must be anded with the mask.
-	 * Each channel corresponds to a bit.
-	 */
-	if (data[0]) {
-		/* Check if requested ports are configured for output */
-		if ((s->io_bits & data[0]) != data[0])
-			return -EIO;
-
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-
-		/* Write out the new digital output lines */
+	if (comedi_dio_update_state(s, data)) {
 		outl((s->state >> 0) & 0xFF,
 			    dev->iobase + ME4000_DIO_PORT_0_REG);
 		outl((s->state >> 8) & 0xFF,
@@ -1346,8 +1329,6 @@ static int me4000_dio_insn_bits(struct comedi_device *dev,
 			    dev->iobase + ME4000_DIO_PORT_3_REG);
 	}
 
-	/* On return, data[1] contains the value of
-	   the digital input and output lines. */
 	data[1] = ((inl(dev->iobase + ME4000_DIO_PORT_0_REG) & 0xFF) << 0) |
 		  ((inl(dev->iobase + ME4000_DIO_PORT_1_REG) & 0xFF) << 8) |
 		  ((inl(dev->iobase + ME4000_DIO_PORT_2_REG) & 0xFF) << 16) |

@@ -76,6 +76,9 @@
 
 #define UDF_DEFAULT_BLOCKSIZE 2048
 
+#define VSD_FIRST_SECTOR_OFFSET		32768
+#define VSD_MAX_SECTOR_OFFSET		0x800000
+
 enum { UDF_MAX_LINKS = 0xffff };
 
 /* These are the "meat" - everything else is stuffing */
@@ -94,13 +97,25 @@ static unsigned int udf_count_free(struct super_block *);
 static int udf_statfs(struct dentry *, struct kstatfs *);
 static int udf_show_options(struct seq_file *, struct dentry *);
 
-struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct udf_sb_info *sbi)
+struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct super_block *sb)
 {
-	struct logicalVolIntegrityDesc *lvid =
-		(struct logicalVolIntegrityDesc *)sbi->s_lvid_bh->b_data;
-	__u32 number_of_partitions = le32_to_cpu(lvid->numOfPartitions);
-	__u32 offset = number_of_partitions * 2 *
-				sizeof(uint32_t)/sizeof(uint8_t);
+	struct logicalVolIntegrityDesc *lvid;
+	unsigned int partnum;
+	unsigned int offset;
+
+	if (!UDF_SB(sb)->s_lvid_bh)
+		return NULL;
+	lvid = (struct logicalVolIntegrityDesc *)UDF_SB(sb)->s_lvid_bh->b_data;
+	partnum = le32_to_cpu(lvid->numOfPartitions);
+	if ((sb->s_blocksize - sizeof(struct logicalVolIntegrityDescImpUse) -
+	     offsetof(struct logicalVolIntegrityDesc, impUse)) /
+	     (2 * sizeof(uint32_t)) < partnum) {
+		udf_err(sb, "Logical volume integrity descriptor corrupted "
+			"(numOfPartitions = %u)!\n", partnum);
+		return NULL;
+	}
+	/* The offset is to skip freeSpaceTable and sizeTable arrays */
+	offset = partnum * 2 * sizeof(uint32_t);
 	return (struct logicalVolIntegrityDescImpUse *)&(lvid->impUse[offset]);
 }
 
@@ -629,9 +644,10 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	struct udf_options uopt;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	int error = 0;
+	struct logicalVolIntegrityDescImpUse *lvidiu = udf_sb_lvidiu(sb);
 
-	if (sbi->s_lvid_bh) {
-		int write_rev = le16_to_cpu(udf_sb_lvidiu(sbi)->minUDFWriteRev);
+	if (lvidiu) {
+		int write_rev = le16_to_cpu(lvidiu->minUDFWriteRev);
 		if (write_rev > UDF_MAX_WRITE_VERSION && !(*flags & MS_RDONLY))
 			return -EACCES;
 	}
@@ -672,7 +688,7 @@ out_unlock:
 static loff_t udf_check_vsd(struct super_block *sb)
 {
 	struct volStructDesc *vsd = NULL;
-	loff_t sector = 32768;
+	loff_t sector = VSD_FIRST_SECTOR_OFFSET;
 	int sectorsize;
 	struct buffer_head *bh = NULL;
 	int nsr02 = 0;
@@ -690,8 +706,18 @@ static loff_t udf_check_vsd(struct super_block *sb)
 	udf_debug("Starting at sector %u (%ld byte sectors)\n",
 		  (unsigned int)(sector >> sb->s_blocksize_bits),
 		  sb->s_blocksize);
-	/* Process the sequence (if applicable) */
-	for (; !nsr02 && !nsr03; sector += sectorsize) {
+	/* Process the sequence (if applicable). The hard limit on the sector
+	 * offset is arbitrary, hopefully large enough so that all valid UDF
+	 * filesystems will be recognised. There is no mention of an upper
+	 * bound to the size of the volume recognition area in the standard.
+	 *  The limit will prevent the code to read all the sectors of a
+	 * specially crafted image (like a bluray disc full of CD001 sectors),
+	 * potentially causing minutes or even hours of uninterruptible I/O
+	 * activity. This actually happened with uninitialised SSD partitions
+	 * (all 0xFF) before the check for the limit and all valid IDs were
+	 * added */
+	for (; !nsr02 && !nsr03 && sector < VSD_MAX_SECTOR_OFFSET;
+	     sector += sectorsize) {
 		/* Read a block */
 		bh = udf_tread(sb, sector >> sb->s_blocksize_bits);
 		if (!bh)
@@ -701,10 +727,7 @@ static loff_t udf_check_vsd(struct super_block *sb)
 		vsd = (struct volStructDesc *)(bh->b_data +
 					      (sector & (sb->s_blocksize - 1)));
 
-		if (vsd->stdIdent[0] == 0) {
-			brelse(bh);
-			break;
-		} else if (!strncmp(vsd->stdIdent, VSD_STD_ID_CD001,
+		if (!strncmp(vsd->stdIdent, VSD_STD_ID_CD001,
 				    VSD_STD_ID_LEN)) {
 			switch (vsd->structType) {
 			case 0:
@@ -740,6 +763,17 @@ static loff_t udf_check_vsd(struct super_block *sb)
 		else if (!strncmp(vsd->stdIdent, VSD_STD_ID_NSR03,
 				    VSD_STD_ID_LEN))
 			nsr03 = sector;
+		else if (!strncmp(vsd->stdIdent, VSD_STD_ID_BOOT2,
+				    VSD_STD_ID_LEN))
+			; /* nothing */
+		else if (!strncmp(vsd->stdIdent, VSD_STD_ID_CDW02,
+				    VSD_STD_ID_LEN))
+			; /* nothing */
+		else {
+			/* invalid id : end of volume recognition area */
+			brelse(bh);
+			break;
+		}
 		brelse(bh);
 	}
 
@@ -747,7 +781,8 @@ static loff_t udf_check_vsd(struct super_block *sb)
 		return nsr03;
 	else if (nsr02)
 		return nsr02;
-	else if (sector - (sbi->s_session << sb->s_blocksize_bits) == 32768)
+	else if (!bh && sector - (sbi->s_session << sb->s_blocksize_bits) ==
+			VSD_FIRST_SECTOR_OFFSET)
 		return -1;
 	else
 		return 0;
@@ -1257,6 +1292,9 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	 * PHYSICAL partitions are already set up
 	 */
 	type1_idx = i;
+#ifdef UDFFS_DEBUG
+	map = NULL; /* supress 'maybe used uninitialized' warning */
+#endif
 	for (i = 0; i < sbi->s_partitions; i++) {
 		map = &sbi->s_partmaps[i];
 
@@ -1878,7 +1916,9 @@ static int udf_load_vrs(struct super_block *sb, struct udf_options *uopt,
 			return 0;
 		}
 		if (nsr_off == -1)
-			udf_debug("Failed to read byte 32768. Assuming open disc. Skipping validity check\n");
+			udf_debug("Failed to read sector at offset %d. "
+				  "Assuming open disc. Skipping validity "
+				  "check\n", VSD_FIRST_SECTOR_OFFSET);
 		if (!sbi->s_last_block)
 			sbi->s_last_block = udf_get_last_block(sb);
 	} else {
@@ -1905,11 +1945,12 @@ static void udf_open_lvid(struct super_block *sb)
 
 	if (!bh)
 		return;
+	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
+	lvidiu = udf_sb_lvidiu(sb);
+	if (!lvidiu)
+		return;
 
 	mutex_lock(&sbi->s_alloc_mutex);
-	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
-	lvidiu = udf_sb_lvidiu(sbi);
-
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime,
@@ -1937,10 +1978,12 @@ static void udf_close_lvid(struct super_block *sb)
 
 	if (!bh)
 		return;
+	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
+	lvidiu = udf_sb_lvidiu(sb);
+	if (!lvidiu)
+		return;
 
 	mutex_lock(&sbi->s_alloc_mutex);
-	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
-	lvidiu = udf_sb_lvidiu(sbi);
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime, CURRENT_TIME);
@@ -2093,15 +2136,19 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	if (sbi->s_lvid_bh) {
 		struct logicalVolIntegrityDescImpUse *lvidiu =
-							udf_sb_lvidiu(sbi);
-		uint16_t minUDFReadRev = le16_to_cpu(lvidiu->minUDFReadRev);
-		uint16_t minUDFWriteRev = le16_to_cpu(lvidiu->minUDFWriteRev);
-		/* uint16_t maxUDFWriteRev =
-				le16_to_cpu(lvidiu->maxUDFWriteRev); */
+							udf_sb_lvidiu(sb);
+		uint16_t minUDFReadRev;
+		uint16_t minUDFWriteRev;
 
+		if (!lvidiu) {
+			ret = -EINVAL;
+			goto error_out;
+		}
+		minUDFReadRev = le16_to_cpu(lvidiu->minUDFReadRev);
+		minUDFWriteRev = le16_to_cpu(lvidiu->minUDFWriteRev);
 		if (minUDFReadRev > UDF_MAX_READ_VERSION) {
 			udf_err(sb, "minUDFReadRev=%x (max is %x)\n",
-				le16_to_cpu(lvidiu->minUDFReadRev),
+				minUDFReadRev,
 				UDF_MAX_READ_VERSION);
 			ret = -EINVAL;
 			goto error_out;
@@ -2265,11 +2312,7 @@ static int udf_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct logicalVolIntegrityDescImpUse *lvidiu;
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
-	if (sbi->s_lvid_bh != NULL)
-		lvidiu = udf_sb_lvidiu(sbi);
-	else
-		lvidiu = NULL;
-
+	lvidiu = udf_sb_lvidiu(sb);
 	buf->f_type = UDF_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = sbi->s_partmaps[sbi->s_partition].s_partition_len;

@@ -390,10 +390,6 @@ static int __init quickstart_init(void)
 {
 	int ret;
 
-	/* ACPI Check */
-	if (acpi_disabled)
-		return -ENODEV;
-
 	/* ACPI driver register */
 	ret = acpi_bus_register_driver(&quickstart_acpi_driver);
 	if (ret)

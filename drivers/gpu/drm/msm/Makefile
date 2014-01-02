@@ -21,6 +21,7 @@ msm-y := \
 	msm_drv.o \
 	msm_fb.o \
 	msm_gem.o \
+	msm_gem_prime.o \
 	msm_gem_submit.o \
 	msm_gpu.o \
 	msm_ringbuffer.o

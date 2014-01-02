@@ -15,10 +15,15 @@
  */
 
 #include <linux/spinlock.h>
+#include <generated/bounds.h>
+
+#define USE_CMPXCHG_LOCKREF \
+	(IS_ENABLED(CONFIG_ARCH_USE_CMPXCHG_LOCKREF) && \
+	 IS_ENABLED(CONFIG_SMP) && !BLOATED_SPINLOCKS)
 
 struct lockref {
 	union {
-#ifdef CONFIG_CMPXCHG_LOCKREF
+#if USE_CMPXCHG_LOCKREF
 		aligned_u64 lock_count;
 #endif
 		struct {
@@ -35,5 +40,11 @@ extern int lockref_put_or_lock(struct lockref *);
 
 extern void lockref_mark_dead(struct lockref *);
 extern int lockref_get_not_dead(struct lockref *);
+
+/* Must be called under spinlock for reliable results */
+static inline int __lockref_is_dead(const struct lockref *l)
+{
+	return ((int)l->count < 0);
+}
 
 #endif /* __LINUX_LOCKREF_H */

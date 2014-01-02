@@ -69,8 +69,8 @@ icmpv6_manip_pkt(struct sk_buff *skb,
 	hdr = (struct icmp6hdr *)(skb->data + hdroff);
 	l3proto->csum_update(skb, iphdroff, &hdr->icmp6_cksum,
 			     tuple, maniptype);
-	if (hdr->icmp6_code == ICMPV6_ECHO_REQUEST ||
-	    hdr->icmp6_code == ICMPV6_ECHO_REPLY) {
+	if (hdr->icmp6_type == ICMPV6_ECHO_REQUEST ||
+	    hdr->icmp6_type == ICMPV6_ECHO_REPLY) {
 		inet_proto_csum_replace2(&hdr->icmp6_cksum, skb,
 					 hdr->icmp6_identifier,
 					 tuple->src.u.icmp.id, 0);

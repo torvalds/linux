@@ -1083,7 +1083,7 @@ static int hi_cfg_command(struct drxk_state *state)
 			 SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY);
 	if (status < 0)
 		goto error;
-	status = hi_command(state, SIO_HI_RA_RAM_CMD_CONFIG, 0);
+	status = hi_command(state, SIO_HI_RA_RAM_CMD_CONFIG, NULL);
 	if (status < 0)
 		goto error;
 
@@ -2781,7 +2781,7 @@ static int ConfigureI2CBridge(struct drxk_state *state, bool b_enable_bridge)
 			goto error;
 	}
 
-	status = hi_command(state, SIO_HI_RA_RAM_CMD_BRDCTRL, 0);
+	status = hi_command(state, SIO_HI_RA_RAM_CMD_BRDCTRL, NULL);
 
 error:
 	if (status < 0)

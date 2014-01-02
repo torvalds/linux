@@ -488,8 +488,7 @@ static int bt878_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	btwrite(0, BT848_INT_MASK);
 
 	result = request_irq(bt->irq, bt878_irq,
-			     IRQF_SHARED | IRQF_DISABLED, "bt878",
-			     (void *) bt);
+			     IRQF_SHARED, "bt878", (void *) bt);
 	if (result == -EINVAL) {
 		printk(KERN_ERR "bt878(%d): Bad irq number or handler\n",
 		       bt878_num);
@@ -563,7 +562,6 @@ static void bt878_remove(struct pci_dev *pci_dev)
 	bt->shutdown = 1;
 	bt878_mem_free(bt);
 
-	pci_set_drvdata(pci_dev, NULL);
 	pci_disable_device(pci_dev);
 	return;
 }

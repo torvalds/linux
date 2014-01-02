@@ -277,12 +277,13 @@ static void xennet_alloc_rx_buffers(struct net_device *dev)
 		if (!page) {
 			kfree_skb(skb);
 no_skb:
-			/* Any skbuffs queued for refill? Force them out. */
-			if (i != 0)
-				goto refill;
 			/* Could not allocate any skbuffs. Try again later. */
 			mod_timer(&np->rx_refill_timer,
 				  jiffies + (HZ/10));
+
+			/* Any skbuffs queued for refill? Force them out. */
+			if (i != 0)
+				goto refill;
 			break;
 		}
 
@@ -952,7 +953,7 @@ static int handle_incoming_queue(struct net_device *dev,
 		u64_stats_update_end(&stats->syncp);
 
 		/* Pass it up. */
-		netif_receive_skb(skb);
+		napi_gro_receive(&np->napi, skb);
 	}
 
 	return packets_dropped;
@@ -1050,6 +1051,8 @@ err:
 
 	if (work_done < budget) {
 		int more_to_do = 0;
+
+		napi_gro_flush(napi, false);
 
 		local_irq_save(flags);
 
@@ -1337,6 +1340,12 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	np->stats = alloc_percpu(struct netfront_stats);
 	if (np->stats == NULL)
 		goto exit;
+
+	for_each_possible_cpu(i) {
+		struct netfront_stats *xen_nf_stats;
+		xen_nf_stats = per_cpu_ptr(np->stats, i);
+		u64_stats_init(&xen_nf_stats->syncp);
+	}
 
 	/* Initialise tx_skbs as a free chain containing every entry. */
 	np->tx_skb_freelist = 0;

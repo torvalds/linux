@@ -599,7 +599,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 	if (r) {
 		dev_err(&ddata->pdev->dev, "failed to configure DSI pins\n");
 		goto err0;
-	};
+	}
 
 	r = in->ops.dsi->set_config(in, &dsi_config);
 	if (r) {

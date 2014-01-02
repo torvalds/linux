@@ -78,7 +78,7 @@ PGM_CHECK_DEFAULT			/* 34 */
 PGM_CHECK_DEFAULT			/* 35 */
 PGM_CHECK_DEFAULT			/* 36 */
 PGM_CHECK_DEFAULT			/* 37 */
-PGM_CHECK_64BIT(do_asce_exception)	/* 38 */
+PGM_CHECK_DEFAULT			/* 38 */
 PGM_CHECK_64BIT(do_dat_exception)	/* 39 */
 PGM_CHECK_64BIT(do_dat_exception)	/* 3a */
 PGM_CHECK_64BIT(do_dat_exception)	/* 3b */

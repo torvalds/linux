@@ -722,7 +722,7 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
-      cleanup:
+cleanup:
 	ACPI_FREE(internal_path);
 	return_ACPI_STATUS(status);
 }

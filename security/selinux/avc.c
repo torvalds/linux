@@ -746,7 +746,6 @@ inline int avc_has_perm_noaudit(u32 ssid, u32 tsid,
  * @tclass: target security class
  * @requested: requested permissions, interpreted based on @tclass
  * @auditdata: auxiliary audit data
- * @flags: VFS walk flags
  *
  * Check the AVC to determine whether the @requested permissions are granted
  * for the SID pair (@ssid, @tsid), interpreting the permissions
@@ -756,17 +755,15 @@ inline int avc_has_perm_noaudit(u32 ssid, u32 tsid,
  * permissions are granted, -%EACCES if any permissions are denied, or
  * another -errno upon other errors.
  */
-int avc_has_perm_flags(u32 ssid, u32 tsid, u16 tclass,
-		       u32 requested, struct common_audit_data *auditdata,
-		       unsigned flags)
+int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
+		 u32 requested, struct common_audit_data *auditdata)
 {
 	struct av_decision avd;
 	int rc, rc2;
 
 	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
 
-	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata,
-			flags);
+	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata);
 	if (rc2)
 		return rc2;
 	return rc;

@@ -126,7 +126,7 @@ static int rt_timer_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	rt->membase = devm_request_and_ioremap(&pdev->dev, res);
+	rt->membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rt->membase))
 		return PTR_ERR(rt->membase);
 

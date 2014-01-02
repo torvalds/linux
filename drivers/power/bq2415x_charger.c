@@ -605,9 +605,13 @@ static int bq2415x_set_battery_regulation_voltage(struct bq2415x_device *bq,
 {
 	int val = (mV/10 - 350) / 2;
 
+	/*
+	 * According to datasheet, maximum battery regulation voltage is
+	 * 4440mV which is b101111 = 47.
+	 */
 	if (val < 0)
 		val = 0;
-	else if (val > 94) /* FIXME: Max is 94 or 122 ? Set max value ? */
+	else if (val > 47)
 		return -EINVAL;
 
 	return bq2415x_i2c_write_mask(bq, BQ2415X_REG_VOLTAGE, val,

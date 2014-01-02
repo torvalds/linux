@@ -42,7 +42,6 @@
 #include <linux/cleancache.h>
 #include <linux/ratelimit.h>
 #include <linux/btrfs.h>
-#include "compat.h"
 #include "delayed-inode.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -921,7 +920,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 		return 0;
 	}
 
-	btrfs_wait_all_ordered_extents(fs_info, 1);
+	btrfs_wait_ordered_roots(fs_info, -1);
 
 	trans = btrfs_attach_transaction_barrier(root);
 	if (IS_ERR(trans)) {
@@ -1330,6 +1329,12 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		 * this also happens on 'umount -rf' or on shutdown, when
 		 * the filesystem is busy.
 		 */
+
+		/* wait for the uuid_scan task to finish */
+		down(&fs_info->uuid_tree_rescan_sem);
+		/* avoid complains from lockdep et al. */
+		up(&fs_info->uuid_tree_rescan_sem);
+
 		sb->s_flags |= MS_RDONLY;
 
 		btrfs_dev_replace_suspend_for_unmount(fs_info);
@@ -1340,6 +1345,12 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (ret)
 			goto restore;
 	} else {
+		if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state)) {
+			btrfs_err(fs_info,
+				"Remounting read-write after error is not allowed\n");
+			ret = -EINVAL;
+			goto restore;
+		}
 		if (fs_info->fs_devices->rw_devices == 0) {
 			ret = -EACCES;
 			goto restore;
@@ -1376,6 +1387,16 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (ret) {
 			pr_warn("btrfs: failed to resume dev_replace\n");
 			goto restore;
+		}
+
+		if (!fs_info->uuid_root) {
+			pr_info("btrfs: creating UUID tree\n");
+			ret = btrfs_create_uuid_tree(fs_info);
+			if (ret) {
+				pr_warn("btrfs: failed to create the uuid tree"
+					"%d\n", ret);
+				goto restore;
+			}
 		}
 		sb->s_flags &= ~MS_RDONLY;
 	}
@@ -1449,7 +1470,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	nr_devices = fs_info->fs_devices->open_devices;
 	BUG_ON(!nr_devices);
 
-	devices_info = kmalloc(sizeof(*devices_info) * nr_devices,
+	devices_info = kmalloc_array(nr_devices, sizeof(*devices_info),
 			       GFP_NOFS);
 	if (!devices_info)
 		return -ENOMEM;
@@ -1762,6 +1783,9 @@ static void btrfs_print_info(void)
 #ifdef CONFIG_BTRFS_DEBUG
 			", debug=on"
 #endif
+#ifdef CONFIG_BTRFS_ASSERT
+			", assert=on"
+#endif
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 			", integrity-checker=on"
 #endif
@@ -1770,7 +1794,25 @@ static void btrfs_print_info(void)
 
 static int btrfs_run_sanity_tests(void)
 {
-	return btrfs_test_free_space_cache();
+	int ret;
+
+	ret = btrfs_init_test_fs();
+	if (ret)
+		return ret;
+
+	ret = btrfs_test_free_space_cache();
+	if (ret)
+		goto out;
+	ret = btrfs_test_extent_buffer_operations();
+	if (ret)
+		goto out;
+	ret = btrfs_test_extent_io();
+	if (ret)
+		goto out;
+	ret = btrfs_test_inodes();
+out:
+	btrfs_destroy_test_fs();
+	return ret;
 }
 
 static int __init init_btrfs_fs(void)

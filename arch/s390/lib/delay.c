@@ -44,7 +44,7 @@ static void __udelay_disabled(unsigned long long usecs)
 	do {
 		set_clock_comparator(end);
 		vtime_stop_cpu();
-	} while (get_tod_clock() < end);
+	} while (get_tod_clock_fast() < end);
 	lockdep_on();
 	__ctl_load(cr0, 0, 0);
 	__ctl_load(cr6, 6, 6);
@@ -55,7 +55,7 @@ static void __udelay_enabled(unsigned long long usecs)
 {
 	u64 clock_saved, end;
 
-	end = get_tod_clock() + (usecs << 12);
+	end = get_tod_clock_fast() + (usecs << 12);
 	do {
 		clock_saved = 0;
 		if (end < S390_lowcore.clock_comparator) {
@@ -65,7 +65,7 @@ static void __udelay_enabled(unsigned long long usecs)
 		vtime_stop_cpu();
 		if (clock_saved)
 			local_tick_enable(clock_saved);
-	} while (get_tod_clock() < end);
+	} while (get_tod_clock_fast() < end);
 }
 
 /*
@@ -109,8 +109,8 @@ void udelay_simple(unsigned long long usecs)
 {
 	u64 end;
 
-	end = get_tod_clock() + (usecs << 12);
-	while (get_tod_clock() < end)
+	end = get_tod_clock_fast() + (usecs << 12);
+	while (get_tod_clock_fast() < end)
 		cpu_relax();
 }
 
@@ -120,10 +120,10 @@ void __ndelay(unsigned long long nsecs)
 
 	nsecs <<= 9;
 	do_div(nsecs, 125);
-	end = get_tod_clock() + nsecs;
+	end = get_tod_clock_fast() + nsecs;
 	if (nsecs & ~0xfffUL)
 		__udelay(nsecs >> 12);
-	while (get_tod_clock() < end)
+	while (get_tod_clock_fast() < end)
 		barrier();
 }
 EXPORT_SYMBOL(__ndelay);

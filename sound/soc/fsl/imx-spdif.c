@@ -87,7 +87,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_dir;
 
-	ret = snd_soc_register_card(&data->card);
+	ret = devm_snd_soc_register_card(&pdev->dev, &data->card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed: %d\n", ret);
 		goto error_dir;
@@ -118,8 +118,6 @@ static int imx_spdif_audio_remove(struct platform_device *pdev)
 		platform_device_unregister(data->rxdev);
 	if (data->txdev)
 		platform_device_unregister(data->txdev);
-
-	snd_soc_unregister_card(&data->card);
 
 	return 0;
 }

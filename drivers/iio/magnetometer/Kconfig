@@ -16,6 +16,16 @@ config AK8975
 	  To compile this driver as a module, choose M here: the module
 	  will be called ak8975.
 
+config MAG3110
+	tristate "Freescale MAG3110 3-Axis Magnetometer"
+	depends on I2C
+	help
+	  Say yes here to build support for the Freescale MAG3110 3-Axis
+	  magnetometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mag3110.
+
 config HID_SENSOR_MAGNETOMETER_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER

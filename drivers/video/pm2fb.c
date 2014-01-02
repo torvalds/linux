@@ -1694,8 +1694,8 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (retval < 0)
 		goto err_exit_all;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device, memory = %dK.\n",
-	       info->node, info->fix.id, pm2fb_fix.smem_len / 1024);
+	fb_info(info, "%s frame buffer device, memory = %dK\n",
+		info->fix.id, pm2fb_fix.smem_len / 1024);
 
 	/*
 	 * Our driver data
@@ -1744,7 +1744,6 @@ static void pm2fb_remove(struct pci_dev *pdev)
 	iounmap(par->v_regs);
 	release_mem_region(fix->mmio_start, fix->mmio_len);
 
-	pci_set_drvdata(pdev, NULL);
 	fb_dealloc_cmap(&info->cmap);
 	kfree(info->pixmap.addr);
 	framebuffer_release(info);

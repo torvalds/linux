@@ -38,32 +38,6 @@
 
 #define FUNC(name) 		GLUE(.,name)
 
-	.globl	kvmppc_skip_interrupt
-kvmppc_skip_interrupt:
-	/*
-	 * Here all GPRs are unchanged from when the interrupt happened
-	 * except for r13, which is saved in SPRG_SCRATCH0.
-	 */
-	mfspr	r13, SPRN_SRR0
-	addi	r13, r13, 4
-	mtspr	SPRN_SRR0, r13
-	GET_SCRATCH0(r13)
-	rfid
-	b	.
-
-	.globl	kvmppc_skip_Hinterrupt
-kvmppc_skip_Hinterrupt:
-	/*
-	 * Here all GPRs are unchanged from when the interrupt happened
-	 * except for r13, which is saved in SPRG_SCRATCH0.
-	 */
-	mfspr	r13, SPRN_HSRR0
-	addi	r13, r13, 4
-	mtspr	SPRN_HSRR0, r13
-	GET_SCRATCH0(r13)
-	hrfid
-	b	.
-
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
 #define FUNC(name)		name
@@ -179,11 +153,15 @@ _GLOBAL(kvmppc_entry_trampoline)
 
 	li	r6, MSR_IR | MSR_DR
 	andc	r6, r5, r6	/* Clear DR and IR in MSR value */
+#ifdef CONFIG_PPC_BOOK3S_32
 	/*
 	 * Set EE in HOST_MSR so that it's enabled when we get into our
-	 * C exit handler function
+	 * C exit handler function.  On 64-bit we delay enabling
+	 * interrupts until we have finished transferring stuff
+	 * to or from the PACA.
 	 */
 	ori	r5, r5, MSR_EE
+#endif
 	mtsrr0	r7
 	mtsrr1	r6
 	RFI

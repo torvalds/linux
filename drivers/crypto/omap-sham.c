@@ -1818,7 +1818,7 @@ static int omap_sham_get_res_of(struct omap_sham_dev *dd,
 		goto err;
 	}
 
-	dd->irq = of_irq_to_resource(node, 0, NULL);
+	dd->irq = irq_of_parse_and_map(node, 0);
 	if (!dd->irq) {
 		dev_err(dev, "can't translate OF irq value\n");
 		err = -EINVAL;

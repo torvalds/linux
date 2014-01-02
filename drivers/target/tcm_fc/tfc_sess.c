@@ -210,7 +210,8 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 	if (!sess)
 		return NULL;
 
-	sess->se_sess = transport_init_session();
+	sess->se_sess = transport_init_session_tags(TCM_FC_DEFAULT_TAGS,
+						    sizeof(struct ft_cmd));
 	if (IS_ERR(sess->se_sess)) {
 		kfree(sess);
 		return NULL;

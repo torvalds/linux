@@ -114,7 +114,7 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 		(void)acpi_tb_release_owner_id(table_index);
 	}
 
-      unlock:
+unlock:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	if (ACPI_FAILURE(status)) {

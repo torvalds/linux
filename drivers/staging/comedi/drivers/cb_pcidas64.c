@@ -1137,7 +1137,7 @@ struct pcidas64_private {
 	volatile short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
-	short ao_bounce_buffer[DAC_FIFO_SIZE];
+	unsigned short ao_bounce_buffer[DAC_FIFO_SIZE];
 };
 
 static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
@@ -3490,18 +3490,15 @@ static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int do_wbits(struct comedi_device *dev,
+		    struct comedi_subdevice *s,
+		    struct comedi_insn *insn,
+		    unsigned int *data)
 {
 	struct pcidas64_private *devpriv = dev->private;
 
-	data[0] &= 0xf;
-	/*  zero bits we are going to change */
-	s->state &= ~data[0];
-	/*  set new bits */
-	s->state |= data[0] & data[1];
-
-	writeb(s->state, devpriv->dio_counter_iobase + DO_REG);
+	if (comedi_dio_update_state(s, data))
+		writeb(s->state, devpriv->dio_counter_iobase + DO_REG);
 
 	data[1] = s->state;
 
@@ -3526,14 +3523,14 @@ static int dio_60xx_config_insn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int dio_60xx_wbits(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned int *data)
 {
 	struct pcidas64_private *devpriv = dev->private;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data)) {
 		writeb(s->state,
 		       devpriv->dio_counter_iobase + DIO_DATA_60XX_REG);
 	}

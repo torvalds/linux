@@ -257,20 +257,12 @@ static int spdif_in_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return snd_soc_register_component(&pdev->dev, &spdif_in_component,
-					 &spdif_in_dai, 1);
-}
-
-static int spdif_in_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_component(&pdev->dev);
-
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev, &spdif_in_component,
+					       &spdif_in_dai, 1);
 }
 
 static struct platform_driver spdif_in_driver = {
 	.probe		= spdif_in_probe,
-	.remove		= spdif_in_remove,
 	.driver		= {
 		.name	= "spdif-in",
 		.owner	= THIS_MODULE,

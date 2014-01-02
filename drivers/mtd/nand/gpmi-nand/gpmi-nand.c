@@ -45,7 +45,10 @@ static struct nand_bbt_descr gpmi_bbt_descr = {
 	.pattern	= scan_ff_pattern
 };
 
-/*  We will use all the (page + OOB). */
+/*
+ * We may change the layout if we can get the ECC info from the datasheet,
+ * else we will use all the (page + OOB).
+ */
 static struct nand_ecclayout gpmi_hw_ecclayout = {
 	.eccbytes = 0,
 	.eccpos = { 0, },
@@ -349,14 +352,13 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 
 int common_nfc_set_geometry(struct gpmi_nand_data *this)
 {
-	return set_geometry_by_ecc_info(this) ? 0 : legacy_set_geometry(this);
+	return legacy_set_geometry(this);
 }
 
 struct dma_chan *get_dma_chan(struct gpmi_nand_data *this)
 {
-	int chipnr = this->current_chip;
-
-	return this->dma_chans[chipnr];
+	/* We use the DMA channel 0 to access all the nand chips. */
+	return this->dma_chans[0];
 }
 
 /* Can we use the upper's buffer directly for DMA? */
@@ -392,8 +394,6 @@ static void dma_irq_callback(void *param)
 	struct gpmi_nand_data *this = param;
 	struct completion *dma_c = &this->dma_done;
 
-	complete(dma_c);
-
 	switch (this->dma_type) {
 	case DMA_FOR_COMMAND:
 		dma_unmap_sg(this->dev, &this->cmd_sgl, 1, DMA_TO_DEVICE);
@@ -418,6 +418,8 @@ static void dma_irq_callback(void *param)
 	default:
 		pr_err("in wrong DMA operation.\n");
 	}
+
+	complete(dma_c);
 }
 
 int start_dma_without_bch_irq(struct gpmi_nand_data *this,
@@ -1263,14 +1265,22 @@ static int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 static int
 gpmi_ecc_write_oob(struct mtd_info *mtd, struct nand_chip *chip, int page)
 {
-	/*
-	 * The BCH will use all the (page + oob).
-	 * Our gpmi_hw_ecclayout can only prohibit the JFFS2 to write the oob.
-	 * But it can not stop some ioctls such MEMWRITEOOB which uses
-	 * MTD_OPS_PLACE_OOB. So We have to implement this function to prohibit
-	 * these ioctls too.
-	 */
-	return -EPERM;
+	struct nand_oobfree *of = mtd->ecclayout->oobfree;
+	int status = 0;
+
+	/* Do we have available oob area? */
+	if (!of->length)
+		return -EPERM;
+
+	if (!nand_is_slc(chip))
+		return -EPERM;
+
+	chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize + of->offset, page);
+	chip->write_buf(mtd, chip->oob_poi + of->offset, of->length);
+	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
+
+	status = chip->waitfunc(mtd, chip);
+	return status & NAND_STATUS_FAIL ? -EIO : 0;
 }
 
 static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
@@ -1568,8 +1578,6 @@ static int gpmi_set_geometry(struct gpmi_nand_data *this)
 
 static int gpmi_pre_bbt_scan(struct gpmi_nand_data  *this)
 {
-	int ret;
-
 	/* Set up swap_block_mark, must be set before the gpmi_set_geometry() */
 	if (GPMI_IS_MX23(this))
 		this->swap_block_mark = false;
@@ -1577,12 +1585,8 @@ static int gpmi_pre_bbt_scan(struct gpmi_nand_data  *this)
 		this->swap_block_mark = true;
 
 	/* Set up the medium geometry */
-	ret = gpmi_set_geometry(this);
-	if (ret)
-		return ret;
+	return gpmi_set_geometry(this);
 
-	/* NAND boot init, depends on the gpmi_set_geometry(). */
-	return nand_boot_init(this);
 }
 
 static void gpmi_nfc_exit(struct gpmi_nand_data *this)
@@ -1664,7 +1668,7 @@ static int gpmi_nfc_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
-	ret = nand_scan_ident(mtd, 1, NULL);
+	ret = nand_scan_ident(mtd, GPMI_IS_MX6Q(this) ? 2 : 1, NULL);
 	if (ret)
 		goto err_out;
 
@@ -1672,9 +1676,15 @@ static int gpmi_nfc_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
+	chip->options |= NAND_SKIP_BBTSCAN;
 	ret = nand_scan_tail(mtd);
 	if (ret)
 		goto err_out;
+
+	ret = nand_boot_init(this);
+	if (ret)
+		goto err_out;
+	chip->scan_bbt(mtd);
 
 	ppdata.of_node = this->pdev->dev.of_node;
 	ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
@@ -1691,19 +1701,19 @@ static const struct platform_device_id gpmi_ids[] = {
 	{ .name = "imx23-gpmi-nand", .driver_data = IS_MX23, },
 	{ .name = "imx28-gpmi-nand", .driver_data = IS_MX28, },
 	{ .name = "imx6q-gpmi-nand", .driver_data = IS_MX6Q, },
-	{},
+	{}
 };
 
 static const struct of_device_id gpmi_nand_id_table[] = {
 	{
 		.compatible = "fsl,imx23-gpmi-nand",
-		.data = (void *)&gpmi_ids[IS_MX23]
+		.data = (void *)&gpmi_ids[IS_MX23],
 	}, {
 		.compatible = "fsl,imx28-gpmi-nand",
-		.data = (void *)&gpmi_ids[IS_MX28]
+		.data = (void *)&gpmi_ids[IS_MX28],
 	}, {
 		.compatible = "fsl,imx6q-gpmi-nand",
-		.data = (void *)&gpmi_ids[IS_MX6Q]
+		.data = (void *)&gpmi_ids[IS_MX6Q],
 	}, {}
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
@@ -1722,7 +1732,7 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	this = kzalloc(sizeof(*this), GFP_KERNEL);
+	this = devm_kzalloc(&pdev->dev, sizeof(*this), GFP_KERNEL);
 	if (!this) {
 		pr_err("Failed to allocate per-device memory\n");
 		return -ENOMEM;
@@ -1752,7 +1762,6 @@ exit_nfc_init:
 	release_resources(this);
 exit_acquire_resources:
 	dev_err(this->dev, "driver registration failed: %d\n", ret);
-	kfree(this);
 
 	return ret;
 }
@@ -1763,7 +1772,6 @@ static int gpmi_nand_remove(struct platform_device *pdev)
 
 	gpmi_nfc_exit(this);
 	release_resources(this);
-	kfree(this);
 	return 0;
 }
 

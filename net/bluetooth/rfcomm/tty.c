@@ -569,7 +569,6 @@ static void rfcomm_dev_data_ready(struct rfcomm_dlc *dlc, struct sk_buff *skb)
 static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 {
 	struct rfcomm_dev *dev = dlc->owner;
-	struct tty_struct *tty;
 	if (!dev)
 		return;
 
@@ -581,38 +580,8 @@ static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 			    DPM_ORDER_DEV_AFTER_PARENT);
 
 		wake_up_interruptible(&dev->port.open_wait);
-	} else if (dlc->state == BT_CLOSED) {
-		tty = tty_port_tty_get(&dev->port);
-		if (!tty) {
-			if (test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags)) {
-				/* Drop DLC lock here to avoid deadlock
-				 * 1. rfcomm_dev_get will take rfcomm_dev_lock
-				 *    but in rfcomm_dev_add there's lock order:
-				 *    rfcomm_dev_lock -> dlc lock
-				 * 2. tty_port_put will deadlock if it's
-				 *    the last reference
-				 *
-				 * FIXME: when we release the lock anything
-				 * could happen to dev, even its destruction
-				 */
-				rfcomm_dlc_unlock(dlc);
-				if (rfcomm_dev_get(dev->id) == NULL) {
-					rfcomm_dlc_lock(dlc);
-					return;
-				}
-
-				if (!test_and_set_bit(RFCOMM_TTY_RELEASED,
-						      &dev->flags))
-					tty_port_put(&dev->port);
-
-				tty_port_put(&dev->port);
-				rfcomm_dlc_lock(dlc);
-			}
-		} else {
-			tty_hangup(tty);
-			tty_kref_put(tty);
-		}
-	}
+	} else if (dlc->state == BT_CLOSED)
+		tty_port_tty_hangup(&dev->port, false);
 }
 
 static void rfcomm_dev_modem_status(struct rfcomm_dlc *dlc, u8 v24_sig)

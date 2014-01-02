@@ -8,6 +8,9 @@
 
 OUTPUT_ARCH(mips)
 ENTRY(start)
+PHDRS {
+	text PT_LOAD FLAGS(7); /* RWX */
+}
 SECTIONS
 {
 	/* Text and read-only data */
@@ -15,7 +18,7 @@ SECTIONS
 	.text : {
 		*(.text)
 		*(.rodata)
-	}
+	}: text
 	/* End of text section */
 
 	/* Writable data */

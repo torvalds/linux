@@ -141,7 +141,7 @@ static const char *to_qp_state_str(int state)
 		return "C2_QP_STATE_ERROR";
 	default:
 		return "<invalid QP state>";
-	};
+	}
 }
 
 void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)

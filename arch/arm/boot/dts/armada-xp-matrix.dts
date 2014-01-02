@@ -1,0 +1,75 @@
+/*
+ * Device Tree file for Marvell Armada XP Matrix board
+ *
+ * Copyright (C) 2013 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "armada-xp-mv78460.dtsi"
+
+/ {
+	model = "Marvell Armada XP Matrix Board";
+	compatible = "marvell,axp-matrix", "marvell,armadaxp-mv78460", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x00000000 0 0x80000000>; /* 2 GB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000>;
+
+		internal-regs {
+			serial@12000 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12100 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12200 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12300 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+
+			sata@a0000 {
+				nr-ports = <2>;
+				status = "okay";
+			};
+
+			ethernet@30000 {
+				status = "okay";
+				phy-mode = "sgmii";
+			};
+
+			pcie-controller {
+				status = "okay";
+
+				pcie@1,0 {
+					/* Port 0, Lane 0 */
+					status = "okay";
+				};
+			};
+
+			usb@50000 {
+				status = "okay";
+			};
+		};
+	};
+};

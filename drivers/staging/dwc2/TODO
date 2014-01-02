@@ -1,0 +1,33 @@
+TODO:
+	- Dan Carpenter would like to see some cleanups to the microframe
+	  scheduler code:
+	  http://www.mail-archive.com/linux-usb@vger.kernel.org/msg26650.html
+
+	- Should merge the NAK holdoff patch from Raspberry Pi
+	  (http://marc.info/?l=linux-usb&m=137625067103833). But as it stands
+	  that patch is incomplete, it needs more investigation to see if it
+	  can be made to work for non-Raspberry Pi platforms that lack the
+	  special FIQ interrupt that the Pi has. Without this patch, the driver
+	  has a high interrupt rate (8K/sec).
+
+	- The Raspberry Pi platform needs to have support for its FIQ interrupt
+	  added, to get the same level of functionality as the downstream
+	  driver. The raspberrypi.org developers have indicated they are
+	  willing to help with that.
+
+	- Some of the default driver parameters (see 'struct dwc2_core_params'
+	  in core.h) won't work for many platforms. So DT attributes will need
+	  to be added for some of these. But that can be done as-needed as new
+	  platforms are added.
+
+	- Eventually the driver should be merged with the s3c-hsotg peripheral
+	  mode driver, so that both modes of operation can be supported with a
+	  single driver. But I think that can wait till after the driver has
+	  been moved to mainline.
+
+	- After that, OTG support can be added. I'm not sure how much demand
+	  there is for that, though, so I have that as a low priority.
+
+Please send any patches for this driver to Paul Zimmerman <paulz@synopsys.com>
+and Greg Kroah-Hartman <gregkh@linuxfoundation.org>. And please CC linux-usb
+<linux-usb@vger.kernel.org> too.

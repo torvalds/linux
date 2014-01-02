@@ -263,7 +263,7 @@ device_has_dsm(struct device *dev)
 	acpi_handle handle;
 	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 
-	handle = DEVICE_ACPI_HANDLE(dev);
+	handle = ACPI_HANDLE(dev);
 
 	if (!handle)
 		return FALSE;
@@ -295,7 +295,7 @@ acpilabel_show(struct device *dev, struct device_attribute *attr, char *buf)
 	acpi_handle handle;
 	int length;
 
-	handle = DEVICE_ACPI_HANDLE(dev);
+	handle = ACPI_HANDLE(dev);
 
 	if (!handle)
 		return -1;
@@ -316,7 +316,7 @@ acpiindex_show(struct device *dev, struct device_attribute *attr, char *buf)
 	acpi_handle handle;
 	int length;
 
-	handle = DEVICE_ACPI_HANDLE(dev);
+	handle = ACPI_HANDLE(dev);
 
 	if (!handle)
 		return -1;

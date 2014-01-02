@@ -1027,5 +1027,8 @@ struct set_dev_state_resp {
 #define DEVREG_FAILURE_PORT_NOT_VALID_STATE		0x06
 #define DEVREG_FAILURE_DEVICE_TYPE_NOT_VALID		0x07
 
+#define GSM_BASE					0x4F0000
+#define SHIFT_REG_64K_MASK				0xffff0000
+#define SHIFT_REG_BIT_SHIFT				8
 #endif
 

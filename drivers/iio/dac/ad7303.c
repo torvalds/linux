@@ -169,6 +169,7 @@ static const struct iio_chan_spec_ext_info ad7303_ext_info[] = {
 		.name = "powerdown",
 		.read = ad7303_read_dac_powerdown,
 		.write = ad7303_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
 	{ },
 };

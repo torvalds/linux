@@ -99,6 +99,7 @@ static void atmel_stop_rx(struct uart_port *port);
 #define UART_PUT_RTOR(port,v)	__raw_writel(v, (port)->membase + ATMEL_US_RTOR)
 #define UART_PUT_TTGR(port, v)	__raw_writel(v, (port)->membase + ATMEL_US_TTGR)
 #define UART_GET_IP_NAME(port)	__raw_readl((port)->membase + ATMEL_US_NAME)
+#define UART_GET_IP_VERSION(port) __raw_readl((port)->membase + ATMEL_US_VERSION)
 
  /* PDC registers */
 #define UART_PUT_PTCR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_PTCR)
@@ -1499,10 +1500,11 @@ static void atmel_set_ops(struct uart_port *port)
 /*
  * Get ip name usart or uart
  */
-static int atmel_get_ip_name(struct uart_port *port)
+static void atmel_get_ip_name(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	int name = UART_GET_IP_NAME(port);
+	u32 version;
 	int usart, uart;
 	/* usart and uart ascii */
 	usart = 0x55534152;
@@ -1517,11 +1519,23 @@ static int atmel_get_ip_name(struct uart_port *port)
 		dev_dbg(port->dev, "This is uart\n");
 		atmel_port->is_usart = false;
 	} else {
-		dev_err(port->dev, "Not supported ip name, set to uart\n");
-		return -EINVAL;
+		/* fallback for older SoCs: use version field */
+		version = UART_GET_IP_VERSION(port);
+		switch (version) {
+		case 0x302:
+		case 0x10213:
+			dev_dbg(port->dev, "This version is usart\n");
+			atmel_port->is_usart = true;
+			break;
+		case 0x203:
+		case 0x10202:
+			dev_dbg(port->dev, "This version is uart\n");
+			atmel_port->is_usart = false;
+			break;
+		default:
+			dev_err(port->dev, "Not supported ip name nor version, set to uart\n");
+		}
 	}
-
-	return 0;
 }
 
 /*
@@ -2405,9 +2419,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	/*
 	 * Get port name of usart or uart
 	 */
-	ret = atmel_get_ip_name(&port->uart);
-	if (ret < 0)
-		goto err_add_port;
+	atmel_get_ip_name(&port->uart);
 
 	return 0;
 

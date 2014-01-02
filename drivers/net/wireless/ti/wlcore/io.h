@@ -165,8 +165,8 @@ static inline int __must_check wlcore_read_hwaddr(struct wl1271 *wl, int hwaddr,
 	int physical;
 	int addr;
 
-	/* Addresses are stored internally as addresses to 32 bytes blocks */
-	addr = hwaddr << 5;
+	/* Convert from FW internal address which is chip arch dependent */
+	addr = wl->ops->convert_hwaddr(wl, hwaddr);
 
 	physical = wlcore_translate_addr(wl, addr);
 

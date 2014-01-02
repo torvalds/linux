@@ -44,10 +44,10 @@ enum {
 	CHIP_MFLD_0130 = 3,		/* Medfield */
 };
 
-#define IS_PSB(dev) (((dev)->pci_device & 0xfffe) == 0x8108)
-#define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
-#define IS_MFLD(dev) (((dev)->pci_device & 0xfff8) == 0x0130)
-#define IS_CDV(dev) (((dev)->pci_device & 0xfff0) == 0x0be0)
+#define IS_PSB(dev) (((dev)->pdev->device & 0xfffe) == 0x8108)
+#define IS_MRST(dev) (((dev)->pdev->device & 0xfff0) == 0x4100)
+#define IS_MFLD(dev) (((dev)->pdev->device & 0xfff8) == 0x0130)
+#define IS_CDV(dev) (((dev)->pdev->device & 0xfff0) == 0x0be0)
 
 /*
  * Driver definitions
@@ -75,6 +75,7 @@ enum {
  *	PCI resource identifiers
  */
 #define PSB_MMIO_RESOURCE	 0
+#define PSB_AUX_RESOURCE	 0
 #define PSB_GATT_RESOURCE	 2
 #define PSB_GTT_RESOURCE	 3
 /*
@@ -455,6 +456,7 @@ struct psb_ops;
 
 struct drm_psb_private {
 	struct drm_device *dev;
+	struct pci_dev *aux_pdev; /* Currently only used by mrst */
 	const struct psb_ops *ops;
 	const struct psb_offset *regmap;
 	
@@ -486,6 +488,7 @@ struct drm_psb_private {
 
 	uint8_t __iomem *sgx_reg;
 	uint8_t __iomem *vdc_reg;
+	uint8_t __iomem *aux_reg; /* Auxillary vdc pipe regs */
 	uint32_t gatt_free_offset;
 
 	/*
@@ -532,6 +535,7 @@ struct drm_psb_private {
 
 	/* gmbus */
 	struct intel_gmbus *gmbus;
+	uint8_t __iomem *gmbus_reg;
 
 	/* Used by SDVO */
 	int crt_ddc_pin;
@@ -672,6 +676,7 @@ struct psb_ops {
 	int sgx_offset;		/* Base offset of SGX device */
 	int hdmi_mask;		/* Mask of HDMI CRTCs */
 	int lvds_mask;		/* Mask of LVDS CRTCs */
+	int sdvo_mask;		/* Mask of SDVO CRTCs */
 	int cursor_needs_phys;  /* If cursor base reg need physical address */
 
 	/* Sub functions */
@@ -837,7 +842,6 @@ extern const struct drm_connector_helper_funcs
 extern const struct drm_connector_funcs psb_intel_lvds_connector_funcs;
 
 /* gem.c */
-extern int psb_gem_init_object(struct drm_gem_object *obj);
 extern void psb_gem_free_object(struct drm_gem_object *obj);
 extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
@@ -928,16 +932,58 @@ static inline uint32_t REGISTER_READ(struct drm_device *dev, uint32_t reg)
 	return ioread32(dev_priv->vdc_reg + reg);
 }
 
+static inline uint32_t REGISTER_READ_AUX(struct drm_device *dev, uint32_t reg)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	return ioread32(dev_priv->aux_reg + reg);
+}
+
 #define REG_READ(reg)	       REGISTER_READ(dev, (reg))
+#define REG_READ_AUX(reg)      REGISTER_READ_AUX(dev, (reg))
+
+/* Useful for post reads */
+static inline uint32_t REGISTER_READ_WITH_AUX(struct drm_device *dev,
+					      uint32_t reg, int aux)
+{
+	uint32_t val;
+
+	if (aux)
+		val = REG_READ_AUX(reg);
+	else
+		val = REG_READ(reg);
+
+	return val;
+}
+
+#define REG_READ_WITH_AUX(reg, aux) REGISTER_READ_WITH_AUX(dev, (reg), (aux))
 
 static inline void REGISTER_WRITE(struct drm_device *dev, uint32_t reg,
-				      uint32_t val)
+				  uint32_t val)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	iowrite32((val), dev_priv->vdc_reg + (reg));
 }
 
+static inline void REGISTER_WRITE_AUX(struct drm_device *dev, uint32_t reg,
+				      uint32_t val)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	iowrite32((val), dev_priv->aux_reg + (reg));
+}
+
 #define REG_WRITE(reg, val)	REGISTER_WRITE(dev, (reg), (val))
+#define REG_WRITE_AUX(reg, val)	REGISTER_WRITE_AUX(dev, (reg), (val))
+
+static inline void REGISTER_WRITE_WITH_AUX(struct drm_device *dev, uint32_t reg,
+				      uint32_t val, int aux)
+{
+	if (aux)
+		REG_WRITE_AUX(reg, val);
+	else
+		REG_WRITE(reg, val);
+}
+
+#define REG_WRITE_WITH_AUX(reg, val, aux) REGISTER_WRITE_WITH_AUX(dev, (reg), (val), (aux))
 
 static inline void REGISTER_WRITE16(struct drm_device *dev,
 					uint32_t reg, uint32_t val)

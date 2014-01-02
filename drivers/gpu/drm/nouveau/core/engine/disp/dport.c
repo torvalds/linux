@@ -70,16 +70,9 @@ dp_set_link_config(struct dp_state *dp)
 	};
 	u32 lnkcmp;
 	u8 sink[2];
+	int ret;
 
 	DBG("%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
-
-	/* set desired link configuration on the sink */
-	sink[0] = dp->link_bw / 27000;
-	sink[1] = dp->link_nr;
-	if (dp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP)
-		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
-
-	nv_wraux(dp->aux, DPCD_LC00, sink, 2);
 
 	/* set desired link configuration on the source */
 	if ((lnkcmp = dp->info.lnkcmp)) {
@@ -96,10 +89,22 @@ dp_set_link_config(struct dp_state *dp)
 		nvbios_exec(&init);
 	}
 
-	return dp->func->lnk_ctl(dp->disp, dp->outp, dp->head,
-				 dp->link_nr, dp->link_bw / 27000,
-				 dp->dpcd[DPCD_RC02] &
-					  DPCD_RC02_ENHANCED_FRAME_CAP);
+	ret = dp->func->lnk_ctl(dp->disp, dp->outp, dp->head,
+				dp->link_nr, dp->link_bw / 27000,
+				dp->dpcd[DPCD_RC02] &
+					 DPCD_RC02_ENHANCED_FRAME_CAP);
+	if (ret) {
+		ERR("lnk_ctl failed with %d\n", ret);
+		return ret;
+	}
+
+	/* set desired link configuration on the sink */
+	sink[0] = dp->link_bw / 27000;
+	sink[1] = dp->link_nr;
+	if (dp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP)
+		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
+
+	return nv_wraux(dp->aux, DPCD_LC00, sink, 2);
 }
 
 static void
@@ -294,8 +299,17 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 
 	ret = nv_rdaux(dp->aux, 0x00000, dp->dpcd, sizeof(dp->dpcd));
 	if (ret) {
+		/* it's possible the display has been unplugged before we
+		 * get here.  we still need to execute the full set of
+		 * vbios scripts, and program the OR at a high enough
+		 * frequency to satisfy the target mode.  failure to do
+		 * so results at best in an UPDATE hanging, and at worst
+		 * with PDISP running away to join the circus.
+		 */
+		dp->dpcd[1] = link_bw[0] / 27000;
+		dp->dpcd[2] = 4;
+		dp->dpcd[3] = 0x00;
 		ERR("failed to read DPCD\n");
-		return ret;
 	}
 
 	/* adjust required bandwidth for 8B/10B coding overhead */
@@ -308,7 +322,7 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 	while (*link_bw > (dp->dpcd[1] * 27000))
 		link_bw++;
 
-	while (link_bw[0]) {
+	while ((ret = -EIO) && link_bw[0]) {
 		/* find minimum required lane count at this link rate */
 		dp->link_nr = dp->dpcd[2] & DPCD_RC02_MAX_LANE_COUNT;
 		while ((dp->link_nr >> 1) * link_bw[0] > datarate)
@@ -328,8 +342,10 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 			    !dp_link_train_eq(dp))
 				break;
 		} else
-		if (ret >= 1) {
-			/* dp_set_link_config() handled training */
+		if (ret) {
+			/* dp_set_link_config() handled training, or
+			 * we failed to communicate with the sink.
+			 */
 			break;
 		}
 
@@ -339,8 +355,10 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 
 	/* finish link training */
 	dp_set_training_pattern(dp, 0);
+	if (ret < 0)
+		ERR("link training failed\n");
 
 	/* execute post-train script from vbios */
 	dp_link_train_fini(dp);
-	return true;
+	return (ret < 0) ? false : true;
 }

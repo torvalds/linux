@@ -108,7 +108,6 @@ static int ad714x_spi_remove(struct spi_device *spi)
 	struct ad714x_chip *chip = spi_get_drvdata(spi);
 
 	ad714x_remove(chip);
-	spi_set_drvdata(spi, NULL);
 
 	return 0;
 }

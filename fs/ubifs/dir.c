@@ -192,8 +192,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 	struct ubifs_dent_node *dent;
 	struct ubifs_info *c = dir->i_sb->s_fs_info;
 
-	dbg_gen("'%.*s' in dir ino %lu",
-		dentry->d_name.len, dentry->d_name.name, dir->i_ino);
+	dbg_gen("'%pd' in dir ino %lu", dentry, dir->i_ino);
 
 	if (dentry->d_name.len > UBIFS_MAX_NLEN)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -225,8 +224,8 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		 * checking.
 		 */
 		err = PTR_ERR(inode);
-		ubifs_err("dead directory entry '%.*s', error %d",
-			  dentry->d_name.len, dentry->d_name.name, err);
+		ubifs_err("dead directory entry '%pd', error %d",
+			  dentry, err);
 		ubifs_ro_mode(c, err);
 		goto out;
 	}
@@ -260,8 +259,8 @@ static int ubifs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	 * parent directory inode.
 	 */
 
-	dbg_gen("dent '%.*s', mode %#hx in dir ino %lu",
-		dentry->d_name.len, dentry->d_name.name, mode, dir->i_ino);
+	dbg_gen("dent '%pd', mode %#hx in dir ino %lu",
+		dentry, mode, dir->i_ino);
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
@@ -509,8 +508,8 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	 * changing the parent inode.
 	 */
 
-	dbg_gen("dent '%.*s' to ino %lu (nlink %d) in dir ino %lu",
-		dentry->d_name.len, dentry->d_name.name, inode->i_ino,
+	dbg_gen("dent '%pd' to ino %lu (nlink %d) in dir ino %lu",
+		dentry, inode->i_ino,
 		inode->i_nlink, dir->i_ino);
 	ubifs_assert(mutex_is_locked(&dir->i_mutex));
 	ubifs_assert(mutex_is_locked(&inode->i_mutex));
@@ -566,8 +565,8 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	 * deletions.
 	 */
 
-	dbg_gen("dent '%.*s' from ino %lu (nlink %d) in dir ino %lu",
-		dentry->d_name.len, dentry->d_name.name, inode->i_ino,
+	dbg_gen("dent '%pd' from ino %lu (nlink %d) in dir ino %lu",
+		dentry, inode->i_ino,
 		inode->i_nlink, dir->i_ino);
 	ubifs_assert(mutex_is_locked(&dir->i_mutex));
 	ubifs_assert(mutex_is_locked(&inode->i_mutex));
@@ -656,8 +655,8 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 	 * because we have extra space reserved for deletions.
 	 */
 
-	dbg_gen("directory '%.*s', ino %lu in dir ino %lu", dentry->d_name.len,
-		dentry->d_name.name, inode->i_ino, dir->i_ino);
+	dbg_gen("directory '%pd', ino %lu in dir ino %lu", dentry,
+		inode->i_ino, dir->i_ino);
 	ubifs_assert(mutex_is_locked(&dir->i_mutex));
 	ubifs_assert(mutex_is_locked(&inode->i_mutex));
 	err = check_dir_empty(c, dentry->d_inode);
@@ -716,8 +715,8 @@ static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	 * directory inode.
 	 */
 
-	dbg_gen("dent '%.*s', mode %#hx in dir ino %lu",
-		dentry->d_name.len, dentry->d_name.name, mode, dir->i_ino);
+	dbg_gen("dent '%pd', mode %#hx in dir ino %lu",
+		dentry, mode, dir->i_ino);
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
@@ -778,8 +777,7 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	 * directory inode.
 	 */
 
-	dbg_gen("dent '%.*s' in dir ino %lu",
-		dentry->d_name.len, dentry->d_name.name, dir->i_ino);
+	dbg_gen("dent '%pd' in dir ino %lu", dentry, dir->i_ino);
 
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
@@ -853,8 +851,8 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 	 * directory inode.
 	 */
 
-	dbg_gen("dent '%.*s', target '%s' in dir ino %lu", dentry->d_name.len,
-		dentry->d_name.name, symname, dir->i_ino);
+	dbg_gen("dent '%pd', target '%s' in dir ino %lu", dentry,
+		symname, dir->i_ino);
 
 	if (len > UBIFS_MAX_INO_DATA)
 		return -ENAMETOOLONG;
@@ -979,10 +977,9 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * separately.
 	 */
 
-	dbg_gen("dent '%.*s' ino %lu in dir ino %lu to dent '%.*s' in dir ino %lu",
-		old_dentry->d_name.len, old_dentry->d_name.name,
-		old_inode->i_ino, old_dir->i_ino, new_dentry->d_name.len,
-		new_dentry->d_name.name, new_dir->i_ino);
+	dbg_gen("dent '%pd' ino %lu in dir ino %lu to dent '%pd' in dir ino %lu",
+		old_dentry, old_inode->i_ino, old_dir->i_ino,
+		new_dentry, new_dir->i_ino);
 	ubifs_assert(mutex_is_locked(&old_dir->i_mutex));
 	ubifs_assert(mutex_is_locked(&new_dir->i_mutex));
 	if (unlink)

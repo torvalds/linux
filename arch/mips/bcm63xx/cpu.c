@@ -306,14 +306,14 @@ void __init bcm63xx_cpu_init(void)
 
 	switch (c->cputype) {
 	case CPU_BMIPS3300:
-		if ((read_c0_prid() & 0xff00) != PRID_IMP_BMIPS3300_ALT)
+		if ((read_c0_prid() & PRID_IMP_MASK) != PRID_IMP_BMIPS3300_ALT)
 			__cpu_name[cpu] = "Broadcom BCM6338";
 		/* fall-through */
 	case CPU_BMIPS32:
 		chipid_reg = BCM_6345_PERF_BASE;
 		break;
 	case CPU_BMIPS4350:
-		switch ((read_c0_prid() & 0xff)) {
+		switch ((read_c0_prid() & PRID_REV_MASK)) {
 		case 0x04:
 			chipid_reg = BCM_3368_PERF_BASE;
 			break;

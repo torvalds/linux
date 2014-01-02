@@ -32,20 +32,16 @@
 
 #define BRCMS_DFS_EU (BRCMS_DFS_TPC | BRCMS_RADAR_TYPE_EU) /* Flag for DFS EU */
 
-extern struct brcms_cm_info *
-brcms_c_channel_mgr_attach(struct brcms_c_info *wlc);
+struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc);
 
-extern void brcms_c_channel_mgr_detach(struct brcms_cm_info *wlc_cm);
+void brcms_c_channel_mgr_detach(struct brcms_cm_info *wlc_cm);
 
-extern bool brcms_c_valid_chanspec_db(struct brcms_cm_info *wlc_cm,
-				      u16 chspec);
+bool brcms_c_valid_chanspec_db(struct brcms_cm_info *wlc_cm, u16 chspec);
 
-extern void brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm,
-				   u16 chanspec,
-				   struct txpwr_limits *txpwr);
-extern void brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm,
-				     u16 chanspec,
-				     u8 local_constraint_qdbm);
-extern void brcms_c_regd_init(struct brcms_c_info *wlc);
+void brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
+				struct txpwr_limits *txpwr);
+void brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm, u16 chanspec,
+				  u8 local_constraint_qdbm);
+void brcms_c_regd_init(struct brcms_c_info *wlc);
 
 #endif				/* _WLC_CHANNEL_H */

@@ -48,7 +48,6 @@
 #include <linux/vmalloc.h>
 #include <asm/io.h>
 #include "cxgb4_uld.h"
-#include "t4_hw.h"
 
 #define FW_VERSION_MAJOR 1
 #define FW_VERSION_MINOR 4

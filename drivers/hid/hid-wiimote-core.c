@@ -834,7 +834,8 @@ static void wiimote_init_set_type(struct wiimote_data *wdata,
 		goto done;
 	}
 
-	if (vendor == USB_VENDOR_ID_NINTENDO) {
+	if (vendor == USB_VENDOR_ID_NINTENDO ||
+	    vendor == USB_VENDOR_ID_NINTENDO2) {
 		if (product == USB_DEVICE_ID_NINTENDO_WIIMOTE) {
 			devtype = WIIMOTE_DEV_GEN10;
 			goto done;
@@ -1854,6 +1855,8 @@ static void wiimote_hid_remove(struct hid_device *hdev)
 
 static const struct hid_device_id wiimote_hid_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO,
+				USB_DEVICE_ID_NINTENDO_WIIMOTE) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO2,
 				USB_DEVICE_ID_NINTENDO_WIIMOTE) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO,
 				USB_DEVICE_ID_NINTENDO_WIIMOTE2) },

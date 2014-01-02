@@ -92,6 +92,9 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+
+		percpu_ref_get(&se_lun->lun_ref);
+		se_cmd->lun_ref_active = true;
 	}
 	spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
 
@@ -119,24 +122,20 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->se_lun = &se_sess->se_tpg->tpg_virt_lun0;
 		se_cmd->orig_fe_lun = 0;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+
+		percpu_ref_get(&se_lun->lun_ref);
+		se_cmd->lun_ref_active = true;
 	}
 
 	/* Directly associate cmd with se_dev */
 	se_cmd->se_dev = se_lun->lun_se_dev;
 
-	/* TODO: get rid of this and use atomics for stats */
 	dev = se_lun->lun_se_dev;
-	spin_lock_irqsave(&dev->stats_lock, flags);
-	dev->num_cmds++;
+	atomic_long_inc(&dev->num_cmds);
 	if (se_cmd->data_direction == DMA_TO_DEVICE)
-		dev->write_bytes += se_cmd->data_length;
+		atomic_long_add(se_cmd->data_length, &dev->write_bytes);
 	else if (se_cmd->data_direction == DMA_FROM_DEVICE)
-		dev->read_bytes += se_cmd->data_length;
-	spin_unlock_irqrestore(&dev->stats_lock, flags);
-
-	spin_lock_irqsave(&se_lun->lun_cmd_lock, flags);
-	list_add_tail(&se_cmd->se_lun_node, &se_lun->lun_cmd_list);
-	spin_unlock_irqrestore(&se_lun->lun_cmd_lock, flags);
+		atomic_long_add(se_cmd->data_length, &dev->read_bytes);
 
 	return 0;
 }
@@ -314,14 +313,14 @@ int core_enable_device_list_for_node(
 	deve = nacl->device_list[mapped_lun];
 
 	/*
-	 * Check if the call is handling demo mode -> explict LUN ACL
+	 * Check if the call is handling demo mode -> explicit LUN ACL
 	 * transition.  This transition must be for the same struct se_lun
 	 * + mapped_lun that was setup in demo mode..
 	 */
 	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
 		if (deve->se_lun_acl != NULL) {
 			pr_err("struct se_dev_entry->se_lun_acl"
-			       " already set for demo mode -> explict"
+			       " already set for demo mode -> explicit"
 			       " LUN ACL transition\n");
 			spin_unlock_irq(&nacl->device_list_lock);
 			return -EINVAL;
@@ -329,7 +328,7 @@ int core_enable_device_list_for_node(
 		if (deve->se_lun != lun) {
 			pr_err("struct se_dev_entry->se_lun does"
 			       " match passed struct se_lun for demo mode"
-			       " -> explict LUN ACL transition\n");
+			       " -> explicit LUN ACL transition\n");
 			spin_unlock_irq(&nacl->device_list_lock);
 			return -EINVAL;
 		}
@@ -1407,6 +1406,7 @@ static void scsi_dump_inquiry(struct se_device *dev)
 struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct se_device *dev;
+	struct se_lun *xcopy_lun;
 
 	dev = hba->transport->alloc_device(hba, name);
 	if (!dev)
@@ -1423,7 +1423,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
 	INIT_LIST_HEAD(&dev->g_dev_node);
-	spin_lock_init(&dev->stats_lock);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
 	spin_lock_init(&dev->dev_reservation_lock);
@@ -1468,6 +1467,14 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.max_write_same_len = DA_MAX_WRITE_SAME_LEN;
 	dev->dev_attrib.fabric_max_sectors = DA_FABRIC_MAX_SECTORS;
 	dev->dev_attrib.optimal_sectors = DA_FABRIC_MAX_SECTORS;
+
+	xcopy_lun = &dev->xcopy_lun;
+	xcopy_lun->lun_se_dev = dev;
+	init_completion(&xcopy_lun->lun_shutdown_comp);
+	INIT_LIST_HEAD(&xcopy_lun->lun_acl_list);
+	spin_lock_init(&xcopy_lun->lun_acl_lock);
+	spin_lock_init(&xcopy_lun->lun_sep_lock);
+	init_completion(&xcopy_lun->lun_ref_comp);
 
 	return dev;
 }

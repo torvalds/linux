@@ -33,7 +33,7 @@
 /*
  * VMALLOC and SPARSEMEM_VMEMMAP ranges.
  */
-#define VMALLOC_START		UL(0xffffff8000000000)
+#define VMALLOC_START		(UL(0xffffffffffffffff) << VA_BITS)
 #define VMALLOC_END		(PAGE_OFFSET - UL(0x400000000) - SZ_64K)
 
 #define vmemmap			((struct page *)(VMALLOC_END + SZ_64K))

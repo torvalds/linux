@@ -291,7 +291,7 @@ static int psc_ac97_of_probe(struct platform_device *op)
 
 	rc = snd_soc_set_ac97_ops(&psc_ac97_ops);
 	if (rc != 0) {
-		dev_err(&op->dev, "Failed to set AC'97 ops: %d\n", ret);
+		dev_err(&op->dev, "Failed to set AC'97 ops: %d\n", rc);
 		return rc;
 	}
 

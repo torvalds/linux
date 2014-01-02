@@ -577,9 +577,9 @@ static void cl_env_init0(struct cl_env *cle, void *debug)
  * The implementation of using hash table to connect cl_env and thread
  */
 
-static cfs_hash_t *cl_env_hash;
+static struct cfs_hash *cl_env_hash;
 
-static unsigned cl_env_hops_hash(cfs_hash_t *lh,
+static unsigned cl_env_hops_hash(struct cfs_hash *lh,
 				 const void *key, unsigned mask)
 {
 #if BITS_PER_LONG == 64
@@ -604,7 +604,7 @@ static int cl_env_hops_keycmp(const void *key, struct hlist_node *hn)
 	return (key == cle->ce_owner);
 }
 
-static void cl_env_hops_noop(cfs_hash_t *hs, struct hlist_node *hn)
+static void cl_env_hops_noop(struct cfs_hash *hs, struct hlist_node *hn)
 {
 	struct cl_env *cle = hlist_entry(hn, struct cl_env, ce_node);
 	LASSERT(cle->ce_magic == &cl_env_init0);

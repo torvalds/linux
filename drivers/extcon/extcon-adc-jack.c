@@ -27,16 +27,16 @@
 
 /**
  * struct adc_jack_data - internal data for adc_jack device driver
- * @edev        - extcon device.
- * @cable_names - list of supported cables.
- * @num_cables  - size of cable_names.
- * @adc_conditions       - list of adc value conditions.
- * @num_conditions       - size of adc_conditions.
- * @irq         - irq number of attach/detach event (0 if not exist).
- * @handling_delay      - interrupt handler will schedule extcon event
- *                      handling at handling_delay jiffies.
- * @handler     - extcon event handler called by interrupt handler.
- * @chan       - iio channel being queried.
+ * @edev:		extcon device.
+ * @cable_names:	list of supported cables.
+ * @num_cables:		size of cable_names.
+ * @adc_conditions:	list of adc value conditions.
+ * @num_conditions:	size of adc_conditions.
+ * @irq:		irq number of attach/detach event (0 if not exist).
+ * @handling_delay:	interrupt handler will schedule extcon event
+ *			handling at handling_delay jiffies.
+ * @handler:		extcon event handler called by interrupt handler.
+ * @chan:		iio channel being queried.
  */
 struct adc_jack_data {
 	struct extcon_dev edev;
@@ -64,7 +64,7 @@ static void adc_jack_handler(struct work_struct *work)
 
 	ret = iio_read_channel_raw(data->chan, &adc_val);
 	if (ret < 0) {
-		dev_err(data->edev.dev, "read channel() error: %d\n", ret);
+		dev_err(&data->edev.dev, "read channel() error: %d\n", ret);
 		return;
 	}
 
@@ -95,7 +95,7 @@ static irqreturn_t adc_jack_irq_thread(int irq, void *_data)
 static int adc_jack_probe(struct platform_device *pdev)
 {
 	struct adc_jack_data *data;
-	struct adc_jack_pdata *pdata = pdev->dev.platform_data;
+	struct adc_jack_pdata *pdata = dev_get_platdata(&pdev->dev);
 	int i, err = 0;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -110,6 +110,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	data->edev.dev.parent = &pdev->dev;
 	data->edev.supported_cable = pdata->cable_names;
 
 	/* Check the length of array and set num_cables */
@@ -148,7 +149,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	err = extcon_dev_register(&data->edev, &pdev->dev);
+	err = extcon_dev_register(&data->edev);
 	if (err)
 		goto out;
 

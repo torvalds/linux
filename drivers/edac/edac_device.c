@@ -530,12 +530,9 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev)
 
 	/* Report action taken */
 	edac_device_printk(edac_dev, KERN_INFO,
-				"Giving out device to module '%s' controller "
-				"'%s': DEV '%s' (%s)\n",
-				edac_dev->mod_name,
-				edac_dev->ctl_name,
-				edac_dev_name(edac_dev),
-				edac_op_state_to_string(edac_dev->op_state));
+		"Giving out device to module %s controller %s: DEV %s (%s)\n",
+		edac_dev->mod_name, edac_dev->ctl_name, edac_dev->dev_name,
+		edac_op_state_to_string(edac_dev->op_state));
 
 	mutex_unlock(&device_ctls_mutex);
 	return 0;

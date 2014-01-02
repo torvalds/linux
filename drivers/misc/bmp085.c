@@ -374,7 +374,7 @@ int bmp085_detect(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(bmp085_detect);
 
-static void __init bmp085_get_of_properties(struct bmp085_data *data)
+static void bmp085_get_of_properties(struct bmp085_data *data)
 {
 #ifdef CONFIG_OF
 	struct device_node *np = data->dev->of_node;

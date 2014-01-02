@@ -37,6 +37,8 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	/* Get TCB and local buffer from common pool.
 	   (It is shared by CmdQ, MgntQ, and USB coalesce DataQ) */
 	skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + DataLen + 4);
+	if (!skb)
+		return RT_STATUS_FAILURE;
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tcb_desc->queue_index = TXCMD_QUEUE;
@@ -57,105 +59,6 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	}
 
 	return rtStatus;
-}
-
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_message_handle_tx()
- *
- * Overview:	Driver internal module can call the API to send message to
- *		firmware side. For example, you can send a debug command packet.
- *		Or you can send a request for FW to modify RLX4181 LBUS HW bank.
- *		Otherwise, you can change MAC/PHT/RF register by firmware at
- *		run time. We do not support message more than one segment now.
- *
- * Input:	NONE
- *
- * Output:	NONE
- *
- * Return:	NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/06/2008	amy		porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-extern rt_status cmpk_message_handle_tx(struct net_device *dev,
-					u8 *codevirtualaddress,
-					u32 packettype, u32 buffer_len)
-{
-
-	bool	    rt_status = true;
-#ifdef RTL8192U
-	return rt_status;
-#else
-	struct r8192_priv   *priv = ieee80211_priv(dev);
-	u16		    frag_threshold;
-	u16		    frag_length, frag_offset = 0;
-
-	rt_firmware	    *pfirmware = priv->pFirmware;
-	struct sk_buff	    *skb;
-	unsigned char	    *seg_ptr;
-	cb_desc		    *tcb_desc;
-	u8                  bLastIniPkt;
-
-	firmware_init_param(dev);
-	/* Fragmentation might be required */
-	frag_threshold = pfirmware->cmdpacket_frag_thresold;
-	do {
-		if ((buffer_len - frag_offset) > frag_threshold) {
-			frag_length = frag_threshold;
-			bLastIniPkt = 0;
-
-		} else {
-			frag_length = buffer_len - frag_offset;
-			bLastIniPkt = 1;
-
-		}
-
-		/* Allocate skb buffer to contain firmware info and tx
-		   descriptor info add 4 to avoid packet appending overflow. */
-#ifdef RTL8192U
-		skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + frag_length + 4);
-#else
-		skb  = dev_alloc_skb(frag_length + 4);
-#endif
-		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
-		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-		tcb_desc->queue_index = TXCMD_QUEUE;
-		tcb_desc->bCmdOrInit = packettype;
-		tcb_desc->bLastIniPkt = bLastIniPkt;
-
-#ifdef RTL8192U
-		skb_reserve(skb, USB_HWDESC_HEADER_LEN);
-#endif
-
-		seg_ptr = skb_put(skb, buffer_len);
-		/*
-		 * Transform from little endian to big endian
-		 * and pending zero
-		 */
-		memcpy(seg_ptr, codevirtualaddress, buffer_len);
-		tcb_desc->txbuf_size = (u16)buffer_len;
-
-
-		if (!priv->ieee80211->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
-		    (!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
-		    (priv->ieee80211->queue_stop)) {
-			RT_TRACE(COMP_FIRMWARE, "======> tx full!\n");
-			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
-		} else {
-			priv->ieee80211->softmac_hard_start_xmit(skb, dev);
-		}
-
-		codevirtualaddress += frag_length;
-		frag_offset += frag_length;
-
-	} while (frag_offset < buffer_len);
-
-	return rt_status;
-
-
-#endif
 }
 
 /*-----------------------------------------------------------------------------
@@ -591,8 +494,8 @@ static void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
  *  05/06/2008		amy	Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-extern u32 cmpk_message_handle_rx(struct net_device *dev,
-				  struct ieee80211_rx_stats *pstats)
+u32 cmpk_message_handle_rx(struct net_device *dev,
+			   struct ieee80211_rx_stats *pstats)
 {
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;

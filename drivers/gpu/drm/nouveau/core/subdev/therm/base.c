@@ -92,10 +92,11 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 	struct nouveau_timer *ptimer = nouveau_timer(therm);
 	struct nouveau_therm_priv *priv = (void *)therm;
 	unsigned long flags;
-	int duty;
+	bool immd = true;
+	bool poll = true;
+	int duty = -1;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	nv_debug(therm, "FAN speed check\n");
 	if (mode < 0)
 		mode = priv->mode;
 	priv->mode = mode;
@@ -106,28 +107,49 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 		duty = nouveau_therm_fan_get(therm);
 		if (duty < 0)
 			duty = 100;
+		poll = false;
 		break;
 	case NOUVEAU_THERM_CTRL_AUTO:
-		if (priv->fan->bios.nr_fan_trip)
+		if (priv->fan->bios.nr_fan_trip) {
 			duty = nouveau_therm_update_trip(therm);
-		else
+		} else
+		if (priv->fan->bios.linear_min_temp ||
+		    priv->fan->bios.linear_max_temp) {
 			duty = nouveau_therm_update_linear(therm);
+		} else {
+			if (priv->cstate)
+				duty = priv->cstate;
+			poll = false;
+		}
+		immd = false;
 		break;
 	case NOUVEAU_THERM_CTRL_NONE:
 	default:
 		ptimer->alarm_cancel(ptimer, &priv->alarm);
-		goto done;
+		poll = false;
 	}
 
-	nv_debug(therm, "FAN target request: %d%%\n", duty);
-	nouveau_therm_fan_set(therm, (mode != NOUVEAU_THERM_CTRL_AUTO), duty);
-
-done:
-	if (list_empty(&priv->alarm.head) && (mode == NOUVEAU_THERM_CTRL_AUTO))
+	if (list_empty(&priv->alarm.head) && poll)
 		ptimer->alarm(ptimer, 1000000000ULL, &priv->alarm);
-	else if (!list_empty(&priv->alarm.head))
-		nv_debug(therm, "therm fan alarm list is not empty\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (duty >= 0) {
+		nv_debug(therm, "FAN target request: %d%%\n", duty);
+		nouveau_therm_fan_set(therm, immd, duty);
+	}
+}
+
+int
+nouveau_therm_cstate(struct nouveau_therm *ptherm, int fan, int dir)
+{
+	struct nouveau_therm_priv *priv = (void *)ptherm;
+	if (!dir || (dir < 0 && fan < priv->cstate) ||
+		    (dir > 0 && fan > priv->cstate)) {
+		nv_debug(ptherm, "default fan speed -> %d%%\n", fan);
+		priv->cstate = fan;
+		nouveau_therm_update(ptherm, -1);
+	}
+	return 0;
 }
 
 static void
@@ -149,14 +171,15 @@ nouveau_therm_fan_mode(struct nouveau_therm *therm, int mode)
 		"automatic"
 	};
 
-	/* The default PDAEMON ucode interferes with fan management */
+	/* The default PPWR ucode on fermi interferes with fan management */
 	if ((mode >= ARRAY_SIZE(name)) ||
-	    (mode != NOUVEAU_THERM_CTRL_NONE && device->card_type >= NV_C0))
+	    (mode != NOUVEAU_THERM_CTRL_NONE && device->card_type >= NV_C0 &&
+	     !nouveau_subdev(device, NVDEV_SUBDEV_PWR)))
 		return -EINVAL;
 
 	/* do not allow automatic fan management if the thermal sensor is
 	 * not available */
-	if (priv->mode == 2 && therm->temp_get(therm) < 0)
+	if (priv->mode == NOUVEAU_THERM_CTRL_AUTO && therm->temp_get(therm) < 0)
 		return -EINVAL;
 
 	if (priv->mode == mode)
@@ -335,7 +358,7 @@ nouveau_therm_preinit(struct nouveau_therm *therm)
 	nouveau_therm_ic_ctor(therm);
 	nouveau_therm_fan_ctor(therm);
 
-	nouveau_therm_fan_mode(therm, NOUVEAU_THERM_CTRL_NONE);
+	nouveau_therm_fan_mode(therm, NOUVEAU_THERM_CTRL_AUTO);
 	nouveau_therm_sensor_preinit(therm);
 	return 0;
 }

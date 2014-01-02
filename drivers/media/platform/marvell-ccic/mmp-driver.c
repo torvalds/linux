@@ -481,7 +481,6 @@ static int mmpcam_remove(struct mmp_camera *cam)
 	struct mmp_camera_platform_data *pdata;
 
 	mmpcam_remove_device(cam);
-	free_irq(cam->irq, mcam);
 	mccic_shutdown(mcam);
 	mmpcam_power_down(mcam);
 	pdata = cam->pdev->dev.platform_data;

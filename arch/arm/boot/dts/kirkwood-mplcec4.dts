@@ -17,7 +17,6 @@
         };
 
 	mbus {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 
@@ -96,37 +95,6 @@
                         pinctrl-names = "default";
                 };
 
-                nand@3000000 {
-                        pinctrl-0 = <&pmx_nand>;
-                        pinctrl-names = "default";
-                        status = "okay";
-
-                        partition@0 {
-                                label = "uboot";
-                                reg = <0x0000000 0x100000>;
-                        };
-
-                        partition@100000 {
-                                label = "env";
-                                reg = <0x100000 0x80000>;
-                        };
-
-                        partition@180000 {
-                                label = "fdt";
-                                reg = <0x180000 0x80000>;
-                        };
-
-                        partition@200000 {
-                                label = "kernel";
-                                reg = <0x200000 0x400000>;
-                        };
-
-                        partition@600000 {
-                                label = "rootfs";
-                                reg = <0x600000 0x1fa00000>;
-                        };
-                };
-
 		rtc@10300 {
 			status = "disabled";
 		};
@@ -191,6 +159,37 @@
 			default-state = "on";
 		};
 
+	};
+};
+
+&nand {
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0x100000>;
+	};
+
+	partition@100000 {
+		label = "env";
+		reg = <0x100000 0x80000>;
+	};
+
+	partition@180000 {
+		label = "fdt";
+		reg = <0x180000 0x80000>;
+	};
+
+	partition@200000 {
+		label = "kernel";
+		reg = <0x200000 0x400000>;
+	};
+
+	partition@600000 {
+		label = "rootfs";
+		reg = <0x600000 0x1fa00000>;
 	};
 };
 

@@ -268,7 +268,7 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 	aes_writel(dd, value, TEGRA_AES_SECURE_INPUT_SELECT);
 
 	aes_writel(dd, out_addr, TEGRA_AES_SECURE_DEST_ADDR);
-	INIT_COMPLETION(dd->op_complete);
+	reinit_completion(&dd->op_complete);
 
 	for (i = 0; i < AES_HW_MAX_ICQ_LENGTH - 1; i++) {
 		do {

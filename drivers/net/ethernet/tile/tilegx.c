@@ -2230,7 +2230,7 @@ static void tile_net_dev_init(const char *name, const uint8_t *mac)
 		nz_addr |= mac[i];
 
 	if (nz_addr) {
-		memcpy(dev->dev_addr, mac, 6);
+		memcpy(dev->dev_addr, mac, ETH_ALEN);
 		dev->addr_len = 6;
 	} else {
 		eth_hw_addr_random(dev);

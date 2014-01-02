@@ -223,9 +223,13 @@ static int __init nvram_write_header(struct nvram_partition * part)
 {
 	loff_t tmp_index;
 	int rc;
-	
+	struct nvram_header phead;
+
+	memcpy(&phead, &part->header, NVRAM_HEADER_LEN);
+	phead.length = cpu_to_be16(phead.length);
+
 	tmp_index = part->index;
-	rc = ppc_md.nvram_write((char *)&part->header, NVRAM_HEADER_LEN, &tmp_index); 
+	rc = ppc_md.nvram_write((char *)&phead, NVRAM_HEADER_LEN, &tmp_index);
 
 	return rc;
 }
@@ -504,6 +508,8 @@ int __init nvram_scan_partitions(void)
 		cur_index -= NVRAM_HEADER_LEN; /* nvram_read will advance us */
 
 		memcpy(&phead, header, NVRAM_HEADER_LEN);
+
+		phead.length = be16_to_cpu(phead.length);
 
 		err = 0;
 		c_sum = nvram_checksum(&phead);

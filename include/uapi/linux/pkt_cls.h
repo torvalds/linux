@@ -388,6 +388,20 @@ enum {
 
 #define TCA_CGROUP_MAX (__TCA_CGROUP_MAX - 1)
 
+/* BPF classifier */
+
+enum {
+	TCA_BPF_UNSPEC,
+	TCA_BPF_ACT,
+	TCA_BPF_POLICE,
+	TCA_BPF_CLASSID,
+	TCA_BPF_OPS_LEN,
+	TCA_BPF_OPS,
+	__TCA_BPF_MAX,
+};
+
+#define TCA_BPF_MAX (__TCA_BPF_MAX - 1)
+
 /* Extended Matches */
 
 struct tcf_ematch_tree_hdr {

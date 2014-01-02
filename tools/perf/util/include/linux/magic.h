@@ -9,4 +9,8 @@
 #define SYSFS_MAGIC            0x62656572
 #endif
 
+#ifndef PROC_SUPER_MAGIC
+#define PROC_SUPER_MAGIC       0x9fa0
+#endif
+
 #endif

@@ -506,7 +506,6 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 		goto out_list;
 	}
 	mgm = mailbox->buf;
-	memset(mgm, 0, sizeof *mgm);
 	members_count = 0;
 	list_for_each_entry(dqp, &s_steer->promisc_qps[steer], list)
 		mgm->qp[members_count++] = cpu_to_be32(dqp->qpn & MGM_QPN_MASK);
@@ -645,7 +644,7 @@ static const u8 __promisc_mode[] = {
 int mlx4_map_sw_to_hw_steering_mode(struct mlx4_dev *dev,
 				    enum mlx4_net_trans_promisc_mode flow_type)
 {
-	if (flow_type >= MLX4_FS_MODE_NUM || flow_type < 0) {
+	if (flow_type >= MLX4_FS_MODE_NUM) {
 		mlx4_err(dev, "Invalid flow type. type = %d\n", flow_type);
 		return -EINVAL;
 	}
@@ -681,7 +680,7 @@ const u16 __sw_id_hw[] = {
 int mlx4_map_sw_to_hw_steering_id(struct mlx4_dev *dev,
 				  enum mlx4_net_trans_rule_id id)
 {
-	if (id >= MLX4_NET_TRANS_RULE_NUM || id < 0) {
+	if (id >= MLX4_NET_TRANS_RULE_NUM) {
 		mlx4_err(dev, "Invalid network rule id. id = %d\n", id);
 		return -EINVAL;
 	}
@@ -706,7 +705,7 @@ static const int __rule_hw_sz[] = {
 int mlx4_hw_rule_sz(struct mlx4_dev *dev,
 	       enum mlx4_net_trans_rule_id id)
 {
-	if (id >= MLX4_NET_TRANS_RULE_NUM || id < 0) {
+	if (id >= MLX4_NET_TRANS_RULE_NUM) {
 		mlx4_err(dev, "Invalid network rule id. id = %d\n", id);
 		return -EINVAL;
 	}
@@ -857,7 +856,6 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
-	memset(mailbox->buf, 0, sizeof(struct mlx4_net_trans_rule_hw_ctrl));
 	trans_rule_ctrl_to_hw(rule, mailbox->buf);
 
 	size += sizeof(struct mlx4_net_trans_rule_hw_ctrl);

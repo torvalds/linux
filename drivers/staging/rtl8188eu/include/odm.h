@@ -283,8 +283,6 @@ struct odm_rate_adapt {
 
 /*  Declare for common info */
 
-#define MAX_PATH_NUM_92CS	2
-
 struct odm_phy_status_info {
 	u8	RxPWDBAll;
 	u8	SignalQuality;	 /*  in 0-100 index. */
@@ -950,7 +948,7 @@ struct odm_dm_struct {
 	struct timer_list FastAntTrainingTimer;
 };		/*  DM_Dynamic_Mechanism_Structure */
 
-#define ODM_RF_PATH_MAX 2
+#define ODM_RF_PATH_MAX 3
 
 enum ODM_RF_RADIO_PATH {
 	ODM_RF_PATH_A = 0,   /* Radio Path A */
@@ -1010,7 +1008,7 @@ enum dm_dig_op {
 #define		DM_false_ALARM_THRESH_LOW	400
 #define		DM_false_ALARM_THRESH_HIGH	1000
 
-#define		DM_DIG_MAX_NIC			0x3e
+#define		DM_DIG_MAX_NIC			0x4e
 #define		DM_DIG_MIN_NIC			0x1e /* 0x22/0x1c */
 
 #define		DM_DIG_MAX_AP			0x32

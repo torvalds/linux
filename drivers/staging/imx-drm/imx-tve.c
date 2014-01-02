@@ -151,7 +151,7 @@ static void tve_enable(struct imx_tve *tve)
 
 	spin_lock_irqsave(&tve->enable_lock, flags);
 	if (!tve->enabled) {
-		tve->enabled = 1;
+		tve->enabled = true;
 		clk_prepare_enable(tve->clk);
 		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
 					 TVE_IPU_CLK_EN | TVE_EN,
@@ -180,7 +180,7 @@ static void tve_disable(struct imx_tve *tve)
 
 	spin_lock_irqsave(&tve->enable_lock, flags);
 	if (tve->enabled) {
-		tve->enabled = 0;
+		tve->enabled = false;
 		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
 					 TVE_IPU_CLK_EN | TVE_EN, 0);
 		clk_disable_unprepare(tve->clk);
@@ -696,7 +696,7 @@ static int imx_tve_probe(struct platform_device *pdev)
 	if (val != 0x00100000) {
 		dev_err(&pdev->dev, "configuration register default value indicates this is not a TVEv2\n");
 		return -ENODEV;
-	};
+	}
 
 	/* disable cable detection for VGA mode */
 	ret = regmap_write(tve->regmap, TVE_CD_CONT_REG, 0);

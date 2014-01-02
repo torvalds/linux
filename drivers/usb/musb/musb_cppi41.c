@@ -484,6 +484,7 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 		if (ret)
 			goto err;
 
+		ret = -EINVAL;
 		if (port > MUSB_DMA_NUM_CHANNELS || !port)
 			goto err;
 		if (is_tx)
@@ -503,6 +504,7 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 		dc = dma_request_slave_channel(dev, str);
 		if (!dc) {
 			dev_err(dev, "Falied to request %s.\n", str);
+			ret = -EPROBE_DEFER;
 			goto err;
 		}
 		cppi41_channel->dc = dc;
@@ -510,7 +512,7 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 	return 0;
 err:
 	cppi41_release_all_dma_chans(controller);
-	return -EINVAL;
+	return ret;
 }
 
 void dma_controller_destroy(struct dma_controller *c)
@@ -526,7 +528,7 @@ struct dma_controller *dma_controller_create(struct musb *musb,
 					void __iomem *base)
 {
 	struct cppi41_dma_controller *controller;
-	int ret;
+	int ret = 0;
 
 	if (!musb->controller->of_node) {
 		dev_err(musb->controller, "Need DT for the DMA engine.\n");
@@ -553,5 +555,7 @@ struct dma_controller *dma_controller_create(struct musb *musb,
 plat_get_fail:
 	kfree(controller);
 kzalloc_fail:
+	if (ret == -EPROBE_DEFER)
+		return ERR_PTR(ret);
 	return NULL;
 }

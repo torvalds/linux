@@ -19,8 +19,11 @@
 	};
 
 	syscon {
-		/* AP system controller registers */
+		compatible = "arm,integrator-ap-syscon";
 		reg = <0x11000000 0x100>;
+		interrupt-parent = <&pic>;
+		/* These are the logical module IRQs */
+		interrupts = <9>, <10>, <11>, <12>;
 	};
 
 	timer0: timer@13000000 {

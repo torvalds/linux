@@ -235,7 +235,6 @@ static bool loss_4state(struct netem_sched_data *q)
 			clg->state = 2;
 		else if (clg->a3 < rnd && rnd < clg->a2 + clg->a3) {
 			clg->state = 1;
-			return true;
 		} else if (clg->a2 + clg->a3 < rnd) {
 			clg->state = 3;
 			return true;
@@ -356,6 +355,21 @@ static psched_time_t packet_len_2_sched_time(unsigned int len, struct netem_sche
 
 	do_div(ticks, q->rate);
 	return PSCHED_NS2TICKS(ticks);
+}
+
+static void tfifo_reset(struct Qdisc *sch)
+{
+	struct netem_sched_data *q = qdisc_priv(sch);
+	struct rb_node *p;
+
+	while ((p = rb_first(&q->t_root))) {
+		struct sk_buff *skb = netem_rb_to_skb(p);
+
+		rb_erase(p, &q->t_root);
+		skb->next = NULL;
+		skb->prev = NULL;
+		kfree_skb(skb);
+	}
 }
 
 static void tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
@@ -520,6 +534,7 @@ static unsigned int netem_drop(struct Qdisc *sch)
 			skb->next = NULL;
 			skb->prev = NULL;
 			len = qdisc_pkt_len(skb);
+			sch->qstats.backlog -= len;
 			kfree_skb(skb);
 		}
 	}
@@ -609,6 +624,7 @@ static void netem_reset(struct Qdisc *sch)
 	struct netem_sched_data *q = qdisc_priv(sch);
 
 	qdisc_reset_queue(sch);
+	tfifo_reset(sch);
 	if (q->qdisc)
 		qdisc_reset(q->qdisc);
 	qdisc_watchdog_cancel(&q->watchdog);

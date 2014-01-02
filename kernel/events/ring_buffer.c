@@ -12,39 +12,9 @@
 #include <linux/perf_event.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/circ_buf.h>
 
 #include "internal.h"
-
-static bool perf_output_space(struct ring_buffer *rb, unsigned long tail,
-			      unsigned long offset, unsigned long head)
-{
-	unsigned long sz = perf_data_size(rb);
-	unsigned long mask = sz - 1;
-
-	/*
-	 * check if user-writable
-	 * overwrite : over-write its own tail
-	 * !overwrite: buffer possibly drops events.
-	 */
-	if (rb->overwrite)
-		return true;
-
-	/*
-	 * verify that payload is not bigger than buffer
-	 * otherwise masking logic may fail to detect
-	 * the "not enough space" condition
-	 */
-	if ((head - offset) > sz)
-		return false;
-
-	offset = (offset - tail) & mask;
-	head   = (head   - tail) & mask;
-
-	if ((int)(head - offset) < 0)
-		return false;
-
-	return true;
-}
 
 static void perf_output_wakeup(struct perf_output_handle *handle)
 {
@@ -87,15 +57,36 @@ again:
 		goto out;
 
 	/*
-	 * Publish the known good head. Rely on the full barrier implied
-	 * by atomic_dec_and_test() order the rb->head read and this
-	 * write.
+	 * Since the mmap() consumer (userspace) can run on a different CPU:
+	 *
+	 *   kernel				user
+	 *
+	 *   READ ->data_tail			READ ->data_head
+	 *   smp_mb()	(A)			smp_rmb()	(C)
+	 *   WRITE $data			READ $data
+	 *   smp_wmb()	(B)			smp_mb()	(D)
+	 *   STORE ->data_head			WRITE ->data_tail
+	 *
+	 * Where A pairs with D, and B pairs with C.
+	 *
+	 * I don't think A needs to be a full barrier because we won't in fact
+	 * write data until we see the store from userspace. So we simply don't
+	 * issue the data WRITE until we observe it. Be conservative for now.
+	 *
+	 * OTOH, D needs to be a full barrier since it separates the data READ
+	 * from the tail WRITE.
+	 *
+	 * For B a WMB is sufficient since it separates two WRITEs, and for C
+	 * an RMB is sufficient since it separates two READs.
+	 *
+	 * See perf_output_begin().
 	 */
+	smp_wmb();
 	rb->user_page->data_head = head;
 
 	/*
-	 * Now check if we missed an update, rely on the (compiler)
-	 * barrier in atomic_dec_and_test() to re-read rb->head.
+	 * Now check if we missed an update -- rely on previous implied
+	 * compiler barriers to force a re-read.
 	 */
 	if (unlikely(head != local_read(&rb->head))) {
 		local_inc(&rb->nest);
@@ -114,8 +105,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 {
 	struct ring_buffer *rb;
 	unsigned long tail, offset, head;
-	int have_lost;
-	struct perf_sample_data sample_data;
+	int have_lost, page_shift;
 	struct {
 		struct perf_event_header header;
 		u64			 id;
@@ -130,55 +120,63 @@ int perf_output_begin(struct perf_output_handle *handle,
 		event = event->parent;
 
 	rb = rcu_dereference(event->rb);
-	if (!rb)
+	if (unlikely(!rb))
 		goto out;
 
-	handle->rb	= rb;
-	handle->event	= event;
-
-	if (!rb->nr_pages)
+	if (unlikely(!rb->nr_pages))
 		goto out;
+
+	handle->rb    = rb;
+	handle->event = event;
 
 	have_lost = local_read(&rb->lost);
-	if (have_lost) {
-		lost_event.header.size = sizeof(lost_event);
-		perf_event_header__init_id(&lost_event.header, &sample_data,
-					   event);
-		size += lost_event.header.size;
+	if (unlikely(have_lost)) {
+		size += sizeof(lost_event);
+		if (event->attr.sample_id_all)
+			size += event->id_header_size;
 	}
 
 	perf_output_get_handle(handle);
 
 	do {
-		/*
-		 * Userspace could choose to issue a mb() before updating the
-		 * tail pointer. So that all reads will be completed before the
-		 * write is issued.
-		 */
 		tail = ACCESS_ONCE(rb->user_page->data_tail);
-		smp_rmb();
 		offset = head = local_read(&rb->head);
-		head += size;
-		if (unlikely(!perf_output_space(rb, tail, offset, head)))
+		if (!rb->overwrite &&
+		    unlikely(CIRC_SPACE(head, tail, perf_data_size(rb)) < size))
 			goto fail;
+		head += size;
 	} while (local_cmpxchg(&rb->head, offset, head) != offset);
 
-	if (head - local_read(&rb->wakeup) > rb->watermark)
+	/*
+	 * Separate the userpage->tail read from the data stores below.
+	 * Matches the MB userspace SHOULD issue after reading the data
+	 * and before storing the new tail position.
+	 *
+	 * See perf_output_put_handle().
+	 */
+	smp_mb();
+
+	if (unlikely(head - local_read(&rb->wakeup) > rb->watermark))
 		local_add(rb->watermark, &rb->wakeup);
 
-	handle->page = offset >> (PAGE_SHIFT + page_order(rb));
-	handle->page &= rb->nr_pages - 1;
-	handle->size = offset & ((PAGE_SIZE << page_order(rb)) - 1);
-	handle->addr = rb->data_pages[handle->page];
-	handle->addr += handle->size;
-	handle->size = (PAGE_SIZE << page_order(rb)) - handle->size;
+	page_shift = PAGE_SHIFT + page_order(rb);
 
-	if (have_lost) {
+	handle->page = (offset >> page_shift) & (rb->nr_pages - 1);
+	offset &= (1UL << page_shift) - 1;
+	handle->addr = rb->data_pages[handle->page] + offset;
+	handle->size = (1UL << page_shift) - offset;
+
+	if (unlikely(have_lost)) {
+		struct perf_sample_data sample_data;
+
+		lost_event.header.size = sizeof(lost_event);
 		lost_event.header.type = PERF_RECORD_LOST;
 		lost_event.header.misc = 0;
 		lost_event.id          = event->id;
 		lost_event.lost        = local_xchg(&rb->lost, 0);
 
+		perf_event_header__init_id(&lost_event.header,
+					   &sample_data, event);
 		perf_output_put(handle, lost_event);
 		perf_event__output_id_sample(event, handle, &sample_data);
 	}

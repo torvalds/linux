@@ -116,6 +116,22 @@
 			arm,data-latency = <4 2 3>;
 		};
 
+		pcie: pcie@0x01000000 {
+			compatible = "fsl,imx6q-pcie", "snps,dw-pcie";
+			reg = <0x01ffc000 0x4000>; /* DBI */
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges = <0x00000800 0 0x01f00000 0x01f00000 0 0x00080000 /* configuration space */
+				  0x81000000 0 0          0x01f80000 0 0x00010000 /* downstream I/O */
+				  0x82000000 0 0x01000000 0x01000000 0 0x00f00000>; /* non-prefetchable memory */
+			num-lanes = <1>;
+			interrupts = <0 123 0x04>;
+			clocks = <&clks 189>, <&clks 187>, <&clks 206>, <&clks 144>;
+			clock-names = "pcie_ref_125m", "sata_ref_100m", "lvds_gate", "pcie_axi";
+			status = "disabled";
+		};
+
 		pmu {
 			compatible = "arm,cortex-a9-pmu";
 			interrupts = <0 94 0x04>;
@@ -136,8 +152,23 @@
 				ranges;
 
 				spdif: spdif@02004000 {
+					compatible = "fsl,imx35-spdif";
 					reg = <0x02004000 0x4000>;
 					interrupts = <0 52 0x04>;
+					dmas = <&sdma 14 18 0>,
+					       <&sdma 15 18 0>;
+					dma-names = "rx", "tx";
+					clocks = <&clks 197>, <&clks 3>,
+						 <&clks 197>, <&clks 107>,
+						 <&clks 0>,   <&clks 118>,
+						 <&clks 62>,  <&clks 139>,
+						 <&clks 0>;
+					clock-names = "core",  "rxtx0",
+						      "rxtx1", "rxtx2",
+						      "rxtx3", "rxtx4",
+						      "rxtx5", "rxtx6",
+						      "rxtx7";
+					status = "disabled";
 				};
 
 				ecspi1: ecspi@02008000 {
@@ -1010,6 +1041,12 @@
 							MX6QDL_PAD_GPIO_17__SPDIF_OUT 0x1b0b0
 						>;
 					};
+
+					pinctrl_spdif_3: spdifgrp-3 {
+						fsl,pins = <
+							MX6QDL_PAD_ENET_RXD0__SPDIF_OUT 0x1b0b0
+						>;
+					};
 				};
 
 				uart1 {
@@ -1181,6 +1218,36 @@
 							MX6QDL_PAD_SD3_DAT5__SD3_DATA5 0x17059
 							MX6QDL_PAD_SD3_DAT6__SD3_DATA6 0x17059
 							MX6QDL_PAD_SD3_DAT7__SD3_DATA7 0x17059
+						>;
+					};
+
+					pinctrl_usdhc3_1_100mhz: usdhc3grp-1-100mhz { /* 100Mhz */
+						fsl,pins = <
+							MX6QDL_PAD_SD3_CMD__SD3_CMD 0x170b9
+							MX6QDL_PAD_SD3_CLK__SD3_CLK 0x100b9
+							MX6QDL_PAD_SD3_DAT0__SD3_DATA0 0x170b9
+							MX6QDL_PAD_SD3_DAT1__SD3_DATA1 0x170b9
+							MX6QDL_PAD_SD3_DAT2__SD3_DATA2 0x170b9
+							MX6QDL_PAD_SD3_DAT3__SD3_DATA3 0x170b9
+							MX6QDL_PAD_SD3_DAT4__SD3_DATA4 0x170b9
+							MX6QDL_PAD_SD3_DAT5__SD3_DATA5 0x170b9
+							MX6QDL_PAD_SD3_DAT6__SD3_DATA6 0x170b9
+							MX6QDL_PAD_SD3_DAT7__SD3_DATA7 0x170b9
+						>;
+					};
+
+					pinctrl_usdhc3_1_200mhz: usdhc3grp-1-200mhz { /* 200Mhz */
+						fsl,pins = <
+							MX6QDL_PAD_SD3_CMD__SD3_CMD 0x170f9
+							MX6QDL_PAD_SD3_CLK__SD3_CLK 0x100f9
+							MX6QDL_PAD_SD3_DAT0__SD3_DATA0 0x170f9
+							MX6QDL_PAD_SD3_DAT1__SD3_DATA1 0x170f9
+							MX6QDL_PAD_SD3_DAT2__SD3_DATA2 0x170f9
+							MX6QDL_PAD_SD3_DAT3__SD3_DATA3 0x170f9
+							MX6QDL_PAD_SD3_DAT4__SD3_DATA4 0x170f9
+							MX6QDL_PAD_SD3_DAT5__SD3_DATA5 0x170f9
+							MX6QDL_PAD_SD3_DAT6__SD3_DATA6 0x170f9
+							MX6QDL_PAD_SD3_DAT7__SD3_DATA7 0x170f9
 						>;
 					};
 

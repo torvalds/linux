@@ -610,7 +610,7 @@ resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno)
 	struct resource tmp;
 	enum pci_bar_type type;
 	int reg = pci_iov_resource_bar(dev, resno, &type);
-	
+
 	if (!reg)
 		return 0;
 

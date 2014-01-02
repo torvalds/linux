@@ -36,6 +36,7 @@
 #include <asm/time.h>
 #include <bcm47xx.h>
 #include <bcm47xx_nvram.h>
+#include <bcm47xx_board.h>
 
 union bcm47xx_bus bcm47xx_bus;
 EXPORT_SYMBOL(bcm47xx_bus);
@@ -221,6 +222,7 @@ void __init plat_mem_setup(void)
 	_machine_restart = bcm47xx_machine_restart;
 	_machine_halt = bcm47xx_machine_halt;
 	pm_power_off = bcm47xx_machine_halt;
+	bcm47xx_board_detect();
 }
 
 static int __init bcm47xx_register_bus_complete(void)

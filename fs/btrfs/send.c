@@ -121,7 +121,6 @@ struct send_ctx {
 	struct list_head name_cache_list;
 	int name_cache_size;
 
-	struct file *cur_inode_filp;
 	char *read_buf;
 };
 
@@ -565,10 +564,8 @@ static int begin_cmd(struct send_ctx *sctx, int cmd)
 {
 	struct btrfs_cmd_header *hdr;
 
-	if (!sctx->send_buf) {
-		WARN_ON(1);
+	if (WARN_ON(!sctx->send_buf))
 		return -EINVAL;
-	}
 
 	BUG_ON(sctx->send_size);
 
@@ -791,7 +788,7 @@ static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
 	if (found_key->type == BTRFS_INODE_REF_KEY) {
 		ptr = (unsigned long)btrfs_item_ptr(eb, slot,
 						    struct btrfs_inode_ref);
-		item = btrfs_item_nr(eb, slot);
+		item = btrfs_item_nr(slot);
 		total = btrfs_item_size(eb, item);
 		elem_size = sizeof(*iref);
 	} else {
@@ -905,7 +902,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 
 	eb = path->nodes[0];
 	slot = path->slots[0];
-	item = btrfs_item_nr(eb, slot);
+	item = btrfs_item_nr(slot);
 	di = btrfs_item_ptr(eb, slot, struct btrfs_dir_item);
 	cur = 0;
 	len = 0;
@@ -2116,77 +2113,6 @@ out:
 	fs_path_free(name);
 	if (!ret)
 		fs_path_unreverse(dest);
-	return ret;
-}
-
-/*
- * Called for regular files when sending extents data. Opens a struct file
- * to read from the file.
- */
-static int open_cur_inode_file(struct send_ctx *sctx)
-{
-	int ret = 0;
-	struct btrfs_key key;
-	struct path path;
-	struct inode *inode;
-	struct dentry *dentry;
-	struct file *filp;
-	int new = 0;
-
-	if (sctx->cur_inode_filp)
-		goto out;
-
-	key.objectid = sctx->cur_ino;
-	key.type = BTRFS_INODE_ITEM_KEY;
-	key.offset = 0;
-
-	inode = btrfs_iget(sctx->send_root->fs_info->sb, &key, sctx->send_root,
-			&new);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
-		goto out;
-	}
-
-	dentry = d_obtain_alias(inode);
-	inode = NULL;
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto out;
-	}
-
-	path.mnt = sctx->mnt;
-	path.dentry = dentry;
-	filp = dentry_open(&path, O_RDONLY | O_LARGEFILE, current_cred());
-	dput(dentry);
-	dentry = NULL;
-	if (IS_ERR(filp)) {
-		ret = PTR_ERR(filp);
-		goto out;
-	}
-	sctx->cur_inode_filp = filp;
-
-out:
-	/*
-	 * no xxxput required here as every vfs op
-	 * does it by itself on failure
-	 */
-	return ret;
-}
-
-/*
- * Closes the struct file that was created in open_cur_inode_file
- */
-static int close_cur_inode_file(struct send_ctx *sctx)
-{
-	int ret = 0;
-
-	if (!sctx->cur_inode_filp)
-		goto out;
-
-	ret = filp_close(sctx->cur_inode_filp, NULL);
-	sctx->cur_inode_filp = NULL;
-
-out:
 	return ret;
 }
 
@@ -3622,6 +3548,72 @@ out:
 	return ret;
 }
 
+static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
+{
+	struct btrfs_root *root = sctx->send_root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct inode *inode;
+	struct page *page;
+	char *addr;
+	struct btrfs_key key;
+	pgoff_t index = offset >> PAGE_CACHE_SHIFT;
+	pgoff_t last_index;
+	unsigned pg_offset = offset & ~PAGE_CACHE_MASK;
+	ssize_t ret = 0;
+
+	key.objectid = sctx->cur_ino;
+	key.type = BTRFS_INODE_ITEM_KEY;
+	key.offset = 0;
+
+	inode = btrfs_iget(fs_info->sb, &key, root, NULL);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
+
+	if (offset + len > i_size_read(inode)) {
+		if (offset > i_size_read(inode))
+			len = 0;
+		else
+			len = offset - i_size_read(inode);
+	}
+	if (len == 0)
+		goto out;
+
+	last_index = (offset + len - 1) >> PAGE_CACHE_SHIFT;
+	while (index <= last_index) {
+		unsigned cur_len = min_t(unsigned, len,
+					 PAGE_CACHE_SIZE - pg_offset);
+		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
+		if (!page) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		if (!PageUptodate(page)) {
+			btrfs_readpage(NULL, page);
+			lock_page(page);
+			if (!PageUptodate(page)) {
+				unlock_page(page);
+				page_cache_release(page);
+				ret = -EIO;
+				break;
+			}
+		}
+
+		addr = kmap(page);
+		memcpy(sctx->read_buf + ret, addr + pg_offset, cur_len);
+		kunmap(page);
+		unlock_page(page);
+		page_cache_release(page);
+		index++;
+		pg_offset = 0;
+		len -= cur_len;
+		ret += cur_len;
+	}
+out:
+	iput(inode);
+	return ret;
+}
+
 /*
  * Read some bytes from the current inode/file and send a write command to
  * user space.
@@ -3630,35 +3622,20 @@ static int send_write(struct send_ctx *sctx, u64 offset, u32 len)
 {
 	int ret = 0;
 	struct fs_path *p;
-	loff_t pos = offset;
-	int num_read = 0;
-	mm_segment_t old_fs;
+	ssize_t num_read = 0;
 
 	p = fs_path_alloc();
 	if (!p)
 		return -ENOMEM;
 
-	/*
-	 * vfs normally only accepts user space buffers for security reasons.
-	 * we only read from the file and also only provide the read_buf buffer
-	 * to vfs. As this buffer does not come from a user space call, it's
-	 * ok to temporary allow kernel space buffers.
-	 */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
 verbose_printk("btrfs: send_write offset=%llu, len=%d\n", offset, len);
 
-	ret = open_cur_inode_file(sctx);
-	if (ret < 0)
+	num_read = fill_read_buf(sctx, offset, len);
+	if (num_read <= 0) {
+		if (num_read < 0)
+			ret = num_read;
 		goto out;
-
-	ret = vfs_read(sctx->cur_inode_filp, sctx->read_buf, len, &pos);
-	if (ret < 0)
-		goto out;
-	num_read = ret;
-	if (!num_read)
-		goto out;
+	}
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_WRITE);
 	if (ret < 0)
@@ -3677,7 +3654,6 @@ verbose_printk("btrfs: send_write offset=%llu, len=%d\n", offset, len);
 tlv_put_failure:
 out:
 	fs_path_free(p);
-	set_fs(old_fs);
 	if (ret < 0)
 		return ret;
 	return num_read;
@@ -3926,15 +3902,15 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 	while (key.offset < ekey->offset + left_len) {
 		ei = btrfs_item_ptr(eb, slot, struct btrfs_file_extent_item);
 		right_type = btrfs_file_extent_type(eb, ei);
-		right_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
-		right_len = btrfs_file_extent_num_bytes(eb, ei);
-		right_offset = btrfs_file_extent_offset(eb, ei);
-		right_gen = btrfs_file_extent_generation(eb, ei);
-
 		if (right_type != BTRFS_FILE_EXTENT_REG) {
 			ret = 0;
 			goto out;
 		}
+
+		right_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
+		right_len = btrfs_file_extent_num_bytes(eb, ei);
+		right_offset = btrfs_file_extent_offset(eb, ei);
+		right_gen = btrfs_file_extent_generation(eb, ei);
 
 		/*
 		 * Are we at extent 8? If yes, we know the extent is changed.
@@ -4221,10 +4197,6 @@ static int changed_inode(struct send_ctx *sctx,
 	struct btrfs_inode_item *right_ii = NULL;
 	u64 left_gen = 0;
 	u64 right_gen = 0;
-
-	ret = close_cur_inode_file(sctx);
-	if (ret < 0)
-		goto out;
 
 	sctx->cur_ino = key->objectid;
 	sctx->cur_inode_new_gen = 0;
@@ -4686,11 +4658,6 @@ static int send_subvol(struct send_ctx *sctx)
 	}
 
 out:
-	if (!ret)
-		ret = close_cur_inode_file(sctx);
-	else
-		close_cur_inode_file(sctx);
-
 	free_recorded_refs(sctx);
 	return ret;
 }

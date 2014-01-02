@@ -119,6 +119,7 @@ active_logs=%u         Support configuring the number of active logs. In the
                        Default number is 6.
 disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
                        does not aware of cold files such as media files.
+inline_xattr           Enable the inline xattrs feature.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -163,6 +164,12 @@ Files in /sys/fs/f2fs/<devname>
                               (default) will disable this option. Setting
                               gc_idle = 1 will select the Cost Benefit approach
                               & setting gc_idle = 2 will select the greedy aproach.
+
+ reclaim_segments             This parameter controls the number of prefree
+                              segments to be reclaimed. If the number of prefree
+			      segments is larger than this number, f2fs tries to
+			      conduct checkpoint to reclaim the prefree segments
+			      to free segments. By default, 100 segments, 200MB.
 
 ================================================================================
 USAGE

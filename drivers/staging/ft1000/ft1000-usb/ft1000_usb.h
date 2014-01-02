@@ -125,7 +125,7 @@ extern size_t FileLength;
 extern int numofmsgbuf;
 
 int ft1000_close(struct net_device *dev);
-u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
+int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 		u32  FileLength);
 
 extern struct list_head freercvpool;

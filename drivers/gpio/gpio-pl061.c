@@ -238,15 +238,15 @@ static struct irq_chip pl061_irqchip = {
 	.irq_set_type	= pl061_irq_type,
 };
 
-static int pl061_irq_map(struct irq_domain *d, unsigned int virq,
-			 irq_hw_number_t hw)
+static int pl061_irq_map(struct irq_domain *d, unsigned int irq,
+			 irq_hw_number_t hwirq)
 {
 	struct pl061_gpio *chip = d->host_data;
 
-	irq_set_chip_and_handler_name(virq, &pl061_irqchip, handle_simple_irq,
+	irq_set_chip_and_handler_name(irq, &pl061_irqchip, handle_simple_irq,
 				      "pl061");
-	irq_set_chip_data(virq, chip);
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_chip_data(irq, chip);
+	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 
 	return 0;
 }

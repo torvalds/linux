@@ -16,6 +16,7 @@
 #include <linux/module.h>
 
 #include <asm/cpu.h>
+#include <asm/cpu-type.h>
 #include <asm/bootinfo.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
@@ -51,21 +52,26 @@ extern void build_tlb_refill_handler(void);
 
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-#if defined(CONFIG_CPU_LOONGSON2)
 /*
  * LOONGSON2 has a 4 entry itlb which is a subset of dtlb,
  * unfortrunately, itlb is not totally transparent to software.
  */
-#define FLUSH_ITLB write_c0_diag(4);
+static inline void flush_itlb(void)
+{
+	switch (current_cpu_type()) {
+	case CPU_LOONGSON2:
+		write_c0_diag(4);
+		break;
+	default:
+		break;
+	}
+}
 
-#define FLUSH_ITLB_VM(vma) { if ((vma)->vm_flags & VM_EXEC)  write_c0_diag(4); }
-
-#else
-
-#define FLUSH_ITLB
-#define FLUSH_ITLB_VM(vma)
-
-#endif
+static inline void flush_itlb_vm(struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & VM_EXEC)
+		flush_itlb();
+}
 
 void local_flush_tlb_all(void)
 {
@@ -92,7 +98,7 @@ void local_flush_tlb_all(void)
 	}
 	tlbw_use_hazard();
 	write_c0_entryhi(old_ctx);
-	FLUSH_ITLB;
+	flush_itlb();
 	EXIT_CRITICAL(flags);
 }
 EXPORT_SYMBOL(local_flush_tlb_all);
@@ -154,7 +160,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		} else {
 			drop_mmu_context(mm, cpu);
 		}
-		FLUSH_ITLB;
+		flush_itlb();
 		EXIT_CRITICAL(flags);
 	}
 }
@@ -196,7 +202,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	} else {
 		local_flush_tlb_all();
 	}
-	FLUSH_ITLB;
+	flush_itlb();
 	EXIT_CRITICAL(flags);
 }
 
@@ -229,7 +235,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 
 	finish:
 		write_c0_entryhi(oldpid);
-		FLUSH_ITLB_VM(vma);
+		flush_itlb_vm(vma);
 		EXIT_CRITICAL(flags);
 	}
 }
@@ -261,7 +267,7 @@ void local_flush_tlb_one(unsigned long page)
 		tlbw_use_hazard();
 	}
 	write_c0_entryhi(oldpid);
-	FLUSH_ITLB;
+	flush_itlb();
 	EXIT_CRITICAL(flags);
 }
 
@@ -334,7 +340,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 			tlb_write_indexed();
 	}
 	tlbw_use_hazard();
-	FLUSH_ITLB_VM(vma);
+	flush_itlb_vm(vma);
 	EXIT_CRITICAL(flags);
 }
 

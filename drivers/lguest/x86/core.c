@@ -157,7 +157,7 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * stack, then the address of this call.  This stack layout happens to
 	 * exactly match the stack layout created by an interrupt...
 	 */
-	asm volatile("pushf; lcall *lguest_entry"
+	asm volatile("pushf; lcall *%4"
 		     /*
 		      * This is how we tell GCC that %eax ("a") and %ebx ("b")
 		      * are changed by this routine.  The "=" means output.
@@ -169,7 +169,9 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
 		      * physical address of the Guest's top-level page
 		      * directory.
 		      */
-		     : "0"(pages), "1"(__pa(cpu->lg->pgdirs[cpu->cpu_pgd].pgdir))
+		     : "0"(pages), 
+		       "1"(__pa(cpu->lg->pgdirs[cpu->cpu_pgd].pgdir)),
+		       "m"(lguest_entry)
 		     /*
 		      * We tell gcc that all these registers could change,
 		      * which means we don't have to save and restore them in

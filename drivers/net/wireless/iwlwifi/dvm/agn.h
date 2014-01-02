@@ -397,7 +397,7 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 	return cpu_to_le32(flags|(u32)rate);
 }
 
-extern int iwl_alive_start(struct iwl_priv *priv);
+int iwl_alive_start(struct iwl_priv *priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,

@@ -9,29 +9,28 @@
 	model = "ARM Integrator/CP";
 	compatible = "arm,integrator-cp";
 
-	aliases {
-		arm,timer-primary = &timer2;
-		arm,timer-secondary = &timer1;
-	};
-
 	chosen {
 		bootargs = "root=/dev/ram0 console=ttyAMA0,38400n8 earlyprintk";
 	};
 
-	cpcon {
-		/* CP controller registers */
+	syscon {
+		compatible = "arm,integrator-cp-syscon";
 		reg = <0xcb000000 0x100>;
 	};
 
 	timer0: timer@13000000 {
+		/* TIMER0 runs @ 25MHz */
 		compatible = "arm,integrator-cp-timer";
+		status = "disabled";
 	};
 
 	timer1: timer@13000100 {
+		/* TIMER1 runs @ 1MHz */
 		compatible = "arm,integrator-cp-timer";
 	};
 
 	timer2: timer@13000200 {
+		/* TIMER2 runs @ 1MHz */
 		compatible = "arm,integrator-cp-timer";
 	};
 

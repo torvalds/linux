@@ -36,7 +36,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include "board-zoom.h"
 #include "gpmc.h"
 #include "gpmc-smsc911x.h"
 
@@ -406,7 +405,7 @@ static void __init omap_ldp_init(void)
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	board_nand_init(ldp_nand_partitions, ARRAY_SIZE(ldp_nand_partitions),
-			ZOOM_NAND_CS, 0, nand_default_timings);
+			0, 0, nand_default_timings);
 
 	omap_hsmmc_init(mmc);
 	ldp_display_init();

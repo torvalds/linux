@@ -8,7 +8,6 @@ config TILE
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select SYSCTL_EXCEPTION_TRACE
-	select USE_GENERIC_SMP_HELPERS
 	select CC_OPTIMIZE_FOR_SIZE
 	select HAVE_DEBUG_KMEMLEAK
 	select GENERIC_IRQ_PROBE
@@ -361,7 +360,7 @@ config CMDLINE_OVERRIDE
 
 config VMALLOC_RESERVE
 	hex
-	default 0x1000000
+	default 0x2000000
 
 config HARDWALL
 	bool "Hardwall support to allow access to user dynamic network"

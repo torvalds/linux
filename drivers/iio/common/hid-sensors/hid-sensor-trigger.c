@@ -34,6 +34,12 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	struct hid_sensor_common *st = iio_trigger_get_drvdata(trig);
 	int state_val;
 
+	if (state) {
+		if (sensor_hub_device_open(st->hsdev))
+			return -EIO;
+	} else
+		sensor_hub_device_close(st->hsdev);
+
 	state_val = state ? 1 : 0;
 	if (IS_ENABLED(CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS))
 		++state_val;

@@ -57,6 +57,20 @@ static const struct iio_dummy_accel_calibscale dummy_scales[] = {
 	{ 733, 13, 0x9 }, /* 733.000013 */
 };
 
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
+
+/*
+ * simple event - triggered when value rises above
+ * a threshold
+ */
+static const struct iio_event_spec iio_dummy_event = {
+	.type = IIO_EV_TYPE_THRESH,
+	.dir = IIO_EV_DIR_RISING,
+	.mask_separate = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_ENABLE),
+};
+
+#endif
+
 /*
  * iio_dummy_channels - Description of available channels
  *
@@ -90,6 +104,11 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		 * when converting to standard units (microvolts)
 		 */
 		BIT(IIO_CHAN_INFO_SCALE),
+		/*
+		 * sampling_frequency
+		 * The frequency in Hz at which the channels are sampled
+		 */
+		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		/* The ordering of elements in the buffer via an enum */
 		.scan_index = voltage0,
 		.scan_type = { /* Description of storage in buffer */
@@ -99,12 +118,8 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 			.shift = 0, /* zero shift */
 		},
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
-		/*
-		 * simple event - triggered when value rises above
-		 * a threshold
-		 */
-		.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH,
-					 IIO_EV_DIR_RISING),
+		.event_spec = &iio_dummy_event,
+		.num_event_specs = 1,
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 	},
 	/* Differential ADC channel in_voltage1-voltage2_raw etc*/
@@ -130,6 +145,10 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		 * input channels of type IIO_VOLTAGE.
 		 */
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
+		/*
+		 * sampling_frequency
+		 * The frequency in Hz at which the channels are sampled
+		 */
 		.scan_index = diffvoltage1m2,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
@@ -147,6 +166,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.channel2 = 4,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.scan_index = diffvoltage3m4,
 		.scan_type = {
 			.sign = 's',
@@ -173,6 +193,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		 */
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |
 		BIT(IIO_CHAN_INFO_CALIBBIAS),
+		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.scan_index = accelx,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
@@ -272,6 +293,11 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 		*val2 = st->accel_calibscale->val2;
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = 3;
+		*val2 = 33;
+		ret = IIO_VAL_INT_PLUS_NANO;
+		break;
 	default:
 		break;
 	}
@@ -344,10 +370,10 @@ static const struct iio_info iio_dummy_info = {
 	.read_raw = &iio_dummy_read_raw,
 	.write_raw = &iio_dummy_write_raw,
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
-	.read_event_config = &iio_simple_dummy_read_event_config,
-	.write_event_config = &iio_simple_dummy_write_event_config,
-	.read_event_value = &iio_simple_dummy_read_event_value,
-	.write_event_value = &iio_simple_dummy_write_event_value,
+	.read_event_config_new = &iio_simple_dummy_read_event_config,
+	.write_event_config_new = &iio_simple_dummy_write_event_config,
+	.read_event_value_new = &iio_simple_dummy_read_event_value,
+	.write_event_value_new = &iio_simple_dummy_write_event_value,
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 };
 
@@ -454,7 +480,8 @@ static int iio_dummy_probe(int index)
 	 * buffer, but avoid the output channel being registered by reducing the
 	 * number of channels by 1.
 	 */
-	ret = iio_simple_dummy_configure_buffer(indio_dev, iio_dummy_channels, 5);
+	ret = iio_simple_dummy_configure_buffer(indio_dev,
+						iio_dummy_channels, 5);
 	if (ret < 0)
 		goto error_unregister_events;
 

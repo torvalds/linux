@@ -187,8 +187,6 @@ typedef struct RV770_SMC_STATETABLE RV770_SMC_STATETABLE;
 #define RV770_SMC_SOFT_REGISTER_uvd_enabled             0x9C
 #define RV770_SMC_SOFT_REGISTER_is_asic_lombok          0xA0
 
-int rv770_set_smc_sram_address(struct radeon_device *rdev,
-			       u16 smc_address, u16 limit);
 int rv770_copy_bytes_to_smc(struct radeon_device *rdev,
 			    u16 smc_start_address, const u8 *src,
 			    u16 byte_count, u16 limit);
