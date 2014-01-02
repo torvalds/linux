@@ -91,7 +91,9 @@ static void bcma_gpio_irq_unmask(struct irq_data *d)
 {
 	struct bcma_drv_cc *cc = irq_data_get_irq_chip_data(d);
 	int gpio = irqd_to_hwirq(d);
+	u32 val = bcma_chipco_gpio_in(cc, BIT(gpio));
 
+	bcma_chipco_gpio_polarity(cc, BIT(gpio), val);
 	bcma_chipco_gpio_intmask(cc, BIT(gpio), BIT(gpio));
 }
 
@@ -156,6 +158,7 @@ static int bcma_gpio_irq_domain_init(struct bcma_drv_cc *cc)
 	if (err)
 		goto err_req_irq;
 
+	bcma_chipco_gpio_intmask(cc, ~0, 0);
 	bcma_cc_set32(cc, BCMA_CC_IRQMASK, BCMA_CC_IRQ_GPIO);
 
 	return 0;
