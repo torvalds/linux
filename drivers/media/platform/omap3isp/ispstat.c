@@ -32,7 +32,7 @@
 
 #include "isp.h"
 
-#define IS_COHERENT_BUF(stat)	((stat)->dma_ch >= 0)
+#define ISP_STAT_USES_DMAENGINE(stat)	((stat)->dma_ch >= 0)
 
 /*
  * MAGIC_SIZE must always be the greatest common divisor of
@@ -99,7 +99,7 @@ static void isp_stat_buf_sync_magic_for_device(struct ispstat *stat,
 					       u32 buf_size,
 					       enum dma_data_direction dir)
 {
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
 	__isp_stat_buf_sync_magic(stat, buf, buf_size, dir,
@@ -111,7 +111,7 @@ static void isp_stat_buf_sync_magic_for_cpu(struct ispstat *stat,
 					    u32 buf_size,
 					    enum dma_data_direction dir)
 {
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
 	__isp_stat_buf_sync_magic(stat, buf, buf_size, dir,
@@ -180,7 +180,7 @@ static void isp_stat_buf_insert_magic(struct ispstat *stat,
 static void isp_stat_buf_sync_for_device(struct ispstat *stat,
 					 struct ispstat_buffer *buf)
 {
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
 	dma_sync_sg_for_device(stat->isp->dev, buf->iovm->sgt->sgl,
@@ -190,7 +190,7 @@ static void isp_stat_buf_sync_for_device(struct ispstat *stat,
 static void isp_stat_buf_sync_for_cpu(struct ispstat *stat,
 				      struct ispstat_buffer *buf)
 {
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
 	dma_sync_sg_for_cpu(stat->isp->dev, buf->iovm->sgt->sgl,
@@ -360,7 +360,7 @@ static void isp_stat_bufs_free(struct ispstat *stat)
 	for (i = 0; i < STAT_MAX_BUFS; i++) {
 		struct ispstat_buffer *buf = &stat->buf[i];
 
-		if (!IS_COHERENT_BUF(stat)) {
+		if (!ISP_STAT_USES_DMAENGINE(stat)) {
 			if (IS_ERR_OR_NULL((void *)buf->iommu_addr))
 				continue;
 			if (buf->iovm)
@@ -489,7 +489,7 @@ static int isp_stat_bufs_alloc(struct ispstat *stat, u32 size)
 
 	isp_stat_bufs_free(stat);
 
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return isp_stat_bufs_alloc_dma(stat, size);
 	else
 		return isp_stat_bufs_alloc_iommu(stat, size);
