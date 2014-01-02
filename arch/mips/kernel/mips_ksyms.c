@@ -16,6 +16,10 @@
 #include <asm/ftrace.h>
 
 extern void *__bzero(void *__s, size_t __count);
+extern long __strncpy_from_kernel_nocheck_asm(char *__to,
+					      const char *__from, long __len);
+extern long __strncpy_from_kernel_asm(char *__to, const char *__from,
+				      long __len);
 extern long __strncpy_from_user_nocheck_asm(char *__to,
 					    const char *__from, long __len);
 extern long __strncpy_from_user_asm(char *__to, const char *__from,
@@ -48,6 +52,8 @@ EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(__copy_user_inatomic);
 EXPORT_SYMBOL(__bzero);
+EXPORT_SYMBOL(__strncpy_from_kernel_nocheck_asm);
+EXPORT_SYMBOL(__strncpy_from_kernel_asm);
 EXPORT_SYMBOL(__strncpy_from_user_nocheck_asm);
 EXPORT_SYMBOL(__strncpy_from_user_asm);
 EXPORT_SYMBOL(__strlen_kernel_nocheck_asm);
