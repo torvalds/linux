@@ -780,9 +780,10 @@ static int k_mode_thread(void *arg)
 
 			spin_lock_irqsave(&k_lock, flags2);
 		}
+		wait_event_interruptible_lock_irq(k_wait,
+						  !list_empty(&k_list) || k_mode_stop,
+						  k_lock);
 		spin_unlock_irqrestore(&k_lock, flags2);
-
-		interruptible_sleep_on(&k_wait);
 	}
 	return 0;
 }
