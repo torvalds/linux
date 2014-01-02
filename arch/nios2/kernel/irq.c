@@ -26,11 +26,13 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 
-asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
+asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 {
 	struct pt_regs *oldregs = set_irq_regs(regs);
+	int irq;
 
 	irq_enter();
+	irq = irq_find_mapping(NULL, hwirq);
 	generic_handle_irq(irq);
 	irq_exit();
 
@@ -71,7 +73,6 @@ static struct irq_domain_ops irq_ops = {
 	.map	= irq_map,
 	.xlate	= irq_domain_xlate_onecell,
 };
-
 
 void __init init_IRQ(void)
 {
