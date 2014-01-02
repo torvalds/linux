@@ -46,7 +46,6 @@
 struct ispstat;
 
 struct ispstat_buffer {
-	unsigned long iommu_addr;
 	struct iovm_struct *iovm;
 	void *virt_addr;
 	dma_addr_t dma_addr;

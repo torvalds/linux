@@ -47,7 +47,7 @@ static void h3a_aewb_setup_regs(struct ispstat *aewb, void *priv)
 	if (aewb->state == ISPSTAT_DISABLED)
 		return;
 
-	isp_reg_writel(aewb->isp, aewb->active_buf->iommu_addr,
+	isp_reg_writel(aewb->isp, aewb->active_buf->dma_addr,
 		       OMAP3_ISP_IOMEM_H3A, ISPH3A_AEWBUFST);
 
 	if (!aewb->update)

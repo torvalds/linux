@@ -361,21 +361,19 @@ static void isp_stat_bufs_free(struct ispstat *stat)
 		struct ispstat_buffer *buf = &stat->buf[i];
 
 		if (!ISP_STAT_USES_DMAENGINE(stat)) {
-			if (IS_ERR_OR_NULL((void *)buf->iommu_addr))
+			if (IS_ERR_OR_NULL((void *)buf->dma_addr))
 				continue;
 			if (buf->iovm)
 				dma_unmap_sg(isp->dev, buf->iovm->sgt->sgl,
 					     buf->iovm->sgt->nents,
 					     DMA_FROM_DEVICE);
-			omap_iommu_vfree(isp->domain, isp->dev,
-							buf->iommu_addr);
+			omap_iommu_vfree(isp->domain, isp->dev, buf->dma_addr);
 		} else {
 			if (!buf->virt_addr)
 				continue;
 			dma_free_coherent(stat->isp->dev, stat->buf_alloc_size,
 					  buf->virt_addr, buf->dma_addr);
 		}
-		buf->iommu_addr = 0;
 		buf->iovm = NULL;
 		buf->dma_addr = 0;
 		buf->virt_addr = NULL;
@@ -396,12 +394,12 @@ static int isp_stat_bufs_alloc_iommu(struct ispstat *stat,
 	struct isp_device *isp = stat->isp;
 	struct iovm_struct *iovm;
 
-	buf->iommu_addr = omap_iommu_vmalloc(isp->domain, isp->dev, 0,
-						size, IOMMU_FLAG);
-	if (IS_ERR((void *)buf->iommu_addr))
+	buf->dma_addr = omap_iommu_vmalloc(isp->domain, isp->dev, 0,
+					   size, IOMMU_FLAG);
+	if (IS_ERR_VALUE(buf->dma_addr))
 		return -ENOMEM;
 
-	iovm = omap_find_iovm_area(isp->dev, buf->iommu_addr);
+	iovm = omap_find_iovm_area(isp->dev, buf->dma_addr);
 	if (!iovm)
 		return -ENOMEM;
 
@@ -410,8 +408,7 @@ static int isp_stat_bufs_alloc_iommu(struct ispstat *stat,
 		return -ENOMEM;
 
 	buf->iovm = iovm;
-	buf->virt_addr = omap_da_to_va(stat->isp->dev,
-				  (u32)buf->iommu_addr);
+	buf->virt_addr = omap_da_to_va(stat->isp->dev, buf->dma_addr);
 
 	return 0;
 }
@@ -478,8 +475,8 @@ static int isp_stat_bufs_alloc(struct ispstat *stat, u32 size)
 		buf->empty = 1;
 
 		dev_dbg(stat->isp->dev,
-			"%s: buffer[%u] allocated. iommu=0x%08lx dma=0x%08lx virt=0x%08lx",
-			stat->subdev.name, i, buf->iommu_addr,
+			"%s: buffer[%u] allocated. dma=0x%08lx virt=0x%08lx",
+			stat->subdev.name, i,
 			(unsigned long)buf->dma_addr,
 			(unsigned long)buf->virt_addr);
 	}
