@@ -2401,13 +2401,12 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 	struct list_head *iter;
 	int slaves_in_agg;
 	int slave_agg_no;
-	int res = 1;
 	int agg_id;
 
 	if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
 		pr_debug("%s: Error: __bond_3ad_get_active_agg_info failed\n",
 			 dev->name);
-		goto out;
+		goto err_free;
 	}
 
 	slaves_in_agg = ad_info.ports;
@@ -2415,7 +2414,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 
 	if (slaves_in_agg == 0) {
 		pr_debug("%s: Error: active aggregator is empty\n", dev->name);
-		goto out;
+		goto err_free;
 	}
 
 	slave_agg_no = bond_xmit_hash(bond, skb, slaves_in_agg);
@@ -2434,7 +2433,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (SLAVE_IS_OK(slave)) {
-			res = bond_dev_queue_xmit(bond, skb, slave->dev);
+			bond_dev_queue_xmit(bond, skb, slave->dev);
 			goto out;
 		}
 	}
@@ -2442,21 +2441,22 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 	if (slave_agg_no >= 0) {
 		pr_err("%s: Error: Couldn't find a slave to tx on for aggregator ID %d\n",
 		       dev->name, agg_id);
-		goto out;
+		goto err_free;
 	}
 
 	/* we couldn't find any suitable slave after the agg_no, so use the
 	 * first suitable found, if found. */
 	if (first_ok_slave)
-		res = bond_dev_queue_xmit(bond, skb, first_ok_slave->dev);
+		bond_dev_queue_xmit(bond, skb, first_ok_slave->dev);
+	else
+		goto err_free;
 
 out:
-	if (res) {
-		/* no suitable interface, frame not sent */
-		kfree_skb(skb);
-	}
-
 	return NETDEV_TX_OK;
+err_free:
+	/* no suitable interface, frame not sent */
+	kfree_skb(skb);
+	goto out;
 }
 
 int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
