@@ -791,11 +791,8 @@ struct spi_message *spi_get_next_queued_message(struct spi_master *master)
 
 	/* get a pointer to the next message, if any */
 	spin_lock_irqsave(&master->queue_lock, flags);
-	if (list_empty(&master->queue))
-		next = NULL;
-	else
-		next = list_entry(master->queue.next,
-				  struct spi_message, queue);
+	next = list_first_entry_or_null(&master->queue, struct spi_message,
+					queue);
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 
 	return next;
