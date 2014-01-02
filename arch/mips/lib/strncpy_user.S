@@ -28,16 +28,17 @@
  * it happens at most some bytes of the exceptions handlers will be copied.
  */
 
-LEAF(__strncpy_from_user_asm)
+	.macro __BUILD_STRNCPY_ASM func
+LEAF(__strncpy_from_\func\()_asm)
 	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
 	and		v0, a1
-	bnez		v0, .Lfault
+	bnez		v0, .Lfault\@
 
-FEXPORT(__strncpy_from_user_nocheck_asm)
+FEXPORT(__strncpy_from_\func\()_nocheck_asm)
 	.set		noreorder
 	move		t0, zero
 	move		v1, a1
-1:	EX(lbu, v0, (v1), .Lfault)
+1:	EX(lbu, v0, (v1), .Lfault\@)
 	PTR_ADDIU	v1, 1
 	R10KCBARRIER(0(ra))
 	beqz		v0, 2f
@@ -47,15 +48,19 @@ FEXPORT(__strncpy_from_user_nocheck_asm)
 	 PTR_ADDIU	a0, 1
 2:	PTR_ADDU	v0, a1, t0
 	xor		v0, a1
-	bltz		v0, .Lfault
+	bltz		v0, .Lfault\@
 	 nop
 	jr		ra			# return n
 	 move		v0, t0
-	END(__strncpy_from_user_asm)
+	END(__strncpy_from_\func\()_asm)
 
-.Lfault: jr		ra
+.Lfault\@: jr		ra
 	  li		v0, -EFAULT
 
 	.section	__ex_table,"a"
-	PTR		1b, .Lfault
+	PTR		1b, .Lfault\@
 	.previous
+
+	.endm
+
+__BUILD_STRNCPY_ASM user
