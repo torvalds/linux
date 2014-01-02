@@ -835,6 +835,13 @@ static void __init set_volt_table_CA7(void)
 		max_support_idx_CA7 = L7;
 	}
 
+	if (get_asv_is_bin2()) {
+		exynos5410_freq_table_CA7[L1].frequency = CPUFREQ_ENTRY_INVALID;
+		exynos5410_freq_table_CA7[L2].frequency = CPUFREQ_ENTRY_INVALID;
+		exynos5410_freq_table_CA7[L3].frequency = CPUFREQ_ENTRY_INVALID;
+		max_support_idx_CA7 = L4;
+	}
+
 	exynos5410_freq_table_CA7[L9].frequency = CPUFREQ_ENTRY_INVALID;
 	exynos5410_freq_table_CA7[L10].frequency = CPUFREQ_ENTRY_INVALID;
 	exynos5410_freq_table_CA7[L11].frequency = CPUFREQ_ENTRY_INVALID;
@@ -880,6 +887,15 @@ static void __init set_volt_table_CA15(void)
 		max_support_idx_CA15 = L10;
 	}
 
+	if (get_asv_is_bin2()) {
+		exynos5410_freq_table_CA15[L2].frequency = CPUFREQ_ENTRY_INVALID;
+		exynos5410_freq_table_CA15[L3].frequency = CPUFREQ_ENTRY_INVALID;
+		exynos5410_freq_table_CA15[L4].frequency = CPUFREQ_ENTRY_INVALID;
+		exynos5410_freq_table_CA15[L5].frequency = CPUFREQ_ENTRY_INVALID;
+
+		max_support_idx_CA15 = L6;
+	}
+
 	if (samsung_rev() < EXYNOS5410_REV_2_0) {
 		exynos5410_freq_table_CA15[L17].frequency = CPUFREQ_ENTRY_INVALID;
 		exynos5410_freq_table_CA15[L18].frequency = CPUFREQ_ENTRY_INVALID;
@@ -894,13 +910,6 @@ static void __init set_volt_table_CA15(void)
 		exynos5410_freq_table_CA15[L18].frequency = CPUFREQ_ENTRY_INVALID;
 
 		min_support_idx_CA15 = L12;
-	}
-	
-	if (get_asv_is_bin2()) {
-		exynos5410_freq_table_CA15[L2].frequency = CPUFREQ_ENTRY_INVALID;
-		exynos5410_freq_table_CA15[L3].frequency = CPUFREQ_ENTRY_INVALID;
-
-		max_support_idx_CA15 = L4;
 	}
 }
 

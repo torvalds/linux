@@ -59,6 +59,7 @@
 #define MIN_FREQUENCY_UP_STEP_LEVEL		(500000)
 #define MAX_FREQUENCY_UP_STEP_LEVEL		(1800000)
 
+#define BIN2_FREQUENCY_UP_STEP_LEVEL_L (450000)
 /*
  * The polling frequency of this governor depends on the capability of
  * the processor. Default polling frequency is 1000 times the transition
@@ -1384,6 +1385,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	return 0;
 }
 
+extern bool get_asv_is_bin2(void);
 static int __init cpufreq_gov_dbs_init(void)
 {
 	u64 idle_time;
@@ -1414,6 +1416,9 @@ static int __init cpufreq_gov_dbs_init(void)
 		min_sampling_rate =
 			MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
 	}
+
+    if(get_asv_is_bin2())
+        dbs_tuners_ins.up_step_level_l = BIN2_FREQUENCY_UP_STEP_LEVEL_L;
 
 #ifdef CONFIG_EXYNOS5_DYNAMIC_CPU_HOTPLUG
 	fb_register_client(&fb_block);
