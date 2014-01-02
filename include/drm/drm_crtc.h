@@ -929,6 +929,19 @@ extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
 			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
+extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
+
+/**
+ * drm_crtc_mask - find the mask of a registered CRTC
+ * @crtc: CRTC to find mask for
+ *
+ * Given a registered CRTC, return the mask bit of that CRTC for an
+ * encoder's possible_crtcs field.
+ */
+static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc)
+{
+	return 1 << drm_crtc_index(crtc);
+}
 
 extern void drm_connector_ida_init(void);
 extern void drm_connector_ida_destroy(void);
