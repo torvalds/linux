@@ -88,7 +88,10 @@ static int hdmi_init_regulator(void)
 	if (hdmi.vdda_hdmi_dac_reg != NULL)
 		return 0;
 
-	reg = devm_regulator_get(&hdmi.pdev->dev, "vdda_hdmi_dac");
+	if (hdmi.pdev->dev.of_node)
+		reg = devm_regulator_get(&hdmi.pdev->dev, "vdda");
+	else
+		reg = devm_regulator_get(&hdmi.pdev->dev, "vdda_hdmi_dac");
 
 	/* DT HACK: try VDAC to make omapdss work for o4 sdp/panda */
 	if (IS_ERR(reg))

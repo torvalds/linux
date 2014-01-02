@@ -636,7 +636,10 @@ static int venc_init_regulator(void)
 	if (venc.vdda_dac_reg != NULL)
 		return 0;
 
-	vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda_dac");
+	if (venc.pdev->dev.of_node)
+		vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda");
+	else
+		vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda_dac");
 
 	if (IS_ERR(vdda_dac)) {
 		if (PTR_ERR(vdda_dac) != -EPROBE_DEFER)
