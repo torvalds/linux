@@ -332,6 +332,9 @@ static int ath10k_peer_create(struct ath10k *ar, u32 vdev_id, const u8 *addr)
 		ath10k_warn("Failed to wait for created wmi peer: %i\n", ret);
 		return ret;
 	}
+	spin_lock_bh(&ar->data_lock);
+	ar->num_peers++;
+	spin_unlock_bh(&ar->data_lock);
 
 	return 0;
 }
@@ -377,6 +380,10 @@ static int ath10k_peer_delete(struct ath10k *ar, u32 vdev_id, const u8 *addr)
 	if (ret)
 		return ret;
 
+	spin_lock_bh(&ar->data_lock);
+	ar->num_peers--;
+	spin_unlock_bh(&ar->data_lock);
+
 	return 0;
 }
 
@@ -396,6 +403,7 @@ static void ath10k_peer_cleanup(struct ath10k *ar, u32 vdev_id)
 
 		list_del(&peer->list);
 		kfree(peer);
+		ar->num_peers--;
 	}
 	spin_unlock_bh(&ar->data_lock);
 }
@@ -411,6 +419,7 @@ static void ath10k_peer_cleanup_all(struct ath10k *ar)
 		list_del(&peer->list);
 		kfree(peer);
 	}
+	ar->num_peers = 0;
 	spin_unlock_bh(&ar->data_lock);
 }
 
@@ -2849,6 +2858,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	int max_num_peers;
 	int ret = 0;
 
 	mutex_lock(&ar->conf_mutex);
@@ -2859,9 +2869,21 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		/*
 		 * New station addition.
 		 */
+		if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+			max_num_peers = TARGET_10X_NUM_PEERS_MAX - 1;
+		else
+			max_num_peers = TARGET_NUM_PEERS;
+
+		if (ar->num_peers >= max_num_peers) {
+			ath10k_warn("Number of peers exceeded: peers number %d (max peers %d)\n",
+				    ar->num_peers, max_num_peers);
+			ret = -ENOBUFS;
+			goto exit;
+		}
+
 		ath10k_dbg(ATH10K_DBG_MAC,
-			   "mac vdev %d peer create %pM (new sta)\n",
-			   arvif->vdev_id, sta->addr);
+			   "mac vdev %d peer create %pM (new sta) num_peers %d\n",
+			   arvif->vdev_id, sta->addr, ar->num_peers);
 
 		ret = ath10k_peer_create(ar, arvif->vdev_id, sta->addr);
 		if (ret)
@@ -2911,7 +2933,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			ath10k_warn("Failed to disassociate station: %pM\n",
 				    sta->addr);
 	}
-
+exit:
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
