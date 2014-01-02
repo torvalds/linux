@@ -98,6 +98,7 @@
 #define OCP_EEE_CONFIG1		0x2080
 #define OCP_EEE_CONFIG2		0x2092
 #define OCP_EEE_CONFIG3		0x2094
+#define OCP_BASE_MII		0xa400
 #define OCP_EEE_AR		0xa41a
 #define OCP_EEE_DATA		0xa41c
 
@@ -653,6 +654,20 @@ static void ocp_write_byte(struct r8152 *tp, u16 type, u16 index, u32 data)
 	generic_ocp_write(tp, index, byen, sizeof(tmp), &tmp, type);
 }
 
+static u16 ocp_reg_read(struct r8152 *tp, u16 addr)
+{
+	u16 ocp_base, ocp_index;
+
+	ocp_base = addr & 0xf000;
+	if (ocp_base != tp->ocp_base) {
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_OCP_GPHY_BASE, ocp_base);
+		tp->ocp_base = ocp_base;
+	}
+
+	ocp_index = (addr & 0x0fff) | 0xb000;
+	return ocp_read_word(tp, MCU_TYPE_PLA, ocp_index);
+}
+
 static void ocp_reg_write(struct r8152 *tp, u16 addr, u16 data)
 {
 	u16 ocp_base, ocp_index;
@@ -667,45 +682,14 @@ static void ocp_reg_write(struct r8152 *tp, u16 addr, u16 data)
 	ocp_write_word(tp, MCU_TYPE_PLA, ocp_index, data);
 }
 
-static void r8152_mdio_write(struct r8152 *tp, u32 reg_addr, u32 value)
+static inline void r8152_mdio_write(struct r8152 *tp, u32 reg_addr, u32 value)
 {
-	u32	ocp_data;
-	int	i;
-
-	ocp_data = PHYAR_FLAG | ((reg_addr & 0x1f) << 16) |
-		   (value & 0xffff);
-
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_PHYAR, ocp_data);
-
-	for (i = 20; i > 0; i--) {
-		udelay(25);
-		ocp_data = ocp_read_dword(tp, MCU_TYPE_PLA, PLA_PHYAR);
-		if (!(ocp_data & PHYAR_FLAG))
-			break;
-	}
-	udelay(20);
+	ocp_reg_write(tp, OCP_BASE_MII + reg_addr * 2, value);
 }
 
-static int r8152_mdio_read(struct r8152 *tp, u32 reg_addr)
+static inline int r8152_mdio_read(struct r8152 *tp, u32 reg_addr)
 {
-	u32	ocp_data;
-	int	i;
-
-	ocp_data = (reg_addr & 0x1f) << 16;
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_PHYAR, ocp_data);
-
-	for (i = 20; i > 0; i--) {
-		udelay(25);
-		ocp_data = ocp_read_dword(tp, MCU_TYPE_PLA, PLA_PHYAR);
-		if (ocp_data & PHYAR_FLAG)
-			break;
-	}
-	udelay(20);
-
-	if (!(ocp_data & PHYAR_FLAG))
-		return -EAGAIN;
-
-	return (u16)(ocp_data & 0xffff);
+	return ocp_reg_read(tp, OCP_BASE_MII + reg_addr * 2);
 }
 
 static int read_mii_word(struct net_device *netdev, int phy_id, int reg)
