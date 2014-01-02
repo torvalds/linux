@@ -704,7 +704,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			 */
 			spin_lock_bh(&mvmsta->lock);
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-			if (IS_ERR_OR_NULL(sta)) {
+			if (!sta || PTR_ERR(sta) == -EBUSY) {
 				/*
 				 * Station disappeared in the meantime:
 				 * so we are draining.
@@ -713,7 +713,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 				schedule_work(&mvm->sta_drained_wk);
 			}
 			spin_unlock_bh(&mvmsta->lock);
-		} else if (!mvmsta) {
+		} else if (!mvmsta && PTR_ERR(sta) == -EBUSY) {
 			/* Tx response without STA, so we are draining */
 			set_bit(sta_id, mvm->sta_drained);
 			schedule_work(&mvm->sta_drained_wk);
