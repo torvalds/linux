@@ -2579,8 +2579,10 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 			return 0;
 	} else if (optlen == sizeof(struct sctp_assoc_value)) {
 		pr_warn_ratelimited(DEPRECATED
+				    "%s (pid %d) "
 				    "Use of struct sctp_assoc_value in delayed_ack socket option.\n"
-				    "Use struct sctp_sack_info instead\n");
+				    "Use struct sctp_sack_info instead\n",
+				    current->comm, task_pid_nr(current));
 		if (copy_from_user(&params, optval, optlen))
 			return -EFAULT;
 
@@ -2996,8 +2998,10 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 
 	if (optlen == sizeof(int)) {
 		pr_warn_ratelimited(DEPRECATED
+				    "%s (pid %d) "
 				    "Use of int in maxseg socket option.\n"
-				    "Use struct sctp_assoc_value instead\n");
+				    "Use struct sctp_assoc_value instead\n",
+				    current->comm, task_pid_nr(current));
 		if (copy_from_user(&val, optval, optlen))
 			return -EFAULT;
 		params.assoc_id = 0;
@@ -3255,8 +3259,10 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
 
 	if (optlen == sizeof(int)) {
 		pr_warn_ratelimited(DEPRECATED
+				    "%s (pid %d) "
 				    "Use of int in max_burst socket option deprecated.\n"
-				    "Use struct sctp_assoc_value instead\n");
+				    "Use struct sctp_assoc_value instead\n",
+				    current->comm, task_pid_nr(current));
 		if (copy_from_user(&val, optval, optlen))
 			return -EFAULT;
 	} else if (optlen == sizeof(struct sctp_assoc_value)) {
@@ -4577,8 +4583,10 @@ static int sctp_getsockopt_delayed_ack(struct sock *sk, int len,
 			return -EFAULT;
 	} else if (len == sizeof(struct sctp_assoc_value)) {
 		pr_warn_ratelimited(DEPRECATED
+				    "%s (pid %d) "
 				    "Use of struct sctp_assoc_value in delayed_ack socket option.\n"
-				    "Use struct sctp_sack_info instead\n");
+				    "Use struct sctp_sack_info instead\n",
+				    current->comm, task_pid_nr(current));
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else
@@ -5223,8 +5231,10 @@ static int sctp_getsockopt_maxseg(struct sock *sk, int len,
 
 	if (len == sizeof(int)) {
 		pr_warn_ratelimited(DEPRECATED
+				    "%s (pid %d) "
 				    "Use of int in maxseg socket option.\n"
-				    "Use struct sctp_assoc_value instead\n");
+				    "Use struct sctp_assoc_value instead\n",
+				    current->comm, task_pid_nr(current));
 		params.assoc_id = 0;
 	} else if (len >= sizeof(struct sctp_assoc_value)) {
 		len = sizeof(struct sctp_assoc_value);
@@ -5316,8 +5326,10 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 
 	if (len == sizeof(int)) {
 		pr_warn_ratelimited(DEPRECATED
+				    "%s (pid %d) "
 				    "Use of int in max_burst socket option.\n"
-				    "Use struct sctp_assoc_value instead\n");
+				    "Use struct sctp_assoc_value instead\n",
+				    current->comm, task_pid_nr(current));
 		params.assoc_id = 0;
 	} else if (len >= sizeof(struct sctp_assoc_value)) {
 		len = sizeof(struct sctp_assoc_value);
