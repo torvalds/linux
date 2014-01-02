@@ -44,24 +44,31 @@
 #include <asm/hardware/cache-l2x0.h>
 
 /* SCIF */
-#define SCIF_INFO(baseaddr, irq)				\
-{								\
-	.mapbase	= baseaddr,				\
+#define R8A7778_SCIF(index, baseaddr, irq)			\
+static struct plat_sci_port scif##index##_platform_data = {	\
 	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,	\
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,	\
-	.scbrr_algo_id	= SCBRR_ALGO_2,				\
 	.type		= PORT_SCIF,				\
-	.irqs		= SCIx_IRQ_MUXED(irq),			\
+};								\
+								\
+static struct resource scif##index##_resources[] = {		\
+	DEFINE_RES_MEM(baseaddr, 0x100),			\
+	DEFINE_RES_IRQ(irq),					\
 }
 
-static struct plat_sci_port scif_platform_data[] __initdata = {
-	SCIF_INFO(0xffe40000, gic_iid(0x66)),
-	SCIF_INFO(0xffe41000, gic_iid(0x67)),
-	SCIF_INFO(0xffe42000, gic_iid(0x68)),
-	SCIF_INFO(0xffe43000, gic_iid(0x69)),
-	SCIF_INFO(0xffe44000, gic_iid(0x6a)),
-	SCIF_INFO(0xffe45000, gic_iid(0x6b)),
-};
+R8A7778_SCIF(0, 0xffe40000, gic_iid(0x66));
+R8A7778_SCIF(1, 0xffe41000, gic_iid(0x67));
+R8A7778_SCIF(2, 0xffe42000, gic_iid(0x68));
+R8A7778_SCIF(3, 0xffe43000, gic_iid(0x69));
+R8A7778_SCIF(4, 0xffe44000, gic_iid(0x6a));
+R8A7778_SCIF(5, 0xffe45000, gic_iid(0x6b));
+
+#define r8a7778_register_scif(index)					       \
+	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+					  scif##index##_resources,	       \
+					  ARRAY_SIZE(scif##index##_resources), \
+					  &scif##index##_platform_data,	       \
+					  sizeof(scif##index##_platform_data))
 
 /* TMU */
 static struct resource sh_tmu0_resources[] __initdata = {
@@ -287,8 +294,6 @@ static void __init r8a7778_register_hspi(int id)
 
 void __init r8a7778_add_dt_devices(void)
 {
-	int i;
-
 #ifdef CONFIG_CACHE_L2X0
 	void __iomem *base = ioremap_nocache(0xf0100000, 0x1000);
 	if (base) {
@@ -300,11 +305,12 @@ void __init r8a7778_add_dt_devices(void)
 	}
 #endif
 
-	for (i = 0; i < ARRAY_SIZE(scif_platform_data); i++)
-		platform_device_register_data(&platform_bus, "sh-sci", i,
-					      &scif_platform_data[i],
-					      sizeof(struct plat_sci_port));
-
+	r8a7778_register_scif(0);
+	r8a7778_register_scif(1);
+	r8a7778_register_scif(2);
+	r8a7778_register_scif(3);
+	r8a7778_register_scif(4);
+	r8a7778_register_scif(5);
 	r8a7778_register_tmu(0);
 	r8a7778_register_tmu(1);
 }
@@ -318,6 +324,52 @@ void __init r8a7778_add_dt_devices(void)
 #define HPB_DMAE_ASYNCMDR_ASMD21_MASK	BIT(1)	/* SDHI0 */
 #define HPB_DMAE_ASYNCMDR_ASMD21_SINGLE	BIT(1)	/* SDHI0 */
 #define HPB_DMAE_ASYNCMDR_ASMD21_MULTI	0	/* SDHI0 */
+
+#define HPBDMA_SSI(_id)				\
+{						\
+	.id	= HPBDMA_SLAVE_SSI## _id ##_TX,	\
+	.addr	= 0xffd91008 + (_id * 0x40),	\
+	.dcr	= HPB_DMAE_DCR_CT |		\
+		  HPB_DMAE_DCR_DIP |		\
+		  HPB_DMAE_DCR_SPDS_32BIT |	\
+		  HPB_DMAE_DCR_DMDL |		\
+		  HPB_DMAE_DCR_DPDS_32BIT,	\
+	.port   = _id + (_id << 8),		\
+	.dma_ch = (28 + _id),			\
+}, {						\
+	.id	= HPBDMA_SLAVE_SSI## _id ##_RX,	\
+	.addr	= 0xffd9100c + (_id * 0x40),	\
+	.dcr	= HPB_DMAE_DCR_CT |		\
+		  HPB_DMAE_DCR_DIP |		\
+		  HPB_DMAE_DCR_SMDL |		\
+		  HPB_DMAE_DCR_SPDS_32BIT |	\
+		  HPB_DMAE_DCR_DPDS_32BIT,	\
+	.port   = _id + (_id << 8),		\
+	.dma_ch = (28 + _id),			\
+}
+
+#define HPBDMA_HPBIF(_id)				\
+{							\
+	.id	= HPBDMA_SLAVE_HPBIF## _id ##_TX,	\
+	.addr	= 0xffda0000 + (_id * 0x1000),		\
+	.dcr	= HPB_DMAE_DCR_CT |			\
+		  HPB_DMAE_DCR_DIP |			\
+		  HPB_DMAE_DCR_SPDS_32BIT |		\
+		  HPB_DMAE_DCR_DMDL |			\
+		  HPB_DMAE_DCR_DPDS_32BIT,		\
+	.port   = 0x1111,				\
+	.dma_ch = (28 + _id),				\
+}, {							\
+	.id	= HPBDMA_SLAVE_HPBIF## _id ##_RX,	\
+	.addr	= 0xffda0000 + (_id * 0x1000),		\
+	.dcr	= HPB_DMAE_DCR_CT |			\
+		  HPB_DMAE_DCR_DIP |			\
+		  HPB_DMAE_DCR_SMDL |			\
+		  HPB_DMAE_DCR_SPDS_32BIT |		\
+		  HPB_DMAE_DCR_DPDS_32BIT,		\
+	.port   = 0x1111,				\
+	.dma_ch = (28 + _id),				\
+}
 
 static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
 	{
@@ -348,12 +400,86 @@ static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
 		.port	= 0x0D0C,
 		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
 		.dma_ch	= 22,
+	}, {
+		.id	= HPBDMA_SLAVE_USBFUNC_TX, /* for D0 */
+		.addr	= 0xffe60018,
+		.dcr	= HPB_DMAE_DCR_SPDS_32BIT |
+			  HPB_DMAE_DCR_DMDL |
+			  HPB_DMAE_DCR_DPDS_32BIT,
+		.port	= 0x0000,
+		.dma_ch	= 14,
+	}, {
+		.id	= HPBDMA_SLAVE_USBFUNC_RX, /* for D1 */
+		.addr	= 0xffe6001c,
+		.dcr	= HPB_DMAE_DCR_SMDL |
+			  HPB_DMAE_DCR_SPDS_32BIT |
+			  HPB_DMAE_DCR_DPDS_32BIT,
+		.port	= 0x0101,
+		.dma_ch	= 15,
 	},
+
+	HPBDMA_SSI(0),
+	HPBDMA_SSI(1),
+	HPBDMA_SSI(2),
+	HPBDMA_SSI(3),
+	HPBDMA_SSI(4),
+	HPBDMA_SSI(5),
+	HPBDMA_SSI(6),
+	HPBDMA_SSI(7),
+	HPBDMA_SSI(8),
+
+	HPBDMA_HPBIF(0),
+	HPBDMA_HPBIF(1),
+	HPBDMA_HPBIF(2),
+	HPBDMA_HPBIF(3),
+	HPBDMA_HPBIF(4),
+	HPBDMA_HPBIF(5),
+	HPBDMA_HPBIF(6),
+	HPBDMA_HPBIF(7),
+	HPBDMA_HPBIF(8),
 };
 
 static const struct hpb_dmae_channel hpb_dmae_channels[] = {
+	HPB_DMAE_CHANNEL(0x7c, HPBDMA_SLAVE_USBFUNC_TX), /* ch. 14 */
+	HPB_DMAE_CHANNEL(0x7c, HPBDMA_SLAVE_USBFUNC_RX), /* ch. 15 */
 	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_TX), /* ch. 21 */
 	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_RX), /* ch. 22 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI0_TX),   /* ch. 28 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI0_RX),   /* ch. 28 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF0_TX), /* ch. 28 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF0_RX), /* ch. 28 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI1_TX),   /* ch. 29 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI1_RX),   /* ch. 29 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF1_TX), /* ch. 29 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF1_RX), /* ch. 29 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI2_TX),   /* ch. 30 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI2_RX),   /* ch. 30 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF2_TX), /* ch. 30 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF2_RX), /* ch. 30 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI3_TX),   /* ch. 31 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI3_RX),   /* ch. 31 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF3_TX), /* ch. 31 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF3_RX), /* ch. 31 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI4_TX),   /* ch. 32 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI4_RX),   /* ch. 32 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF4_TX), /* ch. 32 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF4_RX), /* ch. 32 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI5_TX),   /* ch. 33 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI5_RX),   /* ch. 33 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF5_TX), /* ch. 33 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF5_RX), /* ch. 33 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI6_TX),   /* ch. 34 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI6_RX),   /* ch. 34 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF6_TX), /* ch. 34 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF6_RX), /* ch. 34 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI7_TX),   /* ch. 35 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI7_RX),   /* ch. 35 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF7_TX), /* ch. 35 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF7_RX), /* ch. 35 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI8_TX),   /* ch. 36 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI8_RX),   /* ch. 36 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF8_TX), /* ch. 36 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF8_RX), /* ch. 36 */
 };
 
 static struct hpb_dmae_pdata dma_platform_data __initdata = {

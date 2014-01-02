@@ -1,6 +1,10 @@
+config ARCH_SHMOBILE
+	bool
+
 config ARCH_SHMOBILE_MULTI
 	bool "SH-Mobile Series" if ARCH_MULTI_V7
 	depends on MMU
+	select ARCH_SHMOBILE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
@@ -8,6 +12,7 @@ config ARCH_SHMOBILE_MULTI
 	select HAVE_SMP
 	select ARM_GIC
 	select MIGHT_HAVE_CACHE_L2X0
+	select MIGHT_HAVE_PCI
 	select NO_IOPORT
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
@@ -30,7 +35,7 @@ config MACH_KZM9D
 comment "SH-Mobile System Configuration"
 endif
 
-if ARCH_SHMOBILE
+if ARCH_SHMOBILE_LEGACY
 
 comment "SH-Mobile System Type"
 
@@ -92,23 +97,31 @@ config ARCH_R8A7790
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
 config ARCH_R8A7791
 	bool "R-Car M2 (R8A77910)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
+	select RENESAS_IRQC
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
+	select USE_OF
+	select AUTO_ZRELADDR
 
 config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
 	select SH_CLK_CPG
@@ -230,12 +243,7 @@ config MACH_KOELSCH
 	bool "Koelsch board"
 	depends on ARCH_R8A7791
 	select USE_OF
-
-config MACH_KZM9D
-	bool "KZM9D board"
-	depends on ARCH_EMEV2
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select USE_OF
+	select MICREL_PHY if SH_ETH
 
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
@@ -274,7 +282,7 @@ source "drivers/sh/Kconfig"
 
 endif
 
-if ARCH_SHMOBILE || ARCH_SHMOBILE_MULTI
+if ARCH_SHMOBILE
 
 menu "Timer and clock configuration"
 
