@@ -122,6 +122,11 @@
 				clock-frequency = <100000>;
 				status = "okay";
 
+				isl12057: isl12057@68 {
+					compatible = "isl,isl12057";
+					reg = <0x68>;
+				};
+
 				g762: g762@3e {
 					compatible = "gmt,g762";
 					reg = <0x3e>;

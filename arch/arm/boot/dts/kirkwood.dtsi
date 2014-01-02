@@ -284,5 +284,23 @@
 				/* set phy-handle property in board file */
 			};
 		};
+
+		sata_phy0: sata-phy@82000 {
+			compatible = "marvell,mvebu-sata-phy";
+			reg = <0x82000 0x0334>;
+			clocks = <&gate_clk 14>;
+			clock-names = "sata";
+			#phy-cells = <0>;
+			status = "ok";
+		};
+
+		sata_phy1: sata-phy@84000 {
+			compatible = "marvell,mvebu-sata-phy";
+			reg = <0x84000 0x0334>;
+			clocks = <&gate_clk 15>;
+			clock-names = "sata";
+			#phy-cells = <0>;
+			status = "ok";
+		};
 	};
 };
