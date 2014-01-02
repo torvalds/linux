@@ -1187,7 +1187,10 @@ static void cypress_read_int_callback(struct urb *urb)
 	if (priv->current_status != priv->prev_status) {
 		priv->diff_status |= priv->current_status ^
 			priv->prev_status;
-		wake_up_interruptible(&port->port.delta_msr_wait);
+
+		if (priv->diff_status & UART_MSR_MASK)
+			wake_up_interruptible(&port->port.delta_msr_wait);
+
 		priv->prev_status = priv->current_status;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);

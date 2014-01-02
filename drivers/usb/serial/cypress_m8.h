@@ -66,6 +66,7 @@
 #define CONTROL_RTS	0x10	/* request to send */
 #define CONTROL_RESET	0x08	/* sent with output report */
 
+#define UART_MSR_MASK	0xf0
 #define UART_RI		0x80	/* ring indicator */
 #define UART_CD		0x40	/* carrier detect */
 #define UART_DSR	0x20	/* data set ready */
