@@ -1249,6 +1249,23 @@ The ACCESS_ONCE() function can prevent any number of optimizations that,
 while perfectly safe in single-threaded code, can be fatal in concurrent
 code.  Here are some examples of these sorts of optimizations:
 
+ (*) The compiler is within its rights to reorder loads and stores
+     to the same variable, and in some cases, the CPU is within its
+     rights to reorder loads to the same variable.  This means that
+     the following code:
+
+	a[0] = x;
+	a[1] = x;
+
+     Might result in an older value of x stored in a[1] than in a[0].
+     Prevent both the compiler and the CPU from doing this as follows:
+
+	a[0] = ACCESS_ONCE(x);
+	a[1] = ACCESS_ONCE(x);
+
+     In short, ACCESS_ONCE() provides cache coherence for accesses from
+     multiple CPUs to a single variable.
+
  (*) The compiler is within its rights to merge successive loads from
      the same variable.  Such merging can cause the compiler to "optimize"
      the following code:
