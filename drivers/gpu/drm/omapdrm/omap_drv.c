@@ -517,15 +517,15 @@ static int dev_unload(struct drm_device *dev)
 	DBG("unload: dev=%p", dev);
 
 	drm_kms_helper_poll_fini(dev);
-	drm_vblank_cleanup(dev);
-	omap_drm_irq_uninstall(dev);
 
 	omap_fbdev_free(dev);
 	omap_modeset_free(dev);
 	omap_gem_deinit(dev);
 
-	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
+
+	drm_vblank_cleanup(dev);
+	omap_drm_irq_uninstall(dev);
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
