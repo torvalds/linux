@@ -15,17 +15,10 @@
 #ifndef __ARCH_MVEBU_COMMON_H
 #define __ARCH_MVEBU_COMMON_H
 
-#define ARMADA_XP_MAX_CPUS 4
-
 #include <linux/reboot.h>
 
 void mvebu_restart(enum reboot_mode mode, const char *cmd);
 
-void armada_370_xp_init_irq(void);
-void armada_370_xp_handle_irq(struct pt_regs *regs);
-
 void armada_xp_cpu_die(unsigned int cpu);
-int armada_370_xp_coherency_init(void);
-void armada_xp_secondary_startup(void);
-extern struct smp_operations armada_xp_smp_ops;
+
 #endif
