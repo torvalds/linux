@@ -173,6 +173,11 @@ static int get_property(unsigned int cpu, unsigned long input,
 		freq = table[i].frequency;
 		max_level++;
 	}
+
+	/* No valid cpu frequency entry */
+	if (max_level == 0)
+		return -EINVAL;
+
 	/* max_level is an index, not a counter */
 	max_level--;
 
