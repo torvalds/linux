@@ -75,26 +75,6 @@ struct vti6_net {
 	struct ip6_tnl __rcu **tnls[2];
 };
 
-static struct net_device_stats *vti6_get_stats(struct net_device *dev)
-{
-	struct pcpu_tstats sum = { 0 };
-	int i;
-
-	for_each_possible_cpu(i) {
-		const struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, i);
-
-		sum.rx_packets += tstats->rx_packets;
-		sum.rx_bytes   += tstats->rx_bytes;
-		sum.tx_packets += tstats->tx_packets;
-		sum.tx_bytes   += tstats->tx_bytes;
-	}
-	dev->stats.rx_packets = sum.rx_packets;
-	dev->stats.rx_bytes   = sum.rx_bytes;
-	dev->stats.tx_packets = sum.tx_packets;
-	dev->stats.tx_bytes   = sum.tx_bytes;
-	return &dev->stats;
-}
-
 #define for_each_vti6_tunnel_rcu(start) \
 	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
@@ -331,8 +311,10 @@ static int vti6_rcv(struct sk_buff *skb)
 		}
 
 		tstats = this_cpu_ptr(t->dev->tstats);
+		u64_stats_update_begin(&tstats->syncp);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
+		u64_stats_update_end(&tstats->syncp);
 
 		skb->mark = 0;
 		secpath_reset(skb);
@@ -716,7 +698,7 @@ static const struct net_device_ops vti6_netdev_ops = {
 	.ndo_start_xmit = vti6_tnl_xmit,
 	.ndo_do_ioctl	= vti6_ioctl,
 	.ndo_change_mtu = vti6_change_mtu,
-	.ndo_get_stats	= vti6_get_stats,
+	.ndo_get_stats64 = ip_tunnel_get_stats64,
 };
 
 /**
