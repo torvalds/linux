@@ -28,7 +28,6 @@
  *****************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"

@@ -17,7 +17,6 @@
  */
 
 #include <linux/export.h>
-#include <linux/init.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <asm/div64.h>
