@@ -26,7 +26,6 @@
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
-#include <linux/omap-iommu.h>
 #include <linux/pagemap.h>
 #include <linux/poll.h>
 #include <linux/scatterlist.h>
@@ -159,7 +158,7 @@ static int isp_video_buffer_prepare_kernel(struct isp_video_buffer *buf)
 	struct isp_video *video = vfh->video;
 
 	return dma_get_sgtable(video->isp->dev, &buf->sgt, buf->vaddr,
-			       buf->paddr, PAGE_ALIGN(buf->vbuf.length));
+			       buf->dma, PAGE_ALIGN(buf->vbuf.length));
 }
 
 /*
@@ -170,17 +169,9 @@ static int isp_video_buffer_prepare_kernel(struct isp_video_buffer *buf)
  */
 static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
 {
-	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
-	struct isp_video *video = vfh->video;
 	enum dma_data_direction direction;
 	DEFINE_DMA_ATTRS(attrs);
 	unsigned int i;
-
-	if (buf->dma) {
-		omap_iommu_vunmap(video->isp->domain, video->isp->dev,
-				  buf->dma);
-		buf->dma = 0;
-	}
 
 	if (buf->vbuf.memory == V4L2_MEMORY_USERPTR) {
 		if (buf->skip_cache)
@@ -419,11 +410,8 @@ done:
  */
 static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 {
-	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
-	struct isp_video *video = vfh->video;
 	enum dma_data_direction direction;
 	DEFINE_DMA_ATTRS(attrs);
-	unsigned long addr;
 	int ret;
 
 	switch (buf->vbuf.memory) {
@@ -458,23 +446,15 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 			goto done;
 		}
 
+		buf->dma = sg_dma_address(buf->sgt.sgl);
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	addr = omap_iommu_vmap(video->isp->domain, video->isp->dev, 0,
-			       &buf->sgt, IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_8);
-	if (IS_ERR_VALUE(addr)) {
-		ret = -EIO;
-		goto done;
-	}
-
-	buf->dma = addr;
-
-	if (!IS_ALIGNED(addr, 32)) {
-		dev_dbg(video->isp->dev,
+	if (!IS_ALIGNED(buf->dma, 32)) {
+		dev_dbg(buf->queue->dev,
 			"Buffer address must be aligned to 32 bytes boundary.\n");
 		ret = -EINVAL;
 		goto done;
@@ -576,7 +556,7 @@ static int isp_video_queue_free(struct isp_video_queue *queue)
 		if (buf->vaddr) {
 			dma_free_coherent(queue->dev,
 					  PAGE_ALIGN(buf->vbuf.length),
-					  buf->vaddr, buf->paddr);
+					  buf->vaddr, buf->dma);
 			buf->vaddr = NULL;
 		}
 
@@ -632,7 +612,7 @@ static int isp_video_queue_alloc(struct isp_video_queue *queue,
 
 			buf->vbuf.m.offset = i * PAGE_ALIGN(size);
 			buf->vaddr = mem;
-			buf->paddr = dma;
+			buf->dma = dma;
 		}
 
 		buf->vbuf.index = i;
@@ -1079,7 +1059,7 @@ int omap3isp_video_queue_mmap(struct isp_video_queue *queue,
 	 */
 	vma->vm_pgoff = 0;
 
-	ret = dma_mmap_coherent(queue->dev, vma, buf->vaddr, buf->paddr, size);
+	ret = dma_mmap_coherent(queue->dev, vma, buf->vaddr, buf->dma, size);
 	if (ret < 0)
 		goto done;
 
