@@ -460,6 +460,9 @@ static void ch341_update_line_status(struct usb_serial_port *port,
 	if (data[1] & CH341_MULT_STAT)
 		dev_dbg(&port->dev, "%s - multiple status change\n", __func__);
 
+	if (!delta)
+		return;
+
 	if (delta & CH341_BIT_DCD) {
 		tty = tty_port_tty_get(&port->port);
 		if (tty) {
