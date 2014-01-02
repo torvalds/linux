@@ -378,8 +378,8 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb)
 	if (txq) {
 		e = tun_flow_find(&tun->flows[tun_hashfn(txq)], txq);
 		if (e) {
-			txq = e->queue_index;
 			tun_flow_save_rps_rxhash(e, txq);
+			txq = e->queue_index;
 		} else
 			/* use multiply and shift instead of expensive divide */
 			txq = ((u64)txq * numqueues) >> 32;
