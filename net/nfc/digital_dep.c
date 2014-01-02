@@ -32,7 +32,6 @@
 #define DIGITAL_ATR_REQ_MIN_SIZE 16
 #define DIGITAL_ATR_REQ_MAX_SIZE 64
 
-#define DIGITAL_NFCID3_LEN ((u8)8)
 #define DIGITAL_LR_BITS_PAYLOAD_SIZE_254B 0x30
 #define DIGITAL_GB_BIT	0x02
 
@@ -206,10 +205,9 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 	atr_req->dir = DIGITAL_NFC_DEP_FRAME_DIR_OUT;
 	atr_req->cmd = DIGITAL_CMD_ATR_REQ;
 	if (target->nfcid2_len)
-		memcpy(atr_req->nfcid3, target->nfcid2,
-		       max(target->nfcid2_len, DIGITAL_NFCID3_LEN));
+		memcpy(atr_req->nfcid3, target->nfcid2, NFC_NFCID2_MAXSIZE);
 	else
-		get_random_bytes(atr_req->nfcid3, DIGITAL_NFCID3_LEN);
+		get_random_bytes(atr_req->nfcid3, NFC_NFCID3_MAXSIZE);
 
 	atr_req->did = 0;
 	atr_req->bs = 0;
