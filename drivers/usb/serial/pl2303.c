@@ -808,7 +808,8 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	struct tty_struct *tty;
 	unsigned long flags;
 	unsigned int status_idx = UART_STATE_INDEX;
-	u8 prev_line_status;
+	u8 status;
+	u8 delta;
 
 	if (spriv->quirks & PL2303_QUIRK_UART_STATE_IDX0)
 		status_idx = 0;
@@ -816,24 +817,27 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	if (actual_length < status_idx + 1)
 		return;
 
+	status = data[status_idx];
+
 	/* Save off the uart status for others to look at */
 	spin_lock_irqsave(&priv->lock, flags);
-	prev_line_status = priv->line_status;
-	priv->line_status = data[status_idx];
+	delta = priv->line_status ^ status;
+	priv->line_status = status;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (priv->line_status & UART_BREAK_ERROR)
+	if (status & UART_BREAK_ERROR)
 		usb_serial_handle_break(port);
 
 	wake_up_interruptible(&port->port.delta_msr_wait);
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-	if ((priv->line_status ^ prev_line_status) & UART_DCD)
-		usb_serial_handle_dcd_change(port, tty,
-				priv->line_status & UART_DCD);
-	tty_kref_put(tty);
+	if (delta & UART_DCD) {
+		tty = tty_port_tty_get(&port->port);
+		if (tty) {
+			usb_serial_handle_dcd_change(port, tty,
+							status & UART_DCD);
+			tty_kref_put(tty);
+		}
+	}
 }
 
 static void pl2303_read_int_callback(struct urb *urb)
