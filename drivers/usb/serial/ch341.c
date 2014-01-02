@@ -83,7 +83,6 @@ struct ch341_private {
 	unsigned baud_rate; /* set baud rate */
 	u8 line_control; /* set line control value RTS/DTR */
 	u8 line_status; /* active status of modem control inputs */
-	u8 multi_status_change; /* status changed multiple since last call */
 };
 
 static int ch341_control_out(struct usb_device *dev, u8 request,
@@ -174,7 +173,6 @@ static int ch341_get_status(struct usb_device *dev, struct ch341_private *priv)
 		r = 0;
 		spin_lock_irqsave(&priv->lock, flags);
 		priv->line_status = (~(*buffer)) & CH341_BITS_MODEM_STAT;
-		priv->multi_status_change = 0;
 		spin_unlock_irqrestore(&priv->lock, flags);
 	} else
 		r = -EPROTO;
@@ -457,9 +455,10 @@ static void ch341_update_line_status(struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	delta = status ^ priv->line_status;
 	priv->line_status = status;
-	if (data[1] & CH341_MULT_STAT)
-		priv->multi_status_change = 1;
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (data[1] & CH341_MULT_STAT)
+		dev_dbg(&port->dev, "%s - multiple status change\n", __func__);
 
 	if (delta & CH341_BIT_DCD) {
 		tty = tty_port_tty_get(&port->port);
@@ -516,14 +515,12 @@ static int ch341_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 	u8 prevstatus;
 	u8 status;
 	u8 changed;
-	u8 multi_change = 0;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	prevstatus = priv->line_status;
-	priv->multi_status_change = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	while (!multi_change) {
+	for (;;) {
 		interruptible_sleep_on(&port->port.delta_msr_wait);
 		/* see if a signal did it */
 		if (signal_pending(current))
@@ -534,7 +531,6 @@ static int ch341_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 
 		spin_lock_irqsave(&priv->lock, flags);
 		status = priv->line_status;
-		multi_change = priv->multi_status_change;
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 		changed = prevstatus ^ status;
