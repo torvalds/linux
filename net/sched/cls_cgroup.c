@@ -103,7 +103,7 @@ static struct cftype ss_files[] = {
 	{ }	/* terminate */
 };
 
-static struct cgroup_subsys net_cls_subsys = {
+struct cgroup_subsys net_cls_subsys = {
 	.name		= "net_cls",
 	.css_alloc	= cgrp_css_alloc,
 	.css_online	= cgrp_css_online,
