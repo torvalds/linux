@@ -529,7 +529,7 @@ static int sta2x11_mfd_resume(struct pci_dev *pdev)
 {
 	int err;
 
-	pci_set_power_state(pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
