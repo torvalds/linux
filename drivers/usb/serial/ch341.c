@@ -484,9 +484,9 @@ static void ch341_update_line_status(struct usb_serial_port *port,
 
 static void ch341_read_int_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
+	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
-	unsigned int actual_length = urb->actual_length;
+	unsigned int len = urb->actual_length;
 	int status;
 
 	switch (urb->status) {
@@ -497,24 +497,23 @@ static void ch341_read_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dev_dbg(&urb->dev->dev, "%s - urb shutting down with status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - urb shutting down: %d\n",
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
 
-	usb_serial_debug_data(&port->dev, __func__,
-			      urb->actual_length, urb->transfer_buffer);
-	ch341_update_line_status(port, data, actual_length);
+	usb_serial_debug_data(&port->dev, __func__, len, data);
+	ch341_update_line_status(port, data, len);
 exit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status)
-		dev_err(&urb->dev->dev,
-			"%s - usb_submit_urb failed with result %d\n",
+	if (status) {
+		dev_err(&urb->dev->dev, "%s - usb_submit_urb failed: %d\n",
 			__func__, status);
+	}
 }
 
 static int ch341_tiocmget(struct tty_struct *tty)
