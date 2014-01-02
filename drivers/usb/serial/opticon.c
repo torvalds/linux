@@ -139,7 +139,7 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* Clear RTS line */
 	send_control_msg(port, CONTROL_RTS, 0);
 
-	/* clear the halt status of the enpoint */
+	/* clear the halt status of the endpoint */
 	usb_clear_halt(port->serial->dev, port->read_urb->pipe);
 
 	res = usb_serial_generic_open(tty, port);
@@ -214,7 +214,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 
-	/* The conncected devices do not have a bulk write endpoint,
+	/* The connected devices do not have a bulk write endpoint,
 	 * to transmit data to de barcode device the control endpoint is used */
 	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
 	if (!dr) {

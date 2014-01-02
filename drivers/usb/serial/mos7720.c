@@ -1,6 +1,6 @@
 /*
  * mos7720.c
- *   Controls the Moschip 7720 usb to dual port serial convertor
+ *   Controls the Moschip 7720 usb to dual port serial converter
  *
  * Copyright 2006 Moschip Semiconductor Tech. Ltd.
  *
@@ -46,7 +46,7 @@
 #define MOS_WRITE	0x0E
 #define MOS_READ	0x0D
 
-/* Interrupt Rotinue Defines	*/
+/* Interrupt Routines Defines	*/
 #define SERIAL_IIR_RLS	0x06
 #define SERIAL_IIR_RDA	0x04
 #define SERIAL_IIR_CTI	0x0c
@@ -438,7 +438,7 @@ static int write_parport_reg_nonblock(struct mos7715_parport *mos_parport,
  * not called the release function yet because someone has a serial port open.
  * The shared release_lock prevents the first, and the mutex and disconnected
  * flag maintained by usbserial covers the second.  We also use the msg_pending
- * flag to ensure that all synchronous usb messgage calls have completed before
+ * flag to ensure that all synchronous usb message calls have completed before
  * our release function can return.
  */
 static int parport_prologue(struct parport *pp)
@@ -469,7 +469,7 @@ static int parport_prologue(struct parport *pp)
 }
 
 /*
- * This is the the common bottom part of all parallel port functions that send
+ * This is the common bottom part of all parallel port functions that send
  * synchronous messages to the device.
  */
 static inline void parport_epilogue(struct parport *pp)

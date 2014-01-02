@@ -18,7 +18,7 @@
  * driver
  *
  * TODO:
- * -- Add true modem contol line query capability.  Currently we track the
+ * -- Add true modem control line query capability.  Currently we track the
  *    states reported by the interrupt and the states we request.
  * -- Add support for flush commands
  */

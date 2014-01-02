@@ -770,7 +770,7 @@ uart_enable_failed:
 	return status;
 }
 
-/*  Diables the IUU UART (a.k.a. the Phoenix voiderface) */
+/*  Disables the IUU UART (a.k.a. the Phoenix voiderface) */
 static int iuu_uart_off(struct usb_serial_port *port)
 {
 	int status;

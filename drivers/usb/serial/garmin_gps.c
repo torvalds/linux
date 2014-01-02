@@ -275,7 +275,7 @@ static int pkt_add(struct garmin_data *garmin_data_p,
 	unsigned long flags;
 	struct garmin_packet *pkt;
 
-	/* process only packets containg data ... */
+	/* process only packets containing data ... */
 	if (data_length) {
 		pkt = kmalloc(sizeof(struct garmin_packet)+data_length,
 								GFP_ATOMIC);
@@ -1144,7 +1144,7 @@ static void garmin_read_process(struct garmin_data *garmin_data_p,
 	unsigned long flags;
 
 	if (garmin_data_p->flags & FLAGS_DROP_DATA) {
-		/* abort-transfer cmd is actice */
+		/* abort-transfer cmd is active */
 		dev_dbg(&garmin_data_p->port->dev, "%s - pkt dropped\n", __func__);
 	} else if (garmin_data_p->state != STATE_DISCONNECTED &&
 		garmin_data_p->state != STATE_RESET) {
