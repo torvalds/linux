@@ -205,6 +205,14 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 		return 0;
 	}
 
+	if (!strncmp(priv->adapter->country_code, &country_ie[2], 2)) {
+		rcu_read_unlock();
+		wiphy_dbg(priv->wdev->wiphy,
+			  "11D: skip setting domain info in FW\n");
+		return 0;
+	}
+	memcpy(priv->adapter->country_code, &country_ie[2], 2);
+
 	domain_info->country_code[0] = country_ie[2];
 	domain_info->country_code[1] = country_ie[3];
 	domain_info->country_code[2] = ' ';
@@ -224,6 +232,13 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 		wiphy_err(priv->adapter->wiphy,
 			  "11D: setting domain info in FW\n");
 		return -1;
+	}
+
+	if (priv->adapter->dt_node) {
+		char txpwr[] = {"marvell,00_txpwrlimit"};
+
+		memcpy(&txpwr[8], priv->adapter->country_code, 2);
+		mwifiex_dnld_dt_cfgdata(priv, priv->adapter->dt_node, txpwr);
 	}
 
 	return 0;

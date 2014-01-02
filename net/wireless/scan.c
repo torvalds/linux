@@ -161,7 +161,7 @@ static void __cfg80211_bss_expire(struct cfg80211_registered_device *dev,
 		dev->bss_generation++;
 }
 
-void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak)
+void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev)
 {
 	struct cfg80211_scan_request *request;
 	struct wireless_dev *wdev;
@@ -210,17 +210,7 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak)
 		dev_put(wdev->netdev);
 
 	rdev->scan_req = NULL;
-
-	/*
-	 * OK. If this is invoked with "leak" then we can't
-	 * free this ... but we've cleaned it up anyway. The
-	 * driver failed to call the scan_done callback, so
-	 * all bets are off, it might still be trying to use
-	 * the scan request or not ... if it accesses the dev
-	 * in there (it shouldn't anyway) then it may crash.
-	 */
-	if (!leak)
-		kfree(request);
+	kfree(request);
 }
 
 void __cfg80211_scan_done(struct work_struct *wk)
@@ -231,7 +221,7 @@ void __cfg80211_scan_done(struct work_struct *wk)
 			    scan_done_wk);
 
 	rtnl_lock();
-	___cfg80211_scan_done(rdev, false);
+	___cfg80211_scan_done(rdev);
 	rtnl_unlock();
 }
 

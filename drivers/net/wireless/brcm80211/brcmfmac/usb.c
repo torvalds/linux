@@ -1253,6 +1253,7 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	bus->ops = &brcmf_usb_bus_ops;
 	bus->chip = bus_pub->devid;
 	bus->chiprev = bus_pub->chiprev;
+	bus->proto_type = BRCMF_PROTO_BCDC;
 
 	/* Attach to the common driver interface */
 	ret = brcmf_attach(dev);

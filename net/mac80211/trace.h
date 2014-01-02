@@ -443,30 +443,6 @@ TRACE_EVENT(drv_prepare_multicast,
 	)
 );
 
-TRACE_EVENT(drv_set_multicast_list,
-	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_sub_if_data *sdata, int mc_count),
-
-	TP_ARGS(local, sdata, mc_count),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		__field(bool, allmulti)
-		__field(int, mc_count)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		__entry->allmulti = sdata->flags & IEEE80211_SDATA_ALLMULTI;
-		__entry->mc_count = mc_count;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT " configure mc filter, count=%d, allmulti=%d",
-		LOCAL_PR_ARG, __entry->mc_count, __entry->allmulti
-	)
-);
-
 TRACE_EVENT(drv_configure_filter,
 	TP_PROTO(struct ieee80211_local *local,
 		 unsigned int changed_flags,
@@ -790,7 +766,7 @@ TRACE_EVENT(drv_sta_rc_update,
 	)
 );
 
-TRACE_EVENT(drv_sta_add,
+DECLARE_EVENT_CLASS(sta_event,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_sta *sta),
@@ -815,29 +791,25 @@ TRACE_EVENT(drv_sta_add,
 	)
 );
 
-TRACE_EVENT(drv_sta_remove,
+DEFINE_EVENT(sta_event, drv_sta_add,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
+);
 
-	TP_ARGS(local, sdata, sta),
+DEFINE_EVENT(sta_event, drv_sta_remove,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
+);
 
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		VIF_ENTRY
-		STA_ENTRY
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		VIF_ASSIGN;
-		STA_ASSIGN;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT  VIF_PR_FMT  STA_PR_FMT,
-		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG
-	)
+DEFINE_EVENT(sta_event, drv_sta_pre_rcu_remove,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
 );
 
 TRACE_EVENT(drv_conf_tx,

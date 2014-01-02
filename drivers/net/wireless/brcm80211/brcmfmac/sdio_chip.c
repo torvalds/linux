@@ -112,9 +112,9 @@ brcmf_sdio_sb_corerev(struct brcmf_sdio_dev *sdiodev,
 
 	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
 
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   CORE_SB(ci->c_inf[idx].base, sbidhigh),
-				   NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    CORE_SB(ci->c_inf[idx].base, sbidhigh),
+				    NULL);
 	return SBCOREREV(regdata);
 }
 
@@ -140,9 +140,9 @@ brcmf_sdio_sb_iscoreup(struct brcmf_sdio_dev *sdiodev,
 	if (idx == BRCMF_MAX_CORENUM)
 		return false;
 
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-				   NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
+				    NULL);
 	regdata &= (SSB_TMSLOW_RESET | SSB_TMSLOW_REJECT |
 		    SSB_IMSTATE_REJECT | SSB_TMSLOW_CLOCK);
 	return (SSB_TMSLOW_CLOCK == regdata);
@@ -160,13 +160,13 @@ brcmf_sdio_ai_iscoreup(struct brcmf_sdio_dev *sdiodev,
 	if (idx == BRCMF_MAX_CORENUM)
 		return false;
 
-	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-				   NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+				    NULL);
 	ret = (regdata & (BCMA_IOCTL_FGC | BCMA_IOCTL_CLK)) == BCMA_IOCTL_CLK;
 
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
-				   NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
+				    NULL);
 	ret = ret && ((regdata & BCMA_RESET_CTL_RESET) == 0);
 
 	return ret;
@@ -182,79 +182,79 @@ brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
 	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
 	base = ci->c_inf[idx].base;
 
-	regdata = brcmf_sdio_regrl(sdiodev, CORE_SB(base, sbtmstatelow), NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev, CORE_SB(base, sbtmstatelow), NULL);
 	if (regdata & SSB_TMSLOW_RESET)
 		return;
 
-	regdata = brcmf_sdio_regrl(sdiodev, CORE_SB(base, sbtmstatelow), NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev, CORE_SB(base, sbtmstatelow), NULL);
 	if ((regdata & SSB_TMSLOW_CLOCK) != 0) {
 		/*
 		 * set target reject and spin until busy is clear
 		 * (preserve core-specific bits)
 		 */
-		regdata = brcmf_sdio_regrl(sdiodev, CORE_SB(base, sbtmstatelow),
-					   NULL);
-		brcmf_sdio_regwl(sdiodev, CORE_SB(base, sbtmstatelow),
-				 regdata | SSB_TMSLOW_REJECT, NULL);
+		regdata = brcmf_sdiod_regrl(sdiodev,
+					    CORE_SB(base, sbtmstatelow), NULL);
+		brcmf_sdiod_regwl(sdiodev, CORE_SB(base, sbtmstatelow),
+				  regdata | SSB_TMSLOW_REJECT, NULL);
 
-		regdata = brcmf_sdio_regrl(sdiodev, CORE_SB(base, sbtmstatelow),
-					   NULL);
+		regdata = brcmf_sdiod_regrl(sdiodev,
+					    CORE_SB(base, sbtmstatelow), NULL);
 		udelay(1);
-		SPINWAIT((brcmf_sdio_regrl(sdiodev,
-					   CORE_SB(base, sbtmstatehigh),
-					   NULL) &
-			SSB_TMSHIGH_BUSY), 100000);
+		SPINWAIT((brcmf_sdiod_regrl(sdiodev,
+					    CORE_SB(base, sbtmstatehigh),
+					    NULL) &
+			  SSB_TMSHIGH_BUSY), 100000);
 
-		regdata = brcmf_sdio_regrl(sdiodev,
-					   CORE_SB(base, sbtmstatehigh),
-					   NULL);
+		regdata = brcmf_sdiod_regrl(sdiodev,
+					    CORE_SB(base, sbtmstatehigh),
+					    NULL);
 		if (regdata & SSB_TMSHIGH_BUSY)
 			brcmf_err("core state still busy\n");
 
-		regdata = brcmf_sdio_regrl(sdiodev, CORE_SB(base, sbidlow),
-					   NULL);
+		regdata = brcmf_sdiod_regrl(sdiodev, CORE_SB(base, sbidlow),
+					    NULL);
 		if (regdata & SSB_IDLOW_INITIATOR) {
-			regdata = brcmf_sdio_regrl(sdiodev,
-						   CORE_SB(base, sbimstate),
-						   NULL);
+			regdata = brcmf_sdiod_regrl(sdiodev,
+						    CORE_SB(base, sbimstate),
+						    NULL);
 			regdata |= SSB_IMSTATE_REJECT;
-			brcmf_sdio_regwl(sdiodev, CORE_SB(base, sbimstate),
-					 regdata, NULL);
-			regdata = brcmf_sdio_regrl(sdiodev,
-						   CORE_SB(base, sbimstate),
-						   NULL);
+			brcmf_sdiod_regwl(sdiodev, CORE_SB(base, sbimstate),
+					  regdata, NULL);
+			regdata = brcmf_sdiod_regrl(sdiodev,
+						    CORE_SB(base, sbimstate),
+						    NULL);
 			udelay(1);
-			SPINWAIT((brcmf_sdio_regrl(sdiodev,
-						   CORE_SB(base, sbimstate),
-						   NULL) &
-				SSB_IMSTATE_BUSY), 100000);
+			SPINWAIT((brcmf_sdiod_regrl(sdiodev,
+						    CORE_SB(base, sbimstate),
+						    NULL) &
+				  SSB_IMSTATE_BUSY), 100000);
 		}
 
 		/* set reset and reject while enabling the clocks */
 		regdata = SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK |
 			  SSB_TMSLOW_REJECT | SSB_TMSLOW_RESET;
-		brcmf_sdio_regwl(sdiodev, CORE_SB(base, sbtmstatelow),
-				 regdata, NULL);
-		regdata = brcmf_sdio_regrl(sdiodev, CORE_SB(base, sbtmstatelow),
-					   NULL);
+		brcmf_sdiod_regwl(sdiodev, CORE_SB(base, sbtmstatelow),
+				  regdata, NULL);
+		regdata = brcmf_sdiod_regrl(sdiodev,
+					    CORE_SB(base, sbtmstatelow), NULL);
 		udelay(10);
 
 		/* clear the initiator reject bit */
-		regdata = brcmf_sdio_regrl(sdiodev, CORE_SB(base, sbidlow),
-					   NULL);
+		regdata = brcmf_sdiod_regrl(sdiodev, CORE_SB(base, sbidlow),
+					    NULL);
 		if (regdata & SSB_IDLOW_INITIATOR) {
-			regdata = brcmf_sdio_regrl(sdiodev,
-						   CORE_SB(base, sbimstate),
-						   NULL);
+			regdata = brcmf_sdiod_regrl(sdiodev,
+						    CORE_SB(base, sbimstate),
+						    NULL);
 			regdata &= ~SSB_IMSTATE_REJECT;
-			brcmf_sdio_regwl(sdiodev, CORE_SB(base, sbimstate),
-					 regdata, NULL);
+			brcmf_sdiod_regwl(sdiodev, CORE_SB(base, sbimstate),
+					  regdata, NULL);
 		}
 	}
 
 	/* leave reset and reject asserted */
-	brcmf_sdio_regwl(sdiodev, CORE_SB(base, sbtmstatelow),
-			 (SSB_TMSLOW_REJECT | SSB_TMSLOW_RESET), NULL);
+	brcmf_sdiod_regwl(sdiodev, CORE_SB(base, sbtmstatelow),
+			  (SSB_TMSLOW_REJECT | SSB_TMSLOW_RESET), NULL);
 	udelay(1);
 }
 
@@ -270,9 +270,9 @@ brcmf_sdio_ai_coredisable(struct brcmf_sdio_dev *sdiodev,
 		return;
 
 	/* if core is already in reset, just return */
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
-				   NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
+				    NULL);
 	if ((regdata & BCMA_RESET_CTL_RESET) != 0)
 		return;
 
@@ -281,24 +281,24 @@ brcmf_sdio_ai_coredisable(struct brcmf_sdio_dev *sdiodev,
 	 * extra 10ms is taken into account for firmware load stage
 	 * after 10300us carry on disabling the core anyway
 	 */
-	SPINWAIT(brcmf_sdio_regrl(sdiodev,
-				  ci->c_inf[idx].wrapbase+BCMA_RESET_ST,
-				  NULL), 10300);
-	regdata = brcmf_sdio_regrl(sdiodev,
+	SPINWAIT(brcmf_sdiod_regrl(sdiodev,
 				   ci->c_inf[idx].wrapbase+BCMA_RESET_ST,
-				   NULL);
+				   NULL), 10300);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    ci->c_inf[idx].wrapbase+BCMA_RESET_ST,
+				    NULL);
 	if (regdata)
 		brcmf_err("disabling core 0x%x with reset status %x\n",
 			  coreid, regdata);
 
-	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
-			 BCMA_RESET_CTL_RESET, NULL);
+	brcmf_sdiod_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
+			  BCMA_RESET_CTL_RESET, NULL);
 	udelay(1);
 
-	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-			 core_bits, NULL);
-	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-				   NULL);
+	brcmf_sdiod_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+			  core_bits, NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+				    NULL);
 	usleep_range(10, 20);
 
 }
@@ -325,47 +325,47 @@ brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
 	 * set reset while enabling the clock and
 	 * forcing them on throughout the core
 	 */
-	brcmf_sdio_regwl(sdiodev,
-			 CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-			 SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK | SSB_TMSLOW_RESET,
-			 NULL);
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-				   NULL);
+	brcmf_sdiod_regwl(sdiodev,
+			  CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
+			  SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK | SSB_TMSLOW_RESET,
+			  NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
+				    NULL);
 	udelay(1);
 
 	/* clear any serror */
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   CORE_SB(ci->c_inf[idx].base, sbtmstatehigh),
-				   NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    CORE_SB(ci->c_inf[idx].base, sbtmstatehigh),
+				    NULL);
 	if (regdata & SSB_TMSHIGH_SERR)
-		brcmf_sdio_regwl(sdiodev,
-				 CORE_SB(ci->c_inf[idx].base, sbtmstatehigh),
-				 0, NULL);
+		brcmf_sdiod_regwl(sdiodev,
+				  CORE_SB(ci->c_inf[idx].base, sbtmstatehigh),
+				  0, NULL);
 
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   CORE_SB(ci->c_inf[idx].base, sbimstate),
-				   NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    CORE_SB(ci->c_inf[idx].base, sbimstate),
+				    NULL);
 	if (regdata & (SSB_IMSTATE_IBE | SSB_IMSTATE_TO))
-		brcmf_sdio_regwl(sdiodev,
-				 CORE_SB(ci->c_inf[idx].base, sbimstate),
-				 regdata & ~(SSB_IMSTATE_IBE | SSB_IMSTATE_TO),
-				 NULL);
+		brcmf_sdiod_regwl(sdiodev,
+				  CORE_SB(ci->c_inf[idx].base, sbimstate),
+				  regdata & ~(SSB_IMSTATE_IBE | SSB_IMSTATE_TO),
+				  NULL);
 
 	/* clear reset and allow it to propagate throughout the core */
-	brcmf_sdio_regwl(sdiodev, CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-			 SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK, NULL);
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-				   NULL);
+	brcmf_sdiod_regwl(sdiodev, CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
+			  SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK, NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
+				    NULL);
 	udelay(1);
 
 	/* leave clock enabled */
-	brcmf_sdio_regwl(sdiodev, CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-			 SSB_TMSLOW_CLOCK, NULL);
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-				   NULL);
+	brcmf_sdiod_regwl(sdiodev, CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
+			  SSB_TMSLOW_CLOCK, NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
+				    NULL);
 	udelay(1);
 }
 
@@ -384,21 +384,21 @@ brcmf_sdio_ai_resetcore(struct brcmf_sdio_dev *sdiodev,
 	brcmf_sdio_ai_coredisable(sdiodev, ci, coreid, core_bits);
 
 	/* now do initialization sequence */
-	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-			 core_bits | BCMA_IOCTL_FGC | BCMA_IOCTL_CLK, NULL);
-	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-				   NULL);
-	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
-			 0, NULL);
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
-				   NULL);
+	brcmf_sdiod_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+			  core_bits | BCMA_IOCTL_FGC | BCMA_IOCTL_CLK, NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+				    NULL);
+	brcmf_sdiod_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
+			  0, NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
+				    NULL);
 	udelay(1);
 
-	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-			 core_bits | BCMA_IOCTL_CLK, NULL);
-	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-				   NULL);
+	brcmf_sdiod_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+			  core_bits | BCMA_IOCTL_CLK, NULL);
+	regdata = brcmf_sdiod_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+				    NULL);
 	udelay(1);
 }
 
@@ -438,7 +438,7 @@ static inline int brcmf_sdio_chip_cichk(struct chip_info *ci)
 #endif
 
 static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
-				       struct chip_info *ci, u32 regs)
+				       struct chip_info *ci)
 {
 	u32 regdata;
 	int ret;
@@ -449,10 +449,10 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 	 * other ways of recognition should be added here.
 	 */
 	ci->c_inf[0].id = BCMA_CORE_CHIPCOMMON;
-	ci->c_inf[0].base = regs;
-	regdata = brcmf_sdio_regrl(sdiodev,
-				   CORE_CC_REG(ci->c_inf[0].base, chipid),
-				   NULL);
+	ci->c_inf[0].base = SI_ENUM_BASE;
+	regdata = brcmf_sdiod_regrl(sdiodev,
+				    CORE_CC_REG(ci->c_inf[0].base, chipid),
+				    NULL);
 	ci->chip = regdata & CID_ID_MASK;
 	ci->chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
 	if (sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4335_4339 &&
@@ -607,7 +607,7 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 
 	/* Try forcing SDIO core to do ALPAvail request only */
 	clkset = SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_ALP_AVAIL_REQ;
-	brcmf_sdio_regwb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, clkset, &err);
+	brcmf_sdiod_regwb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, clkset, &err);
 	if (err) {
 		brcmf_err("error writing for HT off\n");
 		return err;
@@ -615,8 +615,8 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 
 	/* If register supported, wait for ALPAvail and then force ALP */
 	/* This may take up to 15 milliseconds */
-	clkval = brcmf_sdio_regrb(sdiodev,
-				  SBSDIO_FUNC1_CHIPCLKCSR, NULL);
+	clkval = brcmf_sdiod_regrb(sdiodev,
+				   SBSDIO_FUNC1_CHIPCLKCSR, NULL);
 
 	if ((clkval & ~SBSDIO_AVBITS) != clkset) {
 		brcmf_err("ChipClkCSR access: wrote 0x%02x read 0x%02x\n",
@@ -624,8 +624,8 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 		return -EACCES;
 	}
 
-	SPINWAIT(((clkval = brcmf_sdio_regrb(sdiodev,
-					     SBSDIO_FUNC1_CHIPCLKCSR, NULL)),
+	SPINWAIT(((clkval = brcmf_sdiod_regrb(sdiodev,
+					      SBSDIO_FUNC1_CHIPCLKCSR, NULL)),
 			!SBSDIO_ALPAV(clkval)),
 			PMU_MAX_TRANSITION_DLY);
 	if (!SBSDIO_ALPAV(clkval)) {
@@ -635,11 +635,11 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 	}
 
 	clkset = SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_FORCE_ALP;
-	brcmf_sdio_regwb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, clkset, &err);
+	brcmf_sdiod_regwb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, clkset, &err);
 	udelay(65);
 
 	/* Also, disable the extra SDIO pull-ups */
-	brcmf_sdio_regwb(sdiodev, SBSDIO_FUNC1_SDIOPULLUP, 0, NULL);
+	brcmf_sdiod_regwb(sdiodev, SBSDIO_FUNC1_SDIOPULLUP, 0, NULL);
 
 	return 0;
 }
@@ -654,16 +654,16 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 	ci->c_inf[0].rev = ci->corerev(sdiodev, ci, ci->c_inf[0].id);
 
 	/* get chipcommon capabilites */
-	ci->c_inf[0].caps = brcmf_sdio_regrl(sdiodev,
-					     CORE_CC_REG(base, capabilities),
-					     NULL);
+	ci->c_inf[0].caps = brcmf_sdiod_regrl(sdiodev,
+					      CORE_CC_REG(base, capabilities),
+					      NULL);
 
 	/* get pmu caps & rev */
 	if (ci->c_inf[0].caps & CC_CAP_PMU) {
 		ci->pmucaps =
-			brcmf_sdio_regrl(sdiodev,
-					 CORE_CC_REG(base, pmucapabilities),
-					 NULL);
+			brcmf_sdiod_regrl(sdiodev,
+					  CORE_CC_REG(base, pmucapabilities),
+					  NULL);
 		ci->pmurev = ci->pmucaps & PCAP_REV_MASK;
 	}
 
@@ -681,7 +681,7 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 }
 
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
-			   struct chip_info **ci_ptr, u32 regs)
+			   struct chip_info **ci_ptr)
 {
 	int ret;
 	struct chip_info *ci;
@@ -697,16 +697,16 @@ int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 	if (ret != 0)
 		goto err;
 
-	ret = brcmf_sdio_chip_recognition(sdiodev, ci, regs);
+	ret = brcmf_sdio_chip_recognition(sdiodev, ci);
 	if (ret != 0)
 		goto err;
 
 	brcmf_sdio_chip_buscoresetup(sdiodev, ci);
 
-	brcmf_sdio_regwl(sdiodev, CORE_CC_REG(ci->c_inf[0].base, gpiopullup),
-			 0, NULL);
-	brcmf_sdio_regwl(sdiodev, CORE_CC_REG(ci->c_inf[0].base, gpiopulldown),
-			 0, NULL);
+	brcmf_sdiod_regwl(sdiodev, CORE_CC_REG(ci->c_inf[0].base, gpiopullup),
+			  0, NULL);
+	brcmf_sdiod_regwl(sdiodev, CORE_CC_REG(ci->c_inf[0].base, gpiopulldown),
+			  0, NULL);
 
 	*ci_ptr = ci;
 	return 0;
@@ -784,12 +784,12 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 			}
 		}
 		addr = CORE_CC_REG(base, chipcontrol_addr);
-		brcmf_sdio_regwl(sdiodev, addr, 1, NULL);
-		cc_data_temp = brcmf_sdio_regrl(sdiodev, addr, NULL);
+		brcmf_sdiod_regwl(sdiodev, addr, 1, NULL);
+		cc_data_temp = brcmf_sdiod_regrl(sdiodev, addr, NULL);
 		cc_data_temp &= ~str_mask;
 		drivestrength_sel <<= str_shift;
 		cc_data_temp |= drivestrength_sel;
-		brcmf_sdio_regwl(sdiodev, addr, cc_data_temp, NULL);
+		brcmf_sdiod_regwl(sdiodev, addr, cc_data_temp, NULL);
 
 		brcmf_dbg(INFO, "SDIO: %d mA (req=%d mA) drive strength selected, set to 0x%08x\n",
 			  str_tab[i].strength, drivestrength, cc_data_temp);
@@ -816,8 +816,8 @@ brcmf_sdio_chip_verifynvram(struct brcmf_sdio_dev *sdiodev, u32 nvram_addr,
 	memset(nvram_ularray, 0xaa, nvram_sz);
 
 	/* Read the vars list to temp buffer for comparison */
-	err = brcmf_sdio_ramrw(sdiodev, false, nvram_addr, nvram_ularray,
-			       nvram_sz);
+	err = brcmf_sdiod_ramrw(sdiodev, false, nvram_addr, nvram_ularray,
+				nvram_sz);
 	if (err) {
 		brcmf_err("error %d on reading %d nvram bytes at 0x%08x\n",
 			  err, nvram_sz, nvram_addr);
@@ -850,7 +850,7 @@ static bool brcmf_sdio_chip_writenvram(struct brcmf_sdio_dev *sdiodev,
 	nvram_addr = (ci->ramsize - 4) - nvram_sz + ci->rambase;
 
 	/* Write the vars list */
-	err = brcmf_sdio_ramrw(sdiodev, true, nvram_addr, nvram_dat, nvram_sz);
+	err = brcmf_sdiod_ramrw(sdiodev, true, nvram_addr, nvram_dat, nvram_sz);
 	if (err) {
 		brcmf_err("error %d on writing %d nvram bytes at 0x%08x\n",
 			  err, nvram_sz, nvram_addr);
@@ -874,8 +874,8 @@ static bool brcmf_sdio_chip_writenvram(struct brcmf_sdio_dev *sdiodev,
 		  nvram_addr, nvram_sz, token);
 
 	/* Write the length token to the last word */
-	if (brcmf_sdio_ramrw(sdiodev, true, (ci->ramsize - 4 + ci->rambase),
-			     (u8 *)&token_le, 4))
+	if (brcmf_sdiod_ramrw(sdiodev, true, (ci->ramsize - 4 + ci->rambase),
+			      (u8 *)&token_le, 4))
 		return false;
 
 	return true;
@@ -891,7 +891,7 @@ brcmf_sdio_chip_cm3_enterdl(struct brcmf_sdio_dev *sdiodev,
 	ci->resetcore(sdiodev, ci, BCMA_CORE_INTERNAL_MEM, 0);
 
 	/* clear length token */
-	brcmf_sdio_ramrw(sdiodev, true, ci->ramsize - 4, (u8 *)&zeros, 4);
+	brcmf_sdiod_ramrw(sdiodev, true, ci->ramsize - 4, (u8 *)&zeros, 4);
 }
 
 static bool
@@ -913,7 +913,7 @@ brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 	core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_SDIO_DEV);
 	reg_addr = ci->c_inf[core_idx].base;
 	reg_addr += offsetof(struct sdpcmd_regs, intstatus);
-	brcmf_sdio_regwl(sdiodev, reg_addr, 0xFFFFFFFF, NULL);
+	brcmf_sdiod_regwl(sdiodev, reg_addr, 0xFFFFFFFF, NULL);
 
 	ci->resetcore(sdiodev, ci, BCMA_CORE_ARM_CM3, 0);
 
@@ -942,11 +942,11 @@ brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 	core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_SDIO_DEV);
 	reg_addr = ci->c_inf[core_idx].base;
 	reg_addr += offsetof(struct sdpcmd_regs, intstatus);
-	brcmf_sdio_regwl(sdiodev, reg_addr, 0xFFFFFFFF, NULL);
+	brcmf_sdiod_regwl(sdiodev, reg_addr, 0xFFFFFFFF, NULL);
 
 	/* Write reset vector to address 0 */
-	brcmf_sdio_ramrw(sdiodev, true, 0, (void *)&ci->rst_vec,
-			 sizeof(ci->rst_vec));
+	brcmf_sdiod_ramrw(sdiodev, true, 0, (void *)&ci->rst_vec,
+			  sizeof(ci->rst_vec));
 
 	/* restore ARM */
 	ci->resetcore(sdiodev, ci, BCMA_CORE_ARM_CR4, 0);

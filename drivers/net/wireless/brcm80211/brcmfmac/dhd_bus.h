@@ -24,6 +24,12 @@ enum brcmf_bus_state {
 	BRCMF_BUS_DATA		/* Ready for frame transfers */
 };
 
+/* The level of bus communication with the dongle */
+enum brcmf_bus_protocol_type {
+	BRCMF_PROTO_BCDC,
+	BRCMF_PROTO_MSGBUF
+};
+
 struct brcmf_bus_dcmd {
 	char *name;
 	char *param;
@@ -65,6 +71,7 @@ struct brcmf_bus_ops {
  * struct brcmf_bus - interface structure between common and bus layer
  *
  * @bus_priv: pointer to private bus device.
+ * @proto_type: protocol type, bcdc or msgbuf
  * @dev: device pointer of bus device.
  * @drvr: public driver information.
  * @state: operational state of the bus interface.
@@ -80,6 +87,7 @@ struct brcmf_bus {
 		struct brcmf_sdio_dev *sdio;
 		struct brcmf_usbdev *usb;
 	} bus_priv;
+	enum brcmf_bus_protocol_type proto_type;
 	struct device *dev;
 	struct brcmf_pub *drvr;
 	enum brcmf_bus_state state;

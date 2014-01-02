@@ -101,35 +101,41 @@ struct brcmf_proto_bcdc_header {
 					 * plus any space that might be needed
 					 * for bus alignment padding.
 					 */
-#define ROUND_UP_MARGIN	2048	/* Biggest bus block size possible for
-				 * round off at the end of buffer
-				 * Currently is SDIO
-				 */
-
 struct brcmf_bcdc {
 	u16 reqid;
 	u8 bus_header[BUS_HEADER_LEN];
 	struct brcmf_proto_bcdc_dcmd msg;
-	unsigned char buf[BRCMF_DCMD_MAXLEN + ROUND_UP_MARGIN];
+	unsigned char buf[BRCMF_DCMD_MAXLEN];
 };
 
-static int brcmf_proto_bcdc_msg(struct brcmf_pub *drvr)
+
+static int
+brcmf_proto_bcdc_msg(struct brcmf_pub *drvr, int ifidx, uint cmd, void *buf,
+		     uint len, bool set)
 {
 	struct brcmf_bcdc *bcdc = (struct brcmf_bcdc *)drvr->proto->pd;
-	int len = le32_to_cpu(bcdc->msg.len) +
-			sizeof(struct brcmf_proto_bcdc_dcmd);
+	struct brcmf_proto_bcdc_dcmd *msg = &bcdc->msg;
+	u32 flags;
 
 	brcmf_dbg(BCDC, "Enter\n");
 
-	/* NOTE : bcdc->msg.len holds the desired length of the buffer to be
-	 *        returned. Only up to BCDC_MAX_MSG_SIZE of this buffer area
-	 *        is actually sent to the dongle
-	 */
-	if (len > BCDC_MAX_MSG_SIZE)
-		len = BCDC_MAX_MSG_SIZE;
+	memset(msg, 0, sizeof(struct brcmf_proto_bcdc_dcmd));
+
+	msg->cmd = cpu_to_le32(cmd);
+	msg->len = cpu_to_le32(len);
+	flags = (++bcdc->reqid << BCDC_DCMD_ID_SHIFT);
+	if (set)
+		flags |= BCDC_DCMD_SET;
+	flags = (flags & ~BCDC_DCMD_IF_MASK) |
+		(ifidx << BCDC_DCMD_IF_SHIFT);
+	msg->flags = cpu_to_le32(flags);
+
+	if (buf)
+		memcpy(bcdc->buf, buf, len);
 
 	/* Send request */
-	return brcmf_bus_txctl(drvr->bus_if, (unsigned char *)&bcdc->msg, len);
+	return brcmf_bus_txctl(drvr->bus_if, (unsigned char *)&bcdc->msg,
+			       len + sizeof(struct brcmf_proto_bcdc_dcmd));
 }
 
 static int brcmf_proto_bcdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
@@ -161,19 +167,7 @@ brcmf_proto_bcdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	brcmf_dbg(BCDC, "Enter, cmd %d len %d\n", cmd, len);
 
-	memset(msg, 0, sizeof(struct brcmf_proto_bcdc_dcmd));
-
-	msg->cmd = cpu_to_le32(cmd);
-	msg->len = cpu_to_le32(len);
-	flags = (++bcdc->reqid << BCDC_DCMD_ID_SHIFT);
-	flags = (flags & ~BCDC_DCMD_IF_MASK) |
-		(ifidx << BCDC_DCMD_IF_SHIFT);
-	msg->flags = cpu_to_le32(flags);
-
-	if (buf)
-		memcpy(bcdc->buf, buf, len);
-
-	ret = brcmf_proto_bcdc_msg(drvr);
+	ret = brcmf_proto_bcdc_msg(drvr, ifidx, cmd, buf, len, false);
 	if (ret < 0) {
 		brcmf_err("brcmf_proto_bcdc_msg failed w/status %d\n",
 			  ret);
@@ -227,19 +221,7 @@ brcmf_proto_bcdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	brcmf_dbg(BCDC, "Enter, cmd %d len %d\n", cmd, len);
 
-	memset(msg, 0, sizeof(struct brcmf_proto_bcdc_dcmd));
-
-	msg->cmd = cpu_to_le32(cmd);
-	msg->len = cpu_to_le32(len);
-	flags = (++bcdc->reqid << BCDC_DCMD_ID_SHIFT) | BCDC_DCMD_SET;
-	flags = (flags & ~BCDC_DCMD_IF_MASK) |
-		(ifidx << BCDC_DCMD_IF_SHIFT);
-	msg->flags = cpu_to_le32(flags);
-
-	if (buf)
-		memcpy(bcdc->buf, buf, len);
-
-	ret = brcmf_proto_bcdc_msg(drvr);
+	ret = brcmf_proto_bcdc_msg(drvr, ifidx, cmd, buf, len, true);
 	if (ret < 0)
 		goto done;
 
@@ -347,6 +329,15 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 	return 0;
 }
 
+static int
+brcmf_proto_bcdc_txdata(struct brcmf_pub *drvr, int ifidx, u8 offset,
+			struct sk_buff *pktbuf)
+{
+	brcmf_proto_bcdc_hdrpush(drvr, ifidx, offset, pktbuf);
+	return brcmf_bus_txdata(drvr->bus_if, pktbuf);
+}
+
+
 int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_bcdc *bcdc;
@@ -361,15 +352,15 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 		goto fail;
 	}
 
-	drvr->proto->hdrpush = brcmf_proto_bcdc_hdrpush;
 	drvr->proto->hdrpull = brcmf_proto_bcdc_hdrpull;
 	drvr->proto->query_dcmd = brcmf_proto_bcdc_query_dcmd;
 	drvr->proto->set_dcmd = brcmf_proto_bcdc_set_dcmd;
+	drvr->proto->txdata = brcmf_proto_bcdc_txdata;
 	drvr->proto->pd = bcdc;
 
 	drvr->hdrlen += BCDC_HEADER_LEN + BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES;
 	drvr->bus_if->maxctl = BRCMF_DCMD_MAXLEN +
-			sizeof(struct brcmf_proto_bcdc_dcmd) + ROUND_UP_MARGIN;
+			sizeof(struct brcmf_proto_bcdc_dcmd);
 	return 0;
 
 fail:

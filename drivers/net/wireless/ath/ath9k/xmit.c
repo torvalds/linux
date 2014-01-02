@@ -174,14 +174,7 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 static struct ath_atx_tid *
 ath_get_skb_tid(struct ath_softc *sc, struct ath_node *an, struct sk_buff *skb)
 {
-	struct ieee80211_hdr *hdr;
-	u8 tidno = 0;
-
-	hdr = (struct ieee80211_hdr *) skb->data;
-	if (ieee80211_is_data_qos(hdr->frame_control))
-		tidno = ieee80211_get_qos_ctl(hdr)[0];
-
-	tidno &= IEEE80211_QOS_CTL_TID_MASK;
+	u8 tidno = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	return ATH_AN_2_TID(an, tidno);
 }
 

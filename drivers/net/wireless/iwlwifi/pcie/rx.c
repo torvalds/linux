@@ -162,11 +162,8 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 		rxq->write_actual = (rxq->write & ~0x7);
 		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
 	} else {
-		struct iwl_trans_pcie *trans_pcie =
-			IWL_TRANS_GET_PCIE_TRANS(trans);
-
 		/* If power-saving is in use, make sure device is awake */
-		if (test_bit(STATUS_TPOWER_PMI, &trans_pcie->status)) {
+		if (test_bit(STATUS_TPOWER_PMI, &trans->status)) {
 			reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
@@ -222,7 +219,7 @@ static void iwl_pcie_rxq_restock(struct iwl_trans *trans)
 	 * stopped, we cannot access the HW (in particular not prph).
 	 * So don't try to restock if the APM has been already stopped.
 	 */
-	if (!test_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status))
+	if (!test_bit(STATUS_DEVICE_ENABLED, &trans->status))
 		return;
 
 	spin_lock_irqsave(&rxq->lock, flags);
@@ -791,7 +788,7 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 			     APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
 			    APMG_PS_CTRL_VAL_RESET_REQ))) {
-		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
+		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		iwl_op_mode_wimax_active(trans->op_mode);
 		wake_up(&trans_pcie->wait_command_queue);
 		return;
@@ -800,14 +797,14 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	iwl_pcie_dump_csr(trans);
 	iwl_dump_fh(trans, NULL);
 
-	/* set the ERROR bit before we wake up the caller */
-	set_bit(STATUS_FW_ERROR, &trans_pcie->status);
-	clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
-	wake_up(&trans_pcie->wait_command_queue);
-
 	local_bh_disable();
-	iwl_nic_error(trans);
+	/* The STATUS_FW_ERROR bit is set in this function. This must happen
+	 * before we wake up the command caller, to ensure a proper cleanup. */
+	iwl_trans_fw_error(trans);
 	local_bh_enable();
+
+	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
+	wake_up(&trans_pcie->wait_command_queue);
 }
 
 irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
@@ -894,14 +891,14 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 		iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 		if (hw_rfkill) {
-			set_bit(STATUS_RFKILL, &trans_pcie->status);
-			if (test_and_clear_bit(STATUS_HCMD_ACTIVE,
-					       &trans_pcie->status))
+			set_bit(STATUS_RFKILL, &trans->status);
+			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
+					       &trans->status))
 				IWL_DEBUG_RF_KILL(trans,
 						  "Rfkill while SYNC HCMD in flight\n");
 			wake_up(&trans_pcie->wait_command_queue);
 		} else {
-			clear_bit(STATUS_RFKILL, &trans_pcie->status);
+			clear_bit(STATUS_RFKILL, &trans->status);
 		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
@@ -1005,7 +1002,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 	/* Re-enable all interrupts */
 	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status))
+	if (test_bit(STATUS_INT_ENABLED, &trans->status))
 		iwl_enable_interrupts(trans);
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
@@ -1160,7 +1157,7 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 		 * the handler can be scheduled because of a previous
 		 * interrupt.
 		 */
-		if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
+		if (test_bit(STATUS_INT_ENABLED, &trans->status) &&
 		    !trans_pcie->inta)
 			iwl_enable_interrupts(trans);
 		return IRQ_NONE;
@@ -1290,7 +1287,7 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	/* re-enable interrupts here since we don't have anything to service.
 	 * only Re-enable if disabled by irq.
 	 */
-	if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
+	if (test_bit(STATUS_INT_ENABLED, &trans->status) &&
 	    !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 

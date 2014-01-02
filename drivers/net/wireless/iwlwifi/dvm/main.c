@@ -1313,7 +1313,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	}
 
 	/* Reset chip to save power until we load uCode during "up". */
-	iwl_trans_stop_hw(priv->trans, false);
+	iwl_trans_stop_device(priv->trans);
 
 	priv->nvm_data = iwl_parse_eeprom_data(priv->trans->dev, priv->cfg,
 						  priv->eeprom_blob,
@@ -1458,7 +1458,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	dev_kfree_skb(priv->beacon_skb);
 
-	iwl_trans_stop_hw(priv->trans, true);
+	iwl_trans_op_mode_leave(priv->trans);
 	ieee80211_free_hw(priv->hw);
 }
 

@@ -292,11 +292,11 @@ void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta,
 			   struct dentry *dir);
-void ath_debug_send_fft_sample(struct ath_softc *sc,
-			       struct fft_sample_tlv *fft_sample);
 void ath9k_debug_stat_ant(struct ath_softc *sc,
 			  struct ath_hw_antcomb_conf *div_ant_conf,
 			  int main_rssi_avg, int alt_rssi_avg);
+void ath9k_debug_sync_cause(struct ath_softc *sc, u32 sync_cause);
+
 #else
 
 #define RX_STAT_INC(c) /* NOP */
@@ -329,6 +329,11 @@ static inline void ath9k_debug_stat_ant(struct ath_softc *sc,
 					int main_rssi_avg, int alt_rssi_avg)
 {
 
+}
+
+static inline void
+ath9k_debug_sync_cause(struct ath_softc *sc, u32 sync_cause)
+{
 }
 
 #endif /* CONFIG_ATH9K_DEBUGFS */
