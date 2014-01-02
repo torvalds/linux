@@ -653,6 +653,20 @@ static void ocp_write_byte(struct r8152 *tp, u16 type, u16 index, u32 data)
 	generic_ocp_write(tp, index, byen, sizeof(tmp), &tmp, type);
 }
 
+static void ocp_reg_write(struct r8152 *tp, u16 addr, u16 data)
+{
+	u16 ocp_base, ocp_index;
+
+	ocp_base = addr & 0xf000;
+	if (ocp_base != tp->ocp_base) {
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_OCP_GPHY_BASE, ocp_base);
+		tp->ocp_base = ocp_base;
+	}
+
+	ocp_index = (addr & 0x0fff) | 0xb000;
+	ocp_write_word(tp, MCU_TYPE_PLA, ocp_index, data);
+}
+
 static void r8152_mdio_write(struct r8152 *tp, u32 reg_addr, u32 value)
 {
 	u32	ocp_data;
@@ -713,20 +727,6 @@ void write_mii_word(struct net_device *netdev, int phy_id, int reg, int val)
 		return;
 
 	r8152_mdio_write(tp, reg, val);
-}
-
-static void ocp_reg_write(struct r8152 *tp, u16 addr, u16 data)
-{
-	u16 ocp_base, ocp_index;
-
-	ocp_base = addr & 0xf000;
-	if (ocp_base != tp->ocp_base) {
-		ocp_write_word(tp, MCU_TYPE_PLA, PLA_OCP_GPHY_BASE, ocp_base);
-		tp->ocp_base = ocp_base;
-	}
-
-	ocp_index = (addr & 0x0fff) | 0xb000;
-	ocp_write_word(tp, MCU_TYPE_PLA, ocp_index, data);
 }
 
 static
@@ -2079,6 +2079,21 @@ static void r8152b_get_version(struct r8152 *tp)
 	}
 }
 
+static void rtl8152_unload(struct r8152 *tp)
+{
+	u32	ocp_data;
+
+	if (tp->version != RTL_VER_01) {
+		ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_UPS_CTRL);
+		ocp_data |= POWER_CUT;
+		ocp_write_word(tp, MCU_TYPE_USB, USB_UPS_CTRL, ocp_data);
+	}
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS);
+	ocp_data &= ~RWSUME_INDICATE;
+	ocp_write_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS, ocp_data);
+}
+
 static int rtl8152_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -2148,21 +2163,6 @@ out1:
 out:
 	free_netdev(netdev);
 	return ret;
-}
-
-static void rtl8152_unload(struct r8152 *tp)
-{
-	u32	ocp_data;
-
-	if (tp->version != RTL_VER_01) {
-		ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_UPS_CTRL);
-		ocp_data |= POWER_CUT;
-		ocp_write_word(tp, MCU_TYPE_USB, USB_UPS_CTRL, ocp_data);
-	}
-
-	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS);
-	ocp_data &= ~RWSUME_INDICATE;
-	ocp_write_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS, ocp_data);
 }
 
 static void rtl8152_disconnect(struct usb_interface *intf)
