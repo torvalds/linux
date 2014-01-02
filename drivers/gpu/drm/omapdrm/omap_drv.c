@@ -86,6 +86,13 @@ static bool channel_used(struct drm_device *dev, enum omap_channel channel)
 
 	return false;
 }
+static void omap_disconnect_dssdevs(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev)
+		dssdev->driver->disconnect(dssdev);
+}
 
 static int omap_connect_dssdevs(void)
 {
@@ -116,10 +123,7 @@ cleanup:
 	 * if we are deferring probe, we disconnect the devices we previously
 	 * connected
 	 */
-	dssdev = NULL;
-
-	for_each_dss_dev(dssdev)
-		dssdev->driver->disconnect(dssdev);
+	omap_disconnect_dssdevs();
 
 	return r;
 }
@@ -692,6 +696,9 @@ static int pdev_remove(struct platform_device *device)
 {
 	DBG("");
 	drm_platform_exit(&omap_drm_driver, device);
+
+	omap_disconnect_dssdevs();
+	omap_crtc_pre_uninit();
 
 	platform_driver_unregister(&omap_dmm_driver);
 	return 0;
