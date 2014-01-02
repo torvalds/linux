@@ -12,7 +12,7 @@
 / {
 	cpus {
 		/* OMAP446x 'standard device' variants OPP50 to OPPTurbo */
-		cpu@0 {
+		cpu0: cpu@0 {
 			operating-points = <
 				/* kHz    uV */
 				350000  1025000
@@ -20,6 +20,11 @@
 				920000  1313000
 			>;
 			clock-latency = <300000>; /* From legacy driver */
+
+			/* cooling options */
+			cooling-min-level = <0>;
+			cooling-max-level = <2>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
 
@@ -30,12 +35,20 @@
 		ti,hwmods = "debugss";
 	};
 
-	bandgap {
-		reg = <0x4a002260 0x4
-		       0x4a00232C 0x4
-		       0x4a002378 0x18>;
-		compatible = "ti,omap4460-bandgap";
-		interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>; /* talert */
-		gpios = <&gpio3 22 0>; /* tshut */
+	thermal-zones {
+		#include "omap4-cpu-thermal.dtsi"
+	};
+
+	ocp {
+		bandgap: bandgap {
+			reg = <0x4a002260 0x4
+			       0x4a00232C 0x4
+			       0x4a002378 0x18>;
+			compatible = "ti,omap4460-bandgap";
+			interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>; /* talert */
+			gpios = <&gpio3 22 0>; /* tshut */
+
+			#thermal-sensor-cells = <0>;
+		};
 	};
 };
