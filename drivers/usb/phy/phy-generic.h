@@ -1,6 +1,8 @@
 #ifndef _PHY_GENERIC_H_
 #define _PHY_GENERIC_H_
 
+#include <linux/usb/usb_phy_gen_xceiv.h>
+
 struct usb_phy_gen_xceiv {
 	struct usb_phy phy;
 	struct device *dev;
@@ -14,6 +16,6 @@ int usb_gen_phy_init(struct usb_phy *phy);
 void usb_gen_phy_shutdown(struct usb_phy *phy);
 
 int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
-		enum usb_phy_type type, u32 clk_rate, bool needs_vcc);
+		struct usb_phy_gen_xceiv_platform_data *pdata);
 
 #endif

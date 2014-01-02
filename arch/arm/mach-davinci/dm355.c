@@ -641,6 +641,7 @@ static struct platform_device dm355_edma_device = {
 
 static struct resource dm355_asp1_resources[] = {
 	{
+		.name	= "mpu",
 		.start	= DAVINCI_ASP1_BASE,
 		.end	= DAVINCI_ASP1_BASE + SZ_8K - 1,
 		.flags	= IORESOURCE_MEM,
@@ -900,13 +901,12 @@ static struct resource dm355_gpio_resources[] = {
 
 static struct davinci_gpio_platform_data dm355_gpio_platform_data = {
 	.ngpio		= 104,
-	.intc_irq_num	= DAVINCI_N_AINTC_IRQ,
 };
 
 int __init dm355_gpio_register(void)
 {
 	return davinci_gpio_register(dm355_gpio_resources,
-				     sizeof(dm355_gpio_resources),
+				     ARRAY_SIZE(dm355_gpio_resources),
 				     &dm355_gpio_platform_data);
 }
 /*----------------------------------------------------------------------*/

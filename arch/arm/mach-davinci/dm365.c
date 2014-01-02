@@ -713,14 +713,13 @@ static struct resource dm365_gpio_resources[] = {
 
 static struct davinci_gpio_platform_data dm365_gpio_platform_data = {
 	.ngpio		= 104,
-	.intc_irq_num	= DAVINCI_N_AINTC_IRQ,
 	.gpio_unbanked	= 8,
 };
 
 int __init dm365_gpio_register(void)
 {
 	return davinci_gpio_register(dm365_gpio_resources,
-				     sizeof(dm365_gpio_resources),
+				     ARRAY_SIZE(dm365_gpio_resources),
 				     &dm365_gpio_platform_data);
 }
 
@@ -942,6 +941,7 @@ static struct platform_device dm365_edma_device = {
 
 static struct resource dm365_asp_resources[] = {
 	{
+		.name	= "mpu",
 		.start	= DAVINCI_DM365_ASP0_BASE,
 		.end	= DAVINCI_DM365_ASP0_BASE + SZ_8K - 1,
 		.flags	= IORESOURCE_MEM,
