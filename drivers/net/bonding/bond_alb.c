@@ -1371,7 +1371,6 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	int do_tx_balance = 1;
 	u32 hash_index = 0;
 	const u8 *hash_start = NULL;
-	int res = 1;
 	struct ipv6hdr *ip6hdr;
 
 	skb_reset_mac_header(skb);
@@ -1469,7 +1468,8 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			       ETH_ALEN);
 		}
 
-		res = bond_dev_queue_xmit(bond, skb, tx_slave->dev);
+		bond_dev_queue_xmit(bond, skb, tx_slave->dev);
+		goto out;
 	} else {
 		if (tx_slave) {
 			_lock_tx_hashtbl(bond);
@@ -1478,11 +1478,9 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		}
 	}
 
-	if (res) {
-		/* no suitable interface, frame not sent */
-		kfree_skb(skb);
-	}
-
+	/* no suitable interface, frame not sent */
+	kfree_skb(skb);
+out:
 	return NETDEV_TX_OK;
 }
 
