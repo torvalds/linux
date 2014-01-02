@@ -1368,6 +1368,9 @@ T:	git git://git.xilinx.com/linux-xlnx.git
 S:	Supported
 F:	arch/arm/mach-zynq/
 F:	drivers/cpuidle/cpuidle-zynq.c
+N:	zynq
+N:	xilinx
+F:	drivers/clocksource/cadence_ttc_timer.c
 
 ARM SMMU DRIVER
 M:	Will Deacon <will.deacon@arm.com>
