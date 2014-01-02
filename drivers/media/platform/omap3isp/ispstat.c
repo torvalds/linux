@@ -400,7 +400,6 @@ static int isp_stat_bufs_alloc_iommu(struct ispstat *stat, unsigned int size)
 		struct ispstat_buffer *buf = &stat->buf[i];
 		struct iovm_struct *iovm;
 
-		WARN_ON(buf->dma_addr);
 		buf->iommu_addr = omap_iommu_vmalloc(isp->domain, isp->dev, 0,
 							size, IOMMU_FLAG);
 		if (IS_ERR((void *)buf->iommu_addr)) {
@@ -441,7 +440,6 @@ static int isp_stat_bufs_alloc_dma(struct ispstat *stat, unsigned int size)
 	for (i = 0; i < STAT_MAX_BUFS; i++) {
 		struct ispstat_buffer *buf = &stat->buf[i];
 
-		WARN_ON(buf->iommu_addr);
 		buf->virt_addr = dma_alloc_coherent(stat->isp->dev, size,
 					&buf->dma_addr, GFP_KERNEL | GFP_DMA);
 
