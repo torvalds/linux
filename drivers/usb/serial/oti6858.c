@@ -103,6 +103,7 @@ struct oti6858_control_pkt {
 #define	TX_BUFFER_EMPTIED	0x09
 	u8	pin_state;
 #define PIN_MASK		0x3f
+#define PIN_MSR_MASK		0x1b
 #define PIN_RTS			0x20	/* output pin */
 #define PIN_CTS			0x10	/* input pin, active low */
 #define PIN_DSR			0x08	/* input pin, active low */
@@ -739,8 +740,11 @@ static void oti6858_read_int_callback(struct urb *urb)
 		}
 
 		if (!priv->transient) {
-			if (xs->pin_state != priv->status.pin_state)
+			u8 delta = xs->pin_state ^ priv->status.pin_state;
+
+			if (delta & PIN_MSR_MASK)
 				wake_up_interruptible(&port->port.delta_msr_wait);
+
 			memcpy(&priv->status, xs, OTI6858_CTRL_PKT_SIZE);
 		}
 
