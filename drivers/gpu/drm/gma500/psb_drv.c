@@ -347,9 +347,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (ret)
 		goto out_err;
 
-	dev_priv->mmu = psb_mmu_driver_init((void *)0,
-					drm_psb_trap_pagefaults, 0,
-					dev_priv);
+	dev_priv->mmu = psb_mmu_driver_init(dev, drm_psb_trap_pagefaults, 0, 0);
 	if (!dev_priv->mmu)
 		goto out_err;
 
