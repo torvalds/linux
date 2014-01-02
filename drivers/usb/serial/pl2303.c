@@ -712,46 +712,6 @@ static int pl2303_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int pl2303_tiocmiwait(struct tty_struct *tty, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct pl2303_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	unsigned int prevstatus;
-	unsigned int status;
-	unsigned int changed;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	prevstatus = priv->line_status;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	while (1) {
-		interruptible_sleep_on(&port->port.delta_msr_wait);
-		/* see if a signal did it */
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		if (port->serial->disconnected)
-			return -EIO;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		status = priv->line_status;
-		spin_unlock_irqrestore(&priv->lock, flags);
-
-		changed = prevstatus ^ status;
-
-		if (((arg & TIOCM_RNG) && (changed & UART_RING)) ||
-		    ((arg & TIOCM_DSR) && (changed & UART_DSR)) ||
-		    ((arg & TIOCM_CD)  && (changed & UART_DCD)) ||
-		    ((arg & TIOCM_CTS) && (changed & UART_CTS))) {
-			return 0;
-		}
-		prevstatus = status;
-	}
-	/* NOTREACHED */
-	return 0;
-}
-
 static int pl2303_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
@@ -830,7 +790,14 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 		usb_serial_handle_break(port);
 
 	if (delta & UART_STATE_MSR_MASK) {
+		if (delta & UART_CTS)
+			port->icount.cts++;
+		if (delta & UART_DSR)
+			port->icount.dsr++;
+		if (delta & UART_RING)
+			port->icount.rng++;
 		if (delta & UART_DCD) {
+			port->icount.dcd++;
 			tty = tty_port_tty_get(&port->port);
 			if (tty) {
 				usb_serial_handle_dcd_change(port, tty,
@@ -950,7 +917,7 @@ static struct usb_serial_driver pl2303_device = {
 	.set_termios =		pl2303_set_termios,
 	.tiocmget =		pl2303_tiocmget,
 	.tiocmset =		pl2303_tiocmset,
-	.tiocmiwait =		pl2303_tiocmiwait,
+	.tiocmiwait =		usb_serial_generic_tiocmiwait,
 	.process_read_urb =	pl2303_process_read_urb,
 	.read_int_callback =	pl2303_read_int_callback,
 	.probe =		pl2303_probe,
