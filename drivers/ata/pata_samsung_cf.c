@@ -531,22 +531,10 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 	info->irq = platform_get_irq(pdev, 0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(dev, "failed to get mem resource\n");
-		return -EINVAL;
-	}
 
-	if (!devm_request_mem_region(dev, res->start,
-				resource_size(res), DRV_NAME)) {
-		dev_err(dev, "error requesting register region\n");
-		return -EBUSY;
-	}
-
-	info->ide_addr = devm_ioremap(dev, res->start, resource_size(res));
-	if (!info->ide_addr) {
-		dev_err(dev, "failed to map IO base address\n");
-		return -ENOMEM;
-	}
+	info->ide_addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(info->ide_addr))
+		return PTR_ERR(info->ide_addr);
 
 	info->clk = devm_clk_get(&pdev->dev, "cfcon");
 	if (IS_ERR(info->clk)) {
