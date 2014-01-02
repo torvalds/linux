@@ -183,8 +183,8 @@ static void isp_stat_buf_sync_for_device(struct ispstat *stat,
 	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
-	dma_sync_sg_for_device(stat->isp->dev, buf->iovm->sgt->sgl,
-			       buf->iovm->sgt->nents, DMA_FROM_DEVICE);
+	dma_sync_sg_for_device(stat->isp->dev, buf->sgt->sgl,
+			       buf->sgt->nents, DMA_FROM_DEVICE);
 }
 
 static void isp_stat_buf_sync_for_cpu(struct ispstat *stat,
@@ -193,8 +193,8 @@ static void isp_stat_buf_sync_for_cpu(struct ispstat *stat,
 	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
-	dma_sync_sg_for_cpu(stat->isp->dev, buf->iovm->sgt->sgl,
-			    buf->iovm->sgt->nents, DMA_FROM_DEVICE);
+	dma_sync_sg_for_cpu(stat->isp->dev, buf->sgt->sgl,
+			    buf->sgt->nents, DMA_FROM_DEVICE);
 }
 
 static void isp_stat_buf_clear(struct ispstat *stat)
@@ -363,10 +363,9 @@ static void isp_stat_bufs_free(struct ispstat *stat)
 		if (!ISP_STAT_USES_DMAENGINE(stat)) {
 			if (IS_ERR_OR_NULL((void *)buf->dma_addr))
 				continue;
-			if (buf->iovm)
-				dma_unmap_sg(isp->dev, buf->iovm->sgt->sgl,
-					     buf->iovm->sgt->nents,
-					     DMA_FROM_DEVICE);
+			if (buf->sgt)
+				dma_unmap_sg(isp->dev, buf->sgt->sgl,
+					     buf->sgt->nents, DMA_FROM_DEVICE);
 			omap_iommu_vfree(isp->domain, isp->dev, buf->dma_addr);
 		} else {
 			if (!buf->virt_addr)
@@ -374,7 +373,7 @@ static void isp_stat_bufs_free(struct ispstat *stat)
 			dma_free_coherent(stat->isp->dev, stat->buf_alloc_size,
 					  buf->virt_addr, buf->dma_addr);
 		}
-		buf->iovm = NULL;
+		buf->sgt = NULL;
 		buf->dma_addr = 0;
 		buf->virt_addr = NULL;
 		buf->empty = 1;
@@ -407,7 +406,7 @@ static int isp_stat_bufs_alloc_iommu(struct ispstat *stat,
 			DMA_FROM_DEVICE))
 		return -ENOMEM;
 
-	buf->iovm = iovm;
+	buf->sgt = iovm->sgt;
 	buf->virt_addr = omap_da_to_va(stat->isp->dev, buf->dma_addr);
 
 	return 0;

@@ -46,7 +46,7 @@
 struct ispstat;
 
 struct ispstat_buffer {
-	struct iovm_struct *iovm;
+	const struct sg_table *sgt;
 	void *virt_addr;
 	dma_addr_t dma_addr;
 	struct timespec ts;
