@@ -11,6 +11,7 @@ config ARCH_MXC
 	select GENERIC_IRQ_CHIP
 	select MIGHT_HAVE_CACHE_L2X0 if ARCH_MULTI_V6_V7
 	select MULTI_IRQ_HANDLER
+	select PINCTRL
 	select SOC_BUS
 	select SPARSE_IRQ
 	select USE_OF
@@ -19,16 +20,6 @@ config ARCH_MXC
 
 menu "Freescale i.MX support"
 	depends on ARCH_MXC
-
-config MXC_IRQ_PRIOR
-	bool "Use IRQ priority"
-	help
-	  Select this if you want to use prioritized IRQ handling.
-	  This feature prevents higher priority ISR to be interrupted
-	  by lower priority IRQ.
-	  This may be useful in embedded applications, where are strong
-	  requirements for timing.
-	  Say N here, unless you have a specialized requirement.
 
 config MXC_TZIC
 	bool
@@ -109,6 +100,7 @@ config SOC_IMX25
 	select ARCH_MXC_IOMUX_V3
 	select CPU_ARM926T
 	select MXC_AVIC
+	select PINCTRL_IMX25
 
 config SOC_IMX27
 	bool
@@ -118,6 +110,7 @@ config SOC_IMX27
 	select IMX_HAVE_IOMUX_V1
 	select MACH_MX27
 	select MXC_AVIC
+	select PINCTRL_IMX27
 
 config SOC_IMX31
 	bool
@@ -133,6 +126,7 @@ config SOC_IMX35
 	select HAVE_EPIT
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
+	select PINCTRL
 
 config SOC_IMX5
 	bool
@@ -145,7 +139,6 @@ config SOC_IMX5
 config	SOC_IMX51
 	bool
 	select HAVE_IMX_SRC
-	select PINCTRL
 	select PINCTRL_IMX51
 	select SOC_IMX5
 
@@ -619,6 +612,13 @@ config MACH_IMX31_DT
 
 comment "MX35 platforms:"
 
+config MACH_IMX35_DT
+	bool "Support i.MX35 platforms from device tree"
+	select SOC_IMX35
+	help
+	  Include support for Freescale i.MX35 based platforms
+	  using the device tree for discovery.
+
 config MACH_PCM043
 	bool "Support Phytec pcm043 (i.MX35) platforms"
 	select IMX_HAVE_PLATFORM_FLEXCAN
@@ -766,11 +766,19 @@ endchoice
 
 comment "Device tree only"
 
+config	SOC_IMX50
+	bool "i.MX50 support"
+	select HAVE_IMX_SRC
+	select PINCTRL_IMX50
+	select SOC_IMX5
+
+	help
+	  This enables support for Freescale i.MX50 processor.
+
 config	SOC_IMX53
 	bool "i.MX53 support"
 	select HAVE_IMX_SRC
 	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select PINCTRL
 	select PINCTRL_IMX53
 	select SOC_IMX5
 
@@ -796,7 +804,6 @@ config SOC_IMX6Q
 	select MFD_SYSCON
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
-	select PINCTRL
 	select PINCTRL_IMX6Q
 	select PL310_ERRATA_588369 if CACHE_PL310
 	select PL310_ERRATA_727915 if CACHE_PL310
@@ -817,7 +824,6 @@ config SOC_IMX6SL
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
 	select MFD_SYSCON
-	select PINCTRL
 	select PINCTRL_IMX6SL
 	select PL310_ERRATA_588369 if CACHE_PL310
 	select PL310_ERRATA_727915 if CACHE_PL310
@@ -831,7 +837,6 @@ config SOC_VF610
 	select CPU_V7
 	select ARM_GIC
 	select CLKSRC_OF
-	select PINCTRL
 	select PINCTRL_VF610
 	select VF_PIT_TIMER
 	select PL310_ERRATA_588369 if CACHE_PL310

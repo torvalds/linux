@@ -45,6 +45,8 @@ static struct arm_ahb_div clk_consumer[] = {
 static char hsp_div_532[] = { 4, 8, 3, 0 };
 static char hsp_div_400[] = { 3, 6, 3, 0 };
 
+static struct clk_onecell_data clk_data;
+
 static const char *std_sel[] = {"ppll", "arm"};
 static const char *ipg_per_sel[] = {"ahb_per_div", "arm_per_div"};
 
@@ -286,3 +288,15 @@ int __init mx35_clocks_init(void)
 
 	return 0;
 }
+
+static int __init mx35_clocks_init_dt(struct device_node *ccm_node)
+{
+	clk_data.clks = clk;
+	clk_data.clk_num = ARRAY_SIZE(clk);
+	of_clk_add_provider(ccm_node, of_clk_src_onecell_get, &clk_data);
+
+	mx35_clocks_init();
+
+	return 0;
+}
+CLK_OF_DECLARE(imx35, "fsl,imx35-ccm", mx35_clocks_init_dt);
