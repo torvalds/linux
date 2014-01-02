@@ -1447,13 +1447,11 @@ static inline u8 rtl8152_get_speed(struct r8152 *tp)
 	return ocp_read_byte(tp, MCU_TYPE_PLA, PLA_PHYSTATUS);
 }
 
-static int rtl8152_enable(struct r8152 *tp)
+static void rtl_set_eee_plus(struct r8152 *tp)
 {
 	u32 ocp_data;
-	int i, ret;
 	u8 speed;
 
-	set_tx_qlen(tp);
 	speed = rtl8152_get_speed(tp);
 	if (speed & _10bps) {
 		ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_EEEP_CR);
@@ -1464,6 +1462,12 @@ static int rtl8152_enable(struct r8152 *tp)
 		ocp_data &= ~EEEP_CR_EEEP_TX;
 		ocp_write_word(tp, MCU_TYPE_PLA, PLA_EEEP_CR, ocp_data);
 	}
+}
+
+static int rtl_enable(struct r8152 *tp)
+{
+	u32 ocp_data;
+	int i, ret;
 
 	r8152b_reset_packet_filter(tp);
 
@@ -1483,6 +1487,14 @@ static int rtl8152_enable(struct r8152 *tp)
 	}
 
 	return ret;
+}
+
+static int rtl8152_enable(struct r8152 *tp)
+{
+	set_tx_qlen(tp);
+	rtl_set_eee_plus(tp);
+
+	return rtl_enable(tp);
 }
 
 static void rtl8152_disable(struct r8152 *tp)
