@@ -702,8 +702,10 @@ static int ipip6_rcv(struct sk_buff *skb)
 		}
 
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
+		u64_stats_update_begin(&tstats->syncp);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
+		u64_stats_update_end(&tstats->syncp);
 
 		netif_rx(skb);
 
