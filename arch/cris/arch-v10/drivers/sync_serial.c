@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/timer.h>
+#include <linux/wait.h>
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/io.h>
@@ -1136,7 +1137,8 @@ static ssize_t sync_serial_read(struct file *file, char *buf,
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
-		interruptible_sleep_on(&port->in_wait_q);
+		wait_event_interruptible(port->in_wait_q,
+					 !(start == end && !port->full));
 		if (signal_pending(current))
 			return -EINTR;
 
