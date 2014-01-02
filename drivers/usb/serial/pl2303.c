@@ -141,7 +141,7 @@ struct pl2303_type_data {
 };
 
 struct pl2303_serial_private {
-	struct pl2303_type_data *type;
+	const struct pl2303_type_data *type;
 	unsigned long quirks;
 };
 
@@ -153,7 +153,7 @@ struct pl2303_private {
 	u8 line_settings[7];
 };
 
-static struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
+static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 	[TYPE_01] = {
 		.max_baud_rate =	1228800,
 		.quirks =		PL2303_QUIRK_LEGACY,
