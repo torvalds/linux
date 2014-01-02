@@ -15,6 +15,10 @@
 / {
 	interrupt-parent = <&intc>;
 
+	aliases {
+		ethernet0 = &emac;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -264,6 +268,12 @@
 		wdt: watchdog@01c20c90 {
 			compatible = "allwinner,sun4i-wdt";
 			reg = <0x01c20c90 0x10>;
+		};
+
+		rtc: rtc@01c20d00 {
+			compatible = "allwinner,sun4i-rtc";
+			reg = <0x01c20d00 0x20>;
+			interrupts = <24>;
 		};
 
 		sid: eeprom@01c23800 {

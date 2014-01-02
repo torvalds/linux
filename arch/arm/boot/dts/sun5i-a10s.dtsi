@@ -16,6 +16,10 @@
 / {
 	interrupt-parent = <&intc>;
 
+	aliases {
+		ethernet0 = &emac;
+	};
+
 	cpus {
 		cpu@0 {
 			compatible = "arm,cortex-a8";
