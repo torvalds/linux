@@ -61,7 +61,6 @@ static void __iomem *clk_mgr_base_addr;
 struct socfpga_clk {
 	struct clk_gate hw;
 	char *parent_name;
-	char *clk_name;
 	u32 fixed_div;
 	void __iomem *div_reg;
 	u32 width;	/* only valid if div_reg != 0 */
