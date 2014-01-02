@@ -58,6 +58,7 @@
 #include "util/thread.h"
 #include "util/thread_map.h"
 
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
 #include <locale.h>
@@ -509,16 +510,17 @@ static void handle_initial_delay(void)
 	}
 }
 
-static volatile bool workload_exec_failed;
+static volatile int workload_exec_errno;
 
 /*
  * perf_evlist__prepare_workload will send a SIGUSR1
  * if the fork fails, since we asked by setting its
  * want_signal to true.
  */
-static void workload_exec_failed_signal(int signo __maybe_unused)
+static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *info,
+					void *ucontext __maybe_unused)
 {
-	workload_exec_failed = true;
+	workload_exec_errno = info->si_value.sival_int;
 }
 
 static int __run_perf_stat(int argc, const char **argv)
@@ -596,13 +598,17 @@ static int __run_perf_stat(int argc, const char **argv)
 	clock_gettime(CLOCK_MONOTONIC, &ref_time);
 
 	if (forks) {
+		struct sigaction act = {
+			.sa_flags     = SA_SIGINFO,
+			.sa_sigaction = workload_exec_failed_signal,
+		};
 		/*
 		 * perf_evlist__prepare_workload will, after we call
 		 * perf_evlist__start_Workload, send a SIGUSR1 if the exec call
 		 * fails, that we will catch in workload_signal to flip
-		 * workload_exec_failed.
+		 * workload_exec_errno.
  		 */
-		signal(SIGUSR1, workload_exec_failed_signal);
+		sigaction(SIGUSR1, &act, NULL);
 
 		perf_evlist__start_workload(evsel_list);
 		handle_initial_delay();
@@ -615,8 +621,11 @@ static int __run_perf_stat(int argc, const char **argv)
 		}
 		wait(&status);
 
-		if (workload_exec_failed)
+		if (workload_exec_errno) {
+			const char *emsg = strerror_r(workload_exec_errno, msg, sizeof(msg));
+			pr_err("Workload failed: %s\n", emsg);
 			return -1;
+		}
 
 		if (WIFSIGNALED(status))
 			psignal(WTERMSIG(status), argv[0]);

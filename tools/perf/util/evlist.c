@@ -1073,9 +1073,14 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 
 		execvp(argv[0], (char **)argv);
 
-		perror(argv[0]);
-		if (want_signal)
-			kill(getppid(), SIGUSR1);
+		if (want_signal) {
+			union sigval val;
+
+			val.sival_int = errno;
+			if (sigqueue(getppid(), SIGUSR1, val))
+				perror(argv[0]);
+		} else
+			perror(argv[0]);
 		exit(-1);
 	}
 

@@ -341,6 +341,22 @@ static void record__init_features(struct record *rec)
 		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
 }
 
+static volatile int workload_exec_errno;
+
+/*
+ * perf_evlist__prepare_workload will send a SIGUSR1
+ * if the fork fails, since we asked by setting its
+ * want_signal to true.
+ */
+static void workload_exec_failed_signal(int signo, siginfo_t *info,
+					void *ucontext __maybe_unused)
+{
+	workload_exec_errno = info->si_value.sival_int;
+	done = 1;
+	signr = signo;
+	child_finished = 1;
+}
+
 static int __cmd_record(struct record *rec, int argc, const char **argv)
 {
 	int err;
@@ -359,7 +375,6 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	on_exit(record__sig_exit, rec);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
-	signal(SIGUSR1, sig_handler);
 	signal(SIGTERM, sig_handler);
 
 	session = perf_session__new(file, false, NULL);
@@ -492,8 +507,20 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	/*
 	 * Let the child rip
 	 */
-	if (forks)
+	if (forks) {
+		struct sigaction act = {
+			.sa_flags     = SA_SIGINFO,
+			.sa_sigaction = workload_exec_failed_signal,
+		};
+		/*
+		 * perf_evlist__prepare_workload will, after we call
+		 * perf_evlist__start_Workload, send a SIGUSR1 if the exec call
+		 * fails, that we will catch in workload_signal to flip
+		 * workload_exec_errno.
+ 		 */
+		sigaction(SIGUSR1, &act, NULL);
 		perf_evlist__start_workload(evsel_list);
+	}
 
 	for (;;) {
 		int hits = rec->samples;
@@ -519,6 +546,14 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			perf_evlist__disable(evsel_list);
 			disabled = true;
 		}
+	}
+
+	if (forks && workload_exec_errno) {
+		char msg[512];
+		const char *emsg = strerror_r(workload_exec_errno, msg, sizeof(msg));
+		pr_err("Workload failed: %s\n", emsg);
+		err = -1;
+		goto out_delete_session;
 	}
 
 	if (quiet || signr == SIGUSR1)
