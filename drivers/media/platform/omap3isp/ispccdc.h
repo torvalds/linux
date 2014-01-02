@@ -57,8 +57,12 @@ struct ispccdc_lsc_config_req {
 	struct list_head list;
 	struct omap3isp_ccdc_lsc_config config;
 	unsigned char enable;
-	u32 table;
-	struct iovm_struct *iovm;
+
+	struct {
+		void *addr;
+		dma_addr_t dma;
+		struct sg_table sgt;
+	} table;
 };
 
 /*
