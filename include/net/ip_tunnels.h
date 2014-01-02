@@ -54,6 +54,9 @@ struct ip_tunnel {
 	int		hlen;		/* Precalculated header length */
 	int		mlink;
 
+	struct		dst_entry __rcu *dst_cache;
+	spinlock_t	dst_lock;
+
 	struct ip_tunnel_parm parms;
 
 	/* for SIT */
