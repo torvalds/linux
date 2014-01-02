@@ -444,24 +444,30 @@ static void ch341_update_line_status(struct usb_serial_port *port,
 					unsigned char *data, size_t len)
 {
 	struct ch341_private *priv = usb_get_serial_port_data(port);
+	struct tty_struct *tty;
 	unsigned long flags;
-	u8 prev_line_status = priv->line_status;
+	u8 status;
+	u8 delta;
 
 	if (len < 4)
 		return;
 
+	status = ~data[2] & CH341_BITS_MODEM_STAT;
+
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->line_status = (~(data[2])) & CH341_BITS_MODEM_STAT;
-	if ((data[1] & CH341_MULT_STAT))
+	delta = status ^ priv->line_status;
+	priv->line_status = status;
+	if (data[1] & CH341_MULT_STAT)
 		priv->multi_status_change = 1;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if ((priv->line_status ^ prev_line_status) & CH341_BIT_DCD) {
-		struct tty_struct *tty = tty_port_tty_get(&port->port);
-		if (tty)
+	if (delta & CH341_BIT_DCD) {
+		tty = tty_port_tty_get(&port->port);
+		if (tty) {
 			usb_serial_handle_dcd_change(port, tty,
-					priv->line_status & CH341_BIT_DCD);
-		tty_kref_put(tty);
+						status & CH341_BIT_DCD);
+			tty_kref_put(tty);
+		}
 	}
 
 	wake_up_interruptible(&port->port.delta_msr_wait);
