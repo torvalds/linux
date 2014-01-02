@@ -440,6 +440,33 @@ static int ch341_tiocmset(struct tty_struct *tty,
 	return ch341_set_handshake(port->serial->dev, control);
 }
 
+static void ch341_update_line_status(struct usb_serial_port *port,
+					unsigned char *data, size_t len)
+{
+	struct ch341_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
+	u8 prev_line_status = priv->line_status;
+
+	if (len < 4)
+		return;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->line_status = (~(data[2])) & CH341_BITS_MODEM_STAT;
+	if ((data[1] & CH341_MULT_STAT))
+		priv->multi_status_change = 1;
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if ((priv->line_status ^ prev_line_status) & CH341_BIT_DCD) {
+		struct tty_struct *tty = tty_port_tty_get(&port->port);
+		if (tty)
+			usb_serial_handle_dcd_change(port, tty,
+					priv->line_status & CH341_BIT_DCD);
+		tty_kref_put(tty);
+	}
+
+	wake_up_interruptible(&port->port.delta_msr_wait);
+}
+
 static void ch341_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
@@ -466,29 +493,7 @@ static void ch341_read_int_callback(struct urb *urb)
 
 	usb_serial_debug_data(&port->dev, __func__,
 			      urb->actual_length, urb->transfer_buffer);
-
-	if (actual_length >= 4) {
-		struct ch341_private *priv = usb_get_serial_port_data(port);
-		unsigned long flags;
-		u8 prev_line_status = priv->line_status;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		priv->line_status = (~(data[2])) & CH341_BITS_MODEM_STAT;
-		if ((data[1] & CH341_MULT_STAT))
-			priv->multi_status_change = 1;
-		spin_unlock_irqrestore(&priv->lock, flags);
-
-		if ((priv->line_status ^ prev_line_status) & CH341_BIT_DCD) {
-			struct tty_struct *tty = tty_port_tty_get(&port->port);
-			if (tty)
-				usb_serial_handle_dcd_change(port, tty,
-					    priv->line_status & CH341_BIT_DCD);
-			tty_kref_put(tty);
-		}
-
-		wake_up_interruptible(&port->port.delta_msr_wait);
-	}
-
+	ch341_update_line_status(port, data, actual_length);
 exit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
