@@ -463,7 +463,14 @@ static void ch341_update_line_status(struct usb_serial_port *port,
 	if (!delta)
 		return;
 
+	if (delta & CH341_BIT_CTS)
+		port->icount.cts++;
+	if (delta & CH341_BIT_DSR)
+		port->icount.dsr++;
+	if (delta & CH341_BIT_RI)
+		port->icount.rng++;
 	if (delta & CH341_BIT_DCD) {
+		port->icount.dcd++;
 		tty = tty_port_tty_get(&port->port);
 		if (tty) {
 			usb_serial_handle_dcd_change(port, tty,
@@ -508,46 +515,6 @@ exit:
 		dev_err(&urb->dev->dev,
 			"%s - usb_submit_urb failed with result %d\n",
 			__func__, status);
-}
-
-static int ch341_tiocmiwait(struct tty_struct *tty, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct ch341_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	u8 prevstatus;
-	u8 status;
-	u8 changed;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	prevstatus = priv->line_status;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	for (;;) {
-		interruptible_sleep_on(&port->port.delta_msr_wait);
-		/* see if a signal did it */
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		if (port->serial->disconnected)
-			return -EIO;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		status = priv->line_status;
-		spin_unlock_irqrestore(&priv->lock, flags);
-
-		changed = prevstatus ^ status;
-
-		if (((arg & TIOCM_RNG) && (changed & CH341_BIT_RI)) ||
-		    ((arg & TIOCM_DSR) && (changed & CH341_BIT_DSR)) ||
-		    ((arg & TIOCM_CD)  && (changed & CH341_BIT_DCD)) ||
-		    ((arg & TIOCM_CTS) && (changed & CH341_BIT_CTS))) {
-			return 0;
-		}
-		prevstatus = status;
-	}
-
-	return 0;
 }
 
 static int ch341_tiocmget(struct tty_struct *tty)
@@ -603,7 +570,7 @@ static struct usb_serial_driver ch341_device = {
 	.break_ctl         = ch341_break_ctl,
 	.tiocmget          = ch341_tiocmget,
 	.tiocmset          = ch341_tiocmset,
-	.tiocmiwait        = ch341_tiocmiwait,
+	.tiocmiwait        = usb_serial_generic_tiocmiwait,
 	.read_int_callback = ch341_read_int_callback,
 	.port_probe        = ch341_port_probe,
 	.port_remove       = ch341_port_remove,
