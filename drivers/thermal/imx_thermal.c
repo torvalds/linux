@@ -490,27 +490,30 @@ static int imx_thermal_suspend(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
 	struct regmap *map = data->tempmon;
-	u32 val;
 
-	regmap_read(map, TEMPSENSE0, &val);
-	if ((val & TEMPSENSE0_POWER_DOWN) == 0) {
-		/*
-		 * If a measurement is taking place, wait for a long enough
-		 * time for it to finish, and then check again.  If it still
-		 * does not finish, something must go wrong.
-		 */
-		udelay(50);
-		regmap_read(map, TEMPSENSE0, &val);
-		if ((val & TEMPSENSE0_POWER_DOWN) == 0)
-			return -ETIMEDOUT;
-	}
+	/*
+	 * Need to disable thermal sensor, otherwise, when thermal core
+	 * try to get temperature before thermal sensor resume, a wrong
+	 * temperature will be read as the thermal sensor is powered
+	 * down.
+	 */
+	regmap_write(map, TEMPSENSE0 + REG_CLR, TEMPSENSE0_MEASURE_TEMP);
+	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_POWER_DOWN);
+	data->mode = THERMAL_DEVICE_DISABLED;
 
 	return 0;
 }
 
 static int imx_thermal_resume(struct device *dev)
 {
-	/* Nothing to do for now */
+	struct imx_thermal_data *data = dev_get_drvdata(dev);
+	struct regmap *map = data->tempmon;
+
+	/* Enabled thermal sensor after resume */
+	regmap_write(map, TEMPSENSE0 + REG_CLR, TEMPSENSE0_POWER_DOWN);
+	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_MEASURE_TEMP);
+	data->mode = THERMAL_DEVICE_ENABLED;
+
 	return 0;
 }
 #endif
@@ -522,6 +525,7 @@ static const struct of_device_id of_imx_thermal_match[] = {
 	{ .compatible = "fsl,imx6q-tempmon", },
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
 
 static struct platform_driver imx_thermal = {
 	.driver = {
