@@ -413,7 +413,7 @@ static struct spi_driver ad193x_spi_driver = {
 };
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 
 static const struct regmap_config ad193x_i2c_regmap_config = {
 	.val_bits = 8,
@@ -470,7 +470,7 @@ static int __init ad193x_modinit(void)
 {
 	int ret;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret =  i2c_add_driver(&ad193x_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register AD193X I2C driver: %d\n",
@@ -495,7 +495,7 @@ static void __exit ad193x_modexit(void)
 	spi_unregister_driver(&ad193x_spi_driver);
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&ad193x_i2c_driver);
 #endif
 }

@@ -25,7 +25,7 @@ static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 
 	daifmt |= set->fmt;
 
-	if (!ret && daifmt)
+	if (daifmt)
 		ret = snd_soc_dai_set_fmt(dai, daifmt);
 
 	if (ret == -ENOTSUPP) {
@@ -90,14 +90,29 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	 * dai->sysclk come from
 	 *  "clocks = <&xxx>" (if system has common clock)
 	 *  or "system-clock-frequency = <xxx>"
+	 *  or device's module clock.
 	 */
-	clk = of_clk_get(np, 0);
-	if (IS_ERR(clk))
+	if (of_property_read_bool(np, "clocks")) {
+		clk = of_clk_get(np, 0);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			goto parse_error;
+		}
+
+		dai->sysclk = clk_get_rate(clk);
+	} else if (of_property_read_bool(np, "system-clock-frequency")) {
 		of_property_read_u32(np,
 				     "system-clock-frequency",
 				     &dai->sysclk);
-	else
+	} else {
+		clk = of_clk_get(*node, 0);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			goto parse_error;
+		}
+
 		dai->sysclk = clk_get_rate(clk);
+	}
 
 	ret = 0;
 
@@ -116,11 +131,17 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 {
 	struct device_node *np;
 	char *name;
-	int ret = 0;
+	int ret;
 
 	/* get CPU/CODEC common format via simple-audio-card,format */
 	info->daifmt = snd_soc_of_parse_daifmt(node, "simple-audio-card,") &
 		(SND_SOC_DAIFMT_FORMAT_MASK | SND_SOC_DAIFMT_INV_MASK);
+
+	/* DAPM routes */
+	ret = snd_soc_of_parse_audio_routing(&info->snd_card,
+					"simple-audio-routing");
+	if (ret)
+		return ret;
 
 	/* CPU sub-node */
 	ret = -EINVAL;
@@ -185,6 +206,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		cinfo = devm_kzalloc(dev, sizeof(*cinfo), GFP_KERNEL);
 		if (cinfo) {
 			int ret;
+			cinfo->snd_card.dev = &pdev->dev;
 			ret = asoc_simple_card_parse_of(np, cinfo, dev,
 							&of_cpu,
 							&of_codec,
@@ -196,6 +218,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			}
 		}
 	} else {
+		cinfo->snd_card.dev = &pdev->dev;
 		cinfo = pdev->dev.platform_data;
 	}
 
@@ -235,16 +258,8 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	cinfo->snd_card.owner		= THIS_MODULE;
 	cinfo->snd_card.dai_link	= &cinfo->snd_link;
 	cinfo->snd_card.num_links	= 1;
-	cinfo->snd_card.dev		= &pdev->dev;
 
-	return snd_soc_register_card(&cinfo->snd_card);
-}
-
-static int asoc_simple_card_remove(struct platform_device *pdev)
-{
-	struct asoc_simple_card_info *cinfo = pdev->dev.platform_data;
-
-	return snd_soc_unregister_card(&cinfo->snd_card);
+	return devm_snd_soc_register_card(&pdev->dev, &cinfo->snd_card);
 }
 
 static const struct of_device_id asoc_simple_of_match[] = {
@@ -260,7 +275,6 @@ static struct platform_driver asoc_simple_card = {
 		.of_match_table = asoc_simple_of_match,
 	},
 	.probe		= asoc_simple_card_probe,
-	.remove		= asoc_simple_card_remove,
 };
 
 module_platform_driver(asoc_simple_card);

@@ -81,7 +81,7 @@ struct arizona_priv {
 	unsigned int spk_ena_pending:1;
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 99
+#define ARIZONA_NUM_MIXER_INPUTS 103
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
@@ -186,6 +186,8 @@ extern const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
 extern const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
 
 extern const struct soc_enum arizona_isrc_fsl[];
+extern const struct soc_enum arizona_isrc_fsh[];
+extern const struct soc_enum arizona_asrc_rate1;
 
 extern const struct soc_enum arizona_in_vi_ramp;
 extern const struct soc_enum arizona_in_vd_ramp;
@@ -199,6 +201,7 @@ extern const struct soc_enum arizona_lhpf3_mode;
 extern const struct soc_enum arizona_lhpf4_mode;
 
 extern const struct soc_enum arizona_ng_hold;
+extern const struct soc_enum arizona_in_hpf_cut_enum;
 extern const struct soc_enum arizona_in_dmic_osr[];
 
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,

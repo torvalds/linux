@@ -53,8 +53,6 @@ enum ssm2602_type {
 struct ssm2602_priv {
 	unsigned int sysclk;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
-	struct snd_pcm_substream *master_substream;
-	struct snd_pcm_substream *slave_substream;
 
 	struct regmap *regmap;
 
@@ -277,11 +275,6 @@ static int ssm2602_hw_params(struct snd_pcm_substream *substream,
 	int srate = ssm2602_get_coeff(ssm2602->sysclk, params_rate(params));
 	unsigned int iface;
 
-	if (substream == ssm2602->slave_substream) {
-		dev_dbg(codec->dev, "Ignoring hw_params for slave substream\n");
-		return 0;
-	}
-
 	if (srate < 0)
 		return srate;
 
@@ -314,33 +307,6 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
-	struct snd_pcm_runtime *master_runtime;
-
-	/* The DAI has shared clocks so if we already have a playback or
-	 * capture going then constrain this substream to match it.
-	 * TODO: the ssm2602 allows pairs of non-matching PB/REC rates
-	 */
-	if (ssm2602->master_substream) {
-		master_runtime = ssm2602->master_substream->runtime;
-		dev_dbg(codec->dev, "Constraining to %d bits at %dHz\n",
-			master_runtime->sample_bits,
-			master_runtime->rate);
-
-		if (master_runtime->rate != 0)
-			snd_pcm_hw_constraint_minmax(substream->runtime,
-						     SNDRV_PCM_HW_PARAM_RATE,
-						     master_runtime->rate,
-						     master_runtime->rate);
-
-		if (master_runtime->sample_bits != 0)
-			snd_pcm_hw_constraint_minmax(substream->runtime,
-						     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-						     master_runtime->sample_bits,
-						     master_runtime->sample_bits);
-
-		ssm2602->slave_substream = substream;
-	} else
-		ssm2602->master_substream = substream;
 
 	if (ssm2602->sysclk_constraints) {
 		snd_pcm_hw_constraint_list(substream->runtime, 0,
@@ -350,19 +316,6 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-
-static void ssm2602_shutdown(struct snd_pcm_substream *substream,
-			     struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
-
-	if (ssm2602->master_substream == substream)
-		ssm2602->master_substream = ssm2602->slave_substream;
-
-	ssm2602->slave_substream = NULL;
-}
-
 
 static int ssm2602_mute(struct snd_soc_dai *dai, int mute)
 {
@@ -530,7 +483,6 @@ static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 static const struct snd_soc_dai_ops ssm2602_dai_ops = {
 	.startup	= ssm2602_startup,
 	.hw_params	= ssm2602_hw_params,
-	.shutdown	= ssm2602_shutdown,
 	.digital_mute	= ssm2602_mute,
 	.set_sysclk	= ssm2602_set_dai_sysclk,
 	.set_fmt	= ssm2602_set_dai_fmt,
@@ -551,6 +503,8 @@ static struct snd_soc_dai_driver ssm2602_dai = {
 		.rates = SSM2602_RATES,
 		.formats = SSM2602_FORMATS,},
 	.ops = &ssm2602_dai_ops,
+	.symmetric_rates = 1,
+	.symmetric_samplebits = 1,
 };
 
 static int ssm2602_suspend(struct snd_soc_codec *codec)
@@ -730,7 +684,7 @@ static struct spi_driver ssm2602_spi_driver = {
 };
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 /*
  * ssm2602 2 wire address is determined by GPIO5
  * state during powerup.
@@ -797,7 +751,7 @@ static int __init ssm2602_modinit(void)
 		return ret;
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&ssm2602_i2c_driver);
 	if (ret)
 		return ret;
@@ -813,7 +767,7 @@ static void __exit ssm2602_exit(void)
 	spi_unregister_driver(&ssm2602_spi_driver);
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&ssm2602_i2c_driver);
 #endif
 }

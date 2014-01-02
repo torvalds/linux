@@ -1286,6 +1286,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 					reg = wm_adsp_region_to_reg(mem,
 								    reg);
 					reg += offset;
+					break;
 				}
 			}
 
@@ -1468,8 +1469,8 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 	unsigned int val;
 	int ret, count;
 
-	ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-				 ADSP2_SYS_ENA, ADSP2_SYS_ENA);
+	ret = regmap_update_bits_async(dsp->regmap, dsp->base + ADSP2_CONTROL,
+				       ADSP2_SYS_ENA, ADSP2_SYS_ENA);
 	if (ret != 0)
 		return ret;
 
@@ -1492,7 +1493,6 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 	}
 
 	adsp_dbg(dsp, "RAM ready after %d polls\n", count);
-	adsp_info(dsp, "RAM ready after %d polls\n", count);
 
 	return 0;
 }
@@ -1525,9 +1525,9 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		val = (val & ARIZONA_SYSCLK_FREQ_MASK)
 			>> ARIZONA_SYSCLK_FREQ_SHIFT;
 
-		ret = regmap_update_bits(dsp->regmap,
-					 dsp->base + ADSP2_CLOCKING,
-					 ADSP2_CLK_SEL_MASK, val);
+		ret = regmap_update_bits_async(dsp->regmap,
+					       dsp->base + ADSP2_CLOCKING,
+					       ADSP2_CLK_SEL_MASK, val);
 		if (ret != 0) {
 			adsp_err(dsp, "Failed to set clock rate: %d\n",
 				 ret);
@@ -1590,10 +1590,10 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			goto err;
 
-		ret = regmap_update_bits(dsp->regmap,
-					 dsp->base + ADSP2_CONTROL,
-					 ADSP2_CORE_ENA | ADSP2_START,
-					 ADSP2_CORE_ENA | ADSP2_START);
+		ret = regmap_update_bits_async(dsp->regmap,
+					       dsp->base + ADSP2_CONTROL,
+					       ADSP2_CORE_ENA | ADSP2_START,
+					       ADSP2_CORE_ENA | ADSP2_START);
 		if (ret != 0)
 			goto err;
 

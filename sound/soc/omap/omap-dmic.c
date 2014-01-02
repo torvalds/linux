@@ -61,12 +61,12 @@ struct omap_dmic {
 
 static inline void omap_dmic_write(struct omap_dmic *dmic, u16 reg, u32 val)
 {
-	__raw_writel(val, dmic->io_base + reg);
+	writel_relaxed(val, dmic->io_base + reg);
 }
 
 static inline int omap_dmic_read(struct omap_dmic *dmic, u16 reg)
 {
-	return __raw_readl(dmic->io_base + reg);
+	return readl_relaxed(dmic->io_base + reg);
 }
 
 static inline void omap_dmic_start(struct omap_dmic *dmic)

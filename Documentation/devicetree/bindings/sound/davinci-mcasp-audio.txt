@@ -4,7 +4,8 @@ Required properties:
 - compatible :
 	"ti,dm646x-mcasp-audio"	: for DM646x platforms
 	"ti,da830-mcasp-audio"	: for both DA830 & DA850 platforms
-	"ti,am33xx-mcasp-audio"	: for AM33xx platforms (AM33xx, TI81xx)
+	"ti,am33xx-mcasp-audio"	: for AM33xx platforms (AM33xx, AM43xx, TI81xx)
+	"ti,dra7-mcasp-audio"	: for DRA7xx platforms
 
 - reg : Should contain reg specifiers for the entries in the reg-names property.
 - reg-names : Should contain:
@@ -36,7 +37,8 @@ Optional properties:
 - pinctrl-0: Should specify pin control group used for this controller.
 - pinctrl-names: Should contain only one value - "default", for more details
   		 please refer to pinctrl-bindings.txt
-  
+- fck_parent : Should contain a valid clock name which will be used as parent
+	       for the McASP fck
 
 Example:
 
