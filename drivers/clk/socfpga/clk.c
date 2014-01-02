@@ -44,7 +44,7 @@
 #define SOCFPGA_PLL_DIVF_SHIFT	3
 #define SOCFPGA_PLL_DIVQ_MASK		0x003F0000
 #define SOCFPGA_PLL_DIVQ_SHIFT	16
-#define SOCFGPA_MAX_PARENTS	3
+#define SOCFPGA_MAX_PARENTS	3
 
 #define SOCFPGA_L4_MP_CLK		"l4_mp_clk"
 #define SOCFPGA_L4_SP_CLK		"l4_sp_clk"
@@ -258,7 +258,7 @@ static void __init socfpga_gate_clk_init(struct device_node *node,
 	struct clk *clk;
 	struct socfpga_clk *socfpga_clk;
 	const char *clk_name = node->name;
-	const char *parent_name[SOCFGPA_MAX_PARENTS];
+	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
 	int rc;
 	int i = 0;
@@ -299,7 +299,7 @@ static void __init socfpga_gate_clk_init(struct device_node *node,
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
-	while (i < SOCFGPA_MAX_PARENTS && (parent_name[i] =
+	while (i < SOCFPGA_MAX_PARENTS && (parent_name[i] =
 			of_clk_get_parent_name(node, i)) != NULL)
 		i++;
 
