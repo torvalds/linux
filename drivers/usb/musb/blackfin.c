@@ -77,7 +77,7 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 		bfin_write16(USB_DMA_REG(epnum, USB_DMAx_CTRL), dma_reg);
 		SSYNC();
 
-		/* Wait for compelete */
+		/* Wait for complete */
 		while (!(bfin_read_USB_DMA_INTERRUPT() & (1 << epnum)))
 			cpu_relax();
 
@@ -131,7 +131,7 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 		bfin_write16(USB_DMA_REG(epnum, USB_DMAx_CTRL), dma_reg);
 		SSYNC();
 
-		/* Wait for compelete */
+		/* Wait for complete */
 		while (!(bfin_read_USB_DMA_INTERRUPT() & (1 << epnum)))
 			cpu_relax();
 

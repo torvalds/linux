@@ -83,7 +83,7 @@
  * This gets many kinds of configuration information:
  *	- Kconfig for everything user-configurable
  *	- platform_device for addressing, irq, and platform_data
- *	- platform_data is mostly for board-specific informarion
+ *	- platform_data is mostly for board-specific information
  *	  (plus recentrly, SOC or family details)
  *
  * Most of the conditional compilation will (someday) vanish.
@@ -1187,7 +1187,7 @@ fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 	musb_writeb(mbase, MUSB_INDEX, hw_ep->epnum);
 
 	/* EP0 reserved endpoint for control, bidirectional;
-	 * EP1 reserved for bulk, two unidirection halves.
+	 * EP1 reserved for bulk, two unidirectional halves.
 	 */
 	if (hw_ep->epnum == 1)
 		musb->bulk_ep = hw_ep;
@@ -1872,7 +1872,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs
 	 *   - sets the musb->isr
-	 *   - may initialize an integrated tranceiver
+	 *   - may initialize an integrated transceiver
 	 *   - initializes musb->xceiv, usually by otg_get_phy()
 	 *   - stops powering VBUS
 	 *
