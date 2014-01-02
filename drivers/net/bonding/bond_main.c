@@ -304,7 +304,7 @@ const char *bond_mode_name(int mode)
  * @skb: hw accel VLAN tagged skb to transmit
  * @slave_dev: slave that is supposed to xmit this skbuff
  */
-int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
+void bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 			struct net_device *slave_dev)
 {
 	skb->dev = slave_dev;
@@ -317,8 +317,6 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 		bond_netpoll_send_skb(bond_get_slave_by_dev(bond, slave_dev), skb);
 	else
 		dev_queue_xmit(skb);
-
-	return 0;
 }
 
 /*
@@ -1639,7 +1637,7 @@ err_free:
 err_undo_flags:
 	/* Enslave of first slave has failed and we need to fix master's mac */
 	if (!bond_has_slaves(bond) &&
-	    ether_addr_equal(bond_dev->dev_addr, slave_dev->dev_addr))
+	    ether_addr_equal_64bits(bond_dev->dev_addr, slave_dev->dev_addr))
 		eth_hw_addr_random(bond_dev);
 
 	return res;
@@ -1712,7 +1710,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 	bond->current_arp_slave = NULL;
 
 	if (!all && !bond->params.fail_over_mac) {
-		if (ether_addr_equal(bond_dev->dev_addr, slave->perm_hwaddr) &&
+		if (ether_addr_equal_64bits(bond_dev->dev_addr, slave->perm_hwaddr) &&
 		    bond_has_slaves(bond))
 			pr_warn("%s: Warning: the permanent HWaddr of %s - %pM - is still in use by %s. Set the HWaddr of %s to a different address to avoid conflicts.\n",
 				   bond_dev->name, slave_dev->name,
@@ -3673,28 +3671,24 @@ static inline int bond_slave_override(struct bonding *bond,
 				      struct sk_buff *skb)
 {
 	struct slave *slave = NULL;
-	struct slave *check_slave;
 	struct list_head *iter;
-	int res = 1;
 
 	if (!skb->queue_mapping)
 		return 1;
 
 	/* Find out if any slaves have the same mapping as this skb. */
-	bond_for_each_slave_rcu(bond, check_slave, iter) {
-		if (check_slave->queue_id == skb->queue_mapping) {
-			slave = check_slave;
+	bond_for_each_slave_rcu(bond, slave, iter) {
+		if (slave->queue_id == skb->queue_mapping) {
+			if (slave_can_tx(slave)) {
+				bond_dev_queue_xmit(bond, skb, slave->dev);
+				return 0;
+			}
+			/* If the slave isn't UP, use default transmit policy. */
 			break;
 		}
 	}
 
-	/* If the slave isn't UP, use default transmit policy. */
-	if (slave && slave->queue_id && IS_UP(slave->dev) &&
-	    (slave->link == BOND_LINK_UP)) {
-		res = bond_dev_queue_xmit(bond, skb, slave->dev);
-	}
-
-	return res;
+	return 1;
 }
 
 
