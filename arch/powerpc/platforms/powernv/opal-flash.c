@@ -76,8 +76,8 @@
 /* Validate buffer size */
 #define VALIDATE_BUF_SIZE	4096
 
-/* XXX: Assume candidate image size is <= 256MB */
-#define MAX_IMAGE_SIZE	0x10000000
+/* XXX: Assume candidate image size is <= 1GB */
+#define MAX_IMAGE_SIZE	0x40000000
 
 /* Flash sg list version */
 #define SG_LIST_VERSION (1UL)
