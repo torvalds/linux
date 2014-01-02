@@ -67,6 +67,27 @@ R8A7790_GPIO(5);
 		&r8a7790_gpio##idx##_platform_data,			\
 		sizeof(r8a7790_gpio##idx##_platform_data))
 
+static struct resource i2c_resources[] __initdata = {
+	/* I2C0 */
+	DEFINE_RES_MEM(0xE6508000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(287)),
+	/* I2C1 */
+	DEFINE_RES_MEM(0xE6518000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(288)),
+	/* I2C2 */
+	DEFINE_RES_MEM(0xE6530000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(286)),
+	/* I2C3 */
+	DEFINE_RES_MEM(0xE6540000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(290)),
+
+};
+
+#define r8a7790_register_i2c(idx)		\
+	platform_device_register_simple(	\
+		"i2c-rcar", idx,		\
+		i2c_resources + (2 * idx), 2);	\
+
 void __init r8a7790_pinmux_init(void)
 {
 	r8a7790_register_pfc();
@@ -76,6 +97,10 @@ void __init r8a7790_pinmux_init(void)
 	r8a7790_register_gpio(3);
 	r8a7790_register_gpio(4);
 	r8a7790_register_gpio(5);
+	r8a7790_register_i2c(0);
+	r8a7790_register_i2c(1);
+	r8a7790_register_i2c(2);
+	r8a7790_register_i2c(3);
 }
 
 #define SCIF_COMMON(scif_type, baseaddr, irq)			\

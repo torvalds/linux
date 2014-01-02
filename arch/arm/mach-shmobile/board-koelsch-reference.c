@@ -19,7 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/clk-provider.h>
+#include <linux/clk.h>
+#include <linux/clkdev.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <mach/common.h>
@@ -30,7 +31,31 @@
 static void __init koelsch_add_standard_devices(void)
 {
 #ifdef CONFIG_COMMON_CLK
-	of_clk_init(NULL);
+	/*
+	 * This is a really crude hack to provide clkdev support to the SCIF
+	 * and CMT devices until they get moved to DT.
+	 */
+	static const char * const scif_names[] = {
+		"scifa0", "scifa1", "scifb0", "scifb1", "scifb2", "scifa2",
+		"scif0", "scif1", "scif2", "scif3", "scif4", "scif5", "scifa3",
+		"scifa4", "scifa5",
+	};
+	struct clk *clk;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(scif_names); ++i) {
+		clk = clk_get(NULL, scif_names[i]);
+		if (clk) {
+			clk_register_clkdev(clk, NULL, "sh-sci.%u", i);
+			clk_put(clk);
+		}
+	}
+
+	clk = clk_get(NULL, "cmt0");
+	if (clk) {
+		clk_register_clkdev(clk, NULL, "sh_cmt.0");
+		clk_put(clk);
+	}
 #else
 	r8a7791_clock_init();
 #endif
@@ -39,6 +64,7 @@ static void __init koelsch_add_standard_devices(void)
 }
 
 static const char * const koelsch_boards_compat_dt[] __initconst = {
+	"renesas,koelsch",
 	"renesas,koelsch-reference",
 	NULL,
 };

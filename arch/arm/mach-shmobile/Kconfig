@@ -12,6 +12,7 @@ config ARCH_SHMOBILE_MULTI
 	select HAVE_SMP
 	select ARM_GIC
 	select MIGHT_HAVE_CACHE_L2X0
+	select MIGHT_HAVE_PCI
 	select NO_IOPORT
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
@@ -26,6 +27,10 @@ config ARCH_EMEV2
 
 config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
+
+config ARCH_R8A7790
+	bool "R-Car H2 (R8A77900)"
+	select RENESAS_IRQC
 
 config ARCH_R8A7791
 	bool "R-Car M2 (R8A77910)"
@@ -45,6 +50,10 @@ config MACH_KZM9D
 	bool "KZM9D board"
 	depends on ARCH_EMEV2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+
+config MACH_LAGER
+	bool "Lager board"
+	depends on ARCH_R8A7790
 
 comment "Renesas ARM SoCs System Configuration"
 endif
@@ -111,6 +120,7 @@ config ARCH_R8A7790
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
@@ -119,6 +129,7 @@ config ARCH_R8A7791
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
@@ -127,6 +138,7 @@ config ARCH_EMEV2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
 	select USE_OF
 	select AUTO_ZRELADDR
 
@@ -250,32 +262,11 @@ config MACH_LAGER
 	depends on ARCH_R8A7790
 	select USE_OF
 
-config MACH_LAGER_REFERENCE
-	bool "Lager board - Reference Device Tree Implementation"
-	depends on ARCH_R8A7790
-	select USE_OF
-	---help---
-	   Use reference implementation of Lager board support
-	   which makes use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
-
 config MACH_KOELSCH
 	bool "Koelsch board"
 	depends on ARCH_R8A7791
 	select USE_OF
-
-config MACH_KOELSCH_REFERENCE
-	bool "Koelsch board - Reference Device Tree Implementation"
-	depends on ARCH_R8A7791
-	select USE_OF
-	---help---
-	   Use reference implementation of Koelsch board support
-	   which makes use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
+	select MICREL_PHY if SH_ETH
 
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
