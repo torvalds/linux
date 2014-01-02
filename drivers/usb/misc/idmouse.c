@@ -386,7 +386,7 @@ static int idmouse_probe(struct usb_interface *interface,
 	result = usb_register_dev(interface, &idmouse_class);
 	if (result) {
 		/* something prevented us from registering this device */
-		dev_err(&interface->dev, "Unble to allocate minor number.\n");
+		dev_err(&interface->dev, "Unable to allocate minor number.\n");
 		usb_set_intfdata(interface, NULL);
 		idmouse_delete(dev);
 		return result;
