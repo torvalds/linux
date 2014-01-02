@@ -670,6 +670,16 @@
 #define AR_PHY_65NM_CH1_RXTX4       0x1650c
 #define AR_PHY_65NM_CH2_RXTX4       0x1690c
 
+#define AR_PHY_65NM_CH0_BB1         0x16140
+#define AR_PHY_65NM_CH0_BB2         0x16144
+#define AR_PHY_65NM_CH0_BB3         0x16148
+#define AR_PHY_65NM_CH1_BB1         0x16540
+#define AR_PHY_65NM_CH1_BB2         0x16544
+#define AR_PHY_65NM_CH1_BB3         0x16548
+#define AR_PHY_65NM_CH2_BB1         0x16940
+#define AR_PHY_65NM_CH2_BB2         0x16944
+#define AR_PHY_65NM_CH2_BB3         0x16948
+
 #define AR_PHY_65NM_CH0_SYNTH12_VREFMUL3           0x00780000
 #define AR_PHY_65NM_CH0_SYNTH12_VREFMUL3_S         19
 #define AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK         0x00000004
