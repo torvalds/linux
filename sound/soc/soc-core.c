@@ -4617,10 +4617,14 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 
 			if (id < 0 || id >= pos->num_dai) {
 				ret = -EINVAL;
-			} else {
-				*dai_name = pos->dai_drv[id].name;
-				ret = 0;
+				break;
 			}
+
+			ret = 0;
+
+			*dai_name = pos->dai_drv[id].name;
+			if (!*dai_name)
+				*dai_name = pos->name;
 		}
 
 		break;
