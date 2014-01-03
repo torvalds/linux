@@ -390,7 +390,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	if (forks) {
 		err = perf_evlist__prepare_workload(evsel_list, &opts->target,
 						    argv, file->is_pipe,
-						    true);
+						    workload_exec_failed_signal);
 		if (err < 0) {
 			pr_err("Couldn't run the workload!\n");
 			goto out_delete_session;
@@ -507,20 +507,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	/*
 	 * Let the child rip
 	 */
-	if (forks) {
-		struct sigaction act = {
-			.sa_flags     = SA_SIGINFO,
-			.sa_sigaction = workload_exec_failed_signal,
-		};
-		/*
-		 * perf_evlist__prepare_workload will, after we call
-		 * perf_evlist__start_Workload, send a SIGUSR1 if the exec call
-		 * fails, that we will catch in workload_signal to flip
-		 * workload_exec_errno.
- 		 */
-		sigaction(SIGUSR1, &act, NULL);
+	if (forks)
 		perf_evlist__start_workload(evsel_list);
-	}
 
 	for (;;) {
 		int hits = rec->samples;

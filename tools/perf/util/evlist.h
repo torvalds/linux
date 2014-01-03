@@ -103,7 +103,8 @@ int record_opts__config(struct record_opts *opts);
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 				  struct target *target,
 				  const char *argv[], bool pipe_output,
-				  bool want_signal);
+				  void (*exec_error)(int signo, siginfo_t *info,
+						     void *ucontext));
 int perf_evlist__start_workload(struct perf_evlist *evlist);
 
 int perf_evlist__parse_mmap_pages(const struct option *opt,

@@ -58,7 +58,6 @@
 #include "util/thread.h"
 #include "util/thread_map.h"
 
-#include <signal.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
 #include <locale.h>
@@ -542,8 +541,8 @@ static int __run_perf_stat(int argc, const char **argv)
 	}
 
 	if (forks) {
-		if (perf_evlist__prepare_workload(evsel_list, &target, argv,
-						  false, true) < 0) {
+		if (perf_evlist__prepare_workload(evsel_list, &target, argv, false,
+						  workload_exec_failed_signal) < 0) {
 			perror("failed to prepare workload");
 			return -1;
 		}
@@ -598,18 +597,6 @@ static int __run_perf_stat(int argc, const char **argv)
 	clock_gettime(CLOCK_MONOTONIC, &ref_time);
 
 	if (forks) {
-		struct sigaction act = {
-			.sa_flags     = SA_SIGINFO,
-			.sa_sigaction = workload_exec_failed_signal,
-		};
-		/*
-		 * perf_evlist__prepare_workload will, after we call
-		 * perf_evlist__start_Workload, send a SIGUSR1 if the exec call
-		 * fails, that we will catch in workload_signal to flip
-		 * workload_exec_errno.
- 		 */
-		sigaction(SIGUSR1, &act, NULL);
-
 		perf_evlist__start_workload(evsel_list);
 		handle_initial_delay();
 

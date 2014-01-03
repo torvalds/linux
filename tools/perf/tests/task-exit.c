@@ -9,12 +9,21 @@
 static int exited;
 static int nr_exit;
 
-static void sig_handler(int sig)
+static void sig_handler(int sig __maybe_unused)
 {
 	exited = 1;
+}
 
-	if (sig == SIGUSR1)
-		nr_exit = -1;
+/*
+ * perf_evlist__prepare_workload will send a SIGUSR1 if the fork fails, since
+ * we asked by setting its exec_error to this handler.
+ */
+static void workload_exec_failed_signal(int signo __maybe_unused,
+					siginfo_t *info __maybe_unused,
+					void *ucontext __maybe_unused)
+{
+	exited	= 1;
+	nr_exit = -1;
 }
 
 /*
@@ -35,7 +44,6 @@ int test__task_exit(void)
 	const char *argv[] = { "true", NULL };
 
 	signal(SIGCHLD, sig_handler);
-	signal(SIGUSR1, sig_handler);
 
 	evlist = perf_evlist__new_default();
 	if (evlist == NULL) {
@@ -57,7 +65,8 @@ int test__task_exit(void)
 		goto out_delete_maps;
 	}
 
-	err = perf_evlist__prepare_workload(evlist, &target, argv, false, true);
+	err = perf_evlist__prepare_workload(evlist, &target, argv, false,
+					    workload_exec_failed_signal);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
 		goto out_delete_maps;
