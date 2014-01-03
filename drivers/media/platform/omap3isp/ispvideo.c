@@ -431,7 +431,6 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 		return -EINVAL;
 	}
 
-	buf->vbuf.bytesused = vfh->format.fmt.pix.sizeimage;
 	buffer->isp_addr = addr;
 	return 0;
 }
@@ -514,6 +513,8 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 {
 	struct isp_pipeline *pipe = to_isp_pipeline(&video->video.entity);
 	struct isp_video_queue *queue = video->queue;
+	struct isp_video_fh *vfh =
+		container_of(queue, struct isp_video_fh, queue);
 	enum isp_pipeline_state state;
 	struct isp_video_buffer *buf;
 	unsigned long flags;
@@ -529,6 +530,8 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 			       irqlist);
 	list_del(&buf->irqlist);
 	spin_unlock_irqrestore(&queue->irqlock, flags);
+
+	buf->vbuf.bytesused = vfh->format.fmt.pix.sizeimage;
 
 	ktime_get_ts(&ts);
 	buf->vbuf.timestamp.tv_sec = ts.tv_sec;
