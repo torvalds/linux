@@ -20,12 +20,11 @@
 #include "../ion.h"
 #include "../ion_priv.h"
 
-struct ion_device *idev;
-struct ion_mapper *tegra_user_mapper;
-int num_heaps;
-struct ion_heap **heaps;
+static struct ion_device *idev;
+static int num_heaps;
+static struct ion_heap **heaps;
 
-int tegra_ion_probe(struct platform_device *pdev)
+static int tegra_ion_probe(struct platform_device *pdev)
 {
 	struct ion_platform_data *pdata = pdev->dev.platform_data;
 	int err;
@@ -63,7 +62,7 @@ err:
 	return err;
 }
 
-int tegra_ion_remove(struct platform_device *pdev)
+static int tegra_ion_remove(struct platform_device *pdev)
 {
 	struct ion_device *idev = platform_get_drvdata(pdev);
 	int i;
@@ -81,16 +80,5 @@ static struct platform_driver ion_driver = {
 	.driver = { .name = "ion-tegra" }
 };
 
-static int __init ion_init(void)
-{
-	return platform_driver_register(&ion_driver);
-}
-
-static void __exit ion_exit(void)
-{
-	platform_driver_unregister(&ion_driver);
-}
-
-module_init(ion_init);
-module_exit(ion_exit);
+module_platform_driver(ion_driver);
 
