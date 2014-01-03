@@ -1162,9 +1162,11 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
  * @data_offs: offset of requested data within the page
  * @readlen: data length
  * @bufpoi: buffer to store read data
+ * @page: page number to read
  */
 static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
-			uint32_t data_offs, uint32_t readlen, uint8_t *bufpoi)
+			uint32_t data_offs, uint32_t readlen, uint8_t *bufpoi,
+			int page)
 {
 	int start_step, end_step, num_steps;
 	uint32_t *eccpos = chip->ecc.layout->eccpos;
@@ -1540,7 +1542,8 @@ read_retry:
 			else if (!aligned && NAND_HAS_SUBPAGE_READ(chip) &&
 				 !oob)
 				ret = chip->ecc.read_subpage(mtd, chip,
-							col, bytes, bufpoi);
+							col, bytes, bufpoi,
+							page);
 			else
 				ret = chip->ecc.read_page(mtd, chip, bufpoi,
 							  oob_required, page);
