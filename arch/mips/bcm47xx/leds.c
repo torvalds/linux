@@ -16,6 +16,16 @@
 		.default_state	= _default_state,			\
 	}
 
+#define BCM47XX_GPIO_LED_TRIGGER(_gpio, _color, _function, _active_low,	\
+				 _default_trigger)			\
+	{								\
+		.name		= "bcm47xx:" _color ":" _function,	\
+		.gpio		= _gpio,				\
+		.active_low	= _active_low,				\
+		.default_state	= LEDS_GPIO_DEFSTATE_OFF,		\
+		.default_trigger	= _default_trigger,		\
+	}
+
 /* Asus */
 
 static const struct gpio_led
@@ -176,13 +186,13 @@ bcm47xx_leds_dell_tm2300[] __initconst = {
 
 static const struct gpio_led
 bcm47xx_leds_dlink_dir130[] __initconst = {
-	BCM47XX_GPIO_LED(0, "green", "status", 1, LEDS_GPIO_DEFSTATE_OFF), /* Originally blinking when device is ready, separated from "power" LED */
+	BCM47XX_GPIO_LED_TRIGGER(0, "green", "status", 1, "timer"), /* Originally blinking when device is ready, separated from "power" LED */
 	BCM47XX_GPIO_LED(6, "blue", "unk", 1, LEDS_GPIO_DEFSTATE_OFF),
 };
 
 static const struct gpio_led
 bcm47xx_leds_dlink_dir330[] __initconst = {
-	BCM47XX_GPIO_LED(0, "green", "status", 1, LEDS_GPIO_DEFSTATE_OFF), /* Originally blinking when device is ready, separated from "power" LED */
+	BCM47XX_GPIO_LED_TRIGGER(0, "green", "status", 1, "timer"), /* Originally blinking when device is ready, separated from "power" LED */
 	BCM47XX_GPIO_LED(4, "unk", "usb", 1, LEDS_GPIO_DEFSTATE_OFF),
 	BCM47XX_GPIO_LED(6, "blue", "unk", 1, LEDS_GPIO_DEFSTATE_OFF),
 };
