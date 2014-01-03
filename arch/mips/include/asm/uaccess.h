@@ -1246,16 +1246,28 @@ __strncpy_from_user(char *__to, const char __user *__from, long __len)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		"move\t$5, %2\n\t"
-		"move\t$6, %3\n\t"
-		__MODULE_JAL(__strncpy_from_user_nocheck_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (__to), "r" (__from), "r" (__len)
-		: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			"move\t$6, %3\n\t"
+			__MODULE_JAL(__strncpy_from_kernel_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (__to), "r" (__from), "r" (__len)
+			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			"move\t$6, %3\n\t"
+			__MODULE_JAL(__strncpy_from_user_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (__to), "r" (__from), "r" (__len)
+			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	}
 
 	return res;
 }
@@ -1283,16 +1295,28 @@ strncpy_from_user(char *__to, const char __user *__from, long __len)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		"move\t$5, %2\n\t"
-		"move\t$6, %3\n\t"
-		__MODULE_JAL(__strncpy_from_user_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (__to), "r" (__from), "r" (__len)
-		: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			"move\t$6, %3\n\t"
+			__MODULE_JAL(__strncpy_from_kernel_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (__to), "r" (__from), "r" (__len)
+			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			"move\t$6, %3\n\t"
+			__MODULE_JAL(__strncpy_from_user_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (__to), "r" (__from), "r" (__len)
+			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	}
 
 	return res;
 }
@@ -1302,14 +1326,24 @@ static inline long __strlen_user(const char __user *s)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		__MODULE_JAL(__strlen_user_nocheck_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (s)
-		: "$2", "$4", __UA_t0, "$31");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			__MODULE_JAL(__strlen_kernel_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s)
+			: "$2", "$4", __UA_t0, "$31");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			__MODULE_JAL(__strlen_user_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s)
+			: "$2", "$4", __UA_t0, "$31");
+	}
 
 	return res;
 }
@@ -1332,14 +1366,24 @@ static inline long strlen_user(const char __user *s)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		__MODULE_JAL(__strlen_user_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (s)
-		: "$2", "$4", __UA_t0, "$31");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			__MODULE_JAL(__strlen_kernel_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s)
+			: "$2", "$4", __UA_t0, "$31");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			__MODULE_JAL(__strlen_kernel_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s)
+			: "$2", "$4", __UA_t0, "$31");
+	}
 
 	return res;
 }
@@ -1349,15 +1393,26 @@ static inline long __strnlen_user(const char __user *s, long n)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		"move\t$5, %2\n\t"
-		__MODULE_JAL(__strnlen_user_nocheck_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (s), "r" (n)
-		: "$2", "$4", "$5", __UA_t0, "$31");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			__MODULE_JAL(__strnlen_kernel_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s), "r" (n)
+			: "$2", "$4", "$5", __UA_t0, "$31");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			__MODULE_JAL(__strnlen_user_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s), "r" (n)
+			: "$2", "$4", "$5", __UA_t0, "$31");
+	}
 
 	return res;
 }
@@ -1381,14 +1436,25 @@ static inline long strnlen_user(const char __user *s, long n)
 	long res;
 
 	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		"move\t$5, %2\n\t"
-		__MODULE_JAL(__strnlen_user_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (s), "r" (n)
-		: "$2", "$4", "$5", __UA_t0, "$31");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			__MODULE_JAL(__strnlen_kernel_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s), "r" (n)
+			: "$2", "$4", "$5", __UA_t0, "$31");
+	} else {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			__MODULE_JAL(__strnlen_user_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s), "r" (n)
+			: "$2", "$4", "$5", __UA_t0, "$31");
+	}
 
 	return res;
 }
