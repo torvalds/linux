@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 
+#include <asm/io.h>
 #include <asm/setup.h>
 
 static ssize_t version_show(struct kobject *kobj,
