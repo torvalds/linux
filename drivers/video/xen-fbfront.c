@@ -693,7 +693,7 @@ static DEFINE_XENBUS_DRIVER(xenfb, ,
 
 static int __init xenfb_init(void)
 {
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return -ENODEV;
 
 	/* Nothing to do if running in dom0. */
