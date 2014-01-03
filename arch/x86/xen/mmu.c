@@ -1209,28 +1209,28 @@ static void __init xen_pagetable_p2m_copy(void)
 
 	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 
-	/* On 32-bit, we get zero so this never gets executed. */
 	new_mfn_list = xen_revector_p2m_tree();
-	if (new_mfn_list && new_mfn_list != xen_start_info->mfn_list) {
-		/* using __ka address and sticking INVALID_P2M_ENTRY! */
-		memset((void *)xen_start_info->mfn_list, 0xff, size);
-
-		/* We should be in __ka space. */
-		BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
-		addr = xen_start_info->mfn_list;
-		/* We roundup to the PMD, which means that if anybody at this stage is
-		 * using the __ka address of xen_start_info or xen_start_info->shared_info
-		 * they are in going to crash. Fortunatly we have already revectored
-		 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
-		size = roundup(size, PMD_SIZE);
-		xen_cleanhighmap(addr, addr + size);
-
-		size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
-		memblock_free(__pa(xen_start_info->mfn_list), size);
-		/* And revector! Bye bye old array */
-		xen_start_info->mfn_list = new_mfn_list;
-	} else
+	/* No memory or already called. */
+	if (!new_mfn_list || new_mfn_list == xen_start_info->mfn_list)
 		return;
+
+	/* using __ka address and sticking INVALID_P2M_ENTRY! */
+	memset((void *)xen_start_info->mfn_list, 0xff, size);
+
+	/* We should be in __ka space. */
+	BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
+	addr = xen_start_info->mfn_list;
+	/* We roundup to the PMD, which means that if anybody at this stage is
+	 * using the __ka address of xen_start_info or xen_start_info->shared_info
+	 * they are in going to crash. Fortunatly we have already revectored
+	 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
+	size = roundup(size, PMD_SIZE);
+	xen_cleanhighmap(addr, addr + size);
+
+	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+	memblock_free(__pa(xen_start_info->mfn_list), size);
+	/* And revector! Bye bye old array */
+	xen_start_info->mfn_list = new_mfn_list;
 
 	/* At this stage, cleanup_highmap has already cleaned __ka space
 	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
