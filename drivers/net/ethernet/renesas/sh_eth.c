@@ -1,5 +1,4 @@
-/*
- *  SuperH Ethernet device driver
+/*  SuperH Ethernet device driver
  *
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2013 Renesas Solutions Corp.
@@ -13,9 +12,6 @@
  *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  *  more details.
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  The full GNU General Public License is included in this distribution in
  *  the file called "COPYING".
@@ -646,8 +642,8 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 
 	.tx_check	= EESR_TC1 | EESR_FTC,
-	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT | \
-			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE | \
+	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
+			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE |
 			  EESR_ECI,
 
 	.apr		= 1,
@@ -732,7 +728,7 @@ static void sh_eth_set_default_cpu_data(struct sh_eth_cpu_data *cd)
 		cd->ecsipr_value = DEFAULT_ECSIPR_INIT;
 
 	if (!cd->fcftr_value)
-		cd->fcftr_value = DEFAULT_FIFO_F_D_RFF | \
+		cd->fcftr_value = DEFAULT_FIFO_F_D_RFF |
 				  DEFAULT_FIFO_F_D_RFD;
 
 	if (!cd->fdr_value)
@@ -849,20 +845,17 @@ static inline __u32 edmac_to_cpu(struct sh_eth_private *mdp, u32 x)
 	return x;
 }
 
-/*
- * Program the hardware MAC address from dev->dev_addr.
- */
+/* Program the hardware MAC address from dev->dev_addr. */
 static void update_mac_address(struct net_device *ndev)
 {
 	sh_eth_write(ndev,
-		(ndev->dev_addr[0] << 24) | (ndev->dev_addr[1] << 16) |
-		(ndev->dev_addr[2] << 8) | (ndev->dev_addr[3]), MAHR);
+		     (ndev->dev_addr[0] << 24) | (ndev->dev_addr[1] << 16) |
+		     (ndev->dev_addr[2] << 8) | (ndev->dev_addr[3]), MAHR);
 	sh_eth_write(ndev,
-		(ndev->dev_addr[4] << 8) | (ndev->dev_addr[5]), MALR);
+		     (ndev->dev_addr[4] << 8) | (ndev->dev_addr[5]), MALR);
 }
 
-/*
- * Get MAC address from SuperH MAC address register
+/* Get MAC address from SuperH MAC address register
  *
  * SuperH's Ethernet device doesn't have 'ROM' to MAC address.
  * This driver get MAC address that use by bootloader(U-boot or sh-ipl+g).
@@ -1019,8 +1012,10 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	int rx_ringsize = sizeof(*rxdesc) * mdp->num_rx_ring;
 	int tx_ringsize = sizeof(*txdesc) * mdp->num_tx_ring;
 
-	mdp->cur_rx = mdp->cur_tx = 0;
-	mdp->dirty_rx = mdp->dirty_tx = 0;
+	mdp->cur_rx = 0;
+	mdp->cur_tx = 0;
+	mdp->dirty_rx = 0;
+	mdp->dirty_tx = 0;
 
 	memset(mdp->rx_ring, 0, rx_ringsize);
 
@@ -1033,7 +1028,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		if (skb == NULL)
 			break;
 		dma_map_single(&ndev->dev, skb->data, mdp->rx_buf_sz,
-				DMA_FROM_DEVICE);
+			       DMA_FROM_DEVICE);
 		sh_eth_set_receive_align(skb);
 
 		/* RX descriptor */
@@ -1081,8 +1076,7 @@ static int sh_eth_ring_init(struct net_device *ndev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int rx_ringsize, tx_ringsize, ret = 0;
 
-	/*
-	 * +26 gets the maximum ethernet encapsulation, +7 & ~7 because the
+	/* +26 gets the maximum ethernet encapsulation, +7 & ~7 because the
 	 * card needs room to do 8 byte alignment, +2 so we can reserve
 	 * the first 2 bytes, and +16 gets room for the status word from the
 	 * card.
@@ -1257,7 +1251,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_txdesc *txdesc;
-	int freeNum = 0;
+	int free_num = 0;
 	int entry = 0;
 
 	for (; mdp->cur_tx - mdp->dirty_tx > 0; mdp->dirty_tx++) {
@@ -1271,7 +1265,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 					 txdesc->buffer_length, DMA_TO_DEVICE);
 			dev_kfree_skb_irq(mdp->tx_skbuff[entry]);
 			mdp->tx_skbuff[entry] = NULL;
-			freeNum++;
+			free_num++;
 		}
 		txdesc->status = cpu_to_edmac(mdp, TD_TFP);
 		if (entry >= mdp->num_tx_ring - 1)
@@ -1280,7 +1274,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 		ndev->stats.tx_packets++;
 		ndev->stats.tx_bytes += txdesc->buffer_length;
 	}
-	return freeNum;
+	return free_num;
 }
 
 /* Packet receive function */
@@ -1313,8 +1307,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		if (!(desc_status & RDFEND))
 			ndev->stats.rx_length_errors++;
 
-		/*
-		 * In case of almost all GETHER/ETHERs, the Receive Frame State
+		/* In case of almost all GETHER/ETHERs, the Receive Frame State
 		 * (RFS) bits in the Receive Descriptor 0 are from bit 9 to
 		 * bit 0. However, in case of the R8A7740's GETHER, the RFS
 		 * bits are from bit 25 to bit 16. So, the driver needs right
@@ -1374,7 +1367,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			dma_map_single(&ndev->dev, skb->data, mdp->rx_buf_sz,
-					DMA_FROM_DEVICE);
+				       DMA_FROM_DEVICE);
 			sh_eth_set_receive_align(skb);
 
 			skb_checksum_none_assert(skb);
@@ -1392,10 +1385,13 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	/* If we don't need to check status, don't. -KDU */
 	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
 		/* fix the values for the next receiving if RDE is set */
-		if (intr_status & EESR_RDE)
-			mdp->cur_rx = mdp->dirty_rx =
-				(sh_eth_read(ndev, RDFAR) -
-				 sh_eth_read(ndev, RDLAR)) >> 4;
+		if (intr_status & EESR_RDE) {
+			u32 count = (sh_eth_read(ndev, RDFAR) -
+				     sh_eth_read(ndev, RDLAR)) >> 4;
+
+			mdp->cur_rx = count;
+			mdp->dirty_rx = count;
+		}
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
 	}
 
@@ -1438,17 +1434,17 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 				if (mdp->ether_link_active_low)
 					link_stat = ~link_stat;
 			}
-			if (!(link_stat & PHY_ST_LINK))
+			if (!(link_stat & PHY_ST_LINK)) {
 				sh_eth_rcv_snd_disable(ndev);
-			else {
+			} else {
 				/* Link Up */
 				sh_eth_write(ndev, sh_eth_read(ndev, EESIPR) &
-					  ~DMAC_M_ECI, EESIPR);
-				/*clear int */
+						   ~DMAC_M_ECI, EESIPR);
+				/* clear int */
 				sh_eth_write(ndev, sh_eth_read(ndev, ECSR),
-					  ECSR);
+					     ECSR);
 				sh_eth_write(ndev, sh_eth_read(ndev, EESIPR) |
-					  DMAC_M_ECI, EESIPR);
+						   DMAC_M_ECI, EESIPR);
 				/* enable tx and rx */
 				sh_eth_rcv_snd_enable(ndev);
 			}
@@ -1519,9 +1515,9 @@ ignore_link:
 		u32 edtrr = sh_eth_read(ndev, EDTRR);
 		/* dmesg */
 		dev_err(&ndev->dev, "TX error. status=%8.8x cur_tx=%8.8x ",
-				intr_status, mdp->cur_tx);
+			intr_status, mdp->cur_tx);
 		dev_err(&ndev->dev, "dirty_tx=%8.8x state=%8.8x EDTRR=%8.8x.\n",
-				mdp->dirty_tx, (u32) ndev->state, edtrr);
+			mdp->dirty_tx, (u32) ndev->state, edtrr);
 		/* dirty buffer free */
 		sh_eth_txfree(ndev);
 
@@ -1644,7 +1640,8 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 		}
 		if (!mdp->link) {
 			sh_eth_write(ndev,
-				(sh_eth_read(ndev, ECMR) & ~ECMR_TXF), ECMR);
+				     sh_eth_read(ndev, ECMR) & ~ECMR_TXF,
+				     ECMR);
 			new_state = 1;
 			mdp->link = phydev->link;
 			if (mdp->cd->no_psr || mdp->no_ether_link)
@@ -1671,7 +1668,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	struct phy_device *phydev = NULL;
 
 	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
-		mdp->mii_bus->id , mdp->phy_id);
+		 mdp->mii_bus->id, mdp->phy_id);
 
 	mdp->link = 0;
 	mdp->speed = 0;
@@ -1709,7 +1706,7 @@ static int sh_eth_phy_start(struct net_device *ndev)
 }
 
 static int sh_eth_get_settings(struct net_device *ndev,
-			struct ethtool_cmd *ecmd)
+			       struct ethtool_cmd *ecmd)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
@@ -1723,7 +1720,7 @@ static int sh_eth_get_settings(struct net_device *ndev,
 }
 
 static int sh_eth_set_settings(struct net_device *ndev,
-		struct ethtool_cmd *ecmd)
+			       struct ethtool_cmd *ecmd)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
@@ -1799,7 +1796,7 @@ static int sh_eth_get_sset_count(struct net_device *netdev, int sset)
 }
 
 static void sh_eth_get_ethtool_stats(struct net_device *ndev,
-			struct ethtool_stats *stats, u64 *data)
+				     struct ethtool_stats *stats, u64 *data)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int i = 0;
@@ -1816,7 +1813,7 @@ static void sh_eth_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		memcpy(data, *sh_eth_gstrings_stats,
-					sizeof(sh_eth_gstrings_stats));
+		       sizeof(sh_eth_gstrings_stats));
 		break;
 	}
 }
@@ -1951,9 +1948,10 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 
-	if (netif_msg_timer(mdp))
-		dev_err(&ndev->dev, "%s: transmit timed out, status %8.8x,"
-	       " resetting...\n", ndev->name, (int)sh_eth_read(ndev, EESR));
+	if (netif_msg_timer(mdp)) {
+		dev_err(&ndev->dev, "%s: transmit timed out, status %8.8x, resetting...\n",
+			ndev->name, (int)sh_eth_read(ndev, EESR));
+	}
 
 	/* tx_errors count up */
 	ndev->stats.tx_errors++;
@@ -2086,8 +2084,7 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 }
 
 /* ioctl to device function */
-static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq,
-				int cmd)
+static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct phy_device *phydev = mdp->phydev;
@@ -2342,8 +2339,7 @@ static void sh_eth_set_multicast_list(struct net_device *ndev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mdp->lock, flags);
-	/*
-	 * Initial condition is MCT = 1, PRM = 0.
+	/* Initial condition is MCT = 1, PRM = 0.
 	 * Depending on ndev->flags, set PRM or clear MCT
 	 */
 	ecmr_bits = (sh_eth_read(ndev, ECMR) & ~ECMR_PRM) | ECMR_MCT;
@@ -2409,8 +2405,7 @@ static int sh_eth_vlan_rx_add_vid(struct net_device *ndev,
 
 	mdp->vlan_num_ids++;
 
-	/*
-	 * The controller has one VLAN tag HW filter. So, if the filter is
+	/* The controller has one VLAN tag HW filter. So, if the filter is
 	 * already enabled, the driver disables it and the filte
 	 */
 	if (mdp->vlan_num_ids > 1) {
@@ -2526,7 +2521,7 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 	mdp->mii_bus->name = "sh_mii";
 	mdp->mii_bus->parent = &ndev->dev;
 	snprintf(mdp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
-		mdp->pdev->name, id);
+		 mdp->pdev->name, id);
 
 	/* PHY IRQ */
 	mdp->mii_bus->irq = devm_kzalloc(&ndev->dev,
@@ -2739,7 +2734,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	/* print device information */
 	pr_info("Base address at 0x%x, %pM, IRQ %d.\n",
-	       (u32)ndev->base_addr, ndev->dev_addr, ndev->irq);
+		(u32)ndev->base_addr, ndev->dev_addr, ndev->irq);
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -2777,8 +2772,7 @@ static int sh_eth_drv_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int sh_eth_runtime_nop(struct device *dev)
 {
-	/*
-	 * Runtime PM callback shared between ->runtime_suspend()
+	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
 	 *
 	 * This driver re-initializes all registers after
