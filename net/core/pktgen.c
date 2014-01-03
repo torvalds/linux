@@ -2247,13 +2247,21 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 	struct xfrm_state *x = pkt_dev->flows[flow].x;
 	struct pktgen_net *pn = net_generic(dev_net(pkt_dev->odev), pg_net_id);
 	if (!x) {
-		/*slow path: we dont already have xfrm_state*/
-		x = xfrm_stateonly_find(pn->net, DUMMY_MARK,
-					(xfrm_address_t *)&pkt_dev->cur_daddr,
-					(xfrm_address_t *)&pkt_dev->cur_saddr,
-					AF_INET,
-					pkt_dev->ipsmode,
-					pkt_dev->ipsproto, 0);
+
+		if (pkt_dev->spi) {
+			/* We need as quick as possible to find the right SA
+			 * Searching with minimum criteria to archieve this.
+			 */
+			x = xfrm_state_lookup_byspi(pn->net, htonl(pkt_dev->spi), AF_INET);
+		} else {
+			/* slow path: we dont already have xfrm_state */
+			x = xfrm_stateonly_find(pn->net, DUMMY_MARK,
+						(xfrm_address_t *)&pkt_dev->cur_daddr,
+						(xfrm_address_t *)&pkt_dev->cur_saddr,
+						AF_INET,
+						pkt_dev->ipsmode,
+						pkt_dev->ipsproto, 0);
+		}
 		if (x) {
 			pkt_dev->flows[flow].x = x;
 			set_pkt_overhead(pkt_dev);

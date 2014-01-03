@@ -915,6 +915,28 @@ xfrm_stateonly_find(struct net *net, u32 mark,
 }
 EXPORT_SYMBOL(xfrm_stateonly_find);
 
+struct xfrm_state *xfrm_state_lookup_byspi(struct net *net, __be32 spi,
+					      unsigned short family)
+{
+	struct xfrm_state *x;
+	struct xfrm_state_walk *w;
+
+	spin_lock_bh(&net->xfrm.xfrm_state_lock);
+	list_for_each_entry(w, &net->xfrm.state_all, all) {
+		x = container_of(w, struct xfrm_state, km);
+		if (x->props.family != family ||
+			x->id.spi != spi)
+			continue;
+
+		spin_unlock_bh(&net->xfrm.xfrm_state_lock);
+		xfrm_state_hold(x);
+		return x;
+	}
+	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
+	return NULL;
+}
+EXPORT_SYMBOL(xfrm_state_lookup_byspi);
+
 static void __xfrm_state_insert(struct xfrm_state *x)
 {
 	struct net *net = xs_net(x);
