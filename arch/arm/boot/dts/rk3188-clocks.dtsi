@@ -102,6 +102,7 @@
 					clocks = <&xin24m>;
 					clock-output-names = "clk_cpll";
 					#clock-cells = <0>;
+					#clock-init-cells = <1>;
 				};
 
 				clk_gpll: pll-clk@0x20000030 {
@@ -111,6 +112,7 @@
 					clocks = <&xin24m>;
 					clock-output-names = "clk_gpll";
 					#clock-cells = <0>;
+					#clock-init-cells = <1>;
 				};
 			};
 
@@ -139,7 +141,8 @@
 						rockchip,bits = <5 1>;
 						clocks = <&clk_apll>, <&clk_gpll>;
 						clock-output-names = "aclk_cpu";
-						#clock-cells = <0>;
+						#clock-cells = <0>;	
+						#clock-init-cells = <1>;
 					};
 
 					clk_core_peri: clk_core_peri_div {
@@ -389,7 +392,8 @@
 						rockchip,bits = <15 1>;
 						clocks = <&clk_cpll>, <&clk_gpll>;
 						clock-output-names = "aclk_peri_mux";
-						#clock-cells = <0>;
+						#clock-cells = <0>;			
+						#clock-init-cells = <1>;
 					};
 				};
 

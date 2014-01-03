@@ -800,10 +800,26 @@ void rk_clk_test(void){};
 EXPORT_SYMBOL_GPL(rk_clk_test);
 #endif
 extern void clk_dump_tree(void);
-static void __init rkclk_init(struct device_node *np)
+
+
+void rkclk_init_clks(struct device_node *node);
+
+static void __init rk_clk_tree_init(struct device_node *np)
 {
 	struct device_node *node;
+	
+	struct device_node *node_init;
 	struct rkclk *rkclk;
+
+	node_init=of_find_node_by_name(NULL,"clocks-init");
+	if(!node_init)
+	{	
+		printk("%s:can not get  clocks-init node\n",__FUNCTION__);	
+		return;	
+	}
+
+
+	
 
 	for_each_available_child_of_node(np, node) {
 
@@ -913,6 +929,134 @@ static void __init rkclk_init(struct device_node *np)
 			clk_debug("\t\tNOT A MUX CLK, parent num=%d\n", clk->num_parents);
 		}
 	}
+
+	rkclk_init_clks(node_init);
+
+}
+CLK_OF_DECLARE(rk_clocks,	"rockchip,rk-clock-regs",	rk_clk_tree_init);
+
+/********************************** rock chip clks init****************************************/
+const char *of_clk_init_rate_get_info(struct device_node *np, int index,u32 *rate)
+{
+	struct of_phandle_args clkspec;
+	const char *clk_name;
+	int rc;
+
+	if (index < 0)
+		return NULL;
+
+	rc = of_parse_phandle_with_args(np, "rockchip,clocks-init-rate", "#clock-init-cells", index,
+					&clkspec);
+	if (rc)
+		return NULL;
+
+	if (of_property_read_string_index(clkspec.np, "clock-output-names",0,&clk_name) < 0)
+		return NULL;
+	
+	*rate= clkspec.args[0];
+	
+	of_node_put(clkspec.np);
+	return clk_name;
 }
 
-CLK_OF_DECLARE(rk_clocks,	"rockchip,rk-clock-regs",	rkclk_init);
+const char *of_clk_init_parent_get_info(struct device_node *np, int index,const char **clk_child_name)
+{
+	struct of_phandle_args clkspec;
+	const char *clk_name;
+	int rc;
+	phandle phandle;
+	struct device_node *node = NULL;
+
+	if (index < 0)
+		return NULL;
+
+	rc = of_parse_phandle_with_args(np, "rockchip,clocks-init-parent", "#clock-init-cells", index,
+					&clkspec);
+	if (rc)
+		return NULL;
+
+	if (of_property_read_string_index(clkspec.np, "clock-output-names",0,&clk_name) < 0)
+		return NULL;
+
+	
+	phandle = clkspec.args[0];
+
+	of_node_put(clkspec.np);
+
+	if (phandle) {
+
+		node = of_find_node_by_phandle(phandle);
+		if (!node) {
+			return NULL;
+		}
+		
+		if (of_property_read_string_index(node, "clock-output-names",0,clk_child_name) < 0)
+			return NULL;
+		
+		of_node_put(node);//???
+		node=NULL;
+	}
+	else
+		return NULL;
+	
+	return clk_name;
+}
+
+void rkclk_init_clks(struct device_node *np)
+{	
+	//struct device_node *np;
+	int i,cnt_parent,cnt_rate;
+	u32 clk_rate;
+	//int ret;
+	struct clk * clk_p,*clk_c;
+
+	const char * clk_name,*clk_parent_name;
+
+
+	cnt_parent = of_count_phandle_with_args(np, "rockchip,clocks-init-parent", "#clock-init-cells");
+	
+	printk("%s:cnt_parent =%d\n",__FUNCTION__,cnt_parent);	
+
+
+	for (i = 0; i < cnt_parent; i++) {
+		clk_parent_name=NULL;
+		clk_name=of_clk_init_parent_get_info(np, i,&clk_parent_name);
+		
+		if(clk_name==NULL||clk_parent_name==NULL)
+			continue;
+		
+		clk_c=clk_get(NULL,clk_name);
+		clk_p=clk_get(NULL,clk_parent_name);
+
+		printk("%s: set parent %s=%x,%s=%x\n",__FUNCTION__,clk_name,(u32)clk_c,clk_parent_name,(u32)clk_p);
+		if(IS_ERR(clk_c)||IS_ERR(clk_p))	
+			continue;
+		//clk_set_parent(clk_name, clk_parent_name);
+	}
+
+	cnt_rate = of_count_phandle_with_args(np, "rockchip,clocks-init-rate", "#clock-init-cells");
+
+	printk("%s:rate cnt=%d\n",__FUNCTION__,cnt_rate);	
+
+	for (i = 0; i < cnt_rate; i++) {
+		clk_name=of_clk_init_rate_get_info(np, i,&clk_rate);
+		
+		if(clk_name==NULL)
+			continue;
+		
+		clk_p=clk_get(NULL,clk_name);
+
+		printk("%s: set rate %s=%x,rate=%d\n",__FUNCTION__,clk_name,(u32)clk_p,clk_rate);
+
+		if(IS_ERR(clk_c)||(clk_rate<1*1000*1000)||(clk_rate>2000*1000*1000))
+			continue;
+		//clk_set_rate(clk_p,clk_rate);
+				
+	}
+	
+}
+
+
+	
+
+

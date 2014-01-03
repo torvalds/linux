@@ -295,4 +295,14 @@
 		pinctrl-0 = <&i2c4_sda &i2c4_scl>;
 		status = "disabled";
 	};
+	
+	clocks-init{
+		compatible = "rockchip,clocks-init";
+		rockchip,clocks-init-rate =<&clk_cpll 768000000>,<&clk_gpll 594000000>;
+		rockchip,clocks-init-parent =<&aclk_peri_mux &clk_gpll>,<&aclk_cpu &clk_gpll>;
+	};
+	
 };
+
+
+
