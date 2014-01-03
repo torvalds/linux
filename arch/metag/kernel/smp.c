@@ -68,7 +68,7 @@ static DECLARE_COMPLETION(cpu_running);
 /*
  * "thread" is assumed to be a valid Meta hardware thread ID.
  */
-int boot_secondary(unsigned int thread, struct task_struct *idle)
+static int boot_secondary(unsigned int thread, struct task_struct *idle)
 {
 	u32 val;
 
