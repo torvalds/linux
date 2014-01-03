@@ -56,6 +56,12 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_machine_name[] __initconst = 
 /* hardware_version */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initconst = {
+	{{BCM47XX_BOARD_ASUS_RTN10U, "Asus RT-N10U"}, "RTN10U"},
+	{{BCM47XX_BOARD_ASUS_RTN12, "Asus RT-N12"}, "RT-N12"},
+	{{BCM47XX_BOARD_ASUS_RTN12B1, "Asus RT-N12B1"}, "RTN12B1"},
+	{{BCM47XX_BOARD_ASUS_RTN12C1, "Asus RT-N12C1"}, "RTN12C1"},
+	{{BCM47XX_BOARD_ASUS_RTN12D1, "Asus RT-N12D1"}, "RTN12D1"},
+	{{BCM47XX_BOARD_ASUS_RTN12HP, "Asus RT-N12HP"}, "RTN12HP"},
 	{{BCM47XX_BOARD_ASUS_RTN16, "Asus RT-N16"}, "RT-N16-"},
 	{{BCM47XX_BOARD_ASUS_WL320GE, "Asus WL320GE"}, "WL320G-"},
 	{{BCM47XX_BOARD_ASUS_WL330GE, "Asus WL330GE"}, "WL330GE-"},
@@ -75,12 +81,6 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_productid[] __initconst = {
 	{{BCM47XX_BOARD_ASUS_RTAC66U, "Asus RT-AC66U"}, "RT-AC66U"},
 	{{BCM47XX_BOARD_ASUS_RTN10, "Asus RT-N10"}, "RT-N10"},
 	{{BCM47XX_BOARD_ASUS_RTN10D, "Asus RT-N10D"}, "RT-N10D"},
-	{{BCM47XX_BOARD_ASUS_RTN10U, "Asus RT-N10U"}, "RT-N10U"},
-	{{BCM47XX_BOARD_ASUS_RTN12, "Asus RT-N12"}, "RT-N12"},
-	{{BCM47XX_BOARD_ASUS_RTN12B1, "Asus RT-N12B1"}, "RT-N12B1"},
-	{{BCM47XX_BOARD_ASUS_RTN12C1, "Asus RT-N12C1"}, "RT-N12C1"},
-	{{BCM47XX_BOARD_ASUS_RTN12D1, "Asus RT-N12D1"}, "RT-N12D1"},
-	{{BCM47XX_BOARD_ASUS_RTN12HP, "Asus RT-N12HP"}, "RT-N12HP"},
 	{{BCM47XX_BOARD_ASUS_RTN15U, "Asus RT-N15U"}, "RT-N15U"},
 	{{BCM47XX_BOARD_ASUS_RTN16, "Asus RT-N16"}, "RT-N16"},
 	{{BCM47XX_BOARD_ASUS_RTN53, "Asus RT-N53"}, "RT-N53"},
@@ -174,6 +174,7 @@ struct bcm47xx_board_type_list3 bcm47xx_board_list_board[] __initconst = {
 	{{BCM47XX_BOARD_HUAWEI_E970, "Huawei E970"}, "0x048e", "0x5347", "0x11"},
 	{{BCM47XX_BOARD_PHICOMM_M1, "Phicomm M1"}, "0x0590", "80", "0x1104"},
 	{{BCM47XX_BOARD_ZTE_H218N, "ZTE H218N"}, "0x053d", "1234", "0x1305"},
+	{{BCM47XX_BOARD_NETGEAR_WNR3500L, "Netgear WNR3500L"}, "0x04CF", "3500", "02"},
 	{ {0}, 0},
 };
 
