@@ -86,25 +86,6 @@ static void tw4030_init_ctl_cache(struct twl4030_priv *twl4030)
 	}
 }
 
-static void twl4030_update_ctl_cache(struct snd_soc_codec *codec,
-				     unsigned int reg, unsigned int value)
-{
-	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
-
-	switch (reg) {
-	case TWL4030_REG_EAR_CTL:
-	case TWL4030_REG_PREDL_CTL:
-	case TWL4030_REG_PREDR_CTL:
-	case TWL4030_REG_PRECKL_CTL:
-	case TWL4030_REG_PRECKR_CTL:
-	case TWL4030_REG_HS_GAIN_SET:
-		twl4030->ctl_cache[reg - TWL4030_REG_EAR_CTL] = value;
-		break;
-	default:
-		break;
-	}
-}
-
 static unsigned int twl4030_read(struct snd_soc_codec *codec, unsigned int reg)
 {
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
@@ -174,7 +155,22 @@ static bool twl4030_can_write_to_chip(struct snd_soc_codec *codec,
 static int twl4030_write(struct snd_soc_codec *codec, unsigned int reg,
 			 unsigned int value)
 {
-	twl4030_update_ctl_cache(codec, reg, value);
+	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
+
+	/* Update the ctl cache */
+	switch (reg) {
+	case TWL4030_REG_EAR_CTL:
+	case TWL4030_REG_PREDL_CTL:
+	case TWL4030_REG_PREDR_CTL:
+	case TWL4030_REG_PRECKL_CTL:
+	case TWL4030_REG_PRECKR_CTL:
+	case TWL4030_REG_HS_GAIN_SET:
+		twl4030->ctl_cache[reg - TWL4030_REG_EAR_CTL] = value;
+		break;
+	default:
+		break;
+	}
+
 	if (twl4030_can_write_to_chip(codec, reg))
 		return twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, value, reg);
 
