@@ -985,7 +985,7 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	int           ret;
 
 	dev_dbg(this->dev, "page number is : %d\n", page);
-	ret = read_page_prepare(this, buf, mtd->writesize,
+	ret = read_page_prepare(this, buf, nfc_geo->payload_size,
 					this->payload_virt, this->payload_phys,
 					nfc_geo->payload_size,
 					&payload_virt, &payload_phys);
@@ -999,7 +999,7 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* go! */
 	ret = gpmi_read_page(this, payload_phys, auxiliary_phys);
-	read_page_end(this, buf, mtd->writesize,
+	read_page_end(this, buf, nfc_geo->payload_size,
 			this->payload_virt, this->payload_phys,
 			nfc_geo->payload_size,
 			payload_virt, payload_phys);
@@ -1041,7 +1041,7 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		chip->oob_poi[0] = ((uint8_t *) auxiliary_virt)[0];
 	}
 
-	read_page_swap_end(this, buf, mtd->writesize,
+	read_page_swap_end(this, buf, nfc_geo->payload_size,
 			this->payload_virt, this->payload_phys,
 			nfc_geo->payload_size,
 			payload_virt, payload_phys);
