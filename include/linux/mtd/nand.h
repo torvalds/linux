@@ -634,6 +634,7 @@ struct nand_chip {
 #define NAND_MFR_MACRONIX	0xc2
 #define NAND_MFR_EON		0x92
 #define NAND_MFR_SANDISK	0x45
+#define NAND_MFR_INTEL		0x89
 
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8
