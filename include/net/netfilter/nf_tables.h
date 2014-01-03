@@ -16,6 +16,7 @@ struct nft_pktinfo {
 	const struct nf_hook_ops	*ops;
 	u8				nhoff;
 	u8				thoff;
+	u8				tprot;
 	/* for x_tables compatibility */
 	struct xt_action_param		xt;
 };

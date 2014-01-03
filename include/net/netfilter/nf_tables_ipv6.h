@@ -21,6 +21,7 @@ nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 	if (protohdr < 0)
 		return -1;
 
+	pkt->tprot = protohdr;
 	pkt->xt.thoff = thoff;
 	pkt->xt.fragoff = frag_off;
 
