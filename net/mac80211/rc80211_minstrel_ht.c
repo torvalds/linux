@@ -63,7 +63,7 @@
 
 #define CCK_DURATION(_bitrate, _short, _len)		\
 	(1000 * (10 /* SIFS */ +			\
-	 (_short ? 72 + 24 : 144 + 48 ) +		\
+	 (_short ? 72 + 24 : 144 + 48) +		\
 	 (8 * (_len + 4) * 10) / (_bitrate)))
 
 #define CCK_ACK_DURATION(_bitrate, _short)			\

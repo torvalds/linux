@@ -932,4 +932,19 @@ static inline int rdev_channel_switch(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline int rdev_set_qos_map(struct cfg80211_registered_device *rdev,
+				   struct net_device *dev,
+				   struct cfg80211_qos_map *qos_map)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (rdev->ops->set_qos_map) {
+		trace_rdev_set_qos_map(&rdev->wiphy, dev, qos_map);
+		ret = rdev->ops->set_qos_map(&rdev->wiphy, dev, qos_map);
+		trace_rdev_return_int(&rdev->wiphy, ret);
+	}
+
+	return ret;
+}
+
 #endif /* __CFG80211_RDEV_OPS */

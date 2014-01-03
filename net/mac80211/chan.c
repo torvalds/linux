@@ -232,8 +232,8 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 	if (!local->use_chanctx)
 		local->hw.conf.radar_enabled = ctx->conf.radar_enabled;
 
-	/* acquire mutex to prevent idle from changing */
-	mutex_lock(&local->mtx);
+	/* we hold the mutex to prevent idle from changing */
+	lockdep_assert_held(&local->mtx);
 	/* turn idle off *before* setting channel -- some drivers need that */
 	changed = ieee80211_idle_off(local);
 	if (changed)
@@ -246,18 +246,13 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 		err = drv_add_chanctx(local, ctx);
 		if (err) {
 			kfree(ctx);
-			ctx = ERR_PTR(err);
-
 			ieee80211_recalc_idle(local);
-			goto out;
+			return ERR_PTR(err);
 		}
 	}
 
 	/* and keep the mutex held until the new chanctx is on the list */
 	list_add_rcu(&ctx->list, &local->chanctx_list);
-
- out:
-	mutex_unlock(&local->mtx);
 
 	return ctx;
 }
@@ -294,9 +289,7 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 	/* throw a warning if this wasn't the only channel context. */
 	WARN_ON(check_single_channel && !list_empty(&local->chanctx_list));
 
-	mutex_lock(&local->mtx);
 	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 }
 
 static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
@@ -358,6 +351,31 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 	ieee80211_change_chanctx(local, ctx, compat);
 }
 
+static void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
+					   struct ieee80211_chanctx *chanctx)
+{
+	bool radar_enabled;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+	/* for setting local->radar_detect_enabled */
+	lockdep_assert_held(&local->mtx);
+
+	radar_enabled = ieee80211_is_radar_required(local);
+
+	if (radar_enabled == chanctx->conf.radar_enabled)
+		return;
+
+	chanctx->conf.radar_enabled = radar_enabled;
+	local->radar_detect_enabled = chanctx->conf.radar_enabled;
+
+	if (!local->use_chanctx) {
+		local->hw.conf.radar_enabled = chanctx->conf.radar_enabled;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	}
+
+	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RADAR);
+}
+
 static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 					   struct ieee80211_chanctx *ctx)
 {
@@ -402,29 +420,6 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 	ieee80211_unassign_vif_chanctx(sdata, ctx);
 	if (ctx->refcount == 0)
 		ieee80211_free_chanctx(local, ctx);
-}
-
-void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
-				    struct ieee80211_chanctx *chanctx)
-{
-	bool radar_enabled;
-
-	lockdep_assert_held(&local->chanctx_mtx);
-
-	radar_enabled = ieee80211_is_radar_required(local);
-
-	if (radar_enabled == chanctx->conf.radar_enabled)
-		return;
-
-	chanctx->conf.radar_enabled = radar_enabled;
-	local->radar_detect_enabled = chanctx->conf.radar_enabled;
-
-	if (!local->use_chanctx) {
-		local->hw.conf.radar_enabled = chanctx->conf.radar_enabled;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-	}
-
-	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RADAR);
 }
 
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
@@ -518,6 +513,8 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_chanctx *ctx;
 	int ret;
 
+	lockdep_assert_held(&local->mtx);
+
 	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
 
 	mutex_lock(&local->chanctx_mtx);
@@ -557,6 +554,8 @@ int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
 	const struct cfg80211_chan_def *chandef = &sdata->csa_chandef;
 	int ret;
 	u32 chanctx_changed = 0;
+
+	lockdep_assert_held(&local->mtx);
 
 	/* should never be called if not performing a channel switch. */
 	if (WARN_ON(!sdata->vif.csa_active))
@@ -654,6 +653,8 @@ int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 {
 	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
+
+	lockdep_assert_held(&sdata->local->mtx);
 
 	mutex_lock(&sdata->local->chanctx_mtx);
 	__ieee80211_vif_release_channel(sdata);
