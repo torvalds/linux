@@ -464,6 +464,7 @@ int bond_option_min_links_set(struct bonding *bond, int min_links);
 int bond_option_lp_interval_set(struct bonding *bond, int min_links);
 int bond_option_packets_per_slave_set(struct bonding *bond,
 				      int packets_per_slave);
+int bond_option_lacp_rate_set(struct bonding *bond, int lacp_rate);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
 

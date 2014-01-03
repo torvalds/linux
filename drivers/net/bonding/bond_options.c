@@ -656,3 +656,32 @@ int bond_option_packets_per_slave_set(struct bonding *bond,
 
 	return 0;
 }
+
+int bond_option_lacp_rate_set(struct bonding *bond, int lacp_rate)
+{
+	if (bond->dev->flags & IFF_UP) {
+		pr_err("%s: Unable to update LACP rate because interface is up.\n",
+		       bond->dev->name);
+		return -EPERM;
+	}
+
+	if (bond->params.mode != BOND_MODE_8023AD) {
+		pr_err("%s: Unable to update LACP rate because bond is not in 802.3ad mode.\n",
+		       bond->dev->name);
+		return -EPERM;
+	}
+
+	if ((lacp_rate == 1) || (lacp_rate == 0)) {
+		bond->params.lacp_fast = lacp_rate;
+		bond_3ad_update_lacp_rate(bond);
+		pr_info("%s: Setting LACP rate to %s (%d).\n",
+			bond->dev->name, bond_lacp_tbl[lacp_rate].modename,
+			lacp_rate);
+	} else {
+		pr_err("%s: Ignoring invalid LACP rate value %d.\n",
+		       bond->dev->name, lacp_rate);
+		return -EINVAL;
+	}
+
+	return 0;
+}

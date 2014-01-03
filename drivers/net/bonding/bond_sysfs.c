@@ -658,41 +658,23 @@ static ssize_t bonding_store_lacp(struct device *d,
 				  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret = count;
+	int new_value, ret;
+
+	new_value = bond_parse_parm(buf, bond_lacp_tbl);
+	if (new_value < 0) {
+		pr_err("%s: Ignoring invalid LACP rate value %.*s.\n",
+		       bond->dev->name, (int)strlen(buf) - 1, buf);
+		return -EINVAL;
+	}
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (bond->dev->flags & IFF_UP) {
-		pr_err("%s: Unable to update LACP rate because interface is up.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
+	ret = bond_option_lacp_rate_set(bond, new_value);
+	if (!ret)
+		ret = count;
 
-	if (bond->params.mode != BOND_MODE_8023AD) {
-		pr_err("%s: Unable to update LACP rate because bond is not in 802.3ad mode.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
-
-	new_value = bond_parse_parm(buf, bond_lacp_tbl);
-
-	if ((new_value == 1) || (new_value == 0)) {
-		bond->params.lacp_fast = new_value;
-		bond_3ad_update_lacp_rate(bond);
-		pr_info("%s: Setting LACP rate to %s (%d).\n",
-			bond->dev->name, bond_lacp_tbl[new_value].modename,
-			new_value);
-	} else {
-		pr_err("%s: Ignoring invalid LACP rate value %.*s.\n",
-		       bond->dev->name, (int)strlen(buf) - 1, buf);
-		ret = -EINVAL;
-	}
-out:
 	rtnl_unlock();
-
 	return ret;
 }
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR,
