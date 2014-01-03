@@ -389,6 +389,7 @@ struct pktgen_dev {
 #ifdef CONFIG_XFRM
 	__u8	ipsmode;		/* IPSEC mode (config) */
 	__u8	ipsproto;		/* IPSEC type (config) */
+	__u32	spi;
 #endif
 	char result[512];
 };
@@ -1474,6 +1475,17 @@ static ssize_t pktgen_if_write(struct file *file,
 
 		pkt_dev->cflows = value;
 		sprintf(pg_result, "OK: flows=%u", pkt_dev->cflows);
+		return count;
+	}
+
+	if (!strcmp(name, "spi")) {
+		len = num_arg(&user_buffer[i], 10, &value);
+		if (len < 0)
+			return len;
+
+		i += len;
+		pkt_dev->spi = value;
+		sprintf(pg_result, "OK: spi=%u", pkt_dev->spi);
 		return count;
 	}
 
