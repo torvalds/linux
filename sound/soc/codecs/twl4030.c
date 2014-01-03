@@ -150,9 +150,21 @@ struct twl4030_priv {
 	u8 earpiece_enabled;
 	u8 predrivel_enabled, predriver_enabled;
 	u8 carkitl_enabled, carkitr_enabled;
+	u8 ctl_cache[TWL4030_REG_PRECKR_CTL - TWL4030_REG_EAR_CTL + 1];
 
 	struct twl4030_codec_data *pdata;
 };
+
+static void tw4030_init_ctl_cache(struct twl4030_priv *twl4030)
+{
+	int i;
+	u8 byte;
+
+	for (i = TWL4030_REG_EAR_CTL; i <= TWL4030_REG_PRECKR_CTL; i++) {
+		twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte, i);
+		twl4030->ctl_cache[i - TWL4030_REG_EAR_CTL] = byte;
+	}
+}
 
 /*
  * read twl4030 register cache
@@ -347,6 +359,9 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 					 TWL4030_PMBR1_REG);
 		}
 	}
+
+	/* Initialize the local ctl register cache */
+	tw4030_init_ctl_cache(twl4030);
 
 	/* Refresh APLL_CTL register from HW */
 	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte,
