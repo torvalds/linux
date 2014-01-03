@@ -383,6 +383,27 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 }
 EXPORT_SYMBOL(twl_i2c_read);
 
+/**
+ * twl_regcache_bypass - Configure the regcache bypass for the regmap associated
+ *			 with the module
+ * @mod_no: module number
+ * @enable: Regcache bypass state
+ *
+ * Returns 0 else failure.
+ */
+int twl_set_regcache_bypass(u8 mod_no, bool enable)
+{
+	struct regmap *regmap = twl_get_regmap(mod_no);
+
+	if (!regmap)
+		return -EPERM;
+
+	regcache_cache_bypass(regmap, enable);
+
+	return 0;
+}
+EXPORT_SYMBOL(twl_set_regcache_bypass);
+
 /*----------------------------------------------------------------------*/
 
 /**
