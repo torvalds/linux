@@ -964,15 +964,13 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (record_opts__config(&rec->opts)) {
 		err = -EINVAL;
-		goto out_free_fd;
+		goto out_symbol_exit;
 	}
 
 	err = __cmd_record(&record, argc, argv);
 
 	perf_evlist__munmap(rec->evlist);
 	perf_evlist__close(rec->evlist);
-out_free_fd:
-	perf_evlist__delete_maps(rec->evlist);
 out_symbol_exit:
 	symbol__exit();
 	return err;

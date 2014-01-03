@@ -107,6 +107,10 @@ void perf_evlist__exit(struct perf_evlist *evlist)
 
 void perf_evlist__delete(struct perf_evlist *evlist)
 {
+	cpu_map__delete(evlist->cpus);
+	thread_map__delete(evlist->threads);
+	evlist->cpus = NULL;
+	evlist->threads = NULL;
 	perf_evlist__purge(evlist);
 	perf_evlist__exit(evlist);
 	free(evlist);
@@ -831,14 +835,6 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 out_delete_threads:
 	thread_map__delete(evlist->threads);
 	return -1;
-}
-
-void perf_evlist__delete_maps(struct perf_evlist *evlist)
-{
-	cpu_map__delete(evlist->cpus);
-	thread_map__delete(evlist->threads);
-	evlist->cpus	= NULL;
-	evlist->threads = NULL;
 }
 
 int perf_evlist__apply_filters(struct perf_evlist *evlist)

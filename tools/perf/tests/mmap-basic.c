@@ -143,6 +143,8 @@ out_close_fd:
 		perf_evsel__close_fd(evsels[i], 1, threads->nr);
 out_free_evlist:
 	perf_evlist__delete(evlist);
+	cpus	= NULL;
+	threads = NULL;
 out_free_cpus:
 	cpu_map__delete(cpus);
 out_free_threads:

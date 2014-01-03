@@ -62,14 +62,14 @@ int test__task_exit(void)
 	if (!evlist->cpus || !evlist->threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	err = perf_evlist__prepare_workload(evlist, &target, argv, false,
 					    workload_exec_failed_signal);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	evsel = perf_evlist__first(evlist);
@@ -83,7 +83,7 @@ int test__task_exit(void)
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("Couldn't open the evlist: %s\n", strerror(-err));
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	if (perf_evlist__mmap(evlist, 128, true) < 0) {
@@ -115,8 +115,7 @@ retry:
 	perf_evlist__munmap(evlist);
 out_close_evlist:
 	perf_evlist__close(evlist);
-out_delete_maps:
-	perf_evlist__delete_maps(evlist);
+out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;
 }
