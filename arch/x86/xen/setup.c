@@ -469,6 +469,15 @@ char * __init xen_memory_setup(void)
 	}
 
 	/*
+	 * Set the rest as identity mapped, in case PCI BARs are
+	 * located here.
+	 *
+	 * PFNs above MAX_P2M_PFN are considered identity mapped as
+	 * well.
+	 */
+	set_phys_range_identity(map[i-1].addr / PAGE_SIZE, ~0ul);
+
+	/*
 	 * In domU, the ISA region is normal, usable memory, but we
 	 * reserve ISA memory anyway because too many things poke
 	 * about in there.

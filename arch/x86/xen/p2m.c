@@ -507,7 +507,7 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 	unsigned topidx, mididx, idx;
 
 	if (unlikely(pfn >= MAX_P2M_PFN))
-		return INVALID_P2M_ENTRY;
+		return IDENTITY_FRAME(pfn);
 
 	topidx = p2m_top_index(pfn);
 	mididx = p2m_mid_index(pfn);
