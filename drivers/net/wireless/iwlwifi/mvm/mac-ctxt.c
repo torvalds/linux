@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,10 +69,10 @@
 #include "mvm.h"
 
 const u8 iwl_mvm_ac_to_tx_fifo[] = {
-	IWL_MVM_TX_FIFO_BK,
-	IWL_MVM_TX_FIFO_BE,
-	IWL_MVM_TX_FIFO_VI,
 	IWL_MVM_TX_FIFO_VO,
+	IWL_MVM_TX_FIFO_VI,
+	IWL_MVM_TX_FIFO_BE,
+	IWL_MVM_TX_FIFO_BK,
 };
 
 struct iwl_mvm_mac_iface_iterator_data {
@@ -85,35 +85,15 @@ struct iwl_mvm_mac_iface_iterator_data {
 	bool found_vif;
 };
 
-static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
-				       struct ieee80211_vif *vif)
+static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
+				    struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_mac_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	u32 ac;
 
-	/* Iterator may already find the interface being added -- skip it */
-	if (vif == data->vif) {
-		data->found_vif = true;
+	/* Skip the interface for which we are trying to assign a tsf_id  */
+	if (vif == data->vif)
 		return;
-	}
-
-	/* Mark the queues used by the vif */
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
-			__set_bit(vif->hw_queue[ac], data->used_hw_queues);
-
-	if (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE)
-		__set_bit(vif->cab_queue, data->used_hw_queues);
-
-	/*
-	 * Mark MAC IDs as used by clearing the available bit, and
-	 * (below) mark TSFs as used if their existing use is not
-	 * compatible with the new interface type.
-	 * No locking or atomic bit operations are needed since the
-	 * data is on the stack of the caller function.
-	 */
-	__clear_bit(mvmvif->id, data->available_mac_ids);
 
 	/*
 	 * The TSF is a hardware/firmware resource, there are 4 and
@@ -135,21 +115,26 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 	case NL80211_IFTYPE_STATION:
 		/*
 		 * The new interface is client, so if the existing one
-		 * we're iterating is an AP, the TSF should be used to
+		 * we're iterating is an AP, and both interfaces have the
+		 * same beacon interval, the same TSF should be used to
 		 * avoid drift between the new client and existing AP,
 		 * the existing AP will get drift updates from the new
 		 * client context in this case
 		 */
 		if (vif->type == NL80211_IFTYPE_AP) {
 			if (data->preferred_tsf == NUM_TSF_IDS &&
-			    test_bit(mvmvif->tsf_id, data->available_tsf_ids))
+			    test_bit(mvmvif->tsf_id, data->available_tsf_ids) &&
+			    (vif->bss_conf.beacon_int ==
+			     data->vif->bss_conf.beacon_int)) {
 				data->preferred_tsf = mvmvif->tsf_id;
-			return;
+				return;
+			}
 		}
 		break;
 	case NL80211_IFTYPE_AP:
 		/*
-		 * The new interface is AP/GO, so should get drift
+		 * The new interface is AP/GO, so in case both interfaces
+		 * have the same beacon interval, it should get drift
 		 * updates from an existing client or use the same
 		 * TSF as an existing GO. There's no drift between
 		 * TSFs internally but if they used different TSFs
@@ -159,9 +144,12 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 		if (vif->type == NL80211_IFTYPE_STATION ||
 		    vif->type == NL80211_IFTYPE_AP) {
 			if (data->preferred_tsf == NUM_TSF_IDS &&
-			    test_bit(mvmvif->tsf_id, data->available_tsf_ids))
+			    test_bit(mvmvif->tsf_id, data->available_tsf_ids) &&
+			    (vif->bss_conf.beacon_int ==
+			     data->vif->bss_conf.beacon_int)) {
 				data->preferred_tsf = mvmvif->tsf_id;
-			return;
+				return;
+			}
 		}
 		break;
 	default:
@@ -187,6 +175,39 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 		data->preferred_tsf = NUM_TSF_IDS;
 }
 
+static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_mac_iface_iterator_data *data = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 ac;
+
+	/* Iterator may already find the interface being added -- skip it */
+	if (vif == data->vif) {
+		data->found_vif = true;
+		return;
+	}
+
+	/* Mark the queues used by the vif */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
+			__set_bit(vif->hw_queue[ac], data->used_hw_queues);
+
+	if (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE)
+		__set_bit(vif->cab_queue, data->used_hw_queues);
+
+	/* Mark MAC IDs as used by clearing the available bit, and
+	 * (below) mark TSFs as used if their existing use is not
+	 * compatible with the new interface type.
+	 * No locking or atomic bit operations are needed since the
+	 * data is on the stack of the caller function.
+	 */
+	__clear_bit(mvmvif->id, data->available_mac_ids);
+
+	/* find a suitable tsf_id */
+	iwl_mvm_mac_tsf_id_iter(_data, mac, vif);
+}
+
 /*
  * Get the mask of the queus used by the vif
  */
@@ -203,6 +224,29 @@ u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 			qmask |= BIT(vif->hw_queue[ac]);
 
 	return qmask;
+}
+
+void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_mac_iface_iterator_data data = {
+		.mvm = mvm,
+		.vif = vif,
+		.available_tsf_ids = { (1 << NUM_TSF_IDS) - 1 },
+		/* no preference yet */
+		.preferred_tsf = NUM_TSF_IDS,
+	};
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		iwl_mvm_mac_tsf_id_iter, &data);
+
+	if (data.preferred_tsf != NUM_TSF_IDS)
+		mvmvif->tsf_id = data.preferred_tsf;
+	else if (!test_bit(mvmvif->tsf_id, data.available_tsf_ids))
+		mvmvif->tsf_id = find_first_bit(data.available_tsf_ids,
+						NUM_TSF_IDS);
 }
 
 static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
@@ -586,18 +630,23 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		cpu_to_le32(vif->bss_conf.use_short_slot ?
 			    MAC_FLG_SHORT_SLOT : 0);
 
-	for (i = 0; i < AC_NUM; i++) {
-		cmd->ac[i].cw_min = cpu_to_le16(mvmvif->queue_params[i].cw_min);
-		cmd->ac[i].cw_max = cpu_to_le16(mvmvif->queue_params[i].cw_max);
-		cmd->ac[i].aifsn = mvmvif->queue_params[i].aifs;
-		cmd->ac[i].edca_txop =
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		u8 txf = iwl_mvm_ac_to_tx_fifo[i];
+
+		cmd->ac[txf].cw_min =
+			cpu_to_le16(mvmvif->queue_params[i].cw_min);
+		cmd->ac[txf].cw_max =
+			cpu_to_le16(mvmvif->queue_params[i].cw_max);
+		cmd->ac[txf].edca_txop =
 			cpu_to_le16(mvmvif->queue_params[i].txop * 32);
-		cmd->ac[i].fifos_mask = BIT(iwl_mvm_ac_to_tx_fifo[i]);
+		cmd->ac[txf].aifsn = mvmvif->queue_params[i].aifs;
+		cmd->ac[txf].fifos_mask = BIT(txf);
 	}
 
 	/* in AP mode, the MCAST FIFO takes the EDCA params from VO */
 	if (vif->type == NL80211_IFTYPE_AP)
-		cmd->ac[AC_VO].fifos_mask |= BIT(IWL_MVM_TX_FIFO_MCAST);
+		cmd->ac[IWL_MVM_TX_FIFO_VO].fifos_mask |=
+			BIT(IWL_MVM_TX_FIFO_MCAST);
 
 	if (vif->bss_conf.qos)
 		cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA);
@@ -1007,7 +1056,7 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 			iwl_mvm_mac_ap_iterator, &data);
 
 		if (data.beacon_device_ts) {
-			u32 rand = (prandom_u32() % (80 - 20)) + 20;
+			u32 rand = (prandom_u32() % (64 - 36)) + 36;
 			mvmvif->ap_beacon_time = data.beacon_device_ts +
 				ieee80211_tu_to_usec(data.beacon_int * rand /
 						     100);
@@ -1186,10 +1235,18 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 					 struct ieee80211_vif *vif)
 {
-	u16 *id = _data;
+	struct iwl_missed_beacons_notif *missed_beacons = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (mvmvif->id == *id)
+	if (mvmvif->id != (u16)le32_to_cpu(missed_beacons->mac_id))
+		return;
+
+	/*
+	 * TODO: the threshold should be adjusted based on latency conditions,
+	 * and/or in case of a CS flow on one of the other AP vifs.
+	 */
+	if (le32_to_cpu(missed_beacons->consec_missed_beacons_since_last_rx) >
+	     IWL_MVM_MISSED_BEACONS_THRESHOLD)
 		ieee80211_beacon_loss(vif);
 }
 
@@ -1198,12 +1255,19 @@ int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 				    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_missed_beacons_notif *missed_beacons = (void *)pkt->data;
-	u16 id = (u16)le32_to_cpu(missed_beacons->mac_id);
+	struct iwl_missed_beacons_notif *mb = (void *)pkt->data;
+
+	IWL_DEBUG_INFO(mvm,
+		       "missed bcn mac_id=%u, consecutive=%u (%u, %u, %u)\n",
+		       le32_to_cpu(mb->mac_id),
+		       le32_to_cpu(mb->consec_missed_beacons),
+		       le32_to_cpu(mb->consec_missed_beacons_since_last_rx),
+		       le32_to_cpu(mb->num_recvd_beacons),
+		       le32_to_cpu(mb->num_expected_beacons));
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_beacon_loss_iterator,
-						   &id);
+						   mb);
 	return 0;
 }
