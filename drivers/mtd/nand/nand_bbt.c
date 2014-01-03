@@ -528,7 +528,7 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 {
 	struct nand_chip *this = mtd->priv;
 	int i, chips;
-	int bits, startblock, block, dir;
+	int startblock, block, dir;
 	int scanlen = mtd->writesize + mtd->oobsize;
 	int bbtblocks;
 	int blocktopage = this->bbt_erase_shift - this->page_shift;
@@ -551,9 +551,6 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 		chips = 1;
 		bbtblocks = mtd->size >> this->bbt_erase_shift;
 	}
-
-	/* Number of bits for each erase block in the bbt */
-	bits = td->options & NAND_BBT_NRBITS_MSK;
 
 	for (i = 0; i < chips; i++) {
 		/* Reset version information */
