@@ -268,17 +268,6 @@ static void twl4030_codec_enable(struct snd_soc_codec *codec, int enable)
 	udelay(10);
 }
 
-static inline void twl4030_reset_registers(struct snd_soc_codec *codec)
-{
-	int i;
-
-	/* set all audio section registers to reasonable defaults */
-	for (i = TWL4030_REG_OPTION; i <= TWL4030_REG_MISC_SET_2; i++)
-		if (i != TWL4030_REG_APLL_CTL)
-			twl4030_write(codec, i, twl4030_reg[i]);
-
-}
-
 static void twl4030_setup_pdata_of(struct twl4030_codec_data *pdata,
 				   struct device_node *node)
 {
@@ -358,10 +347,6 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 					 TWL4030_PMBR1_REG);
 		}
 	}
-
-	/* Reset registers, if no setup data or if instructed to do so */
-	if (!pdata || (pdata && pdata->reset_registers))
-		twl4030_reset_registers(codec);
 
 	/* Refresh APLL_CTL register from HW */
 	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte,
@@ -2293,8 +2278,6 @@ static int twl4030_soc_remove(struct snd_soc_codec *codec)
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	struct twl4030_codec_data *pdata = twl4030->pdata;
 
-	/* Reset registers to their chip default before leaving */
-	twl4030_reset_registers(codec);
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	if (pdata && pdata->hs_extmute && gpio_is_valid(pdata->hs_extmute_gpio))
