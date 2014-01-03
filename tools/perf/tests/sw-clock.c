@@ -90,7 +90,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		err = perf_evlist__parse_sample(evlist, event, &sample);
 		if (err < 0) {
 			pr_debug("Error during parse sample\n");
-			goto out_unmap_evlist;
+			goto out_delete_evlist;
 		}
 
 		total_periods += sample.period;
@@ -105,8 +105,6 @@ next_event:
 		err = -1;
 	}
 
-out_unmap_evlist:
-	perf_evlist__munmap(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;

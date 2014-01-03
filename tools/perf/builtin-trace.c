@@ -1993,7 +1993,6 @@ out_disable:
 		}
 	}
 
-	perf_evlist__munmap(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:

@@ -540,7 +540,6 @@ static int do_test_code_reading(bool try_kcore)
 		err = TEST_CODE_READING_OK;
 out_err:
 	if (evlist) {
-		perf_evlist__munmap(evlist);
 		perf_evlist__delete(evlist);
 	} else {
 		cpu_map__delete(cpus);

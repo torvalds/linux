@@ -968,8 +968,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	err = __cmd_record(&record, argc, argv);
-
-	perf_evlist__munmap(rec->evlist);
 out_symbol_exit:
 	symbol__exit();
 	return err;

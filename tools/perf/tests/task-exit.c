@@ -112,7 +112,6 @@ retry:
 		err = -1;
 	}
 
-	perf_evlist__munmap(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;

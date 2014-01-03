@@ -105,13 +105,13 @@ int test__basic_mmap(void)
 		if (event->header.type != PERF_RECORD_SAMPLE) {
 			pr_debug("unexpected %s event\n",
 				 perf_event__name(event->header.type));
-			goto out_munmap;
+			goto out_delete_evlist;
 		}
 
 		err = perf_evlist__parse_sample(evlist, event, &sample);
 		if (err) {
 			pr_err("Can't parse sample, err = %d\n", err);
-			goto out_munmap;
+			goto out_delete_evlist;
 		}
 
 		err = -1;
@@ -119,7 +119,7 @@ int test__basic_mmap(void)
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64
 				 " doesn't map to an evsel\n", sample.id);
-			goto out_munmap;
+			goto out_delete_evlist;
 		}
 		nr_events[evsel->idx]++;
 		perf_evlist__mmap_consume(evlist, 0);
@@ -132,12 +132,10 @@ int test__basic_mmap(void)
 				 expected_nr_events[evsel->idx],
 				 perf_evsel__name(evsel), nr_events[evsel->idx]);
 			err = -1;
-			goto out_munmap;
+			goto out_delete_evlist;
 		}
 	}
 
-out_munmap:
-	perf_evlist__munmap(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 	cpus	= NULL;

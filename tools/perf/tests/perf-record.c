@@ -165,7 +165,7 @@ int test__PERF_RECORD(void)
 					if (verbose)
 						perf_event__fprintf(event, stderr);
 					pr_debug("Couldn't parse sample\n");
-					goto out_err;
+					goto out_delete_evlist;
 				}
 
 				if (verbose) {
@@ -302,8 +302,6 @@ found_exit:
 		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "[vdso]");
 		++errs;
 	}
-out_err:
-	perf_evlist__munmap(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:

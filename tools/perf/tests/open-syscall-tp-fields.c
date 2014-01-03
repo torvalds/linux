@@ -85,7 +85,7 @@ int test__syscall_open_tp_fields(void)
 				err = perf_evsel__parse_sample(evsel, event, &sample);
 				if (err) {
 					pr_err("Can't parse sample, err = %d\n", err);
-					goto out_munmap;
+					goto out_delete_evlist;
 				}
 
 				tp_flags = perf_evsel__intval(evsel, &sample, "flags");
@@ -93,7 +93,7 @@ int test__syscall_open_tp_fields(void)
 				if (flags != tp_flags) {
 					pr_debug("%s: Expected flags=%#x, got %#x\n",
 						 __func__, flags, tp_flags);
-					goto out_munmap;
+					goto out_delete_evlist;
 				}
 
 				goto out_ok;
@@ -105,13 +105,11 @@ int test__syscall_open_tp_fields(void)
 
 		if (++nr_polls > 5) {
 			pr_debug("%s: no events!\n", __func__);
-			goto out_munmap;
+			goto out_delete_evlist;
 		}
 	}
 out_ok:
 	err = 0;
-out_munmap:
-	perf_evlist__munmap(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:

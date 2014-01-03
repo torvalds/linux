@@ -107,6 +107,7 @@ void perf_evlist__exit(struct perf_evlist *evlist)
 
 void perf_evlist__delete(struct perf_evlist *evlist)
 {
+	perf_evlist__munmap(evlist);
 	perf_evlist__close(evlist);
 	cpu_map__delete(evlist->cpus);
 	thread_map__delete(evlist->threads);
@@ -586,6 +587,9 @@ static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx)
 void perf_evlist__munmap(struct perf_evlist *evlist)
 {
 	int i;
+
+	if (evlist->mmap == NULL)
+		return;
 
 	for (i = 0; i < evlist->nr_mmaps; i++)
 		__perf_evlist__munmap(evlist, i);
