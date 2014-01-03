@@ -330,29 +330,32 @@ static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 static void pci_acpi_setup(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	acpi_handle handle = ACPI_HANDLE(dev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 
-	if (acpi_bus_get_device(handle, &adev) || !adev->wakeup.flags.valid)
+	if (!adev)
+		return;
+
+	pci_acpi_add_pm_notifier(adev, pci_dev);
+	if (!adev->wakeup.flags.valid)
 		return;
 
 	device_set_wakeup_capable(dev, true);
 	acpi_pci_sleep_wake(pci_dev, false);
-
-	pci_acpi_add_pm_notifier(adev, pci_dev);
 	if (adev->wakeup.flags.run_wake)
 		device_set_run_wake(dev, true);
 }
 
 static void pci_acpi_cleanup(struct device *dev)
 {
-	acpi_handle handle = ACPI_HANDLE(dev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 
-	if (!acpi_bus_get_device(handle, &adev) && adev->wakeup.flags.valid) {
+	if (!adev)
+		return;
+
+	pci_acpi_remove_pm_notifier(adev);
+	if (adev->wakeup.flags.valid) {
 		device_set_wakeup_capable(dev, false);
 		device_set_run_wake(dev, false);
-		pci_acpi_remove_pm_notifier(adev);
 	}
 }
 
