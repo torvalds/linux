@@ -36,7 +36,6 @@
 
 #include <asm/irq.h>
 
-#include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
 
