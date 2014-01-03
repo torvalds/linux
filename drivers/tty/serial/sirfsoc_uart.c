@@ -1518,32 +1518,37 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int
-sirfsoc_uart_suspend(struct platform_device *pdev, pm_message_t state)
+sirfsoc_uart_suspend(struct device *pdev)
 {
-	struct sirfsoc_uart_port *sirfport = platform_get_drvdata(pdev);
+	struct sirfsoc_uart_port *sirfport = dev_get_drvdata(pdev);
 	struct uart_port *port = &sirfport->port;
 	uart_suspend_port(&sirfsoc_uart_drv, port);
 	return 0;
 }
 
-static int sirfsoc_uart_resume(struct platform_device *pdev)
+static int sirfsoc_uart_resume(struct device *pdev)
 {
-	struct sirfsoc_uart_port *sirfport = platform_get_drvdata(pdev);
+	struct sirfsoc_uart_port *sirfport = dev_get_drvdata(pdev);
 	struct uart_port *port = &sirfport->port;
 	uart_resume_port(&sirfsoc_uart_drv, port);
 	return 0;
 }
+#endif
+
+static const struct dev_pm_ops sirfsoc_uart_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sirfsoc_uart_suspend, sirfsoc_uart_resume)
+};
 
 static struct platform_driver sirfsoc_uart_driver = {
 	.probe		= sirfsoc_uart_probe,
 	.remove		= sirfsoc_uart_remove,
-	.suspend	= sirfsoc_uart_suspend,
-	.resume		= sirfsoc_uart_resume,
 	.driver		= {
 		.name	= SIRFUART_PORT_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = sirfsoc_uart_ids,
+		.pm	= &sirfsoc_uart_pm_ops,
 	},
 };
 
