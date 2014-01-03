@@ -27,7 +27,6 @@
 #include <linux/clk.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/omap-iommu.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
@@ -326,55 +325,6 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 }
 
 /* -----------------------------------------------------------------------------
- * IOMMU management
- */
-
-#define IOMMU_FLAG	(IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_8)
-
-/*
- * ispmmu_vmap - Wrapper for Virtual memory mapping of a scatter gather list
- * @isp: Device pointer specific to the OMAP3 ISP.
- * @sglist: Pointer to source Scatter gather list to allocate.
- * @sglen: Number of elements of the scatter-gatter list.
- *
- * Returns a resulting mapped device address by the ISP MMU, or -ENOMEM if
- * we ran out of memory.
- */
-static dma_addr_t
-ispmmu_vmap(struct isp_device *isp, const struct scatterlist *sglist, int sglen)
-{
-	struct sg_table *sgt;
-	u32 da;
-
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
-	if (sgt == NULL)
-		return -ENOMEM;
-
-	sgt->sgl = (struct scatterlist *)sglist;
-	sgt->nents = sglen;
-	sgt->orig_nents = sglen;
-
-	da = omap_iommu_vmap(isp->domain, isp->dev, 0, sgt, IOMMU_FLAG);
-	if (IS_ERR_VALUE(da))
-		kfree(sgt);
-
-	return da;
-}
-
-/*
- * ispmmu_vunmap - Unmap a device address from the ISP MMU
- * @isp: Device pointer specific to the OMAP3 ISP.
- * @da: Device address generated from a ispmmu_vmap call.
- */
-static void ispmmu_vunmap(struct isp_device *isp, dma_addr_t da)
-{
-	struct sg_table *sgt;
-
-	sgt = omap_iommu_vunmap(isp->domain, isp->dev, (u32)da);
-	kfree(sgt);
-}
-
-/* -----------------------------------------------------------------------------
  * Video queue operations
  */
 
@@ -392,24 +342,11 @@ static void isp_video_queue_prepare(struct isp_video_queue *queue,
 	*nbuffers = min(*nbuffers, video->capture_mem / PAGE_ALIGN(*size));
 }
 
-static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
-{
-	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
-	struct isp_buffer *buffer = to_isp_buffer(buf);
-	struct isp_video *video = vfh->video;
-
-	if (buffer->isp_addr) {
-		ispmmu_vunmap(video->isp, buffer->isp_addr);
-		buffer->isp_addr = 0;
-	}
-}
-
 static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 {
 	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
 	struct isp_buffer *buffer = to_isp_buffer(buf);
 	struct isp_video *video = vfh->video;
-	unsigned long addr;
 
 	/* Refuse to prepare the buffer is the video node has registered an
 	 * error. We don't need to take any lock here as the operation is
@@ -420,18 +357,7 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 	if (unlikely(video->error))
 		return -EIO;
 
-	addr = ispmmu_vmap(video->isp, buf->sglist, buf->sglen);
-	if (IS_ERR_VALUE(addr))
-		return -EIO;
-
-	if (!IS_ALIGNED(addr, 32)) {
-		dev_dbg(video->isp->dev, "Buffer address must be "
-			"aligned to 32 bytes boundary.\n");
-		ispmmu_vunmap(video->isp, buffer->isp_addr);
-		return -EINVAL;
-	}
-
-	buffer->isp_addr = addr;
+	buffer->isp_addr = buf->dma;
 	return 0;
 }
 
@@ -490,7 +416,6 @@ static const struct isp_video_queue_operations isp_video_queue_ops = {
 	.queue_prepare = &isp_video_queue_prepare,
 	.buffer_prepare = &isp_video_buffer_prepare,
 	.buffer_queue = &isp_video_buffer_queue,
-	.buffer_cleanup = &isp_video_buffer_cleanup,
 };
 
 /*

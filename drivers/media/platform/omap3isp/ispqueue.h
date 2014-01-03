@@ -106,6 +106,7 @@ struct isp_video_buffer {
 	struct list_head irqlist;
 	enum isp_video_buffer_state state;
 	wait_queue_head_t wait;
+	dma_addr_t dma;
 };
 
 #define to_isp_video_buffer(vb)	container_of(vb, struct isp_video_buffer, vb)
@@ -121,17 +122,12 @@ struct isp_video_buffer {
  *	mapping the buffer memory in an IOMMU). This operation is optional.
  * @buffer_queue: Called when a buffer is being added to the queue with the
  *	queue irqlock spinlock held.
- * @buffer_cleanup: Called before freeing buffers, or before changing the
- *	userspace memory address for a USERPTR buffer, with the queue lock held.
- *	Drivers must perform cleanup operations required to undo the
- *	buffer_prepare call. This operation is optional.
  */
 struct isp_video_queue_operations {
 	void (*queue_prepare)(struct isp_video_queue *queue,
 			      unsigned int *nbuffers, unsigned int *size);
 	int  (*buffer_prepare)(struct isp_video_buffer *buf);
 	void (*buffer_queue)(struct isp_video_buffer *buf);
-	void (*buffer_cleanup)(struct isp_video_buffer *buf);
 };
 
 /**
