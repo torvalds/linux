@@ -904,7 +904,7 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 		return ERR_PTR(-EINVAL);
 
 	ctx = i915_gem_context_get(file->driver_priv, ctx_id);
-	if (IS_ERR_OR_NULL(ctx))
+	if (IS_ERR(ctx))
 		return ctx;
 
 	hs = &ctx->hang_stats;
@@ -1112,7 +1112,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	ctx = i915_gem_validate_context(dev, file, ring, ctx_id);
-	if (IS_ERR_OR_NULL(ctx)) {
+	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
 		ret = PTR_ERR(ctx);
 		goto pre_mutex_err;

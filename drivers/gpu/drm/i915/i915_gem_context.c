@@ -526,10 +526,16 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 {
+	struct i915_hw_context *ctx;
+
 	if (!HAS_HW_CONTEXTS(file_priv->dev_priv->dev))
 		return file_priv->private_default_ctx;
 
-	return (struct i915_hw_context *)idr_find(&file_priv->context_idr, id);
+	ctx = (struct i915_hw_context *)idr_find(&file_priv->context_idr, id);
+	if (!ctx)
+		return ERR_PTR(-ENOENT);
+
+	return ctx;
 }
 
 static inline int
@@ -776,9 +782,9 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	ctx = i915_gem_context_get(file_priv, args->ctx_id);
-	if (!ctx) {
+	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
-		return -ENOENT;
+		return PTR_ERR(ctx);
 	}
 
 	idr_remove(&ctx->file_priv->context_idr, ctx->id);
