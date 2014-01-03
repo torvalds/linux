@@ -359,7 +359,8 @@ static struct eeh_ops powernv_eeh_ops = {
 	.configure_bridge       = powernv_eeh_configure_bridge,
 	.read_config            = pnv_pci_cfg_read,
 	.write_config           = pnv_pci_cfg_write,
-	.next_error		= powernv_eeh_next_error
+	.next_error		= powernv_eeh_next_error,
+	.restore_config		= NULL
 };
 
 /**

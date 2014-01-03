@@ -157,6 +157,7 @@ struct eeh_ops {
 	int (*read_config)(struct device_node *dn, int where, int size, u32 *val);
 	int (*write_config)(struct device_node *dn, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
+	int (*restore_config)(struct device_node *dn);
 };
 
 extern struct eeh_ops *eeh_ops;

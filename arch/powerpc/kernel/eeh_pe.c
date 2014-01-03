@@ -736,6 +736,9 @@ static void *eeh_restore_one_device_bars(void *data, void *flag)
 	else
 		eeh_restore_device_bars(edev, dn);
 
+	if (eeh_ops->restore_config)
+		eeh_ops->restore_config(dn);
+
 	return NULL;
 }
 

@@ -689,7 +689,9 @@ static struct eeh_ops pseries_eeh_ops = {
 	.get_log		= pseries_eeh_get_log,
 	.configure_bridge       = pseries_eeh_configure_bridge,
 	.read_config		= pseries_eeh_read_config,
-	.write_config		= pseries_eeh_write_config
+	.write_config		= pseries_eeh_write_config,
+	.next_error		= NULL,
+	.restore_config		= NULL
 };
 
 /**
