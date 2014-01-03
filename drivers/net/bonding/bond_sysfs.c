@@ -733,29 +733,24 @@ static ssize_t bonding_store_ad_select(struct device *d,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
 
-	if (bond->dev->flags & IFF_UP) {
-		pr_err("%s: Unable to update ad_select because interface is up.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
-
 	new_value = bond_parse_parm(buf, ad_select_tbl);
-
-	if (new_value != -1) {
-		bond->params.ad_select = new_value;
-		pr_info("%s: Setting ad_select to %s (%d).\n",
-			bond->dev->name, ad_select_tbl[new_value].modename,
-			new_value);
-	} else {
+	if (new_value < 0) {
 		pr_err("%s: Ignoring invalid ad_select value %.*s.\n",
 		       bond->dev->name, (int)strlen(buf) - 1, buf);
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-out:
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_ad_select_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,

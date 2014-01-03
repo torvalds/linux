@@ -685,3 +685,25 @@ int bond_option_lacp_rate_set(struct bonding *bond, int lacp_rate)
 
 	return 0;
 }
+
+int bond_option_ad_select_set(struct bonding *bond, int ad_select)
+{
+	if (bond->dev->flags & IFF_UP) {
+		pr_err("%s: Unable to update ad_select because interface is up.\n",
+		       bond->dev->name);
+		return -EPERM;
+	}
+
+	if (bond_parm_tbl_lookup(ad_select, ad_select_tbl) < 0) {
+		pr_err("%s: Ignoring invalid ad_select value %d.\n",
+		       bond->dev->name, ad_select);
+		return -EINVAL;
+	}
+
+	bond->params.ad_select = ad_select;
+	pr_info("%s: Setting ad_select to %s (%d).\n",
+		bond->dev->name, ad_select_tbl[ad_select].modename,
+		ad_select);
+
+	return 0;
+}

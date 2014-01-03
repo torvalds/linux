@@ -425,6 +425,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count);
 int bond_parse_parm(const char *mode_arg, const struct bond_parm_tbl *tbl);
+int bond_parm_tbl_lookup(int mode, const struct bond_parm_tbl *tbl);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_create_debugfs(void);
@@ -465,6 +466,7 @@ int bond_option_lp_interval_set(struct bonding *bond, int min_links);
 int bond_option_packets_per_slave_set(struct bonding *bond,
 				      int packets_per_slave);
 int bond_option_lacp_rate_set(struct bonding *bond, int lacp_rate);
+int bond_option_ad_select_set(struct bonding *bond, int ad_select);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
 
