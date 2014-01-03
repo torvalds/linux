@@ -111,10 +111,9 @@ static unsigned int twl4030_read(struct snd_soc_codec *codec, unsigned int reg)
 	return value;
 }
 
-static bool twl4030_can_write_to_chip(struct snd_soc_codec *codec,
+static bool twl4030_can_write_to_chip(struct twl4030_priv *twl4030,
 				      unsigned int reg)
 {
-	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	bool write_to_reg = false;
 
 	/* Decide if the given register can be written */
@@ -171,7 +170,7 @@ static int twl4030_write(struct snd_soc_codec *codec, unsigned int reg,
 		break;
 	}
 
-	if (twl4030_can_write_to_chip(codec, reg))
+	if (twl4030_can_write_to_chip(twl4030, reg))
 		return twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, value, reg);
 
 	return 0;
