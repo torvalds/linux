@@ -202,8 +202,8 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 	int uu, ii;
 
 	if (param->u.wpa_key.alg_name > WPA_ALG_CCMP ||
-	    param->u.wpa_key.key_len >= MAX_KEY_LEN ||
-	    param->u.wpa_key.seq_len >= MAX_KEY_LEN)
+	    param->u.wpa_key.key_len > MAX_KEY_LEN ||
+	    param->u.wpa_key.seq_len > MAX_KEY_LEN)
 		return -EINVAL;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "param->u.wpa_key.alg_name = %d \n", param->u.wpa_key.alg_name);
