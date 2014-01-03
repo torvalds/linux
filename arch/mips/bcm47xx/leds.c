@@ -342,49 +342,14 @@ bcm47xx_leds_netgear_wndr3400v1[] __initconst = {
 };
 
 static const struct gpio_led
-bcm47xx_leds_netgear_wndr4500_v1_leds[] __initconst = {
-	{
-		.name		= "bcm47xx:green:wps",
-		.gpio		= 1,
-		.active_low	= 1,
-		.default_state	= LEDS_GPIO_DEFSTATE_KEEP,
-	},
-	{
-		.name		= "bcm47xx:green:power",
-		.gpio		= 2,
-		.active_low	= 1,
-		.default_state	= LEDS_GPIO_DEFSTATE_KEEP,
-	},
-	{
-		.name		= "bcm47xx:orange:power",
-		.gpio		= 3,
-		.active_low	= 1,
-		.default_state	= LEDS_GPIO_DEFSTATE_KEEP,
-	},
-	{
-		.name		= "bcm47xx:green:usb1",
-		.gpio		= 8,
-		.active_low	= 1,
-		.default_state	= LEDS_GPIO_DEFSTATE_KEEP,
-	},
-	{
-		.name		= "bcm47xx:green:2ghz",
-		.gpio		= 9,
-		.active_low	= 1,
-		.default_state	= LEDS_GPIO_DEFSTATE_KEEP,
-	},
-	{
-		.name		= "bcm47xx:blue:5ghz",
-		.gpio		= 11,
-		.active_low	= 1,
-		.default_state	= LEDS_GPIO_DEFSTATE_KEEP,
-	},
-	{
-		.name		= "bcm47xx:green:usb2",
-		.gpio		= 14,
-		.active_low	= 1,
-		.default_state	= LEDS_GPIO_DEFSTATE_KEEP,
-	},
+bcm47xx_leds_netgear_wndr4500v1[] __initconst = {
+	BCM47XX_GPIO_LED(1, "green", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(2, "green", "power", 1, LEDS_GPIO_DEFSTATE_ON),
+	BCM47XX_GPIO_LED(3, "amber", "power", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(8, "green", "usb1", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(9, "green", "2ghz", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(11, "blue", "5ghz", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(14, "green", "usb2", 1, LEDS_GPIO_DEFSTATE_OFF),
 };
 
 static const struct gpio_led
@@ -558,7 +523,7 @@ void __init bcm47xx_leds_register(void)
 		bcm47xx_set_pdata(bcm47xx_leds_netgear_wndr3400v1);
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNDR4500V1:
-		bcm47xx_set_pdata(bcm47xx_leds_netgear_wndr4500_v1_leds);
+		bcm47xx_set_pdata(bcm47xx_leds_netgear_wndr4500v1);
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNR834BV2:
 		bcm47xx_set_pdata(bcm47xx_leds_netgear_wnr834bv2);
