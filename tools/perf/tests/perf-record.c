@@ -132,7 +132,7 @@ int test__PERF_RECORD(void)
 	err = perf_evlist__mmap(evlist, opts.mmap_pages, false);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n", strerror(errno));
-		goto out_close_evlist;
+		goto out_delete_evlist;
 	}
 
 	/*
@@ -304,8 +304,6 @@ found_exit:
 	}
 out_err:
 	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:

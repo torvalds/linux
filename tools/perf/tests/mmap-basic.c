@@ -68,7 +68,7 @@ int test__basic_mmap(void)
 		evsels[i] = perf_evsel__newtp("syscalls", name);
 		if (evsels[i] == NULL) {
 			pr_debug("perf_evsel__new\n");
-			goto out_free_evlist;
+			goto out_delete_evlist;
 		}
 
 		evsels[i]->attr.wakeup_events = 1;
@@ -80,7 +80,7 @@ int test__basic_mmap(void)
 			pr_debug("failed to open counter: %s, "
 				 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 				 strerror(errno));
-			goto out_close_fd;
+			goto out_delete_evlist;
 		}
 
 		nr_events[i] = 0;
@@ -90,7 +90,7 @@ int test__basic_mmap(void)
 	if (perf_evlist__mmap(evlist, 128, true) < 0) {
 		pr_debug("failed to mmap events: %d (%s)\n", errno,
 			 strerror(errno));
-		goto out_close_fd;
+		goto out_delete_evlist;
 	}
 
 	for (i = 0; i < nsyscalls; ++i)
@@ -138,10 +138,7 @@ int test__basic_mmap(void)
 
 out_munmap:
 	perf_evlist__munmap(evlist);
-out_close_fd:
-	for (i = 0; i < nsyscalls; ++i)
-		perf_evsel__close_fd(evsels[i], 1, threads->nr);
-out_free_evlist:
+out_delete_evlist:
 	perf_evlist__delete(evlist);
 	cpus	= NULL;
 	threads = NULL;

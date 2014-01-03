@@ -54,7 +54,7 @@ int test__syscall_open_tp_fields(void)
 	err = perf_evlist__mmap(evlist, UINT_MAX, false);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n", strerror(errno));
-		goto out_close_evlist;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__enable(evlist);
@@ -112,8 +112,6 @@ out_ok:
 	err = 0;
 out_munmap:
 	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:

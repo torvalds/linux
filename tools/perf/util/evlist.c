@@ -107,6 +107,7 @@ void perf_evlist__exit(struct perf_evlist *evlist)
 
 void perf_evlist__delete(struct perf_evlist *evlist)
 {
+	perf_evlist__close(evlist);
 	cpu_map__delete(evlist->cpus);
 	thread_map__delete(evlist->threads);
 	evlist->cpus = NULL;

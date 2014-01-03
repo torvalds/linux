@@ -70,7 +70,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	if (err < 0) {
 		pr_debug("failed to mmap event: %d (%s)\n", errno,
 			 strerror(errno));
-		goto out_close_evlist;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__enable(evlist);
@@ -107,8 +107,6 @@ next_event:
 
 out_unmap_evlist:
 	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;
