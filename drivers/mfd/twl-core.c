@@ -302,6 +302,32 @@ unsigned int twl_rev(void)
 EXPORT_SYMBOL(twl_rev);
 
 /**
+ * twl_get_regmap - Get the regmap associated with the given module
+ * @mod_no: module number
+ *
+ * Returns the regmap pointer or NULL in case of failure.
+ */
+static struct regmap *twl_get_regmap(u8 mod_no)
+{
+	int sid;
+	struct twl_client *twl;
+
+	if (unlikely(!twl_priv || !twl_priv->ready)) {
+		pr_err("%s: not initialized\n", DRIVER_NAME);
+		return NULL;
+	}
+	if (unlikely(mod_no >= twl_get_last_module())) {
+		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
+		return NULL;
+	}
+
+	sid = twl_priv->twl_map[mod_no].sid;
+	twl = &twl_priv->twl_modules[sid];
+
+	return twl->regmap;
+}
+
+/**
  * twl_i2c_write - Writes a n bit register in TWL4030/TWL5030/TWL60X0
  * @mod_no: module number
  * @value: an array of num_bytes+1 containing data to write
@@ -312,25 +338,14 @@ EXPORT_SYMBOL(twl_rev);
  */
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 {
+	struct regmap *regmap = twl_get_regmap(mod_no);
 	int ret;
-	int sid;
-	struct twl_client *twl;
 
-	if (unlikely(!twl_priv || !twl_priv->ready)) {
-		pr_err("%s: not initialized\n", DRIVER_NAME);
+	if (!regmap)
 		return -EPERM;
-	}
-	if (unlikely(mod_no >= twl_get_last_module())) {
-		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
-		return -EPERM;
-	}
 
-	sid = twl_priv->twl_map[mod_no].sid;
-	twl = &twl_priv->twl_modules[sid];
-
-	ret = regmap_bulk_write(twl->regmap,
-				twl_priv->twl_map[mod_no].base + reg, value,
-				num_bytes);
+	ret = regmap_bulk_write(regmap, twl_priv->twl_map[mod_no].base + reg,
+				value, num_bytes);
 
 	if (ret)
 		pr_err("%s: Write failed (mod %d, reg 0x%02x count %d)\n",
@@ -351,25 +366,14 @@ EXPORT_SYMBOL(twl_i2c_write);
  */
 int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 {
+	struct regmap *regmap = twl_get_regmap(mod_no);
 	int ret;
-	int sid;
-	struct twl_client *twl;
 
-	if (unlikely(!twl_priv || !twl_priv->ready)) {
-		pr_err("%s: not initialized\n", DRIVER_NAME);
+	if (!regmap)
 		return -EPERM;
-	}
-	if (unlikely(mod_no >= twl_get_last_module())) {
-		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
-		return -EPERM;
-	}
 
-	sid = twl_priv->twl_map[mod_no].sid;
-	twl = &twl_priv->twl_modules[sid];
-
-	ret = regmap_bulk_read(twl->regmap,
-			       twl_priv->twl_map[mod_no].base + reg, value,
-			       num_bytes);
+	ret = regmap_bulk_read(regmap, twl_priv->twl_map[mod_no].base + reg,
+			       value, num_bytes);
 
 	if (ret)
 		pr_err("%s: Read failed (mod %d, reg 0x%02x count %d)\n",
