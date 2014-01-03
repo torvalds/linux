@@ -43,6 +43,9 @@ static void nft_meta_get_eval(const struct nft_expr *expr,
 	case NFT_META_PROTOCOL:
 		*(__be16 *)dest->data = skb->protocol;
 		break;
+	case NFT_META_NFPROTO:
+		dest->data[0] = pkt->ops->pf;
+		break;
 	case NFT_META_PRIORITY:
 		dest->data[0] = skb->priority;
 		break;
@@ -181,6 +184,7 @@ static int nft_meta_init_validate_get(uint32_t key)
 	switch (key) {
 	case NFT_META_LEN:
 	case NFT_META_PROTOCOL:
+	case NFT_META_NFPROTO:
 	case NFT_META_PRIORITY:
 	case NFT_META_MARK:
 	case NFT_META_IIF:
