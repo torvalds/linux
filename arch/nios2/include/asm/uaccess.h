@@ -218,7 +218,7 @@ do {									\
 	({								\
 	long __gu_err = -EFAULT;					\
 	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);		\
-	unsigned long __gu_val; /* FIXME: should be __typeof__ */	\
+	unsigned long __gu_val;						\
 	__get_user_common(__gu_val, sizeof(*(ptr)), __gu_ptr, __gu_err);\
 	(x) = (__typeof__(x))__gu_val;					\
 	__gu_err;							\

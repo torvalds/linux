@@ -39,7 +39,6 @@ extern void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 				unsigned long user_vaddr,
 				void *dst, void *src, int len);
 
-/* FIXME: Remove: Linux does not define this interfaces, it's arch specific. */
 extern void flush_dcache_range(unsigned long start, unsigned long end);
 
 #else /* CONFIG_MMU */
@@ -77,7 +76,6 @@ static inline void __flush_cache_all(void)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)	\
 	memcpy(dst, src, len)
 
-/* FIXME: Remove: Linux does not define this interfaces, it's arch specific. */
 #define flush_dcache_range(start, end)				\
 	dcache_push((start), (end) - (start))
 
