@@ -296,6 +296,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_USE_CARRIER */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_INTERVAL */
 						/* IFLA_BOND_ARP_IP_TARGET */
+		nla_total_size(sizeof(struct nlattr)) +
 		nla_total_size(sizeof(u32)) * BOND_MAX_ARP_TARGETS +
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_VALIDATE */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_ALL_TARGETS */
