@@ -172,14 +172,6 @@ static __kprobes void FETCH_FUNC_NAME(memory, string_size)(struct pt_regs *regs,
 		*(u32 *)dest = len;
 }
 
-/* uprobes do not support symbol fetch methods */
-#define fetch_symbol_u8			NULL
-#define fetch_symbol_u16		NULL
-#define fetch_symbol_u32		NULL
-#define fetch_symbol_u64		NULL
-#define fetch_symbol_string		NULL
-#define fetch_symbol_string_size	NULL
-
 static unsigned long translate_user_vaddr(void *file_offset)
 {
 	unsigned long base_addr;
