@@ -53,7 +53,7 @@ static inline int within_khz(unsigned long a, unsigned long b)
  * specified in @cfg. The values are stored in @cfg for later use
  * by the relevant set routine if the request settings can be reached.
  */
-int s3c2440_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
+static int s3c2440_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
 {
 	unsigned int hdiv, pdiv;
 	unsigned long hclk, fclk, armclk;
@@ -240,7 +240,7 @@ static int s3c2440_cpufreq_calctable(struct s3c_cpufreq_config *cfg,
 	return ret;
 }
 
-struct s3c_cpufreq_info s3c2440_cpufreq_info = {
+static struct s3c_cpufreq_info s3c2440_cpufreq_info = {
 	.max		= {
 		.fclk	= 400000000,
 		.hclk	= 133333333,
