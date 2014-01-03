@@ -31,8 +31,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/mount.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_core.h>
@@ -415,6 +417,78 @@ void drm_unplug_dev(struct drm_device *dev)
 	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_unplug_dev);
+
+/*
+ * DRM internal mount
+ * We want to be able to allocate our own "struct address_space" to control
+ * memory-mappings in VRAM (or stolen RAM, ...). However, core MM does not allow
+ * stand-alone address_space objects, so we need an underlying inode. As there
+ * is no way to allocate an independent inode easily, we need a fake internal
+ * VFS mount-point.
+ *
+ * The drm_fs_inode_new() function allocates a new inode, drm_fs_inode_free()
+ * frees it again. You are allowed to use iget() and iput() to get references to
+ * the inode. But each drm_fs_inode_new() call must be paired with exactly one
+ * drm_fs_inode_free() call (which does not have to be the last iput()).
+ * We use drm_fs_inode_*() to manage our internal VFS mount-point and share it
+ * between multiple inode-users. You could, technically, call
+ * iget() + drm_fs_inode_free() directly after alloc and sometime later do an
+ * iput(), but this way you'd end up with a new vfsmount for each inode.
+ */
+
+static int drm_fs_cnt;
+static struct vfsmount *drm_fs_mnt;
+
+static const struct dentry_operations drm_fs_dops = {
+	.d_dname	= simple_dname,
+};
+
+static const struct super_operations drm_fs_sops = {
+	.statfs		= simple_statfs,
+};
+
+static struct dentry *drm_fs_mount(struct file_system_type *fs_type, int flags,
+				   const char *dev_name, void *data)
+{
+	return mount_pseudo(fs_type,
+			    "drm:",
+			    &drm_fs_sops,
+			    &drm_fs_dops,
+			    0x010203ff);
+}
+
+static struct file_system_type drm_fs_type = {
+	.name		= "drm",
+	.owner		= THIS_MODULE,
+	.mount		= drm_fs_mount,
+	.kill_sb	= kill_anon_super,
+};
+
+static struct inode *drm_fs_inode_new(void)
+{
+	struct inode *inode;
+	int r;
+
+	r = simple_pin_fs(&drm_fs_type, &drm_fs_mnt, &drm_fs_cnt);
+	if (r < 0) {
+		DRM_ERROR("Cannot mount pseudo fs: %d\n", r);
+		return ERR_PTR(r);
+	}
+
+	inode = alloc_anon_inode(drm_fs_mnt->mnt_sb);
+	if (IS_ERR(inode))
+		simple_release_fs(&drm_fs_mnt, &drm_fs_cnt);
+
+	return inode;
+}
+
+static void drm_fs_inode_free(struct inode *inode)
+{
+	if (inode) {
+		iput(inode);
+		simple_release_fs(&drm_fs_mnt, &drm_fs_cnt);
+	}
+}
 
 /**
  * drm_dev_alloc - Allocate new drm device
