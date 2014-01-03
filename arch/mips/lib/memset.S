@@ -37,13 +37,24 @@
 #define LEGACY_MODE 1
 #define EVA_MODE    2
 
+/*
+ * No need to protect it with EVA #ifdefery. The generated block of code
+ * will never be assembled if EVA is not enabled.
+ */
+#define __EVAFY(insn, reg, addr) __BUILD_EVA_INSN(insn##e, reg, addr)
+#define ___BUILD_EVA_INSN(insn, reg, addr) __EVAFY(insn, reg, addr)
+
 #define EX(insn,reg,addr,handler)			\
-9:	insn	reg, addr;				\
+	.if \mode == LEGACY_MODE;			\
+9:		insn	reg, addr;			\
+	.else;						\
+9:		___BUILD_EVA_INSN(insn, reg, addr);	\
+	.endif;						\
 	.section __ex_table,"a";			\
 	PTR	9b, handler;				\
 	.previous
 
-	.macro	f_fill64 dst, offset, val, fixup
+	.macro	f_fill64 dst, offset, val, fixup, mode
 	EX(LONG_S, \val, (\offset +  0 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  1 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  2 * STORSIZE)(\dst), \fixup)
@@ -119,7 +130,7 @@
 	.set		reorder
 1:	PTR_ADDIU	a0, 64
 	R10KCBARRIER(0(ra))
-	f_fill64 a0, -64, FILL64RG, .Lfwd_fixup\@
+	f_fill64 a0, -64, FILL64RG, .Lfwd_fixup\@, \mode
 	bne		t1, a0, 1b
 	.set		noreorder
 
@@ -144,7 +155,7 @@
 	.set		noreorder
 	.set		nomacro
 	/* ... but first do longs ... */
-	f_fill64 a0, -64, FILL64RG, .Lpartial_fixup\@
+	f_fill64 a0, -64, FILL64RG, .Lpartial_fixup\@, \mode
 2:	.set		pop
 	andi		a2, STORMASK		/* At most one long to go */
 
@@ -225,5 +236,13 @@ LEAF(memset)
 #endif
 	or		a1, t1
 1:
+#ifndef CONFIG_EVA
 FEXPORT(__bzero)
+#endif
 	__BUILD_BZERO LEGACY_MODE
+
+#ifdef CONFIG_EVA
+LEAF(__bzero)
+	__BUILD_BZERO EVA_MODE
+END(__bzero)
+#endif
