@@ -549,7 +549,7 @@ static void bcm63xx_ep_setup(struct bcm63xx_udc *udc)
 
 		if (idx < 0)
 			continue;
-		udc->bep[idx].ep.maxpacket = max_pkt;
+		usb_ep_set_maxpacket_limit(&udc->bep[idx].ep, max_pkt);
 
 		val = (idx << USBD_CSR_EP_LOG_SHIFT) |
 		      (cfg->dir << USBD_CSR_EP_DIR_SHIFT) |
@@ -943,7 +943,7 @@ static int bcm63xx_init_udc_hw(struct bcm63xx_udc *udc)
 		bep->ep.ops = &bcm63xx_udc_ep_ops;
 		list_add_tail(&bep->ep.ep_list, &udc->gadget.ep_list);
 		bep->halted = 0;
-		bep->ep.maxpacket = BCM63XX_MAX_CTRL_PKT;
+		usb_ep_set_maxpacket_limit(&bep->ep, BCM63XX_MAX_CTRL_PKT);
 		bep->udc = udc;
 		bep->ep.desc = NULL;
 		INIT_LIST_HEAD(&bep->queue);

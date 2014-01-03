@@ -126,9 +126,9 @@ static int __init nokia_bind_config(struct usb_configuration *c)
 	struct usb_function *f_ecm;
 	struct usb_function *f_obex2 = NULL;
 	int status = 0;
-	int obex1_stat = 0;
-	int obex2_stat = 0;
-	int phonet_stat = 0;
+	int obex1_stat = -1;
+	int obex2_stat = -1;
+	int phonet_stat = -1;
 
 	if (!IS_ERR(fi_phonet)) {
 		f_phonet = usb_get_function(fi_phonet);

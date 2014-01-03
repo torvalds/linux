@@ -446,7 +446,7 @@ static void ep_init(struct udc_regs __iomem *regs, struct udc_ep *ep)
 	ep->ep.ops = &udc_ep_ops;
 	INIT_LIST_HEAD(&ep->queue);
 
-	ep->ep.maxpacket = (u16) ~0;
+	usb_ep_set_maxpacket_limit(&ep->ep,(u16) ~0);
 	/* set NAK */
 	tmp = readl(&ep->regs->ctl);
 	tmp |= AMD_BIT(UDC_EPCTL_SNAK);
@@ -1564,12 +1564,15 @@ static void udc_setup_endpoints(struct udc *dev)
 	}
 	/* EP0 max packet */
 	if (dev->gadget.speed == USB_SPEED_FULL) {
-		dev->ep[UDC_EP0IN_IX].ep.maxpacket = UDC_FS_EP0IN_MAX_PKT_SIZE;
-		dev->ep[UDC_EP0OUT_IX].ep.maxpacket =
-						UDC_FS_EP0OUT_MAX_PKT_SIZE;
+		usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0IN_IX].ep,
+					   UDC_FS_EP0IN_MAX_PKT_SIZE);
+		usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0OUT_IX].ep,
+					   UDC_FS_EP0OUT_MAX_PKT_SIZE);
 	} else if (dev->gadget.speed == USB_SPEED_HIGH) {
-		dev->ep[UDC_EP0IN_IX].ep.maxpacket = UDC_EP0IN_MAX_PKT_SIZE;
-		dev->ep[UDC_EP0OUT_IX].ep.maxpacket = UDC_EP0OUT_MAX_PKT_SIZE;
+		usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0IN_IX].ep,
+					   UDC_EP0IN_MAX_PKT_SIZE);
+		usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0OUT_IX].ep,
+					   UDC_EP0OUT_MAX_PKT_SIZE);
 	}
 
 	/*
