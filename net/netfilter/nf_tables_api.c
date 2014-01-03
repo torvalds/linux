@@ -927,9 +927,9 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		if (hooknum >= afi->nhooks)
 			return -EINVAL;
 
-		hookfn = chain_type[family][type]->fn[hooknum];
-		if (hookfn == NULL)
+		if (!(chain_type[family][type]->hook_mask & (1 << hooknum)))
 			return -EOPNOTSUPP;
+		hookfn = chain_type[family][type]->fn[hooknum];
 
 		basechain = kzalloc(sizeof(*basechain), GFP_KERNEL);
 		if (basechain == NULL)
@@ -944,9 +944,9 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		ops->hooknum	= ntohl(nla_get_be32(ha[NFTA_HOOK_HOOKNUM]));
 		ops->priority	= ntohl(nla_get_be32(ha[NFTA_HOOK_PRIORITY]));
 		ops->priv	= chain;
-		ops->hook       = hookfn;
-		if (afi->hooks[ops->hooknum])
-			ops->hook = afi->hooks[ops->hooknum];
+		ops->hook	= afi->hooks[ops->hooknum];
+		if (hookfn)
+			ops->hook = hookfn;
 
 		chain->flags |= NFT_BASE_CHAIN;
 

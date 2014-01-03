@@ -14,10 +14,29 @@
 #include <linux/netfilter_arp.h>
 #include <net/netfilter/nf_tables.h>
 
+static unsigned int
+nft_do_chain_arp(const struct nf_hook_ops *ops,
+		  struct sk_buff *skb,
+		  const struct net_device *in,
+		  const struct net_device *out,
+		  int (*okfn)(struct sk_buff *))
+{
+	struct nft_pktinfo pkt;
+
+	nft_set_pktinfo(&pkt, ops, skb, in, out);
+
+	return nft_do_chain_pktinfo(&pkt, ops);
+}
+
 static struct nft_af_info nft_af_arp __read_mostly = {
 	.family		= NFPROTO_ARP,
 	.nhooks		= NF_ARP_NUMHOOKS,
 	.owner		= THIS_MODULE,
+	.hooks		= {
+		[NF_ARP_IN]		= nft_do_chain_arp,
+		[NF_ARP_OUT]		= nft_do_chain_arp,
+		[NF_ARP_FORWARD]	= nft_do_chain_arp,
+	},
 };
 
 static int nf_tables_arp_init_net(struct net *net)
@@ -48,20 +67,6 @@ static struct pernet_operations nf_tables_arp_net_ops = {
 	.exit   = nf_tables_arp_exit_net,
 };
 
-static unsigned int
-nft_do_chain_arp(const struct nf_hook_ops *ops,
-		  struct sk_buff *skb,
-		  const struct net_device *in,
-		  const struct net_device *out,
-		  int (*okfn)(struct sk_buff *))
-{
-	struct nft_pktinfo pkt;
-
-	nft_set_pktinfo(&pkt, ops, skb, in, out);
-
-	return nft_do_chain_pktinfo(&pkt, ops);
-}
-
 static struct nf_chain_type filter_arp = {
 	.family		= NFPROTO_ARP,
 	.name		= "filter",
@@ -69,11 +74,6 @@ static struct nf_chain_type filter_arp = {
 	.hook_mask	= (1 << NF_ARP_IN) |
 			  (1 << NF_ARP_OUT) |
 			  (1 << NF_ARP_FORWARD),
-	.fn		= {
-		[NF_ARP_IN]		= nft_do_chain_arp,
-		[NF_ARP_OUT]		= nft_do_chain_arp,
-		[NF_ARP_FORWARD]	= nft_do_chain_arp,
-	},
 };
 
 static int __init nf_tables_arp_init(void)
