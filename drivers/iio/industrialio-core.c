@@ -716,6 +716,8 @@ static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 	int i, ret, attrcount = 0;
 
 	for_each_set_bit(i, infomask, sizeof(infomask)*8) {
+		if (i >= ARRAY_SIZE(iio_chan_info_postfix))
+			return -EINVAL;
 		ret = __iio_add_chan_devattr(iio_chan_info_postfix[i],
 					     chan,
 					     &iio_read_channel_info,
