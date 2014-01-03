@@ -132,6 +132,15 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return VM_FAULT_NOPAGE;
 	}
 
+	/*
+	 * Refuse to fault imported pages. This should be handled
+	 * (if at all) by redirecting mmap to the exporter.
+	 */
+	if (bo->ttm && (bo->ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+		retval = VM_FAULT_SIGBUS;
+		goto out_unlock;
+	}
+
 	if (bdev->driver->fault_reserve_notify) {
 		ret = bdev->driver->fault_reserve_notify(bo);
 		switch (ret) {
