@@ -572,6 +572,10 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		goto disable_device;
 	}
 
+	/* usbmisc needs to know dr mode to choose wakeup setting */
+	data->usbmisc_data->available_role =
+			ci_hdrc_query_available_role(data->ci_pdev);
+
 	if (data->supports_runtime_pm) {
 		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
