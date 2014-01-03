@@ -526,8 +526,15 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 
-	if (drm_ht_create(&dev->map_hash, 12))
+	dev->anon_inode = drm_fs_inode_new();
+	if (IS_ERR(dev->anon_inode)) {
+		ret = PTR_ERR(dev->anon_inode);
+		DRM_ERROR("Cannot allocate anonymous inode: %d\n", ret);
 		goto err_free;
+	}
+
+	if (drm_ht_create(&dev->map_hash, 12))
+		goto err_inode;
 
 	ret = drm_ctxbitmap_init(dev);
 	if (ret) {
@@ -549,6 +556,8 @@ err_ctxbitmap:
 	drm_ctxbitmap_cleanup(dev);
 err_ht:
 	drm_ht_remove(&dev->map_hash);
+err_inode:
+	drm_fs_inode_free(dev->anon_inode);
 err_free:
 	kfree(dev);
 	return NULL;
@@ -576,6 +585,7 @@ void drm_dev_free(struct drm_device *dev)
 
 	drm_ctxbitmap_cleanup(dev);
 	drm_ht_remove(&dev->map_hash);
+	drm_fs_inode_free(dev->anon_inode);
 
 	kfree(dev->devname);
 	kfree(dev);

@@ -324,7 +324,7 @@ int mgag200_bo_create(struct drm_device *dev, int size, int align,
 	}
 
 	mgabo->bo.bdev = &mdev->ttm.bdev;
-	mgabo->bo.bdev->dev_mapping = dev->dev_mapping;
+	mgabo->bo.bdev->dev_mapping = dev->anon_inode->i_mapping;
 
 	mgag200_ttm_placement(mgabo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
 

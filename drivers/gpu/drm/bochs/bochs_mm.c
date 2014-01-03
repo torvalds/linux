@@ -359,7 +359,7 @@ static int bochs_bo_create(struct drm_device *dev, int size, int align,
 	}
 
 	bochsbo->bo.bdev = &bochs->ttm.bdev;
-	bochsbo->bo.bdev->dev_mapping = dev->dev_mapping;
+	bochsbo->bo.bdev->dev_mapping = dev->anon_inode->i_mapping;
 
 	bochs_ttm_placement(bochsbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
 

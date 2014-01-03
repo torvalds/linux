@@ -228,7 +228,7 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
 
-	drm->ttm.bdev.dev_mapping = drm->dev->dev_mapping;
+	drm->ttm.bdev.dev_mapping = drm->dev->anon_inode->i_mapping;
 
 	if (!pfb->memtype_valid(pfb, req->info.tile_flags)) {
 		NV_ERROR(cli, "bad page flags: 0x%08x\n", req->info.tile_flags);
