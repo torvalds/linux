@@ -181,50 +181,56 @@ static inline void twl4030_write_reg_cache(struct snd_soc_codec *codec,
 	cache[reg] = value;
 }
 
-/*
- * write to the twl4030 register space
- */
-static int twl4030_write(struct snd_soc_codec *codec,
-			unsigned int reg, unsigned int value)
+static bool twl4030_can_write_to_chip(struct snd_soc_codec *codec,
+				      unsigned int reg)
 {
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
-	int write_to_reg = 0;
+	bool write_to_reg = false;
 
-	twl4030_write_reg_cache(codec, reg, value);
 	/* Decide if the given register can be written */
 	switch (reg) {
 	case TWL4030_REG_EAR_CTL:
 		if (twl4030->earpiece_enabled)
-			write_to_reg = 1;
+			write_to_reg = true;
 		break;
 	case TWL4030_REG_PREDL_CTL:
 		if (twl4030->predrivel_enabled)
-			write_to_reg = 1;
+			write_to_reg = true;
 		break;
 	case TWL4030_REG_PREDR_CTL:
 		if (twl4030->predriver_enabled)
-			write_to_reg = 1;
+			write_to_reg = true;
 		break;
 	case TWL4030_REG_PRECKL_CTL:
 		if (twl4030->carkitl_enabled)
-			write_to_reg = 1;
+			write_to_reg = true;
 		break;
 	case TWL4030_REG_PRECKR_CTL:
 		if (twl4030->carkitr_enabled)
-			write_to_reg = 1;
+			write_to_reg = true;
 		break;
 	case TWL4030_REG_HS_GAIN_SET:
 		if (twl4030->hsl_enabled || twl4030->hsr_enabled)
-			write_to_reg = 1;
+			write_to_reg = true;
 		break;
 	default:
 		/* All other register can be written */
-		write_to_reg = 1;
+		write_to_reg = true;
 		break;
 	}
-	if (write_to_reg)
-		return twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
-					    value, reg);
+
+	return write_to_reg;
+}
+
+/*
+ * write to the twl4030 register space
+ */
+static int twl4030_write(struct snd_soc_codec *codec,
+			 unsigned int reg, unsigned int value)
+{
+	twl4030_write_reg_cache(codec, reg, value);
+	if (twl4030_can_write_to_chip(codec, reg))
+		return twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, value, reg);
 
 	return 0;
 }
