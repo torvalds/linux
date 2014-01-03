@@ -1385,10 +1385,10 @@ static int test_event(struct evlist_test *e)
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d\n",
 			 e->name, ret);
-		return ret;
+	} else {
+		ret = e->check(evlist);
 	}
-
-	ret = e->check(evlist);
+	
 	perf_evlist__delete(evlist);
 
 	return ret;
