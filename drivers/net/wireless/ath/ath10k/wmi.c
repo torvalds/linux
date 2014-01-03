@@ -1071,9 +1071,14 @@ static void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb)
 	ath10k_dbg(ATH10K_DBG_WMI, "WMI_ECHO_EVENTID\n");
 }
 
-static void ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
+static int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_DEBUG_MESG_EVENTID\n");
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi event debug mesg len %d\n",
+		   skb->len);
+
+	trace_ath10k_wmi_dbglog(skb->data, skb->len);
+
+	return 0;
 }
 
 static void ath10k_wmi_event_update_stats(struct ath10k *ar,
