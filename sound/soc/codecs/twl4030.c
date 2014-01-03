@@ -268,25 +268,6 @@ static void twl4030_codec_enable(struct snd_soc_codec *codec, int enable)
 	udelay(10);
 }
 
-static inline void twl4030_check_defaults(struct snd_soc_codec *codec)
-{
-	int i, difference = 0;
-	u8 val;
-
-	dev_dbg(codec->dev, "Checking TWL audio default configuration\n");
-	for (i = 1; i <= TWL4030_REG_MISC_SET_2; i++) {
-		twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &val, i);
-		if (val != twl4030_reg[i]) {
-			difference++;
-			dev_dbg(codec->dev,
-				 "Reg 0x%02x: chip: 0x%02x driver: 0x%02x\n",
-				 i, val, twl4030_reg[i]);
-		}
-	}
-	dev_dbg(codec->dev, "Found %d non-matching registers. %s\n",
-		 difference, difference ? "Not OK" : "OK");
-}
-
 static inline void twl4030_reset_registers(struct snd_soc_codec *codec)
 {
 	int i;
@@ -377,10 +358,6 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 					 TWL4030_PMBR1_REG);
 		}
 	}
-
-	/* Check defaults, if instructed before anything else */
-	if (pdata && pdata->check_defaults)
-		twl4030_check_defaults(codec);
 
 	/* Reset registers, if no setup data or if instructed to do so */
 	if (!pdata || (pdata && pdata->reset_registers))
