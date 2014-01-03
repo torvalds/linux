@@ -45,6 +45,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_PACKETS_PER_SLAVE]	= { .type = NLA_U32 },
 	[IFLA_BOND_AD_LACP_RATE]	= { .type = NLA_U8 },
 	[IFLA_BOND_AD_SELECT]		= { .type = NLA_U8 },
+	[IFLA_BOND_AD_INFO]		= { .type = NLA_NESTED },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -310,6 +311,12 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) +  /* IFLA_BOND_PACKETS_PER_SLAVE */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_AD_LACP_RATE */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_AD_SELECT */
+		nla_total_size(sizeof(struct nlattr)) + /* IFLA_BOND_AD_INFO */
+		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_INFO_AGGREGATOR */
+		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_INFO_NUM_PORTS */
+		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_INFO_ACTOR_KEY */
+		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_INFO_PARTNER_KEY*/
+		nla_total_size(ETH_ALEN) +    /* IFLA_BOND_AD_INFO_PARTNER_MAC*/
 		0;
 }
 
@@ -422,6 +429,37 @@ static int bond_fill_info(struct sk_buff *skb,
 	if (nla_put_u8(skb, IFLA_BOND_AD_SELECT,
 		       bond->params.ad_select))
 		goto nla_put_failure;
+
+	if (bond->params.mode == BOND_MODE_8023AD) {
+		struct ad_info info;
+
+		if (!bond_3ad_get_active_agg_info(bond, &info)) {
+			struct nlattr *nest;
+
+			nest = nla_nest_start(skb, IFLA_BOND_AD_INFO);
+			if (!nest)
+				goto nla_put_failure;
+
+			if (nla_put_u16(skb, IFLA_BOND_AD_INFO_AGGREGATOR,
+					info.aggregator_id))
+				goto nla_put_failure;
+			if (nla_put_u16(skb, IFLA_BOND_AD_INFO_NUM_PORTS,
+					info.ports))
+				goto nla_put_failure;
+			if (nla_put_u16(skb, IFLA_BOND_AD_INFO_ACTOR_KEY,
+					info.actor_key))
+				goto nla_put_failure;
+			if (nla_put_u16(skb, IFLA_BOND_AD_INFO_PARTNER_KEY,
+					info.partner_key))
+				goto nla_put_failure;
+			if (nla_put(skb, IFLA_BOND_AD_INFO_PARTNER_MAC,
+				    sizeof(info.partner_system),
+				    &info.partner_system))
+				goto nla_put_failure;
+
+			nla_nest_end(skb, nest);
+		}
+	}
 
 	return 0;
 
