@@ -404,16 +404,26 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	seq_putc(m, '\n');
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
+		struct task_struct *task;
 
 		memset(&stats, 0, sizeof(stats));
 		idr_for_each(&file->object_idr, per_file_stats, &stats);
+		/*
+		 * Although we have a valid reference on file->pid, that does
+		 * not guarantee that the task_struct who called get_pid() is
+		 * still alive (e.g. get_pid(current) => fork() => exit()).
+		 * Therefore, we need to protect this ->comm access using RCU.
+		 */
+		rcu_read_lock();
+		task = pid_task(file->pid, PIDTYPE_PID);
 		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu unbound)\n",
-			   get_pid_task(file->pid, PIDTYPE_PID)->comm,
+			   task ? task->comm : "<unknown>",
 			   stats.count,
 			   stats.total,
 			   stats.active,
 			   stats.inactive,
 			   stats.unbound);
+		rcu_read_unlock();
 	}
 
 	mutex_unlock(&dev->struct_mutex);
