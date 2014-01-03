@@ -3,7 +3,6 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/interrupt.h>
-#include <linux/ssb/ssb_embedded.h>
 #include <bcm47xx_board.h>
 #include <bcm47xx.h>
 
@@ -358,13 +357,6 @@ int __init bcm47xx_buttons_register(void)
 {
 	enum bcm47xx_board board = bcm47xx_board_get();
 	int err;
-
-#ifdef CONFIG_BCM47XX_SSB
-	if (bcm47xx_bus_type == BCM47XX_BUS_TYPE_SSB) {
-		pr_debug("Buttons on SSB are not supported yet.\n");
-		return -ENOTSUPP;
-	}
-#endif
 
 	switch (board) {
 	case BCM47XX_BOARD_ASUS_RTN12:
