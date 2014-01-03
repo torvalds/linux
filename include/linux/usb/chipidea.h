@@ -67,4 +67,6 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 /* Remove ci hdrc device */
 void ci_hdrc_remove_device(struct platform_device *pdev);
 
+/* Get current available role */
+enum usb_dr_mode ci_hdrc_query_available_role(struct platform_device *pdev);
 #endif
