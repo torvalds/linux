@@ -556,6 +556,12 @@
                                                 sirf,function = "usp1";
                                         };
                                 };
+				usp1_uart_nostreamctrl_pins_a: usp1@1 {
+                                        usp1 {
+                                                sirf,pins = "usp1_uart_nostreamctrl_grp";
+                                                sirf,function = "usp1_uart_nostreamctrl";
+                                        };
+                                };
                                 usb0_upli_drvbus_pins_a: usb0_upli_drvbus@0 {
                                         usb0_upli_drvbus {
                                                 sirf,pins = "usb0_upli_drvbusgrp";
