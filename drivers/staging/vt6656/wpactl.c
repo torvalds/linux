@@ -86,7 +86,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 		return ret;
 	}
 
-	if (param->u.wpa_key.key && param->u.wpa_key.key_len > sizeof(abyKey))
+	if (param->u.wpa_key.key_len > sizeof(abyKey))
 		return -EINVAL;
 
 	memcpy(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len);
