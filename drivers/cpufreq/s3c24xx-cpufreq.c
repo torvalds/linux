@@ -509,7 +509,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	return 0;
 }
 
-int __init s3c_cpufreq_auto_io(void)
+static int __init s3c_cpufreq_auto_io(void)
 {
 	int ret;
 
