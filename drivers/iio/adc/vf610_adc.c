@@ -447,7 +447,7 @@ static int vf610_read_raw(struct iio_dev *indio_dev,
 {
 	struct vf610_adc *info = iio_priv(indio_dev);
 	unsigned int hc_cfg;
-	unsigned long ret;
+	long ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
