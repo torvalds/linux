@@ -20,4 +20,6 @@ nft_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
 	pkt->xt.fragoff = ntohs(ip->frag_off) & IP_OFFSET;
 }
 
+extern struct nft_af_info nft_af_ipv4;
+
 #endif

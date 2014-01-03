@@ -47,7 +47,7 @@ static unsigned int nft_ipv6_output(const struct nf_hook_ops *ops,
 	return nft_do_chain_ipv6(ops, skb, in, out, okfn);
 }
 
-static struct nft_af_info nft_af_ipv6 __read_mostly = {
+struct nft_af_info nft_af_ipv6 __read_mostly = {
 	.family		= NFPROTO_IPV6,
 	.nhooks		= NF_INET_NUMHOOKS,
 	.owner		= THIS_MODULE,
@@ -60,6 +60,7 @@ static struct nft_af_info nft_af_ipv6 __read_mostly = {
 		[NF_INET_POST_ROUTING]	= nft_do_chain_ipv6,
 	},
 };
+EXPORT_SYMBOL_GPL(nft_af_ipv6);
 
 static int nf_tables_ipv6_init_net(struct net *net)
 {

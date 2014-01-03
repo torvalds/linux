@@ -27,4 +27,6 @@ nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 	return 0;
 }
 
+extern struct nft_af_info nft_af_ipv6;
+
 #endif
