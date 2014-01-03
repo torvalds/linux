@@ -3502,3 +3502,40 @@ int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 		   type, delay_ms);
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->force_fw_hang_cmdid);
 }
+
+int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable)
+{
+	struct wmi_dbglog_cfg_cmd *cmd;
+	struct sk_buff *skb;
+	u32 cfg;
+
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_dbglog_cfg_cmd *)skb->data;
+
+	if (module_enable) {
+		cfg = SM(ATH10K_DBGLOG_LEVEL_VERBOSE,
+			 ATH10K_DBGLOG_CFG_LOG_LVL);
+	} else {
+		/* set back defaults, all modules with WARN level */
+		cfg = SM(ATH10K_DBGLOG_LEVEL_WARN,
+			 ATH10K_DBGLOG_CFG_LOG_LVL);
+		module_enable = ~0;
+	}
+
+	cmd->module_enable = __cpu_to_le32(module_enable);
+	cmd->module_valid = __cpu_to_le32(~0);
+	cmd->config_enable = __cpu_to_le32(cfg);
+	cmd->config_valid = __cpu_to_le32(ATH10K_DBGLOG_CFG_LOG_LVL_MASK);
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi dbglog cfg modules %08x %08x config %08x %08x\n",
+		   __le32_to_cpu(cmd->module_enable),
+		   __le32_to_cpu(cmd->module_valid),
+		   __le32_to_cpu(cmd->config_enable),
+		   __le32_to_cpu(cmd->config_valid));
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->dbglog_cfg_cmdid);
+}

@@ -272,6 +272,8 @@ struct ath10k_debug {
 	struct delayed_work htt_stats_dwork;
 	struct ath10k_dfs_stats dfs_stats;
 	struct ath_dfs_pool_stats dfs_pool_stats;
+
+	u32 fw_dbglog_mask;
 };
 
 enum ath10k_state {
