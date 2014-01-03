@@ -16,6 +16,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <linux/ctype.h>
 
 #include "core.h"
 #include "htc.h"
@@ -1676,9 +1677,37 @@ static void ath10k_wmi_event_profile_match(struct ath10k *ar,
 }
 
 static void ath10k_wmi_event_debug_print(struct ath10k *ar,
-				  struct sk_buff *skb)
+					 struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_DEBUG_PRINT_EVENTID\n");
+	char buf[101], c;
+	int i;
+
+	for (i = 0; i < sizeof(buf) - 1; i++) {
+		if (i >= skb->len)
+			break;
+
+		c = skb->data[i];
+
+		if (c == '\0')
+			break;
+
+		if (isascii(c) && isprint(c))
+			buf[i] = c;
+		else
+			buf[i] = '.';
+	}
+
+	if (i == sizeof(buf) - 1)
+		ath10k_warn("wmi debug print truncated: %d\n", skb->len);
+
+	/* for some reason the debug prints end with \n, remove that */
+	if (skb->data[i - 1] == '\n')
+		i--;
+
+	/* the last byte is always reserved for the null character */
+	buf[i] = '\0';
+
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi event debug print '%s'\n", buf);
 }
 
 static void ath10k_wmi_event_pdev_qvit(struct ath10k *ar, struct sk_buff *skb)
