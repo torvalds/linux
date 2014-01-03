@@ -4,7 +4,7 @@
 
 config ARM_BIG_LITTLE_CPUFREQ
 	tristate "Generic ARM big LITTLE CPUfreq driver"
-	depends on ARM && ARM_CPU_TOPOLOGY && HAVE_CLK
+	depends on ARM && BIG_LITTLE && ARM_CPU_TOPOLOGY && HAVE_CLK
 	select PM_OPP
 	help
 	  This enables the Generic CPUfreq driver for ARM big.LITTLE platforms.
