@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2014 B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll <martin@hundeboll.net>
  *
