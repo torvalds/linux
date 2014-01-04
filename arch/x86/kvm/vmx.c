@@ -8219,6 +8219,10 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
 	vmcs12->guest_pending_dbg_exceptions =
 		vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS);
+	if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED)
+		vmcs12->guest_activity_state = GUEST_ACTIVITY_HLT;
+	else
+		vmcs12->guest_activity_state = GUEST_ACTIVITY_ACTIVE;
 
 	if ((vmcs12->pin_based_vm_exec_control & PIN_BASED_VMX_PREEMPTION_TIMER) &&
 	    (vmcs12->vm_exit_controls & VM_EXIT_SAVE_VMX_PREEMPTION_TIMER))
