@@ -37,13 +37,7 @@
 #include <acpi/video.h>
 #include <linux/module.h>
 
-static int drm_psb_trap_pagefaults;
-
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-
-MODULE_PARM_DESC(trap_pagefaults, "Error and reset on MMU pagefaults");
-module_param_named(trap_pagefaults, drm_psb_trap_pagefaults, int, 0600);
-
 
 static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 	{ 0x8086, 0x8108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
@@ -356,7 +350,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (ret)
 		goto out_err;
 
-	dev_priv->mmu = psb_mmu_driver_init(dev, drm_psb_trap_pagefaults, 0, 0);
+	dev_priv->mmu = psb_mmu_driver_init(dev, 1, 0, 0);
 	if (!dev_priv->mmu)
 		goto out_err;
 
