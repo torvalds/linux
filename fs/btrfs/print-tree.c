@@ -249,7 +249,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			    BTRFS_FILE_EXTENT_INLINE) {
 				printk(KERN_INFO "\t\tinline extent data "
 				       "size %u\n",
-				       btrfs_file_extent_inline_len(l, fi));
+				       btrfs_file_extent_inline_len(l, i, fi));
 				break;
 			}
 			printk(KERN_INFO "\t\textent data disk bytenr %llu "

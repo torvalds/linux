@@ -2990,15 +2990,6 @@ BTRFS_SETGET_FUNCS(file_extent_encryption, struct btrfs_file_extent_item,
 BTRFS_SETGET_FUNCS(file_extent_other_encoding, struct btrfs_file_extent_item,
 		   other_encoding, 16);
 
-/* this returns the number of file bytes represented by the inline item.
- * If an item is compressed, this is the uncompressed size
- */
-static inline u32 btrfs_file_extent_inline_len(struct extent_buffer *eb,
-					       struct btrfs_file_extent_item *e)
-{
-	return btrfs_file_extent_ram_bytes(eb, e);
-}
-
 /*
  * this returns the number of bytes used by the item on disk, minus the
  * size of any extent headers.  If a file is compressed on disk, this is
@@ -3011,6 +3002,32 @@ static inline u32 btrfs_file_extent_inline_item_len(struct extent_buffer *eb,
 	offset = offsetof(struct btrfs_file_extent_item, disk_bytenr);
 	return btrfs_item_size(eb, e) - offset;
 }
+
+/* this returns the number of file bytes represented by the inline item.
+ * If an item is compressed, this is the uncompressed size
+ */
+static inline u32 btrfs_file_extent_inline_len(struct extent_buffer *eb,
+					       int slot,
+					       struct btrfs_file_extent_item *fi)
+{
+	struct btrfs_map_token token;
+
+	btrfs_init_map_token(&token);
+	/*
+	 * return the space used on disk if this item isn't
+	 * compressed or encoded
+	 */
+	if (btrfs_token_file_extent_compression(eb, fi, &token) == 0 &&
+	    btrfs_token_file_extent_encryption(eb, fi, &token) == 0 &&
+	    btrfs_token_file_extent_other_encoding(eb, fi, &token) == 0) {
+		return btrfs_file_extent_inline_item_len(eb,
+							 btrfs_item_nr(slot));
+	}
+
+	/* otherwise use the ram bytes field */
+	return btrfs_token_file_extent_ram_bytes(eb, fi, &token);
+}
+
 
 /* btrfs_dev_stats_item */
 static inline u64 btrfs_dev_stats_value(struct extent_buffer *eb,

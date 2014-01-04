@@ -570,7 +570,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		if (btrfs_file_extent_disk_bytenr(eb, item) == 0)
 			nbytes = 0;
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
-		size = btrfs_file_extent_inline_len(eb, item);
+		size = btrfs_file_extent_inline_len(eb, slot, item);
 		nbytes = btrfs_file_extent_ram_bytes(eb, item);
 		extent_end = ALIGN(start + size, root->sectorsize);
 	} else {
@@ -3367,7 +3367,9 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 					struct btrfs_file_extent_item);
 		if (btrfs_file_extent_type(src, extent) ==
 		    BTRFS_FILE_EXTENT_INLINE) {
-			len = btrfs_file_extent_inline_len(src, extent);
+			len = btrfs_file_extent_inline_len(src,
+							   src_path->slots[0],
+							   extent);
 			*last_extent = ALIGN(key.offset + len,
 					     log->sectorsize);
 		} else {
@@ -3431,7 +3433,7 @@ fill_holes:
 		extent = btrfs_item_ptr(src, i, struct btrfs_file_extent_item);
 		if (btrfs_file_extent_type(src, extent) ==
 		    BTRFS_FILE_EXTENT_INLINE) {
-			len = btrfs_file_extent_inline_len(src, extent);
+			len = btrfs_file_extent_inline_len(src, i, extent);
 			extent_end = ALIGN(key.offset + len, log->sectorsize);
 		} else {
 			len = btrfs_file_extent_num_bytes(src, extent);

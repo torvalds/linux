@@ -1377,7 +1377,7 @@ static int read_symlink(struct btrfs_root *root,
 	BUG_ON(compression);
 
 	off = btrfs_file_extent_inline_start(ei);
-	len = btrfs_file_extent_inline_len(path->nodes[0], ei);
+	len = btrfs_file_extent_inline_len(path->nodes[0], path->slots[0], ei);
 
 	ret = fs_path_add_from_extent_buffer(dest, path->nodes[0], off, len);
 
@@ -4207,7 +4207,8 @@ static int send_write_or_clone(struct send_ctx *sctx,
 			struct btrfs_file_extent_item);
 	type = btrfs_file_extent_type(path->nodes[0], ei);
 	if (type == BTRFS_FILE_EXTENT_INLINE) {
-		len = btrfs_file_extent_inline_len(path->nodes[0], ei);
+		len = btrfs_file_extent_inline_len(path->nodes[0],
+						   path->slots[0], ei);
 		/*
 		 * it is possible the inline item won't cover the whole page,
 		 * but there may be items after this page.  Make
@@ -4448,7 +4449,8 @@ static int get_last_extent(struct send_ctx *sctx, u64 offset)
 			    struct btrfs_file_extent_item);
 	type = btrfs_file_extent_type(path->nodes[0], fi);
 	if (type == BTRFS_FILE_EXTENT_INLINE) {
-		u64 size = btrfs_file_extent_inline_len(path->nodes[0], fi);
+		u64 size = btrfs_file_extent_inline_len(path->nodes[0],
+							path->slots[0], fi);
 		extent_end = ALIGN(key.offset + size,
 				   sctx->send_root->sectorsize);
 	} else {
@@ -4482,7 +4484,8 @@ static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 			    struct btrfs_file_extent_item);
 	type = btrfs_file_extent_type(path->nodes[0], fi);
 	if (type == BTRFS_FILE_EXTENT_INLINE) {
-		u64 size = btrfs_file_extent_inline_len(path->nodes[0], fi);
+		u64 size = btrfs_file_extent_inline_len(path->nodes[0],
+							path->slots[0], fi);
 		extent_end = ALIGN(key->offset + size,
 				   sctx->send_root->sectorsize);
 	} else {
