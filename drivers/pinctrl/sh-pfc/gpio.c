@@ -204,18 +204,24 @@ static void gpio_pin_set(struct gpio_chip *gc, unsigned offset, int value)
 static int gpio_pin_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	int i, k;
+	unsigned int i, k;
 
 	for (i = 0; i < pfc->info->gpio_irq_size; i++) {
-		unsigned short *gpios = pfc->info->gpio_irq[i].gpios;
+		short *gpios = pfc->info->gpio_irq[i].gpios;
 
-		for (k = 0; gpios[k]; k++) {
+		for (k = 0; gpios[k] >= 0; k++) {
 			if (gpios[k] == offset)
-				return pfc->info->gpio_irq[i].irq;
+				goto found;
 		}
 	}
 
 	return -ENOSYS;
+
+found:
+	if (pfc->num_irqs)
+		return pfc->irqs[i];
+	else
+		return pfc->info->gpio_irq[i].irq;
 }
 
 static int gpio_pin_setup(struct sh_pfc_chip *chip)
@@ -347,7 +353,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	 * GPIOs.
 	 */
 	for (i = 0; i < pfc->num_windows; ++i) {
-		struct sh_pfc_window *window = &pfc->window[i];
+		struct sh_pfc_window *window = &pfc->windows[i];
 
 		if (pfc->info->data_regs[0].reg >= window->phys &&
 		    pfc->info->data_regs[0].reg < window->phys + window->size)
@@ -357,8 +363,14 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	if (i == pfc->num_windows)
 		return 0;
 
+	/* If we have IRQ resources make sure their number is correct. */
+	if (pfc->num_irqs && pfc->num_irqs != pfc->info->gpio_irq_size) {
+		dev_err(pfc->dev, "invalid number of IRQ resources\n");
+		return -EINVAL;
+	}
+
 	/* Register the real GPIOs chip. */
-	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup, &pfc->window[i]);
+	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup, &pfc->windows[i]);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 

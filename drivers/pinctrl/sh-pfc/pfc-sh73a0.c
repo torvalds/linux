@@ -3138,16 +3138,6 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(usb),
 };
 
-#undef PORTCR
-#define PORTCR(nr, reg)							\
-	{								\
-		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
-				PORT##nr##_FN0, PORT##nr##_FN1,		\
-				PORT##nr##_FN2, PORT##nr##_FN3,		\
-				PORT##nr##_FN4, PORT##nr##_FN5,		\
-				PORT##nr##_FN6, PORT##nr##_FN7 }	\
-	}
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0, 0xe6050000), /* PORT0CR */
 	PORTCR(1, 0xe6050001), /* PORT1CR */
@@ -3661,38 +3651,38 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 };
 
 static const struct pinmux_irq pinmux_irqs[] = {
-	PINMUX_IRQ(irq_pin(19), 9),
-	PINMUX_IRQ(irq_pin(1), 10),
 	PINMUX_IRQ(irq_pin(0), 11),
+	PINMUX_IRQ(irq_pin(1), 10),
+	PINMUX_IRQ(irq_pin(2), 149),
+	PINMUX_IRQ(irq_pin(3), 224),
+	PINMUX_IRQ(irq_pin(4), 159),
+	PINMUX_IRQ(irq_pin(5), 227),
+	PINMUX_IRQ(irq_pin(6), 147),
+	PINMUX_IRQ(irq_pin(7), 150),
+	PINMUX_IRQ(irq_pin(8), 223),
+	PINMUX_IRQ(irq_pin(9), 56, 308),
+	PINMUX_IRQ(irq_pin(10), 54),
+	PINMUX_IRQ(irq_pin(11), 238),
+	PINMUX_IRQ(irq_pin(12), 156),
+	PINMUX_IRQ(irq_pin(13), 239),
+	PINMUX_IRQ(irq_pin(14), 251),
+	PINMUX_IRQ(irq_pin(15), 0),
+	PINMUX_IRQ(irq_pin(16), 249),
+	PINMUX_IRQ(irq_pin(17), 234),
 	PINMUX_IRQ(irq_pin(18), 13),
+	PINMUX_IRQ(irq_pin(19), 9),
 	PINMUX_IRQ(irq_pin(20), 14),
 	PINMUX_IRQ(irq_pin(21), 15),
-	PINMUX_IRQ(irq_pin(31), 26),
-	PINMUX_IRQ(irq_pin(30), 27),
-	PINMUX_IRQ(irq_pin(29), 28),
 	PINMUX_IRQ(irq_pin(22), 40),
 	PINMUX_IRQ(irq_pin(23), 53),
-	PINMUX_IRQ(irq_pin(10), 54),
-	PINMUX_IRQ(irq_pin(9), 56),
+	PINMUX_IRQ(irq_pin(24), 118),
+	PINMUX_IRQ(irq_pin(25), 164),
 	PINMUX_IRQ(irq_pin(26), 115),
 	PINMUX_IRQ(irq_pin(27), 116),
 	PINMUX_IRQ(irq_pin(28), 117),
-	PINMUX_IRQ(irq_pin(24), 118),
-	PINMUX_IRQ(irq_pin(6), 147),
-	PINMUX_IRQ(irq_pin(2), 149),
-	PINMUX_IRQ(irq_pin(7), 150),
-	PINMUX_IRQ(irq_pin(12), 156),
-	PINMUX_IRQ(irq_pin(4), 159),
-	PINMUX_IRQ(irq_pin(25), 164),
-	PINMUX_IRQ(irq_pin(8), 223),
-	PINMUX_IRQ(irq_pin(3), 224),
-	PINMUX_IRQ(irq_pin(5), 227),
-	PINMUX_IRQ(irq_pin(17), 234),
-	PINMUX_IRQ(irq_pin(11), 238),
-	PINMUX_IRQ(irq_pin(13), 239),
-	PINMUX_IRQ(irq_pin(16), 249),
-	PINMUX_IRQ(irq_pin(14), 251),
-	PINMUX_IRQ(irq_pin(9), 308),
+	PINMUX_IRQ(irq_pin(29), 28),
+	PINMUX_IRQ(irq_pin(30), 27),
+	PINMUX_IRQ(irq_pin(31), 26),
 };
 
 /* -----------------------------------------------------------------------------
@@ -3702,7 +3692,7 @@ static const struct pinmux_irq pinmux_irqs[] = {
 static void sh73a0_vccq_mc0_endisable(struct regulator_dev *reg, bool enable)
 {
 	struct sh_pfc *pfc = reg->reg_data;
-	void __iomem *addr = pfc->window[1].virt + 4;
+	void __iomem *addr = pfc->windows[1].virt + 4;
 	unsigned long flags;
 	u32 value;
 
@@ -3735,7 +3725,7 @@ static int sh73a0_vccq_mc0_disable(struct regulator_dev *reg)
 static int sh73a0_vccq_mc0_is_enabled(struct regulator_dev *reg)
 {
 	struct sh_pfc *pfc = reg->reg_data;
-	void __iomem *addr = pfc->window[1].virt + 4;
+	void __iomem *addr = pfc->windows[1].virt + 4;
 	unsigned long flags;
 	u32 value;
 
@@ -3794,7 +3784,7 @@ static const unsigned int sh73a0_portcr_offsets[] = {
 
 static unsigned int sh73a0_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
 {
-	void __iomem *addr = pfc->window->virt
+	void __iomem *addr = pfc->windows->virt
 			   + sh73a0_portcr_offsets[pin >> 5] + pin;
 	u32 value = ioread8(addr) & PORTnCR_PULMD_MASK;
 
@@ -3812,7 +3802,7 @@ static unsigned int sh73a0_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
 static void sh73a0_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 				   unsigned int bias)
 {
-	void __iomem *addr = pfc->window->virt
+	void __iomem *addr = pfc->windows->virt
 			   + sh73a0_portcr_offsets[pin >> 5] + pin;
 	u32 value = ioread8(addr) & ~PORTnCR_PULMD_MASK;
 

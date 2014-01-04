@@ -26,6 +26,11 @@ Optional properties:
   - #gpio-range-cells: Mandatory when the PFC doesn't handle GPIO, forbidden
     otherwise. Should be 3.
 
+  - interrupts-extended: Specify the interrupts associated with external
+    IRQ pins. This property is mandatory when the PFC handles GPIOs and
+    forbidden otherwise. When specified, it must contain one interrupt per
+    external IRQ, sorted by external IRQ number.
+
 The PFC node also acts as a container for pin configuration nodes. Please refer
 to pinctrl-bindings.txt in this directory for the definition of the term "pin
 configuration node" and for the common pinctrl bindings used by client devices.
@@ -103,6 +108,15 @@ Example 1: SH73A0 (SH-Mobile AG5) pin controller node
 		      <0xe605801c 0x1c>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		interrupts-extended =
+			<&irqpin0 0 0>, <&irqpin0 1 0>, <&irqpin0 2 0>, <&irqpin0 3 0>,
+			<&irqpin0 4 0>, <&irqpin0 5 0>, <&irqpin0 6 0>, <&irqpin0 7 0>,
+			<&irqpin1 0 0>, <&irqpin1 1 0>, <&irqpin1 2 0>, <&irqpin1 3 0>,
+			<&irqpin1 4 0>, <&irqpin1 5 0>, <&irqpin1 6 0>, <&irqpin1 7 0>,
+			<&irqpin2 0 0>, <&irqpin2 1 0>, <&irqpin2 2 0>, <&irqpin2 3 0>,
+			<&irqpin2 4 0>, <&irqpin2 5 0>, <&irqpin2 6 0>, <&irqpin2 7 0>,
+			<&irqpin3 0 0>, <&irqpin3 1 0>, <&irqpin3 2 0>, <&irqpin3 3 0>,
+			<&irqpin3 4 0>, <&irqpin3 5 0>, <&irqpin3 6 0>, <&irqpin3 7 0>;
 	};
 
 Example 2: A GPIO LED node that references a GPIO

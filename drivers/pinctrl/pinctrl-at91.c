@@ -118,7 +118,7 @@ struct at91_pin_group {
 };
 
 /**
- * struct at91_pinctrl_mux_ops - describes an At91 mux ops group
+ * struct at91_pinctrl_mux_ops - describes an AT91 mux ops group
  * on new IP with support for periph C and D the way to mux in
  * periph A and B has changed
  * So provide the right call back
@@ -722,7 +722,8 @@ static int at91_pinconf_get(struct pinctrl_dev *pctldev,
 	unsigned pin;
 	int div;
 
-	dev_dbg(info->dev, "%s:%d, pin_id=%d, config=0x%lx", __func__, __LINE__, pin_id, *config);
+	*config = 0;
+	dev_dbg(info->dev, "%s:%d, pin_id=%d", __func__, __LINE__, pin_id);
 	pio = pin_to_controller(info, pin_to_bank(pin_id));
 	pin = pin_id % MAX_NB_GPIO_PER_BANK;
 
@@ -1396,7 +1397,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 	for (;;) {
 		/* Reading ISR acks pending (edge triggered) GPIO interrupts.
-		 * When there none are pending, we're finished unless we need
+		 * When there are none pending, we're finished unless we need
 		 * to process multiple banks (like ID_PIOCDE on sam9263).
 		 */
 		isr = readl_relaxed(pio + PIO_ISR) & readl_relaxed(pio + PIO_IMR);
@@ -1505,7 +1506,7 @@ static int at91_gpio_of_irq_setup(struct device_node *node,
 		prev = gpio_chips[at91_gpio->pioc_idx - 1];
 
 	/* The top level handler handles one bank of GPIOs, except
-	 * on some SoC it can handles up to three...
+	 * on some SoC it can handle up to three...
 	 * We only set up the handler for the first of the list.
 	 */
 	if (prev && prev->next == at91_gpio)
