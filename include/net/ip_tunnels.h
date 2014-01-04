@@ -162,10 +162,10 @@ struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 
 static inline void iptunnel_xmit_stats(int err,
 				       struct net_device_stats *err_stats,
-				       struct pcpu_tstats __percpu *stats)
+				       struct pcpu_sw_netstats __percpu *stats)
 {
 	if (err > 0) {
-		struct pcpu_tstats *tstats = this_cpu_ptr(stats);
+		struct pcpu_sw_netstats *tstats = this_cpu_ptr(stats);
 
 		u64_stats_update_begin(&tstats->syncp);
 		tstats->tx_bytes += err;

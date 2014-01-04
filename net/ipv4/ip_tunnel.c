@@ -132,7 +132,8 @@ struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
 	int i;
 
 	for_each_possible_cpu(i) {
-		const struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, i);
+		const struct pcpu_sw_netstats *tstats =
+						   per_cpu_ptr(dev->tstats, i);
 		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
 		unsigned int start;
 
@@ -460,7 +461,7 @@ static struct ip_tunnel *ip_tunnel_create(struct net *net,
 int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 		  const struct tnl_ptk_info *tpi, bool log_ecn_error)
 {
-	struct pcpu_tstats *tstats;
+	struct pcpu_sw_netstats *tstats;
 	const struct iphdr *iph = ip_hdr(skb);
 	int err;
 
@@ -1049,12 +1050,12 @@ int ip_tunnel_init(struct net_device *dev)
 	int i, err;
 
 	dev->destructor	= ip_tunnel_dev_free;
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ipt_stats;
+		struct pcpu_sw_netstats *ipt_stats;
 		ipt_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ipt_stats->syncp);
 	}

@@ -136,14 +136,14 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 	vport->ops = ops;
 	INIT_HLIST_NODE(&vport->dp_hash_node);
 
-	vport->percpu_stats = alloc_percpu(struct pcpu_tstats);
+	vport->percpu_stats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!vport->percpu_stats) {
 		kfree(vport);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *vport_stats;
+		struct pcpu_sw_netstats *vport_stats;
 		vport_stats = per_cpu_ptr(vport->percpu_stats, i);
 		u64_stats_init(&vport_stats->syncp);
 	}
@@ -275,8 +275,8 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 	spin_unlock_bh(&vport->stats_lock);
 
 	for_each_possible_cpu(i) {
-		const struct pcpu_tstats *percpu_stats;
-		struct pcpu_tstats local_stats;
+		const struct pcpu_sw_netstats *percpu_stats;
+		struct pcpu_sw_netstats local_stats;
 		unsigned int start;
 
 		percpu_stats = per_cpu_ptr(vport->percpu_stats, i);
@@ -344,7 +344,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
 void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 		       struct ovs_key_ipv4_tunnel *tun_key)
 {
-	struct pcpu_tstats *stats;
+	struct pcpu_sw_netstats *stats;
 
 	stats = this_cpu_ptr(vport->percpu_stats);
 	u64_stats_update_begin(&stats->syncp);
@@ -370,7 +370,7 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 	int sent = vport->ops->send(vport, skb);
 
 	if (likely(sent > 0)) {
-		struct pcpu_tstats *stats;
+		struct pcpu_sw_netstats *stats;
 
 		stats = this_cpu_ptr(vport->percpu_stats);
 

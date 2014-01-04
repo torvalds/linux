@@ -87,7 +87,7 @@ struct vport {
 	struct hlist_node dp_hash_node;
 	const struct vport_ops *ops;
 
-	struct pcpu_tstats __percpu *percpu_stats;
+	struct pcpu_sw_netstats __percpu *percpu_stats;
 
 	spinlock_t stats_lock;
 	struct vport_err_stats err_stats;

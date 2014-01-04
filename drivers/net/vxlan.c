@@ -1081,7 +1081,7 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 	struct iphdr *oip = NULL;
 	struct ipv6hdr *oip6 = NULL;
 	struct vxlan_dev *vxlan;
-	struct pcpu_tstats *stats;
+	struct pcpu_sw_netstats *stats;
 	union vxlan_addr saddr;
 	__u32 vni;
 	int err = 0;
@@ -1587,11 +1587,12 @@ EXPORT_SYMBOL_GPL(vxlan_xmit_skb);
 static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 			       struct vxlan_dev *dst_vxlan)
 {
-	struct pcpu_tstats *tx_stats = this_cpu_ptr(src_vxlan->dev->tstats);
-	struct pcpu_tstats *rx_stats = this_cpu_ptr(dst_vxlan->dev->tstats);
+	struct pcpu_sw_netstats *tx_stats, *rx_stats;
 	union vxlan_addr loopback;
 	union vxlan_addr *remote_ip = &dst_vxlan->default_dst.remote_ip;
 
+	tx_stats = this_cpu_ptr(src_vxlan->dev->tstats);
+	rx_stats = this_cpu_ptr(dst_vxlan->dev->tstats);
 	skb->pkt_type = PACKET_HOST;
 	skb->encapsulation = 0;
 	skb->dev = dst_vxlan->dev;
@@ -1897,12 +1898,12 @@ static int vxlan_init(struct net_device *dev)
 	struct vxlan_sock *vs;
 	int i;
 
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *vxlan_stats;
+		struct pcpu_sw_netstats *vxlan_stats;
 		vxlan_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&vxlan_stats->syncp);
 	}

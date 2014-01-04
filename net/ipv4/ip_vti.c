@@ -60,7 +60,7 @@ static int vti_rcv(struct sk_buff *skb)
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 				  iph->saddr, iph->daddr, 0);
 	if (tunnel != NULL) {
-		struct pcpu_tstats *tstats;
+		struct pcpu_sw_netstats *tstats;
 		u32 oldmark = skb->mark;
 		int ret;
 

@@ -498,7 +498,7 @@ static int ip6gre_rcv(struct sk_buff *skb)
 					  &ipv6h->saddr, &ipv6h->daddr, key,
 					  gre_proto);
 	if (tunnel) {
-		struct pcpu_tstats *tstats;
+		struct pcpu_sw_netstats *tstats;
 
 		if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
 			goto drop;
@@ -1265,12 +1265,12 @@ static int ip6gre_tunnel_init(struct net_device *dev)
 	if (ipv6_addr_any(&tunnel->parms.raddr))
 		dev->header_ops = &ip6gre_header_ops;
 
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ip6gre_tunnel_stats;
+		struct pcpu_sw_netstats *ip6gre_tunnel_stats;
 		ip6gre_tunnel_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ip6gre_tunnel_stats->syncp);
 	}
@@ -1466,12 +1466,12 @@ static int ip6gre_tap_init(struct net_device *dev)
 
 	ip6gre_tnl_link_config(tunnel, 1);
 
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ip6gre_tap_stats;
+		struct pcpu_sw_netstats *ip6gre_tap_stats;
 		ip6gre_tap_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ip6gre_tap_stats->syncp);
 	}
