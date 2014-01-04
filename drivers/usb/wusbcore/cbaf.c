@@ -235,7 +235,7 @@ static int cbaf_check(struct cbaf *cbaf)
 
 static const struct wusb_cbaf_host_info cbaf_host_info_defaults = {
 	.AssociationTypeId_hdr    = WUSB_AR_AssociationTypeId,
-	.AssociationTypeId    	  = cpu_to_le16(AR_TYPE_WUSB),
+	.AssociationTypeId	  = cpu_to_le16(AR_TYPE_WUSB),
 	.AssociationSubTypeId_hdr = WUSB_AR_AssociationSubTypeId,
 	.AssociationSubTypeId = cpu_to_le16(AR_TYPE_WUSB_RETRIEVE_HOST_INFO),
 	.CHID_hdr                 = WUSB_AR_CHID,
@@ -260,7 +260,8 @@ static int cbaf_send_host_info(struct cbaf *cbaf)
 	hi->HostFriendlyName_hdr.len = cpu_to_le16(name_len);
 	hi_size = sizeof(*hi) + name_len;
 
-	return usb_control_msg(cbaf->usb_dev, usb_sndctrlpipe(cbaf->usb_dev, 0),
+	return usb_control_msg(cbaf->usb_dev,
+			usb_sndctrlpipe(cbaf->usb_dev, 0),
 			CBAF_REQ_SET_ASSOCIATION_RESPONSE,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			0x0101,
@@ -290,7 +291,8 @@ static int cbaf_cdid_get(struct cbaf *cbaf)
 		0x0200, cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 		di, cbaf->buffer_size, USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
-		dev_err(dev, "Cannot request device information: %d\n", result);
+		dev_err(dev, "Cannot request device information: %d\n",
+			result);
 		return result;
 	}
 
@@ -491,11 +493,11 @@ static DEVICE_ATTR(wusb_device_name, 0600, cbaf_wusb_device_name_show, NULL);
 
 static const struct wusb_cbaf_cc_data cbaf_cc_data_defaults = {
 	.AssociationTypeId_hdr    = WUSB_AR_AssociationTypeId,
-	.AssociationTypeId    	  = cpu_to_le16(AR_TYPE_WUSB),
+	.AssociationTypeId	  = cpu_to_le16(AR_TYPE_WUSB),
 	.AssociationSubTypeId_hdr = WUSB_AR_AssociationSubTypeId,
 	.AssociationSubTypeId     = cpu_to_le16(AR_TYPE_WUSB_ASSOCIATE),
 	.Length_hdr               = WUSB_AR_Length,
-	.Length               	  = cpu_to_le32(sizeof(struct wusb_cbaf_cc_data)),
+	.Length		= cpu_to_le32(sizeof(struct wusb_cbaf_cc_data)),
 	.ConnectionContext_hdr    = WUSB_AR_ConnectionContext,
 	.BandGroups_hdr           = WUSB_AR_BandGroups,
 };
