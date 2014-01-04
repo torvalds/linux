@@ -47,8 +47,11 @@
 		valid-mask = <0x00000007>;
 	};
 
+	/* The SIC is cascaded off IRQ 26 on the PIC */
 	sic: sic@ca000000 {
 		compatible = "arm,versatile-fpga-irq";
+		interrupt-parent = <&pic>;
+		interrupts = <26>;
 		#interrupt-cells = <1>;
 		interrupt-controller;
 		reg = <0xca000000 0x100>;
