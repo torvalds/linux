@@ -365,7 +365,7 @@ static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
  *
  * If @parent is set, then the parent of the @kobj will be set to it.
  * If @parent is NULL, then the parent of the @kobj will be set to the
- * kobject associted with the kset assigned to this kobject.  If no kset
+ * kobject associated with the kset assigned to this kobject.  If no kset
  * is assigned to the kobject, then the kobject will be located in the
  * root of the sysfs tree.
  *
