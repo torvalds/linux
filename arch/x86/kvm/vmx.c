@@ -6697,6 +6697,13 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 
+	trace_kvm_nested_vmexit(kvm_rip_read(vcpu), exit_reason,
+				vmcs_readl(EXIT_QUALIFICATION),
+				vmx->idt_vectoring_info,
+				intr_info,
+				vmcs_read32(VM_EXIT_INTR_ERROR_CODE),
+				KVM_ISA_VMX);
+
 	if (vmx->nested.nested_run_pending)
 		return 0;
 
@@ -8468,6 +8475,13 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	leave_guest_mode(vcpu);
 	prepare_vmcs12(vcpu, vmcs12, exit_reason, exit_intr_info,
 		       exit_qualification);
+
+	trace_kvm_nested_vmexit_inject(vmcs12->vm_exit_reason,
+				       vmcs12->exit_qualification,
+				       vmcs12->idt_vectoring_info_field,
+				       vmcs12->vm_exit_intr_info,
+				       vmcs12->vm_exit_intr_error_code,
+				       KVM_ISA_VMX);
 
 	cpu = get_cpu();
 	vmx->loaded_vmcs = &vmx->vmcs01;
