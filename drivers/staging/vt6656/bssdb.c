@@ -104,14 +104,12 @@ PKnownBSS BSSpSearchBSSList(struct vnt_private *pDevice,
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"BSSpSearchBSSList BSSID[%pM]\n", pbyDesireBSSID);
 		if ((!is_broadcast_ether_addr(pbyDesireBSSID)) &&
-			(memcmp(pbyDesireBSSID, ZeroBSSID, 6) != 0)) {
+			(memcmp(pbyDesireBSSID, ZeroBSSID, 6) != 0))
 				pbyBSSID = pbyDesireBSSID;
-		}
 	}
 	if (pbyDesireSSID != NULL) {
-		if (((PWLAN_IE_SSID) pbyDesireSSID)->len != 0) {
+		if (((PWLAN_IE_SSID) pbyDesireSSID)->len != 0)
 			pSSID = (PWLAN_IE_SSID) pbyDesireSSID;
-		}
 	}
 
 	if ((pbyBSSID != NULL) && (pDevice->bRoaming == false)) {
@@ -191,12 +189,11 @@ PKnownBSS BSSpSearchBSSList(struct vnt_private *pDevice,
 					pCurrBSS->abyBSSID);
 				jj++;
 
-				if (pSelect == NULL) {
+				if (pSelect == NULL)
 					pSelect = pCurrBSS;
 				/* compare RSSI, select the strongest signal */
-				} else if (pCurrBSS->uRSSI < pSelect->uRSSI) {
+				else if (pCurrBSS->uRSSI < pSelect->uRSSI)
 					pSelect = pCurrBSS;
-				}
 			}
 		}
 
@@ -204,9 +201,11 @@ PKnownBSS BSSpSearchBSSList(struct vnt_private *pDevice,
 
 		if (pSelect != NULL) {
 			pSelect->bSelected = true;
-			if (pDevice->bRoaming == false)  {
+			if (pDevice->bRoaming == false) {
 				/* Einsn Add @20070907 */
-				memcpy(pbyDesireSSID, pCurrBSS->abySSID,WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
+				memcpy(pbyDesireSSID,
+				       pCurrBSS->abySSID,
+				       WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
 			}
 
 			return pSelect;
@@ -374,9 +373,8 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
 		(pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
 		/* assoc with BSS */
-		if (pBSSList == pMgmt->pCurrBSS) {
+		if (pBSSList == pMgmt->pCurrBSS)
 			bParsingQuiet = true;
-		}
 	}
 
 	WPA_ClearRSN(pBSSList);
@@ -504,11 +502,10 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
 		memcpy(pBSSList->abySSID, pSSID, pSSID->len + WLAN_IEHDR_LEN);
 	memcpy(pBSSList->abySuppRates, pSuppRates, pSuppRates->len + WLAN_IEHDR_LEN);
 
-	if (pExtSuppRates != NULL) {
+	if (pExtSuppRates != NULL)
 		memcpy(pBSSList->abyExtSuppRates, pExtSuppRates, pExtSuppRates->len + WLAN_IEHDR_LEN);
-	} else {
+	else
 		memset(pBSSList->abyExtSuppRates, 0, WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1);
-	}
 	pBSSList->sERP.byERP = psERP->byERP;
 	pBSSList->sERP.bERPExist = psERP->bERPExist;
 
@@ -529,9 +526,8 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
 	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
 		(pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
 		/* assoc with BSS */
-		if (pBSSList == pMgmt->pCurrBSS) {
+		if (pBSSList == pMgmt->pCurrBSS)
 			bParsingQuiet = true;
-		}
 	}
 
 	WPA_ClearRSN(pBSSList); /* mike update */
@@ -707,9 +703,8 @@ void BSSvUpdateAPNode(struct vnt_private *pDevice,
 	memset(&pMgmt->sNodeDBTable[0], 0, sizeof(KnownNodeDB));
 
 	pMgmt->sNodeDBTable[0].bActive = true;
-	if (pDevice->byBBType == BB_TYPE_11B) {
+	if (pDevice->byBBType == BB_TYPE_11B)
 		uRateLen = WLAN_RATES_MAXLEN_11B;
-	}
 	pMgmt->abyCurrSuppRates[1] = RATEuSetIE((PWLAN_IE_SUPP_RATES) pSuppRates,
 						(PWLAN_IE_SUPP_RATES) pMgmt->abyCurrSuppRates,
 						uRateLen);
@@ -827,8 +822,9 @@ void BSSvSecondCallBack(struct work_struct *work)
 				PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
 				wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 			}
-		} else if (pDevice->bLinkPass == true)
+		} else if (pDevice->bLinkPass == true) {
 			pDevice->byReAssocCount = 0;
+		}
 	}
 
 	pMgmt->eLastState = pMgmt->eCurrState;
@@ -1119,13 +1115,12 @@ void BSSvUpdateNodeTxCounter(struct vnt_private *pDevice, u8 byTSR, u8 byPktNO)
 	wFIFOCtl = pkt_info[byPktNum].fifo_ctl;
 	pbyDestAddr = pkt_info[byPktNum].dest_addr;
 
-	if (wFIFOCtl & FIFOCTL_AUTO_FB_0) {
+	if (wFIFOCtl & FIFOCTL_AUTO_FB_0)
 		byFallBack = AUTO_FB_0;
-	} else if (wFIFOCtl & FIFOCTL_AUTO_FB_1) {
+	else if (wFIFOCtl & FIFOCTL_AUTO_FB_1)
 		byFallBack = AUTO_FB_1;
-	} else {
+	else
 		byFallBack = AUTO_FB_NONE;
-	}
 
 	/* Only Unicast using support rates */
 	if (wFIFOCtl & FIFOCTL_NEEDACK) {
