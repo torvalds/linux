@@ -26,7 +26,6 @@ struct sunrpc_net {
 	unsigned int rpcb_is_af_local : 1;
 
 	struct mutex gssp_lock;
-	wait_queue_head_t gssp_wq;
 	struct rpc_clnt *gssp_clnt;
 	int use_gss_proxy;
 	int pipe_version;
