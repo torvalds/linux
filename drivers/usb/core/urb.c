@@ -53,7 +53,7 @@ EXPORT_SYMBOL_GPL(usb_init_urb);
  *	valid options for this.
  *
  * Creates an urb for the USB driver to use, initializes a few internal
- * structures, incrementes the usage counter, and returns a pointer to it.
+ * structures, increments the usage counter, and returns a pointer to it.
  *
  * If the driver want to use this urb for interrupt, control, or bulk
  * endpoints, pass '0' as the number of iso packets.
@@ -281,7 +281,7 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  *
  * Device drivers must explicitly request that repetition, by ensuring that
  * some URB is always on the endpoint's queue (except possibly for short
- * periods during completion callacks).  When there is no longer an urb
+ * periods during completion callbacks).  When there is no longer an urb
  * queued, the endpoint's bandwidth reservation is canceled.  This means
  * drivers can use their completion handlers to ensure they keep bandwidth
  * they need, by reinitializing and resubmitting the just-completed urb

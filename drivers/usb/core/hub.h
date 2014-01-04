@@ -78,7 +78,7 @@ struct usb_hub {
 
 /**
  * struct usb port - kernel's representation of a usb port
- * @child: usb device attatched to the port
+ * @child: usb device attached to the port
  * @dev: generic device interface
  * @port_owner: port's owner
  * @connect_type: port's connect type
