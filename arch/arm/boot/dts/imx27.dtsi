@@ -207,6 +207,30 @@
 				status = "disabled";
 			};
 
+			ssi1: ssi@10010000 {
+				#sound-dai-cells = <0>;
+				compatible = "fsl,imx27-ssi", "fsl,imx21-ssi";
+				reg = <0x10010000 0x1000>;
+				interrupts = <14>;
+				clocks = <&clks 26>;
+				dmas = <&dma 12>, <&dma 13>, <&dma 14>, <&dma 15>;
+				dma-names = "rx0", "tx0", "rx1", "tx1";
+				fsl,fifo-depth = <8>;
+				status = "disabled";
+			};
+
+			ssi2: ssi@10011000 {
+				#sound-dai-cells = <0>;
+				compatible = "fsl,imx27-ssi", "fsl,imx21-ssi";
+				reg = <0x10011000 0x1000>;
+				interrupts = <13>;
+				clocks = <&clks 25>;
+				dmas = <&dma 8>, <&dma 9>, <&dma 10>, <&dma 11>;
+				dma-names = "rx0", "tx0", "rx1", "tx1";
+				fsl,fifo-depth = <8>;
+				status = "disabled";
+			};
+
 			i2c1: i2c@10012000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
