@@ -228,6 +228,7 @@ static int fw_lookup_and_allocate_buf(const char *fw_name,
 }
 
 static void __fw_free_buf(struct kref *ref)
+	__releases(&fwc->lock)
 {
 	struct firmware_buf *buf = to_fwbuf(ref);
 	struct firmware_cache *fwc = buf->fwc;
