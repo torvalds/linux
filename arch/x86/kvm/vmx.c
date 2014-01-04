@@ -5149,6 +5149,15 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static u64 vmx_get_dr6(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.dr6;
+}
+
+static void vmx_set_dr6(struct kvm_vcpu *vcpu, unsigned long val)
+{
+}
+
 static void vmx_set_dr7(struct kvm_vcpu *vcpu, unsigned long val)
 {
 	vmcs_writel(GUEST_DR7, val);
@@ -8556,6 +8565,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_idt = vmx_set_idt,
 	.get_gdt = vmx_get_gdt,
 	.set_gdt = vmx_set_gdt,
+	.get_dr6 = vmx_get_dr6,
+	.set_dr6 = vmx_set_dr6,
 	.set_dr7 = vmx_set_dr7,
 	.cache_reg = vmx_cache_reg,
 	.get_rflags = vmx_get_rflags,

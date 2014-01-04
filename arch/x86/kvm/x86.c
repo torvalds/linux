@@ -722,6 +722,12 @@ unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_get_cr8);
 
+static void kvm_update_dr6(struct kvm_vcpu *vcpu)
+{
+	if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
+		kvm_x86_ops->set_dr6(vcpu, vcpu->arch.dr6);
+}
+
 static void kvm_update_dr7(struct kvm_vcpu *vcpu)
 {
 	unsigned long dr7;
@@ -750,6 +756,7 @@ static int __kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 		if (val & 0xffffffff00000000ULL)
 			return -1; /* #GP */
 		vcpu->arch.dr6 = (val & DR6_VOLATILE) | DR6_FIXED_1;
+		kvm_update_dr6(vcpu);
 		break;
 	case 5:
 		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
@@ -791,7 +798,10 @@ static int _kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
 			return 1;
 		/* fall through */
 	case 6:
-		*val = vcpu->arch.dr6;
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+			*val = vcpu->arch.dr6;
+		else
+			*val = kvm_x86_ops->get_dr6(vcpu);
 		break;
 	case 5:
 		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
@@ -2960,8 +2970,11 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 static void kvm_vcpu_ioctl_x86_get_debugregs(struct kvm_vcpu *vcpu,
 					     struct kvm_debugregs *dbgregs)
 {
+	unsigned long val;
+
 	memcpy(dbgregs->db, vcpu->arch.db, sizeof(vcpu->arch.db));
-	dbgregs->dr6 = vcpu->arch.dr6;
+	_kvm_get_dr(vcpu, 6, &val);
+	dbgregs->dr6 = val;
 	dbgregs->dr7 = vcpu->arch.dr7;
 	dbgregs->flags = 0;
 	memset(&dbgregs->reserved, 0, sizeof(dbgregs->reserved));
@@ -2975,6 +2988,7 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 
 	memcpy(vcpu->arch.db, dbgregs->db, sizeof(vcpu->arch.db));
 	vcpu->arch.dr6 = dbgregs->dr6;
+	kvm_update_dr6(vcpu);
 	vcpu->arch.dr7 = dbgregs->dr7;
 	kvm_update_dr7(vcpu);
 
@@ -6749,6 +6763,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	memset(vcpu->arch.db, 0, sizeof(vcpu->arch.db));
 	vcpu->arch.dr6 = DR6_FIXED_1;
+	kvm_update_dr6(vcpu);
 	vcpu->arch.dr7 = DR7_FIXED_1;
 	kvm_update_dr7(vcpu);
 
