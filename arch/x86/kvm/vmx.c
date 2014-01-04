@@ -2455,6 +2455,8 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 	return 1;
 }
 
+static void vmx_leave_nested(struct kvm_vcpu *vcpu);
+
 static int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	u32 msr_index = msr_info->index;
@@ -2470,6 +2472,8 @@ static int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 				& FEATURE_CONTROL_LOCKED)
 			return 0;
 		to_vmx(vcpu)->nested.msr_ia32_feature_control = data;
+		if (host_initialized && data == 0)
+			vmx_leave_nested(vcpu);
 		return 1;
 	}
 
@@ -8501,6 +8505,16 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu)
 		nested_vmx_succeed(vcpu);
 	if (enable_shadow_vmcs)
 		vmx->nested.sync_shadow_vmcs = true;
+}
+
+/*
+ * Forcibly leave nested mode in order to be able to reset the VCPU later on.
+ */
+static void vmx_leave_nested(struct kvm_vcpu *vcpu)
+{
+	if (is_guest_mode(vcpu))
+		nested_vmx_vmexit(vcpu);
+	free_nested(to_vmx(vcpu));
 }
 
 /*
