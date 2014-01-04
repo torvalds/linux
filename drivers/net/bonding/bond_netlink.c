@@ -43,6 +43,9 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_MIN_LINKS]		= { .type = NLA_U32 },
 	[IFLA_BOND_LP_INTERVAL]		= { .type = NLA_U32 },
 	[IFLA_BOND_PACKETS_PER_SLAVE]	= { .type = NLA_U32 },
+	[IFLA_BOND_AD_LACP_RATE]	= { .type = NLA_U8 },
+	[IFLA_BOND_AD_SELECT]		= { .type = NLA_U8 },
+	[IFLA_BOND_AD_INFO]		= { .type = NLA_NESTED },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -252,6 +255,22 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_AD_LACP_RATE]) {
+		int lacp_rate =
+			nla_get_u8(data[IFLA_BOND_AD_LACP_RATE]);
+
+		err = bond_option_lacp_rate_set(bond, lacp_rate);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_AD_SELECT]) {
+		int ad_select =
+			nla_get_u8(data[IFLA_BOND_AD_SELECT]);
+
+		err = bond_option_ad_select_set(bond, ad_select);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -277,6 +296,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_USE_CARRIER */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_INTERVAL */
 						/* IFLA_BOND_ARP_IP_TARGET */
+		nla_total_size(sizeof(struct nlattr)) +
 		nla_total_size(sizeof(u32)) * BOND_MAX_ARP_TARGETS +
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_VALIDATE */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_ALL_TARGETS */
@@ -290,6 +310,14 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_MIN_LINKS */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_LP_INTERVAL */
 		nla_total_size(sizeof(u32)) +  /* IFLA_BOND_PACKETS_PER_SLAVE */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_AD_LACP_RATE */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_AD_SELECT */
+		nla_total_size(sizeof(struct nlattr)) + /* IFLA_BOND_AD_INFO */
+		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_INFO_AGGREGATOR */
+		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_INFO_NUM_PORTS */
+		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_INFO_ACTOR_KEY */
+		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_INFO_PARTNER_KEY*/
+		nla_total_size(ETH_ALEN) +    /* IFLA_BOND_AD_INFO_PARTNER_MAC*/
 		0;
 }
 
@@ -394,6 +422,45 @@ static int bond_fill_info(struct sk_buff *skb,
 	if (nla_put_u32(skb, IFLA_BOND_PACKETS_PER_SLAVE,
 			packets_per_slave))
 		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_AD_LACP_RATE,
+		       bond->params.lacp_fast))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_AD_SELECT,
+		       bond->params.ad_select))
+		goto nla_put_failure;
+
+	if (bond->params.mode == BOND_MODE_8023AD) {
+		struct ad_info info;
+
+		if (!bond_3ad_get_active_agg_info(bond, &info)) {
+			struct nlattr *nest;
+
+			nest = nla_nest_start(skb, IFLA_BOND_AD_INFO);
+			if (!nest)
+				goto nla_put_failure;
+
+			if (nla_put_u16(skb, IFLA_BOND_AD_INFO_AGGREGATOR,
+					info.aggregator_id))
+				goto nla_put_failure;
+			if (nla_put_u16(skb, IFLA_BOND_AD_INFO_NUM_PORTS,
+					info.ports))
+				goto nla_put_failure;
+			if (nla_put_u16(skb, IFLA_BOND_AD_INFO_ACTOR_KEY,
+					info.actor_key))
+				goto nla_put_failure;
+			if (nla_put_u16(skb, IFLA_BOND_AD_INFO_PARTNER_KEY,
+					info.partner_key))
+				goto nla_put_failure;
+			if (nla_put(skb, IFLA_BOND_AD_INFO_PARTNER_MAC,
+				    sizeof(info.partner_system),
+				    &info.partner_system))
+				goto nla_put_failure;
+
+			nla_nest_end(skb, nest);
+		}
+	}
 
 	return 0;
 

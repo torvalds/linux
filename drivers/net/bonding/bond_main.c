@@ -3933,6 +3933,29 @@ static void bond_uninit(struct net_device *bond_dev)
 
 /*------------------------- Module initialization ---------------------------*/
 
+int bond_parm_tbl_lookup(int mode, const struct bond_parm_tbl *tbl)
+{
+	int i;
+
+	for (i = 0; tbl[i].modename; i++)
+		if (mode == tbl[i].mode)
+			return tbl[i].mode;
+
+	return -1;
+}
+
+static int bond_parm_tbl_lookup_name(const char *modename,
+				     const struct bond_parm_tbl *tbl)
+{
+	int i;
+
+	for (i = 0; tbl[i].modename; i++)
+		if (strcmp(modename, tbl[i].modename) == 0)
+			return tbl[i].mode;
+
+	return -1;
+}
+
 /*
  * Convert string input module parms.  Accept either the
  * number of the mode or its string name.  A bit complicated because
@@ -3941,27 +3964,17 @@ static void bond_uninit(struct net_device *bond_dev)
  */
 int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 {
-	int modeint = -1, i, rv;
-	char *p, modestr[BOND_MAX_MODENAME_LEN + 1] = { 0, };
+	int modeint;
+	char *p, modestr[BOND_MAX_MODENAME_LEN + 1];
 
 	for (p = (char *)buf; *p; p++)
 		if (!(isdigit(*p) || isspace(*p)))
 			break;
 
-	if (*p)
-		rv = sscanf(buf, "%20s", modestr);
-	else
-		rv = sscanf(buf, "%d", &modeint);
-
-	if (!rv)
-		return -1;
-
-	for (i = 0; tbl[i].modename; i++) {
-		if (modeint == tbl[i].mode)
-			return tbl[i].mode;
-		if (strcmp(modestr, tbl[i].modename) == 0)
-			return tbl[i].mode;
-	}
+	if (*p && sscanf(buf, "%20s", modestr) != 0)
+		return bond_parm_tbl_lookup_name(modestr, tbl);
+	else if (sscanf(buf, "%d", &modeint) != 0)
+		return bond_parm_tbl_lookup(modeint, tbl);
 
 	return -1;
 }
