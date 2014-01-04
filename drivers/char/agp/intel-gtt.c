@@ -181,8 +181,7 @@ static int i810_setup(void)
 		return -ENOMEM;
 	intel_private.i81x_gtt_table = gtt_table;
 
-	pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &reg_addr);
-	reg_addr &= 0xfff80000;
+	reg_addr = pci_bus_address(intel_private.pcidev, I810_MMADR_BAR);
 
 	intel_private.registers = ioremap(reg_addr, KB(64));
 	if (!intel_private.registers)
@@ -785,8 +784,7 @@ static int i830_setup(void)
 {
 	u32 reg_addr;
 
-	pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &reg_addr);
-	reg_addr &= 0xfff80000;
+	reg_addr = pci_bus_address(intel_private.pcidev, I810_MMADR_BAR);
 
 	intel_private.registers = ioremap(reg_addr, KB(64));
 	if (!intel_private.registers)
@@ -1107,9 +1105,7 @@ static int i9xx_setup(void)
 	u32 reg_addr, gtt_addr;
 	int size = KB(512);
 
-	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &reg_addr);
-
-	reg_addr &= 0xfff80000;
+	reg_addr = pci_bus_address(intel_private.pcidev, I915_MMADR_BAR);
 
 	intel_private.registers = ioremap(reg_addr, size);
 	if (!intel_private.registers)
