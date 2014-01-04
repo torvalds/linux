@@ -115,7 +115,7 @@
 /* intel 915G registers */
 #define I915_GMADR_BAR	2
 #define I915_MMADR_BAR	0
-#define I915_PTEADDR	0x1C
+#define I915_PTE_BAR	3
 #define I915_GMCH_GMS_STOLEN_48M	(0x6 << 4)
 #define I915_GMCH_GMS_STOLEN_64M	(0x7 << 4)
 #define G33_GMCH_GMS_STOLEN_128M	(0x8 << 4)

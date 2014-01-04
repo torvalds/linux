@@ -1102,7 +1102,7 @@ static void i965_write_entry(dma_addr_t addr,
 
 static int i9xx_setup(void)
 {
-	u32 reg_addr, gtt_addr;
+	u32 reg_addr;
 	int size = KB(512);
 
 	reg_addr = pci_bus_address(intel_private.pcidev, I915_MMADR_BAR);
@@ -1113,9 +1113,8 @@ static int i9xx_setup(void)
 
 	switch (INTEL_GTT_GEN) {
 	case 3:
-		pci_read_config_dword(intel_private.pcidev,
-				      I915_PTEADDR, &gtt_addr);
-		intel_private.gtt_phys_addr = gtt_addr;
+		intel_private.gtt_phys_addr =
+			pci_bus_address(intel_private.pcidev, I915_PTE_BAR);
 		break;
 	case 5:
 		intel_private.gtt_phys_addr = reg_addr + MB(2);
