@@ -221,7 +221,6 @@ void tipc_link_send_duplicate(struct tipc_link *l_ptr, struct tipc_link *dest);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
 int tipc_link_is_up(struct tipc_link *l_ptr);
 int tipc_link_is_active(struct tipc_link *l_ptr);
-u32 tipc_link_push_packet(struct tipc_link *l_ptr);
 void tipc_link_stop(struct tipc_link *l_ptr);
 struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space, u16 cmd);
 struct sk_buff *tipc_link_cmd_show_stats(const void *req_tlv_area, int req_tlv_space);

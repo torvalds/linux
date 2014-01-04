@@ -1169,7 +1169,7 @@ reject:
 /*
  * tipc_link_push_packet: Push one unsent packet to the media
  */
-u32 tipc_link_push_packet(struct tipc_link *l_ptr)
+static u32 tipc_link_push_packet(struct tipc_link *l_ptr)
 {
 	struct sk_buff *buf = l_ptr->first_out;
 	u32 r_q_size = l_ptr->retransm_queue_size;
