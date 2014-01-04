@@ -118,8 +118,7 @@ static int vprbrd_i2c_addr(struct usb_device *usb_dev,
 static int vprbrd_i2c_read(struct vprbrd *vb, struct i2c_msg *msg)
 {
 	int ret;
-	u16 remain_len, bytes_xfer, len1, len2,
-		start = 0x0000;
+	u16 remain_len, len1, len2, start = 0x0000;
 	struct vprbrd_i2c_read_msg *rmsg =
 		(struct vprbrd_i2c_read_msg *)vb->buf;
 
@@ -166,7 +165,6 @@ static int vprbrd_i2c_read(struct vprbrd *vb, struct i2c_msg *msg)
 			rmsg->header.len3 = remain_len - 512;
 			rmsg->header.len4 = 0x00;
 			rmsg->header.len5 = 0x00;
-			bytes_xfer = remain_len;
 			remain_len = 0;
 		} else if (remain_len <= 1022) {
 			len1 = 512;
