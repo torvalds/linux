@@ -287,7 +287,7 @@ PKnownBSS BSSpAddrIsInBSSList(struct vnt_private *pDevice,
 	}
 
 	return NULL;
-};
+}
 
 /*
  * Routine Description:
@@ -677,7 +677,7 @@ void BSSvCreateOneNode(struct vnt_private *pDevice, u32 *puNodeIndex)
 	pMgmt->sNodeDBTable[*puNodeIndex].byAuthSequence = 0;
 	pMgmt->sNodeDBTable[*puNodeIndex].wEnQueueCnt = 0;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Create node index = %d\n", ii);
-};
+}
 
 /*
  * Routine Description:
@@ -699,7 +699,7 @@ void BSSvRemoveOneNode(struct vnt_private *pDevice, u32 uNodeIndex)
 	memset(&pMgmt->sNodeDBTable[uNodeIndex], 0, sizeof(KnownNodeDB));
 	/* clear tx bit map */
 	pMgmt->abyPSTxMap[pMgmt->sNodeDBTable[uNodeIndex].wAID >> 3] &=  ~byMask[pMgmt->sNodeDBTable[uNodeIndex].wAID & 7];
-};
+}
 
 /*
  * Routine Description:
@@ -746,7 +746,7 @@ void BSSvUpdateAPNode(struct vnt_private *pDevice,
 	 * RATEbInit(pDevice); */
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pMgmt->sNodeDBTable[0].wTxDataRate = %d \n", pMgmt->sNodeDBTable[0].wTxDataRate);
 
-};
+}
 
 /*
  * Routine Description:
@@ -778,7 +778,7 @@ void BSSvAddMulticastNode(struct vnt_private *pDevice)
 	pMgmt->sNodeDBTable[0].wTxDataRate = pMgmt->sNodeDBTable[0].wMaxBasicRate;
 	pMgmt->sNodeDBTable[0].uRatePollTimeout = FALLBACK_POLL_SECOND;
 
-};
+}
 
 /*
  * Routine Description:
@@ -1081,7 +1081,7 @@ void BSSvSecondCallBack(struct work_struct *work)
 				bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 				bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
 				pDevice->uAutoReConnectTime = 0;
-			};
+			}
 		}
 		if (pMgmt->eCurrState == WMAC_STATE_JOINTED) {
 
@@ -1307,7 +1307,7 @@ void BSSvClearNodeDBTable(struct vnt_private *pDevice, u32 uStartIndex)
 			memset(&pMgmt->sNodeDBTable[ii], 0, sizeof(KnownNodeDB));
 		}
 	}
-};
+}
 
 static void s_vCheckSensitivity(struct vnt_private *pDevice)
 {
