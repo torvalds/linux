@@ -33,6 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c/twl.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 /*
  * The TWL4030 family chips include a keypad controller that supports
@@ -60,6 +61,7 @@
 struct twl4030_keypad {
 	unsigned short	keymap[TWL4030_KEYMAP_SIZE];
 	u16		kp_state[TWL4030_MAX_ROWS];
+	bool		autorepeat;
 	unsigned	n_rows;
 	unsigned	n_cols;
 	unsigned	irq;
@@ -331,19 +333,11 @@ static int twl4030_kp_program(struct twl4030_keypad *kp)
 static int twl4030_kp_probe(struct platform_device *pdev)
 {
 	struct twl4030_keypad_data *pdata = dev_get_platdata(&pdev->dev);
-	const struct matrix_keymap_data *keymap_data;
+	const struct matrix_keymap_data *keymap_data = NULL;
 	struct twl4030_keypad *kp;
 	struct input_dev *input;
 	u8 reg;
 	int error;
-
-	if (!pdata || !pdata->rows || !pdata->cols || !pdata->keymap_data ||
-	    pdata->rows > TWL4030_MAX_ROWS || pdata->cols > TWL4030_MAX_COLS) {
-		dev_err(&pdev->dev, "Invalid platform_data\n");
-		return -EINVAL;
-	}
-
-	keymap_data = pdata->keymap_data;
 
 	kp = kzalloc(sizeof(*kp), GFP_KERNEL);
 	input = input_allocate_device();
@@ -352,13 +346,9 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	/* Get the debug Device */
-	kp->dbg_dev = &pdev->dev;
-	kp->input = input;
-
-	kp->n_rows = pdata->rows;
-	kp->n_cols = pdata->cols;
-	kp->irq = platform_get_irq(pdev, 0);
+	/* get the debug device */
+	kp->dbg_dev		= &pdev->dev;
+	kp->input		= input;
 
 	/* setup input device */
 	input->name		= "TWL4030 Keypad";
@@ -369,6 +359,40 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	input->id.vendor	= 0x0001;
 	input->id.product	= 0x0001;
 	input->id.version	= 0x0003;
+
+	if (pdata) {
+		if (!pdata->rows || !pdata->cols || !pdata->keymap_data) {
+			dev_err(&pdev->dev, "Missing platform_data\n");
+			error = -EINVAL;
+			goto err1;
+		}
+
+		kp->n_rows = pdata->rows;
+		kp->n_cols = pdata->cols;
+		kp->autorepeat = pdata->rep;
+		keymap_data = pdata->keymap_data;
+	} else {
+		error = matrix_keypad_parse_of_params(&pdev->dev, &kp->n_rows,
+						      &kp->n_cols);
+		if (error)
+			goto err1;
+
+		kp->autorepeat = true;
+	}
+
+	if (kp->n_rows > TWL4030_MAX_ROWS || kp->n_cols > TWL4030_MAX_COLS) {
+		dev_err(&pdev->dev,
+			"Invalid rows/cols amount specified in platform/devicetree data\n");
+		error = -EINVAL;
+		goto err1;
+	}
+
+	kp->irq = platform_get_irq(pdev, 0);
+	if (!kp->irq) {
+		dev_err(&pdev->dev, "no keyboard irq assigned\n");
+		error = -EINVAL;
+		goto err1;
+	}
 
 	error = matrix_keypad_build_keymap(keymap_data, NULL,
 					   TWL4030_MAX_ROWS,
@@ -381,7 +405,7 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
 	/* Enable auto repeat feature of Linux input subsystem */
-	if (pdata->rep)
+	if (kp->autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
 	error = input_register_device(input);
@@ -443,6 +467,14 @@ static int twl4030_kp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id twl4030_keypad_dt_match_table[] = {
+	{ .compatible = "ti,twl4030-keypad" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, twl4030_keypad_dt_match_table);
+#endif
+
 /*
  * NOTE: twl4030 are multi-function devices connected via I2C.
  * So this device is a child of an I2C parent, thus it needs to
@@ -455,6 +487,7 @@ static struct platform_driver twl4030_kp_driver = {
 	.driver		= {
 		.name	= "twl4030_keypad",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(twl4030_keypad_dt_match_table),
 	},
 };
 module_platform_driver(twl4030_kp_driver);
