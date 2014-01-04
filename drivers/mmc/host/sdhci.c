@@ -2026,12 +2026,11 @@ out:
 			host->tuning_count * HZ);
 		/* Tuning mode 1 limits the maximum data length to 4MB */
 		mmc->max_blk_count = (4 * 1024 * 1024) / mmc->max_blk_size;
-	} else {
+	} else if (host->flags & SDHCI_USING_RETUNING_TIMER) {
 		host->flags &= ~SDHCI_NEEDS_RETUNING;
 		/* Reload the new initial value for timer */
-		if (host->tuning_mode == SDHCI_TUNING_MODE_1)
-			mod_timer(&host->tuning_timer, jiffies +
-				host->tuning_count * HZ);
+		mod_timer(&host->tuning_timer, jiffies +
+			  host->tuning_count * HZ);
 	}
 
 	/*
