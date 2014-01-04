@@ -305,7 +305,7 @@ static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 	}
 
 	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
-		struct macvlan_pcpu_stats *pcpu_stats;
+		struct vlan_pcpu_stats *pcpu_stats;
 
 		pcpu_stats = this_cpu_ptr(vlan->pcpu_stats);
 		u64_stats_update_begin(&pcpu_stats->syncp);
@@ -545,12 +545,12 @@ static int macvlan_init(struct net_device *dev)
 
 	macvlan_set_lockdep_class(dev);
 
-	vlan->pcpu_stats = alloc_percpu(struct macvlan_pcpu_stats);
+	vlan->pcpu_stats = alloc_percpu(struct vlan_pcpu_stats);
 	if (!vlan->pcpu_stats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct macvlan_pcpu_stats *mvlstats;
+		struct vlan_pcpu_stats *mvlstats;
 		mvlstats = per_cpu_ptr(vlan->pcpu_stats, i);
 		u64_stats_init(&mvlstats->syncp);
 	}
@@ -576,7 +576,7 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 	struct macvlan_dev *vlan = netdev_priv(dev);
 
 	if (vlan->pcpu_stats) {
-		struct macvlan_pcpu_stats *p;
+		struct vlan_pcpu_stats *p;
 		u64 rx_packets, rx_bytes, rx_multicast, tx_packets, tx_bytes;
 		u32 rx_errors = 0, tx_dropped = 0;
 		unsigned int start;
