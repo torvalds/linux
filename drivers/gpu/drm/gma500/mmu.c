@@ -18,6 +18,7 @@
 #include <drm/drmP.h>
 #include "psb_drv.h"
 #include "psb_reg.h"
+#include "mmu.h"
 
 /*
  * Code for the SGX MMU:
@@ -46,50 +47,6 @@
  * If it fails, the caller need to insert the page using a workqueue function,
  * but on average it should be fast.
  */
-
-struct psb_mmu_driver {
-	/* protects driver- and pd structures. Always take in read mode
-	 * before taking the page table spinlock.
-	 */
-	struct rw_semaphore sem;
-
-	/* protects page tables, directory tables and pt tables.
-	 * and pt structures.
-	 */
-	spinlock_t lock;
-
-	atomic_t needs_tlbflush;
-	atomic_t *msvdx_mmu_invaldc;
-	struct psb_mmu_pd *default_pd;
-	uint32_t bif_ctrl;
-	int has_clflush;
-	int clflush_add;
-	unsigned long clflush_mask;
-
-	struct drm_device *dev;
-};
-
-struct psb_mmu_pd;
-
-struct psb_mmu_pt {
-	struct psb_mmu_pd *pd;
-	uint32_t index;
-	uint32_t count;
-	struct page *p;
-	uint32_t *v;
-};
-
-struct psb_mmu_pd {
-	struct psb_mmu_driver *driver;
-	int hw_context;
-	struct psb_mmu_pt **tables;
-	struct page *p;
-	struct page *dummy_pt;
-	struct page *dummy_page;
-	uint32_t pd_mask;
-	uint32_t invalid_pde;
-	uint32_t invalid_pte;
-};
 
 static inline uint32_t psb_mmu_pt_index(uint32_t offset)
 {

@@ -33,6 +33,7 @@
 #include "power.h"
 #include "opregion.h"
 #include "oaktrail.h"
+#include "mmu.h"
 
 /* Append new drm mode definition here, align with libdrm definition */
 #define DRM_MODE_SCALE_NO_SCALE   	2
@@ -713,8 +714,6 @@ struct psb_ops {
 
 
 
-struct psb_mmu_driver;
-
 extern int drm_crtc_probe_output_modes(struct drm_device *dev, int, int);
 extern int drm_pick_crtcs(struct drm_device *dev);
 
@@ -723,48 +722,6 @@ static inline struct drm_psb_private *psb_priv(struct drm_device *dev)
 	return (struct drm_psb_private *) dev->dev_private;
 }
 
-/*
- * MMU stuff.
- */
-
-extern struct psb_mmu_driver *psb_mmu_driver_init(struct drm_device *dev,
-						  int trap_pagefaults,
-						  int invalid_type,
-						  atomic_t *msvdx_mmu_invaldc);
-extern void psb_mmu_driver_takedown(struct psb_mmu_driver *driver);
-extern struct psb_mmu_pd *psb_mmu_get_default_pd(struct psb_mmu_driver
-						 *driver);
-extern void psb_mmu_mirror_gtt(struct psb_mmu_pd *pd, uint32_t mmu_offset,
-			       uint32_t gtt_start, uint32_t gtt_pages);
-extern struct psb_mmu_pd *psb_mmu_alloc_pd(struct psb_mmu_driver *driver,
-					   int trap_pagefaults,
-					   int invalid_type);
-extern void psb_mmu_free_pagedir(struct psb_mmu_pd *pd);
-extern void psb_mmu_flush(struct psb_mmu_driver *driver);
-extern void psb_mmu_remove_pfn_sequence(struct psb_mmu_pd *pd,
-					unsigned long address,
-					uint32_t num_pages);
-extern int psb_mmu_insert_pfn_sequence(struct psb_mmu_pd *pd,
-				       uint32_t start_pfn,
-				       unsigned long address,
-				       uint32_t num_pages, int type);
-extern int psb_mmu_virtual_to_pfn(struct psb_mmu_pd *pd, uint32_t virtual,
-				  unsigned long *pfn);
-
-/*
- * Enable / disable MMU for different requestors.
- */
-
-
-extern void psb_mmu_set_pd_context(struct psb_mmu_pd *pd, int hw_context);
-extern int psb_mmu_insert_pages(struct psb_mmu_pd *pd, struct page **pages,
-				unsigned long address, uint32_t num_pages,
-				uint32_t desired_tile_stride,
-				uint32_t hw_tile_stride, int type);
-extern void psb_mmu_remove_pages(struct psb_mmu_pd *pd,
-				 unsigned long address, uint32_t num_pages,
-				 uint32_t desired_tile_stride,
-				 uint32_t hw_tile_stride);
 /*
  *psb_irq.c
  */
