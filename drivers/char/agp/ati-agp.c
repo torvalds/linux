@@ -211,10 +211,10 @@ static int ati_configure(void)
 	else
 		pci_write_config_dword(agp_bridge->dev, ATI_RS300_IG_AGPMODE, 0x20000);
 
-	/* address to map too */
+	/* address to map to */
 	/*
-	pci_read_config_dword(agp_bridge.dev, AGP_APBASE, &temp);
-	agp_bridge.gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+	agp_bridge.gart_bus_addr = pci_bus_address(agp_bridge.dev,
+						   AGP_APERTURE_BAR);
 	printk(KERN_INFO PFX "IGP320 gart_bus_addr: %x\n", agp_bridge.gart_bus_addr);
 	*/
 	writel(0x60000, ati_generic_private.registers+ATI_GART_FEATURE_ID);
@@ -385,8 +385,7 @@ static int ati_create_gatt_table(struct agp_bridge_data *bridge)
 	 * This is a bus address even on the alpha, b/c its
 	 * used to program the agp master not the cpu
 	 */
-	pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &temp);
-	addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+	addr = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
 	agp_bridge->gart_bus_addr = addr;
 
 	/* Calculate the agp offset */

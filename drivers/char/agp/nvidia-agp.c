@@ -115,9 +115,8 @@ static int nvidia_configure(void)
 	pci_write_config_byte(agp_bridge->dev, NVIDIA_0_APSIZE,
 		current_size->size_value);
 
-    /* address to map to */
-	pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &apbase);
-	apbase &= PCI_BASE_ADDRESS_MEM_MASK;
+	/* address to map to */
+	apbase = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
 	agp_bridge->gart_bus_addr = apbase;
 	aplimit = apbase + (current_size->size * 1024 * 1024) - 1;
 	pci_write_config_dword(nvidia_private.dev_2, NVIDIA_2_APBASE, apbase);

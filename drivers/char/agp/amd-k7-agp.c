@@ -126,7 +126,6 @@ static int amd_create_gatt_table(struct agp_bridge_data *bridge)
 	unsigned long __iomem *cur_gatt;
 	unsigned long addr;
 	int retval;
-	u32 temp;
 	int i;
 
 	value = A_SIZE_LVL2(agp_bridge->current_size);
@@ -149,8 +148,7 @@ static int amd_create_gatt_table(struct agp_bridge_data *bridge)
 	 * used to program the agp master not the cpu
 	 */
 
-	pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &temp);
-	addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+	addr = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
 	agp_bridge->gart_bus_addr = addr;
 
 	/* Calculate the agp offset */
