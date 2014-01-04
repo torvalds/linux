@@ -339,12 +339,13 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	u8 reg;
 	int error;
 
-	kp = kzalloc(sizeof(*kp), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!kp || !input) {
-		error = -ENOMEM;
-		goto err1;
-	}
+	kp = devm_kzalloc(&pdev->dev, sizeof(*kp), GFP_KERNEL);
+	if (!kp)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input)
+		return -ENOMEM;
 
 	/* get the debug device */
 	kp->dbg_dev		= &pdev->dev;
@@ -353,7 +354,6 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	/* setup input device */
 	input->name		= "TWL4030 Keypad";
 	input->phys		= "twl4030_keypad/input0";
-	input->dev.parent	= &pdev->dev;
 
 	input->id.bustype	= BUS_HOST;
 	input->id.vendor	= 0x0001;
@@ -363,8 +363,7 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	if (pdata) {
 		if (!pdata->rows || !pdata->cols || !pdata->keymap_data) {
 			dev_err(&pdev->dev, "Missing platform_data\n");
-			error = -EINVAL;
-			goto err1;
+			return -EINVAL;
 		}
 
 		kp->n_rows = pdata->rows;
@@ -375,7 +374,7 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 		error = matrix_keypad_parse_of_params(&pdev->dev, &kp->n_rows,
 						      &kp->n_cols);
 		if (error)
-			goto err1;
+			return error;
 
 		kp->autorepeat = true;
 	}
@@ -383,15 +382,13 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	if (kp->n_rows > TWL4030_MAX_ROWS || kp->n_cols > TWL4030_MAX_COLS) {
 		dev_err(&pdev->dev,
 			"Invalid rows/cols amount specified in platform/devicetree data\n");
-		error = -EINVAL;
-		goto err1;
+		return -EINVAL;
 	}
 
 	kp->irq = platform_get_irq(pdev, 0);
 	if (!kp->irq) {
 		dev_err(&pdev->dev, "no keyboard irq assigned\n");
-		error = -EINVAL;
-		goto err1;
+		return -EINVAL;
 	}
 
 	error = matrix_keypad_build_keymap(keymap_data, NULL,
@@ -400,7 +397,7 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 					   kp->keymap, input);
 	if (error) {
 		dev_err(kp->dbg_dev, "Failed to build keymap\n");
-		goto err1;
+		return error;
 	}
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
@@ -412,12 +409,12 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(kp->dbg_dev,
 			"Unable to register twl4030 keypad device\n");
-		goto err1;
+		return error;
 	}
 
 	error = twl4030_kp_program(kp);
 	if (error)
-		goto err2;
+		return error;
 
 	/*
 	 * This ISR will always execute in kernel thread context because of
@@ -425,45 +422,23 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	 *
 	 * NOTE:  we assume this host is wired to TWL4040 INT1, not INT2 ...
 	 */
-	error = request_threaded_irq(kp->irq, NULL, do_kp_irq,
-			0, pdev->name, kp);
+	error = devm_request_threaded_irq(&pdev->dev, kp->irq, NULL, do_kp_irq,
+					  0, pdev->name, kp);
 	if (error) {
-		dev_info(kp->dbg_dev, "request_irq failed for irq no=%d\n",
-			kp->irq);
-		goto err2;
+		dev_info(kp->dbg_dev, "request_irq failed for irq no=%d: %d\n",
+			kp->irq, error);
+		return error;
 	}
 
 	/* Enable KP and TO interrupts now. */
 	reg = (u8) ~(KEYP_IMR1_KP | KEYP_IMR1_TO);
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_IMR1)) {
-		error = -EIO;
-		goto err3;
+		/* mask all events - we don't care about the result */
+		(void) twl4030_kpwrite_u8(kp, 0xff, KEYP_IMR1);
+		return -EIO;
 	}
 
 	platform_set_drvdata(pdev, kp);
-	return 0;
-
-err3:
-	/* mask all events - we don't care about the result */
-	(void) twl4030_kpwrite_u8(kp, 0xff, KEYP_IMR1);
-	free_irq(kp->irq, kp);
-err2:
-	input_unregister_device(input);
-	input = NULL;
-err1:
-	input_free_device(input);
-	kfree(kp);
-	return error;
-}
-
-static int twl4030_kp_remove(struct platform_device *pdev)
-{
-	struct twl4030_keypad *kp = platform_get_drvdata(pdev);
-
-	free_irq(kp->irq, kp);
-	input_unregister_device(kp->input);
-	kfree(kp);
-
 	return 0;
 }
 
@@ -483,7 +458,6 @@ MODULE_DEVICE_TABLE(of, twl4030_keypad_dt_match_table);
 
 static struct platform_driver twl4030_kp_driver = {
 	.probe		= twl4030_kp_probe,
-	.remove		= twl4030_kp_remove,
 	.driver		= {
 		.name	= "twl4030_keypad",
 		.owner	= THIS_MODULE,
