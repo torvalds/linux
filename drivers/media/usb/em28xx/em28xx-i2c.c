@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
+#include <linux/jiffies.h>
 
 #include "em28xx.h"
 #include "tuner-xc2028.h"
@@ -48,8 +49,8 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
  */
 static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM2800_I2C_XFER_TIMEOUT);
 	int ret;
-	int write_timeout;
 	u8 b2[6];
 
 	if (len < 1 || len > 4)
@@ -74,14 +75,14 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 		return (ret < 0) ? ret : -EIO;
 	}
 	/* wait for completion */
-	for (write_timeout = EM2800_I2C_XFER_TIMEOUT; write_timeout > 0;
-	     write_timeout -= 5) {
+	while (time_is_after_jiffies(timeout)) {
 		ret = dev->em28xx_read_reg(dev, 0x05);
-		if (ret == 0x80 + len - 1) {
+		if (ret == 0x80 + len - 1)
 			return len;
-		} else if (ret == 0x94 + len - 1) {
+		if (ret == 0x94 + len - 1) {
 			return -ENODEV;
-		} else if (ret < 0) {
+		}
+		if (ret < 0) {
 			em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
 				    ret);
 			return ret;
@@ -98,9 +99,9 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
  */
 static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM2800_I2C_XFER_TIMEOUT);
 	u8 buf2[4];
 	int ret;
-	int read_timeout;
 	int i;
 
 	if (len < 1 || len > 4)
@@ -117,14 +118,14 @@ static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 	}
 
 	/* wait for completion */
-	for (read_timeout = EM2800_I2C_XFER_TIMEOUT; read_timeout > 0;
-	     read_timeout -= 5) {
+	while (time_is_after_jiffies(timeout)) {
 		ret = dev->em28xx_read_reg(dev, 0x05);
-		if (ret == 0x84 + len - 1) {
+		if (ret == 0x84 + len - 1)
 			break;
-		} else if (ret == 0x94 + len - 1) {
+		if (ret == 0x94 + len - 1) {
 			return -ENODEV;
-		} else if (ret < 0) {
+		}
+		if (ret < 0) {
 			em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
 				    ret);
 			return ret;
@@ -168,7 +169,8 @@ static int em2800_i2c_check_for_device(struct em28xx *dev, u8 addr)
 static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 				 u16 len, int stop)
 {
-	int write_timeout, ret;
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM2800_I2C_XFER_TIMEOUT);
+	int ret;
 
 	if (len < 1 || len > 64)
 		return -EOPNOTSUPP;
@@ -191,16 +193,16 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		}
 	}
 
-	/* Check success of the i2c operation */
-	for (write_timeout = EM2800_I2C_XFER_TIMEOUT; write_timeout > 0;
-	     write_timeout -= 5) {
+	/* wait for completion */
+	while (time_is_after_jiffies(timeout)) {
 		ret = dev->em28xx_read_reg(dev, 0x05);
-		if (ret == 0) { /* success */
+		if (ret == 0) /* success */
 			return len;
-		} else if (ret == 0x10) {
+		if (ret == 0x10) {
 			return -ENODEV;
-		} else if (ret < 0) {
-			em28xx_warn("failed to read i2c transfer status from bridge (error=%i)\n",
+		}
+		if (ret < 0) {
+			em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
 				    ret);
 			return ret;
 		}
@@ -211,6 +213,7 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		 * (even with high payload) ...
 		 */
 	}
+
 	em28xx_warn("write to i2c device at 0x%x timed out\n", addr);
 	return -EIO;
 }
@@ -248,20 +251,18 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 
 	/* Check success of the i2c operation */
 	ret = dev->em28xx_read_reg(dev, 0x05);
+	if (ret == 0) /* success */
+		return len;
 	if (ret < 0) {
-		em28xx_warn("failed to read i2c transfer status from bridge (error=%i)\n",
+		em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
 			    ret);
 		return ret;
 	}
-	if (ret > 0) {
-		if (ret == 0x10) {
-			return -ENODEV;
-		} else {
-			em28xx_warn("unknown i2c error (status=%i)\n", ret);
-			return -EIO;
-		}
-	}
-	return len;
+	if (ret == 0x10)
+		return -ENODEV;
+
+	em28xx_warn("unknown i2c error (status=%i)\n", ret);
+	return -EIO;
 }
 
 /*
