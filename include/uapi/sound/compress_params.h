@@ -364,7 +364,8 @@ struct snd_codec_desc {
  * @ch_out: Number of output channels. In case of contradiction between
  *		this field and the channelMode field, the channelMode field
  *		overrides.
- * @sample_rate: Audio sample rate of input data
+ * @sample_rate: Audio sample rate of input data in Hz, use values like 48000
+ *		for this.
  * @bit_rate: Bitrate of encoded data. May be ignored by decoders
  * @rate_control: Encoding rate control. See SND_RATECONTROLMODE defines.
  *               Encoders may rely on profiles for quality levels.
