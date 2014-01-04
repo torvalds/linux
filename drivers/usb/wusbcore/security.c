@@ -33,7 +33,8 @@ static void wusbhc_gtk_rekey_work(struct work_struct *work);
 
 int wusbhc_sec_create(struct wusbhc *wusbhc)
 {
-	wusbhc->gtk.descr.bLength = sizeof(wusbhc->gtk.descr) + sizeof(wusbhc->gtk.data);
+	wusbhc->gtk.descr.bLength = sizeof(wusbhc->gtk.descr) +
+		sizeof(wusbhc->gtk.data);
 	wusbhc->gtk.descr.bDescriptorType = USB_DT_KEY;
 	wusbhc->gtk.descr.bReserved = 0;
 	wusbhc->gtk_index = 0;
@@ -138,7 +139,7 @@ const char *wusb_et_name(u8 x)
 	case USB_ENC_TYPE_WIRED:	return "wired";
 	case USB_ENC_TYPE_CCM_1:	return "CCM-1";
 	case USB_ENC_TYPE_RSA_1:	return "RSA-1";
-	default: 			return "unknown";
+	default:			return "unknown";
 	}
 }
 EXPORT_SYMBOL_GPL(wusb_et_name);
@@ -222,7 +223,8 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 	secd_size = le16_to_cpu(secd->wTotalLength);
 	new_secd = krealloc(secd, secd_size, GFP_KERNEL);
 	if (new_secd == NULL) {
-		dev_err(dev, "Can't allocate space for security descriptors\n");
+		dev_err(dev,
+			"Can't allocate space for security descriptors\n");
 		goto out;
 	}
 	secd = new_secd;
@@ -377,7 +379,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	hs[0].bReserved = 0;
 	memcpy(hs[0].CDID, &wusb_dev->cdid, sizeof(hs[0].CDID));
 	get_random_bytes(&hs[0].nonce, sizeof(hs[0].nonce));
-	memset(hs[0].MIC, 0, sizeof(hs[0].MIC));	/* Per WUSB1.0[T7-22] */
+	memset(hs[0].MIC, 0, sizeof(hs[0].MIC)); /* Per WUSB1.0[T7-22] */
 
 	result = usb_control_msg(
 		usb_dev, usb_sndctrlpipe(usb_dev, 0),
@@ -424,7 +426,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	}
 
 	/* Setup the CCM nonce */
-	memset(&ccm_n.sfn, 0, sizeof(ccm_n.sfn));	/* Per WUSB1.0[6.5.2] */
+	memset(&ccm_n.sfn, 0, sizeof(ccm_n.sfn)); /* Per WUSB1.0[6.5.2] */
 	memcpy(ccm_n.tkid, &tkid_le, sizeof(ccm_n.tkid));
 	ccm_n.src_addr = wusbhc->uwb_rc->uwb_dev.dev_addr;
 	ccm_n.dest_addr.data[0] = wusb_dev->addr;
@@ -555,11 +557,13 @@ static void wusbhc_gtk_rekey_work(struct work_struct *work)
 	list_for_each_entry_safe(wusb_dev, wusb_dev_next, &rekey_list,
 		rekey_node) {
 		list_del_init(&wusb_dev->rekey_node);
-		dev_dbg(&wusb_dev->usb_dev->dev, "%s: rekey device at port %d\n",
+		dev_dbg(&wusb_dev->usb_dev->dev,
+			"%s: rekey device at port %d\n",
 			__func__, wusb_dev->port_idx);
 
 		if (wusb_dev_set_gtk(wusbhc, wusb_dev) < 0) {
-			dev_err(&wusb_dev->usb_dev->dev, "%s: rekey device at port %d failed\n",
+			dev_err(&wusb_dev->usb_dev->dev,
+				"%s: rekey device at port %d failed\n",
 				__func__, wusb_dev->port_idx);
 		}
 		wusb_dev_put(wusb_dev);
