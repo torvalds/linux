@@ -37,6 +37,7 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/brcmphy.h>
+#include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -94,10 +95,10 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 
 #define DRV_MODULE_NAME		"tg3"
 #define TG3_MAJ_NUM			3
-#define TG3_MIN_NUM			135
+#define TG3_MIN_NUM			136
 #define DRV_MODULE_VERSION	\
 	__stringify(TG3_MAJ_NUM) "." __stringify(TG3_MIN_NUM)
-#define DRV_MODULE_RELDATE	"Nov 14, 2013"
+#define DRV_MODULE_RELDATE	"Jan 03, 2014"
 
 #define RESET_KIND_SHUTDOWN	0
 #define RESET_KIND_INIT		1
@@ -207,6 +208,9 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 #define TG3_TX_BD_DMA_MAX_4K		4096
 
 #define TG3_RAW_IP_ALIGN 2
+
+#define TG3_MAX_UCAST_ADDR(tp) (tg3_flag((tp), ENABLE_ASF) ? 2 : 3)
+#define TG3_UCAST_ADDR_IDX(tp) (tg3_flag((tp), ENABLE_ASF) ? 2 : 1)
 
 #define TG3_FW_UPDATE_TIMEOUT_SEC	5
 #define TG3_FW_UPDATE_FREQ_SEC		(TG3_FW_UPDATE_TIMEOUT_SEC / 2)
@@ -3948,32 +3952,41 @@ static int tg3_load_tso_firmware(struct tg3 *tp)
 	return 0;
 }
 
+/* tp->lock is held. */
+static void __tg3_set_one_mac_addr(struct tg3 *tp, u8 *mac_addr, int index)
+{
+	u32 addr_high, addr_low;
+
+	addr_high = ((mac_addr[0] << 8) | mac_addr[1]);
+	addr_low = ((mac_addr[2] << 24) | (mac_addr[3] << 16) |
+		    (mac_addr[4] <<  8) | mac_addr[5]);
+
+	if (index < 4) {
+		tw32(MAC_ADDR_0_HIGH + (index * 8), addr_high);
+		tw32(MAC_ADDR_0_LOW + (index * 8), addr_low);
+	} else {
+		index -= 4;
+		tw32(MAC_EXTADDR_0_HIGH + (index * 8), addr_high);
+		tw32(MAC_EXTADDR_0_LOW + (index * 8), addr_low);
+	}
+}
 
 /* tp->lock is held. */
 static void __tg3_set_mac_addr(struct tg3 *tp, bool skip_mac_1)
 {
-	u32 addr_high, addr_low;
+	u32 addr_high;
 	int i;
 
-	addr_high = ((tp->dev->dev_addr[0] << 8) |
-		     tp->dev->dev_addr[1]);
-	addr_low = ((tp->dev->dev_addr[2] << 24) |
-		    (tp->dev->dev_addr[3] << 16) |
-		    (tp->dev->dev_addr[4] <<  8) |
-		    (tp->dev->dev_addr[5] <<  0));
 	for (i = 0; i < 4; i++) {
 		if (i == 1 && skip_mac_1)
 			continue;
-		tw32(MAC_ADDR_0_HIGH + (i * 8), addr_high);
-		tw32(MAC_ADDR_0_LOW + (i * 8), addr_low);
+		__tg3_set_one_mac_addr(tp, tp->dev->dev_addr, i);
 	}
 
 	if (tg3_asic_rev(tp) == ASIC_REV_5703 ||
 	    tg3_asic_rev(tp) == ASIC_REV_5704) {
-		for (i = 0; i < 12; i++) {
-			tw32(MAC_EXTADDR_0_HIGH + (i * 8), addr_high);
-			tw32(MAC_EXTADDR_0_LOW + (i * 8), addr_low);
-		}
+		for (i = 4; i < 16; i++)
+			__tg3_set_one_mac_addr(tp, tp->dev->dev_addr, i);
 	}
 
 	addr_high = (tp->dev->dev_addr[0] +
@@ -8928,6 +8941,49 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 	}
 }
 
+static void tg3_override_clk(struct tg3 *tp)
+{
+	u32 val;
+
+	switch (tg3_asic_rev(tp)) {
+	case ASIC_REV_5717:
+		val = tr32(TG3_CPMU_CLCK_ORIDE_ENABLE);
+		tw32(TG3_CPMU_CLCK_ORIDE_ENABLE, val |
+		     TG3_CPMU_MAC_ORIDE_ENABLE);
+		break;
+
+	case ASIC_REV_5719:
+	case ASIC_REV_5720:
+		tw32(TG3_CPMU_CLCK_ORIDE, CPMU_CLCK_ORIDE_MAC_ORIDE_EN);
+		break;
+
+	default:
+		return;
+	}
+}
+
+static void tg3_restore_clk(struct tg3 *tp)
+{
+	u32 val;
+
+	switch (tg3_asic_rev(tp)) {
+	case ASIC_REV_5717:
+		val = tr32(TG3_CPMU_CLCK_ORIDE_ENABLE);
+		tw32(TG3_CPMU_CLCK_ORIDE_ENABLE,
+		     val & ~TG3_CPMU_MAC_ORIDE_ENABLE);
+		break;
+
+	case ASIC_REV_5719:
+	case ASIC_REV_5720:
+		val = tr32(TG3_CPMU_CLCK_ORIDE);
+		tw32(TG3_CPMU_CLCK_ORIDE, val & ~CPMU_CLCK_ORIDE_MAC_ORIDE_EN);
+		break;
+
+	default:
+		return;
+	}
+}
+
 /* tp->lock is held. */
 static int tg3_chip_reset(struct tg3 *tp)
 {
@@ -9015,6 +9071,13 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tw32(GRC_VCPU_EXT_CTRL,
 		     tr32(GRC_VCPU_EXT_CTRL) & ~GRC_VCPU_EXT_CTRL_HALT_CPU);
 	}
+
+	/* Set the clock to the highest frequency to avoid timeouts. With link
+	 * aware mode, the clock speed could be slow and bootcode does not
+	 * complete within the expected time. Override the clock to allow the
+	 * bootcode to finish sooner and then restore it.
+	 */
+	tg3_override_clk(tp);
 
 	/* Manage gphy power for all CPMU absent PCIe devices. */
 	if (tg3_flag(tp, 5705_PLUS) && !tg3_flag(tp, CPMU_PRESENT))
@@ -9154,10 +9217,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tw32(0x7c00, val | (1 << 25));
 	}
 
-	if (tg3_asic_rev(tp) == ASIC_REV_5720) {
-		val = tr32(TG3_CPMU_CLCK_ORIDE);
-		tw32(TG3_CPMU_CLCK_ORIDE, val & ~CPMU_CLCK_ORIDE_MAC_ORIDE_EN);
-	}
+	tg3_restore_clk(tp);
 
 	/* Reprobe ASF enable state.  */
 	tg3_flag_clear(tp, ENABLE_ASF);
@@ -9189,6 +9249,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 static void tg3_get_nstats(struct tg3 *, struct rtnl_link_stats64 *);
 static void tg3_get_estats(struct tg3 *, struct tg3_ethtool_stats *);
+static void __tg3_set_rx_mode(struct net_device *);
 
 /* tp->lock is held. */
 static int tg3_halt(struct tg3 *tp, int kind, bool silent)
@@ -9249,6 +9310,7 @@ static int tg3_set_mac_addr(struct net_device *dev, void *p)
 	}
 	spin_lock_bh(&tp->lock);
 	__tg3_set_mac_addr(tp, skip_mac_1);
+	__tg3_set_rx_mode(dev);
 	spin_unlock_bh(&tp->lock);
 
 	return err;
@@ -9635,6 +9697,20 @@ static void __tg3_set_rx_mode(struct net_device *dev)
 		tw32(MAC_HASH_REG_1, mc_filter[1]);
 		tw32(MAC_HASH_REG_2, mc_filter[2]);
 		tw32(MAC_HASH_REG_3, mc_filter[3]);
+	}
+
+	if (netdev_uc_count(dev) > TG3_MAX_UCAST_ADDR(tp)) {
+		rx_mode |= RX_MODE_PROMISC;
+	} else if (!(dev->flags & IFF_PROMISC)) {
+		/* Add all entries into to the mac addr filter list */
+		int i = 0;
+		struct netdev_hw_addr *ha;
+
+		netdev_for_each_uc_addr(ha, dev) {
+			__tg3_set_one_mac_addr(tp, ha->addr,
+					       i + TG3_UCAST_ADDR_IDX(tp));
+			i++;
+		}
 	}
 
 	if (rx_mode != tp->rx_mode) {
@@ -10884,6 +10960,13 @@ static void tg3_timer(unsigned long __opaque)
 		} else if ((tp->phy_flags & TG3_PHYFLG_MII_SERDES) &&
 			   tg3_flag(tp, 5780_CLASS)) {
 			tg3_serdes_parallel_detect(tp);
+		} else if (tg3_flag(tp, POLL_CPMU_LINK)) {
+			u32 cpmu = tr32(TG3_CPMU_STATUS);
+			bool link_up = !((cpmu & TG3_CPMU_STATUS_LINK_MASK) ==
+					 TG3_CPMU_STATUS_LINK_MASK);
+
+			if (link_up != tp->link_up)
+				tg3_setup_phy(tp, false);
 		}
 
 		tp->timer_counter = tp->timer_multiplier;
@@ -16690,6 +16773,9 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	else
 		tg3_flag_clear(tp, POLL_SERDES);
 
+	if (tg3_flag(tp, ENABLE_APE) && tg3_flag(tp, ENABLE_ASF))
+		tg3_flag_set(tp, POLL_CPMU_LINK);
+
 	tp->rx_offset = NET_SKB_PAD + NET_IP_ALIGN;
 	tp->rx_copy_thresh = TG3_RX_COPY_THRESHOLD;
 	if (tg3_asic_rev(tp) == ASIC_REV_5701 &&
@@ -17611,6 +17697,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 		features |= NETIF_F_LOOPBACK;
 
 	dev->hw_features |= features;
+	dev->priv_flags |= IFF_UNICAST_FLT;
 
 	if (tg3_chip_rev_id(tp) == CHIPREV_ID_5705_A1 &&
 	    !tg3_flag(tp, TSO_CAPABLE) &&
