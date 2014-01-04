@@ -1295,33 +1295,8 @@ static int set_gss_proxy(struct net *net, int type)
 	else
 		ret = -EBUSY;
 	spin_unlock(&use_gssp_lock);
-	wake_up(&sn->gssp_wq);
 	return ret;
 }
-
-static inline bool gssp_ready(struct sunrpc_net *sn)
-{
-	switch (sn->use_gss_proxy) {
-		case -1:
-			return false;
-		case 0:
-			return true;
-		case 1:
-			return sn->gssp_clnt;
-	}
-	WARN_ON_ONCE(1);
-	return false;
-}
-
-static int wait_for_gss_proxy(struct net *net, struct file *file)
-{
-	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
-
-	if (file->f_flags & O_NONBLOCK && !gssp_ready(sn))
-		return -EAGAIN;
-	return wait_event_interruptible(sn->gssp_wq, gssp_ready(sn));
-}
-
 
 static ssize_t write_gssp(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
@@ -1355,16 +1330,12 @@ static ssize_t read_gssp(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct net *net = PDE_DATA(file_inode(file));
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	unsigned long p = *ppos;
 	char tbuf[10];
 	size_t len;
-	int ret;
 
-	ret = wait_for_gss_proxy(net, file);
-	if (ret)
-		return ret;
-
-	snprintf(tbuf, sizeof(tbuf), "%d\n", use_gss_proxy(net));
+	snprintf(tbuf, sizeof(tbuf), "%d\n", sn->use_gss_proxy);
 	len = strlen(tbuf);
 	if (p >= len)
 		return 0;
