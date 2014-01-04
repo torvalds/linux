@@ -197,10 +197,10 @@ struct wahc {
 	struct mutex rpipe_mutex;	/* assigning resources to endpoints */
 
 	/*
-	 * dti_state is used to track the state of the dti_urb.  When dti_state
+	 * dti_state is used to track the state of the dti_urb. When dti_state
 	 * is WA_DTI_ISOC_PACKET_STATUS_PENDING, dti_isoc_xfer_in_progress and
-	 * dti_isoc_xfer_seg identify which xfer the incoming isoc packet status
-	 * refers to.
+	 * dti_isoc_xfer_seg identify which xfer the incoming isoc packet
+	 * status refers to.
 	 */
 	enum wa_dti_state dti_state;
 	u32 dti_isoc_xfer_in_progress;
@@ -211,7 +211,7 @@ struct wahc {
 	void *dti_buf;
 	size_t dti_buf_size;
 
-	unsigned long dto_in_use;	/* protect dto endoint serialization. */
+	unsigned long dto_in_use;	/* protect dto endoint serialization */
 
 	s32 status;			/* For reading status */
 
