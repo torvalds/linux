@@ -4869,7 +4869,8 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 		dr6 = vmcs_readl(EXIT_QUALIFICATION);
 		if (!(vcpu->guest_debug &
 		      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))) {
-			vcpu->arch.dr6 = dr6 | DR6_FIXED_1;
+			vcpu->arch.dr6 &= ~15;
+			vcpu->arch.dr6 |= dr6;
 			kvm_queue_exception(vcpu, DB_VECTOR);
 			return 1;
 		}
