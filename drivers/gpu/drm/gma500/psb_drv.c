@@ -192,12 +192,18 @@ static int psb_do_init(struct drm_device *dev)
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
 	PSB_RSGX32(PSB_CR_BIF_BANK1);
-	PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) | _PSB_MMU_ER_MASK,
-							PSB_CR_BIF_CTRL);
+
+	/* Do not bypass any MMU access, let them pagefault instead */
+	PSB_WSGX32((PSB_RSGX32(PSB_CR_BIF_CTRL) & ~_PSB_MMU_ER_MASK),
+		   PSB_CR_BIF_CTRL);
+	PSB_RSGX32(PSB_CR_BIF_CTRL);
+
 	psb_spank(dev_priv);
 
 	/* mmu_gatt ?? */
 	PSB_WSGX32(pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
+	PSB_RSGX32(PSB_CR_BIF_TWOD_REQ_BASE); /* Post */
+
 	return 0;
 out_err:
 	return ret;
@@ -277,6 +283,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	int ret = -ENOMEM;
 	struct drm_connector *connector;
 	struct gma_encoder *gma_encoder;
+	struct psb_gtt *pg;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -285,6 +292,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->ops = (struct psb_ops *)chipset;
 	dev_priv->dev = dev;
 	dev->dev_private = (void *) dev_priv;
+
+	pg = &dev_priv->gtt;
 
 	pci_set_master(dev->pdev);
 
@@ -355,12 +364,20 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->pf_pd)
 		goto out_err;
 
-	psb_mmu_set_pd_context(psb_mmu_get_default_pd(dev_priv->mmu), 0);
-	psb_mmu_set_pd_context(dev_priv->pf_pd, 1);
-
 	ret = psb_do_init(dev);
 	if (ret)
 		return ret;
+
+	/* Add stolen memory to SGX MMU */
+	down_read(&pg->sem);
+	ret = psb_mmu_insert_pfn_sequence(psb_mmu_get_default_pd(dev_priv->mmu),
+					  dev_priv->stolen_base >> PAGE_SHIFT,
+					  pg->gatt_start,
+					  pg->stolen_size >> PAGE_SHIFT, 0);
+	up_read(&pg->sem);
+
+	psb_mmu_set_pd_context(psb_mmu_get_default_pd(dev_priv->mmu), 0);
+	psb_mmu_set_pd_context(dev_priv->pf_pd, 1);
 
 	PSB_WSGX32(0x20000000, PSB_CR_PDS_EXEC_BASE);
 	PSB_WSGX32(0x30000000, PSB_CR_BIF_3D_REQ_BASE);
