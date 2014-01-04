@@ -428,6 +428,8 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* If this was the last BD in the ring, start at the beginning again. */
 	bdp = fec_enet_get_nextdesc(bdp, fep);
 
+	skb_tx_timestamp(skb);
+
 	fep->cur_tx = bdp;
 
 	if (fep->cur_tx == fep->dirty_tx)
@@ -435,8 +437,6 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* Trigger transmission start */
 	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
-
-	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -2049,6 +2049,8 @@ static void fec_reset_phy(struct platform_device *pdev)
 	int err, phy_reset;
 	int msec = 1;
 	struct device_node *np = pdev->dev.of_node;
+	enum of_gpio_flags flags;
+	bool port;
 
 	if (!np)
 		return;
@@ -2058,18 +2060,22 @@ static void fec_reset_phy(struct platform_device *pdev)
 	if (msec > 1000)
 		msec = 1;
 
-	phy_reset = of_get_named_gpio(np, "phy-reset-gpios", 0);
+	phy_reset = of_get_named_gpio_flags(np, "phy-reset-gpios", 0, &flags);
 	if (!gpio_is_valid(phy_reset))
 		return;
 
-	err = devm_gpio_request_one(&pdev->dev, phy_reset,
-				    GPIOF_OUT_INIT_LOW, "phy-reset");
+	if (flags & OF_GPIO_ACTIVE_LOW)
+		port = GPIOF_OUT_INIT_LOW;
+	else
+		port = GPIOF_OUT_INIT_HIGH;
+
+	err = devm_gpio_request_one(&pdev->dev, phy_reset, port, "phy-reset");
 	if (err) {
 		dev_err(&pdev->dev, "failed to get phy-reset-gpios: %d\n", err);
 		return;
 	}
 	msleep(msec);
-	gpio_set_value(phy_reset, 1);
+	gpio_set_value(phy_reset, !port);
 }
 #else /* CONFIG_OF */
 static void fec_reset_phy(struct platform_device *pdev)

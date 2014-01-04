@@ -883,9 +883,6 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		goto out_unlock;
 	}
 
-	/* mmap_sem prevents this happening but warn if that changes */
-	WARN_ON(pmd_trans_migrating(pmd));
-
 	if (unlikely(pmd_trans_splitting(pmd))) {
 		/* split huge page running from under us */
 		spin_unlock(src_ptl);
