@@ -55,7 +55,7 @@
 #define INTEL_I860_ERRSTS	0xc8
 
 /* Intel i810 registers */
-#define I810_GMADDR		0x10
+#define I810_GMADR_BAR		0
 #define I810_MMADDR		0x14
 #define I810_PTE_BASE		0x10000
 #define I810_PTE_MAIN_UNCACHED	0x00000000
@@ -113,7 +113,7 @@
 #define INTEL_I850_ERRSTS	0xc8
 
 /* intel 915G registers */
-#define I915_GMADDR	0x18
+#define I915_GMADR_BAR	2
 #define I915_MMADDR	0x10
 #define I915_PTEADDR	0x1C
 #define I915_GMCH_GMS_STOLEN_48M	(0x6 << 4)
