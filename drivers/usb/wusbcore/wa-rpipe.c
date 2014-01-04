@@ -308,7 +308,7 @@ out:
 /*
  * Aim an rpipe to its device & endpoint destination
  *
- * Make sure we change the address to unauthenticathed if the device
+ * Make sure we change the address to unauthenticated if the device
  * is WUSB and it is not authenticated.
  */
 static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,

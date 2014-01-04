@@ -36,7 +36,7 @@
  *
  *  hcd        glue with the USB API Host Controller Interface API.
  *
- *  nep        Notification EndPoint managent: collect notifications
+ *  nep        Notification EndPoint management: collect notifications
  *             and queue them with the workqueue daemon.
  *
  *             Handle notifications as coming from the NEP. Sends them
@@ -144,7 +144,7 @@ enum wa_quirks {
  *
  * @wa_descr  Can be accessed without locking because it is in
  *            the same area where the device descriptors were
- *            read, so it is guaranteed to exist umodified while
+ *            read, so it is guaranteed to exist unmodified while
  *            the device exists.
  *
  *            Endianess has been converted to CPU's.
@@ -167,8 +167,8 @@ enum wa_quirks {
  *                       submitted from an atomic context).
  *
  * FIXME: this needs to be layered up: a wusbhc layer (for sharing
- *        comonalities with WHCI), a wa layer (for sharing
- *        comonalities with DWA-RC).
+ *        commonalities with WHCI), a wa layer (for sharing
+ *        commonalities with DWA-RC).
  */
 struct wahc {
 	struct usb_device *usb_dev;
@@ -345,7 +345,7 @@ extern void wa_handle_notif_xfer(struct wahc *, struct wa_notif_hdr *);
  *        it...no RC specific function is called...unless I miss
  *        something.
  *
- * FIXME: has to go away in favour of an 'struct' hcd based sollution
+ * FIXME: has to go away in favour of a 'struct' hcd based solution
  */
 static inline struct wahc *wa_get(struct wahc *wa)
 {

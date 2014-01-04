@@ -419,7 +419,7 @@ EXPORT_SYMBOL_GPL(wusb_cluster_id_put);
  *  - After a successful transfer, update the trust timeout timestamp
  *    for the WUSB device.
  *
- *  - [WUSB] sections 4.13 and 7.5.1 specifies the stop retrasmittion
+ *  - [WUSB] sections 4.13 and 7.5.1 specify the stop retransmission
  *    condition for the WCONNECTACK_IE is that the host has observed
  *    the associated device responding to a control transfer.
  */

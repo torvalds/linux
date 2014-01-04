@@ -56,7 +56,7 @@ void wusbhc_sec_destroy(struct wusbhc *wusbhc)
  * @wusb_dev: the device whose PTK the TKID is for
  *            (or NULL for a TKID for a GTK)
  *
- * The generated TKID consist of two parts: the device's authenicated
+ * The generated TKID consists of two parts: the device's authenticated
  * address (or 0 or a GTK); and an incrementing number.  This ensures
  * that TKIDs cannot be shared between devices and by the time the
  * incrementing number wraps around the older TKIDs will no longer be

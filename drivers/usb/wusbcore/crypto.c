@@ -87,7 +87,7 @@ struct aes_ccm_block {
  * B1 contains l(a), the MAC header, the encryption offset and padding.
  *
  * If EO is nonzero, additional blocks are built from payload bytes
- * until EO is exahusted (FIXME: padding to 16 bytes, I guess). The
+ * until EO is exhausted (FIXME: padding to 16 bytes, I guess). The
  * padding is not xmitted.
  */
 

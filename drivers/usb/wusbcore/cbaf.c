@@ -184,7 +184,7 @@ static int cbaf_check(struct cbaf *cbaf)
 		assoc_request = itr;
 
 		if (top - itr < sizeof(*assoc_request)) {
-			dev_err(dev, "Not enough data to decode associaton "
+			dev_err(dev, "Not enough data to decode association "
 				"request (%zu vs %zu bytes needed)\n",
 				top - itr, sizeof(*assoc_request));
 			break;
