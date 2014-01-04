@@ -184,7 +184,7 @@ EXPORT_SYMBOL_GPL(rpipe_destroy);
 /*
  * Locate an idle rpipe, create an structure for it and return it
  *
- * @wa 	  is referenced and unlocked
+ * @wa	  is referenced and unlocked
  * @crs   enum rpipe_attr, required endpoint characteristics
  *
  * The rpipe can be used only sequentially (not in parallel).
@@ -329,7 +329,8 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	}
 	unauth = usb_dev->wusb && !usb_dev->authenticated ? 0x80 : 0;
 	__rpipe_reset(wa, le16_to_cpu(rpipe->descr.wRPipeIndex));
-	atomic_set(&rpipe->segs_available, le16_to_cpu(rpipe->descr.wRequests));
+	atomic_set(&rpipe->segs_available,
+		le16_to_cpu(rpipe->descr.wRequests));
 	/* FIXME: block allocation system; request with queuing and timeout */
 	/* FIXME: compute so seg_size > ep->maxpktsize */
 	rpipe->descr.wBlocks = cpu_to_le16(16);		/* given */
@@ -553,4 +554,3 @@ void rpipe_clear_feature_stalled(struct wahc *wa, struct usb_host_endpoint *ep)
 	mutex_unlock(&wa->rpipe_mutex);
 }
 EXPORT_SYMBOL_GPL(rpipe_clear_feature_stalled);
-
