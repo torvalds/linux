@@ -75,7 +75,7 @@ do {			\
 	if (rt_global_debug_component & component) \
 		printk(KERN_DEBUG DRV_NAME ":" x "\n" , \
 		       ##args);\
-} while (0);
+} while (0)
 
 #define assert(expr) \
 do {	\
