@@ -854,7 +854,7 @@ int dma_supported(struct device *dev, u64 device_mask)
 		return 1;
 
 #ifdef CONFIG_PCI
-	if (dev->bus == &pci_bus_type)
+	if (dev_is_pci(dev))
 		return pci64_dma_supported(to_pci_dev(dev), device_mask);
 #endif
 
