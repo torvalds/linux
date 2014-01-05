@@ -237,9 +237,34 @@
 #define  BGMAC_DMA_TX_SUSPEND			0x00000002
 #define  BGMAC_DMA_TX_LOOPBACK			0x00000004
 #define  BGMAC_DMA_TX_FLUSH			0x00000010
+#define  BGMAC_DMA_TX_MR_MASK			0x000000C0	/* Multiple outstanding reads */
+#define  BGMAC_DMA_TX_MR_SHIFT			6
+#define   BGMAC_DMA_TX_MR_1			0
+#define   BGMAC_DMA_TX_MR_2			1
 #define  BGMAC_DMA_TX_PARITY_DISABLE		0x00000800
 #define  BGMAC_DMA_TX_ADDREXT_MASK		0x00030000
 #define  BGMAC_DMA_TX_ADDREXT_SHIFT		16
+#define  BGMAC_DMA_TX_BL_MASK			0x001C0000	/* BurstLen bits */
+#define  BGMAC_DMA_TX_BL_SHIFT			18
+#define   BGMAC_DMA_TX_BL_16			0
+#define   BGMAC_DMA_TX_BL_32			1
+#define   BGMAC_DMA_TX_BL_64			2
+#define   BGMAC_DMA_TX_BL_128			3
+#define   BGMAC_DMA_TX_BL_256			4
+#define   BGMAC_DMA_TX_BL_512			5
+#define   BGMAC_DMA_TX_BL_1024			6
+#define  BGMAC_DMA_TX_PC_MASK			0x00E00000	/* Prefetch control */
+#define  BGMAC_DMA_TX_PC_SHIFT			21
+#define   BGMAC_DMA_TX_PC_0			0
+#define   BGMAC_DMA_TX_PC_4			1
+#define   BGMAC_DMA_TX_PC_8			2
+#define   BGMAC_DMA_TX_PC_16			3
+#define  BGMAC_DMA_TX_PT_MASK			0x03000000	/* Prefetch threshold */
+#define  BGMAC_DMA_TX_PT_SHIFT			24
+#define   BGMAC_DMA_TX_PT_1			0
+#define   BGMAC_DMA_TX_PT_2			1
+#define   BGMAC_DMA_TX_PT_4			2
+#define   BGMAC_DMA_TX_PT_8			3
 #define BGMAC_DMA_TX_INDEX			0x04
 #define BGMAC_DMA_TX_RINGLO			0x08
 #define BGMAC_DMA_TX_RINGHI			0x0C
@@ -267,8 +292,33 @@
 #define  BGMAC_DMA_RX_DIRECT_FIFO		0x00000100
 #define  BGMAC_DMA_RX_OVERFLOW_CONT		0x00000400
 #define  BGMAC_DMA_RX_PARITY_DISABLE		0x00000800
+#define  BGMAC_DMA_RX_MR_MASK			0x000000C0	/* Multiple outstanding reads */
+#define  BGMAC_DMA_RX_MR_SHIFT			6
+#define   BGMAC_DMA_TX_MR_1			0
+#define   BGMAC_DMA_TX_MR_2			1
 #define  BGMAC_DMA_RX_ADDREXT_MASK		0x00030000
 #define  BGMAC_DMA_RX_ADDREXT_SHIFT		16
+#define  BGMAC_DMA_RX_BL_MASK			0x001C0000	/* BurstLen bits */
+#define  BGMAC_DMA_RX_BL_SHIFT			18
+#define   BGMAC_DMA_RX_BL_16			0
+#define   BGMAC_DMA_RX_BL_32			1
+#define   BGMAC_DMA_RX_BL_64			2
+#define   BGMAC_DMA_RX_BL_128			3
+#define   BGMAC_DMA_RX_BL_256			4
+#define   BGMAC_DMA_RX_BL_512			5
+#define   BGMAC_DMA_RX_BL_1024			6
+#define  BGMAC_DMA_RX_PC_MASK			0x00E00000	/* Prefetch control */
+#define  BGMAC_DMA_RX_PC_SHIFT			21
+#define   BGMAC_DMA_RX_PC_0			0
+#define   BGMAC_DMA_RX_PC_4			1
+#define   BGMAC_DMA_RX_PC_8			2
+#define   BGMAC_DMA_RX_PC_16			3
+#define  BGMAC_DMA_RX_PT_MASK			0x03000000	/* Prefetch threshold */
+#define  BGMAC_DMA_RX_PT_SHIFT			24
+#define   BGMAC_DMA_RX_PT_1			0
+#define   BGMAC_DMA_RX_PT_2			1
+#define   BGMAC_DMA_RX_PT_4			2
+#define   BGMAC_DMA_RX_PT_8			3
 #define BGMAC_DMA_RX_INDEX			0x24
 #define BGMAC_DMA_RX_RINGLO			0x28
 #define BGMAC_DMA_RX_RINGHI			0x2C

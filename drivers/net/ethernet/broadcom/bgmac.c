@@ -96,6 +96,19 @@ static void bgmac_dma_tx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_TX_CTL);
+	if (bgmac->core->id.rev >= 4) {
+		ctl &= ~BGMAC_DMA_TX_BL_MASK;
+		ctl |= BGMAC_DMA_TX_BL_128 << BGMAC_DMA_TX_BL_SHIFT;
+
+		ctl &= ~BGMAC_DMA_TX_MR_MASK;
+		ctl |= BGMAC_DMA_TX_MR_2 << BGMAC_DMA_TX_MR_SHIFT;
+
+		ctl &= ~BGMAC_DMA_TX_PC_MASK;
+		ctl |= BGMAC_DMA_TX_PC_16 << BGMAC_DMA_TX_PC_SHIFT;
+
+		ctl &= ~BGMAC_DMA_TX_PT_MASK;
+		ctl |= BGMAC_DMA_TX_PT_8 << BGMAC_DMA_TX_PT_SHIFT;
+	}
 	ctl |= BGMAC_DMA_TX_ENABLE;
 	ctl |= BGMAC_DMA_TX_PARITY_DISABLE;
 	bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_TX_CTL, ctl);
@@ -240,6 +253,16 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_RX_CTL);
+	if (bgmac->core->id.rev >= 4) {
+		ctl &= ~BGMAC_DMA_RX_BL_MASK;
+		ctl |= BGMAC_DMA_RX_BL_128 << BGMAC_DMA_RX_BL_SHIFT;
+
+		ctl &= ~BGMAC_DMA_RX_PC_MASK;
+		ctl |= BGMAC_DMA_RX_PC_8 << BGMAC_DMA_RX_PC_SHIFT;
+
+		ctl &= ~BGMAC_DMA_RX_PT_MASK;
+		ctl |= BGMAC_DMA_RX_PT_1 << BGMAC_DMA_RX_PT_SHIFT;
+	}
 	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
 	ctl |= BGMAC_DMA_RX_ENABLE;
 	ctl |= BGMAC_DMA_RX_PARITY_DISABLE;
