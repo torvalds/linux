@@ -770,8 +770,7 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 		priv->adc_ssi_port = pdata->adc_ssi_port;
 		priv->dac_ssi_port = pdata->dac_ssi_port;
 	} else {
-		priv->adc_ssi_port = MC13783_SSI1_PORT;
-		priv->dac_ssi_port = MC13783_SSI2_PORT;
+		return -ENOSYS;
 	}
 
 	if (priv->adc_ssi_port == priv->dac_ssi_port)
