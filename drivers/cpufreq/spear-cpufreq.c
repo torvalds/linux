@@ -138,7 +138,7 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 	}
 
 	newfreq = clk_round_rate(srcclk, newfreq * mult);
-	if (newfreq < 0) {
+	if (newfreq <= 0) {
 		pr_err("clk_round_rate failed for cpu src clock\n");
 		return newfreq;
 	}

@@ -4,7 +4,8 @@
 
 config ARM_BIG_LITTLE_CPUFREQ
 	tristate "Generic ARM big LITTLE CPUfreq driver"
-	depends on ARM_CPU_TOPOLOGY && PM_OPP && HAVE_CLK
+	depends on ARM && ARM_CPU_TOPOLOGY && HAVE_CLK
+	select PM_OPP
 	help
 	  This enables the Generic CPUfreq driver for ARM big.LITTLE platforms.
 
@@ -54,7 +55,8 @@ config ARM_EXYNOS5250_CPUFREQ
 config ARM_EXYNOS5440_CPUFREQ
 	bool "SAMSUNG EXYNOS5440"
 	depends on SOC_EXYNOS5440
-	depends on HAVE_CLK && PM_OPP && OF
+	depends on HAVE_CLK && OF
+	select PM_OPP
 	default y
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS5440
