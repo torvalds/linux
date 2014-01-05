@@ -29,6 +29,7 @@
 #define _I40E_H_
 
 #include <net/tcp.h>
+#include <net/udp.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -205,7 +206,13 @@ struct i40e_pf {
 	u16 rss_size_max;          /* HW defined max RSS queues */
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
 	u8 atr_sample_rate;
+	bool wol_en;
 
+#ifdef CONFIG_I40E_VXLAN
+	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
+	u16 pending_vxlan_bitmap;
+
+#endif
 	enum i40e_interrupt_policy int_policy;
 	u16 rx_itr_default;
 	u16 tx_itr_default;
@@ -237,7 +244,10 @@ struct i40e_pf {
 #define I40E_FLAG_DCB_ENABLED                  (u64)(1 << 21)
 #define I40E_FLAG_FDIR_ENABLED                 (u64)(1 << 22)
 #define I40E_FLAG_FDIR_ATR_ENABLED             (u64)(1 << 23)
-#define I40E_FLAG_MFP_ENABLED                  (u64)(1 << 27)
+#define I40E_FLAG_MFP_ENABLED                  (u64)(1 << 26)
+#ifdef CONFIG_I40E_VXLAN
+#define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
+#endif
 
 	u16 num_tx_queues;
 	u16 num_rx_queues;
@@ -533,6 +543,7 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 int i40e_vsi_release(struct i40e_vsi *vsi);
 struct i40e_vsi *i40e_vsi_lookup(struct i40e_pf *pf, enum i40e_vsi_type type,
 				 struct i40e_vsi *start_vsi);
+int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool enable);
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count);
 struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc);

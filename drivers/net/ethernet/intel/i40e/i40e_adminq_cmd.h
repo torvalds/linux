@@ -1918,6 +1918,7 @@ struct i40e_aqc_add_udp_tunnel {
 	u8     protocol_index;
 #define I40E_AQC_TUNNEL_TYPE_MAC    0x0
 #define I40E_AQC_TUNNEL_TYPE_UDP    0x1
+#define I40E_AQC_TUNNEL_TYPE_VXLAN  0x2
 	u8     reserved[12];
 };
 

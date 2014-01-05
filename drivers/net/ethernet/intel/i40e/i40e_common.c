@@ -401,6 +401,38 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw)
 }
 
 /**
+ * i40e_led_is_mine - helper to find matching led
+ * @hw: pointer to the hw struct
+ * @idx: index into GPIO registers
+ *
+ * returns: 0 if no match, otherwise the value of the GPIO_CTL register
+ */
+static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
+{
+	u32 gpio_val = 0;
+	u32 port;
+
+	if (!hw->func_caps.led[idx])
+		return 0;
+
+	gpio_val = rd32(hw, I40E_GLGEN_GPIO_CTL(idx));
+	port = (gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK) >>
+		I40E_GLGEN_GPIO_CTL_PRT_NUM_SHIFT;
+
+	/* if PRT_NUM_NA is 1 then this LED is not port specific, OR
+	 * if it is not our port then ignore
+	 */
+	if ((gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_NA_MASK) ||
+	    (port != hw->port))
+		return 0;
+
+	return gpio_val;
+}
+
+#define I40E_LED0 22
+#define I40E_LINK_ACTIVITY 0xC
+
+/**
  * i40e_led_get - return current on/off mode
  * @hw: pointer to the hw struct
  *
@@ -411,24 +443,20 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw)
  **/
 u32 i40e_led_get(struct i40e_hw *hw)
 {
-	u32 gpio_val = 0;
 	u32 mode = 0;
-	u32 port;
 	int i;
 
-	for (i = 0; i < I40E_HW_CAP_MAX_GPIO; i++) {
-		if (!hw->func_caps.led[i])
+	/* as per the documentation GPIO 22-29 are the LED
+	 * GPIO pins named LED0..LED7
+	 */
+	for (i = I40E_LED0; i <= I40E_GLGEN_GPIO_CTL_MAX_INDEX; i++) {
+		u32 gpio_val = i40e_led_is_mine(hw, i);
+
+		if (!gpio_val)
 			continue;
 
-		gpio_val = rd32(hw, I40E_GLGEN_GPIO_CTL(i));
-		port = (gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK)
-			>> I40E_GLGEN_GPIO_CTL_PRT_NUM_SHIFT;
-
-		if (port != hw->port)
-			continue;
-
-		mode = (gpio_val & I40E_GLGEN_GPIO_CTL_LED_MODE_MASK)
-				>> I40E_GLGEN_GPIO_CTL_INT_MODE_SHIFT;
+		mode = (gpio_val & I40E_GLGEN_GPIO_CTL_LED_MODE_MASK) >>
+			I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT;
 		break;
 	}
 
@@ -438,31 +466,41 @@ u32 i40e_led_get(struct i40e_hw *hw)
 /**
  * i40e_led_set - set new on/off mode
  * @hw: pointer to the hw struct
- * @mode: 0=off, else on (see EAS for mode details)
+ * @mode: 0=off, 0xf=on (else see manual for mode details)
+ * @blink: true if the LED should blink when on, false if steady
+ *
+ * if this function is used to turn on the blink it should
+ * be used to disable the blink when restoring the original state.
  **/
-void i40e_led_set(struct i40e_hw *hw, u32 mode)
+void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 {
-	u32 gpio_val = 0;
-	u32 led_mode = 0;
-	u32 port;
 	int i;
 
-	for (i = 0; i < I40E_HW_CAP_MAX_GPIO; i++) {
-		if (!hw->func_caps.led[i])
+	if (mode & 0xfffffff0)
+		hw_dbg(hw, "invalid mode passed in %X\n", mode);
+
+	/* as per the documentation GPIO 22-29 are the LED
+	 * GPIO pins named LED0..LED7
+	 */
+	for (i = I40E_LED0; i <= I40E_GLGEN_GPIO_CTL_MAX_INDEX; i++) {
+		u32 gpio_val = i40e_led_is_mine(hw, i);
+
+		if (!gpio_val)
 			continue;
 
-		gpio_val = rd32(hw, I40E_GLGEN_GPIO_CTL(i));
-		port = (gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK)
-			>> I40E_GLGEN_GPIO_CTL_PRT_NUM_SHIFT;
-
-		if (port != hw->port)
-			continue;
-
-		led_mode = (mode << I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT) &
-			    I40E_GLGEN_GPIO_CTL_LED_MODE_MASK;
 		gpio_val &= ~I40E_GLGEN_GPIO_CTL_LED_MODE_MASK;
-		gpio_val |= led_mode;
+		/* this & is a bit of paranoia, but serves as a range check */
+		gpio_val |= ((mode << I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT) &
+			     I40E_GLGEN_GPIO_CTL_LED_MODE_MASK);
+
+		if (mode == I40E_LINK_ACTIVITY)
+			blink = false;
+
+		gpio_val |= (blink ? 1 : 0) <<
+			    I40E_GLGEN_GPIO_CTL_LED_BLINK_SHIFT;
+
 		wr32(hw, I40E_GLGEN_GPIO_CTL(i), gpio_val);
+		break;
 	}
 }
 
@@ -1671,6 +1709,63 @@ i40e_status i40e_aq_start_lldp(struct i40e_hw *hw,
 }
 
 /**
+ * i40e_aq_add_udp_tunnel
+ * @hw: pointer to the hw struct
+ * @udp_port: the UDP port to add
+ * @header_len: length of the tunneling header length in DWords
+ * @protocol_index: protocol index type
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
+				u16 udp_port, u8 header_len,
+				u8 protocol_index, u8 *filter_index,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_add_udp_tunnel *cmd =
+		(struct i40e_aqc_add_udp_tunnel *)&desc.params.raw;
+	struct i40e_aqc_del_udp_tunnel_completion *resp =
+		(struct i40e_aqc_del_udp_tunnel_completion *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_add_udp_tunnel);
+
+	cmd->udp_port = cpu_to_le16(udp_port);
+	cmd->header_len = header_len;
+	cmd->protocol_index = protocol_index;
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	if (!status)
+		*filter_index = resp->index;
+
+	return status;
+}
+
+/**
+ * i40e_aq_del_udp_tunnel
+ * @hw: pointer to the hw struct
+ * @index: filter index
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_del_udp_tunnel(struct i40e_hw *hw, u8 index,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_remove_udp_tunnel *cmd =
+		(struct i40e_aqc_remove_udp_tunnel *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_del_udp_tunnel);
+
+	cmd->index = index;
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
  * i40e_aq_delete_element - Delete switch element
  * @hw: pointer to the hw struct
  * @seid: the SEID to delete from the switch
@@ -2028,4 +2123,48 @@ i40e_status i40e_set_filter_control(struct i40e_hw *hw,
 	wr32(hw, I40E_PFQF_CTL_0, val);
 
 	return 0;
+}
+/**
+ * i40e_set_pci_config_data - store PCI bus info
+ * @hw: pointer to hardware structure
+ * @link_status: the link status word from PCI config space
+ *
+ * Stores the PCI bus info (speed, width, type) within the i40e_hw structure
+ **/
+void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
+{
+	hw->bus.type = i40e_bus_type_pci_express;
+
+	switch (link_status & PCI_EXP_LNKSTA_NLW) {
+	case PCI_EXP_LNKSTA_NLW_X1:
+		hw->bus.width = i40e_bus_width_pcie_x1;
+		break;
+	case PCI_EXP_LNKSTA_NLW_X2:
+		hw->bus.width = i40e_bus_width_pcie_x2;
+		break;
+	case PCI_EXP_LNKSTA_NLW_X4:
+		hw->bus.width = i40e_bus_width_pcie_x4;
+		break;
+	case PCI_EXP_LNKSTA_NLW_X8:
+		hw->bus.width = i40e_bus_width_pcie_x8;
+		break;
+	default:
+		hw->bus.width = i40e_bus_width_unknown;
+		break;
+	}
+
+	switch (link_status & PCI_EXP_LNKSTA_CLS) {
+	case PCI_EXP_LNKSTA_CLS_2_5GB:
+		hw->bus.speed = i40e_bus_speed_2500;
+		break;
+	case PCI_EXP_LNKSTA_CLS_5_0GB:
+		hw->bus.speed = i40e_bus_speed_5000;
+		break;
+	case PCI_EXP_LNKSTA_CLS_8_0GB:
+		hw->bus.speed = i40e_bus_speed_8000;
+		break;
+	default:
+		hw->bus.speed = i40e_bus_speed_unknown;
+		break;
+	}
 }
