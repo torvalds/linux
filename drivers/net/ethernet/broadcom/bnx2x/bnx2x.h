@@ -2499,4 +2499,6 @@ void bnx2x_set_local_cmng(struct bnx2x *bp);
 #define MCPR_SCRATCH_BASE(bp) \
 	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
 
+#define E1H_MAX_MF_SB_COUNT (HC_SB_MAX_SB_E1X/(E1HVN_MAX * PORT_MAX))
+
 #endif /* bnx2x.h */
