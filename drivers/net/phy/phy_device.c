@@ -327,7 +327,6 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 {
 	struct phy_c45_device_ids c45_ids = {0};
-	struct phy_device *dev = NULL;
 	u32 phy_id = 0;
 	int r;
 
@@ -339,9 +338,7 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 	if ((phy_id & 0x1fffffff) == 0x1fffffff)
 		return NULL;
 
-	dev = phy_device_create(bus, addr, phy_id, is_c45, &c45_ids);
-
-	return dev;
+	return phy_device_create(bus, addr, phy_id, is_c45, &c45_ids);
 }
 EXPORT_SYMBOL(get_phy_device);
 
@@ -781,7 +778,6 @@ static int genphy_config_advert(struct phy_device *phydev)
  */
 int genphy_setup_forced(struct phy_device *phydev)
 {
-	int err;
 	int ctl = 0;
 
 	phydev->pause = 0;
@@ -795,9 +791,7 @@ int genphy_setup_forced(struct phy_device *phydev)
 	if (DUPLEX_FULL == phydev->duplex)
 		ctl |= BMCR_FULLDPLX;
 
-	err = phy_write(phydev, MII_BMCR, ctl);
-
-	return err;
+	return phy_write(phydev, MII_BMCR, ctl);
 }
 EXPORT_SYMBOL(genphy_setup_forced);
 
