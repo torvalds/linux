@@ -55,7 +55,6 @@ static int tegra_wm9712_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link tegra_wm9712_dai = {
 	.name = "AC97 HiFi",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "tegra20-ac97",
 	.codec_dai_name = "wm9712-hifi",
 	.codec_name = "wm9712-codec",
 	.init = tegra_wm9712_init,

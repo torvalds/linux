@@ -179,6 +179,8 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S32_LE:
 		word_len = AD1836_WORD_LEN_24;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	regmap_update_bits(ad1836->regmap, AD1836_DAC_CTRL1,

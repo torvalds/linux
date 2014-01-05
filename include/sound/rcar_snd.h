@@ -18,7 +18,7 @@
 #define RSND_GEN1_ADG	1
 #define RSND_GEN1_SSI	2
 
-#define RSND_GEN2_SRU	0
+#define RSND_GEN2_SCU	0
 #define RSND_GEN2_ADG	1
 #define RSND_GEN2_SSIU	2
 #define RSND_GEN2_SSI	3
@@ -58,6 +58,7 @@ struct rsnd_ssi_platform_info {
 
 struct rsnd_scu_platform_info {
 	u32 flags;
+	u32 convert_rate; /* sampling rate convert */
 };
 
 /*

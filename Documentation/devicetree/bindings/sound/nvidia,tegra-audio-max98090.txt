@@ -1,0 +1,51 @@
+NVIDIA Tegra audio complex, with MAX98090 CODEC
+
+Required properties:
+- compatible : "nvidia,tegra-audio-max98090"
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names : Must include the following entries:
+  - pll_a
+  - pll_a_out0
+  - mclk (The Tegra cdev1/extern1 clock, which feeds the CODEC's mclk)
+- nvidia,model : The user-visible name of this sound complex.
+- nvidia,audio-routing : A list of the connections between audio components.
+  Each entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source. Valid names for sources and
+  sinks are the MAX98090's pins (as documented in its binding), and the jacks
+  on the board:
+
+  * Headphones
+  * Speakers
+  * Mic Jack
+
+- nvidia,i2s-controller : The phandle of the Tegra I2S controller that's
+  connected to the CODEC.
+- nvidia,audio-codec : The phandle of the MAX98090 audio codec.
+
+Optional properties:
+- nvidia,hp-det-gpios : The GPIO that detect headphones are plugged in
+
+Example:
+
+sound {
+	compatible = "nvidia,tegra-audio-max98090-venice2",
+		     "nvidia,tegra-audio-max98090";
+	nvidia,model = "NVIDIA Tegra Venice2";
+
+	nvidia,audio-routing =
+		"Headphones", "HPR",
+		"Headphones", "HPL",
+		"Speakers", "SPKR",
+		"Speakers", "SPKL",
+		"Mic Jack", "MICBIAS",
+		"IN34", "Mic Jack";
+
+	nvidia,i2s-controller = <&tegra_i2s1>;
+	nvidia,audio-codec = <&acodec>;
+
+	clocks = <&tegra_car TEGRA124_CLK_PLL_A>,
+		 <&tegra_car TEGRA124_CLK_PLL_A_OUT0>,
+		 <&tegra_car TEGRA124_CLK_EXTERN1>;
+	clock-names = "pll_a", "pll_a_out0", "mclk";
+};

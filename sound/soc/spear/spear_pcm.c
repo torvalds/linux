@@ -18,6 +18,7 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/spear_dma.h>
+#include "spear_pcm.h"
 
 static const struct snd_pcm_hardware spear_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -31,49 +32,24 @@ static const struct snd_pcm_hardware spear_pcm_hardware = {
 	.fifo_size = 0, /* fifo size in bytes */
 };
 
-static struct dma_chan *spear_pcm_request_chan(struct snd_soc_pcm_runtime *rtd,
-	struct snd_pcm_substream *substream)
-{
-	struct spear_dma_data *dma_data;
-
-	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-
-	return snd_dmaengine_pcm_request_channel(dma_data->filter, dma_data);
-}
-
 static const struct snd_dmaengine_pcm_config spear_dmaengine_pcm_config = {
 	.pcm_hardware = &spear_pcm_hardware,
-	.compat_request_channel = spear_pcm_request_chan,
 	.prealloc_buffer_size = 16 * 1024,
 };
 
-static int spear_soc_platform_probe(struct platform_device *pdev)
+int devm_spear_pcm_platform_register(struct device *dev,
+			struct snd_dmaengine_pcm_config *config,
+			bool (*filter)(struct dma_chan *chan, void *slave))
 {
-	return snd_dmaengine_pcm_register(&pdev->dev,
-		&spear_dmaengine_pcm_config,
+	*config = spear_dmaengine_pcm_config;
+	config->compat_filter_fn = filter;
+
+	return snd_dmaengine_pcm_register(dev, config,
 		SND_DMAENGINE_PCM_FLAG_NO_DT |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
-
-static int spear_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-	return 0;
-}
-
-static struct platform_driver spear_pcm_driver = {
-	.driver = {
-		.name = "spear-pcm-audio",
-		.owner = THIS_MODULE,
-	},
-
-	.probe = spear_soc_platform_probe,
-	.remove = spear_soc_platform_remove,
-};
-
-module_platform_driver(spear_pcm_driver);
+EXPORT_SYMBOL_GPL(devm_spear_pcm_platform_register);
 
 MODULE_AUTHOR("Rajeev Kumar <rajeev-dlh.kumar@st.com>");
 MODULE_DESCRIPTION("SPEAr PCM DMA module");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:spear-pcm-audio");

@@ -59,10 +59,6 @@ int snd_soc_params_to_bclk(struct snd_pcm_hw_params *params)
 EXPORT_SYMBOL_GPL(snd_soc_params_to_bclk);
 
 static const struct snd_pcm_hardware dummy_dma_hardware = {
-	.formats		= 0xffffffff,
-	.channels_min		= 1,
-	.channels_max		= UINT_MAX,
-
 	/* Random values to keep userspace happy when checking constraints */
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_BLOCK_TRANSFER,

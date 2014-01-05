@@ -26,7 +26,7 @@ obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 
 # DMA support
 
-obj-$(CONFIG_S3C64XX_DMA)	+= dma.o
+obj-$(CONFIG_S3C64XX_PL080)	+= pl080.o
 
 # Device support
 

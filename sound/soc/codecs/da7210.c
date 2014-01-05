@@ -1188,7 +1188,7 @@ static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.num_dapm_routes	= ARRAY_SIZE(da7210_audio_map),
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 
 static struct reg_default da7210_regmap_i2c_patch[] = {
 
@@ -1362,7 +1362,7 @@ static struct spi_driver da7210_spi_driver = {
 static int __init da7210_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&da7210_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)
@@ -1378,7 +1378,7 @@ module_init(da7210_modinit);
 
 static void __exit da7210_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&da7210_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)

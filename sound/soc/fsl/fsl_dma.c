@@ -852,7 +852,7 @@ static void fsl_dma_free_dma_buffers(struct snd_pcm *pcm)
 }
 
 /**
- * find_ssi_node -- returns the SSI node that points to his DMA channel node
+ * find_ssi_node -- returns the SSI node that points to its DMA channel node
  *
  * Although this DMA driver attempts to operate independently of the other
  * devices, it still needs to determine some information about the SSI device
