@@ -848,6 +848,9 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 	case SPEED_1000:
 		set |= BGMAC_CMDCFG_ES_1000;
 		break;
+	case SPEED_2500:
+		set |= BGMAC_CMDCFG_ES_2500;
+		break;
 	default:
 		bgmac_err(bgmac, "Unsupported speed: %d\n", bgmac->mac_speed);
 	}
@@ -860,12 +863,26 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 
 static void bgmac_miiconfig(struct bgmac *bgmac)
 {
-	u8 imode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) & BGMAC_DS_MM_MASK) >>
-			BGMAC_DS_MM_SHIFT;
-	if (imode == 0 || imode == 1) {
-		bgmac->mac_speed = SPEED_100;
+	struct bcma_device *core = bgmac->core;
+	struct bcma_chipinfo *ci = &core->bus->chipinfo;
+	u8 imode;
+
+	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
+	    ci->id == BCMA_CHIP_ID_BCM53018) {
+		bcma_awrite32(core, BCMA_IOCTL,
+			      bcma_aread32(core, BCMA_IOCTL) | 0x40 |
+			      BGMAC_BCMA_IOCTL_SW_CLKEN);
+		bgmac->mac_speed = SPEED_2500;
 		bgmac->mac_duplex = DUPLEX_FULL;
 		bgmac_mac_speed(bgmac);
+	} else {
+		imode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) &
+			BGMAC_DS_MM_MASK) >> BGMAC_DS_MM_SHIFT;
+		if (imode == 0 || imode == 1) {
+			bgmac->mac_speed = SPEED_100;
+			bgmac->mac_duplex = DUPLEX_FULL;
+			bgmac_mac_speed(bgmac);
+		}
 	}
 }
 
@@ -875,7 +892,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	struct bcma_device *core = bgmac->core;
 	struct bcma_bus *bus = core->bus;
 	struct bcma_chipinfo *ci = &bus->chipinfo;
-	u32 flags = 0;
+	u32 flags;
 	u32 iost;
 	int i;
 
@@ -903,15 +920,21 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188))
 		iost &= ~BGMAC_BCMA_IOST_ATTACHED;
 
-	if (iost & BGMAC_BCMA_IOST_ATTACHED) {
-		flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
-		if (!bgmac->has_robosw)
-			flags |= BGMAC_BCMA_IOCTL_SW_RESET;
+	/* 3GMAC: for BCM4707, only do core reset at bgmac_probe() */
+	if (ci->id != BCMA_CHIP_ID_BCM4707) {
+		flags = 0;
+		if (iost & BGMAC_BCMA_IOST_ATTACHED) {
+			flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
+			if (!bgmac->has_robosw)
+				flags |= BGMAC_BCMA_IOCTL_SW_RESET;
+		}
+		bcma_core_enable(core, flags);
 	}
 
-	bcma_core_enable(core, flags);
-
-	if (core->id.rev > 2) {
+	/* Request Misc PLL for corerev > 2 */
+	if (core->id.rev > 2 &&
+	    ci->id != BCMA_CHIP_ID_BCM4707 &&
+	    ci->id != BCMA_CHIP_ID_BCM53018) {
 		bgmac_set(bgmac, BCMA_CLKCTLST,
 			  BGMAC_BCMA_CLKCTLST_MISC_PLL_REQ);
 		bgmac_wait_value(bgmac->core, BCMA_CLKCTLST,
@@ -1049,12 +1072,16 @@ static void bgmac_enable(struct bgmac *bgmac)
 		break;
 	}
 
-	rxq_ctl = bgmac_read(bgmac, BGMAC_RXQ_CTL);
-	rxq_ctl &= ~BGMAC_RXQ_CTL_MDP_MASK;
-	bp_clk = bcma_pmu_get_bus_clock(&bgmac->core->bus->drv_cc) / 1000000;
-	mdp = (bp_clk * 128 / 1000) - 3;
-	rxq_ctl |= (mdp << BGMAC_RXQ_CTL_MDP_SHIFT);
-	bgmac_write(bgmac, BGMAC_RXQ_CTL, rxq_ctl);
+	if (ci->id != BCMA_CHIP_ID_BCM4707 &&
+	    ci->id != BCMA_CHIP_ID_BCM53018) {
+		rxq_ctl = bgmac_read(bgmac, BGMAC_RXQ_CTL);
+		rxq_ctl &= ~BGMAC_RXQ_CTL_MDP_MASK;
+		bp_clk = bcma_pmu_get_bus_clock(&bgmac->core->bus->drv_cc) /
+				1000000;
+		mdp = (bp_clk * 128 / 1000) - 3;
+		rxq_ctl |= (mdp << BGMAC_RXQ_CTL_MDP_SHIFT);
+		bgmac_write(bgmac, BGMAC_RXQ_CTL, rxq_ctl);
+	}
 }
 
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipinit */
