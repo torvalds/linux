@@ -2989,6 +2989,9 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		if (retval < 0) {
 			em28xx_errdev("%s: em28xx_i2c_register bus 1 - error [%d]!\n",
 				__func__, retval);
+
+			em28xx_i2c_unregister(dev, 0);
+
 			return retval;
 		}
 	}
