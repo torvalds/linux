@@ -282,8 +282,6 @@ struct phy_c45_device_ids {
  * attached_dev: The attached enet driver's device instance ptr
  * adjust_link: Callback for the enet controller to respond to
  * changes in the link state.
- * adjust_state: Callback for the enet driver to respond to
- * changes in the state machine.
  *
  * speed, duplex, pause, supported, advertising, lp_advertising,
  * and autoneg are used like in mii_if_info
@@ -364,8 +362,6 @@ struct phy_device {
 	struct net_device *attached_dev;
 
 	void (*adjust_link)(struct net_device *dev);
-
-	void (*adjust_state)(struct net_device *dev);
 };
 #define to_phy_device(d) container_of(d, struct phy_device, dev)
 
@@ -585,8 +581,7 @@ int phy_drivers_register(struct phy_driver *new_driver, int n);
 void phy_state_machine(struct work_struct *work);
 void phy_change(struct work_struct *work);
 void phy_mac_interrupt(struct phy_device *phydev, int new_link);
-void phy_start_machine(struct phy_device *phydev,
-		       void (*handler)(struct net_device *));
+void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd);

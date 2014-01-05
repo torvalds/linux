@@ -379,7 +379,7 @@ static int mdio_bus_resume(struct device *dev)
 
 no_resume:
 	if (phydev->attached_dev && phydev->adjust_link)
-		phy_start_machine(phydev, NULL);
+		phy_start_machine(phydev);
 
 	return 0;
 }
@@ -401,7 +401,7 @@ static int mdio_bus_restore(struct device *dev)
 	phydev->link = 0;
 	phydev->state = PHY_UP;
 
-	phy_start_machine(phydev, NULL);
+	phy_start_machine(phydev);
 
 	return 0;
 }
