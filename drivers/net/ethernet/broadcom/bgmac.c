@@ -96,6 +96,19 @@ static void bgmac_dma_tx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_TX_CTL);
+	if (bgmac->core->id.rev >= 4) {
+		ctl &= ~BGMAC_DMA_TX_BL_MASK;
+		ctl |= BGMAC_DMA_TX_BL_128 << BGMAC_DMA_TX_BL_SHIFT;
+
+		ctl &= ~BGMAC_DMA_TX_MR_MASK;
+		ctl |= BGMAC_DMA_TX_MR_2 << BGMAC_DMA_TX_MR_SHIFT;
+
+		ctl &= ~BGMAC_DMA_TX_PC_MASK;
+		ctl |= BGMAC_DMA_TX_PC_16 << BGMAC_DMA_TX_PC_SHIFT;
+
+		ctl &= ~BGMAC_DMA_TX_PT_MASK;
+		ctl |= BGMAC_DMA_TX_PT_8 << BGMAC_DMA_TX_PT_SHIFT;
+	}
 	ctl |= BGMAC_DMA_TX_ENABLE;
 	ctl |= BGMAC_DMA_TX_PARITY_DISABLE;
 	bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_TX_CTL, ctl);
@@ -240,6 +253,16 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_RX_CTL);
+	if (bgmac->core->id.rev >= 4) {
+		ctl &= ~BGMAC_DMA_RX_BL_MASK;
+		ctl |= BGMAC_DMA_RX_BL_128 << BGMAC_DMA_RX_BL_SHIFT;
+
+		ctl &= ~BGMAC_DMA_RX_PC_MASK;
+		ctl |= BGMAC_DMA_RX_PC_8 << BGMAC_DMA_RX_PC_SHIFT;
+
+		ctl &= ~BGMAC_DMA_RX_PT_MASK;
+		ctl |= BGMAC_DMA_RX_PT_1 << BGMAC_DMA_RX_PT_SHIFT;
+	}
 	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
 	ctl |= BGMAC_DMA_RX_ENABLE;
 	ctl |= BGMAC_DMA_RX_PARITY_DISABLE;
@@ -745,13 +768,13 @@ static void bgmac_cmdcfg_maskset(struct bgmac *bgmac, u32 mask, u32 set,
 	u32 cmdcfg = bgmac_read(bgmac, BGMAC_CMDCFG);
 	u32 new_val = (cmdcfg & mask) | set;
 
-	bgmac_set(bgmac, BGMAC_CMDCFG, BGMAC_CMDCFG_SR);
+	bgmac_set(bgmac, BGMAC_CMDCFG, BGMAC_CMDCFG_SR(bgmac->core->id.rev));
 	udelay(2);
 
 	if (new_val != cmdcfg || force)
 		bgmac_write(bgmac, BGMAC_CMDCFG, new_val);
 
-	bgmac_mask(bgmac, BGMAC_CMDCFG, ~BGMAC_CMDCFG_SR);
+	bgmac_mask(bgmac, BGMAC_CMDCFG, ~BGMAC_CMDCFG_SR(bgmac->core->id.rev));
 	udelay(2);
 }
 
@@ -825,6 +848,9 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 	case SPEED_1000:
 		set |= BGMAC_CMDCFG_ES_1000;
 		break;
+	case SPEED_2500:
+		set |= BGMAC_CMDCFG_ES_2500;
+		break;
 	default:
 		bgmac_err(bgmac, "Unsupported speed: %d\n", bgmac->mac_speed);
 	}
@@ -837,12 +863,26 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 
 static void bgmac_miiconfig(struct bgmac *bgmac)
 {
-	u8 imode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) & BGMAC_DS_MM_MASK) >>
-			BGMAC_DS_MM_SHIFT;
-	if (imode == 0 || imode == 1) {
-		bgmac->mac_speed = SPEED_100;
+	struct bcma_device *core = bgmac->core;
+	struct bcma_chipinfo *ci = &core->bus->chipinfo;
+	u8 imode;
+
+	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
+	    ci->id == BCMA_CHIP_ID_BCM53018) {
+		bcma_awrite32(core, BCMA_IOCTL,
+			      bcma_aread32(core, BCMA_IOCTL) | 0x40 |
+			      BGMAC_BCMA_IOCTL_SW_CLKEN);
+		bgmac->mac_speed = SPEED_2500;
 		bgmac->mac_duplex = DUPLEX_FULL;
 		bgmac_mac_speed(bgmac);
+	} else {
+		imode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) &
+			BGMAC_DS_MM_MASK) >> BGMAC_DS_MM_SHIFT;
+		if (imode == 0 || imode == 1) {
+			bgmac->mac_speed = SPEED_100;
+			bgmac->mac_duplex = DUPLEX_FULL;
+			bgmac_mac_speed(bgmac);
+		}
 	}
 }
 
@@ -852,7 +892,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	struct bcma_device *core = bgmac->core;
 	struct bcma_bus *bus = core->bus;
 	struct bcma_chipinfo *ci = &bus->chipinfo;
-	u32 flags = 0;
+	u32 flags;
 	u32 iost;
 	int i;
 
@@ -880,15 +920,21 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188))
 		iost &= ~BGMAC_BCMA_IOST_ATTACHED;
 
-	if (iost & BGMAC_BCMA_IOST_ATTACHED) {
-		flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
-		if (!bgmac->has_robosw)
-			flags |= BGMAC_BCMA_IOCTL_SW_RESET;
+	/* 3GMAC: for BCM4707, only do core reset at bgmac_probe() */
+	if (ci->id != BCMA_CHIP_ID_BCM4707) {
+		flags = 0;
+		if (iost & BGMAC_BCMA_IOST_ATTACHED) {
+			flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
+			if (!bgmac->has_robosw)
+				flags |= BGMAC_BCMA_IOCTL_SW_RESET;
+		}
+		bcma_core_enable(core, flags);
 	}
 
-	bcma_core_enable(core, flags);
-
-	if (core->id.rev > 2) {
+	/* Request Misc PLL for corerev > 2 */
+	if (core->id.rev > 2 &&
+	    ci->id != BCMA_CHIP_ID_BCM4707 &&
+	    ci->id != BCMA_CHIP_ID_BCM53018) {
 		bgmac_set(bgmac, BCMA_CLKCTLST,
 			  BGMAC_BCMA_CLKCTLST_MISC_PLL_REQ);
 		bgmac_wait_value(bgmac->core, BCMA_CLKCTLST,
@@ -954,7 +1000,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			     BGMAC_CMDCFG_PROM |
 			     BGMAC_CMDCFG_NLC |
 			     BGMAC_CMDCFG_CFE |
-			     BGMAC_CMDCFG_SR,
+			     BGMAC_CMDCFG_SR(core->id.rev),
 			     false);
 	bgmac->mac_speed = SPEED_UNKNOWN;
 	bgmac->mac_duplex = DUPLEX_UNKNOWN;
@@ -997,7 +1043,7 @@ static void bgmac_enable(struct bgmac *bgmac)
 
 	cmdcfg = bgmac_read(bgmac, BGMAC_CMDCFG);
 	bgmac_cmdcfg_maskset(bgmac, ~(BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE),
-			     BGMAC_CMDCFG_SR, true);
+			     BGMAC_CMDCFG_SR(bgmac->core->id.rev), true);
 	udelay(2);
 	cmdcfg |= BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE;
 	bgmac_write(bgmac, BGMAC_CMDCFG, cmdcfg);
@@ -1026,12 +1072,16 @@ static void bgmac_enable(struct bgmac *bgmac)
 		break;
 	}
 
-	rxq_ctl = bgmac_read(bgmac, BGMAC_RXQ_CTL);
-	rxq_ctl &= ~BGMAC_RXQ_CTL_MDP_MASK;
-	bp_clk = bcma_pmu_get_bus_clock(&bgmac->core->bus->drv_cc) / 1000000;
-	mdp = (bp_clk * 128 / 1000) - 3;
-	rxq_ctl |= (mdp << BGMAC_RXQ_CTL_MDP_SHIFT);
-	bgmac_write(bgmac, BGMAC_RXQ_CTL, rxq_ctl);
+	if (ci->id != BCMA_CHIP_ID_BCM4707 &&
+	    ci->id != BCMA_CHIP_ID_BCM53018) {
+		rxq_ctl = bgmac_read(bgmac, BGMAC_RXQ_CTL);
+		rxq_ctl &= ~BGMAC_RXQ_CTL_MDP_MASK;
+		bp_clk = bcma_pmu_get_bus_clock(&bgmac->core->bus->drv_cc) /
+				1000000;
+		mdp = (bp_clk * 128 / 1000) - 3;
+		rxq_ctl |= (mdp << BGMAC_RXQ_CTL_MDP_SHIFT);
+		bgmac_write(bgmac, BGMAC_RXQ_CTL, rxq_ctl);
+	}
 }
 
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipinit */
@@ -1422,6 +1472,27 @@ static int bgmac_probe(struct bcma_device *core)
 	}
 
 	bgmac_chip_reset(bgmac);
+
+	/* For Northstar, we have to take all GMAC core out of reset */
+	if (core->id.id == BCMA_CHIP_ID_BCM4707 ||
+	    core->id.id == BCMA_CHIP_ID_BCM53018) {
+		struct bcma_device *ns_core;
+		int ns_gmac;
+
+		/* Northstar has 4 GMAC cores */
+		for (ns_gmac = 0; ns_gmac < 4; ns_gmac++) {
+			/* As northstar requirement, we have to reset all GAMCs
+			 * before accessing one. bgmac_chip_reset() call
+			 * bcma_core_enable() for this core. Then the other
+			 * three GAMCs didn't reset.  We do it here.
+			 */
+			ns_core = bcma_find_core_unit(core->bus,
+						      BCMA_CORE_MAC_GBIT,
+						      ns_gmac);
+			if (ns_core && !bcma_core_is_enabled(ns_core))
+				bcma_core_enable(ns_core, 0);
+		}
+	}
 
 	err = bgmac_dma_alloc(bgmac);
 	if (err) {
