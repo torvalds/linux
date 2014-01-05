@@ -427,7 +427,7 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "TKIP: replay detected: STA="
 				       " %pM previous TSC %08x%04x received "
-				      "TSC %08x%04x\n",hdr->addr2,
+				      "TSC %08x%04x\n", hdr->addr2,
 				      tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
 			}
 			tkey->dot11RSNAStatsTKIPReplays++;
