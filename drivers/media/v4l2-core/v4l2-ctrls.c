@@ -1169,14 +1169,16 @@ static bool std_equal(const struct v4l2_ctrl *ctrl, u32 idx,
 	case V4L2_CTRL_TYPE_BUTTON:
 		return false;
 	case V4L2_CTRL_TYPE_STRING:
+		idx *= ctrl->elem_size;
 		/* strings are always 0-terminated */
-		return !strcmp(ptr1.p_char, ptr2.p_char);
+		return !strcmp(ptr1.p_char + idx, ptr2.p_char + idx);
 	case V4L2_CTRL_TYPE_INTEGER64:
-		return *ptr1.p_s64 == *ptr2.p_s64;
+		return ptr1.p_s64[idx] == ptr2.p_s64[idx];
 	default:
-		if (ctrl->is_ptr)
-			return !memcmp(ptr1.p, ptr2.p, ctrl->elem_size);
-		return *ptr1.p_s32 == *ptr2.p_s32;
+		if (ctrl->is_int)
+			return ptr1.p_s32[idx] == ptr2.p_s32[idx];
+		idx *= ctrl->elem_size;
+		return !memcmp(ptr1.p + idx, ptr2.p + idx, ctrl->elem_size);
 	}
 }
 
@@ -1185,18 +1187,19 @@ static void std_init(const struct v4l2_ctrl *ctrl, u32 idx,
 {
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_STRING:
-		memset(ptr.p_char, ' ', ctrl->minimum);
-		ptr.p_char[ctrl->minimum] = '\0';
+		idx *= ctrl->elem_size;
+		memset(ptr.p_char + idx, ' ', ctrl->minimum);
+		ptr.p_char[idx + ctrl->minimum] = '\0';
 		break;
 	case V4L2_CTRL_TYPE_INTEGER64:
-		*ptr.p_s64 = ctrl->default_value;
+		ptr.p_s64[idx] = ctrl->default_value;
 		break;
 	case V4L2_CTRL_TYPE_INTEGER:
 	case V4L2_CTRL_TYPE_INTEGER_MENU:
 	case V4L2_CTRL_TYPE_MENU:
 	case V4L2_CTRL_TYPE_BITMASK:
 	case V4L2_CTRL_TYPE_BOOLEAN:
-		*ptr.p_s32 = ctrl->default_value;
+		ptr.p_s32[idx] = ctrl->default_value;
 		break;
 	default:
 		break;
@@ -1264,36 +1267,37 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_INTEGER:
-		return ROUND_TO_RANGE(*ptr.p_s32, u32, ctrl);
+		return ROUND_TO_RANGE(ptr.p_s32[idx], u32, ctrl);
 	case V4L2_CTRL_TYPE_INTEGER64:
-		return ROUND_TO_RANGE(*ptr.p_s64, u64, ctrl);
+		return ROUND_TO_RANGE(ptr.p_s64[idx], u64, ctrl);
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
-		*ptr.p_s32 = !!*ptr.p_s32;
+		ptr.p_s32[idx] = !!ptr.p_s32[idx];
 		return 0;
 
 	case V4L2_CTRL_TYPE_MENU:
 	case V4L2_CTRL_TYPE_INTEGER_MENU:
-		if (*ptr.p_s32 < ctrl->minimum || *ptr.p_s32 > ctrl->maximum)
+		if (ptr.p_s32[idx] < ctrl->minimum || ptr.p_s32[idx] > ctrl->maximum)
 			return -ERANGE;
-		if (ctrl->menu_skip_mask & (1 << *ptr.p_s32))
+		if (ctrl->menu_skip_mask & (1 << ptr.p_s32[idx]))
 			return -EINVAL;
 		if (ctrl->type == V4L2_CTRL_TYPE_MENU &&
-		    ctrl->qmenu[*ptr.p_s32][0] == '\0')
+		    ctrl->qmenu[ptr.p_s32[idx]][0] == '\0')
 			return -EINVAL;
 		return 0;
 
 	case V4L2_CTRL_TYPE_BITMASK:
-		*ptr.p_s32 &= ctrl->maximum;
+		ptr.p_s32[idx] &= ctrl->maximum;
 		return 0;
 
 	case V4L2_CTRL_TYPE_BUTTON:
 	case V4L2_CTRL_TYPE_CTRL_CLASS:
-		*ptr.p_s32 = 0;
+		ptr.p_s32[idx] = 0;
 		return 0;
 
 	case V4L2_CTRL_TYPE_STRING:
-		len = strlen(ptr.p_char);
+		idx *= ctrl->elem_size;
+		len = strlen(ptr.p_char + idx);
 		if (len < ctrl->minimum)
 			return -ERANGE;
 		if ((len - ctrl->minimum) % ctrl->step)
