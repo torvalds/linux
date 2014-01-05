@@ -317,8 +317,16 @@ static int shadow_ablock(struct dm_array_info *info, dm_block_t *root,
 	 * The shadow op will often be a noop.  Only insert if it really
 	 * copied data.
 	 */
-	if (dm_block_location(*block) != b)
+	if (dm_block_location(*block) != b) {
+		/*
+		 * dm_tm_shadow_block will have already decremented the old
+		 * block, but it is still referenced by the btree.  We
+		 * increment to stop the insert decrementing it below zero
+		 * when overwriting the old value.
+		 */
+		dm_tm_inc(info->btree_info.tm, b);
 		r = insert_ablock(info, index, *block, root);
+	}
 
 	return r;
 }

@@ -426,10 +426,10 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 	if (unlikely(len < sizeof(struct virtio_net_hdr) + ETH_HLEN)) {
 		pr_debug("%s: short packet %i\n", dev->name, len);
 		dev->stats.rx_length_errors++;
-		if (vi->big_packets)
-			give_pages(rq, buf);
-		else if (vi->mergeable_rx_bufs)
+		if (vi->mergeable_rx_bufs)
 			put_page(virt_to_head_page(buf));
+		else if (vi->big_packets)
+			give_pages(rq, buf);
 		else
 			dev_kfree_skb(buf);
 		return;
@@ -1367,6 +1367,11 @@ static void virtnet_config_changed(struct virtio_device *vdev)
 
 static void virtnet_free_queues(struct virtnet_info *vi)
 {
+	int i;
+
+	for (i = 0; i < vi->max_queue_pairs; i++)
+		netif_napi_del(&vi->rq[i].napi);
+
 	kfree(vi->rq);
 	kfree(vi->sq);
 }
@@ -1396,10 +1401,10 @@ static void free_unused_bufs(struct virtnet_info *vi)
 		struct virtqueue *vq = vi->rq[i].vq;
 
 		while ((buf = virtqueue_detach_unused_buf(vq)) != NULL) {
-			if (vi->big_packets)
-				give_pages(&vi->rq[i], buf);
-			else if (vi->mergeable_rx_bufs)
+			if (vi->mergeable_rx_bufs)
 				put_page(virt_to_head_page(buf));
+			else if (vi->big_packets)
+				give_pages(&vi->rq[i], buf);
 			else
 				dev_kfree_skb(buf);
 			--vi->rq[i].num;

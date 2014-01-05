@@ -139,6 +139,8 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 	priv->adap.algo = &priv->algo;
 	priv->adap.algo_data = priv;
 	priv->adap.dev.parent = &parent->dev;
+	priv->adap.retries = parent->retries;
+	priv->adap.timeout = parent->timeout;
 
 	/* Sanity check on class */
 	if (i2c_mux_parent_classes(parent) & class)

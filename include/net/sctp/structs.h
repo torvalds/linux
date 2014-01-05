@@ -1726,12 +1726,6 @@ struct sctp_association {
 	/* How many duplicated TSNs have we seen?  */
 	int numduptsns;
 
-	/* Number of seconds of idle time before an association is closed.
-	 * In the association context, this is really used as a boolean
-	 * since the real timeout is stored in the timeouts array
-	 */
-	__u32 autoclose;
-
 	/* These are to support
 	 * "SCTP Extensions for Dynamic Reconfiguration of IP Addresses
 	 *  and Enforcement of Flow and Message Limits"
