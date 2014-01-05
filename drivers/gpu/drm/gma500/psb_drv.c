@@ -21,7 +21,6 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "framebuffer.h"
 #include "psb_reg.h"
@@ -89,56 +88,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 /*
  * Standard IOCTLs.
  */
-
-#define DRM_IOCTL_GMA_ADB	\
-		DRM_IOWR(DRM_GMA_ADB + DRM_COMMAND_BASE, uint32_t)
-#define DRM_IOCTL_GMA_MODE_OPERATION	\
-		DRM_IOWR(DRM_GMA_MODE_OPERATION + DRM_COMMAND_BASE, \
-			 struct drm_psb_mode_operation_arg)
-#define DRM_IOCTL_GMA_STOLEN_MEMORY	\
-		DRM_IOWR(DRM_GMA_STOLEN_MEMORY + DRM_COMMAND_BASE, \
-			 struct drm_psb_stolen_memory_arg)
-#define DRM_IOCTL_GMA_GAMMA	\
-		DRM_IOWR(DRM_GMA_GAMMA + DRM_COMMAND_BASE, \
-			 struct drm_psb_dpst_lut_arg)
-#define DRM_IOCTL_GMA_DPST_BL	\
-		DRM_IOWR(DRM_GMA_DPST_BL + DRM_COMMAND_BASE, \
-			 uint32_t)
-#define DRM_IOCTL_GMA_GET_PIPE_FROM_CRTC_ID	\
-		DRM_IOWR(DRM_GMA_GET_PIPE_FROM_CRTC_ID + DRM_COMMAND_BASE, \
-			 struct drm_psb_get_pipe_from_crtc_id_arg)
-#define DRM_IOCTL_GMA_GEM_CREATE	\
-		DRM_IOWR(DRM_GMA_GEM_CREATE + DRM_COMMAND_BASE, \
-			 struct drm_psb_gem_create)
-#define DRM_IOCTL_GMA_GEM_MMAP	\
-		DRM_IOWR(DRM_GMA_GEM_MMAP + DRM_COMMAND_BASE, \
-			 struct drm_psb_gem_mmap)
-
-static int psb_adb_ioctl(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-static int psb_stolen_memory_ioctl(struct drm_device *dev, void *data,
-				   struct drm_file *file_priv);
-static int psb_gamma_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
-			     struct drm_file *file_priv);
-
 static const struct drm_ioctl_desc psb_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(GMA_ADB, psb_adb_ioctl, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(GMA_MODE_OPERATION, psb_mode_operation_ioctl,
-		      DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(GMA_STOLEN_MEMORY, psb_stolen_memory_ioctl,
-		      DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(GMA_GAMMA, psb_gamma_ioctl, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(GMA_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(GMA_GET_PIPE_FROM_CRTC_ID,
-					psb_intel_get_pipe_from_crtc_id, 0),
-	DRM_IOCTL_DEF_DRV(GMA_GEM_CREATE, psb_gem_create_ioctl,
-						DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(GMA_GEM_MMAP, psb_gem_mmap_ioctl,
-						DRM_UNLOCKED | DRM_AUTH),
 };
 
 static void psb_lastclose(struct drm_device *dev)
@@ -449,152 +399,6 @@ static inline void get_brightness(struct backlight_device *bd)
 		backlight_update_status(bd);
 	}
 #endif
-}
-
-static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	uint32_t *arg = data;
-
-	dev_priv->blc_adj2 = *arg;
-	get_brightness(dev_priv->backlight_device);
-	return 0;
-}
-
-static int psb_adb_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	uint32_t *arg = data;
-
-	dev_priv->blc_adj1 = *arg;
-	get_brightness(dev_priv->backlight_device);
-	return 0;
-}
-
-static int psb_gamma_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv)
-{
-	struct drm_psb_dpst_lut_arg *lut_arg = data;
-	struct drm_mode_object *obj;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
-	struct gma_crtc *gma_crtc;
-	int i = 0;
-	int32_t obj_id;
-
-	obj_id = lut_arg->output_id;
-	obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_CONNECTOR);
-	if (!obj) {
-		dev_dbg(dev->dev, "Invalid Connector object.\n");
-		return -ENOENT;
-	}
-
-	connector = obj_to_connector(obj);
-	crtc = connector->encoder->crtc;
-	gma_crtc = to_gma_crtc(crtc);
-
-	for (i = 0; i < 256; i++)
-		gma_crtc->lut_adj[i] = lut_arg->lut[i];
-
-	gma_crtc_load_lut(crtc);
-
-	return 0;
-}
-
-static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file_priv)
-{
-	uint32_t obj_id;
-	uint16_t op;
-	struct drm_mode_modeinfo *umode;
-	struct drm_display_mode *mode = NULL;
-	struct drm_psb_mode_operation_arg *arg;
-	struct drm_mode_object *obj;
-	struct drm_connector *connector;
-	struct drm_connector_helper_funcs *connector_funcs;
-	int ret = 0;
-	int resp = MODE_OK;
-
-	arg = (struct drm_psb_mode_operation_arg *)data;
-	obj_id = arg->obj_id;
-	op = arg->operation;
-
-	switch (op) {
-	case PSB_MODE_OPERATION_MODE_VALID:
-		umode = &arg->mode;
-
-		drm_modeset_lock_all(dev);
-
-		obj = drm_mode_object_find(dev, obj_id,
-					DRM_MODE_OBJECT_CONNECTOR);
-		if (!obj) {
-			ret = -ENOENT;
-			goto mode_op_out;
-		}
-
-		connector = obj_to_connector(obj);
-
-		mode = drm_mode_create(dev);
-		if (!mode) {
-			ret = -ENOMEM;
-			goto mode_op_out;
-		}
-
-		/* drm_crtc_convert_umode(mode, umode); */
-		{
-			mode->clock = umode->clock;
-			mode->hdisplay = umode->hdisplay;
-			mode->hsync_start = umode->hsync_start;
-			mode->hsync_end = umode->hsync_end;
-			mode->htotal = umode->htotal;
-			mode->hskew = umode->hskew;
-			mode->vdisplay = umode->vdisplay;
-			mode->vsync_start = umode->vsync_start;
-			mode->vsync_end = umode->vsync_end;
-			mode->vtotal = umode->vtotal;
-			mode->vscan = umode->vscan;
-			mode->vrefresh = umode->vrefresh;
-			mode->flags = umode->flags;
-			mode->type = umode->type;
-			strncpy(mode->name, umode->name, DRM_DISPLAY_MODE_LEN);
-			mode->name[DRM_DISPLAY_MODE_LEN-1] = 0;
-		}
-
-		connector_funcs = (struct drm_connector_helper_funcs *)
-				   connector->helper_private;
-
-		if (connector_funcs->mode_valid) {
-			resp = connector_funcs->mode_valid(connector, mode);
-			arg->data = resp;
-		}
-
-		/*do some clean up work*/
-		if (mode)
-			drm_mode_destroy(dev, mode);
-mode_op_out:
-		drm_modeset_unlock_all(dev);
-		return ret;
-
-	default:
-		dev_dbg(dev->dev, "Unsupported psb mode operation\n");
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
-static int psb_stolen_memory_ioctl(struct drm_device *dev, void *data,
-				   struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	struct drm_psb_stolen_memory_arg *arg = data;
-
-	arg->base = dev_priv->stolen_base;
-	arg->size = dev_priv->vram_stolen_size;
-
-	return 0;
 }
 
 static int psb_driver_open(struct drm_device *dev, struct drm_file *priv)

@@ -554,33 +554,6 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	gma_crtc->active = true;
 }
 
-int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
-				struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_psb_get_pipe_from_crtc_id_arg *pipe_from_crtc_id = data;
-	struct drm_mode_object *drmmode_obj;
-	struct gma_crtc *crtc;
-
-	if (!dev_priv) {
-		dev_err(dev->dev, "called with no initialization\n");
-		return -EINVAL;
-	}
-
-	drmmode_obj = drm_mode_object_find(dev, pipe_from_crtc_id->crtc_id,
-			DRM_MODE_OBJECT_CRTC);
-
-	if (!drmmode_obj) {
-		dev_err(dev->dev, "no such CRTC id\n");
-		return -ENOENT;
-	}
-
-	crtc = to_gma_crtc(obj_to_crtc(drmmode_obj));
-	pipe_from_crtc_id->pipe = crtc->pipe;
-
-	return 0;
-}
-
 struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
 {
 	struct drm_crtc *crtc = NULL;
