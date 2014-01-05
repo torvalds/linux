@@ -33,8 +33,6 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 int bcma_bus_suspend(struct bcma_bus *bus);
 int bcma_bus_resume(struct bcma_bus *bus);
 #endif
-struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
-					u8 unit);
 
 /* scan.c */
 int bcma_bus_scan(struct bcma_bus *bus);
