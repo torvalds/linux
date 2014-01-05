@@ -295,6 +295,19 @@ config NET_SCH_HHF
 	  To compile this driver as a module, choose M here: the module
 	  will be called sch_hhf.
 
+config NET_SCH_PIE
+	tristate "Proportional Integral controller Enhanced (PIE) scheduler"
+	help
+	  Say Y here if you want to use the Proportional Integral controller
+	  Enhanced scheduler packet scheduling algorithm.
+	  For more information, please see
+	  http://tools.ietf.org/html/draft-pan-tsvwg-pie-00
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_pie.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
 	depends on NET_CLS_ACT
