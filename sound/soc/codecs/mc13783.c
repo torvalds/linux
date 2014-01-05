@@ -752,26 +752,23 @@ static struct snd_soc_codec_driver soc_codec_dev_mc13783 = {
 
 static int __init mc13783_codec_probe(struct platform_device *pdev)
 {
-	struct mc13xxx *mc13xxx;
 	struct mc13783_priv *priv;
 	struct mc13xxx_codec_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
 
-	mc13xxx = dev_get_drvdata(pdev->dev.parent);
-
-
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (priv == NULL)
+	if (!priv)
 		return -ENOMEM;
 
-	dev_set_drvdata(&pdev->dev, priv);
-	priv->mc13xxx = mc13xxx;
 	if (pdata) {
 		priv->adc_ssi_port = pdata->adc_ssi_port;
 		priv->dac_ssi_port = pdata->dac_ssi_port;
 	} else {
 		return -ENOSYS;
 	}
+
+	dev_set_drvdata(&pdev->dev, priv);
+	priv->mc13xxx = dev_get_drvdata(pdev->dev.parent);
 
 	if (priv->adc_ssi_port == priv->dac_ssi_port)
 		ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_mc13783,
@@ -792,9 +789,9 @@ static int mc13783_codec_remove(struct platform_device *pdev)
 
 static struct platform_driver mc13783_codec_driver = {
 	.driver = {
-		   .name = "mc13783-codec",
-		   .owner = THIS_MODULE,
-		   },
+		.name	= "mc13783-codec",
+		.owner	= THIS_MODULE,
+	},
 	.remove = mc13783_codec_remove,
 };
 module_platform_driver_probe(mc13783_codec_driver, mc13783_codec_probe);
