@@ -100,9 +100,7 @@ static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
  */
 static inline int phy_aneg_done(struct phy_device *phydev)
 {
-	int retval;
-
-	retval = phy_read(phydev, MII_BMSR);
+	int retval = phy_read(phydev, MII_BMSR);
 
 	return (retval < 0) ? retval : (retval & BMSR_ANEGCOMPLETE);
 }
@@ -498,16 +496,12 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
  */
 static int phy_enable_interrupts(struct phy_device *phydev)
 {
-	int err;
-
-	err = phy_clear_interrupt(phydev);
+	int err = phy_clear_interrupt(phydev);
 
 	if (err < 0)
 		return err;
 
-	err = phy_config_interrupt(phydev, PHY_INTERRUPT_ENABLED);
-
-	return err;
+	return phy_config_interrupt(phydev, PHY_INTERRUPT_ENABLED);
 }
 
 /**
@@ -571,9 +565,7 @@ EXPORT_SYMBOL(phy_start_interrupts);
  */
 int phy_stop_interrupts(struct phy_device *phydev)
 {
-	int err;
-
-	err = phy_disable_interrupts(phydev);
+	int err = phy_disable_interrupts(phydev);
 
 	if (err)
 		phy_error(phydev);
@@ -1108,9 +1100,8 @@ EXPORT_SYMBOL(phy_ethtool_get_eee);
  */
 int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
-	int val;
+	int val = ethtool_adv_to_mmd_eee_adv_t(data->advertised);
 
-	val = ethtool_adv_to_mmd_eee_adv_t(data->advertised);
 	phy_write_mmd_indirect(phydev->bus, MDIO_AN_EEE_ADV, MDIO_MMD_AN,
 			       phydev->addr, val);
 

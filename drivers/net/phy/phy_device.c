@@ -70,9 +70,8 @@ static int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 		       int (*run)(struct phy_device *))
 {
-	struct phy_fixup *fixup;
+	struct phy_fixup *fixup = kzalloc(sizeof(*fixup), GFP_KERNEL);
 
-	fixup = kzalloc(sizeof(*fixup), GFP_KERNEL);
 	if (!fixup)
 		return -ENOMEM;
 
@@ -130,9 +129,7 @@ int phy_scan_fixups(struct phy_device *phydev)
 	mutex_lock(&phy_fixup_lock);
 	list_for_each_entry(fixup, &phy_fixup_list, list) {
 		if (phy_needs_fixup(phydev, fixup)) {
-			int err;
-
-			err = fixup->run(phydev);
+			int err = fixup->run(phydev);
 
 			if (err < 0) {
 				mutex_unlock(&phy_fixup_lock);
@@ -801,9 +798,7 @@ EXPORT_SYMBOL(genphy_setup_forced);
  */
 int genphy_restart_aneg(struct phy_device *phydev)
 {
-	int ctl;
-
-	ctl = phy_read(phydev, MII_BMCR);
+	int ctl = phy_read(phydev, MII_BMCR);
 
 	if (ctl < 0)
 		return ctl;
@@ -813,9 +808,7 @@ int genphy_restart_aneg(struct phy_device *phydev)
 	/* Don't isolate the PHY if we're negotiating */
 	ctl &= ~BMCR_ISOLATE;
 
-	ctl = phy_write(phydev, MII_BMCR, ctl);
-
-	return ctl;
+	return phy_write(phydev, MII_BMCR, ctl);
 }
 EXPORT_SYMBOL(genphy_restart_aneg);
 
@@ -1087,15 +1080,11 @@ EXPORT_SYMBOL(genphy_resume);
  */
 static int phy_probe(struct device *dev)
 {
-	struct phy_device *phydev;
-	struct phy_driver *phydrv;
-	struct device_driver *drv;
+	struct phy_device *phydev = to_phy_device(dev);
+	struct device_driver *drv = phydev->dev.driver;
+	struct phy_driver *phydrv = to_phy_driver(drv);
 	int err = 0;
 
-	phydev = to_phy_device(dev);
-
-	drv = phydev->dev.driver;
-	phydrv = to_phy_driver(drv);
 	phydev->drv = phydrv;
 
 	/* Disable the interrupt if the PHY doesn't support it
@@ -1130,9 +1119,7 @@ static int phy_probe(struct device *dev)
 
 static int phy_remove(struct device *dev)
 {
-	struct phy_device *phydev;
-
-	phydev = to_phy_device(dev);
+	struct phy_device *phydev = to_phy_device(dev);
 
 	mutex_lock(&phydev->lock);
 	phydev->state = PHY_DOWN;
