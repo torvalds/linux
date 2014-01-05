@@ -1805,6 +1805,9 @@ static void bnx2x_vf_mbx_update_rss(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	vf_op_params->rss_result_mask = rss_tlv->rss_result_mask;
 
 	/* flags handled individually for backward/forward compatability */
+	vf_op_params->rss_flags = 0;
+	vf_op_params->ramrod_flags = 0;
+
 	if (rss_tlv->rss_flags & VFPF_RSS_MODE_DISABLED)
 		__set_bit(BNX2X_RSS_MODE_DISABLED, &vf_op_params->rss_flags);
 	if (rss_tlv->rss_flags & VFPF_RSS_MODE_REGULAR)

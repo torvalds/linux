@@ -4382,8 +4382,11 @@ int bnx2x_config_rss(struct bnx2x *bp,
 	struct bnx2x_raw_obj *r = &o->raw;
 
 	/* Do nothing if only driver cleanup was requested */
-	if (test_bit(RAMROD_DRV_CLR_ONLY, &p->ramrod_flags))
+	if (test_bit(RAMROD_DRV_CLR_ONLY, &p->ramrod_flags)) {
+		DP(BNX2X_MSG_SP, "Not configuring RSS ramrod_flags=%lx\n",
+		   p->ramrod_flags);
 		return 0;
+	}
 
 	r->set_pending(r);
 
