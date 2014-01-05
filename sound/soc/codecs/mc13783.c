@@ -781,14 +781,6 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 		ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_mc13783,
 			mc13783_dai_async, ARRAY_SIZE(mc13783_dai_async));
 
-	if (ret)
-		goto err_register_codec;
-
-	return 0;
-
-err_register_codec:
-	dev_err(&pdev->dev, "register codec failed with %d\n", ret);
-
 	return ret;
 }
 
