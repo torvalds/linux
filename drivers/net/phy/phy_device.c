@@ -151,7 +151,6 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 
 	/* We allocate the device, and initialize the default values */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-
 	if (NULL == dev)
 		return (struct phy_device *)PTR_ERR((void *)-ENOMEM);
 
@@ -294,7 +293,6 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 
 	/* Grab the bits from PHYIR1, and put them in the upper half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
-
 	if (phy_reg < 0)
 		return -EIO;
 
@@ -302,7 +300,6 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 
 	/* Grab the bits from PHYIR2, and put them in the lower half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID2);
-
 	if (phy_reg < 0)
 		return -EIO;
 
@@ -724,7 +721,6 @@ static int genphy_config_advert(struct phy_device *phydev)
 
 	/* Setup standard advertisement */
 	adv = phy_read(phydev, MII_ADVERTISE);
-
 	if (adv < 0)
 		return adv;
 
@@ -745,7 +741,6 @@ static int genphy_config_advert(struct phy_device *phydev)
 	if (phydev->supported & (SUPPORTED_1000baseT_Half |
 				 SUPPORTED_1000baseT_Full)) {
 		adv = phy_read(phydev, MII_CTRL1000);
-
 		if (adv < 0)
 			return adv;
 
@@ -812,7 +807,6 @@ int genphy_restart_aneg(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_restart_aneg);
 
-
 /**
  * genphy_config_aneg - restart auto-negotiation or write BMCR
  * @phydev: target phy_device struct
@@ -829,10 +823,8 @@ int genphy_config_aneg(struct phy_device *phydev)
 		return genphy_setup_forced(phydev);
 
 	result = genphy_config_advert(phydev);
-
 	if (result < 0) /* error */
 		return result;
-
 	if (result == 0) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
 		 * begin with?  Or maybe phy was isolated?
@@ -870,13 +862,11 @@ int genphy_update_link(struct phy_device *phydev)
 
 	/* Do a fake read */
 	status = phy_read(phydev, MII_BMSR);
-
 	if (status < 0)
 		return status;
 
 	/* Read link and autonegotiation status */
 	status = phy_read(phydev, MII_BMSR);
-
 	if (status < 0)
 		return status;
 
@@ -916,12 +906,10 @@ int genphy_read_status(struct phy_device *phydev)
 		if (phydev->supported & (SUPPORTED_1000baseT_Half
 					| SUPPORTED_1000baseT_Full)) {
 			lpagb = phy_read(phydev, MII_STAT1000);
-
 			if (lpagb < 0)
 				return lpagb;
 
 			adv = phy_read(phydev, MII_CTRL1000);
-
 			if (adv < 0)
 				return adv;
 
@@ -931,14 +919,12 @@ int genphy_read_status(struct phy_device *phydev)
 		}
 
 		lpa = phy_read(phydev, MII_LPA);
-
 		if (lpa < 0)
 			return lpa;
 
 		phydev->lp_advertising |= mii_lpa_to_ethtool_lpa_t(lpa);
 
 		adv = phy_read(phydev, MII_ADVERTISE);
-
 		if (adv < 0)
 			return adv;
 
@@ -1007,7 +993,6 @@ static int genphy_config_init(struct phy_device *phydev)
 
 	/* Do we support autonegotiation? */
 	val = phy_read(phydev, MII_BMSR);
-
 	if (val < 0)
 		return val;
 
@@ -1025,7 +1010,6 @@ static int genphy_config_init(struct phy_device *phydev)
 
 	if (val & BMSR_ESTATEN) {
 		val = phy_read(phydev, MII_ESTATUS);
-
 		if (val < 0)
 			return val;
 
@@ -1146,7 +1130,6 @@ int phy_driver_register(struct phy_driver *new_driver)
 	new_driver->driver.remove = phy_remove;
 
 	retval = driver_register(&new_driver->driver);
-
 	if (retval) {
 		pr_err("%s: Error %d in registering driver\n",
 		       new_driver->name, retval);
