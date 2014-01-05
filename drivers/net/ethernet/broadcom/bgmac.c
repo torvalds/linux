@@ -1446,6 +1446,27 @@ static int bgmac_probe(struct bcma_device *core)
 
 	bgmac_chip_reset(bgmac);
 
+	/* For Northstar, we have to take all GMAC core out of reset */
+	if (core->id.id == BCMA_CHIP_ID_BCM4707 ||
+	    core->id.id == BCMA_CHIP_ID_BCM53018) {
+		struct bcma_device *ns_core;
+		int ns_gmac;
+
+		/* Northstar has 4 GMAC cores */
+		for (ns_gmac = 0; ns_gmac < 4; ns_gmac++) {
+			/* As northstar requirement, we have to reset all GAMCs
+			 * before accessing one. bgmac_chip_reset() call
+			 * bcma_core_enable() for this core. Then the other
+			 * three GAMCs didn't reset.  We do it here.
+			 */
+			ns_core = bcma_find_core_unit(core->bus,
+						      BCMA_CORE_MAC_GBIT,
+						      ns_gmac);
+			if (ns_core && !bcma_core_is_enabled(ns_core))
+				bcma_core_enable(ns_core, 0);
+		}
+	}
+
 	err = bgmac_dma_alloc(bgmac);
 	if (err) {
 		bgmac_err(bgmac, "Unable to alloc memory for DMA\n");
