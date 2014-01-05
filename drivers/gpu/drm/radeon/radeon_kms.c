@@ -461,6 +461,15 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	case RADEON_INFO_SI_CP_DMA_COMPUTE:
 		*value = 1;
 		break;
+	case RADEON_INFO_SI_BACKEND_ENABLED_MASK:
+		if (rdev->family >= CHIP_BONAIRE) {
+			*value = rdev->config.cik.backend_enable_mask;
+		} else if (rdev->family >= CHIP_TAHITI) {
+			*value = rdev->config.si.backend_enable_mask;
+		} else {
+			DRM_DEBUG_KMS("BACKEND_ENABLED_MASK is si+ only!\n");
+		}
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;

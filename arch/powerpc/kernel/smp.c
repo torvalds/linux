@@ -580,7 +580,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 int cpu_to_core_id(int cpu)
 {
 	struct device_node *np;
-	const int *reg;
+	const __be32 *reg;
 	int id = -1;
 
 	np = of_get_cpu_node(cpu, NULL);
@@ -591,7 +591,7 @@ int cpu_to_core_id(int cpu)
 	if (!reg)
 		goto out;
 
-	id = *reg;
+	id = be32_to_cpup(reg);
 out:
 	of_node_put(np);
 	return id;

@@ -240,6 +240,7 @@ static irqreturn_t xuartps_isr(int irq, void *dev_id)
 					continue;
 			}
 
+#ifdef SUPPORT_SYSRQ
 			/*
 			 * uart_handle_sysrq_char() doesn't work if
 			 * spinlocked, for some reason
@@ -253,6 +254,7 @@ static irqreturn_t xuartps_isr(int irq, void *dev_id)
 				}
 				spin_lock(&port->lock);
 			}
+#endif
 
 			port->icount.rx++;
 

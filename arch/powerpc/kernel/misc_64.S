@@ -246,8 +246,8 @@ _GLOBAL(__bswapdi2)
 	or	r3,r7,r9
 	blr
 
-#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
 
+#ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
 _GLOBAL(rmci_on)
 	sync
 	isync
@@ -277,6 +277,9 @@ _GLOBAL(rmci_off)
 	isync
 	sync
 	blr
+#endif /* CONFIG_PPC_EARLY_DEBUG_BOOTX */
+
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
 
 /*
  * Do an IO access in real mode

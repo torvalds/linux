@@ -621,7 +621,7 @@ static struct platform_device dm646x_edma_device = {
 
 static struct resource dm646x_mcasp0_resources[] = {
 	{
-		.name	= "mcasp0",
+		.name	= "mpu",
 		.start 	= DAVINCI_DM646X_MCASP0_REG_BASE,
 		.end 	= DAVINCI_DM646X_MCASP0_REG_BASE + (SZ_1K << 1) - 1,
 		.flags 	= IORESOURCE_MEM,
@@ -641,7 +641,7 @@ static struct resource dm646x_mcasp0_resources[] = {
 
 static struct resource dm646x_mcasp1_resources[] = {
 	{
-		.name	= "mcasp1",
+		.name	= "mpu",
 		.start	= DAVINCI_DM646X_MCASP1_REG_BASE,
 		.end	= DAVINCI_DM646X_MCASP1_REG_BASE + (SZ_1K << 1) - 1,
 		.flags	= IORESOURCE_MEM,
@@ -769,7 +769,7 @@ static struct davinci_gpio_platform_data dm646x_gpio_platform_data = {
 int __init dm646x_gpio_register(void)
 {
 	return davinci_gpio_register(dm646x_gpio_resources,
-				     sizeof(dm646x_gpio_resources),
+				     ARRAY_SIZE(dm646x_gpio_resources),
 				     &dm646x_gpio_platform_data);
 }
 /*----------------------------------------------------------------------*/

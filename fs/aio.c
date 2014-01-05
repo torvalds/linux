@@ -244,9 +244,14 @@ static void aio_free_ring(struct kioctx *ctx)
 	int i;
 
 	for (i = 0; i < ctx->nr_pages; i++) {
+		struct page *page;
 		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
 				page_count(ctx->ring_pages[i]));
-		put_page(ctx->ring_pages[i]);
+		page = ctx->ring_pages[i];
+		if (!page)
+			continue;
+		ctx->ring_pages[i] = NULL;
+		put_page(page);
 	}
 
 	put_aio_ring_file(ctx);
@@ -280,17 +285,37 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
 	unsigned long flags;
 	int rc;
 
+	rc = 0;
+
+	/* Make sure the old page hasn't already been changed */
+	spin_lock(&mapping->private_lock);
+	ctx = mapping->private_data;
+	if (ctx) {
+		pgoff_t idx;
+		spin_lock_irqsave(&ctx->completion_lock, flags);
+		idx = old->index;
+		if (idx < (pgoff_t)ctx->nr_pages) {
+			if (ctx->ring_pages[idx] != old)
+				rc = -EAGAIN;
+		} else
+			rc = -EINVAL;
+		spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	} else
+		rc = -EINVAL;
+	spin_unlock(&mapping->private_lock);
+
+	if (rc != 0)
+		return rc;
+
 	/* Writeback must be complete */
 	BUG_ON(PageWriteback(old));
-	put_page(old);
+	get_page(new);
 
-	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode);
+	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode, 1);
 	if (rc != MIGRATEPAGE_SUCCESS) {
-		get_page(old);
+		put_page(new);
 		return rc;
 	}
-
-	get_page(new);
 
 	/* We can potentially race against kioctx teardown here.  Use the
 	 * address_space's private data lock to protect the mapping's
@@ -303,12 +328,23 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
 		spin_lock_irqsave(&ctx->completion_lock, flags);
 		migrate_page_copy(new, old);
 		idx = old->index;
-		if (idx < (pgoff_t)ctx->nr_pages)
-			ctx->ring_pages[idx] = new;
+		if (idx < (pgoff_t)ctx->nr_pages) {
+			/* And only do the move if things haven't changed */
+			if (ctx->ring_pages[idx] == old)
+				ctx->ring_pages[idx] = new;
+			else
+				rc = -EAGAIN;
+		} else
+			rc = -EINVAL;
 		spin_unlock_irqrestore(&ctx->completion_lock, flags);
 	} else
 		rc = -EBUSY;
 	spin_unlock(&mapping->private_lock);
+
+	if (rc == MIGRATEPAGE_SUCCESS)
+		put_page(old);
+	else
+		put_page(new);
 
 	return rc;
 }
@@ -326,7 +362,7 @@ static int aio_setup_ring(struct kioctx *ctx)
 	struct aio_ring *ring;
 	unsigned nr_events = ctx->max_reqs;
 	struct mm_struct *mm = current->mm;
-	unsigned long size, populate;
+	unsigned long size, unused;
 	int nr_pages;
 	int i;
 	struct file *file;
@@ -347,6 +383,20 @@ static int aio_setup_ring(struct kioctx *ctx)
 		return -EAGAIN;
 	}
 
+	ctx->aio_ring_file = file;
+	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring))
+			/ sizeof(struct io_event);
+
+	ctx->ring_pages = ctx->internal_pages;
+	if (nr_pages > AIO_RING_PAGES) {
+		ctx->ring_pages = kcalloc(nr_pages, sizeof(struct page *),
+					  GFP_KERNEL);
+		if (!ctx->ring_pages) {
+			put_aio_ring_file(ctx);
+			return -ENOMEM;
+		}
+	}
+
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page;
 		page = find_or_create_page(file->f_inode->i_mapping,
@@ -358,17 +408,14 @@ static int aio_setup_ring(struct kioctx *ctx)
 		SetPageUptodate(page);
 		SetPageDirty(page);
 		unlock_page(page);
-	}
-	ctx->aio_ring_file = file;
-	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring))
-			/ sizeof(struct io_event);
 
-	ctx->ring_pages = ctx->internal_pages;
-	if (nr_pages > AIO_RING_PAGES) {
-		ctx->ring_pages = kcalloc(nr_pages, sizeof(struct page *),
-					  GFP_KERNEL);
-		if (!ctx->ring_pages)
-			return -ENOMEM;
+		ctx->ring_pages[i] = page;
+	}
+	ctx->nr_pages = i;
+
+	if (unlikely(i != nr_pages)) {
+		aio_free_ring(ctx);
+		return -EAGAIN;
 	}
 
 	ctx->mmap_size = nr_pages * PAGE_SIZE;
@@ -377,36 +424,15 @@ static int aio_setup_ring(struct kioctx *ctx)
 	down_write(&mm->mmap_sem);
 	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
 				       PROT_READ | PROT_WRITE,
-				       MAP_SHARED | MAP_POPULATE, 0, &populate);
+				       MAP_SHARED, 0, &unused);
+	up_write(&mm->mmap_sem);
 	if (IS_ERR((void *)ctx->mmap_base)) {
-		up_write(&mm->mmap_sem);
 		ctx->mmap_size = 0;
 		aio_free_ring(ctx);
 		return -EAGAIN;
 	}
 
 	pr_debug("mmap address: 0x%08lx\n", ctx->mmap_base);
-
-	/* We must do this while still holding mmap_sem for write, as we
-	 * need to be protected against userspace attempting to mremap()
-	 * or munmap() the ring buffer.
-	 */
-	ctx->nr_pages = get_user_pages(current, mm, ctx->mmap_base, nr_pages,
-				       1, 0, ctx->ring_pages, NULL);
-
-	/* Dropping the reference here is safe as the page cache will hold
-	 * onto the pages for us.  It is also required so that page migration
-	 * can unmap the pages and get the right reference count.
-	 */
-	for (i = 0; i < ctx->nr_pages; i++)
-		put_page(ctx->ring_pages[i]);
-
-	up_write(&mm->mmap_sem);
-
-	if (unlikely(ctx->nr_pages != nr_pages)) {
-		aio_free_ring(ctx);
-		return -EAGAIN;
-	}
 
 	ctx->user_id = ctx->mmap_base;
 	ctx->nr_events = nr_events; /* trusted copy */
@@ -645,12 +671,13 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	    aio_nr + nr_events < aio_nr) {
 		spin_unlock(&aio_nr_lock);
 		err = -EAGAIN;
-		goto err;
+		goto err_ctx;
 	}
 	aio_nr += ctx->max_reqs;
 	spin_unlock(&aio_nr_lock);
 
-	percpu_ref_get(&ctx->users); /* io_setup() will drop this ref */
+	percpu_ref_get(&ctx->users);	/* io_setup() will drop this ref */
+	percpu_ref_get(&ctx->reqs);	/* free_ioctx_users() will drop this */
 
 	err = ioctx_add_table(ctx, mm);
 	if (err)
@@ -662,6 +689,8 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 err_cleanup:
 	aio_nr_sub(ctx->max_reqs);
+err_ctx:
+	aio_free_ring(ctx);
 err:
 	free_percpu(ctx->cpu);
 	free_percpu(ctx->reqs.pcpu_count);

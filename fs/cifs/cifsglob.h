@@ -384,6 +384,7 @@ struct smb_version_operations {
 	int (*clone_range)(const unsigned int, struct cifsFileInfo *src_file,
 			struct cifsFileInfo *target_file, u64 src_off, u64 len,
 			u64 dest_off);
+	int (*validate_negotiate)(const unsigned int, struct cifs_tcon *);
 };
 
 struct smb_version_values {

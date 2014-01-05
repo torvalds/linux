@@ -1699,7 +1699,7 @@ static void saa711x_write_platform_data(struct saa711x_state *state,
  * the analog demod.
  * If the tuner is not found, it returns -ENODEV.
  * If auto-detection is disabled and the tuner doesn't match what it was
- *	requred, it returns -EINVAL and fills 'name'.
+ *	required, it returns -EINVAL and fills 'name'.
  * If the chip is found, it returns the chip ID and fills 'name'.
  */
 static int saa711x_detect_chip(struct i2c_client *client,

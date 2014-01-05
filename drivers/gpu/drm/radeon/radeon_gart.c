@@ -29,6 +29,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_reg.h"
+#include "radeon_trace.h"
 
 /*
  * GART
@@ -737,6 +738,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 	for (i = 0; i < 2; ++i) {
 		if (choices[i]) {
 			vm->id = choices[i];
+			trace_radeon_vm_grab_id(vm->id, ring);
 			return rdev->vm_manager.active[choices[i]];
 		}
 	}
@@ -1116,7 +1118,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 }
 
 /**
- * radeon_vm_bo_update_pte - map a bo into the vm page table
+ * radeon_vm_bo_update - map a bo into the vm page table
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
@@ -1128,10 +1130,10 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
  *
  * Object have to be reserved & global and local mutex must be locked!
  */
-int radeon_vm_bo_update_pte(struct radeon_device *rdev,
-			    struct radeon_vm *vm,
-			    struct radeon_bo *bo,
-			    struct ttm_mem_reg *mem)
+int radeon_vm_bo_update(struct radeon_device *rdev,
+			struct radeon_vm *vm,
+			struct radeon_bo *bo,
+			struct ttm_mem_reg *mem)
 {
 	struct radeon_ib ib;
 	struct radeon_bo_va *bo_va;
@@ -1175,6 +1177,8 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		addr = 0;
 		bo_va->valid = false;
 	}
+
+	trace_radeon_vm_bo_update(bo_va);
 
 	nptes = radeon_bo_ngpu_pages(bo);
 
@@ -1257,7 +1261,7 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&bo_va->vm->mutex);
 	if (bo_va->soffset) {
-		r = radeon_vm_bo_update_pte(rdev, bo_va->vm, bo_va->bo, NULL);
+		r = radeon_vm_bo_update(rdev, bo_va->vm, bo_va->bo, NULL);
 	}
 	mutex_unlock(&rdev->vm_manager.lock);
 	list_del(&bo_va->vm_list);

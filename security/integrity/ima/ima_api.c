@@ -22,6 +22,19 @@
 #include "ima.h"
 
 /*
+ * ima_free_template_entry - free an existing template entry
+ */
+void ima_free_template_entry(struct ima_template_entry *entry)
+{
+	int i;
+
+	for (i = 0; i < entry->template_desc->num_fields; i++)
+		kfree(entry->template_data[i].data);
+
+	kfree(entry);
+}
+
+/*
  * ima_alloc_init_template - create and initialize a new template entry
  */
 int ima_alloc_init_template(struct integrity_iint_cache *iint,
@@ -37,6 +50,7 @@ int ima_alloc_init_template(struct integrity_iint_cache *iint,
 	if (!*entry)
 		return -ENOMEM;
 
+	(*entry)->template_desc = template_desc;
 	for (i = 0; i < template_desc->num_fields; i++) {
 		struct ima_template_field *field = template_desc->fields[i];
 		u32 len;
@@ -51,10 +65,9 @@ int ima_alloc_init_template(struct integrity_iint_cache *iint,
 		(*entry)->template_data_len += sizeof(len);
 		(*entry)->template_data_len += len;
 	}
-	(*entry)->template_desc = template_desc;
 	return 0;
 out:
-	kfree(*entry);
+	ima_free_template_entry(*entry);
 	*entry = NULL;
 	return result;
 }
@@ -94,6 +107,7 @@ int ima_store_template(struct ima_template_entry *entry,
 		/* this function uses default algo */
 		hash.hdr.algo = HASH_ALGO_SHA1;
 		result = ima_calc_field_array_hash(&entry->template_data[0],
+						   entry->template_desc,
 						   num_fields, &hash.hdr);
 		if (result < 0) {
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
@@ -133,7 +147,7 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 	}
 	result = ima_store_template(entry, violation, inode, filename);
 	if (result < 0)
-		kfree(entry);
+		ima_free_template_entry(entry);
 err_out:
 	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
 			    op, cause, result, 0);
@@ -268,7 +282,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	if (!result || result == -EEXIST)
 		iint->flags |= IMA_MEASURED;
 	if (result < 0)
-		kfree(entry);
+		ima_free_template_entry(entry);
 }
 
 void ima_audit_measurement(struct integrity_iint_cache *iint,

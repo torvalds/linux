@@ -1180,7 +1180,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->crtc_clock;
-	htotal = adjusted_mode->htotal;
+	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
@@ -1267,7 +1267,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	crtc = intel_get_crtc_for_plane(dev, plane);
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->crtc_clock;
-	htotal = adjusted_mode->htotal;
+	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
@@ -1498,7 +1498,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		const struct drm_display_mode *adjusted_mode =
 			&to_intel_crtc(crtc)->config.adjusted_mode;
 		int clock = adjusted_mode->crtc_clock;
-		int htotal = adjusted_mode->htotal;
+		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 		int pixel_size = crtc->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
@@ -1624,7 +1624,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		const struct drm_display_mode *adjusted_mode =
 			&to_intel_crtc(enabled)->config.adjusted_mode;
 		int clock = adjusted_mode->crtc_clock;
-		int htotal = adjusted_mode->htotal;
+		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(enabled)->config.pipe_src_w;
 		int pixel_size = enabled->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
@@ -1776,7 +1776,7 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
 	crtc = intel_get_crtc_for_plane(dev, plane);
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->crtc_clock;
-	htotal = adjusted_mode->htotal;
+	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
@@ -2469,8 +2469,9 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	/* The WM are computed with base on how long it takes to fill a single
 	 * row at the given clock rate, multiplied by 8.
 	 * */
-	linetime = DIV_ROUND_CLOSEST(mode->htotal * 1000 * 8, mode->clock);
-	ips_linetime = DIV_ROUND_CLOSEST(mode->htotal * 1000 * 8,
+	linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
+				     mode->crtc_clock);
+	ips_linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
 					 intel_ddi_get_cdclk_freq(dev_priv));
 
 	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
@@ -5684,7 +5685,10 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
+	unsigned long irqflags;
 	uint32_t tmp;
+
+	WARN_ON(dev_priv->pc8.enabled);
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	is_enabled = tmp & HSW_PWR_WELL_STATE_ENABLED;
@@ -5701,9 +5705,24 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 				      HSW_PWR_WELL_STATE_ENABLED), 20))
 				DRM_ERROR("Timeout enabling power well\n");
 		}
+
+		if (IS_BROADWELL(dev)) {
+			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_B),
+				   dev_priv->de_irq_mask[PIPE_B]);
+			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_B),
+				   ~dev_priv->de_irq_mask[PIPE_B] |
+				   GEN8_PIPE_VBLANK);
+			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_C),
+				   dev_priv->de_irq_mask[PIPE_C]);
+			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_C),
+				   ~dev_priv->de_irq_mask[PIPE_C] |
+				   GEN8_PIPE_VBLANK);
+			POSTING_READ(GEN8_DE_PIPE_IER(PIPE_C));
+			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		}
 	} else {
 		if (enable_requested) {
-			unsigned long irqflags;
 			enum pipe p;
 
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
@@ -5730,16 +5749,24 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 static void __intel_power_well_get(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
-	if (!power_well->count++)
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!power_well->count++) {
+		hsw_disable_package_c8(dev_priv);
 		__intel_set_power_well(dev, true);
+	}
 }
 
 static void __intel_power_well_put(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	WARN_ON(!power_well->count);
-	if (!--power_well->count && i915_disable_power_well)
+	if (!--power_well->count && i915_disable_power_well) {
 		__intel_set_power_well(dev, false);
+		hsw_enable_package_c8(dev_priv);
+	}
 }
 
 void intel_display_power_get(struct drm_device *dev,
@@ -6129,10 +6156,19 @@ int vlv_freq_opcode(int ddr_freq, int val)
 	return val;
 }
 
-void intel_pm_init(struct drm_device *dev)
+void intel_pm_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	mutex_init(&dev_priv->rps.hw_lock);
+
+	mutex_init(&dev_priv->pc8.lock);
+	dev_priv->pc8.requirements_met = false;
+	dev_priv->pc8.gpu_idle = false;
+	dev_priv->pc8.irqs_disabled = false;
+	dev_priv->pc8.enabled = false;
+	dev_priv->pc8.disable_count = 2; /* requirements_met + gpu_idle */
+	INIT_DELAYED_WORK(&dev_priv->pc8.enable_work, hsw_enable_pc8_work);
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }

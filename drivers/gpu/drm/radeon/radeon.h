@@ -1940,7 +1940,7 @@ struct si_asic {
 	unsigned sc_earlyz_tile_fifo_size;
 
 	unsigned num_tile_pipes;
-	unsigned num_backends_per_se;
+	unsigned backend_enable_mask;
 	unsigned backend_disable_mask_per_asic;
 	unsigned backend_map;
 	unsigned num_texture_channel_caches;
@@ -1970,7 +1970,7 @@ struct cik_asic {
 	unsigned sc_earlyz_tile_fifo_size;
 
 	unsigned num_tile_pipes;
-	unsigned num_backends_per_se;
+	unsigned backend_enable_mask;
 	unsigned backend_disable_mask_per_asic;
 	unsigned backend_map;
 	unsigned num_texture_channel_caches;
@@ -2710,10 +2710,10 @@ void radeon_vm_fence(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_fence *fence);
 uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr);
-int radeon_vm_bo_update_pte(struct radeon_device *rdev,
-			    struct radeon_vm *vm,
-			    struct radeon_bo *bo,
-			    struct ttm_mem_reg *mem);
+int radeon_vm_bo_update(struct radeon_device *rdev,
+			struct radeon_vm *vm,
+			struct radeon_bo *bo,
+			struct ttm_mem_reg *mem);
 void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 			     struct radeon_bo *bo);
 struct radeon_bo_va *radeon_vm_bo_find(struct radeon_vm *vm,

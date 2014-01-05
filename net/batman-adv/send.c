@@ -161,11 +161,11 @@ batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
 		return false;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
-	unicast_packet->header.version = BATADV_COMPAT_VERSION;
+	unicast_packet->version = BATADV_COMPAT_VERSION;
 	/* batman packet type: unicast */
-	unicast_packet->header.packet_type = BATADV_UNICAST;
+	unicast_packet->packet_type = BATADV_UNICAST;
 	/* set unicast ttl */
-	unicast_packet->header.ttl = BATADV_TTL;
+	unicast_packet->ttl = BATADV_TTL;
 	/* copy the destination for faster routing */
 	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
 	/* set the destination tt version number */
@@ -221,7 +221,7 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 		goto out;
 
 	uc_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
-	uc_4addr_packet->u.header.packet_type = BATADV_UNICAST_4ADDR;
+	uc_4addr_packet->u.packet_type = BATADV_UNICAST_4ADDR;
 	memcpy(uc_4addr_packet->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	uc_4addr_packet->subtype = packet_subtype;
 	uc_4addr_packet->reserved = 0;
@@ -436,7 +436,7 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 
 	/* as we have a copy now, it is safe to decrease the TTL */
 	bcast_packet = (struct batadv_bcast_packet *)newskb->data;
-	bcast_packet->header.ttl--;
+	bcast_packet->ttl--;
 
 	skb_reset_mac_header(newskb);
 

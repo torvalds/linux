@@ -615,6 +615,7 @@ extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
  * TTM buffer object driver - vmwgfx_buffer.c
  */
 
+extern const size_t vmw_tt_size;
 extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_ne_placement;
 extern struct ttm_placement vmw_vram_sys_placement;

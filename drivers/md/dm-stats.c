@@ -964,6 +964,7 @@ int dm_stats_message(struct mapped_device *md, unsigned argc, char **argv,
 
 int __init dm_statistics_init(void)
 {
+	shared_memory_amount = 0;
 	dm_stat_need_rcu_barrier = 0;
 	return 0;
 }

@@ -2994,8 +2994,7 @@ static int azx_runtime_suspend(struct device *dev)
 		  STATESTS_INT_MASK);
 
 	azx_stop_chip(chip);
-	if (!chip->bus->avoid_link_reset)
-		azx_enter_link_reset(chip);
+	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		hda_display_power(false);
@@ -3434,6 +3433,10 @@ static void check_probe_mask(struct azx *chip, int dev)
  * white/black-list for enable_msi
  */
 static struct snd_pci_quirk msi_black_list[] = {
+	SND_PCI_QUIRK(0x103c, 0x2191, "HP", 0), /* AMD Hudson */
+	SND_PCI_QUIRK(0x103c, 0x2192, "HP", 0), /* AMD Hudson */
+	SND_PCI_QUIRK(0x103c, 0x21f7, "HP", 0), /* AMD Hudson */
+	SND_PCI_QUIRK(0x103c, 0x21fa, "HP", 0), /* AMD Hudson */
 	SND_PCI_QUIRK(0x1043, 0x81f2, "ASUS", 0), /* Athlon64 X2 + nvidia */
 	SND_PCI_QUIRK(0x1043, 0x81f6, "ASUS", 0), /* nvidia */
 	SND_PCI_QUIRK(0x1043, 0x822d, "ASUS", 0), /* Athlon64 X2 + nvidia MCP55 */
@@ -3877,7 +3880,8 @@ static int azx_probe(struct pci_dev *pci,
 	}
 
 	dev++;
-	complete_all(&chip->probe_wait);
+	if (chip->disabled)
+		complete_all(&chip->probe_wait);
 	return 0;
 
 out_free:
@@ -3954,10 +3958,10 @@ static int azx_probe_continue(struct azx *chip)
 	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME) || chip->use_vga_switcheroo)
 		pm_runtime_put_noidle(&pci->dev);
 
-	return 0;
-
 out_free:
-	chip->init_failed = 1;
+	if (err < 0)
+		chip->init_failed = 1;
+	complete_all(&chip->probe_wait);
 	return err;
 }
 

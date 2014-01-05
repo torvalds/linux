@@ -708,7 +708,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder);
 void intel_dp_check_link_status(struct intel_dp *intel_dp);
 bool intel_dp_compute_config(struct intel_encoder *encoder,
 			     struct intel_crtc_config *pipe_config);
-bool intel_dpd_is_edp(struct drm_device *dev);
+bool intel_dp_is_edp(struct drm_device *dev, enum port port);
 void ironlake_edp_backlight_on(struct intel_dp *intel_dp);
 void ironlake_edp_backlight_off(struct intel_dp *intel_dp);
 void ironlake_edp_panel_on(struct intel_dp *intel_dp);
@@ -821,6 +821,7 @@ void intel_update_sprite_watermarks(struct drm_plane *plane,
 				    uint32_t sprite_width, int pixel_size,
 				    bool enabled, bool scaled);
 void intel_init_pm(struct drm_device *dev);
+void intel_pm_setup(struct drm_device *dev);
 bool intel_fbc_enabled(struct drm_device *dev);
 void intel_update_fbc(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);

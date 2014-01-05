@@ -192,8 +192,11 @@ static void inode_go_sync(struct gfs2_glock *gl)
 
 	if (ip && !S_ISREG(ip->i_inode.i_mode))
 		ip = NULL;
-	if (ip && test_and_clear_bit(GIF_SW_PAGED, &ip->i_flags))
-		unmap_shared_mapping_range(ip->i_inode.i_mapping, 0, 0);
+	if (ip) {
+		if (test_and_clear_bit(GIF_SW_PAGED, &ip->i_flags))
+			unmap_shared_mapping_range(ip->i_inode.i_mapping, 0, 0);
+		inode_dio_wait(&ip->i_inode);
+	}
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return;
 
@@ -409,6 +412,9 @@ static int inode_go_lock(struct gfs2_holder *gh)
 		if (error)
 			return error;
 	}
+
+	if (gh->gh_state != LM_ST_DEFERRED)
+		inode_dio_wait(&ip->i_inode);
 
 	if ((ip->i_diskflags & GFS2_DIF_TRUNC_IN_PROG) &&
 	    (gl->gl_state == LM_ST_EXCLUSIVE) &&

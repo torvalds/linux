@@ -307,6 +307,15 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	SET_NETDEV_DEV(dev, parent);
 
 	vif = netdev_priv(dev);
+
+	vif->grant_copy_op = vmalloc(sizeof(struct gnttab_copy) *
+				     MAX_GRANT_COPY_OPS);
+	if (vif->grant_copy_op == NULL) {
+		pr_warn("Could not allocate grant copy space for %s\n", name);
+		free_netdev(dev);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	vif->domid  = domid;
 	vif->handle = handle;
 	vif->can_sg = 1;
@@ -368,11 +377,11 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
 		   unsigned int rx_evtchn)
 {
+	struct task_struct *task;
 	int err = -ENOMEM;
 
-	/* Already connected through? */
-	if (vif->tx_irq)
-		return 0;
+	BUG_ON(vif->tx_irq);
+	BUG_ON(vif->task);
 
 	err = xenvif_map_frontend_rings(vif, tx_ring_ref, rx_ring_ref);
 	if (err < 0)
@@ -411,13 +420,15 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	}
 
 	init_waitqueue_head(&vif->wq);
-	vif->task = kthread_create(xenvif_kthread,
-				   (void *)vif, "%s", vif->dev->name);
-	if (IS_ERR(vif->task)) {
+	task = kthread_create(xenvif_kthread,
+			      (void *)vif, "%s", vif->dev->name);
+	if (IS_ERR(task)) {
 		pr_warn("Could not allocate kthread for %s\n", vif->dev->name);
-		err = PTR_ERR(vif->task);
+		err = PTR_ERR(task);
 		goto err_rx_unbind;
 	}
+
+	vif->task = task;
 
 	rtnl_lock();
 	if (!vif->can_sg && vif->dev->mtu > ETH_DATA_LEN)
@@ -461,8 +472,10 @@ void xenvif_disconnect(struct xenvif *vif)
 	if (netif_carrier_ok(vif->dev))
 		xenvif_carrier_off(vif);
 
-	if (vif->task)
+	if (vif->task) {
 		kthread_stop(vif->task);
+		vif->task = NULL;
+	}
 
 	if (vif->tx_irq) {
 		if (vif->tx_irq == vif->rx_irq)
@@ -483,6 +496,7 @@ void xenvif_free(struct xenvif *vif)
 
 	unregister_netdev(vif->dev);
 
+	vfree(vif->grant_copy_op);
 	free_netdev(vif->dev);
 
 	module_put(THIS_MODULE);

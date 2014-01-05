@@ -1370,7 +1370,7 @@ static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 	 * 0x68nnnnB7 to 0x6AnnnnB7, the left mouse button generates
 	 * 0x688301b7 and the right one 0x688481b7. All other keys generate
 	 * 0x2nnnnnnn. Position coordinate is encoded in buf[1] and buf[2] with
-	 * reversed endianess. Extract direction from buffer, rotate endianess,
+	 * reversed endianness. Extract direction from buffer, rotate endianness,
 	 * adjust sign and feed the values into stabilize(). The resulting codes
 	 * will be 0x01008000, 0x01007F00, which match the newer devices.
 	 */

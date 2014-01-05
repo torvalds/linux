@@ -21,6 +21,6 @@
 
 int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 				struct hid_sensor_common *attrb);
-void hid_sensor_remove_trigger(struct iio_dev *indio_dev);
+void hid_sensor_remove_trigger(struct hid_sensor_common *attrb);
 
 #endif
