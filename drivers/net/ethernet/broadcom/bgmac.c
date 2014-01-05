@@ -768,13 +768,13 @@ static void bgmac_cmdcfg_maskset(struct bgmac *bgmac, u32 mask, u32 set,
 	u32 cmdcfg = bgmac_read(bgmac, BGMAC_CMDCFG);
 	u32 new_val = (cmdcfg & mask) | set;
 
-	bgmac_set(bgmac, BGMAC_CMDCFG, BGMAC_CMDCFG_SR);
+	bgmac_set(bgmac, BGMAC_CMDCFG, BGMAC_CMDCFG_SR(bgmac->core->id.rev));
 	udelay(2);
 
 	if (new_val != cmdcfg || force)
 		bgmac_write(bgmac, BGMAC_CMDCFG, new_val);
 
-	bgmac_mask(bgmac, BGMAC_CMDCFG, ~BGMAC_CMDCFG_SR);
+	bgmac_mask(bgmac, BGMAC_CMDCFG, ~BGMAC_CMDCFG_SR(bgmac->core->id.rev));
 	udelay(2);
 }
 
@@ -977,7 +977,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			     BGMAC_CMDCFG_PROM |
 			     BGMAC_CMDCFG_NLC |
 			     BGMAC_CMDCFG_CFE |
-			     BGMAC_CMDCFG_SR,
+			     BGMAC_CMDCFG_SR(core->id.rev),
 			     false);
 	bgmac->mac_speed = SPEED_UNKNOWN;
 	bgmac->mac_duplex = DUPLEX_UNKNOWN;
@@ -1020,7 +1020,7 @@ static void bgmac_enable(struct bgmac *bgmac)
 
 	cmdcfg = bgmac_read(bgmac, BGMAC_CMDCFG);
 	bgmac_cmdcfg_maskset(bgmac, ~(BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE),
-			     BGMAC_CMDCFG_SR, true);
+			     BGMAC_CMDCFG_SR(bgmac->core->id.rev), true);
 	udelay(2);
 	cmdcfg |= BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE;
 	bgmac_write(bgmac, BGMAC_CMDCFG, cmdcfg);
