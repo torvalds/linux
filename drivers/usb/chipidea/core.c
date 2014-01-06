@@ -123,13 +123,6 @@ static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 {
 	int i;
 
-	kfree(ci->hw_bank.regmap);
-
-	ci->hw_bank.regmap = kzalloc((OP_LAST + 1) * sizeof(void *),
-				     GFP_KERNEL);
-	if (!ci->hw_bank.regmap)
-		return -ENOMEM;
-
 	for (i = 0; i < OP_ENDPTCTRL; i++)
 		ci->hw_bank.regmap[i] =
 			(i <= CAP_LAST ? ci->hw_bank.cap : ci->hw_bank.op) +
@@ -681,7 +674,6 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
 	ci_usb_phy_destroy(ci);
-	kfree(ci->hw_bank.regmap);
 
 	return 0;
 }

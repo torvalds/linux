@@ -26,6 +26,35 @@
 #define ENDPT_MAX          32
 
 /******************************************************************************
+ * REGISTERS
+ *****************************************************************************/
+/* register indices */
+enum ci_hw_regs {
+	CAP_CAPLENGTH,
+	CAP_HCCPARAMS,
+	CAP_DCCPARAMS,
+	CAP_TESTMODE,
+	CAP_LAST = CAP_TESTMODE,
+	OP_USBCMD,
+	OP_USBSTS,
+	OP_USBINTR,
+	OP_DEVICEADDR,
+	OP_ENDPTLISTADDR,
+	OP_PORTSC,
+	OP_DEVLC,
+	OP_OTGSC,
+	OP_USBMODE,
+	OP_ENDPTSETUPSTAT,
+	OP_ENDPTPRIME,
+	OP_ENDPTFLUSH,
+	OP_ENDPTSTAT,
+	OP_ENDPTCOMPLETE,
+	OP_ENDPTCTRL,
+	/* endptctrl1..15 follow */
+	OP_LAST = OP_ENDPTCTRL + ENDPT_MAX / 2,
+};
+
+/******************************************************************************
  * STRUCTURES
  *****************************************************************************/
 /**
@@ -98,7 +127,7 @@ struct hw_bank {
 	void __iomem	*cap;
 	void __iomem	*op;
 	size_t		size;
-	void __iomem	**regmap;
+	void __iomem	*regmap[OP_LAST + 1];
 };
 
 /**
@@ -208,38 +237,6 @@ static inline void ci_role_stop(struct ci_hdrc *ci)
 
 	ci->roles[role]->stop(ci);
 }
-
-/******************************************************************************
- * REGISTERS
- *****************************************************************************/
-/* register size */
-#define REG_BITS   (32)
-
-/* register indices */
-enum ci_hw_regs {
-	CAP_CAPLENGTH,
-	CAP_HCCPARAMS,
-	CAP_DCCPARAMS,
-	CAP_TESTMODE,
-	CAP_LAST = CAP_TESTMODE,
-	OP_USBCMD,
-	OP_USBSTS,
-	OP_USBINTR,
-	OP_DEVICEADDR,
-	OP_ENDPTLISTADDR,
-	OP_PORTSC,
-	OP_DEVLC,
-	OP_OTGSC,
-	OP_USBMODE,
-	OP_ENDPTSETUPSTAT,
-	OP_ENDPTPRIME,
-	OP_ENDPTFLUSH,
-	OP_ENDPTSTAT,
-	OP_ENDPTCOMPLETE,
-	OP_ENDPTCTRL,
-	/* endptctrl1..15 follow */
-	OP_LAST = OP_ENDPTCTRL + ENDPT_MAX / 2,
-};
 
 /**
  * hw_read: reads from a hw register
