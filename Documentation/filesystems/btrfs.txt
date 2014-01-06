@@ -159,8 +159,10 @@ Options with (*) are default options and will not show in the mount options.
 	Enable/disable data copy-on-write for newly created files.
 	Nodatacow implies nodatasum, and disables all compression.
 
+  datasum(*)
   nodatasum
-	Disable data checksumming for newly created files.
+	Enable/disable data checksumming for newly created files.
+	Datasum implies datacow.
 
   notreelog
 	Disable the tree logging used for fsync and O_SYNC writes.

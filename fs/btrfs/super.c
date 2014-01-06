@@ -325,6 +325,7 @@ enum {
 	Opt_check_integrity_print_mask, Opt_fatal_errors, Opt_rescan_uuid_tree,
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
 	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl, Opt_datacow,
+	Opt_datasum,
 	Opt_err,
 };
 
@@ -334,6 +335,7 @@ static match_table_t tokens = {
 	{Opt_subvolid, "subvolid=%s"},
 	{Opt_device, "device=%s"},
 	{Opt_nodatasum, "nodatasum"},
+	{Opt_datasum, "datasum"},
 	{Opt_nodatacow, "nodatacow"},
 	{Opt_datacow, "datacow"},
 	{Opt_nobarrier, "nobarrier"},
@@ -433,6 +435,14 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_nodatasum:
 			btrfs_info(root->fs_info, "setting nodatasum");
 			btrfs_set_opt(info->mount_opt, NODATASUM);
+			break;
+		case Opt_datasum:
+			if (btrfs_test_opt(root, NODATACOW))
+				btrfs_info(root->fs_info, "setting datasum, datacow enabled");
+			else
+				btrfs_info(root->fs_info, "setting datasum");
+			btrfs_clear_opt(info->mount_opt, NODATACOW);
+			btrfs_clear_opt(info->mount_opt, NODATASUM);
 			break;
 		case Opt_nodatacow:
 			if (!btrfs_test_opt(root, COMPRESS) ||
