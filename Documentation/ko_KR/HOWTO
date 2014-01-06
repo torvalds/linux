@@ -275,7 +275,7 @@ Andrew Morton의 글이 있다.
 어떤 2.6.x.y 커널도 사용할 수 없다면 그때는 가장 높은 숫자의 2.6.x
 커널이 현재의 안정 커널이다.
 
-2.6.x.y는 "stable" 팀<stable@kernel.org>에 의해 관리되며 거의 매번 격주로
+2.6.x.y는 "stable" 팀<stable@vger.kernel.org>에 의해 관리되며 거의 매번 격주로
 배포된다.
 
 커널 트리 문서들 내에 Documentation/stable_kernel_rules.txt 파일은 어떤
