@@ -533,6 +533,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[i]);
 		if (!tx_ring)
 			continue;
+
 		dev_info(&pf->pdev->dev,
 			 "    tx_rings[%i]: desc = %p\n",
 			 i, tx_ring->desc);

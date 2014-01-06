@@ -126,6 +126,44 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 }
 
 /**
+ * i40e_check_asq_alive
+ * @hw: pointer to the hw struct
+ *
+ * Returns true if Queue is enabled else false.
+ **/
+bool i40e_check_asq_alive(struct i40e_hw *hw)
+{
+	return !!(rd32(hw, hw->aq.asq.len) & I40E_PF_ATQLEN_ATQENABLE_MASK);
+}
+
+/**
+ * i40e_aq_queue_shutdown
+ * @hw: pointer to the hw struct
+ * @unloading: is the driver unloading itself
+ *
+ * Tell the Firmware that we're shutting down the AdminQ and whether
+ * or not the driver is unloading as well.
+ **/
+i40e_status i40e_aq_queue_shutdown(struct i40e_hw *hw,
+					     bool unloading)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_queue_shutdown *cmd =
+		(struct i40e_aqc_queue_shutdown *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_queue_shutdown);
+
+	if (unloading)
+		cmd->driver_unloading = cpu_to_le32(I40E_AQ_DRIVER_UNLOADING);
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, NULL);
+
+	return status;
+}
+
+
+/**
  * i40e_init_shared_code - Initialize the shared code
  * @hw: pointer to hardware structure
  *
@@ -478,31 +516,6 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 }
 
 /* Admin command wrappers */
-/**
- * i40e_aq_queue_shutdown
- * @hw: pointer to the hw struct
- * @unloading: is the driver unloading itself
- *
- * Tell the Firmware that we're shutting down the AdminQ and whether
- * or not the driver is unloading as well.
- **/
-i40e_status i40e_aq_queue_shutdown(struct i40e_hw *hw,
-					     bool unloading)
-{
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_queue_shutdown *cmd =
-		(struct i40e_aqc_queue_shutdown *)&desc.params.raw;
-	i40e_status status;
-
-	i40e_fill_default_direct_cmd_desc(&desc,
-					  i40e_aqc_opc_queue_shutdown);
-
-	if (unloading)
-		cmd->driver_unloading = cpu_to_le32(I40E_AQ_DRIVER_UNLOADING);
-	status = i40e_asq_send_command(hw, &desc, NULL, 0, NULL);
-
-	return status;
-}
 
 /**
  * i40e_aq_set_link_restart_an
@@ -748,8 +761,8 @@ i40e_status i40e_aq_get_vsi_params(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
-	struct i40e_aqc_switch_seid *cmd =
-		(struct i40e_aqc_switch_seid *)&desc.params.raw;
+	struct i40e_aqc_add_get_update_vsi *cmd =
+		(struct i40e_aqc_add_get_update_vsi *)&desc.params.raw;
 	struct i40e_aqc_add_get_update_vsi_completion *resp =
 		(struct i40e_aqc_add_get_update_vsi_completion *)
 		&desc.params.raw;
@@ -758,7 +771,7 @@ i40e_status i40e_aq_get_vsi_params(struct i40e_hw *hw,
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_get_vsi_parameters);
 
-	cmd->seid = cpu_to_le16(vsi_ctx->seid);
+	cmd->uplink_seid = cpu_to_le16(vsi_ctx->seid);
 
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
 	if (sizeof(vsi_ctx->info) > I40E_AQ_LARGE_BUF)
@@ -792,13 +805,13 @@ i40e_status i40e_aq_update_vsi_params(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
-	struct i40e_aqc_switch_seid *cmd =
-		(struct i40e_aqc_switch_seid *)&desc.params.raw;
+	struct i40e_aqc_add_get_update_vsi *cmd =
+		(struct i40e_aqc_add_get_update_vsi *)&desc.params.raw;
 	i40e_status status;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_update_vsi_parameters);
-	cmd->seid = cpu_to_le16(vsi_ctx->seid);
+	cmd->uplink_seid = cpu_to_le16(vsi_ctx->seid);
 
 	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
 	if (sizeof(vsi_ctx->info) > I40E_AQ_LARGE_BUF)

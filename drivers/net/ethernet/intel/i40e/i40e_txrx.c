@@ -77,7 +77,6 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	/* grab the next descriptor */
 	i = tx_ring->next_to_use;
 	fdir_desc = I40E_TX_FDIRDESC(tx_ring, i);
-	tx_buf = &tx_ring->tx_bi[i];
 
 	tx_ring->next_to_use = (i + 1 < tx_ring->count) ? i + 1 : 0;
 
@@ -129,14 +128,22 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	/* Now program a dummy descriptor */
 	i = tx_ring->next_to_use;
 	tx_desc = I40E_TX_DESC(tx_ring, i);
+	tx_buf = &tx_ring->tx_bi[i];
 
 	tx_ring->next_to_use = (i + 1 < tx_ring->count) ? i + 1 : 0;
+
+	/* record length, and DMA address */
+	dma_unmap_len_set(tx_buf, len, I40E_FDIR_MAX_RAW_PACKET_LOOKUP);
+	dma_unmap_addr_set(tx_buf, dma, dma);
 
 	tx_desc->buffer_addr = cpu_to_le64(dma);
 	td_cmd = I40E_TXD_CMD | I40E_TX_DESC_CMD_DUMMY;
 
 	tx_desc->cmd_type_offset_bsz =
 		build_ctob(td_cmd, 0, I40E_FDIR_MAX_RAW_PACKET_LOOKUP, 0);
+
+	/* set the timestamp */
+	tx_buf->time_stamp = jiffies;
 
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only
