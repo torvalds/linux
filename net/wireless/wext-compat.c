@@ -412,9 +412,9 @@ int cfg80211_wext_giwretry(struct net_device *dev,
 		 * First return short value, iwconfig will ask long value
 		 * later if needed
 		 */
-		retry->flags |= IW_RETRY_LIMIT;
+		retry->flags |= IW_RETRY_LIMIT | IW_RETRY_SHORT;
 		retry->value = wdev->wiphy->retry_short;
-		if (wdev->wiphy->retry_long != wdev->wiphy->retry_short)
+		if (wdev->wiphy->retry_long == wdev->wiphy->retry_short)
 			retry->flags |= IW_RETRY_LONG;
 
 		return 0;
