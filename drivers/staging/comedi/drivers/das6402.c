@@ -202,7 +202,7 @@ static int das6402_ai_cancel(struct comedi_device *dev,
 
 #ifdef unused
 static int das6402_ai_mode2(struct comedi_device *dev,
-			    struct comedi_subdevice *s, comedi_trig * it)
+			    struct comedi_subdevice *s, comedi_trig *it)
 {
 	struct das6402_private *devpriv = dev->private;
 
