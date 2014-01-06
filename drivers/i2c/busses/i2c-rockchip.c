@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 ROCKCHIP, Inc.
+ * Copyright (C) 2012-2014 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/wakelock.h>
 #include <linux/i2c.h>
+#include <linux/of_gpio.h>
 #include <linux/of_i2c.h>
 #include <linux/init.h>
 #include <linux/time.h>
@@ -40,8 +41,6 @@
 #else
 #define i2c_dbg(dev, format, arg...)
 #endif
-
-//#define I2C_CHECK_IDLE
 
 enum {
 	I2C_IDLE = 0,
@@ -107,9 +106,9 @@ struct rockchip_i2c {
 	unsigned int		mode;
 	unsigned int		count;
 
-	int			sda_mode, scl_mode;
-
-	struct wake_lock	idlelock[5];
+	unsigned int		check_idle;
+	int			sda_gpio, scl_gpio;
+	struct pinctrl_state	*gpio_state;
 };
 
 #define COMPLETE_READ      (1<<STATE_START | 1<<STATE_READ  | 1<<STATE_STOP)
@@ -210,38 +209,21 @@ static void rockchip_show_regs(struct rockchip_i2c *i2c)
 		dev_info(i2c->dev, "I2C_RXDATA%d: 0x%08x\n", i, i2c_readl(i2c->regs + I2C_RXDATA_BASE + i * 4));
 }
 
-#ifdef I2C_CHECK_IDLE
 static int rockchip_i2c_check_idle(struct rockchip_i2c *i2c)
 {
-	int ret = 0;
-	int sda_io, scl_io;
+	int ret = I2C_IDLE;
 	int sda_lev, scl_lev;
 
-	sda_io = iomux_mode_to_gpio(i2c->sda_mode);
-	scl_io = iomux_mode_to_gpio(i2c->scl_mode);
-
-	ret = gpio_request(sda_io, NULL);
-	if (unlikely(ret < 0)) {
-		dev_err(i2c->dev, "Failed to request gpio: SDA_GPIO\n");
+	if (!gpio_is_valid(i2c->sda_gpio))
 		return ret;
-	}
-	ret = gpio_request(scl_io, NULL);
-	if (unlikely(ret < 0)) {
-		dev_err(i2c->dev, "Failed to request gpio: SCL_GPIO\n");
-		gpio_free(sda_io);
+
+	if (pinctrl_select_state(i2c->dev->pins->p, i2c->gpio_state))
 		return ret;
-	}
-	gpio_direction_input(sda_io);
-	gpio_direction_input(scl_io);
 
-	sda_lev = gpio_get_value(sda_io);
-	scl_lev = gpio_get_value(scl_io);
+	sda_lev = gpio_get_value(i2c->sda_gpio);
+	scl_lev = gpio_get_value(i2c->scl_gpio);
 
-	gpio_free(sda_io);
-	gpio_free(scl_io);
-
-	iomux_set(i2c->sda_mode);
-	iomux_set(i2c->scl_mode);
+	pinctrl_select_state(i2c->dev->pins->p, i2c->dev->pins->default_state);
 
 	if (sda_lev == 1 && scl_lev == 1)
 		return I2C_IDLE;
@@ -252,7 +234,6 @@ static int rockchip_i2c_check_idle(struct rockchip_i2c *i2c)
 	else
 		return BOTH_LOW;
 }
-#endif
 
 static inline void rockchip_i2c_enable(struct rockchip_i2c *i2c, unsigned int lastnak)
 {
@@ -338,9 +319,6 @@ static void rockchip_i2c_set_clk(struct rockchip_i2c *i2c, unsigned long scl_rat
 	unsigned long i2c_rate = clk_get_rate(i2c->clk);
 	int div, divl, divh;
 
-	if (!i2c_rate)
-		i2c_rate = 9375000;
-
 	if ((scl_rate == i2c->scl_rate) && (i2c_rate == i2c->i2c_rate))
 		return;
 	i2c->i2c_rate = i2c_rate;
@@ -354,15 +332,14 @@ static void rockchip_i2c_set_clk(struct rockchip_i2c *i2c, unsigned long scl_rat
 	}
 	i2c_writel(I2C_CLKDIV_VAL(divl, divh), i2c->regs + I2C_CLKDIV);
 	i2c_dbg(i2c->dev, "set clk(I2C_CLKDIV: 0x%08x)\n", i2c_readl(i2c->regs + I2C_CLKDIV));
-	dev_info(i2c->dev, "set clk(I2C_CLKDIV: 0x%08x)\n", i2c_readl(i2c->regs + I2C_CLKDIV));
 }
 
 static void rockchip_i2c_init_hw(struct rockchip_i2c *i2c, unsigned long scl_rate)
 {
 	i2c->scl_rate = 0;
-	clk_enable(i2c->clk);
+	clk_prepare_enable(i2c->clk);
 	rockchip_i2c_set_clk(i2c, scl_rate);
-	clk_disable(i2c->clk);
+	clk_disable_unprepare(i2c->clk);
 }
 
 /* returns TRUE if we this is the last byte in the current message */
@@ -742,27 +719,27 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
-#ifdef I2C_CHECK_IDLE
-	int state, retry = 10;
-#endif
 	int ret;
 	struct rockchip_i2c *i2c = i2c_get_adapdata(adap);
 	unsigned long scl_rate = i2c->scl_rate;
 
-	clk_enable(i2c->clk);
-#ifdef I2C_CHECK_IDLE
-	int state, retry = 10;
-	while (retry-- && ((state = rockchip_i2c_check_idle(i2c)) != I2C_IDLE)) {
-		if (in_atomic())
-			mdelay(10);
-		else
-			msleep(10);
+	clk_prepare_enable(i2c->clk);
+	if (i2c->check_idle) {
+		int state, retry = 10;
+		while (retry--) {
+			state = rockchip_i2c_check_idle(i2c);
+			if (state == I2C_IDLE)
+				break;
+			if (in_atomic())
+				mdelay(10);
+			else
+				msleep(10);
+		}
+		if (retry == 0) {
+			dev_err(i2c->dev, "i2c is not in idle(state = %d)\n", state);
+			return -EIO;
+		}
 	}
-	if (retry == 0) {
-		dev_err(i2c->dev, "i2c is not in idle(state = %d)\n", state);
-		return -EIO;
-	}
-#endif
 
 #ifdef CONFIG_I2C_ROCKCHIP_COMPAT
 	if (msgs[0].scl_rate <= 400000 && msgs[0].scl_rate >= 10000)
@@ -784,7 +761,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	ret = rockchip_i2c_doxfer(i2c, msgs, num);
 	i2c_dbg(i2c->dev, "i2c transfer stop: addr: 0x%04x, state: %d, ret: %d\n", msgs[0].addr, ret, i2c->state);
 
-	clk_disable(i2c->clk);
+	clk_disable_unprepare(i2c->clk);
 	return (ret < 0) ? ret : num;
 }
 
@@ -800,8 +777,6 @@ static const struct i2c_algorithm rockchip_i2c_algorithm = {
 	.master_xfer		= rockchip_i2c_xfer,
 	.functionality		= rockchip_i2c_func,
 };
-
-static int i2c_max_adap;
 
 /* rockchip_i2c_probe
  *
@@ -849,12 +824,56 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 	i2c_dbg(&pdev->dev, "registers %p (%p, %p)\n",
 		i2c->regs, i2c->ioarea, res);
 
+	i2c->check_idle = true;
+	of_property_read_u32(np, "rockchip,check-idle", &i2c->check_idle);
+	if (i2c->check_idle) {
+		i2c->sda_gpio = of_get_gpio(np, 0);
+		if (!gpio_is_valid(i2c->sda_gpio)) {
+			dev_err(&pdev->dev, "sda gpio is invalid\n");
+			return -EINVAL;
+		}
+		ret = devm_gpio_request(&pdev->dev, i2c->sda_gpio, dev_name(&i2c->adap.dev));
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request sda gpio\n");
+			return ret;
+		}
+		i2c->scl_gpio = of_get_gpio(np, 1);
+		if (!gpio_is_valid(i2c->scl_gpio)) {
+			dev_err(&pdev->dev, "scl gpio is invalid\n");
+			return -EINVAL;
+		}
+		ret = devm_gpio_request(&pdev->dev, i2c->scl_gpio, dev_name(&i2c->adap.dev));
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request scl gpio\n");
+			return ret;
+		}
+		i2c->gpio_state = pinctrl_lookup_state(i2c->dev->pins->p, "gpio");
+		if (IS_ERR(i2c->gpio_state)) {
+			dev_err(&pdev->dev, "no gpio pinctrl state\n");
+			return PTR_ERR(i2c->gpio_state);
+		}
+		gpio_direction_input(i2c->sda_gpio);
+		gpio_direction_input(i2c->scl_gpio);
+		pinctrl_select_state(i2c->dev->pins->p, i2c->dev->pins->default_state);
+	}
+
 	/* setup info block for the i2c core */
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add adapter\n");
 		return ret;
 	}
+
+	platform_set_drvdata(pdev, i2c);
+
+	/* find the clock and enable it */
+	i2c->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(i2c->clk)) {
+		dev_err(&pdev->dev, "cannot get clock\n");
+		return PTR_ERR(i2c->clk);
+	}
+
+	i2c_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
 
 	/* find the IRQ for this unit (note, this relies on the init call to
 	 * ensure no current IRQs pending
@@ -872,20 +891,8 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* find the clock and enable it */
-	i2c->clk = clk_get(&pdev->dev, "i2c");
-	if (IS_ERR(i2c->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
-		i2c->clk = NULL;
-//		return PTR_ERR(i2c->clk);
-	}
-
-	i2c_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
-
-	platform_set_drvdata(pdev, i2c);
-
+	clk_prepare_enable(i2c->clk); // FIXME: enable i2c clock temporarily
 	rockchip_i2c_init_hw(i2c, 100 * 1000);
-	i2c_max_adap++;
 	dev_info(&pdev->dev, "%s: Rockchip I2C adapter\n", dev_name(&i2c->adap.dev));
 
 	of_i2c_register_devices(&i2c->adap);
@@ -903,7 +910,6 @@ static int rockchip_i2c_remove(struct platform_device *pdev)
 	struct rockchip_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
-	clk_put(i2c->clk);
 
 	return 0;
 }
@@ -915,6 +921,7 @@ static int rockchip_i2c_suspend_noirq(struct device *dev)
 	struct rockchip_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 1;
+	pinctrl_pm_select_sleep_state(dev);
 
 	return 0;
 }
@@ -924,8 +931,9 @@ static int rockchip_i2c_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rockchip_i2c *i2c = platform_get_drvdata(pdev);
 
-	i2c->suspended = 0;
+	pinctrl_pm_select_default_state(dev);
 	rockchip_i2c_init_hw(i2c, i2c->scl_rate);
+	i2c->suspended = 0;
 
 	return 0;
 }

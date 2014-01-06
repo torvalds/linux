@@ -247,8 +247,12 @@
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&i2c0_sda &i2c0_scl>;
+		pinctrl-1 = <&i2c0_gpio>;
+		gpios = <&gpio1 GPIO_D0 GPIO_ACTIVE_LOW>, <&gpio1 GPIO_D1 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 4>;
+		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
 
@@ -258,8 +262,12 @@
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&i2c1_sda &i2c1_scl>;
+		pinctrl-1 = <&i2c1_gpio>;
+		gpios = <&gpio1 GPIO_D2 GPIO_ACTIVE_LOW>, <&gpio1 GPIO_D3 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 5>;
+		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
 
@@ -269,8 +277,12 @@
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&i2c2_sda &i2c2_scl>;
+		pinctrl-1 = <&i2c2_gpio>;
+		gpios = <&gpio1 GPIO_D4 GPIO_ACTIVE_LOW>, <&gpio1 GPIO_D5 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 6>;
+		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
 
@@ -280,8 +292,12 @@
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&i2c3_sda &i2c3_scl>;
+		pinctrl-1 = <&i2c3_gpio>;
+		gpios = <&gpio3 GPIO_B6 GPIO_ACTIVE_LOW>, <&gpio3 GPIO_B7 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 7>;
+		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
 
@@ -291,18 +307,18 @@
 		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&i2c4_sda &i2c4_scl>;
+		pinctrl-1 = <&i2c4_gpio>;
+		gpios = <&gpio1 GPIO_D6 GPIO_ACTIVE_LOW>, <&gpio1 GPIO_D7 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 8>;
+		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
-	
+
 	clocks-init{
 		compatible = "rockchip,clocks-init";
 		rockchip,clocks-init-rate =<&clk_cpll 768000000>,<&clk_gpll 594000000>;
 		rockchip,clocks-init-parent =<&aclk_peri_mux &clk_gpll>,<&aclk_cpu &clk_gpll>;
 	};
-	
 };
-
-
-

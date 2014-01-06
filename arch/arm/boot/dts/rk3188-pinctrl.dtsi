@@ -199,6 +199,11 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
+
+			i2c0_gpio: i2c0-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C0_SDA)>, <FUNC_TO_GPIO(I2C0_SCL)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
 		};
 
 		gpio1_i2c1 {
@@ -216,6 +221,11 @@
 				rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			i2c1_gpio: i2c1-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C1_SDA)>, <FUNC_TO_GPIO(I2C1_SCL)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 		};
 
@@ -235,6 +245,11 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
+
+			i2c2_gpio: i2c2-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C2_SDA)>, <FUNC_TO_GPIO(I2C2_SCL)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
 		};
 
 		gpio1_i2c3 {
@@ -253,6 +268,11 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
+
+			i2c3_gpio: i2c3-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C3_SDA)>, <FUNC_TO_GPIO(I2C3_SCL)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
 		};
 
 		gpio1_i2c4 {
@@ -270,6 +290,11 @@
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			i2c4_gpio: i2c4-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C4_SDA)>, <FUNC_TO_GPIO(I2C4_SCL)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 		};
 
