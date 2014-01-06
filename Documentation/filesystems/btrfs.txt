@@ -46,10 +46,12 @@ Options with (*) are default options and will not show in the mount options.
 	bytes, optionally with a K, M, or G suffix, case insensitive.
 	Default is 1MB.
 
+  noautodefrag(*)
   autodefrag
-	Detect small random writes into files and queue them up for the
-	defrag process.  Works best for small files; Not well suited for
-	large database workloads.
+	Disable/enable auto defragmentation.
+	Auto defragmentation detects small random writes into files and queue
+	them up for the defrag process.  Works best for small files;
+	Not well suited for large database workloads.
 
   check_int
   check_int_data
