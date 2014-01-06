@@ -300,6 +300,35 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return NULL;
 
+	rcu_read_lock();
+	tx_latency = rcu_dereference(local->tx_latency);
+	/* init stations Tx latency statistics && TID bins */
+	if (tx_latency) {
+		sta->tx_lat = kzalloc(IEEE80211_NUM_TIDS *
+				      sizeof(struct ieee80211_tx_latency_stat),
+				      GFP_ATOMIC);
+		if (!sta->tx_lat) {
+			rcu_read_unlock();
+			goto free;
+		}
+
+		if (tx_latency->n_ranges) {
+			for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+				/* size of bins is size of the ranges +1 */
+				sta->tx_lat[i].bin_count =
+					tx_latency->n_ranges + 1;
+				sta->tx_lat[i].bins =
+					kcalloc(sta->tx_lat[i].bin_count,
+						sizeof(u32), GFP_ATOMIC);
+				if (!sta->tx_lat[i].bins) {
+					rcu_read_unlock();
+					goto free;
+				}
+			}
+		}
+	}
+	rcu_read_unlock();
+
 	spin_lock_init(&sta->lock);
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
@@ -324,10 +353,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
 		ewma_init(&sta->chain_signal_avg[i], 1024, 8);
 
-	if (sta_prepare_rate_control(local, sta, gfp)) {
-		kfree(sta);
-		return NULL;
-	}
+	if (sta_prepare_rate_control(local, sta, gfp))
+		goto free;
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 		/*
@@ -371,34 +398,17 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	rcu_read_lock();
-
-	tx_latency = rcu_dereference(local->tx_latency);
-	/* init stations Tx latency statistics && TID bins */
-	if (tx_latency)
-		sta->tx_lat = kzalloc(IEEE80211_NUM_TIDS *
-				      sizeof(struct ieee80211_tx_latency_stat),
-				      GFP_ATOMIC);
-
-	/*
-	 * if Tx latency and bins are enabled and the previous allocation
-	 * succeeded
-	 */
-	if (tx_latency && tx_latency->n_ranges && sta->tx_lat)
-		for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
-			/* size of bins is size of the ranges +1 */
-			sta->tx_lat[i].bin_count =
-				tx_latency->n_ranges + 1;
-			sta->tx_lat[i].bins  = kcalloc(sta->tx_lat[i].bin_count,
-						       sizeof(u32),
-						       GFP_ATOMIC);
-		}
-
-	rcu_read_unlock();
-
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
-
 	return sta;
+
+free:
+	if (sta->tx_lat) {
+		for (i = 0; i < IEEE80211_NUM_TIDS; i++)
+			kfree(sta->tx_lat[i].bins);
+		kfree(sta->tx_lat);
+	}
+	kfree(sta);
+	return NULL;
 }
 
 static int sta_info_insert_check(struct sta_info *sta)
