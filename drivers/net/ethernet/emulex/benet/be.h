@@ -480,7 +480,7 @@ struct be_adapter {
 	struct list_head entry;
 
 	u32 flash_status;
-	struct completion flash_compl;
+	struct completion et_cmd_compl;
 
 	struct be_resources res;	/* resources available for the func */
 	u16 num_vfs;			/* Number of VFs provisioned by PF */

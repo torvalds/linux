@@ -4208,7 +4208,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
-	init_completion(&adapter->flash_compl);
+	init_completion(&adapter->et_cmd_compl);
 	pci_save_state(adapter->pdev);
 	return 0;
 
