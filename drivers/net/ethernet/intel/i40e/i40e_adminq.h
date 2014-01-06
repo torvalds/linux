@@ -32,20 +32,20 @@
 #include "i40e_adminq_cmd.h"
 
 #define I40E_ADMINQ_DESC(R, i)   \
-	(&(((struct i40e_aq_desc *)((R).desc))[i]))
+	(&(((struct i40e_aq_desc *)((R).desc_buf.va))[i]))
 
 #define I40E_ADMINQ_DESC_ALIGNMENT 4096
 
 struct i40e_adminq_ring {
-	void *desc;		/* Descriptor ring memory */
-	void *details;		/* ASQ details */
+	struct i40e_virt_mem dma_head;	/* space for dma structures */
+	struct i40e_dma_mem desc_buf;	/* descriptor ring memory */
+	struct i40e_virt_mem cmd_buf;	/* command buffer memory */
 
 	union {
 		struct i40e_dma_mem *asq_bi;
 		struct i40e_dma_mem *arq_bi;
 	} r;
 
-	u64 dma_addr;		/* Physical address of the ring */
 	u16 count;		/* Number of descriptors */
 	u16 rx_buf_len;		/* Admin Receive Queue buffer length */
 
@@ -70,7 +70,7 @@ struct i40e_asq_cmd_details {
 };
 
 #define I40E_ADMINQ_DETAILS(R, i)   \
-	(&(((struct i40e_asq_cmd_details *)((R).details))[i]))
+	(&(((struct i40e_asq_cmd_details *)((R).cmd_buf.va))[i]))
 
 /* ARQ event information */
 struct i40e_arq_event_info {
@@ -94,9 +94,6 @@ struct i40e_adminq_info {
 
 	struct mutex asq_mutex; /* Send queue lock */
 	struct mutex arq_mutex; /* Receive queue lock */
-
-	struct i40e_dma_mem asq_mem;    /* send queue dynamic memory */
-	struct i40e_dma_mem arq_mem;    /* receive queue dynamic memory */
 
 	/* last status values on send and receive queues */
 	enum i40e_admin_queue_err asq_last_status;

@@ -240,33 +240,6 @@ i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 }
 
 /**
- * i40e_validate_mac_addr - Validate MAC address
- * @mac_addr: pointer to MAC address
- *
- * Tests a MAC address to ensure it is a valid Individual Address
- **/
-i40e_status i40e_validate_mac_addr(u8 *mac_addr)
-{
-	i40e_status status = 0;
-
-	/* Make sure it is not a multicast address */
-	if (I40E_IS_MULTICAST(mac_addr)) {
-		hw_dbg(hw, "MAC address is multicast\n");
-		status = I40E_ERR_INVALID_MAC_ADDR;
-	/* Not a broadcast address */
-	} else if (I40E_IS_BROADCAST(mac_addr)) {
-		hw_dbg(hw, "MAC address is broadcast\n");
-		status = I40E_ERR_INVALID_MAC_ADDR;
-	/* Reject the zero address */
-	} else if (mac_addr[0] == 0 && mac_addr[1] == 0 && mac_addr[2] == 0 &&
-		   mac_addr[3] == 0 && mac_addr[4] == 0 && mac_addr[5] == 0) {
-		hw_dbg(hw, "MAC address is all zeros\n");
-		status = I40E_ERR_INVALID_MAC_ADDR;
-	}
-	return status;
-}
-
-/**
  * i40e_get_media_type - Gets media type
  * @hw: pointer to the hardware structure
  **/

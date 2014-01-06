@@ -192,12 +192,12 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 
 			len = (sizeof(struct i40e_aq_desc)
 					* pf->hw.aq.num_asq_entries);
-			memcpy(p, pf->hw.aq.asq.desc, len);
+			memcpy(p, pf->hw.aq.asq.desc_buf.va, len);
 			p += len;
 
 			len = (sizeof(struct i40e_aq_desc)
 					* pf->hw.aq.num_arq_entries);
-			memcpy(p, pf->hw.aq.arq.desc, len);
+			memcpy(p, pf->hw.aq.arq.desc_buf.va, len);
 			p += len;
 
 			i40e_dbg_dump_data_len = buflen;
@@ -1740,10 +1740,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev,
 				 "Read NVM module=0x%x offset=0x%x words=%d\n",
 				 module, offset, buffer_len);
-			if (buffer_len)
+			if (bytes)
 				print_hex_dump(KERN_INFO, "NVM Dump: ",
 					DUMP_PREFIX_OFFSET, 16, 2,
-					buff, buffer_len, true);
+					buff, bytes, true);
 		}
 		kfree(buff);
 		buff = NULL;
