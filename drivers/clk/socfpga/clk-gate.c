@@ -19,7 +19,9 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of.h>
+#include <linux/regmap.h>
 
 #include "clk.h"
 
@@ -34,6 +36,11 @@
 #define streq(a, b) (strcmp((a), (b)) == 0)
 
 #define to_socfpga_gate_clk(p) container_of(p, struct socfpga_gate_clk, hw.hw)
+
+/* SDMMC Group for System Manager defines */
+#define SYSMGR_SDMMCGRP_CTRL_OFFSET    0x108
+#define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel) \
+	((((smplsel) & 0x7) << 3) | (((drvsel) & 0x7) << 0))
 
 static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 {
@@ -115,7 +122,61 @@ static unsigned long socfpga_clk_recalc_rate(struct clk_hw *hwclk,
 	return parent_rate / div;
 }
 
+static int socfpga_clk_prepare(struct clk_hw *hwclk)
+{
+	struct socfpga_gate_clk *socfpgaclk = to_socfpga_gate_clk(hwclk);
+	struct regmap *sys_mgr_base_addr;
+	int i;
+	u32 hs_timing;
+	u32 clk_phase[2];
+
+	if (socfpgaclk->clk_phase[0] || socfpgaclk->clk_phase[1]) {
+		sys_mgr_base_addr = syscon_regmap_lookup_by_compatible("altr,sys-mgr");
+		if (IS_ERR(sys_mgr_base_addr)) {
+			pr_err("%s: failed to find altr,sys-mgr regmap!\n", __func__);
+			return -EINVAL;
+		}
+
+		for (i = 0; i < 2; i++) {
+			switch (socfpgaclk->clk_phase[i]) {
+			case 0:
+				clk_phase[i] = 0;
+				break;
+			case 45:
+				clk_phase[i] = 1;
+				break;
+			case 90:
+				clk_phase[i] = 2;
+				break;
+			case 135:
+				clk_phase[i] = 3;
+				break;
+			case 180:
+				clk_phase[i] = 4;
+				break;
+			case 225:
+				clk_phase[i] = 5;
+				break;
+			case 270:
+				clk_phase[i] = 6;
+				break;
+			case 315:
+				clk_phase[i] = 7;
+				break;
+			default:
+				clk_phase[i] = 0;
+				break;
+			}
+		}
+		hs_timing = SYSMGR_SDMMC_CTRL_SET(clk_phase[0], clk_phase[1]);
+		regmap_write(sys_mgr_base_addr, SYSMGR_SDMMCGRP_CTRL_OFFSET,
+			hs_timing);
+	}
+	return 0;
+}
+
 static struct clk_ops gateclk_ops = {
+	.prepare = socfpga_clk_prepare,
 	.recalc_rate = socfpga_clk_recalc_rate,
 	.get_parent = socfpga_clk_get_parent,
 	.set_parent = socfpga_clk_set_parent,
@@ -126,6 +187,7 @@ static void __init __socfpga_gate_init(struct device_node *node,
 {
 	u32 clk_gate[2];
 	u32 div_reg[3];
+	u32 clk_phase[2];
 	u32 fixed_div;
 	struct clk *clk;
 	struct socfpga_gate_clk *socfpga_clk;
@@ -164,6 +226,12 @@ static void __init __socfpga_gate_init(struct device_node *node,
 		socfpga_clk->width = div_reg[2];
 	} else {
 		socfpga_clk->div_reg = 0;
+	}
+
+	rc = of_property_read_u32_array(node, "clk-phase", clk_phase, 2);
+	if (!rc) {
+		socfpga_clk->clk_phase[0] = clk_phase[0];
+		socfpga_clk->clk_phase[1] = clk_phase[1];
 	}
 
 	of_property_read_string(node, "clock-output-names", &clk_name);
