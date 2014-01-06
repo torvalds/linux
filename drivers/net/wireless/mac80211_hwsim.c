@@ -1623,25 +1623,29 @@ static const struct ieee80211_ops mac80211_hwsim_ops = {
 
 static struct ieee80211_ops mac80211_hwsim_mchan_ops;
 
+static void mac80211_hwsim_destroy_radio(struct mac80211_hwsim_data *data)
+{
+	debugfs_remove_recursive(data->debugfs);
+	ieee80211_unregister_hw(data->hw);
+	device_release_driver(data->dev);
+	device_unregister(data->dev);
+	ieee80211_free_hw(data->hw);
+}
+
 static void mac80211_hwsim_free(void)
 {
-	struct list_head tmplist, *i, *tmp;
-	struct mac80211_hwsim_data *data, *tmpdata;
-
-	INIT_LIST_HEAD(&tmplist);
+	struct mac80211_hwsim_data *data;
 
 	spin_lock_bh(&hwsim_radio_lock);
-	list_for_each_safe(i, tmp, &hwsim_radios)
-		list_move(i, &tmplist);
-	spin_unlock_bh(&hwsim_radio_lock);
-
-	list_for_each_entry_safe(data, tmpdata, &tmplist, list) {
-		debugfs_remove_recursive(data->debugfs);
-		ieee80211_unregister_hw(data->hw);
-		device_release_driver(data->dev);
-		device_unregister(data->dev);
-		ieee80211_free_hw(data->hw);
+	while ((data = list_first_entry_or_null(&hwsim_radios,
+						struct mac80211_hwsim_data,
+						list))) {
+		list_del(&data->list);
+		spin_unlock_bh(&hwsim_radio_lock);
+		mac80211_hwsim_destroy_radio(data);
+		spin_lock_bh(&hwsim_radio_lock);
 	}
+	spin_unlock_bh(&hwsim_radio_lock);
 	class_destroy(hwsim_class);
 }
 
