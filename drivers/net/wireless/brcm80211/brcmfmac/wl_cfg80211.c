@@ -4360,9 +4360,6 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 {
 	struct brcmf_cfg80211_vif *vif;
 
-	if (cfg->vif_cnt == BRCMF_IFACE_MAX_CNT)
-		return ERR_PTR(-ENOSPC);
-
 	brcmf_dbg(TRACE, "allocating virtual interface (size=%zu)\n",
 		  sizeof(*vif));
 	vif = kzalloc(sizeof(*vif), GFP_KERNEL);
@@ -4379,21 +4376,13 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 	brcmf_init_prof(&vif->profile);
 
 	list_add_tail(&vif->list, &cfg->vif_list);
-	cfg->vif_cnt++;
 	return vif;
 }
 
-void brcmf_free_vif(struct brcmf_cfg80211_info *cfg,
-		    struct brcmf_cfg80211_vif *vif)
+void brcmf_free_vif(struct brcmf_cfg80211_vif *vif)
 {
 	list_del(&vif->list);
-	cfg->vif_cnt--;
-
 	kfree(vif);
-	if (!cfg->vif_cnt) {
-		wiphy_unregister(cfg->wiphy);
-		wiphy_free(cfg->wiphy);
-	}
 }
 
 static bool brcmf_is_linkup(const struct brcmf_event_msg *e)
@@ -4980,20 +4969,17 @@ cfg80211_p2p_attach_out:
 	wl_deinit_priv(cfg);
 
 cfg80211_attach_out:
-	brcmf_free_vif(cfg, vif);
+	brcmf_free_vif(vif);
 	return NULL;
 }
 
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 {
-	struct brcmf_cfg80211_vif *vif;
-	struct brcmf_cfg80211_vif *tmp;
-
-	wl_deinit_priv(cfg);
+	WARN_ON(!list_empty(&cfg->vif_list));
+	wiphy_unregister(cfg->wiphy);
 	brcmf_btcoex_detach(cfg);
-	list_for_each_entry_safe(vif, tmp, &cfg->vif_list, list) {
-		brcmf_free_vif(cfg, vif);
-	}
+	wl_deinit_priv(cfg);
+	wiphy_free(cfg->wiphy);
 }
 
 static s32
