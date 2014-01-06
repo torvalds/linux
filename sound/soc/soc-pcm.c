@@ -1228,6 +1228,17 @@ unwind:
 	return err;
 }
 
+static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
+	struct snd_soc_pcm_stream *stream)
+{
+	runtime->hw.rate_min = stream->rate_min;
+	runtime->hw.rate_max = stream->rate_max;
+	runtime->hw.channels_min = stream->channels_min;
+	runtime->hw.channels_max = stream->channels_max;
+	runtime->hw.formats &= stream->formats;
+	runtime->hw.rates = stream->rates;
+}
+
 static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -1235,21 +1246,10 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai_driver *cpu_dai_drv = cpu_dai->driver;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		runtime->hw.rate_min = cpu_dai_drv->playback.rate_min;
-		runtime->hw.rate_max = cpu_dai_drv->playback.rate_max;
-		runtime->hw.channels_min = cpu_dai_drv->playback.channels_min;
-		runtime->hw.channels_max = cpu_dai_drv->playback.channels_max;
-		runtime->hw.formats &= cpu_dai_drv->playback.formats;
-		runtime->hw.rates = cpu_dai_drv->playback.rates;
-	} else {
-		runtime->hw.rate_min = cpu_dai_drv->capture.rate_min;
-		runtime->hw.rate_max = cpu_dai_drv->capture.rate_max;
-		runtime->hw.channels_min = cpu_dai_drv->capture.channels_min;
-		runtime->hw.channels_max = cpu_dai_drv->capture.channels_max;
-		runtime->hw.formats &= cpu_dai_drv->capture.formats;
-		runtime->hw.rates = cpu_dai_drv->capture.rates;
-	}
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->playback);
+	else
+		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->capture);
 }
 
 static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
