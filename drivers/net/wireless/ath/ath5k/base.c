@@ -2549,7 +2549,6 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 	hw->wiphy->available_antennas_rx = 0x3;
 
 	hw->extra_tx_headroom = 2;
-	hw->channel_change_time = 5000;
 
 	/*
 	 * Mark the device as detached to avoid processing

@@ -2341,7 +2341,6 @@ static int __init init_mac80211_hwsim(void)
 		INIT_DELAYED_WORK(&data->roc_done, hw_roc_done);
 		INIT_DELAYED_WORK(&data->hw_scan, hw_scan_work);
 
-		hw->channel_change_time = 1;
 		hw->queues = 5;
 		hw->offchannel_tx_hw_queue = 4;
 		hw->wiphy->interface_modes =

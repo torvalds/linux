@@ -1616,8 +1616,6 @@ enum ieee80211_hw_flags {
  * @extra_beacon_tailroom: tailroom to reserve in each beacon tx skb.
  *	Can be used by drivers to add extra IEs.
  *
- * @channel_change_time: time (in microseconds) it takes to change channels.
- *
  * @max_signal: Maximum value for signal (rssi) in RX information, used
  *	only when @IEEE80211_HW_SIGNAL_UNSPEC or @IEEE80211_HW_SIGNAL_DB
  *
@@ -1699,7 +1697,6 @@ struct ieee80211_hw {
 	u32 flags;
 	unsigned int extra_tx_headroom;
 	unsigned int extra_beacon_tailroom;
-	int channel_change_time;
 	int vif_data_size;
 	int sta_data_size;
 	int chanctx_data_size;
