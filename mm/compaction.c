@@ -134,6 +134,10 @@ static void update_pageblock_skip(struct compact_control *cc,
 			bool migrate_scanner)
 {
 	struct zone *zone = cc->zone;
+
+	if (cc->ignore_skip_hint)
+		return;
+
 	if (!page)
 		return;
 
@@ -235,10 +239,9 @@ static bool suitable_migration_target(struct page *page)
 }
 
 /*
- * Isolate free pages onto a private freelist. Caller must hold zone->lock.
- * If @strict is true, will abort returning 0 on any invalid PFNs or non-free
- * pages inside of the pageblock (even though it may still end up isolating
- * some pages).
+ * Isolate free pages onto a private freelist. If @strict is true, will abort
+ * returning 0 on any invalid PFNs or non-free pages inside of the pageblock
+ * (even though it may still end up isolating some pages).
  */
 static unsigned long isolate_freepages_block(struct compact_control *cc,
 				unsigned long blockpfn,
@@ -676,6 +679,13 @@ static void isolate_freepages(struct zone *zone,
 	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
 					pfn -= pageblock_nr_pages) {
 		unsigned long isolated;
+
+		/*
+		 * This can iterate a massively long zone without finding any
+		 * suitable migration targets, so periodically check if we need
+		 * to schedule.
+		 */
+		cond_resched();
 
 		if (!pfn_valid(pfn))
 			continue;

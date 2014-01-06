@@ -100,6 +100,7 @@ int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
 {
 	int channel;
 	u32 reg, val;
+	struct tegra30_ahub_cif_conf cif_conf;
 
 	channel = find_first_zero_bit(ahub->rx_usage,
 				      TEGRA30_AHUB_CHANNEL_CTRL_COUNT);
@@ -123,15 +124,21 @@ int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
 	       TEGRA30_AHUB_CHANNEL_CTRL_RX_PACK_16;
 	tegra30_apbif_write(reg, val);
 
+	cif_conf.threshold = 0;
+	cif_conf.audio_channels = 2;
+	cif_conf.client_channels = 2;
+	cif_conf.audio_bits = TEGRA30_AUDIOCIF_BITS_16;
+	cif_conf.client_bits = TEGRA30_AUDIOCIF_BITS_16;
+	cif_conf.expand = 0;
+	cif_conf.stereo_conv = 0;
+	cif_conf.replicate = 0;
+	cif_conf.direction = TEGRA30_AUDIOCIF_DIRECTION_RX;
+	cif_conf.truncate = 0;
+	cif_conf.mono_conv = 0;
+
 	reg = TEGRA30_AHUB_CIF_RX_CTRL +
 	      (channel * TEGRA30_AHUB_CIF_RX_CTRL_STRIDE);
-	val = (0 << TEGRA30_AUDIOCIF_CTRL_FIFO_THRESHOLD_SHIFT) |
-	      (1 << TEGRA30_AUDIOCIF_CTRL_AUDIO_CHANNELS_SHIFT) |
-	      (1 << TEGRA30_AUDIOCIF_CTRL_CLIENT_CHANNELS_SHIFT) |
-	      TEGRA30_AUDIOCIF_CTRL_AUDIO_BITS_16 |
-	      TEGRA30_AUDIOCIF_CTRL_CLIENT_BITS_16 |
-	      TEGRA30_AUDIOCIF_CTRL_DIRECTION_RX;
-	tegra30_apbif_write(reg, val);
+	ahub->soc_data->set_audio_cif(ahub->regmap_apbif, reg, &cif_conf);
 
 	return 0;
 }
@@ -183,6 +190,7 @@ int tegra30_ahub_allocate_tx_fifo(enum tegra30_ahub_txcif *txcif,
 {
 	int channel;
 	u32 reg, val;
+	struct tegra30_ahub_cif_conf cif_conf;
 
 	channel = find_first_zero_bit(ahub->tx_usage,
 				      TEGRA30_AHUB_CHANNEL_CTRL_COUNT);
@@ -206,15 +214,21 @@ int tegra30_ahub_allocate_tx_fifo(enum tegra30_ahub_txcif *txcif,
 	       TEGRA30_AHUB_CHANNEL_CTRL_TX_PACK_16;
 	tegra30_apbif_write(reg, val);
 
+	cif_conf.threshold = 0;
+	cif_conf.audio_channels = 2;
+	cif_conf.client_channels = 2;
+	cif_conf.audio_bits = TEGRA30_AUDIOCIF_BITS_16;
+	cif_conf.client_bits = TEGRA30_AUDIOCIF_BITS_16;
+	cif_conf.expand = 0;
+	cif_conf.stereo_conv = 0;
+	cif_conf.replicate = 0;
+	cif_conf.direction = TEGRA30_AUDIOCIF_DIRECTION_TX;
+	cif_conf.truncate = 0;
+	cif_conf.mono_conv = 0;
+
 	reg = TEGRA30_AHUB_CIF_TX_CTRL +
 	      (channel * TEGRA30_AHUB_CIF_TX_CTRL_STRIDE);
-	val = (0 << TEGRA30_AUDIOCIF_CTRL_FIFO_THRESHOLD_SHIFT) |
-	      (1 << TEGRA30_AUDIOCIF_CTRL_AUDIO_CHANNELS_SHIFT) |
-	      (1 << TEGRA30_AUDIOCIF_CTRL_CLIENT_CHANNELS_SHIFT) |
-	      TEGRA30_AUDIOCIF_CTRL_AUDIO_BITS_16 |
-	      TEGRA30_AUDIOCIF_CTRL_CLIENT_BITS_16 |
-	      TEGRA30_AUDIOCIF_CTRL_DIRECTION_TX;
-	tegra30_apbif_write(reg, val);
+	ahub->soc_data->set_audio_cif(ahub->regmap_apbif, reg, &cif_conf);
 
 	return 0;
 }
@@ -346,7 +360,7 @@ static bool tegra30_ahub_apbif_wr_rd_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		break;
-	};
+	}
 
 	if (REG_IN_ARRAY(reg, CHANNEL_CTRL) ||
 	    REG_IN_ARRAY(reg, CHANNEL_CLEAR) ||
@@ -381,7 +395,7 @@ static bool tegra30_ahub_apbif_volatile_reg(struct device *dev,
 		return true;
 	default:
 		break;
-	};
+	}
 
 	if (REG_IN_ARRAY(reg, CHANNEL_CLEAR) ||
 	    REG_IN_ARRAY(reg, CHANNEL_STATUS) ||
@@ -437,13 +451,21 @@ static const struct regmap_config tegra30_ahub_ahub_regmap_config = {
 
 static struct tegra30_ahub_soc_data soc_data_tegra30 = {
 	.clk_list_mask = CLK_LIST_MASK_TEGRA30,
+	.set_audio_cif = tegra30_ahub_set_cif,
 };
 
 static struct tegra30_ahub_soc_data soc_data_tegra114 = {
 	.clk_list_mask = CLK_LIST_MASK_TEGRA114,
+	.set_audio_cif = tegra30_ahub_set_cif,
+};
+
+static struct tegra30_ahub_soc_data soc_data_tegra124 = {
+	.clk_list_mask = CLK_LIST_MASK_TEGRA114,
+	.set_audio_cif = tegra124_ahub_set_cif,
 };
 
 static const struct of_device_id tegra30_ahub_of_match[] = {
+	{ .compatible = "nvidia,tegra124-ahub", .data = &soc_data_tegra124 },
 	{ .compatible = "nvidia,tegra114-ahub", .data = &soc_data_tegra114 },
 	{ .compatible = "nvidia,tegra30-ahub",  .data = &soc_data_tegra30 },
 	{},
@@ -497,6 +519,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(&pdev->dev, ahub);
 
+	ahub->soc_data = soc_data;
 	ahub->dev = &pdev->dev;
 
 	ahub->clk_d_audio = clk_get(&pdev->dev, "d_audio");
@@ -668,6 +691,70 @@ static struct platform_driver tegra30_ahub_driver = {
 	},
 };
 module_platform_driver(tegra30_ahub_driver);
+
+void tegra30_ahub_set_cif(struct regmap *regmap, unsigned int reg,
+			  struct tegra30_ahub_cif_conf *conf)
+{
+	unsigned int value;
+
+	value = (conf->threshold <<
+			TEGRA30_AUDIOCIF_CTRL_FIFO_THRESHOLD_SHIFT) |
+		((conf->audio_channels - 1) <<
+			TEGRA30_AUDIOCIF_CTRL_AUDIO_CHANNELS_SHIFT) |
+		((conf->client_channels - 1) <<
+			TEGRA30_AUDIOCIF_CTRL_CLIENT_CHANNELS_SHIFT) |
+		(conf->audio_bits <<
+			TEGRA30_AUDIOCIF_CTRL_AUDIO_BITS_SHIFT) |
+		(conf->client_bits <<
+			TEGRA30_AUDIOCIF_CTRL_CLIENT_BITS_SHIFT) |
+		(conf->expand <<
+			TEGRA30_AUDIOCIF_CTRL_EXPAND_SHIFT) |
+		(conf->stereo_conv <<
+			TEGRA30_AUDIOCIF_CTRL_STEREO_CONV_SHIFT) |
+		(conf->replicate <<
+			TEGRA30_AUDIOCIF_CTRL_REPLICATE_SHIFT) |
+		(conf->direction <<
+			TEGRA30_AUDIOCIF_CTRL_DIRECTION_SHIFT) |
+		(conf->truncate <<
+			TEGRA30_AUDIOCIF_CTRL_TRUNCATE_SHIFT) |
+		(conf->mono_conv <<
+			TEGRA30_AUDIOCIF_CTRL_MONO_CONV_SHIFT);
+
+	regmap_write(regmap, reg, value);
+}
+EXPORT_SYMBOL_GPL(tegra30_ahub_set_cif);
+
+void tegra124_ahub_set_cif(struct regmap *regmap, unsigned int reg,
+			   struct tegra30_ahub_cif_conf *conf)
+{
+	unsigned int value;
+
+	value = (conf->threshold <<
+			TEGRA124_AUDIOCIF_CTRL_FIFO_THRESHOLD_SHIFT) |
+		((conf->audio_channels - 1) <<
+			TEGRA124_AUDIOCIF_CTRL_AUDIO_CHANNELS_SHIFT) |
+		((conf->client_channels - 1) <<
+			TEGRA124_AUDIOCIF_CTRL_CLIENT_CHANNELS_SHIFT) |
+		(conf->audio_bits <<
+			TEGRA30_AUDIOCIF_CTRL_AUDIO_BITS_SHIFT) |
+		(conf->client_bits <<
+			TEGRA30_AUDIOCIF_CTRL_CLIENT_BITS_SHIFT) |
+		(conf->expand <<
+			TEGRA30_AUDIOCIF_CTRL_EXPAND_SHIFT) |
+		(conf->stereo_conv <<
+			TEGRA30_AUDIOCIF_CTRL_STEREO_CONV_SHIFT) |
+		(conf->replicate <<
+			TEGRA30_AUDIOCIF_CTRL_REPLICATE_SHIFT) |
+		(conf->direction <<
+			TEGRA30_AUDIOCIF_CTRL_DIRECTION_SHIFT) |
+		(conf->truncate <<
+			TEGRA30_AUDIOCIF_CTRL_TRUNCATE_SHIFT) |
+		(conf->mono_conv <<
+			TEGRA30_AUDIOCIF_CTRL_MONO_CONV_SHIFT);
+
+	regmap_write(regmap, reg, value);
+}
+EXPORT_SYMBOL_GPL(tegra124_ahub_set_cif);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra30 AHUB driver");

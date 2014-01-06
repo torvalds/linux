@@ -144,11 +144,8 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
 	 * while accessing I/O stuff
-	 *
-	 * FIXME: Enable that for PHB3 later
 	 */
-	if (phb->type == PNV_PHB_IODA1)
-		eeh_subsystem_enabled = 1;
+	eeh_subsystem_enabled = 1;
 
 	/* Save memory bars */
 	eeh_save_bars(edev);

@@ -34,26 +34,6 @@
 		serial@12000 {
 			status = "ok";
 		};
-
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x400000>;
-			};
-
-			partition@500000 {
-				label = "data";
-				reg = <0x0500000 0xfb00000>;
-			};
-		};
 	};
 	gpio-leds {
 		compatible = "gpio-leds";
@@ -88,6 +68,26 @@
 			regulator-boot-on;
 			gpio = <&gpio0 29 0>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "data";
+		reg = <0x0500000 0xfb00000>;
 	};
 };
 

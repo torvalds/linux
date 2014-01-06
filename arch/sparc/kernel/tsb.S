@@ -75,7 +75,7 @@ tsb_miss_page_table_walk:
 	mov		512, %g7
 	andn		%g5, 0x7, %g5
 	sllx		%g7, %g6, %g7
-	srlx		%g4, HPAGE_SHIFT, %g6
+	srlx		%g4, REAL_HPAGE_SHIFT, %g6
 	sub		%g7, 1, %g7
 	and		%g6, %g7, %g6
 	sllx		%g6, 4, %g6

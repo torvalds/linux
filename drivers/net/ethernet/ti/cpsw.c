@@ -367,8 +367,6 @@ struct cpsw_priv {
 	spinlock_t			lock;
 	struct platform_device		*pdev;
 	struct net_device		*ndev;
-	struct resource			*cpsw_res;
-	struct resource			*cpsw_wr_res;
 	struct napi_struct		napi;
 	struct device			*dev;
 	struct cpsw_platform_data	data;
@@ -639,13 +637,6 @@ void cpsw_rx_handler(void *token, int len, int status)
 static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
-	u32 rx, tx, rx_thresh;
-
-	rx_thresh = __raw_readl(&priv->wr_regs->rx_thresh_stat);
-	rx = __raw_readl(&priv->wr_regs->rx_stat);
-	tx = __raw_readl(&priv->wr_regs->tx_stat);
-	if (!rx_thresh && !rx && !tx)
-		return IRQ_NONE;
 
 	cpsw_intr_disable(priv);
 	if (priv->irq_enabled == true) {
@@ -749,6 +740,8 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 		/* set speed_in input in case RMII mode is used in 100Mbps */
 		if (phy->speed == 100)
 			mac_control |= BIT(15);
+		else if (phy->speed == 10)
+			mac_control |= BIT(18); /* In Band mode */
 
 		*link = true;
 	} else {
@@ -976,14 +969,19 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 		priv->host_port, ALE_VLAN, slave->port_vlan);
 }
 
-static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
+static void soft_reset_slave(struct cpsw_slave *slave)
 {
 	char name[32];
+
+	snprintf(name, sizeof(name), "slave-%d", slave->slave_num);
+	soft_reset(name, &slave->sliver->soft_reset);
+}
+
+static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
+{
 	u32 slave_port;
 
-	sprintf(name, "slave-%d", slave->slave_num);
-
-	soft_reset(name, &slave->sliver->soft_reset);
+	soft_reset_slave(slave);
 
 	/* setup priority mapping */
 	__raw_writel(RX_PRIORITY_MAPPING, &slave->sliver->rx_pri_map);
@@ -1023,6 +1021,10 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		dev_info(priv->dev, "phy found : id is : 0x%x\n",
 			 slave->phy->phy_id);
 		phy_start(slave->phy);
+
+		/* Configure GMII_SEL register */
+		cpsw_phy_sel(&priv->pdev->dev, slave->phy->interface,
+			     slave->slave_num);
 	}
 }
 
@@ -1151,6 +1153,12 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		 * receive descs
 		 */
 		cpsw_info(priv, ifup, "submitted %d rx descriptors\n", i);
+
+		if (cpts_register(&priv->pdev->dev, priv->cpts,
+				  priv->data.cpts_clock_mult,
+				  priv->data.cpts_clock_shift))
+			dev_err(priv->dev, "error registering cpts device\n");
+
 	}
 
 	/* Enable Interrupt pacing if configured */
@@ -1169,9 +1177,9 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		}
 	}
 
+	napi_enable(&priv->napi);
 	cpdma_ctlr_start(priv->dma);
 	cpsw_intr_enable(priv);
-	napi_enable(&priv->napi);
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
@@ -1197,6 +1205,7 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	netif_carrier_off(priv->ndev);
 
 	if (cpsw_common_res_usage_state(priv) <= 1) {
+		cpts_unregister(priv->cpts);
 		cpsw_intr_disable(priv);
 		cpdma_ctlr_int_ctrl(priv->dma, false);
 		cpdma_ctlr_stop(priv->dma);
@@ -1328,6 +1337,10 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	struct cpts *cpts = priv->cpts;
 	struct hwtstamp_config cfg;
 
+	if (priv->version != CPSW_VERSION_1 &&
+	    priv->version != CPSW_VERSION_2)
+		return -EOPNOTSUPP;
+
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
@@ -1335,16 +1348,8 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	if (cfg.flags)
 		return -EINVAL;
 
-	switch (cfg.tx_type) {
-	case HWTSTAMP_TX_OFF:
-		cpts->tx_enable = 0;
-		break;
-	case HWTSTAMP_TX_ON:
-		cpts->tx_enable = 1;
-		break;
-	default:
+	if (cfg.tx_type != HWTSTAMP_TX_OFF && cfg.tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
-	}
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
@@ -1371,6 +1376,8 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
+	cpts->tx_enable = cfg.tx_type == HWTSTAMP_TX_ON;
+
 	switch (priv->version) {
 	case CPSW_VERSION_1:
 		cpsw_hwtstamp_v1(priv);
@@ -1379,7 +1386,7 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		cpsw_hwtstamp_v2(priv);
 		break;
 	default:
-		return -ENOTSUPP;
+		WARN_ON(1);
 	}
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
@@ -1712,67 +1719,60 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 
 	if (of_property_read_u32(node, "active_slave", &prop)) {
 		pr_err("Missing active_slave property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
+		return -EINVAL;
 	}
 	data->active_slave = prop;
 
 	if (of_property_read_u32(node, "cpts_clock_mult", &prop)) {
 		pr_err("Missing cpts_clock_mult property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
+		return -EINVAL;
 	}
 	data->cpts_clock_mult = prop;
 
 	if (of_property_read_u32(node, "cpts_clock_shift", &prop)) {
 		pr_err("Missing cpts_clock_shift property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
+		return -EINVAL;
 	}
 	data->cpts_clock_shift = prop;
 
-	data->slave_data = kcalloc(data->slaves, sizeof(struct cpsw_slave_data),
-				   GFP_KERNEL);
+	data->slave_data = devm_kzalloc(&pdev->dev, data->slaves
+					* sizeof(struct cpsw_slave_data),
+					GFP_KERNEL);
 	if (!data->slave_data)
-		return -EINVAL;
+		return -ENOMEM;
 
 	if (of_property_read_u32(node, "cpdma_channels", &prop)) {
 		pr_err("Missing cpdma_channels property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
+		return -EINVAL;
 	}
 	data->channels = prop;
 
 	if (of_property_read_u32(node, "ale_entries", &prop)) {
 		pr_err("Missing ale_entries property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
+		return -EINVAL;
 	}
 	data->ale_entries = prop;
 
 	if (of_property_read_u32(node, "bd_ram_size", &prop)) {
 		pr_err("Missing bd_ram_size property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
+		return -EINVAL;
 	}
 	data->bd_ram_size = prop;
 
 	if (of_property_read_u32(node, "rx_descs", &prop)) {
 		pr_err("Missing rx_descs property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
+		return -EINVAL;
 	}
 	data->rx_descs = prop;
 
 	if (of_property_read_u32(node, "mac_control", &prop)) {
 		pr_err("Missing mac_control property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
+		return -EINVAL;
 	}
 	data->mac_control = prop;
 
-	if (!of_property_read_u32(node, "dual_emac", &prop))
-		data->dual_emac = prop;
+	if (of_property_read_bool(node, "dual_emac"))
+		data->dual_emac = 1;
 
 	/*
 	 * Populate all the child nodes here...
@@ -1782,7 +1782,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	if (ret)
 		pr_warn("Doesn't have any child node\n");
 
-	for_each_node_by_name(slave_node, "slave") {
+	for_each_child_of_node(node, slave_node) {
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
 		const void *mac_addr = NULL;
 		u32 phyid;
@@ -1791,11 +1791,14 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		struct device_node *mdio_node;
 		struct platform_device *mdio;
 
+		/* This is no slave child node, continue */
+		if (strcmp(slave_node->name, "slave"))
+			continue;
+
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
 			pr_err("Missing slave[%d] phy_id property\n", i);
-			ret = -EINVAL;
-			goto error_ret;
+			return -EINVAL;
 		}
 		mdio_node = of_find_node_by_phandle(be32_to_cpup(parp));
 		phyid = be32_to_cpup(parp+1);
@@ -1822,13 +1825,11 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		}
 
 		i++;
+		if (i == data->slaves)
+			break;
 	}
 
 	return 0;
-
-error_ret:
-	kfree(data->slave_data);
-	return ret;
 }
 
 static int cpsw_probe_dual_emac(struct platform_device *pdev,
@@ -1870,7 +1871,6 @@ static int cpsw_probe_dual_emac(struct platform_device *pdev,
 	priv_sl2->coal_intvl = 0;
 	priv_sl2->bus_freq_mhz = priv->bus_freq_mhz;
 
-	priv_sl2->cpsw_res = priv->cpsw_res;
 	priv_sl2->regs = priv->regs;
 	priv_sl2->host_port = priv->host_port;
 	priv_sl2->host_port_regs = priv->host_port_regs;
@@ -1914,8 +1914,8 @@ static int cpsw_probe(struct platform_device *pdev)
 	struct cpsw_priv		*priv;
 	struct cpdma_params		dma_params;
 	struct cpsw_ale_params		ale_params;
-	void __iomem			*ss_regs, *wr_regs;
-	struct resource			*res;
+	void __iomem			*ss_regs;
+	struct resource			*res, *ss_res;
 	u32 slave_offset, sliver_offset, slave_size;
 	int ret = 0, i, k = 0;
 
@@ -1951,7 +1951,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (cpsw_probe_dt(&priv->data, pdev)) {
 		pr_err("cpsw: platform data missing\n");
 		ret = -ENODEV;
-		goto clean_ndev_ret;
+		goto clean_runtime_disable_ret;
 	}
 	data = &priv->data;
 
@@ -1965,11 +1965,12 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
 
-	priv->slaves = kzalloc(sizeof(struct cpsw_slave) * data->slaves,
-			       GFP_KERNEL);
+	priv->slaves = devm_kzalloc(&pdev->dev,
+				    sizeof(struct cpsw_slave) * data->slaves,
+				    GFP_KERNEL);
 	if (!priv->slaves) {
-		ret = -EBUSY;
-		goto clean_ndev_ret;
+		ret = -ENOMEM;
+		goto clean_runtime_disable_ret;
 	}
 	for (i = 0; i < data->slaves; i++)
 		priv->slaves[i].slave_num = i;
@@ -1977,55 +1978,37 @@ static int cpsw_probe(struct platform_device *pdev)
 	priv->slaves[0].ndev = ndev;
 	priv->emac_port = 0;
 
-	priv->clk = clk_get(&pdev->dev, "fck");
+	priv->clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "fck is not found\n");
+		dev_err(priv->dev, "fck is not found\n");
 		ret = -ENODEV;
-		goto clean_slave_ret;
+		goto clean_runtime_disable_ret;
 	}
 	priv->coal_intvl = 0;
 	priv->bus_freq_mhz = clk_get_rate(priv->clk) / 1000000;
 
-	priv->cpsw_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!priv->cpsw_res) {
-		dev_err(priv->dev, "error getting i/o resource\n");
-		ret = -ENOENT;
-		goto clean_clk_ret;
-	}
-	if (!request_mem_region(priv->cpsw_res->start,
-				resource_size(priv->cpsw_res), ndev->name)) {
-		dev_err(priv->dev, "failed request i/o region\n");
-		ret = -ENXIO;
-		goto clean_clk_ret;
-	}
-	ss_regs = ioremap(priv->cpsw_res->start, resource_size(priv->cpsw_res));
-	if (!ss_regs) {
-		dev_err(priv->dev, "unable to map i/o region\n");
-		goto clean_cpsw_iores_ret;
+	ss_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ss_regs = devm_ioremap_resource(&pdev->dev, ss_res);
+	if (IS_ERR(ss_regs)) {
+		ret = PTR_ERR(ss_regs);
+		goto clean_runtime_disable_ret;
 	}
 	priv->regs = ss_regs;
-	priv->version = __raw_readl(&priv->regs->id_ver);
 	priv->host_port = HOST_PORT_NUM;
 
-	priv->cpsw_wr_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!priv->cpsw_wr_res) {
-		dev_err(priv->dev, "error getting i/o resource\n");
-		ret = -ENOENT;
-		goto clean_iomap_ret;
+	/* Need to enable clocks with runtime PM api to access module
+	 * registers
+	 */
+	pm_runtime_get_sync(&pdev->dev);
+	priv->version = readl(&priv->regs->id_ver);
+	pm_runtime_put_sync(&pdev->dev);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	priv->wr_regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->wr_regs)) {
+		ret = PTR_ERR(priv->wr_regs);
+		goto clean_runtime_disable_ret;
 	}
-	if (!request_mem_region(priv->cpsw_wr_res->start,
-			resource_size(priv->cpsw_wr_res), ndev->name)) {
-		dev_err(priv->dev, "failed request i/o region\n");
-		ret = -ENXIO;
-		goto clean_iomap_ret;
-	}
-	wr_regs = ioremap(priv->cpsw_wr_res->start,
-				resource_size(priv->cpsw_wr_res));
-	if (!wr_regs) {
-		dev_err(priv->dev, "unable to map i/o region\n");
-		goto clean_cpsw_wr_iores_ret;
-	}
-	priv->wr_regs = wr_regs;
 
 	memset(&dma_params, 0, sizeof(dma_params));
 	memset(&ale_params, 0, sizeof(ale_params));
@@ -2056,12 +2039,12 @@ static int cpsw_probe(struct platform_device *pdev)
 		slave_size           = CPSW2_SLAVE_SIZE;
 		sliver_offset        = CPSW2_SLIVER_OFFSET;
 		dma_params.desc_mem_phys =
-			(u32 __force) priv->cpsw_res->start + CPSW2_BD_OFFSET;
+			(u32 __force) ss_res->start + CPSW2_BD_OFFSET;
 		break;
 	default:
 		dev_err(priv->dev, "unknown version 0x%08x\n", priv->version);
 		ret = -ENODEV;
-		goto clean_cpsw_wr_iores_ret;
+		goto clean_runtime_disable_ret;
 	}
 	for (i = 0; i < priv->data.slaves; i++) {
 		struct cpsw_slave *slave = &priv->slaves[i];
@@ -2089,7 +2072,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (!priv->dma) {
 		dev_err(priv->dev, "error initializing dma\n");
 		ret = -ENOMEM;
-		goto clean_wr_iomap_ret;
+		goto clean_runtime_disable_ret;
 	}
 
 	priv->txch = cpdma_chan_create(priv->dma, tx_chan_num(0),
@@ -2124,8 +2107,8 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
-			if (request_irq(i, cpsw_interrupt, 0,
-					dev_name(&pdev->dev), priv)) {
+			if (devm_request_irq(&pdev->dev, i, cpsw_interrupt, 0,
+					     dev_name(&pdev->dev), priv)) {
 				dev_err(priv->dev, "error attaching irq\n");
 				goto clean_ale_ret;
 			}
@@ -2147,7 +2130,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(priv->dev, "error registering net device\n");
 		ret = -ENODEV;
-		goto clean_irq_ret;
+		goto clean_ale_ret;
 	}
 
 	if (cpts_register(&pdev->dev, priv->cpts,
@@ -2155,44 +2138,27 @@ static int cpsw_probe(struct platform_device *pdev)
 		dev_err(priv->dev, "error registering cpts device\n");
 
 	cpsw_notice(priv, probe, "initialized device (regs %x, irq %d)\n",
-		  priv->cpsw_res->start, ndev->irq);
+		    ss_res->start, ndev->irq);
 
 	if (priv->data.dual_emac) {
 		ret = cpsw_probe_dual_emac(pdev, priv);
 		if (ret) {
 			cpsw_err(priv, probe, "error probe slave 2 emac interface\n");
-			goto clean_irq_ret;
+			goto clean_ale_ret;
 		}
 	}
 
 	return 0;
 
-clean_irq_ret:
-	for (i = 0; i < priv->num_irqs; i++)
-		free_irq(priv->irqs_table[i], priv);
 clean_ale_ret:
 	cpsw_ale_destroy(priv->ale);
 clean_dma_ret:
 	cpdma_chan_destroy(priv->txch);
 	cpdma_chan_destroy(priv->rxch);
 	cpdma_ctlr_destroy(priv->dma);
-clean_wr_iomap_ret:
-	iounmap(priv->wr_regs);
-clean_cpsw_wr_iores_ret:
-	release_mem_region(priv->cpsw_wr_res->start,
-			   resource_size(priv->cpsw_wr_res));
-clean_iomap_ret:
-	iounmap(priv->regs);
-clean_cpsw_iores_ret:
-	release_mem_region(priv->cpsw_res->start,
-			   resource_size(priv->cpsw_res));
-clean_clk_ret:
-	clk_put(priv->clk);
-clean_slave_ret:
+clean_runtime_disable_ret:
 	pm_runtime_disable(&pdev->dev);
-	kfree(priv->slaves);
 clean_ndev_ret:
-	kfree(priv->data.slave_data);
 	free_netdev(priv->ndev);
 	return ret;
 }
@@ -2201,30 +2167,16 @@ static int cpsw_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct cpsw_priv *priv = netdev_priv(ndev);
-	int i;
 
 	if (priv->data.dual_emac)
 		unregister_netdev(cpsw_get_slave_ndev(priv, 1));
 	unregister_netdev(ndev);
 
-	cpts_unregister(priv->cpts);
-	for (i = 0; i < priv->num_irqs; i++)
-		free_irq(priv->irqs_table[i], priv);
-
 	cpsw_ale_destroy(priv->ale);
 	cpdma_chan_destroy(priv->txch);
 	cpdma_chan_destroy(priv->rxch);
 	cpdma_ctlr_destroy(priv->dma);
-	iounmap(priv->regs);
-	release_mem_region(priv->cpsw_res->start,
-			   resource_size(priv->cpsw_res));
-	iounmap(priv->wr_regs);
-	release_mem_region(priv->cpsw_wr_res->start,
-			   resource_size(priv->cpsw_wr_res));
 	pm_runtime_disable(&pdev->dev);
-	clk_put(priv->clk);
-	kfree(priv->slaves);
-	kfree(priv->data.slave_data);
 	if (priv->data.dual_emac)
 		free_netdev(cpsw_get_slave_ndev(priv, 1));
 	free_netdev(ndev);
@@ -2239,8 +2191,9 @@ static int cpsw_suspend(struct device *dev)
 
 	if (netif_running(ndev))
 		cpsw_ndo_stop(ndev);
-	soft_reset("sliver 0", &priv->slaves[0].sliver->soft_reset);
-	soft_reset("sliver 1", &priv->slaves[1].sliver->soft_reset);
+
+	for_each_slave(priv, soft_reset_slave);
+
 	pm_runtime_put_sync(&pdev->dev);
 
 	/* Select sleep pin state */
@@ -2280,7 +2233,7 @@ static struct platform_driver cpsw_driver = {
 		.name	 = "cpsw",
 		.owner	 = THIS_MODULE,
 		.pm	 = &cpsw_pm_ops,
-		.of_match_table = of_match_ptr(cpsw_of_mtable),
+		.of_match_table = cpsw_of_mtable,
 	},
 	.probe = cpsw_probe,
 	.remove = cpsw_remove,

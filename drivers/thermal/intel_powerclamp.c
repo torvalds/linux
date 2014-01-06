@@ -675,6 +675,11 @@ static const struct x86_cpu_id intel_powerclamp_ids[] = {
 	{ X86_VENDOR_INTEL, 6, 0x2e},
 	{ X86_VENDOR_INTEL, 6, 0x2f},
 	{ X86_VENDOR_INTEL, 6, 0x3a},
+	{ X86_VENDOR_INTEL, 6, 0x3c},
+	{ X86_VENDOR_INTEL, 6, 0x3e},
+	{ X86_VENDOR_INTEL, 6, 0x3f},
+	{ X86_VENDOR_INTEL, 6, 0x45},
+	{ X86_VENDOR_INTEL, 6, 0x46},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);
@@ -758,21 +763,39 @@ static int powerclamp_init(void)
 	/* probe cpu features and ids here */
 	retval = powerclamp_probe();
 	if (retval)
-		return retval;
+		goto exit_free;
+
 	/* set default limit, maybe adjusted during runtime based on feedback */
 	window_size = 2;
 	register_hotcpu_notifier(&powerclamp_cpu_notifier);
+
 	powerclamp_thread = alloc_percpu(struct task_struct *);
+	if (!powerclamp_thread) {
+		retval = -ENOMEM;
+		goto exit_unregister;
+	}
+
 	cooling_dev = thermal_cooling_device_register("intel_powerclamp", NULL,
 						&powerclamp_cooling_ops);
-	if (IS_ERR(cooling_dev))
-		return -ENODEV;
+	if (IS_ERR(cooling_dev)) {
+		retval = -ENODEV;
+		goto exit_free_thread;
+	}
 
 	if (!duration)
 		duration = jiffies_to_msecs(DEFAULT_DURATION_JIFFIES);
+
 	powerclamp_create_debug_files();
 
 	return 0;
+
+exit_free_thread:
+	free_percpu(powerclamp_thread);
+exit_unregister:
+	unregister_hotcpu_notifier(&powerclamp_cpu_notifier);
+exit_free:
+	kfree(cpu_clamping_mask);
+	return retval;
 }
 module_init(powerclamp_init);
 

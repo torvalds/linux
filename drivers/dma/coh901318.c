@@ -2369,7 +2369,7 @@ coh901318_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	dma_set_residue(txstate, coh901318_get_bytes_left(chan));
@@ -2694,7 +2694,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	err = devm_request_irq(&pdev->dev, irq, dma_irq_handler, IRQF_DISABLED,
+	err = devm_request_irq(&pdev->dev, irq, dma_irq_handler, 0,
 			       "coh901318", base);
 	if (err)
 		return err;

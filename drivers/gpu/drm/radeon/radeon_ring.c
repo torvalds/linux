@@ -61,7 +61,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, struct radeon_vm *vm,
 		  unsigned size)
 {
-	int i, r;
+	int r;
 
 	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &ib->sa_bo, size, 256, true);
 	if (r) {
@@ -87,8 +87,6 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
 	}
 	ib->is_const_ib = false;
-	for (i = 0; i < RADEON_NUM_RINGS; ++i)
-		ib->sync_to[i] = NULL;
 
 	return 0;
 }
@@ -106,25 +104,6 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_semaphore_free(rdev, &ib->semaphore, ib->fence);
 	radeon_sa_bo_free(rdev, &ib->sa_bo, ib->fence);
 	radeon_fence_unref(&ib->fence);
-}
-
-/**
- * radeon_ib_sync_to - sync to fence before executing the IB
- *
- * @ib: IB object to add fence to
- * @fence: fence to sync to
- *
- * Sync to the fence before executing the IB
- */
-void radeon_ib_sync_to(struct radeon_ib *ib, struct radeon_fence *fence)
-{
-	struct radeon_fence *other;
-
-	if (!fence)
-		return;
-
-	other = ib->sync_to[fence->ring];
-	ib->sync_to[fence->ring] = radeon_fence_later(fence, other);
 }
 
 /**
@@ -151,8 +130,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		       struct radeon_ib *const_ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
-	bool need_sync = false;
-	int i, r = 0;
+	int r = 0;
 
 	if (!ib->length_dw || !ring->ready) {
 		/* TODO: Nothings in the ib we should report. */
@@ -166,19 +144,15 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		dev_err(rdev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		struct radeon_fence *fence = ib->sync_to[i];
-		if (radeon_fence_need_sync(fence, ib->ring)) {
-			need_sync = true;
-			radeon_semaphore_sync_rings(rdev, ib->semaphore,
-						    fence->ring, ib->ring);
-			radeon_fence_note_sync(fence, ib->ring);
-		}
+
+	/* sync with other rings */
+	r = radeon_semaphore_sync_rings(rdev, ib->semaphore, ib->ring);
+	if (r) {
+		dev_err(rdev->dev, "failed to sync rings (%d)\n", r);
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
 	}
-	/* immediately free semaphore when we don't need to sync */
-	if (!need_sync) {
-		radeon_semaphore_free(rdev, &ib->semaphore, NULL);
-	}
+
 	/* if we can't remember our last VM flush then flush now! */
 	/* XXX figure out why we have to flush for every IB */
 	if (ib->vm /*&& !ib->vm->last_flush*/) {
@@ -839,9 +813,11 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	 * packet that is the root issue
 	 */
 	i = (ring->rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
-	for (j = 0; j <= (count + 32); j++) {
-		seq_printf(m, "r[%5d]=0x%08x\n", i, ring->ring[i]);
-		i = (i + 1) & ring->ptr_mask;
+	if (ring->ready) {
+		for (j = 0; j <= (count + 32); j++) {
+			seq_printf(m, "r[%5d]=0x%08x\n", i, ring->ring[i]);
+			i = (i + 1) & ring->ptr_mask;
+		}
 	}
 	return 0;
 }

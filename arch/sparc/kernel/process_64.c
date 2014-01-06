@@ -31,6 +31,7 @@
 #include <linux/elfcore.h>
 #include <linux/sysrq.h>
 #include <linux/nmi.h>
+#include <linux/context_tracking.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -557,6 +558,7 @@ void fault_in_user_windows(void)
 
 barf:
 	set_thread_wsaved(window + 1);
+	user_exit();
 	do_exit(SIGILL);
 }
 

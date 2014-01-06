@@ -343,6 +343,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_DEVMINOR:
 	case AUDIT_EXIT:
 	case AUDIT_SUCCESS:
+	case AUDIT_INODE:
 		/* bit ops are only useful on syscall args */
 		if (f->op == Audit_bitmask || f->op == Audit_bittest)
 			return -EINVAL;
@@ -423,7 +424,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		f->lsm_rule = NULL;
 
 		/* Support legacy tests for a valid loginuid */
-		if ((f->type == AUDIT_LOGINUID) && (f->val == ~0U)) {
+		if ((f->type == AUDIT_LOGINUID) && (f->val == AUDIT_UID_UNSET)) {
 			f->type = AUDIT_LOGINUID_SET;
 			f->val = 0;
 		}

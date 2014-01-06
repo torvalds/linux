@@ -1096,4 +1096,4 @@ struct xlr_net_priv {
 	u64 *class_3_spill;
 };
 
-extern void xlr_set_gmac_speed(struct xlr_net_priv *priv);
+void xlr_set_gmac_speed(struct xlr_net_priv *priv);

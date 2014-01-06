@@ -61,6 +61,7 @@ struct macvlan_dev {
 	struct hlist_node	hlist;
 	struct macvlan_port	*port;
 	struct net_device	*lowerdev;
+	void			*fwd_priv;
 	struct macvlan_pcpu_stats __percpu *pcpu_stats;
 
 	DECLARE_BITMAP(mc_filter, MACVLAN_MC_FILTER_SZ);
@@ -117,5 +118,22 @@ extern int macvlan_link_register(struct rtnl_link_ops *ops);
 
 extern netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev);
+
+#if IS_ENABLED(CONFIG_MACVLAN)
+static inline struct net_device *
+macvlan_dev_real_dev(const struct net_device *dev)
+{
+	struct macvlan_dev *macvlan = netdev_priv(dev);
+
+	return macvlan->lowerdev;
+}
+#else
+static inline struct net_device *
+macvlan_dev_real_dev(const struct net_device *dev)
+{
+	BUG();
+	return NULL;
+}
+#endif
 
 #endif /* _LINUX_IF_MACVLAN_H */

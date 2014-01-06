@@ -627,7 +627,7 @@ static int ali_ircc_setup(chipio_t *info)
 /*
  * Function ali_ircc_read_dongle_id (int index, info)
  *
- * Try to read dongle indentification. This procedure needs to be executed
+ * Try to read dongle identification. This procedure needs to be executed
  * once after power-on/reset. It also needs to be used whenever you suspect
  * that the user may have plugged/unplugged the IrDA Dongle.
  */

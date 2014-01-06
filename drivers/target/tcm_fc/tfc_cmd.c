@@ -28,6 +28,7 @@
 #include <linux/configfs.h>
 #include <linux/ctype.h>
 #include <linux/hash.h>
+#include <linux/percpu_ida.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -89,16 +90,18 @@ static void ft_free_cmd(struct ft_cmd *cmd)
 {
 	struct fc_frame *fp;
 	struct fc_lport *lport;
+	struct se_session *se_sess;
 
 	if (!cmd)
 		return;
+	se_sess = cmd->sess->se_sess;
 	fp = cmd->req_frame;
 	lport = fr_dev(fp);
 	if (fr_seq(fp))
 		lport->tt.seq_release(fr_seq(fp));
 	fc_frame_free(fp);
+	percpu_ida_free(&se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
 	ft_sess_put(cmd->sess);	/* undo get from lookup at recv */
-	kfree(cmd);
 }
 
 void ft_release_cmd(struct se_cmd *se_cmd)
@@ -432,14 +435,21 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 {
 	struct ft_cmd *cmd;
 	struct fc_lport *lport = sess->tport->lport;
+	struct se_session *se_sess = sess->se_sess;
+	int tag;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
-	if (!cmd)
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	if (tag < 0)
 		goto busy;
+
+	cmd = &((struct ft_cmd *)se_sess->sess_cmd_map)[tag];
+	memset(cmd, 0, sizeof(struct ft_cmd));
+
+	cmd->se_cmd.map_tag = tag;
 	cmd->sess = sess;
 	cmd->seq = lport->tt.seq_assign(lport, fp);
 	if (!cmd->seq) {
-		kfree(cmd);
+		percpu_ida_free(&se_sess->sess_tag_pool, tag);
 		goto busy;
 	}
 	cmd->req_frame = fp;		/* hold frame during cmd */

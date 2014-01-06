@@ -22,15 +22,27 @@ extern void * __memcpy(void *, const void *, size_t);
 
 #define __HAVE_ARCH_MEMSET
 extern void * __constant_c_memset(void *, unsigned long, size_t);
+extern void * ___memset(void *, int, size_t);
 extern void * __memset(void *, int, size_t);
 extern void * memset(void *, int, size_t);
 
-#define memset(s, c, n)							    \
-(__builtin_constant_p(c)						    \
- ? (__builtin_constant_p(n) && (c) == 0					    \
-    ? __builtin_memset((s),0,(n)) 					    \
-    : __constant_c_memset((s),0x0101010101010101UL*(unsigned char)(c),(n))) \
- : __memset((s),(c),(n)))
+/* For gcc 3.x, we cannot have the inline function named "memset" because
+   the __builtin_memset will attempt to resolve to the inline as well,
+   leading to a "sorry" about unimplemented recursive inlining.  */
+extern inline void *__memset(void *s, int c, size_t n)
+{
+	if (__builtin_constant_p(c)) {
+		if (__builtin_constant_p(n)) {
+			return __builtin_memset(s, c, n);
+		} else {
+			unsigned long c8 = (c & 0xff) * 0x0101010101010101UL;
+			return __constant_c_memset(s, c8, n);
+		}
+	}
+	return ___memset(s, c, n);
+}
+
+#define memset __memset
 
 #define __HAVE_ARCH_STRCPY
 extern char * strcpy(char *,const char *);

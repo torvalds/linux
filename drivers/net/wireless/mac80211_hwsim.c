@@ -167,6 +167,7 @@ struct hwsim_vif_priv {
 	u32 magic;
 	u8 bssid[ETH_ALEN];
 	bool assoc;
+	bool bcn_en;
 	u16 aid;
 };
 
@@ -382,6 +383,14 @@ struct hwsim_radiotap_hdr {
 	__le16 rt_chbitmask;
 } __packed;
 
+struct hwsim_radiotap_ack_hdr {
+	struct ieee80211_radiotap_header hdr;
+	u8 rt_flags;
+	u8 pad;
+	__le16 rt_channel;
+	__le16 rt_chbitmask;
+} __packed;
+
 /* MAC80211_HWSIM netlinf family */
 static struct genl_family hwsim_genl_family = {
 	.id = GENL_ID_GENERATE,
@@ -499,7 +508,7 @@ static void mac80211_hwsim_monitor_ack(struct ieee80211_channel *chan,
 				       const u8 *addr)
 {
 	struct sk_buff *skb;
-	struct hwsim_radiotap_hdr *hdr;
+	struct hwsim_radiotap_ack_hdr *hdr;
 	u16 flags;
 	struct ieee80211_hdr *hdr11;
 
@@ -510,14 +519,14 @@ static void mac80211_hwsim_monitor_ack(struct ieee80211_channel *chan,
 	if (skb == NULL)
 		return;
 
-	hdr = (struct hwsim_radiotap_hdr *) skb_put(skb, sizeof(*hdr));
+	hdr = (struct hwsim_radiotap_ack_hdr *) skb_put(skb, sizeof(*hdr));
 	hdr->hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	hdr->hdr.it_pad = 0;
 	hdr->hdr.it_len = cpu_to_le16(sizeof(*hdr));
 	hdr->hdr.it_present = cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
 					  (1 << IEEE80211_RADIOTAP_CHANNEL));
 	hdr->rt_flags = 0;
-	hdr->rt_rate = 0;
+	hdr->pad = 0;
 	hdr->rt_channel = cpu_to_le16(chan->center_freq);
 	flags = IEEE80211_CHAN_2GHZ;
 	hdr->rt_chbitmask = cpu_to_le16(flags);
@@ -1170,6 +1179,16 @@ static void mac80211_hwsim_configure_filter(struct ieee80211_hw *hw,
 	*total_flags = data->rx_filter;
 }
 
+static void mac80211_hwsim_bcn_en_iter(void *data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	unsigned int *count = data;
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+
+	if (vp->bcn_en)
+		(*count)++;
+}
+
 static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 					    struct ieee80211_vif *vif,
 					    struct ieee80211_bss_conf *info,
@@ -1180,7 +1199,8 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 
 	hwsim_check_magic(vif);
 
-	wiphy_debug(hw->wiphy, "%s(changed=0x%x)\n", __func__, changed);
+	wiphy_debug(hw->wiphy, "%s(changed=0x%x vif->addr=%pM)\n",
+		    __func__, changed, vif->addr);
 
 	if (changed & BSS_CHANGED_BSSID) {
 		wiphy_debug(hw->wiphy, "%s: BSSID changed: %pM\n",
@@ -1202,6 +1222,7 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		wiphy_debug(hw->wiphy, "  BCN EN: %d\n", info->enable_beacon);
+		vp->bcn_en = info->enable_beacon;
 		if (data->started &&
 		    !hrtimer_is_queued(&data->beacon_timer.timer) &&
 		    info->enable_beacon) {
@@ -1215,8 +1236,16 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 			tasklet_hrtimer_start(&data->beacon_timer,
 					      ns_to_ktime(until_tbtt * 1000),
 					      HRTIMER_MODE_REL);
-		} else if (!info->enable_beacon)
-			tasklet_hrtimer_cancel(&data->beacon_timer);
+		} else if (!info->enable_beacon) {
+			unsigned int count = 0;
+			ieee80211_iterate_active_interfaces_atomic(
+				data->hw, IEEE80211_IFACE_ITER_NORMAL,
+				mac80211_hwsim_bcn_en_iter, &count);
+			wiphy_debug(hw->wiphy, "  beaconing vifs remaining: %u",
+				    count);
+			if (count == 0)
+				tasklet_hrtimer_cancel(&data->beacon_timer);
+		}
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
@@ -2076,7 +2105,7 @@ out:
 }
 
 /* Generic Netlink operations array */
-static struct genl_ops hwsim_ops[] = {
+static const struct genl_ops hwsim_ops[] = {
 	{
 		.cmd = HWSIM_CMD_REGISTER,
 		.policy = hwsim_genl_policy,
@@ -2127,8 +2156,7 @@ static int hwsim_init_netlink(void)
 
 	printk(KERN_INFO "mac80211_hwsim: initializing netlink\n");
 
-	rc = genl_register_family_with_ops(&hwsim_genl_family,
-		hwsim_ops, ARRAY_SIZE(hwsim_ops));
+	rc = genl_register_family_with_ops(&hwsim_genl_family, hwsim_ops);
 	if (rc)
 		goto failure;
 

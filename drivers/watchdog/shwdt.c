@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/pm_runtime.h>
 #include <linux/fs.h>
@@ -343,7 +342,6 @@ MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>");
 MODULE_DESCRIPTION("SuperH watchdog driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(clock_division_ratio, int, 0);
 MODULE_PARM_DESC(clock_division_ratio,

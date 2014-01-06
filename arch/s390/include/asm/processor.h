@@ -134,19 +134,17 @@ struct stack_frame {
  * Do necessary setup to start up a new thread.
  */
 #define start_thread(regs, new_psw, new_stackp) do {			\
-	regs->psw.mask	= psw_user_bits | PSW_MASK_EA | PSW_MASK_BA;	\
+	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_EA | PSW_MASK_BA;	\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
 	regs->gprs[15]	= new_stackp;					\
 	execve_tail();							\
 } while (0)
 
 #define start_thread31(regs, new_psw, new_stackp) do {			\
-	regs->psw.mask	= psw_user_bits | PSW_MASK_BA;			\
+	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
 	regs->gprs[15]	= new_stackp;					\
-	__tlb_flush_mm(current->mm);					\
 	crst_table_downgrade(current->mm, 1UL << 31);			\
-	update_mm(current->mm, current);				\
 	execve_tail();							\
 } while (0)
 
@@ -169,16 +167,14 @@ extern void release_thread(struct task_struct *);
  */
 extern unsigned long thread_saved_pc(struct task_struct *t);
 
-extern void show_code(struct pt_regs *regs);
-extern void print_fn_code(unsigned char *code, unsigned long len);
-extern int insn_to_mnemonic(unsigned char *instruction, char *buf,
-			    unsigned int len);
-
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \
         (task_stack_page(tsk) + THREAD_SIZE) - 1)
 #define KSTK_EIP(tsk)	(task_pt_regs(tsk)->psw.addr)
 #define KSTK_ESP(tsk)	(task_pt_regs(tsk)->gprs[15])
+
+/* Has task runtime instrumentation enabled ? */
+#define is_ri_task(tsk) (!!(tsk)->thread.ri_cb)
 
 static inline unsigned short stap(void)
 {
@@ -197,6 +193,8 @@ static inline void cpu_relax(void)
 		asm volatile("diag 0,0,68");
 	barrier();
 }
+
+#define arch_mutex_cpu_relax()  barrier()
 
 static inline void psw_set_key(unsigned int key)
 {
@@ -346,9 +344,9 @@ __set_psw_mask(unsigned long mask)
 }
 
 #define local_mcck_enable() \
-	__set_psw_mask(psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_MCHECK)
+	__set_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT | PSW_MASK_MCHECK)
 #define local_mcck_disable() \
-	__set_psw_mask(psw_kernel_bits | PSW_MASK_DAT)
+	__set_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT)
 
 /*
  * Basic Machine Check/Program Check Handler.

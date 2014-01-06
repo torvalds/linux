@@ -59,6 +59,7 @@ nv04_disp_intr(struct nouveau_subdev *subdev)
 	struct nv04_disp_priv *priv = (void *)subdev;
 	u32 crtc0 = nv_rd32(priv, 0x600100);
 	u32 crtc1 = nv_rd32(priv, 0x602100);
+	u32 pvideo;
 
 	if (crtc0 & 0x00000001) {
 		nouveau_event_trigger(priv->base.vblank, 0);
@@ -68,6 +69,14 @@ nv04_disp_intr(struct nouveau_subdev *subdev)
 	if (crtc1 & 0x00000001) {
 		nouveau_event_trigger(priv->base.vblank, 1);
 		nv_wr32(priv, 0x602100, 0x00000001);
+	}
+
+	if (nv_device(priv)->chipset >= 0x10 &&
+	    nv_device(priv)->chipset <= 0x40) {
+		pvideo = nv_rd32(priv, 0x8100);
+		if (pvideo & ~0x11)
+			nv_info(priv, "PVIDEO intr: %08x\n", pvideo);
+		nv_wr32(priv, 0x8100, pvideo);
 	}
 }
 

@@ -39,15 +39,15 @@ Module configuration options
 ============================
 
  If you use the floppy driver as a module, use the following syntax:
-modprobe floppy <options>
+modprobe floppy floppy="<options>"
 
 Example:
- modprobe floppy omnibook messages
+ modprobe floppy floppy="omnibook messages"
 
  If you need certain options enabled every time you load the floppy driver,
 you can put:
 
- options floppy omnibook messages
+ options floppy floppy="omnibook messages"
 
 in a configuration file in /etc/modprobe.d/.
 

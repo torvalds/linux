@@ -223,7 +223,7 @@ static void do_catch_up(struct spk_synth *synth)
 		if (ch == '\n')
 			ch = PROCSPEECH;
 		outb_p(ch, speakup_info.port_tts);
-		if (jiffies >= jiff_max && ch == SPACE) {
+		if (time_after_eq(jiffies, jiff_max) && ch == SPACE) {
 			timeout = SPK_XMITR_TIMEOUT;
 			while (synth_writable()) {
 				if (!--timeout)

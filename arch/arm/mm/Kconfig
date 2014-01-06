@@ -952,3 +952,9 @@ config ARCH_HAS_BARRIERS
 	help
 	  This option allows the use of custom mandatory barriers
 	  included via the mach/barriers.h file.
+
+config ARCH_SUPPORTS_BIG_ENDIAN
+	bool
+	help
+	  This option specifies the architecture can support big endian
+	  operation.

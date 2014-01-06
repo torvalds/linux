@@ -123,6 +123,7 @@
 			};
 
 			pwm: pwm@10006000 {
+				#pwm-cells = <2>;
 				compatible = "fsl,imx27-pwm";
 				reg = <0x10006000 0x1000>;
 				interrupts = <23>;

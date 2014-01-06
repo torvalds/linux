@@ -9,6 +9,8 @@ openvswitch-y := \
 	datapath.o \
 	dp_notify.o \
 	flow.o \
+	flow_netlink.o \
+	flow_table.o \
 	vport.o \
 	vport-internal_dev.o \
 	vport-netdev.o

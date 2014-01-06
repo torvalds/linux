@@ -154,7 +154,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
 		if (!ret_val) {
 			if (msgbuf[0] == (E1000_VF_RESET | E1000_VT_MSGTYPE_ACK))
-				memcpy(hw->mac.perm_addr, addr, 6);
+				memcpy(hw->mac.perm_addr, addr, ETH_ALEN);
 			else
 				ret_val = -E1000_ERR_MAC_INIT;
 		}
@@ -314,7 +314,7 @@ static void e1000_rar_set_vf(struct e1000_hw *hw, u8 * addr, u32 index)
 
 	memset(msgbuf, 0, 12);
 	msgbuf[0] = E1000_VF_SET_MAC_ADDR;
-	memcpy(msg_addr, addr, 6);
+	memcpy(msg_addr, addr, ETH_ALEN);
 	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
 	if (!ret_val)

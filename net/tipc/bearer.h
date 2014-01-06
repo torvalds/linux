@@ -75,8 +75,8 @@ struct tipc_bearer;
 /**
  * struct tipc_media - TIPC media information available to internal users
  * @send_msg: routine which handles buffer transmission
- * @enable_bearer: routine which enables a bearer
- * @disable_bearer: routine which disables a bearer
+ * @enable_media: routine which enables a media
+ * @disable_media: routine which disables a media
  * @addr2str: routine which converts media address to string
  * @addr2msg: routine which converts media address to protocol message area
  * @msg2addr: routine which converts media address from protocol message area
@@ -91,8 +91,8 @@ struct tipc_media {
 	int (*send_msg)(struct sk_buff *buf,
 			struct tipc_bearer *b_ptr,
 			struct tipc_media_addr *dest);
-	int (*enable_bearer)(struct tipc_bearer *b_ptr);
-	void (*disable_bearer)(struct tipc_bearer *b_ptr);
+	int (*enable_media)(struct tipc_bearer *b_ptr);
+	void (*disable_media)(struct tipc_bearer *b_ptr);
 	int (*addr2str)(struct tipc_media_addr *a, char *str_buf, int str_size);
 	int (*addr2msg)(struct tipc_media_addr *a, char *msg_area);
 	int (*msg2addr)(const struct tipc_bearer *b_ptr,
@@ -163,7 +163,7 @@ int tipc_register_media(struct tipc_media *m_ptr);
 
 void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 
-int  tipc_block_bearer(const char *name);
+int  tipc_block_bearer(struct tipc_bearer *b_ptr);
 void tipc_continue(struct tipc_bearer *tb_ptr);
 
 int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);

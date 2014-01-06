@@ -168,10 +168,14 @@ int bch_parse_uuid(const char *s, char *uuid)
 
 void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 {
-	uint64_t now		= local_clock();
-	uint64_t duration	= time_after64(now, start_time)
+	uint64_t now, duration, last;
+
+	spin_lock(&stats->lock);
+
+	now		= local_clock();
+	duration	= time_after64(now, start_time)
 		? now - start_time : 0;
-	uint64_t last		= time_after64(now, stats->last)
+	last		= time_after64(now, stats->last)
 		? now - stats->last : 0;
 
 	stats->max_duration = max(stats->max_duration, duration);
@@ -188,13 +192,30 @@ void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 	}
 
 	stats->last = now ?: 1;
+
+	spin_unlock(&stats->lock);
 }
 
-unsigned bch_next_delay(struct ratelimit *d, uint64_t done)
+/**
+ * bch_next_delay() - increment @d by the amount of work done, and return how
+ * long to delay until the next time to do some work.
+ *
+ * @d - the struct bch_ratelimit to update
+ * @done - the amount of work done, in arbitrary units
+ *
+ * Returns the amount of time to delay by, in jiffies
+ */
+uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 {
 	uint64_t now = local_clock();
 
-	d->next += div_u64(done, d->rate);
+	d->next += div_u64(done * NSEC_PER_SEC, d->rate);
+
+	if (time_before64(now + NSEC_PER_SEC, d->next))
+		d->next = now + NSEC_PER_SEC;
+
+	if (time_after64(now - NSEC_PER_SEC * 2, d->next))
+		d->next = now - NSEC_PER_SEC * 2;
 
 	return time_after64(d->next, now)
 		? div_u64(d->next - now, NSEC_PER_SEC / HZ)

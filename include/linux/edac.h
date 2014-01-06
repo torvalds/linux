@@ -51,7 +51,7 @@ static inline void opstate_init(void)
 #define EDAC_MC_LABEL_LEN	31
 
 /* Maximum size of the location string */
-#define LOCATION_SIZE 80
+#define LOCATION_SIZE 256
 
 /* Defines the maximum number of labels that can be reported */
 #define EDAC_MAX_LABELS		8

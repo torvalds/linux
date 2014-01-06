@@ -164,7 +164,7 @@ static const u8 abituguru_bank2_max_threshold = 50;
 static const int abituguru_pwm_settings_multiplier[5] = { 0, 1, 1, 1000, 1000 };
 /*
  * Min / Max allowed values for pwm_settings. Note: pwm1 (CPU fan) is a
- * special case the minium allowed pwm% setting for this is 30% (77) on
+ * special case the minimum allowed pwm% setting for this is 30% (77) on
  * some MB's this special case is handled in the code!
  */
 static const u8 abituguru_pwm_min[5] = { 0, 170, 170, 25, 25 };
@@ -517,7 +517,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 
 	ABIT_UGURU_DEBUG(2, "testing bank1 sensor %d\n", (int)sensor_addr);
 	/*
-	 * Volt sensor test, enable volt low alarm, set min value ridicously
+	 * Volt sensor test, enable volt low alarm, set min value ridiculously
 	 * high, or vica versa if the reading is very high. If its a volt
 	 * sensor this should always give us an alarm.
 	 */
@@ -564,7 +564,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 
 	/*
 	 * Temp sensor test, enable sensor as a temp sensor, set beep value
-	 * ridicously low (but not too low, otherwise uguru ignores it).
+	 * ridiculously low (but not too low, otherwise uguru ignores it).
 	 * If its a temp sensor this should always give us an alarm.
 	 */
 	buf[0] = ABIT_UGURU_TEMP_HIGH_ALARM_ENABLE;

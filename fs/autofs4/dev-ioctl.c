@@ -658,12 +658,6 @@ static int _autofs_dev_ioctl(unsigned int command, struct autofs_dev_ioctl __use
 			goto out;
 		}
 
-		if (!fp->f_op) {
-			err = -ENOTTY;
-			fput(fp);
-			goto out;
-		}
-
 		sbi = autofs_dev_ioctl_sbi(fp);
 		if (!sbi || sbi->magic != AUTOFS_SBI_MAGIC) {
 			err = -EINVAL;

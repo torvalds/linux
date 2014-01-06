@@ -253,10 +253,8 @@ static int da9034_set_dvc_voltage_sel(struct regulator_dev *rdev,
 }
 
 static const struct regulator_linear_range da9034_ldo12_ranges[] = {
-	{ .min_uV = 1700000, .max_uV = 2050000, .min_sel =  0, .max_sel = 7,
-	  .uV_step =  50000 },
-	{ .min_uV = 2700000, .max_uV = 3050000, .min_sel =  8, .max_sel = 15,
-	  .uV_step =  50000 },
+	REGULATOR_LINEAR_RANGE(1700000, 0, 7, 50000),
+	REGULATOR_LINEAR_RANGE(2700000, 8, 15, 50000),
 };
 
 static struct regulator_ops da903x_regulator_ldo_ops = {
@@ -463,7 +461,7 @@ static int da903x_regulator_probe(struct platform_device *pdev)
 	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = ri;
 
-	rdev = regulator_register(&ri->desc, &config);
+	rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);
@@ -474,21 +472,12 @@ static int da903x_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int da903x_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-
-	regulator_unregister(rdev);
-	return 0;
-}
-
 static struct platform_driver da903x_regulator_driver = {
 	.driver	= {
 		.name	= "da903x-regulator",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_regulator_probe,
-	.remove		= da903x_regulator_remove,
 };
 
 static int __init da903x_regulator_init(void)

@@ -12,6 +12,7 @@ config 64BIT
 config SPARC
 	bool
 	default y
+	select ARCH_MIGHT_HAVE_PC_PARPORT if SPARC64 && PCI
 	select OF
 	select OF_PROMTREE
 	select HAVE_IDE
@@ -28,7 +29,6 @@ config SPARC
 	select HAVE_ARCH_JUMP_LABEL
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select USE_GENERIC_SMP_HELPERS if SMP
 	select GENERIC_PCI_IOMAP
 	select HAVE_NMI_WATCHDOG if SPARC64
 	select HAVE_BPF_JIT
@@ -64,6 +64,7 @@ config SPARC64
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_CONTEXT_TRACKING
 	select HAVE_DEBUG_KMEMLEAK
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
@@ -506,11 +507,16 @@ config SUN_OPENPROMFS
 	  Only choose N if you know in advance that you will not need to modify
 	  OpenPROM settings on the running system.
 
-# Makefile helper
+# Makefile helpers
 config SPARC64_PCI
 	bool
 	default y
 	depends on SPARC64 && PCI
+
+config SPARC64_PCI_MSI
+	bool
+	default y
+	depends on SPARC64_PCI && PCI_MSI
 
 endmenu
 

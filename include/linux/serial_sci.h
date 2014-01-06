@@ -5,7 +5,7 @@
 #include <linux/sh_dma.h>
 
 /*
- * Generic header for SuperH (H)SCI(F) (used by sh/sh64/h8300 and related parts)
+ * Generic header for SuperH (H)SCI(F) (used by sh/sh64 and related parts)
  */
 
 #define SCIx_NOT_SUPPORTED	(-1)

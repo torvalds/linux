@@ -8,6 +8,8 @@
 #define CMDLINEPARSEH
 
 #include <linux/blkdev.h>
+#include <linux/fs.h>
+#include <linux/slab.h>
 
 /* partition flags */
 #define PF_RDONLY                   0x01 /* Device is read only */

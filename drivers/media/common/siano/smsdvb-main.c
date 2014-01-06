@@ -44,14 +44,14 @@ module_param_named(debug, sms_dbg, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 
 
-u32 sms_to_guard_interval_table[] = {
+static u32 sms_to_guard_interval_table[] = {
 	[0] = GUARD_INTERVAL_1_32,
 	[1] = GUARD_INTERVAL_1_16,
 	[2] = GUARD_INTERVAL_1_8,
 	[3] = GUARD_INTERVAL_1_4,
 };
 
-u32 sms_to_code_rate_table[] = {
+static u32 sms_to_code_rate_table[] = {
 	[0] = FEC_1_2,
 	[1] = FEC_2_3,
 	[2] = FEC_3_4,
@@ -60,14 +60,14 @@ u32 sms_to_code_rate_table[] = {
 };
 
 
-u32 sms_to_hierarchy_table[] = {
+static u32 sms_to_hierarchy_table[] = {
 	[0] = HIERARCHY_NONE,
 	[1] = HIERARCHY_1,
 	[2] = HIERARCHY_2,
 	[3] = HIERARCHY_4,
 };
 
-u32 sms_to_modulation_table[] = {
+static u32 sms_to_modulation_table[] = {
 	[0] = QPSK,
 	[1] = QAM_16,
 	[2] = QAM_64,

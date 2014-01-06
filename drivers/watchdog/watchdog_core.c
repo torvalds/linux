@@ -77,7 +77,7 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 
 	watchdog_check_min_max_timeout(wdd);
 
-	/* try to get the tiemout module parameter first */
+	/* try to get the timeout module parameter first */
 	if (!watchdog_timeout_invalid(wdd, timeout_parm)) {
 		wdd->timeout = timeout_parm;
 		return ret;

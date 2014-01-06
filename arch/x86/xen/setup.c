@@ -556,7 +556,7 @@ void xen_enable_syscall(void)
 	}
 #endif /* CONFIG_X86_64 */
 }
-void __cpuinit xen_enable_nmi(void)
+void xen_enable_nmi(void)
 {
 #ifdef CONFIG_X86_64
 	if (register_callback(CALLBACKTYPE_nmi, nmi))

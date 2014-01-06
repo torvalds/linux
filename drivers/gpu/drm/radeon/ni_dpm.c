@@ -785,8 +785,9 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
-	u32 mclk, sclk;
-	u16 vddc, vddci;
+	u32 mclk;
+	u16 vddci;
+	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
@@ -813,25 +814,38 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 		}
 	}
 
-	/* XXX validate the min clocks required for display */
+	/* limit clocks to max supported clocks based on voltage dependency tables */
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
+							&max_sclk_vddc);
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
+							&max_mclk_vddci);
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
+							&max_mclk_vddc);
 
-	if (disable_mclk_switching) {
-		mclk  = ps->performance_levels[ps->performance_level_count - 1].mclk;
-		sclk = ps->performance_levels[0].sclk;
-		vddc = ps->performance_levels[0].vddc;
-		vddci = ps->performance_levels[ps->performance_level_count - 1].vddci;
-	} else {
-		sclk = ps->performance_levels[0].sclk;
-		mclk = ps->performance_levels[0].mclk;
-		vddc = ps->performance_levels[0].vddc;
-		vddci = ps->performance_levels[0].vddci;
+	for (i = 0; i < ps->performance_level_count; i++) {
+		if (max_sclk_vddc) {
+			if (ps->performance_levels[i].sclk > max_sclk_vddc)
+				ps->performance_levels[i].sclk = max_sclk_vddc;
+		}
+		if (max_mclk_vddci) {
+			if (ps->performance_levels[i].mclk > max_mclk_vddci)
+				ps->performance_levels[i].mclk = max_mclk_vddci;
+		}
+		if (max_mclk_vddc) {
+			if (ps->performance_levels[i].mclk > max_mclk_vddc)
+				ps->performance_levels[i].mclk = max_mclk_vddc;
+		}
 	}
 
-	/* adjusted low state */
-	ps->performance_levels[0].sclk = sclk;
-	ps->performance_levels[0].mclk = mclk;
-	ps->performance_levels[0].vddc = vddc;
-	ps->performance_levels[0].vddci = vddci;
+	/* XXX validate the min clocks required for display */
+
+	/* adjust low state */
+	if (disable_mclk_switching) {
+		ps->performance_levels[0].mclk =
+			ps->performance_levels[ps->performance_level_count - 1].mclk;
+		ps->performance_levels[0].vddci =
+			ps->performance_levels[ps->performance_level_count - 1].vddci;
+	}
 
 	btc_skip_blacklist_clocks(rdev, max_limits->sclk, max_limits->mclk,
 				  &ps->performance_levels[0].sclk,
@@ -844,11 +858,15 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 			ps->performance_levels[i].vddc = ps->performance_levels[i - 1].vddc;
 	}
 
+	/* adjust remaining states */
 	if (disable_mclk_switching) {
 		mclk = ps->performance_levels[0].mclk;
+		vddci = ps->performance_levels[0].vddci;
 		for (i = 1; i < ps->performance_level_count; i++) {
 			if (mclk < ps->performance_levels[i].mclk)
 				mclk = ps->performance_levels[i].mclk;
+			if (vddci < ps->performance_levels[i].vddci)
+				vddci = ps->performance_levels[i].vddci;
 		}
 		for (i = 0; i < ps->performance_level_count; i++) {
 			ps->performance_levels[i].mclk = mclk;
@@ -3421,9 +3439,9 @@ static int ni_enable_smc_cac(struct radeon_device *rdev,
 static int ni_pcie_performance_request(struct radeon_device *rdev,
 				       u8 perf_req, bool advertise)
 {
+#if defined(CONFIG_ACPI)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 
-#if defined(CONFIG_ACPI)
 	if ((perf_req == PCIE_PERF_REQ_PECI_GEN1) ||
             (perf_req == PCIE_PERF_REQ_PECI_GEN2)) {
 		if (eg_pi->pcie_performance_request_registered == false)

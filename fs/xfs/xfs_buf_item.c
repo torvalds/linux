@@ -17,17 +17,18 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 
 
 kmem_zone_t	*xfs_buf_item_zone;
@@ -495,6 +496,14 @@ xfs_buf_item_unpin(
 	}
 }
 
+/*
+ * Buffer IO error rate limiting. Limit it to no more than 10 messages per 30
+ * seconds so as to not spam logs too much on repeated detection of the same
+ * buffer being bad..
+ */
+
+DEFINE_RATELIMIT_STATE(xfs_buf_write_fail_rl_state, 30 * HZ, 10);
+
 STATIC uint
 xfs_buf_item_push(
 	struct xfs_log_item	*lip,
@@ -522,6 +531,14 @@ xfs_buf_item_push(
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
 
 	trace_xfs_buf_item_push(bip);
+
+	/* has a previous flush failed due to IO errors? */
+	if ((bp->b_flags & XBF_WRITE_FAIL) &&
+	    ___ratelimit(&xfs_buf_write_fail_rl_state, "XFS:")) {
+		xfs_warn(bp->b_target->bt_mount,
+"Detected failing async write on buffer block 0x%llx. Retrying async write.\n",
+			 (long long)bp->b_bn);
+	}
 
 	if (!xfs_buf_delwri_queue(bp, buffer_list))
 		rval = XFS_ITEM_FLUSHING;
@@ -628,6 +645,7 @@ xfs_buf_item_unlock(
 		else if (aborted) {
 			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
 			if (lip->li_flags & XFS_LI_IN_AIL) {
+				spin_lock(&lip->li_ailp->xa_lock);
 				xfs_trans_ail_delete(lip->li_ailp, lip,
 						     SHUTDOWN_LOG_IO_ERROR);
 			}
@@ -807,7 +825,7 @@ xfs_buf_item_init(
  * Mark bytes first through last inclusive as dirty in the buf
  * item's bitmap.
  */
-void
+static void
 xfs_buf_item_log_segment(
 	struct xfs_buf_log_item	*bip,
 	uint			first,
@@ -1094,8 +1112,9 @@ xfs_buf_iodone_callbacks(
 
 		xfs_buf_ioerror(bp, 0); /* errno of 0 unsets the flag */
 
-		if (!XFS_BUF_ISSTALE(bp)) {
-			bp->b_flags |= XBF_WRITE | XBF_ASYNC | XBF_DONE;
+		if (!(bp->b_flags & (XBF_STALE|XBF_WRITE_FAIL))) {
+			bp->b_flags |= XBF_WRITE | XBF_ASYNC |
+				       XBF_DONE | XBF_WRITE_FAIL;
 			xfs_buf_iorequest(bp);
 		} else {
 			xfs_buf_relse(bp);

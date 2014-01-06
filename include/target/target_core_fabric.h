@@ -137,6 +137,8 @@ void	transport_generic_request_failure(struct se_cmd *, sense_reason_t);
 void	__target_execute_cmd(struct se_cmd *);
 int	transport_lookup_tmr_lun(struct se_cmd *, u32);
 
+struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
+		unsigned char *);
 struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,
 		unsigned char *);
 void	core_tpg_clear_object_luns(struct se_portal_group *);

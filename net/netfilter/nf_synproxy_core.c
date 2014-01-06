@@ -24,7 +24,7 @@
 int synproxy_net_id;
 EXPORT_SYMBOL_GPL(synproxy_net_id);
 
-void
+bool
 synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 		       const struct tcphdr *th, struct synproxy_options *opts)
 {
@@ -32,7 +32,8 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 	u8 buf[40], *ptr;
 
 	ptr = skb_header_pointer(skb, doff + sizeof(*th), length, buf);
-	BUG_ON(ptr == NULL);
+	if (ptr == NULL)
+		return false;
 
 	opts->options = 0;
 	while (length > 0) {
@@ -41,16 +42,16 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 
 		switch (opcode) {
 		case TCPOPT_EOL:
-			return;
+			return true;
 		case TCPOPT_NOP:
 			length--;
 			continue;
 		default:
 			opsize = *ptr++;
 			if (opsize < 2)
-				return;
+				return true;
 			if (opsize > length)
-				return;
+				return true;
 
 			switch (opcode) {
 			case TCPOPT_MSS:
@@ -84,6 +85,7 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 			length -= opsize;
 		}
 	}
+	return true;
 }
 EXPORT_SYMBOL_GPL(synproxy_parse_options);
 
@@ -149,9 +151,10 @@ void synproxy_init_timestamp_cookie(const struct xt_synproxy_info *info,
 	opts->tsecr = opts->tsval;
 	opts->tsval = tcp_time_stamp & ~0x3f;
 
-	if (opts->options & XT_SYNPROXY_OPT_WSCALE)
-		opts->tsval |= info->wscale;
-	else
+	if (opts->options & XT_SYNPROXY_OPT_WSCALE) {
+		opts->tsval |= opts->wscale;
+		opts->wscale = info->wscale;
+	} else
 		opts->tsval |= 0xf;
 
 	if (opts->options & XT_SYNPROXY_OPT_SACK_PERM)

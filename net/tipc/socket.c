@@ -338,7 +338,7 @@ static int release(struct socket *sock)
 		buf = __skb_dequeue(&sk->sk_receive_queue);
 		if (buf == NULL)
 			break;
-		if (TIPC_SKB_CB(buf)->handle != 0)
+		if (TIPC_SKB_CB(buf)->handle != NULL)
 			kfree_skb(buf);
 		else {
 			if ((sock->state == SS_CONNECTING) ||
@@ -354,7 +354,7 @@ static int release(struct socket *sock)
 	 * Delete TIPC port; this ensures no more messages are queued
 	 * (also disconnects an active connection & sends a 'FIN-' to peer)
 	 */
-	res = tipc_deleteport(tport->ref);
+	res = tipc_deleteport(tport);
 
 	/* Discard any remaining (connection-based) messages in receive queue */
 	__skb_queue_purge(&sk->sk_receive_queue);
@@ -386,30 +386,46 @@ static int release(struct socket *sock)
  */
 static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 {
+	struct sock *sk = sock->sk;
 	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)uaddr;
-	u32 portref = tipc_sk_port(sock->sk)->ref;
+	struct tipc_port *tport = tipc_sk_port(sock->sk);
+	int res = -EINVAL;
 
-	if (unlikely(!uaddr_len))
-		return tipc_withdraw(portref, 0, NULL);
+	lock_sock(sk);
+	if (unlikely(!uaddr_len)) {
+		res = tipc_withdraw(tport, 0, NULL);
+		goto exit;
+	}
 
-	if (uaddr_len < sizeof(struct sockaddr_tipc))
-		return -EINVAL;
-	if (addr->family != AF_TIPC)
-		return -EAFNOSUPPORT;
+	if (uaddr_len < sizeof(struct sockaddr_tipc)) {
+		res = -EINVAL;
+		goto exit;
+	}
+	if (addr->family != AF_TIPC) {
+		res = -EAFNOSUPPORT;
+		goto exit;
+	}
 
 	if (addr->addrtype == TIPC_ADDR_NAME)
 		addr->addr.nameseq.upper = addr->addr.nameseq.lower;
-	else if (addr->addrtype != TIPC_ADDR_NAMESEQ)
-		return -EAFNOSUPPORT;
+	else if (addr->addrtype != TIPC_ADDR_NAMESEQ) {
+		res = -EAFNOSUPPORT;
+		goto exit;
+	}
 
 	if ((addr->addr.nameseq.type < TIPC_RESERVED_TYPES) &&
 	    (addr->addr.nameseq.type != TIPC_TOP_SRV) &&
-	    (addr->addr.nameseq.type != TIPC_CFG_SRV))
-		return -EACCES;
+	    (addr->addr.nameseq.type != TIPC_CFG_SRV)) {
+		res = -EACCES;
+		goto exit;
+	}
 
-	return (addr->scope > 0) ?
-		tipc_publish(portref, addr->scope, &addr->addr.nameseq) :
-		tipc_withdraw(portref, -addr->scope, &addr->addr.nameseq);
+	res = (addr->scope > 0) ?
+		tipc_publish(tport, addr->scope, &addr->addr.nameseq) :
+		tipc_withdraw(tport, -addr->scope, &addr->addr.nameseq);
+exit:
+	release_sock(sk);
+	return res;
 }
 
 /**
@@ -622,13 +638,11 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 			res = tipc_send2name(tport->ref,
 					     &dest->addr.name.name,
 					     dest->addr.name.domain,
-					     m->msg_iovlen,
 					     m->msg_iov,
 					     total_len);
 		} else if (dest->addrtype == TIPC_ADDR_ID) {
 			res = tipc_send2port(tport->ref,
 					     &dest->addr.id,
-					     m->msg_iovlen,
 					     m->msg_iov,
 					     total_len);
 		} else if (dest->addrtype == TIPC_ADDR_MCAST) {
@@ -641,7 +655,6 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 				break;
 			res = tipc_multicast(tport->ref,
 					     &dest->addr.nameseq,
-					     m->msg_iovlen,
 					     m->msg_iov,
 					     total_len);
 		}
@@ -707,8 +720,7 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 			break;
 		}
 
-		res = tipc_send(tport->ref, m->msg_iovlen, m->msg_iov,
-				total_len);
+		res = tipc_send(tport->ref, m->msg_iov, total_len);
 		if (likely(res != -ELINKCONG))
 			break;
 		if (timeout_val <= 0L) {
@@ -984,9 +996,6 @@ static int recv_msg(struct kiocb *iocb, struct socket *sock,
 		goto exit;
 	}
 
-	/* will be updated in set_orig_addr() if needed */
-	m->msg_namelen = 0;
-
 	timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 restart:
 
@@ -1094,9 +1103,6 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 		res = -ENOTCONN;
 		goto exit;
 	}
-
-	/* will be updated in set_orig_addr() if needed */
-	m->msg_namelen = 0;
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, buf_len);
 	timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
@@ -1368,7 +1374,7 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 		return TIPC_ERR_OVERLOAD;
 
 	/* Enqueue message */
-	TIPC_SKB_CB(buf)->handle = 0;
+	TIPC_SKB_CB(buf)->handle = NULL;
 	__skb_queue_tail(&sk->sk_receive_queue, buf);
 	skb_set_owner_r(buf, sk);
 
@@ -1691,7 +1697,7 @@ restart:
 		/* Disconnect and send a 'FIN+' or 'FIN-' message to peer */
 		buf = __skb_dequeue(&sk->sk_receive_queue);
 		if (buf) {
-			if (TIPC_SKB_CB(buf)->handle != 0) {
+			if (TIPC_SKB_CB(buf)->handle != NULL) {
 				kfree_skb(buf);
 				goto restart;
 			}

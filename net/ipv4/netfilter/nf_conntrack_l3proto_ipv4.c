@@ -92,7 +92,7 @@ static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 	return NF_ACCEPT;
 }
 
-static unsigned int ipv4_helper(unsigned int hooknum,
+static unsigned int ipv4_helper(const struct nf_hook_ops *ops,
 				struct sk_buff *skb,
 				const struct net_device *in,
 				const struct net_device *out,
@@ -121,7 +121,7 @@ static unsigned int ipv4_helper(unsigned int hooknum,
 			    ct, ctinfo);
 }
 
-static unsigned int ipv4_confirm(unsigned int hooknum,
+static unsigned int ipv4_confirm(const struct nf_hook_ops *ops,
 				 struct sk_buff *skb,
 				 const struct net_device *in,
 				 const struct net_device *out,
@@ -147,16 +147,16 @@ out:
 	return nf_conntrack_confirm(skb);
 }
 
-static unsigned int ipv4_conntrack_in(unsigned int hooknum,
+static unsigned int ipv4_conntrack_in(const struct nf_hook_ops *ops,
 				      struct sk_buff *skb,
 				      const struct net_device *in,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
-	return nf_conntrack_in(dev_net(in), PF_INET, hooknum, skb);
+	return nf_conntrack_in(dev_net(in), PF_INET, ops->hooknum, skb);
 }
 
-static unsigned int ipv4_conntrack_local(unsigned int hooknum,
+static unsigned int ipv4_conntrack_local(const struct nf_hook_ops *ops,
 					 struct sk_buff *skb,
 					 const struct net_device *in,
 					 const struct net_device *out,
@@ -166,7 +166,7 @@ static unsigned int ipv4_conntrack_local(unsigned int hooknum,
 	if (skb->len < sizeof(struct iphdr) ||
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
-	return nf_conntrack_in(dev_net(out), PF_INET, hooknum, skb);
+	return nf_conntrack_in(dev_net(out), PF_INET, ops->hooknum, skb);
 }
 
 /* Connection tracking may drop packets, but never alters them, so

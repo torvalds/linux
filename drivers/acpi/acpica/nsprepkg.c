@@ -330,7 +330,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 
 	return (status);
 
-      package_too_small:
+package_too_small:
 
 	/* Error exit for the case with an incorrect package count */
 
@@ -555,7 +555,7 @@ acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 
 	return (AE_OK);
 
-      package_too_small:
+package_too_small:
 
 	/* The sub-package count was smaller than required */
 

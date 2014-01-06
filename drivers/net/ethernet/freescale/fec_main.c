@@ -98,10 +98,6 @@ static void set_multicast_list(struct net_device *ndev);
  * detected as not set during a prior frame transmission, then the
  * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
  * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
- * If the ready bit in the transmit buffer descriptor (TxBD[R]) is previously
- * detected as not set during a prior frame transmission, then the
- * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
- * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
  * frames not being transmitted until there is a 0-to-1 transition on
  * ENET_TDAR[TDAR].
  */
@@ -385,8 +381,15 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	 * data.
 	 */
 	bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, bufaddr,
-			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
-
+			skb->len, DMA_TO_DEVICE);
+	if (dma_mapping_error(&fep->pdev->dev, bdp->cbd_bufaddr)) {
+		bdp->cbd_bufaddr = 0;
+		fep->tx_skbuff[index] = NULL;
+		dev_kfree_skb_any(skb);
+		if (net_ratelimit())
+			netdev_err(ndev, "Tx DMA memory map failed\n");
+		return NETDEV_TX_OK;
+	}
 	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
 	 * it's the last BD of the frame, and to put the CRC on the end.
 	 */
@@ -425,6 +428,8 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* If this was the last BD in the ring, start at the beginning again. */
 	bdp = fec_enet_get_nextdesc(bdp, fep);
 
+	skb_tx_timestamp(skb);
+
 	fep->cur_tx = bdp;
 
 	if (fep->cur_tx == fep->dirty_tx)
@@ -432,8 +437,6 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* Trigger transmission start */
 	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
-
-	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -772,11 +775,10 @@ fec_enet_tx(struct net_device *ndev)
 		else
 			index = bdp - fep->tx_bd_base;
 
-		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
-				FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
-		bdp->cbd_bufaddr = 0;
-
 		skb = fep->tx_skbuff[index];
+		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr, skb->len,
+				DMA_TO_DEVICE);
+		bdp->cbd_bufaddr = 0;
 
 		/* Check for errors. */
 		if (status & (BD_ENET_TX_HB | BD_ENET_TX_LC |
@@ -861,6 +863,7 @@ fec_enet_rx(struct net_device *ndev, int budget)
 	struct	bufdesc_ex *ebdp = NULL;
 	bool	vlan_packet_rcvd = false;
 	u16	vlan_tag;
+	int	index = 0;
 
 #ifdef CONFIG_M532x
 	flush_cache_all();
@@ -916,10 +919,15 @@ fec_enet_rx(struct net_device *ndev, int budget)
 		ndev->stats.rx_packets++;
 		pkt_len = bdp->cbd_datlen;
 		ndev->stats.rx_bytes += pkt_len;
-		data = (__u8*)__va(bdp->cbd_bufaddr);
 
-		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
-				FEC_ENET_TX_FRSIZE, DMA_FROM_DEVICE);
+		if (fep->bufdesc_ex)
+			index = (struct bufdesc_ex *)bdp -
+				(struct bufdesc_ex *)fep->rx_bd_base;
+		else
+			index = bdp - fep->rx_bd_base;
+		data = fep->rx_skbuff[index]->data;
+		dma_sync_single_for_cpu(&fep->pdev->dev, bdp->cbd_bufaddr,
+					FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
 
 		if (id_entry->driver_data & FEC_QUIRK_SWAP_FRAME)
 			swap_buffer(data, pkt_len);
@@ -999,8 +1007,8 @@ fec_enet_rx(struct net_device *ndev, int budget)
 			napi_gro_receive(&fep->napi, skb);
 		}
 
-		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, data,
-				FEC_ENET_TX_FRSIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_device(&fep->pdev->dev, bdp->cbd_bufaddr,
+					FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
 rx_processing_done:
 		/* Clear the status flags for this buffer */
 		status &= ~BD_ENET_RX_STATS;
@@ -1719,6 +1727,12 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 
 		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, skb->data,
 				FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&fep->pdev->dev, bdp->cbd_bufaddr)) {
+			fec_enet_free_buffers(ndev);
+			if (net_ratelimit())
+				netdev_err(ndev, "Rx DMA memory map failed\n");
+			return -ENOMEM;
+		}
 		bdp->cbd_sc = BD_ENET_RX_EMPTY;
 
 		if (fep->bufdesc_ex) {
@@ -2035,6 +2049,8 @@ static void fec_reset_phy(struct platform_device *pdev)
 	int err, phy_reset;
 	int msec = 1;
 	struct device_node *np = pdev->dev.of_node;
+	enum of_gpio_flags flags;
+	bool port;
 
 	if (!np)
 		return;
@@ -2044,18 +2060,22 @@ static void fec_reset_phy(struct platform_device *pdev)
 	if (msec > 1000)
 		msec = 1;
 
-	phy_reset = of_get_named_gpio(np, "phy-reset-gpios", 0);
+	phy_reset = of_get_named_gpio_flags(np, "phy-reset-gpios", 0, &flags);
 	if (!gpio_is_valid(phy_reset))
 		return;
 
-	err = devm_gpio_request_one(&pdev->dev, phy_reset,
-				    GPIOF_OUT_INIT_LOW, "phy-reset");
+	if (flags & OF_GPIO_ACTIVE_LOW)
+		port = GPIOF_OUT_INIT_LOW;
+	else
+		port = GPIOF_OUT_INIT_HIGH;
+
+	err = devm_gpio_request_one(&pdev->dev, phy_reset, port, "phy-reset");
 	if (err) {
 		dev_err(&pdev->dev, "failed to get phy-reset-gpios: %d\n", err);
 		return;
 	}
 	msleep(msec);
-	gpio_set_value(phy_reset, 1);
+	gpio_set_value(phy_reset, !port);
 }
 #else /* CONFIG_OF */
 static void fec_reset_phy(struct platform_device *pdev)

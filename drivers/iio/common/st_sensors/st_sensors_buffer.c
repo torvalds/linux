@@ -113,11 +113,8 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 	if (len < 0)
 		goto st_sensors_get_buffer_element_error;
 
-	if (indio_dev->scan_timestamp)
-		*(s64 *)((u8 *)sdata->buffer_data +
-				ALIGN(len, sizeof(s64))) = pf->timestamp;
-
-	iio_push_to_buffers(indio_dev, sdata->buffer_data);
+	iio_push_to_buffers_with_timestamp(indio_dev, sdata->buffer_data,
+		pf->timestamp);
 
 st_sensors_get_buffer_element_error:
 	iio_trigger_notify_done(indio_dev->trig);

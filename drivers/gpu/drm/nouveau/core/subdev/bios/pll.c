@@ -114,6 +114,7 @@ pll_map(struct nouveau_bios *bios)
 	switch (nv_device(bios)->card_type) {
 	case NV_04:
 	case NV_10:
+	case NV_11:
 	case NV_20:
 	case NV_30:
 		return nv04_pll_mapping;

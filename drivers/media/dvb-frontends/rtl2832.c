@@ -22,6 +22,9 @@
 #include "dvb_math.h"
 #include <linux/bitops.h>
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 int rtl2832_debug;
 module_param_named(debug, rtl2832_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
@@ -162,15 +165,22 @@ static const struct rtl2832_reg_entry registers[] = {
 static int rtl2832_wr(struct rtl2832_priv *priv, u8 reg, u8 *val, int len)
 {
 	int ret;
-	u8 buf[1+len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg.i2c_addr,
 			.flags = 0,
-			.len = 1+len,
+			.len = 1 + len,
 			.buf = buf,
 		}
 	};
+
+	if (1 + len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
@@ -489,6 +499,7 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		init = rtl2832_tuner_init_e4000;
 		break;
 	case RTL2832_TUNER_R820T:
+	case RTL2832_TUNER_R828D:
 		len = ARRAY_SIZE(rtl2832_tuner_init_r820t);
 		init = rtl2832_tuner_init_r820t;
 		break;

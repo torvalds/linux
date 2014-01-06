@@ -78,13 +78,11 @@ extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_
 extern u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev);
 extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
 extern bool evergreen_is_display_hung(struct radeon_device *rdev);
-extern void si_dma_vm_set_page(struct radeon_device *rdev,
-			       struct radeon_ib *ib,
-			       uint64_t pe,
-			       uint64_t addr, unsigned count,
-			       uint32_t incr, uint32_t flags);
 static void si_enable_gui_idle_interrupt(struct radeon_device *rdev,
 					 bool enable);
+static void si_fini_pg(struct radeon_device *rdev);
+static void si_fini_cg(struct radeon_device *rdev);
+static void si_rlc_stop(struct radeon_device *rdev);
 
 static const u32 verde_rlc_save_restore_register_list[] =
 {
@@ -1678,6 +1676,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		       fw_name);
 		release_firmware(rdev->smc_fw);
 		rdev->smc_fw = NULL;
+		err = 0;
 	} else if (rdev->smc_fw->size != smc_req_size) {
 		printk(KERN_ERR
 		       "si_smc: Bogus length %zu in firmware \"%s\"\n",
@@ -2812,7 +2811,7 @@ static void si_setup_spi(struct radeon_device *rdev,
 }
 
 static u32 si_get_rb_disabled(struct radeon_device *rdev,
-			      u32 max_rb_num, u32 se_num,
+			      u32 max_rb_num_per_se,
 			      u32 sh_per_se)
 {
 	u32 data, mask;
@@ -2826,14 +2825,14 @@ static u32 si_get_rb_disabled(struct radeon_device *rdev,
 
 	data >>= BACKEND_DISABLE_SHIFT;
 
-	mask = si_create_bitmask(max_rb_num / se_num / sh_per_se);
+	mask = si_create_bitmask(max_rb_num_per_se / sh_per_se);
 
 	return data & mask;
 }
 
 static void si_setup_rb(struct radeon_device *rdev,
 			u32 se_num, u32 sh_per_se,
-			u32 max_rb_num)
+			u32 max_rb_num_per_se)
 {
 	int i, j;
 	u32 data, mask;
@@ -2843,18 +2842,20 @@ static void si_setup_rb(struct radeon_device *rdev,
 	for (i = 0; i < se_num; i++) {
 		for (j = 0; j < sh_per_se; j++) {
 			si_select_se_sh(rdev, i, j);
-			data = si_get_rb_disabled(rdev, max_rb_num, se_num, sh_per_se);
+			data = si_get_rb_disabled(rdev, max_rb_num_per_se, sh_per_se);
 			disabled_rbs |= data << ((i * sh_per_se + j) * TAHITI_RB_BITMAP_WIDTH_PER_SH);
 		}
 	}
 	si_select_se_sh(rdev, 0xffffffff, 0xffffffff);
 
 	mask = 1;
-	for (i = 0; i < max_rb_num; i++) {
+	for (i = 0; i < max_rb_num_per_se * se_num; i++) {
 		if (!(disabled_rbs & mask))
 			enabled_rbs |= mask;
 		mask <<= 1;
 	}
+
+	rdev->config.si.backend_enable_mask = enabled_rbs;
 
 	for (i = 0; i < se_num; i++) {
 		si_select_se_sh(rdev, i, 0xffffffff);
@@ -3608,6 +3609,13 @@ static void si_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
 
+	/* disable PG/CG */
+	si_fini_pg(rdev);
+	si_fini_cg(rdev);
+
+	/* stop the rlc */
+	si_rlc_stop(rdev);
+
 	/* Disable CP parsing/prefetching */
 	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
 
@@ -3876,8 +3884,15 @@ static int si_mc_init(struct radeon_device *rdev)
 	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
 	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* size in MB on si */
-	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
-	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+	tmp = RREG32(CONFIG_MEMSIZE);
+	/* some boards may have garbage in the upper 16 bits */
+	if (tmp & 0xffff0000) {
+		DRM_INFO("Probable bad vram size: 0x%08x\n", tmp);
+		if (tmp & 0xffff)
+			tmp &= 0xffff;
+	}
+	rdev->mc.mc_vram_size = tmp * 1024ULL * 1024ULL;
+	rdev->mc.real_vram_size = rdev->mc.mc_vram_size;
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	si_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
@@ -4662,61 +4677,6 @@ static void si_vm_decode_fault(struct radeon_device *rdev,
 	       block, mc_id);
 }
 
-/**
- * si_vm_set_page - update the page tables using the CP
- *
- * @rdev: radeon_device pointer
- * @ib: indirect buffer to fill with commands
- * @pe: addr of the page entry
- * @addr: dst addr to write into pe
- * @count: number of page entries to update
- * @incr: increase next addr by incr bytes
- * @flags: access flags
- *
- * Update the page tables using the CP (SI).
- */
-void si_vm_set_page(struct radeon_device *rdev,
-		    struct radeon_ib *ib,
-		    uint64_t pe,
-		    uint64_t addr, unsigned count,
-		    uint32_t incr, uint32_t flags)
-{
-	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
-	uint64_t value;
-	unsigned ndw;
-
-	if (rdev->asic->vm.pt_ring_index == RADEON_RING_TYPE_GFX_INDEX) {
-		while (count) {
-			ndw = 2 + count * 2;
-			if (ndw > 0x3FFE)
-				ndw = 0x3FFE;
-
-			ib->ptr[ib->length_dw++] = PACKET3(PACKET3_WRITE_DATA, ndw);
-			ib->ptr[ib->length_dw++] = (WRITE_DATA_ENGINE_SEL(0) |
-					WRITE_DATA_DST_SEL(1));
-			ib->ptr[ib->length_dw++] = pe;
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-			for (; ndw > 2; ndw -= 2, --count, pe += 8) {
-				if (flags & RADEON_VM_PAGE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & RADEON_VM_PAGE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
-				}
-				addr += incr;
-				value |= r600_flags;
-				ib->ptr[ib->length_dw++] = value;
-				ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			}
-		}
-	} else {
-		/* DMA */
-		si_dma_vm_set_page(rdev, ib, pe, addr, count, incr, flags);
-	}
-}
-
 void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 {
 	struct radeon_ring *ring = &rdev->ring[ridx];
@@ -5361,52 +5321,53 @@ void si_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer)
 	if (buffer == NULL)
 		return;
 
-	buffer[count++] = PACKET3(PACKET3_PREAMBLE_CNTL, 0);
-	buffer[count++] = PACKET3_PREAMBLE_BEGIN_CLEAR_STATE;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
 
-	buffer[count++] = PACKET3(PACKET3_CONTEXT_CONTROL, 1);
-	buffer[count++] = 0x80000000;
-	buffer[count++] = 0x80000000;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_CONTEXT_CONTROL, 1));
+	buffer[count++] = cpu_to_le32(0x80000000);
+	buffer[count++] = cpu_to_le32(0x80000000);
 
 	for (sect = rdev->rlc.cs_data; sect->section != NULL; ++sect) {
 		for (ext = sect->section; ext->extent != NULL; ++ext) {
 			if (sect->id == SECT_CONTEXT) {
-				buffer[count++] = PACKET3(PACKET3_SET_CONTEXT_REG, ext->reg_count);
-				buffer[count++] = ext->reg_index - 0xa000;
+				buffer[count++] =
+					cpu_to_le32(PACKET3(PACKET3_SET_CONTEXT_REG, ext->reg_count));
+				buffer[count++] = cpu_to_le32(ext->reg_index - 0xa000);
 				for (i = 0; i < ext->reg_count; i++)
-					buffer[count++] = ext->extent[i];
+					buffer[count++] = cpu_to_le32(ext->extent[i]);
 			} else {
 				return;
 			}
 		}
 	}
 
-	buffer[count++] = PACKET3(PACKET3_SET_CONTEXT_REG, 1);
-	buffer[count++] = PA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_SET_CONTEXT_REG, 1));
+	buffer[count++] = cpu_to_le32(PA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
 	switch (rdev->family) {
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:
-		buffer[count++] = 0x2a00126a;
+		buffer[count++] = cpu_to_le32(0x2a00126a);
 		break;
 	case CHIP_VERDE:
-		buffer[count++] = 0x0000124a;
+		buffer[count++] = cpu_to_le32(0x0000124a);
 		break;
 	case CHIP_OLAND:
-		buffer[count++] = 0x00000082;
+		buffer[count++] = cpu_to_le32(0x00000082);
 		break;
 	case CHIP_HAINAN:
-		buffer[count++] = 0x00000000;
+		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	default:
-		buffer[count++] = 0x00000000;
+		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	}
 
-	buffer[count++] = PACKET3(PACKET3_PREAMBLE_CNTL, 0);
-	buffer[count++] = PACKET3_PREAMBLE_END_CLEAR_STATE;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_END_CLEAR_STATE);
 
-	buffer[count++] = PACKET3(PACKET3_CLEAR_STATE, 0);
-	buffer[count++] = 0;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_CLEAR_STATE, 0));
+	buffer[count++] = cpu_to_le32(0);
 }
 
 static void si_init_pg(struct radeon_device *rdev)

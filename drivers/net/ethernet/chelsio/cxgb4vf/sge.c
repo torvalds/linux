@@ -537,7 +537,7 @@ static inline void ring_fl_db(struct adapter *adapter, struct sge_fl *fl)
 	 */
 	if (fl->pend_cred >= FL_PER_EQ_UNIT) {
 		val = PIDX(fl->pend_cred / FL_PER_EQ_UNIT);
-		if (!is_t4(adapter->chip))
+		if (!is_t4(adapter->params.chip))
 			val |= DBTYPE(1);
 		wmb();
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
@@ -1396,8 +1396,9 @@ static inline void copy_frags(struct sk_buff *skb,
  *	Builds an sk_buff from the given packet gather list.  Returns the
  *	sk_buff or %NULL if sk_buff allocation failed.
  */
-struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
-				  unsigned int skb_len, unsigned int pull_len)
+static struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
+					 unsigned int skb_len,
+					 unsigned int pull_len)
 {
 	struct sk_buff *skb;
 
@@ -1443,7 +1444,7 @@ out:
  *	Releases the pages of a packet gather list.  We do not own the last
  *	page on the list and do not free it.
  */
-void t4vf_pktgl_free(const struct pkt_gl *gl)
+static void t4vf_pktgl_free(const struct pkt_gl *gl)
 {
 	int frag;
 
@@ -1640,7 +1641,7 @@ static inline void rspq_next(struct sge_rspq *rspq)
  *	on this queue.  If the system is under memory shortage use a fairly
  *	long delay to help recovery.
  */
-int process_responses(struct sge_rspq *rspq, int budget)
+static int process_responses(struct sge_rspq *rspq, int budget)
 {
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 	int budget_left = budget;
@@ -1893,7 +1894,7 @@ static unsigned int process_intrq(struct adapter *adapter)
  * The MSI interrupt handler handles data events from SGE response queues as
  * well as error and other async events as they all use the same MSI vector.
  */
-irqreturn_t t4vf_intr_msi(int irq, void *cookie)
+static irqreturn_t t4vf_intr_msi(int irq, void *cookie)
 {
 	struct adapter *adapter = cookie;
 

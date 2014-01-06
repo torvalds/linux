@@ -173,28 +173,37 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 static void exynos_drm_preclose(struct drm_device *dev,
 					struct drm_file *file)
 {
-	struct exynos_drm_private *private = dev->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	unsigned long flags;
-
-	/* release events of current file */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	list_for_each_entry_safe(e, t, &private->pageflip_event_list,
-			base.link) {
-		if (e->base.file_priv == file) {
-			list_del(&e->base.link);
-			e->base.destroy(&e->base);
-		}
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
 	exynos_drm_subdrv_close(dev, file);
 }
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_pending_vblank_event *v, *vt;
+	struct drm_pending_event *e, *et;
+	unsigned long flags;
+
 	if (!file->driver_priv)
 		return;
+
+	/* Release all events not unhandled by page flip handler. */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	list_for_each_entry_safe(v, vt, &private->pageflip_event_list,
+			base.link) {
+		if (v->base.file_priv == file) {
+			list_del(&v->base.link);
+			drm_vblank_put(dev, v->pipe);
+			v->base.destroy(&v->base);
+		}
+	}
+
+	/* Release all events handled by page flip handler but not freed. */
+	list_for_each_entry_safe(e, et, &file->event_list, link) {
+		list_del(&e->link);
+		e->destroy(e);
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
 
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
@@ -264,7 +273,6 @@ static struct drm_driver exynos_drm_driver = {
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
-	.gem_init_object	= exynos_drm_gem_init_object,
 	.gem_free_object	= exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
 	.dumb_create		= exynos_drm_gem_dumb_create,
@@ -286,7 +294,11 @@ static struct drm_driver exynos_drm_driver = {
 
 static int exynos_drm_platform_probe(struct platform_device *pdev)
 {
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	int ret;
+
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	return drm_platform_init(&exynos_drm_driver, pdev);
 }

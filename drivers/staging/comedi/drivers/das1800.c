@@ -108,7 +108,6 @@ TODO:
 /* misc. defines */
 #define DAS1800_SIZE           16	/* uses 16 io addresses */
 #define FIFO_SIZE              1024	/*  1024 sample fifo */
-#define TIMER_BASE             200	/*  5 Mhz master clock */
 #define UNIPOLAR               0x4	/*  bit that determines whether input range is uni/bipolar */
 #define DMA_BUF_SIZE           0x1ff00	/*  size in bytes of dma buffers */
 
@@ -427,7 +426,6 @@ struct das1800_private {
 	volatile unsigned int count;	/* number of data points left to be taken */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
-	int do_bits;		/* digital output bits */
 	int irq_dma_bits;	/* bits for control register b */
 	/* dma bits for control register b, stored so that dma can be
 	 * turned on and off */
@@ -440,7 +438,8 @@ struct das1800_private {
 	uint16_t *dma_current_buf;	/* pointer to dma buffer currently being used */
 	unsigned int dma_transfer_size;	/* size of transfer currently used, in bytes */
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
-	short ao_update_bits;	/* remembers the last write to the 'update' dac */
+	unsigned short ao_update_bits;	/* remembers the last write to the
+					 * 'update' dac */
 };
 
 /* analog out range for 'ao' boards */
@@ -503,7 +502,7 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 					  struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
-	short dpnt;
+	unsigned short dpnt;
 	int unipolar;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -840,12 +839,11 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 		if (cmd->scan_begin_src == TRIG_FOLLOW) {
 			tmp_arg = cmd->convert_arg;
 			/* calculate counter values that give desired timing */
-			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-						       &(devpriv->divisor1),
-						       &(devpriv->divisor2),
-						       &(cmd->convert_arg),
-						       cmd->
-						       flags & TRIG_ROUND_MASK);
+			i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+						  &devpriv->divisor1,
+						  &devpriv->divisor2,
+						  &cmd->convert_arg,
+						  cmd->flags);
 			if (tmp_arg != cmd->convert_arg)
 				err++;
 		}
@@ -870,16 +868,11 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 				}
 				tmp_arg = cmd->scan_begin_arg;
 				/* calculate counter values that give desired timing */
-				i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-							       &(devpriv->
-								 divisor1),
-							       &(devpriv->
-								 divisor2),
-							       &(cmd->
-								 scan_begin_arg),
-							       cmd->
-							       flags &
-							       TRIG_ROUND_MASK);
+				i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+							  &devpriv->divisor1,
+							  &devpriv->divisor2,
+							  &cmd->scan_begin_arg,
+							  cmd->flags);
 				if (tmp_arg != cmd->scan_begin_arg)
 					err++;
 			}
@@ -1011,12 +1004,10 @@ static int setup_counters(struct comedi_device *dev,
 		if (cmd->convert_src == TRIG_TIMER) {
 			/* set conversion frequency */
 			period = cmd->convert_arg;
-			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-						       &devpriv->divisor1,
-						       &devpriv->divisor2,
-						       &period,
-						       cmd->flags &
-							TRIG_ROUND_MASK);
+			i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+						  &devpriv->divisor1,
+						  &devpriv->divisor2,
+						  &period, cmd->flags);
 			if (das1800_set_frequency(dev) < 0)
 				return -1;
 		}
@@ -1024,9 +1015,10 @@ static int setup_counters(struct comedi_device *dev,
 	case TRIG_TIMER:	/*  in burst mode */
 		/* set scan frequency */
 		period = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &devpriv->divisor1,
-					       &devpriv->divisor2, &period,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &period, cmd->flags);
 		if (das1800_set_frequency(dev) < 0)
 			return -1;
 		break;
@@ -1220,7 +1212,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 	int i, n;
 	int chan, range, aref, chan_range;
 	int timeout = 1000;
-	short dpnt;
+	unsigned short dpnt;
 	int conv_flags = 0;
 	unsigned long irq_flags;
 
@@ -1285,7 +1277,7 @@ static int das1800_ao_winsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 /* int range = CR_RANGE(insn->chanspec); */
 	int update_chan = thisboard->ao_n_chan - 1;
-	short output;
+	unsigned short output;
 	unsigned long irq_flags;
 
 	/*   card expects two's complement data */
@@ -1319,24 +1311,15 @@ static int das1800_di_rbits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* writes to digital output channels */
 static int das1800_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
-	struct das1800_private *devpriv = dev->private;
-	unsigned int wbits;
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, dev->iobase + DAS1800_DIGITAL);
 
-	/*  only set bits that have been masked */
-	data[0] &= (1 << s->n_chan) - 1;
-	wbits = devpriv->do_bits;
-	wbits &= ~data[0];
-	wbits |= data[0] & data[1];
-	devpriv->do_bits = wbits;
-
-	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
-
-	data[1] = devpriv->do_bits;
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -1644,7 +1627,7 @@ static int das1800_attach(struct comedi_device *dev,
 	das1800_cancel(dev, dev->read_subdev);
 
 	/*  initialize digital out channels */
-	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
+	outb(0, dev->iobase + DAS1800_DIGITAL);
 
 	/*  initialize analog out channels */
 	if (thisboard->ao_ability == 1) {

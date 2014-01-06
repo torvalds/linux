@@ -352,7 +352,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	response_pkt = (__le16 *) dwc->setup_buf;
 	*response_pkt = cpu_to_le16(usb_status);
@@ -459,6 +459,8 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 			dep = dwc3_wIndex_to_dep(dwc, wIndex);
 			if (!dep)
 				return -EINVAL;
+			if (set == 0 && (dep->flags & DWC3_EP_WEDGE))
+				break;
 			ret = __dwc3_gadget_ep_set_halt(dep, set);
 			if (ret)
 				return -EINVAL;
@@ -470,7 +472,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -709,7 +711,7 @@ static int dwc3_ep0_std_request(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		dev_vdbg(dwc->dev, "Forwarding to gadget driver\n");
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
 		break;
-	};
+	}
 
 	return ret;
 }

@@ -129,6 +129,16 @@ int dm_deleting_md(struct mapped_device *md);
 int dm_suspended_md(struct mapped_device *md);
 
 /*
+ * Test if the device is scheduled for deferred remove.
+ */
+int dm_test_deferred_remove_flag(struct mapped_device *md);
+
+/*
+ * Try to remove devices marked for deferred removal.
+ */
+void dm_deferred_remove(void);
+
+/*
  * The device-mapper can be driven through one of two interfaces;
  * ioctl or filesystem, depending which patch you have applied.
  */
@@ -158,7 +168,8 @@ void dm_stripe_exit(void);
 void dm_destroy(struct mapped_device *md);
 void dm_destroy_immediate(struct mapped_device *md);
 int dm_open_count(struct mapped_device *md);
-int dm_lock_for_deletion(struct mapped_device *md);
+int dm_lock_for_deletion(struct mapped_device *md, bool mark_deferred, bool only_deferred);
+int dm_cancel_deferred_remove(struct mapped_device *md);
 int dm_request_based(struct mapped_device *md);
 sector_t dm_get_size(struct mapped_device *md);
 struct dm_stats *dm_get_stats(struct mapped_device *md);
@@ -184,6 +195,9 @@ void dm_free_md_mempools(struct dm_md_mempools *pools);
 /*
  * Helpers that are used by DM core
  */
+unsigned dm_get_reserved_bio_based_ios(void);
+unsigned dm_get_reserved_rq_based_ios(void);
+
 static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen)
 {
 	return !maxlen || strlen(result) + 1 >= maxlen;

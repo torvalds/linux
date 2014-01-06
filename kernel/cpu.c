@@ -306,7 +306,27 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 				__func__, cpu);
 		goto out_release;
 	}
+
+	/*
+	 * By now we've cleared cpu_active_mask, wait for all preempt-disabled
+	 * and RCU users of this state to go away such that all new such users
+	 * will observe it.
+	 *
+	 * For CONFIG_PREEMPT we have preemptible RCU and its sync_rcu() might
+	 * not imply sync_sched(), so explicitly call both.
+	 *
+	 * Do sync before park smpboot threads to take care the rcu boost case.
+	 */
+#ifdef CONFIG_PREEMPT
+	synchronize_sched();
+#endif
+	synchronize_rcu();
+
 	smpboot_park_threads(cpu);
+
+	/*
+	 * So now all preempt/rcu users must observe !cpu_active().
+	 */
 
 	err = __stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
 	if (err) {
@@ -420,11 +440,6 @@ int cpu_up(unsigned int cpu)
 {
 	int err = 0;
 
-#ifdef	CONFIG_MEMORY_HOTPLUG
-	int nid;
-	pg_data_t	*pgdat;
-#endif
-
 	if (!cpu_possible(cpu)) {
 		printk(KERN_ERR "can't online cpu %d because it is not "
 			"configured as may-hotadd at boot time\n", cpu);
@@ -435,27 +450,9 @@ int cpu_up(unsigned int cpu)
 		return -EINVAL;
 	}
 
-#ifdef	CONFIG_MEMORY_HOTPLUG
-	nid = cpu_to_node(cpu);
-	if (!node_online(nid)) {
-		err = mem_online_node(nid);
-		if (err)
-			return err;
-	}
-
-	pgdat = NODE_DATA(nid);
-	if (!pgdat) {
-		printk(KERN_ERR
-			"Can't online cpu %d due to NULL pgdat\n", cpu);
-		return -ENOMEM;
-	}
-
-	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
-		mutex_lock(&zonelists_mutex);
-		build_all_zonelists(NULL, NULL);
-		mutex_unlock(&zonelists_mutex);
-	}
-#endif
+	err = try_online_node(cpu_to_node(cpu));
+	if (err)
+		return err;
 
 	cpu_maps_update_begin();
 

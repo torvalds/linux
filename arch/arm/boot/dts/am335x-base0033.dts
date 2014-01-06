@@ -1,0 +1,95 @@
+/*
+ * am335x-base0033.dts - Device Tree file for IGEP AQUILA EXPANSION
+ *
+ * Copyright (C) 2013 ISEE 2007 SL - http://www.isee.biz
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "am335x-igep0033.dtsi"
+
+/ {
+	model = "IGEP COM AM335x on AQUILA Expansion";
+	compatible = "isee,am335x-base0033", "isee,am335x-igep0033", "ti,am33xx";
+
+	hdmi {
+		compatible = "ti,tilcdc,slave";
+		i2c = <&i2c0>;
+		pinctrl-names = "default", "off";
+		pinctrl-0 = <&nxp_hdmi_pins>;
+		pinctrl-1 = <&nxp_hdmi_off_pins>;
+		status = "okay";
+	};
+
+	leds_base {
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_base_pins>;
+
+		compatible = "gpio-leds";
+
+		led@0 {
+			label = "base:red:user";
+			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;	/* gpio1_21 */
+			default-state = "off";
+		};
+
+		led@1 {
+			label = "base:green:user";
+			gpios = <&gpio2 0 GPIO_ACTIVE_HIGH>;	/* gpio2_0 */
+			default-state = "off";
+		};
+	};
+};
+
+&am33xx_pinmux {
+	nxp_hdmi_pins: pinmux_nxp_hdmi_pins {
+		pinctrl-single,pins = <
+			0x1b0 (PIN_OUTPUT | MUX_MODE3)	/* xdma_event_intr0.clkout1 */
+			0xa0 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data0 */
+			0xa4 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data1 */
+			0xa8 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data2 */
+			0xac (PIN_OUTPUT | MUX_MODE0)	/* lcd_data3 */
+			0xb0 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data4 */
+			0xb4 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data5 */
+			0xb8 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data6 */
+			0xbc (PIN_OUTPUT | MUX_MODE0)	/* lcd_data7 */
+			0xc0 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data8 */
+			0xc4 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data9 */
+			0xc8 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data10 */
+			0xcc (PIN_OUTPUT | MUX_MODE0)	/* lcd_data11 */
+			0xd0 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data12 */
+			0xd4 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data13 */
+			0xd8 (PIN_OUTPUT | MUX_MODE0)	/* lcd_data14 */
+			0xdc (PIN_OUTPUT | MUX_MODE0)	/* lcd_data15 */
+			0xe0 (PIN_OUTPUT | MUX_MODE0)	/* lcd_vsync */
+			0xe4 (PIN_OUTPUT | MUX_MODE0)	/* lcd_hsync */
+			0xe8 (PIN_OUTPUT | MUX_MODE0)	/* lcd_pclk */
+			0xec (PIN_OUTPUT | MUX_MODE0)	/* lcd_ac_bias_en */
+		>;
+	};
+	nxp_hdmi_off_pins: pinmux_nxp_hdmi_off_pins {
+		pinctrl-single,pins = <
+			0x1b0 (PIN_OUTPUT | MUX_MODE3)	/* xdma_event_intr0.clkout1 */
+		>;
+	};
+
+	leds_base_pins: pinmux_leds_base_pins {
+		pinctrl-single,pins = <
+			0x54 (PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* gpmc_a5.gpio1_21 */
+			0x88 (PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* gpmc_csn3.gpio2_0 */
+		>;
+	};
+};
+
+&lcdc {
+	status = "okay";
+};
+
+&i2c0 {
+	eeprom: eeprom@50 {
+		compatible = "at,24c256";
+		reg = <0x50>;
+	};
+};

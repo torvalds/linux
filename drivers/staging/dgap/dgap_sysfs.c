@@ -395,7 +395,7 @@ static ssize_t dgap_tty_state_show(struct device *d, struct device_attribute *at
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -420,7 +420,7 @@ static ssize_t dgap_tty_baud_show(struct device *d, struct device_attribute *att
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -445,7 +445,7 @@ static ssize_t dgap_tty_msignals_show(struct device *d, struct device_attribute 
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -479,7 +479,7 @@ static ssize_t dgap_tty_iflag_show(struct device *d, struct device_attribute *at
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -504,7 +504,7 @@ static ssize_t dgap_tty_cflag_show(struct device *d, struct device_attribute *at
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -529,7 +529,7 @@ static ssize_t dgap_tty_oflag_show(struct device *d, struct device_attribute *at
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -554,7 +554,7 @@ static ssize_t dgap_tty_lflag_show(struct device *d, struct device_attribute *at
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -579,7 +579,7 @@ static ssize_t dgap_tty_digi_flag_show(struct device *d, struct device_attribute
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -604,7 +604,7 @@ static ssize_t dgap_tty_rxcount_show(struct device *d, struct device_attribute *
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -629,7 +629,7 @@ static ssize_t dgap_tty_txcount_show(struct device *d, struct device_attribute *
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;
@@ -661,7 +661,7 @@ static ssize_t dgap_tty_name_show(struct device *d, struct device_attribute *att
 
 	if (!d)
 		return (0);
-	un = (struct un_t *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (0);
 	ch = un->un_ch;

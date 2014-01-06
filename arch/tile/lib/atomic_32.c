@@ -107,19 +107,19 @@ unsigned long _atomic_xor(volatile unsigned long *p, unsigned long mask)
 EXPORT_SYMBOL(_atomic_xor);
 
 
-u64 _atomic64_xchg(u64 *v, u64 n)
+long long _atomic64_xchg(long long *v, long long n)
 {
 	return __atomic64_xchg(v, __atomic_setup(v), n);
 }
 EXPORT_SYMBOL(_atomic64_xchg);
 
-u64 _atomic64_xchg_add(u64 *v, u64 i)
+long long _atomic64_xchg_add(long long *v, long long i)
 {
 	return __atomic64_xchg_add(v, __atomic_setup(v), i);
 }
 EXPORT_SYMBOL(_atomic64_xchg_add);
 
-u64 _atomic64_xchg_add_unless(u64 *v, u64 a, u64 u)
+long long _atomic64_xchg_add_unless(long long *v, long long a, long long u)
 {
 	/*
 	 * Note: argument order is switched here since it is easier
@@ -130,7 +130,7 @@ u64 _atomic64_xchg_add_unless(u64 *v, u64 a, u64 u)
 }
 EXPORT_SYMBOL(_atomic64_xchg_add_unless);
 
-u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n)
+long long _atomic64_cmpxchg(long long *v, long long o, long long n)
 {
 	return __atomic64_cmpxchg(v, __atomic_setup(v), o, n);
 }

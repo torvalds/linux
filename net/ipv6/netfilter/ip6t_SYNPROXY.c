@@ -259,6 +259,7 @@ synproxy_recv_client_ack(const struct synproxy_net *snet,
 
 	this_cpu_inc(snet->stats->cookie_valid);
 	opts->mss = mss;
+	opts->options |= XT_SYNPROXY_OPT_MSS;
 
 	if (opts->options & XT_SYNPROXY_OPT_TIMESTAMP)
 		synproxy_check_timestamp_cookie(opts);
@@ -282,7 +283,8 @@ synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	if (th == NULL)
 		return NF_DROP;
 
-	synproxy_parse_options(skb, par->thoff, th, &opts);
+	if (!synproxy_parse_options(skb, par->thoff, th, &opts))
+		return NF_DROP;
 
 	if (th->syn && !(th->ack || th->fin || th->rst)) {
 		/* Initial SYN from client */
@@ -311,7 +313,7 @@ synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	return XT_CONTINUE;
 }
 
-static unsigned int ipv6_synproxy_hook(unsigned int hooknum,
+static unsigned int ipv6_synproxy_hook(const struct nf_hook_ops *ops,
 				       struct sk_buff *skb,
 				       const struct net_device *in,
 				       const struct net_device *out,
@@ -372,7 +374,8 @@ static unsigned int ipv6_synproxy_hook(unsigned int hooknum,
 
 		/* fall through */
 	case TCP_CONNTRACK_SYN_SENT:
-		synproxy_parse_options(skb, thoff, th, &opts);
+		if (!synproxy_parse_options(skb, thoff, th, &opts))
+			return NF_DROP;
 
 		if (!th->syn && th->ack &&
 		    CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) {
@@ -395,7 +398,9 @@ static unsigned int ipv6_synproxy_hook(unsigned int hooknum,
 		if (!th->syn || !th->ack)
 			break;
 
-		synproxy_parse_options(skb, thoff, th, &opts);
+		if (!synproxy_parse_options(skb, thoff, th, &opts))
+			return NF_DROP;
+
 		if (opts.options & XT_SYNPROXY_OPT_TIMESTAMP)
 			synproxy->tsoff = opts.tsval - synproxy->its;
 
@@ -441,6 +446,7 @@ static void synproxy_tg6_destroy(const struct xt_tgdtor_param *par)
 static struct xt_target synproxy_tg6_reg __read_mostly = {
 	.name		= "SYNPROXY",
 	.family		= NFPROTO_IPV6,
+	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD),
 	.target		= synproxy_tg6,
 	.targetsize	= sizeof(struct xt_synproxy_info),
 	.checkentry	= synproxy_tg6_check,

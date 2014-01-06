@@ -387,7 +387,7 @@ restart:
 
 	b_ptr = &tipc_bearers[bearer_id];
 	strcpy(b_ptr->name, name);
-	res = m_ptr->enable_bearer(b_ptr);
+	res = m_ptr->enable_media(b_ptr);
 	if (res) {
 		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
 			name, -res);
@@ -420,23 +420,15 @@ exit:
 }
 
 /**
- * tipc_block_bearer - Block the bearer with the given name, and reset all its links
+ * tipc_block_bearer - Block the bearer, and reset all its links
  */
-int tipc_block_bearer(const char *name)
+int tipc_block_bearer(struct tipc_bearer *b_ptr)
 {
-	struct tipc_bearer *b_ptr = NULL;
 	struct tipc_link *l_ptr;
 	struct tipc_link *temp_l_ptr;
 
 	read_lock_bh(&tipc_net_lock);
-	b_ptr = tipc_bearer_find(name);
-	if (!b_ptr) {
-		pr_warn("Attempt to block unknown bearer <%s>\n", name);
-		read_unlock_bh(&tipc_net_lock);
-		return -EINVAL;
-	}
-
-	pr_info("Blocking bearer <%s>\n", name);
+	pr_info("Blocking bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
 	b_ptr->blocked = 1;
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
@@ -465,7 +457,7 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
 	b_ptr->blocked = 1;
-	b_ptr->media->disable_bearer(b_ptr);
+	b_ptr->media->disable_media(b_ptr);
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		tipc_link_delete(l_ptr);
 	}

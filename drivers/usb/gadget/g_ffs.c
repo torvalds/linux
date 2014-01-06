@@ -76,7 +76,9 @@ struct gfs_ffs_obj {
 
 USB_GADGET_COMPOSITE_OPTIONS();
 
+#if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
 USB_ETHERNET_MODULE_PARAMETERS();
+#endif
 
 static struct usb_device_descriptor gfs_dev_desc = {
 	.bLength		= sizeof gfs_dev_desc,

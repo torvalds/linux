@@ -2148,6 +2148,7 @@ static struct scsi_host_template megasas_template = {
 	.bios_param = megasas_bios_param,
 	.use_clustering = ENABLE_CLUSTERING,
 	.change_queue_depth = megasas_change_queue_depth,
+	.no_write_same = 1,
 };
 
 /**
@@ -3194,19 +3195,21 @@ megasas_get_pd_list(struct megasas_instance *instance)
 	     (le32_to_cpu(ci->count) <
 		  (MEGASAS_MAX_PD_CHANNELS * MEGASAS_MAX_DEV_PER_CHANNEL))) {
 
-		memset(instance->pd_list, 0,
+		memset(instance->local_pd_list, 0,
 			MEGASAS_MAX_PD * sizeof(struct megasas_pd_list));
 
 		for (pd_index = 0; pd_index < le32_to_cpu(ci->count); pd_index++) {
 
-			instance->pd_list[pd_addr->deviceId].tid	=
+			instance->local_pd_list[le16_to_cpu(pd_addr->deviceId)].tid	=
 				le16_to_cpu(pd_addr->deviceId);
-			instance->pd_list[pd_addr->deviceId].driveType	=
+			instance->local_pd_list[le16_to_cpu(pd_addr->deviceId)].driveType	=
 							pd_addr->scsiDevType;
-			instance->pd_list[pd_addr->deviceId].driveState	=
+			instance->local_pd_list[le16_to_cpu(pd_addr->deviceId)].driveState	=
 							MR_PD_STATE_SYSTEM;
 			pd_addr++;
 		}
+		memcpy(instance->pd_list, instance->local_pd_list,
+			sizeof(instance->pd_list));
 	}
 
 	pci_free_consistent(instance->pdev,
@@ -3998,7 +4001,7 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 		 * values
 		 */
 		if ((prev_aen.members.class <= curr_aen.members.class) &&
-		    !((le16_to_cpu(prev_aen.members.locale) & curr_aen.members.locale) ^
+		    !((prev_aen.members.locale & curr_aen.members.locale) ^
 		      curr_aen.members.locale)) {
 			/*
 			 * Previously issued event registration includes
@@ -4006,7 +4009,7 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 			 */
 			return 0;
 		} else {
-			curr_aen.members.locale |= le16_to_cpu(prev_aen.members.locale);
+			curr_aen.members.locale |= prev_aen.members.locale;
 
 			if (prev_aen.members.class < curr_aen.members.class)
 				curr_aen.members.class = prev_aen.members.class;
@@ -4097,7 +4100,7 @@ static int megasas_start_aen(struct megasas_instance *instance)
 	class_locale.members.class = MR_EVT_CLASS_DEBUG;
 
 	return megasas_register_aen(instance,
-			le32_to_cpu(eli.newest_seq_num) + 1,
+			eli.newest_seq_num + 1,
 			class_locale.word);
 }
 
@@ -4449,7 +4452,6 @@ retry_irq_register:
 	megasas_mgmt_info.instance[megasas_mgmt_info.max_index] = NULL;
 	megasas_mgmt_info.max_index--;
 
-	pci_set_drvdata(pdev, NULL);
 	instance->instancet->disable_intr(instance);
 	if (instance->msix_vectors)
 		for (i = 0 ; i < instance->msix_vectors; i++)
@@ -4805,8 +4807,6 @@ static void megasas_detach_one(struct pci_dev *pdev)
 		}
 	}
 
-	pci_set_drvdata(instance->pdev, NULL);
-
 	instance->instancet->disable_intr(instance);
 
 	if (instance->msix_vectors)
@@ -4847,8 +4847,6 @@ static void megasas_detach_one(struct pci_dev *pdev)
 		pci_free_consistent(pdev, sizeof(struct megasas_evt_detail),
 				instance->evt_detail, instance->evt_detail_h);
 	scsi_host_put(host);
-
-	pci_set_drvdata(pdev, NULL);
 
 	pci_disable_device(pdev);
 

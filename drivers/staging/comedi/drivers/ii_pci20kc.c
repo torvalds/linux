@@ -378,13 +378,10 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct ii20k_private *devpriv = dev->private;
-	unsigned int mask = data[0] & s->io_bits;	/* outputs only */
-	unsigned int bits = data[1];
+	unsigned int mask;
 
+	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
 		if (mask & 0x000000ff)
 			writeb((s->state >> 0) & 0xff,
 			       devpriv->ioaddr + II20K_DIO0_REG);

@@ -23,11 +23,7 @@
  *          Ben Skeggs
  */
 
-#include <subdev/bus.h>
-
-struct nv04_bus_priv {
-	struct nouveau_bus base;
-};
+#include "nv04.h"
 
 static void
 nv04_bus_intr(struct nouveau_subdev *subdev)
@@ -56,23 +52,6 @@ nv04_bus_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv04_bus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
-{
-	struct nv04_bus_priv *priv;
-	int ret;
-
-	ret = nouveau_bus_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->intr = nv04_bus_intr;
-	return 0;
-}
-
-static int
 nv04_bus_init(struct nouveau_object *object)
 {
 	struct nv04_bus_priv *priv = (void *)object;
@@ -83,13 +62,34 @@ nv04_bus_init(struct nouveau_object *object)
 	return nouveau_bus_init(&priv->base);
 }
 
-struct nouveau_oclass
-nv04_bus_oclass = {
-	.handle = NV_SUBDEV(BUS, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+int
+nv04_bus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	      struct nouveau_oclass *oclass, void *data, u32 size,
+	      struct nouveau_object **pobject)
+{
+	struct nv04_bus_impl *impl = (void *)oclass;
+	struct nv04_bus_priv *priv;
+	int ret;
+
+	ret = nouveau_bus_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	nv_subdev(priv)->intr = impl->intr;
+	priv->base.hwsq_exec = impl->hwsq_exec;
+	priv->base.hwsq_size = impl->hwsq_size;
+	return 0;
+}
+
+struct nouveau_oclass *
+nv04_bus_oclass = &(struct nv04_bus_impl) {
+	.base.handle = NV_SUBDEV(BUS, 0x04),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_bus_ctor,
 		.dtor = _nouveau_bus_dtor,
 		.init = nv04_bus_init,
 		.fini = _nouveau_bus_fini,
 	},
-};
+	.intr = nv04_bus_intr,
+}.base;

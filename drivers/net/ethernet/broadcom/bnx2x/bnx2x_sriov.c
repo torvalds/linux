@@ -470,10 +470,10 @@ static int bnx2x_vfop_qdtor_cmd(struct bnx2x *bp,
 				 bnx2x_vfop_qdtor, cmd->done);
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_qdtor,
 					     cmd->block);
+	} else {
+		BNX2X_ERR("VF[%d] failed to add a vfop\n", vf->abs_vfid);
+		return -ENOMEM;
 	}
-	DP(BNX2X_MSG_IOV, "VF[%d] failed to add a vfop. rc %d\n",
-	   vf->abs_vfid, vfop->rc);
-	return -ENOMEM;
 }
 
 static void
@@ -1819,7 +1819,7 @@ bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 		fid = GET_FIELD((val), IGU_REG_MAPPING_MEMORY_FID);
 		if (fid & IGU_FID_ENCODE_IS_PF)
 			current_pf = fid & IGU_FID_PF_NUM_MASK;
-		else if (current_pf == BP_ABS_FUNC(bp))
+		else if (current_pf == BP_FUNC(bp))
 			bnx2x_vf_set_igu_info(bp, sb_id,
 					      (fid & IGU_FID_VF_NUM_MASK));
 		DP(BNX2X_MSG_IOV, "%s[%d], igu_sb_id=%d, msix=%d\n",
@@ -2018,6 +2018,8 @@ failed:
 
 void bnx2x_iov_remove_one(struct bnx2x *bp)
 {
+	int vf_idx;
+
 	/* if SRIOV is not enabled there's nothing to do */
 	if (!IS_SRIOV(bp))
 		return;
@@ -2025,6 +2027,18 @@ void bnx2x_iov_remove_one(struct bnx2x *bp)
 	DP(BNX2X_MSG_IOV, "about to call disable sriov\n");
 	pci_disable_sriov(bp->pdev);
 	DP(BNX2X_MSG_IOV, "sriov disabled\n");
+
+	/* disable access to all VFs */
+	for (vf_idx = 0; vf_idx < bp->vfdb->sriov.total; vf_idx++) {
+		bnx2x_pretend_func(bp,
+				   HW_VF_HANDLE(bp,
+						bp->vfdb->sriov.first_vf_in_pf +
+						vf_idx));
+		DP(BNX2X_MSG_IOV, "disabling internal access for vf %d\n",
+		   bp->vfdb->sriov.first_vf_in_pf + vf_idx);
+		bnx2x_vf_enable_internal(bp, 0);
+		bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
+	}
 
 	/* free vf database */
 	__bnx2x_iov_free_vfdb(bp);
@@ -2802,7 +2816,7 @@ struct set_vf_state_cookie {
 	u8 state;
 };
 
-void bnx2x_set_vf_state(void *cookie)
+static void bnx2x_set_vf_state(void *cookie)
 {
 	struct set_vf_state_cookie *p = (struct set_vf_state_cookie *)cookie;
 
@@ -3100,6 +3114,11 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 {
 	struct bnx2x *bp = netdev_priv(pci_get_drvdata(dev));
 
+	if (!IS_SRIOV(bp)) {
+		BNX2X_ERR("failed to configure SR-IOV since vfdb was not allocated. Check dmesg for errors in probe stage\n");
+		return -EINVAL;
+	}
+
 	DP(BNX2X_MSG_IOV, "bnx2x_sriov_configure called with %d, BNX2X_NR_VIRTFN(bp) was %d\n",
 	   num_vfs_param, BNX2X_NR_VIRTFN(bp));
 
@@ -3180,6 +3199,7 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 		/* set local queue arrays */
 		vf->vfqs = &bp->vfdb->vfqs[qcount];
 		qcount += vf_sb_count(vf);
+		bnx2x_iov_static_resc(bp, vf);
 	}
 
 	/* prepare msix vectors in VF configuration space */
@@ -3187,6 +3207,8 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 		bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, vf_idx));
 		REG_WR(bp, PCICFG_OFFSET + GRC_CONFIG_REG_VF_MSIX_CONTROL,
 		       num_vf_queues);
+		DP(BNX2X_MSG_IOV, "set msix vec num in VF %d cfg space to %d\n",
+		   vf_idx, num_vf_queues);
 	}
 	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
@@ -3194,7 +3216,7 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 	 * the "acquire" messages to appear on the VF PF channel.
 	 */
 	DP(BNX2X_MSG_IOV, "about to call enable sriov\n");
-	pci_disable_sriov(bp->pdev);
+	bnx2x_disable_sriov(bp);
 	rc = pci_enable_sriov(bp->pdev, req_vfs);
 	if (rc) {
 		BNX2X_ERR("pci_enable_sriov failed with %d\n", rc);
@@ -3222,8 +3244,9 @@ void bnx2x_disable_sriov(struct bnx2x *bp)
 	pci_disable_sriov(bp->pdev);
 }
 
-int bnx2x_vf_ndo_prep(struct bnx2x *bp, int vfidx, struct bnx2x_virtf **vf,
-			struct pf_vf_bulletin_content **bulletin)
+static int bnx2x_vf_ndo_prep(struct bnx2x *bp, int vfidx,
+			     struct bnx2x_virtf **vf,
+			     struct pf_vf_bulletin_content **bulletin)
 {
 	if (bp->state != BNX2X_STATE_OPEN) {
 		BNX2X_ERR("vf ndo called though PF is down\n");
@@ -3387,14 +3410,16 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 		rc = bnx2x_del_all_macs(bp, mac_obj, BNX2X_ETH_MAC, true);
 		if (rc) {
 			BNX2X_ERR("failed to delete eth macs\n");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
 
 		/* remove existing uc list macs */
 		rc = bnx2x_del_all_macs(bp, mac_obj, BNX2X_UC_LIST_MAC, true);
 		if (rc) {
 			BNX2X_ERR("failed to delete uc_list macs\n");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
 
 		/* configure the new mac to device */
@@ -3402,6 +3427,7 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 		bnx2x_set_mac_one(bp, (u8 *)&bulletin->mac, mac_obj, true,
 				  BNX2X_ETH_MAC, &ramrod_flags);
 
+out:
 		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_MAC);
 	}
 
@@ -3464,7 +3490,8 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 					  &ramrod_flags);
 		if (rc) {
 			BNX2X_ERR("failed to delete vlans\n");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
 
 		/* send queue update ramrod to configure default vlan and silent
@@ -3498,7 +3525,8 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 			rc = bnx2x_config_vlan_mac(bp, &ramrod_param);
 			if (rc) {
 				BNX2X_ERR("failed to configure vlan\n");
-				return -EINVAL;
+				rc =  -EINVAL;
+				goto out;
 			}
 
 			/* configure default vlan to vf queue and set silent
@@ -3516,18 +3544,18 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 		rc = bnx2x_queue_state_change(bp, &q_params);
 		if (rc) {
 			BNX2X_ERR("Failed to configure default VLAN\n");
-			return rc;
+			goto out;
 		}
 
 		/* clear the flag indicating that this VF needs its vlan
-		 * (will only be set if the HV configured th Vlan before vf was
-		 * and we were called because the VF came up later
+		 * (will only be set if the HV configured the Vlan before vf was
+		 * up and we were called because the VF came up later
 		 */
+out:
 		vf->cfg_flags &= ~VF_CFG_VLAN;
-
 		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_VLAN);
 	}
-	return 0;
+	return rc;
 }
 
 /* crc is the first field in the bulletin board. Compute the crc over the
@@ -3632,29 +3660,6 @@ alloc_mem_err:
 	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->pf2vf_bulletin_mapping,
 		       sizeof(union pf_vf_bulletin));
 	return -ENOMEM;
-}
-
-int bnx2x_open_epilog(struct bnx2x *bp)
-{
-	/* Enable sriov via delayed work. This must be done via delayed work
-	 * because it causes the probe of the vf devices to be run, which invoke
-	 * register_netdevice which must have rtnl lock taken. As we are holding
-	 * the lock right now, that could only work if the probe would not take
-	 * the lock. However, as the probe of the vf may be called from other
-	 * contexts as well (such as passthrough to vm fails) it can't assume
-	 * the lock is being held for it. Using delayed work here allows the
-	 * probe code to simply take the lock (i.e. wait for it to be released
-	 * if it is being held). We only want to do this if the number of VFs
-	 * was set before PF driver was loaded.
-	 */
-	if (IS_SRIOV(bp) && BNX2X_NR_VIRTFN(bp)) {
-		smp_mb__before_clear_bit();
-		set_bit(BNX2X_SP_RTNL_ENABLE_SRIOV, &bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
-	}
-
-	return 0;
 }
 
 void bnx2x_iov_channel_down(struct bnx2x *bp)

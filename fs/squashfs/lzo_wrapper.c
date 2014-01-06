@@ -31,13 +31,14 @@
 #include "squashfs_fs_sb.h"
 #include "squashfs.h"
 #include "decompressor.h"
+#include "page_actor.h"
 
 struct squashfs_lzo {
 	void	*input;
 	void	*output;
 };
 
-static void *lzo_init(struct squashfs_sb_info *msblk, void *buff, int len)
+static void *lzo_init(struct squashfs_sb_info *msblk, void *buff)
 {
 	int block_size = max_t(int, msblk->block_size, SQUASHFS_METADATA_SIZE);
 
@@ -74,22 +75,16 @@ static void lzo_free(void *strm)
 }
 
 
-static int lzo_uncompress(struct squashfs_sb_info *msblk, void **buffer,
-	struct buffer_head **bh, int b, int offset, int length, int srclength,
-	int pages)
+static int lzo_uncompress(struct squashfs_sb_info *msblk, void *strm,
+	struct buffer_head **bh, int b, int offset, int length,
+	struct squashfs_page_actor *output)
 {
-	struct squashfs_lzo *stream = msblk->stream;
-	void *buff = stream->input;
+	struct squashfs_lzo *stream = strm;
+	void *buff = stream->input, *data;
 	int avail, i, bytes = length, res;
-	size_t out_len = srclength;
-
-	mutex_lock(&msblk->read_data_mutex);
+	size_t out_len = output->length;
 
 	for (i = 0; i < b; i++) {
-		wait_on_buffer(bh[i]);
-		if (!buffer_uptodate(bh[i]))
-			goto block_release;
-
 		avail = min(bytes, msblk->devblksize - offset);
 		memcpy(buff, bh[i]->b_data + offset, avail);
 		buff += avail;
@@ -104,24 +99,24 @@ static int lzo_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 		goto failed;
 
 	res = bytes = (int)out_len;
-	for (i = 0, buff = stream->output; bytes && i < pages; i++) {
-		avail = min_t(int, bytes, PAGE_CACHE_SIZE);
-		memcpy(buffer[i], buff, avail);
-		buff += avail;
-		bytes -= avail;
+	data = squashfs_first_page(output);
+	buff = stream->output;
+	while (data) {
+		if (bytes <= PAGE_CACHE_SIZE) {
+			memcpy(data, buff, bytes);
+			break;
+		} else {
+			memcpy(data, buff, PAGE_CACHE_SIZE);
+			buff += PAGE_CACHE_SIZE;
+			bytes -= PAGE_CACHE_SIZE;
+			data = squashfs_next_page(output);
+		}
 	}
+	squashfs_finish_page(output);
 
-	mutex_unlock(&msblk->read_data_mutex);
 	return res;
 
-block_release:
-	for (; i < b; i++)
-		put_bh(bh[i]);
-
 failed:
-	mutex_unlock(&msblk->read_data_mutex);
-
-	ERROR("lzo decompression failed, data probably corrupt\n");
 	return -EIO;
 }
 

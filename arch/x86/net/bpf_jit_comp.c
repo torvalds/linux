@@ -772,13 +772,23 @@ out:
 	return;
 }
 
+static void bpf_jit_free_deferred(struct work_struct *work)
+{
+	struct sk_filter *fp = container_of(work, struct sk_filter, work);
+	unsigned long addr = (unsigned long)fp->bpf_func & PAGE_MASK;
+	struct bpf_binary_header *header = (void *)addr;
+
+	set_memory_rw(addr, header->pages);
+	module_free(NULL, header);
+	kfree(fp);
+}
+
 void bpf_jit_free(struct sk_filter *fp)
 {
 	if (fp->bpf_func != sk_run_filter) {
-		unsigned long addr = (unsigned long)fp->bpf_func & PAGE_MASK;
-		struct bpf_binary_header *header = (void *)addr;
-
-		set_memory_rw(addr, header->pages);
-		module_free(NULL, header);
+		INIT_WORK(&fp->work, bpf_jit_free_deferred);
+		schedule_work(&fp->work);
+	} else {
+		kfree(fp);
 	}
 }

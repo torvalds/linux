@@ -30,6 +30,7 @@
 #include "atom.h"
 #include <asm/div64.h>
 
+#include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
@@ -306,7 +307,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	 */
 	if (update_pending &&
 	    (DRM_SCANOUTPOS_VALID & radeon_get_crtc_scanoutpos(rdev->ddev, crtc_id,
-							       &vpos, &hpos)) &&
+							       &vpos, &hpos, NULL, NULL)) &&
 	    ((vpos >= (99 * rdev->mode_info.crtcs[crtc_id]->base.hwmode.crtc_vdisplay)/100) ||
 	     (vpos < 0 && !ASIC_IS_AVIVO(rdev)))) {
 		/* crtc didn't flip in this target vblank interval,
@@ -494,11 +495,55 @@ unlock_free:
 	return r;
 }
 
+static int
+radeon_crtc_set_config(struct drm_mode_set *set)
+{
+	struct drm_device *dev;
+	struct radeon_device *rdev;
+	struct drm_crtc *crtc;
+	bool active = false;
+	int ret;
+
+	if (!set || !set->crtc)
+		return -EINVAL;
+
+	dev = set->crtc->dev;
+
+	ret = pm_runtime_get_sync(dev->dev);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_crtc_helper_set_config(set);
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		if (crtc->enabled)
+			active = true;
+
+	pm_runtime_mark_last_busy(dev->dev);
+
+	rdev = dev->dev_private;
+	/* if we have active crtcs and we don't have a power ref,
+	   take the current one */
+	if (active && !rdev->have_disp_power_ref) {
+		rdev->have_disp_power_ref = true;
+		return ret;
+	}
+	/* if we have no active crtcs, then drop the power ref
+	   we got before */
+	if (!active && rdev->have_disp_power_ref) {
+		pm_runtime_put_autosuspend(dev->dev);
+		rdev->have_disp_power_ref = false;
+	}
+
+	/* drop the power reference we got coming in here */
+	pm_runtime_put_autosuspend(dev->dev);
+	return ret;
+}
 static const struct drm_crtc_funcs radeon_crtc_funcs = {
 	.cursor_set = radeon_crtc_cursor_set,
 	.cursor_move = radeon_crtc_cursor_move,
 	.gamma_set = radeon_crtc_gamma_set,
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = radeon_crtc_set_config,
 	.destroy = radeon_crtc_destroy,
 	.page_flip = radeon_crtc_page_flip,
 };
@@ -1178,6 +1223,12 @@ static struct drm_prop_enum_list radeon_audio_enum_list[] =
 	{ RADEON_AUDIO_AUTO, "auto" },
 };
 
+/* XXX support different dither options? spatial, temporal, both, etc. */
+static struct drm_prop_enum_list radeon_dither_enum_list[] =
+{	{ RADEON_FMT_DITHER_DISABLE, "off" },
+	{ RADEON_FMT_DITHER_ENABLE, "on" },
+};
+
 static int radeon_modeset_create_props(struct radeon_device *rdev)
 {
 	int sz;
@@ -1233,6 +1284,12 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 		drm_property_create_enum(rdev->ddev, 0,
 					 "audio",
 					 radeon_audio_enum_list, sz);
+
+	sz = ARRAY_SIZE(radeon_dither_enum_list);
+	rdev->mode_info.dither_property =
+		drm_property_create_enum(rdev->ddev, 0,
+					 "dither",
+					 radeon_dither_enum_list, sz);
 
 	return 0;
 }
@@ -1539,12 +1596,17 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 }
 
 /*
- * Retrieve current video scanout position of crtc on a given gpu.
+ * Retrieve current video scanout position of crtc on a given gpu, and
+ * an optional accurate timestamp of when query happened.
  *
  * \param dev Device to query.
  * \param crtc Crtc to query.
  * \param *vpos Location where vertical scanout position should be stored.
  * \param *hpos Location where horizontal scanout position should go.
+ * \param *stime Target location for timestamp taken immediately before
+ *               scanout position query. Can be NULL to skip timestamp.
+ * \param *etime Target location for timestamp taken immediately after
+ *               scanout position query. Can be NULL to skip timestamp.
  *
  * Returns vpos as a positive number while in active scanout area.
  * Returns vpos as a negative number inside vblank, counting the number
@@ -1560,13 +1622,20 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * unknown small number of scanlines wrt. real scanout position.
  *
  */
-int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, int *vpos, int *hpos)
+int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, int *vpos, int *hpos,
+			       ktime_t *stime, ktime_t *etime)
 {
 	u32 stat_crtc = 0, vbl = 0, position = 0;
 	int vbl_start, vbl_end, vtotal, ret = 0;
 	bool in_vbl = true;
 
 	struct radeon_device *rdev = dev->dev_private;
+
+	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
+
+	/* Get optional system timestamp before query. */
+	if (stime)
+		*stime = ktime_get();
 
 	if (ASIC_IS_DCE4(rdev)) {
 		if (crtc == 0) {
@@ -1649,6 +1718,12 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, int *vpos, int 
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
 	}
+
+	/* Get optional system timestamp after query. */
+	if (etime)
+		*etime = ktime_get();
+
+	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
 	/* Decode into vertical and horizontal scanout position. */
 	*vpos = position & 0x1fff;

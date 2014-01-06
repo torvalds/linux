@@ -498,6 +498,7 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 #ifdef IXGBE_FCOE
 	u16 fcoe_i = 0;
 #endif
+	bool pools = (find_first_zero_bit(&adapter->fwd_bitmask, 32) > 1);
 
 	/* only proceed if SR-IOV is enabled */
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
@@ -510,7 +511,7 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	vmdq_i = min_t(u16, IXGBE_MAX_VMDQ_INDICES, vmdq_i);
 
 	/* 64 pool mode with 2 queues per pool */
-	if ((vmdq_i > 32) || (rss_i < 4)) {
+	if ((vmdq_i > 32) || (rss_i < 4) || (vmdq_i > 16 && pools)) {
 		vmdq_m = IXGBE_82599_VMDQ_2Q_MASK;
 		rss_m = IXGBE_RSS_2Q_MASK;
 		rss_i = min_t(u16, rss_i, 2);
@@ -852,7 +853,11 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 
 		/* apply Tx specific ring traits */
 		ring->count = adapter->tx_ring_count;
-		ring->queue_index = txr_idx;
+		if (adapter->num_rx_pools > 1)
+			ring->queue_index =
+				txr_idx % adapter->num_rx_queues_per_pool;
+		else
+			ring->queue_index = txr_idx;
 
 		/* assign ring to adapter */
 		adapter->tx_ring[txr_idx] = ring;
@@ -895,7 +900,11 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 #endif /* IXGBE_FCOE */
 		/* apply Rx specific ring traits */
 		ring->count = adapter->rx_ring_count;
-		ring->queue_index = rxr_idx;
+		if (adapter->num_rx_pools > 1)
+			ring->queue_index =
+				rxr_idx % adapter->num_rx_queues_per_pool;
+		else
+			ring->queue_index = rxr_idx;
 
 		/* assign ring to adapter */
 		adapter->rx_ring[rxr_idx] = ring;

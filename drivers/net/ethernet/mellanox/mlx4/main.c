@@ -42,6 +42,7 @@
 #include <linux/io-mapping.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/kmod.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -561,13 +562,17 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	}
 
 	dev->caps.num_ports		= func_cap.num_ports;
-	dev->caps.num_qps		= func_cap.qp_quota;
-	dev->caps.num_srqs		= func_cap.srq_quota;
-	dev->caps.num_cqs		= func_cap.cq_quota;
-	dev->caps.num_eqs               = func_cap.max_eq;
-	dev->caps.reserved_eqs          = func_cap.reserved_eq;
-	dev->caps.num_mpts		= func_cap.mpt_quota;
-	dev->caps.num_mtts		= func_cap.mtt_quota;
+	dev->quotas.qp			= func_cap.qp_quota;
+	dev->quotas.srq			= func_cap.srq_quota;
+	dev->quotas.cq			= func_cap.cq_quota;
+	dev->quotas.mpt			= func_cap.mpt_quota;
+	dev->quotas.mtt			= func_cap.mtt_quota;
+	dev->caps.num_qps		= 1 << hca_param.log_num_qps;
+	dev->caps.num_srqs		= 1 << hca_param.log_num_srqs;
+	dev->caps.num_cqs		= 1 << hca_param.log_num_cqs;
+	dev->caps.num_mpts		= 1 << hca_param.log_mpt_sz;
+	dev->caps.num_eqs		= func_cap.max_eq;
+	dev->caps.reserved_eqs		= func_cap.reserved_eq;
 	dev->caps.num_pds               = MLX4_NUM_PDS;
 	dev->caps.num_mgms              = 0;
 	dev->caps.num_amgms             = 0;
@@ -650,6 +655,27 @@ err_mem:
 	return err;
 }
 
+static void mlx4_request_modules(struct mlx4_dev *dev)
+{
+	int port;
+	int has_ib_port = false;
+	int has_eth_port = false;
+#define EN_DRV_NAME	"mlx4_en"
+#define IB_DRV_NAME	"mlx4_ib"
+
+	for (port = 1; port <= dev->caps.num_ports; port++) {
+		if (dev->caps.port_type[port] == MLX4_PORT_TYPE_IB)
+			has_ib_port = true;
+		else if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
+			has_eth_port = true;
+	}
+
+	if (has_ib_port)
+		request_module_nowait(IB_DRV_NAME);
+	if (has_eth_port)
+		request_module_nowait(EN_DRV_NAME);
+}
+
 /*
  * Change the port configuration of the device.
  * Every user of this function must hold the port mutex.
@@ -681,6 +707,11 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 		}
 		mlx4_set_port_mask(dev);
 		err = mlx4_register_device(dev);
+		if (err) {
+			mlx4_err(dev, "Failed to register device\n");
+			goto out;
+		}
+		mlx4_request_modules(dev);
 	}
 
 out:
@@ -2075,9 +2106,15 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 			"aborting.\n");
 		return err;
 	}
-	if (num_vfs > MLX4_MAX_NUM_VF) {
-		printk(KERN_ERR "There are more VF's (%d) than allowed(%d)\n",
-		       num_vfs, MLX4_MAX_NUM_VF);
+
+	/* Due to requirement that all VFs and the PF are *guaranteed* 2 MACS
+	 * per port, we must limit the number of VFs to 63 (since their are
+	 * 128 MACs)
+	 */
+	if (num_vfs >= MLX4_MAX_NUM_VF) {
+		dev_err(&pdev->dev,
+			"Requested more VF's (%d) than allowed (%d)\n",
+			num_vfs, MLX4_MAX_NUM_VF - 1);
 		return -EINVAL;
 	}
 
@@ -2154,6 +2191,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	mutex_init(&priv->bf_mutex);
 
 	dev->rev_id = pdev->revision;
+	dev->numa_node = dev_to_node(&pdev->dev);
 	/* Detect if this device is a virtual function */
 	if (pci_dev_data & MLX4_PCI_DEV_IS_VF) {
 		/* When acting as pf, we normally skip vfs unless explicitly
@@ -2295,6 +2333,8 @@ slave_start:
 	if (err)
 		goto err_steer;
 
+	mlx4_init_quotas(dev);
+
 	for (port = 1; port <= dev->caps.num_ports; port++) {
 		err = mlx4_init_port_info(dev, port);
 		if (err)
@@ -2304,6 +2344,8 @@ slave_start:
 	err = mlx4_register_device(dev);
 	if (err)
 		goto err_port;
+
+	mlx4_request_modules(dev);
 
 	mlx4_sense_init(dev);
 	mlx4_start_sense(dev);
@@ -2593,6 +2635,8 @@ static int __init mlx4_init(void)
 		return -ENOMEM;
 
 	ret = pci_register_driver(&mlx4_driver);
+	if (ret < 0)
+		destroy_workqueue(mlx4_wq);
 	return ret < 0 ? ret : 0;
 }
 

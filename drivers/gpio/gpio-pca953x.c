@@ -683,17 +683,6 @@ static int device_pca957x_init(struct pca953x_chip *chip, u32 invert)
 	int ret;
 	u8 val[MAX_BANK];
 
-	/* Let every port in proper state, that could save power */
-	memset(val, 0, NBANK(chip));
-	pca953x_write_regs(chip, PCA957X_PUPD, val);
-	memset(val, 0xFF, NBANK(chip));
-	pca953x_write_regs(chip, PCA957X_CFG, val);
-	memset(val, 0, NBANK(chip));
-	pca953x_write_regs(chip, PCA957X_OUT, val);
-
-	ret = pca953x_read_regs(chip, PCA957X_IN, val);
-	if (ret)
-		goto out;
 	ret = pca953x_read_regs(chip, PCA957X_OUT, chip->reg_output);
 	if (ret)
 		goto out;

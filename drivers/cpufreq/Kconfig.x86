@@ -31,7 +31,6 @@ config X86_PCC_CPUFREQ
 
 config X86_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"
-	select CPU_FREQ_TABLE
 	depends on ACPI_PROCESSOR
 	help
 	  This driver adds a CPUFreq driver which utilizes the ACPI
@@ -60,7 +59,6 @@ config X86_ACPI_CPUFREQ_CPB
 
 config ELAN_CPUFREQ
 	tristate "AMD Elan SC400 and SC410"
-	select CPU_FREQ_TABLE
 	depends on MELAN
 	---help---
 	  This adds the CPUFreq driver for AMD Elan SC400 and SC410
@@ -76,7 +74,6 @@ config ELAN_CPUFREQ
 
 config SC520_CPUFREQ
 	tristate "AMD Elan SC520"
-	select CPU_FREQ_TABLE
 	depends on MELAN
 	---help---
 	  This adds the CPUFreq driver for AMD Elan SC520 processor.
@@ -88,7 +85,6 @@ config SC520_CPUFREQ
 
 config X86_POWERNOW_K6
 	tristate "AMD Mobile K6-2/K6-3 PowerNow!"
-	select CPU_FREQ_TABLE
 	depends on X86_32
 	help
 	  This adds the CPUFreq driver for mobile AMD K6-2+ and mobile
@@ -100,7 +96,6 @@ config X86_POWERNOW_K6
 
 config X86_POWERNOW_K7
 	tristate "AMD Mobile Athlon/Duron PowerNow!"
-	select CPU_FREQ_TABLE
 	depends on X86_32
 	help
 	  This adds the CPUFreq driver for mobile AMD K7 mobile processors.
@@ -118,7 +113,6 @@ config X86_POWERNOW_K7_ACPI
 
 config X86_POWERNOW_K8
 	tristate "AMD Opteron/Athlon64 PowerNow!"
-	select CPU_FREQ_TABLE
 	depends on ACPI && ACPI_PROCESSOR && X86_ACPI_CPUFREQ
 	help
 	  This adds the CPUFreq driver for K8/early Opteron/Athlon64 processors.
@@ -132,11 +126,10 @@ config X86_POWERNOW_K8
 config X86_AMD_FREQ_SENSITIVITY
 	tristate "AMD frequency sensitivity feedback powersave bias"
 	depends on CPU_FREQ_GOV_ONDEMAND && X86_ACPI_CPUFREQ && CPU_SUP_AMD
-	select CPU_FREQ_TABLE
 	help
 	  This adds AMD-specific powersave bias function to the ondemand
 	  governor, which allows it to make more power-conscious frequency
-	  change decisions based on feedback from hardware (availble on AMD
+	  change decisions based on feedback from hardware (available on AMD
 	  Family 16h and above).
 
 	  Hardware feedback tells software how "sensitive" to frequency changes
@@ -160,7 +153,6 @@ config X86_GX_SUSPMOD
 
 config X86_SPEEDSTEP_CENTRINO
 	tristate "Intel Enhanced SpeedStep (deprecated)"
-	select CPU_FREQ_TABLE
 	select X86_SPEEDSTEP_CENTRINO_TABLE if X86_32
 	depends on X86_32 || (X86_64 && ACPI_PROCESSOR)
 	help
@@ -190,7 +182,6 @@ config X86_SPEEDSTEP_CENTRINO_TABLE
 
 config X86_SPEEDSTEP_ICH
 	tristate "Intel Speedstep on ICH-M chipsets (ioport interface)"
-	select CPU_FREQ_TABLE
 	depends on X86_32
 	help
 	  This adds the CPUFreq driver for certain mobile Intel Pentium III
@@ -204,7 +195,6 @@ config X86_SPEEDSTEP_ICH
 
 config X86_SPEEDSTEP_SMI
 	tristate "Intel SpeedStep on 440BX/ZX/MX chipsets (SMI interface)"
-	select CPU_FREQ_TABLE
 	depends on X86_32
 	help
 	  This adds the CPUFreq driver for certain mobile Intel Pentium III
@@ -217,7 +207,6 @@ config X86_SPEEDSTEP_SMI
 
 config X86_P4_CLOCKMOD
 	tristate "Intel Pentium 4 clock modulation"
-	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for Intel Pentium 4 / XEON
 	  processors.  When enabled it will lower CPU temperature by skipping
@@ -259,7 +248,6 @@ config X86_LONGRUN
 
 config X86_LONGHAUL
 	tristate "VIA Cyrix III Longhaul"
-	select CPU_FREQ_TABLE
 	depends on X86_32 && ACPI_PROCESSOR
 	help
 	  This adds the CPUFreq driver for VIA Samuel/CyrixIII,
@@ -272,7 +260,6 @@ config X86_LONGHAUL
 
 config X86_E_POWERSAVER
 	tristate "VIA C7 Enhanced PowerSaver (DANGEROUS)"
-	select CPU_FREQ_TABLE
 	depends on X86_32 && ACPI_PROCESSOR
 	help
 	  This adds the CPUFreq driver for VIA C7 processors.  However, this driver

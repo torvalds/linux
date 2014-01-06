@@ -80,36 +80,31 @@ static int dt2817_dio_insn_config(struct comedi_device *dev,
 
 static int dt2817_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	unsigned int changed;
+	unsigned long iobase = dev->iobase + DT2817_DATA;
+	unsigned int mask;
+	unsigned int val;
 
-	/* It's questionable whether it is more important in
-	 * a driver like this to be deterministic or fast.
-	 * We choose fast. */
-
-	if (data[0]) {
-		changed = s->state;
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-		changed ^= s->state;
-		changed &= s->io_bits;
-		if (changed & 0x000000ff)
-			outb(s->state & 0xff, dev->iobase + DT2817_DATA + 0);
-		if (changed & 0x0000ff00)
-			outb((s->state >> 8) & 0xff,
-			     dev->iobase + DT2817_DATA + 1);
-		if (changed & 0x00ff0000)
-			outb((s->state >> 16) & 0xff,
-			     dev->iobase + DT2817_DATA + 2);
-		if (changed & 0xff000000)
-			outb((s->state >> 24) & 0xff,
-			     dev->iobase + DT2817_DATA + 3);
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0x000000ff)
+			outb(s->state & 0xff, iobase + 0);
+		if (mask & 0x0000ff00)
+			outb((s->state >> 8) & 0xff, iobase + 1);
+		if (mask & 0x00ff0000)
+			outb((s->state >> 16) & 0xff, iobase + 2);
+		if (mask & 0xff000000)
+			outb((s->state >> 24) & 0xff, iobase + 3);
 	}
-	data[1] = inb(dev->iobase + DT2817_DATA + 0);
-	data[1] |= (inb(dev->iobase + DT2817_DATA + 1) << 8);
-	data[1] |= (inb(dev->iobase + DT2817_DATA + 2) << 16);
-	data[1] |= (inb(dev->iobase + DT2817_DATA + 3) << 24);
+
+	val = inb(iobase + 0);
+	val |= (inb(iobase + 1) << 8);
+	val |= (inb(iobase + 2) << 16);
+	val |= (inb(iobase + 3) << 24);
+
+	data[1] = val;
 
 	return insn->n;
 }

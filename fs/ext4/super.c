@@ -411,20 +411,26 @@ static void ext4_handle_error(struct super_block *sb)
 			sb->s_id);
 }
 
+#define ext4_error_ratelimit(sb)					\
+		___ratelimit(&(EXT4_SB(sb)->s_err_ratelimit_state),	\
+			     "EXT4-fs error")
+
 void __ext4_error(struct super_block *sb, const char *function,
 		  unsigned int line, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: comm %s: %pV\n",
-	       sb->s_id, function, line, current->comm, &vaf);
-	va_end(args);
+	if (ext4_error_ratelimit(sb)) {
+		va_start(args, fmt);
+		vaf.fmt = fmt;
+		vaf.va = &args;
+		printk(KERN_CRIT
+		       "EXT4-fs error (device %s): %s:%d: comm %s: %pV\n",
+		       sb->s_id, function, line, current->comm, &vaf);
+		va_end(args);
+	}
 	save_error_info(sb, function, line);
-
 	ext4_handle_error(sb);
 }
 
@@ -438,22 +444,23 @@ void __ext4_error_inode(struct inode *inode, const char *function,
 
 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
 	es->s_last_error_block = cpu_to_le64(block);
+	if (ext4_error_ratelimit(inode->i_sb)) {
+		va_start(args, fmt);
+		vaf.fmt = fmt;
+		vaf.va = &args;
+		if (block)
+			printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: "
+			       "inode #%lu: block %llu: comm %s: %pV\n",
+			       inode->i_sb->s_id, function, line, inode->i_ino,
+			       block, current->comm, &vaf);
+		else
+			printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: "
+			       "inode #%lu: comm %s: %pV\n",
+			       inode->i_sb->s_id, function, line, inode->i_ino,
+			       current->comm, &vaf);
+		va_end(args);
+	}
 	save_error_info(inode->i_sb, function, line);
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-	if (block)
-		printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: "
-		       "inode #%lu: block %llu: comm %s: %pV\n",
-		       inode->i_sb->s_id, function, line, inode->i_ino,
-		       block, current->comm, &vaf);
-	else
-		printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: "
-		       "inode #%lu: comm %s: %pV\n",
-		       inode->i_sb->s_id, function, line, inode->i_ino,
-		       current->comm, &vaf);
-	va_end(args);
-
 	ext4_handle_error(inode->i_sb);
 }
 
@@ -469,27 +476,28 @@ void __ext4_error_file(struct file *file, const char *function,
 
 	es = EXT4_SB(inode->i_sb)->s_es;
 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
+	if (ext4_error_ratelimit(inode->i_sb)) {
+		path = d_path(&(file->f_path), pathname, sizeof(pathname));
+		if (IS_ERR(path))
+			path = "(unknown)";
+		va_start(args, fmt);
+		vaf.fmt = fmt;
+		vaf.va = &args;
+		if (block)
+			printk(KERN_CRIT
+			       "EXT4-fs error (device %s): %s:%d: inode #%lu: "
+			       "block %llu: comm %s: path %s: %pV\n",
+			       inode->i_sb->s_id, function, line, inode->i_ino,
+			       block, current->comm, path, &vaf);
+		else
+			printk(KERN_CRIT
+			       "EXT4-fs error (device %s): %s:%d: inode #%lu: "
+			       "comm %s: path %s: %pV\n",
+			       inode->i_sb->s_id, function, line, inode->i_ino,
+			       current->comm, path, &vaf);
+		va_end(args);
+	}
 	save_error_info(inode->i_sb, function, line);
-	path = d_path(&(file->f_path), pathname, sizeof(pathname));
-	if (IS_ERR(path))
-		path = "(unknown)";
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-	if (block)
-		printk(KERN_CRIT
-		       "EXT4-fs error (device %s): %s:%d: inode #%lu: "
-		       "block %llu: comm %s: path %s: %pV\n",
-		       inode->i_sb->s_id, function, line, inode->i_ino,
-		       block, current->comm, path, &vaf);
-	else
-		printk(KERN_CRIT
-		       "EXT4-fs error (device %s): %s:%d: inode #%lu: "
-		       "comm %s: path %s: %pV\n",
-		       inode->i_sb->s_id, function, line, inode->i_ino,
-		       current->comm, path, &vaf);
-	va_end(args);
-
 	ext4_handle_error(inode->i_sb);
 }
 
@@ -543,11 +551,13 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 	    (sb->s_flags & MS_RDONLY))
 		return;
 
-	errstr = ext4_decode_error(sb, errno, nbuf);
-	printk(KERN_CRIT "EXT4-fs error (device %s) in %s:%d: %s\n",
-	       sb->s_id, function, line, errstr);
-	save_error_info(sb, function, line);
+	if (ext4_error_ratelimit(sb)) {
+		errstr = ext4_decode_error(sb, errno, nbuf);
+		printk(KERN_CRIT "EXT4-fs error (device %s) in %s:%d: %s\n",
+		       sb->s_id, function, line, errstr);
+	}
 
+	save_error_info(sb, function, line);
 	ext4_handle_error(sb);
 }
 
@@ -597,6 +607,9 @@ void __ext4_msg(struct super_block *sb,
 	struct va_format vaf;
 	va_list args;
 
+	if (!___ratelimit(&(EXT4_SB(sb)->s_msg_ratelimit_state), "EXT4-fs"))
+		return;
+
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
@@ -609,6 +622,10 @@ void __ext4_warning(struct super_block *sb, const char *function,
 {
 	struct va_format vaf;
 	va_list args;
+
+	if (!___ratelimit(&(EXT4_SB(sb)->s_warning_ratelimit_state),
+			  "EXT4-fs warning"))
+		return;
 
 	va_start(args, fmt);
 	vaf.fmt = fmt;
@@ -633,18 +650,20 @@ __acquires(bitlock)
 	es->s_last_error_block = cpu_to_le64(block);
 	__save_error_info(sb, function, line);
 
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u, ",
-	       sb->s_id, function, line, grp);
-	if (ino)
-		printk(KERN_CONT "inode %lu: ", ino);
-	if (block)
-		printk(KERN_CONT "block %llu:", (unsigned long long) block);
-	printk(KERN_CONT "%pV\n", &vaf);
-	va_end(args);
+	if (ext4_error_ratelimit(sb)) {
+		va_start(args, fmt);
+		vaf.fmt = fmt;
+		vaf.va = &args;
+		printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u, ",
+		       sb->s_id, function, line, grp);
+		if (ino)
+			printk(KERN_CONT "inode %lu: ", ino);
+		if (block)
+			printk(KERN_CONT "block %llu:",
+			       (unsigned long long) block);
+		printk(KERN_CONT "%pV\n", &vaf);
+		va_end(args);
+	}
 
 	if (test_opt(sb, ERRORS_CONT)) {
 		ext4_commit_super(sb, 0);
@@ -773,7 +792,7 @@ static void ext4_put_super(struct super_block *sb)
 	}
 
 	ext4_es_unregister_shrinker(sbi);
-	del_timer(&sbi->s_err_report);
+	del_timer_sync(&sbi->s_err_report);
 	ext4_release_system_zone(sb);
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
@@ -2606,6 +2625,12 @@ EXT4_RW_ATTR_SBI_UI(mb_group_prealloc, s_mb_group_prealloc);
 EXT4_DEPRECATED_ATTR(max_writeback_mb_bump, 128);
 EXT4_RW_ATTR_SBI_UI(extent_max_zeroout_kb, s_extent_max_zeroout_kb);
 EXT4_ATTR(trigger_fs_error, 0200, NULL, trigger_test_error);
+EXT4_RW_ATTR_SBI_UI(err_ratelimit_interval_ms, s_err_ratelimit_state.interval);
+EXT4_RW_ATTR_SBI_UI(err_ratelimit_burst, s_err_ratelimit_state.burst);
+EXT4_RW_ATTR_SBI_UI(warning_ratelimit_interval_ms, s_warning_ratelimit_state.interval);
+EXT4_RW_ATTR_SBI_UI(warning_ratelimit_burst, s_warning_ratelimit_state.burst);
+EXT4_RW_ATTR_SBI_UI(msg_ratelimit_interval_ms, s_msg_ratelimit_state.interval);
+EXT4_RW_ATTR_SBI_UI(msg_ratelimit_burst, s_msg_ratelimit_state.burst);
 
 static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(delayed_allocation_blocks),
@@ -2623,6 +2648,12 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(max_writeback_mb_bump),
 	ATTR_LIST(extent_max_zeroout_kb),
 	ATTR_LIST(trigger_fs_error),
+	ATTR_LIST(err_ratelimit_interval_ms),
+	ATTR_LIST(err_ratelimit_burst),
+	ATTR_LIST(warning_ratelimit_interval_ms),
+	ATTR_LIST(warning_ratelimit_burst),
+	ATTR_LIST(msg_ratelimit_interval_ms),
+	ATTR_LIST(msg_ratelimit_burst),
 	NULL,
 };
 
@@ -3037,7 +3068,6 @@ static struct ext4_li_request *ext4_li_request_new(struct super_block *sb,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_li_request *elr;
-	unsigned long rnd;
 
 	elr = kzalloc(sizeof(*elr), GFP_KERNEL);
 	if (!elr)
@@ -3052,10 +3082,8 @@ static struct ext4_li_request *ext4_li_request_new(struct super_block *sb,
 	 * spread the inode table initialization requests
 	 * better.
 	 */
-	get_random_bytes(&rnd, sizeof(rnd));
-	elr->lr_next_sched = jiffies + (unsigned long)rnd %
-			     (EXT4_DEF_LI_MAX_START_DELAY * HZ);
-
+	elr->lr_next_sched = jiffies + (prandom_u32() %
+				(EXT4_DEF_LI_MAX_START_DELAY * HZ));
 	return elr;
 }
 
@@ -3288,10 +3316,18 @@ int ext4_calculate_overhead(struct super_block *sb)
 }
 
 
-static ext4_fsblk_t ext4_calculate_resv_clusters(struct ext4_sb_info *sbi)
+static ext4_fsblk_t ext4_calculate_resv_clusters(struct super_block *sb)
 {
 	ext4_fsblk_t resv_clusters;
 
+	/*
+	 * There's no need to reserve anything when we aren't using extents.
+	 * The space estimates are exact, there are no unwritten extents,
+	 * hole punching doesn't need new metadata... This is needed especially
+	 * to keep ext2/3 backward compatibility.
+	 */
+	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS))
+		return 0;
 	/*
 	 * By default we reserve 2% or 4096 clusters, whichever is smaller.
 	 * This should cover the situations where we can not afford to run
@@ -3300,7 +3336,8 @@ static ext4_fsblk_t ext4_calculate_resv_clusters(struct ext4_sb_info *sbi)
 	 * allocation would require 1, or 2 blocks, higher numbers are
 	 * very rare.
 	 */
-	resv_clusters = ext4_blocks_count(sbi->s_es) >> sbi->s_cluster_bits;
+	resv_clusters = ext4_blocks_count(EXT4_SB(sb)->s_es) >>
+			EXT4_SB(sb)->s_cluster_bits;
 
 	do_div(resv_clusters, 50);
 	resv_clusters = min_t(ext4_fsblk_t, resv_clusters, 4096);
@@ -4043,10 +4080,10 @@ no_journal:
 			 "available");
 	}
 
-	err = ext4_reserve_clusters(sbi, ext4_calculate_resv_clusters(sbi));
+	err = ext4_reserve_clusters(sbi, ext4_calculate_resv_clusters(sb));
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "failed to reserve %llu clusters for "
-			 "reserved pool", ext4_calculate_resv_clusters(sbi));
+			 "reserved pool", ext4_calculate_resv_clusters(sb));
 		goto failed_mount4a;
 	}
 
@@ -4118,6 +4155,11 @@ no_journal:
 	if (es->s_error_count)
 		mod_timer(&sbi->s_err_report, jiffies + 300*HZ); /* 5 minutes */
 
+	/* Enable message ratelimiting. Default is 10 messages per 5 secs. */
+	ratelimit_state_init(&sbi->s_err_ratelimit_state, 5 * HZ, 10);
+	ratelimit_state_init(&sbi->s_warning_ratelimit_state, 5 * HZ, 10);
+	ratelimit_state_init(&sbi->s_msg_ratelimit_state, 5 * HZ, 10);
+
 	kfree(orig_data);
 	return 0;
 
@@ -4151,7 +4193,7 @@ failed_mount_wq:
 	}
 failed_mount3:
 	ext4_es_unregister_shrinker(sbi);
-	del_timer(&sbi->s_err_report);
+	del_timer_sync(&sbi->s_err_report);
 	if (sbi->s_flex_groups)
 		ext4_kvfree(sbi->s_flex_groups);
 	percpu_counter_destroy(&sbi->s_freeclusters_counter);

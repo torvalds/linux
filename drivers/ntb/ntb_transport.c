@@ -119,7 +119,6 @@ struct ntb_transport_qp {
 
 	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
 			    void *data, int len);
-	struct tasklet_struct rx_work;
 	struct list_head rx_pend_q;
 	struct list_head rx_free_q;
 	spinlock_t ntb_rx_pend_q_lock;
@@ -584,11 +583,8 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 	return 0;
 }
 
-static void ntb_qp_link_cleanup(struct work_struct *work)
+static void ntb_qp_link_cleanup(struct ntb_transport_qp *qp)
 {
-	struct ntb_transport_qp *qp = container_of(work,
-						   struct ntb_transport_qp,
-						   link_cleanup);
 	struct ntb_transport *nt = qp->transport;
 	struct pci_dev *pdev = ntb_query_pdev(nt->ndev);
 
@@ -602,6 +598,16 @@ static void ntb_qp_link_cleanup(struct work_struct *work)
 
 	dev_info(&pdev->dev, "qp %d: Link Down\n", qp->qp_num);
 	qp->qp_link = NTB_LINK_DOWN;
+}
+
+static void ntb_qp_link_cleanup_work(struct work_struct *work)
+{
+	struct ntb_transport_qp *qp = container_of(work,
+						   struct ntb_transport_qp,
+						   link_cleanup);
+	struct ntb_transport *nt = qp->transport;
+
+	ntb_qp_link_cleanup(qp);
 
 	if (nt->transport_link == NTB_LINK_UP)
 		schedule_delayed_work(&qp->link_work,
@@ -613,21 +619,19 @@ static void ntb_qp_link_down(struct ntb_transport_qp *qp)
 	schedule_work(&qp->link_cleanup);
 }
 
-static void ntb_transport_link_cleanup(struct work_struct *work)
+static void ntb_transport_link_cleanup(struct ntb_transport *nt)
 {
-	struct ntb_transport *nt = container_of(work, struct ntb_transport,
-						link_cleanup);
 	int i;
+
+	/* Pass along the info to any clients */
+	for (i = 0; i < nt->max_qps; i++)
+		if (!test_bit(i, &nt->qp_bitmap))
+			ntb_qp_link_cleanup(&nt->qps[i]);
 
 	if (nt->transport_link == NTB_LINK_DOWN)
 		cancel_delayed_work_sync(&nt->link_work);
 	else
 		nt->transport_link = NTB_LINK_DOWN;
-
-	/* Pass along the info to any clients */
-	for (i = 0; i < nt->max_qps; i++)
-		if (!test_bit(i, &nt->qp_bitmap))
-			ntb_qp_link_down(&nt->qps[i]);
 
 	/* The scratchpad registers keep the values if the remote side
 	 * goes down, blast them now to give them a sane value the next
@@ -635,6 +639,14 @@ static void ntb_transport_link_cleanup(struct work_struct *work)
 	 */
 	for (i = 0; i < MAX_SPAD; i++)
 		ntb_write_local_spad(nt->ndev, i, 0);
+}
+
+static void ntb_transport_link_cleanup_work(struct work_struct *work)
+{
+	struct ntb_transport *nt = container_of(work, struct ntb_transport,
+						link_cleanup);
+
+	ntb_transport_link_cleanup(nt);
 }
 
 static void ntb_transport_event_callback(void *data, enum ntb_hw_event event)
@@ -880,7 +892,7 @@ static int ntb_transport_init_queue(struct ntb_transport *nt,
 	}
 
 	INIT_DELAYED_WORK(&qp->link_work, ntb_qp_link_work);
-	INIT_WORK(&qp->link_cleanup, ntb_qp_link_cleanup);
+	INIT_WORK(&qp->link_cleanup, ntb_qp_link_cleanup_work);
 
 	spin_lock_init(&qp->ntb_rx_pend_q_lock);
 	spin_lock_init(&qp->ntb_rx_free_q_lock);
@@ -936,7 +948,7 @@ int ntb_transport_init(struct pci_dev *pdev)
 	}
 
 	INIT_DELAYED_WORK(&nt->link_work, ntb_transport_link_work);
-	INIT_WORK(&nt->link_cleanup, ntb_transport_link_cleanup);
+	INIT_WORK(&nt->link_cleanup, ntb_transport_link_cleanup_work);
 
 	rc = ntb_register_event_callback(nt->ndev,
 					 ntb_transport_event_callback);
@@ -972,7 +984,7 @@ void ntb_transport_free(void *transport)
 	struct ntb_device *ndev = nt->ndev;
 	int i;
 
-	nt->transport_link = NTB_LINK_DOWN;
+	ntb_transport_link_cleanup(nt);
 
 	/* verify that all the qp's are freed */
 	for (i = 0; i < nt->max_qps; i++) {
@@ -1034,10 +1046,9 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 	struct dma_chan *chan = qp->dma_chan;
 	struct dma_device *device;
 	size_t pay_off, buff_off;
-	dma_addr_t src, dest;
+	struct dmaengine_unmap_data *unmap;
 	dma_cookie_t cookie;
 	void *buf = entry->buf;
-	unsigned long flags;
 
 	entry->len = len;
 
@@ -1045,35 +1056,49 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 		goto err;
 
 	if (len < copy_bytes) 
-		goto err1;
+		goto err_wait;
 
 	device = chan->device;
 	pay_off = (size_t) offset & ~PAGE_MASK;
 	buff_off = (size_t) buf & ~PAGE_MASK;
 
 	if (!is_dma_copy_aligned(device, pay_off, buff_off, len))
-		goto err1;
+		goto err_wait;
 
-	dest = dma_map_single(device->dev, buf, len, DMA_FROM_DEVICE);
-	if (dma_mapping_error(device->dev, dest))
-		goto err1;
+	unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_NOWAIT);
+	if (!unmap)
+		goto err_wait;
 
-	src = dma_map_single(device->dev, offset, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(device->dev, src))
-		goto err2;
+	unmap->len = len;
+	unmap->addr[0] = dma_map_page(device->dev, virt_to_page(offset),
+				      pay_off, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(device->dev, unmap->addr[0]))
+		goto err_get_unmap;
 
-	flags = DMA_COMPL_DEST_UNMAP_SINGLE | DMA_COMPL_SRC_UNMAP_SINGLE |
-		DMA_PREP_INTERRUPT;
-	txd = device->device_prep_dma_memcpy(chan, dest, src, len, flags);
+	unmap->to_cnt = 1;
+
+	unmap->addr[1] = dma_map_page(device->dev, virt_to_page(buf),
+				      buff_off, len, DMA_FROM_DEVICE);
+	if (dma_mapping_error(device->dev, unmap->addr[1]))
+		goto err_get_unmap;
+
+	unmap->from_cnt = 1;
+
+	txd = device->device_prep_dma_memcpy(chan, unmap->addr[1],
+					     unmap->addr[0], len,
+					     DMA_PREP_INTERRUPT);
 	if (!txd)
-		goto err3;
+		goto err_get_unmap;
 
 	txd->callback = ntb_rx_copy_callback;
 	txd->callback_param = entry;
+	dma_set_unmap(txd, unmap);
 
 	cookie = dmaengine_submit(txd);
 	if (dma_submit_error(cookie))
-		goto err3;
+		goto err_set_unmap;
+
+	dmaengine_unmap_put(unmap);
 
 	qp->last_cookie = cookie;
 
@@ -1081,11 +1106,11 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 
 	return;
 
-err3:
-	dma_unmap_single(device->dev, src, len, DMA_TO_DEVICE);
-err2:
-	dma_unmap_single(device->dev, dest, len, DMA_FROM_DEVICE);
-err1:
+err_set_unmap:
+	dmaengine_unmap_put(unmap);
+err_get_unmap:
+	dmaengine_unmap_put(unmap);
+err_wait:
 	/* If the callbacks come out of order, the writing of the index to the
 	 * last completed will be out of order.  This may result in the
 	 * receive stalling forever.
@@ -1175,10 +1200,13 @@ err:
 	goto out;
 }
 
-static void ntb_transport_rx(unsigned long data)
+static int ntb_transport_rxc_db(void *data, int db_num)
 {
-	struct ntb_transport_qp *qp = (struct ntb_transport_qp *)data;
+	struct ntb_transport_qp *qp = data;
 	int rc, i;
+
+	dev_dbg(&ntb_query_pdev(qp->ndev)->dev, "%s: doorbell %d received\n",
+		__func__, db_num);
 
 	/* Limit the number of packets processed in a single interrupt to
 	 * provide fairness to others
@@ -1191,16 +1219,8 @@ static void ntb_transport_rx(unsigned long data)
 
 	if (qp->dma_chan)
 		dma_async_issue_pending(qp->dma_chan);
-}
 
-static void ntb_transport_rxc_db(void *data, int db_num)
-{
-	struct ntb_transport_qp *qp = data;
-
-	dev_dbg(&ntb_query_pdev(qp->ndev)->dev, "%s: doorbell %d received\n",
-		__func__, db_num);
-
-	tasklet_schedule(&qp->rx_work);
+	return i;
 }
 
 static void ntb_tx_copy_callback(void *data)
@@ -1245,12 +1265,12 @@ static void ntb_async_tx(struct ntb_transport_qp *qp,
 	struct dma_chan *chan = qp->dma_chan;
 	struct dma_device *device;
 	size_t dest_off, buff_off;
-	dma_addr_t src, dest;
+	struct dmaengine_unmap_data *unmap;
+	dma_addr_t dest;
 	dma_cookie_t cookie;
 	void __iomem *offset;
 	size_t len = entry->len;
 	void *buf = entry->buf;
-	unsigned long flags;
 
 	offset = qp->tx_mw + qp->tx_max_frame * qp->tx_index;
 	hdr = offset + qp->tx_max_frame - sizeof(struct ntb_payload_header);
@@ -1273,28 +1293,41 @@ static void ntb_async_tx(struct ntb_transport_qp *qp,
 	if (!is_dma_copy_aligned(device, buff_off, dest_off, len))
 		goto err;
 
-	src = dma_map_single(device->dev, buf, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(device->dev, src))
+	unmap = dmaengine_get_unmap_data(device->dev, 1, GFP_NOWAIT);
+	if (!unmap)
 		goto err;
 
-	flags = DMA_COMPL_SRC_UNMAP_SINGLE | DMA_PREP_INTERRUPT;
-	txd = device->device_prep_dma_memcpy(chan, dest, src, len, flags);
+	unmap->len = len;
+	unmap->addr[0] = dma_map_page(device->dev, virt_to_page(buf),
+				      buff_off, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(device->dev, unmap->addr[0]))
+		goto err_get_unmap;
+
+	unmap->to_cnt = 1;
+
+	txd = device->device_prep_dma_memcpy(chan, dest, unmap->addr[0], len,
+					     DMA_PREP_INTERRUPT);
 	if (!txd)
-		goto err1;
+		goto err_get_unmap;
 
 	txd->callback = ntb_tx_copy_callback;
 	txd->callback_param = entry;
+	dma_set_unmap(txd, unmap);
 
 	cookie = dmaengine_submit(txd);
 	if (dma_submit_error(cookie))
-		goto err1;
+		goto err_set_unmap;
+
+	dmaengine_unmap_put(unmap);
 
 	dma_async_issue_pending(chan);
 	qp->tx_async++;
 
 	return;
-err1:
-	dma_unmap_single(device->dev, src, len, DMA_TO_DEVICE);
+err_set_unmap:
+	dmaengine_unmap_put(unmap);
+err_get_unmap:
+	dmaengine_unmap_put(unmap);
 err:
 	ntb_memcpy_tx(entry, offset);
 	qp->tx_memcpy++;
@@ -1406,11 +1439,12 @@ ntb_transport_create_queue(void *data, struct pci_dev *pdev,
 	qp->tx_handler = handlers->tx_handler;
 	qp->event_handler = handlers->event_handler;
 
+	dmaengine_get();
 	qp->dma_chan = dma_find_channel(DMA_MEMCPY);
-	if (!qp->dma_chan)
+	if (!qp->dma_chan) {
+		dmaengine_put();
 		dev_info(&pdev->dev, "Unable to allocate DMA channel, using CPU instead\n");
-	else
-		dmaengine_get();
+	}
 
 	for (i = 0; i < NTB_QP_DEF_NUM_ENTRIES; i++) {
 		entry = kzalloc(sizeof(struct ntb_queue_entry), GFP_ATOMIC);
@@ -1432,25 +1466,23 @@ ntb_transport_create_queue(void *data, struct pci_dev *pdev,
 			     &qp->tx_free_q);
 	}
 
-	tasklet_init(&qp->rx_work, ntb_transport_rx, (unsigned long) qp);
-
 	rc = ntb_register_db_callback(qp->ndev, free_queue, qp,
 				      ntb_transport_rxc_db);
 	if (rc)
-		goto err3;
+		goto err2;
 
 	dev_info(&pdev->dev, "NTB Transport QP %d created\n", qp->qp_num);
 
 	return qp;
 
-err3:
-	tasklet_disable(&qp->rx_work);
 err2:
 	while ((entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q)))
 		kfree(entry);
 err1:
 	while ((entry = ntb_list_rm(&qp->ntb_rx_free_q_lock, &qp->rx_free_q)))
 		kfree(entry);
+	if (qp->dma_chan)
+		dmaengine_put();
 	set_bit(free_queue, &nt->qp_bitmap);
 err:
 	return NULL;
@@ -1489,7 +1521,6 @@ void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 	}
 
 	ntb_unregister_db_callback(qp->ndev, qp->qp_num);
-	tasklet_disable(&qp->rx_work);
 
 	cancel_delayed_work_sync(&qp->link_work);
 

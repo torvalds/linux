@@ -69,8 +69,6 @@ static const struct soc_data sdata[] = {
 static u32 min_cpufreq;
 static const u32 *fmask;
 
-/* serialize frequency changes  */
-static DEFINE_MUTEX(cpufreq_lock);
 static DEFINE_PER_CPU(struct cpu_data *, cpu_data);
 
 /* cpumask in a cluster */
@@ -202,7 +200,7 @@ static int corenet_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	table[i].frequency = CPUFREQ_TABLE_END;
 
 	/* set the min and max frequency properly */
-	ret = cpufreq_frequency_table_cpuinfo(policy, table);
+	ret = cpufreq_table_validate_and_show(policy, table);
 	if (ret) {
 		pr_err("invalid frequency table: %d\n", ret);
 		goto err_nomem1;
@@ -217,9 +215,6 @@ static int corenet_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		per_cpu(cpu_data, i) = data;
 
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-	policy->cur = corenet_cpufreq_get_speed(policy->cpu);
-
-	cpufreq_frequency_table_get_attr(table, cpu);
 	of_node_put(np);
 
 	return 0;
@@ -253,60 +248,25 @@ static int __exit corenet_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int corenet_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	struct cpufreq_frequency_table *table =
-		per_cpu(cpu_data, policy->cpu)->table;
-
-	return cpufreq_frequency_table_verify(policy, table);
-}
-
 static int corenet_cpufreq_target(struct cpufreq_policy *policy,
-		unsigned int target_freq, unsigned int relation)
+		unsigned int index)
 {
-	struct cpufreq_freqs freqs;
-	unsigned int new;
 	struct clk *parent;
-	int ret;
 	struct cpu_data *data = per_cpu(cpu_data, policy->cpu);
 
-	cpufreq_frequency_table_target(policy, data->table,
-			target_freq, relation, &new);
-
-	if (policy->cur == data->table[new].frequency)
-		return 0;
-
-	freqs.old = policy->cur;
-	freqs.new = data->table[new].frequency;
-
-	mutex_lock(&cpufreq_lock);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
-	parent = of_clk_get(data->parent, data->table[new].driver_data);
-	ret = clk_set_parent(data->clk, parent);
-	if (ret)
-		freqs.new = freqs.old;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	mutex_unlock(&cpufreq_lock);
-
-	return ret;
+	parent = of_clk_get(data->parent, data->table[index].driver_data);
+	return clk_set_parent(data->clk, parent);
 }
-
-static struct freq_attr *corenet_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
 
 static struct cpufreq_driver ppc_corenet_cpufreq_driver = {
 	.name		= "ppc_cpufreq",
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= corenet_cpufreq_cpu_init,
 	.exit		= __exit_p(corenet_cpufreq_cpu_exit),
-	.verify		= corenet_cpufreq_verify,
-	.target		= corenet_cpufreq_target,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= corenet_cpufreq_target,
 	.get		= corenet_cpufreq_get_speed,
-	.attr		= corenet_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static const struct of_device_id node_matches[] __initdata = {

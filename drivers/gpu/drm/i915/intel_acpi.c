@@ -193,16 +193,14 @@ out:
 
 static bool intel_dsm_pci_probe(struct pci_dev *pdev)
 {
-	acpi_handle dhandle, intel_handle;
-	acpi_status status;
+	acpi_handle dhandle;
 	int ret;
 
-	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	dhandle = ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
 		return false;
 
-	status = acpi_get_handle(dhandle, "_DSM", &intel_handle);
-	if (ACPI_FAILURE(status)) {
+	if (!acpi_has_method(dhandle, "_DSM")) {
 		DRM_DEBUG_KMS("no _DSM method for intel device\n");
 		return false;
 	}

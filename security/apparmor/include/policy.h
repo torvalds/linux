@@ -360,7 +360,9 @@ static inline void aa_put_replacedby(struct aa_replacedby *p)
 static inline void __aa_update_replacedby(struct aa_profile *orig,
 					  struct aa_profile *new)
 {
-	struct aa_profile *tmp = rcu_dereference(orig->replacedby->profile);
+	struct aa_profile *tmp;
+	tmp = rcu_dereference_protected(orig->replacedby->profile,
+					mutex_is_locked(&orig->ns->lock));
 	rcu_assign_pointer(orig->replacedby->profile, aa_get_profile(new));
 	orig->flags |= PFLAG_INVALID;
 	aa_put_profile(tmp);

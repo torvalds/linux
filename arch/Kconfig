@@ -207,9 +207,6 @@ config HAVE_DMA_ATTRS
 config HAVE_DMA_CONTIGUOUS
 	bool
 
-config USE_GENERIC_SMP_HELPERS
-	bool
-
 config GENERIC_SMP_IDLE_THREAD
        bool
 
@@ -286,9 +283,6 @@ config HAVE_PERF_USER_STACK_DUMP
 config HAVE_ARCH_JUMP_LABEL
 	bool
 
-config HAVE_ARCH_MUTEX_CPU_RELAX
-	bool
-
 config HAVE_RCU_TABLE_FREE
 	bool
 
@@ -356,6 +350,18 @@ config HAVE_CONTEXT_TRACKING
 config HAVE_VIRT_CPU_ACCOUNTING
 	bool
 
+config HAVE_VIRT_CPU_ACCOUNTING_GEN
+	bool
+	default y if 64BIT
+	help
+	  With VIRT_CPU_ACCOUNTING_GEN, cputime_t becomes 64-bit.
+	  Before enabling this option, arch code must be audited
+	  to ensure there are no races in concurrent read/write of
+	  cputime_t. For example, reading/writing 64-bit cputime_t on
+	  some 32-bit arches may require multiple accesses, so proper
+	  locking is needed to protect against concurrent accesses.
+
+
 config HAVE_IRQ_TIME_ACCOUNTING
 	bool
 	help
@@ -392,6 +398,16 @@ config HAVE_UNDERSCORE_SYMBOL_PREFIX
 	help
 	  Some architectures generate an _ in front of C symbols; things like
 	  module loading and assembly files need to know about this.
+
+config HAVE_IRQ_EXIT_ON_IRQ_STACK
+	bool
+	help
+	  Architecture doesn't only execute the irq handler on the irq stack
+	  but also irq_exit(). This way we can process softirqs on this irq
+	  stack instead of switching to a new one when we call __do_softirq()
+	  in the end of an hardirq.
+	  This spares a stack switch and improves cache usage on softirq
+	  processing.
 
 #
 # ABI hall of shame

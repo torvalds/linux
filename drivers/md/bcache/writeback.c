@@ -11,17 +11,10 @@
 #include "debug.h"
 #include "writeback.h"
 
+#include <linux/delay.h>
+#include <linux/freezer.h>
+#include <linux/kthread.h>
 #include <trace/events/bcache.h>
-
-static struct workqueue_struct *dirty_wq;
-
-static void read_dirty(struct closure *);
-
-struct dirty_io {
-	struct closure		cl;
-	struct cached_dev	*dc;
-	struct bio		bio;
-};
 
 /* Rate limiting */
 
@@ -37,44 +30,43 @@ static void __update_writeback_rate(struct cached_dev *dc)
 
 	/* PD controller */
 
-	int change = 0;
-	int64_t error;
 	int64_t dirty = bcache_dev_sectors_dirty(&dc->disk);
 	int64_t derivative = dirty - dc->disk.sectors_dirty_last;
+	int64_t proportional = dirty - target;
+	int64_t change;
 
 	dc->disk.sectors_dirty_last = dirty;
 
-	derivative *= dc->writeback_rate_d_term;
-	derivative = clamp(derivative, -dirty, dirty);
+	/* Scale to sectors per second */
+
+	proportional *= dc->writeback_rate_update_seconds;
+	proportional = div_s64(proportional, dc->writeback_rate_p_term_inverse);
+
+	derivative = div_s64(derivative, dc->writeback_rate_update_seconds);
 
 	derivative = ewma_add(dc->disk.sectors_dirty_derivative, derivative,
-			      dc->writeback_rate_d_smooth, 0);
+			      (dc->writeback_rate_d_term /
+			       dc->writeback_rate_update_seconds) ?: 1, 0);
 
-	/* Avoid divide by zero */
-	if (!target)
-		goto out;
+	derivative *= dc->writeback_rate_d_term;
+	derivative = div_s64(derivative, dc->writeback_rate_p_term_inverse);
 
-	error = div64_s64((dirty + derivative - target) << 8, target);
-
-	change = div_s64((dc->writeback_rate.rate * error) >> 8,
-			 dc->writeback_rate_p_term_inverse);
+	change = proportional + derivative;
 
 	/* Don't increase writeback rate if the device isn't keeping up */
 	if (change > 0 &&
 	    time_after64(local_clock(),
-			 dc->writeback_rate.next + 10 * NSEC_PER_MSEC))
+			 dc->writeback_rate.next + NSEC_PER_MSEC))
 		change = 0;
 
 	dc->writeback_rate.rate =
-		clamp_t(int64_t, dc->writeback_rate.rate + change,
+		clamp_t(int64_t, (int64_t) dc->writeback_rate.rate + change,
 			1, NSEC_PER_MSEC);
-out:
+
+	dc->writeback_rate_proportional = proportional;
 	dc->writeback_rate_derivative = derivative;
 	dc->writeback_rate_change = change;
 	dc->writeback_rate_target = target;
-
-	schedule_delayed_work(&dc->writeback_rate_update,
-			      dc->writeback_rate_update_seconds * HZ);
 }
 
 static void update_writeback_rate(struct work_struct *work)
@@ -90,48 +82,25 @@ static void update_writeback_rate(struct work_struct *work)
 		__update_writeback_rate(dc);
 
 	up_read(&dc->writeback_lock);
+
+	schedule_delayed_work(&dc->writeback_rate_update,
+			      dc->writeback_rate_update_seconds * HZ);
 }
 
 static unsigned writeback_delay(struct cached_dev *dc, unsigned sectors)
 {
-	if (atomic_read(&dc->disk.detaching) ||
+	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
 	    !dc->writeback_percent)
 		return 0;
 
-	return bch_next_delay(&dc->writeback_rate, sectors * 10000000ULL);
+	return bch_next_delay(&dc->writeback_rate, sectors);
 }
 
-/* Background writeback */
-
-static bool dirty_pred(struct keybuf *buf, struct bkey *k)
-{
-	return KEY_DIRTY(k);
-}
-
-static bool dirty_full_stripe_pred(struct keybuf *buf, struct bkey *k)
-{
-	uint64_t stripe;
-	unsigned nr_sectors = KEY_SIZE(k);
-	struct cached_dev *dc = container_of(buf, struct cached_dev,
-					     writeback_keys);
-	unsigned stripe_size = 1 << dc->disk.stripe_size_bits;
-
-	if (!KEY_DIRTY(k))
-		return false;
-
-	stripe = KEY_START(k) >> dc->disk.stripe_size_bits;
-	while (1) {
-		if (atomic_read(dc->disk.stripe_sectors_dirty + stripe) !=
-		    stripe_size)
-			return false;
-
-		if (nr_sectors <= stripe_size)
-			return true;
-
-		nr_sectors -= stripe_size;
-		stripe++;
-	}
-}
+struct dirty_io {
+	struct closure		cl;
+	struct cached_dev	*dc;
+	struct bio		bio;
+};
 
 static void dirty_init(struct keybuf_key *w)
 {
@@ -148,131 +117,6 @@ static void dirty_init(struct keybuf_key *w)
 	bio->bi_io_vec		= bio->bi_inline_vecs;
 	bch_bio_map(bio, NULL);
 }
-
-static void refill_dirty(struct closure *cl)
-{
-	struct cached_dev *dc = container_of(cl, struct cached_dev,
-					     writeback.cl);
-	struct keybuf *buf = &dc->writeback_keys;
-	bool searched_from_start = false;
-	struct bkey end = MAX_KEY;
-	SET_KEY_INODE(&end, dc->disk.id);
-
-	if (!atomic_read(&dc->disk.detaching) &&
-	    !dc->writeback_running)
-		closure_return(cl);
-
-	down_write(&dc->writeback_lock);
-
-	if (!atomic_read(&dc->has_dirty)) {
-		SET_BDEV_STATE(&dc->sb, BDEV_STATE_CLEAN);
-		bch_write_bdev_super(dc, NULL);
-
-		up_write(&dc->writeback_lock);
-		closure_return(cl);
-	}
-
-	if (bkey_cmp(&buf->last_scanned, &end) >= 0) {
-		buf->last_scanned = KEY(dc->disk.id, 0, 0);
-		searched_from_start = true;
-	}
-
-	if (dc->partial_stripes_expensive) {
-		uint64_t i;
-
-		for (i = 0; i < dc->disk.nr_stripes; i++)
-			if (atomic_read(dc->disk.stripe_sectors_dirty + i) ==
-			    1 << dc->disk.stripe_size_bits)
-				goto full_stripes;
-
-		goto normal_refill;
-full_stripes:
-		bch_refill_keybuf(dc->disk.c, buf, &end,
-				  dirty_full_stripe_pred);
-	} else {
-normal_refill:
-		bch_refill_keybuf(dc->disk.c, buf, &end, dirty_pred);
-	}
-
-	if (bkey_cmp(&buf->last_scanned, &end) >= 0 && searched_from_start) {
-		/* Searched the entire btree  - delay awhile */
-
-		if (RB_EMPTY_ROOT(&buf->keys)) {
-			atomic_set(&dc->has_dirty, 0);
-			cached_dev_put(dc);
-		}
-
-		if (!atomic_read(&dc->disk.detaching))
-			closure_delay(&dc->writeback, dc->writeback_delay * HZ);
-	}
-
-	up_write(&dc->writeback_lock);
-
-	ratelimit_reset(&dc->writeback_rate);
-
-	/* Punt to workqueue only so we don't recurse and blow the stack */
-	continue_at(cl, read_dirty, dirty_wq);
-}
-
-void bch_writeback_queue(struct cached_dev *dc)
-{
-	if (closure_trylock(&dc->writeback.cl, &dc->disk.cl)) {
-		if (!atomic_read(&dc->disk.detaching))
-			closure_delay(&dc->writeback, dc->writeback_delay * HZ);
-
-		continue_at(&dc->writeback.cl, refill_dirty, dirty_wq);
-	}
-}
-
-void bch_writeback_add(struct cached_dev *dc)
-{
-	if (!atomic_read(&dc->has_dirty) &&
-	    !atomic_xchg(&dc->has_dirty, 1)) {
-		atomic_inc(&dc->count);
-
-		if (BDEV_STATE(&dc->sb) != BDEV_STATE_DIRTY) {
-			SET_BDEV_STATE(&dc->sb, BDEV_STATE_DIRTY);
-			/* XXX: should do this synchronously */
-			bch_write_bdev_super(dc, NULL);
-		}
-
-		bch_writeback_queue(dc);
-
-		if (dc->writeback_percent)
-			schedule_delayed_work(&dc->writeback_rate_update,
-				      dc->writeback_rate_update_seconds * HZ);
-	}
-}
-
-void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
-				  uint64_t offset, int nr_sectors)
-{
-	struct bcache_device *d = c->devices[inode];
-	unsigned stripe_size, stripe_offset;
-	uint64_t stripe;
-
-	if (!d)
-		return;
-
-	stripe_size = 1 << d->stripe_size_bits;
-	stripe = offset >> d->stripe_size_bits;
-	stripe_offset = offset & (stripe_size - 1);
-
-	while (nr_sectors) {
-		int s = min_t(unsigned, abs(nr_sectors),
-			      stripe_size - stripe_offset);
-
-		if (nr_sectors < 0)
-			s = -s;
-
-		atomic_add(s, d->stripe_sectors_dirty + stripe);
-		nr_sectors -= s;
-		stripe_offset = 0;
-		stripe++;
-	}
-}
-
-/* Background writeback - IO loop */
 
 static void dirty_io_destructor(struct closure *cl)
 {
@@ -293,34 +137,31 @@ static void write_dirty_finish(struct closure *cl)
 
 	/* This is kind of a dumb way of signalling errors. */
 	if (KEY_DIRTY(&w->key)) {
+		int ret;
 		unsigned i;
-		struct btree_op op;
-		bch_btree_op_init_stack(&op);
+		struct keylist keys;
 
-		op.type = BTREE_REPLACE;
-		bkey_copy(&op.replace, &w->key);
+		bch_keylist_init(&keys);
 
-		SET_KEY_DIRTY(&w->key, false);
-		bch_keylist_add(&op.keys, &w->key);
+		bkey_copy(keys.top, &w->key);
+		SET_KEY_DIRTY(keys.top, false);
+		bch_keylist_push(&keys);
 
 		for (i = 0; i < KEY_PTRS(&w->key); i++)
 			atomic_inc(&PTR_BUCKET(dc->disk.c, &w->key, i)->pin);
 
-		bch_btree_insert(&op, dc->disk.c);
-		closure_sync(&op.cl);
+		ret = bch_btree_insert(dc->disk.c, &keys, NULL, &w->key);
 
-		if (op.insert_collision)
+		if (ret)
 			trace_bcache_writeback_collision(&w->key);
 
-		atomic_long_inc(op.insert_collision
+		atomic_long_inc(ret
 				? &dc->disk.c->writeback_keys_failed
 				: &dc->disk.c->writeback_keys_done);
 	}
 
 	bch_keybuf_del(&dc->writeback_keys, w);
-	atomic_dec_bug(&dc->in_flight);
-
-	closure_wake_up(&dc->writeback_wait);
+	up(&dc->in_flight);
 
 	closure_return_with_destructor(cl, dirty_io_destructor);
 }
@@ -349,7 +190,7 @@ static void write_dirty(struct closure *cl)
 
 	closure_bio_submit(&io->bio, cl, &io->dc->disk);
 
-	continue_at(cl, write_dirty_finish, dirty_wq);
+	continue_at(cl, write_dirty_finish, system_wq);
 }
 
 static void read_dirty_endio(struct bio *bio, int error)
@@ -369,37 +210,36 @@ static void read_dirty_submit(struct closure *cl)
 
 	closure_bio_submit(&io->bio, cl, &io->dc->disk);
 
-	continue_at(cl, write_dirty, dirty_wq);
+	continue_at(cl, write_dirty, system_wq);
 }
 
-static void read_dirty(struct closure *cl)
+static void read_dirty(struct cached_dev *dc)
 {
-	struct cached_dev *dc = container_of(cl, struct cached_dev,
-					     writeback.cl);
-	unsigned delay = writeback_delay(dc, 0);
+	unsigned delay = 0;
 	struct keybuf_key *w;
 	struct dirty_io *io;
+	struct closure cl;
+
+	closure_init_stack(&cl);
 
 	/*
 	 * XXX: if we error, background writeback just spins. Should use some
 	 * mempools.
 	 */
 
-	while (1) {
+	while (!kthread_should_stop()) {
+		try_to_freeze();
+
 		w = bch_keybuf_next(&dc->writeback_keys);
 		if (!w)
 			break;
 
 		BUG_ON(ptr_stale(dc->disk.c, &w->key, 0));
 
-		if (delay > 0 &&
-		    (KEY_START(&w->key) != dc->last_read ||
-		     jiffies_to_msecs(delay) > 50)) {
-			w->private = NULL;
-
-			closure_delay(&dc->writeback, delay);
-			continue_at(cl, read_dirty, dirty_wq);
-		}
+		if (KEY_START(&w->key) != dc->last_read ||
+		    jiffies_to_msecs(delay) > 50)
+			while (!kthread_should_stop() && delay)
+				delay = schedule_timeout_uninterruptible(delay);
 
 		dc->last_read	= KEY_OFFSET(&w->key);
 
@@ -424,15 +264,10 @@ static void read_dirty(struct closure *cl)
 
 		trace_bcache_writeback(&w->key);
 
-		closure_call(&io->cl, read_dirty_submit, NULL, &dc->disk.cl);
+		down(&dc->in_flight);
+		closure_call(&io->cl, read_dirty_submit, NULL, &cl);
 
 		delay = writeback_delay(dc, KEY_SIZE(&w->key));
-
-		atomic_inc(&dc->in_flight);
-
-		if (!closure_wait_event(&dc->writeback_wait, cl,
-					atomic_read(&dc->in_flight) < 64))
-			continue_at(cl, read_dirty, dirty_wq);
 	}
 
 	if (0) {
@@ -442,51 +277,211 @@ err:
 		bch_keybuf_del(&dc->writeback_keys, w);
 	}
 
-	refill_dirty(cl);
+	/*
+	 * Wait for outstanding writeback IOs to finish (and keybuf slots to be
+	 * freed) before refilling again
+	 */
+	closure_sync(&cl);
 }
 
-/* Init */
+/* Scan for dirty data */
 
-static int bch_btree_sectors_dirty_init(struct btree *b, struct btree_op *op,
-					struct cached_dev *dc)
+void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
+				  uint64_t offset, int nr_sectors)
 {
-	struct bkey *k;
-	struct btree_iter iter;
+	struct bcache_device *d = c->devices[inode];
+	unsigned stripe_offset, stripe, sectors_dirty;
 
-	bch_btree_iter_init(b, &iter, &KEY(dc->disk.id, 0, 0));
-	while ((k = bch_btree_iter_next_filter(&iter, b, bch_ptr_bad)))
-		if (!b->level) {
-			if (KEY_INODE(k) > dc->disk.id)
-				break;
+	if (!d)
+		return;
 
-			if (KEY_DIRTY(k))
-				bcache_dev_sectors_dirty_add(b->c, dc->disk.id,
-							     KEY_START(k),
-							     KEY_SIZE(k));
-		} else {
-			btree(sectors_dirty_init, k, b, op, dc);
-			if (KEY_INODE(k) > dc->disk.id)
-				break;
+	stripe = offset_to_stripe(d, offset);
+	stripe_offset = offset & (d->stripe_size - 1);
 
-			cond_resched();
+	while (nr_sectors) {
+		int s = min_t(unsigned, abs(nr_sectors),
+			      d->stripe_size - stripe_offset);
+
+		if (nr_sectors < 0)
+			s = -s;
+
+		if (stripe >= d->nr_stripes)
+			return;
+
+		sectors_dirty = atomic_add_return(s,
+					d->stripe_sectors_dirty + stripe);
+		if (sectors_dirty == d->stripe_size)
+			set_bit(stripe, d->full_dirty_stripes);
+		else
+			clear_bit(stripe, d->full_dirty_stripes);
+
+		nr_sectors -= s;
+		stripe_offset = 0;
+		stripe++;
+	}
+}
+
+static bool dirty_pred(struct keybuf *buf, struct bkey *k)
+{
+	return KEY_DIRTY(k);
+}
+
+static void refill_full_stripes(struct cached_dev *dc)
+{
+	struct keybuf *buf = &dc->writeback_keys;
+	unsigned start_stripe, stripe, next_stripe;
+	bool wrapped = false;
+
+	stripe = offset_to_stripe(&dc->disk, KEY_OFFSET(&buf->last_scanned));
+
+	if (stripe >= dc->disk.nr_stripes)
+		stripe = 0;
+
+	start_stripe = stripe;
+
+	while (1) {
+		stripe = find_next_bit(dc->disk.full_dirty_stripes,
+				       dc->disk.nr_stripes, stripe);
+
+		if (stripe == dc->disk.nr_stripes)
+			goto next;
+
+		next_stripe = find_next_zero_bit(dc->disk.full_dirty_stripes,
+						 dc->disk.nr_stripes, stripe);
+
+		buf->last_scanned = KEY(dc->disk.id,
+					stripe * dc->disk.stripe_size, 0);
+
+		bch_refill_keybuf(dc->disk.c, buf,
+				  &KEY(dc->disk.id,
+				       next_stripe * dc->disk.stripe_size, 0),
+				  dirty_pred);
+
+		if (array_freelist_empty(&buf->freelist))
+			return;
+
+		stripe = next_stripe;
+next:
+		if (wrapped && stripe > start_stripe)
+			return;
+
+		if (stripe == dc->disk.nr_stripes) {
+			stripe = 0;
+			wrapped = true;
 		}
+	}
+}
+
+static bool refill_dirty(struct cached_dev *dc)
+{
+	struct keybuf *buf = &dc->writeback_keys;
+	struct bkey end = KEY(dc->disk.id, MAX_KEY_OFFSET, 0);
+	bool searched_from_start = false;
+
+	if (dc->partial_stripes_expensive) {
+		refill_full_stripes(dc);
+		if (array_freelist_empty(&buf->freelist))
+			return false;
+	}
+
+	if (bkey_cmp(&buf->last_scanned, &end) >= 0) {
+		buf->last_scanned = KEY(dc->disk.id, 0, 0);
+		searched_from_start = true;
+	}
+
+	bch_refill_keybuf(dc->disk.c, buf, &end, dirty_pred);
+
+	return bkey_cmp(&buf->last_scanned, &end) >= 0 && searched_from_start;
+}
+
+static int bch_writeback_thread(void *arg)
+{
+	struct cached_dev *dc = arg;
+	bool searched_full_index;
+
+	while (!kthread_should_stop()) {
+		down_write(&dc->writeback_lock);
+		if (!atomic_read(&dc->has_dirty) ||
+		    (!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) &&
+		     !dc->writeback_running)) {
+			up_write(&dc->writeback_lock);
+			set_current_state(TASK_INTERRUPTIBLE);
+
+			if (kthread_should_stop())
+				return 0;
+
+			try_to_freeze();
+			schedule();
+			continue;
+		}
+
+		searched_full_index = refill_dirty(dc);
+
+		if (searched_full_index &&
+		    RB_EMPTY_ROOT(&dc->writeback_keys.keys)) {
+			atomic_set(&dc->has_dirty, 0);
+			cached_dev_put(dc);
+			SET_BDEV_STATE(&dc->sb, BDEV_STATE_CLEAN);
+			bch_write_bdev_super(dc, NULL);
+		}
+
+		up_write(&dc->writeback_lock);
+
+		bch_ratelimit_reset(&dc->writeback_rate);
+		read_dirty(dc);
+
+		if (searched_full_index) {
+			unsigned delay = dc->writeback_delay * HZ;
+
+			while (delay &&
+			       !kthread_should_stop() &&
+			       !test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
+				delay = schedule_timeout_uninterruptible(delay);
+		}
+	}
 
 	return 0;
 }
 
-void bch_sectors_dirty_init(struct cached_dev *dc)
-{
-	struct btree_op op;
+/* Init */
 
-	bch_btree_op_init_stack(&op);
-	btree_root(sectors_dirty_init, dc->disk.c, &op, dc);
+struct sectors_dirty_init {
+	struct btree_op	op;
+	unsigned	inode;
+};
+
+static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
+				 struct bkey *k)
+{
+	struct sectors_dirty_init *op = container_of(_op,
+						struct sectors_dirty_init, op);
+	if (KEY_INODE(k) > op->inode)
+		return MAP_DONE;
+
+	if (KEY_DIRTY(k))
+		bcache_dev_sectors_dirty_add(b->c, KEY_INODE(k),
+					     KEY_START(k), KEY_SIZE(k));
+
+	return MAP_CONTINUE;
 }
 
-void bch_cached_dev_writeback_init(struct cached_dev *dc)
+void bch_sectors_dirty_init(struct cached_dev *dc)
 {
-	closure_init_unlocked(&dc->writeback);
-	init_rwsem(&dc->writeback_lock);
+	struct sectors_dirty_init op;
 
+	bch_btree_op_init(&op.op, -1);
+	op.inode = dc->disk.id;
+
+	bch_btree_map_keys(&op.op, dc->disk.c, &KEY(op.inode, 0, 0),
+			   sectors_dirty_init_fn, 0);
+
+	dc->disk.sectors_dirty_last = bcache_dev_sectors_dirty(&dc->disk);
+}
+
+int bch_cached_dev_writeback_init(struct cached_dev *dc)
+{
+	sema_init(&dc->in_flight, 64);
+	init_rwsem(&dc->writeback_lock);
 	bch_keybuf_init(&dc->writeback_keys);
 
 	dc->writeback_metadata		= true;
@@ -495,27 +490,18 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 	dc->writeback_delay		= 30;
 	dc->writeback_rate.rate		= 1024;
 
-	dc->writeback_rate_update_seconds = 30;
-	dc->writeback_rate_d_term	= 16;
-	dc->writeback_rate_p_term_inverse = 64;
-	dc->writeback_rate_d_smooth	= 8;
+	dc->writeback_rate_update_seconds = 5;
+	dc->writeback_rate_d_term	= 30;
+	dc->writeback_rate_p_term_inverse = 6000;
+
+	dc->writeback_thread = kthread_create(bch_writeback_thread, dc,
+					      "bcache_writeback");
+	if (IS_ERR(dc->writeback_thread))
+		return PTR_ERR(dc->writeback_thread);
 
 	INIT_DELAYED_WORK(&dc->writeback_rate_update, update_writeback_rate);
 	schedule_delayed_work(&dc->writeback_rate_update,
 			      dc->writeback_rate_update_seconds * HZ);
-}
-
-void bch_writeback_exit(void)
-{
-	if (dirty_wq)
-		destroy_workqueue(dirty_wq);
-}
-
-int __init bch_writeback_init(void)
-{
-	dirty_wq = create_singlethread_workqueue("bcache_writeback");
-	if (!dirty_wq)
-		return -ENOMEM;
 
 	return 0;
 }

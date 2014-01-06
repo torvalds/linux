@@ -15,16 +15,10 @@
 
 #include <media/videobuf2-core.h>
 
-struct vb2_dma_sg_desc {
-	unsigned long		size;
-	unsigned int		num_pages;
-	struct scatterlist	*sglist;
-};
-
-static inline struct vb2_dma_sg_desc *vb2_dma_sg_plane_desc(
+static inline struct sg_table *vb2_dma_sg_plane_desc(
 		struct vb2_buffer *vb, unsigned int plane_no)
 {
-	return (struct vb2_dma_sg_desc *)vb2_plane_cookie(vb, plane_no);
+	return (struct sg_table *)vb2_plane_cookie(vb, plane_no);
 }
 
 extern const struct vb2_mem_ops vb2_dma_sg_memops;

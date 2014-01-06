@@ -190,16 +190,10 @@ struct eeepc_laptop {
  */
 static int write_acpi_int(acpi_handle handle, const char *method, int val)
 {
-	struct acpi_object_list params;
-	union acpi_object in_obj;
 	acpi_status status;
 
-	params.count = 1;
-	params.pointer = &in_obj;
-	in_obj.type = ACPI_TYPE_INTEGER;
-	in_obj.integer.value = val;
+	status = acpi_execute_simple_method(handle, (char *)method, val);
 
-	status = acpi_evaluate_object(handle, (char *)method, &params, NULL);
 	return (status == AE_OK ? 0 : -1);
 }
 
@@ -1209,10 +1203,8 @@ static int eeepc_input_init(struct eeepc_laptop *eeepc)
 	int error;
 
 	input = input_allocate_device();
-	if (!input) {
-		pr_info("Unable to allocate input device\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
 	input->name = "Asus EeePC extra buttons";
 	input->phys = EEEPC_LAPTOP_FILE "/input0";

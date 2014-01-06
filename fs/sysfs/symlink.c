@@ -33,13 +33,15 @@ static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
 
 	BUG_ON(!name || !parent_sd);
 
-	/* target->sd can go away beneath us but is protected with
-	 * sysfs_assoc_lock.  Fetch target_sd from it.
+	/*
+	 * We don't own @target and it may be removed at any time.
+	 * Synchronize using sysfs_symlink_target_lock.  See
+	 * sysfs_remove_dir() for details.
 	 */
-	spin_lock(&sysfs_assoc_lock);
+	spin_lock(&sysfs_symlink_target_lock);
 	if (target->sd)
 		target_sd = sysfs_get(target->sd);
-	spin_unlock(&sysfs_assoc_lock);
+	spin_unlock(&sysfs_symlink_target_lock);
 
 	error = -ENOENT;
 	if (!target_sd)
@@ -52,18 +54,18 @@ static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
 
 	ns_type = sysfs_ns_type(parent_sd);
 	if (ns_type)
-		sd->s_ns = target->ktype->namespace(target);
+		sd->s_ns = target_sd->s_ns;
 	sd->s_symlink.target_sd = target_sd;
 	target_sd = NULL;	/* reference is now owned by the symlink */
 
-	sysfs_addrm_start(&acxt, parent_sd);
+	sysfs_addrm_start(&acxt);
 	/* Symlinks must be between directories with the same ns_type */
 	if (!ns_type ||
 	    (ns_type == sysfs_ns_type(sd->s_symlink.target_sd->s_parent))) {
 		if (warn)
-			error = sysfs_add_one(&acxt, sd);
+			error = sysfs_add_one(&acxt, sd, parent_sd);
 		else
-			error = __sysfs_add_one(&acxt, sd);
+			error = __sysfs_add_one(&acxt, sd, parent_sd);
 	} else {
 		error = -EINVAL;
 		WARN(1, KERN_WARNING
@@ -155,11 +157,17 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
 			const char *name)
 {
 	const void *ns = NULL;
-	spin_lock(&sysfs_assoc_lock);
+
+	/*
+	 * We don't own @target and it may be removed at any time.
+	 * Synchronize using sysfs_symlink_target_lock.  See
+	 * sysfs_remove_dir() for details.
+	 */
+	spin_lock(&sysfs_symlink_target_lock);
 	if (targ->sd && sysfs_ns_type(kobj->sd))
 		ns = targ->sd->s_ns;
-	spin_unlock(&sysfs_assoc_lock);
-	sysfs_hash_and_remove(kobj->sd, ns, name);
+	spin_unlock(&sysfs_symlink_target_lock);
+	sysfs_hash_and_remove(kobj->sd, name, ns);
 }
 
 /**
@@ -176,24 +184,25 @@ void sysfs_remove_link(struct kobject *kobj, const char *name)
 	else
 		parent_sd = kobj->sd;
 
-	sysfs_hash_and_remove(parent_sd, NULL, name);
+	sysfs_hash_and_remove(parent_sd, name, NULL);
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_link);
 
 /**
- *	sysfs_rename_link - rename symlink in object's directory.
+ *	sysfs_rename_link_ns - rename symlink in object's directory.
  *	@kobj:	object we're acting for.
  *	@targ:	object we're pointing to.
  *	@old:	previous name of the symlink.
  *	@new:	new name of the symlink.
+ *	@new_ns: new namespace of the symlink.
  *
  *	A helper function for the common rename symlink idiom.
  */
-int sysfs_rename_link(struct kobject *kobj, struct kobject *targ,
-			const char *old, const char *new)
+int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
+			 const char *old, const char *new, const void *new_ns)
 {
 	struct sysfs_dirent *parent_sd, *sd = NULL;
-	const void *old_ns = NULL, *new_ns = NULL;
+	const void *old_ns = NULL;
 	int result;
 
 	if (!kobj)
@@ -205,7 +214,7 @@ int sysfs_rename_link(struct kobject *kobj, struct kobject *targ,
 		old_ns = targ->sd->s_ns;
 
 	result = -ENOENT;
-	sd = sysfs_get_dirent(parent_sd, old_ns, old);
+	sd = sysfs_get_dirent_ns(parent_sd, old, old_ns);
 	if (!sd)
 		goto out;
 
@@ -215,16 +224,13 @@ int sysfs_rename_link(struct kobject *kobj, struct kobject *targ,
 	if (sd->s_symlink.target_sd->s_dir.kobj != targ)
 		goto out;
 
-	if (sysfs_ns_type(parent_sd))
-		new_ns = targ->ktype->namespace(targ);
-
-	result = sysfs_rename(sd, parent_sd, new_ns, new);
+	result = sysfs_rename(sd, parent_sd, new, new_ns);
 
 out:
 	sysfs_put(sd);
 	return result;
 }
-EXPORT_SYMBOL_GPL(sysfs_rename_link);
+EXPORT_SYMBOL_GPL(sysfs_rename_link_ns);
 
 static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 				 struct sysfs_dirent *target_sd, char *path)

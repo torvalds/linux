@@ -1439,7 +1439,7 @@ fail:
  *  LCDC
  * -------------------------------------------------------------------- */
 #if defined(CONFIG_CPU_AT32AP7000) || defined(CONFIG_CPU_AT32AP7002)
-static struct atmel_lcdfb_info atmel_lcdfb0_data;
+static struct atmel_lcdfb_pdata atmel_lcdfb0_data;
 static struct resource atmel_lcdfb0_resource[] = {
 	{
 		.start		= 0xff000000,
@@ -1467,12 +1467,12 @@ static struct clk atmel_lcdfb0_pixclk = {
 };
 
 struct platform_device *__init
-at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
+at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_pdata *data,
 		     unsigned long fbmem_start, unsigned long fbmem_len,
 		     u64 pin_mask)
 {
 	struct platform_device *pdev;
-	struct atmel_lcdfb_info *info;
+	struct atmel_lcdfb_pdata *info;
 	struct fb_monspecs *monspecs;
 	struct fb_videomode *modedb;
 	unsigned int modedb_size;
@@ -1529,7 +1529,7 @@ at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 	}
 
 	info = pdev->dev.platform_data;
-	memcpy(info, data, sizeof(struct atmel_lcdfb_info));
+	memcpy(info, data, sizeof(struct atmel_lcdfb_pdata));
 	info->default_monspecs = monspecs;
 
 	pdev->name = "at32ap-lcdfb";

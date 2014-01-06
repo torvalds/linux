@@ -451,19 +451,26 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
 	struct dm_stat_percpu *p;
 
 	/*
-	 * For strict correctness we should use local_irq_disable/enable
+	 * For strict correctness we should use local_irq_save/restore
 	 * instead of preempt_disable/enable.
 	 *
-	 * This is racy if the driver finishes bios from non-interrupt
-	 * context as well as from interrupt context or from more different
-	 * interrupts.
+	 * preempt_disable/enable is racy if the driver finishes bios
+	 * from non-interrupt context as well as from interrupt context
+	 * or from more different interrupts.
 	 *
-	 * However, the race only results in not counting some events,
-	 * so it is acceptable.
+	 * On 64-bit architectures the race only results in not counting some
+	 * events, so it is acceptable.  On 32-bit architectures the race could
+	 * cause the counter going off by 2^32, so we need to do proper locking
+	 * there.
 	 *
 	 * part_stat_lock()/part_stat_unlock() have this race too.
 	 */
+#if BITS_PER_LONG == 32
+	unsigned long flags;
+	local_irq_save(flags);
+#else
 	preempt_disable();
+#endif
 	p = &s->stat_percpu[smp_processor_id()][entry];
 
 	if (!end) {
@@ -478,7 +485,11 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
 		p->ticks[idx] += duration;
 	}
 
+#if BITS_PER_LONG == 32
+	local_irq_restore(flags);
+#else
 	preempt_enable();
+#endif
 }
 
 static void __dm_stat_bio(struct dm_stat *s, unsigned long bi_rw,
@@ -953,6 +964,7 @@ int dm_stats_message(struct mapped_device *md, unsigned argc, char **argv,
 
 int __init dm_statistics_init(void)
 {
+	shared_memory_amount = 0;
 	dm_stat_need_rcu_barrier = 0;
 	return 0;
 }

@@ -255,14 +255,14 @@ static int __init usbip_host_init(void)
 	}
 
 	ret = usb_register(&stub_driver);
-	if (ret < 0) {
+	if (ret) {
 		pr_err("usb_register failed %d\n", ret);
 		goto err_usb_register;
 	}
 
 	ret = driver_create_file(&stub_driver.drvwrap.driver,
 				 &driver_attr_match_busid);
-	if (ret < 0) {
+	if (ret) {
 		pr_err("driver_create_file failed\n");
 		goto err_create_file;
 	}

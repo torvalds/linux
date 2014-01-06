@@ -373,23 +373,7 @@ struct clk *s3c_cpufreq_clk_get(struct device *dev, const char *name)
 
 static int s3c_cpufreq_init(struct cpufreq_policy *policy)
 {
-	printk(KERN_INFO "%s: initialising policy %p\n", __func__, policy);
-
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	policy->cur = s3c_cpufreq_get(0);
-	policy->min = policy->cpuinfo.min_freq = 0;
-	policy->max = policy->cpuinfo.max_freq = cpu_cur.info->max.fclk / 1000;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-
-	/* feed the latency information from the cpu driver */
-	policy->cpuinfo.transition_latency = cpu_cur.info->latency;
-
-	if (ftab)
-		cpufreq_frequency_table_cpuinfo(policy, ftab);
-
-	return 0;
+	return cpufreq_generic_init(policy, ftab, cpu_cur.info->latency);
 }
 
 static int __init s3c_cpufreq_initclks(void)
@@ -412,14 +396,6 @@ static int __init s3c_cpufreq_initclks(void)
 	       clk_get_rate(clk_hclk) / 1000,
 	       clk_get_rate(clk_pclk) / 1000,
 	       clk_get_rate(clk_arm) / 1000);
-
-	return 0;
-}
-
-static int s3c_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	if (policy->cpu != 0)
-		return -EINVAL;
 
 	return 0;
 }
@@ -473,7 +449,6 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver s3c24xx_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= s3c_cpufreq_verify,
 	.target		= s3c_cpufreq_target,
 	.get		= s3c_cpufreq_get,
 	.init		= s3c_cpufreq_init,

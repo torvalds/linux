@@ -37,6 +37,9 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
 	if (vma->obj->pin_count)
 		return false;
 
+	if (WARN_ON(!list_empty(&vma->exec_list)))
+		return false;
+
 	list_add(&vma->exec_list, unwind);
 	return drm_mm_scan_add_block(&vma->node);
 }
@@ -85,6 +88,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	} else
 		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 
+search_again:
 	/* First see if there is a large enough contiguous idle region... */
 	list_for_each_entry(vma, &vm->inactive_list, mm_list) {
 		if (mark_free(vma, &unwind_list))
@@ -112,10 +116,17 @@ none:
 		list_del_init(&vma->exec_list);
 	}
 
-	/* We expect the caller to unpin, evict all and try again, or give up.
-	 * So calling i915_gem_evict_everything() is unnecessary.
+	/* Can we unpin some objects such as idle hw contents,
+	 * or pending flips?
 	 */
-	return -ENOSPC;
+	ret = nonblocking ? -ENOSPC : i915_gpu_idle(dev);
+	if (ret)
+		return ret;
+
+	/* Only idle the GPU and repeat the search once */
+	i915_gem_retire_requests(dev);
+	nonblocking = true;
+	goto search_again;
 
 found:
 	/* drm_mm doesn't allow any other other operations while
@@ -152,12 +163,48 @@ found:
 	return ret;
 }
 
+/**
+ * i915_gem_evict_vm - Try to free up VM space
+ *
+ * @vm: Address space to evict from
+ * @do_idle: Boolean directing whether to idle first.
+ *
+ * VM eviction is about freeing up virtual address space. If one wants fine
+ * grained eviction, they should see evict something for more details. In terms
+ * of freeing up actual system memory, this function may not accomplish the
+ * desired result. An object may be shared in multiple address space, and this
+ * function will not assert those objects be freed.
+ *
+ * Using do_idle will result in a more complete eviction because it retires, and
+ * inactivates current BOs.
+ */
+int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
+{
+	struct i915_vma *vma, *next;
+	int ret;
+
+	trace_i915_gem_evict_vm(vm);
+
+	if (do_idle) {
+		ret = i915_gpu_idle(vm->dev);
+		if (ret)
+			return ret;
+
+		i915_gem_retire_requests(vm->dev);
+	}
+
+	list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)
+		if (vma->obj->pin_count == 0)
+			WARN_ON(i915_vma_unbind(vma));
+
+	return 0;
+}
+
 int
 i915_gem_evict_everything(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct i915_address_space *vm;
-	struct i915_vma *vma, *next;
 	bool lists_empty = true;
 	int ret;
 
@@ -184,11 +231,8 @@ i915_gem_evict_everything(struct drm_device *dev)
 	i915_gem_retire_requests(dev);
 
 	/* Having flushed everything, unbind() should never raise an error */
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
-		list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)
-			if (vma->obj->pin_count == 0)
-				WARN_ON(i915_vma_unbind(vma));
-	}
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
+		WARN_ON(i915_gem_evict_vm(vm, false));
 
 	return 0;
 }

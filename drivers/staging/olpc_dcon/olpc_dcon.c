@@ -383,7 +383,7 @@ static void dcon_set_source(struct dcon_priv *dcon, int arg)
 
 	dcon->pending_src = arg;
 
-	if ((dcon->curr_src != arg) && !work_pending(&dcon->switch_source))
+	if (dcon->curr_src != arg)
 		schedule_work(&dcon->switch_source);
 }
 

@@ -1200,6 +1200,9 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 			   instruction_pointer(regs));
 		kdb_dumpregs(regs);
 		break;
+	case KDB_REASON_SYSTEM_NMI:
+		kdb_printf("due to System NonMaskable Interrupt\n");
+		break;
 	case KDB_REASON_NMI:
 		kdb_printf("due to NonMaskable Interrupt @ "
 			   kdb_machreg_fmt "\n",

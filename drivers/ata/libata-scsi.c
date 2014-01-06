@@ -3625,6 +3625,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		shost->max_lun = 1;
 		shost->max_channel = 1;
 		shost->max_cmd_len = 16;
+		shost->no_write_same = 1;
 
 		/* Schedule policy is determined by ->qc_defer()
 		 * callback and it needs to see every deferred qc.
@@ -3679,7 +3680,6 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
 				scsi_device_put(sdev);
-				ata_scsi_acpi_bind(dev);
 			} else {
 				dev->sdev = NULL;
 			}
@@ -3766,8 +3766,6 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	struct scsi_device *sdev;
 	unsigned long flags;
-
-	ata_scsi_acpi_unbind(dev);
 
 	/* Alas, we need to grab scan_mutex to ensure SCSI device
 	 * state doesn't change underneath us and thus
@@ -3873,6 +3871,27 @@ void ata_scsi_hotplug(struct work_struct *work)
 		DPRINTK("ENTER/EXIT - unloading\n");
 		return;
 	}
+
+	/*
+	 * XXX - UGLY HACK
+	 *
+	 * The block layer suspend/resume path is fundamentally broken due
+	 * to freezable kthreads and workqueue and may deadlock if a block
+	 * device gets removed while resume is in progress.  I don't know
+	 * what the solution is short of removing freezable kthreads and
+	 * workqueues altogether.
+	 *
+	 * The following is an ugly hack to avoid kicking off device
+	 * removal while freezer is active.  This is a joke but does avoid
+	 * this particular deadlock scenario.
+	 *
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=62801
+	 * http://marc.info/?l=linux-kernel&m=138695698516487
+	 */
+#ifdef CONFIG_FREEZER
+	while (pm_freezing)
+		msleep(10);
+#endif
 
 	DPRINTK("ENTER\n");
 	mutex_lock(&ap->scsi_scan_mutex);

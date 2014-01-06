@@ -400,7 +400,7 @@ static int snd_mfld_mc_probe(struct platform_device *pdev)
 	}
 	/* register the soc card */
 	snd_soc_card_mfld.dev = &pdev->dev;
-	ret_val = snd_soc_register_card(&snd_soc_card_mfld);
+	ret_val = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_mfld);
 	if (ret_val) {
 		pr_debug("snd_soc_register_card failed %d\n", ret_val);
 		return ret_val;
@@ -410,20 +410,12 @@ static int snd_mfld_mc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int snd_mfld_mc_remove(struct platform_device *pdev)
-{
-	pr_debug("snd_mfld_mc_remove called\n");
-	snd_soc_unregister_card(&snd_soc_card_mfld);
-	return 0;
-}
-
 static struct platform_driver snd_mfld_mc_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "msic_audio",
 	},
 	.probe = snd_mfld_mc_probe,
-	.remove = snd_mfld_mc_remove,
 };
 
 module_platform_driver(snd_mfld_mc_driver);

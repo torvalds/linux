@@ -264,10 +264,6 @@ hardware.
 	Locking: none.
 	Interrupts: caller dependent.
 
-  set_wake(port,state)
-	Enable/disable power management wakeup on serial activity.  Not
-	currently implemented.
-
   type(port)
 	Return a pointer to a string constant describing the specified
 	port, or return NULL, in which case the string 'unknown' is

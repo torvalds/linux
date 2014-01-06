@@ -27,6 +27,14 @@
  */
 
 #define SRC_CR			0x00U
+#define SRC_CR_T0_ENSEL		BIT(15)
+#define SRC_CR_T1_ENSEL		BIT(17)
+#define SRC_CR_T2_ENSEL		BIT(19)
+#define SRC_CR_T3_ENSEL		BIT(21)
+#define SRC_CR_T4_ENSEL		BIT(23)
+#define SRC_CR_T5_ENSEL		BIT(25)
+#define SRC_CR_T6_ENSEL		BIT(27)
+#define SRC_CR_T7_ENSEL		BIT(29)
 #define SRC_XTALCR		0x0CU
 #define SRC_XTALCR_XTALTIMEN	BIT(20)
 #define SRC_XTALCR_SXTALDIS	BIT(19)
@@ -53,6 +61,79 @@
 static DEFINE_SPINLOCK(src_lock);
 /* Base address of the SRC */
 static void __iomem *src_base;
+
+static int nomadik_clk_reboot_handler(struct notifier_block *this,
+				unsigned long code,
+				void *unused)
+{
+	u32 val;
+
+	/* The main chrystal need to be enabled for reboot to work */
+	val = readl(src_base + SRC_XTALCR);
+	val &= ~SRC_XTALCR_MXTALOVER;
+	val |= SRC_XTALCR_MXTALEN;
+	pr_crit("force-enabling MXTALO\n");
+	writel(val, src_base + SRC_XTALCR);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block nomadik_clk_reboot_notifier = {
+	.notifier_call = nomadik_clk_reboot_handler,
+};
+
+static const struct of_device_id nomadik_src_match[] __initconst = {
+	{ .compatible = "stericsson,nomadik-src" },
+	{ /* sentinel */ }
+};
+
+static void __init nomadik_src_init(void)
+{
+	struct device_node *np;
+	u32 val;
+
+	np = of_find_matching_node(NULL, nomadik_src_match);
+	if (!np) {
+		pr_crit("no matching node for SRC, aborting clock init\n");
+		return;
+	}
+	src_base = of_iomap(np, 0);
+	if (!src_base) {
+		pr_err("%s: must have src parent node with REGS (%s)\n",
+		       __func__, np->name);
+		return;
+	}
+
+	/* Set all timers to use the 2.4 MHz TIMCLK */
+	val = readl(src_base + SRC_CR);
+	val |= SRC_CR_T0_ENSEL;
+	val |= SRC_CR_T1_ENSEL;
+	val |= SRC_CR_T2_ENSEL;
+	val |= SRC_CR_T3_ENSEL;
+	val |= SRC_CR_T4_ENSEL;
+	val |= SRC_CR_T5_ENSEL;
+	val |= SRC_CR_T6_ENSEL;
+	val |= SRC_CR_T7_ENSEL;
+	writel(val, src_base + SRC_CR);
+
+	val = readl(src_base + SRC_XTALCR);
+	pr_info("SXTALO is %s\n",
+		(val & SRC_XTALCR_SXTALDIS) ? "disabled" : "enabled");
+	pr_info("MXTAL is %s\n",
+		(val & SRC_XTALCR_MXTALSTAT) ? "enabled" : "disabled");
+	if (of_property_read_bool(np, "disable-sxtalo")) {
+		/* The machine uses an external oscillator circuit */
+		val |= SRC_XTALCR_SXTALDIS;
+		pr_info("disabling SXTALO\n");
+	}
+	if (of_property_read_bool(np, "disable-mxtalo")) {
+		/* Disable this too: also run by external oscillator */
+		val |= SRC_XTALCR_MXTALOVER;
+		val &= ~SRC_XTALCR_MXTALEN;
+		pr_info("disabling MXTALO\n");
+	}
+	writel(val, src_base + SRC_XTALCR);
+	register_reboot_notifier(&nomadik_clk_reboot_notifier);
+}
 
 /**
  * struct clk_pll1 - Nomadik PLL1 clock
@@ -431,6 +512,9 @@ static void __init of_nomadik_pll_setup(struct device_node *np)
 	const char *parent_name;
 	u32 pll_id;
 
+	if (!src_base)
+		nomadik_src_init();
+
 	if (of_property_read_u32(np, "pll-id", &pll_id)) {
 		pr_err("%s: PLL \"%s\" missing pll-id property\n",
 			__func__, clk_name);
@@ -441,12 +525,17 @@ static void __init of_nomadik_pll_setup(struct device_node *np)
 	if (!IS_ERR(clk))
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
+CLK_OF_DECLARE(nomadik_pll_clk,
+	"st,nomadik-pll-clock", of_nomadik_pll_setup);
 
 static void __init of_nomadik_hclk_setup(struct device_node *np)
 {
 	struct clk *clk = ERR_PTR(-EINVAL);
 	const char *clk_name = np->name;
 	const char *parent_name;
+
+	if (!src_base)
+		nomadik_src_init();
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	/*
@@ -460,6 +549,8 @@ static void __init of_nomadik_hclk_setup(struct device_node *np)
 	if (!IS_ERR(clk))
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
+CLK_OF_DECLARE(nomadik_hclk_clk,
+	"st,nomadik-hclk-clock", of_nomadik_hclk_setup);
 
 static void __init of_nomadik_src_clk_setup(struct device_node *np)
 {
@@ -467,6 +558,9 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 	const char *clk_name = np->name;
 	const char *parent_name;
 	u32 clk_id;
+
+	if (!src_base)
+		nomadik_src_init();
 
 	if (of_property_read_u32(np, "clock-id", &clk_id)) {
 		pr_err("%s: SRC clock \"%s\" missing clock-id property\n",
@@ -478,89 +572,5 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 	if (!IS_ERR(clk))
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
-
-static const struct of_device_id nomadik_src_match[] __initconst = {
-	{ .compatible = "stericsson,nomadik-src" },
-	{ /* sentinel */ }
-};
-
-static const struct of_device_id nomadik_src_clk_match[] __initconst = {
-	{
-		.compatible = "fixed-clock",
-		.data = of_fixed_clk_setup,
-	},
-	{
-		.compatible = "fixed-factor-clock",
-		.data = of_fixed_factor_clk_setup,
-	},
-	{
-		.compatible = "st,nomadik-pll-clock",
-		.data = of_nomadik_pll_setup,
-	},
-	{
-		.compatible = "st,nomadik-hclk-clock",
-		.data = of_nomadik_hclk_setup,
-	},
-	{
-		.compatible = "st,nomadik-src-clock",
-		.data = of_nomadik_src_clk_setup,
-	},
-	{ /* sentinel */ }
-};
-
-static int nomadik_clk_reboot_handler(struct notifier_block *this,
-				unsigned long code,
-				void *unused)
-{
-	u32 val;
-
-	/* The main chrystal need to be enabled for reboot to work */
-	val = readl(src_base + SRC_XTALCR);
-	val &= ~SRC_XTALCR_MXTALOVER;
-	val |= SRC_XTALCR_MXTALEN;
-	pr_crit("force-enabling MXTALO\n");
-	writel(val, src_base + SRC_XTALCR);
-	return NOTIFY_OK;
-}
-
-static struct notifier_block nomadik_clk_reboot_notifier = {
-	.notifier_call = nomadik_clk_reboot_handler,
-};
-
-void __init nomadik_clk_init(void)
-{
-	struct device_node *np;
-	u32 val;
-
-	np = of_find_matching_node(NULL, nomadik_src_match);
-	if (!np) {
-		pr_crit("no matching node for SRC, aborting clock init\n");
-		return;
-	}
-	src_base = of_iomap(np, 0);
-	if (!src_base) {
-		pr_err("%s: must have src parent node with REGS (%s)\n",
-		       __func__, np->name);
-		return;
-	}
-	val = readl(src_base + SRC_XTALCR);
-	pr_info("SXTALO is %s\n",
-		(val & SRC_XTALCR_SXTALDIS) ? "disabled" : "enabled");
-	pr_info("MXTAL is %s\n",
-		(val & SRC_XTALCR_MXTALSTAT) ? "enabled" : "disabled");
-	if (of_property_read_bool(np, "disable-sxtalo")) {
-		/* The machine uses an external oscillator circuit */
-		val |= SRC_XTALCR_SXTALDIS;
-		pr_info("disabling SXTALO\n");
-	}
-	if (of_property_read_bool(np, "disable-mxtalo")) {
-		/* Disable this too: also run by external oscillator */
-		val |= SRC_XTALCR_MXTALOVER;
-		val &= ~SRC_XTALCR_MXTALEN;
-		pr_info("disabling MXTALO\n");
-	}
-	writel(val, src_base + SRC_XTALCR);
-	register_reboot_notifier(&nomadik_clk_reboot_notifier);
-
-	of_clk_init(nomadik_src_clk_match);
-}
+CLK_OF_DECLARE(nomadik_src_clk,
+	"st,nomadik-src-clock", of_nomadik_src_clk_setup);

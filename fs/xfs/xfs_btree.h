@@ -27,73 +27,6 @@ struct xfs_trans;
 extern kmem_zone_t	*xfs_btree_cur_zone;
 
 /*
- * This nonsense is to make -wlint happy.
- */
-#define	XFS_LOOKUP_EQ	((xfs_lookup_t)XFS_LOOKUP_EQi)
-#define	XFS_LOOKUP_LE	((xfs_lookup_t)XFS_LOOKUP_LEi)
-#define	XFS_LOOKUP_GE	((xfs_lookup_t)XFS_LOOKUP_GEi)
-
-#define	XFS_BTNUM_BNO	((xfs_btnum_t)XFS_BTNUM_BNOi)
-#define	XFS_BTNUM_CNT	((xfs_btnum_t)XFS_BTNUM_CNTi)
-#define	XFS_BTNUM_BMAP	((xfs_btnum_t)XFS_BTNUM_BMAPi)
-#define	XFS_BTNUM_INO	((xfs_btnum_t)XFS_BTNUM_INOi)
-
-/*
- * Generic btree header.
- *
- * This is a combination of the actual format used on disk for short and long
- * format btrees.  The first three fields are shared by both format, but the
- * pointers are different and should be used with care.
- *
- * To get the size of the actual short or long form headers please use the size
- * macros below.  Never use sizeof(xfs_btree_block).
- *
- * The blkno, crc, lsn, owner and uuid fields are only available in filesystems
- * with the crc feature bit, and all accesses to them must be conditional on
- * that flag.
- */
-struct xfs_btree_block {
-	__be32		bb_magic;	/* magic number for block type */
-	__be16		bb_level;	/* 0 is a leaf */
-	__be16		bb_numrecs;	/* current # of data records */
-	union {
-		struct {
-			__be32		bb_leftsib;
-			__be32		bb_rightsib;
-
-			__be64		bb_blkno;
-			__be64		bb_lsn;
-			uuid_t		bb_uuid;
-			__be32		bb_owner;
-			__le32		bb_crc;
-		} s;			/* short form pointers */
-		struct	{
-			__be64		bb_leftsib;
-			__be64		bb_rightsib;
-
-			__be64		bb_blkno;
-			__be64		bb_lsn;
-			uuid_t		bb_uuid;
-			__be64		bb_owner;
-			__le32		bb_crc;
-			__be32		bb_pad; /* padding for alignment */
-		} l;			/* long form pointers */
-	} bb_u;				/* rest */
-};
-
-#define XFS_BTREE_SBLOCK_LEN	16	/* size of a short form block */
-#define XFS_BTREE_LBLOCK_LEN	24	/* size of a long form block */
-
-/* sizes of CRC enabled btree blocks */
-#define XFS_BTREE_SBLOCK_CRC_LEN	(XFS_BTREE_SBLOCK_LEN + 40)
-#define XFS_BTREE_LBLOCK_CRC_LEN	(XFS_BTREE_LBLOCK_LEN + 48)
-
-#define XFS_BTREE_SBLOCK_CRC_OFF \
-	offsetof(struct xfs_btree_block, bb_u.s.bb_crc)
-#define XFS_BTREE_LBLOCK_CRC_OFF \
-	offsetof(struct xfs_btree_block, bb_u.l.bb_crc)
-
-/*
  * Generic key, ptr and record wrapper structures.
  *
  * These are disk format structures, and are converted where necessary
@@ -117,6 +50,18 @@ union xfs_btree_rec {
 	xfs_alloc_rec_t		alloc;
 	xfs_inobt_rec_t		inobt;
 };
+
+/*
+ * This nonsense is to make -wlint happy.
+ */
+#define	XFS_LOOKUP_EQ	((xfs_lookup_t)XFS_LOOKUP_EQi)
+#define	XFS_LOOKUP_LE	((xfs_lookup_t)XFS_LOOKUP_LEi)
+#define	XFS_LOOKUP_GE	((xfs_lookup_t)XFS_LOOKUP_GEi)
+
+#define	XFS_BTNUM_BNO	((xfs_btnum_t)XFS_BTNUM_BNOi)
+#define	XFS_BTNUM_CNT	((xfs_btnum_t)XFS_BTNUM_CNTi)
+#define	XFS_BTNUM_BMAP	((xfs_btnum_t)XFS_BTNUM_BMAPi)
+#define	XFS_BTNUM_INO	((xfs_btnum_t)XFS_BTNUM_INOi)
 
 /*
  * For logging record fields.

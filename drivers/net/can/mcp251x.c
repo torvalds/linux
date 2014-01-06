@@ -999,7 +999,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 {
 	struct net_device *net;
 	struct mcp251x_priv *priv;
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
+	struct mcp251x_platform_data *pdata = dev_get_platdata(&spi->dev);
 	int ret = -ENODEV;
 
 	if (!pdata)

@@ -46,10 +46,10 @@
 	.type		copy_user_page,#function
 copy_user_page:		/* %o0=dest, %o1=src, %o2=vaddr */
 	lduw		[%g6 + TI_PRE_COUNT], %o4
-	sethi		%uhi(PAGE_OFFSET), %g2
+	sethi		%hi(PAGE_OFFSET), %g2
 	sethi		%hi(PAGE_SIZE), %o3
 
-	sllx		%g2, 32, %g2
+	ldx		[%g2 + %lo(PAGE_OFFSET)], %g2
 	sethi		%hi(PAGE_KERNEL_LOCKED), %g3
 
 	ldx		[%g3 + %lo(PAGE_KERNEL_LOCKED)], %g3

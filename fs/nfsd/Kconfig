@@ -95,7 +95,7 @@ config NFSD_V4_SECURITY_LABEL
 	Smack policies on NFSv4 files, say N.
 
 	WARNING: there is still a chance of backwards-incompatible protocol changes.
-	For now we recommend "Y" only for developers and testers."
+	For now we recommend "Y" only for developers and testers.
 
 config NFSD_FAULT_INJECTION
 	bool "NFS server manual fault injection"

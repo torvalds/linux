@@ -15,7 +15,7 @@
  */
 static inline void pagefault_disable(void)
 {
-	inc_preempt_count();
+	preempt_count_inc();
 	/*
 	 * make sure to have issued the store before a pagefault
 	 * can hit.
@@ -30,11 +30,7 @@ static inline void pagefault_enable(void)
 	 * the pagefault handler again.
 	 */
 	barrier();
-	dec_preempt_count();
-	/*
-	 * make sure we do..
-	 */
-	barrier();
+	preempt_count_dec();
 	preempt_check_resched();
 }
 

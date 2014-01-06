@@ -276,7 +276,7 @@ static void omap2_mcspi_set_fifo(const struct spi_device *spi,
 	struct omap2_mcspi_cs *cs = spi->controller_state;
 	struct omap2_mcspi *mcspi;
 	unsigned int wcnt;
-	int fifo_depth, bytes_per_word;
+	int max_fifo_depth, fifo_depth, bytes_per_word;
 	u32 chconf, xferlevel;
 
 	mcspi = spi_master_get_devdata(master);
@@ -287,7 +287,12 @@ static void omap2_mcspi_set_fifo(const struct spi_device *spi,
 		if (t->len % bytes_per_word != 0)
 			goto disable_fifo;
 
-		fifo_depth = gcd(t->len, OMAP2_MCSPI_MAX_FIFODEPTH);
+		if (t->rx_buf != NULL && t->tx_buf != NULL)
+			max_fifo_depth = OMAP2_MCSPI_MAX_FIFODEPTH / 2;
+		else
+			max_fifo_depth = OMAP2_MCSPI_MAX_FIFODEPTH;
+
+		fifo_depth = gcd(t->len, max_fifo_depth);
 		if (fifo_depth < 2 || fifo_depth % bytes_per_word != 0)
 			goto disable_fifo;
 
@@ -299,7 +304,8 @@ static void omap2_mcspi_set_fifo(const struct spi_device *spi,
 		if (t->rx_buf != NULL) {
 			chconf |= OMAP2_MCSPI_CHCONF_FFER;
 			xferlevel |= (fifo_depth - 1) << 8;
-		} else {
+		}
+		if (t->tx_buf != NULL) {
 			chconf |= OMAP2_MCSPI_CHCONF_FFET;
 			xferlevel |= fifo_depth - 1;
 		}
@@ -498,7 +504,7 @@ omap2_mcspi_rx_dma(struct spi_device *spi, struct spi_transfer *xfer,
 				((u32 *)xfer->rx_buf)[elements++] = w;
 		} else {
 			int bytes_per_word = mcspi_bytes_per_word(word_len);
-			dev_err(&spi->dev, "DMA RX penultimate word empty");
+			dev_err(&spi->dev, "DMA RX penultimate word empty\n");
 			count -= (bytes_per_word << 1);
 			omap2_mcspi_set_enable(spi, 1);
 			return count;
@@ -516,7 +522,7 @@ omap2_mcspi_rx_dma(struct spi_device *spi, struct spi_transfer *xfer,
 		else /* word_len <= 32 */
 			((u32 *)xfer->rx_buf)[elements] = w;
 	} else {
-		dev_err(&spi->dev, "DMA RX last word empty");
+		dev_err(&spi->dev, "DMA RX last word empty\n");
 		count -= mcspi_bytes_per_word(word_len);
 	}
 	omap2_mcspi_set_enable(spi, 1);
@@ -1407,7 +1413,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto disable_pm;
 
-	status = spi_register_master(master);
+	status = devm_spi_register_master(&pdev->dev, master);
 	if (status < 0)
 		goto disable_pm;
 
@@ -1435,7 +1441,6 @@ static int omap2_mcspi_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(mcspi->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	spi_unregister_master(master);
 	kfree(dma_channels);
 
 	return 0;

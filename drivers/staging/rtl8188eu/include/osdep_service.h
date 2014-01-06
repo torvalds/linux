@@ -430,11 +430,6 @@ int ATOMIC_SUB_RETURN(ATOMIC_T *v, int i);
 int ATOMIC_INC_RETURN(ATOMIC_T *v);
 int ATOMIC_DEC_RETURN(ATOMIC_T *v);
 
-/* File operation APIs, just for linux now */
-int rtw_is_file_readable(char *path);
-int rtw_retrive_from_file(char *path, u8 __user *buf, u32 sz);
-int rtw_store_to_file(char *path, u8 __user *buf, u32 sz);
-
 struct rtw_netdev_priv_indicator {
 	void *priv;
 	u32 sizeof_priv;

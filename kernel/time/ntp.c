@@ -475,6 +475,7 @@ static void sync_cmos_clock(struct work_struct *work)
 	 * called as close as possible to 500 ms before the new second starts.
 	 * This code is run on a timer.  If the clock is set, that timer
 	 * may not expire at the correct time.  Thus, we adjust...
+	 * We want the clock to be within a couple of ticks from the target.
 	 */
 	if (!ntp_synced()) {
 		/*
@@ -485,7 +486,7 @@ static void sync_cmos_clock(struct work_struct *work)
 	}
 
 	getnstimeofday(&now);
-	if (abs(now.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec / 2) {
+	if (abs(now.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec * 5) {
 		struct timespec adjust = now;
 
 		fail = -ENODEV;

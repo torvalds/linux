@@ -98,6 +98,7 @@ static int __init mvebu_system_controller_init(void)
 		BUG_ON(!match);
 		system_controller_base = of_iomap(np, 0);
 		mvebu_sc = (struct mvebu_system_controller *)match->data;
+		of_node_put(np);
 	}
 
 	return 0;

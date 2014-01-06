@@ -62,8 +62,6 @@
 #include <mm/mmu_decl.h>
 #include <asm/fadump.h>
 
-#include "setup.h"
-
 #ifdef DEBUG
 #include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
@@ -481,7 +479,7 @@ void __init smp_setup_cpu_maps(void)
 	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR) &&
 	    (dn = of_find_node_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
-		const unsigned int *ireg;
+		const __be32 *ireg;
 
 		num_addr_cell = of_n_addr_cells(dn);
 		num_size_cell = of_n_size_cells(dn);
@@ -491,7 +489,7 @@ void __init smp_setup_cpu_maps(void)
 		if (!ireg)
 			goto out;
 
-		maxcpus = ireg[num_addr_cell + num_size_cell];
+		maxcpus = be32_to_cpup(ireg + num_addr_cell + num_size_cell);
 
 		/* Double maxcpus for processors which have SMT capability */
 		if (cpu_has_feature(CPU_FTR_SMT))

@@ -869,13 +869,14 @@ void r100_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, RADEON_SW_INT_FIRE);
 }
 
-void r100_semaphore_ring_emit(struct radeon_device *rdev,
+bool r100_semaphore_ring_emit(struct radeon_device *rdev,
 			      struct radeon_ring *ring,
 			      struct radeon_semaphore *semaphore,
 			      bool emit_wait)
 {
 	/* Unused on older asics, since we don't have semaphores or multiple rings */
 	BUG();
+	return false;
 }
 
 int r100_copy_blit(struct radeon_device *rdev,
@@ -1434,7 +1435,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
-		return -EINVAL;
+		return -ENOENT;
 	}
 	crtc = obj_to_crtc(obj);
 	radeon_crtc = to_radeon_crtc(crtc);
@@ -2933,9 +2934,11 @@ static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
 	seq_printf(m, "CP_RB_RPTR 0x%08x\n", rdp);
 	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
 	seq_printf(m, "%u dwords in ring\n", count);
-	for (j = 0; j <= count; j++) {
-		i = (rdp + j) & ring->ptr_mask;
-		seq_printf(m, "r[%04d]=0x%08x\n", i, ring->ring[i]);
+	if (ring->ready) {
+		for (j = 0; j <= count; j++) {
+			i = (rdp + j) & ring->ptr_mask;
+			seq_printf(m, "r[%04d]=0x%08x\n", i, ring->ring[i]);
+		}
 	}
 	return 0;
 }

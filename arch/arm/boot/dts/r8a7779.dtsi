@@ -135,6 +135,7 @@
 	irqpin0: irqpin@fe780010 {
 		compatible = "renesas,intc-irqpin";
 		#interrupt-cells = <2>;
+		status = "disabled";
 		interrupt-controller;
 		reg = <0xfe78001c 4>,
 			<0xfe780010 4>,
@@ -156,6 +157,7 @@
 		reg = <0xffc70000 0x1000>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 79 0x4>;
+		status = "disabled";
 	};
 
 	i2c1: i2c@ffc71000 {
@@ -165,6 +167,7 @@
 		reg = <0xffc71000 0x1000>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 82 0x4>;
+		status = "disabled";
 	};
 
 	i2c2: i2c@ffc72000 {
@@ -174,6 +177,7 @@
 		reg = <0xffc72000 0x1000>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 80 0x4>;
+		status = "disabled";
 	};
 
 	i2c3: i2c@ffc73000 {
@@ -183,12 +187,12 @@
 		reg = <0xffc73000 0x1000>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 81 0x4>;
+		status = "disabled";
 	};
 
 	pfc: pfc@fffc0000 {
 		compatible = "renesas,pfc-r8a7779";
 		reg = <0xfffc0000 0x23c>;
-		#gpio-range-cells = <3>;
 	};
 
 	thermal@ffc48000 {

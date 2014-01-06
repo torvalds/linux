@@ -30,6 +30,8 @@
 
 #define GEN6_PPGTT_PD_ENTRIES 512
 #define I915_PPGTT_PT_ENTRIES (PAGE_SIZE / sizeof(gen6_gtt_pte_t))
+typedef uint64_t gen8_gtt_pte_t;
+typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 
 /* PPGTT stuff */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
@@ -55,12 +57,50 @@
 #define HSW_WB_LLC_AGE3			HSW_CACHEABILITY_CONTROL(0x2)
 #define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
+#define HSW_WB_ELLC_LLC_AGE3		HSW_CACHEABILITY_CONTROL(0x8)
 #define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
+#define HSW_WT_ELLC_LLC_AGE3		HSW_CACHEABILITY_CONTROL(0x7)
+
+#define GEN8_PTES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_gtt_pte_t))
+#define GEN8_PDES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_ppgtt_pde_t))
+#define GEN8_LEGACY_PDPS		4
+
+#define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
+#define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
+#define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
+#define PPAT_DISPLAY_ELLC_INDEX		_PAGE_PCD /* WT eLLC */
+
+static inline gen8_gtt_pte_t gen8_pte_encode(dma_addr_t addr,
+					     enum i915_cache_level level,
+					     bool valid)
+{
+	gen8_gtt_pte_t pte = valid ? _PAGE_PRESENT | _PAGE_RW : 0;
+	pte |= addr;
+	if (level != I915_CACHE_NONE)
+		pte |= PPAT_CACHED_INDEX;
+	else
+		pte |= PPAT_UNCACHED_INDEX;
+	return pte;
+}
+
+static inline gen8_ppgtt_pde_t gen8_pde_encode(struct drm_device *dev,
+					     dma_addr_t addr,
+					     enum i915_cache_level level)
+{
+	gen8_ppgtt_pde_t pde = _PAGE_PRESENT | _PAGE_RW;
+	pde |= addr;
+	if (level != I915_CACHE_NONE)
+		pde |= PPAT_CACHED_PDE_INDEX;
+	else
+		pde |= PPAT_UNCACHED_INDEX;
+	return pde;
+}
 
 static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level,
+				     bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
@@ -79,9 +119,10 @@ static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 }
 
 static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level,
+				     bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
@@ -105,9 +146,10 @@ static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
 #define BYT_PTE_SNOOPED_BY_CPU_CACHES	(1 << 2)
 
 static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level,
+				     bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	/* Mark the page as writeable.  Other platforms don't have a
@@ -122,9 +164,10 @@ static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 }
 
 static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level,
+				     bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
 
 	if (level != I915_CACHE_NONE)
@@ -134,23 +177,275 @@ static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
 }
 
 static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
-				      enum i915_cache_level level)
+				      enum i915_cache_level level,
+				      bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
 	case I915_CACHE_NONE:
 		break;
 	case I915_CACHE_WT:
-		pte |= HSW_WT_ELLC_LLC_AGE0;
+		pte |= HSW_WT_ELLC_LLC_AGE3;
 		break;
 	default:
-		pte |= HSW_WB_ELLC_LLC_AGE0;
+		pte |= HSW_WB_ELLC_LLC_AGE3;
 		break;
 	}
 
 	return pte;
+}
+
+/* Broadwell Page Directory Pointer Descriptors */
+static int gen8_write_pdp(struct intel_ring_buffer *ring, unsigned entry,
+			   uint64_t val)
+{
+	int ret;
+
+	BUG_ON(entry >= 4);
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit(ring, GEN8_RING_PDP_UDW(ring, entry));
+	intel_ring_emit(ring, (u32)(val >> 32));
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit(ring, GEN8_RING_PDP_LDW(ring, entry));
+	intel_ring_emit(ring, (u32)(val));
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int gen8_ppgtt_enable(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	int i, j, ret;
+
+	/* bit of a hack to find the actual last used pd */
+	int used_pd = ppgtt->num_pd_entries / GEN8_PDES_PER_PAGE;
+
+	for_each_ring(ring, dev_priv, j) {
+		I915_WRITE(RING_MODE_GEN7(ring),
+			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+	}
+
+	for (i = used_pd - 1; i >= 0; i--) {
+		dma_addr_t addr = ppgtt->pd_dma_addr[i];
+		for_each_ring(ring, dev_priv, j) {
+			ret = gen8_write_pdp(ring, i, addr);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
+
+static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
+				   unsigned first_entry,
+				   unsigned num_entries,
+				   bool use_scratch)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
+	gen8_gtt_pte_t *pt_vaddr, scratch_pte;
+	unsigned act_pt = first_entry / GEN8_PTES_PER_PAGE;
+	unsigned first_pte = first_entry % GEN8_PTES_PER_PAGE;
+	unsigned last_pte, i;
+
+	scratch_pte = gen8_pte_encode(ppgtt->base.scratch.addr,
+				      I915_CACHE_LLC, use_scratch);
+
+	while (num_entries) {
+		struct page *page_table = &ppgtt->gen8_pt_pages[act_pt];
+
+		last_pte = first_pte + num_entries;
+		if (last_pte > GEN8_PTES_PER_PAGE)
+			last_pte = GEN8_PTES_PER_PAGE;
+
+		pt_vaddr = kmap_atomic(page_table);
+
+		for (i = first_pte; i < last_pte; i++)
+			pt_vaddr[i] = scratch_pte;
+
+		kunmap_atomic(pt_vaddr);
+
+		num_entries -= last_pte - first_pte;
+		first_pte = 0;
+		act_pt++;
+	}
+}
+
+static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
+				      struct sg_table *pages,
+				      unsigned first_entry,
+				      enum i915_cache_level cache_level)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
+	gen8_gtt_pte_t *pt_vaddr;
+	unsigned act_pt = first_entry / GEN8_PTES_PER_PAGE;
+	unsigned act_pte = first_entry % GEN8_PTES_PER_PAGE;
+	struct sg_page_iter sg_iter;
+
+	pt_vaddr = kmap_atomic(&ppgtt->gen8_pt_pages[act_pt]);
+	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
+		dma_addr_t page_addr;
+
+		page_addr = sg_dma_address(sg_iter.sg) +
+				(sg_iter.sg_pgoffset << PAGE_SHIFT);
+		pt_vaddr[act_pte] = gen8_pte_encode(page_addr, cache_level,
+						    true);
+		if (++act_pte == GEN8_PTES_PER_PAGE) {
+			kunmap_atomic(pt_vaddr);
+			act_pt++;
+			pt_vaddr = kmap_atomic(&ppgtt->gen8_pt_pages[act_pt]);
+			act_pte = 0;
+
+		}
+	}
+	kunmap_atomic(pt_vaddr);
+}
+
+static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
+	int i, j;
+
+	for (i = 0; i < ppgtt->num_pd_pages ; i++) {
+		if (ppgtt->pd_dma_addr[i]) {
+			pci_unmap_page(ppgtt->base.dev->pdev,
+				       ppgtt->pd_dma_addr[i],
+				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+
+			for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
+				dma_addr_t addr = ppgtt->gen8_pt_dma_addr[i][j];
+				if (addr)
+					pci_unmap_page(ppgtt->base.dev->pdev,
+						       addr,
+						       PAGE_SIZE,
+						       PCI_DMA_BIDIRECTIONAL);
+
+			}
+		}
+		kfree(ppgtt->gen8_pt_dma_addr[i]);
+	}
+
+	__free_pages(ppgtt->gen8_pt_pages, get_order(ppgtt->num_pt_pages << PAGE_SHIFT));
+	__free_pages(ppgtt->pd_pages, get_order(ppgtt->num_pd_pages << PAGE_SHIFT));
+}
+
+/**
+ * GEN8 legacy ppgtt programming is accomplished through 4 PDP registers with a
+ * net effect resembling a 2-level page table in normal x86 terms. Each PDP
+ * represents 1GB of memory
+ * 4 * 512 * 512 * 4096 = 4GB legacy 32b address space.
+ *
+ * TODO: Do something with the size parameter
+ **/
+static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
+{
+	struct page *pt_pages;
+	int i, j, ret = -ENOMEM;
+	const int max_pdp = DIV_ROUND_UP(size, 1 << 30);
+	const int num_pt_pages = GEN8_PDES_PER_PAGE * max_pdp;
+
+	if (size % (1<<30))
+		DRM_INFO("Pages will be wasted unless GTT size (%llu) is divisible by 1GB\n", size);
+
+	/* FIXME: split allocation into smaller pieces. For now we only ever do
+	 * this once, but with full PPGTT, the multiple contiguous allocations
+	 * will be bad.
+	 */
+	ppgtt->pd_pages = alloc_pages(GFP_KERNEL, get_order(max_pdp << PAGE_SHIFT));
+	if (!ppgtt->pd_pages)
+		return -ENOMEM;
+
+	pt_pages = alloc_pages(GFP_KERNEL, get_order(num_pt_pages << PAGE_SHIFT));
+	if (!pt_pages) {
+		__free_pages(ppgtt->pd_pages, get_order(max_pdp << PAGE_SHIFT));
+		return -ENOMEM;
+	}
+
+	ppgtt->gen8_pt_pages = pt_pages;
+	ppgtt->num_pd_pages = 1 << get_order(max_pdp << PAGE_SHIFT);
+	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
+	ppgtt->num_pd_entries = max_pdp * GEN8_PDES_PER_PAGE;
+	ppgtt->enable = gen8_ppgtt_enable;
+	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
+	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
+	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
+
+	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPS);
+
+	/*
+	 * - Create a mapping for the page directories.
+	 * - For each page directory:
+	 *      allocate space for page table mappings.
+	 *      map each page table
+	 */
+	for (i = 0; i < max_pdp; i++) {
+		dma_addr_t temp;
+		temp = pci_map_page(ppgtt->base.dev->pdev,
+				    &ppgtt->pd_pages[i], 0,
+				    PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(ppgtt->base.dev->pdev, temp))
+			goto err_out;
+
+		ppgtt->pd_dma_addr[i] = temp;
+
+		ppgtt->gen8_pt_dma_addr[i] = kmalloc(sizeof(dma_addr_t) * GEN8_PDES_PER_PAGE, GFP_KERNEL);
+		if (!ppgtt->gen8_pt_dma_addr[i])
+			goto err_out;
+
+		for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
+			struct page *p = &pt_pages[i * GEN8_PDES_PER_PAGE + j];
+			temp = pci_map_page(ppgtt->base.dev->pdev,
+					    p, 0, PAGE_SIZE,
+					    PCI_DMA_BIDIRECTIONAL);
+
+			if (pci_dma_mapping_error(ppgtt->base.dev->pdev, temp))
+				goto err_out;
+
+			ppgtt->gen8_pt_dma_addr[i][j] = temp;
+		}
+	}
+
+	/* For now, the PPGTT helper functions all require that the PDEs are
+	 * plugged in correctly. So we do that now/here. For aliasing PPGTT, we
+	 * will never need to touch the PDEs again */
+	for (i = 0; i < max_pdp; i++) {
+		gen8_ppgtt_pde_t *pd_vaddr;
+		pd_vaddr = kmap_atomic(&ppgtt->pd_pages[i]);
+		for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
+			dma_addr_t addr = ppgtt->gen8_pt_dma_addr[i][j];
+			pd_vaddr[j] = gen8_pde_encode(ppgtt->base.dev, addr,
+						      I915_CACHE_LLC);
+		}
+		kunmap_atomic(pd_vaddr);
+	}
+
+	ppgtt->base.clear_range(&ppgtt->base, 0,
+				ppgtt->num_pd_entries * GEN8_PTES_PER_PAGE,
+				true);
+
+	DRM_DEBUG_DRIVER("Allocated %d pages for page directories (%d wasted)\n",
+			 ppgtt->num_pd_pages, ppgtt->num_pd_pages - max_pdp);
+	DRM_DEBUG_DRIVER("Allocated %d pages for page tables (%lld wasted)\n",
+			 ppgtt->num_pt_pages,
+			 (ppgtt->num_pt_pages - num_pt_pages) +
+			 size % (1<<30));
+	return 0;
+
+err_out:
+	ppgtt->base.cleanup(&ppgtt->base);
+	return ret;
 }
 
 static void gen6_write_pdes(struct i915_hw_ppgtt *ppgtt)
@@ -236,7 +531,8 @@ static int gen6_ppgtt_enable(struct drm_device *dev)
 /* PPGTT support for Sandybdrige/Gen6 and later */
 static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 				   unsigned first_entry,
-				   unsigned num_entries)
+				   unsigned num_entries,
+				   bool use_scratch)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
@@ -245,7 +541,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
 
-	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC);
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true);
 
 	while (num_entries) {
 		last_pte = first_pte + num_entries;
@@ -282,7 +578,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		dma_addr_t page_addr;
 
 		page_addr = sg_page_iter_dma_address(&sg_iter);
-		pt_vaddr[act_pte] = vm->pte_encode(page_addr, cache_level);
+		pt_vaddr[act_pte] = vm->pte_encode(page_addr, cache_level, true);
 		if (++act_pte == I915_PPGTT_PT_ENTRIES) {
 			kunmap_atomic(pt_vaddr);
 			act_pt++;
@@ -336,7 +632,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->base.scratch = dev_priv->gtt.base.scratch;
-	ppgtt->pt_pages = kzalloc(sizeof(struct page *)*ppgtt->num_pd_entries,
+	ppgtt->pt_pages = kcalloc(ppgtt->num_pd_entries, sizeof(struct page *),
 				  GFP_KERNEL);
 	if (!ppgtt->pt_pages)
 		return -ENOMEM;
@@ -347,7 +643,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			goto err_pt_alloc;
 	}
 
-	ppgtt->pt_dma_addr = kzalloc(sizeof(dma_addr_t) *ppgtt->num_pd_entries,
+	ppgtt->pt_dma_addr = kcalloc(ppgtt->num_pd_entries, sizeof(dma_addr_t),
 				     GFP_KERNEL);
 	if (!ppgtt->pt_dma_addr)
 		goto err_pt_alloc;
@@ -367,7 +663,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	}
 
 	ppgtt->base.clear_range(&ppgtt->base, 0,
-				ppgtt->num_pd_entries * I915_PPGTT_PT_ENTRIES);
+				ppgtt->num_pd_entries * I915_PPGTT_PT_ENTRIES, true);
 
 	ppgtt->pd_offset = first_pd_entry_in_global_pt * sizeof(gen6_gtt_pte_t);
 
@@ -404,6 +700,8 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	if (INTEL_INFO(dev)->gen < 8)
 		ret = gen6_ppgtt_init(ppgtt);
+	else if (IS_GEN8(dev))
+		ret = gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 	else
 		BUG();
 
@@ -444,7 +742,8 @@ void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 {
 	ppgtt->base.clear_range(&ppgtt->base,
 				i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT,
-				obj->base.size >> PAGE_SHIFT);
+				obj->base.size >> PAGE_SHIFT,
+				true);
 }
 
 extern int intel_iommu_gfx_mapped;
@@ -485,15 +784,65 @@ static void undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
 		dev_priv->mm.interruptible = interruptible;
 }
 
+void i915_check_and_clear_faults(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	int i;
+
+	if (INTEL_INFO(dev)->gen < 6)
+		return;
+
+	for_each_ring(ring, dev_priv, i) {
+		u32 fault_reg;
+		fault_reg = I915_READ(RING_FAULT_REG(ring));
+		if (fault_reg & RING_FAULT_VALID) {
+			DRM_DEBUG_DRIVER("Unexpected fault\n"
+					 "\tAddr: 0x%08lx\\n"
+					 "\tAddress space: %s\n"
+					 "\tSource ID: %d\n"
+					 "\tType: %d\n",
+					 fault_reg & PAGE_MASK,
+					 fault_reg & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
+					 RING_FAULT_SRCID(fault_reg),
+					 RING_FAULT_FAULT_TYPE(fault_reg));
+			I915_WRITE(RING_FAULT_REG(ring),
+				   fault_reg & ~RING_FAULT_VALID);
+		}
+	}
+	POSTING_READ(RING_FAULT_REG(&dev_priv->ring[RCS]));
+}
+
+void i915_gem_suspend_gtt_mappings(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Don't bother messing with faults pre GEN6 as we have little
+	 * documentation supporting that it's a good idea.
+	 */
+	if (INTEL_INFO(dev)->gen < 6)
+		return;
+
+	i915_check_and_clear_faults(dev);
+
+	dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
+				       dev_priv->gtt.base.start / PAGE_SIZE,
+				       dev_priv->gtt.base.total / PAGE_SIZE,
+				       false);
+}
+
 void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
+	i915_check_and_clear_faults(dev);
+
 	/* First fill our portion of the GTT with scratch pages */
 	dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
 				       dev_priv->gtt.base.start / PAGE_SIZE,
-				       dev_priv->gtt.base.total / PAGE_SIZE);
+				       dev_priv->gtt.base.total / PAGE_SIZE,
+				       true);
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		i915_gem_clflush_object(obj, obj->pin_display);
@@ -516,6 +865,57 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
+static inline void gen8_set_pte(void __iomem *addr, gen8_gtt_pte_t pte)
+{
+#ifdef writeq
+	writeq(pte, addr);
+#else
+	iowrite32((u32)pte, addr);
+	iowrite32(pte >> 32, addr + 4);
+#endif
+}
+
+static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
+				     struct sg_table *st,
+				     unsigned int first_entry,
+				     enum i915_cache_level level)
+{
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
+	gen8_gtt_pte_t __iomem *gtt_entries =
+		(gen8_gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
+	int i = 0;
+	struct sg_page_iter sg_iter;
+	dma_addr_t addr;
+
+	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
+		addr = sg_dma_address(sg_iter.sg) +
+			(sg_iter.sg_pgoffset << PAGE_SHIFT);
+		gen8_set_pte(&gtt_entries[i],
+			     gen8_pte_encode(addr, level, true));
+		i++;
+	}
+
+	/*
+	 * XXX: This serves as a posting read to make sure that the PTE has
+	 * actually been updated. There is some concern that even though
+	 * registers and PTEs are within the same BAR that they are potentially
+	 * of NUMA access patterns. Therefore, even with the way we assume
+	 * hardware should work, we must keep this posting read for paranoia.
+	 */
+	if (i != 0)
+		WARN_ON(readq(&gtt_entries[i-1])
+			!= gen8_pte_encode(addr, level, true));
+
+#if 0 /* TODO: Still needed on GEN8? */
+	/* This next bit makes the above posting read even more important. We
+	 * want to flush the TLBs only after we're certain all the PTE updates
+	 * have finished.
+	 */
+	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
+	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+#endif
+}
+
 /*
  * Binds an object into the global gtt with the specified cache level. The object
  * will be accessible to the GPU via commands whose operands reference offsets
@@ -536,7 +936,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_page_iter_dma_address(&sg_iter);
-		iowrite32(vm->pte_encode(addr, level), &gtt_entries[i]);
+		iowrite32(vm->pte_encode(addr, level, true), &gtt_entries[i]);
 		i++;
 	}
 
@@ -548,7 +948,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 */
 	if (i != 0)
 		WARN_ON(readl(&gtt_entries[i-1]) !=
-			vm->pte_encode(addr, level));
+			vm->pte_encode(addr, level, true));
 
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
@@ -558,9 +958,34 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
 
+static void gen8_ggtt_clear_range(struct i915_address_space *vm,
+				  unsigned int first_entry,
+				  unsigned int num_entries,
+				  bool use_scratch)
+{
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
+	gen8_gtt_pte_t scratch_pte, __iomem *gtt_base =
+		(gen8_gtt_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
+	const int max_entries = gtt_total_entries(dev_priv->gtt) - first_entry;
+	int i;
+
+	if (WARN(num_entries > max_entries,
+		 "First entry = %d; Num entries = %d (max=%d)\n",
+		 first_entry, num_entries, max_entries))
+		num_entries = max_entries;
+
+	scratch_pte = gen8_pte_encode(vm->scratch.addr,
+				      I915_CACHE_LLC,
+				      use_scratch);
+	for (i = 0; i < num_entries; i++)
+		gen8_set_pte(&gtt_base[i], scratch_pte);
+	readl(gtt_base);
+}
+
 static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 				  unsigned int first_entry,
-				  unsigned int num_entries)
+				  unsigned int num_entries,
+				  bool use_scratch)
 {
 	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	gen6_gtt_pte_t scratch_pte, __iomem *gtt_base =
@@ -573,12 +998,12 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 		 first_entry, num_entries, max_entries))
 		num_entries = max_entries;
 
-	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC);
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, use_scratch);
+
 	for (i = 0; i < num_entries; i++)
 		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);
 }
-
 
 static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct sg_table *st,
@@ -594,7 +1019,8 @@ static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
 				  unsigned int first_entry,
-				  unsigned int num_entries)
+				  unsigned int num_entries,
+				  bool unused)
 {
 	intel_gtt_clear_range(first_entry, num_entries);
 }
@@ -622,7 +1048,8 @@ void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 
 	dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
 				       entry,
-				       obj->base.size >> PAGE_SHIFT);
+				       obj->base.size >> PAGE_SHIFT,
+				       true);
 
 	obj->has_global_gtt_mapping = 0;
 }
@@ -659,6 +1086,7 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 			*end -= 4096;
 	}
 }
+
 void i915_gem_setup_global_gtt(struct drm_device *dev,
 			       unsigned long start,
 			       unsigned long mappable_end,
@@ -709,11 +1137,11 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 		const unsigned long count = (hole_end - hole_start) / PAGE_SIZE;
 		DRM_DEBUG_KMS("clearing unused GTT space: [%lx, %lx]\n",
 			      hole_start, hole_end);
-		ggtt_vm->clear_range(ggtt_vm, hole_start / PAGE_SIZE, count);
+		ggtt_vm->clear_range(ggtt_vm, hole_start / PAGE_SIZE, count, true);
 	}
 
 	/* And finally clear the reserved guard page */
-	ggtt_vm->clear_range(ggtt_vm, end / PAGE_SIZE - 1, 1);
+	ggtt_vm->clear_range(ggtt_vm, end / PAGE_SIZE - 1, 1, true);
 }
 
 static bool
@@ -756,7 +1184,8 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 
 		DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
 		drm_mm_takedown(&dev_priv->gtt.base.mm);
-		gtt_size += GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE;
+		if (INTEL_INFO(dev)->gen < 8)
+			gtt_size += GEN6_PPGTT_PD_ENTRIES*PAGE_SIZE;
 	}
 	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
 }
@@ -806,11 +1235,127 @@ static inline unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
 	return snb_gmch_ctl << 20;
 }
 
+static inline unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
+{
+	bdw_gmch_ctl >>= BDW_GMCH_GGMS_SHIFT;
+	bdw_gmch_ctl &= BDW_GMCH_GGMS_MASK;
+	if (bdw_gmch_ctl)
+		bdw_gmch_ctl = 1 << bdw_gmch_ctl;
+	if (bdw_gmch_ctl > 4) {
+		WARN_ON(!i915_preliminary_hw_support);
+		return 4<<20;
+	}
+
+	return bdw_gmch_ctl << 20;
+}
+
 static inline size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
 {
 	snb_gmch_ctl >>= SNB_GMCH_GMS_SHIFT;
 	snb_gmch_ctl &= SNB_GMCH_GMS_MASK;
 	return snb_gmch_ctl << 25; /* 32 MB units */
+}
+
+static inline size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
+{
+	bdw_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
+	bdw_gmch_ctl &= BDW_GMCH_GMS_MASK;
+	return bdw_gmch_ctl << 25; /* 32 MB units */
+}
+
+static int ggtt_probe_common(struct drm_device *dev,
+			     size_t gtt_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	phys_addr_t gtt_bus_addr;
+	int ret;
+
+	/* For Modern GENs the PTEs and register space are split in the BAR */
+	gtt_bus_addr = pci_resource_start(dev->pdev, 0) +
+		(pci_resource_len(dev->pdev, 0) / 2);
+
+	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr, gtt_size);
+	if (!dev_priv->gtt.gsm) {
+		DRM_ERROR("Failed to map the gtt page table\n");
+		return -ENOMEM;
+	}
+
+	ret = setup_scratch_page(dev);
+	if (ret) {
+		DRM_ERROR("Scratch setup failed\n");
+		/* iounmap will also get called at remove, but meh */
+		iounmap(dev_priv->gtt.gsm);
+	}
+
+	return ret;
+}
+
+/* The GGTT and PPGTT need a private PPAT setup in order to handle cacheability
+ * bits. When using advanced contexts each context stores its own PAT, but
+ * writing this data shouldn't be harmful even in those cases. */
+static void gen8_setup_private_ppat(struct drm_i915_private *dev_priv)
+{
+#define GEN8_PPAT_UC		(0<<0)
+#define GEN8_PPAT_WC		(1<<0)
+#define GEN8_PPAT_WT		(2<<0)
+#define GEN8_PPAT_WB		(3<<0)
+#define GEN8_PPAT_ELLC_OVERRIDE	(0<<2)
+/* FIXME(BDW): Bspec is completely confused about cache control bits. */
+#define GEN8_PPAT_LLC		(1<<2)
+#define GEN8_PPAT_LLCELLC	(2<<2)
+#define GEN8_PPAT_LLCeLLC	(3<<2)
+#define GEN8_PPAT_AGE(x)	(x<<4)
+#define GEN8_PPAT(i, x) ((uint64_t) (x) << ((i) * 8))
+	uint64_t pat;
+
+	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC)     | /* for normal objects, no eLLC */
+	      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) | /* for something pointing to ptes? */
+	      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) | /* for scanout with eLLC */
+	      GEN8_PPAT(3, GEN8_PPAT_UC)                     | /* Uncached objects, mostly for scanout */
+	      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
+	      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
+	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
+	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
+
+	/* XXX: spec defines this as 2 distinct registers. It's unclear if a 64b
+	 * write would work. */
+	I915_WRITE(GEN8_PRIVATE_PAT, pat);
+	I915_WRITE(GEN8_PRIVATE_PAT + 4, pat >> 32);
+}
+
+static int gen8_gmch_probe(struct drm_device *dev,
+			   size_t *gtt_total,
+			   size_t *stolen,
+			   phys_addr_t *mappable_base,
+			   unsigned long *mappable_end)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned int gtt_size;
+	u16 snb_gmch_ctl;
+	int ret;
+
+	/* TODO: We're not aware of mappable constraints on gen8 yet */
+	*mappable_base = pci_resource_start(dev->pdev, 2);
+	*mappable_end = pci_resource_len(dev->pdev, 2);
+
+	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(39)))
+		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(39));
+
+	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+
+	*stolen = gen8_get_stolen_size(snb_gmch_ctl);
+
+	gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+	*gtt_total = (gtt_size / sizeof(gen8_gtt_pte_t)) << PAGE_SHIFT;
+
+	gen8_setup_private_ppat(dev_priv);
+
+	ret = ggtt_probe_common(dev, gtt_size);
+
+	dev_priv->gtt.base.clear_range = gen8_ggtt_clear_range;
+	dev_priv->gtt.base.insert_entries = gen8_ggtt_insert_entries;
+
+	return ret;
 }
 
 static int gen6_gmch_probe(struct drm_device *dev,
@@ -820,7 +1365,6 @@ static int gen6_gmch_probe(struct drm_device *dev,
 			   unsigned long *mappable_end)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	phys_addr_t gtt_bus_addr;
 	unsigned int gtt_size;
 	u16 snb_gmch_ctl;
 	int ret;
@@ -840,24 +1384,13 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(40)))
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
-	gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
 
 	*stolen = gen6_get_stolen_size(snb_gmch_ctl);
+
+	gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
 	*gtt_total = (gtt_size / sizeof(gen6_gtt_pte_t)) << PAGE_SHIFT;
 
-	/* For Modern GENs the PTEs and register space are split in the BAR */
-	gtt_bus_addr = pci_resource_start(dev->pdev, 0) +
-		(pci_resource_len(dev->pdev, 0) / 2);
-
-	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr, gtt_size);
-	if (!dev_priv->gtt.gsm) {
-		DRM_ERROR("Failed to map the gtt page table\n");
-		return -ENOMEM;
-	}
-
-	ret = setup_scratch_page(dev);
-	if (ret)
-		DRM_ERROR("Scratch setup failed\n");
+	ret = ggtt_probe_common(dev, gtt_size);
 
 	dev_priv->gtt.base.clear_range = gen6_ggtt_clear_range;
 	dev_priv->gtt.base.insert_entries = gen6_ggtt_insert_entries;
@@ -911,7 +1444,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen <= 5) {
 		gtt->gtt_probe = i915_gmch_probe;
 		gtt->base.cleanup = i915_gmch_remove;
-	} else {
+	} else if (INTEL_INFO(dev)->gen < 8) {
 		gtt->gtt_probe = gen6_gmch_probe;
 		gtt->base.cleanup = gen6_gmch_remove;
 		if (IS_HASWELL(dev) && dev_priv->ellc_size)
@@ -924,6 +1457,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 			gtt->base.pte_encode = ivb_pte_encode;
 		else
 			gtt->base.pte_encode = snb_pte_encode;
+	} else {
+		dev_priv->gtt.gtt_probe = gen8_gmch_probe;
+		dev_priv->gtt.base.cleanup = gen6_gmch_remove;
 	}
 
 	ret = gtt->gtt_probe(dev, &gtt->base.total, &gtt->stolen_size,

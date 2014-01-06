@@ -3086,13 +3086,16 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 					       PCI_DMA_FROMDEVICE);
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
+		struct skge_element ee;
 		struct sk_buff *nskb;
 
 		nskb = netdev_alloc_skb_ip_align(dev, skge->rx_buf_size);
 		if (!nskb)
 			goto resubmit;
 
-		skb = e->skb;
+		ee = *e;
+
+		skb = ee.skb;
 		prefetch(skb->data);
 
 		if (skge_rx_setup(skge, e, nskb, skge->rx_buf_size) < 0) {
@@ -3101,8 +3104,8 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		}
 
 		pci_unmap_single(skge->hw->pdev,
-				 dma_unmap_addr(e, mapaddr),
-				 dma_unmap_len(e, maplen),
+				 dma_unmap_addr(&ee, mapaddr),
+				 dma_unmap_len(&ee, maplen),
 				 PCI_DMA_FROMDEVICE);
 	}
 
@@ -4043,7 +4046,6 @@ err_out_free_regions:
 	pci_release_regions(pdev);
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 err_out:
 	return err;
 }
@@ -4087,7 +4089,6 @@ static void skge_remove(struct pci_dev *pdev)
 
 	iounmap(hw->regs);
 	kfree(hw);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

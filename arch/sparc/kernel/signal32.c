@@ -68,7 +68,7 @@ struct rt_signal_frame32 {
 	/* __siginfo_rwin_t * */u32 rwin_save;
 } __attribute__((aligned(8)));
 
-int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
+int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 {
 	int err;
 

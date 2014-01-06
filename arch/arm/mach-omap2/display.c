@@ -32,7 +32,6 @@
 
 #include "soc.h"
 #include "iomap.h"
-#include "mux.h"
 #include "control.h"
 #include "display.h"
 #include "prm.h"
@@ -102,35 +101,6 @@ static const struct omap_dss_hwmod_data omap4_dss_hwmod_data[] __initconst = {
 	{ "dss_hdmi", "omapdss_hdmi", -1 },
 };
 
-static void __init omap4_tpd12s015_mux_pads(void)
-{
-	omap_mux_init_signal("hdmi_cec",
-			OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("hdmi_ddc_scl",
-			OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("hdmi_ddc_sda",
-			OMAP_PIN_INPUT_PULLUP);
-}
-
-static void __init omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
-{
-	u32 reg;
-	u16 control_i2c_1;
-
-	/*
-	 * CONTROL_I2C_1: HDMI_DDC_SDA_PULLUPRESX (bit 28) and
-	 * HDMI_DDC_SCL_PULLUPRESX (bit 24) are set to disable
-	 * internal pull up resistor.
-	 */
-	if (flags & OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP) {
-		control_i2c_1 = OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_I2C_1;
-		reg = omap4_ctrl_pad_readl(control_i2c_1);
-		reg |= (OMAP4_HDMI_DDC_SDA_PULLUPRESX_MASK |
-			OMAP4_HDMI_DDC_SCL_PULLUPRESX_MASK);
-			omap4_ctrl_pad_writel(reg, control_i2c_1);
-	}
-}
-
 static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 {
 	u32 enable_mask, enable_shift;
@@ -160,16 +130,6 @@ static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 	reg |= (lanes << pipd_shift) & pipd_mask;
 
 	omap4_ctrl_pad_writel(reg, OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_DSIPHY);
-
-	return 0;
-}
-
-int __init omap_hdmi_init(enum omap_hdmi_flags flags)
-{
-	if (cpu_is_omap44xx()) {
-		omap4_hdmi_mux_pads(flags);
-		omap4_tpd12s015_mux_pads();
-	}
 
 	return 0;
 }
@@ -414,6 +374,34 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 			pr_err("Could not build platform_device for omapdss_sdi\n");
 			return PTR_ERR(pdev);
 		}
+	}
+
+	/* create DRM device */
+	r = omap_init_drm();
+	if (r < 0) {
+		pr_err("Unable to register omapdrm device\n");
+		return r;
+	}
+
+	/* create vrfb device */
+	r = omap_init_vrfb();
+	if (r < 0) {
+		pr_err("Unable to register omapvrfb device\n");
+		return r;
+	}
+
+	/* create FB device */
+	r = omap_init_fb();
+	if (r < 0) {
+		pr_err("Unable to register omapfb device\n");
+		return r;
+	}
+
+	/* create V4L2 display device */
+	r = omap_init_vout();
+	if (r < 0) {
+		pr_err("Unable to register omap_vout device\n");
+		return r;
 	}
 
 	return 0;

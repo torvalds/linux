@@ -22,9 +22,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/spi/spi.h>
-
-#define DAC7512_DRV_NAME	"dac7512"
-#define DRIVER_VERSION		"1.0"
+#include <linux/of.h>
 
 static ssize_t dac7512_store_val(struct device *dev,
 				 struct device_attribute *attr,
@@ -75,13 +73,29 @@ static int dac7512_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id dac7512_id_table[] = {
+	{ "dac7512", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, dac7512_id_table);
+
+#ifdef CONFIG_OF
+static const struct of_device_id dac7512_of_match[] = {
+	{ .compatible = "ti,dac7512", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, dac7512_of_match);
+#endif
+
 static struct spi_driver dac7512_driver = {
 	.driver = {
-		.name	= DAC7512_DRV_NAME,
+		.name	= "dac7512",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(dac7512_of_match),
 	},
 	.probe	= dac7512_probe,
 	.remove	= dac7512_remove,
+	.id_table = dac7512_id_table,
 };
 
 module_spi_driver(dac7512_driver);
@@ -89,4 +103,3 @@ module_spi_driver(dac7512_driver);
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("DAC7512 16-bit DAC");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRIVER_VERSION);

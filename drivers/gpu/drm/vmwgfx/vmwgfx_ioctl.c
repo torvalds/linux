@@ -68,6 +68,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 				  SVGA_FIFO_3D_HWVERSION));
 		break;
 	}
+	case DRM_VMW_PARAM_MAX_SURF_MEMORY:
+		param->value = dev_priv->memory_size;
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);
@@ -168,7 +171,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	fb = drm_framebuffer_lookup(dev, arg->fb_id);
 	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out_no_fb;
 	}
 	vfb = vmw_framebuffer_to_vfb(fb);
@@ -252,7 +255,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	fb = drm_framebuffer_lookup(dev, arg->fb_id);
 	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out_no_fb;
 	}
 

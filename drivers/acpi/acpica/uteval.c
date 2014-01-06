@@ -181,7 +181,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 
 	*return_desc = info->return_object;
 
-      cleanup:
+cleanup:
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }

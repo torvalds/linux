@@ -14,6 +14,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/time.h>
+#include <asm/prom.h>
 
 #include <lantiq.h>
 

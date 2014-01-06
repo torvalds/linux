@@ -26,11 +26,12 @@
 #include <linux/stop_machine.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
-#include <asm/cacheflush.h>
-#include <asm/sections.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/hardirq.h>
+#include <asm/cacheflush.h>
+#include <asm/sections.h>
+#include <asm/dis.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -59,6 +60,8 @@ struct kprobe_insn_cache kprobe_dmainsn_slots = {
 
 static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
 {
+	if (!is_known_insn((unsigned char *)insn))
+		return -EINVAL;
 	switch (insn[0] >> 8) {
 	case 0x0c:	/* bassm */
 	case 0x0b:	/* bsm	 */
@@ -67,6 +70,11 @@ static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
 	case 0xac:	/* stnsm */
 	case 0xad:	/* stosm */
 		return -EINVAL;
+	case 0xc6:
+		switch (insn[0] & 0x0f) {
+		case 0x00: /* exrl   */
+			return -EINVAL;
+		}
 	}
 	switch (insn[0]) {
 	case 0x0101:	/* pr	 */
@@ -180,7 +188,6 @@ static int __kprobes is_insn_relative_long(kprobe_opcode_t *insn)
 		break;
 	case 0xc6:
 		switch (insn[0] & 0x0f) {
-		case 0x00: /* exrl   */
 		case 0x02: /* pfdrl  */
 		case 0x04: /* cghrl  */
 		case 0x05: /* chrl   */
@@ -204,7 +211,7 @@ static void __kprobes copy_instruction(struct kprobe *p)
 	s64 disp, new_disp;
 	u64 addr, new_addr;
 
-	memcpy(p->ainsn.insn, p->addr, ((p->opcode >> 14) + 3) & -2);
+	memcpy(p->ainsn.insn, p->addr, insn_length(p->opcode >> 8));
 	if (!is_insn_relative_long(p->ainsn.insn))
 		return;
 	/*
@@ -248,7 +255,7 @@ static int __kprobes s390_get_insn_slot(struct kprobe *p)
 	p->ainsn.insn = NULL;
 	if (is_kernel_addr(p->addr))
 		p->ainsn.insn = get_dmainsn_slot();
-	if (is_module_addr(p->addr))
+	else if (is_module_addr(p->addr))
 		p->ainsn.insn = get_insn_slot();
 	return p->ainsn.insn ? 0 : -ENOMEM;
 }
@@ -604,7 +611,7 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
 
 	if (fixup & FIXUP_BRANCH_NOT_TAKEN) {
-		int ilen = ((p->ainsn.insn[0] >> 14) + 3) & -2;
+		int ilen = insn_length(p->ainsn.insn[0] >> 8);
 		if (ip - (unsigned long) p->ainsn.insn == ilen)
 			ip = (unsigned long) p->addr + ilen;
 	}
@@ -673,7 +680,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 	case KPROBE_HIT_SSDONE:
 		/*
 		 * We increment the nmissed count for accounting,
-		 * we can also use npre/npostfault count for accouting
+		 * we can also use npre/npostfault count for accounting
 		 * these specific fault cases.
 		 */
 		kprobes_inc_nmissed_count(p);

@@ -49,6 +49,35 @@ config PINCTRL_AB8505
 	bool "AB8505 pin controller driver"
 	depends on PINCTRL_ABX500 && ARCH_U8500
 
+config PINCTRL_ADI2
+	bool "ADI pin controller driver"
+	depends on BLACKFIN
+	select PINMUX
+	select IRQ_DOMAIN
+	help
+	  This is the pin controller and gpio driver for ADI BF54x, BF60x and
+	  future processors. This option is selected automatically when specific
+	  machine and arch are selected to build.
+
+config PINCTRL_AS3722
+	bool "Pinctrl and GPIO driver for ams AS3722 PMIC"
+	depends on MFD_AS3722 && GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  AS3722 device supports the configuration of GPIO pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the GPIO pins of AS3722 devices. It also
+	  supports the GPIO functionality through gpiolib.
+
+config PINCTRL_BF54x
+	def_bool y if BF54x
+	select PINCTRL_ADI2
+
+config PINCTRL_BF60x
+	def_bool y if BF60x
+	select PINCTRL_ADI2
+
 config PINCTRL_AT91
 	bool "AT91 pinctrl driver"
 	depends on OF
@@ -80,6 +109,19 @@ config PINCTRL_IMX
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_IMX1_CORE
+	bool
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_IMX27
+	bool "IMX27 pinctrl driver"
+	depends on OF
+	depends on SOC_IMX27
+	select PINCTRL_IMX1_CORE
+	help
+	  Say Y here to enable the imx27 pinctrl driver
+
 config PINCTRL_IMX35
 	bool "IMX35 pinctrl driver"
 	depends on OF
@@ -87,6 +129,14 @@ config PINCTRL_IMX35
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx35 pinctrl driver
+
+config PINCTRL_IMX50
+	bool "IMX50 pinctrl driver"
+	depends on OF
+	depends on SOC_IMX50
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx50 pinctrl driver
 
 config PINCTRL_IMX51
 	bool "IMX51 pinctrl driver"
@@ -291,6 +341,10 @@ config PINCTRL_XWAY
 	bool
 	depends on SOC_TYPE_XWAY
 	depends on PINCTRL_LANTIQ
+
+config PINCTRL_TB10X
+	bool
+	depends on ARC_PLAT_TB10X
 
 endmenu
 

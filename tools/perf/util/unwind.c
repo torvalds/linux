@@ -39,6 +39,15 @@ UNW_OBJ(dwarf_search_unwind_table) (unw_addr_space_t as,
 
 #define dwarf_search_unwind_table UNW_OBJ(dwarf_search_unwind_table)
 
+extern int
+UNW_OBJ(dwarf_find_debug_frame) (int found, unw_dyn_info_t *di_debug,
+				 unw_word_t ip,
+				 unw_word_t segbase,
+				 const char *obj_name, unw_word_t start,
+				 unw_word_t end);
+
+#define dwarf_find_debug_frame UNW_OBJ(dwarf_find_debug_frame)
+
 #define DW_EH_PE_FORMAT_MASK	0x0f	/* format of the encoded value */
 #define DW_EH_PE_APPL_MASK	0x70	/* how the value is to be applied */
 
@@ -245,8 +254,9 @@ static int unwind_spec_ehframe(struct dso *dso, struct machine *machine,
 	return 0;
 }
 
-static int read_unwind_spec(struct dso *dso, struct machine *machine,
-			    u64 *table_data, u64 *segbase, u64 *fde_count)
+static int read_unwind_spec_eh_frame(struct dso *dso, struct machine *machine,
+				     u64 *table_data, u64 *segbase,
+				     u64 *fde_count)
 {
 	int ret = -EINVAL, fd;
 	u64 offset;
@@ -255,6 +265,7 @@ static int read_unwind_spec(struct dso *dso, struct machine *machine,
 	if (fd < 0)
 		return -EINVAL;
 
+	/* Check the .eh_frame section for unwinding info */
 	offset = elf_section_offset(fd, ".eh_frame_hdr");
 	close(fd);
 
@@ -263,9 +274,28 @@ static int read_unwind_spec(struct dso *dso, struct machine *machine,
 					  table_data, segbase,
 					  fde_count);
 
-	/* TODO .debug_frame check if eh_frame_hdr fails */
 	return ret;
 }
+
+#ifndef NO_LIBUNWIND_DEBUG_FRAME
+static int read_unwind_spec_debug_frame(struct dso *dso,
+					struct machine *machine, u64 *offset)
+{
+	int fd = dso__data_fd(dso, machine);
+
+	if (fd < 0)
+		return -EINVAL;
+
+	/* Check the .debug_frame section for unwinding info */
+	*offset = elf_section_offset(fd, ".debug_frame");
+	close(fd);
+
+	if (*offset)
+		return 0;
+
+	return -EINVAL;
+}
+#endif
 
 static struct map *find_map(unw_word_t ip, struct unwind_info *ui)
 {
@@ -291,20 +321,33 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 
 	pr_debug("unwind: find_proc_info dso %s\n", map->dso->name);
 
-	if (read_unwind_spec(map->dso, ui->machine,
-			     &table_data, &segbase, &fde_count))
-		return -EINVAL;
+	/* Check the .eh_frame section for unwinding info */
+	if (!read_unwind_spec_eh_frame(map->dso, ui->machine,
+				       &table_data, &segbase, &fde_count)) {
+		memset(&di, 0, sizeof(di));
+		di.format   = UNW_INFO_FORMAT_REMOTE_TABLE;
+		di.start_ip = map->start;
+		di.end_ip   = map->end;
+		di.u.rti.segbase    = map->start + segbase;
+		di.u.rti.table_data = map->start + table_data;
+		di.u.rti.table_len  = fde_count * sizeof(struct table_entry)
+				      / sizeof(unw_word_t);
+		return dwarf_search_unwind_table(as, ip, &di, pi,
+						 need_unwind_info, arg);
+	}
 
-	memset(&di, 0, sizeof(di));
-	di.format   = UNW_INFO_FORMAT_REMOTE_TABLE;
-	di.start_ip = map->start;
-	di.end_ip   = map->end;
-	di.u.rti.segbase    = map->start + segbase;
-	di.u.rti.table_data = map->start + table_data;
-	di.u.rti.table_len  = fde_count * sizeof(struct table_entry)
-			      / sizeof(unw_word_t);
-	return dwarf_search_unwind_table(as, ip, &di, pi,
-					 need_unwind_info, arg);
+#ifndef NO_LIBUNWIND_DEBUG_FRAME
+	/* Check the .debug_frame section for unwinding info */
+	if (!read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
+		memset(&di, 0, sizeof(di));
+		dwarf_find_debug_frame(0, &di, ip, 0, map->dso->name,
+				       map->start, map->end);
+		return dwarf_search_unwind_table(as, ip, &di, pi,
+						 need_unwind_info, arg);
+	}
+#endif
+
+	return -EINVAL;
 }
 
 static int access_fpreg(unw_addr_space_t __maybe_unused as,
@@ -516,7 +559,7 @@ static unw_accessors_t accessors = {
 };
 
 static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
-		       void *arg)
+		       void *arg, int max_stack)
 {
 	unw_addr_space_t addr_space;
 	unw_cursor_t c;
@@ -532,7 +575,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	if (ret)
 		display_error(ret);
 
-	while (!ret && (unw_step(&c) > 0)) {
+	while (!ret && (unw_step(&c) > 0) && max_stack--) {
 		unw_word_t ip;
 
 		unw_get_reg(&c, UNW_REG_IP, &ip);
@@ -545,7 +588,8 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 
 int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct machine *machine, struct thread *thread,
-			u64 sample_uregs, struct perf_sample *data)
+			u64 sample_uregs, struct perf_sample *data,
+			int max_stack)
 {
 	unw_word_t ip;
 	struct unwind_info ui = {
@@ -567,5 +611,5 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (ret)
 		return -ENOMEM;
 
-	return get_entries(&ui, cb, arg);
+	return get_entries(&ui, cb, arg, max_stack);
 }

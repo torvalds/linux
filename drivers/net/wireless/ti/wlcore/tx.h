@@ -56,6 +56,9 @@
 /* Used for management frames and dummy packets */
 #define WL1271_TID_MGMT 7
 
+/* stop a ROC for pending authentication reply after this time (ms) */
+#define WLCORE_PEND_AUTH_ROC_TIMEOUT     1000
+
 struct wl127x_tx_mem {
 	/*
 	 * Number of extra memory blocks to allocate for this packet

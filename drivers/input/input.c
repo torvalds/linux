@@ -1734,6 +1734,7 @@ EXPORT_SYMBOL_GPL(input_class);
  */
 struct input_dev *input_allocate_device(void)
 {
+	static atomic_t input_no = ATOMIC_INIT(0);
 	struct input_dev *dev;
 
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
@@ -1743,8 +1744,12 @@ struct input_dev *input_allocate_device(void)
 		device_initialize(&dev->dev);
 		mutex_init(&dev->mutex);
 		spin_lock_init(&dev->event_lock);
+		init_timer(&dev->timer);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
+
+		dev_set_name(&dev->dev, "input%ld",
+			     (unsigned long) atomic_inc_return(&input_no) - 1);
 
 		__module_get(THIS_MODULE);
 	}
@@ -1866,6 +1871,10 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 		break;
 
 	case EV_ABS:
+		input_alloc_absinfo(dev);
+		if (!dev->absinfo)
+			return;
+
 		__set_bit(code, dev->absbit);
 		break;
 
@@ -2019,7 +2028,6 @@ static void devm_input_device_unregister(struct device *dev, void *res)
  */
 int input_register_device(struct input_dev *dev)
 {
-	static atomic_t input_no = ATOMIC_INIT(0);
 	struct input_devres *devres = NULL;
 	struct input_handler *handler;
 	unsigned int packet_size;
@@ -2048,7 +2056,7 @@ int input_register_device(struct input_dev *dev)
 	if (dev->hint_events_per_packet < packet_size)
 		dev->hint_events_per_packet = packet_size;
 
-	dev->max_vals = max(dev->hint_events_per_packet, packet_size) + 2;
+	dev->max_vals = dev->hint_events_per_packet + 2;
 	dev->vals = kcalloc(dev->max_vals, sizeof(*dev->vals), GFP_KERNEL);
 	if (!dev->vals) {
 		error = -ENOMEM;
@@ -2059,7 +2067,6 @@ int input_register_device(struct input_dev *dev)
 	 * If delay and period are pre-set by the driver, then autorepeating
 	 * is handled by the driver itself and we don't do it in input.c.
 	 */
-	init_timer(&dev->timer);
 	if (!dev->rep[REP_DELAY] && !dev->rep[REP_PERIOD]) {
 		dev->timer.data = (long) dev;
 		dev->timer.function = input_repeat_key;
@@ -2072,9 +2079,6 @@ int input_register_device(struct input_dev *dev)
 
 	if (!dev->setkeycode)
 		dev->setkeycode = input_default_setkeycode;
-
-	dev_set_name(&dev->dev, "input%ld",
-		     (unsigned long) atomic_inc_return(&input_no) - 1);
 
 	error = device_add(&dev->dev);
 	if (error)

@@ -33,6 +33,7 @@ static void __init kzm9d_add_standard_devices(void)
 }
 
 static const char *kzm9d_boards_compat_dt[] __initdata = {
+	"renesas,kzm9d",
 	"renesas,kzm9d-reference",
 	NULL,
 };

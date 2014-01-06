@@ -363,9 +363,6 @@ static int ar71xx_pci_probe(struct platform_device *pdev)
 	spin_lock_init(&apc->lock);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_base");
-	if (!res)
-		return -EINVAL;
-
 	apc->cfg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(apc->cfg_base))
 		return PTR_ERR(apc->cfg_base);

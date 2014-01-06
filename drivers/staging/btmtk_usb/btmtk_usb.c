@@ -16,7 +16,8 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *  or on the worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
+ *  or on the worldwide web at
+ *  http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
  *
  */
 
@@ -72,8 +73,9 @@ static int btmtk_usb_reset(struct usb_device *udev)
 
 	BT_DBG("%s\n", __func__);
 
-	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x01, DEVICE_VENDOR_REQUEST_OUT,
-						  0x01, 0x00, NULL, 0x00, CONTROL_TIMEOUT_JIFFIES);
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x01,
+			DEVICE_VENDOR_REQUEST_OUT, 0x01, 0x00,
+			NULL, 0x00, CONTROL_TIMEOUT_JIFFIES);
 
 	if (ret < 0) {
 		BT_ERR("%s error(%d)\n", __func__, ret);
@@ -91,20 +93,22 @@ static int btmtk_usb_io_read32(struct btmtk_usb_data *data, u32 reg, u32 *val)
 	u8 request = data->r_request;
 	struct usb_device *udev = data->udev;
 	int ret;
+	__le32 val_le;
 
-	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), request, DEVICE_VENDOR_REQUEST_IN,
-						  0x0, reg, data->io_buf, 4,
-						  CONTROL_TIMEOUT_JIFFIES);
+	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), request,
+			DEVICE_VENDOR_REQUEST_IN, 0x0, reg, data->io_buf,
+			4, CONTROL_TIMEOUT_JIFFIES);
 
 	if (ret < 0) {
 		*val = 0xffffffff;
-		BT_ERR("%s error(%d), reg=%x, value=%x\n", __func__, ret, reg, *val);
+		BT_ERR("%s error(%d), reg=%x, value=%x\n",
+				__func__, ret, reg, *val);
 		return ret;
 	}
 
-	memmove(val, data->io_buf, 4);
+	memmove(&val_le, data->io_buf, 4);
 
-	*val = le32_to_cpu(*val);
+	*val = le32_to_cpu(val_le);
 
 	if (ret > 0)
 		ret = 0;
@@ -122,12 +126,13 @@ static int btmtk_usb_io_write32(struct btmtk_usb_data *data, u32 reg, u32 val)
 	index = (u16)reg;
 	value = val & 0x0000ffff;
 
-	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), request, DEVICE_VENDOR_REQUEST_OUT,
-						  value, index, NULL, 0,
-						  CONTROL_TIMEOUT_JIFFIES);
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), request,
+			DEVICE_VENDOR_REQUEST_OUT, value, index,
+			NULL, 0, CONTROL_TIMEOUT_JIFFIES);
 
 	if (ret < 0) {
-		BT_ERR("%s error(%d), reg=%x, value=%x\n", __func__, ret, reg, val);
+		BT_ERR("%s error(%d), reg=%x, value=%x\n",
+				__func__, ret, reg, val);
 		return ret;
 	}
 
@@ -139,7 +144,8 @@ static int btmtk_usb_io_write32(struct btmtk_usb_data *data, u32 reg, u32 val)
 				value, index, NULL, 0, CONTROL_TIMEOUT_JIFFIES);
 
 	if (ret < 0) {
-		BT_ERR("%s error(%d), reg=%x, value=%x\n", __func__, ret, reg, val);
+		BT_ERR("%s error(%d), reg=%x, value=%x\n",
+				__func__, ret, reg, val);
 		return ret;
 	}
 
@@ -186,13 +192,15 @@ static void btmtk_usb_cap_init(struct btmtk_usb_data *data)
 		ret = request_firmware(&firmware, MT7650_FIRMWARE, &udev->dev);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
-				BT_ERR("Firmware file \"%s\" not found \n", MT7650_FIRMWARE);
+				BT_ERR("Firmware file \"%s\" not found\n",
+						MT7650_FIRMWARE);
 			} else {
-				BT_ERR("Firmware file \"%s\" request failed (err=%d) \n",
+				BT_ERR("Firmware file \"%s\" request failed (err=%d)\n",
 					MT7650_FIRMWARE, ret);
 			}
 		} else {
-			BT_DBG("Firmware file \"%s\" Found \n", MT7650_FIRMWARE);
+			BT_DBG("Firmware file \"%s\" Found\n",
+					MT7650_FIRMWARE);
 			/* load firmware here */
 			data->firmware = firmware;
 			btmtk_usb_load_fw(data);
@@ -205,7 +213,8 @@ static void btmtk_usb_cap_init(struct btmtk_usb_data *data)
 		ret = request_firmware(&firmware, MT7662_FIRMWARE, &udev->dev);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
-				BT_ERR("Firmware file \"%s\" not found\n", MT7662_FIRMWARE);
+				BT_ERR("Firmware file \"%s\" not found\n",
+						MT7662_FIRMWARE);
 			} else {
 				BT_ERR("Firmware file \"%s\" request failed (err=%d)\n",
 					MT7662_FIRMWARE, ret);
@@ -241,9 +250,8 @@ static u16 checksume16(u8 *pData, int len)
 	if (len)
 		sum += *((u8 *)pData);
 
-	while (sum >> 16) {
+	while (sum >> 16)
 		sum = (sum & 0xFFFF) + (sum >> 16);
-	}
 
 	return ~sum;
 }
@@ -258,13 +266,12 @@ static int btmtk_usb_chk_crc(struct btmtk_usb_data *data, u32 checksum_len)
 	memmove(data->io_buf, &data->rom_patch_offset, 4);
 	memmove(&data->io_buf[4], &checksum_len, 4);
 
-	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x1, DEVICE_VENDOR_REQUEST_IN,
-						  0x20, 0x00, data->io_buf, 8,
-						  CONTROL_TIMEOUT_JIFFIES);
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x1,
+			DEVICE_VENDOR_REQUEST_IN, 0x20, 0x00, data->io_buf,
+			8, CONTROL_TIMEOUT_JIFFIES);
 
-	if (ret < 0) {
+	if (ret < 0)
 		BT_ERR("%s error(%d)\n", __func__, ret);
-	}
 
 	return ret;
 }
@@ -274,6 +281,7 @@ static u16 btmtk_usb_get_crc(struct btmtk_usb_data *data)
 	int ret = 0;
 	struct usb_device *udev = data->udev;
 	u16 crc, count = 0;
+	__le16 crc_le;
 
 	BT_DBG("%s\n", __func__);
 
@@ -288,9 +296,9 @@ static u16 btmtk_usb_get_crc(struct btmtk_usb_data *data)
 			BT_ERR("%s error(%d)\n", __func__, ret);
 		}
 
-		memmove(&crc, data->io_buf, 2);
+		memmove(&crc_le, data->io_buf, 2);
 
-		crc = le16_to_cpu(crc);
+		crc = le16_to_cpu(crc_le);
 
 		if (crc != 0xFFFF)
 			break;
@@ -318,8 +326,8 @@ static int btmtk_usb_reset_wmt(struct btmtk_usb_data *data)
 	BT_DBG("%s\n", __func__);
 
 	ret = usb_control_msg(data->udev, usb_sndctrlpipe(data->udev, 0), 0x01,
-				DEVICE_CLASS_REQUEST_OUT, 0x12, 0x00, data->io_buf,
-				8, CONTROL_TIMEOUT_JIFFIES);
+				DEVICE_CLASS_REQUEST_OUT, 0x12, 0x00,
+				data->io_buf, 8, CONTROL_TIMEOUT_JIFFIES);
 
 	if (ret)
 		BT_ERR("%s:(%d)\n", __func__, ret);
@@ -350,7 +358,8 @@ static int btmtk_usb_load_rom_patch(struct btmtk_usb_data *data)
 	unsigned char phase;
 	void *buf;
 	char *pos;
-	unsigned int pipe = usb_sndbulkpipe(data->udev, data->bulk_tx_ep->bEndpointAddress);
+	unsigned int pipe;
+	pipe = usb_sndbulkpipe(data->udev, data->bulk_tx_ep->bEndpointAddress);
 
 	if (!data->firmware) {
 		BT_ERR("%s:please assign a rom patch\n", __func__);
@@ -391,7 +400,8 @@ load_patch_protect:
 		goto error0;
 	}
 
-	buf = usb_alloc_coherent(data->udev, UPLOAD_PATCH_UNIT, GFP_ATOMIC, &data_dma);
+	buf = usb_alloc_coherent(data->udev, UPLOAD_PATCH_UNIT,
+			GFP_ATOMIC, &data_dma);
 
 	if (!buf) {
 		ret = -ENOMEM;
@@ -409,78 +419,82 @@ load_patch_protect:
 	/* loading rom patch */
 	while (1) {
 		s32 sent_len_max = UPLOAD_PATCH_UNIT - PATCH_HEADER_SIZE;
-		sent_len = (patch_len - cur_len) >= sent_len_max ? sent_len_max : (patch_len - cur_len);
+		sent_len = min_t(s32, (patch_len - cur_len), sent_len_max);
 
 		BT_DBG("patch_len = %d\n", patch_len);
 		BT_DBG("cur_len = %d\n", cur_len);
 		BT_DBG("sent_len = %d\n", sent_len);
 
-		if (sent_len > 0) {
-			if (first_block == 1) {
-				if (sent_len < sent_len_max)
-					phase = PATCH_PHASE3;
-				else
-					phase = PATCH_PHASE1;
-				first_block = 0;
-			} else if (sent_len == sent_len_max) {
-				phase = PATCH_PHASE2;
-			} else {
-				phase = PATCH_PHASE3;
-			}
-
-			/* prepare HCI header */
-			pos[0] = 0x6F;
-			pos[1] = 0xFC;
-			pos[2] = (sent_len + 5) & 0xFF;
-			pos[3] = ((sent_len + 5) >> 8) & 0xFF;
-
-			/* prepare WMT header */
-			pos[4] = 0x01;
-			pos[5] = 0x01;
-			pos[6] = (sent_len + 1) & 0xFF;
-			pos[7] = ((sent_len + 1) >> 8) & 0xFF;
-
-			pos[8] = phase;
-
-			memcpy(&pos[9], data->firmware->data + PATCH_INFO_SIZE + cur_len, sent_len);
-
-			BT_DBG("sent_len + PATCH_HEADER_SIZE = %d, phase = %d\n",
-					sent_len + PATCH_HEADER_SIZE, phase);
-
-			usb_fill_bulk_urb(urb,
-					data->udev,
-					pipe,
-					buf,
-					sent_len + PATCH_HEADER_SIZE,
-					load_rom_patch_complete,
-					&sent_to_mcu_done);
-
-			urb->transfer_dma = data_dma;
-			urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-
-			ret = usb_submit_urb(urb, GFP_ATOMIC);
-
-			if (ret)
-				goto error2;
-
-			if (!wait_for_completion_timeout(&sent_to_mcu_done, msecs_to_jiffies(1000))) {
-				usb_kill_urb(urb);
-				BT_ERR("upload rom_patch timeout\n");
-				goto error2;
-			}
-
-			BT_DBG(".");
-
-			mdelay(200);
-
-			cur_len += sent_len;
-
-		} else {
+		if (sent_len <= 0)
 			break;
+
+		if (first_block == 1) {
+			if (sent_len < sent_len_max)
+				phase = PATCH_PHASE3;
+			else
+				phase = PATCH_PHASE1;
+			first_block = 0;
+		} else if (sent_len == sent_len_max) {
+			phase = PATCH_PHASE2;
+		} else {
+			phase = PATCH_PHASE3;
 		}
+
+		/* prepare HCI header */
+		pos[0] = 0x6F;
+		pos[1] = 0xFC;
+		pos[2] = (sent_len + 5) & 0xFF;
+		pos[3] = ((sent_len + 5) >> 8) & 0xFF;
+
+		/* prepare WMT header */
+		pos[4] = 0x01;
+		pos[5] = 0x01;
+		pos[6] = (sent_len + 1) & 0xFF;
+		pos[7] = ((sent_len + 1) >> 8) & 0xFF;
+
+		pos[8] = phase;
+
+		memcpy(&pos[9],
+			data->firmware->data + PATCH_INFO_SIZE + cur_len,
+			sent_len);
+
+		BT_DBG("sent_len + PATCH_HEADER_SIZE = %d, phase = %d\n",
+				sent_len + PATCH_HEADER_SIZE, phase);
+
+		usb_fill_bulk_urb(urb,
+				data->udev,
+				pipe,
+				buf,
+				sent_len + PATCH_HEADER_SIZE,
+				load_rom_patch_complete,
+				&sent_to_mcu_done);
+
+		urb->transfer_dma = data_dma;
+		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
+
+		if (ret)
+			goto error2;
+
+		if (!wait_for_completion_timeout(&sent_to_mcu_done,
+					msecs_to_jiffies(1000))) {
+			usb_kill_urb(urb);
+			BT_ERR("upload rom_patch timeout\n");
+			goto error2;
+		}
+
+		BT_DBG(".");
+
+		mdelay(200);
+
+		cur_len += sent_len;
+
 	}
 
-	total_checksum = checksume16((u8 *)data->firmware->data + PATCH_INFO_SIZE, patch_len);
+	total_checksum = checksume16(
+			(u8 *)data->firmware->data + PATCH_INFO_SIZE,
+			patch_len);
 
 	BT_DBG("Send checksum req..\n");
 
@@ -520,8 +534,8 @@ static int load_fw_iv(struct btmtk_usb_data *data)
 	memmove(buf, data->firmware->data + 32, 64);
 
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x01,
-						  DEVICE_VENDOR_REQUEST_OUT, 0x12, 0x0, buf, 64,
-						  CONTROL_TIMEOUT_JIFFIES);
+			DEVICE_VENDOR_REQUEST_OUT, 0x12, 0x0, buf, 64,
+			CONTROL_TIMEOUT_JIFFIES);
 
 	if (ret < 0) {
 		BT_ERR("%s error(%d) step4\n", __func__, ret);
@@ -552,6 +566,7 @@ static int btmtk_usb_load_fw(struct btmtk_usb_data *data)
 	void *buf;
 	u32 cur_len = 0;
 	u32 packet_header = 0;
+	__le32 packet_header_le;
 	u32 value;
 	u32 ilm_len = 0, dlm_len = 0;
 	u16 fw_ver, build_ver;
@@ -559,7 +574,8 @@ static int btmtk_usb_load_fw(struct btmtk_usb_data *data)
 	dma_addr_t data_dma;
 	int ret = 0, sent_len;
 	struct completion sent_to_mcu_done;
-	unsigned int pipe = usb_sndbulkpipe(data->udev, data->bulk_tx_ep->bEndpointAddress);
+	unsigned int pipe;
+	pipe = usb_sndbulkpipe(data->udev, data->bulk_tx_ep->bEndpointAddress);
 
 	if (!data->firmware) {
 		BT_ERR("%s:please assign a fw\n", __func__);
@@ -598,9 +614,11 @@ loadfw_protect:
 			| (*(data->firmware->data + 5) << 8)
 			| (*(data->firmware->data + 4));
 
-	fw_ver = (*(data->firmware->data + 11) << 8) | (*(data->firmware->data + 10));
+	fw_ver = (*(data->firmware->data + 11) << 8) |
+	      (*(data->firmware->data + 10));
 
-	build_ver = (*(data->firmware->data + 9) << 8) | (*(data->firmware->data + 8));
+	build_ver = (*(data->firmware->data + 9) << 8) |
+		 (*(data->firmware->data + 8));
 
 	BT_DBG("fw version:%d.%d.%02d ",
 			(fw_ver & 0xf000) >> 8,
@@ -657,22 +675,22 @@ loadfw_protect:
 
 	/* Loading ILM */
 	while (1) {
-		sent_len = (ilm_len - cur_len) >= 14336 ? 14336 : (ilm_len - cur_len);
+		sent_len = min_t(s32, (ilm_len - cur_len), 14336);
 
 		if (sent_len > 0) {
 			packet_header &= ~(0xffffffff);
 			packet_header |= (sent_len << 16);
-			packet_header = cpu_to_le32(packet_header);
+			packet_header_le = cpu_to_le32(packet_header);
 
-			memmove(buf, &packet_header, 4);
-			memmove(buf + 4, data->firmware->data + 32 + cur_len, sent_len);
+			memmove(buf, &packet_header_le, 4);
+			memmove(buf + 4, data->firmware->data + 32 + cur_len,
+					sent_len);
 
 			/* U2M_PDMA descriptor */
 			btmtk_usb_io_write32(data, 0x230, cur_len);
 
-			while ((sent_len % 4) != 0) {
+			while ((sent_len % 4) != 0)
 				sent_len++;
-			}
 
 			/* U2M_PDMA length */
 			btmtk_usb_io_write32(data, 0x234, sent_len << 16);
@@ -693,7 +711,8 @@ loadfw_protect:
 			if (ret)
 				goto error3;
 
-			if (!wait_for_completion_timeout(&sent_to_mcu_done, msecs_to_jiffies(1000))) {
+			if (!wait_for_completion_timeout(&sent_to_mcu_done,
+						msecs_to_jiffies(1000))) {
 				usb_kill_urb(urb);
 				BT_ERR("upload ilm fw timeout\n");
 				goto error3;
@@ -714,58 +733,60 @@ loadfw_protect:
 
 	/* Loading DLM */
 	while (1) {
-		sent_len = (dlm_len - cur_len) >= 14336 ? 14336 : (dlm_len - cur_len);
+		sent_len = min_t(s32, (dlm_len - cur_len), 14336);
 
-		if (sent_len > 0) {
-			packet_header &= ~(0xffffffff);
-			packet_header |= (sent_len << 16);
-			packet_header = cpu_to_le32(packet_header);
-
-			memmove(buf, &packet_header, 4);
-			memmove(buf + 4, data->firmware->data + 32 + ilm_len + cur_len, sent_len);
-
-			/* U2M_PDMA descriptor */
-			btmtk_usb_io_write32(data, 0x230, 0x80000 + cur_len);
-
-			while ((sent_len % 4) != 0) {
-				BT_DBG("sent_len is not divided by 4\n");
-				sent_len++;
-			}
-
-			/* U2M_PDMA length */
-			btmtk_usb_io_write32(data, 0x234, sent_len << 16);
-
-			usb_fill_bulk_urb(urb,
-					udev,
-					pipe,
-					buf,
-					sent_len + 4,
-					load_fw_complete,
-					&sent_to_mcu_done);
-
-			urb->transfer_dma = data_dma;
-			urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-
-			ret = usb_submit_urb(urb, GFP_ATOMIC);
-
-			if (ret)
-				goto error3;
-
-			if (!wait_for_completion_timeout(&sent_to_mcu_done, msecs_to_jiffies(1000))) {
-				usb_kill_urb(urb);
-				BT_ERR("upload dlm fw timeout\n");
-				goto error3;
-			}
-
-			BT_DBG(".");
-
-			mdelay(500);
-
-			cur_len += sent_len;
-
-		} else {
+		if (sent_len <= 0)
 			break;
+
+		packet_header &= ~(0xffffffff);
+		packet_header |= (sent_len << 16);
+		packet_header_le = cpu_to_le32(packet_header);
+
+		memmove(buf, &packet_header_le, 4);
+		memmove(buf + 4,
+			data->firmware->data + 32 + ilm_len + cur_len,
+			sent_len);
+
+		/* U2M_PDMA descriptor */
+		btmtk_usb_io_write32(data, 0x230, 0x80000 + cur_len);
+
+		while ((sent_len % 4) != 0) {
+			BT_DBG("sent_len is not divided by 4\n");
+			sent_len++;
 		}
+
+		/* U2M_PDMA length */
+		btmtk_usb_io_write32(data, 0x234, sent_len << 16);
+
+		usb_fill_bulk_urb(urb,
+				udev,
+				pipe,
+				buf,
+				sent_len + 4,
+				load_fw_complete,
+				&sent_to_mcu_done);
+
+		urb->transfer_dma = data_dma;
+		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
+
+		if (ret)
+			goto error3;
+
+		if (!wait_for_completion_timeout(&sent_to_mcu_done,
+					msecs_to_jiffies(1000))) {
+			usb_kill_urb(urb);
+			BT_ERR("upload dlm fw timeout\n");
+			goto error3;
+		}
+
+		BT_DBG(".");
+
+		mdelay(500);
+
+		cur_len += sent_len;
+
 	}
 
 	/* upload 64bytes interrupt vector */
@@ -921,9 +942,8 @@ static void btmtk_usb_bulk_in_complete(struct urb *urb)
 	BT_DBG("%s:%s urb %p status %d count %d", __func__, hdev->name,
 					urb, urb->status, urb->actual_length);
 
-	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
+	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return;
-	}
 
 	if (urb->status == 0) {
 		hdev->stat.byte_rx += urb->actual_length;
@@ -978,8 +998,8 @@ static int btmtk_usb_submit_bulk_in_urb(struct hci_dev *hdev, gfp_t mem_flags)
 
 	pipe = usb_rcvbulkpipe(data->udev, data->bulk_rx_ep->bEndpointAddress);
 
-	usb_fill_bulk_urb(urb, data->udev, pipe,
-					buf, size, btmtk_usb_bulk_in_complete, hdev);
+	usb_fill_bulk_urb(urb, data->udev, pipe, buf, size,
+			btmtk_usb_bulk_in_complete, hdev);
 
 	urb->transfer_flags |= URB_FREE_BUFFER;
 
@@ -1015,7 +1035,8 @@ static void btmtk_usb_isoc_in_complete(struct urb *urb)
 	if (urb->status == 0) {
 		for (i = 0; i < urb->number_of_packets; i++) {
 			unsigned int offset = urb->iso_frame_desc[i].offset;
-			unsigned int length = urb->iso_frame_desc[i].actual_length;
+			unsigned int length;
+			length = urb->iso_frame_desc[i].actual_length;
 
 			if (urb->iso_frame_desc[i].status)
 				continue;
@@ -1096,8 +1117,9 @@ static int btmtk_usb_submit_isoc_in_urb(struct hci_dev *hdev, gfp_t mem_flags)
 
 	pipe = usb_rcvisocpipe(data->udev, data->isoc_rx_ep->bEndpointAddress);
 
-	usb_fill_int_urb(urb, data->udev, pipe, buf, size, btmtk_usb_isoc_in_complete,
-				hdev, data->isoc_rx_ep->bInterval);
+	usb_fill_int_urb(urb, data->udev, pipe, buf, size,
+			btmtk_usb_isoc_in_complete, hdev,
+			data->isoc_rx_ep->bInterval);
 
 	urb->transfer_flags  = URB_FREE_BUFFER | URB_ISO_ASAP;
 
@@ -1262,9 +1284,8 @@ done:
 	kfree_skb(skb);
 }
 
-static int btmtk_usb_send_frame(struct sk_buff *skb)
+static int btmtk_usb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *)skb->dev;
 	struct btmtk_usb_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
@@ -1306,7 +1327,8 @@ static int btmtk_usb_send_frame(struct sk_buff *skb)
 		}
 
 		usb_fill_control_urb(urb, data->udev, pipe, (void *) dr,
-				skb->data, skb->len, btmtk_usb_tx_complete, skb);
+				skb->data, skb->len,
+				btmtk_usb_tx_complete, skb);
 
 		hdev->stat.cmd_tx++;
 		break;
@@ -1322,8 +1344,8 @@ static int btmtk_usb_send_frame(struct sk_buff *skb)
 		pipe = usb_sndbulkpipe(data->udev,
 					data->bulk_tx_ep->bEndpointAddress);
 
-		usb_fill_bulk_urb(urb, data->udev, pipe,
-				skb->data, skb->len, btmtk_usb_tx_complete, skb);
+		usb_fill_bulk_urb(urb, data->udev, pipe, skb->data,
+				skb->len, btmtk_usb_tx_complete, skb);
 
 		hdev->stat.acl_tx++;
 		BT_DBG("HCI_ACLDATA_PKT:\n");
@@ -1442,7 +1464,8 @@ static inline int __set_isoc_interface(struct hci_dev *hdev, int altsetting)
 
 static void btmtk_usb_work(struct work_struct *work)
 {
-	struct btmtk_usb_data *data = container_of(work, struct btmtk_usb_data, work);
+	struct btmtk_usb_data *data = container_of(work, struct btmtk_usb_data,
+			work);
 	struct hci_dev *hdev = data->hdev;
 	int new_alts;
 	int err;
@@ -1451,7 +1474,8 @@ static void btmtk_usb_work(struct work_struct *work)
 
 	if (hdev->conn_hash.sco_num > 0) {
 		if (!test_bit(BTUSB_DID_ISO_RESUME, &data->flags)) {
-			err = usb_autopm_get_interface(data->isoc ? data->isoc : data->intf);
+			err = usb_autopm_get_interface(data->isoc ?
+					data->isoc : data->intf);
 			if (err < 0) {
 				clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 				usb_kill_anchored_urbs(&data->isoc_anchor);
@@ -1489,13 +1513,15 @@ static void btmtk_usb_work(struct work_struct *work)
 		__set_isoc_interface(hdev, 0);
 
 		if (test_and_clear_bit(BTUSB_DID_ISO_RESUME, &data->flags))
-			 usb_autopm_put_interface(data->isoc ? data->isoc : data->intf);
+			usb_autopm_put_interface(data->isoc ?
+					 data->isoc : data->intf);
 	}
 }
 
 static void btmtk_usb_waker(struct work_struct *work)
 {
-	struct btmtk_usb_data *data = container_of(work, struct btmtk_usb_data, waker);
+	struct btmtk_usb_data *data = container_of(work, struct btmtk_usb_data,
+			waker);
 	int err;
 
 	err = usb_autopm_get_interface(data->intf);

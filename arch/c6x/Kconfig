@@ -36,9 +36,6 @@ config GENERIC_HWEIGHT
 config GENERIC_BUG
 	def_bool y
 
-config COMMON_CLKDEV
-	def_bool y
-
 config C6X_BIG_KERNEL
 	bool "Build a big kernel"
 	help
@@ -104,10 +101,6 @@ config FORCE_MAX_ZONEORDER
 menu "Processor type and features"
 
 source "arch/c6x/platforms/Kconfig"
-
-config TMS320C6X_CACHES_ON
-	bool "L2 cache support"
-	default y
 
 config KERNEL_RAM_BASE_ADDRESS
 	hex "Virtual address of memory base"

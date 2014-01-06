@@ -1,0 +1,24 @@
+config DRM_ARMADA
+	tristate "DRM support for Marvell Armada SoCs"
+	depends on DRM && HAVE_CLK && ARM
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select DRM_KMS_HELPER
+	help
+	  Support the "LCD" controllers found on the Marvell Armada 510
+	  devices.  There are two controllers on the device, each controller
+	  supports graphics and video overlays.
+
+	  This driver provides no built-in acceleration; acceleration is
+	  performed by other IP found on the SoC.  This driver provides
+	  kernel mode setting and buffer management to userspace.
+
+config DRM_ARMADA_TDA1998X
+	bool "Support TDA1998X HDMI output"
+	depends on DRM_ARMADA != n
+	depends on I2C && DRM_I2C_NXP_TDA998X = y
+	default y
+	help
+	  Support the TDA1998x HDMI output device found on the Solid-Run
+	  CuBox.

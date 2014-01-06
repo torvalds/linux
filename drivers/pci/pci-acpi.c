@@ -141,7 +141,7 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
  * if (_PRW at S-state x)
  *	choose from highest power _SxD to lowest power _SxW
  * else // no _PRW at S-state x
- * 	choose highest power _SxD or any lower power
+ *	choose highest power _SxD or any lower power
  */
 
 static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
@@ -173,15 +173,14 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 
 static bool acpi_pci_power_manageable(struct pci_dev *dev)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	acpi_handle handle = ACPI_HANDLE(&dev->dev);
 
 	return handle ? acpi_bus_power_manageable(handle) : false;
 }
 
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
-	acpi_handle tmp;
+	acpi_handle handle = ACPI_HANDLE(&dev->dev);
 	static const u8 state_conv[] = {
 		[PCI_D0] = ACPI_STATE_D0,
 		[PCI_D1] = ACPI_STATE_D1,
@@ -192,7 +191,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	int error = -EINVAL;
 
 	/* If the ACPI device has _EJ0, ignore the device */
-	if (!handle || ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
+	if (!handle || acpi_has_method(handle, "_EJ0"))
 		return -ENODEV;
 
 	switch (state) {
@@ -218,7 +217,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	acpi_handle handle = ACPI_HANDLE(&dev->dev);
 
 	return handle ? acpi_bus_can_wakeup(handle) : false;
 }
@@ -331,29 +330,32 @@ static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 static void pci_acpi_setup(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	acpi_handle handle = ACPI_HANDLE(dev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 
-	if (acpi_bus_get_device(handle, &adev) || !adev->wakeup.flags.valid)
+	if (!adev)
+		return;
+
+	pci_acpi_add_pm_notifier(adev, pci_dev);
+	if (!adev->wakeup.flags.valid)
 		return;
 
 	device_set_wakeup_capable(dev, true);
 	acpi_pci_sleep_wake(pci_dev, false);
-
-	pci_acpi_add_pm_notifier(adev, pci_dev);
 	if (adev->wakeup.flags.run_wake)
 		device_set_run_wake(dev, true);
 }
 
 static void pci_acpi_cleanup(struct device *dev)
 {
-	acpi_handle handle = ACPI_HANDLE(dev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 
-	if (!acpi_bus_get_device(handle, &adev) && adev->wakeup.flags.valid) {
+	if (!adev)
+		return;
+
+	pci_acpi_remove_pm_notifier(adev);
+	if (adev->wakeup.flags.valid) {
 		device_set_wakeup_capable(dev, false);
 		device_set_run_wake(dev, false);
-		pci_acpi_remove_pm_notifier(adev);
 	}
 }
 

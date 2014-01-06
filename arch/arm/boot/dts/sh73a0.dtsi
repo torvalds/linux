@@ -135,6 +135,7 @@
 			      0 168 0x4
 			      0 169 0x4
 			      0 170 0x4>;
+		status = "disabled";
 	};
 
 	i2c1: i2c@e6822000 {
@@ -147,6 +148,7 @@
 			      0 52 0x4
 			      0 53 0x4
 			      0 54 0x4>;
+		status = "disabled";
 	};
 
 	i2c2: i2c@e6824000 {
@@ -159,6 +161,7 @@
 			      0 172 0x4
 			      0 173 0x4
 			      0 174 0x4>;
+		status = "disabled";
 	};
 
 	i2c3: i2c@e6826000 {
@@ -171,6 +174,7 @@
 			      0 184 0x4
 			      0 185 0x4
 			      0 186 0x4>;
+		status = "disabled";
 	};
 
 	i2c4: i2c@e6828000 {
@@ -183,6 +187,7 @@
 			      0 188 0x4
 			      0 189 0x4
 			      0 190 0x4>;
+		status = "disabled";
 	};
 
 	mmcif: mmcif@e6bd0000 {
@@ -196,7 +201,7 @@
 	};
 
 	sdhi0: sdhi@ee100000 {
-		compatible = "renesas,r8a7740-sdhi";
+		compatible = "renesas,sdhi-r8a7740";
 		reg = <0xee100000 0x100>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 83 4
@@ -208,7 +213,7 @@
 
 	/* SDHI1 and SDHI2 have no CD pins, no need for CD IRQ */
 	sdhi1: sdhi@ee120000 {
-		compatible = "renesas,r8a7740-sdhi";
+		compatible = "renesas,sdhi-r8a7740";
 		reg = <0xee120000 0x100>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 88 4
@@ -219,7 +224,7 @@
 	};
 
 	sdhi2: sdhi@ee140000 {
-		compatible = "renesas,r8a7740-sdhi";
+		compatible = "renesas,sdhi-r8a7740";
 		reg = <0xee140000 0x100>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 104 4

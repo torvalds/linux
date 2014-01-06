@@ -214,10 +214,14 @@ static netdev_features_t xenvif_fix_features(struct net_device *dev,
 
 	if (!vif->can_sg)
 		features &= ~NETIF_F_SG;
-	if (!vif->gso && !vif->gso_prefix)
+	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV4))
 		features &= ~NETIF_F_TSO;
-	if (!vif->csum)
+	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV6))
+		features &= ~NETIF_F_TSO6;
+	if (!vif->ip_csum)
 		features &= ~NETIF_F_IP_CSUM;
+	if (!vif->ipv6_csum)
+		features &= ~NETIF_F_IPV6_CSUM;
 
 	return features;
 }
@@ -303,21 +307,31 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	SET_NETDEV_DEV(dev, parent);
 
 	vif = netdev_priv(dev);
+
+	vif->grant_copy_op = vmalloc(sizeof(struct gnttab_copy) *
+				     MAX_GRANT_COPY_OPS);
+	if (vif->grant_copy_op == NULL) {
+		pr_warn("Could not allocate grant copy space for %s\n", name);
+		free_netdev(dev);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	vif->domid  = domid;
 	vif->handle = handle;
 	vif->can_sg = 1;
-	vif->csum = 1;
+	vif->ip_csum = 1;
 	vif->dev = dev;
 
 	vif->credit_bytes = vif->remaining_credit = ~0UL;
 	vif->credit_usec  = 0UL;
 	init_timer(&vif->credit_timeout);
-	/* Initialize 'expires' now: it's used to track the credit window. */
-	vif->credit_timeout.expires = jiffies;
+	vif->credit_window_start = get_jiffies_64();
 
 	dev->netdev_ops	= &xenvif_netdev_ops;
-	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
-	dev->features = dev->hw_features;
+	dev->hw_features = NETIF_F_SG |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6;
+	dev->features = dev->hw_features | NETIF_F_RXCSUM;
 	SET_ETHTOOL_OPS(dev, &xenvif_ethtool_ops);
 
 	dev->tx_queue_len = XENVIF_QUEUE_LENGTH;
@@ -363,11 +377,11 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
 		   unsigned int rx_evtchn)
 {
+	struct task_struct *task;
 	int err = -ENOMEM;
 
-	/* Already connected through? */
-	if (vif->tx_irq)
-		return 0;
+	BUG_ON(vif->tx_irq);
+	BUG_ON(vif->task);
 
 	err = xenvif_map_frontend_rings(vif, tx_ring_ref, rx_ring_ref);
 	if (err < 0)
@@ -406,13 +420,15 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	}
 
 	init_waitqueue_head(&vif->wq);
-	vif->task = kthread_create(xenvif_kthread,
-				   (void *)vif, "%s", vif->dev->name);
-	if (IS_ERR(vif->task)) {
+	task = kthread_create(xenvif_kthread,
+			      (void *)vif, "%s", vif->dev->name);
+	if (IS_ERR(task)) {
 		pr_warn("Could not allocate kthread for %s\n", vif->dev->name);
-		err = PTR_ERR(vif->task);
+		err = PTR_ERR(task);
 		goto err_rx_unbind;
 	}
+
+	vif->task = task;
 
 	rtnl_lock();
 	if (!vif->can_sg && vif->dev->mtu > ETH_DATA_LEN)
@@ -456,6 +472,11 @@ void xenvif_disconnect(struct xenvif *vif)
 	if (netif_carrier_ok(vif->dev))
 		xenvif_carrier_off(vif);
 
+	if (vif->task) {
+		kthread_stop(vif->task);
+		vif->task = NULL;
+	}
+
 	if (vif->tx_irq) {
 		if (vif->tx_irq == vif->rx_irq)
 			unbind_from_irqhandler(vif->tx_irq, vif);
@@ -466,9 +487,6 @@ void xenvif_disconnect(struct xenvif *vif)
 		vif->tx_irq = 0;
 	}
 
-	if (vif->task)
-		kthread_stop(vif->task);
-
 	xenvif_unmap_frontend_rings(vif);
 }
 
@@ -478,6 +496,7 @@ void xenvif_free(struct xenvif *vif)
 
 	unregister_netdev(vif->dev);
 
+	vfree(vif->grant_copy_op);
 	free_netdev(vif->dev);
 
 	module_put(THIS_MODULE);

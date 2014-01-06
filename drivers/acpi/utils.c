@@ -121,7 +121,7 @@ acpi_extract_package(union acpi_object *package,
 				break;
 			default:
 				printk(KERN_WARNING PREFIX "Invalid package element"
-					      " [%d]: got number, expecing"
+					      " [%d]: got number, expecting"
 					      " [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
@@ -148,7 +148,7 @@ acpi_extract_package(union acpi_object *package,
 			default:
 				printk(KERN_WARNING PREFIX "Invalid package element"
 					      " [%d] got string/buffer,"
-					      " expecing [%c]\n",
+					      " expecting [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
 				break;
@@ -169,11 +169,20 @@ acpi_extract_package(union acpi_object *package,
 	/*
 	 * Validate output buffer.
 	 */
-	if (buffer->length < size_required) {
+	if (buffer->length == ACPI_ALLOCATE_BUFFER) {
+		buffer->pointer = ACPI_ALLOCATE(size_required);
+		if (!buffer->pointer)
+			return AE_NO_MEMORY;
 		buffer->length = size_required;
-		return AE_BUFFER_OVERFLOW;
-	} else if (buffer->length != size_required || !buffer->pointer) {
-		return AE_BAD_PARAMETER;
+		memset(buffer->pointer, 0, size_required);
+	} else {
+		if (buffer->length < size_required) {
+			buffer->length = size_required;
+			return AE_BUFFER_OVERFLOW;
+		} else if (buffer->length != size_required ||
+			   !buffer->pointer) {
+			return AE_BAD_PARAMETER;
+		}
 	}
 
 	head = buffer->pointer;

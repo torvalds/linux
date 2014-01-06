@@ -168,7 +168,7 @@ void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar)
 }
 EXPORT_SYMBOL_GPL(mlx4_uar_free);
 
-int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf)
+int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_uar *uar;
@@ -186,10 +186,13 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf)
 			err = -ENOMEM;
 			goto out;
 		}
-		uar = kmalloc(sizeof *uar, GFP_KERNEL);
+		uar = kmalloc_node(sizeof(*uar), GFP_KERNEL, node);
 		if (!uar) {
-			err = -ENOMEM;
-			goto out;
+			uar = kmalloc(sizeof(*uar), GFP_KERNEL);
+			if (!uar) {
+				err = -ENOMEM;
+				goto out;
+			}
 		}
 		err = mlx4_uar_alloc(dev, uar);
 		if (err)

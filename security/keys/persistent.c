@@ -144,10 +144,8 @@ long keyctl_get_persistent(uid_t _uid, key_serial_t destid)
 		/* You can only see your own persistent cache if you're not
 		 * sufficiently privileged.
 		 */
-		if (uid_eq(uid, current_uid()) &&
-		    uid_eq(uid, current_suid()) &&
-		    uid_eq(uid, current_euid()) &&
-		    uid_eq(uid, current_fsuid()) &&
+		if (!uid_eq(uid, current_uid()) &&
+		    !uid_eq(uid, current_euid()) &&
 		    !ns_capable(ns, CAP_SETUID))
 			return -EPERM;
 	}

@@ -1302,8 +1302,8 @@ read_again:
 		slot = r10_bio->read_slot;
 
 		read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		md_trim_bio(read_bio, r10_bio->sector - bio->bi_sector,
-			    max_sectors);
+		bio_trim(read_bio, r10_bio->sector - bio->bi_sector,
+			 max_sectors);
 
 		r10_bio->devs[slot].bio = read_bio;
 		r10_bio->devs[slot].rdev = rdev;
@@ -1510,8 +1510,8 @@ retry_write:
 		if (r10_bio->devs[i].bio) {
 			struct md_rdev *rdev = conf->mirrors[d].rdev;
 			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-			md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
-				    max_sectors);
+			bio_trim(mbio, r10_bio->sector - bio->bi_sector,
+				 max_sectors);
 			r10_bio->devs[i].bio = mbio;
 
 			mbio->bi_sector	= (r10_bio->devs[i].addr+
@@ -1553,8 +1553,8 @@ retry_write:
 				rdev = conf->mirrors[d].rdev;
 			}
 			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-			md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
-				    max_sectors);
+			bio_trim(mbio, r10_bio->sector - bio->bi_sector,
+				 max_sectors);
 			r10_bio->devs[i].repl_bio = mbio;
 
 			mbio->bi_sector	= (r10_bio->devs[i].addr +
@@ -1782,6 +1782,7 @@ static int raid10_spare_active(struct mddev *mddev)
 			}
 			sysfs_notify_dirent_safe(tmp->replacement->sysfs_state);
 		} else if (tmp->rdev
+			   && tmp->rdev->recovery_offset == MaxSector
 			   && !test_bit(Faulty, &tmp->rdev->flags)
 			   && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
 			count++;
@@ -2613,7 +2614,7 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
 			sectors = sect_to_write;
 		/* Write at 'sector' for 'sectors' */
 		wbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		md_trim_bio(wbio, sector - bio->bi_sector, sectors);
+		bio_trim(wbio, sector - bio->bi_sector, sectors);
 		wbio->bi_sector = (r10_bio->devs[i].addr+
 				   choose_data_offset(r10_bio, rdev) +
 				   (sector - r10_bio->sector));
@@ -2686,9 +2687,7 @@ read_more:
 		(unsigned long long)r10_bio->sector);
 	bio = bio_clone_mddev(r10_bio->master_bio,
 			      GFP_NOIO, mddev);
-	md_trim_bio(bio,
-		    r10_bio->sector - bio->bi_sector,
-		    max_sectors);
+	bio_trim(bio, r10_bio->sector - bio->bi_sector, max_sectors);
 	r10_bio->devs[slot].bio = bio;
 	r10_bio->devs[slot].rdev = rdev;
 	bio->bi_sector = r10_bio->devs[slot].addr
@@ -4385,7 +4384,11 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		md_wakeup_thread(mddev->thread);
 		wait_event(mddev->sb_wait, mddev->flags == 0 ||
-			   kthread_should_stop());
+			   test_bit(MD_RECOVERY_INTR, &mddev->recovery));
+		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
+			allow_barrier(conf);
+			return sectors_done;
+		}
 		conf->reshape_safe = mddev->reshape_position;
 		allow_barrier(conf);
 	}

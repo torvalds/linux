@@ -660,7 +660,7 @@ static int max6650_init_client(struct i2c_client *client)
 	/*
 	 * If mode is set to "full off", we change it to "open loop" and
 	 * set DAC to 255, which has the same effect. We do this because
-	 * there's no "full off" mode defined in hwmon specifcations.
+	 * there's no "full off" mode defined in hwmon specifications.
 	 */
 
 	if ((config & MAX6650_CFG_MODE_MASK) == MAX6650_CFG_MODE_OFF) {

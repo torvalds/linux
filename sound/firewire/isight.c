@@ -217,7 +217,7 @@ static void isight_packet(struct fw_iso_context *context, u32 cycle,
 
 static int isight_connect(struct isight *isight)
 {
-	int ch, err, rcode, errors = 0;
+	int ch, err;
 	__be32 value;
 
 retry_after_bus_reset:
@@ -230,26 +230,18 @@ retry_after_bus_reset:
 	}
 
 	value = cpu_to_be32(ch | (isight->device->max_speed << SPEED_SHIFT));
-	for (;;) {
-		rcode = fw_run_transaction(
-				isight->device->card,
-				TCODE_WRITE_QUADLET_REQUEST,
-				isight->device->node_id,
-				isight->resources.generation,
-				isight->device->max_speed,
-				isight->audio_base + REG_ISO_TX_CONFIG,
-				&value, 4);
-		if (rcode == RCODE_COMPLETE) {
-			return 0;
-		} else if (rcode == RCODE_GENERATION) {
-			fw_iso_resources_free(&isight->resources);
-			goto retry_after_bus_reset;
-		} else if (rcode_is_permanent_error(rcode) || ++errors >= 3) {
-			err = -EIO;
-			goto err_resources;
-		}
-		msleep(5);
+	err = snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 isight->audio_base + REG_ISO_TX_CONFIG,
+				 &value, 4, FW_FIXED_GENERATION |
+				 isight->resources.generation);
+	if (err == -EAGAIN) {
+		fw_iso_resources_free(&isight->resources);
+		goto retry_after_bus_reset;
+	} else if (err < 0) {
+		goto err_resources;
 	}
+
+	return 0;
 
 err_resources:
 	fw_iso_resources_free(&isight->resources);
@@ -315,17 +307,19 @@ static int isight_hw_params(struct snd_pcm_substream *substream,
 static int reg_read(struct isight *isight, int offset, __be32 *value)
 {
 	return snd_fw_transaction(isight->unit, TCODE_READ_QUADLET_REQUEST,
-				  isight->audio_base + offset, value, 4);
+				  isight->audio_base + offset, value, 4, 0);
 }
 
 static int reg_write(struct isight *isight, int offset, __be32 value)
 {
 	return snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
-				  isight->audio_base + offset, &value, 4);
+				  isight->audio_base + offset, &value, 4, 0);
 }
 
 static void isight_stop_streaming(struct isight *isight)
 {
+	__be32 value;
+
 	if (!isight->context)
 		return;
 
@@ -333,7 +327,10 @@ static void isight_stop_streaming(struct isight *isight)
 	fw_iso_context_destroy(isight->context);
 	isight->context = NULL;
 	fw_iso_resources_free(&isight->resources);
-	reg_write(isight, REG_AUDIO_ENABLE, 0);
+	value = 0;
+	snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   isight->audio_base + REG_AUDIO_ENABLE,
+			   &value, 4, FW_QUIET);
 }
 
 static int isight_hw_free(struct snd_pcm_substream *substream)

@@ -146,7 +146,6 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 			  long mask)
 {
 	struct spear_adc_info *info = iio_priv(indio_dev);
-	u32 scale_mv;
 	u32 status;
 
 	switch (mask) {
@@ -168,10 +167,9 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
-		scale_mv = (info->vref_external * 1000) >> DATA_BITS;
-		*val =  scale_mv / 1000;
-		*val2 = (scale_mv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = info->vref_external;
+		*val2 = DATA_BITS;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 
 	return -EINVAL;
@@ -320,7 +318,7 @@ static int spear_adc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	info->adc_base_spear3xx =
-		(struct adc_regs_spear3xx *)info->adc_base_spear6xx;
+		(struct adc_regs_spear3xx __iomem *)info->adc_base_spear6xx;
 
 	info->clk = clk_get(dev, NULL);
 	if (IS_ERR(info->clk)) {
@@ -335,7 +333,7 @@ static int spear_adc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if ((irq < 0) || (irq >= NR_IRQS)) {
+	if (irq <= 0) {
 		dev_err(dev, "failed getting interrupt resource\n");
 		ret = -EINVAL;
 		goto errout3;

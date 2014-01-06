@@ -815,6 +815,9 @@ STD_ENTRY(interrupt_return)
 	}
 	bzt     r28, 1f
 	bnz     r29, 1f
+	/* Disable interrupts explicitly for preemption. */
+	IRQ_DISABLE(r20,r21)
+	TRACE_IRQS_OFF
 	jal     preempt_schedule_irq
 	FEEDBACK_REENTER(interrupt_return)
 1:

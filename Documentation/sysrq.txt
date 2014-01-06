@@ -11,26 +11,28 @@ regardless of whatever else it is doing, unless it is completely locked up.
 You need to say "yes" to 'Magic SysRq key (CONFIG_MAGIC_SYSRQ)' when
 configuring the kernel. When running a kernel with SysRq compiled in,
 /proc/sys/kernel/sysrq controls the functions allowed to be invoked via
-the SysRq key. By default the file contains 1 which means that every
-possible SysRq request is allowed (in older versions SysRq was disabled
-by default, and you were required to specifically enable it at run-time
-but this is not the case any more). Here is the list of possible values
-in /proc/sys/kernel/sysrq:
+the SysRq key. The default value in this file is set by the
+CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE config symbol, which itself defaults
+to 1. Here is the list of possible values in /proc/sys/kernel/sysrq:
    0 - disable sysrq completely
    1 - enable all functions of sysrq
   >1 - bitmask of allowed sysrq functions (see below for detailed function
        description):
-          2 - enable control of console logging level
-          4 - enable control of keyboard (SAK, unraw)
-          8 - enable debugging dumps of processes etc.
-         16 - enable sync command
-         32 - enable remount read-only
-         64 - enable signalling of processes (term, kill, oom-kill)
-        128 - allow reboot/poweroff
-        256 - allow nicing of all RT tasks
+          2 =   0x2 - enable control of console logging level
+          4 =   0x4 - enable control of keyboard (SAK, unraw)
+          8 =   0x8 - enable debugging dumps of processes etc.
+         16 =  0x10 - enable sync command
+         32 =  0x20 - enable remount read-only
+         64 =  0x40 - enable signalling of processes (term, kill, oom-kill)
+        128 =  0x80 - allow reboot/poweroff
+        256 = 0x100 - allow nicing of all RT tasks
 
 You can set the value in the file by the following command:
     echo "number" >/proc/sys/kernel/sysrq
+
+The number may be written here either as decimal or as hexadecimal
+with the 0x prefix. CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE must always be
+written in hexadecimal.
 
 Note that the value of /proc/sys/kernel/sysrq influences only the invocation
 via a keyboard. Invocation of any operation via /proc/sysrq-trigger is always

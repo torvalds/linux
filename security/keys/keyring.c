@@ -160,7 +160,7 @@ static u64 mult_64x32_and_fold(u64 x, u32 y)
 static unsigned long hash_key_type_and_desc(const struct keyring_index_key *index_key)
 {
 	const unsigned level_shift = ASSOC_ARRAY_LEVEL_STEP;
-	const unsigned long level_mask = ASSOC_ARRAY_LEVEL_STEP_MASK;
+	const unsigned long fan_mask = ASSOC_ARRAY_FAN_MASK;
 	const char *description = index_key->description;
 	unsigned long hash, type;
 	u32 piece;
@@ -194,10 +194,10 @@ static unsigned long hash_key_type_and_desc(const struct keyring_index_key *inde
 	 * ordinary keys by making sure the lowest level segment in the hash is
 	 * zero for keyrings and non-zero otherwise.
 	 */
-	if (index_key->type != &key_type_keyring && (hash & level_mask) == 0)
+	if (index_key->type != &key_type_keyring && (hash & fan_mask) == 0)
 		return hash | (hash >> (ASSOC_ARRAY_KEY_CHUNK_SIZE - level_shift)) | 1;
-	if (index_key->type == &key_type_keyring && (hash & level_mask) != 0)
-		return (hash + (hash << level_shift)) & ~level_mask;
+	if (index_key->type == &key_type_keyring && (hash & fan_mask) != 0)
+		return (hash + (hash << level_shift)) & ~fan_mask;
 	return hash;
 }
 
@@ -279,12 +279,11 @@ static bool keyring_compare_object(const void *object, const void *data)
  * Compare the index keys of a pair of objects and determine the bit position
  * at which they differ - if they differ.
  */
-static int keyring_diff_objects(const void *_a, const void *_b)
+static int keyring_diff_objects(const void *object, const void *data)
 {
-	const struct key *key_a = keyring_ptr_to_key(_a);
-	const struct key *key_b = keyring_ptr_to_key(_b);
+	const struct key *key_a = keyring_ptr_to_key(object);
 	const struct keyring_index_key *a = &key_a->index_key;
-	const struct keyring_index_key *b = &key_b->index_key;
+	const struct keyring_index_key *b = data;
 	unsigned long seg_a, seg_b;
 	int level, i;
 
@@ -691,8 +690,8 @@ descend_to_node:
 		smp_read_barrier_depends();
 		ptr = ACCESS_ONCE(shortcut->next_node);
 		BUG_ON(!assoc_array_ptr_is_node(ptr));
-		node = assoc_array_ptr_to_node(ptr);
 	}
+	node = assoc_array_ptr_to_node(ptr);
 
 begin_node:
 	kdebug("begin_node");
@@ -1304,7 +1303,7 @@ static void keyring_revoke(struct key *keyring)
 	}
 }
 
-static bool gc_iterator(void *object, void *iterator_data)
+static bool keyring_gc_select_iterator(void *object, void *iterator_data)
 {
 	struct key *key = keyring_ptr_to_key(object);
 	time_t *limit = iterator_data;
@@ -1315,22 +1314,47 @@ static bool gc_iterator(void *object, void *iterator_data)
 	return true;
 }
 
+static int keyring_gc_check_iterator(const void *object, void *iterator_data)
+{
+	const struct key *key = keyring_ptr_to_key(object);
+	time_t *limit = iterator_data;
+
+	key_check(key);
+	return key_is_dead(key, *limit);
+}
+
 /*
- * Collect garbage from the contents of a keyring, replacing the old list with
- * a new one with the pointers all shuffled down.
+ * Garbage collect pointers from a keyring.
  *
- * Dead keys are classed as oned that are flagged as being dead or are revoked,
- * expired or negative keys that were revoked or expired before the specified
- * limit.
+ * Not called with any locks held.  The keyring's key struct will not be
+ * deallocated under us as only our caller may deallocate it.
  */
 void keyring_gc(struct key *keyring, time_t limit)
 {
-	kenter("{%x,%s}", key_serial(keyring), keyring->description);
+	int result;
 
+	kenter("%x{%s}", keyring->serial, keyring->description ?: "");
+
+	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
+			      (1 << KEY_FLAG_REVOKED)))
+		goto dont_gc;
+
+	/* scan the keyring looking for dead keys */
+	rcu_read_lock();
+	result = assoc_array_iterate(&keyring->keys,
+				     keyring_gc_check_iterator, &limit);
+	rcu_read_unlock();
+	if (result == true)
+		goto do_gc;
+
+dont_gc:
+	kleave(" [no gc]");
+	return;
+
+do_gc:
 	down_write(&keyring->sem);
 	assoc_array_gc(&keyring->keys, &keyring_assoc_array_ops,
-		       gc_iterator, &limit);
+		       keyring_gc_select_iterator, &limit);
 	up_write(&keyring->sem);
-
-	kleave("");
+	kleave(" [gc]");
 }

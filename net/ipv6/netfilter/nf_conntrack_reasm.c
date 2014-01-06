@@ -144,12 +144,24 @@ static inline u8 ip6_frag_ecn(const struct ipv6hdr *ipv6h)
 	return 1 << (ipv6_get_dsfield(ipv6h) & INET_ECN_MASK);
 }
 
+static unsigned int nf_hash_frag(__be32 id, const struct in6_addr *saddr,
+				 const struct in6_addr *daddr)
+{
+	u32 c;
+
+	net_get_random_once(&nf_frags.rnd, sizeof(nf_frags.rnd));
+	c = jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr),
+			 (__force u32)id, nf_frags.rnd);
+	return c & (INETFRAGS_HASHSZ - 1);
+}
+
+
 static unsigned int nf_hashfn(struct inet_frag_queue *q)
 {
 	const struct frag_queue *nq;
 
 	nq = container_of(q, struct frag_queue, q);
-	return inet6_hash_frag(nq->id, &nq->saddr, &nq->daddr, nf_frags.rnd);
+	return nf_hash_frag(nq->id, &nq->saddr, &nq->daddr);
 }
 
 static void nf_skb_free(struct sk_buff *skb)
@@ -185,7 +197,7 @@ static inline struct frag_queue *fq_find(struct net *net, __be32 id,
 	arg.ecn = ecn;
 
 	read_lock_bh(&nf_frags.lock);
-	hash = inet6_hash_frag(id, src, dst, nf_frags.rnd);
+	hash = nf_hash_frag(id, src, dst);
 
 	q = inet_frag_find(&net->nf_frag.frags, &nf_frags, &arg, hash);
 	local_bh_enable();
@@ -621,31 +633,16 @@ ret_orig:
 	return skb;
 }
 
-void nf_ct_frag6_output(unsigned int hooknum, struct sk_buff *skb,
-			struct net_device *in, struct net_device *out,
-			int (*okfn)(struct sk_buff *))
+void nf_ct_frag6_consume_orig(struct sk_buff *skb)
 {
 	struct sk_buff *s, *s2;
-	unsigned int ret = 0;
 
 	for (s = NFCT_FRAG6_CB(skb)->orig; s;) {
-		nf_conntrack_put_reasm(s->nfct_reasm);
-		nf_conntrack_get_reasm(skb);
-		s->nfct_reasm = skb;
-
 		s2 = s->next;
 		s->next = NULL;
-
-		if (ret != -ECANCELED)
-			ret = NF_HOOK_THRESH(NFPROTO_IPV6, hooknum, s,
-					     in, out, okfn,
-					     NF_IP6_PRI_CONNTRACK_DEFRAG + 1);
-		else
-			kfree_skb(s);
-
+		consume_skb(s);
 		s = s2;
 	}
-	nf_conntrack_put_reasm(skb);
 }
 
 static int nf_ct_net_init(struct net *net)

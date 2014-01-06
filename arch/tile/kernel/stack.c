@@ -23,6 +23,7 @@
 #include <linux/mmzone.h>
 #include <linux/dcache.h>
 #include <linux/fs.h>
+#include <linux/string.h>
 #include <asm/backtrace.h>
 #include <asm/page.h>
 #include <asm/ucontext.h>
@@ -332,21 +333,18 @@ static void describe_addr(struct KBacktraceIterator *kbt,
 	}
 
 	if (vma->vm_file) {
-		char *s;
 		p = d_path(&vma->vm_file->f_path, buf, bufsize);
 		if (IS_ERR(p))
 			p = "?";
-		s = strrchr(p, '/');
-		if (s)
-			p = s+1;
+		name = kbasename(p);
 	} else {
-		p = "anon";
+		name = "anon";
 	}
 
 	/* Generate a string description of the vma info. */
-	namelen = strlen(p);
+	namelen = strlen(name);
 	remaining = (bufsize - 1) - namelen;
-	memmove(buf, p, namelen);
+	memmove(buf, name, namelen);
 	snprintf(buf + namelen, remaining, "[%lx+%lx] ",
 		 vma->vm_start, vma->vm_end - vma->vm_start);
 }

@@ -26,14 +26,14 @@
 
 #include <linux/device.h>
 
-struct board_t;
+struct dgnc_board;
 struct channel_t;
 struct un_t;
 struct pci_driver;
 struct class_device;
 
-extern void dgnc_create_ports_sysfiles(struct board_t *bd);
-extern void dgnc_remove_ports_sysfiles(struct board_t *bd);
+extern void dgnc_create_ports_sysfiles(struct dgnc_board *bd);
+extern void dgnc_remove_ports_sysfiles(struct dgnc_board *bd);
 
 extern void dgnc_create_driver_sysfiles(struct pci_driver *);
 extern void dgnc_remove_driver_sysfiles(struct pci_driver *);

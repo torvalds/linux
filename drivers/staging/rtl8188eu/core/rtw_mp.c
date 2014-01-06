@@ -907,7 +907,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 		sscanf(data, "pts =%d, start =%d, stop =%d", &psd_pts, &psd_start, &psd_stop);
 	}
 
-	_rtw_memset(data, '\0', sizeof(data));
+	_rtw_memset(data, '\0', sizeof(*data));
 
 	i = psd_start;
 	while (i < psd_stop) {

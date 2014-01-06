@@ -453,7 +453,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 		call_rcu_bh(&p->rcu, br_multicast_free_pg);
 		err = 0;
 
-		if (!mp->ports && !mp->mglist && mp->timer_armed &&
+		if (!mp->ports && !mp->mglist &&
 		    netif_running(br->dev))
 			mod_timer(&mp->timer, jiffies);
 		break;

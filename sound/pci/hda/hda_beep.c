@@ -110,6 +110,7 @@ static int snd_hda_beep_event(struct input_dev *dev, unsigned int type,
 	case SND_BELL:
 		if (hz)
 			hz = 1000;
+		/* fallthru */
 	case SND_TONE:
 		if (beep->linear_tone)
 			beep->tone = beep_linear_tone(beep, hz);
@@ -151,10 +152,8 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 	int err;
 
 	input_dev = input_allocate_device();
-	if (!input_dev) {
-		printk(KERN_INFO "hda_beep: unable to allocate input device\n");
+	if (!input_dev)
 		return -ENOMEM;
-	}
 
 	/* setup digital beep device */
 	input_dev->name = "HDA Digital PCBeep";

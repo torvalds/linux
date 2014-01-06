@@ -338,10 +338,10 @@ again:
 		retries++;
 
 		if (!start_time) {
-			start_time = get_tod_clock();
+			start_time = get_tod_clock_fast();
 			goto again;
 		}
-		if ((get_tod_clock() - start_time) < QDIO_BUSY_BIT_PATIENCE)
+		if (get_tod_clock_fast() - start_time < QDIO_BUSY_BIT_PATIENCE)
 			goto again;
 	}
 	if (retries) {
@@ -504,7 +504,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	int count, stop;
 	unsigned char state = 0;
 
-	q->timestamp = get_tod_clock();
+	q->timestamp = get_tod_clock_fast();
 
 	/*
 	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
@@ -528,7 +528,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	case SLSB_P_INPUT_PRIMED:
 		inbound_primed(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
-		if (atomic_sub(count, &q->nr_buf_used) == 0)
+		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals(q, count);
@@ -595,7 +595,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	 * At this point we know, that inbound first_to_check
 	 * has (probably) not moved (see qdio_inbound_processing).
 	 */
-	if (get_tod_clock() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
+	if (get_tod_clock_fast() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x",
 			      q->first_to_check);
 		return 1;
@@ -728,7 +728,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	int count, stop;
 	unsigned char state = 0;
 
-	q->timestamp = get_tod_clock();
+	q->timestamp = get_tod_clock_fast();
 
 	if (need_siga_sync(q))
 		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&

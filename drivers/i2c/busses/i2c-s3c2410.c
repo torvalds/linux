@@ -36,6 +36,7 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 
@@ -1177,8 +1178,6 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 	s3c24xx_i2c_deregister_cpufreq(i2c);
 
 	i2c_del_adapter(&i2c->adap);
-
-	clk_disable_unprepare(i2c->clk);
 
 	if (pdev->dev.of_node && IS_ERR(i2c->pctrl))
 		s3c24xx_i2c_dt_gpio_free(i2c);

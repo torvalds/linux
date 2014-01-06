@@ -263,7 +263,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 
 	return (AE_AML_OPERAND_TYPE);
 
-      object_repaired:
+object_repaired:
 
 	/* Object was successfully repaired */
 

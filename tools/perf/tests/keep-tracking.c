@@ -36,6 +36,7 @@ static int find_comm(struct perf_evlist *evlist, const char *comm)
 			    (pid_t)event->comm.tid == getpid() &&
 			    strcmp(event->comm.comm, comm) == 0)
 				found += 1;
+			perf_evlist__mmap_consume(evlist, i);
 		}
 	}
 	return found;

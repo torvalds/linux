@@ -87,7 +87,7 @@ void flush_tsb_user(struct tlb_batch *tb)
 		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 			base = __pa(base);
-		__flush_tsb_one(tb, HPAGE_SHIFT, base, nentries);
+		__flush_tsb_one(tb, REAL_HPAGE_SHIFT, base, nentries);
 	}
 #endif
 	spin_unlock_irqrestore(&mm->context.lock, flags);
@@ -111,7 +111,7 @@ void flush_tsb_user_page(struct mm_struct *mm, unsigned long vaddr)
 		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 			base = __pa(base);
-		__flush_tsb_one_entry(base, vaddr, HPAGE_SHIFT, nentries);
+		__flush_tsb_one_entry(base, vaddr, REAL_HPAGE_SHIFT, nentries);
 	}
 #endif
 	spin_unlock_irqrestore(&mm->context.lock, flags);
@@ -472,8 +472,6 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	mm->context.huge_pte_count = 0;
 #endif
 
-	mm->context.pgtable_page = NULL;
-
 	/* copy_mm() copies over the parent's mm_struct before calling
 	 * us, so we need to zero out the TSB pointer or else tsb_grow()
 	 * will be confused and think there is an older TSB to free up.
@@ -512,16 +510,9 @@ static void tsb_destroy_one(struct tsb_config *tp)
 void destroy_context(struct mm_struct *mm)
 {
 	unsigned long flags, i;
-	struct page *page;
 
 	for (i = 0; i < MM_NUM_TSBS; i++)
 		tsb_destroy_one(&mm->context.tsb_block[i]);
-
-	page = mm->context.pgtable_page;
-	if (page && put_page_testzero(page)) {
-		pgtable_page_dtor(page);
-		free_hot_cold_page(page, 0);
-	}
 
 	spin_lock_irqsave(&ctx_alloc_lock, flags);
 

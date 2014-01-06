@@ -119,7 +119,6 @@ struct adq12b_private {
 	int differential;	/* option 3 of comedi_config */
 	int last_channel;
 	int last_range;
-	unsigned int digital_state;
 };
 
 /*
@@ -186,23 +185,25 @@ static int adq12b_di_insn_bits(struct comedi_device *dev,
 
 static int adq12b_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	struct adq12b_private *devpriv = dev->private;
-	int channel;
+	unsigned int mask;
+	unsigned int chan;
+	unsigned int val;
 
-	for (channel = 0; channel < 8; channel++)
-		if (((data[0] >> channel) & 0x01) != 0)
-			outb((((data[1] >> channel) & 0x01) << 3) | channel,
-			     dev->iobase + ADQ12B_OUTBR);
-
-	/* store information to retrieve when asked for reading */
-	if (data[0]) {
-		devpriv->digital_state &= ~data[0];
-		devpriv->digital_state |= (data[0] & data[1]);
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		for (chan = 0; chan < 8; chan++) {
+			if ((mask >> chan) & 0x01) {
+				val = (s->state >> chan) & 0x01;
+				outb((val << 3) | chan,
+				     dev->iobase + ADQ12B_OUTBR);
+			}
+		}
 	}
 
-	data[1] = devpriv->digital_state;
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -223,7 +224,6 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv->unipolar = it->options[1];
 	devpriv->differential = it->options[2];
-	devpriv->digital_state = 0;
 	/*
 	 * initialize channel and range to -1 so we make sure we
 	 * always write at least once to the CTREG in the instruction

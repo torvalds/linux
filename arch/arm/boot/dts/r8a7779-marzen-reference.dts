@@ -42,8 +42,8 @@
 		pinctrl-names = "default";
 
 		phy-mode = "mii";
-		interrupt-parent = <&gic>;
-		interrupts = <0 28 0x4>;
+		interrupt-parent = <&irqpin0>;
+		interrupts = <1 0>; /* IRQ1: hwirq 1 on irqpin0 */
 		reg-io-width = <4>;
 		vddvario-supply = <&fixedregulator3v3>;
 		vdd33a-supply = <&fixedregulator3v3>;
@@ -61,6 +61,10 @@
 			gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;
 		};
 	};
+};
+
+&irqpin0 {
+	status = "okay";
 };
 
 &pfc {

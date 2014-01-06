@@ -18,27 +18,19 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
-#include "xfs_log.h"
+#include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_error.h"
-#include "xfs_da_btree.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
+#include "xfs_da_format.h"
 #include "xfs_inode.h"
-#include "xfs_btree.h"
+#include "xfs_bmap_btree.h"
 #include "xfs_ialloc.h"
-#include "xfs_alloc.h"
-#include "xfs_extent_busy.h"
-#include "xfs_bmap.h"
-#include "xfs_bmap_util.h"
 #include "xfs_quota.h"
+#include "xfs_trans.h"
 #include "xfs_qm.h"
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
@@ -393,8 +385,7 @@ xfs_calc_ifree_reservation(
 		xfs_calc_inode_res(mp, 1) +
 		xfs_calc_buf_res(2, mp->m_sb.sb_sectsize) +
 		xfs_calc_buf_res(1, XFS_FSB_TO_B(mp, 1)) +
-		MAX((__uint16_t)XFS_FSB_TO_B(mp, 1),
-		    XFS_INODE_CLUSTER_SIZE(mp)) +
+		max_t(uint, XFS_FSB_TO_B(mp, 1), XFS_INODE_CLUSTER_SIZE(mp)) +
 		xfs_calc_buf_res(1, 0) +
 		xfs_calc_buf_res(2 + XFS_IALLOC_BLOCKS(mp) +
 				 mp->m_in_maxlevels, 0) +

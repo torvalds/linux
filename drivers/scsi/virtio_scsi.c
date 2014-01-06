@@ -224,6 +224,9 @@ static void virtscsi_vq_done(struct virtio_scsi *vscsi,
 		virtqueue_disable_cb(vq);
 		while ((buf = virtqueue_get_buf(vq, &len)) != NULL)
 			fn(vscsi, buf);
+
+		if (unlikely(virtqueue_is_broken(vq)))
+			break;
 	} while (!virtqueue_enable_cb(vq));
 	spin_unlock_irqrestore(&virtscsi_vq->vq_lock, flags);
 }
@@ -710,19 +713,15 @@ static struct scsi_host_template virtscsi_host_template_multi = {
 #define virtscsi_config_get(vdev, fld) \
 	({ \
 		typeof(((struct virtio_scsi_config *)0)->fld) __val; \
-		vdev->config->get(vdev, \
-				  offsetof(struct virtio_scsi_config, fld), \
-				  &__val, sizeof(__val)); \
+		virtio_cread(vdev, struct virtio_scsi_config, fld, &__val); \
 		__val; \
 	})
 
 #define virtscsi_config_set(vdev, fld, val) \
-	(void)({ \
+	do { \
 		typeof(((struct virtio_scsi_config *)0)->fld) __val = (val); \
-		vdev->config->set(vdev, \
-				  offsetof(struct virtio_scsi_config, fld), \
-				  &__val, sizeof(__val)); \
-	})
+		virtio_cwrite(vdev, struct virtio_scsi_config, fld, &__val); \
+	} while(0)
 
 static void __virtscsi_set_affinity(struct virtio_scsi *vscsi, bool affinity)
 {
@@ -954,7 +953,7 @@ static void virtscsi_remove(struct virtio_device *vdev)
 	scsi_host_put(shost);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtscsi_freeze(struct virtio_device *vdev)
 {
 	virtscsi_remove_vqs(vdev);
@@ -988,7 +987,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.id_table = id_table,
 	.probe = virtscsi_probe,
 	.scan = virtscsi_scan,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.freeze = virtscsi_freeze,
 	.restore = virtscsi_restore,
 #endif

@@ -30,6 +30,7 @@
 #include <linux/debugfs.h>
 #include <linux/irq.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 
 #include <asm/prom.h>
 #include <asm/page.h>
@@ -40,11 +41,6 @@
 #include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
-
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	memblock_add(base, size);
-}
 
 #ifdef CONFIG_EARLY_PRINTK
 static char *stdout;
@@ -106,21 +102,10 @@ void __init early_init_devtree(void *params)
 {
 	pr_debug(" -> early_init_devtree(%p)\n", params);
 
-	/* Setup flat device-tree pointer */
-	initial_boot_params = params;
+	early_init_dt_scan(params);
+	if (!strlen(boot_command_line))
+		strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 
-	/* Retrieve various informations from the /chosen node of the
-	 * device-tree, including the platform type, initrd location and
-	 * size, TCE reserve, and more ...
-	 */
-	of_scan_flat_dt(early_init_dt_scan_chosen, cmd_line);
-
-	/* Scan memory nodes and rebuild MEMBLOCKs */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-
-	/* Save command line for /proc/cmdline and then parse parameters */
-	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 	parse_early_param();
 
 	memblock_allow_resize();
@@ -129,15 +114,6 @@ void __init early_init_devtree(void *params)
 
 	pr_debug(" <- early_init_devtree()\n");
 }
-
-#ifdef CONFIG_BLK_DEV_INITRD
-void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
-{
-	initrd_start = (unsigned long)__va(start);
-	initrd_end = (unsigned long)__va(end);
-	initrd_below_start_ok = 1;
-}
-#endif
 
 /*******
  *

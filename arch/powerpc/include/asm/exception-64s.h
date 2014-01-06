@@ -198,12 +198,27 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	cmpwi	r10,0;							\
 	bne	do_kvm_##n
 
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+/*
+ * If hv is possible, interrupts come into to the hv version
+ * of the kvmppc_interrupt code, which then jumps to the PR handler,
+ * kvmppc_interrupt_pr, if the guest is a PR guest.
+ */
+#define kvmppc_interrupt kvmppc_interrupt_hv
+#else
+#define kvmppc_interrupt kvmppc_interrupt_pr
+#endif
+
 #define __KVM_HANDLER(area, h, n)					\
 do_kvm_##n:								\
 	BEGIN_FTR_SECTION_NESTED(947)					\
 	ld	r10,area+EX_CFAR(r13);					\
 	std	r10,HSTATE_CFAR(r13);					\
 	END_FTR_SECTION_NESTED(CPU_FTR_CFAR,CPU_FTR_CFAR,947);		\
+	BEGIN_FTR_SECTION_NESTED(948)					\
+	ld	r10,area+EX_PPR(r13);					\
+	std	r10,HSTATE_PPR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r10,area+EX_R10(r13);					\
 	stw	r9,HSTATE_SCRATCH1(r13);				\
 	ld	r9,area+EX_R9(r13);					\
@@ -217,6 +232,10 @@ do_kvm_##n:								\
 	ld	r10,area+EX_R10(r13);					\
 	beq	89f;							\
 	stw	r9,HSTATE_SCRATCH1(r13);			\
+	BEGIN_FTR_SECTION_NESTED(948)					\
+	ld	r9,area+EX_PPR(r13);					\
+	std	r9,HSTATE_PPR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r9,area+EX_R9(r13);					\
 	std	r12,HSTATE_SCRATCH0(r13);			\
 	li	r12,n;							\
@@ -236,7 +255,7 @@ do_kvm_##n:								\
 #define KVM_HANDLER_SKIP(area, h, n)
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 #define KVMTEST_PR(n)			__KVMTEST(n)
 #define KVM_HANDLER_PR(area, h, n)	__KVM_HANDLER(area, h, n)
 #define KVM_HANDLER_PR_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)
@@ -265,7 +284,7 @@ do_kvm_##n:								\
 	subi	r1,r1,INT_FRAME_SIZE;	/* alloc frame on kernel stack	*/ \
 	beq-	1f;							   \
 	ld	r1,PACAKSAVE(r13);	/* kernel stack to use		*/ \
-1:	cmpdi	cr1,r1,0;		/* check if r1 is in userspace	*/ \
+1:	cmpdi	cr1,r1,-INT_FRAME_SIZE;	/* check if r1 is in userspace	*/ \
 	blt+	cr1,3f;			/* abort if it is		*/ \
 	li	r1,(n);			/* will be reloaded later	*/ \
 	sth	r1,PACA_TRAP_SAVE(r13);					   \

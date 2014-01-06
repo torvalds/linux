@@ -1957,6 +1957,15 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	que = MSW(sts->handle);
 	req = ha->req_q_map[que];
 
+	/* Check for invalid queue pointer */
+	if (req == NULL ||
+	    que >= find_first_zero_bit(ha->req_qid_map, ha->max_req_queues)) {
+		ql_dbg(ql_dbg_io, vha, 0x3059,
+		    "Invalid status handle (0x%x): Bad req pointer. req=%p, "
+		    "que=%u.\n", sts->handle, req, que);
+		return;
+	}
+
 	/* Validate handle. */
 	if (handle < req->num_outstanding_cmds)
 		sp = req->outstanding_cmds[handle];

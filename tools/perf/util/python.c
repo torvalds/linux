@@ -33,13 +33,6 @@ int eprintf(int level, const char *fmt, ...)
 # define PyVarObject_HEAD_INIT(type, size) PyObject_HEAD_INIT(type) size,
 #endif
 
-struct throttle_event {
-	struct perf_event_header header;
-	u64			 time;
-	u64			 id;
-	u64			 stream_id;
-};
-
 PyMODINIT_FUNC initperf(void);
 
 #define member_def(type, member, ptype, help) \
@@ -822,6 +815,8 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 		PyObject *pyevent = pyrf_event__new(event);
 		struct pyrf_event *pevent = (struct pyrf_event *)pyevent;
 
+		perf_evlist__mmap_consume(evlist, cpu);
+
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
 
@@ -1036,6 +1031,7 @@ PyMODINIT_FUNC initperf(void)
 	    pyrf_cpu_map__setup_types() < 0)
 		return;
 
+	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	Py_INCREF(&pyrf_evlist__type);

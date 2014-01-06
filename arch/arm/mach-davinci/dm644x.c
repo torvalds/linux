@@ -13,6 +13,7 @@
 #include <linux/serial_8250.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/edma.h>
+#include <linux/platform_data/gpio-davinci.h>
 
 #include <asm/mach/map.h>
 
@@ -23,7 +24,6 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
-#include <mach/gpio-davinci.h>
 
 #include "davinci.h"
 #include "clock.h"
@@ -572,6 +572,7 @@ static struct platform_device dm644x_edma_device = {
 /* DM6446 EVM uses ASP0; line-out is a pair of RCA jacks */
 static struct resource dm644x_asp_resources[] = {
 	{
+		.name	= "mpu",
 		.start	= DAVINCI_ASP0_BASE,
 		.end	= DAVINCI_ASP0_BASE + SZ_8K - 1,
 		.flags	= IORESOURCE_MEM,
@@ -771,6 +772,30 @@ static struct platform_device dm644x_vpbe_dev = {
 	},
 };
 
+static struct resource dm644_gpio_resources[] = {
+	{	/* registers */
+		.start	= DAVINCI_GPIO_BASE,
+		.end	= DAVINCI_GPIO_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{	/* interrupt */
+		.start	= IRQ_GPIOBNK0,
+		.end	= IRQ_GPIOBNK4,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct davinci_gpio_platform_data dm644_gpio_platform_data = {
+	.ngpio		= 71,
+	.intc_irq_num	= DAVINCI_N_AINTC_IRQ,
+};
+
+int __init dm644x_gpio_register(void)
+{
+	return davinci_gpio_register(dm644_gpio_resources,
+				     ARRAY_SIZE(dm644_gpio_resources),
+				     &dm644_gpio_platform_data);
+}
 /*----------------------------------------------------------------------*/
 
 static struct map_desc dm644x_io_desc[] = {
@@ -897,10 +922,6 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.intc_irq_prios 	= dm644x_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm644x_timer_info,
-	.gpio_type		= GPIO_TYPE_DAVINCI,
-	.gpio_base		= DAVINCI_GPIO_BASE,
-	.gpio_num		= 71,
-	.gpio_irq		= IRQ_GPIOBNK0,
 	.emac_pdata		= &dm644x_emac_pdata,
 	.sram_dma		= 0x00008000,
 	.sram_len		= SZ_16K,

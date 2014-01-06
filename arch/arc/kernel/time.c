@@ -63,9 +63,10 @@
 
 int arc_counter_setup(void)
 {
-	/* RTSC insn taps into cpu clk, needs no setup */
-
-	/* For SMP, only allowed if cross-core-sync, hence usable as cs */
+	/*
+	 * For SMP this needs to be 0. However Kconfig glue doesn't
+	 * enable this option for SMP configs
+	 */
 	return 1;
 }
 
@@ -206,7 +207,7 @@ static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 
 static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 {
-	struct clock_event_device *clk = &__get_cpu_var(arc_clockevent_device);
+	struct clock_event_device *clk = this_cpu_ptr(&arc_clockevent_device);
 
 	arc_timer_event_ack(clk->mode == CLOCK_EVT_MODE_PERIODIC);
 	clk->event_handler(clk);
@@ -223,16 +224,13 @@ static struct irqaction arc_timer_irq = {
  * Setup the local event timer for @cpu
  * N.B. weak so that some exotic ARC SoCs can completely override it
  */
-void __attribute__((weak)) arc_local_timer_setup(unsigned int cpu)
+void __weak arc_local_timer_setup(unsigned int cpu)
 {
 	struct clock_event_device *clk = &per_cpu(arc_clockevent_device, cpu);
 
-	clockevents_calc_mult_shift(clk, arc_get_core_freq(), 5);
-
-	clk->max_delta_ns = clockevent_delta2ns(ARC_TIMER_MAX, clk);
 	clk->cpumask = cpumask_of(cpu);
-
-	clockevents_register_device(clk);
+	clockevents_config_and_register(clk, arc_get_core_freq(),
+					0, ARC_TIMER_MAX);
 
 	/*
 	 * setup the per-cpu timer IRQ handler - for all cpus

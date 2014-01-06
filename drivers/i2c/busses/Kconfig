@@ -109,6 +109,7 @@ config I2C_I801
 	    Avoton (SOC)
 	    Wellsburg (PCH)
 	    Coleto Creek (PCH)
+	    Wildcat Point-LP (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -345,6 +346,16 @@ config I2C_BCM2835
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-bcm2835.
 
+config I2C_BCM_KONA
+	tristate "BCM Kona I2C adapter"
+	depends on ARCH_BCM_MOBILE
+	default y
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Broadcom Kona family of processors.
+
+	  If you do not need KONA I2C inteface, say N.
+
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
 	depends on BLACKFIN
@@ -435,6 +446,13 @@ config I2C_EG20T
 	  for MP(Media Phone) use and ML7831 IOH is for general purpose use.
 	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
+
+config I2C_EXYNOS5
+	tristate "Exynos5 high-speed I2C driver"
+	depends on ARCH_EXYNOS5 && OF
+	help
+	  Say Y here to include support for high-speed I2C controller in the
+	  Exynos5 based Samsung SoCs.
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
@@ -665,7 +683,7 @@ config I2C_SH7760
 
 config I2C_SH_MOBILE
 	tristate "SuperH Mobile I2C Controller"
-	depends on SUPERH || ARCH_SHMOBILE
+	depends on SUPERH || ARM || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Renesas SH-Mobile processor.
@@ -694,6 +712,16 @@ config I2C_SIRF
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sirf.
+
+config I2C_ST
+	tristate "STMicroelectronics SSC I2C support"
+	depends on ARCH_STI
+	help
+	  Enable this option to add support for STMicroelectronics SoCs
+	  hardware SSC (Synchronous Serial Controller) as an I2C controller.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-st.
 
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"
@@ -768,7 +796,7 @@ config I2C_XLR
 
 config I2C_RCAR
 	tristate "Renesas R-Car I2C Controller"
-	depends on ARCH_SHMOBILE && I2C
+	depends on ARM || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  R-Car I2C controller.

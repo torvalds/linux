@@ -657,7 +657,6 @@ static void mvs_pci_remove(struct pci_dev *pdev)
 	tasklet_kill(&((struct mvs_prv_info *)sha->lldd_ha)->mv_tasklet);
 #endif
 
-	pci_set_drvdata(pdev, NULL);
 	sas_unregister_ha(sha);
 	sas_remove_host(mvi->shost);
 	scsi_remove_host(mvi->shost);

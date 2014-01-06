@@ -1,7 +1,16 @@
 #include <linux/export.h>
 #include <linux/lockref.h>
+#include <linux/mutex.h>
 
-#ifdef CONFIG_CMPXCHG_LOCKREF
+#if USE_CMPXCHG_LOCKREF
+
+/*
+ * Allow weakly-ordered memory architectures to provide barrier-less
+ * cmpxchg semantics for lockref updates.
+ */
+#ifndef cmpxchg64_relaxed
+# define cmpxchg64_relaxed cmpxchg64
+#endif
 
 /*
  * Note that the "cmpxchg()" reloads the "old" value for the
@@ -14,12 +23,13 @@
 	while (likely(arch_spin_value_unlocked(old.lock.rlock.raw_lock))) {  	\
 		struct lockref new = old, prev = old;				\
 		CODE								\
-		old.lock_count = cmpxchg64(&lockref->lock_count,		\
-					   old.lock_count, new.lock_count);	\
+		old.lock_count = cmpxchg64_relaxed(&lockref->lock_count,	\
+						   old.lock_count,		\
+						   new.lock_count);		\
 		if (likely(old.lock_count == prev.lock_count)) {		\
 			SUCCESS;						\
 		}								\
-		cpu_relax();							\
+		arch_mutex_cpu_relax();						\
 	}									\
 } while (0)
 
@@ -136,6 +146,7 @@ void lockref_mark_dead(struct lockref *lockref)
 	assert_spin_locked(&lockref->lock);
 	lockref->count = -128;
 }
+EXPORT_SYMBOL(lockref_mark_dead);
 
 /**
  * lockref_get_not_dead - Increments count unless the ref is dead

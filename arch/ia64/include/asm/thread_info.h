@@ -11,9 +11,6 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 
-#define PREEMPT_ACTIVE_BIT 30
-#define PREEMPT_ACTIVE	(1 << PREEMPT_ACTIVE_BIT)
-
 #ifndef __ASSEMBLY__
 
 /*

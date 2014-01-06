@@ -82,6 +82,9 @@ static int target_xcopy_locate_se_dev_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	mutex_lock(&g_device_mutex);
 	list_for_each_entry(se_dev, &g_device_list, g_dev_node) {
 
+		if (!se_dev->dev_attrib.emulate_3pc)
+			continue;
+
 		memset(&tmp_dev_wwn[0], 0, XCOPY_NAA_IEEE_REGEX_LEN);
 		target_xcopy_gen_naa_ieee(se_dev, &tmp_dev_wwn[0]);
 
@@ -298,8 +301,8 @@ static int target_xcopy_parse_segdesc_02(struct se_cmd *se_cmd, struct xcopy_op 
 		(unsigned long long)xop->dst_lba);
 
 	if (dc != 0) {
-		xop->dbl = (desc[29] << 16) & 0xff;
-		xop->dbl |= (desc[30] << 8) & 0xff;
+		xop->dbl = (desc[29] & 0xff) << 16;
+		xop->dbl |= (desc[30] & 0xff) << 8;
 		xop->dbl |= desc[31] & 0xff;
 
 		pr_debug("XCOPY seg desc 0x02: DC=1 w/ dbl: %u\n", xop->dbl);
@@ -357,6 +360,7 @@ struct xcopy_pt_cmd {
 	struct se_cmd se_cmd;
 	struct xcopy_op *xcopy_op;
 	struct completion xpt_passthrough_sem;
+	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 };
 
 static struct se_port xcopy_pt_port;
@@ -400,9 +404,6 @@ static void xcopy_pt_release_cmd(struct se_cmd *se_cmd)
 {
 	struct xcopy_pt_cmd *xpt_cmd = container_of(se_cmd,
 				struct xcopy_pt_cmd, se_cmd);
-
-	if (xpt_cmd->remote_port)
-		kfree(se_cmd->se_lun);
 
 	kfree(xpt_cmd);
 }
@@ -568,22 +569,10 @@ static int target_xcopy_init_pt_lun(
 		return 0;
 	}
 
-	pt_cmd->se_lun = kzalloc(sizeof(struct se_lun), GFP_KERNEL);
-	if (!pt_cmd->se_lun) {
-		pr_err("Unable to allocate pt_cmd->se_lun\n");
-		return -ENOMEM;
-	}
-	init_completion(&pt_cmd->se_lun->lun_shutdown_comp);
-	INIT_LIST_HEAD(&pt_cmd->se_lun->lun_cmd_list);
-	INIT_LIST_HEAD(&pt_cmd->se_lun->lun_acl_list);
-	spin_lock_init(&pt_cmd->se_lun->lun_acl_lock);
-	spin_lock_init(&pt_cmd->se_lun->lun_cmd_lock);
-	spin_lock_init(&pt_cmd->se_lun->lun_sep_lock);
-
+	pt_cmd->se_lun = &se_dev->xcopy_lun;
 	pt_cmd->se_dev = se_dev;
 
 	pr_debug("Setup emulated se_dev: %p from se_dev\n", pt_cmd->se_dev);
-	pt_cmd->se_lun->lun_se_dev = se_dev;
 	pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD | SCF_CMD_XCOPY_PASSTHROUGH;
 
 	pr_debug("Setup emulated se_dev: %p to pt_cmd->se_lun->lun_se_dev\n",
@@ -654,8 +643,6 @@ static int target_xcopy_setup_pt_cmd(
 	return 0;
 
 out:
-	if (remote_port == true)
-		kfree(cmd->se_lun);
 	return ret;
 }
 
@@ -675,7 +662,8 @@ static int target_xcopy_issue_pt_cmd(struct xcopy_pt_cmd *xpt_cmd)
 
 	pr_debug("target_xcopy_issue_pt_cmd(): SCSI status: 0x%02x\n",
 			se_cmd->scsi_status);
-	return 0;
+
+	return (se_cmd->scsi_status) ? -EINVAL : 0;
 }
 
 static int target_xcopy_read_source(
@@ -708,7 +696,7 @@ static int target_xcopy_read_source(
 		(unsigned long long)src_lba, src_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, NULL, length,
-				DMA_FROM_DEVICE, 0, NULL);
+			      DMA_FROM_DEVICE, 0, &xpt_cmd->sense_buffer[0]);
 	xop->src_pt_cmd = xpt_cmd;
 
 	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, src_dev, &cdb[0],
@@ -768,7 +756,7 @@ static int target_xcopy_write_destination(
 		(unsigned long long)dst_lba, dst_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, NULL, length,
-				DMA_TO_DEVICE, 0, NULL);
+			      DMA_TO_DEVICE, 0, &xpt_cmd->sense_buffer[0]);
 	xop->dst_pt_cmd = xpt_cmd;
 
 	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, dst_dev, &cdb[0],
@@ -884,11 +872,18 @@ out:
 
 sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 {
+	struct se_device *dev = se_cmd->se_dev;
 	struct xcopy_op *xop = NULL;
 	unsigned char *p = NULL, *seg_desc;
 	unsigned int list_id, list_id_usage, sdll, inline_dl, sa;
+	sense_reason_t ret = TCM_INVALID_PARAMETER_LIST;
 	int rc;
 	unsigned short tdll;
+
+	if (!dev->dev_attrib.emulate_3pc) {
+		pr_err("EXTENDED_COPY operation explicitly disabled\n");
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
 
 	sa = se_cmd->t_task_cdb[1] & 0x1f;
 	if (sa != 0x00) {
@@ -896,18 +891,23 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
+	xop = kzalloc(sizeof(struct xcopy_op), GFP_KERNEL);
+	if (!xop) {
+		pr_err("Unable to allocate xcopy_op\n");
+		return TCM_OUT_OF_RESOURCES;
+	}
+	xop->xop_se_cmd = se_cmd;
+
 	p = transport_kmap_data_sg(se_cmd);
 	if (!p) {
 		pr_err("transport_kmap_data_sg() failed in target_do_xcopy\n");
+		kfree(xop);
 		return TCM_OUT_OF_RESOURCES;
 	}
 
 	list_id = p[0];
-	if (list_id != 0x00) {
-		pr_err("XCOPY with non zero list_id: 0x%02x\n", list_id);
-		goto out;
-	}
-	list_id_usage = (p[1] & 0x18);
+	list_id_usage = (p[1] & 0x18) >> 3;
+
 	/*
 	 * Determine TARGET DESCRIPTOR LIST LENGTH + SEGMENT DESCRIPTOR LIST LENGTH
 	 */
@@ -920,13 +920,6 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		goto out;
 	}
 
-	xop = kzalloc(sizeof(struct xcopy_op), GFP_KERNEL);
-	if (!xop) {
-		pr_err("Unable to allocate xcopy_op\n");
-		goto out;
-	}
-	xop->xop_se_cmd = se_cmd;
-
 	pr_debug("Processing XCOPY with list_id: 0x%02x list_id_usage: 0x%02x"
 		" tdll: %hu sdll: %u inline_dl: %u\n", list_id, list_id_usage,
 		tdll, sdll, inline_dl);
@@ -934,6 +927,17 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 	rc = target_xcopy_parse_target_descriptors(se_cmd, xop, &p[16], tdll);
 	if (rc <= 0)
 		goto out;
+
+	if (xop->src_dev->dev_attrib.block_size !=
+	    xop->dst_dev->dev_attrib.block_size) {
+		pr_err("XCOPY: Non matching src_dev block_size: %u + dst_dev"
+		       " block_size: %u currently unsupported\n",
+			xop->src_dev->dev_attrib.block_size,
+			xop->dst_dev->dev_attrib.block_size);
+		xcopy_pt_undepend_remotedev(xop);
+		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		goto out;
+	}
 
 	pr_debug("XCOPY: Processed %d target descriptors, length: %u\n", rc,
 				rc * XCOPY_TARGET_DESC_LEN);
@@ -957,7 +961,7 @@ out:
 	if (p)
 		transport_kunmap_data_sg(se_cmd);
 	kfree(xop);
-	return TCM_INVALID_CDB_FIELD;
+	return ret;
 }
 
 static sense_reason_t target_rcr_operating_parameters(struct se_cmd *se_cmd)
