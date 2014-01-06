@@ -26,17 +26,17 @@ static struct clk_onecell_data clk_data;
 #define ASS_CLK_DIV 0x4
 #define ASS_CLK_GATE 0x8
 
+/* list of all parent clock list */
+static const char *mout_audss_p[] = { "fin_pll", "fout_epll" };
+static const char *mout_i2s_p[] = { "mout_audss", "cdclk0", "sclk_audio0" };
+
+#ifdef CONFIG_PM_SLEEP
 static unsigned long reg_save[][2] = {
 	{ASS_CLK_SRC,  0},
 	{ASS_CLK_DIV,  0},
 	{ASS_CLK_GATE, 0},
 };
 
-/* list of all parent clock list */
-static const char *mout_audss_p[] = { "fin_pll", "fout_epll" };
-static const char *mout_i2s_p[] = { "mout_audss", "cdclk0", "sclk_audio0" };
-
-#ifdef CONFIG_PM_SLEEP
 static int exynos_audss_clk_suspend(void)
 {
 	int i;
