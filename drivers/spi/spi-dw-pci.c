@@ -47,7 +47,8 @@ static int spi_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	dwpci = devm_kzalloc(&pdev-dev, sizeof(struct dw_spi_pci), GFP_KERNEL);
+	dwpci = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_pci),
+			GFP_KERNEL);
 	if (!dwpci)
 		return -ENOMEM;
 
