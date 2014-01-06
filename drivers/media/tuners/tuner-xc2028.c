@@ -267,6 +267,7 @@ static int check_device_status(struct xc2028_data *priv)
 	case XC2028_WAITING_FIRMWARE:
 		return -EAGAIN;
 	case XC2028_ACTIVE:
+		return 1;
 	case XC2028_SLEEP:
 		return 0;
 	case XC2028_NODEV:
@@ -913,6 +914,12 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 	if (rc < 0)
 		return rc;
 
+	/* If the device is sleeping, no channel is tuned */
+	if (!rc) {
+		*strength = 0;
+		return 0;
+	}
+
 	mutex_lock(&priv->lock);
 
 	/* Sync Lock Indicator */
@@ -959,6 +966,12 @@ static int xc2028_get_afc(struct dvb_frontend *fe, s32 *afc)
 	rc = check_device_status(priv);
 	if (rc < 0)
 		return rc;
+
+	/* If the device is sleeping, no channel is tuned */
+	if (!rc) {
+		*afc = 0;
+		return 0;
+	}
 
 	mutex_lock(&priv->lock);
 
@@ -1277,12 +1290,12 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 	if (rc < 0)
 		return rc;
 
-	/* Avoid firmware reload on slow devices or if PM disabled */
-	if (no_poweroff || priv->ctrl.disable_power_mgmt)
+	/* Device is already in sleep mode */
+	if (!rc)
 		return 0;
 
-	/* Device is already in sleep mode */
-	if (priv->state == XC2028_SLEEP)
+	/* Avoid firmware reload on slow devices or if PM disabled */
+	if (no_poweroff || priv->ctrl.disable_power_mgmt)
 		return 0;
 
 	tuner_dbg("Putting xc2028/3028 into poweroff mode.\n");
