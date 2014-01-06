@@ -413,6 +413,22 @@ static int nci_dev_down(struct nfc_dev *nfc_dev)
 	return nci_close_device(ndev);
 }
 
+int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val)
+{
+	struct nci_set_config_param param;
+
+	if (!val || !len)
+		return 0;
+
+	param.id = id;
+	param.len = len;
+	param.val = val;
+
+	return __nci_request(ndev, nci_set_config_req, (unsigned long)&param,
+			     msecs_to_jiffies(NCI_SET_CONFIG_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_set_config);
+
 static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
