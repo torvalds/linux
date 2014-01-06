@@ -1877,6 +1877,11 @@ static int em28xx_v4l2_open(struct file *filp)
 */
 static int em28xx_v4l2_fini(struct em28xx *dev)
 {
+	if (dev->is_audio_only) {
+		/* Shouldn't initialize IR for this interface */
+		return 0;
+	}
+
 	if (!dev->has_video) {
 		/* This device does not support the v4l2 extension */
 		return 0;
@@ -2208,6 +2213,11 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	int ret;
 	unsigned int maxw;
 	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
+
+	if (dev->is_audio_only) {
+		/* Shouldn't initialize IR for this interface */
+		return 0;
+	}
 
 	if (!dev->has_video) {
 		/* This device does not support the v4l2 extension */

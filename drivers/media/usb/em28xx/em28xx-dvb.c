@@ -992,6 +992,11 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	int result = 0, mfe_shared = 0;
 	struct em28xx_dvb *dvb;
 
+	if (dev->is_audio_only) {
+		/* Shouldn't initialize IR for this interface */
+		return 0;
+	}
+
 	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
 		return 0;
@@ -1431,6 +1436,11 @@ static inline void prevent_sleep(struct dvb_frontend_ops *ops)
 
 static int em28xx_dvb_fini(struct em28xx *dev)
 {
+	if (dev->is_audio_only) {
+		/* Shouldn't initialize IR for this interface */
+		return 0;
+	}
+
 	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
 		return 0;
