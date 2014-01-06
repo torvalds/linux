@@ -1305,15 +1305,14 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 int __init enable_drhd_fault_handling(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 
 	/*
 	 * Enable fault control interrupt.
 	 */
-	for_each_drhd_unit(drhd) {
-		int ret;
-		struct intel_iommu *iommu = drhd->iommu;
+	for_each_iommu(iommu, drhd) {
 		u32 fault_status;
-		ret = dmar_set_interrupt(iommu);
+		int ret = dmar_set_interrupt(iommu);
 
 		if (ret) {
 			pr_err("DRHD %Lx: failed to enable fault, interrupt, ret %d\n",

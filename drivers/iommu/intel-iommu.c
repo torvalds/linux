@@ -628,9 +628,7 @@ static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
 	struct dmar_drhd_unit *drhd = NULL;
 	int i;
 
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
+	for_each_active_drhd_unit(drhd) {
 		if (segment != drhd->segment)
 			continue;
 
@@ -2470,11 +2468,7 @@ static int __init init_dmars(void)
 		goto error;
 	}
 
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-
-		iommu = drhd->iommu;
+	for_each_active_iommu(iommu, drhd) {
 		g_iommus[iommu->seq_id] = iommu;
 
 		ret = iommu_init_domains(iommu);
@@ -2498,12 +2492,7 @@ static int __init init_dmars(void)
 	/*
 	 * Start from the sane iommu hardware state.
 	 */
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-
-		iommu = drhd->iommu;
-
+	for_each_active_iommu(iommu, drhd) {
 		/*
 		 * If the queued invalidation is already initialized by us
 		 * (for example, while enabling interrupt-remapping) then
@@ -2523,12 +2512,7 @@ static int __init init_dmars(void)
 		dmar_disable_qi(iommu);
 	}
 
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-
-		iommu = drhd->iommu;
-
+	for_each_active_iommu(iommu, drhd) {
 		if (dmar_enable_qi(iommu)) {
 			/*
 			 * Queued Invalidate not enabled, use Register Based
@@ -2611,17 +2595,16 @@ static int __init init_dmars(void)
 	 *   global invalidate iotlb
 	 *   enable translation
 	 */
-	for_each_drhd_unit(drhd) {
+	for_each_iommu(iommu, drhd) {
 		if (drhd->ignored) {
 			/*
 			 * we always have to disable PMRs or DMA may fail on
 			 * this device
 			 */
 			if (force_on)
-				iommu_disable_protect_mem_regions(drhd->iommu);
+				iommu_disable_protect_mem_regions(iommu);
 			continue;
 		}
-		iommu = drhd->iommu;
 
 		iommu_flush_write_buffer(iommu);
 
@@ -2643,12 +2626,8 @@ static int __init init_dmars(void)
 
 	return 0;
 error:
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-		iommu = drhd->iommu;
+	for_each_active_iommu(iommu, drhd)
 		free_iommu(iommu);
-	}
 	kfree(g_iommus);
 	return ret;
 }
@@ -3296,9 +3275,9 @@ static void __init init_no_remapping_devices(void)
 		}
 	}
 
-	for_each_drhd_unit(drhd) {
+	for_each_active_drhd_unit(drhd) {
 		int i;
-		if (drhd->ignored || drhd->include_all)
+		if (drhd->include_all)
 			continue;
 
 		for (i = 0; i < drhd->devices_cnt; i++)
@@ -3647,6 +3626,7 @@ int __init intel_iommu_init(void)
 {
 	int ret = 0;
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 
 	/* VT-d is required for a TXT/tboot launch, so enforce that */
 	force_on = tboot_force_iommu();
@@ -3660,16 +3640,9 @@ int __init intel_iommu_init(void)
 	/*
 	 * Disable translation if already enabled prior to OS handover.
 	 */
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu;
-
-		if (drhd->ignored)
-			continue;
-
-		iommu = drhd->iommu;
+	for_each_active_iommu(iommu, drhd)
 		if (iommu->gcmd & DMA_GCMD_TE)
 			iommu_disable_translation(iommu);
-	}
 
 	if (dmar_dev_scope_init() < 0) {
 		if (force_on)
@@ -3912,11 +3885,7 @@ static void iommu_free_vm_domain(struct dmar_domain *domain)
 	unsigned long i;
 	unsigned long ndomains;
 
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-		iommu = drhd->iommu;
-
+	for_each_active_iommu(iommu, drhd) {
 		ndomains = cap_ndoms(iommu->cap);
 		for_each_set_bit(i, iommu->domain_ids, ndomains) {
 			if (iommu->domains[i] == domain) {

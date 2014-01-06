@@ -520,6 +520,7 @@ static int __init dmar_x2apic_optout(void)
 static int __init intel_irq_remapping_supported(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 
 	if (disable_irq_remap)
 		return 0;
@@ -538,12 +539,9 @@ static int __init intel_irq_remapping_supported(void)
 	if (!dmar_ir_support())
 		return 0;
 
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd)
 		if (!ecap_ir_support(iommu->ecap))
 			return 0;
-	}
 
 	return 1;
 }
@@ -551,6 +549,7 @@ static int __init intel_irq_remapping_supported(void)
 static int __init intel_enable_irq_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 	bool x2apic_present;
 	int setup = 0;
 	int eim = 0;
@@ -573,9 +572,7 @@ static int __init intel_enable_irq_remapping(void)
 				"Use 'intremap=no_x2apic_optout' to override BIOS request.\n");
 	}
 
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd) {
 		/*
 		 * If the queued invalidation is already initialized,
 		 * shouldn't disable it.
@@ -600,9 +597,7 @@ static int __init intel_enable_irq_remapping(void)
 	/*
 	 * check for the Interrupt-remapping support
 	 */
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd) {
 		if (!ecap_ir_support(iommu->ecap))
 			continue;
 
@@ -616,10 +611,8 @@ static int __init intel_enable_irq_remapping(void)
 	/*
 	 * Enable queued invalidation for all the DRHD's.
 	 */
-	for_each_drhd_unit(drhd) {
-		int ret;
-		struct intel_iommu *iommu = drhd->iommu;
-		ret = dmar_enable_qi(iommu);
+	for_each_iommu(iommu, drhd) {
+		int ret = dmar_enable_qi(iommu);
 
 		if (ret) {
 			printk(KERN_ERR "DRHD %Lx: failed to enable queued, "
@@ -632,9 +625,7 @@ static int __init intel_enable_irq_remapping(void)
 	/*
 	 * Setup Interrupt-remapping for all the DRHD's now.
 	 */
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd) {
 		if (!ecap_ir_support(iommu->ecap))
 			continue;
 
@@ -778,19 +769,17 @@ static int ir_parse_ioapic_hpet_scope(struct acpi_dmar_header *header,
 static int __init parse_ioapics_under_ir(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 	int ir_supported = 0;
 	int ioapic_idx;
 
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd)
 		if (ecap_ir_support(iommu->ecap)) {
 			if (ir_parse_ioapic_hpet_scope(drhd->hdr, iommu))
 				return -1;
 
 			ir_supported = 1;
 		}
-	}
 
 	if (!ir_supported)
 		return 0;
