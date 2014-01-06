@@ -69,10 +69,8 @@ enum isp_video_buffer_state {
  * @skip_cache: Whether to skip cache management operations for this buffer
  * @vaddr: Memory virtual address (for kernel buffers)
  * @vm_flags: Buffer VMA flags (for userspace buffers)
- * @offset: Offset inside the first page (for userspace buffers)
  * @npages: Number of pages (for userspace buffers)
  * @pages: Pages table (for userspace non-VM_PFNMAP buffers)
- * @paddr: Memory physical address (for userspace VM_PFNMAP buffers)
  * @sgt: Scatter gather table (for non-VM_PFNMAP buffers)
  * @vbuf: V4L2 buffer
  * @irqlist: List head for insertion into IRQ queue
@@ -91,10 +89,8 @@ struct isp_video_buffer {
 
 	/* For userspace buffers. */
 	vm_flags_t vm_flags;
-	unsigned long offset;
 	unsigned int npages;
 	struct page **pages;
-	dma_addr_t paddr;
 
 	/* For all buffers except VM_PFNMAP. */
 	struct sg_table sgt;
