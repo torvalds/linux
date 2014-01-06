@@ -229,7 +229,7 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 		u_int32_t rand;
 
 		do {
-			rand = prandom_u32();
+			get_random_bytes(&rand, sizeof(rand));
 		} while (!rand);
 		cmpxchg(&connlimit_rnd, 0, rand);
 	}
