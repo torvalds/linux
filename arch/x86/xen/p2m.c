@@ -774,7 +774,7 @@ unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 {
 	unsigned long pfn;
 
-	if (unlikely(pfn_s >= MAX_P2M_PFN || pfn_e >= MAX_P2M_PFN))
+	if (unlikely(pfn_s >= MAX_P2M_PFN))
 		return 0;
 
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap)))
@@ -782,6 +782,9 @@ unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 
 	if (pfn_s > pfn_e)
 		return 0;
+
+	if (pfn_e > MAX_P2M_PFN)
+		pfn_e = MAX_P2M_PFN;
 
 	for (pfn = (pfn_s & ~(P2M_MID_PER_PAGE * P2M_PER_PAGE - 1));
 		pfn < ALIGN(pfn_e, (P2M_MID_PER_PAGE * P2M_PER_PAGE));
