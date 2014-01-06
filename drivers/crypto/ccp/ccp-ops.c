@@ -60,9 +60,9 @@ struct ccp_sg_workarea {
 	unsigned int dma_count;
 	enum dma_data_direction dma_dir;
 
-	u32 sg_used;
+	unsigned int sg_used;
 
-	u32 bytes_left;
+	u64 bytes_left;
 };
 
 struct ccp_data {
@@ -466,7 +466,7 @@ static void ccp_sg_free(struct ccp_sg_workarea *wa)
 }
 
 static int ccp_init_sg_workarea(struct ccp_sg_workarea *wa, struct device *dev,
-				struct scatterlist *sg, unsigned int len,
+				struct scatterlist *sg, u64 len,
 				enum dma_data_direction dma_dir)
 {
 	memset(wa, 0, sizeof(*wa));
@@ -499,7 +499,7 @@ static int ccp_init_sg_workarea(struct ccp_sg_workarea *wa, struct device *dev,
 
 static void ccp_update_sg_workarea(struct ccp_sg_workarea *wa, unsigned int len)
 {
-	unsigned int nbytes = min(len, wa->bytes_left);
+	unsigned int nbytes = min_t(u64, len, wa->bytes_left);
 
 	if (!wa->sg)
 		return;
@@ -653,7 +653,7 @@ static void ccp_free_data(struct ccp_data *data, struct ccp_cmd_queue *cmd_q)
 }
 
 static int ccp_init_data(struct ccp_data *data, struct ccp_cmd_queue *cmd_q,
-			 struct scatterlist *sg, unsigned int sg_len,
+			 struct scatterlist *sg, u64 sg_len,
 			 unsigned int dm_len,
 			 enum dma_data_direction dir)
 {
@@ -691,17 +691,20 @@ static unsigned int ccp_queue_buf(struct ccp_data *data, unsigned int from)
 	if (!sg_wa->sg)
 		return 0;
 
-	/* Perform the copy operation */
-	nbytes = min(sg_wa->bytes_left, dm_wa->length);
+	/* Perform the copy operation
+	 *   nbytes will always be <= UINT_MAX because dm_wa->length is
+	 *   an unsigned int
+	 */
+	nbytes = min_t(u64, sg_wa->bytes_left, dm_wa->length);
 	scatterwalk_map_and_copy(dm_wa->address, sg_wa->sg, sg_wa->sg_used,
 				 nbytes, from);
 
 	/* Update the structures and generate the count */
 	buf_count = 0;
 	while (sg_wa->bytes_left && (buf_count < dm_wa->length)) {
-		nbytes = min3(sg_wa->sg->length - sg_wa->sg_used,
-			      dm_wa->length - buf_count,
-			      sg_wa->bytes_left);
+		nbytes = min(sg_wa->sg->length - sg_wa->sg_used,
+			     dm_wa->length - buf_count);
+		nbytes = min_t(u64, sg_wa->bytes_left, nbytes);
 
 		buf_count += nbytes;
 		ccp_update_sg_workarea(sg_wa, nbytes);
@@ -728,14 +731,15 @@ static void ccp_prepare_data(struct ccp_data *src, struct ccp_data *dst,
 
 	/* The CCP can only DMA from/to one address each per operation. This
 	 * requires that we find the smallest DMA area between the source
-	 * and destination.
+	 * and destination. The resulting len values will always be <= UINT_MAX
+	 * because the dma length is an unsigned int.
 	 */
-	sg_src_len = min(sg_dma_len(src->sg_wa.sg) - src->sg_wa.sg_used,
-			 src->sg_wa.bytes_left);
+	sg_src_len = sg_dma_len(src->sg_wa.sg) - src->sg_wa.sg_used;
+	sg_src_len = min_t(u64, src->sg_wa.bytes_left, sg_src_len);
 
 	if (dst) {
-		sg_dst_len = min(sg_dma_len(dst->sg_wa.sg) - dst->sg_wa.sg_used,
-				 src->sg_wa.bytes_left);
+		sg_dst_len = sg_dma_len(dst->sg_wa.sg) - dst->sg_wa.sg_used;
+		sg_dst_len = min_t(u64, src->sg_wa.bytes_left, sg_dst_len);
 		op_len = min(sg_src_len, sg_dst_len);
 	} else
 		op_len = sg_src_len;

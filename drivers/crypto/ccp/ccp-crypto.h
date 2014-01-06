@@ -110,7 +110,10 @@ struct ccp_aes_cmac_req_ctx {
 	unsigned int null_msg;
 	unsigned int final;
 
-	unsigned int hash_cnt;
+	struct scatterlist *src;
+	unsigned int nbytes;
+
+	u64 hash_cnt;
 	unsigned int hash_rem;
 
 	struct sg_table data_sg;
@@ -149,7 +152,10 @@ struct ccp_sha_req_ctx {
 	unsigned int first;
 	unsigned int final;
 
-	unsigned int hash_cnt;
+	struct scatterlist *src;
+	unsigned int nbytes;
+
+	u64 hash_cnt;
 	unsigned int hash_rem;
 
 	struct sg_table data_sg;

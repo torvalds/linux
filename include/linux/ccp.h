@@ -133,7 +133,7 @@ struct ccp_aes_engine {
 	u32 iv_len;		/* In bytes */
 
 	struct scatterlist *src, *dst;
-	u32 src_len;		/* In bytes */
+	u64 src_len;		/* In bytes */
 
 	u32 cmac_final;		/* Indicates final cmac cmd */
 	struct scatterlist *cmac_key;	/* K1/K2 cmac key required for
@@ -190,7 +190,7 @@ struct ccp_xts_aes_engine {
 	u32 iv_len;		/* In bytes */
 
 	struct scatterlist *src, *dst;
-	u32 src_len;		/* In bytes */
+	u64 src_len;		/* In bytes */
 
 	u32 final;
 };
@@ -237,7 +237,7 @@ struct ccp_sha_engine {
 	u32 ctx_len;		/* In bytes */
 
 	struct scatterlist *src;
-	u32 src_len;		/* In bytes */
+	u64 src_len;		/* In bytes */
 
 	u32 final;		/* Indicates final sha cmd */
 	u64 msg_bits;		/* Message length in bits required for
@@ -328,7 +328,7 @@ struct ccp_passthru_engine {
 	u32 mask_len;		/* In bytes */
 
 	struct scatterlist *src, *dst;
-	u32 src_len;		/* In bytes */
+	u64 src_len;		/* In bytes */
 
 	u32 final;
 };

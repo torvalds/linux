@@ -101,8 +101,9 @@ static int ccp_sha_complete(struct crypto_async_request *async_req, int ret)
 
 	if (rctx->hash_rem) {
 		/* Save remaining data to buffer */
-		scatterwalk_map_and_copy(rctx->buf, rctx->cmd.u.sha.src,
-					 rctx->hash_cnt, rctx->hash_rem, 0);
+		unsigned int offset = rctx->nbytes - rctx->hash_rem;
+		scatterwalk_map_and_copy(rctx->buf, rctx->src,
+					 offset, rctx->hash_rem, 0);
 		rctx->buf_count = rctx->hash_rem;
 	} else
 		rctx->buf_count = 0;
@@ -129,11 +130,14 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 	struct scatterlist *sg;
 	unsigned int block_size =
 		crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
-	unsigned int len, sg_count;
+	unsigned int sg_count;
 	gfp_t gfp;
+	u64 len;
 	int ret;
 
-	if (!final && ((nbytes + rctx->buf_count) <= block_size)) {
+	len = (u64)rctx->buf_count + (u64)nbytes;
+
+	if (!final && (len <= block_size)) {
 		scatterwalk_map_and_copy(rctx->buf + rctx->buf_count, req->src,
 					 0, nbytes, 0);
 		rctx->buf_count += nbytes;
@@ -141,12 +145,13 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 		return 0;
 	}
 
-	len = rctx->buf_count + nbytes;
+	rctx->src = req->src;
+	rctx->nbytes = nbytes;
 
 	rctx->final = final;
-	rctx->hash_cnt = final ? len : len & ~(block_size - 1);
-	rctx->hash_rem = final ?   0 : len &  (block_size - 1);
-	if (!final && (rctx->hash_cnt == len)) {
+	rctx->hash_rem = final ? 0 : len & (block_size - 1);
+	rctx->hash_cnt = len - rctx->hash_rem;
+	if (!final && !rctx->hash_rem) {
 		/* CCP can't do zero length final, so keep some data around */
 		rctx->hash_cnt -= block_size;
 		rctx->hash_rem = block_size;
