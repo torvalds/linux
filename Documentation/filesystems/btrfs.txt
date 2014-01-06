@@ -98,9 +98,12 @@ Options with (*) are default options and will not show in the mount options.
 	can be avoided.  Especially useful when trying to mount a multi-device
 	setup as root.  May be specified multiple times for multiple devices.
 
+  nodiscard(*)
   discard
-	Issue frequent commands to let the block device reclaim space freed by
-	the filesystem.  This is useful for SSD devices, thinly provisioned
+	Disable/enable discard mount option.
+	Discard issues frequent commands to let the block device reclaim space
+	freed by the filesystem.
+	This is useful for SSD devices, thinly provisioned
 	LUNs and virtual machine images, but may have a significant
 	performance impact.  (The fstrim command is also available to
 	initiate batch trims from userspace).
