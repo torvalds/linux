@@ -666,6 +666,7 @@ extern void radeon_atom_ext_encoder_setup_ddc(struct drm_encoder *encoder);
 extern struct drm_encoder *radeon_get_external_encoder(struct drm_encoder *encoder);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				u8 write_byte, u8 *read_byte);
+void radeon_atom_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le);
 
 extern void radeon_i2c_init(struct radeon_device *rdev);
 extern void radeon_i2c_fini(struct radeon_device *rdev);
