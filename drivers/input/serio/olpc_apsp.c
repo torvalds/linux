@@ -16,7 +16,6 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>

@@ -16,7 +16,6 @@
 #include <linux/input.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/delay.h>
 #include <asm/io.h>

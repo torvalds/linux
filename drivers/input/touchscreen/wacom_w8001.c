@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/input/mt.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 

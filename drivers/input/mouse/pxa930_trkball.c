@@ -10,7 +10,6 @@
  *  published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>

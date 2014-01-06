@@ -8,7 +8,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/i2c.h>

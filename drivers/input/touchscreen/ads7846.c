@@ -19,7 +19,6 @@
  */
 #include <linux/types.h>
 #include <linux/hwmon.h>
-#include <linux/init.h>
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
