@@ -3630,7 +3630,7 @@ static int brcmf_sdio_bus_init(struct device *dev)
 	}
 
 	/* If we didn't come up, turn off backplane clock */
-	if (bus_if->state != BRCMF_BUS_DATA)
+	if (ret != 0)
 		brcmf_sdio_clkctl(bus, CLK_NONE, false);
 
 exit:
