@@ -221,8 +221,8 @@ static int ati_configure(void)
 	readl(ati_generic_private.registers+ATI_GART_FEATURE_ID);	/* PCI Posting.*/
 
 	/* SIGNALED_SYSTEM_ERROR @ NB_STATUS */
-	pci_read_config_dword(agp_bridge->dev, 4, &temp);
-	pci_write_config_dword(agp_bridge->dev, 4, temp | (1<<14));
+	pci_read_config_dword(agp_bridge->dev, PCI_COMMAND, &temp);
+	pci_write_config_dword(agp_bridge->dev, PCI_COMMAND, temp | (1<<14));
 
 	/* Write out the address of the gatt table */
 	writel(agp_bridge->gatt_bus_addr, ati_generic_private.registers+ATI_GART_BASE);
