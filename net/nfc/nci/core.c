@@ -414,8 +414,6 @@ static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	struct nci_set_config_param param;
-	__u8 local_gb[NFC_MAX_GT_LEN];
-	int i;
 
 	param.val = nfc_get_local_general_bytes(nfc_dev, &param.len);
 	if ((param.val == NULL) || (param.len == 0))
@@ -424,11 +422,7 @@ static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 	if (param.len > NFC_MAX_GT_LEN)
 		return -EINVAL;
 
-	for (i = 0; i < param.len; i++)
-		local_gb[param.len-1-i] = param.val[i];
-
 	param.id = NCI_PN_ATR_REQ_GEN_BYTES;
-	param.val = local_gb;
 
 	return nci_request(ndev, nci_set_config_req, (unsigned long)&param,
 			   msecs_to_jiffies(NCI_SET_CONFIG_TIMEOUT));
