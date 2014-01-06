@@ -80,6 +80,9 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 		if (ret == 0x80 + len - 1)
 			return len;
 		if (ret == 0x94 + len - 1) {
+			if (i2c_debug == 1)
+				em28xx_warn("R05 returned 0x%02x: I2C timeout",
+					    ret);
 			return -ENXIO;
 		}
 		if (ret < 0) {
@@ -124,6 +127,9 @@ static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 		if (ret == 0x84 + len - 1)
 			break;
 		if (ret == 0x94 + len - 1) {
+			if (i2c_debug == 1)
+				em28xx_warn("R05 returned 0x%02x: I2C timeout",
+					    ret);
 			return -ENXIO;
 		}
 		if (ret < 0) {
@@ -203,6 +209,9 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		if (ret == 0) /* success */
 			return len;
 		if (ret == 0x10) {
+			if (i2c_debug == 1)
+				em28xx_warn("I2C transfer timeout on writing to addr 0x%02x",
+					    addr);
 			return -ENXIO;
 		}
 		if (ret < 0) {
@@ -263,8 +272,12 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 			    ret);
 		return ret;
 	}
-	if (ret == 0x10)
+	if (ret == 0x10) {
+		if (i2c_debug == 1)
+			em28xx_warn("I2C transfer timeout on writing to addr 0x%02x",
+				    addr);
 		return -ENXIO;
+	}
 
 	em28xx_warn("unknown i2c error (status=%i)\n", ret);
 	return -ETIMEDOUT;
@@ -322,8 +335,12 @@ static int em25xx_bus_B_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	 */
 	if (!ret)
 		return len;
-	else if (ret > 0)
+	else if (ret > 0) {
+		if (i2c_debug == 1)
+			em28xx_warn("Bus B R08 returned 0x%02x: I2C timeout",
+				    ret);
 		return -ENXIO;
+	}
 
 	return ret;
 	/*
@@ -373,8 +390,12 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	 */
 	if (!ret)
 		return len;
-	else if (ret > 0)
+	else if (ret > 0) {
+		if (i2c_debug == 1)
+			em28xx_warn("Bus B R08 returned 0x%02x: I2C timeout",
+				    ret);
 		return -ENXIO;
+	}
 
 	return ret;
 	/*
