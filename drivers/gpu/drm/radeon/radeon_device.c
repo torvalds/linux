@@ -249,7 +249,7 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
  * Init doorbell driver information (CIK)
  * Returns 0 on success, error on failure.
  */
-int radeon_doorbell_init(struct radeon_device *rdev)
+static int radeon_doorbell_init(struct radeon_device *rdev)
 {
 	/* doorbell bar mapping */
 	rdev->doorbell.base = pci_resource_start(rdev->pdev, 2);
@@ -278,7 +278,7 @@ int radeon_doorbell_init(struct radeon_device *rdev)
  *
  * Tear down doorbell driver information (CIK)
  */
-void radeon_doorbell_fini(struct radeon_device *rdev)
+static void radeon_doorbell_fini(struct radeon_device *rdev)
 {
 	iounmap(rdev->doorbell.ptr);
 	rdev->doorbell.ptr = NULL;
