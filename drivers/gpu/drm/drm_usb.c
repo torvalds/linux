@@ -1,4 +1,5 @@
 #include <drm/drmP.h>
+#include <drm/drm_usb.h>
 #include <linux/usb.h>
 #include <linux/module.h>
 
