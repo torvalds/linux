@@ -41,7 +41,7 @@ $(obj)/libpie_stage1.o: $(KBUILD_LIBPIE)
 OBJCOPYFLAGS_libpie_stage2.o += --redefine-syms=$(obj)/pie_rename.syms
 OBJCOPYFLAGS_libpie_stage2.o += --rename-section .text=.pie.text
 
-$(obj)/libpie_stage2.o: $(obj)/libpie_stage1.o
+$(obj)/libpie_stage2.o: $(obj)/libpie_stage1.o $(obj)/pie_rename.syms
 	$(call if_changed,objcopy)
 
 # Generate a version of vmlinux.o with weakened and rename references to gcc
