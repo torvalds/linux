@@ -38,7 +38,7 @@ Mount Options
 =============
 
 When mounting a btrfs filesystem, the following option are accepted.
-Unless otherwise specified, all options default to off.
+Options with (*) are default options and will not show in the mount options.
 
   alloc_start=<bytes>
 	Debugging option to force all block allocations above a certain
@@ -138,12 +138,13 @@ Unless otherwise specified, all options default to off.
 	Disable support for Posix Access Control Lists (ACLs).  See the
 	acl(5) manual page for more information about ACLs.
 
+  barrier(*)
   nobarrier
-        Disables the use of block layer write barriers.  Write barriers ensure
-	that certain IOs make it through the device cache and are on persistent
-	storage.  If used on a device with a volatile (non-battery-backed)
-	write-back cache, this option will lead to filesystem corruption on a
-	system crash or power loss.
+        Enable/disable the use of block layer write barriers.  Write barriers
+	ensure that certain IOs make it through the device cache and are on
+	persistent storage. If disabled on a device with a volatile
+	(non-battery-backed) write-back cache, nobarrier option will lead to
+	filesystem corruption on a system crash or power loss.
 
   nodatacow
 	Disable data copy-on-write for newly created files.  Implies nodatasum,
