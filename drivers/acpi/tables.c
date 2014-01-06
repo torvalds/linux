@@ -293,7 +293,7 @@ int __init acpi_table_parse(char *id, acpi_tbl_table_handler handler)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!handler)
+	if (!id || !handler)
 		return -EINVAL;
 
 	if (strncmp(id, ACPI_SIG_MADT, 4) == 0)
