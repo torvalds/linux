@@ -324,7 +324,7 @@ static int set_ioapic_sid(struct irte *irte, int apic)
 		return -1;
 	}
 
-	set_irte_sid(irte, 1, 0, sid);
+	set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16, sid);
 
 	return 0;
 }
