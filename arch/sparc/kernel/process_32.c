@@ -22,7 +22,6 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 
 #include <asm/auxio.h>
