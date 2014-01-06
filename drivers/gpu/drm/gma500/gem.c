@@ -98,8 +98,8 @@ unlock:
  *	it so that userspace can speak about it. This does the core work
  *	for the various methods that do/will create GEM objects for things
  */
-static int psb_gem_create(struct drm_file *file,
-	struct drm_device *dev, uint64_t size, uint32_t *handlep)
+int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
+		   u32 *handlep, int stolen, u32 align)
 {
 	struct gtt_range *r;
 	int ret;
@@ -109,7 +109,7 @@ static int psb_gem_create(struct drm_file *file,
 
 	/* Allocate our object - for now a direct gtt range which is not
 	   stolen memory backed */
-	r = psb_gtt_alloc_range(dev, size, "gem", 0);
+	r = psb_gtt_alloc_range(dev, size, "gem", 0, PAGE_SIZE);
 	if (r == NULL) {
 		dev_err(dev->dev, "no memory for %lld byte GEM object\n", size);
 		return -ENOSPC;
@@ -153,7 +153,8 @@ int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 {
 	args->pitch = ALIGN(args->width * ((args->bpp + 7) / 8), 64);
 	args->size = args->pitch * args->height;
-	return psb_gem_create(file, dev, args->size, &args->handle);
+	return psb_gem_create(file, dev, args->size, &args->handle, 0,
+			      PAGE_SIZE);
 }
 
 /**

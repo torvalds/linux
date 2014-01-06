@@ -330,7 +330,7 @@ out:
  *	as in use.
  */
 struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
-						const char *name, int backed)
+				      const char *name, int backed, u32 align)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gtt_range *gt;
@@ -358,7 +358,7 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	/* Ensure this is set for non GEM objects */
 	gt->gem.dev = dev;
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
-				len, start, end, PAGE_SIZE, NULL, NULL);
+				len, start, end, align, NULL, NULL);
 	if (ret == 0) {
 		gt->offset = gt->resource.start - r->start;
 		return gt;
