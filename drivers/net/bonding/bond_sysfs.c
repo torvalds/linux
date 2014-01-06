@@ -776,7 +776,7 @@ static ssize_t bonding_store_num_peer_notif(struct device *d,
 	int ret;
 
 	ret = kstrtou8(buf, 10, &new_value);
-	if (!ret) {
+	if (ret) {
 		pr_err("%s: invalid value %s specified.\n",
 		       bond->dev->name, buf);
 		return ret;
