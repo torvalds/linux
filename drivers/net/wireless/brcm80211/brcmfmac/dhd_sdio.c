@@ -3750,22 +3750,6 @@ static void brcmf_sdio_dataworker(struct work_struct *work)
 	}
 }
 
-static bool brcmf_sdio_probe_malloc(struct brcmf_sdio *bus)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	if (bus->sdiodev->bus_if->maxctl) {
-		bus->rxblen =
-		    roundup((bus->sdiodev->bus_if->maxctl + SDPCM_HDRLEN),
-			    ALIGNMENT) + bus->head_align;
-		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
-		if (!(bus->rxbuf))
-			return false;
-	}
-
-	return true;
-}
-
 static bool
 brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 {
@@ -3877,39 +3861,6 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 fail:
 	sdio_release_host(bus->sdiodev->func[1]);
 	return false;
-}
-
-static bool brcmf_sdio_probe_init(struct brcmf_sdio *bus)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	sdio_claim_host(bus->sdiodev->func[1]);
-
-	/* Disable F2 to clear any intermediate frame state on the dongle */
-	sdio_disable_func(bus->sdiodev->func[SDIO_FUNC_2]);
-
-	bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
-	bus->rxflow = false;
-
-	/* Done with backplane-dependent accesses, can drop clock... */
-	brcmf_sdiod_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, 0, NULL);
-
-	sdio_release_host(bus->sdiodev->func[1]);
-
-	/* ...and initialize clock/power states */
-	bus->clkstate = CLK_SDONLY;
-	bus->idletime = BRCMF_IDLE_INTERVAL;
-	bus->idleclock = BRCMF_IDLE_ACTIVE;
-
-	/* Query the F2 block size, set roundup accordingly */
-	bus->blocksize = bus->sdiodev->func[2]->cur_blksize;
-	bus->roundup = min(max_roundup, bus->blocksize);
-
-	/* SR state */
-	bus->sleeping = false;
-	bus->sr_enabled = false;
-
-	return true;
 }
 
 static int
@@ -4039,15 +3990,42 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	}
 
 	/* Allocate buffers */
-	if (!(brcmf_sdio_probe_malloc(bus))) {
-		brcmf_err("brcmf_sdio_probe_malloc failed\n");
-		goto fail;
+	if (bus->sdiodev->bus_if->maxctl) {
+		bus->rxblen =
+		    roundup((bus->sdiodev->bus_if->maxctl + SDPCM_HDRLEN),
+			    ALIGNMENT) + bus->head_align;
+		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
+		if (!(bus->rxbuf)) {
+			brcmf_err("rxbuf allocation failed\n");
+			goto fail;
+		}
 	}
 
-	if (!(brcmf_sdio_probe_init(bus))) {
-		brcmf_err("brcmf_sdio_probe_init failed\n");
-		goto fail;
-	}
+	sdio_claim_host(bus->sdiodev->func[1]);
+
+	/* Disable F2 to clear any intermediate frame state on the dongle */
+	sdio_disable_func(bus->sdiodev->func[SDIO_FUNC_2]);
+
+	bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
+	bus->rxflow = false;
+
+	/* Done with backplane-dependent accesses, can drop clock... */
+	brcmf_sdiod_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, 0, NULL);
+
+	sdio_release_host(bus->sdiodev->func[1]);
+
+	/* ...and initialize clock/power states */
+	bus->clkstate = CLK_SDONLY;
+	bus->idletime = BRCMF_IDLE_INTERVAL;
+	bus->idleclock = BRCMF_IDLE_ACTIVE;
+
+	/* Query the F2 block size, set roundup accordingly */
+	bus->blocksize = bus->sdiodev->func[2]->cur_blksize;
+	bus->roundup = min(max_roundup, bus->blocksize);
+
+	/* SR state */
+	bus->sleeping = false;
+	bus->sr_enabled = false;
 
 	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
