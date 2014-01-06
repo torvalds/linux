@@ -73,8 +73,7 @@ enum isp_video_buffer_state {
  * @npages: Number of pages (for userspace buffers)
  * @pages: Pages table (for userspace non-VM_PFNMAP buffers)
  * @paddr: Memory physical address (for userspace VM_PFNMAP buffers)
- * @sglen: Number of elements in the scatter list (for non-VM_PFNMAP buffers)
- * @sglist: Scatter list (for non-VM_PFNMAP buffers)
+ * @sgt: Scatter gather table (for non-VM_PFNMAP buffers)
  * @vbuf: V4L2 buffer
  * @irqlist: List head for insertion into IRQ queue
  * @state: Current buffer state
@@ -98,8 +97,7 @@ struct isp_video_buffer {
 	dma_addr_t paddr;
 
 	/* For all buffers except VM_PFNMAP. */
-	unsigned int sglen;
-	struct scatterlist *sglist;
+	struct sg_table sgt;
 
 	/* Touched by the interrupt handler. */
 	struct v4l2_buffer vbuf;

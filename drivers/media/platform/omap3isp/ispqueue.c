@@ -45,33 +45,17 @@
 #define IOMMU_FLAG	(IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_8)
 
 /*
- * ispmmu_vmap - Wrapper for Virtual memory mapping of a scatter gather list
+ * ispmmu_vmap - Wrapper for virtual memory mapping of a scatter gather table
  * @dev: Device pointer specific to the OMAP3 ISP.
- * @sglist: Pointer to source Scatter gather list to allocate.
- * @sglen: Number of elements of the scatter-gatter list.
+ * @sgt: Pointer to source scatter gather table.
  *
  * Returns a resulting mapped device address by the ISP MMU, or -ENOMEM if
  * we ran out of memory.
  */
 static dma_addr_t
-ispmmu_vmap(struct isp_device *isp, const struct scatterlist *sglist, int sglen)
+ispmmu_vmap(struct isp_device *isp, const struct sg_table *sgt)
 {
-	struct sg_table *sgt;
-	u32 da;
-
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
-	if (sgt == NULL)
-		return -ENOMEM;
-
-	sgt->sgl = (struct scatterlist *)sglist;
-	sgt->nents = sglen;
-	sgt->orig_nents = sglen;
-
-	da = omap_iommu_vmap(isp->domain, isp->dev, 0, sgt, IOMMU_FLAG);
-	if (IS_ERR_VALUE(da))
-		kfree(sgt);
-
-	return da;
+	return omap_iommu_vmap(isp->domain, isp->dev, 0, sgt, IOMMU_FLAG);
 }
 
 /*
@@ -81,10 +65,7 @@ ispmmu_vmap(struct isp_device *isp, const struct scatterlist *sglist, int sglen)
  */
 static void ispmmu_vunmap(struct isp_device *isp, dma_addr_t da)
 {
-	struct sg_table *sgt;
-
-	sgt = omap_iommu_vunmap(isp->domain, isp->dev, (u32)da);
-	kfree(sgt);
+	omap_iommu_vunmap(isp->domain, isp->dev, (u32)da);
 }
 
 /* -----------------------------------------------------------------------------
@@ -204,33 +185,30 @@ out:
  */
 static int isp_video_buffer_sglist_kernel(struct isp_video_buffer *buf)
 {
-	struct scatterlist *sglist;
+	struct scatterlist *sg;
 	unsigned int npages;
 	unsigned int i;
 	void *addr;
+	int ret;
 
 	addr = buf->vaddr;
 	npages = PAGE_ALIGN(buf->vbuf.length) >> PAGE_SHIFT;
 
-	sglist = vmalloc(npages * sizeof(*sglist));
-	if (sglist == NULL)
-		return -ENOMEM;
+	ret = sg_alloc_table(&buf->sgt, npages, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
-	sg_init_table(sglist, npages);
-
-	for (i = 0; i < npages; ++i, addr += PAGE_SIZE) {
+	for (sg = buf->sgt.sgl, i = 0; i < npages; ++i, addr += PAGE_SIZE) {
 		struct page *page = vmalloc_to_page(addr);
 
 		if (page == NULL || PageHighMem(page)) {
-			vfree(sglist);
+			sg_free_table(&buf->sgt);
 			return -EINVAL;
 		}
 
-		sg_set_page(&sglist[i], page, PAGE_SIZE, 0);
+		sg_set_page(sg, page, PAGE_SIZE, 0);
+		sg = sg_next(sg);
 	}
-
-	buf->sglen = npages;
-	buf->sglist = sglist;
 
 	return 0;
 }
@@ -242,29 +220,25 @@ static int isp_video_buffer_sglist_kernel(struct isp_video_buffer *buf)
  */
 static int isp_video_buffer_sglist_user(struct isp_video_buffer *buf)
 {
-	struct scatterlist *sglist;
 	unsigned int offset = buf->offset;
+	struct scatterlist *sg;
 	unsigned int i;
+	int ret;
 
-	sglist = vmalloc(buf->npages * sizeof(*sglist));
-	if (sglist == NULL)
-		return -ENOMEM;
+	ret = sg_alloc_table(&buf->sgt, buf->npages, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
-	sg_init_table(sglist, buf->npages);
-
-	for (i = 0; i < buf->npages; ++i) {
+	for (sg = buf->sgt.sgl, i = 0; i < buf->npages; ++i) {
 		if (PageHighMem(buf->pages[i])) {
-			vfree(sglist);
+			sg_free_table(&buf->sgt);
 			return -EINVAL;
 		}
 
-		sg_set_page(&sglist[i], buf->pages[i], PAGE_SIZE - offset,
-			    offset);
+		sg_set_page(sg, buf->pages[i], PAGE_SIZE - offset, offset);
+		sg = sg_next(sg);
 		offset = 0;
 	}
-
-	buf->sglen = buf->npages;
-	buf->sglist = sglist;
 
 	return 0;
 }
@@ -277,29 +251,25 @@ static int isp_video_buffer_sglist_user(struct isp_video_buffer *buf)
  */
 static int isp_video_buffer_sglist_pfnmap(struct isp_video_buffer *buf)
 {
-	struct scatterlist *sglist;
+	struct scatterlist *sg;
 	unsigned int offset = buf->offset;
 	unsigned long pfn = buf->paddr >> PAGE_SHIFT;
 	unsigned int i;
+	int ret;
 
-	sglist = vmalloc(buf->npages * sizeof(*sglist));
-	if (sglist == NULL)
-		return -ENOMEM;
+	ret = sg_alloc_table(&buf->sgt, buf->npages, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
-	sg_init_table(sglist, buf->npages);
-
-	for (i = 0; i < buf->npages; ++i, ++pfn) {
-		sg_set_page(&sglist[i], pfn_to_page(pfn), PAGE_SIZE - offset,
-			    offset);
+	for (sg = buf->sgt.sgl, i = 0; i < buf->npages; ++i, ++pfn) {
+		sg_set_page(sg, pfn_to_page(pfn), PAGE_SIZE - offset, offset);
 		/* PFNMAP buffers will not get DMA-mapped, set the DMA address
 		 * manually.
 		 */
-		sg_dma_address(&sglist[i]) = (pfn << PAGE_SHIFT) + offset;
+		sg_dma_address(sg) = (pfn << PAGE_SHIFT) + offset;
+		sg = sg_next(sg);
 		offset = 0;
 	}
-
-	buf->sglen = buf->npages;
-	buf->sglist = sglist;
 
 	return 0;
 }
@@ -325,13 +295,11 @@ static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
 	if (!(buf->vm_flags & VM_PFNMAP)) {
 		direction = buf->vbuf.type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 			  ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-		dma_unmap_sg(buf->queue->dev, buf->sglist, buf->sglen,
+		dma_unmap_sg(buf->queue->dev, buf->sgt.sgl, buf->sgt.orig_nents,
 			     direction);
 	}
 
-	vfree(buf->sglist);
-	buf->sglist = NULL;
-	buf->sglen = 0;
+	sg_free_table(&buf->sgt);
 
 	if (buf->pages != NULL) {
 		isp_video_buffer_lock_vma(buf, 0);
@@ -576,15 +544,15 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 	if (!(buf->vm_flags & VM_PFNMAP)) {
 		direction = buf->vbuf.type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 			  ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-		ret = dma_map_sg(buf->queue->dev, buf->sglist, buf->sglen,
-				 direction);
-		if (ret != buf->sglen) {
+		ret = dma_map_sg(buf->queue->dev, buf->sgt.sgl,
+				 buf->sgt.orig_nents, direction);
+		if (ret != buf->sgt.orig_nents) {
 			ret = -EFAULT;
 			goto done;
 		}
 	}
 
-	addr = ispmmu_vmap(video->isp, buf->sglist, buf->sglen);
+	addr = ispmmu_vmap(video->isp, &buf->sgt);
 	if (IS_ERR_VALUE(addr)) {
 		ret = -EIO;
 		goto done;
