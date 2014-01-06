@@ -1636,7 +1636,7 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	/* Reconstruct original mac header */
 	ethhdr = eth_hdr(skb);
-	memcpy(ethhdr, &ethhdr_tmp, sizeof(*ethhdr));
+	*ethhdr = ethhdr_tmp;
 
 	/* Select the correct unicast header information based on the location
 	 * of our mac address in the coded_packet header
