@@ -19,6 +19,12 @@
 /* Define private flags: */
 #define NFCMRVL_NCI_RUNNING			1
 
+#define NFCMRVL_EXT_COEX_ID			0xE0
+#define NFCMRVL_NOT_ALLOWED_ID			0xE1
+#define NFCMRVL_ACTIVE_ID			0xE2
+#define NFCMRVL_EXT_COEX_ENABLE			1
+#define NFCMRVL_GPIO_PIN_NFC_NOT_ALLOWED	0xA
+#define NFCMRVL_GPIO_PIN_NFC_ACTIVE		0xB
 #define NFCMRVL_NCI_MAX_EVENT_SIZE		260
 
 struct nfcmrvl_private {
