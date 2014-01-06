@@ -63,6 +63,7 @@
 #define DEFAULT_DOMAIN_ADDRESS_WIDTH 48
 
 #define MAX_AGAW_WIDTH 64
+#define MAX_AGAW_PFN_WIDTH	(MAX_AGAW_WIDTH - VTD_PAGE_SHIFT)
 
 #define __DOMAIN_MAX_PFN(gaw)  ((((uint64_t)1) << (gaw-VTD_PAGE_SHIFT)) - 1)
 #define __DOMAIN_MAX_ADDR(gaw) ((((uint64_t)1) << gaw) - 1)
@@ -106,12 +107,12 @@ static inline int agaw_to_level(int agaw)
 
 static inline int agaw_to_width(int agaw)
 {
-	return 30 + agaw * LEVEL_STRIDE;
+	return min_t(int, 30 + agaw * LEVEL_STRIDE, MAX_AGAW_WIDTH);
 }
 
 static inline int width_to_agaw(int width)
 {
-	return (width - 30) / LEVEL_STRIDE;
+	return DIV_ROUND_UP(width - 30, LEVEL_STRIDE);
 }
 
 static inline unsigned int level_to_offset_bits(int level)
@@ -141,7 +142,7 @@ static inline unsigned long align_to_level(unsigned long pfn, int level)
 
 static inline unsigned long lvl_to_nr_pages(unsigned int lvl)
 {
-	return  1 << ((lvl - 1) * LEVEL_STRIDE);
+	return  1 << min_t(int, (lvl - 1) * LEVEL_STRIDE, MAX_AGAW_PFN_WIDTH);
 }
 
 /* VT-d pages must always be _smaller_ than MM pages. Otherwise things
@@ -865,7 +866,6 @@ static int dma_pte_clear_range(struct dmar_domain *domain,
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 	unsigned int large_page = 1;
 	struct dma_pte *first_pte, *pte;
-	int order;
 
 	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
 	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
@@ -890,8 +890,7 @@ static int dma_pte_clear_range(struct dmar_domain *domain,
 
 	} while (start_pfn && start_pfn <= last_pfn);
 
-	order = (large_page - 1) * 9;
-	return order;
+	return min_t(int, (large_page - 1) * 9, MAX_AGAW_PFN_WIDTH);
 }
 
 static void dma_pte_free_level(struct dmar_domain *domain, int level,
