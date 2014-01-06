@@ -289,26 +289,6 @@ static inline void dma_clear_pte(struct dma_pte *pte)
 	pte->val = 0;
 }
 
-static inline void dma_set_pte_readable(struct dma_pte *pte)
-{
-	pte->val |= DMA_PTE_READ;
-}
-
-static inline void dma_set_pte_writable(struct dma_pte *pte)
-{
-	pte->val |= DMA_PTE_WRITE;
-}
-
-static inline void dma_set_pte_snp(struct dma_pte *pte)
-{
-	pte->val |= DMA_PTE_SNP;
-}
-
-static inline void dma_set_pte_prot(struct dma_pte *pte, unsigned long prot)
-{
-	pte->val = (pte->val & ~3) | (prot & 3);
-}
-
 static inline u64 dma_pte_addr(struct dma_pte *pte)
 {
 #ifdef CONFIG_64BIT
@@ -317,11 +297,6 @@ static inline u64 dma_pte_addr(struct dma_pte *pte)
 	/* Must have a full atomic 64-bit read */
 	return  __cmpxchg64(&pte->val, 0ULL, 0ULL) & VTD_PAGE_MASK;
 #endif
-}
-
-static inline void dma_set_pte_pfn(struct dma_pte *pte, unsigned long pfn)
-{
-	pte->val |= (uint64_t)pfn << VTD_PAGE_SHIFT;
 }
 
 static inline bool dma_pte_present(struct dma_pte *pte)
