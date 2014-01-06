@@ -681,6 +681,8 @@ void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
 		ddev->skb_check_crc = digital_skb_check_crc_none;
 	}
 
+	ddev->curr_protocol = NFC_PROTO_NFC_DEP_MASK;
+
 	rc = ddev->skb_check_crc(resp);
 	if (rc) {
 		PROTOCOL_ERR("14.4.1.6");
