@@ -1184,10 +1184,8 @@ static void gnttab_request_version(void)
 	int rc;
 	struct gnttab_set_version gsv;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		gsv.version = 1;
-	else
-		gsv.version = 2;
+	gsv.version = 1;
+
 	rc = HYPERVISOR_grant_table_op(GNTTABOP_set_version, &gsv, 1);
 	if (rc == 0 && gsv.version == 2) {
 		grant_table_version = 2;
