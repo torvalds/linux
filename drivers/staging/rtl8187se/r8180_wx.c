@@ -62,7 +62,7 @@ static int r8180_wx_set_key(struct net_device *dev,
 		return 0;
 
 	if (erq->length > 0) {
-		u32* tkey = (u32*) key;
+		u32 *tkey = (u32 *) key;
 		priv->key0[0] = tkey[0];
 		priv->key0[1] = tkey[1];
 		priv->key0[2] = tkey[2];
@@ -297,7 +297,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 		}
 
 		if (val == IW_MAX_FREQUENCIES)
-		break;
+			break;
 	}
 
 	range->num_frequency = val;
@@ -313,14 +313,14 @@ static int r8180_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int ret;
-	struct ieee80211_device* ieee = priv->ieee80211;
+	struct ieee80211_device *ieee = priv->ieee80211;
 
 
 	if (priv->ieee80211->bHwRadioOff)
 		return 0;
 
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID)	{
-		struct iw_scan_req* req = (struct iw_scan_req*)b;
+		struct iw_scan_req *req = (struct iw_scan_req *)b;
 		if (req->essid_len)		{
 			ieee->current_network.ssid_len = req->essid_len;
 			memcpy(ieee->current_network.ssid, req->essid, req->essid_len);
@@ -517,7 +517,8 @@ static int r8180_wx_set_enc(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	if (priv->hw_wep) ret = r8180_wx_set_key(dev, info, wrqu, key);
+	if (priv->hw_wep)
+		ret = r8180_wx_set_key(dev, info, wrqu, key);
 	else	{
 		DMESG("Setting SW wep key");
 		ret = ieee80211_wx_set_encode(priv->ieee80211, info, wrqu, key);
@@ -544,7 +545,7 @@ static int r8180_wx_set_scan_type(struct net_device *dev,
 {
 
 	struct r8180_priv *priv = ieee80211_priv(dev);
-	int *parms = (int*)p;
+	int *parms = (int *)p;
 	int mode = parms[0];
 
 	if (priv->ieee80211->bHwRadioOff)
@@ -875,7 +876,7 @@ static int r8180_wx_set_preamble(struct net_device *dev,
 	if (*extra < 0 || *extra > 2)
 		ret = -1;
 	else
-		priv->plcp_preamble_mode = *((short *)extra) ;
+		priv->plcp_preamble_mode = *((short *)extra);
 
 
 
@@ -1073,8 +1074,7 @@ static int r8180_wx_set_forcerate(struct net_device *dev,
 	printk("==============>%s(): forcerate is %d\n", __func__, forcerate);
 	if ((forcerate == 2) || (forcerate == 4) || (forcerate == 11) || (forcerate == 22) || (forcerate == 12) ||
 		(forcerate == 18) || (forcerate == 24) || (forcerate == 36) || (forcerate == 48) || (forcerate == 72) ||
-		(forcerate == 96) || (forcerate == 108))
-	{
+		(forcerate == 96) || (forcerate == 108)) {
 		priv->ForcedDataRate = 1;
 		priv->ieee80211->rate = forcerate * 5;
 	}	else if (forcerate == 0)	{
@@ -1344,22 +1344,35 @@ static inline int is_same_network(struct ieee80211_network *src,
 		 * We treat all <hidden> with the same BSSID and channel
 		 * as one network
 		 */
-		return (((src->ssid_len == dst->ssid_len) || (ieee->iw_mode == IW_MODE_INFRA)) && /* YJ,mod, 080819,for hidden ap */
-			(src->channel == dst->channel) &&
-			!memcmp(src->bssid, dst->bssid, ETH_ALEN) &&
-			(!memcmp(src->ssid, dst->ssid, src->ssid_len) || (ieee->iw_mode == IW_MODE_INFRA)) &&  /* YJ,mod, 080819,for hidden ap */
-			((src->capability & WLAN_CAPABILITY_IBSS) ==
-			(dst->capability & WLAN_CAPABILITY_IBSS)) &&
-			((src->capability & WLAN_CAPABILITY_BSS) ==
-			(dst->capability & WLAN_CAPABILITY_BSS)));
+		if (src->channel != dst->channel)
+			return 0;
+
+		if (memcmp(src->bssid, dst->bssid, ETH_ALEN) != 0)
+			return 0;
+
+		if (ieee->iw_mode != IW_MODE_INFRA) {
+			if (src->ssid_len != dst->ssid_len)
+				return 0;
+			if (memcmp(src->ssid, dst->ssid, src->ssid_len) != 0)
+				return 0;
+		}
+
+		if ((src->capability & WLAN_CAPABILITY_IBSS) !=
+		    (dst->capability & WLAN_CAPABILITY_IBSS))
+			return 0;
+		if ((src->capability & WLAN_CAPABILITY_BSS) !=
+		    (dst->capability & WLAN_CAPABILITY_BSS))
+			return 0;
+
+		return 1;
 }
 
 /* WB modified to show signal to GUI on 18-01-2008 */
 static struct iw_statistics *r8180_get_wireless_stats(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
-	struct iw_statistics* wstats = &priv->wstats;
+	struct ieee80211_device *ieee = priv->ieee80211;
+	struct iw_statistics *wstats = &priv->wstats;
 	int tmp_level = 0;
 	int tmp_qual = 0;
 	int tmp_noise = 0;
