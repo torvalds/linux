@@ -1235,7 +1235,10 @@ static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 	runtime->hw.rate_max = stream->rate_max;
 	runtime->hw.channels_min = stream->channels_min;
 	runtime->hw.channels_max = stream->channels_max;
-	runtime->hw.formats &= stream->formats;
+	if (runtime->hw.formats)
+		runtime->hw.formats &= stream->formats;
+	else
+		runtime->hw.formats = stream->formats;
 	runtime->hw.rates = stream->rates;
 }
 
