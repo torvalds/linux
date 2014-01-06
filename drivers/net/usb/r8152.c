@@ -2685,10 +2685,10 @@ static void rtl8153_unload(struct r8152 *tp)
 	r8153_power_cut_en(tp, 1);
 }
 
-static bool rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
+static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 {
 	struct rtl_ops *ops = &tp->rtl_ops;
-	bool ret = true;
+	int ret = -ENODEV;
 
 	switch (id->idVendor) {
 	case VENDOR_ID_REALTEK:
@@ -2699,6 +2699,7 @@ static bool rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 			ops->disable		= rtl8152_disable;
 			ops->down		= rtl8152_down;
 			ops->unload		= rtl8152_unload;
+			ret = 0;
 			break;
 		case PRODUCT_ID_RTL8153:
 			ops->init		= r8153_init;
@@ -2706,9 +2707,9 @@ static bool rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 			ops->disable		= rtl8152_disable;
 			ops->down		= rtl8153_down;
 			ops->unload		= rtl8153_unload;
+			ret = 0;
 			break;
 		default:
-			ret = false;
 			break;
 		}
 		break;
@@ -2721,17 +2722,19 @@ static bool rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 			ops->disable		= rtl8152_disable;
 			ops->down		= rtl8153_down;
 			ops->unload		= rtl8153_unload;
+			ret = 0;
 			break;
 		default:
-			ret = false;
 			break;
 		}
 		break;
 
 	default:
-		ret = false;
 		break;
 	}
+
+	if (ret)
+		netif_err(tp, probe, tp->netdev, "Unknown Device\n");
 
 	return ret;
 }
@@ -2763,10 +2766,9 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp->netdev = netdev;
 	tp->intf = intf;
 
-	if (!rtl_ops_init(tp, id)) {
-		netif_err(tp, probe, netdev, "Unknown Device");
-		return -ENODEV;
-	}
+	ret = rtl_ops_init(tp, id);
+	if (ret)
+		goto out;
 
 	tasklet_init(&tp->tl, bottom_half, (unsigned long)tp);
 	INIT_DELAYED_WORK(&tp->schedule, rtl_work_func_t);
