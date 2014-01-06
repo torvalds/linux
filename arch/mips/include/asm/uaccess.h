@@ -248,20 +248,20 @@ struct __large_struct { unsigned long buf[100]; };
 #define __get_kernel_common(val, size, ptr)				\
 do {									\
 	switch (size) {							\
-	case 1: __get_user_asm(val, _loadb, ptr); break;		\
-	case 2: __get_user_asm(val, _loadh, ptr); break;		\
-	case 4: __get_user_asm(val, _loadw, ptr); break;		\
-	case 8: __GET_USER_DW(val, _loadd, ptr); break;			\
+	case 1: __get_data_asm(val, _loadb, ptr); break;		\
+	case 2: __get_data_asm(val, _loadh, ptr); break;		\
+	case 4: __get_data_asm(val, _loadw, ptr); break;		\
+	case 8: __GET_DW(val, _loadd, ptr); break;			\
 	default: __get_user_unknown(); break;				\
 	}								\
 } while (0)
 #endif
 
 #ifdef CONFIG_32BIT
-#define __GET_USER_DW(val, insn, ptr) __get_user_asm_ll32(val, insn, ptr)
+#define __GET_DW(val, insn, ptr) __get_data_asm_ll32(val, insn, ptr)
 #endif
 #ifdef CONFIG_64BIT
-#define __GET_USER_DW(val, insn, ptr) __get_user_asm(val, insn, ptr)
+#define __GET_DW(val, insn, ptr) __get_data_asm(val, insn, ptr)
 #endif
 
 extern void __get_user_unknown(void);
@@ -269,10 +269,10 @@ extern void __get_user_unknown(void);
 #define __get_user_common(val, size, ptr)				\
 do {									\
 	switch (size) {							\
-	case 1: __get_user_asm(val, user_lb, ptr); break;		\
-	case 2: __get_user_asm(val, user_lh, ptr); break;		\
-	case 4: __get_user_asm(val, user_lw, ptr); break;		\
-	case 8: __GET_USER_DW(val, user_ld, ptr); break;		\
+	case 1: __get_data_asm(val, user_lb, ptr); break;		\
+	case 2: __get_data_asm(val, user_lh, ptr); break;		\
+	case 4: __get_data_asm(val, user_lw, ptr); break;		\
+	case 8: __GET_DW(val, user_ld, ptr); break;			\
 	default: __get_user_unknown(); break;				\
 	}								\
 } while (0)
@@ -306,7 +306,7 @@ do {									\
 	__gu_err;							\
 })
 
-#define __get_user_asm(val, insn, addr)					\
+#define __get_data_asm(val, insn, addr)					\
 {									\
 	long __gu_tmp;							\
 									\
@@ -330,7 +330,7 @@ do {									\
 /*
  * Get a long long 64 using 32 bit registers.
  */
-#define __get_user_asm_ll32(val, insn, addr)				\
+#define __get_data_asm_ll32(val, insn, addr)				\
 {									\
 	union {								\
 		unsigned long long	l;				\
@@ -364,7 +364,7 @@ do {									\
 /*
  * Kernel specific functions for EVA. We need to use normal load instructions
  * to read data from kernel when operating in EVA mode. We use these macros to
- * avoid redefining __get_user_asm for EVA.
+ * avoid redefining __get_data_asm for EVA.
  */
 #undef _stored
 #undef _storew
@@ -383,10 +383,10 @@ do {									\
 #define __put_kernel_common(ptr, size)					\
 do {									\
 	switch (size) {							\
-	case 1: __put_user_asm(_storeb, ptr); break;			\
-	case 2: __put_user_asm(_storeh, ptr); break;			\
-	case 4: __put_user_asm(_storew, ptr); break;			\
-	case 8: __PUT_USER_DW(_stored, ptr); break;			\
+	case 1: __put_data_asm(_storeb, ptr); break;			\
+	case 2: __put_data_asm(_storeh, ptr); break;			\
+	case 4: __put_data_asm(_storew, ptr); break;			\
+	case 8: __PUT_DW(_stored, ptr); break;				\
 	default: __put_user_unknown(); break;				\
 	}								\
 } while(0)
@@ -397,19 +397,19 @@ do {									\
  * for 32 bit mode and old iron.
  */
 #ifdef CONFIG_32BIT
-#define __PUT_USER_DW(insn, ptr) __put_user_asm_ll32(insn, ptr)
+#define __PUT_DW(insn, ptr) __put_data_asm_ll32(insn, ptr)
 #endif
 #ifdef CONFIG_64BIT
-#define __PUT_USER_DW(insn, ptr) __put_user_asm(insn, ptr)
+#define __PUT_DW(insn, ptr) __put_data_asm(insn, ptr)
 #endif
 
 #define __put_user_common(ptr, size)					\
 do {									\
 	switch (size) {							\
-	case 1: __put_user_asm(user_sb, ptr); break;			\
-	case 2: __put_user_asm(user_sh, ptr); break;			\
-	case 4: __put_user_asm(user_sw, ptr); break;			\
-	case 8: __PUT_USER_DW(user_sd, ptr); break;			\
+	case 1: __put_data_asm(user_sb, ptr); break;			\
+	case 2: __put_data_asm(user_sh, ptr); break;			\
+	case 4: __put_data_asm(user_sw, ptr); break;			\
+	case 8: __PUT_DW(user_sd, ptr); break;				\
 	default: __put_user_unknown(); break;				\
 	}								\
 } while (0)
@@ -446,10 +446,10 @@ do {									\
 	__pu_err;							\
 })
 
-#define __put_user_asm(insn, ptr)					\
+#define __put_data_asm(insn, ptr)					\
 {									\
 	__asm__ __volatile__(						\
-	"1:	"insn("%z2", "%3")"	# __put_user_asm	\n"	\
+	"1:	"insn("%z2", "%3")"	# __put_data_asm	\n"	\
 	"2:							\n"	\
 	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
@@ -464,10 +464,10 @@ do {									\
 	  "i" (-EFAULT));						\
 }
 
-#define __put_user_asm_ll32(insn, ptr)					\
+#define __put_data_asm_ll32(insn, ptr)					\
 {									\
 	__asm__ __volatile__(						\
-	"1:	"insn("%2", "(%3)")"	# __put_user_asm_ll32	\n"	\
+	"1:	"insn("%2", "(%3)")"	# __put_data_asm_ll32	\n"	\
 	"2:	"insn("%D2", "4(%3)")"				\n"	\
 	"3:							\n"	\
 	"	.insn						\n"	\
@@ -593,7 +593,7 @@ extern void __get_user_unaligned_unknown(void);
 #define __get_user_unaligned_common(val, size, ptr)			\
 do {									\
 	switch (size) {							\
-	case 1: __get_user_asm(val, "lb", ptr); break;			\
+	case 1: __get_data_asm(val, "lb", ptr); break;			\
 	case 2: __get_user_unaligned_asm(val, "ulh", ptr); break;	\
 	case 4: __get_user_unaligned_asm(val, "ulw", ptr); break;	\
 	case 8: __GET_USER_UNALIGNED_DW(val, ptr); break;		\
@@ -620,7 +620,7 @@ do {									\
 	__gu_err;							\
 })
 
-#define __get_user_unaligned_asm(val, insn, addr)			\
+#define __get_data_unaligned_asm(val, insn, addr)			\
 {									\
 	long __gu_tmp;							\
 									\
@@ -686,7 +686,7 @@ do {									\
 #define __put_user_unaligned_common(ptr, size)				\
 do {									\
 	switch (size) {							\
-	case 1: __put_user_asm("sb", ptr); break;			\
+	case 1: __put_data_asm("sb", ptr); break;			\
 	case 2: __put_user_unaligned_asm("ush", ptr); break;		\
 	case 4: __put_user_unaligned_asm("usw", ptr); break;		\
 	case 8: __PUT_USER_UNALIGNED_DW(ptr); break;			\
