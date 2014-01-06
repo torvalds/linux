@@ -437,7 +437,8 @@ static int rfcomm_release_dev(void __user *arg)
 		tty_kref_put(tty);
 	}
 
-	if (!test_and_set_bit(RFCOMM_TTY_RELEASED, &dev->flags))
+	if (!test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags) &&
+	    !test_and_set_bit(RFCOMM_TTY_RELEASED, &dev->flags))
 		tty_port_put(&dev->port);
 
 	tty_port_put(&dev->port);
@@ -670,10 +671,20 @@ static int rfcomm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	/* install the tty_port */
 	err = tty_port_install(&dev->port, driver, tty);
-	if (err)
+	if (err) {
 		rfcomm_tty_cleanup(tty);
+		return err;
+	}
 
-	return err;
+	/* take over the tty_port reference if the port was created with the
+	 * flag RFCOMM_RELEASE_ONHUP. This will force the release of the port
+	 * when the last process closes the tty. The behaviour is expected by
+	 * userspace.
+	 */
+	if (test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags))
+		tty_port_put(&dev->port);
+
+	return 0;
 }
 
 static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
@@ -1010,10 +1021,6 @@ static void rfcomm_tty_hangup(struct tty_struct *tty)
 	BT_DBG("tty %p dev %p", tty, dev);
 
 	tty_port_hangup(&dev->port);
-
-	if (test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags) &&
-	    !test_and_set_bit(RFCOMM_TTY_RELEASED, &dev->flags))
-		tty_port_put(&dev->port);
 }
 
 static int rfcomm_tty_tiocmget(struct tty_struct *tty)
