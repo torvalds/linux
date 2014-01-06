@@ -325,7 +325,7 @@ enum {
 	Opt_check_integrity_print_mask, Opt_fatal_errors, Opt_rescan_uuid_tree,
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
 	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl, Opt_datacow,
-	Opt_datasum,
+	Opt_datasum, Opt_treelog,
 	Opt_err,
 };
 
@@ -353,6 +353,7 @@ static match_table_t tokens = {
 	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
 	{Opt_notreelog, "notreelog"},
+	{Opt_treelog, "treelog"},
 	{Opt_flushoncommit, "flushoncommit"},
 	{Opt_noflushoncommit, "noflushoncommit"},
 	{Opt_ratio, "metadata_ratio=%d"},
@@ -578,6 +579,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_notreelog:
 			btrfs_info(root->fs_info, "disabling tree log");
 			btrfs_set_opt(info->mount_opt, NOTREELOG);
+			break;
+		case Opt_treelog:
+			if (btrfs_test_opt(root, NOTREELOG))
+				btrfs_info(root->fs_info, "enabling tree log");
+			btrfs_clear_opt(info->mount_opt, NOTREELOG);
 			break;
 		case Opt_flushoncommit:
 			btrfs_info(root->fs_info, "turning on flush-on-commit");

@@ -164,8 +164,9 @@ Options with (*) are default options and will not show in the mount options.
 	Enable/disable data checksumming for newly created files.
 	Datasum implies datacow.
 
+  treelog(*)
   notreelog
-	Disable the tree logging used for fsync and O_SYNC writes.
+	Enable/disable the tree logging used for fsync and O_SYNC writes.
 
   recovery
 	Enable autorecovery attempts if a bad tree root is found at mount time.
