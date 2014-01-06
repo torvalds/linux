@@ -144,9 +144,9 @@
 			compatible = "nvidia,tegra30-gr2d";
 			reg = <0x54140000 0x00040000>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA30_CLK_GR2D>;
 			resets = <&tegra_car 21>;
 			reset-names = "2d";
-			clocks = <&tegra_car TEGRA30_CLK_GR2D>;
 		};
 
 		gr3d@54180000 {
