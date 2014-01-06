@@ -4,7 +4,6 @@
 
 #include <linux/types.h>
 #include <linux/serial_reg.h>
-#include <linux/init.h>
 
 #include <asm/addrspace.h>
 

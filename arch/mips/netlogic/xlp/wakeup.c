@@ -32,7 +32,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/threads.h>
 

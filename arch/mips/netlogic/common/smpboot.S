@@ -32,7 +32,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/init.h>
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>

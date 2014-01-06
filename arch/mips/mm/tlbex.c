@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <linux/smp.h>
 #include <linux/string.h>
-#include <linux/init.h>
 #include <linux/cache.h>
 
 #include <asm/cacheflush.h>

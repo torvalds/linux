@@ -8,7 +8,6 @@
  * Reset/NMI/re-entry vectors for BMIPS processors
  */
 
-#include <linux/init.h>
 
 #include <asm/asm.h>
 #include <asm/asmmacro.h>

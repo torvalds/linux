@@ -9,7 +9,6 @@
  * Arbitrary Monitor Interface
  */
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/smp.h>
 
 #include <asm/addrspace.h>

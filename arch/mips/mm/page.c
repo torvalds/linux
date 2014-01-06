@@ -8,7 +8,6 @@
  * Copyright (C) 2008  Thiemo Seufer
  * Copyright (C) 2012  MIPS Technologies, Inc.
  */
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
