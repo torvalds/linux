@@ -1255,8 +1255,8 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	unsigned long nlongs;
 
 	ndomains = cap_ndoms(iommu->cap);
-	pr_debug("IOMMU %d: Number of Domains supported <%ld>\n", iommu->seq_id,
-			ndomains);
+	pr_debug("IOMMU%d: Number of Domains supported <%ld>\n",
+		 iommu->seq_id, ndomains);
 	nlongs = BITS_TO_LONGS(ndomains);
 
 	spin_lock_init(&iommu->lock);
@@ -1266,13 +1266,17 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	 */
 	iommu->domain_ids = kcalloc(nlongs, sizeof(unsigned long), GFP_KERNEL);
 	if (!iommu->domain_ids) {
-		printk(KERN_ERR "Allocating domain id array failed\n");
+		pr_err("IOMMU%d: allocating domain id array failed\n",
+		       iommu->seq_id);
 		return -ENOMEM;
 	}
 	iommu->domains = kcalloc(ndomains, sizeof(struct dmar_domain *),
 			GFP_KERNEL);
 	if (!iommu->domains) {
-		printk(KERN_ERR "Allocating domain array failed\n");
+		pr_err("IOMMU%d: allocating domain array failed\n",
+		       iommu->seq_id);
+		kfree(iommu->domain_ids);
+		iommu->domain_ids = NULL;
 		return -ENOMEM;
 	}
 
