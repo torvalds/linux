@@ -89,16 +89,6 @@ static struct snd_pcm_hardware sst_platform_pcm_hw = {
 			SNDRV_PCM_INFO_MMAP_VALID |
 			SNDRV_PCM_INFO_BLOCK_TRANSFER |
 			SNDRV_PCM_INFO_SYNC_START),
-	.formats = (SNDRV_PCM_FMTBIT_S16 | SNDRV_PCM_FMTBIT_U16 |
-			SNDRV_PCM_FMTBIT_S24 | SNDRV_PCM_FMTBIT_U24 |
-			SNDRV_PCM_FMTBIT_S32 | SNDRV_PCM_FMTBIT_U32),
-	.rates = (SNDRV_PCM_RATE_8000|
-			SNDRV_PCM_RATE_44100 |
-			SNDRV_PCM_RATE_48000),
-	.rate_min = SST_MIN_RATE,
-	.rate_max = SST_MAX_RATE,
-	.channels_min =	SST_MIN_CHANNEL,
-	.channels_max =	SST_MAX_CHANNEL,
 	.buffer_bytes_max = SST_MAX_BUFFER,
 	.period_bytes_min = SST_MIN_PERIOD_BYTES,
 	.period_bytes_max = SST_MAX_PERIOD_BYTES,
