@@ -19,6 +19,7 @@
 #include <linux/netdevice.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/mmc/sdio_ids.h>
 #include <linux/ssb/ssb_regs.h>
 #include <linux/bcma/bcma.h>
 
