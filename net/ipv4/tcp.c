@@ -381,7 +381,7 @@ void tcp_init_sock(struct sock *sk)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	skb_queue_head_init(&tp->out_of_order_queue);
+	__skb_queue_head_init(&tp->out_of_order_queue);
 	tcp_init_xmit_timers(sk);
 	tcp_prequeue_init(tp);
 	INIT_LIST_HEAD(&tp->tsq_node);
