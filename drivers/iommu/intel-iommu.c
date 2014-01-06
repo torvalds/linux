@@ -382,7 +382,7 @@ struct device_domain_info {
 
 static void flush_unmaps_timeout(unsigned long data);
 
-DEFINE_TIMER(unmap_timer,  flush_unmaps_timeout, 0, 0);
+static DEFINE_TIMER(unmap_timer,  flush_unmaps_timeout, 0, 0);
 
 #define HIGH_WATER_MARK 250
 struct deferred_flush_tables {

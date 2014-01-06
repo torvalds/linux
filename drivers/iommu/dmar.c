@@ -572,7 +572,7 @@ int __init detect_intel_iommu(void)
 			x86_init.iommu.iommu_init = intel_iommu_init;
 #endif
 	}
-	early_acpi_os_unmap_memory(dmar_tbl, dmar_tbl_size);
+	early_acpi_os_unmap_memory((void __iomem *)dmar_tbl, dmar_tbl_size);
 	dmar_tbl = NULL;
 
 	return ret ? 1 : -ENODEV;
@@ -1064,7 +1064,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	desc_page = alloc_pages_node(iommu->node, GFP_ATOMIC | __GFP_ZERO, 0);
 	if (!desc_page) {
 		kfree(qi);
-		iommu->qi = 0;
+		iommu->qi = NULL;
 		return -ENOMEM;
 	}
 
@@ -1074,7 +1074,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	if (!qi->desc_status) {
 		free_page((unsigned long) qi->desc);
 		kfree(qi);
-		iommu->qi = 0;
+		iommu->qi = NULL;
 		return -ENOMEM;
 	}
 

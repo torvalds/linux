@@ -295,8 +295,8 @@ int setup_ioapic_remapped_entry(int irq,
 					     vector, attr);
 }
 
-int set_remapped_irq_affinity(struct irq_data *data, const struct cpumask *mask,
-			      bool force)
+static int set_remapped_irq_affinity(struct irq_data *data,
+				     const struct cpumask *mask, bool force)
 {
 	if (!config_enabled(CONFIG_SMP) || !remap_ops ||
 	    !remap_ops->set_affinity)
