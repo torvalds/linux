@@ -106,6 +106,7 @@ static int nvidia_configure(void)
 {
 	int i, rc, num_dirs;
 	u32 apbase, aplimit;
+	phys_addr_t apbase_phys;
 	struct aper_size_info_8 *current_size;
 	u32 temp;
 
@@ -152,8 +153,9 @@ static int nvidia_configure(void)
 	pci_write_config_dword(agp_bridge->dev, NVIDIA_0_APSIZE, temp | 0x100);
 
 	/* map aperture */
+	apbase_phys = pci_resource_start(agp_bridge->dev, AGP_APERTURE_BAR);
 	nvidia_private.aperture =
-		(volatile u32 __iomem *) ioremap(apbase, 33 * PAGE_SIZE);
+		(volatile u32 __iomem *) ioremap(apbase_phys, 33 * PAGE_SIZE);
 
 	if (!nvidia_private.aperture)
 		return -ENOMEM;

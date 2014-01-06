@@ -12,7 +12,7 @@
 #include <asm/agp.h>
 #include "agp.h"
 
-#define ATI_GART_MMBASE_ADDR	0x14
+#define ATI_GART_MMBASE_BAR	1
 #define ATI_RS100_APSIZE	0xac
 #define ATI_RS100_IG_AGPMODE	0xb0
 #define ATI_RS300_APSIZE	0xf8
@@ -196,12 +196,12 @@ static void ati_cleanup(void)
 
 static int ati_configure(void)
 {
+	phys_addr_t reg;
 	u32 temp;
 
 	/* Get the memory mapped registers */
-	pci_read_config_dword(agp_bridge->dev, ATI_GART_MMBASE_ADDR, &temp);
-	temp = (temp & 0xfffff000);
-	ati_generic_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
+	reg = pci_resource_start(agp_bridge->dev, ATI_GART_MMBASE_BAR);
+	ati_generic_private.registers = (volatile u8 __iomem *) ioremap(reg, 4096);
 
 	if (!ati_generic_private.registers)
 		return -ENOMEM;
