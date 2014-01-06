@@ -217,6 +217,7 @@ static const struct ieee80211_rate hwsim_rates[] = {
 
 static spinlock_t hwsim_radio_lock;
 static struct list_head hwsim_radios;
+static int hwsim_radio_idx;
 
 struct mac80211_hwsim_data {
 	struct list_head list;
@@ -2126,7 +2127,7 @@ static const struct ieee80211_iface_combination hwsim_if_comb[] = {
 	}
 };
 
-static int __init mac80211_hwsim_create_radio(int idx)
+static int __init mac80211_hwsim_create_radio(void)
 {
 	int err;
 	u8 addr[ETH_ALEN];
@@ -2134,6 +2135,11 @@ static int __init mac80211_hwsim_create_radio(int idx)
 	struct ieee80211_hw *hw;
 	enum ieee80211_band band;
 	const struct ieee80211_ops *ops = &mac80211_hwsim_ops;
+	int idx;
+
+	spin_lock_bh(&hwsim_radio_lock);
+	idx = hwsim_radio_idx++;
+	spin_unlock_bh(&hwsim_radio_lock);
 
 	if (channels > 1)
 		ops = &mac80211_hwsim_mchan_ops;
@@ -2375,7 +2381,7 @@ static int __init init_mac80211_hwsim(void)
 	}
 
 	for (i = 0; i < radios; i++) {
-		err = mac80211_hwsim_create_radio(i);
+		err = mac80211_hwsim_create_radio();
 		if (err)
 			goto out_free_radios;
 	}
