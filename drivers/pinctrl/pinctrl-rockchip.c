@@ -509,6 +509,7 @@ static void rockchip_pmx_disable(struct pinctrl_dev *pctldev,
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins = info->groups[group].pins;
+	const struct rockchip_pin_config *data = info->groups[group].data;
 	struct rockchip_pin_bank *bank;
 	int cnt;
 
@@ -517,7 +518,7 @@ static void rockchip_pmx_disable(struct pinctrl_dev *pctldev,
 
 	for (cnt = 0; cnt < info->groups[group].npins; cnt++) {
 		bank = pin_to_bank(info, pins[cnt]);
-		rockchip_set_mux(bank, pins[cnt] - bank->pin_base, 0);
+		rockchip_set_mux(bank, pins[cnt] - bank->pin_base, FUNC_TO_GPIO(data[cnt].func));
 	}
 }
 
@@ -564,7 +565,7 @@ static const struct pinmux_ops rockchip_pmx_ops = {
 	.get_function_name	= rockchip_pmx_get_func_name,
 	.get_function_groups	= rockchip_pmx_get_groups,
 	.enable			= rockchip_pmx_enable,
-	.disable		= rockchip_pmx_disable,
+	//.disable		= rockchip_pmx_disable,
 	.gpio_set_direction	= rockchip_pmx_gpio_set_direction,
 };
 
@@ -1338,7 +1339,7 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 		
 		pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);	
 			
-		if (!of_property_read_u32(np, "allwinner,pull", &val)) {
+		if (!of_property_read_u32(np, "rockchip,pull", &val)) {
 			enum pin_config_param pull = PIN_CONFIG_END;
 			if (val == 1)
 				pull = PIN_CONFIG_BIAS_PULL_UP;
@@ -2085,7 +2086,7 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 	struct resource res;
 
 	if (of_address_to_resource(bank->of_node, 0, &res)) {
-		dev_err(dev, "cannot find IO resource for bank\n");
+		dev_err(dev, "cannot find IO resource for bank %s\n", bank->name);
 		return -ENOENT;
 	}
 
@@ -2102,7 +2103,7 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 		bank->bank_type = RK3188_BANK0;
 
 		if (of_address_to_resource(bank->of_node, 1, &res)) {
-			dev_err(dev, "cannot find IO resource for bank\n");
+			dev_err(dev, "cannot find IO resource for bank %s\n", bank->name);
 			return -ENOENT;
 		}
 
@@ -2116,10 +2117,12 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 	bank->irq = irq_of_parse_and_map(bank->of_node, 0);
 
 	bank->clk = of_clk_get(bank->of_node, 0);
-	//if (IS_ERR(bank->clk))
-		//return PTR_ERR(bank->clk);
+	if (IS_ERR(bank->clk)) {
+		dev_warn(dev, "failed to get clk for bank %s\n", bank->name);
+		bank->clk = NULL;
+	}
+	clk_prepare_enable(bank->clk);
 	return 0;
-	//return clk_prepare_enable(bank->clk);
 }
 
 static const struct of_device_id rockchip_pinctrl_dt_match[];

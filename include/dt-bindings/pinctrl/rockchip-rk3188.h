@@ -535,41 +535,39 @@
 #define POS_TRI			3
 
 
-//#define rk29_mux_api_set(name, mode) iomux_set(mode)
-//#define rk30_mux_api_set(name, mode) iomux_set(mode)
-//#define rk30_iomux_init() iomux_init()
+#define	GPIO_A0			0
+#define	GPIO_A1			1
+#define	GPIO_A2			2
+#define	GPIO_A3			3
+#define	GPIO_A4			4
+#define	GPIO_A5			5
+#define	GPIO_A6			6
+#define	GPIO_A7			7
+#define	GPIO_B0			8
+#define	GPIO_B1			9
+#define	GPIO_B2			10
+#define	GPIO_B3			11
+#define	GPIO_B4			12
+#define	GPIO_B5			13
+#define	GPIO_B6			14
+#define	GPIO_B7			15
+#define	GPIO_C0			16
+#define	GPIO_C1			17
+#define	GPIO_C2			18
+#define	GPIO_C3			19
+#define	GPIO_C4			20
+#define	GPIO_C5			21
+#define	GPIO_C6			22
+#define	GPIO_C7			23
+#define	GPIO_D0			24
+#define	GPIO_D1			25
+#define	GPIO_D2			26
+#define	GPIO_D3			27
+#define	GPIO_D4			28
+#define	GPIO_D5			29
+#define	GPIO_D6			30
+#define	GPIO_D7			31
 
-#define	RK30_PIN_PA0		( 0)
-#define	RK30_PIN_PA1		( 1)
-#define	RK30_PIN_PA2		( 2)
-#define	RK30_PIN_PA3		( 3)
-#define	RK30_PIN_PA4		( 4)
-#define	RK30_PIN_PA5		( 5)
-#define	RK30_PIN_PA6		( 6)
-#define	RK30_PIN_PA7		( 7)
-#define	RK30_PIN_PB0		( 8)
-#define	RK30_PIN_PB1		( 9)
-#define	RK30_PIN_PB2		( 10)
-#define	RK30_PIN_PB3		( 11)
-#define	RK30_PIN_PB4		( 12)
-#define	RK30_PIN_PB5		( 13)
-#define	RK30_PIN_PB6		( 14)
-#define	RK30_PIN_PB7		( 15)
-#define	RK30_PIN_PC0		( 16)
-#define	RK30_PIN_PC1		( 17)
-#define	RK30_PIN_PC2		( 18)
-#define	RK30_PIN_PC3		( 19)
-#define	RK30_PIN_PC4		( 20)
-#define	RK30_PIN_PC5		( 21)
-#define	RK30_PIN_PC6		( 22)
-#define	RK30_PIN_PC7		( 23)
-#define	RK30_PIN_PD0		( 24)
-#define	RK30_PIN_PD1		( 25)
-#define	RK30_PIN_PD2		( 26)
-#define	RK30_PIN_PD3		( 27)
-#define	RK30_PIN_PD4		( 28)
-#define	RK30_PIN_PD5		( 29)
-#define	RK30_PIN_PD6		( 30)
-#define	RK30_PIN_PD7		( 31)
+#define FUNC_TO_GPIO(m)		((m) & 0xfff0)
 
 #endif

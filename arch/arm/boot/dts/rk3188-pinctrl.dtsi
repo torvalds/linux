@@ -18,7 +18,7 @@
 			reg = <0x2000a000 0x100>,
 			      <0x20004064 0x8>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
-			/*clocks = <&clk_gates8 9>;*/
+			clocks = <&clk_gates8 9>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -31,7 +31,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003c000 0x100>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-			/*clocks = <&clk_gates8 10>;*/
+			clocks = <&clk_gates8 10>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -44,7 +44,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003e000 0x100>;
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
-			/*clocks = <&clk_gates8 11>;*/
+			clocks = <&clk_gates8 11>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -57,7 +57,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x20080000 0x100>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-			/*clocks = <&clk_gates8 12>;*/
+			clocks = <&clk_gates8 12>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -70,7 +70,6 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x20082000 0x100>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-			/*clocks = <&clk_gates8 12>;*/
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -418,7 +417,6 @@
 
 		};
 
-
 		gpio3_pwm {
 			pwm0:pwm0 {
 				rockchip,pins = <PWM0>;
@@ -520,7 +518,6 @@
 			};
 		};
 
-	
 		gpio3_sdmmc {
 			sd1_clk: sd1-clk {
 				rockchip,pins = <MMC1_CLKOUT>;
@@ -574,7 +571,6 @@
 			};
 		};
 
-
 		gps {
 			gps_mag:gps-mag {
 				rockchip,pins = <GPS_MAG>;
@@ -606,7 +602,6 @@
 
 		};
 
-		
 		vol_domain {
 			ap0_vcc:ap0-vcc {
 				rockchip,pins = <VIRTUAL_PIN_FOR_AP0_VCC>;
@@ -649,7 +644,6 @@
 			};
 
 		};
-
 
 		//to add
 	};
