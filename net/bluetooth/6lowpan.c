@@ -785,7 +785,7 @@ int bt_6lowpan_del_conn(struct l2cap_conn *conn)
 	unsigned long flags;
 	bool last = false;
 
-	if (!is_bt_6lowpan(conn->hcon))
+	if (!conn || !is_bt_6lowpan(conn->hcon))
 		return 0;
 
 	write_lock_irqsave(&devices_lock, flags);
