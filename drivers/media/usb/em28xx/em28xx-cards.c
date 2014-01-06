@@ -2779,6 +2779,18 @@ static void request_module_async(struct work_struct *work)
 	 * can be initialised right now. Otherwise, the module init
 	 * code will do it.
 	 */
+
+	/*
+	 * Devicdes with an audio-only interface also have a V4L/DVB/RC
+	 * interface. Don't register extensions twice on those devices.
+	 */
+	if (dev->is_audio_only) {
+#if defined(CONFIG_MODULES) && defined(MODULE)
+		request_module("em28xx-alsa");
+#endif
+		return;
+	}
+
 	em28xx_init_extension(dev);
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
