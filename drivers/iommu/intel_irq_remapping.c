@@ -72,7 +72,6 @@ static int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	u16 index, start_index;
 	unsigned int mask = 0;
 	unsigned long flags;
-	int i;
 
 	if (!count || !irq_iommu)
 		return -1;
@@ -96,32 +95,17 @@ static int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	}
 
 	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
-	do {
-		for (i = index; i < index + count; i++)
-			if  (table->base[i].present)
-				break;
-		/* empty index found */
-		if (i == index + count)
-			break;
-
-		index = (index + count) % INTR_REMAP_TABLE_ENTRIES;
-
-		if (index == start_index) {
-			raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-			printk(KERN_ERR "can't allocate an IRTE\n");
-			return -1;
-		}
-	} while (1);
-
-	for (i = index; i < index + count; i++)
-		table->base[i].present = 1;
-
-	cfg->remapped = 1;
-	irq_iommu->iommu = iommu;
-	irq_iommu->irte_index =  index;
-	irq_iommu->sub_handle = 0;
-	irq_iommu->irte_mask = mask;
-
+	index = bitmap_find_free_region(table->bitmap,
+					INTR_REMAP_TABLE_ENTRIES, mask);
+	if (index < 0) {
+		pr_warn("IR%d: can't allocate an IRTE\n", iommu->seq_id);
+	} else {
+		cfg->remapped = 1;
+		irq_iommu->iommu = iommu;
+		irq_iommu->irte_index =  index;
+		irq_iommu->sub_handle = 0;
+		irq_iommu->irte_mask = mask;
+	}
 	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
 	return index;
@@ -254,6 +238,8 @@ static int clear_entries(struct irq_2_iommu *irq_iommu)
 		set_64bit(&entry->low, 0);
 		set_64bit(&entry->high, 0);
 	}
+	bitmap_release_region(iommu->ir_table->bitmap, index,
+			      irq_iommu->irte_mask);
 
 	return qi_flush_iec(iommu, index, irq_iommu->irte_mask);
 }
@@ -453,6 +439,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu, int mode)
 {
 	struct ir_table *ir_table;
 	struct page *pages;
+	unsigned long *bitmap;
 
 	ir_table = iommu->ir_table = kzalloc(sizeof(struct ir_table),
 					     GFP_ATOMIC);
@@ -464,13 +451,23 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu, int mode)
 				 INTR_REMAP_PAGE_ORDER);
 
 	if (!pages) {
-		printk(KERN_ERR "failed to allocate pages of order %d\n",
-		       INTR_REMAP_PAGE_ORDER);
+		pr_err("IR%d: failed to allocate pages of order %d\n",
+		       iommu->seq_id, INTR_REMAP_PAGE_ORDER);
 		kfree(iommu->ir_table);
 		return -ENOMEM;
 	}
 
+	bitmap = kcalloc(BITS_TO_LONGS(INTR_REMAP_TABLE_ENTRIES),
+			 sizeof(long), GFP_ATOMIC);
+	if (bitmap == NULL) {
+		pr_err("IR%d: failed to allocate bitmap\n", iommu->seq_id);
+		__free_pages(pages, INTR_REMAP_PAGE_ORDER);
+		kfree(ir_table);
+		return -ENOMEM;
+	}
+
 	ir_table->base = page_address(pages);
+	ir_table->bitmap = bitmap;
 
 	iommu_set_irq_remapping(iommu, mode);
 	return 0;
