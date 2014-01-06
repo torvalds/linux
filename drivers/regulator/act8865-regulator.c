@@ -303,7 +303,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	}
 
 	/* Finally register devices */
-	for (i = 0; i < ARRAY_SIZE(act8865_matches); i++) {
+	for (i = 0; i < ACT8865_REG_NUM; i++) {
 
 		id = pdata->regulators[i].id;
 
