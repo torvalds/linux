@@ -1481,10 +1481,10 @@ static int bgmac_probe(struct bcma_device *core)
 
 		/* Northstar has 4 GMAC cores */
 		for (ns_gmac = 0; ns_gmac < 4; ns_gmac++) {
-			/* As northstar requirement, we have to reset all GAMCs
+			/* As Northstar requirement, we have to reset all GMACs
 			 * before accessing one. bgmac_chip_reset() call
 			 * bcma_core_enable() for this core. Then the other
-			 * three GAMCs didn't reset.  We do it here.
+			 * three GMACs didn't reset.  We do it here.
 			 */
 			ns_core = bcma_find_core_unit(core->bus,
 						      BCMA_CORE_MAC_GBIT,
