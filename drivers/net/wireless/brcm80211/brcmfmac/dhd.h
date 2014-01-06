@@ -21,8 +21,6 @@
 #ifndef _BRCMF_H_
 #define _BRCMF_H_
 
-#define BRCMF_VERSION_STR		"4.218.248.5"
-
 #include "fweh.h"
 
 #define TOE_TX_CSUM_OL		0x00000001
