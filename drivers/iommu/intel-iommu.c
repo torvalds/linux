@@ -1291,9 +1291,9 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 		iommu_disable_translation(iommu);
 
 	if (iommu->irq) {
-		irq_set_handler_data(iommu->irq, NULL);
 		/* This will mask the irq */
 		free_irq(iommu->irq, iommu);
+		irq_set_handler_data(iommu->irq, NULL);
 		destroy_irq(iommu->irq);
 	}
 
