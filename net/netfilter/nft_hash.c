@@ -164,7 +164,7 @@ static int nft_hash_init(const struct nft_set *set,
 	unsigned int cnt, i;
 
 	if (unlikely(!nft_hash_rnd_initted)) {
-		get_random_bytes(&nft_hash_rnd, 4);
+		nft_hash_rnd = prandom_u32();
 		nft_hash_rnd_initted = true;
 	}
 

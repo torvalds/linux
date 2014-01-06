@@ -65,6 +65,23 @@ struct nf_ip_net {
 struct netns_ct {
 	atomic_t		count;
 	unsigned int		expect_count;
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_header	*sysctl_header;
+	struct ctl_table_header	*acct_sysctl_header;
+	struct ctl_table_header	*tstamp_sysctl_header;
+	struct ctl_table_header	*event_sysctl_header;
+	struct ctl_table_header	*helper_sysctl_header;
+#endif
+	char			*slabname;
+	unsigned int		sysctl_log_invalid; /* Log invalid packets */
+	unsigned int		sysctl_events_retry_timeout;
+	int			sysctl_events;
+	int			sysctl_acct;
+	int			sysctl_auto_assign_helper;
+	bool			auto_assign_helper_warned;
+	int			sysctl_tstamp;
+	int			sysctl_checksum;
+
 	unsigned int		htable_size;
 	struct kmem_cache	*nf_conntrack_cachep;
 	struct hlist_nulls_head	*hash;
@@ -75,14 +92,6 @@ struct netns_ct {
 	struct ip_conntrack_stat __percpu *stat;
 	struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;
 	struct nf_exp_event_notifier __rcu *nf_expect_event_cb;
-	int			sysctl_events;
-	unsigned int		sysctl_events_retry_timeout;
-	int			sysctl_acct;
-	int			sysctl_tstamp;
-	int			sysctl_checksum;
-	unsigned int		sysctl_log_invalid; /* Log invalid packets */
-	int			sysctl_auto_assign_helper;
-	bool			auto_assign_helper_warned;
 	struct nf_ip_net	nf_ct_proto;
 #if defined(CONFIG_NF_CONNTRACK_LABELS)
 	unsigned int		labels_used;
@@ -92,13 +101,5 @@ struct netns_ct {
 	struct hlist_head	*nat_bysource;
 	unsigned int		nat_htable_size;
 #endif
-#ifdef CONFIG_SYSCTL
-	struct ctl_table_header	*sysctl_header;
-	struct ctl_table_header	*acct_sysctl_header;
-	struct ctl_table_header	*tstamp_sysctl_header;
-	struct ctl_table_header	*event_sysctl_header;
-	struct ctl_table_header	*helper_sysctl_header;
-#endif
-	char			*slabname;
 };
 #endif
