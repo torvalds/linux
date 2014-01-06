@@ -297,7 +297,7 @@ static int mxsfb_check_var(struct fb_var_screeninfo *var,
 		}
 		break;
 	default:
-		pr_debug("Unsupported colour depth: %u\n", var->bits_per_pixel);
+		pr_err("Unsupported colour depth: %u\n", var->bits_per_pixel);
 		return -EINVAL;
 	}
 
@@ -426,7 +426,7 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 		ctrl |= CTRL_SET_WORD_LENGTH(3);
 		switch (host->ld_intf_width) {
 		case STMLCDIF_8BIT:
-			dev_dbg(&host->pdev->dev,
+			dev_err(&host->pdev->dev,
 					"Unsupported LCD bus width mapping\n");
 			return -EINVAL;
 		case STMLCDIF_16BIT:
@@ -439,7 +439,7 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 		writel(CTRL1_SET_BYTE_PACKAGING(0x7), host->base + LCDC_CTRL1);
 		break;
 	default:
-		dev_dbg(&host->pdev->dev, "Unhandled color depth of %u\n",
+		dev_err(&host->pdev->dev, "Unhandled color depth of %u\n",
 				fb_info->var.bits_per_pixel);
 		return -EINVAL;
 	}
