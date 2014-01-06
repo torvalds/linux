@@ -208,6 +208,7 @@ static int __init xen_guest_init(void)
 	const char *version = NULL;
 	const char *xen_prefix = "xen,xen-";
 	struct resource res;
+	unsigned long grant_frames;
 
 	node = of_find_compatible_node(NULL, NULL, "xen,xen");
 	if (!node) {
@@ -224,10 +225,10 @@ static int __init xen_guest_init(void)
 	}
 	if (of_address_to_resource(node, GRANT_TABLE_PHYSADDR, &res))
 		return 0;
-	xen_hvm_resume_frames = res.start;
+	grant_frames = res.start;
 	xen_events_irq = irq_of_parse_and_map(node, 0);
 	pr_info("Xen %s support found, events_irq=%d gnttab_frame_pfn=%lx\n",
-			version, xen_events_irq, (xen_hvm_resume_frames >> PAGE_SHIFT));
+			version, xen_events_irq, (grant_frames >> PAGE_SHIFT));
 	xen_domain_type = XEN_HVM_DOMAIN;
 
 	xen_setup_features();
@@ -265,6 +266,10 @@ static int __init xen_guest_init(void)
 	if (xen_vcpu_info == NULL)
 		return -ENOMEM;
 
+	if (gnttab_setup_auto_xlat_frames(grant_frames)) {
+		free_percpu(xen_vcpu_info);
+		return -ENOMEM;
+	}
 	gnttab_init();
 	if (!xen_initial_domain())
 		xenbus_probe(NULL);

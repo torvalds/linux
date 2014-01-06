@@ -227,5 +227,6 @@ void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 
 #define xen_remap(cookie, size) ioremap((cookie), (size));
+#define xen_unmap(cookie) iounmap((cookie))
 
 #endif /* _ASM_X86_XEN_PAGE_H */

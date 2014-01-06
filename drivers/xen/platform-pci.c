@@ -108,6 +108,7 @@ static int platform_pci_init(struct pci_dev *pdev,
 	long ioaddr;
 	long mmio_addr, mmio_len;
 	unsigned int max_nr_gframes;
+	unsigned long grant_frames;
 
 	if (!xen_domain())
 		return -ENODEV;
@@ -154,13 +155,16 @@ static int platform_pci_init(struct pci_dev *pdev,
 	}
 
 	max_nr_gframes = gnttab_max_grant_frames();
-	xen_hvm_resume_frames = alloc_xen_mmio(PAGE_SIZE * max_nr_gframes);
+	grant_frames = alloc_xen_mmio(PAGE_SIZE * max_nr_gframes);
+	if (gnttab_setup_auto_xlat_frames(grant_frames))
+		goto out;
 	ret = gnttab_init();
 	if (ret)
-		goto out;
+		goto grant_out;
 	xenbus_probe(NULL);
 	return 0;
-
+grant_out:
+	gnttab_free_auto_xlat_frames();
 out:
 	pci_release_region(pdev, 0);
 mem_out:

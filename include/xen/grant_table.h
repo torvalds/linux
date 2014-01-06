@@ -178,8 +178,15 @@ int arch_gnttab_map_status(uint64_t *frames, unsigned long nr_gframes,
 			   grant_status_t **__shared);
 void arch_gnttab_unmap(void *shared, unsigned long nr_gframes);
 
-extern unsigned long xen_hvm_resume_frames;
+struct grant_frames {
+	xen_pfn_t *pfn;
+	unsigned int count;
+	void *vaddr;
+};
+extern struct grant_frames xen_auto_xlat_grant_frames;
 unsigned int gnttab_max_grant_frames(void);
+int gnttab_setup_auto_xlat_frames(unsigned long addr);
+void gnttab_free_auto_xlat_frames(void);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
 
