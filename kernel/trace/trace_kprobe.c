@@ -929,12 +929,20 @@ __kprobe_trace_func(struct trace_kprobe *tk, struct pt_regs *regs,
 	struct ring_buffer *buffer;
 	int size, dsize, pc;
 	unsigned long irq_flags;
+	unsigned long eflags;
+	enum event_trigger_type tt = ETT_NONE;
 	struct ftrace_event_call *call = &tk->tp.call;
 
 	WARN_ON(call != ftrace_file->event_call);
 
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
-		return;
+	eflags = ftrace_file->flags;
+
+	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {
+		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)
+			event_triggers_call(ftrace_file, NULL);
+		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)
+			return;
+	}
 
 	local_save_flags(irq_flags);
 	pc = preempt_count();
@@ -952,9 +960,16 @@ __kprobe_trace_func(struct trace_kprobe *tk, struct pt_regs *regs,
 	entry->ip = (unsigned long)tk->rp.kp.addr;
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
 
-	if (!filter_check_discard(ftrace_file, entry, buffer, event))
+	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
+		tt = event_triggers_call(ftrace_file, entry);
+
+	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
+		ring_buffer_discard_commit(buffer, event);
+	else if (!filter_check_discard(ftrace_file, entry, buffer, event))
 		trace_buffer_unlock_commit_regs(buffer, event,
 						irq_flags, pc, regs);
+	if (tt)
+		event_triggers_post_call(ftrace_file, tt);
 }
 
 static __kprobes void
@@ -977,12 +992,20 @@ __kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	struct ring_buffer *buffer;
 	int size, pc, dsize;
 	unsigned long irq_flags;
+	unsigned long eflags;
+	enum event_trigger_type tt = ETT_NONE;
 	struct ftrace_event_call *call = &tk->tp.call;
 
 	WARN_ON(call != ftrace_file->event_call);
 
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
-		return;
+	eflags = ftrace_file->flags;
+
+	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {
+		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)
+			event_triggers_call(ftrace_file, NULL);
+		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)
+			return;
+	}
 
 	local_save_flags(irq_flags);
 	pc = preempt_count();
@@ -1001,9 +1024,16 @@ __kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	entry->ret_ip = (unsigned long)ri->ret_addr;
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
 
-	if (!filter_check_discard(ftrace_file, entry, buffer, event))
+	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
+		tt = event_triggers_call(ftrace_file, entry);
+
+	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
+		ring_buffer_discard_commit(buffer, event);
+	else if (!filter_check_discard(ftrace_file, entry, buffer, event))
 		trace_buffer_unlock_commit_regs(buffer, event,
 						irq_flags, pc, regs);
+	if (tt)
+		event_triggers_post_call(ftrace_file, tt);
 }
 
 static __kprobes void
