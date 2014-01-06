@@ -104,7 +104,7 @@ config CAN_JANZ_ICAN3
 
 config CAN_FLEXCAN
 	tristate "Support for Freescale FLEXCAN based chips"
-	depends on ARM || PPC
+	depends on (ARM && CPU_LITTLE_ENDIAN) || PPC
 	---help---
 	  Say Y here if you want to support for Freescale FlexCAN.
 
