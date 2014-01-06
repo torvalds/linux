@@ -24,7 +24,7 @@
 /* constants */
 #define TX_URB_COUNT            32
 #define RX_URB_COUNT            32
-#define ATH6KL_USB_RX_BUFFER_SIZE  1700
+#define ATH6KL_USB_RX_BUFFER_SIZE  4096
 
 /* tx/rx pipes for usb */
 enum ATH6KL_USB_PIPE_ID {
