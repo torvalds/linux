@@ -106,12 +106,8 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 				     &dai->sysclk);
 	} else {
 		clk = of_clk_get(*node, 0);
-		if (IS_ERR(clk)) {
-			ret = PTR_ERR(clk);
-			goto parse_error;
-		}
-
-		dai->sysclk = clk_get_rate(clk);
+		if (!IS_ERR(clk))
+			dai->sysclk = clk_get_rate(clk);
 	}
 
 	ret = 0;
