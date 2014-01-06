@@ -43,7 +43,9 @@ static int ccp_aes_cmac_complete(struct crypto_async_request *async_req,
 	} else
 		rctx->buf_count = 0;
 
-	memcpy(req->result, rctx->iv, digest_size);
+	/* Update result area if supplied */
+	if (req->result)
+		memcpy(req->result, rctx->iv, digest_size);
 
 e_free:
 	sg_free_table(&rctx->data_sg);
