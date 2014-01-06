@@ -2017,18 +2017,24 @@ out:
  * gfs2_diradd_alloc_required - find if adding entry will require an allocation
  * @ip: the file being written to
  * @filname: the filename that's going to be added
+ * @da: The structure to return dir alloc info
  *
- * Returns: 1 if alloc required, 0 if not, -ve on error
+ * Returns: 0 if ok, -ve on error
  */
 
-int gfs2_diradd_alloc_required(struct inode *inode, const struct qstr *name)
+int gfs2_diradd_alloc_required(struct inode *inode, const struct qstr *name,
+			       struct gfs2_diradd *da)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_dirent *dent;
 	struct buffer_head *bh;
 
+	da->nr_blocks = 0;
+
 	dent = gfs2_dirent_search(inode, name, gfs2_dirent_find_space, &bh);
 	if (!dent) {
-		return 1;
+		da->nr_blocks = sdp->sd_max_dirres;
+		return 0;
 	}
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
