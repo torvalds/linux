@@ -68,18 +68,13 @@ static int __init rockchip_cpu_axi_init(void)
 }
 early_initcall(rockchip_cpu_axi_init);
 
-static const struct of_device_id pl330_ids[] __initconst = {
-	{ .compatible = "arm,pl310-cache" },
-	{}
-};
-
 static int __init rockchip_pl330_l2_cache_init(void)
 {
 	struct device_node *np;
 	void __iomem *base;
 	u32 aux[2] = { 0, ~0 }, prefetch, power;
 
-	np = of_find_matching_node(NULL, pl330_ids);
+	np = of_find_compatible_node(NULL, NULL, "rockchip,pl310-cache");
 	if (!np)
 		return -ENODEV;
 
