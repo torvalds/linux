@@ -97,8 +97,11 @@ static void convert_ticks_to_time(struct timer_group_priv *priv,
 	time->tv_sec = (__kernel_time_t)div_u64(ticks, priv->timerfreq);
 	tmp_sec = (u64)time->tv_sec * (u64)priv->timerfreq;
 
-	time->tv_usec = (__kernel_suseconds_t)
-		div_u64((ticks - tmp_sec) * 1000000, priv->timerfreq);
+	time->tv_usec = 0;
+
+	if (tmp_sec <= ticks)
+		time->tv_usec = (__kernel_suseconds_t)
+			div_u64((ticks - tmp_sec) * 1000000, priv->timerfreq);
 
 	return;
 }
