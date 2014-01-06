@@ -707,7 +707,8 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 }
 
 #define KMS_INVALID_IOCTL(name)						\
-int name(struct drm_device *dev, void *data, struct drm_file *file_priv)\
+static int name(struct drm_device *dev, void *data, struct drm_file	\
+		*file_priv)						\
 {									\
 	DRM_ERROR("invalid ioctl with kms %s\n", __func__);		\
 	return -EINVAL;							\
