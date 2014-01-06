@@ -556,14 +556,6 @@ int __init detect_intel_iommu(void)
 	if (ret)
 		ret = check_zero_address();
 	{
-		struct acpi_table_dmar *dmar;
-
-		dmar = (struct acpi_table_dmar *) dmar_tbl;
-
-		if (ret && irq_remapping_enabled && cpu_has_x2apic &&
-		    dmar->flags & 0x1)
-			pr_info("Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
-
 		if (ret && !no_iommu && !iommu_detected && !dmar_disabled) {
 			iommu_detected = 1;
 			/* Make sure ACS will be enabled */

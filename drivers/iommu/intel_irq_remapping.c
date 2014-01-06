@@ -561,6 +561,8 @@ static int __init intel_enable_irq_remapping(void)
 	}
 
 	if (x2apic_present) {
+		pr_info("Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
+
 		eim = !dmar_x2apic_optout();
 		if (!eim)
 			printk(KERN_WARNING
