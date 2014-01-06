@@ -324,7 +324,7 @@ enum {
 	Opt_check_integrity, Opt_check_integrity_including_extent_data,
 	Opt_check_integrity_print_mask, Opt_fatal_errors, Opt_rescan_uuid_tree,
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
-	Opt_noenospc_debug, Opt_noflushoncommit,
+	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl,
 	Opt_err,
 };
 
@@ -347,6 +347,7 @@ static match_table_t tokens = {
 	{Opt_ssd, "ssd"},
 	{Opt_ssd_spread, "ssd_spread"},
 	{Opt_nossd, "nossd"},
+	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
 	{Opt_notreelog, "notreelog"},
 	{Opt_flushoncommit, "flushoncommit"},
@@ -551,6 +552,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				ret = -ENOMEM;
 				goto out;
 			}
+			break;
+		case Opt_acl:
+			root->fs_info->sb->s_flags |= MS_POSIXACL;
 			break;
 		case Opt_noacl:
 			root->fs_info->sb->s_flags &= ~MS_POSIXACL;

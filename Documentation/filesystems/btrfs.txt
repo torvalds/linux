@@ -141,8 +141,9 @@ Options with (*) are default options and will not show in the mount options.
 	Specify that 1 metadata chunk should be allocated after every <value>
 	data chunks.  Off by default.
 
+  acl(*)
   noacl
-	Disable support for Posix Access Control Lists (ACLs).  See the
+	Enable/disable support for Posix Access Control Lists (ACLs).  See the
 	acl(5) manual page for more information about ACLs.
 
   barrier(*)
