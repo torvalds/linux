@@ -41,9 +41,6 @@ struct brcmf_proto_bcdc_dcmd {
 	__le32 status;	/* status code returned from the device */
 };
 
-/* Max valid buffer size that can be sent to the dongle */
-#define BCDC_MAX_MSG_SIZE	(ETH_FRAME_LEN+ETH_FCS_LEN)
-
 /* BCDC flag definitions */
 #define BCDC_DCMD_ERROR		0x01		/* 1=cmd failed */
 #define BCDC_DCMD_SET		0x02		/* 0=get, 1=set cmd */
@@ -133,9 +130,12 @@ brcmf_proto_bcdc_msg(struct brcmf_pub *drvr, int ifidx, uint cmd, void *buf,
 	if (buf)
 		memcpy(bcdc->buf, buf, len);
 
+	len += sizeof(*msg);
+	if (len > BRCMF_TX_IOCTL_MAX_MSG_SIZE)
+		len = BRCMF_TX_IOCTL_MAX_MSG_SIZE;
+
 	/* Send request */
-	return brcmf_bus_txctl(drvr->bus_if, (unsigned char *)&bcdc->msg,
-			       len + sizeof(struct brcmf_proto_bcdc_dcmd));
+	return brcmf_bus_txctl(drvr->bus_if, (unsigned char *)&bcdc->msg, len);
 }
 
 static int brcmf_proto_bcdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
