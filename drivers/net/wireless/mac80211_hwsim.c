@@ -273,7 +273,7 @@ struct mac80211_hwsim_data {
 	struct ieee80211_iface_combination if_combination;
 
 	struct mac_address addresses[2];
-	int channels;
+	int channels, idx;
 
 	struct ieee80211_channel *tmp_chan;
 	struct delayed_work roc_done;
@@ -352,6 +352,8 @@ static struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
 				 .len = IEEE80211_TX_MAX_RATES *
 					sizeof(struct hwsim_tx_rate)},
 	[HWSIM_ATTR_COOKIE] = { .type = NLA_U64 },
+	[HWSIM_ATTR_CHANNELS] = { .type = NLA_U32 },
+	[HWSIM_ATTR_RADIO_ID] = { .type = NLA_U32 },
 };
 
 static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
@@ -1818,7 +1820,7 @@ static const struct ieee80211_ops mac80211_hwsim_ops = {
 
 static struct ieee80211_ops mac80211_hwsim_mchan_ops;
 
-static int __init mac80211_hwsim_create_radio(void)
+static int mac80211_hwsim_create_radio(int channels)
 {
 	int err;
 	u8 addr[ETH_ALEN];
@@ -1873,6 +1875,7 @@ static int __init mac80211_hwsim_create_radio(void)
 	hw->wiphy->addresses = data->addresses;
 
 	data->channels = channels;
+	data->idx = idx;
 
 	if (data->channels > 1) {
 		hw->wiphy->max_scan_ssids = 255;
@@ -2023,7 +2026,7 @@ static int __init mac80211_hwsim_create_radio(void)
 	list_add_tail(&data->list, &hwsim_radios);
 	spin_unlock_bh(&hwsim_radio_lock);
 
-	return 0;
+	return idx;
 
 failed_hw:
 	device_unregister(data->dev);
@@ -2270,6 +2273,39 @@ static int hwsim_register_received_nl(struct sk_buff *skb_2,
 	return 0;
 }
 
+static int hwsim_create_radio_nl(struct sk_buff *msg, struct genl_info *info)
+{
+	unsigned int chans = channels;
+
+	if (info->attrs[HWSIM_ATTR_CHANNELS])
+		chans = nla_get_u32(info->attrs[HWSIM_ATTR_CHANNELS]);
+
+	return mac80211_hwsim_create_radio(chans);
+}
+
+static int hwsim_destroy_radio_nl(struct sk_buff *msg, struct genl_info *info)
+{
+	struct mac80211_hwsim_data *data;
+	int idx;
+
+	if (!info->attrs[HWSIM_ATTR_RADIO_ID])
+		return -EINVAL;
+	idx = nla_get_u32(info->attrs[HWSIM_ATTR_RADIO_ID]);
+
+	spin_lock_bh(&hwsim_radio_lock);
+	list_for_each_entry(data, &hwsim_radios, list) {
+		if (data->idx != idx)
+			continue;
+		list_del(&data->list);
+		spin_unlock_bh(&hwsim_radio_lock);
+		mac80211_hwsim_destroy_radio(data);
+		return 0;
+	}
+	spin_unlock_bh(&hwsim_radio_lock);
+
+	return -ENODEV;
+}
+
 /* Generic Netlink operations array */
 static const struct genl_ops hwsim_ops[] = {
 	{
@@ -2287,6 +2323,18 @@ static const struct genl_ops hwsim_ops[] = {
 		.cmd = HWSIM_CMD_TX_INFO_FRAME,
 		.policy = hwsim_genl_policy,
 		.doit = hwsim_tx_info_frame_received_nl,
+	},
+	{
+		.cmd = HWSIM_CMD_CREATE_RADIO,
+		.policy = hwsim_genl_policy,
+		.doit = hwsim_create_radio_nl,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = HWSIM_CMD_DESTROY_RADIO,
+		.policy = hwsim_genl_policy,
+		.doit = hwsim_destroy_radio_nl,
+		.flags = GENL_ADMIN_PERM,
 	},
 };
 
@@ -2345,7 +2393,7 @@ static int __init init_mac80211_hwsim(void)
 {
 	int i, err;
 
-	if (radios < 1 || radios > 100)
+	if (radios < 0 || radios > 100)
 		return -EINVAL;
 
 	if (channels < 1)
@@ -2380,8 +2428,8 @@ static int __init init_mac80211_hwsim(void)
 	}
 
 	for (i = 0; i < radios; i++) {
-		err = mac80211_hwsim_create_radio();
-		if (err)
+		err = mac80211_hwsim_create_radio(channels);
+		if (err < 0)
 			goto out_free_radios;
 	}
 
