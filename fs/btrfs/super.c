@@ -324,7 +324,7 @@ enum {
 	Opt_check_integrity, Opt_check_integrity_including_extent_data,
 	Opt_check_integrity_print_mask, Opt_fatal_errors, Opt_rescan_uuid_tree,
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
-	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl,
+	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl, Opt_datacow,
 	Opt_err,
 };
 
@@ -335,6 +335,7 @@ static match_table_t tokens = {
 	{Opt_device, "device=%s"},
 	{Opt_nodatasum, "nodatasum"},
 	{Opt_nodatacow, "nodatacow"},
+	{Opt_datacow, "datacow"},
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_barrier, "barrier"},
 	{Opt_max_inline, "max_inline=%s"},
@@ -445,6 +446,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_clear_opt(info->mount_opt, FORCE_COMPRESS);
 			btrfs_set_opt(info->mount_opt, NODATACOW);
 			btrfs_set_opt(info->mount_opt, NODATASUM);
+			break;
+		case Opt_datacow:
+			if (btrfs_test_opt(root, NODATACOW))
+				btrfs_info(root->fs_info, "setting datacow");
+			btrfs_clear_opt(info->mount_opt, NODATACOW);
 			break;
 		case Opt_compress_force:
 		case Opt_compress_force_type:

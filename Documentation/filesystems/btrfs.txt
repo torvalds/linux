@@ -154,9 +154,10 @@ Options with (*) are default options and will not show in the mount options.
 	(non-battery-backed) write-back cache, nobarrier option will lead to
 	filesystem corruption on a system crash or power loss.
 
+  datacow(*)
   nodatacow
-	Disable data copy-on-write for newly created files.  Implies nodatasum,
-	and disables all compression.
+	Enable/disable data copy-on-write for newly created files.
+	Nodatacow implies nodatasum, and disables all compression.
 
   nodatasum
 	Disable data checksumming for newly created files.
