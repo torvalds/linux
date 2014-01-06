@@ -68,6 +68,7 @@ struct nci_ops {
 	int (*open)(struct nci_dev *ndev);
 	int (*close)(struct nci_dev *ndev);
 	int (*send)(struct nci_dev *ndev, struct sk_buff *skb);
+	int (*setup)(struct nci_dev *ndev);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
