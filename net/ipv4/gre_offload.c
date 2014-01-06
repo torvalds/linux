@@ -123,12 +123,15 @@ static const struct net_offload gre_offload = {
 	},
 };
 
-int __init gre_offload_init(void)
+static int __init gre_offload_init(void)
 {
 	return inet_add_offload(&gre_offload, IPPROTO_GRE);
 }
 
-void __exit gre_offload_exit(void)
+static void __exit gre_offload_exit(void)
 {
 	inet_del_offload(&gre_offload, IPPROTO_GRE);
 }
+
+module_init(gre_offload_init);
+module_exit(gre_offload_exit);
