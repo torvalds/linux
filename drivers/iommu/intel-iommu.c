@@ -3877,7 +3877,7 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 }
 
 /* domain id for virtual machine, it won't be set in context */
-static unsigned long vm_domid;
+static atomic_t vm_domid = ATOMIC_INIT(0);
 
 static struct dmar_domain *iommu_alloc_vm_domain(void)
 {
@@ -3887,7 +3887,7 @@ static struct dmar_domain *iommu_alloc_vm_domain(void)
 	if (!domain)
 		return NULL;
 
-	domain->id = vm_domid++;
+	domain->id = atomic_inc_return(&vm_domid);
 	domain->nid = -1;
 	memset(domain->iommu_bmp, 0, sizeof(domain->iommu_bmp));
 	domain->flags = DOMAIN_FLAG_VIRTUAL_MACHINE;
