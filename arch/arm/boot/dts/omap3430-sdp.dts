@@ -34,6 +34,10 @@
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
 	vmmc_aux-supply = <&vsim>;
+	/*
+	 * S6-3 must be in ON position for 8 bit mode to function
+	 * Else, use 4 bit mode
+	 */
 	bus-width = <8>;
 };
 
