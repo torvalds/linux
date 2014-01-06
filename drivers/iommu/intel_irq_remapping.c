@@ -40,6 +40,8 @@ static int ir_ioapic_num, ir_hpet_num;
 
 static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
 
+static int __init parse_ioapics_under_ir(void);
+
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
 	struct irq_cfg *cfg = irq_get_chip_data(irq);
@@ -773,7 +775,7 @@ static int ir_parse_ioapic_hpet_scope(struct acpi_dmar_header *header,
  * Finds the assocaition between IOAPIC's and its Interrupt-remapping
  * hardware unit.
  */
-int __init parse_ioapics_under_ir(void)
+static int __init parse_ioapics_under_ir(void)
 {
 	struct dmar_drhd_unit *drhd;
 	int ir_supported = 0;

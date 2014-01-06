@@ -52,6 +52,8 @@ LIST_HEAD(dmar_drhd_units);
 struct acpi_table_header * __initdata dmar_tbl;
 static acpi_size dmar_tbl_size;
 
+static int alloc_iommu(struct dmar_drhd_unit *drhd);
+
 static void __init dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 {
 	/*
@@ -649,7 +651,7 @@ out:
 	return err;
 }
 
-int alloc_iommu(struct dmar_drhd_unit *drhd)
+static int alloc_iommu(struct dmar_drhd_unit *drhd)
 {
 	struct intel_iommu *iommu;
 	u32 ver, sts;
@@ -1366,4 +1368,5 @@ int __init dmar_ir_support(void)
 		return 0;
 	return dmar->flags & 0x1;
 }
+
 IOMMU_INIT_POST(detect_intel_iommu);
