@@ -306,7 +306,7 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 	struct syscall_trace_enter *entry;
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
-	enum event_trigger_type __tt = ETT_NONE;
+	enum event_trigger_type tt = ETT_NONE;
 	struct ring_buffer *buffer;
 	unsigned long irq_flags;
 	unsigned long eflags;
@@ -352,15 +352,15 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args, entry->args);
 
 	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
-		__tt = event_triggers_call(ftrace_file, entry);
+		tt = event_triggers_call(ftrace_file, entry);
 
 	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
 		ring_buffer_discard_commit(buffer, event);
 	else if (!filter_check_discard(ftrace_file, entry, buffer, event))
 		trace_current_buffer_unlock_commit(buffer, event,
 						   irq_flags, pc);
-	if (__tt)
-		event_triggers_post_call(ftrace_file, __tt);
+	if (tt)
+		event_triggers_post_call(ftrace_file, tt);
 }
 
 static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
@@ -370,7 +370,7 @@ static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
 	struct syscall_trace_exit *entry;
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
-	enum event_trigger_type __tt = ETT_NONE;
+	enum event_trigger_type tt = ETT_NONE;
 	struct ring_buffer *buffer;
 	unsigned long irq_flags;
 	unsigned long eflags;
@@ -414,15 +414,15 @@ static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
 	entry->ret = syscall_get_return_value(current, regs);
 
 	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
-		__tt = event_triggers_call(ftrace_file, entry);
+		tt = event_triggers_call(ftrace_file, entry);
 
 	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
 		ring_buffer_discard_commit(buffer, event);
 	else if (!filter_check_discard(ftrace_file, entry, buffer, event))
 		trace_current_buffer_unlock_commit(buffer, event,
 						   irq_flags, pc);
-	if (__tt)
-		event_triggers_post_call(ftrace_file, __tt);
+	if (tt)
+		event_triggers_post_call(ftrace_file, tt);
 }
 
 static int reg_event_syscall_enter(struct ftrace_event_file *file,
