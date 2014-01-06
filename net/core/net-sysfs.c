@@ -1358,7 +1358,7 @@ void netdev_class_remove_file_ns(struct class_attribute *class_attr,
 }
 EXPORT_SYMBOL(netdev_class_remove_file_ns);
 
-int netdev_kobject_init(void)
+int __init netdev_kobject_init(void)
 {
 	kobj_ns_type_register(&net_ns_type_operations);
 	return class_register(&net_class);
