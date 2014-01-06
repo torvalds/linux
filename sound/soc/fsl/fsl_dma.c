@@ -55,10 +55,6 @@
 			    SNDRV_PCM_FMTBIT_S32_BE     | \
 			    SNDRV_PCM_FMTBIT_U32_LE     | \
 			    SNDRV_PCM_FMTBIT_U32_BE)
-
-#define FSLDMA_PCM_RATES (SNDRV_PCM_RATE_5512 | SNDRV_PCM_RATE_8000_192000 | \
-			  SNDRV_PCM_RATE_CONTINUOUS)
-
 struct dma_object {
 	struct snd_soc_platform_driver dai;
 	dma_addr_t ssi_stx_phys;
@@ -140,9 +136,6 @@ static const struct snd_pcm_hardware fsl_dma_hardware = {
 				  SNDRV_PCM_INFO_JOINT_DUPLEX |
 				  SNDRV_PCM_INFO_PAUSE,
 	.formats		= FSLDMA_PCM_FORMATS,
-	.rates  		= FSLDMA_PCM_RATES,
-	.rate_min       	= 5512,
-	.rate_max       	= 192000,
 	.period_bytes_min       = 512,  	/* A reasonable limit */
 	.period_bytes_max       = (u32) -1,
 	.periods_min    	= NUM_DMA_LINKS,
