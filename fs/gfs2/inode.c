@@ -469,6 +469,28 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_inode *ip,
 	brelse(dibh);
 }
 
+/**
+ * gfs2_trans_da_blocks - Calculate number of blocks to link inode
+ * @dip: The directory we are linking into
+ * @da: The dir add information
+ * @nr_inodes: The number of inodes involved
+ *
+ * This calculate the number of blocks we need to reserve in a
+ * transaction to link @nr_inodes into a directory. In most cases
+ * @nr_inodes will be 2 (the directory plus the inode being linked in)
+ * but in case of rename, 4 may be required.
+ *
+ * Returns: Number of blocks
+ */
+
+static unsigned gfs2_trans_da_blks(const struct gfs2_inode *dip,
+				   const struct gfs2_diradd *da,
+				   unsigned nr_inodes)
+{
+	return da->nr_blocks + gfs2_rg_blocks(dip, da->nr_blocks) +
+	       (nr_inodes * RES_DINODE) + RES_QUOTA + RES_STATFS;
+}
+
 static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		       struct gfs2_inode *ip, struct gfs2_diradd *da)
 {
@@ -485,10 +507,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		if (error)
 			goto fail_quota_locks;
 
-		error = gfs2_trans_begin(sdp, da->nr_blocks +
-					 gfs2_rg_blocks(dip, da->nr_blocks) +
-					 2 * RES_DINODE +
-					 RES_STATFS + RES_QUOTA, 0);
+		error = gfs2_trans_begin(sdp, gfs2_trans_da_blks(dip, da, 2), 0);
 		if (error)
 			goto fail_ipreserv;
 	} else {
@@ -886,10 +905,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 		if (error)
 			goto out_gunlock_q;
 
-		error = gfs2_trans_begin(sdp, da.nr_blocks +
-					 gfs2_rg_blocks(dip, da.nr_blocks) +
-					 2 * RES_DINODE + RES_STATFS +
-					 RES_QUOTA, 0);
+		error = gfs2_trans_begin(sdp, gfs2_trans_da_blks(dip, &da, 2), 0);
 		if (error)
 			goto out_ipres;
 	} else {
@@ -1403,10 +1419,8 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_gunlock_q;
 
-		error = gfs2_trans_begin(sdp, da.nr_blocks +
-					 gfs2_rg_blocks(ndip, da.nr_blocks) +
-					 4 * RES_DINODE + 4 * RES_LEAF +
-					 RES_STATFS + RES_QUOTA + 4, 0);
+		error = gfs2_trans_begin(sdp, gfs2_trans_da_blks(ndip, &da, 4) +
+					 4 * RES_LEAF + 4, 0);
 		if (error)
 			goto out_ipreserv;
 	} else {
