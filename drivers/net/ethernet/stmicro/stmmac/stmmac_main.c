@@ -929,7 +929,7 @@ static int stmmac_set_bfsize(int mtu, int bufsize, int maxjumbosz)
 	if (mtu <= STMMAC_2KPACKET_MTU)
 		ret = BUF_SIZE_2KiB;
 	else
-		ret = maxjumbosz;
+		ret = BUF_SIZE_8KiB;
 
 	return ret;
 }
