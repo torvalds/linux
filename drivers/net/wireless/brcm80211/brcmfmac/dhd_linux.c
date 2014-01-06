@@ -702,7 +702,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 
 	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
 
-	ndev->destructor = free_netdev;
+	ndev->destructor = brcmf_cfg80211_free_netdev;
 	return 0;
 
 fail:
