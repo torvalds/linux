@@ -849,11 +849,13 @@ int ext4_da_write_inline_data_begin(struct address_space *mapping,
 	handle_t *handle;
 	struct page *page;
 	struct ext4_iloc iloc;
+	int retries;
 
 	ret = ext4_get_inode_loc(inode, &iloc);
 	if (ret)
 		return ret;
 
+retry_journal:
 	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
@@ -875,6 +877,11 @@ int ext4_da_write_inline_data_begin(struct address_space *mapping,
 							    inode,
 							    flags,
 							    fsdata);
+		ext4_journal_stop(handle);
+		handle = NULL;
+		if (ret == -ENOSPC &&
+		    ext4_should_retry_alloc(inode->i_sb, &retries))
+			goto retry_journal;
 		goto out;
 	}
 
