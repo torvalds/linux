@@ -1265,7 +1265,7 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 static void domain_exit(struct dmar_domain *domain);
 static void vm_domain_exit(struct dmar_domain *domain);
 
-void free_dmar_iommu(struct intel_iommu *iommu)
+static void free_dmar_iommu(struct intel_iommu *iommu)
 {
 	struct dmar_domain *domain;
 	int i;
@@ -1290,15 +1290,10 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 	if (iommu->gcmd & DMA_GCMD_TE)
 		iommu_disable_translation(iommu);
 
-	if (iommu->irq) {
-		/* This will mask the irq */
-		free_irq(iommu->irq, iommu);
-		irq_set_handler_data(iommu->irq, NULL);
-		destroy_irq(iommu->irq);
-	}
-
 	kfree(iommu->domains);
 	kfree(iommu->domain_ids);
+	iommu->domains = NULL;
+	iommu->domain_ids = NULL;
 
 	g_iommus[iommu->seq_id] = NULL;
 
@@ -2627,7 +2622,7 @@ static int __init init_dmars(void)
 	return 0;
 error:
 	for_each_active_iommu(iommu, drhd)
-		free_iommu(iommu);
+		free_dmar_iommu(iommu);
 	kfree(g_iommus);
 	return ret;
 }

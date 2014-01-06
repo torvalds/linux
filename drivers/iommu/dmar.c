@@ -53,6 +53,7 @@ struct acpi_table_header * __initdata dmar_tbl;
 static acpi_size dmar_tbl_size;
 
 static int alloc_iommu(struct dmar_drhd_unit *drhd);
+static void free_iommu(struct intel_iommu *iommu);
 
 static void __init dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 {
@@ -205,25 +206,28 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	return 0;
 }
 
+static void dmar_free_drhd(struct dmar_drhd_unit *dmaru)
+{
+	if (dmaru->devices && dmaru->devices_cnt)
+		dmar_free_dev_scope(&dmaru->devices, &dmaru->devices_cnt);
+	if (dmaru->iommu)
+		free_iommu(dmaru->iommu);
+	kfree(dmaru);
+}
+
 static int __init dmar_parse_dev(struct dmar_drhd_unit *dmaru)
 {
 	struct acpi_dmar_hardware_unit *drhd;
-	int ret = 0;
 
 	drhd = (struct acpi_dmar_hardware_unit *) dmaru->hdr;
 
 	if (dmaru->include_all)
 		return 0;
 
-	ret = dmar_parse_dev_scope((void *)(drhd + 1),
-				((void *)drhd) + drhd->header.length,
-				&dmaru->devices_cnt, &dmaru->devices,
-				drhd->segment);
-	if (ret) {
-		list_del(&dmaru->list);
-		kfree(dmaru);
-	}
-	return ret;
+	return dmar_parse_dev_scope((void *)(drhd + 1),
+				    ((void *)drhd) + drhd->header.length,
+				    &dmaru->devices_cnt, &dmaru->devices,
+				    drhd->segment);
 }
 
 #ifdef CONFIG_ACPI_NUMA
@@ -435,7 +439,7 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 int __init dmar_dev_scope_init(void)
 {
 	static int dmar_dev_scope_initialized;
-	struct dmar_drhd_unit *drhd, *drhd_n;
+	struct dmar_drhd_unit *drhd;
 	int ret = -ENODEV;
 
 	if (dmar_dev_scope_initialized)
@@ -444,7 +448,7 @@ int __init dmar_dev_scope_init(void)
 	if (list_empty(&dmar_drhd_units))
 		goto fail;
 
-	list_for_each_entry_safe(drhd, drhd_n, &dmar_drhd_units, list) {
+	list_for_each_entry(drhd, &dmar_drhd_units, list) {
 		ret = dmar_parse_dev(drhd);
 		if (ret)
 			goto fail;
@@ -725,12 +729,13 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	return err;
 }
 
-void free_iommu(struct intel_iommu *iommu)
+static void free_iommu(struct intel_iommu *iommu)
 {
-	if (!iommu)
-		return;
-
-	free_dmar_iommu(iommu);
+	if (iommu->irq) {
+		free_irq(iommu->irq, iommu);
+		irq_set_handler_data(iommu->irq, NULL);
+		destroy_irq(iommu->irq);
+	}
 
 	if (iommu->reg)
 		unmap_iommu(iommu);
@@ -1368,4 +1373,21 @@ int __init dmar_ir_support(void)
 	return dmar->flags & 0x1;
 }
 
+static int __init dmar_free_unused_resources(void)
+{
+	struct dmar_drhd_unit *dmaru, *dmaru_n;
+
+	/* DMAR units are in use */
+	if (irq_remapping_enabled || intel_iommu_enabled)
+		return 0;
+
+	list_for_each_entry_safe(dmaru, dmaru_n, &dmar_drhd_units, list) {
+		list_del(&dmaru->list);
+		dmar_free_drhd(dmaru);
+	}
+
+	return 0;
+}
+
+late_initcall(dmar_free_unused_resources);
 IOMMU_INIT_POST(detect_intel_iommu);
