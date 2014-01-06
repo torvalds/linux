@@ -2017,6 +2017,9 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 			0x3ea83c02, 0x4a110304};
 	int status;
 
+	if (!(be_if_cap_flags(adapter) & BE_IF_FLAGS_RSS))
+		return 0;
+
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
 

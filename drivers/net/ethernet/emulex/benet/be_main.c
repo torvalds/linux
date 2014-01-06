@@ -2744,13 +2744,16 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 		if (!BEx_chip(adapter))
 			adapter->rss_flags |= RSS_ENABLE_UDP_IPV4 |
 						RSS_ENABLE_UDP_IPV6;
+	} else {
+		/* Disable RSS, if only default RX Q is created */
+		adapter->rss_flags = RSS_ENABLE_NONE;
+	}
 
-		rc = be_cmd_rss_config(adapter, rsstable, adapter->rss_flags,
-				       128);
-		if (rc) {
-			adapter->rss_flags = 0;
-			return rc;
-		}
+	rc = be_cmd_rss_config(adapter, rsstable, adapter->rss_flags,
+			       128);
+	if (rc) {
+		adapter->rss_flags = RSS_ENABLE_NONE;
+		return rc;
 	}
 
 	/* First time posting */
