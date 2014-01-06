@@ -493,6 +493,7 @@ struct qlcnic_hardware_context {
 	struct qlcnic_mailbox *mailbox;
 	u8 extend_lb_time;
 	u8 phys_port_id[ETH_ALEN];
+	u8 lb_mode;
 };
 
 struct qlcnic_adapter_stats {
@@ -584,6 +585,8 @@ struct qlcnic_host_tx_ring {
 	dma_addr_t phys_addr;
 	dma_addr_t hw_cons_phys_addr;
 	struct netdev_queue *txq;
+	/* Lock to protect Tx descriptors cleanup */
+	spinlock_t tx_clean_lock;
 } ____cacheline_internodealigned_in_smp;
 
 /*
@@ -815,6 +818,7 @@ struct qlcnic_mac_vlan_list {
 
 #define QLCNIC_ILB_MODE		0x1
 #define QLCNIC_ELB_MODE		0x2
+#define QLCNIC_LB_MODE_MASK	0x3
 
 #define QLCNIC_LINKEVENT	0x1
 #define QLCNIC_LB_RESPONSE	0x2
@@ -1100,7 +1104,6 @@ struct qlcnic_adapter {
 	struct qlcnic_filter_hash rx_fhash;
 	struct list_head vf_mc_list;
 
-	spinlock_t tx_clean_lock;
 	spinlock_t mac_learn_lock;
 	/* spinlock for catching rcv filters for eswitch traffic */
 	spinlock_t rx_mac_learn_lock;

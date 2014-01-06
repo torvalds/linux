@@ -74,6 +74,7 @@ struct bnx2x_vf_queue {
 	/* VLANs object */
 	struct bnx2x_vlan_mac_obj	vlan_obj;
 	atomic_t vlan_count;		/* 0 means vlan-0 is set  ~ untagged */
+	unsigned long accept_flags;	/* last accept flags configured */
 
 	/* Queue Slow-path State object */
 	struct bnx2x_queue_sp_obj	sp_obj;

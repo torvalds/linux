@@ -333,7 +333,8 @@ static void batadv_tt_local_event(struct batadv_priv *bat_priv,
 		return;
 
 	tt_change_node->change.flags = flags;
-	tt_change_node->change.reserved = 0;
+	memset(tt_change_node->change.reserved, 0,
+	       sizeof(tt_change_node->change.reserved));
 	memcpy(tt_change_node->change.addr, common->addr, ETH_ALEN);
 	tt_change_node->change.vid = htons(common->vid);
 
@@ -2221,7 +2222,8 @@ static void batadv_tt_tvlv_generate(struct batadv_priv *bat_priv,
 			       ETH_ALEN);
 			tt_change->flags = tt_common_entry->flags;
 			tt_change->vid = htons(tt_common_entry->vid);
-			tt_change->reserved = 0;
+			memset(tt_change->reserved, 0,
+			       sizeof(tt_change->reserved));
 
 			tt_num_entries++;
 			tt_change++;

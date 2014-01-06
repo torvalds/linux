@@ -264,11 +264,11 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			goto dropped;
 
 		bcast_packet = (struct batadv_bcast_packet *)skb->data;
-		bcast_packet->header.version = BATADV_COMPAT_VERSION;
-		bcast_packet->header.ttl = BATADV_TTL;
+		bcast_packet->version = BATADV_COMPAT_VERSION;
+		bcast_packet->ttl = BATADV_TTL;
 
 		/* batman packet type: broadcast */
-		bcast_packet->header.packet_type = BATADV_BCAST;
+		bcast_packet->packet_type = BATADV_BCAST;
 		bcast_packet->reserved = 0;
 
 		/* hw address of first interface is the orig mac because only
@@ -328,7 +328,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 			 struct sk_buff *skb, struct batadv_hard_iface *recv_if,
 			 int hdr_size, struct batadv_orig_node *orig_node)
 {
-	struct batadv_header *batadv_header = (struct batadv_header *)skb->data;
+	struct batadv_bcast_packet *batadv_bcast_packet;
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	__be16 ethertype = htons(ETH_P_BATMAN);
 	struct vlan_ethhdr *vhdr;
@@ -336,7 +336,8 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	unsigned short vid;
 	bool is_bcast;
 
-	is_bcast = (batadv_header->packet_type == BATADV_BCAST);
+	batadv_bcast_packet = (struct batadv_bcast_packet *)skb->data;
+	is_bcast = (batadv_bcast_packet->packet_type == BATADV_BCAST);
 
 	/* check if enough space is available for pulling, and pull */
 	if (!pskb_may_pull(skb, hdr_size))
@@ -345,7 +346,12 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	skb_pull_rcsum(skb, hdr_size);
 	skb_reset_mac_header(skb);
 
-	vid = batadv_get_vid(skb, hdr_size);
+	/* clean the netfilter state now that the batman-adv header has been
+	 * removed
+	 */
+	nf_reset(skb);
+
+	vid = batadv_get_vid(skb, 0);
 	ethhdr = eth_hdr(skb);
 
 	switch (ntohs(ethhdr->h_proto)) {

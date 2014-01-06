@@ -524,7 +524,7 @@ static void xenvif_rx_action(struct xenvif *vif)
 	if (!npo.copy_prod)
 		goto done;
 
-	BUG_ON(npo.copy_prod > ARRAY_SIZE(vif->grant_copy_op));
+	BUG_ON(npo.copy_prod > MAX_GRANT_COPY_OPS);
 	gnttab_batch_copy(vif->grant_copy_op, npo.copy_prod);
 
 	while ((skb = __skb_dequeue(&rxq)) != NULL) {
@@ -1108,8 +1108,10 @@ static int checksum_setup_ip(struct xenvif *vif, struct sk_buff *skb,
 			goto out;
 
 		if (!skb_partial_csum_set(skb, off,
-					  offsetof(struct tcphdr, check)))
+					  offsetof(struct tcphdr, check))) {
+			err = -EPROTO;
 			goto out;
+		}
 
 		if (recalculate_partial_csum)
 			tcp_hdr(skb)->check =
@@ -1126,8 +1128,10 @@ static int checksum_setup_ip(struct xenvif *vif, struct sk_buff *skb,
 			goto out;
 
 		if (!skb_partial_csum_set(skb, off,
-					  offsetof(struct udphdr, check)))
+					  offsetof(struct udphdr, check))) {
+			err = -EPROTO;
 			goto out;
+		}
 
 		if (recalculate_partial_csum)
 			udp_hdr(skb)->check =
@@ -1249,8 +1253,10 @@ static int checksum_setup_ipv6(struct xenvif *vif, struct sk_buff *skb,
 			goto out;
 
 		if (!skb_partial_csum_set(skb, off,
-					  offsetof(struct tcphdr, check)))
+					  offsetof(struct tcphdr, check))) {
+			err = -EPROTO;
 			goto out;
+		}
 
 		if (recalculate_partial_csum)
 			tcp_hdr(skb)->check =
@@ -1267,8 +1273,10 @@ static int checksum_setup_ipv6(struct xenvif *vif, struct sk_buff *skb,
 			goto out;
 
 		if (!skb_partial_csum_set(skb, off,
-					  offsetof(struct udphdr, check)))
+					  offsetof(struct udphdr, check))) {
+			err = -EPROTO;
 			goto out;
+		}
 
 		if (recalculate_partial_csum)
 			udp_hdr(skb)->check =

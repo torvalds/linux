@@ -313,6 +313,9 @@ static int nf_tables_table_enable(struct nft_table *table)
 	int err, i = 0;
 
 	list_for_each_entry(chain, &table->chains, list) {
+		if (!(chain->flags & NFT_BASE_CHAIN))
+			continue;
+
 		err = nf_register_hook(&nft_base_chain(chain)->ops);
 		if (err < 0)
 			goto err;
@@ -322,6 +325,9 @@ static int nf_tables_table_enable(struct nft_table *table)
 	return 0;
 err:
 	list_for_each_entry(chain, &table->chains, list) {
+		if (!(chain->flags & NFT_BASE_CHAIN))
+			continue;
+
 		if (i-- <= 0)
 			break;
 
@@ -334,8 +340,10 @@ static int nf_tables_table_disable(struct nft_table *table)
 {
 	struct nft_chain *chain;
 
-	list_for_each_entry(chain, &table->chains, list)
-		nf_unregister_hook(&nft_base_chain(chain)->ops);
+	list_for_each_entry(chain, &table->chains, list) {
+		if (chain->flags & NFT_BASE_CHAIN)
+			nf_unregister_hook(&nft_base_chain(chain)->ops);
+	}
 
 	return 0;
 }
@@ -2104,17 +2112,21 @@ static int nf_tables_dump_sets_family(struct nft_ctx *ctx, struct sk_buff *skb,
 				      struct netlink_callback *cb)
 {
 	const struct nft_set *set;
-	unsigned int idx = 0, s_idx = cb->args[0];
+	unsigned int idx, s_idx = cb->args[0];
 	struct nft_table *table, *cur_table = (struct nft_table *)cb->args[2];
 
 	if (cb->args[1])
 		return skb->len;
 
 	list_for_each_entry(table, &ctx->afi->tables, list) {
-		if (cur_table && cur_table != table)
-			continue;
+		if (cur_table) {
+			if (cur_table != table)
+				continue;
 
+			cur_table = NULL;
+		}
 		ctx->table = table;
+		idx = 0;
 		list_for_each_entry(set, &ctx->table->sets, list) {
 			if (idx < s_idx)
 				goto cont;
@@ -2443,7 +2455,9 @@ static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
 	enum nft_registers dreg;
 
 	dreg = nft_type_to_reg(set->dtype);
-	return nft_validate_data_load(ctx, dreg, &elem->data, set->dtype);
+	return nft_validate_data_load(ctx, dreg, &elem->data,
+				      set->dtype == NFT_DATA_VERDICT ?
+				      NFT_DATA_VERDICT : NFT_DATA_VALUE);
 }
 
 int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
