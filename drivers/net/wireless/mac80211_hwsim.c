@@ -2618,7 +2618,7 @@ static int __init init_mac80211_hwsim(void)
 	return 0;
 
 failed_nl:
-	printk(KERN_DEBUG "mac_80211_hwsim: failed initializing netlink\n");
+	printk(KERN_DEBUG "mac80211_hwsim: failed initializing netlink\n");
 	return err;
 
 failed_mon:
