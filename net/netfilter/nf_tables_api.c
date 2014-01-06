@@ -180,7 +180,8 @@ static int nf_tables_fill_table_info(struct sk_buff *skb, u32 portid, u32 seq,
 	nfmsg->res_id		= 0;
 
 	if (nla_put_string(skb, NFTA_TABLE_NAME, table->name) ||
-	    nla_put_be32(skb, NFTA_TABLE_FLAGS, htonl(table->flags)))
+	    nla_put_be32(skb, NFTA_TABLE_FLAGS, htonl(table->flags)) ||
+	    nla_put_be32(skb, NFTA_TABLE_USE, htonl(table->use)))
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
@@ -1923,12 +1924,14 @@ static int nft_ctx_init_from_setattr(struct nft_ctx *ctx,
 {
 	struct net *net = sock_net(skb->sk);
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	const struct nft_af_info *afi;
+	const struct nft_af_info *afi = NULL;
 	const struct nft_table *table = NULL;
 
-	afi = nf_tables_afinfo_lookup(net, nfmsg->nfgen_family, false);
-	if (IS_ERR(afi))
-		return PTR_ERR(afi);
+	if (nfmsg->nfgen_family != NFPROTO_UNSPEC) {
+		afi = nf_tables_afinfo_lookup(net, nfmsg->nfgen_family, false);
+		if (IS_ERR(afi))
+			return PTR_ERR(afi);
+	}
 
 	if (nla[NFTA_SET_TABLE] != NULL) {
 		table = nf_tables_table_lookup(afi, nla[NFTA_SET_TABLE]);
@@ -1973,11 +1976,14 @@ static int nf_tables_set_alloc_name(struct nft_ctx *ctx, struct nft_set *set,
 			return -ENOMEM;
 
 		list_for_each_entry(i, &ctx->table->sets, list) {
-			if (!sscanf(i->name, name, &n))
+			int tmp;
+
+			if (!sscanf(i->name, name, &tmp))
 				continue;
-			if (n < 0 || n > BITS_PER_LONG * PAGE_SIZE)
+			if (tmp < 0 || tmp > BITS_PER_LONG * PAGE_SIZE)
 				continue;
-			set_bit(n, inuse);
+
+			set_bit(tmp, inuse);
 		}
 
 		n = find_first_zero_bit(inuse, BITS_PER_LONG * PAGE_SIZE);
@@ -2094,8 +2100,8 @@ done:
 	return skb->len;
 }
 
-static int nf_tables_dump_sets_all(struct nft_ctx *ctx, struct sk_buff *skb,
-				   struct netlink_callback *cb)
+static int nf_tables_dump_sets_family(struct nft_ctx *ctx, struct sk_buff *skb,
+				      struct netlink_callback *cb)
 {
 	const struct nft_set *set;
 	unsigned int idx = 0, s_idx = cb->args[0];
@@ -2127,6 +2133,61 @@ done:
 	return skb->len;
 }
 
+static int nf_tables_dump_sets_all(struct nft_ctx *ctx, struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	const struct nft_set *set;
+	unsigned int idx, s_idx = cb->args[0];
+	const struct nft_af_info *afi;
+	struct nft_table *table, *cur_table = (struct nft_table *)cb->args[2];
+	struct net *net = sock_net(skb->sk);
+	int cur_family = cb->args[3];
+
+	if (cb->args[1])
+		return skb->len;
+
+	list_for_each_entry(afi, &net->nft.af_info, list) {
+		if (cur_family) {
+			if (afi->family != cur_family)
+				continue;
+
+			cur_family = 0;
+		}
+
+		list_for_each_entry(table, &afi->tables, list) {
+			if (cur_table) {
+				if (cur_table != table)
+					continue;
+
+				cur_table = NULL;
+			}
+
+			ctx->table = table;
+			ctx->afi = afi;
+			idx = 0;
+			list_for_each_entry(set, &ctx->table->sets, list) {
+				if (idx < s_idx)
+					goto cont;
+				if (nf_tables_fill_set(skb, ctx, set,
+						       NFT_MSG_NEWSET,
+						       NLM_F_MULTI) < 0) {
+					cb->args[0] = idx;
+					cb->args[2] = (unsigned long) table;
+					cb->args[3] = afi->family;
+					goto done;
+				}
+cont:
+				idx++;
+			}
+			if (s_idx)
+				s_idx = 0;
+		}
+	}
+	cb->args[1] = 1;
+done:
+	return skb->len;
+}
+
 static int nf_tables_dump_sets(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
@@ -2143,9 +2204,12 @@ static int nf_tables_dump_sets(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err < 0)
 		return err;
 
-	if (ctx.table == NULL)
-		ret = nf_tables_dump_sets_all(&ctx, skb, cb);
-	else
+	if (ctx.table == NULL) {
+		if (ctx.afi == NULL)
+			ret = nf_tables_dump_sets_all(&ctx, skb, cb);
+		else
+			ret = nf_tables_dump_sets_family(&ctx, skb, cb);
+	} else
 		ret = nf_tables_dump_sets_table(&ctx, skb, cb);
 
 	return ret;
@@ -2158,6 +2222,7 @@ static int nf_tables_getset(struct sock *nlsk, struct sk_buff *skb,
 	const struct nft_set *set;
 	struct nft_ctx ctx;
 	struct sk_buff *skb2;
+	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	int err;
 
 	/* Verify existance before starting dump */
@@ -2171,6 +2236,10 @@ static int nf_tables_getset(struct sock *nlsk, struct sk_buff *skb,
 		};
 		return netlink_dump_start(nlsk, skb, nlh, &c);
 	}
+
+	/* Only accept unspec with dump */
+	if (nfmsg->nfgen_family == NFPROTO_UNSPEC)
+		return -EAFNOSUPPORT;
 
 	set = nf_tables_set_lookup(ctx.table, nla[NFTA_SET_NAME]);
 	if (IS_ERR(set))
@@ -2341,6 +2410,7 @@ static int nf_tables_delset(struct sock *nlsk, struct sk_buff *skb,
 			    const struct nlmsghdr *nlh,
 			    const struct nlattr * const nla[])
 {
+	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	struct nft_set *set;
 	struct nft_ctx ctx;
 	int err;
@@ -2351,6 +2421,9 @@ static int nf_tables_delset(struct sock *nlsk, struct sk_buff *skb,
 	err = nft_ctx_init_from_setattr(&ctx, skb, nlh, nla);
 	if (err < 0)
 		return err;
+
+	if (nfmsg->nfgen_family == NFPROTO_UNSPEC)
+		return -EAFNOSUPPORT;
 
 	set = nf_tables_set_lookup(ctx.table, nla[NFTA_SET_NAME]);
 	if (IS_ERR(set))
@@ -2521,9 +2594,8 @@ static int nf_tables_dump_set(struct sk_buff *skb, struct netlink_callback *cb)
 	u32 portid, seq;
 	int event, err;
 
-	nfmsg = nlmsg_data(cb->nlh);
-	err = nlmsg_parse(cb->nlh, sizeof(*nfmsg), nla, NFTA_SET_ELEM_LIST_MAX,
-			  nft_set_elem_list_policy);
+	err = nlmsg_parse(cb->nlh, sizeof(struct nfgenmsg), nla,
+			  NFTA_SET_ELEM_LIST_MAX, nft_set_elem_list_policy);
 	if (err < 0)
 		return err;
 

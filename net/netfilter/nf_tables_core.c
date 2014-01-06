@@ -164,7 +164,7 @@ next_rule:
 		break;
 	}
 
-	switch (data[NFT_REG_VERDICT].verdict) {
+	switch (data[NFT_REG_VERDICT].verdict & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
 	case NF_DROP:
 	case NF_QUEUE:
@@ -172,6 +172,9 @@ next_rule:
 			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
 
 		return data[NFT_REG_VERDICT].verdict;
+	}
+
+	switch (data[NFT_REG_VERDICT].verdict) {
 	case NFT_JUMP:
 		if (unlikely(pkt->skb->nf_trace))
 			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
