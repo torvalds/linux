@@ -584,8 +584,8 @@ int set_registers(struct r8152 *tp, u16 value, u16 index, u16 size, void *data)
 static int generic_ocp_read(struct r8152 *tp, u16 index, u16 size,
 				void *data, u16 type)
 {
-	u16	limit = 64;
-	int	ret = 0;
+	u16 limit = 64;
+	int ret = 0;
 
 	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		return -ENODEV;
@@ -624,9 +624,9 @@ static int generic_ocp_read(struct r8152 *tp, u16 index, u16 size,
 static int generic_ocp_write(struct r8152 *tp, u16 index, u16 byteen,
 				u16 size, void *data, u16 type)
 {
-	int	ret;
-	u16	byteen_start, byteen_end, byen;
-	u16	limit = 512;
+	int ret;
+	u16 byteen_start, byteen_end, byen;
+	u16 limit = 512;
 
 	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		return -ENODEV;
@@ -1812,8 +1812,8 @@ static void r8152b_exit_oob(struct r8152 *tp)
 
 static void r8152b_enter_oob(struct r8152 *tp)
 {
-	u32	ocp_data;
-	int	i;
+	u32 ocp_data;
+	int i;
 
 	ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
 	ocp_data &= ~NOW_IS_OOB;
@@ -2340,7 +2340,7 @@ static void r8153_clear_bp(struct r8152 *tp)
 
 static void r8152b_enable_eee(struct r8152 *tp)
 {
-	u32	ocp_data;
+	u32 ocp_data;
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_EEE_CR);
 	ocp_data |= EEE_RX_EN | EEE_TX_EN;
