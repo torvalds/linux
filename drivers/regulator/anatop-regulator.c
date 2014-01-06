@@ -124,7 +124,6 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	sreg->initdata = initdata;
 	sreg->name = of_get_property(np, "regulator-name", NULL);
 	rdesc = &sreg->rdesc;
-	memset(rdesc, 0, sizeof(*rdesc));
 	rdesc->name = sreg->name;
 	rdesc->ops = &anatop_rops;
 	rdesc->type = REGULATOR_VOLTAGE;
