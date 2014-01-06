@@ -158,7 +158,10 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_hardware *hw,
 		cpu_stream->channels_min);
 	hw->channels_max = min(codec_stream->channels_max,
 		cpu_stream->channels_max);
-	hw->formats = codec_stream->formats & cpu_stream->formats;
+	if (hw->formats)
+		hw->formats &= codec_stream->formats & cpu_stream->formats;
+	else
+		hw->formats = codec_stream->formats & cpu_stream->formats;
 	hw->rates = codec_stream->rates & cpu_stream->rates;
 	if (codec_stream->rates
 		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
