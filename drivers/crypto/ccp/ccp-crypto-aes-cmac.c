@@ -198,7 +198,7 @@ static int ccp_aes_cmac_digest(struct ahash_request *req)
 	if (ret)
 		return ret;
 
-	return ccp_do_cmac_update(req, req->nbytes, 1);
+	return ccp_aes_cmac_finup(req);
 }
 
 static int ccp_aes_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,

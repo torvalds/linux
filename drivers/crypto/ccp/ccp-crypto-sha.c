@@ -248,9 +248,13 @@ static int ccp_sha_finup(struct ahash_request *req)
 
 static int ccp_sha_digest(struct ahash_request *req)
 {
-	ccp_sha_init(req);
+	int ret;
 
-	return ccp_do_sha_update(req, req->nbytes, 1);
+	ret = ccp_sha_init(req);
+	if (ret)
+		return ret;
+
+	return ccp_sha_finup(req);
 }
 
 static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
