@@ -4105,7 +4105,7 @@ void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 	}
 
 	/* don't start the wd until fw is loaded */
-	if (bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN)
+	if (bus->sdiodev->bus_if->state != BRCMF_BUS_DATA)
 		return;
 
 	if (wdtick) {
