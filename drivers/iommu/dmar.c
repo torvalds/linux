@@ -100,7 +100,6 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 	if (!pdev) {
 		pr_warn("Device scope device [%04x:%02x:%02x.%02x] not found\n",
 			segment, scope->bus, path->device, path->function);
-		*dev = NULL;
 		return 0;
 	}
 	if ((scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT && \
@@ -151,7 +150,7 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 			ret = dmar_parse_one_dev_scope(scope,
 				&(*devices)[index], segment);
 			if (ret) {
-				kfree(*devices);
+				dmar_free_dev_scope(devices, cnt);
 				return ret;
 			}
 			index ++;
@@ -160,6 +159,17 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 	}
 
 	return 0;
+}
+
+void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt)
+{
+	if (*devices && *cnt) {
+		while (--*cnt >= 0)
+			pci_dev_put((*devices)[*cnt]);
+		kfree(*devices);
+		*devices = NULL;
+		*cnt = 0;
+	}
 }
 
 /**
