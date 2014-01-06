@@ -2180,20 +2180,14 @@ failure:
 
 static void hwsim_exit_netlink(void)
 {
-	int ret;
-
 	/* userspace test API hasn't been adjusted for multi-channel */
 	if (channels > 1)
 		return;
 
-	printk(KERN_INFO "mac80211_hwsim: closing netlink\n");
 	/* unregister the notifier */
 	netlink_unregister_notifier(&hwsim_netlink_notifier);
 	/* unregister the family */
-	ret = genl_unregister_family(&hwsim_genl_family);
-	if (ret)
-		printk(KERN_DEBUG "mac80211_hwsim: "
-		       "unregister family %i\n", ret);
+	genl_unregister_family(&hwsim_genl_family);
 }
 
 static const struct ieee80211_iface_limit hwsim_if_limits[] = {
