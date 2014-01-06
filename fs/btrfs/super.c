@@ -324,7 +324,7 @@ enum {
 	Opt_check_integrity, Opt_check_integrity_including_extent_data,
 	Opt_check_integrity_print_mask, Opt_fatal_errors, Opt_rescan_uuid_tree,
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
-	Opt_noenospc_debug,
+	Opt_noenospc_debug, Opt_noflushoncommit,
 	Opt_err,
 };
 
@@ -350,6 +350,7 @@ static match_table_t tokens = {
 	{Opt_noacl, "noacl"},
 	{Opt_notreelog, "notreelog"},
 	{Opt_flushoncommit, "flushoncommit"},
+	{Opt_noflushoncommit, "noflushoncommit"},
 	{Opt_ratio, "metadata_ratio=%d"},
 	{Opt_discard, "discard"},
 	{Opt_nodiscard, "nodiscard"},
@@ -561,6 +562,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_flushoncommit:
 			btrfs_info(root->fs_info, "turning on flush-on-commit");
 			btrfs_set_opt(info->mount_opt, FLUSHONCOMMIT);
+			break;
+		case Opt_noflushoncommit:
+			if (btrfs_test_opt(root, FLUSHONCOMMIT))
+				btrfs_info(root->fs_info, "turning off flush-on-commit");
+			btrfs_clear_opt(info->mount_opt, FLUSHONCOMMIT);
 			break;
 		case Opt_ratio:
 			ret = match_int(&args[0], &intarg);

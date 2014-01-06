@@ -117,6 +117,7 @@ Options with (*) are default options and will not show in the mount options.
 	  "bug" - BUG() on a fatal error.  This is the default.
 	  "panic" - panic() on a fatal error.
 
+  noflushoncommit(*)
   flushoncommit
 	The 'flushoncommit' mount option forces any data dirtied by a write in a
 	prior transaction to commit as part of the current commit.  This makes
