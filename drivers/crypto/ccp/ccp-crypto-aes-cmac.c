@@ -61,6 +61,7 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 	unsigned int block_size =
 		crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 	unsigned int len, need_pad, sg_count;
+	gfp_t gfp;
 	int ret;
 
 	if (!ctx->u.aes.key_len)
@@ -99,7 +100,9 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 	 * possible data pieces (buffer, input data, padding)
 	 */
 	sg_count = (nbytes) ? sg_nents(req->src) + 2 : 2;
-	ret = sg_alloc_table(&rctx->data_sg, sg_count, GFP_KERNEL);
+	gfp = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
+		GFP_KERNEL : GFP_ATOMIC;
+	ret = sg_alloc_table(&rctx->data_sg, sg_count, gfp);
 	if (ret)
 		return ret;
 
