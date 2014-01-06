@@ -108,8 +108,9 @@ Options with (*) are default options and will not show in the mount options.
 	performance impact.  (The fstrim command is also available to
 	initiate batch trims from userspace).
 
+  noenospc_debug(*)
   enospc_debug
-	Debugging option to be more verbose in some ENOSPC conditions.
+	Disable/enable debugging option to be more verbose in some ENOSPC conditions.
 
   fatal_errors=<action>
 	Action to take when encountering a fatal error: 
