@@ -2624,6 +2624,7 @@ static int __init init_dmars(void)
 error:
 	for_each_active_iommu(iommu, drhd)
 		free_dmar_iommu(iommu);
+	kfree(deferred_flush);
 	kfree(g_iommus);
 	return ret;
 }
@@ -3467,18 +3468,12 @@ static int __init
 rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
 {
 	struct acpi_dmar_reserved_memory *rmrr;
-	int ret;
 
 	rmrr = (struct acpi_dmar_reserved_memory *) rmrru->hdr;
-	ret = dmar_parse_dev_scope((void *)(rmrr + 1),
-		((void *)rmrr) + rmrr->header.length,
-		&rmrru->devices_cnt, &rmrru->devices, rmrr->segment);
-
-	if (ret || (rmrru->devices_cnt == 0)) {
-		list_del(&rmrru->list);
-		kfree(rmrru);
-	}
-	return ret;
+	return dmar_parse_dev_scope((void *)(rmrr + 1),
+				    ((void *)rmrr) + rmrr->header.length,
+				    &rmrru->devices_cnt, &rmrru->devices,
+				    rmrr->segment);
 }
 
 static LIST_HEAD(dmar_atsr_units);
@@ -3503,23 +3498,39 @@ int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
 
 static int __init atsr_parse_dev(struct dmar_atsr_unit *atsru)
 {
-	int rc;
 	struct acpi_dmar_atsr *atsr;
 
 	if (atsru->include_all)
 		return 0;
 
 	atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
-	rc = dmar_parse_dev_scope((void *)(atsr + 1),
-				(void *)atsr + atsr->header.length,
-				&atsru->devices_cnt, &atsru->devices,
-				atsr->segment);
-	if (rc || !atsru->devices_cnt) {
-		list_del(&atsru->list);
-		kfree(atsru);
+	return dmar_parse_dev_scope((void *)(atsr + 1),
+				    (void *)atsr + atsr->header.length,
+				    &atsru->devices_cnt, &atsru->devices,
+				    atsr->segment);
+}
+
+static void intel_iommu_free_atsr(struct dmar_atsr_unit *atsru)
+{
+	dmar_free_dev_scope(&atsru->devices, &atsru->devices_cnt);
+	kfree(atsru);
+}
+
+static void intel_iommu_free_dmars(void)
+{
+	struct dmar_rmrr_unit *rmrru, *rmrr_n;
+	struct dmar_atsr_unit *atsru, *atsr_n;
+
+	list_for_each_entry_safe(rmrru, rmrr_n, &dmar_rmrr_units, list) {
+		list_del(&rmrru->list);
+		dmar_free_dev_scope(&rmrru->devices, &rmrru->devices_cnt);
+		kfree(rmrru);
 	}
 
-	return rc;
+	list_for_each_entry_safe(atsru, atsr_n, &dmar_atsr_units, list) {
+		list_del(&atsru->list);
+		intel_iommu_free_atsr(atsru);
+	}
 }
 
 int dmar_find_matched_atsr_unit(struct pci_dev *dev)
@@ -3563,17 +3574,17 @@ found:
 
 int __init dmar_parse_rmrr_atsr_dev(void)
 {
-	struct dmar_rmrr_unit *rmrr, *rmrr_n;
-	struct dmar_atsr_unit *atsr, *atsr_n;
+	struct dmar_rmrr_unit *rmrr;
+	struct dmar_atsr_unit *atsr;
 	int ret = 0;
 
-	list_for_each_entry_safe(rmrr, rmrr_n, &dmar_rmrr_units, list) {
+	list_for_each_entry(rmrr, &dmar_rmrr_units, list) {
 		ret = rmrr_parse_dev(rmrr);
 		if (ret)
 			return ret;
 	}
 
-	list_for_each_entry_safe(atsr, atsr_n, &dmar_atsr_units, list) {
+	list_for_each_entry(atsr, &dmar_atsr_units, list) {
 		ret = atsr_parse_dev(atsr);
 		if (ret)
 			return ret;
@@ -3620,7 +3631,7 @@ static struct notifier_block device_nb = {
 
 int __init intel_iommu_init(void)
 {
-	int ret = 0;
+	int ret = -ENODEV;
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
 
@@ -3630,7 +3641,7 @@ int __init intel_iommu_init(void)
 	if (dmar_table_init()) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMAR table\n");
-		return 	-ENODEV;
+		goto out_free_dmar;
 	}
 
 	/*
@@ -3643,16 +3654,16 @@ int __init intel_iommu_init(void)
 	if (dmar_dev_scope_init() < 0) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMAR device scope\n");
-		return 	-ENODEV;
+		goto out_free_dmar;
 	}
 
 	if (no_iommu || dmar_disabled)
-		return -ENODEV;
+		goto out_free_dmar;
 
 	if (iommu_init_mempool()) {
 		if (force_on)
 			panic("tboot: Failed to initialize iommu memory\n");
-		return 	-ENODEV;
+		goto out_free_dmar;
 	}
 
 	if (list_empty(&dmar_rmrr_units))
@@ -3664,7 +3675,7 @@ int __init intel_iommu_init(void)
 	if (dmar_init_reserved_ranges()) {
 		if (force_on)
 			panic("tboot: Failed to reserve iommu ranges\n");
-		return 	-ENODEV;
+		goto out_free_mempool;
 	}
 
 	init_no_remapping_devices();
@@ -3674,9 +3685,7 @@ int __init intel_iommu_init(void)
 		if (force_on)
 			panic("tboot: Failed to initialize DMARs\n");
 		printk(KERN_ERR "IOMMU: dmar init failed\n");
-		put_iova_domain(&reserved_iova_list);
-		iommu_exit_mempool();
-		return ret;
+		goto out_free_reserved_range;
 	}
 	printk(KERN_INFO
 	"PCI-DMA: Intel(R) Virtualization Technology for Directed I/O\n");
@@ -3696,6 +3705,14 @@ int __init intel_iommu_init(void)
 	intel_iommu_enabled = 1;
 
 	return 0;
+
+out_free_reserved_range:
+	put_iova_domain(&reserved_iova_list);
+out_free_mempool:
+	iommu_exit_mempool();
+out_free_dmar:
+	intel_iommu_free_dmars();
+	return ret;
 }
 
 static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
