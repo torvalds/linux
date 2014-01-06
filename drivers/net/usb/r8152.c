@@ -2759,6 +2759,10 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp = netdev_priv(netdev);
 	tp->msg_enable = 0x7FFF;
 
+	tp->udev = udev;
+	tp->netdev = netdev;
+	tp->intf = intf;
+
 	if (!rtl_ops_init(tp, id)) {
 		netif_err(tp, probe, netdev, "Unknown Device");
 		return -ENODEV;
@@ -2767,9 +2771,6 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tasklet_init(&tp->tl, bottom_half, (unsigned long)tp);
 	INIT_DELAYED_WORK(&tp->schedule, rtl_work_func_t);
 
-	tp->udev = udev;
-	tp->netdev = netdev;
-	tp->intf = intf;
 	netdev->netdev_ops = &rtl8152_netdev_ops;
 	netdev->watchdog_timeo = RTL8152_TX_TIMEOUT;
 
