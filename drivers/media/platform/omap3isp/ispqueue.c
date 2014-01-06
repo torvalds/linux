@@ -39,36 +39,6 @@
 #include "ispvideo.h"
 
 /* -----------------------------------------------------------------------------
- * IOMMU management
- */
-
-#define IOMMU_FLAG	(IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_8)
-
-/*
- * ispmmu_vmap - Wrapper for virtual memory mapping of a scatter gather table
- * @dev: Device pointer specific to the OMAP3 ISP.
- * @sgt: Pointer to source scatter gather table.
- *
- * Returns a resulting mapped device address by the ISP MMU, or -ENOMEM if
- * we ran out of memory.
- */
-static dma_addr_t
-ispmmu_vmap(struct isp_device *isp, const struct sg_table *sgt)
-{
-	return omap_iommu_vmap(isp->domain, isp->dev, 0, sgt, IOMMU_FLAG);
-}
-
-/*
- * ispmmu_vunmap - Unmap a device address from the ISP MMU
- * @dev: Device pointer specific to the OMAP3 ISP.
- * @da: Device address generated from a ispmmu_vmap call.
- */
-static void ispmmu_vunmap(struct isp_device *isp, dma_addr_t da)
-{
-	omap_iommu_vunmap(isp->domain, isp->dev, (u32)da);
-}
-
-/* -----------------------------------------------------------------------------
  * Video buffers management
  */
 
@@ -227,7 +197,8 @@ static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
 	unsigned int i;
 
 	if (buf->dma) {
-		ispmmu_vunmap(video->isp, buf->dma);
+		omap_iommu_vunmap(video->isp->domain, video->isp->dev,
+				  buf->dma);
 		buf->dma = 0;
 	}
 
@@ -521,7 +492,8 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 		}
 	}
 
-	addr = ispmmu_vmap(video->isp, &buf->sgt);
+	addr = omap_iommu_vmap(video->isp->domain, video->isp->dev, 0,
+			       &buf->sgt, IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_8);
 	if (IS_ERR_VALUE(addr)) {
 		ret = -EIO;
 		goto done;
