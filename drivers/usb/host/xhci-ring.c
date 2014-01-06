@@ -3008,7 +3008,7 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			if (num_trbs >= TRBS_PER_SEGMENT) {
 				xhci_err(xhci, "Too many fragments %d, max %d\n",
 						num_trbs, TRBS_PER_SEGMENT - 1);
-				return -ENOMEM;
+				return -EINVAL;
 			}
 
 			nop_cmd = cpu_to_le32(TRB_TYPE(TRB_TR_NOOP) |
