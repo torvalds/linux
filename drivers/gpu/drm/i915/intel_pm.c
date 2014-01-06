@@ -1889,7 +1889,7 @@ static unsigned int ilk_cursor_wm_max(const struct drm_device *dev,
 }
 
 /* Calculate the maximum FBC watermark */
-static unsigned int ilk_fbc_wm_max(struct drm_device *dev)
+static unsigned int ilk_fbc_wm_max(const struct drm_device *dev)
 {
 	/* max that registers can hold */
 	if (INTEL_INFO(dev)->gen >= 8)
@@ -1898,7 +1898,7 @@ static unsigned int ilk_fbc_wm_max(struct drm_device *dev)
 		return 15;
 }
 
-static void ilk_compute_wm_maximums(struct drm_device *dev,
+static void ilk_compute_wm_maximums(const struct drm_device *dev,
 				    int level,
 				    const struct intel_wm_config *config,
 				    enum intel_ddb_partitioning ddb_partitioning,
@@ -1951,7 +1951,7 @@ static bool ilk_validate_wm_level(int level,
 	return ret;
 }
 
-static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
+static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 				 int level,
 				 const struct ilk_pipe_wm_parameters *p,
 				 struct intel_wm_level *result)
@@ -2143,7 +2143,7 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 				  struct intel_pipe_wm *pipe_wm)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct drm_i915_private *dev_priv = dev->dev_private;
 	int level, max_level = ilk_wm_max_level(dev);
 	/* LP0 watermark maximums depend on this pipe alone */
 	struct intel_wm_config config = {
