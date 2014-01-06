@@ -516,7 +516,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 			goto fail_quota_locks;
 	}
 
-	error = gfs2_dir_add(&dip->i_inode, name, ip);
+	error = gfs2_dir_add(&dip->i_inode, name, ip, da);
 	if (error)
 		goto fail_end_trans;
 
@@ -579,7 +579,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	struct dentry *d;
 	int error;
 	u32 aflags = 0;
-	struct gfs2_diradd da;
+	struct gfs2_diradd da = { .bh = NULL, };
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return -ENAMETOOLONG;
@@ -738,6 +738,7 @@ fail_free_inode:
 	free_inode_nonrcu(inode);
 	inode = NULL;
 fail_gunlock:
+	gfs2_dir_no_add(&da);
 	gfs2_glock_dq_uninit(ghs);
 	if (inode && !IS_ERR(inode)) {
 		clear_nlink(inode);
@@ -836,7 +837,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder ghs[2];
 	struct buffer_head *dibh;
-	struct gfs2_diradd da;
+	struct gfs2_diradd da = { .bh = NULL, };
 	int error;
 
 	if (S_ISDIR(inode->i_mode))
@@ -918,7 +919,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (error)
 		goto out_end_trans;
 
-	error = gfs2_dir_add(dir, &dentry->d_name, ip);
+	error = gfs2_dir_add(dir, &dentry->d_name, ip, &da);
 	if (error)
 		goto out_brelse;
 
@@ -940,6 +941,7 @@ out_gunlock_q:
 	if (da.nr_blocks)
 		gfs2_quota_unlock(dip);
 out_gunlock:
+	gfs2_dir_no_add(&da);
 	gfs2_glock_dq(ghs + 1);
 out_child:
 	gfs2_glock_dq(ghs);
@@ -1454,7 +1456,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	if (error)
 		goto out_end_trans;
 
-	error = gfs2_dir_add(ndir, &ndentry->d_name, ip);
+	error = gfs2_dir_add(ndir, &ndentry->d_name, ip, &da);
 	if (error)
 		goto out_end_trans;
 
@@ -1467,6 +1469,7 @@ out_gunlock_q:
 	if (da.nr_blocks)
 		gfs2_quota_unlock(ndip);
 out_gunlock:
+	gfs2_dir_no_add(&da);
 	while (x--) {
 		gfs2_glock_dq(ghs + x);
 		gfs2_holder_uninit(ghs + x);

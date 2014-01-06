@@ -1659,26 +1659,34 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
 
 /**
  * gfs2_dir_add - Add new filename into directory
- * @dip: The GFS2 inode
- * @filename: The new name
- * @inode: The inode number of the entry
- * @type: The type of the entry
+ * @inode: The directory inode
+ * @name: The new name
+ * @nip: The GFS2 inode to be linked in to the directory
+ * @da: The directory addition info
+ *
+ * If the call to gfs2_diradd_alloc_required resulted in there being
+ * no need to allocate any new directory blocks, then it will contain
+ * a pointer to the directory entry and the bh in which it resides. We
+ * can use that without having to repeat the search. If there was no
+ * free space, then we must now create more space.
  *
  * Returns: 0 on success, error code on failure
  */
 
 int gfs2_dir_add(struct inode *inode, const struct qstr *name,
-		 const struct gfs2_inode *nip)
+		 const struct gfs2_inode *nip, struct gfs2_diradd *da)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct buffer_head *bh;
-	struct gfs2_dirent *dent;
+	struct buffer_head *bh = da->bh;
+	struct gfs2_dirent *dent = da->dent;
 	struct gfs2_leaf *leaf;
 	int error;
 
 	while(1) {
-		dent = gfs2_dirent_search(inode, name, gfs2_dirent_find_space,
-					  &bh);
+		if (da->bh == NULL) {
+			dent = gfs2_dirent_search(inode, name,
+						  gfs2_dirent_find_space, &bh);
+		}
 		if (dent) {
 			if (IS_ERR(dent))
 				return PTR_ERR(dent);
@@ -1689,6 +1697,8 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 				leaf = (struct gfs2_leaf *)bh->b_data;
 				be16_add_cpu(&leaf->lf_entries, 1);
 			}
+			da->dent = NULL;
+			da->bh = NULL;
 			brelse(bh);
 			ip->i_entries++;
 			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
@@ -2030,6 +2040,8 @@ int gfs2_diradd_alloc_required(struct inode *inode, const struct qstr *name,
 	struct buffer_head *bh;
 
 	da->nr_blocks = 0;
+	da->bh = NULL;
+	da->dent = NULL;
 
 	dent = gfs2_dirent_search(inode, name, gfs2_dirent_find_space, &bh);
 	if (!dent) {
@@ -2038,7 +2050,8 @@ int gfs2_diradd_alloc_required(struct inode *inode, const struct qstr *name,
 	}
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
-	brelse(bh);
+	da->bh = bh;
+	da->dent = dent;
 	return 0;
 }
 

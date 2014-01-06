@@ -16,9 +16,13 @@
 struct inode;
 struct gfs2_inode;
 struct gfs2_inum;
+struct buffer_head;
+struct gfs2_dirent;
 
 struct gfs2_diradd {
 	unsigned nr_blocks;
+	struct gfs2_dirent *dent;
+	struct buffer_head *bh;
 };
 
 extern struct inode *gfs2_dir_search(struct inode *dir,
@@ -27,7 +31,13 @@ extern struct inode *gfs2_dir_search(struct inode *dir,
 extern int gfs2_dir_check(struct inode *dir, const struct qstr *filename,
 			  const struct gfs2_inode *ip);
 extern int gfs2_dir_add(struct inode *inode, const struct qstr *filename,
-			const struct gfs2_inode *ip);
+			const struct gfs2_inode *ip, struct gfs2_diradd *da);
+static inline void gfs2_dir_no_add(struct gfs2_diradd *da)
+{
+	if (da->bh)
+		brelse(da->bh);
+	da->bh = NULL;
+}
 extern int gfs2_dir_del(struct gfs2_inode *dip, const struct dentry *dentry);
 extern int gfs2_dir_read(struct inode *inode, struct dir_context *ctx,
 			 struct file_ra_state *f_ra);
