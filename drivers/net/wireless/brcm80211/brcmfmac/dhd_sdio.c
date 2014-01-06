@@ -3384,7 +3384,8 @@ err:
 
 static bool brcmf_sdio_sr_capable(struct brcmf_sdio *bus)
 {
-	u32 addr, reg;
+	u32 addr, reg, pmu_cc3_mask = ~0;
+	int err;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3392,13 +3393,27 @@ static bool brcmf_sdio_sr_capable(struct brcmf_sdio *bus)
 	if (bus->ci->pmurev < 17)
 		return false;
 
-	/* read PMU chipcontrol register 3*/
-	addr = CORE_CC_REG(bus->ci->c_inf[0].base, chipcontrol_addr);
-	brcmf_sdiod_regwl(bus->sdiodev, addr, 3, NULL);
-	addr = CORE_CC_REG(bus->ci->c_inf[0].base, chipcontrol_data);
-	reg = brcmf_sdiod_regrl(bus->sdiodev, addr, NULL);
+	switch (bus->ci->chip) {
+	case BCM43241_CHIP_ID:
+	case BCM4335_CHIP_ID:
+	case BCM4339_CHIP_ID:
+		/* read PMU chipcontrol register 3 */
+		addr = CORE_CC_REG(bus->ci->c_inf[0].base, chipcontrol_addr);
+		brcmf_sdiod_regwl(bus->sdiodev, addr, 3, NULL);
+		addr = CORE_CC_REG(bus->ci->c_inf[0].base, chipcontrol_data);
+		reg = brcmf_sdiod_regrl(bus->sdiodev, addr, NULL);
+		return (reg & pmu_cc3_mask) != 0;
+	default:
+		addr = CORE_CC_REG(bus->ci->c_inf[0].base, pmucapabilities_ext);
+		reg = brcmf_sdiod_regrl(bus->sdiodev, addr, &err);
+		if ((reg & PCAPEXT_SR_SUPPORTED_MASK) == 0)
+			return false;
 
-	return (bool)reg;
+		addr = CORE_CC_REG(bus->ci->c_inf[0].base, retention_ctl);
+		reg = brcmf_sdiod_regrl(bus->sdiodev, addr, NULL);
+		return (reg & (PMU_RCTL_MACPHY_DISABLE_MASK |
+			       PMU_RCTL_LOGIC_DISABLE_MASK)) == 0;
+	}
 }
 
 static void brcmf_sdio_sr_init(struct brcmf_sdio *bus)
