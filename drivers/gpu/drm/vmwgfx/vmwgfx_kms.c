@@ -40,7 +40,7 @@ struct vmw_clip_rect {
  * Clip @num_rects number of @rects against @clip storing the
  * results in @out_rects and the number of passed rects in @out_num.
  */
-void vmw_clip_cliprects(struct drm_clip_rect *rects,
+static void vmw_clip_cliprects(struct drm_clip_rect *rects,
 			int num_rects,
 			struct vmw_clip_rect clip,
 			SVGASignedRect *out_rects,
@@ -423,7 +423,7 @@ struct vmw_framebuffer_surface {
 	struct drm_master *master;
 };
 
-void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
+static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 {
 	struct vmw_framebuffer_surface *vfbs =
 		vmw_framebuffer_to_vfbs(framebuffer);
@@ -589,7 +589,7 @@ out_free_tmp:
 	return ret;
 }
 
-int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
+static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 				  struct drm_file *file_priv,
 				  unsigned flags, unsigned color,
 				  struct drm_clip_rect *clips,
@@ -761,7 +761,7 @@ struct vmw_framebuffer_dmabuf {
 	struct vmw_dma_buffer *buffer;
 };
 
-void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
+static void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
 {
 	struct vmw_framebuffer_dmabuf *vfbd =
 		vmw_framebuffer_to_vfbd(framebuffer);
@@ -947,7 +947,7 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 	return ret;
 }
 
-int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
+static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 				 struct drm_file *file_priv,
 				 unsigned flags, unsigned color,
 				 struct drm_clip_rect *clips,
@@ -1677,7 +1677,7 @@ void vmw_disable_vblank(struct drm_device *dev, int crtc)
  * Small shared kms functions.
  */
 
-int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
+static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 			 struct drm_vmw_rect *rects)
 {
 	struct drm_device *dev = dev_priv->dev;
