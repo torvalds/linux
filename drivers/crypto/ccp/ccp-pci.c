@@ -267,6 +267,9 @@ static void ccp_pci_remove(struct pci_dev *pdev)
 	struct device *dev = &pdev->dev;
 	struct ccp_device *ccp = dev_get_drvdata(dev);
 
+	if (!ccp)
+		return;
+
 	ccp_destroy(ccp);
 
 	pci_iounmap(pdev, ccp->io_map);

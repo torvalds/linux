@@ -23,6 +23,9 @@
 struct ccp_device;
 struct ccp_cmd;
 
+#if defined(CONFIG_CRYPTO_DEV_CCP_DD) || \
+	defined(CONFIG_CRYPTO_DEV_CCP_DD_MODULE)
+
 /**
  * ccp_enqueue_cmd - queue an operation for processing by the CCP
  *
@@ -47,6 +50,15 @@ struct ccp_cmd;
  *   the return code is -EBUSY and CCP_CMD_MAY_BACKLOG flag is set
  */
 int ccp_enqueue_cmd(struct ccp_cmd *cmd);
+
+#else /* CONFIG_CRYPTO_DEV_CCP_DD is not enabled */
+
+static inline int ccp_enqueue_cmd(struct ccp_cmd *cmd)
+{
+	return -ENODEV;
+}
+
+#endif /* CONFIG_CRYPTO_DEV_CCP_DD */
 
 
 /***** AES engine *****/

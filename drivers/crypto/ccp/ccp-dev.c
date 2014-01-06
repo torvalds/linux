@@ -552,6 +552,7 @@ static const struct x86_cpu_id ccp_support[] = {
 static int __init ccp_mod_init(void)
 {
 	struct cpuinfo_x86 *cpuinfo = &boot_cpu_data;
+	int ret;
 
 	if (!x86_match_cpu(ccp_support))
 		return -ENODEV;
@@ -560,7 +561,19 @@ static int __init ccp_mod_init(void)
 	case 22:
 		if ((cpuinfo->x86_model < 48) || (cpuinfo->x86_model > 63))
 			return -ENODEV;
-		return ccp_pci_init();
+
+		ret = ccp_pci_init();
+		if (ret)
+			return ret;
+
+		/* Don't leave the driver loaded if init failed */
+		if (!ccp_get_device()) {
+			ccp_pci_exit();
+			return -ENODEV;
+		}
+
+		return 0;
+
 		break;
 	}
 
