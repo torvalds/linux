@@ -122,7 +122,6 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 			     unsigned int final)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ccp_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
 	struct scatterlist *sg;
 	unsigned int block_size =
@@ -153,34 +152,31 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 	/* Initialize the context scatterlist */
 	sg_init_one(&rctx->ctx_sg, rctx->ctx, sizeof(rctx->ctx));
 
-	/* Build the data scatterlist table - allocate enough entries for all
-	 * possible data pieces (hmac ipad, buffer, input data)
-	 */
-	sg_count = (nbytes) ? sg_nents(req->src) + 2 : 2;
-	gfp = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
-		GFP_KERNEL : GFP_ATOMIC;
-	ret = sg_alloc_table(&rctx->data_sg, sg_count, gfp);
-	if (ret)
-		return ret;
-
 	sg = NULL;
-	if (rctx->first && ctx->u.sha.key_len) {
-		rctx->hash_cnt += block_size;
+	if (rctx->buf_count && nbytes) {
+		/* Build the data scatterlist table - allocate enough entries
+		 * for both data pieces (buffer and input data)
+		 */
+		gfp = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
+			GFP_KERNEL : GFP_ATOMIC;
+		sg_count = sg_nents(req->src) + 1;
+		ret = sg_alloc_table(&rctx->data_sg, sg_count, gfp);
+		if (ret)
+			return ret;
 
-		sg_init_one(&rctx->pad_sg, ctx->u.sha.ipad, block_size);
-		sg = ccp_crypto_sg_table_add(&rctx->data_sg, &rctx->pad_sg);
-	}
-
-	if (rctx->buf_count) {
 		sg_init_one(&rctx->buf_sg, rctx->buf, rctx->buf_count);
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, &rctx->buf_sg);
-	}
-
-	if (nbytes)
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, req->src);
-
-	if (sg)
 		sg_mark_end(sg);
+
+		sg = rctx->data_sg.sgl;
+	} else if (rctx->buf_count) {
+		sg_init_one(&rctx->buf_sg, rctx->buf, rctx->buf_count);
+
+		sg = &rctx->buf_sg;
+	} else if (nbytes) {
+		sg = req->src;
+	}
 
 	rctx->msg_bits += (rctx->hash_cnt << 3);	/* Total in bits */
 
@@ -190,7 +186,7 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 	rctx->cmd.u.sha.type = rctx->type;
 	rctx->cmd.u.sha.ctx = &rctx->ctx_sg;
 	rctx->cmd.u.sha.ctx_len = sizeof(rctx->ctx);
-	rctx->cmd.u.sha.src = (sg) ? rctx->data_sg.sgl : NULL;
+	rctx->cmd.u.sha.src = sg;
 	rctx->cmd.u.sha.src_len = rctx->hash_cnt;
 	rctx->cmd.u.sha.final = rctx->final;
 	rctx->cmd.u.sha.msg_bits = rctx->msg_bits;
@@ -205,15 +201,24 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 static int ccp_sha_init(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct ccp_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
 	struct ccp_crypto_ahash_alg *alg =
 		ccp_crypto_ahash_alg(crypto_ahash_tfm(tfm));
+	unsigned int block_size =
+		crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 
 	memset(rctx, 0, sizeof(*rctx));
 
 	memcpy(rctx->ctx, alg->init, sizeof(rctx->ctx));
 	rctx->type = alg->type;
 	rctx->first = 1;
+
+	if (ctx->u.sha.key_len) {
+		/* Buffer the HMAC key for first update */
+		memcpy(rctx->buf, ctx->u.sha.ipad, block_size);
+		rctx->buf_count = block_size;
+	}
 
 	return 0;
 }

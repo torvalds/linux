@@ -125,8 +125,10 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 		sg_init_one(&rctx->pad_sg, rctx->pad, pad_length);
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, &rctx->pad_sg);
 	}
-	if (sg)
+	if (sg) {
 		sg_mark_end(sg);
+		sg = rctx->data_sg.sgl;
+	}
 
 	/* Initialize the K1/K2 scatterlist */
 	if (final)
@@ -143,7 +145,7 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 	rctx->cmd.u.aes.key_len = ctx->u.aes.key_len;
 	rctx->cmd.u.aes.iv = &rctx->iv_sg;
 	rctx->cmd.u.aes.iv_len = AES_BLOCK_SIZE;
-	rctx->cmd.u.aes.src = (sg) ? rctx->data_sg.sgl : NULL;
+	rctx->cmd.u.aes.src = sg;
 	rctx->cmd.u.aes.src_len = rctx->hash_cnt;
 	rctx->cmd.u.aes.dst = NULL;
 	rctx->cmd.u.aes.cmac_key = cmac_key_sg;
