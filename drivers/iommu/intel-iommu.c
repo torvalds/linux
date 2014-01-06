@@ -2248,8 +2248,6 @@ static int __init si_domain_init(int hw)
 	if (!si_domain)
 		return -EFAULT;
 
-	pr_debug("Identity mapping domain is domain %d\n", si_domain->id);
-
 	for_each_active_iommu(iommu, drhd) {
 		ret = iommu_attach_domain(si_domain, iommu);
 		if (ret) {
@@ -2264,6 +2262,8 @@ static int __init si_domain_init(int hw)
 	}
 
 	si_domain->flags = DOMAIN_FLAG_STATIC_IDENTITY;
+	pr_debug("IOMMU: identity mapping domain is domain %d\n",
+		 si_domain->id);
 
 	if (hw)
 		return 0;
