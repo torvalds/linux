@@ -859,8 +859,6 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 		}
 		/* unregister will take care of freeing it */
 		unregister_netdev(ifp->ndev);
-		if (bssidx == 0)
-			brcmf_cfg80211_detach(drvr->config);
 	} else {
 		kfree(ifp);
 	}
@@ -963,8 +961,7 @@ int brcmf_bus_start(struct device *dev)
 fail:
 	if (ret < 0) {
 		brcmf_err("failed: %d\n", ret);
-		if (drvr->config)
-			brcmf_cfg80211_detach(drvr->config);
+		brcmf_cfg80211_detach(drvr->config);
 		if (drvr->fws) {
 			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
@@ -1038,6 +1035,8 @@ void brcmf_detach(struct device *dev)
 			brcmf_fws_del_interface(drvr->iflist[i]);
 			brcmf_del_if(drvr, i);
 		}
+
+	brcmf_cfg80211_detach(drvr->config);
 
 	brcmf_bus_detach(drvr);
 
