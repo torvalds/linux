@@ -663,9 +663,6 @@ static inline int gr_queue_int(struct gr_ep *ep, struct gr_request *req,
 static void gr_ep_nuke(struct gr_ep *ep)
 {
 	struct gr_request *req;
-	struct gr_udc *dev;
-
-	dev = ep->dev;
 
 	ep->stopped = 1;
 	ep->dma_start = 0;
