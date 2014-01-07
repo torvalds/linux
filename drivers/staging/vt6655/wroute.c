@@ -63,7 +63,8 @@ static int msglevel = MSG_LEVEL_INFO;
  * Return Value: true if packet duplicate; otherwise false
  *
  */
-bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDataLen, unsigned int uNodeIndex)
+bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData,
+		 unsigned int uDataLen, unsigned int uNodeIndex)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PSTxDesc        pHeadTD, pLastTD;
@@ -78,7 +79,8 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 	unsigned char *pbyBSSID;
 
 	if (AVAIL_TD(pDevice, TYPE_AC0DMA) <= 0) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Relay can't allocate TD1..\n");
+		DBG_PRT(MSG_LEVEL_DEBUG,
+			KERN_INFO "Relay can't allocate TD1..\n");
 		return false;
 	}
 
@@ -98,9 +100,12 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 
 		// get group key
 		pbyBSSID = pDevice->abyBroadcastAddr;
-		if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
+		if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID,
+		    GROUP_KEY, &pTransmitKey) == false) {
 			pTransmitKey = NULL;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG "KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
+			DBG_PRT(MSG_LEVEL_DEBUG,
+				KERN_DEBUG "KEY is NULL. [%d]\n",
+				pDevice->pMgmt->eCurrMode);
 		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG "Get GTK.\n");
 		}
@@ -116,12 +121,12 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 			pTransmitKey->wTSC15_0 = pMgmt->sNodeDBTable[uNodeIndex].wTSC15_0;
 			memcpy(pTransmitKey->abyKey,
 			       &pMgmt->sNodeDBTable[uNodeIndex].abyWepKey[0],
-			       pTransmitKey->uKeyLength
-);
+			       pTransmitKey->uKeyLength);
 		}
 	}
 
-	uMACfragNum = cbGetFragCount(pDevice, pTransmitKey, cbFrameBodySize, &pDevice->sTxEthHeader);
+	uMACfragNum = cbGetFragCount(pDevice, pTransmitKey,
+				     cbFrameBodySize, &pDevice->sTxEthHeader);
 
 	if (uMACfragNum > AVAIL_TD(pDevice, TYPE_AC0DMA))
 		return false;
@@ -152,12 +157,11 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 	if (pDevice->wCurrentRate <= RATE_11M)
 		byPktType = PK_TYPE_11B;
 
-	vGenerateFIFOHeader(pDevice, byPktType, pDevice->pbyTmpBuff, bNeedEncryption,
-			    cbFrameBodySize, TYPE_AC0DMA, pHeadTD,
-			    &pDevice->sTxEthHeader, pbySkbData, pTransmitKey, uNodeIndex,
-			    &uMACfragNum,
-			    &cbHeaderSize
-);
+	vGenerateFIFOHeader(pDevice, byPktType, pDevice->pbyTmpBuff,
+			    bNeedEncryption, cbFrameBodySize, TYPE_AC0DMA,
+			    pHeadTD, &pDevice->sTxEthHeader, pbySkbData,
+			    pTransmitKey, uNodeIndex, &uMACfragNum,
+			    &cbHeaderSize);
 
 	if (MACbIsRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PS)) {
 		// Disable PS
