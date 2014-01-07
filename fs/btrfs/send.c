@@ -4753,6 +4753,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	u64 *clone_sources_tmp = NULL;
 	int clone_sources_to_rollback = 0;
 	int sort_clone_roots = 0;
+	int index;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -4893,8 +4894,12 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			key.objectid = clone_sources_tmp[i];
 			key.type = BTRFS_ROOT_ITEM_KEY;
 			key.offset = (u64)-1;
+
+			index = srcu_read_lock(&fs_info->subvol_srcu);
+
 			clone_root = btrfs_read_fs_root_no_name(fs_info, &key);
 			if (IS_ERR(clone_root)) {
+				srcu_read_unlock(&fs_info->subvol_srcu, index);
 				ret = PTR_ERR(clone_root);
 				goto out;
 			}
@@ -4903,10 +4908,13 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			clone_root->send_in_progress++;
 			if (!btrfs_root_readonly(clone_root)) {
 				spin_unlock(&clone_root->root_item_lock);
+				srcu_read_unlock(&fs_info->subvol_srcu, index);
 				ret = -EPERM;
 				goto out;
 			}
 			spin_unlock(&clone_root->root_item_lock);
+			srcu_read_unlock(&fs_info->subvol_srcu, index);
+
 			sctx->clone_roots[i].root = clone_root;
 		}
 		vfree(clone_sources_tmp);
@@ -4917,19 +4925,27 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		key.objectid = arg->parent_root;
 		key.type = BTRFS_ROOT_ITEM_KEY;
 		key.offset = (u64)-1;
+
+		index = srcu_read_lock(&fs_info->subvol_srcu);
+
 		sctx->parent_root = btrfs_read_fs_root_no_name(fs_info, &key);
 		if (IS_ERR(sctx->parent_root)) {
+			srcu_read_unlock(&fs_info->subvol_srcu, index);
 			ret = PTR_ERR(sctx->parent_root);
 			goto out;
 		}
+
 		spin_lock(&sctx->parent_root->root_item_lock);
 		sctx->parent_root->send_in_progress++;
 		if (!btrfs_root_readonly(sctx->parent_root)) {
 			spin_unlock(&sctx->parent_root->root_item_lock);
+			srcu_read_unlock(&fs_info->subvol_srcu, index);
 			ret = -EPERM;
 			goto out;
 		}
 		spin_unlock(&sctx->parent_root->root_item_lock);
+
+		srcu_read_unlock(&fs_info->subvol_srcu, index);
 	}
 
 	/*

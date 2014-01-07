@@ -1972,6 +1972,19 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	}
 	root = list_first_entry(&fs_info->dead_roots,
 			struct btrfs_root, root_list);
+	/*
+	 * Make sure root is not involved in send,
+	 * if we fail with first root, we return
+	 * directly rather than continue.
+	 */
+	spin_lock(&root->root_item_lock);
+	if (root->send_in_progress) {
+		spin_unlock(&fs_info->trans_lock);
+		spin_unlock(&root->root_item_lock);
+		return 0;
+	}
+	spin_unlock(&root->root_item_lock);
+
 	list_del_init(&root->root_list);
 	spin_unlock(&fs_info->trans_lock);
 
