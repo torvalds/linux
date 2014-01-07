@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <linux/i2c/tps65010.h>
 
