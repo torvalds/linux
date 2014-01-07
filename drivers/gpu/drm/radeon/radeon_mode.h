@@ -624,6 +624,26 @@ struct atom_voltage_table
 	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
 };
 
+
+extern void
+radeon_add_atom_connector(struct drm_device *dev,
+			  uint32_t connector_id,
+			  uint32_t supported_device,
+			  int connector_type,
+			  struct radeon_i2c_bus_rec *i2c_bus,
+			  uint32_t igp_lane_info,
+			  uint16_t connector_object_id,
+			  struct radeon_hpd *hpd,
+			  struct radeon_router *router);
+extern void
+radeon_add_legacy_connector(struct drm_device *dev,
+			    uint32_t connector_id,
+			    uint32_t supported_device,
+			    int connector_type,
+			    struct radeon_i2c_bus_rec *i2c_bus,
+			    uint16_t connector_object_id,
+			    struct radeon_hpd *hpd);
+
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std

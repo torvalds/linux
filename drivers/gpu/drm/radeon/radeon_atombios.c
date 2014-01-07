@@ -39,18 +39,6 @@ extern void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
 			uint32_t supported_device, u16 caps);
 
-/* from radeon_connector.c */
-extern void
-radeon_add_atom_connector(struct drm_device *dev,
-			  uint32_t connector_id,
-			  uint32_t supported_device,
-			  int connector_type,
-			  struct radeon_i2c_bus_rec *i2c_bus,
-			  uint32_t igp_lane_info,
-			  uint16_t connector_object_id,
-			  struct radeon_hpd *hpd,
-			  struct radeon_router *router);
-
 /* from radeon_legacy_encoder.c */
 extern void
 radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum,
