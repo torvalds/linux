@@ -2839,6 +2839,7 @@ void em28xx_release_resources(struct em28xx *dev)
 	/* Mark device as unused */
 	clear_bit(dev->devno, &em28xx_devused);
 };
+EXPORT_SYMBOL_GPL(em28xx_release_resources);
 
 /*
  * em28xx_init_dev()
