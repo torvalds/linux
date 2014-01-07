@@ -56,15 +56,15 @@
 #define BM_CLPCR_MASK_L2CC_IDLE		(0x1 << 27)
 
 #define CGPR				0x64
-#define BM_CGPR_CHICKEN_BIT		(0x1 << 17)
+#define BM_CGPR_INT_MEM_CLK_LPM		(0x1 << 17)
 
 static void __iomem *ccm_base;
 
-void imx6q_set_chicken_bit(void)
+void imx6q_set_int_mem_clk_lpm(void)
 {
 	u32 val = readl_relaxed(ccm_base + CGPR);
 
-	val |= BM_CGPR_CHICKEN_BIT;
+	val |= BM_CGPR_INT_MEM_CLK_LPM;
 	writel_relaxed(val, ccm_base + CGPR);
 }
 
