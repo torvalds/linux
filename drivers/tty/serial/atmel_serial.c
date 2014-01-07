@@ -1677,6 +1677,12 @@ static void atmel_shutdown(struct uart_port *port)
 		atmel_port->release_tx(port);
 
 	/*
+	 * Reset ring buffer pointers
+	 */
+	atmel_port->rx_ring.head = 0;
+	atmel_port->rx_ring.tail = 0;
+
+	/*
 	 * Free the interrupt
 	 */
 	free_irq(port->irq, port);
