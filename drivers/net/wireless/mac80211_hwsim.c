@@ -2243,6 +2243,22 @@ out:
 static int hwsim_register_received_nl(struct sk_buff *skb_2,
 				      struct genl_info *info)
 {
+	struct mac80211_hwsim_data *data;
+	int chans = 1;
+
+	spin_lock_bh(&hwsim_radio_lock);
+	list_for_each_entry(data, &hwsim_radios, list)
+		chans = max(chans, data->channels);
+	spin_unlock_bh(&hwsim_radio_lock);
+
+	/* In the future we should revise the userspace API and allow it
+	 * to set a flag that it does support multi-channel, then we can
+	 * let this pass conditionally on the flag.
+	 * For current userspace, prohibit it since it won't work right.
+	 */
+	if (chans > 1)
+		return -EOPNOTSUPP;
+
 	if (wmediumd_portid)
 		return -EBUSY;
 
@@ -2300,10 +2316,6 @@ static int hwsim_init_netlink(void)
 {
 	int rc;
 
-	/* userspace test API hasn't been adjusted for multi-channel */
-	if (channels > 1)
-		return 0;
-
 	printk(KERN_INFO "mac80211_hwsim: initializing netlink\n");
 
 	rc = genl_register_family_with_ops(&hwsim_genl_family, hwsim_ops);
@@ -2323,10 +2335,6 @@ failure:
 
 static void hwsim_exit_netlink(void)
 {
-	/* userspace test API hasn't been adjusted for multi-channel */
-	if (channels > 1)
-		return;
-
 	/* unregister the notifier */
 	netlink_unregister_notifier(&hwsim_netlink_notifier);
 	/* unregister the family */
