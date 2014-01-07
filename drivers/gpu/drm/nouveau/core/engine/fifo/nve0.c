@@ -402,8 +402,36 @@ static const struct nouveau_enum nve0_fifo_fault_gpcclient[] = {
 };
 
 static const struct nouveau_bitfield nve0_fifo_pbdma_intr[] = {
-	{ 0x00200000, "ILLEGAL_MTHD" },
-	{ 0x00800000, "EMPTY_SUBC" },
+	{ 0x00000001, "MEMREQ" },
+	{ 0x00000002, "MEMACK_TIMEOUT" },
+	{ 0x00000004, "MEMACK_EXTRA" },
+	{ 0x00000008, "MEMDAT_TIMEOUT" },
+	{ 0x00000010, "MEMDAT_EXTRA" },
+	{ 0x00000020, "MEMFLUSH" },
+	{ 0x00000040, "MEMOP" },
+	{ 0x00000080, "LBCONNECT" },
+	{ 0x00000100, "LBREQ" },
+	{ 0x00000200, "LBACK_TIMEOUT" },
+	{ 0x00000400, "LBACK_EXTRA" },
+	{ 0x00000800, "LBDAT_TIMEOUT" },
+	{ 0x00001000, "LBDAT_EXTRA" },
+	{ 0x00002000, "GPFIFO" },
+	{ 0x00004000, "GPPTR" },
+	{ 0x00008000, "GPENTRY" },
+	{ 0x00010000, "GPCRC" },
+	{ 0x00020000, "PBPTR" },
+	{ 0x00040000, "PBENTRY" },
+	{ 0x00080000, "PBCRC" },
+	{ 0x00100000, "XBARCONNECT" },
+	{ 0x00200000, "METHOD" },
+	{ 0x00400000, "METHODCRC" },
+	{ 0x00800000, "DEVICE" },
+	{ 0x02000000, "SEMAPHORE" },
+	{ 0x04000000, "ACQUIRE" },
+	{ 0x08000000, "PRI" },
+	{ 0x20000000, "NO_CTXSW_SEG" },
+	{ 0x40000000, "PBSEG" },
+	{ 0x80000000, "SIGNATURE" },
 	{}
 };
 
