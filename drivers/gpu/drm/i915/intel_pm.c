@@ -5574,73 +5574,27 @@ void intel_init_pm(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		intel_setup_wm_latency(dev);
 
-		if (IS_GEN5(dev)) {
-			if (dev_priv->wm.pri_latency[1] &&
-			    dev_priv->wm.spr_latency[1] &&
-			    dev_priv->wm.cur_latency[1]) {
-				dev_priv->display.update_wm = ilk_update_wm;
-				dev_priv->display.update_sprite_wm =
-					ilk_update_sprite_wm;
-			} else {
-				DRM_DEBUG_KMS("Failed to get proper latency. "
-					      "Disable CxSR\n");
-				dev_priv->display.update_wm = NULL;
-			}
+		if ((IS_GEN5(dev) && dev_priv->wm.pri_latency[1] &&
+		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
+		    (!IS_GEN5(dev) && dev_priv->wm.pri_latency[0] &&
+		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
+			dev_priv->display.update_wm = ilk_update_wm;
+			dev_priv->display.update_sprite_wm = ilk_update_sprite_wm;
+		} else {
+			DRM_DEBUG_KMS("Failed to read display plane latency. "
+				      "Disable CxSR\n");
+		}
+
+		if (IS_GEN5(dev))
 			dev_priv->display.init_clock_gating = ironlake_init_clock_gating;
-		} else if (IS_GEN6(dev)) {
-			if (dev_priv->wm.pri_latency[0] &&
-			    dev_priv->wm.spr_latency[0] &&
-			    dev_priv->wm.cur_latency[0]) {
-				dev_priv->display.update_wm = ilk_update_wm;
-				dev_priv->display.update_sprite_wm =
-					ilk_update_sprite_wm;
-			} else {
-				DRM_DEBUG_KMS("Failed to read display plane latency. "
-					      "Disable CxSR\n");
-				dev_priv->display.update_wm = NULL;
-			}
+		else if (IS_GEN6(dev))
 			dev_priv->display.init_clock_gating = gen6_init_clock_gating;
-		} else if (IS_IVYBRIDGE(dev)) {
-			if (dev_priv->wm.pri_latency[0] &&
-			    dev_priv->wm.spr_latency[0] &&
-			    dev_priv->wm.cur_latency[0]) {
-				dev_priv->display.update_wm = ilk_update_wm;
-				dev_priv->display.update_sprite_wm =
-					ilk_update_sprite_wm;
-			} else {
-				DRM_DEBUG_KMS("Failed to read display plane latency. "
-					      "Disable CxSR\n");
-				dev_priv->display.update_wm = NULL;
-			}
+		else if (IS_IVYBRIDGE(dev))
 			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
-		} else if (IS_HASWELL(dev)) {
-			if (dev_priv->wm.pri_latency[0] &&
-			    dev_priv->wm.spr_latency[0] &&
-			    dev_priv->wm.cur_latency[0]) {
-				dev_priv->display.update_wm = ilk_update_wm;
-				dev_priv->display.update_sprite_wm =
-					ilk_update_sprite_wm;
-			} else {
-				DRM_DEBUG_KMS("Failed to read display plane latency. "
-					      "Disable CxSR\n");
-				dev_priv->display.update_wm = NULL;
-			}
+		else if (IS_HASWELL(dev))
 			dev_priv->display.init_clock_gating = haswell_init_clock_gating;
-		} else if (INTEL_INFO(dev)->gen == 8) {
-			if (dev_priv->wm.pri_latency[0] &&
-			    dev_priv->wm.spr_latency[0] &&
-			    dev_priv->wm.cur_latency[0]) {
-				dev_priv->display.update_wm = ilk_update_wm;
-				dev_priv->display.update_sprite_wm =
-					ilk_update_sprite_wm;
-			} else {
-				DRM_DEBUG_KMS("Failed to read display plane latency. "
-					      "Disable CxSR\n");
-				dev_priv->display.update_wm = NULL;
-			}
+		else if (INTEL_INFO(dev)->gen == 8)
 			dev_priv->display.init_clock_gating = gen8_init_clock_gating;
-		} else
-			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.update_wm = valleyview_update_wm;
 		dev_priv->display.init_clock_gating =
