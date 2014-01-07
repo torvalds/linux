@@ -1037,6 +1037,7 @@ err_sclk:
 	return ret;
 }
 
+#ifdef CONFIG_PM_RUNTIME
 static int fimc_runtime_resume(struct device *dev)
 {
 	struct fimc_dev *fimc =	dev_get_drvdata(dev);
@@ -1069,6 +1070,7 @@ static int fimc_runtime_suspend(struct device *dev)
 	dbg("fimc%d: state: 0x%lx", fimc->id, fimc->state);
 	return ret;
 }
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int fimc_resume(struct device *dev)
