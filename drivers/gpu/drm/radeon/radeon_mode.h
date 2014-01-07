@@ -643,6 +643,10 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			    struct radeon_i2c_bus_rec *i2c_bus,
 			    uint16_t connector_object_id,
 			    struct radeon_hpd *hpd);
+extern uint32_t
+radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
+			uint8_t dac);
+extern void radeon_link_encoder_connector(struct drm_device *dev);
 
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);

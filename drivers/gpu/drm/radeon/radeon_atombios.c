@@ -30,11 +30,6 @@
 #include "atom.h"
 #include "atom-bits.h"
 
-/* from radeon_encoder.c */
-extern uint32_t
-radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
-			uint8_t dac);
-extern void radeon_link_encoder_connector(struct drm_device *dev);
 extern void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
 			uint32_t supported_device, u16 caps);
