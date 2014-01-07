@@ -912,16 +912,24 @@ iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd)
 {}
 #endif
+int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif,
+				   bool enable, u32 flags);
 int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif);
+				 struct ieee80211_vif *vif,
+				 u32 flags);
 int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif);
+				  struct ieee80211_vif *vif,
+				  u32 flags);
 int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
-				   struct iwl_beacon_filter_cmd *cmd);
+				   struct iwl_beacon_filter_cmd *cmd,
+				   u32 flags);
 int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif, bool enable);
 int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif);
+				 struct ieee80211_vif *vif,
+				 bool force,
+				 u32 flags);
 
 /* SMPS */
 void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

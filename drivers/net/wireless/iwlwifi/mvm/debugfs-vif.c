@@ -457,9 +457,9 @@ static ssize_t iwl_dbgfs_bf_params_write(struct ieee80211_vif *vif, char *buf,
 	mutex_lock(&mvm->mutex);
 	iwl_dbgfs_update_bf(vif, param, value);
 	if (param == MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER && !value)
-		ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+		ret = iwl_mvm_disable_beacon_filter(mvm, vif, CMD_SYNC);
 	else
-		ret = iwl_mvm_enable_beacon_filter(mvm, vif);
+		ret = iwl_mvm_enable_beacon_filter(mvm, vif, CMD_SYNC);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;

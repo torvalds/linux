@@ -677,7 +677,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_power_disable(mvm, vif);
 
 	/* beacon filtering */
-	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+	ret = iwl_mvm_disable_beacon_filter(mvm, vif, CMD_SYNC);
 	if (ret)
 		goto out_remove_mac;
 
@@ -1213,7 +1213,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_MAC80211(mvm, "cqm info_changed");
 		/* reset cqm events tracking */
 		mvmvif->bf_data.last_cqm_event = 0;
-		ret = iwl_mvm_update_beacon_filter(mvm, vif);
+		ret = iwl_mvm_update_beacon_filter(mvm, vif, false, CMD_SYNC);
 		if (ret)
 			IWL_ERR(mvm, "failed to update CQM thresholds\n");
 	}
@@ -1561,12 +1561,12 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		/* enable beacon filtering */
-		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif));
+		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, CMD_SYNC));
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		/* disable beacon filtering */
-		WARN_ON(iwl_mvm_disable_beacon_filter(mvm, vif));
+		WARN_ON(iwl_mvm_disable_beacon_filter(mvm, vif, CMD_SYNC));
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTH) {
@@ -2149,8 +2149,9 @@ static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
 			return -EINVAL;
 
 		if (nla_get_u32(tb[IWL_MVM_TM_ATTR_BEACON_FILTER_STATE]))
-			return iwl_mvm_enable_beacon_filter(mvm, vif);
-		return iwl_mvm_disable_beacon_filter(mvm, vif);
+			return iwl_mvm_enable_beacon_filter(mvm, vif,
+							    CMD_SYNC);
+		return iwl_mvm_disable_beacon_filter(mvm, vif, CMD_SYNC);
 	}
 
 	return -EOPNOTSUPP;
