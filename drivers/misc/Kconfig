@@ -507,6 +507,16 @@ config USB_SWITCH_FSA9480
 	  stereo and mono audio, video, microphone and UART data to use
 	  a common connector port.
 
+config SI570
+	tristate "Silicon Labs Si570 Clock Generator"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Silicon Labs Si570
+	  digital clock generator.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called si570
+
 config LATTICE_ECP3_CONFIG
 	tristate "Lattice ECP3 FPGA bitstream configuration via SPI"
 	depends on SPI && SYSFS
