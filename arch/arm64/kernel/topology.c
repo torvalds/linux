@@ -143,7 +143,7 @@ static void __init parse_core(struct device_node *core, int core_id)
 	}
 }
 
-static void __init parse_cluster(struct device_node *cluster)
+static void __init parse_cluster(struct device_node *cluster, int depth)
 {
 	char name[10];
 	bool leaf = true;
@@ -162,7 +162,7 @@ static void __init parse_cluster(struct device_node *cluster)
 		snprintf(name, sizeof(name), "cluster%d", i);
 		c = of_get_child_by_name(cluster, name);
 		if (c) {
-			parse_cluster(c);
+			parse_cluster(c, depth + 1);
 			leaf = false;
 		}
 		i++;
@@ -175,6 +175,10 @@ static void __init parse_cluster(struct device_node *cluster)
 		c = of_get_child_by_name(cluster, name);
 		if (c) {
 			has_cores = true;
+
+			if (depth == 0)
+				pr_err("%s: cpu-map children should be clusters\n",
+				       c->full_name);
 
 			if (leaf)
 				parse_core(c, core_id++);
@@ -225,7 +229,7 @@ static void __init parse_dt_topology(void)
 	cn = of_find_node_by_name(cn, "cpu-map");
 	if (!cn)
 		return;
-	parse_cluster(cn);
+	parse_cluster(cn, 0);
 
 	for_each_possible_cpu(cpu) {
 		const u32 *rate;
