@@ -5627,6 +5627,17 @@ void intel_init_pm(struct drm_device *dev)
 			}
 			dev_priv->display.init_clock_gating = haswell_init_clock_gating;
 		} else if (INTEL_INFO(dev)->gen == 8) {
+			if (dev_priv->wm.pri_latency[0] &&
+			    dev_priv->wm.spr_latency[0] &&
+			    dev_priv->wm.cur_latency[0]) {
+				dev_priv->display.update_wm = ilk_update_wm;
+				dev_priv->display.update_sprite_wm =
+					ilk_update_sprite_wm;
+			} else {
+				DRM_DEBUG_KMS("Failed to read display plane latency. "
+					      "Disable CxSR\n");
+				dev_priv->display.update_wm = NULL;
+			}
 			dev_priv->display.init_clock_gating = gen8_init_clock_gating;
 		} else
 			dev_priv->display.update_wm = NULL;
