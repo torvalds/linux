@@ -214,9 +214,9 @@ static void genwqe_remove_mappings(struct genwqe_file *cfile)
 		 */
 		dev_err(&pci_dev->dev,
 			"[%s] %d. cleanup mapping: u_vaddr=%p "
-			"u_kaddr=%016lx dma_addr=%llx\n", __func__, i++,
+			"u_kaddr=%016lx dma_addr=%lx\n", __func__, i++,
 			dma_map->u_vaddr, (unsigned long)dma_map->k_vaddr,
-			dma_map->dma_addr);
+			(unsigned long)dma_map->dma_addr);
 
 		if (dma_map->type == GENWQE_MAPPING_RAW) {
 			/* we allocated this dynamically */
@@ -507,7 +507,8 @@ static int do_flash_update(struct genwqe_file *cfile,
 {
 	int rc = 0;
 	int blocks_to_flash;
-	u64 dma_addr, flash = 0;
+	dma_addr_t dma_addr;
+	u64 flash = 0;
 	size_t tocopy = 0;
 	u8 __user *buf;
 	u8 *xbuf;
@@ -558,8 +559,9 @@ static int do_flash_update(struct genwqe_file *cfile,
 		crc = genwqe_crc32(xbuf, tocopy, 0xffffffff);
 
 		dev_dbg(&pci_dev->dev,
-			"[%s] DMA: 0x%llx CRC: %08x SZ: %ld %d\n",
-			__func__, dma_addr, crc, tocopy, blocks_to_flash);
+			"[%s] DMA: %lx CRC: %08x SZ: %ld %d\n",
+			__func__, (unsigned long)dma_addr, crc, tocopy,
+			blocks_to_flash);
 
 		/* prepare DDCB for SLU process */
 		req = ddcb_requ_alloc();
@@ -638,7 +640,8 @@ static int do_flash_read(struct genwqe_file *cfile,
 			 struct genwqe_bitstream *load)
 {
 	int rc, blocks_to_flash;
-	u64 dma_addr, flash = 0;
+	dma_addr_t dma_addr;
+	u64 flash = 0;
 	size_t tocopy = 0;
 	u8 __user *buf;
 	u8 *xbuf;
@@ -680,8 +683,9 @@ static int do_flash_read(struct genwqe_file *cfile,
 		tocopy = min_t(size_t, load->size, FLASH_BLOCK);
 
 		dev_dbg(&pci_dev->dev,
-			"[%s] DMA: 0x%llx SZ: %ld %d\n",
-			__func__, dma_addr, tocopy, blocks_to_flash);
+			"[%s] DMA: %lx SZ: %ld %d\n",
+			__func__, (unsigned long)dma_addr, tocopy,
+			blocks_to_flash);
 
 		/* prepare DDCB for SLU process */
 		cmd = ddcb_requ_alloc();
@@ -864,7 +868,8 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 	for (i = 0, asiv_offs = 0x00; asiv_offs <= 0x58;
 	     i++, asiv_offs += 0x08) {
 
-		u64 u_addr, d_addr;
+		u64 u_addr;
+		dma_addr_t d_addr;
 		u32 u_size = 0;
 		u64 ats_flags;
 
