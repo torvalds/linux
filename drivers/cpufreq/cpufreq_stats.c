@@ -294,11 +294,8 @@ static int cpufreq_stat_notifier_policy(struct notifier_block *nb,
 	if (val == CPUFREQ_CREATE_POLICY)
 		ret = cpufreq_stats_create_table(policy, table);
 	else if (val == CPUFREQ_REMOVE_POLICY) {
-		/* This might already be freed by cpu hotplug notifier */
-		if (per_cpu(cpufreq_stats_table, cpu)) {
-			cpufreq_stats_free_sysfs(cpu);
-			cpufreq_stats_free_table(cpu);
-		}
+		cpufreq_stats_free_sysfs(cpu);
+		cpufreq_stats_free_table(cpu);
 	}
 
 	return ret;
@@ -340,33 +337,6 @@ static int cpufreq_stat_notifier_trans(struct notifier_block *nb,
 	return 0;
 }
 
-static int cpufreq_stat_cpu_callback(struct notifier_block *nfb,
-					       unsigned long action,
-					       void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	/* Don't free/allocate stats during suspend/resume */
-	if (action & CPU_TASKS_FROZEN)
-		return 0;
-
-	switch (action) {
-	case CPU_DOWN_PREPARE:
-		cpufreq_stats_free_sysfs(cpu);
-		break;
-	case CPU_DEAD:
-		cpufreq_stats_free_table(cpu);
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-/* priority=1 so this will get called before cpufreq_remove_dev */
-static struct notifier_block cpufreq_stat_cpu_notifier __refdata = {
-	.notifier_call = cpufreq_stat_cpu_callback,
-	.priority = 1,
-};
-
 static struct notifier_block notifier_policy_block = {
 	.notifier_call = cpufreq_stat_notifier_policy
 };
@@ -386,14 +356,11 @@ static int __init cpufreq_stats_init(void)
 	if (ret)
 		return ret;
 
-	register_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
-
 	ret = cpufreq_register_notifier(&notifier_trans_block,
 				CPUFREQ_TRANSITION_NOTIFIER);
 	if (ret) {
 		cpufreq_unregister_notifier(&notifier_policy_block,
 				CPUFREQ_POLICY_NOTIFIER);
-		unregister_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
 		for_each_online_cpu(cpu)
 			cpufreq_stats_free_table(cpu);
 		return ret;
@@ -409,7 +376,6 @@ static void __exit cpufreq_stats_exit(void)
 			CPUFREQ_POLICY_NOTIFIER);
 	cpufreq_unregister_notifier(&notifier_trans_block,
 			CPUFREQ_TRANSITION_NOTIFIER);
-	unregister_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
 	for_each_online_cpu(cpu) {
 		cpufreq_stats_free_table(cpu);
 		cpufreq_stats_free_sysfs(cpu);
