@@ -1246,15 +1246,16 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 		break;
 	case V4L2_MEMORY_USERPTR:
 		/*
-		 * In case of user pointer buffers vb2 allocators need to get direct
-		 * access to userspace pages. This requires getting the mmap semaphore
-		 * for read access in the current process structure. The same semaphore
-		 * is taken before calling mmap operation, while both qbuf/prepare_buf
-		 * and mmap are called by the driver or v4l2 core with the driver's lock
-		 * held. To avoid an AB-BA deadlock (mmap_sem then driver's lock in mmap
-		 * and driver's lock then mmap_sem in qbuf/prepare_buf) the videobuf2
-		 * core releases the driver's lock, takes mmap_sem and then takes the
-		 * driver's lock again.
+		 * In case of user pointer buffers vb2 allocators need to get
+		 * direct access to userspace pages. This requires getting
+		 * the mmap semaphore for read access in the current process
+		 * structure. The same semaphore is taken before calling mmap
+		 * operation, while both qbuf/prepare_buf and mmap are called
+		 * by the driver or v4l2 core with the driver's lock held.
+		 * To avoid an AB-BA deadlock (mmap_sem then driver's lock in
+		 * mmap and driver's lock then mmap_sem in qbuf/prepare_buf),
+		 * the videobuf2 core releases the driver's lock, takes
+		 * mmap_sem and then takes the driver's lock again.
 		 */
 		mmap_sem = &current->mm->mmap_sem;
 		call_qop(q, wait_prepare, q);
