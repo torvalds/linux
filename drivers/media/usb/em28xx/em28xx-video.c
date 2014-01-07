@@ -1147,7 +1147,7 @@ static int em28xx_s_ctrl(struct v4l2_ctrl *ctrl)
 	return (ret < 0) ? ret : 0;
 }
 
-const struct v4l2_ctrl_ops em28xx_ctrl_ops = {
+static const struct v4l2_ctrl_ops em28xx_ctrl_ops = {
 	.s_ctrl = em28xx_s_ctrl,
 };
 
