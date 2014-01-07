@@ -118,7 +118,6 @@ extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
 #include <linux/percpu.h>
-#include <linux/init.h>
 #include <linux/atomic.h>
 
 extern int mce_p5_enabled;
