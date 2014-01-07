@@ -58,6 +58,7 @@
 #include "inode-map.h"
 #include "backref.h"
 #include "hash.h"
+#include "props.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -3265,7 +3266,8 @@ out:
  * slot is the slot the inode is in, objectid is the objectid of the inode
  */
 static noinline int acls_after_inode_item(struct extent_buffer *leaf,
-					  int slot, u64 objectid)
+					  int slot, u64 objectid,
+					  int *first_xattr_slot)
 {
 	u32 nritems = btrfs_header_nritems(leaf);
 	struct btrfs_key found_key;
@@ -3281,6 +3283,7 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 	}
 
 	slot++;
+	*first_xattr_slot = -1;
 	while (slot < nritems) {
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
@@ -3290,6 +3293,8 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 
 		/* we found an xattr, assume we've got an acl */
 		if (found_key.type == BTRFS_XATTR_ITEM_KEY) {
+			if (*first_xattr_slot == -1)
+				*first_xattr_slot = slot;
 			if (found_key.offset == xattr_access ||
 			    found_key.offset == xattr_default)
 				return 1;
@@ -3318,6 +3323,8 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 	 * something larger than an xattr.  We have to assume the inode
 	 * has acls
 	 */
+	if (*first_xattr_slot == -1)
+		*first_xattr_slot = slot;
 	return 1;
 }
 
@@ -3337,6 +3344,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	u32 rdev;
 	int ret;
 	bool filled = false;
+	int first_xattr_slot;
 
 	ret = btrfs_fill_inode(inode, &rdev);
 	if (!ret)
@@ -3346,7 +3354,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	if (!path)
 		goto make_bad;
 
-	path->leave_spinning = 1;
 	memcpy(&location, &BTRFS_I(inode)->location, sizeof(location));
 
 	ret = btrfs_lookup_inode(NULL, root, path, &location, 0);
@@ -3429,11 +3436,20 @@ cache_acl:
 	 * any xattrs or acls
 	 */
 	maybe_acls = acls_after_inode_item(leaf, path->slots[0],
-					   btrfs_ino(inode));
+					   btrfs_ino(inode), &first_xattr_slot);
+	if (first_xattr_slot != -1) {
+		path->slots[0] = first_xattr_slot;
+		ret = btrfs_load_inode_props(inode, path);
+		if (ret)
+			btrfs_err(root->fs_info,
+				  "error loading props for ino %llu (root %llu): %d\n",
+				  btrfs_ino(inode),
+				  root->root_key.objectid, ret);
+	}
+	btrfs_free_path(path);
+
 	if (!maybe_acls)
 		cache_no_acl(inode);
-
-	btrfs_free_path(path);
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
@@ -5606,6 +5622,12 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_last_trans(trans, inode);
 
 	btrfs_update_root_times(trans, root);
+
+	ret = btrfs_inode_inherit_props(trans, inode, dir);
+	if (ret)
+		btrfs_err(root->fs_info,
+			  "error inheriting props for ino %llu (root %llu): %d",
+			  btrfs_ino(inode), root->root_key.objectid, ret);
 
 	return inode;
 fail:
@@ -7889,7 +7911,9 @@ out:
  * create a new subvolume directory/inode (helper for the ioctl).
  */
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *new_root, u64 new_dirid)
+			     struct btrfs_root *new_root,
+			     struct btrfs_root *parent_root,
+			     u64 new_dirid)
 {
 	struct inode *inode;
 	int err;
@@ -7906,6 +7930,12 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 
 	set_nlink(inode, 1);
 	btrfs_i_size_write(inode, 0);
+
+	err = btrfs_subvol_inherit_props(trans, new_root, parent_root);
+	if (err)
+		btrfs_err(new_root->fs_info,
+			  "error inheriting subvolume %llu properties: %d\n",
+			  new_root->root_key.objectid, err);
 
 	err = btrfs_update_inode(trans, new_root, inode);
 

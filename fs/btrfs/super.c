@@ -48,6 +48,7 @@
 #include "transaction.h"
 #include "btrfs_inode.h"
 #include "print-tree.h"
+#include "props.h"
 #include "xattr.h"
 #include "volumes.h"
 #include "export.h"
@@ -1864,6 +1865,8 @@ out:
 static int __init init_btrfs_fs(void)
 {
 	int err;
+
+	btrfs_props_init();
 
 	err = btrfs_init_sysfs();
 	if (err)
