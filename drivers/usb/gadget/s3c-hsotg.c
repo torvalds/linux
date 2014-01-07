@@ -31,7 +31,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
-#include <linux/usb/phy.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
