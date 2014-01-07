@@ -1385,6 +1385,8 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 				memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
 				set_ifa_lifetime(ifa, INFINITY_LIFE_TIME,
 						 INFINITY_LIFE_TIME);
+				ipv4_devconf_setall(in_dev);
+				neigh_parms_data_state_setall(in_dev->arp_parms);
 				inet_insert_ifa(ifa);
 			}
 		}
