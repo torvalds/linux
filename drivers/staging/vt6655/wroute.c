@@ -90,9 +90,8 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 
 	cbFrameBodySize = uDataLen - ETH_HLEN;
 
-	if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
+	if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN)
 		cbFrameBodySize += 8;
-	}
 
 	if (pDevice->bEncryptionEnable == true) {
 		bNeedEncryption = true;
@@ -124,18 +123,17 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 
 	uMACfragNum = cbGetFragCount(pDevice, pTransmitKey, cbFrameBodySize, &pDevice->sTxEthHeader);
 
-	if (uMACfragNum > AVAIL_TD(pDevice, TYPE_AC0DMA)) {
+	if (uMACfragNum > AVAIL_TD(pDevice, TYPE_AC0DMA))
 		return false;
-	}
+
 	byPktType = pDevice->byPacketType;
 
 	if (pDevice->bFixRate) {
 		if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
-			if (pDevice->uConnectionRate >= RATE_11M) {
+			if (pDevice->uConnectionRate >= RATE_11M)
 				pDevice->wCurrentRate = RATE_11M;
-			} else {
+			else
 				pDevice->wCurrentRate = pDevice->uConnectionRate;
-			}
 		} else {
 			if ((pDevice->eCurrentPHYType == PHY_TYPE_11A) &&
 			    (pDevice->uConnectionRate <= RATE_6M)) {
