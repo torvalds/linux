@@ -86,7 +86,7 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 
 	pHeadTD->m_td1TD1.byTCR = (TCR_EDP | TCR_STP);
 
-	memcpy(pDevice->sTxEthHeader.abyDstAddr, (unsigned char *)pbySkbData, ETH_HLEN);
+	memcpy(pDevice->sTxEthHeader.abyDstAddr, pbySkbData, ETH_HLEN);
 
 	cbFrameBodySize = uDataLen - ETH_HLEN;
 
@@ -127,14 +127,14 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 	if (uMACfragNum > AVAIL_TD(pDevice, TYPE_AC0DMA)) {
 		return false;
 	}
-	byPktType = (unsigned char)pDevice->byPacketType;
+	byPktType = pDevice->byPacketType;
 
 	if (pDevice->bFixRate) {
 		if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
 			if (pDevice->uConnectionRate >= RATE_11M) {
 				pDevice->wCurrentRate = RATE_11M;
 			} else {
-				pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
+				pDevice->wCurrentRate = pDevice->uConnectionRate;
 			}
 		} else {
 			if ((pDevice->eCurrentPHYType == PHY_TYPE_11A) &&
@@ -144,7 +144,7 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 				if (pDevice->uConnectionRate >= RATE_54M)
 					pDevice->wCurrentRate = RATE_54M;
 				else
-					pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
+					pDevice->wCurrentRate = pDevice->uConnectionRate;
 			}
 		}
 	} else {
