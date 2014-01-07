@@ -175,12 +175,12 @@ out:
 	return tgid;
 }
 
-static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
-					      union perf_event *event,
-					      pid_t pid, pid_t tgid,
-					      perf_event__handler_t process,
-					      struct machine *machine,
-					      bool mmap_data)
+int perf_event__synthesize_mmap_events(struct perf_tool *tool,
+				       union perf_event *event,
+				       pid_t pid, pid_t tgid,
+				       perf_event__handler_t process,
+				       struct machine *machine,
+				       bool mmap_data)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
