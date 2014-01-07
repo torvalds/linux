@@ -48,16 +48,13 @@ static int plat_nand_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
 	/* Allocate memory for the device structure (and zero it) */
 	data = devm_kzalloc(&pdev->dev, sizeof(struct plat_nand_data),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->io_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(data->io_base))
 		return PTR_ERR(data->io_base);
