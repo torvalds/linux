@@ -763,19 +763,18 @@ DEFINE_PARSE_ID_MODE(revision_id);
 struct hda_patch_item {
 	const char *tag;
 	void (*parser)(char *buf, struct hda_bus *bus, struct hda_codec **retc);
-	int need_codec;
 };
 
 static struct hda_patch_item patch_items[NUM_LINE_MODES] = {
-	[LINE_MODE_CODEC] = { "[codec]", parse_codec_mode, 0 },
-	[LINE_MODE_MODEL] = { "[model]", parse_model_mode, 1 },
-	[LINE_MODE_VERB] = { "[verb]", parse_verb_mode, 1 },
-	[LINE_MODE_PINCFG] = { "[pincfg]", parse_pincfg_mode, 1 },
-	[LINE_MODE_HINT] = { "[hint]", parse_hint_mode, 1 },
-	[LINE_MODE_VENDOR_ID] = { "[vendor_id]", parse_vendor_id_mode, 1 },
-	[LINE_MODE_SUBSYSTEM_ID] = { "[subsystem_id]", parse_subsystem_id_mode, 1 },
-	[LINE_MODE_REVISION_ID] = { "[revision_id]", parse_revision_id_mode, 1 },
-	[LINE_MODE_CHIP_NAME] = { "[chip_name]", parse_chip_name_mode, 1 },
+	[LINE_MODE_CODEC] = { "[codec]", parse_codec_mode },
+	[LINE_MODE_MODEL] = { "[model]", parse_model_mode },
+	[LINE_MODE_VERB] = { "[verb]", parse_verb_mode },
+	[LINE_MODE_PINCFG] = { "[pincfg]", parse_pincfg_mode },
+	[LINE_MODE_HINT] = { "[hint]", parse_hint_mode },
+	[LINE_MODE_VENDOR_ID] = { "[vendor_id]", parse_vendor_id_mode },
+	[LINE_MODE_SUBSYSTEM_ID] = { "[subsystem_id]", parse_subsystem_id_mode },
+	[LINE_MODE_REVISION_ID] = { "[revision_id]", parse_revision_id_mode },
+	[LINE_MODE_CHIP_NAME] = { "[chip_name]", parse_chip_name_mode },
 };
 
 /* check the line starting with '[' -- change the parser mode accodingly */
@@ -846,7 +845,7 @@ int snd_hda_load_patch(struct hda_bus *bus, size_t fw_size, const void *fw_buf)
 		if (*buf == '[')
 			line_mode = parse_line_mode(buf, bus);
 		else if (patch_items[line_mode].parser &&
-			 (codec || !patch_items[line_mode].need_codec))
+			 (codec || line_mode <= LINE_MODE_CODEC))
 			patch_items[line_mode].parser(buf, bus, &codec);
 	}
 	return 0;
