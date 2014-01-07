@@ -303,6 +303,7 @@ struct wl1251 {
 	u8 bss_type;
 	u8 listen_int;
 	int channel;
+	bool monitor_present;
 
 	void *target_mem_map;
 	struct acx_data_path_params_resp *data_path;

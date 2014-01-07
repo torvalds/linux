@@ -287,6 +287,9 @@ static int wl1251_tx_frame(struct wl1251 *wl, struct sk_buff *skb)
 	info = IEEE80211_SKB_CB(skb);
 
 	if (info->control.hw_key) {
+		if (unlikely(wl->monitor_present))
+			return -EINVAL;
+
 		idx = info->control.hw_key->hw_key_idx;
 		if (unlikely(wl->default_key != idx)) {
 			ret = wl1251_acx_default_key(wl, idx);

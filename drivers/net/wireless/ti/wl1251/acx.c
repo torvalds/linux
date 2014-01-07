@@ -194,7 +194,7 @@ out:
 	return ret;
 }
 
-int wl1251_acx_feature_cfg(struct wl1251 *wl)
+int wl1251_acx_feature_cfg(struct wl1251 *wl, u32 data_flow_options)
 {
 	struct acx_feature_config *feature;
 	int ret;
@@ -205,8 +205,8 @@ int wl1251_acx_feature_cfg(struct wl1251 *wl)
 	if (!feature)
 		return -ENOMEM;
 
-	/* DF_ENCRYPTION_DISABLE and DF_SNIFF_MODE_ENABLE are disabled */
-	feature->data_flow_options = 0;
+	/* DF_ENCRYPTION_DISABLE and DF_SNIFF_MODE_ENABLE can be set */
+	feature->data_flow_options = data_flow_options;
 	feature->options = 0;
 
 	ret = wl1251_cmd_configure(wl, ACX_FEATURE_CFG,

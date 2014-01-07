@@ -484,6 +484,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
 	wl->rssi_thold = 0;
 	wl->channel = WL1251_DEFAULT_CHANNEL;
+	wl->monitor_present = false;
 
 	wl1251_debugfs_reset(wl);
 
@@ -576,8 +577,10 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 	channel = ieee80211_frequency_to_channel(
 			conf->chandef.chan->center_freq);
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 config ch %d psm %s power %d",
+	wl1251_debug(DEBUG_MAC80211,
+		     "mac80211 config ch %d monitor %s psm %s power %d",
 		     channel,
+		     conf->flags & IEEE80211_CONF_MONITOR ? "on" : "off",
 		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
 		     conf->power_level);
 
@@ -586,6 +589,22 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 	ret = wl1251_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
+
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		u32 mode;
+
+		if (conf->flags & IEEE80211_CONF_MONITOR) {
+			wl->monitor_present = true;
+			mode = DF_SNIFF_MODE_ENABLE | DF_ENCRYPTION_DISABLE;
+		} else {
+			wl->monitor_present = false;
+			mode = 0;
+		}
+
+		ret = wl1251_acx_feature_cfg(wl, mode);
+		if (ret < 0)
+			goto out_sleep;
+	}
 
 	if (channel != wl->channel) {
 		wl->channel = channel;
@@ -803,12 +822,12 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mutex_lock(&wl->mutex);
 
-	ret = wl1251_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out_unlock;
-
 	switch (cmd) {
 	case SET_KEY:
+		if (wl->monitor_present) {
+			ret = -EOPNOTSUPP;
+			goto out_unlock;
+		}
 		wl_cmd->key_action = KEY_ADD_OR_REPLACE;
 		break;
 	case DISABLE_KEY:
@@ -818,6 +837,10 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		wl1251_error("Unsupported key cmd 0x%x", cmd);
 		break;
 	}
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out_unlock;
 
 	ret = wl1251_set_key_type(wl, wl_cmd, cmd, key, addr);
 	if (ret < 0) {
@@ -1415,6 +1438,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1251_elp_work);
 	wl->channel = WL1251_DEFAULT_CHANNEL;
+	wl->monitor_present = false;
 	wl->scanning = false;
 	wl->default_key = 0;
 	wl->listen_int = 1;
