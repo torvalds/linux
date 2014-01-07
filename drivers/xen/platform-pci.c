@@ -156,7 +156,8 @@ static int platform_pci_init(struct pci_dev *pdev,
 
 	max_nr_gframes = gnttab_max_grant_frames();
 	grant_frames = alloc_xen_mmio(PAGE_SIZE * max_nr_gframes);
-	if (gnttab_setup_auto_xlat_frames(grant_frames))
+	ret = gnttab_setup_auto_xlat_frames(grant_frames);
+	if (ret)
 		goto out;
 	ret = gnttab_init();
 	if (ret)
