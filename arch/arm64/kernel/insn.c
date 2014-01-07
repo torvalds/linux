@@ -16,6 +16,10 @@
  */
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/smp.h>
+#include <linux/stop_machine.h>
+#include <linux/uaccess.h>
+#include <asm/cacheflush.h>
 #include <asm/insn.h>
 
 static int aarch64_insn_encoding_class[] = {
@@ -60,6 +64,28 @@ bool __kprobes aarch64_insn_is_nop(u32 insn)
 	}
 }
 
+/*
+ * In ARMv8-A, A64 instructions have a fixed length of 32 bits and are always
+ * little-endian.
+ */
+int __kprobes aarch64_insn_read(void *addr, u32 *insnp)
+{
+	int ret;
+	u32 val;
+
+	ret = probe_kernel_read(&val, addr, AARCH64_INSN_SIZE);
+	if (!ret)
+		*insnp = le32_to_cpu(val);
+
+	return ret;
+}
+
+int __kprobes aarch64_insn_write(void *addr, u32 insn)
+{
+	insn = cpu_to_le32(insn);
+	return probe_kernel_write(addr, &insn, AARCH64_INSN_SIZE);
+}
+
 static bool __kprobes __aarch64_insn_hotpatch_safe(u32 insn)
 {
 	if (aarch64_get_insn_class(insn) != AARCH64_INSN_CLS_BR_SYS)
@@ -88,4 +114,97 @@ bool __kprobes aarch64_insn_hotpatch_safe(u32 old_insn, u32 new_insn)
 {
 	return __aarch64_insn_hotpatch_safe(old_insn) &&
 	       __aarch64_insn_hotpatch_safe(new_insn);
+}
+
+int __kprobes aarch64_insn_patch_text_nosync(void *addr, u32 insn)
+{
+	u32 *tp = addr;
+	int ret;
+
+	/* A64 instructions must be word aligned */
+	if ((uintptr_t)tp & 0x3)
+		return -EINVAL;
+
+	ret = aarch64_insn_write(tp, insn);
+	if (ret == 0)
+		flush_icache_range((uintptr_t)tp,
+				   (uintptr_t)tp + AARCH64_INSN_SIZE);
+
+	return ret;
+}
+
+struct aarch64_insn_patch {
+	void		**text_addrs;
+	u32		*new_insns;
+	int		insn_cnt;
+	atomic_t	cpu_count;
+};
+
+static int __kprobes aarch64_insn_patch_text_cb(void *arg)
+{
+	int i, ret = 0;
+	struct aarch64_insn_patch *pp = arg;
+
+	/* The first CPU becomes master */
+	if (atomic_inc_return(&pp->cpu_count) == 1) {
+		for (i = 0; ret == 0 && i < pp->insn_cnt; i++)
+			ret = aarch64_insn_patch_text_nosync(pp->text_addrs[i],
+							     pp->new_insns[i]);
+		/*
+		 * aarch64_insn_patch_text_nosync() calls flush_icache_range(),
+		 * which ends with "dsb; isb" pair guaranteeing global
+		 * visibility.
+		 */
+		atomic_set(&pp->cpu_count, -1);
+	} else {
+		while (atomic_read(&pp->cpu_count) != -1)
+			cpu_relax();
+		isb();
+	}
+
+	return ret;
+}
+
+int __kprobes aarch64_insn_patch_text_sync(void *addrs[], u32 insns[], int cnt)
+{
+	struct aarch64_insn_patch patch = {
+		.text_addrs = addrs,
+		.new_insns = insns,
+		.insn_cnt = cnt,
+		.cpu_count = ATOMIC_INIT(0),
+	};
+
+	if (cnt <= 0)
+		return -EINVAL;
+
+	return stop_machine(aarch64_insn_patch_text_cb, &patch,
+			    cpu_online_mask);
+}
+
+int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
+{
+	int ret;
+	u32 insn;
+
+	/* Unsafe to patch multiple instructions without synchronizaiton */
+	if (cnt == 1) {
+		ret = aarch64_insn_read(addrs[0], &insn);
+		if (ret)
+			return ret;
+
+		if (aarch64_insn_hotpatch_safe(insn, insns[0])) {
+			/*
+			 * ARMv8 architecture doesn't guarantee all CPUs see
+			 * the new instruction after returning from function
+			 * aarch64_insn_patch_text_nosync(). So send IPIs to
+			 * all other CPUs to achieve instruction
+			 * synchronization.
+			 */
+			ret = aarch64_insn_patch_text_nosync(addrs[0], insns[0]);
+			kick_all_cpus_sync();
+			return ret;
+		}
+	}
+
+	return aarch64_insn_patch_text_sync(addrs, insns, cnt);
 }
