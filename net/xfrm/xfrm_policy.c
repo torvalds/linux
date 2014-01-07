@@ -1641,20 +1641,20 @@ free_dst:
 	goto out;
 }
 
-static int inline
-xfrm_dst_alloc_copy(void **target, const void *src, int size)
+static int xfrm_dst_alloc_copy(void **target, const void *src, int size)
 {
 	if (!*target) {
 		*target = kmalloc(size, GFP_ATOMIC);
 		if (!*target)
 			return -ENOMEM;
 	}
+
 	memcpy(*target, src, size);
 	return 0;
 }
 
-static int inline
-xfrm_dst_update_parent(struct dst_entry *dst, const struct xfrm_selector *sel)
+static int xfrm_dst_update_parent(struct dst_entry *dst,
+				  const struct xfrm_selector *sel)
 {
 #ifdef CONFIG_XFRM_SUB_POLICY
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
@@ -1665,8 +1665,8 @@ xfrm_dst_update_parent(struct dst_entry *dst, const struct xfrm_selector *sel)
 #endif
 }
 
-static int inline
-xfrm_dst_update_origin(struct dst_entry *dst, const struct flowi *fl)
+static int xfrm_dst_update_origin(struct dst_entry *dst,
+				  const struct flowi *fl)
 {
 #ifdef CONFIG_XFRM_SUB_POLICY
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
