@@ -11447,9 +11447,9 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 		}
 	}
 
-	/* adjust igu_sb_cnt to MF for E1x */
-	if (CHIP_IS_E1x(bp) && IS_MF(bp))
-		bp->igu_sb_cnt /= E1HVN_MAX;
+	/* adjust igu_sb_cnt to MF for E1H */
+	if (CHIP_IS_E1H(bp) && IS_MF(bp))
+		bp->igu_sb_cnt = min_t(u8, bp->igu_sb_cnt, E1H_MAX_MF_SB_COUNT);
 
 	/* port info */
 	bnx2x_get_port_hwinfo(bp);

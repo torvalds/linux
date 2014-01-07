@@ -1684,12 +1684,6 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 		}
 	} while ((adapter->ahw->linkup && ahw->has_link_events) != 1);
 
-	/* Make sure carrier is off and queue is stopped during loopback */
-	if (netif_running(netdev)) {
-		netif_carrier_off(netdev);
-		netif_tx_stop_all_queues(netdev);
-	}
-
 	ret = qlcnic_do_lb_test(adapter, mode);
 
 	qlcnic_83xx_clear_lb_mode(adapter, mode);
@@ -2121,6 +2115,7 @@ static void qlcnic_83xx_handle_link_aen(struct qlcnic_adapter *adapter,
 	ahw->link_autoneg = MSB(MSW(data[3]));
 	ahw->module_type = MSB(LSW(data[3]));
 	ahw->has_link_events = 1;
+	ahw->lb_mode = data[4] & QLCNIC_LB_MODE_MASK;
 	qlcnic_advert_link_change(adapter, link_status);
 }
 

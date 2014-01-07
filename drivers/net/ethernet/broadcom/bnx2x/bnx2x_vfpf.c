@@ -1598,6 +1598,8 @@ static void bnx2x_vfop_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 
 		if (msg->flags & VFPF_SET_Q_FILTERS_RX_MASK_CHANGED) {
 			unsigned long accept = 0;
+			struct pf_vf_bulletin_content *bulletin =
+				BP_VF_BULLETIN(bp, vf->index);
 
 			/* covert VF-PF if mask to bnx2x accept flags */
 			if (msg->rx_mask & VFPF_RX_MASK_ACCEPT_MATCHED_UNICAST)
@@ -1617,9 +1619,11 @@ static void bnx2x_vfop_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 				__set_bit(BNX2X_ACCEPT_BROADCAST, &accept);
 
 			/* A packet arriving the vf's mac should be accepted
-			 * with any vlan
+			 * with any vlan, unless a vlan has already been
+			 * configured.
 			 */
-			__set_bit(BNX2X_ACCEPT_ANY_VLAN, &accept);
+			if (!(bulletin->valid_bitmap & (1 << VLAN_VALID)))
+				__set_bit(BNX2X_ACCEPT_ANY_VLAN, &accept);
 
 			/* set rx-mode */
 			rc = bnx2x_vfop_rxmode_cmd(bp, vf, &cmd,
@@ -1708,6 +1712,21 @@ static void bnx2x_vf_mbx_set_q_filters(struct bnx2x *bp,
 
 			vf->op_rc = -EPERM;
 			goto response;
+		}
+	}
+	/* if vlan was set by hypervisor we don't allow guest to config vlan */
+	if (bulletin->valid_bitmap & 1 << VLAN_VALID) {
+		int i;
+
+		/* search for vlan filters */
+		for (i = 0; i < filters->n_mac_vlan_filters; i++) {
+			if (filters->filters[i].flags &
+			    VFPF_Q_FILTER_VLAN_TAG_VALID) {
+				BNX2X_ERR("VF[%d] attempted to configure vlan but one was already set by Hypervisor. Aborting request\n",
+					  vf->abs_vfid);
+				vf->op_rc = -EPERM;
+				goto response;
+			}
 		}
 	}
 
@@ -1805,6 +1824,9 @@ static void bnx2x_vf_mbx_update_rss(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	vf_op_params->rss_result_mask = rss_tlv->rss_result_mask;
 
 	/* flags handled individually for backward/forward compatability */
+	vf_op_params->rss_flags = 0;
+	vf_op_params->ramrod_flags = 0;
+
 	if (rss_tlv->rss_flags & VFPF_RSS_MODE_DISABLED)
 		__set_bit(BNX2X_RSS_MODE_DISABLED, &vf_op_params->rss_flags);
 	if (rss_tlv->rss_flags & VFPF_RSS_MODE_REGULAR)

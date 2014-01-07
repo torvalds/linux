@@ -34,6 +34,7 @@
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
+#include <linux/vmalloc.h>
 
 #include <xen/events.h>
 #include <asm/xen/hypercall.h>
