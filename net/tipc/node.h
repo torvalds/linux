@@ -64,7 +64,6 @@
  * @working_links: number of working links to node (both active and standby)
  * @block_setup: bit mask of conditions preventing link establishment to node
  * @link_cnt: number of links to node
- * @permit_changeover: non-zero if node has redundant links to this system
  * @signature: node instance identifier
  * @bclink: broadcast-related info
  *    @acked: sequence # of last outbound b'cast message acknowledged by node
@@ -89,7 +88,6 @@ struct tipc_node {
 	int link_cnt;
 	int working_links;
 	int block_setup;
-	int permit_changeover;
 	u32 signature;
 	struct {
 		u32 acked;

@@ -162,7 +162,7 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 		pr_info("New link <%s> becomes standby\n", l_ptr->name);
 		return;
 	}
-	tipc_link_send_duplicate(active[0], l_ptr);
+	tipc_link_dup_send_queue(active[0], l_ptr);
 	if (l_ptr->priority == active[0]->priority) {
 		active[0] = l_ptr;
 		return;
@@ -225,7 +225,7 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	if (active[0] == l_ptr)
 		node_select_active_links(n_ptr);
 	if (tipc_node_is_up(n_ptr))
-		tipc_link_changeover(l_ptr);
+		tipc_link_failover_send_queue(l_ptr);
 	else
 		node_lost_contact(n_ptr);
 }
