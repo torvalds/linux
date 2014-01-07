@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/crc-itu-t.h>
 
+#include "card_base.h"
 #include "card_ddcb.h"
 
 /*

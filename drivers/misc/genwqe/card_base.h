@@ -36,6 +36,7 @@
 #include <linux/io.h>
 #include <linux/version.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include <linux/genwqe/genwqe_card.h>
 #include "genwqe_driver.h"
