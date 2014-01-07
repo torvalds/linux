@@ -481,7 +481,7 @@ endif # NO_DWARF
 endif # NO_LIBELF
 
 ifndef NO_LIBUNWIND
-  LIB_OBJS += $(OUTPUT)util/unwind.o
+  LIB_OBJS += $(OUTPUT)util/unwind-libunwind.o
 endif
 LIB_OBJS += $(OUTPUT)tests/keep-tracking.o
 
