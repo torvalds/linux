@@ -603,8 +603,12 @@ int comedi_auto_config(struct device *hardware_device,
 	}
 
 	dev = comedi_alloc_board_minor(hardware_device);
-	if (IS_ERR(dev))
+	if (IS_ERR(dev)) {
+		dev_warn(hardware_device,
+			 "driver '%s' could not create device.\n",
+			 driver->driver_name);
 		return PTR_ERR(dev);
+	}
 	/* Note: comedi_alloc_board_minor() locked dev->mutex. */
 
 	dev->driver = driver;
@@ -616,8 +620,20 @@ int comedi_auto_config(struct device *hardware_device,
 		comedi_device_detach(dev);
 	mutex_unlock(&dev->mutex);
 
-	if (ret < 0)
+	if (ret < 0) {
+		dev_warn(hardware_device,
+			 "driver '%s' failed to auto-configure device.\n",
+			 driver->driver_name);
 		comedi_release_hardware_device(hardware_device);
+	} else {
+		/*
+		 * class_dev should be set properly here
+		 *  after a successful auto config
+		 */
+		dev_info(dev->class_dev,
+			 "driver '%s' has successfully auto-configured '%s'.\n",
+			 driver->driver_name, dev->board_name);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(comedi_auto_config);
