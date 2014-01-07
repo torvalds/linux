@@ -401,7 +401,7 @@ static const struct nouveau_enum nve0_fifo_fault_gpcclient[] = {
 	{}
 };
 
-static const struct nouveau_bitfield nve0_fifo_subfifo_intr[] = {
+static const struct nouveau_bitfield nve0_fifo_pbdma_intr[] = {
 	{ 0x00200000, "ILLEGAL_MTHD" },
 	{ 0x00800000, "EMPTY_SUBC" },
 	{}
@@ -472,7 +472,7 @@ out:
 }
 
 static void
-nve0_fifo_isr_subfifo_intr(struct nve0_fifo_priv *priv, int unit)
+nve0_fifo_isr_pbdma_intr(struct nve0_fifo_priv *priv, int unit)
 {
 	u32 stat = nv_rd32(priv, 0x040108 + (unit * 0x2000));
 	u32 addr = nv_rd32(priv, 0x0400c0 + (unit * 0x2000));
@@ -488,11 +488,11 @@ nve0_fifo_isr_subfifo_intr(struct nve0_fifo_priv *priv, int unit)
 	}
 
 	if (show) {
-		nv_error(priv, "SUBFIFO%d:", unit);
-		nouveau_bitfield_print(nve0_fifo_subfifo_intr, show);
+		nv_error(priv, "PBDMA%d:", unit);
+		nouveau_bitfield_print(nve0_fifo_pbdma_intr, show);
 		pr_cont("\n");
 		nv_error(priv,
-			 "SUBFIFO%d: ch %d [%s] subc %d mthd 0x%04x data 0x%08x\n",
+			 "PBDMA%d: ch %d [%s] subc %d mthd 0x%04x data 0x%08x\n",
 			 unit, chid,
 			 nouveau_client_name_for_fifo_chid(&priv->base, chid),
 			 subc, mthd, data);
@@ -530,16 +530,16 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x20000000) {
-		u32 units = nv_rd32(priv, 0x0025a0);
-		u32 u = units;
+		u32 mask = nv_rd32(priv, 0x0025a0);
+		u32 temp = mask;
 
-		while (u) {
-			int i = ffs(u) - 1;
-			nve0_fifo_isr_subfifo_intr(priv, i);
-			u &= ~(1 << i);
+		while (temp) {
+			u32 unit = ffs(temp) - 1;
+			nve0_fifo_isr_pbdma_intr(priv, unit);
+			temp &= ~(1 << unit);
 		}
 
-		nv_wr32(priv, 0x0025a0, units);
+		nv_wr32(priv, 0x0025a0, mask);
 		stat &= ~0x20000000;
 	}
 
@@ -592,12 +592,12 @@ nve0_fifo_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	/* enable all available PSUBFIFOs */
+	/* enable all available PBDMA units */
 	nv_wr32(priv, 0x000204, 0xffffffff);
 	priv->spoon_nr = hweight32(nv_rd32(priv, 0x000204));
-	nv_debug(priv, "%d subfifo(s)\n", priv->spoon_nr);
+	nv_debug(priv, "%d PBDMA unit(s)\n", priv->spoon_nr);
 
-	/* PSUBFIFO[n] */
+	/* PBDMA[n] */
 	for (i = 0; i < priv->spoon_nr; i++) {
 		nv_mask(priv, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
 		nv_wr32(priv, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
