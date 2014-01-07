@@ -197,7 +197,7 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	at91_start_hc(pdev);
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
-	if (retval == 0)
+	if (retval == 0) {
 		device_wakeup_enable(hcd->self.controller);
 		return retval;
 	}
