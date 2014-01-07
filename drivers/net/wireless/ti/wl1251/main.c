@@ -486,6 +486,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl->rssi_thold = 0;
 	wl->channel = WL1251_DEFAULT_CHANNEL;
 	wl->monitor_present = false;
+	wl->joined = false;
 
 	wl1251_debugfs_reset(wl);
 
@@ -545,6 +546,7 @@ static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 	wl1251_debug(DEBUG_MAC80211, "mac80211 remove interface");
 	wl->vif = NULL;
+	memset(wl->bssid, 0, ETH_ALEN);
 	mutex_unlock(&wl->mutex);
 }
 
@@ -623,6 +625,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * at firmware level.
 		 */
 		if (wl->vif == NULL) {
+			wl->joined = false;
 			ret = wl1251_cmd_data_path_rx(wl, wl->channel, 1);
 		} else {
 			ret = wl1251_join(wl, wl->bss_type, wl->channel,
@@ -1507,7 +1510,9 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	INIT_DELAYED_WORK(&wl->elp_work, wl1251_elp_work);
 	wl->channel = WL1251_DEFAULT_CHANNEL;
 	wl->monitor_present = false;
+	wl->joined = false;
 	wl->scanning = false;
+	wl->bss_type = MAX_BSS_TYPE;
 	wl->default_key = 0;
 	wl->listen_int = 1;
 	wl->rx_counter = 0;
