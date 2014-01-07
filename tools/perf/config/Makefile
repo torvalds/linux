@@ -53,9 +53,6 @@ else
   FEATURE_CHECK_LDFLAGS-libunwind = $(LIBUNWIND_LDFLAGS)
   FEATURE_CHECK_CFLAGS-libunwind-debug-frame = $(LIBUNWIND_CFLAGS)
   FEATURE_CHECK_LDFLAGS-libunwind-debug-frame = $(LIBUNWIND_LDFLAGS)
-  #  and the flags for the test-all case
-  FEATURE_CHECK_CFLAGS-all += $(LIBUNWIND_CFLAGS)
-  FEATURE_CHECK_LDFLAGS-all += $(LIBUNWIND_LDFLAGS)
 endif
 
 ifeq ($(NO_PERF_REGS),0)
@@ -151,6 +148,17 @@ CORE_FEATURE_TESTS =			\
 	on-exit				\
 	stackprotector-all		\
 	timerfd
+
+# Set FEATURE_CHECK_(C|LD)FLAGS-all for all CORE_FEATURE_TESTS features.
+# If in the future we need per-feature checks/flags for features not
+# mentioned in this list we need to refactor this ;-).
+set_test_all_flags = $(eval $(set_test_all_flags_code))
+define set_test_all_flags_code
+  FEATURE_CHECK_CFLAGS-all  += $(FEATURE_CHECK_CFLAGS-$(1))
+  FEATURE_CHECK_LDFLAGS-all += $(FEATURE_CHECK_LDFLAGS-$(1))
+endef
+
+$(foreach feat,$(CORE_FEATURE_TESTS),$(call set_test_all_flags,$(feat)))
 
 #
 # So here we detect whether test-all was rebuilt, to be able
