@@ -215,7 +215,7 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 	} else if (!strcmp(name, "qspi")) {
 		parent_name = "pll1_div2";
 		div = (cpg_mode & (BIT(3) | BIT(2) | BIT(1))) == BIT(2)
-		    ? 16 : 20;
+		    ? 8 : 10;
 	} else if (!strcmp(name, "sdh")) {
 		parent_name = "pll1_div2";
 		table = cpg_sdh_div_table;
