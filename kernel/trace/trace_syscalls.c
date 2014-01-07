@@ -306,10 +306,8 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 	struct syscall_trace_enter *entry;
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
-	enum event_trigger_type tt = ETT_NONE;
 	struct ring_buffer *buffer;
 	unsigned long irq_flags;
-	unsigned long eflags;
 	int pc;
 	int syscall_nr;
 	int size;
@@ -323,14 +321,8 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 	if (!ftrace_file)
 		return;
 
-	eflags = ftrace_file->flags;
-
-	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {
-		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)
-			event_triggers_call(ftrace_file, NULL);
-		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)
-			return;
-	}
+	if (ftrace_trigger_soft_disabled(ftrace_file))
+		return;
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
 	if (!sys_data)
@@ -351,16 +343,8 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 	entry->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args, entry->args);
 
-	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
-		tt = event_triggers_call(ftrace_file, entry);
-
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
-		ring_buffer_discard_commit(buffer, event);
-	else if (!filter_check_discard(ftrace_file, entry, buffer, event))
-		trace_current_buffer_unlock_commit(buffer, event,
-						   irq_flags, pc);
-	if (tt)
-		event_triggers_post_call(ftrace_file, tt);
+	event_trigger_unlock_commit(ftrace_file, buffer, event, entry,
+				    irq_flags, pc);
 }
 
 static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
@@ -370,10 +354,8 @@ static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
 	struct syscall_trace_exit *entry;
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
-	enum event_trigger_type tt = ETT_NONE;
 	struct ring_buffer *buffer;
 	unsigned long irq_flags;
-	unsigned long eflags;
 	int pc;
 	int syscall_nr;
 
@@ -386,14 +368,8 @@ static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
 	if (!ftrace_file)
 		return;
 
-	eflags = ftrace_file->flags;
-
-	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {
-		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)
-			event_triggers_call(ftrace_file, NULL);
-		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)
-			return;
-	}
+	if (ftrace_trigger_soft_disabled(ftrace_file))
+		return;
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
 	if (!sys_data)
@@ -413,16 +389,8 @@ static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
 	entry->nr = syscall_nr;
 	entry->ret = syscall_get_return_value(current, regs);
 
-	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
-		tt = event_triggers_call(ftrace_file, entry);
-
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
-		ring_buffer_discard_commit(buffer, event);
-	else if (!filter_check_discard(ftrace_file, entry, buffer, event))
-		trace_current_buffer_unlock_commit(buffer, event,
-						   irq_flags, pc);
-	if (tt)
-		event_triggers_post_call(ftrace_file, tt);
+	event_trigger_unlock_commit(ftrace_file, buffer, event, entry,
+				    irq_flags, pc);
 }
 
 static int reg_event_syscall_enter(struct ftrace_event_file *file,

@@ -546,8 +546,6 @@ ftrace_raw_event_##call(void *__data, proto)				\
 	struct ftrace_event_file *ftrace_file = __data;			\
 	struct ftrace_event_call *event_call = ftrace_file->event_call;	\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	unsigned long eflags = ftrace_file->flags;			\
-	enum event_trigger_type __tt = ETT_NONE;			\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
 	struct ring_buffer *buffer;					\
@@ -555,12 +553,8 @@ ftrace_raw_event_##call(void *__data, proto)				\
 	int __data_size;						\
 	int pc;								\
 									\
-	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {			\
-		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)		\
-			event_triggers_call(ftrace_file, NULL);		\
-		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)		\
-			return;						\
-	}								\
+	if (ftrace_trigger_soft_disabled(ftrace_file))			\
+		return;							\
 									\
 	local_save_flags(irq_flags);					\
 	pc = preempt_count();						\
@@ -579,17 +573,8 @@ ftrace_raw_event_##call(void *__data, proto)				\
 									\
 	{ assign; }							\
 									\
-	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)			\
-		__tt = event_triggers_call(ftrace_file, entry);		\
-									\
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT,                 \
-		     &ftrace_file->flags))                              \
-		ring_buffer_discard_commit(buffer, event);              \
-	else if (!filter_check_discard(ftrace_file, entry, buffer, event)) \
-		trace_buffer_unlock_commit(buffer, event, irq_flags, pc); \
-									\
-	if (__tt)							\
-		event_triggers_post_call(ftrace_file, __tt);		\
+	event_trigger_unlock_commit(ftrace_file, buffer, event, entry, \
+				    irq_flags, pc);		       \
 }
 /*
  * The ftrace_test_probe is compiled out, it is only here as a build time check
