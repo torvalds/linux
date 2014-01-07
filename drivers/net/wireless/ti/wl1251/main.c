@@ -979,6 +979,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct wl1251 *wl = hw->priv;
 	struct sk_buff *beacon, *skb;
+	bool enable;
 	int ret;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 bss info changed");
@@ -1075,6 +1076,17 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl1251_warning("Set ctsprotect failed %d", ret);
 			goto out_sleep;
 		}
+	}
+
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		__be32 addr = bss_conf->arp_addr_list[0];
+		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
+
+		enable = bss_conf->arp_addr_cnt == 1 && bss_conf->assoc;
+		wl1251_acx_arp_ip_filter(wl, enable, addr);
+
+		if (ret < 0)
+			goto out_sleep;
 	}
 
 	if (changed & BSS_CHANGED_BEACON) {
