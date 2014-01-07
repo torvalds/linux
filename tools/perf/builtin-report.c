@@ -80,14 +80,59 @@ static int report__config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
-static void report__inc_stats(struct report *rep,
-			      struct hist_entry *he __maybe_unused)
+static void report__inc_stats(struct report *rep, struct hist_entry *he)
 {
 	/*
-	 * We cannot access @he at this time.  Just assume it's a new entry.
-	 * It'll be fixed once we have a callback mechanism in hist_iter.
+	 * The @he is either of a newly created one or an existing one
+	 * merging current sample.  We only want to count a new one so
+	 * checking ->nr_events being 1.
 	 */
-	rep->nr_entries++;
+	if (he->stat.nr_events == 1)
+		rep->nr_entries++;
+}
+
+static int hist_iter__report_callback(struct hist_entry_iter *iter,
+				      struct addr_location *al, bool single,
+				      void *arg)
+{
+	int err = 0;
+	struct report *rep = arg;
+	struct hist_entry *he = iter->he;
+	struct perf_evsel *evsel = iter->evsel;
+	struct mem_info *mi;
+	struct branch_info *bi;
+
+	report__inc_stats(rep, he);
+
+	if (!ui__has_annotation())
+		return 0;
+
+	if (sort__mode == SORT_MODE__BRANCH) {
+		bi = he->branch_info;
+		err = addr_map_symbol__inc_samples(&bi->from, evsel->idx);
+		if (err)
+			goto out;
+
+		err = addr_map_symbol__inc_samples(&bi->to, evsel->idx);
+
+	} else if (rep->mem_mode) {
+		mi = he->mem_info;
+		err = addr_map_symbol__inc_samples(&mi->daddr, evsel->idx);
+		if (err)
+			goto out;
+
+		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+
+	} else if (symbol_conf.cumulate_callchain) {
+		if (single)
+			err = hist_entry__inc_addr_samples(he, evsel->idx,
+							   al->addr);
+	} else {
+		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	}
+
+out:
+	return err;
 }
 
 static int process_sample_event(struct perf_tool *tool,
@@ -100,6 +145,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct addr_location al;
 	struct hist_entry_iter iter = {
 		.hide_unresolved = rep->hide_unresolved,
+		.add_entry_cb = hist_iter__report_callback,
 	};
 	int ret;
 
@@ -127,9 +173,8 @@ static int process_sample_event(struct perf_tool *tool,
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
-	report__inc_stats(rep, NULL);
-
-	ret = hist_entry_iter__add(&iter, &al, evsel, sample, rep->max_stack);
+	ret = hist_entry_iter__add(&iter, &al, evsel, sample, rep->max_stack,
+				   rep);
 	if (ret < 0)
 		pr_debug("problem adding hist entry, skipping event\n");
 

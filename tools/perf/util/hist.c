@@ -517,26 +517,15 @@ iter_add_single_mem_entry(struct hist_entry_iter *iter, struct addr_location *al
 }
 
 static int
-iter_finish_mem_entry(struct hist_entry_iter *iter, struct addr_location *al)
+iter_finish_mem_entry(struct hist_entry_iter *iter,
+		      struct addr_location *al __maybe_unused)
 {
 	struct perf_evsel *evsel = iter->evsel;
 	struct hist_entry *he = iter->he;
-	struct mem_info *mx;
 	int err = -EINVAL;
 
 	if (he == NULL)
 		goto out;
-
-	if (ui__has_annotation()) {
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-		if (err)
-			goto out;
-
-		mx = he->mem_info;
-		err = addr_map_symbol__inc_samples(&mx->daddr, evsel->idx);
-		if (err)
-			goto out;
-	}
 
 	hists__inc_nr_samples(&evsel->hists, he->filtered);
 
@@ -575,6 +564,9 @@ static int
 iter_add_single_branch_entry(struct hist_entry_iter *iter __maybe_unused,
 			     struct addr_location *al __maybe_unused)
 {
+	/* to avoid calling callback function */
+	iter->he = NULL;
+
 	return 0;
 }
 
@@ -599,7 +591,7 @@ iter_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *al)
 static int
 iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *al)
 {
-	struct branch_info *bi, *bx;
+	struct branch_info *bi;
 	struct perf_evsel *evsel = iter->evsel;
 	struct hist_entry *he = NULL;
 	int i = iter->curr;
@@ -618,17 +610,6 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 				1, 1, 0, true);
 	if (he == NULL)
 		return -ENOMEM;
-
-	if (ui__has_annotation()) {
-		bx = he->branch_info;
-		err = addr_map_symbol__inc_samples(&bx->from, evsel->idx);
-		if (err)
-			goto out;
-
-		err = addr_map_symbol__inc_samples(&bx->to, evsel->idx);
-		if (err)
-			goto out;
-	}
 
 	hists__inc_nr_samples(&evsel->hists, he->filtered);
 
@@ -673,9 +654,9 @@ iter_add_single_normal_entry(struct hist_entry_iter *iter, struct addr_location 
 }
 
 static int
-iter_finish_normal_entry(struct hist_entry_iter *iter, struct addr_location *al)
+iter_finish_normal_entry(struct hist_entry_iter *iter,
+			 struct addr_location *al __maybe_unused)
 {
-	int err;
 	struct hist_entry *he = iter->he;
 	struct perf_evsel *evsel = iter->evsel;
 	struct perf_sample *sample = iter->sample;
@@ -684,12 +665,6 @@ iter_finish_normal_entry(struct hist_entry_iter *iter, struct addr_location *al)
 		return 0;
 
 	iter->he = NULL;
-
-	if (ui__has_annotation()) {
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-		if (err)
-			return err;
-	}
 
 	hists__inc_nr_samples(&evsel->hists, he->filtered);
 
@@ -746,13 +721,6 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 	 */
 	callchain_cursor_commit(&callchain_cursor);
 
-	/*
-	 * The iter->he will be over-written after ->add_next_entry()
-	 * called so inc stats for the original entry now.
-	 */
-	if (ui__has_annotation())
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-
 	hists__inc_nr_samples(&evsel->hists, he->filtered);
 
 	return err;
@@ -802,8 +770,11 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	 * It's possible that it has cycles or recursive calls.
 	 */
 	for (i = 0; i < iter->curr; i++) {
-		if (hist_entry__cmp(he_cache[i], &he_tmp) == 0)
+		if (hist_entry__cmp(he_cache[i], &he_tmp) == 0) {
+			/* to avoid calling callback function */
+			iter->he = NULL;
 			return 0;
+		}
 	}
 
 	he = __hists__add_entry(&evsel->hists, al, iter->parent, NULL, NULL,
@@ -863,7 +834,7 @@ const struct hist_iter_ops hist_iter_cumulative = {
 
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 			 struct perf_evsel *evsel, struct perf_sample *sample,
-			 int max_stack_depth)
+			 int max_stack_depth, void *arg)
 {
 	int err, err2;
 
@@ -883,10 +854,22 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 	if (err)
 		goto out;
 
+	if (iter->he && iter->add_entry_cb) {
+		err = iter->add_entry_cb(iter, al, true, arg);
+		if (err)
+			goto out;
+	}
+
 	while (iter->ops->next_entry(iter, al)) {
 		err = iter->ops->add_next_entry(iter, al);
 		if (err)
 			break;
+
+		if (iter->he && iter->add_entry_cb) {
+			err = iter->add_entry_cb(iter, al, false, arg);
+			if (err)
+				goto out;
+		}
 	}
 
 out:
