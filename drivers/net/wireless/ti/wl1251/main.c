@@ -569,6 +569,11 @@ static int wl1251_build_qos_null_data(struct wl1251 *wl)
 				       sizeof(template));
 }
 
+static bool wl1251_can_do_pm(struct ieee80211_conf *conf, struct wl1251 *wl)
+{
+	return (conf->flags & IEEE80211_CONF_PS) && !wl->monitor_present;
+}
+
 static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct wl1251 *wl = hw->priv;
@@ -616,7 +621,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out_sleep;
 	}
 
-	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
+	if (wl1251_can_do_pm(conf, wl) && !wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm enabled");
 
 		wl->psm_requested = true;
@@ -632,8 +637,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			goto out_sleep;
-	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
-		   wl->psm_requested) {
+	} else if (!wl1251_can_do_pm(conf, wl) && wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm disabled");
 
 		wl->psm_requested = false;
