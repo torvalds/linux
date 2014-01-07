@@ -1306,8 +1306,8 @@ int genwqe_device_create(struct genwqe_dev *cd)
 					    genwqe_attribute_groups,
 					    GENWQE_DEVNAME "%u_card",
 					    cd->card_idx);
-	if (cd->dev == NULL) {
-		rc = -ENODEV;
+	if (IS_ERR(cd->dev)) {
+		rc = PTR_ERR(cd->dev);
 		goto err_cdev;
 	}
 
