@@ -281,11 +281,11 @@ static const struct hda_fixup ad1986a_fixups[] = {
 		.v.pins = (const struct hda_pintbl[]) {
 			{ 0x1a, 0x02214021 }, /* headphone */
 			{ 0x1b, 0x01014011 }, /* front */
-			{ 0x1c, 0x01013012 }, /* surround */
-			{ 0x1d, 0x01019015 }, /* clfe */
+			{ 0x1c, 0x01813030 }, /* line-in */
+			{ 0x1d, 0x01a19020 }, /* rear mic */
 			{ 0x1e, 0x411111f0 }, /* N/A */
 			{ 0x1f, 0x02a190f0 }, /* mic */
-			{ 0x20, 0x018130f0 }, /* line-in */
+			{ 0x20, 0x411111f0 }, /* N/A */
 			{}
 		},
 	},
