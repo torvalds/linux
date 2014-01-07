@@ -563,7 +563,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 		unw_word_t ip;
 
 		unw_get_reg(&c, UNW_REG_IP, &ip);
-		ret = entry(ip, ui->thread, ui->machine, cb, arg);
+		ret = ip ? entry(ip, ui->thread, ui->machine, cb, arg) : 0;
 	}
 
 	unw_destroy_addr_space(addr_space);
