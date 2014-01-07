@@ -216,15 +216,20 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr);
 void tipc_link_delete(struct tipc_link *l_ptr);
-void tipc_link_changeover(struct tipc_link *l_ptr);
-void tipc_link_send_duplicate(struct tipc_link *l_ptr, struct tipc_link *dest);
+void tipc_link_failover_send_queue(struct tipc_link *l_ptr);
+void tipc_link_dup_send_queue(struct tipc_link *l_ptr,
+			      struct tipc_link *dest);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
 int tipc_link_is_up(struct tipc_link *l_ptr);
 int tipc_link_is_active(struct tipc_link *l_ptr);
 void tipc_link_stop(struct tipc_link *l_ptr);
-struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space, u16 cmd);
-struct sk_buff *tipc_link_cmd_show_stats(const void *req_tlv_area, int req_tlv_space);
-struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area, int req_tlv_space);
+struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area,
+				     int req_tlv_space,
+				     u16 cmd);
+struct sk_buff *tipc_link_cmd_show_stats(const void *req_tlv_area,
+					 int req_tlv_space);
+struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area,
+					  int req_tlv_space);
 void tipc_link_reset(struct tipc_link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 void tipc_link_send_names(struct list_head *message_list, u32 dest);
