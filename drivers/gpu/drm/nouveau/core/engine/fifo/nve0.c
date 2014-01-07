@@ -57,8 +57,8 @@ static const struct {
 #define FIFO_ENGINE_NR ARRAY_SIZE(fifo_engine)
 
 struct nve0_fifo_engn {
-	struct nouveau_gpuobj *playlist[2];
-	int cur_playlist;
+	struct nouveau_gpuobj *runlist[2];
+	int cur_runlist;
 };
 
 struct nve0_fifo_priv {
@@ -87,7 +87,7 @@ struct nve0_fifo_chan {
  ******************************************************************************/
 
 static void
-nve0_fifo_playlist_update(struct nve0_fifo_priv *priv, u32 engine)
+nve0_fifo_runlist_update(struct nve0_fifo_priv *priv, u32 engine)
 {
 	struct nouveau_bar *bar = nouveau_bar(priv);
 	struct nve0_fifo_engn *engn = &priv->engine[engine];
@@ -96,8 +96,8 @@ nve0_fifo_playlist_update(struct nve0_fifo_priv *priv, u32 engine)
 	int i, p;
 
 	mutex_lock(&nv_subdev(priv)->mutex);
-	cur = engn->playlist[engn->cur_playlist];
-	engn->cur_playlist = !engn->cur_playlist;
+	cur = engn->runlist[engn->cur_runlist];
+	engn->cur_runlist = !engn->cur_runlist;
 
 	for (i = 0, p = 0; i < priv->base.max; i++) {
 		u32 ctrl = nv_rd32(priv, 0x800004 + (i * 8)) & 0x001f0001;
@@ -112,7 +112,7 @@ nve0_fifo_playlist_update(struct nve0_fifo_priv *priv, u32 engine)
 	nv_wr32(priv, 0x002270, cur->addr >> 12);
 	nv_wr32(priv, 0x002274, (engine << 20) | (p >> 3));
 	if (!nv_wait(priv, 0x002284 + (engine * 4), 0x00100000, 0x00000000))
-		nv_error(priv, "playlist %d update timeout\n", engine);
+		nv_error(priv, "runlist %d update timeout\n", engine);
 	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
@@ -279,7 +279,7 @@ nve0_fifo_chan_init(struct nouveau_object *object)
 	nv_mask(priv, 0x800004 + (chid * 8), 0x000f0000, chan->engine << 16);
 	nv_wr32(priv, 0x800000 + (chid * 8), 0x80000000 | base->addr >> 12);
 	nv_mask(priv, 0x800004 + (chid * 8), 0x00000400, 0x00000400);
-	nve0_fifo_playlist_update(priv, chan->engine);
+	nve0_fifo_runlist_update(priv, chan->engine);
 	nv_mask(priv, 0x800004 + (chid * 8), 0x00000400, 0x00000400);
 	return 0;
 }
@@ -292,7 +292,7 @@ nve0_fifo_chan_fini(struct nouveau_object *object, bool suspend)
 	u32 chid = chan->base.chid;
 
 	nv_mask(priv, 0x800004 + (chid * 8), 0x00000800, 0x00000800);
-	nve0_fifo_playlist_update(priv, chan->engine);
+	nve0_fifo_runlist_update(priv, chan->engine);
 	nv_wr32(priv, 0x800000 + (chid * 8), 0x00000000);
 
 	return nouveau_fifo_channel_fini(&chan->base, suspend);
@@ -544,8 +544,14 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x40000000) {
-		nv_warn(priv, "unknown status 0x40000000\n");
-		nv_mask(priv, 0x002a00, 0x00000000, 0x00000000);
+		u32 mask = nv_mask(priv, 0x002a00, 0x00000000, 0x00000000);
+
+		while (mask) {
+			u32 engn = ffs(mask) - 1;
+			/* runlist event, not currently used */
+			mask &= ~(1 << engn);
+		}
+
 		stat &= ~0x40000000;
 	}
 
@@ -616,8 +622,8 @@ nve0_fifo_dtor(struct nouveau_object *object)
 	nouveau_gpuobj_ref(NULL, &priv->user.mem);
 
 	for (i = 0; i < FIFO_ENGINE_NR; i++) {
-		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[1]);
-		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[0]);
+		nouveau_gpuobj_ref(NULL, &priv->engine[i].runlist[1]);
+		nouveau_gpuobj_ref(NULL, &priv->engine[i].runlist[0]);
 	}
 
 	nouveau_fifo_destroy(&priv->base);
@@ -640,12 +646,12 @@ nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	for (i = 0; i < FIFO_ENGINE_NR; i++) {
 		ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0x1000,
-					 0, &priv->engine[i].playlist[0]);
+					 0, &priv->engine[i].runlist[0]);
 		if (ret)
 			return ret;
 
 		ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0x1000,
-					 0, &priv->engine[i].playlist[1]);
+					 0, &priv->engine[i].runlist[1]);
 		if (ret)
 			return ret;
 	}
