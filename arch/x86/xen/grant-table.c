@@ -128,6 +128,7 @@ void arch_gnttab_unmap(void *shared, unsigned long nr_gframes)
 #ifdef CONFIG_XEN_PVH
 #include <xen/balloon.h>
 #include <xen/events.h>
+#include <xen/xen.h>
 #include <linux/slab.h>
 static int __init xlated_setup_gnttab_pages(void)
 {
