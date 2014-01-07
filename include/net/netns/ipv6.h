@@ -73,6 +73,7 @@ struct netns_ipv6 {
 #endif
 	atomic_t		dev_addr_genid;
 	atomic_t		rt_genid;
+	int			anycast_src_echo_reply;
 };
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
