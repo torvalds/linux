@@ -91,10 +91,6 @@ static void spi_pci_remove(struct pci_dev *pdev)
 	struct dw_spi_pci *dwpci = pci_get_drvdata(pdev);
 
 	dw_spi_remove_host(&dwpci->dws);
-	iounmap(dwpci->dws.regs);
-	pci_release_region(pdev, 0);
-	kfree(dwpci);
-	pci_disable_device(pdev);
 }
 
 #ifdef CONFIG_PM
