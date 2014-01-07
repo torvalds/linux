@@ -439,9 +439,9 @@ static void get_dest_bdaddr(struct in6_addr *ip6_daddr,
 	/* Set universal/local bit to 0 */
 	if (addr->b[5] & 1) {
 		addr->b[5] &= ~1;
-		*addr_type = BDADDR_LE_PUBLIC;
+		*addr_type = ADDR_LE_DEV_PUBLIC;
 	} else {
-		*addr_type = BDADDR_LE_RANDOM;
+		*addr_type = ADDR_LE_DEV_RANDOM;
 	}
 }
 
