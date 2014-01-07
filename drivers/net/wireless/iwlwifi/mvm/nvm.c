@@ -392,7 +392,7 @@ out:
 /* Loads the NVM data stored in mvm->nvm_sections into the NIC */
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 {
-	int i, ret;
+	int i, ret = 0;
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "'Write to NVM\n");
