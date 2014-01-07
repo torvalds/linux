@@ -287,6 +287,7 @@ xfs_bmapi_allocate(
 	INIT_WORK_ONSTACK(&args->work, xfs_bmapi_allocate_worker);
 	queue_work(xfs_alloc_wq, &args->work);
 	wait_for_completion(&done);
+	destroy_work_on_stack(&args->work);
 	return args->result;
 }
 
