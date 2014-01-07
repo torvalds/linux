@@ -33,6 +33,10 @@
 #include "mxl5007t.h"
 #include "tda18271.h"
 
+int preallocate_big_buffers;
+module_param_named(preallocate_big_buffers, preallocate_big_buffers, int, 0644);
+MODULE_PARM_DESC(preallocate_big_buffers, "Preallocate the larger transfer buffers at module load time");
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define _AU0828_BULKPIPE 0x83
@@ -155,7 +159,9 @@ static int stop_urb_transfer(struct au0828_dev *dev)
 	for (i = 0; i < URB_COUNT; i++) {
 		if (dev->urbs[i]) {
 			usb_kill_urb(dev->urbs[i]);
-			kfree(dev->urbs[i]->transfer_buffer);
+			if (!preallocate_big_buffers)
+				kfree(dev->urbs[i]->transfer_buffer);
+
 			usb_free_urb(dev->urbs[i]);
 		}
 	}
@@ -183,7 +189,12 @@ static int start_urb_transfer(struct au0828_dev *dev)
 
 		purb = dev->urbs[i];
 
-		purb->transfer_buffer = kzalloc(URB_BUFSIZE, GFP_KERNEL);
+		if (preallocate_big_buffers)
+			purb->transfer_buffer = dev->dig_transfer_buffer[i];
+		else
+			purb->transfer_buffer = kzalloc(URB_BUFSIZE,
+					GFP_KERNEL);
+
 		if (!purb->transfer_buffer) {
 			usb_free_urb(purb);
 			dev->urbs[i] = NULL;
@@ -334,6 +345,23 @@ static int dvb_register(struct au0828_dev *dev)
 
 	dprintk(1, "%s()\n", __func__);
 
+	if (preallocate_big_buffers) {
+		int i;
+		for (i = 0; i < URB_COUNT; i++) {
+			dev->dig_transfer_buffer[i] = kzalloc(URB_BUFSIZE,
+					GFP_KERNEL);
+
+			if (!dev->dig_transfer_buffer[i]) {
+				result = -ENOMEM;
+
+				printk(KERN_ERR
+				       "%s: failed buffer allocation (errno = %d)\n",
+				       DRIVER_NAME, result);
+				goto fail_adapter;
+			}
+		}
+	}
+
 	INIT_WORK(&dev->restart_streaming, au0828_restart_dvb_streaming);
 
 	/* register adapter */
@@ -424,6 +452,13 @@ fail_frontend:
 	dvb_frontend_detach(dvb->frontend);
 	dvb_unregister_adapter(&dvb->adapter);
 fail_adapter:
+
+	if (preallocate_big_buffers) {
+		int i;
+		for (i = 0; i < URB_COUNT; i++)
+			kfree(dev->dig_transfer_buffer[i]);
+	}
+
 	return result;
 }
 
@@ -444,6 +479,14 @@ void au0828_dvb_unregister(struct au0828_dev *dev)
 	dvb_unregister_frontend(dvb->frontend);
 	dvb_frontend_detach(dvb->frontend);
 	dvb_unregister_adapter(&dvb->adapter);
+
+	if (preallocate_big_buffers) {
+		int i;
+		for (i = 0; i < URB_COUNT; i++)
+			kfree(dev->dig_transfer_buffer[i]);
+	}
+
+
 }
 
 /* All the DVB attach calls go here, this function get's modified

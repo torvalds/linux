@@ -262,6 +262,10 @@ struct au0828_dev {
 	/* USB / URB Related */
 	int		urb_streaming;
 	struct urb	*urbs[URB_COUNT];
+
+	/* Preallocated transfer digital transfer buffers */
+
+	char *dig_transfer_buffer[URB_COUNT];
 };
 
 /* ----------------------------------------------------------- */
