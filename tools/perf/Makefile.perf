@@ -538,6 +538,7 @@ ifeq ($(NO_PERF_REGS),0)
   ifeq ($(ARCH),x86)
     LIB_H += arch/x86/include/perf_regs.h
   endif
+  LIB_OBJS += $(OUTPUT)util/perf_regs.o
 endif
 
 ifndef NO_LIBNUMA
