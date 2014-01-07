@@ -124,7 +124,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 			return ret;
 	}
 
-	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID) {
+	if (wl->vif && vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID) {
 		wl1251_debug(DEBUG_EVENT, "SYNCHRONIZATION_TIMEOUT_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */
