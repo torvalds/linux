@@ -4502,8 +4502,8 @@ static void ci_get_memory_type(struct radeon_device *rdev)
 
 }
 
-void ci_update_current_ps(struct radeon_device *rdev,
-			  struct radeon_ps *rps)
+static void ci_update_current_ps(struct radeon_device *rdev,
+				 struct radeon_ps *rps)
 {
 	struct ci_ps *new_ps = ci_get_ps(rps);
 	struct ci_power_info *pi = ci_get_pi(rdev);
@@ -4513,8 +4513,8 @@ void ci_update_current_ps(struct radeon_device *rdev,
 	pi->current_rps.ps_priv = &pi->current_ps;
 }
 
-void ci_update_requested_ps(struct radeon_device *rdev,
-			    struct radeon_ps *rps)
+static void ci_update_requested_ps(struct radeon_device *rdev,
+				   struct radeon_ps *rps)
 {
 	struct ci_ps *new_ps = ci_get_ps(rps);
 	struct ci_power_info *pi = ci_get_pi(rdev);
@@ -5001,8 +5001,8 @@ static int ci_parse_power_table(struct radeon_device *rdev)
 	return 0;
 }
 
-int ci_get_vbios_boot_values(struct radeon_device *rdev,
-			     struct ci_vbios_boot_state *boot_state)
+static int ci_get_vbios_boot_values(struct radeon_device *rdev,
+				    struct ci_vbios_boot_state *boot_state)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, FirmwareInfo);
