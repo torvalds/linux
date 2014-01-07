@@ -90,8 +90,12 @@ static void wl1251_tx_control(struct tx_double_buffer_desc *tx_hdr,
 	/* 802.11 packets */
 	tx_hdr->control.packet_type = 0;
 
-	if (control->flags & IEEE80211_TX_CTL_NO_ACK)
+	/* Also disable retry and ACK policy for injected packets */
+	if ((control->flags & IEEE80211_TX_CTL_NO_ACK) ||
+	    (control->flags & IEEE80211_TX_CTL_INJECTED)) {
+		tx_hdr->control.rate_policy = 1;
 		tx_hdr->control.ack_policy = 1;
+	}
 
 	tx_hdr->control.tx_complete = 1;
 
@@ -422,6 +426,7 @@ static void wl1251_tx_packet_cb(struct wl1251 *wl,
 	info = IEEE80211_SKB_CB(skb);
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
 	    (result->status == TX_SUCCESS))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
