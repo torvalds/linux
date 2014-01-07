@@ -631,6 +631,15 @@ radeon_atombios_get_tv_info(struct radeon_device *rdev);
 extern void radeon_atombios_get_default_voltages(struct radeon_device *rdev,
 						 u16 *vddc, u16 *vddci, u16 *mvdd);
 
+extern void
+radeon_combios_connected_scratch_regs(struct drm_connector *connector,
+				      struct drm_encoder *encoder,
+				      bool connected);
+extern void
+radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
+				       struct drm_encoder *encoder,
+				       bool connected);
+
 extern struct drm_connector *
 radeon_get_connector_for_encoder(struct drm_encoder *encoder);
 extern struct drm_connector *
