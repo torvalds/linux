@@ -53,6 +53,7 @@ int test__arch_unwind_sample(struct perf_sample *sample,
 	perf_regs_load(buf);
 	regs->abi  = PERF_SAMPLE_REGS_ABI;
 	regs->regs = buf;
+	regs->mask = PERF_REGS_MASK;
 
 	return sample_ustack(sample, thread, buf);
 }

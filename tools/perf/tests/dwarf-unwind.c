@@ -72,7 +72,7 @@ static int unwind_thread(struct thread *thread, struct machine *machine)
 	}
 
 	err = unwind__get_entries(unwind_entry, &cnt, machine, thread,
-				  PERF_REGS_MASK, &sample, MAX_STACK);
+				  &sample, MAX_STACK);
 	if (err)
 		pr_debug("unwind failed\n");
 	else if (cnt != MAX_STACK) {

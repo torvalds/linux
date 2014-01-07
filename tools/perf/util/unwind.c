@@ -86,7 +86,6 @@ struct unwind_info {
 	struct perf_sample	*sample;
 	struct machine		*machine;
 	struct thread		*thread;
-	u64			sample_uregs;
 };
 
 #define dw_read(ptr, type, end) ({	\
@@ -391,16 +390,16 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 	return !(size == sizeof(*data));
 }
 
-static int reg_value(unw_word_t *valp, struct regs_dump *regs, int id,
-		     u64 sample_regs)
+static int reg_value(unw_word_t *valp, struct regs_dump *regs, int id)
 {
 	int i, idx = 0;
+	u64 mask = regs->mask;
 
-	if (!(sample_regs & (1 << id)))
+	if (!(mask & (1 << id)))
 		return -EINVAL;
 
 	for (i = 0; i < id; i++) {
-		if (sample_regs & (1 << i))
+		if (mask & (1 << i))
 			idx++;
 	}
 
@@ -424,8 +423,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 		return 0;
 	}
 
-	ret = reg_value(&start, &ui->sample->user_regs, PERF_REG_SP,
-			ui->sample_uregs);
+	ret = reg_value(&start, &ui->sample->user_regs, PERF_REG_SP);
 	if (ret)
 		return ret;
 
@@ -475,7 +473,7 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 	if (id < 0)
 		return -EINVAL;
 
-	ret = reg_value(valp, &ui->sample->user_regs, id, ui->sample_uregs);
+	ret = reg_value(valp, &ui->sample->user_regs, id);
 	if (ret) {
 		pr_err("unwind: can't read reg %d\n", regnum);
 		return ret;
@@ -572,13 +570,11 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 
 int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct machine *machine, struct thread *thread,
-			u64 sample_uregs, struct perf_sample *data,
-			int max_stack)
+			struct perf_sample *data, int max_stack)
 {
 	unw_word_t ip;
 	struct unwind_info ui = {
 		.sample       = data,
-		.sample_uregs = sample_uregs,
 		.thread       = thread,
 		.machine      = machine,
 	};
@@ -587,7 +583,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (!data->user_regs.regs)
 		return -EINVAL;
 
-	ret = reg_value(&ip, &data->user_regs, PERF_REG_IP, sample_uregs);
+	ret = reg_value(&ip, &data->user_regs, PERF_REG_IP);
 	if (ret)
 		return ret;
 
