@@ -742,13 +742,16 @@ traceon_trigger(struct event_trigger_data *data)
 static void
 traceon_count_trigger(struct event_trigger_data *data)
 {
+	if (tracing_is_on())
+		return;
+
 	if (!data->count)
 		return;
 
 	if (data->count != -1)
 		(data->count)--;
 
-	traceon_trigger(data);
+	tracing_on();
 }
 
 static void
@@ -763,13 +766,16 @@ traceoff_trigger(struct event_trigger_data *data)
 static void
 traceoff_count_trigger(struct event_trigger_data *data)
 {
+	if (!tracing_is_on())
+		return;
+
 	if (!data->count)
 		return;
 
 	if (data->count != -1)
 		(data->count)--;
 
-	traceoff_trigger(data);
+	tracing_off();
 }
 
 static int
