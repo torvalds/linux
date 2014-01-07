@@ -762,19 +762,50 @@ DEFINE_PARSE_ID_MODE(revision_id);
 
 struct hda_patch_item {
 	const char *tag;
+	const char *alias;
 	void (*parser)(char *buf, struct hda_bus *bus, struct hda_codec **retc);
 };
 
 static struct hda_patch_item patch_items[NUM_LINE_MODES] = {
-	[LINE_MODE_CODEC] = { "[codec]", parse_codec_mode },
-	[LINE_MODE_MODEL] = { "[model]", parse_model_mode },
-	[LINE_MODE_VERB] = { "[verb]", parse_verb_mode },
-	[LINE_MODE_PINCFG] = { "[pincfg]", parse_pincfg_mode },
-	[LINE_MODE_HINT] = { "[hint]", parse_hint_mode },
-	[LINE_MODE_VENDOR_ID] = { "[vendor_id]", parse_vendor_id_mode },
-	[LINE_MODE_SUBSYSTEM_ID] = { "[subsystem_id]", parse_subsystem_id_mode },
-	[LINE_MODE_REVISION_ID] = { "[revision_id]", parse_revision_id_mode },
-	[LINE_MODE_CHIP_NAME] = { "[chip_name]", parse_chip_name_mode },
+	[LINE_MODE_CODEC] = {
+		.tag = "[codec]",
+		.parser = parse_codec_mode,
+	},
+	[LINE_MODE_MODEL] = {
+		.tag = "[model]",
+		.parser = parse_model_mode,
+	},
+	[LINE_MODE_VERB] = {
+		.tag = "[verb]",
+		.alias = "[init_verbs]",
+		.parser = parse_verb_mode,
+	},
+	[LINE_MODE_PINCFG] = {
+		.tag = "[pincfg]",
+		.alias = "[user_pin_configs]",
+		.parser = parse_pincfg_mode,
+	},
+	[LINE_MODE_HINT] = {
+		.tag = "[hint]",
+		.alias = "[hints]",
+		.parser = parse_hint_mode
+	},
+	[LINE_MODE_VENDOR_ID] = {
+		.tag = "[vendor_id]",
+		.parser = parse_vendor_id_mode,
+	},
+	[LINE_MODE_SUBSYSTEM_ID] = {
+		.tag = "[subsystem_id]",
+		.parser = parse_subsystem_id_mode,
+	},
+	[LINE_MODE_REVISION_ID] = {
+		.tag = "[revision_id]",
+		.parser = parse_revision_id_mode,
+	},
+	[LINE_MODE_CHIP_NAME] = {
+		.tag = "[chip_name]",
+		.parser = parse_chip_name_mode,
+	},
 };
 
 /* check the line starting with '[' -- change the parser mode accodingly */
@@ -785,6 +816,8 @@ static int parse_line_mode(char *buf, struct hda_bus *bus)
 		if (!patch_items[i].tag)
 			continue;
 		if (strmatch(buf, patch_items[i].tag))
+			return i;
+		if (patch_items[i].alias && strmatch(buf, patch_items[i].alias))
 			return i;
 	}
 	return LINE_MODE_NONE;
