@@ -454,7 +454,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 	unsigned long dwKeyIndex = 0;
 	unsigned char abyKey[MAX_KEY_LEN];
 	unsigned char abySeq[MAX_KEY_LEN];
-	NDIS_802_11_KEY_RSC   KeyRSC;
+	unsigned long long KeyRSC;
 	unsigned char byKeyDecMode = KEY_CTL_WEP;
 	int     ret = 0;
 	int     iNodeIndex = -1;
