@@ -1357,7 +1357,7 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	if (I915_READ(IPS_CTL) & IPS_ENABLE)
+	if (IS_BROADWELL(dev) || I915_READ(IPS_CTL) & IPS_ENABLE)
 		seq_puts(m, "enabled\n");
 	else
 		seq_puts(m, "disabled\n");

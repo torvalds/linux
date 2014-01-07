@@ -3433,9 +3433,8 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		/* Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
-		 * mailbox." Therefore we need to defer waiting on the state
-		 * change.
-		 * TODO: need to fix this for state checker
+		 * mailbox." Moreover, the mailbox may return a bogus state,
+		 * so we need to just enable it and continue on.
 		 */
 	} else {
 		I915_WRITE(IPS_CTL, IPS_ENABLE);
@@ -3462,9 +3461,10 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 		mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
 		mutex_unlock(&dev_priv->rps.hw_lock);
-	} else
+	} else {
 		I915_WRITE(IPS_CTL, 0);
-	POSTING_READ(IPS_CTL);
+		POSTING_READ(IPS_CTL);
+	}
 
 	/* We need to wait for a vblank before we can disable the plane. */
 	intel_wait_for_vblank(dev, crtc->pipe);
@@ -7006,8 +7006,9 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	if (intel_display_power_enabled(dev, pfit_domain))
 		ironlake_get_pfit_config(crtc, pipe_config);
 
-	pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
-				   (I915_READ(IPS_CTL) & IPS_ENABLE);
+	if (IS_HASWELL(dev))
+		pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
+			(I915_READ(IPS_CTL) & IPS_ENABLE);
 
 	pipe_config->pixel_multiplier = 1;
 
@@ -9336,7 +9337,9 @@ intel_pipe_config_compare(struct drm_device *dev,
 		PIPE_CONF_CHECK_I(pch_pfit.size);
 	}
 
-	PIPE_CONF_CHECK_I(ips_enabled);
+	/* BDW+ don't expose a synchronous way to read the state */
+	if (IS_HASWELL(dev))
+		PIPE_CONF_CHECK_I(ips_enabled);
 
 	PIPE_CONF_CHECK_I(double_wide);
 
