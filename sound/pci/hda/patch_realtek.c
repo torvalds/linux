@@ -469,9 +469,7 @@ static bool found_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
  *	7  ~ 0	:	Assembly ID
  *	port-A --> pin 39/41, port-E --> pin 14/15, port-D --> pin 35/36
  */
-static int alc_subsystem_id(struct hda_codec *codec,
-			    hda_nid_t porta, hda_nid_t porte,
-			    hda_nid_t portd, hda_nid_t porti)
+static int alc_subsystem_id(struct hda_codec *codec, const hda_nid_t *ports)
 {
 	unsigned int ass, tmp, i;
 	unsigned nid;
@@ -561,14 +559,7 @@ do_sku:
 	      spec->gen.autocfg.line_out_type == AUTO_PIN_HP_OUT)) {
 		hda_nid_t nid;
 		tmp = (ass >> 11) & 0x3;	/* HP to chassis */
-		if (tmp == 0)
-			nid = porta;
-		else if (tmp == 1)
-			nid = porte;
-		else if (tmp == 2)
-			nid = portd;
-		else if (tmp == 3)
-			nid = porti;
+		nid = ports[tmp];
 		if (found_in_nid_list(nid, spec->gen.autocfg.line_out_pins,
 				      spec->gen.autocfg.line_outs))
 			return 1;
@@ -581,7 +572,7 @@ do_sku:
  * ports contains an array of 4 pin NIDs for port-A, E, D and I */
 static void alc_ssid_check(struct hda_codec *codec, const hda_nid_t *ports)
 {
-	if (!alc_subsystem_id(codec, ports[0], ports[1], ports[2], ports[3])) {
+	if (!alc_subsystem_id(codec, ports)) {
 		struct alc_spec *spec = codec->spec;
 		snd_printd("realtek: "
 			   "Enable default setup for auto mode as fallback\n");
