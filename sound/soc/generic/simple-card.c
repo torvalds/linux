@@ -134,9 +134,9 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		(SND_SOC_DAIFMT_FORMAT_MASK | SND_SOC_DAIFMT_INV_MASK);
 
 	/* DAPM routes */
-	if (of_property_read_bool(node, "simple-audio-routing")) {
+	if (of_property_read_bool(node, "simple-audio-card,routing")) {
 		ret = snd_soc_of_parse_audio_routing(&info->snd_card,
-					"simple-audio-routing");
+					"simple-audio-card,routing");
 		if (ret)
 			return ret;
 	}
