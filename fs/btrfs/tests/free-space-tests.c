@@ -266,7 +266,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache)
 	}
 
 	if (test_check_exists(cache, 512 * 1024, 3 * 1024 * 1024)) {
-		test_msg("Left over peices after removing overlapping\n");
+		test_msg("Left over pieces after removing overlapping\n");
 		return -1;
 	}
 

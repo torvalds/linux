@@ -428,7 +428,7 @@ static void mei_nfc_init(struct work_struct *work)
 	mutex_unlock(&dev->device_lock);
 
 	if (mei_nfc_if_version(ndev) < 0) {
-		dev_err(&dev->pdev->dev, "Could not get the NFC interfave version");
+		dev_err(&dev->pdev->dev, "Could not get the NFC interface version");
 
 		goto err;
 	}
