@@ -109,7 +109,7 @@ static int evtchn_fifo_setup(struct irq_info *info)
 {
 	unsigned port = info->evtchn;
 	unsigned new_array_pages;
-	int ret = -ENOMEM;
+	int ret;
 
 	new_array_pages = port / EVENT_WORDS_PER_PAGE + 1;
 
@@ -124,8 +124,10 @@ static int evtchn_fifo_setup(struct irq_info *info)
 		array_page = event_array[event_array_pages];
 		if (!array_page) {
 			array_page = (void *)__get_free_page(GFP_KERNEL);
-			if (array_page == NULL)
+			if (array_page == NULL) {
+				ret = -ENOMEM;
 				goto error;
+			}
 			event_array[event_array_pages] = array_page;
 		}
 
