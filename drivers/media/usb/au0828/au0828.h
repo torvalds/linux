@@ -102,6 +102,8 @@ struct au0828_dvb {
 	struct dmx_frontend fe_mem;
 	struct dvb_net net;
 	int feeding;
+	int start_count;
+	int stop_count;
 };
 
 enum au0828_stream_state {
