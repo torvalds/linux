@@ -3495,21 +3495,27 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	int ret;
 	int index = log->log_transid % 2;
 	bool skip_csum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
-
-	ret = __btrfs_drop_extents(trans, log, inode, path, em->start,
-				   em->start + em->len, NULL, 0);
-	if (ret)
-		return ret;
+	int extent_inserted = 0;
 
 	INIT_LIST_HEAD(&ordered_sums);
 	btrfs_init_map_token(&token);
-	key.objectid = btrfs_ino(inode);
-	key.type = BTRFS_EXTENT_DATA_KEY;
-	key.offset = em->start;
 
-	ret = btrfs_insert_empty_item(trans, log, path, &key, sizeof(*fi));
+	ret = __btrfs_drop_extents(trans, log, inode, path, em->start,
+				   em->start + em->len, NULL, 0, 1,
+				   sizeof(*fi), &extent_inserted);
 	if (ret)
 		return ret;
+
+	if (!extent_inserted) {
+		key.objectid = btrfs_ino(inode);
+		key.type = BTRFS_EXTENT_DATA_KEY;
+		key.offset = em->start;
+
+		ret = btrfs_insert_empty_item(trans, log, path, &key,
+					      sizeof(*fi));
+		if (ret)
+			return ret;
+	}
 	leaf = path->nodes[0];
 	fi = btrfs_item_ptr(leaf, path->slots[0],
 			    struct btrfs_file_extent_item);

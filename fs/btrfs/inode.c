@@ -125,13 +125,12 @@ static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
  * no overlapping inline items exist in the btree
  */
 static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
+				struct btrfs_path *path, int extent_inserted,
 				struct btrfs_root *root, struct inode *inode,
 				u64 start, size_t size, size_t compressed_size,
 				int compress_type,
 				struct page **compressed_pages)
 {
-	struct btrfs_key key;
-	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct page *page = NULL;
 	char *kaddr;
@@ -140,29 +139,29 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 	int err = 0;
 	int ret;
 	size_t cur_size = size;
-	size_t datasize;
 	unsigned long offset;
 
 	if (compressed_size && compressed_pages)
 		cur_size = compressed_size;
 
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
-	path->leave_spinning = 1;
-
-	key.objectid = btrfs_ino(inode);
-	key.offset = start;
-	btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
-	datasize = btrfs_file_extent_calc_inline_size(cur_size);
-
 	inode_add_bytes(inode, size);
-	ret = btrfs_insert_empty_item(trans, root, path, &key,
-				      datasize);
-	if (ret) {
-		err = ret;
-		goto fail;
+
+	if (!extent_inserted) {
+		struct btrfs_key key;
+		size_t datasize;
+
+		key.objectid = btrfs_ino(inode);
+		key.offset = start;
+		btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
+
+		datasize = btrfs_file_extent_calc_inline_size(cur_size);
+		path->leave_spinning = 1;
+		ret = btrfs_insert_empty_item(trans, root, path, &key,
+					      datasize);
+		if (ret) {
+			err = ret;
+			goto fail;
+		}
 	}
 	leaf = path->nodes[0];
 	ei = btrfs_item_ptr(leaf, path->slots[0],
@@ -203,7 +202,7 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 		page_cache_release(page);
 	}
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_free_path(path);
+	btrfs_release_path(path);
 
 	/*
 	 * we're an inline extent, so nobody can
@@ -219,7 +218,6 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 
 	return ret;
 fail:
-	btrfs_free_path(path);
 	return err;
 }
 
@@ -242,6 +240,9 @@ static noinline int cow_file_range_inline(struct btrfs_root *root,
 	u64 aligned_end = ALIGN(end, root->sectorsize);
 	u64 data_len = inline_len;
 	int ret;
+	struct btrfs_path *path;
+	int extent_inserted = 0;
+	u32 extent_item_size;
 
 	if (compressed_size)
 		data_len = compressed_size;
@@ -256,12 +257,27 @@ static noinline int cow_file_range_inline(struct btrfs_root *root,
 		return 1;
 	}
 
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
 	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
+	if (IS_ERR(trans)) {
+		btrfs_free_path(path);
 		return PTR_ERR(trans);
+	}
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 
-	ret = btrfs_drop_extents(trans, root, inode, start, aligned_end, 1);
+	if (compressed_size && compressed_pages)
+		extent_item_size = btrfs_file_extent_calc_inline_size(
+		   compressed_size);
+	else
+		extent_item_size = btrfs_file_extent_calc_inline_size(
+		    inline_len);
+
+	ret = __btrfs_drop_extents(trans, root, inode, path,
+				   start, aligned_end, NULL,
+				   1, 1, extent_item_size, &extent_inserted);
 	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
 		goto out;
@@ -269,7 +285,8 @@ static noinline int cow_file_range_inline(struct btrfs_root *root,
 
 	if (isize > actual_end)
 		inline_len = min_t(u64, isize, actual_end);
-	ret = insert_inline_extent(trans, root, inode, start,
+	ret = insert_inline_extent(trans, path, extent_inserted,
+				   root, inode, start,
 				   inline_len, compressed_size,
 				   compress_type, compressed_pages);
 	if (ret && ret != -ENOSPC) {
@@ -284,6 +301,7 @@ static noinline int cow_file_range_inline(struct btrfs_root *root,
 	btrfs_delalloc_release_metadata(inode, end + 1 - start);
 	btrfs_drop_extent_cache(inode, start, aligned_end - 1, 0);
 out:
+	btrfs_free_path(path);
 	btrfs_end_transaction(trans, root);
 	return ret;
 }
@@ -1841,13 +1859,12 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_key ins;
+	int extent_inserted = 0;
 	int ret;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-
-	path->leave_spinning = 1;
 
 	/*
 	 * we may be replacing one extent in the tree with another.
@@ -1858,17 +1875,23 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	 * the caller is expected to unpin it and allow it to be merged
 	 * with the others.
 	 */
-	ret = btrfs_drop_extents(trans, root, inode, file_pos,
-				 file_pos + num_bytes, 0);
+	ret = __btrfs_drop_extents(trans, root, inode, path, file_pos,
+				   file_pos + num_bytes, NULL, 0,
+				   1, sizeof(*fi), &extent_inserted);
 	if (ret)
 		goto out;
 
-	ins.objectid = btrfs_ino(inode);
-	ins.offset = file_pos;
-	ins.type = BTRFS_EXTENT_DATA_KEY;
-	ret = btrfs_insert_empty_item(trans, root, path, &ins, sizeof(*fi));
-	if (ret)
-		goto out;
+	if (!extent_inserted) {
+		ins.objectid = btrfs_ino(inode);
+		ins.offset = file_pos;
+		ins.type = BTRFS_EXTENT_DATA_KEY;
+
+		path->leave_spinning = 1;
+		ret = btrfs_insert_empty_item(trans, root, path, &ins,
+					      sizeof(*fi));
+		if (ret)
+			goto out;
+	}
 	leaf = path->nodes[0];
 	fi = btrfs_item_ptr(leaf, path->slots[0],
 			    struct btrfs_file_extent_item);

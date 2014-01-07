@@ -692,7 +692,10 @@ next:
 int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root, struct inode *inode,
 			 struct btrfs_path *path, u64 start, u64 end,
-			 u64 *drop_end, int drop_cache)
+			 u64 *drop_end, int drop_cache,
+			 int replace_extent,
+			 u32 extent_item_size,
+			 int *key_inserted)
 {
 	struct extent_buffer *leaf;
 	struct btrfs_file_extent_item *fi;
@@ -712,6 +715,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int modify_tree = -1;
 	int update_refs = (root->ref_cows || root == root->fs_info->tree_root);
 	int found = 0;
+	int leafs_visited = 0;
 
 	if (drop_cache)
 		btrfs_drop_extent_cache(inode, start, end - 1, 0);
@@ -733,6 +737,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 				path->slots[0]--;
 		}
 		ret = 0;
+		leafs_visited++;
 next_slot:
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
@@ -744,6 +749,7 @@ next_slot:
 				ret = 0;
 				break;
 			}
+			leafs_visited++;
 			leaf = path->nodes[0];
 			recow = 1;
 		}
@@ -927,14 +933,44 @@ next_slot:
 	}
 
 	if (!ret && del_nr > 0) {
+		/*
+		 * Set path->slots[0] to first slot, so that after the delete
+		 * if items are move off from our leaf to its immediate left or
+		 * right neighbor leafs, we end up with a correct and adjusted
+		 * path->slots[0] for our insertion.
+		 */
+		path->slots[0] = del_slot;
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		if (ret)
 			btrfs_abort_transaction(trans, root, ret);
+
+		leaf = path->nodes[0];
+		/*
+		 * leaf eb has flag EXTENT_BUFFER_STALE if it was deleted (that
+		 * is, its contents got pushed to its neighbors), in which case
+		 * it means path->locks[0] == 0
+		 */
+		if (!ret && replace_extent && leafs_visited == 1 &&
+		    path->locks[0] &&
+		    btrfs_leaf_free_space(root, leaf) >=
+		    sizeof(struct btrfs_item) + extent_item_size) {
+
+			key.objectid = ino;
+			key.type = BTRFS_EXTENT_DATA_KEY;
+			key.offset = start;
+			setup_items_for_insert(root, path, &key,
+					       &extent_item_size,
+					       extent_item_size,
+					       sizeof(struct btrfs_item) +
+					       extent_item_size, 1);
+			*key_inserted = 1;
+		}
 	}
 
+	if (!replace_extent || !(*key_inserted))
+		btrfs_release_path(path);
 	if (drop_end)
 		*drop_end = found ? min(end, extent_end) : end;
-	btrfs_release_path(path);
 	return ret;
 }
 
@@ -949,7 +985,7 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 	ret = __btrfs_drop_extents(trans, root, inode, path, start, end, NULL,
-				   drop_cache);
+				   drop_cache, 0, 0, NULL);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -2219,7 +2255,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	while (cur_offset < lockend) {
 		ret = __btrfs_drop_extents(trans, root, inode, path,
 					   cur_offset, lockend + 1,
-					   &drop_end, 1);
+					   &drop_end, 1, 0, 0, NULL);
 		if (ret != -ENOSPC)
 			break;
 
