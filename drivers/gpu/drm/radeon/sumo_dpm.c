@@ -71,7 +71,7 @@ static const u32 sumo_dtc[SUMO_PM_NUMBER_OF_TC] =
 	SUMO_DTC_DFLT_14,
 };
 
-struct sumo_ps *sumo_get_ps(struct radeon_ps *rps)
+static struct sumo_ps *sumo_get_ps(struct radeon_ps *rps)
 {
 	struct sumo_ps *ps = rps->ps_priv;
 
