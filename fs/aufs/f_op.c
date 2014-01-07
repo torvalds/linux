@@ -34,11 +34,8 @@ int au_do_open_nondir(struct file *file, int flags)
 
 	FiMustWriteLock(file);
 
+	err = 0;
 	dentry = file->f_dentry;
-	err = au_d_alive(dentry);
-	if (unlikely(err))
-		goto out;
-
 	finfo = au_fi(file);
 	memset(&finfo->fi_htop, 0, sizeof(finfo->fi_htop));
 	atomic_set(&finfo->fi_mmapped, 0);
@@ -54,7 +51,6 @@ int au_do_open_nondir(struct file *file, int flags)
 		/* file->f_ra = h_file->f_ra; */
 	}
 
-out:
 	return err;
 }
 
