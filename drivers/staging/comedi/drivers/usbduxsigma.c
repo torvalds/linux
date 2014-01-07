@@ -1661,7 +1661,7 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 		return offset;
 	}
 
-	dev_info(dev->class_dev, "attached, ADC_zero = %x\n", offset);
+	dev_info(dev->class_dev, "ADC_zero = %x\n", offset);
 
 	return 0;
 }
