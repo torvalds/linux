@@ -1027,7 +1027,8 @@ static int fimc_probe(struct platform_device *pdev)
 	return 0;
 
 err_gclk:
-	clk_disable(fimc->clock[CLK_GATE]);
+	if (!pm_runtime_enabled(dev))
+		clk_disable(fimc->clock[CLK_GATE]);
 err_sd:
 	fimc_unregister_capture_subdev(fimc);
 err_sclk:

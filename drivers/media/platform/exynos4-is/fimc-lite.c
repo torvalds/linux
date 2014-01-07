@@ -1563,7 +1563,7 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	if (!pm_runtime_enabled(dev)) {
 		ret = clk_enable(fimc->clock);
 		if (ret < 0)
-			goto err_clk_put;
+			goto err_sd;
 	}
 
 	fimc->alloc_ctx = vb2_dma_contig_init_ctx(dev);
@@ -1579,7 +1579,8 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	return 0;
 
 err_clk_dis:
-	clk_disable(fimc->clock);
+	if (!pm_runtime_enabled(dev))
+		clk_disable(fimc->clock);
 err_sd:
 	fimc_lite_unregister_capture_subdev(fimc);
 err_clk_put:
