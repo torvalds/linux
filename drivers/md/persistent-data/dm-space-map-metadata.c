@@ -608,20 +608,28 @@ static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 	 * Flick into a mode where all blocks get allocated in the new area.
 	 */
 	smm->begin = old_len;
-	memcpy(&smm->sm, &bootstrap_ops, sizeof(smm->sm));
+	memcpy(sm, &bootstrap_ops, sizeof(*sm));
 
 	/*
 	 * Extend.
 	 */
 	r = sm_ll_extend(&smm->ll, extra_blocks);
+	if (r)
+		goto out;
 
+	for (i = old_len; !r && i < smm->begin; i++) {
+		r = sm_ll_inc(&smm->ll, i, &ev);
+		if (r)
+			goto out;
+	}
+
+	r = sm_metadata_commit(sm);
+
+out:
 	/*
 	 * Switch back to normal behaviour.
 	 */
-	memcpy(&smm->sm, &ops, sizeof(smm->sm));
-	for (i = old_len; !r && i < smm->begin; i++)
-		r = sm_ll_inc(&smm->ll, i, &ev);
-
+	memcpy(sm, &ops, sizeof(*sm));
 	return r;
 }
 
