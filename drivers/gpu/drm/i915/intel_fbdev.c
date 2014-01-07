@@ -328,8 +328,6 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 	fb_set_suspend(info, state);
 }
 
-MODULE_LICENSE("GPL and additional rights");
-
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
