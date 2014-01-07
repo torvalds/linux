@@ -156,11 +156,13 @@ comment "Renesas ARM SoCs Board Type"
 config MACH_APE6EVM
 	bool "APE6EVM board"
 	depends on ARCH_R8A73A4
+	select SMSC_PHY if SMSC911X
 	select USE_OF
 
 config MACH_APE6EVM_REFERENCE
 	bool "APE6EVM board - Reference Device Tree Implementation"
 	depends on ARCH_R8A73A4
+	select SMSC_PHY if SMSC911X
 	select USE_OF
 	---help---
 	   Use reference implementation of APE6EVM board support
