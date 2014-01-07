@@ -194,7 +194,7 @@ static const struct snd_soc_dapm_route ssm2604_routes[] = {
 };
 
 static const unsigned int ssm2602_rates_12288000[] = {
-	8000, 32000, 48000, 96000,
+	8000, 16000, 32000, 48000, 96000,
 };
 
 static struct snd_pcm_hw_constraint_list ssm2602_constraints_12288000 = {
@@ -230,6 +230,11 @@ static const struct ssm2602_coeff ssm2602_coeff_table[] = {
 	{12288000, 32000, SSM2602_COEFF_SRATE(0x6, 0x0, 0x0)},
 	{18432000, 32000, SSM2602_COEFF_SRATE(0x6, 0x1, 0x0)},
 	{12000000, 32000, SSM2602_COEFF_SRATE(0x6, 0x0, 0x1)},
+
+	/* 16k */
+	{12288000, 16000, SSM2602_COEFF_SRATE(0x5, 0x0, 0x0)},
+	{18432000, 16000, SSM2602_COEFF_SRATE(0x5, 0x1, 0x0)},
+	{12000000, 16000, SSM2602_COEFF_SRATE(0xa, 0x0, 0x1)},
 
 	/* 8k */
 	{12288000, 8000, SSM2602_COEFF_SRATE(0x3, 0x0, 0x0)},
@@ -473,9 +478,10 @@ static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#define SSM2602_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_32000 |\
-		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |\
-		SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
+#define SSM2602_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
+		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
+		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
+		SNDRV_PCM_RATE_96000)
 
 #define SSM2602_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
