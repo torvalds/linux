@@ -350,8 +350,8 @@ struct acx_slot {
 } __packed;
 
 
-#define ADDRESS_GROUP_MAX	(8)
-#define ADDRESS_GROUP_MAX_LEN	(ETH_ALEN * ADDRESS_GROUP_MAX)
+#define ACX_MC_ADDRESS_GROUP_MAX	(8)
+#define ACX_MC_ADDRESS_GROUP_MAX_LEN	(ETH_ALEN * ACX_MC_ADDRESS_GROUP_MAX)
 
 struct acx_dot11_grp_addr_tbl {
 	struct acx_header header;
@@ -359,7 +359,7 @@ struct acx_dot11_grp_addr_tbl {
 	u8 enabled;
 	u8 num_groups;
 	u8 pad[2];
-	u8 mac_table[ADDRESS_GROUP_MAX_LEN];
+	u8 mac_table[ACX_MC_ADDRESS_GROUP_MAX_LEN];
 } __packed;
 
 
@@ -1463,7 +1463,8 @@ int wl1251_acx_rx_msdu_life_time(struct wl1251 *wl, u32 life_time);
 int wl1251_acx_rx_config(struct wl1251 *wl, u32 config, u32 filter);
 int wl1251_acx_pd_threshold(struct wl1251 *wl);
 int wl1251_acx_slot(struct wl1251 *wl, enum acx_slot_type slot_time);
-int wl1251_acx_group_address_tbl(struct wl1251 *wl);
+int wl1251_acx_group_address_tbl(struct wl1251 *wl, bool enable,
+				 void *mc_list, u32 mc_list_len);
 int wl1251_acx_service_period_timeout(struct wl1251 *wl);
 int wl1251_acx_rts_threshold(struct wl1251 *wl, u16 rts_threshold);
 int wl1251_acx_beacon_filter_opt(struct wl1251 *wl, bool enable_filter);

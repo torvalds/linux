@@ -28,6 +28,7 @@
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/netdevice.h>
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"
@@ -677,6 +678,44 @@ out:
 	return ret;
 }
 
+struct wl1251_filter_params {
+	bool enabled;
+	int mc_list_length;
+	u8 mc_list[ACX_MC_ADDRESS_GROUP_MAX][ETH_ALEN];
+};
+
+static u64 wl1251_op_prepare_multicast(struct ieee80211_hw *hw,
+				       struct netdev_hw_addr_list *mc_list)
+{
+	struct wl1251_filter_params *fp;
+	struct netdev_hw_addr *ha;
+	struct wl1251 *wl = hw->priv;
+
+	if (unlikely(wl->state == WL1251_STATE_OFF))
+		return 0;
+
+	fp = kzalloc(sizeof(*fp), GFP_ATOMIC);
+	if (!fp) {
+		wl1251_error("Out of memory setting filters.");
+		return 0;
+	}
+
+	/* update multicast filtering parameters */
+	fp->mc_list_length = 0;
+	if (netdev_hw_addr_list_count(mc_list) > ACX_MC_ADDRESS_GROUP_MAX) {
+		fp->enabled = false;
+	} else {
+		fp->enabled = true;
+		netdev_hw_addr_list_for_each(ha, mc_list) {
+			memcpy(fp->mc_list[fp->mc_list_length],
+					ha->addr, ETH_ALEN);
+			fp->mc_list_length++;
+		}
+	}
+
+	return (u64)(unsigned long)fp;
+}
+
 #define WL1251_SUPPORTED_FILTERS (FIF_PROMISC_IN_BSS | \
 				  FIF_ALLMULTI | \
 				  FIF_FCSFAIL | \
@@ -687,8 +726,9 @@ out:
 
 static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 				       unsigned int changed,
-				       unsigned int *total,u64 multicast)
+				       unsigned int *total, u64 multicast)
 {
+	struct wl1251_filter_params *fp = (void *)(unsigned long)multicast;
 	struct wl1251 *wl = hw->priv;
 	int ret;
 
@@ -697,9 +737,11 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	*total &= WL1251_SUPPORTED_FILTERS;
 	changed &= WL1251_SUPPORTED_FILTERS;
 
-	if (changed == 0)
+	if (changed == 0) {
 		/* no filters which we support changed */
+		kfree(fp);
 		return;
+	}
 
 	mutex_lock(&wl->mutex);
 
@@ -736,6 +778,15 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	if (*total & FIF_ALLMULTI || *total & FIF_PROMISC_IN_BSS)
+		ret = wl1251_acx_group_address_tbl(wl, false, NULL, 0);
+	else if (fp)
+		ret = wl1251_acx_group_address_tbl(wl, fp->enabled,
+						   fp->mc_list,
+						   fp->mc_list_length);
+	if (ret < 0)
+		goto out;
+
 	/* send filters to firmware */
 	wl1251_acx_rx_config(wl, wl->rx_config, wl->rx_filter);
 
@@ -743,6 +794,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 
 out:
 	mutex_unlock(&wl->mutex);
+	kfree(fp);
 }
 
 /* HW encryption */
@@ -1282,6 +1334,7 @@ static const struct ieee80211_ops wl1251_ops = {
 	.add_interface = wl1251_op_add_interface,
 	.remove_interface = wl1251_op_remove_interface,
 	.config = wl1251_op_config,
+	.prepare_multicast = wl1251_op_prepare_multicast,
 	.configure_filter = wl1251_op_configure_filter,
 	.tx = wl1251_op_tx,
 	.set_key = wl1251_op_set_key,

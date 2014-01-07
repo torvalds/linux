@@ -127,7 +127,7 @@ int wl1251_hw_init_phy_config(struct wl1251 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1251_acx_group_address_tbl(wl);
+	ret = wl1251_acx_group_address_tbl(wl, true, NULL, 0);
 	if (ret < 0)
 		return ret;
 

@@ -93,6 +93,7 @@ enum {
 	} while (0)
 
 #define WL1251_DEFAULT_RX_CONFIG (CFG_UNI_FILTER_EN |	\
+				  CFG_MC_FILTER_EN |	\
 				  CFG_BSSID_FILTER_EN)
 
 #define WL1251_DEFAULT_RX_FILTER (CFG_RX_PRSP_EN |  \
