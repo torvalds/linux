@@ -3071,11 +3071,11 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		dma_addr = skb_frag_dma_map(&bnad->pcidev->dev, frag,
 					    0, size, DMA_TO_DEVICE);
-		unmap->vectors[vect_id].dma_len = size;
+		dma_unmap_len_set(&unmap->vectors[vect_id], dma_len, size);
 		BNA_SET_DMA_ADDR(dma_addr, &txqent->vector[vect_id].host_addr);
 		txqent->vector[vect_id].length = htons(size);
 		dma_unmap_addr_set(&unmap->vectors[vect_id], dma_addr,
-						dma_addr);
+				   dma_addr);
 		head_unmap->nvecs++;
 	}
 
