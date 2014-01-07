@@ -1591,6 +1591,8 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 	search_tbl->column = col_id;
 	rs_set_expected_tpt_table(lq_sta, search_tbl);
 
+	lq_sta->visited_columns |= BIT(col_id);
+
 	/* Get the best matching rate if we're changing modes. e.g.
 	 * SISO->MIMO, LEGACY->SISO, MIMO->SISO
 	 */
@@ -1614,7 +1616,6 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 	IWL_DEBUG_RATE(mvm, "Switched to column %d: Index %d\n",
 		       col_id, rate->index);
 
-	lq_sta->visited_columns |= BIT(col_id);
 	return 0;
 
 err:
