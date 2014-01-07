@@ -153,11 +153,11 @@ static struct comedi_device *comedi_clear_board_minor(unsigned minor)
 static void comedi_free_board_dev(struct comedi_device *dev)
 {
 	if (dev) {
+		comedi_device_cleanup(dev);
 		if (dev->class_dev) {
 			device_destroy(comedi_class,
 				       MKDEV(COMEDI_MAJOR, dev->minor));
 		}
-		comedi_device_cleanup(dev);
 		comedi_dev_put(dev);
 	}
 }
