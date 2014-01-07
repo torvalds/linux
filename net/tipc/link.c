@@ -438,8 +438,7 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	tipc_node_link_down(l_ptr->owner, l_ptr);
 	tipc_bearer_remove_dest(l_ptr->b_ptr, l_ptr->addr);
 
-	if (was_active_link && tipc_node_active_links(l_ptr->owner) &&
-	    l_ptr->owner->permit_changeover) {
+	if (was_active_link && tipc_node_active_links(l_ptr->owner)) {
 		l_ptr->reset_checkpoint = checkpoint;
 		l_ptr->exp_msg_count = START_CHANGEOVER;
 	}
@@ -1838,8 +1837,6 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 		if (tipc_own_addr > msg_prevnode(msg))
 			l_ptr->b_ptr->net_plane = msg_net_plane(msg);
 
-	l_ptr->owner->permit_changeover = msg_redundant_link(msg);
-
 	switch (msg_type(msg)) {
 
 	case RESET_MSG:
@@ -2000,11 +1997,6 @@ void tipc_link_failover_send_queue(struct tipc_link *l_ptr)
 
 	if (!tunnel)
 		return;
-
-	if (!l_ptr->owner->permit_changeover) {
-		pr_warn("%speer did not permit changeover\n", link_co_err);
-		return;
-	}
 
 	tipc_msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
 		 ORIGINAL_MSG, INT_H_SIZE, l_ptr->addr);
