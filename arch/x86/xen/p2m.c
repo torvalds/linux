@@ -596,7 +596,7 @@ static bool alloc_p2m(unsigned long pfn)
 	return true;
 }
 
-static bool __init early_alloc_p2m_middle(unsigned long pfn, bool check_boundary)
+static bool __init early_alloc_p2m(unsigned long pfn, bool check_boundary)
 {
 	unsigned topidx, mididx, idx;
 	unsigned long *p2m;
@@ -638,7 +638,7 @@ static bool __init early_alloc_p2m_middle(unsigned long pfn, bool check_boundary
 	return true;
 }
 
-static bool __init early_alloc_p2m(unsigned long pfn)
+static bool __init early_alloc_p2m_middle(unsigned long pfn)
 {
 	unsigned topidx = p2m_top_index(pfn);
 	unsigned long *mid_mfn_p;
@@ -663,7 +663,7 @@ static bool __init early_alloc_p2m(unsigned long pfn)
 		p2m_top_mfn_p[topidx] = mid_mfn_p;
 		p2m_top_mfn[topidx] = virt_to_mfn(mid_mfn_p);
 		/* Note: we don't set mid_mfn_p[midix] here,
-		 * look in early_alloc_p2m_middle */
+		 * look in early_alloc_p2m() */
 	}
 	return true;
 }
@@ -739,7 +739,7 @@ found:
 
 	/* This shouldn't happen */
 	if (WARN_ON(p2m_top[topidx] == p2m_mid_missing))
-		early_alloc_p2m(set_pfn);
+		early_alloc_p2m_middle(set_pfn);
 
 	if (WARN_ON(p2m_top[topidx][mididx] != p2m_missing))
 		return false;
@@ -754,13 +754,13 @@ found:
 bool __init early_set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	if (unlikely(!__set_phys_to_machine(pfn, mfn)))  {
-		if (!early_alloc_p2m(pfn))
+		if (!early_alloc_p2m_middle(pfn))
 			return false;
 
 		if (early_can_reuse_p2m_middle(pfn, mfn))
 			return __set_phys_to_machine(pfn, mfn);
 
-		if (!early_alloc_p2m_middle(pfn, false /* boundary crossover OK!*/))
+		if (!early_alloc_p2m(pfn, false /* boundary crossover OK!*/))
 			return false;
 
 		if (!__set_phys_to_machine(pfn, mfn))
