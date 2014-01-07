@@ -376,6 +376,11 @@ nve0_fifo_cclass = {
  * PFIFO engine
  ******************************************************************************/
 
+static const struct nouveau_enum nve0_fifo_sched_reason[] = {
+	{ 0x0a, "CTXSW_TIMEOUT" },
+	{}
+};
+
 static const struct nouveau_enum nve0_fifo_fault_unit[] = {
 	{}
 };
@@ -436,7 +441,32 @@ static const struct nouveau_bitfield nve0_fifo_pbdma_intr[] = {
 };
 
 static void
-nve0_fifo_isr_vm_fault(struct nve0_fifo_priv *priv, int unit)
+nve0_fifo_intr_sched(struct nve0_fifo_priv *priv)
+{
+	u32 intr = nv_rd32(priv, 0x00254c);
+	u32 code = intr & 0x000000ff;
+	nv_error(priv, "SCHED_ERROR [");
+	nouveau_enum_print(nve0_fifo_sched_reason, code);
+	pr_cont("]\n");
+}
+
+static void
+nve0_fifo_intr_chsw(struct nve0_fifo_priv *priv)
+{
+	u32 stat = nv_rd32(priv, 0x00256c);
+	nv_error(priv, "CHSW_ERROR 0x%08x\n", stat);
+	nv_wr32(priv, 0x00256c, stat);
+}
+
+static void
+nve0_fifo_intr_dropped_fault(struct nve0_fifo_priv *priv)
+{
+	u32 stat = nv_rd32(priv, 0x00259c);
+	nv_error(priv, "DROPPED_MMU_FAULT 0x%08x\n", stat);
+}
+
+static void
+nve0_fifo_intr_fault(struct nve0_fifo_priv *priv, int unit)
 {
 	u32 inst = nv_rd32(priv, 0x2800 + (unit * 0x10));
 	u32 valo = nv_rd32(priv, 0x2804 + (unit * 0x10));
@@ -500,7 +530,7 @@ out:
 }
 
 static void
-nve0_fifo_isr_pbdma_intr(struct nve0_fifo_priv *priv, int unit)
+nve0_fifo_intr_pbdma(struct nve0_fifo_priv *priv, int unit)
 {
 	u32 stat = nv_rd32(priv, 0x040108 + (unit * 0x2000));
 	u32 addr = nv_rd32(priv, 0x0400c0 + (unit * 0x2000));
@@ -537,10 +567,47 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	u32 mask = nv_rd32(priv, 0x002140);
 	u32 stat = nv_rd32(priv, 0x002100) & mask;
 
+	if (stat & 0x00000001) {
+		u32 stat = nv_rd32(priv, 0x00252c);
+		nv_error(priv, "BIND_ERROR 0x%08x\n", stat);
+		nv_wr32(priv, 0x002100, 0x00000001);
+		stat &= ~0x00000001;
+	}
+
+	if (stat & 0x00000010) {
+		nv_error(priv, "PIO_ERROR\n");
+		nv_wr32(priv, 0x002100, 0x00000010);
+		stat &= ~0x00000010;
+	}
+
 	if (stat & 0x00000100) {
-		nv_warn(priv, "unknown status 0x00000100\n");
+		nve0_fifo_intr_sched(priv);
 		nv_wr32(priv, 0x002100, 0x00000100);
 		stat &= ~0x00000100;
+	}
+
+	if (stat & 0x00010000) {
+		nve0_fifo_intr_chsw(priv);
+		nv_wr32(priv, 0x002100, 0x00010000);
+		stat &= ~0x00010000;
+	}
+
+	if (stat & 0x00800000) {
+		nv_error(priv, "FB_FLUSH_TIMEOUT\n");
+		nv_wr32(priv, 0x002100, 0x00800000);
+		stat &= ~0x00800000;
+	}
+
+	if (stat & 0x01000000) {
+		nv_error(priv, "LB_ERROR\n");
+		nv_wr32(priv, 0x002100, 0x01000000);
+		stat &= ~0x01000000;
+	}
+
+	if (stat & 0x08000000) {
+		nve0_fifo_intr_dropped_fault(priv);
+		nv_wr32(priv, 0x002100, 0x08000000);
+		stat &= ~0x08000000;
 	}
 
 	if (stat & 0x10000000) {
@@ -549,7 +616,7 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 
 		while (u) {
 			int i = ffs(u) - 1;
-			nve0_fifo_isr_vm_fault(priv, i);
+			nve0_fifo_intr_fault(priv, i);
 			u &= ~(1 << i);
 		}
 
@@ -563,7 +630,7 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 
 		while (temp) {
 			u32 unit = ffs(temp) - 1;
-			nve0_fifo_isr_pbdma_intr(priv, unit);
+			nve0_fifo_intr_pbdma(priv, unit);
 			temp &= ~(1 << unit);
 		}
 
