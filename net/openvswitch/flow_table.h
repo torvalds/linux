@@ -55,7 +55,7 @@ struct flow_table {
 int ovs_flow_init(void);
 void ovs_flow_exit(void);
 
-struct sw_flow *ovs_flow_alloc(void);
+struct sw_flow *ovs_flow_alloc(bool percpu_stats);
 void ovs_flow_free(struct sw_flow *, bool deferred);
 
 int ovs_flow_tbl_init(struct flow_table *);
@@ -69,9 +69,11 @@ void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow);
 int  ovs_flow_tbl_num_masks(const struct flow_table *table);
 struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *table,
 				       u32 *bucket, u32 *idx);
-struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *,
+struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *,
 				    const struct sw_flow_key *,
 				    u32 *n_mask_hit);
+struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *,
+				    const struct sw_flow_key *);
 
 bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
 			       struct sw_flow_match *match);

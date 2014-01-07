@@ -1773,6 +1773,9 @@ struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
 	if (ring->pg_vec == NULL)
 		goto out_put;
 
+	if (ring->frame_size - NL_MMAP_HDRLEN < size)
+		goto out_put;
+
 	skb = alloc_skb_head(gfp_mask);
 	if (skb == NULL)
 		goto err1;
@@ -1782,6 +1785,7 @@ struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
 	if (ring->pg_vec == NULL)
 		goto out_free;
 
+	/* check again under lock */
 	maxlen = ring->frame_size - NL_MMAP_HDRLEN;
 	if (maxlen < size)
 		goto out_free;
