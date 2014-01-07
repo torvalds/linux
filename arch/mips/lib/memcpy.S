@@ -114,7 +114,24 @@
 		.section __ex_table,"a";			\
 		PTR	9b, handler;				\
 		.previous;					\
+	/* This is assembled in EVA mode */			\
+	.else;							\
+		/* If loading from user or storing to user */	\
+		.if ((\from == USEROP) && (type == LD_INSN)) || \
+		    ((\to == USEROP) && (type == ST_INSN));	\
+9:			__BUILD_EVA_INSN(insn##e, reg, addr);	\
+			.section __ex_table,"a";		\
+			PTR	9b, handler;			\
+			.previous;				\
+		.else;						\
+			/*					\
+			 *  Still in EVA, but no need for	\
+			 * exception handler or EVA insn	\
+			 */					\
+			insn reg, addr;				\
+		.endif;						\
 	.endif
+
 /*
  * Only on the 64-bit kernel we can made use of 64-bit registers.
  */
@@ -186,6 +203,22 @@
 #define _PREF(hint, addr, type)						\
 	.if \mode == LEGACY_MODE;					\
 		PREF(hint, addr);					\
+	.else;								\
+		.if ((\from == USEROP) && (type == SRC_PREFETCH)) ||	\
+		    ((\to == USEROP) && (type == DST_PREFETCH));	\
+			/*						\
+			 * PREFE has only 9 bits for the offset		\
+			 * compared to PREF which has 16, so it may	\
+			 * need to use the $at register but this	\
+			 * register should remain intact because it's	\
+			 * used later on. Therefore use $v1.		\
+			 */						\
+			.set at=v1;					\
+			PREFE(hint, addr);				\
+			.set noat;					\
+		.else;							\
+			PREF(hint, addr);				\
+		.endif;							\
 	.endif
 
 #define PREFS(hint, addr) _PREF(hint, addr, SRC_PREFETCH)
@@ -636,3 +669,47 @@ FEXPORT(__copy_user)
 __copy_user_common:
 	/* Legacy Mode, user <-> user */
 	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
+
+#ifdef CONFIG_EVA
+
+/*
+ * For EVA we need distinct symbols for reading and writing to user space.
+ * This is because we need to use specific EVA instructions to perform the
+ * virtual <-> physical translation when a virtual address is actually in user
+ * space
+ */
+
+LEAF(__copy_user_inatomic_eva)
+	b       __copy_from_user_common
+	li	t6, 1
+	END(__copy_user_inatomic_eva)
+
+/*
+ * __copy_from_user (EVA)
+ */
+
+LEAF(__copy_from_user_eva)
+	li	t6, 0	/* not inatomic */
+__copy_from_user_common:
+	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP
+END(__copy_from_user_eva)
+
+
+
+/*
+ * __copy_to_user (EVA)
+ */
+
+LEAF(__copy_to_user_eva)
+__BUILD_COPY_USER EVA_MODE KERNELOP USEROP
+END(__copy_to_user_eva)
+
+/*
+ * __copy_in_user (EVA)
+ */
+
+LEAF(__copy_in_user_eva)
+__BUILD_COPY_USER EVA_MODE USEROP USEROP
+END(__copy_in_user_eva)
+
+#endif

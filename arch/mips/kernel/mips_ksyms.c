@@ -51,6 +51,12 @@ EXPORT_SYMBOL(copy_page);
  */
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(__copy_user_inatomic);
+#ifdef CONFIG_EVA
+EXPORT_SYMBOL(__copy_from_user_eva);
+EXPORT_SYMBOL(__copy_in_user_eva);
+EXPORT_SYMBOL(__copy_to_user_eva);
+EXPORT_SYMBOL(__copy_user_inatomic_eva);
+#endif
 EXPORT_SYMBOL(__bzero);
 EXPORT_SYMBOL(__strncpy_from_kernel_nocheck_asm);
 EXPORT_SYMBOL(__strncpy_from_kernel_asm);
