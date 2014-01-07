@@ -89,6 +89,9 @@
 /* Instruction type */
 #define LD_INSN 1
 #define ST_INSN 2
+/* Pretech type */
+#define SRC_PREFETCH 1
+#define DST_PREFETCH 2
 
 /*
  * Wrapper to add an entry in the exception table
@@ -174,6 +177,11 @@
 #define LOADB(reg, addr, handler)	EXC(lb, LD_INSN, reg, addr, handler)
 #define STOREB(reg, addr, handler)	EXC(sb, ST_INSN, reg, addr, handler)
 
+#define _PREF(hint, addr, type)	        PREF(hint, addr)
+
+#define PREFS(hint, addr) _PREF(hint, addr, SRC_PREFETCH)
+#define PREFD(hint, addr) _PREF(hint, addr, DST_PREFETCH)
+
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 #define LDFIRST LOADR
 #define LDREST	LOADL
@@ -237,16 +245,16 @@ __copy_user_common:
 	 *
 	 * If len < NBYTES use byte operations.
 	 */
-	PREF(	0, 0(src) )
-	PREF(	1, 0(dst) )
+	PREFS(	0, 0(src) )
+	PREFD(	1, 0(dst) )
 	sltu	t2, len, NBYTES
 	and	t1, dst, ADDRMASK
-	PREF(	0, 1*32(src) )
-	PREF(	1, 1*32(dst) )
+	PREFS(	0, 1*32(src) )
+	PREFD(	1, 1*32(dst) )
 	bnez	t2, .Lcopy_bytes_checklen
 	 and	t0, src, ADDRMASK
-	PREF(	0, 2*32(src) )
-	PREF(	1, 2*32(dst) )
+	PREFS(	0, 2*32(src) )
+	PREFD(	1, 2*32(dst) )
 	bnez	t1, .Ldst_unaligned
 	 nop
 	bnez	t0, .Lsrc_unaligned_dst_aligned
@@ -258,8 +266,8 @@ __copy_user_common:
 	 SRL	t0, len, LOG_NBYTES+3	 # +3 for 8 units/iter
 	beqz	t0, .Lcleanup_both_aligned # len < 8*NBYTES
 	 and	rem, len, (8*NBYTES-1)	 # rem = len % (8*NBYTES)
-	PREF(	0, 3*32(src) )
-	PREF(	1, 3*32(dst) )
+	PREFS(	0, 3*32(src) )
+	PREFD(	1, 3*32(dst) )
 	.align	4
 1:
 	R10KCBARRIER(0(ra))
@@ -282,8 +290,8 @@ __copy_user_common:
 	STORE(t7, UNIT(-3)(dst), .Ls_exc_p3u)
 	STORE(t0, UNIT(-2)(dst), .Ls_exc_p2u)
 	STORE(t1, UNIT(-1)(dst), .Ls_exc_p1u)
-	PREF(	0, 8*32(src) )
-	PREF(	1, 8*32(dst) )
+	PREFS(	0, 8*32(src) )
+	PREFD(	1, 8*32(dst) )
 	bne	len, rem, 1b
 	 nop
 
@@ -378,10 +386,10 @@ __copy_user_common:
 
 .Lsrc_unaligned_dst_aligned:
 	SRL	t0, len, LOG_NBYTES+2	 # +2 for 4 units/iter
-	PREF(	0, 3*32(src) )
+	PREFS(	0, 3*32(src) )
 	beqz	t0, .Lcleanup_src_unaligned
 	 and	rem, len, (4*NBYTES-1)	 # rem = len % 4*NBYTES
-	PREF(	1, 3*32(dst) )
+	PREFD(	1, 3*32(dst) )
 1:
 /*
  * Avoid consecutive LD*'s to the same register since some mips
@@ -399,7 +407,7 @@ __copy_user_common:
 	LDFIRST(t3, FIRST(3)(src), .Ll_exc_copy)
 	LDREST(t2, REST(2)(src), .Ll_exc_copy)
 	LDREST(t3, REST(3)(src), .Ll_exc_copy)
-	PREF(	0, 9*32(src) )		# 0 is PREF_LOAD  (not streamed)
+	PREFS(	0, 9*32(src) )		# 0 is PREF_LOAD  (not streamed)
 	ADD	src, src, 4*NBYTES
 #ifdef CONFIG_CPU_SB1
 	nop				# improves slotting
@@ -408,7 +416,7 @@ __copy_user_common:
 	STORE(t1, UNIT(1)(dst),	.Ls_exc_p3u)
 	STORE(t2, UNIT(2)(dst),	.Ls_exc_p2u)
 	STORE(t3, UNIT(3)(dst),	.Ls_exc_p1u)
-	PREF(	1, 9*32(dst) )		# 1 is PREF_STORE (not streamed)
+	PREFD(	1, 9*32(dst) )		# 1 is PREF_STORE (not streamed)
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, 4*NBYTES
 	bne	len, rem, 1b
