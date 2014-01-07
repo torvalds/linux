@@ -535,6 +535,34 @@ struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
 }
 EXPORT_SYMBOL_GPL(dma_get_slave_channel);
 
+struct dma_chan *dma_get_any_slave_channel(struct dma_device *device)
+{
+	dma_cap_mask_t mask;
+	struct dma_chan *chan;
+	int err;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	/* lock against __dma_request_channel */
+	mutex_lock(&dma_list_mutex);
+
+	chan = private_candidate(&mask, device, NULL, NULL);
+	if (chan) {
+		err = dma_chan_get(chan);
+		if (err) {
+			pr_debug("%s: failed to get %s: (%d)\n",
+				__func__, dma_chan_name(chan), err);
+			chan = NULL;
+		}
+	}
+
+	mutex_unlock(&dma_list_mutex);
+
+	return chan;
+}
+EXPORT_SYMBOL_GPL(dma_get_any_slave_channel);
+
 /**
  * __dma_request_channel - try to allocate an exclusive channel
  * @mask: capabilities that the channel must satisfy
