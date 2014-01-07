@@ -342,14 +342,14 @@ static void trinity_apply_state_adjust_rules(struct radeon_device *rdev,
 					     struct radeon_ps *new_rps,
 					     struct radeon_ps *old_rps);
 
-struct trinity_ps *trinity_get_ps(struct radeon_ps *rps)
+static struct trinity_ps *trinity_get_ps(struct radeon_ps *rps)
 {
 	struct trinity_ps *ps = rps->ps_priv;
 
 	return ps;
 }
 
-struct trinity_power_info *trinity_get_pi(struct radeon_device *rdev)
+static struct trinity_power_info *trinity_get_pi(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = rdev->pm.dpm.priv;
 
