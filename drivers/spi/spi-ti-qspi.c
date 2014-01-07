@@ -514,12 +514,8 @@ free_master:
 
 static int ti_qspi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master;
-	struct ti_qspi *qspi;
+	struct ti_qspi *qspi = platform_get_drvdata(pdev);
 	int ret;
-
-	master = platform_get_drvdata(pdev);
-	qspi = spi_master_get_devdata(master);
 
 	ret = pm_runtime_get_sync(qspi->dev);
 	if (ret < 0) {
@@ -531,8 +527,6 @@ static int ti_qspi_remove(struct platform_device *pdev)
 
 	pm_runtime_put(qspi->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	spi_unregister_master(master);
 
 	return 0;
 }
