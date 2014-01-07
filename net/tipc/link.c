@@ -87,7 +87,6 @@ static int  link_send_sections_long(struct tipc_port *sender,
 static void link_state_event(struct tipc_link *l_ptr, u32 event);
 static void link_reset_statistics(struct tipc_link *l_ptr);
 static void link_print(struct tipc_link *l_ptr, const char *str);
-static void link_start(struct tipc_link *l_ptr);
 static int link_send_long_buf(struct tipc_link *l_ptr, struct sk_buff *buf);
 static void tipc_link_send_sync(struct tipc_link *l);
 static void tipc_link_recv_sync(struct tipc_node *n, struct sk_buff *buf);
@@ -281,7 +280,8 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	k_init_timer(&l_ptr->timer, (Handler)link_timeout,
 		     (unsigned long)l_ptr);
 	list_add_tail(&l_ptr->link_list, &b_ptr->links);
-	tipc_k_signal((Handler)link_start, (unsigned long)l_ptr);
+
+	link_state_event(l_ptr, STARTING_EVT);
 
 	return l_ptr;
 }
@@ -306,19 +306,13 @@ void tipc_link_delete(struct tipc_link *l_ptr)
 	tipc_node_lock(l_ptr->owner);
 	tipc_link_reset(l_ptr);
 	tipc_node_detach_link(l_ptr->owner, l_ptr);
-	tipc_link_stop(l_ptr);
+	tipc_link_purge_queues(l_ptr);
 	list_del_init(&l_ptr->link_list);
 	tipc_node_unlock(l_ptr->owner);
 	k_term_timer(&l_ptr->timer);
 	kfree(l_ptr);
 }
 
-static void link_start(struct tipc_link *l_ptr)
-{
-	tipc_node_lock(l_ptr->owner);
-	link_state_event(l_ptr, STARTING_EVT);
-	tipc_node_unlock(l_ptr->owner);
-}
 
 /**
  * link_schedule_port - schedule port for deferred sending
@@ -404,10 +398,10 @@ void tipc_link_reset_fragments(struct tipc_link *l_ptr)
 }
 
 /**
- * tipc_link_stop - purge all inbound and outbound messages associated with link
+ * tipc_link_purge_queues - purge all pkt queues associated with link
  * @l_ptr: pointer to link
  */
-void tipc_link_stop(struct tipc_link *l_ptr)
+void tipc_link_purge_queues(struct tipc_link *l_ptr)
 {
 	kfree_skb_list(l_ptr->oldest_deferred_in);
 	kfree_skb_list(l_ptr->first_out);
