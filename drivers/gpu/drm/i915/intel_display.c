@@ -9923,17 +9923,21 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	/* Check for any encoders that needs to be disabled. */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
 			    base.head) {
+		int num_connectors = 0;
 		list_for_each_entry(connector,
 				    &dev->mode_config.connector_list,
 				    base.head) {
 			if (connector->new_encoder == encoder) {
 				WARN_ON(!connector->new_encoder->new_crtc);
-
-				goto next_encoder;
+				num_connectors++;
 			}
 		}
-		encoder->new_crtc = NULL;
-next_encoder:
+
+		if (num_connectors == 0)
+			encoder->new_crtc = NULL;
+		else if (num_connectors > 1)
+			return -EINVAL;
+
 		/* Only now check for crtc changes so we don't miss encoders
 		 * that will be disabled. */
 		if (&encoder->new_crtc->base != encoder->base.crtc) {
