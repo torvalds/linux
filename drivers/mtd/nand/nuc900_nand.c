@@ -268,9 +268,6 @@ static int nuc900_nand_probe(struct platform_device *pdev)
 	chip->ecc.mode		= NAND_ECC_SOFT;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
 	nuc900_nand->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(nuc900_nand->reg))
 		return PTR_ERR(nuc900_nand->reg);
