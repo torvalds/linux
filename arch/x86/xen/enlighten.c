@@ -46,7 +46,6 @@
 #include <xen/hvm.h>
 #include <xen/hvc-console.h>
 #include <xen/acpi.h>
-#include <xen/features.h>
 
 #include <asm/paravirt.h>
 #include <asm/apic.h>
