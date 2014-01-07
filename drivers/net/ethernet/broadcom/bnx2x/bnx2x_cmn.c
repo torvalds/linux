@@ -1790,26 +1790,22 @@ static void bnx2x_napi_disable_cnic(struct bnx2x *bp)
 {
 	int i;
 
-	local_bh_disable();
 	for_each_rx_queue_cnic(bp, i) {
 		napi_disable(&bnx2x_fp(bp, i, napi));
-		while (!bnx2x_fp_lock_napi(&bp->fp[i]))
-			mdelay(1);
+		while (!bnx2x_fp_ll_disable(&bp->fp[i]))
+			usleep_range(1000, 2000);
 	}
-	local_bh_enable();
 }
 
 static void bnx2x_napi_disable(struct bnx2x *bp)
 {
 	int i;
 
-	local_bh_disable();
 	for_each_eth_queue(bp, i) {
 		napi_disable(&bnx2x_fp(bp, i, napi));
-		while (!bnx2x_fp_lock_napi(&bp->fp[i]))
-			mdelay(1);
+		while (!bnx2x_fp_ll_disable(&bp->fp[i]))
+			usleep_range(1000, 2000);
 	}
-	local_bh_enable();
 }
 
 void bnx2x_netif_start(struct bnx2x *bp)
