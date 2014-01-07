@@ -10002,6 +10002,16 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 		ret = intel_pipe_set_base(set->crtc,
 					  set->x, set->y, set->fb);
+		/*
+		 * In the fastboot case this may be our only check of the
+		 * state after boot.  It would be better to only do it on
+		 * the first update, but we don't have a nice way of doing that
+		 * (and really, set_config isn't used much for high freq page
+		 * flipping, so increasing its cost here shouldn't be a big
+		 * deal).
+		 */
+		if (i915_fastboot && ret == 0)
+			intel_modeset_check_state(set->crtc->dev);
 	}
 
 	if (ret) {
