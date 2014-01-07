@@ -632,8 +632,9 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 	if (err)
 		goto steer_err;
 
-	if (mlx4_en_tunnel_steer_add(priv, priv->dev->dev_addr, *qpn,
-				     &priv->tunnel_reg_id))
+	err = mlx4_en_tunnel_steer_add(priv, priv->dev->dev_addr, *qpn,
+				       &priv->tunnel_reg_id);
+	if (err)
 		goto tunnel_err;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
