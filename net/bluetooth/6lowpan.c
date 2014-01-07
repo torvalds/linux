@@ -623,7 +623,7 @@ static void set_addr(u8 *eui, u8 *addr, u8 addr_type)
 	eui[0] ^= 2;
 
 	/* Universal/local bit set, RFC 4291 */
-	if (addr_type == BDADDR_LE_PUBLIC)
+	if (addr_type == ADDR_LE_DEV_PUBLIC)
 		eui[0] |= 1;
 	else
 		eui[0] &= ~1;
