@@ -4752,6 +4752,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	u32 i;
 	u64 *clone_sources_tmp = NULL;
 	int clone_sources_to_rollback = 0;
+	int sort_clone_roots = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -4942,6 +4943,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	sort(sctx->clone_roots, sctx->clone_roots_cnt,
 			sizeof(*sctx->clone_roots), __clone_root_cmp_sort,
 			NULL);
+	sort_clone_roots = 1;
 
 	ret = send_subvol(sctx);
 	if (ret < 0)
@@ -4957,11 +4959,19 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	}
 
 out:
-	for (i = 0; sctx && i < clone_sources_to_rollback; i++)
-		btrfs_root_dec_send_in_progress(sctx->clone_roots[i].root);
+	if (sort_clone_roots) {
+		for (i = 0; i < sctx->clone_roots_cnt; i++)
+			btrfs_root_dec_send_in_progress(
+					sctx->clone_roots[i].root);
+	} else {
+		for (i = 0; sctx && i < clone_sources_to_rollback; i++)
+			btrfs_root_dec_send_in_progress(
+					sctx->clone_roots[i].root);
+
+		btrfs_root_dec_send_in_progress(send_root);
+	}
 	if (sctx && !IS_ERR_OR_NULL(sctx->parent_root))
 		btrfs_root_dec_send_in_progress(sctx->parent_root);
-	btrfs_root_dec_send_in_progress(send_root);
 
 	kfree(arg);
 	vfree(clone_sources_tmp);
