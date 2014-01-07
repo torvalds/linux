@@ -5,6 +5,8 @@
 #include "../../util/types.h"
 #include <asm/perf_regs.h>
 
+void perf_regs_load(u64 *regs);
+
 #ifndef HAVE_ARCH_X86_64_SUPPORT
 #define PERF_REGS_MASK ((1ULL << PERF_REG_X86_32_MAX) - 1)
 #else
