@@ -475,9 +475,6 @@ struct kvm_vcpu_arch {
 	ulong ppr;
 	ulong pspb;
 	ulong fscr;
-	ulong tfhar;
-	ulong tfiar;
-	ulong texasr;
 	ulong ebbhr;
 	ulong ebbrr;
 	ulong bescr;
@@ -526,6 +523,27 @@ struct kvm_vcpu_arch {
 	u64 siar;
 	u64 sdar;
 	u64 sier;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	u64 tfhar;
+	u64 texasr;
+	u64 tfiar;
+
+	u32 cr_tm;
+	u64 lr_tm;
+	u64 ctr_tm;
+	u64 amr_tm;
+	u64 ppr_tm;
+	u64 dscr_tm;
+	u64 tar_tm;
+
+	ulong gpr_tm[32];
+
+	struct thread_fp_state fp_tm;
+
+	struct thread_vr_state vr_tm;
+	u32 vrsave_tm; /* also USPRG0 */
+
+#endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 	struct mutex exit_timing_lock;

@@ -521,9 +521,6 @@ int main(void)
 	DEFINE(VCPU_PPR, offsetof(struct kvm_vcpu, arch.ppr));
 	DEFINE(VCPU_FSCR, offsetof(struct kvm_vcpu, arch.fscr));
 	DEFINE(VCPU_PSPB, offsetof(struct kvm_vcpu, arch.pspb));
-	DEFINE(VCPU_TFHAR, offsetof(struct kvm_vcpu, arch.tfhar));
-	DEFINE(VCPU_TFIAR, offsetof(struct kvm_vcpu, arch.tfiar));
-	DEFINE(VCPU_TEXASR, offsetof(struct kvm_vcpu, arch.texasr));
 	DEFINE(VCPU_EBBHR, offsetof(struct kvm_vcpu, arch.ebbhr));
 	DEFINE(VCPU_EBBRR, offsetof(struct kvm_vcpu, arch.ebbrr));
 	DEFINE(VCPU_BESCR, offsetof(struct kvm_vcpu, arch.bescr));
@@ -545,6 +542,22 @@ int main(void)
 	DEFINE(VCPU_SLB_E, offsetof(struct kvmppc_slb, orige));
 	DEFINE(VCPU_SLB_V, offsetof(struct kvmppc_slb, origv));
 	DEFINE(VCPU_SLB_SIZE, sizeof(struct kvmppc_slb));
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	DEFINE(VCPU_TFHAR, offsetof(struct kvm_vcpu, arch.tfhar));
+	DEFINE(VCPU_TFIAR, offsetof(struct kvm_vcpu, arch.tfiar));
+	DEFINE(VCPU_TEXASR, offsetof(struct kvm_vcpu, arch.texasr));
+	DEFINE(VCPU_GPR_TM, offsetof(struct kvm_vcpu, arch.gpr_tm));
+	DEFINE(VCPU_FPRS_TM, offsetof(struct kvm_vcpu, arch.fp_tm.fpr));
+	DEFINE(VCPU_VRS_TM, offsetof(struct kvm_vcpu, arch.vr_tm.vr));
+	DEFINE(VCPU_VRSAVE_TM, offsetof(struct kvm_vcpu, arch.vrsave_tm));
+	DEFINE(VCPU_CR_TM, offsetof(struct kvm_vcpu, arch.cr_tm));
+	DEFINE(VCPU_LR_TM, offsetof(struct kvm_vcpu, arch.lr_tm));
+	DEFINE(VCPU_CTR_TM, offsetof(struct kvm_vcpu, arch.ctr_tm));
+	DEFINE(VCPU_AMR_TM, offsetof(struct kvm_vcpu, arch.amr_tm));
+	DEFINE(VCPU_PPR_TM, offsetof(struct kvm_vcpu, arch.ppr_tm));
+	DEFINE(VCPU_DSCR_TM, offsetof(struct kvm_vcpu, arch.dscr_tm));
+	DEFINE(VCPU_TAR_TM, offsetof(struct kvm_vcpu, arch.tar_tm));
+#endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
