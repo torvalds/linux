@@ -113,7 +113,7 @@ static inline struct dst_entry *tunnel_dst_get(struct ip_tunnel *t)
 	return dst;
 }
 
-struct dst_entry *tunnel_dst_check(struct ip_tunnel *t, u32 cookie)
+static struct dst_entry *tunnel_dst_check(struct ip_tunnel *t, u32 cookie)
 {
 	struct dst_entry *dst = tunnel_dst_get(t);
 
