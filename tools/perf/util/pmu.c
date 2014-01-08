@@ -505,7 +505,7 @@ static __u64 pmu_format_value(unsigned long *format, __u64 value)
 
 /*
  * Setup one of config[12] attr members based on the
- * user input data - temr parameter.
+ * user input data - term parameter.
  */
 static int pmu_config_term(struct list_head *formats,
 			   struct perf_event_attr *attr,
