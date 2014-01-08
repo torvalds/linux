@@ -41,7 +41,6 @@ static void read_bulk_callback(struct urb *urb)
 	int QueueIndex = NO_OF_QUEUES + 1;
 	UINT uiIndex = 0;
 	int process_done = 1;
-	//int idleflag = 0 ;
 	struct bcm_usb_rcb *pRcb = (struct bcm_usb_rcb *)urb->context;
 	struct bcm_interface_adapter *psIntfAdapter = pRcb->psIntfAdapter;
 	struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter;
@@ -101,7 +100,7 @@ static void read_bulk_callback(struct urb *urb)
 			bHeaderSupressionEnabled & Adapter->bPHSEnabled;
 	}
 
-	skb = dev_alloc_skb(pLeader->PLength + SKB_RESERVE_PHS_BYTES + SKB_RESERVE_ETHERNET_HEADER);//2   //2 for allignment
+	skb = dev_alloc_skb(pLeader->PLength + SKB_RESERVE_PHS_BYTES + SKB_RESERVE_ETHERNET_HEADER);
 	if (!skb) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "NO SKBUFF!!! Dropping the Packet");
 		atomic_dec(&psIntfAdapter->uNumRcbUsed);
@@ -190,7 +189,7 @@ static int ReceiveRcb(struct bcm_interface_adapter *psIntfAdapter, struct bcm_us
 		retval = usb_submit_urb(urb, GFP_ATOMIC);
 		if (retval) {
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "failed submitting read urb, error %d", retval);
-			//if this return value is because of pipe halt. need to clear this.
+			/* if this return value is because of pipe halt. need to clear this. */
 			if (retval == -EPIPE) {
 				psIntfAdapter->psAdapter->bEndPointHalted = TRUE;
 				wake_up(&psIntfAdapter->psAdapter->tx_packet_wait_queue);
@@ -220,15 +219,12 @@ bool InterfaceRx(struct bcm_interface_adapter *psIntfAdapter)
 	USHORT RxDescCount = NUM_RX_DESC - atomic_read(&psIntfAdapter->uNumRcbUsed);
 	struct bcm_usb_rcb *pRcb = NULL;
 
-//	RxDescCount = psIntfAdapter->psAdapter->CurrNumRecvDescs -
-//				psIntfAdapter->psAdapter->PrevNumRecvDescs;
 	while (RxDescCount) {
 		pRcb = GetBulkInRcb(psIntfAdapter);
 		if (pRcb == NULL) {
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Unable to get Rcb pointer");
 			return false;
 		}
-		//atomic_inc(&psIntfAdapter->uNumRcbUsed);
 		ReceiveRcb(psIntfAdapter, pRcb);
 		RxDescCount--;
 	}
