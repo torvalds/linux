@@ -1770,6 +1770,15 @@ void bio_endio(struct bio *bio, int error)
 		} else {
 			if (bio->bi_end_io)
 				bio->bi_end_io(bio, error);
+			else {
+				char dev_name[BDEVNAME_SIZE];
+
+				WARN(1, "bio_endio: bio for %s without endio\n",
+					bio->bi_bdev ? bdevname(bio->bi_bdev,
+					dev_name) : "(unknown)");
+				bio_put(bio);
+			}
+
 			bio = NULL;
 		}
 	}
