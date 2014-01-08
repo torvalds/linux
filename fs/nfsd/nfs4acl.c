@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/nfs_fs.h>
 #include <linux/export.h>
+#include "nfsd.h"
 #include "acl.h"
 
 
@@ -848,18 +849,23 @@ nfs4_acl_get_whotype(char *p, u32 len)
 	return NFS4_ACL_WHO_NAMED;
 }
 
-int
-nfs4_acl_write_who(int who, char *p)
+__be32 nfs4_acl_write_who(int who, __be32 **p, int *len)
 {
 	int i;
+	int bytes;
 
 	for (i = 0; i < ARRAY_SIZE(s2t_map); i++) {
-		if (s2t_map[i].type == who) {
-			memcpy(p, s2t_map[i].string, s2t_map[i].stringlen);
-			return s2t_map[i].stringlen;
-		}
+		if (s2t_map[i].type != who)
+			continue;
+		bytes = 4 + (XDR_QUADLEN(s2t_map[i].stringlen) << 2);
+		if (bytes > *len)
+			return nfserr_resource;
+		*p = xdr_encode_opaque(*p, s2t_map[i].string,
+					s2t_map[i].stringlen);
+		*len -= bytes;
+		return 0;
 	}
-	BUG();
+	WARN_ON_ONCE(1);
 	return -1;
 }
 

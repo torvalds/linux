@@ -1965,56 +1965,16 @@ static u32 nfs4_file_type(umode_t mode)
 	};
 }
 
-static __be32
-nfsd4_encode_name(struct svc_rqst *rqstp, int whotype, kuid_t uid, kgid_t gid,
-			__be32 **p, int *buflen)
-{
-	int status;
-
-	if (*buflen < (XDR_QUADLEN(IDMAP_NAMESZ) << 2) + 4)
-		return nfserr_resource;
-	if (whotype != NFS4_ACL_WHO_NAMED)
-		status = nfs4_acl_write_who(whotype, (u8 *)(*p + 1));
-	else if (gid_valid(gid))
-		status = nfsd_map_gid_to_name(rqstp, gid, (u8 *)(*p + 1));
-	else
-		status = nfsd_map_uid_to_name(rqstp, uid, (u8 *)(*p + 1));
-	if (status < 0)
-		return nfserrno(status);
-	*p = xdr_encode_opaque(*p, NULL, status);
-	*buflen -= (XDR_QUADLEN(status) << 2) + 4;
-	BUG_ON(*buflen < 0);
-	return 0;
-}
-
-static inline __be32
-nfsd4_encode_user(struct svc_rqst *rqstp, kuid_t user, __be32 **p, int *buflen)
-{
-	return nfsd4_encode_name(rqstp, NFS4_ACL_WHO_NAMED, user, INVALID_GID,
-				 p, buflen);
-}
-
-static inline __be32
-nfsd4_encode_group(struct svc_rqst *rqstp, kgid_t group, __be32 **p, int *buflen)
-{
-	return nfsd4_encode_name(rqstp, NFS4_ACL_WHO_NAMED, INVALID_UID, group,
-				 p, buflen);
-}
-
 static inline __be32
 nfsd4_encode_aclname(struct svc_rqst *rqstp, struct nfs4_ace *ace,
 		__be32 **p, int *buflen)
 {
-	kuid_t uid = INVALID_UID;
-	kgid_t gid = INVALID_GID;
-
-	if (ace->whotype == NFS4_ACL_WHO_NAMED) {
-		if (ace->flag & NFS4_ACE_IDENTIFIER_GROUP)
-			gid = ace->who_gid;
-		else
-			uid = ace->who_uid;
-	}
-	return nfsd4_encode_name(rqstp, ace->whotype, uid, gid, p, buflen);
+	if (ace->whotype != NFS4_ACL_WHO_NAMED)
+		return nfs4_acl_write_who(ace->whotype, p, buflen);
+	else if (ace->flag & NFS4_ACE_IDENTIFIER_GROUP)
+		return nfsd4_encode_group(rqstp, ace->who_gid, p, buflen);
+	else
+		return nfsd4_encode_user(rqstp, ace->who_uid, p, buflen);
 }
 
 #define WORD0_ABSENT_FS_ATTRS (FATTR4_WORD0_FS_LOCATIONS | FATTR4_WORD0_FSID | \
