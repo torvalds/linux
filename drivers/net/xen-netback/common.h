@@ -143,6 +143,7 @@ struct xenvif {
 	char rx_irq_name[IFNAMSIZ+4]; /* DEVNAME-rx */
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
+	bool rx_queue_stopped;
 	/* Set when the RX interrupt is triggered by the frontend.
 	 * The worker thread may need to wake the queue.
 	 */

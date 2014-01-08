@@ -476,7 +476,8 @@ static void xenvif_rx_action(struct xenvif *vif)
 	int ret;
 	unsigned long offset;
 	struct skb_cb_overlay *sco;
-	int need_to_notify = 0;
+	bool need_to_notify = false;
+	bool ring_full = false;
 
 	struct netrx_pending_operations npo = {
 		.copy  = vif->grant_copy_op,
@@ -508,7 +509,8 @@ static void xenvif_rx_action(struct xenvif *vif)
 		/* If the skb may not fit then bail out now */
 		if (!xenvif_rx_ring_slots_available(vif, max_slots_needed)) {
 			skb_queue_head(&vif->rx_queue, skb);
-			need_to_notify = 1;
+			need_to_notify = true;
+			ring_full = true;
 			break;
 		}
 
@@ -520,6 +522,8 @@ static void xenvif_rx_action(struct xenvif *vif)
 	}
 
 	BUG_ON(npo.meta_prod > ARRAY_SIZE(vif->meta));
+
+	vif->rx_queue_stopped = !npo.copy_prod && ring_full;
 
 	if (!npo.copy_prod)
 		goto done;
@@ -592,8 +596,7 @@ static void xenvif_rx_action(struct xenvif *vif)
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&vif->rx, ret);
 
-		if (ret)
-			need_to_notify = 1;
+		need_to_notify |= !!ret;
 
 		npo.meta_cons += sco->meta_slots_used;
 		dev_kfree_skb(skb);
@@ -1724,7 +1727,8 @@ static struct xen_netif_rx_response *make_rx_response(struct xenvif *vif,
 
 static inline int rx_work_todo(struct xenvif *vif)
 {
-	return !skb_queue_empty(&vif->rx_queue) || vif->rx_event;
+	return (!skb_queue_empty(&vif->rx_queue) && !vif->rx_queue_stopped) ||
+		vif->rx_event;
 }
 
 static inline int tx_work_todo(struct xenvif *vif)
