@@ -259,7 +259,15 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 		if (write_guest_lc(vcpu, __LC_SUBCHANNEL_ID, &tpi_data, len))
 			rc = -EFAULT;
 	}
-	kfree(inti);
+	/*
+	 * If we encounter a problem storing the interruption code, the
+	 * instruction is suppressed from the guest's view: reinject the
+	 * interrupt.
+	 */
+	if (!rc)
+		kfree(inti);
+	else
+		kvm_s390_reinject_io_int(vcpu->kvm, inti);
 no_interrupt:
 	/* Set condition code and we're done. */
 	if (!rc)

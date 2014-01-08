@@ -846,6 +846,12 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	return __inject_vm(kvm, inti);
 }
 
+void kvm_s390_reinject_io_int(struct kvm *kvm,
+			      struct kvm_s390_interrupt_info *inti)
+{
+	__inject_vm(kvm, inti);
+}
+
 int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 			 struct kvm_s390_interrupt *s390int)
 {
