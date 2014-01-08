@@ -508,6 +508,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	u8 *pos;
 	u32 cap;
 	struct ieee80211_sta_vht_cap vht_cap;
+	u32 mask, ap_bf_sts, our_bf_sts;
 
 	BUILD_BUG_ON(sizeof(vht_cap) != sizeof(sband->vht_cap));
 
@@ -534,6 +535,16 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	if (!(ap_vht_cap->vht_cap_info &
 			cpu_to_le32(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)))
 		cap &= ~IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
+
+	mask = IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
+
+	ap_bf_sts = le32_to_cpu(ap_vht_cap->vht_cap_info) & mask;
+	our_bf_sts = cap & mask;
+
+	if (ap_bf_sts < our_bf_sts) {
+		cap &= ~mask;
+		cap |= ap_bf_sts;
+	}
 
 	/* reserve and fill IE */
 	pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
