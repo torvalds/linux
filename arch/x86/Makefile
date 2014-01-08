@@ -11,6 +11,20 @@ else
         KBUILD_DEFCONFIG := $(ARCH)_defconfig
 endif
 
+# How to compile the 16-bit code.  Note we always compile for -march=i386;
+# that way we can complain to the user if the CPU is insufficient.
+REALMODE_CFLAGS	:= -m32 -g -Os -D__KERNEL__ -DDISABLE_BRANCH_PROFILING \
+		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
+		   -include $(srctree)/arch/x86/boot/code16gcc.h \
+		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
+		   -mno-mmx -mno-sse \
+		   $(call cc-option, -ffreestanding) \
+		   $(call cc-option, -fno-toplevel-reorder,\
+		   $(call cc-option, -fno-unit-at-a-time)) \
+		   $(call cc-option, -fno-stack-protector) \
+		   $(call cc-option, -mpreferred-stack-boundary=2)
+export REALMODE_CFLAGS
+
 # BITS is used as extension for files which are available in a 32 bit
 # and a 64 bit version to simplify shared Makefiles.
 # e.g.: obj-y += foo_$(BITS).o
