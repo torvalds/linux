@@ -428,6 +428,7 @@ struct mei_device {
 	bool iamthif_canceled;
 
 	struct work_struct init_work;
+	struct work_struct reset_work;
 
 	/* List of bus devices */
 	struct list_head device_list;

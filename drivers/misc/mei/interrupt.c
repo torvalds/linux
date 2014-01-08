@@ -329,9 +329,12 @@ int mei_irq_read_handler(struct mei_device *dev,
 
 	/*  HBM message */
 	if (mei_hdr->host_addr == 0 && mei_hdr->me_addr == 0) {
-		mei_hbm_dispatch(dev, mei_hdr);
-		ret = 0;
-		dev_dbg(&dev->pdev->dev, "mei_hbm_dispatch.\n");
+		ret = mei_hbm_dispatch(dev, mei_hdr);
+		if (ret) {
+			dev_dbg(&dev->pdev->dev, "mei_hbm_dispatch failed ret = %d\n",
+					ret);
+			goto end;
+		}
 		goto reset_slots;
 	}
 
