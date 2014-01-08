@@ -486,13 +486,55 @@ static int report__browse_hists(struct report *rep)
 	return ret;
 }
 
+static u64 report__collapse_hists(struct report *rep)
+{
+	struct ui_progress prog;
+	struct perf_evsel *pos;
+	u64 nr_samples = 0;
+	/*
+ 	 * Count number of histogram entries to use when showing progress,
+ 	 * reusing nr_samples variable.
+ 	 */
+	list_for_each_entry(pos, &rep->session->evlist->entries, node)
+		nr_samples += pos->hists.nr_entries;
+
+	ui_progress__init(&prog, nr_samples, "Merging related events...");
+	/*
+	 * Count total number of samples, will be used to check if this
+ 	 * session had any.
+ 	 */
+	nr_samples = 0;
+
+	list_for_each_entry(pos, &rep->session->evlist->entries, node) {
+		struct hists *hists = &pos->hists;
+
+		if (pos->idx == 0)
+			hists->symbol_filter_str = rep->symbol_filter_str;
+
+		hists__collapse_resort(hists, &prog);
+		nr_samples += hists->stats.nr_events[PERF_RECORD_SAMPLE];
+
+		/* Non-group events are considered as leader */
+		if (symbol_conf.event_group &&
+		    !perf_evsel__is_group_leader(pos)) {
+			struct hists *leader_hists = &pos->leader->hists;
+
+			hists__match(leader_hists, hists);
+			hists__link(leader_hists, hists);
+		}
+	}
+
+	ui_progress__finish();
+
+	return nr_samples;
+}
+
 static int __cmd_report(struct report *rep)
 {
-	int ret = -EINVAL;
+	int ret;
 	u64 nr_samples;
 	struct perf_session *session = rep->session;
 	struct perf_evsel *pos;
-	struct ui_progress prog;
 	struct perf_data_file *file = session->file;
 
 	signal(SIGINT, sig_handler);
@@ -530,32 +572,7 @@ static int __cmd_report(struct report *rep)
 		}
 	}
 
-	nr_samples = 0;
-	list_for_each_entry(pos, &session->evlist->entries, node)
-		nr_samples += pos->hists.nr_entries;
-
-	ui_progress__init(&prog, nr_samples, "Merging related events...");
-
-	nr_samples = 0;
-	list_for_each_entry(pos, &session->evlist->entries, node) {
-		struct hists *hists = &pos->hists;
-
-		if (pos->idx == 0)
-			hists->symbol_filter_str = rep->symbol_filter_str;
-
-		hists__collapse_resort(hists, &prog);
-		nr_samples += hists->stats.nr_events[PERF_RECORD_SAMPLE];
-
-		/* Non-group events are considered as leader */
-		if (symbol_conf.event_group &&
-		    !perf_evsel__is_group_leader(pos)) {
-			struct hists *leader_hists = &pos->leader->hists;
-
-			hists__match(leader_hists, hists);
-			hists__link(leader_hists, hists);
-		}
-	}
-	ui_progress__finish();
+	nr_samples = report__collapse_hists(rep);
 
 	if (session_done())
 		return 0;
