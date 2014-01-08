@@ -184,13 +184,27 @@ int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 
 		switch (arch_compat) {
 		case PVR_ARCH_205:
-			pcr = PCR_ARCH_205;
+			/*
+			 * If an arch bit is set in PCR, all the defined
+			 * higher-order arch bits also have to be set.
+			 */
+			pcr = PCR_ARCH_206 | PCR_ARCH_205;
 			break;
 		case PVR_ARCH_206:
 		case PVR_ARCH_206p:
+			pcr = PCR_ARCH_206;
+			break;
+		case PVR_ARCH_207:
 			break;
 		default:
 			return -EINVAL;
+		}
+
+		if (!cpu_has_feature(CPU_FTR_ARCH_207S)) {
+			/* POWER7 can't emulate POWER8 */
+			if (!(pcr & PCR_ARCH_206))
+				return -EINVAL;
+			pcr &= ~PCR_ARCH_206;
 		}
 	}
 
