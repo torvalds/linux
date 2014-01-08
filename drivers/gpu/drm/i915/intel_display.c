@@ -3496,7 +3496,7 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	/* Workaround : Do not read or write the pipe palette/gamma data while
 	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
 	 */
-	if (intel_crtc->config.ips_enabled &&
+	if (IS_HASWELL(dev) && intel_crtc->config.ips_enabled &&
 	    ((I915_READ(GAMMA_MODE(pipe)) & GAMMA_MODE_MODE_MASK) ==
 	     GAMMA_MODE_MODE_SPLIT)) {
 		hsw_disable_ips(intel_crtc);
