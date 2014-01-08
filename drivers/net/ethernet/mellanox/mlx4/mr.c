@@ -32,7 +32,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/slab.h>

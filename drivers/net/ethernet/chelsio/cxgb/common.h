@@ -49,7 +49,6 @@
 #include <linux/if_vlan.h>
 #include <linux/mdio.h>
 #include <linux/crc32.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/pci_ids.h>

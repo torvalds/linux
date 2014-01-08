@@ -206,7 +206,6 @@
 #include <linux/eisa.h>
 #include <linux/errno.h>
 #include <linux/fddidevice.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>

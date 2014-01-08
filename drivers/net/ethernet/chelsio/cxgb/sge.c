@@ -46,7 +46,6 @@
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/tcp.h>
 #include <linux/ip.h>

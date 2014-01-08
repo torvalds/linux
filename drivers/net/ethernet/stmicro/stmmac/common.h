@@ -29,7 +29,6 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define STMMAC_VLAN_TAG_USED
 #include <linux/if_vlan.h>

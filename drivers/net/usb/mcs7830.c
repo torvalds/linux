@@ -42,7 +42,6 @@
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/init.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>

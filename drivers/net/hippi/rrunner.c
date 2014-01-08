@@ -37,7 +37,6 @@
 #include <linux/netdevice.h>
 #include <linux/hippidevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/slab.h>

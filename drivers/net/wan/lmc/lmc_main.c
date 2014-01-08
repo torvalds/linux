@@ -49,7 +49,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/hdlc.h>
-#include <linux/init.h>
 #include <linux/in.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>

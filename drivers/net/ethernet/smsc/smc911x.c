@@ -54,7 +54,6 @@ static const char version[] =
 			 )
 #endif
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

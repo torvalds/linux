@@ -22,7 +22,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/in.h>
 #include <linux/ip.h>

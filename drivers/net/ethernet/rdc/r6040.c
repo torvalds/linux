@@ -34,7 +34,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>

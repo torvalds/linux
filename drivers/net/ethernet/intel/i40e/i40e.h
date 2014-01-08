@@ -29,7 +29,6 @@
 
 #include <net/tcp.h>
 #include <net/udp.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/module.h>

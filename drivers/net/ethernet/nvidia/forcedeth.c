@@ -58,7 +58,6 @@
 #include <linux/skbuff.h>
 #include <linux/mii.h>
 #include <linux/random.h>
-#include <linux/init.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>

@@ -23,7 +23,6 @@
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>

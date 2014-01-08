@@ -16,7 +16,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>

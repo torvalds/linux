@@ -38,7 +38,6 @@ static const char *version = "tc35815.c:v" DRV_VERSION "\n";
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>

@@ -7,7 +7,6 @@
  *
  */
 
-#include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>

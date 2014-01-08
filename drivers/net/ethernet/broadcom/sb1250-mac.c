@@ -35,7 +35,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/ethtool.h>

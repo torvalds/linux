@@ -16,7 +16,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
