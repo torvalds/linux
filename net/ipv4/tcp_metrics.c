@@ -745,10 +745,16 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 		if (nla_put_be32(msg, TCP_METRICS_ATTR_ADDR_IPV4,
 				tm->tcpm_daddr.addr.a4) < 0)
 			goto nla_put_failure;
+		if (nla_put_be32(msg, TCP_METRICS_ATTR_SADDR_IPV4,
+				tm->tcpm_saddr.addr.a4) < 0)
+			goto nla_put_failure;
 		break;
 	case AF_INET6:
 		if (nla_put(msg, TCP_METRICS_ATTR_ADDR_IPV6, 16,
 			    tm->tcpm_daddr.addr.a6) < 0)
+			goto nla_put_failure;
+		if (nla_put(msg, TCP_METRICS_ATTR_SADDR_IPV6, 16,
+			    tm->tcpm_saddr.addr.a6) < 0)
 			goto nla_put_failure;
 		break;
 	default:
