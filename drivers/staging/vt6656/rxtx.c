@@ -338,24 +338,25 @@ static u16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)
              PK_TYPE_11GB    2
              PK_TYPE_11GA    3
 */
-static u32 s_uGetTxRsvTime(struct vnt_private *pDevice, u8 byPktType,
-	u32 cbFrameLength, u16 wRate, int bNeedAck)
+static u32 s_uGetTxRsvTime(struct vnt_private *priv, u8 pkt_type,
+	u32 frame_length, u16 rate, int need_ack)
 {
-	u32 uDataTime, uAckTime;
+	u32 data_time, ack_time;
 
-    uDataTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, cbFrameLength, wRate);
-    if (byPktType == PK_TYPE_11B) {//llb,CCK mode
-        uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, (u16)pDevice->byTopCCKBasicRate);
-    } else {//11g 2.4G OFDM mode & 11a 5G OFDM mode
-        uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, (u16)pDevice->byTopOFDMBasicRate);
-    }
+	data_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
+							frame_length, rate);
 
-    if (bNeedAck) {
-        return (uDataTime + pDevice->uSIFS + uAckTime);
-    }
-    else {
-        return uDataTime;
-    }
+	if (pkt_type == PK_TYPE_11B)
+		ack_time = BBuGetFrameTime(priv->byPreambleType, pkt_type, 14,
+						(u16)priv->byTopCCKBasicRate);
+	else
+		ack_time = BBuGetFrameTime(priv->byPreambleType, pkt_type, 14,
+						(u16)priv->byTopOFDMBasicRate);
+
+	if (need_ack)
+		return data_time + priv->uSIFS + ack_time;
+
+	return data_time;
 }
 
 static u16 vnt_rxtx_rsvtime_le16(struct vnt_private *priv, u8 pkt_type,
