@@ -2035,7 +2035,9 @@ out:
 int gfs2_diradd_alloc_required(struct inode *inode, const struct qstr *name,
 			       struct gfs2_diradd *da)
 {
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	const unsigned int extra = sizeof(struct gfs2_dinode) - sizeof(struct gfs2_leaf);
 	struct gfs2_dirent *dent;
 	struct buffer_head *bh;
 
@@ -2046,6 +2048,9 @@ int gfs2_diradd_alloc_required(struct inode *inode, const struct qstr *name,
 	dent = gfs2_dirent_search(inode, name, gfs2_dirent_find_space, &bh);
 	if (!dent) {
 		da->nr_blocks = sdp->sd_max_dirres;
+		if (!(ip->i_diskflags & GFS2_DIF_EXHASH) &&
+		    (GFS2_DIRENT_SIZE(name->len) < extra))
+			da->nr_blocks = 1;
 		return 0;
 	}
 	if (IS_ERR(dent))
