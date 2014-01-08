@@ -497,6 +497,11 @@ struct iwl_mvm {
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
 
+#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+	/* broadcast filters to configure for each associated station */
+	const struct iwl_fw_bcast_filter *bcast_filters;
+#endif
+
 	/* Internal station */
 	struct iwl_mvm_int_sta aux_sta;
 

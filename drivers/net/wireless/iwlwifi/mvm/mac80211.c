@@ -872,6 +872,121 @@ out:
 	*total_flags = 0;
 }
 
+#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+struct iwl_bcast_iter_data {
+	struct iwl_mvm *mvm;
+	struct iwl_bcast_filter_cmd *cmd;
+	u8 current_filter;
+};
+
+static void
+iwl_mvm_set_bcast_filter(struct ieee80211_vif *vif,
+			 const struct iwl_fw_bcast_filter *in_filter,
+			 struct iwl_fw_bcast_filter *out_filter)
+{
+	struct iwl_fw_bcast_filter_attr *attr;
+	int i;
+
+	memcpy(out_filter, in_filter, sizeof(*out_filter));
+
+	for (i = 0; i < ARRAY_SIZE(out_filter->attrs); i++) {
+		attr = &out_filter->attrs[i];
+
+		if (!attr->mask)
+			break;
+
+		out_filter->num_attrs++;
+	}
+}
+
+static void iwl_mvm_bcast_filter_iterator(void *_data, u8 *mac,
+					  struct ieee80211_vif *vif)
+{
+	struct iwl_bcast_iter_data *data = _data;
+	struct iwl_mvm *mvm = data->mvm;
+	struct iwl_bcast_filter_cmd *cmd = data->cmd;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_fw_bcast_mac *bcast_mac;
+	int i;
+
+	if (WARN_ON(mvmvif->id >= ARRAY_SIZE(cmd->macs)))
+		return;
+
+	bcast_mac = &cmd->macs[mvmvif->id];
+
+	/* enable filtering only for associated stations */
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc)
+		return;
+
+	bcast_mac->default_discard = 1;
+
+	/* copy all configured filters */
+	for (i = 0; mvm->bcast_filters[i].attrs[0].mask; i++) {
+		/*
+		 * Make sure we don't exceed our filters limit.
+		 * if there is still a valid filter to be configured,
+		 * be on the safe side and just allow bcast for this mac.
+		 */
+		if (WARN_ON_ONCE(data->current_filter >=
+				 ARRAY_SIZE(cmd->filters))) {
+			bcast_mac->default_discard = 0;
+			bcast_mac->attached_filters = 0;
+			break;
+		}
+
+		iwl_mvm_set_bcast_filter(vif,
+					 &mvm->bcast_filters[i],
+					 &cmd->filters[data->current_filter]);
+
+		/* skip current filter if it contains no attributes */
+		if (!cmd->filters[data->current_filter].num_attrs)
+			continue;
+
+		/* attach the filter to current mac */
+		bcast_mac->attached_filters |=
+				cpu_to_le16(BIT(data->current_filter));
+
+		data->current_filter++;
+	}
+}
+
+static int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif)
+{
+	/* initialize cmd to pass broadcasts on all vifs */
+	struct iwl_bcast_filter_cmd cmd = {
+		.disable = 0,
+		.max_bcast_filters = ARRAY_SIZE(cmd.filters),
+		.max_macs = ARRAY_SIZE(cmd.macs),
+	};
+	struct iwl_bcast_iter_data iter_data = {
+		.mvm = mvm,
+		.cmd = &cmd,
+	};
+
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING))
+		return 0;
+
+	/* if no filters are configured, do nothing */
+	if (!mvm->bcast_filters)
+		return 0;
+
+	/* configure and attach these filters for each associated sta vif */
+	ieee80211_iterate_active_interfaces(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_bcast_filter_iterator, &iter_data);
+
+	return iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, CMD_SYNC,
+				    sizeof(cmd), &cmd);
+}
+#else
+static inline int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm,
+						 struct ieee80211_vif *vif)
+{
+	return 0;
+}
+#endif
+
 static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 					     struct ieee80211_vif *vif,
 					     struct ieee80211_bss_conf *bss_conf,
@@ -944,6 +1059,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		}
 
 		iwl_mvm_recalc_multicast(mvm);
+		iwl_mvm_configure_bcast_filter(mvm, vif);
 
 		/* reset rssi values */
 		mvmvif->bf_data.ave_beacon_signal = 0;
