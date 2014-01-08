@@ -213,14 +213,14 @@ static int find_valid_pos0(struct pcie_port *pp, int msgvec, int pos, int *pos0)
 }
 
 static void clear_irq_range(struct pcie_port *pp, unsigned int irq_base,
-                            unsigned int nvec, unsigned int pos)
+			    unsigned int nvec, unsigned int pos)
 {
 	unsigned int i, res, bit, val;
 
 	for (i = 0; i < nvec; i++) {
 		irq_set_msi_desc_off(irq_base, i, NULL);
 		clear_bit(pos + i, pp->msi_irq_in_use);
-		/* Disable corresponding interrupt on MSI interrupt controller */
+		/* Disable corresponding interrupt on MSI controller */
 		res = ((pos + i) / 32) * 12;
 		bit = (pos + i) % 32;
 		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
