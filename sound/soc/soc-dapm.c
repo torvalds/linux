@@ -3634,6 +3634,55 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 	return 0;
 }
 
+void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd = card->rtd;
+	struct snd_soc_dai *cpu_dai, *codec_dai;
+	struct snd_soc_dapm_route r;
+	int i;
+
+	memset(&r, 0, sizeof(r));
+
+	/* for each BE DAI link... */
+	for (i = 0; i < card->num_rtd; i++) {
+		rtd = &card->rtd[i];
+		cpu_dai = rtd->cpu_dai;
+		codec_dai = rtd->codec_dai;
+
+		/* dynamic FE links have no fixed DAI mapping */
+		if (rtd->dai_link->dynamic)
+			continue;
+
+		/* there is no point in connecting BE DAI links with dummies */
+		if (snd_soc_dai_is_dummy(codec_dai) ||
+			snd_soc_dai_is_dummy(cpu_dai))
+			continue;
+
+		/* connect BE DAI playback if widgets are valid */
+		if (codec_dai->playback_widget && cpu_dai->playback_widget) {
+			r.source = cpu_dai->playback_widget->name;
+			r.sink = codec_dai->playback_widget->name;
+			dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
+				cpu_dai->codec->name, r.source,
+				codec_dai->platform->name, r.sink);
+
+			snd_soc_dapm_add_route(&card->dapm, &r);
+		}
+
+		/* connect BE DAI capture if widgets are valid */
+		if (codec_dai->capture_widget && cpu_dai->capture_widget) {
+			r.source = codec_dai->capture_widget->name;
+			r.sink = cpu_dai->capture_widget->name;
+			dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
+				codec_dai->codec->name, r.source,
+				cpu_dai->platform->name, r.sink);
+
+			snd_soc_dapm_add_route(&card->dapm, &r);
+		}
+
+	}
+}
+
 static void soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
 	int event)
 {
