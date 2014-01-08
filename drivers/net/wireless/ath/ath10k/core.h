@@ -253,6 +253,9 @@ struct ath10k_vif {
 			u8 bssid[ETH_ALEN];
 		} ibss;
 	} u;
+
+	u8 fixed_rate;
+	u8 fixed_nss;
 };
 
 struct ath10k_vif_iter {

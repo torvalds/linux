@@ -3003,6 +3003,18 @@ struct wmi_vdev_install_key_arg {
 	const void *key_data;
 };
 
+/*
+ * vdev fixed rate format:
+ * - preamble - b7:b6 - see WMI_RATE_PREMABLE_
+ * - nss      - b5:b4 - ss number (0 mean 1ss)
+ * - rate_mcs - b3:b0 - as below
+ *    CCK:  0 - 11Mbps, 1 - 5,5Mbps, 2 - 2Mbps, 3 - 1Mbps,
+ *          4 - 11Mbps (s), 5 - 5,5Mbps (s), 6 - 2Mbps (s)
+ *    OFDM: 0 - 48Mbps, 1 - 24Mbps, 2 - 12Mbps, 3 - 6Mbps,
+ *          4 - 54Mbps, 5 - 36Mbps, 6 - 18Mbps, 7 - 9Mbps
+ *    HT/VHT: MCS index
+ */
+
 /* Preamble types to be used with VDEV fixed rate configuration */
 enum wmi_rate_preamble {
 	WMI_RATE_PREAMBLE_OFDM,
