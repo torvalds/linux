@@ -79,7 +79,6 @@
  *     availability of the different required components (blocks,
  *     rpipes, segment slots, etc), we go scheduling them. Painful.
  */
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/hash.h>

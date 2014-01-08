@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
-#include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/serial.h>
 #include <linux/serial_reg.h>

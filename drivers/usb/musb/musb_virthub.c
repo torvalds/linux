@@ -36,7 +36,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/time.h>
 #include <linux/timer.h>
 

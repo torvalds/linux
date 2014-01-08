@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>

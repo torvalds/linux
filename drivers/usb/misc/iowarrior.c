@@ -15,7 +15,6 @@
 
 #include <linux/module.h>
 #include <linux/usb.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/mutex.h>

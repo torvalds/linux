@@ -25,7 +25,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/tty.h>
