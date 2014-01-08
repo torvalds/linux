@@ -924,16 +924,12 @@ void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 }
 
 void write_node_page(struct f2fs_sb_info *sbi, struct page *page,
+		struct f2fs_io_info *fio,
 		unsigned int nid, block_t old_blkaddr, block_t *new_blkaddr)
 {
 	struct f2fs_summary sum;
-	struct f2fs_io_info fio = {
-		.type = NODE,
-		.rw = WRITE_SYNC,
-	};
-
 	set_summary(&sum, nid, 0, 0);
-	do_write_page(sbi, page, old_blkaddr, new_blkaddr, &sum, &fio);
+	do_write_page(sbi, page, old_blkaddr, new_blkaddr, &sum, fio);
 }
 
 void write_data_page(struct page *page, struct dnode_of_data *dn,

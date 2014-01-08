@@ -1194,6 +1194,10 @@ static int f2fs_write_node_page(struct page *page,
 	nid_t nid;
 	block_t new_addr;
 	struct node_info ni;
+	struct f2fs_io_info fio = {
+		.type = NODE,
+		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC: WRITE,
+	};
 
 	if (unlikely(sbi->por_doing))
 		goto redirty_out;
@@ -1218,7 +1222,7 @@ static int f2fs_write_node_page(struct page *page,
 
 	mutex_lock(&sbi->node_write);
 	set_page_writeback(page);
-	write_node_page(sbi, page, nid, ni.blk_addr, &new_addr);
+	write_node_page(sbi, page, &fio, nid, ni.blk_addr, &new_addr);
 	set_node_addr(sbi, &ni, new_addr);
 	dec_page_count(sbi, F2FS_DIRTY_NODES);
 	mutex_unlock(&sbi->node_write);
@@ -1253,6 +1257,7 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 
 	/* if mounting is failed, skip writing node pages */
 	wbc->nr_to_write = 3 * max_hw_blocks(sbi);
+	wbc->sync_mode = WB_SYNC_NONE;
 	sync_node_pages(sbi, 0, wbc);
 	wbc->nr_to_write = nr_to_write - (3 * max_hw_blocks(sbi) -
 						wbc->nr_to_write);

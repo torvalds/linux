@@ -1118,8 +1118,8 @@ int npages_for_summary_flush(struct f2fs_sb_info *);
 void allocate_new_segments(struct f2fs_sb_info *);
 struct page *get_sum_page(struct f2fs_sb_info *, unsigned int);
 void write_meta_page(struct f2fs_sb_info *, struct page *);
-void write_node_page(struct f2fs_sb_info *, struct page *, unsigned int,
-					block_t, block_t *);
+void write_node_page(struct f2fs_sb_info *, struct page *,
+		struct f2fs_io_info *, unsigned int, block_t, block_t *);
 void write_data_page(struct page *, struct dnode_of_data *, block_t *,
 					struct f2fs_io_info *);
 void rewrite_data_page(struct page *, block_t, struct f2fs_io_info *);
