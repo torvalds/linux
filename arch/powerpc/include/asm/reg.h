@@ -305,8 +305,10 @@
 #define   LPCR_RMLS    0x1C000000      /* impl dependent rmo limit sel */
 #define	  LPCR_RMLS_SH	(63-37)
 #define   LPCR_ILE     0x02000000      /* !HV irqs set MSR:LE */
+#define   LPCR_AIL	0x01800000	/* Alternate interrupt location */
 #define   LPCR_AIL_0	0x00000000	/* MMU off exception offset 0x0 */
 #define   LPCR_AIL_3	0x01800000	/* MMU on exception offset 0xc00...4xxx */
+#define   LPCR_ONL	0x00040000	/* online - PURR/SPURR count */
 #define   LPCR_PECE	0x0001f000	/* powersave exit cause enable */
 #define     LPCR_PECEDP	0x00010000	/* directed priv dbells cause exit */
 #define     LPCR_PECEDH	0x00008000	/* directed hyp dbells cause exit */
