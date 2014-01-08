@@ -83,6 +83,7 @@
 					clock-frequency = <24000000>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_apll";
+					rockchip,pll-id = <APLL_ID>;
 					#clock-cells = <0>;
 				};
 
@@ -92,6 +93,7 @@
 					reg = <0x20000010 0x10>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_dpll";
+					rockchip,pll-id = <DPLL_ID>;
 					#clock-cells = <0>;
 				};
 
@@ -101,6 +103,7 @@
 					reg = <0x20000020 0x10>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_cpll";
+					rockchip,pll-id = <CPLL_ID>;
 					#clock-cells = <0>;
 					#clock-init-cells = <1>;
 				};
@@ -111,6 +114,7 @@
 					reg = <0x20000030 0x10>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_gpll";
+					rockchip,pll-id = <GPLL_ID>;
 					#clock-cells = <0>;
 					#clock-init-cells = <1>;
 				};

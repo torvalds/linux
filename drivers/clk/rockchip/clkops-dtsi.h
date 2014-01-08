@@ -1,6 +1,15 @@
 #ifndef __RK_CLKOPS_DTSI_H
 #define __RK_CLKOPS_DTSI_H
 
+
+/* pll id */
+#define APLL_ID 	0
+#define DPLL_ID 	1
+#define CPLL_ID 	2
+#define GPLL_ID 	3
+
+
+
 /* rate_ops index */
 #define CLKOPS_RATE_MUX_DIV		0
 #define CLKOPS_RATE_EVENDIV		1
