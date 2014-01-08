@@ -31,7 +31,7 @@
 
 
 /**
- * mei_irq_compl_handler - dispatch complete handelers
+ * mei_irq_compl_handler - dispatch complete handlers
  *	for the completed callbacks
  *
  * @dev - mei device
@@ -338,7 +338,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 		goto reset_slots;
 	}
 
-	/* find recepient cl */
+	/* find recipient cl */
 	list_for_each_entry(cl, &dev->file_list, link) {
 		if (mei_cl_hbm_equal(cl, mei_hdr)) {
 			cl_dbg(dev, cl, "got a message\n");
@@ -346,7 +346,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 		}
 	}
 
-	/* if no recepient cl was found we assume corrupted header\n */
+	/* if no recipient cl was found we assume corrupted header */
 	if (&cl->link == &dev->file_list) {
 		dev_err(&dev->pdev->dev, "no destination client found 0x%08X\n",
 				dev->rd_msg_hdr);
