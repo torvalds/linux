@@ -193,8 +193,10 @@ kvm_novcpu_wakeup:
 	stb	r0, HSTATE_NAPPING(r13)
 	stb	r0, HSTATE_HWTHREAD_REQ(r13)
 
+	/* check the wake reason */
+	bl	kvmppc_check_wake_reason
+	
 	/* see if any other thread is already exiting */
-	li	r12, 0
 	lwz	r0, VCORE_ENTRY_EXIT(r5)
 	cmpwi	r0, 0x100
 	bge	kvm_novcpu_exit
@@ -204,23 +206,14 @@ kvm_novcpu_wakeup:
 	li	r0, 1
 	sld	r0, r0, r7
 	addi	r6, r5, VCORE_NAPPING_THREADS
-4:	lwarx	r3, 0, r6
-	andc	r3, r3, r0
-	stwcx.	r3, 0, r6
+4:	lwarx	r7, 0, r6
+	andc	r7, r7, r0
+	stwcx.	r7, 0, r6
 	bne	4b
 
-	/* Check the wake reason in SRR1 to see why we got here */
-	mfspr	r3, SPRN_SRR1
-	rlwinm	r3, r3, 44-31, 0x7	/* extract wake reason field */
-	cmpwi	r3, 4			/* was it an external interrupt? */
-	bne	kvm_novcpu_exit		/* if not, exit the guest */
-
-	/* extern interrupt - read and handle it */
-	li	r12, BOOK3S_INTERRUPT_EXTERNAL
-	bl	kvmppc_read_intr
+	/* See if the wake reason means we need to exit */
 	cmpdi	r3, 0
 	bge	kvm_novcpu_exit
-	li	r12, 0
 
 	/* Got an IPI but other vcpus aren't yet exiting, must be a latecomer */
 	ld	r4, HSTATE_KVM_VCPU(r13)
@@ -264,40 +257,16 @@ kvm_start_guest:
 	 */
 
 	/* Check the wake reason in SRR1 to see why we got here */
-	mfspr	r3,SPRN_SRR1
-	rlwinm	r3,r3,44-31,0x7		/* extract wake reason field */
-	cmpwi	r3,4			/* was it an external interrupt? */
-	bne	27f			/* if not */
-	ld	r5,HSTATE_XICS_PHYS(r13)
-	li	r7,XICS_XIRR		/* if it was an external interrupt, */
-	lwzcix	r8,r5,r7		/* get and ack the interrupt */
-	sync
-	clrldi.	r9,r8,40		/* get interrupt source ID. */
-	beq	28f			/* none there? */
-	cmpwi	r9,XICS_IPI		/* was it an IPI? */
-	bne	29f
-	li	r0,0xff
-	li	r6,XICS_MFRR
-	stbcix	r0,r5,r6		/* clear IPI */
-	stwcix	r8,r5,r7		/* EOI the interrupt */
-	sync				/* order loading of vcpu after that */
+	bl	kvmppc_check_wake_reason
+	cmpdi	r3, 0
+	bge	kvm_no_guest
 
 	/* get vcpu pointer, NULL if we have no vcpu to run */
 	ld	r4,HSTATE_KVM_VCPU(r13)
 	cmpdi	r4,0
 	/* if we have no vcpu to run, go back to sleep */
 	beq	kvm_no_guest
-	b	30f
 
-27:	/* XXX should handle hypervisor maintenance interrupts etc. here */
-	b	kvm_no_guest
-28:	/* SRR1 said external but ICP said nope?? */
-	b	kvm_no_guest
-29:	/* External non-IPI interrupt to offline secondary thread? help?? */
-	stw	r8,HSTATE_SAVED_XIRR(r13)
-	b	kvm_no_guest
-
-30:
 	/* Set HSTATE_DSCR(r13) to something sensible */
 	LOAD_REG_ADDR(r6, dscr_default)
 	ld	r6, 0(r6)
@@ -310,18 +279,6 @@ kvm_start_guest:
 	li	r0, 0
 	std	r0, HSTATE_KVM_VCPU(r13)
 	lwsync
-	/* Clear any pending IPI - we're an offline thread */
-	ld	r5, HSTATE_XICS_PHYS(r13)
-	li	r7, XICS_XIRR
-	lwzcix	r3, r5, r7		/* ack any pending interrupt */
-	rlwinm.	r0, r3, 0, 0xffffff	/* any pending? */
-	beq	37f
-	sync
-	li	r0, 0xff
-	li	r6, XICS_MFRR
-	stbcix	r0, r5, r6		/* clear the IPI */
-	stwcix	r3, r5, r7		/* EOI it */
-37:	sync
 
 	/* increment the nap count and then go to nap mode */
 	ld	r4, HSTATE_KVM_VCORE(r13)
@@ -818,47 +775,46 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	mtctr	r6
 	mtxer	r7
 
+kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
 	ld	r10, VCPU_PC(r4)
 	ld	r11, VCPU_MSR(r4)
-kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
 	ld	r6, VCPU_SRR0(r4)
 	ld	r7, VCPU_SRR1(r4)
+	mtspr	SPRN_SRR0, r6
+	mtspr	SPRN_SRR1, r7
 
+deliver_guest_interrupt:
 	/* r11 = vcpu->arch.msr & ~MSR_HV */
 	rldicl	r11, r11, 63 - MSR_HV_LG, 1
 	rotldi	r11, r11, 1 + MSR_HV_LG
 	ori	r11, r11, MSR_ME
 
 	/* Check if we can deliver an external or decrementer interrupt now */
-	ld	r0,VCPU_PENDING_EXC(r4)
-	lis	r8,(1 << BOOK3S_IRQPRIO_EXTERNAL_LEVEL)@h
-	and	r0,r0,r8
-	cmpdi	cr1,r0,0
-	andi.	r0,r11,MSR_EE
-	beq	cr1,11f
+	ld	r0, VCPU_PENDING_EXC(r4)
+	rldicl	r0, r0, 64 - BOOK3S_IRQPRIO_EXTERNAL_LEVEL, 63
+	cmpdi	cr1, r0, 0
+	andi.	r8, r11, MSR_EE
 BEGIN_FTR_SECTION
-	mfspr	r8,SPRN_LPCR
-	ori	r8,r8,LPCR_MER
-	mtspr	SPRN_LPCR,r8
+	mfspr	r8, SPRN_LPCR
+	/* Insert EXTERNAL_LEVEL bit into LPCR at the MER bit position */
+	rldimi	r8, r0, LPCR_MER_SH, 63 - LPCR_MER_SH
+	mtspr	SPRN_LPCR, r8
 	isync
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	beq	5f
-	li	r0,BOOK3S_INTERRUPT_EXTERNAL
-12:	mr	r6,r10
+	li	r0, BOOK3S_INTERRUPT_EXTERNAL
+	bne	cr1, 12f
+	mfspr	r0, SPRN_DEC
+	cmpwi	r0, 0
+	li	r0, BOOK3S_INTERRUPT_DECREMENTER
+	bge	5f
+
+12:	mtspr	SPRN_SRR0, r10
 	mr	r10,r0
-	mr	r7,r11
+	mtspr	SPRN_SRR1, r11
 	li	r11,(MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
 	rotldi	r11,r11,63
-	b	5f
-11:	beq	5f
-	mfspr	r0,SPRN_DEC
-	cmpwi	r0,0
-	li	r0,BOOK3S_INTERRUPT_DECREMENTER
-	blt	12b
-
-	/* Move SRR0 and SRR1 into the respective regs */
-5:	mtspr	SPRN_SRR0, r6
-	mtspr	SPRN_SRR1, r7
+5:
 
 /*
  * Required state:
@@ -1047,39 +1003,19 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	/* External interrupt, first check for host_ipi. If this is
 	 * set, we know the host wants us out so let's do it now
 	 */
-do_ext_interrupt:
 	bl	kvmppc_read_intr
 	cmpdi	r3, 0
 	bgt	ext_interrupt_to_host
 
-	/* Allright, looks like an IPI for the guest, we need to set MER */
 	/* Check if any CPU is heading out to the host, if so head out too */
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	lwz	r0, VCORE_ENTRY_EXIT(r5)
 	cmpwi	r0, 0x100
 	bge	ext_interrupt_to_host
 
-	/* See if there is a pending interrupt for the guest */
-	mfspr	r8, SPRN_LPCR
-	ld	r0, VCPU_PENDING_EXC(r9)
-	/* Insert EXTERNAL_LEVEL bit into LPCR at the MER bit position */
-	rldicl.	r0, r0, 64 - BOOK3S_IRQPRIO_EXTERNAL_LEVEL, 63
-	rldimi	r8, r0, LPCR_MER_SH, 63 - LPCR_MER_SH
-	beq	2f
-
-	/* And if the guest EE is set, we can deliver immediately, else
-	 * we return to the guest with MER set
-	 */
-	andi.	r0, r11, MSR_EE
-	beq	2f
-	mtspr	SPRN_SRR0, r10
-	mtspr	SPRN_SRR1, r11
-	li	r10, BOOK3S_INTERRUPT_EXTERNAL
-	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
-	rotldi	r11, r11, 63
-2:	mr	r4, r9
-	mtspr	SPRN_LPCR, r8
-	b	fast_guest_return
+	/* Return to guest after delivering any pending interrupt */
+	mr	r4, r9
+	b	deliver_guest_interrupt
 
 ext_interrupt_to_host:
 
@@ -1887,7 +1823,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	stb	r0,HSTATE_NAPPING(r13)
 	/* order napping_threads update vs testing entry_exit_count */
 	lwsync
-	mr	r4,r3
 	lwz	r7,VCORE_ENTRY_EXIT(r5)
 	cmpwi	r7,0x100
 	bge	33f		/* another thread already exiting */
@@ -1940,6 +1875,11 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	nap
 	b	.
 
+33:	mr	r4, r3
+	li	r3, 0
+	li	r12, 0
+	b	34f
+
 kvm_end_cede:
 	/* get vcpu pointer */
 	ld	r4, HSTATE_KVM_VCPU(r13)
@@ -1969,12 +1909,15 @@ kvm_end_cede:
 	ld	r29, VCPU_GPR(R29)(r4)
 	ld	r30, VCPU_GPR(R30)(r4)
 	ld	r31, VCPU_GPR(R31)(r4)
+ 
+	/* Check the wake reason in SRR1 to see why we got here */
+	bl	kvmppc_check_wake_reason
 
 	/* clear our bit in vcore->napping_threads */
-33:	ld	r5,HSTATE_KVM_VCORE(r13)
-	lbz	r3,HSTATE_PTID(r13)
+34:	ld	r5,HSTATE_KVM_VCORE(r13)
+	lbz	r7,HSTATE_PTID(r13)
 	li	r0,1
-	sld	r0,r0,r3
+	sld	r0,r0,r7
 	addi	r6,r5,VCORE_NAPPING_THREADS
 32:	lwarx	r7,0,r6
 	andc	r7,r7,r0
@@ -1983,23 +1926,18 @@ kvm_end_cede:
 	li	r0,0
 	stb	r0,HSTATE_NAPPING(r13)
 
-	/* Check the wake reason in SRR1 to see why we got here */
-	mfspr	r3, SPRN_SRR1
-	rlwinm	r3, r3, 44-31, 0x7	/* extract wake reason field */
-	cmpwi	r3, 4			/* was it an external interrupt? */
-	li	r12, BOOK3S_INTERRUPT_EXTERNAL
+	/* See if the wake reason means we need to exit */
+	stw	r12, VCPU_TRAP(r4)
 	mr	r9, r4
-	ld	r10, VCPU_PC(r9)
-	ld	r11, VCPU_MSR(r9)
-	beq	do_ext_interrupt	/* if so */
+	cmpdi	r3, 0
+	bgt	guest_exit_cont
 
 	/* see if any other thread is already exiting */
 	lwz	r0,VCORE_ENTRY_EXIT(r5)
 	cmpwi	r0,0x100
-	blt	kvmppc_cede_reentry	/* if not go back to guest */
+	bge	guest_exit_cont
 
-	/* some threads are exiting, so go to the guest exit path */
-	b	hcall_real_fallback
+	b	kvmppc_cede_reentry	/* if not go back to guest */
 
 	/* cede when already previously prodded case */
 kvm_cede_prodded:
@@ -2028,6 +1966,29 @@ machine_check_realmode:
 	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
 	rotldi	r11, r11, 63
 	b	fast_interrupt_c_return
+
+/*
+ * Check the reason we woke from nap, and take appropriate action.
+ * Returns:
+ *	0 if nothing needs to be done
+ *	1 if something happened that needs to be handled by the host
+ *	-1 if there was a guest wakeup (IPI)
+ *
+ * Also sets r12 to the interrupt vector for any interrupt that needs
+ * to be handled now by the host (0x500 for external interrupt), or zero.
+ */
+kvmppc_check_wake_reason:
+	mfspr	r6, SPRN_SRR1
+	rlwinm	r6, r6, 44-31, 0x7	/* extract wake reason field */
+	cmpwi	r6, 4			/* was it an external interrupt? */
+	li	r12, BOOK3S_INTERRUPT_EXTERNAL
+	beq	kvmppc_read_intr	/* if so, see what it was */
+	li	r3, 0
+	li	r12, 0
+	cmpwi	r6, 6			/* was it the decrementer? */
+	beq	0f
+	li	r3, 1			/* anything else, return 1 */
+0:	blr
 
 /*
  * Determine what sort of external interrupt is pending (if any).
@@ -2060,7 +2021,6 @@ kvmppc_read_intr:
 	 * interrupts directly to the guest
 	 */
 	cmpwi	r3, XICS_IPI		/* if there is, is it an IPI? */
-	li	r3, 1
 	bne	42f
 
 	/* It's an IPI, clear the MFRR and EOI it */
@@ -2086,12 +2046,14 @@ kvmppc_read_intr:
 	 * before exit, it will be picked up by the host ICP driver
 	 */
 	stw	r0, HSTATE_SAVED_XIRR(r13)
+	li	r3, 1
 	b	1b
 
 43:	/* We raced with the host, we need to resend that IPI, bummer */
 	li	r0, IPI_PRIORITY
 	stbcix	r0, r6, r8		/* set the IPI */
 	sync
+	li	r3, 1
 	b	1b
 
 /*
