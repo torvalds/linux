@@ -29,7 +29,6 @@
  * da8xx.c would be merged to this file after testing.
  */
 
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>

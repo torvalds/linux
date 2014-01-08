@@ -3,7 +3,6 @@
 #include <linux/usb/hcd.h>
 #include <linux/usb/quirks.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <asm/byteorder.h>

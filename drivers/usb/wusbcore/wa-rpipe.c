@@ -57,7 +57,6 @@
  *  urb->dev->devnum, to make sure that we always have the right
  *  destination address.
  */
-#include <linux/init.h>
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>

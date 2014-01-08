@@ -24,7 +24,6 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>

@@ -19,7 +19,8 @@
  * http://www.gnu.org/copyleft/gpl.html.
  */
 
-#include <linux/init.h>
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>

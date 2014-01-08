@@ -60,7 +60,6 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/usb.h>

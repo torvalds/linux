@@ -27,7 +27,6 @@
 /*#include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/pagemap.h>
-#include <linux/init.h>
 #include <linux/namei.h>
 #include <linux/sched.h>*/
 #include <linux/platform_device.h>

@@ -6,7 +6,6 @@
 #include <linux/usb.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/ctype.h>
