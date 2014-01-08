@@ -12,10 +12,12 @@
 
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/export.h>
-#include <linux/acpi_gpio.h>
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
+
+#include "gpiolib.h"
 
 struct acpi_gpio_evt_pin {
 	struct list_head node;
@@ -307,7 +309,6 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct device *dev, int index,
 
 	return lookup.desc ? lookup.desc : ERR_PTR(-ENOENT);
 }
-EXPORT_SYMBOL_GPL(acpi_get_gpiod_by_index);
 
 void acpi_gpiochip_add(struct gpio_chip *chip)
 {

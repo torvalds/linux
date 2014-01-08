@@ -12,12 +12,35 @@
 #ifndef GPIOLIB_H
 #define GPIOLIB_H
 
+#include <linux/err.h>
+#include <linux/device.h>
+
+/**
+ * struct acpi_gpio_info - ACPI GPIO specific information
+ * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
+ * @active_low: in case of @gpioint, the pin is active low
+ */
+struct acpi_gpio_info {
+	bool gpioint;
+	bool active_low;
+};
+
 #ifdef CONFIG_ACPI
 void acpi_gpiochip_add(struct gpio_chip *chip);
 void acpi_gpiochip_remove(struct gpio_chip *chip);
+
+struct gpio_desc *acpi_get_gpiod_by_index(struct device *dev, int index,
+					  struct acpi_gpio_info *info);
 #else
 static inline void acpi_gpiochip_add(struct gpio_chip *chip) { }
 static inline void acpi_gpiochip_remove(struct gpio_chip *chip) { }
+
+static inline struct gpio_desc *
+acpi_get_gpiod_by_index(struct device *dev, int index,
+			struct acpi_gpio_info *info)
+{
+	return ERR_PTR(-ENOSYS);
+}
 #endif
 
 #endif /* GPIOLIB_H */
