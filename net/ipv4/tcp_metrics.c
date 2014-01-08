@@ -982,7 +982,7 @@ static int tcp_metrics_flush_all(struct net *net)
 static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 {
 	struct tcpm_hash_bucket *hb;
-	struct tcp_metrics_block *tm;
+	struct tcp_metrics_block *tm, *tmlist = NULL;
 	struct tcp_metrics_block __rcu **pp;
 	struct inetpeer_addr daddr;
 	unsigned int hash;
@@ -999,17 +999,22 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	hb = net->ipv4.tcp_metrics_hash + hash;
 	pp = &hb->chain;
 	spin_lock_bh(&tcp_metrics_lock);
-	for (tm = deref_locked_genl(*pp); tm;
-	     pp = &tm->tcpm_next, tm = deref_locked_genl(*pp)) {
+	for (tm = deref_locked_genl(*pp); tm; tm = deref_locked_genl(*pp)) {
 		if (addr_same(&tm->tcpm_daddr, &daddr)) {
 			*pp = tm->tcpm_next;
-			break;
+			tm->tcpm_next = tmlist;
+			tmlist = tm;
+		} else {
+			pp = &tm->tcpm_next;
 		}
 	}
 	spin_unlock_bh(&tcp_metrics_lock);
-	if (!tm)
+	if (!tmlist)
 		return -ESRCH;
-	kfree_rcu(tm, rcu_head);
+	for (tm = tmlist; tm; tm = tmlist) {
+		tmlist = tm->tcpm_next;
+		kfree_rcu(tm, rcu_head);
+	}
 	return 0;
 }
 
