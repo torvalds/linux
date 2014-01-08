@@ -2128,7 +2128,6 @@ static void rivafb_remove(struct pci_dev *pd)
 	pci_release_regions(pd);
 	kfree(info->pixmap.addr);
 	framebuffer_release(info);
-	pci_set_drvdata(pd, NULL);
 	NVTRACE_LEAVE();
 }
 
