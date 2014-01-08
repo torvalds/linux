@@ -304,6 +304,7 @@ struct kvmppc_vcore {
 	ulong lpcr;
 	u32 arch_compat;
 	ulong pcr;
+	ulong dpdes;		/* doorbell state (POWER8) */
 };
 
 #define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
@@ -448,6 +449,7 @@ struct kvm_vcpu_arch {
 	ulong pc;
 	ulong ctr;
 	ulong lr;
+	ulong tar;
 
 	ulong xer;
 	u32 cr;
@@ -457,13 +459,32 @@ struct kvm_vcpu_arch {
 	ulong guest_owned_ext;
 	ulong purr;
 	ulong spurr;
+	ulong ic;
+	ulong vtb;
 	ulong dscr;
 	ulong amr;
 	ulong uamor;
+	ulong iamr;
 	u32 ctrl;
 	ulong dabr;
+	ulong dawr;
+	ulong dawrx;
+	ulong ciabr;
 	ulong cfar;
 	ulong ppr;
+	ulong pspb;
+	ulong fscr;
+	ulong tfhar;
+	ulong tfiar;
+	ulong texasr;
+	ulong ebbhr;
+	ulong ebbrr;
+	ulong bescr;
+	ulong csigr;
+	ulong tacr;
+	ulong tcscr;
+	ulong acop;
+	ulong wort;
 	ulong shadow_srr1;
 #endif
 	u32 vrsave; /* also USPRG0 */
@@ -498,10 +519,12 @@ struct kvm_vcpu_arch {
 	u32 ccr1;
 	u32 dbsr;
 
-	u64 mmcr[3];
+	u64 mmcr[5];
 	u32 pmc[8];
+	u32 spmc[2];
 	u64 siar;
 	u64 sdar;
+	u64 sier;
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 	struct mutex exit_timing_lock;

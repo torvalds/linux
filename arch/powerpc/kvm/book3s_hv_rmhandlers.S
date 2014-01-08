@@ -460,6 +460,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	beq	38f
 	mtspr	SPRN_PCR, r7
 38:
+
+BEGIN_FTR_SECTION
+	/* DPDES is shared between threads */
+	ld	r8, VCORE_DPDES(r5)
+	mtspr	SPRN_DPDES, r8
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+
 	li	r0,1
 	stb	r0,VCORE_IN_GUEST(r5)	/* signal secondaries to continue */
 	b	10f
@@ -659,6 +666,18 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_MMCRA, r6
 	mtspr	SPRN_SIAR, r7
 	mtspr	SPRN_SDAR, r8
+BEGIN_FTR_SECTION
+	ld	r5, VCPU_MMCR + 24(r4)
+	ld	r6, VCPU_SIER(r4)
+	lwz	r7, VCPU_PMC + 24(r4)
+	lwz	r8, VCPU_PMC + 28(r4)
+	ld	r9, VCPU_MMCR + 32(r4)
+	mtspr	SPRN_MMCR2, r5
+	mtspr	SPRN_SIER, r6
+	mtspr	SPRN_SPMC1, r7
+	mtspr	SPRN_SPMC2, r8
+	mtspr	SPRN_MMCRS, r9
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_MMCR0, r3
 	isync
 
@@ -689,6 +708,61 @@ BEGIN_FTR_SECTION
 	ld	r5, VCPU_DSCR(r4)
 	mtspr	SPRN_DSCR, r5
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
+
+BEGIN_FTR_SECTION
+	/* Skip next section on POWER7 or PPC970 */
+	b	8f
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
+	/* Turn on TM so we can access TFHAR/TFIAR/TEXASR */
+	mfmsr	r8
+	li	r0, 1
+	rldimi	r8, r0, MSR_TM_LG, 63-MSR_TM_LG
+	mtmsrd	r8
+
+	/* Load up POWER8-specific registers */
+	ld	r5, VCPU_IAMR(r4)
+	lwz	r6, VCPU_PSPB(r4)
+	ld	r7, VCPU_FSCR(r4)
+	mtspr	SPRN_IAMR, r5
+	mtspr	SPRN_PSPB, r6
+	mtspr	SPRN_FSCR, r7
+	ld	r5, VCPU_DAWR(r4)
+	ld	r6, VCPU_DAWRX(r4)
+	ld	r7, VCPU_CIABR(r4)
+	ld	r8, VCPU_TAR(r4)
+	mtspr	SPRN_DAWR, r5
+	mtspr	SPRN_DAWRX, r6
+	mtspr	SPRN_CIABR, r7
+	mtspr	SPRN_TAR, r8
+	ld	r5, VCPU_IC(r4)
+	ld	r6, VCPU_VTB(r4)
+	mtspr	SPRN_IC, r5
+	mtspr	SPRN_VTB, r6
+	ld	r5, VCPU_TFHAR(r4)
+	ld	r6, VCPU_TFIAR(r4)
+	ld	r7, VCPU_TEXASR(r4)
+	ld	r8, VCPU_EBBHR(r4)
+	mtspr	SPRN_TFHAR, r5
+	mtspr	SPRN_TFIAR, r6
+	mtspr	SPRN_TEXASR, r7
+	mtspr	SPRN_EBBHR, r8
+	ld	r5, VCPU_EBBRR(r4)
+	ld	r6, VCPU_BESCR(r4)
+	ld	r7, VCPU_CSIGR(r4)
+	ld	r8, VCPU_TACR(r4)
+	mtspr	SPRN_EBBRR, r5
+	mtspr	SPRN_BESCR, r6
+	mtspr	SPRN_CSIGR, r7
+	mtspr	SPRN_TACR, r8
+	ld	r5, VCPU_TCSCR(r4)
+	ld	r6, VCPU_ACOP(r4)
+	lwz	r7, VCPU_GUEST_PID(r4)
+	ld	r8, VCPU_WORT(r4)
+	mtspr	SPRN_TCSCR, r5
+	mtspr	SPRN_ACOP, r6
+	mtspr	SPRN_PID, r7
+	mtspr	SPRN_WORT, r8
+8:
 
 	/*
 	 * Set the decrementer to the guest decrementer.
@@ -1081,6 +1155,54 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_201)
 	add	r5,r5,r6
 	std	r5,VCPU_DEC_EXPIRES(r9)
 
+BEGIN_FTR_SECTION
+	b	8f
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
+	/* Turn on TM so we can access TFHAR/TFIAR/TEXASR */
+	mfmsr	r8
+	li	r0, 1
+	rldimi	r8, r0, MSR_TM_LG, 63-MSR_TM_LG
+	mtmsrd	r8
+
+	/* Save POWER8-specific registers */
+	mfspr	r5, SPRN_IAMR
+	mfspr	r6, SPRN_PSPB
+	mfspr	r7, SPRN_FSCR
+	std	r5, VCPU_IAMR(r9)
+	stw	r6, VCPU_PSPB(r9)
+	std	r7, VCPU_FSCR(r9)
+	mfspr	r5, SPRN_IC
+	mfspr	r6, SPRN_VTB
+	mfspr	r7, SPRN_TAR
+	std	r5, VCPU_IC(r9)
+	std	r6, VCPU_VTB(r9)
+	std	r7, VCPU_TAR(r9)
+	mfspr	r5, SPRN_TFHAR
+	mfspr	r6, SPRN_TFIAR
+	mfspr	r7, SPRN_TEXASR
+	mfspr	r8, SPRN_EBBHR
+	std	r5, VCPU_TFHAR(r9)
+	std	r6, VCPU_TFIAR(r9)
+	std	r7, VCPU_TEXASR(r9)
+	std	r8, VCPU_EBBHR(r9)
+	mfspr	r5, SPRN_EBBRR
+	mfspr	r6, SPRN_BESCR
+	mfspr	r7, SPRN_CSIGR
+	mfspr	r8, SPRN_TACR
+	std	r5, VCPU_EBBRR(r9)
+	std	r6, VCPU_BESCR(r9)
+	std	r7, VCPU_CSIGR(r9)
+	std	r8, VCPU_TACR(r9)
+	mfspr	r5, SPRN_TCSCR
+	mfspr	r6, SPRN_ACOP
+	mfspr	r7, SPRN_PID
+	mfspr	r8, SPRN_WORT
+	std	r5, VCPU_TCSCR(r9)
+	std	r6, VCPU_ACOP(r9)
+	stw	r7, VCPU_GUEST_PID(r9)
+	std	r8, VCPU_WORT(r9)
+8:
+
 	/* Save and reset AMR and UAMOR before turning on the MMU */
 BEGIN_FTR_SECTION
 	mfspr	r5,SPRN_AMR
@@ -1190,6 +1312,20 @@ BEGIN_FTR_SECTION
 	stw	r10, VCPU_PMC + 24(r9)
 	stw	r11, VCPU_PMC + 28(r9)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
+BEGIN_FTR_SECTION
+	mfspr	r4, SPRN_MMCR2
+	mfspr	r5, SPRN_SIER
+	mfspr	r6, SPRN_SPMC1
+	mfspr	r7, SPRN_SPMC2
+	mfspr	r8, SPRN_MMCRS
+	std	r4, VCPU_MMCR + 24(r9)
+	std	r5, VCPU_SIER(r9)
+	stw	r6, VCPU_PMC + 24(r9)
+	stw	r7, VCPU_PMC + 28(r9)
+	std	r8, VCPU_MMCR + 32(r9)
+	lis	r4, 0x8000
+	mtspr	SPRN_MMCRS, r4
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 22:
 	/* Clear out SLB */
 	li	r5,0
@@ -1289,6 +1425,15 @@ secondary_too_late:
 	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
 	mtspr	SPRN_LPID,r7
 	isync
+
+BEGIN_FTR_SECTION
+	/* DPDES is shared between threads */
+	mfspr	r7, SPRN_DPDES
+	std	r7, VCORE_DPDES(r5)
+	/* clear DPDES so we don't get guest doorbells in the host */
+	li	r8, 0
+	mtspr	SPRN_DPDES, r8
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	/* Subtract timebase offset from timebase */
 	ld	r8,VCORE_TB_OFFSET(r5)

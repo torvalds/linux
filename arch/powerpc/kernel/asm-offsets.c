@@ -432,6 +432,7 @@ int main(void)
 	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
 	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
 	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
+	DEFINE(VCPU_TAR, offsetof(struct kvm_vcpu, arch.tar));
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
 	DEFINE(VCPU_PC, offsetof(struct kvm_vcpu, arch.pc));
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -484,11 +485,17 @@ int main(void)
 	DEFINE(VCPU_VCPUID, offsetof(struct kvm_vcpu, vcpu_id));
 	DEFINE(VCPU_PURR, offsetof(struct kvm_vcpu, arch.purr));
 	DEFINE(VCPU_SPURR, offsetof(struct kvm_vcpu, arch.spurr));
+	DEFINE(VCPU_IC, offsetof(struct kvm_vcpu, arch.ic));
+	DEFINE(VCPU_VTB, offsetof(struct kvm_vcpu, arch.vtb));
 	DEFINE(VCPU_DSCR, offsetof(struct kvm_vcpu, arch.dscr));
 	DEFINE(VCPU_AMR, offsetof(struct kvm_vcpu, arch.amr));
 	DEFINE(VCPU_UAMOR, offsetof(struct kvm_vcpu, arch.uamor));
+	DEFINE(VCPU_IAMR, offsetof(struct kvm_vcpu, arch.iamr));
 	DEFINE(VCPU_CTRL, offsetof(struct kvm_vcpu, arch.ctrl));
 	DEFINE(VCPU_DABR, offsetof(struct kvm_vcpu, arch.dabr));
+	DEFINE(VCPU_DAWR, offsetof(struct kvm_vcpu, arch.dawr));
+	DEFINE(VCPU_DAWRX, offsetof(struct kvm_vcpu, arch.dawrx));
+	DEFINE(VCPU_CIABR, offsetof(struct kvm_vcpu, arch.ciabr));
 	DEFINE(VCPU_HFLAGS, offsetof(struct kvm_vcpu, arch.hflags));
 	DEFINE(VCPU_DEC, offsetof(struct kvm_vcpu, arch.dec));
 	DEFINE(VCPU_DEC_EXPIRES, offsetof(struct kvm_vcpu, arch.dec_expires));
@@ -497,8 +504,10 @@ int main(void)
 	DEFINE(VCPU_PRODDED, offsetof(struct kvm_vcpu, arch.prodded));
 	DEFINE(VCPU_MMCR, offsetof(struct kvm_vcpu, arch.mmcr));
 	DEFINE(VCPU_PMC, offsetof(struct kvm_vcpu, arch.pmc));
+	DEFINE(VCPU_SPMC, offsetof(struct kvm_vcpu, arch.spmc));
 	DEFINE(VCPU_SIAR, offsetof(struct kvm_vcpu, arch.siar));
 	DEFINE(VCPU_SDAR, offsetof(struct kvm_vcpu, arch.sdar));
+	DEFINE(VCPU_SIER, offsetof(struct kvm_vcpu, arch.sier));
 	DEFINE(VCPU_SLB, offsetof(struct kvm_vcpu, arch.slb));
 	DEFINE(VCPU_SLB_MAX, offsetof(struct kvm_vcpu, arch.slb_max));
 	DEFINE(VCPU_SLB_NR, offsetof(struct kvm_vcpu, arch.slb_nr));
@@ -508,6 +517,19 @@ int main(void)
 	DEFINE(VCPU_TRAP, offsetof(struct kvm_vcpu, arch.trap));
 	DEFINE(VCPU_CFAR, offsetof(struct kvm_vcpu, arch.cfar));
 	DEFINE(VCPU_PPR, offsetof(struct kvm_vcpu, arch.ppr));
+	DEFINE(VCPU_FSCR, offsetof(struct kvm_vcpu, arch.fscr));
+	DEFINE(VCPU_PSPB, offsetof(struct kvm_vcpu, arch.pspb));
+	DEFINE(VCPU_TFHAR, offsetof(struct kvm_vcpu, arch.tfhar));
+	DEFINE(VCPU_TFIAR, offsetof(struct kvm_vcpu, arch.tfiar));
+	DEFINE(VCPU_TEXASR, offsetof(struct kvm_vcpu, arch.texasr));
+	DEFINE(VCPU_EBBHR, offsetof(struct kvm_vcpu, arch.ebbhr));
+	DEFINE(VCPU_EBBRR, offsetof(struct kvm_vcpu, arch.ebbrr));
+	DEFINE(VCPU_BESCR, offsetof(struct kvm_vcpu, arch.bescr));
+	DEFINE(VCPU_CSIGR, offsetof(struct kvm_vcpu, arch.csigr));
+	DEFINE(VCPU_TACR, offsetof(struct kvm_vcpu, arch.tacr));
+	DEFINE(VCPU_TCSCR, offsetof(struct kvm_vcpu, arch.tcscr));
+	DEFINE(VCPU_ACOP, offsetof(struct kvm_vcpu, arch.acop));
+	DEFINE(VCPU_WORT, offsetof(struct kvm_vcpu, arch.wort));
 	DEFINE(VCPU_SHADOW_SRR1, offsetof(struct kvm_vcpu, arch.shadow_srr1));
 	DEFINE(VCORE_ENTRY_EXIT, offsetof(struct kvmppc_vcore, entry_exit_count));
 	DEFINE(VCORE_NAP_COUNT, offsetof(struct kvmppc_vcore, nap_count));
@@ -517,6 +539,7 @@ int main(void)
 	DEFINE(VCORE_TB_OFFSET, offsetof(struct kvmppc_vcore, tb_offset));
 	DEFINE(VCORE_LPCR, offsetof(struct kvmppc_vcore, lpcr));
 	DEFINE(VCORE_PCR, offsetof(struct kvmppc_vcore, pcr));
+	DEFINE(VCORE_DPDES, offsetof(struct kvmppc_vcore, dpdes));
 	DEFINE(VCPU_SLB_E, offsetof(struct kvmppc_slb, orige));
 	DEFINE(VCPU_SLB_V, offsetof(struct kvmppc_slb, origv));
 	DEFINE(VCPU_SLB_SIZE, sizeof(struct kvmppc_slb));

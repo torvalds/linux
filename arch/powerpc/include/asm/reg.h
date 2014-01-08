@@ -223,6 +223,11 @@
 #define   CTRL_TE	0x00c00000	/* thread enable */
 #define   CTRL_RUNLATCH	0x1
 #define SPRN_DAWR	0xB4
+#define SPRN_CIABR	0xBB
+#define   CIABR_PRIV		0x3
+#define   CIABR_PRIV_USER	1
+#define   CIABR_PRIV_SUPER	2
+#define   CIABR_PRIV_HYPER	3
 #define SPRN_DAWRX	0xBC
 #define   DAWRX_USER	(1UL << 0)
 #define   DAWRX_KERNEL	(1UL << 1)
@@ -260,6 +265,8 @@
 #define SPRN_HRMOR	0x139	/* Real mode offset register */
 #define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
+#define SPRN_IC		0x350	/* Virtual Instruction Count */
+#define SPRN_VTB	0x351	/* Virtual Time Base */
 /* HFSCR and FSCR bit numbers are the same */
 #define FSCR_TAR_LG	8	/* Enable Target Address Register */
 #define FSCR_EBB_LG	7	/* Enable Event Based Branching */
@@ -368,6 +375,8 @@
 #define DER_EBRKE	0x00000002	/* External Breakpoint Interrupt */
 #define DER_DPIE	0x00000001	/* Dev. Port Nonmaskable Request */
 #define SPRN_DMISS	0x3D0		/* Data TLB Miss Register */
+#define SPRN_DHDES	0x0B1		/* Directed Hyp. Doorbell Exc. State */
+#define SPRN_DPDES	0x0B0		/* Directed Priv. Doorbell Exc. State */
 #define SPRN_EAR	0x11A		/* External Address Register */
 #define SPRN_HASH1	0x3D2		/* Primary Hash Address Register */
 #define SPRN_HASH2	0x3D3		/* Secondary Hash Address Resgister */
@@ -427,6 +436,7 @@
 #define SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
 #define SPRN_IABR2	0x3FA		/* 83xx */
 #define SPRN_IBCR	0x135		/* 83xx Insn Breakpoint Control Reg */
+#define SPRN_IAMR	0x03D		/* Instr. Authority Mask Reg */
 #define SPRN_HID4	0x3F4		/* 970 HID4 */
 #define  HID4_LPES0	 (1ul << (63-0)) /* LPAR env. sel. bit 0 */
 #define	 HID4_RMLS2_SH	 (63 - 2)	/* Real mode limit bottom 2 bits */
@@ -541,6 +551,7 @@
 #define SPRN_PIR	0x3FF	/* Processor Identification Register */
 #endif
 #define SPRN_TIR	0x1BE	/* Thread Identification Register */
+#define SPRN_PSPB	0x09F	/* Problem State Priority Boost reg */
 #define SPRN_PTEHI	0x3D5	/* 981 7450 PTE HI word (S/W TLB load) */
 #define SPRN_PTELO	0x3D6	/* 982 7450 PTE LO word (S/W TLB load) */
 #define SPRN_PURR	0x135	/* Processor Utilization of Resources Reg */
@@ -682,6 +693,7 @@
 #define SPRN_EBBHR	804	/* Event based branch handler register */
 #define SPRN_EBBRR	805	/* Event based branch return register */
 #define SPRN_BESCR	806	/* Branch event status and control register */
+#define SPRN_WORT	895	/* Workload optimization register - thread */
 
 #define SPRN_PMC1	787
 #define SPRN_PMC2	788
@@ -698,6 +710,11 @@
 #define   SIER_SIHV		0x1000000	/* Sampled MSR_HV */
 #define   SIER_SIAR_VALID	0x0400000	/* SIAR contents valid */
 #define   SIER_SDAR_VALID	0x0200000	/* SDAR contents valid */
+#define SPRN_TACR	888
+#define SPRN_TCSCR	889
+#define SPRN_CSIGR	890
+#define SPRN_SPMC1	892
+#define SPRN_SPMC2	893
 
 /* When EBB is enabled, some of MMCR0/MMCR2/SIER are user accessible */
 #define MMCR0_USER_MASK	(MMCR0_FC | MMCR0_PMXE | MMCR0_PMAO)

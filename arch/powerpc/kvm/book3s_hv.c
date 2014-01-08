@@ -800,7 +800,7 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_UAMOR:
 		*val = get_reg_val(id, vcpu->arch.uamor);
 		break;
-	case KVM_REG_PPC_MMCR0 ... KVM_REG_PPC_MMCRA:
+	case KVM_REG_PPC_MMCR0 ... KVM_REG_PPC_MMCRS:
 		i = id - KVM_REG_PPC_MMCR0;
 		*val = get_reg_val(id, vcpu->arch.mmcr[i]);
 		break;
@@ -808,11 +808,84 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		i = id - KVM_REG_PPC_PMC1;
 		*val = get_reg_val(id, vcpu->arch.pmc[i]);
 		break;
+	case KVM_REG_PPC_SPMC1 ... KVM_REG_PPC_SPMC2:
+		i = id - KVM_REG_PPC_SPMC1;
+		*val = get_reg_val(id, vcpu->arch.spmc[i]);
+		break;
 	case KVM_REG_PPC_SIAR:
 		*val = get_reg_val(id, vcpu->arch.siar);
 		break;
 	case KVM_REG_PPC_SDAR:
 		*val = get_reg_val(id, vcpu->arch.sdar);
+		break;
+	case KVM_REG_PPC_SIER:
+		*val = get_reg_val(id, vcpu->arch.sier);
+		break;
+	case KVM_REG_PPC_IAMR:
+		*val = get_reg_val(id, vcpu->arch.iamr);
+		break;
+	case KVM_REG_PPC_TFHAR:
+		*val = get_reg_val(id, vcpu->arch.tfhar);
+		break;
+	case KVM_REG_PPC_TFIAR:
+		*val = get_reg_val(id, vcpu->arch.tfiar);
+		break;
+	case KVM_REG_PPC_TEXASR:
+		*val = get_reg_val(id, vcpu->arch.texasr);
+		break;
+	case KVM_REG_PPC_FSCR:
+		*val = get_reg_val(id, vcpu->arch.fscr);
+		break;
+	case KVM_REG_PPC_PSPB:
+		*val = get_reg_val(id, vcpu->arch.pspb);
+		break;
+	case KVM_REG_PPC_EBBHR:
+		*val = get_reg_val(id, vcpu->arch.ebbhr);
+		break;
+	case KVM_REG_PPC_EBBRR:
+		*val = get_reg_val(id, vcpu->arch.ebbrr);
+		break;
+	case KVM_REG_PPC_BESCR:
+		*val = get_reg_val(id, vcpu->arch.bescr);
+		break;
+	case KVM_REG_PPC_TAR:
+		*val = get_reg_val(id, vcpu->arch.tar);
+		break;
+	case KVM_REG_PPC_DPDES:
+		*val = get_reg_val(id, vcpu->arch.vcore->dpdes);
+		break;
+	case KVM_REG_PPC_DAWR:
+		*val = get_reg_val(id, vcpu->arch.dawr);
+		break;
+	case KVM_REG_PPC_DAWRX:
+		*val = get_reg_val(id, vcpu->arch.dawrx);
+		break;
+	case KVM_REG_PPC_CIABR:
+		*val = get_reg_val(id, vcpu->arch.ciabr);
+		break;
+	case KVM_REG_PPC_IC:
+		*val = get_reg_val(id, vcpu->arch.ic);
+		break;
+	case KVM_REG_PPC_VTB:
+		*val = get_reg_val(id, vcpu->arch.vtb);
+		break;
+	case KVM_REG_PPC_CSIGR:
+		*val = get_reg_val(id, vcpu->arch.csigr);
+		break;
+	case KVM_REG_PPC_TACR:
+		*val = get_reg_val(id, vcpu->arch.tacr);
+		break;
+	case KVM_REG_PPC_TCSCR:
+		*val = get_reg_val(id, vcpu->arch.tcscr);
+		break;
+	case KVM_REG_PPC_PID:
+		*val = get_reg_val(id, vcpu->arch.pid);
+		break;
+	case KVM_REG_PPC_ACOP:
+		*val = get_reg_val(id, vcpu->arch.acop);
+		break;
+	case KVM_REG_PPC_WORT:
+		*val = get_reg_val(id, vcpu->arch.wort);
 		break;
 	case KVM_REG_PPC_VPA_ADDR:
 		spin_lock(&vcpu->arch.vpa_update_lock);
@@ -882,7 +955,7 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_UAMOR:
 		vcpu->arch.uamor = set_reg_val(id, *val);
 		break;
-	case KVM_REG_PPC_MMCR0 ... KVM_REG_PPC_MMCRA:
+	case KVM_REG_PPC_MMCR0 ... KVM_REG_PPC_MMCRS:
 		i = id - KVM_REG_PPC_MMCR0;
 		vcpu->arch.mmcr[i] = set_reg_val(id, *val);
 		break;
@@ -890,11 +963,87 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		i = id - KVM_REG_PPC_PMC1;
 		vcpu->arch.pmc[i] = set_reg_val(id, *val);
 		break;
+	case KVM_REG_PPC_SPMC1 ... KVM_REG_PPC_SPMC2:
+		i = id - KVM_REG_PPC_SPMC1;
+		vcpu->arch.spmc[i] = set_reg_val(id, *val);
+		break;
 	case KVM_REG_PPC_SIAR:
 		vcpu->arch.siar = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_SDAR:
 		vcpu->arch.sdar = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_SIER:
+		vcpu->arch.sier = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_IAMR:
+		vcpu->arch.iamr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TFHAR:
+		vcpu->arch.tfhar = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TFIAR:
+		vcpu->arch.tfiar = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TEXASR:
+		vcpu->arch.texasr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_FSCR:
+		vcpu->arch.fscr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_PSPB:
+		vcpu->arch.pspb = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_EBBHR:
+		vcpu->arch.ebbhr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_EBBRR:
+		vcpu->arch.ebbrr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_BESCR:
+		vcpu->arch.bescr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TAR:
+		vcpu->arch.tar = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_DPDES:
+		vcpu->arch.vcore->dpdes = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_DAWR:
+		vcpu->arch.dawr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_DAWRX:
+		vcpu->arch.dawrx = set_reg_val(id, *val) & ~DAWRX_HYP;
+		break;
+	case KVM_REG_PPC_CIABR:
+		vcpu->arch.ciabr = set_reg_val(id, *val);
+		/* Don't allow setting breakpoints in hypervisor code */
+		if ((vcpu->arch.ciabr & CIABR_PRIV) == CIABR_PRIV_HYPER)
+			vcpu->arch.ciabr &= ~CIABR_PRIV;	/* disable */
+		break;
+	case KVM_REG_PPC_IC:
+		vcpu->arch.ic = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_VTB:
+		vcpu->arch.vtb = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_CSIGR:
+		vcpu->arch.csigr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TACR:
+		vcpu->arch.tacr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TCSCR:
+		vcpu->arch.tcscr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_PID:
+		vcpu->arch.pid = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_ACOP:
+		vcpu->arch.acop = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_WORT:
+		vcpu->arch.wort = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_VPA_ADDR:
 		addr = set_reg_val(id, *val);
