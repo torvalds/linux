@@ -435,7 +435,9 @@ setup_rx_reqs(struct printer_dev *dev)
 			DBG(dev, "rx submit --> %d\n", error);
 			list_add(&req->list, &dev->rx_reqs);
 			break;
-		} else {
+		}
+		/* if the req is empty, then add it into dev->rx_reqs_active. */
+		else if (list_empty(&req->list)) {
 			list_add(&req->list, &dev->rx_reqs_active);
 		}
 	}
