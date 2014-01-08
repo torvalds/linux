@@ -1245,7 +1245,6 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
-	bool found = false;
 	bool more_data = false;
 	int ac;
 	unsigned long driver_release_tids = 0;
@@ -1256,9 +1255,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 	__skb_queue_head_init(&frames);
 
-	/*
-	 * Get response frame(s) and more data bit for it.
-	 */
+	/* Get response frame(s) and more data bit for the last one. */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
@@ -1267,33 +1264,17 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		tids = ieee80211_tids_for_ac(ac);
 
-		if (!found) {
-			driver_release_tids = sta->driver_buffered_tids & tids;
-			if (driver_release_tids) {
-				found = true;
-			} else {
-				struct sk_buff *skb;
+		/* if we already have frames from software, then we can't also
+		 * release from hardware queues
+		 */
+		if (skb_queue_empty(&frames))
+			driver_release_tids |= sta->driver_buffered_tids & tids;
 
-				while (n_frames > 0) {
-					skb = skb_dequeue(&sta->tx_filtered[ac]);
-					if (!skb) {
-						skb = skb_dequeue(
-							&sta->ps_tx_buf[ac]);
-						if (skb)
-							local->total_ps_buffered--;
-					}
-					if (!skb)
-						break;
-					n_frames--;
-					found = true;
-					__skb_queue_tail(&frames, skb);
-				}
-			}
-
-			/*
-			 * If the driver has data on more than one TID then
+		if (driver_release_tids) {
+			/* If the driver has data on more than one TID then
 			 * certainly there's more data if we release just a
-			 * single frame now (from a single TID).
+			 * single frame now (from a single TID). This will
+			 * only happen for PS-Poll.
 			 */
 			if (reason == IEEE80211_FRAME_RELEASE_PSPOLL &&
 			    hweight16(driver_release_tids) > 1) {
@@ -1303,8 +1284,28 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 						driver_release_tids));
 				break;
 			}
+		} else {
+			struct sk_buff *skb;
+
+			while (n_frames > 0) {
+				skb = skb_dequeue(&sta->tx_filtered[ac]);
+				if (!skb) {
+					skb = skb_dequeue(
+						&sta->ps_tx_buf[ac]);
+					if (skb)
+						local->total_ps_buffered--;
+				}
+				if (!skb)
+					break;
+				n_frames--;
+				__skb_queue_tail(&frames, skb);
+			}
 		}
 
+		/* If we have more frames buffered on this AC, then set the
+		 * more-data bit and abort the loop since we can't send more
+		 * data from other ACs before the buffered frames from this.
+		 */
 		if (!skb_queue_empty(&sta->tx_filtered[ac]) ||
 		    !skb_queue_empty(&sta->ps_tx_buf[ac])) {
 			more_data = true;
@@ -1312,7 +1313,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		}
 	}
 
-	if (!found) {
+	if (skb_queue_empty(&frames) && !driver_release_tids) {
 		int tid;
 
 		/*
@@ -1334,10 +1335,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		tid = 7 - ((ffs(~ignored_acs) - 1) << 1);
 
 		ieee80211_send_null_response(sdata, sta, tid, reason);
-		return;
-	}
-
-	if (!driver_release_tids) {
+	} else if (!driver_release_tids) {
 		struct sk_buff_head pending;
 		struct sk_buff *skb;
 		int num = 0;
@@ -1403,12 +1401,12 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		/*
 		 * We need to release a frame that is buffered somewhere in the
 		 * driver ... it'll have to handle that.
-		 * Note that, as per the comment above, it'll also have to see
-		 * if there is more than just one frame on the specific TID that
-		 * we're releasing from, and it needs to set the more-data bit
-		 * accordingly if we tell it that there's no more data. If we do
-		 * tell it there's more data, then of course the more-data bit
-		 * needs to be set anyway.
+		 * Note that the driver also has to check the number of frames
+		 * on the TIDs we're releasing from - if there are more than
+		 * n_frames it has to set the more-data bit (if we didn't ask
+		 * it to set it anyway due to other buffered frames); if there
+		 * are fewer than n_frames it has to make sure to adjust that
+		 * to allow the service period to end properly.
 		 */
 		drv_release_buffered_frames(local, sta, driver_release_tids,
 					    n_frames, reason, more_data);
@@ -1416,9 +1414,9 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		/*
 		 * Note that we don't recalculate the TIM bit here as it would
 		 * most likely have no effect at all unless the driver told us
-		 * that the TID became empty before returning here from the
+		 * that the TID(s) became empty before returning here from the
 		 * release function.
-		 * Either way, however, when the driver tells us that the TID
+		 * Either way, however, when the driver tells us that the TID(s)
 		 * became empty we'll do the TIM recalculation.
 		 */
 	}
