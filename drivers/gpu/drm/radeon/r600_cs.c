@@ -749,7 +749,10 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 		}
 
 		for (i = 0; i < 8; i++) {
-			if ((tmp >> (i * 4)) & 0xF) {
+			u32 format = G_0280A0_FORMAT(track->cb_color_info[i]);
+
+			if (format != V_0280A0_COLOR_INVALID &&
+			    (tmp >> (i * 4)) & 0xF) {
 				/* at least one component is enabled */
 				if (track->cb_color_bo[i] == NULL) {
 					dev_warn(p->dev, "%s:%d mask 0x%08X | 0x%08X no cb for %d\n",
