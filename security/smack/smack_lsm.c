@@ -413,9 +413,11 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 	 * Initialize the root inode.
 	 */
 	isp = inode->i_security;
-	if (inode->i_security == NULL) {
-		inode->i_security = new_inode_smack(sp->smk_root);
-		isp = inode->i_security;
+	if (isp == NULL) {
+		isp = new_inode_smack(sp->smk_root);
+		if (isp == NULL)
+			return -ENOMEM;
+		inode->i_security = isp;
 	} else
 		isp->smk_inode = sp->smk_root;
 
