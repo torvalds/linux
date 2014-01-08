@@ -389,7 +389,6 @@ static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
 {
 	struct iwl_priv *priv = data;
 	struct iwl_calib_hdr *hdr;
-	int len;
 
 	if (pkt->hdr.cmd != CALIBRATION_RES_NOTIFICATION) {
 		WARN_ON(pkt->hdr.cmd != CALIBRATION_COMPLETE_NOTIFICATION);
@@ -397,12 +396,8 @@ static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
 	}
 
 	hdr = (struct iwl_calib_hdr *)pkt->data;
-	len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 
-	/* reduce the size by the length field itself */
-	len -= sizeof(__le32);
-
-	if (iwl_calib_set(priv, hdr, len))
+	if (iwl_calib_set(priv, hdr, iwl_rx_packet_payload_len(pkt)))
 		IWL_ERR(priv, "Failed to record calibration data %d\n",
 			hdr->op_code);
 

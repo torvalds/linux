@@ -886,8 +886,7 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 	if (err)
 		return err;
 
-	size = le32_to_cpu(cmd.resp_pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	size -= sizeof(cmd.resp_pkt->hdr);
+	size = iwl_rx_packet_payload_len(cmd.resp_pkt);
 	if (size < sizeof(__le16)) {
 		err = -EINVAL;
 	} else {
@@ -1211,9 +1210,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	len = le32_to_cpu(d3_cfg_cmd.resp_pkt->len_n_flags) &
-		FH_RSCSR_FRAME_SIZE_MSK;
-	if (len >= sizeof(u32) * 2) {
+	len = iwl_rx_packet_payload_len(d3_cfg_cmd.resp_pkt);
+	if (len >= sizeof(u32)) {
 		mvm->d3_test_pme_ptr =
 			le32_to_cpup((__le32 *)d3_cfg_cmd.resp_pkt->data);
 	}
@@ -1668,8 +1666,8 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	else
 		status_size = sizeof(struct iwl_wowlan_status_v4);
 
-	len = le32_to_cpu(cmd.resp_pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	if (len - sizeof(struct iwl_cmd_header) < status_size) {
+	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
+	if (len < status_size) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
 		goto out_free_resp;
 	}
@@ -1704,8 +1702,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 		status.wake_packet = status_v4->wake_packet;
 	}
 
-	if (len - sizeof(struct iwl_cmd_header) !=
-	    status_size + ALIGN(status.wake_packet_bufsize, 4)) {
+	if (len != status_size + ALIGN(status.wake_packet_bufsize, 4)) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
 		goto out_free_resp;
 	}
