@@ -112,7 +112,8 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 	priv->ndev = nci_allocate_device(&nfcmrvl_nci_ops, protocols, 0, 0);
 	if (!priv->ndev) {
 		nfc_err(dev, "nci_allocate_device failed");
-		return ERR_PTR(-ENOMEM);
+		rc = -ENOMEM;
+		goto error;
 	}
 
 	nci_set_drvdata(priv->ndev, priv);
@@ -121,11 +122,15 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 	if (rc) {
 		nfc_err(dev, "nci_register_device failed %d", rc);
 		nci_free_device(priv->ndev);
-		return ERR_PTR(rc);
+		goto error;
 	}
 
 	nfc_info(dev, "registered with nci successfully\n");
 	return priv;
+
+error:
+	kfree(priv);
+	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(nfcmrvl_nci_register_dev);
 
