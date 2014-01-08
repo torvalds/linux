@@ -334,7 +334,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	size_t sz;
 
 	if (unlikely(!hash_rnd_inited)) {
-		hash_rnd = prandom_u32();
+		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
 		hash_rnd_inited = true;
 	}
 	if (info->check_set & ~XT_RECENT_VALID_FLAGS) {
