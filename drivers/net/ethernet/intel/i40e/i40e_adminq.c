@@ -572,15 +572,17 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 	if (ret_code != I40E_SUCCESS)
 		goto init_adminq_free_arq;
 
-	if (hw->aq.api_maj_ver != I40E_FW_API_VERSION_MAJOR ||
-	    hw->aq.api_min_ver != I40E_FW_API_VERSION_MINOR) {
-		ret_code = I40E_ERR_FIRMWARE_API_VERSION;
-		goto init_adminq_free_arq;
-	}
+	/* get the NVM version info */
 	i40e_read_nvm_word(hw, I40E_SR_NVM_IMAGE_VERSION, &hw->nvm.version);
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_LO, &eetrack_lo);
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_HI, &eetrack_hi);
 	hw->nvm.eetrack = (eetrack_hi << 16) | eetrack_lo;
+
+	if (hw->aq.api_maj_ver != I40E_FW_API_VERSION_MAJOR ||
+	    hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR) {
+		ret_code = I40E_ERR_FIRMWARE_API_VERSION;
+		goto init_adminq_free_arq;
+	}
 
 	ret_code = i40e_aq_set_hmc_resource_profile(hw,
 						    I40E_HMC_PROFILE_DEFAULT,
@@ -670,7 +672,7 @@ static bool i40e_asq_done(struct i40e_hw *hw)
 	/* AQ designers suggest use of head for better
 	 * timing reliability than DD bit
 	 */
-	return (rd32(hw, hw->aq.asq.head) == hw->aq.asq.next_to_use);
+	return rd32(hw, hw->aq.asq.head) == hw->aq.asq.next_to_use;
 
 }
 
@@ -680,7 +682,7 @@ static bool i40e_asq_done(struct i40e_hw *hw)
  *  @desc: prefilled descriptor describing the command (non DMA mem)
  *  @buff: buffer to use for indirect commands
  *  @buff_size: size of buffer for indirect commands
- *  @opaque: pointer to info to be used in async cleanup
+ *  @cmd_details: pointer to command details structure
  *
  *  This is the main send command driver routine for the Admin Queue send
  *  queue.  It runs the queue, cleans the queue, etc
@@ -931,6 +933,11 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	 * size
 	 */
 	bi = &hw->aq.arq.r.arq_bi[ntc];
+	memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
+
+	desc->flags = cpu_to_le16(I40E_AQ_FLAG_BUF);
+	if (hw->aq.arq_buf_size > I40E_AQ_LARGE_BUF)
+		desc->flags |= cpu_to_le16(I40E_AQ_FLAG_LB);
 	desc->datalen = cpu_to_le16((u16)bi->size);
 	desc->params.external.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
 	desc->params.external.addr_low = cpu_to_le32(lower_32_bits(bi->pa));
@@ -955,20 +962,14 @@ clean_arq_element_out:
 
 static void i40e_resume_aq(struct i40e_hw *hw)
 {
-	u32 reg = 0;
-
 	/* Registers are reset after PF reset */
 	hw->aq.asq.next_to_use = 0;
 	hw->aq.asq.next_to_clean = 0;
 
 	i40e_config_asq_regs(hw);
-	reg = hw->aq.num_asq_entries | I40E_PF_ATQLEN_ATQENABLE_MASK;
-	wr32(hw, hw->aq.asq.len, reg);
 
 	hw->aq.arq.next_to_use = 0;
 	hw->aq.arq.next_to_clean = 0;
 
 	i40e_config_arq_regs(hw);
-	reg = hw->aq.num_arq_entries | I40E_PF_ATQLEN_ATQENABLE_MASK;
-	wr32(hw, hw->aq.arq.len, reg);
 }

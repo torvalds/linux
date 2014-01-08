@@ -369,7 +369,6 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 {
 	struct i40e_mac_filter *f = NULL;
 	struct i40e_pf *pf = vf->pf;
-	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vsi *vsi;
 	int ret = 0;
 
@@ -383,6 +382,7 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		goto error_alloc_vsi_res;
 	}
 	if (type == I40E_VSI_SRIOV) {
+		u8 brdcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 		vf->lan_vsi_index = vsi->idx;
 		vf->lan_vsi_id = vsi->id;
 		dev_info(&pf->pdev->dev,
@@ -398,6 +398,14 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 			i40e_vsi_add_pvid(vsi, vf->port_vlan_id);
 		f = i40e_add_filter(vsi, vf->default_lan_addr.addr,
 				    vf->port_vlan_id, true, false);
+		if (!f)
+			dev_info(&pf->pdev->dev,
+				 "Could not allocate VF MAC addr\n");
+		f = i40e_add_filter(vsi, brdcast, vf->port_vlan_id,
+				    true, false);
+		if (!f)
+			dev_info(&pf->pdev->dev,
+				 "Could not allocate VF broadcast filter\n");
 	}
 
 	if (!f) {
@@ -411,15 +419,6 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 	if (ret) {
 		dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
 		goto error_alloc_vsi_res;
-	}
-
-	/* accept bcast pkts. by default */
-	ret = i40e_aq_set_vsi_broadcast(hw, vsi->seid, true, NULL);
-	if (ret) {
-		dev_err(&pf->pdev->dev,
-			"set vsi bcast failed for vf %d, vsi %d, aq_err %d\n",
-			vf->vf_id, vsi->idx, pf->hw.aq.asq_last_status);
-		ret = -EINVAL;
 	}
 
 error_alloc_vsi_res:
@@ -717,6 +716,76 @@ static bool i40e_vfs_are_assigned(struct i40e_pf *pf)
 
 	return false;
 }
+#ifdef CONFIG_PCI_IOV
+
+/**
+ * i40e_enable_pf_switch_lb
+ * @pf: pointer to the pf structure
+ *
+ * enable switch loop back or die - no point in a return value
+ **/
+static void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
+{
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	struct i40e_vsi_context ctxt;
+	int aq_ret;
+
+	ctxt.seid = pf->main_vsi_seid;
+	ctxt.pf_num = pf->hw.pf_id;
+	ctxt.vf_num = 0;
+	aq_ret = i40e_aq_get_vsi_params(&pf->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s couldn't get pf vsi config, err %d, aq_err %d\n",
+			 __func__, aq_ret, pf->hw.aq.asq_last_status);
+		return;
+	}
+	ctxt.flags = I40E_AQ_VSI_TYPE_PF;
+	ctxt.info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+	ctxt.info.switch_id |= cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+
+	aq_ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s: update vsi switch failed, aq_err=%d\n",
+			 __func__, vsi->back->hw.aq.asq_last_status);
+	}
+}
+#endif
+
+/**
+ * i40e_disable_pf_switch_lb
+ * @pf: pointer to the pf structure
+ *
+ * disable switch loop back or die - no point in a return value
+ **/
+static void i40e_disable_pf_switch_lb(struct i40e_pf *pf)
+{
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	struct i40e_vsi_context ctxt;
+	int aq_ret;
+
+	ctxt.seid = pf->main_vsi_seid;
+	ctxt.pf_num = pf->hw.pf_id;
+	ctxt.vf_num = 0;
+	aq_ret = i40e_aq_get_vsi_params(&pf->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s couldn't get pf vsi config, err %d, aq_err %d\n",
+			 __func__, aq_ret, pf->hw.aq.asq_last_status);
+		return;
+	}
+	ctxt.flags = I40E_AQ_VSI_TYPE_PF;
+	ctxt.info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+	ctxt.info.switch_id &= ~cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+
+	aq_ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s: update vsi switch failed, aq_err=%d\n",
+			 __func__, vsi->back->hw.aq.asq_last_status);
+	}
+}
 
 /**
  * i40e_free_vfs
@@ -760,10 +829,11 @@ void i40e_free_vfs(struct i40e_pf *pf)
 			bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
 			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), (1 << bit_idx));
 		}
-	}
-	else
+		i40e_disable_pf_switch_lb(pf);
+	} else {
 		dev_warn(&pf->pdev->dev,
 			 "unable to disable SR-IOV because VFs are assigned.\n");
+	}
 
 	/* Re-enable interrupt 0. */
 	i40e_irq_dynamic_enable_icr0(pf);
@@ -817,6 +887,7 @@ static int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 	pf->vf = vfs;
 	pf->num_alloc_vfs = num_alloc_vfs;
 
+	i40e_enable_pf_switch_lb(pf);
 err_alloc:
 	if (ret)
 		i40e_free_vfs(pf);
@@ -1349,10 +1420,13 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf, u8 *macaddr)
 		   is_zero_ether_addr(macaddr)) {
 		dev_err(&pf->pdev->dev, "invalid VF MAC addr %pM\n", macaddr);
 		ret = I40E_ERR_INVALID_MAC_ADDR;
-	} else if (vf->pf_set_mac && !is_multicast_ether_addr(macaddr)) {
+	} else if (vf->pf_set_mac && !is_multicast_ether_addr(macaddr) &&
+		   !ether_addr_equal(macaddr, vf->default_lan_addr.addr)) {
 		/* If the host VMM administrator has set the VF MAC address
 		 * administratively via the ndo_set_vf_mac command then deny
 		 * permission to the VF to add or delete unicast MAC addresses.
+		 * The VF may request to set the MAC address filter already
+		 * assigned to it so do not return an error in that case.
 		 */
 		dev_err(&pf->pdev->dev,
 			"VF attempting to override administratively set MAC address\nPlease reload the VF driver to resume normal operation\n");

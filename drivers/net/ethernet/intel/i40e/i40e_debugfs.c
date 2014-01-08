@@ -1523,6 +1523,118 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		} else {
 			dev_info(&pf->pdev->dev, "clear_stats vsi [seid] or clear_stats pf\n");
 		}
+	} else if (strncmp(cmd_buf, "send aq_cmd", 11) == 0) {
+		struct i40e_aq_desc *desc;
+		i40e_status ret;
+
+		desc = kzalloc(sizeof(struct i40e_aq_desc), GFP_KERNEL);
+		if (!desc)
+			goto command_write_done;
+		cnt = sscanf(&cmd_buf[11],
+			     "%hx %hx %hx %hx %x %x %x %x %x %x",
+			     &desc->flags,
+			     &desc->opcode, &desc->datalen, &desc->retval,
+			     &desc->cookie_high, &desc->cookie_low,
+			     &desc->params.internal.param0,
+			     &desc->params.internal.param1,
+			     &desc->params.internal.param2,
+			     &desc->params.internal.param3);
+		if (cnt != 10) {
+			dev_info(&pf->pdev->dev,
+				 "send aq_cmd: bad command string, cnt=%d\n",
+				 cnt);
+			kfree(desc);
+			desc = NULL;
+			goto command_write_done;
+		}
+		ret = i40e_asq_send_command(&pf->hw, desc, NULL, 0, NULL);
+		if (!ret) {
+			dev_info(&pf->pdev->dev, "AQ command sent Status : Success\n");
+		} else if (ret == I40E_ERR_ADMIN_QUEUE_ERROR) {
+			dev_info(&pf->pdev->dev,
+				 "AQ command send failed Opcode %x AQ Error: %d\n",
+				 desc->opcode, pf->hw.aq.asq_last_status);
+		} else {
+			dev_info(&pf->pdev->dev,
+				 "AQ command send failed Opcode %x Status: %d\n",
+				 desc->opcode, ret);
+		}
+		dev_info(&pf->pdev->dev,
+			 "AQ desc WB 0x%04x 0x%04x 0x%04x 0x%04x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 desc->flags, desc->opcode, desc->datalen, desc->retval,
+			 desc->cookie_high, desc->cookie_low,
+			 desc->params.internal.param0,
+			 desc->params.internal.param1,
+			 desc->params.internal.param2,
+			 desc->params.internal.param3);
+		kfree(desc);
+		desc = NULL;
+	} else if (strncmp(cmd_buf, "send indirect aq_cmd", 20) == 0) {
+		struct i40e_aq_desc *desc;
+		i40e_status ret;
+		u16 buffer_len;
+		u8 *buff;
+
+		desc = kzalloc(sizeof(struct i40e_aq_desc), GFP_KERNEL);
+		if (!desc)
+			goto command_write_done;
+		cnt = sscanf(&cmd_buf[20],
+			     "%hx %hx %hx %hx %x %x %x %x %x %x %hd",
+			     &desc->flags,
+			     &desc->opcode, &desc->datalen, &desc->retval,
+			     &desc->cookie_high, &desc->cookie_low,
+			     &desc->params.internal.param0,
+			     &desc->params.internal.param1,
+			     &desc->params.internal.param2,
+			     &desc->params.internal.param3,
+			     &buffer_len);
+		if (cnt != 11) {
+			dev_info(&pf->pdev->dev,
+				 "send indirect aq_cmd: bad command string, cnt=%d\n",
+				 cnt);
+			kfree(desc);
+			desc = NULL;
+			goto command_write_done;
+		}
+		/* Just stub a buffer big enough in case user messed up */
+		if (buffer_len == 0)
+			buffer_len = 1280;
+
+		buff = kzalloc(buffer_len, GFP_KERNEL);
+		if (!buff) {
+			kfree(desc);
+			desc = NULL;
+			goto command_write_done;
+		}
+		desc->flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+		ret = i40e_asq_send_command(&pf->hw, desc, buff,
+					    buffer_len, NULL);
+		if (!ret) {
+			dev_info(&pf->pdev->dev, "AQ command sent Status : Success\n");
+		} else if (ret == I40E_ERR_ADMIN_QUEUE_ERROR) {
+			dev_info(&pf->pdev->dev,
+				 "AQ command send failed Opcode %x AQ Error: %d\n",
+				 desc->opcode, pf->hw.aq.asq_last_status);
+		} else {
+			dev_info(&pf->pdev->dev,
+				 "AQ command send failed Opcode %x Status: %d\n",
+				 desc->opcode, ret);
+		}
+		dev_info(&pf->pdev->dev,
+			 "AQ desc WB 0x%04x 0x%04x 0x%04x 0x%04x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 desc->flags, desc->opcode, desc->datalen, desc->retval,
+			 desc->cookie_high, desc->cookie_low,
+			 desc->params.internal.param0,
+			 desc->params.internal.param1,
+			 desc->params.internal.param2,
+			 desc->params.internal.param3);
+		print_hex_dump(KERN_INFO, "AQ buffer WB: ",
+			       DUMP_PREFIX_OFFSET, 16, 1,
+			       buff, buffer_len, true);
+		kfree(buff);
+		buff = NULL;
+		kfree(desc);
+		desc = NULL;
 	} else if ((strncmp(cmd_buf, "add fd_filter", 13) == 0) ||
 		   (strncmp(cmd_buf, "rem fd_filter", 13) == 0)) {
 		struct i40e_fdir_data fd_data;
@@ -1774,6 +1886,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "  pfr\n");
 		dev_info(&pf->pdev->dev, "  corer\n");
 		dev_info(&pf->pdev->dev, "  globr\n");
+		dev_info(&pf->pdev->dev, "  send aq_cmd <flags> <opcode> <datalen> <retval> <cookie_h> <cookie_l> <param0> <param1> <param2> <param3>\n");
+		dev_info(&pf->pdev->dev, "  send indirect aq_cmd <flags> <opcode> <datalen> <retval> <cookie_h> <cookie_l> <param0> <param1> <param2> <param3> <buffer_len>\n");
 		dev_info(&pf->pdev->dev, "  add fd_filter <dest q_index> <flex_off> <pctype> <dest_vsi> <dest_ctl> <fd_status> <cnt_index> <fd_id> <packet_len> <packet>\n");
 		dev_info(&pf->pdev->dev, "  rem fd_filter <dest q_index> <flex_off> <pctype> <dest_vsi> <dest_ctl> <fd_status> <cnt_index> <fd_id> <packet_len> <packet>\n");
 		dev_info(&pf->pdev->dev, "  lldp start\n");

@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 14
+#define DRV_VERSION_BUILD 25
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1509,11 +1509,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 				cpu_to_le16((u16)(f->vlan ==
 					    I40E_VLAN_ANY ? 0 : f->vlan));
 
-			/* vlan0 as wild card to allow packets from all vlans */
-			if (f->vlan == I40E_VLAN_ANY ||
-			    (vsi->netdev && !(vsi->netdev->features &
-					      NETIF_F_HW_VLAN_CTAG_FILTER)))
-				cmd_flags |= I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
 			cmd_flags |= I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
 			del_list[num_del].flags = cmd_flags;
 			num_del++;
@@ -1579,12 +1574,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			add_list[num_add].queue_number = 0;
 
 			cmd_flags |= I40E_AQC_MACVLAN_ADD_PERFECT_MATCH;
-
-			/* vlan0 as wild card to allow packets from all vlans */
-			if (f->vlan == I40E_VLAN_ANY || (vsi->netdev &&
-			    !(vsi->netdev->features &
-						 NETIF_F_HW_VLAN_CTAG_FILTER)))
-				cmd_flags |= I40E_AQC_MACVLAN_ADD_IGNORE_VLAN;
 			add_list[num_add].flags = cpu_to_le16(cmd_flags);
 			num_add++;
 
@@ -1649,6 +1638,13 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		if (aq_ret)
 			dev_info(&pf->pdev->dev,
 				 "set uni promisc failed, err %d, aq_err %d\n",
+				 aq_ret, pf->hw.aq.asq_last_status);
+		aq_ret = i40e_aq_set_vsi_broadcast(&vsi->back->hw,
+						   vsi->seid,
+						   cur_promisc, NULL);
+		if (aq_ret)
+			dev_info(&pf->pdev->dev,
+				 "set brdcast promisc failed, err %d, aq_err %d\n",
 				 aq_ret, pf->hw.aq.asq_last_status);
 	}
 
@@ -3987,13 +3983,6 @@ static int i40e_open(struct net_device *netdev)
 	if (err)
 		goto err_up_complete;
 
-	if ((vsi->type == I40E_VSI_MAIN) || (vsi->type == I40E_VSI_VMDQ2)) {
-		err = i40e_aq_set_vsi_broadcast(&pf->hw, vsi->seid, true, NULL);
-		if (err)
-			netdev_info(netdev,
-				    "couldn't set broadcast err %d aq_err %d\n",
-				    err, pf->hw.aq.asq_last_status);
-	}
 #ifdef CONFIG_I40E_VXLAN
 	vxlan_get_rx_port(netdev);
 #endif
@@ -6067,6 +6056,7 @@ static const struct net_device_ops i40e_netdev_ops = {
  **/
 static int i40e_config_netdev(struct i40e_vsi *vsi)
 {
+	u8 brdcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_netdev_priv *np;
@@ -6116,6 +6106,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 		random_ether_addr(mac_addr);
 		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, false);
 	}
+	i40e_add_filter(vsi, brdcast, I40E_VLAN_ANY, false, false);
 
 	memcpy(netdev->dev_addr, mac_addr, ETH_ALEN);
 	memcpy(netdev->perm_addr, mac_addr, ETH_ALEN);

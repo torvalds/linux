@@ -180,14 +180,6 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 	i40e_status status = 0;
 	u32 reg;
 
-	hw->phy.get_link_info = true;
-
-	/* Determine port number */
-	reg = rd32(hw, I40E_PFGEN_PORTNUM);
-	reg = ((reg & I40E_PFGEN_PORTNUM_PORT_NUM_MASK) >>
-	       I40E_PFGEN_PORTNUM_PORT_NUM_SHIFT);
-	hw->port = (u8)reg;
-
 	i40e_set_mac_type(hw);
 
 	switch (hw->mac.type) {
@@ -197,6 +189,21 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 		return I40E_ERR_DEVICE_NOT_SUPPORTED;
 		break;
 	}
+
+	hw->phy.get_link_info = true;
+
+	/* Determine port number */
+	reg = rd32(hw, I40E_PFGEN_PORTNUM);
+	reg = ((reg & I40E_PFGEN_PORTNUM_PORT_NUM_MASK) >>
+	       I40E_PFGEN_PORTNUM_PORT_NUM_SHIFT);
+	hw->port = (u8)reg;
+
+	/* Determine the PF number based on the PCI fn */
+	reg = rd32(hw, I40E_GLPCI_CAPSUP);
+	if (reg & I40E_GLPCI_CAPSUP_ARI_EN_MASK)
+		hw->pf_id = (u8)((hw->bus.device << 3) | hw->bus.func);
+	else
+		hw->pf_id = (u8)hw->bus.func;
 
 	status = i40e_init_nvm(hw);
 	return status;
@@ -335,6 +342,7 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 i40e_status i40e_pf_reset(struct i40e_hw *hw)
 {
 	u32 cnt = 0;
+	u32 cnt1 = 0;
 	u32 reg = 0;
 	u32 grst_del;
 
@@ -355,12 +363,24 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 		return I40E_ERR_RESET_FAILED;
 	}
 
-	/* Determine the PF number based on the PCI fn */
-	reg = rd32(hw, I40E_GLPCI_CAPSUP);
-	if (reg & I40E_GLPCI_CAPSUP_ARI_EN_MASK)
-		hw->pf_id = (u8)((hw->bus.device << 3) | hw->bus.func);
-	else
-		hw->pf_id = (u8)hw->bus.func;
+	/* Now Wait for the FW to be ready */
+	for (cnt1 = 0; cnt1 < I40E_PF_RESET_WAIT_COUNT; cnt1++) {
+		reg = rd32(hw, I40E_GLNVM_ULD);
+		reg &= (I40E_GLNVM_ULD_CONF_CORE_DONE_MASK |
+			I40E_GLNVM_ULD_CONF_GLOBAL_DONE_MASK);
+		if (reg == (I40E_GLNVM_ULD_CONF_CORE_DONE_MASK |
+			    I40E_GLNVM_ULD_CONF_GLOBAL_DONE_MASK)) {
+			hw_dbg(hw, "Core and Global modules ready %d\n", cnt1);
+			break;
+		}
+		usleep_range(10000, 20000);
+	}
+	if (!(reg & (I40E_GLNVM_ULD_CONF_CORE_DONE_MASK |
+		     I40E_GLNVM_ULD_CONF_GLOBAL_DONE_MASK))) {
+		hw_dbg(hw, "wait for FW Reset complete timedout\n");
+		hw_dbg(hw, "I40E_GLNVM_ULD = 0x%x\n", reg);
+		return I40E_ERR_RESET_FAILED;
+	}
 
 	/* If there was a Global Reset in progress when we got here,
 	 * we don't need to do the PF Reset
@@ -386,6 +406,7 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	}
 
 	i40e_clear_pxe_mode(hw);
+
 	return 0;
 }
 
@@ -1718,7 +1739,7 @@ i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
 
 	cmd->udp_port = cpu_to_le16(udp_port);
 	cmd->header_len = header_len;
-	cmd->protocol_index = protocol_index;
+	cmd->protocol_type = protocol_index;
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
