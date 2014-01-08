@@ -2119,6 +2119,11 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * appropriately (only the last frame may have %IEEE80211_TX_STATUS_EOSP)
  * and also take care of the EOSP and MORE_DATA bits in the frame.
  * The driver may also use ieee80211_sta_eosp() in this case.
+ *
+ * Note that if the driver ever buffers frames other than QoS-data
+ * frames, it must take care to never send a non-QoS-data frame as
+ * the last frame in a service period, adding a QoS-nulldata frame
+ * after a non-QoS-data frame if needed.
  */
 
 /**

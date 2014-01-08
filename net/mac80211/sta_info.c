@@ -1153,7 +1153,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 					 struct sta_info *sta, int tid,
-					 enum ieee80211_frame_release_type reason)
+					 enum ieee80211_frame_release_type reason,
+					 bool call_driver)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_qos_hdr *nullfunc;
@@ -1211,7 +1212,9 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 		       IEEE80211_TX_STATUS_EOSP |
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
-	drv_allow_buffered_frames(local, sta, BIT(tid), 1, reason, false);
+	if (call_driver)
+		drv_allow_buffered_frames(local, sta, BIT(tid), 1,
+					  reason, false);
 
 	skb->dev = sdata->dev;
 
@@ -1334,12 +1337,13 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		/* This will evaluate to 1, 3, 5 or 7. */
 		tid = 7 - ((ffs(~ignored_acs) - 1) << 1);
 
-		ieee80211_send_null_response(sdata, sta, tid, reason);
+		ieee80211_send_null_response(sdata, sta, tid, reason, true);
 	} else if (!driver_release_tids) {
 		struct sk_buff_head pending;
 		struct sk_buff *skb;
 		int num = 0;
 		u16 tids = 0;
+		bool need_null = false;
 
 		skb_queue_head_init(&pending);
 
@@ -1373,28 +1377,68 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			    ieee80211_is_qos_nullfunc(hdr->frame_control))
 				qoshdr = ieee80211_get_qos_ctl(hdr);
 
-			/* end service period after last frame */
-			if (skb_queue_empty(&frames)) {
-				if (reason == IEEE80211_FRAME_RELEASE_UAPSD &&
-				    qoshdr)
-					*qoshdr |= IEEE80211_QOS_CTL_EOSP;
+			tids |= BIT(skb->priority);
+
+			__skb_queue_tail(&pending, skb);
+
+			/* end service period after last frame or add one */
+			if (!skb_queue_empty(&frames))
+				continue;
+
+			if (reason != IEEE80211_FRAME_RELEASE_UAPSD) {
+				/* for PS-Poll, there's only one frame */
+				info->flags |= IEEE80211_TX_STATUS_EOSP |
+					       IEEE80211_TX_CTL_REQ_TX_STATUS;
+				break;
+			}
+
+			/* For uAPSD, things are a bit more complicated. If the
+			 * last frame has a QoS header (i.e. is a QoS-data or
+			 * QoS-nulldata frame) then just set the EOSP bit there
+			 * and be done.
+			 * If the frame doesn't have a QoS header (which means
+			 * it should be a bufferable MMPDU) then we can't set
+			 * the EOSP bit in the QoS header; add a QoS-nulldata
+			 * frame to the list to send it after the MMPDU.
+			 *
+			 * Note that this code is only in the mac80211-release
+			 * code path, we assume that the driver will not buffer
+			 * anything but QoS-data frames, or if it does, will
+			 * create the QoS-nulldata frame by itself if needed.
+			 *
+			 * Cf. 802.11-2012 10.2.1.10 (c).
+			 */
+			if (qoshdr) {
+				*qoshdr |= IEEE80211_QOS_CTL_EOSP;
 
 				info->flags |= IEEE80211_TX_STATUS_EOSP |
 					       IEEE80211_TX_CTL_REQ_TX_STATUS;
+			} else {
+				/* The standard isn't completely clear on this
+				 * as it says the more-data bit should be set
+				 * if there are more BUs. The QoS-Null frame
+				 * we're about to send isn't buffered yet, we
+				 * only create it below, but let's pretend it
+				 * was buffered just in case some clients only
+				 * expect more-data=0 when eosp=1.
+				 */
+				hdr->frame_control |=
+					cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+				need_null = true;
+				num++;
 			}
-
-			if (qoshdr)
-				tids |= BIT(*qoshdr & IEEE80211_QOS_CTL_TID_MASK);
-			else
-				tids |= BIT(0);
-
-			__skb_queue_tail(&pending, skb);
+			break;
 		}
 
 		drv_allow_buffered_frames(local, sta, tids, num,
 					  reason, more_data);
 
 		ieee80211_add_pending_skbs(local, &pending);
+
+		if (need_null)
+			ieee80211_send_null_response(
+				sdata, sta, find_highest_prio_tid(tids),
+				reason, false);
 
 		sta_info_recalc_tim(sta);
 	} else {
