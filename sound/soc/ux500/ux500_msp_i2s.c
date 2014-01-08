@@ -646,9 +646,9 @@ int ux500_msp_i2s_close(struct ux500_msp *msp, unsigned int dir)
 
 }
 
-int ux500_msp_i2s_of_init_msp(struct platform_device *pdev,
-			      struct ux500_msp *msp,
-			      struct msp_i2s_platform_data **platform_data)
+static int ux500_msp_i2s_of_init_msp(struct platform_device *pdev,
+				struct ux500_msp *msp,
+				struct msp_i2s_platform_data **platform_data)
 {
 	struct msp_i2s_platform_data *pdata;
 
