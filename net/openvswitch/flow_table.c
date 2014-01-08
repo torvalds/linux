@@ -104,7 +104,7 @@ struct sw_flow *ovs_flow_alloc(bool percpu_stats)
 	}
 	return flow;
 err:
-	kfree(flow);
+	kmem_cache_free(flow_cache, flow);
 	return ERR_PTR(-ENOMEM);
 }
 
