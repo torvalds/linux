@@ -990,6 +990,8 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 			init_waitqueue_head(&vcore->wq);
 			vcore->preempt_tb = TB_NIL;
 			vcore->lpcr = kvm->arch.lpcr;
+			vcore->first_vcpuid = core * threads_per_core;
+			vcore->kvm = kvm;
 		}
 		kvm->arch.vcores[core] = vcore;
 		kvm->arch.online_vcores++;
@@ -1003,6 +1005,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	++vcore->num_threads;
 	spin_unlock(&vcore->lock);
 	vcpu->arch.vcore = vcore;
+	vcpu->arch.ptid = vcpu->vcpu_id - vcore->first_vcpuid;
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
@@ -1066,7 +1069,7 @@ static void kvmppc_end_cede(struct kvm_vcpu *vcpu)
 	}
 }
 
-extern int __kvmppc_vcore_entry(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
+extern void __kvmppc_vcore_entry(void);
 
 static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 				   struct kvm_vcpu *vcpu)
@@ -1140,15 +1143,16 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	tpaca = &paca[cpu];
 	tpaca->kvm_hstate.kvm_vcpu = vcpu;
 	tpaca->kvm_hstate.kvm_vcore = vc;
-	tpaca->kvm_hstate.napping = 0;
+	tpaca->kvm_hstate.ptid = vcpu->arch.ptid;
 	vcpu->cpu = vc->pcpu;
 	smp_wmb();
 #if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
-	if (vcpu->arch.ptid) {
+	if (cpu != smp_processor_id()) {
 #ifdef CONFIG_KVM_XICS
 		xics_wake_cpu(cpu);
 #endif
-		++vc->n_woken;
+		if (vcpu->arch.ptid)
+			++vc->n_woken;
 	}
 #endif
 }
@@ -1205,10 +1209,10 @@ static int on_primary_thread(void)
  */
 static void kvmppc_run_core(struct kvmppc_vcore *vc)
 {
-	struct kvm_vcpu *vcpu, *vcpu0, *vnext;
+	struct kvm_vcpu *vcpu, *vnext;
 	long ret;
 	u64 now;
-	int ptid, i, need_vpa_update;
+	int i, need_vpa_update;
 	int srcu_idx;
 	struct kvm_vcpu *vcpus_to_update[threads_per_core];
 
@@ -1246,25 +1250,6 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	}
 
 	/*
-	 * Assign physical thread IDs, first to non-ceded vcpus
-	 * and then to ceded ones.
-	 */
-	ptid = 0;
-	vcpu0 = NULL;
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
-		if (!vcpu->arch.ceded) {
-			if (!ptid)
-				vcpu0 = vcpu;
-			vcpu->arch.ptid = ptid++;
-		}
-	}
-	if (!vcpu0)
-		goto out;	/* nothing to run; should never happen */
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
-		if (vcpu->arch.ceded)
-			vcpu->arch.ptid = ptid++;
-
-	/*
 	 * Make sure we are running on thread 0, and that
 	 * secondary threads are offline.
 	 */
@@ -1280,15 +1265,19 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 		kvmppc_create_dtl_entry(vcpu, vc);
 	}
 
+	/* Set this explicitly in case thread 0 doesn't have a vcpu */
+	get_paca()->kvm_hstate.kvm_vcore = vc;
+	get_paca()->kvm_hstate.ptid = 0;
+
 	vc->vcore_state = VCORE_RUNNING;
 	preempt_disable();
 	spin_unlock(&vc->lock);
 
 	kvm_guest_enter();
 
-	srcu_idx = srcu_read_lock(&vcpu0->kvm->srcu);
+	srcu_idx = srcu_read_lock(&vc->kvm->srcu);
 
-	__kvmppc_vcore_entry(NULL, vcpu0);
+	__kvmppc_vcore_entry();
 
 	spin_lock(&vc->lock);
 	/* disable sending of IPIs on virtual external irqs */
@@ -1303,7 +1292,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	vc->vcore_state = VCORE_EXITING;
 	spin_unlock(&vc->lock);
 
-	srcu_read_unlock(&vcpu0->kvm->srcu, srcu_idx);
+	srcu_read_unlock(&vc->kvm->srcu, srcu_idx);
 
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
@@ -1411,7 +1400,6 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	if (!signal_pending(current)) {
 		if (vc->vcore_state == VCORE_RUNNING &&
 		    VCORE_EXIT_COUNT(vc) == 0) {
-			vcpu->arch.ptid = vc->n_runnable - 1;
 			kvmppc_create_dtl_entry(vcpu, vc);
 			kvmppc_start_thread(vcpu);
 		} else if (vc->vcore_state == VCORE_SLEEPING) {

@@ -33,6 +33,10 @@
 #error Need to fix lppaca and SLB shadow accesses in little endian mode
 #endif
 
+/* Values in HSTATE_NAPPING(r13) */
+#define NAPPING_CEDE	1
+#define NAPPING_NOVCPU	2
+
 /*
  * Call kvmppc_hv_entry in real mode.
  * Must be called with interrupts hard-disabled.
@@ -57,6 +61,7 @@ _GLOBAL(kvmppc_hv_entry_trampoline)
 	RFI
 
 kvmppc_call_hv_entry:
+	ld	r4, HSTATE_KVM_VCPU(r13)
 	bl	kvmppc_hv_entry
 
 	/* Back from guest - restore host state and return to caller */
@@ -72,15 +77,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	/* Restore SPRG3 */
 	ld	r3,PACA_SPRG3(r13)
 	mtspr	SPRN_SPRG3,r3
-
-	/*
-	 * Reload DEC.  HDEC interrupts were disabled when
-	 * we reloaded the host's LPCR value.
-	 */
-	ld	r3, HSTATE_DECEXP(r13)
-	mftb	r4
-	subf	r4, r4, r3
-	mtspr	SPRN_DEC, r4
 
 	/* Reload the host's PMU registers */
 	ld	r3, PACALPPACAPTR(r13)	/* is the host using the PMU? */
@@ -115,6 +111,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_MMCR0, r3
 	isync
 23:
+
+	/*
+	 * Reload DEC.  HDEC interrupts were disabled when
+	 * we reloaded the host's LPCR value.
+	 */
+	ld	r3, HSTATE_DECEXP(r13)
+	mftb	r4
+	subf	r4, r4, r3
+	mtspr	SPRN_DEC, r4
 
 	/*
 	 * For external and machine check interrupts, we need
@@ -156,15 +161,82 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 13:	b	machine_check_fwnmi
 
 
+kvmppc_primary_no_guest:
+	/* We handle this much like a ceded vcpu */
+	/* set our bit in napping_threads */
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	lbz	r7, HSTATE_PTID(r13)
+	li	r0, 1
+	sld	r0, r0, r7
+	addi	r6, r5, VCORE_NAPPING_THREADS
+1:	lwarx	r3, 0, r6
+	or	r3, r3, r0
+	stwcx.	r3, 0, r6
+	bne	1b
+	/* order napping_threads update vs testing entry_exit_count */
+	isync
+	li	r12, 0
+	lwz	r7, VCORE_ENTRY_EXIT(r5)
+	cmpwi	r7, 0x100
+	bge	kvm_novcpu_exit	/* another thread already exiting */
+	li	r3, NAPPING_NOVCPU
+	stb	r3, HSTATE_NAPPING(r13)
+	li	r3, 1
+	stb	r3, HSTATE_HWTHREAD_REQ(r13)
+
+	b	kvm_do_nap
+
+kvm_novcpu_wakeup:
+	ld	r1, HSTATE_HOST_R1(r13)
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	li	r0, 0
+	stb	r0, HSTATE_NAPPING(r13)
+	stb	r0, HSTATE_HWTHREAD_REQ(r13)
+
+	/* see if any other thread is already exiting */
+	li	r12, 0
+	lwz	r0, VCORE_ENTRY_EXIT(r5)
+	cmpwi	r0, 0x100
+	bge	kvm_novcpu_exit
+
+	/* clear our bit in napping_threads */
+	lbz	r7, HSTATE_PTID(r13)
+	li	r0, 1
+	sld	r0, r0, r7
+	addi	r6, r5, VCORE_NAPPING_THREADS
+4:	lwarx	r3, 0, r6
+	andc	r3, r3, r0
+	stwcx.	r3, 0, r6
+	bne	4b
+
+	/* Check the wake reason in SRR1 to see why we got here */
+	mfspr	r3, SPRN_SRR1
+	rlwinm	r3, r3, 44-31, 0x7	/* extract wake reason field */
+	cmpwi	r3, 4			/* was it an external interrupt? */
+	bne	kvm_novcpu_exit		/* if not, exit the guest */
+
+	/* extern interrupt - read and handle it */
+	li	r12, BOOK3S_INTERRUPT_EXTERNAL
+	bl	kvmppc_read_intr
+	cmpdi	r3, 0
+	bge	kvm_novcpu_exit
+	li	r12, 0
+
+	/* Got an IPI but other vcpus aren't yet exiting, must be a latecomer */
+	ld	r4, HSTATE_KVM_VCPU(r13)
+	cmpdi	r4, 0
+	bne	kvmppc_got_guest
+
+kvm_novcpu_exit:
+	b	hdec_soon
+
 /*
- * We come in here when wakened from nap mode on a secondary hw thread.
+ * We come in here when wakened from nap mode.
  * Relocation is off and most register values are lost.
  * r13 points to the PACA.
  */
 	.globl	kvm_start_guest
 kvm_start_guest:
-	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
 	ld	r2,PACATOC(r13)
 
 	li	r0,KVM_HWTHREAD_IN_KVM
@@ -176,8 +248,13 @@ kvm_start_guest:
 
 	/* were we napping due to cede? */
 	lbz	r0,HSTATE_NAPPING(r13)
-	cmpwi	r0,0
-	bne	kvm_end_cede
+	cmpwi	r0,NAPPING_CEDE
+	beq	kvm_end_cede
+	cmpwi	r0,NAPPING_NOVCPU
+	beq	kvm_novcpu_wakeup
+
+	ld	r1,PACAEMERGSP(r13)
+	subi	r1,r1,STACK_FRAME_OVERHEAD
 
 	/*
 	 * We weren't napping due to cede, so this must be a secondary
@@ -220,7 +297,13 @@ kvm_start_guest:
 	stw	r8,HSTATE_SAVED_XIRR(r13)
 	b	kvm_no_guest
 
-30:	bl	kvmppc_hv_entry
+30:
+	/* Set HSTATE_DSCR(r13) to something sensible */
+	LOAD_REG_ADDR(r6, dscr_default)
+	ld	r6, 0(r6)
+	std	r6, HSTATE_DSCR(r13)
+
+	bl	kvmppc_hv_entry
 
 	/* Back from the guest, go back to nap */
 	/* Clear our vcpu pointer so we don't come back in early */
@@ -252,6 +335,7 @@ kvm_start_guest:
 kvm_no_guest:
 	li	r0, KVM_HWTHREAD_IN_NAP
 	stb	r0, HSTATE_HWTHREAD_STATE(r13)
+kvm_do_nap:
 	li	r3, LPCR_PECE0
 	mfspr	r4, SPRN_LPCR
 	rlwimi	r4, r3, 0, LPCR_PECE0 | LPCR_PECE1
@@ -276,7 +360,7 @@ kvmppc_hv_entry:
 
 	/* Required state:
 	 *
-	 * R4 = vcpu pointer
+	 * R4 = vcpu pointer (or NULL)
 	 * MSR = ~IR|DR
 	 * R13 = PACA
 	 * R1 = host R1
@@ -285,6 +369,248 @@ kvmppc_hv_entry:
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
 	stdu	r1, -112(r1)
+
+	/* Save R1 in the PACA */
+	std	r1, HSTATE_HOST_R1(r13)
+
+	li	r6, KVM_GUEST_MODE_HOST_HV
+	stb	r6, HSTATE_IN_GUEST(r13)
+
+	/* Clear out SLB */
+	li	r6,0
+	slbmte	r6,r6
+	slbia
+	ptesync
+
+BEGIN_FTR_SECTION
+	b	30f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
+	/*
+	 * POWER7 host -> guest partition switch code.
+	 * We don't have to lock against concurrent tlbies,
+	 * but we do have to coordinate across hardware threads.
+	 */
+	/* Increment entry count iff exit count is zero. */
+	ld	r5,HSTATE_KVM_VCORE(r13)
+	addi	r9,r5,VCORE_ENTRY_EXIT
+21:	lwarx	r3,0,r9
+	cmpwi	r3,0x100		/* any threads starting to exit? */
+	bge	secondary_too_late	/* if so we're too late to the party */
+	addi	r3,r3,1
+	stwcx.	r3,0,r9
+	bne	21b
+
+	/* Primary thread switches to guest partition. */
+	ld	r9,VCORE_KVM(r5)	/* pointer to struct kvm */
+	lbz	r6,HSTATE_PTID(r13)
+	cmpwi	r6,0
+	bne	20f
+	ld	r6,KVM_SDR1(r9)
+	lwz	r7,KVM_LPID(r9)
+	li	r0,LPID_RSVD		/* switch to reserved LPID */
+	mtspr	SPRN_LPID,r0
+	ptesync
+	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
+	mtspr	SPRN_LPID,r7
+	isync
+
+	/* See if we need to flush the TLB */
+	lhz	r6,PACAPACAINDEX(r13)	/* test_bit(cpu, need_tlb_flush) */
+	clrldi	r7,r6,64-6		/* extract bit number (6 bits) */
+	srdi	r6,r6,6			/* doubleword number */
+	sldi	r6,r6,3			/* address offset */
+	add	r6,r6,r9
+	addi	r6,r6,KVM_NEED_FLUSH	/* dword in kvm->arch.need_tlb_flush */
+	li	r0,1
+	sld	r0,r0,r7
+	ld	r7,0(r6)
+	and.	r7,r7,r0
+	beq	22f
+23:	ldarx	r7,0,r6			/* if set, clear the bit */
+	andc	r7,r7,r0
+	stdcx.	r7,0,r6
+	bne	23b
+	li	r6,128			/* and flush the TLB */
+	mtctr	r6
+	li	r7,0x800		/* IS field = 0b10 */
+	ptesync
+28:	tlbiel	r7
+	addi	r7,r7,0x1000
+	bdnz	28b
+	ptesync
+
+	/* Add timebase offset onto timebase */
+22:	ld	r8,VCORE_TB_OFFSET(r5)
+	cmpdi	r8,0
+	beq	37f
+	mftb	r6		/* current host timebase */
+	add	r8,r8,r6
+	mtspr	SPRN_TBU40,r8	/* update upper 40 bits */
+	mftb	r7		/* check if lower 24 bits overflowed */
+	clrldi	r6,r6,40
+	clrldi	r7,r7,40
+	cmpld	r7,r6
+	bge	37f
+	addis	r8,r8,0x100	/* if so, increment upper 40 bits */
+	mtspr	SPRN_TBU40,r8
+
+	/* Load guest PCR value to select appropriate compat mode */
+37:	ld	r7, VCORE_PCR(r5)
+	cmpdi	r7, 0
+	beq	38f
+	mtspr	SPRN_PCR, r7
+38:
+	li	r0,1
+	stb	r0,VCORE_IN_GUEST(r5)	/* signal secondaries to continue */
+	b	10f
+
+	/* Secondary threads wait for primary to have done partition switch */
+20:	lbz	r0,VCORE_IN_GUEST(r5)
+	cmpwi	r0,0
+	beq	20b
+
+	/* Set LPCR and RMOR. */
+10:	ld	r8,VCORE_LPCR(r5)
+	mtspr	SPRN_LPCR,r8
+	ld	r8,KVM_RMOR(r9)
+	mtspr	SPRN_RMOR,r8
+	isync
+
+	/* Check if HDEC expires soon */
+	mfspr	r3,SPRN_HDEC
+	cmpwi	r3,512		/* 1 microsecond */
+	li	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
+	blt	hdec_soon
+	b	31f
+
+	/*
+	 * PPC970 host -> guest partition switch code.
+	 * We have to lock against concurrent tlbies,
+	 * using native_tlbie_lock to lock against host tlbies
+	 * and kvm->arch.tlbie_lock to lock against guest tlbies.
+	 * We also have to invalidate the TLB since its
+	 * entries aren't tagged with the LPID.
+	 */
+30:	ld	r5,HSTATE_KVM_VCORE(r13)
+	ld	r9,VCORE_KVM(r5)	/* pointer to struct kvm */
+
+	/* first take native_tlbie_lock */
+	.section ".toc","aw"
+toc_tlbie_lock:
+	.tc	native_tlbie_lock[TC],native_tlbie_lock
+	.previous
+	ld	r3,toc_tlbie_lock@toc(2)
+#ifdef __BIG_ENDIAN__
+	lwz	r8,PACA_LOCK_TOKEN(r13)
+#else
+	lwz	r8,PACAPACAINDEX(r13)
+#endif
+24:	lwarx	r0,0,r3
+	cmpwi	r0,0
+	bne	24b
+	stwcx.	r8,0,r3
+	bne	24b
+	isync
+
+	ld	r5,HSTATE_KVM_VCORE(r13)
+	ld	r7,VCORE_LPCR(r5)	/* use vcore->lpcr to store HID4 */
+	li	r0,0x18f
+	rotldi	r0,r0,HID4_LPID5_SH	/* all lpid bits in HID4 = 1 */
+	or	r0,r7,r0
+	ptesync
+	sync
+	mtspr	SPRN_HID4,r0		/* switch to reserved LPID */
+	isync
+	li	r0,0
+	stw	r0,0(r3)		/* drop native_tlbie_lock */
+
+	/* invalidate the whole TLB */
+	li	r0,256
+	mtctr	r0
+	li	r6,0
+25:	tlbiel	r6
+	addi	r6,r6,0x1000
+	bdnz	25b
+	ptesync
+
+	/* Take the guest's tlbie_lock */
+	addi	r3,r9,KVM_TLBIE_LOCK
+24:	lwarx	r0,0,r3
+	cmpwi	r0,0
+	bne	24b
+	stwcx.	r8,0,r3
+	bne	24b
+	isync
+	ld	r6,KVM_SDR1(r9)
+	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
+
+	/* Set up HID4 with the guest's LPID etc. */
+	sync
+	mtspr	SPRN_HID4,r7
+	isync
+
+	/* drop the guest's tlbie_lock */
+	li	r0,0
+	stw	r0,0(r3)
+
+	/* Check if HDEC expires soon */
+	mfspr	r3,SPRN_HDEC
+	cmpwi	r3,10
+	li	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
+	blt	hdec_soon
+
+	/* Enable HDEC interrupts */
+	mfspr	r0,SPRN_HID0
+	li	r3,1
+	rldimi	r0,r3, HID0_HDICE_SH, 64-HID0_HDICE_SH-1
+	sync
+	mtspr	SPRN_HID0,r0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+31:
+	/* Do we have a guest vcpu to run? */
+	cmpdi	r4, 0
+	beq	kvmppc_primary_no_guest
+kvmppc_got_guest:
+
+	/* Load up guest SLB entries */
+	lwz	r5,VCPU_SLB_MAX(r4)
+	cmpwi	r5,0
+	beq	9f
+	mtctr	r5
+	addi	r6,r4,VCPU_SLB
+1:	ld	r8,VCPU_SLB_E(r6)
+	ld	r9,VCPU_SLB_V(r6)
+	slbmte	r9,r8
+	addi	r6,r6,VCPU_SLB_SIZE
+	bdnz	1b
+9:
+	/* Increment yield count if they have a VPA */
+	ld	r3, VCPU_VPA(r4)
+	cmpdi	r3, 0
+	beq	25f
+	lwz	r5, LPPACA_YIELDCOUNT(r3)
+	addi	r5, r5, 1
+	stw	r5, LPPACA_YIELDCOUNT(r3)
+	li	r6, 1
+	stb	r6, VCPU_VPA_DIRTY(r4)
+25:
+
+BEGIN_FTR_SECTION
+	/* Save purr/spurr */
+	mfspr	r5,SPRN_PURR
+	mfspr	r6,SPRN_SPURR
+	std	r5,HSTATE_PURR(r13)
+	std	r6,HSTATE_SPURR(r13)
+	ld	r7,VCPU_PURR(r4)
+	ld	r8,VCPU_SPURR(r4)
+	mtspr	SPRN_PURR,r7
+	mtspr	SPRN_SPURR,r8
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 BEGIN_FTR_SECTION
 	/* Set partition DABR */
@@ -382,17 +708,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	mtspr	SPRN_SPRG2, r7
 	mtspr	SPRN_SPRG3, r8
 
-	/* Save R1 in the PACA */
-	std	r1, HSTATE_HOST_R1(r13)
-
 	/* Load up DAR and DSISR */
 	ld	r5, VCPU_DAR(r4)
 	lwz	r6, VCPU_DSISR(r4)
 	mtspr	SPRN_DAR, r5
 	mtspr	SPRN_DSISR, r6
-
-	li	r6, KVM_GUEST_MODE_HOST_HV
-	stb	r6, HSTATE_IN_GUEST(r13)
 
 BEGIN_FTR_SECTION
 	/* Restore AMR and UAMOR, set AMOR to all 1s */
@@ -403,236 +723,6 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_UAMOR,r6
 	mtspr	SPRN_AMOR,r7
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
-
-	/* Clear out SLB */
-	li	r6,0
-	slbmte	r6,r6
-	slbia
-	ptesync
-
-BEGIN_FTR_SECTION
-	b	30f
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
-	/*
-	 * POWER7 host -> guest partition switch code.
-	 * We don't have to lock against concurrent tlbies,
-	 * but we do have to coordinate across hardware threads.
-	 */
-	/* Increment entry count iff exit count is zero. */
-	ld	r5,HSTATE_KVM_VCORE(r13)
-	addi	r9,r5,VCORE_ENTRY_EXIT
-21:	lwarx	r3,0,r9
-	cmpwi	r3,0x100		/* any threads starting to exit? */
-	bge	secondary_too_late	/* if so we're too late to the party */
-	addi	r3,r3,1
-	stwcx.	r3,0,r9
-	bne	21b
-
-	/* Primary thread switches to guest partition. */
-	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
-	lwz	r6,VCPU_PTID(r4)
-	cmpwi	r6,0
-	bne	20f
-	ld	r6,KVM_SDR1(r9)
-	lwz	r7,KVM_LPID(r9)
-	li	r0,LPID_RSVD		/* switch to reserved LPID */
-	mtspr	SPRN_LPID,r0
-	ptesync
-	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
-	mtspr	SPRN_LPID,r7
-	isync
-
-	/* See if we need to flush the TLB */
-	lhz	r6,PACAPACAINDEX(r13)	/* test_bit(cpu, need_tlb_flush) */
-	clrldi	r7,r6,64-6		/* extract bit number (6 bits) */
-	srdi	r6,r6,6			/* doubleword number */
-	sldi	r6,r6,3			/* address offset */
-	add	r6,r6,r9
-	addi	r6,r6,KVM_NEED_FLUSH	/* dword in kvm->arch.need_tlb_flush */
-	li	r0,1
-	sld	r0,r0,r7
-	ld	r7,0(r6)
-	and.	r7,r7,r0
-	beq	22f
-23:	ldarx	r7,0,r6			/* if set, clear the bit */
-	andc	r7,r7,r0
-	stdcx.	r7,0,r6
-	bne	23b
-	li	r6,128			/* and flush the TLB */
-	mtctr	r6
-	li	r7,0x800		/* IS field = 0b10 */
-	ptesync
-28:	tlbiel	r7
-	addi	r7,r7,0x1000
-	bdnz	28b
-	ptesync
-
-	/* Add timebase offset onto timebase */
-22:	ld	r8,VCORE_TB_OFFSET(r5)
-	cmpdi	r8,0
-	beq	37f
-	mftb	r6		/* current host timebase */
-	add	r8,r8,r6
-	mtspr	SPRN_TBU40,r8	/* update upper 40 bits */
-	mftb	r7		/* check if lower 24 bits overflowed */
-	clrldi	r6,r6,40
-	clrldi	r7,r7,40
-	cmpld	r7,r6
-	bge	37f
-	addis	r8,r8,0x100	/* if so, increment upper 40 bits */
-	mtspr	SPRN_TBU40,r8
-
-	/* Load guest PCR value to select appropriate compat mode */
-37:	ld	r7, VCORE_PCR(r5)
-	cmpdi	r7, 0
-	beq	38f
-	mtspr	SPRN_PCR, r7
-38:
-	li	r0,1
-	stb	r0,VCORE_IN_GUEST(r5)	/* signal secondaries to continue */
-	b	10f
-
-	/* Secondary threads wait for primary to have done partition switch */
-20:	lbz	r0,VCORE_IN_GUEST(r5)
-	cmpwi	r0,0
-	beq	20b
-
-	/* Set LPCR and RMOR. */
-10:	ld	r8,VCORE_LPCR(r5)
-	mtspr	SPRN_LPCR,r8
-	ld	r8,KVM_RMOR(r9)
-	mtspr	SPRN_RMOR,r8
-	isync
-
-	/* Increment yield count if they have a VPA */
-	ld	r3, VCPU_VPA(r4)
-	cmpdi	r3, 0
-	beq	25f
-	lwz	r5, LPPACA_YIELDCOUNT(r3)
-	addi	r5, r5, 1
-	stw	r5, LPPACA_YIELDCOUNT(r3)
-	li	r6, 1
-	stb	r6, VCPU_VPA_DIRTY(r4)
-25:
-	/* Check if HDEC expires soon */
-	mfspr	r3,SPRN_HDEC
-	cmpwi	r3,10
-	li	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
-	mr	r9,r4
-	blt	hdec_soon
-
-	/* Save purr/spurr */
-	mfspr	r5,SPRN_PURR
-	mfspr	r6,SPRN_SPURR
-	std	r5,HSTATE_PURR(r13)
-	std	r6,HSTATE_SPURR(r13)
-	ld	r7,VCPU_PURR(r4)
-	ld	r8,VCPU_SPURR(r4)
-	mtspr	SPRN_PURR,r7
-	mtspr	SPRN_SPURR,r8
-	b	31f
-
-	/*
-	 * PPC970 host -> guest partition switch code.
-	 * We have to lock against concurrent tlbies,
-	 * using native_tlbie_lock to lock against host tlbies
-	 * and kvm->arch.tlbie_lock to lock against guest tlbies.
-	 * We also have to invalidate the TLB since its
-	 * entries aren't tagged with the LPID.
-	 */
-30:	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
-
-	/* first take native_tlbie_lock */
-	.section ".toc","aw"
-toc_tlbie_lock:
-	.tc	native_tlbie_lock[TC],native_tlbie_lock
-	.previous
-	ld	r3,toc_tlbie_lock@toc(2)
-#ifdef __BIG_ENDIAN__
-	lwz	r8,PACA_LOCK_TOKEN(r13)
-#else
-	lwz	r8,PACAPACAINDEX(r13)
-#endif
-24:	lwarx	r0,0,r3
-	cmpwi	r0,0
-	bne	24b
-	stwcx.	r8,0,r3
-	bne	24b
-	isync
-
-	ld	r5,HSTATE_KVM_VCORE(r13)
-	ld	r7,VCORE_LPCR(r5)	/* use vcore->lpcr to store HID4 */
-	li	r0,0x18f
-	rotldi	r0,r0,HID4_LPID5_SH	/* all lpid bits in HID4 = 1 */
-	or	r0,r7,r0
-	ptesync
-	sync
-	mtspr	SPRN_HID4,r0		/* switch to reserved LPID */
-	isync
-	li	r0,0
-	stw	r0,0(r3)		/* drop native_tlbie_lock */
-
-	/* invalidate the whole TLB */
-	li	r0,256
-	mtctr	r0
-	li	r6,0
-25:	tlbiel	r6
-	addi	r6,r6,0x1000
-	bdnz	25b
-	ptesync
-
-	/* Take the guest's tlbie_lock */
-	addi	r3,r9,KVM_TLBIE_LOCK
-24:	lwarx	r0,0,r3
-	cmpwi	r0,0
-	bne	24b
-	stwcx.	r8,0,r3
-	bne	24b
-	isync
-	ld	r6,KVM_SDR1(r9)
-	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
-
-	/* Set up HID4 with the guest's LPID etc. */
-	sync
-	mtspr	SPRN_HID4,r7
-	isync
-
-	/* drop the guest's tlbie_lock */
-	li	r0,0
-	stw	r0,0(r3)
-
-	/* Check if HDEC expires soon */
-	mfspr	r3,SPRN_HDEC
-	cmpwi	r3,10
-	li	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
-	mr	r9,r4
-	blt	hdec_soon
-
-	/* Enable HDEC interrupts */
-	mfspr	r0,SPRN_HID0
-	li	r3,1
-	rldimi	r0,r3, HID0_HDICE_SH, 64-HID0_HDICE_SH-1
-	sync
-	mtspr	SPRN_HID0,r0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-
-	/* Load up guest SLB entries */
-31:	lwz	r5,VCPU_SLB_MAX(r4)
-	cmpwi	r5,0
-	beq	9f
-	mtctr	r5
-	addi	r6,r4,VCPU_SLB
-1:	ld	r8,VCPU_SLB_E(r6)
-	ld	r9,VCPU_SLB_V(r6)
-	slbmte	r9,r8
-	addi	r6,r6,VCPU_SLB_SIZE
-	bdnz	1b
-9:
 
 	/* Restore state of CTRL run bit; assume 1 on entry */
 	lwz	r5,VCPU_CTRL(r4)
@@ -984,226 +1074,6 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_SPURR,r4
 END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_201)
 
-	/* Clear out SLB */
-	li	r5,0
-	slbmte	r5,r5
-	slbia
-	ptesync
-
-hdec_soon:			/* r9 = vcpu, r12 = trap, r13 = paca */
-BEGIN_FTR_SECTION
-	b	32f
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
-	/*
-	 * POWER7 guest -> host partition switch code.
-	 * We don't have to lock against tlbies but we do
-	 * have to coordinate the hardware threads.
-	 */
-	/* Increment the threads-exiting-guest count in the 0xff00
-	   bits of vcore->entry_exit_count */
-	lwsync
-	ld	r5,HSTATE_KVM_VCORE(r13)
-	addi	r6,r5,VCORE_ENTRY_EXIT
-41:	lwarx	r3,0,r6
-	addi	r0,r3,0x100
-	stwcx.	r0,0,r6
-	bne	41b
-	lwsync
-
-	/*
-	 * At this point we have an interrupt that we have to pass
-	 * up to the kernel or qemu; we can't handle it in real mode.
-	 * Thus we have to do a partition switch, so we have to
-	 * collect the other threads, if we are the first thread
-	 * to take an interrupt.  To do this, we set the HDEC to 0,
-	 * which causes an HDEC interrupt in all threads within 2ns
-	 * because the HDEC register is shared between all 4 threads.
-	 * However, we don't need to bother if this is an HDEC
-	 * interrupt, since the other threads will already be on their
-	 * way here in that case.
-	 */
-	cmpwi	r3,0x100	/* Are we the first here? */
-	bge	43f
-	cmpwi	r3,1		/* Are any other threads in the guest? */
-	ble	43f
-	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
-	beq	40f
-	li	r0,0
-	mtspr	SPRN_HDEC,r0
-40:
-	/*
-	 * Send an IPI to any napping threads, since an HDEC interrupt
-	 * doesn't wake CPUs up from nap.
-	 */
-	lwz	r3,VCORE_NAPPING_THREADS(r5)
-	lwz	r4,VCPU_PTID(r9)
-	li	r0,1
-	sld	r0,r0,r4
-	andc.	r3,r3,r0		/* no sense IPI'ing ourselves */
-	beq	43f
-	mulli	r4,r4,PACA_SIZE		/* get paca for thread 0 */
-	subf	r6,r4,r13
-42:	andi.	r0,r3,1
-	beq	44f
-	ld	r8,HSTATE_XICS_PHYS(r6)	/* get thread's XICS reg addr */
-	li	r0,IPI_PRIORITY
-	li	r7,XICS_MFRR
-	stbcix	r0,r7,r8		/* trigger the IPI */
-44:	srdi.	r3,r3,1
-	addi	r6,r6,PACA_SIZE
-	bne	42b
-
-	/* Secondary threads wait for primary to do partition switch */
-43:	ld	r4,VCPU_KVM(r9)		/* pointer to struct kvm */
-	ld	r5,HSTATE_KVM_VCORE(r13)
-	lwz	r3,VCPU_PTID(r9)
-	cmpwi	r3,0
-	beq	15f
-	HMT_LOW
-13:	lbz	r3,VCORE_IN_GUEST(r5)
-	cmpwi	r3,0
-	bne	13b
-	HMT_MEDIUM
-	b	16f
-
-	/* Primary thread waits for all the secondaries to exit guest */
-15:	lwz	r3,VCORE_ENTRY_EXIT(r5)
-	srwi	r0,r3,8
-	clrldi	r3,r3,56
-	cmpw	r3,r0
-	bne	15b
-	isync
-
-	/* Primary thread switches back to host partition */
-	ld	r6,KVM_HOST_SDR1(r4)
-	lwz	r7,KVM_HOST_LPID(r4)
-	li	r8,LPID_RSVD		/* switch to reserved LPID */
-	mtspr	SPRN_LPID,r8
-	ptesync
-	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
-	mtspr	SPRN_LPID,r7
-	isync
-
-	/* Subtract timebase offset from timebase */
-	ld	r8,VCORE_TB_OFFSET(r5)
-	cmpdi	r8,0
-	beq	17f
-	mftb	r6			/* current host timebase */
-	subf	r8,r8,r6
-	mtspr	SPRN_TBU40,r8		/* update upper 40 bits */
-	mftb	r7			/* check if lower 24 bits overflowed */
-	clrldi	r6,r6,40
-	clrldi	r7,r7,40
-	cmpld	r7,r6
-	bge	17f
-	addis	r8,r8,0x100		/* if so, increment upper 40 bits */
-	mtspr	SPRN_TBU40,r8
-
-	/* Reset PCR */
-17:	ld	r0, VCORE_PCR(r5)
-	cmpdi	r0, 0
-	beq	18f
-	li	r0, 0
-	mtspr	SPRN_PCR, r0
-18:
-	/* Signal secondary CPUs to continue */
-	stb	r0,VCORE_IN_GUEST(r5)
-	lis	r8,0x7fff		/* MAX_INT@h */
-	mtspr	SPRN_HDEC,r8
-
-16:	ld	r8,KVM_HOST_LPCR(r4)
-	mtspr	SPRN_LPCR,r8
-	isync
-	b	33f
-
-	/*
-	 * PPC970 guest -> host partition switch code.
-	 * We have to lock against concurrent tlbies, and
-	 * we have to flush the whole TLB.
-	 */
-32:	ld	r4,VCPU_KVM(r9)		/* pointer to struct kvm */
-
-	/* Take the guest's tlbie_lock */
-#ifdef __BIG_ENDIAN__
-	lwz	r8,PACA_LOCK_TOKEN(r13)
-#else
-	lwz	r8,PACAPACAINDEX(r13)
-#endif
-	addi	r3,r4,KVM_TLBIE_LOCK
-24:	lwarx	r0,0,r3
-	cmpwi	r0,0
-	bne	24b
-	stwcx.	r8,0,r3
-	bne	24b
-	isync
-
-	ld	r7,KVM_HOST_LPCR(r4)	/* use kvm->arch.host_lpcr for HID4 */
-	li	r0,0x18f
-	rotldi	r0,r0,HID4_LPID5_SH	/* all lpid bits in HID4 = 1 */
-	or	r0,r7,r0
-	ptesync
-	sync
-	mtspr	SPRN_HID4,r0		/* switch to reserved LPID */
-	isync
-	li	r0,0
-	stw	r0,0(r3)		/* drop guest tlbie_lock */
-
-	/* invalidate the whole TLB */
-	li	r0,256
-	mtctr	r0
-	li	r6,0
-25:	tlbiel	r6
-	addi	r6,r6,0x1000
-	bdnz	25b
-	ptesync
-
-	/* take native_tlbie_lock */
-	ld	r3,toc_tlbie_lock@toc(2)
-24:	lwarx	r0,0,r3
-	cmpwi	r0,0
-	bne	24b
-	stwcx.	r8,0,r3
-	bne	24b
-	isync
-
-	ld	r6,KVM_HOST_SDR1(r4)
-	mtspr	SPRN_SDR1,r6		/* switch to host page table */
-
-	/* Set up host HID4 value */
-	sync
-	mtspr	SPRN_HID4,r7
-	isync
-	li	r0,0
-	stw	r0,0(r3)		/* drop native_tlbie_lock */
-
-	lis	r8,0x7fff		/* MAX_INT@h */
-	mtspr	SPRN_HDEC,r8
-
-	/* Disable HDEC interrupts */
-	mfspr	r0,SPRN_HID0
-	li	r3,0
-	rldimi	r0,r3, HID0_HDICE_SH, 64-HID0_HDICE_SH-1
-	sync
-	mtspr	SPRN_HID0,r0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-
-	/* load host SLB entries */
-33:	ld	r8,PACA_SLBSHADOWPTR(r13)
-
-	.rept	SLB_NUM_BOLTED
-	ld	r5,SLBSHADOW_SAVEAREA(r8)
-	ld	r6,SLBSHADOW_SAVEAREA+8(r8)
-	andis.	r7,r5,SLB_ESID_V@h
-	beq	1f
-	slbmte	r6,r5
-1:	addi	r8,r8,16
-	.endr
-
 	/* Save DEC */
 	mfspr	r5,SPRN_DEC
 	mftb	r6
@@ -1220,10 +1090,6 @@ BEGIN_FTR_SECTION
 	li	r6,0
 	mtspr	SPRN_AMR,r6
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
-
-	/* Unset guest mode */
-	li	r0, KVM_GUEST_MODE_NONE
-	stb	r0, HSTATE_IN_GUEST(r13)
 
 	/* Switch DSCR back to host value */
 BEGIN_FTR_SECTION
@@ -1325,30 +1191,234 @@ BEGIN_FTR_SECTION
 	stw	r11, VCPU_PMC + 28(r9)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 22:
-	ld	r0, 112+PPC_LR_STKOFF(r1)
-	addi	r1, r1, 112
-	mtlr	r0
-	blr
-secondary_too_late:
+	/* Clear out SLB */
+	li	r5,0
+	slbmte	r5,r5
+	slbia
+	ptesync
+
+hdec_soon:			/* r12 = trap, r13 = paca */
+BEGIN_FTR_SECTION
+	b	32f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
+	/*
+	 * POWER7 guest -> host partition switch code.
+	 * We don't have to lock against tlbies but we do
+	 * have to coordinate the hardware threads.
+	 */
+	/* Increment the threads-exiting-guest count in the 0xff00
+	   bits of vcore->entry_exit_count */
+	lwsync
 	ld	r5,HSTATE_KVM_VCORE(r13)
+	addi	r6,r5,VCORE_ENTRY_EXIT
+41:	lwarx	r3,0,r6
+	addi	r0,r3,0x100
+	stwcx.	r0,0,r6
+	bne	41b
+	lwsync
+
+	/*
+	 * At this point we have an interrupt that we have to pass
+	 * up to the kernel or qemu; we can't handle it in real mode.
+	 * Thus we have to do a partition switch, so we have to
+	 * collect the other threads, if we are the first thread
+	 * to take an interrupt.  To do this, we set the HDEC to 0,
+	 * which causes an HDEC interrupt in all threads within 2ns
+	 * because the HDEC register is shared between all 4 threads.
+	 * However, we don't need to bother if this is an HDEC
+	 * interrupt, since the other threads will already be on their
+	 * way here in that case.
+	 */
+	cmpwi	r3,0x100	/* Are we the first here? */
+	bge	43f
+	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
+	beq	40f
+	li	r0,0
+	mtspr	SPRN_HDEC,r0
+40:
+	/*
+	 * Send an IPI to any napping threads, since an HDEC interrupt
+	 * doesn't wake CPUs up from nap.
+	 */
+	lwz	r3,VCORE_NAPPING_THREADS(r5)
+	lbz	r4,HSTATE_PTID(r13)
+	li	r0,1
+	sld	r0,r0,r4
+	andc.	r3,r3,r0		/* no sense IPI'ing ourselves */
+	beq	43f
+	mulli	r4,r4,PACA_SIZE		/* get paca for thread 0 */
+	subf	r6,r4,r13
+42:	andi.	r0,r3,1
+	beq	44f
+	ld	r8,HSTATE_XICS_PHYS(r6)	/* get thread's XICS reg addr */
+	li	r0,IPI_PRIORITY
+	li	r7,XICS_MFRR
+	stbcix	r0,r7,r8		/* trigger the IPI */
+44:	srdi.	r3,r3,1
+	addi	r6,r6,PACA_SIZE
+	bne	42b
+
+secondary_too_late:
+	/* Secondary threads wait for primary to do partition switch */
+43:	ld	r5,HSTATE_KVM_VCORE(r13)
+	ld	r4,VCORE_KVM(r5)	/* pointer to struct kvm */
+	lbz	r3,HSTATE_PTID(r13)
+	cmpwi	r3,0
+	beq	15f
 	HMT_LOW
 13:	lbz	r3,VCORE_IN_GUEST(r5)
 	cmpwi	r3,0
 	bne	13b
 	HMT_MEDIUM
-	li	r0, KVM_GUEST_MODE_NONE
-	stb	r0, HSTATE_IN_GUEST(r13)
-	ld	r11,PACA_SLBSHADOWPTR(r13)
+	b	16f
+
+	/* Primary thread waits for all the secondaries to exit guest */
+15:	lwz	r3,VCORE_ENTRY_EXIT(r5)
+	srwi	r0,r3,8
+	clrldi	r3,r3,56
+	cmpw	r3,r0
+	bne	15b
+	isync
+
+	/* Primary thread switches back to host partition */
+	ld	r6,KVM_HOST_SDR1(r4)
+	lwz	r7,KVM_HOST_LPID(r4)
+	li	r8,LPID_RSVD		/* switch to reserved LPID */
+	mtspr	SPRN_LPID,r8
+	ptesync
+	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
+	mtspr	SPRN_LPID,r7
+	isync
+
+	/* Subtract timebase offset from timebase */
+	ld	r8,VCORE_TB_OFFSET(r5)
+	cmpdi	r8,0
+	beq	17f
+	mftb	r6			/* current host timebase */
+	subf	r8,r8,r6
+	mtspr	SPRN_TBU40,r8		/* update upper 40 bits */
+	mftb	r7			/* check if lower 24 bits overflowed */
+	clrldi	r6,r6,40
+	clrldi	r7,r7,40
+	cmpld	r7,r6
+	bge	17f
+	addis	r8,r8,0x100		/* if so, increment upper 40 bits */
+	mtspr	SPRN_TBU40,r8
+
+	/* Reset PCR */
+17:	ld	r0, VCORE_PCR(r5)
+	cmpdi	r0, 0
+	beq	18f
+	li	r0, 0
+	mtspr	SPRN_PCR, r0
+18:
+	/* Signal secondary CPUs to continue */
+	stb	r0,VCORE_IN_GUEST(r5)
+	lis	r8,0x7fff		/* MAX_INT@h */
+	mtspr	SPRN_HDEC,r8
+
+16:	ld	r8,KVM_HOST_LPCR(r4)
+	mtspr	SPRN_LPCR,r8
+	isync
+	b	33f
+
+	/*
+	 * PPC970 guest -> host partition switch code.
+	 * We have to lock against concurrent tlbies, and
+	 * we have to flush the whole TLB.
+	 */
+32:	ld	r5,HSTATE_KVM_VCORE(r13)
+	ld	r4,VCORE_KVM(r5)	/* pointer to struct kvm */
+
+	/* Take the guest's tlbie_lock */
+#ifdef __BIG_ENDIAN__
+	lwz	r8,PACA_LOCK_TOKEN(r13)
+#else
+	lwz	r8,PACAPACAINDEX(r13)
+#endif
+	addi	r3,r4,KVM_TLBIE_LOCK
+24:	lwarx	r0,0,r3
+	cmpwi	r0,0
+	bne	24b
+	stwcx.	r8,0,r3
+	bne	24b
+	isync
+
+	ld	r7,KVM_HOST_LPCR(r4)	/* use kvm->arch.host_lpcr for HID4 */
+	li	r0,0x18f
+	rotldi	r0,r0,HID4_LPID5_SH	/* all lpid bits in HID4 = 1 */
+	or	r0,r7,r0
+	ptesync
+	sync
+	mtspr	SPRN_HID4,r0		/* switch to reserved LPID */
+	isync
+	li	r0,0
+	stw	r0,0(r3)		/* drop guest tlbie_lock */
+
+	/* invalidate the whole TLB */
+	li	r0,256
+	mtctr	r0
+	li	r6,0
+25:	tlbiel	r6
+	addi	r6,r6,0x1000
+	bdnz	25b
+	ptesync
+
+	/* take native_tlbie_lock */
+	ld	r3,toc_tlbie_lock@toc(2)
+24:	lwarx	r0,0,r3
+	cmpwi	r0,0
+	bne	24b
+	stwcx.	r8,0,r3
+	bne	24b
+	isync
+
+	ld	r6,KVM_HOST_SDR1(r4)
+	mtspr	SPRN_SDR1,r6		/* switch to host page table */
+
+	/* Set up host HID4 value */
+	sync
+	mtspr	SPRN_HID4,r7
+	isync
+	li	r0,0
+	stw	r0,0(r3)		/* drop native_tlbie_lock */
+
+	lis	r8,0x7fff		/* MAX_INT@h */
+	mtspr	SPRN_HDEC,r8
+
+	/* Disable HDEC interrupts */
+	mfspr	r0,SPRN_HID0
+	li	r3,0
+	rldimi	r0,r3, HID0_HDICE_SH, 64-HID0_HDICE_SH-1
+	sync
+	mtspr	SPRN_HID0,r0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+
+	/* load host SLB entries */
+33:	ld	r8,PACA_SLBSHADOWPTR(r13)
 
 	.rept	SLB_NUM_BOLTED
-	ld	r5,SLBSHADOW_SAVEAREA(r11)
-	ld	r6,SLBSHADOW_SAVEAREA+8(r11)
+	ld	r5,SLBSHADOW_SAVEAREA(r8)
+	ld	r6,SLBSHADOW_SAVEAREA+8(r8)
 	andis.	r7,r5,SLB_ESID_V@h
 	beq	1f
 	slbmte	r6,r5
-1:	addi	r11,r11,16
+1:	addi	r8,r8,16
 	.endr
-	b	22b
+
+	/* Unset guest mode */
+	li	r0, KVM_GUEST_MODE_NONE
+	stb	r0, HSTATE_IN_GUEST(r13)
+
+	ld	r0, 112+PPC_LR_STKOFF(r1)
+	addi	r1, r1, 112
+	mtlr	r0
+	blr
 
 /*
  * Check whether an HDSI is an HPTE not found fault or something else.
@@ -1649,7 +1719,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	 * up to the host.
 	 */
 	ld	r5,HSTATE_KVM_VCORE(r13)
-	lwz	r6,VCPU_PTID(r3)
+	lbz	r6,HSTATE_PTID(r13)
 	lwz	r8,VCORE_ENTRY_EXIT(r5)
 	clrldi	r8,r8,56
 	li	r0,1
@@ -1662,7 +1732,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	bge	kvm_cede_exit
 	stwcx.	r4,0,r6
 	bne	31b
-	li	r0,1
+	li	r0,NAPPING_CEDE
 	stb	r0,HSTATE_NAPPING(r13)
 	/* order napping_threads update vs testing entry_exit_count */
 	lwsync
@@ -1751,7 +1821,7 @@ kvm_end_cede:
 
 	/* clear our bit in vcore->napping_threads */
 33:	ld	r5,HSTATE_KVM_VCORE(r13)
-	lwz	r3,VCPU_PTID(r4)
+	lbz	r3,HSTATE_PTID(r13)
 	li	r0,1
 	sld	r0,r0,r3
 	addi	r6,r5,VCORE_NAPPING_THREADS
