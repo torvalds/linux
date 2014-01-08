@@ -333,20 +333,16 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 	unsigned reg;
 	struct usbtll_omap *tll;
 
-	spin_lock(&tll_lock);
-
-	if (!tll_dev) {
-		spin_unlock(&tll_lock);
+	if (!tll_dev)
 		return -ENODEV;
-	}
 
+	pm_runtime_get_sync(tll_dev);
+
+	spin_lock(&tll_lock);
 	tll = dev_get_drvdata(tll_dev);
-
 	needs_tll = false;
 	for (i = 0; i < tll->nch; i++)
 		needs_tll |= omap_usb_mode_needs_tll(pdata->port_mode[i]);
-
-	pm_runtime_get_sync(tll_dev);
 
 	if (needs_tll) {
 		void __iomem *base = tll->base;
@@ -398,9 +394,8 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 		}
 	}
 
-	pm_runtime_put_sync(tll_dev);
-
 	spin_unlock(&tll_lock);
+	pm_runtime_put_sync(tll_dev);
 
 	return 0;
 }
@@ -411,16 +406,13 @@ int omap_tll_enable(struct usbhs_omap_platform_data *pdata)
 	int i;
 	struct usbtll_omap *tll;
 
-	spin_lock(&tll_lock);
-
-	if (!tll_dev) {
-		spin_unlock(&tll_lock);
+	if (!tll_dev)
 		return -ENODEV;
-	}
-
-	tll = dev_get_drvdata(tll_dev);
 
 	pm_runtime_get_sync(tll_dev);
+
+	spin_lock(&tll_lock);
+	tll = dev_get_drvdata(tll_dev);
 
 	for (i = 0; i < tll->nch; i++) {
 		if (omap_usb_mode_needs_tll(pdata->port_mode[i])) {
@@ -448,13 +440,10 @@ int omap_tll_disable(struct usbhs_omap_platform_data *pdata)
 	int i;
 	struct usbtll_omap *tll;
 
-	spin_lock(&tll_lock);
-
-	if (!tll_dev) {
-		spin_unlock(&tll_lock);
+	if (!tll_dev)
 		return -ENODEV;
-	}
 
+	spin_lock(&tll_lock);
 	tll = dev_get_drvdata(tll_dev);
 
 	for (i = 0; i < tll->nch; i++) {
@@ -464,9 +453,8 @@ int omap_tll_disable(struct usbhs_omap_platform_data *pdata)
 		}
 	}
 
-	pm_runtime_put_sync(tll_dev);
-
 	spin_unlock(&tll_lock);
+	pm_runtime_put_sync(tll_dev);
 
 	return 0;
 }
