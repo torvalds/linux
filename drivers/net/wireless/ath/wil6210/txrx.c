@@ -21,6 +21,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
+#include <asm/processor.h>
 
 #include "wil6210.h"
 #include "wmi.h"
@@ -376,6 +377,8 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 		return NULL;
 	}
 	skb_trim(skb, dmalen);
+
+	prefetch(skb->data);
 
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 			  skb->data, skb_headlen(skb), false);
