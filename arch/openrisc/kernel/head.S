@@ -24,6 +24,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
+#include <asm/thread_info.h>
 #include <asm/cache.h>
 #include <asm/spr_defs.h>
 #include <asm/asm-offsets.h>
@@ -486,7 +487,8 @@ _start:
 	/*
 	 * set up initial ksp and current
 	 */
-	LOAD_SYMBOL_2_GPR(r1,init_thread_union+0x2000)	// setup kernel stack
+	/* setup kernel stack */
+	LOAD_SYMBOL_2_GPR(r1,init_thread_union + THREAD_SIZE)
 	LOAD_SYMBOL_2_GPR(r10,init_thread_union)	// setup current
 	tophys	(r31,r10)
 	l.sw	TI_KSP(r31), r1
