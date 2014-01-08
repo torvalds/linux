@@ -430,7 +430,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	andc	r7,r7,r0
 	stdcx.	r7,0,r6
 	bne	23b
-	li	r6,128			/* and flush the TLB */
+	/* Flush the TLB of any entries for this LPID */
+	/* use arch 2.07S as a proxy for POWER8 */
+BEGIN_FTR_SECTION
+	li	r6,512			/* POWER8 has 512 sets */
+FTR_SECTION_ELSE
+	li	r6,128			/* POWER7 has 128 sets */
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_207S)
 	mtctr	r6
 	li	r7,0x800		/* IS field = 0b10 */
 	ptesync
