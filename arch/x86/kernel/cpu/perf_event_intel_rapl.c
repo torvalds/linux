@@ -27,6 +27,10 @@
  *	  event: rapl_energy_dram
  *    perf code: 0x3
  *
+ * dram counter: consumption of the builtin-gpu domain (client only)
+ *	  event: rapl_energy_gpu
+ *    perf code: 0x4
+ *
  * We manage those counters as free running (read-only). They may be
  * use simultaneously by other tools, such as turbostat.
  *
@@ -55,10 +59,13 @@
 #define INTEL_RAPL_PKG		0x2	/* pseudo-encoding */
 #define RAPL_IDX_RAM_NRG_STAT	2	/* DRAM */
 #define INTEL_RAPL_RAM		0x3	/* pseudo-encoding */
+#define RAPL_IDX_PP1_NRG_STAT	3	/* DRAM */
+#define INTEL_RAPL_PP1		0x4	/* pseudo-encoding */
 
 /* Clients have PP0, PKG */
 #define RAPL_IDX_CLN	(1<<RAPL_IDX_PP0_NRG_STAT|\
-			 1<<RAPL_IDX_PKG_NRG_STAT)
+			 1<<RAPL_IDX_PKG_NRG_STAT|\
+			 1<<RAPL_IDX_PP1_NRG_STAT)
 
 /* Servers have PP0, PKG, RAM */
 #define RAPL_IDX_SRV	(1<<RAPL_IDX_PP0_NRG_STAT|\
@@ -315,6 +322,10 @@ static int rapl_pmu_event_init(struct perf_event *event)
 		bit = RAPL_IDX_RAM_NRG_STAT;
 		msr = MSR_DRAM_ENERGY_STATUS;
 		break;
+	case INTEL_RAPL_PP1:
+		bit = RAPL_IDX_PP1_NRG_STAT;
+		msr = MSR_PP1_ENERGY_STATUS;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -367,19 +378,22 @@ static struct attribute_group rapl_pmu_attr_group = {
 };
 
 EVENT_ATTR_STR(energy-cores, rapl_cores, "event=0x01");
-EVENT_ATTR_STR(energy-pkg  , rapl_pkg, "event=0x02");
-EVENT_ATTR_STR(energy-ram  , rapl_ram, "event=0x03");
+EVENT_ATTR_STR(energy-pkg  ,   rapl_pkg, "event=0x02");
+EVENT_ATTR_STR(energy-ram  ,   rapl_ram, "event=0x03");
+EVENT_ATTR_STR(energy-gpu  ,   rapl_gpu, "event=0x04");
 
 EVENT_ATTR_STR(energy-cores.unit, rapl_cores_unit, "Joules");
-EVENT_ATTR_STR(energy-pkg.unit  , rapl_pkg_unit, "Joules");
-EVENT_ATTR_STR(energy-ram.unit  , rapl_ram_unit, "Joules");
+EVENT_ATTR_STR(energy-pkg.unit  ,   rapl_pkg_unit, "Joules");
+EVENT_ATTR_STR(energy-ram.unit  ,   rapl_ram_unit, "Joules");
+EVENT_ATTR_STR(energy-gpu.unit  ,   rapl_gpu_unit, "Joules");
 
 /*
  * we compute in 0.23 nJ increments regardless of MSR
  */
 EVENT_ATTR_STR(energy-cores.scale, rapl_cores_scale, "2.3283064365386962890625e-10");
-EVENT_ATTR_STR(energy-pkg.scale, rapl_pkg_scale, "2.3283064365386962890625e-10");
-EVENT_ATTR_STR(energy-ram.scale, rapl_ram_scale, "2.3283064365386962890625e-10");
+EVENT_ATTR_STR(energy-pkg.scale,     rapl_pkg_scale, "2.3283064365386962890625e-10");
+EVENT_ATTR_STR(energy-ram.scale,     rapl_ram_scale, "2.3283064365386962890625e-10");
+EVENT_ATTR_STR(energy-gpu.scale,     rapl_gpu_scale, "2.3283064365386962890625e-10");
 
 static struct attribute *rapl_events_srv_attr[] = {
 	EVENT_PTR(rapl_cores),
@@ -399,12 +413,15 @@ static struct attribute *rapl_events_srv_attr[] = {
 static struct attribute *rapl_events_cln_attr[] = {
 	EVENT_PTR(rapl_cores),
 	EVENT_PTR(rapl_pkg),
+	EVENT_PTR(rapl_gpu),
 
 	EVENT_PTR(rapl_cores_unit),
 	EVENT_PTR(rapl_pkg_unit),
+	EVENT_PTR(rapl_gpu_unit),
 
 	EVENT_PTR(rapl_cores_scale),
 	EVENT_PTR(rapl_pkg_scale),
+	EVENT_PTR(rapl_gpu_scale),
 	NULL,
 };
 
