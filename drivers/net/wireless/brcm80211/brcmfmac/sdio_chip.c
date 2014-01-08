@@ -84,6 +84,17 @@ static const struct sdiod_drive_str sdiod_drvstr_tab1_1v8[] = {
 	{0, 0x1}
 };
 
+/* SDIO Drive Strength to sel value table for PMU Rev 13 (1.8v) */
+static const struct sdiod_drive_str sdiod_drive_strength_tab5_1v8[] = {
+        {6, 0x7},
+        {5, 0x6},
+        {4, 0x5},
+        {3, 0x4},
+        {2, 0x2},
+        {1, 0x1},
+        {0, 0x0}
+};
+
 /* SDIO Drive Strength to sel value table for PMU Rev 17 (1.8v) */
 static const struct sdiod_drive_str sdiod_drvstr_tab6_1v8[] = {
 	{3, 0x3},
@@ -577,6 +588,23 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 		ci->ramsize = 0xc0000;
 		ci->rambase = 0x180000;
 		break;
+	case BCM43362_CHIP_ID:
+		ci->c_inf[0].wrapbase = 0x18100000;
+		ci->c_inf[0].cib = 0x27004211;
+		ci->c_inf[1].id = BCMA_CORE_SDIO_DEV;
+		ci->c_inf[1].base = 0x18002000;
+		ci->c_inf[1].wrapbase = 0x18102000;
+		ci->c_inf[1].cib = 0x0a004211;
+		ci->c_inf[2].id = BCMA_CORE_INTERNAL_MEM;
+		ci->c_inf[2].base = 0x18004000;
+		ci->c_inf[2].wrapbase = 0x18104000;
+		ci->c_inf[2].cib = 0x08080401;
+		ci->c_inf[3].id = BCMA_CORE_ARM_CM3;
+		ci->c_inf[3].base = 0x18003000;
+		ci->c_inf[3].wrapbase = 0x18103000;
+		ci->c_inf[3].cib = 0x03004211;
+		ci->ramsize = 0x3C000;
+		break;
 	default:
 		brcmf_err("chipid 0x%x is not supported\n", ci->chip);
 		return -ENODEV;
@@ -781,6 +809,11 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 			brcmf_err("Invalid SDIO Drive strength for chip %s, strength=%d\n",
 				  brcmf_sdio_chip_name(ci->chip, chn, 8),
 				  drivestrength);
+		break;
+	case SDIOD_DRVSTR_KEY(BCM43362_CHIP_ID, 13):
+		str_tab = sdiod_drive_strength_tab5_1v8;
+		str_mask = 0x00003800;
+		str_shift = 11;
 		break;
 	default:
 		brcmf_err("No SDIO Drive strength init done for chip %s rev %d pmurev %d\n",
