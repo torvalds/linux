@@ -381,28 +381,104 @@ static const struct nouveau_enum nve0_fifo_sched_reason[] = {
 	{}
 };
 
-static const struct nouveau_enum nve0_fifo_fault_unit[] = {
+static const struct nouveau_enum nve0_fifo_fault_engine[] = {
+	{ 0x00, "GR", NULL, NVDEV_ENGINE_GR },
+	{ 0x03, "IFB" },
+	{ 0x04, "BAR1" },
+	{ 0x05, "BAR3" },
+	{ 0x07, "PBDMA0", NULL, NVDEV_ENGINE_FIFO },
+	{ 0x08, "PBDMA1", NULL, NVDEV_ENGINE_FIFO },
+	{ 0x09, "PBDMA2", NULL, NVDEV_ENGINE_FIFO },
+	{ 0x10, "MSVLD", NULL, NVDEV_ENGINE_BSP },
+	{ 0x11, "MSPPP", NULL, NVDEV_ENGINE_PPP },
+	{ 0x13, "PERF" },
+	{ 0x14, "MSPDEC", NULL, NVDEV_ENGINE_VP },
+	{ 0x15, "CE0", NULL, NVDEV_ENGINE_COPY0 },
+	{ 0x16, "CE1", NULL, NVDEV_ENGINE_COPY1 },
+	{ 0x17, "PMU" },
+	{ 0x19, "MSENC", NULL, NVDEV_ENGINE_VENC },
+	{ 0x1b, "CE2", NULL, NVDEV_ENGINE_COPY2 },
 	{}
 };
 
 static const struct nouveau_enum nve0_fifo_fault_reason[] = {
-	{ 0x00, "PT_NOT_PRESENT" },
-	{ 0x01, "PT_TOO_SHORT" },
-	{ 0x02, "PAGE_NOT_PRESENT" },
-	{ 0x03, "VM_LIMIT_EXCEEDED" },
-	{ 0x04, "NO_CHANNEL" },
-	{ 0x05, "PAGE_SYSTEM_ONLY" },
-	{ 0x06, "PAGE_READ_ONLY" },
-	{ 0x0a, "COMPRESSED_SYSRAM" },
-	{ 0x0c, "INVALID_STORAGE_TYPE" },
+	{ 0x00, "PDE" },
+	{ 0x01, "PDE_SIZE" },
+	{ 0x02, "PTE" },
+	{ 0x03, "VA_LIMIT_VIOLATION" },
+	{ 0x04, "UNBOUND_INST_BLOCK" },
+	{ 0x05, "PRIV_VIOLATION" },
+	{ 0x06, "RO_VIOLATION" },
+	{ 0x07, "WO_VIOLATION" },
+	{ 0x08, "PITCH_MASK_VIOLATION" },
+	{ 0x09, "WORK_CREATION" },
+	{ 0x0a, "UNSUPPORTED_APERTURE" },
+	{ 0x0b, "COMPRESSION_FAILURE" },
+	{ 0x0c, "UNSUPPORTED_KIND" },
+	{ 0x0d, "REGION_VIOLATION" },
+	{ 0x0e, "BOTH_PTES_VALID" },
+	{ 0x0f, "INFO_TYPE_POISONED" },
 	{}
 };
 
 static const struct nouveau_enum nve0_fifo_fault_hubclient[] = {
+	{ 0x00, "VIP" },
+	{ 0x01, "CE0" },
+	{ 0x02, "CE1" },
+	{ 0x03, "DNISO" },
+	{ 0x04, "FE" },
+	{ 0x05, "FECS" },
+	{ 0x06, "HOST" },
+	{ 0x07, "HOST_CPU" },
+	{ 0x08, "HOST_CPU_NB" },
+	{ 0x09, "ISO" },
+	{ 0x0a, "MMU" },
+	{ 0x0b, "MSPDEC" },
+	{ 0x0c, "MSPPP" },
+	{ 0x0d, "MSVLD" },
+	{ 0x0e, "NISO" },
+	{ 0x0f, "P2P" },
+	{ 0x10, "PD" },
+	{ 0x11, "PERF" },
+	{ 0x12, "PMU" },
+	{ 0x13, "RASTERTWOD" },
+	{ 0x14, "SCC" },
+	{ 0x15, "SCC_NB" },
+	{ 0x16, "SEC" },
+	{ 0x17, "SSYNC" },
+	{ 0x18, "GR_COPY" },
+	{ 0x19, "CE2" },
+	{ 0x1a, "XV" },
+	{ 0x1b, "MMU_NB" },
+	{ 0x1c, "MSENC" },
+	{ 0x1d, "DFALCON" },
+	{ 0x1e, "SKED" },
+	{ 0x1f, "AFALCON" },
 	{}
 };
 
 static const struct nouveau_enum nve0_fifo_fault_gpcclient[] = {
+	{ 0x00, "L1_0" }, { 0x01, "T1_0" }, { 0x02, "PE_0" },
+	{ 0x03, "L1_1" }, { 0x04, "T1_1" }, { 0x05, "PE_1" },
+	{ 0x06, "L1_2" }, { 0x07, "T1_2" }, { 0x08, "PE_2" },
+	{ 0x09, "L1_3" }, { 0x0a, "T1_3" }, { 0x0b, "PE_3" },
+	{ 0x0c, "RAST" },
+	{ 0x0d, "GCC" },
+	{ 0x0e, "GPCCS" },
+	{ 0x0f, "PROP_0" },
+	{ 0x10, "PROP_1" },
+	{ 0x11, "PROP_2" },
+	{ 0x12, "PROP_3" },
+	{ 0x13, "L1_4" }, { 0x14, "T1_4" }, { 0x15, "PE_4" },
+	{ 0x16, "L1_5" }, { 0x17, "T1_5" }, { 0x18, "PE_5" },
+	{ 0x19, "L1_6" }, { 0x1a, "T1_6" }, { 0x1b, "PE_6" },
+	{ 0x1c, "L1_7" }, { 0x1d, "T1_7" }, { 0x1e, "PE_7" },
+	{ 0x1f, "GPM" },
+	{ 0x20, "LTP_UTLB_0" },
+	{ 0x21, "LTP_UTLB_1" },
+	{ 0x22, "LTP_UTLB_2" },
+	{ 0x23, "LTP_UTLB_3" },
+	{ 0x24, "GPC_RGG_UTLB" },
 	{}
 };
 
@@ -481,7 +557,7 @@ nve0_fifo_intr_fault(struct nve0_fifo_priv *priv, int unit)
 		       "write" : "read", (u64)vahi << 32 | valo);
 	nouveau_enum_print(nve0_fifo_fault_reason, stat & 0x0000000f);
 	pr_cont("] from ");
-	en = nouveau_enum_print(nve0_fifo_fault_unit, unit);
+	en = nouveau_enum_print(nve0_fifo_fault_engine, unit);
 	if (stat & 0x00000040) {
 		pr_cont("/");
 		nouveau_enum_print(nve0_fifo_fault_hubclient, client);
