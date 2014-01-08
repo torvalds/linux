@@ -412,14 +412,41 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	return 0;
 }
 
+static void report__warn_kptr_restrict(const struct report *rep)
+{
+	struct map *kernel_map = rep->session->machines.host.vmlinux_maps[MAP__FUNCTION];
+	struct kmap *kernel_kmap = map__kmap(kernel_map);
+
+	if (kernel_map == NULL ||
+	    (kernel_map->dso->hit &&
+	     (kernel_kmap->ref_reloc_sym == NULL ||
+	      kernel_kmap->ref_reloc_sym->addr == 0))) {
+		const char *desc =
+		    "As no suitable kallsyms nor vmlinux was found, kernel samples\n"
+		    "can't be resolved.";
+
+		if (kernel_map) {
+			const struct dso *kdso = kernel_map->dso;
+			if (!RB_EMPTY_ROOT(&kdso->symbols[MAP__FUNCTION])) {
+				desc = "If some relocation was applied (e.g. "
+				       "kexec) symbols may be misresolved.";
+			}
+		}
+
+		ui__warning(
+"Kernel address maps (/proc/{kallsyms,modules}) were restricted.\n\n"
+"Check /proc/sys/kernel/kptr_restrict before running 'perf record'.\n\n%s\n\n"
+"Samples in kernel modules can't be resolved as well.\n\n",
+		desc);
+	}
+}
+
 static int __cmd_report(struct report *rep)
 {
 	int ret = -EINVAL;
 	u64 nr_samples;
 	struct perf_session *session = rep->session;
 	struct perf_evsel *pos;
-	struct map *kernel_map;
-	struct kmap *kernel_kmap;
 	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
 	struct ui_progress prog;
 	struct perf_data_file *file = session->file;
@@ -444,30 +471,7 @@ static int __cmd_report(struct report *rep)
 	if (ret)
 		return ret;
 
-	kernel_map = session->machines.host.vmlinux_maps[MAP__FUNCTION];
-	kernel_kmap = map__kmap(kernel_map);
-	if (kernel_map == NULL ||
-	    (kernel_map->dso->hit &&
-	     (kernel_kmap->ref_reloc_sym == NULL ||
-	      kernel_kmap->ref_reloc_sym->addr == 0))) {
-		const char *desc =
-		    "As no suitable kallsyms nor vmlinux was found, kernel samples\n"
-		    "can't be resolved.";
-
-		if (kernel_map) {
-			const struct dso *kdso = kernel_map->dso;
-			if (!RB_EMPTY_ROOT(&kdso->symbols[MAP__FUNCTION])) {
-				desc = "If some relocation was applied (e.g. "
-				       "kexec) symbols may be misresolved.";
-			}
-		}
-
-		ui__warning(
-"Kernel address maps (/proc/{kallsyms,modules}) were restricted.\n\n"
-"Check /proc/sys/kernel/kptr_restrict before running 'perf record'.\n\n%s\n\n"
-"Samples in kernel modules can't be resolved as well.\n\n",
-		desc);
-	}
+	report__warn_kptr_restrict(rep);
 
 	if (use_browser == 0) {
 		if (verbose > 3)
