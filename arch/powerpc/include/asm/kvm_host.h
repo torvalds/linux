@@ -466,6 +466,7 @@ struct kvm_vcpu_arch {
 	ulong uamor;
 	ulong iamr;
 	u32 ctrl;
+	u32 dabrx;
 	ulong dabr;
 	ulong dawr;
 	ulong dawrx;

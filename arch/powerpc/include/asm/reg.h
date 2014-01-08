@@ -229,16 +229,20 @@
 #define   CIABR_PRIV_SUPER	2
 #define   CIABR_PRIV_HYPER	3
 #define SPRN_DAWRX	0xBC
-#define   DAWRX_USER	(1UL << 0)
-#define   DAWRX_KERNEL	(1UL << 1)
-#define   DAWRX_HYP	(1UL << 2)
+#define   DAWRX_USER	__MASK(0)
+#define   DAWRX_KERNEL	__MASK(1)
+#define   DAWRX_HYP	__MASK(2)
+#define   DAWRX_WTI	__MASK(3)
+#define   DAWRX_WT	__MASK(4)
+#define   DAWRX_DR	__MASK(5)
+#define   DAWRX_DW	__MASK(6)
 #define SPRN_DABR	0x3F5	/* Data Address Breakpoint Register */
 #define SPRN_DABR2	0x13D	/* e300 */
 #define SPRN_DABRX	0x3F7	/* Data Address Breakpoint Register Extension */
-#define   DABRX_USER	(1UL << 0)
-#define   DABRX_KERNEL	(1UL << 1)
-#define   DABRX_HYP	(1UL << 2)
-#define   DABRX_BTI	(1UL << 3)
+#define   DABRX_USER	__MASK(0)
+#define   DABRX_KERNEL	__MASK(1)
+#define   DABRX_HYP	__MASK(2)
+#define   DABRX_BTI	__MASK(3)
 #define   DABRX_ALL     (DABRX_BTI | DABRX_HYP | DABRX_KERNEL | DABRX_USER)
 #define SPRN_DAR	0x013	/* Data Address Register */
 #define SPRN_DBCR	0x136	/* e300 Data Breakpoint Control Reg */

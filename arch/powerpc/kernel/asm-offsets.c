@@ -493,6 +493,7 @@ int main(void)
 	DEFINE(VCPU_IAMR, offsetof(struct kvm_vcpu, arch.iamr));
 	DEFINE(VCPU_CTRL, offsetof(struct kvm_vcpu, arch.ctrl));
 	DEFINE(VCPU_DABR, offsetof(struct kvm_vcpu, arch.dabr));
+	DEFINE(VCPU_DABRX, offsetof(struct kvm_vcpu, arch.dabrx));
 	DEFINE(VCPU_DAWR, offsetof(struct kvm_vcpu, arch.dawr));
 	DEFINE(VCPU_DAWRX, offsetof(struct kvm_vcpu, arch.dawrx));
 	DEFINE(VCPU_CIABR, offsetof(struct kvm_vcpu, arch.ciabr));
