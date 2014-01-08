@@ -706,7 +706,16 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * we don't emulate any guest instructions at this stage.
 	 */
 	case BOOK3S_INTERRUPT_H_EMUL_ASSIST:
-		kvmppc_core_queue_program(vcpu, 0x80000);
+		kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
+		r = RESUME_GUEST;
+		break;
+	/*
+	 * This occurs if the guest (kernel or userspace), does something that
+	 * is prohibited by HFSCR.  We just generate a program interrupt to
+	 * the guest.
+	 */
+	case BOOK3S_INTERRUPT_H_FAC_UNAVAIL:
+		kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
 		r = RESUME_GUEST;
 		break;
 	default:
