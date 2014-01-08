@@ -788,6 +788,27 @@ static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr)
 
 	spin_lock(&vc->lock);
 	/*
+	 * If ILE (interrupt little-endian) has changed, update the
+	 * MSR_LE bit in the intr_msr for each vcpu in this vcore.
+	 */
+	if ((new_lpcr & LPCR_ILE) != (vc->lpcr & LPCR_ILE)) {
+		struct kvm *kvm = vcpu->kvm;
+		struct kvm_vcpu *vcpu;
+		int i;
+
+		mutex_lock(&kvm->lock);
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			if (vcpu->arch.vcore != vc)
+				continue;
+			if (new_lpcr & LPCR_ILE)
+				vcpu->arch.intr_msr |= MSR_LE;
+			else
+				vcpu->arch.intr_msr &= ~MSR_LE;
+		}
+		mutex_unlock(&kvm->lock);
+	}
+
+	/*
 	 * Userspace can only modify DPFD (default prefetch depth),
 	 * ILE (interrupt little-endian) and TC (translation control).
 	 * On POWER8 userspace can also modify AIL (alt. interrupt loc.)
@@ -1155,6 +1176,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	spin_lock_init(&vcpu->arch.vpa_update_lock);
 	spin_lock_init(&vcpu->arch.tbacct_lock);
 	vcpu->arch.busy_preempt = TB_NIL;
+	vcpu->arch.intr_msr = MSR_SF | MSR_ME;
 
 	kvmppc_mmu_book3s_hv_init(vcpu);
 
