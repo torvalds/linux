@@ -7447,6 +7447,7 @@ static const struct nla_policy nl80211_txattr_policy[NL80211_TXRATE_MAX + 1] = {
 	[NL80211_TXRATE_HT] = { .type = NLA_BINARY,
 				.len = NL80211_MAX_SUPP_HT_RATES },
 	[NL80211_TXRATE_VHT] = { .len = sizeof(struct nl80211_txrate_vht)},
+	[NL80211_TXRATE_GI] = { .type = NLA_U8 },
 };
 
 static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
@@ -7525,6 +7526,12 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 					sband,
 					nla_data(tb[NL80211_TXRATE_VHT]),
 					mask.control[band].vht_mcs))
+				return -EINVAL;
+		}
+		if (tb[NL80211_TXRATE_GI]) {
+			mask.control[band].gi =
+				nla_get_u8(tb[NL80211_TXRATE_GI]);
+			if (mask.control[band].gi > NL80211_TXRATE_FORCE_LGI)
 				return -EINVAL;
 		}
 
