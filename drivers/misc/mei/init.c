@@ -151,14 +151,19 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
 			 mei_dev_state_str(dev->dev_state));
 
+	/* we're already in reset, cancel the init timer
+	 * if the reset was called due the hbm protocol error
+	 * we need to call it before hw start
+	 * so the hbm watchdog won't kick in
+	 */
+	mei_hbm_idle(dev);
+
 	ret = mei_hw_reset(dev, interrupts_enabled);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "hw reset failed disabling the device\n");
 		interrupts_enabled = false;
-		dev->dev_state = MEI_DEV_DISABLED;
 	}
 
-	dev->hbm_state = MEI_HBM_IDLE;
 
 	if (dev->dev_state != MEI_DEV_INITIALIZING &&
 	    dev->dev_state != MEI_DEV_POWER_UP) {
@@ -182,8 +187,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));
 	}
 
-	/* we're already in reset, cancel the init timer */
-	dev->init_clients_timer = 0;
 
 	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
@@ -191,6 +194,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	if (!interrupts_enabled) {
 		dev_dbg(&dev->pdev->dev, "intr not enabled end of reset\n");
+		dev->dev_state = MEI_DEV_DISABLED;
 		return;
 	}
 
