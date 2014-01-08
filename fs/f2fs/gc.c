@@ -163,8 +163,8 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 		p->ofs_unit = sbi->segs_per_sec;
 	}
 
-	if (p->max_search > MAX_VICTIM_SEARCH)
-		p->max_search = MAX_VICTIM_SEARCH;
+	if (p->max_search > sbi->max_victim_search)
+		p->max_search = sbi->max_victim_search;
 
 	p->offset = sbi->last_victim[p->gc_mode];
 }

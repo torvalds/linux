@@ -451,6 +451,9 @@ struct f2fs_sb_info {
 	struct f2fs_gc_kthread	*gc_thread;	/* GC thread */
 	unsigned int cur_victim_sec;		/* current victim section num */
 
+	/* maximum # of trials to find a victim segment for SSR and GC */
+	unsigned int max_victim_search;
+
 	/*
 	 * for stat information.
 	 * one is for the LFS mode, and the other is for the SSR mode.
