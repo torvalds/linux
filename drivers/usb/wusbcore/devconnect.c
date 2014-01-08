@@ -97,18 +97,12 @@ static void wusbhc_devconnect_acked_work(struct work_struct *work);
 
 static void wusb_dev_free(struct wusb_dev *wusb_dev)
 {
-	if (wusb_dev) {
-		kfree(wusb_dev->set_gtk_req);
-		usb_free_urb(wusb_dev->set_gtk_urb);
-		kfree(wusb_dev);
-	}
+	kfree(wusb_dev);
 }
 
 static struct wusb_dev *wusb_dev_alloc(struct wusbhc *wusbhc)
 {
 	struct wusb_dev *wusb_dev;
-	struct urb *urb;
-	struct usb_ctrlrequest *req;
 
 	wusb_dev = kzalloc(sizeof(*wusb_dev), GFP_KERNEL);
 	if (wusb_dev == NULL)
@@ -117,22 +111,6 @@ static struct wusb_dev *wusb_dev_alloc(struct wusbhc *wusbhc)
 	wusb_dev->wusbhc = wusbhc;
 
 	INIT_WORK(&wusb_dev->devconnect_acked_work, wusbhc_devconnect_acked_work);
-
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (urb == NULL)
-		goto err;
-	wusb_dev->set_gtk_urb = urb;
-
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
-	if (req == NULL)
-		goto err;
-	wusb_dev->set_gtk_req = req;
-
-	req->bRequestType = USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE;
-	req->bRequest = USB_REQ_SET_DESCRIPTOR;
-	req->wValue = cpu_to_le16(USB_DT_KEY << 8 | wusbhc->gtk_index);
-	req->wIndex = 0;
-	req->wLength = cpu_to_le16(wusbhc->gtk.descr.bLength);
 
 	return wusb_dev;
 err:
@@ -411,9 +389,6 @@ static void __wusbhc_dev_disconnect(struct wusbhc *wusbhc,
 /*
  * Refresh the list of keep alives to emit in the MMC
  *
- * Some devices don't respond to keep alives unless they've been
- * authenticated, so skip unauthenticated devices.
- *
  * We only publish the first four devices that have a coming timeout
  * condition. Then when we are done processing those, we go for the
  * next ones. We ignore the ones that have timed out already (they'll
@@ -448,7 +423,7 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
 
 		if (wusb_dev == NULL)
 			continue;
-		if (wusb_dev->usb_dev == NULL || !wusb_dev->usb_dev->authenticated)
+		if (wusb_dev->usb_dev == NULL)
 			continue;
 
 		if (time_after(jiffies, wusb_dev->entry_ts + tt)) {
@@ -524,11 +499,19 @@ static struct wusb_dev *wusbhc_find_dev_by_addr(struct wusbhc *wusbhc, u8 addr)
  *
  * @wusbhc shall be referenced and unlocked
  */
-static void wusbhc_handle_dn_alive(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
+static void wusbhc_handle_dn_alive(struct wusbhc *wusbhc, u8 srcaddr)
 {
+	struct wusb_dev *wusb_dev;
+
 	mutex_lock(&wusbhc->mutex);
-	wusb_dev->entry_ts = jiffies;
-	__wusbhc_keep_alive(wusbhc);
+	wusb_dev = wusbhc_find_dev_by_addr(wusbhc, srcaddr);
+	if (wusb_dev == NULL) {
+		dev_dbg(wusbhc->dev, "ignoring DN_Alive from unconnected device %02x\n",
+			srcaddr);
+	} else {
+		wusb_dev->entry_ts = jiffies;
+		__wusbhc_keep_alive(wusbhc);
+	}
 	mutex_unlock(&wusbhc->mutex);
 }
 
@@ -582,14 +565,22 @@ static void wusbhc_handle_dn_connect(struct wusbhc *wusbhc,
  *
  * @wusbhc shall be referenced and unlocked
  */
-static void wusbhc_handle_dn_disconnect(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
+static void wusbhc_handle_dn_disconnect(struct wusbhc *wusbhc, u8 srcaddr)
 {
 	struct device *dev = wusbhc->dev;
-
-	dev_info(dev, "DN DISCONNECT: device 0x%02x going down\n", wusb_dev->addr);
+	struct wusb_dev *wusb_dev;
 
 	mutex_lock(&wusbhc->mutex);
-	__wusbhc_dev_disconnect(wusbhc, wusb_port_by_idx(wusbhc, wusb_dev->port_idx));
+	wusb_dev = wusbhc_find_dev_by_addr(wusbhc, srcaddr);
+	if (wusb_dev == NULL) {
+		dev_dbg(dev, "ignoring DN DISCONNECT from unconnected device %02x\n",
+			srcaddr);
+	} else {
+		dev_info(dev, "DN DISCONNECT: device 0x%02x going down\n",
+			wusb_dev->addr);
+		__wusbhc_dev_disconnect(wusbhc, wusb_port_by_idx(wusbhc,
+			wusb_dev->port_idx));
+	}
 	mutex_unlock(&wusbhc->mutex);
 }
 
@@ -611,30 +602,21 @@ void wusbhc_handle_dn(struct wusbhc *wusbhc, u8 srcaddr,
 		      struct wusb_dn_hdr *dn_hdr, size_t size)
 {
 	struct device *dev = wusbhc->dev;
-	struct wusb_dev *wusb_dev;
 
 	if (size < sizeof(struct wusb_dn_hdr)) {
 		dev_err(dev, "DN data shorter than DN header (%d < %d)\n",
 			(int)size, (int)sizeof(struct wusb_dn_hdr));
 		return;
 	}
-
-	wusb_dev = wusbhc_find_dev_by_addr(wusbhc, srcaddr);
-	if (wusb_dev == NULL && dn_hdr->bType != WUSB_DN_CONNECT) {
-		dev_dbg(dev, "ignoring DN %d from unconnected device %02x\n",
-			dn_hdr->bType, srcaddr);
-		return;
-	}
-
 	switch (dn_hdr->bType) {
 	case WUSB_DN_CONNECT:
 		wusbhc_handle_dn_connect(wusbhc, dn_hdr, size);
 		break;
 	case WUSB_DN_ALIVE:
-		wusbhc_handle_dn_alive(wusbhc, wusb_dev);
+		wusbhc_handle_dn_alive(wusbhc, srcaddr);
 		break;
 	case WUSB_DN_DISCONNECT:
-		wusbhc_handle_dn_disconnect(wusbhc, wusb_dev);
+		wusbhc_handle_dn_disconnect(wusbhc, srcaddr);
 		break;
 	case WUSB_DN_MASAVAILCHANGED:
 	case WUSB_DN_RWAKE:

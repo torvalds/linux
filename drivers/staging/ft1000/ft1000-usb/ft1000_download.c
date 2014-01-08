@@ -578,7 +578,7 @@ static int request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
 		 u8 **c_file, const u8 *endpoint, bool boot_case)
 {
 	long word_length;
-	int status;
+	int status = 0;
 
 	/*DEBUG("FT1000:REQUEST_CODE_SEGMENT\n");i*/
 	word_length = get_request_value(ft1000dev);
@@ -1074,4 +1074,3 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 
 	return status;
 }
-

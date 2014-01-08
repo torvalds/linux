@@ -1378,7 +1378,7 @@ static void mvneta_rxq_drop_pkts(struct mvneta_port *pp,
 
 		dev_kfree_skb_any(skb);
 		dma_unmap_single(pp->dev->dev.parent, rx_desc->buf_phys_addr,
-				 rx_desc->data_size, DMA_FROM_DEVICE);
+				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
 	}
 
 	if (rx_done)
@@ -1424,7 +1424,7 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 		}
 
 		dma_unmap_single(pp->dev->dev.parent, rx_desc->buf_phys_addr,
-				 rx_desc->data_size, DMA_FROM_DEVICE);
+				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
 
 		rx_bytes = rx_desc->data_size -
 			(ETH_FCS_LEN + MVNETA_MH_SIZE);

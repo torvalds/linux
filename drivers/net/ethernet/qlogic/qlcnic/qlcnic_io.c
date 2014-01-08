@@ -687,17 +687,11 @@ void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup)
 	if (adapter->ahw->linkup && !linkup) {
 		netdev_info(netdev, "NIC Link is down\n");
 		adapter->ahw->linkup = 0;
-		if (netif_running(netdev)) {
-			netif_carrier_off(netdev);
-			netif_tx_stop_all_queues(netdev);
-		}
+		netif_carrier_off(netdev);
 	} else if (!adapter->ahw->linkup && linkup) {
 		netdev_info(netdev, "NIC Link is up\n");
 		adapter->ahw->linkup = 1;
-		if (netif_running(netdev)) {
-			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
-		}
+		netif_carrier_on(netdev);
 	}
 }
 

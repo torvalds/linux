@@ -309,7 +309,7 @@ static void acpi_table_attr_init(struct acpi_table_attr *table_attr,
 		sprintf(table_attr->name + ACPI_NAME_SIZE, "%d",
 			table_attr->instance);
 
-	table_attr->attr.size = 0;
+	table_attr->attr.size = table_header->length;
 	table_attr->attr.read = acpi_table_show;
 	table_attr->attr.attr.name = table_attr->name;
 	table_attr->attr.attr.mode = 0400;
@@ -354,8 +354,9 @@ static int acpi_tables_sysfs_init(void)
 {
 	struct acpi_table_attr *table_attr;
 	struct acpi_table_header *table_header = NULL;
-	int table_index = 0;
-	int result;
+	int table_index;
+	acpi_status status;
+	int ret;
 
 	tables_kobj = kobject_create_and_add("tables", acpi_kobj);
 	if (!tables_kobj)
@@ -365,33 +366,34 @@ static int acpi_tables_sysfs_init(void)
 	if (!dynamic_tables_kobj)
 		goto err_dynamic_tables;
 
-	do {
-		result = acpi_get_table_by_index(table_index, &table_header);
-		if (!result) {
-			table_index++;
-			table_attr = NULL;
-			table_attr =
-			    kzalloc(sizeof(struct acpi_table_attr), GFP_KERNEL);
-			if (!table_attr)
-				return -ENOMEM;
+	for (table_index = 0;; table_index++) {
+		status = acpi_get_table_by_index(table_index, &table_header);
 
-			acpi_table_attr_init(table_attr, table_header);
-			result =
-			    sysfs_create_bin_file(tables_kobj,
-						  &table_attr->attr);
-			if (result) {
-				kfree(table_attr);
-				return result;
-			} else
-				list_add_tail(&table_attr->node,
-					      &acpi_table_attr_list);
+		if (status == AE_BAD_PARAMETER)
+			break;
+
+		if (ACPI_FAILURE(status))
+			continue;
+
+		table_attr = NULL;
+		table_attr = kzalloc(sizeof(*table_attr), GFP_KERNEL);
+		if (!table_attr)
+			return -ENOMEM;
+
+		acpi_table_attr_init(table_attr, table_header);
+		ret = sysfs_create_bin_file(tables_kobj, &table_attr->attr);
+		if (ret) {
+			kfree(table_attr);
+			return ret;
 		}
-	} while (!result);
+		list_add_tail(&table_attr->node, &acpi_table_attr_list);
+	}
+
 	kobject_uevent(tables_kobj, KOBJ_ADD);
 	kobject_uevent(dynamic_tables_kobj, KOBJ_ADD);
-	result = acpi_install_table_handler(acpi_sysfs_table_handler, NULL);
+	status = acpi_install_table_handler(acpi_sysfs_table_handler, NULL);
 
-	return result == AE_OK ? 0 : -EINVAL;
+	return ACPI_FAILURE(status) ? -EINVAL : 0;
 err_dynamic_tables:
 	kobject_put(tables_kobj);
 err:

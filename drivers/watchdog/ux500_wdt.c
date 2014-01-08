@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
-#include <linux/miscdevice.h>
 #include <linux/err.h>
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
