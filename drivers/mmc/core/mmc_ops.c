@@ -405,17 +405,18 @@ int mmc_spi_set_crc(struct mmc_host *host, int use_crc)
  *                   timeout of zero implies maximum possible timeout
  *	@use_busy_signal: use the busy signal as response type
  *	@send_status: send status cmd to poll for busy
+ *	@ignore_crc: ignore CRC errors when sending status cmd to poll for busy
  *
  *	Modifies the EXT_CSD register for selected card.
  */
 int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
-		unsigned int timeout_ms, bool use_busy_signal, bool send_status)
+		unsigned int timeout_ms, bool use_busy_signal, bool send_status,
+		bool ignore_crc)
 {
 	int err;
 	struct mmc_command cmd = {0};
 	unsigned long timeout;
 	u32 status = 0;
-	bool ignore_crc = false;
 
 	BUG_ON(!card);
 	BUG_ON(!card->host);
@@ -445,14 +446,13 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		return 0;
 
 	/*
-	 * Must check status to be sure of no errors
-	 * If CMD13 is to check the busy completion of the timing change,
-	 * disable the check of CRC error.
+	 * CRC errors shall only be ignored in cases were CMD13 is used to poll
+	 * to detect busy completion.
 	 */
-	if (index == EXT_CSD_HS_TIMING &&
-	    !(card->host->caps & MMC_CAP_WAIT_WHILE_BUSY))
-		ignore_crc = true;
+	if (card->host->caps & MMC_CAP_WAIT_WHILE_BUSY)
+		ignore_crc = false;
 
+	/* Must check status to be sure of no errors. */
 	timeout = jiffies + msecs_to_jiffies(MMC_OPS_TIMEOUT_MS);
 	do {
 		if (send_status) {
@@ -501,7 +501,8 @@ EXPORT_SYMBOL_GPL(__mmc_switch);
 int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		unsigned int timeout_ms)
 {
-	return __mmc_switch(card, set, index, value, timeout_ms, true, true);
+	return __mmc_switch(card, set, index, value, timeout_ms, true, true,
+				false);
 }
 EXPORT_SYMBOL_GPL(mmc_switch);
 
