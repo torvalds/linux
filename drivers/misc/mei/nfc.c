@@ -469,7 +469,9 @@ static void mei_nfc_init(struct work_struct *work)
 	return;
 
 err:
+	mutex_lock(&dev->device_lock);
 	mei_nfc_free(ndev);
+	mutex_unlock(&dev->device_lock);
 
 	return;
 }
