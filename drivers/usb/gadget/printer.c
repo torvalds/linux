@@ -427,7 +427,10 @@ setup_rx_reqs(struct printer_dev *dev)
 		req->length = USB_BUFSIZE;
 		req->complete = rx_complete;
 
+		/* here, we unlock, and only unlock, to avoid deadlock. */
+		spin_unlock(&dev->lock);
 		error = usb_ep_queue(dev->out_ep, req, GFP_ATOMIC);
+		spin_lock(&dev->lock);
 		if (error) {
 			DBG(dev, "rx submit --> %d\n", error);
 			list_add(&req->list, &dev->rx_reqs);
