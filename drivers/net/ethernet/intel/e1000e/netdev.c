@@ -1090,8 +1090,14 @@ static void e1000_print_hw_hang(struct work_struct *work)
 		adapter->tx_hang_recheck = true;
 		return;
 	}
-	/* Real hang detected */
 	adapter->tx_hang_recheck = false;
+
+	if (er32(TDH(0)) == er32(TDT(0))) {
+		e_dbg("false hang detected, ignoring\n");
+		return;
+	}
+
+	/* Real hang detected */
 	netif_stop_queue(netdev);
 
 	e1e_rphy(hw, MII_BMSR, &phy_status);
@@ -1120,6 +1126,8 @@ static void e1000_print_hw_hang(struct work_struct *work)
 	      tx_ring->next_to_clean, tx_ring->buffer_info[eop].time_stamp,
 	      eop, jiffies, eop_desc->upper.fields.status, er32(STATUS),
 	      phy_status, phy_1000t_status, phy_ext_status, pci_status);
+
+	e1000e_dump(adapter);
 
 	/* Suggest workaround for known h/w issue */
 	if ((hw->mac.type == e1000_pchlan) && (er32(CTRL) & E1000_CTRL_TFCE))
@@ -4798,6 +4806,7 @@ static void e1000e_check_82574_phy_workaround(struct e1000_adapter *adapter)
 
 	if (adapter->phy_hang_count > 1) {
 		adapter->phy_hang_count = 0;
+		e_dbg("PHY appears hung - resetting\n");
 		schedule_work(&adapter->reset_task);
 	}
 }
@@ -4956,15 +4965,11 @@ static void e1000_watchdog_task(struct work_struct *work)
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
 
-			/* The link is lost so the controller stops DMA.
-			 * If there is queued Tx work that cannot be done
-			 * or if on an 8000ES2LAN which requires a Rx packet
-			 * buffer work-around on link down event, reset the
-			 * controller to flush the Tx/Rx packet buffers.
-			 * (Do the reset outside of interrupt context).
+			/* 8000ES2LAN requires a Rx packet buffer work-around
+			 * on link down event; reset the controller to flush
+			 * the Rx packet buffer.
 			 */
-			if ((adapter->flags & FLAG_RX_NEEDS_RESTART) ||
-			    (e1000_desc_unused(tx_ring) + 1 < tx_ring->count))
+			if (adapter->flags & FLAG_RX_NEEDS_RESTART)
 				adapter->flags |= FLAG_RESTART_NOW;
 			else
 				pm_schedule_suspend(netdev->dev.parent,
@@ -4987,6 +4992,15 @@ link_up:
 	adapter->gotc_old = adapter->stats.gotc;
 	spin_unlock(&adapter->stats64_lock);
 
+	/* If the link is lost the controller stops DMA, but
+	 * if there is queued Tx work it cannot be done.  So
+	 * reset the controller to flush the Tx packet buffers.
+	 */
+	if (!netif_carrier_ok(netdev) &&
+	    (e1000_desc_unused(tx_ring) + 1 < tx_ring->count))
+		adapter->flags |= FLAG_RESTART_NOW;
+
+	/* If reset is necessary, do it outside of interrupt context. */
 	if (adapter->flags & FLAG_RESTART_NOW) {
 		schedule_work(&adapter->reset_task);
 		/* return immediately since reset is imminent */
