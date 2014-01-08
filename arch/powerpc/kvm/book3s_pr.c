@@ -827,6 +827,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* We're good on these - the host merely wanted to get our attention */
 	case BOOK3S_INTERRUPT_DECREMENTER:
 	case BOOK3S_INTERRUPT_HV_DECREMENTER:
+	case BOOK3S_INTERRUPT_DOORBELL:
 		vcpu->stat.dec_exits++;
 		r = RESUME_GUEST;
 		break;
