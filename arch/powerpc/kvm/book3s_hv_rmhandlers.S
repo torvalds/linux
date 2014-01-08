@@ -1997,9 +1997,16 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_207S)
 BEGIN_FTR_SECTION
 	cmpwi	r6, 5			/* privileged doorbell? */
 	beq	0f
+	cmpwi	r6, 3			/* hypervisor doorbell? */
+	beq	3f
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	li	r3, 1			/* anything else, return 1 */
 0:	blr
+
+	/* hypervisor doorbell */
+3:	li	r12, BOOK3S_INTERRUPT_H_DOORBELL
+	li	r3, 1
+	blr
 
 /*
  * Determine what sort of external interrupt is pending (if any).
