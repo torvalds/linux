@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/seq_file.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
