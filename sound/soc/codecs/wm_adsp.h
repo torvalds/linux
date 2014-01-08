@@ -59,6 +59,8 @@ struct wm_adsp {
 	struct regulator *dvfs;
 
 	struct list_head ctl_list;
+
+	struct work_struct boot_work;
 };
 
 #define WM_ADSP1(wname, num) \
