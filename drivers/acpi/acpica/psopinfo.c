@@ -71,7 +71,9 @@ static const u8 acpi_gbl_argument_count[] =
 
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
 {
+#ifdef ACPI_DEBUG_OUTPUT
 	const char *opcode_name = "Unknown AML opcode";
+#endif
 
 	ACPI_FUNCTION_NAME(ps_get_opcode_info);
 
@@ -94,7 +96,7 @@ const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
 		return (&acpi_gbl_aml_op_info
 			[acpi_gbl_long_op_index[(u8)opcode]]);
 	}
-#ifdef ACPI_ASL_COMPILER
+#if defined ACPI_ASL_COMPILER && defined ACPI_DEBUG_OUTPUT
 #include "asldefine.h"
 
 	switch (opcode) {
