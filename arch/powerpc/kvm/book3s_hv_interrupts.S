@@ -57,9 +57,11 @@ BEGIN_FTR_SECTION
 	std	r3, HSTATE_DSCR(r13)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
+BEGIN_FTR_SECTION
 	/* Save host DABR */
 	mfspr	r3, SPRN_DABR
 	std	r3, HSTATE_DABR(r13)
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 
 	/* Hard-disable interrupts */
 	mfmsr   r10

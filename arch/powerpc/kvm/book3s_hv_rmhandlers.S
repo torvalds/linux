@@ -61,11 +61,13 @@ kvmppc_call_hv_entry:
 
 	/* Back from guest - restore host state and return to caller */
 
+BEGIN_FTR_SECTION
 	/* Restore host DABR and DABRX */
 	ld	r5,HSTATE_DABR(r13)
 	li	r6,7
 	mtspr	SPRN_DABR,r5
 	mtspr	SPRN_DABRX,r6
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 
 	/* Restore SPRG3 */
 	ld	r3,PACA_SPRG3(r13)
@@ -284,15 +286,17 @@ kvmppc_hv_entry:
 	std	r0, PPC_LR_STKOFF(r1)
 	stdu	r1, -112(r1)
 
+BEGIN_FTR_SECTION
 	/* Set partition DABR */
 	/* Do this before re-enabling PMU to avoid P7 DABR corruption bug */
 	li	r5,3
 	ld	r6,VCPU_DABR(r4)
 	mtspr	SPRN_DABRX,r5
 	mtspr	SPRN_DABR,r6
-BEGIN_FTR_SECTION
+ BEGIN_FTR_SECTION_NESTED(89)
 	isync
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
+ END_FTR_SECTION_NESTED(CPU_FTR_ARCH_206, CPU_FTR_ARCH_206, 89)
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 
 	/* Load guest PMU registers */
 	/* R4 is live here (vcpu pointer) */
@@ -1609,6 +1613,9 @@ ignore_hdec:
 	b	fast_guest_return
 
 _GLOBAL(kvmppc_h_set_dabr)
+BEGIN_FTR_SECTION
+	b	2f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	std	r4,VCPU_DABR(r3)
 	/* Work around P7 bug where DABR can get corrupted on mtspr */
 1:	mtspr	SPRN_DABR,r4
@@ -1616,7 +1623,7 @@ _GLOBAL(kvmppc_h_set_dabr)
 	cmpd	r4, r5
 	bne	1b
 	isync
-	li	r3,0
+2:	li	r3,0
 	blr
 
 _GLOBAL(kvmppc_h_cede)
