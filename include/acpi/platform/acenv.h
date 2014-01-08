@@ -395,4 +395,13 @@ typedef char *va_list;
 
 #endif				/* ACPI_USE_SYSTEM_CLIBRARY */
 
+#ifndef ACPI_FILE
+#ifdef ACPI_APPLICATION
+#include <stdio.h>
+#define ACPI_FILE              FILE *
+#else
+#define ACPI_FILE              void *
+#endif				/* ACPI_APPLICATION */
+#endif				/* ACPI_FILE */
+
 #endif				/* __ACENV_H__ */
