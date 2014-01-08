@@ -62,26 +62,25 @@ static int fsl_sai_set_dai_sysclk_tr(struct snd_soc_dai *cpu_dai,
 		reg_cr2 = FSL_SAI_RCR2;
 
 	val_cr2 = sai_readl(sai, sai->base + reg_cr2);
+	val_cr2 &= ~FSL_SAI_CR2_MSEL_MASK;
+
 	switch (clk_id) {
 	case FSL_SAI_CLK_BUS:
-		val_cr2 &= ~FSL_SAI_CR2_MSEL_MASK;
 		val_cr2 |= FSL_SAI_CR2_MSEL_BUS;
 		break;
 	case FSL_SAI_CLK_MAST1:
-		val_cr2 &= ~FSL_SAI_CR2_MSEL_MASK;
 		val_cr2 |= FSL_SAI_CR2_MSEL_MCLK1;
 		break;
 	case FSL_SAI_CLK_MAST2:
-		val_cr2 &= ~FSL_SAI_CR2_MSEL_MASK;
 		val_cr2 |= FSL_SAI_CR2_MSEL_MCLK2;
 		break;
 	case FSL_SAI_CLK_MAST3:
-		val_cr2 &= ~FSL_SAI_CR2_MSEL_MASK;
 		val_cr2 |= FSL_SAI_CR2_MSEL_MCLK3;
 		break;
 	default:
 		return -EINVAL;
 	}
+
 	sai_writel(sai, val_cr2, sai->base + reg_cr2);
 
 	return 0;
