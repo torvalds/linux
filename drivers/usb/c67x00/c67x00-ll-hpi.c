@@ -63,8 +63,8 @@ struct c67x00_lcp_int_data {
  * HPI implementation
  *
  * The c67x00 chip also support control via SPI or HSS serial
- * interfaces.  However, this driver assumes that register access can
- * be performed from IRQ context.  While this is a safe assuption with
+ * interfaces. However, this driver assumes that register access can
+ * be performed from IRQ context. While this is a safe assumption with
  * the HPI interface, it is not true for the serial interfaces.
  */
 
