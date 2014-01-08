@@ -82,6 +82,7 @@ extern u8 acpi_gbl_enable_interpreter_slack;
 extern u32 acpi_gbl_trace_flags;
 extern acpi_name acpi_gbl_trace_method_name;
 extern u8 acpi_gbl_truncate_io_addresses;
+extern u8 acpi_gbl_use32_bit_fadt_addresses;
 extern u8 acpi_gbl_use_default_register_widths;
 
 /*
