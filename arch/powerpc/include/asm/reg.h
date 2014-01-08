@@ -307,7 +307,9 @@
 #define   LPCR_ILE     0x02000000      /* !HV irqs set MSR:LE */
 #define   LPCR_AIL_0	0x00000000	/* MMU off exception offset 0x0 */
 #define   LPCR_AIL_3	0x01800000	/* MMU on exception offset 0xc00...4xxx */
-#define   LPCR_PECE	0x00007000	/* powersave exit cause enable */
+#define   LPCR_PECE	0x0001f000	/* powersave exit cause enable */
+#define     LPCR_PECEDP	0x00010000	/* directed priv dbells cause exit */
+#define     LPCR_PECEDH	0x00008000	/* directed hyp dbells cause exit */
 #define     LPCR_PECE0	0x00004000	/* ext. exceptions can cause exit */
 #define     LPCR_PECE1	0x00002000	/* decrementer can cause exit */
 #define     LPCR_PECE2	0x00001000	/* machine check etc can cause exit */

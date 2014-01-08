@@ -1857,13 +1857,16 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	bl	kvmppc_save_fp
 
 	/*
-	 * Take a nap until a decrementer or external interrupt occurs,
-	 * with PECE1 (wake on decr) and PECE0 (wake on external) set in LPCR
+	 * Take a nap until a decrementer or external or doobell interrupt
+	 * occurs, with PECE1, PECE0 and PECEDP set in LPCR
 	 */
 	li	r0,1
 	stb	r0,HSTATE_HWTHREAD_REQ(r13)
 	mfspr	r5,SPRN_LPCR
 	ori	r5,r5,LPCR_PECE0 | LPCR_PECE1
+BEGIN_FTR_SECTION
+	oris	r5,r5,LPCR_PECEDP@h
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_LPCR,r5
 	isync
 	li	r0, 0
@@ -1979,14 +1982,22 @@ machine_check_realmode:
  */
 kvmppc_check_wake_reason:
 	mfspr	r6, SPRN_SRR1
-	rlwinm	r6, r6, 44-31, 0x7	/* extract wake reason field */
-	cmpwi	r6, 4			/* was it an external interrupt? */
+BEGIN_FTR_SECTION
+	rlwinm	r6, r6, 45-31, 0xf	/* extract wake reason field (P8) */
+FTR_SECTION_ELSE
+	rlwinm	r6, r6, 45-31, 0xe	/* P7 wake reason field is 3 bits */
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_207S)
+	cmpwi	r6, 8			/* was it an external interrupt? */
 	li	r12, BOOK3S_INTERRUPT_EXTERNAL
 	beq	kvmppc_read_intr	/* if so, see what it was */
 	li	r3, 0
 	li	r12, 0
 	cmpwi	r6, 6			/* was it the decrementer? */
 	beq	0f
+BEGIN_FTR_SECTION
+	cmpwi	r6, 5			/* privileged doorbell? */
+	beq	0f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	li	r3, 1			/* anything else, return 1 */
 0:	blr
 
