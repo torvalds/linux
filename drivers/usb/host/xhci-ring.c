@@ -1082,8 +1082,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 
 	ep_ring = xhci_stream_id_to_ring(dev, ep_index, stream_id);
 	if (!ep_ring) {
-		xhci_warn(xhci, "WARN Set TR deq ptr command for "
-				"freed stream ID %u\n",
+		xhci_warn(xhci, "WARN Set TR deq ptr command for freed stream ID %u\n",
 				stream_id);
 		/* XXX: Harmless??? */
 		dev->eps[ep_index].ep_state &= ~SET_DEQ_PENDING;
@@ -1099,12 +1098,10 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 
 		switch (cmd_comp_code) {
 		case COMP_TRB_ERR:
-			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd invalid because "
-					"of stream ID configuration\n");
+			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd invalid because of stream ID configuration\n");
 			break;
 		case COMP_CTX_STATE:
-			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd failed due "
-					"to incorrect slot or ep state.\n");
+			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd failed due to incorrect slot or ep state.\n");
 			ep_state = le32_to_cpu(ep_ctx->ep_info);
 			ep_state &= EP_STATE_MASK;
 			slot_state = le32_to_cpu(slot_ctx->dev_state);
@@ -1114,13 +1111,12 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 					slot_state, ep_state);
 			break;
 		case COMP_EBADSLT:
-			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd failed because "
-					"slot %u was not enabled.\n", slot_id);
+			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd failed because slot %u was not enabled.\n",
+					slot_id);
 			break;
 		default:
-			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd with unknown "
-					"completion code of %u.\n",
-				  cmd_comp_code);
+			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd with unknown completion code of %u.\n",
+					cmd_comp_code);
 			break;
 		}
 		/* OK what do we do now?  The endpoint state is hosed, and we
@@ -1142,8 +1138,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 			update_ring_for_set_deq_completion(xhci, dev,
 				ep_ring, ep_index);
 		} else {
-			xhci_warn(xhci, "Mismatch between completed Set TR Deq "
-					"Ptr command & xHCI internal state.\n");
+			xhci_warn(xhci, "Mismatch between completed Set TR Deq Ptr command & xHCI internal state.\n");
 			xhci_warn(xhci, "ep deq seg = %p, deq ptr = %p\n",
 					dev->eps[ep_index].queued_deq_seg,
 					dev->eps[ep_index].queued_deq_ptr);
