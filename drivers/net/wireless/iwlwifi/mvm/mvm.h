@@ -500,6 +500,12 @@ struct iwl_mvm {
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 	/* broadcast filters to configure for each associated station */
 	const struct iwl_fw_bcast_filter *bcast_filters;
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	struct {
+		u32 override; /* u32 for debugfs_create_bool */
+		struct iwl_bcast_filter_cmd cmd;
+	} dbgfs_bcast_filtering;
+#endif
 #endif
 
 	/* Internal station */
@@ -687,6 +693,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm);
 int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm);
 
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm);
+bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
+				    struct iwl_bcast_filter_cmd *cmd);
 
 /*
  * FW notifications / CMD responses handlers

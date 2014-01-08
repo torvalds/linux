@@ -1045,31 +1045,50 @@ static void iwl_mvm_bcast_filter_iterator(void *_data, u8 *mac,
 	}
 }
 
-static int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm,
-					  struct ieee80211_vif *vif)
+bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
+				    struct iwl_bcast_filter_cmd *cmd)
 {
-	/* initialize cmd to pass broadcasts on all vifs */
-	struct iwl_bcast_filter_cmd cmd = {
-		.disable = 0,
-		.max_bcast_filters = ARRAY_SIZE(cmd.filters),
-		.max_macs = ARRAY_SIZE(cmd.macs),
-	};
 	struct iwl_bcast_iter_data iter_data = {
 		.mvm = mvm,
-		.cmd = &cmd,
+		.cmd = cmd,
 	};
 
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING))
-		return 0;
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->max_bcast_filters = ARRAY_SIZE(cmd->filters);
+	cmd->max_macs = ARRAY_SIZE(cmd->macs);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	/* use debugfs filters/macs if override is configured */
+	if (mvm->dbgfs_bcast_filtering.override) {
+		memcpy(cmd->filters, &mvm->dbgfs_bcast_filtering.cmd.filters,
+		       sizeof(cmd->filters));
+		memcpy(cmd->macs, &mvm->dbgfs_bcast_filtering.cmd.macs,
+		       sizeof(cmd->macs));
+		return true;
+	}
+#endif
 
 	/* if no filters are configured, do nothing */
 	if (!mvm->bcast_filters)
-		return 0;
+		return false;
 
 	/* configure and attach these filters for each associated sta vif */
 	ieee80211_iterate_active_interfaces(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_bcast_filter_iterator, &iter_data);
+
+	return true;
+}
+static int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif)
+{
+	struct iwl_bcast_filter_cmd cmd;
+
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING))
+		return 0;
+
+	if (!iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
+		return 0;
 
 	return iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, CMD_SYNC,
 				    sizeof(cmd), &cmd);
