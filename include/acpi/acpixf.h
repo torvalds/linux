@@ -54,7 +54,6 @@
 #include <acpi/acbuffer.h>
 
 extern u8 acpi_gbl_permanent_mmap;
-extern u32 acpi_rsdt_forced;
 
 /*
  * Globals that are publically available
@@ -72,17 +71,18 @@ extern u32 acpi_dbg_layer;
 
 /* ACPICA runtime options */
 
-extern u8 acpi_gbl_enable_interpreter_slack;
 extern u8 acpi_gbl_all_methods_serialized;
-extern u8 acpi_gbl_create_osi_method;
-extern u8 acpi_gbl_use_default_register_widths;
-extern acpi_name acpi_gbl_trace_method_name;
-extern u32 acpi_gbl_trace_flags;
-extern bool acpi_gbl_enable_aml_debug_object;
 extern u8 acpi_gbl_copy_dsdt_locally;
-extern u8 acpi_gbl_truncate_io_addresses;
+extern u8 acpi_gbl_create_osi_method;
 extern u8 acpi_gbl_disable_auto_repair;
 extern u8 acpi_gbl_disable_ssdt_table_load;
+extern u8 acpi_gbl_do_not_use_xsdt;
+extern bool acpi_gbl_enable_aml_debug_object;
+extern u8 acpi_gbl_enable_interpreter_slack;
+extern u32 acpi_gbl_trace_flags;
+extern acpi_name acpi_gbl_trace_method_name;
+extern u8 acpi_gbl_truncate_io_addresses;
+extern u8 acpi_gbl_use_default_register_widths;
 
 /*
  * Hardware-reduced prototypes. All interfaces that use these macros will

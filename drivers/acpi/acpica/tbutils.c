@@ -478,10 +478,10 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 				   ACPI_CAST_PTR(struct acpi_table_header,
 						 rsdp));
 
-	/* Differentiate between RSDT and XSDT root tables */
+	/* Use XSDT if present and not overridden. Otherwise, use RSDT */
 
-	if ((rsdp->revision > 1) && rsdp->xsdt_physical_address
-			&& !acpi_rsdt_forced) {
+	if ((rsdp->revision > 1) &&
+	    rsdp->xsdt_physical_address && !acpi_gbl_do_not_use_xsdt) {
 		/*
 		 * RSDP contains an XSDT (64-bit physical addresses). We must use
 		 * the XSDT if the revision is > 1 and the XSDT pointer is present,
@@ -503,8 +503,8 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	acpi_os_unmap_memory(rsdp, sizeof(struct acpi_table_rsdp));
 
 	/*
-	 * If it is present, validate the XSDT for access/size and ensure
-	 * that all table entries are at least non-NULL
+	 * If it is present and used, validate the XSDT for access/size
+	 * and ensure that all table entries are at least non-NULL
 	 */
 	if (table_entry_size == ACPI_XSDT_ENTRY_SIZE) {
 		status = acpi_tb_validate_xsdt(address);
