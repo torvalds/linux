@@ -100,7 +100,7 @@ struct dcp_sha_req_ctx {
  * design of Linux Crypto API.
  */
 static struct dcp *global_sdcp;
-DEFINE_MUTEX(global_mutex);
+static DEFINE_MUTEX(global_mutex);
 
 /* DCP register layout. */
 #define MXS_DCP_CTRL				0x00
