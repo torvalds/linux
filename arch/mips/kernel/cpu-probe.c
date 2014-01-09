@@ -386,6 +386,9 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 	config5 &= ~MIPS_CONF5_UFR;
 	write_c0_config5(config5);
 
+	if (config5 & MIPS_CONF5_EVA)
+		c->options |= MIPS_CPU_EVA;
+
 	return config5 & MIPS_CONF_M;
 }
 
