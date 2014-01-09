@@ -47,6 +47,7 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 	struct pci_dev *pdev;
 	struct vnic_dev_bar *bar;
 	struct usnic_vnic_res_chunk *chunk;
+	struct usnic_ib_qp_grp_flow *default_flow;
 	int i, err;
 
 	memset(&resp, 0, sizeof(resp));
@@ -69,7 +70,6 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 	resp.vfid = usnic_vnic_get_index(qp_grp->vf->vnic);
 	resp.bar_bus_addr = bar->bus_addr;
 	resp.bar_len = bar->len;
-	resp.transport = qp_grp->transport;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
 	if (IS_ERR_OR_NULL(chunk)) {
@@ -113,6 +113,10 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 	for (i = 0; i < chunk->cnt; i++)
 		resp.cq_idx[i] = chunk->res[i]->vnic_idx;
 
+	default_flow = list_first_entry(&qp_grp->flows_lst,
+					struct usnic_ib_qp_grp_flow, link);
+	resp.transport = default_flow->trans_type;
+
 	err = ib_copy_to_udata(udata, &resp, sizeof(resp));
 	if (err) {
 		usnic_err("Failed to copy udata for %s", us_ibdev->ib_dev.name);
@@ -125,7 +129,7 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 static struct usnic_ib_qp_grp*
 find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 				struct usnic_ib_pd *pd,
-				enum usnic_transport_type transport,
+				struct usnic_transport_spec *trans_spec,
 				struct usnic_vnic_res_spec *res_spec)
 {
 	struct usnic_ib_vf *vf;
@@ -138,11 +142,6 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 
 	if (list_empty(&us_ibdev->vf_dev_list)) {
 		usnic_info("No vfs to allocate\n");
-		return NULL;
-	}
-
-	if (!us_ibdev->link_up) {
-		usnic_info("Cannot allocate qp b/c PF link is down\n");
 		return NULL;
 	}
 
@@ -189,7 +188,7 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 	}
 
 	qp_grp = usnic_ib_qp_grp_create(us_ibdev->ufdev, vf, pd, res_spec,
-						transport);
+						trans_spec);
 	spin_unlock(&vf->lock);
 	if (IS_ERR_OR_NULL(qp_grp)) {
 		usnic_err("Failed to allocate qp_grp\n");
@@ -253,7 +252,7 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
 	us_ibdev->netdev->ethtool_ops->get_settings(us_ibdev->netdev, &cmd);
 	memset(props, 0, sizeof(*props));
-	usnic_mac_to_gid(us_ibdev->mac, &gid.raw[0]);
+	usnic_mac_to_gid(us_ibdev->ufdev->mac, &gid.raw[0]);
 	memcpy(&props->sys_image_guid, &gid.global.interface_id,
 		sizeof(gid.global.interface_id));
 	usnic_ib_fw_string_to_u64(&info.fw_version[0], &props->fw_ver);
@@ -311,7 +310,7 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->sm_lid = 0;
 	props->sm_sl = 0;
 
-	if (us_ibdev->link_up) {
+	if (us_ibdev->ufdev->link_up) {
 		props->state = IB_PORT_ACTIVE;
 		props->phys_state = 5;
 	} else {
@@ -327,9 +326,9 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	eth_speed_to_ib_speed(cmd.speed, &props->active_speed,
 				&props->active_width);
 	props->max_mtu = IB_MTU_4096;
-	props->active_mtu = iboe_get_mtu(us_ibdev->mtu);
+	props->active_mtu = iboe_get_mtu(us_ibdev->ufdev->mtu);
 	/* Userspace will adjust for hdrs */
-	props->max_msg_sz = us_ibdev->mtu;
+	props->max_msg_sz = us_ibdev->ufdev->mtu;
 	props->max_vl_num = 1;
 	mutex_unlock(&us_ibdev->usdev_lock);
 
@@ -386,7 +385,7 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 
 	mutex_lock(&us_ibdev->usdev_lock);
 	memset(&(gid->raw[0]), 0, sizeof(gid->raw));
-	usnic_mac_to_gid(us_ibdev->mac, &gid->raw[0]);
+	usnic_mac_to_gid(us_ibdev->ufdev->mac, &gid->raw[0]);
 	mutex_unlock(&us_ibdev->usdev_lock);
 
 	return 0;
@@ -445,6 +444,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	struct usnic_ib_ucontext *ucontext;
 	int cq_cnt;
 	struct usnic_vnic_res_spec res_spec;
+	struct usnic_transport_spec trans_spec;
 
 	usnic_dbg("\n");
 
@@ -457,12 +457,14 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 		return ERR_PTR(-EINVAL);
 	}
 
+	memset(&trans_spec, 0, sizeof(trans_spec));
+	trans_spec.trans_type = USNIC_TRANSPORT_ROCE_CUSTOM;
 	mutex_lock(&us_ibdev->usdev_lock);
-	cq_cnt = (init_attr->send_cq == init_attr->recv_cq) ? 1 : 2,
-	res_spec = min_transport_spec[USNIC_DEFAULT_TRANSPORT];
+	cq_cnt = (init_attr->send_cq == init_attr->recv_cq) ? 1 : 2;
+	res_spec = min_transport_spec[trans_spec.trans_type];
 	usnic_vnic_res_spec_update(&res_spec, USNIC_VNIC_RES_TYPE_CQ, cq_cnt);
 	qp_grp = find_free_vf_and_create_qp_grp(us_ibdev, to_upd(pd),
-						USNIC_DEFAULT_TRANSPORT,
+						&trans_spec,
 						&res_spec);
 	if (IS_ERR_OR_NULL(qp_grp)) {
 		err = (qp_grp ? PTR_ERR(qp_grp) : -ENOMEM);
@@ -522,8 +524,7 @@ int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	/* TODO: Future Support All States */
 	mutex_lock(&qp_grp->vf->pf->usdev_lock);
 	if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_INIT) {
-		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_INIT,
-					&qp_grp->filters[DFLT_FILTER_IDX]);
+		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_INIT, NULL);
 	} else if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_RTR) {
 		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_RTR, NULL);
 	} else if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_RTS) {

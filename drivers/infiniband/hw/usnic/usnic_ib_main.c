@@ -150,15 +150,17 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 	case NETDEV_UP:
 	case NETDEV_DOWN:
 	case NETDEV_CHANGE:
-		if (!us_ibdev->link_up && netif_carrier_ok(netdev)) {
-			us_ibdev->link_up = true;
+		if (!us_ibdev->ufdev->link_up &&
+				netif_carrier_ok(netdev)) {
+			usnic_fwd_carrier_up(us_ibdev->ufdev);
 			usnic_info("Link UP on %s\n", us_ibdev->ib_dev.name);
 			ib_event.event = IB_EVENT_PORT_ACTIVE;
 			ib_event.device = &us_ibdev->ib_dev;
 			ib_event.element.port_num = 1;
 			ib_dispatch_event(&ib_event);
-		} else if (us_ibdev->link_up && !netif_carrier_ok(netdev)) {
-			us_ibdev->link_up = false;
+		} else if (us_ibdev->ufdev->link_up &&
+				!netif_carrier_ok(netdev)) {
+			usnic_fwd_carrier_down(us_ibdev->ufdev);
 			usnic_info("Link DOWN on %s\n", us_ibdev->ib_dev.name);
 			usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 			ib_event.event = IB_EVENT_PORT_ERR;
@@ -172,17 +174,16 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 		}
 		break;
 	case NETDEV_CHANGEADDR:
-		if (!memcmp(us_ibdev->mac, netdev->dev_addr,
-				sizeof(us_ibdev->mac))) {
+		if (!memcmp(us_ibdev->ufdev->mac, netdev->dev_addr,
+				sizeof(us_ibdev->ufdev->mac))) {
 			usnic_dbg("Ignorning addr change on %s\n",
 					us_ibdev->ib_dev.name);
 		} else {
 			usnic_info(" %s old mac: %pM new mac: %pM\n",
 					us_ibdev->ib_dev.name,
-					us_ibdev->mac,
+					us_ibdev->ufdev->mac,
 					netdev->dev_addr);
-			memcpy(us_ibdev->mac, netdev->dev_addr,
-				sizeof(us_ibdev->mac));
+			usnic_fwd_set_mac(us_ibdev->ufdev, netdev->dev_addr);
 			usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 			ib_event.event = IB_EVENT_GID_CHANGE;
 			ib_event.device = &us_ibdev->ib_dev;
@@ -192,11 +193,11 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 
 		break;
 	case NETDEV_CHANGEMTU:
-		if (us_ibdev->mtu != netdev->mtu) {
+		if (us_ibdev->ufdev->mtu != netdev->mtu) {
 			usnic_info("MTU Change on %s old: %u new: %u\n",
 					us_ibdev->ib_dev.name,
-					us_ibdev->mtu, netdev->mtu);
-			us_ibdev->mtu = netdev->mtu;
+					us_ibdev->ufdev->mtu, netdev->mtu);
+			usnic_fwd_set_mtu(us_ibdev->ufdev, netdev->mtu);
 			usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 		} else {
 			usnic_dbg("Ignoring MTU change on %s\n",
@@ -320,18 +321,19 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	if (ib_register_device(&us_ibdev->ib_dev, NULL))
 		goto err_fwd_dealloc;
 
-	us_ibdev->link_up = netif_carrier_ok(us_ibdev->netdev);
-	us_ibdev->mtu = us_ibdev->netdev->mtu;
-	memcpy(&us_ibdev->mac, us_ibdev->netdev->dev_addr,
-		sizeof(us_ibdev->mac));
-	usnic_mac_to_gid(us_ibdev->netdev->perm_addr, &gid.raw[0]);
+	usnic_fwd_set_mtu(us_ibdev->ufdev, us_ibdev->netdev->mtu);
+	usnic_fwd_set_mac(us_ibdev->ufdev, us_ibdev->netdev->dev_addr);
+	if (netif_carrier_ok(us_ibdev->netdev))
+		usnic_fwd_carrier_up(us_ibdev->ufdev);
+
 	memcpy(&us_ibdev->ib_dev.node_guid, &gid.global.interface_id,
 		sizeof(gid.global.interface_id));
 	kref_init(&us_ibdev->vf_cnt);
 
 	usnic_info("Added ibdev: %s netdev: %s with mac %pM Link: %u MTU: %u\n",
 			us_ibdev->ib_dev.name, netdev_name(us_ibdev->netdev),
-			us_ibdev->mac, us_ibdev->link_up, us_ibdev->mtu);
+			us_ibdev->ufdev->mac, us_ibdev->ufdev->link_up,
+			us_ibdev->ufdev->mtu);
 	return us_ibdev;
 
 err_fwd_dealloc:

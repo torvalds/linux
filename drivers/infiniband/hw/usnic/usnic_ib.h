@@ -57,13 +57,10 @@ struct usnic_ib_dev {
 	struct pci_dev			*pdev;
 	struct net_device		*netdev;
 	struct usnic_fwd_dev		*ufdev;
-	bool				link_up;
 	struct list_head		ib_dev_link;
 	struct list_head		vf_dev_list;
 	struct list_head		ctx_list;
 	struct mutex			usdev_lock;
-	char				mac[ETH_ALEN];
-	unsigned int			mtu;
 
 	/* provisioning information */
 	struct kref			vf_cnt;
