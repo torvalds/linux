@@ -724,7 +724,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				 * - not an IP fragment
 				 * - no LLS polling in progress
 				 */
-				if (!mlx4_en_cq_ll_polling(cq) &&
+				if (!mlx4_en_cq_busy_polling(cq) &&
 				    (dev->features & NETIF_F_GRO)) {
 					struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
 					if (!gro_skb)
@@ -816,8 +816,10 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		skb_mark_napi_id(skb, &cq->napi);
 
-		/* Push it up the stack */
-		netif_receive_skb(skb);
+		if (!mlx4_en_cq_busy_polling(cq))
+			napi_gro_receive(&cq->napi, skb);
+		else
+			netif_receive_skb(skb);
 
 next:
 		for (nr = 0; nr < priv->num_frags; nr++)
