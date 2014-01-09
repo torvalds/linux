@@ -161,7 +161,6 @@ static int hermes_set_tkip_keys(ltv_t *ltv, u16 key_idx, u8 *addr,
 		break;
 	}
 
-	DBG_LEAVE(DbgInfo);
 	return ret;
 }
 
@@ -342,7 +341,6 @@ static int wireless_commit(struct net_device *dev,
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_commit
 /*============================================================================*/
@@ -376,7 +374,6 @@ static int wireless_get_protocol(struct net_device *dev, struct iw_request_info 
 
 	strcpy(name, "IEEE 802.11b");
 
-	DBG_LEAVE(DbgInfo);
 	return 0;
 } // wireless_get_protocol
 /*============================================================================*/
@@ -417,7 +414,6 @@ static int wireless_set_frequency(struct net_device *dev, struct iw_request_info
 
 	if( !capable( CAP_NET_ADMIN )) {
 		ret = -EPERM;
-		DBG_LEAVE( DbgInfo );
 		return ret;
 	}
 
@@ -459,7 +455,6 @@ static int wireless_set_frequency(struct net_device *dev, struct iw_request_info
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_frequency
 /*============================================================================*/
@@ -519,7 +514,6 @@ static int wireless_get_frequency(struct net_device *dev, struct iw_request_info
 	ret = (ret == HCF_SUCCESS ? 0 : -EFAULT);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_frequency
 /*============================================================================*/
@@ -724,7 +718,6 @@ out_unlock:
 
 	wl_unlock(lp, &flags);
 
-	DBG_LEAVE(DbgInfo);
 	return ret;
 } // wireless_get_range
 /*============================================================================*/
@@ -799,7 +792,6 @@ static int wireless_get_bssid(struct net_device *dev, struct iw_request_info *in
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE(DbgInfo);
 	return ret;
 } // wireless_get_bssid
 /*============================================================================*/
@@ -944,7 +936,6 @@ static int wireless_get_ap_list (struct net_device *dev, struct iw_request_info 
 		}
 	}
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_ap_list
 /*============================================================================*/
@@ -1000,7 +991,6 @@ static int wireless_set_sensitivity(struct net_device *dev, struct iw_request_in
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_sensitivity
 /*============================================================================*/
@@ -1041,7 +1031,6 @@ static int wireless_get_sensitivity(struct net_device *dev, struct iw_request_in
 	sens->value = lp->DistanceBetweenAPs;
 	sens->fixed = 0;	/* auto */
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_sensitivity
 /*============================================================================*/
@@ -1118,7 +1107,6 @@ static int wireless_set_essid(struct net_device *dev, struct iw_request_info *in
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_essid
 /*============================================================================*/
@@ -1248,7 +1236,6 @@ out_unlock:
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_essid
 /*============================================================================*/
@@ -1307,7 +1294,6 @@ static int wireless_set_encode(struct net_device *dev, struct iw_request_info *i
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE(DbgInfo);
 	return ret;
 }
 
@@ -1348,7 +1334,6 @@ static int wireless_get_encode(struct net_device *dev, struct iw_request_info *i
 	/* Only super-user can see WEP key */
 	if( !capable( CAP_NET_ADMIN )) {
 		ret = -EPERM;
-		DBG_LEAVE( DbgInfo );
 		return ret;
 	}
 
@@ -1392,7 +1377,6 @@ out_unlock:
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_encode
 /*============================================================================*/
@@ -1433,7 +1417,6 @@ static int wireless_set_nickname(struct net_device *dev, struct iw_request_info 
 #if 0 //;? Needed, was present in original code but not in 7.18 Linux 2.6 kernel version
 	if( !capable(CAP_NET_ADMIN )) {
 		ret = -EPERM;
-		DBG_LEAVE( DbgInfo );
 		return ret;
 	}
 #endif
@@ -1460,7 +1443,6 @@ static int wireless_set_nickname(struct net_device *dev, struct iw_request_info 
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_nickname
 /*============================================================================*/
@@ -1532,7 +1514,6 @@ static int wireless_get_nickname(struct net_device *dev, struct iw_request_info 
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE(DbgInfo);
 	return ret;
 } // wireless_get_nickname
 /*============================================================================*/
@@ -1642,7 +1623,6 @@ static int wireless_set_porttype(struct net_device *dev, struct iw_request_info 
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_porttype
 /*============================================================================*/
@@ -1747,7 +1727,6 @@ static int wireless_get_porttype(struct net_device *dev, struct iw_request_info 
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_porttype
 /*============================================================================*/
@@ -1790,8 +1769,6 @@ static int wireless_set_power(struct net_device *dev, struct iw_request_info *in
 #if 0 //;? Needed, was present in original code but not in 7.18 Linux 2.6 kernel version
 	if( !capable( CAP_NET_ADMIN )) {
 		ret = -EPERM;
-
-		DBG_LEAVE( DbgInfo );
 		return ret;
 	}
 #endif
@@ -1815,7 +1792,6 @@ static int wireless_set_power(struct net_device *dev, struct iw_request_info *in
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_power
 /*============================================================================*/
@@ -1874,7 +1850,6 @@ static int wireless_get_power(struct net_device *dev, struct iw_request_info *in
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_power
 /*============================================================================*/
@@ -1931,7 +1906,6 @@ static int wireless_get_tx_power(struct net_device *dev, struct iw_request_info 
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_tx_power
 /*============================================================================*/
@@ -1997,7 +1971,6 @@ static int wireless_set_rts_threshold (struct net_device *dev, struct iw_request
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_rts_threshold
 /*============================================================================*/
@@ -2050,7 +2023,6 @@ static int wireless_get_rts_threshold (struct net_device *dev, struct iw_request
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_rts_threshold
 /*============================================================================*/
@@ -2112,7 +2084,6 @@ static int wireless_set_rate(struct net_device *dev, struct iw_request_info *inf
 		DBG_PRINT( "Index: %d\n", index );
 	} else {
 		DBG_ERROR( DbgInfo, "Could not determine radio frequency\n" );
-		DBG_LEAVE( DbgInfo );
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -2273,7 +2244,6 @@ out_unlock:
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_rate
 /*============================================================================*/
@@ -2383,7 +2353,6 @@ static int wireless_get_rate(struct net_device *dev, struct iw_request_info *inf
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_rate
 /*============================================================================*/
@@ -2435,10 +2404,8 @@ int wireless_get_private_interface( struct iwreq *wrq, struct wl_private *lp )
 		/* Verify the user buffer */
 		ret = verify_area( VERIFY_WRITE, wrq->u.data.pointer, sizeof( priv ));
 
-		if( ret != 0 ) {
-			DBG_LEAVE( DbgInfo );
+		if( ret != 0 )
 			return ret;
-		}
 
 		/* Copy the data into the user's buffer */
 		wrq->u.data.length = NELEM( priv );
@@ -2446,7 +2413,6 @@ int wireless_get_private_interface( struct iwreq *wrq, struct wl_private *lp )
 	}
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_private_interface
 /*============================================================================*/
@@ -2578,7 +2544,6 @@ retry:
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE(DbgInfo);
 	return ret;
 } // wireless_set_scan
 /*============================================================================*/
@@ -2767,7 +2732,6 @@ out_unlock:
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_get_scan
 /*============================================================================*/
@@ -2914,7 +2878,6 @@ static int wireless_set_auth(struct net_device *dev,
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE( DbgInfo );
 	return ret;
 } // wireless_set_auth
 /*============================================================================*/
@@ -2988,7 +2951,6 @@ static int wireless_set_encodeext(struct net_device *dev,
 
 		if (sizeof(ext->rx_seq) != 8) {
 			DBG_TRACE(DbgInfo, "rx_seq size mismatch\n");
-			DBG_LEAVE(DbgInfo);
 			ret = -EINVAL;
 			goto out_unlock;
 		}
@@ -3062,7 +3024,6 @@ out_unlock:
 	wl_unlock(lp, &flags);
 
 out:
-	DBG_LEAVE(DbgInfo);
 	return ret;
 }
 /*============================================================================*/
@@ -3080,7 +3041,6 @@ static int wireless_set_genie(struct net_device *dev,
 	 * operation needs to succeed */
 	ret = 0;
 
-	DBG_LEAVE(DbgInfo);
 	return ret;
 }
 /*============================================================================*/
@@ -3170,7 +3130,6 @@ struct iw_statistics * wl_wireless_stats( struct net_device *dev )
 		}
 	}
 
-	DBG_LEAVE( DbgInfo );
 	return pStats;
 } // wl_wireless_stats
 /*============================================================================*/
@@ -3221,7 +3180,6 @@ struct iw_statistics * wl_get_wireless_stats( struct net_device *dev )
 
 	wl_unlock(lp, &flags);
 
-	DBG_LEAVE( DbgInfo );
 	return pStats;
 } // wl_get_wireless_stats
 

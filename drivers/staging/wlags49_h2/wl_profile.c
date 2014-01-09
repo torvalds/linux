@@ -268,7 +268,6 @@ void parse_config(struct net_device *dev)
 		set_fs(fs);			/* Return to the original context */
 #endif /* BIN_DL */
 
-	DBG_LEAVE(DbgInfo);
 	return;
 } /* parse_config */
 
@@ -995,7 +994,6 @@ void ParseConfigLine(char *pszLine, char **ppszLVal, char **ppszRVal)
 				pszLine[i] = '\0';
 		}
 	}
-	DBG_LEAVE(DbgInfo);
 } /* ParseConfigLine */
 /*============================================================================*/
 

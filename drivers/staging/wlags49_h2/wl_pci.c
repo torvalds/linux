@@ -194,7 +194,6 @@ int wl_adapter_init_module( void )
     result = pci_register_driver( &wl_driver ); //;?replace with pci_module_init, Rubini pg 490
 	//;? why not do something with the result
 
-    DBG_LEAVE( DbgInfo );
     return 0;
 } // wl_adapter_init_module
 /*============================================================================*/
@@ -223,7 +222,6 @@ void wl_adapter_cleanup_module( void )
 
     pci_unregister_driver( &wl_driver );
 
-    DBG_LEAVE( DbgInfo );
     return;
 } // wl_adapter_cleanup_module
 /*============================================================================*/
@@ -260,7 +258,6 @@ int wl_adapter_insert( struct net_device *dev )
 	} else {
         DBG_TRACE( DbgInfo, "wl_insert() FAILED\n" );
     }
-    DBG_LEAVE( DbgInfo );
     return result;
 } // wl_adapter_insert
 /*============================================================================*/
@@ -295,7 +292,6 @@ int wl_adapter_open( struct net_device *dev )
         result = -ENODEV;
     }
 
-    DBG_LEAVE( DbgInfo );
     return result;
 } // wl_adapter_open
 /*============================================================================*/
@@ -324,7 +320,6 @@ int wl_adapter_close( struct net_device *dev )
 
     wl_close( dev );
 
-    DBG_LEAVE( DbgInfo );
     return 0;
 } // wl_adapter_close
 /*============================================================================*/
@@ -388,8 +383,6 @@ int wl_pci_probe( struct pci_dev *pdev,
 
     result = wl_pci_setup( pdev );
 
-    DBG_LEAVE( DbgInfo );
-
     return result;
 } // wl_pci_probe
 /*============================================================================*/
@@ -439,7 +432,6 @@ void wl_pci_remove(struct pci_dev *pdev)
 
     wl_device_dealloc( dev );
 
-    DBG_LEAVE( DbgInfo );
     return;
 } // wl_pci_remove
 /*============================================================================*/
@@ -477,7 +469,6 @@ int wl_pci_setup( struct pci_dev *pdev )
     result = pci_enable_device( pdev );
     if( result != 0 ) {
         DBG_ERROR( DbgInfo, "pci_enable_device() failed\n" );
-        DBG_LEAVE( DbgInfo );
         return result;
     }
 
@@ -486,7 +477,6 @@ int wl_pci_setup( struct pci_dev *pdev )
     dev = wl_device_alloc( );
     if( dev == NULL ) {
         DBG_ERROR( DbgInfo, "Could not register device!!!\n" );
-        DBG_LEAVE( DbgInfo );
         return -ENOMEM;
     }
 
@@ -494,7 +484,6 @@ int wl_pci_setup( struct pci_dev *pdev )
     if( dev->priv == NULL ) {
         DBG_ERROR( DbgInfo, "Private adapter struct was not allocated!!!\n" );
 	wl_device_dealloc(dev);
-        DBG_LEAVE( DbgInfo );
         return -ENOMEM;
     }
 
@@ -503,7 +492,6 @@ int wl_pci_setup( struct pci_dev *pdev )
     if( wl_pci_dma_alloc( pdev, dev->priv ) < 0 ) {
         DBG_ERROR( DbgInfo, "Could not allocate DMA descriptor memory!!!\n" );
 	wl_device_dealloc(dev);
-        DBG_LEAVE( DbgInfo );
         return -ENOMEM;
     }
 #endif
@@ -522,7 +510,6 @@ int wl_pci_setup( struct pci_dev *pdev )
     if( !wl_adapter_insert( dev )) {
         DBG_ERROR( DbgInfo, "wl_adapter_insert() FAILED!!!\n" );
         wl_device_dealloc( dev );
-        DBG_LEAVE( DbgInfo );
         return -EINVAL;
     }
 
@@ -534,7 +521,6 @@ int wl_pci_setup( struct pci_dev *pdev )
         DBG_WARNING( DbgInfo, "Could not register ISR!!!\n" );
 	wl_remove(dev);
 	wl_device_dealloc(dev);
-        DBG_LEAVE( DbgInfo );
         return result;
 	}
 
@@ -550,7 +536,6 @@ int wl_pci_setup( struct pci_dev *pdev )
     /* Enable bus mastering */
     pci_set_master( pdev );
 
-    DBG_LEAVE( DbgInfo );
     return 0;
 } // wl_pci_setup
 /*============================================================================*/
@@ -611,9 +596,6 @@ void wl_pci_enable_cardbus_interrupts( struct pci_dev *pdev )
 
     /* Once complete, unmap the region and exit */
     iounmap( mem_addr_kern );
-
-    DBG_LEAVE( DbgInfo );
-    return;
 } // wl_pci_enable_cardbus_interrupts
 /*============================================================================*/
 
@@ -680,7 +662,6 @@ int wl_pci_dma_alloc( struct pci_dev *pdev, struct wl_private *lp )
 //     }
 //     /* Store status, as host should not call HCF functions if this fails */
 //     lp->dma.status = status;  //;?all useages of dma.status have been commented out
-//     DBG_LEAVE( DbgInfo );
     return status;
 } // wl_pci_dma_alloc
 /*============================================================================*/
@@ -753,7 +734,6 @@ int wl_pci_dma_free( struct pci_dev *pdev, struct wl_private *lp )
         }
     }
 
-    DBG_LEAVE( DbgInfo );
     return status;
 } // wl_pci_dma_free
 
@@ -1085,7 +1065,6 @@ int wl_pci_dma_alloc_desc( struct pci_dev *pdev, struct wl_private *lp,
 //         memset( *desc, 0, sizeof( DESC_STRCT ));
 //         (*desc)->desc_phys_addr = cpu_to_le32( pa );
 //     }
-//     DBG_LEAVE( DbgInfo );
 //     return status;
 } // wl_pci_dma_alloc_desc
 /*============================================================================*/
@@ -1169,7 +1148,6 @@ int wl_pci_dma_alloc_buf( struct pci_dev *pdev, struct wl_private *lp,
 //         desc->buf_phys_addr = cpu_to_le32( pa );
 //         SET_BUF_SIZE( desc, size );
 //     }
-//     DBG_LEAVE( DbgInfo );
     return status;
 } // wl_pci_dma_alloc_buf
 /*============================================================================*/
@@ -1271,7 +1249,6 @@ void wl_pci_dma_hcf_supply( struct wl_private *lp )
         }
     //}
 
-    DBG_LEAVE( DbgInfo );
     return;
 } // wl_pci_dma_hcf_supply
 /*============================================================================*/
@@ -1322,7 +1299,6 @@ void wl_pci_dma_hcf_reclaim( struct wl_private *lp )
 //         }
      }
 
-    DBG_LEAVE( DbgInfo );
     return;
 } // wl_pci_dma_hcf_reclaim
 /*============================================================================*/
@@ -1371,7 +1347,6 @@ void wl_pci_dma_hcf_reclaim_rx( struct wl_private *lp )
         	DBG_PRINT( "rx_packet[%d] 0x%p\n", i, lp->dma.rx_packet[i] );
         }
     //}
-    DBG_LEAVE( DbgInfo );
 } // wl_pci_dma_hcf_reclaim_rx
 /*============================================================================*/
 
@@ -1505,7 +1480,6 @@ void wl_pci_dma_hcf_reclaim_tx( struct wl_private *lp )
         WL_WDS_NETIF_WAKE_QUEUE( lp );
         lp->netif_queue_on = TRUE;
     }
-    DBG_LEAVE( DbgInfo );
     return;
 } // wl_pci_dma_hcf_reclaim_tx
 /*============================================================================*/

@@ -578,9 +578,6 @@ void wl_endian_translate_event( ltv_t *pLtv )
     default:
         break;
     }
-
-    DBG_LEAVE( DbgInfo );
-    return;
 } // wl_endian_translate_event
 /*============================================================================*/
 
@@ -1019,8 +1016,6 @@ void wl_process_link_status( struct wl_private *lp )
             break;
         }
     }
-    DBG_LEAVE( DbgInfo );
-    return;
 } // wl_process_link_status
 /*============================================================================*/
 
@@ -1221,9 +1216,6 @@ void wl_process_probe_response( struct wl_private *lp )
             }
         }
     }
-
-    DBG_LEAVE( DbgInfo );
-    return;
 } // wl_process_probe_response
 /*============================================================================*/
 
@@ -1268,9 +1260,6 @@ void wl_process_updated_record( struct wl_private *lp )
                        lp->updatedRecord.u.u16[0] );
         }
     }
-
-    DBG_LEAVE( DbgInfo );
-    return;
 } // wl_process_updated_record
 /*============================================================================*/
 
@@ -1329,9 +1318,6 @@ void wl_process_assoc_status( struct wl_private *lp )
 			assoc_stat->oldApAddr);
         }
     }
-
-    DBG_LEAVE( DbgInfo );
-    return;
 } // wl_process_assoc_status
 /*============================================================================*/
 
@@ -1395,9 +1381,6 @@ void wl_process_security_status( struct wl_private *lp )
 	DBG_TRACE(DbgInfo, "Reason          : 0x%04x\n", sec_stat->reason);
 
     }
-
-    DBG_LEAVE( DbgInfo );
-    return;
 } // wl_process_security_status
 /*============================================================================*/
 
@@ -1422,8 +1405,6 @@ int wl_get_tallies(struct wl_private *lp,
     	DBG_TRACE( DbgInfo, "Get tallies failed\n" );
 	ret = -EFAULT;
     }
-
-    DBG_LEAVE( DbgInfo );
 
     return ret;
 }

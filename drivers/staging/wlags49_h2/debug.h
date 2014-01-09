@@ -125,17 +125,6 @@
 #endif /* DBG_TRAP */
 
 
-#define _ENTER_STR          ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-#define _LEAVE_STR          "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-
-
-#define _DBG_LEAVE(A)						\
-	DBG_PRINT("%s:%.*s:%s\n", DBG_NAME(A), DBG_LEVEL(A)--,	\
-		  _LEAVE_STR, __func__)
-
-#define DBG_LEAVE(A)        {if (DBG_FLAGS(A) & DBG_TRACE_ON) \
-				 _DBG_LEAVE(A); }
-
 #define DBG_PARAM(A, N, F, S...)   {if (DBG_FLAGS(A) & DBG_PARAM_ON) \
 				DBG_PRINT("  %s -- "F"\n", N, S); }
 
@@ -201,7 +190,6 @@ typedef struct {
 #define DBG_DEFN
 #define DBG_TRAP
 #define DBG_PRINT(S...)
-#define DBG_LEAVE(A)
 #define DBG_PARAM(A, N, F, S...)
 #define DBG_ERROR(A, S...)
 #define DBG_WARNING(A, S...)

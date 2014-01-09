@@ -178,7 +178,6 @@ int wl_init( struct net_device *dev )
 //  wl_lock( lp, &flags );
 //  wl_unlock( lp, &flags );
 
-    DBG_LEAVE( DbgInfo );
     return 0;
 } // wl_init
 /*============================================================================*/
@@ -211,7 +210,6 @@ int wl_config( struct net_device *dev, struct ifmap *map )
        ignore the request. */
     DBG_TRACE(DbgInfo, "%s: %s called.\n", dev->name, __func__);
 
-    DBG_LEAVE( DbgInfo );
     return 0;
 } // wl_config
 /*============================================================================*/
@@ -252,8 +250,6 @@ struct net_device_stats *wl_stats( struct net_device *dev )
 #ifdef USE_RTS
     if( lp->useRTS == 1 ) {
 	wl_unlock( lp, &flags );
-
-	//DBG_LEAVE( DbgInfo );
 	return NULL;
     }
 #endif  /* USE_RTS */
@@ -275,8 +271,6 @@ struct net_device_stats *wl_stats( struct net_device *dev )
     }
 
     wl_unlock( lp, &flags );
-
-    //DBG_LEAVE( DbgInfo );
 
     return pStats;
 } // wl_stats
@@ -312,7 +306,6 @@ int wl_open(struct net_device *dev)
     if( lp->useRTS == 1 ) {
 	DBG_TRACE( DbgInfo, "Skipping device open, in RTS mode\n" );
 	wl_unlock( lp, &flags );
-	DBG_LEAVE( DbgInfo );
 	return -EIO;
     }
 #endif  /* USE_RTS */
@@ -370,7 +363,6 @@ int wl_open(struct net_device *dev)
 
     wl_unlock( lp, &flags );
 
-    DBG_LEAVE( DbgInfo );
     return status;
 } // wl_open
 /*============================================================================*/
@@ -423,7 +415,6 @@ int wl_close( struct net_device *dev )
     if( lp->useRTS == 1 ) {
 	DBG_TRACE( DbgInfo, "Skipping device close, in RTS mode\n" );
 	wl_unlock( lp, &flags );
-	DBG_LEAVE( DbgInfo );
 	return -EIO;
     }
 #endif  /* USE_RTS */
@@ -433,7 +424,6 @@ int wl_close( struct net_device *dev )
 
     wl_unlock( lp, &flags );
 
-    DBG_LEAVE( DbgInfo );
     return 0;
 } // wl_close
 /*============================================================================*/
@@ -543,7 +533,6 @@ out_act_int_on_unlock:
 
     wl_unlock( lp, &flags );
 
-    DBG_LEAVE( DbgInfo );
     return ret;
 } // wl_ioctl
 /*============================================================================*/
@@ -595,8 +584,6 @@ void wl_tx_timeout( struct net_device *dev )
     if( lp->useRTS == 1 ) {
 	DBG_TRACE( DbgInfo, "Skipping tx_timeout handler, in RTS mode\n" );
 	wl_unlock( lp, &flags );
-
-	DBG_LEAVE( DbgInfo );
 	return;
     }
 #endif  /* USE_RTS */
@@ -626,8 +613,6 @@ void wl_tx_timeout( struct net_device *dev )
     pStats->tx_errors++;
 
     wl_unlock( lp, &flags );
-
-    DBG_LEAVE( DbgInfo );
 } // wl_tx_timeout
 /*============================================================================*/
 
@@ -1021,10 +1006,8 @@ void wl_multicast( struct net_device *dev )
 
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
-    if( !wl_adapter_is_open( dev )) {
-        DBG_LEAVE( DbgInfo );
+    if( !wl_adapter_is_open( dev ))
         return;
-    }
 
 #if DBG
     if( DBG_FLAGS( DbgInfo ) & DBG_PARAM_ON ) {
@@ -1045,8 +1028,6 @@ void wl_multicast( struct net_device *dev )
 #ifdef USE_RTS
         if( lp->useRTS == 1 ) {
             DBG_TRACE( DbgInfo, "Skipping multicast, in RTS mode\n" );
-
-            DBG_LEAVE( DbgInfo );
             return;
         }
 #endif  /* USE_RTS */
@@ -1114,7 +1095,6 @@ void wl_multicast( struct net_device *dev )
         wl_act_int_on( lp );
 	wl_unlock( lp, &flags );
     }
-    DBG_LEAVE( DbgInfo );
 #endif /* HCF_STA */
 } // wl_multicast
 /*============================================================================*/
@@ -1128,8 +1108,6 @@ void wl_multicast( struct net_device *dev, int num_addrs, void *addrs )
     DBG_PARAM( DbgInfo, "addrs", "0x%p", addrs );
 
 #error Obsolete set multicast interface!
-
-    DBG_LEAVE( DbgInfo );
 } // wl_multicast
 /*============================================================================*/
 
@@ -1214,7 +1192,6 @@ struct net_device * wl_device_alloc( void )
     /* Allocate virtual devices for WDS support if needed */
     WL_WDS_DEVICE_ALLOC( lp );
 
-    DBG_LEAVE( DbgInfo );
     return dev;
 } // wl_device_alloc
 /*============================================================================*/
@@ -1245,8 +1222,6 @@ void wl_device_dealloc( struct net_device *dev )
     WL_WDS_DEVICE_DEALLOC( lp );
 
     free_netdev( dev );
-
-    DBG_LEAVE( DbgInfo );
 } // wl_device_dealloc
 /*============================================================================*/
 
@@ -1461,10 +1436,8 @@ void wl_wds_device_alloc( struct wl_private *lp )
         struct net_device *dev_wds = NULL;
 
 	dev_wds = kzalloc(sizeof(struct net_device), GFP_KERNEL);
-	if (!dev_wds) {
-		DBG_LEAVE(DbgInfo);
+	if (!dev_wds)
 		return;
-	}
 
         ether_setup( dev_wds );
 
@@ -1495,8 +1468,6 @@ void wl_wds_device_alloc( struct wl_private *lp )
     lp->wds_port[5].dev->hard_start_xmit = &wl_tx_port6;
 
     WL_WDS_NETIF_STOP_QUEUE( lp );
-
-    DBG_LEAVE( DbgInfo );
 } // wl_wds_device_alloc
 /*============================================================================*/
 
@@ -1536,8 +1507,6 @@ void wl_wds_device_dealloc( struct wl_private *lp )
             lp->wds_port[count].dev = NULL;
         }
     }
-
-    DBG_LEAVE( DbgInfo );
 } // wl_wds_device_dealloc
 /*============================================================================*/
 
