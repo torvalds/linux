@@ -2,12 +2,15 @@
 #define __RK_CLK_PLL_H
 
 #include <linux/clk-provider.h>
-
+#include <linux/delay.h>
 
 
 #define MHZ			(1000UL * 1000UL)
 #define KHZ			(1000UL)
-
+#define CLK_LOOPS_JIFFY_REF	(11996091ULL)
+#define CLK_LOOPS_RATE_REF	(1200UL) //Mhz
+#define CLK_LOOPS_RECALC(rate)  \
+	div_u64(CLK_LOOPS_JIFFY_REF*(rate),CLK_LOOPS_RATE_REF*MHZ)
 /*******************cru reg offset***************************/
 #define CRU_MODE_CON		0x40
 #define PLL_CONS(id, i)		((id) * 0x10 + ((i) * 4))
@@ -102,6 +105,10 @@
 	.pllcon2 = PLL_CLK_BWADJ_SET(nf >> 1),\
 	.rst_dly=((nr*500)/24+1),\
 }
+/*******************OTHERS*********************************/
+#define rk30_clock_udelay(a) udelay(a)
+
+
 
 struct pll_clk_set {
 	unsigned long	rate;

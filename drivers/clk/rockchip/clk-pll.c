@@ -5,7 +5,7 @@
 #include "clk-pll.h"
 
 
-//static unsigned long lpj_gpll;
+static unsigned long lpj_gpll;
 
 //fixme
 extern void __iomem *reg_start;
@@ -15,10 +15,13 @@ extern void __iomem *reg_start;
 #define cru_writel(v, offset)	do {writel(v, RK30_CRU_BASE + offset); dsb();} \
 	while (0)
 
+//fixme
+//#define grf_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
+
+
 #define PLLS_IN_NORM(pll_id) (((cru_readl(CRU_MODE_CON)&PLL_MODE_MSK(pll_id))\
 			==(PLL_MODE_NORM(pll_id)&PLL_MODE_MSK(pll_id)))\
 		&&!(cru_readl(PLL_CONS(pll_id,3))&PLL_BYPASS))
-
 
 
 static const struct apll_clk_set apll_table[] = {
@@ -38,6 +41,37 @@ static const struct pll_clk_set pll_com_table[] = {
 	_PLL_SET_CLKS(148500,	2,	99,	8),
 	_PLL_SET_CLKS(0,	0,	0,	0),
 };
+
+
+static void pll_wait_lock(int pll_idx)
+{
+#if 1
+	//fixme
+	udelay(10);
+#else
+	u32 pll_state[4] = {1, 0, 2, 3};
+	u32 bit = 0x20u << pll_state[pll_idx];
+	int delay = 24000000;
+	while (delay > 0) {
+		if (regfile_readl(GRF_SOC_STATUS0) & bit)
+			break;
+		delay--;
+	}
+	if (delay == 0) {
+		clk_err("PLL_ID=%d\npll_con0=%08x\npll_con1=%08x\n"
+				"pll_con2=%08x\npll_con3=%08x\n",
+				pll_idx,
+				cru_readl(PLL_CONS(pll_idx, 0)),
+				cru_readl(PLL_CONS(pll_idx, 1)),
+				cru_readl(PLL_CONS(pll_idx, 2)),
+				cru_readl(PLL_CONS(pll_idx, 3)));
+
+		clk_err("wait pll bit 0x%x time out!\n", bit);
+		while(1);
+	}
+#endif
+}
+
 
 /*recalc_rate*/
 static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
@@ -124,6 +158,86 @@ static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 /*set_rate*/
+static int _pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id,
+		spinlock_t *lock)
+{
+	unsigned long flags = 0;
+
+
+	clk_debug("_pll_clk_set_rate start!\n");
+
+	if(lock)
+		spin_lock_irqsave(lock, flags);
+
+	//enter slowmode
+	cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
+	cru_writel((0x1<<(16+1))|(0x1<<1), PLL_CONS(pll_id, 3));
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	cru_writel(clk_set->pllcon0, PLL_CONS(pll_id, 0));
+	cru_writel(clk_set->pllcon1, PLL_CONS(pll_id, 1));
+
+	rk30_clock_udelay(1);
+
+	cru_writel((0x1<<(16+1)), PLL_CONS(pll_id, 3));
+
+	pll_wait_lock(pll_id);
+
+	//return from slow
+	cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
+
+	if (lock)
+		spin_unlock_irqrestore(lock, flags);
+
+	clk_debug("pll id=%d, dump reg:\n con0=%x,con1=%x,mode=%x\n", pll_id,
+			cru_readl(PLL_CONS(pll_id,0)),(PLL_CONS(pll_id,1)),
+			cru_readl(CRU_MODE_CON));
+
+	clk_debug("_pll_clk_set_rate end!\n");
+
+	return 0;
+}
+
+static int clk_pll_com_set_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	struct pll_clk_set *clk_set = (struct pll_clk_set *)(pll_com_table);
+	int ret = 0;
+
+
+	if(rate == parent_rate) {
+		clk_debug("pll id=%d set rate=%lu equal to parent rate\n",
+				pll->id, rate);
+		cru_writel(PLL_MODE_SLOW(pll->id), CRU_MODE_CON);
+		cru_writel((0x1 << (16+1)) | (0x1<<1), PLL_CONS(pll->id, 3));
+		clk_debug("pll id=%d enter slow mode, set rate OK!\n", pll->id);
+		return 0;
+	}
+
+	while(clk_set->rate) {
+		if (clk_set->rate == rate) {
+			break;
+		}
+		clk_set++;
+	}
+
+	if(clk_set->rate == rate) {
+		ret = _pll_clk_set_rate(clk_set, pll->id, pll->lock);
+		clk_debug("pll id=%d set rate=%lu OK!\n", pll->id, rate);
+	} else {
+		clk_err("pll id=%d is no corresponding rate=%lu\n",
+				pll->id, rate);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static int clk_apll_set_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
@@ -139,13 +253,12 @@ static int clk_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 static int clk_gpll_set_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
-	return 0;
-}
+        int ret = clk_pll_com_set_rate(hw, rate, parent_rate);
 
-static int clk_pll_com_set_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
-{
-	return 0;
+        if(!ret)
+                lpj_gpll = CLK_LOOPS_RECALC(clk_pll_recalc_rate(hw, parent_rate));
+
+        return ret;
 }
 
 static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
