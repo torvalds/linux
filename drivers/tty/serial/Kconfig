@@ -1035,7 +1035,7 @@ config SERIAL_MSM_CONSOLE
 
 config SERIAL_MSM_HS
 	tristate "MSM UART High Speed: Serial Driver"
-	depends on ARCH_MSM
+	depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
 	select SERIAL_CORE
 	help
 	  If you have a machine based on MSM family of SoCs, you
