@@ -431,6 +431,8 @@ xfs_iread_extents(
 	xfs_ifork_t	*ifp;
 	xfs_extnum_t	nextents;
 
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+
 	if (unlikely(XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE)) {
 		XFS_ERROR_REPORT("xfs_iread_extents", XFS_ERRLEVEL_LOW,
 				 ip->i_mount);
