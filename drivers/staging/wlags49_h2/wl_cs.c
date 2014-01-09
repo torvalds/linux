@@ -388,13 +388,7 @@ static struct pcmcia_driver wlags49_driver = {
  ******************************************************************************/
 int wl_adapter_init_module(void)
 {
-	int ret;
-
-	DBG_TRACE(DbgInfo, "wl_adapter_init_module() -- PCMCIA\n");
-
-	ret = pcmcia_register_driver(&wlags49_driver);
-
-	return ret;
+	return pcmcia_register_driver(&wlags49_driver);
 } /* wl_adapter_init_module */
 /*============================================================================*/
 
@@ -418,11 +412,7 @@ int wl_adapter_init_module(void)
  ******************************************************************************/
 void wl_adapter_cleanup_module(void)
 {
-	DBG_TRACE(DbgInfo, "wl_adapter_cleanup_module() -- PCMCIA\n");
-
 	pcmcia_unregister_driver(&wlags49_driver);
-
-	return;
 } /* wl_adapter_cleanup_module */
 /*============================================================================*/
 
