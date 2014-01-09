@@ -104,7 +104,7 @@ usnic_ib_show_config(struct device *device, struct device_attribute *attr,
 			PCI_SLOT(us_ibdev->pdev->devfn),
 			PCI_FUNC(us_ibdev->pdev->devfn),
 			netdev_name(us_ibdev->netdev),
-			us_ibdev->mac,
+			us_ibdev->ufdev->mac,
 			atomic_read(&us_ibdev->vf_cnt.refcount));
 		UPDATE_PTR_LEFT(n, ptr, left);
 
@@ -239,21 +239,17 @@ static ssize_t summary_show(struct usnic_ib_qp_grp *qp_grp, char *buf)
 	int left;
 	char *ptr;
 	struct usnic_vnic_res_chunk *res_chunk;
-	struct usnic_fwd_filter_hndl *default_filter_hndl;
 	struct usnic_vnic_res *vnic_res;
 
 	left = PAGE_SIZE;
 	ptr = buf;
-	default_filter_hndl = list_first_entry(&qp_grp->filter_hndls,
-					struct usnic_fwd_filter_hndl, link);
 
 	n = scnprintf(ptr, left,
-			"QPN: %d State: (%s) PID: %u VF Idx: %hu Filter ID: 0x%x ",
+			"QPN: %d State: (%s) PID: %u VF Idx: %hu ",
 			qp_grp->ibqp.qp_num,
 			usnic_ib_qp_grp_state_to_string(qp_grp->state),
 			qp_grp->owner_pid,
-			usnic_vnic_get_index(qp_grp->vf->vnic),
-			default_filter_hndl->id);
+			usnic_vnic_get_index(qp_grp->vf->vnic));
 	UPDATE_PTR_LEFT(n, ptr, left);
 
 	for (i = 0; qp_grp->res_chunk_list[i]; i++) {
