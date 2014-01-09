@@ -5285,12 +5285,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 			goto unlock;
 		}
 	} else {
-		enum ieee80211_band band;
-		n_channels = 0;
-
-		for (band = 0; band < IEEE80211_NUM_BANDS; band++)
-			if (wiphy->bands[band])
-				n_channels += wiphy->bands[band]->n_channels;
+		n_channels = ieee80211_get_num_supported_channels(wiphy);
 	}
 
 	if (info->attrs[NL80211_ATTR_SCAN_SSIDS])
@@ -5498,11 +5493,7 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 		if (!n_channels)
 			return -EINVAL;
 	} else {
-		n_channels = 0;
-
-		for (band = 0; band < IEEE80211_NUM_BANDS; band++)
-			if (wiphy->bands[band])
-				n_channels += wiphy->bands[band]->n_channels;
+		n_channels = ieee80211_get_num_supported_channels(wiphy);
 	}
 
 	if (info->attrs[NL80211_ATTR_SCAN_SSIDS])
