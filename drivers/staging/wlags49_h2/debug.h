@@ -180,7 +180,6 @@ typedef struct {
 #else /* DBG */
 /****************************************************************************/
 
-#define DBG_DEFN
 #define DBG_PRINT(S...)
 #define DBG_PARAM(A, N, F, S...)
 #define DBG_ERROR(A, S...)
