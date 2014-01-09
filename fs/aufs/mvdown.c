@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 Junjiro R. Okajima
+ * Copyright (C) 2011-2014 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,6 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * move-down, opposite of copy-up
  */
 
 #include "aufs.h"
