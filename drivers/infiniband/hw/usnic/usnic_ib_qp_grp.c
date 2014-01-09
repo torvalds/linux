@@ -15,6 +15,7 @@
  * SOFTWARE.
  *
  */
+#include <linux/bug.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -26,6 +27,8 @@
 #include "usnic_ib_qp_grp.h"
 #include "usnic_ib_sysfs.h"
 #include "usnic_transport.h"
+
+#define DFLT_RQ_IDX	0
 
 const char *usnic_ib_qp_grp_state_to_string(enum ib_qp_state state)
 {
@@ -58,83 +61,31 @@ int usnic_ib_qp_grp_dump_hdr(char *buf, int buf_sz)
 int usnic_ib_qp_grp_dump_rows(void *obj, char *buf, int buf_sz)
 {
 	struct usnic_ib_qp_grp *qp_grp = obj;
-	struct usnic_fwd_filter_hndl *default_filter_hndl;
+	struct usnic_ib_qp_grp_flow *default_flow;
 	if (obj) {
-		default_filter_hndl = list_first_entry(&qp_grp->filter_hndls,
-					struct usnic_fwd_filter_hndl, link);
+		default_flow = list_first_entry(&qp_grp->flows_lst,
+					struct usnic_ib_qp_grp_flow, link);
 		return scnprintf(buf, buf_sz, "|%d\t|%s\t|%d\t|%hu\t|%d",
 					qp_grp->ibqp.qp_num,
 					usnic_ib_qp_grp_state_to_string(
 							qp_grp->state),
 					qp_grp->owner_pid,
 					usnic_vnic_get_index(qp_grp->vf->vnic),
-					default_filter_hndl->id);
+					default_flow->flow->flow_id);
 	} else {
 		return scnprintf(buf, buf_sz, "|N/A\t|N/A\t|N/A\t|N/A\t|N/A");
 	}
 }
 
-static int add_fwd_filter(struct usnic_ib_qp_grp *qp_grp,
-				struct usnic_fwd_filter *fwd_filter)
+static struct usnic_vnic_res_chunk *
+get_qp_res_chunk(struct usnic_ib_qp_grp *qp_grp)
 {
-	struct usnic_fwd_filter_hndl *filter_hndl;
-	int status;
-	struct usnic_vnic_res_chunk *chunk;
-	int rq_idx;
-
 	lockdep_assert_held(&qp_grp->lock);
-
-	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
-	if (IS_ERR_OR_NULL(chunk) || chunk->cnt < 1) {
-		usnic_err("Failed to get RQ info for qp_grp %u\n",
-				qp_grp->grp_id);
-		return -EFAULT;
-	}
-
-	rq_idx = chunk->res[0]->vnic_idx;
-
-	switch (qp_grp->transport) {
-	case USNIC_TRANSPORT_ROCE_CUSTOM:
-		status = usnic_fwd_add_usnic_filter(qp_grp->ufdev,
-					usnic_vnic_get_index(qp_grp->vf->vnic),
-					rq_idx,
-					fwd_filter,
-					&filter_hndl);
-		break;
-	default:
-		usnic_err("Unable to install filter for qp_grp %u for transport %d",
-				qp_grp->grp_id, qp_grp->transport);
-		status = -EINVAL;
-	}
-
-	if (status)
-		return status;
-
-	list_add_tail(&filter_hndl->link, &qp_grp->filter_hndls);
-	return 0;
-}
-
-static int del_all_filters(struct usnic_ib_qp_grp *qp_grp)
-{
-	int err, status;
-	struct usnic_fwd_filter_hndl *filter_hndl, *tmp;
-
-	lockdep_assert_held(&qp_grp->lock);
-
-	status = 0;
-
-	list_for_each_entry_safe(filter_hndl, tmp,
-					&qp_grp->filter_hndls, link) {
-		list_del(&filter_hndl->link);
-		err = usnic_fwd_del_filter(filter_hndl);
-		if (err) {
-			usnic_err("Failed to delete filter %u of qp_grp %d\n",
-					filter_hndl->id, qp_grp->grp_id);
-		}
-		status |= err;
-	}
-
-	return status;
+	/*
+	 * The QP res chunk, used to derive qp indices,
+	 * are just indices of the RQs
+	 */
+	return usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
 }
 
 static int enable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
@@ -149,22 +100,20 @@ static int enable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
 
-	res_chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
+	res_chunk = get_qp_res_chunk(qp_grp);
 	if (IS_ERR_OR_NULL(res_chunk)) {
-		usnic_err("Unable to get %s with err %ld\n",
-			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
-			PTR_ERR(res_chunk));
+		usnic_err("Unable to get qp res with err %ld\n",
+				PTR_ERR(res_chunk));
 		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
 	}
 
 	for (i = 0; i < res_chunk->cnt; i++) {
 		res = res_chunk->res[i];
-		status = usnic_fwd_enable_rq(qp_grp->ufdev, vnic_idx,
+		status = usnic_fwd_enable_qp(qp_grp->ufdev, vnic_idx,
 						res->vnic_idx);
 		if (status) {
-			usnic_err("Failed to enable rq %d of %s:%d\n with err %d\n",
-					res->vnic_idx,
-					netdev_name(qp_grp->ufdev->netdev),
+			usnic_err("Failed to enable qp %d of %s:%d\n with err %d\n",
+					res->vnic_idx, qp_grp->ufdev->name,
 					vnic_idx, status);
 			goto out_err;
 		}
@@ -175,7 +124,7 @@ static int enable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 out_err:
 	for (i--; i >= 0; i--) {
 		res = res_chunk->res[i];
-		usnic_fwd_disable_rq(qp_grp->ufdev, vnic_idx,
+		usnic_fwd_disable_qp(qp_grp->ufdev, vnic_idx,
 					res->vnic_idx);
 	}
 
@@ -192,22 +141,21 @@ static int disable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 	lockdep_assert_held(&qp_grp->lock);
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
 
-	res_chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
+	res_chunk = get_qp_res_chunk(qp_grp);
 	if (IS_ERR_OR_NULL(res_chunk)) {
-		usnic_err("Unable to get %s with err %ld\n",
-			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
+		usnic_err("Unable to get qp res with err %ld\n",
 			PTR_ERR(res_chunk));
 		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
 	}
 
 	for (i = 0; i < res_chunk->cnt; i++) {
 		res = res_chunk->res[i];
-		status = usnic_fwd_disable_rq(qp_grp->ufdev, vnic_idx,
+		status = usnic_fwd_disable_qp(qp_grp->ufdev, vnic_idx,
 						res->vnic_idx);
 		if (status) {
 			usnic_err("Failed to disable rq %d of %s:%d\n with err %d\n",
 					res->vnic_idx,
-					netdev_name(qp_grp->ufdev->netdev),
+					qp_grp->ufdev->name,
 					vnic_idx, status);
 		}
 	}
@@ -216,17 +164,148 @@ static int disable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 
 }
 
+static int init_filter_action(struct usnic_ib_qp_grp *qp_grp,
+				struct usnic_filter_action *uaction)
+{
+	struct usnic_vnic_res_chunk *res_chunk;
+
+	res_chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
+	if (IS_ERR_OR_NULL(res_chunk)) {
+		usnic_err("Unable to get %s with err %ld\n",
+			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
+			PTR_ERR(res_chunk));
+		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
+	}
+
+	uaction->vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
+	uaction->action.type = FILTER_ACTION_RQ_STEERING;
+	uaction->action.u.rq_idx = res_chunk->res[DFLT_RQ_IDX]->vnic_idx;
+
+	return 0;
+}
+
+static struct usnic_ib_qp_grp_flow*
+create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
+			struct usnic_transport_spec *trans_spec)
+{
+	uint16_t port_num;
+	int err;
+	struct filter filter;
+	struct usnic_filter_action uaction;
+	struct usnic_ib_qp_grp_flow *qp_flow;
+	struct usnic_fwd_flow *flow;
+	enum usnic_transport_type trans_type;
+
+	trans_type = trans_spec->trans_type;
+	port_num = trans_spec->usnic_roce.port_num;
+
+	/* Reserve Port */
+	port_num = usnic_transport_rsrv_port(trans_type, port_num);
+	if (port_num == 0)
+		return ERR_PTR(-EINVAL);
+
+	/* Create Flow */
+	usnic_fwd_init_usnic_filter(&filter, port_num);
+	err = init_filter_action(qp_grp, &uaction);
+	if (err)
+		goto out_unreserve_port;
+
+	flow = usnic_fwd_alloc_flow(qp_grp->ufdev, &filter, &uaction);
+	if (IS_ERR_OR_NULL(flow)) {
+		usnic_err("Unable to alloc flow failed with err %ld\n",
+				PTR_ERR(flow));
+		err = (flow) ? PTR_ERR(flow) : -EFAULT;
+		goto out_unreserve_port;
+	}
+
+	/* Create Flow Handle */
+	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
+	if (IS_ERR_OR_NULL(qp_flow)) {
+		err = (qp_flow) ? PTR_ERR(qp_flow) : -ENOMEM;
+		goto out_dealloc_flow;
+	}
+	qp_flow->flow = flow;
+	qp_flow->trans_type = trans_type;
+	qp_flow->usnic_roce.port_num = port_num;
+	qp_flow->qp_grp = qp_grp;
+	return qp_flow;
+
+out_dealloc_flow:
+	usnic_fwd_dealloc_flow(flow);
+out_unreserve_port:
+	usnic_transport_unrsrv_port(trans_type, port_num);
+	return ERR_PTR(err);
+}
+
+static void release_roce_custom_flow(struct usnic_ib_qp_grp_flow *qp_flow)
+{
+	usnic_fwd_dealloc_flow(qp_flow->flow);
+	usnic_transport_unrsrv_port(qp_flow->trans_type,
+					qp_flow->usnic_roce.port_num);
+	kfree(qp_flow);
+}
+
+static struct usnic_ib_qp_grp_flow*
+create_and_add_flow(struct usnic_ib_qp_grp *qp_grp,
+			struct usnic_transport_spec *trans_spec)
+{
+	struct usnic_ib_qp_grp_flow *qp_flow;
+	enum usnic_transport_type trans_type;
+
+	trans_type = trans_spec->trans_type;
+	switch (trans_type) {
+	case USNIC_TRANSPORT_ROCE_CUSTOM:
+		qp_flow = create_roce_custom_flow(qp_grp, trans_spec);
+		break;
+	default:
+		usnic_err("Unsupported transport %u\n",
+				trans_spec->trans_type);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!IS_ERR_OR_NULL(qp_flow))
+		list_add_tail(&qp_flow->link, &qp_grp->flows_lst);
+
+
+	return qp_flow;
+}
+
+static void release_and_remove_flow(struct usnic_ib_qp_grp_flow *qp_flow)
+{
+	list_del(&qp_flow->link);
+
+	switch (qp_flow->trans_type) {
+	case USNIC_TRANSPORT_ROCE_CUSTOM:
+		release_roce_custom_flow(qp_flow);
+		break;
+	default:
+		WARN(1, "Unsupported transport %u\n",
+				qp_flow->trans_type);
+		break;
+	}
+}
+
+static void release_and_remove_all_flows(struct usnic_ib_qp_grp *qp_grp)
+{
+	struct usnic_ib_qp_grp_flow *qp_flow, *tmp;
+	list_for_each_entry_safe(qp_flow, tmp, &qp_grp->flows_lst, link)
+		release_and_remove_flow(qp_flow);
+}
+
 int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 				enum ib_qp_state new_state,
-				struct usnic_fwd_filter *fwd_filter)
+				void *data)
 {
 	int status = 0;
 	int vnic_idx;
 	struct ib_event ib_event;
 	enum ib_qp_state old_state;
+	struct usnic_transport_spec *trans_spec;
+	struct usnic_ib_qp_grp_flow *qp_flow;
 
 	old_state = qp_grp->state;
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
+	trans_spec = (struct usnic_transport_spec *) data;
 
 	spin_lock(&qp_grp->lock);
 	switch (new_state) {
@@ -236,13 +315,14 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 			/* NO-OP */
 			break;
 		case IB_QPS_INIT:
-			status = del_all_filters(qp_grp);
+			release_and_remove_all_flows(qp_grp);
+			status = 0;
 			break;
 		case IB_QPS_RTR:
 		case IB_QPS_RTS:
 		case IB_QPS_ERR:
 			status = disable_qp_grp(qp_grp);
-			status &= del_all_filters(qp_grp);
+			release_and_remove_all_flows(qp_grp);
 			break;
 		default:
 			status = -EINVAL;
@@ -251,10 +331,35 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 	case IB_QPS_INIT:
 		switch (old_state) {
 		case IB_QPS_RESET:
-			status = add_fwd_filter(qp_grp, fwd_filter);
+			if (trans_spec) {
+				qp_flow = create_and_add_flow(qp_grp,
+								trans_spec);
+				if (IS_ERR_OR_NULL(qp_flow)) {
+					status = (qp_flow) ? PTR_ERR(qp_flow) : -EFAULT;
+					break;
+				}
+			} else {
+				/*
+				 * Optional to specify filters.
+				 */
+				status = 0;
+			}
 			break;
 		case IB_QPS_INIT:
-			status = add_fwd_filter(qp_grp, fwd_filter);
+			if (trans_spec) {
+				qp_flow = create_and_add_flow(qp_grp,
+								trans_spec);
+				if (IS_ERR_OR_NULL(qp_flow)) {
+					status = (qp_flow) ? PTR_ERR(qp_flow) : -EFAULT;
+					break;
+				}
+			} else {
+				/*
+				 * Doesn't make sense to go into INIT state
+				 * from INIT state w/o adding filters.
+				 */
+				status = -EINVAL;
+			}
 			break;
 		case IB_QPS_RTR:
 			status = disable_qp_grp(qp_grp);
@@ -295,14 +400,14 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 					qp_grp->ibqp.qp_context);
 			break;
 		case IB_QPS_INIT:
-			status = del_all_filters(qp_grp);
+			release_and_remove_all_flows(qp_grp);
 			qp_grp->ibqp.event_handler(&ib_event,
 					qp_grp->ibqp.qp_context);
 			break;
 		case IB_QPS_RTR:
 		case IB_QPS_RTS:
 			status = disable_qp_grp(qp_grp);
-			status &= del_all_filters(qp_grp);
+			release_and_remove_all_flows(qp_grp);
 			qp_grp->ibqp.event_handler(&ib_event,
 					qp_grp->ibqp.qp_context);
 			break;
@@ -435,16 +540,33 @@ static void log_spec(struct usnic_vnic_res_spec *res_spec)
 	usnic_dbg("%s\n", buf);
 }
 
+static int qp_grp_id_from_flow(struct usnic_ib_qp_grp_flow *qp_flow,
+				uint32_t *id)
+{
+	enum usnic_transport_type trans_type = qp_flow->trans_type;
+
+	switch (trans_type) {
+	case USNIC_TRANSPORT_ROCE_CUSTOM:
+		*id = qp_flow->usnic_roce.port_num;
+		break;
+	default:
+		usnic_err("Unsupported transport %u\n", trans_type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 struct usnic_ib_qp_grp *
-usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev,
-			struct usnic_ib_vf *vf,
+usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev, struct usnic_ib_vf *vf,
 			struct usnic_ib_pd *pd,
 			struct usnic_vnic_res_spec *res_spec,
-			enum usnic_transport_type transport)
+			struct usnic_transport_spec *transport_spec)
 {
 	struct usnic_ib_qp_grp *qp_grp;
-	u16 port_num;
 	int err;
+	enum usnic_transport_type transport = transport_spec->trans_type;
+	struct usnic_ib_qp_grp_flow *qp_flow;
 
 	lockdep_assert_held(&vf->lock);
 
@@ -455,13 +577,6 @@ usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev,
 				transport);
 		log_spec(res_spec);
 		return ERR_PTR(err);
-	}
-
-	port_num = usnic_transport_rsrv_port(transport, 0);
-	if (!port_num) {
-		usnic_err("Unable to allocate port for %s\n",
-				netdev_name(ufdev->netdev));
-		return ERR_PTR(-EINVAL);
 	}
 
 	qp_grp = kzalloc(sizeof(*qp_grp), GFP_ATOMIC);
@@ -477,53 +592,59 @@ usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev,
 				PTR_ERR(qp_grp->res_chunk_list) : -ENOMEM;
 		usnic_err("Unable to alloc res for %d with err %d\n",
 				qp_grp->grp_id, err);
-		goto out_free_port;
+		goto out_free_qp_grp;
 	}
-
-	INIT_LIST_HEAD(&qp_grp->filter_hndls);
-	spin_lock_init(&qp_grp->lock);
-	qp_grp->ufdev = ufdev;
-	qp_grp->transport = transport;
-	qp_grp->filters[DFLT_FILTER_IDX].transport = transport;
-	qp_grp->filters[DFLT_FILTER_IDX].port_num = port_num;
-	qp_grp->state = IB_QPS_RESET;
-	qp_grp->owner_pid = current->pid;
-
-	/* qp_num is same as default filter port_num */
-	qp_grp->ibqp.qp_num = qp_grp->filters[DFLT_FILTER_IDX].port_num;
-	qp_grp->grp_id = qp_grp->ibqp.qp_num;
 
 	err = qp_grp_and_vf_bind(vf, pd, qp_grp);
 	if (err)
-		goto out_free_port;
+		goto out_free_res;
+
+	INIT_LIST_HEAD(&qp_grp->flows_lst);
+	spin_lock_init(&qp_grp->lock);
+	qp_grp->ufdev = ufdev;
+	qp_grp->state = IB_QPS_RESET;
+	qp_grp->owner_pid = current->pid;
+
+	qp_flow = create_and_add_flow(qp_grp, transport_spec);
+	if (IS_ERR_OR_NULL(qp_flow)) {
+		usnic_err("Unable to create and add flow with err %ld\n",
+				PTR_ERR(qp_flow));
+		err = (qp_flow) ? PTR_ERR(qp_flow) : -EFAULT;
+		goto out_qp_grp_vf_unbind;
+	}
+
+	err = qp_grp_id_from_flow(qp_flow, &qp_grp->grp_id);
+	if (err)
+		goto out_release_flow;
+	qp_grp->ibqp.qp_num = qp_grp->grp_id;
 
 	usnic_ib_sysfs_qpn_add(qp_grp);
 
 	return qp_grp;
 
-out_free_port:
+out_release_flow:
+	release_and_remove_flow(qp_flow);
+out_qp_grp_vf_unbind:
+	qp_grp_and_vf_unbind(qp_grp);
+out_free_res:
+	free_qp_grp_res(qp_grp->res_chunk_list);
+out_free_qp_grp:
 	kfree(qp_grp);
-	usnic_transport_unrsrv_port(transport, port_num);
 
 	return ERR_PTR(err);
 }
 
 void usnic_ib_qp_grp_destroy(struct usnic_ib_qp_grp *qp_grp)
 {
-	u16 default_port_num;
-	enum usnic_transport_type transport;
 
 	WARN_ON(qp_grp->state != IB_QPS_RESET);
 	lockdep_assert_held(&qp_grp->vf->lock);
 
-	transport = qp_grp->filters[DFLT_FILTER_IDX].transport;
-	default_port_num = qp_grp->filters[DFLT_FILTER_IDX].port_num;
-
 	usnic_ib_sysfs_qpn_remove(qp_grp);
 	qp_grp_and_vf_unbind(qp_grp);
+	release_and_remove_all_flows(qp_grp);
 	free_qp_grp_res(qp_grp->res_chunk_list);
 	kfree(qp_grp);
-	usnic_transport_unrsrv_port(transport, default_port_num);
 }
 
 struct usnic_vnic_res_chunk*
