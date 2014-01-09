@@ -754,6 +754,21 @@ nve0_fifo_uevent_disable(struct nouveau_event *event, int index)
 }
 
 int
+nve0_fifo_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nve0_fifo_priv *priv = (void *)object;
+	int ret;
+
+	ret = nouveau_fifo_fini(&priv->base, suspend);
+	if (ret)
+		return ret;
+
+	/* allow mmu fault interrupts, even when we're not using fifo */
+	nv_mask(priv, 0x002140, 0x10000000, 0x10000000);
+	return 0;
+}
+
+int
 nve0_fifo_init(struct nouveau_object *object)
 {
 	struct nve0_fifo_priv *priv = (void *)object;
@@ -855,7 +870,7 @@ nve0_fifo_oclass = &(struct nve0_fifo_impl) {
 		.ctor = nve0_fifo_ctor,
 		.dtor = nve0_fifo_dtor,
 		.init = nve0_fifo_init,
-		.fini = _nouveau_fifo_fini,
+		.fini = nve0_fifo_fini,
 	},
 	.channels = 4096,
 }.base;
