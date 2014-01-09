@@ -1364,10 +1364,6 @@ static void intel_init_dpio(struct drm_device *dev)
 	if (!IS_VALLEYVIEW(dev))
 		return;
 
-	/* Enable the CRI clock source so we can get at the display */
-	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
-		   DPLL_INTEGRATED_CRI_CLK_VLV);
-
 	DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO;
 }
 
@@ -1377,6 +1373,10 @@ static void intel_reset_dpio(struct drm_device *dev)
 
 	if (!IS_VALLEYVIEW(dev))
 		return;
+
+	/* Enable the CRI clock source so we can get at the display */
+	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+		   DPLL_INTEGRATED_CRI_CLK_VLV);
 
 	/*
 	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
