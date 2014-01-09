@@ -118,6 +118,9 @@ of the following host1x client modules:
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - dc
+  - nvidia,head: The number of the display controller head. This is used to
+    setup the various types of output to receive video data from the given
+    head.
 
   Each display controller node has a child node, named "rgb", that represents
   the RGB output associated with the controller. It can take the following

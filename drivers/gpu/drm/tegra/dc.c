@@ -1100,8 +1100,6 @@ static int tegra_dc_init(struct host1x_client *client)
 	struct tegra_dc *dc = host1x_client_to_dc(client);
 	int err;
 
-	dc->pipe = tegra->drm->mode_config.num_crtc;
-
 	drm_crtc_init(tegra->drm, &dc->base, &tegra_crtc_funcs);
 	drm_mode_crtc_set_gamma_size(&dc->base, 256);
 	drm_crtc_helper_add(&dc->base, &tegra_crtc_helper_funcs);
@@ -1187,6 +1185,41 @@ static const struct of_device_id tegra_dc_of_match[] = {
 	}
 };
 
+static int tegra_dc_parse_dt(struct tegra_dc *dc)
+{
+	struct device_node *np;
+	u32 value = 0;
+	int err;
+
+	err = of_property_read_u32(dc->dev->of_node, "nvidia,head", &value);
+	if (err < 0) {
+		dev_err(dc->dev, "missing \"nvidia,head\" property\n");
+
+		/*
+		 * If the nvidia,head property isn't present, try to find the
+		 * correct head number by looking up the position of this
+		 * display controller's node within the device tree. Assuming
+		 * that the nodes are ordered properly in the DTS file and
+		 * that the translation into a flattened device tree blob
+		 * preserves that ordering this will actually yield the right
+		 * head number.
+		 *
+		 * If those assumptions don't hold, this will still work for
+		 * cases where only a single display controller is used.
+		 */
+		for_each_matching_node(np, tegra_dc_of_match) {
+			if (np == dc->dev->of_node)
+				break;
+
+			value++;
+		}
+	}
+
+	dc->pipe = value;
+
+	return 0;
+}
+
 static int tegra_dc_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
@@ -1206,6 +1239,10 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dc->list);
 	dc->dev = &pdev->dev;
 	dc->soc = id->data;
+
+	err = tegra_dc_parse_dt(dc);
+	if (err < 0)
+		return err;
 
 	dc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dc->clk)) {
