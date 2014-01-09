@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -423,7 +422,7 @@ void i40e_vsi_reset_stats(struct i40e_vsi *vsi)
 	memset(&vsi->net_stats_offsets, 0, sizeof(vsi->net_stats_offsets));
 	memset(&vsi->eth_stats, 0, sizeof(vsi->eth_stats));
 	memset(&vsi->eth_stats_offsets, 0, sizeof(vsi->eth_stats_offsets));
-	if (vsi->rx_rings)
+	if (vsi->rx_rings && vsi->rx_rings[0]) {
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			memset(&vsi->rx_rings[i]->stats, 0 ,
 			       sizeof(vsi->rx_rings[i]->stats));
@@ -434,6 +433,7 @@ void i40e_vsi_reset_stats(struct i40e_vsi *vsi)
 			memset(&vsi->tx_rings[i]->tx_stats, 0,
 			       sizeof(vsi->tx_rings[i]->tx_stats));
 		}
+	}
 	vsi->stat_offsets_loaded = false;
 }
 
@@ -786,8 +786,8 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 		} while (u64_stats_fetch_retry_bh(&p->syncp, start));
 		rx_b += bytes;
 		rx_p += packets;
-		rx_buf += p->rx_stats.alloc_rx_buff_failed;
-		rx_page += p->rx_stats.alloc_rx_page_failed;
+		rx_buf += p->rx_stats.alloc_buff_failed;
+		rx_page += p->rx_stats.alloc_page_failed;
 	}
 	rcu_read_unlock();
 	vsi->tx_restart = tx_restart;
@@ -2068,8 +2068,11 @@ static void i40e_vsi_free_tx_resources(struct i40e_vsi *vsi)
 {
 	int i;
 
+	if (!vsi->tx_rings)
+		return;
+
 	for (i = 0; i < vsi->num_queue_pairs; i++)
-		if (vsi->tx_rings[i]->desc)
+		if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
 			i40e_free_tx_resources(vsi->tx_rings[i]);
 }
 
@@ -2102,8 +2105,11 @@ static void i40e_vsi_free_rx_resources(struct i40e_vsi *vsi)
 {
 	int i;
 
+	if (!vsi->rx_rings)
+		return;
+
 	for (i = 0; i < vsi->num_queue_pairs; i++)
-		if (vsi->rx_rings[i]->desc)
+		if (vsi->rx_rings[i] && vsi->rx_rings[i]->desc)
 			i40e_free_rx_resources(vsi->rx_rings[i]);
 }
 
@@ -2758,16 +2764,16 @@ static irqreturn_t i40e_intr(int irq, void *data)
 {
 	struct i40e_pf *pf = (struct i40e_pf *)data;
 	struct i40e_hw *hw = &pf->hw;
+	irqreturn_t ret = IRQ_NONE;
 	u32 icr0, icr0_remaining;
 	u32 val, ena_mask;
 
 	icr0 = rd32(hw, I40E_PFINT_ICR0);
+	ena_mask = rd32(hw, I40E_PFINT_ICR0_ENA);
 
 	/* if sharing a legacy IRQ, we might get called w/o an intr pending */
 	if ((icr0 & I40E_PFINT_ICR0_INTEVENT_MASK) == 0)
-		return IRQ_NONE;
-
-	ena_mask = rd32(hw, I40E_PFINT_ICR0_ENA);
+		goto enable_intr;
 
 	/* if interrupt but no bits showing, must be SWINT */
 	if (((icr0 & ~I40E_PFINT_ICR0_INTEVENT_MASK) == 0) ||
@@ -2843,7 +2849,9 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		}
 		ena_mask &= ~icr0_remaining;
 	}
+	ret = IRQ_HANDLED;
 
+enable_intr:
 	/* re-enable interrupt causes */
 	wr32(hw, I40E_PFINT_ICR0_ENA, ena_mask);
 	if (!test_bit(__I40E_DOWN, &pf->state)) {
@@ -2851,7 +2859,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		i40e_irq_dynamic_enable_icr0(pf);
 	}
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 /**
@@ -4514,10 +4522,13 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 			dev_info(&pf->pdev->dev, "ARQ LAN queue overflow event received\n");
 			i40e_handle_lan_overflow_event(pf, &event);
 			break;
+		case i40e_aqc_opc_send_msg_to_peer:
+			dev_info(&pf->pdev->dev, "ARQ: Msg from other pf\n");
+			break;
 		default:
 			dev_info(&pf->pdev->dev,
-				 "ARQ Error: Unknown event %d received\n",
-				 event.desc.opcode);
+				 "ARQ Error: Unknown event 0x%04x received\n",
+				 opcode);
 			break;
 		}
 	} while (pending && (i++ < pf->adminq_work_limit));
@@ -4647,7 +4658,7 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 		}
 	} while (err);
 
-	if (pf->hw.revision_id == 0 && pf->hw.func_caps.npar_enable) {
+	if (pf->hw.revision_id == 0 && (pf->flags & I40E_FLAG_MFP_ENABLED)) {
 		pf->hw.func_caps.num_msix_vectors += 1;
 		pf->hw.func_caps.num_tx_qp =
 			min_t(int, pf->hw.func_caps.num_tx_qp,
@@ -4784,7 +4795,7 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 }
 
 /**
- * i40e_reset_and_rebuild - reset and rebuid using a saved config
+ * i40e_reset_and_rebuild - reset and rebuild using a saved config
  * @pf: board private structure
  * @reinit: if the Main VSI needs to re-initialized.
  **/
@@ -5348,7 +5359,7 @@ static void i40e_vsi_clear_rings(struct i40e_vsi *vsi)
 {
 	int i;
 
-	if (vsi->tx_rings[0]) {
+	if (vsi->tx_rings && vsi->tx_rings[0]) {
 		for (i = 0; i < vsi->alloc_queue_pairs; i++) {
 			kfree_rcu(vsi->tx_rings[i], rcu);
 			vsi->tx_rings[i] = NULL;
@@ -5763,16 +5774,8 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 	queue_count = rounddown_pow_of_two(queue_count);
 
 	if (queue_count != pf->rss_size) {
-		if (pf->queues_left < (queue_count - pf->rss_size)) {
-			dev_info(&pf->pdev->dev,
-				"Not enough queues to do RSS on %d queues: remaining queues %d\n",
-				queue_count, pf->queues_left);
-			return pf->rss_size;
-		}
 		i40e_prep_for_reset(pf);
 
-		pf->num_lan_qps += (queue_count - pf->rss_size);
-		pf->queues_left -= (queue_count - pf->rss_size);
 		pf->rss_size = queue_count;
 
 		i40e_reset_and_rebuild(pf, true);
@@ -5809,7 +5812,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	pf->flags = I40E_FLAG_RX_CSUM_ENABLED |
 		    I40E_FLAG_MSI_ENABLED     |
 		    I40E_FLAG_MSIX_ENABLED    |
-		    I40E_FLAG_RX_PS_ENABLED   |
 		    I40E_FLAG_RX_1BUF_ENABLED;
 
 	/* Depending on PF configurations, it is possible that the RSS
@@ -5823,6 +5825,12 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		pf->rss_size = min_t(int, pf->rss_size_max, num_online_cpus());
 	} else {
 		pf->rss_size = 1;
+	}
+
+	/* MFP mode enabled */
+	if (pf->hw.func_caps.npar_enable || pf->hw.func_caps.mfp_mode_1) {
+		pf->flags |= I40E_FLAG_MFP_ENABLED;
+		dev_info(&pf->pdev->dev, "MFP mode Enabled\n");
 	}
 
 	if (pf->hw.func_caps.dcb)
@@ -5851,12 +5859,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		pf->flags |= I40E_FLAG_VMDQ_ENABLED;
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
 		pf->num_vmdq_qps = I40E_DEFAULT_QUEUES_PER_VMDQ;
-	}
-
-	/* MFP mode enabled */
-	if (pf->hw.func_caps.npar_enable || pf->hw.func_caps.mfp_mode_1) {
-		pf->flags |= I40E_FLAG_MFP_ENABLED;
-		dev_info(&pf->pdev->dev, "MFP mode Enabled\n");
 	}
 
 #ifdef CONFIG_PCI_IOV

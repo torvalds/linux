@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -255,8 +254,11 @@ i40e_status i40e_aq_mac_address_write(struct i40e_hw *hw,
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_mac_address_write);
 	cmd_data->command_flags = cpu_to_le16(flags);
-	memcpy(&cmd_data->mac_sal, &mac_addr[0], 4);
-	memcpy(&cmd_data->mac_sah, &mac_addr[4], 2);
+	cmd_data->mac_sah = cpu_to_le16((u16)mac_addr[0] << 8 | mac_addr[1]);
+	cmd_data->mac_sal = cpu_to_le32(((u32)mac_addr[2] << 24) |
+					((u32)mac_addr[3] << 16) |
+					((u32)mac_addr[4] << 8) |
+					mac_addr[5]);
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 

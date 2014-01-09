@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -775,7 +774,7 @@ void i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
 							rx_ring->rx_buf_len);
 			if (!skb) {
-				rx_ring->rx_stats.alloc_rx_buff_failed++;
+				rx_ring->rx_stats.alloc_buff_failed++;
 				goto no_buffers;
 			}
 			/* initialize queue mapping */
@@ -789,7 +788,7 @@ void i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
 			if (dma_mapping_error(rx_ring->dev, bi->dma)) {
-				rx_ring->rx_stats.alloc_rx_buff_failed++;
+				rx_ring->rx_stats.alloc_buff_failed++;
 				bi->dma = 0;
 				goto no_buffers;
 			}
@@ -799,7 +798,7 @@ void i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 			if (!bi->page) {
 				bi->page = alloc_page(GFP_ATOMIC);
 				if (!bi->page) {
-					rx_ring->rx_stats.alloc_rx_page_failed++;
+					rx_ring->rx_stats.alloc_page_failed++;
 					goto no_buffers;
 				}
 			}
@@ -814,7 +813,7 @@ void i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 							    DMA_FROM_DEVICE);
 				if (dma_mapping_error(rx_ring->dev,
 						      bi->page_dma)) {
-					rx_ring->rx_stats.alloc_rx_page_failed++;
+					rx_ring->rx_stats.alloc_page_failed++;
 					bi->page_dma = 0;
 					goto no_buffers;
 				}
@@ -991,15 +990,15 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		skb = rx_bi->skb;
 		prefetch(skb->data);
 
-		rx_packet_len = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK)
-					      >> I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
-		rx_header_len = (qword & I40E_RXD_QW1_LENGTH_HBUF_MASK)
-					      >> I40E_RXD_QW1_LENGTH_HBUF_SHIFT;
-		rx_sph = (qword & I40E_RXD_QW1_LENGTH_SPH_MASK)
-					      >> I40E_RXD_QW1_LENGTH_SPH_SHIFT;
+		rx_packet_len = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
+				I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		rx_header_len = (qword & I40E_RXD_QW1_LENGTH_HBUF_MASK) >>
+				I40E_RXD_QW1_LENGTH_HBUF_SHIFT;
+		rx_sph = (qword & I40E_RXD_QW1_LENGTH_SPH_MASK) >>
+			 I40E_RXD_QW1_LENGTH_SPH_SHIFT;
 
-		rx_error = (qword & I40E_RXD_QW1_ERROR_MASK)
-					      >> I40E_RXD_QW1_ERROR_SHIFT;
+		rx_error = (qword & I40E_RXD_QW1_ERROR_MASK) >>
+			   I40E_RXD_QW1_ERROR_SHIFT;
 		rx_hbo = rx_error & (1 << I40E_RX_DESC_ERROR_HBO_SHIFT);
 		rx_error &= ~(1 << I40E_RX_DESC_ERROR_HBO_SHIFT);
 
@@ -1115,8 +1114,8 @@ next_desc:
 		/* use prefetched values */
 		rx_desc = next_rxd;
 		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		rx_status = (qword & I40E_RXD_QW1_STATUS_MASK)
-						>> I40E_RXD_QW1_STATUS_SHIFT;
+		rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
+			    I40E_RXD_QW1_STATUS_SHIFT;
 	}
 
 	rx_ring->next_to_clean = i;
@@ -1415,10 +1414,10 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	cd_cmd = I40E_TX_CTX_DESC_TSO;
 	cd_tso_len = skb->len - *hdr_len;
 	cd_mss = skb_shinfo(skb)->gso_size;
-	*cd_type_cmd_tso_mss |= ((u64)cd_cmd << I40E_TXD_CTX_QW1_CMD_SHIFT)
-			     | ((u64)cd_tso_len
-				<< I40E_TXD_CTX_QW1_TSO_LEN_SHIFT)
-			     | ((u64)cd_mss << I40E_TXD_CTX_QW1_MSS_SHIFT);
+	*cd_type_cmd_tso_mss |= ((u64)cd_cmd << I40E_TXD_CTX_QW1_CMD_SHIFT) |
+				((u64)cd_tso_len <<
+				 I40E_TXD_CTX_QW1_TSO_LEN_SHIFT) |
+				((u64)cd_mss << I40E_TXD_CTX_QW1_MSS_SHIFT);
 	return 1;
 }
 
@@ -1716,6 +1715,7 @@ dma_error:
 static inline int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
+	/* Memory barrier before checking head and tail */
 	smp_mb();
 
 	/* Check again in a case another CPU has just made room available. */
