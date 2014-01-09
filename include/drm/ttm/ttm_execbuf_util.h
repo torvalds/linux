@@ -48,9 +48,6 @@
 struct ttm_validate_buffer {
 	struct list_head head;
 	struct ttm_buffer_object *bo;
-	bool reserved;
-	bool removed;
-	int put_count;
 	void *old_sync_obj;
 };
 

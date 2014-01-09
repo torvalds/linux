@@ -346,7 +346,6 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 		++sw_context->cur_val_buf;
 		val_buf = &vval_buf->base;
 		val_buf->bo = ttm_bo_reference(bo);
-		val_buf->reserved = false;
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
 		vval_buf->validate_as_mob = validate_as_mob;
 	}

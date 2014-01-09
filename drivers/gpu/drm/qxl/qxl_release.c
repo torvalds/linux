@@ -349,7 +349,6 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 
 		ttm_bo_add_to_lru(bo);
 		__ttm_bo_unreserve(bo);
-		entry->reserved = false;
 	}
 	spin_unlock(&glob->lru_lock);
 	ww_acquire_fini(&release->ticket);
