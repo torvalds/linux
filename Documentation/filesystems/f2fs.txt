@@ -190,6 +190,11 @@ Files in /sys/fs/f2fs/<devname>
                               of the filesystem utilization, and used by
                               F2FS_IPU_UTIL and F2FS_IPU_SSR_UTIL policies.
 
+ max_victim_search	      This parameter controls the number of trials to
+			      find a victim segment when conducting SSR and
+			      cleaning operations. The default value is 4096
+			      which covers 8GB block address range.
+
 ================================================================================
 USAGE
 ================================================================================
