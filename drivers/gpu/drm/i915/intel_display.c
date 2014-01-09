@@ -1374,8 +1374,12 @@ static void intel_reset_dpio(struct drm_device *dev)
 	if (!IS_VALLEYVIEW(dev))
 		return;
 
-	/* Enable the CRI clock source so we can get at the display */
+	/*
+	 * Enable the CRI clock source so we can get at the display and the
+	 * reference clock for VGA hotplug / manual detection.
+	 */
 	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+		   DPLL_REFA_CLK_ENABLE_VLV |
 		   DPLL_INTEGRATED_CRI_CLK_VLV);
 
 	/*
@@ -1504,9 +1508,12 @@ static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	/* Make sure the pipe isn't still relying on us */
 	assert_pipe_disabled(dev_priv, pipe);
 
-	/* Leave integrated clock source enabled */
+	/*
+	 * Leave integrated clock source and reference clock enabled for pipe B.
+	 * The latter is needed for VGA hotplug / manual detection.
+	 */
 	if (pipe == PIPE_B)
-		val = DPLL_INTEGRATED_CRI_CLK_VLV;
+		val = DPLL_INTEGRATED_CRI_CLK_VLV | DPLL_REFA_CLK_ENABLE_VLV;
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
 }
@@ -4983,7 +4990,11 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW11(pipe), 0x87871000);
 
-	/* Enable DPIO clock input */
+	/*
+	 * Enable DPIO clock input. We should never disable the reference
+	 * clock for pipe B, since VGA hotplug / manual detection depends
+	 * on it.
+	 */
 	dpll = DPLL_EXT_BUFFER_ENABLE_VLV | DPLL_REFA_CLK_ENABLE_VLV |
 		DPLL_VGA_MODE_DIS | DPLL_INTEGRATED_CLOCK_VLV;
 	/* We should never disable this, set it here for state tracking */
