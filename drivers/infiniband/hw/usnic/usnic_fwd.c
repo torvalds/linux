@@ -95,6 +95,29 @@ void usnic_fwd_set_mac(struct usnic_fwd_dev *ufdev, char mac[ETH_ALEN])
 	spin_unlock(&ufdev->lock);
 }
 
+int usnic_fwd_add_ipaddr(struct usnic_fwd_dev *ufdev, __be32 inaddr)
+{
+	int status;
+
+	spin_lock(&ufdev->lock);
+	if (ufdev->inaddr == 0) {
+		ufdev->inaddr = inaddr;
+		status = 0;
+	} else {
+		status = -EFAULT;
+	}
+	spin_unlock(&ufdev->lock);
+
+	return status;
+}
+
+void usnic_fwd_del_ipaddr(struct usnic_fwd_dev *ufdev)
+{
+	spin_lock(&ufdev->lock);
+	ufdev->inaddr = 0;
+	spin_unlock(&ufdev->lock);
+}
+
 void usnic_fwd_carrier_up(struct usnic_fwd_dev *ufdev)
 {
 	spin_lock(&ufdev->lock);
@@ -122,6 +145,30 @@ static int usnic_fwd_dev_ready_locked(struct usnic_fwd_dev *ufdev)
 
 	if (!ufdev->link_up)
 		return -EPERM;
+
+	return 0;
+}
+
+static int validate_filter_locked(struct usnic_fwd_dev *ufdev,
+					struct filter *filter)
+{
+
+	lockdep_assert_held(&ufdev->lock);
+
+	if (filter->type == FILTER_IPV4_5TUPLE) {
+		if (!(filter->u.ipv4.flags & FILTER_FIELD_5TUP_DST_AD))
+			return -EACCES;
+		if (!(filter->u.ipv4.flags & FILTER_FIELD_5TUP_DST_PT))
+			return -EBUSY;
+		else if (ufdev->inaddr == 0)
+			return -EINVAL;
+		else if (filter->u.ipv4.dst_port == 0)
+			return -ERANGE;
+		else if (ntohl(ufdev->inaddr) != filter->u.ipv4.dst_addr)
+			return -EFAULT;
+		else
+			return 0;
+	}
 
 	return 0;
 }
@@ -174,6 +221,13 @@ usnic_fwd_alloc_flow(struct usnic_fwd_dev *ufdev, struct filter *filter,
 	if (status) {
 		usnic_err("Forwarding dev %s not ready with status %d\n",
 				ufdev->name, status);
+		goto out_free_tlv;
+	}
+
+	status = validate_filter_locked(ufdev, filter);
+	if (status) {
+		usnic_err("Failed to validate filter with status %d\n",
+				status);
 		goto out_free_tlv;
 	}
 

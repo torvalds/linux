@@ -40,6 +40,7 @@ struct usnic_fwd_dev {
 	bool				link_up;
 	char				mac[ETH_ALEN];
 	unsigned int			mtu;
+	__be32				inaddr;
 	char				name[IFNAMSIZ+1];
 };
 
@@ -58,6 +59,8 @@ struct usnic_fwd_dev *usnic_fwd_dev_alloc(struct pci_dev *pdev);
 void usnic_fwd_dev_free(struct usnic_fwd_dev *ufdev);
 
 void usnic_fwd_set_mac(struct usnic_fwd_dev *ufdev, char mac[ETH_ALEN]);
+int usnic_fwd_add_ipaddr(struct usnic_fwd_dev *ufdev, __be32 inaddr);
+void usnic_fwd_del_ipaddr(struct usnic_fwd_dev *ufdev);
 void usnic_fwd_carrier_up(struct usnic_fwd_dev *ufdev);
 void usnic_fwd_carrier_down(struct usnic_fwd_dev *ufdev);
 void usnic_fwd_set_mtu(struct usnic_fwd_dev *ufdev, unsigned int mtu);
@@ -87,6 +90,24 @@ static inline void usnic_fwd_init_usnic_filter(struct filter *filter,
 					 USNIC_ROCE_GRH_VER_SHIFT) |
 					 USNIC_PROTO_VER;
 	filter->u.usnic.usnic_id = usnic_id;
+}
+
+static inline void usnic_fwd_init_udp_filter(struct filter *filter,
+						uint32_t daddr, uint16_t dport)
+{
+	filter->type = FILTER_IPV4_5TUPLE;
+	filter->u.ipv4.flags = FILTER_FIELD_5TUP_PROTO;
+	filter->u.ipv4.protocol = PROTO_UDP;
+
+	if (daddr) {
+		filter->u.ipv4.flags |= FILTER_FIELD_5TUP_DST_AD;
+		filter->u.ipv4.dst_addr = daddr;
+	}
+
+	if (dport) {
+		filter->u.ipv4.flags |= FILTER_FIELD_5TUP_DST_PT;
+		filter->u.ipv4.dst_port = dport;
+	}
 }
 
 #endif /* !USNIC_FWD_H_ */
