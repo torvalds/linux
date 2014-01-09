@@ -39,7 +39,7 @@ out_delete:
 static void str_node__delete(struct str_node *snode, bool dupstr)
 {
 	if (dupstr)
-		zfree((void **)&snode->s);
+		zfree((char **)&snode->s);
 	free(snode);
 }
 
