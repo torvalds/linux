@@ -366,7 +366,7 @@ static int nf_tables_updtable(struct sock *nlsk, struct sk_buff *skb,
 	int family = nfmsg->nfgen_family, ret = 0;
 
 	if (nla[NFTA_TABLE_FLAGS]) {
-		__be32 flags;
+		u32 flags;
 
 		flags = ntohl(nla_get_be32(nla[NFTA_TABLE_FLAGS]));
 		if (flags & ~NFT_TABLE_F_DORMANT)
@@ -402,6 +402,7 @@ static int nf_tables_newtable(struct sock *nlsk, struct sk_buff *skb,
 	struct nft_table *table;
 	struct net *net = sock_net(skb->sk);
 	int family = nfmsg->nfgen_family;
+	u32 flags = 0;
 
 	afi = nf_tables_afinfo_lookup(net, family, true);
 	if (IS_ERR(afi))
@@ -423,6 +424,12 @@ static int nf_tables_newtable(struct sock *nlsk, struct sk_buff *skb,
 		return nf_tables_updtable(nlsk, skb, nlh, nla, afi, table);
 	}
 
+	if (nla[NFTA_TABLE_FLAGS]) {
+		flags = ntohl(nla_get_be32(nla[NFTA_TABLE_FLAGS]));
+		if (flags & ~NFT_TABLE_F_DORMANT)
+			return -EINVAL;
+	}
+
 	table = kzalloc(sizeof(*table) + nla_len(name), GFP_KERNEL);
 	if (table == NULL)
 		return -ENOMEM;
@@ -430,18 +437,7 @@ static int nf_tables_newtable(struct sock *nlsk, struct sk_buff *skb,
 	nla_strlcpy(table->name, name, nla_len(name));
 	INIT_LIST_HEAD(&table->chains);
 	INIT_LIST_HEAD(&table->sets);
-
-	if (nla[NFTA_TABLE_FLAGS]) {
-		__be32 flags;
-
-		flags = ntohl(nla_get_be32(nla[NFTA_TABLE_FLAGS]));
-		if (flags & ~NFT_TABLE_F_DORMANT) {
-			kfree(table);
-			return -EINVAL;
-		}
-
-		table->flags |= flags;
-	}
+	table->flags = flags;
 
 	list_add_tail(&table->list, &afi->tables);
 	nf_tables_table_notify(skb, nlh, table, NFT_MSG_NEWTABLE, family);
