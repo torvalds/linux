@@ -1227,6 +1227,17 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 }
 
+static int find_highest_prio_tid(unsigned long tids)
+{
+	/* lower 3 TIDs aren't ordered perfectly */
+	if (tids & 0xF8)
+		return fls(tids) - 1;
+	/* TID 0 is BE just like TID 3 */
+	if (tids & BIT(0))
+		return 0;
+	return fls(tids) - 1;
+}
+
 static void
 ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 				  int n_frames, u8 ignored_acs,
@@ -1288,7 +1299,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			    hweight16(driver_release_tids) > 1) {
 				more_data = true;
 				driver_release_tids =
-					BIT(ffs(driver_release_tids) - 1);
+					BIT(find_highest_prio_tid(
+						driver_release_tids));
 				break;
 			}
 		}
