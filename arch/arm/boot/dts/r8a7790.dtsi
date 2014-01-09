@@ -626,25 +626,5 @@
 			clock-output-names =
 				"rcan1", "rcan0", "qspi_mod", "i2c3", "i2c2", "i2c1", "i2c0";
 		};
-		mstp10_clks: mstp10_clks@e6150998 {
-			compatible = "renesas,r8a7790-mstp-clocks", "renesas,cpg-mstp-clocks";
-			reg = <0 0xe6150998 0 4>, <0 0xe61509a8 0 4>;
-			clocks = <&p_clk>, <&mstp10_clks R8A7790_CLK_SSI>,
-				 <&mstp10_clks R8A7790_CLK_SSI>, <&mstp10_clks R8A7790_CLK_SSI>,
-				 <&mstp10_clks R8A7790_CLK_SSI>, <&mstp10_clks R8A7790_CLK_SSI>,
-				 <&mstp10_clks R8A7790_CLK_SSI>, <&mstp10_clks R8A7790_CLK_SSI>,
-				 <&mstp10_clks R8A7790_CLK_SSI>, <&mstp10_clks R8A7790_CLK_SSI>,
-				 <&mstp10_clks R8A7790_CLK_SSI>;
-			#clock-cells = <1>;
-			renesas,clock-indices = <
-				R8A7790_CLK_SSI R8A7790_CLK_SSI9 R8A7790_CLK_SSI8
-				R8A7790_CLK_SSI7 R8A7790_CLK_SSI6 R8A7790_CLK_SSI5
-				R8A7790_CLK_SSI4 R8A7790_CLK_SSI3 R8A7790_CLK_SSI2
-				R8A7790_CLK_SSI1 R8A7790_CLK_SSI0
-			>;
-			clock-output-names =
-				"ssi", "ssi9", "ssi8", "ssi7", "ssi6", "ssi5",
-				"ssi4", "ssi3", "ssi2", "ssi1", "ssi0";
-		};
 	};
 };
