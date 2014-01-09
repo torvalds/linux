@@ -329,7 +329,7 @@ static struct cpuidle_state atom_cstates[] = {
 	{
 		.enter = NULL }
 };
-static struct cpuidle_state avn_cstates[] __initdata = {
+static struct cpuidle_state avn_cstates[] = {
 	{
 		.name = "C1-AVN",
 		.desc = "MWAIT 0x00",
@@ -344,6 +344,8 @@ static struct cpuidle_state avn_cstates[] __initdata = {
 		.exit_latency = 15,
 		.target_residency = 45,
 		.enter = &intel_idle },
+	{
+		.enter = NULL }
 };
 
 /**
