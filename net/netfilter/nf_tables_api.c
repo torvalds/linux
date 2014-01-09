@@ -834,9 +834,6 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 	if (IS_ERR(table))
 		return PTR_ERR(table);
 
-	if (table->use == UINT_MAX)
-		return -EOVERFLOW;
-
 	chain = NULL;
 	name = nla[NFTA_CHAIN_NAME];
 
@@ -898,6 +895,9 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 
 		goto notify;
 	}
+
+	if (table->use == UINT_MAX)
+		return -EOVERFLOW;
 
 	if (nla[NFTA_CHAIN_HOOK]) {
 		struct nf_hook_ops *ops;
