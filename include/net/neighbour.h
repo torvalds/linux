@@ -92,6 +92,11 @@ static inline void neigh_var_set(struct neigh_parms *p, int index, int val)
 }
 
 #define NEIGH_VAR(p, attr) ((p)->data[NEIGH_VAR_ ## attr])
+
+/* In ndo_neigh_setup, NEIGH_VAR_INIT should be used.
+ * In other cases, NEIGH_VAR_SET should be used.
+ */
+#define NEIGH_VAR_INIT(p, attr, val) (NEIGH_VAR(p, attr) = val)
 #define NEIGH_VAR_SET(p, attr, val) neigh_var_set(p, NEIGH_VAR_ ## attr, val)
 
 static inline void neigh_parms_data_state_setall(struct neigh_parms *p)
