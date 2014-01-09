@@ -685,7 +685,7 @@ static void spi_pump_messages(struct kthread_work *work)
 	}
 	/* Extract head of queue */
 	master->cur_msg =
-	    list_entry(master->queue.next, struct spi_message, queue);
+		list_first_entry(&master->queue, struct spi_message, queue);
 
 	list_del_init(&master->cur_msg->queue);
 	if (master->busy)
