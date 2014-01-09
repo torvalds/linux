@@ -467,7 +467,7 @@ static int nf_tables_deltable(struct sock *nlsk, struct sk_buff *skb,
 	if (IS_ERR(table))
 		return PTR_ERR(table);
 
-	if (table->use)
+	if (!list_empty(&table->chains) || !list_empty(&table->sets))
 		return -EBUSY;
 
 	list_del(&table->list);
