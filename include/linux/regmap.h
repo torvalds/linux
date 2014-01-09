@@ -122,9 +122,9 @@ typedef void (*regmap_unlock)(void *);
  *		  volatile_table (see below) is not, the check is performed on
  *                such table (a register is volatile if it belongs to one of
  *                the ranges specified by volatile_table).
- * @precious_reg: Optional callback returning true if the rgister
+ * @precious_reg: Optional callback returning true if the register
  *		  should not be read outside of a call from the driver
- *		  (eg, a clear on read interrupt status register). If this
+ *		  (e.g., a clear on read interrupt status register). If this
  *                field is NULL but precious_table (see below) is not, the
  *                check is performed on such table (a register is precious if
  *                it belongs to one of the ranges specified by precious_table).
@@ -136,9 +136,9 @@ typedef void (*regmap_unlock)(void *);
  *		  are not overridden).
  * @reg_read:	  Optional callback that if filled will be used to perform
  *           	  all the reads from the registers. Should only be provided for
- *		  devices whos read operation cannot be represented as a simple read
- *		  operation on a bus such as SPI, I2C, etc. Most of the devices do
- * 		  not need this.
+ *		  devices whose read operation cannot be represented as a simple
+ *		  read operation on a bus such as SPI, I2C, etc. Most of the
+ *		  devices do not need this.
  * @reg_write:	  Same as above for writing.
  * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
  *	     	  to perform locking. This field is ignored if custom lock/unlock
