@@ -1711,6 +1711,7 @@ int qlcnic_83xx_init_mailbox_work(struct qlcnic_adapter *);
 void qlcnic_83xx_detach_mailbox_work(struct qlcnic_adapter *);
 void qlcnic_83xx_reinit_mbx_work(struct qlcnic_mailbox *mbx);
 void qlcnic_83xx_free_mailbox(struct qlcnic_mailbox *mbx);
+void qlcnic_update_stats(struct qlcnic_adapter *);
 
 /* Adapter hardware abstraction */
 struct qlcnic_hardware_ops {

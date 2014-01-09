@@ -1267,7 +1267,7 @@ static u64 *qlcnic_fill_stats(u64 *data, void *stats, int type)
 	return data;
 }
 
-static void qlcnic_update_stats(struct qlcnic_adapter *adapter)
+void qlcnic_update_stats(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_host_tx_ring *tx_ring;
 	int ring;
