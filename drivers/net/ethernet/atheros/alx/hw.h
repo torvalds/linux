@@ -381,7 +381,12 @@ struct alx_rrd {
 				 ALX_ISR_RX_Q6 | \
 				 ALX_ISR_RX_Q7)
 
-/* Statistics counters collected by the MAC */
+/* Statistics counters collected by the MAC
+ *
+ * The order of the fields must match the strings in alx_gstrings_stats
+ * All stats fields should be u64
+ * See ethtool.c
+ */
 struct alx_hw_stats {
 	/* rx */
 	u64 rx_ok;		/* good RX packets */
