@@ -40,6 +40,7 @@ struct gpio_extcon_data {
 	int irq;
 	struct delayed_work work;
 	unsigned long debounce_jiffies;
+	bool check_on_resume;
 };
 
 static void gpio_extcon_work(struct work_struct *work)
@@ -103,6 +104,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	extcon_data->gpio_active_low = pdata->gpio_active_low;
 	extcon_data->state_on = pdata->state_on;
 	extcon_data->state_off = pdata->state_off;
+	extcon_data->check_on_resume = pdata->check_on_resume;
 	if (pdata->state_on && pdata->state_off)
 		extcon_data->edev.print_state = extcon_gpio_print_state;
 
@@ -160,12 +162,31 @@ static int gpio_extcon_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int gpio_extcon_resume(struct device *dev)
+{
+	struct gpio_extcon_data *extcon_data;
+
+	extcon_data = dev_get_drvdata(dev);
+	if (extcon_data->check_on_resume)
+		queue_delayed_work(system_power_efficient_wq,
+			&extcon_data->work, extcon_data->debounce_jiffies);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops gpio_extcon_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, gpio_extcon_resume)
+};
+
 static struct platform_driver gpio_extcon_driver = {
 	.probe		= gpio_extcon_probe,
 	.remove		= gpio_extcon_remove,
 	.driver		= {
 		.name	= "extcon-gpio",
 		.owner	= THIS_MODULE,
+		.pm	= &gpio_extcon_pm_ops,
 	},
 };
 
