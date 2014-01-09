@@ -714,6 +714,29 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 	iwl_abort_notification_waits(&mvm->notif_wait);
 
 	/*
+	 * This is a bit racy, but worst case we tell mac80211 about
+	 * a stopped/aborted scan when that was already done which
+	 * is not a problem. It is necessary to abort any os scan
+	 * here because mac80211 requires having the scan cleared
+	 * before restarting.
+	 * We'll reset the scan_status to NONE in restart cleanup in
+	 * the next start() call from mac80211. If restart isn't called
+	 * (no fw restart) scan status will stay busy.
+	 */
+	switch (mvm->scan_status) {
+	case IWL_MVM_SCAN_NONE:
+		break;
+	case IWL_MVM_SCAN_OS:
+		ieee80211_scan_completed(mvm->hw, true);
+		break;
+	case IWL_MVM_SCAN_SCHED:
+		/* Sched scan will be restarted by mac80211 in restart_hw. */
+		if (!mvm->restart_fw)
+			ieee80211_sched_scan_stopped(mvm->hw);
+		break;
+	}
+
+	/*
 	 * If we're restarting already, don't cycle restarts.
 	 * If INIT fw asserted, it will likely fail again.
 	 * If WoWLAN fw asserted, don't restart either, mac80211
@@ -744,26 +767,6 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
 	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR && mvm->restart_fw) {
-		/*
-		 * This is a bit racy, but worst case we tell mac80211 about
-		 * a stopped/aborted (sched) scan when that was already done
-		 * which is not a problem. It is necessary to abort any scan
-		 * here because mac80211 requires having the scan cleared
-		 * before restarting.
-		 * We'll reset the scan_status to NONE in restart cleanup in
-		 * the next start() call from mac80211.
-		 */
-		switch (mvm->scan_status) {
-		case IWL_MVM_SCAN_NONE:
-			break;
-		case IWL_MVM_SCAN_OS:
-			ieee80211_scan_completed(mvm->hw, true);
-			break;
-		case IWL_MVM_SCAN_SCHED:
-			/* Sched scan will be restarted by mac80211. */
-			break;
-		}
-
 		if (mvm->restart_fw > 0)
 			mvm->restart_fw--;
 		ieee80211_restart_hw(mvm->hw);

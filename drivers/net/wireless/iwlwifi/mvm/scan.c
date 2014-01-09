@@ -487,7 +487,7 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_CMD, CMD_SYNC, 0, NULL);
 	if (ret) {
 		IWL_ERR(mvm, "Couldn't send SCAN_ABORT_CMD: %d\n", ret);
-		/* mac80211's state will be cleaned in the fw_restart flow */
+		/* mac80211's state will be cleaned in the nic_restart flow */
 		goto out_remove_notif;
 	}
 
