@@ -407,6 +407,7 @@ void comedi_driver_unregister(struct comedi_driver *);
 #define PCI_VENDOR_ID_IOTECH		0x1616
 #define PCI_VENDOR_ID_CONTEC		0x1221
 #define PCI_VENDOR_ID_RTD		0x1435
+#define PCI_VENDOR_ID_HUMUSOFT		0x186c
 
 struct pci_dev;
 struct pci_driver;
