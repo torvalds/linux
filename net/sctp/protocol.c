@@ -1030,6 +1030,7 @@ static const struct net_protocol sctp_protocol = {
 	.err_handler = sctp_v4_err,
 	.no_policy   = 1,
 	.netns_ok    = 1,
+	.icmp_strict_tag_validation = 1,
 };
 
 /* IPv4 address related functions.  */

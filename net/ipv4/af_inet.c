@@ -1545,6 +1545,7 @@ static const struct net_protocol tcp_protocol = {
 	.err_handler	=	tcp_v4_err,
 	.no_policy	=	1,
 	.netns_ok	=	1,
+	.icmp_strict_tag_validation = 1,
 };
 
 static const struct net_protocol udp_protocol = {
