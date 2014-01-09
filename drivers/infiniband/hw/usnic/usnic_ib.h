@@ -109,4 +109,11 @@ struct usnic_ib_mr *to_umr(struct ib_mr *ibmr)
 	return container_of(ibmr, struct usnic_ib_mr, ibmr);
 }
 void usnic_ib_log_vf(struct usnic_ib_vf *vf);
+
+#define UPDATE_PTR_LEFT(N, P, L)			\
+do {							\
+	L -= (N);					\
+	P += (N);					\
+} while (0)
+
 #endif /* USNIC_IB_H_ */

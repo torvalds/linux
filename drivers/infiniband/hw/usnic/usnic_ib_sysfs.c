@@ -30,12 +30,6 @@
 #include "usnic_ib_verbs.h"
 #include "usnic_log.h"
 
-#define UPDATE_PTR_LEFT(N, P, L)			\
-do {							\
-	L -= (N);					\
-	P += (N);					\
-} while (0)
-
 static ssize_t usnic_ib_show_fw_ver(struct device *device,
 					struct device_attribute *attr,
 					char *buf)

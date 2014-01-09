@@ -19,6 +19,7 @@
 #ifndef USNIC_IB_QP_GRP_H_
 #define USNIC_IB_QP_GRP_H_
 
+#include <linux/debugfs.h>
 #include <rdma/ib_verbs.h>
 
 #include "usnic_ib.h"
@@ -62,6 +63,10 @@ struct usnic_ib_qp_grp_flow {
 	};
 	struct usnic_ib_qp_grp		*qp_grp;
 	struct list_head		link;
+
+	/* Debug FS */
+	struct dentry			*dbgfs_dentry;
+	char				dentry_name[32];
 };
 
 static const struct

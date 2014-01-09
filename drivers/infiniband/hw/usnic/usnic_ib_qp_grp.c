@@ -24,6 +24,7 @@
 #include "usnic_vnic.h"
 #include "usnic_fwd.h"
 #include "usnic_uiom.h"
+#include "usnic_debugfs.h"
 #include "usnic_ib_qp_grp.h"
 #include "usnic_ib_sysfs.h"
 #include "usnic_transport.h"
@@ -340,8 +341,10 @@ create_and_add_flow(struct usnic_ib_qp_grp *qp_grp,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!IS_ERR_OR_NULL(qp_flow))
+	if (!IS_ERR_OR_NULL(qp_flow)) {
 		list_add_tail(&qp_flow->link, &qp_grp->flows_lst);
+		usnic_debugfs_flow_add(qp_flow);
+	}
 
 
 	return qp_flow;
@@ -349,6 +352,7 @@ create_and_add_flow(struct usnic_ib_qp_grp *qp_grp,
 
 static void release_and_remove_flow(struct usnic_ib_qp_grp_flow *qp_flow)
 {
+	usnic_debugfs_flow_remove(qp_flow);
 	list_del(&qp_flow->link);
 
 	switch (qp_flow->trans_type) {
@@ -728,9 +732,9 @@ void usnic_ib_qp_grp_destroy(struct usnic_ib_qp_grp *qp_grp)
 	WARN_ON(qp_grp->state != IB_QPS_RESET);
 	lockdep_assert_held(&qp_grp->vf->lock);
 
+	release_and_remove_all_flows(qp_grp);
 	usnic_ib_sysfs_qpn_remove(qp_grp);
 	qp_grp_and_vf_unbind(qp_grp);
-	release_and_remove_all_flows(qp_grp);
 	free_qp_grp_res(qp_grp->res_chunk_list);
 	kfree(qp_grp);
 }
