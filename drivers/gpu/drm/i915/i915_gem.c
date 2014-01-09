@@ -4577,7 +4577,7 @@ void i915_init_vm(struct drm_i915_private *dev_priv,
 	INIT_LIST_HEAD(&vm->active_list);
 	INIT_LIST_HEAD(&vm->inactive_list);
 	INIT_LIST_HEAD(&vm->global_link);
-	list_add(&vm->global_link, &dev_priv->vm_list);
+	list_add_tail(&vm->global_link, &dev_priv->vm_list);
 }
 
 void
