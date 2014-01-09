@@ -1847,6 +1847,18 @@ static size_t chv_get_stolen_size(u16 gmch_ctrl)
 		return (gmch_ctrl - 0x17 + 9) << 22;
 }
 
+static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
+{
+	gen9_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
+	gen9_gmch_ctl &= BDW_GMCH_GMS_MASK;
+
+	if (gen9_gmch_ctl < 0xf0)
+		return gen9_gmch_ctl << 25; /* 32 MB units */
+	else
+		/* 4MB increments starting at 0xf0 for 4MB */
+		return (gen9_gmch_ctl - 0xf0 + 1) << 22;
+}
+
 static int ggtt_probe_common(struct drm_device *dev,
 			     size_t gtt_size)
 {
@@ -1943,7 +1955,10 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		*stolen = gen9_get_stolen_size(snb_gmch_ctl);
+		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+	} else if (IS_CHERRYVIEW(dev)) {
 		*stolen = chv_get_stolen_size(snb_gmch_ctl);
 		gtt_size = chv_get_total_gtt_size(snb_gmch_ctl);
 	} else {
