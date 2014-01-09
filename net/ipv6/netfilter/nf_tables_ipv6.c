@@ -104,8 +104,14 @@ static const struct nf_chain_type filter_ipv6 = {
 
 static int __init nf_tables_ipv6_init(void)
 {
+	int ret;
+
 	nft_register_chain_type(&filter_ipv6);
-	return register_pernet_subsys(&nf_tables_ipv6_net_ops);
+	ret = register_pernet_subsys(&nf_tables_ipv6_net_ops);
+	if (ret < 0)
+		nft_unregister_chain_type(&filter_ipv6);
+
+	return ret;
 }
 
 static void __exit nf_tables_ipv6_exit(void)

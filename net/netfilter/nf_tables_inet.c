@@ -80,8 +80,14 @@ static const struct nf_chain_type filter_inet = {
 
 static int __init nf_tables_inet_init(void)
 {
+	int ret;
+
 	nft_register_chain_type(&filter_inet);
-	return register_pernet_subsys(&nf_tables_inet_net_ops);
+	ret = register_pernet_subsys(&nf_tables_inet_net_ops);
+	if (ret < 0)
+		nft_unregister_chain_type(&filter_inet);
+
+	return ret;
 }
 
 static void __exit nf_tables_inet_exit(void)

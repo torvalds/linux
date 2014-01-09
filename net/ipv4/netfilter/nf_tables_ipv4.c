@@ -105,8 +105,14 @@ static const struct nf_chain_type filter_ipv4 = {
 
 static int __init nf_tables_ipv4_init(void)
 {
+	int ret;
+
 	nft_register_chain_type(&filter_ipv4);
-	return register_pernet_subsys(&nf_tables_ipv4_net_ops);
+	ret = register_pernet_subsys(&nf_tables_ipv4_net_ops);
+	if (ret < 0)
+		nft_unregister_chain_type(&filter_ipv4);
+
+	return ret;
 }
 
 static void __exit nf_tables_ipv4_exit(void)
