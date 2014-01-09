@@ -24,7 +24,7 @@
 #include <net/iw_handler.h>
 #include "ieee80211/dot11d.h"
 
-u32 rtl8180_rates[] = {1000000, 2000000, 5500000, 11000000,
+static u32 rtl8180_rates[] = {1000000, 2000000, 5500000, 11000000,
 	6000000, 9000000, 12000000, 18000000, 24000000, 36000000, 48000000, 54000000};
 
 #define RATE_COUNT ARRAY_SIZE(rtl8180_rates)
