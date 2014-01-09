@@ -71,17 +71,12 @@ static int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	struct ir_table *table = iommu->ir_table;
 	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	struct irq_cfg *cfg = irq_get_chip_data(irq);
-	u16 index, start_index;
 	unsigned int mask = 0;
 	unsigned long flags;
+	int index;
 
 	if (!count || !irq_iommu)
 		return -1;
-
-	/*
-	 * start the IRTE search from index 0.
-	 */
-	index = start_index = 0;
 
 	if (count > 1) {
 		count = __roundup_pow_of_two(count);
