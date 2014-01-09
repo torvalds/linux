@@ -486,6 +486,9 @@ struct alx_hw {
 
 	/* PHY link patch flag */
 	bool lnk_patch;
+
+	/* cumulated stats from the hardware (registers are cleared on read) */
+	struct alx_hw_stats stats;
 };
 
 static inline int alx_hw_revision(struct alx_hw *hw)
@@ -553,6 +556,7 @@ bool alx_phy_configured(struct alx_hw *hw);
 void alx_configure_basic(struct alx_hw *hw);
 void alx_disable_rss(struct alx_hw *hw);
 bool alx_get_phy_info(struct alx_hw *hw);
+void alx_update_hw_stats(struct alx_hw *hw);
 
 static inline u32 alx_speed_to_ethadv(int speed, u8 duplex)
 {
