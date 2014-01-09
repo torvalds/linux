@@ -430,9 +430,14 @@ static int nf_tables_newtable(struct sock *nlsk, struct sk_buff *skb,
 			return -EINVAL;
 	}
 
+	if (!try_module_get(afi->owner))
+		return -EAFNOSUPPORT;
+
 	table = kzalloc(sizeof(*table) + nla_len(name), GFP_KERNEL);
-	if (table == NULL)
+	if (table == NULL) {
+		module_put(afi->owner);
 		return -ENOMEM;
+	}
 
 	nla_strlcpy(table->name, name, nla_len(name));
 	INIT_LIST_HEAD(&table->chains);
@@ -468,6 +473,7 @@ static int nf_tables_deltable(struct sock *nlsk, struct sk_buff *skb,
 	list_del(&table->list);
 	nf_tables_table_notify(skb, nlh, table, NFT_MSG_DELTABLE, family);
 	kfree(table);
+	module_put(afi->owner);
 	return 0;
 }
 
