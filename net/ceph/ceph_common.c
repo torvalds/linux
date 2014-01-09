@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/string.h>
+#include <linux/vmalloc.h>
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 
@@ -169,6 +170,25 @@ int ceph_compare_options(struct ceph_options *new_opt,
 	return -1;
 }
 EXPORT_SYMBOL(ceph_compare_options);
+
+void *ceph_kvmalloc(size_t size, gfp_t flags)
+{
+	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+		void *ptr = kmalloc(size, flags | __GFP_NOWARN);
+		if (ptr)
+			return ptr;
+	}
+
+	return __vmalloc(size, flags | __GFP_HIGHMEM, PAGE_KERNEL);
+}
+
+void ceph_kvfree(const void *ptr)
+{
+	if (is_vmalloc_addr(ptr))
+		vfree(ptr);
+	else
+		kfree(ptr);
+}
 
 
 static int parse_fsid(const char *str, struct ceph_fsid *fsid)

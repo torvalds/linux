@@ -154,7 +154,6 @@ struct ceph_msg {
 	struct list_head list_head;	/* links for connection lists */
 
 	struct kref kref;
-	bool front_is_vmalloc;
 	bool more_to_follow;
 	bool needs_out_seq;
 	int front_alloc_len;

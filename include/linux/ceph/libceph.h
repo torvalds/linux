@@ -173,15 +173,18 @@ static inline int calc_pages_for(u64 off, u64 len)
 		(off >> PAGE_CACHE_SHIFT);
 }
 
+extern struct kmem_cache *ceph_inode_cachep;
+extern struct kmem_cache *ceph_cap_cachep;
+extern struct kmem_cache *ceph_dentry_cachep;
+extern struct kmem_cache *ceph_file_cachep;
+
 /* ceph_common.c */
 extern bool libceph_compatible(void *data);
 
 extern const char *ceph_msg_type_name(int type);
 extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
-extern struct kmem_cache *ceph_inode_cachep;
-extern struct kmem_cache *ceph_cap_cachep;
-extern struct kmem_cache *ceph_dentry_cachep;
-extern struct kmem_cache *ceph_file_cachep;
+extern void *ceph_kvmalloc(size_t size, gfp_t flags);
+extern void ceph_kvfree(const void *ptr);
 
 extern struct ceph_options *ceph_parse_options(char *options,
 			      const char *dev_name, const char *dev_name_end,

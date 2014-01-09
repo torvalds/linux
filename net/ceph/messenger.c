@@ -3131,13 +3131,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 
 	/* front */
 	if (front_len) {
-		if (front_len > PAGE_CACHE_SIZE) {
-			m->front.iov_base = __vmalloc(front_len, flags,
-						      PAGE_KERNEL);
-			m->front_is_vmalloc = true;
-		} else {
-			m->front.iov_base = kmalloc(front_len, flags);
-		}
+		m->front.iov_base = ceph_kvmalloc(front_len, flags);
 		if (m->front.iov_base == NULL) {
 			dout("ceph_msg_new can't allocate %d bytes\n",
 			     front_len);
@@ -3259,10 +3253,7 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 void ceph_msg_kfree(struct ceph_msg *m)
 {
 	dout("msg_kfree %p\n", m);
-	if (m->front_is_vmalloc)
-		vfree(m->front.iov_base);
-	else
-		kfree(m->front.iov_base);
+	ceph_kvfree(m->front.iov_base);
 	kmem_cache_free(ceph_msg_cache, m);
 }
 
