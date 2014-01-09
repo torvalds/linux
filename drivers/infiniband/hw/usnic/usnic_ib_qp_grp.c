@@ -246,6 +246,80 @@ static void release_roce_custom_flow(struct usnic_ib_qp_grp_flow *qp_flow)
 }
 
 static struct usnic_ib_qp_grp_flow*
+create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
+		struct usnic_transport_spec *trans_spec)
+{
+	struct socket *sock;
+	int sock_fd;
+	int err;
+	struct filter filter;
+	struct usnic_filter_action uaction;
+	struct usnic_ib_qp_grp_flow *qp_flow;
+	struct usnic_fwd_flow *flow;
+	enum usnic_transport_type trans_type;
+	uint32_t addr;
+	uint16_t port_num;
+	int proto;
+
+	trans_type = trans_spec->trans_type;
+	sock_fd = trans_spec->udp.sock_fd;
+
+	/* Get and check socket */
+	sock = usnic_transport_get_socket(sock_fd);
+	if (IS_ERR_OR_NULL(sock))
+		return ERR_CAST(sock);
+
+	err = usnic_transport_sock_get_addr(sock, &proto, &addr, &port_num);
+	if (err)
+		goto out_put_sock;
+
+	if (proto != IPPROTO_UDP) {
+		usnic_err("Protocol for fd %d is not UDP", sock_fd);
+		err = -EPERM;
+		goto out_put_sock;
+	}
+
+	/* Create flow */
+	usnic_fwd_init_udp_filter(&filter, addr, port_num);
+	err = init_filter_action(qp_grp, &uaction);
+	if (err)
+		goto out_put_sock;
+
+	flow = usnic_fwd_alloc_flow(qp_grp->ufdev, &filter, &uaction);
+	if (IS_ERR_OR_NULL(flow)) {
+		usnic_err("Unable to alloc flow failed with err %ld\n",
+				PTR_ERR(flow));
+		err = (flow) ? PTR_ERR(flow) : -EFAULT;
+		goto out_put_sock;
+	}
+
+	/* Create qp_flow */
+	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
+	if (IS_ERR_OR_NULL(qp_flow)) {
+		err = (qp_flow) ? PTR_ERR(qp_flow) : -ENOMEM;
+		goto out_dealloc_flow;
+	}
+	qp_flow->flow = flow;
+	qp_flow->trans_type = trans_type;
+	qp_flow->udp.sock = sock;
+	qp_flow->qp_grp = qp_grp;
+	return qp_flow;
+
+out_dealloc_flow:
+	usnic_fwd_dealloc_flow(flow);
+out_put_sock:
+	usnic_transport_put_socket(sock);
+	return ERR_PTR(err);
+}
+
+static void release_udp_flow(struct usnic_ib_qp_grp_flow *qp_flow)
+{
+	usnic_fwd_dealloc_flow(qp_flow->flow);
+	usnic_transport_put_socket(qp_flow->udp.sock);
+	kfree(qp_flow);
+}
+
+static struct usnic_ib_qp_grp_flow*
 create_and_add_flow(struct usnic_ib_qp_grp *qp_grp,
 			struct usnic_transport_spec *trans_spec)
 {
@@ -256,6 +330,9 @@ create_and_add_flow(struct usnic_ib_qp_grp *qp_grp,
 	switch (trans_type) {
 	case USNIC_TRANSPORT_ROCE_CUSTOM:
 		qp_flow = create_roce_custom_flow(qp_grp, trans_spec);
+		break;
+	case USNIC_TRANSPORT_IPV4_UDP:
+		qp_flow = create_udp_flow(qp_grp, trans_spec);
 		break;
 	default:
 		usnic_err("Unsupported transport %u\n",
@@ -277,6 +354,9 @@ static void release_and_remove_flow(struct usnic_ib_qp_grp_flow *qp_flow)
 	switch (qp_flow->trans_type) {
 	case USNIC_TRANSPORT_ROCE_CUSTOM:
 		release_roce_custom_flow(qp_flow);
+		break;
+	case USNIC_TRANSPORT_IPV4_UDP:
+		release_udp_flow(qp_flow);
 		break;
 	default:
 		WARN(1, "Unsupported transport %u\n",
@@ -544,10 +624,18 @@ static int qp_grp_id_from_flow(struct usnic_ib_qp_grp_flow *qp_flow,
 				uint32_t *id)
 {
 	enum usnic_transport_type trans_type = qp_flow->trans_type;
+	int err;
 
 	switch (trans_type) {
 	case USNIC_TRANSPORT_ROCE_CUSTOM:
 		*id = qp_flow->usnic_roce.port_num;
+		break;
+	case USNIC_TRANSPORT_IPV4_UDP:
+		err = usnic_transport_sock_get_addr(qp_flow->udp.sock,
+							NULL, NULL,
+							(uint16_t *) id);
+		if (err)
+			return err;
 		break;
 	default:
 		usnic_err("Unsupported transport %u\n", trans_type);

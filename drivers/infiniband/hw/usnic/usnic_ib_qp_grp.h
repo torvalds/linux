@@ -56,6 +56,9 @@ struct usnic_ib_qp_grp_flow {
 		struct {
 			uint16_t	port_num;
 		} usnic_roce;
+		struct {
+			struct socket	*sock;
+		} udp;
 	};
 	struct usnic_ib_qp_grp		*qp_grp;
 	struct list_head		link;
@@ -69,6 +72,14 @@ usnic_vnic_res_spec min_transport_spec[USNIC_TRANSPORT_MAX] = {
 		},
 	},
 	{ /*USNIC_TRANSPORT_ROCE_CUSTOM*/
+		.resources = {
+			{.type = USNIC_VNIC_RES_TYPE_WQ,	.cnt = 1,},
+			{.type = USNIC_VNIC_RES_TYPE_RQ,	.cnt = 1,},
+			{.type = USNIC_VNIC_RES_TYPE_CQ,	.cnt = 1,},
+			{.type = USNIC_VNIC_RES_TYPE_EOL,	.cnt = 0,},
+		},
+	},
+	{ /*USNIC_TRANSPORT_IPV4_UDP*/
 		.resources = {
 			{.type = USNIC_VNIC_RES_TYPE_WQ,	.cnt = 1,},
 			{.type = USNIC_VNIC_RES_TYPE_RQ,	.cnt = 1,},
