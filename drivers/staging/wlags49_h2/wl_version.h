@@ -129,15 +129,12 @@ err: define bus type;
 #endif  /* HERMES25 */
 #endif  /* BUS_XXX */
 
-#define MODULE_DATE         "07/18/2004 13:30:00"
-
 //#define STR2(m) #m
 //#define STR1(m) STR2(m)
 //#define MODULE_NAME			STR1( MOD_NAME )
 
-#define VERSION_INFO        MODULE_NAME " v" DRV_VERSION_STR \
-							" for " BUS_TYPE ", " 											   	 \
-							MODULE_DATE " by " VENDOR_NAME
+#define VERSION_INFO	MODULE_NAME " v" DRV_VERSION_STR	\
+			" for " BUS_TYPE ", by " VENDOR_NAME
 
 /* The version of wireless extensions we support */
 #define WIRELESS_SUPPORT    21
