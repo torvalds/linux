@@ -426,18 +426,6 @@ retry:
 }
 
 static int
-validate_sync(struct nouveau_channel *chan, struct nouveau_bo *nvbo)
-{
-	struct nouveau_fence *fence = nvbo->bo.sync_obj;
-	int ret = 0;
-
-	if (fence)
-		ret = nouveau_fence_sync(fence, chan);
-
-	return ret;
-}
-
-static int
 validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 	      struct list_head *list, struct drm_nouveau_gem_pushbuf_bo *pbbo,
 	      uint64_t user_pbbo_ptr)
@@ -466,9 +454,10 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 			return ret;
 		}
 
-		ret = validate_sync(chan, nvbo);
+		ret = nouveau_fence_sync(nvbo, chan);
 		if (unlikely(ret)) {
-			NV_PRINTK(error, cli, "fail post-validate sync\n");
+			if (ret != -ERESTARTSYS)
+				NV_PRINTK(error, cli, "fail post-validate sync\n");
 			return ret;
 		}
 

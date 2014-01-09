@@ -970,7 +970,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	}
 
 	mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
-	ret = nouveau_fence_sync(bo->sync_obj, chan);
+	ret = nouveau_fence_sync(nouveau_bo(bo), chan);
 	if (ret == 0) {
 		ret = drm->ttm.move(chan, bo, &bo->mem, new_mem);
 		if (ret == 0) {
@@ -1464,10 +1464,12 @@ nouveau_bo_fence_unref(void **sync_obj)
 void
 nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 {
-	lockdep_assert_held(&nvbo->bo.resv->lock.base);
+	struct reservation_object *resv = nvbo->bo.resv;
 
 	nouveau_bo_fence_unref(&nvbo->bo.sync_obj);
 	nvbo->bo.sync_obj = nouveau_fence_ref(fence);
+
+	reservation_object_add_excl_fence(resv, &fence->base);
 }
 
 static void *
