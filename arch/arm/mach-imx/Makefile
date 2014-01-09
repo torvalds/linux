@@ -30,6 +30,7 @@ obj-$(CONFIG_MXC_DEBUG_BOARD) += 3ds_debugboard.o
 ifeq ($(CONFIG_CPU_IDLE),y)
 obj-$(CONFIG_SOC_IMX5) += cpuidle-imx5.o
 obj-$(CONFIG_SOC_IMX6Q) += cpuidle-imx6q.o
+obj-$(CONFIG_SOC_IMX6SL) += cpuidle-imx6sl.o
 endif
 
 ifdef CONFIG_SND_IMX_SOC

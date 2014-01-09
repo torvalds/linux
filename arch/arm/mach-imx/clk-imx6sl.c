@@ -66,6 +66,32 @@ static struct clk_div_table video_div_table[] = {
 static struct clk *clks[IMX6SL_CLK_END];
 static struct clk_onecell_data clk_data;
 
+/*
+ * ERR005311 CCM: After exit from WAIT mode, unwanted interrupt(s) taken
+ *           during WAIT mode entry process could cause cache memory
+ *           corruption.
+ *
+ * Software workaround:
+ *     To prevent this issue from occurring, software should ensure that the
+ * ARM to IPG clock ratio is less than 12:5 (that is < 2.4x), before
+ * entering WAIT mode.
+ *
+ * This function will set the ARM clk to max value within the 12:5 limit.
+ */
+void imx6sl_set_wait_clk(bool enter)
+{
+	static unsigned long saved_arm_rate;
+
+	if (enter) {
+		unsigned long ipg_rate = clk_get_rate(clks[IMX6SL_CLK_IPG]);
+		unsigned long max_arm_wait_rate = (12 * ipg_rate) / 5;
+		saved_arm_rate = clk_get_rate(clks[IMX6SL_CLK_ARM]);
+		clk_set_rate(clks[IMX6SL_CLK_ARM], max_arm_wait_rate);
+	} else {
+		clk_set_rate(clks[IMX6SL_CLK_ARM], saved_arm_rate);
+	}
+}
+
 static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
