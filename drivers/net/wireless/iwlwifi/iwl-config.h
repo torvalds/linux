@@ -218,6 +218,7 @@ struct iwl_eeprom_params {
  * @high_temp: Is this NIC is designated to be in high temperature.
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *	mode set
+ * @nvm_hw_section_num: the ID of the HW NVM section
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -248,6 +249,7 @@ struct iwl_cfg {
 	const bool internal_wimax_coex;
 	const bool host_interrupt_operation_mode;
 	bool high_temp;
+	u8   nvm_hw_section_num;
 };
 
 /*

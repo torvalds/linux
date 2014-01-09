@@ -511,7 +511,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	mvm->phy_db = NULL;
 
 	iwl_free_nvm_data(mvm->nvm_data);
-	for (i = 0; i < NVM_NUM_OF_SECTIONS; i++)
+	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
 
 	ieee80211_free_hw(mvm->hw);

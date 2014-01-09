@@ -470,7 +470,7 @@ struct iwl_mvm {
 
 	struct iwl_nvm_data *nvm_data;
 	/* NVM sections */
-	struct iwl_nvm_section nvm_sections[NVM_NUM_OF_SECTIONS];
+	struct iwl_nvm_section nvm_sections[NVM_MAX_NUM_SECTIONS];
 
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[IWL_MVM_MAX_ADDRESSES];
