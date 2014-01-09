@@ -129,10 +129,6 @@ err: define bus type;
 #endif  /* HERMES25 */
 #endif  /* BUS_XXX */
 
-//#define STR2(m) #m
-//#define STR1(m) STR2(m)
-//#define MODULE_NAME			STR1( MOD_NAME )
-
 #define VERSION_INFO	MODULE_NAME " v" DRV_VERSION_STR	\
 			" for " BUS_TYPE ", by " VENDOR_NAME
 
