@@ -574,18 +574,18 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 		q->hh_flows_limit = nla_get_u32(tb[TCA_HHF_HH_FLOWS_LIMIT]);
 
 	if (tb[TCA_HHF_RESET_TIMEOUT]) {
-		u32 ms = nla_get_u32(tb[TCA_HHF_RESET_TIMEOUT]);
+		u32 us = nla_get_u32(tb[TCA_HHF_RESET_TIMEOUT]);
 
-		q->hhf_reset_timeout = msecs_to_jiffies(ms);
+		q->hhf_reset_timeout = usecs_to_jiffies(us);
 	}
 
 	if (tb[TCA_HHF_ADMIT_BYTES])
 		q->hhf_admit_bytes = nla_get_u32(tb[TCA_HHF_ADMIT_BYTES]);
 
 	if (tb[TCA_HHF_EVICT_TIMEOUT]) {
-		u32 ms = nla_get_u32(tb[TCA_HHF_EVICT_TIMEOUT]);
+		u32 us = nla_get_u32(tb[TCA_HHF_EVICT_TIMEOUT]);
 
-		q->hhf_evict_timeout = msecs_to_jiffies(ms);
+		q->hhf_evict_timeout = usecs_to_jiffies(us);
 	}
 
 	qlen = sch->q.qlen;
@@ -684,10 +684,10 @@ static int hhf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_HHF_QUANTUM, q->quantum) ||
 	    nla_put_u32(skb, TCA_HHF_HH_FLOWS_LIMIT, q->hh_flows_limit) ||
 	    nla_put_u32(skb, TCA_HHF_RESET_TIMEOUT,
-			jiffies_to_msecs(q->hhf_reset_timeout)) ||
+			jiffies_to_usecs(q->hhf_reset_timeout)) ||
 	    nla_put_u32(skb, TCA_HHF_ADMIT_BYTES, q->hhf_admit_bytes) ||
 	    nla_put_u32(skb, TCA_HHF_EVICT_TIMEOUT,
-			jiffies_to_msecs(q->hhf_evict_timeout)) ||
+			jiffies_to_usecs(q->hhf_evict_timeout)) ||
 	    nla_put_u32(skb, TCA_HHF_NON_HH_WEIGHT, q->hhf_non_hh_weight))
 		goto nla_put_failure;
 
