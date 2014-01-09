@@ -24,7 +24,6 @@
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
-#include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/hugetlb.h>

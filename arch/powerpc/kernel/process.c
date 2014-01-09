@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/elf.h>
-#include <linux/init.h>
 #include <linux/prctl.h>
 #include <linux/init_task.h>
 #include <linux/export.h>

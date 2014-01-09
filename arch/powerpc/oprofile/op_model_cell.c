@@ -16,7 +16,6 @@
 
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/kthread.h>
 #include <linux/oprofile.h>

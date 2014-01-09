@@ -8,7 +8,6 @@
  */
 #undef DEBUG
 
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>

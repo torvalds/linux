@@ -14,7 +14,6 @@
 #include <linux/bootmem.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>

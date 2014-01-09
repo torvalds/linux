@@ -33,7 +33,6 @@
 #include <linux/swap.h>
 #include <linux/stddef.h>
 #include <linux/vmalloc.h>
-#include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/slab.h>

@@ -16,7 +16,6 @@
 
 #ifdef CONFIG_PPC64
 
-#include <linux/init.h>
 #include <asm/types.h>
 #include <asm/lppaca.h>
 #include <asm/mmu.h>
