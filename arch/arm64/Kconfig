@@ -217,6 +217,16 @@ config ARMV7_COMPAT
 
 	 If you want to execute ARMv7 applications, say Y
 
+config ARMV7_COMPAT_CPUINFO
+	bool "Report backwards compatible cpu features in /proc/cpuinfo"
+	depends on ARMV7_COMPAT
+	default y
+	help
+	 This option makes /proc/cpuinfo list CPU features that an ARMv7 or
+	 earlier kernel would report, but are not optional on an ARMv8 or later
+	 processor.
+
+	 If you want to execute ARMv7 applications, say Y
 
 source "mm/Kconfig"
 
