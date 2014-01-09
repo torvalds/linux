@@ -1492,7 +1492,7 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 	return 0;
 }
 
-void wm_adsp2_boot_work(struct work_struct *work)
+static void wm_adsp2_boot_work(struct work_struct *work)
 {
 	struct wm_adsp *dsp = container_of(work,
 					   struct wm_adsp,
