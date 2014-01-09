@@ -119,9 +119,9 @@ struct isert_conn {
 	wait_queue_head_t	conn_wait;
 	wait_queue_head_t	conn_wait_comp_err;
 	struct kref		conn_kref;
-	struct list_head	conn_frwr_pool;
-	int			conn_frwr_pool_size;
-	/* lock to protect frwr_pool */
+	struct list_head	conn_fr_pool;
+	int			conn_fr_pool_size;
+	/* lock to protect fastreg pool */
 	spinlock_t		conn_lock;
 #define ISERT_COMP_BATCH_COUNT	8
 	int			conn_comp_batch;
@@ -139,7 +139,7 @@ struct isert_cq_desc {
 };
 
 struct isert_device {
-	int			use_frwr;
+	int			use_fastreg;
 	int			cqs_used;
 	int			refcount;
 	int			cq_active_qps[ISERT_MAX_CQ];
