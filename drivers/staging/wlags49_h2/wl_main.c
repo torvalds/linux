@@ -435,7 +435,6 @@ int wl_insert( struct net_device *dev )
 	unsigned long           flags = 0;
 	struct wl_private       *lp = wl_priv(dev);
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_insert" );
 	DBG_ENTER( DbgInfo );
 
 	/* Initialize the adapter hardware. */
@@ -973,7 +972,6 @@ int wl_reset(struct net_device *dev)
 	struct wl_private  *lp = wl_priv(dev);
 	int                 hcf_status = HCF_SUCCESS;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_reset" );
 	DBG_ENTER( DbgInfo );
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 	DBG_PARAM( DbgInfo, "dev->base_addr", "(%#03lx)", dev->base_addr );
@@ -1050,7 +1048,6 @@ int wl_go( struct wl_private *lp )
 	char	*cp = NULL;			//fw_image
 	int	retries = 0;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_go" );
 	DBG_ENTER( DbgInfo );
 
 	hcf_status = wl_disable( lp );
@@ -1235,7 +1232,6 @@ void wl_set_wep_keys( struct wl_private *lp )
 {
 	int count = 0;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_set_wep_keys" );
 	DBG_ENTER( DbgInfo );
 	DBG_PARAM( DbgInfo, "lp", "%s (0x%p)", lp->dev->name, lp );
 	if ( lp->EnableEncryption ) {
@@ -1302,7 +1298,6 @@ int wl_apply(struct wl_private *lp)
 {
 	int hcf_status = HCF_SUCCESS;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_apply" );
 	DBG_ENTER( DbgInfo );
 	DBG_ASSERT( lp != NULL);
 	DBG_PARAM( DbgInfo, "lp", "%s (0x%p)", lp->dev->name, lp );
@@ -1376,7 +1371,6 @@ int wl_put_ltv_init( struct wl_private *lp )
 	int hcf_status;
 	CFG_RID_LOG_STRCT *RidLog;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_put_ltv_init" );
 	DBG_ENTER( DbgInfo );
 	if ( lp == NULL ) {
 		DBG_ERROR( DbgInfo, "lp pointer is NULL\n" );
@@ -1474,7 +1468,6 @@ int wl_put_ltv( struct wl_private *lp )
 	int len;
 	int hcf_status;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_put_ltv" );
 	DBG_ENTER( DbgInfo );
 
 	if ( lp == NULL ) {
@@ -2042,7 +2035,6 @@ static int __init wl_module_init( void )
 	int result;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC( "wl_module_init" );
 
 #if DBG
 	/* Convert "standard" PCMCIA parameter pc_debug to a reasonable DebugFlag value.
@@ -2105,7 +2097,6 @@ static int __init wl_module_init( void )
  ******************************************************************************/
 static void __exit wl_module_exit( void )
 {
-	DBG_FUNC( "wl_module_exit" );
 	DBG_ENTER(DbgInfo);
 
 	wl_adapter_cleanup_module( );
@@ -2323,7 +2314,6 @@ void wl_remove( struct net_device *dev )
 	struct wl_private   *lp = wl_priv(dev);
 	unsigned long   flags;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_remove" );
 	DBG_ENTER( DbgInfo );
 
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
@@ -2395,7 +2385,6 @@ void wl_suspend( struct net_device *dev )
 	struct wl_private  *lp = wl_priv(dev);
 	unsigned long   flags;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_suspend" );
 	DBG_ENTER( DbgInfo );
 
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
@@ -2451,7 +2440,6 @@ void wl_resume(struct net_device *dev)
 	struct wl_private  *lp = wl_priv(dev);
 	unsigned long   flags;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_resume" );
 	DBG_ENTER( DbgInfo );
 
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
@@ -2505,7 +2493,6 @@ void wl_release( struct net_device *dev )
 {
 	struct wl_private  *lp = wl_priv(dev);
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_release" );
 	DBG_ENTER( DbgInfo );
 
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
@@ -2594,7 +2581,6 @@ int wl_enable( struct wl_private *lp )
 {
 	int hcf_status = HCF_SUCCESS;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_enable" );
 	DBG_ENTER( DbgInfo );
 
 	if ( lp->portState == WVLAN_PORT_STATE_ENABLED ) {
@@ -2643,8 +2629,6 @@ int wl_enable( struct wl_private *lp )
  ******************************************************************************/
 void wl_enable_wds_ports( struct wl_private * lp )
 {
-
-	DBG_FUNC( "wl_enable_wds_ports" );
 	DBG_ENTER( DbgInfo );
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ){
 		DBG_ERROR( DbgInfo, "!!!!;? someone misunderstood something !!!!!\n" );
@@ -2678,7 +2662,6 @@ int wl_connect( struct wl_private *lp )
 	int hcf_status;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC( "wl_connect" );
 	DBG_ENTER( DbgInfo );
 
 	if ( lp->portState != WVLAN_PORT_STATE_ENABLED ) {
@@ -2718,7 +2701,6 @@ int wl_disconnect( struct wl_private *lp )
 	int hcf_status;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC( "wl_disconnect" );
 	DBG_ENTER( DbgInfo );
 
 	if ( lp->portState != WVLAN_PORT_STATE_CONNECTED ) {
@@ -2758,7 +2740,6 @@ int wl_disable( struct wl_private *lp )
 {
 	int hcf_status = HCF_SUCCESS;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_disable" );
 	DBG_ENTER( DbgInfo );
 
 	if ( lp->portState == WVLAN_PORT_STATE_DISABLED ) {
@@ -2805,8 +2786,6 @@ int wl_disable( struct wl_private *lp )
  ******************************************************************************/
 void wl_disable_wds_ports( struct wl_private * lp )
 {
-
-	DBG_FUNC( "wl_disable_wds_ports" );
 	DBG_ENTER( DbgInfo );
 
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ){
@@ -2849,7 +2828,6 @@ int wl_mbx( struct wl_private *lp )
 {
 	int hcf_status = HCF_SUCCESS;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_mbx" );
 	DBG_ENTER( DbgInfo );
 	DBG_TRACE( DbgInfo, "Mailbox Info: IFB_MBInfoLen: %d\n",
 			   lp->hcfCtx.IFB_MBInfoLen );
@@ -2900,8 +2878,6 @@ int wl_mbx( struct wl_private *lp )
  ******************************************************************************/
 void wl_endian_translate_mailbox( ltv_t *ltv )
 {
-
-	DBG_FUNC( "wl_endian_translate_mailbox" );
 	DBG_ENTER( DbgInfo );
 	switch( ltv->typ ) {
 	  case CFG_TALLIES:
@@ -3018,7 +2994,6 @@ void wl_process_mailbox( struct wl_private *lp )
 	ltv_t   *ltv;
 	hcf_16  ltv_val = 0xFFFF;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_process_mailbox" );
 	DBG_ENTER( DbgInfo );
 	ltv = &( lp->ltvRecord );
 
@@ -3478,7 +3453,6 @@ void wl_wds_netdev_register( struct wl_private *lp )
 {
 	int count;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_wds_netdev_register" );
 	DBG_ENTER( DbgInfo );
 	//;?why is there no USE_WDS clause like in wl_enable_wds_ports
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ) {
@@ -3525,7 +3499,6 @@ void wl_wds_netdev_deregister( struct wl_private *lp )
 {
 	int count;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wl_wds_netdev_deregister" );
 	DBG_ENTER( DbgInfo );
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ) {
 		for( count = 0; count < NUM_WDS_PORTS; count++ ) {
@@ -3780,7 +3753,6 @@ static int write_int(struct file *file, const char *buffer, unsigned long count,
 	static char		proc_number[11];
 	unsigned int	nr = 0;
 
-	DBG_FUNC( "write_int" );
 	DBG_ENTER( DbgInfo );
 
 	if (count > 9) {
@@ -3841,7 +3813,6 @@ void timer_oor( u_long arg )
 
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "timer_oor" );
     DBG_ENTER( DbgInfo );
     DBG_PARAM( DbgInfo, "arg", "0x%08lx", arg );
 

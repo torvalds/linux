@@ -172,7 +172,6 @@ int wl_init( struct net_device *dev )
 //    struct wl_private   *lp = wl_priv(dev);
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_init" );
     DBG_ENTER( DbgInfo );
 
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
@@ -208,7 +207,6 @@ int wl_init( struct net_device *dev )
  ******************************************************************************/
 int wl_config( struct net_device *dev, struct ifmap *map )
 {
-    DBG_FUNC( "wl_config" );
     DBG_ENTER( DbgInfo );
 
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
@@ -251,7 +249,6 @@ struct net_device_stats *wl_stats( struct net_device *dev )
     struct wl_private           *lp = wl_priv(dev);
     /*------------------------------------------------------------------------*/
 
-    //DBG_FUNC( "wl_stats" );
     //DBG_ENTER( DbgInfo );
     //DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
@@ -317,7 +314,6 @@ int wl_open(struct net_device *dev)
     unsigned long       flags;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_open" );
     DBG_ENTER( DbgInfo );
 
     wl_lock( lp, &flags );
@@ -413,7 +409,6 @@ int wl_close( struct net_device *dev )
     unsigned long   flags;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC("wl_close");
     DBG_ENTER(DbgInfo);
     DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
@@ -506,7 +501,6 @@ int wl_ioctl( struct net_device *dev, struct ifreq *rq, int cmd )
     int                     ret = 0;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_ioctl" );
     DBG_ENTER(DbgInfo);
     DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
     DBG_PARAM(DbgInfo, "rq", "0x%p", rq);
@@ -608,7 +602,6 @@ void wl_tx_timeout( struct net_device *dev )
     struct net_device_stats *pStats = NULL;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_tx_timeout" );
     DBG_ENTER( DbgInfo );
 
     DBG_WARNING( DbgInfo, "%s: Transmit timeout.\n", dev->name );
@@ -682,8 +675,6 @@ int wl_send( struct wl_private *lp )
     struct list_head    *element;
     int                 len;
     /*------------------------------------------------------------------------*/
-
-    DBG_FUNC( "wl_send" );
 
     if( lp == NULL ) {
         DBG_ERROR( DbgInfo, "Private adapter struct is NULL\n" );
@@ -801,8 +792,6 @@ int wl_tx( struct sk_buff *skb, struct net_device *dev, int port )
     struct list_head        *element;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_tx" );
-
     /* Grab the spinlock */
     wl_lock( lp, &flags );
 
@@ -895,7 +884,6 @@ int wl_rx(struct net_device *dev)
     DESC_STRCT              *desc;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC("wl_rx")
     DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
     if(!( lp->flags & WVLAN2_UIL_BUSY )) {
@@ -1049,7 +1037,6 @@ void wl_multicast( struct net_device *dev )
     unsigned long       flags;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_multicast" );
     DBG_ENTER( DbgInfo );
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
@@ -1155,7 +1142,6 @@ void wl_multicast( struct net_device *dev )
 
 void wl_multicast( struct net_device *dev, int num_addrs, void *addrs )
 {
-    DBG_FUNC( "wl_multicast");
     DBG_ENTER(DbgInfo);
 
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
@@ -1215,7 +1201,6 @@ struct net_device * wl_device_alloc( void )
     struct wl_private   *lp = NULL;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_device_alloc" );
     DBG_ENTER( DbgInfo );
 
     /* Alloc a net_device struct */
@@ -1281,7 +1266,6 @@ void wl_device_dealloc( struct net_device *dev )
 //    struct wl_private   *lp = wl_priv(dev);
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_device_dealloc" );
     DBG_ENTER( DbgInfo );
 
     /* Dealloc the WDS ports */
@@ -1498,7 +1482,6 @@ void wl_wds_device_alloc( struct wl_private *lp )
     int count;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_wds_device_alloc" );
     DBG_ENTER( DbgInfo );
 
     /* WDS support requires additional net_device structs to be allocated,
@@ -1569,7 +1552,6 @@ void wl_wds_device_dealloc( struct wl_private *lp )
     int count;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_wds_device_dealloc" );
     DBG_ENTER( DbgInfo );
 
     for( count = 0; count < NUM_WDS_PORTS; count++ ) {
@@ -1792,8 +1774,6 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
     DESC_STRCT *desc_next = NULL;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_send_dma" );
-
     if( lp == NULL ) {
         DBG_ERROR( DbgInfo, "Private adapter struct is NULL\n" );
         return FALSE;
@@ -1882,7 +1862,6 @@ int wl_rx_dma( struct net_device *dev )
     //CFG_MB_INFO_RANGE2_STRCT x;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC("wl_rx")
     DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
     if((( lp = dev->priv ) != NULL ) &&

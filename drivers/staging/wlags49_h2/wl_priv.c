@@ -132,7 +132,6 @@ int wvlan_uil(struct uilreq *urq, struct wl_private *lp)
 	int ioctl_ret = 0;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC("wvlan_uil");
 	DBG_ENTER(DbgInfo);
 
 	switch (urq->command) {
@@ -198,7 +197,6 @@ int wvlan_uil_connect(struct uilreq *urq, struct wl_private *lp)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_uil_connect");
 	DBG_ENTER(DbgInfo);
 
 
@@ -244,7 +242,6 @@ int wvlan_uil_disconnect(struct uilreq *urq, struct wl_private *lp)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_uil_disconnect");
 	DBG_ENTER(DbgInfo);
 
 
@@ -300,7 +297,6 @@ int wvlan_uil_action(struct uilreq *urq, struct wl_private *lp)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_uil_action");
 	DBG_ENTER(DbgInfo);
 
 
@@ -379,7 +375,6 @@ int wvlan_uil_block(struct uilreq *urq, struct wl_private *lp)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_uil_block");
 	DBG_ENTER(DbgInfo);
 
 	if (urq->hcfCtx == &(lp->hcfCtx)) {
@@ -431,7 +426,6 @@ int wvlan_uil_unblock(struct uilreq *urq, struct wl_private *lp)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_uil_unblock");
 	DBG_ENTER(DbgInfo);
 
 	if (urq->hcfCtx == &(lp->hcfCtx)) {
@@ -485,7 +479,6 @@ int wvlan_uil_send_diag_msg(struct uilreq *urq, struct wl_private *lp)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_uil_send_diag_msg");
 	DBG_ENTER(DbgInfo);
 
 	if (urq->hcfCtx == &(lp->hcfCtx)) {
@@ -576,7 +569,6 @@ int wvlan_uil_put_info(struct uilreq *urq, struct wl_private *lp)
 	hcf_16                  hcfPort  = HCF_PORT_0;
 #endif  /* USE_WDS */
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC("wvlan_uil_put_info");
 	DBG_ENTER(DbgInfo);
 
 
@@ -1193,7 +1185,6 @@ int wvlan_uil_get_info(struct uilreq *urq, struct wl_private *lp)
 	int i;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC("wvlan_uil_get_info");
 	DBG_ENTER(DbgInfo);
 
 	if (urq->hcfCtx == &(lp->hcfCtx)) {
@@ -1547,7 +1538,6 @@ int cfg_driver_info(struct uilreq *urq, struct wl_private *lp)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("cfg_driver_info");
 	DBG_ENTER(DbgInfo);
 
 
@@ -1606,7 +1596,6 @@ int cfg_driver_identity(struct uilreq *urq, struct wl_private *lp)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_driver_identity");
 	DBG_ENTER(DbgInfo);
 
 
@@ -1675,7 +1664,6 @@ int wvlan_set_netname(struct net_device *dev,
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_set_netname");
 	DBG_ENTER(DbgInfo);
 
 	wl_lock(lp, &flags);
@@ -1727,7 +1715,6 @@ int wvlan_get_netname(struct net_device *dev,
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_get_netname");
 	DBG_ENTER(DbgInfo);
 
 	wl_lock(lp, &flags);
@@ -1790,7 +1777,6 @@ int wvlan_set_station_nickname(struct net_device *dev,
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_set_station_nickname");
 	DBG_ENTER(DbgInfo);
 
 	wl_lock(lp, &flags);
@@ -1843,7 +1829,6 @@ int wvlan_get_station_nickname(struct net_device *dev,
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_get_station_nickname");
 	DBG_ENTER(DbgInfo);
 
 	wl_lock(lp, &flags);
@@ -1906,7 +1891,6 @@ int wvlan_set_porttype(struct net_device *dev,
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_set_porttype");
 	DBG_ENTER(DbgInfo);
 
 	wl_lock(lp, &flags);
@@ -1968,7 +1952,6 @@ int wvlan_get_porttype(struct net_device *dev,
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_get_porttype");
 	DBG_ENTER(DbgInfo);
 
 	wl_lock(lp, &flags);
@@ -2026,7 +2009,6 @@ int wvlan_rts(struct rtsreq *rrq, __u32 io_base)
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC("wvlan_rts");
 	DBG_ENTER(DbgInfo);
 
 

@@ -137,8 +137,6 @@
 		  _LEAVE_STR, __func__)
 
 
-#define DBG_FUNC(F)
-
 #define DBG_ENTER(A)        {if (DBG_FLAGS(A) & DBG_TRACE_ON) \
 				_DBG_ENTER(A); }
 
@@ -209,7 +207,6 @@ typedef struct {
 
 #define DBG_DEFN
 #define DBG_TRAP
-#define DBG_FUNC(F)
 #define DBG_PRINT(S...)
 #define DBG_ENTER(A)
 #define DBG_LEAVE(A)

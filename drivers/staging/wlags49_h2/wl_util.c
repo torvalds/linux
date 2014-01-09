@@ -481,7 +481,6 @@ void wl_hcf_error( struct net_device *dev, int hcfStatus )
  ******************************************************************************/
 void wl_endian_translate_event( ltv_t *pLtv )
 {
-    DBG_FUNC( "wl_endian_translate_event" );
     DBG_ENTER( DbgInfo );
 
 
@@ -999,7 +998,6 @@ void wl_process_link_status( struct wl_private *lp )
     hcf_16 link_stat;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_process_link_status" );
     DBG_ENTER( DbgInfo );
 
     if( lp != NULL ) {
@@ -1061,7 +1059,6 @@ void wl_process_probe_response( struct wl_private *lp )
     /*------------------------------------------------------------------------*/
 
 
-    DBG_FUNC( "wl_process_probe_response" );
     DBG_ENTER( DbgInfo );
 
 
@@ -1263,7 +1260,6 @@ void wl_process_probe_response( struct wl_private *lp )
  ******************************************************************************/
 void wl_process_updated_record( struct wl_private *lp )
 {
-    DBG_FUNC( "wl_process_updated_record" );
     DBG_ENTER( DbgInfo );
 
 
@@ -1318,7 +1314,6 @@ void wl_process_assoc_status( struct wl_private *lp )
     /*------------------------------------------------------------------------*/
 
 
-    DBG_FUNC( "wl_process_assoc_status" );
     DBG_ENTER( DbgInfo );
 
 
@@ -1385,7 +1380,6 @@ void wl_process_security_status( struct wl_private *lp )
     /*------------------------------------------------------------------------*/
 
 
-    DBG_FUNC( "wl_process_security_status" );
     DBG_ENTER( DbgInfo );
 
 
@@ -1438,7 +1432,6 @@ int wl_get_tallies(struct wl_private *lp,
     int status;
     CFG_HERMES_TALLIES_STRCT *pTallies;
 
-    DBG_FUNC( "wl_get_tallies" );
     DBG_ENTER(DbgInfo);
 
     /* Get the current tallies from the adapter */

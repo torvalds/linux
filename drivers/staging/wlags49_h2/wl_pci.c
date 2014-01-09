@@ -190,7 +190,6 @@ int wl_adapter_init_module( void )
     int result;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_adapter_init_module()" );
     DBG_ENTER( DbgInfo );
     DBG_TRACE( DbgInfo, "wl_adapter_init_module() -- PCI\n" );
 
@@ -222,7 +221,6 @@ int wl_adapter_init_module( void )
 void wl_adapter_cleanup_module( void )
 {
 	//;?how come wl_adapter_cleanup_module is located in a seemingly pci specific module
-    DBG_FUNC( "wl_adapter_cleanup_module" );
     DBG_ENTER( DbgInfo );
 
 	//;?DBG_TRACE below feels like nearly redundant in the light of DBG_ENTER above
@@ -257,7 +255,6 @@ int wl_adapter_insert( struct net_device *dev )
     int result = FALSE;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_adapter_insert" );
     DBG_ENTER( DbgInfo );
 
     DBG_TRACE( DbgInfo, "wl_adapter_insert() -- PCI\n" );
@@ -299,7 +296,6 @@ int wl_adapter_open( struct net_device *dev )
     int         hcf_status = HCF_SUCCESS;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_adapter_open" );
     DBG_ENTER( DbgInfo );
 
     DBG_TRACE( DbgInfo, "wl_adapter_open() -- PCI\n" );
@@ -334,7 +330,6 @@ int wl_adapter_open( struct net_device *dev )
  ******************************************************************************/
 int wl_adapter_close( struct net_device *dev )
 {
-    DBG_FUNC( "wl_adapter_close" );
     DBG_ENTER( DbgInfo );
 
     DBG_TRACE( DbgInfo, "wl_adapter_close() -- PCI\n" );
@@ -403,7 +398,6 @@ int wl_pci_probe( struct pci_dev *pdev,
     int result;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_probe" );
     DBG_ENTER( DbgInfo );
 	DBG_PRINT( "%s\n", VERSION_INFO );
 
@@ -439,7 +433,6 @@ void wl_pci_remove(struct pci_dev *pdev)
     struct net_device       *dev = NULL;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_remove" );
     DBG_ENTER( DbgInfo );
 
     /* Make sure the pci_dev pointer passed in is valid */
@@ -494,7 +487,6 @@ int wl_pci_setup( struct pci_dev *pdev )
     struct wl_private   *lp = NULL;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_setup" );
     DBG_ENTER( DbgInfo );
 
     /* Make sure the pci_dev pointer passed in is valid */
@@ -612,7 +604,6 @@ void wl_pci_enable_cardbus_interrupts( struct pci_dev *pdev )
     void                *mem_addr_kern = NULL;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_enable_cardbus_interrupts" );
     DBG_ENTER( DbgInfo );
 
     /* Initialize to known bad values */
@@ -676,7 +667,6 @@ int wl_pci_dma_alloc( struct pci_dev *pdev, struct wl_private *lp )
     int status = 0;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_dma_alloc" );
     DBG_ENTER( DbgInfo );
 
 //     lp->dma.tx_rsc_ind = lp->dma.rx_rsc_ind = 0;
@@ -747,7 +737,6 @@ int wl_pci_dma_free( struct pci_dev *pdev, struct wl_private *lp )
     int status = 0;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_dma_free" );
     DBG_ENTER( DbgInfo );
 
     /* Reclaim all Rx packets that were handed over to the HCF */
@@ -1114,7 +1103,6 @@ int wl_pci_dma_alloc_desc( struct pci_dev *pdev, struct wl_private *lp,
 //     dma_addr_t  pa;
 //     /*------------------------------------------------------------------------*/
 //
-//     DBG_FUNC( "wl_pci_dma_alloc_desc" );
 //     DBG_ENTER( DbgInfo );
 //
 //     if( desc == NULL ) {
@@ -1199,7 +1187,6 @@ int wl_pci_dma_alloc_buf( struct pci_dev *pdev, struct wl_private *lp,
     dma_addr_t  pa;
     /*------------------------------------------------------------------------*/
 
-//     DBG_FUNC( "wl_pci_dma_alloc_buf" );
 //     DBG_ENTER( DbgInfo );
 //
 //     if( desc == NULL ) {
@@ -1297,7 +1284,6 @@ void wl_pci_dma_hcf_supply( struct wl_private *lp )
     int i;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_dma_hcf_supply" );
     DBG_ENTER( DbgInfo );
 
     //if( lp->dma.status == 0 );
@@ -1360,7 +1346,6 @@ void wl_pci_dma_hcf_reclaim( struct wl_private *lp )
     int i;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_dma_hcf_reclaim" );
     DBG_ENTER( DbgInfo );
 
     wl_pci_dma_hcf_reclaim_rx( lp );
@@ -1408,7 +1393,6 @@ void wl_pci_dma_hcf_reclaim_rx( struct wl_private *lp )
     DESC_STRCT *p;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_dma_hcf_reclaim_rx" );
     DBG_ENTER( DbgInfo );
 
     //if( lp->dma.status == 0 )
@@ -1539,7 +1523,6 @@ void wl_pci_dma_hcf_reclaim_tx( struct wl_private *lp )
     DESC_STRCT *p;
     /*------------------------------------------------------------------------*/
 
-    DBG_FUNC( "wl_pci_dma_hcf_reclaim_tx" );
     DBG_ENTER( DbgInfo );
 
     //if( lp->dma.status == 0 )

@@ -329,7 +329,6 @@ static int wireless_commit(struct net_device *dev,
 	int ret = 0;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC( "wireless_commit" );
 	DBG_ENTER(DbgInfo);
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -376,7 +375,6 @@ out:
  ******************************************************************************/
 static int wireless_get_protocol(struct net_device *dev, struct iw_request_info *info, char *name, char *extra)
 {
-	DBG_FUNC( "wireless_get_protocol" );
 	DBG_ENTER( DbgInfo );
 
 	/* Originally, the driver was placing the string "Wireless" here. However,
@@ -420,8 +418,6 @@ static int wireless_set_frequency(struct net_device *dev, struct iw_request_info
 	int ret     = 0;
 	/*------------------------------------------------------------------------*/
 
-
-	DBG_FUNC( "wireless_set_frequency" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -508,7 +504,6 @@ static int wireless_get_frequency(struct net_device *dev, struct iw_request_info
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_frequency" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -579,7 +574,6 @@ static int wireless_get_range(struct net_device *dev, struct iw_request_info *in
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_range" );
 	DBG_ENTER( DbgInfo );
 
 	/* Set range information */
@@ -784,7 +778,6 @@ static int wireless_get_bssid(struct net_device *dev, struct iw_request_info *in
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_bssid" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -876,7 +869,6 @@ static int wireless_get_ap_list (struct net_device *dev, struct iw_request_info 
 #endif  // WARP
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC( "wireless_get_ap_list" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1013,7 +1005,6 @@ static int wireless_set_sensitivity(struct net_device *dev, struct iw_request_in
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_set_sensitivity" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1073,7 +1064,6 @@ static int wireless_get_sensitivity(struct net_device *dev, struct iw_request_in
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_sensitivity" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1119,7 +1109,6 @@ static int wireless_set_essid(struct net_device *dev, struct iw_request_info *in
 	unsigned long flags;
 	int ret = 0;
 
-	DBG_FUNC( "wireless_set_essid" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1204,7 +1193,6 @@ static int wireless_get_essid(struct net_device *dev, struct iw_request_info *in
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_essid" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1394,7 +1382,6 @@ static int wireless_get_encode(struct net_device *dev, struct iw_request_info *i
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_encode" );
 	DBG_ENTER( DbgInfo );
 	DBG_NOTICE(DbgInfo, "GIWENCODE: encrypt: %d, ID: %d\n", lp->EnableEncryption, lp->TransmitKeyID);
 
@@ -1485,7 +1472,6 @@ static int wireless_set_nickname(struct net_device *dev, struct iw_request_info 
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_set_nickname" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1560,7 +1546,6 @@ static int wireless_get_nickname(struct net_device *dev, struct iw_request_info 
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_nickname" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1636,7 +1621,6 @@ static int wireless_set_porttype(struct net_device *dev, struct iw_request_info 
 	hcf_16	createIBSS;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC( "wireless_set_porttype" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1752,7 +1736,6 @@ static int wireless_get_porttype(struct net_device *dev, struct iw_request_info 
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_porttype" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1859,7 +1842,6 @@ static int wireless_set_power(struct net_device *dev, struct iw_request_info *in
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_set_power" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1931,7 +1913,6 @@ static int wireless_get_power(struct net_device *dev, struct iw_request_info *in
 	unsigned long flags;
 	int ret = 0;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wireless_get_power" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -1992,7 +1973,6 @@ static int wireless_get_tx_power(struct net_device *dev, struct iw_request_info 
 	unsigned long flags;
 	int ret = 0;
 	/*------------------------------------------------------------------------*/
-	DBG_FUNC( "wireless_get_tx_power" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -2055,7 +2035,6 @@ static int wireless_set_rts_threshold (struct net_device *dev, struct iw_request
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_set_rts_threshold" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -2124,7 +2103,6 @@ static int wireless_get_rts_threshold (struct net_device *dev, struct iw_request
 	unsigned long flags;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC( "wireless_get_rts_threshold" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -2187,7 +2165,6 @@ static int wireless_set_rate(struct net_device *dev, struct iw_request_info *inf
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_set_rate" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -2413,7 +2390,6 @@ static int wireless_get_rate(struct net_device *dev, struct iw_request_info *inf
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_rate" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -2525,7 +2501,6 @@ int wireless_get_private_interface( struct iwreq *wrq, struct wl_private *lp )
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_private_interface" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -2596,7 +2571,6 @@ static int wireless_set_scan(struct net_device *dev, struct iw_request_info *inf
 
 	//;? Note: shows results as trace, returns always 0 unless BUSY
 
-	DBG_FUNC( "wireless_set_scan" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -2737,7 +2711,6 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wireless_get_scan" );
 	DBG_ENTER( DbgInfo );
 
 	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -2923,7 +2896,6 @@ static int wireless_set_auth(struct net_device *dev,
 	int iwa_idx = data->flags & IW_AUTH_INDEX;
 	int iwa_val = data->value;
 
-	DBG_FUNC( "wireless_set_auth" );
 	DBG_ENTER( DbgInfo );
 
 	if (lp->portState == WVLAN_PORT_STATE_DISABLED) {
@@ -3240,7 +3212,6 @@ struct iw_statistics * wl_wireless_stats( struct net_device *dev )
 	/*------------------------------------------------------------------------*/
 
 
-	DBG_FUNC( "wl_wireless_stats" );
 	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
@@ -3338,7 +3309,6 @@ struct iw_statistics * wl_get_wireless_stats( struct net_device *dev )
 	struct iw_statistics    *pStats = NULL;
 	/*------------------------------------------------------------------------*/
 
-	DBG_FUNC( "wl_get_wireless_stats" );
 	DBG_ENTER(DbgInfo);
 
 	wl_lock( lp, &flags );

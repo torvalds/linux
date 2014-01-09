@@ -135,7 +135,6 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 	int ret;
 	/*--------------------------------------------------------------------*/
 
-	DBG_FUNC("wl_adapter_attach");
 	DBG_ENTER(DbgInfo);
 
 	dev = wl_device_alloc();
@@ -170,7 +169,6 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 	struct net_device   *dev = link->priv;
 	/*--------------------------------------------------------------------*/
 
-	DBG_FUNC("wl_adapter_detach");
 	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "link", "0x%p", link);
 
@@ -188,7 +186,6 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 
 void wl_adapter_release(struct pcmcia_device *link)
 {
-	DBG_FUNC("wl_adapter_release");
 	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "link", "0x%p", link);
 
@@ -231,7 +228,6 @@ int wl_adapter_insert(struct pcmcia_device *link)
 	int ret;
 	/*--------------------------------------------------------------------*/
 
-	DBG_FUNC("wl_adapter_insert");
 	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "link", "0x%p", link);
 
@@ -305,7 +301,6 @@ int wl_adapter_open(struct net_device *dev)
 	int hcf_status = HCF_SUCCESS;
 	/*--------------------------------------------------------------------*/
 
-	DBG_FUNC("wl_adapter_open");
 	DBG_ENTER(DbgInfo);
 	DBG_PRINT("%s\n", VERSION_INFO);
 	DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
@@ -355,7 +350,6 @@ int wl_adapter_close(struct net_device *dev)
 	struct pcmcia_device *link = lp->link;
 	/*--------------------------------------------------------------------*/
 
-	DBG_FUNC("wl_adapter_close");
 	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
@@ -423,7 +417,6 @@ int wl_adapter_init_module(void)
 	int ret;
 	/*--------------------------------------------------------------------*/
 
-	DBG_FUNC("wl_adapter_init_module");
 	DBG_ENTER(DbgInfo);
 	DBG_TRACE(DbgInfo, "wl_adapter_init_module() -- PCMCIA\n");
 
@@ -454,7 +447,6 @@ int wl_adapter_init_module(void)
  ******************************************************************************/
 void wl_adapter_cleanup_module(void)
 {
-	DBG_FUNC("wl_adapter_cleanup_module");
 	DBG_ENTER(DbgInfo);
 	DBG_TRACE(DbgInfo, "wl_adapter_cleanup_module() -- PCMCIA\n");
 
