@@ -359,6 +359,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_MICROMIPS	0x01000000 /* CPU has microMIPS capability */
 #define MIPS_CPU_TLBINV		0x02000000 /* CPU supports TLBINV/F */
 #define MIPS_CPU_SEGMENTS	0x04000000 /* CPU supports Segmentation Control registers */
+#define MIPS_CPU_EVA		0x80000000 /* CPU supports Enhanced Virtual Addressing */
 
 /*
  * CPU ASE encodings
