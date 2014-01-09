@@ -28,6 +28,12 @@
 #include "vmwgfx_drv.h"
 
 /*
+ * If we set up the screen target otable, screen objects stop working.
+ */
+
+#define VMW_OTABLE_SETUP_SUB ((VMWGFX_ENABLE_SCREEN_TARGET_OTABLE) ? 0 : 1)
+
+/*
  * Currently the MOB interface does not support 64-bit page frame numbers.
  * This might change in the future to be similar to the GMR2 interface
  * when virtual machines support memory beyond 16TB.
@@ -214,7 +220,7 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	SVGAOTableType i;
 	int ret;
 
-	otables = kzalloc(SVGA_OTABLE_COUNT * sizeof(*otables),
+	otables = kzalloc(SVGA_OTABLE_DX9_MAX * sizeof(*otables),
 			  GFP_KERNEL);
 	if (unlikely(otables == NULL)) {
 		DRM_ERROR("Failed to allocate space for otable "
@@ -230,9 +236,12 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 		VMWGFX_NUM_GB_CONTEXT * SVGA3D_OTABLE_CONTEXT_ENTRY_SIZE;
 	otables[SVGA_OTABLE_SHADER].size =
 		VMWGFX_NUM_GB_SHADER * SVGA3D_OTABLE_SHADER_ENTRY_SIZE;
+	otables[SVGA_OTABLE_SCREEN_TARGET].size =
+		VMWGFX_NUM_GB_SCREEN_TARGET *
+		SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE;
 
 	bo_size = 0;
-	for (i = 0; i < SVGA_OTABLE_COUNT; ++i) {
+	for (i = 0; i < SVGA_OTABLE_DX9_MAX; ++i) {
 		otables[i].size =
 			(otables[i].size + PAGE_SIZE - 1) & PAGE_MASK;
 		bo_size += otables[i].size;
@@ -259,7 +268,7 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	ttm_bo_unreserve(dev_priv->otable_bo);
 
 	offset = 0;
-	for (i = 0; i < SVGA_OTABLE_COUNT; ++i) {
+	for (i = 0; i < SVGA_OTABLE_DX9_MAX - VMW_OTABLE_SETUP_SUB; ++i) {
 		ret = vmw_setup_otable_base(dev_priv, i, offset,
 					    &otables[i]);
 		if (unlikely(ret != 0))
@@ -273,7 +282,7 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 out_unreserve:
 	ttm_bo_unreserve(dev_priv->otable_bo);
 out_no_setup:
-	for (i = 0; i < SVGA_OTABLE_COUNT; ++i)
+	for (i = 0; i < SVGA_OTABLE_DX9_MAX - VMW_OTABLE_SETUP_SUB; ++i)
 		vmw_takedown_otable_base(dev_priv, i, &otables[i]);
 
 	ttm_bo_unref(&dev_priv->otable_bo);
@@ -296,7 +305,7 @@ void vmw_otables_takedown(struct vmw_private *dev_priv)
 	struct ttm_buffer_object *bo = dev_priv->otable_bo;
 	int ret;
 
-	for (i = 0; i < SVGA_OTABLE_COUNT; ++i)
+	for (i = 0; i < SVGA_OTABLE_DX9_MAX - VMW_OTABLE_SETUP_SUB; ++i)
 		vmw_takedown_otable_base(dev_priv, i,
 					 &dev_priv->otables[i]);
 
