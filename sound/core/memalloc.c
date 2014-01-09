@@ -21,21 +21,11 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <asm/uaccess.h>
 #include <linux/dma-mapping.h>
 #include <linux/genalloc.h>
-#include <linux/moduleparam.h>
 #include <sound/memalloc.h>
-
-
-MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>, Jaroslav Kysela <perex@perex.cz>");
-MODULE_DESCRIPTION("Memory allocator for ALSA system.");
-MODULE_LICENSE("GPL");
-
 
 /*
  *
