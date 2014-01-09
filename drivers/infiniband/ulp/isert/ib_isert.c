@@ -393,6 +393,33 @@ isert_conn_free_fastreg_pool(struct isert_conn *isert_conn)
 }
 
 static int
+isert_create_fr_desc(struct ib_device *ib_device, struct ib_pd *pd,
+		     struct fast_reg_descriptor *fr_desc)
+{
+	fr_desc->data_frpl = ib_alloc_fast_reg_page_list(ib_device,
+							 ISCSI_ISER_SG_TABLESIZE);
+	if (IS_ERR(fr_desc->data_frpl)) {
+		pr_err("Failed to allocate data frpl err=%ld\n",
+		       PTR_ERR(fr_desc->data_frpl));
+		return PTR_ERR(fr_desc->data_frpl);
+	}
+
+	fr_desc->data_mr = ib_alloc_fast_reg_mr(pd, ISCSI_ISER_SG_TABLESIZE);
+	if (IS_ERR(fr_desc->data_mr)) {
+		pr_err("Failed to allocate data frmr err=%ld\n",
+		       PTR_ERR(fr_desc->data_mr));
+		ib_free_fast_reg_page_list(fr_desc->data_frpl);
+		return PTR_ERR(fr_desc->data_mr);
+	}
+	pr_debug("Create fr_desc %p page_list %p\n",
+		 fr_desc, fr_desc->data_frpl->page_list);
+
+	fr_desc->valid = true;
+
+	return 0;
+}
+
+static int
 isert_conn_create_fastreg_pool(struct isert_conn *isert_conn)
 {
 	struct fast_reg_descriptor *fr_desc;
@@ -409,29 +436,14 @@ isert_conn_create_fastreg_pool(struct isert_conn *isert_conn)
 			goto err;
 		}
 
-		fr_desc->data_frpl =
-			ib_alloc_fast_reg_page_list(device->ib_device,
-						    ISCSI_ISER_SG_TABLESIZE);
-		if (IS_ERR(fr_desc->data_frpl)) {
-			pr_err("Failed to allocate fr_pg_list err=%ld\n",
-			       PTR_ERR(fr_desc->data_frpl));
-			ret = PTR_ERR(fr_desc->data_frpl);
+		ret = isert_create_fr_desc(device->ib_device,
+					   isert_conn->conn_pd, fr_desc);
+		if (ret) {
+			pr_err("Failed to create fastreg descriptor err=%d\n",
+			       ret);
 			goto err;
 		}
 
-		fr_desc->data_mr = ib_alloc_fast_reg_mr(isert_conn->conn_pd,
-					ISCSI_ISER_SG_TABLESIZE);
-		if (IS_ERR(fr_desc->data_mr)) {
-			pr_err("Failed to allocate frmr err=%ld\n",
-			       PTR_ERR(fr_desc->data_mr));
-			ret = PTR_ERR(fr_desc->data_mr);
-			ib_free_fast_reg_page_list(fr_desc->data_frpl);
-			goto err;
-		}
-		pr_debug("Create fr_desc %p page_list %p\n",
-			 fr_desc, fr_desc->data_frpl->page_list);
-
-		fr_desc->valid = true;
 		list_add_tail(&fr_desc->list, &isert_conn->conn_fr_pool);
 		isert_conn->conn_fr_pool_size++;
 	}
