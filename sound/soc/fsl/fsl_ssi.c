@@ -711,6 +711,17 @@ static int fsl_ssi_setup(struct fsl_ssi_private *ssi_private)
 	if (ssi_private->imx_ac97)
 		fsl_ssi_setup_ac97(ssi_private);
 
+	/*
+	 * Set a default slot number so that there is no need for those common
+	 * cases like I2S mode to call the extra set_tdm_slot() any more.
+	 */
+	if (!ssi_private->imx_ac97) {
+		write_ssi_mask(&ssi->stccr, CCSR_SSI_SxCCR_DC_MASK,
+				CCSR_SSI_SxCCR_DC(2));
+		write_ssi_mask(&ssi->srccr, CCSR_SSI_SxCCR_DC_MASK,
+				CCSR_SSI_SxCCR_DC(2));
+	}
+
 	return 0;
 }
 
