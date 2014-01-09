@@ -1267,7 +1267,7 @@ struct qlcnic_pci_func_cfg {
 	u16	port_num;
 	u8	pci_func;
 	u8	func_state;
-	u8	def_mac_addr[6];
+	u8	def_mac_addr[ETH_ALEN];
 };
 
 struct qlcnic_npar_func_cfg {

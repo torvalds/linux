@@ -6,7 +6,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 
 #include "qlcnic.h"
@@ -927,38 +926,35 @@ static ssize_t qlcnic_sysfs_read_pci_config(struct file *file,
 	u32 pci_func_count = qlcnic_get_pci_func_count(adapter);
 	struct qlcnic_pci_func_cfg *pci_cfg;
 	struct qlcnic_pci_info *pci_info;
-	size_t pci_info_sz, pci_cfg_sz;
+	size_t pci_cfg_sz;
 	int i, ret;
 
 	pci_cfg_sz = pci_func_count * sizeof(*pci_cfg);
 	if (size != pci_cfg_sz)
 		return QL_STATUS_INVALID_PARAM;
 
-	pci_info_sz = pci_func_count * sizeof(*pci_info);
-	pci_info = vmalloc(pci_info_sz);
+	pci_info = kcalloc(pci_func_count, sizeof(*pci_info), GFP_KERNEL);
 	if (!pci_info)
 		return -ENOMEM;
 
-	memset(pci_info, 0, pci_info_sz);
-	memset(buf, 0, pci_cfg_sz);
-	pci_cfg = (struct qlcnic_pci_func_cfg *)buf;
-
 	ret = qlcnic_get_pci_info(adapter, pci_info);
 	if (ret) {
-		vfree(pci_info);
+		kfree(pci_info);
 		return ret;
 	}
 
+	pci_cfg = (struct qlcnic_pci_func_cfg *)buf;
 	for (i = 0; i < pci_func_count; i++) {
 		pci_cfg[i].pci_func = pci_info[i].id;
 		pci_cfg[i].func_type = pci_info[i].type;
+		pci_cfg[i].func_state = 0;
 		pci_cfg[i].port_num = pci_info[i].default_port;
 		pci_cfg[i].min_bw = pci_info[i].tx_min_bw;
 		pci_cfg[i].max_bw = pci_info[i].tx_max_bw;
 		memcpy(&pci_cfg[i].def_mac_addr, &pci_info[i].mac, ETH_ALEN);
 	}
 
-	vfree(pci_info);
+	kfree(pci_info);
 	return size;
 }
 
