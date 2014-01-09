@@ -576,6 +576,16 @@ config MMC_DW_SOCFPGA
 	  This selects support for Altera SoCFPGA specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver.
 
+config MMC_DW_K3
+	tristate "K3 specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW
+	select MMC_DW_PLTFM
+	select MMC_DW_IDMAC
+	help
+	  This selects support for Hisilicon K3 SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on Hisilicon K3 SoC's.
+
 config MMC_DW_PCI
 	tristate "Synopsys Designware MCI support on PCI bus"
 	depends on MMC_DW && PCI

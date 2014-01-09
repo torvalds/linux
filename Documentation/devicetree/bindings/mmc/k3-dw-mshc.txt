@@ -1,0 +1,60 @@
+* Hisilicon specific extensions to the Synopsys Designware Mobile
+  Storage Host Controller
+
+Read synopsys-dw-mshc.txt for more details
+
+The Synopsys designware mobile storage host controller is used to interface
+a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
+differences between the core Synopsys dw mshc controller properties described
+by synopsys-dw-mshc.txt and the properties used by the Hisilicon specific
+extensions to the Synopsys Designware Mobile Storage Host Controller.
+
+Required Properties:
+
+* compatible: should be one of the following.
+  - "hisilicon,hi4511-dw-mshc": for controllers with hi4511 specific extentions.
+
+* clock-freq-table: should be the frequency (in Hz) array of the ciu clock
+	in each	supported mode.
+	0. CIU clock rate in Hz for DS mode
+	1. CIU clock rate in Hz for MMC HS mode
+	2. CIU clock rate in Hz for SD HS mode
+	3. CIU clock rate in Hz for SDR12 mode
+	4. CIU clock rate in Hz for SDR25 mode
+	5. CIU clock rate in Hz for SDR50 mode
+	6. CIU clock rate in Hz for SDR104 mode
+	7. CIU clock rate in Hz for DDR50 mode
+	8. CIU clock rate in Hz for HS200 mode
+
+Example:
+
+	/* for Hi3620 */
+
+	/* SoC portion */
+	dwmmc_0: dwmmc0@fcd03000 {
+		compatible = "hisilicon,hi4511-dw-mshc";
+		reg = <0xfcd03000 0x1000>;
+		interrupts = <0 16 4>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&mmc_clock HI3620_SD_CIUCLK>, <&clock HI3620_DDRC_PER_CLK>;
+		clock-names = "ciu", "biu";
+		clock-freq-table =
+		<25000000 0 50000000 25000000 50000000 100000000 0 50000000>;
+	};
+
+	/* Board portion */
+	dwmmc0@fcd03000 {
+		num-slots = <1>;
+		vmmc-supply = <&ldo12>;
+		fifo-depth = <0x100>;
+		supports-highspeed;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_pmx_pins &sd_cfg_func1 &sd_cfg_func2>;
+		slot@0 {
+			reg = <0>;
+			bus-width = <4>;
+			disable-wp;
+			cd-gpios = <&gpio10 3 0>;
+		};
+	};
