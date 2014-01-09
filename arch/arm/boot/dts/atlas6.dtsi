@@ -711,6 +711,12 @@
 				interrupts = <52 53 54>;
 			};
 
+			minigpsrtc@2000 {
+				compatible = "sirf,prima2-minigpsrtc";
+				reg = <0x2000 0x1000>;
+				interrupts = <54>;
+			};
+
 			pwrc@3000 {
 				compatible = "sirf,prima2-pwrc";
 				reg = <0x3000 0x1000>;
