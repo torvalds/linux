@@ -124,9 +124,9 @@ static inline u64 nf_tables_alloc_handle(struct nft_table *table)
 	return ++table->hgenerator;
 }
 
-static struct nf_chain_type *chain_type[AF_MAX][NFT_CHAIN_T_MAX];
+static const struct nf_chain_type *chain_type[AF_MAX][NFT_CHAIN_T_MAX];
 
-static struct nf_chain_type *
+static const struct nf_chain_type *
 __nf_tables_chain_type_lookup(int family, const struct nlattr *nla)
 {
 	int i;
@@ -139,12 +139,12 @@ __nf_tables_chain_type_lookup(int family, const struct nlattr *nla)
 	return NULL;
 }
 
-static struct nf_chain_type *
+static const struct nf_chain_type *
 nf_tables_chain_type_lookup(const struct nft_af_info *afi,
 			    const struct nlattr *nla,
 			    bool autoload)
 {
-	struct nf_chain_type *type;
+	const struct nf_chain_type *type;
 
 	type = __nf_tables_chain_type_lookup(afi->family, nla);
 	if (type != NULL)
@@ -475,7 +475,7 @@ static int nf_tables_deltable(struct sock *nlsk, struct sk_buff *skb,
 	return 0;
 }
 
-int nft_register_chain_type(struct nf_chain_type *ctype)
+int nft_register_chain_type(const struct nf_chain_type *ctype)
 {
 	int err = 0;
 
@@ -491,7 +491,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(nft_register_chain_type);
 
-void nft_unregister_chain_type(struct nf_chain_type *ctype)
+void nft_unregister_chain_type(const struct nf_chain_type *ctype)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
 	chain_type[ctype->family][ctype->type] = NULL;
@@ -900,7 +900,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		return -EOVERFLOW;
 
 	if (nla[NFTA_CHAIN_HOOK]) {
-		struct nf_chain_type *type;
+		const struct nf_chain_type *type;
 		struct nf_hook_ops *ops;
 		nf_hookfn *hookfn;
 		u32 hooknum, priority;

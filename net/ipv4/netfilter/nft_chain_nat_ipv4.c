@@ -164,7 +164,7 @@ static unsigned int nf_nat_output(const struct nf_hook_ops *ops,
 	return ret;
 }
 
-static struct nf_chain_type nft_chain_nat_ipv4 = {
+static const struct nf_chain_type nft_chain_nat_ipv4 = {
 	.family		= NFPROTO_IPV4,
 	.name		= "nat",
 	.type		= NFT_CHAIN_T_NAT,

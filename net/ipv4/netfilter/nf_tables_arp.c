@@ -68,7 +68,7 @@ static struct pernet_operations nf_tables_arp_net_ops = {
 	.exit   = nf_tables_arp_exit_net,
 };
 
-static struct nf_chain_type filter_arp = {
+static const struct nf_chain_type filter_arp = {
 	.family		= NFPROTO_ARP,
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,

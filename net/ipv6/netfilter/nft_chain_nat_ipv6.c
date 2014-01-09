@@ -170,7 +170,7 @@ static unsigned int nf_nat_ipv6_output(const struct nf_hook_ops *ops,
 	return ret;
 }
 
-static struct nf_chain_type nft_chain_nat_ipv6 = {
+static const struct nf_chain_type nft_chain_nat_ipv6 = {
 	.family		= NFPROTO_IPV6,
 	.name		= "nat",
 	.type		= NFT_CHAIN_T_NAT,

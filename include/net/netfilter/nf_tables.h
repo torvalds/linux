@@ -436,7 +436,7 @@ struct nft_stats {
  */
 struct nft_base_chain {
 	struct nf_hook_ops		ops[NFT_HOOK_OPS_MAX];
-	struct nf_chain_type		*type;
+	const struct nf_chain_type	*type;
 	u8				policy;
 	struct nft_stats __percpu	*stats;
 	struct nft_chain		chain;
@@ -507,8 +507,8 @@ struct nf_chain_type {
 	int			family;
 };
 
-int nft_register_chain_type(struct nf_chain_type *);
-void nft_unregister_chain_type(struct nf_chain_type *);
+int nft_register_chain_type(const struct nf_chain_type *);
+void nft_unregister_chain_type(const struct nf_chain_type *);
 
 int nft_register_expr(struct nft_expr_type *);
 void nft_unregister_expr(struct nft_expr_type *);

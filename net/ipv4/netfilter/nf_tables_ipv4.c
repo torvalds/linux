@@ -91,7 +91,7 @@ static struct pernet_operations nf_tables_ipv4_net_ops = {
 	.exit	= nf_tables_ipv4_exit_net,
 };
 
-static struct nf_chain_type filter_ipv4 = {
+static const struct nf_chain_type filter_ipv4 = {
 	.family		= NFPROTO_IPV4,
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,

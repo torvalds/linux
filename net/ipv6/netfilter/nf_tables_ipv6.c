@@ -90,7 +90,7 @@ static struct pernet_operations nf_tables_ipv6_net_ops = {
 	.exit	= nf_tables_ipv6_exit_net,
 };
 
-static struct nf_chain_type filter_ipv6 = {
+static const struct nf_chain_type filter_ipv6 = {
 	.family		= NFPROTO_IPV6,
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,

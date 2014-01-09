@@ -68,7 +68,7 @@ static struct pernet_operations nf_tables_bridge_net_ops = {
 	.exit	= nf_tables_bridge_exit_net,
 };
 
-static struct nf_chain_type filter_bridge = {
+static const struct nf_chain_type filter_bridge = {
 	.family		= NFPROTO_BRIDGE,
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
