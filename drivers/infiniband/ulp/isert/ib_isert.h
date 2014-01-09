@@ -144,8 +144,6 @@ struct isert_device {
 	int			refcount;
 	int			cq_active_qps[ISERT_MAX_CQ];
 	struct ib_device	*ib_device;
-	struct ib_pd		*dev_pd;
-	struct ib_mr		*dev_mr;
 	struct ib_cq		*dev_rx_cq[ISERT_MAX_CQ];
 	struct ib_cq		*dev_tx_cq[ISERT_MAX_CQ];
 	struct isert_cq_desc	*cq_desc;

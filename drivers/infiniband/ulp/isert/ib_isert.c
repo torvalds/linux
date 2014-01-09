@@ -248,13 +248,6 @@ isert_create_device_ib_res(struct isert_device *device)
 	}
 	cq_desc = device->cq_desc;
 
-	device->dev_pd = ib_alloc_pd(ib_dev);
-	if (IS_ERR(device->dev_pd)) {
-		ret = PTR_ERR(device->dev_pd);
-		pr_err("ib_alloc_pd failed for dev_pd: %d\n", ret);
-		goto out_cq_desc;
-	}
-
 	for (i = 0; i < device->cqs_used; i++) {
 		cq_desc[i].device = device;
 		cq_desc[i].cq_index = i;
@@ -282,13 +275,6 @@ isert_create_device_ib_res(struct isert_device *device)
 			goto out_cq;
 	}
 
-	device->dev_mr = ib_get_dma_mr(device->dev_pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(device->dev_mr)) {
-		ret = PTR_ERR(device->dev_mr);
-		pr_err("ib_get_dma_mr failed for dev_mr: %d\n", ret);
-		goto out_cq;
-	}
-
 	return 0;
 
 out_cq:
@@ -304,9 +290,6 @@ out_cq:
 			ib_destroy_cq(device->dev_tx_cq[j]);
 		}
 	}
-	ib_dealloc_pd(device->dev_pd);
-
-out_cq_desc:
 	kfree(device->cq_desc);
 
 	return ret;
@@ -329,8 +312,6 @@ isert_free_device_ib_res(struct isert_device *device)
 		device->dev_tx_cq[i] = NULL;
 	}
 
-	ib_dereg_mr(device->dev_mr);
-	ib_dealloc_pd(device->dev_pd);
 	kfree(device->cq_desc);
 }
 
@@ -437,7 +418,7 @@ isert_conn_create_frwr_pool(struct isert_conn *isert_conn)
 			goto err;
 		}
 
-		fr_desc->data_mr = ib_alloc_fast_reg_mr(device->dev_pd,
+		fr_desc->data_mr = ib_alloc_fast_reg_mr(isert_conn->conn_pd,
 					ISCSI_ISER_SG_TABLESIZE);
 		if (IS_ERR(fr_desc->data_mr)) {
 			pr_err("Failed to allocate frmr err=%ld\n",
@@ -546,8 +527,22 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	}
 
 	isert_conn->conn_device = device;
-	isert_conn->conn_pd = device->dev_pd;
-	isert_conn->conn_mr = device->dev_mr;
+	isert_conn->conn_pd = ib_alloc_pd(isert_conn->conn_device->ib_device);
+	if (IS_ERR(isert_conn->conn_pd)) {
+		ret = PTR_ERR(isert_conn->conn_pd);
+		pr_err("ib_alloc_pd failed for conn %p: ret=%d\n",
+		       isert_conn, ret);
+		goto out_pd;
+	}
+
+	isert_conn->conn_mr = ib_get_dma_mr(isert_conn->conn_pd,
+					   IB_ACCESS_LOCAL_WRITE);
+	if (IS_ERR(isert_conn->conn_mr)) {
+		ret = PTR_ERR(isert_conn->conn_mr);
+		pr_err("ib_get_dma_mr failed for conn %p: ret=%d\n",
+		       isert_conn, ret);
+		goto out_mr;
+	}
 
 	if (device->use_frwr) {
 		ret = isert_conn_create_frwr_pool(isert_conn);
@@ -573,6 +568,10 @@ out_conn_dev:
 	if (device->use_frwr)
 		isert_conn_free_frwr_pool(isert_conn);
 out_frwr:
+	ib_dereg_mr(isert_conn->conn_mr);
+out_mr:
+	ib_dealloc_pd(isert_conn->conn_pd);
+out_pd:
 	isert_device_try_release(device);
 out_rsp_dma_map:
 	ib_dma_unmap_single(ib_dev, isert_conn->login_rsp_dma,
@@ -610,6 +609,9 @@ isert_connect_release(struct isert_conn *isert_conn)
 
 	isert_free_rx_descriptors(isert_conn);
 	rdma_destroy_id(isert_conn->conn_cm_id);
+
+	ib_dereg_mr(isert_conn->conn_mr);
+	ib_dealloc_pd(isert_conn->conn_pd);
 
 	if (isert_conn->login_buf) {
 		ib_dma_unmap_single(ib_dev, isert_conn->login_rsp_dma,
