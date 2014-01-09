@@ -147,16 +147,20 @@ nf_tables_chain_type_lookup(const struct nft_af_info *afi,
 	struct nf_chain_type *type;
 
 	type = __nf_tables_chain_type_lookup(afi->family, nla);
+	if (type != NULL)
+		return type;
 #ifdef CONFIG_MODULES
-	if (type == NULL && autoload) {
+	if (autoload) {
 		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 		request_module("nft-chain-%u-%*.s", afi->family,
 			       nla_len(nla)-1, (const char *)nla_data(nla));
 		nfnl_lock(NFNL_SUBSYS_NFTABLES);
 		type = __nf_tables_chain_type_lookup(afi->family, nla);
+		if (type != NULL)
+			return ERR_PTR(-EAGAIN);
 	}
 #endif
-	return type;
+	return ERR_PTR(-ENOENT);
 }
 
 static const struct nla_policy nft_table_policy[NFTA_TABLE_MAX + 1] = {
@@ -906,8 +910,8 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			type = nf_tables_chain_type_lookup(afi,
 							   nla[NFTA_CHAIN_TYPE],
 							   create);
-			if (type == NULL)
-				return -ENOENT;
+			if (IS_ERR(type))
+				return PTR_ERR(type);
 		}
 
 		err = nla_parse_nested(ha, NFTA_HOOK_MAX, nla[NFTA_CHAIN_HOOK],
