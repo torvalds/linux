@@ -83,7 +83,8 @@
    the types of messages displayed */
 #ifndef DBG_LVL
 #define DBG_LVL 5			/* yields nothing via init_module,
-							   original value of 5 yields DBG_TRACE_ON and DBG_VERBOSE_ON */
+					   original value of 5 yields
+					   DBG_TRACE_ON and DBG_VERBOSE_ON */
 #endif  /*  DBG_LVL*/
 
 
@@ -165,9 +166,9 @@
 		} } while (0)
 
 typedef struct {
-    char           *dbgName;
-    int             dbgLevel;
-    unsigned long   DebugFlag;
+	char		*dbgName;
+	int		dbgLevel;
+	unsigned long	DebugFlag;
 } dbg_info_t;
 
 
