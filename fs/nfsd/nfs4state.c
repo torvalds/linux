@@ -3134,6 +3134,7 @@ nfs4_open_delegation(struct net *net, struct svc_fh *fh,
 				goto out_no_deleg;
 			break;
 		case NFS4_OPEN_CLAIM_NULL:
+		case NFS4_OPEN_CLAIM_FH:
 			/*
 			 * Let's not give out any delegations till everyone's
 			 * had the chance to reclaim theirs....
