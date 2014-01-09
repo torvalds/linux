@@ -391,7 +391,7 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
  * Display the statistics for the current SSI device.  To avoid confusion,
  * we only show those counts that are enabled.
  */
-static ssize_t fsl_ssi_stats_show(struct seq_file *s, void *unused)
+static int fsl_ssi_stats_show(struct seq_file *s, void *unused)
 {
 	struct fsl_ssi_private *ssi_private = s->private;
 
