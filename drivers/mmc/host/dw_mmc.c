@@ -35,6 +35,7 @@
 #include <linux/workqueue.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/mmc/slot-gpio.h>
 
 #include "dw_mmc.h"
 
@@ -867,20 +868,26 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	int present;
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci_board *brd = slot->host->pdata;
+	int gpio_cd = !mmc_gpio_get_cd(mmc);
 
 	/* Use platform get_cd function, else try onboard card detect */
 	if (brd->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION)
 		present = 1;
 	else if (brd->get_cd)
 		present = !brd->get_cd(slot->id);
+	else if (!IS_ERR_VALUE(gpio_cd))
+		present = !!gpio_cd;
 	else
 		present = (mci_readl(slot->host, CDETECT) & (1 << slot->id))
 			== 0 ? 1 : 0;
 
-	if (present)
+	if (present) {
+		set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 		dev_dbg(&mmc->class_dev, "card is present\n");
-	else
+	} else {
+		clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 		dev_dbg(&mmc->class_dev, "card is not present\n");
+	}
 
 	return present;
 }
@@ -1708,10 +1715,6 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 			/* Card change detected */
 			slot->last_detect_state = present;
 
-			/* Mark card as present if applicable */
-			if (present != 0)
-				set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-
 			/* Clean up queue if present */
 			mrq = slot->mrq;
 			if (mrq) {
@@ -1760,7 +1763,6 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
 			/* Power down slot */
 			if (present == 0) {
-				clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 
 				/*
 				 * Clear down the FIFO - doing so generates a
@@ -1875,6 +1877,26 @@ static int dw_mci_of_get_wp_gpio(struct device *dev, u8 slot)
 
 	return gpio;
 }
+
+/* find the cd gpio for a given slot; or -1 if none specified */
+static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
+					struct mmc_host *mmc)
+{
+	struct device_node *np = dw_mci_of_find_slot_node(dev, slot);
+	int gpio;
+
+	if (!np)
+		return;
+
+	gpio = of_get_named_gpio(np, "cd-gpios", 0);
+
+	/* Having a missing entry is valid; return silently */
+	if (!gpio_is_valid(gpio))
+		return;
+
+	if (mmc_gpio_request_cd(mmc, gpio, 0))
+		dev_warn(dev, "gpio [%d] request failed\n", gpio);
+}
 #else /* CONFIG_OF */
 static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 {
@@ -1891,6 +1913,11 @@ static struct device_node *dw_mci_of_find_slot_node(struct device *dev, u8 slot)
 static int dw_mci_of_get_wp_gpio(struct device *dev, u8 slot)
 {
 	return -EINVAL;
+}
+static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
+					struct mmc_host *mmc)
+{
+	return;
 }
 #endif /* CONFIG_OF */
 
@@ -2002,12 +2029,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		}
 	}
 
-	if (dw_mci_get_cd(mmc))
-		set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-	else
-		clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-
 	slot->wp_gpio = dw_mci_of_get_wp_gpio(host->dev, slot->id);
+	dw_mci_of_get_cd_gpio(host->dev, slot->id, mmc);
 
 	ret = mmc_add_host(mmc);
 	if (ret)
