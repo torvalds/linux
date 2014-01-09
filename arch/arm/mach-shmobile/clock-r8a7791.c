@@ -113,6 +113,7 @@ SH_FIXED_RATIO_CLK_SET(rclk_clk,		pll1_clk,	1, (48 * 1024));
 SH_FIXED_RATIO_CLK_SET(mp_clk,			pll1_div2_clk,	1, 15);
 SH_FIXED_RATIO_CLK_SET(zg_clk,			pll1_clk,	1, 3);
 SH_FIXED_RATIO_CLK_SET(zx_clk,			pll1_clk,	1, 3);
+SH_FIXED_RATIO_CLK_SET(zs_clk,			pll1_clk,	1, 6);
 
 static struct clk *main_clks[] = {
 	&extal_clk,
@@ -128,6 +129,7 @@ static struct clk *main_clks[] = {
 	&cp_clk,
 	&zg_clk,
 	&zx_clk,
+	&zs_clk,
 };
 
 /* MSTP */
@@ -187,6 +189,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pll1_div2",	&pll1_div2_clk),
 	CLKDEV_CON_ID("pll3",		&pll3_clk),
 	CLKDEV_CON_ID("zg",		&zg_clk),
+	CLKDEV_CON_ID("zs",		&zs_clk),
 	CLKDEV_CON_ID("hp",		&hp_clk),
 	CLKDEV_CON_ID("p",		&p_clk),
 	CLKDEV_CON_ID("rclk",		&rclk_clk),
