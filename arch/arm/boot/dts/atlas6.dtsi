@@ -69,6 +69,7 @@
 			cphifbg@88030000 {
 				compatible = "sirf,prima2-cphifbg";
 				reg = <0x88030000 0x1000>;
+				clocks = <&clks 42>;
 			};
 		};
 
