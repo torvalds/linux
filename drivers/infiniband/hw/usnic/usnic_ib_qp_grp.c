@@ -82,7 +82,7 @@ static int add_fwd_filter(struct usnic_ib_qp_grp *qp_grp,
 	struct usnic_vnic_res_chunk *chunk;
 	int rq_idx;
 
-	WARN_ON(!spin_is_locked(&qp_grp->lock));
+	lockdep_assert_held(&qp_grp->lock);
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
 	if (IS_ERR_OR_NULL(chunk) || chunk->cnt < 1) {
@@ -119,7 +119,7 @@ static int del_all_filters(struct usnic_ib_qp_grp *qp_grp)
 	int err, status;
 	struct usnic_fwd_filter_hndl *filter_hndl, *tmp;
 
-	WARN_ON(!spin_is_locked(&qp_grp->lock));
+	lockdep_assert_held(&qp_grp->lock);
 
 	status = 0;
 
@@ -145,7 +145,7 @@ static int enable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 	struct usnic_vnic_res_chunk *res_chunk;
 	struct usnic_vnic_res *res;
 
-	WARN_ON(!spin_is_locked(&qp_grp->lock));
+	lockdep_assert_held(&qp_grp->lock);
 
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
 
@@ -189,7 +189,7 @@ static int disable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 	struct usnic_vnic_res *res;
 	int status = 0;
 
-	WARN_ON(!spin_is_locked(&qp_grp->lock));
+	lockdep_assert_held(&qp_grp->lock);
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
 
 	res_chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
@@ -392,7 +392,7 @@ static int qp_grp_and_vf_bind(struct usnic_ib_vf *vf,
 	int err;
 	struct pci_dev *pdev;
 
-	WARN_ON(!spin_is_locked(&vf->lock));
+	lockdep_assert_held(&vf->lock);
 
 	pdev = usnic_vnic_get_pdev(vf->vnic);
 	if (vf->qp_grp_ref_cnt == 0) {
@@ -417,7 +417,7 @@ static void qp_grp_and_vf_unbind(struct usnic_ib_qp_grp *qp_grp)
 	struct pci_dev *pdev;
 	struct usnic_ib_pd *pd;
 
-	WARN_ON(!spin_is_locked(&qp_grp->vf->lock));
+	lockdep_assert_held(&qp_grp->vf->lock);
 
 	pd = qp_grp->vf->pd;
 	pdev = usnic_vnic_get_pdev(qp_grp->vf->vnic);
@@ -446,7 +446,7 @@ usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev,
 	u16 port_num;
 	int err;
 
-	WARN_ON(!spin_is_locked(&vf->lock));
+	lockdep_assert_held(&vf->lock);
 
 	err = usnic_vnic_res_spec_satisfied(&min_transport_spec[transport],
 						res_spec);
@@ -514,7 +514,7 @@ void usnic_ib_qp_grp_destroy(struct usnic_ib_qp_grp *qp_grp)
 	enum usnic_transport_type transport;
 
 	WARN_ON(qp_grp->state != IB_QPS_RESET);
-	WARN_ON(!spin_is_locked(&qp_grp->vf->lock));
+	lockdep_assert_held(&qp_grp->vf->lock);
 
 	transport = qp_grp->filters[DFLT_FILTER_IDX].transport;
 	default_port_num = qp_grp->filters[DFLT_FILTER_IDX].port_num;
