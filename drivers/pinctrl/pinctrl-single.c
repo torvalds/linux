@@ -1318,6 +1318,14 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 			mask_pos = ((pcs->fmask) << (bit_pos - 1));
 			val_pos = val & mask_pos;
 			submask = mask & mask_pos;
+
+			if ((mask & mask_pos) == 0) {
+				dev_err(pcs->dev,
+					"Invalid mask for %s at 0x%x\n",
+					np->name, offset);
+				break;
+			}
+
 			mask &= ~mask_pos;
 
 			if (submask != mask_pos) {
