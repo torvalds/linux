@@ -74,7 +74,8 @@ enum rdma_node_type {
 enum rdma_transport_type {
 	RDMA_TRANSPORT_IB,
 	RDMA_TRANSPORT_IWARP,
-	RDMA_TRANSPORT_USNIC
+	RDMA_TRANSPORT_USNIC,
+	RDMA_TRANSPORT_USNIC_UDP
 };
 
 enum rdma_transport_type
