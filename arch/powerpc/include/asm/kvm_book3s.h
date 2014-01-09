@@ -264,6 +264,11 @@ static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 	return vcpu->arch.pc;
 }
 
+static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
+{
+	return (vcpu->arch.shared->msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
+}
+
 static inline u32 kvmppc_get_last_inst_internal(struct kvm_vcpu *vcpu, ulong pc)
 {
 	/* Load the instruction manually if it failed to do so in the
@@ -271,7 +276,8 @@ static inline u32 kvmppc_get_last_inst_internal(struct kvm_vcpu *vcpu, ulong pc)
 	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
 		kvmppc_ld(vcpu, &pc, sizeof(u32), &vcpu->arch.last_inst, false);
 
-	return vcpu->arch.last_inst;
+	return kvmppc_need_byteswap(vcpu) ? swab32(vcpu->arch.last_inst) :
+		vcpu->arch.last_inst;
 }
 
 static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)

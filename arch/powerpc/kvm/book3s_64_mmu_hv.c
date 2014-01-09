@@ -558,7 +558,7 @@ static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * we just return and retry the instruction.
 	 */
 
-	if (instruction_is_store(vcpu->arch.last_inst) != !!is_store)
+	if (instruction_is_store(kvmppc_get_last_inst(vcpu)) != !!is_store)
 		return RESUME_GUEST;
 
 	/*

@@ -673,9 +673,19 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 }
 
 int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                       unsigned int rt, unsigned int bytes, int is_bigendian)
+		       unsigned int rt, unsigned int bytes,
+		       int is_default_endian)
 {
 	int idx, ret;
+	int is_bigendian;
+
+	if (kvmppc_need_byteswap(vcpu)) {
+		/* Default endianness is "little endian". */
+		is_bigendian = !is_default_endian;
+	} else {
+		/* Default endianness is "big endian". */
+		is_bigendian = is_default_endian;
+	}
 
 	if (bytes > sizeof(run->mmio.data)) {
 		printk(KERN_ERR "%s: bad MMIO length: %d\n", __func__,
@@ -711,21 +721,31 @@ EXPORT_SYMBOL_GPL(kvmppc_handle_load);
 
 /* Same as above, but sign extends */
 int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                        unsigned int rt, unsigned int bytes, int is_bigendian)
+			unsigned int rt, unsigned int bytes,
+			int is_default_endian)
 {
 	int r;
 
 	vcpu->arch.mmio_sign_extend = 1;
-	r = kvmppc_handle_load(run, vcpu, rt, bytes, is_bigendian);
+	r = kvmppc_handle_load(run, vcpu, rt, bytes, is_default_endian);
 
 	return r;
 }
 
 int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                        u64 val, unsigned int bytes, int is_bigendian)
+			u64 val, unsigned int bytes, int is_default_endian)
 {
 	void *data = run->mmio.data;
 	int idx, ret;
+	int is_bigendian;
+
+	if (kvmppc_need_byteswap(vcpu)) {
+		/* Default endianness is "little endian". */
+		is_bigendian = !is_default_endian;
+	} else {
+		/* Default endianness is "big endian". */
+		is_bigendian = is_default_endian;
+	}
 
 	if (bytes > sizeof(run->mmio.data)) {
 		printk(KERN_ERR "%s: bad MMIO length: %d\n", __func__,
