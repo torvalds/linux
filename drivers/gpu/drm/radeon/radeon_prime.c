@@ -27,6 +27,7 @@
 
 #include "radeon.h"
 #include <drm/radeon_drm.h>
+#include <linux/dma-buf.h>
 
 struct sg_table *radeon_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
@@ -57,14 +58,14 @@ void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 }
 
 struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
-							size_t size,
+							struct dma_buf_attachment *attach,
 							struct sg_table *sg)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_bo *bo;
 	int ret;
 
-	ret = radeon_bo_create(rdev, size, PAGE_SIZE, false,
+	ret = radeon_bo_create(rdev, attach->dmabuf->size, PAGE_SIZE, false,
 			       RADEON_GEM_DOMAIN_GTT, 0, sg, &bo);
 	if (ret)
 		return ERR_PTR(ret);

@@ -23,6 +23,7 @@
  */
 
 #include <drm/drmP.h>
+#include <linux/dma-buf.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_gem.h"
@@ -56,7 +57,7 @@ void nouveau_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 }
 
 struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
-							 size_t size,
+							 struct dma_buf_attachment *attach,
 							 struct sg_table *sg)
 {
 	struct nouveau_bo *nvbo;
@@ -65,7 +66,7 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 
 	flags = TTM_PL_FLAG_TT;
 
-	ret = nouveau_bo_new(dev, size, 0, flags, 0, 0,
+	ret = nouveau_bo_new(dev, attach->dmabuf->size, 0, flags, 0, 0,
 			     sg, &nvbo);
 	if (ret)
 		return ERR_PTR(ret);

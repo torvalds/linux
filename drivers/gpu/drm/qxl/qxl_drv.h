@@ -537,7 +537,7 @@ int qxl_gem_prime_pin(struct drm_gem_object *obj);
 void qxl_gem_prime_unpin(struct drm_gem_object *obj);
 struct sg_table *qxl_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *qxl_gem_prime_import_sg_table(
-	struct drm_device *dev, size_t size,
+	struct drm_device *dev, struct dma_buf_attachment *attach,
 	struct sg_table *sgt);
 void *qxl_gem_prime_vmap(struct drm_gem_object *obj);
 void qxl_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
