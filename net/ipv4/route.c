@@ -112,9 +112,6 @@
 #define RT_FL_TOS(oldflp4) \
 	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
 
-/* IPv4 datagram length is stored into 16bit field (tot_len) */
-#define IP_MAX_MTU	0xFFFF
-
 #define RT_GC_TIMEOUT (300*HZ)
 
 static int ip_rt_max_size;
