@@ -307,6 +307,15 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	SET_NETDEV_DEV(dev, parent);
 
 	vif = netdev_priv(dev);
+
+	vif->grant_copy_op = vmalloc(sizeof(struct gnttab_copy) *
+				     MAX_GRANT_COPY_OPS);
+	if (vif->grant_copy_op == NULL) {
+		pr_warn("Could not allocate grant copy space for %s\n", name);
+		free_netdev(dev);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	vif->domid  = domid;
 	vif->handle = handle;
 	vif->can_sg = 1;
@@ -487,6 +496,7 @@ void xenvif_free(struct xenvif *vif)
 
 	unregister_netdev(vif->dev);
 
+	vfree(vif->grant_copy_op);
 	free_netdev(vif->dev);
 
 	module_put(THIS_MODULE);

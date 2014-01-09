@@ -291,7 +291,9 @@ static int ixgbe_pci_sriov_disable(struct pci_dev *dev)
 {
 	struct ixgbe_adapter *adapter = pci_get_drvdata(dev);
 	int err;
+#ifdef CONFIG_PCI_IOV
 	u32 current_flags = adapter->flags;
+#endif
 
 	err = ixgbe_disable_sriov(adapter);
 

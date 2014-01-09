@@ -3057,7 +3057,7 @@ static u32 cik_create_bitmask(u32 bit_width)
  * Returns the disabled RB bitmask.
  */
 static u32 cik_get_rb_disabled(struct radeon_device *rdev,
-			      u32 max_rb_num, u32 se_num,
+			      u32 max_rb_num_per_se,
 			      u32 sh_per_se)
 {
 	u32 data, mask;
@@ -3071,7 +3071,7 @@ static u32 cik_get_rb_disabled(struct radeon_device *rdev,
 
 	data >>= BACKEND_DISABLE_SHIFT;
 
-	mask = cik_create_bitmask(max_rb_num / se_num / sh_per_se);
+	mask = cik_create_bitmask(max_rb_num_per_se / sh_per_se);
 
 	return data & mask;
 }
@@ -3088,7 +3088,7 @@ static u32 cik_get_rb_disabled(struct radeon_device *rdev,
  */
 static void cik_setup_rb(struct radeon_device *rdev,
 			 u32 se_num, u32 sh_per_se,
-			 u32 max_rb_num)
+			 u32 max_rb_num_per_se)
 {
 	int i, j;
 	u32 data, mask;
@@ -3098,7 +3098,7 @@ static void cik_setup_rb(struct radeon_device *rdev,
 	for (i = 0; i < se_num; i++) {
 		for (j = 0; j < sh_per_se; j++) {
 			cik_select_se_sh(rdev, i, j);
-			data = cik_get_rb_disabled(rdev, max_rb_num, se_num, sh_per_se);
+			data = cik_get_rb_disabled(rdev, max_rb_num_per_se, sh_per_se);
 			if (rdev->family == CHIP_HAWAII)
 				disabled_rbs |= data << ((i * sh_per_se + j) * HAWAII_RB_BITMAP_WIDTH_PER_SH);
 			else
@@ -3108,11 +3108,13 @@ static void cik_setup_rb(struct radeon_device *rdev,
 	cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
 
 	mask = 1;
-	for (i = 0; i < max_rb_num; i++) {
+	for (i = 0; i < max_rb_num_per_se * se_num; i++) {
 		if (!(disabled_rbs & mask))
 			enabled_rbs |= mask;
 		mask <<= 1;
 	}
+
+	rdev->config.cik.backend_enable_mask = enabled_rbs;
 
 	for (i = 0; i < se_num; i++) {
 		cik_select_se_sh(rdev, i, 0xffffffff);

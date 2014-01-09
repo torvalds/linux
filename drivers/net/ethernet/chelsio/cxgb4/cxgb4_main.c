@@ -2986,7 +2986,14 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data)
 	if (stid >= 0) {
 		t->stid_tab[stid].data = data;
 		stid += t->stid_base;
-		t->stids_in_use++;
+		/* IPv6 requires max of 520 bits or 16 cells in TCAM
+		 * This is equivalent to 4 TIDs. With CLIP enabled it
+		 * needs 2 TIDs.
+		 */
+		if (family == PF_INET)
+			t->stids_in_use++;
+		else
+			t->stids_in_use += 4;
 	}
 	spin_unlock_bh(&t->stid_lock);
 	return stid;
@@ -3012,7 +3019,8 @@ int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data)
 	}
 	if (stid >= 0) {
 		t->stid_tab[stid].data = data;
-		stid += t->stid_base;
+		stid -= t->nstids;
+		stid += t->sftid_base;
 		t->stids_in_use++;
 	}
 	spin_unlock_bh(&t->stid_lock);
@@ -3024,14 +3032,24 @@ EXPORT_SYMBOL(cxgb4_alloc_sftid);
  */
 void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family)
 {
-	stid -= t->stid_base;
+	/* Is it a server filter TID? */
+	if (t->nsftids && (stid >= t->sftid_base)) {
+		stid -= t->sftid_base;
+		stid += t->nstids;
+	} else {
+		stid -= t->stid_base;
+	}
+
 	spin_lock_bh(&t->stid_lock);
 	if (family == PF_INET)
 		__clear_bit(stid, t->stid_bmap);
 	else
 		bitmap_release_region(t->stid_bmap, stid, 2);
 	t->stid_tab[stid].data = NULL;
-	t->stids_in_use--;
+	if (family == PF_INET)
+		t->stids_in_use--;
+	else
+		t->stids_in_use -= 4;
 	spin_unlock_bh(&t->stid_lock);
 }
 EXPORT_SYMBOL(cxgb4_free_stid);
@@ -3134,6 +3152,7 @@ static int tid_init(struct tid_info *t)
 	size_t size;
 	unsigned int stid_bmap_size;
 	unsigned int natids = t->natids;
+	struct adapter *adap = container_of(t, struct adapter, tids);
 
 	stid_bmap_size = BITS_TO_LONGS(t->nstids + t->nsftids);
 	size = t->ntids * sizeof(*t->tid_tab) +
@@ -3167,6 +3186,11 @@ static int tid_init(struct tid_info *t)
 		t->afree = t->atid_tab;
 	}
 	bitmap_zero(t->stid_bmap, t->nstids + t->nsftids);
+	/* Reserve stid 0 for T4/T5 adapters */
+	if (!t->stid_base &&
+	    (is_t4(adap->params.chip) || is_t5(adap->params.chip)))
+		__set_bit(0, t->stid_bmap);
+
 	return 0;
 }
 
@@ -3731,7 +3755,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.ucq_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF) >>
 			(adap->fn * 4));
-	lli.filt_mode = adap->filter_mode;
+	lli.filt_mode = adap->params.tp.vlan_pri_map;
 	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
 	for (i = 0; i < NCHAN; i++)
 		lli.tx_modq[i] = i;
@@ -4179,7 +4203,7 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 	adap = netdev2adap(dev);
 
 	/* Adjust stid to correct filter index */
-	stid -= adap->tids.nstids;
+	stid -= adap->tids.sftid_base;
 	stid += adap->tids.nftids;
 
 	/* Check to make sure the filter requested is writable ...
@@ -4205,10 +4229,15 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			f->fs.val.lip[i] = val[i];
 			f->fs.mask.lip[i] = ~0;
 		}
-		if (adap->filter_mode & F_PORT) {
+		if (adap->params.tp.vlan_pri_map & F_PORT) {
 			f->fs.val.iport = port;
 			f->fs.mask.iport = mask;
 		}
+	}
+
+	if (adap->params.tp.vlan_pri_map & F_PROTOCOL) {
+		f->fs.val.proto = IPPROTO_TCP;
+		f->fs.mask.proto = ~0;
 	}
 
 	f->fs.dirsteer = 1;
@@ -4237,7 +4266,7 @@ int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 	adap = netdev2adap(dev);
 
 	/* Adjust stid to correct filter index */
-	stid -= adap->tids.nstids;
+	stid -= adap->tids.sftid_base;
 	stid += adap->tids.nftids;
 
 	f = &adap->tids.ftid_tab[stid];
@@ -5092,7 +5121,7 @@ static int adap_init0(struct adapter *adap)
 	enum dev_state state;
 	u32 params[7], val[7];
 	struct fw_caps_config_cmd caps_cmd;
-	int reset = 1, j;
+	int reset = 1;
 
 	/*
 	 * Contact FW, advertising Master capability (and potentially forcing
@@ -5434,21 +5463,11 @@ static int adap_init0(struct adapter *adap)
 	/*
 	 * These are finalized by FW initialization, load their values now.
 	 */
-	v = t4_read_reg(adap, TP_TIMER_RESOLUTION);
-	adap->params.tp.tre = TIMERRESOLUTION_GET(v);
-	adap->params.tp.dack_re = DELAYEDACKRESOLUTION_GET(v);
 	t4_read_mtu_tbl(adap, adap->params.mtus, NULL);
 	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
 		     adap->params.b_wnd);
 
-	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
-	for (j = 0; j < NCHAN; j++)
-		adap->params.tp.tx_modq[j] = j;
-
-	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
-			 &adap->filter_mode, 1,
-			 TP_VLAN_PRI_MAP);
-
+	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
 	return 0;
 

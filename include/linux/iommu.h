@@ -248,6 +248,11 @@ static inline struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 	return NULL;
 }
 
+static inline struct iommu_group *iommu_group_get_by_id(int id)
+{
+	return NULL;
+}
+
 static inline void iommu_domain_free(struct iommu_domain *domain)
 {
 }
@@ -292,8 +297,8 @@ static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_ad
 	return 0;
 }
 
-static inline int domain_has_cap(struct iommu_domain *domain,
-				 unsigned long cap)
+static inline int iommu_domain_has_cap(struct iommu_domain *domain,
+				       unsigned long cap)
 {
 	return 0;
 }

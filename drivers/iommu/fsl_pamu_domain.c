@@ -691,7 +691,7 @@ static int fsl_pamu_attach_device(struct iommu_domain *domain,
 	 * Use LIODN of the PCI controller while attaching a
 	 * PCI device.
 	 */
-	if (dev->bus == &pci_bus_type) {
+	if (dev_is_pci(dev)) {
 		pdev = to_pci_dev(dev);
 		pci_ctl = pci_bus_to_host(pdev->bus);
 		/*
@@ -729,7 +729,7 @@ static void fsl_pamu_detach_device(struct iommu_domain *domain,
 	 * Use LIODN of the PCI controller while detaching a
 	 * PCI device.
 	 */
-	if (dev->bus == &pci_bus_type) {
+	if (dev_is_pci(dev)) {
 		pdev = to_pci_dev(dev);
 		pci_ctl = pci_bus_to_host(pdev->bus);
 		/*
@@ -1056,7 +1056,7 @@ static int fsl_pamu_add_device(struct device *dev)
 	 * For platform devices we allocate a separate group for
 	 * each of the devices.
 	 */
-	if (dev->bus == &pci_bus_type) {
+	if (dev_is_pci(dev)) {
 		pdev = to_pci_dev(dev);
 		/* Don't create device groups for virtual PCI bridges */
 		if (pdev->subordinate)

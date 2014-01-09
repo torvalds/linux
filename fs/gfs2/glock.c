@@ -1655,6 +1655,7 @@ static int dump_holder(struct seq_file *seq, const struct gfs2_holder *gh)
 	struct task_struct *gh_owner = NULL;
 	char flags_buf[32];
 
+	rcu_read_lock();
 	if (gh->gh_owner_pid)
 		gh_owner = pid_task(gh->gh_owner_pid, PIDTYPE_PID);
 	gfs2_print_dbg(seq, " H: s:%s f:%s e:%d p:%ld [%s] %pS\n",
@@ -1664,6 +1665,7 @@ static int dump_holder(struct seq_file *seq, const struct gfs2_holder *gh)
 		       gh->gh_owner_pid ? (long)pid_nr(gh->gh_owner_pid) : -1,
 		       gh_owner ? gh_owner->comm : "(ended)",
 		       (void *)gh->gh_ip);
+	rcu_read_unlock();
 	return 0;
 }
 

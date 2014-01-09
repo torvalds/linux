@@ -141,10 +141,12 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
-		if (!ovr) {
-			tcf_ipt_release(to_ipt(pc), bind);
+		if (bind)/* dont override defaults */
+			return 0;
+		tcf_ipt_release(to_ipt(pc), bind);
+
+		if (!ovr)
 			return -EEXIST;
-		}
 	}
 	ipt = to_ipt(pc);
 
