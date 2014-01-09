@@ -1439,7 +1439,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		if (ret < 0) {
 			dev_err(&pdev->dev, "could not claim irq %u\n",
 					ssi_private->irq);
-			goto error_irqmap;
+			goto error_clk;
 		}
 	}
 
