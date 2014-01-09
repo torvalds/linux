@@ -80,13 +80,14 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
 {
 	struct usnic_uiom_chunk *chunk, *tmp;
 	struct page *page;
+	struct scatterlist *sg;
 	int i;
 	dma_addr_t pa;
 
 	list_for_each_entry_safe(chunk, tmp, chunk_list, list) {
-		for (i = 0; i < chunk->nents; i++) {
-			page = sg_page(&chunk->page_list[i]);
-			pa = sg_phys(&chunk->page_list[i]);
+		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
+			page = sg_page(sg);
+			pa = sg_phys(sg);
 			if (dirty)
 				set_page_dirty_lock(page);
 			put_page(page);
@@ -100,6 +101,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 				int dmasync, struct list_head *chunk_list)
 {
 	struct page **page_list;
+	struct scatterlist *sg;
 	struct usnic_uiom_chunk *chunk;
 	unsigned long locked;
 	unsigned long lock_limit;
@@ -165,11 +167,10 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 
 			chunk->nents = min_t(int, ret, USNIC_UIOM_PAGE_CHUNK);
 			sg_init_table(chunk->page_list, chunk->nents);
-			for (i = 0; i < chunk->nents; ++i) {
-				sg_set_page(&chunk->page_list[i],
-							page_list[i + off],
-							PAGE_SIZE, 0);
-				pa = sg_phys(&chunk->page_list[i]);
+			for_each_sg(chunk->page_list, sg, chunk->nents, i) {
+				sg_set_page(sg, page_list[i + off],
+						PAGE_SIZE, 0);
+				pa = sg_phys(sg);
 				usnic_dbg("va: 0x%lx pa: %pa\n",
 						cur_base + i*PAGE_SIZE, &pa);
 			}
