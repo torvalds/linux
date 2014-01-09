@@ -76,14 +76,6 @@
 #include <wl_wext.h>
 #include <wl_priv.h>
 
-/*******************************************************************************
- * global definitions
- ******************************************************************************/
-#if DBG
-extern dbg_info_t *DbgInfo;
-#endif  // DBG
-
-
 /* Set up the LTV to program the appropriate key */
 static int hermes_set_tkip_keys(ltv_t *ltv, u16 key_idx, u8 *addr,
 				int set_tx, u8 *seq, u8 *key, size_t key_len)

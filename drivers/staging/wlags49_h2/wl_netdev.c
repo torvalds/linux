@@ -115,14 +115,6 @@
 #endif  /* BUS_PCI */
 
 
-/*******************************************************************************
- * global variables
- ******************************************************************************/
-#if DBG
-extern dbg_info_t *DbgInfo;
-#endif  /* DBG */
-
-
 #if HCF_ENCAP
 #define MTU_MAX (HCF_MAX_MSG - ETH_HLEN - 8)
 #else

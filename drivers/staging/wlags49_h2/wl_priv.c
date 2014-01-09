@@ -94,16 +94,6 @@ int cfg_driver_info(struct uilreq *urq, struct wl_private *lp);
 int cfg_driver_identity(struct uilreq *urq, struct wl_private *lp);
 
 
-/*******************************************************************************
- * global variables
- ******************************************************************************/
-#if DBG
-extern dbg_info_t *DbgInfo;
-#endif  /* DBG */
-
-
-
-
 /* If USE_UIL is not defined, then none of the UIL Interface code below will
    be included in the build */
 #ifdef USE_UIL

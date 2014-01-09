@@ -101,16 +101,11 @@
 #include <wl_profile.h>
 
 
-/*******************************************************************************
- * global variables
- ******************************************************************************/
-
 /* Definition needed to prevent unresolved external in unistd.h */
 static int errno;
 
 #if DBG
 extern p_u32    DebugFlag;
-extern dbg_info_t *DbgInfo;
 #endif
 
 int parse_yes_no(char *value);

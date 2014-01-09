@@ -101,14 +101,6 @@
 #include <wireless/wl_netdev.h>
 #include <wireless/wl_pci.h>
 
-
-/*******************************************************************************
- * global variables
- ******************************************************************************/
-#if DBG
-extern dbg_info_t *DbgInfo;
-#endif  // DBG
-
 /* define the PCI device Table Cardname and id tables */
 static struct pci_device_id wl_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_0), },

@@ -165,11 +165,13 @@
 				  #C, __FILE__, __LINE__, __func__);	\
 		} } while (0)
 
-typedef struct {
+struct dbg_info {
 	char		*dbgName;
 	int		dbgLevel;
 	unsigned long	DebugFlag;
-} dbg_info_t;
+};
+
+extern struct dbg_info *DbgInfo;
 
 
 /****************************************************************************/
