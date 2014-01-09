@@ -637,6 +637,7 @@
 					reg = <0x56100000 0x100000>;
 					interrupts = <38>;
 					status = "disabled";
+					bus-width = <4>;
 					clocks = <&clks 36>;
 				};
 
@@ -646,6 +647,7 @@
 					reg = <0x56200000 0x100000>;
 					interrupts = <23>;
 					status = "disabled";
+					bus-width = <4>;
 					clocks = <&clks 37>;
 				};
 
@@ -655,6 +657,7 @@
 					reg = <0x56300000 0x100000>;
 					interrupts = <23>;
 					status = "disabled";
+					bus-width = <4>;
 					clocks = <&clks 37>;
 				};
 
@@ -664,6 +667,7 @@
 					reg = <0x56500000 0x100000>;
 					interrupts = <39>;
 					status = "disabled";
+					bus-width = <4>;
 					clocks = <&clks 38>;
 				};
 

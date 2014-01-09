@@ -649,6 +649,9 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56000000 0x100000>;
 					interrupts = <38>;
+					status = "disabled";
+					bus-width = <8>;
+					clocks = <&clks 36>;
 				};
 
 				sd1: sdhci@56100000 {
@@ -656,6 +659,9 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56100000 0x100000>;
 					interrupts = <38>;
+					status = "disabled";
+					bus-width = <4>;
+					clocks = <&clks 36>;
 				};
 
 				sd2: sdhci@56200000 {
@@ -663,6 +669,8 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56200000 0x100000>;
 					interrupts = <23>;
+					status = "disabled";
+					clocks = <&clks 37>;
 				};
 
 				sd3: sdhci@56300000 {
@@ -670,6 +678,8 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56300000 0x100000>;
 					interrupts = <23>;
+					status = "disabled";
+					clocks = <&clks 37>;
 				};
 
 				sd4: sdhci@56400000 {
@@ -677,6 +687,8 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56400000 0x100000>;
 					interrupts = <39>;
+					status = "disabled";
+					clocks = <&clks 38>;
 				};
 
 				sd5: sdhci@56500000 {
@@ -684,6 +696,7 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56500000 0x100000>;
 					interrupts = <39>;
+					clocks = <&clks 38>;
 				};
 
 				pci-copy@57900000 {
