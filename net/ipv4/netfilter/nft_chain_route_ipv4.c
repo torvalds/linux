@@ -47,7 +47,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = nft_do_chain_pktinfo(&pkt, ops);
+	ret = nft_do_chain(&pkt, ops);
 	if (ret != NF_DROP && ret != NF_QUEUE) {
 		iph = ip_hdr(skb);
 

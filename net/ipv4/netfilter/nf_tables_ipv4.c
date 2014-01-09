@@ -28,7 +28,7 @@ static unsigned int nft_do_chain_ipv4(const struct nf_hook_ops *ops,
 
 	nft_set_pktinfo_ipv4(&pkt, ops, skb, in, out);
 
-	return nft_do_chain_pktinfo(&pkt, ops);
+	return nft_do_chain(&pkt, ops);
 }
 
 static unsigned int nft_ipv4_output(const struct nf_hook_ops *ops,

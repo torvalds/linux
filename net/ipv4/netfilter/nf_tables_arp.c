@@ -25,7 +25,7 @@ nft_do_chain_arp(const struct nf_hook_ops *ops,
 
 	nft_set_pktinfo(&pkt, ops, skb, in, out);
 
-	return nft_do_chain_pktinfo(&pkt, ops);
+	return nft_do_chain(&pkt, ops);
 }
 
 static struct nft_af_info nft_af_arp __read_mostly = {

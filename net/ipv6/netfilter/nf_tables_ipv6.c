@@ -28,7 +28,7 @@ static unsigned int nft_do_chain_ipv6(const struct nf_hook_ops *ops,
 	if (nft_set_pktinfo_ipv6(&pkt, ops, skb, in, out) < 0)
 		return NF_DROP;
 
-	return nft_do_chain_pktinfo(&pkt, ops);
+	return nft_do_chain(&pkt, ops);
 }
 
 static unsigned int nft_ipv6_output(const struct nf_hook_ops *ops,

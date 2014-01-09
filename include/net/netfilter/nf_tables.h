@@ -447,8 +447,8 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
-unsigned int nft_do_chain_pktinfo(struct nft_pktinfo *pkt,
-				  const struct nf_hook_ops *ops);
+unsigned int nft_do_chain(struct nft_pktinfo *pkt,
+			  const struct nf_hook_ops *ops);
 
 /**
  *	struct nft_table - nf_tables table

@@ -116,7 +116,7 @@ static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
 }
 
 unsigned int
-nft_do_chain_pktinfo(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
+nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 {
 	const struct nft_chain *chain = ops->priv;
 	const struct nft_rule *rule;
@@ -216,7 +216,7 @@ next_rule:
 
 	return nft_base_chain(chain)->policy;
 }
-EXPORT_SYMBOL_GPL(nft_do_chain_pktinfo);
+EXPORT_SYMBOL_GPL(nft_do_chain);
 
 int __init nf_tables_core_module_init(void)
 {

@@ -75,7 +75,7 @@ static unsigned int nf_nat_fn(const struct nf_hook_ops *ops,
 
 		nft_set_pktinfo_ipv4(&pkt, ops, skb, in, out);
 
-		ret = nft_do_chain_pktinfo(&pkt, ops);
+		ret = nft_do_chain(&pkt, ops);
 		if (ret != NF_ACCEPT)
 			return ret;
 		if (!nf_nat_initialized(ct, maniptype)) {
