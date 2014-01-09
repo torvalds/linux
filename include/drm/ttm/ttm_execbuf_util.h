@@ -73,6 +73,7 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  * @ticket:  [out] ww_acquire_ctx filled in by call, or NULL if only
  *           non-blocking reserves should be tried.
  * @list:    thread private list of ttm_validate_buffer structs.
+ * @intr:    should the wait be interruptible
  *
  * Tries to reserve bos pointed to by the list entries for validation.
  * If the function returns 0, all buffers are marked as "unfenced",
@@ -84,9 +85,9 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  * CPU write reservations to be cleared, and for other threads to
  * unreserve their buffers.
  *
- * This function may return -ERESTART or -EAGAIN if the calling process
- * receives a signal while waiting. In that case, no buffers on the list
- * will be reserved upon return.
+ * If intr is set to true, this function may return -ERESTARTSYS if the
+ * calling process receives a signal while waiting. In that case, no
+ * buffers on the list will be reserved upon return.
  *
  * Buffers reserved by this function should be unreserved by
  * a call to either ttm_eu_backoff_reservation() or
@@ -95,7 +96,7 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  */
 
 extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
-				  struct list_head *list);
+				  struct list_head *list, bool intr);
 
 /**
  * function ttm_eu_fence_buffer_objects.

@@ -482,7 +482,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 	u64 bytes_moved = 0, initial_bytes_moved;
 	u64 bytes_moved_threshold = radeon_bo_get_threshold_for_moves(rdev);
 
-	r = ttm_eu_reserve_buffers(ticket, head);
+	r = ttm_eu_reserve_buffers(ticket, head, true);
 	if (unlikely(r != 0)) {
 		return r;
 	}

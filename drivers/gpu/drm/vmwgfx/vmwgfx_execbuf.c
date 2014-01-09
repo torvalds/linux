@@ -2496,7 +2496,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (unlikely(ret != 0))
 		goto out_err_nores;
 
-	ret = ttm_eu_reserve_buffers(&ticket, &sw_context->validate_nodes);
+	ret = ttm_eu_reserve_buffers(&ticket, &sw_context->validate_nodes, true);
 	if (unlikely(ret != 0))
 		goto out_err;
 
@@ -2684,10 +2684,7 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 	query_val.bo = ttm_bo_reference(dev_priv->dummy_query_bo);
 	list_add_tail(&query_val.head, &validate_list);
 
-	do {
-		ret = ttm_eu_reserve_buffers(&ticket, &validate_list);
-	} while (ret == -ERESTARTSYS);
-
+	ret = ttm_eu_reserve_buffers(&ticket, &validate_list, false);
 	if (unlikely(ret != 0)) {
 		vmw_execbuf_unpin_panic(dev_priv);
 		goto out_no_reserve;

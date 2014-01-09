@@ -399,7 +399,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
         INIT_LIST_HEAD(&head);
         list_add(&tv.head, &head);
 
-        r = ttm_eu_reserve_buffers(&ticket, &head);
+        r = ttm_eu_reserve_buffers(&ticket, &head, true);
         if (r)
 		return r;
 

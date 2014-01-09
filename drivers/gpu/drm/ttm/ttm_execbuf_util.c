@@ -112,7 +112,7 @@ EXPORT_SYMBOL(ttm_eu_backoff_reservation);
  */
 
 int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
-			   struct list_head *list)
+			   struct list_head *list, bool intr)
 {
 	struct ttm_bo_global *glob;
 	struct ttm_validate_buffer *entry;
@@ -140,7 +140,7 @@ retry:
 		if (entry->reserved)
 			continue;
 
-		ret = __ttm_bo_reserve(bo, true, (ticket == NULL), true,
+		ret = __ttm_bo_reserve(bo, intr, (ticket == NULL), true,
 				       ticket);
 
 		if (ret == -EDEADLK) {
@@ -153,13 +153,17 @@ retry:
 			ttm_eu_backoff_reservation_locked(list);
 			spin_unlock(&glob->lru_lock);
 			ttm_eu_list_ref_sub(list);
-			ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
-							       ticket);
-			if (unlikely(ret != 0)) {
-				if (ret == -EINTR)
-					ret = -ERESTARTSYS;
-				goto err_fini;
-			}
+
+			if (intr) {
+				ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
+								       ticket);
+				if (unlikely(ret != 0)) {
+					if (ret == -EINTR)
+						ret = -ERESTARTSYS;
+					goto err_fini;
+				}
+			} else
+				ww_mutex_lock_slow(&bo->resv->lock, ticket);
 
 			entry->reserved = true;
 			if (unlikely(atomic_read(&bo->cpu_writers) > 0)) {
