@@ -233,6 +233,9 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].base = cdev->dev->mode_config.fb_base;
 	info->apertures->ranges[0].size = cdev->mc.vram_size;
 
+	info->fix.smem_start = cdev->dev->mode_config.fb_base;
+	info->fix.smem_len = cdev->mc.vram_size;
+
 	info->screen_base = sysram;
 	info->screen_size = size;
 
