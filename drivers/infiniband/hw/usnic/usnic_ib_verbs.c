@@ -230,6 +230,15 @@ static void eth_speed_to_ib_speed(int speed, u8 *active_speed,
 	}
 }
 
+static int create_qp_validate_user_data(struct usnic_ib_create_qp_cmd cmd)
+{
+	if (cmd.spec.trans_type <= USNIC_TRANSPORT_UNKNOWN ||
+			cmd.spec.trans_type >= USNIC_TRANSPORT_MAX)
+		return -EINVAL;
+
+	return 0;
+}
+
 /* Start of ib callback functions */
 
 enum rdma_link_layer usnic_ib_port_link_layer(struct ib_device *device,
@@ -252,7 +261,8 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
 	us_ibdev->netdev->ethtool_ops->get_settings(us_ibdev->netdev, &cmd);
 	memset(props, 0, sizeof(*props));
-	usnic_mac_to_gid(us_ibdev->ufdev->mac, &gid.raw[0]);
+	usnic_mac_ip_to_gid(us_ibdev->ufdev->mac, us_ibdev->ufdev->inaddr,
+			&gid.raw[0]);
 	memcpy(&props->sys_image_guid, &gid.global.interface_id,
 		sizeof(gid.global.interface_id));
 	usnic_ib_fw_string_to_u64(&info.fw_version[0], &props->fw_ver);
@@ -310,12 +320,15 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->sm_lid = 0;
 	props->sm_sl = 0;
 
-	if (us_ibdev->ufdev->link_up) {
-		props->state = IB_PORT_ACTIVE;
-		props->phys_state = 5;
-	} else {
+	if (!us_ibdev->ufdev->link_up) {
 		props->state = IB_PORT_DOWN;
 		props->phys_state = 3;
+	} else if (!us_ibdev->ufdev->inaddr) {
+		props->state = IB_PORT_INIT;
+		props->phys_state = 4;
+	} else {
+		props->state = IB_PORT_ACTIVE;
+		props->phys_state = 5;
 	}
 
 	props->port_cap_flags = 0;
@@ -385,7 +398,8 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 
 	mutex_lock(&us_ibdev->usdev_lock);
 	memset(&(gid->raw[0]), 0, sizeof(gid->raw));
-	usnic_mac_to_gid(us_ibdev->ufdev->mac, &gid->raw[0]);
+	usnic_mac_ip_to_gid(us_ibdev->ufdev->mac, us_ibdev->ufdev->inaddr,
+			&gid->raw[0]);
 	mutex_unlock(&us_ibdev->usdev_lock);
 
 	return 0;
@@ -444,6 +458,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	struct usnic_ib_ucontext *ucontext;
 	int cq_cnt;
 	struct usnic_vnic_res_spec res_spec;
+	struct usnic_ib_create_qp_cmd cmd;
 	struct usnic_transport_spec trans_spec;
 
 	usnic_dbg("\n");
@@ -451,14 +466,27 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	ucontext = to_uucontext(pd->uobject->context);
 	us_ibdev = to_usdev(pd->device);
 
+	err = ib_copy_from_udata(&cmd, udata, sizeof(cmd));
+	if (err) {
+		usnic_err("%s: cannot copy udata for create_qp\n",
+				us_ibdev->ib_dev.name);
+		return ERR_PTR(-EINVAL);
+	}
+
+	err = create_qp_validate_user_data(cmd);
+	if (err) {
+		usnic_err("%s: Failed to validate user data\n",
+				us_ibdev->ib_dev.name);
+		return ERR_PTR(-EINVAL);
+	}
+
 	if (init_attr->qp_type != IB_QPT_UD) {
 		usnic_err("%s asked to make a non-UD QP: %d\n",
 				us_ibdev->ib_dev.name, init_attr->qp_type);
 		return ERR_PTR(-EINVAL);
 	}
 
-	memset(&trans_spec, 0, sizeof(trans_spec));
-	trans_spec.trans_type = USNIC_TRANSPORT_ROCE_CUSTOM;
+	trans_spec = cmd.spec;
 	mutex_lock(&us_ibdev->usdev_lock);
 	cq_cnt = (init_attr->send_cq == init_attr->recv_cq) ? 1 : 2;
 	res_spec = min_transport_spec[trans_spec.trans_type];

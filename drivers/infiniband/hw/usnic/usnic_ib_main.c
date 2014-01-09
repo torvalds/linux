@@ -25,6 +25,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/inetdevice.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -236,13 +237,79 @@ static struct notifier_block usnic_ib_netdevice_notifier = {
 };
 /* End of netdev section */
 
+/* Start of inet section */
+static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
+					unsigned long event, void *ptr)
+{
+	struct in_ifaddr *ifa = ptr;
+	struct ib_event ib_event;
+
+	mutex_lock(&us_ibdev->usdev_lock);
+
+	switch (event) {
+	case NETDEV_DOWN:
+		usnic_info("%s via ip notifiers",
+				usnic_ib_netdev_event_to_string(event));
+		usnic_fwd_del_ipaddr(us_ibdev->ufdev);
+		usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
+		ib_event.event = IB_EVENT_GID_CHANGE;
+		ib_event.device = &us_ibdev->ib_dev;
+		ib_event.element.port_num = 1;
+		ib_dispatch_event(&ib_event);
+		break;
+	case NETDEV_UP:
+		usnic_fwd_add_ipaddr(us_ibdev->ufdev, ifa->ifa_address);
+		usnic_info("%s via ip notifiers: ip %pI4",
+				usnic_ib_netdev_event_to_string(event),
+				&us_ibdev->ufdev->inaddr);
+		ib_event.event = IB_EVENT_GID_CHANGE;
+		ib_event.device = &us_ibdev->ib_dev;
+		ib_event.element.port_num = 1;
+		ib_dispatch_event(&ib_event);
+		break;
+	default:
+		usnic_info("Ignorning event %s on %s",
+				usnic_ib_netdev_event_to_string(event),
+				us_ibdev->ib_dev.name);
+	}
+	mutex_unlock(&us_ibdev->usdev_lock);
+
+	return NOTIFY_DONE;
+}
+
+static int usnic_ib_inetaddr_event(struct notifier_block *notifier,
+					unsigned long event, void *ptr)
+{
+	struct usnic_ib_dev *us_ibdev;
+	struct in_ifaddr *ifa = ptr;
+	struct net_device *netdev = ifa->ifa_dev->dev;
+
+	mutex_lock(&usnic_ib_ibdev_list_lock);
+	list_for_each_entry(us_ibdev, &usnic_ib_ibdev_list, ib_dev_link) {
+		if (us_ibdev->netdev == netdev) {
+			usnic_ib_handle_inet_event(us_ibdev, event, ptr);
+			break;
+		}
+	}
+	mutex_unlock(&usnic_ib_ibdev_list_lock);
+
+	return NOTIFY_DONE;
+}
+static struct notifier_block usnic_ib_inetaddr_notifier = {
+	.notifier_call = usnic_ib_inetaddr_event
+};
+/* End of inet section*/
+
 /* Start of PF discovery section */
 static void *usnic_ib_device_add(struct pci_dev *dev)
 {
 	struct usnic_ib_dev *us_ibdev;
 	union ib_gid gid;
+	struct in_ifaddr *in;
+	struct net_device *netdev;
 
 	usnic_dbg("\n");
+	netdev = pci_get_drvdata(dev);
 
 	us_ibdev = (struct usnic_ib_dev *)ib_alloc_device(sizeof(*us_ibdev));
 	if (IS_ERR_OR_NULL(us_ibdev)) {
@@ -326,6 +393,12 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	if (netif_carrier_ok(us_ibdev->netdev))
 		usnic_fwd_carrier_up(us_ibdev->ufdev);
 
+	in = ((struct in_device *)(netdev->ip_ptr))->ifa_list;
+	if (in != NULL)
+		usnic_fwd_add_ipaddr(us_ibdev->ufdev, in->ifa_address);
+
+	usnic_mac_ip_to_gid(us_ibdev->netdev->perm_addr,
+				us_ibdev->ufdev->inaddr, &gid.raw[0]);
 	memcpy(&us_ibdev->ib_dev.node_guid, &gid.global.interface_id,
 		sizeof(gid.global.interface_id));
 	kref_init(&us_ibdev->vf_cnt);
@@ -555,16 +628,24 @@ static int __init usnic_ib_init(void)
 		goto out_pci_unreg;
 	}
 
+	err = register_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
+	if (err) {
+		usnic_err("Failed to register inet addr notifier\n");
+		goto out_unreg_netdev_notifier;
+	}
+
 	err = usnic_transport_init();
 	if (err) {
 		usnic_err("Failed to initialize transport\n");
-		goto out_unreg_netdev_notifier;
+		goto out_unreg_inetaddr_notifier;
 	}
 
 	usnic_debugfs_init();
 
 	return 0;
 
+out_unreg_inetaddr_notifier:
+	unregister_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
 out_unreg_netdev_notifier:
 	unregister_netdevice_notifier(&usnic_ib_netdevice_notifier);
 out_pci_unreg:
@@ -580,6 +661,7 @@ static void __exit usnic_ib_destroy(void)
 	usnic_dbg("\n");
 	usnic_debugfs_exit();
 	usnic_transport_fini();
+	unregister_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
 	unregister_netdevice_notifier(&usnic_ib_netdevice_notifier);
 	pci_unregister_driver(&usnic_ib_pci_driver);
 	usnic_uiom_fini();
