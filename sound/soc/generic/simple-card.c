@@ -211,15 +211,17 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 					dev_err(dev, "parse error %d\n", ret);
 				return ret;
 			}
+		} else {
+			return -ENOMEM;
 		}
 	} else {
 		cinfo = pdev->dev.platform_data;
-		cinfo->snd_card.dev = &pdev->dev;
-	}
+		if (!cinfo) {
+			dev_err(dev, "no info for asoc-simple-card\n");
+			return -EINVAL;
+		}
 
-	if (!cinfo) {
-		dev_err(dev, "no info for asoc-simple-card\n");
-		return -EINVAL;
+		cinfo->snd_card.dev = &pdev->dev;
 	}
 
 	if (!cinfo->name	||
