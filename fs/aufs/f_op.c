@@ -1,18 +1,5 @@
 /*
- * Copyright (C) 2005-2013 Junjiro R. Okajima
- *
- * This program, aufs is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2005-2014 Junjiro R. Okajima
  */
 
 /*
@@ -34,11 +21,8 @@ int au_do_open_nondir(struct file *file, int flags)
 
 	FiMustWriteLock(file);
 
+	err = 0;
 	dentry = file->f_dentry;
-	err = au_d_alive(dentry);
-	if (unlikely(err))
-		goto out;
-
 	finfo = au_fi(file);
 	memset(&finfo->fi_htop, 0, sizeof(finfo->fi_htop));
 	atomic_set(&finfo->fi_mmapped, 0);
@@ -54,7 +38,6 @@ int au_do_open_nondir(struct file *file, int flags)
 		/* file->f_ra = h_file->f_ra; */
 	}
 
-out:
 	return err;
 }
 
