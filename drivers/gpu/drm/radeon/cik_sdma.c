@@ -168,13 +168,21 @@ static void cik_sdma_hdp_flush_ring_emit(struct radeon_device *rdev,
 					 int ridx)
 {
 	struct radeon_ring *ring = &rdev->ring[ridx];
+	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(1) |
+			  SDMA_POLL_REG_MEM_EXTRA_FUNC(3)); /* == */
+	u32 ref_and_mask;
 
-	/* We should be using the new POLL_REG_MEM special op packet here
-	 * but it causes sDMA to hang sometimes
-	 */
-	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	radeon_ring_write(ring, HDP_MEM_COHERENCY_FLUSH_CNTL >> 2);
-	radeon_ring_write(ring, 0);
+	if (ridx == R600_RING_TYPE_DMA_INDEX)
+		ref_and_mask = SDMA0;
+	else
+		ref_and_mask = SDMA1;
+
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0, extra_bits));
+	radeon_ring_write(ring, GPU_HDP_FLUSH_DONE);
+	radeon_ring_write(ring, GPU_HDP_FLUSH_REQ);
+	radeon_ring_write(ring, ref_and_mask); /* reference */
+	radeon_ring_write(ring, ref_and_mask); /* mask */
+	radeon_ring_write(ring, (0xfff << 16) | 10); /* retry count, poll interval */
 }
 
 /**
