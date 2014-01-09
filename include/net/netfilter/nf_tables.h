@@ -498,13 +498,23 @@ struct nft_af_info {
 int nft_register_afinfo(struct net *, struct nft_af_info *);
 void nft_unregister_afinfo(struct nft_af_info *);
 
+/**
+ * 	struct nf_chain_type - nf_tables chain type info
+ *
+ * 	@name: name of the type
+ * 	@type: numeric identifier
+ * 	@family: address family
+ * 	@owner: module owner
+ * 	@hook_mask: mask of valid hooks
+ * 	@hooks: hookfn overrides
+ */
 struct nf_chain_type {
-	unsigned int		hook_mask;
-	const char		*name;
-	enum nft_chain_type	type;
-	nf_hookfn		*fn[NF_MAX_HOOKS];
-	struct module		*me;
-	int			family;
+	const char			*name;
+	enum nft_chain_type		type;
+	int				family;
+	struct module			*owner;
+	unsigned int			hook_mask;
+	nf_hookfn			*hooks[NF_MAX_HOOKS];
 };
 
 int nft_register_chain_type(const struct nf_chain_type *);

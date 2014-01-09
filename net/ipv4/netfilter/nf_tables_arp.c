@@ -69,10 +69,10 @@ static struct pernet_operations nf_tables_arp_net_ops = {
 };
 
 static const struct nf_chain_type filter_arp = {
-	.family		= NFPROTO_ARP,
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
-	.me		= THIS_MODULE,
+	.family		= NFPROTO_ARP,
+	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_ARP_IN) |
 			  (1 << NF_ARP_OUT) |
 			  (1 << NF_ARP_FORWARD),

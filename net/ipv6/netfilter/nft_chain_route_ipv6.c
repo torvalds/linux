@@ -60,14 +60,14 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 }
 
 static const struct nf_chain_type nft_chain_route_ipv6 = {
-	.family		= NFPROTO_IPV6,
 	.name		= "route",
 	.type		= NFT_CHAIN_T_ROUTE,
+	.family		= NFPROTO_IPV6,
+        .owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_INET_LOCAL_OUT),
-	.fn		= {
+	.hooks		= {
                 [NF_INET_LOCAL_OUT]	= nf_route_table_hook,
         },
-        .me		= THIS_MODULE,
 };
 
 static int __init nft_chain_route_init(void)

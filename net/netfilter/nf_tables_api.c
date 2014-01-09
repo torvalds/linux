@@ -929,9 +929,9 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 
 		if (!(type->hook_mask & (1 << hooknum)))
 			return -EOPNOTSUPP;
-		if (!try_module_get(type->me))
+		if (!try_module_get(type->owner))
 			return -ENOENT;
-		hookfn = type->fn[hooknum];
+		hookfn = type->hooks[hooknum];
 
 		basechain = kzalloc(sizeof(*basechain), GFP_KERNEL);
 		if (basechain == NULL)
@@ -941,7 +941,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			err = nf_tables_counters(basechain,
 						 nla[NFTA_CHAIN_COUNTERS]);
 			if (err < 0) {
-				module_put(type->me);
+				module_put(type->owner);
 				kfree(basechain);
 				return err;
 			}
@@ -950,7 +950,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 
 			newstats = alloc_percpu(struct nft_stats);
 			if (newstats == NULL) {
-				module_put(type->me);
+				module_put(type->owner);
 				kfree(basechain);
 				return -ENOMEM;
 			}
@@ -992,7 +992,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 	    chain->flags & NFT_BASE_CHAIN) {
 		err = nf_register_hooks(nft_base_chain(chain)->ops, afi->nops);
 		if (err < 0) {
-			module_put(basechain->type->me);
+			module_put(basechain->type->owner);
 			free_percpu(basechain->stats);
 			kfree(basechain);
 			return err;
@@ -1013,7 +1013,7 @@ static void nf_tables_rcu_chain_destroy(struct rcu_head *head)
 	BUG_ON(chain->use > 0);
 
 	if (chain->flags & NFT_BASE_CHAIN) {
-		module_put(nft_base_chain(chain)->type->me);
+		module_put(nft_base_chain(chain)->type->owner);
 		free_percpu(nft_base_chain(chain)->stats);
 		kfree(nft_base_chain(chain));
 	} else
