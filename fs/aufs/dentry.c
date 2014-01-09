@@ -1,18 +1,5 @@
 /*
- * Copyright (C) 2005-2013 Junjiro R. Okajima
- *
- * This program, aufs is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2005-2014 Junjiro R. Okajima
  */
 
 /*
@@ -797,7 +784,7 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 	int err;
 	umode_t mode, h_mode;
 	aufs_bindex_t bindex, btail, bstart, ibs, ibe;
-	unsigned char plus, unhashed, is_root, h_plus;
+	unsigned char plus, unhashed, is_root, h_plus, h_nfs;
 	struct inode *h_inode, *h_cached_inode;
 	struct dentry *h_dentry;
 	struct qstr *name, *h_name;
@@ -836,13 +823,20 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 			continue;
 
 		AuDbg("b%d, %.*s\n", bindex, AuDLNPair(h_dentry));
+		h_nfs = !!au_test_nfs(h_dentry->d_sb);
 		spin_lock(&h_dentry->d_lock);
 		h_name = &h_dentry->d_name;
 		if (unlikely(do_udba
 			     && !is_root
-			     && (unhashed != !!d_unhashed(h_dentry)
-				 || name->len != h_name->len
-				 || memcmp(name->name, h_name->name, name->len))
+			     && ((!h_nfs
+				  && (unhashed != !!d_unhashed(h_dentry)
+				      || name->len != h_name->len
+				      || memcmp(name->name, h_name->name,
+						name->len)))
+				 || (h_nfs
+				     && !(flags & LOOKUP_OPEN)
+				     && (h_dentry->d_flags
+					 & DCACHE_NFSFS_RENAMED)))
 			    )) {
 			AuDbg("unhash 0x%x 0x%x, %.*s %.*s\n",
 				  unhashed, d_unhashed(h_dentry),
@@ -876,8 +870,17 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 		if (inode && ibs <= bindex && bindex <= ibe)
 			h_cached_inode = au_h_iptr(inode, bindex);
 
-		if (unlikely(plus != h_plus
-			     || mode != h_mode
+		if (!h_nfs) {
+			if (unlikely(plus != h_plus))
+				goto err;
+		} else {
+			if (unlikely(!(h_dentry->d_flags & DCACHE_NFSFS_RENAMED)
+				     && !is_root
+				     && !IS_ROOT(h_dentry)
+				     && unhashed != d_unhashed(h_dentry)))
+				goto err;
+		}
+		if (unlikely(mode != h_mode
 			     || h_cached_inode != h_inode))
 			goto err;
 		continue;
@@ -887,6 +890,7 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 		break;
 	}
 
+	AuTraceErr(err);
 	return err;
 }
 
@@ -1012,7 +1016,9 @@ static int aufs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	di_downgrade_lock(dentry, AuLock_IR);
 
 	err = -EINVAL;
-	if (inode && (IS_DEADDIR(inode) || !inode->i_nlink))
+	if (!(flags & LOOKUP_OPEN)
+	    && inode
+	    && (IS_DEADDIR(inode) || !inode->i_nlink))
 		goto out_inval;
 
 	do_udba = !au_opt_test(au_mntflags(sb), UDBA_NONE);
