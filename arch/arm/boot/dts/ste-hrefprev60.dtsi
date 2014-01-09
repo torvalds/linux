@@ -60,11 +60,14 @@
 			pinctrl-0 = <&ssp0_hrefprev60_mode>;
 		};
 
+		// External Micro SD slot
+		sdi0_per1@80126000 {
+			cd-gpios  = <&tc3589x_gpio 3 0x4>;
+		};
+
 		vmmci: regulator-gpio {
 			gpios = <&tc3589x_gpio 18 0x4>;
 			enable-gpio = <&tc3589x_gpio 17 0x4>;
-
-			status = "okay";
 		};
 
 		pinctrl {
