@@ -880,9 +880,6 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		    !IS_ERR(nf_tables_chain_lookup(table, nla[NFTA_CHAIN_NAME])))
 			return -EEXIST;
 
-		if (nla[NFTA_CHAIN_POLICY])
-			nft_base_chain(chain)->policy = policy;
-
 		if (nla[NFTA_CHAIN_COUNTERS]) {
 			if (!(chain->flags & NFT_BASE_CHAIN))
 				return -EOPNOTSUPP;
@@ -892,6 +889,9 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			if (err < 0)
 				return err;
 		}
+
+		if (nla[NFTA_CHAIN_POLICY])
+			nft_base_chain(chain)->policy = policy;
 
 		if (nla[NFTA_CHAIN_HANDLE] && name)
 			nla_strlcpy(chain->name, name, NFT_CHAIN_MAXNAMELEN);
@@ -934,6 +934,24 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		if (basechain == NULL)
 			return -ENOMEM;
 
+		if (nla[NFTA_CHAIN_COUNTERS]) {
+			err = nf_tables_counters(basechain,
+						 nla[NFTA_CHAIN_COUNTERS]);
+			if (err < 0) {
+				kfree(basechain);
+				return err;
+			}
+		} else {
+			struct nft_stats __percpu *newstats;
+
+			newstats = alloc_percpu(struct nft_stats);
+			if (newstats == NULL) {
+				kfree(basechain);
+				return -ENOMEM;
+			}
+			rcu_assign_pointer(basechain->stats, newstats);
+		}
+
 		basechain->type = type;
 		chain = &basechain->chain;
 
@@ -953,25 +971,6 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 
 		chain->flags |= NFT_BASE_CHAIN;
 		basechain->policy = policy;
-
-		if (nla[NFTA_CHAIN_COUNTERS]) {
-			err = nf_tables_counters(basechain,
-						 nla[NFTA_CHAIN_COUNTERS]);
-			if (err < 0) {
-				free_percpu(basechain->stats);
-				kfree(basechain);
-				return err;
-			}
-		} else {
-			struct nft_stats __percpu *newstats;
-
-			newstats = alloc_percpu(struct nft_stats);
-			if (newstats == NULL)
-				return -ENOMEM;
-
-			rcu_assign_pointer(nft_base_chain(chain)->stats,
-					   newstats);
-		}
 	} else {
 		chain = kzalloc(sizeof(*chain), GFP_KERNEL);
 		if (chain == NULL)
