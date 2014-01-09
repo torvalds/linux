@@ -842,21 +842,21 @@ out:
 
 static __be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name, int namlen)
 {
-	struct svc_fh	fh;
+	struct svc_fh	*fh = &cd->scratch;
 	__be32 err;
 
-	fh_init(&fh, NFS3_FHSIZE);
-	err = compose_entry_fh(cd, &fh, name, namlen);
+	fh_init(fh, NFS3_FHSIZE);
+	err = compose_entry_fh(cd, fh, name, namlen);
 	if (err) {
 		*p++ = 0;
 		*p++ = 0;
 		goto out;
 	}
-	p = encode_post_op_attr(cd->rqstp, p, &fh);
+	p = encode_post_op_attr(cd->rqstp, p, fh);
 	*p++ = xdr_one;			/* yes, a file handle follows */
-	p = encode_fh(p, &fh);
+	p = encode_fh(p, fh);
 out:
-	fh_put(&fh);
+	fh_put(fh);
 	return p;
 }
 
