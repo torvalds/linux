@@ -3498,16 +3498,37 @@ static void cik_hdp_flush_cp_ring_emit(struct radeon_device *rdev,
 				       int ridx)
 {
 	struct radeon_ring *ring = &rdev->ring[ridx];
+	u32 ref_and_mask;
 
-	/* We should be using the new WAIT_REG_MEM special op packet here
-	 * but it causes the CP to hang
-	 */
-	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(0)));
-	radeon_ring_write(ring, HDP_MEM_COHERENCY_FLUSH_CNTL >> 2);
-	radeon_ring_write(ring, 0);
-	radeon_ring_write(ring, 0);
+	switch (ring->idx) {
+	case CAYMAN_RING_TYPE_CP1_INDEX:
+	case CAYMAN_RING_TYPE_CP2_INDEX:
+	default:
+		switch (ring->me) {
+		case 0:
+			ref_and_mask = CP2 << ring->pipe;
+			break;
+		case 1:
+			ref_and_mask = CP6 << ring->pipe;
+			break;
+		default:
+			return;
+		}
+		break;
+	case RADEON_RING_TYPE_GFX_INDEX:
+		ref_and_mask = CP0;
+		break;
+	}
+
+	radeon_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
+	radeon_ring_write(ring, (WAIT_REG_MEM_OPERATION(1) | /* write, wait, write */
+				 WAIT_REG_MEM_FUNCTION(3) |  /* == */
+				 WAIT_REG_MEM_ENGINE(1)));   /* pfp */
+	radeon_ring_write(ring, GPU_HDP_FLUSH_REQ >> 2);
+	radeon_ring_write(ring, GPU_HDP_FLUSH_DONE >> 2);
+	radeon_ring_write(ring, ref_and_mask);
+	radeon_ring_write(ring, ref_and_mask);
+	radeon_ring_write(ring, 0x20); /* poll interval */
 }
 
 /**
