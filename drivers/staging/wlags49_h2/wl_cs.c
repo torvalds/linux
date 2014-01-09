@@ -133,9 +133,6 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 	struct net_device   *dev;
 	struct wl_private   *lp;
 	int ret;
-	/*--------------------------------------------------------------------*/
-
-	DBG_ENTER(DbgInfo);
 
 	dev = wl_device_alloc();
 	if (dev == NULL) {
@@ -167,9 +164,7 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 static void wl_adapter_detach(struct pcmcia_device *link)
 {
 	struct net_device   *dev = link->priv;
-	/*--------------------------------------------------------------------*/
 
-	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "link", "0x%p", link);
 
 	wl_adapter_release(link);
@@ -186,7 +181,6 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 
 void wl_adapter_release(struct pcmcia_device *link)
 {
-	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "link", "0x%p", link);
 
 	/* Stop hardware */
@@ -226,9 +220,7 @@ int wl_adapter_insert(struct pcmcia_device *link)
 {
 	struct net_device *dev;
 	int ret;
-	/*--------------------------------------------------------------------*/
 
-	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "link", "0x%p", link);
 
 	dev     = link->priv;
@@ -299,9 +291,7 @@ int wl_adapter_open(struct net_device *dev)
 	struct pcmcia_device *link = lp->link;
 	int result = 0;
 	int hcf_status = HCF_SUCCESS;
-	/*--------------------------------------------------------------------*/
 
-	DBG_ENTER(DbgInfo);
 	DBG_PRINT("%s\n", VERSION_INFO);
 	DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
@@ -348,9 +338,7 @@ int wl_adapter_close(struct net_device *dev)
 {
 	struct wl_private *lp = wl_priv(dev);
 	struct pcmcia_device *link = lp->link;
-	/*--------------------------------------------------------------------*/
 
-	DBG_ENTER(DbgInfo);
 	DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
 	if (link == NULL) {
@@ -415,9 +403,7 @@ static struct pcmcia_driver wlags49_driver = {
 int wl_adapter_init_module(void)
 {
 	int ret;
-	/*--------------------------------------------------------------------*/
 
-	DBG_ENTER(DbgInfo);
 	DBG_TRACE(DbgInfo, "wl_adapter_init_module() -- PCMCIA\n");
 
 	ret = pcmcia_register_driver(&wlags49_driver);
@@ -447,7 +433,6 @@ int wl_adapter_init_module(void)
  ******************************************************************************/
 void wl_adapter_cleanup_module(void)
 {
-	DBG_ENTER(DbgInfo);
 	DBG_TRACE(DbgInfo, "wl_adapter_cleanup_module() -- PCMCIA\n");
 
 

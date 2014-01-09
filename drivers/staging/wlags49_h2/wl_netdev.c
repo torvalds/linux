@@ -170,9 +170,6 @@ int wl_init( struct net_device *dev )
 {
 //    unsigned long       flags;
 //    struct wl_private   *lp = wl_priv(dev);
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
@@ -207,8 +204,6 @@ int wl_init( struct net_device *dev )
  ******************************************************************************/
 int wl_config( struct net_device *dev, struct ifmap *map )
 {
-    DBG_ENTER( DbgInfo );
-
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
     DBG_PARAM( DbgInfo, "map", "0x%p", map );
 
@@ -247,9 +242,7 @@ struct net_device_stats *wl_stats( struct net_device *dev )
     unsigned long               flags;
     struct net_device_stats     *pStats;
     struct wl_private           *lp = wl_priv(dev);
-    /*------------------------------------------------------------------------*/
 
-    //DBG_ENTER( DbgInfo );
     //DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
     pStats = NULL;
@@ -312,9 +305,6 @@ int wl_open(struct net_device *dev)
     int                 status = HCF_SUCCESS;
     struct wl_private   *lp = wl_priv(dev);
     unsigned long       flags;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     wl_lock( lp, &flags );
 
@@ -407,9 +397,7 @@ int wl_close( struct net_device *dev )
 {
     struct wl_private   *lp = wl_priv(dev);
     unsigned long   flags;
-    /*------------------------------------------------------------------------*/
 
-    DBG_ENTER(DbgInfo);
     DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
     /* Mark the adapter as busy */
@@ -499,9 +487,7 @@ int wl_ioctl( struct net_device *dev, struct ifreq *rq, int cmd )
     struct wl_private  *lp = wl_priv(dev);
     unsigned long           flags;
     int                     ret = 0;
-    /*------------------------------------------------------------------------*/
 
-    DBG_ENTER(DbgInfo);
     DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
     DBG_PARAM(DbgInfo, "rq", "0x%p", rq);
     DBG_PARAM(DbgInfo, "cmd", "0x%04x", cmd);
@@ -600,9 +586,6 @@ void wl_tx_timeout( struct net_device *dev )
     unsigned long           flags;
     struct wl_private       *lp = wl_priv(dev);
     struct net_device_stats *pStats = NULL;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     DBG_WARNING( DbgInfo, "%s: Transmit timeout.\n", dev->name );
 
@@ -1035,9 +1018,7 @@ void wl_multicast( struct net_device *dev )
     struct netdev_hw_addr *ha;
     struct wl_private   *lp = wl_priv(dev);
     unsigned long       flags;
-    /*------------------------------------------------------------------------*/
 
-    DBG_ENTER( DbgInfo );
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
     if( !wl_adapter_is_open( dev )) {
@@ -1142,8 +1123,6 @@ void wl_multicast( struct net_device *dev )
 
 void wl_multicast( struct net_device *dev, int num_addrs, void *addrs )
 {
-    DBG_ENTER(DbgInfo);
-
     DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
     DBG_PARAM( DbgInfo, "num_addrs", "%d", num_addrs );
     DBG_PARAM( DbgInfo, "addrs", "0x%p", addrs );
@@ -1199,9 +1178,6 @@ struct net_device * wl_device_alloc( void )
 {
     struct net_device   *dev = NULL;
     struct wl_private   *lp = NULL;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     /* Alloc a net_device struct */
     dev = alloc_etherdev(sizeof(struct wl_private));
@@ -1264,9 +1240,6 @@ struct net_device * wl_device_alloc( void )
 void wl_device_dealloc( struct net_device *dev )
 {
 //    struct wl_private   *lp = wl_priv(dev);
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     /* Dealloc the WDS ports */
     WL_WDS_DEVICE_DEALLOC( lp );
@@ -1480,9 +1453,6 @@ int wl_tx_port6( struct sk_buff *skb, struct net_device *dev )
 void wl_wds_device_alloc( struct wl_private *lp )
 {
     int count;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     /* WDS support requires additional net_device structs to be allocated,
        so that user space apps can use these virtual devices to specify the
@@ -1550,9 +1520,6 @@ void wl_wds_device_alloc( struct wl_private *lp )
 void wl_wds_device_dealloc( struct wl_private *lp )
 {
     int count;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     for( count = 0; count < NUM_WDS_PORTS; count++ ) {
         struct net_device *dev_wds = NULL;

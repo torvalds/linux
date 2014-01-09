@@ -129,16 +129,9 @@
 #define _LEAVE_STR          "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
 
-#define _DBG_ENTER(A)						\
-	DBG_PRINT("%s:%.*s:%s\n", DBG_NAME(A), ++DBG_LEVEL(A),	\
-		  _ENTER_STR, __func__)
 #define _DBG_LEAVE(A)						\
 	DBG_PRINT("%s:%.*s:%s\n", DBG_NAME(A), DBG_LEVEL(A)--,	\
 		  _LEAVE_STR, __func__)
-
-
-#define DBG_ENTER(A)        {if (DBG_FLAGS(A) & DBG_TRACE_ON) \
-				_DBG_ENTER(A); }
 
 #define DBG_LEAVE(A)        {if (DBG_FLAGS(A) & DBG_TRACE_ON) \
 				 _DBG_LEAVE(A); }
@@ -208,7 +201,6 @@ typedef struct {
 #define DBG_DEFN
 #define DBG_TRAP
 #define DBG_PRINT(S...)
-#define DBG_ENTER(A)
 #define DBG_LEAVE(A)
 #define DBG_PARAM(A, N, F, S...)
 #define DBG_ERROR(A, S...)

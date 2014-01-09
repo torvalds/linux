@@ -434,8 +434,6 @@ int wl_insert( struct net_device *dev )
 	int                     i;
 	unsigned long           flags = 0;
 	struct wl_private       *lp = wl_priv(dev);
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	/* Initialize the adapter hardware. */
 	memset( &( lp->hcfCtx ), 0, sizeof( IFB_STRCT ));
@@ -971,8 +969,7 @@ int wl_reset(struct net_device *dev)
 {
 	struct wl_private  *lp = wl_priv(dev);
 	int                 hcf_status = HCF_SUCCESS;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
+
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 	DBG_PARAM( DbgInfo, "dev->base_addr", "(%#03lx)", dev->base_addr );
 
@@ -1047,8 +1044,6 @@ int wl_go( struct wl_private *lp )
 	int  	hcf_status = HCF_SUCCESS;
 	char	*cp = NULL;			//fw_image
 	int	retries = 0;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	hcf_status = wl_disable( lp );
 	if ( hcf_status != HCF_SUCCESS ) {
@@ -1231,8 +1226,7 @@ int 			rc;
 void wl_set_wep_keys( struct wl_private *lp )
 {
 	int count = 0;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
+
 	DBG_PARAM( DbgInfo, "lp", "%s (0x%p)", lp->dev->name, lp );
 	if ( lp->EnableEncryption ) {
 		/* NOTE: CFG_CNF_ENCRYPTION is set in wl_put_ltv() as it's a static
@@ -1297,8 +1291,7 @@ void wl_set_wep_keys( struct wl_private *lp )
 int wl_apply(struct wl_private *lp)
 {
 	int hcf_status = HCF_SUCCESS;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
+
 	DBG_ASSERT( lp != NULL);
 	DBG_PARAM( DbgInfo, "lp", "%s (0x%p)", lp->dev->name, lp );
 
@@ -1370,8 +1363,7 @@ int wl_put_ltv_init( struct wl_private *lp )
 	int i;
 	int hcf_status;
 	CFG_RID_LOG_STRCT *RidLog;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
+
 	if ( lp == NULL ) {
 		DBG_ERROR( DbgInfo, "lp pointer is NULL\n" );
 		DBG_LEAVE( DbgInfo );
@@ -1467,8 +1459,6 @@ int wl_put_ltv( struct wl_private *lp )
 {
 	int len;
 	int hcf_status;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	if ( lp == NULL ) {
 		DBG_ERROR( DbgInfo, "lp pointer is NULL\n" );
@@ -2059,7 +2049,6 @@ static int __init wl_module_init( void )
 	}
 #endif /* DBG */
 
-	DBG_ENTER( DbgInfo );
 	printk(KERN_INFO "%s\n", VERSION_INFO);
     	printk(KERN_INFO "*** Modified for kernel 2.6 by Henk de Groot <pe1dnn@amsat.org>\n");
         printk(KERN_INFO "*** Based on 7.18 version by Andrey Borzenkov <arvidjaar@mail.ru> $Revision: 39 $\n");
@@ -2097,8 +2086,6 @@ static int __init wl_module_init( void )
  ******************************************************************************/
 static void __exit wl_module_exit( void )
 {
-	DBG_ENTER(DbgInfo);
-
 	wl_adapter_cleanup_module( );
 #if 0 //SCULL_USE_PROC /* don't waste space if unused */
 	remove_proc_entry( "wlags", NULL );		//;?why so a-symmetric compared to location of proc_create_data
@@ -2313,8 +2300,6 @@ void wl_remove( struct net_device *dev )
 {
 	struct wl_private   *lp = wl_priv(dev);
 	unsigned long   flags;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
@@ -2384,8 +2369,6 @@ void wl_suspend( struct net_device *dev )
 {
 	struct wl_private  *lp = wl_priv(dev);
 	unsigned long   flags;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
@@ -2439,8 +2422,6 @@ void wl_resume(struct net_device *dev)
 {
 	struct wl_private  *lp = wl_priv(dev);
 	unsigned long   flags;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 
@@ -2492,8 +2473,6 @@ void wl_resume(struct net_device *dev)
 void wl_release( struct net_device *dev )
 {
 	struct wl_private  *lp = wl_priv(dev);
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	DBG_PARAM( DbgInfo, "dev", "%s (0x%p)", dev->name, dev );
 	/* If wl_remove() hasn't been called (i.e. when Card Services is shut
@@ -2580,8 +2559,6 @@ p_s8 * wl_get_irq_list( void )
 int wl_enable( struct wl_private *lp )
 {
 	int hcf_status = HCF_SUCCESS;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	if ( lp->portState == WVLAN_PORT_STATE_ENABLED ) {
 		DBG_TRACE( DbgInfo, "No action: Card already enabled\n" );
@@ -2629,7 +2606,6 @@ int wl_enable( struct wl_private *lp )
  ******************************************************************************/
 void wl_enable_wds_ports( struct wl_private * lp )
 {
-	DBG_ENTER( DbgInfo );
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ){
 		DBG_ERROR( DbgInfo, "!!!!;? someone misunderstood something !!!!!\n" );
 	}
@@ -2660,9 +2636,6 @@ void wl_enable_wds_ports( struct wl_private * lp )
 int wl_connect( struct wl_private *lp )
 {
 	int hcf_status;
-	/*------------------------------------------------------------------------*/
-
-	DBG_ENTER( DbgInfo );
 
 	if ( lp->portState != WVLAN_PORT_STATE_ENABLED ) {
 		DBG_TRACE( DbgInfo, "No action: Not in enabled state\n" );
@@ -2699,9 +2672,6 @@ int wl_connect( struct wl_private *lp )
 int wl_disconnect( struct wl_private *lp )
 {
 	int hcf_status;
-	/*------------------------------------------------------------------------*/
-
-	DBG_ENTER( DbgInfo );
 
 	if ( lp->portState != WVLAN_PORT_STATE_CONNECTED ) {
 		DBG_TRACE( DbgInfo, "No action: Not in connected state\n" );
@@ -2739,8 +2709,6 @@ int wl_disconnect( struct wl_private *lp )
 int wl_disable( struct wl_private *lp )
 {
 	int hcf_status = HCF_SUCCESS;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
 
 	if ( lp->portState == WVLAN_PORT_STATE_DISABLED ) {
 		DBG_TRACE( DbgInfo, "No action: Port state is disabled\n" );
@@ -2786,8 +2754,6 @@ int wl_disable( struct wl_private *lp )
  ******************************************************************************/
 void wl_disable_wds_ports( struct wl_private * lp )
 {
-	DBG_ENTER( DbgInfo );
-
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ){
 		DBG_ERROR( DbgInfo, "!!!!;? someone misunderstood something !!!!!\n" );
 	}
@@ -2827,8 +2793,7 @@ void wl_disable_wds_ports( struct wl_private * lp )
 int wl_mbx( struct wl_private *lp )
 {
 	int hcf_status = HCF_SUCCESS;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
+
 	DBG_TRACE( DbgInfo, "Mailbox Info: IFB_MBInfoLen: %d\n",
 			   lp->hcfCtx.IFB_MBInfoLen );
 
@@ -2878,7 +2843,6 @@ int wl_mbx( struct wl_private *lp )
  ******************************************************************************/
 void wl_endian_translate_mailbox( ltv_t *ltv )
 {
-	DBG_ENTER( DbgInfo );
 	switch( ltv->typ ) {
 	  case CFG_TALLIES:
 		break;
@@ -2993,8 +2957,7 @@ void wl_process_mailbox( struct wl_private *lp )
 {
 	ltv_t   *ltv;
 	hcf_16  ltv_val = 0xFFFF;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
+
 	ltv = &( lp->ltvRecord );
 
 	switch( ltv->typ ) {
@@ -3452,8 +3415,7 @@ void wl_process_mailbox( struct wl_private *lp )
 void wl_wds_netdev_register( struct wl_private *lp )
 {
 	int count;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
+
 	//;?why is there no USE_WDS clause like in wl_enable_wds_ports
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ) {
 		for( count = 0; count < NUM_WDS_PORTS; count++ ) {
@@ -3498,8 +3460,7 @@ void wl_wds_netdev_register( struct wl_private *lp )
 void wl_wds_netdev_deregister( struct wl_private *lp )
 {
 	int count;
-	/*------------------------------------------------------------------------*/
-	DBG_ENTER( DbgInfo );
+
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ) {
 		for( count = 0; count < NUM_WDS_PORTS; count++ ) {
 			if ( WVLAN_VALID_MAC_ADDRESS( lp->wds_port[count].wdsAddress )) {
@@ -3753,8 +3714,6 @@ static int write_int(struct file *file, const char *buffer, unsigned long count,
 	static char		proc_number[11];
 	unsigned int	nr = 0;
 
-	DBG_ENTER( DbgInfo );
-
 	if (count > 9) {
 		count = -EINVAL;
 	} else if ( copy_from_user(proc_number, buffer, count) ) {
@@ -3811,9 +3770,6 @@ void timer_oor( u_long arg )
 {
 	struct wl_private       *lp = (struct wl_private *)arg;
 
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
     DBG_PARAM( DbgInfo, "arg", "0x%08lx", arg );
 
 	printk(KERN_NOTICE "timer_oor: %ld 0x%04X\n", jiffies, lp->timer_oor_cnt );		//;?remove me 1 day

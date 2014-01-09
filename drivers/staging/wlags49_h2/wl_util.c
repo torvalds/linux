@@ -481,9 +481,6 @@ void wl_hcf_error( struct net_device *dev, int hcfStatus )
  ******************************************************************************/
 void wl_endian_translate_event( ltv_t *pLtv )
 {
-    DBG_ENTER( DbgInfo );
-
-
     switch( pLtv->typ ) {
     case CFG_TALLIES:
         break;
@@ -996,9 +993,6 @@ int wl_get_chan_from_freq( long frequency )
 void wl_process_link_status( struct wl_private *lp )
 {
     hcf_16 link_stat;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     if( lp != NULL ) {
         //link_stat = lp->hcfCtx.IFB_DSLinkStat & CFG_LINK_STAT_FW;
@@ -1056,11 +1050,6 @@ void wl_process_probe_response( struct wl_private *lp )
     PROBE_RESP  *probe_rsp;
     hcf_8       *wpa_ie = NULL;
     hcf_16      wpa_ie_len = 0;
-    /*------------------------------------------------------------------------*/
-
-
-    DBG_ENTER( DbgInfo );
-
 
     if( lp != NULL ) {
         probe_rsp = (PROBE_RESP *)&lp->ProbeResp;
@@ -1260,9 +1249,6 @@ void wl_process_probe_response( struct wl_private *lp )
  ******************************************************************************/
 void wl_process_updated_record( struct wl_private *lp )
 {
-    DBG_ENTER( DbgInfo );
-
-
     if( lp != NULL ) {
         lp->updatedRecord.u.u16[0] = CNV_LITTLE_TO_INT( lp->updatedRecord.u.u16[0] );
 
@@ -1311,11 +1297,6 @@ void wl_process_updated_record( struct wl_private *lp )
 void wl_process_assoc_status( struct wl_private *lp )
 {
     ASSOC_STATUS_STRCT *assoc_stat;
-    /*------------------------------------------------------------------------*/
-
-
-    DBG_ENTER( DbgInfo );
-
 
     if( lp != NULL ) {
         assoc_stat = (ASSOC_STATUS_STRCT *)&lp->assoc_stat;
@@ -1377,11 +1358,6 @@ void wl_process_assoc_status( struct wl_private *lp )
 void wl_process_security_status( struct wl_private *lp )
 {
     SECURITY_STATUS_STRCT *sec_stat;
-    /*------------------------------------------------------------------------*/
-
-
-    DBG_ENTER( DbgInfo );
-
 
     if( lp != NULL ) {
         sec_stat = (SECURITY_STATUS_STRCT *)&lp->sec_stat;
@@ -1431,8 +1407,6 @@ int wl_get_tallies(struct wl_private *lp,
     int ret = 0;
     int status;
     CFG_HERMES_TALLIES_STRCT *pTallies;
-
-    DBG_ENTER(DbgInfo);
 
     /* Get the current tallies from the adapter */
     lp->ltvRecord.len = 1 + HCF_TOT_TAL_CNT * sizeof(hcf_16);

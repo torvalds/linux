@@ -163,9 +163,6 @@ void parse_config(struct net_device *dev)
 	mm_segment_t	    fs;
 	struct wl_private   *wvlan_config = NULL;
 	ENCSTRCT            sEncryption;
-	/*------------------------------------------------------------------------*/
-
-	DBG_ENTER(DbgInfo);
 
 	/* Get the wavelan specific info for this device */
 	wvlan_config = dev->priv;
@@ -956,9 +953,6 @@ void ParseConfigLine(char *pszLine, char **ppszLVal, char **ppszRVal)
 {
 	int i;
 	int size;
-	/*------------------------------------------------------------------------*/
-
-	DBG_ENTER(DbgInfo);
 
 	/* get a snapshot of our string size */
 	size      = strlen(pszLine);

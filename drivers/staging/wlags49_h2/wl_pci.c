@@ -188,9 +188,7 @@ static struct pci_driver wl_driver = {
 int wl_adapter_init_module( void )
 {
     int result;
-    /*------------------------------------------------------------------------*/
 
-    DBG_ENTER( DbgInfo );
     DBG_TRACE( DbgInfo, "wl_adapter_init_module() -- PCI\n" );
 
     result = pci_register_driver( &wl_driver ); //;?replace with pci_module_init, Rubini pg 490
@@ -221,9 +219,6 @@ int wl_adapter_init_module( void )
 void wl_adapter_cleanup_module( void )
 {
 	//;?how come wl_adapter_cleanup_module is located in a seemingly pci specific module
-    DBG_ENTER( DbgInfo );
-
-	//;?DBG_TRACE below feels like nearly redundant in the light of DBG_ENTER above
     DBG_TRACE( DbgInfo, "wl_adapter_cleanup_module() -- PCI\n" );
 
     pci_unregister_driver( &wl_driver );
@@ -253,9 +248,6 @@ void wl_adapter_cleanup_module( void )
 int wl_adapter_insert( struct net_device *dev )
 {
     int result = FALSE;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     DBG_TRACE( DbgInfo, "wl_adapter_insert() -- PCI\n" );
 
@@ -294,9 +286,6 @@ int wl_adapter_open( struct net_device *dev )
 {
     int         result = 0;
     int         hcf_status = HCF_SUCCESS;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     DBG_TRACE( DbgInfo, "wl_adapter_open() -- PCI\n" );
 
@@ -330,8 +319,6 @@ int wl_adapter_open( struct net_device *dev )
  ******************************************************************************/
 int wl_adapter_close( struct net_device *dev )
 {
-    DBG_ENTER( DbgInfo );
-
     DBG_TRACE( DbgInfo, "wl_adapter_close() -- PCI\n" );
     DBG_TRACE( DbgInfo, "%s: Shutting down adapter.\n", dev->name );
 
@@ -396,9 +383,7 @@ int wl_pci_probe( struct pci_dev *pdev,
                                 const struct pci_device_id *ent )
 {
     int result;
-    /*------------------------------------------------------------------------*/
 
-    DBG_ENTER( DbgInfo );
 	DBG_PRINT( "%s\n", VERSION_INFO );
 
     result = wl_pci_setup( pdev );
@@ -431,9 +416,6 @@ int wl_pci_probe( struct pci_dev *pdev,
 void wl_pci_remove(struct pci_dev *pdev)
 {
     struct net_device       *dev = NULL;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     /* Make sure the pci_dev pointer passed in is valid */
     if( pdev == NULL ) {
@@ -485,9 +467,6 @@ int wl_pci_setup( struct pci_dev *pdev )
     int                 result = 0;
     struct net_device   *dev = NULL;
     struct wl_private   *lp = NULL;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     /* Make sure the pci_dev pointer passed in is valid */
     if( pdev == NULL ) {
@@ -602,9 +581,6 @@ void wl_pci_enable_cardbus_interrupts( struct pci_dev *pdev )
     u32                 mem_addr_bus;
     u32                 func_evt_mask_reg;
     void                *mem_addr_kern = NULL;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     /* Initialize to known bad values */
     bar2_reg = 0xdeadbeef;
@@ -665,9 +641,6 @@ int wl_pci_dma_alloc( struct pci_dev *pdev, struct wl_private *lp )
 {
     int i;
     int status = 0;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
 //     lp->dma.tx_rsc_ind = lp->dma.rx_rsc_ind = 0;
 //
@@ -735,9 +708,6 @@ int wl_pci_dma_free( struct pci_dev *pdev, struct wl_private *lp )
 {
     int i;
     int status = 0;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     /* Reclaim all Rx packets that were handed over to the HCF */
     /* Do I need to do this? Before this free is called, I've already disabled
@@ -1101,9 +1071,6 @@ int wl_pci_dma_alloc_desc( struct pci_dev *pdev, struct wl_private *lp,
 {
 //     int         status = 0;
 //     dma_addr_t  pa;
-//     /*------------------------------------------------------------------------*/
-//
-//     DBG_ENTER( DbgInfo );
 //
 //     if( desc == NULL ) {
 //         status = -EFAULT;
@@ -1185,9 +1152,6 @@ int wl_pci_dma_alloc_buf( struct pci_dev *pdev, struct wl_private *lp,
 {
     int         status = 0;
     dma_addr_t  pa;
-    /*------------------------------------------------------------------------*/
-
-//     DBG_ENTER( DbgInfo );
 //
 //     if( desc == NULL ) {
 //         status = -EFAULT;
@@ -1282,9 +1246,6 @@ int wl_pci_dma_free_buf( struct pci_dev *pdev, struct wl_private *lp,
 void wl_pci_dma_hcf_supply( struct wl_private *lp )
 {
     int i;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     //if( lp->dma.status == 0 );
     //{
@@ -1344,9 +1305,6 @@ void wl_pci_dma_hcf_supply( struct wl_private *lp )
 void wl_pci_dma_hcf_reclaim( struct wl_private *lp )
 {
     int i;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     wl_pci_dma_hcf_reclaim_rx( lp );
     for( i = 0; i < NUM_RX_DESC; i++ ) {
@@ -1391,9 +1349,6 @@ void wl_pci_dma_hcf_reclaim_rx( struct wl_private *lp )
 {
     int         i;
     DESC_STRCT *p;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     //if( lp->dma.status == 0 )
     //{
@@ -1521,9 +1476,6 @@ void wl_pci_dma_hcf_reclaim_tx( struct wl_private *lp )
 {
     int         i;
     DESC_STRCT *p;
-    /*------------------------------------------------------------------------*/
-
-    DBG_ENTER( DbgInfo );
 
     //if( lp->dma.status == 0 )
     //{
