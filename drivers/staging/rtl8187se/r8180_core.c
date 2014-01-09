@@ -387,7 +387,7 @@ static short buffer_add(struct buffer **buffer, u32 *buf, dma_addr_t dma,
 	return 0;
 }
 
-void buffer_free(struct net_device *dev, struct buffer **buffer, int len,
+static void buffer_free(struct net_device *dev, struct buffer **buffer, int len,
 		 short consistent)
 {
 
@@ -1028,7 +1028,7 @@ inline u8 rtl8180_IsWirelessBMode(u16 rate)
 
 u16 N_DBPSOfRate(u16 DataRate);
 
-u16 ComputeTxTime(u16 FrameLength, u16 DataRate, u8 bManagementFrame,
+static u16 ComputeTxTime(u16 FrameLength, u16 DataRate, u8 bManagementFrame,
 		  u8 bShortPreamble)
 {
 	u16	FrameTime;
@@ -2342,7 +2342,7 @@ static void rtl8187se_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 	udelay(10);
 }
 
-short rtl8180_init(struct net_device *dev)
+static short rtl8180_init(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u16 word;
@@ -2832,7 +2832,7 @@ static struct net_device_stats *rtl8180_stats(struct net_device *dev)
 /*
  * Change current and default preamble mode.
  */
-bool MgntActSet_802_11_PowerSaveMode(struct r8180_priv *priv,
+static bool MgntActSet_802_11_PowerSaveMode(struct r8180_priv *priv,
 				     RT_PS_MODE rtPsMode)
 {
 	/* Currently, we do not change power save mode on IBSS mode. */
@@ -2844,7 +2844,7 @@ bool MgntActSet_802_11_PowerSaveMode(struct r8180_priv *priv,
 	return true;
 }
 
-void LeisurePSEnter(struct r8180_priv *priv)
+static void LeisurePSEnter(struct r8180_priv *priv)
 {
 	if (priv->bLeisurePs) {
 		if (priv->ieee80211->ps == IEEE80211_PS_DISABLED)
@@ -2853,7 +2853,7 @@ void LeisurePSEnter(struct r8180_priv *priv)
 	}
 }
 
-void LeisurePSLeave(struct r8180_priv *priv)
+static void LeisurePSLeave(struct r8180_priv *priv)
 {
 	if (priv->bLeisurePs) {
 		if (priv->ieee80211->ps != IEEE80211_PS_DISABLED)
@@ -3526,7 +3526,7 @@ static void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 	spin_unlock_irqrestore(&priv->tx_lock, flag);
 }
 
-irqreturn_t rtl8180_interrupt(int irq, void *netdev)
+static irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 {
 	struct net_device *dev = (struct net_device *) netdev;
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
