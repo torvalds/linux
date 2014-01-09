@@ -1,6 +1,8 @@
 #ifndef _TOOLS_ASM_BUG_H
 #define _TOOLS_ASM_BUG_H
 
+#include <linux/compiler.h>
+
 #define __WARN_printf(arg...)	do { fprintf(stderr, arg); } while (0)
 
 #define WARN(condition, format...) ({		\
