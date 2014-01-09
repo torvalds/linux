@@ -616,6 +616,8 @@
 			reg = <0x40>;
 			interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
 
+			ams,system-power-controller;
+
 			#interrupt-cells = <2>;
 			interrupt-controller;
 
