@@ -384,8 +384,8 @@ static const struct nouveau_enum nve0_fifo_sched_reason[] = {
 static const struct nouveau_enum nve0_fifo_fault_engine[] = {
 	{ 0x00, "GR", NULL, NVDEV_ENGINE_GR },
 	{ 0x03, "IFB" },
-	{ 0x04, "BAR1" },
-	{ 0x05, "BAR3" },
+	{ 0x04, "BAR1", NULL, NVDEV_SUBDEV_BAR },
+	{ 0x05, "BAR3", NULL, NVDEV_SUBDEV_INSTMEM },
 	{ 0x07, "PBDMA0", NULL, NVDEV_ENGINE_FIFO },
 	{ 0x08, "PBDMA1", NULL, NVDEV_ENGINE_FIFO },
 	{ 0x09, "PBDMA2", NULL, NVDEV_ENGINE_FIFO },
@@ -549,9 +549,10 @@ nve0_fifo_intr_fault(struct nve0_fifo_priv *priv, int unit)
 	u32 vahi = nv_rd32(priv, 0x2808 + (unit * 0x10));
 	u32 stat = nv_rd32(priv, 0x280c + (unit * 0x10));
 	u32 client = (stat & 0x00001f00) >> 8;
-	const struct nouveau_enum *en;
-	struct nouveau_engine *engine;
+	struct nouveau_engine *engine = NULL;
 	struct nouveau_object *engctx = NULL;
+	const struct nouveau_enum *en;
+	const char *name = "unknown";
 
 	nv_error(priv, "PFIFO: %s fault at 0x%010llx [", (stat & 0x00000080) ?
 		       "write" : "read", (u64)vahi << 32 | valo);
@@ -567,14 +568,22 @@ nve0_fifo_intr_fault(struct nve0_fifo_priv *priv, int unit)
 	}
 
 	if (en && en->data2) {
-		engine = nouveau_engine(priv, en->data2);
-		if (engine)
-			engctx = nouveau_engctx_get(engine, inst);
-
+		if (en->data2 == NVDEV_SUBDEV_BAR) {
+			nv_mask(priv, 0x001704, 0x00000000, 0x00000000);
+			name = "BAR1";
+		} else
+		if (en->data2 == NVDEV_SUBDEV_INSTMEM) {
+			nv_mask(priv, 0x001714, 0x00000000, 0x00000000);
+			name = "BAR3";
+		} else {
+			engine = nouveau_engine(priv, en->data2);
+			if (engine) {
+				engctx = nouveau_engctx_get(engine, inst);
+				name   = nouveau_client_name(engctx);
+			}
+		}
 	}
-
-	pr_cont(" on channel 0x%010llx [%s]\n", (u64)inst << 12,
-			nouveau_client_name(engctx));
+	pr_cont(" on channel 0x%010llx [%s]\n", (u64)inst << 12, name);
 
 	nouveau_engctx_put(engctx);
 }
