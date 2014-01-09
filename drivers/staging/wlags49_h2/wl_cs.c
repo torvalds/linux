@@ -242,7 +242,7 @@ int wl_adapter_insert(struct pcmcia_device *link)
 	SET_NETDEV_DEV(dev, &link->dev);
 	ret = register_netdev(dev);
 	if (ret != 0) {
-		printk("%s: register_netdev() failed\n", MODULE_NAME);
+		printk("%s: register_netdev() failed\n", KBUILD_MODNAME);
 		goto failed;
 	}
 

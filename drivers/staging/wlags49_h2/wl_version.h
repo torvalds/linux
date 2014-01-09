@@ -115,30 +115,11 @@ err: define bus type;
 #define DRV_VARIANT         2
 #endif // HERMES25
 
-#ifdef BUS_PCMCIA
-#if defined HERMES25
-#define MODULE_NAME         DRIVER_NAME "_h25_cs"
-#else
-#define MODULE_NAME         DRIVER_NAME "_h2_cs"
-#endif  /* HERMES25 */
-#elif defined BUS_PCI
-#if defined HERMES25
-#define MODULE_NAME         DRIVER_NAME "_h25"
-#else
-#define MODULE_NAME         DRIVER_NAME "_h2"
-#endif  /* HERMES25 */
-#endif  /* BUS_XXX */
-
-#define VERSION_INFO	MODULE_NAME " v" DRV_VERSION_STR	\
+#define VERSION_INFO	KBUILD_MODNAME " v" DRV_VERSION_STR	\
 			" for " BUS_TYPE ", by " VENDOR_NAME
 
 /* The version of wireless extensions we support */
 #define WIRELESS_SUPPORT    21
-
-//#define DBG_MOD_NAME         DRIVER_NAME ":" BUS_TYPE ":" HW_TYPE ":" FW_TYPE
-#define DBG_MOD_NAME        MODULE_NAME
-
-
 
 /*******************************************************************************
  *  bus architecture specific defines, includes, etc.

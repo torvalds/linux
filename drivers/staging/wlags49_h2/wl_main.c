@@ -400,7 +400,7 @@ static p_u32    pc_debug = DBG_LVL;
  */ p_u32    DebugFlag = ~0; //recognizable "undefined value" rather then DBG_DEFAULTS;
 //MODULE_PARM(DebugFlag, "l");
 
-dbg_info_t   wl_info = { DBG_MOD_NAME, 0, 0 };
+dbg_info_t   wl_info = { KBUILD_MODNAME, 0, 0 };
 dbg_info_t  *DbgInfo = &wl_info;
 
 #endif /* DBG */
