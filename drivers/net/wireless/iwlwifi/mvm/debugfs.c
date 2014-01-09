@@ -907,6 +907,49 @@ static ssize_t iwl_dbgfs_d0i3_refs_write(struct iwl_mvm *mvm, char *buf,
 #define MVM_DEBUGFS_ADD_FILE(name, parent, mode) \
 	MVM_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
 
+static ssize_t
+iwl_dbgfs_prph_reg_read(struct file *file,
+			char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	int pos = 0;
+	char buf[32];
+	const size_t bufsz = sizeof(buf);
+
+	if (!mvm->dbgfs_prph_reg_addr)
+		return -EINVAL;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "Reg 0x%x: (0x%x)\n",
+		mvm->dbgfs_prph_reg_addr,
+		iwl_read_prph(mvm->trans, mvm->dbgfs_prph_reg_addr));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t
+iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
+			 size_t count, loff_t *ppos)
+{
+	u8 args;
+	u32 value;
+
+	args = sscanf(buf, "%i %i", &mvm->dbgfs_prph_reg_addr, &value);
+	/* if we only want to set the reg address - nothing more to do */
+	if (args == 1)
+		goto out;
+
+	/* otherwise, make sure we have both address and value */
+	if (args != 2)
+		return -EINVAL;
+
+	iwl_write_prph(mvm->trans, mvm->dbgfs_prph_reg_addr, value);
+out:
+	return count;
+}
+
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
+
 /* Device wide debugfs entries */
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
 MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain, 8);
@@ -951,6 +994,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,
 			     S_IWUSR | S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
