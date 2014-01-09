@@ -313,8 +313,6 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 	uint64_t start = i->j.last_seq, end = i->j.seq, n = start;
 	struct keylist keylist;
 
-	bch_keylist_init(&keylist);
-
 	list_for_each_entry(i, list, list) {
 		BUG_ON(i->pin && atomic_read(i->pin) != 1);
 
@@ -327,8 +325,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 		     k = bkey_next(k)) {
 			trace_bcache_journal_replay_key(k);
 
-			bkey_copy(keylist.top, k);
-			bch_keylist_push(&keylist);
+			bch_keylist_init_single(&keylist, k);
 
 			ret = bch_btree_insert(s, &keylist, i->pin, NULL);
 			if (ret)
