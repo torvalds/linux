@@ -105,18 +105,13 @@
 #define DBG_LEVEL(A)        ((A)->dbgLevel)
 
 
-#ifndef PRINTK
-#   define PRINTK(S...)     printk(S)
-#endif /* PRINTK */
-
-
 #ifndef DBG_PRINT
-#   define DBG_PRINT(S...)  PRINTK(KERN_DEBUG S)
+#   define DBG_PRINT(S...)  printk(KERN_DEBUG S)
 #endif /* DBG_PRINT */
 
 
 #ifndef DBG_PRINTC
-#   define DBG_PRINTC(S...) PRINTK(S)
+#   define DBG_PRINTC(S...) printk(S)
 #endif /* DBG_PRINTC */
 
 
