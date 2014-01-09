@@ -1833,6 +1833,16 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	if (fbdev == NULL)
 		return;
 
+	for (i = 0; i < fbdev->num_fbs; i++) {
+		struct omapfb_info *ofbi = FB2OFB(fbdev->fbs[i]);
+		int j;
+
+		for (j = 0; j < ofbi->num_overlays; j++) {
+			struct omap_overlay *ovl = ofbi->overlays[j];
+			ovl->disable(ovl);
+		}
+	}
+
 	for (i = 0; i < fbdev->num_fbs; i++)
 		unregister_framebuffer(fbdev->fbs[i]);
 
