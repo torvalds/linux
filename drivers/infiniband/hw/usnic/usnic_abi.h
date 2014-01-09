@@ -33,6 +33,15 @@ enum usnic_transport_type {
 	USNIC_TRANSPORT_MAX		= 2,
 };
 
+struct usnic_transport_spec {
+	enum usnic_transport_type	trans_type;
+	union {
+		struct {
+			uint16_t	port_num;
+		} usnic_roce;
+	};
+};
+
 /*TODO: Future - usnic_modify_qp needs to pass in generic filters */
 struct usnic_ib_create_qp_resp {
 	u32				vfid;
