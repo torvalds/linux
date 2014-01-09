@@ -120,11 +120,6 @@
 #endif /* DBG_PRINTC */
 
 
-#ifndef DBG_TRAP
-#   define DBG_TRAP         {}
-#endif /* DBG_TRAP */
-
-
 #define DBG_PARAM(A, N, F, S...)   {if (DBG_FLAGS(A) & DBG_PARAM_ON) \
 				DBG_PRINT("  %s -- "F"\n", N, S); }
 
@@ -133,7 +128,6 @@
 		if (DBG_FLAGS(A) & DBG_ERROR_ON) {			\
 			DBG_PRINT("%s:ERROR:%s ", DBG_NAME(A), __func__); \
 			DBG_PRINTC(S);					\
-			DBG_TRAP;					\
 		} } while (0)
 
 
@@ -173,7 +167,6 @@
 		if (!(C)) {						\
 			DBG_PRINT("ASSERT(%s) -- %s#%d (%s)\n",		\
 				  #C, __FILE__, __LINE__, __func__);	\
-			DBG_TRAP;					\
 		} } while (0)
 
 typedef struct {
@@ -188,7 +181,6 @@ typedef struct {
 /****************************************************************************/
 
 #define DBG_DEFN
-#define DBG_TRAP
 #define DBG_PRINT(S...)
 #define DBG_PARAM(A, N, F, S...)
 #define DBG_ERROR(A, S...)
