@@ -213,8 +213,8 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			}
 		}
 	} else {
-		cinfo->snd_card.dev = &pdev->dev;
 		cinfo = pdev->dev.platform_data;
+		cinfo->snd_card.dev = &pdev->dev;
 	}
 
 	if (!cinfo) {
