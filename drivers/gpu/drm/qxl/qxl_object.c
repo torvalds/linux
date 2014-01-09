@@ -110,7 +110,7 @@ int qxl_bo_create(struct qxl_device *qdev,
 
 	r = ttm_bo_init(&qdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, 0, !kernel, NULL, size,
-			NULL, &qxl_ttm_bo_destroy);
+			NULL, NULL, &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(qdev->dev,

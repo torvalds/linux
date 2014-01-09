@@ -460,6 +460,7 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
  * @acc_size: Accounted size for this object.
+ * @resv: Pointer to a reservation_object, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
  * This function initializes a pre-allocated struct ttm_buffer_object.
@@ -487,6 +488,7 @@ extern int ttm_bo_init(struct ttm_bo_device *bdev,
 			struct file *persistent_swap_storage,
 			size_t acc_size,
 			struct sg_table *sg,
+			struct reservation_object *resv,
 			void (*destroy) (struct ttm_buffer_object *));
 
 /**

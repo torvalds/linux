@@ -216,7 +216,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 	down_read(&rdev->pm.mclk_lock);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, page_align, !kernel, NULL,
-			acc_size, sg, &radeon_ttm_bo_destroy);
+			acc_size, sg, NULL, &radeon_ttm_bo_destroy);
 	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
 		return r;

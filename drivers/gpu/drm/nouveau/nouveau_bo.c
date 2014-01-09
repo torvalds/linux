@@ -230,7 +230,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	ret = ttm_bo_init(&drm->ttm.bdev, &nvbo->bo, size,
 			  type, &nvbo->placement,
 			  align >> PAGE_SHIFT, false, NULL, acc_size, sg,
-			  nouveau_bo_del_ttm);
+			  NULL, nouveau_bo_del_ttm);
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
 		return ret;
