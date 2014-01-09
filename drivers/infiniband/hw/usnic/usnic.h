@@ -23,7 +23,7 @@
 
 #define PCI_DEVICE_ID_CISCO_VIC_USPACE_NIC	0x00cf	/* User space NIC */
 
-#define DRV_VERSION    "1.0.2"
-#define DRV_RELDATE    "September 09, 2013"
+#define DRV_VERSION    "1.0.3"
+#define DRV_RELDATE    "December 19, 2013"
 
 #endif /* USNIC_H_ */

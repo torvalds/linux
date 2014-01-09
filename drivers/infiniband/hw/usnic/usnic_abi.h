@@ -21,7 +21,7 @@
 #define USNIC_ABI_H
 
 /* ABI between userspace and kernel */
-#define USNIC_UVERBS_ABI_VERSION	2
+#define USNIC_UVERBS_ABI_VERSION	3
 
 #define USNIC_QP_GRP_MAX_WQS		8
 #define USNIC_QP_GRP_MAX_RQS		8
@@ -30,7 +30,8 @@
 enum usnic_transport_type {
 	USNIC_TRANSPORT_UNKNOWN		= 0,
 	USNIC_TRANSPORT_ROCE_CUSTOM	= 1,
-	USNIC_TRANSPORT_MAX		= 2,
+	USNIC_TRANSPORT_IPV4_UDP	= 2,
+	USNIC_TRANSPORT_MAX		= 3,
 };
 
 struct usnic_transport_spec {
@@ -39,7 +40,14 @@ struct usnic_transport_spec {
 		struct {
 			uint16_t	port_num;
 		} usnic_roce;
+		struct {
+			uint32_t	sock_fd;
+		} udp;
 	};
+};
+
+struct usnic_ib_create_qp_cmd {
+	struct usnic_transport_spec	spec;
 };
 
 /*TODO: Future - usnic_modify_qp needs to pass in generic filters */
