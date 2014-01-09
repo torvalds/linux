@@ -216,8 +216,12 @@ nouveau_fence_work(struct fence *fence,
 
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
 	if (!work) {
+		/*
+		 * this might not be a nouveau fence any more,
+		 * so force a lazy wait here
+		 */
 		WARN_ON(nouveau_fence_wait((struct nouveau_fence *)fence,
-					   false, false));
+					   true, false));
 		goto err;
 	}
 
