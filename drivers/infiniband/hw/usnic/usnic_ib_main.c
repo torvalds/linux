@@ -470,7 +470,7 @@ static struct usnic_ib_dev *usnic_ib_discover_pf(struct usnic_vnic *vnic)
 
 	us_ibdev = usnic_ib_device_add(parent_pci);
 	if (IS_ERR_OR_NULL(us_ibdev)) {
-		us_ibdev = (us_ibdev) ? us_ibdev : ERR_PTR(-EFAULT);
+		us_ibdev = us_ibdev ? us_ibdev : ERR_PTR(-EFAULT);
 		goto out;
 	}
 
@@ -526,7 +526,7 @@ static int usnic_ib_pci_probe(struct pci_dev *pdev,
 
 	vf->vnic = usnic_vnic_alloc(pdev);
 	if (IS_ERR_OR_NULL(vf->vnic)) {
-		err = (vf->vnic ? PTR_ERR(vf->vnic) : -ENOMEM);
+		err = vf->vnic ? PTR_ERR(vf->vnic) : -ENOMEM;
 		usnic_err("Failed to alloc vnic for %s with err %d\n",
 				pci_name(pdev), err);
 		goto out_release_regions;
@@ -536,7 +536,7 @@ static int usnic_ib_pci_probe(struct pci_dev *pdev,
 	if (IS_ERR_OR_NULL(pf)) {
 		usnic_err("Failed to discover pf of vnic %s with err%ld\n",
 				pci_name(pdev), PTR_ERR(pf));
-		err = (pf ? PTR_ERR(pf) : -EFAULT);
+		err = pf ? PTR_ERR(pf) : -EFAULT;
 		goto out_clean_vnic;
 	}
 

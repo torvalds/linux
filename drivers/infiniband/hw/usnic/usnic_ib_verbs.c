@@ -495,7 +495,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 						&trans_spec,
 						&res_spec);
 	if (IS_ERR_OR_NULL(qp_grp)) {
-		err = (qp_grp ? PTR_ERR(qp_grp) : -ENOMEM);
+		err = qp_grp ? PTR_ERR(qp_grp) : -ENOMEM;
 		goto out_release_mutex;
 	}
 
@@ -605,7 +605,7 @@ struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->umem = usnic_uiom_reg_get(to_upd(pd)->umem_pd, start, length,
 					access_flags, 0);
 	if (IS_ERR_OR_NULL(mr->umem)) {
-		err = (mr->umem) ? PTR_ERR(mr->umem) : -EFAULT;
+		err = mr->umem ? PTR_ERR(mr->umem) : -EFAULT;
 		goto err_free;
 	}
 

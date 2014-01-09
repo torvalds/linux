@@ -214,14 +214,14 @@ create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
 	if (IS_ERR_OR_NULL(flow)) {
 		usnic_err("Unable to alloc flow failed with err %ld\n",
 				PTR_ERR(flow));
-		err = (flow) ? PTR_ERR(flow) : -EFAULT;
+		err = flow ? PTR_ERR(flow) : -EFAULT;
 		goto out_unreserve_port;
 	}
 
 	/* Create Flow Handle */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
 	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = (qp_flow) ? PTR_ERR(qp_flow) : -ENOMEM;
+		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -289,14 +289,14 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 	if (IS_ERR_OR_NULL(flow)) {
 		usnic_err("Unable to alloc flow failed with err %ld\n",
 				PTR_ERR(flow));
-		err = (flow) ? PTR_ERR(flow) : -EFAULT;
+		err = flow ? PTR_ERR(flow) : -EFAULT;
 		goto out_put_sock;
 	}
 
 	/* Create qp_flow */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
 	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = (qp_flow) ? PTR_ERR(qp_flow) : -ENOMEM;
+		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -415,7 +415,7 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 				qp_flow = create_and_add_flow(qp_grp,
 								trans_spec);
 				if (IS_ERR_OR_NULL(qp_flow)) {
-					status = (qp_flow) ? PTR_ERR(qp_flow) : -EFAULT;
+					status = qp_flow ? PTR_ERR(qp_flow) : -EFAULT;
 					break;
 				}
 			} else {
@@ -430,7 +430,7 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 				qp_flow = create_and_add_flow(qp_grp,
 								trans_spec);
 				if (IS_ERR_OR_NULL(qp_flow)) {
-					status = (qp_flow) ? PTR_ERR(qp_flow) : -EFAULT;
+					status = qp_flow ? PTR_ERR(qp_flow) : -EFAULT;
 					break;
 				}
 			} else {
@@ -543,8 +543,8 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
 		res_chunk_list[i] = usnic_vnic_get_resources(vnic, res_type,
 					res_cnt, owner_obj);
 		if (IS_ERR_OR_NULL(res_chunk_list[i])) {
-			err = (res_chunk_list[i] ?
-					PTR_ERR(res_chunk_list[i]) : -ENOMEM);
+			err = res_chunk_list[i] ?
+					PTR_ERR(res_chunk_list[i]) : -ENOMEM;
 			usnic_err("Failed to get %s from %s with err %d\n",
 				usnic_vnic_res_type_to_str(res_type),
 				usnic_vnic_pci_name(vnic),
@@ -697,7 +697,7 @@ usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev, struct usnic_ib_vf *vf,
 	if (IS_ERR_OR_NULL(qp_flow)) {
 		usnic_err("Unable to create and add flow with err %ld\n",
 				PTR_ERR(qp_flow));
-		err = (qp_flow) ? PTR_ERR(qp_flow) : -EFAULT;
+		err = qp_flow ? PTR_ERR(qp_flow) : -EFAULT;
 		goto out_qp_grp_vf_unbind;
 	}
 
