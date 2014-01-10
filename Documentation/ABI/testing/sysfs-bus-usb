@@ -50,12 +50,18 @@ Description:
 		This may allow the driver to support more hardware than
 		was included in the driver's static device ID support
 		table at compile time. The format for the device ID is:
-		idVendor idProduct bInterfaceClass.
+		idVendor idProduct bInterfaceClass RefIdVendor RefIdProduct
 		The vendor ID and device ID fields are required, the
-		interface class is optional.
+		rest is optional. The Ref* tuple can be used to tell the
+		driver to use the same driver_data for the new device as
+		it is used for the reference device.
 		Upon successfully adding an ID, the driver will probe
 		for the device and attempt to bind to it.  For example:
 		# echo "8086 10f5" > /sys/bus/usb/drivers/foo/new_id
+
+		Here add a new device (0458:7045) using driver_data from
+		an already supported device (0458:704c):
+		# echo "0458 7045 0 0458 704c" > /sys/bus/usb/drivers/foo/new_id
 
 		Reading from this file will list all dynamically added
 		device IDs in the same format, with one entry per

@@ -37,6 +37,7 @@
  * and cause the driver to probe for all devices again.
  */
 ssize_t usb_store_new_id(struct usb_dynids *dynids,
+			 const struct usb_device_id *id_table,
 			 struct device_driver *driver,
 			 const char *buf, size_t count)
 {
@@ -44,11 +45,12 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	u32 idVendor = 0;
 	u32 idProduct = 0;
 	unsigned int bInterfaceClass = 0;
+	u32 refVendor, refProduct;
 	int fields = 0;
 	int retval = 0;
 
-	fields = sscanf(buf, "%x %x %x", &idVendor, &idProduct,
-					&bInterfaceClass);
+	fields = sscanf(buf, "%x %x %x %x %x", &idVendor, &idProduct,
+			&bInterfaceClass, &refVendor, &refProduct);
 	if (fields < 2)
 		return -EINVAL;
 
@@ -66,6 +68,16 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 
 		dynid->id.bInterfaceClass = (u8)bInterfaceClass;
 		dynid->id.match_flags |= USB_DEVICE_ID_MATCH_INT_CLASS;
+	}
+
+	if (fields > 4) {
+		const struct usb_device_id *id = id_table;
+
+		for (; id->match_flags; id++)
+			if (id->idVendor == refVendor && id->idProduct == refProduct) {
+				dynid->id.driver_info = id->driver_info;
+				break;
+			}
 	}
 
 	spin_lock(&dynids->lock);
@@ -109,7 +121,7 @@ static ssize_t new_id_store(struct device_driver *driver,
 {
 	struct usb_driver *usb_drv = to_usb_driver(driver);
 
-	return usb_store_new_id(&usb_drv->dynids, driver, buf, count);
+	return usb_store_new_id(&usb_drv->dynids, usb_drv->id_table, driver, buf, count);
 }
 static DRIVER_ATTR_RW(new_id);
 
