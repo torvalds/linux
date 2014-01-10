@@ -26,7 +26,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	netdev_features_t enc_features;
-	int ghl = GRE_HEADER_SECTION;
+	int ghl;
 	struct gre_base_hdr *greh;
 	u16 mac_offset = skb->mac_header;
 	int mac_len = skb->mac_len;
@@ -49,15 +49,11 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 
 	greh = (struct gre_base_hdr *)skb_transport_header(skb);
 
-	if (greh->flags & GRE_KEY)
-		ghl += GRE_HEADER_SECTION;
-	if (greh->flags & GRE_SEQ)
-		ghl += GRE_HEADER_SECTION;
-	if (greh->flags & GRE_CSUM) {
-		ghl += GRE_HEADER_SECTION;
-		csum = true;
-	} else
-		csum = false;
+	ghl = skb_inner_network_header(skb) - skb_transport_header(skb);
+	if (unlikely(ghl < sizeof(*greh)))
+		goto out;
+
+	csum = !!(greh->flags & GRE_CSUM);
 
 	if (unlikely(!pskb_may_pull(skb, ghl)))
 		goto out;
