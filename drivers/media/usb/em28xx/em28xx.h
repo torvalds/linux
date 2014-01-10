@@ -481,9 +481,6 @@ struct em28xx_eeprom {
 	u8 string_idx_table;
 };
 
-#define EM28XX_AUDIO_BUFS 5
-#define EM28XX_NUM_AUDIO_PACKETS 64
-#define EM28XX_AUDIO_MAX_PACKET_SIZE 196 /* static value */
 #define EM28XX_CAPTURE_STREAM_EN 1
 
 /* em28xx extensions */
@@ -498,8 +495,9 @@ struct em28xx_eeprom {
 
 struct em28xx_audio {
 	char name[50];
-	char *transfer_buffer[EM28XX_AUDIO_BUFS];
-	struct urb *urb[EM28XX_AUDIO_BUFS];
+	unsigned num_urb;
+	char **transfer_buffer;
+	struct urb **urb;
 	struct usb_device *udev;
 	unsigned int capture_transfer_done;
 	struct snd_pcm_substream   *capture_pcm_substream;
