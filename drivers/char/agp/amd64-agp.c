@@ -269,7 +269,6 @@ static int agp_aperture_valid(u64 aper, u32 size)
  */
 static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 {
-	u32 aper_low, aper_hi;
 	u64 aper, nb_aper;
 	int order = 0;
 	u32 nb_order, nb_base;
@@ -295,9 +294,7 @@ static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 		apsize |= 0xf00;
 	order = 7 - hweight16(apsize);
 
-	pci_read_config_dword(agp, 0x10, &aper_low);
-	pci_read_config_dword(agp, 0x14, &aper_hi);
-	aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32);
+	aper = pci_bus_address(agp, AGP_APERTURE_BAR);
 
 	/*
 	 * On some sick chips APSIZE is 0. This means it wants 4G

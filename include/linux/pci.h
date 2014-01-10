@@ -552,8 +552,8 @@ int raw_pci_write(unsigned int domain, unsigned int bus, unsigned int devfn,
 		  int reg, int len, u32 val);
 
 struct pci_bus_region {
-	resource_size_t start;
-	resource_size_t end;
+	dma_addr_t start;
+	dma_addr_t end;
 };
 
 struct pci_dynids {
@@ -737,9 +737,9 @@ void pci_fixup_cardbus(struct pci_bus *);
 
 /* Generic PCI functions used internally */
 
-void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
+void pcibios_resource_to_bus(struct pci_bus *bus, struct pci_bus_region *region,
 			     struct resource *res);
-void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+void pcibios_bus_to_resource(struct pci_bus *bus, struct resource *res,
 			     struct pci_bus_region *region);
 void pcibios_scan_specific_bus(int busn);
 struct pci_bus *pci_find_bus(int domain, int busnr);
@@ -1088,6 +1088,14 @@ int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 						  resource_size_t,
 						  resource_size_t),
 			void *alignf_data);
+
+static inline dma_addr_t pci_bus_address(struct pci_dev *pdev, int bar)
+{
+	struct pci_bus_region region;
+
+	pcibios_resource_to_bus(pdev->bus, &region, &pdev->resource[bar]);
+	return region.start;
+}
 
 /* Proper probing supporting hot-pluggable devices */
 int __must_check __pci_register_driver(struct pci_driver *, struct module *,
@@ -1509,10 +1517,6 @@ static inline struct pci_dev *pci_dev_get(struct pci_dev *dev)
 /* Include architecture-dependent settings and functions */
 
 #include <asm/pci.h>
-
-#ifndef PCIBIOS_MAX_MEM_32
-#define PCIBIOS_MAX_MEM_32 (-1)
-#endif
 
 /* these helpers provide future and backwards compatibility
  * for accessing popular PCI BAR info */

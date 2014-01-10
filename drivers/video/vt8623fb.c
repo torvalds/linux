@@ -729,7 +729,7 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	vga_res.flags = IORESOURCE_IO;
 
-	pcibios_bus_to_resource(dev, &vga_res, &bus_reg);
+	pcibios_bus_to_resource(dev->bus, &vga_res, &bus_reg);
 
 	par->state.vgabase = (void __iomem *) vga_res.start;
 
