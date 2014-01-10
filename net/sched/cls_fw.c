@@ -324,7 +324,7 @@ static void fw_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	}
 }
 
-static int fw_dump(struct tcf_proto *tp, unsigned long fh,
+static int fw_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		   struct sk_buff *skb, struct tcmsg *t)
 {
 	struct fw_head *head = (struct fw_head *)tp->root;

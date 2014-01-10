@@ -164,7 +164,7 @@ skip:
 	arg->count++;
 }
 
-static int cls_cgroup_dump(struct tcf_proto *tp, unsigned long fh,
+static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			   struct sk_buff *skb, struct tcmsg *t)
 {
 	struct cls_cgroup_head *head = tp->root;

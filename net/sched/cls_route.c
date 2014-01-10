@@ -551,7 +551,7 @@ static void route4_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	}
 }
 
-static int route4_dump(struct tcf_proto *tp, unsigned long fh,
+static int route4_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		       struct sk_buff *skb, struct tcmsg *t)
 {
 	struct route4_filter *f = (struct route4_filter *)fh;

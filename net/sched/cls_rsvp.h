@@ -594,7 +594,7 @@ static void rsvp_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	}
 }
 
-static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
+static int rsvp_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
 	struct rsvp_filter *f = (struct rsvp_filter *)fh;

@@ -563,7 +563,7 @@ static void flow_put(struct tcf_proto *tp, unsigned long f)
 {
 }
 
-static int flow_dump(struct tcf_proto *tp, unsigned long fh,
+static int flow_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
 	struct flow_filter *f = (struct flow_filter *)fh;

@@ -340,7 +340,7 @@ errout:
 	return err;
 }
 
-static int tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp,
+static int tcf_fill_node(struct net *net, struct sk_buff *skb, struct tcf_proto *tp,
 			 unsigned long fh, u32 portid, u32 seq, u16 flags, int event)
 {
 	struct tcmsg *tcm;
@@ -362,7 +362,7 @@ static int tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp,
 	tcm->tcm_handle = fh;
 	if (RTM_DELTFILTER != event) {
 		tcm->tcm_handle = 0;
-		if (tp->ops->dump && tp->ops->dump(tp, fh, skb, tcm) < 0)
+		if (tp->ops->dump && tp->ops->dump(net, tp, fh, skb, tcm) < 0)
 			goto nla_put_failure;
 	}
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
@@ -385,7 +385,7 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 	if (!skb)
 		return -ENOBUFS;
 
-	if (tcf_fill_node(skb, tp, fh, portid, n->nlmsg_seq, 0, event) <= 0) {
+	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq, 0, event) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -404,8 +404,9 @@ static int tcf_node_dump(struct tcf_proto *tp, unsigned long n,
 			 struct tcf_walker *arg)
 {
 	struct tcf_dump_args *a = (void *)arg;
+	struct net *net = sock_net(a->skb->sk);
 
-	return tcf_fill_node(a->skb, tp, n, NETLINK_CB(a->cb->skb).portid,
+	return tcf_fill_node(net, a->skb, tp, n, NETLINK_CB(a->cb->skb).portid,
 			     a->cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWTFILTER);
 }
 
@@ -463,7 +464,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		if (t > s_t)
 			memset(&cb->args[1], 0, sizeof(cb->args)-sizeof(cb->args[0]));
 		if (cb->args[1] == 0) {
-			if (tcf_fill_node(skb, tp, 0, NETLINK_CB(cb->skb).portid,
+			if (tcf_fill_node(net, skb, tp, 0, NETLINK_CB(cb->skb).portid,
 					  cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					  RTM_NEWTFILTER) <= 0)
 				break;

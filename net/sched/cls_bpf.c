@@ -295,7 +295,7 @@ errout:
 	return ret;
 }
 
-static int cls_bpf_dump(struct tcf_proto *tp, unsigned long fh,
+static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			struct sk_buff *skb, struct tcmsg *tm)
 {
 	struct cls_bpf_prog *prog = (struct cls_bpf_prog *) fh;

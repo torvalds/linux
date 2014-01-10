@@ -241,7 +241,7 @@ skip:
 	}
 }
 
-static int basic_dump(struct tcf_proto *tp, unsigned long fh,
+static int basic_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		      struct sk_buff *skb, struct tcmsg *t)
 {
 	struct basic_filter *f = (struct basic_filter *) fh;

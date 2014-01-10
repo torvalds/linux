@@ -422,7 +422,7 @@ static void tcindex_destroy(struct tcf_proto *tp)
 }
 
 
-static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
+static int tcindex_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
     struct sk_buff *skb, struct tcmsg *t)
 {
 	struct tcindex_data *p = PRIV(tp);
