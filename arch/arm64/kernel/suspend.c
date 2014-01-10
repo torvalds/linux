@@ -38,6 +38,22 @@ int __cpu_suspend_finisher(unsigned long arg, struct cpu_suspend_ctx *ptr,
 	return cpu_ops[cpu]->cpu_suspend(arg);
 }
 
+/*
+ * This hook is provided so that cpu_suspend code can restore HW
+ * breakpoints as early as possible in the resume path, before reenabling
+ * debug exceptions. Code cannot be run from a CPU PM notifier since by the
+ * time the notifier runs debug exceptions might have been enabled already,
+ * with HW breakpoints registers content still in an unknown state.
+ */
+void (*hw_breakpoint_restore)(void *);
+void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
+{
+	/* Prevent multiple restore hook initializations */
+	if (WARN_ON(hw_breakpoint_restore))
+		return;
+	hw_breakpoint_restore = hw_bp_restore;
+}
+
 /**
  * cpu_suspend
  *
@@ -73,6 +89,13 @@ int cpu_suspend(unsigned long arg)
 	if (ret == 0) {
 		cpu_switch_mm(mm->pgd, mm);
 		flush_tlb_all();
+		/*
+		 * Restore HW breakpoint registers to sane values
+		 * before debug exceptions are possibly reenabled
+		 * through local_dbg_restore.
+		 */
+		if (hw_breakpoint_restore)
+			hw_breakpoint_restore(NULL);
 	}
 
 	/*
