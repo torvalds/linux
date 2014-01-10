@@ -359,6 +359,7 @@ struct intel_crtc {
 	bool cursor_visible;
 
 	struct intel_crtc_config config;
+	struct intel_crtc_config *new_config;
 	bool new_enabled;
 
 	uint32_t ddi_pll_sel;
