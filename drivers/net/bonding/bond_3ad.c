@@ -678,6 +678,8 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 /**
  * __get_active_agg - get the current active aggregator
  * @aggregator: the aggregator we're looking at
+ *
+ * Caller must hold RCU lock.
  */
 static struct aggregator *__get_active_agg(struct aggregator *aggregator)
 {
@@ -685,13 +687,9 @@ static struct aggregator *__get_active_agg(struct aggregator *aggregator)
 	struct list_head *iter;
 	struct slave *slave;
 
-	rcu_read_lock();
 	bond_for_each_slave_rcu(bond, slave, iter)
-		if (SLAVE_AD_INFO(slave).aggregator.is_active) {
-			rcu_read_unlock();
+		if (SLAVE_AD_INFO(slave).aggregator.is_active)
 			return &(SLAVE_AD_INFO(slave).aggregator);
-		}
-	rcu_read_unlock();
 
 	return NULL;
 }
@@ -1499,11 +1497,11 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 	struct slave *slave;
 	struct port *port;
 
+	rcu_read_lock();
 	origin = agg;
 	active = __get_active_agg(agg);
 	best = (active && agg_device_up(active)) ? active : NULL;
 
-	rcu_read_lock();
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		agg = &(SLAVE_AD_INFO(slave).aggregator);
 
