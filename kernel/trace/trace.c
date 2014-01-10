@@ -6629,6 +6629,8 @@ __init static int tracer_alloc_buffers(void)
 	 */
 	global_trace.current_trace = &nop_trace;
 
+	ftrace_init_global_array_ops(&global_trace);
+
 	register_tracer(&nop_trace);
 
 	/* All seems OK, enable tracing */

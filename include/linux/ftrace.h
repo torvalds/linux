@@ -62,9 +62,6 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  * set in the flags member.
  *
  * ENABLED - set/unset when ftrace_ops is registered/unregistered
- * GLOBAL  - set manualy by ftrace_ops user to denote the ftrace_ops
- *           is part of the global tracers sharing the same filter
- *           via set_ftrace_* debugfs files.
  * DYNAMIC - set when ftrace_ops is registered to denote dynamically
  *           allocated ftrace_ops which need special care
  * CONTROL - set manualy by ftrace_ops user to denote the ftrace_ops
@@ -96,15 +93,14 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
-	FTRACE_OPS_FL_GLOBAL			= 1 << 1,
-	FTRACE_OPS_FL_DYNAMIC			= 1 << 2,
-	FTRACE_OPS_FL_CONTROL			= 1 << 3,
-	FTRACE_OPS_FL_SAVE_REGS			= 1 << 4,
-	FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED	= 1 << 5,
-	FTRACE_OPS_FL_RECURSION_SAFE		= 1 << 6,
-	FTRACE_OPS_FL_STUB			= 1 << 7,
-	FTRACE_OPS_FL_INITIALIZED		= 1 << 8,
-	FTRACE_OPS_FL_DELETED			= 1 << 9,
+	FTRACE_OPS_FL_DYNAMIC			= 1 << 1,
+	FTRACE_OPS_FL_CONTROL			= 1 << 2,
+	FTRACE_OPS_FL_SAVE_REGS			= 1 << 3,
+	FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED	= 1 << 4,
+	FTRACE_OPS_FL_RECURSION_SAFE		= 1 << 5,
+	FTRACE_OPS_FL_STUB			= 1 << 6,
+	FTRACE_OPS_FL_INITIALIZED		= 1 << 7,
+	FTRACE_OPS_FL_DELETED			= 1 << 8,
 };
 
 /*
