@@ -219,26 +219,29 @@ void add_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	struct list_head *head, *this;
 	struct orphan_inode_entry *new = NULL, *orphan = NULL;
 
+	new = f2fs_kmem_cache_alloc(orphan_entry_slab, GFP_ATOMIC);
+	new->ino = ino;
+
 	mutex_lock(&sbi->orphan_inode_mutex);
 	head = &sbi->orphan_inode_list;
 	list_for_each(this, head) {
 		orphan = list_entry(this, struct orphan_inode_entry, list);
-		if (orphan->ino == ino)
-			goto out;
+		if (orphan->ino == ino) {
+			mutex_unlock(&sbi->orphan_inode_mutex);
+			kmem_cache_free(orphan_entry_slab, new);
+			return;
+		}
+
 		if (orphan->ino > ino)
 			break;
 		orphan = NULL;
 	}
-
-	new = f2fs_kmem_cache_alloc(orphan_entry_slab, GFP_ATOMIC);
-	new->ino = ino;
 
 	/* add new_oentry into list which is sorted by inode number */
 	if (orphan)
 		list_add(&new->list, this->prev);
 	else
 		list_add_tail(&new->list, head);
-out:
 	mutex_unlock(&sbi->orphan_inode_mutex);
 }
 
