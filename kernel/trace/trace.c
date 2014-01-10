@@ -3393,7 +3393,7 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 
 	/* Give the tracer a chance to approve the change */
 	if (tr->current_trace->flag_changed)
-		if (tr->current_trace->flag_changed(tr->current_trace, mask, !!enabled))
+		if (tr->current_trace->flag_changed(tr, mask, !!enabled))
 			return -EINVAL;
 
 	if (enabled)

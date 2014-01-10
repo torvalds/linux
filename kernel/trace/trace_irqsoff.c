@@ -572,8 +572,10 @@ static void irqsoff_function_set(int set)
 		unregister_irqsoff_function(is_graph());
 }
 
-static int irqsoff_flag_changed(struct tracer *tracer, u32 mask, int set)
+static int irqsoff_flag_changed(struct trace_array *tr, u32 mask, int set)
 {
+	struct tracer *tracer = tr->current_trace;
+
 	if (mask & TRACE_ITER_FUNCTION)
 		irqsoff_function_set(set);
 

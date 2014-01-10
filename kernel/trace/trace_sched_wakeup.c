@@ -179,8 +179,10 @@ static void wakeup_function_set(int set)
 		unregister_wakeup_function(is_graph());
 }
 
-static int wakeup_flag_changed(struct tracer *tracer, u32 mask, int set)
+static int wakeup_flag_changed(struct trace_array *tr, u32 mask, int set)
 {
+	struct tracer *tracer = tr->current_trace;
+
 	if (mask & TRACE_ITER_FUNCTION)
 		wakeup_function_set(set);
 
