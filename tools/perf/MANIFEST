@@ -1,7 +1,7 @@
 tools/perf
 tools/scripts
 tools/lib/traceevent
-tools/lib/lk
+tools/lib/api
 tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
 tools/include/asm/bug.h
