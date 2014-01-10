@@ -461,6 +461,34 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 
+static void hci_cc_write_sc_support(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	u8 status = *((u8 *) skb->data);
+	struct hci_cp_write_sc_support *sent;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SC_SUPPORT);
+	if (!sent)
+		return;
+
+	if (!status) {
+		if (sent->support)
+			hdev->features[1][0] |= LMP_HOST_SC;
+		else
+			hdev->features[1][0] &= ~LMP_HOST_SC;
+	}
+
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_sc_enable_complete(hdev, sent->support, status);
+	else if (!status) {
+		if (sent->support)
+			set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		else
+			clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+	}
+}
+
 static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_rp_read_local_version *rp = (void *) skb->data;
@@ -2145,6 +2173,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_WRITE_SSP_MODE:
 		hci_cc_write_ssp_mode(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_SC_SUPPORT:
+		hci_cc_write_sc_support(hdev, skb);
 		break;
 
 	case HCI_OP_READ_LOCAL_VERSION:
