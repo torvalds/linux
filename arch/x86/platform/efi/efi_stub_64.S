@@ -318,3 +318,4 @@ efi_gdt64_end:
 ENTRY(efi_scratch)
 	.fill 3,8,0
 	.byte 0
+	.quad 0
