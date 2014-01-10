@@ -10024,6 +10024,29 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	return 0;
 }
 
+static void disable_crtc_nofb(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+
+	DRM_DEBUG_KMS("Trying to restore without FB -> disabling pipe %c\n",
+		      pipe_name(crtc->pipe));
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head) {
+		if (connector->new_encoder &&
+		    connector->new_encoder->new_crtc == crtc)
+			connector->new_encoder = NULL;
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
+		if (encoder->new_crtc == crtc)
+			encoder->new_crtc = NULL;
+	}
+
+	crtc->new_enabled = false;
+}
+
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
@@ -10099,6 +10122,15 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 			      set->crtc->base.id, ret);
 fail:
 		intel_set_config_restore_state(dev, config);
+
+		/*
+		 * HACK: if the pipe was on, but we didn't have a framebuffer,
+		 * force the pipe off to avoid oopsing in the modeset code
+		 * due to fb==NULL. This should only happen during boot since
+		 * we don't yet reconstruct the FB from the hardware state.
+		 */
+		if (to_intel_crtc(save_set.crtc)->new_enabled && !save_set.fb)
+			disable_crtc_nofb(to_intel_crtc(save_set.crtc));
 
 		/* Try to restore the config */
 		if (config->mode_changed &&
