@@ -1548,7 +1548,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	if (IS_I945G(dev) || IS_I945GM(dev))
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | 0);
 	else if (IS_I915GM(dev))
-		I915_WRITE(INSTPM, I915_READ(INSTPM) & ~INSTPM_SELF_EN);
+		I915_WRITE(INSTPM, _MASKED_BIT_DISABLE(INSTPM_SELF_EN));
 
 	/* Calc sr entries for one plane configs */
 	if (HAS_FW_BLC(dev) && enabled) {
@@ -1600,7 +1600,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 				I915_WRITE(FW_BLC_SELF,
 					   FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
 			else if (IS_I915GM(dev))
-				I915_WRITE(INSTPM, I915_READ(INSTPM) | INSTPM_SELF_EN);
+				I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_SELF_EN));
 			DRM_DEBUG_KMS("memory self refresh enabled\n");
 		} else
 			DRM_DEBUG_KMS("memory self refresh disabled\n");
