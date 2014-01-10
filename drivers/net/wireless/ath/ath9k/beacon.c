@@ -337,8 +337,14 @@ void ath9k_beacon_tasklet(unsigned long data)
 
 		ath9k_hw_check_nav(ah);
 
-		if (!ath9k_hw_check_alive(ah))
-			ieee80211_queue_work(sc->hw, &sc->hw_check_work);
+		/*
+		 * If the previous beacon has not been transmitted
+		 * and a MAC/BB hang has been identified, return
+		 * here because a chip reset would have been
+		 * initiated.
+		 */
+		if (!ath_hw_check(sc))
+			return;
 
 		if (sc->beacon.bmisscnt < BSTUCK_THRESH * sc->nbcnvifs) {
 			ath_dbg(common, BSTUCK,

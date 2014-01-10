@@ -383,6 +383,20 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
 	}
 }
 
+static void ar9002_hw_init_hang_checks(struct ath_hw *ah)
+{
+	if (AR_SREV_9100(ah) || AR_SREV_9160(ah)) {
+		ah->config.hw_hang_checks |= HW_BB_RIFS_HANG;
+		ah->config.hw_hang_checks |= HW_BB_DFS_HANG;
+	}
+
+	if (AR_SREV_9280(ah))
+		ah->config.hw_hang_checks |= HW_BB_RX_CLEAR_STUCK_HANG;
+
+	if (AR_SREV_5416(ah) || AR_SREV_9100(ah) || AR_SREV_9160(ah))
+		ah->config.hw_hang_checks |= HW_MAC_HANG;
+}
+
 /* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
 int ar9002_hw_attach_ops(struct ath_hw *ah)
 {
@@ -395,6 +409,7 @@ int ar9002_hw_attach_ops(struct ath_hw *ah)
 		return ret;
 
 	priv_ops->init_mode_gain_regs = ar9002_hw_init_mode_gain_regs;
+	priv_ops->init_hang_checks = ar9002_hw_init_hang_checks;
 
 	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
 

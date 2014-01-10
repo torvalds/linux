@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -262,7 +262,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
 	/* currently FW API supports only one optional cipher scheme */
-	if (mvm->fw->cs && mvm->fw->cs->cipher) {
+	if (mvm->fw->cs->cipher) {
 		mvm->hw->n_cipher_schemes = 1;
 		mvm->hw->cipher_schemes = mvm->fw->cs;
 	}
@@ -866,6 +866,14 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
+	/*
+	 * Re-calculate the tsf id, as the master-slave relations depend on the
+	 * beacon interval, which was not known when the station interface was
+	 * added.
+	 */
+	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc)
+		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
+
 	ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
 	if (ret)
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
@@ -978,6 +986,13 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	ret = iwl_mvm_mac_ctxt_beacon_changed(mvm, vif);
 	if (ret)
 		goto out_unlock;
+
+	/*
+	 * Re-calculate the tsf id, as the master-slave relations depend on the
+	 * beacon interval, which was not known when the AP interface was added.
+	 */
+	if (vif->type == NL80211_IFTYPE_AP)
+		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
 
 	/* Add the mac context */
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
@@ -1671,7 +1686,8 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ONCE((phy_ctxt->ref > 1) &&
 		      (changed & ~(IEEE80211_CHANCTX_CHANGE_WIDTH |
 				   IEEE80211_CHANCTX_CHANGE_RX_CHAINS |
-				   IEEE80211_CHANCTX_CHANGE_RADAR)),
+				   IEEE80211_CHANCTX_CHANGE_RADAR |
+				   IEEE80211_CHANCTX_CHANGE_MIN_WIDTH)),
 		      "Cannot change PHY. Ref=%d, changed=0x%X\n",
 		      phy_ctxt->ref, changed))
 		return;

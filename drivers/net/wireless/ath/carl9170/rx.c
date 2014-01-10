@@ -37,7 +37,6 @@
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
@@ -536,7 +535,7 @@ static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (!ether_addr_equal(hdr->addr3, ar->common.curbssid) ||
+	if (!ether_addr_equal_64bits(hdr->addr3, ar->common.curbssid) ||
 	    !ar->common.curaid)
 		return;
 
@@ -602,8 +601,8 @@ static void carl9170_ba_check(struct ar9170 *ar, void *data, unsigned int len)
 
 		if (bar->start_seq_num == entry_bar->start_seq_num &&
 		    TID_CHECK(bar->control, entry_bar->control) &&
-		    ether_addr_equal(bar->ra, entry_bar->ta) &&
-		    ether_addr_equal(bar->ta, entry_bar->ra)) {
+		    ether_addr_equal_64bits(bar->ra, entry_bar->ta) &&
+		    ether_addr_equal_64bits(bar->ta, entry_bar->ra)) {
 			struct ieee80211_tx_info *tx_info;
 
 			tx_info = IEEE80211_SKB_CB(entry_skb);

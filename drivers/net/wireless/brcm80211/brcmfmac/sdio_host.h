@@ -167,7 +167,6 @@ struct brcmf_sdio_dev {
 	u32 sbwad;			/* Save backplane window address */
 	struct brcmf_sdio *bus;
 	atomic_t suspend;		/* suspend flag */
-	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;

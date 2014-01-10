@@ -553,7 +553,7 @@ TRACE_EVENT(drv_update_tkip_key,
 
 	TP_printk(
 		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " iv32:%#x",
-		LOCAL_PR_ARG,VIF_PR_ARG,STA_PR_ARG, __entry->iv32
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->iv32
 	)
 );
 

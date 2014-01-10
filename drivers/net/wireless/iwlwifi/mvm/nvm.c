@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -367,14 +367,15 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			break;
 		}
 
+		if (WARN(section_id >= NVM_NUM_OF_SECTIONS,
+			 "Invalid NVM section ID %d\n", section_id)) {
+			ret = -EINVAL;
+			break;
+		}
+
 		temp = kmemdup(file_sec->data, section_size, GFP_KERNEL);
 		if (!temp) {
 			ret = -ENOMEM;
-			break;
-		}
-		if (WARN_ON(section_id >= NVM_NUM_OF_SECTIONS)) {
-			IWL_ERR(mvm, "Invalid NVM section ID\n");
-			ret = -EINVAL;
 			break;
 		}
 		mvm->nvm_sections[section_id].data = temp;

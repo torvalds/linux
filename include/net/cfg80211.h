@@ -1972,6 +1972,50 @@ struct cfg80211_mgmt_tx_params {
 };
 
 /**
+ * struct cfg80211_dscp_exception - DSCP exception
+ *
+ * @dscp: DSCP value that does not adhere to the user priority range definition
+ * @up: user priority value to which the corresponding DSCP value belongs
+ */
+struct cfg80211_dscp_exception {
+	u8 dscp;
+	u8 up;
+};
+
+/**
+ * struct cfg80211_dscp_range - DSCP range definition for user priority
+ *
+ * @low: lowest DSCP value of this user priority range, inclusive
+ * @high: highest DSCP value of this user priority range, inclusive
+ */
+struct cfg80211_dscp_range {
+	u8 low;
+	u8 high;
+};
+
+/* QoS Map Set element length defined in IEEE Std 802.11-2012, 8.4.2.97 */
+#define IEEE80211_QOS_MAP_MAX_EX	21
+#define IEEE80211_QOS_MAP_LEN_MIN	16
+#define IEEE80211_QOS_MAP_LEN_MAX \
+	(IEEE80211_QOS_MAP_LEN_MIN + 2 * IEEE80211_QOS_MAP_MAX_EX)
+
+/**
+ * struct cfg80211_qos_map - QoS Map Information
+ *
+ * This struct defines the Interworking QoS map setting for DSCP values
+ *
+ * @num_des: number of DSCP exceptions (0..21)
+ * @dscp_exception: optionally up to maximum of 21 DSCP exceptions from
+ *	the user priority DSCP range definition
+ * @up: DSCP range definition for a particular user priority
+ */
+struct cfg80211_qos_map {
+	u8 num_des;
+	struct cfg80211_dscp_exception dscp_exception[IEEE80211_QOS_MAP_MAX_EX];
+	struct cfg80211_dscp_range up[8];
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -2213,6 +2257,8 @@ struct cfg80211_mgmt_tx_params {
  * @set_coalesce: Set coalesce parameters.
  *
  * @channel_switch: initiate channel-switch procedure (with CSA)
+ *
+ * @set_qos_map: Set QoS mapping information to the driver
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -2454,6 +2500,9 @@ struct cfg80211_ops {
 	int	(*channel_switch)(struct wiphy *wiphy,
 				  struct net_device *dev,
 				  struct cfg80211_csa_settings *params);
+	int     (*set_qos_map)(struct wiphy *wiphy,
+			       struct net_device *dev,
+			       struct cfg80211_qos_map *qos_map);
 };
 
 /*
@@ -2824,6 +2873,8 @@ struct wiphy_vendor_command {
  *
  * @vendor_commands: array of vendor commands supported by the hardware
  * @n_vendor_commands: number of vendor commands
+ * @vendor_events: array of vendor events supported by the hardware
+ * @n_vendor_events: number of vendor events
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -2936,7 +2987,8 @@ struct wiphy {
 	const struct wiphy_coalesce_support *coalesce;
 
 	const struct wiphy_vendor_command *vendor_commands;
-	int n_vendor_commands;
+	const struct nl80211_vendor_cmd_info *vendor_events;
+	int n_vendor_commands, n_vendor_events;
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
@@ -3429,9 +3481,11 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 /**
  * cfg80211_classify8021d - determine the 802.1p/1d tag for a data frame
  * @skb: the data frame
+ * @qos_map: Interworking QoS mapping or %NULL if not in use
  * Return: The 802.1p/1d tag.
  */
-unsigned int cfg80211_classify8021d(struct sk_buff *skb);
+unsigned int cfg80211_classify8021d(struct sk_buff *skb,
+				    struct cfg80211_qos_map *qos_map);
 
 /**
  * cfg80211_find_ie - find information element in data
@@ -3907,6 +3961,14 @@ struct sk_buff *__cfg80211_alloc_reply_skb(struct wiphy *wiphy,
 					   enum nl80211_attrs attr,
 					   int approxlen);
 
+struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
+					   enum nl80211_commands cmd,
+					   enum nl80211_attrs attr,
+					   int vendor_event_idx,
+					   int approxlen, gfp_t gfp);
+
+void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp);
+
 /**
  * cfg80211_vendor_cmd_alloc_reply_skb - allocate vendor command reply
  * @wiphy: the wiphy
@@ -3950,6 +4012,44 @@ cfg80211_vendor_cmd_alloc_reply_skb(struct wiphy *wiphy, int approxlen)
  * Return: An error code or 0 on success.
  */
 int cfg80211_vendor_cmd_reply(struct sk_buff *skb);
+
+/**
+ * cfg80211_vendor_event_alloc - allocate vendor-specific event skb
+ * @wiphy: the wiphy
+ * @event_idx: index of the vendor event in the wiphy's vendor_events
+ * @approxlen: an upper bound of the length of the data that will
+ *	be put into the skb
+ * @gfp: allocation flags
+ *
+ * This function allocates and pre-fills an skb for an event on the
+ * vendor-specific multicast group.
+ *
+ * When done filling the skb, call cfg80211_vendor_event() with the
+ * skb to send the event.
+ *
+ * Return: An allocated and pre-filled skb. %NULL if any errors happen.
+ */
+static inline struct sk_buff *
+cfg80211_vendor_event_alloc(struct wiphy *wiphy, int approxlen,
+			    int event_idx, gfp_t gfp)
+{
+	return __cfg80211_alloc_event_skb(wiphy, NL80211_CMD_VENDOR,
+					  NL80211_ATTR_VENDOR_DATA,
+					  event_idx, approxlen, gfp);
+}
+
+/**
+ * cfg80211_vendor_event - send the event
+ * @skb: The skb, must have been allocated with cfg80211_vendor_event_alloc()
+ * @gfp: allocation flags
+ *
+ * This function sends the given @skb, which must have been allocated
+ * by cfg80211_vendor_event_alloc(), as an event. It always consumes it.
+ */
+static inline void cfg80211_vendor_event(struct sk_buff *skb, gfp_t gfp)
+{
+	__cfg80211_send_event_skb(skb, gfp);
+}
 
 #ifdef CONFIG_NL80211_TESTMODE
 /**
@@ -4031,8 +4131,13 @@ static inline int cfg80211_testmode_reply(struct sk_buff *skb)
  *
  * Return: An allocated and pre-filled skb. %NULL if any errors happen.
  */
-struct sk_buff *cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy,
-						  int approxlen, gfp_t gfp);
+static inline struct sk_buff *
+cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy, int approxlen, gfp_t gfp)
+{
+	return __cfg80211_alloc_event_skb(wiphy, NL80211_CMD_TESTMODE,
+					  NL80211_ATTR_TESTDATA, -1,
+					  approxlen, gfp);
+}
 
 /**
  * cfg80211_testmode_event - send the event
@@ -4044,7 +4149,10 @@ struct sk_buff *cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy,
  * by cfg80211_testmode_alloc_event_skb(), as an event. It always
  * consumes it.
  */
-void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp);
+static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
+{
+	__cfg80211_send_event_skb(skb, gfp);
+}
 
 #define CFG80211_TESTMODE_CMD(cmd)	.testmode_cmd = (cmd),
 #define CFG80211_TESTMODE_DUMP(cmd)	.testmode_dump = (cmd),

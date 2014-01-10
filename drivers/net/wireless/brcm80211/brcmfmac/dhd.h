@@ -21,8 +21,6 @@
 #ifndef _BRCMF_H_
 #define _BRCMF_H_
 
-#define BRCMF_VERSION_STR		"4.218.248.5"
-
 #include "fweh.h"
 
 #define TOE_TX_CSUM_OL		0x00000001
@@ -38,6 +36,11 @@
 #define BRCMF_DCMD_SMLEN	256
 #define BRCMF_DCMD_MEDLEN	1536
 #define BRCMF_DCMD_MAXLEN	8192
+
+/* IOCTL from host to device are limited in lenght. A device can only handle
+ * ethernet frame size. This limitation is to be applied by protocol layer.
+ */
+#define BRCMF_TX_IOCTL_MAX_MSG_SIZE	(ETH_FRAME_LEN+ETH_FCS_LEN)
 
 #define BRCMF_AMPDU_RX_REORDER_MAXFLOWS		256
 

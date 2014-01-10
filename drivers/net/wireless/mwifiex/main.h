@@ -1155,6 +1155,7 @@ void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 int mwifiex_11h_handle_event_chanswann(struct mwifiex_private *priv);
 int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
 			    struct device_node *node, const char *prefix);
+void mwifiex_dnld_txpwr_table(struct mwifiex_private *priv);
 
 extern const struct ethtool_ops mwifiex_ethtool_ops;
 

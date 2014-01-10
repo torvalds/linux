@@ -774,11 +774,6 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	if (bt_aggr_limit)
 		aggr_limit = bt_aggr_limit;
 
-	/*
-	 * h/w can accept aggregates up to 16 bit lengths (65535).
-	 * The IE, however can hold up to 65536, which shows up here
-	 * as zero. Ignore 65536 since we  are constrained by hw.
-	 */
 	if (tid->an->maxampdu)
 		aggr_limit = min(aggr_limit, tid->an->maxampdu);
 
@@ -1403,8 +1398,8 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	 * has already been added.
 	 */
 	if (sta->ht_cap.ht_supported) {
-		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
-				     sta->ht_cap.ampdu_factor);
+		an->maxampdu = (1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+				      sta->ht_cap.ampdu_factor)) - 1;
 		density = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
 		an->mpdudensity = density;
 	}

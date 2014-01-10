@@ -170,7 +170,6 @@ void ath9k_ps_restore(struct ath_softc *sc)
 static void __ath_cancel_work(struct ath_softc *sc)
 {
 	cancel_work_sync(&sc->paprd_work);
-	cancel_work_sync(&sc->hw_check_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_delayed_work_sync(&sc->hw_pll_work);
 
@@ -194,7 +193,6 @@ void ath_restart_work(struct ath_softc *sc)
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work,
 				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
 
-	ath_start_rx_poll(sc, 3);
 	ath_start_ani(sc);
 }
 
@@ -204,11 +202,7 @@ static bool ath_prepare_reset(struct ath_softc *sc)
 	bool ret = true;
 
 	ieee80211_stop_queues(sc->hw);
-
-	sc->hw_busy_count = 0;
 	ath_stop_ani(sc);
-	del_timer_sync(&sc->rx_poll_timer);
-
 	ath9k_hw_disable_interrupts(ah);
 
 	if (!ath_drain_all_txq(sc))
@@ -336,7 +330,6 @@ static int ath_set_channel(struct ath_softc *sc, struct cfg80211_chan_def *chand
 	struct ieee80211_hw *hw = sc->hw;
 	struct ath9k_channel *hchan;
 	struct ieee80211_channel *chan = chandef->chan;
-	unsigned long flags;
 	bool offchannel;
 	int pos = chan->hw_value;
 	int old_pos = -1;
@@ -354,9 +347,9 @@ static int ath_set_channel(struct ath_softc *sc, struct cfg80211_chan_def *chand
 		chan->center_freq, chandef->width);
 
 	/* update survey stats for the old channel before switching */
-	spin_lock_irqsave(&common->cc_lock, flags);
+	spin_lock_bh(&common->cc_lock);
 	ath_update_survey_stats(sc);
-	spin_unlock_irqrestore(&common->cc_lock, flags);
+	spin_unlock_bh(&common->cc_lock);
 
 	ath9k_cmn_get_channel(hw, ah, chandef);
 
@@ -427,12 +420,6 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 	an->vif = vif;
 
 	ath_tx_node_init(sc, an);
-
-	if (sta->ht_cap.ht_supported) {
-		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
-				     sta->ht_cap.ampdu_factor);
-		an->mpdudensity = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
-	}
 }
 
 static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
@@ -454,14 +441,8 @@ void ath9k_tasklet(unsigned long data)
 	ath9k_ps_wakeup(sc);
 	spin_lock(&sc->sc_pcu_lock);
 
-	if ((status & ATH9K_INT_FATAL) ||
-	    (status & ATH9K_INT_BB_WATCHDOG)) {
-
-		if (status & ATH9K_INT_FATAL)
-			type = RESET_TYPE_FATAL_INT;
-		else
-			type = RESET_TYPE_BB_WATCHDOG;
-
+	if (status & ATH9K_INT_FATAL) {
+		type = RESET_TYPE_FATAL_INT;
 		ath9k_queue_reset(sc, type);
 
 		/*
@@ -471,6 +452,28 @@ void ath9k_tasklet(unsigned long data)
 		atomic_inc(&ah->intr_ref_cnt);
 		ath_dbg(common, ANY, "FATAL: Skipping interrupts\n");
 		goto out;
+	}
+
+	if ((ah->config.hw_hang_checks & HW_BB_WATCHDOG) &&
+	    (status & ATH9K_INT_BB_WATCHDOG)) {
+		spin_lock(&common->cc_lock);
+		ath_hw_cycle_counters_update(common);
+		ar9003_hw_bb_watchdog_dbg_info(ah);
+		spin_unlock(&common->cc_lock);
+
+		if (ar9003_hw_bb_watchdog_check(ah)) {
+			type = RESET_TYPE_BB_WATCHDOG;
+			ath9k_queue_reset(sc, type);
+
+			/*
+			 * Increment the ref. counter here so that
+			 * interrupts are enabled in the reset routine.
+			 */
+			atomic_inc(&ah->intr_ref_cnt);
+			ath_dbg(common, ANY,
+				"BB_WATCHDOG: Skipping interrupts\n");
+			goto out;
+		}
 	}
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
@@ -541,7 +544,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath9k_int status;
-	u32 sync_cause;
+	u32 sync_cause = 0;
 	bool sched = false;
 
 	/*
@@ -593,16 +596,9 @@ irqreturn_t ath_isr(int irq, void *dev)
 	    !(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)))
 		goto chip_reset;
 
-	if ((ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
-	    (status & ATH9K_INT_BB_WATCHDOG)) {
-
-		spin_lock(&common->cc_lock);
-		ath_hw_cycle_counters_update(common);
-		ar9003_hw_bb_watchdog_dbg_info(ah);
-		spin_unlock(&common->cc_lock);
-
+	if ((ah->config.hw_hang_checks & HW_BB_WATCHDOG) &&
+	    (status & ATH9K_INT_BB_WATCHDOG))
 		goto chip_reset;
-	}
 
 #ifdef CONFIG_ATH9K_WOW
 	if (status & ATH9K_INT_BMISS) {
@@ -732,10 +728,12 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		ah->imask |= ATH9K_INT_RXHP |
-			     ATH9K_INT_RXLP |
-			     ATH9K_INT_BB_WATCHDOG;
+			     ATH9K_INT_RXLP;
 	else
 		ah->imask |= ATH9K_INT_RX;
+
+	if (ah->config.hw_hang_checks & HW_BB_WATCHDOG)
+		ah->imask |= ATH9K_INT_BB_WATCHDOG;
 
 	ah->imask |= ATH9K_INT_GTT;
 
@@ -860,7 +858,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
-	del_timer_sync(&sc->rx_poll_timer);
 
 	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
@@ -1791,13 +1788,12 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
-	unsigned long flags;
 	int pos;
 
 	if (config_enabled(CONFIG_ATH9K_TX99))
 		return -EOPNOTSUPP;
 
-	spin_lock_irqsave(&common->cc_lock, flags);
+	spin_lock_bh(&common->cc_lock);
 	if (idx == 0)
 		ath_update_survey_stats(sc);
 
@@ -1811,7 +1807,7 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 		sband = hw->wiphy->bands[IEEE80211_BAND_5GHZ];
 
 	if (!sband || idx >= sband->n_channels) {
-		spin_unlock_irqrestore(&common->cc_lock, flags);
+		spin_unlock_bh(&common->cc_lock);
 		return -ENOENT;
 	}
 
@@ -1819,7 +1815,7 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	pos = chan->hw_value;
 	memcpy(survey, &sc->survey[pos], sizeof(*survey));
 	survey->channel = chan;
-	spin_unlock_irqrestore(&common->cc_lock, flags);
+	spin_unlock_bh(&common->cc_lock);
 
 	return 0;
 }

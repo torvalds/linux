@@ -65,50 +65,26 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 /*
  * Checks if the BB/MAC is hung.
  */
-void ath_hw_check(struct work_struct *work)
+bool ath_hw_check(struct ath_softc *sc)
 {
-	struct ath_softc *sc = container_of(work, struct ath_softc, hw_check_work);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	unsigned long flags;
-	int busy;
-	u8 is_alive, nbeacon = 1;
 	enum ath_reset_type type;
+	bool is_alive;
 
 	ath9k_ps_wakeup(sc);
+
 	is_alive = ath9k_hw_check_alive(sc->sc_ah);
 
-	if ((is_alive && !AR_SREV_9300(sc->sc_ah)) || sc->tx99_state)
-		goto out;
-	else if (!is_alive && AR_SREV_9300(sc->sc_ah)) {
+	if (!is_alive) {
 		ath_dbg(common, RESET,
-			"DCU stuck is detected. Schedule chip reset\n");
+			"HW hang detected, schedule chip reset\n");
 		type = RESET_TYPE_MAC_HANG;
-		goto sched_reset;
+		ath9k_queue_reset(sc, type);
 	}
 
-	spin_lock_irqsave(&common->cc_lock, flags);
-	busy = ath_update_survey_stats(sc);
-	spin_unlock_irqrestore(&common->cc_lock, flags);
-
-	ath_dbg(common, RESET, "Possible baseband hang, busy=%d (try %d)\n",
-		busy, sc->hw_busy_count + 1);
-	if (busy >= 99) {
-		if (++sc->hw_busy_count >= 3) {
-			type = RESET_TYPE_BB_HANG;
-			goto sched_reset;
-		}
-	} else if (busy >= 0) {
-		sc->hw_busy_count = 0;
-		nbeacon = 3;
-	}
-
-	ath_start_rx_poll(sc, nbeacon);
-	goto out;
-
-sched_reset:
-	ath9k_queue_reset(sc, type);
-out:
 	ath9k_ps_restore(sc);
+
+	return is_alive;
 }
 
 /*
@@ -159,29 +135,6 @@ void ath_hw_pll_work(struct work_struct *work)
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work,
 				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
-}
-
-/*
- * RX Polling - monitors baseband hangs.
- */
-void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon)
-{
-	if (!AR_SREV_9300(sc->sc_ah))
-		return;
-
-	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
-		return;
-
-	mod_timer(&sc->rx_poll_timer, jiffies + msecs_to_jiffies
-		  (nbeacon * sc->cur_beacon_conf.beacon_interval));
-}
-
-void ath_rx_poll(unsigned long data)
-{
-	struct ath_softc *sc = (struct ath_softc *)data;
-
-	if (!test_bit(SC_OP_INVALID, &sc->sc_flags))
-		ieee80211_queue_work(sc->hw, &sc->hw_check_work);
 }
 
 /*
@@ -409,10 +362,10 @@ void ath_ani_calibrate(unsigned long data)
 
 	/* Call ANI routine if necessary */
 	if (aniflag) {
-		spin_lock_irqsave(&common->cc_lock, flags);
+		spin_lock(&common->cc_lock);
 		ath9k_hw_ani_monitor(ah, ah->curchan);
 		ath_update_survey_stats(sc);
-		spin_unlock_irqrestore(&common->cc_lock, flags);
+		spin_unlock(&common->cc_lock);
 	}
 
 	/* Perform calibration if necessary */
