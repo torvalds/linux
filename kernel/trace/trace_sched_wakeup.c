@@ -209,7 +209,8 @@ static void stop_func_tracer(int graph)
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static int wakeup_set_flag(u32 old_flags, u32 bit, int set)
+static int
+wakeup_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 
 	if (!(bit & TRACE_DISPLAY_GRAPH))
@@ -311,7 +312,8 @@ __trace_function(struct trace_array *tr,
 #else
 #define __trace_function trace_function
 
-static int wakeup_set_flag(u32 old_flags, u32 bit, int set)
+static int
+wakeup_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	return -EINVAL;
 }

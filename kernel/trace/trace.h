@@ -355,7 +355,8 @@ struct tracer {
 	void			(*print_header)(struct seq_file *m);
 	enum print_line_t	(*print_line)(struct trace_iterator *iter);
 	/* If you handled the flag setting, return 0 */
-	int			(*set_flag)(u32 old_flags, u32 bit, int set);
+	int			(*set_flag)(struct trace_array *tr,
+					    u32 old_flags, u32 bit, int set);
 	/* Return 0 if OK with change, else return non-zero */
 	int			(*flag_changed)(struct tracer *tracer,
 						u32 mask, int set);

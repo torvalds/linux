@@ -175,7 +175,8 @@ static void tracing_stop_function_trace(void)
 		unregister_ftrace_function(&trace_ops);
 }
 
-static int func_set_flag(u32 old_flags, u32 bit, int set)
+static int
+func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	switch (bit) {
 	case TRACE_FUNC_OPT_STACK:

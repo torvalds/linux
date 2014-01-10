@@ -73,7 +73,8 @@ static struct tracer_flags dummy_tracer_flags = {
 	.opts = dummy_tracer_opt
 };
 
-static int dummy_set_flag(u32 old_flags, u32 bit, int set)
+static int
+dummy_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	return 0;
 }
@@ -3339,13 +3340,14 @@ static int tracing_trace_options_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int __set_tracer_option(struct tracer *trace,
+static int __set_tracer_option(struct trace_array *tr,
 			       struct tracer_flags *tracer_flags,
 			       struct tracer_opt *opts, int neg)
 {
+	struct tracer *trace = tr->current_trace;
 	int ret;
 
-	ret = trace->set_flag(tracer_flags->val, opts->bit, !neg);
+	ret = trace->set_flag(tr, tracer_flags->val, opts->bit, !neg);
 	if (ret)
 		return ret;
 
@@ -3357,8 +3359,9 @@ static int __set_tracer_option(struct tracer *trace,
 }
 
 /* Try to assign a tracer specific option */
-static int set_tracer_option(struct tracer *trace, char *cmp, int neg)
+static int set_tracer_option(struct trace_array *tr, char *cmp, int neg)
 {
+	struct tracer *trace = tr->current_trace;
 	struct tracer_flags *tracer_flags = trace->flags;
 	struct tracer_opt *opts = NULL;
 	int i;
@@ -3367,8 +3370,7 @@ static int set_tracer_option(struct tracer *trace, char *cmp, int neg)
 		opts = &tracer_flags->opts[i];
 
 		if (strcmp(cmp, opts->name) == 0)
-			return __set_tracer_option(trace, trace->flags,
-						   opts, neg);
+			return __set_tracer_option(tr, trace->flags, opts, neg);
 	}
 
 	return -EINVAL;
@@ -3440,7 +3442,7 @@ static int trace_set_options(struct trace_array *tr, char *option)
 
 	/* If no option could be set, test the specific tracer options */
 	if (!trace_options[i])
-		ret = set_tracer_option(tr->current_trace, cmp, neg);
+		ret = set_tracer_option(tr, cmp, neg);
 
 	mutex_unlock(&trace_types_lock);
 
@@ -5689,7 +5691,7 @@ trace_options_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	if (!!(topt->flags->val & topt->opt->bit) != val) {
 		mutex_lock(&trace_types_lock);
-		ret = __set_tracer_option(topt->tr->current_trace, topt->flags,
+		ret = __set_tracer_option(topt->tr, topt->flags,
 					  topt->opt, !val);
 		mutex_unlock(&trace_types_lock);
 		if (ret)
