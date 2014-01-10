@@ -24,9 +24,6 @@
 #define DEFAULT_HASH_SIZE	64	/* optimized for diffserv */
 
 
-#define	PRIV(tp)	((struct tcindex_data *) (tp)->root)
-
-
 struct tcindex_filter_result {
 	struct tcf_exts		exts;
 	struct tcf_result	res;
@@ -77,7 +74,7 @@ tcindex_lookup(struct tcindex_data *p, u16 key)
 static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			    struct tcf_result *res)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *f;
 	int key = (skb->tc_index & p->mask) >> p->shift;
 
@@ -102,7 +99,7 @@ static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 static unsigned long tcindex_get(struct tcf_proto *tp, u32 handle)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *r;
 
 	pr_debug("tcindex_get(tp %p,handle 0x%08x)\n", tp, handle);
@@ -140,7 +137,7 @@ static int tcindex_init(struct tcf_proto *tp)
 static int
 __tcindex_delete(struct tcf_proto *tp, unsigned long arg, int lock)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) arg;
 	struct tcindex_filter *f = NULL;
 
@@ -338,7 +335,7 @@ tcindex_change(struct net *net, struct sk_buff *in_skb,
 {
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_TCINDEX_MAX + 1];
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) *arg;
 	int err;
 
@@ -360,7 +357,7 @@ tcindex_change(struct net *net, struct sk_buff *in_skb,
 
 static void tcindex_walk(struct tcf_proto *tp, struct tcf_walker *walker)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter *f, *next;
 	int i;
 
@@ -407,7 +404,7 @@ static int tcindex_destroy_element(struct tcf_proto *tp,
 
 static void tcindex_destroy(struct tcf_proto *tp)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcf_walker walker;
 
 	pr_debug("tcindex_destroy(tp %p),p %p\n", tp, p);
@@ -425,7 +422,7 @@ static void tcindex_destroy(struct tcf_proto *tp)
 static int tcindex_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
     struct sk_buff *skb, struct tcmsg *t)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) fh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;

@@ -75,7 +75,7 @@ static inline int fw_hash(u32 handle)
 static int fw_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			  struct tcf_result *res)
 {
-	struct fw_head *head = (struct fw_head *)tp->root;
+	struct fw_head *head = tp->root;
 	struct fw_filter *f;
 	int r;
 	u32 id = skb->mark;
@@ -111,7 +111,7 @@ static int fw_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 static unsigned long fw_get(struct tcf_proto *tp, u32 handle)
 {
-	struct fw_head *head = (struct fw_head *)tp->root;
+	struct fw_head *head = tp->root;
 	struct fw_filter *f;
 
 	if (head == NULL)
@@ -160,7 +160,7 @@ static void fw_destroy(struct tcf_proto *tp)
 
 static int fw_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct fw_head *head = (struct fw_head *)tp->root;
+	struct fw_head *head = tp->root;
 	struct fw_filter *f = (struct fw_filter *)arg;
 	struct fw_filter **fp;
 
@@ -190,7 +190,7 @@ static int
 fw_change_attrs(struct net *net, struct tcf_proto *tp, struct fw_filter *f,
 	struct nlattr **tb, struct nlattr **tca, unsigned long base)
 {
-	struct fw_head *head = (struct fw_head *)tp->root;
+	struct fw_head *head = tp->root;
 	struct tcf_exts e;
 	u32 mask;
 	int err;
@@ -237,7 +237,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 		     struct nlattr **tca,
 		     unsigned long *arg)
 {
-	struct fw_head *head = (struct fw_head *)tp->root;
+	struct fw_head *head = tp->root;
 	struct fw_filter *f = (struct fw_filter *) *arg;
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_FW_MAX + 1];
@@ -300,7 +300,7 @@ errout:
 
 static void fw_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
-	struct fw_head *head = (struct fw_head *)tp->root;
+	struct fw_head *head = tp->root;
 	int h;
 
 	if (head == NULL)
@@ -329,7 +329,7 @@ static void fw_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 static int fw_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		   struct sk_buff *skb, struct tcmsg *t)
 {
-	struct fw_head *head = (struct fw_head *)tp->root;
+	struct fw_head *head = tp->root;
 	struct fw_filter *f = (struct fw_filter *)fh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;

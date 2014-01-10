@@ -38,7 +38,7 @@ static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			  struct tcf_result *res)
 {
 	int r;
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct basic_filter *f;
 
 	list_for_each_entry(f, &head->flist, link) {
@@ -56,7 +56,7 @@ static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 static unsigned long basic_get(struct tcf_proto *tp, u32 handle)
 {
 	unsigned long l = 0UL;
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct basic_filter *f;
 
 	if (head == NULL)
@@ -107,7 +107,7 @@ static void basic_destroy(struct tcf_proto *tp)
 
 static int basic_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct basic_filter *t, *f = (struct basic_filter *) arg;
 
 	list_for_each_entry(t, &head->flist, link)
@@ -164,7 +164,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 			struct nlattr **tca, unsigned long *arg)
 {
 	int err;
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct nlattr *tb[TCA_BASIC_MAX + 1];
 	struct basic_filter *f = (struct basic_filter *) *arg;
 
@@ -225,7 +225,7 @@ errout:
 
 static void basic_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct basic_filter *f;
 
 	list_for_each_entry(f, &head->flist, link) {

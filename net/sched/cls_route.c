@@ -123,7 +123,7 @@ static inline int route4_hash_wild(void)
 static int route4_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			   struct tcf_result *res)
 {
-	struct route4_head *head = (struct route4_head *)tp->root;
+	struct route4_head *head = tp->root;
 	struct dst_entry *dst;
 	struct route4_bucket *b;
 	struct route4_filter *f;
@@ -213,7 +213,7 @@ static inline u32 from_hash(u32 id)
 
 static unsigned long route4_get(struct tcf_proto *tp, u32 handle)
 {
-	struct route4_head *head = (struct route4_head *)tp->root;
+	struct route4_head *head = tp->root;
 	struct route4_bucket *b;
 	struct route4_filter *f;
 	unsigned int h1, h2;
@@ -284,7 +284,7 @@ static void route4_destroy(struct tcf_proto *tp)
 
 static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct route4_head *head = (struct route4_head *)tp->root;
+	struct route4_head *head = tp->root;
 	struct route4_filter **fp, *f = (struct route4_filter *)arg;
 	unsigned int h = 0;
 	struct route4_bucket *b;
