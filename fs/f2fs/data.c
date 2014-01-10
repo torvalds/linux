@@ -226,7 +226,7 @@ static void __set_data_blkaddr(struct dnode_of_data *dn, block_t new_addr)
 	struct page *node_page = dn->node_page;
 	unsigned int ofs_in_node = dn->ofs_in_node;
 
-	f2fs_wait_on_page_writeback(node_page, NODE, false);
+	f2fs_wait_on_page_writeback(node_page, NODE);
 
 	rn = F2FS_NODE(node_page);
 

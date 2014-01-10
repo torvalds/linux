@@ -106,7 +106,7 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 	set_page_writeback(page);
 	write_data_page(page, &dn, &new_blk_addr, &fio);
 	update_extent_cache(new_blk_addr, &dn);
-	f2fs_wait_on_page_writeback(page, DATA, true);
+	f2fs_wait_on_page_writeback(page, DATA);
 
 	/* clear inline data and flag after data writeback */
 	zero_user_segment(ipage, INLINE_DATA_OFFSET,

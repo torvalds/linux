@@ -1053,7 +1053,7 @@ void rewrite_node_page(struct f2fs_sb_info *sbi,
 }
 
 void f2fs_wait_on_page_writeback(struct page *page,
-				enum page_type type, bool sync)
+				enum page_type type)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
 	if (PageWriteback(page)) {
