@@ -258,7 +258,7 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 	 * RGB outputs are an exception, so we make sure they can be attached
 	 * to only their parent display controller.
 	 */
-	rgb->output.encoder.possible_crtcs = 1 << dc->pipe;
+	rgb->output.encoder.possible_crtcs = drm_crtc_mask(&dc->base);
 
 	return 0;
 }
