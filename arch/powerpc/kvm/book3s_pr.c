@@ -999,14 +999,14 @@ program_interrupt:
 		 * and if we really did time things so badly, then we just exit
 		 * again due to a host external interrupt.
 		 */
-		local_irq_disable();
 		s = kvmppc_prepare_to_enter(vcpu);
-		if (s <= 0) {
-			local_irq_enable();
+		if (s <= 0)
 			r = s;
-		} else {
+		else {
+			/* interrupts now hard-disabled */
 			kvmppc_fix_ee_before_entry();
 		}
+
 		kvmppc_handle_lost_ext(vcpu);
 	}
 
@@ -1219,12 +1219,10 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * really did time things so badly, then we just exit again due to
 	 * a host external interrupt.
 	 */
-	local_irq_disable();
 	ret = kvmppc_prepare_to_enter(vcpu);
-	if (ret <= 0) {
-		local_irq_enable();
+	if (ret <= 0)
 		goto out;
-	}
+	/* interrupts now hard-disabled */
 
 	/* Save FPU state in thread_struct */
 	if (current->thread.regs->msr & MSR_FP)

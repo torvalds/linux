@@ -456,6 +456,12 @@ static inline void kvmppc_fix_ee_before_entry(void)
 	trace_hardirqs_on();
 
 #ifdef CONFIG_PPC64
+	/*
+	 * To avoid races, the caller must have gone directly from having
+	 * interrupts fully-enabled to hard-disabled.
+	 */
+	WARN_ON(local_paca->irq_happened != PACA_IRQ_HARD_DIS);
+
 	/* Only need to enable IRQs by hard enabling them after this */
 	local_paca->irq_happened = 0;
 	local_paca->soft_enabled = 1;
