@@ -29,8 +29,10 @@ static inline void __delay(unsigned long loops)
 
 /* Undefined function to get compile-time error */
 void __bad_udelay(void);
+void __bad_ndelay(void);
 
 #define __MAX_UDELAY 30000
+#define __MAX_NDELAY 30000
 
 static inline void __udelay(unsigned long usecs)
 {
@@ -48,6 +50,26 @@ static inline void udelay(unsigned long usec)
 		__bad_udelay();
 	else
 		__udelay(usec);
+}
+
+static inline void __ndelay(unsigned long nsec)
+{
+	/*
+	 * Inner shift makes sure multiplication doesn't overflow
+	 * for legitimate nsec values
+	 */
+	unsigned long cycles = (nsec * (ccount_freq >> 15)) >> 15;
+	__delay(cycles);
+}
+
+#define ndelay(n) ndelay(n)
+
+static inline void ndelay(unsigned long nsec)
+{
+	if (__builtin_constant_p(nsec) && nsec >= __MAX_NDELAY)
+		__bad_ndelay();
+	else
+		__ndelay(nsec);
 }
 
 #endif
