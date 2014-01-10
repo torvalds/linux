@@ -1079,6 +1079,7 @@ struct qlcnic_adapter {
 	u64 dev_rst_time;
 	bool drv_mac_learn;
 	bool fdb_mac_learn;
+	u8 rx_mac_learn;
 	unsigned long vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 flash_mfg_id;
 	struct qlcnic_npar_info *npars;
