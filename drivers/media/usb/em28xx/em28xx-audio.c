@@ -692,6 +692,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	if (intf->num_altsetting <= alt) {
 		em28xx_errdev("alt %d doesn't exist on interface %d\n",
 			      dev->audio_ifnum, alt);
+		snd_card_free(card);
 		return -ENODEV;
 	}
 
@@ -707,6 +708,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 	if (!ep) {
 		em28xx_errdev("Couldn't find an audio endpoint");
+		snd_card_free(card);
 		return -ENODEV;
 	}
 
@@ -759,6 +761,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 	err = snd_card_register(card);
 	if (err < 0) {
+		em28xx_audio_free_urb(dev);
 		snd_card_free(card);
 		return err;
 	}
