@@ -803,9 +803,12 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_csb_slave_capable(dev)  ((dev)->features[2][0] & LMP_CSB_SLAVE)
 #define lmp_sync_train_capable(dev) ((dev)->features[2][0] & LMP_SYNC_TRAIN)
 #define lmp_sync_scan_capable(dev)  ((dev)->features[2][0] & LMP_SYNC_SCAN)
+#define lmp_sc_capable(dev)         ((dev)->features[2][1] & LMP_SC)
+#define lmp_ping_capable(dev)       ((dev)->features[2][1] & LMP_PING)
 
 /* ----- Host capabilities ----- */
 #define lmp_host_ssp_capable(dev)  ((dev)->features[1][0] & LMP_HOST_SSP)
+#define lmp_host_sc_capable(dev)   ((dev)->features[1][0] & LMP_HOST_SC)
 #define lmp_host_le_capable(dev)   (!!((dev)->features[1][0] & LMP_HOST_LE))
 #define lmp_host_le_br_capable(dev) (!!((dev)->features[1][0] & LMP_HOST_LE_BREDR))
 

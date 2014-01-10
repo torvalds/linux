@@ -282,10 +282,14 @@ enum {
 #define LMP_SYNC_TRAIN	0x04
 #define LMP_SYNC_SCAN	0x08
 
+#define LMP_SC		0x01
+#define LMP_PING	0x02
+
 /* Host features */
 #define LMP_HOST_SSP		0x01
 #define LMP_HOST_LE		0x02
 #define LMP_HOST_LE_BREDR	0x04
+#define LMP_HOST_SC		0x08
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
