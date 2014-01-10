@@ -103,6 +103,10 @@ enum {
  *	command giving the number of channels supported by the new radio
  * @HWSIM_ATTR_RADIO_ID: u32 attribute used with %HWSIM_CMD_DESTROY_RADIO
  *	only to destroy a radio
+ * @HWSIM_ATTR_REG_HINT_ALPHA2: alpha2 for regulatoro driver hint
+ *	(nla string, length 2)
+ * @HWSIM_ATTR_REG_CUSTOM_REG: custom regulatory domain index (u32 attribute)
+ * @HWSIM_ATTR_REG_STRICT_REG: request REGULATORY_STRICT_REG (flag attribute)
  * @__HWSIM_ATTR_MAX: enum limit
  */
 
@@ -119,6 +123,9 @@ enum {
 	HWSIM_ATTR_COOKIE,
 	HWSIM_ATTR_CHANNELS,
 	HWSIM_ATTR_RADIO_ID,
+	HWSIM_ATTR_REG_HINT_ALPHA2,
+	HWSIM_ATTR_REG_CUSTOM_REG,
+	HWSIM_ATTR_REG_STRICT_REG,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)
