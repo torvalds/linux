@@ -1139,6 +1139,16 @@ config NETFILTER_XT_MATCH_IPVS
 
 	  If unsure, say N.
 
+config NETFILTER_XT_MATCH_L2TP
+	tristate '"l2tp" match support'
+	depends on NETFILTER_ADVANCED
+	default L2TP
+	---help---
+	This option adds an "L2TP" match, which allows you to match against
+	L2TP protocol header fields.
+
+	To compile it as a module, choose M here. If unsure, say N.
+
 config NETFILTER_XT_MATCH_LENGTH
 	tristate '"length" match support'
 	depends on NETFILTER_ADVANCED
