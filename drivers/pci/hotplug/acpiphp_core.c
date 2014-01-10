@@ -156,7 +156,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	/* disable the specified slot */
-	return acpiphp_disable_and_eject_slot(slot->acpi_slot);
+	return acpiphp_disable_slot(slot->acpi_slot);
 }
 
 
