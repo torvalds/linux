@@ -1513,11 +1513,11 @@ ignore_link:
 	if (intr_status & mask) {
 		/* Tx error */
 		u32 edtrr = sh_eth_read(ndev, EDTRR);
+
 		/* dmesg */
-		dev_err(&ndev->dev, "TX error. status=%8.8x cur_tx=%8.8x ",
-			intr_status, mdp->cur_tx);
-		dev_err(&ndev->dev, "dirty_tx=%8.8x state=%8.8x EDTRR=%8.8x.\n",
-			mdp->dirty_tx, (u32) ndev->state, edtrr);
+		dev_err(&ndev->dev, "TX error. status=%8.8x cur_tx=%8.8x dirty_tx=%8.8x state=%8.8x EDTRR=%8.8x.\n",
+			intr_status, mdp->cur_tx, mdp->dirty_tx,
+			(u32)ndev->state, edtrr);
 		/* dirty buffer free */
 		sh_eth_txfree(ndev);
 
