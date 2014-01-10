@@ -664,6 +664,15 @@ struct hci_rp_set_csb {
 
 #define HCI_OP_START_SYNC_TRAIN		0x0443
 
+#define HCI_OP_REMOTE_OOB_EXT_DATA_REPLY	0x0445
+struct hci_cp_remote_oob_ext_data_reply {
+	bdaddr_t bdaddr;
+	__u8     hash192[16];
+	__u8     randomizer192[16];
+	__u8     hash256[16];
+	__u8     randomizer256[16];
+} __packed;
+
 #define HCI_OP_SNIFF_MODE		0x0803
 struct hci_cp_sniff_mode {
 	__le16   handle;
@@ -946,6 +955,15 @@ struct hci_rp_read_sc_support {
 #define HCI_OP_WRITE_SC_SUPPORT		0x0c7a
 struct hci_cp_write_sc_support {
 	__u8	support;
+} __packed;
+
+#define HCI_OP_READ_LOCAL_OOB_EXT_DATA	0x0c7d
+struct hci_rp_read_local_oob_ext_data {
+	__u8     status;
+	__u8     hash192[16];
+	__u8     randomizer192[16];
+	__u8     hash256[16];
+	__u8     randomizer256[16];
 } __packed;
 
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
