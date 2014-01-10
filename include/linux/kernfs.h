@@ -15,7 +15,7 @@
 #include <linux/lockdep.h>
 #include <linux/rbtree.h>
 #include <linux/atomic.h>
-#include <linux/completion.h>
+#include <linux/wait.h>
 
 struct file;
 struct iattr;
@@ -91,7 +91,6 @@ struct kernfs_node {
 	struct rb_node		rb;
 
 	union {
-		struct completion	*completion;
 		struct kernfs_node	*removed_list;
 	} u;
 
@@ -132,6 +131,7 @@ struct kernfs_root {
 	/* private fields, do not use outside kernfs proper */
 	struct ida		ino_ida;
 	struct kernfs_dir_ops	*dir_ops;
+	wait_queue_head_t	deactivate_waitq;
 };
 
 struct kernfs_open_file {
