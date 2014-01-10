@@ -81,7 +81,7 @@ static void perf_evlist__update_id_pos(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node)
+	evlist__for_each(evlist, evsel)
 		perf_evsel__calc_id_pos(evsel);
 
 	perf_evlist__set_id_pos(evlist);
@@ -91,7 +91,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos, *n;
 
-	list_for_each_entry_safe(pos, n, &evlist->entries, node) {
+	evlist__for_each_safe(evlist, n, pos) {
 		list_del_init(&pos->node);
 		perf_evsel__delete(pos);
 	}
@@ -148,7 +148,7 @@ void __perf_evlist__set_leader(struct list_head *list)
 
 	leader->nr_members = evsel->idx - leader->idx + 1;
 
-	list_for_each_entry(evsel, list, node) {
+	__evlist__for_each(list, evsel) {
 		evsel->leader = leader;
 	}
 }
@@ -207,7 +207,7 @@ static int perf_evlist__add_attrs(struct perf_evlist *evlist,
 	return 0;
 
 out_delete_partial_list:
-	list_for_each_entry_safe(evsel, n, &head, node)
+	__evlist__for_each_safe(&head, n, evsel)
 		perf_evsel__delete(evsel);
 	return -1;
 }
@@ -228,7 +228,7 @@ perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if (evsel->attr.type   == PERF_TYPE_TRACEPOINT &&
 		    (int)evsel->attr.config == id)
 			return evsel;
@@ -243,7 +243,7 @@ perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if ((evsel->attr.type == PERF_TYPE_TRACEPOINT) &&
 		    (strcmp(evsel->name, name) == 0))
 			return evsel;
@@ -273,7 +273,7 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 	int nr_threads = thread_map__nr(evlist->threads);
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		list_for_each_entry(pos, &evlist->entries, node) {
+		evlist__for_each(evlist, pos) {
 			if (!perf_evsel__is_group_leader(pos) || !pos->fd)
 				continue;
 			for (thread = 0; thread < nr_threads; thread++)
@@ -291,7 +291,7 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 	int nr_threads = thread_map__nr(evlist->threads);
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		list_for_each_entry(pos, &evlist->entries, node) {
+		evlist__for_each(evlist, pos) {
 			if (!perf_evsel__is_group_leader(pos) || !pos->fd)
 				continue;
 			for (thread = 0; thread < nr_threads; thread++)
@@ -630,7 +630,7 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		int fd = FD(evsel, cpu, thread);
 
 		if (*output == -1) {
@@ -806,7 +806,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	pr_debug("mmap size %zuB\n", evlist->mmap_len);
 	mask = evlist->mmap_len - page_size - 1;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
 		    evsel->sample_id == NULL &&
 		    perf_evsel__alloc_id(evsel, cpu_map__nr(cpus), threads->nr) < 0)
@@ -849,7 +849,7 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist)
 	const int ncpus = cpu_map__nr(evlist->cpus),
 		  nthreads = thread_map__nr(evlist->threads);
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if (evsel->filter == NULL)
 			continue;
 
@@ -868,7 +868,7 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 	const int ncpus = cpu_map__nr(evlist->cpus),
 		  nthreads = thread_map__nr(evlist->threads);
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		err = perf_evsel__set_filter(evsel, ncpus, nthreads, filter);
 		if (err)
 			break;
@@ -887,7 +887,7 @@ bool perf_evlist__valid_sample_type(struct perf_evlist *evlist)
 	if (evlist->id_pos < 0 || evlist->is_pos < 0)
 		return false;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		if (pos->id_pos != evlist->id_pos ||
 		    pos->is_pos != evlist->is_pos)
 			return false;
@@ -903,7 +903,7 @@ u64 __perf_evlist__combined_sample_type(struct perf_evlist *evlist)
 	if (evlist->combined_sample_type)
 		return evlist->combined_sample_type;
 
-	list_for_each_entry(evsel, &evlist->entries, node)
+	evlist__for_each(evlist, evsel)
 		evlist->combined_sample_type |= evsel->attr.sample_type;
 
 	return evlist->combined_sample_type;
@@ -921,7 +921,7 @@ bool perf_evlist__valid_read_format(struct perf_evlist *evlist)
 	u64 read_format = first->attr.read_format;
 	u64 sample_type = first->attr.sample_type;
 
-	list_for_each_entry_continue(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		if (read_format != pos->attr.read_format)
 			return false;
 	}
@@ -978,7 +978,7 @@ bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist)
 {
 	struct perf_evsel *first = perf_evlist__first(evlist), *pos = first;
 
-	list_for_each_entry_continue(pos, &evlist->entries, node) {
+	evlist__for_each_continue(evlist, pos) {
 		if (first->attr.sample_id_all != pos->attr.sample_id_all)
 			return false;
 	}
@@ -1004,7 +1004,7 @@ void perf_evlist__close(struct perf_evlist *evlist)
 	int ncpus = cpu_map__nr(evlist->cpus);
 	int nthreads = thread_map__nr(evlist->threads);
 
-	list_for_each_entry_reverse(evsel, &evlist->entries, node)
+	evlist__for_each_reverse(evlist, evsel)
 		perf_evsel__close(evsel, ncpus, nthreads);
 }
 
@@ -1015,7 +1015,7 @@ int perf_evlist__open(struct perf_evlist *evlist)
 
 	perf_evlist__update_id_pos(evlist);
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		err = perf_evsel__open(evsel, evlist->cpus, evlist->threads);
 		if (err < 0)
 			goto out_err;
@@ -1154,7 +1154,7 @@ size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)
 	struct perf_evsel *evsel;
 	size_t printed = 0;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		printed += fprintf(fp, "%s%s", evsel->idx ? ", " : "",
 				   perf_evsel__name(evsel));
 	}
@@ -1233,7 +1233,7 @@ void perf_evlist__to_front(struct perf_evlist *evlist,
 	if (move_evsel == perf_evlist__first(evlist))
 		return;
 
-	list_for_each_entry_safe(evsel, n, &evlist->entries, node) {
+	evlist__for_each_safe(evlist, n, evsel) {
 		if (evsel->leader == move_evsel->leader)
 			list_move_tail(&evsel->node, &move);
 	}

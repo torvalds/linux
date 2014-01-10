@@ -384,7 +384,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 {
 	struct perf_evsel *pos;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		struct hists *hists = &pos->hists;
 		const char *evname = perf_evsel__name(pos);
 
@@ -495,7 +495,7 @@ static u64 report__collapse_hists(struct report *rep)
  	 * Count number of histogram entries to use when showing progress,
  	 * reusing nr_samples variable.
  	 */
-	list_for_each_entry(pos, &rep->session->evlist->entries, node)
+	evlist__for_each(rep->session->evlist, pos)
 		nr_samples += pos->hists.nr_entries;
 
 	ui_progress__init(&prog, nr_samples, "Merging related events...");
@@ -505,7 +505,7 @@ static u64 report__collapse_hists(struct report *rep)
  	 */
 	nr_samples = 0;
 
-	list_for_each_entry(pos, &rep->session->evlist->entries, node) {
+	evlist__for_each(rep->session->evlist, pos) {
 		struct hists *hists = &pos->hists;
 
 		if (pos->idx == 0)
@@ -582,7 +582,7 @@ static int __cmd_report(struct report *rep)
 		return 0;
 	}
 
-	list_for_each_entry(pos, &session->evlist->entries, node)
+	evlist__for_each(session->evlist, pos)
 		hists__output_resort(&pos->hists);
 
 	return report__browse_hists(rep);

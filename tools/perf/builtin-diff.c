@@ -356,9 +356,10 @@ static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
 {
 	struct perf_evsel *e;
 
-	list_for_each_entry(e, &evlist->entries, node)
+	evlist__for_each(evlist, e) {
 		if (perf_evsel__match2(evsel, e))
 			return e;
+	}
 
 	return NULL;
 }
@@ -367,7 +368,7 @@ static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		struct hists *hists = &evsel->hists;
 
 		hists__collapse_resort(hists, NULL);
@@ -614,7 +615,7 @@ static void data_process(void)
 	struct perf_evsel *evsel_base;
 	bool first = true;
 
-	list_for_each_entry(evsel_base, &evlist_base->entries, node) {
+	evlist__for_each(evlist_base, evsel_base) {
 		struct data__file *d;
 		int i;
 

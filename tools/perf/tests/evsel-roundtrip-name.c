@@ -79,7 +79,7 @@ static int __perf_evsel__name_array_test(const char *names[], int nr_names)
 	}
 
 	err = 0;
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if (strcmp(perf_evsel__name(evsel), names[evsel->idx])) {
 			--err;
 			pr_debug("%s != %s\n", perf_evsel__name(evsel), names[evsel->idx]);
