@@ -7974,7 +7974,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		else
 			i9xx_clock(refclk, &clock);
 	} else {
-		u32 lvds = I915_READ(LVDS);
+		u32 lvds = IS_I830(dev) ? 0 : I915_READ(LVDS);
 		bool is_lvds = (pipe == 1) && (lvds & LVDS_PORT_EN);
 
 		if (is_lvds) {
