@@ -932,16 +932,30 @@ static void hci_cc_user_passkey_neg_reply(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
-static void hci_cc_read_local_oob_data_reply(struct hci_dev *hdev,
-					     struct sk_buff *skb)
+static void hci_cc_read_local_oob_data(struct hci_dev *hdev,
+				       struct sk_buff *skb)
 {
 	struct hci_rp_read_local_oob_data *rp = (void *) skb->data;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
 
 	hci_dev_lock(hdev);
-	mgmt_read_local_oob_data_reply_complete(hdev, rp->hash,
-						rp->randomizer, rp->status);
+	mgmt_read_local_oob_data_complete(hdev, rp->hash, rp->randomizer,
+					  NULL, NULL, rp->status);
+	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_read_local_oob_ext_data(struct hci_dev *hdev,
+					   struct sk_buff *skb)
+{
+	struct hci_rp_read_local_oob_ext_data *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	hci_dev_lock(hdev);
+	mgmt_read_local_oob_data_complete(hdev, rp->hash192, rp->randomizer192,
+					  rp->hash256, rp->randomizer256,
+					  rp->status);
 	hci_dev_unlock(hdev);
 }
 
@@ -2248,7 +2262,11 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 
 	case HCI_OP_READ_LOCAL_OOB_DATA:
-		hci_cc_read_local_oob_data_reply(hdev, skb);
+		hci_cc_read_local_oob_data(hdev, skb);
+		break;
+
+	case HCI_OP_READ_LOCAL_OOB_EXT_DATA:
+		hci_cc_read_local_oob_ext_data(hdev, skb);
 		break;
 
 	case HCI_OP_LE_READ_BUFFER_SIZE:

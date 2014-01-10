@@ -1129,8 +1129,9 @@ void mgmt_sc_enable_complete(struct hci_dev *hdev, u8 enable, u8 status);
 void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 				    u8 status);
 void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
-void mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
-					     u8 *randomizer, u8 status);
+void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
+				       u8 *randomizer192, u8 *hash256,
+				       u8 *randomizer256, u8 status);
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u8 cfm_name,
 		       u8 ssp, u8 *eir, u16 eir_len);

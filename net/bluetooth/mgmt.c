@@ -3078,7 +3078,12 @@ static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	err = hci_send_cmd(hdev, HCI_OP_READ_LOCAL_OOB_DATA, 0, NULL);
+	if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags))
+		err = hci_send_cmd(hdev, HCI_OP_READ_LOCAL_OOB_EXT_DATA,
+				   0, NULL);
+	else
+		err = hci_send_cmd(hdev, HCI_OP_READ_LOCAL_OOB_DATA, 0, NULL);
+
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
@@ -5077,8 +5082,9 @@ void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 		   cmd ? cmd->sk : NULL);
 }
 
-void mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
-					     u8 *randomizer, u8 status)
+void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
+				       u8 *randomizer192, u8 *hash256,
+				       u8 *randomizer256, u8 status)
 {
 	struct pending_cmd *cmd;
 
@@ -5092,13 +5098,32 @@ void mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 		cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
 			   mgmt_status(status));
 	} else {
-		struct mgmt_rp_read_local_oob_data rp;
+		if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags) &&
+		    hash256 && randomizer256) {
+			struct mgmt_rp_read_local_oob_ext_data rp;
 
-		memcpy(rp.hash, hash, sizeof(rp.hash));
-		memcpy(rp.randomizer, randomizer, sizeof(rp.randomizer));
+			memcpy(rp.hash192, hash192, sizeof(rp.hash192));
+			memcpy(rp.randomizer192, randomizer192,
+			       sizeof(rp.randomizer192));
 
-		cmd_complete(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
-			     0, &rp, sizeof(rp));
+			memcpy(rp.hash256, hash256, sizeof(rp.hash256));
+			memcpy(rp.randomizer256, randomizer256,
+			       sizeof(rp.randomizer256));
+
+			cmd_complete(cmd->sk, hdev->id,
+				     MGMT_OP_READ_LOCAL_OOB_DATA, 0,
+				     &rp, sizeof(rp));
+		} else {
+			struct mgmt_rp_read_local_oob_data rp;
+
+			memcpy(rp.hash, hash192, sizeof(rp.hash));
+			memcpy(rp.randomizer, randomizer192,
+			       sizeof(rp.randomizer));
+
+			cmd_complete(cmd->sk, hdev->id,
+				     MGMT_OP_READ_LOCAL_OOB_DATA, 0,
+				     &rp, sizeof(rp));
+		}
 	}
 
 	mgmt_pending_remove(cmd);
