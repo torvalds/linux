@@ -359,7 +359,7 @@ static const struct evtchn_ops evtchn_ops_fifo = {
 	.resume            = evtchn_fifo_resume,
 };
 
-static int __cpuinit evtchn_fifo_init_control_block(unsigned cpu)
+static int evtchn_fifo_init_control_block(unsigned cpu)
 {
 	struct page *control_block = NULL;
 	struct evtchn_init_control init_control;
@@ -386,7 +386,7 @@ static int __cpuinit evtchn_fifo_init_control_block(unsigned cpu)
 	return ret;
 }
 
-static int __cpuinit evtchn_fifo_cpu_notification(struct notifier_block *self,
+static int evtchn_fifo_cpu_notification(struct notifier_block *self,
 						  unsigned long action,
 						  void *hcpu)
 {
@@ -404,7 +404,7 @@ static int __cpuinit evtchn_fifo_cpu_notification(struct notifier_block *self,
 	return ret < 0 ? NOTIFY_BAD : NOTIFY_OK;
 }
 
-static struct notifier_block evtchn_fifo_cpu_notifier __cpuinitdata = {
+static struct notifier_block evtchn_fifo_cpu_notifier = {
 	.notifier_call	= evtchn_fifo_cpu_notification,
 };
 
