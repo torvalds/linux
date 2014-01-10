@@ -52,6 +52,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 
 #define EM28XX_MAX_AUDIO_BUFS		5
 #define EM28XX_MIN_AUDIO_PACKETS	64
+
 #define dprintk(fmt, arg...) do {					\
 	    if (debug)							\
 		printk(KERN_INFO "em28xx-audio %s: " fmt,		\
@@ -217,15 +218,26 @@ static struct snd_pcm_hardware snd_em28xx_hw_capture = {
 
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 
-	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_KNOT,
+	.rates = SNDRV_PCM_RATE_48000,
 
 	.rate_min = 48000,
 	.rate_max = 48000,
 	.channels_min = 2,
 	.channels_max = 2,
 	.buffer_bytes_max = 62720 * 8,	/* just about the value in usbaudio.c */
-	.period_bytes_min = 64,		/* 12544/2, */
-	.period_bytes_max = 12544,
+
+
+	/*
+	 * The period is 12.288 bytes. Allow a 10% of variation along its
+	 * value, in order to avoid overruns/underruns due to some clock
+	 * drift.
+	 *
+	 * FIXME: This period assumes 64 packets, and a 48000 PCM rate.
+	 * Calculate it dynamically.
+	 */
+	.period_bytes_min = 11059,
+	.period_bytes_max = 13516,
+
 	.periods_min = 2,
 	.periods_max = 98,		/* 12544, */
 };
