@@ -196,22 +196,22 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 {
 	int err = 0;
 
-	mutex_lock(&sbi->orphan_inode_mutex);
+	spin_lock(&sbi->orphan_inode_lock);
 	if (unlikely(sbi->n_orphans >= sbi->max_orphans))
 		err = -ENOSPC;
 	else
 		sbi->n_orphans++;
-	mutex_unlock(&sbi->orphan_inode_mutex);
+	spin_unlock(&sbi->orphan_inode_lock);
 
 	return err;
 }
 
 void release_orphan_inode(struct f2fs_sb_info *sbi)
 {
-	mutex_lock(&sbi->orphan_inode_mutex);
+	spin_lock(&sbi->orphan_inode_lock);
 	f2fs_bug_on(sbi->n_orphans == 0);
 	sbi->n_orphans--;
-	mutex_unlock(&sbi->orphan_inode_mutex);
+	spin_unlock(&sbi->orphan_inode_lock);
 }
 
 void add_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
@@ -222,12 +222,12 @@ void add_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	new = f2fs_kmem_cache_alloc(orphan_entry_slab, GFP_ATOMIC);
 	new->ino = ino;
 
-	mutex_lock(&sbi->orphan_inode_mutex);
+	spin_lock(&sbi->orphan_inode_lock);
 	head = &sbi->orphan_inode_list;
 	list_for_each(this, head) {
 		orphan = list_entry(this, struct orphan_inode_entry, list);
 		if (orphan->ino == ino) {
-			mutex_unlock(&sbi->orphan_inode_mutex);
+			spin_unlock(&sbi->orphan_inode_lock);
 			kmem_cache_free(orphan_entry_slab, new);
 			return;
 		}
@@ -242,7 +242,7 @@ void add_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 		list_add(&new->list, this->prev);
 	else
 		list_add_tail(&new->list, head);
-	mutex_unlock(&sbi->orphan_inode_mutex);
+	spin_unlock(&sbi->orphan_inode_lock);
 }
 
 void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
@@ -250,7 +250,7 @@ void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	struct list_head *head;
 	struct orphan_inode_entry *orphan;
 
-	mutex_lock(&sbi->orphan_inode_mutex);
+	spin_lock(&sbi->orphan_inode_lock);
 	head = &sbi->orphan_inode_list;
 	list_for_each_entry(orphan, head, list) {
 		if (orphan->ino == ino) {
@@ -261,7 +261,7 @@ void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 			break;
 		}
 	}
-	mutex_unlock(&sbi->orphan_inode_mutex);
+	spin_unlock(&sbi->orphan_inode_lock);
 }
 
 static void recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
@@ -318,7 +318,7 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 		pages[index] = grab_meta_page(sbi, start_blk + index);
 
 	index = 1;
-	mutex_lock(&sbi->orphan_inode_mutex);
+	spin_lock(&sbi->orphan_inode_lock);
 	head = &sbi->orphan_inode_list;
 
 	/* loop for each orphan inode entry and write them in Jornal block */
@@ -357,7 +357,7 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 		f2fs_put_page(page, 1);
 	}
 
-	mutex_unlock(&sbi->orphan_inode_mutex);
+	spin_unlock(&sbi->orphan_inode_lock);
 }
 
 static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
@@ -828,7 +828,7 @@ void write_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 
 void init_orphan_info(struct f2fs_sb_info *sbi)
 {
-	mutex_init(&sbi->orphan_inode_mutex);
+	spin_lock_init(&sbi->orphan_inode_lock);
 	INIT_LIST_HEAD(&sbi->orphan_inode_list);
 	sbi->n_orphans = 0;
 	/*
