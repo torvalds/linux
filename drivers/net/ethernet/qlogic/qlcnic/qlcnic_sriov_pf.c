@@ -9,9 +9,12 @@
 #include "qlcnic.h"
 #include <linux/types.h>
 
-#define QLCNIC_SRIOV_VF_MAX_MAC 8
+#define QLCNIC_SRIOV_VF_MAX_MAC 7
 #define QLC_VF_MIN_TX_RATE	100
 #define QLC_VF_MAX_TX_RATE	9999
+#define QLC_MAC_OPCODE_MASK	0x7
+#define QLC_MAC_STAR_ADD	6
+#define QLC_MAC_STAR_DEL	7
 
 static int qlcnic_sriov_pf_get_vport_handle(struct qlcnic_adapter *, u8);
 
@@ -1172,6 +1175,13 @@ static int qlcnic_sriov_validate_cfg_macvlan(struct qlcnic_adapter *adapter,
 	struct qlcnic_macvlan_mbx *macvlan;
 	struct qlcnic_vport *vp = vf->vp;
 	u8 op, new_op;
+
+	if (((cmd->req.arg[1] & QLC_MAC_OPCODE_MASK) == QLC_MAC_STAR_ADD) ||
+	    ((cmd->req.arg[1] & QLC_MAC_OPCODE_MASK) == QLC_MAC_STAR_DEL)) {
+		netdev_err(adapter->netdev, "MAC + any VLAN filter not allowed from VF %d\n",
+			   vf->pci_func);
+		return -EINVAL;
+	}
 
 	if (!(cmd->req.arg[1] & BIT_8))
 		return -EINVAL;
