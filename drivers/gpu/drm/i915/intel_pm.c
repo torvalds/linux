@@ -461,7 +461,7 @@ void intel_update_fbc(struct drm_device *dev)
 	const struct drm_display_mode *adjusted_mode;
 	unsigned int max_width, max_height;
 
-	if (!I915_HAS_FBC(dev)) {
+	if (!HAS_FBC(dev)) {
 		set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED);
 		return;
 	}
@@ -5541,7 +5541,7 @@ void intel_init_pm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (I915_HAS_FBC(dev)) {
+	if (HAS_FBC(dev)) {
 		if (INTEL_INFO(dev)->gen >= 7) {
 			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
 			dev_priv->display.enable_fbc = gen7_enable_fbc;
