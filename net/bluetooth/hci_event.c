@@ -2633,7 +2633,7 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn) {
-		if (key->type == HCI_LK_UNAUTH_COMBINATION &&
+		if (key->type == HCI_LK_UNAUTH_COMBINATION_P192 &&
 		    conn->auth_type != 0xff && (conn->auth_type & 0x01)) {
 			BT_DBG("%s ignoring unauthenticated key", hdev->name);
 			goto not_found;
