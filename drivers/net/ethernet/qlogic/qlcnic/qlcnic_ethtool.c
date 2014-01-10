@@ -167,27 +167,35 @@ static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
 
 #define QLCNIC_TEST_LEN	ARRAY_SIZE(qlcnic_gstrings_test)
 
-static inline int qlcnic_82xx_statistics(void)
+static inline int qlcnic_82xx_statistics(struct qlcnic_adapter *adapter)
 {
-	return ARRAY_SIZE(qlcnic_device_gstrings_stats) +
-	       ARRAY_SIZE(qlcnic_83xx_mac_stats_strings);
+	return ARRAY_SIZE(qlcnic_gstrings_stats) +
+	       ARRAY_SIZE(qlcnic_83xx_mac_stats_strings) +
+	       QLCNIC_TX_STATS_LEN * adapter->drv_tx_rings;
 }
 
-static inline int qlcnic_83xx_statistics(void)
+static inline int qlcnic_83xx_statistics(struct qlcnic_adapter *adapter)
 {
-	return ARRAY_SIZE(qlcnic_83xx_tx_stats_strings) +
+	return ARRAY_SIZE(qlcnic_gstrings_stats) +
+	       ARRAY_SIZE(qlcnic_83xx_tx_stats_strings) +
 	       ARRAY_SIZE(qlcnic_83xx_mac_stats_strings) +
-	       ARRAY_SIZE(qlcnic_83xx_rx_stats_strings);
+	       ARRAY_SIZE(qlcnic_83xx_rx_stats_strings) +
+	       QLCNIC_TX_STATS_LEN * adapter->drv_tx_rings;
 }
 
 static int qlcnic_dev_statistics_len(struct qlcnic_adapter *adapter)
 {
-	if (qlcnic_82xx_check(adapter))
-		return qlcnic_82xx_statistics();
-	else if (qlcnic_83xx_check(adapter))
-		return qlcnic_83xx_statistics();
-	else
-		return -1;
+	int len = -1;
+
+	if (qlcnic_82xx_check(adapter)) {
+		len = qlcnic_82xx_statistics(adapter);
+		if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
+			len += ARRAY_SIZE(qlcnic_device_gstrings_stats);
+	} else if (qlcnic_83xx_check(adapter)) {
+		len = qlcnic_83xx_statistics(adapter);
+	}
+
+	return len;
 }
 
 #define	QLCNIC_TX_INTR_NOT_CONFIGURED	0X78563412
@@ -920,18 +928,13 @@ static int qlcnic_eeprom_test(struct net_device *dev)
 
 static int qlcnic_get_sset_count(struct net_device *dev, int sset)
 {
-	int len;
 
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	switch (sset) {
 	case ETH_SS_TEST:
 		return QLCNIC_TEST_LEN;
 	case ETH_SS_STATS:
-		len = qlcnic_dev_statistics_len(adapter) + QLCNIC_STATS_LEN;
-		if ((adapter->flags & QLCNIC_ESWITCH_ENABLED) ||
-		    qlcnic_83xx_check(adapter))
-			return len;
-		return qlcnic_82xx_statistics();
+		return qlcnic_dev_statistics_len(adapter);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1267,7 +1270,7 @@ static u64 *qlcnic_fill_stats(u64 *data, void *stats, int type)
 	return data;
 }
 
-static void qlcnic_update_stats(struct qlcnic_adapter *adapter)
+void qlcnic_update_stats(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_host_tx_ring *tx_ring;
 	int ring;
