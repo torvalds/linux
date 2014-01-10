@@ -83,6 +83,10 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 	ipu_cpmem_set_buffer(cpmem, 0, eba);
 	ipu_cpmem_set_buffer(cpmem, 1, eba);
 
+	/* cache offsets for subsequent pageflips */
+	ipu_plane->x = x;
+	ipu_plane->y = y;
+
 	return 0;
 }
 
