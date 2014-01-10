@@ -552,6 +552,7 @@ static const struct snd_kcontrol_new sun7i_adc_ctls[] = {
 	CODEC_SINGLE("Master Capture Mute",SUNXI_ADC_ACTL,4,1,0),
 	CODEC_SINGLE("Right Capture Mute",SUNXI_ADC_ACTL,31,1,0),
 	CODEC_SINGLE("Left Capture Mute",SUNXI_ADC_ACTL,30,1,0),
+	CODEC_SINGLE("Linein Pre-AMP", SUNXI_ADC_ACTL, 13, 7, 0),
 	CODEC_SINGLE("LINEIN APM Volume", SUNXI_MIC_CRT, 13, 0x7, 0),
 	/* ADC Input Gain Control, capture volume
 	 * 000:-4.5db,001:-3db,010:-1.5db,011:0db,100:1.5db,101:3db,110:4.5db,111:6db
