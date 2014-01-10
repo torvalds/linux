@@ -407,7 +407,6 @@ void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
 void br_port_carrier_check(struct net_bridge_port *p);
 int br_add_bridge(struct net *net, const char *name);
 int br_del_bridge(struct net *net, const char *name);
-void br_net_exit(struct net *net);
 int br_add_if(struct net_bridge *br, struct net_device *dev);
 int br_del_if(struct net_bridge *br, struct net_device *dev);
 int br_min_mtu(const struct net_bridge *br);
