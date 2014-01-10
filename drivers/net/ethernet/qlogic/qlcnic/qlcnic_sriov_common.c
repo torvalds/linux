@@ -277,9 +277,7 @@ static void qlcnic_sriov_vf_cleanup(struct qlcnic_adapter *adapter)
 
 void qlcnic_sriov_cleanup(struct qlcnic_adapter *adapter)
 {
-	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
-
-	if (!sriov)
+	if (!test_bit(__QLCNIC_SRIOV_ENABLE, &adapter->state))
 		return;
 
 	qlcnic_sriov_free_vlans(adapter);
