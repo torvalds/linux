@@ -248,7 +248,7 @@ static void bch_data_insert_keys(struct closure *cl)
 		atomic_dec_bug(journal_ref);
 
 	if (!op->insert_data_done)
-		continue_at(cl, bch_data_insert_start, bcache_wq);
+		continue_at(cl, bch_data_insert_start, op->wq);
 
 	bch_keylist_free(&op->insert_keys);
 	closure_return(cl);
@@ -297,7 +297,7 @@ static void bch_data_invalidate(struct closure *cl)
 	op->insert_data_done = true;
 	bio_put(bio);
 out:
-	continue_at(cl, bch_data_insert_keys, bcache_wq);
+	continue_at(cl, bch_data_insert_keys, op->wq);
 }
 
 static void bch_data_insert_error(struct closure *cl)
@@ -340,7 +340,7 @@ static void bch_data_insert_endio(struct bio *bio, int error)
 		if (op->writeback)
 			op->error = error;
 		else if (!op->replace)
-			set_closure_fn(cl, bch_data_insert_error, bcache_wq);
+			set_closure_fn(cl, bch_data_insert_error, op->wq);
 		else
 			set_closure_fn(cl, NULL, NULL);
 	}
@@ -376,7 +376,7 @@ static void bch_data_insert_start(struct closure *cl)
 		if (bch_keylist_realloc(&op->insert_keys,
 					3 + (op->csum ? 1 : 0),
 					op->c))
-			continue_at(cl, bch_data_insert_keys, bcache_wq);
+			continue_at(cl, bch_data_insert_keys, op->wq);
 
 		k = op->insert_keys.top;
 		bkey_init(k);
@@ -413,7 +413,7 @@ static void bch_data_insert_start(struct closure *cl)
 	} while (n != bio);
 
 	op->insert_data_done = true;
-	continue_at(cl, bch_data_insert_keys, bcache_wq);
+	continue_at(cl, bch_data_insert_keys, op->wq);
 err:
 	/* bch_alloc_sectors() blocks if s->writeback = true */
 	BUG_ON(op->writeback);
@@ -442,7 +442,7 @@ err:
 		bio_put(bio);
 
 		if (!bch_keylist_empty(&op->insert_keys))
-			continue_at(cl, bch_data_insert_keys, bcache_wq);
+			continue_at(cl, bch_data_insert_keys, op->wq);
 		else
 			closure_return(cl);
 	}
@@ -824,6 +824,7 @@ static inline struct search *search_alloc(struct bio *bio,
 	s->iop.error		= 0;
 	s->iop.flags		= 0;
 	s->iop.flush_journal	= (bio->bi_rw & (REQ_FLUSH|REQ_FUA)) != 0;
+	s->iop.wq		= bcache_wq;
 
 	return s;
 }

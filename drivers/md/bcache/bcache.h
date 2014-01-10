@@ -628,6 +628,8 @@ struct cache_set {
 	/* Number of moving GC bios in flight */
 	struct semaphore	moving_in_flight;
 
+	struct workqueue_struct	*moving_gc_wq;
+
 	struct btree		*root;
 
 #ifdef CONFIG_BCACHE_DEBUG

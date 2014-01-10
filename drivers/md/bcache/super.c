@@ -1356,6 +1356,8 @@ static void cache_set_free(struct closure *cl)
 	bch_bset_sort_state_free(&c->sort);
 	free_pages((unsigned long) c->uuids, ilog2(bucket_pages(c)));
 
+	if (c->moving_gc_wq)
+		destroy_workqueue(c->moving_gc_wq);
 	if (c->bio_split)
 		bioset_free(c->bio_split);
 	if (c->fill_iter)
@@ -1522,6 +1524,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	    !(c->fill_iter = mempool_create_kmalloc_pool(1, iter_size)) ||
 	    !(c->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
 	    !(c->uuids = alloc_bucket_pages(GFP_KERNEL, c)) ||
+	    !(c->moving_gc_wq = create_workqueue("bcache_gc")) ||
 	    bch_journal_alloc(c) ||
 	    bch_btree_cache_alloc(c) ||
 	    bch_open_buckets_alloc(c) ||

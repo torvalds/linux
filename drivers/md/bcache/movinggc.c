@@ -115,7 +115,7 @@ static void write_moving(struct closure *cl)
 		closure_call(&op->cl, bch_data_insert, NULL, cl);
 	}
 
-	continue_at(cl, write_moving_finish, system_wq);
+	continue_at(cl, write_moving_finish, op->wq);
 }
 
 static void read_moving_submit(struct closure *cl)
@@ -125,7 +125,7 @@ static void read_moving_submit(struct closure *cl)
 
 	bch_submit_bbio(bio, io->op.c, &io->w->key, 0);
 
-	continue_at(cl, write_moving, system_wq);
+	continue_at(cl, write_moving, io->op.wq);
 }
 
 static void read_moving(struct cache_set *c)
@@ -160,6 +160,7 @@ static void read_moving(struct cache_set *c)
 		io->w		= w;
 		io->op.inode	= KEY_INODE(&w->key);
 		io->op.c	= c;
+		io->op.wq	= c->moving_gc_wq;
 
 		moving_init(io);
 		bio = &io->bio.bio;
