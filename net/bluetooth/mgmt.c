@@ -2241,7 +2241,7 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_link_key_info *key = &cp->keys[i];
 
-		if (key->addr.type != BDADDR_BREDR)
+		if (key->addr.type != BDADDR_BREDR || key->type > 0x08)
 			return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LINK_KEYS,
 					  MGMT_STATUS_INVALID_PARAMS);
 	}
