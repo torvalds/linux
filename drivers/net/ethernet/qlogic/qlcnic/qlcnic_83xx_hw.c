@@ -181,7 +181,7 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.io_error_detected		= qlcnic_83xx_io_error_detected,
 	.io_slot_reset			= qlcnic_83xx_io_slot_reset,
 	.io_resume			= qlcnic_83xx_io_resume,
-
+	.get_beacon_state		= qlcnic_83xx_get_beacon_state,
 };
 
 static struct qlcnic_nic_template qlcnic_83xx_ops = {
@@ -1386,6 +1386,33 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 
 out:
 	netif_device_attach(netdev);
+}
+
+void qlcnic_83xx_get_beacon_state(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_cmd_args cmd;
+	u8 beacon_state;
+	int err = 0;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LED_CONFIG);
+	if (!err) {
+		err = qlcnic_issue_cmd(adapter, &cmd);
+		if (!err) {
+			beacon_state = cmd.rsp.arg[4];
+			if (beacon_state == QLCNIC_BEACON_DISABLE)
+				ahw->beacon_state = QLC_83XX_BEACON_OFF;
+			else if (beacon_state == QLC_83XX_ENABLE_BEACON)
+				ahw->beacon_state = QLC_83XX_BEACON_ON;
+		}
+	} else {
+		netdev_err(adapter->netdev, "Get beacon state failed, err=%d\n",
+			   err);
+	}
+
+	qlcnic_free_mbx_args(&cmd);
+
+	return;
 }
 
 int qlcnic_83xx_config_led(struct qlcnic_adapter *adapter, u32 state,

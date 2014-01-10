@@ -1533,19 +1533,34 @@ int qlcnic_82xx_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
 	return rv;
 }
 
-int qlcnic_get_beacon_state(struct qlcnic_adapter *adapter, u8 *h_state)
+void qlcnic_82xx_get_beacon_state(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
-	int err;
+	u8 beacon_state;
+	int err = 0;
 
-	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LED_STATUS);
-	if (!err) {
-		err = qlcnic_issue_cmd(adapter, &cmd);
-		if (!err)
-			*h_state = cmd.rsp.arg[1];
+	if (ahw->extra_capability[0] & QLCNIC_FW_CAPABILITY_2_BEACON) {
+		err = qlcnic_alloc_mbx_args(&cmd, adapter,
+					    QLCNIC_CMD_GET_LED_STATUS);
+		if (!err) {
+			err = qlcnic_issue_cmd(adapter, &cmd);
+			if (err) {
+				netdev_err(adapter->netdev,
+					   "Failed to get current beacon state, err=%d\n",
+					   err);
+			} else {
+				beacon_state = cmd.rsp.arg[1];
+				if (beacon_state == QLCNIC_BEACON_DISABLE)
+					ahw->beacon_state = QLCNIC_BEACON_OFF;
+				else if (beacon_state == QLCNIC_BEACON_EANBLE)
+					ahw->beacon_state = QLCNIC_BEACON_ON;
+			}
+		}
+		qlcnic_free_mbx_args(&cmd);
 	}
-	qlcnic_free_mbx_args(&cmd);
-	return err;
+
+	return;
 }
 
 void qlcnic_82xx_get_func_no(struct qlcnic_adapter *adapter)

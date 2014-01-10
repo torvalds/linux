@@ -126,6 +126,8 @@ static int qlcnic_83xx_store_beacon(struct qlcnic_adapter *adapter,
 	if (kstrtoul(buf, 2, &h_beacon))
 		return -EINVAL;
 
+	qlcnic_get_beacon_state(adapter);
+
 	if (ahw->beacon_state == h_beacon)
 		return len;
 
@@ -157,7 +159,7 @@ static int qlcnic_82xx_store_beacon(struct qlcnic_adapter *adapter,
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int err, drv_sds_rings = adapter->drv_sds_rings;
 	u16 beacon;
-	u8 h_beacon_state, b_state, b_rate;
+	u8 b_state, b_rate;
 
 	if (len != sizeof(u16))
 		return QL_STATUS_INVALID_PARAM;
@@ -167,18 +169,7 @@ static int qlcnic_82xx_store_beacon(struct qlcnic_adapter *adapter,
 	if (err)
 		return err;
 
-	if (ahw->extra_capability[0] & QLCNIC_FW_CAPABILITY_2_BEACON) {
-		err = qlcnic_get_beacon_state(adapter, &h_beacon_state);
-		if (err) {
-			netdev_err(adapter->netdev,
-				   "Failed to get current beacon state\n");
-		} else {
-			if (h_beacon_state == QLCNIC_BEACON_DISABLE)
-				ahw->beacon_state = 0;
-			else if (h_beacon_state == QLCNIC_BEACON_EANBLE)
-				ahw->beacon_state = 2;
-		}
-	}
+	qlcnic_get_beacon_state(adapter);
 
 	if (ahw->beacon_state == b_state)
 		return len;

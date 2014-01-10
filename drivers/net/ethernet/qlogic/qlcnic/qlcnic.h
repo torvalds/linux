@@ -970,6 +970,9 @@ struct qlcnic_ipaddr {
 #define QLCNIC_BEACON_EANBLE		0xC
 #define QLCNIC_BEACON_DISABLE		0xD
 
+#define QLCNIC_BEACON_ON		2
+#define QLCNIC_BEACON_OFF		0
+
 #define QLCNIC_MSIX_TBL_SPACE		8192
 #define QLCNIC_PCI_REG_MSIX_TBL 	0x44
 #define QLCNIC_MSIX_TBL_PGSIZE		4096
@@ -1641,7 +1644,6 @@ int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
 void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int, u16);
-int qlcnic_get_beacon_state(struct qlcnic_adapter *, u8 *);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
@@ -1768,6 +1770,7 @@ struct qlcnic_hardware_ops {
 					       pci_channel_state_t);
 	pci_ers_result_t (*io_slot_reset) (struct pci_dev *);
 	void (*io_resume) (struct pci_dev *);
+	void (*get_beacon_state)(struct qlcnic_adapter *);
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
@@ -1992,6 +1995,11 @@ static inline void qlcnic_set_mac_filter_count(struct qlcnic_adapter *adapter)
 {
 	if (adapter->ahw->hw_ops->set_mac_filter_count)
 		adapter->ahw->hw_ops->set_mac_filter_count(adapter);
+}
+
+static inline void qlcnic_get_beacon_state(struct qlcnic_adapter *adapter)
+{
+	adapter->ahw->hw_ops->get_beacon_state(adapter);
 }
 
 static inline void qlcnic_read_phys_port_id(struct qlcnic_adapter *adapter)
