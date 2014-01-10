@@ -162,6 +162,7 @@
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio7 8 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
+			/* remove below line to enable this regulator */
 			status = "disabled";
 		};
 
@@ -1104,6 +1105,18 @@
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	cd-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+	/*
+	 * Due to board issue, we can not use external regulator for card slot
+	 * by default since the card power is shared with card detect pullup.
+	 * Disabling the vmmc regulator will cause unexpected card detect
+	 * interrupts.
+	 * HW rework is needed to fix this isssue. Remove R695 first, then you
+	 * can open below line to enable the using of external regulator.
+	 * Then you will be able to power off the card during suspend. This is
+	 * especially needed for a SD3.0 card re-enumeration working on UHS mode
+	 * Note: reg_sd3_vmmc is also need to be enabled
+	 */
+	/* vmmc-supply = <&reg_sd3_vmmc>; */
 	status = "okay";
 };
 
