@@ -40,6 +40,7 @@
 #include "smp.h"
 #include "a2mp.h"
 #include "amp.h"
+#include "6lowpan.h"
 
 bool disable_ertm;
 
@@ -1467,6 +1468,8 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	u8 dst_type;
 
 	BT_DBG("");
+
+	bt_6lowpan_add_conn(conn);
 
 	/* Check if we have socket listening on cid */
 	pchan = l2cap_global_chan_by_scid(BT_LISTEN, L2CAP_CID_ATT,
@@ -7119,6 +7122,10 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 			l2cap_conn_del(conn->hcon, EACCES);
 		break;
 
+	case L2CAP_FC_6LOWPAN:
+		bt_6lowpan_recv(conn, skb);
+		break;
+
 	default:
 		l2cap_data_channel(conn, cid, skb);
 		break;
@@ -7185,6 +7192,8 @@ int l2cap_disconn_ind(struct hci_conn *hcon)
 void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
+
+	bt_6lowpan_del_conn(hcon->l2cap_data);
 
 	l2cap_conn_del(hcon, bt_to_errno(reason));
 }
@@ -7467,11 +7476,14 @@ int __init l2cap_init(void)
 	debugfs_create_u16("l2cap_le_default_mps", 0466, bt_debugfs,
 			   &le_default_mps);
 
+	bt_6lowpan_init();
+
 	return 0;
 }
 
 void l2cap_exit(void)
 {
+	bt_6lowpan_cleanup();
 	debugfs_remove(l2cap_debugfs);
 	l2cap_cleanup_sockets();
 }

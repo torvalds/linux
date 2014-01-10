@@ -3598,7 +3598,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 				AR_SWITCH_TABLE_COM_AR9462_ALL, value);
-	} else if (AR_SREV_9550(ah)) {
+	} else if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 				AR_SWITCH_TABLE_COM_AR9550_ALL, value);
 	} else
@@ -3975,7 +3975,7 @@ static void ar9003_hw_apply_tuning_caps(struct ath_hw *ah)
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 	u8 tuning_caps_param = eep->baseEepHeader.params_for_tuning_caps[0];
 
-	if (AR_SREV_9340(ah))
+	if (AR_SREV_9340(ah) || AR_SREV_9531(ah))
 		return;
 
 	if (eep->baseEepHeader.featureEnable & 0x40) {
@@ -4030,7 +4030,10 @@ static void ar9003_hw_xpa_timing_control_apply(struct ath_hw *ah, bool is2ghz)
 	if (!(eep->baseEepHeader.featureEnable & 0x80))
 		return;
 
-	if (!AR_SREV_9300(ah) && !AR_SREV_9340(ah) && !AR_SREV_9580(ah))
+	if (!AR_SREV_9300(ah) &&
+	    !AR_SREV_9340(ah) &&
+	    !AR_SREV_9580(ah) &&
+	    !AR_SREV_9531(ah))
 		return;
 
 	xpa_ctl = ar9003_modal_header(ah, is2ghz)->txFrameToXpaOn;
@@ -4163,7 +4166,7 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	ar9003_hw_xlna_bias_strength_apply(ah, is2ghz);
 	ar9003_hw_atten_apply(ah, chan);
 	ar9003_hw_quick_drop_apply(ah, chan->channel);
-	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah))
+	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah) && !AR_SREV_9531(ah))
 		ar9003_hw_internal_regulator_apply(ah);
 	ar9003_hw_apply_tuning_caps(ah);
 	ar9003_hw_apply_minccapwr_thresh(ah, chan);
@@ -4788,7 +4791,7 @@ static void ar9003_hw_power_control_override(struct ath_hw *ah,
 	}
 
 tempslope:
-	if (AR_SREV_9550(ah)) {
+	if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
 		/*
 		 * AR955x has tempSlope register for each chain.
 		 * Check whether temp_compensation feature is enabled or not.

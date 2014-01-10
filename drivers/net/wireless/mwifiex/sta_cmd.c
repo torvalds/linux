@@ -1170,8 +1170,9 @@ int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
 		    strncmp(prop->name, prefix, len))
 			continue;
 
-		/* property header is 6 bytes */
-		if (prop && prop->value && prop->length > 6) {
+		/* property header is 6 bytes, data must fit in cmd buffer */
+		if (prop && prop->value && prop->length > 6 &&
+		    prop->length <= MWIFIEX_SIZE_OF_CMD_BUFFER - S_DS_GEN) {
 			ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_CFG_DATA,
 						    HostCmd_ACT_GEN_SET, 0,
 						    prop);

@@ -52,6 +52,7 @@
 #define AR9300_DEVID_QCA955X	0x0038
 #define AR9485_DEVID_AR1111	0x0037
 #define AR9300_DEVID_AR9565     0x0036
+#define AR9300_DEVID_AR953X     0x003d
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -277,10 +278,24 @@ struct ath9k_hw_capabilities {
 	u8 txs_len;
 };
 
+#define AR_NO_SPUR      	0x8000
+#define AR_BASE_FREQ_2GHZ   	2300
+#define AR_BASE_FREQ_5GHZ   	4900
+#define AR_SPUR_FEEQ_BOUND_HT40 19
+#define AR_SPUR_FEEQ_BOUND_HT20 10
+
+enum ath9k_hw_hang_checks {
+	HW_BB_WATCHDOG            = BIT(0),
+	HW_PHYRESTART_CLC_WAR     = BIT(1),
+	HW_BB_RIFS_HANG           = BIT(2),
+	HW_BB_DFS_HANG            = BIT(3),
+	HW_BB_RX_CLEAR_STUCK_HANG = BIT(4),
+	HW_MAC_HANG               = BIT(5),
+};
+
 struct ath9k_ops_config {
 	int dma_beacon_response_time;
 	int sw_beacon_response_time;
-	int ack_6mb;
 	u32 cwm_ignore_extcca;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
@@ -292,13 +307,9 @@ struct ath9k_ops_config {
 	int serialize_regmode;
 	bool rx_intr_mitigation;
 	bool tx_intr_mitigation;
-#define AR_NO_SPUR      	0x8000
-#define AR_BASE_FREQ_2GHZ   	2300
-#define AR_BASE_FREQ_5GHZ   	4900
-#define AR_SPUR_FEEQ_BOUND_HT40 19
-#define AR_SPUR_FEEQ_BOUND_HT20 10
 	u8 max_txtrig_level;
 	u16 ani_poll_interval; /* ANI poll interval in ms */
+	u16 hw_hang_checks;
 
 	/* Platform specific config */
 	u32 aspm_l1_fix;
@@ -573,6 +584,10 @@ struct ath_hw_radar_conf {
  *	register settings through the register initialization.
  */
 struct ath_hw_private_ops {
+	void (*init_hang_checks)(struct ath_hw *ah);
+	bool (*detect_mac_hang)(struct ath_hw *ah);
+	bool (*detect_bb_hang)(struct ath_hw *ah);
+
 	/* Calibration ops */
 	void (*init_cal_settings)(struct ath_hw *ah);
 	bool (*init_cal)(struct ath_hw *ah, struct ath9k_channel *chan);
@@ -1029,6 +1044,7 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah);
  * Code specific to AR9003, we stuff these here to avoid callbacks
  * for older families
  */
+bool ar9003_hw_bb_watchdog_check(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);

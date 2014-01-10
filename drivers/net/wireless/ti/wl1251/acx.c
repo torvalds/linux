@@ -194,7 +194,7 @@ out:
 	return ret;
 }
 
-int wl1251_acx_feature_cfg(struct wl1251 *wl)
+int wl1251_acx_feature_cfg(struct wl1251 *wl, u32 data_flow_options)
 {
 	struct acx_feature_config *feature;
 	int ret;
@@ -205,8 +205,8 @@ int wl1251_acx_feature_cfg(struct wl1251 *wl)
 	if (!feature)
 		return -ENOMEM;
 
-	/* DF_ENCRYPTION_DISABLE and DF_SNIFF_MODE_ENABLE are disabled */
-	feature->data_flow_options = 0;
+	/* DF_ENCRYPTION_DISABLE and DF_SNIFF_MODE_ENABLE can be set */
+	feature->data_flow_options = data_flow_options;
 	feature->options = 0;
 
 	ret = wl1251_cmd_configure(wl, ACX_FEATURE_CFG,
@@ -381,7 +381,8 @@ out:
 	return ret;
 }
 
-int wl1251_acx_group_address_tbl(struct wl1251 *wl)
+int wl1251_acx_group_address_tbl(struct wl1251 *wl, bool enable,
+				 void *mc_list, u32 mc_list_len)
 {
 	struct acx_dot11_grp_addr_tbl *acx;
 	int ret;
@@ -393,9 +394,9 @@ int wl1251_acx_group_address_tbl(struct wl1251 *wl)
 		return -ENOMEM;
 
 	/* MAC filtering */
-	acx->enabled = 0;
-	acx->num_groups = 0;
-	memset(acx->mac_table, 0, ADDRESS_GROUP_MAX_LEN);
+	acx->enabled = enable;
+	acx->num_groups = mc_list_len;
+	memcpy(acx->mac_table, mc_list, mc_list_len * ETH_ALEN);
 
 	ret = wl1251_cmd_configure(wl, DOT11_GROUP_ADDRESS_TBL,
 				   acx, sizeof(*acx));
@@ -846,11 +847,17 @@ int wl1251_acx_rate_policies(struct wl1251 *wl)
 		return -ENOMEM;
 
 	/* configure one default (one-size-fits-all) rate class */
-	acx->rate_class_cnt = 1;
+	acx->rate_class_cnt = 2;
 	acx->rate_class[0].enabled_rates = ACX_RATE_MASK_UNSPECIFIED;
 	acx->rate_class[0].short_retry_limit = ACX_RATE_RETRY_LIMIT;
 	acx->rate_class[0].long_retry_limit = ACX_RATE_RETRY_LIMIT;
 	acx->rate_class[0].aflags = 0;
+
+	/* no-retry rate class */
+	acx->rate_class[1].enabled_rates = ACX_RATE_MASK_UNSPECIFIED;
+	acx->rate_class[1].short_retry_limit = 0;
+	acx->rate_class[1].long_retry_limit = 0;
+	acx->rate_class[1].aflags = 0;
 
 	ret = wl1251_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {
@@ -956,6 +963,32 @@ int wl1251_acx_bet_enable(struct wl1251 *wl, enum wl1251_acx_bet_mode mode,
 	}
 
 out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1251_acx_arp_ip_filter(struct wl1251 *wl, bool enable, __be32 address)
+{
+	struct wl1251_acx_arp_filter *acx;
+	int ret;
+
+	wl1251_debug(DEBUG_ACX, "acx arp ip filter, enable: %d", enable);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	acx->version = ACX_IPV4_VERSION;
+	acx->enable = enable;
+
+	if (enable)
+		memcpy(acx->address, &address, ACX_IPV4_ADDR_SIZE);
+
+	ret = wl1251_cmd_configure(wl, ACX_ARP_IP_FILTER,
+				   acx, sizeof(*acx));
+	if (ret < 0)
+		wl1251_warning("failed to set arp ip filter: %d", ret);
+
 	kfree(acx);
 	return ret;
 }

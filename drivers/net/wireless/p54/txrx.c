@@ -17,7 +17,6 @@
  */
 
 #include <linux/export.h>
-#include <linux/init.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <asm/div64.h>
@@ -308,7 +307,7 @@ static void p54_pspoll_workaround(struct p54_common *priv, struct sk_buff *skb)
 		return;
 
 	/* only consider beacons from the associated BSSID */
-	if (!ether_addr_equal(hdr->addr3, priv->bssid))
+	if (!ether_addr_equal_64bits(hdr->addr3, priv->bssid))
 		return;
 
 	tim = p54_find_ie(skb, WLAN_EID_TIM);

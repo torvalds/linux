@@ -147,6 +147,9 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		    __le16_to_cpu(la.l2_psm) == L2CAP_PSM_RFCOMM)
 			chan->sec_level = BT_SECURITY_SDP;
 		break;
+	case L2CAP_CHAN_RAW:
+		chan->sec_level = BT_SECURITY_SDP;
+		break;
 	}
 
 	bacpy(&chan->src, &la.l2_bdaddr);

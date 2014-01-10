@@ -4652,4 +4652,51 @@ bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif, struct sk_buff *skb,
 			      int band, struct ieee80211_sta **sta);
 
+/**
+ * struct ieee80211_noa_data - holds temporary data for tracking P2P NoA state
+ *
+ * @next_tsf: TSF timestamp of the next absent state change
+ * @has_next_tsf: next absent state change event pending
+ *
+ * @absent: descriptor bitmask, set if GO is currently absent
+ *
+ * private:
+ *
+ * @count: count fields from the NoA descriptors
+ * @desc: adjusted data from the NoA
+ */
+struct ieee80211_noa_data {
+	u32 next_tsf;
+	bool has_next_tsf;
+
+	u8 absent;
+
+	u8 count[IEEE80211_P2P_NOA_DESC_MAX];
+	struct {
+		u32 start;
+		u32 duration;
+		u32 interval;
+	} desc[IEEE80211_P2P_NOA_DESC_MAX];
+};
+
+/**
+ * ieee80211_parse_p2p_noa - initialize NoA tracking data from P2P IE
+ *
+ * @attr: P2P NoA IE
+ * @data: NoA tracking data
+ * @tsf: current TSF timestamp
+ *
+ * Return: number of successfully parsed descriptors
+ */
+int ieee80211_parse_p2p_noa(const struct ieee80211_p2p_noa_attr *attr,
+			    struct ieee80211_noa_data *data, u32 tsf);
+
+/**
+ * ieee80211_update_p2p_noa - get next pending P2P GO absent state change
+ *
+ * @data: NoA tracking data
+ * @tsf: current TSF timestamp
+ */
+void ieee80211_update_p2p_noa(struct ieee80211_noa_data *data, u32 tsf);
+
 #endif /* MAC80211_H */

@@ -1095,10 +1095,10 @@ static void brcmf_link_down(struct brcmf_cfg80211_vif *vif)
 					     BRCMF_C_DISASSOC, NULL, 0);
 		if (err) {
 			brcmf_err("WLC_DISASSOC failed (%d)\n", err);
-			cfg80211_disconnected(vif->wdev.netdev, 0,
-					      NULL, 0, GFP_KERNEL);
 		}
 		clear_bit(BRCMF_VIF_STATUS_CONNECTED, &vif->sme_state);
+		cfg80211_disconnected(vif->wdev.netdev, 0, NULL, 0, GFP_KERNEL);
+
 	}
 	clear_bit(BRCMF_VIF_STATUS_CONNECTING, &vif->sme_state);
 	clear_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
@@ -1758,6 +1758,7 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 		return -EIO;
 
 	clear_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state);
+	cfg80211_disconnected(ndev, reason_code, NULL, 0, GFP_KERNEL);
 
 	memcpy(&scbval.ea, &profile->bssid, ETH_ALEN);
 	scbval.val = cpu_to_le32(reason_code);
@@ -4359,9 +4360,6 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 {
 	struct brcmf_cfg80211_vif *vif;
 
-	if (cfg->vif_cnt == BRCMF_IFACE_MAX_CNT)
-		return ERR_PTR(-ENOSPC);
-
 	brcmf_dbg(TRACE, "allocating virtual interface (size=%zu)\n",
 		  sizeof(*vif));
 	vif = kzalloc(sizeof(*vif), GFP_KERNEL);
@@ -4378,21 +4376,25 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 	brcmf_init_prof(&vif->profile);
 
 	list_add_tail(&vif->list, &cfg->vif_list);
-	cfg->vif_cnt++;
 	return vif;
 }
 
-void brcmf_free_vif(struct brcmf_cfg80211_info *cfg,
-		    struct brcmf_cfg80211_vif *vif)
+void brcmf_free_vif(struct brcmf_cfg80211_vif *vif)
 {
 	list_del(&vif->list);
-	cfg->vif_cnt--;
-
 	kfree(vif);
-	if (!cfg->vif_cnt) {
-		wiphy_unregister(cfg->wiphy);
-		wiphy_free(cfg->wiphy);
-	}
+}
+
+void brcmf_cfg80211_free_netdev(struct net_device *ndev)
+{
+	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_if *ifp;
+
+	ifp = netdev_priv(ndev);
+	vif = ifp->vif;
+
+	brcmf_free_vif(vif);
+	free_netdev(ndev);
 }
 
 static bool brcmf_is_linkup(const struct brcmf_event_msg *e)
@@ -4979,20 +4981,20 @@ cfg80211_p2p_attach_out:
 	wl_deinit_priv(cfg);
 
 cfg80211_attach_out:
-	brcmf_free_vif(cfg, vif);
+	brcmf_free_vif(vif);
 	return NULL;
 }
 
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 {
-	struct brcmf_cfg80211_vif *vif;
-	struct brcmf_cfg80211_vif *tmp;
+	if (!cfg)
+		return;
 
-	wl_deinit_priv(cfg);
+	WARN_ON(!list_empty(&cfg->vif_list));
+	wiphy_unregister(cfg->wiphy);
 	brcmf_btcoex_detach(cfg);
-	list_for_each_entry_safe(vif, tmp, &cfg->vif_list, list) {
-		brcmf_free_vif(cfg, vif);
-	}
+	wl_deinit_priv(cfg);
+	wiphy_free(cfg->wiphy);
 }
 
 static s32
@@ -5087,7 +5089,8 @@ dongle_scantime_out:
 }
 
 
-static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
+static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg,
+				   u32 bw_cap[])
 {
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 	struct ieee80211_channel *band_chan_arr;
@@ -5100,7 +5103,6 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 	enum ieee80211_band band;
 	u32 channel;
 	u32 *n_cnt;
-	bool ht40_allowed;
 	u32 index;
 	u32 ht40_flag;
 	bool update;
@@ -5133,18 +5135,17 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 			array_size = ARRAY_SIZE(__wl_2ghz_channels);
 			n_cnt = &__wl_band_2ghz.n_channels;
 			band = IEEE80211_BAND_2GHZ;
-			ht40_allowed = (bw_cap == WLC_N_BW_40ALL);
 		} else if (ch.band == BRCMU_CHAN_BAND_5G) {
 			band_chan_arr = __wl_5ghz_a_channels;
 			array_size = ARRAY_SIZE(__wl_5ghz_a_channels);
 			n_cnt = &__wl_band_5ghz_a.n_channels;
 			band = IEEE80211_BAND_5GHZ;
-			ht40_allowed = !(bw_cap == WLC_N_BW_20ALL);
 		} else {
-			brcmf_err("Invalid channel Sepc. 0x%x.\n", ch.chspec);
+			brcmf_err("Invalid channel Spec. 0x%x.\n", ch.chspec);
 			continue;
 		}
-		if (!ht40_allowed && ch.bw == BRCMU_CHAN_BW_40)
+		if (!(bw_cap[band] & WLC_BW_40MHZ_BIT) &&
+		    ch.bw == BRCMU_CHAN_BW_40)
 			continue;
 		update = false;
 		for (j = 0; (j < *n_cnt && (*n_cnt < array_size)); j++) {
@@ -5162,7 +5163,10 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 				ieee80211_channel_to_frequency(ch.chnum, band);
 			band_chan_arr[index].hw_value = ch.chnum;
 
-			if (ch.bw == BRCMU_CHAN_BW_40 && ht40_allowed) {
+			brcmf_err("channel %d: f=%d bw=%d sb=%d\n",
+				  ch.chnum, band_chan_arr[index].center_freq,
+				  ch.bw, ch.sb);
+			if (ch.bw == BRCMU_CHAN_BW_40) {
 				/* assuming the order is HT20, HT40 Upper,
 				 * HT40 lower from chanspecs
 				 */
@@ -5213,6 +5217,46 @@ exit:
 	return err;
 }
 
+static void brcmf_get_bwcap(struct brcmf_if *ifp, u32 bw_cap[])
+{
+	u32 band, mimo_bwcap;
+	int err;
+
+	band = WLC_BAND_2G;
+	err = brcmf_fil_iovar_int_get(ifp, "bw_cap", &band);
+	if (!err) {
+		bw_cap[IEEE80211_BAND_2GHZ] = band;
+		band = WLC_BAND_5G;
+		err = brcmf_fil_iovar_int_get(ifp, "bw_cap", &band);
+		if (!err) {
+			bw_cap[IEEE80211_BAND_5GHZ] = band;
+			return;
+		}
+		WARN_ON(1);
+		return;
+	}
+	brcmf_dbg(INFO, "fallback to mimo_bw_cap info\n");
+	mimo_bwcap = 0;
+	err = brcmf_fil_iovar_int_get(ifp, "mimo_bw_cap", &mimo_bwcap);
+	if (err)
+		/* assume 20MHz if firmware does not give a clue */
+		mimo_bwcap = WLC_N_BW_20ALL;
+
+	switch (mimo_bwcap) {
+	case WLC_N_BW_40ALL:
+		bw_cap[IEEE80211_BAND_2GHZ] |= WLC_BW_40MHZ_BIT;
+		/* fall-thru */
+	case WLC_N_BW_20IN2G_40IN5G:
+		bw_cap[IEEE80211_BAND_5GHZ] |= WLC_BW_40MHZ_BIT;
+		/* fall-thru */
+	case WLC_N_BW_20ALL:
+		bw_cap[IEEE80211_BAND_2GHZ] |= WLC_BW_20MHZ_BIT;
+		bw_cap[IEEE80211_BAND_5GHZ] |= WLC_BW_20MHZ_BIT;
+		break;
+	default:
+		brcmf_err("invalid mimo_bw_cap value\n");
+	}
+}
 
 static s32 brcmf_update_wiphybands(struct brcmf_cfg80211_info *cfg)
 {
@@ -5221,13 +5265,13 @@ static s32 brcmf_update_wiphybands(struct brcmf_cfg80211_info *cfg)
 	s32 phy_list;
 	u32 band_list[3];
 	u32 nmode;
-	u32 bw_cap = 0;
+	u32 bw_cap[2] = { 0, 0 };
 	s8 phy;
 	s32 err;
 	u32 nband;
 	s32 i;
-	struct ieee80211_supported_band *bands[IEEE80211_NUM_BANDS];
-	s32 index;
+	struct ieee80211_supported_band *bands[2] = { NULL, NULL };
+	struct ieee80211_supported_band *band;
 
 	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_PHYLIST,
 				     &phy_list, sizeof(phy_list));
@@ -5253,11 +5297,10 @@ static s32 brcmf_update_wiphybands(struct brcmf_cfg80211_info *cfg)
 	if (err) {
 		brcmf_err("nmode error (%d)\n", err);
 	} else {
-		err = brcmf_fil_iovar_int_get(ifp, "mimo_bw_cap", &bw_cap);
-		if (err)
-			brcmf_err("mimo_bw_cap error (%d)\n", err);
+		brcmf_get_bwcap(ifp, bw_cap);
 	}
-	brcmf_dbg(INFO, "nmode=%d, mimo_bw_cap=%d\n", nmode, bw_cap);
+	brcmf_dbg(INFO, "nmode=%d, bw_cap=(%d, %d)\n", nmode,
+		  bw_cap[IEEE80211_BAND_2GHZ], bw_cap[IEEE80211_BAND_5GHZ]);
 
 	err = brcmf_construct_reginfo(cfg, bw_cap);
 	if (err) {
@@ -5266,40 +5309,33 @@ static s32 brcmf_update_wiphybands(struct brcmf_cfg80211_info *cfg)
 	}
 
 	nband = band_list[0];
-	memset(bands, 0, sizeof(bands));
 
 	for (i = 1; i <= nband && i < ARRAY_SIZE(band_list); i++) {
-		index = -1;
+		band = NULL;
 		if ((band_list[i] == WLC_BAND_5G) &&
-		    (__wl_band_5ghz_a.n_channels > 0)) {
-			index = IEEE80211_BAND_5GHZ;
-			bands[index] = &__wl_band_5ghz_a;
-			if ((bw_cap == WLC_N_BW_40ALL) ||
-			    (bw_cap == WLC_N_BW_20IN2G_40IN5G))
-				bands[index]->ht_cap.cap |=
-							IEEE80211_HT_CAP_SGI_40;
-		} else if ((band_list[i] == WLC_BAND_2G) &&
-			   (__wl_band_2ghz.n_channels > 0)) {
-			index = IEEE80211_BAND_2GHZ;
-			bands[index] = &__wl_band_2ghz;
-			if (bw_cap == WLC_N_BW_40ALL)
-				bands[index]->ht_cap.cap |=
-							IEEE80211_HT_CAP_SGI_40;
-		}
+		    (__wl_band_5ghz_a.n_channels > 0))
+			band = &__wl_band_5ghz_a;
+		else if ((band_list[i] == WLC_BAND_2G) &&
+			 (__wl_band_2ghz.n_channels > 0))
+			band = &__wl_band_2ghz;
+		else
+			continue;
 
-		if ((index >= 0) && nmode) {
-			bands[index]->ht_cap.cap |= IEEE80211_HT_CAP_SGI_20;
-			bands[index]->ht_cap.cap |= IEEE80211_HT_CAP_DSSSCCK40;
-			bands[index]->ht_cap.ht_supported = true;
-			bands[index]->ht_cap.ampdu_factor =
-						IEEE80211_HT_MAX_AMPDU_64K;
-			bands[index]->ht_cap.ampdu_density =
-						IEEE80211_HT_MPDU_DENSITY_16;
-			/* An HT shall support all EQM rates for one spatial
-			 * stream
-			 */
-			bands[index]->ht_cap.mcs.rx_mask[0] = 0xff;
+		if (bw_cap[band->band] & WLC_BW_40MHZ_BIT) {
+			band->ht_cap.cap |= IEEE80211_HT_CAP_SGI_40;
+			band->ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		}
+		band->ht_cap.cap |= IEEE80211_HT_CAP_SGI_20;
+		band->ht_cap.cap |= IEEE80211_HT_CAP_DSSSCCK40;
+		band->ht_cap.ht_supported = true;
+		band->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
+		band->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16;
+		/* An HT shall support all EQM rates for one spatial
+		 * stream
+		 */
+		band->ht_cap.mcs.rx_mask[0] = 0xff;
+		band->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
+		bands[band->band] = band;
 	}
 
 	wiphy = cfg_to_wiphy(cfg);

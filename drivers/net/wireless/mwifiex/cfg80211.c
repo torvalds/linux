@@ -563,14 +563,7 @@ static void mwifiex_reg_notifier(struct wiphy *wiphy,
 		memcpy(adapter->country_code, request->alpha2,
 		       sizeof(request->alpha2));
 		mwifiex_send_domain_info_cmd_fw(wiphy);
-
-		if (adapter->dt_node) {
-			char txpwr[] = {"marvell,00_txpwrlimit"};
-
-			memcpy(&txpwr[8], adapter->country_code, 2);
-			mwifiex_dnld_dt_cfgdata(priv, adapter->dt_node,
-						txpwr);
-		}
+		mwifiex_dnld_txpwr_table(priv);
 	}
 }
 

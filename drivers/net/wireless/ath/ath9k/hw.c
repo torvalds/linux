@@ -37,57 +37,6 @@ MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
 MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static int __init ath9k_init(void)
-{
-	return 0;
-}
-module_init(ath9k_init);
-
-static void __exit ath9k_exit(void)
-{
-	return;
-}
-module_exit(ath9k_exit);
-
-/* Private hardware callbacks */
-
-static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
-{
-	ath9k_hw_private_ops(ah)->init_cal_settings(ah);
-}
-
-static u32 ath9k_hw_compute_pll_control(struct ath_hw *ah,
-					struct ath9k_channel *chan)
-{
-	return ath9k_hw_private_ops(ah)->compute_pll_control(ah, chan);
-}
-
-static void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
-{
-	if (!ath9k_hw_private_ops(ah)->init_mode_gain_regs)
-		return;
-
-	ath9k_hw_private_ops(ah)->init_mode_gain_regs(ah);
-}
-
-static void ath9k_hw_ani_cache_ini_regs(struct ath_hw *ah)
-{
-	/* You will not have this callback if using the old ANI */
-	if (!ath9k_hw_private_ops(ah)->ani_cache_ini_regs)
-		return;
-
-	ath9k_hw_private_ops(ah)->ani_cache_ini_regs(ah);
-}
-
-/********************/
-/* Helper Functions */
-/********************/
-
-#ifdef CONFIG_ATH9K_DEBUGFS
-
-#endif
-
-
 static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -296,6 +245,9 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 	case AR9300_DEVID_QCA955X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9550;
 		return;
+	case AR9300_DEVID_AR953X:
+		ah->hw_version.macVersion = AR_SREV_VERSION_9531;
+		return;
 	}
 
 	val = REG_READ(ah, AR_SREV) & AR_SREV_ID;
@@ -397,9 +349,10 @@ static bool ath9k_hw_chip_test(struct ath_hw *ah)
 
 static void ath9k_hw_init_config(struct ath_hw *ah)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	ah->config.dma_beacon_response_time = 1;
 	ah->config.sw_beacon_response_time = 6;
-	ah->config.ack_6mb = 0x0;
 	ah->config.cwm_ignore_extcca = 0;
 	ah->config.analog_shiftreg = 1;
 
@@ -423,6 +376,24 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	 */
 	if (num_possible_cpus() > 1)
 		ah->config.serialize_regmode = SER_REG_MODE_AUTO;
+
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_AUTO) {
+		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCI ||
+		    ((AR_SREV_9160(ah) || AR_SREV_9280(ah) || AR_SREV_9287(ah)) &&
+		     !ah->is_pciexpress)) {
+			ah->config.serialize_regmode = SER_REG_MODE_ON;
+		} else {
+			ah->config.serialize_regmode = SER_REG_MODE_OFF;
+		}
+	}
+
+	ath_dbg(common, RESET, "serialize_regmode is %d\n",
+		ah->config.serialize_regmode);
+
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD >> 1;
+	else
+		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
 }
 
 static void ath9k_hw_init_defaults(struct ath_hw *ah)
@@ -435,15 +406,24 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->hw_version.magic = AR5416_MAGIC;
 	ah->hw_version.subvendorid = 0;
 
-	ah->sta_id1_defaults =
-		AR_STA_ID1_CRPT_MIC_ENABLE |
-		AR_STA_ID1_MCAST_KSRCH;
+	ah->sta_id1_defaults = AR_STA_ID1_CRPT_MIC_ENABLE |
+			       AR_STA_ID1_MCAST_KSRCH;
 	if (AR_SREV_9100(ah))
 		ah->sta_id1_defaults |= AR_STA_ID1_AR9100_BA_FIX;
+
 	ah->slottime = ATH9K_SLOT_TIME_9;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 	ah->htc_reset_init = true;
+
+	ah->ani_function = ATH9K_ANI_ALL;
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
+
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		ah->tx_trig_level = (AR_FTRIG_256B >> AR_FTRIG_S);
+	else
+		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 }
 
 static int ath9k_hw_init_macaddr(struct ath_hw *ah)
@@ -525,6 +505,31 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 	ath9k_hw_read_revisions(ah);
 
+	switch (ah->hw_version.macVersion) {
+	case AR_SREV_VERSION_5416_PCI:
+	case AR_SREV_VERSION_5416_PCIE:
+	case AR_SREV_VERSION_9160:
+	case AR_SREV_VERSION_9100:
+	case AR_SREV_VERSION_9280:
+	case AR_SREV_VERSION_9285:
+	case AR_SREV_VERSION_9287:
+	case AR_SREV_VERSION_9271:
+	case AR_SREV_VERSION_9300:
+	case AR_SREV_VERSION_9330:
+	case AR_SREV_VERSION_9485:
+	case AR_SREV_VERSION_9340:
+	case AR_SREV_VERSION_9462:
+	case AR_SREV_VERSION_9550:
+	case AR_SREV_VERSION_9565:
+	case AR_SREV_VERSION_9531:
+		break;
+	default:
+		ath_err(common,
+			"Mac Chip Rev 0x%02x.%x is not supported by this driver\n",
+			ah->hw_version.macVersion, ah->hw_version.macRev);
+		return -EOPNOTSUPP;
+	}
+
 	/*
 	 * Read back AR_WA into a permanent copy and set bits 14 and 17.
 	 * We need to do this to avoid RMW of this register. We cannot
@@ -558,60 +563,12 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		return -EIO;
 	}
 
-	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_AUTO) {
-		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCI ||
-		    ((AR_SREV_9160(ah) || AR_SREV_9280(ah) || AR_SREV_9287(ah)) &&
-		     !ah->is_pciexpress)) {
-			ah->config.serialize_regmode =
-				SER_REG_MODE_ON;
-		} else {
-			ah->config.serialize_regmode =
-				SER_REG_MODE_OFF;
-		}
-	}
-
-	ath_dbg(common, RESET, "serialize_regmode is %d\n",
-		ah->config.serialize_regmode);
-
-	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
-		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD >> 1;
-	else
-		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
-
-	switch (ah->hw_version.macVersion) {
-	case AR_SREV_VERSION_5416_PCI:
-	case AR_SREV_VERSION_5416_PCIE:
-	case AR_SREV_VERSION_9160:
-	case AR_SREV_VERSION_9100:
-	case AR_SREV_VERSION_9280:
-	case AR_SREV_VERSION_9285:
-	case AR_SREV_VERSION_9287:
-	case AR_SREV_VERSION_9271:
-	case AR_SREV_VERSION_9300:
-	case AR_SREV_VERSION_9330:
-	case AR_SREV_VERSION_9485:
-	case AR_SREV_VERSION_9340:
-	case AR_SREV_VERSION_9462:
-	case AR_SREV_VERSION_9550:
-	case AR_SREV_VERSION_9565:
-		break;
-	default:
-		ath_err(common,
-			"Mac Chip Rev 0x%02x.%x is not supported by this driver\n",
-			ah->hw_version.macVersion, ah->hw_version.macRev);
-		return -EOPNOTSUPP;
-	}
-
 	if (AR_SREV_9271(ah) || AR_SREV_9100(ah) || AR_SREV_9340(ah) ||
 	    AR_SREV_9330(ah) || AR_SREV_9550(ah))
 		ah->is_pciexpress = false;
 
 	ah->hw_version.phyRev = REG_READ(ah, AR_PHY_CHIP_ID);
 	ath9k_hw_init_cal_settings(ah);
-
-	ah->ani_function = ATH9K_ANI_ALL;
-	if (!AR_SREV_9300_20_OR_LATER(ah))
-		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
 
 	if (!ah->is_pciexpress)
 		ath9k_hw_disablepcie(ah);
@@ -631,15 +588,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		return r;
 	}
 
-	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
-		ah->tx_trig_level = (AR_FTRIG_256B >> AR_FTRIG_S);
-	else
-		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
-
-	if (AR_SREV_9330(ah))
-		ah->bb_watchdog_timeout_ms = 85;
-	else
-		ah->bb_watchdog_timeout_ms = 25;
+	ath9k_hw_init_hang_checks(ah);
 
 	common->state = ATH_HW_INITIALIZED;
 
@@ -672,6 +621,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9462:
 	case AR9485_DEVID_AR1111:
 	case AR9300_DEVID_AR9565:
+	case AR9300_DEVID_AR953X:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -807,7 +757,7 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		/* program BB PLL phase_shift */
 		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL3,
 			      AR_CH0_BB_DPLL3_PHASE_SHIFT, 0x1);
-	} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah)) {
+	} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
 		u32 regval, pll2_divint, pll2_divfrac, refdiv;
 
 		REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x1142c);
@@ -817,9 +767,15 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		udelay(100);
 
 		if (ah->is_clk_25mhz) {
-			pll2_divint = 0x54;
-			pll2_divfrac = 0x1eb85;
-			refdiv = 3;
+			if (AR_SREV_9531(ah)) {
+				pll2_divint = 0x1c;
+				pll2_divfrac = 0xa3d2;
+				refdiv = 1;
+			} else {
+				pll2_divint = 0x54;
+				pll2_divfrac = 0x1eb85;
+				refdiv = 3;
+			}
 		} else {
 			if (AR_SREV_9340(ah)) {
 				pll2_divint = 88;
@@ -833,7 +789,10 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		}
 
 		regval = REG_READ(ah, AR_PHY_PLL_MODE);
-		regval |= (0x1 << 16);
+		if (AR_SREV_9531(ah))
+			regval |= (0x1 << 22);
+		else
+			regval |= (0x1 << 16);
 		REG_WRITE(ah, AR_PHY_PLL_MODE, regval);
 		udelay(100);
 
@@ -843,14 +802,33 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 
 		regval = REG_READ(ah, AR_PHY_PLL_MODE);
 		if (AR_SREV_9340(ah))
-			regval = (regval & 0x80071fff) | (0x1 << 30) |
-				 (0x1 << 13) | (0x4 << 26) | (0x18 << 19);
+			regval = (regval & 0x80071fff) |
+				(0x1 << 30) |
+				(0x1 << 13) |
+				(0x4 << 26) |
+				(0x18 << 19);
+		else if (AR_SREV_9531(ah))
+			regval = (regval & 0x01c00fff) |
+				(0x1 << 31) |
+				(0x2 << 29) |
+				(0xa << 25) |
+				(0x1 << 19) |
+				(0x6 << 12);
 		else
-			regval = (regval & 0x80071fff) | (0x3 << 30) |
-				 (0x1 << 13) | (0x4 << 26) | (0x60 << 19);
+			regval = (regval & 0x80071fff) |
+				(0x3 << 30) |
+				(0x1 << 13) |
+				(0x4 << 26) |
+				(0x60 << 19);
 		REG_WRITE(ah, AR_PHY_PLL_MODE, regval);
-		REG_WRITE(ah, AR_PHY_PLL_MODE,
-			  REG_READ(ah, AR_PHY_PLL_MODE) & 0xfffeffff);
+
+		if (AR_SREV_9531(ah))
+			REG_WRITE(ah, AR_PHY_PLL_MODE,
+				  REG_READ(ah, AR_PHY_PLL_MODE) & 0xffbfffff);
+		else
+			REG_WRITE(ah, AR_PHY_PLL_MODE,
+				  REG_READ(ah, AR_PHY_PLL_MODE) & 0xfffeffff);
+
 		udelay(1000);
 	}
 
@@ -1532,76 +1510,6 @@ static void ath9k_hw_apply_gpio_override(struct ath_hw *ah)
 	}
 }
 
-static bool ath9k_hw_check_dcs(u32 dma_dbg, u32 num_dcu_states,
-			       int *hang_state, int *hang_pos)
-{
-	static u32 dcu_chain_state[] = {5, 6, 9}; /* DCU chain stuck states */
-	u32 chain_state, dcs_pos, i;
-
-	for (dcs_pos = 0; dcs_pos < num_dcu_states; dcs_pos++) {
-		chain_state = (dma_dbg >> (5 * dcs_pos)) & 0x1f;
-		for (i = 0; i < 3; i++) {
-			if (chain_state == dcu_chain_state[i]) {
-				*hang_state = chain_state;
-				*hang_pos = dcs_pos;
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-#define DCU_COMPLETE_STATE        1
-#define DCU_COMPLETE_STATE_MASK 0x3
-#define NUM_STATUS_READS         50
-static bool ath9k_hw_detect_mac_hang(struct ath_hw *ah)
-{
-	u32 chain_state, comp_state, dcs_reg = AR_DMADBG_4;
-	u32 i, hang_pos, hang_state, num_state = 6;
-
-	comp_state = REG_READ(ah, AR_DMADBG_6);
-
-	if ((comp_state & DCU_COMPLETE_STATE_MASK) != DCU_COMPLETE_STATE) {
-		ath_dbg(ath9k_hw_common(ah), RESET,
-			"MAC Hang signature not found at DCU complete\n");
-		return false;
-	}
-
-	chain_state = REG_READ(ah, dcs_reg);
-	if (ath9k_hw_check_dcs(chain_state, num_state, &hang_state, &hang_pos))
-		goto hang_check_iter;
-
-	dcs_reg = AR_DMADBG_5;
-	num_state = 4;
-	chain_state = REG_READ(ah, dcs_reg);
-	if (ath9k_hw_check_dcs(chain_state, num_state, &hang_state, &hang_pos))
-		goto hang_check_iter;
-
-	ath_dbg(ath9k_hw_common(ah), RESET,
-		"MAC Hang signature 1 not found\n");
-	return false;
-
-hang_check_iter:
-	ath_dbg(ath9k_hw_common(ah), RESET,
-		"DCU registers: chain %08x complete %08x Hang: state %d pos %d\n",
-		chain_state, comp_state, hang_state, hang_pos);
-
-	for (i = 0; i < NUM_STATUS_READS; i++) {
-		chain_state = REG_READ(ah, dcs_reg);
-		chain_state = (chain_state >> (5 * hang_pos)) & 0x1f;
-		comp_state = REG_READ(ah, AR_DMADBG_6);
-
-		if (((comp_state & DCU_COMPLETE_STATE_MASK) !=
-					DCU_COMPLETE_STATE) ||
-		    (chain_state != hang_state))
-			return false;
-	}
-
-	ath_dbg(ath9k_hw_common(ah), RESET, "MAC Hang signature 1 found\n");
-
-	return true;
-}
-
 void ath9k_hw_check_nav(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1676,7 +1584,6 @@ static void ath9k_hw_reset_opmode(struct ath_hw *ah,
 
 	REG_RMW(ah, AR_STA_ID1, macStaId1
 		  | AR_STA_ID1_RTS_USE_DEF
-		  | (ah->config.ack_6mb ? AR_STA_ID1_ACKCTS_6MB : 0)
 		  | ah->sta_id1_defaults,
 		  ~AR_STA_ID1_SADH_MASK);
 	ath_hw_setbssidmask(common);
@@ -1735,7 +1642,7 @@ static void ath9k_hw_init_desc(struct ath_hw *ah)
 		}
 #ifdef __BIG_ENDIAN
 		else if (AR_SREV_9330(ah) || AR_SREV_9340(ah) ||
-			 AR_SREV_9550(ah))
+			 AR_SREV_9550(ah) || AR_SREV_9531(ah))
 			REG_RMW(ah, AR_CFG, AR_CFG_SWRB | AR_CFG_SWTB, 0);
 		else
 			REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);
@@ -1865,7 +1772,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	/* Save TSF before chip reset, a cold reset clears it */
 	tsf = ath9k_hw_gettsf64(ah);
 	getrawmonotonic(&ts);
-	usec = ts.tv_sec * 1000 + ts.tv_nsec / 1000;
+	usec = ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000;
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
 		(AR_CFG_LED_ASSOC_CTL | AR_CFG_LED_MODE_SEL |
@@ -1899,7 +1806,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	/* Restore TSF */
 	getrawmonotonic(&ts);
-	usec = ts.tv_sec * 1000 + ts.tv_nsec / 1000 - usec;
+	usec = ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000 - usec;
 	ath9k_hw_settsf64(ah, tsf + usec);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
@@ -2008,10 +1915,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);
 
-	if (AR_SREV_9300_20_OR_LATER(ah)) {
+	if (AR_SREV_9300_20_OR_LATER(ah))
 		ar9003_hw_bb_watchdog_config(ah);
+
+	if (ah->config.hw_hang_checks & HW_PHYRESTART_CLC_WAR)
 		ar9003_hw_disable_phy_restart(ah);
-	}
 
 	ath9k_hw_apply_gpio_override(ah);
 
@@ -2135,7 +2043,11 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah)
 
 	REG_SET_BIT(ah, AR_RTC_FORCE_WAKE,
 		    AR_RTC_FORCE_WAKE_EN);
-	udelay(50);
+
+	if (AR_SREV_9100(ah))
+		udelay(10000);
+	else
+		udelay(50);
 
 	for (i = POWER_UP_TIME / 50; i > 0; i--) {
 		val = REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M;
@@ -2563,13 +2475,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (AR_SREV_9300_20_OR_LATER(ah) &&
 	    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
-
-	/*
-	 * Fast channel change across bands is available
-	 * only for AR9462 and AR9565.
-	 */
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
-		pCap->hw_caps |= ATH9K_HW_CAP_FCC_BAND_SWITCH;
 
 	return 0;
 }
@@ -3084,14 +2989,14 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 	trigger_mask &= timer_table->timer_mask;
 	thresh_mask &= timer_table->timer_mask;
 
-	trigger_mask &= ~thresh_mask;
-
 	for_each_set_bit(index, &thresh_mask, ARRAY_SIZE(timer_table->timers)) {
 		timer = timer_table->timers[index];
 		if (!timer)
 		    continue;
 		if (!timer->overflow)
 		    continue;
+
+		trigger_mask &= ~BIT(index);
 		timer->overflow(timer->arg);
 	}
 

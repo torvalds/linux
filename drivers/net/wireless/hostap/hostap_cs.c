@@ -1,7 +1,6 @@
 #define PRISM2_PCCARD
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/if.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
