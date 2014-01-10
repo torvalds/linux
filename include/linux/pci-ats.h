@@ -56,10 +56,7 @@ static inline int pci_ats_enabled(struct pci_dev *dev)
 
 int pci_enable_pri(struct pci_dev *pdev, u32 reqs);
 void pci_disable_pri(struct pci_dev *pdev);
-bool pci_pri_enabled(struct pci_dev *pdev);
 int pci_reset_pri(struct pci_dev *pdev);
-bool pci_pri_stopped(struct pci_dev *pdev);
-int pci_pri_status(struct pci_dev *pdev);
 
 #else /* CONFIG_PCI_PRI */
 
@@ -72,25 +69,11 @@ static inline void pci_disable_pri(struct pci_dev *pdev)
 {
 }
 
-static inline bool pci_pri_enabled(struct pci_dev *pdev)
-{
-	return false;
-}
-
 static inline int pci_reset_pri(struct pci_dev *pdev)
 {
 	return -ENODEV;
 }
 
-static inline bool pci_pri_stopped(struct pci_dev *pdev)
-{
-	return true;
-}
-
-static inline int pci_pri_status(struct pci_dev *pdev)
-{
-	return -ENODEV;
-}
 #endif /* CONFIG_PCI_PRI */
 
 #ifdef CONFIG_PCI_PASID
