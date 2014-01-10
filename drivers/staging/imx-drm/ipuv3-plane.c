@@ -78,7 +78,8 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 	cpmem = ipu_get_cpmem(ipu_plane->ipu_ch);
 	ipu_cpmem_set_stride(cpmem, fb->pitches[0]);
 
-	eba = cma_obj->paddr + fb->offsets[0] + fb->pitches[0] * y + x;
+	eba = cma_obj->paddr + fb->offsets[0] +
+	      fb->pitches[0] * y + (fb->bits_per_pixel >> 3) * x;
 	ipu_cpmem_set_buffer(cpmem, 0, eba);
 	ipu_cpmem_set_buffer(cpmem, 1, eba);
 
