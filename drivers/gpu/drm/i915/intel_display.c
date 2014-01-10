@@ -5439,6 +5439,9 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
+	if (INTEL_INFO(dev)->gen <= 3 && (IS_I830(dev) || !IS_MOBILE(dev)))
+		return;
+
 	tmp = I915_READ(PFIT_CONTROL);
 	if (!(tmp & PFIT_ENABLE))
 		return;
