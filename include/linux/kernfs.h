@@ -80,6 +80,8 @@ struct kernfs_elem_attr {
 struct kernfs_node {
 	atomic_t		count;
 	atomic_t		active;
+	int			deact_depth;
+	unsigned int		hash;	/* ns + name hash */
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
@@ -90,7 +92,6 @@ struct kernfs_node {
 	struct rb_node		rb;
 
 	const void		*ns;	/* namespace tag */
-	unsigned int		hash;	/* ns + name hash */
 	union {
 		struct kernfs_elem_dir		dir;
 		struct kernfs_elem_symlink	symlink;
@@ -233,6 +234,10 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 				       const char *name,
 				       struct kernfs_node *target);
+void kernfs_deactivate(struct kernfs_node *kn);
+void kernfs_reactivate(struct kernfs_node *kn);
+void kernfs_deactivate_self(struct kernfs_node *kn);
+void kernfs_reactivate_self(struct kernfs_node *kn);
 void kernfs_remove(struct kernfs_node *kn);
 int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 			     const void *ns);
