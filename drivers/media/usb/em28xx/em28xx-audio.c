@@ -620,10 +620,13 @@ static int em28xx_audio_init(struct em28xx *dev)
 	struct em28xx_audio *adev = &dev->adev;
 	struct snd_pcm      *pcm;
 	struct snd_card     *card;
+	struct usb_interface *intf;
+	struct usb_endpoint_descriptor *e, *ep = NULL;
 	static int          devnr;
 	int                 err, i;
 	const int sb_size = EM28XX_NUM_AUDIO_PACKETS *
 			    EM28XX_AUDIO_MAX_PACKET_SIZE;
+	u8 alt;
 
 	if (!dev->has_alsa_audio || dev->audio_ifnum < 0) {
 		/* This device does not support the extension (in this case
@@ -679,6 +682,34 @@ static int em28xx_audio_init(struct em28xx *dev)
 		em28xx_cvol_new(card, dev, "Surround", AC97_SURROUND_MASTER);
 	}
 
+	if (dev->audio_ifnum)
+		alt = 1;
+	else
+		alt = 7;
+
+	intf = usb_ifnum_to_if(dev->udev, dev->audio_ifnum);
+
+	if (intf->num_altsetting <= alt) {
+		em28xx_errdev("alt %d doesn't exist on interface %d\n",
+			      dev->audio_ifnum, alt);
+		return -ENODEV;
+	}
+
+	for (i = 0; i < intf->altsetting[alt].desc.bNumEndpoints; i++) {
+		e = &intf->altsetting[alt].endpoint[i].desc;
+		if (!usb_endpoint_dir_in(e))
+			continue;
+		if (e->bEndpointAddress == EM28XX_EP_AUDIO) {
+			ep = e;
+			break;
+		}
+	}
+
+	if (!ep) {
+		em28xx_errdev("Couldn't find an audio endpoint");
+		return -ENODEV;
+	}
+
 	/* Alloc URB and transfer buffers */
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		struct urb *urb;
@@ -707,10 +738,16 @@ static int em28xx_audio_init(struct em28xx *dev)
 		urb->pipe = usb_rcvisocpipe(dev->udev, EM28XX_EP_AUDIO);
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
-		urb->interval = 1;
+		urb->interval = 1 << (ep->bInterval - 1);
 		urb->complete = em28xx_audio_isocirq;
 		urb->number_of_packets = EM28XX_NUM_AUDIO_PACKETS;
 		urb->transfer_buffer_length = sb_size;
+
+		if (!i)
+			dprintk("Will use ep 0x%02x on intf %d alt %d interval = %d (rcv isoc pipe: 0x%08x)\n",
+				EM28XX_EP_AUDIO, dev->audio_ifnum, alt,
+				urb->interval,
+				urb->pipe);
 
 		for (j = k = 0; j < EM28XX_NUM_AUDIO_PACKETS;
 			     j++, k += EM28XX_AUDIO_MAX_PACKET_SIZE) {
