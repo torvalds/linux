@@ -4861,8 +4861,42 @@ static void alc_fixup_bass_chmap(struct hda_codec *codec,
 	}
 }
 
+/* turn on/off mute LED per vmaster hook */
+static void alc662_led_gpio1_mute_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct alc_spec *spec = codec->spec;
+	unsigned int oldval = spec->gpio_led;
+
+	if (enabled)
+		spec->gpio_led &= ~0x01;
+	else
+		spec->gpio_led |= 0x01;
+	if (spec->gpio_led != oldval)
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+				    spec->gpio_led);
+}
+
+static void alc662_fixup_led_gpio1(struct hda_codec *codec,
+				   const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+	static const struct hda_verb gpio_init[] = {
+		{ 0x01, AC_VERB_SET_GPIO_MASK, 0x01 },
+		{ 0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01 },
+		{}
+	};
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gen.vmaster_mute.hook = alc662_led_gpio1_mute_hook;
+		spec->gpio_led = 0;
+		snd_hda_add_verbs(codec, gpio_init);
+	}
+}
+
 enum {
 	ALC662_FIXUP_ASPIRE,
+	ALC662_FIXUP_LED_GPIO1,
 	ALC662_FIXUP_IDEAPAD,
 	ALC272_FIXUP_MARIO,
 	ALC662_FIXUP_CZC_P10T,
@@ -4895,12 +4929,18 @@ static const struct hda_fixup alc662_fixups[] = {
 			{ }
 		}
 	},
+	[ALC662_FIXUP_LED_GPIO1] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc662_fixup_led_gpio1,
+	},
 	[ALC662_FIXUP_IDEAPAD] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
 			{ 0x17, 0x99130112 }, /* subwoofer */
 			{ }
-		}
+		},
+		.chained = true,
+		.chain_id = ALC662_FIXUP_LED_GPIO1,
 	},
 	[ALC272_FIXUP_MARIO] = {
 		.type = HDA_FIXUP_FUNC,
