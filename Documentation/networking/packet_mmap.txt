@@ -98,6 +98,11 @@ by the kernel.
 The destruction of the socket and all associated resources
 is done by a simple call to close(fd).
 
+Similarly as without PACKET_MMAP, it is possible to use one socket
+for capture and transmission. This can be done by mapping the
+allocated RX and TX buffer ring with a single mmap() call.
+See "Mapping and use of the circular buffer (ring)".
+
 Next I will describe PACKET_MMAP settings and its constraints,
 also the mapping of the circular buffer in the user process and 
 the use of this buffer.
@@ -413,6 +418,19 @@ contiguously spaced by tp_frame_size bytes. If not, each
 tp_block_size/tp_frame_size frames there will be a gap between 
 the frames. This is because a frame cannot be spawn across two
 blocks. 
+
+To use one socket for capture and transmission, the mapping of both the
+RX and TX buffer ring has to be done with one call to mmap:
+
+    ...
+    setsockopt(fd, SOL_PACKET, PACKET_RX_RING, &foo, sizeof(foo));
+    setsockopt(fd, SOL_PACKET, PACKET_TX_RING, &bar, sizeof(bar));
+    ...
+    rx_ring = mmap(0, size * 2, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    tx_ring = rx_ring + size;
+
+RX must be the first as the kernel maps the TX ring memory right
+after the RX one.
 
 At the beginning of each frame there is an status field (see 
 struct tpacket_hdr). If this field is 0 means that the frame is ready
