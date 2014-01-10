@@ -1731,7 +1731,6 @@ bool kvm_vcpu_yield_to(struct kvm_vcpu *target)
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_yield_to);
 
-#ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
 /*
  * Helper that checks whether a VCPU is eligible for directed yield.
  * Most eligible candidate to yield is decided by following heuristics:
@@ -1756,6 +1755,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_yield_to);
  */
 static bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 {
+#ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
 	bool eligible;
 
 	eligible = !vcpu->spin_loop.in_spin_loop ||
@@ -1766,8 +1766,10 @@ static bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 		kvm_vcpu_set_dy_eligible(vcpu, !vcpu->spin_loop.dy_eligible);
 
 	return eligible;
-}
+#else
+	return true;
 #endif
+}
 
 void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 {
