@@ -1144,15 +1144,16 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 
 		dev_dbg(mmc_dev(host->mmc), "irq0 (data+cmd) %08x\n", status);
 
+		cmd = host->cmd;
+		if (status & (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT|MCI_CMDSENT|
+			      MCI_CMDRESPEND) && cmd)
+			mmci_cmd_irq(host, cmd, status);
+
 		data = host->data;
 		if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_STARTBITERR|
 			      MCI_TXUNDERRUN|MCI_RXOVERRUN|MCI_DATAEND|
 			      MCI_DATABLOCKEND) && data)
 			mmci_data_irq(host, data, status);
-
-		cmd = host->cmd;
-		if (status & (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT|MCI_CMDSENT|MCI_CMDRESPEND) && cmd)
-			mmci_cmd_irq(host, cmd, status);
 
 		ret = 1;
 	} while (status);
