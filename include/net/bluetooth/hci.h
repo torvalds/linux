@@ -937,6 +937,17 @@ struct hci_rp_write_sync_train_params {
 	__le16	sync_train_int;
 } __packed;
 
+#define HCI_OP_READ_SC_SUPPORT		0x0c79
+struct hci_rp_read_sc_support {
+	__u8	status;
+	__u8	support;
+} __packed;
+
+#define HCI_OP_WRITE_SC_SUPPORT		0x0c7a
+struct hci_cp_write_sc_support {
+	__u8	support;
+} __packed;
+
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
 struct hci_rp_read_local_version {
 	__u8     status;
