@@ -216,10 +216,16 @@ $(run_O):
 	rm -rf $$TMP_O \
 	rm -rf $$TMP_DEST
 
-all: $(run) $(run_O)
+tarpkg:
+	@cmd="$(PERF)/tests/perf-targz-src-pkg $(PERF)"; \
+	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	( eval $$cmd ) >> $@ 2>&1
+	
+
+all: $(run) $(run_O) tarpkg
 	@echo OK
 
 out: $(run_O)
 	@echo OK
 
-.PHONY: all $(run) $(run_O) clean
+.PHONY: all $(run) $(run_O) tarpkg clean
