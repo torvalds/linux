@@ -149,12 +149,25 @@ struct kernfs_node *kernfs_get_active(struct kernfs_node *kn)
 	if (unlikely(!kn))
 		return NULL;
 
-	if (!atomic_inc_unless_negative(&kn->active))
-		return NULL;
-
 	if (kernfs_lockdep(kn))
 		rwsem_acquire_read(&kn->dep_map, 0, 1, _RET_IP_);
-	return kn;
+
+	/*
+	 * Try to obtain an active ref.  If @kn is deactivated, we block
+	 * till either it's reactivated or killed.
+	 */
+	do {
+		if (atomic_inc_unless_negative(&kn->active))
+			return kn;
+
+		wait_event(kernfs_root(kn)->deactivate_waitq,
+			   atomic_read(&kn->active) >= 0 ||
+			   RB_EMPTY_NODE(&kn->rb));
+	} while (!RB_EMPTY_NODE(&kn->rb));
+
+	if (kernfs_lockdep(kn))
+		rwsem_release(&kn->dep_map, 1, _RET_IP_);
+	return NULL;
 }
 
 /**
@@ -786,6 +799,7 @@ static void __kernfs_deactivate(struct kernfs_node *kn)
 
 static void __kernfs_remove(struct kernfs_node *kn)
 {
+	struct kernfs_root *root = kernfs_root(kn);
 	struct kernfs_node *pos;
 
 	lockdep_assert_held(&kernfs_mutex);
@@ -837,6 +851,9 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 		kernfs_put(pos);
 	} while (pos != kn);
+
+	/* some nodes killed, kick get_active waiters */
+	wake_up_all(&root->deactivate_waitq);
 }
 
 /**
