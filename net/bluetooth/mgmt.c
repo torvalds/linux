@@ -378,7 +378,8 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 			settings |= MGMT_SETTING_HS;
 		}
 
-		if (lmp_sc_capable(hdev))
+		if (lmp_sc_capable(hdev) ||
+		    test_bit(HCI_FORCE_SC, &hdev->dev_flags))
 			settings |= MGMT_SETTING_SECURE_CONN;
 	}
 
@@ -4026,7 +4027,8 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
 				  status);
 
-	if (!lmp_sc_capable(hdev))
+	if (!lmp_sc_capable(hdev) &&
+	    !test_bit(HCI_FORCE_SC, &hdev->dev_flags))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
