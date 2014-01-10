@@ -3691,8 +3691,11 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	if (!(mode & FMODE_NDELAY)) {
 		if (mode & (FMODE_READ|FMODE_WRITE)) {
 			UDRS->last_checked = 0;
+			clear_bit(FD_OPEN_SHOULD_FAIL_BIT, &UDRS->flags);
 			check_disk_change(bdev);
 			if (test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags))
+				goto out;
+			if (test_bit(FD_OPEN_SHOULD_FAIL_BIT, &UDRS->flags))
 				goto out;
 		}
 		res = -EROFS;
@@ -3746,17 +3749,29 @@ static unsigned int floppy_check_events(struct gendisk *disk,
  * a disk in the drive, and whether that disk is writable.
  */
 
-static void floppy_rb0_complete(struct bio *bio, int err)
+struct rb0_cbdata {
+	int drive;
+	struct completion complete;
+};
+
+static void floppy_rb0_cb(struct bio *bio, int err)
 {
-	complete((struct completion *)bio->bi_private);
+	struct rb0_cbdata *cbdata = (struct rb0_cbdata *)bio->bi_private;
+	int drive = cbdata->drive;
+
+	if (err) {
+		pr_info("floppy: error %d while reading block 0", err);
+		set_bit(FD_OPEN_SHOULD_FAIL_BIT, &UDRS->flags);
+	}
+	complete(&cbdata->complete);
 }
 
-static int __floppy_read_block_0(struct block_device *bdev)
+static int __floppy_read_block_0(struct block_device *bdev, int drive)
 {
 	struct bio bio;
 	struct bio_vec bio_vec;
-	struct completion complete;
 	struct page *page;
+	struct rb0_cbdata cbdata;
 	size_t size;
 
 	page = alloc_page(GFP_NOIO);
@@ -3769,6 +3784,8 @@ static int __floppy_read_block_0(struct block_device *bdev)
 	if (!size)
 		size = 1024;
 
+	cbdata.drive = drive;
+
 	bio_init(&bio);
 	bio.bi_io_vec = &bio_vec;
 	bio_vec.bv_page = page;
@@ -3779,13 +3796,14 @@ static int __floppy_read_block_0(struct block_device *bdev)
 	bio.bi_bdev = bdev;
 	bio.bi_iter.bi_sector = 0;
 	bio.bi_flags = (1 << BIO_QUIET);
-	init_completion(&complete);
-	bio.bi_private = &complete;
-	bio.bi_end_io = floppy_rb0_complete;
+	bio.bi_private = &cbdata;
+	bio.bi_end_io = floppy_rb0_cb;
 
 	submit_bio(READ, &bio);
 	process_fd_request();
-	wait_for_completion(&complete);
+
+	init_completion(&cbdata.complete);
+	wait_for_completion(&cbdata.complete);
 
 	__free_page(page);
 
@@ -3827,7 +3845,7 @@ static int floppy_revalidate(struct gendisk *disk)
 			UDRS->generation++;
 		if (drive_no_geom(drive)) {
 			/* auto-sensing */
-			res = __floppy_read_block_0(opened_bdev[drive]);
+			res = __floppy_read_block_0(opened_bdev[drive], drive);
 		} else {
 			if (cf)
 				poll_drive(false, FD_RAW_NEED_DISK);
