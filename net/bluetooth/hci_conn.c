@@ -802,12 +802,14 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 
 	/* An authenticated combination key has sufficient security for any
 	   security level. */
-	if (conn->key_type == HCI_LK_AUTH_COMBINATION_P192)
+	if (conn->key_type == HCI_LK_AUTH_COMBINATION_P192 ||
+	    conn->key_type == HCI_LK_AUTH_COMBINATION_P256)
 		goto encrypt;
 
 	/* An unauthenticated combination key has sufficient security for
 	   security level 1 and 2. */
-	if (conn->key_type == HCI_LK_UNAUTH_COMBINATION_P192 &&
+	if ((conn->key_type == HCI_LK_UNAUTH_COMBINATION_P192 ||
+	     conn->key_type == HCI_LK_UNAUTH_COMBINATION_P256) &&
 	    (sec_level == BT_SECURITY_MEDIUM || sec_level == BT_SECURITY_LOW))
 		goto encrypt;
 
