@@ -1178,6 +1178,50 @@ static int ironlake_drpc_info(struct seq_file *m)
 	return 0;
 }
 
+static int vlv_drpc_info(struct seq_file *m)
+{
+
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 rpmodectl1, rcctl1;
+	unsigned fw_rendercount = 0, fw_mediacount = 0;
+
+	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
+	rcctl1 = I915_READ(GEN6_RC_CONTROL);
+
+	seq_printf(m, "Video Turbo Mode: %s\n",
+		   yesno(rpmodectl1 & GEN6_RP_MEDIA_TURBO));
+	seq_printf(m, "Turbo enabled: %s\n",
+		   yesno(rpmodectl1 & GEN6_RP_ENABLE));
+	seq_printf(m, "HW control enabled: %s\n",
+		   yesno(rpmodectl1 & GEN6_RP_ENABLE));
+	seq_printf(m, "SW control enabled: %s\n",
+		   yesno((rpmodectl1 & GEN6_RP_MEDIA_MODE_MASK) ==
+			  GEN6_RP_MEDIA_SW_MODE));
+	seq_printf(m, "RC6 Enabled: %s\n",
+		   yesno(rcctl1 & (GEN7_RC_CTL_TO_MODE |
+					GEN6_RC_CTL_EI_MODE(1))));
+	seq_printf(m, "Render Power Well: %s\n",
+			(I915_READ(VLV_GTLC_PW_STATUS) &
+				VLV_GTLC_PW_RENDER_STATUS_MASK) ? "Up" : "Down");
+	seq_printf(m, "Media Power Well: %s\n",
+			(I915_READ(VLV_GTLC_PW_STATUS) &
+				VLV_GTLC_PW_MEDIA_STATUS_MASK) ? "Up" : "Down");
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+	fw_rendercount = dev_priv->uncore.fw_rendercount;
+	fw_mediacount = dev_priv->uncore.fw_mediacount;
+	spin_unlock_irq(&dev_priv->uncore.lock);
+
+	seq_printf(m, "Forcewake Render Count = %u\n", fw_rendercount);
+	seq_printf(m, "Forcewake Media Count = %u\n", fw_mediacount);
+
+
+	return 0;
+}
+
+
 static int gen6_drpc_info(struct seq_file *m)
 {
 
@@ -1283,7 +1327,9 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 
-	if (IS_GEN6(dev) || IS_GEN7(dev))
+	if (IS_VALLEYVIEW(dev))
+		return vlv_drpc_info(m);
+	else if (IS_GEN6(dev) || IS_GEN7(dev))
 		return gen6_drpc_info(m);
 	else
 		return ironlake_drpc_info(m);
