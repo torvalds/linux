@@ -34,8 +34,9 @@ static void nft_reject_eval(const struct nft_expr *expr,
 			      const struct nft_pktinfo *pkt)
 {
 	struct nft_reject *priv = nft_expr_priv(expr);
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
 	struct net *net = dev_net((pkt->in != NULL) ? pkt->in : pkt->out);
-
+#endif
 	switch (priv->type) {
 	case NFT_REJECT_ICMP_UNREACH:
 		if (priv->family == NFPROTO_IPV4)
@@ -43,15 +44,15 @@ static void nft_reject_eval(const struct nft_expr *expr,
 #if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
 		else if (priv->family == NFPROTO_IPV6)
 			nf_send_unreach6(net, pkt->skb, priv->icmp_code,
-				      pkt->hooknum);
+				      pkt->ops->hooknum);
 #endif
 		break;
 	case NFT_REJECT_TCP_RST:
 		if (priv->family == NFPROTO_IPV4)
-			nf_send_reset(pkt->skb, pkt->hooknum);
+			nf_send_reset(pkt->skb, pkt->ops->hooknum);
 #if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
 		else if (priv->family == NFPROTO_IPV6)
-			nf_send_reset6(net, pkt->skb, pkt->hooknum);
+			nf_send_reset6(net, pkt->skb, pkt->ops->hooknum);
 #endif
 		break;
 	}

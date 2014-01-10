@@ -13,9 +13,10 @@ struct nft_pktinfo {
 	struct sk_buff			*skb;
 	const struct net_device		*in;
 	const struct net_device		*out;
-	u8				hooknum;
+	const struct nf_hook_ops	*ops;
 	u8				nhoff;
 	u8				thoff;
+	u8				tprot;
 	/* for x_tables compatibility */
 	struct xt_action_param		xt;
 };
@@ -29,7 +30,8 @@ static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
 	pkt->skb = skb;
 	pkt->in = pkt->xt.in = in;
 	pkt->out = pkt->xt.out = out;
-	pkt->hooknum = pkt->xt.hooknum = ops->hooknum;
+	pkt->ops = ops;
+	pkt->xt.hooknum = ops->hooknum;
 	pkt->xt.family = ops->pf;
 }
 
@@ -421,6 +423,8 @@ struct nft_stats {
 	u64 pkts;
 };
 
+#define NFT_HOOK_OPS_MAX		2
+
 /**
  *	struct nft_base_chain - nf_tables base chain
  *
@@ -431,8 +435,8 @@ struct nft_stats {
  *	@chain: the chain
  */
 struct nft_base_chain {
-	struct nf_hook_ops		ops;
-	enum nft_chain_type		type;
+	struct nf_hook_ops		ops[NFT_HOOK_OPS_MAX];
+	const struct nf_chain_type	*type;
 	u8				policy;
 	struct nft_stats __percpu	*stats;
 	struct nft_chain		chain;
@@ -443,8 +447,8 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
-unsigned int nft_do_chain_pktinfo(struct nft_pktinfo *pkt,
-				  const struct nf_hook_ops *ops);
+unsigned int nft_do_chain(struct nft_pktinfo *pkt,
+			  const struct nf_hook_ops *ops);
 
 /**
  *	struct nft_table - nf_tables table
@@ -475,6 +479,8 @@ struct nft_table {
  *	@nhooks: number of hooks in this family
  *	@owner: module owner
  *	@tables: used internally
+ *	@nops: number of hook ops in this family
+ *	@hook_ops_init: initialization function for chain hook ops
  *	@hooks: hookfn overrides for packet validation
  */
 struct nft_af_info {
@@ -483,23 +489,36 @@ struct nft_af_info {
 	unsigned int			nhooks;
 	struct module			*owner;
 	struct list_head		tables;
+	unsigned int			nops;
+	void				(*hook_ops_init)(struct nf_hook_ops *,
+							 unsigned int);
 	nf_hookfn			*hooks[NF_MAX_HOOKS];
 };
 
 int nft_register_afinfo(struct net *, struct nft_af_info *);
 void nft_unregister_afinfo(struct nft_af_info *);
 
+/**
+ * 	struct nf_chain_type - nf_tables chain type info
+ *
+ * 	@name: name of the type
+ * 	@type: numeric identifier
+ * 	@family: address family
+ * 	@owner: module owner
+ * 	@hook_mask: mask of valid hooks
+ * 	@hooks: hookfn overrides
+ */
 struct nf_chain_type {
-	unsigned int		hook_mask;
-	const char		*name;
-	enum nft_chain_type	type;
-	nf_hookfn		*fn[NF_MAX_HOOKS];
-	struct module		*me;
-	int			family;
+	const char			*name;
+	enum nft_chain_type		type;
+	int				family;
+	struct module			*owner;
+	unsigned int			hook_mask;
+	nf_hookfn			*hooks[NF_MAX_HOOKS];
 };
 
-int nft_register_chain_type(struct nf_chain_type *);
-void nft_unregister_chain_type(struct nf_chain_type *);
+int nft_register_chain_type(const struct nf_chain_type *);
+void nft_unregister_chain_type(const struct nf_chain_type *);
 
 int nft_register_expr(struct nft_expr_type *);
 void nft_unregister_expr(struct nft_expr_type *);

@@ -428,6 +428,14 @@ config NF_TABLES
 
 	  To compile it as a module, choose M here.
 
+config NF_TABLES_INET
+	depends on NF_TABLES
+	select NF_TABLES_IPV4
+	select NF_TABLES_IPV6
+	tristate "Netfilter nf_tables mixed IPv4/IPv6 tables support"
+	help
+	  This option enables support for a mixed IPv4/IPv6 "inet" table.
+
 config NFT_EXTHDR
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables IPv6 exthdr module"

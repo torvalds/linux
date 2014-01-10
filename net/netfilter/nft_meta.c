@@ -43,6 +43,12 @@ static void nft_meta_get_eval(const struct nft_expr *expr,
 	case NFT_META_PROTOCOL:
 		*(__be16 *)dest->data = skb->protocol;
 		break;
+	case NFT_META_NFPROTO:
+		dest->data[0] = pkt->ops->pf;
+		break;
+	case NFT_META_L4PROTO:
+		dest->data[0] = pkt->tprot;
+		break;
 	case NFT_META_PRIORITY:
 		dest->data[0] = skb->priority;
 		break;
@@ -181,6 +187,8 @@ static int nft_meta_init_validate_get(uint32_t key)
 	switch (key) {
 	case NFT_META_LEN:
 	case NFT_META_PROTOCOL:
+	case NFT_META_NFPROTO:
+	case NFT_META_L4PROTO:
 	case NFT_META_PRIORITY:
 	case NFT_META_MARK:
 	case NFT_META_IIF:
@@ -231,6 +239,9 @@ static int nft_meta_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		return err;
 
 	priv->sreg = ntohl(nla_get_be32(tb[NFTA_META_SREG]));
+	err = nft_validate_input_register(priv->sreg);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
