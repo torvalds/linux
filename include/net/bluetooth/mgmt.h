@@ -309,6 +309,14 @@ struct mgmt_cp_add_remote_oob_data {
 	__u8	randomizer[16];
 } __packed;
 #define MGMT_ADD_REMOTE_OOB_DATA_SIZE	(MGMT_ADDR_INFO_SIZE + 32)
+struct mgmt_cp_add_remote_oob_ext_data {
+	struct mgmt_addr_info addr;
+	__u8	hash192[16];
+	__u8	randomizer192[16];
+	__u8	hash256[16];
+	__u8	randomizer256[16];
+} __packed;
+#define MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE (MGMT_ADDR_INFO_SIZE + 64)
 
 #define MGMT_OP_REMOVE_REMOTE_OOB_DATA	0x0022
 struct mgmt_cp_remove_remote_oob_data {

@@ -3096,23 +3096,46 @@ unlock:
 static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 			       void *data, u16 len)
 {
-	struct mgmt_cp_add_remote_oob_data *cp = data;
-	u8 status;
 	int err;
 
 	BT_DBG("%s ", hdev->name);
 
 	hci_dev_lock(hdev);
 
-	err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr, cp->hash,
-				      cp->randomizer);
-	if (err < 0)
-		status = MGMT_STATUS_FAILED;
-	else
-		status = MGMT_STATUS_SUCCESS;
+	if (len == MGMT_ADD_REMOTE_OOB_DATA_SIZE) {
+		struct mgmt_cp_add_remote_oob_data *cp = data;
+		u8 status;
 
-	err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_REMOTE_OOB_DATA, status,
-			   &cp->addr, sizeof(cp->addr));
+		err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr,
+					      cp->hash, cp->randomizer);
+		if (err < 0)
+			status = MGMT_STATUS_FAILED;
+		else
+			status = MGMT_STATUS_SUCCESS;
+
+		err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_REMOTE_OOB_DATA,
+				   status, &cp->addr, sizeof(cp->addr));
+	} else if (len == MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE) {
+		struct mgmt_cp_add_remote_oob_ext_data *cp = data;
+		u8 status;
+
+		err = hci_add_remote_oob_ext_data(hdev, &cp->addr.bdaddr,
+						  cp->hash192,
+						  cp->randomizer192,
+						  cp->hash256,
+						  cp->randomizer256);
+		if (err < 0)
+			status = MGMT_STATUS_FAILED;
+		else
+			status = MGMT_STATUS_SUCCESS;
+
+		err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_REMOTE_OOB_DATA,
+				   status, &cp->addr, sizeof(cp->addr));
+	} else {
+		BT_ERR("add_remote_oob_data: invalid length of %u bytes", len);
+		err = cmd_status(sk, hdev->id, MGMT_OP_ADD_REMOTE_OOB_DATA,
+				 MGMT_STATUS_INVALID_PARAMS);
+	}
 
 	hci_dev_unlock(hdev);
 	return err;
@@ -4202,7 +4225,7 @@ static const struct mgmt_handler {
 	{ user_passkey_reply,     false, MGMT_USER_PASSKEY_REPLY_SIZE },
 	{ user_passkey_neg_reply, false, MGMT_USER_PASSKEY_NEG_REPLY_SIZE },
 	{ read_local_oob_data,    false, MGMT_READ_LOCAL_OOB_DATA_SIZE },
-	{ add_remote_oob_data,    false, MGMT_ADD_REMOTE_OOB_DATA_SIZE },
+	{ add_remote_oob_data,    true,  MGMT_ADD_REMOTE_OOB_DATA_SIZE },
 	{ remove_remote_oob_data, false, MGMT_REMOVE_REMOTE_OOB_DATA_SIZE },
 	{ start_discovery,        false, MGMT_START_DISCOVERY_SIZE },
 	{ stop_discovery,         false, MGMT_STOP_DISCOVERY_SIZE },
