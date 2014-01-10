@@ -431,9 +431,10 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 			instr2 = __mem_to_opcode_thumb16(instr2);
 			instr = __opcode_thumb32_compose(instr, instr2);
 		}
-	} else if (get_user(instr, (u32 __user *)pc)) {
+	} else {
+		if (get_user(instr, (u32 __user *)pc))
+			goto die_sig;
 		instr = __mem_to_opcode_arm(instr);
-		goto die_sig;
 	}
 
 	if (call_undef_hook(regs, instr) == 0)
