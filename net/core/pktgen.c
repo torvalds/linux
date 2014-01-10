@@ -1482,7 +1482,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		sprintf(pg_result, "OK: flows=%u", pkt_dev->cflows);
 		return count;
 	}
-
+#ifdef CONFIG_XFRM
 	if (!strcmp(name, "spi")) {
 		len = num_arg(&user_buffer[i], 10, &value);
 		if (len < 0)
@@ -1493,7 +1493,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		sprintf(pg_result, "OK: spi=%u", pkt_dev->spi);
 		return count;
 	}
-
+#endif
 	if (!strcmp(name, "flowlen")) {
 		len = num_arg(&user_buffer[i], 10, &value);
 		if (len < 0)
