@@ -116,8 +116,8 @@ config SOC_IMX35
 	select ARCH_MXC_IOMUX_V3
 	select HAVE_EPIT
 	select MXC_AVIC
+	select PINCTRL_IMX35
 	select SMP_ON_UP if SMP
-	select PINCTRL
 
 config SOC_IMX5
 	bool
