@@ -2057,7 +2057,6 @@ int bnx2x_del_all_macs(struct bnx2x *bp,
 void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p);
 void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 		    u8 vf_valid, int fw_sb_id, int igu_sb_id);
-u32 bnx2x_get_pretend_reg(struct bnx2x *bp);
 int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 int bnx2x_set_mult_gpio(struct bnx2x *bp, u8 pins, u32 mode);

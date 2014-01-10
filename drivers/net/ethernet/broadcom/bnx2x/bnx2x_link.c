@@ -205,6 +205,11 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 		(_bank + (_addr & 0xf)), \
 		_val)
 
+static int bnx2x_check_half_open_conn(struct link_params *params,
+				      struct link_vars *vars, u8 notify);
+static int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
+				      struct link_params *params);
+
 static u32 bnx2x_bits_en(struct bnx2x *bp, u32 reg, u32 bits)
 {
 	u32 val = REG_RD(bp, reg);
@@ -1399,57 +1404,6 @@ static void bnx2x_update_pfc_xmac(struct link_params *params,
 	udelay(30);
 }
 
-
-static void bnx2x_emac_get_pfc_stat(struct link_params *params,
-				    u32 pfc_frames_sent[2],
-				    u32 pfc_frames_received[2])
-{
-	/* Read pfc statistic */
-	struct bnx2x *bp = params->bp;
-	u32 emac_base = params->port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
-	u32 val_xon = 0;
-	u32 val_xoff = 0;
-
-	DP(NETIF_MSG_LINK, "pfc statistic read from EMAC\n");
-
-	/* PFC received frames */
-	val_xoff = REG_RD(bp, emac_base +
-				EMAC_REG_RX_PFC_STATS_XOFF_RCVD);
-	val_xoff &= EMAC_REG_RX_PFC_STATS_XOFF_RCVD_COUNT;
-	val_xon = REG_RD(bp, emac_base + EMAC_REG_RX_PFC_STATS_XON_RCVD);
-	val_xon &= EMAC_REG_RX_PFC_STATS_XON_RCVD_COUNT;
-
-	pfc_frames_received[0] = val_xon + val_xoff;
-
-	/* PFC received sent */
-	val_xoff = REG_RD(bp, emac_base +
-				EMAC_REG_RX_PFC_STATS_XOFF_SENT);
-	val_xoff &= EMAC_REG_RX_PFC_STATS_XOFF_SENT_COUNT;
-	val_xon = REG_RD(bp, emac_base + EMAC_REG_RX_PFC_STATS_XON_SENT);
-	val_xon &= EMAC_REG_RX_PFC_STATS_XON_SENT_COUNT;
-
-	pfc_frames_sent[0] = val_xon + val_xoff;
-}
-
-/* Read pfc statistic*/
-void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
-			 u32 pfc_frames_sent[2],
-			 u32 pfc_frames_received[2])
-{
-	/* Read pfc statistic */
-	struct bnx2x *bp = params->bp;
-
-	DP(NETIF_MSG_LINK, "pfc statistic\n");
-
-	if (!vars->link_up)
-		return;
-
-	if (vars->mac_type == MAC_TYPE_EMAC) {
-		DP(NETIF_MSG_LINK, "About to read PFC stats from EMAC\n");
-		bnx2x_emac_get_pfc_stat(params, pfc_frames_sent,
-					pfc_frames_received);
-	}
-}
 /******************************************************************/
 /*			MAC/PBF section				  */
 /******************************************************************/
@@ -13413,9 +13367,9 @@ static u8 bnx2x_analyze_link_error(struct link_params *params,
 *	a fault, for example, due to break in the TX side of fiber.
 *
 ******************************************************************************/
-int bnx2x_check_half_open_conn(struct link_params *params,
-				struct link_vars *vars,
-				u8 notify)
+static int bnx2x_check_half_open_conn(struct link_params *params,
+				      struct link_vars *vars,
+				      u8 notify)
 {
 	struct bnx2x *bp = params->bp;
 	u32 lss_status = 0;

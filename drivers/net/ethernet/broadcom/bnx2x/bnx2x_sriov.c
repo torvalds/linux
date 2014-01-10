@@ -799,10 +799,10 @@ int bnx2x_vfop_mac_list_cmd(struct bnx2x *bp,
 	return -ENOMEM;
 }
 
-int bnx2x_vfop_vlan_set_cmd(struct bnx2x *bp,
-			    struct bnx2x_virtf *vf,
-			    struct bnx2x_vfop_cmd *cmd,
-			    int qid, u16 vid, bool add)
+static int bnx2x_vfop_vlan_set_cmd(struct bnx2x *bp,
+				   struct bnx2x_virtf *vf,
+				   struct bnx2x_vfop_cmd *cmd,
+				   int qid, u16 vid, bool add)
 {
 	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
 	int rc;

@@ -21,9 +21,11 @@
 #include "bnx2x_cmn.h"
 #include <linux/crc32.h>
 
+static int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx);
+
 /* place a given tlv on the tlv buffer at a given offset */
-void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
-		   u16 length)
+static void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list,
+			  u16 offset, u16 type, u16 length)
 {
 	struct channel_tlv *tl =
 		(struct channel_tlv *)(tlvs_list + offset);
@@ -33,8 +35,8 @@ void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
 }
 
 /* Clear the mailbox and init the header of the first tlv */
-void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
-		     u16 type, u16 length)
+static void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
+			    u16 type, u16 length)
 {
 	mutex_lock(&bp->vf2pf_mutex);
 
@@ -52,7 +54,8 @@ void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
 }
 
 /* releases the mailbox */
-void bnx2x_vfpf_finalize(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv)
+static void bnx2x_vfpf_finalize(struct bnx2x *bp,
+				struct vfpf_first_tlv *first_tlv)
 {
 	DP(BNX2X_MSG_IOV, "done sending [%d] tlv over vf pf channel\n",
 	   first_tlv->tl.type);
@@ -85,7 +88,7 @@ static void *bnx2x_search_tlv_list(struct bnx2x *bp, void *tlvs_list,
 }
 
 /* list the types and lengths of the tlvs on the buffer */
-void bnx2x_dp_tlv_list(struct bnx2x *bp, void *tlvs_list)
+static void bnx2x_dp_tlv_list(struct bnx2x *bp, void *tlvs_list)
 {
 	int i = 1;
 	struct channel_tlv *tlv = (struct channel_tlv *)tlvs_list;
@@ -633,7 +636,7 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	return rc;
 }
 
-int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx)
+static int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx)
 {
 	struct vfpf_q_op_tlv *req = &bp->vf2pf_mbox->req.q_op;
 	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;

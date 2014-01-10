@@ -94,8 +94,8 @@ MODULE_FIRMWARE(FW_FILE_NAME_E1);
 MODULE_FIRMWARE(FW_FILE_NAME_E1H);
 MODULE_FIRMWARE(FW_FILE_NAME_E2);
 
-int num_queues;
-module_param(num_queues, int, 0);
+int bnx2x_num_queues;
+module_param_named(num_queues, bnx2x_num_queues, int, 0);
 MODULE_PARM_DESC(num_queues,
 		 " Set number of queues (default is as a number of CPUs)");
 
@@ -103,7 +103,7 @@ static int disable_tpa;
 module_param(disable_tpa, int, 0);
 MODULE_PARM_DESC(disable_tpa, " Disable the TPA (LRO) feature");
 
-int int_mode;
+static int int_mode;
 module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode other than MSI-X "
 				"(1 INT#x; 2 MSI)");
@@ -279,6 +279,12 @@ MODULE_DEVICE_TABLE(pci, bnx2x_pci_tbl);
 #define BNX2X_PREV_WAIT_NEEDED 1
 static DEFINE_SEMAPHORE(bnx2x_prev_sem);
 static LIST_HEAD(bnx2x_prev_list);
+
+/* Forward declaration */
+static struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev);
+static u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp);
+static int bnx2x_set_storm_rx_mode(struct bnx2x *bp);
+
 /****************************************************************************
 * General service functions
 ****************************************************************************/
@@ -5857,11 +5863,11 @@ static void bnx2x_init_eq_ring(struct bnx2x *bp)
 }
 
 /* called with netif_addr_lock_bh() */
-int bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
-			unsigned long rx_mode_flags,
-			unsigned long rx_accept_flags,
-			unsigned long tx_accept_flags,
-			unsigned long ramrod_flags)
+static int bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
+			       unsigned long rx_mode_flags,
+			       unsigned long rx_accept_flags,
+			       unsigned long tx_accept_flags,
+			       unsigned long ramrod_flags)
 {
 	struct bnx2x_rx_mode_ramrod_params ramrod_param;
 	int rc;
@@ -5969,7 +5975,7 @@ static int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
 }
 
 /* called with netif_addr_lock_bh() */
-int bnx2x_set_storm_rx_mode(struct bnx2x *bp)
+static int bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 {
 	unsigned long rx_mode_flags = 0, ramrod_flags = 0;
 	unsigned long rx_accept_flags = 0, tx_accept_flags = 0;
@@ -6163,6 +6169,47 @@ static void bnx2x_init_tx_rings(struct bnx2x *bp)
 	for_each_eth_queue(bp, i)
 		for_each_cos_in_tx_queue(&bp->fp[i], cos)
 			bnx2x_init_tx_ring_one(bp->fp[i].txdata_ptr[cos]);
+}
+
+static void bnx2x_init_fcoe_fp(struct bnx2x *bp)
+{
+	struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
+	unsigned long q_type = 0;
+
+	bnx2x_fcoe(bp, rx_queue) = BNX2X_NUM_ETH_QUEUES(bp);
+	bnx2x_fcoe(bp, cl_id) = bnx2x_cnic_eth_cl_id(bp,
+						     BNX2X_FCOE_ETH_CL_ID_IDX);
+	bnx2x_fcoe(bp, cid) = BNX2X_FCOE_ETH_CID(bp);
+	bnx2x_fcoe(bp, fw_sb_id) = DEF_SB_ID;
+	bnx2x_fcoe(bp, igu_sb_id) = bp->igu_dsb_id;
+	bnx2x_fcoe(bp, rx_cons_sb) = BNX2X_FCOE_L2_RX_INDEX;
+	bnx2x_init_txdata(bp, bnx2x_fcoe(bp, txdata_ptr[0]),
+			  fp->cid, FCOE_TXQ_IDX(bp), BNX2X_FCOE_L2_TX_INDEX,
+			  fp);
+
+	DP(NETIF_MSG_IFUP, "created fcoe tx data (fp index %d)\n", fp->index);
+
+	/* qZone id equals to FW (per path) client id */
+	bnx2x_fcoe(bp, cl_qzone_id) = bnx2x_fp_qzone_id(fp);
+	/* init shortcut */
+	bnx2x_fcoe(bp, ustorm_rx_prods_offset) =
+		bnx2x_rx_ustorm_prods_offset(fp);
+
+	/* Configure Queue State object */
+	__set_bit(BNX2X_Q_TYPE_HAS_RX, &q_type);
+	__set_bit(BNX2X_Q_TYPE_HAS_TX, &q_type);
+
+	/* No multi-CoS for FCoE L2 client */
+	BUG_ON(fp->max_cos != 1);
+
+	bnx2x_init_queue_obj(bp, &bnx2x_sp_obj(bp, fp).q_obj, fp->cl_id,
+			     &fp->cid, 1, BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
+			     bnx2x_sp_mapping(bp, q_rdata), q_type);
+
+	DP(NETIF_MSG_IFUP,
+	   "queue[%d]: bnx2x_init_sb(%p,%p) cl_id %d fw_sb %d igu_sb %d\n",
+	   fp->index, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
+	   fp->igu_sb_id);
 }
 
 void bnx2x_nic_init_cnic(struct bnx2x *bp)
@@ -8737,16 +8784,16 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		int path = BP_PATH(bp);
 
 		DP(NETIF_MSG_IFDOWN, "NO MCP - load counts[%d]      %d, %d, %d\n",
-		   path, load_count[path][0], load_count[path][1],
-		   load_count[path][2]);
-		load_count[path][0]--;
-		load_count[path][1 + port]--;
+		   path, bnx2x_load_count[path][0], bnx2x_load_count[path][1],
+		   bnx2x_load_count[path][2]);
+		bnx2x_load_count[path][0]--;
+		bnx2x_load_count[path][1 + port]--;
 		DP(NETIF_MSG_IFDOWN, "NO MCP - new load counts[%d]  %d, %d, %d\n",
-		   path, load_count[path][0], load_count[path][1],
-		   load_count[path][2]);
-		if (load_count[path][0] == 0)
+		   path, bnx2x_load_count[path][0], bnx2x_load_count[path][1],
+		   bnx2x_load_count[path][2]);
+		if (bnx2x_load_count[path][0] == 0)
 			reset_code = FW_MSG_CODE_DRV_UNLOAD_COMMON;
-		else if (load_count[path][1 + port] == 0)
+		else if (bnx2x_load_count[path][1 + port] == 0)
 			reset_code = FW_MSG_CODE_DRV_UNLOAD_PORT;
 		else
 			reset_code = FW_MSG_CODE_DRV_UNLOAD_FUNCTION;
@@ -9772,7 +9819,7 @@ period_task_exit:
  * Init service functions
  */
 
-u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
+static u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
 {
 	u32 base = PXP2_REG_PGL_PRETEND_FUNC_F0;
 	u32 stride = PXP2_REG_PGL_PRETEND_FUNC_F1 - base;
@@ -12005,7 +12052,7 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 }
 
 /* If bp->state is OPEN, should be called with netif_addr_lock_bh() */
-void bnx2x_set_rx_mode(struct net_device *dev)
+static void bnx2x_set_rx_mode(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -12782,8 +12829,6 @@ static int set_is_vf(int chip_id)
 		return false;
 	}
 }
-
-struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev);
 
 static int bnx2x_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
@@ -13859,7 +13904,7 @@ static int bnx2x_unregister_cnic(struct net_device *dev)
 	return 0;
 }
 
-struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
+static struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
@@ -13909,7 +13954,7 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	return cp;
 }
 
-u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp)
+static u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp)
 {
 	struct bnx2x *bp = fp->bp;
 	u32 offset = BAR_USTRORM_INTMEM;
