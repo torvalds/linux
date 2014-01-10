@@ -874,6 +874,16 @@ config I2C_PARPORT_LIGHT
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-parport-light.
 
+config I2C_ROBOTFUZZ_OSIF
+	tristate "RobotFuzz Open Source InterFace USB adapter"
+	depends on USB
+	help
+	  If you say yes to this option, support will be included for the
+	  RobotFuzz Open Source InterFace USB to I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-osif.
+
 config I2C_TAOS_EVM
 	tristate "TAOS evaluation module"
 	depends on TTY
