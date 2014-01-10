@@ -107,6 +107,7 @@ enum {
  *	(nla string, length 2)
  * @HWSIM_ATTR_REG_CUSTOM_REG: custom regulatory domain index (u32 attribute)
  * @HWSIM_ATTR_REG_STRICT_REG: request REGULATORY_STRICT_REG (flag attribute)
+ * @HWSIM_ATTR_SUPPORT_P2P_DEVICE: support P2P Device virtual interface (flag)
  * @__HWSIM_ATTR_MAX: enum limit
  */
 
@@ -126,6 +127,7 @@ enum {
 	HWSIM_ATTR_REG_HINT_ALPHA2,
 	HWSIM_ATTR_REG_CUSTOM_REG,
 	HWSIM_ATTR_REG_STRICT_REG,
+	HWSIM_ATTR_SUPPORT_P2P_DEVICE,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)

@@ -57,6 +57,10 @@ static bool rctbl = false;
 module_param(rctbl, bool, 0444);
 MODULE_PARM_DESC(rctbl, "Handle rate control table");
 
+static bool support_p2p_device = true;
+module_param(support_p2p_device, bool, 0444);
+MODULE_PARM_DESC(support_p2p_device, "Support P2P-Device interface type");
+
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer
  *
@@ -335,7 +339,8 @@ static const struct ieee80211_iface_limit hwsim_if_limits[] = {
 #endif
 				 BIT(NL80211_IFTYPE_AP) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
-	{ .max = 1, .types = BIT(NL80211_IFTYPE_P2P_DEVICE) },
+	/* must be last, see hwsim_if_comb */
+	{ .max = 1, .types = BIT(NL80211_IFTYPE_P2P_DEVICE) }
 };
 
 static const struct ieee80211_iface_limit hwsim_if_dfs_limits[] = {
@@ -343,6 +348,27 @@ static const struct ieee80211_iface_limit hwsim_if_dfs_limits[] = {
 };
 
 static const struct ieee80211_iface_combination hwsim_if_comb[] = {
+	{
+		.limits = hwsim_if_limits,
+		/* remove the last entry which is P2P_DEVICE */
+		.n_limits = ARRAY_SIZE(hwsim_if_limits) - 1,
+		.max_interfaces = 2048,
+		.num_different_channels = 1,
+	},
+	{
+		.limits = hwsim_if_dfs_limits,
+		.n_limits = ARRAY_SIZE(hwsim_if_dfs_limits),
+		.max_interfaces = 8,
+		.num_different_channels = 1,
+		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+				       BIT(NL80211_CHAN_WIDTH_20) |
+				       BIT(NL80211_CHAN_WIDTH_40) |
+				       BIT(NL80211_CHAN_WIDTH_80) |
+				       BIT(NL80211_CHAN_WIDTH_160),
+	}
+};
+
+static const struct ieee80211_iface_combination hwsim_if_comb_p2p_dev[] = {
 	{
 		.limits = hwsim_if_limits,
 		.n_limits = ARRAY_SIZE(hwsim_if_limits),
@@ -468,6 +494,7 @@ static const struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
 	[HWSIM_ATTR_REG_HINT_ALPHA2] = { .type = NLA_STRING, .len = 2 },
 	[HWSIM_ATTR_REG_CUSTOM_REG] = { .type = NLA_U32 },
 	[HWSIM_ATTR_REG_STRICT_REG] = { .type = NLA_FLAG },
+	[HWSIM_ATTR_SUPPORT_P2P_DEVICE] = { .type = NLA_FLAG },
 };
 
 static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
@@ -1936,7 +1963,7 @@ static struct ieee80211_ops mac80211_hwsim_mchan_ops;
 
 static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 				       const struct ieee80211_regdomain *regd,
-				       bool reg_strict)
+				       bool reg_strict, bool p2p_device)
 {
 	int err;
 	u8 addr[ETH_ALEN];
@@ -2000,8 +2027,15 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 		/* For channels > 1 DFS is not allowed */
 		hw->wiphy->n_iface_combinations = 1;
 		hw->wiphy->iface_combinations = &data->if_combination;
-		data->if_combination = hwsim_if_comb[0];
 		data->if_combination.num_different_channels = data->channels;
+		if (p2p_device)
+			data->if_combination = hwsim_if_comb_p2p_dev[0];
+		else
+			data->if_combination = hwsim_if_comb[0];
+	} else if (p2p_device) {
+		hw->wiphy->iface_combinations = hwsim_if_comb_p2p_dev;
+		hw->wiphy->n_iface_combinations =
+			ARRAY_SIZE(hwsim_if_comb_p2p_dev);
 	} else {
 		hw->wiphy->iface_combinations = hwsim_if_comb;
 		hw->wiphy->n_iface_combinations = ARRAY_SIZE(hwsim_if_comb);
@@ -2017,8 +2051,10 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 				     BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				     BIT(NL80211_IFTYPE_P2P_GO) |
 				     BIT(NL80211_IFTYPE_ADHOC) |
-				     BIT(NL80211_IFTYPE_MESH_POINT) |
-				     BIT(NL80211_IFTYPE_P2P_DEVICE);
+				     BIT(NL80211_IFTYPE_MESH_POINT);
+
+	if (p2p_device)
+		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_DEVICE);
 
 	hw->flags = IEEE80211_HW_MFP_CAPABLE |
 		    IEEE80211_HW_SIGNAL_DBM |
@@ -2407,6 +2443,7 @@ static int hwsim_create_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	const char *alpha2 = NULL;
 	const struct ieee80211_regdomain *regd = NULL;
 	bool reg_strict = info->attrs[HWSIM_ATTR_REG_STRICT_REG];
+	bool p2p_device = info->attrs[HWSIM_ATTR_SUPPORT_P2P_DEVICE];
 
 	if (info->attrs[HWSIM_ATTR_CHANNELS])
 		chans = nla_get_u32(info->attrs[HWSIM_ATTR_CHANNELS]);
@@ -2422,7 +2459,8 @@ static int hwsim_create_radio_nl(struct sk_buff *msg, struct genl_info *info)
 		regd = hwsim_world_regdom_custom[idx];
 	}
 
-	return mac80211_hwsim_create_radio(chans, alpha2, regd, reg_strict);
+	return mac80211_hwsim_create_radio(chans, alpha2, regd, reg_strict,
+					   p2p_device);
 }
 
 static int hwsim_destroy_radio_nl(struct sk_buff *msg, struct genl_info *info)
@@ -2640,7 +2678,8 @@ static int __init init_mac80211_hwsim(void)
 		}
 
 		err = mac80211_hwsim_create_radio(channels, reg_alpha2,
-						  regd, reg_strict);
+						  regd, reg_strict,
+						  support_p2p_device);
 		if (err < 0)
 			goto out_free_radios;
 	}
