@@ -436,6 +436,9 @@ static int remove_ftrace_list_ops(struct ftrace_ops **list,
 
 static int __register_ftrace_function(struct ftrace_ops *ops)
 {
+	if (ops->flags & FTRACE_OPS_FL_DELETED)
+		return -EINVAL;
+
 	if (FTRACE_WARN_ON(ops == &global_ops))
 		return -EINVAL;
 
@@ -4112,6 +4115,36 @@ static const struct file_operations ftrace_graph_notrace_fops = {
 };
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
+void ftrace_create_filter_files(struct ftrace_ops *ops,
+				struct dentry *parent)
+{
+
+	trace_create_file("set_ftrace_filter", 0644, parent,
+			  ops, &ftrace_filter_fops);
+
+	trace_create_file("set_ftrace_notrace", 0644, parent,
+			  ops, &ftrace_notrace_fops);
+}
+
+/*
+ * The name "destroy_filter_files" is really a misnomer. Although
+ * in the future, it may actualy delete the files, but this is
+ * really intended to make sure the ops passed in are disabled
+ * and that when this function returns, the caller is free to
+ * free the ops.
+ *
+ * The "destroy" name is only to match the "create" name that this
+ * should be paired with.
+ */
+void ftrace_destroy_filter_files(struct ftrace_ops *ops)
+{
+	mutex_lock(&ftrace_lock);
+	if (ops->flags & FTRACE_OPS_FL_ENABLED)
+		ftrace_shutdown(ops, 0);
+	ops->flags |= FTRACE_OPS_FL_DELETED;
+	mutex_unlock(&ftrace_lock);
+}
+
 static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 {
 
@@ -4121,11 +4154,7 @@ static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 	trace_create_file("enabled_functions", 0444,
 			d_tracer, NULL, &ftrace_enabled_fops);
 
-	trace_create_file("set_ftrace_filter", 0644, d_tracer,
-			&global_ops, &ftrace_filter_fops);
-
-	trace_create_file("set_ftrace_notrace", 0644, d_tracer,
-				    &global_ops, &ftrace_notrace_fops);
+	ftrace_create_filter_files(&global_ops, d_tracer);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	trace_create_file("set_graph_function", 0444, d_tracer,

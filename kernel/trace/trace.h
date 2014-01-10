@@ -819,13 +819,36 @@ static inline int ftrace_trace_task(struct task_struct *task)
 	return test_tsk_trace_trace(task);
 }
 extern int ftrace_is_dead(void);
+int ftrace_create_function_files(struct trace_array *tr,
+				 struct dentry *parent);
+void ftrace_destroy_function_files(struct trace_array *tr);
 #else
 static inline int ftrace_trace_task(struct task_struct *task)
 {
 	return 1;
 }
 static inline int ftrace_is_dead(void) { return 0; }
-#endif
+static inline int
+ftrace_create_function_files(struct trace_array *tr,
+			     struct dentry *parent)
+{
+	return 0;
+}
+static inline void ftrace_destroy_function_files(struct trace_array *tr) { }
+#endif /* CONFIG_FUNCTION_TRACER */
+
+#if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_DYNAMIC_FTRACE)
+void ftrace_create_filter_files(struct ftrace_ops *ops,
+				struct dentry *parent);
+void ftrace_destroy_filter_files(struct ftrace_ops *ops);
+#else
+/*
+ * The ops parameter passed in is usually undefined.
+ * This must be a macro.
+ */
+#define ftrace_create_filter_files(ops, parent) do { } while (0)
+#define ftrace_destroy_filter_files(ops) do { } while (0)
+#endif /* CONFIG_FUNCTION_TRACER && CONFIG_DYNAMIC_FTRACE */
 
 int ftrace_event_is_function(struct ftrace_event_call *call);
 

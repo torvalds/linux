@@ -52,10 +52,34 @@ static int allocate_ftrace_ops(struct trace_array *tr)
 	return 0;
 }
 
+
+int ftrace_create_function_files(struct trace_array *tr,
+				 struct dentry *parent)
+{
+	int ret;
+
+	/* The top level array uses the "global_ops". */
+	if (!(tr->flags & TRACE_ARRAY_FL_GLOBAL)) {
+		ret = allocate_ftrace_ops(tr);
+		if (ret)
+			return ret;
+	}
+
+	ftrace_create_filter_files(tr->ops, parent);
+
+	return 0;
+}
+
+void ftrace_destroy_function_files(struct trace_array *tr)
+{
+	ftrace_destroy_filter_files(tr->ops);
+	kfree(tr->ops);
+	tr->ops = NULL;
+}
+
 static int function_trace_init(struct trace_array *tr)
 {
 	struct ftrace_ops *ops;
-	int ret;
 
 	if (tr->flags & TRACE_ARRAY_FL_GLOBAL) {
 		/* There's only one global tr */
@@ -69,10 +93,13 @@ static int function_trace_init(struct trace_array *tr)
 		else
 			ops = &trace_ops;
 		tr->ops = ops;
-	} else {
-		ret = allocate_ftrace_ops(tr);
-		if (ret)
-			return ret;
+	} else if (!tr->ops) {
+		/*
+		 * Instance trace_arrays get their ops allocated
+		 * at instance creation. Unless it failed
+		 * the allocation.
+		 */
+		return -ENOMEM;
 	}
 
 	tr->trace_buffer.cpu = get_cpu();
@@ -87,9 +114,6 @@ static void function_trace_reset(struct trace_array *tr)
 {
 	tracing_stop_function_trace(tr);
 	tracing_stop_cmdline_record();
-	if (!(tr->flags & TRACE_ARRAY_FL_GLOBAL))
-		kfree(tr->ops);
-	tr->ops = NULL;
 }
 
 static void function_trace_start(struct trace_array *tr)
