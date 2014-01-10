@@ -856,9 +856,13 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 	if (ops->mmap)
 		kn->flags |= KERNFS_HAS_MMAP;
 
-	kernfs_addrm_start(&acxt);
-	rc = kernfs_add_one(&acxt, kn, parent);
-	kernfs_addrm_finish(&acxt);
+	rc = -ENOENT;
+	if (kernfs_get_active(parent)) {
+		kernfs_addrm_start(&acxt);
+		rc = kernfs_add_one(&acxt, kn, parent);
+		kernfs_addrm_finish(&acxt);
+		kernfs_put_active(parent);
+	}
 
 	if (rc) {
 		kernfs_put(kn);

@@ -127,6 +127,7 @@ static void kernfs_unlink_sibling(struct kernfs_node *kn)
 		kn->parent->dir.subdirs--;
 
 	rb_erase(&kn->rb, &kn->parent->dir.children);
+	RB_CLEAR_NODE(&kn->rb);
 }
 
 /**
@@ -177,18 +178,16 @@ void kernfs_put_active(struct kernfs_node *kn)
 }
 
 /**
- *	kernfs_deactivate - deactivate kernfs_node
- *	@kn: kernfs_node to deactivate
+ * kernfs_drain - drain kernfs_node
+ * @kn: kernfs_node to drain
  *
- *	Deny new active references and drain existing ones.
+ * Drain existing usages.
  */
-static void kernfs_deactivate(struct kernfs_node *kn)
+static void kernfs_drain(struct kernfs_node *kn)
 {
 	struct kernfs_root *root = kernfs_root(kn);
 
-	BUG_ON(!(kn->flags & KERNFS_REMOVED));
-
-	atomic_add(KN_DEACTIVATED_BIAS, &kn->active);
+	WARN_ON_ONCE(atomic_read(&kn->active) >= 0);
 
 	if (kernfs_lockdep(kn)) {
 		rwsem_acquire(&kn->dep_map, 0, 0, _RET_IP_);
@@ -233,13 +232,15 @@ void kernfs_put(struct kernfs_node *kn)
 		return;
 	root = kernfs_root(kn);
  repeat:
-	/* Moving/renaming is always done while holding reference.
+	/*
+	 * Moving/renaming is always done while holding reference.
 	 * kn->parent won't change beneath us.
 	 */
 	parent = kn->parent;
 
-	WARN(!(kn->flags & KERNFS_REMOVED), "kernfs: free using entry: %s/%s\n",
-	     parent ? parent->name : "", kn->name);
+	WARN_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS,
+		  "kernfs_put: %s/%s: released with incorrect active_ref %d\n",
+		  parent ? parent->name : "", kn->name, atomic_read(&kn->active));
 
 	if (kernfs_type(kn) == KERNFS_LINK)
 		kernfs_put(kn->symlink.target_kn);
@@ -281,8 +282,8 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 	kn = dentry->d_fsdata;
 	mutex_lock(&kernfs_mutex);
 
-	/* The kernfs node has been deleted */
-	if (kn->flags & KERNFS_REMOVED)
+	/* Force fresh lookup if removed */
+	if (kn->parent && RB_EMPTY_NODE(&kn->rb))
 		goto out_bad;
 
 	/* The kernfs node has been moved? */
@@ -350,11 +351,12 @@ struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
 	kn->ino = ret;
 
 	atomic_set(&kn->count, 1);
-	atomic_set(&kn->active, 0);
+	atomic_set(&kn->active, KN_DEACTIVATED_BIAS);
+	RB_CLEAR_NODE(&kn->rb);
 
 	kn->name = name;
 	kn->mode = mode;
-	kn->flags = flags | KERNFS_REMOVED;
+	kn->flags = flags;
 
 	return kn;
 
@@ -413,6 +415,8 @@ int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
 	struct kernfs_iattrs *ps_iattr;
 	int ret;
 
+	WARN_ON_ONCE(atomic_read(&parent->active) < 0);
+
 	if (has_ns != (bool)kn->ns) {
 		WARN(1, KERN_WARNING "kernfs: ns %s in '%s' for '%s'\n",
 		     has_ns ? "required" : "invalid", parent->name, kn->name);
@@ -421,9 +425,6 @@ int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
 
 	if (kernfs_type(parent) != KERNFS_DIR)
 		return -EINVAL;
-
-	if (parent->flags & KERNFS_REMOVED)
-		return -ENOENT;
 
 	kn->hash = kernfs_name_hash(kn->name, kn->ns);
 	kn->parent = parent;
@@ -441,8 +442,7 @@ int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
 	}
 
 	/* Mark the entry added into directory tree */
-	kn->flags &= ~KERNFS_REMOVED;
-
+	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
 	return 0;
 }
 
@@ -470,7 +470,7 @@ static void kernfs_remove_one(struct kernfs_addrm_cxt *acxt,
 	 * Removal can be called multiple times on the same node.  Only the
 	 * first invocation is effective and puts the base ref.
 	 */
-	if (kn->flags & KERNFS_REMOVED)
+	if (atomic_read(&kn->active) < 0)
 		return;
 
 	if (kn->parent) {
@@ -484,7 +484,7 @@ static void kernfs_remove_one(struct kernfs_addrm_cxt *acxt,
 		}
 	}
 
-	kn->flags |= KERNFS_REMOVED;
+	atomic_add(KN_DEACTIVATED_BIAS, &kn->active);
 	kn->u.removed_list = acxt->removed;
 	acxt->removed = kn;
 }
@@ -512,7 +512,7 @@ void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt)
 
 		acxt->removed = kn->u.removed_list;
 
-		kernfs_deactivate(kn);
+		kernfs_drain(kn);
 		kernfs_unmap_bin_file(kn);
 		kernfs_put(kn);
 	}
@@ -610,7 +610,7 @@ struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	kn->flags &= ~KERNFS_REMOVED;
+	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
 	kn->priv = priv;
 	kn->dir.root = root;
 
@@ -662,9 +662,13 @@ struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 	kn->priv = priv;
 
 	/* link in */
-	kernfs_addrm_start(&acxt);
-	rc = kernfs_add_one(&acxt, kn, parent);
-	kernfs_addrm_finish(&acxt);
+	rc = -ENOENT;
+	if (kernfs_get_active(parent)) {
+		kernfs_addrm_start(&acxt);
+		rc = kernfs_add_one(&acxt, kn, parent);
+		kernfs_addrm_finish(&acxt);
+		kernfs_put_active(parent);
+	}
 
 	if (!rc)
 		return kn;
@@ -899,27 +903,29 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 {
 	int error;
 
-	mutex_lock(&kernfs_mutex);
-
 	error = -ENOENT;
-	if ((kn->flags | new_parent->flags) & KERNFS_REMOVED)
+	if (!kernfs_get_active(new_parent))
 		goto out;
+	if (!kernfs_get_active(kn))
+		goto out_put_new_parent;
+
+	mutex_lock(&kernfs_mutex);
 
 	error = 0;
 	if ((kn->parent == new_parent) && (kn->ns == new_ns) &&
 	    (strcmp(kn->name, new_name) == 0))
-		goto out;	/* nothing to rename */
+		goto out_unlock;	/* nothing to rename */
 
 	error = -EEXIST;
 	if (kernfs_find_ns(new_parent, new_name, new_ns))
-		goto out;
+		goto out_unlock;
 
 	/* rename kernfs_node */
 	if (strcmp(kn->name, new_name) != 0) {
 		error = -ENOMEM;
 		new_name = kstrdup(new_name, GFP_KERNEL);
 		if (!new_name)
-			goto out;
+			goto out_unlock;
 
 		if (kn->flags & KERNFS_STATIC_NAME)
 			kn->flags &= ~KERNFS_STATIC_NAME;
@@ -941,8 +947,12 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	kernfs_link_sibling(kn);
 
 	error = 0;
- out:
+out_unlock:
 	mutex_unlock(&kernfs_mutex);
+	kernfs_put_active(kn);
+out_put_new_parent:
+	kernfs_put_active(new_parent);
+out:
 	return error;
 }
 
@@ -962,8 +972,7 @@ static struct kernfs_node *kernfs_dir_pos(const void *ns,
 	struct kernfs_node *parent, loff_t hash, struct kernfs_node *pos)
 {
 	if (pos) {
-		int valid = !(pos->flags & KERNFS_REMOVED) &&
-			pos->parent == parent && hash == pos->hash;
+		int valid = pos->parent == parent && hash == pos->hash;
 		kernfs_put(pos);
 		if (!valid)
 			pos = NULL;

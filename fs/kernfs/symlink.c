@@ -40,9 +40,13 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	kn->symlink.target_kn = target;
 	kernfs_get(target);	/* ref owned by symlink */
 
-	kernfs_addrm_start(&acxt);
-	error = kernfs_add_one(&acxt, kn, parent);
-	kernfs_addrm_finish(&acxt);
+	error = -ENOENT;
+	if (kernfs_get_active(parent)) {
+		kernfs_addrm_start(&acxt);
+		error = kernfs_add_one(&acxt, kn, parent);
+		kernfs_addrm_finish(&acxt);
+		kernfs_put_active(parent);
+	}
 
 	if (!error)
 		return kn;
