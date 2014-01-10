@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/if_ether.h>
@@ -141,7 +139,7 @@ static int batadv_compare_dat(const struct hlist_node *node, const void *data2)
 	const void *data1 = container_of(node, struct batadv_dat_entry,
 					 hash_entry);
 
-	return (memcmp(data1, data2, sizeof(__be32)) == 0 ? 1 : 0);
+	return memcmp(data1, data2, sizeof(__be32)) == 0 ? 1 : 0;
 }
 
 /**
@@ -1039,9 +1037,9 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 	if (hdr_size == sizeof(struct batadv_unicast_4addr_packet))
 		err = batadv_send_skb_via_tt_4addr(bat_priv, skb_new,
 						   BATADV_P_DAT_CACHE_REPLY,
-						   vid);
+						   NULL, vid);
 	else
-		err = batadv_send_skb_via_tt(bat_priv, skb_new, vid);
+		err = batadv_send_skb_via_tt(bat_priv, skb_new, NULL, vid);
 
 	if (err != NET_XMIT_DROP) {
 		batadv_inc_counter(bat_priv, BATADV_CNT_DAT_CACHED_REPLY_TX);

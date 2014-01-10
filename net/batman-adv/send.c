@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -321,13 +319,23 @@ out:
  */
 int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, int packet_type,
-				   int packet_subtype, unsigned short vid)
+				   int packet_subtype, uint8_t *dst_hint,
+				   unsigned short vid)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_orig_node *orig_node;
+	uint8_t *src, *dst;
 
-	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
-					     ethhdr->h_dest, vid);
+	src = ethhdr->h_source;
+	dst = ethhdr->h_dest;
+
+	/* if we got an hint! let's send the packet to this client (if any) */
+	if (dst_hint) {
+		src = NULL;
+		dst = dst_hint;
+	}
+	orig_node = batadv_transtable_search(bat_priv, src, dst, vid);
+
 	return batadv_send_skb_unicast(bat_priv, skb, packet_type,
 				       packet_subtype, orig_node, vid);
 }

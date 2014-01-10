@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_TYPES_H_
@@ -34,6 +32,18 @@
 #define batadv_dat_addr_t uint16_t
 
 #endif /* CONFIG_BATMAN_ADV_DAT */
+
+/**
+ * enum batadv_dhcp_recipient - dhcp destination
+ * @BATADV_DHCP_NO: packet is not a dhcp message
+ * @BATADV_DHCP_TO_SERVER: dhcp message is directed to a server
+ * @BATADV_DHCP_TO_CLIENT: dhcp message is directed to a client
+ */
+enum batadv_dhcp_recipient {
+	BATADV_DHCP_NO = 0,
+	BATADV_DHCP_TO_SERVER,
+	BATADV_DHCP_TO_CLIENT,
+};
 
 /**
  * BATADV_TT_REMOTE_MASK - bitmask selecting the flags that are sent over the
@@ -687,6 +697,8 @@ struct batadv_priv {
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 	atomic_t log_level;
 #endif
+	uint32_t isolation_mark;
+	uint32_t isolation_mark_mask;
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;

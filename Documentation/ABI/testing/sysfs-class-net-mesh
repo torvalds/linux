@@ -68,6 +68,14 @@ Description:
                 Defines the penalty which will be applied to an
                 originator message's tq-field on every hop.
 
+What:		/sys/class/net/<mesh_iface>/mesh/isolation_mark
+Date:		Nov 2013
+Contact:	Antonio Quartulli <antonio@meshcoding.com>
+Description:
+		Defines the isolation mark (and its bitmask) which
+		is used to classify clients as "isolated" by the
+		Extended Isolation feature.
+
 What:           /sys/class/net/<mesh_iface>/mesh/network_coding
 Date:           Nov 2012
 Contact:        Martin Hundeboll <martin@hundeboll.net>
