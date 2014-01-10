@@ -1363,6 +1363,14 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 	/* Check for Synchronization Train support */
 	if (lmp_sync_train_capable(hdev))
 		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
+
+	/* Enable Secure Connections if supported and configured */
+	if (lmp_sc_capable(hdev) &&
+	    test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+		u8 support = 0x01;
+		hci_req_add(req, HCI_OP_WRITE_SC_SUPPORT,
+			    sizeof(support), &support);
+	}
 }
 
 static int __hci_init(struct hci_dev *hdev)
