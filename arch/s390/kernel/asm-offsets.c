@@ -65,7 +65,8 @@ int main(void)
 	DEFINE(__VDSO_WTOM_NSEC, offsetof(struct vdso_data, wtom_clock_nsec));
 	DEFINE(__VDSO_TIMEZONE, offsetof(struct vdso_data, tz_minuteswest));
 	DEFINE(__VDSO_ECTG_OK, offsetof(struct vdso_data, ectg_available));
-	DEFINE(__VDSO_NTP_MULT, offsetof(struct vdso_data, ntp_mult));
+	DEFINE(__VDSO_TK_MULT, offsetof(struct vdso_data, tk_mult));
+	DEFINE(__VDSO_TK_SHIFT, offsetof(struct vdso_data, tk_shift));
 	DEFINE(__VDSO_ECTG_BASE, offsetof(struct vdso_per_cpu_data, ectg_timer_base));
 	DEFINE(__VDSO_ECTG_USER, offsetof(struct vdso_per_cpu_data, ectg_user_time));
 	/* constants used by the vdso */

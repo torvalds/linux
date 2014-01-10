@@ -308,9 +308,15 @@ static int pfuze_identify(struct pfuze_chip *pfuze_chip)
 	if (ret)
 		return ret;
 
-	if (value & 0x0f) {
-		dev_warn(pfuze_chip->dev, "Illegal ID: %x\n", value);
-		return -ENODEV;
+	switch (value & 0x0f) {
+		/* Freescale misprogrammed 1-3% of parts prior to week 8 of 2013 as ID=8 */
+		case 0x8:
+			dev_info(pfuze_chip->dev, "Assuming misprogrammed ID=0x8");
+		case 0x0:
+			break;
+		default:
+			dev_warn(pfuze_chip->dev, "Illegal ID: %x\n", value);
+			return -ENODEV;
 	}
 
 	ret = regmap_read(pfuze_chip->regmap, PFUZE100_REVID, &value);

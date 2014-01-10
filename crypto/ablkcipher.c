@@ -16,9 +16,7 @@
 #include <crypto/internal/skcipher.h>
 #include <linux/cpumask.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -29,8 +27,6 @@
 #include <crypto/scatterwalk.h>
 
 #include "internal.h"
-
-static const char *skcipher_default_geniv __read_mostly;
 
 struct ablkcipher_buffer {
 	struct list_head	entry;
@@ -527,8 +523,7 @@ const char *crypto_default_geniv(const struct crypto_alg *alg)
 	    alg->cra_blocksize)
 		return "chainiv";
 
-	return alg->cra_flags & CRYPTO_ALG_ASYNC ?
-	       "eseqiv" : skcipher_default_geniv;
+	return "eseqiv";
 }
 
 static int crypto_givcipher_default(struct crypto_alg *alg, u32 type, u32 mask)
@@ -709,17 +704,3 @@ err:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_ablkcipher);
-
-static int __init skcipher_module_init(void)
-{
-	skcipher_default_geniv = num_possible_cpus() > 1 ?
-				 "eseqiv" : "chainiv";
-	return 0;
-}
-
-static void skcipher_module_exit(void)
-{
-}
-
-module_init(skcipher_module_init);
-module_exit(skcipher_module_exit);

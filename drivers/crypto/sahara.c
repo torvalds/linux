@@ -1058,7 +1058,7 @@ static struct platform_driver sahara_driver = {
 	.driver		= {
 		.name	= SAHARA_NAME,
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(sahara_dt_ids),
+		.of_match_table = sahara_dt_ids,
 	},
 	.id_table = sahara_platform_ids,
 };

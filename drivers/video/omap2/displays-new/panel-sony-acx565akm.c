@@ -526,6 +526,8 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 	struct omap_dss_device *in = ddata->in;
 	int r;
 
+	mutex_lock(&ddata->mutex);
+
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
 	in->ops.sdi->set_timings(in, &ddata->videomode);
@@ -614,10 +616,7 @@ static int acx565akm_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	mutex_lock(&ddata->mutex);
 	r = acx565akm_panel_power_on(dssdev);
-	mutex_unlock(&ddata->mutex);
-
 	if (r)
 		return r;
 
