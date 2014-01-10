@@ -2794,15 +2794,14 @@ int hci_remote_oob_data_clear(struct hci_dev *hdev)
 	return 0;
 }
 
-int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
-			    u8 *randomizer)
+int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			    u8 *hash, u8 *randomizer)
 {
 	struct oob_data *data;
 
 	data = hci_find_remote_oob_data(hdev, bdaddr);
-
 	if (!data) {
-		data = kzalloc(sizeof(*data), GFP_ATOMIC);
+		data = kmalloc(sizeof(*data), GFP_ATOMIC);
 		if (!data)
 			return -ENOMEM;
 
@@ -2812,6 +2811,36 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 
 	memcpy(data->hash192, hash, sizeof(data->hash192));
 	memcpy(data->randomizer192, randomizer, sizeof(data->randomizer192));
+
+	memset(data->hash256, 0, sizeof(data->hash256));
+	memset(data->randomizer256, 0, sizeof(data->randomizer256));
+
+	BT_DBG("%s for %pMR", hdev->name, bdaddr);
+
+	return 0;
+}
+
+int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				u8 *hash192, u8 *randomizer192,
+				u8 *hash256, u8 *randomizer256)
+{
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, bdaddr);
+	if (!data) {
+		data = kmalloc(sizeof(*data), GFP_ATOMIC);
+		if (!data)
+			return -ENOMEM;
+
+		bacpy(&data->bdaddr, bdaddr);
+		list_add(&data->list, &hdev->remote_oob_data);
+	}
+
+	memcpy(data->hash192, hash192, sizeof(data->hash192));
+	memcpy(data->randomizer192, randomizer192, sizeof(data->randomizer192));
+
+	memcpy(data->hash256, hash256, sizeof(data->hash256));
+	memcpy(data->randomizer256, randomizer256, sizeof(data->randomizer256));
 
 	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 
