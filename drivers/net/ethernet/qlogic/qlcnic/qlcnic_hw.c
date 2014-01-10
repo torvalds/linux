@@ -782,8 +782,8 @@ void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter)
 			"Could not send interrupt coalescing parameters\n");
 }
 
-#define QLCNIC_ENABLE_IPV4_LRO		1
-#define QLCNIC_ENABLE_IPV6_LRO		2
+#define QLCNIC_ENABLE_IPV4_LRO		BIT_0
+#define QLCNIC_ENABLE_IPV6_LRO		(BIT_1 | BIT_9)
 
 int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 {
