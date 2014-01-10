@@ -1234,7 +1234,7 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 	for (i = 1; i < HPD_NUM_PINS; i++) {
 
 		WARN_ONCE(hpd[i] & hotplug_trigger &&
-			  dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED,
+			  dev_priv->hpd_stats[i].hpd_mark == HPD_DISABLED,
 			  "Received HPD interrupt although disabled\n");
 
 		if (!(hpd[i] & hotplug_trigger) ||
