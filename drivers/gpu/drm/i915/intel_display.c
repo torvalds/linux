@@ -4088,9 +4088,8 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 	/* Looks like the 200MHz CDclk freq doesn't work on some configs */
 }
 
-static int intel_mode_max_pixclk(struct drm_i915_private *dev_priv,
-				 unsigned modeset_pipes,
-				 struct intel_crtc_config *pipe_config)
+/* compute the max pixel clock for new configuration */
+static int intel_mode_max_pixclk(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_crtc *intel_crtc;
@@ -4098,31 +4097,26 @@ static int intel_mode_max_pixclk(struct drm_i915_private *dev_priv,
 
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
 			    base.head) {
-		if (modeset_pipes & (1 << intel_crtc->pipe))
+		if (intel_crtc->new_enabled)
 			max_pixclk = max(max_pixclk,
-					 pipe_config->adjusted_mode.crtc_clock);
-		else if (intel_crtc->base.enabled)
-			max_pixclk = max(max_pixclk,
-					 intel_crtc->config.adjusted_mode.crtc_clock);
+					 intel_crtc->new_config->adjusted_mode.crtc_clock);
 	}
 
 	return max_pixclk;
 }
 
 static void valleyview_modeset_global_pipes(struct drm_device *dev,
-					    unsigned *prepare_pipes,
-					    unsigned modeset_pipes,
-					    struct intel_crtc_config *pipe_config)
+					    unsigned *prepare_pipes)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc;
-	int max_pixclk = intel_mode_max_pixclk(dev_priv, modeset_pipes,
-					       pipe_config);
+	int max_pixclk = intel_mode_max_pixclk(dev_priv);
 	int cur_cdclk = valleyview_cur_cdclk(dev_priv);
 
 	if (valleyview_calc_cdclk(dev_priv, max_pixclk) == cur_cdclk)
 		return;
 
+	/* disable/enable all currently active pipes while we change cdclk */
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
 			    base.head)
 		if (intel_crtc->base.enabled)
@@ -4132,7 +4126,7 @@ static void valleyview_modeset_global_pipes(struct drm_device *dev,
 static void valleyview_modeset_global_resources(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int max_pixclk = intel_mode_max_pixclk(dev_priv, 0, NULL);
+	int max_pixclk = intel_mode_max_pixclk(dev_priv);
 	int cur_cdclk = valleyview_cur_cdclk(dev_priv);
 	int req_cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
 
@@ -9668,8 +9662,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * adjusted_mode bits in the crtc directly.
 	 */
 	if (IS_VALLEYVIEW(dev)) {
-		valleyview_modeset_global_pipes(dev, &prepare_pipes,
-						modeset_pipes, pipe_config);
+		valleyview_modeset_global_pipes(dev, &prepare_pipes);
 
 		/* may have added more to prepare_pipes than we should */
 		prepare_pipes &= ~disable_pipes;
