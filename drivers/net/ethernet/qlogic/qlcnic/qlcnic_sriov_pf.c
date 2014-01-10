@@ -15,6 +15,8 @@
 #define QLC_MAC_OPCODE_MASK	0x7
 #define QLC_MAC_STAR_ADD	6
 #define QLC_MAC_STAR_DEL	7
+#define QLC_VF_FLOOD_BIT	BIT_16
+#define QLC_FLOOD_MODE		0x5
 
 static int qlcnic_sriov_pf_get_vport_handle(struct qlcnic_adapter *, u8);
 
@@ -347,6 +349,28 @@ static int qlcnic_sriov_pf_cfg_vlan_filtering(struct qlcnic_adapter *adapter,
 	return err;
 }
 
+/* On configuring VF flood bit, PFD will receive traffic from all VFs */
+static int qlcnic_sriov_pf_cfg_flood(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_cmd_args cmd;
+	int err;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_SET_NIC_INFO);
+	if (err)
+		return err;
+
+	cmd.req.arg[1] = QLC_FLOOD_MODE | QLC_VF_FLOOD_BIT;
+
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err)
+		dev_err(&adapter->pdev->dev,
+			"Failed to configure VF Flood bit on PF, err=%d\n",
+			err);
+
+	qlcnic_free_mbx_args(&cmd);
+	return err;
+}
+
 static int qlcnic_sriov_pf_cfg_eswitch(struct qlcnic_adapter *adapter,
 				       u8 func, u8 enable)
 {
@@ -473,6 +497,12 @@ static int qlcnic_sriov_pf_init(struct qlcnic_adapter *adapter)
 	err = qlcnic_sriov_pf_cfg_vlan_filtering(adapter, 1);
 	if (err)
 		return err;
+
+	if (qlcnic_84xx_check(adapter)) {
+		err = qlcnic_sriov_pf_cfg_flood(adapter);
+		if (err)
+			goto disable_vlan_filtering;
+	}
 
 	err = qlcnic_sriov_pf_cfg_eswitch(adapter, func, 1);
 	if (err)
