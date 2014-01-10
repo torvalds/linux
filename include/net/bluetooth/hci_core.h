@@ -114,8 +114,10 @@ struct link_key {
 struct oob_data {
 	struct list_head list;
 	bdaddr_t bdaddr;
-	u8 hash[16];
-	u8 randomizer[16];
+	u8 hash192[16];
+	u8 randomizer192[16];
+	u8 hash256[16];
+	u8 randomizer256[16];
 };
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10

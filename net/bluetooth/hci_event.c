@@ -3391,20 +3391,36 @@ static void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 
 	data = hci_find_remote_oob_data(hdev, &ev->bdaddr);
 	if (data) {
-		struct hci_cp_remote_oob_data_reply cp;
+		if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+			struct hci_cp_remote_oob_ext_data_reply cp;
 
-		bacpy(&cp.bdaddr, &ev->bdaddr);
-		memcpy(cp.hash, data->hash, sizeof(cp.hash));
-		memcpy(cp.randomizer, data->randomizer, sizeof(cp.randomizer));
+			bacpy(&cp.bdaddr, &ev->bdaddr);
+			memcpy(cp.hash192, data->hash192, sizeof(cp.hash192));
+			memcpy(cp.randomizer192, data->randomizer192,
+			       sizeof(cp.randomizer192));
+			memcpy(cp.hash256, data->hash256, sizeof(cp.hash256));
+			memcpy(cp.randomizer256, data->randomizer256,
+			       sizeof(cp.randomizer256));
 
-		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_REPLY, sizeof(cp),
-			     &cp);
+			hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_EXT_DATA_REPLY,
+				     sizeof(cp), &cp);
+		} else {
+			struct hci_cp_remote_oob_data_reply cp;
+
+			bacpy(&cp.bdaddr, &ev->bdaddr);
+			memcpy(cp.hash, data->hash192, sizeof(cp.hash));
+			memcpy(cp.randomizer, data->randomizer192,
+			       sizeof(cp.randomizer));
+
+			hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_REPLY,
+				     sizeof(cp), &cp);
+		}
 	} else {
 		struct hci_cp_remote_oob_data_neg_reply cp;
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
-		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_NEG_REPLY, sizeof(cp),
-			     &cp);
+		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_NEG_REPLY,
+			     sizeof(cp), &cp);
 	}
 
 unlock:

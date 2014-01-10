@@ -2802,7 +2802,7 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 	data = hci_find_remote_oob_data(hdev, bdaddr);
 
 	if (!data) {
-		data = kmalloc(sizeof(*data), GFP_ATOMIC);
+		data = kzalloc(sizeof(*data), GFP_ATOMIC);
 		if (!data)
 			return -ENOMEM;
 
@@ -2810,8 +2810,8 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 		list_add(&data->list, &hdev->remote_oob_data);
 	}
 
-	memcpy(data->hash, hash, sizeof(data->hash));
-	memcpy(data->randomizer, randomizer, sizeof(data->randomizer));
+	memcpy(data->hash192, hash, sizeof(data->hash192));
+	memcpy(data->randomizer192, randomizer, sizeof(data->randomizer192));
 
 	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 
