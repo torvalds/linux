@@ -338,27 +338,27 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 #include <net/net_namespace.h>
 
 static inline int
-tcf_change_indev(struct tcf_proto *tp, char *indev, struct nlattr *indev_tlv)
+tcf_change_indev(struct net *net, struct nlattr *indev_tlv)
 {
-	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
-		return -EINVAL;
-	return 0;
-}
-
-static inline int
-tcf_match_indev(struct sk_buff *skb, char *indev)
-{
+	char indev[IFNAMSIZ];
 	struct net_device *dev;
 
-	if (indev[0]) {
-		if  (!skb->skb_iif)
-			return 0;
-		dev = __dev_get_by_index(dev_net(skb->dev), skb->skb_iif);
-		if (!dev || strcmp(indev, dev->name))
-			return 0;
-	}
+	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
+		return -EINVAL;
+	dev = __dev_get_by_name(net, indev);
+	if (!dev)
+		return -ENODEV;
+	return dev->ifindex;
+}
 
-	return 1;
+static inline bool
+tcf_match_indev(struct sk_buff *skb, int ifindex)
+{
+	if (!ifindex)
+		return true;
+	if  (!skb->skb_iif)
+		return false;
+	return ifindex == skb->skb_iif;
 }
 #endif /* CONFIG_NET_CLS_IND */
 

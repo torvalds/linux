@@ -48,7 +48,7 @@ struct tc_u_knode {
 	struct tc_u_hnode	*ht_up;
 	struct tcf_exts		exts;
 #ifdef CONFIG_NET_CLS_IND
-	char                     indev[IFNAMSIZ];
+	int			ifindex;
 #endif
 	u8			fshift;
 	struct tcf_result	res;
@@ -152,7 +152,7 @@ check_terminal:
 
 				*res = n->res;
 #ifdef CONFIG_NET_CLS_IND
-				if (!tcf_match_indev(skb, n->indev)) {
+				if (!tcf_match_indev(skb, n->ifindex)) {
 					n = n->next;
 					goto next_knode;
 				}
@@ -527,9 +527,11 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_U32_INDEV]) {
-		err = tcf_change_indev(tp, n->indev, tb[TCA_U32_INDEV]);
-		if (err < 0)
+		int ret;
+		ret = tcf_change_indev(net, tb[TCA_U32_INDEV]);
+		if (ret < 0)
 			goto errout;
+		n->ifindex = ret;
 	}
 #endif
 	tcf_exts_change(tp, &n->exts, &e);
@@ -760,9 +762,12 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			goto nla_put_failure;
 
 #ifdef CONFIG_NET_CLS_IND
-		if (strlen(n->indev) &&
-		    nla_put_string(skb, TCA_U32_INDEV, n->indev))
-			goto nla_put_failure;
+		if (n->ifindex) {
+			struct net_device *dev;
+			dev = __dev_get_by_index(net, n->ifindex);
+			if (dev && nla_put_string(skb, TCA_U32_INDEV, dev->name))
+				goto nla_put_failure;
+		}
 #endif
 #ifdef CONFIG_CLS_U32_PERF
 		if (nla_put(skb, TCA_U32_PCNT,
