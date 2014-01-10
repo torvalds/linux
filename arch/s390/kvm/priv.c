@@ -173,6 +173,19 @@ static int handle_skey(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int handle_ipte_interlock(struct kvm_vcpu *vcpu)
+{
+	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+
+	vcpu->stat.instruction_ipte_interlock++;
+	if (psw_bits(*psw).p)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+	wait_event(vcpu->kvm->arch.ipte_wq, !ipte_lock_held(vcpu));
+	psw->addr = __rewind_psw(*psw, 4);
+	VCPU_EVENT(vcpu, 4, "%s", "retrying ipte interlock operation");
+	return 0;
+}
+
 static int handle_test_block(struct kvm_vcpu *vcpu)
 {
 	unsigned long hva;
@@ -509,6 +522,7 @@ static const intercept_handler_t b2_handlers[256] = {
 	[0x10] = handle_set_prefix,
 	[0x11] = handle_store_prefix,
 	[0x12] = handle_store_cpu_address,
+	[0x21] = handle_ipte_interlock,
 	[0x29] = handle_skey,
 	[0x2a] = handle_skey,
 	[0x2b] = handle_skey,
@@ -526,6 +540,7 @@ static const intercept_handler_t b2_handlers[256] = {
 	[0x3a] = handle_io_inst,
 	[0x3b] = handle_io_inst,
 	[0x3c] = handle_io_inst,
+	[0x50] = handle_ipte_interlock,
 	[0x5f] = handle_io_inst,
 	[0x74] = handle_io_inst,
 	[0x76] = handle_io_inst,
@@ -686,7 +701,10 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 }
 
 static const intercept_handler_t b9_handlers[256] = {
+	[0x8a] = handle_ipte_interlock,
 	[0x8d] = handle_epsw,
+	[0x8e] = handle_ipte_interlock,
+	[0x8f] = handle_ipte_interlock,
 	[0xab] = handle_essa,
 	[0xaf] = handle_pfmf,
 };

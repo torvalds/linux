@@ -397,4 +397,6 @@ int read_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 	return access_guest_real(vcpu, gra, data, len, 0);
 }
 
+int ipte_lock_held(struct kvm_vcpu *vcpu);
+
 #endif /* __KVM_S390_GACCESS_H */

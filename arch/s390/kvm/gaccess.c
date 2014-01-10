@@ -207,6 +207,107 @@ union raddress {
 	unsigned long pfra : 52; /* Page-Frame Real Address */
 };
 
+static int ipte_lock_count;
+static DEFINE_MUTEX(ipte_mutex);
+
+int ipte_lock_held(struct kvm_vcpu *vcpu)
+{
+	union ipte_control *ic = &vcpu->kvm->arch.sca->ipte_control;
+
+	if (vcpu->arch.sie_block->eca & 1)
+		return ic->kh != 0;
+	return ipte_lock_count != 0;
+}
+
+static void ipte_lock_simple(struct kvm_vcpu *vcpu)
+{
+	union ipte_control old, new, *ic;
+
+	mutex_lock(&ipte_mutex);
+	ipte_lock_count++;
+	if (ipte_lock_count > 1)
+		goto out;
+	ic = &vcpu->kvm->arch.sca->ipte_control;
+	do {
+		old = ACCESS_ONCE(*ic);
+		while (old.k) {
+			cond_resched();
+			old = ACCESS_ONCE(*ic);
+		}
+		new = old;
+		new.k = 1;
+	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
+out:
+	mutex_unlock(&ipte_mutex);
+}
+
+static void ipte_unlock_simple(struct kvm_vcpu *vcpu)
+{
+	union ipte_control old, new, *ic;
+
+	mutex_lock(&ipte_mutex);
+	ipte_lock_count--;
+	if (ipte_lock_count)
+		goto out;
+	ic = &vcpu->kvm->arch.sca->ipte_control;
+	do {
+		new = old = ACCESS_ONCE(*ic);
+		new.k = 0;
+	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
+	if (!ipte_lock_count)
+		wake_up(&vcpu->kvm->arch.ipte_wq);
+out:
+	mutex_unlock(&ipte_mutex);
+}
+
+static void ipte_lock_siif(struct kvm_vcpu *vcpu)
+{
+	union ipte_control old, new, *ic;
+
+	ic = &vcpu->kvm->arch.sca->ipte_control;
+	do {
+		old = ACCESS_ONCE(*ic);
+		while (old.kg) {
+			cond_resched();
+			old = ACCESS_ONCE(*ic);
+		}
+		new = old;
+		new.k = 1;
+		new.kh++;
+	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
+}
+
+static void ipte_unlock_siif(struct kvm_vcpu *vcpu)
+{
+	union ipte_control old, new, *ic;
+
+	ic = &vcpu->kvm->arch.sca->ipte_control;
+	do {
+		new = old = ACCESS_ONCE(*ic);
+		new.kh--;
+		if (!new.kh)
+			new.k = 0;
+	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
+	if (!new.kh)
+		wake_up(&vcpu->kvm->arch.ipte_wq);
+}
+
+static void ipte_lock(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.sie_block->eca & 1)
+		ipte_lock_siif(vcpu);
+	else
+		ipte_lock_simple(vcpu);
+}
+
+static void ipte_unlock(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.sie_block->eca & 1)
+		ipte_unlock_siif(vcpu);
+	else
+		ipte_unlock_simple(vcpu);
+}
+
 static unsigned long get_vcpu_asce(struct kvm_vcpu *vcpu)
 {
 	switch (psw_bits(vcpu->arch.sie_block->gpsw).as) {
@@ -485,6 +586,8 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
 	unsigned long _len, nr_pages, gpa, idx;
 	unsigned long pages_array[2];
 	unsigned long *pages;
+	int need_ipte_lock;
+	union asce asce;
 	int rc;
 
 	if (!len)
@@ -498,6 +601,10 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
 		pages = vmalloc(nr_pages * sizeof(unsigned long));
 	if (!pages)
 		return -ENOMEM;
+	asce.val = get_vcpu_asce(vcpu);
+	need_ipte_lock = psw_bits(*psw).t && !asce.r;
+	if (need_ipte_lock)
+		ipte_lock(vcpu);
 	rc = guest_page_range(vcpu, ga, pages, nr_pages, write);
 	for (idx = 0; idx < nr_pages && !rc; idx++) {
 		gpa = *(pages + idx) + (ga & ~PAGE_MASK);
@@ -510,6 +617,8 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
 		ga += _len;
 		data += _len;
 	}
+	if (need_ipte_lock)
+		ipte_unlock(vcpu);
 	if (nr_pages > ARRAY_SIZE(pages_array))
 		vfree(pages);
 	return rc;

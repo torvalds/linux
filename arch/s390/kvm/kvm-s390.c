@@ -67,6 +67,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "instruction_stpx", VCPU_STAT(instruction_stpx) },
 	{ "instruction_stap", VCPU_STAT(instruction_stap) },
 	{ "instruction_storage_key", VCPU_STAT(instruction_storage_key) },
+	{ "instruction_ipte_interlock", VCPU_STAT(instruction_ipte_interlock) },
 	{ "instruction_stsch", VCPU_STAT(instruction_stsch) },
 	{ "instruction_chsc", VCPU_STAT(instruction_chsc) },
 	{ "instruction_essa", VCPU_STAT(instruction_essa) },
@@ -437,6 +438,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	spin_lock_init(&kvm->arch.float_int.lock);
 	INIT_LIST_HEAD(&kvm->arch.float_int.list);
+	init_waitqueue_head(&kvm->arch.ipte_wq);
 
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
 	VM_EVENT(kvm, 3, "%s", "vm created");

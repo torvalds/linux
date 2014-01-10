@@ -39,9 +39,17 @@ struct sca_entry {
 	__u64	reserved2[2];
 } __attribute__((packed));
 
+union ipte_control {
+	unsigned long val;
+	struct {
+		unsigned long k  : 1;
+		unsigned long kh : 31;
+		unsigned long kg : 32;
+	};
+};
 
 struct sca_block {
-	__u64	ipte_control;
+	union ipte_control ipte_control;
 	__u64	reserved[5];
 	__u64	mcn;
 	__u64	reserved2;
@@ -167,6 +175,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_stpx;
 	u32 instruction_stap;
 	u32 instruction_storage_key;
+	u32 instruction_ipte_interlock;
 	u32 instruction_stsch;
 	u32 instruction_chsc;
 	u32 instruction_stsi;
@@ -336,6 +345,7 @@ struct kvm_arch{
 	int use_irqchip;
 	int use_cmma;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
+	wait_queue_head_t ipte_wq;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)
