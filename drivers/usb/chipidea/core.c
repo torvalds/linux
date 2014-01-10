@@ -559,6 +559,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	hw_phymode_configure(ci);
+
 	ret = ci_usb_phy_init(ci);
 	if (ret) {
 		dev_err(dev, "unable to init phy: %d\n", ret);
@@ -575,8 +577,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	ci_get_otg_capable(ci);
-
-	hw_phymode_configure(ci);
 
 	dr_mode = ci->platdata->dr_mode;
 	/* initialize role(s) before the interrupt is requested */
