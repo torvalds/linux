@@ -207,9 +207,6 @@ int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 		void *old = NULL;
 		int i;
 
-		for (i = 0; i < ulist->nnodes; i++)
-			rb_erase(&ulist->nodes[i].rb_node, &ulist->root);
-
 		/*
 		 * if nodes_alloced == ULIST_SIZE no memory has been allocated
 		 * yet, so pass NULL to krealloc
@@ -234,6 +231,7 @@ int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 		 * pointers, so we have to do it ourselves.  Otherwise we may
 		 * be bitten by crashes.
 		 */
+		ulist->root = RB_ROOT;
 		for (i = 0; i < ulist->nnodes; i++) {
 			ret = ulist_rbtree_insert(ulist, &ulist->nodes[i]);
 			if (ret < 0)
