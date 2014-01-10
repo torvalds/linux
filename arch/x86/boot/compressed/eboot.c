@@ -1256,12 +1256,13 @@ static efi_status_t alloc_e820ext(u32 nr_desc, struct setup_data **e820ext,
 }
 
 static efi_status_t exit_boot(struct boot_params *boot_params,
-			      void *handle)
+			      void *handle, bool is64)
 {
 	struct efi_info *efi = &boot_params->efi_info;
 	unsigned long map_sz, key, desc_size;
 	efi_memory_desc_t *mem_map;
 	struct setup_data *e820ext;
+	const char *signature;
 	__u32 e820ext_size;
 	__u32 nr_desc, prev_nr_desc;
 	efi_status_t status;
@@ -1295,7 +1296,9 @@ get_map:
 		goto get_map; /* Allocated memory, get map again */
 	}
 
-	memcpy(&efi->efi_loader_signature, EFI_LOADER_SIGNATURE, sizeof(__u32));
+	signature = is64 ? EFI64_LOADER_SIGNATURE : EFI32_LOADER_SIGNATURE;
+	memcpy(&efi->efi_loader_signature, signature, sizeof(__u32));
+
 	efi->efi_systab = (unsigned long)sys_table;
 	efi->efi_memdesc_size = desc_size;
 	efi->efi_memdesc_version = desc_version;
@@ -1408,7 +1411,7 @@ struct boot_params *efi_main(struct efi_config *c,
 		hdr->code32_start = bzimage_addr;
 	}
 
-	status = exit_boot(boot_params, handle);
+	status = exit_boot(boot_params, handle, is64);
 	if (status != EFI_SUCCESS)
 		goto fail;
 

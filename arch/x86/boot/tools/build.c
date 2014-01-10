@@ -53,7 +53,8 @@ int is_big_kernel;
 
 #define PECOFF_RELOC_RESERVE 0x20
 
-unsigned long efi_stub_entry;
+unsigned long efi32_stub_entry;
+unsigned long efi64_stub_entry;
 unsigned long efi_pe_entry;
 unsigned long startup_64;
 
@@ -231,20 +232,26 @@ static void efi_stub_defaults(void)
 	/* Defaults for old kernel */
 #ifdef CONFIG_X86_32
 	efi_pe_entry = 0x10;
-	efi_stub_entry = 0x30;
 #else
 	efi_pe_entry = 0x210;
-	efi_stub_entry = 0x230;
 	startup_64 = 0x200;
 #endif
 }
 
 static void efi_stub_entry_update(void)
 {
-#ifdef CONFIG_X86_64 /* Yes, this is really how we defined it :( */
-	efi_stub_entry -= 0x200;
+	unsigned long addr = efi32_stub_entry;
+
+#ifdef CONFIG_X86_64
+	/* Yes, this is really how we defined it :( */
+	addr = efi64_stub_entry - 0x200;
 #endif
-	put_unaligned_le32(efi_stub_entry, &buf[0x264]);
+
+#ifdef CONFIG_EFI_MIXED
+	if (efi32_stub_entry != addr)
+		die("32-bit and 64-bit EFI entry points do not match\n");
+#endif
+	put_unaligned_le32(addr, &buf[0x264]);
 }
 
 #else
@@ -289,7 +296,8 @@ static void parse_zoffset(char *fname)
 	p = (char *)buf;
 
 	while (p && *p) {
-		PARSE_ZOFS(p, efi_stub_entry);
+		PARSE_ZOFS(p, efi32_stub_entry);
+		PARSE_ZOFS(p, efi64_stub_entry);
 		PARSE_ZOFS(p, efi_pe_entry);
 		PARSE_ZOFS(p, startup_64);
 

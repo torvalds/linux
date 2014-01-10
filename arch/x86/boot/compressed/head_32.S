@@ -64,7 +64,7 @@ ENTRY(efi_pe_entry)
 	pushl	%ecx
 	jmp	2f		/* Skip efi_config initialization */
 
-ENTRY(efi_stub_entry)
+ENTRY(efi32_stub_entry)
 	add	$0x4, %esp
 	popl	%ecx
 	popl	%edx

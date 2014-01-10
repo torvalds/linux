@@ -178,6 +178,13 @@ ENTRY(startup_32)
 	 */
 	pushl	$__KERNEL_CS
 	leal	startup_64(%ebp), %eax
+#ifdef CONFIG_EFI_MIXED
+	movl	efi32_config(%ebp), %ebx
+	cmp	$0, %ebx
+	jz	1f
+	leal	handover_entry(%ebp), %eax
+1:
+#endif
 	pushl	%eax
 
 	/* Enter paged protected Mode, activating Long Mode */
@@ -187,6 +194,30 @@ ENTRY(startup_32)
 	/* Jump from 32bit compatibility mode into 64bit mode. */
 	lret
 ENDPROC(startup_32)
+
+#ifdef CONFIG_EFI_MIXED
+	.org 0x190
+ENTRY(efi32_stub_entry)
+	add	$0x4, %esp		/* Discard return address */
+	popl	%ecx
+	popl	%edx
+	popl	%esi
+
+	leal	(BP_scratch+4)(%esi), %esp
+	call	1f
+1:	pop	%ebp
+	subl	$1b, %ebp
+
+	movl	%ecx, efi32_config(%ebp)
+	movl	%edx, efi32_config+8(%ebp)
+	sgdtl	efi32_boot_gdt(%ebp)
+
+	leal	efi32_config(%ebp), %eax
+	movl	%eax, efi_config(%ebp)
+
+	jmp	startup_32
+ENDPROC(efi32_stub_entry)
+#endif
 
 	.code64
 	.org 0x200
@@ -231,13 +262,7 @@ ENTRY(efi_pe_entry)
 	mov	%rax, %rsi
 	jmp	2f		/* Skip the relocation */
 
-ENTRY(efi_stub_entry)
-	movq	%rdi, efi64_config(%rip)	/* Handle */
-	movq	%rsi, efi64_config+8(%rip) /* EFI System table pointer */
-
-	leaq	efi64_config(%rip), %rax
-	movq	%rax, efi_config(%rip)
-
+handover_entry:
 	call	1f
 1:	popq	%rbp
 	subq	$1b, %rbp
@@ -247,7 +272,6 @@ ENTRY(efi_stub_entry)
 	 */
 	movq	efi_config(%rip), %rax
 	addq	%rbp, 88(%rax)
-	movq	%rdx, %rsi
 2:
 	movq	efi_config(%rip), %rdi
 	call	efi_main
@@ -336,6 +360,20 @@ preferred_addr:
 	leaq	relocated(%rbx), %rax
 	jmp	*%rax
 
+#ifdef CONFIG_EFI_STUB
+	.org 0x390
+ENTRY(efi64_stub_entry)
+	movq	%rdi, efi64_config(%rip)	/* Handle */
+	movq	%rsi, efi64_config+8(%rip) /* EFI System table pointer */
+
+	leaq	efi64_config(%rip), %rax
+	movq	%rax, efi_config(%rip)
+
+	movq	%rdx, %rsi
+	jmp	handover_entry
+ENDPROC(efi64_stub_entry)
+#endif
+
 	.text
 relocated:
 
@@ -403,6 +441,14 @@ gdt_end:
 
 efi_config:
 	.quad	0
+
+#ifdef CONFIG_EFI_MIXED
+	.global efi32_config
+efi32_config:
+	.fill	11,8,0
+	.quad	efi64_thunk
+	.byte	0
+#endif
 
 	.global efi64_config
 efi64_config:
