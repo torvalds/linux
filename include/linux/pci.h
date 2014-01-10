@@ -1200,10 +1200,8 @@ extern bool pcie_ports_auto;
 #endif
 
 #ifndef CONFIG_PCIEASPM
-static inline int pcie_aspm_enabled(void) { return 0; }
 static inline bool pcie_aspm_support_enabled(void) { return false; }
 #else
-int pcie_aspm_enabled(void);
 bool pcie_aspm_support_enabled(void);
 #endif
 
