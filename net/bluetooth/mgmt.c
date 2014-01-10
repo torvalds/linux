@@ -79,6 +79,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_BREDR,
 	MGMT_OP_SET_STATIC_ADDRESS,
 	MGMT_OP_SET_SCAN_PARAMS,
+	MGMT_OP_SET_SECURE_CONN,
 };
 
 static const u16 mgmt_events[] = {
@@ -376,6 +377,9 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 			settings |= MGMT_SETTING_SSP;
 			settings |= MGMT_SETTING_HS;
 		}
+
+		if (lmp_sc_capable(hdev))
+			settings |= MGMT_SETTING_SECURE_CONN;
 	}
 
 	if (lmp_le_capable(hdev)) {
@@ -422,6 +426,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		settings |= MGMT_SETTING_ADVERTISING;
+
+	if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags))
+		settings |= MGMT_SETTING_SECURE_CONN;
 
 	return settings;
 }
