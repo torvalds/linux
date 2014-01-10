@@ -51,6 +51,7 @@ static const size_t snd_minimum_buffer = 16384;
 static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t size)
 {
 	struct snd_dma_buffer *dmab = &substream->dma_buffer;
+	size_t orig_size = size;
 	int err;
 
 	do {
@@ -63,6 +64,10 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 		size >>= 1;
 	} while (size >= snd_minimum_buffer);
 	dmab->bytes = 0; /* tell error */
+	pr_warn("ALSA pcmC%dD%d%c,%d:%s: cannot preallocate for size %zu\n",
+		substream->pcm->card->number, substream->pcm->device,
+		substream->stream ? 'c' : 'p', substream->number,
+		substream->pcm->name, orig_size);
 	return 0;
 }
 
