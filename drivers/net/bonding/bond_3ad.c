@@ -143,11 +143,13 @@ static inline struct bonding *__get_bond_by_port(struct port *port)
  *
  * Return the aggregator of the first slave in @bond, or %NULL if it can't be
  * found.
+ * The caller must hold RCU or RTNL lock.
  */
 static inline struct aggregator *__get_first_agg(struct port *port)
 {
 	struct bonding *bond = __get_bond_by_port(port);
 	struct slave *first_slave;
+	struct aggregator *agg;
 
 	/* If there's no bond for this port, or bond has no slaves */
 	if (bond == NULL)
@@ -155,9 +157,10 @@ static inline struct aggregator *__get_first_agg(struct port *port)
 
 	rcu_read_lock();
 	first_slave = bond_first_slave_rcu(bond);
+	agg = first_slave ? &(SLAVE_AD_INFO(first_slave).aggregator) : NULL;
 	rcu_read_unlock();
 
-	return first_slave ? &(SLAVE_AD_INFO(first_slave).aggregator) : NULL;
+	return agg;
 }
 
 /**
