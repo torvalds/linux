@@ -25,7 +25,6 @@
 #include <net/tc_act/tc_defact.h>
 
 #define SIMP_TAB_MASK     7
-static u32 simp_idx_gen;
 static struct tcf_hashinfo simp_hash_info;
 
 #define SIMP_MAX_DATA	32
@@ -118,7 +117,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	pc = tcf_hash_check(parm->index, a, bind, &simp_hash_info);
 	if (!pc) {
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind,
-				     &simp_idx_gen, &simp_hash_info);
+				     &simp_hash_info);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 

@@ -24,7 +24,6 @@
 #include <net/tc_act/tc_pedit.h>
 
 #define PEDIT_TAB_MASK	15
-static u32 pedit_idx_gen;
 
 static struct tcf_hashinfo pedit_hash_info;
 
@@ -63,7 +62,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		if (!parm->nkeys)
 			return -EINVAL;
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind,
-				     &pedit_idx_gen, &pedit_hash_info);
+				     &pedit_hash_info);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 		p = to_pedit(pc);

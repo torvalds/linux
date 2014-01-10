@@ -28,7 +28,6 @@
 #include <net/tc_act/tc_skbedit.h>
 
 #define SKBEDIT_TAB_MASK     15
-static u32 skbedit_idx_gen;
 static struct tcf_hashinfo skbedit_hash_info;
 
 static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
@@ -104,7 +103,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	pc = tcf_hash_check(parm->index, a, bind, &skbedit_hash_info);
 	if (!pc) {
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind,
-				     &skbedit_idx_gen, &skbedit_hash_info);
+				     &skbedit_hash_info);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 

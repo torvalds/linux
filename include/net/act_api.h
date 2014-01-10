@@ -39,6 +39,7 @@ struct tcf_hashinfo {
 	struct hlist_head	*htab;
 	unsigned int		hmask;
 	spinlock_t		lock;
+	u32			index;
 };
 
 static inline unsigned int tcf_hash(u32 index, unsigned int hmask)
@@ -51,6 +52,7 @@ static inline int tcf_hashinfo_init(struct tcf_hashinfo *hf, unsigned int mask)
 	int i;
 
 	spin_lock_init(&hf->lock);
+	hf->index = 0;
 	hf->hmask = mask;
 	hf->htab = kzalloc((mask + 1) * sizeof(struct hlist_head),
 			   GFP_KERNEL);
@@ -105,13 +107,12 @@ struct tcf_common *tcf_hash_lookup(u32 index, struct tcf_hashinfo *hinfo);
 void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo);
 int tcf_hash_release(struct tcf_common *p, int bind,
 		     struct tcf_hashinfo *hinfo);
-u32 tcf_hash_new_index(u32 *idx_gen, struct tcf_hashinfo *hinfo);
+u32 tcf_hash_new_index(struct tcf_hashinfo *hinfo);
 struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a,
 				  int bind, struct tcf_hashinfo *hinfo);
 struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est,
 				   struct tc_action *a, int size,
-				   int bind, u32 *idx_gen,
-				   struct tcf_hashinfo *hinfo);
+				   int bind, struct tcf_hashinfo *hinfo);
 void tcf_hash_insert(struct tcf_common *p, struct tcf_hashinfo *hinfo);
 
 int tcf_register_action(struct tc_action_ops *a);

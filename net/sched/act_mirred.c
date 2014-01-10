@@ -30,7 +30,6 @@
 #include <linux/if_arp.h>
 
 #define MIRRED_TAB_MASK     7
-static u32 mirred_idx_gen;
 static LIST_HEAD(mirred_list);
 static struct tcf_hashinfo mirred_hash_info;
 
@@ -107,7 +106,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		if (dev == NULL)
 			return -EINVAL;
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*m), bind,
-				     &mirred_idx_gen, &mirred_hash_info);
+				     &mirred_hash_info);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
