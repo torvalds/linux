@@ -60,7 +60,10 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	dynid->id.idVendor = idVendor;
 	dynid->id.idProduct = idProduct;
 	dynid->id.match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-	if (fields == 3) {
+	if (fields > 2 && bInterfaceClass) {
+		if (bInterfaceClass > 255)
+			return -EINVAL;
+
 		dynid->id.bInterfaceClass = (u8)bInterfaceClass;
 		dynid->id.match_flags |= USB_DEVICE_ID_MATCH_INT_CLASS;
 	}
