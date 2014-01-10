@@ -924,6 +924,10 @@ void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)
 
 	if (rdev->asic->dpm.powergate_uvd) {
 		mutex_lock(&rdev->pm.mutex);
+		/* don't powergate anything if we
+		   have active but pause streams */
+		enable |= rdev->pm.dpm.sd > 0;
+		enable |= rdev->pm.dpm.hd > 0;
 		/* enable/disable UVD */
 		radeon_dpm_powergate_uvd(rdev, !enable);
 		mutex_unlock(&rdev->pm.mutex);
