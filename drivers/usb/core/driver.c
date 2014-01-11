@@ -302,9 +302,9 @@ static int usb_probe_interface(struct device *dev)
 		return error;
 	}
 
-	id = usb_match_id(intf, driver->id_table);
+	id = usb_match_dynamic_id(intf, driver);
 	if (!id)
-		id = usb_match_dynamic_id(intf, driver);
+		id = usb_match_id(intf, driver->id_table);
 	if (!id)
 		return error;
 
