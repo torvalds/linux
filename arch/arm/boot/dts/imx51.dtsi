@@ -12,9 +12,10 @@
 
 #include "skeleton.dtsi"
 #include "imx51-pinfunc.h"
-#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/imx5-clock.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	aliases {
