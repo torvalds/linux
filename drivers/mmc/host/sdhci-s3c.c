@@ -126,9 +126,16 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 
 	rate = ourhost->clk_rates[src];
 
-	for (shift = 0; shift < 8; ++shift) {
+	for (shift = 0; shift <= 8; ++shift) {
 		if ((rate >> shift) <= wanted)
 			break;
+	}
+
+	if (shift > 8) {
+		dev_dbg(&ourhost->pdev->dev,
+			"clk %d: rate %ld, min rate %lu > wanted %u\n",
+			src, rate, rate / 256, wanted);
+		return UINT_MAX;
 	}
 
 	dev_dbg(&ourhost->pdev->dev, "clk %d: rate %ld, want %d, got %ld\n",
