@@ -90,7 +90,7 @@ struct packet_type;
 struct rtable;
 struct sockaddr;
 
-int igmp_mc_proc_init(void);
+int igmp_mc_init(void);
 
 /*
  *	Functions provided by ip.c

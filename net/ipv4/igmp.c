@@ -2762,6 +2762,7 @@ static struct pernet_operations igmp_net_ops = {
 	.init = igmp_net_init,
 	.exit = igmp_net_exit,
 };
+#endif
 
 static int igmp_netdev_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
@@ -2785,8 +2786,9 @@ static struct notifier_block igmp_notifier = {
 	.notifier_call = igmp_netdev_event,
 };
 
-int __init igmp_mc_proc_init(void)
+int __init igmp_mc_init(void)
 {
+#if defined(CONFIG_PROC_FS)
 	int err;
 
 	err = register_pernet_subsys(&igmp_net_ops);
@@ -2800,5 +2802,7 @@ int __init igmp_mc_proc_init(void)
 reg_notif_fail:
 	unregister_pernet_subsys(&igmp_net_ops);
 	return err;
-}
+#else
+	return register_netdevice_notifier(&igmp_notifier);
 #endif
+}
