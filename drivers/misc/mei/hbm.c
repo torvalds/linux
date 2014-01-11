@@ -763,7 +763,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return -EPROTO;
 		}
 
-		dev->dev_state = MEI_DEV_DISABLED;
+		dev->dev_state = MEI_DEV_POWER_DOWN;
 		dev_info(&dev->pdev->dev, "hbm: stop response: resetting.\n");
 		/* force the reset */
 		return -EPROTO;

@@ -185,7 +185,7 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 
 	mei_me_reg_write(hw, H_CSR, hcsr);
 
-	if (dev->dev_state == MEI_DEV_POWER_DOWN)
+	if (intr_enable == false)
 		mei_me_hw_reset_release(dev);
 
 	return 0;
@@ -482,11 +482,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 		mei_clear_interrupts(dev);
 
 	/* check if ME wants a reset */
-	if (!mei_hw_is_ready(dev) &&
-	    dev->dev_state != MEI_DEV_RESETTING &&
-	    dev->dev_state != MEI_DEV_INITIALIZING &&
-	    dev->dev_state != MEI_DEV_POWER_DOWN &&
-	    dev->dev_state != MEI_DEV_POWER_UP) {
+	if (!mei_hw_is_ready(dev) && dev->dev_state != MEI_DEV_RESETTING) {
 		dev_warn(&dev->pdev->dev, "FW not ready: resetting.\n");
 		schedule_work(&dev->reset_work);
 		goto end;
@@ -514,7 +510,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 			break;
 		dev_dbg(&dev->pdev->dev, "slots to read = %08x\n", slots);
 		rets = mei_irq_read_handler(dev, &complete_list, &slots);
-		if (rets) {
+		if (rets && dev->dev_state != MEI_DEV_RESETTING) {
 			schedule_work(&dev->reset_work);
 			goto end;
 		}

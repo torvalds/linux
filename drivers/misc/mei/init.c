@@ -43,6 +43,113 @@ const char *mei_dev_state_str(int state)
 #undef MEI_DEV_STATE
 }
 
+
+/**
+ * mei_cancel_work. Cancel mei background jobs
+ *
+ * @dev: the device structure
+ *
+ * returns 0 on success or < 0 if the reset hasn't succeeded
+ */
+void mei_cancel_work(struct mei_device *dev)
+{
+	cancel_work_sync(&dev->init_work);
+	cancel_work_sync(&dev->reset_work);
+
+	cancel_delayed_work(&dev->timer_work);
+}
+EXPORT_SYMBOL_GPL(mei_cancel_work);
+
+/**
+ * mei_reset - resets host and fw.
+ *
+ * @dev: the device structure
+ */
+int mei_reset(struct mei_device *dev)
+{
+	enum mei_dev_state state = dev->dev_state;
+	bool interrupts_enabled;
+	int ret;
+
+	if (state != MEI_DEV_INITIALIZING &&
+	    state != MEI_DEV_DISABLED &&
+	    state != MEI_DEV_POWER_DOWN &&
+	    state != MEI_DEV_POWER_UP)
+		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
+			 mei_dev_state_str(state));
+
+	/* we're already in reset, cancel the init timer
+	 * if the reset was called due the hbm protocol error
+	 * we need to call it before hw start
+	 * so the hbm watchdog won't kick in
+	 */
+	mei_hbm_idle(dev);
+
+	/* enter reset flow */
+	interrupts_enabled = state != MEI_DEV_POWER_DOWN;
+	dev->dev_state = MEI_DEV_RESETTING;
+
+	ret = mei_hw_reset(dev, interrupts_enabled);
+	/* fall through and remove the sw state even if hw reset has failed */
+
+	/* no need to clean up software state in case of power up */
+	if (state != MEI_DEV_INITIALIZING &&
+	    state != MEI_DEV_POWER_UP) {
+
+		/* remove all waiting requests */
+		mei_cl_all_write_clear(dev);
+
+		mei_cl_all_disconnect(dev);
+
+		/* wake up all readers and writers so they can be interrupted */
+		mei_cl_all_wakeup(dev);
+
+		/* remove entry if already in list */
+		dev_dbg(&dev->pdev->dev, "remove iamthif and wd from the file list.\n");
+		mei_cl_unlink(&dev->wd_cl);
+		mei_cl_unlink(&dev->iamthif_cl);
+		mei_amthif_reset_params(dev);
+		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));
+	}
+
+
+	dev->me_clients_num = 0;
+	dev->rd_msg_hdr = 0;
+	dev->wd_pending = false;
+
+	if (ret) {
+		dev_err(&dev->pdev->dev, "hw_reset failed ret = %d\n", ret);
+		dev->dev_state = MEI_DEV_DISABLED;
+		return ret;
+	}
+
+	if (state == MEI_DEV_POWER_DOWN) {
+		dev_dbg(&dev->pdev->dev, "powering down: end of reset\n");
+		dev->dev_state = MEI_DEV_DISABLED;
+		return 0;
+	}
+
+	ret = mei_hw_start(dev);
+	if (ret) {
+		dev_err(&dev->pdev->dev, "hw_start failed ret = %d\n", ret);
+		dev->dev_state = MEI_DEV_DISABLED;
+		return ret;
+	}
+
+	dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
+
+	dev->dev_state = MEI_DEV_INIT_CLIENTS;
+	ret = mei_hbm_start_req(dev);
+	if (ret) {
+		dev_err(&dev->pdev->dev, "hbm_start failed ret = %d\n", ret);
+		dev->dev_state = MEI_DEV_DISABLED;
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mei_reset);
+
 /**
  * mei_start - initializes host and fw to start work.
  *
@@ -54,14 +161,20 @@ int mei_start(struct mei_device *dev)
 {
 	mutex_lock(&dev->device_lock);
 
-	/* acknowledge interrupt and stop interupts */
+	/* acknowledge interrupt and stop interrupts */
 	mei_clear_interrupts(dev);
 
 	mei_hw_config(dev);
 
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 
-	mei_reset(dev, 1);
+	dev->dev_state = MEI_DEV_INITIALIZING;
+	mei_reset(dev);
+
+	if (dev->dev_state == MEI_DEV_DISABLED) {
+		dev_err(&dev->pdev->dev, "reset failed");
+		goto err;
+	}
 
 	if (mei_hbm_start_wait(dev)) {
 		dev_err(&dev->pdev->dev, "HBM haven't started");
@@ -96,106 +209,33 @@ err:
 EXPORT_SYMBOL_GPL(mei_start);
 
 /**
- * mei_cancel_work. Cancel mei background jobs
+ * mei_restart - restart device after suspend
  *
  * @dev: the device structure
- */
-void mei_cancel_work(struct mei_device *dev)
-{
-	cancel_work_sync(&dev->init_work);
-	cancel_work_sync(&dev->reset_work);
-
-	cancel_delayed_work(&dev->timer_work);
-}
-EXPORT_SYMBOL_GPL(mei_cancel_work);
-
-/**
- * mei_reset - resets host and fw.
  *
- * @dev: the device structure
- * @interrupts_enabled: if interrupt should be enabled after reset.
+ * returns 0 on success or -ENODEV if the restart hasn't succeeded
  */
-void mei_reset(struct mei_device *dev, int interrupts_enabled)
+int mei_restart(struct mei_device *dev)
 {
-	bool unexpected;
-	int ret;
+	int err;
 
-	unexpected = (dev->dev_state != MEI_DEV_INITIALIZING &&
-			dev->dev_state != MEI_DEV_DISABLED &&
-			dev->dev_state != MEI_DEV_POWER_DOWN &&
-			dev->dev_state != MEI_DEV_POWER_UP);
+	mutex_lock(&dev->device_lock);
 
-	if (unexpected)
-		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
-			 mei_dev_state_str(dev->dev_state));
+	mei_clear_interrupts(dev);
 
-	/* we're already in reset, cancel the init timer
-	 * if the reset was called due the hbm protocol error
-	 * we need to call it before hw start
-	 * so the hbm watchdog won't kick in
-	 */
-	mei_hbm_idle(dev);
+	dev->dev_state = MEI_DEV_POWER_UP;
 
-	ret = mei_hw_reset(dev, interrupts_enabled);
-	if (ret) {
-		dev_err(&dev->pdev->dev, "hw reset failed disabling the device\n");
-		interrupts_enabled = false;
-	}
+	err = mei_reset(dev);
 
+	mutex_unlock(&dev->device_lock);
 
-	if (dev->dev_state != MEI_DEV_INITIALIZING &&
-	    dev->dev_state != MEI_DEV_POWER_UP) {
-		if (dev->dev_state != MEI_DEV_DISABLED &&
-		    dev->dev_state != MEI_DEV_POWER_DOWN)
-			dev->dev_state = MEI_DEV_RESETTING;
+	if (err || dev->dev_state == MEI_DEV_DISABLED)
+		return -ENODEV;
 
-		/* remove all waiting requests */
-		mei_cl_all_write_clear(dev);
-
-		mei_cl_all_disconnect(dev);
-
-		/* wake up all readings so they can be interrupted */
-		mei_cl_all_wakeup(dev);
-
-		/* remove entry if already in list */
-		dev_dbg(&dev->pdev->dev, "remove iamthif and wd from the file list.\n");
-		mei_cl_unlink(&dev->wd_cl);
-		mei_cl_unlink(&dev->iamthif_cl);
-		mei_amthif_reset_params(dev);
-		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));
-	}
-
-
-	dev->me_clients_num = 0;
-	dev->rd_msg_hdr = 0;
-	dev->wd_pending = false;
-
-	if (!interrupts_enabled) {
-		dev_dbg(&dev->pdev->dev, "intr not enabled end of reset\n");
-		dev->dev_state = MEI_DEV_DISABLED;
-		return;
-	}
-
-	ret = mei_hw_start(dev);
-	if (ret) {
-		dev_err(&dev->pdev->dev, "hw_start failed disabling the device\n");
-		dev->dev_state = MEI_DEV_DISABLED;
-		return;
-	}
-
-	dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
-	/* link is established * start sending messages.  */
-
-	dev->dev_state = MEI_DEV_INIT_CLIENTS;
-
-	ret = mei_hbm_start_req(dev);
-	if (ret) {
-		dev_err(&dev->pdev->dev, "hbm_start failed disabling the device\n");
-		dev->dev_state = MEI_DEV_DISABLED;
-		return;
-	}
+	return 0;
 }
-EXPORT_SYMBOL_GPL(mei_reset);
+EXPORT_SYMBOL_GPL(mei_restart);
+
 
 static void mei_reset_work(struct work_struct *work)
 {
@@ -204,9 +244,12 @@ static void mei_reset_work(struct work_struct *work)
 
 	mutex_lock(&dev->device_lock);
 
-	mei_reset(dev, true);
+	mei_reset(dev);
 
 	mutex_unlock(&dev->device_lock);
+
+	if (dev->dev_state == MEI_DEV_DISABLED)
+		dev_err(&dev->pdev->dev, "reset failed");
 }
 
 void mei_stop(struct mei_device *dev)
@@ -222,7 +265,7 @@ void mei_stop(struct mei_device *dev)
 	mei_wd_stop(dev);
 
 	dev->dev_state = MEI_DEV_POWER_DOWN;
-	mei_reset(dev, 0);
+	mei_reset(dev);
 
 	mutex_unlock(&dev->device_lock);
 
