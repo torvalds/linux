@@ -589,6 +589,7 @@ struct dma_pl330_dmac {
 	spinlock_t pool_lock;
 
 	/* Peripheral channels connected to this DMAC */
+	unsigned int num_peripherals;
 	struct dma_pl330_chan *peripherals; /* keep at end */
 };
 
@@ -609,11 +610,6 @@ struct dma_pl330_desc {
 
 	/* The channel which currently holds this desc */
 	struct dma_pl330_chan *pchan;
-};
-
-struct dma_pl330_filter_args {
-	struct dma_pl330_dmac *pdmac;
-	unsigned int chan_id;
 };
 
 static inline void _callback(struct pl330_req *r, enum pl330_op_err err)
@@ -2303,16 +2299,6 @@ static void dma_pl330_rqcb(void *token, enum pl330_op_err err)
 	tasklet_schedule(&pch->task);
 }
 
-static bool pl330_dt_filter(struct dma_chan *chan, void *param)
-{
-	struct dma_pl330_filter_args *fargs = param;
-
-	if (chan->device != &fargs->pdmac->ddma)
-		return false;
-
-	return (chan->chan_id == fargs->chan_id);
-}
-
 bool pl330_filter(struct dma_chan *chan, void *param)
 {
 	u8 *peri_id;
@@ -2330,23 +2316,16 @@ static struct dma_chan *of_dma_pl330_xlate(struct of_phandle_args *dma_spec,
 {
 	int count = dma_spec->args_count;
 	struct dma_pl330_dmac *pdmac = ofdma->of_dma_data;
-	struct dma_pl330_filter_args fargs;
-	dma_cap_mask_t cap;
-
-	if (!pdmac)
-		return NULL;
+	unsigned int chan_id;
 
 	if (count != 1)
 		return NULL;
 
-	fargs.pdmac = pdmac;
-	fargs.chan_id = dma_spec->args[0];
+	chan_id = dma_spec->args[0];
+	if (chan_id >= pdmac->num_peripherals)
+		return NULL;
 
-	dma_cap_zero(cap);
-	dma_cap_set(DMA_SLAVE, cap);
-	dma_cap_set(DMA_CYCLIC, cap);
-
-	return dma_request_channel(cap, pl330_dt_filter, &fargs);
+	return dma_get_slave_channel(&pdmac->peripherals[chan_id].chan);
 }
 
 static int pl330_alloc_chan_resources(struct dma_chan *chan)
@@ -2979,6 +2958,8 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		num_chan = max_t(int, pdat->nr_valid_peri, pi->pcfg.num_chan);
 	else
 		num_chan = max_t(int, pi->pcfg.num_peri, pi->pcfg.num_chan);
+
+	pdmac->num_peripherals = num_chan;
 
 	pdmac->peripherals = kzalloc(num_chan * sizeof(*pch), GFP_KERNEL);
 	if (!pdmac->peripherals) {
