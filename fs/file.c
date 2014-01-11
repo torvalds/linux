@@ -348,21 +348,16 @@ out:
 	return NULL;
 }
 
-static void close_files(struct files_struct * files)
+static struct fdtable *close_files(struct files_struct * files)
 {
-	int i, j;
-	struct fdtable *fdt;
-
-	j = 0;
-
 	/*
 	 * It is safe to dereference the fd table without RCU or
 	 * ->file_lock because this is the last reference to the
-	 * files structure.  But use RCU to shut RCU-lockdep up.
+	 * files structure.
 	 */
-	rcu_read_lock();
-	fdt = files_fdtable(files);
-	rcu_read_unlock();
+	struct fdtable *fdt = rcu_dereference_raw(files->fdt);
+	int i, j = 0;
+
 	for (;;) {
 		unsigned long set;
 		i = j * BITS_PER_LONG;
@@ -381,6 +376,8 @@ static void close_files(struct files_struct * files)
 			set >>= 1;
 		}
 	}
+
+	return fdt;
 }
 
 struct files_struct *get_files_struct(struct task_struct *task)
@@ -398,14 +395,9 @@ struct files_struct *get_files_struct(struct task_struct *task)
 
 void put_files_struct(struct files_struct *files)
 {
-	struct fdtable *fdt;
-
 	if (atomic_dec_and_test(&files->count)) {
-		close_files(files);
-		/* not really needed, since nobody can see us */
-		rcu_read_lock();
-		fdt = files_fdtable(files);
-		rcu_read_unlock();
+		struct fdtable *fdt = close_files(files);
+
 		/* free the arrays if they are not embedded */
 		if (fdt != &files->fdtab)
 			__free_fdtable(fdt);
