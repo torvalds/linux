@@ -225,19 +225,11 @@ void adreno_flush(struct msm_gpu *gpu)
 void adreno_idle(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	uint32_t rptr, wptr = get_wptr(gpu->rb);
-	unsigned long t;
+	uint32_t wptr = get_wptr(gpu->rb);
 
-	t = jiffies + ADRENO_IDLE_TIMEOUT;
-
-	/* then wait for CP to drain ringbuffer: */
-	do {
-		rptr = adreno_gpu->memptrs->rptr;
-		if (rptr == wptr)
-			return;
-	} while(time_before(jiffies, t));
-
-	DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
+	/* wait for CP to drain ringbuffer: */
+	if (spin_until(adreno_gpu->memptrs->rptr == wptr))
+		DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
 
 	/* TODO maybe we need to reset GPU here to recover from hang? */
 }
@@ -278,22 +270,19 @@ void adreno_dump(struct msm_gpu *gpu)
 
 }
 
-void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords)
+static uint32_t ring_freewords(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	uint32_t freedwords;
-	unsigned long t = jiffies + ADRENO_IDLE_TIMEOUT;
-	do {
-		uint32_t size = gpu->rb->size / 4;
-		uint32_t wptr = get_wptr(gpu->rb);
-		uint32_t rptr = adreno_gpu->memptrs->rptr;
-		freedwords = (rptr + (size - 1) - wptr) % size;
+	uint32_t size = gpu->rb->size / 4;
+	uint32_t wptr = get_wptr(gpu->rb);
+	uint32_t rptr = adreno_gpu->memptrs->rptr;
+	return (rptr + (size - 1) - wptr) % size;
+}
 
-		if (time_after(jiffies, t)) {
-			DRM_ERROR("%s: timeout waiting for ringbuffer space\n", gpu->name);
-			break;
-		}
-	} while(freedwords < ndwords);
+void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords)
+{
+	if (spin_until(ring_freewords(gpu) >= ndwords))
+		DRM_ERROR("%s: timeout waiting for ringbuffer space\n", gpu->name);
 }
 
 static const char *iommu_ports[] = {

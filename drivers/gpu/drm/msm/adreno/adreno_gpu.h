@@ -76,7 +76,20 @@ struct adreno_platform_config {
 #endif
 };
 
-#define ADRENO_IDLE_TIMEOUT (20 * 1000)
+#define ADRENO_IDLE_TIMEOUT msecs_to_jiffies(1000)
+
+#define spin_until(X) ({                                   \
+	int __ret = -ETIMEDOUT;                            \
+	unsigned long __t = jiffies + ADRENO_IDLE_TIMEOUT; \
+	do {                                               \
+		if (X) {                                   \
+			__ret = 0;                         \
+			break;                             \
+		}                                          \
+	} while (time_before(jiffies, __t));               \
+	__ret;                                             \
+})
+
 
 static inline bool adreno_is_a3xx(struct adreno_gpu *gpu)
 {

@@ -326,21 +326,13 @@ static void a3xx_destroy(struct msm_gpu *gpu)
 
 static void a3xx_idle(struct msm_gpu *gpu)
 {
-	unsigned long t;
-
 	/* wait for ringbuffer to drain: */
 	adreno_idle(gpu);
 
-	t = jiffies + ADRENO_IDLE_TIMEOUT;
-
 	/* then wait for GPU to finish: */
-	do {
-		uint32_t rbbm_status = gpu_read(gpu, REG_A3XX_RBBM_STATUS);
-		if (!(rbbm_status & A3XX_RBBM_STATUS_GPU_BUSY))
-			return;
-	} while(time_before(jiffies, t));
-
-	DRM_ERROR("timeout waiting for %s to idle!\n", gpu->name);
+	if (spin_until(!(gpu_read(gpu, REG_A3XX_RBBM_STATUS) &
+			A3XX_RBBM_STATUS_GPU_BUSY)))
+		DRM_ERROR("%s: timeout waiting for GPU to idle!\n", gpu->name);
 
 	/* TODO maybe we need to reset GPU here to recover from hang? */
 }
