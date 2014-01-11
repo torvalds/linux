@@ -346,6 +346,13 @@
 		DVDD-supply = <&vio>;
 	};
 
+	tsl2563: tsl2563@29 {
+		compatible = "amstaos,tsl2563";
+		reg = <0x29>;
+
+		amstaos,cover-comp-gain = <16>;
+	};
+
 	lp5523: lp5523@32 {
 		compatible = "national,lp5523";
 		reg = <0x32>;
