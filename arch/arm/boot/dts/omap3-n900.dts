@@ -418,6 +418,15 @@
 		compatible = "ti,bq27200";
 		reg = <0x55>;
 	};
+
+	tpa6130a2: tpa6130a2@60 {
+		compatible = "ti,tpa6130a2";
+		reg = <0x60>;
+
+		Vdd-supply = <&vmmc2>;
+
+		power-gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>; /* 98 */
+	};
 };
 
 &i2c3 {
