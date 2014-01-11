@@ -438,8 +438,10 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else {
 		server = tcon->ses->server;
-		if (!server->ops->create_hardlink)
-			return -ENOSYS;
+		if (!server->ops->create_hardlink) {
+			rc = -ENOSYS;
+			goto cifs_hl_exit;
+		}
 		rc = server->ops->create_hardlink(xid, tcon, from_name, to_name,
 						  cifs_sb);
 		if ((rc == -EIO) || (rc == -EINVAL))
