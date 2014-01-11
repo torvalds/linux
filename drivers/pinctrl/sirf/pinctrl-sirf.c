@@ -560,7 +560,7 @@ static int sirfsoc_gpio_irq_type(struct irq_data *d, unsigned type)
 	spin_lock_irqsave(&sgpio_lock, flags);
 
 	val = readl(bank->chip.regs + offset);
-	val &= ~SIRFSOC_GPIO_CTL_INTR_STS_MASK;
+	val &= ~(SIRFSOC_GPIO_CTL_INTR_STS_MASK | SIRFSOC_GPIO_CTL_OUT_EN_MASK);
 
 	switch (type) {
 	case IRQ_TYPE_NONE:
