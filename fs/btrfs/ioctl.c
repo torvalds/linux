@@ -3263,9 +3263,17 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 	unlock_extent(&BTRFS_I(src)->io_tree, off, off + len - 1);
 out_unlock:
-	mutex_unlock(&src->i_mutex);
-	if (!same_inode)
-		mutex_unlock(&inode->i_mutex);
+	if (!same_inode) {
+		if (inode < src) {
+			mutex_unlock(&src->i_mutex);
+			mutex_unlock(&inode->i_mutex);
+		} else {
+			mutex_unlock(&inode->i_mutex);
+			mutex_unlock(&src->i_mutex);
+		}
+	} else {
+		mutex_unlock(&src->i_mutex);
+	}
 out_fput:
 	fdput(src_file);
 out_drop_write:
