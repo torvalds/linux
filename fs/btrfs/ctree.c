@@ -3142,7 +3142,9 @@ again:
 			if (ret < 0)
 				return ret;
 			if (!ret) {
-				p->slots[0] = btrfs_header_nritems(leaf) - 1;
+				leaf = p->nodes[0];
+				if (p->slots[0] == btrfs_header_nritems(leaf))
+					p->slots[0]--;
 				return 0;
 			}
 			if (!return_any)
