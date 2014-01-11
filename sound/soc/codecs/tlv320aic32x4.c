@@ -268,7 +268,7 @@ static const struct regmap_range_cfg aic32x4_regmap_pages[] = {
 		.window_start = 0,
 		.window_len = 128,
 		.range_min = AIC32X4_PAGE1,
-		.range_max = AIC32X4_PAGE1 + 127,
+		.range_max = AIC32X4_RMICPGAVOL,
 	},
 };
 
