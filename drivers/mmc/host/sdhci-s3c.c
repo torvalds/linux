@@ -144,7 +144,7 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 {
 	unsigned long rate;
 	struct clk *clksrc = ourhost->clk_bus[src];
-	int div;
+	int shift;
 
 	if (!clksrc)
 		return UINT_MAX;
@@ -160,15 +160,15 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 
 	rate = clk_get_rate(clksrc);
 
-	for (div = 1; div < 256; div *= 2) {
-		if ((rate / div) <= wanted)
+	for (shift = 0; shift < 8; ++shift) {
+		if ((rate >> shift) <= wanted)
 			break;
 	}
 
 	dev_dbg(&ourhost->pdev->dev, "clk %d: rate %ld, want %d, got %ld\n",
-		src, rate, wanted, rate / div);
+		src, rate, wanted, rate >> shift);
 
-	return wanted - (rate / div);
+	return wanted - (rate >> shift);
 }
 
 /**
