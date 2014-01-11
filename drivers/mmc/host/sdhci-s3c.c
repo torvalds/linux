@@ -147,7 +147,7 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 	struct clk *clksrc = ourhost->clk_bus[src];
 	int shift;
 
-	if (!clksrc)
+	if (IS_ERR(clksrc))
 		return UINT_MAX;
 
 	/*
@@ -567,16 +567,14 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	clk_prepare_enable(sc->clk_io);
 
 	for (clks = 0, ptr = 0; ptr < MAX_BUS_CLK; ptr++) {
-		struct clk *clk;
 		char name[14];
 
 		snprintf(name, 14, "mmc_busclk.%d", ptr);
-		clk = devm_clk_get(dev, name);
-		if (IS_ERR(clk))
+		sc->clk_bus[ptr] = devm_clk_get(dev, name);
+		if (IS_ERR(sc->clk_bus[ptr]))
 			continue;
 
 		clks++;
-		sc->clk_bus[ptr] = clk;
 
 		/*
 		 * save current clock index to know which clock bus
