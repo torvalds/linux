@@ -170,6 +170,9 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
 		hw->rates |= codec_stream->rates;
 
+	hw->rate_min = 0;
+	hw->rate_max = UINT_MAX;
+
 	snd_pcm_limit_hw_rates(runtime);
 
 	hw->rate_min = max(hw->rate_min, cpu_stream->rate_min);
