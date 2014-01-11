@@ -162,13 +162,8 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 		hw->formats &= codec_stream->formats & cpu_stream->formats;
 	else
 		hw->formats = codec_stream->formats & cpu_stream->formats;
-	hw->rates = codec_stream->rates & cpu_stream->rates;
-	if (codec_stream->rates
-		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
-		hw->rates |= cpu_stream->rates;
-	if (cpu_stream->rates
-		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
-		hw->rates |= codec_stream->rates;
+	hw->rates = snd_pcm_rate_mask_intersect(codec_stream->rates,
+		cpu_stream->rates);
 
 	hw->rate_min = 0;
 	hw->rate_max = UINT_MAX;
