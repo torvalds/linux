@@ -776,6 +776,18 @@ config SENSORS_LM93
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm93.
 
+config SENSORS_LTC2945
+	tristate "Linear Technology LTC2945"
+	depends on I2C
+	select REGMAP_I2C
+	default n
+	help
+	  If you say yes here you get support for Linear Technology LTC2945
+	  I2C System Monitor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2945.
+
 config SENSORS_LTC4151
 	tristate "Linear Technology LTC4151"
 	depends on I2C
