@@ -74,6 +74,11 @@
 		};
 	};
 
+	isp1704: isp1704 {
+		compatible = "nxp,isp1704";
+		nxp,enable-gpio = <&gpio3 3 GPIO_ACTIVE_HIGH>;
+		usb-phy = <&usb2_phy>;
+	};
 };
 
 &omap3_pmx_core {
