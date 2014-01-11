@@ -434,6 +434,7 @@ struct igb_adapter {
 	struct delayed_work ptp_overflow_work;
 	struct work_struct ptp_tx_work;
 	struct sk_buff *ptp_tx_skb;
+	struct hwtstamp_config tstamp_config;
 	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
 	spinlock_t tmreg_lock;
@@ -545,8 +546,8 @@ static inline void igb_ptp_rx_hwtstamp(struct igb_ring *rx_ring,
 	rx_ring->last_rx_timestamp = jiffies;
 }
 
-int igb_ptp_hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr,
-			   int cmd);
+int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
+int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
 #ifdef CONFIG_IGB_HWMON
 void igb_sysfs_exit(struct igb_adapter *adapter);
 int igb_sysfs_init(struct igb_adapter *adapter);
