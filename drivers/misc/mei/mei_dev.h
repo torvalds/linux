@@ -61,6 +61,11 @@ extern const uuid_le mei_wd_guid;
 #define MEI_CLIENTS_MAX 256
 
 /*
+ * maximum number of consecutive resets
+ */
+#define MEI_MAX_CONSEC_RESET  3
+
+/*
  * Number of File descriptors/handles
  * that can be opened to the driver.
  *
@@ -327,6 +332,7 @@ struct mei_cl_device {
 /**
  * struct mei_device -  MEI private device struct
 
+ * @reset_count - limits the number of consecutive resets
  * @hbm_state - state of host bus message protocol
  * @mem_addr - mem mapped base register address
 
@@ -370,6 +376,7 @@ struct mei_device {
 	/*
 	 * mei device  states
 	 */
+	unsigned long reset_count;
 	enum mei_dev_state dev_state;
 	enum mei_hbm_state hbm_state;
 	u16 init_clients_timer;

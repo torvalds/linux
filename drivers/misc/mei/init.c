@@ -89,6 +89,13 @@ int mei_reset(struct mei_device *dev)
 	interrupts_enabled = state != MEI_DEV_POWER_DOWN;
 	dev->dev_state = MEI_DEV_RESETTING;
 
+	dev->reset_count++;
+	if (dev->reset_count > MEI_MAX_CONSEC_RESET) {
+		dev_err(&dev->pdev->dev, "reset: reached maximal consecutive resets: disabling the device\n");
+		dev->dev_state = MEI_DEV_DISABLED;
+		return -ENODEV;
+	}
+
 	ret = mei_hw_reset(dev, interrupts_enabled);
 	/* fall through and remove the sw state even if hw reset has failed */
 
@@ -169,6 +176,7 @@ int mei_start(struct mei_device *dev)
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 
 	dev->dev_state = MEI_DEV_INITIALIZING;
+	dev->reset_count = 0;
 	mei_reset(dev);
 
 	if (dev->dev_state == MEI_DEV_DISABLED) {
@@ -224,6 +232,7 @@ int mei_restart(struct mei_device *dev)
 	mei_clear_interrupts(dev);
 
 	dev->dev_state = MEI_DEV_POWER_UP;
+	dev->reset_count = 0;
 
 	err = mei_reset(dev);
 
@@ -285,6 +294,7 @@ void mei_device_init(struct mei_device *dev)
 	init_waitqueue_head(&dev->wait_recvd_msg);
 	init_waitqueue_head(&dev->wait_stop_wd);
 	dev->dev_state = MEI_DEV_INITIALIZING;
+	dev->reset_count = 0;
 
 	mei_io_list_init(&dev->read_list);
 	mei_io_list_init(&dev->write_list);
