@@ -3652,15 +3652,15 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 
 	cdio_status = ni_readl(M_Offset_CDIO_Status);
 	if (cdio_status & (CDO_Overrun_Bit | CDO_Underflow_Bit)) {
-/* printk("cdio error: statux=0x%x\n", cdio_status); */
+		/* printk("cdio error: statux=0x%x\n", cdio_status); */
 		ni_writel(CDO_Error_Interrupt_Confirm_Bit, M_Offset_CDIO_Command);	/*  XXX just guessing this is needed and does something useful */
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 	if (cdio_status & CDO_FIFO_Empty_Bit) {
-/* printk("cdio fifo empty\n"); */
+		/* printk("cdio fifo empty\n"); */
 		ni_writel(CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit,
 			  M_Offset_CDIO_Command);
-/* s->async->events |= COMEDI_CB_EOA; */
+		/* s->async->events |= COMEDI_CB_EOA; */
 	}
 	ni_event(dev, s);
 }
@@ -3845,7 +3845,7 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 		/* Input current bit */
 		if (devpriv->stc_readw(dev,
 				       DIO_Parallel_Input_Register) & DIO_SDIN) {
-/*			printk("DIO_P_I_R: 0x%x\n", devpriv->stc_readw(dev, DIO_Parallel_Input_Register)); */
+			/* printk("DIO_P_I_R: 0x%x\n", devpriv->stc_readw(dev, DIO_Parallel_Input_Register)); */
 			input |= mask;
 		}
 	}
