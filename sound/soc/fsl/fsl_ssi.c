@@ -79,8 +79,7 @@ static inline void write_ssi_mask(u32 __iomem *addr, u32 clear, u32 set)
  * ALSA that we support all rates and let the codec driver decide what rates
  * are really supported.
  */
-#define FSLSSI_I2S_RATES (SNDRV_PCM_RATE_5512 | SNDRV_PCM_RATE_8000_192000 | \
-			  SNDRV_PCM_RATE_CONTINUOUS)
+#define FSLSSI_I2S_RATES SNDRV_PCM_RATE_CONTINUOUS
 
 /**
  * FSLSSI_I2S_FORMATS: audio formats supported by the SSI
