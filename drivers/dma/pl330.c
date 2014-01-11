@@ -543,7 +543,9 @@ struct dma_pl330_chan {
 	/* DMA-Engine Channel */
 	struct dma_chan chan;
 
-	/* List of to be xfered descriptors */
+	/* List of submitted descriptors */
+	struct list_head submitted_list;
+	/* List of issued descriptors */
 	struct list_head work_list;
 	/* List of completed descriptors */
 	struct list_head completed_list;
@@ -2388,6 +2390,11 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 		pl330_chan_ctrl(pch->pl330_chid, PL330_OP_FLUSH);
 
 		/* Mark all desc done */
+		list_for_each_entry(desc, &pch->submitted_list, node) {
+			desc->status = FREE;
+			dma_cookie_complete(&desc->txd);
+		}
+
 		list_for_each_entry(desc, &pch->work_list , node) {
 			desc->status = FREE;
 			dma_cookie_complete(&desc->txd);
@@ -2398,6 +2405,7 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 			dma_cookie_complete(&desc->txd);
 		}
 
+		list_splice_tail_init(&pch->submitted_list, &pdmac->desc_pool);
 		list_splice_tail_init(&pch->work_list, &pdmac->desc_pool);
 		list_splice_tail_init(&pch->completed_list, &pdmac->desc_pool);
 		spin_unlock_irqrestore(&pch->lock, flags);
@@ -2456,7 +2464,14 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 static void pl330_issue_pending(struct dma_chan *chan)
 {
-	pl330_tasklet((unsigned long) to_pchan(chan));
+	struct dma_pl330_chan *pch = to_pchan(chan);
+	unsigned long flags;
+
+	spin_lock_irqsave(&pch->lock, flags);
+	list_splice_tail_init(&pch->submitted_list, &pch->work_list);
+	spin_unlock_irqrestore(&pch->lock, flags);
+
+	pl330_tasklet((unsigned long)pch);
 }
 
 /*
@@ -2483,11 +2498,11 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 
 		dma_cookie_assign(&desc->txd);
 
-		list_move_tail(&desc->node, &pch->work_list);
+		list_move_tail(&desc->node, &pch->submitted_list);
 	}
 
 	cookie = dma_cookie_assign(&last->txd);
-	list_add_tail(&last->node, &pch->work_list);
+	list_add_tail(&last->node, &pch->submitted_list);
 	spin_unlock_irqrestore(&pch->lock, flags);
 
 	return cookie;
@@ -2979,6 +2994,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		else
 			pch->chan.private = adev->dev.of_node;
 
+		INIT_LIST_HEAD(&pch->submitted_list);
 		INIT_LIST_HEAD(&pch->work_list);
 		INIT_LIST_HEAD(&pch->completed_list);
 		spin_lock_init(&pch->lock);
