@@ -445,7 +445,7 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 		 a = nla_next(a, &rem)) {
 		switch (nla_type(a)) {
 		case OVS_SAMPLE_ATTR_PROBABILITY:
-			if (net_random() >= nla_get_u32(a))
+			if (prandom_u32() >= nla_get_u32(a))
 				return 0;
 			break;
 

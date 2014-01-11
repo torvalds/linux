@@ -122,7 +122,7 @@ static bool drop_early(struct Qdisc *sch, u32 packet_size)
 	else
 		local_prob = q->vars.prob;
 
-	rnd = net_random();
+	rnd = prandom_u32();
 	if (rnd < local_prob)
 		return true;
 

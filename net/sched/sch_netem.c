@@ -169,7 +169,7 @@ static inline struct netem_skb_cb *netem_skb_cb(struct sk_buff *skb)
 static void init_crandom(struct crndstate *state, unsigned long rho)
 {
 	state->rho = rho;
-	state->last = net_random();
+	state->last = prandom_u32();
 }
 
 /* get_crandom - correlated random number generator
@@ -182,9 +182,9 @@ static u32 get_crandom(struct crndstate *state)
 	unsigned long answer;
 
 	if (state->rho == 0)	/* no correlation */
-		return net_random();
+		return prandom_u32();
 
-	value = net_random();
+	value = prandom_u32();
 	rho = (u64)state->rho + 1;
 	answer = (value * ((1ull<<32) - rho) + state->last * rho) >> 32;
 	state->last = answer;
@@ -198,7 +198,7 @@ static u32 get_crandom(struct crndstate *state)
 static bool loss_4state(struct netem_sched_data *q)
 {
 	struct clgstate *clg = &q->clg;
-	u32 rnd = net_random();
+	u32 rnd = prandom_u32();
 
 	/*
 	 * Makes a comparison between rnd and the transition
@@ -264,15 +264,15 @@ static bool loss_gilb_ell(struct netem_sched_data *q)
 
 	switch (clg->state) {
 	case 1:
-		if (net_random() < clg->a1)
+		if (prandom_u32() < clg->a1)
 			clg->state = 2;
-		if (net_random() < clg->a4)
+		if (prandom_u32() < clg->a4)
 			return true;
 		break;
 	case 2:
-		if (net_random() < clg->a2)
+		if (prandom_u32() < clg->a2)
 			clg->state = 1;
-		if (net_random() > clg->a3)
+		if (prandom_u32() > clg->a3)
 			return true;
 	}
 
@@ -457,7 +457,8 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		     skb_checksum_help(skb)))
 			return qdisc_drop(skb, sch);
 
-		skb->data[net_random() % skb_headlen(skb)] ^= 1<<(net_random() % 8);
+		skb->data[prandom_u32() % skb_headlen(skb)] ^=
+			1<<(prandom_u32() % 8);
 	}
 
 	if (unlikely(skb_queue_len(&sch->q) >= sch->limit))

@@ -464,7 +464,7 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 	}
 
 	if (!(ifa->ifa_flags & IFA_F_SECONDARY)) {
-		net_srandom(ifa->ifa_local);
+		prandom_seed((__force u32) ifa->ifa_local);
 		ifap = last_primary;
 	}
 

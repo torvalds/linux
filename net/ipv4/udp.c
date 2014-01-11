@@ -223,7 +223,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		inet_get_local_port_range(net, &low, &high);
 		remaining = (high - low) + 1;
 
-		rand = net_random();
+		rand = prandom_u32();
 		first = (((u64)rand * remaining) >> 32) + low;
 		/*
 		 * force rand to be an odd multiple of UDP_HTABLE_SIZE

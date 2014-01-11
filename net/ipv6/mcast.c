@@ -999,7 +999,7 @@ bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 
 static void mld_gq_start_timer(struct inet6_dev *idev)
 {
-	unsigned long tv = net_random() % idev->mc_maxdelay;
+	unsigned long tv = prandom_u32() % idev->mc_maxdelay;
 
 	idev->mc_gq_running = 1;
 	if (!mod_timer(&idev->mc_gq_timer, jiffies+tv+2))
@@ -1015,7 +1015,7 @@ static void mld_gq_stop_timer(struct inet6_dev *idev)
 
 static void mld_ifc_start_timer(struct inet6_dev *idev, unsigned long delay)
 {
-	unsigned long tv = net_random() % delay;
+	unsigned long tv = prandom_u32() % delay;
 
 	if (!mod_timer(&idev->mc_ifc_timer, jiffies+tv+2))
 		in6_dev_hold(idev);
@@ -1030,7 +1030,7 @@ static void mld_ifc_stop_timer(struct inet6_dev *idev)
 
 static void mld_dad_start_timer(struct inet6_dev *idev, unsigned long delay)
 {
-	unsigned long tv = net_random() % delay;
+	unsigned long tv = prandom_u32() % delay;
 
 	if (!mod_timer(&idev->mc_dad_timer, jiffies+tv+2))
 		in6_dev_hold(idev);
@@ -1061,7 +1061,7 @@ static void igmp6_group_queried(struct ifmcaddr6 *ma, unsigned long resptime)
 	}
 
 	if (delay >= resptime)
-		delay = net_random() % resptime;
+		delay = prandom_u32() % resptime;
 
 	ma->mca_timer.expires = jiffies + delay;
 	if (!mod_timer(&ma->mca_timer, jiffies + delay))
@@ -2328,7 +2328,7 @@ static void igmp6_join_group(struct ifmcaddr6 *ma)
 
 	igmp6_send(&ma->mca_addr, ma->idev->dev, ICMPV6_MGM_REPORT);
 
-	delay = net_random() % unsolicited_report_interval(ma->idev);
+	delay = prandom_u32() % unsolicited_report_interval(ma->idev);
 
 	spin_lock_bh(&ma->mca_lock);
 	if (del_timer(&ma->mca_timer)) {

@@ -2310,7 +2310,7 @@ static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 
 	inet_get_local_port_range(&init_net, &low, &high);
 	remaining = (high - low) + 1;
-	rover = net_random() % remaining + low;
+	rover = prandom_u32() % remaining + low;
 retry:
 	if (last_used_port != rover &&
 	    !idr_find(ps, (unsigned short) rover)) {
