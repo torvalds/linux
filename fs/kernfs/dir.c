@@ -920,9 +920,6 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 	lockdep_assert_held(&kernfs_mutex);
 
-	if (!kn)
-		return;
-
 	pr_debug("kernfs %s: removing\n", kn->name);
 
 	__kernfs_deactivate(kn);
