@@ -468,7 +468,8 @@ static inline int sirfsoc_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct sirfsoc_gpio_bank *bank = container_of(to_of_mm_gpio_chip(chip),
 		struct sirfsoc_gpio_bank, chip);
 
-	return irq_create_mapping(bank->domain, offset);
+	return irq_create_mapping(bank->domain, offset + bank->id *
+		SIRFSOC_GPIO_BANK_SIZE);
 }
 
 static inline int sirfsoc_gpio_to_offset(unsigned int gpio)
@@ -629,7 +630,8 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 		if ((status & 0x1) && (ctrl & SIRFSOC_GPIO_CTL_INTR_EN_MASK)) {
 			pr_debug("%s: gpio id %d idx %d happens\n",
 				__func__, bank->id, idx);
-			generic_handle_irq(irq_find_mapping(bank->domain, idx));
+			generic_handle_irq(irq_find_mapping(bank->domain, idx +
+					bank->id * SIRFSOC_GPIO_BANK_SIZE));
 		}
 
 		idx++;
@@ -786,7 +788,7 @@ static int sirfsoc_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip(irq, &sirfsoc_irq_chip);
 	irq_set_handler(irq, handle_level_irq);
-	irq_set_chip_data(irq, bank);
+	irq_set_chip_data(irq, bank + hwirq / SIRFSOC_GPIO_BANK_SIZE);
 	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
@@ -835,6 +837,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	struct sirfsoc_gpio_bank *bank;
 	void __iomem *regs;
 	struct platform_device *pdev;
+	struct irq_domain *domain;
 	bool is_marco = false;
 
 	u32 pullups[SIRFSOC_GPIO_NO_OF_BANKS], pulldowns[SIRFSOC_GPIO_NO_OF_BANKS];
@@ -849,6 +852,14 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 
 	if (of_device_is_compatible(np, "sirf,marco-pinctrl"))
 		is_marco = 1;
+
+	domain = irq_domain_add_linear(np, SIRFSOC_GPIO_BANK_SIZE * SIRFSOC_GPIO_NO_OF_BANKS,
+		&sirfsoc_gpio_irq_simple_ops, sgpio_bank);
+	if (!domain) {
+		pr_err("%s: Failed to create irqdomain\n", np->full_name);
+			err = -ENOSYS;
+		goto out;
+	}
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
 		bank = &sgpio_bank[i];
@@ -882,14 +893,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 			goto out;
 		}
 
-		bank->domain = irq_domain_add_linear(np, SIRFSOC_GPIO_BANK_SIZE,
-						&sirfsoc_gpio_irq_simple_ops, bank);
-
-		if (!bank->domain) {
-			pr_err("%s: Failed to create irqdomain\n", np->full_name);
-			err = -ENOSYS;
-			goto out;
-		}
+		bank->domain = domain;
 
 		irq_set_chained_handler(bank->parent_irq, sirfsoc_gpio_handle_irq);
 		irq_set_handler_data(bank->parent_irq, bank);
