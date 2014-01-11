@@ -992,7 +992,7 @@ static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status)
 		ack |= AI_START_Interrupt_Ack;
 	if (a_status & AI_STOP_St)
 		/* not sure why we used to ack the START here also, instead of doing it independently. Frank Hess 2007-07-06 */
-		ack |= AI_STOP_Interrupt_Ack /*| AI_START_Interrupt_Ack */ ;
+		ack |= AI_STOP_Interrupt_Ack /*| AI_START_Interrupt_Ack */;
 	if (ack)
 		devpriv->stc_writew(dev, ack, Interrupt_A_Ack_Register);
 }
@@ -4262,7 +4262,7 @@ static int ni_E_init(struct comedi_device *dev)
 	s->n_chan = board->num_p0_dio_channels;
 	if (board->reg_type & ni_reg_m_series_mask) {
 		s->subdev_flags |=
-		    SDF_LSAMPL | SDF_CMD_WRITE /* | SDF_CMD_READ */ ;
+		    SDF_LSAMPL | SDF_CMD_WRITE /* | SDF_CMD_READ */;
 		s->insn_bits = &ni_m_series_dio_insn_bits;
 		s->insn_config = &ni_m_series_dio_insn_config;
 		s->do_cmd = &ni_cdio_cmd;
@@ -4731,7 +4731,7 @@ static int pack_ad8842(int addr, int val, int *bitstring);
 struct caldac_struct {
 	int n_chans;
 	int n_bits;
-	int (*packbits) (int, int, int *);
+	int (*packbits)(int, int, int *);
 };
 
 static struct caldac_struct caldacs[] = {
