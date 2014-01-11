@@ -508,7 +508,7 @@ static inline void set_fwstate(struct mlme_priv *pmlmepriv, int state)
 {
 	pmlmepriv->fw_state |= state;
 	/* FOR HW integration */
-	if (_FW_UNDER_SURVEY==state)
+	if (_FW_UNDER_SURVEY == state)
 		pmlmepriv->bScanInProcess = true;
 }
 
@@ -516,7 +516,7 @@ static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, int state)
 {
 	pmlmepriv->fw_state &= ~state;
 	/* FOR HW integration */
-	if (_FW_UNDER_SURVEY==state)
+	if (_FW_UNDER_SURVEY == state)
 		pmlmepriv->bScanInProcess = false;
 }
 
@@ -640,6 +640,6 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst);
 void rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network);
 void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network);
 
-void rtw_stassoc_hw_rpt(struct adapter *adapter,struct sta_info *psta);
+void rtw_stassoc_hw_rpt(struct adapter *adapter, struct sta_info *psta);
 
 #endif /* __RTL871X_MLME_H_ */

@@ -147,7 +147,7 @@ struct LED_871x {
 
 enum LED_STRATEGY_871x {
 	SW_LED_MODE0 = 0, /* SW control 1 LED via GPIO0. It is default option.*/
-	SW_LED_MODE1= 1, /*  2 LEDs, through LED0 and LED1. For ALPHA. */
+	SW_LED_MODE1 = 1, /*  2 LEDs, through LED0 and LED1. For ALPHA. */
 	SW_LED_MODE2 = 2, /*  SW control 1 LED via GPIO0, customized for AzWave
 			   * 8187 minicard. */
 	SW_LED_MODE3 = 3, /*  SW control 1 LED via GPIO0, customized for Sercomm

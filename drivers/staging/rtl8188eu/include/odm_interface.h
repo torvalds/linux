@@ -64,7 +64,7 @@ ODM_REG(DIG,_pDM_Odm)
 
 enum odm_h2c_cmd {
 	ODM_H2C_RSSI_REPORT = 0,
-	ODM_H2C_PSD_RESULT= 1,
+	ODM_H2C_PSD_RESULT = 1,
 	ODM_H2C_PathDiv = 2,
 	ODM_MAX_H2CCMD
 };

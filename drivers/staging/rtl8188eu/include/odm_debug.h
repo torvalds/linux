@@ -125,7 +125,7 @@
 		DbgPrint(title_str);					\
 		DbgPrint(" ");						\
 		for (__i = 0; __i < 6; __i++)				\
-			DbgPrint("%02X%s", __ptr[__i], (__i==5)?"":"-");\
+			DbgPrint("%02X%s", __ptr[__i], (__i == 5)?"":"-");\
 		DbgPrint("\n");						\
 	}
 
