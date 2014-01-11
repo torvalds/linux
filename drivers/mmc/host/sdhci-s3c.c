@@ -57,6 +57,7 @@ struct sdhci_s3c {
 
 	struct clk		*clk_io;
 	struct clk		*clk_bus[MAX_BUS_CLK];
+	unsigned long		clk_rates[MAX_BUS_CLK];
 };
 
 /**
@@ -158,7 +159,7 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 		return wanted - rate;
 	}
 
-	rate = clk_get_rate(clksrc);
+	rate = ourhost->clk_rates[src];
 
 	for (shift = 0; shift < 8; ++shift) {
 		if ((rate >> shift) <= wanted)
@@ -215,7 +216,7 @@ static void sdhci_s3c_set_clock(struct sdhci_host *host, unsigned int clock)
 		writew(0, host->ioaddr + SDHCI_CLOCK_CONTROL);
 
 		ourhost->cur_clk = best_src;
-		host->max_clk = clk_get_rate(clk);
+		host->max_clk = ourhost->clk_rates[best_src];
 
 		ctrl = readl(host->ioaddr + S3C_SDHCI_CONTROL2);
 		ctrl &= ~S3C_SDHCI_CTRL2_SELBASECLK_MASK;
@@ -583,8 +584,10 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 		 */
 		sc->cur_clk = ptr;
 
+		sc->clk_rates[ptr] = clk_get_rate(sc->clk_bus[ptr]);
+
 		dev_info(dev, "clock source %d: %s (%ld Hz)\n",
-			 ptr, name, clk_get_rate(clk));
+				ptr, name, sc->clk_rates[ptr]);
 	}
 
 	if (clks == 0) {
