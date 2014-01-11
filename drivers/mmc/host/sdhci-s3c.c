@@ -112,20 +112,16 @@ static void sdhci_s3c_check_sclk(struct sdhci_host *host)
 static unsigned int sdhci_s3c_get_max_clk(struct sdhci_host *host)
 {
 	struct sdhci_s3c *ourhost = to_s3c(host);
-	struct clk *busclk;
-	unsigned int rate, max;
-	int clk;
+	unsigned long rate, max = 0;
+	int src;
 
 	/* note, a reset will reset the clock source */
 
 	sdhci_s3c_check_sclk(host);
 
-	for (max = 0, clk = 0; clk < MAX_BUS_CLK; clk++) {
-		busclk = ourhost->clk_bus[clk];
-		if (!busclk)
-			continue;
 
-		rate = clk_get_rate(busclk);
+	for (src = 0; src < MAX_BUS_CLK; src++) {
+		rate = ourhost->clk_rates[src];
 		if (rate > max)
 			max = rate;
 	}
@@ -255,17 +251,17 @@ static void sdhci_s3c_set_clock(struct sdhci_host *host, unsigned int clock)
 static unsigned int sdhci_s3c_get_min_clock(struct sdhci_host *host)
 {
 	struct sdhci_s3c *ourhost = to_s3c(host);
-	unsigned int delta, min = UINT_MAX;
+	unsigned long rate, min = ULONG_MAX;
 	int src;
 
 	for (src = 0; src < MAX_BUS_CLK; src++) {
-		delta = sdhci_s3c_consider_clock(ourhost, src, 0);
-		if (delta == UINT_MAX)
+		rate = ourhost->clk_rates[src] / 256;
+		if (!rate)
 			continue;
-		/* delta is a negative value in this case */
-		if (-delta < min)
-			min = -delta;
+		if (rate < min)
+			min = rate;
 	}
+
 	return min;
 }
 
@@ -273,20 +269,44 @@ static unsigned int sdhci_s3c_get_min_clock(struct sdhci_host *host)
 static unsigned int sdhci_cmu_get_max_clock(struct sdhci_host *host)
 {
 	struct sdhci_s3c *ourhost = to_s3c(host);
+	unsigned long rate, max = 0;
+	int src;
 
-	return clk_round_rate(ourhost->clk_bus[ourhost->cur_clk], UINT_MAX);
+	for (src = 0; src < MAX_BUS_CLK; src++) {
+		struct clk *clk;
+
+		clk = ourhost->clk_bus[src];
+		if (IS_ERR(clk))
+			continue;
+
+		rate = clk_round_rate(clk, ULONG_MAX);
+		if (rate > max)
+			max = rate;
+	}
+
+	return max;
 }
 
 /* sdhci_cmu_get_min_clock - callback to get minimal supported clock value. */
 static unsigned int sdhci_cmu_get_min_clock(struct sdhci_host *host)
 {
 	struct sdhci_s3c *ourhost = to_s3c(host);
+	unsigned long rate, min = ULONG_MAX;
+	int src;
 
-	/*
-	 * initial clock can be in the frequency range of
-	 * 100KHz-400KHz, so we set it as max value.
-	 */
-	return clk_round_rate(ourhost->clk_bus[ourhost->cur_clk], 400000);
+	for (src = 0; src < MAX_BUS_CLK; src++) {
+		struct clk *clk;
+
+		clk = ourhost->clk_bus[src];
+		if (IS_ERR(clk))
+			continue;
+
+		rate = clk_round_rate(clk, 0);
+		if (rate < min)
+			min = rate;
+	}
+
+	return min;
 }
 
 /* sdhci_cmu_set_clock - callback on clock change.*/
