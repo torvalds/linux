@@ -2812,7 +2812,7 @@ int BcmFlash2xBulkRead(struct bcm_mini_adapter *Adapter,
 		SectionStartOffset = BcmGetSectionValStartOffset(Adapter, eFlash2xSectionVal);
 
 	if (SectionStartOffset == STATUS_FAILURE) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "This Section<%d> does not exixt in Flash 2.x Map ", eFlash2xSectionVal);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "This Section<%d> does not exist in Flash 2.x Map ", eFlash2xSectionVal);
 		return -EINVAL;
 	}
 
@@ -2875,7 +2875,7 @@ int BcmFlash2xBulkWrite(struct bcm_mini_adapter *Adapter,
 		FlashSectValStartOffset = BcmGetSectionValStartOffset(Adapter, eFlash2xSectVal);
 
 	if (FlashSectValStartOffset == STATUS_FAILURE) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "This Section<%d> does not exixt in Flash Map 2.x", eFlash2xSectVal);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "This Section<%d> does not exist in Flash Map 2.x", eFlash2xSectVal);
 		return -EINVAL;
 	}
 
@@ -3850,7 +3850,7 @@ int validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, struct bcm_flash2
 	uiNumOfBytes = psFlash2xReadWrite->numOfBytes;
 
 	if (IsSectionExistInFlash(Adapter, psFlash2xReadWrite->Section) != TRUE) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section<%x> does not exixt in Flash", psFlash2xReadWrite->Section);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section<%x> does not exist in Flash", psFlash2xReadWrite->Section);
 		return false;
 	}
 	uiSectStartOffset = BcmGetSectionValStartOffset(Adapter, psFlash2xReadWrite->Section);
@@ -4478,13 +4478,13 @@ int IsSectionWritable(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section
 	int Status = false;
 
 	if (IsSectionExistInFlash(Adapter, Section) == false) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section <%d> does not exixt", Section);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section <%d> does not exist", Section);
 		return false;
 	}
 
 	offset = BcmGetSectionValStartOffset(Adapter, Section);
 	if (offset == INVALID_OFFSET) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section<%d> does not exixt", Section);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section<%d> does not exist", Section);
 		return false;
 	}
 

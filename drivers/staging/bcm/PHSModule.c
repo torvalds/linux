@@ -1280,11 +1280,11 @@ static int phs_decompress(unsigned char *in_buf,
 
 		if (bit == SUPPRESS) {
 			*out_buf = *phsf;
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_RECEIVE, DBG_LVL_ALL, "\nDECOMP:In phss  %d phsf %d ouput %d",
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_RECEIVE, DBG_LVL_ALL, "\nDECOMP:In phss  %d phsf %d output %d",
 					phss, *phsf, *out_buf);
 		} else {
 			*out_buf = *in_buf;
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_RECEIVE, DBG_LVL_ALL, "\nDECOMP:In phss  %d input %d ouput %d",
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_RECEIVE, DBG_LVL_ALL, "\nDECOMP:In phss  %d input %d output %d",
 					phss, *in_buf, *out_buf);
 			in_buf++;
 			size++;
