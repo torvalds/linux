@@ -1841,7 +1841,6 @@ int ext4_try_to_evict_inline_data(handle_t *handle,
 {
 	int error;
 	struct ext4_xattr_entry *entry;
-	struct ext4_xattr_ibody_header *header;
 	struct ext4_inode *raw_inode;
 	struct ext4_iloc iloc;
 
@@ -1850,7 +1849,6 @@ int ext4_try_to_evict_inline_data(handle_t *handle,
 		return error;
 
 	raw_inode = ext4_raw_inode(&iloc);
-	header = IHDR(inode, raw_inode);
 	entry = (struct ext4_xattr_entry *)((void *)raw_inode +
 					    EXT4_I(inode)->i_inline_off);
 	if (EXT4_XATTR_LEN(entry->e_name_len) +
