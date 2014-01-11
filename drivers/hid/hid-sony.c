@@ -38,6 +38,7 @@
 #define SIXAXIS_CONTROLLER_BT   BIT(2)
 #define BUZZ_CONTROLLER         BIT(3)
 #define PS3REMOTE		BIT(4)
+#define DUALSHOCK4_CONTROLLER   BIT(5)
 
 #define SONY_LED_SUPPORT (SIXAXIS_CONTROLLER_USB | BUZZ_CONTROLLER)
 
@@ -630,11 +631,34 @@ static void sony_state_worker(struct work_struct *work)
 	};
 
 #ifdef CONFIG_SONY_FF
-	buf[3] = sc->right;
+	buf[3] = sc->right ? 1 : 0;
 	buf[5] = sc->left;
 #endif
 
 	buf[10] |= (sc->led_state & 0xf) << 1;
+
+	sc->hdev->hid_output_raw_report(sc->hdev, buf, sizeof(buf),
+					HID_OUTPUT_REPORT);
+}
+
+static void dualshock4_state_worker(struct work_struct *work)
+{
+	struct sony_sc *sc = container_of(work, struct sony_sc, state_worker);
+	unsigned char buf[] = {
+		0x05,
+		0x03, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00,
+	};
+
+#ifdef CONFIG_SONY_FF
+	buf[4] = sc->right;
+	buf[5] = sc->left;
+#endif
 
 	sc->hdev->hid_output_raw_report(sc->hdev, buf, sizeof(buf),
 					HID_OUTPUT_REPORT);
@@ -651,7 +675,7 @@ static int sony_play_effect(struct input_dev *dev, void *data,
 		return 0;
 
 	sc->left = effect->u.rumble.strong_magnitude / 256;
-	sc->right = effect->u.rumble.weak_magnitude ? 1 : 0;
+	sc->right = effect->u.rumble.weak_magnitude / 256;
 
 	schedule_work(&sc->state_worker);
 	return 0;
@@ -728,8 +752,12 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 	else if (sc->quirks & SIXAXIS_CONTROLLER_BT)
 		ret = sixaxis_set_operational_bt(hdev);
-	else
+	else if (sc->quirks & DUALSHOCK4_CONTROLLER) {
 		ret = 0;
+		INIT_WORK(&sc->state_worker, dualshock4_state_worker);
+	} else {
+		ret = 0;
+	}
 
 	if (ret < 0)
 		goto err_stop;
@@ -787,6 +815,11 @@ static const struct hid_device_id sony_devices[] = {
 	/* Logitech Harmony Adapter for PS3 */
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_HARMONY_PS3),
 		.driver_data = PS3REMOTE },
+	/* Sony Dualshock 4 controllers for PS4 */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
+		.driver_data = DUALSHOCK4_CONTROLLER },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
+		.driver_data = DUALSHOCK4_CONTROLLER },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sony_devices);
