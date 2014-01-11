@@ -632,7 +632,7 @@ error_leds:
 	return ret;
 }
 
-static void sony_state_worker(struct work_struct *work)
+static void sixaxis_state_worker(struct work_struct *work)
 {
 	struct sony_sc *sc = container_of(work, struct sony_sc, state_worker);
 	unsigned char buf[] = {
@@ -771,7 +771,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
 		hdev->hid_output_raw_report = sixaxis_usb_output_raw_report;
 		ret = sixaxis_set_operational_usb(hdev);
-		INIT_WORK(&sc->state_worker, sony_state_worker);
+		INIT_WORK(&sc->state_worker, sixaxis_state_worker);
 	}
 	else if (sc->quirks & SIXAXIS_CONTROLLER_BT)
 		ret = sixaxis_set_operational_bt(hdev);
