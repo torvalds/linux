@@ -51,7 +51,7 @@ struct sdhci_s3c {
 	struct platform_device	*pdev;
 	struct resource		*ioarea;
 	struct s3c_sdhci_platdata *pdata;
-	unsigned int		cur_clk;
+	int			cur_clk;
 	int			ext_cd_irq;
 	int			ext_cd_gpio;
 
@@ -78,32 +78,6 @@ static inline struct sdhci_s3c *to_s3c(struct sdhci_host *host)
 }
 
 /**
- * get_curclk - convert ctrl2 register to clock source number
- * @ctrl2: Control2 register value.
- */
-static u32 get_curclk(u32 ctrl2)
-{
-	ctrl2 &= S3C_SDHCI_CTRL2_SELBASECLK_MASK;
-	ctrl2 >>= S3C_SDHCI_CTRL2_SELBASECLK_SHIFT;
-
-	return ctrl2;
-}
-
-static void sdhci_s3c_check_sclk(struct sdhci_host *host)
-{
-	struct sdhci_s3c *ourhost = to_s3c(host);
-	u32 tmp = readl(host->ioaddr + S3C_SDHCI_CONTROL2);
-
-	if (get_curclk(tmp) != ourhost->cur_clk) {
-		dev_dbg(&ourhost->pdev->dev, "restored ctrl2 clock setting\n");
-
-		tmp &= ~S3C_SDHCI_CTRL2_SELBASECLK_MASK;
-		tmp |= ourhost->cur_clk << S3C_SDHCI_CTRL2_SELBASECLK_SHIFT;
-		writel(tmp, host->ioaddr + S3C_SDHCI_CONTROL2);
-	}
-}
-
-/**
  * sdhci_s3c_get_max_clk - callback to get maximum clock frequency.
  * @host: The SDHCI host instance.
  *
@@ -114,11 +88,6 @@ static unsigned int sdhci_s3c_get_max_clk(struct sdhci_host *host)
 	struct sdhci_s3c *ourhost = to_s3c(host);
 	unsigned long rate, max = 0;
 	int src;
-
-	/* note, a reset will reset the clock source */
-
-	sdhci_s3c_check_sclk(host);
-
 
 	for (src = 0; src < MAX_BUS_CLK; src++) {
 		rate = ourhost->clk_rates[src];
@@ -206,19 +175,21 @@ static void sdhci_s3c_set_clock(struct sdhci_host *host, unsigned int clock)
 		struct clk *clk = ourhost->clk_bus[best_src];
 
 		clk_prepare_enable(clk);
-		clk_disable_unprepare(ourhost->clk_bus[ourhost->cur_clk]);
-
-		/* turn clock off to card before changing clock source */
-		writew(0, host->ioaddr + SDHCI_CLOCK_CONTROL);
+		if (ourhost->cur_clk >= 0)
+			clk_disable_unprepare(
+					ourhost->clk_bus[ourhost->cur_clk]);
 
 		ourhost->cur_clk = best_src;
 		host->max_clk = ourhost->clk_rates[best_src];
-
-		ctrl = readl(host->ioaddr + S3C_SDHCI_CONTROL2);
-		ctrl &= ~S3C_SDHCI_CTRL2_SELBASECLK_MASK;
-		ctrl |= best_src << S3C_SDHCI_CTRL2_SELBASECLK_SHIFT;
-		writel(ctrl, host->ioaddr + S3C_SDHCI_CONTROL2);
 	}
+
+	/* turn clock off to card before changing clock source */
+	writew(0, host->ioaddr + SDHCI_CLOCK_CONTROL);
+
+	ctrl = readl(host->ioaddr + S3C_SDHCI_CONTROL2);
+	ctrl &= ~S3C_SDHCI_CTRL2_SELBASECLK_MASK;
+	ctrl |= best_src << S3C_SDHCI_CTRL2_SELBASECLK_SHIFT;
+	writel(ctrl, host->ioaddr + S3C_SDHCI_CONTROL2);
 
 	/* reprogram default hardware configuration */
 	writel(S3C64XX_SDHCI_CONTROL4_DRIVE_9mA,
@@ -573,6 +544,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	sc->host = host;
 	sc->pdev = pdev;
 	sc->pdata = pdata;
+	sc->cur_clk = -1;
 
 	platform_set_drvdata(pdev, host);
 
@@ -595,13 +567,6 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 			continue;
 
 		clks++;
-
-		/*
-		 * save current clock index to know which clock bus
-		 * is used later in overriding functions.
-		 */
-		sc->cur_clk = ptr;
-
 		sc->clk_rates[ptr] = clk_get_rate(sc->clk_bus[ptr]);
 
 		dev_info(dev, "clock source %d: %s (%ld Hz)\n",
@@ -613,10 +578,6 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err_no_busclks;
 	}
-
-#ifndef CONFIG_PM_RUNTIME
-	clk_prepare_enable(sc->clk_bus[sc->cur_clk]);
-#endif
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->ioaddr = devm_ioremap_resource(&pdev->dev, res);
@@ -730,10 +691,6 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	return 0;
 
  err_req_regs:
-#ifndef CONFIG_PM_RUNTIME
-	clk_disable_unprepare(sc->clk_bus[sc->cur_clk]);
-#endif
-
  err_no_busclks:
 	clk_disable_unprepare(sc->clk_io);
 
@@ -764,9 +721,6 @@ static int sdhci_s3c_remove(struct platform_device *pdev)
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-#ifndef CONFIG_PM_RUNTIME
-	clk_disable_unprepare(sc->clk_bus[sc->cur_clk]);
-#endif
 	clk_disable_unprepare(sc->clk_io);
 
 	sdhci_free_host(host);
@@ -800,7 +754,8 @@ static int sdhci_s3c_runtime_suspend(struct device *dev)
 
 	ret = sdhci_runtime_suspend_host(host);
 
-	clk_disable_unprepare(ourhost->clk_bus[ourhost->cur_clk]);
+	if (ourhost->cur_clk >= 0)
+		clk_disable_unprepare(ourhost->clk_bus[ourhost->cur_clk]);
 	clk_disable_unprepare(busclk);
 	return ret;
 }
@@ -813,7 +768,8 @@ static int sdhci_s3c_runtime_resume(struct device *dev)
 	int ret;
 
 	clk_prepare_enable(busclk);
-	clk_prepare_enable(ourhost->clk_bus[ourhost->cur_clk]);
+	if (ourhost->cur_clk >= 0)
+		clk_prepare_enable(ourhost->clk_bus[ourhost->cur_clk]);
 	ret = sdhci_runtime_resume_host(host);
 	return ret;
 }
