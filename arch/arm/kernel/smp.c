@@ -293,6 +293,9 @@ void __ref cpu_die(void)
 	if (smp_ops.cpu_die)
 		smp_ops.cpu_die(cpu);
 
+	pr_warn("CPU%u: smp_ops.cpu_die() returned, trying to resuscitate\n",
+		cpu);
+
 	/*
 	 * Do not return to the idle loop - jump back to the secondary
 	 * cpu initialisation.  There's some initialisation which needs
