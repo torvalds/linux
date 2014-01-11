@@ -136,6 +136,7 @@ enum i40e_dyn_idx_t {
 #define I40E_TX_FLAGS_IPV6		(u32)(1 << 5)
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
+#define I40E_TX_FLAGS_TSYN		(u32)(1 << 8)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
@@ -247,6 +248,8 @@ struct i40e_ring {
 
 	u8 atr_sample_rate;
 	u8 atr_count;
+
+	unsigned long last_rx_timestamp;
 
 	bool ring_active;		/* is ring online or not */
 

@@ -1088,6 +1088,13 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		}
 
 		skb->rxhash = i40e_rx_hash(rx_ring, rx_desc);
+		if (unlikely(rx_status & I40E_RXD_QW1_STATUS_TSYNVALID_MASK)) {
+			i40e_ptp_rx_hwtstamp(vsi->back, skb, (rx_status &
+					   I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
+					   I40E_RXD_QW1_STATUS_TSYNINDX_SHIFT);
+			rx_ring->last_rx_timestamp = jiffies;
+		}
+
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
@@ -1422,6 +1429,46 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 				((u64)cd_tso_len <<
 				 I40E_TXD_CTX_QW1_TSO_LEN_SHIFT) |
 				((u64)cd_mss << I40E_TXD_CTX_QW1_MSS_SHIFT);
+	return 1;
+}
+
+/**
+ * i40e_tsyn - set up the tsyn context descriptor
+ * @tx_ring:  ptr to the ring to send
+ * @skb:      ptr to the skb we're sending
+ * @tx_flags: the collected send information
+ *
+ * Returns 0 if no Tx timestamp can happen and 1 if the timestamp will happen
+ **/
+static int i40e_tsyn(struct i40e_ring *tx_ring, struct sk_buff *skb,
+		     u32 tx_flags, u64 *cd_type_cmd_tso_mss)
+{
+	struct i40e_pf *pf;
+
+	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)))
+		return 0;
+
+	/* Tx timestamps cannot be sampled when doing TSO */
+	if (tx_flags & I40E_TX_FLAGS_TSO)
+		return 0;
+
+	/* only timestamp the outbound packet if the user has requested it and
+	 * we are not already transmitting a packet to be timestamped
+	 */
+	pf = i40e_netdev_to_pf(tx_ring->netdev);
+	if (pf->ptp_tx && !pf->ptp_tx_skb) {
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		pf->ptp_tx_skb = skb_get(skb);
+	} else {
+		return 0;
+	}
+
+	*cd_type_cmd_tso_mss |= (u64)I40E_TX_CTX_DESC_TSYN <<
+				I40E_TXD_CTX_QW1_CMD_SHIFT;
+
+	pf->ptp_tx_start = jiffies;
+	schedule_work(&pf->ptp_tx_work);
+
 	return 1;
 }
 
@@ -1801,6 +1848,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	__be16 protocol;
 	u32 td_cmd = 0;
 	u8 hdr_len = 0;
+	int tsyn;
 	int tso;
 	if (0 == i40e_xmit_descriptor_count(skb, tx_ring))
 		return NETDEV_TX_BUSY;
@@ -1830,6 +1878,11 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= I40E_TX_FLAGS_TSO;
 
 	skb_tx_timestamp(skb);
+
+	tsyn = i40e_tsyn(tx_ring, skb, tx_flags, &cd_type_cmd_tso_mss);
+
+	if (tsyn)
+		tx_flags |= I40E_TX_FLAGS_TSYN;
 
 	/* always enable CRC insertion offload */
 	td_cmd |= I40E_TX_DESC_CMD_ICRC;

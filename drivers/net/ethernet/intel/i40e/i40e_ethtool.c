@@ -108,6 +108,8 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("rx_oversize", stats.rx_oversize),
 	I40E_PF_STAT("rx_jabber", stats.rx_jabber),
 	I40E_PF_STAT("VF_admin_queue_requests", vf_aq_requests),
+	I40E_PF_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
+	I40E_PF_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
 };
 
 #define I40E_QUEUE_STATS_LEN(n) \
@@ -748,7 +750,36 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 static int i40e_get_ts_info(struct net_device *dev,
 			    struct ethtool_ts_info *info)
 {
-	return ethtool_op_get_ts_info(dev, info);
+	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
+
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				SOF_TIMESTAMPING_RX_SOFTWARE |
+				SOF_TIMESTAMPING_SOFTWARE |
+				SOF_TIMESTAMPING_TX_HARDWARE |
+				SOF_TIMESTAMPING_RX_HARDWARE |
+				SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	if (pf->ptp_clock)
+		info->phc_index = ptp_clock_index(pf->ptp_clock);
+	else
+		info->phc_index = -1;
+
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+
+	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			   (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+			   (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ);
+
+	return 0;
 }
 
 static int i40e_link_test(struct net_device *netdev, u64 *data)
