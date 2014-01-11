@@ -229,8 +229,7 @@ static int axi_spdif_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk_disable;
 
-	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
-			SND_DMAENGINE_PCM_FLAG_NO_RESIDUE);
+	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret)
 		goto err_clk_disable;
 
