@@ -614,7 +614,7 @@ void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
 			      struct wlan_network *pnetwork);
 
 
-struct wlan_network* _rtw_find_network(struct __queue *scanned_queue, u8 *addr);
+struct wlan_network *_rtw_find_network(struct __queue *scanned_queue, u8 *addr);
 
 void _rtw_free_network_queue(struct adapter *padapter, u8 isfreeall);
 

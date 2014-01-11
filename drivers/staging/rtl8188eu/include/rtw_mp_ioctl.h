@@ -278,7 +278,7 @@ struct eeprom_rw_param {
 
 struct mp_ioctl_handler {
 	u32 paramsize;
-	s32 (*handler)(struct oid_par_priv* poid_par_priv);
+	s32 (*handler)(struct oid_par_priv *poid_par_priv);
 	u32 oid;
 };
 

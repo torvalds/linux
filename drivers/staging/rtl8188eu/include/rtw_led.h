@@ -182,7 +182,7 @@ struct led_priv{
 void BlinkTimerCallback(void *data);
 void BlinkWorkItemCallback(struct work_struct *work);
 
-void ResetLedStatus(struct LED_871x * pLed);
+void ResetLedStatus(struct LED_871x *pLed);
 
 void InitLed871x(struct adapter *padapter, struct LED_871x *pLed,
 		 enum LED_PIN_871x LedPin);
@@ -190,7 +190,7 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed,
 void DeInitLed871x(struct LED_871x *pLed);
 
 /* hal... */
-void BlinkHandler(struct LED_871x * pLed);
+void BlinkHandler(struct LED_871x *pLed);
 void SwLedOn(struct adapter *padapter, struct LED_871x *pLed);
 void SwLedOff(struct adapter *padapter, struct LED_871x *pLed);
 
