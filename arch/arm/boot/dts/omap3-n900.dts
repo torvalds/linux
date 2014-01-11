@@ -432,6 +432,20 @@
 
 		power-gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>; /* 98 */
 	};
+
+	bq24150a: bq24150a@6b {
+		compatible = "ti,bq24150a";
+		reg = <0x6b>;
+
+		ti,current-limit = <100>;
+		ti,weak-battery-voltage = <3400>;
+		ti,battery-regulation-voltage = <4200>;
+		ti,charge-current = <650>;
+		ti,termination-current = <100>;
+		ti,resistor-sense = <68>;
+
+		ti,usb-charger-detection = <&isp1704>;
+	};
 };
 
 &i2c3 {
