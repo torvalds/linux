@@ -311,7 +311,6 @@ static void load_gpu(struct drm_device *dev)
 		gpu = NULL;
 		/* not fatal */
 	}
-	mutex_unlock(&dev->struct_mutex);
 
 	if (gpu) {
 		int ret;
@@ -321,10 +320,16 @@ static void load_gpu(struct drm_device *dev)
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 			gpu->funcs->destroy(gpu);
 			gpu = NULL;
+		} else {
+			/* give inactive pm a chance to kick in: */
+			msm_gpu_retire(gpu);
 		}
+
 	}
 
 	priv->gpu = gpu;
+
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static int msm_open(struct drm_device *dev, struct drm_file *file)
