@@ -68,7 +68,6 @@ int samsung_asoc_dma_platform_register(struct device *dev)
 {
 	return snd_dmaengine_pcm_register(dev, &samsung_dmaengine_pcm_config,
 					  SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME |
-					  SND_DMAENGINE_PCM_FLAG_NO_RESIDUE |
 					  SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
 EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_register);
