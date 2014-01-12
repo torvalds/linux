@@ -434,7 +434,7 @@ static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
 
 	dev = snd_pcm_substream_chip(substream);
 	if (dev->disconnected)
-		return -ENODEV;
+		return SNDRV_PCM_POS_XRUN;
 
 	spin_lock_irqsave(&dev->adev.slock, flags);
 	hwptr_done = dev->adev.hwptr_done_capture;
