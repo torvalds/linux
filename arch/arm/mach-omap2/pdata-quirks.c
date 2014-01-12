@@ -119,6 +119,11 @@ static void __init omap3_sbc_t3730_legacy_init(void)
 	omap_ads7846_init(1, 57, 0, NULL);
 }
 
+static void __init omap3_sbc_t3530_legacy_init(void)
+{
+	omap_ads7846_init(1, 57, 0, NULL);
+}
+
 static void __init omap3_igep0020_legacy_init(void)
 {
 	omap3_igep2_display_init_of();
@@ -258,6 +263,7 @@ struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
  */
 static struct pdata_init pdata_quirks[] __initdata = {
 #ifdef CONFIG_ARCH_OMAP3
+	{ "compulab,omap3-sbc-t3530", omap3_sbc_t3530_legacy_init, },
 	{ "compulab,omap3-sbc-t3730", omap3_sbc_t3730_legacy_init, },
 	{ "nokia,omap3-n900", hsmmc2_internal_input_clk, },
 	{ "nokia,omap3-n9", hsmmc2_internal_input_clk, },

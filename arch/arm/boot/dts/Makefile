@@ -198,6 +198,8 @@ dtb-$(CONFIG_ARCH_OMAP2PLUS) += omap2420-h4.dtb \
 	omap2420-n810-wimax.dtb \
 	omap3430-sdp.dtb \
 	omap3-beagle.dtb \
+	omap3-cm-t3530.dtb \
+	omap3-sbc-t3530.dtb \
 	omap3-cm-t3730.dtb \
 	omap3-sbc-t3730.dtb \
 	omap3-devkit8000.dtb \
