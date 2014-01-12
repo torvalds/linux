@@ -1018,6 +1018,27 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	dev->dvb = dvb;
 	dvb->fe[0] = dvb->fe[1] = NULL;
 
+	/* pre-allocate DVB usb transfer buffers */
+	if (dev->dvb_xfer_bulk) {
+		result = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
+					   dev->dvb_xfer_bulk,
+					   EM28XX_DVB_NUM_BUFS,
+					   512,
+					   EM28XX_DVB_BULK_PACKET_MULTIPLIER);
+	} else {
+		result = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
+					   dev->dvb_xfer_bulk,
+					   EM28XX_DVB_NUM_BUFS,
+					   dev->dvb_max_pkt_size_isoc,
+					   EM28XX_DVB_NUM_ISOC_PACKETS);
+	}
+	if (result) {
+		em28xx_errdev("em28xx_dvb: failed to pre-allocate USB transfer buffers for DVB.\n");
+		kfree(dvb);
+		dev->dvb = NULL;
+		return result;
+	}
+
 	mutex_lock(&dev->lock);
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
@@ -1453,6 +1474,8 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
+
+		em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
 
 		if (dev->disconnected) {
 			/* We cannot tell the device to sleep

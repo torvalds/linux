@@ -3339,26 +3339,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 		em28xx_info("dvb set to %s mode.\n",
 			    dev->dvb_xfer_bulk ? "bulk" : "isoc");
-
-		/* pre-allocate DVB usb transfer buffers */
-		if (dev->dvb_xfer_bulk) {
-			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
-					    dev->dvb_xfer_bulk,
-					    EM28XX_DVB_NUM_BUFS,
-					    512,
-					    EM28XX_DVB_BULK_PACKET_MULTIPLIER);
-		} else {
-			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
-					    dev->dvb_xfer_bulk,
-					    EM28XX_DVB_NUM_BUFS,
-					    dev->dvb_max_pkt_size_isoc,
-					    EM28XX_DVB_NUM_ISOC_PACKETS);
-		}
-		if (retval) {
-			printk(DRIVER_NAME
-			       ": Failed to pre-allocate USB transfer buffers for DVB.\n");
-			goto err_free;
-		}
 	}
 
 	request_modules(dev);
@@ -3416,7 +3396,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 			    video_device_node_name(dev->vdev));
 
 		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
-		em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
 	}
 	mutex_unlock(&dev->lock);
 
