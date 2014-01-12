@@ -3761,6 +3761,7 @@ static int send_write_or_clone(struct send_ctx *sctx,
 	u64 len;
 	u32 l;
 	u8 type;
+	u64 bs = sctx->send_root->fs_info->sb->s_blocksize;
 
 	ei = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			struct btrfs_file_extent_item);
@@ -3784,7 +3785,7 @@ static int send_write_or_clone(struct send_ctx *sctx,
 		goto out;
 	}
 
-	if (clone_root) {
+	if (clone_root && IS_ALIGNED(offset + len, bs)) {
 		ret = send_clone(sctx, offset, len, clone_root);
 	} else if (sctx->flags & BTRFS_SEND_FLAG_NO_FILE_DATA) {
 		ret = send_update_extent(sctx, offset, len);
