@@ -984,8 +984,8 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 	 *
 	 * 1) we don't purge prefix here if address was not permanent.
 	 *    prefix is managed by its own lifetime.
-	 * 2) if there're no addresses, delete prefix.
-	 * 3) if there're still other permanent address(es),
+	 * 2) if there are no addresses, delete prefix.
+	 * 3) if there are still other permanent address(es),
 	 *    corresponding prefix is still permanent.
 	 * 4) otherwise, update prefix lifetime to the
 	 *    longest valid lifetime among the corresponding
@@ -1206,7 +1206,7 @@ static int ipv6_get_saddr_eval(struct net *net,
 		 *       |             d is scope of the destination.
 		 *  B-d  |  \
 		 *       |   \      <- smaller scope is better if
-		 *  B-15 |    \        if scope is enough for destinaion.
+		 *  B-15 |    \        if scope is enough for destination.
 		 *       |             ret = B - scope (-1 <= scope >= d <= 15).
 		 * d-C-1 | /
 		 *       |/         <- greater is better
@@ -2878,7 +2878,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 		}
 
 		/*
-		 * MTU falled under IPV6_MIN_MTU.
+		 * if MTU under IPV6_MIN_MTU.
 		 * Stop IPv6 on this interface.
 		 */
 
@@ -3733,7 +3733,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (ifa == NULL) {
 		/*
 		 * It would be best to check for !NLM_F_CREATE here but
-		 * userspace alreay relies on not having to provide this.
+		 * userspace already relies on not having to provide this.
 		 */
 		return inet6_addr_add(net, ifm->ifa_index, pfx, peer_pfx,
 				      ifm->ifa_prefixlen, ifa_flags,
