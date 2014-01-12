@@ -216,4 +216,4 @@ error:
 	ttyprintk_driver = NULL;
 	return ret;
 }
-module_init(ttyprintk_init);
+device_initcall(ttyprintk_init);
