@@ -608,8 +608,9 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	fence = nouveau_fence_ref(new_bo->bo.sync_obj);
 	spin_unlock(&new_bo->bo.bdev->fence_lock);
 	ret = nouveau_fence_sync(fence, chan);
+	nouveau_fence_unref(&fence);
 	if (ret)
-		return ret;
+		goto fail_free;
 
 	if (new_bo != old_bo) {
 		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
@@ -701,7 +702,7 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event)
-		drm_send_vblank_event(dev, -1, s->event);
+		drm_send_vblank_event(dev, s->crtc, s->event);
 
 	list_del(&s->head);
 	if (ps)

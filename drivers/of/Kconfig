@@ -20,7 +20,7 @@ config OF_SELFTEST
 	depends on OF_IRQ
 	help
 	  This option builds in test cases for the device tree infrastructure
-	  that are executed one at boot time, and the results dumped to the
+	  that are executed once at boot time, and the results dumped to the
 	  console.
 
 	  If unsure, say N here, but this option is safe to enable.

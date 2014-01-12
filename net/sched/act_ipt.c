@@ -141,10 +141,12 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
-		if (!ovr) {
-			tcf_ipt_release(to_ipt(pc), bind);
+		if (bind)/* dont override defaults */
+			return 0;
+		tcf_ipt_release(to_ipt(pc), bind);
+
+		if (!ovr)
 			return -EEXIST;
-		}
 	}
 	ipt = to_ipt(pc);
 
@@ -298,9 +300,7 @@ static struct tc_action_ops act_ipt_ops = {
 	.act		=	tcf_ipt,
 	.dump		=	tcf_ipt_dump,
 	.cleanup	=	tcf_ipt_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_ipt_init,
-	.walk		=	tcf_generic_walker
 };
 
 static struct tc_action_ops act_xt_ops = {
@@ -312,9 +312,7 @@ static struct tc_action_ops act_xt_ops = {
 	.act		=	tcf_ipt,
 	.dump		=	tcf_ipt_dump,
 	.cleanup	=	tcf_ipt_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_ipt_init,
-	.walk		=	tcf_generic_walker
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-13)");

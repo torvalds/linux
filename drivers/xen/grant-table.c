@@ -1176,7 +1176,8 @@ static int gnttab_setup(void)
 		gnttab_shared.addr = xen_remap(xen_hvm_resume_frames,
 						PAGE_SIZE * max_nr_gframes);
 		if (gnttab_shared.addr == NULL) {
-			pr_warn("Failed to ioremap gnttab share frames!\n");
+			pr_warn("Failed to ioremap gnttab share frames (addr=0x%08lx)!\n",
+					xen_hvm_resume_frames);
 			return -ENOMEM;
 		}
 	}

@@ -98,10 +98,6 @@ static void set_multicast_list(struct net_device *ndev);
  * detected as not set during a prior frame transmission, then the
  * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
  * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
- * If the ready bit in the transmit buffer descriptor (TxBD[R]) is previously
- * detected as not set during a prior frame transmission, then the
- * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
- * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
  * frames not being transmitted until there is a 0-to-1 transition on
  * ENET_TDAR[TDAR].
  */
@@ -385,7 +381,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	 * data.
 	 */
 	bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, bufaddr,
-			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
+			skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&fep->pdev->dev, bdp->cbd_bufaddr)) {
 		bdp->cbd_bufaddr = 0;
 		fep->tx_skbuff[index] = NULL;
@@ -432,6 +428,8 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* If this was the last BD in the ring, start at the beginning again. */
 	bdp = fec_enet_get_nextdesc(bdp, fep);
 
+	skb_tx_timestamp(skb);
+
 	fep->cur_tx = bdp;
 
 	if (fep->cur_tx == fep->dirty_tx)
@@ -439,8 +437,6 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* Trigger transmission start */
 	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
-
-	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -779,11 +775,10 @@ fec_enet_tx(struct net_device *ndev)
 		else
 			index = bdp - fep->tx_bd_base;
 
-		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
-				FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
-		bdp->cbd_bufaddr = 0;
-
 		skb = fep->tx_skbuff[index];
+		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr, skb->len,
+				DMA_TO_DEVICE);
+		bdp->cbd_bufaddr = 0;
 
 		/* Check for errors. */
 		if (status & (BD_ENET_TX_HB | BD_ENET_TX_LC |
