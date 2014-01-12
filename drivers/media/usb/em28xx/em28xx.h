@@ -762,6 +762,7 @@ void em28xx_close_extension(struct em28xx *dev);
 extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
+void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl);
 void em28xx_release_resources(struct em28xx *dev);
 
 /* Provided by em28xx-camera.c */
