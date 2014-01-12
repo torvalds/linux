@@ -721,7 +721,7 @@ struct drm_i915_gem_execbuffer2 {
  */
 #define I915_EXEC_IS_PINNED		(1<<10)
 
-/** Provide a hint to the kernel that the command stream and auxilliary
+/** Provide a hint to the kernel that the command stream and auxiliary
  * state buffers already holds the correct presumed addresses and so the
  * relocation process may be skipped if no buffers need to be moved in
  * preparation for the execbuffer.
