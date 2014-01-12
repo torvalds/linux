@@ -751,7 +751,7 @@ struct amd8111e_priv{
 	const char *name;
 	struct pci_dev *pci_dev;	/* Ptr to the associated pci_dev */
 	struct net_device* amd8111e_net_dev; 	/* ptr to associated net_device */
-	/* Transmit and recive skbs */
+	/* Transmit and receive skbs */
 	struct sk_buff *tx_skbuff[NUM_TX_BUFFERS];
 	struct sk_buff *rx_skbuff[NUM_RX_BUFFERS];
 	/* Transmit and receive dma mapped addr */
