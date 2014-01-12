@@ -42,6 +42,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-clk.h>
 #include <media/msp3400.h>
 #include <media/tuner.h>
 
@@ -1921,6 +1922,11 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 		else
 			video_device_release(dev->vdev);
 		dev->vdev = NULL;
+	}
+
+	if (dev->clk) {
+		v4l2_clk_unregister_fixed(dev->clk);
+		dev->clk = NULL;
 	}
 
 	if (dev->users)
