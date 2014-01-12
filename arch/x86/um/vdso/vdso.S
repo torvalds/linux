@@ -1,3 +1,4 @@
+#include <linux/init.h>
 
 __INITDATA
 
