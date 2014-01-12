@@ -108,6 +108,23 @@ static int omap3_sbc_t3730_twl_callback(struct device *dev,
 	return 0;
 }
 
+static void __init omap3_sbc_t3x_usb_hub_init(int gpio, char *hub_name)
+{
+	int err = gpio_request_one(gpio, GPIOF_OUT_INIT_LOW, hub_name);
+
+	if (err) {
+		pr_err("SBC-T3x: %s reset gpio request failed: %d\n",
+			hub_name, err);
+		return;
+	}
+
+	gpio_export(gpio, 0);
+
+	udelay(10);
+	gpio_set_value(gpio, 1);
+	msleep(1);
+}
+
 static void __init omap3_sbc_t3730_twl_init(void)
 {
 	twl_gpio_auxdata.setup = omap3_sbc_t3730_twl_callback;
@@ -115,12 +132,14 @@ static void __init omap3_sbc_t3730_twl_init(void)
 
 static void __init omap3_sbc_t3730_legacy_init(void)
 {
+	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
 	legacy_init_wl12xx(WL12XX_REFCLOCK_38, 0, 136);
 	omap_ads7846_init(1, 57, 0, NULL);
 }
 
 static void __init omap3_sbc_t3530_legacy_init(void)
 {
+	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
 	omap_ads7846_init(1, 57, 0, NULL);
 }
 
@@ -198,6 +217,8 @@ static void __init omap3_sbc_t3517_wifi_init(void)
 
 static void __init omap3_sbc_t3517_legacy_init(void)
 {
+	omap3_sbc_t3x_usb_hub_init(152, "cm-t3517 usb hub");
+	omap3_sbc_t3x_usb_hub_init(98, "sb-t35 usb hub");
 	am35xx_emac_reset();
 	hsmmc2_internal_input_clk();
 	omap3_sbc_t3517_wifi_init();
