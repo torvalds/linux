@@ -74,10 +74,13 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 		const struct usb_device_id *id = id_table;
 
 		for (; id->match_flags; id++)
-			if (id->idVendor == refVendor && id->idProduct == refProduct) {
-				dynid->id.driver_info = id->driver_info;
+			if (id->idVendor == refVendor && id->idProduct == refProduct)
 				break;
-			}
+
+		if (id->match_flags)
+			dynid->id.driver_info = id->driver_info;
+		else
+			return -ENODEV;
 	}
 
 	spin_lock(&dynids->lock);
