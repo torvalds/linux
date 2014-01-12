@@ -560,7 +560,7 @@ static struct platform_driver ti_qspi_driver = {
 	.probe	= ti_qspi_probe,
 	.remove = ti_qspi_remove,
 	.driver = {
-		.name	= "ti,dra7xxx-qspi",
+		.name	= "ti-qspi",
 		.owner	= THIS_MODULE,
 		.pm =   &ti_qspi_pm_ops,
 		.of_match_table = ti_qspi_match,
@@ -572,3 +572,4 @@ module_platform_driver(ti_qspi_driver);
 MODULE_AUTHOR("Sourav Poddar <sourav.poddar@ti.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TI QSPI controller driver");
+MODULE_ALIAS("platform:ti-qspi");
