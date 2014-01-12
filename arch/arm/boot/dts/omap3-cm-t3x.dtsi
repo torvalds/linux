@@ -51,6 +51,10 @@
 	bus-width = <4>;
 };
 
+&mmc3 {
+	status = "disabled";
+};
+
 &i2c1 {
 	clock-frequency = <400000>;
 };
