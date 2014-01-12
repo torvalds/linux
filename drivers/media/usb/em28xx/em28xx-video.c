@@ -1826,6 +1826,10 @@ static int em28xx_v4l2_open(struct file *filp)
 	case VFL_TYPE_VBI:
 		fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
 		break;
+	case VFL_TYPE_RADIO:
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	em28xx_videodbg("open dev=%s type=%s users=%d\n",
@@ -1846,15 +1850,17 @@ static int em28xx_v4l2_open(struct file *filp)
 	fh->type = fh_type;
 	filp->private_data = fh;
 
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
+	if (dev->users == 0) {
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
-		em28xx_resolution_set(dev);
 
-		/* Needed, since GPIO might have disabled power of
-		   some i2c device
+		if (vdev->vfl_type != VFL_TYPE_RADIO)
+			em28xx_resolution_set(dev);
+
+		/*
+		 * Needed, since GPIO might have disabled power
+		 * of some i2c devices
 		 */
 		em28xx_wake_i2c(dev);
-
 	}
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO) {
