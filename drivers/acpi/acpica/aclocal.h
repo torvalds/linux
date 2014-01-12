@@ -1038,15 +1038,16 @@ struct acpi_external_list {
 	struct acpi_external_list *next;
 	u32 value;
 	u16 length;
+	u16 flags;
 	u8 type;
-	u8 flags;
-	u8 resolved;
-	u8 emitted;
 };
 
 /* Values for Flags field above */
 
-#define ACPI_IPATH_ALLOCATED    0x01
+#define ACPI_EXT_RESOLVED_REFERENCE         0x01	/* Object was resolved during cross ref */
+#define ACPI_EXT_ORIGIN_FROM_FILE           0x02	/* External came from a file */
+#define ACPI_EXT_INTERNAL_PATH_ALLOCATED    0x04	/* Deallocate internal path on completion */
+#define ACPI_EXT_EXTERNAL_EMITTED           0x08	/* External() statement has been emitted */
 
 struct acpi_external_file {
 	char *path;
