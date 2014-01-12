@@ -102,10 +102,11 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
-		if (!ovr) {
-			tcf_hash_release(pc, bind, &gact_hash_info);
+		if (bind)/* dont override defaults */
+			return 0;
+		tcf_hash_release(pc, bind, &gact_hash_info);
+		if (!ovr)
 			return -EEXIST;
-		}
 	}
 
 	gact = to_gact(pc);

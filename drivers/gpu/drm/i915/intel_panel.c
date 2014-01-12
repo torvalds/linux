@@ -451,7 +451,9 @@ static u32 intel_panel_get_backlight(struct drm_device *dev,
 
 	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_BROADWELL(dev)) {
+		val = I915_READ(BLC_PWM_PCH_CTL2) & BACKLIGHT_DUTY_CYCLE_MASK;
+	} else if (HAS_PCH_SPLIT(dev)) {
 		val = I915_READ(BLC_PWM_CPU_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
 	} else {
 		if (IS_VALLEYVIEW(dev))
@@ -479,6 +481,13 @@ static u32 intel_panel_get_backlight(struct drm_device *dev,
 	return val;
 }
 
+static void intel_bdw_panel_set_backlight(struct drm_device *dev, u32 level)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val = I915_READ(BLC_PWM_PCH_CTL2) & ~BACKLIGHT_DUTY_CYCLE_MASK;
+	I915_WRITE(BLC_PWM_PCH_CTL2, val | level);
+}
+
 static void intel_pch_panel_set_backlight(struct drm_device *dev, u32 level)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -496,7 +505,9 @@ static void intel_panel_actually_set_backlight(struct drm_device *dev,
 	DRM_DEBUG_DRIVER("set backlight PWM = %d\n", level);
 	level = intel_panel_compute_brightness(dev, pipe, level);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (IS_BROADWELL(dev))
+		return intel_bdw_panel_set_backlight(dev, level);
+	else if (HAS_PCH_SPLIT(dev))
 		return intel_pch_panel_set_backlight(dev, level);
 
 	if (is_backlight_combination_mode(dev)) {
@@ -666,7 +677,16 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 		POSTING_READ(reg);
 		I915_WRITE(reg, tmp | BLM_PWM_ENABLE);
 
-		if (HAS_PCH_SPLIT(dev) &&
+		if (IS_BROADWELL(dev)) {
+			/*
+			 * Broadwell requires PCH override to drive the PCH
+			 * backlight pin. The above will configure the CPU
+			 * backlight pin, which we don't plan to use.
+			 */
+			tmp = I915_READ(BLC_PWM_PCH_CTL1);
+			tmp |= BLM_PCH_OVERRIDE_ENABLE | BLM_PCH_PWM_ENABLE;
+			I915_WRITE(BLC_PWM_PCH_CTL1, tmp);
+		} else if (HAS_PCH_SPLIT(dev) &&
 		    !(dev_priv->quirks & QUIRK_NO_PCH_PWM_ENABLE)) {
 			tmp = I915_READ(BLC_PWM_PCH_CTL1);
 			tmp |= BLM_PCH_PWM_ENABLE;

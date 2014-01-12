@@ -228,6 +228,25 @@ struct tp_params {
 
 	uint32_t dack_re;            /* DACK timer resolution */
 	unsigned short tx_modq[NCHAN];	/* channel to modulation queue map */
+
+	u32 vlan_pri_map;               /* cached TP_VLAN_PRI_MAP */
+	u32 ingress_config;             /* cached TP_INGRESS_CONFIG */
+
+	/* TP_VLAN_PRI_MAP Compressed Filter Tuple field offsets.  This is a
+	 * subset of the set of fields which may be present in the Compressed
+	 * Filter Tuple portion of filters and TCP TCB connections.  The
+	 * fields which are present are controlled by the TP_VLAN_PRI_MAP.
+	 * Since a variable number of fields may or may not be present, their
+	 * shifted field positions within the Compressed Filter Tuple may
+	 * vary, or not even be present if the field isn't selected in
+	 * TP_VLAN_PRI_MAP.  Since some of these fields are needed in various
+	 * places we store their offsets here, or a -1 if the field isn't
+	 * present.
+	 */
+	int vlan_shift;
+	int vnic_shift;
+	int port_shift;
+	int protocol_shift;
 };
 
 struct vpd_params {
@@ -926,6 +945,8 @@ int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 	       const u8 *fw_data, unsigned int fw_size,
 	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
 int t4_prep_adapter(struct adapter *adapter);
+int t4_init_tp_params(struct adapter *adap);
+int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);
 int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,

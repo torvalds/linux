@@ -1178,6 +1178,7 @@ qlcnic_initialize_nic(struct qlcnic_adapter *adapter)
 	} else {
 		adapter->ahw->nic_mode = QLCNIC_DEFAULT_MODE;
 		adapter->max_tx_rings = QLCNIC_MAX_HW_TX_RINGS;
+		adapter->max_sds_rings = QLCNIC_MAX_SDS_RINGS;
 		adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
 	}
 
@@ -1755,7 +1756,6 @@ void __qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
 	if (qlcnic_sriov_vf_check(adapter))
 		qlcnic_sriov_cleanup_async_list(&adapter->ahw->sriov->bc);
 	smp_mb();
-	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
 	adapter->ahw->linkup = 0;
 	netif_tx_disable(netdev);
@@ -1776,7 +1776,6 @@ void __qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
 
 	for (ring = 0; ring < adapter->drv_tx_rings; ring++)
 		qlcnic_release_tx_buffers(adapter, &adapter->tx_ring[ring]);
-	spin_unlock(&adapter->tx_clean_lock);
 }
 
 /* Usage: During suspend and firmware recovery module */
@@ -1940,7 +1939,6 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	qlcnic_detach(adapter);
 
 	adapter->drv_sds_rings = QLCNIC_SINGLE_RING;
-	adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
 	adapter->ahw->diag_test = test;
 	adapter->ahw->linkup = 0;
 
@@ -2172,6 +2170,7 @@ int qlcnic_alloc_tx_rings(struct qlcnic_adapter *adapter,
 		}
 		memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
 		tx_ring->cmd_buf_arr = cmd_buf_arr;
+		spin_lock_init(&tx_ring->tx_clean_lock);
 	}
 
 	if (qlcnic_83xx_check(adapter) ||
@@ -2299,7 +2298,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rwlock_init(&adapter->ahw->crb_lock);
 	mutex_init(&adapter->ahw->mem_lock);
 
-	spin_lock_init(&adapter->tx_clean_lock);
 	INIT_LIST_HEAD(&adapter->mac_list);
 
 	qlcnic_register_dcb(adapter);
@@ -2781,6 +2779,9 @@ static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &netdev->stats;
+
+	if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
+		qlcnic_update_stats(adapter);
 
 	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;

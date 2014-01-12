@@ -2080,7 +2080,8 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* Return subqueue id on this core (one per core). */
-static u16 tile_net_select_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 tile_net_select_queue(struct net_device *dev, struct sk_buff *skb,
+				 void *accel_priv)
 {
 	return smp_processor_id();
 }

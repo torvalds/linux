@@ -1600,20 +1600,15 @@ static void flush_stack(struct sock **stack, unsigned int count,
 }
 
 /* For TCP sockets, sk_rx_dst is protected by socket lock
- * For UDP, we use sk_dst_lock to guard against concurrent changes.
+ * For UDP, we use xchg() to guard against concurrent changes.
  */
 static void udp_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst)
 {
 	struct dst_entry *old;
 
-	spin_lock(&sk->sk_dst_lock);
-	old = sk->sk_rx_dst;
-	if (likely(old != dst)) {
-		dst_hold(dst);
-		sk->sk_rx_dst = dst;
-		dst_release(old);
-	}
-	spin_unlock(&sk->sk_dst_lock);
+	dst_hold(dst);
+	old = xchg(&sk->sk_rx_dst, dst);
+	dst_release(old);
 }
 
 /*
@@ -2483,6 +2478,7 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 				       netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	u16 mac_offset = skb->mac_header;
 	int mac_len = skb->mac_len;
 	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
 	__be16 protocol = skb->protocol;
@@ -2502,8 +2498,11 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 	/* segment inner packet. */
 	enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
 	segs = skb_mac_gso_segment(skb, enc_features);
-	if (!segs || IS_ERR(segs))
+	if (!segs || IS_ERR(segs)) {
+		skb_gso_error_unwind(skb, protocol, tnl_hlen, mac_offset,
+				     mac_len);
 		goto out;
+	}
 
 	outer_hlen = skb_tnl_header_len(skb);
 	skb = segs;

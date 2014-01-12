@@ -1012,7 +1012,7 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "AEC Loopback", "HPOUT3L", "OUT3L" },
 	{ "AEC Loopback", "HPOUT3R", "OUT3R" },
 	{ "HPOUT3L", NULL, "OUT3L" },
-	{ "HPOUT3R", NULL, "OUT3L" },
+	{ "HPOUT3R", NULL, "OUT3R" },
 
 	{ "AEC Loopback", "SPKOUTL", "OUT4L" },
 	{ "SPKOUTLN", NULL, "OUT4L" },
