@@ -3007,6 +3007,9 @@ static unsigned long bnx2x_get_common_flags(struct bnx2x *bp,
 	if (zero_stats)
 		__set_bit(BNX2X_Q_FLG_ZERO_STATS, &flags);
 
+	if (bp->flags & TX_SWITCHING)
+		__set_bit(BNX2X_Q_FLG_TX_SWITCH, &flags);
+
 	__set_bit(BNX2X_Q_FLG_PCSUM_ON_PKT, &flags);
 	__set_bit(BNX2X_Q_FLG_TUN_INC_INNER_IP_ID, &flags);
 

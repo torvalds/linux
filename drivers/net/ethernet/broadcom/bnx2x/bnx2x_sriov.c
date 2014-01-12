@@ -3130,6 +3130,60 @@ void bnx2x_unlock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	   vf->abs_vfid, vf->op_current);
 }
 
+static int bnx2x_set_pf_tx_switching(struct bnx2x *bp, bool enable)
+{
+	struct bnx2x_queue_state_params q_params;
+	u32 prev_flags;
+	int i, rc;
+
+	/* Verify changes are needed and record current Tx switching state */
+	prev_flags = bp->flags;
+	if (enable)
+		bp->flags |= TX_SWITCHING;
+	else
+		bp->flags &= ~TX_SWITCHING;
+	if (prev_flags == bp->flags)
+		return 0;
+
+	/* Verify state enables the sending of queue ramrods */
+	if ((bp->state != BNX2X_STATE_OPEN) ||
+	    (bnx2x_get_q_logical_state(bp,
+				      &bnx2x_sp_obj(bp, &bp->fp[0]).q_obj) !=
+	     BNX2X_Q_LOGICAL_STATE_ACTIVE))
+		return 0;
+
+	/* send q. update ramrod to configure Tx switching */
+	memset(&q_params, 0, sizeof(q_params));
+	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
+	q_params.cmd = BNX2X_Q_CMD_UPDATE;
+	__set_bit(BNX2X_Q_UPDATE_TX_SWITCHING_CHNG,
+		  &q_params.params.update.update_flags);
+	if (enable)
+		__set_bit(BNX2X_Q_UPDATE_TX_SWITCHING,
+			  &q_params.params.update.update_flags);
+	else
+		__clear_bit(BNX2X_Q_UPDATE_TX_SWITCHING,
+			    &q_params.params.update.update_flags);
+
+	/* send the ramrod on all the queues of the PF */
+	for_each_eth_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		/* Set the appropriate Queue object */
+		q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
+
+		/* Update the Queue state */
+		rc = bnx2x_queue_state_change(bp, &q_params);
+		if (rc) {
+			BNX2X_ERR("Failed to configure Tx switching\n");
+			return rc;
+		}
+	}
+
+	DP(BNX2X_MSG_IOV, "%s Tx Switching\n", enable ? "Enabled" : "Disabled");
+	return 0;
+}
+
 int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 {
 	struct bnx2x *bp = netdev_priv(pci_get_drvdata(dev));
@@ -3157,12 +3211,14 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 
 	bp->requested_nr_virtfn = num_vfs_param;
 	if (num_vfs_param == 0) {
+		bnx2x_set_pf_tx_switching(bp, false);
 		pci_disable_sriov(dev);
 		return 0;
 	} else {
 		return bnx2x_enable_sriov(bp);
 	}
 }
+
 #define IGU_ENTRY_SIZE 4
 
 int bnx2x_enable_sriov(struct bnx2x *bp)
@@ -3240,6 +3296,11 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 	 */
 	DP(BNX2X_MSG_IOV, "about to call enable sriov\n");
 	bnx2x_disable_sriov(bp);
+
+	rc = bnx2x_set_pf_tx_switching(bp, true);
+	if (rc)
+		return rc;
+
 	rc = pci_enable_sriov(bp->pdev, req_vfs);
 	if (rc) {
 		BNX2X_ERR("pci_enable_sriov failed with %d\n", rc);

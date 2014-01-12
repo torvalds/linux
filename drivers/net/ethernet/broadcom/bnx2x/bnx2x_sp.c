@@ -4728,6 +4728,13 @@ static void bnx2x_q_fill_update_data(struct bnx2x *bp,
 		test_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM, &params->update_flags);
 	data->silent_vlan_value = cpu_to_le16(params->silent_removal_value);
 	data->silent_vlan_mask = cpu_to_le16(params->silent_removal_mask);
+
+	/* tx switching */
+	data->tx_switching_flg =
+		test_bit(BNX2X_Q_UPDATE_TX_SWITCHING, &params->update_flags);
+	data->tx_switching_change_flg =
+		test_bit(BNX2X_Q_UPDATE_TX_SWITCHING_CHNG,
+			 &params->update_flags);
 }
 
 static inline int bnx2x_q_send_update(struct bnx2x *bp,
