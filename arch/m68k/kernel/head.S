@@ -2915,7 +2915,9 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 
 #if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
 	movel	%pc@(L(mac_sccbase)),%a0
-	/* Reset SCC device */
+	/* Reset SCC register pointer */
+	moveb	%a0@(mac_scc_cha_a_ctrl_offset),%d0
+	/* Reset SCC device: write register pointer then register value */
 	moveb	#9,%a0@(mac_scc_cha_a_ctrl_offset)
 	moveb	#0xc0,%a0@(mac_scc_cha_a_ctrl_offset)
 	/* Wait for 5 PCLK cycles, which is about 68 CPU cycles */
