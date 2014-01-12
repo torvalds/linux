@@ -19,6 +19,36 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
+
+	/* HS USB Port 1 Power */
+	hsusb1_power: hsusb1_power_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "hsusb1_vbus";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <70000>;
+	};
+
+	/* HS USB Port 2 Power */
+	hsusb2_power: hsusb2_power_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "hsusb2_vbus";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <70000>;
+	};
+
+	/* HS USB Host PHY on PORT 1 */
+	hsusb1_phy: hsusb1_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&hsusb1_power>;
+	};
+
+	/* HS USB Host PHY on PORT 2 */
+	hsusb2_phy: hsusb2_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&hsusb2_power>;
+	};
 };
 
 &omap3_pmx_core {
@@ -69,4 +99,12 @@
 
 &i2c3 {
 	clock-frequency = <400000>;
+};
+&usbhshost {
+	port1-mode = "ehci-phy";
+	port2-mode = "ehci-phy";
+};
+
+&usbhsehci {
+	phys = <&hsusb1_phy &hsusb2_phy>;
 };

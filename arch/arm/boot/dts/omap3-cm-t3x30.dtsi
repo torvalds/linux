@@ -93,3 +93,11 @@
 	/* pullups: BIT(0) */
 	ti,pullups = <0x000001>;
 };
+
+&hsusb1_phy {
+	reset-gpios = <&twl_gpio 6 GPIO_ACTIVE_LOW>;
+};
+
+&hsusb2_phy {
+	reset-gpios = <&twl_gpio 7 GPIO_ACTIVE_LOW>;
+};
