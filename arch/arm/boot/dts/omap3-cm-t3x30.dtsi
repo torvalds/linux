@@ -90,4 +90,6 @@
 
 &twl_gpio {
 	ti,use-leds;
+	/* pullups: BIT(0) */
+	ti,pullups = <0x000001>;
 };
