@@ -2373,8 +2373,11 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			scrub_blocked_if_needed(fs_info);
 		}
 
+		if (btrfs_fs_incompat(fs_info, SKINNY_METADATA))
+			key.type = BTRFS_METADATA_ITEM_KEY;
+		else
+			key.type = BTRFS_EXTENT_ITEM_KEY;
 		key.objectid = logical;
-		key.type = BTRFS_EXTENT_ITEM_KEY;
 		key.offset = (u64)-1;
 
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
