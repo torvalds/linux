@@ -1929,8 +1929,11 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 		dev->clk = NULL;
 	}
 
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+	v4l2_device_unregister(&dev->v4l2_dev);
+
 	if (dev->users)
-		em28xx_warn("Device is open ! Deregistration and memory deallocation are deferred on close.\n");
+		em28xx_warn("Device is open ! Memory deallocation is deferred on last close.\n");
 
 	return 0;
 }
@@ -1957,8 +1960,6 @@ static int em28xx_v4l2_close(struct file *filp)
 
 		if (dev->disconnected) {
 			em28xx_release_resources(dev);
-			v4l2_ctrl_handler_free(&dev->ctrl_handler);
-			v4l2_device_unregister(&dev->v4l2_dev);
 			kfree(dev->alt_max_pkt_size_isoc);
 			goto exit;
 		}
