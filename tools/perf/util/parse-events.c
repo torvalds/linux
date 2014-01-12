@@ -204,7 +204,7 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 				}
 				path->name = malloc(MAX_EVENT_LENGTH);
 				if (!path->name) {
-					free(path->system);
+					zfree(&path->system);
 					free(path);
 					return NULL;
 				}
@@ -236,8 +236,8 @@ struct tracepoint_path *tracepoint_name_to_path(const char *name)
 	path->name = strdup(str+1);
 
 	if (path->system == NULL || path->name == NULL) {
-		free(path->system);
-		free(path->name);
+		zfree(&path->system);
+		zfree(&path->name);
 		free(path);
 		path = NULL;
 	}
@@ -917,7 +917,7 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	ret = parse_events__scanner(str, &data, PE_START_TERMS);
 	if (!ret) {
 		list_splice(data.terms, terms);
-		free(data.terms);
+		zfree(&data.terms);
 		return 0;
 	}
 

@@ -247,7 +247,7 @@ enum perf_call_graph_mode {
 	CALLCHAIN_DWARF
 };
 
-struct perf_record_opts {
+struct record_opts {
 	struct target target;
 	int	     call_graph;
 	bool	     group;

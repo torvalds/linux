@@ -1,4 +1,3 @@
-#include "annotate.h"
 #include "util.h"
 #include "build-id.h"
 #include "hist.h"
@@ -342,15 +341,15 @@ static u8 symbol__parent_filter(const struct symbol *parent)
 }
 
 static struct hist_entry *add_hist_entry(struct hists *hists,
-				      struct hist_entry *entry,
-				      struct addr_location *al,
-				      u64 period,
-				      u64 weight)
+					 struct hist_entry *entry,
+					 struct addr_location *al)
 {
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
 	int64_t cmp;
+	u64 period = entry->stat.period;
+	u64 weight = entry->stat.weight;
 
 	p = &hists->entries_in->rb_node;
 
@@ -373,7 +372,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 			 * This mem info was allocated from machine__resolve_mem
 			 * and will not be used anymore.
 			 */
-			free(entry->mem_info);
+			zfree(&entry->mem_info);
 
 			/* If the map of an existing hist_entry has
 			 * become out-of-date due to an exec() or
@@ -437,7 +436,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		.transaction = transaction,
 	};
 
-	return add_hist_entry(hists, &entry, al, period, weight);
+	return add_hist_entry(hists, &entry, al);
 }
 
 int64_t
@@ -476,8 +475,8 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 
 void hist_entry__free(struct hist_entry *he)
 {
-	free(he->branch_info);
-	free(he->mem_info);
+	zfree(&he->branch_info);
+	zfree(&he->mem_info);
 	free_srcline(he->srcline);
 	free(he);
 }
@@ -805,16 +804,6 @@ void hists__filter_by_symbol(struct hists *hists)
 
 		hists__remove_entry_filter(hists, h, HIST_FILTER__SYMBOL);
 	}
-}
-
-int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
-{
-	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
-}
-
-int hist_entry__annotate(struct hist_entry *he, size_t privsize)
-{
-	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
 }
 
 void events_stats__inc(struct events_stats *stats, u32 type)

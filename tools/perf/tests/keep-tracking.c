@@ -51,7 +51,7 @@ static int find_comm(struct perf_evlist *evlist, const char *comm)
  */
 int test__keep_tracking(void)
 {
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,

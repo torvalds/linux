@@ -13,6 +13,7 @@ int		have_ignore_callees = 0;
 int		sort__need_collapse = 0;
 int		sort__has_parent = 0;
 int		sort__has_sym = 0;
+int		sort__has_dso = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
 enum sort_type	sort__first_dimension;
@@ -161,6 +162,11 @@ struct sort_entry sort_dso = {
 
 /* --sort symbol */
 
+static int64_t _sort__addr_cmp(u64 left_ip, u64 right_ip)
+{
+	return (int64_t)(right_ip - left_ip);
+}
+
 static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r)
 {
 	u64 ip_l, ip_r;
@@ -183,15 +189,17 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 	int64_t ret;
 
 	if (!left->ms.sym && !right->ms.sym)
-		return right->level - left->level;
+		return _sort__addr_cmp(left->ip, right->ip);
 
 	/*
 	 * comparing symbol address alone is not enough since it's a
 	 * relative address within a dso.
 	 */
-	ret = sort__dso_cmp(left, right);
-	if (ret != 0)
-		return ret;
+	if (!sort__has_dso) {
+		ret = sort__dso_cmp(left, right);
+		if (ret != 0)
+			return ret;
+	}
 
 	return _sort__sym_cmp(left->ms.sym, right->ms.sym);
 }
@@ -372,7 +380,7 @@ sort__sym_from_cmp(struct hist_entry *left, struct hist_entry *right)
 	struct addr_map_symbol *from_r = &right->branch_info->from;
 
 	if (!from_l->sym && !from_r->sym)
-		return right->level - left->level;
+		return _sort__addr_cmp(from_l->addr, from_r->addr);
 
 	return _sort__sym_cmp(from_l->sym, from_r->sym);
 }
@@ -384,7 +392,7 @@ sort__sym_to_cmp(struct hist_entry *left, struct hist_entry *right)
 	struct addr_map_symbol *to_r = &right->branch_info->to;
 
 	if (!to_l->sym && !to_r->sym)
-		return right->level - left->level;
+		return _sort__addr_cmp(to_l->addr, to_r->addr);
 
 	return _sort__sym_cmp(to_l->sym, to_r->sym);
 }
@@ -1056,6 +1064,8 @@ int sort_dimension__add(const char *tok)
 			sort__has_parent = 1;
 		} else if (sd->entry == &sort_sym) {
 			sort__has_sym = 1;
+		} else if (sd->entry == &sort_dso) {
+			sort__has_dso = 1;
 		}
 
 		__sort_dimension__add(sd, i);

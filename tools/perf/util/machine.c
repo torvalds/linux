@@ -102,8 +102,7 @@ void machine__exit(struct machine *machine)
 	map_groups__exit(&machine->kmaps);
 	dsos__delete(&machine->user_dsos);
 	dsos__delete(&machine->kernel_dsos);
-	free(machine->root_dir);
-	machine->root_dir = NULL;
+	zfree(&machine->root_dir);
 }
 
 void machine__delete(struct machine *machine)
@@ -562,11 +561,10 @@ void machine__destroy_kernel_maps(struct machine *machine)
 			 * on one of them.
 			 */
 			if (type == MAP__FUNCTION) {
-				free((char *)kmap->ref_reloc_sym->name);
-				kmap->ref_reloc_sym->name = NULL;
-				free(kmap->ref_reloc_sym);
-			}
-			kmap->ref_reloc_sym = NULL;
+				zfree((char **)&kmap->ref_reloc_sym->name);
+				zfree(&kmap->ref_reloc_sym);
+			} else
+				kmap->ref_reloc_sym = NULL;
 		}
 
 		map__delete(machine->vmlinux_maps[type]);

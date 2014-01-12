@@ -46,7 +46,7 @@ static u64 rdtsc(void)
  */
 int test__perf_time_to_tsc(void)
 {
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,

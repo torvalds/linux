@@ -208,7 +208,7 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 	return evsel;
 
 out_free:
-	free(evsel->name);
+	zfree(&evsel->name);
 	free(evsel);
 	return NULL;
 }
@@ -528,8 +528,7 @@ int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
  *     enable/disable events specifically, as there's no
  *     initial traced exec call.
  */
-void perf_evsel__config(struct perf_evsel *evsel,
-			struct perf_record_opts *opts)
+void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 {
 	struct perf_evsel *leader = evsel->leader;
 	struct perf_event_attr *attr = &evsel->attr;
@@ -751,8 +750,7 @@ void perf_evsel__free_id(struct perf_evsel *evsel)
 {
 	xyarray__delete(evsel->sample_id);
 	evsel->sample_id = NULL;
-	free(evsel->id);
-	evsel->id = NULL;
+	zfree(&evsel->id);
 }
 
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -768,7 +766,7 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 
 void perf_evsel__free_counts(struct perf_evsel *evsel)
 {
-	free(evsel->counts);
+	zfree(&evsel->counts);
 }
 
 void perf_evsel__exit(struct perf_evsel *evsel)
@@ -782,10 +780,10 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 {
 	perf_evsel__exit(evsel);
 	close_cgroup(evsel->cgrp);
-	free(evsel->group_name);
+	zfree(&evsel->group_name);
 	if (evsel->tp_format)
 		pevent_free_format(evsel->tp_format);
-	free(evsel->name);
+	zfree(&evsel->name);
 	free(evsel);
 }
 
@@ -1961,8 +1959,7 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 		evsel->attr.type   = PERF_TYPE_SOFTWARE;
 		evsel->attr.config = PERF_COUNT_SW_CPU_CLOCK;
 
-		free(evsel->name);
-		evsel->name = NULL;
+		zfree(&evsel->name);
 		return true;
 	}
 

@@ -133,7 +133,7 @@ void close_cgroup(struct cgroup_sel *cgrp)
 	/* XXX: not reentrant */
 	if (--cgrp->refcnt == 0) {
 		close(cgrp->fd);
-		free(cgrp->name);
+		zfree(&cgrp->name);
 		free(cgrp);
 	}
 }

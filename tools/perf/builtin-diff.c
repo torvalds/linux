@@ -654,7 +654,7 @@ static void data__free(struct data__file *d)
 	for (col = 0; col < PERF_HPP_DIFF__MAX_INDEX; col++) {
 		struct diff_hpp_fmt *fmt = &d->fmt[col];
 
-		free(fmt->header);
+		zfree(&fmt->header);
 	}
 }
 

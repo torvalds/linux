@@ -226,10 +226,8 @@ struct debuginfo *debuginfo__new(const char *path)
 	if (!dbg)
 		return NULL;
 
-	if (debuginfo__init_offline_dwarf(dbg, path) < 0) {
-		free(dbg);
-		dbg = NULL;
-	}
+	if (debuginfo__init_offline_dwarf(dbg, path) < 0)
+		zfree(&dbg);
 
 	return dbg;
 }
@@ -241,10 +239,8 @@ struct debuginfo *debuginfo__new_online_kernel(unsigned long addr)
 	if (!dbg)
 		return NULL;
 
-	if (debuginfo__init_online_kernel_dwarf(dbg, (Dwarf_Addr)addr) < 0) {
-		free(dbg);
-		dbg = NULL;
-	}
+	if (debuginfo__init_online_kernel_dwarf(dbg, (Dwarf_Addr)addr) < 0)
+		zfree(&dbg);
 
 	return dbg;
 }
@@ -729,6 +725,7 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwfl_Module *mod,
 		return -ENOENT;
 	}
 	tp->offset = (unsigned long)(paddr - sym.st_value);
+	tp->address = (unsigned long)paddr;
 	tp->symbol = strdup(symbol);
 	if (!tp->symbol)
 		return -ENOMEM;
@@ -1301,8 +1298,7 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 
 	ret = debuginfo__find_probes(dbg, &tf.pf);
 	if (ret < 0) {
-		free(*tevs);
-		*tevs = NULL;
+		zfree(tevs);
 		return ret;
 	}
 
@@ -1413,13 +1409,10 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 	if (ret < 0) {
 		/* Free vlist for error */
 		while (af.nvls--) {
-			if (af.vls[af.nvls].point.symbol)
-				free(af.vls[af.nvls].point.symbol);
-			if (af.vls[af.nvls].vars)
-				strlist__delete(af.vls[af.nvls].vars);
+			zfree(&af.vls[af.nvls].point.symbol);
+			strlist__delete(af.vls[af.nvls].vars);
 		}
-		free(af.vls);
-		*vls = NULL;
+		zfree(vls);
 		return ret;
 	}
 
@@ -1523,10 +1516,7 @@ post:
 	if (fname) {
 		ppt->file = strdup(fname);
 		if (ppt->file == NULL) {
-			if (ppt->function) {
-				free(ppt->function);
-				ppt->function = NULL;
-			}
+			zfree(&ppt->function);
 			ret = -ENOMEM;
 			goto end;
 		}
@@ -1580,8 +1570,7 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 		else
 			ret = 0;	/* Lines are not found */
 	else {
-		free(lf->lr->path);
-		lf->lr->path = NULL;
+		zfree(&lf->lr->path);
 	}
 	return ret;
 }

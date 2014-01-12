@@ -391,7 +391,7 @@ static int do_test_code_reading(bool try_kcore)
 	struct machines machines;
 	struct machine *machine;
 	struct thread *thread;
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,

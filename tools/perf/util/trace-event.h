@@ -68,7 +68,6 @@ struct scripting_ops {
 	void (*process_event) (union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
-			       struct machine *machine,
 			       struct thread *thread,
 				   struct addr_location *al);
 	int (*generate_script) (struct pevent *pevent, const char *outfile);

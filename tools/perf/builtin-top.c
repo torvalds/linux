@@ -189,21 +189,18 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	if (notes->src == NULL && symbol__alloc_hist(sym) < 0) {
-		pthread_mutex_unlock(&notes->lock);
-		pr_err("Not enough memory for annotating '%s' symbol!\n",
-		       sym->name);
-		sleep(1);
-		return;
-	}
-
 	ip = he->ms.map->map_ip(he->ms.map, ip);
-	err = symbol__inc_addr_samples(sym, he->ms.map, counter, ip);
+	err = hist_entry__inc_addr_samples(he, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 
 	if (err == -ERANGE && !he->ms.map->erange_warned)
 		ui__warn_map_erange(he->ms.map, sym, ip);
+	else if (err == -ENOMEM) {
+		pr_err("Not enough memory for annotating '%s' symbol!\n",
+		       sym->name);
+		sleep(1);
+	}
 }
 
 static void perf_top__show_details(struct perf_top *top)
@@ -857,7 +854,7 @@ static int perf_top__start_counters(struct perf_top *top)
 	char msg[512];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
-	struct perf_record_opts *opts = &top->record_opts;
+	struct record_opts *opts = &top->record_opts;
 
 	perf_evlist__config(evlist, opts);
 
@@ -909,7 +906,7 @@ static int perf_top__setup_sample_type(struct perf_top *top __maybe_unused)
 
 static int __cmd_top(struct perf_top *top)
 {
-	struct perf_record_opts *opts = &top->record_opts;
+	struct record_opts *opts = &top->record_opts;
 	pthread_t thread;
 	int ret;
 
@@ -1031,7 +1028,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		.max_stack	     = PERF_MAX_STACK_DEPTH,
 		.sym_pcnt_filter     = 5,
 	};
-	struct perf_record_opts *opts = &top.record_opts;
+	struct record_opts *opts = &top.record_opts;
 	struct target *target = &opts->target;
 	const struct option options[] = {
 	OPT_CALLBACK('e', "event", &top.evlist, "event",
@@ -1182,7 +1179,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (top.delay_secs < 1)
 		top.delay_secs = 1;
 
-	if (perf_record_opts__config(opts)) {
+	if (record_opts__config(opts)) {
 		status = -EINVAL;
 		goto out_delete_maps;
 	}

@@ -397,8 +397,8 @@ put_tracepoints_path(struct tracepoint_path *tps)
 		struct tracepoint_path *t = tps;
 
 		tps = tps->next;
-		free(t->name);
-		free(t->system);
+		zfree(&t->name);
+		zfree(&t->system);
 		free(t);
 	}
 }
@@ -562,10 +562,8 @@ out:
 		output_fd = fd;
 	}
 
-	if (err) {
-		free(tdata);
-		tdata = NULL;
-	}
+	if (err)
+		zfree(&tdata);
 
 	put_tracepoints_path(tps);
 	return tdata;

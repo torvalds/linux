@@ -497,21 +497,18 @@ void dso__delete(struct dso *dso)
 		symbols__delete(&dso->symbols[i]);
 
 	if (dso->short_name_allocated) {
-		free((char *)dso->short_name);
-		dso->short_name		  = NULL;
+		zfree((char **)&dso->short_name);
 		dso->short_name_allocated = false;
 	}
 
 	if (dso->long_name_allocated) {
-		free((char *)dso->long_name);
-		dso->long_name		 = NULL;
+		zfree((char **)&dso->long_name);
 		dso->long_name_allocated = false;
 	}
 
 	dso_cache__free(&dso->cache);
 	dso__free_a2l(dso);
-	free(dso->symsrc_filename);
-	dso->symsrc_filename = NULL;
+	zfree(&dso->symsrc_filename);
 	free(dso);
 }
 

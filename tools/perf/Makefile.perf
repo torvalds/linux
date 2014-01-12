@@ -489,6 +489,7 @@ ifndef NO_SLANG
   LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
   LIB_OBJS += $(OUTPUT)ui/browsers/map.o
   LIB_OBJS += $(OUTPUT)ui/browsers/scripts.o
+  LIB_OBJS += $(OUTPUT)ui/browsers/header.o
   LIB_OBJS += $(OUTPUT)ui/tui/setup.o
   LIB_OBJS += $(OUTPUT)ui/tui/util.o
   LIB_OBJS += $(OUTPUT)ui/tui/helpline.o

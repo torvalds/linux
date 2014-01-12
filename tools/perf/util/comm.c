@@ -21,7 +21,7 @@ static void comm_str__put(struct comm_str *cs)
 {
 	if (!--cs->ref) {
 		rb_erase(&cs->rb_node, &comm_str_root);
-		free(cs->str);
+		zfree(&cs->str);
 		free(cs);
 	}
 }

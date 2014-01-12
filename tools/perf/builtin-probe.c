@@ -169,6 +169,7 @@ static int opt_set_target(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
 	int ret = -ENOENT;
+	char *tmp;
 
 	if  (str && !params.target) {
 		if (!strcmp(opt->long_name, "exec"))
@@ -180,7 +181,19 @@ static int opt_set_target(const struct option *opt, const char *str,
 		else
 			return ret;
 
-		params.target = str;
+		/* Expand given path to absolute path, except for modulename */
+		if (params.uprobes || strchr(str, '/')) {
+			tmp = realpath(str, NULL);
+			if (!tmp) {
+				pr_warning("Failed to get the absolute path of %s: %m\n", str);
+				return ret;
+			}
+		} else {
+			tmp = strdup(str);
+			if (!tmp)
+				return -ENOMEM;
+		}
+		params.target = tmp;
 		ret = 0;
 	}
 
@@ -411,7 +424,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 #ifdef HAVE_DWARF_SUPPORT
-	if (params.show_lines && !params.uprobes) {
+	if (params.show_lines) {
 		if (params.mod_events) {
 			pr_err("  Error: Don't use --line with"
 			       " --add/--del.\n");

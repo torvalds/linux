@@ -74,8 +74,7 @@ bool perf_can_sample_identifier(void)
 	return perf_probe_api(perf_probe_sample_identifier);
 }
 
-void perf_evlist__config(struct perf_evlist *evlist,
-			struct perf_record_opts *opts)
+void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)
 {
 	struct perf_evsel *evsel;
 	bool use_sample_identifier = false;
@@ -123,7 +122,7 @@ static int get_max_rate(unsigned int *rate)
 	return filename__read_int(path, (int *) rate);
 }
 
-static int perf_record_opts__config_freq(struct perf_record_opts *opts)
+static int record_opts__config_freq(struct record_opts *opts)
 {
 	bool user_freq = opts->user_freq != UINT_MAX;
 	unsigned int max_rate;
@@ -173,9 +172,9 @@ static int perf_record_opts__config_freq(struct perf_record_opts *opts)
 	return 0;
 }
 
-int perf_record_opts__config(struct perf_record_opts *opts)
+int record_opts__config(struct record_opts *opts)
 {
-	return perf_record_opts__config_freq(opts);
+	return record_opts__config_freq(opts);
 }
 
 bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)

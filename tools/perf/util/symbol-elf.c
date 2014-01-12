@@ -554,7 +554,7 @@ bool symsrc__has_symtab(struct symsrc *ss)
 
 void symsrc__destroy(struct symsrc *ss)
 {
-	free(ss->name);
+	zfree(&ss->name);
 	elf_end(ss->elf);
 	close(ss->fd);
 }

@@ -39,7 +39,7 @@
 #include <dlfcn.h>
 #include <linux/bitmap.h>
 
-struct perf_report {
+struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
 	bool			force, use_tui, use_gtk, use_stdio;
@@ -60,14 +60,14 @@ struct perf_report {
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
-static int perf_report_config(const char *var, const char *value, void *cb)
+static int report__config(const char *var, const char *value, void *cb)
 {
 	if (!strcmp(var, "report.group")) {
 		symbol_conf.event_group = perf_config_bool(var, value);
 		return 0;
 	}
 	if (!strcmp(var, "report.percent-limit")) {
-		struct perf_report *rep = cb;
+		struct report *rep = cb;
 		rep->min_percent = strtof(value, NULL);
 		return 0;
 	}
@@ -75,31 +75,40 @@ static int perf_report_config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
-static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
-					   struct addr_location *al,
-					   struct perf_sample *sample,
-					   struct perf_evsel *evsel,
-					   struct machine *machine,
-					   union perf_event *event)
+static int report__resolve_callchain(struct report *rep, struct symbol **parent,
+				     struct perf_evsel *evsel, struct addr_location *al,
+				     struct perf_sample *sample)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
+		return machine__resolve_callchain(al->machine, evsel, al->thread, sample,
+						  parent, al, rep->max_stack);
+	}
+	return 0;
+}
+
+static int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample)
+{
+	if (!symbol_conf.use_callchain)
+		return 0;
+	return callchain_append(he->callchain, &callchain_cursor, sample->period);
+}
+
+static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_location *al,
+				      struct perf_sample *sample, struct perf_evsel *evsel,
+				      union perf_event *event)
+{
+	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	int err = 0;
 	struct hist_entry *he;
 	struct mem_info *mi, *mx;
 	uint64_t cost;
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
 
-	if ((sort__has_parent || symbol_conf.use_callchain) &&
-	    sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent, al,
-						 rep->max_stack);
-		if (err)
-			return err;
-	}
+	if (err)
+		return err;
 
-	mi = machine__resolve_mem(machine, al->thread, sample, cpumode);
+	mi = machine__resolve_mem(al->machine, al->thread, sample, cpumode);
 	if (!mi)
 		return -ENOMEM;
 
@@ -122,77 +131,36 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 	if (!he)
 		return -ENOMEM;
 
-	/*
-	 * In the TUI browser, we are doing integrated annotation,
-	 * so we don't allocate the extra space needed because the stdio
-	 * code will not use it.
-	 */
-	if (sort__has_sym && he->ms.sym && use_browser > 0) {
-		struct annotation *notes = symbol__annotation(he->ms.sym);
+	err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	if (err)
+		goto out;
 
-		assert(evsel != NULL);
-
-		if (notes->src == NULL && symbol__alloc_hist(he->ms.sym) < 0)
-			goto out;
-
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-		if (err)
-			goto out;
-	}
-
-	if (sort__has_sym && he->mem_info->daddr.sym && use_browser > 0) {
-		struct annotation *notes;
-
-		mx = he->mem_info;
-
-		notes = symbol__annotation(mx->daddr.sym);
-		if (notes->src == NULL && symbol__alloc_hist(mx->daddr.sym) < 0)
-			goto out;
-
-		err = symbol__inc_addr_samples(mx->daddr.sym,
-					       mx->daddr.map,
-					       evsel->idx,
-					       mx->daddr.al_addr);
-		if (err)
-			goto out;
-	}
+	mx = he->mem_info;
+	err = addr_map_symbol__inc_samples(&mx->daddr, evsel->idx);
+	if (err)
+		goto out;
 
 	evsel->hists.stats.total_period += cost;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
-	err = 0;
-
-	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain,
-				       &callchain_cursor,
-				       sample->period);
-	}
+	err = hist_entry__append_callchain(he, sample);
 out:
 	return err;
 }
 
-static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
-					struct addr_location *al,
-					struct perf_sample *sample,
-					struct perf_evsel *evsel,
-				      struct machine *machine)
+static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_location *al,
+					 struct perf_sample *sample, struct perf_evsel *evsel)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
-	int err = 0;
 	unsigned i;
 	struct hist_entry *he;
 	struct branch_info *bi, *bx;
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
 
-	if ((sort__has_parent || symbol_conf.use_callchain)
-	    && sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent, al,
-						 rep->max_stack);
-		if (err)
-			return err;
-	}
+	if (err)
+		return err;
 
-	bi = machine__resolve_bstack(machine, al->thread,
+	bi = machine__resolve_bstack(al->machine, al->thread,
 				     sample->branch_stack);
 	if (!bi)
 		return -ENOMEM;
@@ -214,35 +182,15 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 		he = __hists__add_entry(&evsel->hists, al, parent, &bi[i], NULL,
 					1, 1, 0);
 		if (he) {
-			struct annotation *notes;
 			bx = he->branch_info;
-			if (bx->from.sym && use_browser == 1 && sort__has_sym) {
-				notes = symbol__annotation(bx->from.sym);
-				if (!notes->src
-				    && symbol__alloc_hist(bx->from.sym) < 0)
-					goto out;
+			err = addr_map_symbol__inc_samples(&bx->from, evsel->idx);
+			if (err)
+				goto out;
 
-				err = symbol__inc_addr_samples(bx->from.sym,
-							       bx->from.map,
-							       evsel->idx,
-							       bx->from.al_addr);
-				if (err)
-					goto out;
-			}
+			err = addr_map_symbol__inc_samples(&bx->to, evsel->idx);
+			if (err)
+				goto out;
 
-			if (bx->to.sym && use_browser == 1 && sort__has_sym) {
-				notes = symbol__annotation(bx->to.sym);
-				if (!notes->src
-				    && symbol__alloc_hist(bx->to.sym) < 0)
-					goto out;
-
-				err = symbol__inc_addr_samples(bx->to.sym,
-							       bx->to.map,
-							       evsel->idx,
-							       bx->to.al_addr);
-				if (err)
-					goto out;
-			}
 			evsel->hists.stats.total_period += 1;
 			hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 		} else
@@ -254,24 +202,16 @@ out:
 	return err;
 }
 
-static int perf_evsel__add_hist_entry(struct perf_tool *tool,
-				      struct perf_evsel *evsel,
-				      struct addr_location *al,
-				      struct perf_sample *sample,
-				      struct machine *machine)
+static int report__add_hist_entry(struct perf_tool *tool, struct perf_evsel *evsel,
+				  struct addr_location *al, struct perf_sample *sample)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
-	int err = 0;
 	struct hist_entry *he;
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
 
-	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent, al,
-						 rep->max_stack);
-		if (err)
-			return err;
-	}
+	if (err)
+		return err;
 
 	he = __hists__add_entry(&evsel->hists, al, parent, NULL, NULL,
 				sample->period, sample->weight,
@@ -279,30 +219,11 @@ static int perf_evsel__add_hist_entry(struct perf_tool *tool,
 	if (he == NULL)
 		return -ENOMEM;
 
-	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain,
-				       &callchain_cursor,
-				       sample->period);
-		if (err)
-			return err;
-	}
-	/*
-	 * Only in the TUI browser we are doing integrated annotation,
-	 * so we don't allocated the extra space needed because the stdio
-	 * code will not use it.
-	 */
-	if (he->ms.sym != NULL && use_browser == 1 && sort__has_sym) {
-		struct annotation *notes = symbol__annotation(he->ms.sym);
+	err = hist_entry__append_callchain(he, sample);
+	if (err)
+		goto out;
 
-		assert(evsel != NULL);
-
-		err = -ENOMEM;
-		if (notes->src == NULL && symbol__alloc_hist(he->ms.sym) < 0)
-			goto out;
-
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-	}
-
+	err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
 	evsel->hists.stats.total_period += sample->period;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 out:
@@ -316,13 +237,13 @@ static int process_sample_event(struct perf_tool *tool,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 	struct addr_location al;
 	int ret;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
-		fprintf(stderr, "problem processing %d event, skipping it.\n",
-			event->header.type);
+		pr_debug("problem processing %d event, skipping it.\n",
+			 event->header.type);
 		return -1;
 	}
 
@@ -333,21 +254,18 @@ static int process_sample_event(struct perf_tool *tool,
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
-		ret = perf_report__add_branch_hist_entry(tool, &al, sample,
-							 evsel, machine);
+		ret = report__add_branch_hist_entry(tool, &al, sample, evsel);
 		if (ret < 0)
 			pr_debug("problem adding lbr entry, skipping event\n");
 	} else if (rep->mem_mode == 1) {
-		ret = perf_report__add_mem_hist_entry(tool, &al, sample,
-						      evsel, machine, event);
+		ret = report__add_mem_hist_entry(tool, &al, sample, evsel, event);
 		if (ret < 0)
 			pr_debug("problem adding mem entry, skipping event\n");
 	} else {
 		if (al.map != NULL)
 			al.map->dso->hit = 1;
 
-		ret = perf_evsel__add_hist_entry(tool, evsel, &al, sample,
-						 machine);
+		ret = report__add_hist_entry(tool, evsel, &al, sample);
 		if (ret < 0)
 			pr_debug("problem incrementing symbol period, skipping event\n");
 	}
@@ -360,7 +278,7 @@ static int process_read_event(struct perf_tool *tool,
 			      struct perf_evsel *evsel,
 			      struct machine *machine __maybe_unused)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 
 	if (rep->show_threads) {
 		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
@@ -379,7 +297,7 @@ static int process_read_event(struct perf_tool *tool,
 }
 
 /* For pipe mode, sample_type is not currently set */
-static int perf_report__setup_sample_type(struct perf_report *rep)
+static int report__setup_sample_type(struct report *rep)
 {
 	struct perf_session *session = rep->session;
 	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
@@ -424,8 +342,7 @@ static void sig_handler(int sig __maybe_unused)
 	session_done = 1;
 }
 
-static size_t hists__fprintf_nr_sample_events(struct perf_report *rep,
-					      struct hists *hists,
+static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report *rep,
 					      const char *evname, FILE *fp)
 {
 	size_t ret;
@@ -462,7 +379,7 @@ static size_t hists__fprintf_nr_sample_events(struct perf_report *rep,
 }
 
 static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
-					 struct perf_report *rep,
+					 struct report *rep,
 					 const char *help)
 {
 	struct perf_evsel *pos;
@@ -475,7 +392,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 		    !perf_evsel__is_group_leader(pos))
 			continue;
 
-		hists__fprintf_nr_sample_events(rep, hists, evname, stdout);
+		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
 		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout);
 		fprintf(stdout, "\n\n");
 	}
@@ -495,7 +412,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	return 0;
 }
 
-static int __cmd_report(struct perf_report *rep)
+static int __cmd_report(struct report *rep)
 {
 	int ret = -EINVAL;
 	u64 nr_samples;
@@ -519,7 +436,7 @@ static int __cmd_report(struct perf_report *rep)
 	if (rep->show_threads)
 		perf_read_values_init(&rep->show_threads_values);
 
-	ret = perf_report__setup_sample_type(rep);
+	ret = report__setup_sample_type(rep);
 	if (ret)
 		return ret;
 
@@ -552,15 +469,17 @@ static int __cmd_report(struct perf_report *rep)
 		desc);
 	}
 
-	if (verbose > 3)
-		perf_session__fprintf(session, stdout);
+	if (use_browser == 0) {
+		if (verbose > 3)
+			perf_session__fprintf(session, stdout);
 
-	if (verbose > 2)
-		perf_session__fprintf_dsos(session, stdout);
+		if (verbose > 2)
+			perf_session__fprintf_dsos(session, stdout);
 
-	if (dump_trace) {
-		perf_session__fprintf_nr_events(session, stdout);
-		return 0;
+		if (dump_trace) {
+			perf_session__fprintf_nr_events(session, stdout);
+			return 0;
+		}
 	}
 
 	nr_samples = 0;
@@ -638,7 +557,7 @@ static int __cmd_report(struct perf_report *rep)
 static int
 parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
-	struct perf_report *rep = (struct perf_report *)opt->value;
+	struct report *rep = (struct report *)opt->value;
 	char *tok, *tok2;
 	char *endptr;
 
@@ -720,7 +639,7 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 		return -1;
 setup:
 	if (callchain_register_param(&callchain_param) < 0) {
-		fprintf(stderr, "Can't register callchain params\n");
+		pr_err("Can't register callchain params\n");
 		return -1;
 	}
 	return 0;
@@ -758,7 +677,7 @@ static int
 parse_percent_limit(const struct option *opt, const char *str,
 		    int unset __maybe_unused)
 {
-	struct perf_report *rep = opt->value;
+	struct report *rep = opt->value;
 
 	rep->min_percent = strtof(str, NULL);
 	return 0;
@@ -776,7 +695,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf report [<options>]",
 		NULL
 	};
-	struct perf_report report = {
+	struct report report = {
 		.tool = {
 			.sample		 = process_sample_event,
 			.mmap		 = perf_event__process_mmap,
@@ -892,7 +811,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		.mode  = PERF_DATA_MODE_READ,
 	};
 
-	perf_config(perf_report_config, &report);
+	perf_config(report__config, &report);
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
@@ -942,7 +861,7 @@ repeat:
 	}
 	if (report.mem_mode) {
 		if (sort__mode == SORT_MODE__BRANCH) {
-			fprintf(stderr, "branch and mem mode incompatible\n");
+			pr_err("branch and mem mode incompatible\n");
 			goto error;
 		}
 		sort__mode = SORT_MODE__MEMORY;

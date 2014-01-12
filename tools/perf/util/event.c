@@ -106,8 +106,12 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 
 	memset(&event->comm, 0, sizeof(event->comm));
 
-	tgid = perf_event__get_comm_tgid(pid, event->comm.comm,
-					 sizeof(event->comm.comm));
+	if (machine__is_host(machine))
+		tgid = perf_event__get_comm_tgid(pid, event->comm.comm,
+						 sizeof(event->comm.comm));
+	else
+		tgid = machine->pid;
+
 	if (tgid < 0)
 		goto out;
 
@@ -129,7 +133,11 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 		goto out;
 	}
 
-	snprintf(filename, sizeof(filename), "/proc/%d/task", pid);
+	if (machine__is_default_guest(machine))
+		return 0;
+
+	snprintf(filename, sizeof(filename), "%s/proc/%d/task",
+		 machine->root_dir, pid);
 
 	tasks = opendir(filename);
 	if (tasks == NULL) {
@@ -178,7 +186,11 @@ static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	FILE *fp;
 	int rc = 0;
 
-	snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
+	if (machine__is_default_guest(machine))
+		return 0;
+
+	snprintf(filename, sizeof(filename), "%s/proc/%d/maps",
+		 machine->root_dir, pid);
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
@@ -218,7 +230,10 @@ static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		/*
 		 * Just like the kernel, see __perf_event_mmap in kernel/perf_event.c
 		 */
-		event->header.misc = PERF_RECORD_MISC_USER;
+		if (machine__is_host(machine))
+			event->header.misc = PERF_RECORD_MISC_USER;
+		else
+			event->header.misc = PERF_RECORD_MISC_GUEST_USER;
 
 		if (prot[2] != 'x') {
 			if (!mmap_data || prot[0] != 'r')
@@ -387,6 +402,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 				   struct machine *machine, bool mmap_data)
 {
 	DIR *proc;
+	char proc_path[PATH_MAX];
 	struct dirent dirent, *next;
 	union perf_event *comm_event, *mmap_event;
 	int err = -1;
@@ -399,7 +415,12 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
-	proc = opendir("/proc");
+	if (machine__is_default_guest(machine))
+		return 0;
+
+	snprintf(proc_path, sizeof(proc_path), "%s/proc", machine->root_dir);
+	proc = opendir(proc_path);
+
 	if (proc == NULL)
 		goto out_free_mmap;
 
@@ -638,6 +659,7 @@ void thread__find_addr_map(struct thread *thread,
 	struct map_groups *mg = &thread->mg;
 	bool load_map = false;
 
+	al->machine = machine;
 	al->thread = thread;
 	al->addr = addr;
 	al->cpumode = cpumode;
@@ -658,15 +680,10 @@ void thread__find_addr_map(struct thread *thread,
 		al->level = 'g';
 		mg = &machine->kmaps;
 		load_map = true;
+	} else if (cpumode == PERF_RECORD_MISC_GUEST_USER && perf_guest) {
+		al->level = 'u';
 	} else {
-		/*
-		 * 'u' means guest os user space.
-		 * TODO: We don't support guest user space. Might support late.
-		 */
-		if (cpumode == PERF_RECORD_MISC_GUEST_USER && perf_guest)
-			al->level = 'u';
-		else
-			al->level = 'H';
+		al->level = 'H';
 		al->map = NULL;
 
 		if ((cpumode == PERF_RECORD_MISC_GUEST_USER ||

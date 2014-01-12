@@ -132,18 +132,18 @@ static void perf_session__delete_threads(struct perf_session *session)
 
 static void perf_session_env__delete(struct perf_session_env *env)
 {
-	free(env->hostname);
-	free(env->os_release);
-	free(env->version);
-	free(env->arch);
-	free(env->cpu_desc);
-	free(env->cpuid);
+	zfree(&env->hostname);
+	zfree(&env->os_release);
+	zfree(&env->version);
+	zfree(&env->arch);
+	zfree(&env->cpu_desc);
+	zfree(&env->cpuid);
 
-	free(env->cmdline);
-	free(env->sibling_cores);
-	free(env->sibling_threads);
-	free(env->numa_nodes);
-	free(env->pmu_mappings);
+	zfree(&env->cmdline);
+	zfree(&env->sibling_cores);
+	zfree(&env->sibling_threads);
+	zfree(&env->numa_nodes);
+	zfree(&env->pmu_mappings);
 }
 
 void perf_session__delete(struct perf_session *session)
@@ -830,6 +830,7 @@ static struct machine *
 					       struct perf_sample *sample)
 {
 	const u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	struct machine *machine;
 
 	if (perf_guest &&
 	    ((cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
@@ -842,7 +843,11 @@ static struct machine *
 		else
 			pid = sample->pid;
 
-		return perf_session__findnew_machine(session, pid);
+		machine = perf_session__find_machine(session, pid);
+		if (!machine)
+			machine = perf_session__findnew_machine(session,
+						DEFAULT_GUEST_KERNEL_ID);
+		return machine;
 	}
 
 	return &session->machines.host;
@@ -1467,7 +1472,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 }
 
 void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
-			  struct machine *machine, struct addr_location *al,
+			  struct addr_location *al,
 			  unsigned int print_opts, unsigned int stack_depth)
 {
 	struct callchain_cursor_node *node;
@@ -1482,7 +1487,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 	if (symbol_conf.use_callchain && sample->callchain) {
 		struct addr_location node_al;
 
-		if (machine__resolve_callchain(machine, evsel, al->thread,
+		if (machine__resolve_callchain(al->machine, evsel, al->thread,
 					       sample, NULL, NULL,
 					       PERF_MAX_STACK_DEPTH) != 0) {
 			if (verbose)

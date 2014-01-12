@@ -146,8 +146,7 @@ static int perf_evsel__init_tp_ptr_field(struct perf_evsel *evsel,
 
 static void perf_evsel__delete_priv(struct perf_evsel *evsel)
 {
-	free(evsel->priv);
-	evsel->priv = NULL;
+	zfree(&evsel->priv);
 	perf_evsel__delete(evsel);
 }
 
@@ -165,8 +164,7 @@ static int perf_evsel__init_syscall_tp(struct perf_evsel *evsel, void *handler)
 	return -ENOMEM;
 
 out_delete:
-	free(evsel->priv);
-	evsel->priv = NULL;
+	zfree(&evsel->priv);
 	return -ENOENT;
 }
 
@@ -1159,7 +1157,7 @@ struct trace {
 		int		max;
 		struct syscall  *table;
 	} syscalls;
-	struct perf_record_opts opts;
+	struct record_opts	opts;
 	struct machine		*host;
 	u64			base_time;
 	bool			full_time;
@@ -1278,10 +1276,8 @@ static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
 	size_t printed = syscall_arg__scnprintf_fd(bf, size, arg);
 	struct thread_trace *ttrace = arg->thread->priv;
 
-	if (ttrace && fd >= 0 && fd <= ttrace->paths.max) {
-		free(ttrace->paths.table[fd]);
-		ttrace->paths.table[fd] = NULL;
-	}
+	if (ttrace && fd >= 0 && fd <= ttrace->paths.max)
+		zfree(&ttrace->paths.table[fd]);
 
 	return printed;
 }

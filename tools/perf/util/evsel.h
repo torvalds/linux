@@ -96,7 +96,7 @@ struct perf_evsel {
 struct cpu_map;
 struct thread_map;
 struct perf_evlist;
-struct perf_record_opts;
+struct record_opts;
 
 struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
 
@@ -120,7 +120,7 @@ void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 void perf_evsel__config(struct perf_evsel *evsel,
-			struct perf_record_opts *opts);
+			struct record_opts *opts);
 
 int __perf_evsel__sample_size(u64 sample_type);
 void perf_evsel__calc_id_pos(struct perf_evsel *evsel);

@@ -755,7 +755,7 @@ void print_pmu_events(const char *event_glob, bool name_only)
 			continue;
 		}
 		printf("  %-50s [Kernel PMU event]\n", aliases[j]);
-		free(aliases[j]);
+		zfree(&aliases[j]);
 		printed++;
 	}
 	if (printed)

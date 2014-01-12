@@ -800,10 +800,10 @@ static void free_cpu_topo(struct cpu_topo *tp)
 		return;
 
 	for (i = 0 ; i < tp->core_sib; i++)
-		free(tp->core_siblings[i]);
+		zfree(&tp->core_siblings[i]);
 
 	for (i = 0 ; i < tp->thread_sib; i++)
-		free(tp->thread_siblings[i]);
+		zfree(&tp->thread_siblings[i]);
 
 	free(tp);
 }
@@ -1232,10 +1232,8 @@ static void free_event_desc(struct perf_evsel *events)
 		return;
 
 	for (evsel = events; evsel->attr.size; evsel++) {
-		if (evsel->name)
-			free(evsel->name);
-		if (evsel->id)
-			free(evsel->id);
+		zfree(&evsel->name);
+		zfree(&evsel->id);
 	}
 
 	free(events);
@@ -1326,8 +1324,7 @@ read_event_desc(struct perf_header *ph, int fd)
 		}
 	}
 out:
-	if (buf)
-		free(buf);
+	free(buf);
 	return events;
 error:
 	if (events)
@@ -2108,7 +2105,7 @@ static int process_group_desc(struct perf_file_section *section __maybe_unused,
 	ret = 0;
 out_free:
 	for (i = 0; i < nr_groups; i++)
-		free(desc[i].name);
+		zfree(&desc[i].name);
 	free(desc);
 
 	return ret;

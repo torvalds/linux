@@ -38,55 +38,31 @@ struct event_list {
 	struct event_format	*event;
 };
 
-#define MAX_ERR_STR_SIZE 256
-
-static void show_error(char **error_str, const char *fmt, ...)
+static void show_error(char *error_buf, const char *fmt, ...)
 {
 	unsigned long long index;
 	const char *input;
-	char *error;
 	va_list ap;
 	int len;
 	int i;
-
-	if (!error_str)
-		return;
 
 	input = pevent_get_input_buf();
 	index = pevent_get_input_buf_ptr();
 	len = input ? strlen(input) : 0;
 
-	error = malloc(MAX_ERR_STR_SIZE + (len*2) + 3);
-	if (error == NULL) {
-		/*
-		 * Maybe it's due to len is too long.
-		 * Retry without the input buffer part.
-		 */
-		len = 0;
-
-		error = malloc(MAX_ERR_STR_SIZE);
-		if (error == NULL) {
-			/* no memory */
-			*error_str = NULL;
-			return;
-		}
-	}
-
 	if (len) {
-		strcpy(error, input);
-		error[len] = '\n';
+		strcpy(error_buf, input);
+		error_buf[len] = '\n';
 		for (i = 1; i < len && i < index; i++)
-			error[len+i] = ' ';
-		error[len + i] = '^';
-		error[len + i + 1] = '\n';
+			error_buf[len+i] = ' ';
+		error_buf[len + i] = '^';
+		error_buf[len + i + 1] = '\n';
 		len += i+2;
 	}
 
 	va_start(ap, fmt);
-	vsnprintf(error + len, MAX_ERR_STR_SIZE, fmt, ap);
+	vsnprintf(error_buf + len, PEVENT_FILTER_ERROR_BUFSZ - len, fmt, ap);
 	va_end(ap);
-
-	*error_str = error;
 }
 
 static void free_token(char *token)
@@ -370,7 +346,7 @@ static void free_events(struct event_list *events)
 
 static enum pevent_errno
 create_arg_item(struct event_format *event, const char *token,
-		enum event_type type, struct filter_arg **parg, char **error_str)
+		enum event_type type, struct filter_arg **parg, char *error_str)
 {
 	struct format_field *field;
 	struct filter_arg *arg;
@@ -474,7 +450,7 @@ create_arg_cmp(enum filter_exp_type etype)
 }
 
 static enum pevent_errno
-add_right(struct filter_arg *op, struct filter_arg *arg, char **error_str)
+add_right(struct filter_arg *op, struct filter_arg *arg, char *error_str)
 {
 	struct filter_arg *left;
 	char *str;
@@ -786,7 +762,7 @@ enum filter_vals {
 
 static enum pevent_errno
 reparent_op_arg(struct filter_arg *parent, struct filter_arg *old_child,
-		struct filter_arg *arg, char **error_str)
+		struct filter_arg *arg, char *error_str)
 {
 	struct filter_arg *other_child;
 	struct filter_arg **ptr;
@@ -838,7 +814,7 @@ reparent_op_arg(struct filter_arg *parent, struct filter_arg *old_child,
 
 /* Returns either filter_vals (success) or pevent_errno (failfure) */
 static int test_arg(struct filter_arg *parent, struct filter_arg *arg,
-		    char **error_str)
+		    char *error_str)
 {
 	int lval, rval;
 
@@ -938,7 +914,7 @@ static int test_arg(struct filter_arg *parent, struct filter_arg *arg,
 
 /* Remove any unknown event fields */
 static int collapse_tree(struct filter_arg *arg,
-			 struct filter_arg **arg_collapsed, char **error_str)
+			 struct filter_arg **arg_collapsed, char *error_str)
 {
 	int ret;
 
@@ -973,7 +949,7 @@ static int collapse_tree(struct filter_arg *arg,
 
 static enum pevent_errno
 process_filter(struct event_format *event, struct filter_arg **parg,
-	       char **error_str, int not)
+	       char *error_str, int not)
 {
 	enum event_type type;
 	char *token = NULL;
@@ -1211,7 +1187,7 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 
 static enum pevent_errno
 process_event(struct event_format *event, const char *filter_str,
-	      struct filter_arg **parg, char **error_str)
+	      struct filter_arg **parg, char *error_str)
 {
 	int ret;
 
@@ -1236,7 +1212,7 @@ process_event(struct event_format *event, const char *filter_str,
 
 static enum pevent_errno
 filter_event(struct event_filter *filter, struct event_format *event,
-	     const char *filter_str, char **error_str)
+	     const char *filter_str, char *error_str)
 {
 	struct filter_type *filter_type;
 	struct filter_arg *arg;
@@ -1268,13 +1244,21 @@ filter_event(struct event_filter *filter, struct event_format *event,
 	return 0;
 }
 
+static void filter_init_error_buf(struct event_filter *filter)
+{
+	/* clear buffer to reset show error */
+	pevent_buffer_init("", 0);
+	filter->error_buffer[0] = '\0';
+}
+
 /**
  * pevent_filter_add_filter_str - add a new filter
  * @filter: the event filter to add to
  * @filter_str: the filter string that contains the filter
  *
  * Returns 0 if the filter was successfully added or a
- * negative error code.
+ * negative error code.  Use pevent_filter_strerror() to see
+ * actual error message in case of error.
  */
 enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
 					       const char *filter_str)
@@ -1291,10 +1275,8 @@ enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
 	enum pevent_errno rtn = 0; /* PEVENT_ERRNO__SUCCESS */
 	int len;
 	int ret;
-	char *error_str = NULL;
 
-	/* clear buffer to reset show error */
-	pevent_buffer_init("", 0);
+	filter_init_error_buf(filter);
 
 	filter_start = strchr(filter_str, ':');
 	if (filter_start)
@@ -1353,7 +1335,7 @@ enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
 	/* filter starts here */
 	for (event = events; event; event = event->next) {
 		ret = filter_event(filter, event->event, filter_start,
-				   &error_str);
+				   filter->error_buffer);
 		/* Failures are returned if a parse error happened */
 		if (ret < 0)
 			rtn = ret;
@@ -1379,6 +1361,32 @@ enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
 static void free_filter_type(struct filter_type *filter_type)
 {
 	free_arg(filter_type->filter);
+}
+
+/**
+ * pevent_filter_strerror - fill error message in a buffer
+ * @filter: the event filter contains error
+ * @err: the error code
+ * @buf: the buffer to be filled in
+ * @buflen: the size of the buffer
+ *
+ * Returns 0 if message was filled successfully, -1 if error
+ */
+int pevent_filter_strerror(struct event_filter *filter, enum pevent_errno err,
+			   char *buf, size_t buflen)
+{
+	if (err <= __PEVENT_ERRNO__START || err >= __PEVENT_ERRNO__END)
+		return -1;
+
+	if (strlen(filter->error_buffer) > 0) {
+		size_t len = snprintf(buf, buflen, "%s", filter->error_buffer);
+
+		if (len > buflen)
+			return -1;
+		return 0;
+	}
+
+	return pevent_strerror(filter->pevent, err, buf, buflen);
 }
 
 /**
@@ -2026,6 +2034,8 @@ enum pevent_errno pevent_filter_match(struct event_filter *filter,
 	int event_id;
 	int ret;
 	enum pevent_errno err = 0;
+
+	filter_init_error_buf(filter);
 
 	if (!filter->filters)
 		return PEVENT_ERRNO__NO_FILTER;

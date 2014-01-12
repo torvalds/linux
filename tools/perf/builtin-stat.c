@@ -185,8 +185,7 @@ static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 
 static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 {
-	free(evsel->priv);
-	evsel->priv = NULL;
+	zfree(&evsel->priv);
 }
 
 static int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel)
@@ -208,8 +207,7 @@ static int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel)
 
 static void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel)
 {
-	free(evsel->prev_raw_counts);
-	evsel->prev_raw_counts = NULL;
+	zfree(&evsel->prev_raw_counts);
 }
 
 static void perf_evlist__free_stats(struct perf_evlist *evlist)
