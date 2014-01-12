@@ -1893,6 +1893,8 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 		return 0;
 	}
 
+	v4l2_device_disconnect(&dev->v4l2_dev);
+
 	em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
 
 	if (dev->radio_dev) {
@@ -1920,6 +1922,9 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 			video_device_release(dev->vdev);
 		dev->vdev = NULL;
 	}
+
+	if (dev->users)
+		em28xx_warn("Device is open ! Deregistration and memory deallocation are deferred on close.\n");
 
 	return 0;
 }

@@ -3387,16 +3387,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	flush_request_modules(dev);
 
-	mutex_lock(&dev->lock);
-
-	v4l2_device_disconnect(&dev->v4l2_dev);
-
-	if (dev->users)
-		em28xx_warn("device %s is open! Deregistration and memory deallocation are deferred on close.\n",
-			    video_device_node_name(dev->vdev));
-
-	mutex_unlock(&dev->lock);
-
 	em28xx_close_extension(dev);
 
 	/* NOTE: must be called BEFORE the resources are released */
