@@ -1,5 +1,4 @@
 #include <linux/acpi.h>
-#include <acpi/acpi_drivers.h>
 #include "tpm.h"
 
 static const u8 tpm_ppi_uuid[] = {

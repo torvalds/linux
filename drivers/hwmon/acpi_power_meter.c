@@ -30,8 +30,7 @@
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/err.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
+#include <linux/acpi.h>
 
 #define ACPI_POWER_METER_NAME		"power_meter"
 ACPI_MODULE_NAME(ACPI_POWER_METER_NAME);

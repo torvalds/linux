@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_drivers.h>
 #include <xen/acpi.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>

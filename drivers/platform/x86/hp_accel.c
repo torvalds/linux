@@ -36,7 +36,7 @@
 #include <linux/uaccess.h>
 #include <linux/leds.h>
 #include <linux/atomic.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include "../../misc/lis3lv02d/lis3lv02d.h"
 
 #define DRIVER_NAME     "hp_accel"

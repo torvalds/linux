@@ -34,7 +34,7 @@ enum {
 };
 
 #ifdef CONFIG_INTEL_TXT
-#include <acpi/acpi.h>
+#include <linux/acpi.h>
 /* used to communicate between tboot and the launched kernel */
 
 #define TB_KEY_SIZE             64   /* 512 bits */

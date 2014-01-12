@@ -18,11 +18,7 @@
 #include <linux/reboot.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
-
 #include <asm/io.h>
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 #include "internal.h"
 #include "sleep.h"
@@ -805,9 +801,6 @@ int __init acpi_sleep_init(void)
 	char supported[ACPI_S_STATE_COUNT * 3 + 1];
 	char *pos = supported;
 	int i;
-
-	if (acpi_disabled)
-		return 0;
 
 	acpi_sleep_dmi_check();
 

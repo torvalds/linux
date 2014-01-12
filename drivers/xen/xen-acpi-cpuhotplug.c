@@ -24,10 +24,7 @@
 #include <linux/cpu.h>
 #include <linux/acpi.h>
 #include <linux/uaccess.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
-
 #include <xen/acpi.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>

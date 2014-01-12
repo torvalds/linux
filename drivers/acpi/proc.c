@@ -3,12 +3,11 @@
 #include <linux/export.h>
 #include <linux/suspend.h>
 #include <linux/bcd.h>
+#include <linux/acpi.h>
 #include <asm/uaccess.h>
 
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-
 #include "sleep.h"
+#include "internal.h"
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 

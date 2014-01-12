@@ -28,8 +28,6 @@
 
 #include <linux/device.h>
 
-#include <acpi/acpi.h>
-
 /* TBD: Make dynamic */
 #define ACPI_MAX_HANDLES	10
 struct acpi_handle_list {

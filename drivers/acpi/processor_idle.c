@@ -35,6 +35,7 @@
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
 #include <linux/syscore_ops.h>
+#include <acpi/processor.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -45,9 +46,6 @@
 #ifdef CONFIG_X86
 #include <asm/apic.h>
 #endif
-
-#include <acpi/acpi_bus.h>
-#include <acpi/processor.h>
 
 #define PREFIX "ACPI: "
 
@@ -213,7 +211,7 @@ static int acpi_processor_suspend(void)
 
 static void acpi_processor_resume(void)
 {
-	u32 resumed_bm_rld;
+	u32 resumed_bm_rld = 0;
 
 	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &resumed_bm_rld);
 	if (resumed_bm_rld == saved_bm_rld)
@@ -598,7 +596,7 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 		case ACPI_STATE_C2:
 			if (!cx->address)
 				break;
-			cx->valid = 1; 
+			cx->valid = 1;
 			break;
 
 		case ACPI_STATE_C3:

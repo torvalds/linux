@@ -41,8 +41,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
-
-#include <acpi/acpi_drivers.h>
 #include <acpi/video.h>
 
 MODULE_AUTHOR("Carlos Corbacho");

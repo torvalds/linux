@@ -10,8 +10,7 @@
 #include <linux/export.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
-
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <acpi/processor.h>
 
 #include "internal.h"

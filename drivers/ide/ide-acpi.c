@@ -14,7 +14,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <acpi/acpi.h>
 #include <linux/ide.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>

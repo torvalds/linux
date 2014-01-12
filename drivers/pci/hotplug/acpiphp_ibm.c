@@ -31,12 +31,11 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <acpi/acpi_bus.h>
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
-#include <asm/uaccess.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
+#include <asm/uaccess.h>
 
 #include "acpiphp.h"
 #include "../pci.h"

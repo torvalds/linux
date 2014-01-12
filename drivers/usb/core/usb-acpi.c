@@ -16,7 +16,6 @@
 #include <linux/acpi.h>
 #include <linux/pci.h>
 #include <linux/usb/hcd.h>
-#include <acpi/acpi_bus.h>
 
 #include "usb.h"
 

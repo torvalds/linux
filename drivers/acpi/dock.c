@@ -32,8 +32,8 @@
 #include <linux/jiffies.h>
 #include <linux/stddef.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+
+#include "internal.h"
 
 #define PREFIX "ACPI: "
 
@@ -898,9 +898,6 @@ find_dock_and_bay(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 void __init acpi_dock_init(void)
 {
-	if (acpi_disabled)
-		return;
-
 	/* look for dock stations and bays */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 		ACPI_UINT32_MAX, find_dock_and_bay, NULL, NULL, NULL);
