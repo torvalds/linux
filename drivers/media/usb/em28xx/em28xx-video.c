@@ -1899,29 +1899,19 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 	em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
 
 	if (dev->radio_dev) {
-		if (video_is_registered(dev->radio_dev))
-			video_unregister_device(dev->radio_dev);
-		else
-			video_device_release(dev->radio_dev);
-		dev->radio_dev = NULL;
+		em28xx_info("V4L2 device %s deregistered\n",
+			    video_device_node_name(dev->radio_dev));
+		video_unregister_device(dev->radio_dev);
 	}
 	if (dev->vbi_dev) {
 		em28xx_info("V4L2 device %s deregistered\n",
 			    video_device_node_name(dev->vbi_dev));
-		if (video_is_registered(dev->vbi_dev))
-			video_unregister_device(dev->vbi_dev);
-		else
-			video_device_release(dev->vbi_dev);
-		dev->vbi_dev = NULL;
+		video_unregister_device(dev->vbi_dev);
 	}
 	if (dev->vdev) {
 		em28xx_info("V4L2 device %s deregistered\n",
 			    video_device_node_name(dev->vdev));
-		if (video_is_registered(dev->vdev))
-			video_unregister_device(dev->vdev);
-		else
-			video_device_release(dev->vdev);
-		dev->vdev = NULL;
+		video_unregister_device(dev->vdev);
 	}
 
 	if (dev->clk) {
@@ -1955,9 +1945,7 @@ static int em28xx_v4l2_close(struct file *filp)
 	mutex_lock(&dev->lock);
 
 	if (dev->users == 1) {
-		/* the device is already disconnect,
-		   free the remaining resources */
-
+		/* free the remaining resources if device is disconnected */
 		if (dev->disconnected) {
 			kfree(dev->alt_max_pkt_size_isoc);
 			goto exit;
@@ -1983,6 +1971,23 @@ exit:
 	dev->users--;
 	mutex_unlock(&dev->lock);
 	return 0;
+}
+
+/*
+ * em28xx_videodevice_release()
+ * called when the last user of the video device exits and frees the memeory
+ */
+static void em28xx_videodevice_release(struct video_device *vdev)
+{
+	struct em28xx *dev = video_get_drvdata(vdev);
+
+	video_device_release(vdev);
+	if (vdev == dev->vdev)
+		dev->vdev = NULL;
+	else if (vdev == dev->vbi_dev)
+		dev->vbi_dev = NULL;
+	else if (vdev == dev->radio_dev)
+		dev->radio_dev = NULL;
 }
 
 static const struct v4l2_file_operations em28xx_v4l_fops = {
@@ -2039,11 +2044,10 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 };
 
 static const struct video_device em28xx_video_template = {
-	.fops                       = &em28xx_v4l_fops,
-	.release                    = video_device_release_empty,
-	.ioctl_ops 		    = &video_ioctl_ops,
-
-	.tvnorms                    = V4L2_STD_ALL,
+	.fops		= &em28xx_v4l_fops,
+	.ioctl_ops	= &video_ioctl_ops,
+	.release	= em28xx_videodevice_release,
+	.tvnorms	= V4L2_STD_ALL,
 };
 
 static const struct v4l2_file_operations radio_fops = {
@@ -2069,9 +2073,9 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 };
 
 static struct video_device em28xx_radio_template = {
-	.name                 = "em28xx-radio",
-	.fops                 = &radio_fops,
-	.ioctl_ops 	      = &radio_ioctl_ops,
+	.fops		= &radio_fops,
+	.ioctl_ops	= &radio_ioctl_ops,
+	.release	= em28xx_videodevice_release,
 };
 
 /* I2C possible address to saa7115, tvp5150, msp3400, tvaudio */
