@@ -1660,9 +1660,8 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		if (xfer->rx_buf && !xfer->rx_nbits)
 			xfer->rx_nbits = SPI_NBITS_SINGLE;
 		/* check transfer tx/rx_nbits:
-		 * 1. keep the value is not out of single, dual and quad
-		 * 2. keep tx/rx_nbits is contained by mode in spi_device
-		 * 3. if SPI_3WIRE, tx/rx_nbits should be in single
+		 * 1. check the value matches one of single, dual and quad
+		 * 2. check tx/rx_nbits match the mode in spi_device
 		 */
 		if (xfer->tx_buf) {
 			if (xfer->tx_nbits != SPI_NBITS_SINGLE &&
