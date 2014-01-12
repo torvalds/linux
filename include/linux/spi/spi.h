@@ -847,7 +847,7 @@ static inline ssize_t spi_w8r16(struct spi_device *spi, u8 cmd)
 	ssize_t			status;
 	u16			result;
 
-	status = spi_write_then_read(spi, &cmd, 1, (u8 *) &result, 2);
+	status = spi_write_then_read(spi, &cmd, 1, &result, 2);
 
 	/* return negative errno or unsigned value */
 	return (status < 0) ? status : result;
