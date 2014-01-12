@@ -888,6 +888,7 @@ u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
 				   struct ieee80211_sta *sta);
 bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta);
+int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id, bool enable);
 
 enum iwl_bt_kill_msk {
 	BT_KILL_MSK_DEFAULT,
