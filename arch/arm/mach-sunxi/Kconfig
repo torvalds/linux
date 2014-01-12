@@ -12,3 +12,4 @@ config ARCH_SUNXI
 	select PINCTRL_SUNXI
 	select SPARSE_IRQ
 	select SUN4I_TIMER
+	select SUN5I_HSTIMER

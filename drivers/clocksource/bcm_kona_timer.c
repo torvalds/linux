@@ -98,12 +98,6 @@ kona_timer_get_counter(void *timer_base, uint32_t *msw, uint32_t *lsw)
 	return;
 }
 
-static const struct of_device_id bcm_timer_ids[] __initconst = {
-	{.compatible = "brcm,kona-timer"},
-	{.compatible = "bcm,kona-timer"}, /* deprecated name */
-	{},
-};
-
 static void __init kona_timers_init(struct device_node *node)
 {
 	u32 freq;
