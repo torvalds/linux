@@ -681,17 +681,154 @@ static int em28xx_audio_ep_packet_size(struct usb_device *udev,
 	return size & 0x7ff;
 }
 
+static int em28xx_audio_urb_init(struct em28xx *dev)
+{
+	struct usb_interface *intf;
+	struct usb_endpoint_descriptor *e, *ep = NULL;
+	int                 i, ep_size, interval, num_urb, npackets;
+	int		    urb_size, bytes_per_transfer;
+	u8 alt;
+
+	if (dev->audio_ifnum)
+		alt = 1;
+	else
+		alt = 7;
+
+	intf = usb_ifnum_to_if(dev->udev, dev->audio_ifnum);
+
+	if (intf->num_altsetting <= alt) {
+		em28xx_errdev("alt %d doesn't exist on interface %d\n",
+			      dev->audio_ifnum, alt);
+		return -ENODEV;
+	}
+
+	for (i = 0; i < intf->altsetting[alt].desc.bNumEndpoints; i++) {
+		e = &intf->altsetting[alt].endpoint[i].desc;
+		if (!usb_endpoint_dir_in(e))
+			continue;
+		if (e->bEndpointAddress == EM28XX_EP_AUDIO) {
+			ep = e;
+			break;
+		}
+	}
+
+	if (!ep) {
+		em28xx_errdev("Couldn't find an audio endpoint");
+		return -ENODEV;
+	}
+
+	ep_size = em28xx_audio_ep_packet_size(dev->udev, ep);
+	interval = 1 << (ep->bInterval - 1);
+
+	em28xx_info("Endpoint 0x%02x %s on intf %d alt %d interval = %d, size %d\n",
+		     EM28XX_EP_AUDIO, usb_speed_string(dev->udev->speed),
+		     dev->audio_ifnum, alt,
+		     interval,
+		     ep_size);
+
+	/* Calculate the number and size of URBs to better fit the audio samples */
+
+	/*
+	 * Estimate the number of bytes per DMA transfer.
+	 *
+	 * This is given by the bit rate (for now, only 48000 Hz) multiplied
+	 * by 2 channels and 2 bytes/sample divided by the number of microframe
+	 * intervals and by the microframe rate (125 us)
+	 */
+	bytes_per_transfer = DIV_ROUND_UP(48000 * 2 * 2, 125 * interval);
+
+	/*
+	 * Estimate the number of transfer URBs. Don't let it go past the
+	 * maximum number of URBs that is known to be supported by the device.
+	 */
+	num_urb = DIV_ROUND_UP(bytes_per_transfer, ep_size);
+	if (num_urb > EM28XX_MAX_AUDIO_BUFS)
+		num_urb = EM28XX_MAX_AUDIO_BUFS;
+
+	/*
+	 * Now that we know the number of bytes per transfer and the number of
+	 * URBs, estimate the typical size of an URB, in order to adjust the
+	 * minimal number of packets.
+	 */
+	urb_size = bytes_per_transfer / num_urb;
+
+	/*
+	 * Now, calculate the amount of audio packets to be filled on each
+	 * URB. In order to preserve the old behaviour, use a minimal
+	 * threshold for this value.
+	 */
+	npackets = EM28XX_MIN_AUDIO_PACKETS;
+	if (urb_size > ep_size * npackets)
+		npackets = DIV_ROUND_UP(urb_size, ep_size);
+
+	em28xx_info("Number of URBs: %d, with %d packets and %d size",
+		    num_urb, npackets, urb_size);
+
+	/* Allocate space to store the number of URBs to be used */
+
+	dev->adev.transfer_buffer = kcalloc(num_urb,
+					    sizeof(*dev->adev.transfer_buffer),
+					    GFP_ATOMIC);
+	if (!dev->adev.transfer_buffer) {
+		return -ENOMEM;
+	}
+
+	dev->adev.urb = kcalloc(num_urb, sizeof(*dev->adev.urb), GFP_ATOMIC);
+	if (!dev->adev.urb) {
+		kfree(dev->adev.transfer_buffer);
+		return -ENOMEM;
+	}
+
+	/* Alloc memory for each URB and for each transfer buffer */
+	dev->adev.num_urb = num_urb;
+	for (i = 0; i < num_urb; i++) {
+		struct urb *urb;
+		int j, k;
+		void *buf;
+
+		urb = usb_alloc_urb(npackets, GFP_ATOMIC);
+		if (!urb) {
+			em28xx_errdev("usb_alloc_urb failed!\n");
+			em28xx_audio_free_urb(dev);
+			return -ENOMEM;
+		}
+		dev->adev.urb[i] = urb;
+
+		buf = usb_alloc_coherent(dev->udev, npackets * ep_size, GFP_ATOMIC,
+					 &urb->transfer_dma);
+		if (!buf) {
+			em28xx_errdev("usb_alloc_coherent failed!\n");
+			em28xx_audio_free_urb(dev);
+			return -ENOMEM;
+		}
+		dev->adev.transfer_buffer[i] = buf;
+
+		urb->dev = dev->udev;
+		urb->context = dev;
+		urb->pipe = usb_rcvisocpipe(dev->udev, EM28XX_EP_AUDIO);
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_buffer = buf;
+		urb->interval = interval;
+		urb->complete = em28xx_audio_isocirq;
+		urb->number_of_packets = npackets;
+		urb->transfer_buffer_length = ep_size * npackets;
+
+		for (j = k = 0; j < npackets; j++, k += ep_size) {
+			urb->iso_frame_desc[j].offset = k;
+			urb->iso_frame_desc[j].length = ep_size;
+		}
+	}
+
+	return 0;
+}
+
 static int em28xx_audio_init(struct em28xx *dev)
 {
 	struct em28xx_audio *adev = &dev->adev;
 	struct snd_pcm      *pcm;
 	struct snd_card     *card;
-	struct usb_interface *intf;
-	struct usb_endpoint_descriptor *e, *ep = NULL;
 	static int          devnr;
-	int                 err, i, ep_size, interval, num_urb, npackets;
-	int		    urb_size, bytes_per_transfer;
-	u8 alt;
+	int		    err;
 
 	if (!dev->has_alsa_audio || dev->audio_ifnum < 0) {
 		/* This device does not support the extension (in this case
@@ -750,140 +887,10 @@ static int em28xx_audio_init(struct em28xx *dev)
 		em28xx_cvol_new(card, dev, "Surround", AC97_SURROUND_MASTER);
 	}
 
-	if (dev->audio_ifnum)
-		alt = 1;
-	else
-		alt = 7;
-
-	intf = usb_ifnum_to_if(dev->udev, dev->audio_ifnum);
-
-	if (intf->num_altsetting <= alt) {
-		em28xx_errdev("alt %d doesn't exist on interface %d\n",
-			      dev->audio_ifnum, alt);
+	err = em28xx_audio_urb_init(dev);
+	if (err) {
 		snd_card_free(card);
 		return -ENODEV;
-	}
-
-	for (i = 0; i < intf->altsetting[alt].desc.bNumEndpoints; i++) {
-		e = &intf->altsetting[alt].endpoint[i].desc;
-		if (!usb_endpoint_dir_in(e))
-			continue;
-		if (e->bEndpointAddress == EM28XX_EP_AUDIO) {
-			ep = e;
-			break;
-		}
-	}
-
-	if (!ep) {
-		em28xx_errdev("Couldn't find an audio endpoint");
-		snd_card_free(card);
-		return -ENODEV;
-	}
-
-	ep_size = em28xx_audio_ep_packet_size(dev->udev, ep);
-	interval = 1 << (ep->bInterval - 1);
-
-	em28xx_info("Endpoint 0x%02x %s on intf %d alt %d interval = %d, size %d\n",
-		     EM28XX_EP_AUDIO, usb_speed_string(dev->udev->speed),
-		     dev->audio_ifnum, alt,
-		     interval,
-		     ep_size);
-
-	/* Calculate the number and size of URBs to better fit the audio samples */
-
-	/*
-	 * Estimate the number of bytes per DMA transfer.
-	 *
-	 * This is given by the bit rate (for now, only 48000 Hz) multiplied
-	 * by 2 channels and 2 bytes/sample divided by the number of microframe
-	 * intervals and by the microframe rate (125 us)
-	 */
-	bytes_per_transfer = DIV_ROUND_UP(48000 * 2 * 2, 125 * interval);
-
-	/*
-	 * Estimate the number of transfer URBs. Don't let it go past the
-	 * maximum number of URBs that is known to be supported by the device.
-	 */
-	num_urb = DIV_ROUND_UP(bytes_per_transfer, ep_size);
-	if (num_urb > EM28XX_MAX_AUDIO_BUFS)
-		num_urb = EM28XX_MAX_AUDIO_BUFS;
-
-	/*
-	 * Now that we know the number of bytes per transfer and the number of
-	 * URBs, estimate the typical size of an URB, in order to adjust the
-	 * minimal number of packets.
-	 */
-	urb_size = bytes_per_transfer / num_urb;
-
-	/*
-	 * Now, calculate the amount of audio packets to be filled on each
-	 * URB. In order to preserve the old behaviour, use a minimal
-	 * threshold for this value.
-	 */
-	npackets = EM28XX_MIN_AUDIO_PACKETS;
-	if (urb_size > ep_size * npackets)
-		npackets = DIV_ROUND_UP(urb_size, ep_size);
-
-	em28xx_info("Number of URBs: %d, with %d packets and %d size",
-		    num_urb, npackets, urb_size);
-
-	/* Allocate space to store the number of URBs to be used */
-
-	dev->adev.transfer_buffer = kcalloc(num_urb,
-					    sizeof(*dev->adev.transfer_buffer),
-					    GFP_ATOMIC);
-	if (!dev->adev.transfer_buffer) {
-		snd_card_free(card);
-		return -ENOMEM;
-	}
-
-	dev->adev.urb = kcalloc(num_urb, sizeof(*dev->adev.urb), GFP_ATOMIC);
-	if (!dev->adev.urb) {
-		snd_card_free(card);
-		kfree(dev->adev.transfer_buffer);
-		return -ENOMEM;
-	}
-
-	/* Alloc memory for each URB and for each transfer buffer */
-	dev->adev.num_urb = num_urb;
-	for (i = 0; i < num_urb; i++) {
-		struct urb *urb;
-		int j, k;
-		void *buf;
-
-		urb = usb_alloc_urb(npackets, GFP_ATOMIC);
-		if (!urb) {
-			em28xx_errdev("usb_alloc_urb failed!\n");
-			em28xx_audio_free_urb(dev);
-			snd_card_free(card);
-			return -ENOMEM;
-		}
-		dev->adev.urb[i] = urb;
-
-		buf = usb_alloc_coherent(dev->udev, npackets * ep_size, GFP_ATOMIC,
-					 &urb->transfer_dma);
-		if (!buf) {
-			em28xx_errdev("usb_alloc_coherent failed!\n");
-			em28xx_audio_free_urb(dev);
-			snd_card_free(card);
-			return -ENOMEM;
-		}
-		dev->adev.transfer_buffer[i] = buf;
-
-		urb->dev = dev->udev;
-		urb->context = dev;
-		urb->pipe = usb_rcvisocpipe(dev->udev, EM28XX_EP_AUDIO);
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
-		urb->transfer_buffer = buf;
-		urb->interval = interval;
-		urb->complete = em28xx_audio_isocirq;
-		urb->number_of_packets = npackets;
-		urb->transfer_buffer_length = ep_size * npackets;
-
-		for (j = k = 0; j < npackets; j++, k += ep_size) {
-			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length = ep_size;
-		}
 	}
 
 	err = snd_card_register(card);
