@@ -1894,6 +1894,8 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 		return 0;
 	}
 
+	em28xx_info("Closing video extension");
+
 	v4l2_device_disconnect(&dev->v4l2_dev);
 
 	em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);

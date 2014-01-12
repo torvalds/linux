@@ -1472,6 +1472,8 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 		return 0;
 	}
 
+	em28xx_info("Closing DVB extension");
+
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
 

@@ -956,6 +956,8 @@ static int em28xx_audio_fini(struct em28xx *dev)
 		return 0;
 	}
 
+	em28xx_info("Closing audio extension");
+
 	snd_card_disconnect(dev->adev.sndcard);
 	em28xx_audio_free_urb(dev);
 
