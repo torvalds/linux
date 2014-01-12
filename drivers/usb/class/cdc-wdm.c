@@ -445,7 +445,7 @@ static int clear_wdm_read_flag(struct wdm_device *desc)
 	clear_bit(WDM_READ, &desc->flags);
 
 	/* submit read urb only if the device is waiting for it */
-	if (!--desc->resp_count)
+	if (!desc->resp_count || !--desc->resp_count)
 		goto out;
 
 	set_bit(WDM_RESPONDING, &desc->flags);
