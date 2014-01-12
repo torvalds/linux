@@ -187,6 +187,7 @@ struct rspi_data {
 	spinlock_t lock;
 	struct clk *clk;
 	u8 spsr;
+	u16 spcmd;
 	const struct spi_ops *ops;
 
 	/* for dmaengine */
@@ -261,7 +262,7 @@ static int rspi_set_config_register(const struct rspi_data *rspi,
 	rspi_write8(rspi, 0x00, RSPI_SPCR2);
 
 	/* Sets SPCMD */
-	rspi_write16(rspi, SPCMD_SPB_8_TO_16(access_size) | SPCMD_SSLKP,
+	rspi_write16(rspi, SPCMD_SPB_8_TO_16(access_size) | rspi->spcmd,
 		     RSPI_SPCMD0);
 
 	/* Sets RSPI mode */
@@ -302,7 +303,7 @@ static int qspi_set_config_register(const struct rspi_data *rspi,
 	else if (access_size == 32)
 		spcmd = SPCMD_SPB_32BIT;
 
-	spcmd |= SPCMD_SCKDEN | SPCMD_SLNDEN | SPCMD_SSLKP | SPCMD_SPNDEN;
+	spcmd |= SPCMD_SCKDEN | SPCMD_SLNDEN | rspi->spcmd | SPCMD_SPNDEN;
 
 	/* Resets transfer data length */
 	rspi_write32(rspi, 0, QSPI_SPBMUL0);
@@ -805,6 +806,12 @@ static int rspi_setup(struct spi_device *spi)
 		spi->bits_per_word = 8;
 	rspi->max_speed_hz = spi->max_speed_hz;
 
+	rspi->spcmd = SPCMD_SSLKP;
+	if (spi->mode & SPI_CPOL)
+		rspi->spcmd |= SPCMD_CPOL;
+	if (spi->mode & SPI_CPHA)
+		rspi->spcmd |= SPCMD_CPHA;
+
 	set_config_register(rspi, 8);
 
 	return 0;
@@ -996,6 +1003,7 @@ static int rspi_probe(struct platform_device *pdev)
 	master->setup = rspi_setup;
 	master->transfer = rspi_transfer;
 	master->cleanup = rspi_cleanup;
+	master->mode_bits = SPI_CPHA | SPI_CPOL;
 
 	ret = request_irq(irq, rspi_irq, 0, dev_name(&pdev->dev), rspi);
 	if (ret < 0) {
