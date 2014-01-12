@@ -42,7 +42,7 @@
 /**
  * struct tipc_subscriber - TIPC network topology subscriber
  * @conid: connection identifier to server connecting to subscriber
- * @lock: controll access to subscriber
+ * @lock: control access to subscriber
  * @subscription_list: list of subscription objects for this subscriber
  */
 struct tipc_subscriber {
