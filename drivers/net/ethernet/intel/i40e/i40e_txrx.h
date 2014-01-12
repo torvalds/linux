@@ -29,9 +29,8 @@
 
 /* Interrupt Throttling and Rate Limiting (storm control) Goodies */
 
-#define I40E_MAX_ITR               0x07FF
-#define I40E_MIN_ITR               0x0001
-#define I40E_ITR_USEC_RESOLUTION   2
+#define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
+#define I40E_MIN_ITR               0x0004  /* reg uses 2 usec resolution */
 #define I40E_MAX_IRATE             0x03F
 #define I40E_MIN_IRATE             0x001
 #define I40E_IRATE_USEC_RESOLUTION 4
@@ -137,6 +136,7 @@ enum i40e_dyn_idx_t {
 #define I40E_TX_FLAGS_IPV6		(u32)(1 << 5)
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
+#define I40E_TX_FLAGS_TSYN		(u32)(1 << 8)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
@@ -248,6 +248,8 @@ struct i40e_ring {
 
 	u8 atr_sample_rate;
 	u8 atr_count;
+
+	unsigned long last_rx_timestamp;
 
 	bool ring_active;		/* is ring online or not */
 

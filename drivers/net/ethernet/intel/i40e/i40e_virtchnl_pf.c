@@ -1525,9 +1525,13 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	}
 
 	for (i = 0; i < al->num_elements; i++) {
-		ret = i40e_check_vf_permission(vf, al->list[i].addr);
-		if (ret)
+		if (is_broadcast_ether_addr(al->list[i].addr) ||
+		    is_zero_ether_addr(al->list[i].addr)) {
+			dev_err(&pf->pdev->dev, "invalid VF MAC addr %pM\n",
+				al->list[i].addr);
+			ret = I40E_ERR_INVALID_MAC_ADDR;
 			goto error_param;
+		}
 	}
 	vsi = pf->vsi[vsi_id];
 

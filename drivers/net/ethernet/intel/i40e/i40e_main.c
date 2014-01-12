@@ -38,7 +38,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 25
+#define DRV_VERSION_BUILD 28
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1698,6 +1698,27 @@ static int i40e_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /**
+ * i40e_ioctl - Access the hwtstamp interface
+ * @netdev: network interface device structure
+ * @ifr: interface request data
+ * @cmd: ioctl command
+ **/
+int i40e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+
+	switch (cmd) {
+	case SIOCGHWTSTAMP:
+		return i40e_ptp_get_ts_config(pf, ifr);
+	case SIOCSHWTSTAMP:
+		return i40e_ptp_set_ts_config(pf, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+/**
  * i40e_vlan_stripping_enable - Turn on vlan stripping for the VSI
  * @vsi: the vsi being adjusted
  **/
@@ -2150,7 +2171,8 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	tx_ctx.base = (ring->dma / 128);
 	tx_ctx.qlen = ring->count;
 	tx_ctx.fd_ena = !!(vsi->back->flags & (I40E_FLAG_FDIR_ENABLED |
-			I40E_FLAG_FDIR_ATR_ENABLED));
+					       I40E_FLAG_FDIR_ATR_ENABLED));
+	tx_ctx.timesync_ena = !!(vsi->back->flags & I40E_FLAG_PTP);
 
 	/* As part of VSI creation/update, FW allocates certain
 	 * Tx arbitration queue sets for each TC enabled for
@@ -2488,6 +2510,7 @@ static void i40e_enable_misc_int_causes(struct i40e_hw *hw)
 	      I40E_PFINT_ICR0_ENA_GRST_MASK          |
 	      I40E_PFINT_ICR0_ENA_PCI_EXCEPTION_MASK |
 	      I40E_PFINT_ICR0_ENA_GPIO_MASK          |
+	      I40E_PFINT_ICR0_ENA_TIMESYNC_MASK      |
 	      I40E_PFINT_ICR0_ENA_STORM_DETECT_MASK  |
 	      I40E_PFINT_ICR0_ENA_HMC_ERR_MASK       |
 	      I40E_PFINT_ICR0_ENA_VFLR_MASK          |
@@ -2831,6 +2854,18 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		dev_info(&pf->pdev->dev, "HMC error interrupt\n");
 	}
 
+	if (icr0 & I40E_PFINT_ICR0_TIMESYNC_MASK) {
+		u32 prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_0);
+
+		if (prttsyn_stat & I40E_PRTTSYN_STAT_0_TXTIME_MASK) {
+			ena_mask &= ~I40E_PFINT_ICR0_ENA_TIMESYNC_MASK;
+			i40e_ptp_tx_hwtstamp(pf);
+			prttsyn_stat &= ~I40E_PRTTSYN_STAT_0_TXTIME_MASK;
+		}
+
+		wr32(hw, I40E_PRTTSYN_STAT_0, prttsyn_stat);
+	}
+
 	/* If a critical error is pending we have no choice but to reset the
 	 * device.
 	 * Report and mask out any remaining unexpected interrupts.
@@ -3008,11 +3043,13 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 			continue;
 
 		/* turn on/off the queue */
-		if (enable)
+		if (enable) {
+			wr32(hw, I40E_QTX_HEAD(pf_q), 0);
 			tx_reg |= I40E_QTX_ENA_QENA_REQ_MASK |
 				  I40E_QTX_ENA_QENA_STAT_MASK;
-		else
+		} else {
 			tx_reg &= ~I40E_QTX_ENA_QENA_REQ_MASK;
+		}
 
 		wr32(hw, I40E_QTX_ENA(pf_q), tx_reg);
 
@@ -3113,7 +3150,7 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
  **/
 int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool request)
 {
-	int ret;
+	int ret = 0;
 
 	/* do rx first for enable and last for disable */
 	if (request) {
@@ -3122,10 +3159,9 @@ int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool request)
 			return ret;
 		ret = i40e_vsi_control_tx(vsi, request);
 	} else {
-		ret = i40e_vsi_control_tx(vsi, request);
-		if (ret)
-			return ret;
-		ret = i40e_vsi_control_rx(vsi, request);
+		/* Ignore return value, we need to shutdown whatever we can */
+		i40e_vsi_control_tx(vsi, request);
+		i40e_vsi_control_rx(vsi, request);
 	}
 
 	return ret;
@@ -4303,6 +4339,9 @@ static void i40e_link_event(struct i40e_pf *pf)
 
 	if (pf->vf)
 		i40e_vc_notify_link_state(pf);
+
+	if (pf->flags & I40E_FLAG_PTP)
+		i40e_ptp_set_increment(pf);
 }
 
 /**
@@ -4384,6 +4423,8 @@ static void i40e_watchdog_subtask(struct i40e_pf *pf)
 	for (i = 0; i < I40E_MAX_VEB; i++)
 		if (pf->veb[i])
 			i40e_update_veb_stats(pf->veb[i]);
+
+	i40e_ptp_rx_hang(pf->vsi[pf->lan_vsi]);
 }
 
 /**
@@ -6032,6 +6073,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= i40e_set_mac,
 	.ndo_change_mtu		= i40e_change_mtu,
+	.ndo_do_ioctl		= i40e_ioctl,
 	.ndo_tx_timeout		= i40e_tx_timeout,
 	.ndo_vlan_rx_add_vid	= i40e_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40e_vlan_rx_kill_vid,
@@ -7298,6 +7340,8 @@ no_autoneg:
 					 ~I40E_PRTDCB_MFLCN_RFCE_MASK);
 
 fc_complete:
+	i40e_ptp_init(pf);
+
 	return ret;
 }
 
@@ -7611,6 +7655,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_pf_reset;
 	}
 
+	i40e_clear_pxe_mode(hw);
 	err = i40e_get_capabilities(pf);
 	if (err)
 		goto err_adminq_setup;
@@ -7800,6 +7845,8 @@ static void i40e_remove(struct pci_dev *pdev)
 	int i;
 
 	i40e_dbg_pf_exit(pf);
+
+	i40e_ptp_stop(pf);
 
 	if (pf->flags & I40E_FLAG_SRIOV_ENABLED) {
 		i40e_free_vfs(pf);

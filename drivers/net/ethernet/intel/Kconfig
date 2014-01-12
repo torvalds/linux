@@ -243,6 +243,7 @@ config IXGBEVF
 
 config I40E
 	tristate "Intel(R) Ethernet Controller XL710 Family support"
+	select PTP_1588_CLOCK
 	depends on PCI
 	---help---
 	  This driver supports Intel(R) Ethernet Controller XL710 Family of

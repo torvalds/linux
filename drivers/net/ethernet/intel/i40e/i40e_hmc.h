@@ -116,7 +116,6 @@ struct i40e_hmc_info {
  * @hw: pointer to our hw struct
  * @pa: pointer to physical address
  * @sd_index: segment descriptor index
- * @hmc_fn_id: hmc function id
  * @type: if sd entry is direct or paged
  **/
 #define I40E_SET_PF_SD_ENTRY(hw, pa, sd_index, type)			\
@@ -138,7 +137,6 @@ struct i40e_hmc_info {
  * I40E_CLEAR_PF_SD_ENTRY - marks the sd entry as invalid in the hardware
  * @hw: pointer to our hw struct
  * @sd_index: segment descriptor index
- * @hmc_fn_id: hmc function id
  * @type: if sd entry is direct or paged
  **/
 #define I40E_CLEAR_PF_SD_ENTRY(hw, sd_index, type)			\
@@ -159,7 +157,6 @@ struct i40e_hmc_info {
  * @hw: pointer to our hw struct
  * @sd_idx: segment descriptor index
  * @pd_idx: page descriptor index
- * @hmc_fn_id: hmc function id
  **/
 #define I40E_INVALIDATE_PF_HMC_PD(hw, sd_idx, pd_idx)			\
 	wr32((hw), I40E_PFHMC_PDINV,					\

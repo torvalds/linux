@@ -1083,7 +1083,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
 			dev_info(&pf->pdev->dev,
-				 "add relay: vsi VSI %d not found\n", vsi_seid);
+				 "add relay: VSI %d not found\n", vsi_seid);
 			goto command_write_done;
 		}
 

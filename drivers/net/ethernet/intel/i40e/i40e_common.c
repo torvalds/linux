@@ -74,7 +74,8 @@ static i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 /**
  * i40e_debug_aq
  * @hw: debug mask related to admin queue
- * @cap: pointer to adminq command descriptor
+ * @mask: debug mask
+ * @desc: pointer to admin queue descriptor
  * @buffer: pointer to command buffer
  *
  * Dumps debug log about adminq command with descriptor contents.
@@ -599,8 +600,7 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 		goto aq_get_link_info_exit;
 
 	/* save off old link status information */
-	memcpy(&hw->phy.link_info_old, hw_link_info,
-	       sizeof(struct i40e_link_status));
+	hw->phy.link_info_old = *hw_link_info;
 
 	/* update link status */
 	hw_link_info->phy_type = (enum i40e_aq_phy_type)resp->phy_type;
@@ -630,7 +630,7 @@ aq_get_link_info_exit:
 /**
  * i40e_aq_add_vsi
  * @hw: pointer to the hw struct
- * @vsi: pointer to a vsi context struct
+ * @vsi_ctx: pointer to a vsi context struct
  * @cmd_details: pointer to command details structure or NULL
  *
  * Add a VSI context to the hardware.
@@ -682,7 +682,8 @@ aq_add_vsi_exit:
  * @cmd_details: pointer to command details structure or NULL
  **/
 i40e_status i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
-				u16 seid, bool set, struct i40e_asq_cmd_details *cmd_details)
+				u16 seid, bool set,
+				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_set_vsi_promiscuous_modes *cmd =
@@ -776,7 +777,7 @@ i40e_status i40e_aq_set_vsi_broadcast(struct i40e_hw *hw,
 /**
  * i40e_get_vsi_params - get VSI configuration info
  * @hw: pointer to the hw struct
- * @vsi: pointer to a vsi context struct
+ * @vsi_ctx: pointer to a vsi context struct
  * @cmd_details: pointer to command details structure or NULL
  **/
 i40e_status i40e_aq_get_vsi_params(struct i40e_hw *hw,
@@ -818,7 +819,7 @@ aq_get_vsi_params_exit:
 /**
  * i40e_aq_update_vsi_params
  * @hw: pointer to the hw struct
- * @vsi: pointer to a vsi context struct
+ * @vsi_ctx: pointer to a vsi context struct
  * @cmd_details: pointer to command details structure or NULL
  *
  * Update a VSI context.
@@ -921,7 +922,6 @@ i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
 /**
  * i40e_aq_send_driver_version
  * @hw: pointer to the hw struct
- * @event: driver event: driver ok, start or stop
  * @dv: driver's major, minor version
  * @cmd_details: pointer to command details structure or NULL
  *
@@ -1039,10 +1039,10 @@ i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
  * @hw: pointer to the hw struct
  * @veb_seid: the SEID of the VEB to query
  * @switch_id: the uplink switch id
- * @floating_veb: set to true if the VEB is floating
+ * @floating: set to true if the VEB is floating
  * @statistic_index: index of the stats counter block for this VEB
  * @vebs_used: number of VEB's used by function
- * @vebs_unallocated: total VEB's not reserved by any function
+ * @vebs_free: total VEB's not reserved by any function
  * @cmd_details: pointer to command details structure or NULL
  *
  * This retrieves the parameters for a particular VEB, specified by
@@ -1179,6 +1179,8 @@ i40e_status i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 seid,
  * i40e_aq_send_msg_to_vf
  * @hw: pointer to the hardware structure
  * @vfid: vf id to send msg
+ * @v_opcode: opcodes for VF-PF communication
+ * @v_retval: return error code
  * @msg: pointer to the msg buffer
  * @msglen: msg length
  * @cmd_details: pointer to command details
@@ -1723,6 +1725,7 @@ i40e_status i40e_aq_start_lldp(struct i40e_hw *hw,
  * @udp_port: the UDP port to add
  * @header_len: length of the tunneling header length in DWords
  * @protocol_index: protocol index type
+ * @filter_index: pointer to filter index
  * @cmd_details: pointer to command details structure or NULL
  **/
 i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
