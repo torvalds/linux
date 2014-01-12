@@ -1893,6 +1893,8 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 		return 0;
 	}
 
+	em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
+
 	if (dev->radio_dev) {
 		if (video_is_registered(dev->radio_dev))
 			video_unregister_device(dev->radio_dev);
