@@ -99,7 +99,7 @@ static int omap3_sbc_t3730_twl_callback(struct device *dev,
 	int res;
 
 	res = gpio_request_one(gpio + 2, GPIOF_OUT_INIT_HIGH,
-			       "wlan rst");
+			       "wlan pwr");
 	if (res)
 		return res;
 

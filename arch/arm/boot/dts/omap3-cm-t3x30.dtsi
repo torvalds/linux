@@ -1,25 +1,13 @@
 /*
- * Common support for CompuLab CM-T3530 and  CM-T3730
+ * Common support for CompuLab CM-T3x30 CoMs
  */
 
-/ {
-	memory {
-		device_type = "memory";
-		reg = <0x80000000 0x10000000>; /* 256 MB */
-	};
+#include "omap3-cm-t3x.dtsi"
 
+/ {
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&vcc>;
-		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		ledb {
-			label = "cm-t35:green";
-			gpios = <&gpio6 26 GPIO_ACTIVE_HIGH>;  /* gpio186 */
-			linux,default-trigger = "heartbeat";
 		};
 	};
 
@@ -36,11 +24,23 @@
 	};
 };
 
+&omap3_pmx_core {
+
+	smsc1_pins: pinmux_smsc1_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20b8, PIN_OUTPUT | MUX_MODE0)	/* gpmc_ncs5.gpmc_ncs5 */
+			OMAP3_CORE1_IOPAD(0x219a, PIN_INPUT_PULLUP | MUX_MODE4)	/* uart3_cts_rctx.gpio_163 */
+		>;
+	};
+};
+
 &gpmc {
 	ranges = <5 0 0x2c000000 0x01000000>;
 
 	smsc1: ethernet@5,0 {
 		compatible = "smsc,lan9221", "smsc,lan9115";
+		pinctrl-names = "default";
+		pinctrl-0 = <&smsc1_pins>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 		reg = <5 0 0xff>;
@@ -74,8 +74,6 @@
 };
 
 &i2c1 {
-	clock-frequency = <400000>;
-
 	twl: twl@48 {
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
@@ -86,8 +84,8 @@
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
 
-&i2c3 {
-	clock-frequency = <400000>;
+&mmc1 {
+	vmmc-supply = <&vmmc1>;
 };
 
 &twl_gpio {
