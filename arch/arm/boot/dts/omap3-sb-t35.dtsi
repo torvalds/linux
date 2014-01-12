@@ -2,6 +2,20 @@
  * Common support for CompuLab SB-T35 used on SBC-T3530, SBC-T3517 and SBC-T3730
  */
 
+/ {
+	vddvario_sb_t35: regulator-vddvario-sb-t35 {
+		compatible = "regulator-fixed";
+		regulator-name = "vddvario";
+		regulator-always-on;
+	};
+
+	vdd33a_sb_t35: regulator-vdd33a-sb-t35 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd33a";
+		regulator-always-on;
+	};
+};
+
 &omap3_pmx_core {
 	smsc2_pins: pinmux_smsc2_pins {
 		pinctrl-single,pins = <
@@ -43,8 +57,8 @@
 		gpmc,wr-access-ns = <186>;
 		gpmc,cycle2cycle-samecsen;
 		gpmc,cycle2cycle-diffcsen;
-		vddvario-supply = <&vddvario>;
-		vdd33a-supply = <&vdd33a>;
+		vddvario-supply = <&vddvario_sb_t35>;
+		vdd33a-supply = <&vdd33a_sb_t35>;
 		reg-io-width = <4>;
 		smsc,save-mac-address;
 	};
