@@ -266,7 +266,8 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 		if (!is_processor_present(handle))
 			break;
 
-		if (!acpi_bus_get_device(handle, &device))
+		acpi_bus_get_device(handle, &device);
+		if (acpi_device_enumerated(device))
 			break;
 
 		result = acpi_bus_scan(handle);
@@ -274,8 +275,9 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 			pr_err(PREFIX "Unable to add the device\n");
 			break;
 		}
-		result = acpi_bus_get_device(handle, &device);
-		if (result) {
+		device = NULL;
+		acpi_bus_get_device(handle, &device);
+		if (!acpi_device_enumerated(device)) {
 			pr_err(PREFIX "Missing device object\n");
 			break;
 		}

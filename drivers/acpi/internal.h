@@ -28,7 +28,6 @@ int init_acpi_device_notify(void);
 int acpi_scan_init(void);
 void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
-void acpi_pci_root_hp_init(void);
 void acpi_processor_init(void);
 void acpi_platform_init(void);
 int acpi_sysfs_init(void);
@@ -73,6 +72,9 @@ void acpi_lpss_init(void);
 static inline void acpi_lpss_init(void) {}
 #endif
 
+bool acpi_queue_hotplug_work(struct work_struct *work);
+bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
+
 /* --------------------------------------------------------------------------
                      Device Node Initialization / Removal
    -------------------------------------------------------------------------- */
@@ -85,9 +87,9 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
 void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
-int acpi_bind_one(struct device *dev, acpi_handle handle);
+int acpi_bind_one(struct device *dev, struct acpi_device *adev);
 int acpi_unbind_one(struct device *dev);
-void acpi_bus_device_eject(void *data, u32 ost_src);
+bool acpi_device_is_present(struct acpi_device *adev);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
@@ -104,6 +106,8 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
+
+int acpi_device_update_power(struct acpi_device *device, int *state_p);
 
 int acpi_wakeup_device_init(void);
 void acpi_early_processor_set_pdc(void);

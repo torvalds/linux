@@ -89,17 +89,11 @@ struct acpi_device;
  * -----------------
  */
 
-enum acpi_hotplug_mode {
-	AHM_GENERIC = 0,
-	AHM_CONTAINER,
-	AHM_COUNT
-};
-
 struct acpi_hotplug_profile {
 	struct kobject kobj;
+	int (*scan_dependent)(struct acpi_device *adev);
 	bool enabled:1;
-	bool ignore:1;
-	enum acpi_hotplug_mode mode;
+	bool demand_offline:1;
 };
 
 static inline struct acpi_hotplug_profile *to_acpi_hotplug_profile(
@@ -167,8 +161,10 @@ struct acpi_device_flags {
 	u32 ejectable:1;
 	u32 power_manageable:1;
 	u32 match_driver:1;
+	u32 initialized:1;
+	u32 visited:1;
 	u32 no_hotplug:1;
-	u32 reserved:26;
+	u32 reserved:24;
 };
 
 /* File System */
@@ -298,6 +294,7 @@ struct acpi_device {
 	struct list_head children;
 	struct list_head node;
 	struct list_head wakeup_list;
+	struct list_head del_list;
 	struct acpi_device_status status;
 	struct acpi_device_flags flags;
 	struct acpi_device_pnp pnp;
@@ -322,6 +319,11 @@ static inline void *acpi_driver_data(struct acpi_device *d)
 
 #define to_acpi_device(d)	container_of(d, struct acpi_device, dev)
 #define to_acpi_driver(d)	container_of(d, struct acpi_driver, drv)
+
+static inline void acpi_set_device_status(struct acpi_device *adev, u32 sta)
+{
+	*((u32 *)&adev->status) = sta;
+}
 
 /* acpi_device.dev.bus == &acpi_bus_type */
 extern struct bus_type acpi_bus_type;
@@ -385,6 +387,11 @@ int acpi_match_device_ids(struct acpi_device *device,
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
 
+static inline bool acpi_device_enumerated(struct acpi_device *adev)
+{
+	return adev && adev->flags.initialized && adev->flags.visited;
+}
+
 typedef void (*acpi_hp_callback)(void *data, u32 src);
 
 acpi_status acpi_hotplug_execute(acpi_hp_callback func, void *data, u32 src);
@@ -408,7 +415,7 @@ struct acpi_bus_type {
 	struct list_head list;
 	const char *name;
 	bool (*match)(struct device *dev);
-	int (*find_device) (struct device *, acpi_handle *);
+	struct acpi_device * (*find_companion)(struct device *);
 	void (*setup)(struct device *);
 	void (*cleanup)(struct device *);
 };
@@ -427,12 +434,9 @@ struct acpi_pci_root {
 };
 
 /* helper */
-acpi_handle acpi_find_child(acpi_handle, u64, bool);
-static inline acpi_handle acpi_get_child(acpi_handle handle, u64 addr)
-{
-	return acpi_find_child(handle, addr, false);
-}
-void acpi_preset_companion(struct device *dev, acpi_handle parent, u64 addr);
+
+struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
+					   u64 address, bool check_children);
 int acpi_is_root_bridge(acpi_handle);
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 
