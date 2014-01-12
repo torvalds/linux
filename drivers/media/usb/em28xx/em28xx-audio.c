@@ -90,6 +90,12 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime   *runtime;
 
+	if (dev->disconnected) {
+		dprintk("device disconnected while streaming. URB status=%d.\n", urb->status);
+		atomic_set(&dev->stream_started, 0);
+		return;
+	}
+
 	switch (urb->status) {
 	case 0:             /* success */
 	case -ETIMEDOUT:    /* NAK */
@@ -248,13 +254,16 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int ret = 0;
 
-	dprintk("opening device and trying to acquire exclusive lock\n");
-
 	if (!dev) {
 		em28xx_err("BUG: em28xx can't find device struct."
 				" Can't proceed with open\n");
 		return -ENODEV;
 	}
+
+	if (dev->disconnected)
+		return -ENODEV;
+
+	dprintk("opening device and trying to acquire exclusive lock\n");
 
 	runtime->hw = snd_em28xx_hw_capture;
 	if ((dev->alt == 0 || dev->audio_ifnum) && dev->adev.users == 0) {
@@ -324,6 +333,10 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *hw_params)
 {
 	int ret;
+	struct em28xx *dev = snd_pcm_substream_chip(substream);
+
+	if (dev->disconnected)
+		return -ENODEV;
 
 	dprintk("Setting capture parameters\n");
 
@@ -363,6 +376,9 @@ static int snd_em28xx_prepare(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 
+	if (dev->disconnected)
+		return -ENODEV;
+
 	dev->adev.hwptr_done_capture = 0;
 	dev->adev.capture_transfer_done = 0;
 
@@ -387,6 +403,9 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 	int retval = 0;
+
+	if (dev->disconnected)
+		return -ENODEV;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE: /* fall through */
@@ -414,6 +433,9 @@ static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
 	snd_pcm_uframes_t hwptr_done;
 
 	dev = snd_pcm_substream_chip(substream);
+	if (dev->disconnected)
+		return -ENODEV;
+
 	spin_lock_irqsave(&dev->adev.slock, flags);
 	hwptr_done = dev->adev.hwptr_done_capture;
 	spin_unlock_irqrestore(&dev->adev.slock, flags);
@@ -435,6 +457,11 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 static int em28xx_vol_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *info)
 {
+	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+
+	if (dev->disconnected)
+		return -ENODEV;
+
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	info->count = 2;
 	info->value.integer.min = 0;
@@ -452,6 +479,9 @@ static int em28xx_vol_put(struct snd_kcontrol *kcontrol,
 		  (0x1f - (value->value.integer.value[1] & 0x1f)) << 8;
 	int nonblock = 0;
 	int rc;
+
+	if (dev->disconnected)
+		return -ENODEV;
 
 	if (substream)
 		nonblock = !!(substream->f_flags & O_NONBLOCK);
@@ -488,6 +518,9 @@ static int em28xx_vol_get(struct snd_kcontrol *kcontrol,
 	int nonblock = 0;
 	int val;
 
+	if (dev->disconnected)
+		return -ENODEV;
+
 	if (substream)
 		nonblock = !!(substream->f_flags & O_NONBLOCK);
 	if (nonblock) {
@@ -519,6 +552,9 @@ static int em28xx_vol_put_mute(struct snd_kcontrol *kcontrol,
 	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
 	int nonblock = 0;
 	int rc;
+
+	if (dev->disconnected)
+		return -ENODEV;
 
 	if (substream)
 		nonblock = !!(substream->f_flags & O_NONBLOCK);
@@ -557,6 +593,9 @@ static int em28xx_vol_get_mute(struct snd_kcontrol *kcontrol,
 	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
 	int nonblock = 0;
 	int val;
+
+	if (dev->disconnected)
+		return -ENODEV;
 
 	if (substream)
 		nonblock = !!(substream->f_flags & O_NONBLOCK);
