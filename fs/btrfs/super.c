@@ -48,6 +48,7 @@
 #include "transaction.h"
 #include "btrfs_inode.h"
 #include "print-tree.h"
+#include "hash.h"
 #include "props.h"
 #include "xattr.h"
 #include "volumes.h"
@@ -1866,11 +1867,15 @@ static int __init init_btrfs_fs(void)
 {
 	int err;
 
+	err = btrfs_hash_init();
+	if (err)
+		return err;
+
 	btrfs_props_init();
 
 	err = btrfs_init_sysfs();
 	if (err)
-		return err;
+		goto free_hash;
 
 	btrfs_init_compress();
 
@@ -1945,6 +1950,8 @@ free_cachep:
 free_compress:
 	btrfs_exit_compress();
 	btrfs_exit_sysfs();
+free_hash:
+	btrfs_hash_exit();
 	return err;
 }
 
@@ -1963,6 +1970,7 @@ static void __exit exit_btrfs_fs(void)
 	btrfs_exit_sysfs();
 	btrfs_cleanup_fs_uuids();
 	btrfs_exit_compress();
+	btrfs_hash_exit();
 }
 
 module_init(init_btrfs_fs)
