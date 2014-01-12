@@ -2876,6 +2876,8 @@ void em28xx_release_resources(struct em28xx *dev)
 {
 	/*FIXME: I2C IR should be disconnected */
 
+	mutex_lock(&dev->lock);
+
 	if (dev->def_i2c_bus)
 		em28xx_i2c_unregister(dev, 1);
 	em28xx_i2c_unregister(dev, 0);
@@ -2884,6 +2886,8 @@ void em28xx_release_resources(struct em28xx *dev)
 
 	/* Mark device as unused */
 	clear_bit(dev->devno, &em28xx_devused);
+
+	mutex_unlock(&dev->lock);
 };
 EXPORT_SYMBOL_GPL(em28xx_release_resources);
 
@@ -3386,13 +3390,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	em28xx_close_extension(dev);
 
-	/* NOTE: must be called BEFORE the resources are released */
-
-	mutex_lock(&dev->lock);
-	if (!dev->users)
-		em28xx_release_resources(dev);
-
-	mutex_unlock(&dev->lock);
+	em28xx_release_resources(dev);
 
 	if (!dev->users) {
 		kfree(dev->alt_max_pkt_size_isoc);
