@@ -893,10 +893,8 @@ static int em28xx_audio_init(struct em28xx *dev)
 	adev->udev = dev->udev;
 
 	err = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto card_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_em28xx_pcm_capture);
 	pcm->info_flags = 0;
@@ -927,20 +925,23 @@ static int em28xx_audio_init(struct em28xx *dev)
 	}
 
 	err = em28xx_audio_urb_init(dev);
-	if (err) {
-		snd_card_free(card);
-		return -ENODEV;
-	}
+	if (err)
+		goto card_free;
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		em28xx_audio_free_urb(dev);
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto urb_free;
 
 	em28xx_info("Audio extension successfully initialized\n");
 	return 0;
+
+urb_free:
+	em28xx_audio_free_urb(dev);
+
+card_free:
+	snd_card_free(card);
+
+	return err;
 }
 
 static int em28xx_audio_fini(struct em28xx *dev)
