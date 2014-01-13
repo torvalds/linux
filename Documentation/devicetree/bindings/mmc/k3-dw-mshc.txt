@@ -14,18 +14,6 @@ Required Properties:
 * compatible: should be one of the following.
   - "hisilicon,hi4511-dw-mshc": for controllers with hi4511 specific extentions.
 
-* clock-freq-table: should be the frequency (in Hz) array of the ciu clock
-	in each	supported mode.
-	0. CIU clock rate in Hz for DS mode
-	1. CIU clock rate in Hz for MMC HS mode
-	2. CIU clock rate in Hz for SD HS mode
-	3. CIU clock rate in Hz for SDR12 mode
-	4. CIU clock rate in Hz for SDR25 mode
-	5. CIU clock rate in Hz for SDR50 mode
-	6. CIU clock rate in Hz for SDR104 mode
-	7. CIU clock rate in Hz for DDR50 mode
-	8. CIU clock rate in Hz for HS200 mode
-
 Example:
 
 	/* for Hi3620 */
@@ -39,8 +27,6 @@ Example:
 		#size-cells = <0>;
 		clocks = <&mmc_clock HI3620_SD_CIUCLK>, <&clock HI3620_DDRC_PER_CLK>;
 		clock-names = "ciu", "biu";
-		clock-freq-table =
-		<25000000 0 50000000 25000000 50000000 100000000 0 50000000>;
 	};
 
 	/* Board portion */

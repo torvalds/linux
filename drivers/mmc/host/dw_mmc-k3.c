@@ -18,56 +18,19 @@
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"
 
-#define MAX_NUMS	10
-struct dw_mci_k3_priv_data {
-	u32	clk_table[MAX_NUMS];
-};
-
 static void dw_mci_k3_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 {
-	struct dw_mci_k3_priv_data *priv = host->priv;
-	u32 rate = priv->clk_table[ios->timing];
 	int ret;
 
-	if (!rate) {
-		dev_warn(host->dev,
-			"no specified rate in timing %u\n", ios->timing);
-		return;
-	}
-
-	ret = clk_set_rate(host->ciu_clk, rate);
+	ret = clk_set_rate(host->ciu_clk, ios->clock);
 	if (ret)
-		dev_warn(host->dev, "failed to set clock rate %uHz\n", rate);
+		dev_warn(host->dev, "failed to set rate %uHz\n", ios->clock);
 
 	host->bus_hz = clk_get_rate(host->ciu_clk);
 }
 
-static int dw_mci_k3_parse_dt(struct dw_mci *host)
-{
-	struct dw_mci_k3_priv_data *priv;
-	struct device_node *node = host->dev->of_node;
-	struct property *prop;
-	const __be32 *cur;
-	u32 val, num = 0;
-
-	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(host->dev, "mem alloc failed for private data\n");
-		return -ENOMEM;
-	}
-	host->priv = priv;
-
-	of_property_for_each_u32(node, "clock-freq-table", prop, cur, val) {
-		if (num >= MAX_NUMS)
-			break;
-		priv->clk_table[num++] = val;
-	}
-	return 0;
-}
-
 static const struct dw_mci_drv_data k3_drv_data = {
 	.set_ios		= dw_mci_k3_set_ios,
-	.parse_dt		= dw_mci_k3_parse_dt,
 };
 
 static const struct of_device_id dw_mci_k3_match[] = {
