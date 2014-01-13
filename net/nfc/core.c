@@ -133,11 +133,8 @@ int nfc_dev_up(struct nfc_dev *dev)
 		dev->dev_up = true;
 
 	/* We have to enable the device before discovering SEs */
-	if (dev->ops->discover_se) {
-		rc = dev->ops->discover_se(dev);
-		if (rc)
-			pr_warn("SE discovery failed\n");
-	}
+	if (dev->ops->discover_se && dev->ops->discover_se(dev))
+		pr_err("SE discovery failed\n");
 
 error:
 	device_unlock(&dev->dev);

@@ -1509,6 +1509,7 @@ static void port100_disconnect(struct usb_interface *interface)
 
 	usb_free_urb(dev->in_urb);
 	usb_free_urb(dev->out_urb);
+	usb_put_dev(dev->udev);
 
 	kfree(dev->cmd);
 

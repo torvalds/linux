@@ -32,7 +32,6 @@
 #define DIGITAL_ATR_REQ_MIN_SIZE 16
 #define DIGITAL_ATR_REQ_MAX_SIZE 64
 
-#define DIGITAL_NFCID3_LEN ((u8)8)
 #define DIGITAL_LR_BITS_PAYLOAD_SIZE_254B 0x30
 #define DIGITAL_GB_BIT	0x02
 
@@ -206,10 +205,9 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 	atr_req->dir = DIGITAL_NFC_DEP_FRAME_DIR_OUT;
 	atr_req->cmd = DIGITAL_CMD_ATR_REQ;
 	if (target->nfcid2_len)
-		memcpy(atr_req->nfcid3, target->nfcid2,
-		       max(target->nfcid2_len, DIGITAL_NFCID3_LEN));
+		memcpy(atr_req->nfcid3, target->nfcid2, NFC_NFCID2_MAXSIZE);
 	else
-		get_random_bytes(atr_req->nfcid3, DIGITAL_NFCID3_LEN);
+		get_random_bytes(atr_req->nfcid3, NFC_NFCID3_MAXSIZE);
 
 	atr_req->did = 0;
 	atr_req->bs = 0;
@@ -382,6 +380,33 @@ int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 				   data_exch);
 }
 
+static void digital_tg_set_rf_tech(struct nfc_digital_dev *ddev, u8 rf_tech)
+{
+	ddev->curr_rf_tech = rf_tech;
+
+	ddev->skb_add_crc = digital_skb_add_crc_none;
+	ddev->skb_check_crc = digital_skb_check_crc_none;
+
+	if (DIGITAL_DRV_CAPS_TG_CRC(ddev))
+		return;
+
+	switch (ddev->curr_rf_tech) {
+	case NFC_DIGITAL_RF_TECH_106A:
+		ddev->skb_add_crc = digital_skb_add_crc_a;
+		ddev->skb_check_crc = digital_skb_check_crc_a;
+		break;
+
+	case NFC_DIGITAL_RF_TECH_212F:
+	case NFC_DIGITAL_RF_TECH_424F:
+		ddev->skb_add_crc = digital_skb_add_crc_f;
+		ddev->skb_check_crc = digital_skb_check_crc_f;
+		break;
+
+	default:
+		break;
+	}
+}
+
 static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 				    struct sk_buff *resp)
 {
@@ -472,10 +497,12 @@ int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb)
 static void digital_tg_send_psl_res_complete(struct nfc_digital_dev *ddev,
 					     void *arg, struct sk_buff *resp)
 {
-	u8 rf_tech = PTR_ERR(arg);
+	u8 rf_tech = (unsigned long)arg;
 
 	if (IS_ERR(resp))
 		return;
+
+	digital_tg_set_rf_tech(ddev, rf_tech);
 
 	digital_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_RF_TECH, rf_tech);
 
@@ -508,7 +535,7 @@ static int digital_tg_send_psl_res(struct nfc_digital_dev *ddev, u8 did,
 	ddev->skb_add_crc(skb);
 
 	rc = digital_tg_send_cmd(ddev, skb, 0, digital_tg_send_psl_res_complete,
-				 ERR_PTR(rf_tech));
+				 (void *)(unsigned long)rf_tech);
 
 	if (rc)
 		kfree_skb(skb);
@@ -661,16 +688,10 @@ void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
 
 	if (resp->data[0] == DIGITAL_NFC_DEP_NFCA_SOD_SB) {
 		min_size = DIGITAL_ATR_REQ_MIN_SIZE + 2;
-
-		ddev->curr_rf_tech = NFC_DIGITAL_RF_TECH_106A;
-		ddev->skb_add_crc = digital_skb_add_crc_a;
-		ddev->skb_check_crc = digital_skb_check_crc_a;
+		digital_tg_set_rf_tech(ddev, NFC_DIGITAL_RF_TECH_106A);
 	} else {
 		min_size = DIGITAL_ATR_REQ_MIN_SIZE + 1;
-
-		ddev->curr_rf_tech = NFC_DIGITAL_RF_TECH_212F;
-		ddev->skb_add_crc = digital_skb_add_crc_f;
-		ddev->skb_check_crc = digital_skb_check_crc_f;
+		digital_tg_set_rf_tech(ddev, NFC_DIGITAL_RF_TECH_212F);
 	}
 
 	if (resp->len < min_size) {
@@ -678,10 +699,7 @@ void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
 		goto exit;
 	}
 
-	if (DIGITAL_DRV_CAPS_TG_CRC(ddev)) {
-		ddev->skb_add_crc = digital_skb_add_crc_none;
-		ddev->skb_check_crc = digital_skb_check_crc_none;
-	}
+	ddev->curr_protocol = NFC_PROTO_NFC_DEP_MASK;
 
 	rc = ddev->skb_check_crc(resp);
 	if (rc) {
