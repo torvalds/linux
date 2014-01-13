@@ -683,21 +683,21 @@ EXPORT_SYMBOL(fget_raw);
  * The fput_needed flag returned by fget_light should be passed to the
  * corresponding fput_light.
  */
-struct file *fget_light(unsigned int fd, int *fput_needed)
+struct file *__fget_light(unsigned int fd, fmode_t mask, int *fput_needed)
 {
-	struct file *file;
 	struct files_struct *files = current->files;
+	struct file *file;
 
 	*fput_needed = 0;
 	if (atomic_read(&files->count) == 1) {
 		file = __fcheck_files(files, fd);
-		if (file && (file->f_mode & FMODE_PATH))
+		if (file && (file->f_mode & mask))
 			file = NULL;
 	} else {
 		rcu_read_lock();
 		file = fcheck_files(files, fd);
 		if (file) {
-			if (!(file->f_mode & FMODE_PATH) &&
+			if (!(file->f_mode & mask) &&
 			    atomic_long_inc_not_zero(&file->f_count))
 				*fput_needed = 1;
 			else
@@ -709,30 +709,15 @@ struct file *fget_light(unsigned int fd, int *fput_needed)
 
 	return file;
 }
+struct file *fget_light(unsigned int fd, int *fput_needed)
+{
+	return __fget_light(fd, FMODE_PATH, fput_needed);
+}
 EXPORT_SYMBOL(fget_light);
 
 struct file *fget_raw_light(unsigned int fd, int *fput_needed)
 {
-	struct file *file;
-	struct files_struct *files = current->files;
-
-	*fput_needed = 0;
-	if (atomic_read(&files->count) == 1) {
-		file = __fcheck_files(files, fd);
-	} else {
-		rcu_read_lock();
-		file = fcheck_files(files, fd);
-		if (file) {
-			if (atomic_long_inc_not_zero(&file->f_count))
-				*fput_needed = 1;
-			else
-				/* Didn't get the reference, someone's freed */
-				file = NULL;
-		}
-		rcu_read_unlock();
-	}
-
-	return file;
+	return __fget_light(fd, 0, fput_needed);
 }
 
 void set_close_on_exec(unsigned int fd, int flag)
