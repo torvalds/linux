@@ -3192,30 +3192,6 @@ brcmf_sdio_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
 	return rxlen ? (int)rxlen : -ETIMEDOUT;
 }
 
-static bool brcmf_sdio_download_state(struct brcmf_sdio *bus, bool enter)
-{
-	struct chip_info *ci = bus->ci;
-
-	/* To enter download state, disable ARM and reset SOCRAM.
-	 * To exit download state, simply reset ARM (default is RAM boot).
-	 */
-	if (enter) {
-		bus->alp_only = true;
-
-		brcmf_sdio_chip_enter_download(bus->sdiodev, ci);
-	} else {
-		if (!brcmf_sdio_chip_exit_download(bus->sdiodev, ci))
-			return false;
-
-		/* Allow HT Clock now that the ARM is running. */
-		bus->alp_only = false;
-
-		bus->sdiodev->bus_if->state = BRCMF_BUS_LOAD;
-	}
-
-	return true;
-}
-
 #ifdef DEBUG
 static bool
 brcmf_sdio_verifymemory(struct brcmf_sdio_dev *sdiodev, u32 ram_addr,
@@ -3270,23 +3246,15 @@ brcmf_sdio_verifymemory(struct brcmf_sdio_dev *sdiodev, u32 ram_addr,
 }
 #endif	/* DEBUG */
 
-static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus)
+static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus,
+					 const struct firmware *fw)
 {
-	const struct firmware *fw;
 	int err;
 	int offset;
 	int address;
 	int len;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
-	fw = brcmf_sdio_get_fw(bus, BRCMF_FIRMWARE_BIN);
-	if (fw == NULL)
-		return -ENOENT;
-
-	if (brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_ARM_CR4) !=
-	    BRCMF_MAX_CORENUM)
-		memcpy(&bus->ci->rst_vec, fw->data, sizeof(bus->ci->rst_vec));
 
 	err = 0;
 	offset = 0;
@@ -3299,7 +3267,7 @@ static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus)
 		if (err) {
 			brcmf_err("error %d on writing %d membytes at 0x%08x\n",
 				  err, len, address);
-			goto failure;
+			return err;
 		}
 		offset += len;
 		address += len;
@@ -3309,15 +3277,12 @@ static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus)
 					     (u8 *)fw->data, fw->size))
 			err = -EIO;
 
-failure:
-	release_firmware(fw);
-
 	return err;
 }
 
-static int brcmf_sdio_download_nvram(struct brcmf_sdio *bus)
+static int brcmf_sdio_download_nvram(struct brcmf_sdio *bus,
+				     const struct firmware *nv)
 {
-	const struct firmware *nv;
 	void *vars;
 	u32 varsz;
 	int address;
@@ -3325,12 +3290,7 @@ static int brcmf_sdio_download_nvram(struct brcmf_sdio *bus)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	nv = brcmf_sdio_get_fw(bus, BRCMF_FIRMWARE_NVRAM);
-	if (nv == NULL)
-		return -ENOENT;
-
 	vars = brcmf_nvram_strip(nv, &varsz);
-	release_firmware(nv);
 
 	if (vars == NULL)
 		return -EINVAL;
@@ -3351,33 +3311,52 @@ static int brcmf_sdio_download_nvram(struct brcmf_sdio *bus)
 static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus)
 {
 	int bcmerror = -EFAULT;
-
+	const struct firmware *fw;
+	u32 rstvec;
 
 	sdio_claim_host(bus->sdiodev->func[1]);
 	brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
 
 	/* Keep arm in reset */
-	if (!brcmf_sdio_download_state(bus, true)) {
-		brcmf_err("error placing ARM core in reset\n");
+	brcmf_sdio_chip_enter_download(bus->sdiodev, bus->ci);
+
+	fw = brcmf_sdio_get_fw(bus, BRCMF_FIRMWARE_BIN);
+	if (fw == NULL) {
+		bcmerror = -ENOENT;
 		goto err;
 	}
 
-	if (brcmf_sdio_download_code_file(bus)) {
+	rstvec = get_unaligned_le32(fw->data);
+	brcmf_dbg(SDIO, "firmware rstvec: %x\n", rstvec);
+
+	bcmerror = brcmf_sdio_download_code_file(bus, fw);
+	release_firmware(fw);
+	if (bcmerror) {
 		brcmf_err("dongle image file download failed\n");
 		goto err;
 	}
 
-	if (brcmf_sdio_download_nvram(bus)) {
+	fw = brcmf_sdio_get_fw(bus, BRCMF_FIRMWARE_NVRAM);
+	if (fw == NULL) {
+		bcmerror = -ENOENT;
+		goto err;
+	}
+
+	bcmerror = brcmf_sdio_download_nvram(bus, fw);
+	release_firmware(fw);
+	if (bcmerror) {
 		brcmf_err("dongle nvram file download failed\n");
 		goto err;
 	}
 
 	/* Take arm out of reset */
-	if (!brcmf_sdio_download_state(bus, false)) {
+	if (!brcmf_sdio_chip_exit_download(bus->sdiodev, bus->ci, rstvec)) {
 		brcmf_err("error getting out of ARM core reset\n");
 		goto err;
 	}
 
+	/* Allow HT Clock now that the ARM is running. */
+	bus->sdiodev->bus_if->state = BRCMF_BUS_LOAD;
 	bcmerror = 0;
 
 err:
@@ -3566,9 +3545,11 @@ static int brcmf_sdio_bus_init(struct device *dev)
 
 	/* try to download image and nvram to the dongle */
 	if (bus_if->state == BRCMF_BUS_DOWN) {
+		bus->alp_only = true;
 		err = brcmf_sdio_download_firmware(bus);
 		if (err)
 			return err;
+		bus->alp_only = false;
 	}
 
 	if (!bus->sdiodev->bus_if->drvr)
@@ -3777,8 +3758,6 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 	int reg_addr;
 	u32 reg_val;
 	u32 drivestrength;
-
-	bus->alp_only = true;
 
 	sdio_claim_host(bus->sdiodev->func[1]);
 
@@ -4088,7 +4067,7 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 			 * essentially resets all necessary cores
 			 */
 			msleep(20);
-			brcmf_sdio_download_state(bus, true);
+			brcmf_sdio_chip_enter_download(bus->sdiodev, bus->ci);
 			brcmf_sdio_clkctl(bus, CLK_NONE, false);
 			sdio_release_host(bus->sdiodev->func[1]);
 			brcmf_sdio_chip_detach(&bus->ci);

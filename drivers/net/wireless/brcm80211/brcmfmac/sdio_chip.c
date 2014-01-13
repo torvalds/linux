@@ -923,7 +923,8 @@ brcmf_sdio_chip_cr4_enterdl(struct brcmf_sdio_dev *sdiodev,
 }
 
 static bool
-brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci)
+brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
+			   u32 rstvec)
 {
 	u8 core_idx;
 	u32 reg_addr;
@@ -935,8 +936,8 @@ brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci)
 	brcmf_sdiod_regwl(sdiodev, reg_addr, 0xFFFFFFFF, NULL);
 
 	/* Write reset vector to address 0 */
-	brcmf_sdiod_ramrw(sdiodev, true, 0, (void *)&ci->rst_vec,
-			  sizeof(ci->rst_vec));
+	brcmf_sdiod_ramrw(sdiodev, true, 0, (void *)&rstvec,
+			  sizeof(rstvec));
 
 	/* restore ARM */
 	ci->resetcore(sdiodev, ci, BCMA_CORE_ARM_CR4, ARMCR4_BCMA_IOCTL_CPUHALT,
@@ -960,7 +961,7 @@ void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
 }
 
 bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
-				   struct chip_info *ci)
+				   struct chip_info *ci, u32 rstvec)
 {
 	u8 arm_core_idx;
 
@@ -968,5 +969,5 @@ bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
 	if (BRCMF_MAX_CORENUM != arm_core_idx)
 		return brcmf_sdio_chip_cm3_exitdl(sdiodev, ci);
 
-	return brcmf_sdio_chip_cr4_exitdl(sdiodev, ci);
+	return brcmf_sdio_chip_cr4_exitdl(sdiodev, ci, rstvec);
 }
