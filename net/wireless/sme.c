@@ -70,18 +70,11 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	if (rdev->scan_req)
 		return -EBUSY;
 
-	if (wdev->conn->params.channel) {
+	if (wdev->conn->params.channel)
 		n_channels = 1;
-	} else {
-		enum ieee80211_band band;
-		n_channels = 0;
+	else
+		n_channels = ieee80211_get_num_supported_channels(wdev->wiphy);
 
-		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-			if (!wdev->wiphy->bands[band])
-				continue;
-			n_channels += wdev->wiphy->bands[band]->n_channels;
-		}
-	}
 	request = kzalloc(sizeof(*request) + sizeof(request->ssids[0]) +
 			  sizeof(request->channels[0]) * n_channels,
 			  GFP_KERNEL);

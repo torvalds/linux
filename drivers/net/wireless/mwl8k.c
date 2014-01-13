@@ -5892,8 +5892,6 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 
 	hw->extra_tx_headroom -= priv->ap_fw ? REDUCED_TX_HEADROOM : 0;
 
-	hw->channel_change_time = 10;
-
 	hw->queues = MWL8K_TX_WMM_QUEUES;
 
 	/* Set rssi values to dBm */

@@ -2112,7 +2112,6 @@ static struct at76_priv *at76_alloc_new_device(struct usb_device *udev)
 	priv->pm_period = 0;
 
 	/* unit us */
-	priv->hw->channel_change_time = 100000;
 
 	return priv;
 }

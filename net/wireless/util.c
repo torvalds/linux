@@ -879,7 +879,9 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 
 		dev->ieee80211_ptr->use_4addr = false;
 		dev->ieee80211_ptr->mesh_id_up_len = 0;
+		wdev_lock(dev->ieee80211_ptr);
 		rdev_set_qos_map(rdev, dev, NULL);
+		wdev_unlock(dev->ieee80211_ptr);
 
 		switch (otype) {
 		case NL80211_IFTYPE_AP:
@@ -1478,6 +1480,19 @@ int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 
 	return 0;
 }
+
+unsigned int ieee80211_get_num_supported_channels(struct wiphy *wiphy)
+{
+	enum ieee80211_band band;
+	unsigned int n_channels = 0;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++)
+		if (wiphy->bands[band])
+			n_channels += wiphy->bands[band]->n_channels;
+
+	return n_channels;
+}
+EXPORT_SYMBOL(ieee80211_get_num_supported_channels);
 
 /* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
 /* Ethernet-II snap header (RFC1042 for most EtherTypes) */
