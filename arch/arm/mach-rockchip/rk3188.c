@@ -147,3 +147,18 @@ static int __init rk3188_pie_init(void)
 	return 0;
 }
 arch_initcall(rk3188_pie_init);
+
+#define CONFIG_ARCH_RK3188
+#define RK30_DDR_PCTL_BASE RK_DDR_VIRT
+#define RK30_DDR_PUBL_BASE (RK_DDR_VIRT + RK3188_DDR_PCTL_SIZE)
+#define rk_pll_flag() 0 /* FIXME */
+#define sram_printascii(s) do {} while (0) /* FIXME */
+#include "ddr_rk30.c"
+
+static int rk3188_ddr_init(void)
+{
+	if (cpu_is_rk3188())
+		ddr_init(DDR3_DEFAULT, 300);
+	return 0;
+}
+arch_initcall_sync(rk3188_ddr_init);
