@@ -81,9 +81,11 @@ struct chip_info {
 	u32 (*corerev)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 			 u16 coreid);
 	void (*coredisable)(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid, u32 core_bits);
+			struct chip_info *ci, u16 coreid, u32 pre_resetbits,
+			u32 in_resetbits);
 	void (*resetcore)(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid, u32 core_bits);
+			struct chip_info *ci, u16 coreid, u32 pre_resetbits,
+			u32 in_resetbits, u32 post_resetbits);
 };
 
 struct sbconfig {

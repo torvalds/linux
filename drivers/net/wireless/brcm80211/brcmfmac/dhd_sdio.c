@@ -2263,8 +2263,6 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 	w_sdreg32(bus, local_hostintmask,
 		  offsetof(struct sdpcmd_regs, intstatus));
 
-	/* Turn off the backplane clock (only) */
-	brcmf_sdio_clkctl(bus, CLK_SDONLY, false);
 	sdio_release_host(bus->sdiodev->func[1]);
 
 	/* Clear the data packet queues */
@@ -4085,6 +4083,12 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 		if (bus->ci) {
 			sdio_claim_host(bus->sdiodev->func[1]);
 			brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
+			/* Leave the device in state where it is 'quiet'. This
+			 * is done by putting it in download_state which
+			 * essentially resets all necessary cores
+			 */
+			msleep(20);
+			brcmf_sdio_download_state(bus, true);
 			brcmf_sdio_clkctl(bus, CLK_NONE, false);
 			sdio_release_host(bus->sdiodev->func[1]);
 			brcmf_sdio_chip_detach(&bus->ci);
