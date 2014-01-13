@@ -1008,6 +1008,7 @@
 	wp-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
 	no-1-8-v;
 	keep-power-in-suspend;
+	enable-sdio-wakeup;
 	status = "okay";
 };
 
@@ -1019,6 +1020,7 @@
 	wp-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 	no-1-8-v;
 	keep-power-in-suspend;
+	enable-sdio-wakeup;
 	status = "okay";
 };
 

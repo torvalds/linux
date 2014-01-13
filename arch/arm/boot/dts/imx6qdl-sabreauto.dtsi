@@ -1118,6 +1118,7 @@
 	 */
 	/* vmmc-supply = <&reg_sd3_vmmc>; */
 	keep-power-in-suspend;
+	enable-sdio-wakeup;
 	status = "okay";
 };
 
