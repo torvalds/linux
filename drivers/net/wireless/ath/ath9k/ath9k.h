@@ -691,6 +691,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 #define DEFAULT_CACHELINE       32
 #define ATH_CABQ_READY_TIME     80      /* % of beacon interval */
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
+#define MAX_GTT_CNT             5
 
 enum sc_op_flags {
 	SC_OP_INVALID,
@@ -733,6 +734,7 @@ struct ath_softc {
 	unsigned long sc_flags;
 	unsigned long driver_data;
 
+	u8 gtt_cnt;
 	u32 intrstatus;
 	u16 ps_flags; /* PS_* */
 	u16 curtxpow;
