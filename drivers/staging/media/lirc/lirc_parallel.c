@@ -220,7 +220,7 @@ static void rbuf_write(int signal)
 	wptr = nwptr;
 }
 
-static void irq_handler(void *blah)
+static void lirc_lirc_irq_handler(void *blah)
 {
 	struct timeval tv;
 	static struct timeval lasttv;
@@ -659,7 +659,7 @@ static int __init lirc_parallel_init(void)
 		goto exit_device_put;
 	}
 	ppdevice = parport_register_device(pport, LIRC_DRIVER_NAME,
-					   pf, kf, irq_handler, 0, NULL);
+					   pf, kf, lirc_lirc_irq_handler, 0, NULL);
 	parport_put_port(pport);
 	if (ppdevice == NULL) {
 		pr_notice("parport_register_device() failed\n");
