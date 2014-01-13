@@ -2001,7 +2001,8 @@ static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
  */
 static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 		const struct omap_video_timings *t, u16 pos_x,
-		u16 width, u16 height, u16 out_width, u16 out_height)
+		u16 width, u16 height, u16 out_width, u16 out_height,
+		bool five_taps)
 {
 	const int ds = DIV_ROUND_UP(height, out_height);
 	unsigned long nonactive;
@@ -2020,6 +2021,10 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 	DSSDBG("blanking period + ppl = %llu (limit = %u)\n", blank, limits[i]);
 	if (blank <= limits[i])
 		return -EINVAL;
+
+	/* FIXME add checks for 3-tap filter once the limitations are known */
+	if (!five_taps)
+		return 0;
 
 	/*
 	 * Pixel data should be prepared before visible display point starts.
@@ -2196,21 +2201,29 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 	do {
 		in_height = DIV_ROUND_UP(height, *decim_y);
 		in_width = DIV_ROUND_UP(width, *decim_x);
-		*core_clk = calc_core_clk_five_taps(pclk, mgr_timings,
-			in_width, in_height, out_width, out_height, color_mode);
-
-		error = check_horiz_timing_omap3(pclk, lclk, mgr_timings,
-				pos_x, in_width, in_height, out_width,
-				out_height);
+		*five_taps = in_height > out_height;
 
 		if (in_width > maxsinglelinewidth)
 			if (in_height > out_height &&
 						in_height < out_height * 2)
 				*five_taps = false;
-		if (!*five_taps)
+again:
+		if (*five_taps)
+			*core_clk = calc_core_clk_five_taps(pclk, mgr_timings,
+						in_width, in_height, out_width,
+						out_height, color_mode);
+		else
 			*core_clk = dispc.feat->calc_core_clk(pclk, in_width,
 					in_height, out_width, out_height,
 					mem_to_mem);
+
+		error = check_horiz_timing_omap3(pclk, lclk, mgr_timings,
+				pos_x, in_width, in_height, out_width,
+				out_height, *five_taps);
+		if (error && *five_taps) {
+			*five_taps = false;
+			goto again;
+		}
 
 		error = (error || in_width > maxsinglelinewidth * 2 ||
 			(in_width > maxsinglelinewidth && *five_taps) ||
@@ -2228,7 +2241,7 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 	} while (*decim_x <= *x_predecim && *decim_y <= *y_predecim && error);
 
 	if (check_horiz_timing_omap3(pclk, lclk, mgr_timings, pos_x, width,
-				height, out_width, out_height)){
+				height, out_width, out_height, *five_taps)) {
 			DSSERR("horizontal timing too tight\n");
 			return -EINVAL;
 	}
