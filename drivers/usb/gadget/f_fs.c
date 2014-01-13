@@ -161,10 +161,10 @@ ffs_sb_create_file(struct super_block *sb, const char *name, void *data,
 DEFINE_MUTEX(ffs_lock);
 EXPORT_SYMBOL(ffs_lock);
 
-static struct ffs_dev *ffs_find_dev(const char *name);
-static struct ffs_dev *ffs_alloc_dev(void);
+static struct ffs_dev *_ffs_find_dev(const char *name);
+static struct ffs_dev *_ffs_alloc_dev(void);
 static int _ffs_name_dev(struct ffs_dev *dev, const char *name);
-static void ffs_free_dev(struct ffs_dev *dev);
+static void _ffs_free_dev(struct ffs_dev *dev);
 static void *ffs_acquire_dev(const char *dev_name);
 static void ffs_release_dev(struct ffs_data *ffs_data);
 static int ffs_ready(struct ffs_data *ffs);
@@ -2255,7 +2255,7 @@ static int ffs_func_revmap_intf(struct ffs_function *func, u8 intf)
 
 static LIST_HEAD(ffs_devices);
 
-static struct ffs_dev *_ffs_find_dev(const char *name)
+static struct ffs_dev *_ffs_do_find_dev(const char *name)
 {
 	struct ffs_dev *dev;
 
@@ -2272,7 +2272,7 @@ static struct ffs_dev *_ffs_find_dev(const char *name)
 /*
  * ffs_lock must be taken by the caller of this function
  */
-static struct ffs_dev *ffs_get_single_dev(void)
+static struct ffs_dev *_ffs_get_single_dev(void)
 {
 	struct ffs_dev *dev;
 
@@ -2288,15 +2288,15 @@ static struct ffs_dev *ffs_get_single_dev(void)
 /*
  * ffs_lock must be taken by the caller of this function
  */
-static struct ffs_dev *ffs_find_dev(const char *name)
+static struct ffs_dev *_ffs_find_dev(const char *name)
 {
 	struct ffs_dev *dev;
 
-	dev = ffs_get_single_dev();
+	dev = _ffs_get_single_dev();
 	if (dev)
 		return dev;
 
-	return _ffs_find_dev(name);
+	return _ffs_do_find_dev(name);
 }
 
 /* Configfs support *********************************************************/
@@ -2332,7 +2332,7 @@ static void ffs_free_inst(struct usb_function_instance *f)
 
 	opts = to_f_fs_opts(f);
 	ffs_dev_lock();
-	ffs_free_dev(opts->dev);
+	_ffs_free_dev(opts->dev);
 	ffs_dev_unlock();
 	kfree(opts);
 }
@@ -2387,7 +2387,7 @@ static struct usb_function_instance *ffs_alloc_inst(void)
 	opts->func_inst.set_inst_name = ffs_set_inst_name;
 	opts->func_inst.free_func_inst = ffs_free_inst;
 	ffs_dev_lock();
-	dev = ffs_alloc_dev();
+	dev = _ffs_alloc_dev();
 	ffs_dev_unlock();
 	if (IS_ERR(dev)) {
 		kfree(opts);
@@ -2475,12 +2475,12 @@ static struct usb_function *ffs_alloc(struct usb_function_instance *fi)
 /*
  * ffs_lock must be taken by the caller of this function
  */
-static struct ffs_dev *ffs_alloc_dev(void)
+static struct ffs_dev *_ffs_alloc_dev(void)
 {
 	struct ffs_dev *dev;
 	int ret;
 
-	if (ffs_get_single_dev())
+	if (_ffs_get_single_dev())
 			return ERR_PTR(-EBUSY);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -2508,7 +2508,7 @@ static int _ffs_name_dev(struct ffs_dev *dev, const char *name)
 {
 	struct ffs_dev *existing;
 
-	existing = _ffs_find_dev(name);
+	existing = _ffs_do_find_dev(name);
 	if (existing)
 		return -EBUSY;
 
@@ -2552,7 +2552,7 @@ EXPORT_SYMBOL(ffs_single_dev);
 /*
  * ffs_lock must be taken by the caller of this function
  */
-static void ffs_free_dev(struct ffs_dev *dev)
+static void _ffs_free_dev(struct ffs_dev *dev)
 {
 	list_del(&dev->entry);
 	if (dev->name_allocated)
@@ -2569,7 +2569,7 @@ static void *ffs_acquire_dev(const char *dev_name)
 	ENTER();
 	ffs_dev_lock();
 
-	ffs_dev = ffs_find_dev(dev_name);
+	ffs_dev = _ffs_find_dev(dev_name);
 	if (!ffs_dev)
 		ffs_dev = ERR_PTR(-ENODEV);
 	else if (ffs_dev->mounted)
