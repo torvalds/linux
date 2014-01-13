@@ -82,7 +82,6 @@ struct ptldebug_header {
 	__u32 ph_line_num;
 } __attribute__((packed));
 
-
 #define PH_FLAG_FIRST_RECORD 1
 
 /* Debugging subsystems (32 bits, non-overlapping) */
@@ -199,8 +198,6 @@ do {								\
 	       .msg_cdls   = (cdls)	 };			\
 	dataname.msg_mask   = (mask);
 
-
-
 /**
  * Filters out logging messages based on mask and subsystem.
  */
@@ -231,9 +228,6 @@ do {									\
 	__CDEBUG(&cdls, mask, format, ## __VA_ARGS__);			\
 } while (0)
 
-
-
-
 #define CWARN(format, ...)	  CDEBUG_LIMIT(D_WARNING, format, ## __VA_ARGS__)
 #define CERROR(format, ...)	 CDEBUG_LIMIT(D_ERROR, format, ## __VA_ARGS__)
 #define CNETERR(format, a...)       CDEBUG_LIMIT(D_NETERROR, format, ## a)
@@ -248,7 +242,6 @@ do {									\
 
 #define LCONSOLE_EMERG(format, ...) CDEBUG(D_CONSOLE | D_EMERG, format, ## __VA_ARGS__)
 
-
 void libcfs_log_goto(struct libcfs_debug_msg_data *, const char *, long_ptr_t);
 #define GOTO(label, rc)							\
 do {									\
@@ -260,7 +253,6 @@ do {									\
 	}								\
 	goto label;							\
 } while (0)
-
 
 extern int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
 			    const char *format1, ...)
