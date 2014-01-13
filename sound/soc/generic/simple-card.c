@@ -14,9 +14,6 @@
 #include <linux/module.h>
 #include <sound/simple_card.h>
 
-#define asoc_simple_get_card_info(p) \
-	container_of(p->dai_link, struct asoc_simple_card_info, snd_link)
-
 static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 				       struct asoc_simple_dai *set,
 				       unsigned int daifmt)
@@ -41,7 +38,8 @@ static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 
 static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct asoc_simple_card_info *info = asoc_simple_get_card_info(rtd);
+	struct asoc_simple_card_info *info =
+				snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *codec = rtd->codec_dai;
 	struct snd_soc_dai *cpu = rtd->cpu_dai;
 	unsigned int daifmt = info->daifmt;
@@ -255,6 +253,8 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	cinfo->snd_card.owner		= THIS_MODULE;
 	cinfo->snd_card.dai_link	= &cinfo->snd_link;
 	cinfo->snd_card.num_links	= 1;
+
+	snd_soc_card_set_drvdata(&cinfo->snd_card, cinfo);
 
 	return devm_snd_soc_register_card(&pdev->dev, &cinfo->snd_card);
 }
