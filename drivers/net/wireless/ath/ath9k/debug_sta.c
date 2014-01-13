@@ -66,11 +66,19 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
 		txq = tid->ac->txq;
 		ath_txq_lock(sc, txq);
-		len += scnprintf(buf + len, size - len,
-				 "%3d%11d%10d%10d%10d%10d%9d%6d%8d\n",
-				 tid->tidno, tid->seq_start, tid->seq_next,
-				 tid->baw_size, tid->baw_head, tid->baw_tail,
-				 tid->bar_index, tid->sched, tid->paused);
+		if (tid->active) {
+			len += scnprintf(buf + len, size - len,
+					 "%3d%11d%10d%10d%10d%10d%9d%6d%8d\n",
+					 tid->tidno,
+					 tid->seq_start,
+					 tid->seq_next,
+					 tid->baw_size,
+					 tid->baw_head,
+					 tid->baw_tail,
+					 tid->bar_index,
+					 tid->sched,
+					 tid->paused);
+		}
 		ath_txq_unlock(sc, txq);
 	}
 exit:
