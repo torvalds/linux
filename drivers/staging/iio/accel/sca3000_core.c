@@ -1170,11 +1170,10 @@ static int sca3000_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	if (st->info->temp_output)
 		indio_dev->info = &sca3000_info_with_temp;
-	else {
+	else
 		indio_dev->info = &sca3000_info;
-		indio_dev->channels = sca3000_channels;
-		indio_dev->num_channels = ARRAY_SIZE(sca3000_channels);
-	}
+	indio_dev->channels = sca3000_channels;
+	indio_dev->num_channels = ARRAY_SIZE(sca3000_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	sca3000_configure_ring(indio_dev);
