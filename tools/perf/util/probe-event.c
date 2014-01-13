@@ -172,6 +172,7 @@ const char *kernel_get_module_path(const char *module)
 	return (dso) ? dso->long_name : NULL;
 }
 
+#ifdef HAVE_DWARF_SUPPORT
 /* Copied from unwind.c */
 static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 				    GElf_Shdr *shp, const char *name)
@@ -217,6 +218,7 @@ out:
 	elf_end(elf);
 	return ret;
 }
+#endif
 
 static int init_user_exec(void)
 {
@@ -750,7 +752,8 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 
 static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 				struct probe_trace_event **tevs __maybe_unused,
-				int max_tevs __maybe_unused, const char *target)
+				int max_tevs __maybe_unused,
+				const char *target __maybe_unused)
 {
 	if (perf_probe_event_need_dwarf(pev)) {
 		pr_warning("Debuginfo-analysis is not supported.\n");
