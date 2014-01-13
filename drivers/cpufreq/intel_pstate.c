@@ -103,10 +103,10 @@ struct pstate_adjust_policy {
 static struct pstate_adjust_policy default_policy = {
 	.sample_rate_ms = 10,
 	.deadband = 0,
-	.setpoint = 109,
-	.p_gain_pct = 17,
+	.setpoint = 97,
+	.p_gain_pct = 20,
 	.d_gain_pct = 0,
-	.i_gain_pct = 4,
+	.i_gain_pct = 0,
 };
 
 struct perf_limits {
@@ -468,12 +468,12 @@ static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
 static inline int intel_pstate_get_scaled_busy(struct cpudata *cpu)
 {
 	int32_t busy_scaled;
-	int32_t core_busy, turbo_pstate, current_pstate;
+	int32_t core_busy, max_pstate, current_pstate;
 
 	core_busy = int_tofp(cpu->samples[cpu->sample_ptr].core_pct_busy);
-	turbo_pstate = int_tofp(cpu->pstate.turbo_pstate);
+	max_pstate = int_tofp(cpu->pstate.max_pstate);
 	current_pstate = int_tofp(cpu->pstate.current_pstate);
-	busy_scaled = mul_fp(core_busy, div_fp(turbo_pstate, current_pstate));
+	busy_scaled = mul_fp(core_busy, div_fp(max_pstate, current_pstate));
 
 	return fp_toint(busy_scaled);
 }
@@ -543,6 +543,11 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu = all_cpu_data[cpunum];
 
 	intel_pstate_get_cpu_pstates(cpu);
+	if (!cpu->pstate.current_pstate) {
+		all_cpu_data[cpunum] = NULL;
+		kfree(cpu);
+		return -ENODATA;
+	}
 
 	cpu->cpu = cpunum;
 	cpu->pstate_policy =
@@ -629,8 +634,8 @@ static int __cpuinit intel_pstate_cpu_exit(struct cpufreq_policy *policy)
 
 static int __cpuinit intel_pstate_cpu_init(struct cpufreq_policy *policy)
 {
-	int rc, min_pstate, max_pstate;
 	struct cpudata *cpu;
+	int rc;
 
 	rc = intel_pstate_init_cpu(policy->cpu);
 	if (rc)
@@ -644,9 +649,8 @@ static int __cpuinit intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	else
 		policy->policy = CPUFREQ_POLICY_POWERSAVE;
 
-	intel_pstate_get_min_max(cpu, &min_pstate, &max_pstate);
-	policy->min = min_pstate * 100000;
-	policy->max = max_pstate * 100000;
+	policy->min = cpu->pstate.min_pstate * 100000;
+	policy->max = cpu->pstate.turbo_pstate * 100000;
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.min_freq = cpu->pstate.min_pstate * 100000;

@@ -602,7 +602,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct receive_queue, napi);
 	struct virtnet_info *vi = rq->vq->vdev->priv;
 	void *buf;
-	unsigned int len, received = 0;
+	unsigned int r, len, received = 0;
 
 again:
 	while (received < budget &&
@@ -619,8 +619,9 @@ again:
 
 	/* Out of packets? */
 	if (received < budget) {
+		r = virtqueue_enable_cb_prepare(rq->vq);
 		napi_complete(napi);
-		if (unlikely(!virtqueue_enable_cb(rq->vq)) &&
+		if (unlikely(virtqueue_poll(rq->vq, r)) &&
 		    napi_schedule_prep(napi)) {
 			virtqueue_disable_cb(rq->vq);
 			__napi_schedule(napi);
@@ -901,7 +902,6 @@ static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 	struct scatterlist sg;
 	struct virtio_net_ctrl_mq s;
 	struct net_device *dev = vi->dev;
-	int i;
 
 	if (!vi->has_cvq || !virtio_has_feature(vi->vdev, VIRTIO_NET_F_MQ))
 		return 0;
@@ -915,10 +915,10 @@ static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 			 queue_pairs);
 		return -EINVAL;
 	} else {
-		for (i = vi->curr_queue_pairs; i < queue_pairs; i++)
-			if (!try_fill_recv(&vi->rq[i], GFP_KERNEL))
-				schedule_delayed_work(&vi->refill, 0);
 		vi->curr_queue_pairs = queue_pairs;
+		/* virtnet_open() will refill when device is going to up. */
+		if (dev->flags & IFF_UP)
+			schedule_delayed_work(&vi->refill, 0);
 	}
 
 	return 0;
@@ -1108,6 +1108,7 @@ static int virtnet_cpu_callback(struct notifier_block *nfb,
 	default:
 		break;
 	}
+
 	return NOTIFY_OK;
 }
 
@@ -1664,6 +1665,8 @@ static int virtnet_freeze(struct virtio_device *vdev)
 	struct virtnet_info *vi = vdev->priv;
 	int i;
 
+	unregister_hotcpu_notifier(&vi->nb);
+
 	/* Prevent config work handler from accessing the device */
 	mutex_lock(&vi->config_lock);
 	vi->config_enable = false;
@@ -1708,7 +1711,13 @@ static int virtnet_restore(struct virtio_device *vdev)
 	vi->config_enable = true;
 	mutex_unlock(&vi->config_lock);
 
+	rtnl_lock();
 	virtnet_set_queues(vi, vi->curr_queue_pairs);
+	rtnl_unlock();
+
+	err = register_hotcpu_notifier(&vi->nb);
+	if (err)
+		return err;
 
 	return 0;
 }

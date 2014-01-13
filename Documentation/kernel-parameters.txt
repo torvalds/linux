@@ -1456,6 +1456,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			* dump_id: dump IDENTIFY data.
 
+			* atapi_dmadir: Enable ATAPI DMADIR bridge support
+
+			* disable: Disable this device.
+
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
 

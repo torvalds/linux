@@ -1407,9 +1407,9 @@ call_refreshresult(struct rpc_task *task)
 		return;
 	case -ETIMEDOUT:
 		rpc_delay(task, 3*HZ);
-	case -EKEYEXPIRED:
 	case -EAGAIN:
 		status = -EACCES;
+	case -EKEYEXPIRED:
 		if (!task->tk_cred_retry)
 			break;
 		task->tk_cred_retry--;
@@ -1644,6 +1644,10 @@ call_connect(struct rpc_task *task)
 		task->tk_action = call_connect_status;
 		if (task->tk_status < 0)
 			return;
+		if (task->tk_flags & RPC_TASK_NOCONNECT) {
+			rpc_exit(task, -ENOTCONN);
+			return;
+		}
 		xprt_connect(task);
 	}
 }

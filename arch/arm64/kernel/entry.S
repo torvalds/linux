@@ -121,7 +121,7 @@
 
 	.macro	get_thread_info, rd
 	mov	\rd, sp
-	and	\rd, \rd, #~((1 << 13) - 1)	// top of 8K stack
+	and	\rd, \rd, #~(THREAD_SIZE - 1)	// top of stack
 	.endm
 
 /*

@@ -316,10 +316,15 @@ extern const struct iwl_cfg iwl2000_2bgn_cfg;
 extern const struct iwl_cfg iwl2000_2bgn_d_cfg;
 extern const struct iwl_cfg iwl2030_2bgn_cfg;
 extern const struct iwl_cfg iwl6035_2agn_cfg;
+extern const struct iwl_cfg iwl6035_2agn_sff_cfg;
 extern const struct iwl_cfg iwl105_bgn_cfg;
 extern const struct iwl_cfg iwl105_bgn_d_cfg;
 extern const struct iwl_cfg iwl135_bgn_cfg;
 extern const struct iwl_cfg iwl7260_2ac_cfg;
-extern const struct iwl_cfg iwl3160_ac_cfg;
+extern const struct iwl_cfg iwl7260_2n_cfg;
+extern const struct iwl_cfg iwl7260_n_cfg;
+extern const struct iwl_cfg iwl3160_2ac_cfg;
+extern const struct iwl_cfg iwl3160_2n_cfg;
+extern const struct iwl_cfg iwl3160_n_cfg;
 
 #endif /* __IWL_CONFIG_H__ */

@@ -44,9 +44,7 @@
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/pmc.h>
-#ifdef CONFIG_PPC32
 #include <asm/reg.h>
-#endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
 #endif
@@ -1282,26 +1280,63 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
 }
 
-void tm_unavailable_exception(struct pt_regs *regs)
+#ifdef CONFIG_PPC64
+void facility_unavailable_exception(struct pt_regs *regs)
 {
+	static char *facility_strings[] = {
+		[FSCR_FP_LG] = "FPU",
+		[FSCR_VECVSX_LG] = "VMX/VSX",
+		[FSCR_DSCR_LG] = "DSCR",
+		[FSCR_PM_LG] = "PMU SPRs",
+		[FSCR_BHRB_LG] = "BHRB",
+		[FSCR_TM_LG] = "TM",
+		[FSCR_EBB_LG] = "EBB",
+		[FSCR_TAR_LG] = "TAR",
+	};
+	char *facility = "unknown";
+	u64 value;
+	u8 status;
+	bool hv;
+
+	hv = (regs->trap == 0xf80);
+	if (hv)
+		value = mfspr(SPRN_HFSCR);
+	else
+		value = mfspr(SPRN_FSCR);
+
+	status = value >> 56;
+	if (status == FSCR_DSCR_LG) {
+		/* User is acessing the DSCR.  Set the inherit bit and allow
+		 * the user to set it directly in future by setting via the
+		 * H/FSCR DSCR bit.
+		 */
+		current->thread.dscr_inherit = 1;
+		if (hv)
+			mtspr(SPRN_HFSCR, value | HFSCR_DSCR);
+		else
+			mtspr(SPRN_FSCR,  value | FSCR_DSCR);
+		return;
+	}
+
+	if ((status < ARRAY_SIZE(facility_strings)) &&
+	    facility_strings[status])
+		facility = facility_strings[status];
+
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	/* Currently we never expect a TMU exception.  Catch
-	 * this and kill the process!
-	 */
-	printk(KERN_EMERG "Unexpected TM unavailable exception at %lx "
-	       "(msr %lx)\n",
-	       regs->nip, regs->msr);
+	pr_err("%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
+	       hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
 
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 		return;
 	}
 
-	die("Unexpected TM unavailable exception", regs, SIGABRT);
+	die("Unexpected facility unavailable exception", regs, SIGABRT);
 }
+#endif
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 

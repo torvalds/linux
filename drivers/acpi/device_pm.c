@@ -324,14 +324,27 @@ int acpi_bus_update_power(acpi_handle handle, int *state_p)
 	if (result)
 		return result;
 
-	if (state == ACPI_STATE_UNKNOWN)
+	if (state == ACPI_STATE_UNKNOWN) {
 		state = ACPI_STATE_D0;
-
-	result = acpi_device_set_power(device, state);
-	if (!result && state_p)
+		result = acpi_device_set_power(device, state);
+		if (result)
+			return result;
+	} else {
+		if (device->power.flags.power_resources) {
+			/*
+			 * We don't need to really switch the state, bu we need
+			 * to update the power resources' reference counters.
+			 */
+			result = acpi_power_transition(device, state);
+			if (result)
+				return result;
+		}
+		device->power.state = state;
+	}
+	if (state_p)
 		*state_p = state;
 
-	return result;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_update_power);
 

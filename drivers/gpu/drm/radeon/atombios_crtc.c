@@ -1176,7 +1176,9 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	if ((rdev->family == CHIP_TAHITI) ||
 	    (rdev->family == CHIP_PITCAIRN))
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P8_32x32_8x16);
-	else if (rdev->family == CHIP_VERDE)
+	else if ((rdev->family == CHIP_VERDE) ||
+		 (rdev->family == CHIP_OLAND) ||
+		 (rdev->family == CHIP_HAINAN)) /* for completeness.  HAINAN has no display hw */
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P4_8x16);
 
 	switch (radeon_crtc->crtc_id) {
@@ -1683,7 +1685,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 				if (pll != ATOM_PPLL_INVALID)
 					return pll;
 			}
-		} else {
+		} else if (!ASIC_IS_DCE41(rdev)) { /* Don't share PLLs on DCE4.1 chips */
 			/* use the same PPLL for all monitors with the same clock */
 			pll = radeon_get_shared_nondp_ppll(crtc);
 			if (pll != ATOM_PPLL_INVALID)
