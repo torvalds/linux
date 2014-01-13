@@ -66,6 +66,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
+#include <linux/if_arp.h>
 #include <net/mac80211.h>
 #include <net/tcp.h>
 
@@ -129,6 +130,23 @@ static const struct wiphy_wowlan_tcp_support iwl_mvm_wowlan_tcp_support = {
 #endif
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+/*
+ * Use the reserved field to indicate magic values.
+ * these values will only be used internally by the driver,
+ * and won't make it to the fw (reserved will be 0).
+ * BC_FILTER_MAGIC_IP - configure the val of this attribute to
+ *	be the vif's ip address. in case there is not a single
+ *	ip address (0, or more than 1), this attribute will
+ *	be skipped.
+ * BC_FILTER_MAGIC_MAC - set the val of this attribute to
+ *	the LSB bytes of the vif's mac address
+ */
+enum {
+	BC_FILTER_MAGIC_NONE = 0,
+	BC_FILTER_MAGIC_IP,
+	BC_FILTER_MAGIC_MAC,
+};
+
 static const struct iwl_fw_bcast_filter iwl_mvm_default_bcast_filters[] = {
 	{
 		/* arp */
@@ -142,6 +160,40 @@ static const struct iwl_fw_bcast_filter iwl_mvm_default_bcast_filters[] = {
 				.offset = sizeof(rfc1042_header),
 				.val = cpu_to_be32(0x08060001),
 				.mask = cpu_to_be32(0xffffffff),
+			},
+			{
+				/* arp dest ip */
+				.offset_type =
+					BCAST_FILTER_OFFSET_PAYLOAD_START,
+				.offset = sizeof(rfc1042_header) + 2 +
+					  sizeof(struct arphdr) +
+					  ETH_ALEN + sizeof(__be32) +
+					  ETH_ALEN,
+				.mask = cpu_to_be32(0xffffffff),
+				/* mark it as special field */
+				.reserved1 = cpu_to_le16(BC_FILTER_MAGIC_IP),
+			},
+		},
+	},
+	{
+		/* dhcp offer bcast */
+		.discard = 0,
+		.frame_type = BCAST_FILTER_FRAME_TYPE_IPV4,
+		.attrs = {
+			{
+				/* udp dest port - 68 (bootp client)*/
+				.offset_type = BCAST_FILTER_OFFSET_IP_END,
+				.offset = offsetof(struct udphdr, dest),
+				.val = cpu_to_be32(0x00440000),
+				.mask = cpu_to_be32(0xffff0000),
+			},
+			{
+				/* dhcp - lsb bytes of client hw address */
+				.offset_type = BCAST_FILTER_OFFSET_IP_END,
+				.offset = 38,
+				.mask = cpu_to_be32(0xffffffff),
+				/* mark it as special field */
+				.reserved1 = cpu_to_le16(BC_FILTER_MAGIC_MAC),
 			},
 		},
 	},
@@ -922,6 +974,22 @@ iwl_mvm_set_bcast_filter(struct ieee80211_vif *vif,
 		if (!attr->mask)
 			break;
 
+		switch (attr->reserved1) {
+		case cpu_to_le16(BC_FILTER_MAGIC_IP):
+			if (vif->bss_conf.arp_addr_cnt != 1) {
+				attr->mask = 0;
+				continue;
+			}
+
+			attr->val = vif->bss_conf.arp_addr_list[0];
+			break;
+		case cpu_to_le16(BC_FILTER_MAGIC_MAC):
+			attr->val = *(__be32 *)&vif->addr[2];
+			break;
+		default:
+			break;
+		}
+		attr->reserved1 = 0;
 		out_filter->num_attrs++;
 	}
 }
@@ -1129,6 +1197,11 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		ret = iwl_mvm_update_beacon_filter(mvm, vif);
 		if (ret)
 			IWL_ERR(mvm, "failed to update CQM thresholds\n");
+	}
+
+	if (changes & BSS_CHANGED_ARP_FILTER) {
+		IWL_DEBUG_MAC80211(mvm, "arp filter changed");
+		iwl_mvm_configure_bcast_filter(mvm, vif);
 	}
 }
 
