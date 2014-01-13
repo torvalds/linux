@@ -4894,6 +4894,17 @@ static void alc662_led_gpio1_mute_hook(void *private_data, int enabled)
 				    spec->gpio_led);
 }
 
+/* avoid D3 for keeping GPIO up */
+static unsigned int gpio_led_power_filter(struct hda_codec *codec,
+					  hda_nid_t nid,
+					  unsigned int power_state)
+{
+	struct alc_spec *spec = codec->spec;
+	if (nid == codec->afg && power_state == AC_PWRST_D3 && spec->gpio_led)
+		return AC_PWRST_D0;
+	return power_state;
+}
+
 static void alc662_fixup_led_gpio1(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
 {
@@ -4908,6 +4919,7 @@ static void alc662_fixup_led_gpio1(struct hda_codec *codec,
 		spec->gen.vmaster_mute.hook = alc662_led_gpio1_mute_hook;
 		spec->gpio_led = 0;
 		snd_hda_add_verbs(codec, gpio_init);
+		codec->power_filter = gpio_led_power_filter;
 	}
 }
 
