@@ -91,6 +91,16 @@
 			#interrupt-cells = <2>;
 		};
 
+		i2s: i2s@7e203000 {
+			compatible = "brcm,bcm2835-i2s";
+			reg = <0x7e203000 0x20>,
+			      <0x7e101098 0x02>;
+
+			dmas = <&dma 2>,
+			       <&dma 3>;
+			dma-names = "tx", "rx";
+		};
+
 		spi: spi@20204000 {
 			compatible = "brcm,bcm2835-spi";
 			reg = <0x7e204000 0x1000>;
