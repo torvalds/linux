@@ -89,6 +89,10 @@ struct kernfs_node {
 
 	struct rb_node		rb;
 
+	union {
+		struct kernfs_node	*removed_list;
+	} u;
+
 	const void		*ns;	/* namespace tag */
 	unsigned int		hash;	/* ns + name hash */
 	union {

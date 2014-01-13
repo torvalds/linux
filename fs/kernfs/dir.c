@@ -399,7 +399,28 @@ struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
 }
 
 /**
+ *	kernfs_addrm_start - prepare for kernfs_node add/remove
+ *	@acxt: pointer to kernfs_addrm_cxt to be used
+ *
+ *	This function is called when the caller is about to add or remove
+ *	kernfs_node.  This function acquires kernfs_mutex.  @acxt is used
+ *	to keep and pass context to other addrm functions.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).  kernfs_mutex is locked on
+ *	return.
+ */
+void kernfs_addrm_start(struct kernfs_addrm_cxt *acxt)
+	__acquires(kernfs_mutex)
+{
+	memset(acxt, 0, sizeof(*acxt));
+
+	mutex_lock(&kernfs_mutex);
+}
+
+/**
  *	kernfs_add_one - add kernfs_node to parent without warning
+ *	@acxt: addrm context to use
  *	@kn: kernfs_node to be added
  *	@parent: the parent kernfs_node to add @kn to
  *
@@ -407,29 +428,34 @@ struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
  *	parent inode if @kn is a directory and link into the children list
  *	of the parent.
  *
+ *	This function should be called between calls to
+ *	kernfs_addrm_start() and kernfs_addrm_finish() and should be passed
+ *	the same @acxt as passed to kernfs_addrm_start().
+ *
+ *	LOCKING:
+ *	Determined by kernfs_addrm_start().
+ *
  *	RETURNS:
  *	0 on success, -EEXIST if entry with the given name already
  *	exists.
  */
-int kernfs_add_one(struct kernfs_node *kn, struct kernfs_node *parent)
+int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
+		  struct kernfs_node *parent)
 {
+	bool has_ns = kernfs_ns_enabled(parent);
 	struct kernfs_iattrs *ps_iattr;
-	bool has_ns;
 	int ret;
 
-	if (!kernfs_get_active(parent))
-		return -ENOENT;
+	WARN_ON_ONCE(atomic_read(&parent->active) < 0);
 
-	mutex_lock(&kernfs_mutex);
-
-	ret = -EINVAL;
-	has_ns = kernfs_ns_enabled(parent);
-	if (WARN(has_ns != (bool)kn->ns, KERN_WARNING "kernfs: ns %s in '%s' for '%s'\n",
-		 has_ns ? "required" : "invalid", parent->name, kn->name))
-		goto out_unlock;
+	if (has_ns != (bool)kn->ns) {
+		WARN(1, KERN_WARNING "kernfs: ns %s in '%s' for '%s'\n",
+		     has_ns ? "required" : "invalid", parent->name, kn->name);
+		return -EINVAL;
+	}
 
 	if (kernfs_type(parent) != KERNFS_DIR)
-		goto out_unlock;
+		return -EINVAL;
 
 	kn->hash = kernfs_name_hash(kn->name, kn->ns);
 	kn->parent = parent;
@@ -437,7 +463,7 @@ int kernfs_add_one(struct kernfs_node *kn, struct kernfs_node *parent)
 
 	ret = kernfs_link_sibling(kn);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	/* Update timestamps on the parent */
 	ps_iattr = parent->iattr;
@@ -448,11 +474,34 @@ int kernfs_add_one(struct kernfs_node *kn, struct kernfs_node *parent)
 
 	/* Mark the entry added into directory tree */
 	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
-	ret = 0;
-out_unlock:
+	return 0;
+}
+
+/**
+ *	kernfs_addrm_finish - finish up kernfs_node add/remove
+ *	@acxt: addrm context to finish up
+ *
+ *	Finish up kernfs_node add/remove.  Resources acquired by
+ *	kernfs_addrm_start() are released and removed kernfs_nodes are
+ *	cleaned up.
+ *
+ *	LOCKING:
+ *	kernfs_mutex is released.
+ */
+void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt)
+	__releases(kernfs_mutex)
+{
+	/* release resources acquired by kernfs_addrm_start() */
 	mutex_unlock(&kernfs_mutex);
-	kernfs_put_active(parent);
-	return ret;
+
+	/* kill removed kernfs_nodes */
+	while (acxt->removed) {
+		struct kernfs_node *kn = acxt->removed;
+
+		acxt->removed = kn->u.removed_list;
+
+		kernfs_put(kn);
+	}
 }
 
 /**
@@ -584,6 +633,7 @@ struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 					 const char *name, umode_t mode,
 					 void *priv, const void *ns)
 {
+	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 	int rc;
 
@@ -598,7 +648,14 @@ struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 	kn->priv = priv;
 
 	/* link in */
-	rc = kernfs_add_one(kn, parent);
+	rc = -ENOENT;
+	if (kernfs_get_active(parent)) {
+		kernfs_addrm_start(&acxt);
+		rc = kernfs_add_one(&acxt, kn, parent);
+		kernfs_addrm_finish(&acxt);
+		kernfs_put_active(parent);
+	}
+
 	if (!rc)
 		return kn;
 
@@ -784,7 +841,8 @@ static void __kernfs_deactivate(struct kernfs_node *kn)
 	}
 }
 
-static void __kernfs_remove(struct kernfs_node *kn)
+static void __kernfs_remove(struct kernfs_addrm_cxt *acxt,
+			    struct kernfs_node *kn)
 {
 	struct kernfs_node *pos;
 
@@ -832,7 +890,8 @@ static void __kernfs_remove(struct kernfs_node *kn)
 				ps_iattr->ia_iattr.ia_mtime = CURRENT_TIME;
 			}
 
-			kernfs_put(pos);
+			pos->u.removed_list = acxt->removed;
+			acxt->removed = pos;
 		}
 
 		kernfs_put(pos);
@@ -847,9 +906,11 @@ static void __kernfs_remove(struct kernfs_node *kn)
  */
 void kernfs_remove(struct kernfs_node *kn)
 {
-	mutex_lock(&kernfs_mutex);
-	__kernfs_remove(kn);
-	mutex_unlock(&kernfs_mutex);
+	struct kernfs_addrm_cxt acxt;
+
+	kernfs_addrm_start(&acxt);
+	__kernfs_remove(&acxt, kn);
+	kernfs_addrm_finish(&acxt);
 }
 
 /**
@@ -864,6 +925,7 @@ void kernfs_remove(struct kernfs_node *kn)
 int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 			     const void *ns)
 {
+	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 
 	if (!parent) {
@@ -872,13 +934,13 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 		return -ENOENT;
 	}
 
-	mutex_lock(&kernfs_mutex);
+	kernfs_addrm_start(&acxt);
 
 	kn = kernfs_find_ns(parent, name, ns);
 	if (kn)
-		__kernfs_remove(kn);
+		__kernfs_remove(&acxt, kn);
 
-	mutex_unlock(&kernfs_mutex);
+	kernfs_addrm_finish(&acxt);
 
 	if (kn)
 		return 0;

@@ -46,6 +46,13 @@ static inline struct kernfs_root *kernfs_root(struct kernfs_node *kn)
 }
 
 /*
+ * Context structure to be used while adding/removing nodes.
+ */
+struct kernfs_addrm_cxt {
+	struct kernfs_node	*removed;
+};
+
+/*
  * mount.c
  */
 struct kernfs_super_info {
@@ -94,7 +101,10 @@ extern const struct inode_operations kernfs_dir_iops;
 
 struct kernfs_node *kernfs_get_active(struct kernfs_node *kn);
 void kernfs_put_active(struct kernfs_node *kn);
-int kernfs_add_one(struct kernfs_node *kn, struct kernfs_node *parent);
+void kernfs_addrm_start(struct kernfs_addrm_cxt *acxt);
+int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
+		   struct kernfs_node *parent);
+void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt);
 struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
 				    umode_t mode, unsigned flags);
 
