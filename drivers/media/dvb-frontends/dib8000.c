@@ -4118,7 +4118,7 @@ static int dib8000_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 		/* Get UCB measures */
 		dib8000_read_unc_blocks(fe, &val);
 		if (val < state->init_ucb)
-			state->init_ucb += 0x100000000L;
+			state->init_ucb += 0x100000000LL;
 
 		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
 		c->block_error.stat[0].uvalue = val + state->init_ucb;
@@ -4128,7 +4128,7 @@ static int dib8000_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 			time_us = dib8000_get_time_us(fe, -1);
 
 		if (time_us) {
-			blocks = 1250000UL * 1000000UL;
+			blocks = 1250000ULL * 1000000ULL;
 			do_div(blocks, time_us * 8 * 204);
 			c->block_count.stat[0].scale = FE_SCALE_COUNTER;
 			c->block_count.stat[0].uvalue += blocks;
@@ -4191,7 +4191,7 @@ static int dib8000_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 			if (!time_us)
 				time_us = dib8000_get_time_us(fe, i);
 			if (time_us) {
-				blocks = 1250000UL * 1000000UL;
+				blocks = 1250000ULL * 1000000ULL;
 				do_div(blocks, time_us * 8 * 204);
 				c->block_count.stat[0].scale = FE_SCALE_COUNTER;
 				c->block_count.stat[0].uvalue += blocks;
