@@ -34,7 +34,7 @@ struct mdp4_plane {
 static struct mdp4_kms *get_kms(struct drm_plane *plane)
 {
 	struct msm_drm_private *priv = plane->dev->dev_private;
-	return to_mdp4_kms(priv->kms);
+	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
 static int mdp4_plane_update(struct drm_plane *plane,
@@ -132,7 +132,7 @@ int mdp4_plane_mode_set(struct drm_plane *plane,
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);
 	enum mdp4_pipe pipe = mdp4_plane->pipe;
-	const struct mdp4_format *format;
+	const struct mdp_format *format;
 	uint32_t op_mode = 0;
 	uint32_t phasex_step = MDP4_VG_PHASE_STEP_DEFAULT;
 	uint32_t phasey_step = MDP4_VG_PHASE_STEP_DEFAULT;
@@ -175,7 +175,7 @@ int mdp4_plane_mode_set(struct drm_plane *plane,
 
 	mdp4_plane_set_scanout(plane, fb);
 
-	format = to_mdp4_format(msm_framebuffer_format(fb));
+	format = to_mdp_format(msm_framebuffer_format(fb));
 
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRC_FORMAT(pipe),
 			MDP4_PIPE_SRC_FORMAT_A_BPC(format->bpc_a) |

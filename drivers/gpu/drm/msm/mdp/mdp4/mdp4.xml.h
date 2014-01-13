@@ -8,14 +8,16 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    595 bytes, from 2013-07-05 19:21:12)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    647 bytes, from 2013-11-30 14:45:35)
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp4/mdp4.xml           (  19332 bytes, from 2013-10-07 16:36:48)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  17996 bytes, from 2013-12-01 19:10:31)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   1615 bytes, from 2013-11-30 15:00:52)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  22517 bytes, from 2013-12-03 20:59:13)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  11712 bytes, from 2013-08-17 17:13:43)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2013-08-11 19:26:32)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1544 bytes, from 2013-08-16 19:17:05)
 - /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2013-07-05 19:21:12)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  19288 bytes, from 2013-08-11 18:14:15)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  20932 bytes, from 2013-12-01 15:13:04)
 
 Copyright (C) 2013 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -42,27 +44,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 
-enum mdp4_bpc {
-	BPC1 = 0,
-	BPC5 = 1,
-	BPC6 = 2,
-	BPC8 = 3,
-};
-
-enum mdp4_bpc_alpha {
-	BPC1A = 0,
-	BPC4A = 1,
-	BPC6A = 2,
-	BPC8A = 3,
-};
-
-enum mdp4_alpha_type {
-	FG_CONST = 0,
-	BG_CONST = 1,
-	FG_PIXEL = 2,
-	BG_PIXEL = 3,
-};
-
 enum mdp4_pipe {
 	VG1 = 0,
 	VG2 = 1,
@@ -77,15 +58,6 @@ enum mdp4_mixer {
 	MIXER0 = 0,
 	MIXER1 = 1,
 	MIXER2 = 2,
-};
-
-enum mdp4_mixer_stage_id {
-	STAGE_UNUSED = 0,
-	STAGE_BASE = 1,
-	STAGE0 = 2,
-	STAGE1 = 3,
-	STAGE2 = 4,
-	STAGE3 = 5,
 };
 
 enum mdp4_intf {
@@ -194,56 +166,56 @@ static inline uint32_t MDP4_DISP_INTF_SEL_EXT(enum mdp4_intf val)
 #define REG_MDP4_LAYERMIXER2_IN_CFG				0x000100f0
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE0__MASK			0x00000007
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE0__SHIFT			0
-static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE0(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE0(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER2_IN_CFG_PIPE0__SHIFT) & MDP4_LAYERMIXER2_IN_CFG_PIPE0__MASK;
 }
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE0_MIXER1			0x00000008
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE1__MASK			0x00000070
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE1__SHIFT			4
-static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE1(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE1(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER2_IN_CFG_PIPE1__SHIFT) & MDP4_LAYERMIXER2_IN_CFG_PIPE1__MASK;
 }
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE1_MIXER1			0x00000080
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE2__MASK			0x00000700
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE2__SHIFT			8
-static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE2(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE2(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER2_IN_CFG_PIPE2__SHIFT) & MDP4_LAYERMIXER2_IN_CFG_PIPE2__MASK;
 }
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE2_MIXER1			0x00000800
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE3__MASK			0x00007000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE3__SHIFT			12
-static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE3(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE3(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER2_IN_CFG_PIPE3__SHIFT) & MDP4_LAYERMIXER2_IN_CFG_PIPE3__MASK;
 }
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE3_MIXER1			0x00008000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE4__MASK			0x00070000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE4__SHIFT			16
-static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE4(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE4(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER2_IN_CFG_PIPE4__SHIFT) & MDP4_LAYERMIXER2_IN_CFG_PIPE4__MASK;
 }
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE4_MIXER1			0x00080000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE5__MASK			0x00700000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE5__SHIFT			20
-static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE5(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE5(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER2_IN_CFG_PIPE5__SHIFT) & MDP4_LAYERMIXER2_IN_CFG_PIPE5__MASK;
 }
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE5_MIXER1			0x00800000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE6__MASK			0x07000000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE6__SHIFT			24
-static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE6(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE6(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER2_IN_CFG_PIPE6__SHIFT) & MDP4_LAYERMIXER2_IN_CFG_PIPE6__MASK;
 }
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE6_MIXER1			0x08000000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE7__MASK			0x70000000
 #define MDP4_LAYERMIXER2_IN_CFG_PIPE7__SHIFT			28
-static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE7(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE7(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER2_IN_CFG_PIPE7__SHIFT) & MDP4_LAYERMIXER2_IN_CFG_PIPE7__MASK;
 }
@@ -254,56 +226,56 @@ static inline uint32_t MDP4_LAYERMIXER2_IN_CFG_PIPE7(enum mdp4_mixer_stage_id va
 #define REG_MDP4_LAYERMIXER_IN_CFG				0x00010100
 #define MDP4_LAYERMIXER_IN_CFG_PIPE0__MASK			0x00000007
 #define MDP4_LAYERMIXER_IN_CFG_PIPE0__SHIFT			0
-static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE0(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE0(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER_IN_CFG_PIPE0__SHIFT) & MDP4_LAYERMIXER_IN_CFG_PIPE0__MASK;
 }
 #define MDP4_LAYERMIXER_IN_CFG_PIPE0_MIXER1			0x00000008
 #define MDP4_LAYERMIXER_IN_CFG_PIPE1__MASK			0x00000070
 #define MDP4_LAYERMIXER_IN_CFG_PIPE1__SHIFT			4
-static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE1(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE1(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER_IN_CFG_PIPE1__SHIFT) & MDP4_LAYERMIXER_IN_CFG_PIPE1__MASK;
 }
 #define MDP4_LAYERMIXER_IN_CFG_PIPE1_MIXER1			0x00000080
 #define MDP4_LAYERMIXER_IN_CFG_PIPE2__MASK			0x00000700
 #define MDP4_LAYERMIXER_IN_CFG_PIPE2__SHIFT			8
-static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE2(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE2(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER_IN_CFG_PIPE2__SHIFT) & MDP4_LAYERMIXER_IN_CFG_PIPE2__MASK;
 }
 #define MDP4_LAYERMIXER_IN_CFG_PIPE2_MIXER1			0x00000800
 #define MDP4_LAYERMIXER_IN_CFG_PIPE3__MASK			0x00007000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE3__SHIFT			12
-static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE3(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE3(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER_IN_CFG_PIPE3__SHIFT) & MDP4_LAYERMIXER_IN_CFG_PIPE3__MASK;
 }
 #define MDP4_LAYERMIXER_IN_CFG_PIPE3_MIXER1			0x00008000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE4__MASK			0x00070000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE4__SHIFT			16
-static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE4(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE4(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER_IN_CFG_PIPE4__SHIFT) & MDP4_LAYERMIXER_IN_CFG_PIPE4__MASK;
 }
 #define MDP4_LAYERMIXER_IN_CFG_PIPE4_MIXER1			0x00080000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE5__MASK			0x00700000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE5__SHIFT			20
-static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE5(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE5(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER_IN_CFG_PIPE5__SHIFT) & MDP4_LAYERMIXER_IN_CFG_PIPE5__MASK;
 }
 #define MDP4_LAYERMIXER_IN_CFG_PIPE5_MIXER1			0x00800000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE6__MASK			0x07000000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE6__SHIFT			24
-static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE6(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE6(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER_IN_CFG_PIPE6__SHIFT) & MDP4_LAYERMIXER_IN_CFG_PIPE6__MASK;
 }
 #define MDP4_LAYERMIXER_IN_CFG_PIPE6_MIXER1			0x08000000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE7__MASK			0x70000000
 #define MDP4_LAYERMIXER_IN_CFG_PIPE7__SHIFT			28
-static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE7(enum mdp4_mixer_stage_id val)
+static inline uint32_t MDP4_LAYERMIXER_IN_CFG_PIPE7(enum mdp_mixer_stage_id val)
 {
 	return ((val) << MDP4_LAYERMIXER_IN_CFG_PIPE7__SHIFT) & MDP4_LAYERMIXER_IN_CFG_PIPE7__MASK;
 }
@@ -369,7 +341,7 @@ static inline uint32_t REG_MDP4_OVLP_STAGE(uint32_t i0, uint32_t i1) { return 0x
 static inline uint32_t REG_MDP4_OVLP_STAGE_OP(uint32_t i0, uint32_t i1) { return 0x00000000 + __offset_OVLP(i0) + __offset_STAGE(i1); }
 #define MDP4_OVLP_STAGE_OP_FG_ALPHA__MASK			0x00000003
 #define MDP4_OVLP_STAGE_OP_FG_ALPHA__SHIFT			0
-static inline uint32_t MDP4_OVLP_STAGE_OP_FG_ALPHA(enum mdp4_alpha_type val)
+static inline uint32_t MDP4_OVLP_STAGE_OP_FG_ALPHA(enum mdp_alpha_type val)
 {
 	return ((val) << MDP4_OVLP_STAGE_OP_FG_ALPHA__SHIFT) & MDP4_OVLP_STAGE_OP_FG_ALPHA__MASK;
 }
@@ -377,7 +349,7 @@ static inline uint32_t MDP4_OVLP_STAGE_OP_FG_ALPHA(enum mdp4_alpha_type val)
 #define MDP4_OVLP_STAGE_OP_FG_MOD_ALPHA				0x00000008
 #define MDP4_OVLP_STAGE_OP_BG_ALPHA__MASK			0x00000030
 #define MDP4_OVLP_STAGE_OP_BG_ALPHA__SHIFT			4
-static inline uint32_t MDP4_OVLP_STAGE_OP_BG_ALPHA(enum mdp4_alpha_type val)
+static inline uint32_t MDP4_OVLP_STAGE_OP_BG_ALPHA(enum mdp_alpha_type val)
 {
 	return ((val) << MDP4_OVLP_STAGE_OP_BG_ALPHA__SHIFT) & MDP4_OVLP_STAGE_OP_BG_ALPHA__MASK;
 }
@@ -472,19 +444,19 @@ static inline uint32_t REG_MDP4_DMA(enum mdp4_dma i0) { return 0x00000000 + __of
 static inline uint32_t REG_MDP4_DMA_CONFIG(enum mdp4_dma i0) { return 0x00000000 + __offset_DMA(i0); }
 #define MDP4_DMA_CONFIG_G_BPC__MASK				0x00000003
 #define MDP4_DMA_CONFIG_G_BPC__SHIFT				0
-static inline uint32_t MDP4_DMA_CONFIG_G_BPC(enum mdp4_bpc val)
+static inline uint32_t MDP4_DMA_CONFIG_G_BPC(enum mdp_bpc val)
 {
 	return ((val) << MDP4_DMA_CONFIG_G_BPC__SHIFT) & MDP4_DMA_CONFIG_G_BPC__MASK;
 }
 #define MDP4_DMA_CONFIG_B_BPC__MASK				0x0000000c
 #define MDP4_DMA_CONFIG_B_BPC__SHIFT				2
-static inline uint32_t MDP4_DMA_CONFIG_B_BPC(enum mdp4_bpc val)
+static inline uint32_t MDP4_DMA_CONFIG_B_BPC(enum mdp_bpc val)
 {
 	return ((val) << MDP4_DMA_CONFIG_B_BPC__SHIFT) & MDP4_DMA_CONFIG_B_BPC__MASK;
 }
 #define MDP4_DMA_CONFIG_R_BPC__MASK				0x00000030
 #define MDP4_DMA_CONFIG_R_BPC__SHIFT				4
-static inline uint32_t MDP4_DMA_CONFIG_R_BPC(enum mdp4_bpc val)
+static inline uint32_t MDP4_DMA_CONFIG_R_BPC(enum mdp_bpc val)
 {
 	return ((val) << MDP4_DMA_CONFIG_R_BPC__SHIFT) & MDP4_DMA_CONFIG_R_BPC__MASK;
 }
@@ -710,25 +682,25 @@ static inline uint32_t MDP4_PIPE_FRAME_SIZE_WIDTH(uint32_t val)
 static inline uint32_t REG_MDP4_PIPE_SRC_FORMAT(enum mdp4_pipe i0) { return 0x00020050 + 0x10000*i0; }
 #define MDP4_PIPE_SRC_FORMAT_G_BPC__MASK			0x00000003
 #define MDP4_PIPE_SRC_FORMAT_G_BPC__SHIFT			0
-static inline uint32_t MDP4_PIPE_SRC_FORMAT_G_BPC(enum mdp4_bpc val)
+static inline uint32_t MDP4_PIPE_SRC_FORMAT_G_BPC(enum mdp_bpc val)
 {
 	return ((val) << MDP4_PIPE_SRC_FORMAT_G_BPC__SHIFT) & MDP4_PIPE_SRC_FORMAT_G_BPC__MASK;
 }
 #define MDP4_PIPE_SRC_FORMAT_B_BPC__MASK			0x0000000c
 #define MDP4_PIPE_SRC_FORMAT_B_BPC__SHIFT			2
-static inline uint32_t MDP4_PIPE_SRC_FORMAT_B_BPC(enum mdp4_bpc val)
+static inline uint32_t MDP4_PIPE_SRC_FORMAT_B_BPC(enum mdp_bpc val)
 {
 	return ((val) << MDP4_PIPE_SRC_FORMAT_B_BPC__SHIFT) & MDP4_PIPE_SRC_FORMAT_B_BPC__MASK;
 }
 #define MDP4_PIPE_SRC_FORMAT_R_BPC__MASK			0x00000030
 #define MDP4_PIPE_SRC_FORMAT_R_BPC__SHIFT			4
-static inline uint32_t MDP4_PIPE_SRC_FORMAT_R_BPC(enum mdp4_bpc val)
+static inline uint32_t MDP4_PIPE_SRC_FORMAT_R_BPC(enum mdp_bpc val)
 {
 	return ((val) << MDP4_PIPE_SRC_FORMAT_R_BPC__SHIFT) & MDP4_PIPE_SRC_FORMAT_R_BPC__MASK;
 }
 #define MDP4_PIPE_SRC_FORMAT_A_BPC__MASK			0x000000c0
 #define MDP4_PIPE_SRC_FORMAT_A_BPC__SHIFT			6
-static inline uint32_t MDP4_PIPE_SRC_FORMAT_A_BPC(enum mdp4_bpc_alpha val)
+static inline uint32_t MDP4_PIPE_SRC_FORMAT_A_BPC(enum mdp_bpc_alpha val)
 {
 	return ((val) << MDP4_PIPE_SRC_FORMAT_A_BPC__SHIFT) & MDP4_PIPE_SRC_FORMAT_A_BPC__MASK;
 }

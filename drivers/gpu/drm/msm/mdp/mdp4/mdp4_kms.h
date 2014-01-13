@@ -18,29 +18,13 @@
 #ifndef __MDP4_KMS_H__
 #define __MDP4_KMS_H__
 
-#include <linux/clk.h>
-#include <linux/platform_device.h>
-#include <linux/regulator/consumer.h>
-
 #include "msm_drv.h"
+#include "msm_kms.h"
+#include "mdp/mdp_kms.h"
 #include "mdp4.xml.h"
 
-
-/* For transiently registering for different MDP4 irqs that various parts
- * of the KMS code need during setup/configuration.  We these are not
- * necessarily the same as what drm_vblank_get/put() are requesting, and
- * the hysteresis in drm_vblank_put() is not necessarily desirable for
- * internal housekeeping related irq usage.
- */
-struct mdp4_irq {
-	struct list_head node;
-	uint32_t irqmask;
-	bool registered;
-	void (*irq)(struct mdp4_irq *irq, uint32_t irqstatus);
-};
-
 struct mdp4_kms {
-	struct msm_kms base;
+	struct mdp_kms base;
 
 	struct drm_device *dev;
 
@@ -59,11 +43,7 @@ struct mdp4_kms {
 	struct clk *pclk;
 	struct clk *lut_clk;
 
-	/* irq handling: */
-	bool in_irq;
-	struct list_head irq_list;    /* list of mdp4_irq */
-	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
-	struct mdp4_irq error_handler;
+	struct mdp_irq error_handler;
 };
 #define to_mdp4_kms(x) container_of(x, struct mdp4_kms, base)
 
@@ -72,16 +52,6 @@ struct mdp4_platform_config {
 	struct iommu_domain *iommu;
 	uint32_t max_clk;
 };
-
-struct mdp4_format {
-	struct msm_format base;
-	enum mdp4_bpc bpc_r, bpc_g, bpc_b;
-	enum mdp4_bpc_alpha bpc_a;
-	uint8_t unpack[4];
-	bool alpha_enable, unpack_tight;
-	uint8_t cpp, unpack_count;
-};
-#define to_mdp4_format(x) container_of(x, struct mdp4_format, base)
 
 static inline void mdp4_write(struct mdp4_kms *mdp4_kms, u32 reg, u32 data)
 {
@@ -134,7 +104,7 @@ static inline uint32_t dma2err(enum mdp4_dma dma)
 }
 
 static inline uint32_t mixercfg(int mixer, enum mdp4_pipe pipe,
-		enum mdp4_mixer_stage_id stage)
+		enum mdp_mixer_stage_id stage)
 {
 	uint32_t mixer_cfg = 0;
 
@@ -178,19 +148,23 @@ static inline uint32_t mixercfg(int mixer, enum mdp4_pipe pipe,
 int mdp4_disable(struct mdp4_kms *mdp4_kms);
 int mdp4_enable(struct mdp4_kms *mdp4_kms);
 
+void mdp4_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask);
 void mdp4_irq_preinstall(struct msm_kms *kms);
 int mdp4_irq_postinstall(struct msm_kms *kms);
 void mdp4_irq_uninstall(struct msm_kms *kms);
 irqreturn_t mdp4_irq(struct msm_kms *kms);
-void mdp4_irq_wait(struct mdp4_kms *mdp4_kms, uint32_t irqmask);
-void mdp4_irq_register(struct mdp4_kms *mdp4_kms, struct mdp4_irq *irq);
-void mdp4_irq_unregister(struct mdp4_kms *mdp4_kms, struct mdp4_irq *irq);
 int mdp4_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 void mdp4_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 
-uint32_t mdp4_get_formats(enum mdp4_pipe pipe_id, uint32_t *formats,
-		uint32_t max_formats);
-const struct msm_format *mdp4_get_format(struct msm_kms *kms, uint32_t format);
+static inline
+uint32_t mdp4_get_formats(enum mdp4_pipe pipe_id, uint32_t *pixel_formats,
+		uint32_t max_formats)
+{
+	/* TODO when we have YUV, we need to filter supported formats
+	 * based on pipe_id..
+	 */
+	return mdp_get_formats(pixel_formats, max_formats);
+}
 
 void mdp4_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);

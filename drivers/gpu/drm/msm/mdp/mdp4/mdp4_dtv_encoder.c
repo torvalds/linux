@@ -15,8 +15,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <mach/clk.h>
-
 #include "mdp4_kms.h"
 
 #include "drm_crtc.h"
@@ -37,7 +35,7 @@ struct mdp4_dtv_encoder {
 static struct mdp4_kms *get_kms(struct drm_encoder *encoder)
 {
 	struct msm_drm_private *priv = encoder->dev->dev_private;
-	return to_mdp4_kms(priv->kms);
+	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
 #ifdef CONFIG_MSM_BUS_SCALING
@@ -139,7 +137,7 @@ static void mdp4_dtv_encoder_dpms(struct drm_encoder *encoder, int mode)
 		 * the settings changes for the new modeset (like new
 		 * scanout buffer) don't latch properly..
 		 */
-		mdp4_irq_wait(mdp4_kms, MDP4_IRQ_EXTERNAL_VSYNC);
+		mdp_irq_wait(&mdp4_kms->base, MDP4_IRQ_EXTERNAL_VSYNC);
 
 		clk_disable_unprepare(mdp4_dtv_encoder->src_clk);
 		clk_disable_unprepare(mdp4_dtv_encoder->hdmi_clk);

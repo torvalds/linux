@@ -57,6 +57,11 @@ struct msm_gem_object {
 	/* normally (resv == &_resv) except for imported bo's */
 	struct reservation_object *resv;
 	struct reservation_object _resv;
+
+	/* For physically contiguous buffers.  Used when we don't have
+	 * an IOMMU.
+	 */
+	struct drm_mm_node *vram_node;
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
 

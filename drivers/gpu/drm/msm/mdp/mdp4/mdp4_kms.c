@@ -17,13 +17,14 @@
 
 
 #include "msm_drv.h"
+#include "msm_mmu.h"
 #include "mdp4_kms.h"
 
 static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev);
 
 static int mdp4_hw_init(struct msm_kms *kms)
 {
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(kms);
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct drm_device *dev = mdp4_kms->dev;
 	uint32_t version, major, minor, dmap_cfg, vg_cfg;
 	unsigned long clk;
@@ -31,12 +32,14 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	pm_runtime_get_sync(dev->dev);
 
+	mdp4_enable(mdp4_kms);
 	version = mdp4_read(mdp4_kms, REG_MDP4_VERSION);
+	mdp4_disable(mdp4_kms);
 
 	major = FIELD(version, MDP4_VERSION_MAJOR);
 	minor = FIELD(version, MDP4_VERSION_MINOR);
 
-	DBG("found MDP version v%d.%d", major, minor);
+	DBG("found MDP4 version v%d.%d", major, minor);
 
 	if (major != 4) {
 		dev_err(dev->dev, "unexpected MDP version: v%d.%d\n",
@@ -130,7 +133,7 @@ static long mdp4_round_pixclk(struct msm_kms *kms, unsigned long rate,
 
 static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
 {
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(kms);
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct msm_drm_private *priv = mdp4_kms->dev->dev_private;
 	unsigned i;
 
@@ -140,11 +143,12 @@ static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
 
 static void mdp4_destroy(struct msm_kms *kms)
 {
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(kms);
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	kfree(mdp4_kms);
 }
 
-static const struct msm_kms_funcs kms_funcs = {
+static const struct mdp_kms_funcs kms_funcs = {
+	.base = {
 		.hw_init         = mdp4_hw_init,
 		.irq_preinstall  = mdp4_irq_preinstall,
 		.irq_postinstall = mdp4_irq_postinstall,
@@ -152,10 +156,12 @@ static const struct msm_kms_funcs kms_funcs = {
 		.irq             = mdp4_irq,
 		.enable_vblank   = mdp4_enable_vblank,
 		.disable_vblank  = mdp4_disable_vblank,
-		.get_format      = mdp4_get_format,
+		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp4_round_pixclk,
 		.preclose        = mdp4_preclose,
 		.destroy         = mdp4_destroy,
+	},
+	.set_irqmask         = mdp4_set_irqmask,
 };
 
 int mdp4_disable(struct mdp4_kms *mdp4_kms)
@@ -189,6 +195,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
+	struct hdmi *hdmi;
 	int ret;
 
 	/*
@@ -238,9 +245,10 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	encoder->possible_crtcs = 0x1;     /* DTV can be hooked to DMA_E */
 	priv->encoders[priv->num_encoders++] = encoder;
 
-	ret = hdmi_init(dev, encoder);
-	if (ret) {
-		dev_err(dev->dev, "failed to initialize HDMI\n");
+	hdmi = hdmi_init(dev, encoder);
+	if (IS_ERR(hdmi)) {
+		ret = PTR_ERR(hdmi);
+		dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
 		goto fail;
 	}
 
@@ -260,6 +268,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	struct mdp4_platform_config *config = mdp4_get_config(pdev);
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
+	struct msm_mmu *mmu;
 	int ret;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
@@ -269,8 +278,9 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	kms = &mdp4_kms->base;
-	kms->funcs = &kms_funcs;
+	mdp_kms_init(&mdp4_kms->base, &kms_funcs);
+
+	kms = &mdp4_kms->base.base;
 
 	mdp4_kms->dev = dev;
 
@@ -322,27 +332,34 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
 	clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
 
-	if (!config->iommu) {
-		dev_err(dev->dev, "no iommu\n");
-		ret = -ENXIO;
-		goto fail;
-	}
-
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
 	 * we don't disable):
 	 */
+	mdp4_enable(mdp4_kms);
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 0);
 	mdp4_write(mdp4_kms, REG_MDP4_LCDC_ENABLE, 0);
 	mdp4_write(mdp4_kms, REG_MDP4_DSI_ENABLE, 0);
+	mdp4_disable(mdp4_kms);
 	mdelay(16);
 
-	ret = msm_iommu_attach(dev, config->iommu,
-			iommu_ports, ARRAY_SIZE(iommu_ports));
-	if (ret)
-		goto fail;
+	if (config->iommu) {
+		mmu = msm_iommu_new(dev, config->iommu);
+		if (IS_ERR(mmu)) {
+			ret = PTR_ERR(mmu);
+			goto fail;
+		}
+		ret = mmu->funcs->attach(mmu, iommu_ports,
+				ARRAY_SIZE(iommu_ports));
+		if (ret)
+			goto fail;
+	} else {
+		dev_info(dev->dev, "no iommu, fallback to phys "
+				"contig buffers for scanout\n");
+		mmu = NULL;
+	}
 
-	mdp4_kms->id = msm_register_iommu(dev, config->iommu);
+	mdp4_kms->id = msm_register_mmu(dev, mmu);
 	if (mdp4_kms->id < 0) {
 		ret = mdp4_kms->id;
 		dev_err(dev->dev, "failed to register mdp4 iommu: %d\n", ret);

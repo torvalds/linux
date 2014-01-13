@@ -16,6 +16,7 @@
  */
 
 #include "msm_drv.h"
+#include "msm_kms.h"
 
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
