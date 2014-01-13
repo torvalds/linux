@@ -266,7 +266,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
 	runtime->hw = snd_em28xx_hw_capture;
-	if ((dev->alt == 0 || dev->ifnum) && dev->adev.users == 0) {
+	if ((dev->alt == 0 || dev->is_audio_only) && dev->adev.users == 0) {
 		int nonblock = !!(substream->f_flags & O_NONBLOCK);
 
 		if (nonblock) {
@@ -274,10 +274,21 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 				return -EAGAIN;
 		} else
 			mutex_lock(&dev->lock);
-		if (dev->ifnum)
+		if (dev->is_audio_only)
+			/* vendor audio is on a separate interface */
 			dev->alt = 1;
 		else
+			/* vendor audio is on the same interface as video */
 			dev->alt = 7;
+			/*
+			 * FIXME: The intention seems to be to select the alt
+			 * setting with the largest wMaxPacketSize for the video
+			 * endpoint.
+			 * At least dev->alt should be used instead, but we
+			 * should probably not touch it at all if it is
+			 * already >0, because wMaxPacketSize of the audio
+			 * endpoints seems to be the same for all.
+			 */
 
 		dprintk("changing alternate number on interface %d to %d\n",
 			dev->ifnum, dev->alt);
