@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "omap36xx.dtsi"
+#include "omap36xx-hs.dtsi"
 
 / {
 	cpus {

@@ -1910,6 +1910,8 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	if (ifmgd->flags & IEEE80211_STA_CONNECTION_POLL)
 		already = true;
 
+	ifmgd->flags |= IEEE80211_STA_CONNECTION_POLL;
+
 	mutex_unlock(&sdata->local->mtx);
 
 	if (already)

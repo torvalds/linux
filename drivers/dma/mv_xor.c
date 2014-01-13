@@ -54,12 +54,6 @@ static void mv_desc_init(struct mv_xor_desc_slot *desc, unsigned long flags)
 	hw_desc->desc_command = (1 << 31);
 }
 
-static u32 mv_desc_get_dest_addr(struct mv_xor_desc_slot *desc)
-{
-	struct mv_xor_desc *hw_desc = desc->hw_desc;
-	return hw_desc->phy_dest_addr;
-}
-
 static void mv_desc_set_byte_count(struct mv_xor_desc_slot *desc,
 				   u32 byte_count)
 {
@@ -787,7 +781,6 @@ static void mv_xor_issue_pending(struct dma_chan *chan)
 /*
  * Perform a transaction to verify the HW works.
  */
-#define MV_XOR_TEST_SIZE 2000
 
 static int mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 {
@@ -797,20 +790,21 @@ static int mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	struct dma_chan *dma_chan;
 	dma_cookie_t cookie;
 	struct dma_async_tx_descriptor *tx;
+	struct dmaengine_unmap_data *unmap;
 	int err = 0;
 
-	src = kmalloc(sizeof(u8) * MV_XOR_TEST_SIZE, GFP_KERNEL);
+	src = kmalloc(sizeof(u8) * PAGE_SIZE, GFP_KERNEL);
 	if (!src)
 		return -ENOMEM;
 
-	dest = kzalloc(sizeof(u8) * MV_XOR_TEST_SIZE, GFP_KERNEL);
+	dest = kzalloc(sizeof(u8) * PAGE_SIZE, GFP_KERNEL);
 	if (!dest) {
 		kfree(src);
 		return -ENOMEM;
 	}
 
 	/* Fill in src buffer */
-	for (i = 0; i < MV_XOR_TEST_SIZE; i++)
+	for (i = 0; i < PAGE_SIZE; i++)
 		((u8 *) src)[i] = (u8)i;
 
 	dma_chan = &mv_chan->dmachan;
@@ -819,14 +813,26 @@ static int mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 		goto out;
 	}
 
-	dest_dma = dma_map_single(dma_chan->device->dev, dest,
-				  MV_XOR_TEST_SIZE, DMA_FROM_DEVICE);
+	unmap = dmaengine_get_unmap_data(dma_chan->device->dev, 2, GFP_KERNEL);
+	if (!unmap) {
+		err = -ENOMEM;
+		goto free_resources;
+	}
 
-	src_dma = dma_map_single(dma_chan->device->dev, src,
-				 MV_XOR_TEST_SIZE, DMA_TO_DEVICE);
+	src_dma = dma_map_page(dma_chan->device->dev, virt_to_page(src), 0,
+				 PAGE_SIZE, DMA_TO_DEVICE);
+	unmap->to_cnt = 1;
+	unmap->addr[0] = src_dma;
+
+	dest_dma = dma_map_page(dma_chan->device->dev, virt_to_page(dest), 0,
+				  PAGE_SIZE, DMA_FROM_DEVICE);
+	unmap->from_cnt = 1;
+	unmap->addr[1] = dest_dma;
+
+	unmap->len = PAGE_SIZE;
 
 	tx = mv_xor_prep_dma_memcpy(dma_chan, dest_dma, src_dma,
-				    MV_XOR_TEST_SIZE, 0);
+				    PAGE_SIZE, 0);
 	cookie = mv_xor_tx_submit(tx);
 	mv_xor_issue_pending(dma_chan);
 	async_tx_ack(tx);
@@ -841,8 +847,8 @@ static int mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	}
 
 	dma_sync_single_for_cpu(dma_chan->device->dev, dest_dma,
-				MV_XOR_TEST_SIZE, DMA_FROM_DEVICE);
-	if (memcmp(src, dest, MV_XOR_TEST_SIZE)) {
+				PAGE_SIZE, DMA_FROM_DEVICE);
+	if (memcmp(src, dest, PAGE_SIZE)) {
 		dev_err(dma_chan->device->dev,
 			"Self-test copy failed compare, disabling\n");
 		err = -ENODEV;
@@ -850,6 +856,7 @@ static int mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	}
 
 free_resources:
+	dmaengine_unmap_put(unmap);
 	mv_xor_free_chan_resources(dma_chan);
 out:
 	kfree(src);
@@ -867,13 +874,15 @@ mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 	dma_addr_t dma_srcs[MV_XOR_NUM_SRC_TEST];
 	dma_addr_t dest_dma;
 	struct dma_async_tx_descriptor *tx;
+	struct dmaengine_unmap_data *unmap;
 	struct dma_chan *dma_chan;
 	dma_cookie_t cookie;
 	u8 cmp_byte = 0;
 	u32 cmp_word;
 	int err = 0;
+	int src_count = MV_XOR_NUM_SRC_TEST;
 
-	for (src_idx = 0; src_idx < MV_XOR_NUM_SRC_TEST; src_idx++) {
+	for (src_idx = 0; src_idx < src_count; src_idx++) {
 		xor_srcs[src_idx] = alloc_page(GFP_KERNEL);
 		if (!xor_srcs[src_idx]) {
 			while (src_idx--)
@@ -890,13 +899,13 @@ mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 	}
 
 	/* Fill in src buffers */
-	for (src_idx = 0; src_idx < MV_XOR_NUM_SRC_TEST; src_idx++) {
+	for (src_idx = 0; src_idx < src_count; src_idx++) {
 		u8 *ptr = page_address(xor_srcs[src_idx]);
 		for (i = 0; i < PAGE_SIZE; i++)
 			ptr[i] = (1 << src_idx);
 	}
 
-	for (src_idx = 0; src_idx < MV_XOR_NUM_SRC_TEST; src_idx++)
+	for (src_idx = 0; src_idx < src_count; src_idx++)
 		cmp_byte ^= (u8) (1 << src_idx);
 
 	cmp_word = (cmp_byte << 24) | (cmp_byte << 16) |
@@ -910,16 +919,29 @@ mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 		goto out;
 	}
 
-	/* test xor */
-	dest_dma = dma_map_page(dma_chan->device->dev, dest, 0, PAGE_SIZE,
-				DMA_FROM_DEVICE);
+	unmap = dmaengine_get_unmap_data(dma_chan->device->dev, src_count + 1,
+					 GFP_KERNEL);
+	if (!unmap) {
+		err = -ENOMEM;
+		goto free_resources;
+	}
 
-	for (i = 0; i < MV_XOR_NUM_SRC_TEST; i++)
-		dma_srcs[i] = dma_map_page(dma_chan->device->dev, xor_srcs[i],
-					   0, PAGE_SIZE, DMA_TO_DEVICE);
+	/* test xor */
+	for (i = 0; i < src_count; i++) {
+		unmap->addr[i] = dma_map_page(dma_chan->device->dev, xor_srcs[i],
+					      0, PAGE_SIZE, DMA_TO_DEVICE);
+		dma_srcs[i] = unmap->addr[i];
+		unmap->to_cnt++;
+	}
+
+	unmap->addr[src_count] = dma_map_page(dma_chan->device->dev, dest, 0, PAGE_SIZE,
+				      DMA_FROM_DEVICE);
+	dest_dma = unmap->addr[src_count];
+	unmap->from_cnt = 1;
+	unmap->len = PAGE_SIZE;
 
 	tx = mv_xor_prep_dma_xor(dma_chan, dest_dma, dma_srcs,
-				 MV_XOR_NUM_SRC_TEST, PAGE_SIZE, 0);
+				 src_count, PAGE_SIZE, 0);
 
 	cookie = mv_xor_tx_submit(tx);
 	mv_xor_issue_pending(dma_chan);
@@ -948,9 +970,10 @@ mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 	}
 
 free_resources:
+	dmaengine_unmap_put(unmap);
 	mv_xor_free_chan_resources(dma_chan);
 out:
-	src_idx = MV_XOR_NUM_SRC_TEST;
+	src_idx = src_count;
 	while (src_idx--)
 		__free_page(xor_srcs[src_idx]);
 	__free_page(dest);
@@ -1176,6 +1199,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 		int i = 0;
 
 		for_each_child_of_node(pdev->dev.of_node, np) {
+			struct mv_xor_chan *chan;
 			dma_cap_mask_t cap_mask;
 			int irq;
 
@@ -1193,21 +1217,21 @@ static int mv_xor_probe(struct platform_device *pdev)
 				goto err_channel_add;
 			}
 
-			xordev->channels[i] =
-				mv_xor_channel_add(xordev, pdev, i,
-						   cap_mask, irq);
-			if (IS_ERR(xordev->channels[i])) {
-				ret = PTR_ERR(xordev->channels[i]);
-				xordev->channels[i] = NULL;
+			chan = mv_xor_channel_add(xordev, pdev, i,
+						  cap_mask, irq);
+			if (IS_ERR(chan)) {
+				ret = PTR_ERR(chan);
 				irq_dispose_mapping(irq);
 				goto err_channel_add;
 			}
 
+			xordev->channels[i] = chan;
 			i++;
 		}
 	} else if (pdata && pdata->channels) {
 		for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
 			struct mv_xor_channel_data *cd;
+			struct mv_xor_chan *chan;
 			int irq;
 
 			cd = &pdata->channels[i];
@@ -1222,13 +1246,14 @@ static int mv_xor_probe(struct platform_device *pdev)
 				goto err_channel_add;
 			}
 
-			xordev->channels[i] =
-				mv_xor_channel_add(xordev, pdev, i,
-						   cd->cap_mask, irq);
-			if (IS_ERR(xordev->channels[i])) {
-				ret = PTR_ERR(xordev->channels[i]);
+			chan = mv_xor_channel_add(xordev, pdev, i,
+						  cd->cap_mask, irq);
+			if (IS_ERR(chan)) {
+				ret = PTR_ERR(chan);
 				goto err_channel_add;
 			}
+
+			xordev->channels[i] = chan;
 		}
 	}
 

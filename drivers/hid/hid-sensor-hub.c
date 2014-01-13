@@ -569,6 +569,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 					goto err_free_names;
 			}
 			sd->hid_sensor_hub_client_devs[
+				sd->hid_sensor_client_cnt].id = PLATFORM_DEVID_AUTO;
+			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].name = name;
 			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].platform_data =

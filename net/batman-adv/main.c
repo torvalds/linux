@@ -383,17 +383,17 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	batadv_ogm_packet = (struct batadv_ogm_packet *)skb->data;
 
-	if (batadv_ogm_packet->header.version != BATADV_COMPAT_VERSION) {
+	if (batadv_ogm_packet->version != BATADV_COMPAT_VERSION) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: incompatible batman version (%i)\n",
-			   batadv_ogm_packet->header.version);
+			   batadv_ogm_packet->version);
 		goto err_free;
 	}
 
 	/* all receive handlers return whether they received or reused
 	 * the supplied skb. if not, we have to free the skb.
 	 */
-	idx = batadv_ogm_packet->header.packet_type;
+	idx = batadv_ogm_packet->packet_type;
 	ret = (*batadv_rx_handler[idx])(skb, hard_iface);
 
 	if (ret == NET_RX_DROP)
@@ -426,8 +426,8 @@ static void batadv_recv_handler_init(void)
 	BUILD_BUG_ON(offsetof(struct batadv_unicast_packet, dest) != 4);
 	BUILD_BUG_ON(offsetof(struct batadv_unicast_tvlv_packet, dst) != 4);
 	BUILD_BUG_ON(offsetof(struct batadv_frag_packet, dest) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet, icmph.dst) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet_rr, icmph.dst) != 4);
+	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet, dst) != 4);
+	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet_rr, dst) != 4);
 
 	/* broadcast packet */
 	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
@@ -1119,9 +1119,9 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
 	skb_reserve(skb, ETH_HLEN);
 	tvlv_buff = skb_put(skb, sizeof(*unicast_tvlv_packet) + tvlv_len);
 	unicast_tvlv_packet = (struct batadv_unicast_tvlv_packet *)tvlv_buff;
-	unicast_tvlv_packet->header.packet_type = BATADV_UNICAST_TVLV;
-	unicast_tvlv_packet->header.version = BATADV_COMPAT_VERSION;
-	unicast_tvlv_packet->header.ttl = BATADV_TTL;
+	unicast_tvlv_packet->packet_type = BATADV_UNICAST_TVLV;
+	unicast_tvlv_packet->version = BATADV_COMPAT_VERSION;
+	unicast_tvlv_packet->ttl = BATADV_TTL;
 	unicast_tvlv_packet->reserved = 0;
 	unicast_tvlv_packet->tvlv_len = htons(tvlv_len);
 	unicast_tvlv_packet->align = 0;

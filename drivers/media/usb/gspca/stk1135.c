@@ -361,6 +361,9 @@ static void stk1135_configure_clock(struct gspca_dev *gspca_dev)
 
 	/* set serial interface clock divider (30MHz/0x1f*16+2) = 60240 kHz) */
 	reg_w(gspca_dev, STK1135_REG_SICTL + 2, 0x1f);
+
+	/* wait a while for sensor to catch up */
+	udelay(1000);
 }
 
 static void stk1135_camera_disable(struct gspca_dev *gspca_dev)
