@@ -1896,6 +1896,8 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 
 	em28xx_info("Closing video extension");
 
+	mutex_lock(&dev->lock);
+
 	v4l2_device_disconnect(&dev->v4l2_dev);
 
 	em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
@@ -1926,6 +1928,7 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 
 	if (dev->users)
 		em28xx_warn("Device is open ! Memory deallocation is deferred on last close.\n");
+	mutex_unlock(&dev->lock);
 
 	return 0;
 }

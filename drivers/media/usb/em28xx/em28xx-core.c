@@ -1099,12 +1099,10 @@ void em28xx_close_extension(struct em28xx *dev)
 	const struct em28xx_ops *ops = NULL;
 
 	mutex_lock(&em28xx_devlist_mutex);
-	mutex_lock(&dev->lock);
 	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
 		if (ops->fini)
 			ops->fini(dev);
 	}
-	mutex_unlock(&dev->lock);
 	list_del(&dev->devlist);
 	mutex_unlock(&em28xx_devlist_mutex);
 }
