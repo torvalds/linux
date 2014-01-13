@@ -1039,6 +1039,61 @@ static void block_mark_swapping(struct gpmi_nand_data *this,
 	p[1] = (p[1] & mask) | (from_oob >> (8 - bit));
 }
 
+static bool gpmi_erased_check(struct gpmi_nand_data *this,
+			unsigned char *data, unsigned int chunk, int page,
+			unsigned int *max_bitflips)
+{
+	struct nand_chip *chip = &this->nand;
+	struct mtd_info	*mtd = &this->mtd;
+	struct bch_geometry *geo = &this->bch_geometry;
+	int base = geo->ecc_chunkn_size * chunk;
+	unsigned int flip_bits = 0, flip_bits_noecc = 0;
+	uint64_t *buf = (uint64_t *)this->data_buffer_dma;
+	unsigned int threshold;
+	int i;
+
+	threshold = geo->gf_len / 2;
+	if (threshold > geo->ecc_strength)
+		threshold = geo->ecc_strength;
+
+	/* Count bitflips */
+	for (i = 0; i < geo->ecc_chunkn_size; i++) {
+		flip_bits += hweight8(~data[base + i]);
+		if (flip_bits > threshold)
+			return false;
+	}
+
+	/*
+	 * Read out the whole page with ECC disabled, and check it again,
+	 * This is more strict then just read out a chunk, and it makes
+	 * the code more simple.
+	 */
+	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
+	chip->read_buf(mtd, (uint8_t *)buf, mtd->writesize);
+
+	/* Count the bitflips for the no ECC buffer */
+	for (i = 0; i < mtd->writesize / 8; i++) {
+		flip_bits_noecc += hweight64(~buf[i]);
+		if (flip_bits_noecc > threshold)
+			return false;
+	}
+
+	/* Tell the upper layer the bitflips we corrected. */
+	mtd->ecc_stats.corrected += flip_bits;
+	*max_bitflips = max_t(unsigned int, *max_bitflips, flip_bits);
+
+	/*
+	 * The geo->payload_size maybe not equal to the page size
+	 * when the Subpage-Read is enabled.
+	 */
+	memset(data, 0xff, geo->payload_size);
+
+	dev_dbg(this->dev, "The page(%d) is an erased page(%d,%d,%d,%d).\n",
+		page, chunk, threshold, flip_bits, flip_bits_noecc);
+
+	return true;
+}
+
 static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 				uint8_t *buf, int oob_required, int page)
 {
@@ -1098,6 +1153,9 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		}
 
 		if (*status == STATUS_UNCORRECTABLE) {
+			if (gpmi_erased_check(this, payload_virt, i,
+						page, &max_bitflips))
+				break;
 			mtd->ecc_stats.failed++;
 			continue;
 		}
