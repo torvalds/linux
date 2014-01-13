@@ -694,17 +694,9 @@ struct file *__fget_light(unsigned int fd, fmode_t mask, int *fput_needed)
 		if (file && (file->f_mode & mask))
 			file = NULL;
 	} else {
-		rcu_read_lock();
-		file = fcheck_files(files, fd);
-		if (file) {
-			if (!(file->f_mode & mask) &&
-			    atomic_long_inc_not_zero(&file->f_count))
-				*fput_needed = 1;
-			else
-				/* Didn't get the reference, someone's freed */
-				file = NULL;
-		}
-		rcu_read_unlock();
+		file = __fget(fd, mask);
+		if (file)
+			*fput_needed = 1;
 	}
 
 	return file;
