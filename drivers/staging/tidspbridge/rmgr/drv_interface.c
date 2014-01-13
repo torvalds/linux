@@ -589,7 +589,7 @@ func_cont:
 		class_destroy(bridge_class);
 
 	}
-	return 0;
+	return status;
 }
 
 #ifdef CONFIG_PM
