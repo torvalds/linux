@@ -162,7 +162,9 @@ DEFINE_MUTEX(ffs_lock);
 EXPORT_SYMBOL(ffs_lock);
 
 static struct ffs_dev *ffs_find_dev(const char *name);
+static struct ffs_dev *ffs_alloc_dev(void);
 static int _ffs_name_dev(struct ffs_dev *dev, const char *name);
+static void ffs_free_dev(struct ffs_dev *dev);
 static void *ffs_acquire_dev(const char *dev_name);
 static void ffs_release_dev(struct ffs_data *ffs_data);
 static int ffs_ready(struct ffs_data *ffs);
@@ -2473,7 +2475,7 @@ static struct usb_function *ffs_alloc(struct usb_function_instance *fi)
 /*
  * ffs_lock must be taken by the caller of this function
  */
-struct ffs_dev *ffs_alloc_dev(void)
+static struct ffs_dev *ffs_alloc_dev(void)
 {
 	struct ffs_dev *dev;
 	int ret;
@@ -2550,7 +2552,7 @@ EXPORT_SYMBOL(ffs_single_dev);
 /*
  * ffs_lock must be taken by the caller of this function
  */
-void ffs_free_dev(struct ffs_dev *dev)
+static void ffs_free_dev(struct ffs_dev *dev)
 {
 	list_del(&dev->entry);
 	if (dev->name_allocated)

@@ -65,10 +65,8 @@ static inline void ffs_dev_unlock(void)
 	mutex_unlock(&ffs_lock);
 }
 
-struct ffs_dev *ffs_alloc_dev(void);
 int ffs_name_dev(struct ffs_dev *dev, const char *name);
 int ffs_single_dev(struct ffs_dev *dev);
-void ffs_free_dev(struct ffs_dev *dev);
 
 struct ffs_epfile;
 struct ffs_function;
