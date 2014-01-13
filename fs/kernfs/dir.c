@@ -121,17 +121,13 @@ static int kernfs_link_sibling(struct kernfs_node *kn)
  *	Locking:
  *	mutex_lock(kernfs_mutex)
  */
-static bool kernfs_unlink_sibling(struct kernfs_node *kn)
+static void kernfs_unlink_sibling(struct kernfs_node *kn)
 {
-	if (RB_EMPTY_NODE(&kn->rb))
-		return false;
-
 	if (kernfs_type(kn) == KERNFS_DIR)
 		kn->parent->dir.subdirs--;
 
 	rb_erase(&kn->rb, &kn->parent->dir.children);
 	RB_CLEAR_NODE(&kn->rb);
-	return true;
 }
 
 /**
@@ -500,6 +496,7 @@ void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt)
 
 		acxt->removed = kn->u.removed_list;
 
+		kernfs_unmap_bin_file(kn);
 		kernfs_put(kn);
 	}
 }
@@ -857,44 +854,23 @@ static void __kernfs_remove(struct kernfs_addrm_cxt *acxt,
 
 	/* unlink the subtree node-by-node */
 	do {
+		struct kernfs_iattrs *ps_iattr;
+
 		pos = kernfs_leftmost_descendant(kn);
 
-		/*
-		 * We're gonna release kernfs_mutex to unmap bin files,
-		 * Make sure @pos doesn't go away inbetween.
-		 */
-		kernfs_get(pos);
-
-		/*
-		 * This must be come before unlinking; otherwise, when
-		 * there are multiple removers, some may finish before
-		 * unmapping is complete.
-		 */
-		if (pos->flags & KERNFS_HAS_MMAP) {
-			mutex_unlock(&kernfs_mutex);
-			kernfs_unmap_file(pos);
-			mutex_lock(&kernfs_mutex);
-		}
-
-		/*
-		 * kernfs_unlink_sibling() succeeds once per node.  Use it
-		 * to decide who's responsible for cleanups.
-		 */
-		if (!pos->parent || kernfs_unlink_sibling(pos)) {
-			struct kernfs_iattrs *ps_iattr =
-				pos->parent ? pos->parent->iattr : NULL;
+		if (pos->parent) {
+			kernfs_unlink_sibling(pos);
 
 			/* update timestamps on the parent */
+			ps_iattr = pos->parent->iattr;
 			if (ps_iattr) {
 				ps_iattr->ia_iattr.ia_ctime = CURRENT_TIME;
 				ps_iattr->ia_iattr.ia_mtime = CURRENT_TIME;
 			}
-
-			pos->u.removed_list = acxt->removed;
-			acxt->removed = pos;
 		}
 
-		kernfs_put(pos);
+		pos->u.removed_list = acxt->removed;
+		acxt->removed = pos;
 	} while (pos != kn);
 }
 

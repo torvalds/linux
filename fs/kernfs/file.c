@@ -700,10 +700,13 @@ static int kernfs_fop_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-void kernfs_unmap_file(struct kernfs_node *kn)
+void kernfs_unmap_bin_file(struct kernfs_node *kn)
 {
 	struct kernfs_open_node *on;
 	struct kernfs_open_file *of;
+
+	if (!(kn->flags & KERNFS_HAS_MMAP))
+		return;
 
 	spin_lock_irq(&kernfs_open_node_lock);
 	on = kn->attr.open;
