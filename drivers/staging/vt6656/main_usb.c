@@ -219,7 +219,7 @@ static bool device_init_defrag_cb(struct vnt_private *pDevice);
 static void device_init_diversity_timer(struct vnt_private *pDevice);
 static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
 
-static int  ethtool_ioctl(struct net_device *dev, void *useraddr);
+static int  ethtool_ioctl(struct net_device *dev, struct ifreq *);
 static void device_free_tx_bufs(struct vnt_private *pDevice);
 static void device_free_rx_bufs(struct vnt_private *pDevice);
 static void device_free_int_bufs(struct vnt_private *pDevice);
@@ -1439,18 +1439,18 @@ static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 
 	case SIOCETHTOOL:
-		return ethtool_ioctl(dev, (void *) rq->ifr_data);
+		return ethtool_ioctl(dev, rq);
 
 	}
 
 	return rc;
 }
 
-static int ethtool_ioctl(struct net_device *dev, void *useraddr)
+static int ethtool_ioctl(struct net_device *dev, struct ifreq *rq)
 {
 	u32 ethcmd;
 
-	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
+	if (copy_from_user(&ethcmd, rq->ifr_data, sizeof(ethcmd)))
 		return -EFAULT;
 
         switch (ethcmd) {
@@ -1458,7 +1458,7 @@ static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 		struct ethtool_drvinfo info = {ETHTOOL_GDRVINFO};
 		strncpy(info.driver, DEVICE_NAME, sizeof(info.driver)-1);
 		strncpy(info.version, DEVICE_VERSION, sizeof(info.version)-1);
-		if (copy_to_user(useraddr, &info, sizeof(info)))
+		if (copy_to_user(rq->ifr_data, &info, sizeof(info)))
 			return -EFAULT;
 		return 0;
 	}
