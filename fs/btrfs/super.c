@@ -327,7 +327,7 @@ enum {
 	Opt_check_integrity_print_mask, Opt_fatal_errors, Opt_rescan_uuid_tree,
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
 	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl, Opt_datacow,
-	Opt_datasum, Opt_treelog,
+	Opt_datasum, Opt_treelog, Opt_noinode_cache,
 	Opt_err,
 };
 
@@ -370,6 +370,7 @@ static match_table_t tokens = {
 	{Opt_defrag, "autodefrag"},
 	{Opt_nodefrag, "noautodefrag"},
 	{Opt_inode_cache, "inode_cache"},
+	{Opt_noinode_cache, "noinode_cache"},
 	{Opt_no_space_cache, "nospace_cache"},
 	{Opt_recovery, "recovery"},
 	{Opt_skip_balance, "skip_balance"},
@@ -627,7 +628,12 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_inode_cache:
 			btrfs_info(root->fs_info, "enabling inode map caching");
-			btrfs_set_opt(info->mount_opt, INODE_MAP_CACHE);
+			btrfs_set_opt(info->mount_opt, CHANGE_INODE_CACHE);
+			break;
+		case Opt_noinode_cache:
+			if (btrfs_test_opt(root, CHANGE_INODE_CACHE))
+				btrfs_info(root->fs_info, "disabling inode map caching");
+			btrfs_clear_opt(info->mount_opt, CHANGE_INODE_CACHE);
 			break;
 		case Opt_clear_cache:
 			btrfs_info(root->fs_info, "force clearing of disk cache");
