@@ -73,6 +73,9 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	if (fields > 4) {
 		const struct usb_device_id *id = id_table;
 
+		if (!id)
+			return -ENODEV;
+
 		for (; id->match_flags; id++)
 			if (id->idVendor == refVendor && id->idProduct == refProduct)
 				break;
