@@ -71,7 +71,13 @@
 #define MAC_INDEX_MIN_DRIVER	0
 #define NUM_MAC_INDEX_DRIVER	MAC_INDEX_AUX
 
-#define AC_NUM	4 /* Number of access categories */
+enum iwl_ac {
+	AC_BK,
+	AC_BE,
+	AC_VI,
+	AC_VO,
+	AC_NUM,
+};
 
 /**
  * enum iwl_mac_protection_flags - MAC context flags

@@ -76,7 +76,7 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 	struct ttm_mem_reg *mem = &priv->bo->bo.mem;
 	struct nouveau_object *object;
 	u32 start = mem->start * PAGE_SIZE;
-	u32 limit = mem->start + mem->size - 1;
+	u32 limit = start + mem->size - 1;
 	int ret = 0;
 
 	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);

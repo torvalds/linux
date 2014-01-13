@@ -562,6 +562,14 @@ static inline unsigned int get_wcaps_channels(u32 wcaps)
 	return chans;
 }
 
+static inline void snd_hda_override_wcaps(struct hda_codec *codec,
+					  hda_nid_t nid, u32 val)
+{
+	if (nid >= codec->start_nid &&
+	    nid < codec->start_nid + codec->num_nodes)
+		codec->wcaps[nid - codec->start_nid] = val;
+}
+
 u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
@@ -667,7 +675,7 @@ snd_hda_check_power_state(struct hda_codec *codec, hda_nid_t nid,
 	if (state & AC_PWRST_ERROR)
 		return true;
 	state = (state >> 4) & 0x0f;
-	return (state != target_state);
+	return (state == target_state);
 }
 
 unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,

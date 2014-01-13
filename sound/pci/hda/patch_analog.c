@@ -1197,8 +1197,12 @@ static int alloc_ad_spec(struct hda_codec *codec)
 static void ad_fixup_inv_jack_detect(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
 {
-	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+	struct ad198x_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		codec->inv_jack_detect = 1;
+		spec->gen.keep_eapd_on = 1;
+	}
 }
 
 enum {
@@ -1223,6 +1227,14 @@ static int ad1986a_parse_auto_config(struct hda_codec *codec)
 {
 	int err;
 	struct ad198x_spec *spec;
+	static hda_nid_t preferred_pairs[] = {
+		0x1a, 0x03,
+		0x1b, 0x03,
+		0x1c, 0x04,
+		0x1d, 0x05,
+		0x1e, 0x03,
+		0
+	};
 
 	err = alloc_ad_spec(codec);
 	if (err < 0)
@@ -1243,6 +1255,8 @@ static int ad1986a_parse_auto_config(struct hda_codec *codec)
 	 * So, let's disable the shared stream.
 	 */
 	spec->gen.multiout.no_share_stream = 1;
+	/* give fixed DAC/pin pairs */
+	spec->gen.preferred_dacs = preferred_pairs;
 
 	snd_hda_pick_fixup(codec, NULL, ad1986a_fixup_tbl, ad1986a_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -2112,6 +2126,9 @@ static void ad_vmaster_eapd_hook(void *private_data, int enabled)
 {
 	struct hda_codec *codec = private_data;
 	struct ad198x_spec *spec = codec->spec;
+
+	if (!spec->eapd_nid)
+		return;
 	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
 				   AC_VERB_SET_EAPD_BTLENABLE,
 				   enabled ? 0x02 : 0x00);
@@ -3601,13 +3618,16 @@ static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
 {
 	struct ad198x_spec *spec = codec->spec;
 
-	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		break;
+	case HDA_FIXUP_ACT_PROBE:
 		if (spec->gen.autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
 			spec->eapd_nid = spec->gen.autocfg.line_out_pins[0];
 		else
 			spec->eapd_nid = spec->gen.autocfg.speaker_pins[0];
-		if (spec->eapd_nid)
-			spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		break;
 	}
 }
 
