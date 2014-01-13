@@ -2750,12 +2750,10 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	hsotg->hptxfsiz = readl(hsotg->regs + HPTXFSIZ);
 	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hsotg->hptxfsiz);
 	/* TEMP workaround - leave Module in HOST mode*/
-	/*
 	gusbcfg = readl(hsotg->regs + GUSBCFG);
 	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
 	writel(gusbcfg, hsotg->regs + GUSBCFG);
 	usleep_range(100000, 150000);
-	*/
 
 	hcfg = readl(hsotg->regs + HCFG);
 	dev_dbg(hsotg->dev, "hcfg=%08x\n", hcfg);
