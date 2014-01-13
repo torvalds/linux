@@ -137,9 +137,11 @@ nve0_fifo_context_attach(struct nouveau_object *parent,
 
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW   :
+		return 0;
 	case NVDEV_ENGINE_COPY0:
 	case NVDEV_ENGINE_COPY1:
 	case NVDEV_ENGINE_COPY2:
+		nv_engctx(ectx)->addr = nv_gpuobj(base)->addr >> 12;
 		return 0;
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
