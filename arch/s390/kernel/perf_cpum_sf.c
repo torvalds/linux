@@ -1512,8 +1512,8 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 	}
 }
 
-static int __cpuinit cpumf_pmu_notifier(struct notifier_block *self,
-					unsigned long action, void *hcpu)
+static int cpumf_pmu_notifier(struct notifier_block *self,
+			      unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long) hcpu;
 	int flags;
