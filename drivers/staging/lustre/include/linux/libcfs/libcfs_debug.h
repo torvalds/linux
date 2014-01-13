@@ -180,23 +180,23 @@ struct libcfs_debug_msg_data {
 	struct cfs_debug_limit_state  *msg_cdls;
 };
 
-#define LIBCFS_DEBUG_MSG_DATA_INIT(data, mask, cdls)	\
-do {							\
-	(data)->msg_subsys = DEBUG_SUBSYSTEM;	       \
-	(data)->msg_file   = __FILE__;		      \
-	(data)->msg_fn     = __FUNCTION__;		  \
-	(data)->msg_line   = __LINE__;		      \
-	(data)->msg_cdls   = (cdls);			\
-	(data)->msg_mask   = (mask);			\
+#define LIBCFS_DEBUG_MSG_DATA_INIT(data, mask, cdls)		\
+do {								\
+	(data)->msg_subsys = DEBUG_SUBSYSTEM;			\
+	(data)->msg_file   = __FILE__;				\
+	(data)->msg_fn     = __FUNCTION__;			\
+	(data)->msg_line   = __LINE__;				\
+	(data)->msg_cdls   = (cdls);				\
+	(data)->msg_mask   = (mask);				\
 } while (0)
 
-#define LIBCFS_DEBUG_MSG_DATA_DECL(dataname, mask, cdls)    \
-	static struct libcfs_debug_msg_data dataname = {    \
-	       .msg_subsys = DEBUG_SUBSYSTEM,	       \
-	       .msg_file   = __FILE__,		      \
-	       .msg_fn     = __FUNCTION__,		  \
-	       .msg_line   = __LINE__,		      \
-	       .msg_cdls   = (cdls)	 };	      \
+#define LIBCFS_DEBUG_MSG_DATA_DECL(dataname, mask, cdls)	\
+	static struct libcfs_debug_msg_data dataname = {	\
+	       .msg_subsys = DEBUG_SUBSYSTEM,			\
+	       .msg_file   = __FILE__,				\
+	       .msg_fn     = __FUNCTION__,			\
+	       .msg_line   = __LINE__,				\
+	       .msg_cdls   = (cdls)	 };			\
 	dataname.msg_mask   = (mask);
 
 
@@ -210,25 +210,25 @@ static inline int cfs_cdebug_show(unsigned int mask, unsigned int subsystem)
 		((libcfs_debug & mask) && (libcfs_subsystem_debug & subsystem));
 }
 
-#define __CDEBUG(cdls, mask, format, ...)			       \
-do {								    \
-	static struct libcfs_debug_msg_data msgdata;		    \
+#define __CDEBUG(cdls, mask, format, ...)				\
+do {									\
+	static struct libcfs_debug_msg_data msgdata;			\
 									\
-	CFS_CHECK_STACK(&msgdata, mask, cdls);			  \
+	CFS_CHECK_STACK(&msgdata, mask, cdls);				\
 									\
-	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		   \
-		LIBCFS_DEBUG_MSG_DATA_INIT(&msgdata, mask, cdls);       \
-		libcfs_debug_msg(&msgdata, format, ## __VA_ARGS__);     \
-	}							       \
+	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {			\
+		LIBCFS_DEBUG_MSG_DATA_INIT(&msgdata, mask, cdls);	\
+		libcfs_debug_msg(&msgdata, format, ## __VA_ARGS__);	\
+	}								\
 } while (0)
 
 #define CDEBUG(mask, format, ...) __CDEBUG(NULL, mask, format, ## __VA_ARGS__)
 
-#define CDEBUG_LIMIT(mask, format, ...)	 \
-do {					    \
-	static struct cfs_debug_limit_state cdls;    \
-						\
-	__CDEBUG(&cdls, mask, format, ## __VA_ARGS__);\
+#define CDEBUG_LIMIT(mask, format, ...)					\
+do {									\
+	static struct cfs_debug_limit_state cdls;			\
+									\
+	__CDEBUG(&cdls, mask, format, ## __VA_ARGS__);			\
 } while (0)
 
 
@@ -250,15 +250,15 @@ do {					    \
 
 
 void libcfs_log_goto(struct libcfs_debug_msg_data *, const char *, long_ptr_t);
-#define GOTO(label, rc)						 \
-do {								    \
+#define GOTO(label, rc)							\
+do {									\
 	if (cfs_cdebug_show(D_TRACE, DEBUG_SUBSYSTEM)) {		\
-		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_TRACE, NULL);     \
-		libcfs_log_goto(&msgdata, #label, (long_ptr_t)(rc));    \
+		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_TRACE, NULL);	\
+		libcfs_log_goto(&msgdata, #label, (long_ptr_t)(rc));	\
 	} else {							\
-		(void)(rc);					     \
-	}							       \
-	goto label;						     \
+		(void)(rc);						\
+	}								\
+	goto label;							\
 } while (0)
 
 
