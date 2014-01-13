@@ -1,6 +1,8 @@
 #ifndef __MACH_ROCKCHIP_IOMAP_H
 #define __MACH_ROCKCHIP_IOMAP_H
 
+#include <asm/io.h>
+
 #define RK_IO_ADDRESS(x)        IOMEM(0xFED00000 + x)
 
 #define RK_CRU_VIRT             RK_IO_ADDRESS(0x00000000)
@@ -38,5 +40,13 @@
 #define RK3188_DDR_PCTL_SIZE    SZ_16K
 #define RK3188_DDR_PUBL_PHYS    0x20040000
 #define RK3188_DDR_PUBL_SIZE    SZ_16K
+#define RK3188_UART0_PHYS       0x10124000
+#define RK3188_UART0_SIZE       SZ_4K
+#define RK3188_UART1_PHYS       0x10126000
+#define RK3188_UART1_SIZE       SZ_4K
+#define RK3188_UART2_PHYS       0x20064000
+#define RK3188_UART2_SIZE       SZ_4K
+#define RK3188_UART3_PHYS       0x20068000
+#define RK3188_UART3_SIZE       SZ_4K
 
 #endif

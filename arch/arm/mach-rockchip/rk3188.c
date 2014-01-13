@@ -81,6 +81,12 @@ static struct map_desc rk3188_io_desc[] __initdata = {
 		.length		= RK3188_GPIO_SIZE,
 		.type		= MT_DEVICE,
 	},
+	{
+		.virtual	= (unsigned long) RK_DEBUG_UART_VIRT,
+		.pfn		= __phys_to_pfn(RK3188_UART2_PHYS),
+		.length		= RK3188_UART2_SIZE,
+		.type		= MT_DEVICE,
+	},
 };
 
 static void __init rk3188_dt_map_io(void)
