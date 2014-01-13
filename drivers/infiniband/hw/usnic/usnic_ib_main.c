@@ -169,7 +169,7 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 			ib_event.element.port_num = 1;
 			ib_dispatch_event(&ib_event);
 		} else {
-			usnic_dbg("Ignorning %s on %s\n",
+			usnic_dbg("Ignoring %s on %s\n",
 					usnic_ib_netdev_event_to_string(event),
 					us_ibdev->ib_dev.name);
 		}
@@ -177,7 +177,7 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 	case NETDEV_CHANGEADDR:
 		if (!memcmp(us_ibdev->ufdev->mac, netdev->dev_addr,
 				sizeof(us_ibdev->ufdev->mac))) {
-			usnic_dbg("Ignorning addr change on %s\n",
+			usnic_dbg("Ignoring addr change on %s\n",
 					us_ibdev->ib_dev.name);
 		} else {
 			usnic_info(" %s old mac: %pM new mac: %pM\n",
@@ -206,7 +206,7 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 		}
 		break;
 	default:
-		usnic_dbg("Ignorning event %s on %s",
+		usnic_dbg("Ignoring event %s on %s",
 				usnic_ib_netdev_event_to_string(event),
 				us_ibdev->ib_dev.name);
 	}
@@ -268,7 +268,7 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 		ib_dispatch_event(&ib_event);
 		break;
 	default:
-		usnic_info("Ignorning event %s on %s",
+		usnic_info("Ignoring event %s on %s",
 				usnic_ib_netdev_event_to_string(event),
 				us_ibdev->ib_dev.name);
 	}
