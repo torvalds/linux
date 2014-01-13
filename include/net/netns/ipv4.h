@@ -70,6 +70,7 @@ struct netns_ipv4 {
 
 	int sysctl_tcp_ecn;
 	int sysctl_ip_no_pmtu_disc;
+	int sysctl_ip_fwd_use_pmtu;
 
 	kgid_t sysctl_ping_group_range[2];
 

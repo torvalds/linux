@@ -989,6 +989,7 @@ static const struct net_protocol dccp_v4_protocol = {
 	.err_handler	= dccp_v4_err,
 	.no_policy	= 1,
 	.netns_ok	= 1,
+	.icmp_strict_tag_validation = 1,
 };
 
 static const struct proto_ops inet_dccp_ops = {

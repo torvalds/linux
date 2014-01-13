@@ -26,11 +26,35 @@ ip_no_pmtu_disc - INTEGER
 	discarded. Outgoing frames are handled the same as in mode 1,
 	implicitly setting IP_PMTUDISC_DONT on every created socket.
 
-	Possible values: 0-2
+	Mode 3 is a hardend pmtu discover mode. The kernel will only
+	accept fragmentation-needed errors if the underlying protocol
+	can verify them besides a plain socket lookup. Current
+	protocols for which pmtu events will be honored are TCP, SCTP
+	and DCCP as they verify e.g. the sequence number or the
+	association. This mode should not be enabled globally but is
+	only intended to secure e.g. name servers in namespaces where
+	TCP path mtu must still work but path MTU information of other
+	protocols should be discarded. If enabled globally this mode
+	could break other protocols.
+
+	Possible values: 0-3
 	Default: FALSE
 
 min_pmtu - INTEGER
 	default 552 - minimum discovered Path MTU
+
+ip_forward_use_pmtu - BOOLEAN
+	By default we don't trust protocol path MTUs while forwarding
+	because they could be easily forged and can lead to unwanted
+	fragmentation by the router.
+	You only need to enable this if you have user-space software
+	which tries to discover path mtus by itself and depends on the
+	kernel honoring this information. This is normally not the
+	case.
+	Default: 0 (disabled)
+	Possible values:
+	0 - disabled
+	1 - enabled
 
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
