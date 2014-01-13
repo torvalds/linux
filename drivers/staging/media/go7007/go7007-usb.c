@@ -1057,7 +1057,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	char *name;
 	int video_pipe, i, v_urb_len;
 
-	dev_dbg(go->dev, "probing new GO7007 USB board\n");
+	printk(KERN_DEBUG "go7007-usb: probing new board\n");
 
 	switch (id->driver_info) {
 	case GO7007_BOARDID_MATRIX_II:
@@ -1097,13 +1097,16 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_px_tv402u;
 		break;
 	case GO7007_BOARDID_LIFEVIEW_LR192:
-		dev_err(go->dev, "The Lifeview TV Walker Ultra is not supported. Sorry!\n");
+		printk(KERN_ERR
+		       "The Lifeview TV Walker Ultra is not supported. Sorry!\n");
 		return -ENODEV;
+#if 0
 		name = "Lifeview TV Walker Ultra";
 		board = &board_lifeview_lr192;
 		break;
+#endif
 	case GO7007_BOARDID_SENSORAY_2250:
-		dev_info(go->dev, "Sensoray 2250 found\n");
+		printk(KERN_INFO "Sensoray 2250 found\n");
 		name = "Sensoray 2250/2251";
 		board = &board_sensoray_2250;
 		break;
@@ -1112,8 +1115,9 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_ads_usbav_709;
 		break;
 	default:
-		dev_err(go->dev, "unknown board ID %d!\n",
-				(unsigned int)id->driver_info);
+		printk(KERN_ERR
+		       "unknown board ID %d!\n",
+		       (unsigned int)id->driver_info);
 		return -ENODEV;
 	}
 
