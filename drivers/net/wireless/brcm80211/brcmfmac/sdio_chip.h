@@ -66,7 +66,6 @@ struct chip_core_info {
 struct chip_info {
 	u32 chip;
 	u32 chiprev;
-	u32 socitype;
 	/* core info */
 	/* always put chipcommon core at 0, bus core at 1 */
 	struct chip_core_info c_inf[BRCMF_MAX_CORENUM];
