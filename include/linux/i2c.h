@@ -445,7 +445,7 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 static inline struct i2c_adapter *
 i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 {
-#if IS_ENABLED(I2C_MUX)
+#if IS_ENABLED(CONFIG_I2C_MUX)
 	struct device *parent = adapter->dev.parent;
 
 	if (parent != NULL && parent->type == &i2c_adapter_type)
