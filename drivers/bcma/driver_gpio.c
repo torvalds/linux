@@ -117,13 +117,13 @@ static irqreturn_t bcma_gpio_irq_handler(int irq, void *dev_id)
 	u32 val = bcma_cc_read32(cc, BCMA_CC_GPIOIN);
 	u32 mask = bcma_cc_read32(cc, BCMA_CC_GPIOIRQ);
 	u32 pol = bcma_cc_read32(cc, BCMA_CC_GPIOPOL);
-	u32 irqs = (val ^ pol) & mask;
+	unsigned long irqs = (val ^ pol) & mask;
 	int gpio;
 
 	if (!irqs)
 		return IRQ_NONE;
 
-	for_each_set_bit(gpio, (unsigned long *)&irqs, cc->gpio.ngpio)
+	for_each_set_bit(gpio, &irqs, cc->gpio.ngpio)
 		generic_handle_irq(bcma_gpio_to_irq(&cc->gpio, gpio));
 	bcma_chipco_gpio_polarity(cc, irqs, val & irqs);
 
