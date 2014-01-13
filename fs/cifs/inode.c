@@ -383,7 +383,8 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 	/* check for Minshall+French symlinks */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) {
-		int tmprc = CIFSCheckMFSymlink(&fattr, full_path, cifs_sb, xid);
+		int tmprc = CIFSCheckMFSymlink(xid, tcon, cifs_sb, &fattr,
+					       full_path);
 		if (tmprc)
 			cifs_dbg(FYI, "CIFSCheckMFSymlink: %d\n", tmprc);
 	}
@@ -799,7 +800,8 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 
 	/* check for Minshall+French symlinks */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) {
-		tmprc = CIFSCheckMFSymlink(&fattr, full_path, cifs_sb, xid);
+		tmprc = CIFSCheckMFSymlink(xid, tcon, cifs_sb, &fattr,
+					   full_path);
 		if (tmprc)
 			cifs_dbg(FYI, "CIFSCheckMFSymlink: %d\n", tmprc);
 	}

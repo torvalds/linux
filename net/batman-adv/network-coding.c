@@ -722,7 +722,7 @@ static bool batadv_can_nc_with_orig(struct batadv_priv *bat_priv,
 {
 	if (orig_node->last_real_seqno != ntohl(ogm_packet->seqno))
 		return false;
-	if (orig_node->last_ttl != ogm_packet->header.ttl + 1)
+	if (orig_node->last_ttl != ogm_packet->ttl + 1)
 		return false;
 	if (!batadv_compare_eth(ogm_packet->orig, ogm_packet->prev_sender))
 		return false;
@@ -1082,9 +1082,9 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	coded_packet = (struct batadv_coded_packet *)skb_dest->data;
 	skb_reset_mac_header(skb_dest);
 
-	coded_packet->header.packet_type = BATADV_CODED;
-	coded_packet->header.version = BATADV_COMPAT_VERSION;
-	coded_packet->header.ttl = packet1->header.ttl;
+	coded_packet->packet_type = BATADV_CODED;
+	coded_packet->version = BATADV_COMPAT_VERSION;
+	coded_packet->ttl = packet1->ttl;
 
 	/* Info about first unicast packet */
 	memcpy(coded_packet->first_source, first_source, ETH_ALEN);
@@ -1097,7 +1097,7 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	memcpy(coded_packet->second_source, second_source, ETH_ALEN);
 	memcpy(coded_packet->second_orig_dest, packet2->dest, ETH_ALEN);
 	coded_packet->second_crc = packet_id2;
-	coded_packet->second_ttl = packet2->header.ttl;
+	coded_packet->second_ttl = packet2->ttl;
 	coded_packet->second_ttvn = packet2->ttvn;
 	coded_packet->coded_len = htons(coding_len);
 
@@ -1452,7 +1452,7 @@ bool batadv_nc_skb_forward(struct sk_buff *skb,
 	/* We only handle unicast packets */
 	payload = skb_network_header(skb);
 	packet = (struct batadv_unicast_packet *)payload;
-	if (packet->header.packet_type != BATADV_UNICAST)
+	if (packet->packet_type != BATADV_UNICAST)
 		goto out;
 
 	/* Try to find a coding opportunity and send the skb if one is found */
@@ -1505,7 +1505,7 @@ void batadv_nc_skb_store_for_decoding(struct batadv_priv *bat_priv,
 	/* Check for supported packet type */
 	payload = skb_network_header(skb);
 	packet = (struct batadv_unicast_packet *)payload;
-	if (packet->header.packet_type != BATADV_UNICAST)
+	if (packet->packet_type != BATADV_UNICAST)
 		goto out;
 
 	/* Find existing nc_path or create a new */
@@ -1623,7 +1623,7 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		ttvn = coded_packet_tmp.second_ttvn;
 	} else {
 		orig_dest = coded_packet_tmp.first_orig_dest;
-		ttl = coded_packet_tmp.header.ttl;
+		ttl = coded_packet_tmp.ttl;
 		ttvn = coded_packet_tmp.first_ttvn;
 	}
 
@@ -1648,9 +1648,9 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	/* Create decoded unicast packet */
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
-	unicast_packet->header.packet_type = BATADV_UNICAST;
-	unicast_packet->header.version = BATADV_COMPAT_VERSION;
-	unicast_packet->header.ttl = ttl;
+	unicast_packet->packet_type = BATADV_UNICAST;
+	unicast_packet->version = BATADV_COMPAT_VERSION;
+	unicast_packet->ttl = ttl;
 	memcpy(unicast_packet->dest, orig_dest, ETH_ALEN);
 	unicast_packet->ttvn = ttvn;
 

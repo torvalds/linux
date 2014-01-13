@@ -209,7 +209,13 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 {
 	uint64_t now = local_clock();
 
-	d->next += div_u64(done, d->rate);
+	d->next += div_u64(done * NSEC_PER_SEC, d->rate);
+
+	if (time_before64(now + NSEC_PER_SEC, d->next))
+		d->next = now + NSEC_PER_SEC;
+
+	if (time_after64(now - NSEC_PER_SEC * 2, d->next))
+		d->next = now - NSEC_PER_SEC * 2;
 
 	return time_after64(d->next, now)
 		? div_u64(d->next - now, NSEC_PER_SEC / HZ)

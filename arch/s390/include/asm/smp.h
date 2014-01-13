@@ -31,6 +31,7 @@ extern void smp_yield(void);
 extern void smp_stop_cpu(void);
 extern void smp_cpu_set_polarization(int cpu, int val);
 extern int smp_cpu_get_polarization(int cpu);
+extern void smp_fill_possible_mask(void);
 
 #else /* CONFIG_SMP */
 
@@ -50,6 +51,7 @@ static inline int smp_vcpu_scheduled(int cpu) { return 1; }
 static inline void smp_yield_cpu(int cpu) { }
 static inline void smp_yield(void) { }
 static inline void smp_stop_cpu(void) { }
+static inline void smp_fill_possible_mask(void) { }
 
 #endif /* CONFIG_SMP */
 
