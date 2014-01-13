@@ -39,6 +39,7 @@ struct sdhci_pci_fixes {
 	unsigned int		quirks;
 	unsigned int		quirks2;
 	bool			allow_runtime_pm;
+	bool			own_cd_for_runtime_pm;
 
 	int			(*probe) (struct sdhci_pci_chip *);
 
