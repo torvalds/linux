@@ -542,7 +542,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	struct ath_softc *sc = dev;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath9k_int status;
 	u32 sync_cause = 0;
 	bool sched = false;
@@ -603,7 +602,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 #ifdef CONFIG_ATH9K_WOW
 	if (status & ATH9K_INT_BMISS) {
 		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
-			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
 			atomic_inc(&sc->wow_got_bmiss_intr);
 			atomic_dec(&sc->wow_sleep_proc_intr);
 		}
