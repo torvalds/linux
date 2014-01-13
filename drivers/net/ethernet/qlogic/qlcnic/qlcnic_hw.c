@@ -546,8 +546,11 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 	    !adapter->fdb_mac_learn) {
 		qlcnic_alloc_lb_filters_mem(adapter);
 		adapter->drv_mac_learn = 1;
+		if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
+			adapter->rx_mac_learn = 1;
 	} else {
 		adapter->drv_mac_learn = 0;
+		adapter->rx_mac_learn = 0;
 	}
 
 	qlcnic_nic_set_promisc(adapter, mode);
@@ -779,8 +782,8 @@ void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter)
 			"Could not send interrupt coalescing parameters\n");
 }
 
-#define QLCNIC_ENABLE_IPV4_LRO		1
-#define QLCNIC_ENABLE_IPV6_LRO		2
+#define QLCNIC_ENABLE_IPV4_LRO		BIT_0
+#define QLCNIC_ENABLE_IPV6_LRO		(BIT_1 | BIT_9)
 
 int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 {
@@ -1530,19 +1533,34 @@ int qlcnic_82xx_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
 	return rv;
 }
 
-int qlcnic_get_beacon_state(struct qlcnic_adapter *adapter, u8 *h_state)
+void qlcnic_82xx_get_beacon_state(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
-	int err;
+	u8 beacon_state;
+	int err = 0;
 
-	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LED_STATUS);
-	if (!err) {
-		err = qlcnic_issue_cmd(adapter, &cmd);
-		if (!err)
-			*h_state = cmd.rsp.arg[1];
+	if (ahw->extra_capability[0] & QLCNIC_FW_CAPABILITY_2_BEACON) {
+		err = qlcnic_alloc_mbx_args(&cmd, adapter,
+					    QLCNIC_CMD_GET_LED_STATUS);
+		if (!err) {
+			err = qlcnic_issue_cmd(adapter, &cmd);
+			if (err) {
+				netdev_err(adapter->netdev,
+					   "Failed to get current beacon state, err=%d\n",
+					   err);
+			} else {
+				beacon_state = cmd.rsp.arg[1];
+				if (beacon_state == QLCNIC_BEACON_DISABLE)
+					ahw->beacon_state = QLCNIC_BEACON_OFF;
+				else if (beacon_state == QLCNIC_BEACON_EANBLE)
+					ahw->beacon_state = QLCNIC_BEACON_ON;
+			}
+		}
+		qlcnic_free_mbx_args(&cmd);
 	}
-	qlcnic_free_mbx_args(&cmd);
-	return err;
+
+	return;
 }
 
 void qlcnic_82xx_get_func_no(struct qlcnic_adapter *adapter)

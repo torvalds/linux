@@ -2214,6 +2214,7 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int err = 0;
 
+	adapter->rx_mac_learn = 0;
 	ahw->msix_supported = !!qlcnic_use_msi_x;
 
 	qlcnic_83xx_init_rings(adapter);

@@ -169,6 +169,7 @@ int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int);
 int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32);
 int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 			 struct net_device *netdev);
+void qlcnic_82xx_get_beacon_state(struct qlcnic_adapter *);
 void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter,
 			       u64 *uaddr, u16 vlan_id);
 void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter);

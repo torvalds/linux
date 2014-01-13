@@ -224,10 +224,14 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 		return -EIO;
 	}
 
-	if (ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY)
+	if (ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY) {
 		adapter->flags |= QLCNIC_ESWITCH_ENABLED;
-	else
+		if (adapter->drv_mac_learn)
+			adapter->rx_mac_learn = 1;
+	} else {
 		adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
+		adapter->rx_mac_learn = 0;
+	}
 
 	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_NON_OPER;
 	ahw->idc.vnic_wait_limit = QLCNIC_DEV_NPAR_OPER_TIMEO;

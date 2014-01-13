@@ -546,6 +546,7 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.io_error_detected		= qlcnic_82xx_io_error_detected,
 	.io_slot_reset			= qlcnic_82xx_io_slot_reset,
 	.io_resume			= qlcnic_82xx_io_resume,
+	.get_beacon_state		= qlcnic_82xx_get_beacon_state,
 };
 
 static int qlcnic_check_multi_tx_capability(struct qlcnic_adapter *adapter)
