@@ -64,6 +64,9 @@ static inline struct Scsi_Host *rport_to_shost(struct srp_rport *r)
 
 /**
  * srp_tmo_valid() - check timeout combination validity
+ * @reconnect_delay: Reconnect delay in seconds.
+ * @fast_io_fail_tmo: Fast I/O fail timeout in seconds.
+ * @dev_loss_tmo: Device loss timeout in seconds.
  *
  * The combination of the timeout parameters must be such that SCSI commands
  * are finished in a reasonable time. Hence do not allow the fast I/O fail
@@ -372,6 +375,7 @@ invalid:
 
 /**
  * srp_reconnect_work() - reconnect and schedule a new attempt if necessary
+ * @work: Work structure used for scheduling this operation.
  */
 static void srp_reconnect_work(struct work_struct *work)
 {
@@ -412,6 +416,7 @@ static void __rport_fail_io_fast(struct srp_rport *rport)
 
 /**
  * rport_fast_io_fail_timedout() - fast I/O failure timeout handler
+ * @work: Work structure used for scheduling this operation.
  */
 static void rport_fast_io_fail_timedout(struct work_struct *work)
 {
@@ -430,6 +435,7 @@ static void rport_fast_io_fail_timedout(struct work_struct *work)
 
 /**
  * rport_dev_loss_timedout() - device loss timeout handler
+ * @work: Work structure used for scheduling this operation.
  */
 static void rport_dev_loss_timedout(struct work_struct *work)
 {
@@ -484,6 +490,7 @@ static void __srp_start_tl_fail_timers(struct srp_rport *rport)
 
 /**
  * srp_start_tl_fail_timers() - start the transport layer failure timers
+ * @rport: SRP target port.
  *
  * Start the transport layer fast I/O failure and device loss timers. Do not
  * modify a timer that was already started.
@@ -498,6 +505,7 @@ EXPORT_SYMBOL(srp_start_tl_fail_timers);
 
 /**
  * scsi_request_fn_active() - number of kernel threads inside scsi_request_fn()
+ * @shost: SCSI host for which to count the number of scsi_request_fn() callers.
  */
 static int scsi_request_fn_active(struct Scsi_Host *shost)
 {
@@ -518,6 +526,7 @@ static int scsi_request_fn_active(struct Scsi_Host *shost)
 
 /**
  * srp_reconnect_rport() - reconnect to an SRP target port
+ * @rport: SRP target port.
  *
  * Blocks SCSI command queueing before invoking reconnect() such that
  * queuecommand() won't be invoked concurrently with reconnect() from outside
@@ -595,6 +604,7 @@ EXPORT_SYMBOL(srp_reconnect_rport);
 
 /**
  * srp_timed_out() - SRP transport intercept of the SCSI timeout EH
+ * @scmd: SCSI command.
  *
  * If a timeout occurs while an rport is in the blocked state, ask the SCSI
  * EH to continue waiting (BLK_EH_RESET_TIMER). Otherwise let the SCSI core
@@ -666,6 +676,7 @@ static int srp_host_match(struct attribute_container *cont, struct device *dev)
 
 /**
  * srp_rport_get() - increment rport reference count
+ * @rport: SRP target port.
  */
 void srp_rport_get(struct srp_rport *rport)
 {
@@ -675,6 +686,7 @@ EXPORT_SYMBOL(srp_rport_get);
 
 /**
  * srp_rport_put() - decrement rport reference count
+ * @rport: SRP target port.
  */
 void srp_rport_put(struct srp_rport *rport)
 {
