@@ -250,9 +250,8 @@ error_ret:
 }
 #endif /* SCA3000_DEBUG */
 
-
 /**
- * sca3000_show_reg() - sysfs interface to read the chip revision number
+ * sca3000_show_rev() - sysfs interface to read the chip revision number
  **/
 static ssize_t sca3000_show_rev(struct device *dev,
 				struct device_attribute *attr,
@@ -312,7 +311,7 @@ sca3000_show_available_measurement_modes(struct device *dev,
 }
 
 /**
- * sca3000_show_measurmenet_mode() sysfs read of current mode
+ * sca3000_show_measurement_mode() sysfs read of current mode
  **/
 static ssize_t
 sca3000_show_measurement_mode(struct device *dev,
@@ -547,7 +546,7 @@ error_ret:
 	return ret;
 }
 /**
- * __sca3000_get_base_frequency() obtain mode specific base frequency
+ * __sca3000_get_base_freq() obtain mode specific base frequency
  *
  * lock must be held
  **/
@@ -972,7 +971,7 @@ error_ret:
 }
 
 /**
- * sca3000_set_mo_det() simple on off control for motion detector
+ * sca3000_write_event_config() simple on off control for motion detector
  *
  * This is a per axis control, but enabling any will result in the
  * motion detector unit being enabled.
