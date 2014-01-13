@@ -571,23 +571,6 @@ void device_remove_file(struct device *dev,
 EXPORT_SYMBOL_GPL(device_remove_file);
 
 /**
- * device_remove_file_self - remove sysfs attribute file from its own method.
- * @dev: device.
- * @attr: device attribute descriptor.
- *
- * See kernfs_remove_self() for details.
- */
-bool device_remove_file_self(struct device *dev,
-			     const struct device_attribute *attr)
-{
-	if (dev)
-		return sysfs_remove_file_self(&dev->kobj, &attr->attr);
-	else
-		return false;
-}
-EXPORT_SYMBOL_GPL(device_remove_file_self);
-
-/**
  * device_create_bin_file - create sysfs binary attribute file for device.
  * @dev: device.
  * @attr: device binary attribute descriptor.

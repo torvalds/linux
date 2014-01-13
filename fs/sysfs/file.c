@@ -372,29 +372,6 @@ void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_file_ns);
 
-/**
- * sysfs_remove_file_self - remove an object attribute from its own method
- * @kobj: object we're acting for
- * @attr: attribute descriptor
- *
- * See kernfs_remove_self() for details.
- */
-bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr)
-{
-	struct kernfs_node *parent = kobj->sd;
-	struct kernfs_node *kn;
-	bool ret;
-
-	kn = kernfs_find_and_get(parent, attr->name);
-	if (WARN_ON_ONCE(!kn))
-		return false;
-
-	ret = kernfs_remove_self(kn);
-
-	kernfs_put(kn);
-	return ret;
-}
-
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **ptr)
 {
 	int i;
