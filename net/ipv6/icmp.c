@@ -559,7 +559,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	saddr = &ipv6_hdr(skb)->daddr;
 
 	if (!ipv6_unicast_destination(skb) &&
-	    !(net->ipv6.anycast_src_echo_reply &&
+	    !(net->ipv6.sysctl.anycast_src_echo_reply &&
 	      ipv6_anycast_destination(skb)))
 		saddr = NULL;
 

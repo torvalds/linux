@@ -28,6 +28,7 @@ struct netns_sysctl_ipv6 {
 	int ip6_rt_mtu_expires;
 	int ip6_rt_min_advmss;
 	int icmpv6_time;
+	int anycast_src_echo_reply;
 };
 
 struct netns_ipv6 {
@@ -73,7 +74,6 @@ struct netns_ipv6 {
 #endif
 	atomic_t		dev_addr_genid;
 	atomic_t		rt_genid;
-	int			anycast_src_echo_reply;
 };
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
