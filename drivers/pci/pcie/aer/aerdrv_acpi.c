@@ -23,10 +23,10 @@
 static inline int hest_match_pci(struct acpi_hest_aer_common *p,
 				 struct pci_dev *pci)
 {
-	return	(0           == pci_domain_nr(pci->bus) &&
-		 p->bus      == pci->bus->number &&
-		 p->device   == PCI_SLOT(pci->devfn) &&
-		 p->function == PCI_FUNC(pci->devfn));
+	return   ACPI_HEST_SEGMENT(p->bus) == pci_domain_nr(pci->bus) &&
+		 ACPI_HEST_BUS(p->bus)     == pci->bus->number &&
+		 p->device                 == PCI_SLOT(pci->devfn) &&
+		 p->function               == PCI_FUNC(pci->devfn);
 }
 
 static inline bool hest_match_type(struct acpi_hest_header *hest_hdr,
