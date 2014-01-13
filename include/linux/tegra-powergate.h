@@ -115,7 +115,7 @@ static inline int tegra_powergate_remove_clamping(int id)
 }
 
 static inline int tegra_powergate_sequence_power_up(int id, struct clk *clk,
-						    struct reset_control *rst);
+						    struct reset_control *rst)
 {
 	return -ENOSYS;
 }
