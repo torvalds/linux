@@ -38,6 +38,7 @@
  *
  */
 
+#include "dpc.h"
 #include "device.h"
 #include "rxtx.h"
 #include "tether.h"
