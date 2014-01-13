@@ -963,6 +963,19 @@ extern int drm_encoder_init(struct drm_device *dev,
 			    const struct drm_encoder_funcs *funcs,
 			    int encoder_type);
 
+/**
+ * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
+ * @encoder: encoder to test
+ * @crtc: crtc to test
+ *
+ * Return false if @encoder can't be driven by @crtc, true otherwise.
+ */
+static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
+				       struct drm_crtc *crtc)
+{
+	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
+}
+
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
 			  unsigned long possible_crtcs,

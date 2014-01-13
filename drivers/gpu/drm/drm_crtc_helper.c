@@ -324,19 +324,6 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_helper_disable_unused_functions);
 
-/**
- * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
- * @encoder: encoder to test
- * @crtc: crtc to test
- *
- * Return false if @encoder can't be driven by @crtc, true otherwise.
- */
-static bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
-				struct drm_crtc *crtc)
-{
-	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
-}
-
 /*
  * Check the CRTC we're going to map each output to vs. its current
  * CRTC.  If they don't match, we have to disable the output and the CRTC
