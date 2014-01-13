@@ -1035,8 +1035,6 @@ SHOW_SCALE_AVAILABLE_ATTR(4);
 SHOW_SCALE_AVAILABLE_ATTR(5);
 SHOW_SCALE_AVAILABLE_ATTR(6);
 SHOW_SCALE_AVAILABLE_ATTR(7);
-SHOW_SCALE_AVAILABLE_ATTR(8);
-SHOW_SCALE_AVAILABLE_ATTR(9);
 SHOW_SCALE_AVAILABLE_ATTR(10);
 SHOW_SCALE_AVAILABLE_ATTR(11);
 SHOW_SCALE_AVAILABLE_ATTR(12);
@@ -1053,8 +1051,6 @@ static struct attribute *mxs_lradc_attributes[] = {
 	&iio_dev_attr_in_voltage5_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage6_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage7_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage8_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage9_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage10_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage11_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage12_scale_available.dev_attr.attr,
