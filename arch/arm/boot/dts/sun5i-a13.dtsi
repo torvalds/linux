@@ -16,6 +16,11 @@
 / {
 	interrupt-parent = <&intc>;
 
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart3;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
