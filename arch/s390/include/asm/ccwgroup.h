@@ -23,7 +23,6 @@ struct ccwgroup_device {
 	unsigned int count;
 	struct device	dev;
 	struct ccw_device *cdev[0];
-	struct work_struct ungroup_work;
 };
 
 /**
