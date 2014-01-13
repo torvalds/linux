@@ -14,6 +14,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
+#include <linux/anon_inodes.h>
+
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
@@ -152,9 +154,14 @@ static int exynos_drm_unload(struct drm_device *dev)
 	return 0;
 }
 
+static const struct file_operations exynos_drm_gem_fops = {
+	.mmap = exynos_drm_gem_mmap_buffer,
+};
+
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;
+	struct file *anon_filp;
 	int ret;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
@@ -169,6 +176,16 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 		file->driver_priv = NULL;
 	}
 
+	anon_filp = anon_inode_getfile("exynos_gem", &exynos_drm_gem_fops,
+					NULL, 0);
+	if (IS_ERR(anon_filp)) {
+		kfree(file_priv);
+		return PTR_ERR(anon_filp);
+	}
+
+	anon_filp->f_mode = FMODE_READ | FMODE_WRITE;
+	file_priv->anon_filp = anon_filp;
+
 	return ret;
 }
 
@@ -181,6 +198,7 @@ static void exynos_drm_preclose(struct drm_device *dev,
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_exynos_file_private *file_priv;
 	struct drm_pending_vblank_event *v, *vt;
 	struct drm_pending_event *e, *et;
 	unsigned long flags;
@@ -206,6 +224,9 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
+	file_priv = file->driver_priv;
+	if (file_priv->anon_filp)
+		fput(file_priv->anon_filp);
 
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
