@@ -421,8 +421,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		return;
 	}
 
-	dev_vdbg(chan2dev(&dwc->chan), "%s: llp=0x%llx\n", __func__,
-			(unsigned long long)llp);
+	dev_vdbg(chan2dev(&dwc->chan), "%s: llp=%pad\n", __func__, &llp);
 
 	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_node) {
 		/* Initial residue value */
@@ -712,9 +711,8 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	u32			ctllo;
 
 	dev_vdbg(chan2dev(chan),
-			"%s: d0x%llx s0x%llx l0x%zx f0x%lx\n", __func__,
-			(unsigned long long)dest, (unsigned long long)src,
-			len, flags);
+			"%s: d%pad s%pad l0x%zx f0x%lx\n", __func__,
+			&dest, &src, len, flags);
 
 	if (unlikely(!len)) {
 		dev_dbg(chan2dev(chan), "%s: length is zero!\n", __func__);
@@ -1402,9 +1400,9 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 	/* Let's make a cyclic list */
 	last->lli.llp = cdesc->desc[0]->txd.phys;
 
-	dev_dbg(chan2dev(&dwc->chan), "cyclic prepared buf 0x%llx len %zu "
-			"period %zu periods %d\n", (unsigned long long)buf_addr,
-			buf_len, period_len, periods);
+	dev_dbg(chan2dev(&dwc->chan),
+			"cyclic prepared buf %pad len %zu period %zu periods %d\n",
+			&buf_addr, buf_len, period_len, periods);
 
 	cdesc->periods = periods;
 	dwc->cdesc = cdesc;
