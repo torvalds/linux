@@ -37,7 +37,6 @@ enum kernfs_node_type {
 #define KERNFS_FLAG_MASK	~KERNFS_TYPE_MASK
 
 enum kernfs_node_flag {
-	KERNFS_JUST_DEACTIVATED	= 0x0010, /* used to aid lockdep annotation */
 	KERNFS_NS		= 0x0020,
 	KERNFS_HAS_SEQ_SHOW	= 0x0040,
 	KERNFS_HAS_MMAP		= 0x0080,
