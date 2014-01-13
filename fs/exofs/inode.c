@@ -961,6 +961,14 @@ static void exofs_invalidatepage(struct page *page, unsigned int offset,
 	WARN_ON(1);
 }
 
+
+ /* TODO: Should be easy enough to do proprly */
+static ssize_t exofs_direct_IO(int rw, struct kiocb *iocb,
+		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
+{
+	return 0;
+}
+
 const struct address_space_operations exofs_aops = {
 	.readpage	= exofs_readpage,
 	.readpages	= exofs_readpages,
@@ -974,7 +982,7 @@ const struct address_space_operations exofs_aops = {
 
 	/* Not implemented Yet */
 	.bmap		= NULL, /* TODO: use osd's OSD_ACT_READ_MAP */
-	.direct_IO	= NULL, /* TODO: Should be trivial to do */
+	.direct_IO	= exofs_direct_IO,
 
 	/* With these NULL has special meaning or default is not exported */
 	.get_xip_mem	= NULL,
