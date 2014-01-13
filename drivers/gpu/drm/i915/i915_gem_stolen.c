@@ -82,9 +82,22 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	r = devm_request_mem_region(dev->dev, base, dev_priv->gtt.stolen_size,
 				    "Graphics Stolen Memory");
 	if (r == NULL) {
-		DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
-			  base, base + (uint32_t)dev_priv->gtt.stolen_size);
-		base = 0;
+		/*
+		 * One more attempt but this time requesting region from
+		 * base + 1, as we have seen that this resolves the region
+		 * conflict with the PCI Bus.
+		 * This is a BIOS w/a: Some BIOS wrap stolen in the root
+		 * PCI bus, but have an off-by-one error. Hence retry the
+		 * reservation starting from 1 instead of 0.
+		 */
+		r = devm_request_mem_region(dev->dev, base + 1,
+					    dev_priv->gtt.stolen_size - 1,
+					    "Graphics Stolen Memory");
+		if (r == NULL) {
+			DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
+				  base, base + (uint32_t)dev_priv->gtt.stolen_size);
+			base = 0;
+		}
 	}
 
 	return base;
