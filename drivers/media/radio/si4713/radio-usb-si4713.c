@@ -415,7 +415,7 @@ static struct i2c_adapter si4713_i2c_adapter_template = {
 	.algo   = &si4713_algo,
 };
 
-int si4713_register_i2c_adapter(struct si4713_usb_device *radio)
+static int si4713_register_i2c_adapter(struct si4713_usb_device *radio)
 {
 	radio->i2c_adapter = si4713_i2c_adapter_template;
 	/* set up sysfs linkage to our parent device */
