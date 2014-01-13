@@ -105,6 +105,7 @@ void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
 extern int evergreen_rlc_resume(struct radeon_device *rdev);
+extern void rv770_set_clk_bypass_mode(struct radeon_device *rdev);
 
 /**
  * r600_get_xclk - get the xclk
@@ -1644,6 +1645,67 @@ static void r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	r600_print_gpu_status_regs(rdev);
 }
 
+static void r600_gpu_pci_config_reset(struct radeon_device *rdev)
+{
+	struct rv515_mc_save save;
+	u32 tmp, i;
+
+	dev_info(rdev->dev, "GPU pci config reset\n");
+
+	/* disable dpm? */
+
+	/* Disable CP parsing/prefetching */
+	if (rdev->family >= CHIP_RV770)
+		WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1) | S_0086D8_CP_PFP_HALT(1));
+	else
+		WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
+
+	/* disable the RLC */
+	WREG32(RLC_CNTL, 0);
+
+	/* Disable DMA */
+	tmp = RREG32(DMA_RB_CNTL);
+	tmp &= ~DMA_RB_ENABLE;
+	WREG32(DMA_RB_CNTL, tmp);
+
+	mdelay(50);
+
+	/* set mclk/sclk to bypass */
+	if (rdev->family >= CHIP_RV770)
+		rv770_set_clk_bypass_mode(rdev);
+	/* disable BM */
+	pci_clear_master(rdev->pdev);
+	/* disable mem access */
+	rv515_mc_stop(rdev, &save);
+	if (r600_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+
+	/* BIF reset workaround.  Not sure if this is needed on 6xx */
+	tmp = RREG32(BUS_CNTL);
+	tmp |= VGA_COHE_SPEC_TIMER_DIS;
+	WREG32(BUS_CNTL, tmp);
+
+	tmp = RREG32(BIF_SCRATCH0);
+
+	/* reset */
+	radeon_pci_config_reset(rdev);
+	mdelay(1);
+
+	/* BIF reset workaround.  Not sure if this is needed on 6xx */
+	tmp = SOFT_RESET_BIF;
+	WREG32(SRBM_SOFT_RESET, tmp);
+	mdelay(1);
+	WREG32(SRBM_SOFT_RESET, 0);
+
+	/* wait for asic to come out of reset */
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(CONFIG_MEMSIZE) != 0xffffffff)
+			break;
+		udelay(1);
+	}
+}
+
 int r600_asic_reset(struct radeon_device *rdev)
 {
 	u32 reset_mask;
@@ -1653,7 +1715,14 @@ int r600_asic_reset(struct radeon_device *rdev)
 	if (reset_mask)
 		r600_set_bios_scratch_engine_hung(rdev, true);
 
+	/* try soft reset */
 	r600_gpu_soft_reset(rdev, reset_mask);
+
+	reset_mask = r600_gpu_check_soft_reset(rdev);
+
+	/* try pci config reset */
+	if (reset_mask && radeon_hard_reset)
+		r600_gpu_pci_config_reset(rdev);
 
 	reset_mask = r600_gpu_check_soft_reset(rdev);
 
@@ -2382,6 +2451,36 @@ out:
 	return err;
 }
 
+u32 r600_gfx_get_rptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring)
+{
+	u32 rptr;
+
+	if (rdev->wb.enabled)
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
+	else
+		rptr = RREG32(R600_CP_RB_RPTR);
+
+	return rptr;
+}
+
+u32 r600_gfx_get_wptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring)
+{
+	u32 wptr;
+
+	wptr = RREG32(R600_CP_RB_WPTR);
+
+	return wptr;
+}
+
+void r600_gfx_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring)
+{
+	WREG32(R600_CP_RB_WPTR, ring->wptr);
+	(void)RREG32(R600_CP_RB_WPTR);
+}
+
 static int r600_cp_load_microcode(struct radeon_device *rdev)
 {
 	const __be32 *fw_data;
@@ -2775,14 +2874,6 @@ static int r600_startup(struct radeon_device *rdev)
 
 	r600_mc_program(rdev);
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
-		r = r600_init_microcode(rdev);
-		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
-			return r;
-		}
-	}
-
 	if (rdev->flags & RADEON_IS_AGP) {
 		r600_agp_enable(rdev);
 	} else {
@@ -2826,14 +2917,12 @@ static int r600_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     R600_CP_RB_RPTR, R600_CP_RB_WPTR,
 			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_RB_RPTR, DMA_RB_WPTR,
 			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
@@ -2889,6 +2978,8 @@ int r600_resume(struct radeon_device *rdev)
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = r600_startup(rdev);
 	if (r) {
@@ -2902,6 +2993,7 @@ int r600_resume(struct radeon_device *rdev)
 
 int r600_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
 	r600_cp_stop(rdev);
 	r600_dma_stop(rdev);
@@ -2970,6 +3062,17 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+		r = r600_init_microcode(rdev);
+		if (r) {
+			DRM_ERROR("Failed to load firmware!\n");
+			return r;
+		}
+	}
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
@@ -3002,6 +3105,7 @@ int r600_init(struct radeon_device *rdev)
 
 void r600_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r600_audio_fini(rdev);
 	r600_cp_fini(rdev);
 	r600_dma_fini(rdev);

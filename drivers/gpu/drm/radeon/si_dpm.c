@@ -1738,6 +1738,8 @@ struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 struct ni_power_info *ni_get_pi(struct radeon_device *rdev);
 struct ni_ps *ni_get_ps(struct radeon_ps *rps);
 
+extern int si_mc_load_microcode(struct radeon_device *rdev);
+
 static int si_populate_voltage_value(struct radeon_device *rdev,
 				     const struct atom_voltage_table *table,
 				     u16 value, SISLANDS_SMC_VOLTAGE_VALUE *voltage);
@@ -1752,9 +1754,6 @@ static int si_convert_power_level_to_smc(struct radeon_device *rdev,
 static int si_calculate_sclk_params(struct radeon_device *rdev,
 				    u32 engine_clock,
 				    SISLANDS_SMC_SCLK_VALUE *sclk);
-
-extern void si_update_cg(struct radeon_device *rdev,
-			 u32 block, bool enable);
 
 static struct si_power_info *si_get_pi(struct radeon_device *rdev)
 {
@@ -5754,6 +5753,11 @@ static void si_set_pcie_lane_width_in_smc(struct radeon_device *rdev,
 
 void si_dpm_setup_asic(struct radeon_device *rdev)
 {
+	int r;
+
+	r = si_mc_load_microcode(rdev);
+	if (r)
+		DRM_ERROR("Failed to load MC firmware!\n");
 	rv770_get_memory_type(rdev);
 	si_read_clock_registers(rdev);
 	si_enable_acpi_power_management(rdev);
@@ -5790,13 +5794,6 @@ int si_dpm_enable(struct radeon_device *rdev)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 	int ret;
-
-	si_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			    RADEON_CG_BLOCK_MC |
-			    RADEON_CG_BLOCK_SDMA |
-			    RADEON_CG_BLOCK_BIF |
-			    RADEON_CG_BLOCK_UVD |
-			    RADEON_CG_BLOCK_HDP), false);
 
 	if (si_is_smc_running(rdev))
 		return -EINVAL;
@@ -5900,6 +5897,17 @@ int si_dpm_enable(struct radeon_device *rdev)
 	si_enable_sclk_control(rdev, true);
 	si_start_dpm(rdev);
 
+	si_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
+
+	ni_update_current_ps(rdev, boot_ps);
+
+	return 0;
+}
+
+int si_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		PPSMC_Result result;
@@ -5915,17 +5923,6 @@ int si_dpm_enable(struct radeon_device *rdev)
 			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
 	}
 
-	si_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
-
-	si_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			    RADEON_CG_BLOCK_MC |
-			    RADEON_CG_BLOCK_SDMA |
-			    RADEON_CG_BLOCK_BIF |
-			    RADEON_CG_BLOCK_UVD |
-			    RADEON_CG_BLOCK_HDP), true);
-
-	ni_update_current_ps(rdev, boot_ps);
-
 	return 0;
 }
 
@@ -5933,13 +5930,6 @@ void si_dpm_disable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
-
-	si_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			    RADEON_CG_BLOCK_MC |
-			    RADEON_CG_BLOCK_SDMA |
-			    RADEON_CG_BLOCK_BIF |
-			    RADEON_CG_BLOCK_UVD |
-			    RADEON_CG_BLOCK_HDP), false);
 
 	if (!si_is_smc_running(rdev))
 		return;
@@ -6004,13 +5994,6 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 	struct radeon_ps *new_ps = &eg_pi->requested_rps;
 	struct radeon_ps *old_ps = &eg_pi->current_rps;
 	int ret;
-
-	si_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			    RADEON_CG_BLOCK_MC |
-			    RADEON_CG_BLOCK_SDMA |
-			    RADEON_CG_BLOCK_BIF |
-			    RADEON_CG_BLOCK_UVD |
-			    RADEON_CG_BLOCK_HDP), false);
 
 	ret = si_disable_ulv(rdev);
 	if (ret) {
@@ -6103,13 +6086,6 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 		DRM_ERROR("si_power_control_set_level failed\n");
 		return ret;
 	}
-
-	si_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			    RADEON_CG_BLOCK_MC |
-			    RADEON_CG_BLOCK_SDMA |
-			    RADEON_CG_BLOCK_BIF |
-			    RADEON_CG_BLOCK_UVD |
-			    RADEON_CG_BLOCK_HDP), true);
 
 	return 0;
 }

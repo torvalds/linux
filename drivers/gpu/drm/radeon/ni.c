@@ -174,6 +174,7 @@ extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 extern void evergreen_program_aspm(struct radeon_device *rdev);
 extern void sumo_rlc_fini(struct radeon_device *rdev);
 extern int sumo_rlc_init(struct radeon_device *rdev);
+extern void evergreen_gpu_pci_config_reset(struct radeon_device *rdev);
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/BARTS_pfp.bin");
@@ -1386,6 +1387,55 @@ static void cayman_cp_enable(struct radeon_device *rdev, bool enable)
 	}
 }
 
+u32 cayman_gfx_get_rptr(struct radeon_device *rdev,
+			struct radeon_ring *ring)
+{
+	u32 rptr;
+
+	if (rdev->wb.enabled)
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
+	else {
+		if (ring->idx == RADEON_RING_TYPE_GFX_INDEX)
+			rptr = RREG32(CP_RB0_RPTR);
+		else if (ring->idx == CAYMAN_RING_TYPE_CP1_INDEX)
+			rptr = RREG32(CP_RB1_RPTR);
+		else
+			rptr = RREG32(CP_RB2_RPTR);
+	}
+
+	return rptr;
+}
+
+u32 cayman_gfx_get_wptr(struct radeon_device *rdev,
+			struct radeon_ring *ring)
+{
+	u32 wptr;
+
+	if (ring->idx == RADEON_RING_TYPE_GFX_INDEX)
+		wptr = RREG32(CP_RB0_WPTR);
+	else if (ring->idx == CAYMAN_RING_TYPE_CP1_INDEX)
+		wptr = RREG32(CP_RB1_WPTR);
+	else
+		wptr = RREG32(CP_RB2_WPTR);
+
+	return wptr;
+}
+
+void cayman_gfx_set_wptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring)
+{
+	if (ring->idx == RADEON_RING_TYPE_GFX_INDEX) {
+		WREG32(CP_RB0_WPTR, ring->wptr);
+		(void)RREG32(CP_RB0_WPTR);
+	} else if (ring->idx == CAYMAN_RING_TYPE_CP1_INDEX) {
+		WREG32(CP_RB1_WPTR, ring->wptr);
+		(void)RREG32(CP_RB1_WPTR);
+	} else {
+		WREG32(CP_RB2_WPTR, ring->wptr);
+		(void)RREG32(CP_RB2_WPTR);
+	}
+}
+
 static int cayman_cp_load_microcode(struct radeon_device *rdev)
 {
 	const __be32 *fw_data;
@@ -1514,6 +1564,16 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 		CP_RB1_BASE,
 		CP_RB2_BASE
 	};
+	static const unsigned cp_rb_rptr[] = {
+		CP_RB0_RPTR,
+		CP_RB1_RPTR,
+		CP_RB2_RPTR
+	};
+	static const unsigned cp_rb_wptr[] = {
+		CP_RB0_WPTR,
+		CP_RB1_WPTR,
+		CP_RB2_WPTR
+	};
 	struct radeon_ring *ring;
 	int i, r;
 
@@ -1572,8 +1632,8 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 		WREG32_P(cp_rb_cntl[i], RB_RPTR_WR_ENA, ~RB_RPTR_WR_ENA);
 
 		ring->rptr = ring->wptr = 0;
-		WREG32(ring->rptr_reg, ring->rptr);
-		WREG32(ring->wptr_reg, ring->wptr);
+		WREG32(cp_rb_rptr[i], ring->rptr);
+		WREG32(cp_rb_wptr[i], ring->wptr);
 
 		mdelay(1);
 		WREG32_P(cp_rb_cntl[i], 0, ~RB_RPTR_WR_ENA);
@@ -1819,8 +1879,10 @@ int cayman_asic_reset(struct radeon_device *rdev)
 
 	reset_mask = cayman_gpu_check_soft_reset(rdev);
 
-	if (!reset_mask)
-		r600_set_bios_scratch_engine_hung(rdev, false);
+	if (reset_mask)
+		evergreen_gpu_pci_config_reset(rdev);
+
+	r600_set_bios_scratch_engine_hung(rdev, false);
 
 	return 0;
 }
@@ -1866,23 +1928,7 @@ static int cayman_startup(struct radeon_device *rdev)
 
 	evergreen_mc_program(rdev);
 
-	if (rdev->flags & RADEON_IS_IGP) {
-		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
-			r = ni_init_microcode(rdev);
-			if (r) {
-				DRM_ERROR("Failed to load firmware!\n");
-				return r;
-			}
-		}
-	} else {
-		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
-			r = ni_init_microcode(rdev);
-			if (r) {
-				DRM_ERROR("Failed to load firmware!\n");
-				return r;
-			}
-		}
-
+	if (!(rdev->flags & RADEON_IS_IGP) && !rdev->pm.dpm_enabled) {
 		r = ni_mc_load_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
@@ -1969,23 +2015,18 @@ static int cayman_startup(struct radeon_device *rdev)
 	evergreen_irq_set(rdev);
 
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     CP_RB0_RPTR, CP_RB0_WPTR,
 			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_RB_RPTR + DMA0_REGISTER_OFFSET,
-			     DMA_RB_WPTR + DMA0_REGISTER_OFFSET,
 			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, CAYMAN_WB_DMA1_RPTR_OFFSET,
-			     DMA_RB_RPTR + DMA1_REGISTER_OFFSET,
-			     DMA_RB_WPTR + DMA1_REGISTER_OFFSET,
 			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
@@ -2004,7 +2045,6 @@ static int cayman_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	if (ring->ring_size) {
 		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     RADEON_CP_PACKET2);
 		if (!r)
 			r = uvd_v1_0_init(rdev);
@@ -2051,6 +2091,8 @@ int cayman_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	ni_init_golden_registers(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = cayman_startup(rdev);
 	if (r) {
@@ -2063,6 +2105,7 @@ int cayman_resume(struct radeon_device *rdev)
 
 int cayman_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	if (ASIC_IS_DCE6(rdev))
 		dce6_audio_fini(rdev);
 	else
@@ -2133,6 +2176,27 @@ int cayman_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	if (rdev->flags & RADEON_IS_IGP) {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	} else {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	}
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 1024 * 1024);
 
@@ -2192,6 +2256,7 @@ int cayman_init(struct radeon_device *rdev)
 
 void cayman_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	cayman_cp_fini(rdev);
 	cayman_dma_fini(rdev);
 	r600_irq_fini(rdev);

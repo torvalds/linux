@@ -1697,7 +1697,7 @@ static void cik_srbm_select(struct radeon_device *rdev,
  * Load the GDDR MC ucode into the hw (CIK).
  * Returns 0 on success, error on failure.
  */
-static int ci_mc_load_microcode(struct radeon_device *rdev)
+int ci_mc_load_microcode(struct radeon_device *rdev)
 {
 	const __be32 *fw_data;
 	u32 running, blackout = 0;
@@ -4015,15 +4015,43 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	return 0;
 }
 
-u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
-			      struct radeon_ring *ring)
+u32 cik_gfx_get_rptr(struct radeon_device *rdev,
+		     struct radeon_ring *ring)
 {
 	u32 rptr;
 
+	if (rdev->wb.enabled)
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
+	else
+		rptr = RREG32(CP_RB0_RPTR);
 
+	return rptr;
+}
+
+u32 cik_gfx_get_wptr(struct radeon_device *rdev,
+		     struct radeon_ring *ring)
+{
+	u32 wptr;
+
+	wptr = RREG32(CP_RB0_WPTR);
+
+	return wptr;
+}
+
+void cik_gfx_set_wptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring)
+{
+	WREG32(CP_RB0_WPTR, ring->wptr);
+	(void)RREG32(CP_RB0_WPTR);
+}
+
+u32 cik_compute_get_rptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring)
+{
+	u32 rptr;
 
 	if (rdev->wb.enabled) {
-		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
 	} else {
 		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
@@ -4035,13 +4063,14 @@ u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
 	return rptr;
 }
 
-u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
-			      struct radeon_ring *ring)
+u32 cik_compute_get_wptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring)
 {
 	u32 wptr;
 
 	if (rdev->wb.enabled) {
-		wptr = le32_to_cpu(rdev->wb.wb[ring->wptr_offs/4]);
+		/* XXX check if swapping is necessary on BE */
+		wptr = rdev->wb.wb[ring->wptr_offs/4];
 	} else {
 		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
@@ -4053,10 +4082,11 @@ u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
 	return wptr;
 }
 
-void cik_compute_ring_set_wptr(struct radeon_device *rdev,
-			       struct radeon_ring *ring)
+void cik_compute_set_wptr(struct radeon_device *rdev,
+			  struct radeon_ring *ring)
 {
-	rdev->wb.wb[ring->wptr_offs/4] = cpu_to_le32(ring->wptr);
+	/* XXX check if swapping is necessary on BE */
+	rdev->wb.wb[ring->wptr_offs/4] = ring->wptr;
 	WDOORBELL32(ring->doorbell_index, ring->wptr);
 }
 
@@ -4850,6 +4880,160 @@ static void cik_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	cik_print_gpu_status_regs(rdev);
 }
 
+struct kv_reset_save_regs {
+	u32 gmcon_reng_execute;
+	u32 gmcon_misc;
+	u32 gmcon_misc3;
+};
+
+static void kv_save_regs_for_reset(struct radeon_device *rdev,
+				   struct kv_reset_save_regs *save)
+{
+	save->gmcon_reng_execute = RREG32(GMCON_RENG_EXECUTE);
+	save->gmcon_misc = RREG32(GMCON_MISC);
+	save->gmcon_misc3 = RREG32(GMCON_MISC3);
+
+	WREG32(GMCON_RENG_EXECUTE, save->gmcon_reng_execute & ~RENG_EXECUTE_ON_PWR_UP);
+	WREG32(GMCON_MISC, save->gmcon_misc & ~(RENG_EXECUTE_ON_REG_UPDATE |
+						STCTRL_STUTTER_EN));
+}
+
+static void kv_restore_regs_for_reset(struct radeon_device *rdev,
+				      struct kv_reset_save_regs *save)
+{
+	int i;
+
+	WREG32(GMCON_PGFSM_WRITE, 0);
+	WREG32(GMCON_PGFSM_CONFIG, 0x200010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0);
+	WREG32(GMCON_PGFSM_CONFIG, 0x300010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x210000);
+	WREG32(GMCON_PGFSM_CONFIG, 0xa00010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x21003);
+	WREG32(GMCON_PGFSM_CONFIG, 0xb00010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x2b00);
+	WREG32(GMCON_PGFSM_CONFIG, 0xc00010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0);
+	WREG32(GMCON_PGFSM_CONFIG, 0xd00010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x420000);
+	WREG32(GMCON_PGFSM_CONFIG, 0x100010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x120202);
+	WREG32(GMCON_PGFSM_CONFIG, 0x500010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x3e3e36);
+	WREG32(GMCON_PGFSM_CONFIG, 0x600010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x373f3e);
+	WREG32(GMCON_PGFSM_CONFIG, 0x700010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x3e1332);
+	WREG32(GMCON_PGFSM_CONFIG, 0xe00010ff);
+
+	WREG32(GMCON_MISC3, save->gmcon_misc3);
+	WREG32(GMCON_MISC, save->gmcon_misc);
+	WREG32(GMCON_RENG_EXECUTE, save->gmcon_reng_execute);
+}
+
+static void cik_gpu_pci_config_reset(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	struct kv_reset_save_regs kv_save = { 0 };
+	u32 tmp, i;
+
+	dev_info(rdev->dev, "GPU pci config reset\n");
+
+	/* disable dpm? */
+
+	/* disable cg/pg */
+	cik_fini_pg(rdev);
+	cik_fini_cg(rdev);
+
+	/* Disable GFX parsing/prefetching */
+	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
+
+	/* Disable MEC parsing/prefetching */
+	WREG32(CP_MEC_CNTL, MEC_ME1_HALT | MEC_ME2_HALT);
+
+	/* sdma0 */
+	tmp = RREG32(SDMA0_ME_CNTL + SDMA0_REGISTER_OFFSET);
+	tmp |= SDMA_HALT;
+	WREG32(SDMA0_ME_CNTL + SDMA0_REGISTER_OFFSET, tmp);
+	/* sdma1 */
+	tmp = RREG32(SDMA0_ME_CNTL + SDMA1_REGISTER_OFFSET);
+	tmp |= SDMA_HALT;
+	WREG32(SDMA0_ME_CNTL + SDMA1_REGISTER_OFFSET, tmp);
+	/* XXX other engines? */
+
+	/* halt the rlc, disable cp internal ints */
+	cik_rlc_stop(rdev);
+
+	udelay(50);
+
+	/* disable mem access */
+	evergreen_mc_stop(rdev, &save);
+	if (evergreen_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timed out !\n");
+	}
+
+	if (rdev->flags & RADEON_IS_IGP)
+		kv_save_regs_for_reset(rdev, &kv_save);
+
+	/* disable BM */
+	pci_clear_master(rdev->pdev);
+	/* reset */
+	radeon_pci_config_reset(rdev);
+
+	udelay(100);
+
+	/* wait for asic to come out of reset */
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(CONFIG_MEMSIZE) != 0xffffffff)
+			break;
+		udelay(1);
+	}
+
+	/* does asic init need to be run first??? */
+	if (rdev->flags & RADEON_IS_IGP)
+		kv_restore_regs_for_reset(rdev, &kv_save);
+}
+
 /**
  * cik_asic_reset - soft reset GPU
  *
@@ -4868,7 +5052,14 @@ int cik_asic_reset(struct radeon_device *rdev)
 	if (reset_mask)
 		r600_set_bios_scratch_engine_hung(rdev, true);
 
+	/* try soft reset */
 	cik_gpu_soft_reset(rdev, reset_mask);
+
+	reset_mask = cik_gpu_check_soft_reset(rdev);
+
+	/* try pci config reset */
+	if (reset_mask && radeon_hard_reset)
+		cik_gpu_pci_config_reset(rdev);
 
 	reset_mask = cik_gpu_check_soft_reset(rdev);
 
@@ -7501,26 +7692,7 @@ static int cik_startup(struct radeon_device *rdev)
 
 	cik_mc_program(rdev);
 
-	if (rdev->flags & RADEON_IS_IGP) {
-		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
-		    !rdev->mec_fw || !rdev->sdma_fw || !rdev->rlc_fw) {
-			r = cik_init_microcode(rdev);
-			if (r) {
-				DRM_ERROR("Failed to load firmware!\n");
-				return r;
-			}
-		}
-	} else {
-		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
-		    !rdev->mec_fw || !rdev->sdma_fw || !rdev->rlc_fw ||
-		    !rdev->mc_fw) {
-			r = cik_init_microcode(rdev);
-			if (r) {
-				DRM_ERROR("Failed to load firmware!\n");
-				return r;
-			}
-		}
-
+	if (!(rdev->flags & RADEON_IS_IGP) && !rdev->pm.dpm_enabled) {
 		r = ci_mc_load_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
@@ -7625,7 +7797,6 @@ static int cik_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     CP_RB0_RPTR, CP_RB0_WPTR,
 			     PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
@@ -7634,7 +7805,6 @@ static int cik_startup(struct radeon_device *rdev)
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP1_RPTR_OFFSET,
-			     CP_HQD_PQ_RPTR, CP_HQD_PQ_WPTR,
 			     PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
@@ -7646,7 +7816,6 @@ static int cik_startup(struct radeon_device *rdev)
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP2_RPTR_OFFSET,
-			     CP_HQD_PQ_RPTR, CP_HQD_PQ_WPTR,
 			     PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
@@ -7658,16 +7827,12 @@ static int cik_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     SDMA0_GFX_RB_RPTR + SDMA0_REGISTER_OFFSET,
-			     SDMA0_GFX_RB_WPTR + SDMA0_REGISTER_OFFSET,
 			     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, CAYMAN_WB_DMA1_RPTR_OFFSET,
-			     SDMA0_GFX_RB_RPTR + SDMA1_REGISTER_OFFSET,
-			     SDMA0_GFX_RB_WPTR + SDMA1_REGISTER_OFFSET,
 			     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 	if (r)
 		return r;
@@ -7683,7 +7848,6 @@ static int cik_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	if (ring->ring_size) {
 		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     RADEON_CP_PACKET2);
 		if (!r)
 			r = uvd_v1_0_init(rdev);
@@ -7729,6 +7893,8 @@ int cik_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	cik_init_golden_registers(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = cik_startup(rdev);
 	if (r) {
@@ -7752,6 +7918,7 @@ int cik_resume(struct radeon_device *rdev)
  */
 int cik_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	dce6_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	cik_cp_enable(rdev, false);
@@ -7833,6 +8000,30 @@ int cik_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	if (rdev->flags & RADEON_IS_IGP) {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
+		    !rdev->mec_fw || !rdev->sdma_fw || !rdev->rlc_fw) {
+			r = cik_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	} else {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
+		    !rdev->mec_fw || !rdev->sdma_fw || !rdev->rlc_fw ||
+		    !rdev->mc_fw) {
+			r = cik_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	}
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 1024 * 1024);
@@ -7913,6 +8104,7 @@ int cik_init(struct radeon_device *rdev)
  */
 void cik_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	cik_cp_fini(rdev);
 	cik_sdma_fini(rdev);
 	cik_fini_pg(rdev);

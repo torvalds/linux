@@ -342,14 +342,14 @@ static void trinity_apply_state_adjust_rules(struct radeon_device *rdev,
 					     struct radeon_ps *new_rps,
 					     struct radeon_ps *old_rps);
 
-struct trinity_ps *trinity_get_ps(struct radeon_ps *rps)
+static struct trinity_ps *trinity_get_ps(struct radeon_ps *rps)
 {
 	struct trinity_ps *ps = rps->ps_priv;
 
 	return ps;
 }
 
-struct trinity_power_info *trinity_get_pi(struct radeon_device *rdev)
+static struct trinity_power_info *trinity_get_pi(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = rdev->pm.dpm.priv;
 
@@ -1082,7 +1082,6 @@ void trinity_dpm_enable_bapm(struct radeon_device *rdev, bool enable)
 int trinity_dpm_enable(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
-	int ret;
 
 	trinity_acquire_mutex(rdev);
 
@@ -1091,7 +1090,6 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 
-	trinity_enable_clock_power_gating(rdev);
 	trinity_program_bootup_state(rdev);
 	sumo_program_vc(rdev, 0x00C00033);
 	trinity_start_am(rdev);
@@ -1105,6 +1103,18 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 	trinity_dpm_bapm_enable(rdev, false);
 	trinity_release_mutex(rdev);
 
+	trinity_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+
+	return 0;
+}
+
+int trinity_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
+	trinity_acquire_mutex(rdev);
+	trinity_enable_clock_power_gating(rdev);
+
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		ret = trinity_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
@@ -1115,8 +1125,7 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 	}
-
-	trinity_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+	trinity_release_mutex(rdev);
 
 	return 0;
 }

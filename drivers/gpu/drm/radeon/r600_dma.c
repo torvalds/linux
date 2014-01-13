@@ -51,7 +51,14 @@ u32 r600_gpu_check_soft_reset(struct radeon_device *rdev);
 uint32_t r600_dma_get_rptr(struct radeon_device *rdev,
 			   struct radeon_ring *ring)
 {
-	return (radeon_ring_generic_get_rptr(rdev, ring) & 0x3fffc) >> 2;
+	u32 rptr;
+
+	if (rdev->wb.enabled)
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
+	else
+		rptr = RREG32(DMA_RB_RPTR);
+
+	return (rptr & 0x3fffc) >> 2;
 }
 
 /**
@@ -65,7 +72,7 @@ uint32_t r600_dma_get_rptr(struct radeon_device *rdev,
 uint32_t r600_dma_get_wptr(struct radeon_device *rdev,
 			   struct radeon_ring *ring)
 {
-	return (RREG32(ring->wptr_reg) & 0x3fffc) >> 2;
+	return (RREG32(DMA_RB_WPTR) & 0x3fffc) >> 2;
 }
 
 /**
@@ -79,7 +86,7 @@ uint32_t r600_dma_get_wptr(struct radeon_device *rdev,
 void r600_dma_set_wptr(struct radeon_device *rdev,
 		       struct radeon_ring *ring)
 {
-	WREG32(ring->wptr_reg, (ring->wptr << 2) & 0x3fffc);
+	WREG32(DMA_RB_WPTR, (ring->wptr << 2) & 0x3fffc);
 }
 
 /**

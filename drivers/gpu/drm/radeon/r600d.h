@@ -701,10 +701,17 @@
 #define RLC_UCODE_DATA                                    0x3f30
 
 #define SRBM_SOFT_RESET                                   0xe60
+#       define SOFT_RESET_BIF                             (1 << 1)
 #       define SOFT_RESET_DMA                             (1 << 12)
 #       define SOFT_RESET_RLC                             (1 << 13)
 #       define SOFT_RESET_UVD                             (1 << 18)
 #       define RV770_SOFT_RESET_DMA                       (1 << 20)
+
+#define BIF_SCRATCH0                                      0x5438
+
+#define BUS_CNTL                                          0x5420
+#       define BIOS_ROM_DIS                               (1 << 1)
+#       define VGA_COHE_SPEC_TIMER_DIS                    (1 << 9)
 
 #define CP_INT_CNTL                                       0xc124
 #       define CNTX_BUSY_INT_ENABLE                       (1 << 19)

@@ -191,7 +191,7 @@ static void radeon_set_filp_rights(struct drm_device *dev,
  * etc. (all asics).
  * Returns 0 on success, -EINVAL on failure.
  */
-int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
+static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_info *info = data;
@@ -707,7 +707,8 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 }
 
 #define KMS_INVALID_IOCTL(name)						\
-int name(struct drm_device *dev, void *data, struct drm_file *file_priv)\
+static int name(struct drm_device *dev, void *data, struct drm_file	\
+		*file_priv)						\
 {									\
 	DRM_ERROR("invalid ioctl with kms %s\n", __func__);		\
 	return -EINVAL;							\

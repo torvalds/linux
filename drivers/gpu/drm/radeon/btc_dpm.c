@@ -49,6 +49,7 @@ struct rv7xx_ps *rv770_get_ps(struct radeon_ps *rps);
 struct rv7xx_power_info *rv770_get_pi(struct radeon_device *rdev);
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
+extern int ni_mc_load_microcode(struct radeon_device *rdev);
 
 //********* BARTS **************//
 static const u32 barts_cgcg_cgls_default[] =
@@ -2510,21 +2511,6 @@ int btc_dpm_enable(struct radeon_device *rdev)
 	if (eg_pi->ls_clock_gating)
 		btc_ls_clock_gating_enable(rdev, true);
 
-	if (rdev->irq.installed &&
-	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		PPSMC_Result result;
-
-		ret = rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-		result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-	}
-
 	rv770_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
 	btc_init_stutter_mode(rdev);
@@ -2576,7 +2562,11 @@ void btc_dpm_disable(struct radeon_device *rdev)
 void btc_dpm_setup_asic(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	int r;
 
+	r = ni_mc_load_microcode(rdev);
+	if (r)
+		DRM_ERROR("Failed to load MC firmware!\n");
 	rv770_get_memory_type(rdev);
 	rv740_read_clock_registers(rdev);
 	btc_read_arb_registers(rdev);
