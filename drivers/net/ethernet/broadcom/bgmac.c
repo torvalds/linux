@@ -1518,14 +1518,12 @@ static int bgmac_probe(struct bcma_device *core)
 	err = bgmac_mii_register(bgmac);
 	if (err) {
 		bgmac_err(bgmac, "Cannot register MDIO\n");
-		err = -ENOTSUPP;
 		goto err_dma_free;
 	}
 
 	err = register_netdev(bgmac->net_dev);
 	if (err) {
 		bgmac_err(bgmac, "Cannot register net device\n");
-		err = -ENOTSUPP;
 		goto err_mii_unregister;
 	}
 
