@@ -29,7 +29,6 @@ struct cgroupfs_root;
 struct cgroup_subsys;
 struct inode;
 struct cgroup;
-struct css_id;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
@@ -79,8 +78,6 @@ struct cgroup_subsys_state {
 	struct cgroup_subsys_state *parent;
 
 	unsigned long flags;
-	/* ID for this css, if possible */
-	struct css_id __rcu *id;
 
 	/* percpu_ref killing and RCU release */
 	struct rcu_head rcu_head;
