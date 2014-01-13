@@ -1281,21 +1281,20 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 /*
  * Wait for auditd to drain the queue a little
  */
-static unsigned long wait_for_auditd(unsigned long sleep_time)
+static long wait_for_auditd(long sleep_time)
 {
-	unsigned long timeout = sleep_time;
 	DECLARE_WAITQUEUE(wait, current);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	add_wait_queue_exclusive(&audit_backlog_wait, &wait);
 
 	if (audit_backlog_limit &&
 	    skb_queue_len(&audit_skb_queue) > audit_backlog_limit)
-		timeout = schedule_timeout(sleep_time);
+		sleep_time = schedule_timeout(sleep_time);
 
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&audit_backlog_wait, &wait);
 
-	return timeout;
+	return sleep_time;
 }
 
 /**
@@ -1339,13 +1338,12 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	while (audit_backlog_limit
 	       && skb_queue_len(&audit_skb_queue) > audit_backlog_limit + reserve) {
 		if (gfp_mask & __GFP_WAIT && audit_backlog_wait_time) {
-			unsigned long sleep_time;
+			long sleep_time;
 
-			sleep_time = timeout_start + audit_backlog_wait_time -
-					jiffies;
-			if ((long)sleep_time > 0) {
+			sleep_time = timeout_start + audit_backlog_wait_time - jiffies;
+			if (sleep_time > 0) {
 				sleep_time = wait_for_auditd(sleep_time);
-				if ((long)sleep_time > 0)
+				if (sleep_time > 0)
 					continue;
 			}
 		}
