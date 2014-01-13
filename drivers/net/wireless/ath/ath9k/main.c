@@ -2111,7 +2111,7 @@ struct ieee80211_ops ath9k_ops = {
 	.get_et_strings     = ath9k_get_et_strings,
 #endif
 
-#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_STATION_STATISTICS)
 	.sta_add_debugfs    = ath9k_sta_add_debugfs,
 #endif
 	.sw_scan_start	    = ath9k_sw_scan_start,

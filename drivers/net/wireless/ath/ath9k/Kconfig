@@ -65,6 +65,14 @@ config ATH9K_DEBUGFS
 
 	  Also required for changing debug message flags at run time.
 
+config ATH9K_STATION_STATISTICS
+	bool "Detailed station statistics"
+	depends on ATH9K && ATH9K_DEBUGFS && DEBUG_FS
+	select MAC80211_DEBUGFS
+	default n
+	---help---
+	  This option enables detailed statistics for association stations.
+
 config ATH9K_DFS_CERTIFIED
 	bool "Atheros DFS support for certified platforms"
 	depends on ATH9K && CFG80211_CERTIFICATION_ONUS
