@@ -1066,7 +1066,8 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
 	/* Remove the CSA and MCSP elements from the beacon */
 	tmp_csa_settings = rcu_dereference(ifmsh->csa);
 	rcu_assign_pointer(ifmsh->csa, NULL);
-	kfree_rcu(tmp_csa_settings, rcu_head);
+	if (tmp_csa_settings)
+		kfree_rcu(tmp_csa_settings, rcu_head);
 	ret = ieee80211_mesh_rebuild_beacon(sdata);
 	if (ret)
 		return -EINVAL;
@@ -1079,8 +1080,7 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
 }
 
 int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
-			      struct cfg80211_csa_settings *csa_settings,
-			      bool csa_action)
+			      struct cfg80211_csa_settings *csa_settings)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_csa_settings *tmp_csa_settings;
@@ -1103,9 +1103,6 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		kfree_rcu(tmp_csa_settings, rcu_head);
 		return ret;
 	}
-
-	if (csa_action)
-		ieee80211_send_action_csa(sdata, csa_settings);
 
 	return BSS_CHANGED_BEACON;
 }
