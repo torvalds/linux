@@ -48,7 +48,8 @@ extern int pie_arch_fixup(struct pie_chunk *chunk, void *base, void *tail,
  * Returns number of bytes required/used for tail on success, -EERROR otherwise.
  */
 extern int pie_arch_fill_tail(void *tail, void *common_start, void *common_end,
-			void *overlay_start, void *code_start, void *code_end);
+			void *overlay_start, void *code_start, void *code_end,
+			void *rel_start, void *rel_end);
 
 #ifdef CONFIG_PIE
 
@@ -62,8 +63,9 @@ extern int pie_arch_fill_tail(void *tail, void *common_start, void *common_end,
  *
  * Returns 0 on success, -EERROR otherwise
  */
-extern struct pie_chunk *__pie_load_data(struct gen_pool *pool,
-				void *start, void *end, bool phys);
+extern struct pie_chunk *__pie_load_data(struct gen_pool *pool, bool phys,
+				void *start, void *end,
+				void *rel_start, void *rel_end);
 
 /**
  * pie_to_phys - translate a virtual PIE address into a physical one
@@ -85,9 +87,12 @@ extern void pie_free(struct pie_chunk *chunk);
 #define __pie_load_sections(pool, name, phys) ({			\
 	extern char __pie_##name##_start[];				\
 	extern char __pie_##name##_end[];				\
+	extern char __pie_rel_##name##_start[];				\
+	extern char __pie_rel_##name##_end[];				\
 									\
-	__pie_load_data(pool, __pie_##name##_start,			\
-					__pie_##name##_end, phys);	\
+	__pie_load_data(pool, phys,					\
+		__pie_##name##_start, __pie_##name##_end,		\
+		__pie_rel_##name##_start, __pie_rel_##name##_end);	\
 })
 
 /*

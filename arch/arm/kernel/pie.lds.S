@@ -21,21 +21,21 @@ SECTIONS
 	}
 	PIE_COMMON_END
 
-	PIE_OVERLAY_START
-	OVERLAY : NOCROSSREFS {
-		PIE_OVERLAY_SECTION(rockchip)
-	}
-	PIE_OVERLAY_END
-
 	__pie_rel_dyn_start : {
 		VMLINUX_SYMBOL(__pie_rel_dyn_start) = .;
 	}
 	.rel.dyn : {
-		KEEP(*(.rel*))
+		KEEP(*(.rel.pie.text))
 	}
 	__pie_rel_dyn_end : {
 		VMLINUX_SYMBOL(__pie_rel_dyn_end) = .;
 	}
+
+	PIE_OVERLAY_START
+	OVERLAY : NOCROSSREFS {
+		PIE_OVERLAY_SECTION(rk3188)
+	}
+	PIE_OVERLAY_END
 
 	PIE_DISCARDS
 }

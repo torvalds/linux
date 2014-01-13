@@ -62,6 +62,14 @@
 		VMLINUX_SYMBOL(__pie_##name##_end) =			\
 				LOADADDR(.pie.##name##) +		\
 				SIZEOF(.pie.##name##);			\
+	}								\
+	.rel.##name {							\
+		KEEP(*(.rel.pie.##name##.*))				\
+		VMLINUX_SYMBOL(__pie_rel_##name##_start) =		\
+				LOADADDR(.rel.##name##);		\
+		VMLINUX_SYMBOL(__pie_rel_##name##_end) =		\
+				LOADADDR(.rel.##name##) +		\
+				SIZEOF(.rel.##name##);			\
 	}
 
 #define PIE_DISCARDS							\

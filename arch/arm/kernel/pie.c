@@ -25,23 +25,23 @@ struct arm_pie_tail {
 };
 
 int pie_arch_fill_tail(void *tail, void *common_start, void *common_end,
-			void *overlay_start, void *code_start, void *code_end)
+			void *overlay_start, void *code_start, void *code_end,
+			void *rel_start, void *rel_end)
 {
 	Elf32_Rel *rel;
 	int records;
 	int i;
 	struct arm_pie_tail *pie_tail = tail;
 	int count;
+	void *kern_off;
 
 	rel = (Elf32_Rel *) __pie_rel_dyn_start;
-	records = (__pie_rel_dyn_end - __pie_rel_dyn_start) /
-						sizeof(*rel);
+	records = (__pie_rel_dyn_end - __pie_rel_dyn_start) / sizeof(*rel);
 
 	count = 0;
 	for (i = 0; i < records; i++, rel++) {
-		void *kern_off;
 		if (ELF32_R_TYPE(rel->r_info) != R_ARM_RELATIVE)
-			return -ENOEXEC;
+			break;
 
 		/* Adjust offset to match area in kernel */
 		kern_off = common_start + rel->r_offset;
@@ -50,10 +50,22 @@ int pie_arch_fill_tail(void *tail, void *common_start, void *common_end,
 			if (tail)
 				pie_tail->offset[count] = rel->r_offset;
 			count++;
-		} else if (kern_off >= code_start && kern_off < code_end) {
+		}
+	}
+
+	rel = (Elf32_Rel *) rel_start;
+	records = (rel_end - rel_start) / sizeof(*rel);
+
+	for (i = 0; i < records; i++, rel++) {
+		if (ELF32_R_TYPE(rel->r_info) != R_ARM_RELATIVE)
+			break;
+
+		/* Adjust offset to match area in kernel */
+		kern_off = common_start + rel->r_offset;
+
+		if (kern_off >= common_start && kern_off < code_end) {
 			if (tail)
-				pie_tail->offset[count] = rel->r_offset -
-						(code_start - overlay_start);
+				pie_tail->offset[count] = rel->r_offset;
 			count++;
 		}
 	}

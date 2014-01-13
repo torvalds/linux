@@ -26,7 +26,8 @@ extern char __pie_common_end[];
 extern char __pie_overlay_start[];
 
 int __weak pie_arch_fill_tail(void *tail, void *common_start, void *common_end,
-			void *overlay_start, void *code_start, void *code_end)
+			void *overlay_start, void *code_start, void *code_end,
+			void *rel_start, void *rel_end)
 {
 	return 0;
 }
@@ -37,8 +38,9 @@ int __weak pie_arch_fixup(struct pie_chunk *chunk, void *base, void *tail,
 	return 0;
 }
 
-struct pie_chunk *__pie_load_data(struct gen_pool *pool, void *code_start,
-					void *code_end, bool phys)
+struct pie_chunk *__pie_load_data(struct gen_pool *pool, bool phys,
+		void *code_start, void *code_end,
+		void *rel_start, void *rel_end)
 {
 	struct pie_chunk *chunk;
 	unsigned long offset;
@@ -50,7 +52,8 @@ struct pie_chunk *__pie_load_data(struct gen_pool *pool, void *code_start,
 
 	/* Calculate the tail size */
 	ret = pie_arch_fill_tail(NULL, __pie_common_start, __pie_common_end,
-				__pie_overlay_start, code_start, code_end);
+				__pie_overlay_start, code_start, code_end,
+				rel_start, rel_end);
 	if (ret < 0)
 		goto err;
 	tail_sz = ret;
@@ -61,7 +64,7 @@ struct pie_chunk *__pie_load_data(struct gen_pool *pool, void *code_start,
 		goto err;
 	}
 
-	common_sz = __pie_overlay_start - __pie_common_start;
+	common_sz = code_start - (void *)__pie_common_start;
 	code_sz = code_end - code_start;
 
 	chunk->pool = pool;
@@ -84,7 +87,8 @@ struct pie_chunk *__pie_load_data(struct gen_pool *pool, void *code_start,
 
 	/* Fill in tail data */
 	ret = pie_arch_fill_tail(tail, __pie_common_start, __pie_common_end,
-				__pie_overlay_start, code_start, code_end);
+				__pie_overlay_start, code_start, code_end,
+				rel_start, rel_end);
 	if (ret < 0)
 		goto err_alloc;
 
