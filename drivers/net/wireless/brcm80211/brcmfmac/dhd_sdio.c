@@ -1082,10 +1082,6 @@ static void brcmf_sdio_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 
 	/* Clear partial in any case */
 	bus->cur_read.len = 0;
-
-	/* If we can't reach the device, signal failure */
-	if (err)
-		bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 }
 
 /* return total length of buffer chain */
@@ -1682,8 +1678,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 	bus->rxpending = true;
 
 	for (rd->seq_num = bus->rx_seq, rxleft = maxframes;
-	     !bus->rxskip && rxleft &&
-	     bus->sdiodev->bus_if->state != BRCMF_BUS_DOWN;
+	     !bus->rxskip && rxleft && brcmf_bus_ready(bus->sdiodev->bus_if);
 	     rd->seq_num++, rxleft--) {
 
 		/* Handle glomming separately */
@@ -2232,39 +2227,37 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 		bus->watchdog_tsk = NULL;
 	}
 
-	sdio_claim_host(bus->sdiodev->func[1]);
+	if (bus_if->state == BRCMF_BUS_DOWN) {
+		sdio_claim_host(sdiodev->func[1]);
 
-	/* Enable clock for device interrupts */
-	brcmf_sdio_bus_sleep(bus, false, false);
+		/* Enable clock for device interrupts */
+		brcmf_sdio_bus_sleep(bus, false, false);
 
-	/* Disable and clear interrupts at the chip level also */
-	w_sdreg32(bus, 0, offsetof(struct sdpcmd_regs, hostintmask));
-	local_hostintmask = bus->hostintmask;
-	bus->hostintmask = 0;
+		/* Disable and clear interrupts at the chip level also */
+		w_sdreg32(bus, 0, offsetof(struct sdpcmd_regs, hostintmask));
+		local_hostintmask = bus->hostintmask;
+		bus->hostintmask = 0;
 
-	/* Change our idea of bus state */
-	bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
+		/* Force backplane clocks to assure F2 interrupt propagates */
+		saveclk = brcmf_sdiod_regrb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
+					    &err);
+		if (!err)
+			brcmf_sdiod_regwb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
+					  (saveclk | SBSDIO_FORCE_HT), &err);
+		if (err)
+			brcmf_err("Failed to force clock for F2: err %d\n",
+				  err);
 
-	/* Force clocks on backplane to be sure F2 interrupt propagates */
-	saveclk = brcmf_sdiod_regrb(bus->sdiodev,
-				    SBSDIO_FUNC1_CHIPCLKCSR, &err);
-	if (!err) {
-		brcmf_sdiod_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
-				  (saveclk | SBSDIO_FORCE_HT), &err);
+		/* Turn off the bus (F2), free any pending packets */
+		brcmf_dbg(INTR, "disable SDIO interrupts\n");
+		sdio_disable_func(sdiodev->func[SDIO_FUNC_2]);
+
+		/* Clear any pending interrupts now that F2 is disabled */
+		w_sdreg32(bus, local_hostintmask,
+			  offsetof(struct sdpcmd_regs, intstatus));
+
+		sdio_release_host(sdiodev->func[1]);
 	}
-	if (err)
-		brcmf_err("Failed to force clock for F2: err %d\n", err);
-
-	/* Turn off the bus (F2), free any pending packets */
-	brcmf_dbg(INTR, "disable SDIO interrupts\n");
-	sdio_disable_func(bus->sdiodev->func[SDIO_FUNC_2]);
-
-	/* Clear any pending interrupts now that F2 is disabled */
-	w_sdreg32(bus, local_hostintmask,
-		  offsetof(struct sdpcmd_regs, intstatus));
-
-	sdio_release_host(bus->sdiodev->func[1]);
-
 	/* Clear the data packet queues */
 	brcmu_pktq_flush(&bus->txq, true, NULL, NULL);
 
@@ -2354,20 +2347,11 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 		/* Check for inconsistent device control */
 		devctl = brcmf_sdiod_regrb(bus->sdiodev,
 					   SBSDIO_DEVICE_CTL, &err);
-		if (err) {
-			brcmf_err("error reading DEVCTL: %d\n", err);
-			bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
-		}
 #endif				/* DEBUG */
 
 		/* Read CSR, if clock on switch to AVAIL, else ignore */
 		clkctl = brcmf_sdiod_regrb(bus->sdiodev,
 					   SBSDIO_FUNC1_CHIPCLKCSR, &err);
-		if (err) {
-			brcmf_err("error reading CSR: %d\n",
-				  err);
-			bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
-		}
 
 		brcmf_dbg(SDIO, "DPC: PENDING, devctl 0x%02x clkctl 0x%02x\n",
 			  devctl, clkctl);
@@ -2375,19 +2359,9 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 		if (SBSDIO_HTAV(clkctl)) {
 			devctl = brcmf_sdiod_regrb(bus->sdiodev,
 						   SBSDIO_DEVICE_CTL, &err);
-			if (err) {
-				brcmf_err("error reading DEVCTL: %d\n",
-					  err);
-				bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
-			}
 			devctl &= ~SBSDIO_DEVCTL_CA_INT_ONLY;
 			brcmf_sdiod_regwb(bus->sdiodev, SBSDIO_DEVICE_CTL,
 					  devctl, &err);
-			if (err) {
-				brcmf_err("error writing DEVCTL: %d\n",
-					  err);
-				bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
-			}
 			bus->clkstate = CLK_AVAIL;
 		}
 	}
@@ -2522,9 +2496,8 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 		txlimit -= framecnt;
 	}
 
-	if ((bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN) || (err != 0)) {
+	if (!brcmf_bus_ready(bus->sdiodev->bus_if) || (err != 0)) {
 		brcmf_err("failed backplane access over SDIO, halting operation\n");
-		bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 		atomic_set(&bus->intstatus, 0);
 	} else if (atomic_read(&bus->intstatus) ||
 		   atomic_read(&bus->ipend) > 0 ||
@@ -3356,7 +3329,7 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus)
 	}
 
 	/* Allow HT Clock now that the ARM is running. */
-	bus->sdiodev->bus_if->state = BRCMF_BUS_LOAD;
+	brcmf_bus_change_state(bus->sdiodev->bus_if, BRCMF_BUS_LOAD);
 	bcmerror = 0;
 
 err:
@@ -3633,7 +3606,7 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus)
 		return;
 	}
 
-	if (bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN) {
+	if (!brcmf_bus_ready(bus->sdiodev->bus_if)) {
 		brcmf_err("bus is down. we have nothing to do\n");
 		return;
 	}
@@ -3644,7 +3617,6 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus)
 	else
 		if (brcmf_sdio_intr_rstatus(bus)) {
 			brcmf_err("failed backplane access\n");
-			bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 		}
 
 	/* Disable additional interrupts (is this needed now)? */
@@ -3780,6 +3752,11 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 			  err, BRCMF_INIT_CLKCTL1, clkctl);
 		goto fail;
 	}
+
+	/* SDIO register access works so moving
+	 * state from UNKNOWN to DOWN.
+	 */
+	brcmf_bus_change_state(bus->sdiodev->bus_if, BRCMF_BUS_DOWN);
 
 	if (brcmf_sdio_chip_attach(bus->sdiodev, &bus->ci)) {
 		brcmf_err("brcmf_sdio_chip_attach failed!\n");
@@ -4004,7 +3981,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	/* Disable F2 to clear any intermediate frame state on the dongle */
 	sdio_disable_func(bus->sdiodev->func[SDIO_FUNC_2]);
 
-	bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 	bus->rxflow = false;
 
 	/* Done with backplane-dependent accesses, can drop clock... */
@@ -4060,16 +4036,20 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 		}
 
 		if (bus->ci) {
-			sdio_claim_host(bus->sdiodev->func[1]);
-			brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
-			/* Leave the device in state where it is 'quiet'. This
-			 * is done by putting it in download_state which
-			 * essentially resets all necessary cores
-			 */
-			msleep(20);
-			brcmf_sdio_chip_enter_download(bus->sdiodev, bus->ci);
-			brcmf_sdio_clkctl(bus, CLK_NONE, false);
-			sdio_release_host(bus->sdiodev->func[1]);
+			if (bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN) {
+				sdio_claim_host(bus->sdiodev->func[1]);
+				brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
+				/* Leave the device in state where it is
+				 * 'quiet'. This is done by putting it in
+				 * download_state which essentially resets
+				 * all necessary cores.
+				 */
+				msleep(20);
+				brcmf_sdio_chip_enter_download(bus->sdiodev,
+							       bus->ci);
+				brcmf_sdio_clkctl(bus, CLK_NONE, false);
+				sdio_release_host(bus->sdiodev->func[1]);
+			}
 			brcmf_sdio_chip_detach(&bus->ci);
 		}
 
