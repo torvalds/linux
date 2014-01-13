@@ -5853,15 +5853,12 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_hw *hw = &hw_priv->hw;
 	struct ksz_port *port = &priv->port;
-	int rc;
 	int result = 0;
 	struct mii_ioctl_data *data = if_mii(ifr);
 
 	if (down_interruptible(&priv->proc_sem))
 		return -ERESTARTSYS;
 
-	/* assume success */
-	rc = 0;
 	switch (cmd) {
 	/* Get address of MII PHY in use. */
 	case SIOCGMIIPHY:
