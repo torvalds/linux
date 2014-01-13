@@ -3274,7 +3274,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev->has_alsa_audio = has_audio;
 	dev->audio_mode.has_audio = has_audio;
 	dev->has_video = has_video;
-	dev->audio_ifnum = ifnum;
+	dev->ifnum = ifnum;
 
 	/* Checks if audio is provided by some interface */
 	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {

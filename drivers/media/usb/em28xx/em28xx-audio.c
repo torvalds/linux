@@ -266,7 +266,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
 	runtime->hw = snd_em28xx_hw_capture;
-	if ((dev->alt == 0 || dev->audio_ifnum) && dev->adev.users == 0) {
+	if ((dev->alt == 0 || dev->ifnum) && dev->adev.users == 0) {
 		int nonblock = !!(substream->f_flags & O_NONBLOCK);
 
 		if (nonblock) {
@@ -274,14 +274,14 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 				return -EAGAIN;
 		} else
 			mutex_lock(&dev->lock);
-		if (dev->audio_ifnum)
+		if (dev->ifnum)
 			dev->alt = 1;
 		else
 			dev->alt = 7;
 
 		dprintk("changing alternate number on interface %d to %d\n",
-			dev->audio_ifnum, dev->alt);
-		usb_set_interface(dev->udev, dev->audio_ifnum, dev->alt);
+			dev->ifnum, dev->alt);
+		usb_set_interface(dev->udev, dev->ifnum, dev->alt);
 
 		/* Sets volume, mute, etc */
 		dev->mute = 0;
@@ -733,16 +733,16 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	int		    urb_size, bytes_per_transfer;
 	u8 alt;
 
-	if (dev->audio_ifnum)
+	if (dev->ifnum)
 		alt = 1;
 	else
 		alt = 7;
 
-	intf = usb_ifnum_to_if(dev->udev, dev->audio_ifnum);
+	intf = usb_ifnum_to_if(dev->udev, dev->ifnum);
 
 	if (intf->num_altsetting <= alt) {
 		em28xx_errdev("alt %d doesn't exist on interface %d\n",
-			      dev->audio_ifnum, alt);
+			      dev->ifnum, alt);
 		return -ENODEV;
 	}
 
@@ -766,7 +766,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 
 	em28xx_info("Endpoint 0x%02x %s on intf %d alt %d interval = %d, size %d\n",
 		     EM28XX_EP_AUDIO, usb_speed_string(dev->udev->speed),
-		     dev->audio_ifnum, alt,
+		     dev->ifnum, alt,
 		     interval,
 		     ep_size);
 
@@ -877,7 +877,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	static int          devnr;
 	int		    err;
 
-	if (!dev->has_alsa_audio || dev->audio_ifnum < 0) {
+	if (!dev->has_alsa_audio) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
