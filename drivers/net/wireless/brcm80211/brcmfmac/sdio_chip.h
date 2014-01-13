@@ -224,7 +224,6 @@ u8 brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid);
 void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
 				    struct chip_info *ci);
 bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
-				   struct chip_info *ci, char *nvram_dat,
-				   uint nvram_sz);
+				   struct chip_info *ci);
 
 #endif		/* _BRCMFMAC_SDIO_CHIP_H_ */

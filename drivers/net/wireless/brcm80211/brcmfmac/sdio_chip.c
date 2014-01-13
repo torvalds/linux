@@ -842,107 +842,16 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 	}
 }
 
-#ifdef DEBUG
-static bool
-brcmf_sdio_chip_verifynvram(struct brcmf_sdio_dev *sdiodev, u32 nvram_addr,
-			    char *nvram_dat, uint nvram_sz)
-{
-	char *nvram_ularray;
-	int err;
-	bool ret = true;
-
-	/* read back and verify */
-	brcmf_dbg(INFO, "Compare NVRAM dl & ul; size=%d\n", nvram_sz);
-	nvram_ularray = kmalloc(nvram_sz, GFP_KERNEL);
-	/* do not proceed while no memory but  */
-	if (!nvram_ularray)
-		return true;
-
-	/* Upload image to verify downloaded contents. */
-	memset(nvram_ularray, 0xaa, nvram_sz);
-
-	/* Read the vars list to temp buffer for comparison */
-	err = brcmf_sdiod_ramrw(sdiodev, false, nvram_addr, nvram_ularray,
-				nvram_sz);
-	if (err) {
-		brcmf_err("error %d on reading %d nvram bytes at 0x%08x\n",
-			  err, nvram_sz, nvram_addr);
-	} else if (memcmp(nvram_dat, nvram_ularray, nvram_sz)) {
-		brcmf_err("Downloaded NVRAM image is corrupted\n");
-		ret = false;
-	}
-	kfree(nvram_ularray);
-
-	return ret;
-}
-#else	/* DEBUG */
-static inline bool
-brcmf_sdio_chip_verifynvram(struct brcmf_sdio_dev *sdiodev, u32 nvram_addr,
-			    char *nvram_dat, uint nvram_sz)
-{
-	return true;
-}
-#endif	/* DEBUG */
-
-static bool brcmf_sdio_chip_writenvram(struct brcmf_sdio_dev *sdiodev,
-				       struct chip_info *ci,
-				       char *nvram_dat, uint nvram_sz)
-{
-	int err;
-	u32 nvram_addr;
-	u32 token;
-	__le32 token_le;
-
-	nvram_addr = (ci->ramsize - 4) - nvram_sz + ci->rambase;
-
-	/* Write the vars list */
-	err = brcmf_sdiod_ramrw(sdiodev, true, nvram_addr, nvram_dat, nvram_sz);
-	if (err) {
-		brcmf_err("error %d on writing %d nvram bytes at 0x%08x\n",
-			  err, nvram_sz, nvram_addr);
-		return false;
-	}
-
-	if (!brcmf_sdio_chip_verifynvram(sdiodev, nvram_addr,
-					 nvram_dat, nvram_sz))
-		return false;
-
-	/* generate token:
-	 * nvram size, converted to words, in lower 16-bits, checksum
-	 * in upper 16-bits.
-	 */
-	token = nvram_sz / 4;
-	token = (~token << 16) | (token & 0x0000FFFF);
-	token_le = cpu_to_le32(token);
-
-	brcmf_dbg(INFO, "RAM size: %d\n", ci->ramsize);
-	brcmf_dbg(INFO, "nvram is placed at %d, size %d, token=0x%08x\n",
-		  nvram_addr, nvram_sz, token);
-
-	/* Write the length token to the last word */
-	if (brcmf_sdiod_ramrw(sdiodev, true, (ci->ramsize - 4 + ci->rambase),
-			      (u8 *)&token_le, 4))
-		return false;
-
-	return true;
-}
-
 static void
 brcmf_sdio_chip_cm3_enterdl(struct brcmf_sdio_dev *sdiodev,
 			    struct chip_info *ci)
 {
-	u32 zeros = 0;
-
 	ci->coredisable(sdiodev, ci, BCMA_CORE_ARM_CM3, 0);
 	ci->resetcore(sdiodev, ci, BCMA_CORE_INTERNAL_MEM, 0);
-
-	/* clear length token */
-	brcmf_sdiod_ramrw(sdiodev, true, ci->ramsize - 4, (u8 *)&zeros, 4);
 }
 
 static bool
-brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
-			   char *nvram_dat, uint nvram_sz)
+brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci)
 {
 	u8 core_idx;
 	u32 reg_addr;
@@ -951,9 +860,6 @@ brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 		brcmf_err("SOCRAM core is down after reset?\n");
 		return false;
 	}
-
-	if (!brcmf_sdio_chip_writenvram(sdiodev, ci, nvram_dat, nvram_sz))
-		return false;
 
 	/* clear all interrupts */
 	core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_SDIO_DEV);
@@ -975,14 +881,10 @@ brcmf_sdio_chip_cr4_enterdl(struct brcmf_sdio_dev *sdiodev,
 }
 
 static bool
-brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
-			   char *nvram_dat, uint nvram_sz)
+brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci)
 {
 	u8 core_idx;
 	u32 reg_addr;
-
-	if (!brcmf_sdio_chip_writenvram(sdiodev, ci, nvram_dat, nvram_sz))
-		return false;
 
 	/* clear all interrupts */
 	core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_SDIO_DEV);
@@ -1015,15 +917,13 @@ void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
 }
 
 bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
-				   struct chip_info *ci, char *nvram_dat,
-				   uint nvram_sz)
+				   struct chip_info *ci)
 {
 	u8 arm_core_idx;
 
 	arm_core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
 	if (BRCMF_MAX_CORENUM != arm_core_idx)
-		return brcmf_sdio_chip_cm3_exitdl(sdiodev, ci, nvram_dat,
-						  nvram_sz);
+		return brcmf_sdio_chip_cm3_exitdl(sdiodev, ci);
 
-	return brcmf_sdio_chip_cr4_exitdl(sdiodev, ci, nvram_dat, nvram_sz);
+	return brcmf_sdio_chip_cr4_exitdl(sdiodev, ci);
 }

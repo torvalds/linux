@@ -41,6 +41,7 @@
 #include <soc.h>
 #include "sdio_host.h"
 #include "sdio_chip.h"
+#include "nvram.h"
 
 #define DCMD_RESP_TIMEOUT  2000	/* In milli second */
 
@@ -369,8 +370,6 @@ struct brcmf_sdio_hdrinfo {
 struct brcmf_sdio {
 	struct brcmf_sdio_dev *sdiodev;	/* sdio device handler */
 	struct chip_info *ci;	/* Chip info struct */
-	char *vars;		/* Variables (from CIS and/or other) */
-	uint varsz;		/* Size of variables buffer */
 
 	u32 ramsize;		/* Size of RAM in SOCRAM (bytes) */
 
@@ -3207,8 +3206,7 @@ static bool brcmf_sdio_download_state(struct brcmf_sdio *bus, bool enter)
 
 		brcmf_sdio_chip_enter_download(bus->sdiodev, ci);
 	} else {
-		if (!brcmf_sdio_chip_exit_download(bus->sdiodev, ci, bus->vars,
-						   bus->varsz))
+		if (!brcmf_sdio_chip_exit_download(bus->sdiodev, ci))
 			return false;
 
 		/* Allow HT Clock now that the ARM is running. */
@@ -3220,6 +3218,60 @@ static bool brcmf_sdio_download_state(struct brcmf_sdio *bus, bool enter)
 	return true;
 }
 
+#ifdef DEBUG
+static bool
+brcmf_sdio_verifymemory(struct brcmf_sdio_dev *sdiodev, u32 ram_addr,
+			u8 *ram_data, uint ram_sz)
+{
+	char *ram_cmp;
+	int err;
+	bool ret = true;
+	int address;
+	int offset;
+	int len;
+
+	/* read back and verify */
+	brcmf_dbg(INFO, "Compare RAM dl & ul at 0x%08x; size=%d\n", ram_addr,
+		  ram_sz);
+	ram_cmp = kmalloc(MEMBLOCK, GFP_KERNEL);
+	/* do not proceed while no memory but  */
+	if (!ram_cmp)
+		return true;
+
+	address = ram_addr;
+	offset = 0;
+	while (offset < ram_sz) {
+		len = ((offset + MEMBLOCK) < ram_sz) ? MEMBLOCK :
+		      ram_sz - offset;
+		err = brcmf_sdiod_ramrw(sdiodev, false, address, ram_cmp, len);
+		if (err) {
+			brcmf_err("error %d on reading %d membytes at 0x%08x\n",
+				  err, len, address);
+			ret = false;
+			break;
+		} else if (memcmp(ram_cmp, &ram_data[offset], len)) {
+			brcmf_err("Downloaded RAM image is corrupted, block offset is %d, len is %d\n",
+				  offset, len);
+			ret = false;
+			break;
+		}
+		offset += len;
+		address += len;
+	}
+
+	kfree(ram_cmp);
+
+	return ret;
+}
+#else	/* DEBUG */
+static bool
+brcmf_sdio_verifymemory(struct brcmf_sdio_dev *sdiodev, u32 ram_addr,
+			u8 *ram_data, uint ram_sz)
+{
+	return true;
+}
+#endif	/* DEBUG */
+
 static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus)
 {
 	const struct firmware *fw;
@@ -3227,6 +3279,8 @@ static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus)
 	int offset;
 	int address;
 	int len;
+
+	brcmf_dbg(TRACE, "Enter\n");
 
 	fw = brcmf_sdio_get_fw(bus, BRCMF_FIRMWARE_BIN);
 	if (fw == NULL)
@@ -3252,6 +3306,10 @@ static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus)
 		offset += len;
 		address += len;
 	}
+	if (!err)
+		if (!brcmf_sdio_verifymemory(bus->sdiodev, bus->ci->rambase,
+					     (u8 *)fw->data, fw->size))
+			err = -EIO;
 
 failure:
 	release_firmware(fw);
@@ -3259,94 +3317,37 @@ failure:
 	return err;
 }
 
-/*
- * ProcessVars:Takes a buffer of "<var>=<value>\n" lines read from a file
- * and ending in a NUL.
- * Removes carriage returns, empty lines, comment lines, and converts
- * newlines to NULs.
- * Shortens buffer as needed and pads with NULs.  End of buffer is marked
- * by two NULs.
-*/
-
-static int brcmf_sdio_strip_nvram(struct brcmf_sdio *bus,
-				  const struct firmware *nv)
-{
-	char *varbuf;
-	char *dp;
-	bool findNewline;
-	int column;
-	int ret = 0;
-	uint buf_len, n, len;
-
-	len = nv->size;
-	varbuf = vmalloc(len);
-	if (!varbuf)
-		return -ENOMEM;
-
-	memcpy(varbuf, nv->data, len);
-	dp = varbuf;
-
-	findNewline = false;
-	column = 0;
-
-	for (n = 0; n < len; n++) {
-		if (varbuf[n] == 0)
-			break;
-		if (varbuf[n] == '\r')
-			continue;
-		if (findNewline && varbuf[n] != '\n')
-			continue;
-		findNewline = false;
-		if (varbuf[n] == '#') {
-			findNewline = true;
-			continue;
-		}
-		if (varbuf[n] == '\n') {
-			if (column == 0)
-				continue;
-			*dp++ = 0;
-			column = 0;
-			continue;
-		}
-		*dp++ = varbuf[n];
-		column++;
-	}
-	buf_len = dp - varbuf;
-	while (dp < varbuf + n)
-		*dp++ = 0;
-
-	kfree(bus->vars);
-	/* roundup needed for download to device */
-	bus->varsz = roundup(buf_len + 1, 4);
-	bus->vars = kmalloc(bus->varsz, GFP_KERNEL);
-	if (bus->vars == NULL) {
-		bus->varsz = 0;
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	/* copy the processed variables and add null termination */
-	memcpy(bus->vars, varbuf, buf_len);
-	bus->vars[buf_len] = 0;
-err:
-	vfree(varbuf);
-	return ret;
-}
-
 static int brcmf_sdio_download_nvram(struct brcmf_sdio *bus)
 {
 	const struct firmware *nv;
-	int ret;
+	void *vars;
+	u32 varsz;
+	int address;
+	int err;
+
+	brcmf_dbg(TRACE, "Enter\n");
 
 	nv = brcmf_sdio_get_fw(bus, BRCMF_FIRMWARE_NVRAM);
 	if (nv == NULL)
 		return -ENOENT;
 
-	ret = brcmf_sdio_strip_nvram(bus, nv);
-
+	vars = brcmf_nvram_strip(nv, &varsz);
 	release_firmware(nv);
 
-	return ret;
+	if (vars == NULL)
+		return -EINVAL;
+
+	address = bus->ci->ramsize - varsz + bus->ci->rambase;
+	err = brcmf_sdiod_ramrw(bus->sdiodev, true, address, vars, varsz);
+	if (err)
+		brcmf_err("error %d on writing %d nvram bytes at 0x%08x\n",
+			  err, varsz, address);
+	else if (!brcmf_sdio_verifymemory(bus->sdiodev, address, vars, varsz))
+		err = -EIO;
+
+	brcmf_nvram_free(vars);
+
+	return err;
 }
 
 static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus)
@@ -4092,7 +4093,6 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 		brcmu_pkt_buf_free_skb(bus->txglom_sgpad);
 		kfree(bus->rxbuf);
 		kfree(bus->hdrbuf);
-		kfree(bus->vars);
 		kfree(bus);
 	}
 
