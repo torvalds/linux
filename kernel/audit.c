@@ -834,22 +834,15 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			if (err < 0)
 				return err;
 		}
-		switch (s.version) {
-		/* add future vers # cases immediately below and allow
-		 * to fall through */
-		case 2:
-			if (s.mask & AUDIT_STATUS_BACKLOG_WAIT_TIME) {
-				if (sizeof(s) > (size_t)nlh->nlmsg_len)
-					return -EINVAL;
-				if (s.backlog_wait_time < 0 ||
-				    s.backlog_wait_time > 10*AUDIT_BACKLOG_WAIT_TIME)
-					return -EINVAL;
-				err = audit_set_backlog_wait_time(s.backlog_wait_time);
-				if (err < 0)
-					return err;
-			}
-		default:
-			break;
+		if (s.mask & AUDIT_STATUS_BACKLOG_WAIT_TIME) {
+			if (sizeof(s) > (size_t)nlh->nlmsg_len)
+				return -EINVAL;
+			if (s.backlog_wait_time < 0 ||
+			    s.backlog_wait_time > 10*AUDIT_BACKLOG_WAIT_TIME)
+				return -EINVAL;
+			err = audit_set_backlog_wait_time(s.backlog_wait_time);
+			if (err < 0)
+				return err;
 		}
 		break;
 	}
