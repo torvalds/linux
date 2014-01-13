@@ -178,6 +178,9 @@ struct sysfs_ops {
 
 #ifdef CONFIG_SYSFS
 
+int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
+			    void *data, struct module *owner);
+
 int __must_check sysfs_create_dir_ns(struct kobject *kobj, const void *ns);
 void sysfs_remove_dir(struct kobject *kobj);
 int __must_check sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
@@ -245,6 +248,12 @@ void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 int __must_check sysfs_init(void);
 
 #else /* CONFIG_SYSFS */
+
+static inline int sysfs_schedule_callback(struct kobject *kobj,
+		void (*func)(void *), void *data, struct module *owner)
+{
+	return -ENOSYS;
+}
 
 static inline int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 {
