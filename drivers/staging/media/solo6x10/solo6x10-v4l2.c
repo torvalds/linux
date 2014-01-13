@@ -527,7 +527,7 @@ static int solo_g_std(struct file *file, void *priv, v4l2_std_id *i)
 	return 0;
 }
 
-int solo_set_video_type(struct solo_dev *solo_dev, bool type)
+int solo_set_video_type(struct solo_dev *solo_dev, bool is_50hz)
 {
 	int i;
 
@@ -537,7 +537,8 @@ int solo_set_video_type(struct solo_dev *solo_dev, bool type)
 	for (i = 0; i < solo_dev->nr_chans; i++)
 		if (vb2_is_busy(&solo_dev->v4l2_enc[i]->vidq))
 			return -EBUSY;
-	solo_dev->video_type = type;
+	solo_dev->video_type = is_50hz ? SOLO_VO_FMT_TYPE_PAL :
+					 SOLO_VO_FMT_TYPE_NTSC;
 	/* Reconfigure for the new standard */
 	solo_disp_init(solo_dev);
 	solo_enc_init(solo_dev);
@@ -551,7 +552,7 @@ static int solo_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct solo_dev *solo_dev = video_drvdata(file);
 
-	return solo_set_video_type(solo_dev, std & V4L2_STD_PAL);
+	return solo_set_video_type(solo_dev, std & V4L2_STD_625_50);
 }
 
 static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
