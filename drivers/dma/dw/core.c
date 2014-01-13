@@ -255,8 +255,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 						&dwc->flags);
 		if (was_soft_llp) {
 			dev_err(chan2dev(&dwc->chan),
-				"BUG: Attempted to start new LLP transfer "
-				"inside ongoing one\n");
+				"BUG: Attempted to start new LLP transfer inside ongoing one\n");
 			return;
 		}
 
@@ -569,9 +568,9 @@ static void dwc_handle_cyclic(struct dw_dma *dw, struct dw_dma_chan *dwc,
 			unlikely(status_xfer & dwc->mask)) {
 		int i;
 
-		dev_err(chan2dev(&dwc->chan), "cyclic DMA unexpected %s "
-				"interrupt, stopping DMA transfer\n",
-				status_xfer ? "xfer" : "error");
+		dev_err(chan2dev(&dwc->chan),
+			"cyclic DMA unexpected %s interrupt, stopping DMA transfer\n",
+			status_xfer ? "xfer" : "error");
 
 		spin_lock_irqsave(&dwc->lock, flags);
 
