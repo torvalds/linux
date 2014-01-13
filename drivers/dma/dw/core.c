@@ -218,8 +218,10 @@ static inline void dwc_do_single_block(struct dw_dma_chan *dwc,
 	struct dw_dma	*dw = to_dw_dma(dwc->chan.device);
 	u32		ctllo;
 
-	/* Software emulation of LLP mode relies on interrupts to continue
-	 * multi block transfer. */
+	/*
+	 * Software emulation of LLP mode relies on interrupts to continue
+	 * multi block transfer.
+	 */
 	ctllo = desc->lli.ctllo | DWC_CTLL_INT_EN;
 
 	channel_writel(dwc, SAR, desc->lli.sar);
@@ -1603,9 +1605,11 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 			dev_dbg(chip->dev, "DWC_PARAMS[%d]: 0x%08x\n", i,
 					   dwc_params);
 
-			/* Decode maximum block size for given channel. The
+			/*
+			 * Decode maximum block size for given channel. The
 			 * stored 4 bit value represents blocks from 0x00 for 3
-			 * up to 0x0a for 4095. */
+			 * up to 0x0a for 4095.
+			 */
 			dwc->block_size =
 				(4 << ((max_blk_size >> 4 * i) & 0xf)) - 1;
 			dwc->nollp =
