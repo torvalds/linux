@@ -231,7 +231,7 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 				~IEEE80211_FCTL_PROTECTED);
 	}
 
-	if (info->status == HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR)
+	if (info->mic_err)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
 	if (info->fcs_err)

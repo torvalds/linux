@@ -3003,6 +3003,18 @@ struct wmi_vdev_install_key_arg {
 	const void *key_data;
 };
 
+/*
+ * vdev fixed rate format:
+ * - preamble - b7:b6 - see WMI_RATE_PREMABLE_
+ * - nss      - b5:b4 - ss number (0 mean 1ss)
+ * - rate_mcs - b3:b0 - as below
+ *    CCK:  0 - 11Mbps, 1 - 5,5Mbps, 2 - 2Mbps, 3 - 1Mbps,
+ *          4 - 11Mbps (s), 5 - 5,5Mbps (s), 6 - 2Mbps (s)
+ *    OFDM: 0 - 48Mbps, 1 - 24Mbps, 2 - 12Mbps, 3 - 6Mbps,
+ *          4 - 54Mbps, 5 - 36Mbps, 6 - 18Mbps, 7 - 9Mbps
+ *    HT/VHT: MCS index
+ */
+
 /* Preamble types to be used with VDEV fixed rate configuration */
 enum wmi_rate_preamble {
 	WMI_RATE_PREAMBLE_OFDM,
@@ -4090,6 +4102,54 @@ struct wmi_force_fw_hang_cmd {
 	__le32 delay_ms;
 } __packed;
 
+enum ath10k_dbglog_level {
+	ATH10K_DBGLOG_LEVEL_VERBOSE = 0,
+	ATH10K_DBGLOG_LEVEL_INFO = 1,
+	ATH10K_DBGLOG_LEVEL_WARN = 2,
+	ATH10K_DBGLOG_LEVEL_ERR = 3,
+};
+
+/* VAP ids to enable dbglog */
+#define ATH10K_DBGLOG_CFG_VAP_LOG_LSB		0
+#define ATH10K_DBGLOG_CFG_VAP_LOG_MASK		0x0000ffff
+
+/* to enable dbglog in the firmware */
+#define ATH10K_DBGLOG_CFG_REPORTING_ENABLE_LSB	16
+#define ATH10K_DBGLOG_CFG_REPORTING_ENABLE_MASK	0x00010000
+
+/* timestamp resolution */
+#define ATH10K_DBGLOG_CFG_RESOLUTION_LSB	17
+#define ATH10K_DBGLOG_CFG_RESOLUTION_MASK	0x000E0000
+
+/* number of queued messages before sending them to the host */
+#define ATH10K_DBGLOG_CFG_REPORT_SIZE_LSB	20
+#define ATH10K_DBGLOG_CFG_REPORT_SIZE_MASK	0x0ff00000
+
+/*
+ * Log levels to enable. This defines the minimum level to enable, this is
+ * not a bitmask. See enum ath10k_dbglog_level for the values.
+ */
+#define ATH10K_DBGLOG_CFG_LOG_LVL_LSB		28
+#define ATH10K_DBGLOG_CFG_LOG_LVL_MASK		0x70000000
+
+/*
+ * Note: this is a cleaned up version of a struct firmware uses. For
+ * example, config_valid was hidden inside an array.
+ */
+struct wmi_dbglog_cfg_cmd {
+	/* bitmask to hold mod id config*/
+	__le32 module_enable;
+
+	/* see ATH10K_DBGLOG_CFG_ */
+	__le32 config_enable;
+
+	/* mask of module id bits to be changed */
+	__le32 module_valid;
+
+	/* mask of config bits to be changed, see ATH10K_DBGLOG_CFG_ */
+	__le32 config_valid;
+} __packed;
+
 #define ATH10K_RTS_MAX		2347
 #define ATH10K_FRAGMT_THRESHOLD_MIN	540
 #define ATH10K_FRAGMT_THRESHOLD_MAX	2346
@@ -4167,5 +4227,6 @@ int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id);
 int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 			     enum wmi_force_fw_hang_type type, u32 delay_ms);
 int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb);
+int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable);
 
 #endif /* _WMI_H_ */
