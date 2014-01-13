@@ -1564,10 +1564,8 @@ int iwctl_siwgenie(struct net_device *dev, struct iw_request_info *info,
 			goto out;
 		}
 		memset(pMgmt->abyWPAIE, 0, MAX_WPA_IE_LEN);
-		if (copy_from_user(pMgmt->abyWPAIE, extra, wrq->length)) {
-			ret = -EFAULT;
-			goto out;
-		}
+
+		memcpy(pMgmt->abyWPAIE, extra, wrq->length);
 		pMgmt->wWPAIELen = wrq->length;
 	} else {
 		memset(pMgmt->abyWPAIE, 0, MAX_WPA_IE_LEN);
