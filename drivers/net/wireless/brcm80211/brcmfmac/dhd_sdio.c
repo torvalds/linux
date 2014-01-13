@@ -369,7 +369,7 @@ struct brcmf_sdio_hdrinfo {
 /* Private data for SDIO bus interaction */
 struct brcmf_sdio {
 	struct brcmf_sdio_dev *sdiodev;	/* sdio device handler */
-	struct chip_info *ci;	/* Chip info struct */
+	struct brcmf_chip *ci;	/* Chip info struct */
 
 	u32 ramsize;		/* Size of RAM in SOCRAM (bytes) */
 

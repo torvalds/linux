@@ -118,7 +118,7 @@ static const struct sdiod_drive_str sdiod_drvstr_tab2_3v3[] = {
 };
 
 u8
-brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid)
+brcmf_sdio_chip_getinfidx(struct brcmf_chip *ci, u16 coreid)
 {
 	u8 idx;
 
@@ -131,7 +131,7 @@ brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid)
 
 static u32
 brcmf_sdio_sb_corerev(struct brcmf_sdio_dev *sdiodev,
-		      struct chip_info *ci, u16 coreid)
+		      struct brcmf_chip *ci, u16 coreid)
 {
 	u32 regdata;
 	u8 idx;
@@ -146,7 +146,7 @@ brcmf_sdio_sb_corerev(struct brcmf_sdio_dev *sdiodev,
 
 static u32
 brcmf_sdio_ai_corerev(struct brcmf_sdio_dev *sdiodev,
-		      struct chip_info *ci, u16 coreid)
+		      struct brcmf_chip *ci, u16 coreid)
 {
 	u8 idx;
 
@@ -157,7 +157,7 @@ brcmf_sdio_ai_corerev(struct brcmf_sdio_dev *sdiodev,
 
 static bool
 brcmf_sdio_sb_iscoreup(struct brcmf_sdio_dev *sdiodev,
-		       struct chip_info *ci, u16 coreid)
+		       struct brcmf_chip *ci, u16 coreid)
 {
 	u32 regdata;
 	u8 idx;
@@ -176,7 +176,7 @@ brcmf_sdio_sb_iscoreup(struct brcmf_sdio_dev *sdiodev,
 
 static bool
 brcmf_sdio_ai_iscoreup(struct brcmf_sdio_dev *sdiodev,
-		       struct chip_info *ci, u16 coreid)
+		       struct brcmf_chip *ci, u16 coreid)
 {
 	u32 regdata;
 	u8 idx;
@@ -200,7 +200,7 @@ brcmf_sdio_ai_iscoreup(struct brcmf_sdio_dev *sdiodev,
 
 static void
 brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
-			  struct chip_info *ci, u16 coreid, u32 pre_resetbits,
+			  struct brcmf_chip *ci, u16 coreid, u32 pre_resetbits,
 			  u32 in_resetbits)
 {
 	u32 regdata, base;
@@ -287,7 +287,7 @@ brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
 
 static void
 brcmf_sdio_ai_coredisable(struct brcmf_sdio_dev *sdiodev,
-			  struct chip_info *ci, u16 coreid, u32 pre_resetbits,
+			  struct brcmf_chip *ci, u16 coreid, u32 pre_resetbits,
 			  u32 in_resetbits)
 {
 	u8 idx;
@@ -327,7 +327,7 @@ brcmf_sdio_ai_coredisable(struct brcmf_sdio_dev *sdiodev,
 
 static void
 brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid,  u32 pre_resetbits,
+			struct brcmf_chip *ci, u16 coreid,  u32 pre_resetbits,
 			u32 in_resetbits, u32 post_resetbits)
 {
 	u32 regdata;
@@ -395,7 +395,7 @@ brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
 
 static void
 brcmf_sdio_ai_resetcore(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid, u32 pre_resetbits,
+			struct brcmf_chip *ci, u16 coreid, u32 pre_resetbits,
 			u32 in_resetbits, u32 post_resetbits)
 {
 	u8 idx;
@@ -425,7 +425,7 @@ brcmf_sdio_ai_resetcore(struct brcmf_sdio_dev *sdiodev,
 
 #ifdef DEBUG
 /* safety check for chipinfo */
-static int brcmf_sdio_chip_cichk(struct chip_info *ci)
+static int brcmf_sdio_chip_cichk(struct brcmf_chip *ci)
 {
 	u8 core_idx;
 
@@ -452,14 +452,14 @@ static int brcmf_sdio_chip_cichk(struct chip_info *ci)
 	return 0;
 }
 #else	/* DEBUG */
-static inline int brcmf_sdio_chip_cichk(struct chip_info *ci)
+static inline int brcmf_sdio_chip_cichk(struct brcmf_chip *ci)
 {
 	return 0;
 }
 #endif
 
 static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
-				       struct chip_info *ci)
+				       struct brcmf_chip *ci)
 {
 	u32 regdata;
 	u32 socitype;
@@ -708,7 +708,7 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 
 static void
 brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
-			     struct chip_info *ci)
+			     struct brcmf_chip *ci)
 {
 	u32 base = ci->c_inf[0].base;
 
@@ -743,15 +743,14 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 }
 
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
-			   struct chip_info **ci_ptr)
+			   struct brcmf_chip **ci_ptr)
 {
 	int ret;
-	struct chip_info *ci;
+	struct brcmf_chip *ci;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	/* alloc chip_info_t */
-	ci = kzalloc(sizeof(struct chip_info), GFP_ATOMIC);
+	ci = kzalloc(sizeof(*ci), GFP_ATOMIC);
 	if (!ci)
 		return -ENOMEM;
 
@@ -779,7 +778,7 @@ err:
 }
 
 void
-brcmf_sdio_chip_detach(struct chip_info **ci_ptr)
+brcmf_sdio_chip_detach(struct brcmf_chip **ci_ptr)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -798,7 +797,7 @@ static char *brcmf_sdio_chip_name(uint chipid, char *buf, uint len)
 
 void
 brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
-				  struct chip_info *ci, u32 drivestrength)
+				  struct brcmf_chip *ci, u32 drivestrength)
 {
 	const struct sdiod_drive_str *str_tab = NULL;
 	u32 str_mask;
@@ -870,7 +869,7 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 
 static void
 brcmf_sdio_chip_cm3_enterdl(struct brcmf_sdio_dev *sdiodev,
-			    struct chip_info *ci)
+			    struct brcmf_chip *ci)
 {
 	ci->coredisable(sdiodev, ci, BCMA_CORE_ARM_CM3, 0, 0);
 	ci->resetcore(sdiodev, ci, BCMA_CORE_80211,
@@ -879,8 +878,8 @@ brcmf_sdio_chip_cm3_enterdl(struct brcmf_sdio_dev *sdiodev,
 	ci->resetcore(sdiodev, ci, BCMA_CORE_INTERNAL_MEM, 0, 0, 0);
 }
 
-static bool
-brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci)
+static bool brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev,
+				       struct brcmf_chip *ci)
 {
 	u8 core_idx;
 	u32 reg_addr;
@@ -903,7 +902,7 @@ brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci)
 
 static inline void
 brcmf_sdio_chip_cr4_enterdl(struct brcmf_sdio_dev *sdiodev,
-			    struct chip_info *ci)
+			    struct brcmf_chip *ci)
 {
 	u8 idx;
 	u32 regdata;
@@ -923,9 +922,8 @@ brcmf_sdio_chip_cr4_enterdl(struct brcmf_sdio_dev *sdiodev,
 		      D11_BCMA_IOCTL_PHYCLOCKEN, D11_BCMA_IOCTL_PHYCLOCKEN);
 }
 
-static bool
-brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
-			   u32 rstvec)
+static bool brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev,
+				       struct brcmf_chip *ci, u32 rstvec)
 {
 	u8 core_idx;
 	u32 reg_addr;
@@ -948,7 +946,7 @@ brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 }
 
 void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
-				    struct chip_info *ci)
+				    struct brcmf_chip *ci)
 {
 	u8 arm_core_idx;
 
@@ -962,7 +960,7 @@ void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
 }
 
 bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
-				   struct chip_info *ci, u32 rstvec)
+				   struct brcmf_chip *ci, u32 rstvec)
 {
 	u8 arm_core_idx;
 
