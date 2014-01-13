@@ -165,18 +165,18 @@ struct ptldebug_header {
 #define CDEBUG_DEFAULT_MIN_DELAY ((cfs_time_seconds(1) + 1) / 2) /* jiffies */
 #define CDEBUG_DEFAULT_BACKOFF   2
 struct cfs_debug_limit_state {
-	cfs_time_t      cdls_next;
-	unsigned int    cdls_delay;
+	cfs_time_t   cdls_next;
+	unsigned int cdls_delay;
 	int	     cdls_count;
 };
 
 struct libcfs_debug_msg_data {
-	const char	       *msg_file;
-	const char	       *msg_fn;
-	int		      msg_subsys;
-	int		      msg_line;
-	int		      msg_mask;
-	struct cfs_debug_limit_state  *msg_cdls;
+	const char *msg_file;
+	const char *msg_fn;
+	int	    msg_subsys;
+	int	    msg_line;
+	int	    msg_mask;
+	struct cfs_debug_limit_state *msg_cdls;
 };
 
 #define LIBCFS_DEBUG_MSG_DATA_INIT(data, mask, cdls)		\
@@ -228,10 +228,10 @@ do {									\
 	__CDEBUG(&cdls, mask, format, ## __VA_ARGS__);			\
 } while (0)
 
-#define CWARN(format, ...)	  CDEBUG_LIMIT(D_WARNING, format, ## __VA_ARGS__)
-#define CERROR(format, ...)	 CDEBUG_LIMIT(D_ERROR, format, ## __VA_ARGS__)
-#define CNETERR(format, a...)       CDEBUG_LIMIT(D_NETERROR, format, ## a)
-#define CEMERG(format, ...)	 CDEBUG_LIMIT(D_EMERG, format, ## __VA_ARGS__)
+#define CWARN(format, ...)	CDEBUG_LIMIT(D_WARNING, format, ## __VA_ARGS__)
+#define CERROR(format, ...)	CDEBUG_LIMIT(D_ERROR, format, ## __VA_ARGS__)
+#define CNETERR(format, a...)	CDEBUG_LIMIT(D_NETERROR, format, ## a)
+#define CEMERG(format, ...)	CDEBUG_LIMIT(D_EMERG, format, ## __VA_ARGS__)
 
 #define LCONSOLE(mask, format, ...) CDEBUG(D_CONSOLE | (mask), format, ## __VA_ARGS__)
 #define LCONSOLE_INFO(format, ...)  CDEBUG_LIMIT(D_CONSOLE, format, ## __VA_ARGS__)
