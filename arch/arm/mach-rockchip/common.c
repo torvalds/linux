@@ -13,6 +13,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/genalloc.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -20,6 +21,7 @@
 #include <linux/of_platform.h>
 #include <asm/hardware/cache-l2x0.h>
 #include "cpu_axi.h"
+#include "sram.h"
 
 static int __init rockchip_cpu_axi_init(void)
 {
@@ -104,3 +106,27 @@ static int __init rockchip_pl330_l2_cache_init(void)
 	return 0;
 }
 early_initcall(rockchip_pl330_l2_cache_init);
+
+struct gen_pool *rockchip_sram_pool = NULL;
+struct pie_chunk *rockchip_pie_chunk = NULL;
+void *rockchip_sram_virt = NULL;
+size_t rockchip_sram_size = 0;
+char *rockchip_sram_stack = NULL;
+
+int __init rockchip_pie_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_node_by_path("/");
+	if (!np)
+		return -ENODEV;
+
+	rockchip_sram_pool = of_get_named_gen_pool(np, "rockchip,sram", 0);
+	if (!rockchip_sram_pool) {
+		pr_err("%s: failed to get sram pool\n", __func__);
+		return -ENODEV;
+	}
+	rockchip_sram_size = gen_pool_size(rockchip_sram_pool);
+
+	return 0;
+}

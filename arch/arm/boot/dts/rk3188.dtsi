@@ -6,6 +6,7 @@
 / {
 	compatible = "rockchip,rk3188";
 	interrupt-parent = <&gic>;
+	rockchip,sram = <&sram>;
 
 	aliases {
 		serial0 = &uart0;
@@ -143,7 +144,7 @@
 		reg = <0x10080000 0x20>; /* 32 bytes */
 	};
 
-	sram@10080020 {
+	sram: sram@10080020 {
 		compatible = "mmio-sram";
 		reg = <0x10080020 (0x8000 - 0x20)>; /* 32k - 32 */
 		map-exec;

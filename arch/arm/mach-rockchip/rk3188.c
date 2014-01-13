@@ -28,6 +28,7 @@
 #include "cpu_axi.h"
 #include "grf.h"
 #include "iomap.h"
+#include "sram.h"
 
 #define RK3188_DEVICE(name) \
 	{ \
@@ -116,3 +117,33 @@ DT_MACHINE_START(RK3188_DT, "Rockchip RK3188 (Flattened Device Tree)")
 	.init_time	= rk3188_dt_init_timer,
 	.dt_compat	= rk3188_dt_compat,
 MACHINE_END
+
+#define CPU 3188
+char PIE_DATA(sram_stack)[1024];
+EXPORT_PIE_SYMBOL(DATA(sram_stack));
+
+static int __init rk3188_pie_init(void)
+{
+	int err;
+
+	if (!cpu_is_rk3188())
+		return 0;
+
+	err = rockchip_pie_init();
+	if (err)
+		return err;
+
+	rockchip_pie_chunk = pie_load_sections(rockchip_sram_pool, rk3188);
+	if (IS_ERR(rockchip_pie_chunk)) {
+		err = PTR_ERR(rockchip_pie_chunk);
+		pr_err("%s: failed to load section %d\n", __func__, err);
+		rockchip_pie_chunk = NULL;
+		return err;
+	}
+
+	rockchip_sram_virt = kern_to_pie(rockchip_pie_chunk, &__pie_common_start[0]);
+	rockchip_sram_stack = kern_to_pie(rockchip_pie_chunk, (char *) DATA(sram_stack) + sizeof(DATA(sram_stack)));
+
+	return 0;
+}
+arch_initcall(rk3188_pie_init);
