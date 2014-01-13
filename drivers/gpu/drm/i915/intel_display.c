@@ -10951,6 +10951,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Acer Aspire 4736Z */
 	{ 0x2a42, 0x1025, 0x0260, quirk_invert_brightness },
+
+	/* Acer Aspire 5336 */
+	{ 0x2a42, 0x1025, 0x048a, quirk_invert_brightness },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
