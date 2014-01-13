@@ -368,6 +368,17 @@ static int stac_vrefout_set(struct hda_codec *codec,
 	return 1;
 }
 
+/* prevent codec AFG to D3 state when vref-out pin is used for mute LED */
+/* this hook is set in stac_setup_gpio() */
+static unsigned int stac_vref_led_power_filter(struct hda_codec *codec,
+					       hda_nid_t nid,
+					       unsigned int power_state)
+{
+	if (nid == codec->afg && power_state == AC_PWRST_D3)
+		return AC_PWRST_D1;
+	return snd_hda_gen_path_power_filter(codec, nid, power_state);
+}
+
 /* update mute-LED accoring to the master switch */
 static void stac_update_led_status(struct hda_codec *codec, int enabled)
 {
@@ -4260,30 +4271,8 @@ static int stac_suspend(struct hda_codec *codec)
 	stac_shutup(codec);
 	return 0;
 }
-
-static void stac_set_power_state(struct hda_codec *codec, hda_nid_t fg,
-				 unsigned int power_state)
-{
-	unsigned int afg_power_state = power_state;
-	struct sigmatel_spec *spec = codec->spec;
-
-	if (power_state == AC_PWRST_D3) {
-		if (spec->vref_mute_led_nid) {
-			/* with vref-out pin used for mute led control
-			 * codec AFG is prevented from D3 state
-			 */
-			afg_power_state = AC_PWRST_D1;
-		}
-		/* this delay seems necessary to avoid click noise at power-down */
-		msleep(100);
-	}
-	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
-			afg_power_state);
-	snd_hda_codec_set_power_to_all(codec, fg, power_state);
-}
 #else
 #define stac_suspend		NULL
-#define stac_set_power_state	NULL
 #endif /* CONFIG_PM */
 
 static const struct hda_codec_ops stac_patch_ops = {
@@ -4466,8 +4455,7 @@ static void stac_setup_gpio(struct hda_codec *codec)
 			spec->gpio_dir |= spec->gpio_led;
 			spec->gpio_data |= spec->gpio_led;
 		} else {
-			codec->patch_ops.set_power_state =
-					stac_set_power_state;
+			codec->power_filter = stac_vref_led_power_filter;
 		}
 	}
 
