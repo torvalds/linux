@@ -1354,8 +1354,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
 		ath9k_antenna_check(sc, &rs);
-
 		ath9k_apply_ampdu_details(sc, &rs, rxs);
+		ath_debug_rate_stats(sc, &rs, skb);
 
 		ieee80211_rx(hw, skb);
 

@@ -146,7 +146,9 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 
 #define ATH_AN_2_TID(_an, _tidno)  (&(_an)->tid[(_tidno)])
 
-#define IS_CCK_RATE(rate) ((rate >= 0x18) && (rate <= 0x1e))
+#define IS_HT_RATE(rate)   (rate & 0x80)
+#define IS_CCK_RATE(rate)  ((rate >= 0x18) && (rate <= 0x1e))
+#define IS_OFDM_RATE(rate) ((rate >= 0x8) && (rate <= 0xf))
 
 struct ath_txq {
 	int mac80211_qnum; /* mac80211 queue number, -1 means not mac80211 Q */
@@ -262,6 +264,10 @@ struct ath_node {
 
 	bool sleeping;
 	bool no_ps_filter;
+
+#ifdef CONFIG_ATH9K_STATION_STATISTICS
+	struct ath_rx_rate_stats rx_rate_stats;
+#endif
 };
 
 struct ath_tx_control {
