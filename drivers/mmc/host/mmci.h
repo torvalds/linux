@@ -139,6 +139,7 @@
 /* Extended status bits for the ST Micro variants */
 #define MCI_ST_SDIOITMASK	(1 << 22)
 #define MCI_ST_CEATAENDMASK	(1 << 23)
+#define MCI_ST_BUSYEND		(1 << 24)
 
 #define MMCIMASK1		0x040
 #define MMCIFIFOCNT		0x048
@@ -186,6 +187,7 @@ struct mmci_host {
 	u32			pwr_reg;
 	u32			clk_reg;
 	u32			datactrl_reg;
+	u32			busy_status;
 	bool			vqmmc_enabled;
 	struct mmci_platform_data *plat;
 	struct variant_data	*variant;
