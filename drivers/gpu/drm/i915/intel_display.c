@@ -8493,28 +8493,6 @@ static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.load_lut = intel_crtc_load_lut,
 };
 
-static bool intel_encoder_crtc_ok(struct drm_encoder *encoder,
-				  struct drm_crtc *crtc)
-{
-	struct drm_device *dev;
-	struct drm_crtc *tmp;
-	int crtc_mask = 1;
-
-	WARN(!crtc, "checking null crtc?\n");
-
-	dev = crtc->dev;
-
-	list_for_each_entry(tmp, &dev->mode_config.crtc_list, head) {
-		if (tmp == crtc)
-			break;
-		crtc_mask <<= 1;
-	}
-
-	if (encoder->possible_crtcs & crtc_mask)
-		return true;
-	return false;
-}
-
 /**
  * intel_modeset_update_staged_output_state
  *
@@ -9679,8 +9657,8 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		}
 
 		/* Make sure the new CRTC will work with the encoder */
-		if (!intel_encoder_crtc_ok(&connector->new_encoder->base,
-					   new_crtc)) {
+		if (!drm_encoder_crtc_ok(&connector->new_encoder->base,
+					 new_crtc)) {
 			return -EINVAL;
 		}
 		connector->encoder->new_crtc = to_intel_crtc(new_crtc);
