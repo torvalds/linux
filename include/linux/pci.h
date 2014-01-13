@@ -376,7 +376,6 @@ static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
 }
 
 struct pci_dev *pci_alloc_dev(struct pci_bus *bus);
-struct pci_dev * __deprecated alloc_pci_dev(void);
 
 #define	to_pci_dev(n) container_of(n, struct pci_dev, dev)
 #define for_each_pci_dev(d) while ((d = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, d)) != NULL)
@@ -385,8 +384,6 @@ static inline int pci_channel_offline(struct pci_dev *pdev)
 {
 	return (pdev->error_state != pci_channel_io_normal);
 }
-
-extern struct resource busn_resource;
 
 struct pci_host_bridge_window {
 	struct list_head list;
@@ -763,7 +760,6 @@ struct pci_slot *pci_create_slot(struct pci_bus *parent, int slot_nr,
 				 const char *name,
 				 struct hotplug_slot *hotplug);
 void pci_destroy_slot(struct pci_slot *slot);
-void pci_renumber_slot(struct pci_slot *slot, int slot_nr);
 int pci_scan_slot(struct pci_bus *bus, int devfn);
 struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn);
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus);
@@ -974,7 +970,6 @@ void __iomem __must_check *pci_platform_rom(struct pci_dev *pdev, size_t *size);
 int pci_save_state(struct pci_dev *dev);
 void pci_restore_state(struct pci_dev *dev);
 struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev);
-int pci_load_saved_state(struct pci_dev *dev, struct pci_saved_state *state);
 int pci_load_and_free_saved_state(struct pci_dev *dev,
 				  struct pci_saved_state **state);
 struct pci_cap_saved_state *pci_find_saved_cap(struct pci_dev *dev, char cap);
@@ -991,7 +986,6 @@ void pci_pme_active(struct pci_dev *dev, bool enable);
 int __pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 		      bool runtime, bool enable);
 int pci_wake_from_d3(struct pci_dev *dev, bool enable);
-pci_power_t pci_target_state(struct pci_dev *dev);
 int pci_prepare_to_sleep(struct pci_dev *dev);
 int pci_back_from_sleep(struct pci_dev *dev);
 bool pci_dev_run_wake(struct pci_dev *dev);
@@ -1009,22 +1003,6 @@ int pci_save_vc_state(struct pci_dev *dev);
 void pci_restore_vc_state(struct pci_dev *dev);
 void pci_allocate_vc_save_buffers(struct pci_dev *dev);
 
-#define PCI_EXP_IDO_REQUEST	(1<<0)
-#define PCI_EXP_IDO_COMPLETION	(1<<1)
-void pci_enable_ido(struct pci_dev *dev, unsigned long type);
-void pci_disable_ido(struct pci_dev *dev, unsigned long type);
-
-enum pci_obff_signal_type {
-	PCI_EXP_OBFF_SIGNAL_L0 = 0,
-	PCI_EXP_OBFF_SIGNAL_ALWAYS = 1,
-};
-int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type);
-void pci_disable_obff(struct pci_dev *dev);
-
-int pci_enable_ltr(struct pci_dev *dev);
-void pci_disable_ltr(struct pci_dev *dev);
-int pci_set_ltr(struct pci_dev *dev, int snoop_lat_ns, int nosnoop_lat_ns);
-
 /* For use by arch with custom probe code */
 void set_pcie_port_type(struct pci_dev *pdev);
 void set_pcie_hotplug_bridge(struct pci_dev *pdev);
@@ -1037,7 +1015,6 @@ unsigned int pci_rescan_bus(struct pci_bus *bus);
 /* Vital product data routines */
 ssize_t pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
 ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
-int pci_vpd_truncate(struct pci_dev *dev, size_t size);
 
 /* Helper functions for low-level code (drivers/pci/setup-[bus,res].c) */
 resource_size_t pcibios_retrieve_fw_addr(struct pci_dev *dev, int idx);
@@ -1134,7 +1111,6 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 
 void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 		  void *userdata);
-int pci_cfg_space_size_ext(struct pci_dev *dev);
 int pci_cfg_space_size(struct pci_dev *dev);
 unsigned char pci_bus_max_busnr(struct pci_bus *bus);
 void pci_setup_bridge(struct pci_bus *bus);
@@ -1250,10 +1226,8 @@ extern bool pcie_ports_auto;
 #endif
 
 #ifndef CONFIG_PCIEASPM
-static inline int pcie_aspm_enabled(void) { return 0; }
 static inline bool pcie_aspm_support_enabled(void) { return false; }
 #else
-int pcie_aspm_enabled(void);
 bool pcie_aspm_support_enabled(void);
 #endif
 
@@ -1454,23 +1428,6 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 				  int enable)
 {
 	return 0;
-}
-
-static inline void pci_enable_ido(struct pci_dev *dev, unsigned long type)
-{
-}
-
-static inline void pci_disable_ido(struct pci_dev *dev, unsigned long type)
-{
-}
-
-static inline int pci_enable_obff(struct pci_dev *dev, unsigned long type)
-{
-	return 0;
-}
-
-static inline void pci_disable_obff(struct pci_dev *dev)
-{
 }
 
 static inline int pci_request_regions(struct pci_dev *dev, const char *res_name)

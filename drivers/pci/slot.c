@@ -320,32 +320,6 @@ err:
 EXPORT_SYMBOL_GPL(pci_create_slot);
 
 /**
- * pci_renumber_slot - update %struct pci_slot -> number
- * @slot: &struct pci_slot to update
- * @slot_nr: new number for slot
- *
- * The primary purpose of this interface is to allow callers who earlier
- * created a placeholder slot in pci_create_slot() by passing a -1 as
- * slot_nr, to update their %struct pci_slot with the correct @slot_nr.
- */
-void pci_renumber_slot(struct pci_slot *slot, int slot_nr)
-{
-	struct pci_slot *tmp;
-
-	down_write(&pci_bus_sem);
-
-	list_for_each_entry(tmp, &slot->bus->slots, list) {
-		WARN_ON(tmp->number == slot_nr);
-		goto out;
-	}
-
-	slot->number = slot_nr;
-out:
-	up_write(&pci_bus_sem);
-}
-EXPORT_SYMBOL_GPL(pci_renumber_slot);
-
-/**
  * pci_destroy_slot - decrement refcount for physical PCI slot
  * @slot: struct pci_slot to decrement
  *

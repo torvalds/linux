@@ -43,7 +43,6 @@
 extern bool pciehp_poll_mode;
 extern int pciehp_poll_time;
 extern bool pciehp_debug;
-extern bool pciehp_force;
 
 #define dbg(format, arg...)						\
 do {									\
