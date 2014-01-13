@@ -415,6 +415,9 @@ static int __of_device_is_available(const struct device_node *device)
 	const char *status;
 	int statlen;
 
+	if (!device)
+		return 0;
+
 	status = __of_get_property(device, "status", &statlen);
 	if (status == NULL)
 		return 1;
