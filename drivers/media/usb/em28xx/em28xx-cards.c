@@ -3379,12 +3379,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	dev->disconnected = 1;
 
-	if (dev->is_audio_only) {
-		em28xx_close_extension(dev);
-		return;
-	}
-
-	em28xx_info("disconnecting %s\n", dev->vdev->name);
+	em28xx_info("Disconnecting %s\n", dev->name);
 
 	flush_request_modules(dev);
 
