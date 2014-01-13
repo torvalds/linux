@@ -293,7 +293,12 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		mutex_unlock(&dev->lock);
 	}
 
+	/* Dynamically adjust the period size */
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
+				     dev->adev.period * 95 / 100,
+				     dev->adev.period * 105 / 100);
+
 	dev->adev.capture_pcm_substream = substream;
 
 	return 0;
@@ -802,6 +807,9 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 
 	em28xx_info("Number of URBs: %d, with %d packets and %d size",
 		    num_urb, npackets, urb_size);
+
+	/* Estimate the bytes per period */
+	dev->adev.period = urb_size * npackets;
 
 	/* Allocate space to store the number of URBs to be used */
 
