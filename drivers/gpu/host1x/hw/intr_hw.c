@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <asm/mach/irq.h>
 
 #include "../intr.h"
 #include "../dev.h"
