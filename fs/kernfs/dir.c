@@ -22,15 +22,6 @@ DEFINE_MUTEX(kernfs_mutex);
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
-static bool kernfs_lockdep(struct kernfs_node *kn)
-{
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	return kn->flags & KERNFS_LOCKDEP;
-#else
-	return false;
-#endif
-}
-
 /**
  *	kernfs_name_hash
  *	@name: Null terminated string to hash
@@ -147,7 +138,7 @@ struct kernfs_node *kernfs_get_active(struct kernfs_node *kn)
 	if (!atomic_inc_unless_negative(&kn->active))
 		return NULL;
 
-	if (kernfs_lockdep(kn))
+	if (kn->flags & KERNFS_LOCKDEP)
 		rwsem_acquire_read(&kn->dep_map, 0, 1, _RET_IP_);
 	return kn;
 }
@@ -167,7 +158,7 @@ void kernfs_put_active(struct kernfs_node *kn)
 	if (unlikely(!kn))
 		return;
 
-	if (kernfs_lockdep(kn))
+	if (kn->flags & KERNFS_LOCKDEP)
 		rwsem_release(&kn->dep_map, 1, _RET_IP_);
 	v = atomic_dec_return(&kn->active);
 	if (likely(v != KN_DEACTIVATED_BIAS))
@@ -188,21 +179,21 @@ static void kernfs_deactivate(struct kernfs_node *kn)
 
 	BUG_ON(!(kn->flags & KERNFS_REMOVED));
 
+	if (!(kernfs_type(kn) & KERNFS_ACTIVE_REF))
+		return;
+
+	rwsem_acquire(&kn->dep_map, 0, 0, _RET_IP_);
+
 	atomic_add(KN_DEACTIVATED_BIAS, &kn->active);
 
-	if (kernfs_lockdep(kn)) {
-		rwsem_acquire(&kn->dep_map, 0, 0, _RET_IP_);
-		if (atomic_read(&kn->active) != KN_DEACTIVATED_BIAS)
-			lock_contended(&kn->dep_map, _RET_IP_);
-	}
+	if (atomic_read(&kn->active) != KN_DEACTIVATED_BIAS)
+		lock_contended(&kn->dep_map, _RET_IP_);
 
 	wait_event(root->deactivate_waitq,
 		   atomic_read(&kn->active) == KN_DEACTIVATED_BIAS);
 
-	if (kernfs_lockdep(kn)) {
-		lock_acquired(&kn->dep_map, _RET_IP_);
-		rwsem_release(&kn->dep_map, 1, _RET_IP_);
-	}
+	lock_acquired(&kn->dep_map, _RET_IP_);
+	rwsem_release(&kn->dep_map, 1, _RET_IP_);
 }
 
 /**

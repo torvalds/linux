@@ -34,6 +34,7 @@ enum kernfs_node_type {
 };
 
 #define KERNFS_TYPE_MASK	0x000f
+#define KERNFS_ACTIVE_REF	KERNFS_FILE
 #define KERNFS_FLAG_MASK	~KERNFS_TYPE_MASK
 
 enum kernfs_node_flag {
