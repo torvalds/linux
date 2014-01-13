@@ -1591,13 +1591,11 @@ int iwctl_giwgenie(struct net_device *dev, struct iw_request_info *info,
 	wrq->length = 0;
 	if (pMgmt->wWPAIELen > 0) {
 		wrq->length = pMgmt->wWPAIELen;
-		if (pMgmt->wWPAIELen <= space) {
-			if (copy_to_user(extra, pMgmt->abyWPAIE, pMgmt->wWPAIELen)) {
-				ret = -EFAULT;
-			}
-		} else {
+
+		if (pMgmt->wWPAIELen <= space)
+			memcpy(extra, pMgmt->abyWPAIE, pMgmt->wWPAIELen);
+		else
 			ret = -E2BIG;
-		}
 	}
 	return ret;
 }
