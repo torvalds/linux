@@ -3953,8 +3953,8 @@ static u32 dib8000_get_time_us(struct dvb_frontend *fe, int layer)
 	int ini_layer, end_layer, i;
 	u64 time_us, tmp64;
 	u32 tmp, denom;
-	int guard, rate_num, rate_denum, bits_per_symbol, nsegs;
-	int interleaving, fft_div;
+	int guard, rate_num, rate_denum = 1, bits_per_symbol, nsegs;
+	int interleaving = 0, fft_div;
 
 	if (layer >= 0) {
 		ini_layer = layer;
