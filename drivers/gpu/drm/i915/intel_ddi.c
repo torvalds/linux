@@ -684,7 +684,7 @@ static void intel_ddi_mode_set(struct drm_encoder *encoder,
 		struct intel_digital_port *intel_dig_port =
 			enc_to_dig_port(encoder);
 
-		intel_dp->DP = intel_dig_port->port_reversal |
+		intel_dp->DP = intel_dig_port->saved_port_bits |
 			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
 		switch (intel_dp->lane_count) {
 		case 1:
@@ -1324,7 +1324,8 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 		 * enabling the port.
 		 */
 		I915_WRITE(DDI_BUF_CTL(port),
-			   intel_dig_port->port_reversal | DDI_BUF_CTL_ENABLE);
+			   intel_dig_port->saved_port_bits |
+			   DDI_BUF_CTL_ENABLE);
 	} else if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
@@ -1543,8 +1544,9 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 
 	intel_dig_port->port = port;
-	intel_dig_port->port_reversal = I915_READ(DDI_BUF_CTL(port)) &
-					DDI_BUF_PORT_REVERSAL;
+	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
+					  (DDI_BUF_PORT_REVERSAL |
+					   DDI_A_4_LANES);
 	if (hdmi_connector)
 		intel_dig_port->hdmi.hdmi_reg = DDI_BUF_CTL(port);
 	intel_dig_port->dp.output_reg = DDI_BUF_CTL(port);

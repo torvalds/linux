@@ -437,6 +437,7 @@ struct bcache_device {
 
 	/* If nonzero, we're detaching/unregistering from cache set */
 	atomic_t		detaching;
+	int			flush_done;
 
 	atomic_long_t		sectors_dirty;
 	unsigned long		sectors_dirty_gc;
@@ -498,7 +499,7 @@ struct cached_dev {
 	 */
 	atomic_t		has_dirty;
 
-	struct ratelimit	writeback_rate;
+	struct bch_ratelimit	writeback_rate;
 	struct delayed_work	writeback_rate_update;
 
 	/*
@@ -507,10 +508,9 @@ struct cached_dev {
 	 */
 	sector_t		last_read;
 
-	/* Number of writeback bios in flight */
-	atomic_t		in_flight;
+	/* Limit number of writeback bios in flight */
+	struct semaphore	in_flight;
 	struct closure_with_timer writeback;
-	struct closure_waitlist	writeback_wait;
 
 	struct keybuf		writeback_keys;
 

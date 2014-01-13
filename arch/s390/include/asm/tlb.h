@@ -32,6 +32,7 @@ struct mmu_gather {
 	struct mm_struct *mm;
 	struct mmu_table_batch *batch;
 	unsigned int fullmm;
+	unsigned long start, end;
 };
 
 struct mmu_table_batch {
@@ -48,10 +49,13 @@ extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 
 static inline void tlb_gather_mmu(struct mmu_gather *tlb,
 				  struct mm_struct *mm,
-				  unsigned int full_mm_flush)
+				  unsigned long start,
+				  unsigned long end)
 {
 	tlb->mm = mm;
-	tlb->fullmm = full_mm_flush;
+	tlb->start = start;
+	tlb->end = end;
+	tlb->fullmm = !(start | (end+1));
 	tlb->batch = NULL;
 	if (tlb->fullmm)
 		__tlb_flush_mm(mm);
