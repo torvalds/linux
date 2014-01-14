@@ -106,7 +106,6 @@ static inline bool kvm_is_write_fault(unsigned long esr)
 	return true;
 }
 
-static inline void kvm_clean_dcache_area(void *addr, size_t size) {}
 static inline void kvm_clean_pgd(pgd_t *pgd) {}
 static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}
 static inline void kvm_clean_pte(pte_t *pte) {}
@@ -124,9 +123,19 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 
 struct kvm;
 
-static inline void coherent_icache_guest_page(struct kvm *kvm, hva_t hva,
-					      unsigned long size)
+#define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+
+static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 {
+	return (vcpu_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
+}
+
+static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
+					     unsigned long size)
+{
+	if (!vcpu_has_cache_enabled(vcpu))
+		kvm_flush_dcache_to_poc((void *)hva, size);
+
 	if (!icache_is_aliasing()) {		/* PIPT */
 		flush_icache_range(hva, hva + size);
 	} else if (!icache_is_aivivt()) {	/* non ASID-tagged VIVT */
@@ -135,7 +144,6 @@ static inline void coherent_icache_guest_page(struct kvm *kvm, hva_t hva,
 	}
 }
 
-#define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
 #define kvm_virt_to_phys(x)		__virt_to_phys((unsigned long)(x))
 
 #endif /* __ASSEMBLY__ */

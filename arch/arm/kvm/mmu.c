@@ -715,7 +715,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			kvm_set_s2pmd_writable(&new_pmd);
 			kvm_set_pfn_dirty(pfn);
 		}
-		coherent_icache_guest_page(kvm, hva & PMD_MASK, PMD_SIZE);
+		coherent_cache_guest_page(vcpu, hva & PMD_MASK, PMD_SIZE);
 		ret = stage2_set_pmd_huge(kvm, memcache, fault_ipa, &new_pmd);
 	} else {
 		pte_t new_pte = pfn_pte(pfn, PAGE_S2);
@@ -723,7 +723,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			kvm_set_s2pte_writable(&new_pte);
 			kvm_set_pfn_dirty(pfn);
 		}
-		coherent_icache_guest_page(kvm, hva, PAGE_SIZE);
+		coherent_cache_guest_page(vcpu, hva, PAGE_SIZE);
 		ret = stage2_set_pte(kvm, memcache, fault_ipa, &new_pte, false);
 	}
 
