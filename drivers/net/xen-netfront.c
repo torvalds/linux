@@ -859,9 +859,7 @@ static RING_IDX xennet_fill_frags(struct netfront_info *np,
 
 static int checksum_setup(struct net_device *dev, struct sk_buff *skb)
 {
-	struct iphdr *iph;
-	int err = -EPROTO;
-	int recalculate_partial_csum = 0;
+	bool recalculate_partial_csum = false;
 
 	/*
 	 * A GSO SKB must be CHECKSUM_PARTIAL. However some buggy
@@ -873,54 +871,14 @@ static int checksum_setup(struct net_device *dev, struct sk_buff *skb)
 		struct netfront_info *np = netdev_priv(dev);
 		np->rx_gso_checksum_fixup++;
 		skb->ip_summed = CHECKSUM_PARTIAL;
-		recalculate_partial_csum = 1;
+		recalculate_partial_csum = true;
 	}
 
 	/* A non-CHECKSUM_PARTIAL SKB does not require setup. */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
-	if (skb->protocol != htons(ETH_P_IP))
-		goto out;
-
-	iph = (void *)skb->data;
-
-	switch (iph->protocol) {
-	case IPPROTO_TCP:
-		if (!skb_partial_csum_set(skb, 4 * iph->ihl,
-					  offsetof(struct tcphdr, check)))
-			goto out;
-
-		if (recalculate_partial_csum) {
-			struct tcphdr *tcph = tcp_hdr(skb);
-			tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
-							 skb->len - iph->ihl*4,
-							 IPPROTO_TCP, 0);
-		}
-		break;
-	case IPPROTO_UDP:
-		if (!skb_partial_csum_set(skb, 4 * iph->ihl,
-					  offsetof(struct udphdr, check)))
-			goto out;
-
-		if (recalculate_partial_csum) {
-			struct udphdr *udph = udp_hdr(skb);
-			udph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
-							 skb->len - iph->ihl*4,
-							 IPPROTO_UDP, 0);
-		}
-		break;
-	default:
-		if (net_ratelimit())
-			pr_err("Attempting to checksum a non-TCP/UDP packet, dropping a protocol %d packet\n",
-			       iph->protocol);
-		goto out;
-	}
-
-	err = 0;
-
-out:
-	return err;
+	return skb_checksum_setup(skb, recalculate_partial_csum);
 }
 
 static int handle_incoming_queue(struct net_device *dev,
