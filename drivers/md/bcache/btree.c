@@ -1561,6 +1561,28 @@ size_t bch_btree_gc_finish(struct cache_set *c)
 		SET_GC_MARK(PTR_BUCKET(c, &c->uuid_bucket, i),
 			    GC_MARK_METADATA);
 
+	/* don't reclaim buckets to which writeback keys point */
+	rcu_read_lock();
+	for (i = 0; i < c->nr_uuids; i++) {
+		struct bcache_device *d = c->devices[i];
+		struct cached_dev *dc;
+		struct keybuf_key *w, *n;
+		unsigned j;
+
+		if (!d || UUID_FLASH_ONLY(&c->uuids[i]))
+			continue;
+		dc = container_of(d, struct cached_dev, disk);
+
+		spin_lock(&dc->writeback_keys.lock);
+		rbtree_postorder_for_each_entry_safe(w, n,
+					&dc->writeback_keys.keys, node)
+			for (j = 0; j < KEY_PTRS(&w->key); j++)
+				SET_GC_MARK(PTR_BUCKET(c, &w->key, j),
+					    GC_MARK_DIRTY);
+		spin_unlock(&dc->writeback_keys.lock);
+	}
+	rcu_read_unlock();
+
 	for_each_cache(ca, c, i) {
 		uint64_t *i;
 
@@ -1817,7 +1839,8 @@ static bool fix_overlapping_extents(struct btree *b, struct bkey *insert,
 			if (KEY_START(k) > KEY_START(insert) + sectors_found)
 				goto check_failed;
 
-			if (KEY_PTRS(replace_key) != KEY_PTRS(k))
+			if (KEY_PTRS(k) != KEY_PTRS(replace_key) ||
+			    KEY_DIRTY(k) != KEY_DIRTY(replace_key))
 				goto check_failed;
 
 			/* skip past gen */
@@ -2217,7 +2240,7 @@ struct btree_insert_op {
 	struct bkey	*replace_key;
 };
 
-int btree_insert_fn(struct btree_op *b_op, struct btree *b)
+static int btree_insert_fn(struct btree_op *b_op, struct btree *b)
 {
 	struct btree_insert_op *op = container_of(b_op,
 					struct btree_insert_op, op);

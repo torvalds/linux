@@ -1755,8 +1755,13 @@ struct drm_i915_file_private {
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0xFF00) == 0x0C00)
-#define IS_ULT(dev)		(IS_HASWELL(dev) && \
+#define IS_BDW_ULT(dev)		(IS_BROADWELL(dev) && \
+				 (((dev)->pdev->device & 0xf) == 0x2  || \
+				 ((dev)->pdev->device & 0xf) == 0x6 || \
+				 ((dev)->pdev->device & 0xf) == 0xe))
+#define IS_HSW_ULT(dev)		(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0xFF00) == 0x0A00)
+#define IS_ULT(dev)		(IS_HSW_ULT(dev) || IS_BDW_ULT(dev))
 #define IS_HSW_GT3(dev)		(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0x00F0) == 0x0020)
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
@@ -1901,9 +1906,7 @@ void i915_queue_hangcheck(struct drm_device *dev);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
-extern void intel_pm_init(struct drm_device *dev);
 extern void intel_hpd_init(struct drm_device *dev);
-extern void intel_pm_init(struct drm_device *dev);
 
 extern void intel_uncore_sanitize(struct drm_device *dev);
 extern void intel_uncore_early_sanitize(struct drm_device *dev);

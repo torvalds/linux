@@ -19,7 +19,6 @@
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
-#include <linux/miscdevice.h>
 
 #define PM_RSTC				0x1c
 #define PM_WDOG				0x24

@@ -229,11 +229,14 @@ static int tiadc_iio_buffered_hardware_setup(struct iio_dev *indio_dev,
 	unsigned long flags,
 	const struct iio_buffer_setup_ops *setup_ops)
 {
+	struct iio_buffer *buffer;
 	int ret;
 
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer)
+	buffer = iio_kfifo_allocate(indio_dev);
+	if (!buffer)
 		return -ENOMEM;
+
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	ret = request_threaded_irq(irq,	pollfunc_th, pollfunc_bh,
 				flags, indio_dev->name, indio_dev);

@@ -733,12 +733,9 @@ static int dcp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "failed to get IORESOURCE_MEM\n");
-		return -ENXIO;
-	}
-	dev->dcp_regs_base = devm_ioremap(&pdev->dev, r->start,
-					  resource_size(r));
+	dev->dcp_regs_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(dev->dcp_regs_base))
+		return PTR_ERR(dev->dcp_regs_base);
 
 	dcp_set(dev, DCP_CTRL_SFRST, DCP_REG_CTRL);
 	udelay(10);
@@ -762,7 +759,8 @@ static int dcp_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 	dev->dcp_vmi_irq = r->start;
-	ret = request_irq(dev->dcp_vmi_irq, dcp_vmi_irq, 0, "dcp", dev);
+	ret = devm_request_irq(&pdev->dev, dev->dcp_vmi_irq, dcp_vmi_irq, 0,
+			       "dcp", dev);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "can't request_irq (0)\n");
 		return -EIO;
@@ -771,15 +769,14 @@ static int dcp_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
 	if (!r) {
 		dev_err(&pdev->dev, "can't get IRQ resource (1)\n");
-		ret = -EIO;
-		goto err_free_irq0;
+		return -EIO;
 	}
 	dev->dcp_irq = r->start;
-	ret = request_irq(dev->dcp_irq, dcp_irq, 0, "dcp", dev);
+	ret = devm_request_irq(&pdev->dev, dev->dcp_irq, dcp_irq, 0, "dcp",
+			       dev);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "can't request_irq (1)\n");
-		ret = -EIO;
-		goto err_free_irq0;
+		return -EIO;
 	}
 
 	dev->hw_pkg[0] = dma_alloc_coherent(&pdev->dev,
@@ -788,8 +785,7 @@ static int dcp_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 	if (!dev->hw_pkg[0]) {
 		dev_err(&pdev->dev, "Could not allocate hw descriptors\n");
-		ret = -ENOMEM;
-		goto err_free_irq1;
+		return -ENOMEM;
 	}
 
 	for (i = 1; i < DCP_MAX_PKG; i++) {
@@ -848,16 +844,14 @@ err_unregister:
 	for (j = 0; j < i; j++)
 		crypto_unregister_alg(&algs[j]);
 err_free_key_iv:
+	tasklet_kill(&dev->done_task);
+	tasklet_kill(&dev->queue_task);
 	dma_free_coherent(&pdev->dev, 2 * AES_KEYSIZE_128, dev->payload_base,
 			dev->payload_base_dma);
 err_free_hw_packet:
 	dma_free_coherent(&pdev->dev, DCP_MAX_PKG *
 		sizeof(struct dcp_hw_packet), dev->hw_pkg[0],
 		dev->hw_phys_pkg);
-err_free_irq1:
-	free_irq(dev->dcp_irq, dev);
-err_free_irq0:
-	free_irq(dev->dcp_vmi_irq, dev);
 
 	return ret;
 }
@@ -868,23 +862,20 @@ static int dcp_remove(struct platform_device *pdev)
 	int j;
 	dev = platform_get_drvdata(pdev);
 
-	dma_free_coherent(&pdev->dev,
-			DCP_MAX_PKG * sizeof(struct dcp_hw_packet),
-			dev->hw_pkg[0],	dev->hw_phys_pkg);
-
-	dma_free_coherent(&pdev->dev, 2 * AES_KEYSIZE_128, dev->payload_base,
-			dev->payload_base_dma);
-
-	free_irq(dev->dcp_irq, dev);
-	free_irq(dev->dcp_vmi_irq, dev);
-
-	tasklet_kill(&dev->done_task);
-	tasklet_kill(&dev->queue_task);
+	misc_deregister(&dev->dcp_bootstream_misc);
 
 	for (j = 0; j < ARRAY_SIZE(algs); j++)
 		crypto_unregister_alg(&algs[j]);
 
-	misc_deregister(&dev->dcp_bootstream_misc);
+	tasklet_kill(&dev->done_task);
+	tasklet_kill(&dev->queue_task);
+
+	dma_free_coherent(&pdev->dev, 2 * AES_KEYSIZE_128, dev->payload_base,
+			dev->payload_base_dma);
+
+	dma_free_coherent(&pdev->dev,
+			DCP_MAX_PKG * sizeof(struct dcp_hw_packet),
+			dev->hw_pkg[0],	dev->hw_phys_pkg);
 
 	return 0;
 }

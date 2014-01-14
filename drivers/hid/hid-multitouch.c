@@ -1335,6 +1335,12 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_UNITEC,
 			USB_DEVICE_ID_UNITEC_USB_TOUCH_0A19) },
+
+	/* Wistron panels */
+	{ .driver_data = MT_CLS_NSMU,
+		MT_USB_DEVICE(USB_VENDOR_ID_WISTRON,
+			USB_DEVICE_ID_WISTRON_OPTICAL_TOUCH) },
+
 	/* XAT */
 	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XAT,

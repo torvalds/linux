@@ -207,7 +207,9 @@ isert_free_rx_descriptors(struct isert_conn *isert_conn)
 	isert_conn->conn_rx_descs = NULL;
 }
 
+static void isert_cq_tx_work(struct work_struct *);
 static void isert_cq_tx_callback(struct ib_cq *, void *);
+static void isert_cq_rx_work(struct work_struct *);
 static void isert_cq_rx_callback(struct ib_cq *, void *);
 
 static int
@@ -259,26 +261,36 @@ isert_create_device_ib_res(struct isert_device *device)
 		cq_desc[i].device = device;
 		cq_desc[i].cq_index = i;
 
+		INIT_WORK(&cq_desc[i].cq_rx_work, isert_cq_rx_work);
 		device->dev_rx_cq[i] = ib_create_cq(device->ib_device,
 						isert_cq_rx_callback,
 						isert_cq_event_callback,
 						(void *)&cq_desc[i],
 						ISER_MAX_RX_CQ_LEN, i);
-		if (IS_ERR(device->dev_rx_cq[i]))
+		if (IS_ERR(device->dev_rx_cq[i])) {
+			ret = PTR_ERR(device->dev_rx_cq[i]);
+			device->dev_rx_cq[i] = NULL;
 			goto out_cq;
+		}
 
+		INIT_WORK(&cq_desc[i].cq_tx_work, isert_cq_tx_work);
 		device->dev_tx_cq[i] = ib_create_cq(device->ib_device,
 						isert_cq_tx_callback,
 						isert_cq_event_callback,
 						(void *)&cq_desc[i],
 						ISER_MAX_TX_CQ_LEN, i);
-		if (IS_ERR(device->dev_tx_cq[i]))
+		if (IS_ERR(device->dev_tx_cq[i])) {
+			ret = PTR_ERR(device->dev_tx_cq[i]);
+			device->dev_tx_cq[i] = NULL;
+			goto out_cq;
+		}
+
+		ret = ib_req_notify_cq(device->dev_rx_cq[i], IB_CQ_NEXT_COMP);
+		if (ret)
 			goto out_cq;
 
-		if (ib_req_notify_cq(device->dev_rx_cq[i], IB_CQ_NEXT_COMP))
-			goto out_cq;
-
-		if (ib_req_notify_cq(device->dev_tx_cq[i], IB_CQ_NEXT_COMP))
+		ret = ib_req_notify_cq(device->dev_tx_cq[i], IB_CQ_NEXT_COMP);
+		if (ret)
 			goto out_cq;
 	}
 
@@ -1724,7 +1736,6 @@ isert_cq_tx_callback(struct ib_cq *cq, void *context)
 {
 	struct isert_cq_desc *cq_desc = (struct isert_cq_desc *)context;
 
-	INIT_WORK(&cq_desc->cq_tx_work, isert_cq_tx_work);
 	queue_work(isert_comp_wq, &cq_desc->cq_tx_work);
 }
 
@@ -1768,7 +1779,6 @@ isert_cq_rx_callback(struct ib_cq *cq, void *context)
 {
 	struct isert_cq_desc *cq_desc = (struct isert_cq_desc *)context;
 
-	INIT_WORK(&cq_desc->cq_rx_work, isert_cq_rx_work);
 	queue_work(isert_rx_wq, &cq_desc->cq_rx_work);
 }
 
