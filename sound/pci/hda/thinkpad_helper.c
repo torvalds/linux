@@ -8,6 +8,7 @@
 #include <linux/thinkpad_acpi.h>
 
 static int (*led_set_func)(int, bool);
+static void (*old_vmaster_hook)(void *, int);
 
 static acpi_status acpi_check_cb(acpi_handle handle, u32 lvl, void *context,
 				 void **rv)
@@ -30,11 +31,8 @@ static bool is_thinkpad(struct hda_codec *codec)
 
 static void update_tpacpi_mute_led(void *private_data, int enabled)
 {
-	struct hda_codec *codec = private_data;
-	struct hda_gen_spec *spec = codec->spec;
-
-	if (spec->vmaster_mute.hook)
-		spec->vmaster_mute.hook(private_data, enabled);
+	if (old_vmaster_hook)
+		old_vmaster_hook(private_data, enabled);
 
 	if (led_set_func)
 		led_set_func(TPACPI_LED_MUTE, !enabled);
@@ -70,6 +68,7 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 
 		removefunc = true;
 		if (led_set_func(TPACPI_LED_MUTE, false) >= 0) {
+			old_vmaster_hook = spec->vmaster_mute.hook;
 			spec->vmaster_mute.hook = update_tpacpi_mute_led;
 			removefunc = false;
 		}
@@ -86,6 +85,7 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 	if (led_set_func && (action == HDA_FIXUP_ACT_FREE || removefunc)) {
 		symbol_put(tpacpi_led_set);
 		led_set_func = NULL;
+		old_vmaster_hook = NULL;
 	}
 }
 
