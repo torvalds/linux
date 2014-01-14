@@ -3968,9 +3968,11 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 		free_snapshot(tr);
 	}
 #endif
-	destroy_trace_option_files(topts);
-
-	topts = create_trace_option_files(tr, t);
+	/* Currently, only the top instance has options */
+	if (tr->flags & TRACE_ARRAY_FL_GLOBAL) {
+		destroy_trace_option_files(topts);
+		topts = create_trace_option_files(tr, t);
+	}
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 	if (t->use_max_tr && !had_max_tr) {
