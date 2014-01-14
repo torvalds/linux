@@ -55,6 +55,7 @@
  * The bits we set in HCR:
  * TAC:		Trap ACTLR
  * TSC:		Trap SMC
+ * TVM:		Trap VM ops (until MMU and caches are on)
  * TSW:		Trap cache operations by set/way
  * TWI:		Trap WFI
  * TWE:		Trap WFE
@@ -68,7 +69,7 @@
  */
 #define HCR_GUEST_MASK (HCR_TSC | HCR_TSW | HCR_TWI | HCR_VM | HCR_BSU_IS | \
 			HCR_FB | HCR_TAC | HCR_AMO | HCR_IMO | HCR_FMO | \
-			HCR_TWE | HCR_SWIO | HCR_TIDCP)
+			HCR_TVM | HCR_TWE | HCR_SWIO | HCR_TIDCP)
 
 /* System Control Register (SCTLR) bits */
 #define SCTLR_TE	(1 << 30)

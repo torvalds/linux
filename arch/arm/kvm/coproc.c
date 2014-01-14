@@ -23,6 +23,7 @@
 #include <asm/kvm_host.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
+#include <asm/kvm_mmu.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <trace/events/kvm.h>
@@ -205,6 +206,44 @@ done:
 }
 
 /*
+ * Generic accessor for VM registers. Only called as long as HCR_TVM
+ * is set.
+ */
+static bool access_vm_reg(struct kvm_vcpu *vcpu,
+			  const struct coproc_params *p,
+			  const struct coproc_reg *r)
+{
+	BUG_ON(!p->is_write);
+
+	vcpu->arch.cp15[r->reg] = *vcpu_reg(vcpu, p->Rt1);
+	if (p->is_64bit)
+		vcpu->arch.cp15[r->reg + 1] = *vcpu_reg(vcpu, p->Rt2);
+
+	return true;
+}
+
+/*
+ * SCTLR accessor. Only called as long as HCR_TVM is set.  If the
+ * guest enables the MMU, we stop trapping the VM sys_regs and leave
+ * it in complete control of the caches.
+ *
+ * Used by the cpu-specific code.
+ */
+bool access_sctlr(struct kvm_vcpu *vcpu,
+		  const struct coproc_params *p,
+		  const struct coproc_reg *r)
+{
+	access_vm_reg(vcpu, p, r);
+
+	if (vcpu_has_cache_enabled(vcpu)) {	/* MMU+Caches enabled? */
+		vcpu->arch.hcr &= ~HCR_TVM;
+		stage2_flush_vm(vcpu->kvm);
+	}
+
+	return true;
+}
+
+/*
  * We could trap ID_DFR0 and tell the guest we don't support performance
  * monitoring.  Unfortunately the patch to make the kernel check ID_DFR0 was
  * NAKed, so it will read the PMCR anyway.
@@ -261,33 +300,36 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn( 1), CRm( 0), Op1( 0), Op2( 2), is32,
 			NULL, reset_val, c1_CPACR, 0x00000000 },
 
-	/* TTBR0/TTBR1: swapped by interrupt.S. */
-	{ CRm64( 2), Op1( 0), is64, NULL, reset_unknown64, c2_TTBR0 },
-	{ CRm64( 2), Op1( 1), is64, NULL, reset_unknown64, c2_TTBR1 },
-
-	/* TTBCR: swapped by interrupt.S. */
+	/* TTBR0/TTBR1/TTBCR: swapped by interrupt.S. */
+	{ CRm64( 2), Op1( 0), is64, access_vm_reg, reset_unknown64, c2_TTBR0 },
+	{ CRn(2), CRm( 0), Op1( 0), Op2( 0), is32,
+			access_vm_reg, reset_unknown, c2_TTBR0 },
+	{ CRn(2), CRm( 0), Op1( 0), Op2( 1), is32,
+			access_vm_reg, reset_unknown, c2_TTBR1 },
 	{ CRn( 2), CRm( 0), Op1( 0), Op2( 2), is32,
-			NULL, reset_val, c2_TTBCR, 0x00000000 },
+			access_vm_reg, reset_val, c2_TTBCR, 0x00000000 },
+	{ CRm64( 2), Op1( 1), is64, access_vm_reg, reset_unknown64, c2_TTBR1 },
+
 
 	/* DACR: swapped by interrupt.S. */
 	{ CRn( 3), CRm( 0), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c3_DACR },
+			access_vm_reg, reset_unknown, c3_DACR },
 
 	/* DFSR/IFSR/ADFSR/AIFSR: swapped by interrupt.S. */
 	{ CRn( 5), CRm( 0), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c5_DFSR },
+			access_vm_reg, reset_unknown, c5_DFSR },
 	{ CRn( 5), CRm( 0), Op1( 0), Op2( 1), is32,
-			NULL, reset_unknown, c5_IFSR },
+			access_vm_reg, reset_unknown, c5_IFSR },
 	{ CRn( 5), CRm( 1), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c5_ADFSR },
+			access_vm_reg, reset_unknown, c5_ADFSR },
 	{ CRn( 5), CRm( 1), Op1( 0), Op2( 1), is32,
-			NULL, reset_unknown, c5_AIFSR },
+			access_vm_reg, reset_unknown, c5_AIFSR },
 
 	/* DFAR/IFAR: swapped by interrupt.S. */
 	{ CRn( 6), CRm( 0), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c6_DFAR },
+			access_vm_reg, reset_unknown, c6_DFAR },
 	{ CRn( 6), CRm( 0), Op1( 0), Op2( 2), is32,
-			NULL, reset_unknown, c6_IFAR },
+			access_vm_reg, reset_unknown, c6_IFAR },
 
 	/* PAR swapped by interrupt.S */
 	{ CRm64( 7), Op1( 0), is64, NULL, reset_unknown64, c7_PAR },
@@ -324,9 +366,9 @@ static const struct coproc_reg cp15_regs[] = {
 
 	/* PRRR/NMRR (aka MAIR0/MAIR1): swapped by interrupt.S. */
 	{ CRn(10), CRm( 2), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c10_PRRR},
+			access_vm_reg, reset_unknown, c10_PRRR},
 	{ CRn(10), CRm( 2), Op1( 0), Op2( 1), is32,
-			NULL, reset_unknown, c10_NMRR},
+			access_vm_reg, reset_unknown, c10_NMRR},
 
 	/* AMAIR0/AMAIR1: swapped by interrupt.S. */
 	{ CRn(10), CRm( 3), Op1( 0), Op2( 0), is32,
@@ -340,7 +382,7 @@ static const struct coproc_reg cp15_regs[] = {
 
 	/* CONTEXTIDR/TPIDRURW/TPIDRURO/TPIDRPRW: swapped by interrupt.S. */
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 1), is32,
-			NULL, reset_val, c13_CID, 0x00000000 },
+			access_vm_reg, reset_val, c13_CID, 0x00000000 },
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 2), is32,
 			NULL, reset_unknown, c13_TID_URW },
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 3), is32,
