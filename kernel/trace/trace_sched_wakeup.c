@@ -218,7 +218,7 @@ wakeup_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	stop_func_tracer(tr, !set);
 
 	wakeup_reset(wakeup_trace);
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 
 	return start_func_tracer(tr, set);
 }
@@ -344,13 +344,13 @@ static void wakeup_print_header(struct seq_file *s)
 /*
  * Should this new latency be reported/recorded?
  */
-static int report_latency(cycle_t delta)
+static int report_latency(struct trace_array *tr, cycle_t delta)
 {
 	if (tracing_thresh) {
 		if (delta < tracing_thresh)
 			return 0;
 	} else {
-		if (delta <= tracing_max_latency)
+		if (delta <= tr->max_latency)
 			return 0;
 	}
 	return 1;
@@ -418,11 +418,11 @@ probe_wakeup_sched_switch(void *ignore,
 	T1 = ftrace_now(cpu);
 	delta = T1-T0;
 
-	if (!report_latency(delta))
+	if (!report_latency(wakeup_trace, delta))
 		goto out_unlock;
 
 	if (likely(!is_tracing_stopped())) {
-		tracing_max_latency = delta;
+		wakeup_trace->max_latency = delta;
 		update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
 	}
 
@@ -609,7 +609,7 @@ static int __wakeup_tracer_init(struct trace_array *tr)
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, 1);
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, 1);
 
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 	wakeup_trace = tr;
 	ftrace_init_array_ops(tr, wakeup_tracer_call);
 	start_wakeup_tracer(tr);

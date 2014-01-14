@@ -982,8 +982,6 @@ static arch_spinlock_t ftrace_max_lock =
 unsigned long __read_mostly	tracing_thresh;
 
 #ifdef CONFIG_TRACER_MAX_TRACE
-unsigned long __read_mostly	tracing_max_latency;
-
 /*
  * Copy the new maximum trace into the separate maximum-trace
  * structure. (this way the maximum trace is permanently saved,
@@ -1000,7 +998,7 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	max_buf->cpu = cpu;
 	max_buf->time_start = data->preempt_timestamp;
 
-	max_data->saved_latency = tracing_max_latency;
+	max_data->saved_latency = tr->max_latency;
 	max_data->critical_start = data->critical_start;
 	max_data->critical_end = data->critical_end;
 
@@ -6328,6 +6326,11 @@ init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 	trace_create_file("tracing_on", 0644, d_tracer,
 			  tr, &rb_simple_fops);
 
+#ifdef CONFIG_TRACER_MAX_TRACE
+	trace_create_file("tracing_max_latency", 0644, d_tracer,
+			&tr->max_latency, &tracing_max_lat_fops);
+#endif
+
 	if (ftrace_create_function_files(tr, d_tracer))
 		WARN(1, "Could not allocate function filter files");
 
@@ -6352,11 +6355,6 @@ static __init int tracer_init_debugfs(void)
 		return 0;
 
 	init_tracer_debugfs(&global_trace, d_tracer);
-
-#ifdef CONFIG_TRACER_MAX_TRACE
-	trace_create_file("tracing_max_latency", 0644, d_tracer,
-			&tracing_max_latency, &tracing_max_lat_fops);
-#endif
 
 	trace_create_file("tracing_thresh", 0644, d_tracer,
 			&tracing_thresh, &tracing_max_lat_fops);

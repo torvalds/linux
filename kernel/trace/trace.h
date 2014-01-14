@@ -190,6 +190,7 @@ struct trace_array {
 	 */
 	struct trace_buffer	max_buffer;
 	bool			allocated_snapshot;
+	unsigned long		max_latency;
 #endif
 	int			buffer_disabled;
 #ifdef CONFIG_FTRACE_SYSCALLS
@@ -599,8 +600,6 @@ extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 extern unsigned long tracing_thresh;
 
 #ifdef CONFIG_TRACER_MAX_TRACE
-extern unsigned long tracing_max_latency;
-
 void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu);
 void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
