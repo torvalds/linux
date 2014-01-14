@@ -2251,6 +2251,10 @@ out:
 
 		qp->db.db[MLX5_SND_DBR] = cpu_to_be32(qp->sq.cur_post);
 
+		/* Make sure doorbell record is visible to the HCA before
+		 * we hit doorbell */
+		wmb();
+
 		if (bf->need_lock)
 			spin_lock(&bf->lock);
 
