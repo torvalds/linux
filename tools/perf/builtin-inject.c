@@ -369,7 +369,7 @@ static int __cmd_inject(struct perf_inject *inject)
 
 		inject->tool.ordered_samples = true;
 
-		list_for_each_entry(evsel, &session->evlist->entries, node) {
+		evlist__for_each(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);
 
 			if (!strcmp(name, "sched:sched_switch")) {

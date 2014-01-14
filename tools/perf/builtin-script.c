@@ -603,7 +603,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	if (evsel->attr.type >= PERF_TYPE_MAX)
 		return 0;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		if (pos->attr.type == evsel->attr.type && pos != evsel)
 			return 0;
 	}
@@ -1309,8 +1309,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
 			snprintf(evname, len + 1, "%s", p);
 
 			match = 0;
-			list_for_each_entry(pos,
-					&session->evlist->entries, node) {
+			evlist__for_each(session->evlist, pos) {
 				if (!strcmp(perf_evsel__name(pos), evname)) {
 					match = 1;
 					break;

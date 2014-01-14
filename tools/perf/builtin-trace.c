@@ -1160,26 +1160,27 @@ struct trace {
 	struct record_opts	opts;
 	struct machine		*host;
 	u64			base_time;
-	bool			full_time;
 	FILE			*output;
 	unsigned long		nr_events;
 	struct strlist		*ev_qualifier;
-	bool			not_ev_qualifier;
-	bool			live;
 	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
+	double			duration_filter;
+	double			runtime_ms;
+	struct {
+		u64		vfs_getname,
+				proc_getname;
+	} stats;
+	bool			not_ev_qualifier;
+	bool			live;
+	bool			full_time;
 	bool			sched;
 	bool			multiple_threads;
 	bool			summary;
 	bool			summary_only;
 	bool			show_comm;
 	bool			show_tool_stats;
-	double			duration_filter;
-	double			runtime_ms;
-	struct {
-		u64		vfs_getname, proc_getname;
-	} stats;
 };
 
 static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
@@ -1885,7 +1886,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = trace__symbols_init(trace, evlist);
 	if (err < 0) {
 		fprintf(trace->output, "Problems initializing symbol libraries!\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__config(evlist, &trace->opts);
@@ -1895,10 +1896,10 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(evlist, &trace->opts.target,
-						    argv, false, false);
+						    argv, false, NULL);
 		if (err < 0) {
 			fprintf(trace->output, "Couldn't run the workload!\n");
-			goto out_delete_maps;
+			goto out_delete_evlist;
 		}
 	}
 
@@ -1909,7 +1910,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0) {
 		fprintf(trace->output, "Couldn't mmap the events: %s\n", strerror(errno));
-		goto out_close_evlist;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__enable(evlist);
@@ -1993,11 +1994,6 @@ out_disable:
 		}
 	}
 
-	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
-out_delete_maps:
-	perf_evlist__delete_maps(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:

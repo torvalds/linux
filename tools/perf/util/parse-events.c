@@ -820,8 +820,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 	if (!add && get_event_modifier(&mod, str, NULL))
 		return -EINVAL;
 
-	list_for_each_entry(evsel, list, node) {
-
+	__evlist__for_each(list, evsel) {
 		if (add && get_event_modifier(&mod, str, evsel))
 			return -EINVAL;
 
@@ -845,7 +844,7 @@ int parse_events_name(struct list_head *list, char *name)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, list, node) {
+	__evlist__for_each(list, evsel) {
 		if (!evsel->name)
 			evsel->name = strdup(name);
 	}

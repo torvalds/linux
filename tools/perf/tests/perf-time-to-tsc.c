@@ -166,14 +166,8 @@ next_event:
 out_err:
 	if (evlist) {
 		perf_evlist__disable(evlist);
-		perf_evlist__munmap(evlist);
-		perf_evlist__close(evlist);
 		perf_evlist__delete(evlist);
 	}
-	if (cpus)
-		cpu_map__delete(cpus);
-	if (threads)
-		thread_map__delete(threads);
 
 	return err;
 }

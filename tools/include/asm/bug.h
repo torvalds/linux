@@ -1,5 +1,7 @@
-#ifndef _PERF_ASM_GENERIC_BUG_H
-#define _PERF_ASM_GENERIC_BUG_H
+#ifndef _TOOLS_ASM_BUG_H
+#define _TOOLS_ASM_BUG_H
+
+#include <linux/compiler.h>
 
 #define __WARN_printf(arg...)	do { fprintf(stderr, arg); } while (0)
 
@@ -19,4 +21,5 @@
 			__warned = 1;		\
 	unlikely(__ret_warn_once);		\
 })
-#endif
+
+#endif /* _TOOLS_ASM_BUG_H */

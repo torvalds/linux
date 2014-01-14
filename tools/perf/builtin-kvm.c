@@ -1174,7 +1174,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	 * Note: exclude_{guest,host} do not apply here.
 	 *       This command processes KVM tracepoints from host only
 	 */
-	list_for_each_entry(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		struct perf_event_attr *attr = &pos->attr;
 
 		/* make sure these *are* set */
@@ -1556,10 +1556,8 @@ out:
 	if (kvm->session)
 		perf_session__delete(kvm->session);
 	kvm->session = NULL;
-	if (kvm->evlist) {
-		perf_evlist__delete_maps(kvm->evlist);
+	if (kvm->evlist)
 		perf_evlist__delete(kvm->evlist);
-	}
 
 	return err;
 }

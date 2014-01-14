@@ -1,28 +1,26 @@
-uname_M := $(shell uname -m 2>/dev/null || echo not)
 
-ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
-                                  -e s/arm.*/arm/ -e s/sa110/arm/ \
-                                  -e s/s390x/s390/ -e s/parisc64/parisc/ \
-                                  -e s/ppc.*/powerpc/ -e s/mips.*/mips/ \
-                                  -e s/sh[234].*/sh/ -e s/aarch64.*/arm64/ )
-NO_PERF_REGS := 1
-CFLAGS := $(EXTRA_CFLAGS) $(EXTRA_WARNINGS)
-
-# Additional ARCH settings for x86
-ifeq ($(ARCH),i386)
-  override ARCH := x86
-  NO_PERF_REGS := 0
-  LIBUNWIND_LIBS = -lunwind -lunwind-x86
+ifeq ($(src-perf),)
+src-perf := $(srctree)/tools/perf
 endif
 
-ifeq ($(ARCH),x86_64)
-  override ARCH := x86
-  IS_X86_64 := 0
-  ifeq (, $(findstring m32,$(CFLAGS)))
-    IS_X86_64 := $(shell echo __x86_64__ | ${CC} -E -x c - | tail -n 1)
-  endif
+ifeq ($(obj-perf),)
+obj-perf := $(OUTPUT)
+endif
+
+ifneq ($(obj-perf),)
+obj-perf := $(abspath $(obj-perf))/
+endif
+
+LIB_INCLUDE := $(srctree)/tools/lib/
+CFLAGS := $(EXTRA_CFLAGS) $(EXTRA_WARNINGS)
+
+include $(src-perf)/config/Makefile.arch
+
+NO_PERF_REGS := 1
+
+# Additional ARCH settings for x86
+ifeq ($(ARCH),x86)
   ifeq (${IS_X86_64}, 1)
-    RAW_ARCH := x86_64
     CFLAGS += -DHAVE_ARCH_X86_64_SUPPORT
     ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memset_64.S
     LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
@@ -55,28 +53,11 @@ else
   FEATURE_CHECK_LDFLAGS-libunwind = $(LIBUNWIND_LDFLAGS)
   FEATURE_CHECK_CFLAGS-libunwind-debug-frame = $(LIBUNWIND_CFLAGS)
   FEATURE_CHECK_LDFLAGS-libunwind-debug-frame = $(LIBUNWIND_LDFLAGS)
-  #  and the flags for the test-all case
-  FEATURE_CHECK_CFLAGS-all += $(LIBUNWIND_CFLAGS)
-  FEATURE_CHECK_LDFLAGS-all += $(LIBUNWIND_LDFLAGS)
 endif
 
 ifeq ($(NO_PERF_REGS),0)
   CFLAGS += -DHAVE_PERF_REGS_SUPPORT
 endif
-
-ifeq ($(src-perf),)
-src-perf := $(srctree)/tools/perf
-endif
-
-ifeq ($(obj-perf),)
-obj-perf := $(OUTPUT)
-endif
-
-ifneq ($(obj-perf),)
-obj-perf := $(abspath $(obj-perf))/
-endif
-
-LIB_INCLUDE := $(srctree)/tools/lib/
 
 # include ARCH specific config
 -include $(src-perf)/arch/$(ARCH)/Makefile
@@ -168,6 +149,17 @@ CORE_FEATURE_TESTS =			\
 	stackprotector-all		\
 	timerfd
 
+# Set FEATURE_CHECK_(C|LD)FLAGS-all for all CORE_FEATURE_TESTS features.
+# If in the future we need per-feature checks/flags for features not
+# mentioned in this list we need to refactor this ;-).
+set_test_all_flags = $(eval $(set_test_all_flags_code))
+define set_test_all_flags_code
+  FEATURE_CHECK_CFLAGS-all  += $(FEATURE_CHECK_CFLAGS-$(1))
+  FEATURE_CHECK_LDFLAGS-all += $(FEATURE_CHECK_LDFLAGS-$(1))
+endef
+
+$(foreach feat,$(CORE_FEATURE_TESTS),$(call set_test_all_flags,$(feat)))
+
 #
 # So here we detect whether test-all was rebuilt, to be able
 # to skip the print-out of the long features list if the file
@@ -240,6 +232,7 @@ endif
 
 CFLAGS += -I$(src-perf)/util/include
 CFLAGS += -I$(src-perf)/arch/$(ARCH)/include
+CFLAGS += -I$(srctree)/tools/include/
 CFLAGS += -I$(srctree)/arch/$(ARCH)/include/uapi
 CFLAGS += -I$(srctree)/arch/$(ARCH)/include
 CFLAGS += -I$(srctree)/include/uapi

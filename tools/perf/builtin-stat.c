@@ -214,7 +214,7 @@ static void perf_evlist__free_stats(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		perf_evsel__free_stat_priv(evsel);
 		perf_evsel__free_counts(evsel);
 		perf_evsel__free_prev_raw_counts(evsel);
@@ -225,7 +225,7 @@ static int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if (perf_evsel__alloc_stat_priv(evsel) < 0 ||
 		    perf_evsel__alloc_counts(evsel, perf_evsel__nr_cpus(evsel)) < 0 ||
 		    (alloc_raw && perf_evsel__alloc_prev_raw_counts(evsel) < 0))
@@ -259,7 +259,7 @@ static void perf_stat__reset_stats(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		perf_evsel__reset_stat_priv(evsel);
 		perf_evsel__reset_counts(evsel, perf_evsel__nr_cpus(evsel));
 	}
@@ -326,13 +326,13 @@ static struct perf_evsel *nth_evsel(int n)
 
 	/* Assumes this only called when evsel_list does not change anymore. */
 	if (!array) {
-		list_for_each_entry(ev, &evsel_list->entries, node)
+		evlist__for_each(evsel_list, ev)
 			array_len++;
 		array = malloc(array_len * sizeof(void *));
 		if (!array)
 			exit(ENOMEM);
 		j = 0;
-		list_for_each_entry(ev, &evsel_list->entries, node)
+		evlist__for_each(evsel_list, ev)
 			array[j++] = ev;
 	}
 	if (n < array_len)
@@ -440,13 +440,13 @@ static void print_interval(void)
 	char prefix[64];
 
 	if (aggr_mode == AGGR_GLOBAL) {
-		list_for_each_entry(counter, &evsel_list->entries, node) {
+		evlist__for_each(evsel_list, counter) {
 			ps = counter->priv;
 			memset(ps->res_stats, 0, sizeof(ps->res_stats));
 			read_counter_aggr(counter);
 		}
 	} else	{
-		list_for_each_entry(counter, &evsel_list->entries, node) {
+		evlist__for_each(evsel_list, counter) {
 			ps = counter->priv;
 			memset(ps->res_stats, 0, sizeof(ps->res_stats));
 			read_counter(counter);
@@ -483,12 +483,12 @@ static void print_interval(void)
 		print_aggr(prefix);
 		break;
 	case AGGR_NONE:
-		list_for_each_entry(counter, &evsel_list->entries, node)
+		evlist__for_each(evsel_list, counter)
 			print_counter(counter, prefix);
 		break;
 	case AGGR_GLOBAL:
 	default:
-		list_for_each_entry(counter, &evsel_list->entries, node)
+		evlist__for_each(evsel_list, counter)
 			print_counter_aggr(counter, prefix);
 	}
 
@@ -504,9 +504,22 @@ static void handle_initial_delay(void)
 			nthreads = thread_map__nr(evsel_list->threads);
 
 		usleep(initial_delay * 1000);
-		list_for_each_entry(counter, &evsel_list->entries, node)
+		evlist__for_each(evsel_list, counter)
 			perf_evsel__enable(counter, ncpus, nthreads);
 	}
+}
+
+static volatile int workload_exec_errno;
+
+/*
+ * perf_evlist__prepare_workload will send a SIGUSR1
+ * if the fork fails, since we asked by setting its
+ * want_signal to true.
+ */
+static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *info,
+					void *ucontext __maybe_unused)
+{
+	workload_exec_errno = info->si_value.sival_int;
 }
 
 static int __run_perf_stat(int argc, const char **argv)
@@ -528,8 +541,8 @@ static int __run_perf_stat(int argc, const char **argv)
 	}
 
 	if (forks) {
-		if (perf_evlist__prepare_workload(evsel_list, &target, argv,
-						  false, false) < 0) {
+		if (perf_evlist__prepare_workload(evsel_list, &target, argv, false,
+						  workload_exec_failed_signal) < 0) {
 			perror("failed to prepare workload");
 			return -1;
 		}
@@ -539,7 +552,7 @@ static int __run_perf_stat(int argc, const char **argv)
 	if (group)
 		perf_evlist__set_leader(evsel_list);
 
-	list_for_each_entry(counter, &evsel_list->entries, node) {
+	evlist__for_each(evsel_list, counter) {
 		if (create_perf_stat_counter(counter) < 0) {
 			/*
 			 * PPC returns ENXIO for HW counters until 2.6.37
@@ -594,6 +607,13 @@ static int __run_perf_stat(int argc, const char **argv)
 			}
 		}
 		wait(&status);
+
+		if (workload_exec_errno) {
+			const char *emsg = strerror_r(workload_exec_errno, msg, sizeof(msg));
+			pr_err("Workload failed: %s\n", emsg);
+			return -1;
+		}
+
 		if (WIFSIGNALED(status))
 			psignal(WTERMSIG(status), argv[0]);
 	} else {
@@ -610,13 +630,13 @@ static int __run_perf_stat(int argc, const char **argv)
 	update_stats(&walltime_nsecs_stats, t1 - t0);
 
 	if (aggr_mode == AGGR_GLOBAL) {
-		list_for_each_entry(counter, &evsel_list->entries, node) {
+		evlist__for_each(evsel_list, counter) {
 			read_counter_aggr(counter);
 			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter),
 					     thread_map__nr(evsel_list->threads));
 		}
 	} else {
-		list_for_each_entry(counter, &evsel_list->entries, node) {
+		evlist__for_each(evsel_list, counter) {
 			read_counter(counter);
 			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter), 1);
 		}
@@ -625,7 +645,7 @@ static int __run_perf_stat(int argc, const char **argv)
 	return WEXITSTATUS(status);
 }
 
-static int run_perf_stat(int argc __maybe_unused, const char **argv)
+static int run_perf_stat(int argc, const char **argv)
 {
 	int ret;
 
@@ -1097,7 +1117,7 @@ static void print_aggr(char *prefix)
 
 	for (s = 0; s < aggr_map->nr; s++) {
 		id = aggr_map->map[s];
-		list_for_each_entry(counter, &evsel_list->entries, node) {
+		evlist__for_each(evsel_list, counter) {
 			val = ena = run = 0;
 			nr = 0;
 			for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
@@ -1308,11 +1328,11 @@ static void print_stat(int argc, const char **argv)
 		print_aggr(NULL);
 		break;
 	case AGGR_GLOBAL:
-		list_for_each_entry(counter, &evsel_list->entries, node)
+		evlist__for_each(evsel_list, counter)
 			print_counter_aggr(counter, NULL);
 		break;
 	case AGGR_NONE:
-		list_for_each_entry(counter, &evsel_list->entries, node)
+		evlist__for_each(evsel_list, counter)
 			print_counter(counter, NULL);
 		break;
 	default:
@@ -1762,14 +1782,14 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (interval && interval < 100) {
 		pr_err("print interval must be >= 100ms\n");
 		parse_options_usage(stat_usage, options, "I", 1);
-		goto out_free_maps;
+		goto out;
 	}
 
 	if (perf_evlist__alloc_stats(evsel_list, interval))
-		goto out_free_maps;
+		goto out;
 
 	if (perf_stat_init_aggr_mode())
-		goto out_free_maps;
+		goto out;
 
 	/*
 	 * We dont want to block the signals - that would cause
@@ -1801,8 +1821,6 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		print_stat(argc, argv);
 
 	perf_evlist__free_stats(evsel_list);
-out_free_maps:
-	perf_evlist__delete_maps(evsel_list);
 out:
 	perf_evlist__delete(evsel_list);
 	return status;

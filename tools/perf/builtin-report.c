@@ -384,7 +384,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 {
 	struct perf_evsel *pos;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		struct hists *hists = &pos->hists;
 		const char *evname = perf_evsel__name(pos);
 
@@ -412,40 +412,11 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	return 0;
 }
 
-static int __cmd_report(struct report *rep)
+static void report__warn_kptr_restrict(const struct report *rep)
 {
-	int ret = -EINVAL;
-	u64 nr_samples;
-	struct perf_session *session = rep->session;
-	struct perf_evsel *pos;
-	struct map *kernel_map;
-	struct kmap *kernel_kmap;
-	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
-	struct ui_progress prog;
-	struct perf_data_file *file = session->file;
+	struct map *kernel_map = rep->session->machines.host.vmlinux_maps[MAP__FUNCTION];
+	struct kmap *kernel_kmap = map__kmap(kernel_map);
 
-	signal(SIGINT, sig_handler);
-
-	if (rep->cpu_list) {
-		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
-					       rep->cpu_bitmap);
-		if (ret)
-			return ret;
-	}
-
-	if (rep->show_threads)
-		perf_read_values_init(&rep->show_threads_values);
-
-	ret = report__setup_sample_type(rep);
-	if (ret)
-		return ret;
-
-	ret = perf_session__process_events(session, &rep->tool);
-	if (ret)
-		return ret;
-
-	kernel_map = session->machines.host.vmlinux_maps[MAP__FUNCTION];
-	kernel_kmap = map__kmap(kernel_map);
 	if (kernel_map == NULL ||
 	    (kernel_map->dso->hit &&
 	     (kernel_kmap->ref_reloc_sym == NULL ||
@@ -468,28 +439,73 @@ static int __cmd_report(struct report *rep)
 "Samples in kernel modules can't be resolved as well.\n\n",
 		desc);
 	}
+}
 
-	if (use_browser == 0) {
-		if (verbose > 3)
-			perf_session__fprintf(session, stdout);
+static int report__gtk_browse_hists(struct report *rep, const char *help)
+{
+	int (*hist_browser)(struct perf_evlist *evlist, const char *help,
+			    struct hist_browser_timer *timer, float min_pcnt);
 
-		if (verbose > 2)
-			perf_session__fprintf_dsos(session, stdout);
+	hist_browser = dlsym(perf_gtk_handle, "perf_evlist__gtk_browse_hists");
 
-		if (dump_trace) {
-			perf_session__fprintf_nr_events(session, stdout);
-			return 0;
-		}
+	if (hist_browser == NULL) {
+		ui__error("GTK browser not found!\n");
+		return -1;
 	}
 
-	nr_samples = 0;
-	list_for_each_entry(pos, &session->evlist->entries, node)
+	return hist_browser(rep->session->evlist, help, NULL, rep->min_percent);
+}
+
+static int report__browse_hists(struct report *rep)
+{
+	int ret;
+	struct perf_session *session = rep->session;
+	struct perf_evlist *evlist = session->evlist;
+	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
+
+	switch (use_browser) {
+	case 1:
+		ret = perf_evlist__tui_browse_hists(evlist, help, NULL,
+						    rep->min_percent,
+						    &session->header.env);
+		/*
+		 * Usually "ret" is the last pressed key, and we only
+		 * care if the key notifies us to switch data file.
+		 */
+		if (ret != K_SWITCH_INPUT_DATA)
+			ret = 0;
+		break;
+	case 2:
+		ret = report__gtk_browse_hists(rep, help);
+		break;
+	default:
+		ret = perf_evlist__tty_browse_hists(evlist, rep, help);
+		break;
+	}
+
+	return ret;
+}
+
+static u64 report__collapse_hists(struct report *rep)
+{
+	struct ui_progress prog;
+	struct perf_evsel *pos;
+	u64 nr_samples = 0;
+	/*
+ 	 * Count number of histogram entries to use when showing progress,
+ 	 * reusing nr_samples variable.
+ 	 */
+	evlist__for_each(rep->session->evlist, pos)
 		nr_samples += pos->hists.nr_entries;
 
 	ui_progress__init(&prog, nr_samples, "Merging related events...");
-
+	/*
+	 * Count total number of samples, will be used to check if this
+ 	 * session had any.
+ 	 */
 	nr_samples = 0;
-	list_for_each_entry(pos, &session->evlist->entries, node) {
+
+	evlist__for_each(rep->session->evlist, pos) {
 		struct hists *hists = &pos->hists;
 
 		if (pos->idx == 0)
@@ -507,7 +523,56 @@ static int __cmd_report(struct report *rep)
 			hists__link(leader_hists, hists);
 		}
 	}
+
 	ui_progress__finish();
+
+	return nr_samples;
+}
+
+static int __cmd_report(struct report *rep)
+{
+	int ret;
+	u64 nr_samples;
+	struct perf_session *session = rep->session;
+	struct perf_evsel *pos;
+	struct perf_data_file *file = session->file;
+
+	signal(SIGINT, sig_handler);
+
+	if (rep->cpu_list) {
+		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
+					       rep->cpu_bitmap);
+		if (ret)
+			return ret;
+	}
+
+	if (rep->show_threads)
+		perf_read_values_init(&rep->show_threads_values);
+
+	ret = report__setup_sample_type(rep);
+	if (ret)
+		return ret;
+
+	ret = perf_session__process_events(session, &rep->tool);
+	if (ret)
+		return ret;
+
+	report__warn_kptr_restrict(rep);
+
+	if (use_browser == 0) {
+		if (verbose > 3)
+			perf_session__fprintf(session, stdout);
+
+		if (verbose > 2)
+			perf_session__fprintf_dsos(session, stdout);
+
+		if (dump_trace) {
+			perf_session__fprintf_nr_events(session, stdout);
+			return 0;
+		}
+	}
+
+	nr_samples = report__collapse_hists(rep);
 
 	if (session_done())
 		return 0;
@@ -517,41 +582,10 @@ static int __cmd_report(struct report *rep)
 		return 0;
 	}
 
-	list_for_each_entry(pos, &session->evlist->entries, node)
+	evlist__for_each(session->evlist, pos)
 		hists__output_resort(&pos->hists);
 
-	if (use_browser > 0) {
-		if (use_browser == 1) {
-			ret = perf_evlist__tui_browse_hists(session->evlist,
-							help, NULL,
-							rep->min_percent,
-							&session->header.env);
-			/*
-			 * Usually "ret" is the last pressed key, and we only
-			 * care if the key notifies us to switch data file.
-			 */
-			if (ret != K_SWITCH_INPUT_DATA)
-				ret = 0;
-
-		} else if (use_browser == 2) {
-			int (*hist_browser)(struct perf_evlist *,
-					    const char *,
-					    struct hist_browser_timer *,
-					    float min_pcnt);
-
-			hist_browser = dlsym(perf_gtk_handle,
-					     "perf_evlist__gtk_browse_hists");
-			if (hist_browser == NULL) {
-				ui__error("GTK browser not found!\n");
-				return ret;
-			}
-			hist_browser(session->evlist, help, NULL,
-				     rep->min_percent);
-		}
-	} else
-		perf_evlist__tty_browse_hists(session->evlist, rep, help);
-
-	return ret;
+	return report__browse_hists(rep);
 }
 
 static int

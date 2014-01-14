@@ -482,7 +482,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 
 				fprintf(stderr, "\nAvailable events:");
 
-				list_for_each_entry(top->sym_evsel, &top->evlist->entries, node)
+				evlist__for_each(top->evlist, top->sym_evsel)
 					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
@@ -493,7 +493,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 					sleep(1);
 					break;
 				}
-				list_for_each_entry(top->sym_evsel, &top->evlist->entries, node)
+				evlist__for_each(top->evlist, top->sym_evsel)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
@@ -575,7 +575,7 @@ static void *display_thread_tui(void *arg)
 	 * Zooming in/out UIDs. For now juse use whatever the user passed
 	 * via --uid.
 	 */
-	list_for_each_entry(pos, &top->evlist->entries, node)
+	evlist__for_each(top->evlist, pos)
 		pos->hists.uid_filter_str = top->record_opts.target.uid_str;
 
 	perf_evlist__tui_browse_hists(top->evlist, help, &hbt, top->min_percent,
@@ -858,7 +858,7 @@ static int perf_top__start_counters(struct perf_top *top)
 
 	perf_evlist__config(evlist, opts);
 
-	list_for_each_entry(counter, &evlist->entries, node) {
+	evlist__for_each(evlist, counter) {
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
@@ -1171,7 +1171,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!top.evlist->nr_entries &&
 	    perf_evlist__add_default(top.evlist) < 0) {
 		ui__error("Not enough memory for event selector list\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	symbol_conf.nr_events = top.evlist->nr_entries;
@@ -1181,7 +1181,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (record_opts__config(opts)) {
 		status = -EINVAL;
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	top.sym_evsel = perf_evlist__first(top.evlist);
@@ -1206,8 +1206,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	status = __cmd_top(&top);
 
-out_delete_maps:
-	perf_evlist__delete_maps(top.evlist);
 out_delete_evlist:
 	perf_evlist__delete(top.evlist);
 

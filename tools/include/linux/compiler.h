@@ -1,5 +1,5 @@
-#ifndef _PERF_LINUX_COMPILER_H_
-#define _PERF_LINUX_COMPILER_H_
+#ifndef _TOOLS_LINUX_COMPILER_H_
+#define _TOOLS_LINUX_COMPILER_H_
 
 #ifndef __always_inline
 # define __always_inline	inline __attribute__((always_inline))
@@ -27,4 +27,12 @@
 # define __weak			__attribute__((weak))
 #endif
 
+#ifndef likely
+# define likely(x)		__builtin_expect(!!(x), 1)
 #endif
+
+#ifndef unlikely
+# define unlikely(x)		__builtin_expect(!!(x), 0)
+#endif
+
+#endif /* _TOOLS_LINUX_COMPILER_H */

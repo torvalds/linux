@@ -1384,7 +1384,7 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &session->evlist->entries, node) {
+	evlist__for_each(session->evlist, evsel) {
 		if (evsel->attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 	}
@@ -1442,7 +1442,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 
 	ret += events_stats__fprintf(&session->stats, fp);
 
-	list_for_each_entry(pos, &session->evlist->entries, node) {
+	evlist__for_each(session->evlist, pos) {
 		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
 		ret += events_stats__fprintf(&pos->hists.stats, fp);
 	}
@@ -1464,7 +1464,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 {
 	struct perf_evsel *pos;
 
-	list_for_each_entry(pos, &session->evlist->entries, node) {
+	evlist__for_each(session->evlist, pos) {
 		if (pos->attr.type == type)
 			return pos;
 	}

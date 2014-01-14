@@ -27,6 +27,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->pid = pid;
 
 	machine->symbol_filter = NULL;
+	machine->id_hdr_size = 0;
 
 	machine->root_dir = strdup(root_dir);
 	if (machine->root_dir == NULL)
