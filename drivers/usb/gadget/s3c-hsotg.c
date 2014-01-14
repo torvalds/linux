@@ -1186,6 +1186,41 @@ static void s3c_hsotg_enqueue_setup(struct s3c_hsotg *hsotg);
 static void s3c_hsotg_disconnect(struct s3c_hsotg *hsotg);
 
 /**
+ * s3c_hsotg_stall_ep0 - stall ep0
+ * @hsotg: The device state
+ *
+ * Set stall for ep0 as response for setup request.
+ */
+static void s3c_hsotg_stall_ep0(struct s3c_hsotg *hsotg) {
+	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
+	u32 reg;
+	u32 ctrl;
+
+	dev_dbg(hsotg->dev, "ep0 stall (dir=%d)\n", ep0->dir_in);
+	reg = (ep0->dir_in) ? DIEPCTL0 : DOEPCTL0;
+
+	/*
+	 * DxEPCTL_Stall will be cleared by EP once it has
+	 * taken effect, so no need to clear later.
+	 */
+
+	ctrl = readl(hsotg->regs + reg);
+	ctrl |= DxEPCTL_Stall;
+	ctrl |= DxEPCTL_CNAK;
+	writel(ctrl, hsotg->regs + reg);
+
+	dev_dbg(hsotg->dev,
+		"written DxEPCTL=0x%08x to %08x (DxEPCTL=0x%08x)\n",
+		ctrl, reg, readl(hsotg->regs + reg));
+
+	 /*
+	  * complete won't be called, so we enqueue
+	  * setup request here
+	  */
+	 s3c_hsotg_enqueue_setup(hsotg);
+}
+
+/**
  * s3c_hsotg_process_control - process a control request
  * @hsotg: The device state
  * @ctrl: The control request received
@@ -1262,38 +1297,8 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 	 * so respond with a STALL for the status stage to indicate failure.
 	 */
 
-	if (ret < 0) {
-		u32 reg;
-		u32 ctrl;
-
-		dev_dbg(hsotg->dev, "ep0 stall (dir=%d)\n", ep0->dir_in);
-		reg = (ep0->dir_in) ? DIEPCTL0 : DOEPCTL0;
-
-		/*
-		 * DxEPCTL_Stall will be cleared by EP once it has
-		 * taken effect, so no need to clear later.
-		 */
-
-		ctrl = readl(hsotg->regs + reg);
-		ctrl |= DxEPCTL_Stall;
-		ctrl |= DxEPCTL_CNAK;
-		writel(ctrl, hsotg->regs + reg);
-
-		dev_dbg(hsotg->dev,
-			"written DxEPCTL=0x%08x to %08x (DxEPCTL=0x%08x)\n",
-			ctrl, reg, readl(hsotg->regs + reg));
-
-		/*
-		 * don't believe we need to anything more to get the EP
-		 * to reply with a STALL packet
-		 */
-
-		 /*
-		  * complete won't be called, so we enqueue
-		  * setup request here
-		  */
-		 s3c_hsotg_enqueue_setup(hsotg);
-	}
+	if (ret < 0)
+		s3c_hsotg_stall_ep0(hsotg);
 }
 
 /**
@@ -2831,6 +2836,15 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 	u32 xfertype;
 
 	dev_info(hs->dev, "%s(ep %p %s, %d)\n", __func__, ep, ep->name, value);
+
+	if (index == 0) {
+		if (value)
+			s3c_hsotg_stall_ep0(hs);
+		else
+			dev_warn(hs->dev,
+				 "%s: can't clear halt on ep0\n", __func__);
+		return 0;
+	}
 
 	/* write both IN and OUT control registers */
 
