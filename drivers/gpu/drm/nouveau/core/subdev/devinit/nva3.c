@@ -22,12 +22,12 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
+#include "nv50.h"
 
 static int
 nva3_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 {
-	struct nva3_devinit_priv *priv = (void *)devinit;
+	struct nv50_devinit_priv *priv = (void *)devinit;
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_pll info;
 	int N, fN, M, P;
@@ -58,30 +58,14 @@ nva3_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 	return ret;
 }
 
-static int
-nva3_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
-{
-	struct nv50_devinit_priv *priv;
-	int ret;
-
-	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.pll_set = nva3_devinit_pll_set;
-	return 0;
-}
-
-struct nouveau_oclass
-nva3_devinit_oclass = {
-	.handle = NV_SUBDEV(DEVINIT, 0xa3),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_devinit_ctor,
+struct nouveau_oclass *
+nva3_devinit_oclass = &(struct nouveau_devinit_impl) {
+	.base.handle = NV_SUBDEV(DEVINIT, 0xa3),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_devinit_ctor,
 		.dtor = _nouveau_devinit_dtor,
 		.init = nv50_devinit_init,
 		.fini = _nouveau_devinit_fini,
 	},
-};
+	.pll_set = nva3_devinit_pll_set,
+}.base;

@@ -27,12 +27,7 @@
 #include <subdev/vga.h>
 
 #include "fbmem.h"
-#include "priv.h"
-
-struct nv04_devinit_priv {
-	struct nouveau_devinit base;
-	int owner;
-};
+#include "nv04.h"
 
 static void
 nv04_devinit_meminit(struct nouveau_devinit *devinit)
@@ -438,7 +433,7 @@ nv04_devinit_dtor(struct nouveau_object *object)
 	nouveau_devinit_destroy(&priv->base);
 }
 
-static int
+int
 nv04_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
 		  struct nouveau_object **pobject)
@@ -451,19 +446,19 @@ nv04_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.meminit = nv04_devinit_meminit;
-	priv->base.pll_set = nv04_devinit_pll_set;
 	priv->owner = -1;
 	return 0;
 }
 
-struct nouveau_oclass
-nv04_devinit_oclass = {
-	.handle = NV_SUBDEV(DEVINIT, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nv04_devinit_oclass = &(struct nouveau_devinit_impl) {
+	.base.handle = NV_SUBDEV(DEVINIT, 0x04),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_devinit_ctor,
 		.dtor = nv04_devinit_dtor,
 		.init = nv04_devinit_init,
 		.fini = nv04_devinit_fini,
 	},
-};
+	.meminit = nv04_devinit_meminit,
+	.pll_set = nv04_devinit_pll_set,
+}.base;
