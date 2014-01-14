@@ -3907,6 +3907,23 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer);
 static void
 destroy_trace_option_files(struct trace_option_dentry *topts);
 
+/*
+ * Used to clear out the tracer before deletion of an instance.
+ * Must have trace_types_lock held.
+ */
+static void tracing_set_nop(struct trace_array *tr)
+{
+	if (tr->current_trace == &nop_trace)
+		return;
+	
+	tr->current_trace->enabled = false;
+
+	if (tr->current_trace->reset)
+		tr->current_trace->reset(tr);
+
+	tr->current_trace = &nop_trace;
+}
+
 static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 {
 	static struct trace_option_dentry *topts;
@@ -6142,6 +6159,7 @@ static int instance_delete(const char *name)
 
 	list_del(&tr->list);
 
+	tracing_set_nop(tr);
 	event_trace_del_tracer(tr);
 	debugfs_remove_recursive(tr->dir);
 	free_percpu(tr->trace_buffer.data);
