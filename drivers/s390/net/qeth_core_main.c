@@ -622,6 +622,9 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 					return NULL;
 				} else
 					return cmd;
+			case IPA_CMD_ADDRESS_CHANGE_NOTIF:
+				qeth_bridge_host_event(card, cmd);
+				return NULL;
 			case IPA_CMD_MODCCID:
 				return cmd;
 			case IPA_CMD_REGISTER_LOCAL_ADDR:

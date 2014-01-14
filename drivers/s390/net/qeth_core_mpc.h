@@ -109,6 +109,7 @@ enum qeth_ipa_cmds {
 	IPA_CMD_DESTROY_ADDR		= 0xc4,
 	IPA_CMD_REGISTER_LOCAL_ADDR	= 0xd1,
 	IPA_CMD_UNREGISTER_LOCAL_ADDR	= 0xd2,
+	IPA_CMD_ADDRESS_CHANGE_NOTIF	= 0xd3,
 	IPA_CMD_UNKNOWN			= 0x00
 };
 
@@ -520,6 +521,11 @@ struct net_if_token {
 	__u16 chid;
 } __packed;
 
+struct mac_addr_lnid {
+	__u8 mac[6];
+	__u16 lnid;
+} __packed;
+
 struct qeth_ipacmd_sbp_hdr {
 	__u32 supported_sbp_cmds;
 	__u32 enabled_sbp_cmds;
@@ -583,6 +589,37 @@ struct qeth_ipacmd_setbridgeport {
 	} data;
 } __packed;
 
+/* ADDRESS_CHANGE_NOTIFICATION adapter-initiated "command" *******************/
+/* Bitmask for entry->change_code. Both bits may be raised.		     */
+enum qeth_ipa_addr_change_code {
+	IPA_ADDR_CHANGE_CODE_VLANID		= 0x01,
+	IPA_ADDR_CHANGE_CODE_MACADDR		= 0x02,
+	IPA_ADDR_CHANGE_CODE_REMOVAL		= 0x80,	/* else addition */
+};
+enum qeth_ipa_addr_change_retcode {
+	IPA_ADDR_CHANGE_RETCODE_OK		= 0x0000,
+	IPA_ADDR_CHANGE_RETCODE_LOSTEVENTS	= 0x0010,
+};
+enum qeth_ipa_addr_change_lostmask {
+	IPA_ADDR_CHANGE_MASK_OVERFLOW		= 0x01,
+	IPA_ADDR_CHANGE_MASK_STATECHANGE	= 0x02,
+};
+
+struct qeth_ipacmd_addr_change_entry {
+	struct net_if_token token;
+	struct mac_addr_lnid addr_lnid;
+	__u8 change_code;
+	__u8 reserved1;
+	__u16 reserved2;
+} __packed;
+
+struct qeth_ipacmd_addr_change {
+	__u8 lost_event_mask;
+	__u8 reserved;
+	__u16 num_entries;
+	struct qeth_ipacmd_addr_change_entry entry[];
+} __packed;
+
 /* Header for each IPA command */
 struct qeth_ipacmd_hdr {
 	__u8   command;
@@ -613,6 +650,7 @@ struct qeth_ipa_cmd {
 		struct qeth_set_routing			setrtg;
 		struct qeth_ipacmd_diagass		diagass;
 		struct qeth_ipacmd_setbridgeport	sbp;
+		struct qeth_ipacmd_addr_change		addrchange;
 	} data;
 } __attribute__ ((packed));
 

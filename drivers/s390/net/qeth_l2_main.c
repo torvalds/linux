@@ -1354,6 +1354,71 @@ EXPORT_SYMBOL(qeth_osn_deregister);
 
 /* SETBRIDGEPORT support, async notifications */
 
+enum qeth_an_event_type {anev_reg_unreg, anev_abort, anev_reset};
+
+/**
+ * qeth_bridge_emit_host_event() - bridgeport address change notification
+ * @card:  qeth_card structure pointer, for udev events.
+ * @evtype:  "normal" register/unregister, or abort, or reset. For abort
+ *	      and reset token and addr_lnid are unused and may be NULL.
+ * @code:  event bitmask: high order bit 0x80 value 1 means removal of an
+ *			  object, 0 - addition of an object.
+ *			  0x01 - VLAN, 0x02 - MAC, 0x03 - VLAN and MAC.
+ * @token: "network token" structure identifying physical address of the port.
+ * @addr_lnid: pointer to structure with MAC address and VLAN ID.
+ *
+ * This function is called when registrations and deregistrations are
+ * reported by the hardware, and also when notifications are enabled -
+ * for all currently registered addresses.
+ */
+static void qeth_bridge_emit_host_event(struct qeth_card *card,
+	enum qeth_an_event_type evtype,
+	u8 code, struct net_if_token *token, struct mac_addr_lnid *addr_lnid)
+{
+	char str[7][32];
+	char *env[8];
+	int i = 0;
+
+	switch (evtype) {
+	case anev_reg_unreg:
+		snprintf(str[i], sizeof(str[i]), "BRIDGEDHOST=%s",
+				(code & IPA_ADDR_CHANGE_CODE_REMOVAL)
+				? "deregister" : "register");
+		env[i] = str[i]; i++;
+		if (code & IPA_ADDR_CHANGE_CODE_VLANID) {
+			snprintf(str[i], sizeof(str[i]), "VLAN=%d",
+				addr_lnid->lnid);
+			env[i] = str[i]; i++;
+		}
+		if (code & IPA_ADDR_CHANGE_CODE_MACADDR) {
+			snprintf(str[i], sizeof(str[i]), "MAC=%pM6",
+				&addr_lnid->mac);
+			env[i] = str[i]; i++;
+		}
+		snprintf(str[i], sizeof(str[i]), "NTOK_BUSID=%x.%x.%04x",
+			token->cssid, token->ssid, token->devnum);
+		env[i] = str[i]; i++;
+		snprintf(str[i], sizeof(str[i]), "NTOK_IID=%02x", token->iid);
+		env[i] = str[i]; i++;
+		snprintf(str[i], sizeof(str[i]), "NTOK_CHPID=%02x",
+				token->chpid);
+		env[i] = str[i]; i++;
+		snprintf(str[i], sizeof(str[i]), "NTOK_CHID=%04x", token->chid);
+		env[i] = str[i]; i++;
+		break;
+	case anev_abort:
+		snprintf(str[i], sizeof(str[i]), "BRIDGEDHOST=abort");
+		env[i] = str[i]; i++;
+		break;
+	case anev_reset:
+		snprintf(str[i], sizeof(str[i]), "BRIDGEDHOST=reset");
+		env[i] = str[i]; i++;
+		break;
+	}
+	env[i] = NULL;
+	kobject_uevent_env(&card->gdev->dev.kobj, KOBJ_CHANGE, env);
+}
+
 struct qeth_bridge_state_data {
 	struct work_struct worker;
 	struct qeth_card *card;
@@ -1424,6 +1489,78 @@ void qeth_bridge_state_change(struct qeth_card *card, struct qeth_ipa_cmd *cmd)
 	queue_work(qeth_wq, &data->worker);
 }
 EXPORT_SYMBOL(qeth_bridge_state_change);
+
+struct qeth_bridge_host_data {
+	struct work_struct worker;
+	struct qeth_card *card;
+	struct qeth_ipacmd_addr_change hostevs;
+};
+
+static void qeth_bridge_host_event_worker(struct work_struct *work)
+{
+	struct qeth_bridge_host_data *data =
+		container_of(work, struct qeth_bridge_host_data, worker);
+	int i;
+
+	if (data->hostevs.lost_event_mask) {
+		dev_info(&data->card->gdev->dev,
+"Address notification from the HiperSockets Bridge Port stopped %s (%s)\n",
+			data->card->dev->name,
+			(data->hostevs.lost_event_mask == 0x01)
+			? "Overflow"
+			: (data->hostevs.lost_event_mask == 0x02)
+			? "Bridge port state change"
+			: "Unknown reason");
+		mutex_lock(&data->card->conf_mutex);
+		data->card->options.sbp.hostnotification = 0;
+		mutex_unlock(&data->card->conf_mutex);
+		qeth_bridge_emit_host_event(data->card, anev_abort,
+			0, NULL, NULL);
+	} else
+		for (i = 0; i < data->hostevs.num_entries; i++) {
+			struct qeth_ipacmd_addr_change_entry *entry =
+					&data->hostevs.entry[i];
+			qeth_bridge_emit_host_event(data->card,
+					anev_reg_unreg,
+					entry->change_code,
+					&entry->token, &entry->addr_lnid);
+		}
+	kfree(data);
+}
+
+void qeth_bridge_host_event(struct qeth_card *card, struct qeth_ipa_cmd *cmd)
+{
+	struct qeth_ipacmd_addr_change *hostevs =
+		 &cmd->data.addrchange;
+	struct qeth_bridge_host_data *data;
+	int extrasize;
+
+	QETH_CARD_TEXT(card, 2, "brhostev");
+	if (cmd->hdr.return_code != 0x0000) {
+		if (cmd->hdr.return_code == 0x0010) {
+			if (hostevs->lost_event_mask == 0x00)
+				hostevs->lost_event_mask = 0xff;
+		} else {
+			QETH_CARD_TEXT_(card, 2, "BPHe%04x",
+				cmd->hdr.return_code);
+			return;
+		}
+	}
+	extrasize = sizeof(struct qeth_ipacmd_addr_change_entry) *
+						hostevs->num_entries;
+	data = kzalloc(sizeof(struct qeth_bridge_host_data) + extrasize,
+		GFP_ATOMIC);
+	if (!data) {
+		QETH_CARD_TEXT(card, 2, "BPHalloc");
+		return;
+	}
+	INIT_WORK(&data->worker, qeth_bridge_host_event_worker);
+	data->card = card;
+	memcpy(&data->hostevs, hostevs,
+			sizeof(struct qeth_ipacmd_addr_change) + extrasize);
+	queue_work(qeth_wq, &data->worker);
+}
+EXPORT_SYMBOL(qeth_bridge_host_event);
 
 /* SETBRIDGEPORT support; sending commands */
 
@@ -1710,6 +1847,99 @@ int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 	rc = qeth_bridgeport_makerc(card, &cbctl, setcmd);
 	return rc;
 }
+
+/**
+ * qeth_anset_makerc() - derive "traditional" error from hardware codes.
+ * @card:		      qeth_card structure pointer, for debug messages.
+ *
+ * Returns negative errno-compatible error indication or 0 on success.
+ */
+static int qeth_anset_makerc(struct qeth_card *card, int pnso_rc, u16 response)
+{
+	int rc;
+
+	if (pnso_rc == 0)
+		switch (response) {
+		case 0x0001:
+			rc = 0;
+			break;
+		case 0x0004:
+		case 0x0100:
+		case 0x0106:
+			rc = -ENOSYS;
+			dev_err(&card->gdev->dev,
+				"Setting address notification failed\n");
+			break;
+		case 0x0107:
+			rc = -EAGAIN;
+			break;
+		default:
+			rc = -EIO;
+		}
+	else
+		rc = -EIO;
+
+	if (rc) {
+		QETH_CARD_TEXT_(card, 2, "SBPp%04x", pnso_rc);
+		QETH_CARD_TEXT_(card, 2, "SBPr%04x", response);
+	}
+	return rc;
+}
+
+static void qeth_bridgeport_an_set_cb(void *priv,
+		enum qdio_brinfo_entry_type type, void *entry)
+{
+	struct qeth_card *card = (struct qeth_card *)priv;
+	struct qdio_brinfo_entry_l2 *l2entry;
+	u8 code;
+
+	if (type != l2_addr_lnid) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	l2entry = (struct qdio_brinfo_entry_l2 *)entry;
+	code = IPA_ADDR_CHANGE_CODE_MACADDR;
+	if (l2entry->addr_lnid.lnid)
+		code |= IPA_ADDR_CHANGE_CODE_VLANID;
+	qeth_bridge_emit_host_event(card, anev_reg_unreg, code,
+		(struct net_if_token *)&l2entry->nit,
+		(struct mac_addr_lnid *)&l2entry->addr_lnid);
+}
+
+/**
+ * qeth_bridgeport_an_set() - Enable or disable bridgeport address notification
+ * @card:		      qeth_card structure pointer.
+ * @enable:		      0 - disable, non-zero - enable notifications
+ *
+ * Returns negative errno-compatible error indication or 0 on success.
+ *
+ * On enable, emits a series of address notifications udev events for all
+ * currently registered hosts.
+ */
+int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
+{
+	int rc;
+	u16 response;
+	struct ccw_device *ddev;
+	struct subchannel_id schid;
+
+	if (!card)
+		return -EINVAL;
+	if (!card->options.sbp.supported_funcs)
+		return -EOPNOTSUPP;
+	ddev = CARD_DDEV(card);
+	ccw_device_get_schid(ddev, &schid);
+
+	if (enable) {
+		qeth_bridge_emit_host_event(card, anev_reset, 0, NULL, NULL);
+		rc = qdio_pnso_brinfo(schid, 1, &response,
+			qeth_bridgeport_an_set_cb, card);
+	} else
+		rc = qdio_pnso_brinfo(schid, 0, &response, NULL, NULL);
+	return qeth_anset_makerc(card, rc, response);
+}
+EXPORT_SYMBOL_GPL(qeth_bridgeport_an_set);
 
 module_init(qeth_l2_init);
 module_exit(qeth_l2_exit);

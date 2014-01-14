@@ -254,6 +254,7 @@ static struct ipa_cmd_names qeth_ipa_cmd_names[] = {
 	{IPA_CMD_DESTROY_ADDR,	"destroy_addr"},
 	{IPA_CMD_REGISTER_LOCAL_ADDR,	"register_local_addr"},
 	{IPA_CMD_UNREGISTER_LOCAL_ADDR,	"unregister_local_addr"},
+	{IPA_CMD_ADDRESS_CHANGE_NOTIF, "address_change_notification"},
 	{IPA_CMD_UNKNOWN,	"unknown"},
 };
 

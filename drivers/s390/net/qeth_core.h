@@ -169,9 +169,12 @@ enum qeth_sbp_states {
 	QETH_SBP_STATE_ACTIVE	= 2,
 };
 
+#define QETH_SBP_HOST_NOTIFICATION 1
+
 struct qeth_sbp_info {
 	__u32 supported_funcs;
 	enum qeth_sbp_roles role;
+	__u32 hostnotification:1;
 };
 
 static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
@@ -950,6 +953,8 @@ void qeth_bridgeport_query_support(struct qeth_card *card);
 int qeth_bridgeport_query_ports(struct qeth_card *card,
 	enum qeth_sbp_roles *role, enum qeth_sbp_states *state);
 int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role);
+int qeth_bridgeport_an_set(struct qeth_card *card, int enable);
+void qeth_bridge_host_event(struct qeth_card *card, struct qeth_ipa_cmd *cmd);
 int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *, struct sk_buff *, int);
 int qeth_get_elements_for_frags(struct sk_buff *);
