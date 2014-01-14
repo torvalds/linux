@@ -766,7 +766,12 @@ ARM/Allwinner A1X SoC support
 M:	Maxime Ripard <maxime.ripard@free-electrons.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/mach-sunxi/
+N:	sun[x4567]i
+
+ARM/Allwinner SoC Clock Support
+M:	Emilio López <emilio@elopez.com.ar>
+S:	Maintained
+F:	drivers/clk/sunxi/
 
 ARM/ATMEL AT91RM9200 AND AT91SAM ARM ARCHITECTURES
 M:	Andrew Victor <linux@maxim.org.za>
