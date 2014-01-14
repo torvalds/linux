@@ -48,6 +48,7 @@
 						MX28_PAD_LCD_D20__GPIO_1_20
 						MX28_PAD_LCD_D21__GPIO_1_21
 						MX28_PAD_LCD_D22__GPIO_1_22
+						MX28_PAD_GPMI_CE1N__GPIO_0_17
 					>;
 					fsl,drive-strength = <MXS_DRIVE_4mA>;
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
@@ -192,5 +193,15 @@
 		pwms = <&pwm 3 191000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		user-button {
+			label = "User button";
+			gpios = <&gpio0 17 0>;
+			linux,code = <0x100>;
+		};
 	};
 };
