@@ -255,6 +255,7 @@ static int __init bcm47xx_register_bus_complete(void)
 		break;
 #endif
 	}
+	bcm47xx_buttons_register();
 	bcm47xx_leds_register();
 
 	return 0;
