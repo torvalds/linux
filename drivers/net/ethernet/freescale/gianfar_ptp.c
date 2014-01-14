@@ -134,7 +134,7 @@ struct gianfar_ptp_registers {
 #define REG_SIZE	sizeof(struct gianfar_ptp_registers)
 
 struct etsects {
-	struct gianfar_ptp_registers *regs;
+	struct gianfar_ptp_registers __iomem *regs;
 	spinlock_t lock; /* protects regs */
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
