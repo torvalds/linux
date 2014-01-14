@@ -424,25 +424,46 @@ out:
 }
 
 /* Needs to either be called under a log transaction or the log_mutex */
-void btrfs_get_logged_extents(struct btrfs_root *log, struct inode *inode)
+void btrfs_get_logged_extents(struct inode *inode,
+			      struct list_head *logged_list)
 {
 	struct btrfs_ordered_inode_tree *tree;
 	struct btrfs_ordered_extent *ordered;
 	struct rb_node *n;
-	int index = log->log_transid % 2;
 
 	tree = &BTRFS_I(inode)->ordered_tree;
 	spin_lock_irq(&tree->lock);
 	for (n = rb_first(&tree->tree); n; n = rb_next(n)) {
 		ordered = rb_entry(n, struct btrfs_ordered_extent, rb_node);
-		spin_lock(&log->log_extents_lock[index]);
-		if (list_empty(&ordered->log_list)) {
-			list_add_tail(&ordered->log_list, &log->logged_list[index]);
-			atomic_inc(&ordered->refs);
-		}
-		spin_unlock(&log->log_extents_lock[index]);
+		if (!list_empty(&ordered->log_list))
+			continue;
+		list_add_tail(&ordered->log_list, logged_list);
+		atomic_inc(&ordered->refs);
 	}
 	spin_unlock_irq(&tree->lock);
+}
+
+void btrfs_put_logged_extents(struct list_head *logged_list)
+{
+	struct btrfs_ordered_extent *ordered;
+
+	while (!list_empty(logged_list)) {
+		ordered = list_first_entry(logged_list,
+					   struct btrfs_ordered_extent,
+					   log_list);
+		list_del_init(&ordered->log_list);
+		btrfs_put_ordered_extent(ordered);
+	}
+}
+
+void btrfs_submit_logged_extents(struct list_head *logged_list,
+				 struct btrfs_root *log)
+{
+	int index = log->log_transid % 2;
+
+	spin_lock_irq(&log->log_extents_lock[index]);
+	list_splice_tail(logged_list, &log->logged_list[index]);
+	spin_unlock_irq(&log->log_extents_lock[index]);
 }
 
 void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid)
