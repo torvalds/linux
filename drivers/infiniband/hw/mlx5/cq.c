@@ -818,7 +818,31 @@ void mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq)
 
 int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
-	return -ENOSYS;
+	struct mlx5_modify_cq_mbox_in *in;
+	struct mlx5_ib_dev *dev = to_mdev(cq->device);
+	struct mlx5_ib_cq *mcq = to_mcq(cq);
+	int err;
+	u32 fsel;
+
+	if (!(dev->mdev.caps.flags & MLX5_DEV_CAP_FLAG_CQ_MODER))
+		return -ENOSYS;
+
+	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	in->cqn = cpu_to_be32(mcq->mcq.cqn);
+	fsel = (MLX5_CQ_MODIFY_PERIOD | MLX5_CQ_MODIFY_COUNT);
+	in->ctx.cq_period = cpu_to_be16(cq_period);
+	in->ctx.cq_max_count = cpu_to_be16(cq_count);
+	in->field_select = cpu_to_be32(fsel);
+	err = mlx5_core_modify_cq(&dev->mdev, &mcq->mcq, in);
+	kfree(in);
+
+	if (err)
+		mlx5_ib_warn(dev, "modify cq 0x%x failed\n", mcq->mcq.cqn);
+
+	return err;
 }
 
 int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
