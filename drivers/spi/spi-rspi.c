@@ -925,6 +925,7 @@ static int rspi_remove(struct platform_device *pdev)
 	struct rspi_data *rspi = platform_get_drvdata(pdev);
 
 	rspi_release_dma(rspi);
+	clk_disable(rspi->clk);
 
 	return 0;
 }
@@ -999,28 +1000,30 @@ static int rspi_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), rspi);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request_irq error\n");
-		goto error1;
+		goto error2;
 	}
 
 	rspi->irq = irq;
 	ret = rspi_request_dma(rspi, pdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "rspi_request_dma failed.\n");
-		goto error2;
+		goto error3;
 	}
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
-		goto error2;
+		goto error3;
 	}
 
 	dev_info(&pdev->dev, "probed\n");
 
 	return 0;
 
-error2:
+error3:
 	rspi_release_dma(rspi);
+error2:
+	clk_disable(rspi->clk);
 error1:
 	spi_master_put(master);
 
