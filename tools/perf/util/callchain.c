@@ -388,7 +388,6 @@ append_chain(struct callchain_node *root,
 	     struct callchain_cursor *cursor,
 	     u64 period)
 {
-	struct callchain_cursor_node *curr_snap = cursor->curr;
 	struct callchain_list *cnode;
 	u64 start = cursor->pos;
 	bool found = false;
@@ -420,8 +419,6 @@ append_chain(struct callchain_node *root,
 	/* matches not, relay no the parent */
 	if (!found) {
 		WARN_ONCE(!cmp, "Chain comparison error\n");
-		cursor->curr = curr_snap;
-		cursor->pos = start;
 		return cmp;
 	}
 
