@@ -84,7 +84,8 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	}
 
 	if (out.hdr.status) {
-		pr_warn("current num of QPs 0x%x\n", atomic_read(&dev->num_qps));
+		mlx5_core_warn(dev, "current num of QPs 0x%x\n",
+			       atomic_read(&dev->num_qps));
 		return mlx5_cmd_status_to_err(&out.hdr);
 	}
 
