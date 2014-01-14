@@ -1732,9 +1732,9 @@ struct cfg80211_ibss_params {
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
 	struct ieee80211_channel *channel_hint;
-	u8 *bssid;
+	const u8 *bssid;
 	const u8 *bssid_hint;
-	u8 *ssid;
+	const u8 *ssid;
 	size_t ssid_len;
 	enum nl80211_auth_type auth_type;
 	u8 *ie;
