@@ -922,7 +922,15 @@ static int i915_runtime_suspend(struct device *device)
 
 	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 	dev_priv->pm.suspended = true;
-	intel_opregion_notify_adapter(dev, PCI_D3cold);
+
+	/*
+	 * current versions of firmware which depend on this opregion
+	 * notification have repurposed the D1 definition to mean
+	 * "runtime suspended" vs. what you would normally expect (D3)
+	 * to distinguish it from notifications that might be sent
+	 * via the suspend path.
+	 */
+	intel_opregion_notify_adapter(dev, PCI_D1);
 
 	return 0;
 }
