@@ -849,8 +849,8 @@ struct mlx5_create_mkey_mbox_in {
 	struct mlx5_mkey_seg	seg;
 	u8			rsvd1[16];
 	__be32			xlat_oct_act_size;
-	__be32			bsf_coto_act_size;
-	u8			rsvd2[168];
+	__be32			rsvd2;
+	u8			rsvd3[168];
 	__be64			pas[0];
 };
 
