@@ -141,8 +141,8 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		if (as10x_cmd_get_demod_stats(&dev->bus_adap,
 			(struct as10x_demod_stats *) &dev->demod_stats) < 0) {
 			memset(&dev->demod_stats, 0, sizeof(dev->demod_stats));
-			dprintk(debug, "as10x_cmd_get_demod_stats failed "
-				"(probably not tuned)\n");
+			dprintk(debug,
+				"as10x_cmd_get_demod_stats failed (probably not tuned)\n");
 		} else {
 			dprintk(debug,
 				"demod status: fc: 0x%08x, bad fc: 0x%08x, "
@@ -555,8 +555,8 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 			   as102_fe_get_code_rate(params->code_rate_LP);
 		}
 
-		dprintk(debug, "\thierarchy: 0x%02x  "
-				"selected: %s  code_rate_%s: 0x%02x\n",
+		dprintk(debug,
+			"\thierarchy: 0x%02x  selected: %s  code_rate_%s: 0x%02x\n",
 			tune_args->hierarchy,
 			tune_args->hier_select == HIER_HIGH_PRIORITY ?
 			"HP" : "LP",
