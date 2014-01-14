@@ -3611,6 +3611,8 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 	pers->run(mddev);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	mddev_resume(mddev);
+	if (!mddev->thread)
+		md_update_sb(mddev, 1);
 	sysfs_notify(&mddev->kobj, NULL, "level");
 	md_new_event(mddev);
 	return rv;
