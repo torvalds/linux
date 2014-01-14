@@ -1371,7 +1371,7 @@ static int cq_res_start_move_to(struct mlx4_dev *dev, int slave, int cqn,
 }
 
 static int srq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
-				 enum res_cq_states state, struct res_srq **srq)
+				 enum res_srq_states state, struct res_srq **srq)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
@@ -1380,39 +1380,25 @@ static int srq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 
 	spin_lock_irq(mlx4_tlock(dev));
 	r = res_tracker_lookup(&tracker->res_tree[RES_SRQ], index);
-	if (!r)
+	if (!r) {
 		err = -ENOENT;
-	else if (r->com.owner != slave)
+	} else if (r->com.owner != slave) {
 		err = -EPERM;
-	else {
-		switch (state) {
-		case RES_SRQ_BUSY:
+	} else if (state == RES_SRQ_ALLOCATED) {
+		if (r->com.state != RES_SRQ_HW)
 			err = -EINVAL;
-			break;
+		else if (atomic_read(&r->ref_count))
+			err = -EBUSY;
+	} else if (state != RES_SRQ_HW || r->com.state != RES_SRQ_ALLOCATED) {
+		err = -EINVAL;
+	}
 
-		case RES_SRQ_ALLOCATED:
-			if (r->com.state != RES_SRQ_HW)
-				err = -EINVAL;
-			else if (atomic_read(&r->ref_count))
-				err = -EBUSY;
-			break;
-
-		case RES_SRQ_HW:
-			if (r->com.state != RES_SRQ_ALLOCATED)
-				err = -EINVAL;
-			break;
-
-		default:
-			err = -EINVAL;
-		}
-
-		if (!err) {
-			r->com.from_state = r->com.state;
-			r->com.to_state = state;
-			r->com.state = RES_SRQ_BUSY;
-			if (srq)
-				*srq = r;
-		}
+	if (!err) {
+		r->com.from_state = r->com.state;
+		r->com.to_state = state;
+		r->com.state = RES_SRQ_BUSY;
+		if (srq)
+			*srq = r;
 	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
