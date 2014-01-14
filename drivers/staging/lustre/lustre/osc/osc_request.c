@@ -1193,8 +1193,12 @@ static obd_count osc_checksum_bulk(int nob, obd_count pg_count,
 		cfs_crypto_hash_update_page(hdesc, pga[i]->pg,
 				  pga[i]->off & ~CFS_PAGE_MASK,
 				  count);
-		LL_CDEBUG_PAGE(D_PAGE, pga[i]->pg, "off %d\n",
-			       (int)(pga[i]->off & ~CFS_PAGE_MASK));
+		CDEBUG(D_PAGE,
+		       "page %p map %p index %lu flags %lx count %u priv %0lx: off %d\n",
+		       pga[i]->pg, pga[i]->pg->mapping, pga[i]->pg->index,
+		       (long)pga[i]->pg->flags, page_count(pga[i]->pg),
+		       page_private(pga[i]->pg),
+		       (int)(pga[i]->off & ~CFS_PAGE_MASK));
 
 		nob -= pga[i]->count;
 		pg_count--;

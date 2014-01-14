@@ -45,8 +45,6 @@
 #include <lustre_net.h>
 #include <obd.h>
 
-#include <linux/lustre_debug.h>
-
 /* lib/debug.c */
 void dump_lniobuf(struct niobuf_local *lnb);
 int dump_req(struct ptlrpc_request *req);

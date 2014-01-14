@@ -628,8 +628,11 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	cfio->fault.ft_flags = filemap_fault(cfio->ft_vma, vmf);
 
 	if (vmf->page) {
-		LL_CDEBUG_PAGE(D_PAGE, vmf->page, "got addr %p type NOPAGE\n",
-			       vmf->virtual_address);
+		CDEBUG(D_PAGE,
+		       "page %p map %p index %lu flags %lx count %u priv %0lx: got addr %p type NOPAGE\n",
+		       vmf->page, vmf->page->mapping, vmf->page->index,
+		       (long)vmf->page->flags, page_count(vmf->page),
+		       page_private(vmf->page), vmf->virtual_address);
 		if (unlikely(!(cfio->fault.ft_flags & VM_FAULT_LOCKED))) {
 			lock_page(vmf->page);
 			cfio->fault.ft_flags &= VM_FAULT_LOCKED;
