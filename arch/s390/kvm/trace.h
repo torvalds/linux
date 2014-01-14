@@ -30,6 +30,20 @@
 	TP_printk("%02d[%016lx-%016lx]: " p_str, __entry->id,		\
 		  __entry->pswmask, __entry->pswaddr, p_args)
 
+TRACE_EVENT(kvm_s390_skey_related_inst,
+	    TP_PROTO(VCPU_PROTO_COMMON),
+	    TP_ARGS(VCPU_ARGS_COMMON),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    ),
+	    VCPU_TP_PRINTK("%s", "first instruction related to skeys on vcpu")
+	);
+
 TRACE_EVENT(kvm_s390_major_guest_pfault,
 	    TP_PROTO(VCPU_PROTO_COMMON),
 	    TP_ARGS(VCPU_ARGS_COMMON),

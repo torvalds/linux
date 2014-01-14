@@ -89,6 +89,9 @@ struct kvm_s390_sie_block {
 	__u16   lctl;			/* 0x0044 */
 	__s16	icpua;			/* 0x0046 */
 #define ICTL_LPSW 0x00400000
+#define ICTL_ISKE 0x00004000
+#define ICTL_SSKE 0x00002000
+#define ICTL_RRBE 0x00001000
 	__u32	ictl;			/* 0x0048 */
 	__u32	eca;			/* 0x004c */
 	__u8	icptcode;		/* 0x0050 */
