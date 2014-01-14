@@ -8787,6 +8787,11 @@ static void intel_modeset_update_staged_output_state(struct drm_device *dev)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 			    base.head) {
 		crtc->new_enabled = crtc->base.enabled;
+
+		if (crtc->new_enabled)
+			crtc->new_config = &crtc->config;
+		else
+			crtc->new_config = NULL;
 	}
 }
 
@@ -9219,7 +9224,9 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
 			    base.head) {
 		WARN_ON(intel_crtc->base.enabled != intel_crtc_in_use(&intel_crtc->base));
-		WARN_ON(intel_crtc->new_config != &intel_crtc->config);
+		WARN_ON(intel_crtc->new_config &&
+			intel_crtc->new_config != &intel_crtc->config);
+		WARN_ON(intel_crtc->base.enabled != !!intel_crtc->new_config);
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -9818,6 +9825,11 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 	count = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
 		crtc->new_enabled = config->save_crtc_enabled[count++];
+
+		if (crtc->new_enabled)
+			crtc->new_config = &crtc->config;
+		else
+			crtc->new_config = NULL;
 	}
 
 	count = 0;
@@ -10019,6 +10031,11 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 				      crtc->new_enabled ? "en" : "dis");
 			config->mode_changed = true;
 		}
+
+		if (crtc->new_enabled)
+			crtc->new_config = &crtc->config;
+		else
+			crtc->new_config = NULL;
 	}
 
 	return 0;
@@ -10045,6 +10062,7 @@ static void disable_crtc_nofb(struct intel_crtc *crtc)
 	}
 
 	crtc->new_enabled = false;
+	crtc->new_config = NULL;
 }
 
 static int intel_crtc_set_config(struct drm_mode_set *set)
@@ -10288,8 +10306,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
 	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
-
-	intel_crtc->new_config = &intel_crtc->config;
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 }
