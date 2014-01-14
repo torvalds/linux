@@ -190,6 +190,7 @@ static int integrator_cpufreq_init(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver integrator_driver = {
+	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= integrator_verify_policy,
 	.target		= integrator_set_target,
 	.get		= integrator_get,

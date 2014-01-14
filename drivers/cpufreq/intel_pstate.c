@@ -35,6 +35,7 @@
 #define SAMPLE_COUNT		3
 
 #define BYT_RATIOS	0x66a
+#define BYT_VIDS        0x66b
 
 #define FRAC_BITS 8
 #define int_tofp(X) ((int64_t)(X) << FRAC_BITS)
@@ -64,6 +65,12 @@ struct pstate_data {
 	int	turbo_pstate;
 };
 
+struct vid_data {
+	int32_t min;
+	int32_t max;
+	int32_t ratio;
+};
+
 struct _pid {
 	int setpoint;
 	int32_t integral;
@@ -82,9 +89,8 @@ struct cpudata {
 	struct timer_list timer;
 
 	struct pstate_data pstate;
+	struct vid_data vid;
 	struct _pid pid;
-
-	int min_pstate_count;
 
 	u64	prev_aperf;
 	u64	prev_mperf;
@@ -106,7 +112,8 @@ struct pstate_funcs {
 	int (*get_max)(void);
 	int (*get_min)(void);
 	int (*get_turbo)(void);
-	void (*set)(int pstate);
+	void (*set)(struct cpudata*, int pstate);
+	void (*get_vid)(struct cpudata *);
 };
 
 struct cpu_defaults {
@@ -358,6 +365,42 @@ static int byt_get_max_pstate(void)
 	return (value >> 16) & 0xFF;
 }
 
+static void byt_set_pstate(struct cpudata *cpudata, int pstate)
+{
+	u64 val;
+	int32_t vid_fp;
+	u32 vid;
+
+	val = pstate << 8;
+	if (limits.no_turbo)
+		val |= (u64)1 << 32;
+
+	vid_fp = cpudata->vid.min + mul_fp(
+		int_tofp(pstate - cpudata->pstate.min_pstate),
+		cpudata->vid.ratio);
+
+	vid_fp = clamp_t(int32_t, vid_fp, cpudata->vid.min, cpudata->vid.max);
+	vid = fp_toint(vid_fp);
+
+	val |= vid;
+
+	wrmsrl(MSR_IA32_PERF_CTL, val);
+}
+
+static void byt_get_vid(struct cpudata *cpudata)
+{
+	u64 value;
+
+	rdmsrl(BYT_VIDS, value);
+	cpudata->vid.min = int_tofp((value >> 8) & 0x7f);
+	cpudata->vid.max = int_tofp((value >> 16) & 0x7f);
+	cpudata->vid.ratio = div_fp(
+		cpudata->vid.max - cpudata->vid.min,
+		int_tofp(cpudata->pstate.max_pstate -
+			cpudata->pstate.min_pstate));
+}
+
+
 static int core_get_min_pstate(void)
 {
 	u64 value;
@@ -384,7 +427,7 @@ static int core_get_turbo_pstate(void)
 	return ret;
 }
 
-static void core_set_pstate(int pstate)
+static void core_set_pstate(struct cpudata *cpudata, int pstate)
 {
 	u64 val;
 
@@ -425,7 +468,8 @@ static struct cpu_defaults byt_params = {
 		.get_max = byt_get_max_pstate,
 		.get_min = byt_get_min_pstate,
 		.get_turbo = byt_get_max_pstate,
-		.set = core_set_pstate,
+		.set = byt_set_pstate,
+		.get_vid = byt_get_vid,
 	},
 };
 
@@ -462,7 +506,7 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 
 	cpu->pstate.current_pstate = pstate;
 
-	pstate_funcs.set(pstate);
+	pstate_funcs.set(cpu, pstate);
 }
 
 static inline void intel_pstate_pstate_increase(struct cpudata *cpu, int steps)
@@ -487,6 +531,9 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 	cpu->pstate.min_pstate = pstate_funcs.get_min();
 	cpu->pstate.max_pstate = pstate_funcs.get_max();
 	cpu->pstate.turbo_pstate = pstate_funcs.get_turbo();
+
+	if (pstate_funcs.get_vid)
+		pstate_funcs.get_vid(cpu);
 
 	/*
 	 * goto max pstate so we don't slow up boot if we are built-in if we are
@@ -568,15 +615,6 @@ static void intel_pstate_timer_func(unsigned long __data)
 
 	intel_pstate_sample(cpu);
 	intel_pstate_adjust_busy_pstate(cpu);
-
-	if (cpu->pstate.current_pstate == cpu->pstate.min_pstate) {
-		cpu->min_pstate_count++;
-		if (!(cpu->min_pstate_count % 5)) {
-			intel_pstate_set_pstate(cpu, cpu->pstate.max_pstate);
-		}
-	} else
-		cpu->min_pstate_count = 0;
-
 	intel_pstate_set_sample_time(cpu);
 }
 
@@ -782,6 +820,7 @@ static void copy_cpu_funcs(struct pstate_funcs *funcs)
 	pstate_funcs.get_min   = funcs->get_min;
 	pstate_funcs.get_turbo = funcs->get_turbo;
 	pstate_funcs.set       = funcs->set;
+	pstate_funcs.get_vid   = funcs->get_vid;
 }
 
 #if IS_ENABLED(CONFIG_ACPI)

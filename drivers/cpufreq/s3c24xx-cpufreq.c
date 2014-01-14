@@ -448,7 +448,7 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 #endif
 
 static struct cpufreq_driver s3c24xx_driver = {
-	.flags		= CPUFREQ_STICKY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.target		= s3c_cpufreq_target,
 	.get		= s3c_cpufreq_get,
 	.init		= s3c_cpufreq_init,
@@ -509,7 +509,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	return 0;
 }
 
-int __init s3c_cpufreq_auto_io(void)
+static int __init s3c_cpufreq_auto_io(void)
 {
 	int ret;
 

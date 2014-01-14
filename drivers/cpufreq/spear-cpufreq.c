@@ -138,7 +138,7 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 	}
 
 	newfreq = clk_round_rate(srcclk, newfreq * mult);
-	if (newfreq < 0) {
+	if (newfreq <= 0) {
 		pr_err("clk_round_rate failed for cpu src clock\n");
 		return newfreq;
 	}
@@ -162,7 +162,7 @@ static int spear_cpufreq_init(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver spear_cpufreq_driver = {
 	.name		= "cpufreq-spear",
-	.flags		= CPUFREQ_STICKY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= spear_cpufreq_target,
 	.get		= spear_cpufreq_get,
