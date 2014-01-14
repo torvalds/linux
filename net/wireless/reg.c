@@ -1683,16 +1683,8 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	struct wiphy *wiphy = NULL;
 	enum reg_request_treatment treatment;
 
-	if (WARN_ON(!reg_request->alpha2))
-		return;
-
 	if (reg_request->wiphy_idx != WIPHY_IDX_INVALID)
 		wiphy = wiphy_idx_to_wiphy(reg_request->wiphy_idx);
-
-	if (reg_request->initiator == NL80211_REGDOM_SET_BY_DRIVER && !wiphy) {
-		kfree(reg_request);
-		return;
-	}
 
 	switch (reg_request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
@@ -1706,20 +1698,29 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		schedule_delayed_work(&reg_timeout, msecs_to_jiffies(3142));
 		return;
 	case NL80211_REGDOM_SET_BY_DRIVER:
+		if (!wiphy)
+			goto out_free;
 		treatment = reg_process_hint_driver(wiphy, reg_request);
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		if (!wiphy)
+			goto out_free;
 		treatment = reg_process_hint_country_ie(wiphy, reg_request);
 		break;
 	default:
 		WARN(1, "invalid initiator %d\n", reg_request->initiator);
-		return;
+		goto out_free;
 	}
 
 	/* This is required so that the orig_* parameters are saved */
 	if (treatment == REG_REQ_ALREADY_SET && wiphy &&
 	    wiphy->regulatory_flags & REGULATORY_STRICT_REG)
 		wiphy_update_regulatory(wiphy, reg_request->initiator);
+
+	return;
+
+out_free:
+	kfree(reg_request);
 }
 
 /*
