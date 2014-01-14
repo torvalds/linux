@@ -96,11 +96,23 @@ then
 	cp $builddir/.config $resdir
 	cp $builddir/arch/x86/boot/bzImage $resdir
 	parse-build.sh $resdir/Make.out $title
+	if test -f $builddir.wait
+	then
+		mv $builddir.wait $builddir.ready
+	fi
 else
 	cp $builddir/Make*.out $resdir
 	echo Build failed, not running KVM, see $resdir.
+	if test -f $builddir.wait
+	then
+		mv $builddir.wait $builddir.ready
+	fi
 	exit 1
 fi
+while test -f $builddir.ready
+do
+	sleep 1
+done
 minutes=$4
 seconds=$(($minutes * 60))
 qemu_args=$5
