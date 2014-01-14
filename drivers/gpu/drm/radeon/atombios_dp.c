@@ -673,9 +673,11 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 	u8 tmp;
 
 	/* power up the sink */
-	if (dp_info->dpcd[0] >= 0x11)
+	if (dp_info->dpcd[0] >= 0x11) {
 		radeon_write_dpcd_reg(dp_info->radeon_connector,
 				      DP_SET_POWER, DP_SET_POWER_D0);
+		usleep_range(1000, 2000);
+	}
 
 	/* possibly enable downspread on the sink */
 	if (dp_info->dpcd[3] & 0x1)
