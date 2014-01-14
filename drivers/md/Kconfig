@@ -238,6 +238,7 @@ config DM_CRYPT
 config DM_SNAPSHOT
        tristate "Snapshot target"
        depends on BLK_DEV_DM
+       select DM_BUFIO
        ---help---
          Allow volume managers to take writable snapshots of a device.
 

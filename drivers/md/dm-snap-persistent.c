@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/dm-io.h>
+#include "dm-bufio.h"
 
 #define DM_MSG_PREFIX "persistent snapshot"
 #define DM_CHUNK_SIZE_DEFAULT_SECTORS 32	/* 16KB */
@@ -495,27 +496,51 @@ static int read_exceptions(struct pstore *ps,
 			   void *callback_context)
 {
 	int r, full = 1;
+	struct dm_bufio_client *client;
+
+	client = dm_bufio_client_create(dm_snap_cow(ps->store->snap)->bdev,
+					ps->store->chunk_size << SECTOR_SHIFT,
+					1, 0, NULL, NULL);
+
+	if (IS_ERR(client))
+		return PTR_ERR(client);
 
 	/*
 	 * Keeping reading chunks and inserting exceptions until
 	 * we find a partially full area.
 	 */
 	for (ps->current_area = 0; full; ps->current_area++) {
-		r = area_io(ps, READ);
-		if (r)
-			return r;
+		struct dm_buffer *bp;
+		void *area;
+		chunk_t chunk = area_location(ps, ps->current_area);
 
-		r = insert_exceptions(ps, ps->area, callback, callback_context,
+		area = dm_bufio_read(client, chunk, &bp);
+		if (unlikely(IS_ERR(area))) {
+			r = PTR_ERR(area);
+			goto ret_destroy_bufio;
+		}
+
+		r = insert_exceptions(ps, area, callback, callback_context,
 				      &full);
-		if (r)
-			return r;
+
+		dm_bufio_release(bp);
+
+		dm_bufio_forget(client, chunk);
+
+		if (unlikely(r))
+			goto ret_destroy_bufio;
 	}
 
 	ps->current_area--;
 
 	skip_metadata(ps);
 
-	return 0;
+	r = 0;
+
+ret_destroy_bufio:
+	dm_bufio_client_destroy(client);
+
+	return r;
 }
 
 static struct pstore *get_info(struct dm_exception_store *store)
