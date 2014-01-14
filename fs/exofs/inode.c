@@ -1102,8 +1102,7 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 		/* If object is lost on target we might as well enable it's
 		 * delete.
 		 */
-		if ((ret == -ENOENT) || (ret == -EINVAL))
-			ret = 0;
+		ret = 0;
 		goto out;
 	}
 
