@@ -1,7 +1,7 @@
 /*
  * Copyright 2004 Digi International (www.digi.com)
  *      Scott H Kilau <Scott_Kilau at digi dot com>
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
@@ -9,14 +9,14 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * 
+ *
  *      NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
  *
  *      This is shared code between Digi's CVS archive and the
@@ -28,8 +28,8 @@
  *      Thank you.
  *
  *
- * 
- * $Id: dgap_sysfs.c,v 1.1 2009/10/23 14:01:57 markh Exp $   
+ *
+ * $Id: dgap_sysfs.c,v 1.1 2009/10/23 14:01:57 markh Exp $
  */
 
 
@@ -41,7 +41,7 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
-  
+
 #include "dgap_driver.h"
 #include "dgap_conf.h"
 #include "dgap_parse.h"
@@ -130,7 +130,7 @@ void dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_boards);
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
 	rc |= driver_create_file(driverfs, &driver_attr_debug);
-	rc |= driver_create_file(driverfs, &driver_attr_rawreadok); 
+	rc |= driver_create_file(driverfs, &driver_attr_rawreadok);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	rc |= driver_create_file(driverfs, &driver_attr_pollcounter);
 	rc |= driver_create_file(driverfs, &driver_attr_state);
