@@ -1951,6 +1951,23 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+static void stmmac_rx_vlan(struct net_device *dev, struct sk_buff *skb)
+{
+	struct ethhdr *ehdr;
+	u16 vlanid;
+
+	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) ==
+	    NETIF_F_HW_VLAN_CTAG_RX &&
+	    !__vlan_get_tag(skb, &vlanid)) {
+		/* pop the vlan tag */
+		ehdr = (struct ethhdr *)skb->data;
+		memmove(skb->data + VLAN_HLEN, ehdr, ETH_ALEN * 2);
+		skb_pull(skb, VLAN_HLEN);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlanid);
+	}
+}
+
+
 /**
  * stmmac_rx_refill: refill used skb preallocated buffers
  * @priv: driver private structure
@@ -2101,6 +2118,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 				pr_debug("frame received (%dbytes)", frame_len);
 				print_pkt(skb->data, frame_len);
 			}
+
+			stmmac_rx_vlan(priv->dev, skb);
 
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
