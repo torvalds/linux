@@ -143,11 +143,13 @@ static inline struct bonding *__get_bond_by_port(struct port *port)
  *
  * Return the aggregator of the first slave in @bond, or %NULL if it can't be
  * found.
+ * The caller must hold RCU or RTNL lock.
  */
 static inline struct aggregator *__get_first_agg(struct port *port)
 {
 	struct bonding *bond = __get_bond_by_port(port);
 	struct slave *first_slave;
+	struct aggregator *agg;
 
 	/* If there's no bond for this port, or bond has no slaves */
 	if (bond == NULL)
@@ -155,9 +157,10 @@ static inline struct aggregator *__get_first_agg(struct port *port)
 
 	rcu_read_lock();
 	first_slave = bond_first_slave_rcu(bond);
+	agg = first_slave ? &(SLAVE_AD_INFO(first_slave).aggregator) : NULL;
 	rcu_read_unlock();
 
-	return first_slave ? &(SLAVE_AD_INFO(first_slave).aggregator) : NULL;
+	return agg;
 }
 
 /**
@@ -675,6 +678,8 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 /**
  * __get_active_agg - get the current active aggregator
  * @aggregator: the aggregator we're looking at
+ *
+ * Caller must hold RCU lock.
  */
 static struct aggregator *__get_active_agg(struct aggregator *aggregator)
 {
@@ -682,13 +687,9 @@ static struct aggregator *__get_active_agg(struct aggregator *aggregator)
 	struct list_head *iter;
 	struct slave *slave;
 
-	rcu_read_lock();
 	bond_for_each_slave_rcu(bond, slave, iter)
-		if (SLAVE_AD_INFO(slave).aggregator.is_active) {
-			rcu_read_unlock();
+		if (SLAVE_AD_INFO(slave).aggregator.is_active)
 			return &(SLAVE_AD_INFO(slave).aggregator);
-		}
-	rcu_read_unlock();
 
 	return NULL;
 }
@@ -1496,11 +1497,11 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 	struct slave *slave;
 	struct port *port;
 
+	rcu_read_lock();
 	origin = agg;
 	active = __get_active_agg(agg);
 	best = (active && agg_device_up(active)) ? active : NULL;
 
-	rcu_read_lock();
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		agg = &(SLAVE_AD_INFO(slave).aggregator);
 
@@ -2327,32 +2328,32 @@ int bond_3ad_set_carrier(struct bonding *bond)
 {
 	struct aggregator *active;
 	struct slave *first_slave;
+	int ret = 1;
 
 	rcu_read_lock();
 	first_slave = bond_first_slave_rcu(bond);
-	rcu_read_unlock();
-	if (!first_slave)
-		return 0;
+	if (!first_slave) {
+		ret = 0;
+		goto out;
+	}
 	active = __get_active_agg(&(SLAVE_AD_INFO(first_slave).aggregator));
 	if (active) {
 		/* are enough slaves available to consider link up? */
 		if (active->num_of_ports < bond->params.min_links) {
 			if (netif_carrier_ok(bond->dev)) {
 				netif_carrier_off(bond->dev);
-				return 1;
+				goto out;
 			}
 		} else if (!netif_carrier_ok(bond->dev)) {
 			netif_carrier_on(bond->dev);
-			return 1;
+			goto out;
 		}
-		return 0;
-	}
-
-	if (netif_carrier_ok(bond->dev)) {
+	} else if (netif_carrier_ok(bond->dev)) {
 		netif_carrier_off(bond->dev);
-		return 1;
 	}
-	return 0;
+out:
+	rcu_read_unlock();
+	return ret;
 }
 
 /**
