@@ -1149,7 +1149,22 @@ struct msix_entry {
 };
 
 
-#ifndef CONFIG_PCI_MSI
+#ifdef CONFIG_PCI_MSI
+int pci_msi_vec_count(struct pci_dev *dev);
+int pci_enable_msi_block(struct pci_dev *dev, int nvec);
+void pci_msi_shutdown(struct pci_dev *dev);
+void pci_disable_msi(struct pci_dev *dev);
+int pci_msix_vec_count(struct pci_dev *dev);
+int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec);
+void pci_msix_shutdown(struct pci_dev *dev);
+void pci_disable_msix(struct pci_dev *dev);
+void msi_remove_pci_irq_vectors(struct pci_dev *dev);
+void pci_restore_msi_state(struct pci_dev *dev);
+int pci_msi_enabled(void);
+int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec);
+int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
+			  int minvec, int maxvec);
+#else
 static inline int pci_msi_vec_count(struct pci_dev *dev)
 {
 	return -ENOSYS;
@@ -1200,21 +1215,6 @@ static inline int pci_enable_msix_range(struct pci_dev *dev,
 {
 	return -ENOSYS;
 }
-#else
-int pci_msi_vec_count(struct pci_dev *dev);
-int pci_enable_msi_block(struct pci_dev *dev, int nvec);
-void pci_msi_shutdown(struct pci_dev *dev);
-void pci_disable_msi(struct pci_dev *dev);
-int pci_msix_vec_count(struct pci_dev *dev);
-int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec);
-void pci_msix_shutdown(struct pci_dev *dev);
-void pci_disable_msix(struct pci_dev *dev);
-void msi_remove_pci_irq_vectors(struct pci_dev *dev);
-void pci_restore_msi_state(struct pci_dev *dev);
-int pci_msi_enabled(void);
-int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec);
-int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
-			  int minvec, int maxvec);
 #endif
 
 #ifdef CONFIG_PCIEPORTBUS
@@ -1225,10 +1225,10 @@ extern bool pcie_ports_auto;
 #define pcie_ports_auto		false
 #endif
 
-#ifndef CONFIG_PCIEASPM
-static inline bool pcie_aspm_support_enabled(void) { return false; }
-#else
+#ifdef CONFIG_PCIEASPM
 bool pcie_aspm_support_enabled(void);
+#else
+static inline bool pcie_aspm_support_enabled(void) { return false; }
 #endif
 
 #ifdef CONFIG_PCIEAER
@@ -1239,15 +1239,15 @@ static inline void pci_no_aer(void) { }
 static inline bool pci_aer_available(void) { return false; }
 #endif
 
-#ifndef CONFIG_PCIE_ECRC
+#ifdef CONFIG_PCIE_ECRC
+void pcie_set_ecrc_checking(struct pci_dev *dev);
+void pcie_ecrc_get_policy(char *str);
+#else
 static inline void pcie_set_ecrc_checking(struct pci_dev *dev)
 {
 	return;
 }
 static inline void pcie_ecrc_get_policy(char *str) {};
-#else
-void pcie_set_ecrc_checking(struct pci_dev *dev);
-void pcie_ecrc_get_policy(char *str);
 #endif
 
 #define pci_enable_msi(pdev)	pci_enable_msi_block(pdev, 1)
