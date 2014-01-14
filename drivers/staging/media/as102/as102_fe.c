@@ -238,7 +238,8 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 
 	if (acquire) {
 		if (elna_enable)
-			as10x_cmd_set_context(&dev->bus_adap, CONTEXT_LNA, dev->elna_cfg);
+			as10x_cmd_set_context(&dev->bus_adap,
+					      CONTEXT_LNA, dev->elna_cfg);
 
 		ret = as10x_cmd_turn_on(&dev->bus_adap);
 	} else {
