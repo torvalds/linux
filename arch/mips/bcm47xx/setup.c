@@ -32,6 +32,7 @@
 #include <linux/ssb/ssb_embedded.h>
 #include <linux/bcma/bcma_soc.h>
 #include <asm/bootinfo.h>
+#include <asm/prom.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <bcm47xx.h>
@@ -225,6 +226,7 @@ void __init plat_mem_setup(void)
 	_machine_halt = bcm47xx_machine_halt;
 	pm_power_off = bcm47xx_machine_halt;
 	bcm47xx_board_detect();
+	mips_set_machine_name(bcm47xx_board_get_name());
 }
 
 static int __init bcm47xx_register_bus_complete(void)
