@@ -78,11 +78,6 @@ typedef enum _MCU_STATUS {
 
 } MCU_STATUS;
 
-enum rk_disp_prop{       //display device property
-    PRMRY = 1,                     //primary display device ,like LCD screen
-    EXTEND,                        //extend display device ,like hdmi ,tv out
-};
-
 struct rk29_fb_setting_info {
 	u8 data_num;
 	u8 vsync_en;
@@ -201,7 +196,7 @@ typedef struct rk29fb_screen {
 
 struct rk29fb_info {
 	u32 fb_id;
-	enum rk_disp_prop prop;		//display device property,like PRMRY,EXTEND
+	int prop;		//display device property,like PRMRY,EXTEND
 	u32 mcu_fmk_pin;
 	struct rk29lcd_info *lcd_info;
 	int (*io_init)(struct rk29_fb_setting_info *fb_setting);

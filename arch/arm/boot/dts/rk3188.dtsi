@@ -1,6 +1,7 @@
 
 #include "skeleton.dtsi"
 #include "rk3188-pinctrl.dtsi"
+#include <dt-bindings/rkfb/rk_fb.h>
 
 
 / {
@@ -18,6 +19,8 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
+		lcdc0 = &lcdc0;
+		lcdc1 = &lcdc1;
 	};
 
 	cpus {
@@ -322,4 +325,26 @@
 		rockchip,clocks-init-rate =<&clk_cpll 768000000>,<&clk_gpll 594000000>;
 		rockchip,clocks-init-parent =<&aclk_peri_mux &clk_gpll>,<&aclk_cpu &clk_gpll>;
 	};
+
+	fb: fb{
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <DUAL>;
+	};
+	
+	lcdc0:lcdc@1010c000 {
+		compatible = "rockchip,rk3188-lcdc";
+		rockchip,prop = <PRMRY>;
+		reg = <0x1010c000 0x1000>;
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	lcdc1:lcdc@1010e000 {
+		compatible = "rockchip,rk3188-lcdc";
+		rockchip,prop = <EXTEND>;
+		reg = <0x1010e000 0x1000>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+        };
+
 };

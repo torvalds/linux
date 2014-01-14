@@ -1,10 +1,12 @@
 menuconfig FB_ROCKCHIP
-        tristate "Frame buffer support for Rockchip "
-        depends on FB
-        select FB_CFB_FILLRECT
-        select FB_CFB_COPYAREA
-        select FB_CFB_IMAGEBLIT
-        ---help---
+	tristate "Frame buffer support for Rockchip "
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
+        help
           Framebuffer driver for rockchip based platform
 
 config FB_MIRRORING

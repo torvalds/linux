@@ -321,11 +321,12 @@
 
 struct rk3188_lcdc_device{
 	int id;
-	struct rk_lcdc_device_driver driver;
+	struct rk_lcdc_driver driver;
+	struct device *dev;
 	rk_screen *screen;
 
 	void __iomem *regs;
-	void *regsbak;		//back up reg
+	void *regsbak;			//back up reg
 	u32 reg_phy_base;       	// physical basic address of lcdc register
 	u32 len;               		// physical map length of lcdc register
 	spinlock_t  reg_lock;		//one time only one process allowed to config the register
