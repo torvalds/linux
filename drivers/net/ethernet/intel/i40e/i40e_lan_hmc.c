@@ -485,8 +485,7 @@ i40e_status i40e_configure_lan_hmc(struct i40e_hw *hw,
 		/* Make one big object, a single SD */
 		info.count = 1;
 		ret_code = i40e_create_lan_hmc_object(hw, &info);
-		if ((ret_code) &&
-		    (model == I40E_HMC_MODEL_DIRECT_PREFERRED))
+		if (ret_code && (model == I40E_HMC_MODEL_DIRECT_PREFERRED))
 			goto try_type_paged;
 		else if (ret_code)
 			goto configure_lan_hmc_out;
