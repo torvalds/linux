@@ -9,9 +9,10 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/module.h>
+#include <linux/string.h>
 #include <sound/simple_card.h>
 
 static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
@@ -190,36 +191,37 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *of_cpu, *of_codec, *of_platform;
 	struct device *dev = &pdev->dev;
+	int ret;
 
 	cinfo		= NULL;
 	of_cpu		= NULL;
 	of_codec	= NULL;
 	of_platform	= NULL;
+
+	cinfo = devm_kzalloc(dev, sizeof(*cinfo), GFP_KERNEL);
+	if (!cinfo)
+		return -ENOMEM;
+
 	if (np && of_device_is_available(np)) {
-		cinfo = devm_kzalloc(dev, sizeof(*cinfo), GFP_KERNEL);
-		if (cinfo) {
-			int ret;
-			cinfo->snd_card.dev = &pdev->dev;
-			ret = asoc_simple_card_parse_of(np, cinfo, dev,
-							&of_cpu,
-							&of_codec,
-							&of_platform);
-			if (ret < 0) {
-				if (ret != -EPROBE_DEFER)
-					dev_err(dev, "parse error %d\n", ret);
-				return ret;
-			}
-		} else {
-			return -ENOMEM;
+		cinfo->snd_card.dev = dev;
+
+		ret = asoc_simple_card_parse_of(np, cinfo, dev,
+						&of_cpu,
+						&of_codec,
+						&of_platform);
+		if (ret < 0) {
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "parse error %d\n", ret);
+			return ret;
 		}
 	} else {
-		cinfo = pdev->dev.platform_data;
-		if (!cinfo) {
+		if (!dev->platform_data) {
 			dev_err(dev, "no info for asoc-simple-card\n");
 			return -EINVAL;
 		}
 
-		cinfo->snd_card.dev = &pdev->dev;
+		memcpy(cinfo, dev->platform_data, sizeof(*cinfo));
+		cinfo->snd_card.dev = dev;
 	}
 
 	if (!cinfo->name	||
