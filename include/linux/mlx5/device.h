@@ -178,6 +178,7 @@ enum {
 	MLX5_DEV_CAP_FLAG_ATOMIC	= 1LL << 18,
 	MLX5_DEV_CAP_FLAG_ON_DMND_PG	= 1LL << 24,
 	MLX5_DEV_CAP_FLAG_CQ_MODER	= 1LL << 29,
+	MLX5_DEV_CAP_FLAG_RESIZE_CQ	= 1LL << 30,
 	MLX5_DEV_CAP_FLAG_RESIZE_SRQ	= 1LL << 32,
 	MLX5_DEV_CAP_FLAG_REMOTE_FENCE	= 1LL << 38,
 	MLX5_DEV_CAP_FLAG_TLP_HINTS	= 1LL << 39,
@@ -710,6 +711,7 @@ struct mlx5_modify_cq_mbox_in {
 
 struct mlx5_modify_cq_mbox_out {
 	struct mlx5_outbox_hdr	hdr;
+	u8			rsvd[8];
 };
 
 struct mlx5_enable_hca_mbox_in {

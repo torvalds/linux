@@ -73,14 +73,24 @@ static void *get_cqe(struct mlx5_ib_cq *cq, int n)
 	return get_cqe_from_buf(&cq->buf, n, cq->mcq.cqe_sz);
 }
 
+static u8 sw_ownership_bit(int n, int nent)
+{
+	return (n & nent) ? 1 : 0;
+}
+
 static void *get_sw_cqe(struct mlx5_ib_cq *cq, int n)
 {
 	void *cqe = get_cqe(cq, n & cq->ibcq.cqe);
 	struct mlx5_cqe64 *cqe64;
 
 	cqe64 = (cq->mcq.cqe_sz == 64) ? cqe : cqe + 64;
-	return ((cqe64->op_own & MLX5_CQE_OWNER_MASK) ^
-		!!(n & (cq->ibcq.cqe + 1))) ? NULL : cqe;
+
+	if (likely((cqe64->op_own) >> 4 != MLX5_CQE_INVALID) &&
+	    !((cqe64->op_own & MLX5_CQE_OWNER_MASK) ^ !!(n & (cq->ibcq.cqe + 1)))) {
+		return cqe;
+	} else {
+		return NULL;
+	}
 }
 
 static void *next_cqe_sw(struct mlx5_ib_cq *cq)
@@ -351,6 +361,11 @@ static void handle_atomics(struct mlx5_ib_qp *qp, struct mlx5_cqe64 *cqe64,
 	qp->sq.last_poll = tail;
 }
 
+static void free_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf)
+{
+	mlx5_buf_free(&dev->mdev, &buf->buf);
+}
+
 static int mlx5_poll_one(struct mlx5_ib_cq *cq,
 			 struct mlx5_ib_qp **cur_qp,
 			 struct ib_wc *wc)
@@ -366,6 +381,7 @@ static int mlx5_poll_one(struct mlx5_ib_cq *cq,
 	void *cqe;
 	int idx;
 
+repoll:
 	cqe = next_cqe_sw(cq);
 	if (!cqe)
 		return -EAGAIN;
@@ -379,7 +395,18 @@ static int mlx5_poll_one(struct mlx5_ib_cq *cq,
 	 */
 	rmb();
 
-	/* TBD: resize CQ */
+	opcode = cqe64->op_own >> 4;
+	if (unlikely(opcode == MLX5_CQE_RESIZE_CQ)) {
+		if (likely(cq->resize_buf)) {
+			free_cq_buf(dev, &cq->buf);
+			cq->buf = *cq->resize_buf;
+			kfree(cq->resize_buf);
+			cq->resize_buf = NULL;
+			goto repoll;
+		} else {
+			mlx5_ib_warn(dev, "unexpected resize cqe\n");
+		}
+	}
 
 	qpn = ntohl(cqe64->sop_drop_qpn) & 0xffffff;
 	if (!*cur_qp || (qpn != (*cur_qp)->ibqp.qp_num)) {
@@ -398,7 +425,6 @@ static int mlx5_poll_one(struct mlx5_ib_cq *cq,
 	}
 
 	wc->qp  = &(*cur_qp)->ibqp;
-	opcode = cqe64->op_own >> 4;
 	switch (opcode) {
 	case MLX5_CQE_REQ:
 		wq = &(*cur_qp)->sq;
@@ -503,13 +529,9 @@ static int alloc_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf,
 		return err;
 
 	buf->cqe_size = cqe_size;
+	buf->nent = nent;
 
 	return 0;
-}
-
-static void free_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf)
-{
-	mlx5_buf_free(&dev->mdev, &buf->buf);
 }
 
 static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
@@ -576,16 +598,16 @@ static void destroy_cq_user(struct mlx5_ib_cq *cq, struct ib_ucontext *context)
 	ib_umem_release(cq->buf.umem);
 }
 
-static void init_cq_buf(struct mlx5_ib_cq *cq, int nent)
+static void init_cq_buf(struct mlx5_ib_cq *cq, struct mlx5_ib_cq_buf *buf)
 {
 	int i;
 	void *cqe;
 	struct mlx5_cqe64 *cqe64;
 
-	for (i = 0; i < nent; i++) {
-		cqe = get_cqe(cq, i);
-		cqe64 = (cq->buf.cqe_size == 64) ? cqe : cqe + 64;
-		cqe64->op_own = 0xf1;
+	for (i = 0; i < buf->nent; i++) {
+		cqe = get_cqe_from_buf(buf, i, buf->cqe_size);
+		cqe64 = buf->cqe_size == 64 ? cqe : cqe + 64;
+		cqe64->op_own = MLX5_CQE_INVALID << 4;
 	}
 }
 
@@ -610,7 +632,7 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	if (err)
 		goto err_db;
 
-	init_cq_buf(cq, entries);
+	init_cq_buf(cq, &cq->buf);
 
 	*inlen = sizeof(**cqb) + sizeof(*(*cqb)->pas) * cq->buf.buf.npages;
 	*cqb = mlx5_vzalloc(*inlen);
@@ -836,7 +858,7 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	in->ctx.cq_period = cpu_to_be16(cq_period);
 	in->ctx.cq_max_count = cpu_to_be16(cq_count);
 	in->field_select = cpu_to_be32(fsel);
-	err = mlx5_core_modify_cq(&dev->mdev, &mcq->mcq, in);
+	err = mlx5_core_modify_cq(&dev->mdev, &mcq->mcq, in, sizeof(*in));
 	kfree(in);
 
 	if (err)
@@ -845,9 +867,235 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	return err;
 }
 
+static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
+		       int entries, struct ib_udata *udata, int *npas,
+		       int *page_shift, int *cqe_size)
+{
+	struct mlx5_ib_resize_cq ucmd;
+	struct ib_umem *umem;
+	int err;
+	int npages;
+	struct ib_ucontext *context = cq->buf.umem->context;
+
+	if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
+		return -EFAULT;
+
+	umem = ib_umem_get(context, ucmd.buf_addr, entries * ucmd.cqe_size,
+			   IB_ACCESS_LOCAL_WRITE, 1);
+	if (IS_ERR(umem)) {
+		err = PTR_ERR(umem);
+		return err;
+	}
+
+	mlx5_ib_cont_pages(umem, ucmd.buf_addr, &npages, page_shift,
+			   npas, NULL);
+
+	cq->resize_umem = umem;
+	*cqe_size = ucmd.cqe_size;
+
+	return 0;
+}
+
+static void un_resize_user(struct mlx5_ib_cq *cq)
+{
+	ib_umem_release(cq->resize_umem);
+}
+
+static int resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
+			 int entries, int cqe_size)
+{
+	int err;
+
+	cq->resize_buf = kzalloc(sizeof(*cq->resize_buf), GFP_KERNEL);
+	if (!cq->resize_buf)
+		return -ENOMEM;
+
+	err = alloc_cq_buf(dev, cq->resize_buf, entries, cqe_size);
+	if (err)
+		goto ex;
+
+	init_cq_buf(cq, cq->resize_buf);
+
+	return 0;
+
+ex:
+	kfree(cq->resize_buf);
+	return err;
+}
+
+static void un_resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq)
+{
+	free_cq_buf(dev, cq->resize_buf);
+	cq->resize_buf = NULL;
+}
+
+static int copy_resize_cqes(struct mlx5_ib_cq *cq)
+{
+	struct mlx5_ib_dev *dev = to_mdev(cq->ibcq.device);
+	struct mlx5_cqe64 *scqe64;
+	struct mlx5_cqe64 *dcqe64;
+	void *start_cqe;
+	void *scqe;
+	void *dcqe;
+	int ssize;
+	int dsize;
+	int i;
+	u8 sw_own;
+
+	ssize = cq->buf.cqe_size;
+	dsize = cq->resize_buf->cqe_size;
+	if (ssize != dsize) {
+		mlx5_ib_warn(dev, "resize from different cqe size is not supported\n");
+		return -EINVAL;
+	}
+
+	i = cq->mcq.cons_index;
+	scqe = get_sw_cqe(cq, i);
+	scqe64 = ssize == 64 ? scqe : scqe + 64;
+	start_cqe = scqe;
+	if (!scqe) {
+		mlx5_ib_warn(dev, "expected cqe in sw ownership\n");
+		return -EINVAL;
+	}
+
+	while ((scqe64->op_own >> 4) != MLX5_CQE_RESIZE_CQ) {
+		dcqe = get_cqe_from_buf(cq->resize_buf,
+					(i + 1) & (cq->resize_buf->nent),
+					dsize);
+		dcqe64 = dsize == 64 ? dcqe : dcqe + 64;
+		sw_own = sw_ownership_bit(i + 1, cq->resize_buf->nent);
+		memcpy(dcqe, scqe, dsize);
+		dcqe64->op_own = (dcqe64->op_own & ~MLX5_CQE_OWNER_MASK) | sw_own;
+
+		++i;
+		scqe = get_sw_cqe(cq, i);
+		scqe64 = ssize == 64 ? scqe : scqe + 64;
+		if (!scqe) {
+			mlx5_ib_warn(dev, "expected cqe in sw ownership\n");
+			return -EINVAL;
+		}
+
+		if (scqe == start_cqe) {
+			pr_warn("resize CQ failed to get resize CQE, CQN 0x%x\n",
+				cq->mcq.cqn);
+			return -ENOMEM;
+		}
+	}
+	++cq->mcq.cons_index;
+	return 0;
+}
+
 int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 {
-	return -ENOSYS;
+	struct mlx5_ib_dev *dev = to_mdev(ibcq->device);
+	struct mlx5_ib_cq *cq = to_mcq(ibcq);
+	struct mlx5_modify_cq_mbox_in *in;
+	int err;
+	int npas;
+	int page_shift;
+	int inlen;
+	int uninitialized_var(cqe_size);
+	unsigned long flags;
+
+	if (!(dev->mdev.caps.flags & MLX5_DEV_CAP_FLAG_RESIZE_CQ)) {
+		pr_info("Firmware does not support resize CQ\n");
+		return -ENOSYS;
+	}
+
+	if (entries < 1)
+		return -EINVAL;
+
+	entries = roundup_pow_of_two(entries + 1);
+	if (entries > dev->mdev.caps.max_cqes + 1)
+		return -EINVAL;
+
+	if (entries == ibcq->cqe + 1)
+		return 0;
+
+	mutex_lock(&cq->resize_mutex);
+	if (udata) {
+		err = resize_user(dev, cq, entries, udata, &npas, &page_shift,
+				  &cqe_size);
+	} else {
+		cqe_size = 64;
+		err = resize_kernel(dev, cq, entries, cqe_size);
+		if (!err) {
+			npas = cq->resize_buf->buf.npages;
+			page_shift = cq->resize_buf->buf.page_shift;
+		}
+	}
+
+	if (err)
+		goto ex;
+
+	inlen = sizeof(*in) + npas * sizeof(in->pas[0]);
+	in = mlx5_vzalloc(inlen);
+	if (!in) {
+		err = -ENOMEM;
+		goto ex_resize;
+	}
+
+	if (udata)
+		mlx5_ib_populate_pas(dev, cq->resize_umem, page_shift,
+				     in->pas, 0);
+	else
+		mlx5_fill_page_array(&cq->resize_buf->buf, in->pas);
+
+	in->field_select = cpu_to_be32(MLX5_MODIFY_CQ_MASK_LOG_SIZE  |
+				       MLX5_MODIFY_CQ_MASK_PG_OFFSET |
+				       MLX5_MODIFY_CQ_MASK_PG_SIZE);
+	in->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
+	in->ctx.cqe_sz_flags = cqe_sz_to_mlx_sz(cqe_size) << 5;
+	in->ctx.page_offset = 0;
+	in->ctx.log_sz_usr_page = cpu_to_be32(ilog2(entries) << 24);
+	in->hdr.opmod = cpu_to_be16(MLX5_CQ_OPMOD_RESIZE);
+	in->cqn = cpu_to_be32(cq->mcq.cqn);
+
+	err = mlx5_core_modify_cq(&dev->mdev, &cq->mcq, in, inlen);
+	if (err)
+		goto ex_alloc;
+
+	if (udata) {
+		cq->ibcq.cqe = entries - 1;
+		ib_umem_release(cq->buf.umem);
+		cq->buf.umem = cq->resize_umem;
+		cq->resize_umem = NULL;
+	} else {
+		struct mlx5_ib_cq_buf tbuf;
+		int resized = 0;
+
+		spin_lock_irqsave(&cq->lock, flags);
+		if (cq->resize_buf) {
+			err = copy_resize_cqes(cq);
+			if (!err) {
+				tbuf = cq->buf;
+				cq->buf = *cq->resize_buf;
+				kfree(cq->resize_buf);
+				cq->resize_buf = NULL;
+				resized = 1;
+			}
+		}
+		cq->ibcq.cqe = entries - 1;
+		spin_unlock_irqrestore(&cq->lock, flags);
+		if (resized)
+			free_cq_buf(dev, &tbuf);
+	}
+	mutex_unlock(&cq->resize_mutex);
+
+	mlx5_vfree(in);
+	return 0;
+
+ex_alloc:
+	mlx5_vfree(in);
+
+ex_resize:
+	if (udata)
+		un_resize_user(cq);
+	else
+		un_resize_kernel(dev, cq);
+ex:
+	mutex_unlock(&cq->resize_mutex);
+	return err;
 }
 
 int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq)

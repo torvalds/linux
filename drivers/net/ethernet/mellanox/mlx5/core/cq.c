@@ -201,14 +201,14 @@ EXPORT_SYMBOL(mlx5_core_query_cq);
 
 
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			struct mlx5_modify_cq_mbox_in *in)
+			struct mlx5_modify_cq_mbox_in *in, int in_sz)
 {
 	struct mlx5_modify_cq_mbox_out out;
 	int err;
 
 	memset(&out, 0, sizeof(out));
 	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MODIFY_CQ);
-	err = mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, in_sz, &out, sizeof(out));
 	if (err)
 		return err;
 
