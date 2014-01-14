@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -215,7 +215,8 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		if (!orig_node)
 			goto dst_unreach;
 
-		neigh_node = batadv_orig_node_get_router(orig_node);
+		neigh_node = batadv_orig_router_get(orig_node,
+						    BATADV_IF_DEFAULT);
 		if (!neigh_node)
 			goto dst_unreach;
 

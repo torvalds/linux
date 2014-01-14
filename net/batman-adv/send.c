@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -387,6 +387,8 @@ static void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
 		kfree_skb(forw_packet->skb);
 	if (forw_packet->if_incoming)
 		batadv_hardif_free_ref(forw_packet->if_incoming);
+	if (forw_packet->if_outgoing)
+		batadv_hardif_free_ref(forw_packet->if_outgoing);
 	kfree(forw_packet);
 }
 
@@ -450,6 +452,7 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 
 	forw_packet->skb = newskb;
 	forw_packet->if_incoming = primary_if;
+	forw_packet->if_outgoing = NULL;
 
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
@@ -545,11 +548,16 @@ void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 
 	bat_priv->bat_algo_ops->bat_ogm_emit(forw_packet);
 
-	/* we have to have at least one packet in the queue
-	 * to determine the queues wake up time unless we are
-	 * shutting down
+	/* we have to have at least one packet in the queue to determine the
+	 * queues wake up time unless we are shutting down.
+	 *
+	 * only re-schedule if this is the "original" copy, e.g. the OGM of the
+	 * primary interface should only be rescheduled once per period, but
+	 * this function will be called for the forw_packet instances of the
+	 * other secondary interfaces as well.
 	 */
-	if (forw_packet->own)
+	if (forw_packet->own &&
+	    forw_packet->if_incoming == forw_packet->if_outgoing)
 		batadv_schedule_bat_ogm(forw_packet->if_incoming);
 
 out:
@@ -610,7 +618,8 @@ batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 		 * we delete only packets belonging to the given interface
 		 */
 		if ((hard_iface) &&
-		    (forw_packet->if_incoming != hard_iface))
+		    (forw_packet->if_incoming != hard_iface) &&
+		    (forw_packet->if_outgoing != hard_iface))
 			continue;
 
 		spin_unlock_bh(&bat_priv->forw_bat_list_lock);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -129,6 +129,7 @@ static struct batadv_gw_node *
 batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 {
 	struct batadv_neigh_node *router;
+	struct batadv_neigh_ifinfo *router_ifinfo;
 	struct batadv_gw_node *gw_node, *curr_gw = NULL;
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
 	uint32_t gw_divisor;
@@ -145,14 +146,19 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			continue;
 
 		orig_node = gw_node->orig_node;
-		router = batadv_orig_node_get_router(orig_node);
+		router = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
 		if (!router)
 			continue;
+
+		router_ifinfo = batadv_neigh_ifinfo_get(router,
+							BATADV_IF_DEFAULT);
+		if (!router_ifinfo)
+			goto next;
 
 		if (!atomic_inc_not_zero(&gw_node->refcount))
 			goto next;
 
-		tq_avg = router->bat_iv.tq_avg;
+		tq_avg = router_ifinfo->bat_iv.tq_avg;
 
 		switch (atomic_read(&bat_priv->gw_sel_class)) {
 		case 1: /* fast connection */
@@ -197,6 +203,8 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 
 next:
 		batadv_neigh_node_free_ref(router);
+		if (router_ifinfo)
+			batadv_neigh_ifinfo_free_ref(router_ifinfo);
 	}
 	rcu_read_unlock();
 
@@ -239,6 +247,7 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 {
 	struct batadv_gw_node *curr_gw = NULL, *next_gw = NULL;
 	struct batadv_neigh_node *router = NULL;
+	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
 	char gw_addr[18] = { '\0' };
 
 	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
@@ -257,8 +266,16 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 	if (next_gw) {
 		sprintf(gw_addr, "%pM", next_gw->orig_node->orig);
 
-		router = batadv_orig_node_get_router(next_gw->orig_node);
+		router = batadv_orig_router_get(next_gw->orig_node,
+						BATADV_IF_DEFAULT);
 		if (!router) {
+			batadv_gw_reselect(bat_priv);
+			goto out;
+		}
+
+		router_ifinfo = batadv_neigh_ifinfo_get(router,
+							BATADV_IF_DEFAULT);
+		if (!router_ifinfo) {
 			batadv_gw_reselect(bat_priv);
 			goto out;
 		}
@@ -276,7 +293,8 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 			   next_gw->bandwidth_down / 10,
 			   next_gw->bandwidth_down % 10,
 			   next_gw->bandwidth_up / 10,
-			   next_gw->bandwidth_up % 10, router->bat_iv.tq_avg);
+			   next_gw->bandwidth_up % 10,
+			   router_ifinfo->bat_iv.tq_avg);
 		batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_ADD,
 				    gw_addr);
 	} else {
@@ -286,7 +304,8 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 			   next_gw->bandwidth_down / 10,
 			   next_gw->bandwidth_down % 10,
 			   next_gw->bandwidth_up / 10,
-			   next_gw->bandwidth_up % 10, router->bat_iv.tq_avg);
+			   next_gw->bandwidth_up % 10,
+			   router_ifinfo->bat_iv.tq_avg);
 		batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_CHANGE,
 				    gw_addr);
 	}
@@ -300,11 +319,15 @@ out:
 		batadv_gw_node_free_ref(next_gw);
 	if (router)
 		batadv_neigh_node_free_ref(router);
+	if (router_ifinfo)
+		batadv_neigh_ifinfo_free_ref(router_ifinfo);
 }
 
 void batadv_gw_check_election(struct batadv_priv *bat_priv,
 			      struct batadv_orig_node *orig_node)
 {
+	struct batadv_neigh_ifinfo *router_orig_tq = NULL;
+	struct batadv_neigh_ifinfo *router_gw_tq = NULL;
 	struct batadv_orig_node *curr_gw_orig;
 	struct batadv_neigh_node *router_gw = NULL, *router_orig = NULL;
 	uint8_t gw_tq_avg, orig_tq_avg;
@@ -313,20 +336,30 @@ void batadv_gw_check_election(struct batadv_priv *bat_priv,
 	if (!curr_gw_orig)
 		goto reselect;
 
-	router_gw = batadv_orig_node_get_router(curr_gw_orig);
+	router_gw = batadv_orig_router_get(curr_gw_orig, BATADV_IF_DEFAULT);
 	if (!router_gw)
+		goto reselect;
+
+	router_gw_tq = batadv_neigh_ifinfo_get(router_gw,
+					       BATADV_IF_DEFAULT);
+	if (!router_gw_tq)
 		goto reselect;
 
 	/* this node already is the gateway */
 	if (curr_gw_orig == orig_node)
 		goto out;
 
-	router_orig = batadv_orig_node_get_router(orig_node);
+	router_orig = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
 	if (!router_orig)
 		goto out;
 
-	gw_tq_avg = router_gw->bat_iv.tq_avg;
-	orig_tq_avg = router_orig->bat_iv.tq_avg;
+	router_orig_tq = batadv_neigh_ifinfo_get(router_orig,
+						 BATADV_IF_DEFAULT);
+	if (!router_orig_tq)
+		goto out;
+
+	gw_tq_avg = router_gw_tq->bat_iv.tq_avg;
+	orig_tq_avg = router_orig_tq->bat_iv.tq_avg;
 
 	/* the TQ value has to be better */
 	if (orig_tq_avg < gw_tq_avg)
@@ -352,6 +385,10 @@ out:
 		batadv_neigh_node_free_ref(router_gw);
 	if (router_orig)
 		batadv_neigh_node_free_ref(router_orig);
+	if (router_gw_tq)
+		batadv_neigh_ifinfo_free_ref(router_gw_tq);
+	if (router_orig_tq)
+		batadv_neigh_ifinfo_free_ref(router_orig_tq);
 
 	return;
 }
@@ -537,10 +574,15 @@ static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
 {
 	struct batadv_gw_node *curr_gw;
 	struct batadv_neigh_node *router;
+	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
 	int ret = -1;
 
-	router = batadv_orig_node_get_router(gw_node->orig_node);
+	router = batadv_orig_router_get(gw_node->orig_node, BATADV_IF_DEFAULT);
 	if (!router)
+		goto out;
+
+	router_ifinfo = batadv_neigh_ifinfo_get(router, BATADV_IF_DEFAULT);
+	if (!router_ifinfo)
 		goto out;
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
@@ -548,17 +590,20 @@ static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
 	ret = seq_printf(seq, "%s %pM (%3i) %pM [%10s]: %u.%u/%u.%u MBit\n",
 			 (curr_gw == gw_node ? "=>" : "  "),
 			 gw_node->orig_node->orig,
-			 router->bat_iv.tq_avg, router->addr,
+			 router_ifinfo->bat_iv.tq_avg, router->addr,
 			 router->if_incoming->net_dev->name,
 			 gw_node->bandwidth_down / 10,
 			 gw_node->bandwidth_down % 10,
 			 gw_node->bandwidth_up / 10,
 			 gw_node->bandwidth_up % 10);
 
-	batadv_neigh_node_free_ref(router);
 	if (curr_gw)
 		batadv_gw_node_free_ref(curr_gw);
 out:
+	if (router_ifinfo)
+		batadv_neigh_ifinfo_free_ref(router_ifinfo);
+	if (router)
+		batadv_neigh_node_free_ref(router);
 	return ret;
 }
 
@@ -746,6 +791,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	struct batadv_neigh_node *neigh_curr = NULL, *neigh_old = NULL;
 	struct batadv_orig_node *orig_dst_node = NULL;
 	struct batadv_gw_node *gw_node = NULL, *curr_gw = NULL;
+	struct batadv_neigh_ifinfo *curr_ifinfo, *old_ifinfo;
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	bool out_of_range = false;
 	uint8_t curr_tq_avg;
@@ -787,7 +833,14 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 		if (!neigh_curr)
 			goto out;
 
-		curr_tq_avg = neigh_curr->bat_iv.tq_avg;
+		curr_ifinfo = batadv_neigh_ifinfo_get(neigh_curr,
+						      BATADV_IF_DEFAULT);
+		if (!curr_ifinfo)
+			goto out;
+
+		curr_tq_avg = curr_ifinfo->bat_iv.tq_avg;
+		batadv_neigh_ifinfo_free_ref(curr_ifinfo);
+
 		break;
 	case BATADV_GW_MODE_OFF:
 	default:
@@ -798,8 +851,13 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	if (!neigh_old)
 		goto out;
 
-	if (curr_tq_avg - neigh_old->bat_iv.tq_avg > BATADV_GW_THRESHOLD)
+	old_ifinfo = batadv_neigh_ifinfo_get(neigh_old, BATADV_IF_DEFAULT);
+	if (!old_ifinfo)
+		goto out;
+
+	if ((curr_tq_avg - old_ifinfo->bat_iv.tq_avg) > BATADV_GW_THRESHOLD)
 		out_of_range = true;
+	batadv_neigh_ifinfo_free_ref(old_ifinfo);
 
 out:
 	if (orig_dst_node)

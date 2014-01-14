@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -24,7 +24,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2013.5.0"
+#define BATADV_SOURCE_VERSION "2014.1.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -71,6 +71,12 @@
 #define BATADV_NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
 
 #define BATADV_NO_MARK 0
+
+/* default interface for multi interface operation. The default interface is
+ * used for communication which originated locally (i.e. is not forwarded)
+ * or where special forwarding is not desired/necessary.
+ */
+#define BATADV_IF_DEFAULT	((struct batadv_hard_iface *)NULL)
 
 #define BATADV_NUM_WORDS BITS_TO_LONGS(BATADV_TQ_LOCAL_WINDOW_SIZE)
 

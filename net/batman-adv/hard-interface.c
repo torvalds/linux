@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -23,6 +23,7 @@
 #include "translation-table.h"
 #include "routing.h"
 #include "sysfs.h"
+#include "debugfs.h"
 #include "originator.h"
 #include "hash.h"
 #include "bridge_loop_avoidance.h"
@@ -539,6 +540,7 @@ static void batadv_hardif_remove_interface_finish(struct work_struct *work)
 	hard_iface = container_of(work, struct batadv_hard_iface,
 				  cleanup_work);
 
+	batadv_debugfs_del_hardif(hard_iface);
 	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
 	batadv_hardif_free_ref(hard_iface);
 }
@@ -569,6 +571,11 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	hard_iface->net_dev = net_dev;
 	hard_iface->soft_iface = NULL;
 	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
+
+	ret = batadv_debugfs_add_hardif(hard_iface);
+	if (ret)
+		goto free_sysfs;
+
 	INIT_LIST_HEAD(&hard_iface->list);
 	INIT_WORK(&hard_iface->cleanup_work,
 		  batadv_hardif_remove_interface_finish);
@@ -585,6 +592,8 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	return hard_iface;
 
+free_sysfs:
+	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
 free_if:
 	kfree(hard_iface);
 release_dev:
