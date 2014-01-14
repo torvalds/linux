@@ -340,14 +340,57 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 	return 1;
 }
 
+static int first_med_uuar(void)
+{
+	return 1;
+}
+
+static int next_uuar(int n)
+{
+	n++;
+
+	while (((n % 4) & 2))
+		n++;
+
+	return n;
+}
+
+static int num_med_uuar(struct mlx5_uuar_info *uuari)
+{
+	int n;
+
+	n = uuari->num_uars * MLX5_NON_FP_BF_REGS_PER_PAGE -
+		uuari->num_low_latency_uuars - 1;
+
+	return n >= 0 ? n : 0;
+}
+
+static int max_uuari(struct mlx5_uuar_info *uuari)
+{
+	return uuari->num_uars * 4;
+}
+
+static int first_hi_uuar(struct mlx5_uuar_info *uuari)
+{
+	int med;
+	int i;
+	int t;
+
+	med = num_med_uuar(uuari);
+	for (t = 0, i = first_med_uuar();; i = next_uuar(i)) {
+		t++;
+		if (t == med)
+			return next_uuar(i);
+	}
+
+	return 0;
+}
+
 static int alloc_high_class_uuar(struct mlx5_uuar_info *uuari)
 {
-	int nuuars = uuari->num_uars * MLX5_BF_REGS_PER_PAGE;
-	int start_uuar;
 	int i;
 
-	start_uuar = nuuars - uuari->num_low_latency_uuars;
-	for (i = start_uuar; i < nuuars; i++) {
+	for (i = first_hi_uuar(uuari); i < max_uuari(uuari); i = next_uuar(i)) {
 		if (!test_bit(i, uuari->bitmap)) {
 			set_bit(i, uuari->bitmap);
 			uuari->count[i]++;
@@ -360,19 +403,10 @@ static int alloc_high_class_uuar(struct mlx5_uuar_info *uuari)
 
 static int alloc_med_class_uuar(struct mlx5_uuar_info *uuari)
 {
-	int nuuars = uuari->num_uars * MLX5_BF_REGS_PER_PAGE;
-	int minidx = 1;
-	int uuarn;
-	int end;
+	int minidx = first_med_uuar();
 	int i;
 
-	end = nuuars - uuari->num_low_latency_uuars;
-
-	for (i = 1; i < end; i++) {
-		uuarn = i & 3;
-		if (uuarn == 2 || uuarn == 3)
-			continue;
-
+	for (i = first_med_uuar(); i < first_hi_uuar(uuari); i = next_uuar(i)) {
 		if (uuari->count[i] < uuari->count[minidx])
 			minidx = i;
 	}
@@ -510,11 +544,16 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_HIGH);
 	if (uuarn < 0) {
 		mlx5_ib_dbg(dev, "failed to allocate low latency UUAR\n");
-		mlx5_ib_dbg(dev, "reverting to high latency\n");
-		uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_LOW);
+		mlx5_ib_dbg(dev, "reverting to medium latency\n");
+		uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_MEDIUM);
 		if (uuarn < 0) {
-			mlx5_ib_dbg(dev, "uuar allocation failed\n");
-			return uuarn;
+			mlx5_ib_dbg(dev, "failed to allocate medium latency UUAR\n");
+			mlx5_ib_dbg(dev, "reverting to high latency\n");
+			uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_LOW);
+			if (uuarn < 0) {
+				mlx5_ib_warn(dev, "uuar allocation failed\n");
+				return uuarn;
+			}
 		}
 	}
 
