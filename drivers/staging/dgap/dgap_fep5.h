@@ -18,7 +18,7 @@
  *
  *	NOTE: THIS IS A SHARED HEADER. DO NOT CHANGE CODING STYLE!!!
  *
- ************************************************************************ 
+ ************************************************************************
  ***	FEP Version 5 dependent definitions
  ************************************************************************/
 
@@ -31,7 +31,7 @@
 #define START           0x0004L         /* Execution start address      */
 
 #define CMDBUF          0x0d10L         /* Command (cm_t) structure offset */
-#define CMDSTART        0x0400L         /* Start of command buffer      */   
+#define CMDSTART        0x0400L         /* Start of command buffer      */
 #define CMDMAX          0x0800L         /* End of command buffer        */
 
 #define EVBUF           0x0d18L         /* Event (ev_t) structure       */
@@ -51,7 +51,7 @@
 #define FEPSTAT         POSTAREA        /* OS here when FEP comes up    */
 #define NCHAN           0x0C02L         /* number of ports FEP sees     */
 #define PANIC           0x0C10L         /* PANIC area for FEP           */
-#define KMEMEM          0x0C30L         /* Memory for KME use           */   
+#define KMEMEM          0x0C30L         /* Memory for KME use           */
 #define CONFIG          0x0CD0L         /* Concentrator configuration info */
 #define CONFIGSIZE      0x0030          /* configuration info size      */
 #define DOWNREQ         0x0D00          /* Download request buffer pointer */
@@ -67,8 +67,8 @@
 				 */
 
 #define FEPCLR      0x00
-#define FEPMEM      0x02 
-#define FEPRST      0x04 
+#define FEPMEM      0x02
+#define FEPRST      0x04
 #define FEPINT      0x08
 #define FEPMASK     0x0e
 #define FEPWIN      0x80
@@ -79,13 +79,13 @@
 #define FEPTIMEOUT 200000
 
 #define ENABLE_INTR		0x0e04		/* Enable interrupts flag */
-#define FEPPOLL_MIN		1		/* minimum of 1 millisecond */  
+#define FEPPOLL_MIN		1		/* minimum of 1 millisecond */
 #define FEPPOLL_MAX		20		/* maximum of 20 milliseconds */
-#define FEPPOLL			0x0c26		/* Fep event poll interval */   
+#define FEPPOLL			0x0c26		/* Fep event poll interval */
 
 #define	IALTPIN			0x0080		/* Input flag to swap DSR <-> DCD */
 
-/************************************************************************ 
+/************************************************************************
  * Command structure definition.
  ************************************************************************/
 struct cm_t {
@@ -119,13 +119,13 @@ struct downld_t {
 	uchar	dl_data[1024];		/* Download data                */
 };
 
-/************************************************************************ 
+/************************************************************************
  * Per channel buffer structure
  ************************************************************************
- *              Base Structure Entries Usage Meanings to Host           * 
- *                                                                      * 
- *        W = read write        R = read only                           * 
- *        C = changed by commands only                                  * 
+ *              Base Structure Entries Usage Meanings to Host           *
+ *                                                                      *
+ *        W = read write        R = read only                           *
+ *        C = changed by commands only                                  *
  *        U = unknown (may be changed w/o notice)                       *
  ************************************************************************/
 struct bs_t {
@@ -138,7 +138,7 @@ struct bs_t {
 	volatile unsigned short  tx_head;	/* W  Tx buffer head offset	*/
 	volatile unsigned short  tx_tail;	/* R  Tx buffer tail offset	*/
 	volatile unsigned short  tx_max;	/* W  Tx buffer size - 1	 */
- 
+
 	volatile unsigned short  rx_seg;	/* W  Rx segment		*/
 	volatile unsigned short  rx_head;	/* W  Rx buffer head offset	*/
 	volatile unsigned short  rx_tail;	/* R  Rx buffer tail offset	*/
@@ -179,7 +179,7 @@ struct bs_t {
 
 	volatile unsigned char   mtran;		/* C   Unreported modem trans   */
 	volatile unsigned char   orun;		/* C   Buffer overrun occurred  */
-	volatile unsigned char   astartc;	/* W   Auxiliary Xon char       */  
+	volatile unsigned char   astartc;	/* W   Auxiliary Xon char       */
 	volatile unsigned char   astopc;	/* W   Auxiliary Xoff char      */
 	volatile unsigned char   startc;	/* W   Xon character             */
 	volatile unsigned char   stopc;		/* W   Xoff character           */
@@ -190,13 +190,13 @@ struct bs_t {
 	volatile unsigned char   ochar;		/* U   Saved output character   */
 	volatile unsigned char   omask;		/* U   Output character mask    */
 
-	volatile unsigned char   bfill[13];	/* U   Reserved for expansion   */  
+	volatile unsigned char   bfill[13];	/* U   Reserved for expansion   */
 
 	volatile unsigned char   scc[16];	/* U   SCC registers            */
 };
 
 
-/************************************************************************   
+/************************************************************************
  * FEP supported functions
  ************************************************************************/
 #define SRLOW		0xe0		/* Set receive low water	*/
@@ -207,12 +207,12 @@ struct bs_t {
 #define SMINT		0xe5		/* Set Modem Interrupt		*/
 #define SAFLOWC		0xe6		/* Set Aux. flow control chars	*/
 #define SBREAK		0xe8		/* Send break			*/
-#define SMODEM		0xe9		/* Set 8530 modem control lines	*/  
+#define SMODEM		0xe9		/* Set 8530 modem control lines	*/
 #define SIFLAG		0xea		/* Set UNIX iflags		*/
 #define SFLOWC		0xeb		/* Set flow control characters	*/
 #define STLOW		0xec		/* Set transmit low water mark	*/
 #define RPAUSE		0xee		/* Pause receive		*/
-#define RRESUME		0xef		/* Resume receive		*/  
+#define RRESUME		0xef		/* Resume receive		*/
 #define CHRESET		0xf0		/* Reset Channel		*/
 #define BUFSETALL	0xf2		/* Set Tx & Rx buffer size avail*/
 #define SOFLAG		0xf3		/* Set UNIX oflags		*/
@@ -223,23 +223,23 @@ struct bs_t {
 #define SCOMMODE	0xfd		/* Set RS232/422 mode		*/
 
 
-/************************************************************************ 
+/************************************************************************
  *	Modes for SCOMMODE
  ************************************************************************/
 #define MODE_232	0x00
 #define MODE_422	0x01
 
 
-/************************************************************************ 
+/************************************************************************
  *      Event flags.
  ************************************************************************/
-#define IFBREAK         0x01            /* Break received               */  
+#define IFBREAK         0x01            /* Break received               */
 #define IFTLW           0x02            /* Transmit low water           */
 #define IFTEM           0x04            /* Transmitter empty            */
 #define IFDATA          0x08            /* Receive data present         */
 #define IFMODEM         0x20            /* Modem status change          */
 
-/************************************************************************   
+/************************************************************************
  *      Modem flags
  ************************************************************************/
 #       define  DM_RTS          0x02    /* Request to send              */
