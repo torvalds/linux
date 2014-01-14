@@ -252,6 +252,7 @@ int pm_clk_resume(struct device *dev)
 	struct pm_subsys_data *psd = dev_to_psd(dev);
 	struct pm_clock_entry *ce;
 	unsigned long flags;
+	int ret;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -262,8 +263,9 @@ int pm_clk_resume(struct device *dev)
 
 	list_for_each_entry(ce, &psd->clock_list, node) {
 		if (ce->status < PCE_STATUS_ERROR) {
-			clk_enable(ce->clk);
-			ce->status = PCE_STATUS_ENABLED;
+			ret = clk_enable(ce->clk);
+			if (!ret)
+				ce->status = PCE_STATUS_ENABLED;
 		}
 	}
 
