@@ -523,12 +523,12 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 {
 	struct mlx5_ib_ucontext *context;
 	struct mlx5_ib_create_qp ucmd;
-	int page_shift;
+	int page_shift = 0;
 	int uar_index;
 	int npages;
-	u32 offset;
+	u32 offset = 0;
 	int uuarn;
-	int ncont;
+	int ncont = 0;
 	int err;
 
 	err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
@@ -564,23 +564,29 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (err)
 		goto err_uuar;
 
-	qp->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
-			       qp->buf_size, 0, 0);
-	if (IS_ERR(qp->umem)) {
-		mlx5_ib_dbg(dev, "umem_get failed\n");
-		err = PTR_ERR(qp->umem);
-		goto err_uuar;
+	if (ucmd.buf_addr && qp->buf_size) {
+		qp->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
+				       qp->buf_size, 0, 0);
+		if (IS_ERR(qp->umem)) {
+			mlx5_ib_dbg(dev, "umem_get failed\n");
+			err = PTR_ERR(qp->umem);
+			goto err_uuar;
+		}
+	} else {
+		qp->umem = NULL;
 	}
 
-	mlx5_ib_cont_pages(qp->umem, ucmd.buf_addr, &npages, &page_shift,
-			   &ncont, NULL);
-	err = mlx5_ib_get_buf_offset(ucmd.buf_addr, page_shift, &offset);
-	if (err) {
-		mlx5_ib_warn(dev, "bad offset\n");
-		goto err_umem;
+	if (qp->umem) {
+		mlx5_ib_cont_pages(qp->umem, ucmd.buf_addr, &npages, &page_shift,
+				   &ncont, NULL);
+		err = mlx5_ib_get_buf_offset(ucmd.buf_addr, page_shift, &offset);
+		if (err) {
+			mlx5_ib_warn(dev, "bad offset\n");
+			goto err_umem;
+		}
+		mlx5_ib_dbg(dev, "addr 0x%llx, size %d, npages %d, page_shift %d, ncont %d, offset %d\n",
+			    ucmd.buf_addr, qp->buf_size, npages, page_shift, ncont, offset);
 	}
-	mlx5_ib_dbg(dev, "addr 0x%llx, size %d, npages %d, page_shift %d, ncont %d, offset %d\n",
-		    ucmd.buf_addr, qp->buf_size, npages, page_shift, ncont, offset);
 
 	*inlen = sizeof(**in) + sizeof(*(*in)->pas) * ncont;
 	*in = mlx5_vzalloc(*inlen);
@@ -588,7 +594,8 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		err = -ENOMEM;
 		goto err_umem;
 	}
-	mlx5_ib_populate_pas(dev, qp->umem, page_shift, (*in)->pas, 0);
+	if (qp->umem)
+		mlx5_ib_populate_pas(dev, qp->umem, page_shift, (*in)->pas, 0);
 	(*in)->ctx.log_pg_sz_remote_qpn =
 		cpu_to_be32((page_shift - MLX5_ADAPTER_PAGE_SHIFT) << 24);
 	(*in)->ctx.params2 = cpu_to_be32(offset << 6);
@@ -619,7 +626,8 @@ err_free:
 	mlx5_vfree(*in);
 
 err_umem:
-	ib_umem_release(qp->umem);
+	if (qp->umem)
+		ib_umem_release(qp->umem);
 
 err_uuar:
 	free_uuar(&context->uuari, uuarn);
@@ -632,7 +640,8 @@ static void destroy_qp_user(struct ib_pd *pd, struct mlx5_ib_qp *qp)
 
 	context = to_mucontext(pd->uobject->context);
 	mlx5_ib_db_unmap_user(context, &qp->db);
-	ib_umem_release(qp->umem);
+	if (qp->umem)
+		ib_umem_release(qp->umem);
 	free_uuar(&context->uuari, qp->uuarn);
 }
 
