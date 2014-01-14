@@ -687,7 +687,8 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 			} else {
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
-				BUG_ON(list_empty(&sh->lru));
+				BUG_ON(list_empty(&sh->lru) &&
+				       !test_bit(STRIPE_EXPANDING, &sh->state));
 				list_del_init(&sh->lru);
 				if (sh->group) {
 					sh->group->stripes_cnt--;
