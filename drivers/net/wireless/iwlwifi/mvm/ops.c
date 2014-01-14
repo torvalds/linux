@@ -338,6 +338,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	};
 	int err, scan_size;
 
+	/*
+	 * We use IWL_MVM_STATION_COUNT to check the validity of the station
+	 * index all over the driver - check that its value corresponds to the
+	 * array size.
+	 */
+	BUILD_BUG_ON(ARRAY_SIZE(mvm->fw_id_to_mac_id) != IWL_MVM_STATION_COUNT);
+
 	/********************************
 	 * 1. Allocating and configuring HW data
 	 ********************************/
