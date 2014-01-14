@@ -1466,7 +1466,6 @@ void audit_log_n_hex(struct audit_buffer *ab, const unsigned char *buf,
 	int i, avail, new_len;
 	unsigned char *ptr;
 	struct sk_buff *skb;
-	static const unsigned char *hex = "0123456789ABCDEF";
 
 	if (!ab)
 		return;
@@ -1484,10 +1483,8 @@ void audit_log_n_hex(struct audit_buffer *ab, const unsigned char *buf,
 	}
 
 	ptr = skb_tail_pointer(skb);
-	for (i=0; i<len; i++) {
-		*ptr++ = hex[(buf[i] & 0xF0)>>4]; /* Upper nibble */
-		*ptr++ = hex[buf[i] & 0x0F];	  /* Lower nibble */
-	}
+	for (i = 0; i < len; i++)
+		ptr = hex_byte_pack_upper(ptr, buf[i]);
 	*ptr = 0;
 	skb_put(skb, len << 1); /* new string is twice the old string */
 }
