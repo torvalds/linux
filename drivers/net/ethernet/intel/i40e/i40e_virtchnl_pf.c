@@ -1792,7 +1792,7 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 			local_vf_id, v_opcode, msglen);
 		return ret;
 	}
-	wr32(hw, I40E_VFGEN_RSTAT1(local_vf_id), I40E_VFR_VFACTIVE);
+
 	switch (v_opcode) {
 	case I40E_VIRTCHNL_OP_VERSION:
 		ret = i40e_vc_get_version_msg(vf);
