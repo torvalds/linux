@@ -2661,6 +2661,9 @@ ioctls.</para>
         <listitem>
 	  <para>Exporting DMABUF files using &VIDIOC-EXPBUF; ioctl.</para>
         </listitem>
+        <listitem>
+	  <para>Software Defined Radio (SDR) Interface, <xref linkend="sdr" />.</para>
+        </listitem>
       </itemizedlist>
     </section>
 
