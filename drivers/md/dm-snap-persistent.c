@@ -402,17 +402,18 @@ static int write_header(struct pstore *ps)
 /*
  * Access functions for the disk exceptions, these do the endian conversions.
  */
-static struct disk_exception *get_exception(struct pstore *ps, uint32_t index)
+static struct disk_exception *get_exception(struct pstore *ps, void *ps_area,
+					    uint32_t index)
 {
 	BUG_ON(index >= ps->exceptions_per_area);
 
-	return ((struct disk_exception *) ps->area) + index;
+	return ((struct disk_exception *) ps_area) + index;
 }
 
-static void read_exception(struct pstore *ps,
+static void read_exception(struct pstore *ps, void *ps_area,
 			   uint32_t index, struct core_exception *result)
 {
-	struct disk_exception *de = get_exception(ps, index);
+	struct disk_exception *de = get_exception(ps, ps_area, index);
 
 	/* copy it */
 	result->old_chunk = le64_to_cpu(de->old_chunk);
@@ -422,7 +423,7 @@ static void read_exception(struct pstore *ps,
 static void write_exception(struct pstore *ps,
 			    uint32_t index, struct core_exception *e)
 {
-	struct disk_exception *de = get_exception(ps, index);
+	struct disk_exception *de = get_exception(ps, ps->area, index);
 
 	/* copy it */
 	de->old_chunk = cpu_to_le64(e->old_chunk);
@@ -431,7 +432,7 @@ static void write_exception(struct pstore *ps,
 
 static void clear_exception(struct pstore *ps, uint32_t index)
 {
-	struct disk_exception *de = get_exception(ps, index);
+	struct disk_exception *de = get_exception(ps, ps->area, index);
 
 	/* clear it */
 	de->old_chunk = 0;
@@ -443,7 +444,7 @@ static void clear_exception(struct pstore *ps, uint32_t index)
  * 'full' is filled in to indicate if the area has been
  * filled.
  */
-static int insert_exceptions(struct pstore *ps,
+static int insert_exceptions(struct pstore *ps, void *ps_area,
 			     int (*callback)(void *callback_context,
 					     chunk_t old, chunk_t new),
 			     void *callback_context,
@@ -457,7 +458,7 @@ static int insert_exceptions(struct pstore *ps,
 	*full = 1;
 
 	for (i = 0; i < ps->exceptions_per_area; i++) {
-		read_exception(ps, i, &e);
+		read_exception(ps, ps_area, i, &e);
 
 		/*
 		 * If the new_chunk is pointing at the start of
@@ -504,7 +505,8 @@ static int read_exceptions(struct pstore *ps,
 		if (r)
 			return r;
 
-		r = insert_exceptions(ps, callback, callback_context, &full);
+		r = insert_exceptions(ps, ps->area, callback, callback_context,
+				      &full);
 		if (r)
 			return r;
 	}
@@ -734,7 +736,7 @@ static int persistent_prepare_merge(struct dm_exception_store *store,
 		ps->current_committed = ps->exceptions_per_area;
 	}
 
-	read_exception(ps, ps->current_committed - 1, &ce);
+	read_exception(ps, ps->area, ps->current_committed - 1, &ce);
 	*last_old_chunk = ce.old_chunk;
 	*last_new_chunk = ce.new_chunk;
 
@@ -744,8 +746,8 @@ static int persistent_prepare_merge(struct dm_exception_store *store,
 	 */
 	for (nr_consecutive = 1; nr_consecutive < ps->current_committed;
 	     nr_consecutive++) {
-		read_exception(ps, ps->current_committed - 1 - nr_consecutive,
-			       &ce);
+		read_exception(ps, ps->area,
+			       ps->current_committed - 1 - nr_consecutive, &ce);
 		if (ce.old_chunk != *last_old_chunk - nr_consecutive ||
 		    ce.new_chunk != *last_new_chunk - nr_consecutive)
 			break;
