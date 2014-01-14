@@ -128,7 +128,7 @@ void ath_debug_rate_stats(struct ath_softc *sc,
 	rxs = IEEE80211_SKB_RXCB(skb);
 
 	if (IS_HT_RATE(rs->rs_rate)) {
-		if (rxs->rate_idx > ARRAY_SIZE(rstats->ht_stats))
+		if (rxs->rate_idx >= ARRAY_SIZE(rstats->ht_stats))
 			goto exit;
 
 		if (rxs->flag & RX_FLAG_40MHZ)
