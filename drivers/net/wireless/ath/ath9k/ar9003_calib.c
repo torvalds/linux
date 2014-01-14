@@ -565,7 +565,7 @@ static bool ar9003_hw_solve_iq_cal(struct ath_hw *ah,
 	const s32 result_shift = 1 << 15;
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	f2 = (f1 * f1 + f3 * f3) / result_shift;
+	f2 = ((f1 >> 3) * (f1 >> 3) + (f3 >> 3) * (f3 >> 3)) >> 9;
 
 	if (!f2) {
 		ath_dbg(common, CALIBRATE, "Divide by 0\n");
