@@ -577,7 +577,7 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 
 		if (offset >= i_size) {
 			*uptodate = true;
-			EXOFS_DBGMSG("offset >= i_size index=0x%lx\n", index);
+			EXOFS_DBGMSG2("offset >= i_size index=0x%lx\n", index);
 			return ZERO_PAGE(0);
 		}
 
@@ -596,10 +596,10 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 			*uptodate = true;
 		else
 			*uptodate = PageUptodate(page);
-		EXOFS_DBGMSG("index=0x%lx uptodate=%d\n", index, *uptodate);
+		EXOFS_DBGMSG2("index=0x%lx uptodate=%d\n", index, *uptodate);
 		return page;
 	} else {
-		EXOFS_DBGMSG("YES that_locked_page index=0x%lx\n",
+		EXOFS_DBGMSG2("YES that_locked_page index=0x%lx\n",
 			     pcol->that_locked_page->index);
 		*uptodate = true;
 		return pcol->that_locked_page;
@@ -611,11 +611,11 @@ static void __r4w_put_page(void *priv, struct page *page)
 	struct page_collect *pcol = priv;
 
 	if ((pcol->that_locked_page != page) && (ZERO_PAGE(0) != page)) {
-		EXOFS_DBGMSG("index=0x%lx\n", page->index);
+		EXOFS_DBGMSG2("index=0x%lx\n", page->index);
 		page_cache_release(page);
 		return;
 	}
-	EXOFS_DBGMSG("that_locked_page index=0x%lx\n",
+	EXOFS_DBGMSG2("that_locked_page index=0x%lx\n",
 		     ZERO_PAGE(0) == page ? -1 : page->index);
 }
 
@@ -1018,7 +1018,7 @@ static int _do_truncate(struct inode *inode, loff_t newsize)
 	if (likely(!ret))
 		truncate_setsize(inode, newsize);
 
-	EXOFS_DBGMSG("(0x%lx) size=0x%llx ret=>%d\n",
+	EXOFS_DBGMSG2("(0x%lx) size=0x%llx ret=>%d\n",
 		     inode->i_ino, newsize, ret);
 	return ret;
 }
@@ -1108,7 +1108,7 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 
 	ret = extract_attr_from_ios(ios, &attrs[0]);
 	if (ret) {
-		EXOFS_ERR("%s: extract_attr of inode_data failed\n", __func__);
+		EXOFS_ERR("%s: extract_attr 0 of inode failed\n", __func__);
 		goto out;
 	}
 	WARN_ON(attrs[0].len != EXOFS_INO_ATTR_SIZE);
@@ -1116,7 +1116,7 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 
 	ret = extract_attr_from_ios(ios, &attrs[1]);
 	if (ret) {
-		EXOFS_ERR("%s: extract_attr of inode_data failed\n", __func__);
+		EXOFS_ERR("%s: extract_attr 1 of inode failed\n", __func__);
 		goto out;
 	}
 	if (attrs[1].len) {
@@ -1131,7 +1131,7 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 
 	ret = extract_attr_from_ios(ios, &attrs[2]);
 	if (ret) {
-		EXOFS_ERR("%s: extract_attr of inode_data failed\n", __func__);
+		EXOFS_ERR("%s: extract_attr 2 of inode failed\n", __func__);
 		goto out;
 	}
 	if (attrs[2].len) {
