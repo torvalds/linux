@@ -66,7 +66,7 @@ MODULE_PARM_DESC(usb_xfer_mode,
 
 
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
-static unsigned long em28xx_devused;
+DECLARE_BITMAP(em28xx_devused, EM28XX_MAXBOARDS);
 
 struct em28xx_hash_table {
 	unsigned long hash;
@@ -2885,7 +2885,7 @@ void em28xx_release_resources(struct em28xx *dev)
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
-	clear_bit(dev->devno, &em28xx_devused);
+	clear_bit(dev->devno, em28xx_devused);
 
 	mutex_unlock(&dev->lock);
 };
@@ -3094,7 +3094,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* Check to see next free device and mark as used */
 	do {
-		nr = find_first_zero_bit(&em28xx_devused, EM28XX_MAXBOARDS);
+		nr = find_first_zero_bit(em28xx_devused, EM28XX_MAXBOARDS);
 		if (nr >= EM28XX_MAXBOARDS) {
 			/* No free device slots */
 			printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
@@ -3102,7 +3102,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			retval = -ENOMEM;
 			goto err_no_slot;
 		}
-	} while (test_and_set_bit(nr, &em28xx_devused));
+	} while (test_and_set_bit(nr, em28xx_devused));
 
 	/* Don't register audio interfaces */
 	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
@@ -3355,7 +3355,7 @@ err_free:
 	kfree(dev);
 
 err:
-	clear_bit(nr, &em28xx_devused);
+	clear_bit(nr, em28xx_devused);
 
 err_no_slot:
 	usb_put_dev(udev);
