@@ -381,6 +381,13 @@
 				allwinner,pull = <0>;
 			};
 
+			uart2_pins_a: uart2@0 {
+				allwinner,pins = "PI16", "PI17", "PI18", "PI19";
+				allwinner,function = "uart2";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			uart6_pins_a: uart6@0 {
 				allwinner,pins = "PI12", "PI13";
 				allwinner,function = "uart6";
