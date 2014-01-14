@@ -1,0 +1,11 @@
+#
+# POWERPC CPU Idle Drivers
+#
+config PSERIES_CPUIDLE
+	bool "Cpuidle driver for pSeries platforms"
+	depends on CPU_IDLE
+	depends on PPC_PSERIES
+	default y
+	help
+	  Select this option to enable processor idle state management
+	  through cpuidle subsystem.
