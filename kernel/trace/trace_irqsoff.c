@@ -597,8 +597,13 @@ static void stop_irqsoff_tracer(struct trace_array *tr, int graph)
 	unregister_irqsoff_function(tr, graph);
 }
 
-static void __irqsoff_tracer_init(struct trace_array *tr)
+static bool irqsoff_busy;
+
+static int __irqsoff_tracer_init(struct trace_array *tr)
 {
+	if (irqsoff_busy)
+		return -EBUSY;
+
 	save_flags = trace_flags;
 
 	/* non overwrite screws up the latency tracers */
@@ -617,6 +622,9 @@ static void __irqsoff_tracer_init(struct trace_array *tr)
 	if (start_irqsoff_tracer(tr, (tr->flags & TRACE_ARRAY_FL_GLOBAL &&
 				      is_graph())))
 		printk(KERN_ERR "failed to start irqsoff tracer\n");
+
+	irqsoff_busy = true;
+	return 0;
 }
 
 static void irqsoff_tracer_reset(struct trace_array *tr)
@@ -629,6 +637,8 @@ static void irqsoff_tracer_reset(struct trace_array *tr)
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, lat_flag);
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, overwrite_flag);
 	ftrace_reset_array_ops(tr);
+
+	irqsoff_busy = false;
 }
 
 static void irqsoff_tracer_start(struct trace_array *tr)
@@ -646,8 +656,7 @@ static int irqsoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_IRQS_OFF;
 
-	__irqsoff_tracer_init(tr);
-	return 0;
+	return __irqsoff_tracer_init(tr);
 }
 static struct tracer irqsoff_tracer __read_mostly =
 {
@@ -667,6 +676,7 @@ static struct tracer irqsoff_tracer __read_mostly =
 #endif
 	.open           = irqsoff_trace_open,
 	.close          = irqsoff_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 # define register_irqsoff(trace) register_tracer(&trace)
@@ -679,8 +689,7 @@ static int preemptoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_PREEMPT_OFF;
 
-	__irqsoff_tracer_init(tr);
-	return 0;
+	return __irqsoff_tracer_init(tr);
 }
 
 static struct tracer preemptoff_tracer __read_mostly =
@@ -701,6 +710,7 @@ static struct tracer preemptoff_tracer __read_mostly =
 #endif
 	.open		= irqsoff_trace_open,
 	.close		= irqsoff_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 # define register_preemptoff(trace) register_tracer(&trace)
@@ -715,8 +725,7 @@ static int preemptirqsoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_IRQS_OFF | TRACER_PREEMPT_OFF;
 
-	__irqsoff_tracer_init(tr);
-	return 0;
+	return __irqsoff_tracer_init(tr);
 }
 
 static struct tracer preemptirqsoff_tracer __read_mostly =
@@ -737,6 +746,7 @@ static struct tracer preemptirqsoff_tracer __read_mostly =
 #endif
 	.open		= irqsoff_trace_open,
 	.close		= irqsoff_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 
