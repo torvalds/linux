@@ -356,7 +356,6 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 	struct rtnl_link_stats64 *vsi_stats = i40e_get_vsi_stats_struct(vsi);
 	int i;
 
-
 	if (test_bit(__I40E_DOWN, &vsi->state))
 		return stats;
 
@@ -3603,7 +3602,7 @@ static int i40e_vsi_get_bw_info(struct i40e_vsi *vsi)
 
 	/* Get the VSI level BW configuration per TC */
 	aq_ret = i40e_aq_query_vsi_ets_sla_config(hw, vsi->seid, &bw_ets_config,
-					          NULL);
+						  NULL);
 	if (aq_ret) {
 		dev_info(&pf->pdev->dev,
 			 "couldn't get pf vsi ets bw config, err %d, aq_err %d\n",

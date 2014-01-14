@@ -1195,8 +1195,8 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 		} v4;
 		struct {
 			u8 data[16];
-			} v6;
-		} ipaddr;
+		} v6;
+	} ipaddr;
 	__le16 flags;
 #define I40E_AQC_ADD_CLOUD_FILTER_SHIFT                 0
 #define I40E_AQC_ADD_CLOUD_FILTER_MASK                  (0x3F << \
