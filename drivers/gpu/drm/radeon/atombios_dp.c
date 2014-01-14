@@ -172,7 +172,7 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
 			return send_bytes;
 		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
-			udelay(400);
+			usleep_range(400, 500);
 		else
 			return -EIO;
 	}
@@ -206,7 +206,7 @@ static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
 		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
 			return ret;
 		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
-			udelay(400);
+			usleep_range(400, 500);
 		else if (ret == 0)
 			return -EPROTO;
 		else
@@ -295,7 +295,7 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return -EREMOTEIO;
 		case DP_AUX_NATIVE_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_ch native defer\n");
-			udelay(400);
+			usleep_range(500, 600);
 			continue;
 		default:
 			DRM_ERROR("aux_ch invalid native reply 0x%02x\n", ack);
@@ -312,7 +312,7 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return -EREMOTEIO;
 		case DP_AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
-			udelay(400);
+			usleep_range(400, 500);
 			break;
 		default:
 			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", ack);
