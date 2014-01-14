@@ -132,6 +132,15 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return VM_FAULT_NOPAGE;
 	}
 
+	/*
+	 * Refuse to fault imported pages. This should be handled
+	 * (if at all) by redirecting mmap to the exporter.
+	 */
+	if (bo->ttm && (bo->ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+		retval = VM_FAULT_SIGBUS;
+		goto out_unlock;
+	}
+
 	if (bdev->driver->fault_reserve_notify) {
 		ret = bdev->driver->fault_reserve_notify(bo);
 		switch (ret) {
@@ -217,10 +226,17 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			} else if (unlikely(!page)) {
 				break;
 			}
+			page->mapping = vma->vm_file->f_mapping;
+			page->index = drm_vma_node_start(&bo->vma_node) +
+				page_offset;
 			pfn = page_to_pfn(page);
 		}
 
-		ret = vm_insert_mixed(&cvma, address, pfn);
+		if (vma->vm_flags & VM_MIXEDMAP)
+			ret = vm_insert_mixed(&cvma, address, pfn);
+		else
+			ret = vm_insert_pfn(&cvma, address, pfn);
+
 		/*
 		 * Somebody beat us to this PTE or prefaulting to
 		 * an already populated PTE, or prefaulting error.
@@ -249,6 +265,8 @@ static void ttm_bo_vm_open(struct vm_area_struct *vma)
 {
 	struct ttm_buffer_object *bo =
 	    (struct ttm_buffer_object *)vma->vm_private_data;
+
+	WARN_ON(bo->bdev->dev_mapping != vma->vm_file->f_mapping);
 
 	(void)ttm_bo_reference(bo);
 }
@@ -319,7 +337,14 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	 */
 
 	vma->vm_private_data = bo;
-	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
+
+	/*
+	 * PFNMAP is faster than MIXEDMAP due to reduced page
+	 * administration. So use MIXEDMAP only if private VMA, where
+	 * we need to support COW.
+	 */
+	vma->vm_flags |= (vma->vm_flags & VM_SHARED) ? VM_PFNMAP : VM_MIXEDMAP;
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 out_unref:
 	ttm_bo_unref(&bo);
@@ -334,7 +359,8 @@ int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 
 	vma->vm_ops = &ttm_bo_vm_ops;
 	vma->vm_private_data = ttm_bo_reference(bo);
-	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND;
+	vma->vm_flags |= (vma->vm_flags & VM_SHARED) ? VM_PFNMAP : VM_MIXEDMAP;
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND;
 	return 0;
 }
 EXPORT_SYMBOL(ttm_fbdev_mmap);
