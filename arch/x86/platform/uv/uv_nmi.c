@@ -546,7 +546,7 @@ static void uv_call_kdb(int cpu, struct pt_regs *regs, int master)
 	if (master) {
 		/* call KGDB NMI handler as MASTER */
 		ret = kgdb_nmicallin(cpu, X86_TRAP_NMI, regs,
-					&uv_nmi_slave_continue);
+			KDB_REASON_SYSTEM_NMI, &uv_nmi_slave_continue);
 		if (ret) {
 			pr_alert("KDB returned error, is kgdboc set?\n");
 			atomic_set(&uv_nmi_slave_continue, SLAVE_EXIT);
