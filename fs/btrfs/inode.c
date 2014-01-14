@@ -8477,7 +8477,7 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 {
 	int ret;
 
-	if (root->fs_info->sb->s_flags & MS_RDONLY)
+	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
 		return -EROFS;
 
 	ret = __start_delalloc_inodes(root, delay_iput);
@@ -8503,7 +8503,7 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int delay_iput)
 	struct list_head splice;
 	int ret;
 
-	if (fs_info->sb->s_flags & MS_RDONLY)
+	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
 		return -EROFS;
 
 	INIT_LIST_HEAD(&splice);
