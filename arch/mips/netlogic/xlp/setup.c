@@ -96,6 +96,14 @@ static void __init xlp_init_mem_from_bars(void)
 
 void __init plat_mem_setup(void)
 {
+#ifdef CONFIG_SMP
+	nlm_wakeup_secondary_cpus();
+
+	/* update TLB size after waking up threads */
+	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
+
+	register_smp_ops(&nlm_smp_ops);
+#endif
 	panic_timeout	= 5;
 	_machine_restart = (void (*)(char *))nlm_linux_exit;
 	_machine_halt	= nlm_linux_exit;
@@ -172,11 +180,5 @@ void __init prom_init(void)
 
 #ifdef CONFIG_SMP
 	cpumask_setall(&nlm_cpumask);
-	nlm_wakeup_secondary_cpus();
-
-	/* update TLB size after waking up threads */
-	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
-
-	register_smp_ops(&nlm_smp_ops);
 #endif
 }

@@ -96,7 +96,7 @@ static int wait_for_cpus(int cpu, int bootcpu)
 	volatile uint32_t *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
 	int i, count, notready;
 
-	count = 0x20000000;
+	count = 0x800000;
 	do {
 		notready = nlm_threads_per_core;
 		for (i = 0; i < nlm_threads_per_core; i++)
@@ -188,7 +188,8 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 			nodep->coremask |= 1u << core;
 
 			/* spin until the hw threads sets their ready */
-			wait_for_cpus(cpu, 0);
+			if (!wait_for_cpus(cpu, 0))
+				pr_err("Node %d : timeout core %d\n", n, core);
 		}
 	}
 }
@@ -200,7 +201,8 @@ void xlp_wakeup_secondary_cpus()
 	 * first wakeup core 0 threads
 	 */
 	xlp_boot_core0_siblings();
-	wait_for_cpus(0, 0);
+	if (!wait_for_cpus(0, 0))
+		pr_err("Node 0 : timeout core 0\n");
 
 	/* now get other cores out of reset */
 	xlp_enable_secondary_cores(&nlm_cpumask);
