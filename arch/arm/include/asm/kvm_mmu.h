@@ -116,8 +116,8 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 
 struct kvm;
 
-static inline void coherent_icache_guest_page(struct kvm *kvm, hva_t hva,
-					      unsigned long size)
+static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
+					     unsigned long size)
 {
 	/*
 	 * If we are going to insert an instruction page and the icache is
