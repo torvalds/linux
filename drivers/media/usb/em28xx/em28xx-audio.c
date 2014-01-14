@@ -163,10 +163,9 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	urb->status = 0;
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status < 0) {
+	if (status < 0)
 		em28xx_errdev("resubmit of audio urb failed (error=%i)\n",
 			      status);
-	}
 	return;
 }
 
@@ -183,7 +182,8 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 
 		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
 		if (errCode) {
-			em28xx_errdev("submit of audio urb failed\n");
+			em28xx_errdev("submit of audio urb failed (error=%i)\n",
+				      errCode);
 			em28xx_deinit_isoc_audio(dev);
 			atomic_set(&dev->stream_started, 0);
 			return errCode;
