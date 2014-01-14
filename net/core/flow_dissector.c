@@ -395,17 +395,21 @@ u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 EXPORT_SYMBOL(__netdev_pick_tx);
 
 struct netdev_queue *netdev_pick_tx(struct net_device *dev,
-				    struct sk_buff *skb)
+				    struct sk_buff *skb,
+				    void *accel_priv)
 {
 	int queue_index = 0;
 
 	if (dev->real_num_tx_queues != 1) {
 		const struct net_device_ops *ops = dev->netdev_ops;
 		if (ops->ndo_select_queue)
-			queue_index = ops->ndo_select_queue(dev, skb);
+			queue_index = ops->ndo_select_queue(dev, skb,
+							    accel_priv);
 		else
 			queue_index = __netdev_pick_tx(dev, skb);
-		queue_index = dev_cap_txqueue(dev, queue_index);
+
+		if (!accel_priv)
+			queue_index = dev_cap_txqueue(dev, queue_index);
 	}
 
 	skb_set_queue_mapping(skb, queue_index);

@@ -520,10 +520,12 @@ struct bnx2x_fastpath {
 #define BNX2X_FP_STATE_IDLE		      0
 #define BNX2X_FP_STATE_NAPI		(1 << 0)    /* NAPI owns this FP */
 #define BNX2X_FP_STATE_POLL		(1 << 1)    /* poll owns this FP */
-#define BNX2X_FP_STATE_NAPI_YIELD	(1 << 2)    /* NAPI yielded this FP */
-#define BNX2X_FP_STATE_POLL_YIELD	(1 << 3)    /* poll yielded this FP */
+#define BNX2X_FP_STATE_DISABLED		(1 << 2)
+#define BNX2X_FP_STATE_NAPI_YIELD	(1 << 3)    /* NAPI yielded this FP */
+#define BNX2X_FP_STATE_POLL_YIELD	(1 << 4)    /* poll yielded this FP */
+#define BNX2X_FP_OWNED	(BNX2X_FP_STATE_NAPI | BNX2X_FP_STATE_POLL)
 #define BNX2X_FP_YIELD	(BNX2X_FP_STATE_NAPI_YIELD | BNX2X_FP_STATE_POLL_YIELD)
-#define BNX2X_FP_LOCKED	(BNX2X_FP_STATE_NAPI | BNX2X_FP_STATE_POLL)
+#define BNX2X_FP_LOCKED	(BNX2X_FP_OWNED | BNX2X_FP_STATE_DISABLED)
 #define BNX2X_FP_USER_PEND (BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_POLL_YIELD)
 	/* protect state */
 	spinlock_t lock;
@@ -613,7 +615,7 @@ static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
 {
 	bool rc = true;
 
-	spin_lock(&fp->lock);
+	spin_lock_bh(&fp->lock);
 	if (fp->state & BNX2X_FP_LOCKED) {
 		WARN_ON(fp->state & BNX2X_FP_STATE_NAPI);
 		fp->state |= BNX2X_FP_STATE_NAPI_YIELD;
@@ -622,7 +624,7 @@ static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
 		/* we don't care if someone yielded */
 		fp->state = BNX2X_FP_STATE_NAPI;
 	}
-	spin_unlock(&fp->lock);
+	spin_unlock_bh(&fp->lock);
 	return rc;
 }
 
@@ -631,14 +633,16 @@ static inline bool bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
 {
 	bool rc = false;
 
-	spin_lock(&fp->lock);
+	spin_lock_bh(&fp->lock);
 	WARN_ON(fp->state &
 		(BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_NAPI_YIELD));
 
 	if (fp->state & BNX2X_FP_STATE_POLL_YIELD)
 		rc = true;
-	fp->state = BNX2X_FP_STATE_IDLE;
-	spin_unlock(&fp->lock);
+
+	/* state ==> idle, unless currently disabled */
+	fp->state &= BNX2X_FP_STATE_DISABLED;
+	spin_unlock_bh(&fp->lock);
 	return rc;
 }
 
@@ -669,7 +673,9 @@ static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
 
 	if (fp->state & BNX2X_FP_STATE_POLL_YIELD)
 		rc = true;
-	fp->state = BNX2X_FP_STATE_IDLE;
+
+	/* state ==> idle, unless currently disabled */
+	fp->state &= BNX2X_FP_STATE_DISABLED;
 	spin_unlock_bh(&fp->lock);
 	return rc;
 }
@@ -677,8 +683,22 @@ static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
 /* true if a socket is polling, even if it did not get the lock */
 static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
 {
-	WARN_ON(!(fp->state & BNX2X_FP_LOCKED));
+	WARN_ON(!(fp->state & BNX2X_FP_OWNED));
 	return fp->state & BNX2X_FP_USER_PEND;
+}
+
+/* false if fp is currently owned */
+static inline bool bnx2x_fp_ll_disable(struct bnx2x_fastpath *fp)
+{
+	int rc = true;
+
+	spin_lock_bh(&fp->lock);
+	if (fp->state & BNX2X_FP_OWNED)
+		rc = false;
+	fp->state |= BNX2X_FP_STATE_DISABLED;
+	spin_unlock_bh(&fp->lock);
+
+	return rc;
 }
 #else
 static inline void bnx2x_fp_init_lock(struct bnx2x_fastpath *fp)
@@ -708,6 +728,10 @@ static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
 static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
 {
 	return false;
+}
+static inline bool bnx2x_fp_ll_disable(struct bnx2x_fastpath *fp)
+{
+	return true;
 }
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 

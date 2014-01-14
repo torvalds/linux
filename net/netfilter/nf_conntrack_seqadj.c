@@ -37,7 +37,7 @@ int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 		return 0;
 
 	if (unlikely(!seqadj)) {
-		WARN(1, "Wrong seqadj usage, missing nfct_seqadj_ext_add()\n");
+		WARN_ONCE(1, "Missing nfct_seqadj_ext_add() setup call\n");
 		return 0;
 	}
 
