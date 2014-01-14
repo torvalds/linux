@@ -1010,13 +1010,10 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		spin_unlock(&tsk->sighand->siglock);
 
 		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE);
-		audit_log_format(ab, " op=tty_set"
-				 " old-enabled=%d old-log_passwd=%d"
-				 " new-enabled=%d new-log_passwd=%d"
-				 " res=%d",
-				 old.enabled, old.log_passwd,
-				 s.enabled, s.log_passwd,
-				 !err);
+		audit_log_format(ab, " op=tty_set old-enabled=%d new-enabled=%d"
+				 " old-log_passwd=%d new-log_passwd=%d res=%d",
+				 old.enabled, s.enabled, old.log_passwd,
+				 s.log_passwd, !err);
 		audit_log_end(ab);
 		break;
 	}
