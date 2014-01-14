@@ -3747,7 +3747,8 @@ static int run(struct mddev *mddev)
 		    !test_bit(In_sync, &disk->rdev->flags)) {
 			disk->head_position = 0;
 			mddev->degraded++;
-			if (disk->rdev)
+			if (disk->rdev &&
+			    disk->rdev->saved_raid_disk < 0)
 				conf->fullsync = 1;
 		}
 		disk->recovery_disabled = mddev->recovery_disabled - 1;
