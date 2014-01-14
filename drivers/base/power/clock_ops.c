@@ -43,6 +43,7 @@ static void pm_clk_acquire(struct device *dev, struct pm_clock_entry *ce)
 	if (IS_ERR(ce->clk)) {
 		ce->status = PCE_STATUS_ERROR;
 	} else {
+		clk_prepare(ce->clk);
 		ce->status = PCE_STATUS_ACQUIRED;
 		dev_dbg(dev, "Clock %s managed by runtime PM.\n", ce->con_id);
 	}
@@ -99,10 +100,12 @@ static void __pm_clk_remove(struct pm_clock_entry *ce)
 
 	if (ce->status < PCE_STATUS_ERROR) {
 		if (ce->status == PCE_STATUS_ENABLED)
-			clk_disable_unprepare(ce->clk);
+			clk_disable(ce->clk);
 
-		if (ce->status >= PCE_STATUS_ACQUIRED)
+		if (ce->status >= PCE_STATUS_ACQUIRED) {
+			clk_unprepare(ce->clk);
 			clk_put(ce->clk);
+		}
 	}
 
 	kfree(ce->con_id);
