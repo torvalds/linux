@@ -603,6 +603,14 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (!s)
 		return -ENOMEM;
 
+	if (new_bo != old_bo) {
+		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
+		if (ret)
+			goto fail_free;
+	}
+
+	mutex_lock(&chan->cli->mutex);
+
 	/* synchronise rendering channel with the kernel's channel */
 	spin_lock(&new_bo->bo.bdev->fence_lock);
 	fence = nouveau_fence_ref(new_bo->bo.sync_obj);
@@ -612,13 +620,6 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (ret)
 		goto fail_free;
 
-	if (new_bo != old_bo) {
-		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
-		if (ret)
-			goto fail_free;
-	}
-
-	mutex_lock(&chan->cli->mutex);
 	ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
 	if (ret)
 		goto fail_unpin;
