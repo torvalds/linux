@@ -18,7 +18,6 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/pm_domain.h>
-#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 #include <mach/map.h>
 #include <mach/irqs.h>
@@ -29,6 +28,7 @@
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
+#include <mach/gpio-samsung.h>
 
 #include "regs-gpio-memport.h"
 #include "regs-modem.h"

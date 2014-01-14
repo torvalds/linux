@@ -27,17 +27,12 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/of_address.h>
-#ifdef CONFIG_ARCH_S3C24XX
-#include <linux/platform_data/gpio-samsung-s3c24xx.h>
-#endif
-#ifdef CONFIG_ARCH_S3C64XX
-#include <linux/platform_data/gpio-samsung-s3c64xx.h>
-#endif
 
 #include <asm/irq.h>
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/cpu.h>
 #include <plat/gpio-core.h>

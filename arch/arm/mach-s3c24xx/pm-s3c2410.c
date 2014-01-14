@@ -28,12 +28,12 @@
 #include <linux/syscore_ops.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
-#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <asm/mach-types.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>

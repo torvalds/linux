@@ -43,13 +43,13 @@
 
 #include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 #include <plat/fb.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 #include <plat/samsung-time.h>
 
 #include "common.h"

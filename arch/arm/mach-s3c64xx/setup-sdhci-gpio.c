@@ -17,10 +17,10 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/sdhci.h>
+#include <mach/gpio-samsung.h>
 
 void s3c64xx_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)
 {

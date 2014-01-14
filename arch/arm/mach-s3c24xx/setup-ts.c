@@ -12,11 +12,11 @@
 
 #include <linux/kernel.h>
 #include <linux/gpio.h>
-#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 struct platform_device; /* don't need the contents */
 
 #include <mach/hardware.h>
+#include <mach/gpio-samsung.h>
 
 /**
  * s3c24xx_ts_cfg_gpio - configure gpio for s3c2410 systems

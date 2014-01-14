@@ -19,12 +19,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#ifdef CONFIG_ARCH_S3C24XX
-#include <linux/platform_data/gpio-samsung-s3c24xx.h>
-#endif
-#ifdef CONFIG_ARCH_S3C64XX
-#include <linux/platform_data/gpio-samsung-s3c64xx.h>
-#endif
+#include <mach/gpio-samsung.h>
 #include <plat/gpio-core.h>
 #include <plat/pm.h>
 

@@ -36,13 +36,13 @@
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
+#include <mach/gpio-samsung.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 #include <plat/regs-serial.h>
 
 #include <plat/clock.h>

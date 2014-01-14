@@ -42,11 +42,11 @@
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-lcd.h>
 #include <mach/irqs.h>
+#include <mach/gpio-samsung.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/mmc-s3cmci.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
-#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>

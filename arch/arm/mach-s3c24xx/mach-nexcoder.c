@@ -37,9 +37,9 @@
 
 //#include <asm/debug-ll.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 #include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/clock.h>

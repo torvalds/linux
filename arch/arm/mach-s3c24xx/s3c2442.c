@@ -35,9 +35,9 @@
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-samsung.h>
 #include <linux/atomic.h>
 #include <asm/irq.h>
 
