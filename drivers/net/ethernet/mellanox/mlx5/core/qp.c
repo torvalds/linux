@@ -74,7 +74,7 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	struct mlx5_destroy_qp_mbox_out dout;
 	int err;
 
-	memset(&dout, 0, sizeof(dout));
+	memset(&out, 0, sizeof(out));
 	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_QP);
 
 	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
