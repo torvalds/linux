@@ -3916,7 +3916,7 @@ static void tracing_set_nop(struct trace_array *tr)
 	if (tr->current_trace == &nop_trace)
 		return;
 	
-	tr->current_trace->enabled = false;
+	tr->current_trace->enabled--;
 
 	if (tr->current_trace->reset)
 		tr->current_trace->reset(tr);
@@ -3962,7 +3962,7 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 
 	trace_branch_disable();
 
-	tr->current_trace->enabled = false;
+	tr->current_trace->enabled--;
 
 	if (tr->current_trace->reset)
 		tr->current_trace->reset(tr);
@@ -4006,7 +4006,7 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	}
 
 	tr->current_trace = t;
-	tr->current_trace->enabled = true;
+	tr->current_trace->enabled++;
 	trace_branch_enable(tr);
  out:
 	mutex_unlock(&trace_types_lock);
