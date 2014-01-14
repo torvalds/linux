@@ -41,6 +41,8 @@
  * Example user-space utilities: http://people.redhat.com/sgrubb/audit/
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <asm/types.h>
 #include <linux/atomic.h>
@@ -194,13 +196,12 @@ static void audit_set_portid(struct audit_buffer *ab, __u32 portid)
 
 void audit_panic(const char *message)
 {
-	switch (audit_failure)
-	{
+	switch (audit_failure) {
 	case AUDIT_FAIL_SILENT:
 		break;
 	case AUDIT_FAIL_PRINTK:
 		if (printk_ratelimit())
-			printk(KERN_ERR "audit: %s\n", message);
+			pr_err("%s\n", message);
 		break;
 	case AUDIT_FAIL_PANIC:
 		/* test audit_pid since printk is always losey, why bother? */
@@ -271,9 +272,7 @@ void audit_log_lost(const char *message)
 
 	if (print) {
 		if (printk_ratelimit())
-			printk(KERN_WARNING
-				"audit: audit_lost=%d audit_rate_limit=%d "
-				"audit_backlog_limit=%d\n",
+			pr_warn("audit_lost=%d audit_rate_limit=%d audit_backlog_limit=%d\n",
 				atomic_read(&audit_lost),
 				audit_rate_limit,
 				audit_backlog_limit);
@@ -394,7 +393,7 @@ static void audit_printk_skb(struct sk_buff *skb)
 
 	if (nlh->nlmsg_type != AUDIT_EOE) {
 		if (printk_ratelimit())
-			printk(KERN_NOTICE "type=%d %s\n", nlh->nlmsg_type, data);
+			pr_notice("type=%d %s\n", nlh->nlmsg_type, data);
 		else
 			audit_log_lost("printk limit exceeded\n");
 	}
@@ -411,7 +410,7 @@ static void kauditd_send_skb(struct sk_buff *skb)
 	if (err < 0) {
 		BUG_ON(err != -ECONNREFUSED); /* Shouldn't happen */
 		if (audit_pid) {
-			printk(KERN_ERR "audit: *NO* daemon at audit_pid=%d\n", audit_pid);
+			pr_err("*NO* daemon at audit_pid=%d\n", audit_pid);
 			audit_log_lost("auditd disappeared\n");
 			audit_pid = 0;
 			audit_sock = NULL;
@@ -1068,7 +1067,7 @@ static int __net_init audit_net_init(struct net *net)
 
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
-	pr_info("audit: initializing netlink socket in namespace\n");
+	pr_info("initializing netlink socket in namespace\n");
 
 	aunet->nlsk = netlink_kernel_create(net, NETLINK_AUDIT, &cfg);
 	if (aunet->nlsk == NULL) {
@@ -1108,8 +1107,8 @@ static int __init audit_init(void)
 	if (audit_initialized == AUDIT_DISABLED)
 		return 0;
 
-	pr_info("audit: initializing netlink subsys (%s)\n",
-	       audit_default ? "enabled" : "disabled");
+	pr_info("initializing netlink subsys (%s)\n",
+		audit_default ? "enabled" : "disabled");
 	register_pernet_subsys(&audit_net_ops);
 
 	skb_queue_head_init(&audit_skb_queue);
@@ -1134,7 +1133,7 @@ static int __init audit_enable(char *str)
 	if (!audit_default)
 		audit_initialized = AUDIT_DISABLED;
 
-	pr_info("audit: %s\n", audit_default ?
+	pr_info("%s\n", audit_default ?
 		"enabled (after initialization)" : "disabled (until reboot)");
 
 	return 1;
@@ -1146,15 +1145,16 @@ __setup("audit=", audit_enable);
 static int __init audit_backlog_limit_set(char *str)
 {
 	long int audit_backlog_limit_arg;
+
 	pr_info("audit_backlog_limit: ");
 	if (kstrtol(str, 0, &audit_backlog_limit_arg)) {
-		printk("using default of %d, unable to parse %s\n",
-		       audit_backlog_limit, str);
+		pr_cont("using default of %d, unable to parse %s\n",
+			audit_backlog_limit, str);
 		return 1;
 	}
 	if (audit_backlog_limit_arg >= 0)
 		audit_backlog_limit = (int)audit_backlog_limit_arg;
-	printk("%d\n", audit_backlog_limit);
+	pr_cont("%d\n", audit_backlog_limit);
 
 	return 1;
 }
@@ -1336,11 +1336,9 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 			}
 		}
 		if (audit_rate_check() && printk_ratelimit())
-			printk(KERN_WARNING
-			       "audit: audit_backlog=%d > "
-			       "audit_backlog_limit=%d\n",
-			       skb_queue_len(&audit_skb_queue),
-			       audit_backlog_limit);
+			pr_warn("audit_backlog=%d > audit_backlog_limit=%d\n",
+				skb_queue_len(&audit_skb_queue),
+				audit_backlog_limit);
 		audit_log_lost("backlog limit exceeded");
 		audit_backlog_wait_time = audit_backlog_wait_overflow;
 		wake_up(&audit_backlog_wait);
