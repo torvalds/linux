@@ -115,6 +115,11 @@ void dm_bufio_release_move(struct dm_buffer *b, sector_t new_block);
  */
 void dm_bufio_forget(struct dm_bufio_client *c, sector_t block);
 
+/*
+ * Set the minimum number of buffers before cleanup happens.
+ */
+void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned n);
+
 unsigned dm_bufio_get_block_size(struct dm_bufio_client *c);
 sector_t dm_bufio_get_device_size(struct dm_bufio_client *c);
 sector_t dm_bufio_get_block_number(struct dm_buffer *b);
