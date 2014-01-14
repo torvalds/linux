@@ -601,6 +601,8 @@ static void stop_wakeup_tracer(struct trace_array *tr)
 	unregister_trace_sched_migrate_task(probe_wakeup_migrate_task, NULL);
 }
 
+static bool wakeup_busy;
+
 static int __wakeup_tracer_init(struct trace_array *tr)
 {
 	save_flags = trace_flags;
@@ -613,11 +615,16 @@ static int __wakeup_tracer_init(struct trace_array *tr)
 	wakeup_trace = tr;
 	ftrace_init_array_ops(tr, wakeup_tracer_call);
 	start_wakeup_tracer(tr);
+
+	wakeup_busy = true;
 	return 0;
 }
 
 static int wakeup_tracer_init(struct trace_array *tr)
 {
+	if (wakeup_busy)
+		return -EBUSY;
+
 	wakeup_dl = 0;
 	wakeup_rt = 0;
 	return __wakeup_tracer_init(tr);
@@ -625,6 +632,9 @@ static int wakeup_tracer_init(struct trace_array *tr)
 
 static int wakeup_rt_tracer_init(struct trace_array *tr)
 {
+	if (wakeup_busy)
+		return -EBUSY;
+
 	wakeup_dl = 0;
 	wakeup_rt = 1;
 	return __wakeup_tracer_init(tr);
@@ -632,6 +642,9 @@ static int wakeup_rt_tracer_init(struct trace_array *tr)
 
 static int wakeup_dl_tracer_init(struct trace_array *tr)
 {
+	if (wakeup_busy)
+		return -EBUSY;
+
 	wakeup_dl = 1;
 	wakeup_rt = 0;
 	return __wakeup_tracer_init(tr);
@@ -649,6 +662,7 @@ static void wakeup_tracer_reset(struct trace_array *tr)
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, lat_flag);
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, overwrite_flag);
 	ftrace_reset_array_ops(tr);
+	wakeup_busy = false;
 }
 
 static void wakeup_tracer_start(struct trace_array *tr)
@@ -680,6 +694,7 @@ static struct tracer wakeup_tracer __read_mostly =
 #endif
 	.open		= wakeup_trace_open,
 	.close		= wakeup_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 
@@ -702,6 +717,7 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 #endif
 	.open		= wakeup_trace_open,
 	.close		= wakeup_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 
