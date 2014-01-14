@@ -23,13 +23,13 @@
 #include "ion.h"
 #include "ion_priv.h"
 
-struct ion_device *idev;
-struct ion_heap **heaps;
+static struct ion_device *idev;
+static struct ion_heap **heaps;
 
-void *carveout_ptr;
-void *chunk_ptr;
+static void *carveout_ptr;
+static void *chunk_ptr;
 
-struct ion_platform_heap dummy_heaps[] = {
+static struct ion_platform_heap dummy_heaps[] = {
 		{
 			.id	= ION_HEAP_TYPE_SYSTEM,
 			.type	= ION_HEAP_TYPE_SYSTEM,
@@ -56,7 +56,7 @@ struct ion_platform_heap dummy_heaps[] = {
 		},
 };
 
-struct ion_platform_data dummy_ion_pdata = {
+static struct ion_platform_data dummy_ion_pdata = {
 	.nr = 4,
 	.heaps = dummy_heaps,
 };
