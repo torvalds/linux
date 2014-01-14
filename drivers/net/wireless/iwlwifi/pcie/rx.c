@@ -802,10 +802,9 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 
 static u32 iwl_pcie_int_cause_non_ict(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 inta;
 
-	lockdep_assert_held(&trans_pcie->irq_lock);
+	lockdep_assert_held(&IWL_TRANS_GET_PCIE_TRANS(trans)->irq_lock);
 
 	trace_iwlwifi_dev_irq(trans->dev);
 
