@@ -33,6 +33,21 @@ struct pm_clock_entry {
 };
 
 /**
+ * pm_clk_enable - Enable a clock, reporting any errors
+ * @dev: The device for the given clock
+ * @clk: The clock being enabled.
+ */
+static inline int __pm_clk_enable(struct device *dev, struct clk *clk)
+{
+	int ret = clk_enable(clk);
+	if (ret)
+		dev_err(dev, "%s: failed to enable clk %p, error %d\n",
+			__func__, clk, ret);
+
+	return ret;
+}
+
+/**
  * pm_clk_acquire - Acquire a device clock.
  * @dev: Device whose clock is to be acquired.
  * @ce: PM clock entry corresponding to the clock.
@@ -263,7 +278,7 @@ int pm_clk_resume(struct device *dev)
 
 	list_for_each_entry(ce, &psd->clock_list, node) {
 		if (ce->status < PCE_STATUS_ERROR) {
-			ret = clk_enable(ce->clk);
+			ret = __pm_clk_enable(dev, ce->clk);
 			if (!ret)
 				ce->status = PCE_STATUS_ENABLED;
 		}
@@ -381,7 +396,7 @@ int pm_clk_resume(struct device *dev)
 	spin_lock_irqsave(&psd->lock, flags);
 
 	list_for_each_entry(ce, &psd->clock_list, node)
-		clk_enable(ce->clk);
+		__pm_clk_enable(dev, ce->clk);
 
 	spin_unlock_irqrestore(&psd->lock, flags);
 
