@@ -351,6 +351,13 @@
 			status = "disabled";
 		};
 
+		hwspinlock: spinlock@480ca000 {
+			compatible = "ti,omap4-hwspinlock";
+			reg = <0x480ca000 0x1000>;
+			ti,hwmods = "spinlock";
+			#hwlock-cells = <1>;
+		};
+
 		i2c0: i2c@44e0b000 {
 			compatible = "ti,am4372-i2c","ti,omap4-i2c";
 			reg = <0x44e0b000 0x1000>;
