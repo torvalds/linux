@@ -192,6 +192,20 @@ struct trace_array {
 	bool			allocated_snapshot;
 	unsigned long		max_latency;
 #endif
+	/*
+	 * max_lock is used to protect the swapping of buffers
+	 * when taking a max snapshot. The buffers themselves are
+	 * protected by per_cpu spinlocks. But the action of the swap
+	 * needs its own lock.
+	 *
+	 * This is defined as a arch_spinlock_t in order to help
+	 * with performance when lockdep debugging is enabled.
+	 *
+	 * It is also used in other places outside the update_max_tr
+	 * so it needs to be defined outside of the
+	 * CONFIG_TRACER_MAX_TRACE.
+	 */
+	arch_spinlock_t		max_lock;
 	int			buffer_disabled;
 #ifdef CONFIG_FTRACE_SYSCALLS
 	int			sys_refcount_enter;
