@@ -20,6 +20,9 @@ static void pci_stop_dev(struct pci_dev *dev)
 
 static void pci_destroy_dev(struct pci_dev *dev)
 {
+	if (!dev->dev.kobj.parent)
+		return;
+
 	device_del(&dev->dev);
 
 	put_device(&dev->dev);
