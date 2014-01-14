@@ -517,7 +517,7 @@ static struct ttm_backend_func vmw_ttm_func = {
 	.destroy = vmw_ttm_destroy,
 };
 
-struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
+static struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
 				 unsigned long size, uint32_t page_flags,
 				 struct page *dummy_read_page)
 {
@@ -546,12 +546,12 @@ out_no_init:
 	return NULL;
 }
 
-int vmw_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
+static int vmw_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
 {
 	return 0;
 }
 
-int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
+static int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		      struct ttm_mem_type_manager *man)
 {
 	switch (type) {
@@ -589,7 +589,7 @@ int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	return 0;
 }
 
-void vmw_evict_flags(struct ttm_buffer_object *bo,
+static void vmw_evict_flags(struct ttm_buffer_object *bo,
 		     struct ttm_placement *placement)
 {
 	*placement = vmw_sys_placement;
