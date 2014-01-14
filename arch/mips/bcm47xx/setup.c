@@ -26,6 +26,8 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "bcm47xx_private.h"
+
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/ssb/ssb.h>
@@ -253,6 +255,8 @@ static int __init bcm47xx_register_bus_complete(void)
 		break;
 #endif
 	}
+	bcm47xx_leds_register();
+
 	return 0;
 }
 device_initcall(bcm47xx_register_bus_complete);
