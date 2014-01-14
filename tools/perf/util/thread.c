@@ -66,10 +66,13 @@ struct comm *thread__comm(const struct thread *thread)
 int thread__set_comm(struct thread *thread, const char *str, u64 timestamp)
 {
 	struct comm *new, *curr = thread__comm(thread);
+	int err;
 
 	/* Override latest entry if it had no specific time coverage */
 	if (!curr->start) {
-		comm__override(curr, str, timestamp);
+		err = comm__override(curr, str, timestamp);
+		if (err)
+			return err;
 	} else {
 		new = comm__new(str, timestamp);
 		if (!new)
