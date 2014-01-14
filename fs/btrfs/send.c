@@ -2095,7 +2095,7 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	char *name = NULL;
 	int namelen;
 
-	path = alloc_path_for_send();
+	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
