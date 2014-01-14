@@ -30,7 +30,7 @@
 
 #include "nv50.h"
 
-static int
+int
 nv50_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
@@ -72,6 +72,19 @@ nv50_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 	}
 
 	return 0;
+}
+
+static u64
+nv50_devinit_disable(struct nouveau_devinit *devinit)
+{
+	struct nv50_devinit_priv *priv = (void *)devinit;
+	u32 r001540 = nv_rd32(priv, 0x001540);
+	u64 disable = 0ULL;
+
+	if (!(r001540 & 0x40000000))
+		disable |= (1ULL << NVDEV_ENGINE_MPEG);
+
+	return disable;
 }
 
 int
@@ -146,4 +159,5 @@ nv50_devinit_oclass = &(struct nouveau_devinit_impl) {
 		.fini = _nouveau_devinit_fini,
 	},
 	.pll_set = nv50_devinit_pll_set,
+	.disable = nv50_devinit_disable,
 }.base;

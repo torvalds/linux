@@ -23,7 +23,10 @@ extern struct nouveau_oclass *nv10_devinit_oclass;
 extern struct nouveau_oclass *nv1a_devinit_oclass;
 extern struct nouveau_oclass *nv20_devinit_oclass;
 extern struct nouveau_oclass *nv50_devinit_oclass;
+extern struct nouveau_oclass *nv84_devinit_oclass;
+extern struct nouveau_oclass *nv98_devinit_oclass;
 extern struct nouveau_oclass *nva3_devinit_oclass;
+extern struct nouveau_oclass *nvaf_devinit_oclass;
 extern struct nouveau_oclass *nvc0_devinit_oclass;
 
 #endif

@@ -59,6 +59,33 @@ nvc0_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 	return ret;
 }
 
+static u64
+nvc0_devinit_disable(struct nouveau_devinit *devinit)
+{
+	struct nv50_devinit_priv *priv = (void *)devinit;
+	u32 r022500 = nv_rd32(priv, 0x022500);
+	u64 disable = 0ULL;
+
+	if (r022500 & 0x00000001)
+		disable |= (1ULL << NVDEV_ENGINE_DISP);
+
+	if (r022500 & 0x00000002) {
+		disable |= (1ULL << NVDEV_ENGINE_VP);
+		disable |= (1ULL << NVDEV_ENGINE_PPP);
+	}
+
+	if (r022500 & 0x00000004)
+		disable |= (1ULL << NVDEV_ENGINE_BSP);
+	if (r022500 & 0x00000008)
+		disable |= (1ULL << NVDEV_ENGINE_VENC);
+	if (r022500 & 0x00000100)
+		disable |= (1ULL << NVDEV_ENGINE_COPY0);
+	if (r022500 & 0x00000200)
+		disable |= (1ULL << NVDEV_ENGINE_COPY1);
+
+	return disable;
+}
+
 static int
 nvc0_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
@@ -87,4 +114,5 @@ nvc0_devinit_oclass = &(struct nouveau_devinit_impl) {
 		.fini = _nouveau_devinit_fini,
 	},
 	.pll_set = nvc0_devinit_pll_set,
+	.disable = nvc0_devinit_disable,
 }.base;

@@ -10,6 +10,7 @@ struct nouveau_devinit_impl {
 	struct nouveau_oclass base;
 	void (*meminit)(struct nouveau_devinit *);
 	int  (*pll_set)(struct nouveau_devinit *, u32 type, u32 freq);
+	u64  (*disable)(struct nouveau_devinit *);
 };
 
 #define nouveau_devinit_create(p,e,o,d)                                        \
