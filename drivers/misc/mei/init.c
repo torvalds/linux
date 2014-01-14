@@ -126,7 +126,6 @@ int mei_reset(struct mei_device *dev)
 
 	if (ret) {
 		dev_err(&dev->pdev->dev, "hw_reset failed ret = %d\n", ret);
-		dev->dev_state = MEI_DEV_DISABLED;
 		return ret;
 	}
 
@@ -139,7 +138,6 @@ int mei_reset(struct mei_device *dev)
 	ret = mei_hw_start(dev);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "hw_start failed ret = %d\n", ret);
-		dev->dev_state = MEI_DEV_DISABLED;
 		return ret;
 	}
 
@@ -149,7 +147,7 @@ int mei_reset(struct mei_device *dev)
 	ret = mei_hbm_start_req(dev);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "hbm_start failed ret = %d\n", ret);
-		dev->dev_state = MEI_DEV_DISABLED;
+		dev->dev_state = MEI_DEV_RESETTING;
 		return ret;
 	}
 
@@ -166,6 +164,7 @@ EXPORT_SYMBOL_GPL(mei_reset);
  */
 int mei_start(struct mei_device *dev)
 {
+	int ret;
 	mutex_lock(&dev->device_lock);
 
 	/* acknowledge interrupt and stop interrupts */
@@ -175,10 +174,18 @@ int mei_start(struct mei_device *dev)
 
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 
-	dev->dev_state = MEI_DEV_INITIALIZING;
 	dev->reset_count = 0;
-	mei_reset(dev);
+	do {
+		dev->dev_state = MEI_DEV_INITIALIZING;
+		ret = mei_reset(dev);
 
+		if (ret == -ENODEV || dev->dev_state == MEI_DEV_DISABLED) {
+			dev_err(&dev->pdev->dev, "reset failed ret = %d", ret);
+			goto err;
+		}
+	} while (ret);
+
+	/* we cannot start the device w/o hbm start message completed */
 	if (dev->dev_state == MEI_DEV_DISABLED) {
 		dev_err(&dev->pdev->dev, "reset failed");
 		goto err;
@@ -238,27 +245,40 @@ int mei_restart(struct mei_device *dev)
 
 	mutex_unlock(&dev->device_lock);
 
-	if (err || dev->dev_state == MEI_DEV_DISABLED)
+	if (err == -ENODEV || dev->dev_state == MEI_DEV_DISABLED) {
+		dev_err(&dev->pdev->dev, "device disabled = %d\n", err);
 		return -ENODEV;
+	}
+
+	/* try to start again */
+	if (err)
+		schedule_work(&dev->reset_work);
+
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mei_restart);
 
-
 static void mei_reset_work(struct work_struct *work)
 {
 	struct mei_device *dev =
 		container_of(work, struct mei_device,  reset_work);
+	int ret;
 
 	mutex_lock(&dev->device_lock);
 
-	mei_reset(dev);
+	ret = mei_reset(dev);
 
 	mutex_unlock(&dev->device_lock);
 
-	if (dev->dev_state == MEI_DEV_DISABLED)
-		dev_err(&dev->pdev->dev, "reset failed");
+	if (dev->dev_state == MEI_DEV_DISABLED) {
+		dev_err(&dev->pdev->dev, "device disabled = %d\n", ret);
+		return;
+	}
+
+	/* retry reset in case of failure */
+	if (ret)
+		schedule_work(&dev->reset_work);
 }
 
 void mei_stop(struct mei_device *dev)

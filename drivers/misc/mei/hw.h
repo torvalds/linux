@@ -22,7 +22,7 @@
 /*
  * Timeouts in Seconds
  */
-#define MEI_INTEROP_TIMEOUT         7  /* Timeout on ready message */
+#define MEI_HW_READY_TIMEOUT        2  /* Timeout on ready message */
 #define MEI_CONNECT_TIMEOUT         3  /* HPS: at least 2 seconds */
 
 #define MEI_CL_CONNECT_TIMEOUT     15  /* HPS: Client Connect Timeout */
@@ -31,13 +31,13 @@
 #define MEI_IAMTHIF_STALL_TIMER    12  /* HPS */
 #define MEI_IAMTHIF_READ_TIMER     10  /* HPS */
 
+#define MEI_HBM_TIMEOUT            1   /* 1 second */
 
 /*
  * MEI Version
  */
 #define HBM_MINOR_VERSION                   0
 #define HBM_MAJOR_VERSION                   1
-#define HBM_TIMEOUT                         1	/* 1 second */
 
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f

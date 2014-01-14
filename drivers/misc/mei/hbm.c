@@ -147,7 +147,7 @@ int mei_hbm_start_wait(struct mei_device *dev)
 	ret = wait_event_interruptible_timeout(dev->wait_recvd_msg,
 			dev->hbm_state == MEI_HBM_IDLE ||
 			dev->hbm_state >= MEI_HBM_STARTED,
-			mei_secs_to_jiffies(MEI_INTEROP_TIMEOUT));
+			mei_secs_to_jiffies(MEI_HBM_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
 	if (ret <= 0 && (dev->hbm_state <= MEI_HBM_START)) {
