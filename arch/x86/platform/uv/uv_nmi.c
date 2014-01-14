@@ -148,7 +148,8 @@ module_param_named(retry_count, uv_nmi_retry_count, int, 0644);
  *  "dump"	- dump process stack for each cpu
  *  "ips"	- dump IP info for each cpu
  *  "kdump"	- do crash dump
- *  "kdb"	- enter KDB/KGDB (default)
+ *  "kdb"	- enter KDB (default)
+ *  "kgdb"	- enter KGDB
  */
 static char uv_nmi_action[8] = "kdb";
 module_param_string(action, uv_nmi_action, sizeof(uv_nmi_action), 0644);
@@ -537,18 +538,45 @@ static inline void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
 }
 #endif /* !CONFIG_KEXEC */
 
+#ifdef CONFIG_KGDB
 #ifdef CONFIG_KGDB_KDB
-/* Call KDB from NMI handler */
-static void uv_call_kdb(int cpu, struct pt_regs *regs, int master)
+static inline int uv_nmi_kdb_reason(void)
 {
-	int ret;
+	return KDB_REASON_SYSTEM_NMI;
+}
+#else /* !CONFIG_KGDB_KDB */
+static inline int uv_nmi_kdb_reason(void)
+{
+	/* Insure user is expecting to attach gdb remote */
+	if (uv_nmi_action_is("kgdb"))
+		return 0;
 
+	pr_err("UV: NMI error: KDB is not enabled in this kernel\n");
+	return -1;
+}
+#endif /* CONFIG_KGDB_KDB */
+
+/*
+ * Call KGDB/KDB from NMI handler
+ *
+ * Note that if both KGDB and KDB are configured, then the action of 'kgdb' or
+ * 'kdb' has no affect on which is used.  See the KGDB documention for further
+ * information.
+ */
+static void uv_call_kgdb_kdb(int cpu, struct pt_regs *regs, int master)
+{
 	if (master) {
+		int reason = uv_nmi_kdb_reason();
+		int ret;
+
+		if (reason < 0)
+			return;
+
 		/* call KGDB NMI handler as MASTER */
-		ret = kgdb_nmicallin(cpu, X86_TRAP_NMI, regs,
-			KDB_REASON_SYSTEM_NMI, &uv_nmi_slave_continue);
+		ret = kgdb_nmicallin(cpu, X86_TRAP_NMI, regs, reason,
+				&uv_nmi_slave_continue);
 		if (ret) {
-			pr_alert("KDB returned error, is kgdboc set?\n");
+			pr_alert("KGDB returned error, is kgdboc set?\n");
 			atomic_set(&uv_nmi_slave_continue, SLAVE_EXIT);
 		}
 	} else {
@@ -567,12 +595,12 @@ static void uv_call_kdb(int cpu, struct pt_regs *regs, int master)
 	uv_nmi_sync_exit(master);
 }
 
-#else /* !CONFIG_KGDB_KDB */
-static inline void uv_call_kdb(int cpu, struct pt_regs *regs, int master)
+#else /* !CONFIG_KGDB */
+static inline void uv_call_kgdb_kdb(int cpu, struct pt_regs *regs, int master)
 {
-	pr_err("UV: NMI error: KGDB/KDB is not enabled in this kernel\n");
+	pr_err("UV: NMI error: KGDB is not enabled in this kernel\n");
 }
-#endif /* !CONFIG_KGDB_KDB */
+#endif /* !CONFIG_KGDB */
 
 /*
  * UV NMI handler
@@ -606,9 +634,9 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	if (uv_nmi_action_is("ips") || uv_nmi_action_is("dump"))
 		uv_nmi_dump_state(cpu, regs, master);
 
-	/* Call KDB if enabled */
-	else if (uv_nmi_action_is("kdb"))
-		uv_call_kdb(cpu, regs, master);
+	/* Call KGDB/KDB if enabled */
+	else if (uv_nmi_action_is("kdb") || uv_nmi_action_is("kgdb"))
+		uv_call_kgdb_kdb(cpu, regs, master);
 
 	/* Clear per_cpu "in nmi" flag */
 	atomic_set(&uv_cpu_nmi.state, UV_NMI_STATE_OUT);
