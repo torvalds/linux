@@ -3637,7 +3637,11 @@ again:
 		 * start over after this.
 		 */
 
-		wait_event(ordered->wait, ordered->csum_bytes_left == 0);
+		if (ordered->csum_bytes_left) {
+			btrfs_start_ordered_extent(inode, ordered, 0);
+			wait_event(ordered->wait,
+				   ordered->csum_bytes_left == 0);
+		}
 
 		list_for_each_entry(sum, &ordered->list, list) {
 			ret = btrfs_csum_file_blocks(trans, log, sum);
