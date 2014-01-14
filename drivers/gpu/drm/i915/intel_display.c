@@ -9135,7 +9135,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);
 
-	if (!IS_HASWELL(dev)) {
+	if (!HAS_DDI(dev)) {
 		PIPE_CONF_CHECK_CLOCK_FUZZY(adjusted_mode.crtc_clock);
 		PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
 	}
@@ -11036,8 +11036,6 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	intel_modeset_check_state(dev);
-
-	drm_mode_config_reset(dev);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
@@ -11046,7 +11044,10 @@ void intel_modeset_gem_init(struct drm_device *dev)
 
 	intel_setup_overlay(dev);
 
+	drm_modeset_lock_all(dev);
+	drm_mode_config_reset(dev);
 	intel_modeset_setup_hw_state(dev, false);
+	drm_modeset_unlock_all(dev);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)

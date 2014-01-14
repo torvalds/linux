@@ -681,7 +681,7 @@ int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret, s;
-	struct thread_struct thread;
+	struct debug_reg debug;
 #ifdef CONFIG_PPC_FPU
 	struct thread_fp_state fp;
 	int fpexc_mode;
@@ -723,9 +723,9 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 
 	/* Switch to guest debug context */
-	thread.debug = vcpu->arch.shadow_dbg_reg;
-	switch_booke_debug_regs(&thread);
-	thread.debug = current->thread.debug;
+	debug = vcpu->arch.shadow_dbg_reg;
+	switch_booke_debug_regs(&debug);
+	debug = current->thread.debug;
 	current->thread.debug = vcpu->arch.shadow_dbg_reg;
 
 	kvmppc_fix_ee_before_entry();
@@ -736,8 +736,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	   We also get here with interrupts enabled. */
 
 	/* Switch back to user space debug context */
-	switch_booke_debug_regs(&thread);
-	current->thread.debug = thread.debug;
+	switch_booke_debug_regs(&debug);
+	current->thread.debug = debug;
 
 #ifdef CONFIG_PPC_FPU
 	kvmppc_save_guest_fp(vcpu);
