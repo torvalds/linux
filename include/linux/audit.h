@@ -465,7 +465,7 @@ extern int audit_rule_change(int type, __u32 portid, int seq,
 				void *data, size_t datasz);
 extern int audit_list_rules_send(__u32 portid, int seq);
 
-extern int audit_enabled;
+extern u32 audit_enabled;
 #else /* CONFIG_AUDIT */
 static inline __printf(4, 5)
 void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type,

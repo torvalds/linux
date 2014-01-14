@@ -79,16 +79,16 @@ static int	audit_initialized;
 #define AUDIT_OFF	0
 #define AUDIT_ON	1
 #define AUDIT_LOCKED	2
-int		audit_enabled;
-int		audit_ever_enabled;
+u32		audit_enabled;
+u32		audit_ever_enabled;
 
 EXPORT_SYMBOL_GPL(audit_enabled);
 
 /* Default state when kernel boots without any parameters. */
-static int	audit_default;
+static u32	audit_default;
 
 /* If auditing cannot proceed, audit_failure selects what happens. */
-static int	audit_failure = AUDIT_FAIL_PRINTK;
+static u32	audit_failure = AUDIT_FAIL_PRINTK;
 
 /*
  * If audit records are to be written to the netlink socket, audit_pid
@@ -101,14 +101,14 @@ static __u32	audit_nlk_portid;
 /* If audit_rate_limit is non-zero, limit the rate of sending audit records
  * to that number per second.  This prevents DoS attacks, but results in
  * audit records being dropped. */
-static int	audit_rate_limit;
+static u32	audit_rate_limit;
 
 /* Number of outstanding audit_buffers allowed.
  * When set to zero, this means unlimited. */
-static int	audit_backlog_limit = 64;
+static u32	audit_backlog_limit = 64;
 #define AUDIT_BACKLOG_WAIT_TIME (60 * HZ)
-static int	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
-static int	audit_backlog_wait_overflow = 0;
+static u32	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
+static u32	audit_backlog_wait_overflow = 0;
 
 /* The identity of the user shutting down the audit system. */
 kuid_t		audit_sig_uid = INVALID_UID;
@@ -272,7 +272,7 @@ void audit_log_lost(const char *message)
 
 	if (print) {
 		if (printk_ratelimit())
-			pr_warn("audit_lost=%d audit_rate_limit=%d audit_backlog_limit=%d\n",
+			pr_warn("audit_lost=%u audit_rate_limit=%u audit_backlog_limit=%u\n",
 				atomic_read(&audit_lost),
 				audit_rate_limit,
 				audit_backlog_limit);
@@ -280,7 +280,7 @@ void audit_log_lost(const char *message)
 	}
 }
 
-static int audit_log_config_change(char *function_name, int new, int old,
+static int audit_log_config_change(char *function_name, u32 new, u32 old,
 				   int allow_changes)
 {
 	struct audit_buffer *ab;
@@ -289,7 +289,7 @@ static int audit_log_config_change(char *function_name, int new, int old,
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return rc;
-	audit_log_format(ab, "%s=%d old=%d", function_name, new, old);
+	audit_log_format(ab, "%s=%u old=%u", function_name, new, old);
 	audit_log_session_info(ab);
 	rc = audit_log_task_context(ab);
 	if (rc)
@@ -299,9 +299,10 @@ static int audit_log_config_change(char *function_name, int new, int old,
 	return rc;
 }
 
-static int audit_do_config_change(char *function_name, int *to_change, int new)
+static int audit_do_config_change(char *function_name, u32 *to_change, u32 new)
 {
-	int allow_changes, rc = 0, old = *to_change;
+	int allow_changes, rc = 0;
+	u32 old = *to_change;
 
 	/* check if we are locked */
 	if (audit_enabled == AUDIT_LOCKED)
@@ -324,23 +325,23 @@ static int audit_do_config_change(char *function_name, int *to_change, int new)
 	return rc;
 }
 
-static int audit_set_rate_limit(int limit)
+static int audit_set_rate_limit(u32 limit)
 {
 	return audit_do_config_change("audit_rate_limit", &audit_rate_limit, limit);
 }
 
-static int audit_set_backlog_limit(int limit)
+static int audit_set_backlog_limit(u32 limit)
 {
 	return audit_do_config_change("audit_backlog_limit", &audit_backlog_limit, limit);
 }
 
-static int audit_set_backlog_wait_time(int timeout)
+static int audit_set_backlog_wait_time(u32 timeout)
 {
 	return audit_do_config_change("audit_backlog_wait_time",
 				      &audit_backlog_wait_time, timeout);
 }
 
-static int audit_set_enabled(int state)
+static int audit_set_enabled(u32 state)
 {
 	int rc;
 	if (state < AUDIT_OFF || state > AUDIT_LOCKED)
@@ -353,7 +354,7 @@ static int audit_set_enabled(int state)
 	return rc;
 }
 
-static int audit_set_failure(int state)
+static int audit_set_failure(u32 state)
 {
 	if (state != AUDIT_FAIL_SILENT
 	    && state != AUDIT_FAIL_PRINTK
@@ -688,7 +689,7 @@ static void audit_log_feature_change(int which, u32 old_feature, u32 new_feature
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_FEATURE_CHANGE);
 	audit_log_task_info(ab, current);
-	audit_log_format(ab, "feature=%s old=%d new=%d old_lock=%d new_lock=%d res=%d",
+	audit_log_format(ab, "feature=%s old=%u new=%u old_lock=%u new_lock=%u res=%d",
 			 audit_feature_names[which], !!old_feature, !!new_feature,
 			 !!old_lock, !!new_lock, res);
 	audit_log_end(ab);
@@ -1144,16 +1145,16 @@ __setup("audit=", audit_enable);
  * audit_backlog_limit=<n> */
 static int __init audit_backlog_limit_set(char *str)
 {
-	long int audit_backlog_limit_arg;
+	u32 audit_backlog_limit_arg;
 
 	pr_info("audit_backlog_limit: ");
-	if (kstrtol(str, 0, &audit_backlog_limit_arg)) {
-		pr_cont("using default of %d, unable to parse %s\n",
+	if (kstrtouint(str, 0, &audit_backlog_limit_arg)) {
+		pr_cont("using default of %u, unable to parse %s\n",
 			audit_backlog_limit, str);
 		return 1;
 	}
-	if (audit_backlog_limit_arg >= 0)
-		audit_backlog_limit = (int)audit_backlog_limit_arg;
+
+	audit_backlog_limit = audit_backlog_limit_arg;
 	pr_cont("%d\n", audit_backlog_limit);
 
 	return 1;

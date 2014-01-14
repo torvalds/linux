@@ -209,7 +209,7 @@ struct audit_context {
 #endif
 };
 
-extern int audit_ever_enabled;
+extern u32 audit_ever_enabled;
 
 extern void audit_copy_inode(struct audit_names *name,
 			     const struct dentry *dentry,
