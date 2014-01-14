@@ -27,7 +27,15 @@
 #define CLKMGR_CTRL	0x0
 #define CLKMGR_BYPASS	0x4
 #define CLKMGR_L4SRC	0x70
+#define CLKMGR_PERIP_VCO	0x80
 #define CLKMGR_PERPLL_SRC	0xAC
+#define CLKMGR_SDRAM_VCO	0xC0
+
+#define CLK_MGR_PERIP_PLL_CLK_SRC_SHIFT	22
+#define CLK_MGR_PERIP_PLL_CLK_SRC_MASK	0x3
+
+#define CLK_MGR_SDRAM_CLK_SRC_SHIFT	22
+#define CLK_MGR_SDRAM_CLK_SRC_MASK	0x3
 
 /* Clock bypass bits */
 #define MAINPLL_BYPASS		(1<<0)
@@ -51,6 +59,8 @@
 #define SOCFPGA_NAND_X_CLK		"nand_x_clk"
 #define SOCFPGA_MMC_CLK			"sdmmc_clk"
 #define SOCFPGA_DB_CLK			"gpio_db_clk"
+#define SOCFPGA_PERIP_PLL_CLK		"periph_pll"
+#define SOCFPGA_SDRAM_PLL_CLK		"sdram_pll"
 
 #define div_mask(width)	((1 << (width)) - 1)
 #define streq(a, b) (strcmp((a), (b)) == 0)
@@ -86,9 +96,26 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 	return vco_freq / (1 + divq);
 }
 
+static u8 clk_pll_get_parent(struct clk_hw *hwclk)
+{
+	u32 pll_src;
+
+	if (streq(hwclk->init->name, SOCFPGA_PERIP_PLL_CLK)) {
+		pll_src = readl(clk_mgr_base_addr + CLKMGR_PERIP_VCO);
+		return (pll_src >> CLK_MGR_PERIP_PLL_CLK_SRC_SHIFT) &
+				CLK_MGR_PERIP_PLL_CLK_SRC_MASK;
+	} else if (streq(hwclk->init->name, SOCFPGA_SDRAM_PLL_CLK)) {
+		pll_src = readl(clk_mgr_base_addr + CLKMGR_SDRAM_VCO);
+		return (pll_src >> CLK_MGR_SDRAM_CLK_SRC_SHIFT) &
+				CLK_MGR_SDRAM_CLK_SRC_MASK;
+	}
+	return 0;
+}
+
 
 static struct clk_ops clk_pll_ops = {
 	.recalc_rate = clk_pll_recalc_rate,
+	.get_parent = clk_pll_get_parent,
 };
 
 static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,

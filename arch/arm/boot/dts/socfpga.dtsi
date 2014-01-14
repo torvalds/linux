@@ -95,7 +95,12 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					osc: osc1 {
+					osc1: osc1 {
+						#clock-cells = <0>;
+						compatible = "fixed-clock";
+					};
+
+					osc2: osc2 {
 						#clock-cells = <0>;
 						compatible = "fixed-clock";
 					};
@@ -103,7 +108,11 @@
 					f2s_periph_ref_clk: f2s_periph_ref_clk {
 						#clock-cells = <0>;
 						compatible = "fixed-clock";
-						clock-frequency = <10000000>;
+					};
+
+					f2s_sdram_ref_clk: f2s_sdram_ref_clk {
+						#clock-cells = <0>;
+						compatible = "fixed-clock";
 					};
 
 					main_pll: main_pll {
@@ -111,7 +120,7 @@
 						#size-cells = <0>;
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-pll-clock";
-						clocks = <&osc>;
+						clocks = <&osc1>;
 						reg = <0x40>;
 
 						mpuclk: mpuclk {
@@ -165,7 +174,7 @@
 						#size-cells = <0>;
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-pll-clock";
-						clocks = <&osc>;
+						clocks = <&osc1>, <&osc2>, <&f2s_periph_ref_clk>;
 						reg = <0x80>;
 
 						emac0_clk: emac0_clk {
@@ -216,7 +225,7 @@
 						#size-cells = <0>;
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-pll-clock";
-						clocks = <&osc>;
+						clocks = <&osc1>, <&osc2>, <&f2s_sdram_ref_clk>;
 						reg = <0xC0>;
 
 						ddr_dqs_clk: ddr_dqs_clk {
@@ -771,7 +780,7 @@
 			compatible = "snps,dw-apb-timer-osc";
 			interrupts = <0 169 4>;
 			reg = <0xffd00000 0x1000>;
-			clocks = <&osc>;
+			clocks = <&osc1>;
 			clock-names = "timer";
 		};
 
@@ -779,7 +788,7 @@
 			compatible = "snps,dw-apb-timer-osc";
 			interrupts = <0 170 4>;
 			reg = <0xffd01000 0x1000>;
-			clocks = <&osc>;
+			clocks = <&osc1>;
 			clock-names = "timer";
 		};
 
