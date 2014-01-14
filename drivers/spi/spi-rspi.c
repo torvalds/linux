@@ -378,7 +378,7 @@ static int rspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 		remain--;
 	}
 
-	/* Waiting for the last transmition */
+	/* Waiting for the last transmission */
 	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
 
 	return 0;
@@ -412,7 +412,7 @@ static int qspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 		remain--;
 	}
 
-	/* Waiting for the last transmition */
+	/* Waiting for the last transmission */
 	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
 
 	return 0;
