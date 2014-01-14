@@ -264,7 +264,6 @@ struct mlx5_ib_mr {
 	enum ib_wc_status	status;
 	struct mlx5_ib_dev     *dev;
 	struct mlx5_create_mkey_mbox_out out;
-	unsigned long		start;
 };
 
 struct mlx5_ib_fast_reg_page_list {
