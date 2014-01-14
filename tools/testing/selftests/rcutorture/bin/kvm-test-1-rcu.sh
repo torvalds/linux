@@ -6,15 +6,15 @@
 # Execute this in the source tree.  Do not run it as a background task
 # because qemu does not seem to like that much.
 #
-# Usage: sh kvm-test-1-rcu.sh config builddir resdir minutes qemu-args bootargs
+# Usage: sh kvm-test-1-rcu.sh config builddir resdir minutes qemu-args boot_args
 #
 # qemu-args defaults to "" -- you will want "-nographic" if running headless.
-# bootargs defaults to	"root=/dev/sda noapic selinux=0 console=ttyS0"
+# boot_args defaults to	"root=/dev/sda noapic selinux=0 console=ttyS0"
 #			"initcall_debug debug rcutorture.stat_interval=15"
 #			"rcutorture.shutdown_secs=$((minutes * 60))"
 #			"rcutorture.rcutorture_runnable=1"
 #
-# Anything you specify for either qemu-args or bootargs is appended to
+# Anything you specify for either qemu-args or boot_args is appended to
 # the default values.  The "-smp" value is deduced from the contents of
 # the config fragment.
 #
@@ -138,7 +138,7 @@ boot_args="`rcutorture_param_onoff "$boot_args" $builddir/.config`"
 # Generate rcu_barrier() boot parameter
 boot_args="`rcutorture_param_n_barrier_cbs "$boot_args"`"
 # Pull in standard rcutorture boot arguments
-boot_args="$boot_args rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1"
+boot_args="$boot_args rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 rcutorture.test_no_idle_hz=1 rcutorture.verbose=1"
 
 echo $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
 if test -n "$RCU_BUILDONLY"
