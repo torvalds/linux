@@ -1731,11 +1731,11 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, const struct 
 		return -EMSGSIZE;
 
 	id = nlmsg_data(nlh);
-	memcpy(&id->sa_id.daddr, &x->id.daddr,sizeof(x->id.daddr));
+	memcpy(&id->sa_id.daddr, &x->id.daddr, sizeof(x->id.daddr));
 	id->sa_id.spi = x->id.spi;
 	id->sa_id.family = x->props.family;
 	id->sa_id.proto = x->id.proto;
-	memcpy(&id->saddr, &x->props.saddr,sizeof(x->props.saddr));
+	memcpy(&id->saddr, &x->props.saddr, sizeof(x->props.saddr));
 	id->reqid = x->props.reqid;
 	id->flags = c->data.aevent;
 
@@ -1824,7 +1824,7 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct xfrm_state *x;
 	struct km_event c;
-	int err = - EINVAL;
+	int err = -EINVAL;
 	u32 mark = 0;
 	struct xfrm_mark m;
 	struct xfrm_aevent_id *p = nlmsg_data(nlh);

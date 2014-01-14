@@ -171,7 +171,7 @@ static inline unsigned long make_jiffies(long secs)
 
 static void xfrm_policy_timer(unsigned long data)
 {
-	struct xfrm_policy *xp = (struct xfrm_policy*)data;
+	struct xfrm_policy *xp = (struct xfrm_policy *)data;
 	unsigned long now = get_seconds();
 	long next = LONG_MAX;
 	int warn = 0;
@@ -1286,7 +1286,7 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, const struct flowi *fl,
 	xfrm_address_t *saddr = xfrm_flowi_saddr(fl, family);
 	xfrm_address_t tmp;
 
-	for (nx=0, i = 0; i < policy->xfrm_nr; i++) {
+	for (nx = 0, i = 0; i < policy->xfrm_nr; i++) {
 		struct xfrm_state *x;
 		xfrm_address_t *remote = daddr;
 		xfrm_address_t *local  = saddr;
@@ -1316,9 +1316,9 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, const struct flowi *fl,
 			error = (x->km.state == XFRM_STATE_ERROR ?
 				 -EINVAL : -EAGAIN);
 			xfrm_state_put(x);
-		}
-		else if (error == -ESRCH)
+		} else if (error == -ESRCH) {
 			error = -EAGAIN;
+		}
 
 		if (!tmpl->optional)
 			goto fail;
@@ -1326,7 +1326,7 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, const struct flowi *fl,
 	return nx;
 
 fail:
-	for (nx--; nx>=0; nx--)
+	for (nx--; nx >= 0; nx--)
 		xfrm_state_put(xfrm[nx]);
 	return error;
 }
@@ -1363,7 +1363,7 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 	return cnx;
 
  fail:
-	for (cnx--; cnx>=0; cnx--)
+	for (cnx--; cnx >= 0; cnx--)
 		xfrm_state_put(tpp[cnx]);
 	return error;
 
@@ -1706,7 +1706,7 @@ static int xfrm_expand_policies(const struct flowi *fl, u16 family,
 				xfrm_pols_put(pols, *num_pols);
 				return PTR_ERR(pols[1]);
 			}
-			(*num_pols) ++;
+			(*num_pols)++;
 			(*num_xfrms) += pols[1]->xfrm_nr;
 		}
 	}
@@ -1760,7 +1760,7 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 	}
 
 	xdst->num_pols = num_pols;
-	memcpy(xdst->pols, pols, sizeof(struct xfrm_policy*) * num_pols);
+	memcpy(xdst->pols, pols, sizeof(struct xfrm_policy *) * num_pols);
 	xdst->policy_genid = atomic_read(&pols[0]->genid);
 
 	return xdst;
@@ -2029,7 +2029,7 @@ make_dummy_bundle:
 	}
 	xdst->num_pols = num_pols;
 	xdst->num_xfrms = num_xfrms;
-	memcpy(xdst->pols, pols, sizeof(struct xfrm_policy*) * num_pols);
+	memcpy(xdst->pols, pols, sizeof(struct xfrm_policy *) * num_pols);
 
 	dst_hold(&xdst->u.dst);
 	return &xdst->flo;
@@ -2138,7 +2138,7 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 
 		num_pols = xdst->num_pols;
 		num_xfrms = xdst->num_xfrms;
-		memcpy(pols, xdst->pols, sizeof(struct xfrm_policy*) * num_pols);
+		memcpy(pols, xdst->pols, sizeof(struct xfrm_policy *) * num_pols);
 		route = xdst->route;
 	}
 
@@ -2334,7 +2334,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	if (skb->sp) {
 		int i;
 
-		for (i=skb->sp->len-1; i>=0; i--) {
+		for (i = skb->sp->len-1; i >= 0; i--) {
 			struct xfrm_state *x = skb->sp->xvec[i];
 			if (!xfrm_selector_match(&x->sel, &fl, family)) {
 				XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);
@@ -2380,7 +2380,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	pol->curlft.use_time = get_seconds();
 
 	pols[0] = pol;
-	npols ++;
+	npols++;
 #ifdef CONFIG_XFRM_SUB_POLICY
 	if (pols[0]->type != XFRM_POLICY_TYPE_MAIN) {
 		pols[1] = xfrm_policy_lookup_bytype(net, XFRM_POLICY_TYPE_MAIN,
@@ -2392,7 +2392,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 				return 0;
 			}
 			pols[1]->curlft.use_time = get_seconds();
-			npols ++;
+			npols++;
 		}
 	}
 #endif
@@ -2989,7 +2989,7 @@ static void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 		audit_log_format(audit_buf, " sec_alg=%u sec_doi=%u sec_obj=%s",
 				 ctx->ctx_alg, ctx->ctx_doi, ctx->ctx_str);
 
-	switch(sel->family) {
+	switch (sel->family) {
 	case AF_INET:
 		audit_log_format(audit_buf, " src=%pI4", &sel->saddr.a4);
 		if (sel->prefixlen_s != 32)
@@ -3066,8 +3066,8 @@ static bool xfrm_migrate_selector_match(const struct xfrm_selector *sel_cmp,
 	return false;
 }
 
-static struct xfrm_policy * xfrm_migrate_policy_find(const struct xfrm_selector *sel,
-						     u8 dir, u8 type, struct net *net)
+static struct xfrm_policy *xfrm_migrate_policy_find(const struct xfrm_selector *sel,
+						    u8 dir, u8 type, struct net *net)
 {
 	struct xfrm_policy *pol, *ret = NULL;
 	struct hlist_head *chain;
