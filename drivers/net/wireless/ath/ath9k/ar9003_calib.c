@@ -655,8 +655,8 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 	if (i2_m_q2_a0_d1 > 0x800)
 		i2_m_q2_a0_d1 = -((0xfff - i2_m_q2_a0_d1) + 1);
 
-	if (i2_p_q2_a0_d1 > 0x800)
-		i2_p_q2_a0_d1 = -((0xfff - i2_p_q2_a0_d1) + 1);
+	if (i2_p_q2_a0_d1 > 0x1000)
+		i2_p_q2_a0_d1 = -((0x1fff - i2_p_q2_a0_d1) + 1);
 
 	if (iq_corr_a0_d1 > 0x800)
 		iq_corr_a0_d1 = -((0xfff - iq_corr_a0_d1) + 1);
@@ -697,6 +697,19 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 			"a1_d1=%d\n",
 			i2_p_q2_a0_d0, i2_p_q2_a0_d1,
 			i2_p_q2_a1_d0, i2_p_q2_a1_d1);
+		return false;
+	}
+
+	if ((i2_p_q2_a0_d0 < 1024) || (i2_p_q2_a0_d0 > 2047) ||
+            (i2_p_q2_a1_d0 < 0) || (i2_p_q2_a1_d1 < 0) ||
+            (i2_p_q2_a0_d0 <= i2_m_q2_a0_d0) ||
+            (i2_p_q2_a0_d0 <= iq_corr_a0_d0) ||
+            (i2_p_q2_a0_d1 <= i2_m_q2_a0_d1) ||
+            (i2_p_q2_a0_d1 <= iq_corr_a0_d1) ||
+            (i2_p_q2_a1_d0 <= i2_m_q2_a1_d0) ||
+            (i2_p_q2_a1_d0 <= iq_corr_a1_d0) ||
+            (i2_p_q2_a1_d1 <= i2_m_q2_a1_d1) ||
+            (i2_p_q2_a1_d1 <= iq_corr_a1_d1)) {
 		return false;
 	}
 
