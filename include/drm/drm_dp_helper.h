@@ -279,10 +279,20 @@
 
 #define DP_TEST_PATTERN			    0x221
 
+#define DP_TEST_CRC_R_CR		    0x240
+#define DP_TEST_CRC_G_Y			    0x242
+#define DP_TEST_CRC_B_CB		    0x244
+
+#define DP_TEST_SINK_MISC		    0x246
+#define DP_TEST_CRC_SUPPORTED		    (1 << 5)
+
 #define DP_TEST_RESPONSE		    0x260
 # define DP_TEST_ACK			    (1 << 0)
 # define DP_TEST_NAK			    (1 << 1)
 # define DP_TEST_EDID_CHECKSUM_WRITE	    (1 << 2)
+
+#define DP_TEST_SINK			    0x270
+#define DP_TEST_SINK_START	    (1 << 0)
 
 #define DP_SOURCE_OUI			    0x300
 #define DP_SINK_OUI			    0x400

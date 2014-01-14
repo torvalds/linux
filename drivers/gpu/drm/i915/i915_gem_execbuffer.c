@@ -131,7 +131,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		if (exec[i].flags & EXEC_OBJECT_NEEDS_GTT &&
 		    USES_FULL_PPGTT(vm->dev)) {
 			ret = -EINVAL;
-			goto out;
+			goto err;
 		}
 
 		/* If we have secure dispatch, or the userspace assures us that
