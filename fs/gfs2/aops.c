@@ -1032,8 +1032,9 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 			unmap_shared_mapping_range(ip->i_inode.i_mapping, offset, len);
 		rv = filemap_write_and_wait_range(mapping, lstart, end);
 		if (rv)
-			return rv;
-		truncate_inode_pages_range(mapping, lstart, end);
+			goto out;
+		if (rw == WRITE)
+			truncate_inode_pages_range(mapping, lstart, end);
 	}
 
 	rv = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
