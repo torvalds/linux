@@ -17,14 +17,14 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE! 
+ *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
  *
  *	This is shared code between Digi's CVS archive and the
  *	Linux Kernel sources.
  *	Changing the source just for reformatting needlessly breaks
  *	our CVS diff history.
  *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com. 
+ *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
  *	Thank you.
  *
  *
@@ -340,7 +340,7 @@ int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.board.v_pcislot = 1;
 
-			DPR_INIT(("Adding PCIINFO (%s %s) to config...\n", p->u.board.pcibusstr, 
+			DPR_INIT(("Adding PCIINFO (%s %s) to config...\n", p->u.board.pcibusstr,
 				p->u.board.pcislotstr));
 			break;
 
@@ -914,7 +914,7 @@ static char *dgap_sindex (char *string, char *group)
 	if (!string || !group)
 		return (char *) NULL;
 
-	if (*group == '^') {   
+	if (*group == '^') {
 		group++;
 		for (; *string; string++) {
 			for (ptr = group; *ptr; ptr++) {
@@ -924,7 +924,7 @@ static char *dgap_sindex (char *string, char *group)
 			if (*ptr == '\0')
 				return string;
 		}
-	}   
+	}
 	else {
 		for (; *string; string++) {
 			for (ptr = group; *ptr; ptr++) {
@@ -945,14 +945,14 @@ static int dgap_gettok(char **in, struct cnode *p)
 {
 	char	*w;
 	struct toklist *t;
-	
+
 	if (strstr(dgap_cword, "boar")) {
 		w = dgap_getword(in);
 		snprintf(dgap_cword, MAXCWORD, "%s", w);
 		for (t = dgap_tlist; t->token != 0; t++) {
 			if ( !strcmp(w, t->string)) {
 				return(t->token);
-			} 
+			}
 		}
 		dgap_err("board !!type not specified");
 		return(1);
@@ -1152,7 +1152,7 @@ uint dgap_config_get_altpin(struct board_t *bd)
 
 
 /*
- * Given a specific type of board, if found, detached link and 
+ * Given a specific type of board, if found, detached link and
  * returns the first occurrence in the list.
  */
 struct cnode *dgap_find_config(int type, int bus, int slot)
