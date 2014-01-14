@@ -6,12 +6,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the 
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -201,11 +201,11 @@ char *dgap_state_text[] = {
 	"Need Device Creation",
 	"Requested Device Creation",
 	"Finished Device Creation",
-	"Need BIOS Load", 
-	"Requested BIOS", 
+	"Need BIOS Load",
+	"Requested BIOS",
 	"Doing BIOS Load",
 	"Finished BIOS Load",
-	"Need FEP Load", 
+	"Need FEP Load",
 	"Requested FEP",
 	"Doing FEP Load",
 	"Finished FEP Load",
@@ -269,7 +269,7 @@ int dgap_init_module(void)
 	else {
 		dgap_create_driver_sysfiles(&dgap_driver);
 	}
-  
+
 	DPR_INIT(("Finished init_module. Returning %d\n", rc));
 	return (rc);
 }
@@ -326,7 +326,7 @@ static int dgap_start(void)
 
 		if (rc < 0) {
 			APR(("tty preinit - not enough memory (%d)\n", rc));
-			return(rc); 
+			return(rc);
 		}
 
 		/* Start the poller */
@@ -366,7 +366,7 @@ static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (rc < 0) {
 		rc = -EIO;
-	} else {  
+	} else {
 		rc = dgap_probe1(pdev, ent->driver_data);
 		if (rc == 0) {
 			dgap_NumBoards++;
@@ -374,15 +374,15 @@ static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 	return rc;
-}               
+}
 
 
 static int dgap_probe1(struct pci_dev *pdev, int card_type)
 {
 	return dgap_found_board(pdev, card_type);
 }
-         
-        
+
+
 static void dgap_remove_one(struct pci_dev *dev)
 {
 	/* Do Nothing */
@@ -599,7 +599,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 		pci_write_config_byte(pdev, 0x40, 0);
 		pci_write_config_byte(pdev, 0x46, 0);
 
-		/* Limit burst length to 2 doubleword transactions */ 
+		/* Limit burst length to 2 doubleword transactions */
 		pci_write_config_byte(pdev, 0x42, 1);
 
 		/*
@@ -718,23 +718,23 @@ static int dgap_do_remap(struct board_t *brd)
 /*****************************************************************************
 *
 * Function:
-*                                       
+*
 *    dgap_poll_handler
 *
 * Author:
 *
 *    Scott H Kilau
-*       
+*
 * Parameters:
 *
-*    dummy -- ignored                    
+*    dummy -- ignored
 *
 * Return Values:
 *
 *    none
 *
-* Description:   
-*                                       
+* Description:
+*
 *    As each timer expires, it determines (a) whether the "transmit"
 *    waiter needs to be woken up, and (b) whether the poller needs to
 *    be rescheduled.
@@ -910,7 +910,7 @@ static void dgap_init_globals(void)
 		dgap_Board[i] = NULL;
 	}
 
-	init_timer( &dgap_poll_timer ); 
+	init_timer( &dgap_poll_timer );
 
 	init_waitqueue_head(&dgap_dl_wait);
 	dgap_dl_action = 0;
