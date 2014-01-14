@@ -32,7 +32,7 @@ struct un_t;
 struct pci_driver;
 struct class_device;
 
-extern void dgap_create_ports_sysfiles(struct board_t *bd); 
+extern void dgap_create_ports_sysfiles(struct board_t *bd);
 extern void dgap_remove_ports_sysfiles(struct board_t *bd);
 
 extern void dgap_create_driver_sysfiles(struct pci_driver *);
