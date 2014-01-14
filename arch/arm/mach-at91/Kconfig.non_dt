@@ -182,12 +182,6 @@ config MACH_AFEB9260
 	  <svn://194.85.238.22/home/users/george/svn/arm9eb>
 	  <http://groups.google.com/group/arm9fpga-evolution-board>
 
-config MACH_QIL_A9260
-	bool "CALAO QIL-A9260 board"
-	help
-	  Select this if you are using a Calao Systems QIL-A9260 Board.
-	  <http://www.calao-systems.com>
-
 config MACH_CPU9260
 	bool "Eukrea CPU9260 board"
 	help
