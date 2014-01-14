@@ -1968,7 +1968,7 @@ __visible void smp_trace_spurious_interrupt(struct pt_regs *regs)
  */
 static inline void __smp_error_interrupt(struct pt_regs *regs)
 {
-	u32 v0, v1;
+	u32 v;
 	u32 i = 0;
 	static const char * const error_interrupt_reason[] = {
 		"Send CS error",		/* APIC Error Bit 0 */
@@ -1982,21 +1982,20 @@ static inline void __smp_error_interrupt(struct pt_regs *regs)
 	};
 
 	/* First tickle the hardware, only then report what went on. -- REW */
-	v0 = apic_read(APIC_ESR);
 	apic_write(APIC_ESR, 0);
-	v1 = apic_read(APIC_ESR);
+	v = apic_read(APIC_ESR);
 	ack_APIC_irq();
 	atomic_inc(&irq_err_count);
 
-	apic_printk(APIC_DEBUG, KERN_DEBUG "APIC error on CPU%d: %02x(%02x)",
-		    smp_processor_id(), v0 , v1);
+	apic_printk(APIC_DEBUG, KERN_DEBUG "APIC error on CPU%d: %02x",
+		    smp_processor_id(), v);
 
-	v1 = v1 & 0xff;
-	while (v1) {
-		if (v1 & 0x1)
+	v &= 0xff;
+	while (v) {
+		if (v & 0x1)
 			apic_printk(APIC_DEBUG, KERN_CONT " : %s", error_interrupt_reason[i]);
 		i++;
-		v1 >>= 1;
+		v >>= 1;
 	}
 
 	apic_printk(APIC_DEBUG, KERN_CONT "\n");
