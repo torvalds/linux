@@ -23,7 +23,7 @@
  */
 
 /*
-** downld.h 
+** downld.h
 **  - describes the interface between the user level download process
 **    and the concentrator download driver.
 */
@@ -57,7 +57,7 @@ struct downldio {
 #define DIGI_NUKE_RESET_ALL	 (1 << 31)
 #define DIGI_NUKE_INHIBIT_POLLER (1 << 30)
 #define DIGI_NUKE_BRD_NUMB        0x0f
-	
+
 
 
 #define	DLREQ_BIOS	0
