@@ -8,6 +8,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "imx6sl.dtsi"
 
 / {
@@ -104,6 +105,17 @@
 				MX6SL_PAD_FEC_TXD0__FEC_TX_DATA0	0x1b0b0
 				MX6SL_PAD_FEC_TXD1__FEC_TX_DATA1	0x1b0b0
 				MX6SL_PAD_FEC_REF_CLK__FEC_REF_OUT	0x4001b0a8
+			>;
+		};
+
+		pinctrl_kpp: kppgrp {
+			fsl,pins = <
+				MX6SL_PAD_KEY_ROW0__KEY_ROW0    0x1b010
+				MX6SL_PAD_KEY_ROW1__KEY_ROW1    0x1b010
+				MX6SL_PAD_KEY_ROW2__KEY_ROW2    0x1b0b0
+				MX6SL_PAD_KEY_COL0__KEY_COL0    0x110b0
+				MX6SL_PAD_KEY_COL1__KEY_COL1    0x110b0
+				MX6SL_PAD_KEY_COL2__KEY_COL2    0x110b0
 			>;
 		};
 
@@ -231,6 +243,22 @@
 			>;
 		};
 	};
+};
+
+&kpp {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_kpp>;
+	linux,keymap = <
+			MATRIX_KEY(0x0, 0x0, KEY_UP)         /* ROW0, COL0 */
+			MATRIX_KEY(0x0, 0x1, KEY_DOWN)       /* ROW0, COL1 */
+			MATRIX_KEY(0x0, 0x2, KEY_ENTER)      /* ROW0, COL2 */
+			MATRIX_KEY(0x1, 0x0, KEY_HOME)       /* ROW1, COL0 */
+			MATRIX_KEY(0x1, 0x1, KEY_RIGHT)      /* ROW1, COL1 */
+			MATRIX_KEY(0x1, 0x2, KEY_LEFT)       /* ROW1, COL2 */
+			MATRIX_KEY(0x2, 0x0, KEY_VOLUMEDOWN) /* ROW2, COL0 */
+			MATRIX_KEY(0x2, 0x1, KEY_VOLUMEUP)   /* ROW2, COL1 */
+	>;
+	status = "okay";
 };
 
 &uart1 {
