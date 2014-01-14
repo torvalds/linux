@@ -1568,6 +1568,13 @@ enum nl80211_commands {
  * @NL80211_ATTR_MAC_HINT: MAC address recommendation as initial BSS
  * @NL80211_ATTR_WIPHY_FREQ_HINT: frequency of the recommended initial BSS
  *
+ * @NL80211_ATTR_MAX_AP_ASSOC_STA: Device attribute that indicates how many
+ *	associated stations are supported in AP mode (including P2P GO); u32.
+ *	Since drivers may not have a fixed limit on the maximum number (e.g.,
+ *	other concurrent operations may affect this), drivers are allowed to
+ *	advertise values that cannot always be met. In such cases, an attempt
+ *	to add a new station entry with @NL80211_CMD_NEW_STATION may fail.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1898,6 +1905,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_MAC_HINT,
 	NL80211_ATTR_WIPHY_FREQ_HINT,
+
+	NL80211_ATTR_MAX_AP_ASSOC_STA,
 
 	/* add attributes here, update the policy in nl80211.c */
 

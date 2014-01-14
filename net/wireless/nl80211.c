@@ -1588,6 +1588,12 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *dev,
 		    (nla_put_flag(msg, NL80211_ATTR_SUPPORT_5_MHZ) ||
 		     nla_put_flag(msg, NL80211_ATTR_SUPPORT_10_MHZ)))
 			goto nla_put_failure;
+
+		if (dev->wiphy.max_ap_assoc_sta &&
+		    nla_put_u32(msg, NL80211_ATTR_MAX_AP_ASSOC_STA,
+				dev->wiphy.max_ap_assoc_sta))
+			goto nla_put_failure;
+
 		state->split_start++;
 		break;
 	case 11:
