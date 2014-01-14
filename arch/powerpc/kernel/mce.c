@@ -26,6 +26,7 @@
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 #include <linux/export.h>
+#include <linux/irq_work.h>
 #include <asm/mce.h>
 
 static DEFINE_PER_CPU(int, mce_nest_count);
@@ -34,6 +35,11 @@ static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event);
 /* Queue for delayed MCE events. */
 static DEFINE_PER_CPU(int, mce_queue_count);
 static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event_queue);
+
+static void machine_check_process_queued_event(struct irq_work *work);
+struct irq_work mce_event_process_work = {
+        .func = machine_check_process_queued_event,
+};
 
 static void mce_set_error_info(struct machine_check_event *mce,
 			       struct mce_error_info *mce_err)
@@ -185,17 +191,19 @@ void machine_check_queue_event(void)
 		return;
 	}
 	__get_cpu_var(mce_event_queue[index]) = evt;
+
+	/* Queue irq work to process this event later. */
+	irq_work_queue(&mce_event_process_work);
 }
 
 /*
  * process pending MCE event from the mce event queue. This function will be
  * called during syscall exit.
  */
-void machine_check_process_queued_event(void)
+static void machine_check_process_queued_event(struct irq_work *work)
 {
 	int index;
 
-	preempt_disable();
 	/*
 	 * For now just print it to console.
 	 * TODO: log this error event to FSP or nvram.
@@ -206,7 +214,6 @@ void machine_check_process_queued_event(void)
 				&__get_cpu_var(mce_event_queue[index]));
 		__get_cpu_var(mce_queue_count)--;
 	}
-	preempt_enable();
 }
 
 void machine_check_print_event_info(struct machine_check_event *evt)

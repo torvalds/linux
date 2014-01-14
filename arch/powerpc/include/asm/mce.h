@@ -191,7 +191,6 @@ extern void save_mce_event(struct pt_regs *regs, long handled,
 extern int get_mce_event(struct machine_check_event *mce, bool release);
 extern void release_mce_event(void);
 extern void machine_check_queue_event(void);
-extern void machine_check_process_queued_event(void);
 extern void machine_check_print_event_info(struct machine_check_event *evt);
 extern uint64_t get_mce_fault_addr(struct machine_check_event *evt);
 

@@ -184,11 +184,6 @@ syscall_exit:
 	bl	.do_show_syscall_exit
 	ld	r3,RESULT(r1)
 #endif
-#ifdef CONFIG_PPC_BOOK3S_64
-BEGIN_FTR_SECTION
-	bl	.machine_check_process_queued_event
-END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
-#endif
 	CURRENT_THREAD_INFO(r12, r1)
 
 	ld	r8,_MSR(r1)
