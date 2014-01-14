@@ -35,7 +35,7 @@ static inline int dl_time_before(u64 a, u64 b)
 	return (s64)(a - b) < 0;
 }
 
-void cpudl_exchange(struct cpudl *cp, int a, int b)
+static void cpudl_exchange(struct cpudl *cp, int a, int b)
 {
 	int cpu_a = cp->elements[a].cpu, cpu_b = cp->elements[b].cpu;
 
@@ -43,7 +43,7 @@ void cpudl_exchange(struct cpudl *cp, int a, int b)
 	swap(cp->cpu_to_idx[cpu_a], cp->cpu_to_idx[cpu_b]);
 }
 
-void cpudl_heapify(struct cpudl *cp, int idx)
+static void cpudl_heapify(struct cpudl *cp, int idx)
 {
 	int l, r, largest;
 
@@ -68,7 +68,7 @@ void cpudl_heapify(struct cpudl *cp, int idx)
 	}
 }
 
-void cpudl_change_key(struct cpudl *cp, int idx, u64 new_dl)
+static void cpudl_change_key(struct cpudl *cp, int idx, u64 new_dl)
 {
 	WARN_ON(idx > num_present_cpus() || idx == IDX_INVALID);
 
