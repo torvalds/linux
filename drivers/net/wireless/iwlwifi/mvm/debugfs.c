@@ -90,7 +90,7 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 					 size_t count, loff_t *ppos)
 {
-	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
 	int sta_id, drain, ret;
 
 	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
@@ -105,13 +105,12 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 
 	mutex_lock(&mvm->mutex);
 
-	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
-					lockdep_is_held(&mvm->mutex));
-	if (IS_ERR_OR_NULL(sta))
+	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
+
+	if (!mvmsta)
 		ret = -ENOENT;
 	else
-		ret = iwl_mvm_drain_sta(mvm, (void *)sta->drv_priv, drain) ? :
-			count;
+		ret = iwl_mvm_drain_sta(mvm, mvmsta, drain) ? : count;
 
 	mutex_unlock(&mvm->mutex);
 

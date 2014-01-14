@@ -500,22 +500,12 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 		.dataflags = { IWL_HCMD_DFL_DUP, },
 		.flags = CMD_ASYNC,
 	};
-
-	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvmsta;
 	int ret;
 
-	if (sta_id == IWL_MVM_STATION_COUNT)
+	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
+	if (!mvmsta)
 		return 0;
-
-	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
-					lockdep_is_held(&mvm->mutex));
-
-	/* This can happen if the station has been removed right now */
-	if (IS_ERR_OR_NULL(sta))
-		return 0;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	/* nothing to do */
 	if (mvmsta->bt_reduced_txpower == enable)
