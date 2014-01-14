@@ -68,7 +68,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 		enum qeth_qdio_buffer_states newbufstate);
 static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *, int);
 
-static struct workqueue_struct *qeth_wq;
+struct workqueue_struct *qeth_wq;
 
 static void qeth_close_dev_handler(struct work_struct *work)
 {
@@ -615,6 +615,13 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 					card->info.hwtrap = 2;
 				qeth_schedule_recovery(card);
 				return NULL;
+			case IPA_CMD_SETBRIDGEPORT:
+				if (cmd->data.sbp.hdr.command_code ==
+					IPA_SBP_BRIDGE_PORT_STATE_CHANGE) {
+					qeth_bridge_state_change(card, cmd);
+					return NULL;
+				} else
+					return cmd;
 			case IPA_CMD_MODCCID:
 				return cmd;
 			case IPA_CMD_REGISTER_LOCAL_ADDR:
@@ -4956,12 +4963,17 @@ retriable:
 
 	card->options.ipa4.supported_funcs = 0;
 	card->options.adp.supported_funcs = 0;
+	card->options.sbp.supported_funcs = 0;
 	card->info.diagass_support = 0;
 	qeth_query_ipassists(card, QETH_PROT_IPV4);
 	if (qeth_is_supported(card, IPA_SETADAPTERPARMS))
 		qeth_query_setadapterparms(card);
 	if (qeth_adp_supported(card, IPA_SETADP_SET_DIAG_ASSIST))
 		qeth_query_setdiagass(card);
+	qeth_bridgeport_query_support(card);
+	if (card->options.sbp.supported_funcs)
+		dev_info(&card->gdev->dev,
+		"The device represents a HiperSockets Bridge Capable Port\n");
 	return 0;
 out:
 	dev_warn(&card->gdev->dev, "The qeth device driver failed to recover "

@@ -21,6 +21,7 @@
 #include <linux/list.h>
 
 #include "qeth_core.h"
+#include "qeth_l2.h"
 
 static int qeth_l2_set_offline(struct ccwgroup_device *);
 static int qeth_l2_stop(struct net_device *);
@@ -880,6 +881,7 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 
+	qeth_l2_create_device_attributes(&gdev->dev);
 	INIT_LIST_HEAD(&card->vid_list);
 	INIT_LIST_HEAD(&card->mc_list);
 	card->options.layer2 = 1;
@@ -891,6 +893,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
 
+	qeth_l2_remove_device_attributes(&cgdev->dev);
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
@@ -1002,6 +1005,8 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			card->info.hwtrap = 0;
 	} else
 		card->info.hwtrap = 0;
+
+	qeth_l2_setup_bridgeport_attrs(card);
 
 	card->state = CARD_STATE_HARDSETUP;
 	memset(&card->rx, 0, sizeof(struct qeth_rx));
@@ -1346,6 +1351,365 @@ void qeth_osn_deregister(struct net_device *dev)
 	return;
 }
 EXPORT_SYMBOL(qeth_osn_deregister);
+
+/* SETBRIDGEPORT support, async notifications */
+
+struct qeth_bridge_state_data {
+	struct work_struct worker;
+	struct qeth_card *card;
+	struct qeth_sbp_state_change qports;
+};
+
+static void qeth_bridge_state_change_worker(struct work_struct *work)
+{
+	struct qeth_bridge_state_data *data =
+		container_of(work, struct qeth_bridge_state_data, worker);
+	/* We are only interested in the first entry - local port */
+	struct qeth_sbp_port_entry *entry = &data->qports.entry[0];
+	char env_locrem[32];
+	char env_role[32];
+	char env_state[32];
+	char *env[] = {
+		env_locrem,
+		env_role,
+		env_state,
+		NULL
+	};
+
+	/* Role should not change by itself, but if it did, */
+	/* information from the hardware is authoritative.  */
+	mutex_lock(&data->card->conf_mutex);
+	data->card->options.sbp.role = entry->role;
+	mutex_unlock(&data->card->conf_mutex);
+
+	snprintf(env_locrem, sizeof(env_locrem), "BRIDGEPORT=statechange");
+	snprintf(env_role, sizeof(env_role), "ROLE=%s",
+		(entry->role == QETH_SBP_ROLE_NONE) ? "none" :
+		(entry->role == QETH_SBP_ROLE_PRIMARY) ? "primary" :
+		(entry->role == QETH_SBP_ROLE_SECONDARY) ? "secondary" :
+		"<INVALID>");
+	snprintf(env_state, sizeof(env_state), "STATE=%s",
+		(entry->state == QETH_SBP_STATE_INACTIVE) ? "inactive" :
+		(entry->state == QETH_SBP_STATE_STANDBY) ? "standby" :
+		(entry->state == QETH_SBP_STATE_ACTIVE) ? "active" :
+		"<INVALID>");
+	kobject_uevent_env(&data->card->gdev->dev.kobj,
+				KOBJ_CHANGE, env);
+	kfree(data);
+}
+
+void qeth_bridge_state_change(struct qeth_card *card, struct qeth_ipa_cmd *cmd)
+{
+	struct qeth_sbp_state_change *qports =
+		 &cmd->data.sbp.data.state_change;
+	struct qeth_bridge_state_data *data;
+	int extrasize;
+
+	QETH_CARD_TEXT(card, 2, "brstchng");
+	if (qports->entry_length != sizeof(struct qeth_sbp_port_entry)) {
+		QETH_CARD_TEXT_(card, 2, "BPsz%.8d", qports->entry_length);
+		return;
+	}
+	extrasize = sizeof(struct qeth_sbp_port_entry) * qports->num_entries;
+	data = kzalloc(sizeof(struct qeth_bridge_state_data) + extrasize,
+		GFP_ATOMIC);
+	if (!data) {
+		QETH_CARD_TEXT(card, 2, "BPSalloc");
+		return;
+	}
+	INIT_WORK(&data->worker, qeth_bridge_state_change_worker);
+	data->card = card;
+	memcpy(&data->qports, qports,
+			sizeof(struct qeth_sbp_state_change) + extrasize);
+	queue_work(qeth_wq, &data->worker);
+}
+EXPORT_SYMBOL(qeth_bridge_state_change);
+
+/* SETBRIDGEPORT support; sending commands */
+
+struct _qeth_sbp_cbctl {
+	u16 ipa_rc;
+	u16 cmd_rc;
+	union {
+		u32 supported;
+		struct {
+			enum qeth_sbp_roles *role;
+			enum qeth_sbp_states *state;
+		} qports;
+	} data;
+};
+
+/**
+ * qeth_bridgeport_makerc() - derive "traditional" error from hardware codes.
+ * @card:		      qeth_card structure pointer, for debug messages.
+ * @cbctl:		      state structure with hardware return codes.
+ * @setcmd:		      IPA command code
+ *
+ * Returns negative errno-compatible error indication or 0 on success.
+ */
+static int qeth_bridgeport_makerc(struct qeth_card *card,
+	struct _qeth_sbp_cbctl *cbctl, enum qeth_ipa_sbp_cmd setcmd)
+{
+	int rc;
+
+	switch (cbctl->ipa_rc) {
+	case IPA_RC_SUCCESS:
+		switch (cbctl->cmd_rc) {
+		case 0x0000:
+			rc = 0;
+			break;
+		case 0x0004:
+			rc = -ENOSYS;
+			break;
+		case 0x000C: /* Not configured as bridge Port */
+			rc = -ENODEV; /* maybe not the best code here? */
+			dev_err(&card->gdev->dev,
+	"The HiperSockets device is not configured as a Bridge Port\n");
+			break;
+		case 0x0014: /* Another device is Primary */
+			switch (setcmd) {
+			case IPA_SBP_SET_PRIMARY_BRIDGE_PORT:
+				rc = -EEXIST;
+				dev_err(&card->gdev->dev,
+	"The HiperSockets LAN already has a primary Bridge Port\n");
+				break;
+			case IPA_SBP_SET_SECONDARY_BRIDGE_PORT:
+				rc = -EBUSY;
+				dev_err(&card->gdev->dev,
+	"The HiperSockets device is already a primary Bridge Port\n");
+				break;
+			default:
+				rc = -EIO;
+			}
+			break;
+		case 0x0018: /* This device is currently Secondary */
+			rc = -EBUSY;
+			dev_err(&card->gdev->dev,
+	"The HiperSockets device is already a secondary Bridge Port\n");
+			break;
+		case 0x001C: /* Limit for Secondary devices reached */
+			rc = -EEXIST;
+			dev_err(&card->gdev->dev,
+	"The HiperSockets LAN cannot have more secondary Bridge Ports\n");
+			break;
+		case 0x0024: /* This device is currently Primary */
+			rc = -EBUSY;
+			dev_err(&card->gdev->dev,
+	"The HiperSockets device is already a primary Bridge Port\n");
+			break;
+		case 0x0020: /* Not authorized by zManager */
+			rc = -EACCES;
+			dev_err(&card->gdev->dev,
+	"The HiperSockets device is not authorized to be a Bridge Port\n");
+			break;
+		default:
+			rc = -EIO;
+		}
+		break;
+	case IPA_RC_NOTSUPP:
+		rc = -ENOSYS;
+		break;
+	case IPA_RC_UNSUPPORTED_COMMAND:
+		rc = -ENOSYS;
+		break;
+	default:
+		rc = -EIO;
+	}
+	if (rc) {
+		QETH_CARD_TEXT_(card, 2, "SBPi%04x", cbctl->ipa_rc);
+		QETH_CARD_TEXT_(card, 2, "SBPc%04x", cbctl->cmd_rc);
+	}
+	return rc;
+}
+
+static int qeth_bridgeport_query_support_cb(struct qeth_card *card,
+	struct qeth_reply *reply, unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+	struct _qeth_sbp_cbctl *cbctl = (struct _qeth_sbp_cbctl *)reply->param;
+	QETH_CARD_TEXT(card, 2, "brqsupcb");
+	cbctl->ipa_rc = cmd->hdr.return_code;
+	cbctl->cmd_rc = cmd->data.sbp.hdr.return_code;
+	if ((cbctl->ipa_rc == 0) && (cbctl->cmd_rc == 0)) {
+		cbctl->data.supported =
+			cmd->data.sbp.data.query_cmds_supp.supported_cmds;
+	} else {
+		cbctl->data.supported = 0;
+	}
+	return 0;
+}
+
+/**
+ * qeth_bridgeport_query_support() - store bitmask of supported subfunctions.
+ * @card:			     qeth_card structure pointer.
+ *
+ * Sets bitmask of supported setbridgeport subfunctions in the qeth_card
+ * strucutre: card->options.sbp.supported_funcs.
+ */
+void qeth_bridgeport_query_support(struct qeth_card *card)
+{
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_cmd *cmd;
+	struct _qeth_sbp_cbctl cbctl;
+
+	QETH_CARD_TEXT(card, 2, "brqsuppo");
+	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETBRIDGEPORT, 0);
+	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd->data.sbp.hdr.cmdlength =
+		sizeof(struct qeth_ipacmd_sbp_hdr) +
+		sizeof(struct qeth_sbp_query_cmds_supp);
+	cmd->data.sbp.hdr.command_code =
+		IPA_SBP_QUERY_COMMANDS_SUPPORTED;
+	cmd->data.sbp.hdr.used_total = 1;
+	cmd->data.sbp.hdr.seq_no = 1;
+	if (qeth_send_ipa_cmd(card, iob, qeth_bridgeport_query_support_cb,
+							(void *)&cbctl) ||
+	    qeth_bridgeport_makerc(card, &cbctl,
+					IPA_SBP_QUERY_COMMANDS_SUPPORTED)) {
+		/* non-zero makerc signifies failure, and produce messages */
+		card->options.sbp.role = QETH_SBP_ROLE_NONE;
+		return;
+	}
+	card->options.sbp.supported_funcs = cbctl.data.supported;
+}
+EXPORT_SYMBOL_GPL(qeth_bridgeport_query_support);
+
+static int qeth_bridgeport_query_ports_cb(struct qeth_card *card,
+	struct qeth_reply *reply, unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+	struct qeth_sbp_query_ports *qports = &cmd->data.sbp.data.query_ports;
+	struct _qeth_sbp_cbctl *cbctl = (struct _qeth_sbp_cbctl *)reply->param;
+
+	QETH_CARD_TEXT(card, 2, "brqprtcb");
+	cbctl->ipa_rc = cmd->hdr.return_code;
+	cbctl->cmd_rc = cmd->data.sbp.hdr.return_code;
+	if ((cbctl->ipa_rc != 0) || (cbctl->cmd_rc != 0))
+		return 0;
+	if (qports->entry_length != sizeof(struct qeth_sbp_port_entry)) {
+		cbctl->cmd_rc = 0xffff;
+		QETH_CARD_TEXT_(card, 2, "SBPs%04x", qports->entry_length);
+		return 0;
+	}
+	/* first entry contains the state of the local port */
+	if (qports->num_entries > 0) {
+		if (cbctl->data.qports.role)
+			*cbctl->data.qports.role = qports->entry[0].role;
+		if (cbctl->data.qports.state)
+			*cbctl->data.qports.state = qports->entry[0].state;
+	}
+	return 0;
+}
+
+/**
+ * qeth_bridgeport_query_ports() - query local bridgeport status.
+ * @card:			   qeth_card structure pointer.
+ * @role:   Role of the port: 0-none, 1-primary, 2-secondary.
+ * @state:  State of the port: 0-inactive, 1-standby, 2-active.
+ *
+ * Returns negative errno-compatible error indication or 0 on success.
+ *
+ * 'role' and 'state' are not updated in case of hardware operation failure.
+ */
+int qeth_bridgeport_query_ports(struct qeth_card *card,
+	enum qeth_sbp_roles *role, enum qeth_sbp_states *state)
+{
+	int rc = 0;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_cmd *cmd;
+	struct _qeth_sbp_cbctl cbctl = {
+		.data = {
+			.qports = {
+				.role = role,
+				.state = state,
+			},
+		},
+	};
+
+	QETH_CARD_TEXT(card, 2, "brqports");
+	if (!(card->options.sbp.supported_funcs & IPA_SBP_QUERY_BRIDGE_PORTS))
+		return -EOPNOTSUPP;
+	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETBRIDGEPORT, 0);
+	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd->data.sbp.hdr.cmdlength =
+		sizeof(struct qeth_ipacmd_sbp_hdr);
+	cmd->data.sbp.hdr.command_code =
+		IPA_SBP_QUERY_BRIDGE_PORTS;
+	cmd->data.sbp.hdr.used_total = 1;
+	cmd->data.sbp.hdr.seq_no = 1;
+	rc = qeth_send_ipa_cmd(card, iob, qeth_bridgeport_query_ports_cb,
+				(void *)&cbctl);
+	if (rc)
+		return rc;
+	rc = qeth_bridgeport_makerc(card, &cbctl, IPA_SBP_QUERY_BRIDGE_PORTS);
+	if (rc)
+		return rc;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qeth_bridgeport_query_ports);
+
+static int qeth_bridgeport_set_cb(struct qeth_card *card,
+	struct qeth_reply *reply, unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *)data;
+	struct _qeth_sbp_cbctl *cbctl = (struct _qeth_sbp_cbctl *)reply->param;
+	QETH_CARD_TEXT(card, 2, "brsetrcb");
+	cbctl->ipa_rc = cmd->hdr.return_code;
+	cbctl->cmd_rc = cmd->data.sbp.hdr.return_code;
+	return 0;
+}
+
+/**
+ * qeth_bridgeport_setrole() - Assign primary role to the port.
+ * @card:		       qeth_card structure pointer.
+ * @role:		       Role to assign.
+ *
+ * Returns negative errno-compatible error indication or 0 on success.
+ */
+int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
+{
+	int rc = 0;
+	int cmdlength;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_cmd *cmd;
+	struct _qeth_sbp_cbctl cbctl;
+	enum qeth_ipa_sbp_cmd setcmd;
+
+	QETH_CARD_TEXT(card, 2, "brsetrol");
+	switch (role) {
+	case QETH_SBP_ROLE_NONE:
+		setcmd = IPA_SBP_RESET_BRIDGE_PORT_ROLE;
+		cmdlength =  sizeof(struct qeth_ipacmd_sbp_hdr) +
+			sizeof(struct qeth_sbp_reset_role);
+		break;
+	case QETH_SBP_ROLE_PRIMARY:
+		setcmd = IPA_SBP_SET_PRIMARY_BRIDGE_PORT;
+		cmdlength =  sizeof(struct qeth_ipacmd_sbp_hdr) +
+			sizeof(struct qeth_sbp_set_primary);
+		break;
+	case QETH_SBP_ROLE_SECONDARY:
+		setcmd = IPA_SBP_SET_SECONDARY_BRIDGE_PORT;
+		cmdlength =  sizeof(struct qeth_ipacmd_sbp_hdr) +
+			sizeof(struct qeth_sbp_set_secondary);
+		break;
+	default:
+		return -EINVAL;
+	}
+	if (!(card->options.sbp.supported_funcs & setcmd))
+		return -EOPNOTSUPP;
+	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETBRIDGEPORT, 0);
+	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd->data.sbp.hdr.cmdlength = cmdlength;
+	cmd->data.sbp.hdr.command_code = setcmd;
+	cmd->data.sbp.hdr.used_total = 1;
+	cmd->data.sbp.hdr.seq_no = 1;
+	rc = qeth_send_ipa_cmd(card, iob, qeth_bridgeport_set_cb,
+				(void *)&cbctl);
+	if (rc)
+		return rc;
+	rc = qeth_bridgeport_makerc(card, &cbctl, setcmd);
+	return rc;
+}
 
 module_init(qeth_l2_init);
 module_exit(qeth_l2_exit);

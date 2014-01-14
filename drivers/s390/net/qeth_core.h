@@ -156,6 +156,24 @@ struct qeth_ipa_info {
 	__u32 enabled_funcs;
 };
 
+/* SETBRIDGEPORT stuff */
+enum qeth_sbp_roles {
+	QETH_SBP_ROLE_NONE	= 0,
+	QETH_SBP_ROLE_PRIMARY	= 1,
+	QETH_SBP_ROLE_SECONDARY	= 2,
+};
+
+enum qeth_sbp_states {
+	QETH_SBP_STATE_INACTIVE	= 0,
+	QETH_SBP_STATE_STANDBY	= 1,
+	QETH_SBP_STATE_ACTIVE	= 2,
+};
+
+struct qeth_sbp_info {
+	__u32 supported_funcs;
+	enum qeth_sbp_roles role;
+};
+
 static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
 		enum qeth_ipa_funcs func)
 {
@@ -672,6 +690,7 @@ struct qeth_card_options {
 	struct qeth_ipa_info adp; /*Adapter parameters*/
 	struct qeth_routing_info route6;
 	struct qeth_ipa_info ipa6;
+	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	int fake_broadcast;
 	int add_hhlen;
 	int layer2;
@@ -857,6 +876,7 @@ extern struct qeth_discipline qeth_l2_discipline;
 extern struct qeth_discipline qeth_l3_discipline;
 extern const struct attribute_group *qeth_generic_attr_groups[];
 extern const struct attribute_group *qeth_osn_attr_groups[];
+extern struct workqueue_struct *qeth_wq;
 
 const char *qeth_get_cardname_short(struct qeth_card *);
 int qeth_realloc_buffer_pool(struct qeth_card *, int);
@@ -925,6 +945,11 @@ int qeth_query_card_info(struct qeth_card *card,
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	int (*reply_cb)(struct qeth_card *, struct qeth_reply*, unsigned long),
 	void *reply_param);
+void qeth_bridge_state_change(struct qeth_card *card, struct qeth_ipa_cmd *cmd);
+void qeth_bridgeport_query_support(struct qeth_card *card);
+int qeth_bridgeport_query_ports(struct qeth_card *card,
+	enum qeth_sbp_roles *role, enum qeth_sbp_states *state);
+int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role);
 int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *, struct sk_buff *, int);
 int qeth_get_elements_for_frags(struct sk_buff *);
