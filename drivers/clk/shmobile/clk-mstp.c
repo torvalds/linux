@@ -160,7 +160,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 	unsigned int i;
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
-	clks = kzalloc(MSTP_MAX_CLOCKS * sizeof(*clks), GFP_KERNEL);
+	clks = kmalloc(MSTP_MAX_CLOCKS * sizeof(*clks), GFP_KERNEL);
 	if (group == NULL || clks == NULL) {
 		kfree(group);
 		kfree(clks);
@@ -180,6 +180,9 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 		kfree(clks);
 		return;
 	}
+
+	for (i = 0; i < MSTP_MAX_CLOCKS; ++i)
+		clks[i] = ERR_PTR(-ENOENT);
 
 	for (i = 0; i < MSTP_MAX_CLOCKS; ++i) {
 		const char *parent_name;
@@ -205,10 +208,11 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 			continue;
 		}
 
-		clks[clkidx] = cpg_mstp_clock_register(name, parent_name, i,
-						       group);
+		clks[clkidx] = cpg_mstp_clock_register(name, parent_name,
+						       clkidx, group);
 		if (!IS_ERR(clks[clkidx])) {
-			group->data.clk_num = max(group->data.clk_num, clkidx);
+			group->data.clk_num = max(group->data.clk_num,
+						  clkidx + 1);
 			/*
 			 * Register a clkdev to let board code retrieve the
 			 * clock by name and register aliases for non-DT
