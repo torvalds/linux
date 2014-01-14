@@ -360,7 +360,19 @@ static void acpi_memory_device_remove(struct acpi_device *device)
 	acpi_memory_device_free(mem_device);
 }
 
+static bool __initdata acpi_no_memhotplug;
+
 void __init acpi_memory_hotplug_init(void)
 {
+	if (acpi_no_memhotplug)
+		return;
+
 	acpi_scan_add_handler_with_hotplug(&memory_device_handler, "memory");
 }
+
+static int __init disable_acpi_memory_hotplug(char *str)
+{
+	acpi_no_memhotplug = true;
+	return 1;
+}
+__setup("acpi_no_memhotplug", disable_acpi_memory_hotplug);
