@@ -21,6 +21,7 @@
 #include <linux/clocksource.h>
 #include <linux/dma-mapping.h>
 #include <linux/mbus.h>
+#include <linux/slab.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -28,6 +29,7 @@
 #include "armada-370-xp.h"
 #include "common.h"
 #include "coherency.h"
+#include "mvebu-soc-id.h"
 
 static void __init armada_370_xp_map_io(void)
 {
@@ -45,8 +47,38 @@ static void __init armada_370_xp_timer_and_clk_init(void)
 #endif
 }
 
+static void __init i2c_quirk(void)
+{
+	struct device_node *np;
+	u32 dev, rev;
+
+	/*
+	 * Only revisons more recent than A0 support the offload
+	 * mechanism. We can exit only if we are sure that we can
+	 * get the SoC revision and it is more recent than A0.
+	 */
+	if (mvebu_get_soc_id(&rev, &dev) == 0 && dev > MV78XX0_A0_REV)
+		return;
+
+	for_each_compatible_node(np, NULL, "marvell,mv78230-i2c") {
+		struct property *new_compat;
+
+		new_compat = kzalloc(sizeof(*new_compat), GFP_KERNEL);
+
+		new_compat->name = kstrdup("compatible", GFP_KERNEL);
+		new_compat->length = sizeof("marvell,mv78230-a0-i2c");
+		new_compat->value = kstrdup("marvell,mv78230-a0-i2c",
+						GFP_KERNEL);
+
+		of_update_property(np, new_compat);
+	}
+	return;
+}
+
 static void __init armada_370_xp_dt_init(void)
 {
+	if (of_machine_is_compatible("plathome,openblocks-ax3-4"))
+		i2c_quirk();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
