@@ -1701,8 +1701,14 @@ struct cfg80211_ibss_params {
  *
  * @channel: The channel to use or %NULL if not specified (auto-select based
  *	on scan results)
+ * @channel_hint: The channel of the recommended BSS for initial connection or
+ *	%NULL if not specified
  * @bssid: The AP BSSID or %NULL if not specified (auto-select based on scan
  *	results)
+ * @bssid_hint: The recommended AP BSSID for initial connection to the BSS or
+ *	%NULL if not specified. Unlike the @bssid parameter, the driver is
+ *	allowed to ignore this @bssid_hint if it has knowledge of a better BSS
+ *	to use.
  * @ssid: SSID
  * @ssid_len: Length of ssid in octets
  * @auth_type: Authentication type (algorithm)
@@ -1725,7 +1731,9 @@ struct cfg80211_ibss_params {
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
+	struct ieee80211_channel *channel_hint;
 	u8 *bssid;
+	const u8 *bssid_hint;
 	u8 *ssid;
 	size_t ssid_len;
 	enum nl80211_auth_type auth_type;
