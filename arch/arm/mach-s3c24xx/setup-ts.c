@@ -15,6 +15,7 @@
 
 struct platform_device; /* don't need the contents */
 
+#include <plat/gpio-cfg.h>
 #include <mach/hardware.h>
 #include <mach/gpio-samsung.h>
 

@@ -59,6 +59,7 @@
 #include <plat/pm.h>
 #include <plat/regs-serial.h>
 #include <plat/samsung-time.h>
+#include <plat/gpio-cfg.h>
 
 #include "common.h"
 #include "h1940.h"

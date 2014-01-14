@@ -93,8 +93,6 @@ enum s3c_gpio_number {
 #define S3C2410_GPL(_nr)	(S3C2410_GPIO_L_START + (_nr))
 #define S3C2410_GPM(_nr)	(S3C2410_GPIO_M_START + (_nr))
 
-#include <plat/gpio-cfg.h>
-
 #ifdef CONFIG_CPU_S3C244X
 #define S3C_GPIO_END	(S3C2410_GPJ(0) + 32)
 #elif defined(CONFIG_CPU_S3C2443) || defined(CONFIG_CPU_S3C2416)

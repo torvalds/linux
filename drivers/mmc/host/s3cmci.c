@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
+#include <plat/gpio-cfg.h>
 #include <mach/dma.h>
 #include <mach/gpio-samsung.h>
 
