@@ -117,6 +117,5 @@ void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	struct hstate *hstate = hstate_file(vma->vm_file);
 	unsigned long tsize = huge_page_shift(hstate) - 10;
 
-	__flush_tlb_page(vma ? vma->vm_mm : NULL, vmaddr, tsize, 0);
-
+	__flush_tlb_page(vma->vm_mm, vmaddr, tsize, 0);
 }

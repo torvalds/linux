@@ -209,13 +209,3 @@ void __init tegra_init_fuse(void)
 		tegra_sku_id, tegra_cpu_process_id,
 		tegra_core_process_id);
 }
-
-unsigned long long tegra_chip_uid(void)
-{
-	unsigned long long lo, hi;
-
-	lo = tegra_fuse_readl(FUSE_UID_LOW);
-	hi = tegra_fuse_readl(FUSE_UID_HIGH);
-	return (hi << 32ull) | lo;
-}
-EXPORT_SYMBOL(tegra_chip_uid);
