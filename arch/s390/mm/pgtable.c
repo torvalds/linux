@@ -1378,6 +1378,29 @@ int s390_enable_sie(void)
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
 
+/*
+ * Enable storage key handling from now on and initialize the storage
+ * keys with the default key.
+ */
+void s390_enable_skey(void)
+{
+	/*
+	 * To avoid races between multiple vcpus, ending in calling
+	 * page_table_reset twice or more,
+	 * the page_table_lock is taken for serialization.
+	 */
+	spin_lock(&current->mm->page_table_lock);
+	if (mm_use_skey(current->mm)) {
+		spin_unlock(&current->mm->page_table_lock);
+		return;
+	}
+
+	current->mm->context.use_skey = 1;
+	spin_unlock(&current->mm->page_table_lock);
+	page_table_reset_pgste(current->mm, 0, TASK_SIZE, true);
+}
+EXPORT_SYMBOL_GPL(s390_enable_skey);
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 int pmdp_clear_flush_young(struct vm_area_struct *vma, unsigned long address,
 			   pmd_t *pmdp)
