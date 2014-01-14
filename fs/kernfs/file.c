@@ -54,6 +54,38 @@ static const struct kernfs_ops *kernfs_ops(struct kernfs_node *kn)
 	return kn->attr.ops;
 }
 
+/*
+ * As kernfs_seq_stop() is also called after kernfs_seq_start() or
+ * kernfs_seq_next() failure, it needs to distinguish whether it's stopping
+ * a seq_file iteration which is fully initialized with an active reference
+ * or an aborted kernfs_seq_start() due to get_active failure.  The
+ * position pointer is the only context for each seq_file iteration and
+ * thus the stop condition should be encoded in it.  As the return value is
+ * directly visible to userland, ERR_PTR(-ENODEV) is the only acceptable
+ * choice to indicate get_active failure.
+ *
+ * Unfortunately, this is complicated due to the optional custom seq_file
+ * operations which may return ERR_PTR(-ENODEV) too.  kernfs_seq_stop()
+ * can't distinguish whether ERR_PTR(-ENODEV) is from get_active failure or
+ * custom seq_file operations and thus can't decide whether put_active
+ * should be performed or not only on ERR_PTR(-ENODEV).
+ *
+ * This is worked around by factoring out the custom seq_stop() and
+ * put_active part into kernfs_seq_stop_active(), skipping it from
+ * kernfs_seq_stop() if ERR_PTR(-ENODEV) while invoking it directly after
+ * custom seq_file operations fail with ERR_PTR(-ENODEV) - this ensures
+ * that kernfs_seq_stop_active() is skipped only after get_active failure.
+ */
+static void kernfs_seq_stop_active(struct seq_file *sf, void *v)
+{
+	struct kernfs_open_file *of = sf->private;
+	const struct kernfs_ops *ops = kernfs_ops(of->kn);
+
+	if (ops->seq_stop)
+		ops->seq_stop(sf, v);
+	kernfs_put_active(of->kn);
+}
+
 static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 {
 	struct kernfs_open_file *of = sf->private;
@@ -69,7 +101,11 @@ static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 
 	ops = kernfs_ops(of->kn);
 	if (ops->seq_start) {
-		return ops->seq_start(sf, ppos);
+		void *next = ops->seq_start(sf, ppos);
+		/* see the comment above kernfs_seq_stop_active() */
+		if (next == ERR_PTR(-ENODEV))
+			kernfs_seq_stop_active(sf, next);
+		return next;
 	} else {
 		/*
 		 * The same behavior and code as single_open().  Returns
@@ -85,7 +121,11 @@ static void *kernfs_seq_next(struct seq_file *sf, void *v, loff_t *ppos)
 	const struct kernfs_ops *ops = kernfs_ops(of->kn);
 
 	if (ops->seq_next) {
-		return ops->seq_next(sf, v, ppos);
+		void *next = ops->seq_next(sf, v, ppos);
+		/* see the comment above kernfs_seq_stop_active() */
+		if (next == ERR_PTR(-ENODEV))
+			kernfs_seq_stop_active(sf, next);
+		return next;
 	} else {
 		/*
 		 * The same behavior and code as single_open(), always
@@ -99,12 +139,9 @@ static void *kernfs_seq_next(struct seq_file *sf, void *v, loff_t *ppos)
 static void kernfs_seq_stop(struct seq_file *sf, void *v)
 {
 	struct kernfs_open_file *of = sf->private;
-	const struct kernfs_ops *ops = kernfs_ops(of->kn);
 
-	if (ops->seq_stop)
-		ops->seq_stop(sf, v);
-
-	kernfs_put_active(of->kn);
+	if (v != ERR_PTR(-ENODEV))
+		kernfs_seq_stop_active(sf, v);
 	mutex_unlock(&of->mutex);
 }
 
