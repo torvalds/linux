@@ -304,6 +304,7 @@ enum {
 	MV5_LTMODE		= 0x30,
 	MV5_PHY_CTL		= 0x0C,
 	SATA_IFCFG		= 0x050,
+	LP_PHY_CTL		= 0x058,
 
 	MV_M2_PREAMP_MASK	= 0x7e0,
 
@@ -431,6 +432,7 @@ enum {
 	MV_HP_CUT_THROUGH	= (1 << 10),	/* can use EDMA cut-through */
 	MV_HP_FLAG_SOC		= (1 << 11),	/* SystemOnChip, no PCI */
 	MV_HP_QUIRK_LED_BLINK_EN = (1 << 12),	/* is led blinking enabled? */
+	MV_HP_FIX_LP_PHY_CTL	= (1 << 13),	/* fix speed in LP_PHY_CTL ? */
 
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),	/* is EDMA engine enabled? */
@@ -1353,6 +1355,7 @@ static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 
 	if (ofs != 0xffffffffU) {
 		void __iomem *addr = mv_ap_base(link->ap) + ofs;
+		struct mv_host_priv *hpriv = link->ap->host->private_data;
 		if (sc_reg_in == SCR_CONTROL) {
 			/*
 			 * Workaround for 88SX60x1 FEr SATA#26:
@@ -1369,6 +1372,18 @@ static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 			 */
 			if ((val & 0xf) == 1 || (readl(addr) & 0xf) == 1)
 				val |= 0xf000;
+
+			if (hpriv->hp_flags & MV_HP_FIX_LP_PHY_CTL) {
+				void __iomem *lp_phy_addr =
+					mv_ap_base(link->ap) + LP_PHY_CTL;
+				/*
+				 * Set PHY speed according to SControl speed.
+				 */
+				if ((val & 0xf0) == 0x10)
+					writelfl(0x7, lp_phy_addr);
+				else
+					writelfl(0x227, lp_phy_addr);
+			}
 		}
 		writelfl(val, addr);
 		return 0;
@@ -4110,6 +4125,15 @@ static int mv_platform_probe(struct platform_device *pdev)
 	rc = mv_create_dma_pools(hpriv, &pdev->dev);
 	if (rc)
 		goto err;
+
+	/*
+	 * To allow disk hotplug on Armada 370/XP SoCs, the PHY speed must be
+	 * updated in the LP_PHY_CTL register.
+	 */
+	if (pdev->dev.of_node &&
+		of_device_is_compatible(pdev->dev.of_node,
+					"marvell,armada-370-sata"))
+		hpriv->hp_flags |= MV_HP_FIX_LP_PHY_CTL;
 
 	/* initialize adapter */
 	rc = mv_init_host(host);
