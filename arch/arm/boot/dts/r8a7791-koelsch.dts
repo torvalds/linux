@@ -122,3 +122,7 @@
 		renesas,function = "scif1";
 	};
 };
+
+&sata0 {
+	status = "okay";
+};
