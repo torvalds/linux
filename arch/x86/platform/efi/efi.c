@@ -577,6 +577,8 @@ static int __init efi_systab_init(void *phys)
 		       efi.systab->hdr.revision >> 16,
 		       efi.systab->hdr.revision & 0xffff);
 
+	set_bit(EFI_SYSTEM_TABLES, &efi.flags);
+
 	return 0;
 }
 
@@ -612,6 +614,8 @@ static int __init efi_runtime_init(void)
 	efi.get_time = phys_efi_get_time;
 	early_iounmap(runtime, sizeof(efi_runtime_services_t));
 
+	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+
 	return 0;
 }
 
@@ -628,6 +632,8 @@ static int __init efi_memmap_init(void)
 
 	if (add_efi_memmap)
 		do_add_efi_memmap();
+
+	set_bit(EFI_MEMMAP, &efi.flags);
 
 	return 0;
 }
@@ -739,8 +745,6 @@ void __init efi_init(void)
 	if (efi_config_init(arch_tables))
 		return;
 
-	set_bit(EFI_CONFIG_TABLES, &efi.flags);
-
 	/*
 	 * Note: We currently don't support runtime services on an EFI
 	 * that doesn't match the kernel 32/64-bit mode.
@@ -751,7 +755,6 @@ void __init efi_init(void)
 	else {
 		if (disable_runtime || efi_runtime_init())
 			return;
-		set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 	}
 	if (efi_memmap_init())
 		return;
@@ -1194,7 +1197,7 @@ static int __init parse_efi_cmdline(char *str)
 		str++;
 
 	if (!strncmp(str, "old_map", 7))
-		set_bit(EFI_OLD_MEMMAP, &x86_efi_facility);
+		set_bit(EFI_OLD_MEMMAP, &efi.flags);
 
 	return 0;
 }
