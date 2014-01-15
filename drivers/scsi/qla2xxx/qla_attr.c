@@ -1994,6 +1994,8 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	vha->flags.delete_progress = 1;
 
+	qlt_remove_target(ha, vha);
+
 	fc_remove_host(vha->host);
 
 	scsi_remove_host(vha->host);
