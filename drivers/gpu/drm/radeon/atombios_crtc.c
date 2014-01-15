@@ -423,7 +423,17 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 	int index = GetIndexIntoMasterTable(COMMAND, EnableSpreadSpectrumOnPPLL);
 	union atom_enable_ss args;
 
-	if (!enable) {
+	if (enable) {
+		/* Don't mess with SS if percentage is 0 or external ss.
+		 * SS is already disabled previously, and disabling it
+		 * again can cause display problems if the pll is already
+		 * programmed.
+		 */
+		if (ss->percentage == 0)
+			return;
+		if (ss->type & ATOM_EXTERNAL_SS_MASK)
+			return;
+	} else {
 		for (i = 0; i < rdev->num_crtc; i++) {
 			if (rdev->mode_info.crtcs[i] &&
 			    rdev->mode_info.crtcs[i]->enabled &&
@@ -459,8 +469,6 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.v3.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
 		args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 		args.v3.ucEnable = enable;
-		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE61(rdev))
-			args.v3.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE4(rdev)) {
 		args.v2.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
 		args.v2.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
@@ -480,8 +488,6 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.v2.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
 		args.v2.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 		args.v2.ucEnable = enable;
-		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE41(rdev))
-			args.v2.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		args.v1.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
 		args.v1.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
@@ -503,8 +509,7 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.lvds_ss_2.ucSpreadSpectrumRange = ss->range;
 		args.lvds_ss_2.ucEnable = enable;
 	} else {
-		if ((enable == ATOM_DISABLE) || (ss->percentage == 0) ||
-		    (ss->type & ATOM_EXTERNAL_SS_MASK)) {
+		if (enable == ATOM_DISABLE) {
 			atombios_disable_ss(rdev, pll_id);
 			return;
 		}
