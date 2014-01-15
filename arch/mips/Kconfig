@@ -1999,7 +1999,7 @@ config MIPS_VPE_APSP_API_MT
 	depends on MIPS_VPE_APSP_API && !MIPS_CMP
 
 config MIPS_CMP
-	bool "MIPS CMP framework support"
+	bool "MIPS CMP framework support (DEPRECATED)"
 	depends on SYS_SUPPORTS_MIPS_CMP && !MIPS_MT_SMTC
 	select MIPS_GIC_IPI
 	select SYNC_R4K
@@ -2009,6 +2009,9 @@ config MIPS_CMP
 	  Select this if you are using a bootloader which implements the "CMP
 	  framework" protocol (ie. YAMON) and want your kernel to make use of
 	  its ability to start secondary CPUs.
+
+	  Unless you have a specific need, you should use CONFIG_MIPS_CPS
+	  instead of this.
 
 config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
