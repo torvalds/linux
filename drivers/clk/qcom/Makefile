@@ -8,4 +8,5 @@ clk-qcom-$(CONFIG_COMMON_CLK_QCOM) += clk-branch.o
 clk-qcom-$(CONFIG_COMMON_CLK_QCOM) += reset.o
 
 obj-$(CONFIG_MSM_GCC_8960) += gcc-msm8960.o
+obj-$(CONFIG_MSM_GCC_8974) += gcc-msm8974.o
 obj-$(CONFIG_MSM_MMCC_8960) += mmcc-msm8960.o
