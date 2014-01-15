@@ -97,6 +97,36 @@ int dcache_bsize;
 int icache_bsize;
 int ucache_bsize;
 
+#if defined(CONFIG_PPC_BOOK3E) && defined(CONFIG_SMP)
+static void setup_tlb_core_data(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		int first = cpu_first_thread_sibling(cpu);
+
+		paca[cpu].tcd_ptr = &paca[first].tcd;
+
+		/*
+		 * If we have threads, we need either tlbsrx.
+		 * or e6500 tablewalk mode, or else TLB handlers
+		 * will be racy and could produce duplicate entries.
+		 */
+		if (smt_enabled_at_boot >= 2 &&
+		    !mmu_has_feature(MMU_FTR_USE_TLBRSRV) &&
+		    book3e_htw_mode != PPC_HTW_E6500) {
+			/* Should we panic instead? */
+			WARN_ONCE("%s: unsupported MMU configuration -- expect problems\n",
+				  __func__);
+		}
+	}
+}
+#else
+static void setup_tlb_core_data(void)
+{
+}
+#endif
+
 #ifdef CONFIG_SMP
 
 static char *smt_enabled_cmdline;
@@ -445,6 +475,7 @@ void __init setup_system(void)
 
 	smp_setup_cpu_maps();
 	check_smt_enabled();
+	setup_tlb_core_data();
 
 #ifdef CONFIG_SMP
 	/* Release secondary cpus out of their spinloops at 0x60 now that

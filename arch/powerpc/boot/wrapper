@@ -265,6 +265,10 @@ epapr)
     link_address='0x20000000'
     pie=-pie
     ;;
+mvme5100)
+    platformo="$object/fixed-head.o $object/mvme5100.o"
+    binary=y
+    ;;
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"

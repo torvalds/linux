@@ -53,11 +53,57 @@ _GLOBAL(__e500_dcache_setup)
 	isync
 	blr
 
+/*
+ * FIXME - we haven't yet done testing to determine a reasonable default
+ * value for PW20_WAIT_IDLE_BIT.
+ */
+#define PW20_WAIT_IDLE_BIT		50 /* 1ms, TB frequency is 41.66MHZ */
+_GLOBAL(setup_pw20_idle)
+	mfspr	r3, SPRN_PWRMGTCR0
+
+	/* Set PW20_WAIT bit, enable pw20 state*/
+	ori	r3, r3, PWRMGTCR0_PW20_WAIT
+	li	r11, PW20_WAIT_IDLE_BIT
+
+	/* Set Automatic PW20 Core Idle Count */
+	rlwimi	r3, r11, PWRMGTCR0_PW20_ENT_SHIFT, PWRMGTCR0_PW20_ENT
+
+	mtspr	SPRN_PWRMGTCR0, r3
+
+	blr
+
+/*
+ * FIXME - we haven't yet done testing to determine a reasonable default
+ * value for AV_WAIT_IDLE_BIT.
+ */
+#define AV_WAIT_IDLE_BIT		50 /* 1ms, TB frequency is 41.66MHZ */
+_GLOBAL(setup_altivec_idle)
+	mfspr	r3, SPRN_PWRMGTCR0
+
+	/* Enable Altivec Idle */
+	oris	r3, r3, PWRMGTCR0_AV_IDLE_PD_EN@h
+	li	r11, AV_WAIT_IDLE_BIT
+
+	/* Set Automatic AltiVec Idle Count */
+	rlwimi	r3, r11, PWRMGTCR0_AV_IDLE_CNT_SHIFT, PWRMGTCR0_AV_IDLE_CNT
+
+	mtspr	SPRN_PWRMGTCR0, r3
+
+	blr
+
 _GLOBAL(__setup_cpu_e6500)
 	mflr	r6
 #ifdef CONFIG_PPC64
 	bl	.setup_altivec_ivors
+	/* Touch IVOR42 only if the CPU supports E.HV category */
+	mfspr	r10,SPRN_MMUCFG
+	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
+	beq	1f
+	bl	.setup_lrat_ivor
+1:
 #endif
+	bl	setup_pw20_idle
+	bl	setup_altivec_idle
 	bl	__setup_cpu_e5500
 	mtlr	r6
 	blr
@@ -119,6 +165,14 @@ _GLOBAL(__setup_cpu_e5500)
 _GLOBAL(__restore_cpu_e6500)
 	mflr	r5
 	bl	.setup_altivec_ivors
+	/* Touch IVOR42 only if the CPU supports E.HV category */
+	mfspr	r10,SPRN_MMUCFG
+	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
+	beq	1f
+	bl	.setup_lrat_ivor
+1:
+	bl	.setup_pw20_idle
+	bl	.setup_altivec_idle
 	bl	__restore_cpu_e5500
 	mtlr	r5
 	blr
