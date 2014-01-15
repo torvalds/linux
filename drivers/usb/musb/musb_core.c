@@ -477,6 +477,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				musb->port1_status |=
 						(USB_PORT_STAT_C_SUSPEND << 16)
 						| MUSB_PORT_STAT_RESUME;
+				musb->rh_timer = jiffies
+						 + msecs_to_jiffies(20);
 				schedule_delayed_work(
 					&musb->finish_resume_work, 20);
 
