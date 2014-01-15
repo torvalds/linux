@@ -121,12 +121,6 @@ static const char * const ue_status_hi_desc[] = {
 	"Unknown"
 };
 
-/* Is BE in a multi-channel mode */
-static inline bool be_is_mc(struct be_adapter *adapter) {
-	return (adapter->function_mode & FLEX10_MODE ||
-		adapter->function_mode & VNIC_MODE ||
-		adapter->function_mode & UMC_ENABLED);
-}
 
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
@@ -3410,11 +3404,6 @@ static int be_setup(struct be_adapter *adapter)
 		goto err;
 
 	be_cmd_get_fn_privileges(adapter, &adapter->cmd_privileges, 0);
-	/* In UMC mode FW does not return right privileges.
-	 * Override with correct privilege equivalent to PF.
-	 */
-	if (be_is_mc(adapter))
-		adapter->cmd_privileges = MAX_PRIVILEGES;
 
 	status = be_mac_setup(adapter);
 	if (status)

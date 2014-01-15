@@ -2691,6 +2691,13 @@ int be_cmd_get_fn_privileges(struct be_adapter *adapter, u32 *privilege,
 		struct be_cmd_resp_get_fn_privileges *resp =
 						embedded_payload(wrb);
 		*privilege = le32_to_cpu(resp->privilege_mask);
+
+		/* In UMC mode FW does not return right privileges.
+		 * Override with correct privilege equivalent to PF.
+		 */
+		if (BEx_chip(adapter) && be_is_mc(adapter) &&
+		    be_physfn(adapter))
+			*privilege = MAX_PRIVILEGES;
 	}
 
 err:

@@ -1098,6 +1098,14 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 function_caps;
 };
 
+/* Is BE in a multi-channel mode */
+static inline bool be_is_mc(struct be_adapter *adapter)
+{
+	return adapter->function_mode & FLEX10_MODE ||
+		adapter->function_mode & VNIC_MODE ||
+		adapter->function_mode & UMC_ENABLED;
+}
+
 /******************** RSS Config ****************************************/
 /* RSS type		Input parameters used to compute RX hash
  * RSS_ENABLE_IPV4	SRC IPv4, DST IPv4
