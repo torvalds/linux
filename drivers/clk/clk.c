@@ -1218,10 +1218,9 @@ static void clk_reparent(struct clk *clk, struct clk *new_parent)
 	clk->parent = new_parent;
 }
 
-static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
+static struct clk *__clk_set_parent_before(struct clk *clk, struct clk *parent)
 {
 	unsigned long flags;
-	int ret = 0;
 	struct clk *old_parent = clk->parent;
 
 	/*
@@ -1252,6 +1251,34 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
 	clk_reparent(clk, parent);
 	clk_enable_unlock(flags);
 
+	return old_parent;
+}
+
+static void __clk_set_parent_after(struct clk *clk, struct clk *parent,
+		struct clk *old_parent)
+{
+	/*
+	 * Finish the migration of prepare state and undo the changes done
+	 * for preventing a race with clk_enable().
+	 */
+	if (clk->prepare_count) {
+		clk_disable(clk);
+		clk_disable(old_parent);
+		__clk_unprepare(old_parent);
+	}
+
+	/* update debugfs with new clk tree topology */
+	clk_debug_reparent(clk, parent);
+}
+
+static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
+{
+	unsigned long flags;
+	int ret = 0;
+	struct clk *old_parent;
+
+	old_parent = __clk_set_parent_before(clk, parent);
+
 	/* change clock input source */
 	if (parent && clk->ops->set_parent)
 		ret = clk->ops->set_parent(clk->hw, p_index);
@@ -1269,18 +1296,8 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
 		return ret;
 	}
 
-	/*
-	 * Finish the migration of prepare state and undo the changes done
-	 * for preventing a race with clk_enable().
-	 */
-	if (clk->prepare_count) {
-		clk_disable(clk);
-		clk_disable(old_parent);
-		__clk_unprepare(old_parent);
-	}
+	__clk_set_parent_after(clk, parent, old_parent);
 
-	/* update debugfs with new clk tree topology */
-	clk_debug_reparent(clk, parent);
 	return 0;
 }
 
@@ -1465,17 +1482,32 @@ static void clk_change_rate(struct clk *clk)
 	struct clk *child;
 	unsigned long old_rate;
 	unsigned long best_parent_rate = 0;
+	bool skip_set_rate = false;
+	struct clk *old_parent;
 
 	old_rate = clk->rate;
 
-	/* set parent */
-	if (clk->new_parent && clk->new_parent != clk->parent)
-		__clk_set_parent(clk, clk->new_parent, clk->new_parent_index);
-
-	if (clk->parent)
+	if (clk->new_parent)
+		best_parent_rate = clk->new_parent->rate;
+	else if (clk->parent)
 		best_parent_rate = clk->parent->rate;
 
-	if (clk->ops->set_rate)
+	if (clk->new_parent && clk->new_parent != clk->parent) {
+		old_parent = __clk_set_parent_before(clk, clk->new_parent);
+
+		if (clk->ops->set_rate_and_parent) {
+			skip_set_rate = true;
+			clk->ops->set_rate_and_parent(clk->hw, clk->new_rate,
+					best_parent_rate,
+					clk->new_parent_index);
+		} else if (clk->ops->set_parent) {
+			clk->ops->set_parent(clk->hw, clk->new_parent_index);
+		}
+
+		__clk_set_parent_after(clk, clk->new_parent, old_parent);
+	}
+
+	if (!skip_set_rate && clk->ops->set_rate)
 		clk->ops->set_rate(clk->hw, clk->new_rate, best_parent_rate);
 
 	if (clk->ops->recalc_rate)
@@ -1765,6 +1797,14 @@ int __clk_init(struct device *dev, struct clk *clk)
 
 	if (clk->ops->set_parent && !clk->ops->get_parent) {
 		pr_warning("%s: %s must implement .get_parent & .set_parent\n",
+				__func__, clk->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (clk->ops->set_rate_and_parent &&
+			!(clk->ops->set_parent && clk->ops->set_rate)) {
+		pr_warn("%s: %s must implement .set_parent & .set_rate\n",
 				__func__, clk->name);
 		ret = -EINVAL;
 		goto out;
