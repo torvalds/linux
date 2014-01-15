@@ -6323,7 +6323,8 @@ have_block_group:
 				/* we have a block, we're done */
 				spin_unlock(&last_ptr->refill_lock);
 				trace_btrfs_reserve_extent_cluster(root,
-					block_group, search_start, num_bytes);
+						used_block_group,
+						search_start, num_bytes);
 				if (used_block_group != block_group) {
 					btrfs_put_block_group(block_group);
 					block_group = used_block_group;
