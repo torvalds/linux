@@ -2058,7 +2058,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	u32 bmval1 = bmval[1];
 	u32 bmval2 = bmval[2];
 	struct kstat stat;
-	struct svc_fh tempfh;
+	struct svc_fh *tempfh = NULL;
 	struct kstatfs statfs;
 	int buflen = count << 2;
 	__be32 *attrlenp;
@@ -2105,11 +2105,15 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 			goto out_nfserr;
 	}
 	if ((bmval0 & (FATTR4_WORD0_FILEHANDLE | FATTR4_WORD0_FSID)) && !fhp) {
-		fh_init(&tempfh, NFS4_FHSIZE);
-		status = fh_compose(&tempfh, exp, dentry, NULL);
+		tempfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
+		status = nfserr_jukebox;
+		if (!tempfh)
+			goto out;
+		fh_init(tempfh, NFS4_FHSIZE);
+		status = fh_compose(tempfh, exp, dentry, NULL);
 		if (status)
 			goto out;
-		fhp = &tempfh;
+		fhp = tempfh;
 	}
 	if (bmval0 & (FATTR4_WORD0_ACL | FATTR4_WORD0_ACLSUPPORT
 			| FATTR4_WORD0_SUPPORTED_ATTRS)) {
@@ -2495,8 +2499,8 @@ out:
 		security_release_secctx(context, contextlen);
 #endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
 	kfree(acl);
-	if (fhp == &tempfh)
-		fh_put(&tempfh);
+	if (tempfh)
+		fh_put(tempfh);
 	return status;
 out_nfserr:
 	status = nfserrno(err);
