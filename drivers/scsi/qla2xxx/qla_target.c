@@ -4235,8 +4235,9 @@ static void qlt_lport_dump(struct scsi_qla_host *vha, u64 wwpn,
  * @callback:  lport initialization callback for tcm_qla2xxx code
  * @target_lport_ptr: pointer for tcm_qla2xxx specific lport data
  */
-int qlt_lport_register(struct qla_tgt_func_tmpl *qla_tgt_ops, u64 wwpn,
-	int (*callback)(struct scsi_qla_host *), void *target_lport_ptr)
+int qlt_lport_register(void *target_lport_ptr, u64 phys_wwpn,
+		       u64 npiv_wwpn, u64 npiv_wwnn,
+		       int (*callback)(struct scsi_qla_host *, void *, u64, u64))
 {
 	struct qla_tgt *tgt;
 	struct scsi_qla_host *vha;
@@ -4259,7 +4260,7 @@ int qlt_lport_register(struct qla_tgt_func_tmpl *qla_tgt_ops, u64 wwpn,
 			continue;
 
 		spin_lock_irqsave(&ha->hardware_lock, flags);
-		if (host->active_mode & MODE_TARGET) {
+		if ((!npiv_wwpn || !npiv_wwnn) && host->active_mode & MODE_TARGET) {
 			pr_debug("MODE_TARGET already active on qla2xxx(%d)\n",
 			    host->host_no);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -4273,24 +4274,18 @@ int qlt_lport_register(struct qla_tgt_func_tmpl *qla_tgt_ops, u64 wwpn,
 			    " qla2xxx scsi_host\n");
 			continue;
 		}
-		qlt_lport_dump(vha, wwpn, b);
+		qlt_lport_dump(vha, phys_wwpn, b);
 
 		if (memcmp(vha->port_name, b, WWN_SIZE)) {
 			scsi_host_put(host);
 			continue;
 		}
-		/*
-		 * Setup passed parameters ahead of invoking callback
-		 */
-		ha->tgt.tgt_ops = qla_tgt_ops;
-		vha->vha_tgt.target_lport_ptr = target_lport_ptr;
-		rc = (*callback)(vha);
-		if (rc != 0) {
-			ha->tgt.tgt_ops = NULL;
-			vha->vha_tgt.target_lport_ptr = NULL;
-			scsi_host_put(host);
-		}
 		mutex_unlock(&qla_tgt_mutex);
+
+		rc = (*callback)(vha, target_lport_ptr, npiv_wwpn, npiv_wwnn);
+		if (rc != 0)
+			scsi_host_put(host);
+
 		return rc;
 	}
 	mutex_unlock(&qla_tgt_mutex);

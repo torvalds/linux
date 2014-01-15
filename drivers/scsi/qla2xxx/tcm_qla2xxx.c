@@ -1559,14 +1559,18 @@ static int tcm_qla2xxx_init_lport(struct tcm_qla2xxx_lport *lport)
 	return 0;
 }
 
-static int tcm_qla2xxx_lport_register_cb(struct scsi_qla_host *vha)
+static int tcm_qla2xxx_lport_register_cb(struct scsi_qla_host *vha,
+					 void *target_lport_ptr,
+					 u64 npiv_wwpn, u64 npiv_wwnn)
 {
-	struct tcm_qla2xxx_lport *lport;
+	struct qla_hw_data *ha = vha->hw;
+	struct tcm_qla2xxx_lport *lport =
+			(struct tcm_qla2xxx_lport *)target_lport_ptr;
 	/*
-	 * Setup local pointer to vha, NPIV VP pointer (if present) and
-	 * vha->tcm_lport pointer
+	 * Setup tgt_ops, local pointer to vha and target_lport_ptr
 	 */
-	lport = (struct tcm_qla2xxx_lport *)vha->vha_tgt.target_lport_ptr;
+	ha->tgt.tgt_ops = &tcm_qla2xxx_template;
+	vha->vha_tgt.target_lport_ptr = target_lport_ptr;
 	lport->qla_vha = vha;
 
 	return 0;
@@ -1598,8 +1602,8 @@ static struct se_wwn *tcm_qla2xxx_make_lport(
 	if (ret != 0)
 		goto out;
 
-	ret = qlt_lport_register(&tcm_qla2xxx_template, wwpn,
-				tcm_qla2xxx_lport_register_cb, lport);
+	ret = qlt_lport_register(lport, wwpn, 0, 0,
+				 tcm_qla2xxx_lport_register_cb);
 	if (ret != 0)
 		goto out_lport;
 
@@ -1637,20 +1641,70 @@ static void tcm_qla2xxx_drop_lport(struct se_wwn *wwn)
 	kfree(lport);
 }
 
+static int tcm_qla2xxx_lport_register_npiv_cb(struct scsi_qla_host *base_vha,
+					      void *target_lport_ptr,
+					      u64 npiv_wwpn, u64 npiv_wwnn)
+{
+	struct fc_vport *vport;
+	struct Scsi_Host *sh = base_vha->host;
+	struct scsi_qla_host *npiv_vha;
+	struct tcm_qla2xxx_lport *lport =
+			(struct tcm_qla2xxx_lport *)target_lport_ptr;
+	struct fc_vport_identifiers vport_id;
+
+	if (!qla_tgt_mode_enabled(base_vha)) {
+		pr_err("qla2xxx base_vha not enabled for target mode\n");
+		return -EPERM;
+	}
+
+	memset(&vport_id, 0, sizeof(vport_id));
+	vport_id.port_name = npiv_wwpn;
+	vport_id.node_name = npiv_wwnn;
+	vport_id.roles = FC_PORT_ROLE_FCP_INITIATOR;
+	vport_id.vport_type = FC_PORTTYPE_NPIV;
+	vport_id.disable = false;
+
+	vport = fc_vport_create(sh, 0, &vport_id);
+	if (!vport) {
+		pr_err("fc_vport_create failed for qla2xxx_npiv\n");
+		return -ENODEV;
+	}
+	/*
+	 * Setup local pointer to NPIV vhba + target_lport_ptr
+	 */
+	npiv_vha = (struct scsi_qla_host *)vport->dd_data;
+	npiv_vha->vha_tgt.target_lport_ptr = target_lport_ptr;
+	lport->qla_vha = npiv_vha;
+
+	scsi_host_get(npiv_vha->host);
+	return 0;
+}
+
+
 static struct se_wwn *tcm_qla2xxx_npiv_make_lport(
 	struct target_fabric_configfs *tf,
 	struct config_group *group,
 	const char *name)
 {
 	struct tcm_qla2xxx_lport *lport;
-	u64 npiv_wwpn, npiv_wwnn;
+	u64 phys_wwpn, npiv_wwpn, npiv_wwnn;
+	char *p, tmp[128];
 	int ret;
-	struct scsi_qla_host *vha = NULL;
-	struct qla_hw_data *ha = NULL;
-	scsi_qla_host_t *base_vha = NULL;
 
-	if (tcm_qla2xxx_npiv_parse_wwn(name, strlen(name)+1,
-				&npiv_wwpn, &npiv_wwnn) < 0)
+	snprintf(tmp, 128, "%s", name);
+
+	p = strchr(tmp, '@');
+	if (!p) {
+		pr_err("Unable to locate NPIV '@' seperator\n");
+		return ERR_PTR(-EINVAL);
+	}
+	*p++ = '\0';
+
+	if (tcm_qla2xxx_parse_wwn(tmp, &phys_wwpn, 1) < 0)
+		return ERR_PTR(-EINVAL);
+
+	if (tcm_qla2xxx_npiv_parse_wwn(p, strlen(p)+1,
+				       &npiv_wwpn, &npiv_wwnn) < 0)
 		return ERR_PTR(-EINVAL);
 
 	lport = kzalloc(sizeof(struct tcm_qla2xxx_lport), GFP_KERNEL);
@@ -1668,20 +1722,10 @@ static struct se_wwn *tcm_qla2xxx_npiv_make_lport(
 	if (ret != 0)
 		goto out;
 
-	ret = qlt_lport_register(&tcm_qla2xxx_template, npiv_wwpn,
-				tcm_qla2xxx_lport_register_cb, lport);
-
+	ret = qlt_lport_register(lport, phys_wwpn, npiv_wwpn, npiv_wwnn,
+				 tcm_qla2xxx_lport_register_npiv_cb);
 	if (ret != 0)
 		goto out_lport;
-
-	vha = lport->qla_vha;
-	ha = vha->hw;
-	base_vha = pci_get_drvdata(ha->pdev);
-
-	if (!qla_tgt_mode_enabled(base_vha)) {
-		ret = -EPERM;
-		goto out_lport;
-	}
 
 	return &lport->lport_wwn;
 out_lport:
@@ -1696,14 +1740,16 @@ static void tcm_qla2xxx_npiv_drop_lport(struct se_wwn *wwn)
 {
 	struct tcm_qla2xxx_lport *lport = container_of(wwn,
 			struct tcm_qla2xxx_lport, lport_wwn);
-	struct scsi_qla_host *vha = lport->qla_vha;
-	struct Scsi_Host *sh = vha->host;
+	struct scsi_qla_host *npiv_vha = lport->qla_vha;
+	struct qla_hw_data *ha = npiv_vha->hw;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+
+	scsi_host_put(npiv_vha->host);
 	/*
 	 * Notify libfc that we want to release the vha->fc_vport
 	 */
-	fc_vport_terminate(vha->fc_vport);
-
-	scsi_host_put(sh);
+	fc_vport_terminate(npiv_vha->fc_vport);
+	scsi_host_put(base_vha->host);
 	kfree(lport);
 }
 
