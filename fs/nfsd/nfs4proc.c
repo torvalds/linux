@@ -1253,6 +1253,18 @@ static bool need_wrongsec_check(struct svc_rqst *rqstp)
 	return !(nextd->op_flags & OP_HANDLES_WRONGSEC);
 }
 
+static void svcxdr_init_encode(struct svc_rqst *rqstp,
+			       struct nfsd4_compoundres *resp)
+{
+	struct xdr_stream *xdr = &resp->xdr;
+	struct xdr_buf *buf = &rqstp->rq_res;
+	struct kvec *head = buf->head;
+
+	xdr->buf = buf;
+	xdr->p   = head->iov_base + head->iov_len;
+	xdr->end = head->iov_base + PAGE_SIZE;
+}
+
 /*
  * COMPOUND call.
  */
@@ -1270,13 +1282,10 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	u32		plen = 0;
 	__be32		status;
 
-	resp->xdr.buf = &rqstp->rq_res;
-	resp->xdr.p = rqstp->rq_res.head[0].iov_base +
-						rqstp->rq_res.head[0].iov_len;
+	svcxdr_init_encode(rqstp, resp);
 	resp->tagp = resp->xdr.p;
 	/* reserve space for: taglen, tag, and opcnt */
 	resp->xdr.p += 2 + XDR_QUADLEN(args->taglen);
-	resp->xdr.end = rqstp->rq_res.head[0].iov_base + PAGE_SIZE;
 	resp->taglen = args->taglen;
 	resp->tag = args->tag;
 	resp->opcnt = 0;
