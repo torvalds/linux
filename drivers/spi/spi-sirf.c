@@ -459,11 +459,6 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		regval |= SIRFSOC_SPI_TRAN_DAT_FORMAT_8;
 		sspi->rx_word = spi_sirfsoc_rx_word_u8;
 		sspi->tx_word = spi_sirfsoc_tx_word_u8;
-		txfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
-					SIRFSOC_SPI_FIFO_WIDTH_BYTE;
-		rxfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
-					SIRFSOC_SPI_FIFO_WIDTH_BYTE;
-		sspi->word_width = 1;
 		break;
 	case 12:
 	case 16:
@@ -471,25 +466,21 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 			SIRFSOC_SPI_TRAN_DAT_FORMAT_16;
 		sspi->rx_word = spi_sirfsoc_rx_word_u16;
 		sspi->tx_word = spi_sirfsoc_tx_word_u16;
-		txfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
-					SIRFSOC_SPI_FIFO_WIDTH_WORD;
-		rxfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
-					SIRFSOC_SPI_FIFO_WIDTH_WORD;
-		sspi->word_width = 2;
 		break;
 	case 32:
 		regval |= SIRFSOC_SPI_TRAN_DAT_FORMAT_32;
 		sspi->rx_word = spi_sirfsoc_rx_word_u32;
 		sspi->tx_word = spi_sirfsoc_tx_word_u32;
-		txfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
-					SIRFSOC_SPI_FIFO_WIDTH_DWORD;
-		rxfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
-					SIRFSOC_SPI_FIFO_WIDTH_DWORD;
-		sspi->word_width = 4;
 		break;
 	default:
 		BUG();
 	}
+
+	sspi->word_width = DIV_ROUND_UP(bits_per_word, 8);
+	txfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
+					   sspi->word_width;
+	rxfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
+					   sspi->word_width;
 
 	if (!(spi->mode & SPI_CS_HIGH))
 		regval |= SIRFSOC_SPI_CS_IDLE_STAT;
