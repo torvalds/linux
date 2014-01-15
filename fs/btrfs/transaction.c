@@ -474,6 +474,7 @@ again:
 	h->type = type;
 	h->allocating_chunk = false;
 	h->reloc_reserved = false;
+	h->sync = false;
 	INIT_LIST_HEAD(&h->qgroup_ref_list);
 	INIT_LIST_HEAD(&h->new_bgs);
 
@@ -713,7 +714,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		btrfs_create_pending_block_groups(trans, root);
 
 	trans->delayed_ref_updates = 0;
-	if (btrfs_should_throttle_delayed_refs(trans, root)) {
+	if (!trans->sync && btrfs_should_throttle_delayed_refs(trans, root)) {
 		cur = max_t(unsigned long, cur, 1);
 		trans->delayed_ref_updates = 0;
 		btrfs_run_delayed_refs(trans, root, cur);
