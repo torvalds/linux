@@ -2060,6 +2060,8 @@ int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid, u32 domain,
 int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid, u32 domain,
 			  u16 intf_id, u8 *mode);
 int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
+int be_cmd_set_fw_log_level(struct be_adapter *adapter, u32 level);
+int be_cmd_get_fw_log_level(struct be_adapter *adapter);
 int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 				   struct be_dma_mem *cmd);
 int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,

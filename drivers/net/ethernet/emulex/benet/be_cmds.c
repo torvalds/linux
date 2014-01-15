@@ -3084,6 +3084,76 @@ err:
 	return status;
 
 }
+
+int be_cmd_set_fw_log_level(struct be_adapter *adapter, u32 level)
+{
+	struct be_dma_mem extfat_cmd;
+	struct be_fat_conf_params *cfgs;
+	int status;
+	int i, j;
+
+	memset(&extfat_cmd, 0, sizeof(struct be_dma_mem));
+	extfat_cmd.size = sizeof(struct be_cmd_resp_get_ext_fat_caps);
+	extfat_cmd.va = pci_alloc_consistent(adapter->pdev, extfat_cmd.size,
+					     &extfat_cmd.dma);
+	if (!extfat_cmd.va)
+		return -ENOMEM;
+
+	status = be_cmd_get_ext_fat_capabilites(adapter, &extfat_cmd);
+	if (status)
+		goto err;
+
+	cfgs = (struct be_fat_conf_params *)
+			(extfat_cmd.va + sizeof(struct be_cmd_resp_hdr));
+	for (i = 0; i < le32_to_cpu(cfgs->num_modules); i++) {
+		u32 num_modes = le32_to_cpu(cfgs->module[i].num_modes);
+		for (j = 0; j < num_modes; j++) {
+			if (cfgs->module[i].trace_lvl[j].mode == MODE_UART)
+				cfgs->module[i].trace_lvl[j].dbg_lvl =
+							cpu_to_le32(level);
+		}
+	}
+
+	status = be_cmd_set_ext_fat_capabilites(adapter, &extfat_cmd, cfgs);
+err:
+	pci_free_consistent(adapter->pdev, extfat_cmd.size, extfat_cmd.va,
+			    extfat_cmd.dma);
+	return status;
+}
+
+int be_cmd_get_fw_log_level(struct be_adapter *adapter)
+{
+	struct be_dma_mem extfat_cmd;
+	struct be_fat_conf_params *cfgs;
+	int status, j;
+	int level = 0;
+
+	memset(&extfat_cmd, 0, sizeof(struct be_dma_mem));
+	extfat_cmd.size = sizeof(struct be_cmd_resp_get_ext_fat_caps);
+	extfat_cmd.va = pci_alloc_consistent(adapter->pdev, extfat_cmd.size,
+					     &extfat_cmd.dma);
+
+	if (!extfat_cmd.va) {
+		dev_err(&adapter->pdev->dev, "%s: Memory allocation failure\n",
+			__func__);
+		goto err;
+	}
+
+	status = be_cmd_get_ext_fat_capabilites(adapter, &extfat_cmd);
+	if (!status) {
+		cfgs = (struct be_fat_conf_params *)(extfat_cmd.va +
+						sizeof(struct be_cmd_resp_hdr));
+		for (j = 0; j < le32_to_cpu(cfgs->module[0].num_modes); j++) {
+			if (cfgs->module[0].trace_lvl[j].mode == MODE_UART)
+				level = cfgs->module[0].trace_lvl[j].dbg_lvl;
+		}
+	}
+	pci_free_consistent(adapter->pdev, extfat_cmd.size, extfat_cmd.va,
+			    extfat_cmd.dma);
+err:
+	return level;
+}
+
 int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 				   struct be_dma_mem *cmd)
 {
