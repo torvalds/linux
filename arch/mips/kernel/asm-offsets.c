@@ -16,6 +16,7 @@
 #include <linux/suspend.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
+#include <asm/smp-cps.h>
 
 #include <linux/kvm_host.h>
 
@@ -397,3 +398,15 @@ void output_kvm_defines(void)
 	OFFSET(COP0_STATUS, mips_coproc, reg[MIPS_CP0_STATUS][0]);
 	BLANK();
 }
+
+#ifdef CONFIG_MIPS_CPS
+void output_cps_defines(void)
+{
+	COMMENT(" MIPS CPS offsets. ");
+	OFFSET(BOOTCFG_CORE, boot_config, core);
+	OFFSET(BOOTCFG_VPE, boot_config, vpe);
+	OFFSET(BOOTCFG_PC, boot_config, pc);
+	OFFSET(BOOTCFG_SP, boot_config, sp);
+	OFFSET(BOOTCFG_GP, boot_config, gp);
+}
+#endif

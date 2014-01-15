@@ -100,4 +100,13 @@ static inline int register_vsmp_smp_ops(void)
 #endif
 }
 
+#ifdef CONFIG_MIPS_CPS
+extern int register_cps_smp_ops(void);
+#else
+static inline int register_cps_smp_ops(void)
+{
+	return -ENODEV;
+}
+#endif
+
 #endif /* __ASM_SMP_OPS_H */

@@ -398,8 +398,10 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 	mips_probe_watch_registers(c);
 
+#ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2)
 		c->core = read_c0_ebase() & 0x3ff;
+#endif
 }
 
 #define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
