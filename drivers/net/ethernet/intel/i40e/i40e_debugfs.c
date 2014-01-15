@@ -752,7 +752,8 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 			       struct i40e_pf *pf, bool is_rx_ring)
 {
-	union i40e_rx_desc *ds;
+	struct i40e_tx_desc *txd;
+	union i40e_rx_desc *rxd;
 	struct i40e_ring ring;
 	struct i40e_vsi *vsi;
 	int i;
@@ -766,7 +767,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 		dev_info(&pf->pdev->dev, "ring %d not found\n", ring_id);
 		return;
 	}
-	if (!vsi->tx_rings) {
+	if (!vsi->tx_rings || !vsi->tx_rings[0]->desc) {
 		dev_info(&pf->pdev->dev,
 			 "descriptor rings have not been allocated for vsi %d\n",
 			 vsi_seid);
@@ -780,22 +781,27 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 		dev_info(&pf->pdev->dev, "vsi = %02i %s ring = %02i\n",
 			 vsi_seid, is_rx_ring ? "rx" : "tx", ring_id);
 		for (i = 0; i < ring.count; i++) {
-			if (is_rx_ring)
-				ds = I40E_RX_DESC(&ring, i);
-			else
-				ds = (union i40e_rx_desc *)
-					I40E_TX_DESC(&ring, i);
-			if ((sizeof(union i40e_rx_desc) ==
-			    sizeof(union i40e_16byte_rx_desc)) || (!is_rx_ring))
+			if (!is_rx_ring) {
+				txd = I40E_TX_DESC(&ring, i);
 				dev_info(&pf->pdev->dev,
-					 "   d[%03i] = 0x%016llx 0x%016llx\n", i,
-					 ds->read.pkt_addr, ds->read.hdr_addr);
-			else
+					 "   d[%03i] = 0x%016llx 0x%016llx\n",
+					 i, txd->buffer_addr,
+					 txd->cmd_type_offset_bsz);
+			} else if (sizeof(union i40e_rx_desc) ==
+				   sizeof(union i40e_16byte_rx_desc)) {
+				rxd = I40E_RX_DESC(&ring, i);
+				dev_info(&pf->pdev->dev,
+					 "   d[%03i] = 0x%016llx 0x%016llx\n",
+					 i, rxd->read.pkt_addr,
+					 rxd->read.hdr_addr);
+			} else {
+				rxd = I40E_RX_DESC(&ring, i);
 				dev_info(&pf->pdev->dev,
 					 "   d[%03i] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
-					 i, ds->read.pkt_addr,
-					 ds->read.hdr_addr,
-					 ds->read.rsvd1, ds->read.rsvd2);
+					 i, rxd->read.pkt_addr,
+					 rxd->read.hdr_addr,
+					 rxd->read.rsvd1, rxd->read.rsvd2);
+			}
 		}
 	} else if (cnt == 3) {
 		if (desc_n >= ring.count || desc_n < 0) {
@@ -803,22 +809,27 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 				 "descriptor %d not found\n", desc_n);
 			return;
 		}
-		if (is_rx_ring)
-			ds = I40E_RX_DESC(&ring, desc_n);
-		else
-			ds = (union i40e_rx_desc *)I40E_TX_DESC(&ring, desc_n);
-		if ((sizeof(union i40e_rx_desc) ==
-		    sizeof(union i40e_16byte_rx_desc)) || (!is_rx_ring))
+		if (!is_rx_ring) {
+			txd = I40E_TX_DESC(&ring, desc_n);
 			dev_info(&pf->pdev->dev,
-				 "vsi = %02i %s ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
-				 vsi_seid, is_rx_ring ? "rx" : "tx", ring_id,
-				 desc_n, ds->read.pkt_addr, ds->read.hdr_addr);
-		else
+				 "vsi = %02i tx ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
+				 vsi_seid, ring_id, desc_n,
+				 txd->buffer_addr, txd->cmd_type_offset_bsz);
+		} else if (sizeof(union i40e_rx_desc) ==
+			   sizeof(union i40e_16byte_rx_desc)) {
+			rxd = I40E_RX_DESC(&ring, desc_n);
+			dev_info(&pf->pdev->dev,
+				 "vsi = %02i rx ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
+				 vsi_seid, ring_id, desc_n,
+				 rxd->read.pkt_addr, rxd->read.hdr_addr);
+		} else {
+			rxd = I40E_RX_DESC(&ring, desc_n);
 			dev_info(&pf->pdev->dev,
 				 "vsi = %02i rx ring = %02i d[%03i] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
-				 vsi_seid, ring_id,
-				 desc_n, ds->read.pkt_addr, ds->read.hdr_addr,
-				 ds->read.rsvd1, ds->read.rsvd2);
+				 vsi_seid, ring_id, desc_n,
+				 rxd->read.pkt_addr, rxd->read.hdr_addr,
+				 rxd->read.rsvd1, rxd->read.rsvd2);
+		}
 	} else {
 		dev_info(&pf->pdev->dev, "dump desc rx/tx <vsi_seid> <ring_id> [<desc_n>]\n");
 	}
