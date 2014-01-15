@@ -2076,6 +2076,20 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 		goto error_pvid;
 	}
 
+	if (vsi->info.pvid == 0 && i40e_is_vsi_in_vlan(vsi))
+		dev_err(&pf->pdev->dev,
+			"VF %d has already configured VLAN filters and the administrator is requesting a port VLAN override.\nPlease unload and reload the VF driver for this change to take effect.\n",
+			vf_id);
+
+	/* Check for condition where there was already a port VLAN ID
+	 * filter set and now it is being deleted by setting it to zero.
+	 * Before deleting all the old VLAN filters we must add new ones
+	 * with -1 (I40E_VLAN_ANY) or otherwise we're left with all our
+	 * MAC addresses deleted.
+	 */
+	if (!(vlan_id || qos) && vsi->info.pvid)
+		ret = i40e_vsi_add_vlan(vsi, I40E_VLAN_ANY);
+
 	if (vsi->info.pvid) {
 		/* kill old VLAN */
 		ret = i40e_vsi_kill_vlan(vsi, (le16_to_cpu(vsi->info.pvid) &
@@ -2104,6 +2118,10 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 				 vsi->back->hw.aq.asq_last_status);
 			goto error_pvid;
 		}
+		/* Kill non-vlan MAC filters - ignore error return since
+		 * there might not be any non-vlan MAC filters.
+		 */
+		i40e_vsi_kill_vlan(vsi, I40E_VLAN_ANY);
 	}
 
 	if (ret) {

@@ -1844,7 +1844,10 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 				return -ENOMEM;
 			}
 		}
+	}
 
+	/* Do not assume that I40E_VLAN_ANY should be reset to VLAN 0 */
+	if (vid > 0 && !vsi->info.pvid) {
 		list_for_each_entry(f, &vsi->mac_filter_list, list) {
 			if (i40e_find_filter(vsi, f->macaddr, I40E_VLAN_ANY,
 					     is_vf, is_netdev)) {
