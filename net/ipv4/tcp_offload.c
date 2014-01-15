@@ -138,7 +138,6 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 out:
 	return segs;
 }
-EXPORT_SYMBOL(tcp_gso_segment);
 
 struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
@@ -235,7 +234,6 @@ out:
 
 	return pp;
 }
-EXPORT_SYMBOL(tcp_gro_receive);
 
 int tcp_gro_complete(struct sk_buff *skb)
 {
