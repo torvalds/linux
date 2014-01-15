@@ -1369,7 +1369,7 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	vcpu->arch.apic_base = value;
 
 	/* update jump label if enable bit changes */
-	if ((vcpu->arch.apic_base ^ value) & MSR_IA32_APICBASE_ENABLE) {
+	if ((old_value ^ value) & MSR_IA32_APICBASE_ENABLE) {
 		if (value & MSR_IA32_APICBASE_ENABLE)
 			static_key_slow_dec_deferred(&apic_hw_disabled);
 		else
