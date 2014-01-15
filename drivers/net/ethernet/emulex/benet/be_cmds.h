@@ -216,6 +216,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_FUNC_CONFIG			160
 #define OPCODE_COMMON_GET_PROFILE_CONFIG		164
 #define OPCODE_COMMON_SET_PROFILE_CONFIG		165
+#define OPCODE_COMMON_GET_ACTIVE_PROFILE		167
 #define OPCODE_COMMON_SET_HSW_CONFIG			153
 #define OPCODE_COMMON_GET_FN_PRIVILEGES			170
 #define OPCODE_COMMON_READ_OBJECT			171
@@ -1917,6 +1918,17 @@ struct be_cmd_resp_set_profile_config {
 	struct be_cmd_resp_hdr hdr;
 };
 
+struct be_cmd_req_get_active_profile {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd;
+} __packed;
+
+struct be_cmd_resp_get_active_profile {
+	struct be_cmd_resp_hdr hdr;
+	u16 active_profile_id;
+	u16 next_profile_id;
+} __packed;
+
 struct be_cmd_enable_disable_vf {
 	struct be_cmd_req_hdr hdr;
 	u8 enable;
@@ -2063,6 +2075,7 @@ int be_cmd_get_func_config(struct be_adapter *adapter,
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 domain);
 int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps, u8 domain);
+int be_cmd_get_active_profile(struct be_adapter *adapter, u16 *profile);
 int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
 		     int vf_num);
 int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain);

@@ -3608,6 +3608,40 @@ int be_cmd_intr_set(struct be_adapter *adapter, bool intr_enable)
 	return status;
 }
 
+/* Uses MBOX */
+int be_cmd_get_active_profile(struct be_adapter *adapter, u16 *profile_id)
+{
+	struct be_cmd_req_get_active_profile *req;
+	struct be_mcc_wrb *wrb;
+	int status;
+
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+
+	wrb = wrb_from_mbox(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_ACTIVE_PROFILE, sizeof(*req),
+			       wrb, NULL);
+
+	status = be_mbox_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_active_profile *resp =
+							embedded_payload(wrb);
+		*profile_id = le16_to_cpu(resp->active_profile_id);
+	}
+
+err:
+	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
 int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
 			int wrb_payload_size, u16 *cmd_status, u16 *ext_status)
 {
