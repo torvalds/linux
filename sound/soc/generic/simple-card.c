@@ -60,7 +60,8 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 static int
 asoc_simple_card_sub_parse_of(struct device_node *np,
 			      struct asoc_simple_dai *dai,
-			      const struct device_node **p_node)
+			      const struct device_node **p_node,
+			      const char **name)
 {
 	struct device_node *node;
 	struct clk *clk;
@@ -76,7 +77,7 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	*p_node = node;
 
 	/* get dai->name */
-	ret = snd_soc_of_get_dai_name(np, &dai->name);
+	ret = snd_soc_of_get_dai_name(np, name);
 	if (ret < 0)
 		goto parse_error;
 
@@ -146,7 +147,8 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (np)
 		ret = asoc_simple_card_sub_parse_of(np,
 						  &info->cpu_dai,
-						  &dai_link->cpu_of_node);
+						  &dai_link->cpu_of_node,
+						  &dai_link->cpu_dai_name);
 	if (ret < 0)
 		return ret;
 
@@ -156,19 +158,21 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (np)
 		ret = asoc_simple_card_sub_parse_of(np,
 						  &info->codec_dai,
-						  &dai_link->codec_of_node);
+						  &dai_link->codec_of_node,
+						  &dai_link->codec_dai_name);
 	if (ret < 0)
 		return ret;
 
-	if (!info->cpu_dai.name || !info->codec_dai.name)
+	if (!dai_link->cpu_dai_name || !dai_link->codec_dai_name)
 		return -EINVAL;
 
 	/* card name is created from CPU/CODEC dai name */
 	name = devm_kzalloc(dev,
-			    strlen(info->cpu_dai.name)   +
-			    strlen(info->codec_dai.name) + 2,
+			    strlen(dai_link->cpu_dai_name)   +
+			    strlen(dai_link->codec_dai_name) + 2,
 			    GFP_KERNEL);
-	sprintf(name, "%s-%s", info->cpu_dai.name, info->codec_dai.name);
+	sprintf(name, "%s-%s", dai_link->cpu_dai_name,
+				dai_link->codec_dai_name);
 	info->snd_card.name = name;
 	dai_link->name = dai_link->stream_name = name;
 
@@ -178,11 +182,11 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	dev_dbg(dev, "card-name : %s\n", name);
 	dev_dbg(dev, "platform : %04x\n", info->daifmt);
 	dev_dbg(dev, "cpu : %s / %04x / %d\n",
-		info->cpu_dai.name,
+		dai_link->cpu_dai_name,
 		info->cpu_dai.fmt,
 		info->cpu_dai.sysclk);
 	dev_dbg(dev, "codec : %s / %04x / %d\n",
-		info->codec_dai.name,
+		dai_link->codec_dai_name,
 		info->codec_dai.fmt,
 		info->codec_dai.sysclk);
 
@@ -240,13 +244,13 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		dai_link->stream_name	= cinfo->name;
 		dai_link->platform_name	= cinfo->platform;
 		dai_link->codec_name	= cinfo->codec;
+		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
+		dai_link->codec_dai_name = cinfo->codec_dai.name;
 	}
 
 	/*
 	 * init snd_soc_dai_link
 	 */
-	dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
-	dai_link->codec_dai_name = cinfo->codec_dai.name;
 	dai_link->init = asoc_simple_card_dai_init;
 
 	snd_soc_card_set_drvdata(&cinfo->snd_card, cinfo);
