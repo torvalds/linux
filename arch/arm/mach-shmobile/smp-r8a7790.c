@@ -19,6 +19,8 @@
 #include <linux/io.h>
 #include <asm/smp_plat.h>
 #include <mach/common.h>
+#include <mach/pm-rcar.h>
+#include <mach/r8a7790.h>
 
 #define RST		0xe6160000
 #define CA15BAR		0x0020
@@ -26,6 +28,11 @@
 #define CA15RESCNT	0x0040
 #define CA7RESCNT	0x0044
 #define MERAM		0xe8080000
+
+static struct rcar_sysc_ch r8a7790_ca7_scu = {
+	.chan_offs = 0x100, /* PWRSR3 .. PWRER3 */
+	.isr_bit = 21, /* CA7-SCU */
+};
 
 static void __init r8a7790_smp_prepare_cpus(unsigned int max_cpus)
 {
@@ -54,6 +61,10 @@ static void __init r8a7790_smp_prepare_cpus(unsigned int max_cpus)
 	writel_relaxed((readl_relaxed(p + CA7RESCNT) & ~0x0f) | 0x5a5a0000,
 		       p + CA7RESCNT);
 	iounmap(p);
+
+	/* turn on power to SCU */
+	r8a7790_pm_init();
+	rcar_sysc_power_up(&r8a7790_ca7_scu);
 }
 
 struct smp_operations r8a7790_smp_ops __initdata = {
