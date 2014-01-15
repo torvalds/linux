@@ -123,7 +123,7 @@ kstarttime=`awk 'BEGIN { print systime() }' < /dev/null`
 echo ' ---' `date`: Starting kernel
 
 # Determine the appropriate flavor of qemu command.
-QEMU="`identify_qemu $builddir/vmlinux.o`"
+QEMU="`identify_qemu $builddir/vmlinux`"
 
 # Generate -smp qemu argument.
 qemu_args="-nographic $qemu_args"

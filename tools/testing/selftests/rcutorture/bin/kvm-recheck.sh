@@ -31,9 +31,9 @@ do
 	dirs=`find $rd -name Make.defconfig.out -print | sort | sed -e 's,/[^/]*$,,' | sort -u`
 	for i in $dirs
 	do
-		if test $firsttime
+		if test -n "$firsttime"
 		then
-			firsttime=0
+			firsttime=""
 			resdir=`echo $i | sed -e 's,/$,,' -e 's,/[^/]*$,,'`
 			head -1 $resdir/log
 		fi
