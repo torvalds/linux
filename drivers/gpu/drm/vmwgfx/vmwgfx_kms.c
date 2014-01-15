@@ -672,9 +672,9 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 
 	if (unlikely(surface->mip_levels[0] != 1 ||
 		     surface->num_sizes != 1 ||
-		     surface->sizes[0].width < mode_cmd->width ||
-		     surface->sizes[0].height < mode_cmd->height ||
-		     surface->sizes[0].depth != 1)) {
+		     surface->base_size.width < mode_cmd->width ||
+		     surface->base_size.height < mode_cmd->height ||
+		     surface->base_size.depth != 1)) {
 		DRM_ERROR("Incompatible surface dimensions "
 			  "for requested mode.\n");
 		return -EINVAL;
