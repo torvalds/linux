@@ -102,7 +102,7 @@ enum s3c24xx_i2c_state {
 
 struct s3c24xx_i2c {
 	wait_queue_head_t	wait;
-	unsigned int            quirks;
+	kernel_ulong_t		quirks;
 	unsigned int		suspended:1;
 
 	struct i2c_msg		*msg;
@@ -165,12 +165,12 @@ MODULE_DEVICE_TABLE(of, s3c24xx_i2c_match);
  * Get controller type either from device tree or platform device variant.
 */
 
-static inline unsigned int s3c24xx_get_device_quirks(struct platform_device *pdev)
+static inline kernel_ulong_t s3c24xx_get_device_quirks(struct platform_device *pdev)
 {
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(s3c24xx_i2c_match, pdev->dev.of_node);
-		return (unsigned int)match->data;
+		return (kernel_ulong_t)match->data;
 	}
 
 	return platform_get_device_id(pdev)->driver_data;
