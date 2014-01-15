@@ -49,6 +49,7 @@ enum {
 #define IFA_F_TENTATIVE		0x40
 #define IFA_F_PERMANENT		0x80
 #define IFA_F_MANAGETEMPADDR	0x100
+#define IFA_F_NOPREFIXROUTE	0x200
 
 struct ifa_cacheinfo {
 	__u32	ifa_prefered;
