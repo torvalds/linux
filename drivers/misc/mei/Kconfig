@@ -34,3 +34,12 @@ config INTEL_MEI_ME
 	  82Q33 Express
 	  82X38/X48 Express
 
+config INTEL_MEI_TXE
+	tristate "Intel Trusted Execution Environment with ME Interface"
+	select INTEL_MEI
+	depends on X86 && PCI
+	help
+	  MEI Support for Trusted Execution Environment device on Intel SoCs
+
+	  Supported SoCs:
+	  Intel Bay Trail
