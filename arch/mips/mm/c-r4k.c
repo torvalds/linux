@@ -123,6 +123,28 @@ static void r4k_blast_dcache_page_setup(void)
 		r4k_blast_dcache_page = r4k_blast_dcache_page_dc64;
 }
 
+#ifndef CONFIG_EVA
+#define r4k_blast_dcache_user_page  r4k_blast_dcache_page
+#else
+
+static void (*r4k_blast_dcache_user_page)(unsigned long addr);
+
+static void r4k_blast_dcache_user_page_setup(void)
+{
+	unsigned long  dc_lsize = cpu_dcache_line_size();
+
+	if (dc_lsize == 0)
+		r4k_blast_dcache_user_page = (void *)cache_noop;
+	else if (dc_lsize == 16)
+		r4k_blast_dcache_user_page = blast_dcache16_user_page;
+	else if (dc_lsize == 32)
+		r4k_blast_dcache_user_page = blast_dcache32_user_page;
+	else if (dc_lsize == 64)
+		r4k_blast_dcache_user_page = blast_dcache64_user_page;
+}
+
+#endif
+
 static void (* r4k_blast_dcache_page_indexed)(unsigned long addr);
 
 static void r4k_blast_dcache_page_indexed_setup(void)
@@ -245,6 +267,27 @@ static void r4k_blast_icache_page_setup(void)
 		r4k_blast_icache_page = blast_icache64_page;
 }
 
+#ifndef CONFIG_EVA
+#define r4k_blast_icache_user_page  r4k_blast_icache_page
+#else
+
+static void (*r4k_blast_icache_user_page)(unsigned long addr);
+
+static void __cpuinit r4k_blast_icache_user_page_setup(void)
+{
+	unsigned long ic_lsize = cpu_icache_line_size();
+
+	if (ic_lsize == 0)
+		r4k_blast_icache_user_page = (void *)cache_noop;
+	else if (ic_lsize == 16)
+		r4k_blast_icache_user_page = blast_icache16_user_page;
+	else if (ic_lsize == 32)
+		r4k_blast_icache_user_page = blast_icache32_user_page;
+	else if (ic_lsize == 64)
+		r4k_blast_icache_user_page = blast_icache64_user_page;
+}
+
+#endif
 
 static void (* r4k_blast_icache_page_indexed)(unsigned long addr);
 
@@ -1468,6 +1511,10 @@ void r4k_cache_init(void)
 	r4k_blast_scache_page_setup();
 	r4k_blast_scache_page_indexed_setup();
 	r4k_blast_scache_setup();
+#ifdef CONFIG_EVA
+	r4k_blast_dcache_user_page_setup();
+	r4k_blast_icache_user_page_setup();
+#endif
 
 	/*
 	 * Some MIPS32 and MIPS64 processors have physically indexed caches.
