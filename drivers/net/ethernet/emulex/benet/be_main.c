@@ -121,12 +121,6 @@ static const char * const ue_status_hi_desc[] = {
 	"Unknown"
 };
 
-/* Is BE in a multi-channel mode */
-static inline bool be_is_mc(struct be_adapter *adapter) {
-	return (adapter->function_mode & FLEX10_MODE ||
-		adapter->function_mode & VNIC_MODE ||
-		adapter->function_mode & UMC_ENABLED);
-}
 
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
@@ -258,6 +252,12 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	/* Proceed further only if, User provided MAC is different
+	 * from active MAC
+	 */
+	if (ether_addr_equal(addr->sa_data, netdev->dev_addr))
+		return 0;
+
 	/* The PMAC_ADD cmd may fail if the VF doesn't have FILTMGMT
 	 * privilege or if PF did not provision the new MAC address.
 	 * On BE3, this cmd will always fail if the VF doesn't have the
@@ -280,7 +280,8 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	/* Decide if the new MAC is successfully activated only after
 	 * querying the FW
 	 */
-	status = be_cmd_get_active_mac(adapter, curr_pmac_id, mac);
+	status = be_cmd_get_active_mac(adapter, curr_pmac_id, mac,
+				       adapter->if_handle, true, 0);
 	if (status)
 		goto err;
 
@@ -1442,12 +1443,12 @@ static inline bool csum_passed(struct be_rx_compl_info *rxcp)
 				(rxcp->ip_csum || rxcp->ipv6);
 }
 
-static struct be_rx_page_info *get_rx_page_info(struct be_rx_obj *rxo,
-						u16 frag_idx)
+static struct be_rx_page_info *get_rx_page_info(struct be_rx_obj *rxo)
 {
 	struct be_adapter *adapter = rxo->adapter;
 	struct be_rx_page_info *rx_page_info;
 	struct be_queue_info *rxq = &rxo->q;
+	u16 frag_idx = rxq->tail;
 
 	rx_page_info = &rxo->page_info_tbl[frag_idx];
 	BUG_ON(!rx_page_info->page);
@@ -1459,6 +1460,7 @@ static struct be_rx_page_info *get_rx_page_info(struct be_rx_obj *rxo,
 		rx_page_info->last_page_user = false;
 	}
 
+	queue_tail_inc(rxq);
 	atomic_dec(&rxq->used);
 	return rx_page_info;
 }
@@ -1467,15 +1469,13 @@ static struct be_rx_page_info *get_rx_page_info(struct be_rx_obj *rxo,
 static void be_rx_compl_discard(struct be_rx_obj *rxo,
 				struct be_rx_compl_info *rxcp)
 {
-	struct be_queue_info *rxq = &rxo->q;
 	struct be_rx_page_info *page_info;
 	u16 i, num_rcvd = rxcp->num_rcvd;
 
 	for (i = 0; i < num_rcvd; i++) {
-		page_info = get_rx_page_info(rxo, rxcp->rxq_idx);
+		page_info = get_rx_page_info(rxo);
 		put_page(page_info->page);
 		memset(page_info, 0, sizeof(*page_info));
-		index_inc(&rxcp->rxq_idx, rxq->len);
 	}
 }
 
@@ -1486,13 +1486,12 @@ static void be_rx_compl_discard(struct be_rx_obj *rxo,
 static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 			     struct be_rx_compl_info *rxcp)
 {
-	struct be_queue_info *rxq = &rxo->q;
 	struct be_rx_page_info *page_info;
 	u16 i, j;
 	u16 hdr_len, curr_frag_len, remaining;
 	u8 *start;
 
-	page_info = get_rx_page_info(rxo, rxcp->rxq_idx);
+	page_info = get_rx_page_info(rxo);
 	start = page_address(page_info->page) + page_info->page_offset;
 	prefetch(start);
 
@@ -1526,10 +1525,9 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 	}
 
 	/* More frags present for this completion */
-	index_inc(&rxcp->rxq_idx, rxq->len);
 	remaining = rxcp->pkt_size - curr_frag_len;
 	for (i = 1, j = 0; i < rxcp->num_rcvd; i++) {
-		page_info = get_rx_page_info(rxo, rxcp->rxq_idx);
+		page_info = get_rx_page_info(rxo);
 		curr_frag_len = min(remaining, rx_frag_size);
 
 		/* Coalesce all frags from the same physical page in one slot */
@@ -1550,7 +1548,6 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 		skb->data_len += curr_frag_len;
 		skb->truesize += rx_frag_size;
 		remaining -= curr_frag_len;
-		index_inc(&rxcp->rxq_idx, rxq->len);
 		page_info->page = NULL;
 	}
 	BUG_ON(j > MAX_SKB_FRAGS);
@@ -1598,7 +1595,6 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 	struct be_adapter *adapter = rxo->adapter;
 	struct be_rx_page_info *page_info;
 	struct sk_buff *skb = NULL;
-	struct be_queue_info *rxq = &rxo->q;
 	u16 remaining, curr_frag_len;
 	u16 i, j;
 
@@ -1610,7 +1606,7 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 
 	remaining = rxcp->pkt_size;
 	for (i = 0, j = -1; i < rxcp->num_rcvd; i++) {
-		page_info = get_rx_page_info(rxo, rxcp->rxq_idx);
+		page_info = get_rx_page_info(rxo);
 
 		curr_frag_len = min(remaining, rx_frag_size);
 
@@ -1628,7 +1624,6 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 		skb_frag_size_add(&skb_shinfo(skb)->frags[j], curr_frag_len);
 		skb->truesize += rx_frag_size;
 		remaining -= curr_frag_len;
-		index_inc(&rxcp->rxq_idx, rxq->len);
 		memset(page_info, 0, sizeof(*page_info));
 	}
 	BUG_ON(j > MAX_SKB_FRAGS);
@@ -1663,8 +1658,6 @@ static void be_parse_rx_compl_v1(struct be_eth_rx_compl *compl,
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, l4_cksm, compl);
 	rxcp->ipv6 =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, ip_version, compl);
-	rxcp->rxq_idx =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, fragndx, compl);
 	rxcp->num_rcvd =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, numfrags, compl);
 	rxcp->pkt_type =
@@ -1695,8 +1688,6 @@ static void be_parse_rx_compl_v0(struct be_eth_rx_compl *compl,
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, l4_cksm, compl);
 	rxcp->ipv6 =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, ip_version, compl);
-	rxcp->rxq_idx =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, fragndx, compl);
 	rxcp->num_rcvd =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, numfrags, compl);
 	rxcp->pkt_type =
@@ -1914,7 +1905,6 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 	struct be_rx_compl_info *rxcp;
 	struct be_adapter *adapter = rxo->adapter;
 	int flush_wait = 0;
-	u16 tail;
 
 	/* Consume pending rx completions.
 	 * Wait for the flush completion (identified by zero num_rcvd)
@@ -1947,9 +1937,8 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 	be_cq_notify(adapter, rx_cq->id, false, 0);
 
 	/* Then free posted rx buffers that were not used */
-	tail = (rxq->head + rxq->len - atomic_read(&rxq->used)) % rxq->len;
-	for (; atomic_read(&rxq->used) > 0; index_inc(&tail, rxq->len)) {
-		page_info = get_rx_page_info(rxo, tail);
+	while (atomic_read(&rxq->used) > 0) {
+		page_info = get_rx_page_info(rxo);
 		put_page(page_info->page);
 		memset(page_info, 0, sizeof(*page_info));
 	}
@@ -2884,14 +2873,11 @@ static int be_vfs_mac_query(struct be_adapter *adapter)
 	int status, vf;
 	u8 mac[ETH_ALEN];
 	struct be_vf_cfg *vf_cfg;
-	bool active = false;
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		be_cmd_get_mac_from_list(adapter, mac, &active,
-					 &vf_cfg->pmac_id, 0);
-
-		status = be_cmd_mac_addr_query(adapter, mac, false,
-					       vf_cfg->if_handle, 0);
+		status = be_cmd_get_active_mac(adapter, vf_cfg->pmac_id,
+					       mac, vf_cfg->if_handle,
+					       false, vf+1);
 		if (status)
 			return status;
 		memcpy(vf_cfg->mac_addr, mac, ETH_ALEN);
@@ -3233,6 +3219,7 @@ static int be_get_resources(struct be_adapter *adapter)
 /* Routine to query per function resource limits */
 static int be_get_config(struct be_adapter *adapter)
 {
+	u16 profile_id;
 	int status;
 
 	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num,
@@ -3241,6 +3228,13 @@ static int be_get_config(struct be_adapter *adapter)
 				     &adapter->asic_rev);
 	if (status)
 		return status;
+
+	 if (be_physfn(adapter)) {
+		status = be_cmd_get_active_profile(adapter, &profile_id);
+		if (!status)
+			dev_info(&adapter->pdev->dev,
+				 "Using profile 0x%x\n", profile_id);
+	}
 
 	status = be_get_resources(adapter);
 	if (status)
@@ -3396,11 +3390,6 @@ static int be_setup(struct be_adapter *adapter)
 		goto err;
 
 	be_cmd_get_fn_privileges(adapter, &adapter->cmd_privileges, 0);
-	/* In UMC mode FW does not return right privileges.
-	 * Override with correct privilege equivalent to PF.
-	 */
-	if (be_is_mc(adapter))
-		adapter->cmd_privileges = MAX_PRIVILEGES;
 
 	status = be_mac_setup(adapter);
 	if (status)
@@ -3418,6 +3407,8 @@ static int be_setup(struct be_adapter *adapter)
 		be_vid_config(adapter);
 
 	be_set_rx_mode(adapter->netdev);
+
+	be_cmd_get_acpi_wol_cap(adapter);
 
 	be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
 
@@ -4288,74 +4279,22 @@ static void be_remove(struct pci_dev *pdev)
 	free_netdev(adapter->netdev);
 }
 
-bool be_is_wol_supported(struct be_adapter *adapter)
-{
-	return ((adapter->wol_cap & BE_WOL_CAP) &&
-		!be_is_wol_excluded(adapter)) ? true : false;
-}
-
-u32 be_get_fw_log_level(struct be_adapter *adapter)
-{
-	struct be_dma_mem extfat_cmd;
-	struct be_fat_conf_params *cfgs;
-	int status;
-	u32 level = 0;
-	int j;
-
-	if (lancer_chip(adapter))
-		return 0;
-
-	memset(&extfat_cmd, 0, sizeof(struct be_dma_mem));
-	extfat_cmd.size = sizeof(struct be_cmd_resp_get_ext_fat_caps);
-	extfat_cmd.va = pci_alloc_consistent(adapter->pdev, extfat_cmd.size,
-					     &extfat_cmd.dma);
-
-	if (!extfat_cmd.va) {
-		dev_err(&adapter->pdev->dev, "%s: Memory allocation failure\n",
-			__func__);
-		goto err;
-	}
-
-	status = be_cmd_get_ext_fat_capabilites(adapter, &extfat_cmd);
-	if (!status) {
-		cfgs = (struct be_fat_conf_params *)(extfat_cmd.va +
-						sizeof(struct be_cmd_resp_hdr));
-		for (j = 0; j < le32_to_cpu(cfgs->module[0].num_modes); j++) {
-			if (cfgs->module[0].trace_lvl[j].mode == MODE_UART)
-				level = cfgs->module[0].trace_lvl[j].dbg_lvl;
-		}
-	}
-	pci_free_consistent(adapter->pdev, extfat_cmd.size, extfat_cmd.va,
-			    extfat_cmd.dma);
-err:
-	return level;
-}
-
 static int be_get_initial_config(struct be_adapter *adapter)
 {
-	int status;
-	u32 level;
+	int status, level;
 
 	status = be_cmd_get_cntl_attributes(adapter);
 	if (status)
 		return status;
 
-	status = be_cmd_get_acpi_wol_cap(adapter);
-	if (status) {
-		/* in case of a failure to get wol capabillities
-		 * check the exclusion list to determine WOL capability */
-		if (!be_is_wol_excluded(adapter))
-			adapter->wol_cap |= BE_WOL_CAP;
-	}
-
-	if (be_is_wol_supported(adapter))
-		adapter->wol = true;
-
 	/* Must be a power of 2 or else MODULO will BUG_ON */
 	adapter->be_get_temp_freq = 64;
 
-	level = be_get_fw_log_level(adapter);
-	adapter->msg_enable = level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
+	if (BEx_chip(adapter)) {
+		level = be_cmd_get_fw_log_level(adapter);
+		adapter->msg_enable =
+			level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
+	}
 
 	adapter->cfg_num_qs = netif_get_num_default_rss_queues();
 	return 0;
@@ -4618,7 +4557,7 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev =  adapter->netdev;
 
-	if (adapter->wol)
+	if (adapter->wol_en)
 		be_setup_wol(adapter, true);
 
 	be_intr_set(adapter, false);
@@ -4674,7 +4613,7 @@ static int be_resume(struct pci_dev *pdev)
 			      msecs_to_jiffies(1000));
 	netif_device_attach(netdev);
 
-	if (adapter->wol)
+	if (adapter->wol_en)
 		be_setup_wol(adapter, false);
 
 	return 0;
