@@ -2655,6 +2655,44 @@ static struct rtnl_link_ops vxlan_link_ops __read_mostly = {
 	.fill_info	= vxlan_fill_info,
 };
 
+static void vxlan_handle_lowerdev_unregister(struct vxlan_net *vn,
+					     struct net_device *dev)
+{
+	struct vxlan_dev *vxlan, *next;
+	LIST_HEAD(list_kill);
+
+	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next) {
+		struct vxlan_rdst *dst = &vxlan->default_dst;
+
+		/* In case we created vxlan device with carrier
+		 * and we loose the carrier due to module unload
+		 * we also need to remove vxlan device. In other
+		 * cases, it's not necessary and remote_ifindex
+		 * is 0 here, so no matches.
+		 */
+		if (dst->remote_ifindex == dev->ifindex)
+			vxlan_dellink(vxlan->dev, &list_kill);
+	}
+
+	unregister_netdevice_many(&list_kill);
+}
+
+static int vxlan_lowerdev_event(struct notifier_block *unused,
+				unsigned long event, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
+
+	if (event == NETDEV_UNREGISTER)
+		vxlan_handle_lowerdev_unregister(vn, dev);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block vxlan_notifier_block __read_mostly = {
+	.notifier_call = vxlan_lowerdev_event,
+};
+
 static __net_init int vxlan_init_net(struct net *net)
 {
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
@@ -2672,13 +2710,13 @@ static __net_init int vxlan_init_net(struct net *net)
 static __net_exit void vxlan_exit_net(struct net *net)
 {
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
-	struct vxlan_dev *vxlan;
-	LIST_HEAD(list);
+	struct vxlan_dev *vxlan, *next;
+	LIST_HEAD(list_kill);
 
 	rtnl_lock();
-	list_for_each_entry(vxlan, &vn->vxlan_list, next)
-		unregister_netdevice_queue(vxlan->dev, &list);
-	unregister_netdevice_many(&list);
+	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next)
+		vxlan_dellink(vxlan->dev, &list_kill);
+	unregister_netdevice_many(&list_kill);
 	rtnl_unlock();
 }
 
@@ -2703,12 +2741,17 @@ static int __init vxlan_init_module(void)
 	if (rc)
 		goto out1;
 
-	rc = rtnl_link_register(&vxlan_link_ops);
+	rc = register_netdevice_notifier(&vxlan_notifier_block);
 	if (rc)
 		goto out2;
 
-	return 0;
+	rc = rtnl_link_register(&vxlan_link_ops);
+	if (rc)
+		goto out3;
 
+	return 0;
+out3:
+	unregister_netdevice_notifier(&vxlan_notifier_block);
 out2:
 	unregister_pernet_device(&vxlan_net_ops);
 out1:
@@ -2720,6 +2763,7 @@ late_initcall(vxlan_init_module);
 static void __exit vxlan_cleanup_module(void)
 {
 	rtnl_link_unregister(&vxlan_link_ops);
+	unregister_netdevice_notifier(&vxlan_notifier_block);
 	destroy_workqueue(vxlan_wq);
 	unregister_pernet_device(&vxlan_net_ops);
 	rcu_barrier();
