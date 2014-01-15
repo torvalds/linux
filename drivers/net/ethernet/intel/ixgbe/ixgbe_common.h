@@ -135,7 +135,11 @@ void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg);
 
 static inline void ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 value)
 {
-	writel(value, hw->hw_addr + reg);
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+
+	if (ixgbe_removed(reg_addr))
+		return;
+	writel(value, reg_addr + reg);
 }
 #define IXGBE_WRITE_REG(a, reg, value) ixgbe_write_reg((a), (reg), (value))
 
@@ -150,7 +154,11 @@ static inline void writeq(u64 val, void __iomem *addr)
 
 static inline void ixgbe_write_reg64(struct ixgbe_hw *hw, u32 reg, u64 value)
 {
-	writeq(value, hw->hw_addr + reg);
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+
+	if (ixgbe_removed(reg_addr))
+		return;
+	writeq(value, reg_addr + reg);
 }
 #define IXGBE_WRITE_REG64(a, reg, value) ixgbe_write_reg64((a), (reg), (value))
 
