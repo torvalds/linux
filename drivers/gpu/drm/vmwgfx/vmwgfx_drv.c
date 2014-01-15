@@ -189,6 +189,7 @@ static int enable_fbdev = IS_ENABLED(CONFIG_DRM_VMWGFX_FBCON);
 static int vmw_force_iommu;
 static int vmw_restrict_iommu;
 static int vmw_force_coherent;
+static int vmw_restrict_dma_mask;
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmw_master_init(struct vmw_master *);
@@ -203,6 +204,8 @@ MODULE_PARM_DESC(restrict_iommu, "Try to limit IOMMU usage for TTM pages");
 module_param_named(restrict_iommu, vmw_restrict_iommu, int, 0600);
 MODULE_PARM_DESC(force_coherent, "Force coherent TTM pages");
 module_param_named(force_coherent, vmw_force_coherent, int, 0600);
+MODULE_PARM_DESC(restrict_dma_mask, "Restrict DMA mask to 44 bits with IOMMU");
+module_param_named(restrict_dma_mask, vmw_restrict_dma_mask, int, 0600);
 
 
 static void vmw_print_capabilities(uint32_t capabilities)
@@ -510,6 +513,33 @@ out_fixup:
 	return 0;
 }
 
+/**
+ * vmw_dma_masks - set required page- and dma masks
+ *
+ * @dev: Pointer to struct drm-device
+ *
+ * With 32-bit we can only handle 32 bit PFNs. Optionally set that
+ * restriction also for 64-bit systems.
+ */
+#ifdef CONFIG_INTEL_IOMMU
+static int vmw_dma_masks(struct vmw_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	if (intel_iommu_enabled &&
+	    (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask)) {
+		DRM_INFO("Restricting DMA addresses to 44 bits.\n");
+		return dma_set_mask(dev->dev, DMA_BIT_MASK(44));
+	}
+	return 0;
+}
+#else
+static int vmw_dma_masks(struct vmw_private *dev_priv)
+{
+	return 0;
+}
+#endif
+
 static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct vmw_private *dev_priv;
@@ -578,14 +608,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	vmw_get_initial_size(dev_priv);
 
-	if (dev_priv->capabilities & SVGA_CAP_GMR) {
-		dev_priv->max_gmr_descriptors =
-			vmw_read(dev_priv,
-				 SVGA_REG_GMR_MAX_DESCRIPTOR_LENGTH);
+	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		dev_priv->max_gmr_ids =
 			vmw_read(dev_priv, SVGA_REG_GMR_MAX_IDS);
-	}
-	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		dev_priv->max_gmr_pages =
 			vmw_read(dev_priv, SVGA_REG_GMRS_MAX_PAGES);
 		dev_priv->memory_size =
@@ -599,17 +624,17 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->memory_size = 512*1024*1024;
 	}
 
+	ret = vmw_dma_masks(dev_priv);
+	if (unlikely(ret != 0))
+		goto out_err0;
+
 	mutex_unlock(&dev_priv->hw_mutex);
 
 	vmw_print_capabilities(dev_priv->capabilities);
 
-	if (dev_priv->capabilities & SVGA_CAP_GMR) {
+	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		DRM_INFO("Max GMR ids is %u\n",
 			 (unsigned)dev_priv->max_gmr_ids);
-		DRM_INFO("Max GMR descriptors is %u\n",
-			 (unsigned)dev_priv->max_gmr_descriptors);
-	}
-	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		DRM_INFO("Max number of GMR pages is %u\n",
 			 (unsigned)dev_priv->max_gmr_pages);
 		DRM_INFO("Max dedicated hypervisor surface memory is %u kiB\n",
