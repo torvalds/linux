@@ -868,6 +868,7 @@ config CEVT_R4K
 	bool
 
 config CEVT_GIC
+	select MIPS_CM
 	bool
 
 config CEVT_SB1250
@@ -886,6 +887,7 @@ config CSRC_R4K
 	bool
 
 config CSRC_GIC
+	select MIPS_CM
 	bool
 
 config CSRC_SB1250
@@ -1030,6 +1032,7 @@ config IRQ_GT641XX
 	bool
 
 config IRQ_GIC
+	select MIPS_CM
 	bool
 
 config PCI_GT64XXX_PCI0

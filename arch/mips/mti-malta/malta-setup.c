@@ -26,12 +26,12 @@
 #include <linux/time.h>
 
 #include <asm/fw/fw.h>
+#include <asm/mips-cm.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/malta.h>
 #include <asm/mips-boards/maltaint.h>
 #include <asm/dma.h>
 #include <asm/traps.h>
-#include <asm/gcmpregs.h>
 #ifdef CONFIG_VT
 #include <linux/console.h>
 #endif
@@ -127,7 +127,7 @@ static int __init plat_enable_iocoherency(void)
 				 BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
 			pr_info("Enabled Bonito IOBC coherency\n");
 		}
-	} else if (gcmp_niocu() != 0) {
+	} else if (mips_cm_numiocu() != 0) {
 		/* Nothing special needs to be done to enable coherency */
 		pr_info("CMP IOCU detected\n");
 		if ((*(unsigned int *)0xbf403000 & 0x81) != 0x81) {

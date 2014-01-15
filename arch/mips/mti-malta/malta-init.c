@@ -20,7 +20,7 @@
 #include <asm/smp-ops.h>
 #include <asm/traps.h>
 #include <asm/fw/fw.h>
-#include <asm/gcmpregs.h>
+#include <asm/mips-cm.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/malta.h>
 
@@ -276,10 +276,10 @@ mips_pci_controller:
 	console_config();
 #endif
 	/* Early detection of CMP support */
-	if (gcmp_probe(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ))
-		if (!register_cmp_smp_ops())
-			return;
+	mips_cm_probe();
 
+	if (!register_cmp_smp_ops())
+		return;
 	if (!register_vsmp_smp_ops())
 		return;
 
