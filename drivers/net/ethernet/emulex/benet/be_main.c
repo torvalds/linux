@@ -258,6 +258,12 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	/* Proceed further only if, User provided MAC is different
+	 * from active MAC
+	 */
+	if (ether_addr_equal(addr->sa_data, netdev->dev_addr))
+		return 0;
+
 	/* The PMAC_ADD cmd may fail if the VF doesn't have FILTMGMT
 	 * privilege or if PF did not provision the new MAC address.
 	 * On BE3, this cmd will always fail if the VF doesn't have the
