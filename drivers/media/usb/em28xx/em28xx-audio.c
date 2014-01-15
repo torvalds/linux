@@ -711,11 +711,9 @@ static void em28xx_audio_free_urb(struct em28xx *dev)
 		if (!urb)
 			continue;
 
-		if (dev->adev.transfer_buffer[i])
-			usb_free_coherent(dev->udev,
-					  urb->transfer_buffer_length,
-					  dev->adev.transfer_buffer[i],
-					  urb->transfer_dma);
+		usb_free_coherent(dev->udev, urb->transfer_buffer_length,
+				  dev->adev.transfer_buffer[i],
+				  urb->transfer_dma);
 
 		usb_free_urb(urb);
 	}
