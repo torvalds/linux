@@ -49,7 +49,6 @@
 struct tilcdc_drm_private {
 	void __iomem *mmio;
 
-	struct clk *disp_clk;    /* display dpll */
 	struct clk *clk;         /* functional clock */
 	int rev;                 /* IP revision */
 

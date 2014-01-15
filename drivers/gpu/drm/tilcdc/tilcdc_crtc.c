@@ -573,7 +573,8 @@ void tilcdc_crtc_update_clk(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	int dpms = tilcdc_crtc->dpms;
-	unsigned int lcd_clk, div;
+	unsigned long lcd_clk;
+	const unsigned clkdiv = 2; /* using a fixed divider of 2 */
 	int ret;
 
 	pm_runtime_get_sync(dev->dev);
@@ -581,22 +582,21 @@ void tilcdc_crtc_update_clk(struct drm_crtc *crtc)
 	if (dpms == DRM_MODE_DPMS_ON)
 		tilcdc_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 
-	/* in raster mode, minimum divisor is 2: */
-	ret = clk_set_rate(priv->disp_clk, crtc->mode.clock * 1000 * 2);
-	if (ret) {
+	/* mode.clock is in KHz, set_rate wants parameter in Hz */
+	ret = clk_set_rate(priv->clk, crtc->mode.clock * 1000 * clkdiv);
+	if (ret < 0) {
 		dev_err(dev->dev, "failed to set display clock rate to: %d\n",
 				crtc->mode.clock);
 		goto out;
 	}
 
 	lcd_clk = clk_get_rate(priv->clk);
-	div = lcd_clk / (crtc->mode.clock * 1000);
 
-	DBG("lcd_clk=%u, mode clock=%d, div=%u", lcd_clk, crtc->mode.clock, div);
-	DBG("fck=%lu, dpll_disp_ck=%lu", clk_get_rate(priv->clk), clk_get_rate(priv->disp_clk));
+	DBG("lcd_clk=%lu, mode clock=%d, div=%u",
+		lcd_clk, crtc->mode.clock, clkdiv);
 
 	/* Configure the LCD clock divisor. */
-	tilcdc_write(dev, LCDC_CTRL_REG, LCDC_CLK_DIVISOR(div) |
+	tilcdc_write(dev, LCDC_CTRL_REG, LCDC_CLK_DIVISOR(clkdiv) |
 			LCDC_RASTER_MODE);
 
 	if (priv->rev == 2)

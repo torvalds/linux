@@ -192,13 +192,6 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 		goto fail_iounmap;
 	}
 
-	priv->disp_clk = clk_get(dev->dev, "dpll_disp_ck");
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev->dev, "failed to get display clock\n");
-		ret = -ENODEV;
-		goto fail_put_clk;
-	}
-
 #ifdef CONFIG_CPU_FREQ
 	priv->lcd_fck_rate = clk_get_rate(priv->clk);
 	priv->freq_transition.notifier_call = cpufreq_transition;
@@ -206,7 +199,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 			CPUFREQ_TRANSITION_NOTIFIER);
 	if (ret) {
 		dev_err(dev->dev, "failed to register cpufreq notifier\n");
-		goto fail_put_disp_clk;
+		goto fail_put_clk;
 	}
 #endif
 
@@ -330,8 +323,6 @@ fail_cpufreq_unregister:
 #ifdef CONFIG_CPU_FREQ
 	cpufreq_unregister_notifier(&priv->freq_transition,
 			CPUFREQ_TRANSITION_NOTIFIER);
-fail_put_disp_clk:
-	clk_put(priv->disp_clk);
 #endif
 
 fail_put_clk:
