@@ -660,8 +660,6 @@ extern int __init efi_setup_pcdp_console(char *);
 #define EFI_ARCH_1		6	/* First arch-specific bit */
 
 #ifdef CONFIG_EFI
-# ifdef CONFIG_X86
-
 /*
  * Test whether the above EFI_* bits are enabled.
  */
@@ -669,12 +667,6 @@ static inline bool efi_enabled(int feature)
 {
 	return test_bit(feature, &efi.flags) != 0;
 }
-# else
-static inline bool efi_enabled(int feature)
-{
-	return true;
-}
-# endif
 #else
 static inline bool efi_enabled(int feature)
 {
