@@ -26,7 +26,7 @@
 /* Version Information */
 #define DRIVER_VERSION "v1.03.0 (2013/12/26)"
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
-#define DRIVER_DESC "Realtek RTL8152 Based USB 2.0 Ethernet Adapters"
+#define DRIVER_DESC "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 #define MODULENAME "r8152"
 
 #define R8152_PHY_ID		32
