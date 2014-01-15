@@ -2108,7 +2108,7 @@ bnad_rx_ctrl_init(struct bnad *bnad, u32 rx_id)
 }
 
 /* Called with mutex_lock(&bnad->conf_mutex) held */
-u32
+static u32
 bnad_reinit_rx(struct bnad *bnad)
 {
 	struct net_device *netdev = bnad->netdev;

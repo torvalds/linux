@@ -1147,25 +1147,6 @@ bfa_nw_ioc_sem_release(void __iomem *sem_reg)
 	writel(1, sem_reg);
 }
 
-/* Invalidate fwver signature */
-enum bfa_status
-bfa_nw_ioc_fwsig_invalidate(struct bfa_ioc *ioc)
-{
-	u32	pgnum, pgoff;
-	u32	loff = 0;
-	enum bfi_ioc_state ioc_fwstate;
-
-	ioc_fwstate = bfa_ioc_get_cur_ioc_fwstate(ioc);
-	if (!bfa_ioc_state_disabled(ioc_fwstate))
-		return BFA_STATUS_ADAPTER_ENABLED;
-
-	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
-	pgoff = PSS_SMEM_PGOFF(loff);
-	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
-	writel(BFI_IOC_FW_INV_SIGN, ioc->ioc_regs.smem_page_start + loff);
-	return BFA_STATUS_OK;
-}
-
 /* Clear fwver hdr */
 static void
 bfa_ioc_fwver_clear(struct bfa_ioc *ioc)
@@ -1780,15 +1761,9 @@ bfa_flash_raw_read(void __iomem *pci_bar, u32 offset, char *buf,
 	return BFA_STATUS_OK;
 }
 
-u32
-bfa_nw_ioc_flash_img_get_size(struct bfa_ioc *ioc)
-{
-	return BFI_FLASH_IMAGE_SZ/sizeof(u32);
-}
-
 #define BFA_FLASH_PART_FWIMG_ADDR	0x100000 /* fw image address */
 
-enum bfa_status
+static enum bfa_status
 bfa_nw_ioc_flash_img_get_chnk(struct bfa_ioc *ioc, u32 off,
 			      u32 *fwimg)
 {
