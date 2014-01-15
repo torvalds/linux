@@ -140,16 +140,47 @@ extern struct page *empty_zero_page;
 #define pte_valid_user(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER))
 
-#define PTE_BIT_FUNC(fn,op) \
-static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
+static inline pte_t pte_wrprotect(pte_t pte)
+{
+	pte_val(pte) |= PTE_RDONLY;
+	return pte;
+}
 
-PTE_BIT_FUNC(wrprotect, |= PTE_RDONLY);
-PTE_BIT_FUNC(mkwrite,   &= ~PTE_RDONLY);
-PTE_BIT_FUNC(mkclean,   &= ~PTE_DIRTY);
-PTE_BIT_FUNC(mkdirty,   |= PTE_DIRTY);
-PTE_BIT_FUNC(mkold,     &= ~PTE_AF);
-PTE_BIT_FUNC(mkyoung,   |= PTE_AF);
-PTE_BIT_FUNC(mkspecial, |= PTE_SPECIAL);
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+	pte_val(pte) &= ~PTE_RDONLY;
+	return pte;
+}
+
+static inline pte_t pte_mkclean(pte_t pte)
+{
+	pte_val(pte) &= ~PTE_DIRTY;
+	return pte;
+}
+
+static inline pte_t pte_mkdirty(pte_t pte)
+{
+	pte_val(pte) |= PTE_DIRTY;
+	return pte;
+}
+
+static inline pte_t pte_mkold(pte_t pte)
+{
+	pte_val(pte) &= ~PTE_AF;
+	return pte;
+}
+
+static inline pte_t pte_mkyoung(pte_t pte)
+{
+	pte_val(pte) |= PTE_AF;
+	return pte;
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	pte_val(pte) |= PTE_SPECIAL;
+	return pte;
+}
 
 static inline void set_pte(pte_t *ptep, pte_t pte)
 {
