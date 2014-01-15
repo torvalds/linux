@@ -24,7 +24,7 @@
 
 /* Bitmap to store allocated device numbers from 0 to IRRCV_NUM_DEVICES - 1 */
 #define IRRCV_NUM_DEVICES      256
-DECLARE_BITMAP(ir_core_dev_number, IRRCV_NUM_DEVICES);
+static DECLARE_BITMAP(ir_core_dev_number, IRRCV_NUM_DEVICES);
 
 /* Sizes are in bytes, 256 bytes allows for 32 entries on x64 */
 #define IR_TAB_MIN_SIZE	256
