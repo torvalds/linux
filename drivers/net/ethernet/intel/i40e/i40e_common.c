@@ -1742,7 +1742,6 @@ i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_add_udp_tunnel);
 
 	cmd->udp_port = cpu_to_le16(udp_port);
-	cmd->header_len = header_len;
 	cmd->protocol_type = protocol_index;
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
