@@ -1101,23 +1101,22 @@ static int be_cmd_mccq_ext_create(struct be_adapter *adapter,
 			OPCODE_COMMON_MCC_CREATE_EXT, sizeof(*req), wrb, NULL);
 
 	req->num_pages = cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
-	if (lancer_chip(adapter)) {
-		req->hdr.version = 1;
-		req->cq_id = cpu_to_le16(cq->id);
-
-		AMAP_SET_BITS(struct amap_mcc_context_lancer, ring_size, ctxt,
-						be_encoded_q_len(mccq->len));
-		AMAP_SET_BITS(struct amap_mcc_context_lancer, valid, ctxt, 1);
-		AMAP_SET_BITS(struct amap_mcc_context_lancer, async_cq_id,
-								ctxt, cq->id);
-		AMAP_SET_BITS(struct amap_mcc_context_lancer, async_cq_valid,
-								 ctxt, 1);
-
-	} else {
+	if (BEx_chip(adapter)) {
 		AMAP_SET_BITS(struct amap_mcc_context_be, valid, ctxt, 1);
 		AMAP_SET_BITS(struct amap_mcc_context_be, ring_size, ctxt,
 						be_encoded_q_len(mccq->len));
 		AMAP_SET_BITS(struct amap_mcc_context_be, cq_id, ctxt, cq->id);
+	} else {
+		req->hdr.version = 1;
+		req->cq_id = cpu_to_le16(cq->id);
+
+		AMAP_SET_BITS(struct amap_mcc_context_v1, ring_size, ctxt,
+			      be_encoded_q_len(mccq->len));
+		AMAP_SET_BITS(struct amap_mcc_context_v1, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_mcc_context_v1, async_cq_id,
+			      ctxt, cq->id);
+		AMAP_SET_BITS(struct amap_mcc_context_v1, async_cq_valid,
+			      ctxt, 1);
 	}
 
 	/* Subscribe to Link State and Group 5 Events(bits 1 and 5 set) */
@@ -1187,7 +1186,7 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 	int status;
 
 	status = be_cmd_mccq_ext_create(adapter, mccq, cq);
-	if (status && !lancer_chip(adapter)) {
+	if (status && BEx_chip(adapter)) {
 		dev_warn(&adapter->pdev->dev, "Upgrade to F/W ver 2.102.235.0 "
 			"or newer to avoid conflicting priorities between NIC "
 			"and FCoE traffic");

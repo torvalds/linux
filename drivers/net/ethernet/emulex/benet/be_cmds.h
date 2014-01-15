@@ -452,7 +452,7 @@ struct amap_mcc_context_be {
 	u8 rsvd2[32];
 } __packed;
 
-struct amap_mcc_context_lancer {
+struct amap_mcc_context_v1 {
 	u8 async_cq_id[16];
 	u8 ring_size[4];
 	u8 rsvd0[12];
@@ -476,7 +476,7 @@ struct be_cmd_req_mcc_ext_create {
 	u16 num_pages;
 	u16 cq_id;
 	u32 async_event_bitmap[1];
-	u8 context[sizeof(struct amap_mcc_context_be) / 8];
+	u8 context[sizeof(struct amap_mcc_context_v1) / 8];
 	struct phys_addr pages[8];
 } __packed;
 
