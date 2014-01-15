@@ -747,6 +747,7 @@ struct ixgbe_adapter {
 #ifdef IXGBE_FCOE
 	struct ixgbe_fcoe fcoe;
 #endif /* IXGBE_FCOE */
+	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 wol;
 
 	u16 bd_number;

@@ -124,6 +124,15 @@ s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw);
 s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 
+#define IXGBE_FAILED_READ_REG 0xffffffffU
+
+static inline bool ixgbe_removed(void __iomem *addr)
+{
+	return unlikely(!addr);
+}
+
+void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg);
+
 static inline void ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 value)
 {
 	writel(value, hw->hw_addr + reg);
@@ -147,7 +156,15 @@ static inline void ixgbe_write_reg64(struct ixgbe_hw *hw, u32 reg, u64 value)
 
 static inline u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
 {
-	return readl(hw->hw_addr + reg);
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+	u32 value;
+
+	if (ixgbe_removed(reg_addr))
+		return IXGBE_FAILED_READ_REG;
+	value = readl(reg_addr + reg);
+	if (unlikely(value == IXGBE_FAILED_READ_REG))
+		ixgbe_check_remove(hw, reg);
+	return value;
 }
 #define IXGBE_READ_REG(a, reg) ixgbe_read_reg((a), (reg))
 
