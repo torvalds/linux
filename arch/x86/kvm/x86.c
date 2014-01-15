@@ -1278,8 +1278,6 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	kvm->arch.last_tsc_write = data;
 	kvm->arch.last_tsc_khz = vcpu->arch.virtual_tsc_khz;
 
-	/* Reset of TSC must disable overshoot protection below */
-	vcpu->arch.hv_clock.tsc_timestamp = 0;
 	vcpu->arch.last_guest_tsc = data;
 
 	/* Keep track of which generation this VCPU has synchronized to */
