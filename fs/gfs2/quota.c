@@ -56,6 +56,7 @@
 #include <linux/rculist_bl.h>
 #include <linux/bit_spinlock.h>
 #include <linux/jhash.h>
+#include <linux/vmalloc.h>
 
 #include "gfs2.h"
 #include "incore.h"
