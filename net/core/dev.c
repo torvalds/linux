@@ -5392,6 +5392,11 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 	if (!netif_device_present(dev))
 		return -ENODEV;
 
+	err = call_netdevice_notifiers(NETDEV_PRECHANGEMTU, dev);
+	err = notifier_to_errno(err);
+	if (err)
+		return err;
+
 	orig_mtu = dev->mtu;
 	err = __dev_set_mtu(dev, new_mtu);
 
