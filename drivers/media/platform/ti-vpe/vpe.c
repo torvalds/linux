@@ -887,6 +887,9 @@ static int job_ready(void *priv)
 	if (v4l2_m2m_num_src_bufs_ready(ctx->m2m_ctx) < needed)
 		return 0;
 
+	if (v4l2_m2m_num_dst_bufs_ready(ctx->m2m_ctx) < needed)
+		return 0;
+
 	return 1;
 }
 
