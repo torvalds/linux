@@ -112,6 +112,8 @@ extern void prom_free_prom_memory(void);
 extern void free_init_pages(const char *what,
 			    unsigned long begin, unsigned long end);
 
+extern void (*free_init_pages_eva)(void *begin, void *end);
+
 /*
  * Initial kernel command line, usually setup by prom_init()
  */
