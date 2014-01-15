@@ -59,7 +59,7 @@ int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 
 	return i2c->identify(i2c, i2c_index, "TV encoder",
-			     nv04_tv_encoder_info, NULL);
+			     nv04_tv_encoder_info, NULL, NULL);
 }
 
 
