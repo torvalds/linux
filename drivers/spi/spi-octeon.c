@@ -179,7 +179,8 @@ static int octeon_spi_transfer_one_message(struct spi_master *master,
 	}
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		bool last_xfer = &xfer->transfer_list == msg->transfers.prev;
+		bool last_xfer = list_is_last(&xfer->transfer_list,
+					      &msg->transfers);
 		int r = octeon_spi_do_transfer(p, msg, xfer, last_xfer);
 		if (r < 0) {
 			status = r;
