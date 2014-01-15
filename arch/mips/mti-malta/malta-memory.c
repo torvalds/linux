@@ -24,22 +24,30 @@ static fw_memblock_t mdesc[FW_MAX_MEMBLOCKS];
 /* determined physical memory size, not overridden by command line args	 */
 unsigned long physical_memsize = 0L;
 
-fw_memblock_t * __init fw_getmdesc(void)
+fw_memblock_t * __init fw_getmdesc(int eva)
 {
-	char *memsize_str, *ptr;
-	unsigned int memsize;
+	char *memsize_str, *ememsize_str __maybe_unused = NULL, *ptr;
+	unsigned long memsize, ememsize __maybe_unused = 0;
 	static char cmdline[COMMAND_LINE_SIZE] __initdata;
-	long val;
 	int tmp;
 
 	/* otherwise look in the environment */
+
 	memsize_str = fw_getenv("memsize");
-	if (!memsize_str) {
+	if (memsize_str)
+		tmp = kstrtol(memsize_str, 0, &memsize);
+	if (eva) {
+	/* Look for ememsize for EVA */
+		ememsize_str = fw_getenv("ememsize");
+		if (ememsize_str)
+			tmp = kstrtol(ememsize_str, 0, &ememsize);
+	}
+	if (!memsize && !ememsize) {
 		pr_warn("memsize not set in YAMON, set to default (32Mb)\n");
 		physical_memsize = 0x02000000;
 	} else {
-		tmp = kstrtol(memsize_str, 0, &val);
-		physical_memsize = (unsigned long)val;
+		/* If ememsize is set, then set physical_memsize to that */
+		physical_memsize = ememsize ? : memsize;
 	}
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -54,11 +62,21 @@ fw_memblock_t * __init fw_getmdesc(void)
 	ptr = strstr(cmdline, "memsize=");
 	if (ptr && (ptr != cmdline) && (*(ptr - 1) != ' '))
 		ptr = strstr(ptr, " memsize=");
+	/* And now look for ememsize */
+	if (eva) {
+		ptr = strstr(cmdline, "ememsize=");
+		if (ptr && (ptr != cmdline) && (*(ptr - 1) != ' '))
+			ptr = strstr(ptr, " ememsize=");
+	}
 
 	if (ptr)
-		memsize = memparse(ptr + 8, &ptr);
+		memsize = memparse(ptr + 8 + (eva ? 1 : 0), &ptr);
 	else
 		memsize = physical_memsize;
+
+	/* Last 64K for HIGHMEM arithmetics */
+	if (memsize > 0x7fff0000)
+		memsize = 0x7fff0000;
 
 	memset(mdesc, 0, sizeof(mdesc));
 
@@ -109,7 +127,7 @@ void __init fw_meminit(void)
 {
 	fw_memblock_t *p;
 
-	p = fw_getmdesc();
+	p = fw_getmdesc(config_enabled(CONFIG_EVA));
 
 	while (p->size) {
 		long type;
