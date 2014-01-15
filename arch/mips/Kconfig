@@ -1999,14 +1999,16 @@ config MIPS_VPE_APSP_API_MT
 	depends on MIPS_VPE_APSP_API && !MIPS_CMP
 
 config MIPS_CMP
-	bool "MIPS CMP support"
+	bool "MIPS CMP framework support"
 	depends on SYS_SUPPORTS_MIPS_CMP && MIPS_MT_SMP
 	select MIPS_GIC_IPI
 	select SYNC_R4K
 	select WEAK_ORDERING
 	default n
 	help
-	  Enable Coherency Manager processor (CMP) support.
+	  Select this if you are using a bootloader which implements the "CMP
+	  framework" protocol (ie. YAMON) and want your kernel to make use of
+	  its ability to start secondary CPUs.
 
 config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
