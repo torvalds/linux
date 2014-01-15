@@ -255,13 +255,7 @@ static int __init hvc_opal_init(void)
 	/* Register as a vio device to receive callbacks */
 	return platform_driver_register(&hvc_opal_driver);
 }
-module_init(hvc_opal_init);
-
-static void __exit hvc_opal_exit(void)
-{
-	platform_driver_unregister(&hvc_opal_driver);
-}
-module_exit(hvc_opal_exit);
+device_initcall(hvc_opal_init);
 
 static void udbg_opal_putc(char c)
 {
