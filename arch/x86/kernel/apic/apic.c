@@ -79,7 +79,7 @@ physid_mask_t phys_cpu_present_map;
  * disable_cpu_apicid=<int>, mostly used for the kdump 2nd kernel to
  * avoid undefined behaviour caused by sending INIT from AP to BSP.
  */
-unsigned int disabled_cpu_apicid = BAD_APICID;
+static unsigned int disabled_cpu_apicid __read_mostly = BAD_APICID;
 
 /*
  * Map cpu index to physical APIC ID
@@ -2124,7 +2124,7 @@ int generic_processor_info(int apicid, int version)
 	 * boot_cpu_physical_apicid is designed to have the apicid
 	 * returned by read_apic_id(), i.e, the apicid of the
 	 * currently booting-up processor. However, on some platforms,
-	 * it is temporarilly modified by the apicid reported as BSP
+	 * it is temporarily modified by the apicid reported as BSP
 	 * through MP table. Concretely:
 	 *
 	 * - arch/x86/kernel/mpparse.c: MP_processor_info()
@@ -2145,7 +2145,7 @@ int generic_processor_info(int apicid, int version)
 	    disabled_cpu_apicid == apicid) {
 		int thiscpu = num_processors + disabled_cpus;
 
-		pr_warning("ACPI: Disabling requested cpu."
+		pr_warning("APIC: Disabling requested cpu."
 			   " Processor %d/0x%x ignored.\n",
 			   thiscpu, apicid);
 
