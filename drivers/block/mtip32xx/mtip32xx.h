@@ -69,7 +69,7 @@
  * Maximum number of scatter gather entries
  * a single command may have.
  */
-#define MTIP_MAX_SG		128
+#define MTIP_MAX_SG		504
 
 /*
  * Maximum number of slot groups (Command Issue & s_active registers)
@@ -391,15 +391,13 @@ struct mtip_port {
 	 */
 	dma_addr_t rxfis_dma;
 	/*
-	 * Pointer to the beginning of the command table memory as used
-	 * by the driver.
+	 * Pointer to the DMA region for RX Fis, Identify, RLE10, and SMART
 	 */
-	void *command_table;
+	void *block1;
 	/*
-	 * Pointer to the beginning of the command table memory as used
-	 * by the DMA.
+	 * DMA address of region for RX Fis, Identify, RLE10, and SMART
 	 */
-	dma_addr_t command_tbl_dma;
+	dma_addr_t block1_dma;
 	/*
 	 * Pointer to the beginning of the identify data memory as used
 	 * by the driver.
