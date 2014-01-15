@@ -225,16 +225,16 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 
 		memcpy(cinfo, dev->platform_data, sizeof(*cinfo));
 		cinfo->snd_card.dev = dev;
-	}
 
-	if (!cinfo->name	||
-	    !cinfo->card	||
-	    !cinfo->codec_dai.name	||
-	    !(cinfo->codec		|| of_codec)	||
-	    !(cinfo->platform		|| of_platform)	||
-	    !(cinfo->cpu_dai.name	|| of_cpu)) {
-		dev_err(dev, "insufficient asoc_simple_card_info settings\n");
-		return -EINVAL;
+		if (!cinfo->name	||
+		    !cinfo->card	||
+		    !cinfo->codec_dai.name	||
+		    !cinfo->codec	||
+		    !cinfo->platform	||
+		    !cinfo->cpu_dai.name) {
+			dev_err(dev, "insufficient asoc_simple_card_info settings\n");
+			return -EINVAL;
+		}
 	}
 
 	/*
