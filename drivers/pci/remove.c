@@ -20,6 +20,9 @@ static void pci_stop_dev(struct pci_dev *dev)
 
 static void pci_destroy_dev(struct pci_dev *dev)
 {
+	if (!dev->dev.kobj.parent)
+		return;
+
 	device_del(&dev->dev);
 
 	put_device(&dev->dev);
@@ -94,6 +97,14 @@ void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 	pci_remove_bus_device(dev);
 }
 EXPORT_SYMBOL(pci_stop_and_remove_bus_device);
+
+void pci_stop_and_remove_bus_device_locked(struct pci_dev *dev)
+{
+	pci_lock_rescan_remove();
+	pci_stop_and_remove_bus_device(dev);
+	pci_unlock_rescan_remove();
+}
+EXPORT_SYMBOL_GPL(pci_stop_and_remove_bus_device_locked);
 
 void pci_stop_root_bus(struct pci_bus *bus)
 {
