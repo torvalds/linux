@@ -18,27 +18,27 @@
 #include "clk.h"
 #include "common.h"
 
-static const char const *step_sels[]		= { "osc", "pll2_pfd2", };
-static const char const *pll1_sw_sels[]		= { "pll1_sys", "step", };
-static const char const *ocram_alt_sels[]	= { "pll2_pfd2", "pll3_pfd1", };
-static const char const *ocram_sels[]		= { "periph", "ocram_alt_sels", };
-static const char const *pre_periph_sels[]	= { "pll2_bus", "pll2_pfd2", "pll2_pfd0", "pll2_198m", };
-static const char const *periph_clk2_sels[]	= { "pll3_usb_otg", "osc", "osc", "dummy", };
-static const char const *periph2_clk2_sels[]	= { "pll3_usb_otg", "pll2_bus", };
-static const char const *periph_sels[]		= { "pre_periph_sel", "periph_clk2_podf", };
-static const char const *periph2_sels[]		= { "pre_periph2_sel", "periph2_clk2_podf", };
-static const char const *csi_lcdif_sels[]	= { "mmdc", "pll2_pfd2", "pll3_120m", "pll3_pfd1", };
-static const char const *usdhc_sels[]		= { "pll2_pfd2", "pll2_pfd0", };
-static const char const *ssi_sels[]		= { "pll3_pfd2", "pll3_pfd3", "pll4_audio_div", "dummy", };
-static const char const *perclk_sels[]		= { "ipg", "osc", };
-static const char const *epdc_pxp_sels[]	= { "mmdc", "pll3_usb_otg", "pll5_video_div", "pll2_pfd0", "pll2_pfd2", "pll3_pfd1", };
-static const char const *gpu2d_ovg_sels[]	= { "pll3_pfd1", "pll3_usb_otg", "pll2_bus", "pll2_pfd2", };
-static const char const *gpu2d_sels[]		= { "pll2_pfd2", "pll3_usb_otg", "pll3_pfd1", "pll2_bus", };
-static const char const *lcdif_pix_sels[]	= { "pll2_bus", "pll3_usb_otg", "pll5_video_div", "pll2_pfd0", "pll3_pfd0", "pll3_pfd1", };
-static const char const *epdc_pix_sels[]	= { "pll2_bus", "pll3_usb_otg", "pll5_video_div", "pll2_pfd0", "pll2_pfd1", "pll3_pfd1", };
-static const char const *audio_sels[]		= { "pll4_audio_div", "pll3_pfd2", "pll3_pfd3", "pll3_usb_otg", };
-static const char const *ecspi_sels[]		= { "pll3_60m", "osc", };
-static const char const *uart_sels[]		= { "pll3_80m", "osc", };
+static const char *step_sels[]		= { "osc", "pll2_pfd2", };
+static const char *pll1_sw_sels[]	= { "pll1_sys", "step", };
+static const char *ocram_alt_sels[]	= { "pll2_pfd2", "pll3_pfd1", };
+static const char *ocram_sels[]		= { "periph", "ocram_alt_sels", };
+static const char *pre_periph_sels[]	= { "pll2_bus", "pll2_pfd2", "pll2_pfd0", "pll2_198m", };
+static const char *periph_clk2_sels[]	= { "pll3_usb_otg", "osc", "osc", "dummy", };
+static const char *periph2_clk2_sels[]	= { "pll3_usb_otg", "pll2_bus", };
+static const char *periph_sels[]	= { "pre_periph_sel", "periph_clk2_podf", };
+static const char *periph2_sels[]	= { "pre_periph2_sel", "periph2_clk2_podf", };
+static const char *csi_lcdif_sels[]	= { "mmdc", "pll2_pfd2", "pll3_120m", "pll3_pfd1", };
+static const char *usdhc_sels[]		= { "pll2_pfd2", "pll2_pfd0", };
+static const char *ssi_sels[]		= { "pll3_pfd2", "pll3_pfd3", "pll4_audio_div", "dummy", };
+static const char *perclk_sels[]	= { "ipg", "osc", };
+static const char *epdc_pxp_sels[]	= { "mmdc", "pll3_usb_otg", "pll5_video_div", "pll2_pfd0", "pll2_pfd2", "pll3_pfd1", };
+static const char *gpu2d_ovg_sels[]	= { "pll3_pfd1", "pll3_usb_otg", "pll2_bus", "pll2_pfd2", };
+static const char *gpu2d_sels[]		= { "pll2_pfd2", "pll3_usb_otg", "pll3_pfd1", "pll2_bus", };
+static const char *lcdif_pix_sels[]	= { "pll2_bus", "pll3_usb_otg", "pll5_video_div", "pll2_pfd0", "pll3_pfd0", "pll3_pfd1", };
+static const char *epdc_pix_sels[]	= { "pll2_bus", "pll3_usb_otg", "pll5_video_div", "pll2_pfd0", "pll2_pfd1", "pll3_pfd1", };
+static const char *audio_sels[]		= { "pll4_audio_div", "pll3_pfd2", "pll3_pfd3", "pll3_usb_otg", };
+static const char *ecspi_sels[]		= { "pll3_60m", "osc", };
+static const char *uart_sels[]		= { "pll3_80m", "osc", };
 
 static struct clk_div_table clk_enet_ref_table[] = {
 	{ .val = 0, .div = 20, },
