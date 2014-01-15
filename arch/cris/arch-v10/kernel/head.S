@@ -168,13 +168,11 @@ _inflash:
 #endif
 
 	;; Set up waitstates etc according to kernel configuration.
-#ifndef CONFIG_SVINTO_SIM
 	move.d   CONFIG_ETRAX_DEF_R_WAITSTATES, $r0
 	move.d   $r0, [R_WAITSTATES]
 
 	move.d   CONFIG_ETRAX_DEF_R_BUS_CONFIG, $r0
 	move.d   $r0, [R_BUS_CONFIG]
-#endif
 
 	;; We need to initialze DRAM registers before we start using the DRAM
 
@@ -466,7 +464,6 @@ no_command_line:
 
 	move.d	$r0,[genconfig_shadow] ; init a shadow register of R_GEN_CONFIG
 
-#ifndef CONFIG_SVINTO_SIM
 	move.d	$r0,[R_GEN_CONFIG]
 
 #if 0
@@ -700,8 +697,6 @@ no_command_line:
 		| IO_STATE (R_SERIAL3_TR_CTRL, tr_bitnr, tr_8bit),$r0
 	move.b	$r0,[R_SERIAL3_TR_CTRL]
 #endif
-
-#endif /* CONFIG_SVINTO_SIM */
 
 	jump	start_kernel	; jump into the C-function start_kernel in init/main.c
 

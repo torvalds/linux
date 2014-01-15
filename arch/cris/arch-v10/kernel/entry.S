@@ -457,7 +457,7 @@ IRQ1_interrupt:
 	ba	_Rexit		; Return the standard way
 	nop
 wdog:
-#if defined(CONFIG_ETRAX_WATCHDOG) && !defined(CONFIG_SVINTO_SIM)
+#if defined(CONFIG_ETRAX_WATCHDOG)
 ;; Check if we're waiting for reset to happen, as signalled by
 ;; hard_reset_now setting cause_of_death to a magic value.  If so, just
 ;; get stuck until reset happens.
@@ -523,7 +523,7 @@ _watchdogmsg:
 	.ascii	"Oops: bitten by watchdog\n\0"
 	.previous
 
-#endif /* CONFIG_ETRAX_WATCHDOG and not CONFIG_SVINTO_SIM */
+#endif /* CONFIG_ETRAX_WATCHDOG */
 
 spurious_interrupt:
 	di
