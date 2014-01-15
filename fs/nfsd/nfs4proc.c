@@ -1270,13 +1270,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	u32		plen = 0;
 	__be32		status;
 
-	resp->xbuf = &rqstp->rq_res;
-	resp->p = rqstp->rq_res.head[0].iov_base +
+	resp->xdr.buf = &rqstp->rq_res;
+	resp->xdr.p = rqstp->rq_res.head[0].iov_base +
 						rqstp->rq_res.head[0].iov_len;
-	resp->tagp = resp->p;
+	resp->tagp = resp->xdr.p;
 	/* reserve space for: taglen, tag, and opcnt */
-	resp->p += 2 + XDR_QUADLEN(args->taglen);
-	resp->end = rqstp->rq_res.head[0].iov_base + PAGE_SIZE;
+	resp->xdr.p += 2 + XDR_QUADLEN(args->taglen);
+	resp->xdr.end = rqstp->rq_res.head[0].iov_base + PAGE_SIZE;
 	resp->taglen = args->taglen;
 	resp->tag = args->tag;
 	resp->opcnt = 0;
@@ -1328,7 +1328,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		 * failed response to the next operation.  If we don't
 		 * have enough room, fail with ERR_RESOURCE.
 		 */
-		slack_bytes = (char *)resp->end - (char *)resp->p;
+		slack_bytes = (char *)resp->xdr.end - (char *)resp->xdr.p;
 		if (slack_bytes < COMPOUND_SLACK_SPACE
 				+ COMPOUND_ERR_SLACK_SPACE) {
 			BUG_ON(slack_bytes < COMPOUND_ERR_SLACK_SPACE);

@@ -506,9 +506,7 @@ struct nfsd4_compoundargs {
 
 struct nfsd4_compoundres {
 	/* scratch variables for XDR encode */
-	__be32 *			p;
-	__be32 *			end;
-	struct xdr_buf *		xbuf;
+	struct xdr_stream		xdr;
 	struct svc_rqst *		rqstp;
 
 	u32				taglen;

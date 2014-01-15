@@ -1573,10 +1573,10 @@ nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
 		slot->sl_datalen = 0;
 		return;
 	}
-	slot->sl_datalen = (char *)resp->p - (char *)resp->cstate.datap;
+	slot->sl_datalen = (char *)resp->xdr.p - (char *)resp->cstate.datap;
 	base = (char *)resp->cstate.datap -
-					(char *)resp->xbuf->head[0].iov_base;
-	if (read_bytes_from_xdr_buf(resp->xbuf, base, slot->sl_data,
+					(char *)resp->xdr.buf->head[0].iov_base;
+	if (read_bytes_from_xdr_buf(resp->xdr.buf, base, slot->sl_data,
 				    slot->sl_datalen))
 		WARN("%s: sessions DRC could not cache compound\n", __func__);
 	return;
@@ -1630,7 +1630,7 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 	memcpy(resp->cstate.datap, slot->sl_data, slot->sl_datalen);
 
 	resp->opcnt = slot->sl_opcnt;
-	resp->p = resp->cstate.datap + XDR_QUADLEN(slot->sl_datalen);
+	resp->xdr.p = resp->cstate.datap + XDR_QUADLEN(slot->sl_datalen);
 	status = slot->sl_status;
 
 	return status;

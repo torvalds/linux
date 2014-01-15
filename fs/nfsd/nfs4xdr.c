@@ -1747,10 +1747,10 @@ static void write_cinfo(__be32 **p, struct nfsd4_change_info *c)
 }
 
 #define RESERVE_SPACE(nbytes)	do {				\
-	p = resp->p;						\
-	BUG_ON(p + XDR_QUADLEN(nbytes) > resp->end);		\
+	p = resp->xdr.p;						\
+	BUG_ON(p + XDR_QUADLEN(nbytes) > resp->xdr.end);		\
 } while (0)
-#define ADJUST_ARGS()		resp->p = p
+#define ADJUST_ARGS()		resp->xdr.p = p
 
 /* Encode as an array of strings the string given with components
  * separated @sep, escaped with esc_enter and esc_exit.
@@ -2751,9 +2751,9 @@ nfsd4_encode_getattr(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	if (nfserr)
 		return nfserr;
 
-	buflen = resp->end - resp->p - (COMPOUND_ERR_SLACK_SPACE >> 2);
+	buflen = resp->xdr.end - resp->xdr.p - (COMPOUND_ERR_SLACK_SPACE >> 2);
 	nfserr = nfsd4_encode_fattr(fhp, fhp->fh_export, fhp->fh_dentry,
-				    &resp->p, buflen, getattr->ga_bmval,
+				    &resp->xdr.p, buflen, getattr->ga_bmval,
 				    resp->rqstp, 0);
 	return nfserr;
 }
@@ -2953,7 +2953,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	if (nfserr)
 		return nfserr;
-	if (resp->xbuf->page_len)
+	if (resp->xdr.buf->page_len)
 		return nfserr_resource;
 
 	RESERVE_SPACE(8); /* eof flag and byte count */
@@ -2991,18 +2991,18 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	WRITE32(eof);
 	WRITE32(maxcount);
 	ADJUST_ARGS();
-	resp->xbuf->head[0].iov_len = (char*)p
-					- (char*)resp->xbuf->head[0].iov_base;
-	resp->xbuf->page_len = maxcount;
+	resp->xdr.buf->head[0].iov_len = (char *)p
+				- (char *)resp->xdr.buf->head[0].iov_base;
+	resp->xdr.buf->page_len = maxcount;
 
 	/* Use rest of head for padding and remaining ops: */
-	resp->xbuf->tail[0].iov_base = p;
-	resp->xbuf->tail[0].iov_len = 0;
+	resp->xdr.buf->tail[0].iov_base = p;
+	resp->xdr.buf->tail[0].iov_len = 0;
 	if (maxcount&3) {
 		RESERVE_SPACE(4);
 		WRITE32(0);
-		resp->xbuf->tail[0].iov_base += maxcount&3;
-		resp->xbuf->tail[0].iov_len = 4 - (maxcount&3);
+		resp->xdr.buf->tail[0].iov_base += maxcount&3;
+		resp->xdr.buf->tail[0].iov_len = 4 - (maxcount&3);
 		ADJUST_ARGS();
 	}
 	return 0;
@@ -3017,7 +3017,7 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 
 	if (nfserr)
 		return nfserr;
-	if (resp->xbuf->page_len)
+	if (resp->xdr.buf->page_len)
 		return nfserr_resource;
 	if (!*resp->rqstp->rq_next_page)
 		return nfserr_resource;
@@ -3041,18 +3041,18 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 
 	WRITE32(maxcount);
 	ADJUST_ARGS();
-	resp->xbuf->head[0].iov_len = (char*)p
-				- (char*)resp->xbuf->head[0].iov_base;
-	resp->xbuf->page_len = maxcount;
+	resp->xdr.buf->head[0].iov_len = (char *)p
+				- (char *)resp->xdr.buf->head[0].iov_base;
+	resp->xdr.buf->page_len = maxcount;
 
 	/* Use rest of head for padding and remaining ops: */
-	resp->xbuf->tail[0].iov_base = p;
-	resp->xbuf->tail[0].iov_len = 0;
+	resp->xdr.buf->tail[0].iov_base = p;
+	resp->xdr.buf->tail[0].iov_len = 0;
 	if (maxcount&3) {
 		RESERVE_SPACE(4);
 		WRITE32(0);
-		resp->xbuf->tail[0].iov_base += maxcount&3;
-		resp->xbuf->tail[0].iov_len = 4 - (maxcount&3);
+		resp->xdr.buf->tail[0].iov_base += maxcount&3;
+		resp->xdr.buf->tail[0].iov_len = 4 - (maxcount&3);
 		ADJUST_ARGS();
 	}
 	return 0;
@@ -3068,7 +3068,7 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 
 	if (nfserr)
 		return nfserr;
-	if (resp->xbuf->page_len)
+	if (resp->xdr.buf->page_len)
 		return nfserr_resource;
 	if (!*resp->rqstp->rq_next_page)
 		return nfserr_resource;
@@ -3080,7 +3080,8 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	WRITE32(0);
 	WRITE32(0);
 	ADJUST_ARGS();
-	resp->xbuf->head[0].iov_len = ((char*)resp->p) - (char*)resp->xbuf->head[0].iov_base;
+	resp->xdr.buf->head[0].iov_len = ((char *)resp->xdr.p)
+				- (char *)resp->xdr.buf->head[0].iov_base;
 	tailbase = p;
 
 	maxcount = PAGE_SIZE;
@@ -3121,14 +3122,15 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	p = readdir->buffer;
 	*p++ = 0;	/* no more entries */
 	*p++ = htonl(readdir->common.err == nfserr_eof);
-	resp->xbuf->page_len = ((char*)p) -
+	resp->xdr.buf->page_len = ((char *)p) -
 		(char*)page_address(*(resp->rqstp->rq_next_page-1));
 
 	/* Use rest of head for padding and remaining ops: */
-	resp->xbuf->tail[0].iov_base = tailbase;
-	resp->xbuf->tail[0].iov_len = 0;
-	resp->p = resp->xbuf->tail[0].iov_base;
-	resp->end = resp->p + (PAGE_SIZE - resp->xbuf->head[0].iov_len)/4;
+	resp->xdr.buf->tail[0].iov_base = tailbase;
+	resp->xdr.buf->tail[0].iov_len = 0;
+	resp->xdr.p = resp->xdr.buf->tail[0].iov_base;
+	resp->xdr.end = resp->xdr.p +
+			(PAGE_SIZE - resp->xdr.buf->head[0].iov_len)/4;
 
 	return 0;
 err_no_verf:
@@ -3587,10 +3589,10 @@ __be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 	session = resp->cstate.session;
 
 	if (xb->page_len == 0) {
-		length = (char *)resp->p - (char *)xb->head[0].iov_base + pad;
+		length = (char *)resp->xdr.p - (char *)xb->head[0].iov_base + pad;
 	} else {
 		if (xb->tail[0].iov_base && xb->tail[0].iov_len > 0)
-			tlen = (char *)resp->p - (char *)xb->tail[0].iov_base;
+			tlen = (char *)resp->xdr.p - (char *)xb->tail[0].iov_base;
 
 		length = xb->head[0].iov_len + xb->page_len + tlen + pad;
 	}
@@ -3629,7 +3631,8 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 		op->status = nfsd4_check_resp_size(resp, 0);
 	if (so) {
 		so->so_replay.rp_status = op->status;
-		so->so_replay.rp_buflen = (char *)resp->p - (char *)(statp+1);
+		so->so_replay.rp_buflen = (char *)resp->xdr.p
+						- (char *)(statp+1);
 		memcpy(so->so_replay.rp_buf, statp+1, so->so_replay.rp_buflen);
 	}
 status:
@@ -3731,7 +3734,7 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 		iov = &rqstp->rq_res.tail[0];
 	else
 		iov = &rqstp->rq_res.head[0];
-	iov->iov_len = ((char*)resp->p) - (char*)iov->iov_base;
+	iov->iov_len = ((char *)resp->xdr.p) - (char *)iov->iov_base;
 	BUG_ON(iov->iov_len > PAGE_SIZE);
 	if (nfsd4_has_session(cs)) {
 		struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
