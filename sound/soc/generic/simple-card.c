@@ -169,12 +169,13 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			    strlen(info->codec_dai.name) + 2,
 			    GFP_KERNEL);
 	sprintf(name, "%s-%s", info->cpu_dai.name, info->codec_dai.name);
-	info->name = info->card = name;
+	info->snd_card.name = name;
+	info->snd_link.name = info->snd_link.stream_name = name;
 
 	/* simple-card assumes platform == cpu */
 	*of_platform = *of_cpu;
 
-	dev_dbg(dev, "card-name : %s\n", info->card);
+	dev_dbg(dev, "card-name : %s\n", name);
 	dev_dbg(dev, "platform : %04x\n", info->daifmt);
 	dev_dbg(dev, "cpu : %s / %04x / %d\n",
 		info->cpu_dai.name,
@@ -217,6 +218,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 				dev_err(dev, "parse error %d\n", ret);
 			return ret;
 		}
+		cinfo->snd_link.cpu_of_node	= of_cpu;
+		cinfo->snd_link.codec_of_node	= of_codec;
+		cinfo->snd_link.platform_of_node = of_platform;
 	} else {
 		if (!dev->platform_data) {
 			dev_err(dev, "no info for asoc-simple-card\n");
@@ -235,26 +239,24 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			dev_err(dev, "insufficient asoc_simple_card_info settings\n");
 			return -EINVAL;
 		}
+
+		cinfo->snd_card.name		= cinfo->card;
+		cinfo->snd_link.name		= cinfo->name;
+		cinfo->snd_link.stream_name	= cinfo->name;
+		cinfo->snd_link.platform_name	= cinfo->platform;
+		cinfo->snd_link.codec_name	= cinfo->codec;
 	}
 
 	/*
 	 * init snd_soc_dai_link
 	 */
-	cinfo->snd_link.name		= cinfo->name;
-	cinfo->snd_link.stream_name	= cinfo->name;
 	cinfo->snd_link.cpu_dai_name	= cinfo->cpu_dai.name;
-	cinfo->snd_link.platform_name	= cinfo->platform;
-	cinfo->snd_link.codec_name	= cinfo->codec;
 	cinfo->snd_link.codec_dai_name	= cinfo->codec_dai.name;
-	cinfo->snd_link.cpu_of_node	= of_cpu;
-	cinfo->snd_link.codec_of_node	= of_codec;
-	cinfo->snd_link.platform_of_node = of_platform;
 	cinfo->snd_link.init		= asoc_simple_card_dai_init;
 
 	/*
 	 * init snd_soc_card
 	 */
-	cinfo->snd_card.name		= cinfo->card;
 	cinfo->snd_card.owner		= THIS_MODULE;
 	cinfo->snd_card.dai_link	= &cinfo->snd_link;
 	cinfo->snd_card.num_links	= 1;
