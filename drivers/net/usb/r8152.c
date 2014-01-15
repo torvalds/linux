@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2013 Realtek Semiconductor Corp. All rights reserved.
+ *  Copyright (c) 2014 Realtek Semiconductor Corp. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@
 #include <linux/ipv6.h>
 
 /* Version Information */
-#define DRIVER_VERSION "v1.03.0 (2013/12/26)"
+#define DRIVER_VERSION "v1.04.0 (2014/01/15)"
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
 #define DRIVER_DESC "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 #define MODULENAME "r8152"
@@ -449,6 +449,9 @@ enum rtl8152_flags {
 
 #define MCU_TYPE_PLA			0x0100
 #define MCU_TYPE_USB			0x0000
+
+#define REALTEK_USB_DEVICE(vend, prod)	\
+	USB_DEVICE_INTERFACE_CLASS(vend, prod, USB_CLASS_VENDOR_SPEC)
 
 struct rx_desc {
 	__le32 opts1;
@@ -2738,11 +2741,6 @@ static int rtl8152_probe(struct usb_interface *intf,
 	struct net_device *netdev;
 	int ret;
 
-	if (udev->actconfig->desc.bConfigurationValue != 1) {
-		usb_driver_set_configuration(udev, 1);
-		return -ENODEV;
-	}
-
 	netdev = alloc_etherdev(sizeof(struct r8152));
 	if (!netdev) {
 		dev_err(&intf->dev, "Out of memory\n");
@@ -2823,9 +2821,9 @@ static void rtl8152_disconnect(struct usb_interface *intf)
 
 /* table of devices that work with this driver */
 static struct usb_device_id rtl8152_table[] = {
-	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8152)},
-	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8153)},
-	{USB_DEVICE(VENDOR_ID_SAMSUNG, PRODUCT_ID_SAMSUNG)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8152)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8153)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_SAMSUNG, PRODUCT_ID_SAMSUNG)},
 	{}
 };
 
