@@ -221,6 +221,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 		cmd = ioread16(ioaddr + MMDIO);
 		if (!(cmd & MDIO_READ))
 			break;
+		udelay(1);
 	}
 
 	if (limit < 0)
@@ -244,6 +245,7 @@ static int r6040_phy_write(void __iomem *ioaddr,
 		cmd = ioread16(ioaddr + MMDIO);
 		if (!(cmd & MDIO_WRITE))
 			break;
+		udelay(1);
 	}
 
 	return (limit < 0) ? -ETIMEDOUT : 0;
