@@ -107,6 +107,8 @@ config COMMON_CLK_KEYSTONE
           Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
 
+source "drivers/clk/qcom/Kconfig"
+
 endmenu
 
 source "drivers/clk/mvebu/Kconfig"
