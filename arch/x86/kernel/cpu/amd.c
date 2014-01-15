@@ -789,14 +789,10 @@ static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 	}
 
 	/* Handle DTLB 2M and 4M sizes, fall back to L1 if L2 is disabled */
-	if (!((eax >> 16) & mask)) {
-		u32 a, b, c, d;
-
-		cpuid(0x80000005, &a, &b, &c, &d);
-		tlb_lld_2m[ENTRIES] = (a >> 16) & 0xff;
-	} else {
+	if (!((eax >> 16) & mask))
+		tlb_lld_2m[ENTRIES] = (cpuid_eax(0x80000005) >> 16) & 0xff;
+	else
 		tlb_lld_2m[ENTRIES] = (eax >> 16) & mask;
-	}
 
 	/* a 4M entry uses two 2M entries */
 	tlb_lld_4m[ENTRIES] = tlb_lld_2m[ENTRIES] >> 1;
