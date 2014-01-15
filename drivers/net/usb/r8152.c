@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2013 Realtek Semiconductor Corp. All rights reserved.
+ *  Copyright (c) 2014 Realtek Semiconductor Corp. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,9 +24,9 @@
 #include <linux/ipv6.h>
 
 /* Version Information */
-#define DRIVER_VERSION "v1.03.0 (2013/12/26)"
+#define DRIVER_VERSION "v1.04.0 (2014/01/15)"
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
-#define DRIVER_DESC "Realtek RTL8152 Based USB 2.0 Ethernet Adapters"
+#define DRIVER_DESC "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 #define MODULENAME "r8152"
 
 #define R8152_PHY_ID		32
@@ -449,6 +449,9 @@ enum rtl8152_flags {
 
 #define MCU_TYPE_PLA			0x0100
 #define MCU_TYPE_USB			0x0000
+
+#define REALTEK_USB_DEVICE(vend, prod)	\
+	USB_DEVICE_INTERFACE_CLASS(vend, prod, USB_CLASS_VENDOR_SPEC)
 
 struct rx_desc {
 	__le32 opts1;
@@ -1100,40 +1103,28 @@ static void free_all_mem(struct r8152 *tp)
 	int i;
 
 	for (i = 0; i < RTL8152_MAX_RX; i++) {
-		if (tp->rx_info[i].urb) {
-			usb_free_urb(tp->rx_info[i].urb);
-			tp->rx_info[i].urb = NULL;
-		}
+		usb_free_urb(tp->rx_info[i].urb);
+		tp->rx_info[i].urb = NULL;
 
-		if (tp->rx_info[i].buffer) {
-			kfree(tp->rx_info[i].buffer);
-			tp->rx_info[i].buffer = NULL;
-			tp->rx_info[i].head = NULL;
-		}
+		kfree(tp->rx_info[i].buffer);
+		tp->rx_info[i].buffer = NULL;
+		tp->rx_info[i].head = NULL;
 	}
 
 	for (i = 0; i < RTL8152_MAX_TX; i++) {
-		if (tp->tx_info[i].urb) {
-			usb_free_urb(tp->tx_info[i].urb);
-			tp->tx_info[i].urb = NULL;
-		}
+		usb_free_urb(tp->tx_info[i].urb);
+		tp->tx_info[i].urb = NULL;
 
-		if (tp->tx_info[i].buffer) {
-			kfree(tp->tx_info[i].buffer);
-			tp->tx_info[i].buffer = NULL;
-			tp->tx_info[i].head = NULL;
-		}
+		kfree(tp->tx_info[i].buffer);
+		tp->tx_info[i].buffer = NULL;
+		tp->tx_info[i].head = NULL;
 	}
 
-	if (tp->intr_urb) {
-		usb_free_urb(tp->intr_urb);
-		tp->intr_urb = NULL;
-	}
+	usb_free_urb(tp->intr_urb);
+	tp->intr_urb = NULL;
 
-	if (tp->intr_buff) {
-		kfree(tp->intr_buff);
-		tp->intr_buff = NULL;
-	}
+	kfree(tp->intr_buff);
+	tp->intr_buff = NULL;
 }
 
 static int alloc_all_mem(struct r8152 *tp)
@@ -2048,7 +2039,7 @@ static void r8153_first_init(struct r8152 *tp)
 	/* TX share fifo free credit full threshold */
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_TXFIFO_CTRL, TXFIFO_THR_NORMAL2);
 
-	// rx aggregation
+	/* rx aggregation */
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_USB_CTRL);
 	ocp_data &= ~RX_AGG_DISABLE;
 	ocp_write_word(tp, MCU_TYPE_USB, USB_USB_CTRL, ocp_data);
@@ -2750,11 +2741,6 @@ static int rtl8152_probe(struct usb_interface *intf,
 	struct net_device *netdev;
 	int ret;
 
-	if (udev->actconfig->desc.bConfigurationValue != 1) {
-		usb_driver_set_configuration(udev, 1);
-		return -ENODEV;
-	}
-
 	netdev = alloc_etherdev(sizeof(struct r8152));
 	if (!netdev) {
 		dev_err(&intf->dev, "Out of memory\n");
@@ -2835,9 +2821,9 @@ static void rtl8152_disconnect(struct usb_interface *intf)
 
 /* table of devices that work with this driver */
 static struct usb_device_id rtl8152_table[] = {
-	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8152)},
-	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8153)},
-	{USB_DEVICE(VENDOR_ID_SAMSUNG, PRODUCT_ID_SAMSUNG)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8152)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8153)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_SAMSUNG, PRODUCT_ID_SAMSUNG)},
 	{}
 };
 
