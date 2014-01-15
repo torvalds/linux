@@ -2996,7 +2996,7 @@ int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
 		      ctxt, intf_id);
 	AMAP_SET_BITS(struct amap_get_hsw_req_context, pvid_valid, ctxt, 1);
 
-	if (!BEx_chip(adapter)) {
+	if (!BEx_chip(adapter) && mode) {
 		AMAP_SET_BITS(struct amap_get_hsw_req_context, interface_id,
 			      ctxt, adapter->hba_port_num);
 		AMAP_SET_BITS(struct amap_get_hsw_req_context, pport, ctxt, 1);
