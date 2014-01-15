@@ -190,7 +190,6 @@ static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
 	.hinfo		=	&simp_hash_info,
 	.type		=	TCA_ACT_SIMP,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_simp,
 	.dump		=	tcf_simp_dump,

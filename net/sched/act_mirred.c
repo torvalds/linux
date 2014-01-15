@@ -257,7 +257,6 @@ static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.hinfo		=	&mirred_hash_info,
 	.type		=	TCA_ACT_MIRRED,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mirred,
 	.dump		=	tcf_mirred_dump,

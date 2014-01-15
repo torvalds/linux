@@ -233,7 +233,6 @@ static struct tc_action_ops act_pedit_ops = {
 	.kind		=	"pedit",
 	.hinfo		=	&pedit_hash_info,
 	.type		=	TCA_ACT_PEDIT,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_pedit,
 	.dump		=	tcf_pedit_dump,

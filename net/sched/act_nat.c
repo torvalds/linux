@@ -296,7 +296,6 @@ static struct tc_action_ops act_nat_ops = {
 	.kind		=	"nat",
 	.hinfo		=	&nat_hash_info,
 	.type		=	TCA_ACT_NAT,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_nat,
 	.dump		=	tcf_nat_dump,

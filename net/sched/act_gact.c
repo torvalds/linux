@@ -194,7 +194,6 @@ static struct tc_action_ops act_gact_ops = {
 	.kind		=	"gact",
 	.hinfo		=	&gact_hash_info,
 	.type		=	TCA_ACT_GACT,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_gact,
 	.dump		=	tcf_gact_dump,

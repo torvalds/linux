@@ -189,7 +189,6 @@ static struct tc_action_ops act_skbedit_ops = {
 	.kind		=	"skbedit",
 	.hinfo		=	&skbedit_hash_info,
 	.type		=	TCA_ACT_SKBEDIT,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_skbedit,
 	.dump		=	tcf_skbedit_dump,

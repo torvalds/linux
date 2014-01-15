@@ -361,7 +361,6 @@ static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
 	.hinfo		=	&police_hash_info,
 	.type		=	TCA_ID_POLICE,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,

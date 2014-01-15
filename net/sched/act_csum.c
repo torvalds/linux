@@ -572,7 +572,6 @@ static struct tc_action_ops act_csum_ops = {
 	.kind		= "csum",
 	.hinfo		= &csum_hash_info,
 	.type		= TCA_ACT_CSUM,
-	.capab		= TCA_CAP_NONE,
 	.owner		= THIS_MODULE,
 	.act		= tcf_csum,
 	.dump		= tcf_csum_dump,

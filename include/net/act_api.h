@@ -81,13 +81,11 @@ struct tc_action {
 	struct list_head	list;
 };
 
-#define TCA_CAP_NONE 0
 struct tc_action_ops {
 	struct list_head head;
 	struct tcf_hashinfo *hinfo;
 	char    kind[IFNAMSIZ];
 	__u32   type; /* TBD to match kind */
-	__u32 	capab;  /* capabilities includes 4 bit version */
 	struct module		*owner;
 	int     (*act)(struct sk_buff *, const struct tc_action *, struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
