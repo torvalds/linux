@@ -1042,15 +1042,17 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		/* calculate ss amount and step size */
 		if (ASIC_IS_DCE4(rdev)) {
 			u32 step_size;
-			u32 amount = (((fb_div * 10) + frac_fb_div) * radeon_crtc->ss.percentage) / 10000;
+			u32 amount = (((fb_div * 10) + frac_fb_div) *
+				      (u32)radeon_crtc->ss.percentage) /
+				(100 * (u32)radeon_crtc->ss.percentage_divider);
 			radeon_crtc->ss.amount = (amount / 10) & ATOM_PPLL_SS_AMOUNT_V2_FBDIV_MASK;
 			radeon_crtc->ss.amount |= ((amount - (amount / 10)) << ATOM_PPLL_SS_AMOUNT_V2_NFRAC_SHIFT) &
 				ATOM_PPLL_SS_AMOUNT_V2_NFRAC_MASK;
 			if (radeon_crtc->ss.type & ATOM_PPLL_SS_TYPE_V2_CENTRE_SPREAD)
-				step_size = (4 * amount * ref_div * (radeon_crtc->ss.rate * 2048)) /
+				step_size = (4 * amount * ref_div * ((u32)radeon_crtc->ss.rate * 2048)) /
 					(125 * 25 * pll->reference_freq / 100);
 			else
-				step_size = (2 * amount * ref_div * (radeon_crtc->ss.rate * 2048)) /
+				step_size = (2 * amount * ref_div * ((u32)radeon_crtc->ss.rate * 2048)) /
 					(125 * 25 * pll->reference_freq / 100);
 			radeon_crtc->ss.step = step_size;
 		}

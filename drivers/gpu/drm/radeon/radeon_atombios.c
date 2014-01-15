@@ -1511,6 +1511,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v1.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v1.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v1.usSpreadRateInKhz);
+					ss->percentage_divider = 100;
 					return true;
 				}
 				ss_assign = (union asic_ss_assignment *)
@@ -1528,6 +1529,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v2.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v2.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v2.usSpreadRateIn10Hz);
+					ss->percentage_divider = 100;
 					if ((crev == 2) &&
 					    ((id == ASIC_INTERNAL_ENGINE_SS) ||
 					     (id == ASIC_INTERNAL_MEMORY_SS)))
@@ -1549,6 +1551,11 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v3.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v3.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v3.usSpreadRateIn10Hz);
+					if (ss_assign->v3.ucSpreadSpectrumMode &
+					    SS_MODE_V3_PERCENTAGE_DIV_BY_1000_MASK)
+						ss->percentage_divider = 1000;
+					else
+						ss->percentage_divider = 100;
 					if ((id == ASIC_INTERNAL_ENGINE_SS) ||
 					    (id == ASIC_INTERNAL_MEMORY_SS))
 						ss->rate /= 100;

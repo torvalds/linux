@@ -291,6 +291,7 @@ struct radeon_tv_regs {
 
 struct radeon_atom_ss {
 	uint16_t percentage;
+	uint16_t percentage_divider;
 	uint8_t type;
 	uint16_t step;
 	uint8_t delay;
