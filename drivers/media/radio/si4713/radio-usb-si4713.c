@@ -223,7 +223,7 @@ struct si4713_start_seq_table {
  * (0x03): Get serial number of the board (Response : CB000-00-00)
  * (0x06, 0x03, 0x03, 0x08, 0x01, 0x0f) : Get Component revision
  */
-struct si4713_start_seq_table start_seq[] = {
+static struct si4713_start_seq_table start_seq[] = {
 
 	{ 1, { 0x03 } },
 	{ 2, { 0x32, 0x7f } },
@@ -288,7 +288,7 @@ struct si4713_command_table {
  *	Byte 4 : Number of arguments + 1 (for the command byte)
  *	Byte 5 : Number of response bytes
  */
-struct si4713_command_table command_table[] = {
+static struct si4713_command_table command_table[] = {
 
 	{ SI4713_CMD_POWER_UP,		{ 0x00, SI4713_PWUP_NARGS + 1, SI4713_PWUP_NRESP} },
 	{ SI4713_CMD_GET_REV,		{ 0x03, 0x01, SI4713_GETREV_NRESP } },
