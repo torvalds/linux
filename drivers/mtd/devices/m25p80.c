@@ -1250,7 +1250,7 @@ static int m25p_probe(struct spi_device *spi)
 			/* Dedicated 4-byte command set */
 			switch (flash->flash_read) {
 			case M25P80_QUAD:
-				flash->read_opcode = OPCODE_QUAD_READ;
+				flash->read_opcode = OPCODE_QUAD_READ_4B;
 				break;
 			case M25P80_FAST:
 				flash->read_opcode = OPCODE_FAST_READ_4B;
