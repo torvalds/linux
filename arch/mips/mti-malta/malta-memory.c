@@ -81,11 +81,11 @@ fw_memblock_t * __init fw_getmdesc(int eva)
 	memset(mdesc, 0, sizeof(mdesc));
 
 	mdesc[0].type = fw_dontuse;
-	mdesc[0].base = 0x00000000;
+	mdesc[0].base = PHYS_OFFSET;
 	mdesc[0].size = 0x00001000;
 
 	mdesc[1].type = fw_code;
-	mdesc[1].base = 0x00001000;
+	mdesc[1].base = mdesc[0].base + 0x00001000UL;
 	mdesc[1].size = 0x000ef000;
 
 	/*
@@ -96,17 +96,17 @@ fw_memblock_t * __init fw_getmdesc(int eva)
 	 * devices.
 	 */
 	mdesc[2].type = fw_dontuse;
-	mdesc[2].base = 0x000f0000;
+	mdesc[2].base = mdesc[0].base + 0x000f0000UL;
 	mdesc[2].size = 0x00010000;
 
 	mdesc[3].type = fw_dontuse;
-	mdesc[3].base = 0x00100000;
+	mdesc[3].base = mdesc[0].base + 0x00100000UL;
 	mdesc[3].size = CPHYSADDR(PFN_ALIGN((unsigned long)&_end)) -
-		mdesc[3].base;
+		0x00100000UL;
 
 	mdesc[4].type = fw_free;
-	mdesc[4].base = CPHYSADDR(PFN_ALIGN(&_end));
-	mdesc[4].size = memsize - mdesc[4].base;
+	mdesc[4].base = mdesc[0].base + CPHYSADDR(PFN_ALIGN(&_end));
+	mdesc[4].size = memsize - CPHYSADDR(mdesc[4].base);
 
 	return &mdesc[0];
 }
