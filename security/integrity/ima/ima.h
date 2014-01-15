@@ -26,7 +26,8 @@
 
 #include "../integrity.h"
 
-enum ima_show_type { IMA_SHOW_BINARY, IMA_SHOW_ASCII };
+enum ima_show_type { IMA_SHOW_BINARY, IMA_SHOW_BINARY_NO_FIELD_LEN,
+		     IMA_SHOW_ASCII };
 enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 
 /* digest size for IMA, fits SHA1 or MD5 */
@@ -97,7 +98,8 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode,
 			   const unsigned char *filename);
 int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash);
-int ima_calc_field_array_hash(struct ima_field_data *field_data, int num_fields,
+int ima_calc_field_array_hash(struct ima_field_data *field_data,
+			      struct ima_template_desc *desc, int num_fields,
 			      struct ima_digest_data *hash);
 int __init ima_calc_boot_aggregate(struct ima_digest_data *hash);
 void ima_add_violation(struct file *file, const unsigned char *filename,
@@ -146,6 +148,7 @@ int ima_alloc_init_template(struct integrity_iint_cache *iint,
 			    int xattr_len, struct ima_template_entry **entry);
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode, const unsigned char *filename);
+void ima_free_template_entry(struct ima_template_entry *entry);
 const char *ima_d_path(struct path *path, char **pathbuf);
 
 /* rbtree tree calls to lookup, insert, delete

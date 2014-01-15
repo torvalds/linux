@@ -1092,6 +1092,11 @@
 
 #define PL_REV 0x1943c
 
+#define S_REV    0
+#define M_REV    0xfU
+#define V_REV(x) ((x) << S_REV)
+#define G_REV(x) (((x) >> S_REV) & M_REV)
+
 #define LE_DB_CONFIG 0x19c04
 #define  HASHEN 0x00100000U
 
@@ -1198,5 +1203,14 @@
 #define EDC_T51_BASE_ADDR 0x50800
 #define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
 #define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
+
+#define A_PL_VF_REV 0x4
+#define A_PL_VF_WHOAMI 0x0
+#define A_PL_VF_REVISION 0x8
+
+#define S_CHIPID    4
+#define M_CHIPID    0xfU
+#define V_CHIPID(x) ((x) << S_CHIPID)
+#define G_CHIPID(x) (((x) >> S_CHIPID) & M_CHIPID)
 
 #endif /* __T4_REGS_H */

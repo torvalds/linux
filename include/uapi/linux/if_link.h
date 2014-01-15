@@ -488,7 +488,9 @@ enum {
 	IFLA_HSR_UNSPEC,
 	IFLA_HSR_SLAVE1,
 	IFLA_HSR_SLAVE2,
-	IFLA_HSR_MULTICAST_SPEC,
+	IFLA_HSR_MULTICAST_SPEC,	/* Last byte of supervision addr */
+	IFLA_HSR_SUPERVISION_ADDR,	/* Supervision frame multicast addr */
+	IFLA_HSR_SEQ_NR,
 	__IFLA_HSR_MAX,
 };
 

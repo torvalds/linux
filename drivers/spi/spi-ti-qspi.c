@@ -161,7 +161,7 @@ static int ti_qspi_setup(struct spi_device *spi)
 			qspi->spi_max_frequency, clk_div);
 
 	ret = pm_runtime_get_sync(qspi->dev);
-	if (ret) {
+	if (ret < 0) {
 		dev_err(qspi->dev, "pm_runtime_get_sync() failed\n");
 		return ret;
 	}
@@ -459,11 +459,10 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "num-cs", &num_cs))
 		master->num_chipselect = num_cs;
 
-	platform_set_drvdata(pdev, master);
-
 	qspi = spi_master_get_devdata(master);
 	qspi->master = master;
 	qspi->dev = &pdev->dev;
+	platform_set_drvdata(pdev, qspi);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -517,9 +516,25 @@ free_master:
 
 static int ti_qspi_remove(struct platform_device *pdev)
 {
-	struct	ti_qspi *qspi = platform_get_drvdata(pdev);
+	struct spi_master *master;
+	struct ti_qspi *qspi;
+	int ret;
+
+	master = platform_get_drvdata(pdev);
+	qspi = spi_master_get_devdata(master);
+
+	ret = pm_runtime_get_sync(qspi->dev);
+	if (ret < 0) {
+		dev_err(qspi->dev, "pm_runtime_get_sync() failed\n");
+		return ret;
+	}
 
 	ti_qspi_write(qspi, QSPI_WC_INT_DISABLE, QSPI_INTR_ENABLE_CLEAR_REG);
+
+	pm_runtime_put(qspi->dev);
+	pm_runtime_disable(&pdev->dev);
+
+	spi_unregister_master(master);
 
 	return 0;
 }

@@ -4110,7 +4110,7 @@ static int bond_check_params(struct bond_params *params)
 		if (!miimon) {
 			pr_warning("Warning: miimon must be specified, otherwise bonding will not detect link failure, speed and duplex which are essential for 802.3ad operation\n");
 			pr_warning("Forcing miimon to 100msec\n");
-			miimon = 100;
+			miimon = BOND_DEFAULT_MIIMON;
 		}
 	}
 
@@ -4147,7 +4147,7 @@ static int bond_check_params(struct bond_params *params)
 		if (!miimon) {
 			pr_warning("Warning: miimon must be specified, otherwise bonding will not detect link failure and link speed which are essential for TLB/ALB load balancing\n");
 			pr_warning("Forcing miimon to 100msec\n");
-			miimon = 100;
+			miimon = BOND_DEFAULT_MIIMON;
 		}
 	}
 
@@ -4199,9 +4199,9 @@ static int bond_check_params(struct bond_params *params)
 	     (arp_ip_count < BOND_MAX_ARP_TARGETS) && arp_ip_target[i]; i++) {
 		/* not complete check, but should be good enough to
 		   catch mistakes */
-		__be32 ip = in_aton(arp_ip_target[i]);
-		if (!isdigit(arp_ip_target[i][0]) || ip == 0 ||
-		    ip == htonl(INADDR_BROADCAST)) {
+		__be32 ip;
+		if (!in4_pton(arp_ip_target[i], -1, (u8 *)&ip, -1, NULL) ||
+		    IS_IP_TARGET_UNUSABLE_ADDRESS(ip)) {
 			pr_warning("Warning: bad arp_ip_target module parameter (%s), ARP monitoring will not be performed\n",
 				   arp_ip_target[i]);
 			arp_interval = 0;

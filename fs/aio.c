@@ -367,8 +367,10 @@ static int aio_setup_ring(struct kioctx *ctx)
 	if (nr_pages > AIO_RING_PAGES) {
 		ctx->ring_pages = kcalloc(nr_pages, sizeof(struct page *),
 					  GFP_KERNEL);
-		if (!ctx->ring_pages)
+		if (!ctx->ring_pages) {
+			put_aio_ring_file(ctx);
 			return -ENOMEM;
+		}
 	}
 
 	ctx->mmap_size = nr_pages * PAGE_SIZE;
@@ -645,7 +647,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	    aio_nr + nr_events < aio_nr) {
 		spin_unlock(&aio_nr_lock);
 		err = -EAGAIN;
-		goto err;
+		goto err_ctx;
 	}
 	aio_nr += ctx->max_reqs;
 	spin_unlock(&aio_nr_lock);
@@ -662,6 +664,8 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 err_cleanup:
 	aio_nr_sub(ctx->max_reqs);
+err_ctx:
+	aio_free_ring(ctx);
 err:
 	free_percpu(ctx->cpu);
 	free_percpu(ctx->reqs.pcpu_count);

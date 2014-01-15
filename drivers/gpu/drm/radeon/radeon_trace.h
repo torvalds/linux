@@ -47,6 +47,39 @@ TRACE_EVENT(radeon_cs,
 		      __entry->fences)
 );
 
+TRACE_EVENT(radeon_vm_grab_id,
+	    TP_PROTO(unsigned vmid, int ring),
+	    TP_ARGS(vmid, ring),
+	    TP_STRUCT__entry(
+			     __field(u32, vmid)
+			     __field(u32, ring)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->vmid = vmid;
+			   __entry->ring = ring;
+			   ),
+	    TP_printk("vmid=%u, ring=%u", __entry->vmid, __entry->ring)
+);
+
+TRACE_EVENT(radeon_vm_bo_update,
+	    TP_PROTO(struct radeon_bo_va *bo_va),
+	    TP_ARGS(bo_va),
+	    TP_STRUCT__entry(
+			     __field(u64, soffset)
+			     __field(u64, eoffset)
+			     __field(u32, flags)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->soffset = bo_va->soffset;
+			   __entry->eoffset = bo_va->eoffset;
+			   __entry->flags = bo_va->flags;
+			   ),
+	    TP_printk("soffs=%010llx, eoffs=%010llx, flags=%08x",
+		      __entry->soffset, __entry->eoffset, __entry->flags)
+);
+
 TRACE_EVENT(radeon_vm_set_page,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
 		     uint32_t incr, uint32_t flags),

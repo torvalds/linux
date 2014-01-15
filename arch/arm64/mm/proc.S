@@ -111,12 +111,12 @@ ENTRY(__cpu_setup)
 	bl	__flush_dcache_all
 	mov	lr, x28
 	ic	iallu				// I+BTB cache invalidate
+	tlbi	vmalle1is			// invalidate I + D TLBs
 	dsb	sy
 
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
 	msr	mdscr_el1, xzr			// Reset mdscr_el1
-	tlbi	vmalle1is			// invalidate I + D TLBs
 	/*
 	 * Memory region attributes for LPAE:
 	 *

@@ -175,6 +175,25 @@
 			dma-names = "tx", "rx";
 		};
 
+		mmc1: mmc@4809c000 {
+			compatible = "ti,omap2-hsmmc";
+			reg = <0x4809c000 0x200>;
+			interrupts = <83>;
+			ti,hwmods = "mmc1";
+			ti,dual-volt;
+			dmas = <&sdma 61>, <&sdma 62>;
+			dma-names = "tx", "rx";
+		};
+
+		mmc2: mmc@480b4000 {
+			compatible = "ti,omap2-hsmmc";
+			reg = <0x480b4000 0x200>;
+			interrupts = <86>;
+			ti,hwmods = "mmc2";
+			dmas = <&sdma 47>, <&sdma 48>;
+			dma-names = "tx", "rx";
+		};
+
 		timer1: timer@49018000 {
 			compatible = "ti,omap2420-timer";
 			reg = <0x49018000 0x400>;
@@ -182,5 +201,35 @@
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
 		};
+
+		mcspi3: mcspi@480b8000 {
+			compatible = "ti,omap2-mcspi";
+			ti,hwmods = "mcspi3";
+			reg = <0x480b8000 0x100>;
+			interrupts = <91>;
+			dmas = <&sdma 15 &sdma 16 &sdma 23 &sdma 24>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
+		};
+
+		usb_otg_hs: usb_otg_hs@480ac000 {
+			compatible = "ti,omap2-musb";
+			ti,hwmods = "usb_otg_hs";
+			reg = <0x480ac000 0x1000>;
+			interrupts = <93>;
+		};
+
+		wd_timer2: wdt@49016000 {
+			compatible = "ti,omap2-wdt";
+			ti,hwmods = "wd_timer2";
+			reg = <0x49016000 0x80>;
+		};
 	};
+};
+
+&i2c1 {
+	compatible = "ti,omap2430-i2c";
+};
+
+&i2c2 {
+	compatible = "ti,omap2430-i2c";
 };

@@ -276,9 +276,9 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 	{ 0, }
 };
 
-#define FW_FNAME "cxgb4/t4fw.bin"
+#define FW4_FNAME "cxgb4/t4fw.bin"
 #define FW5_FNAME "cxgb4/t5fw.bin"
-#define FW_CFNAME "cxgb4/t4-config.txt"
+#define FW4_CFNAME "cxgb4/t4-config.txt"
 #define FW5_CFNAME "cxgb4/t5-config.txt"
 
 MODULE_DESCRIPTION(DRV_DESC);
@@ -286,7 +286,7 @@ MODULE_AUTHOR("Chelsio Communications");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4_pci_tbl);
-MODULE_FIRMWARE(FW_FNAME);
+MODULE_FIRMWARE(FW4_FNAME);
 MODULE_FIRMWARE(FW5_FNAME);
 
 /*
@@ -1071,72 +1071,6 @@ freeout:	t4_free_sge_resources(adap);
 }
 
 /*
- * Returns 0 if new FW was successfully loaded, a positive errno if a load was
- * started but failed, and a negative errno if flash load couldn't start.
- */
-static int upgrade_fw(struct adapter *adap)
-{
-	int ret;
-	u32 vers, exp_major;
-	const struct fw_hdr *hdr;
-	const struct firmware *fw;
-	struct device *dev = adap->pdev_dev;
-	char *fw_file_name;
-
-	switch (CHELSIO_CHIP_VERSION(adap->chip)) {
-	case CHELSIO_T4:
-		fw_file_name = FW_FNAME;
-		exp_major = FW_VERSION_MAJOR;
-		break;
-	case CHELSIO_T5:
-		fw_file_name = FW5_FNAME;
-		exp_major = FW_VERSION_MAJOR_T5;
-		break;
-	default:
-		dev_err(dev, "Unsupported chip type, %x\n", adap->chip);
-		return -EINVAL;
-	}
-
-	ret = request_firmware(&fw, fw_file_name, dev);
-	if (ret < 0) {
-		dev_err(dev, "unable to load firmware image %s, error %d\n",
-			fw_file_name, ret);
-		return ret;
-	}
-
-	hdr = (const struct fw_hdr *)fw->data;
-	vers = ntohl(hdr->fw_ver);
-	if (FW_HDR_FW_VER_MAJOR_GET(vers) != exp_major) {
-		ret = -EINVAL;              /* wrong major version, won't do */
-		goto out;
-	}
-
-	/*
-	 * If the flash FW is unusable or we found something newer, load it.
-	 */
-	if (FW_HDR_FW_VER_MAJOR_GET(adap->params.fw_vers) != exp_major ||
-	    vers > adap->params.fw_vers) {
-		dev_info(dev, "upgrading firmware ...\n");
-		ret = t4_fw_upgrade(adap, adap->mbox, fw->data, fw->size,
-				    /*force=*/false);
-		if (!ret)
-			dev_info(dev,
-				 "firmware upgraded to version %pI4 from %s\n",
-				 &hdr->fw_ver, fw_file_name);
-		else
-			dev_err(dev, "firmware upgrade failed! err=%d\n", -ret);
-	} else {
-		/*
-		 * Tell our caller that we didn't upgrade the firmware.
-		 */
-		ret = -EINVAL;
-	}
-
-out:	release_firmware(fw);
-	return ret;
-}
-
-/*
  * Allocate a chunk of memory using kmalloc or, if that fails, vmalloc.
  * The allocated memory is cleared.
  */
@@ -1415,7 +1349,7 @@ static int get_sset_count(struct net_device *dev, int sset)
 static int get_regs_len(struct net_device *dev)
 {
 	struct adapter *adap = netdev2adap(dev);
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		return T4_REGMAP_SIZE;
 	else
 		return T5_REGMAP_SIZE;
@@ -1499,7 +1433,7 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	data += sizeof(struct port_stats) / sizeof(u64);
 	collect_sge_port_stats(adapter, pi, (struct queue_port_stats *)data);
 	data += sizeof(struct queue_port_stats) / sizeof(u64);
-	if (!is_t4(adapter->chip)) {
+	if (!is_t4(adapter->params.chip)) {
 		t4_write_reg(adapter, SGE_STAT_CFG, STATSOURCE_T5(7));
 		val1 = t4_read_reg(adapter, SGE_STAT_TOTAL);
 		val2 = t4_read_reg(adapter, SGE_STAT_MATCH);
@@ -1521,8 +1455,8 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
  */
 static inline unsigned int mk_adap_vers(const struct adapter *ap)
 {
-	return CHELSIO_CHIP_VERSION(ap->chip) |
-		(CHELSIO_CHIP_RELEASE(ap->chip) << 10) | (1 << 16);
+	return CHELSIO_CHIP_VERSION(ap->params.chip) |
+		(CHELSIO_CHIP_RELEASE(ap->params.chip) << 10) | (1 << 16);
 }
 
 static void reg_block_dump(struct adapter *ap, void *buf, unsigned int start,
@@ -2189,7 +2123,7 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	static const unsigned int *reg_ranges;
 	int arr_size = 0, buf_size = 0;
 
-	if (is_t4(ap->chip)) {
+	if (is_t4(ap->params.chip)) {
 		reg_ranges = &t4_reg_ranges[0];
 		arr_size = ARRAY_SIZE(t4_reg_ranges);
 		buf_size = T4_REGMAP_SIZE;
@@ -2967,7 +2901,7 @@ static int setup_debugfs(struct adapter *adap)
 		size = t4_read_reg(adap, MA_EDRAM1_BAR);
 		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM_SIZE_GET(size));
 	}
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
 		if (i & EXT_MEM_ENABLE)
 			add_debugfs_mem(adap, "mc", MEM_MC,
@@ -3419,7 +3353,7 @@ unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo)
 
 	v1 = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
 	v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2);
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		lp_count = G_LP_COUNT(v1);
 		hp_count = G_HP_COUNT(v1);
 	} else {
@@ -3588,7 +3522,7 @@ static void drain_db_fifo(struct adapter *adap, int usecs)
 	do {
 		v1 = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
 		v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2);
-		if (is_t4(adap->chip)) {
+		if (is_t4(adap->params.chip)) {
 			lp_count = G_LP_COUNT(v1);
 			hp_count = G_HP_COUNT(v1);
 		} else {
@@ -3708,7 +3642,7 @@ static void process_db_drop(struct work_struct *work)
 
 	adap = container_of(work, struct adapter, db_drop_task);
 
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		disable_dbs(adap);
 		notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
 		drain_db_fifo(adap, 1);
@@ -3753,7 +3687,7 @@ static void process_db_drop(struct work_struct *work)
 
 void t4_db_full(struct adapter *adap)
 {
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		t4_set_reg_field(adap, SGE_INT_ENABLE3,
 				 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
 		queue_work(workq, &adap->db_full_task);
@@ -3762,7 +3696,7 @@ void t4_db_full(struct adapter *adap)
 
 void t4_db_dropped(struct adapter *adap)
 {
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		queue_work(workq, &adap->db_drop_task);
 }
 
@@ -3789,7 +3723,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.nchan = adap->params.nports;
 	lli.nports = adap->params.nports;
 	lli.wr_cred = adap->params.ofldq_wr_cred;
-	lli.adapter_type = adap->params.rev;
+	lli.adapter_type = adap->params.chip;
 	lli.iscsi_iolen = MAXRXDATA_GET(t4_read_reg(adap, TP_PARA_REG2));
 	lli.udb_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_EGRESS_QUEUES_PER_PAGE_PF) >>
@@ -4483,7 +4417,7 @@ static void setup_memwin(struct adapter *adap)
 	u32 bar0, mem_win0_base, mem_win1_base, mem_win2_base;
 
 	bar0 = pci_resource_start(adap->pdev, 0);  /* truncation intentional */
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		mem_win0_base = bar0 + MEMWIN0_BASE;
 		mem_win1_base = bar0 + MEMWIN1_BASE;
 		mem_win2_base = bar0 + MEMWIN2_BASE;
@@ -4668,8 +4602,10 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	const struct firmware *cf;
 	unsigned long mtype = 0, maddr = 0;
 	u32 finiver, finicsum, cfcsum;
-	int ret, using_flash;
+	int ret;
+	int config_issued = 0;
 	char *fw_config_file, fw_config_file_path[256];
+	char *config_name = NULL;
 
 	/*
 	 * Reset device if necessary.
@@ -4686,9 +4622,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * then use that.  Otherwise, use the configuration file stored
 	 * in the adapter flash ...
 	 */
-	switch (CHELSIO_CHIP_VERSION(adapter->chip)) {
+	switch (CHELSIO_CHIP_VERSION(adapter->params.chip)) {
 	case CHELSIO_T4:
-		fw_config_file = FW_CFNAME;
+		fw_config_file = FW4_CFNAME;
 		break;
 	case CHELSIO_T5:
 		fw_config_file = FW5_CFNAME;
@@ -4702,13 +4638,16 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 
 	ret = request_firmware(&cf, fw_config_file, adapter->pdev_dev);
 	if (ret < 0) {
-		using_flash = 1;
+		config_name = "On FLASH";
 		mtype = FW_MEMTYPE_CF_FLASH;
 		maddr = t4_flash_cfg_addr(adapter);
 	} else {
 		u32 params[7], val[7];
 
-		using_flash = 0;
+		sprintf(fw_config_file_path,
+			"/lib/firmware/%s", fw_config_file);
+		config_name = fw_config_file_path;
+
 		if (cf->size >= FLASH_CFG_MAX_SIZE)
 			ret = -ENOMEM;
 		else {
@@ -4776,6 +4715,26 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		      FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
+
+	/* If the CAPS_CONFIG failed with an ENOENT (for a Firmware
+	 * Configuration File in FLASH), our last gasp effort is to use the
+	 * Firmware Configuration File which is embedded in the firmware.  A
+	 * very few early versions of the firmware didn't have one embedded
+	 * but we can ignore those.
+	 */
+	if (ret == -ENOENT) {
+		memset(&caps_cmd, 0, sizeof(caps_cmd));
+		caps_cmd.op_to_write =
+			htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+					FW_CMD_REQUEST |
+					FW_CMD_READ);
+		caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
+		ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd,
+				sizeof(caps_cmd), &caps_cmd);
+		config_name = "Firmware Default";
+	}
+
+	config_issued = 1;
 	if (ret < 0)
 		goto bye;
 
@@ -4816,7 +4775,6 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	if (ret < 0)
 		goto bye;
 
-	sprintf(fw_config_file_path, "/lib/firmware/%s", fw_config_file);
 	/*
 	 * Return successfully and note that we're operating with parameters
 	 * not supplied by the driver, rather than from hard-wired
@@ -4824,11 +4782,8 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 */
 	adapter->flags |= USING_SOFT_PARAMS;
 	dev_info(adapter->pdev_dev, "Successfully configured using Firmware "\
-		 "Configuration File %s, version %#x, computed checksum %#x\n",
-		 (using_flash
-		  ? "in device FLASH"
-		  : fw_config_file_path),
-		 finiver, cfcsum);
+		 "Configuration File \"%s\", version %#x, computed checksum %#x\n",
+		 config_name, finiver, cfcsum);
 	return 0;
 
 	/*
@@ -4837,9 +4792,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * want to issue a warning since this is fairly common.)
 	 */
 bye:
-	if (ret != -ENOENT)
-		dev_warn(adapter->pdev_dev, "Configuration file error %d\n",
-			 -ret);
+	if (config_issued && ret != -ENOENT)
+		dev_warn(adapter->pdev_dev, "\"%s\" configuration file error %d\n",
+			 config_name, -ret);
 	return ret;
 }
 
@@ -5086,6 +5041,47 @@ bye:
 	return ret;
 }
 
+static struct fw_info fw_info_array[] = {
+	{
+		.chip = CHELSIO_T4,
+		.fs_name = FW4_CFNAME,
+		.fw_mod_name = FW4_FNAME,
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T4,
+			.fw_ver = __cpu_to_be32(FW_VERSION(T4)),
+			.intfver_nic = FW_INTFVER(T4, NIC),
+			.intfver_vnic = FW_INTFVER(T4, VNIC),
+			.intfver_ri = FW_INTFVER(T4, RI),
+			.intfver_iscsi = FW_INTFVER(T4, ISCSI),
+			.intfver_fcoe = FW_INTFVER(T4, FCOE),
+		},
+	}, {
+		.chip = CHELSIO_T5,
+		.fs_name = FW5_CFNAME,
+		.fw_mod_name = FW5_FNAME,
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T5,
+			.fw_ver = __cpu_to_be32(FW_VERSION(T5)),
+			.intfver_nic = FW_INTFVER(T5, NIC),
+			.intfver_vnic = FW_INTFVER(T5, VNIC),
+			.intfver_ri = FW_INTFVER(T5, RI),
+			.intfver_iscsi = FW_INTFVER(T5, ISCSI),
+			.intfver_fcoe = FW_INTFVER(T5, FCOE),
+		},
+	}
+};
+
+static struct fw_info *find_fw_info(int chip)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fw_info_array); i++) {
+		if (fw_info_array[i].chip == chip)
+			return &fw_info_array[i];
+	}
+	return NULL;
+}
+
 /*
  * Phase 0 of initialization: contact FW, obtain config, perform basic init.
  */
@@ -5123,44 +5119,54 @@ static int adap_init0(struct adapter *adap)
 	 * later reporting and B. to warn if the currently loaded firmware
 	 * is excessively mismatched relative to the driver.)
 	 */
-	ret = t4_check_fw_version(adap);
-
-	/* The error code -EFAULT is returned by t4_check_fw_version() if
-	 * firmware on adapter < supported firmware. If firmware on adapter
-	 * is too old (not supported by driver) and we're the MASTER_PF set
-	 * adapter state to DEV_STATE_UNINIT to force firmware upgrade
-	 * and reinitialization.
-	 */
-	if ((adap->flags & MASTER_PF) && ret == -EFAULT)
-		state = DEV_STATE_UNINIT;
+	t4_get_fw_version(adap, &adap->params.fw_vers);
+	t4_get_tp_version(adap, &adap->params.tp_vers);
 	if ((adap->flags & MASTER_PF) && state != DEV_STATE_INIT) {
-		if (ret == -EINVAL || ret == -EFAULT || ret > 0) {
-			if (upgrade_fw(adap) >= 0) {
-				/*
-				 * Note that the chip was reset as part of the
-				 * firmware upgrade so we don't reset it again
-				 * below and grab the new firmware version.
-				 */
-				reset = 0;
-				ret = t4_check_fw_version(adap);
-			} else
-				if (ret == -EFAULT) {
-					/*
-					 * Firmware is old but still might
-					 * work if we force reinitialization
-					 * of the adapter. Ignoring FW upgrade
-					 * failure.
-					 */
-					dev_warn(adap->pdev_dev,
-						 "Ignoring firmware upgrade "
-						 "failure, and forcing driver "
-						 "to reinitialize the "
-						 "adapter.\n");
-					ret = 0;
-				}
+		struct fw_info *fw_info;
+		struct fw_hdr *card_fw;
+		const struct firmware *fw;
+		const u8 *fw_data = NULL;
+		unsigned int fw_size = 0;
+
+		/* This is the firmware whose headers the driver was compiled
+		 * against
+		 */
+		fw_info = find_fw_info(CHELSIO_CHIP_VERSION(adap->params.chip));
+		if (fw_info == NULL) {
+			dev_err(adap->pdev_dev,
+				"unable to get firmware info for chip %d.\n",
+				CHELSIO_CHIP_VERSION(adap->params.chip));
+			return -EINVAL;
 		}
+
+		/* allocate memory to read the header of the firmware on the
+		 * card
+		 */
+		card_fw = t4_alloc_mem(sizeof(*card_fw));
+
+		/* Get FW from from /lib/firmware/ */
+		ret = request_firmware(&fw, fw_info->fw_mod_name,
+				       adap->pdev_dev);
+		if (ret < 0) {
+			dev_err(adap->pdev_dev,
+				"unable to load firmware image %s, error %d\n",
+				fw_info->fw_mod_name, ret);
+		} else {
+			fw_data = fw->data;
+			fw_size = fw->size;
+		}
+
+		/* upgrade FW logic */
+		ret = t4_prep_fw(adap, fw_info, fw_data, fw_size, card_fw,
+				 state, &reset);
+
+		/* Cleaning up */
+		if (fw != NULL)
+			release_firmware(fw);
+		t4_free_mem(card_fw);
+
 		if (ret < 0)
-			return ret;
+			goto bye;
 	}
 
 	/*
@@ -5245,7 +5251,7 @@ static int adap_init0(struct adapter *adap)
 				if (ret == -ENOENT) {
 					dev_info(adap->pdev_dev,
 					    "No Configuration File present "
-					    "on adapter.  Using hard-wired "
+					    "on adapter. Using hard-wired "
 					    "configuration parameters.\n");
 					ret = adap_init0_no_config(adap, reset);
 				}
@@ -5787,7 +5793,7 @@ static void print_port_info(const struct net_device *dev)
 
 	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
 		    adap->params.vpd.id,
-		    CHELSIO_CHIP_RELEASE(adap->params.rev), buf,
+		    CHELSIO_CHIP_RELEASE(adap->params.chip), buf,
 		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
 		    (adap->flags & USING_MSIX) ? " MSI-X" :
 		    (adap->flags & USING_MSI) ? " MSI" : "");
@@ -5910,7 +5916,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out_unmap_bar0;
 
-	if (!is_t4(adapter->chip)) {
+	if (!is_t4(adapter->params.chip)) {
 		s_qpp = QUEUESPERPAGEPF1 * adapter->fn;
 		qpp = 1 << QUEUESPERPAGEPF0_GET(t4_read_reg(adapter,
 		      SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp);
@@ -6064,7 +6070,7 @@ sriov:
  out_free_dev:
 	free_some_resources(adapter);
  out_unmap_bar:
-	if (!is_t4(adapter->chip))
+	if (!is_t4(adapter->params.chip))
 		iounmap(adapter->bar2);
  out_unmap_bar0:
 	iounmap(adapter->regs);
@@ -6116,7 +6122,7 @@ static void remove_one(struct pci_dev *pdev)
 
 		free_some_resources(adapter);
 		iounmap(adapter->regs);
-		if (!is_t4(adapter->chip))
+		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
 		kfree(adapter);
 		pci_disable_pcie_error_reporting(pdev);

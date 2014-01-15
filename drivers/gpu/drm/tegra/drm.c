@@ -135,11 +135,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	unsigned int num_relocs = args->num_relocs;
 	unsigned int num_waitchks = args->num_waitchks;
 	struct drm_tegra_cmdbuf __user *cmdbufs =
-		(void * __user)(uintptr_t)args->cmdbufs;
+		(void __user *)(uintptr_t)args->cmdbufs;
 	struct drm_tegra_reloc __user *relocs =
-		(void * __user)(uintptr_t)args->relocs;
+		(void __user *)(uintptr_t)args->relocs;
 	struct drm_tegra_waitchk __user *waitchks =
-		(void * __user)(uintptr_t)args->waitchks;
+		(void __user *)(uintptr_t)args->waitchks;
 	struct drm_tegra_syncpt syncpt;
 	struct host1x_job *job;
 	int err;
@@ -163,9 +163,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct drm_tegra_cmdbuf cmdbuf;
 		struct host1x_bo *bo;
 
-		err = copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf));
-		if (err)
+		if (copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf))) {
+			err = -EFAULT;
 			goto fail;
+		}
 
 		bo = host1x_bo_lookup(drm, file, cmdbuf.handle);
 		if (!bo) {
@@ -178,10 +179,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		cmdbufs++;
 	}
 
-	err = copy_from_user(job->relocarray, relocs,
-			     sizeof(*relocs) * num_relocs);
-	if (err)
+	if (copy_from_user(job->relocarray, relocs,
+			   sizeof(*relocs) * num_relocs)) {
+		err = -EFAULT;
 		goto fail;
+	}
 
 	while (num_relocs--) {
 		struct host1x_reloc *reloc = &job->relocarray[num_relocs];
@@ -199,15 +201,17 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		}
 	}
 
-	err = copy_from_user(job->waitchk, waitchks,
-			     sizeof(*waitchks) * num_waitchks);
-	if (err)
+	if (copy_from_user(job->waitchk, waitchks,
+			   sizeof(*waitchks) * num_waitchks)) {
+		err = -EFAULT;
 		goto fail;
+	}
 
-	err = copy_from_user(&syncpt, (void * __user)(uintptr_t)args->syncpts,
-			     sizeof(syncpt));
-	if (err)
+	if (copy_from_user(&syncpt, (void __user *)(uintptr_t)args->syncpts,
+			   sizeof(syncpt))) {
+		err = -EFAULT;
 		goto fail;
+	}
 
 	job->is_addr_reg = context->client->ops->is_addr_reg;
 	job->syncpt_incrs = syncpt.incrs;
@@ -573,7 +577,7 @@ static void tegra_debugfs_cleanup(struct drm_minor *minor)
 }
 #endif
 
-struct drm_driver tegra_drm_driver = {
+static struct drm_driver tegra_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.load = tegra_drm_load,
 	.unload = tegra_drm_unload,

@@ -370,7 +370,7 @@ err:
 	return -ENOMEM;
 }
 
-void bot_cleanup_old_alt(struct f_uas *fu)
+static void bot_cleanup_old_alt(struct f_uas *fu)
 {
 	if (!(fu->flags & USBG_ENABLED))
 		return;

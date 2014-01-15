@@ -202,10 +202,12 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 		if (rq) {
 			blk_mq_rq_ctx_init(q, ctx, rq, rw);
 			break;
-		} else if (!(gfp & __GFP_WAIT))
-			break;
+		}
 
 		blk_mq_put_ctx(ctx);
+		if (!(gfp & __GFP_WAIT))
+			break;
+
 		__blk_mq_run_hw_queue(hctx);
 		blk_mq_wait_for_tags(hctx->tags);
 	} while (1);
@@ -222,7 +224,8 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
 		return NULL;
 
 	rq = blk_mq_alloc_request_pinned(q, rw, gfp, reserved);
-	blk_mq_put_ctx(rq->mq_ctx);
+	if (rq)
+		blk_mq_put_ctx(rq->mq_ctx);
 	return rq;
 }
 
@@ -235,7 +238,8 @@ struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw,
 		return NULL;
 
 	rq = blk_mq_alloc_request_pinned(q, rw, gfp, true);
-	blk_mq_put_ctx(rq->mq_ctx);
+	if (rq)
+		blk_mq_put_ctx(rq->mq_ctx);
 	return rq;
 }
 EXPORT_SYMBOL(blk_mq_alloc_reserved_request);
@@ -308,12 +312,12 @@ void blk_mq_complete_request(struct request *rq, int error)
 
 	blk_account_io_completion(rq, bytes);
 
+	blk_account_io_done(rq);
+
 	if (rq->end_io)
 		rq->end_io(rq, error);
 	else
 		blk_mq_free_request(rq);
-
-	blk_account_io_done(rq);
 }
 
 void __blk_mq_end_io(struct request *rq, int error)
