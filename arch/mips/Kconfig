@@ -2000,7 +2000,7 @@ config MIPS_VPE_APSP_API_MT
 
 config MIPS_CMP
 	bool "MIPS CMP framework support"
-	depends on SYS_SUPPORTS_MIPS_CMP && MIPS_MT_SMP
+	depends on SYS_SUPPORTS_MIPS_CMP && !MIPS_MT_SMTC
 	select MIPS_GIC_IPI
 	select SYNC_R4K
 	select WEAK_ORDERING
