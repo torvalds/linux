@@ -38,7 +38,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 28
+#define DRV_VERSION_BUILD 30
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -355,7 +355,6 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 	struct i40e_vsi *vsi = np->vsi;
 	struct rtnl_link_stats64 *vsi_stats = i40e_get_vsi_stats_struct(vsi);
 	int i;
-
 
 	if (test_bit(__I40E_DOWN, &vsi->state))
 		return stats;
@@ -2206,7 +2205,10 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	}
 
 	/* Now associate this queue with this PCI function */
-	qtx_ctl = I40E_QTX_CTL_PF_QUEUE;
+	if (vsi->type == I40E_VSI_VMDQ2)
+		qtx_ctl = I40E_QTX_CTL_VM_QUEUE;
+	else
+		qtx_ctl = I40E_QTX_CTL_PF_QUEUE;
 	qtx_ctl |= ((hw->pf_id << I40E_QTX_CTL_PF_INDX_SHIFT) &
 		    I40E_QTX_CTL_PF_INDX_MASK);
 	wr32(hw, I40E_QTX_CTL(pf_q), qtx_ctl);
@@ -3600,7 +3602,7 @@ static int i40e_vsi_get_bw_info(struct i40e_vsi *vsi)
 
 	/* Get the VSI level BW configuration per TC */
 	aq_ret = i40e_aq_query_vsi_ets_sla_config(hw, vsi->seid, &bw_ets_config,
-					          NULL);
+						  NULL);
 	if (aq_ret) {
 		dev_info(&pf->pdev->dev,
 			 "couldn't get pf vsi ets bw config, err %d, aq_err %d\n",

@@ -162,7 +162,6 @@ i40e_status i40e_aq_queue_shutdown(struct i40e_hw *hw,
 	return status;
 }
 
-
 /**
  * i40e_init_shared_code - Initialize the shared code
  * @hw: pointer to hardware structure
