@@ -126,6 +126,7 @@ echo ' ---' `date`: Starting kernel
 QEMU="`identify_qemu $builddir/vmlinux.o`"
 
 # Generate -smp qemu argument.
+qemu_args="-nographic $qemu_args"
 cpu_count=`configNR_CPUS.sh $config_template`
 vcpus=`identify_qemu_vcpus`
 if test $cpu_count -gt $vcpus
