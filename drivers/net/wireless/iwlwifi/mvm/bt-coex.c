@@ -542,6 +542,7 @@ struct iwl_bt_iterator_data {
 	bool reduced_tx_power;
 	struct ieee80211_chanctx_conf *primary;
 	struct ieee80211_chanctx_conf *secondary;
+	bool primary_ll;
 };
 
 static inline
@@ -590,7 +591,14 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		return;
 	}
 
-	/* SoftAP / GO will always be primary */
+	/* low latency is always primary */
+	if (iwl_mvm_vif_low_latency(mvmvif)) {
+		data->primary_ll = true;
+
+		data->secondary = data->primary;
+		data->primary = chanctx_conf;
+	}
+
 	if (vif->type == NL80211_IFTYPE_AP) {
 		if (!mvmvif->ap_ibss_active)
 			return;
@@ -601,9 +609,17 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		if (chanctx_conf == data->primary)
 			return;
 
-		/* downgrade the current primary no matter what its type is */
-		data->secondary = data->primary;
-		data->primary = chanctx_conf;
+		if (!data->primary_ll) {
+			/*
+			 * downgrade the current primary no matter what its
+			 * type is.
+			 */
+			data->secondary = data->primary;
+			data->primary = chanctx_conf;
+		} else {
+			/* there is low latency vif - we will be secondary */
+			data->secondary = chanctx_conf;
+		}
 		return;
 	}
 
@@ -613,7 +629,10 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (!vif->bss_conf.assoc)
 		return;
 
-	/* STA / P2P Client, try to be primary if first vif */
+	/*
+	 * STA / P2P Client, try to be primary if first vif. If we are in low
+	 * latency mode, we are already in primary and just don't do much
+	 */
 	if (!data->primary || data->primary == chanctx_conf)
 		data->primary = chanctx_conf;
 	else if (!data->secondary)
