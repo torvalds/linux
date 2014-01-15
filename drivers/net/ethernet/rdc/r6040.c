@@ -835,8 +835,8 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	/* Set TX descriptor & Transmit it */
 	lp->tx_free_desc--;
 	descptr = lp->tx_insert_ptr;
-	if (skb->len < MISR)
-		descptr->len = MISR;
+	if (skb->len < ETH_ZLEN)
+		descptr->len = ETH_ZLEN;
 	else
 		descptr->len = skb->len;
 
