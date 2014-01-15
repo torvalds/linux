@@ -713,12 +713,13 @@ be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (be_is_wol_supported(adapter)) {
+	if (adapter->wol_cap & BE_WOL_CAP) {
 		wol->supported |= WAKE_MAGIC;
-		if (adapter->wol)
+		if (adapter->wol_en)
 			wol->wolopts |= WAKE_MAGIC;
-	} else
+	} else {
 		wol->wolopts = 0;
+	}
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
 }
 
@@ -730,15 +731,15 @@ be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EOPNOTSUPP;
 
-	if (!be_is_wol_supported(adapter)) {
+	if (!(adapter->wol_cap & BE_WOL_CAP)) {
 		dev_warn(&adapter->pdev->dev, "WOL not supported\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (wol->wolopts & WAKE_MAGIC)
-		adapter->wol = true;
+		adapter->wol_en = true;
 	else
-		adapter->wol = false;
+		adapter->wol_en = false;
 
 	return 0;
 }

@@ -492,7 +492,7 @@ struct be_adapter {
 	u16 pvid;
 	struct phy_info phy;
 	u8 wol_cap;
-	bool wol;
+	bool wol_en;
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u16 asic_rev;
 	u16 qnq_vid;
