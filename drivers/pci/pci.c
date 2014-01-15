@@ -3250,6 +3250,18 @@ static void pci_dev_lock(struct pci_dev *dev)
 	device_lock(&dev->dev);
 }
 
+/* Return 1 on successful lock, 0 on contention */
+static int pci_dev_trylock(struct pci_dev *dev)
+{
+	if (pci_cfg_access_trylock(dev)) {
+		if (device_trylock(&dev->dev))
+			return 1;
+		pci_cfg_access_unlock(dev);
+	}
+
+	return 0;
+}
+
 static void pci_dev_unlock(struct pci_dev *dev)
 {
 	device_unlock(&dev->dev);
@@ -3393,6 +3405,34 @@ int pci_reset_function(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_reset_function);
 
+/**
+ * pci_try_reset_function - quiesce and reset a PCI device function
+ * @dev: PCI device to reset
+ *
+ * Same as above, except return -EAGAIN if unable to lock device.
+ */
+int pci_try_reset_function(struct pci_dev *dev)
+{
+	int rc;
+
+	rc = pci_dev_reset(dev, 1);
+	if (rc)
+		return rc;
+
+	pci_dev_save_and_disable(dev);
+
+	if (pci_dev_trylock(dev)) {
+		rc = __pci_dev_reset(dev, 0);
+		pci_dev_unlock(dev);
+	} else
+		rc = -EAGAIN;
+
+	pci_dev_restore(dev);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pci_try_reset_function);
+
 /* Lock devices from the top of the tree down */
 static void pci_bus_lock(struct pci_bus *bus)
 {
@@ -3415,6 +3455,32 @@ static void pci_bus_unlock(struct pci_bus *bus)
 			pci_bus_unlock(dev->subordinate);
 		pci_dev_unlock(dev);
 	}
+}
+
+/* Return 1 on successful lock, 0 on contention */
+static int pci_bus_trylock(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (!pci_dev_trylock(dev))
+			goto unlock;
+		if (dev->subordinate) {
+			if (!pci_bus_trylock(dev->subordinate)) {
+				pci_dev_unlock(dev);
+				goto unlock;
+			}
+		}
+	}
+	return 1;
+
+unlock:
+	list_for_each_entry_continue_reverse(dev, &bus->devices, bus_list) {
+		if (dev->subordinate)
+			pci_bus_unlock(dev->subordinate);
+		pci_dev_unlock(dev);
+	}
+	return 0;
 }
 
 /* Lock devices from the top of the tree down */
@@ -3443,6 +3509,37 @@ static void pci_slot_unlock(struct pci_slot *slot)
 			pci_bus_unlock(dev->subordinate);
 		pci_dev_unlock(dev);
 	}
+}
+
+/* Return 1 on successful lock, 0 on contention */
+static int pci_slot_trylock(struct pci_slot *slot)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
+		if (!dev->slot || dev->slot != slot)
+			continue;
+		if (!pci_dev_trylock(dev))
+			goto unlock;
+		if (dev->subordinate) {
+			if (!pci_bus_trylock(dev->subordinate)) {
+				pci_dev_unlock(dev);
+				goto unlock;
+			}
+		}
+	}
+	return 1;
+
+unlock:
+	list_for_each_entry_continue_reverse(dev,
+					     &slot->bus->devices, bus_list) {
+		if (!dev->slot || dev->slot != slot)
+			continue;
+		if (dev->subordinate)
+			pci_bus_unlock(dev->subordinate);
+		pci_dev_unlock(dev);
+	}
+	return 0;
 }
 
 /* Save and disable devices from the top of the tree down */
@@ -3568,6 +3665,35 @@ int pci_reset_slot(struct pci_slot *slot)
 }
 EXPORT_SYMBOL_GPL(pci_reset_slot);
 
+/**
+ * pci_try_reset_slot - Try to reset a PCI slot
+ * @slot: PCI slot to reset
+ *
+ * Same as above except return -EAGAIN if the slot cannot be locked
+ */
+int pci_try_reset_slot(struct pci_slot *slot)
+{
+	int rc;
+
+	rc = pci_slot_reset(slot, 1);
+	if (rc)
+		return rc;
+
+	pci_slot_save_and_disable(slot);
+
+	if (pci_slot_trylock(slot)) {
+		might_sleep();
+		rc = pci_reset_hotplug_slot(slot->hotplug, 0);
+		pci_slot_unlock(slot);
+	} else
+		rc = -EAGAIN;
+
+	pci_slot_restore(slot);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pci_try_reset_slot);
+
 static int pci_bus_reset(struct pci_bus *bus, int probe)
 {
 	if (!bus->self)
@@ -3625,6 +3751,35 @@ int pci_reset_bus(struct pci_bus *bus)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(pci_reset_bus);
+
+/**
+ * pci_try_reset_bus - Try to reset a PCI bus
+ * @bus: top level PCI bus to reset
+ *
+ * Same as above except return -EAGAIN if the bus cannot be locked
+ */
+int pci_try_reset_bus(struct pci_bus *bus)
+{
+	int rc;
+
+	rc = pci_bus_reset(bus, 1);
+	if (rc)
+		return rc;
+
+	pci_bus_save_and_disable(bus);
+
+	if (pci_bus_trylock(bus)) {
+		might_sleep();
+		pci_reset_bridge_secondary_bus(bus->self);
+		pci_bus_unlock(bus);
+	} else
+		rc = -EAGAIN;
+
+	pci_bus_restore(bus);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pci_try_reset_bus);
 
 /**
  * pcix_get_max_mmrbc - get PCI-X maximum designed memory read byte count
