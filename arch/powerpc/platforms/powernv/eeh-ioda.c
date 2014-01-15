@@ -713,11 +713,7 @@ static int ioda_eeh_get_pe(struct pci_controller *hose,
 	dev.phb = hose;
 	dev.pe_config_addr = pe_no;
 	dev_pe = eeh_pe_get(&dev);
-	if (!dev_pe) {
-		pr_warning("%s: Can't find PE for PHB#%x - PE#%x\n",
-			   __func__, hose->global_number, pe_no);
-		return -EEXIST;
-	}
+	if (!dev_pe) return -EEXIST;
 
 	*pe = dev_pe;
 	return 0;
@@ -831,12 +827,27 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 
 			break;
 		case OPAL_EEH_PE_ERROR:
-			if (ioda_eeh_get_pe(hose, frozen_pe_no, pe))
-				break;
+			/*
+			 * If we can't find the corresponding PE, the
+			 * PEEV / PEST would be messy. So we force an
+			 * fenced PHB so that it can be recovered.
+			 */
+			if (ioda_eeh_get_pe(hose, frozen_pe_no, pe)) {
+				if (!ioda_eeh_get_phb_pe(hose, pe)) {
+					pr_err("EEH: Escalated fenced PHB#%x "
+					       "detected for PE#%llx\n",
+						hose->global_number,
+						frozen_pe_no);
+					ret = EEH_NEXT_ERR_FENCED_PHB;
+				} else {
+					ret = EEH_NEXT_ERR_NONE;
+				}
+			} else {
+				pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
+					(*pe)->addr, (*pe)->phb->global_number);
+				ret = EEH_NEXT_ERR_FROZEN_PE;
+			}
 
-			pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
-				(*pe)->addr, (*pe)->phb->global_number);
-			ret = EEH_NEXT_ERR_FROZEN_PE;
 			break;
 		default:
 			pr_warn("%s: Unexpected error type %d\n",
