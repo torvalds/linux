@@ -2677,6 +2677,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	struct wiphy *wiphy;
 	struct mwifiex_private *priv = adapter->priv[MWIFIEX_BSS_TYPE_STA];
 	u8 *country_code;
+	u32 thr, retry;
 
 	/* create a new wiphy for use with cfg80211 */
 	wiphy = wiphy_new(&mwifiex_cfg80211_ops,
@@ -2765,6 +2766,19 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			wiphy_info(wiphy, "ignoring F/W country code %2.2s\n",
 				   country_code);
 	}
+
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, FRAG_THRESH_I, &thr);
+	wiphy->frag_threshold = thr;
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, RTS_THRESH_I, &thr);
+	wiphy->rts_threshold = thr;
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, SHORT_RETRY_LIM_I, &retry);
+	wiphy->retry_short = (u8) retry;
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, LONG_RETRY_LIM_I, &retry);
+	wiphy->retry_long = (u8) retry;
 
 	adapter->wiphy = wiphy;
 	return ret;
