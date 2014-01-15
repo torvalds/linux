@@ -131,12 +131,8 @@ void usnic_debugfs_exit(void)
 
 void usnic_debugfs_flow_add(struct usnic_ib_qp_grp_flow *qp_flow)
 {
-	struct usnic_ib_qp_grp *qp_grp;
-
 	if (IS_ERR_OR_NULL(flows_dentry))
 		return;
-
-	qp_grp = qp_flow->qp_grp;
 
 	scnprintf(qp_flow->dentry_name, sizeof(qp_flow->dentry_name),
 			"%u", qp_flow->flow->flow_id);
