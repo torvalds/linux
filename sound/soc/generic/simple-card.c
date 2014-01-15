@@ -195,40 +195,42 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 
 static int asoc_simple_card_probe(struct platform_device *pdev)
 {
-	struct asoc_simple_card_info *cinfo;
+	struct asoc_simple_card_info *priv;
 	struct snd_soc_dai_link *dai_link;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	cinfo = devm_kzalloc(dev, sizeof(*cinfo), GFP_KERNEL);
-	if (!cinfo)
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
 
 	/*
 	 * init snd_soc_card
 	 */
-	cinfo->snd_card.owner		= THIS_MODULE;
-	cinfo->snd_card.dev = dev;
-	dai_link = &cinfo->snd_link;
-	cinfo->snd_card.dai_link = dai_link;
-	cinfo->snd_card.num_links = 1;
+	priv->snd_card.owner = THIS_MODULE;
+	priv->snd_card.dev = dev;
+	dai_link = &priv->snd_link;
+	priv->snd_card.dai_link = dai_link;
+	priv->snd_card.num_links = 1;
 
 	if (np && of_device_is_available(np)) {
 
-		ret = asoc_simple_card_parse_of(np, cinfo, dev);
+		ret = asoc_simple_card_parse_of(np, priv, dev);
 		if (ret < 0) {
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev, "parse error %d\n", ret);
 			return ret;
 		}
 	} else {
-		if (!dev->platform_data) {
+		struct asoc_simple_card_info *cinfo;
+
+		cinfo = dev->platform_data;
+		if (!cinfo) {
 			dev_err(dev, "no info for asoc-simple-card\n");
 			return -EINVAL;
 		}
 
-		memcpy(cinfo, dev->platform_data, sizeof(*cinfo));
 		if (!cinfo->name	||
 		    !cinfo->card	||
 		    !cinfo->codec_dai.name	||
@@ -239,13 +241,17 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		cinfo->snd_card.name		= cinfo->card;
+		priv->snd_card.name	= cinfo->card;
 		dai_link->name		= cinfo->name;
 		dai_link->stream_name	= cinfo->name;
 		dai_link->platform_name	= cinfo->platform;
 		dai_link->codec_name	= cinfo->codec;
 		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
 		dai_link->codec_dai_name = cinfo->codec_dai.name;
+		memcpy(&priv->cpu_dai, &cinfo->cpu_dai,
+						sizeof(priv->cpu_dai));
+		memcpy(&priv->codec_dai, &cinfo->codec_dai,
+						sizeof(priv->codec_dai));
 	}
 
 	/*
@@ -253,9 +259,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	 */
 	dai_link->init = asoc_simple_card_dai_init;
 
-	snd_soc_card_set_drvdata(&cinfo->snd_card, cinfo);
+	snd_soc_card_set_drvdata(&priv->snd_card, priv);
 
-	return devm_snd_soc_register_card(&pdev->dev, &cinfo->snd_card);
+	return devm_snd_soc_register_card(&pdev->dev, &priv->snd_card);
 }
 
 static const struct of_device_id asoc_simple_of_match[] = {
