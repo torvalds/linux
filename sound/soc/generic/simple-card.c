@@ -15,6 +15,14 @@
 #include <linux/string.h>
 #include <sound/simple_card.h>
 
+struct simple_card_data {
+	struct snd_soc_card snd_card;
+	unsigned int daifmt;
+	struct asoc_simple_dai cpu_dai;
+	struct asoc_simple_dai codec_dai;
+	struct snd_soc_dai_link snd_link;
+};
+
 static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 				       struct asoc_simple_dai *set,
 				       unsigned int daifmt)
@@ -39,7 +47,7 @@ static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 
 static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct asoc_simple_card_info *info =
+	struct simple_card_data *info =
 				snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *codec = rtd->codec_dai;
 	struct snd_soc_dai *cpu = rtd->cpu_dai;
@@ -121,7 +129,7 @@ parse_error:
 }
 
 static int asoc_simple_card_parse_of(struct device_node *node,
-				     struct asoc_simple_card_info *info,
+				     struct simple_card_data *info,
 				     struct device *dev)
 {
 	struct snd_soc_dai_link *dai_link = info->snd_card.dai_link;
@@ -195,7 +203,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 
 static int asoc_simple_card_probe(struct platform_device *pdev)
 {
-	struct asoc_simple_card_info *priv;
+	struct simple_card_data *priv;
 	struct snd_soc_dai_link *dai_link;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
