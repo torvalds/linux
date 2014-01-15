@@ -1,7 +1,7 @@
 /*
  * Device Tree support for Rockchip RK3188
  *
- * Copyright (C) 2013 ROCKCHIP, Inc.
+ * Copyright (C) 2013-2014 ROCKCHIP, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +23,14 @@
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include "core.h"
+#include "common.h"
 #include "cpu.h"
 #include "cpu_axi.h"
+#include "cru.h"
 #include "grf.h"
 #include "iomap.h"
+#include "loader.h"
+#include "pmu.h"
 #include "sram.h"
 
 #define RK3188_DEVICE(name) \
@@ -89,6 +92,20 @@ static struct map_desc rk3188_io_desc[] __initdata = {
 	},
 };
 
+static void __init rk3188_boot_mode_init(void)
+{
+	u32 flag = readl_relaxed(RK_PMU_VIRT + RK3188_PMU_SYS_REG0);
+	u32 mode = readl_relaxed(RK_PMU_VIRT + RK3188_PMU_SYS_REG1);
+
+	if (flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
+		mode = BOOT_MODE_RECOVERY;
+	}
+	rockchip_boot_mode_init(flag, mode);
+#ifdef CONFIG_RK29_WATCHDOG
+	writel_relaxed(BOOT_MODE_WATCHDOG, RK_PMU_VIRT + RK3188_PMU_SYS_REG1);
+#endif
+}
+
 static void __init rk3188_dt_map_io(void)
 {
 	preset_lpj = 11996091ULL / 2;
@@ -104,24 +121,214 @@ static void __init rk3188_dt_map_io(void)
 
 	/* rki2c is used instead of old i2c */
 	writel_relaxed(0xF800F800, RK_GRF_VIRT + RK3188_GRF_SOC_CON1);
+
+	rk3188_boot_mode_init();
+}
+
+static const u8 pmu_pd_map[] = {
+	[PD_CPU_0] = 0,
+	[PD_CPU_1] = 1,
+	[PD_CPU_2] = 2,
+	[PD_CPU_3] = 3,
+	[PD_SCU] = 4,
+	[PD_BUS] = 5,
+	[PD_PERI] = 6,
+	[PD_VIO] = 7,
+	[PD_VIDEO] = 8,
+	[PD_GPU] = 9,
+	[PD_CS] = 10,
+};
+
+static bool rk3188_pmu_power_domain_is_on(enum pmu_power_domain pd)
+{
+	/* 1'b0: power on, 1'b1: power off */
+	return !(readl_relaxed(RK_PMU_VIRT + RK3188_PMU_PWRDN_ST) & BIT(pmu_pd_map[pd]));
+}
+
+static noinline void do_pmu_set_power_domain(enum pmu_power_domain domain, bool on)
+{
+	u8 pd = pmu_pd_map[domain];
+	u32 val = readl_relaxed(RK_PMU_VIRT + RK3188_PMU_PWRDN_CON);
+	if (on)
+		val &= ~BIT(pd);
+	else
+		val |=  BIT(pd);
+	writel_relaxed(val, RK_PMU_VIRT + RK3188_PMU_PWRDN_CON);
+	dsb();
+
+	while ((readl_relaxed(RK_PMU_VIRT + RK3188_PMU_PWRDN_ST) & BIT(pd)) == on)
+		;
+}
+
+static DEFINE_SPINLOCK(pmu_misc_con1_lock);
+
+static const u8 pmu_req_map[] = {
+	[IDLE_REQ_BUS] = 1,
+	[IDLE_REQ_PERI] = 2,
+	[IDLE_REQ_GPU] = 3,
+	[IDLE_REQ_VIDEO] = 4,
+	[IDLE_REQ_VIO] = 5,
+};
+
+static const u8 pmu_idle_map[] = {
+	[IDLE_REQ_DMA] = 14,
+	[IDLE_REQ_CORE] = 15,
+	[IDLE_REQ_VIO] = 22,
+	[IDLE_REQ_VIDEO] = 23,
+	[IDLE_REQ_GPU] = 24,
+	[IDLE_REQ_PERI] = 25,
+	[IDLE_REQ_BUS] = 26,
+};
+
+static const u8 pmu_ack_map[] = {
+	[IDLE_REQ_DMA] = 17,
+	[IDLE_REQ_CORE] = 18,
+	[IDLE_REQ_VIO] = 27,
+	[IDLE_REQ_VIDEO] = 28,
+	[IDLE_REQ_GPU] = 29,
+	[IDLE_REQ_PERI] = 30,
+	[IDLE_REQ_BUS] = 31,
+};
+
+static int rk3188_pmu_set_idle_request(enum pmu_idle_req req, bool idle)
+{
+	u32 idle_mask = BIT(pmu_idle_map[req]);
+	u32 idle_target = idle << pmu_idle_map[req];
+	u32 ack_mask = BIT(pmu_ack_map[req]);
+	u32 ack_target = idle << pmu_ack_map[req];
+	u32 mask = BIT(pmu_req_map[req]);
+	u32 val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pmu_misc_con1_lock, flags);
+	val = readl_relaxed(RK_PMU_VIRT + RK3188_PMU_MISC_CON1);
+	if (idle)
+		val |=  mask;
+	else
+		val &= ~mask;
+	writel_relaxed(val, RK_PMU_VIRT + RK3188_PMU_MISC_CON1);
+	dsb();
+
+	while ((readl_relaxed(RK_PMU_VIRT + RK3188_PMU_PWRDN_ST) & ack_mask) != ack_target)
+		;
+	while ((readl_relaxed(RK_PMU_VIRT + RK3188_PMU_PWRDN_ST) & idle_mask) != idle_target)
+		;
+	spin_unlock_irqrestore(&pmu_misc_con1_lock, flags);
+
+	return 0;
+}
+
+/*
+ *  software should power down or power up power domain one by one. Power down or
+ *  power up multiple power domains simultaneously will result in chip electric current
+ *  change dramatically which will affect the chip function.
+ */
+static DEFINE_SPINLOCK(pmu_pd_lock);
+static u32 lcdc0_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 lcdc1_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 cif0_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 cif1_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 ipp_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 rga_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 gpu_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vpu_qos[CPU_AXI_QOS_NUM_REGS];
+
+#define SAVE_QOS(array, NAME) CPU_AXI_SAVE_QOS(array, RK3188_CPU_AXI_##NAME##_QOS_BASE)
+#define RESTORE_QOS(array, NAME) CPU_AXI_RESTORE_QOS(array, RK3188_CPU_AXI_##NAME##_QOS_BASE)
+
+static int rk3188_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&pmu_pd_lock, flags);
+	if (rk3188_pmu_power_domain_is_on(pd) == on) {
+		spin_unlock_irqrestore(&pmu_pd_lock, flags);
+		return 0;
+	}
+	if (!on) {
+		/* if power down, idle request to NIU first */
+		if (pd == PD_VIO) {
+			SAVE_QOS(lcdc0_qos, LCDC0);
+			SAVE_QOS(lcdc1_qos, LCDC1);
+			SAVE_QOS(cif0_qos, CIF0);
+			SAVE_QOS(cif1_qos, CIF1);
+			SAVE_QOS(ipp_qos, IPP);
+			SAVE_QOS(rga_qos, RGA);
+			rk3188_pmu_set_idle_request(IDLE_REQ_VIO, true);
+		} else if (pd == PD_VIDEO) {
+			SAVE_QOS(vpu_qos, VPU);
+			rk3188_pmu_set_idle_request(IDLE_REQ_VIDEO, true);
+		} else if (pd == PD_GPU) {
+			SAVE_QOS(gpu_qos, GPU);
+			rk3188_pmu_set_idle_request(IDLE_REQ_GPU, true);
+		}
+	}
+	do_pmu_set_power_domain(pd, on);
+	if (on) {
+		/* if power up, idle request release to NIU */
+		if (pd == PD_VIO) {
+			rk3188_pmu_set_idle_request(IDLE_REQ_VIO, false);
+			RESTORE_QOS(lcdc0_qos, LCDC0);
+			RESTORE_QOS(lcdc1_qos, LCDC1);
+			RESTORE_QOS(cif0_qos, CIF0);
+			RESTORE_QOS(cif1_qos, CIF1);
+			RESTORE_QOS(ipp_qos, IPP);
+			RESTORE_QOS(rga_qos, RGA);
+		} else if (pd == PD_VIDEO) {
+			rk3188_pmu_set_idle_request(IDLE_REQ_VIDEO, false);
+			RESTORE_QOS(vpu_qos, VPU);
+		} else if (pd == PD_GPU) {
+			rk3188_pmu_set_idle_request(IDLE_REQ_GPU, false);
+			RESTORE_QOS(gpu_qos, GPU);
+		}
+	}
+	spin_unlock_irqrestore(&pmu_pd_lock, flags);
+
+	return 0;
 }
 
 static void __init rk3188_dt_init_timer(void)
 {
+	rockchip_pmu_ops.set_power_domain = rk3188_pmu_set_power_domain;
+	rockchip_pmu_ops.power_domain_is_on = rk3188_pmu_power_domain_is_on;
+	rockchip_pmu_ops.set_idle_request = rk3188_pmu_set_idle_request;
 	of_clk_init(NULL);
 	clocksource_of_init();
 }
 
-static const char * const rk3188_dt_compat[] = {
+static const char * const rk3188_dt_compat[] __initconst = {
 	"rockchip,rk3188",
 	NULL,
 };
+
+static void rk3188_restart(char mode, const char *cmd)
+{
+	u32 boot_flag, boot_mode;
+
+	rockchip_restart_get_boot_mode(cmd, &boot_flag, &boot_mode);
+
+	writel_relaxed(boot_flag, RK_PMU_VIRT + RK3188_PMU_SYS_REG0);	// for loader
+	writel_relaxed(boot_mode, RK_PMU_VIRT + RK3188_PMU_SYS_REG1);	// for linux
+	dsb();
+
+	/* disable remap */
+	writel_relaxed(1 << (12 + 16), RK_GRF_VIRT + RK3188_GRF_SOC_CON0);
+	/* pll enter slow mode */
+	writel_relaxed(RK3188_PLL_MODE_SLOW(RK3188_APLL_ID) |
+		       RK3188_PLL_MODE_SLOW(RK3188_CPLL_ID) |
+		       RK3188_PLL_MODE_SLOW(RK3188_GPLL_ID),
+		       RK_CRU_VIRT + RK3188_CRU_MODE_CON);
+	dsb();
+	writel_relaxed(0xeca8, RK_CRU_VIRT + RK3188_CRU_GLB_SRST_SND);
+	dsb();
+}
 
 DT_MACHINE_START(RK3188_DT, "Rockchip RK3188 (Flattened Device Tree)")
 	.smp		= smp_ops(rockchip_smp_ops),
 	.map_io		= rk3188_dt_map_io,
 	.init_time	= rk3188_dt_init_timer,
 	.dt_compat	= rk3188_dt_compat,
+	.restart	= rk3188_restart,
 MACHINE_END
 
 #define CPU 3188
@@ -161,7 +368,7 @@ arch_initcall(rk3188_pie_init);
 #define sram_printascii(s) do {} while (0) /* FIXME */
 #include "ddr_rk30.c"
 
-static int rk3188_ddr_init(void)
+static int __init rk3188_ddr_init(void)
 {
 	if (cpu_is_rk3188())
 		ddr_init(DDR3_DEFAULT, 300);

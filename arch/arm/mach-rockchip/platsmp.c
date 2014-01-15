@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ROCKCHIP, Inc.
+ * Copyright (C) 2013-2014 ROCKCHIP, Inc.
  * Copyright (c) 2013 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
  *
@@ -26,21 +26,13 @@
 #include <asm/smp_plat.h>
 #include <asm/mach/map.h>
 
-#include "core.h"
+#include "common.h"
+#include "pmu.h"
 
 #define SCU_CTRL		0x00
 #define   SCU_STANDBY_EN	(1 << 5)
 
 static int ncores;
-
-/*
- * temporary PMU handling
- */
-
-#define PMU_PWRDN_CON		0x08
-#define PMU_PWRDN_ST		0x0c
-
-static void __iomem *pmu_base_addr;
 
 extern void secondary_startup(void);
 extern void v7_invalidate_l1(void);
@@ -61,23 +53,6 @@ static void __naked rockchip_secondary_trampoline(void)
 	);
 }
 
-static inline bool pmu_power_domain_is_on(int pd)
-{
-	return !(readl_relaxed(pmu_base_addr + PMU_PWRDN_ST) & BIT(pd));
-}
-
-static void pmu_set_power_domain(int pd, bool on)
-{
-	u32 val = readl_relaxed(pmu_base_addr + PMU_PWRDN_CON);
-	if (on)
-		val &= ~BIT(pd);
-	else
-		val |=  BIT(pd);
-	writel(val, pmu_base_addr + PMU_PWRDN_CON);
-
-	while (pmu_power_domain_is_on(pd) != on) { }
-}
-
 /*
  * Handling of CPU cores
  */
@@ -92,7 +67,7 @@ static int __cpuinit rockchip_boot_secondary(unsigned int cpu,
 	}
 
 	/* start the core */
-	pmu_set_power_domain(0 + cpu, true);
+	rockchip_pmu_ops.set_power_domain(PD_CPU_0 + cpu, true);
 
 	return 0;
 }
@@ -158,8 +133,6 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 		return;
 	}
 
-	pmu_base_addr = of_iomap(node, 0);
-
 	/*
 	 * While the number of cpus is gathered from dt, also get the number
 	 * of cores from the scu to verify this value when booting the cores.
@@ -174,7 +147,7 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 	for (i = 0; i < ncores; i++) {
 		if (i == cpu)
 			continue;
-		pmu_set_power_domain(i, false);
+		rockchip_pmu_ops.set_power_domain(PD_CPU_0 + i, false);
 	}
 
 	iounmap(scu_base_addr);

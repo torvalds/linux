@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ROCKCHIP, Inc.
+ * Copyright (C) 2013-2014 ROCKCHIP, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,10 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <asm/hardware/cache-l2x0.h>
+#include "common.h"
 #include "cpu_axi.h"
+#include "loader.h"
+#include "pmu.h"
 #include "sram.h"
 
 static int __init rockchip_cpu_axi_init(void)
@@ -130,3 +133,85 @@ int __init rockchip_pie_init(void)
 
 	return 0;
 }
+
+static bool is_panic = false;
+
+static int panic_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+	is_panic = true;
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block panic_block = {
+	.notifier_call	= panic_event,
+};
+
+static int boot_mode;
+
+int rockchip_boot_mode(void)
+{
+	return boot_mode;
+}
+EXPORT_SYMBOL(rockchip_boot_mode);
+
+static inline const char *boot_flag_name(u32 flag)
+{
+	flag -= SYS_KERNRL_REBOOT_FLAG;
+	switch (flag) {
+	case BOOT_NORMAL: return "NORMAL";
+	case BOOT_LOADER: return "LOADER";
+	case BOOT_MASKROM: return "MASKROM";
+	case BOOT_RECOVER: return "RECOVER";
+	case BOOT_NORECOVER: return "NORECOVER";
+	case BOOT_SECONDOS: return "SECONDOS";
+	case BOOT_WIPEDATA: return "WIPEDATA";
+	case BOOT_WIPEALL: return "WIPEALL";
+	case BOOT_CHECKIMG: return "CHECKIMG";
+	case BOOT_FASTBOOT: return "FASTBOOT";
+	default: return "";
+	}
+}
+
+static inline const char *boot_mode_name(u32 mode)
+{
+	switch (mode) {
+	case BOOT_MODE_NORMAL: return "NORMAL";
+	case BOOT_MODE_FACTORY2: return "FACTORY2";
+	case BOOT_MODE_RECOVERY: return "RECOVERY";
+	case BOOT_MODE_CHARGE: return "CHARGE";
+	case BOOT_MODE_POWER_TEST: return "POWER_TEST";
+	case BOOT_MODE_OFFMODE_CHARGING: return "OFFMODE_CHARGING";
+	case BOOT_MODE_REBOOT: return "REBOOT";
+	case BOOT_MODE_PANIC: return "PANIC";
+	case BOOT_MODE_WATCHDOG: return "WATCHDOG";
+	default: return "";
+	}
+}
+
+void __init rockchip_boot_mode_init(u32 flag, u32 mode)
+{
+	boot_mode = mode;
+	if (mode || ((flag & 0xff) && ((flag & 0xffffff00) == SYS_KERNRL_REBOOT_FLAG)))
+		printk("Boot mode: %s (%d) flag: %s (0x%08x)\n", boot_mode_name(mode), mode, boot_flag_name(flag), flag);
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+}
+
+void rockchip_restart_get_boot_mode(const char *cmd, u32 *flag, u32 *mode)
+{
+	*flag = 0;
+	*mode = BOOT_MODE_REBOOT;
+
+	if (cmd) {
+		if (!strcmp(cmd, "loader") || !strcmp(cmd, "bootloader"))
+			*flag = SYS_LOADER_REBOOT_FLAG + BOOT_LOADER;
+		else if(!strcmp(cmd, "recovery"))
+			*flag = SYS_LOADER_REBOOT_FLAG + BOOT_RECOVER;
+		else if (!strcmp(cmd, "charge"))
+			*mode = BOOT_MODE_CHARGE;
+	} else {
+		if (is_panic)
+			*mode = BOOT_MODE_PANIC;
+	}
+}
+
+struct rockchip_pmu_operations rockchip_pmu_ops;
