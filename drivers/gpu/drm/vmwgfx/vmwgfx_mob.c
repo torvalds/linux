@@ -33,13 +33,25 @@
 
 #define VMW_OTABLE_SETUP_SUB ((VMWGFX_ENABLE_SCREEN_TARGET_OTABLE) ? 0 : 1)
 
-/*
- * Currently the MOB interface does not support 64-bit page frame numbers.
- * This might change in the future to be similar to the GMR2 interface
- * when virtual machines support memory beyond 16TB.
- */
-
+#ifdef CONFIG_64BIT
+#define VMW_PPN_SIZE 8
+#define vmw_cmd_set_otable_base SVGA3dCmdSetOTableBase64
+#define VMW_ID_SET_OTABLE_BASE SVGA_3D_CMD_SET_OTABLE_BASE64
+#define vmw_cmd_define_gb_mob SVGA3dCmdDefineGBMob64
+#define VMW_ID_DEFINE_GB_MOB SVGA_3D_CMD_DEFINE_GB_MOB64
+#define VMW_MOBFMT_PTDEPTH_0 SVGA3D_MOBFMT_PTDEPTH64_0
+#define VMW_MOBFMT_PTDEPTH_1 SVGA3D_MOBFMT_PTDEPTH64_1
+#define VMW_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PTDEPTH64_2
+#else
 #define VMW_PPN_SIZE 4
+#define vmw_cmd_set_otable_base SVGA3dCmdSetOTableBase
+#define VMW_ID_SET_OTABLE_BASE SVGA_3D_CMD_SET_OTABLE_BASE
+#define vmw_cmd_define_gb_mob SVGA3dCmdDefineGBMob
+#define VMW_ID_DEFINE_GB_MOB SVGA_3D_CMD_DEFINE_GB_MOB
+#define VMW_MOBFMT_PTDEPTH_0 SVGA3D_MOBFMT_PTDEPTH_0
+#define VMW_MOBFMT_PTDEPTH_1 SVGA3D_MOBFMT_PTDEPTH_1
+#define VMW_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PTDEPTH_2
+#endif
 
 /*
  * struct vmw_mob - Structure containing page table and metadata for a
@@ -93,7 +105,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 {
 	struct {
 		SVGA3dCmdHeader header;
-		SVGA3dCmdSetOTableBase body;
+		vmw_cmd_set_otable_base body;
 	} *cmd;
 	struct vmw_mob *mob;
 	const struct vmw_sg_table *vsgt;
@@ -113,7 +125,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	}
 
 	if (otable->size <= PAGE_SIZE) {
-		mob->pt_level = SVGA3D_MOBFMT_PTDEPTH_0;
+		mob->pt_level = VMW_MOBFMT_PTDEPTH_0;
 		mob->pt_root_page = vmw_piter_dma_addr(&iter);
 	} else if (vsgt->num_regions == 1) {
 		mob->pt_level = SVGA3D_MOBFMT_RANGE;
@@ -124,6 +136,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 			goto out_no_populate;
 
 		vmw_mob_pt_setup(mob, iter, otable->size >> PAGE_SHIFT);
+		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
 	}
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
@@ -133,13 +146,20 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	}
 
 	memset(cmd, 0, sizeof(*cmd));
-	cmd->header.id = SVGA_3D_CMD_SET_OTABLE_BASE;
+	cmd->header.id = VMW_ID_SET_OTABLE_BASE;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.type = type;
 	cmd->body.baseAddress = mob->pt_root_page >> PAGE_SHIFT;
 	cmd->body.sizeInBytes = otable->size;
 	cmd->body.validSizeInBytes = 0;
 	cmd->body.ptDepth = mob->pt_level;
+
+	/*
+	 * The device doesn't support this, But the otable size is
+	 * determined at compile-time, so this BUG shouldn't trigger
+	 * randomly.
+	 */
+	BUG_ON(mob->pt_level == VMW_MOBFMT_PTDEPTH_2);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	otable->page_table = mob;
@@ -403,6 +423,27 @@ out_unreserve:
 	return ret;
 }
 
+/**
+ * vmw_mob_assign_ppn - Assign a value to a page table entry
+ *
+ * @addr: Pointer to pointer to page table entry.
+ * @val: The page table entry
+ *
+ * Assigns a value to a page table entry pointed to by *@addr and increments
+ * *@addr according to the page table entry size.
+ */
+#if (VMW_PPN_SIZE == 8)
+static void vmw_mob_assign_ppn(uint32_t **addr, dma_addr_t val)
+{
+	*((uint64_t *) *addr) = val >> PAGE_SHIFT;
+	*addr += 2;
+}
+#else
+static void vmw_mob_assign_ppn(uint32_t **addr, dma_addr_t val)
+{
+	*(*addr)++ = val >> PAGE_SHIFT;
+}
+#endif
 
 /*
  * vmw_mob_build_pt - Build a pagetable
@@ -432,8 +473,8 @@ static unsigned long vmw_mob_build_pt(struct vmw_piter *data_iter,
 		save_addr = addr = kmap_atomic(page);
 
 		for (i = 0; i < PAGE_SIZE / VMW_PPN_SIZE; ++i) {
-			u32 tmp = vmw_piter_dma_addr(data_iter) >> PAGE_SHIFT;
-			*addr++ = tmp;
+			vmw_mob_assign_ppn(&addr,
+					   vmw_piter_dma_addr(data_iter));
 			if (unlikely(--num_data_pages == 0))
 				break;
 			WARN_ON(!vmw_piter_next(data_iter));
@@ -565,7 +606,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 	struct vmw_piter data_iter;
 	struct {
 		SVGA3dCmdHeader header;
-		SVGA3dCmdDefineGBMob body;
+		vmw_cmd_define_gb_mob body;
 	} *cmd;
 
 	mob->id = mob_id;
@@ -574,7 +615,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 		return 0;
 
 	if (likely(num_data_pages == 1)) {
-		mob->pt_level = SVGA3D_MOBFMT_PTDEPTH_0;
+		mob->pt_level = VMW_MOBFMT_PTDEPTH_0;
 		mob->pt_root_page = vmw_piter_dma_addr(&data_iter);
 	} else if (vsgt->num_regions == 1) {
 		mob->pt_level = SVGA3D_MOBFMT_RANGE;
@@ -586,6 +627,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 		vmw_mob_pt_setup(mob, data_iter, num_data_pages);
 		pt_set_up = true;
+		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
 	}
 
 	(void) vmw_3d_resource_inc(dev_priv, false);
@@ -597,7 +639,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 		goto out_no_cmd_space;
 	}
 
-	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_MOB;
+	cmd->header.id = VMW_ID_DEFINE_GB_MOB;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.mobid = mob_id;
 	cmd->body.ptDepth = mob->pt_level;

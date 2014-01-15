@@ -35,6 +35,7 @@
 #include "svga_reg.h"
 
 typedef uint32 PPN;
+typedef __le64 PPN64;
 
 /*
  * 3D Hardware Version
@@ -1200,7 +1201,7 @@ typedef enum {
 #define SVGA_3D_CMD_DESTROY_GB_SHADER        1113
 #define SVGA_3D_CMD_BIND_GB_SHADER           1114
 
-#define SVGA_3D_CMD_BIND_SHADERCONSTS        1115
+#define SVGA_3D_CMD_SET_OTABLE_BASE64        1115
 
 #define SVGA_3D_CMD_BEGIN_GB_QUERY           1116
 #define SVGA_3D_CMD_END_GB_QUERY             1117
@@ -1223,7 +1224,10 @@ typedef enum {
 
 #define SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE  1130
 
-#define SVGA_3D_CMD_MAX                      1131
+#define SVGA_3D_CMD_DEFINE_GB_MOB64          1135
+#define SVGA_3D_CMD_REDEFINE_GB_MOB64        1136
+
+#define SVGA_3D_CMD_MAX                      1142
 #define SVGA_3D_CMD_FUTURE_MAX               3000
 
 /*
@@ -1927,6 +1931,9 @@ typedef enum SVGAMobFormat {
    SVGA3D_MOBFMT_PTDEPTH_1 = 1,
    SVGA3D_MOBFMT_PTDEPTH_2 = 2,
    SVGA3D_MOBFMT_RANGE     = 3,
+   SVGA3D_MOBFMT_PTDEPTH64_0 = 4,
+   SVGA3D_MOBFMT_PTDEPTH64_1 = 5,
+   SVGA3D_MOBFMT_PTDEPTH64_2 = 6,
    SVGA3D_MOBFMT_MAX,
 } SVGAMobFormat;
 
@@ -1971,6 +1978,15 @@ struct {
 typedef
 struct {
    SVGAOTableType type;
+   PPN64 baseAddress;
+   uint32 sizeInBytes;
+   uint32 validSizeInBytes;
+   SVGAMobFormat ptDepth;
+} SVGA3dCmdSetOTableBase64;  /* SVGA_3D_CMD_SET_OTABLE_BASE64 */
+
+typedef
+struct {
+   SVGAOTableType type;
 } SVGA3dCmdReadbackOTable;  /* SVGA_3D_CMD_READBACK_OTABLE */
 
 /*
@@ -2006,6 +2022,32 @@ struct SVGA3dCmdRedefineGBMob {
    PPN base;
    uint32 sizeInBytes;
 } SVGA3dCmdRedefineGBMob;   /* SVGA_3D_CMD_REDEFINE_GB_MOB */
+
+/*
+ * Define a memory object (Mob) in the OTable with a PPN64 base.
+ */
+
+typedef
+struct SVGA3dCmdDefineGBMob64 {
+   SVGAMobId mobid;
+   SVGAMobFormat ptDepth;
+   PPN64 base;
+   uint32 sizeInBytes;
+}
+SVGA3dCmdDefineGBMob64;   /* SVGA_3D_CMD_DEFINE_GB_MOB64 */
+
+/*
+ * Redefine an object in the OTable with PPN64 base.
+ */
+
+typedef
+struct SVGA3dCmdRedefineGBMob64 {
+   SVGAMobId mobid;
+   SVGAMobFormat ptDepth;
+   PPN64 base;
+   uint32 sizeInBytes;
+}
+SVGA3dCmdRedefineGBMob64;   /* SVGA_3D_CMD_REDEFINE_GB_MOB64 */
 
 /*
  * Notification that the page tables have been modified.
@@ -2242,14 +2284,6 @@ typedef struct SVGA3dCmdBindGBShader {
 typedef struct SVGA3dCmdDestroyGBShader {
    uint32 shid;
 } SVGA3dCmdDestroyGBShader;   /* SVGA_3D_CMD_DESTROY_GB_SHADER */
-
-
-typedef struct SVGA3dCmdBindGBShaderConsts {
-   uint32 cid;
-   SVGA3dShaderType shaderType;
-   SVGA3dShaderConstType shaderConstType;
-   uint32 sid;
-} SVGA3dCmdBindGBShaderConsts;   /* SVGA_3D_CMD_BIND_SHADERCONSTS */
 
 typedef
 struct {
