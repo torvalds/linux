@@ -1666,12 +1666,8 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 
 	if (fld.flowidn_iif) {
 		struct net_device *dev;
-		if ((dev = dev_get_by_index(&init_net, fld.flowidn_iif)) == NULL) {
-			kfree_skb(skb);
-			return -ENODEV;
-		}
-		if (!dev->dn_ptr) {
-			dev_put(dev);
+		dev = __dev_get_by_index(&init_net, fld.flowidn_iif);
+		if (!dev || !dev->dn_ptr) {
 			kfree_skb(skb);
 			return -ENODEV;
 		}
@@ -1693,8 +1689,6 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		err = dn_route_output_key((struct dst_entry **)&rt, &fld, 0);
 	}
 
-	if (skb->dev)
-		dev_put(skb->dev);
 	skb->dev = NULL;
 	if (err)
 		goto out_free;

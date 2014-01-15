@@ -741,10 +741,9 @@ static int vxlan_fdb_parse(struct nlattr *tb[], struct vxlan_dev *vxlan,
 		if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))
 			return -EINVAL;
 		*ifindex = nla_get_u32(tb[NDA_IFINDEX]);
-		tdev = dev_get_by_index(net, *ifindex);
+		tdev = __dev_get_by_index(net, *ifindex);
 		if (!tdev)
 			return -EADDRNOTAVAIL;
-		dev_put(tdev);
 	} else {
 		*ifindex = 0;
 	}

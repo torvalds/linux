@@ -395,6 +395,7 @@ static int __eql_insert_slave(slave_queue_t *queue, slave_t *slave)
 		if (duplicate_slave)
 			eql_kill_one_slave(queue, duplicate_slave);
 
+		dev_hold(slave->dev);
 		list_add(&slave->list, &queue->all_slaves);
 		queue->num_slaves++;
 		slave->dev->flags |= IFF_SLAVE;
@@ -413,39 +414,35 @@ static int eql_enslave(struct net_device *master_dev, slaving_request_t __user *
 	if (copy_from_user(&srq, srqp, sizeof (slaving_request_t)))
 		return -EFAULT;
 
-	slave_dev  = dev_get_by_name(&init_net, srq.slave_name);
-	if (slave_dev) {
-		if ((master_dev->flags & IFF_UP) == IFF_UP) {
-			/* slave is not a master & not already a slave: */
-			if (!eql_is_master(slave_dev) &&
-			    !eql_is_slave(slave_dev)) {
-				slave_t *s = kmalloc(sizeof(*s), GFP_KERNEL);
-				equalizer_t *eql = netdev_priv(master_dev);
-				int ret;
+	slave_dev = __dev_get_by_name(&init_net, srq.slave_name);
+	if (!slave_dev)
+		return -ENODEV;
 
-				if (!s) {
-					dev_put(slave_dev);
-					return -ENOMEM;
-				}
+	if ((master_dev->flags & IFF_UP) == IFF_UP) {
+		/* slave is not a master & not already a slave: */
+		if (!eql_is_master(slave_dev) && !eql_is_slave(slave_dev)) {
+			slave_t *s = kmalloc(sizeof(*s), GFP_KERNEL);
+			equalizer_t *eql = netdev_priv(master_dev);
+			int ret;
 
-				memset(s, 0, sizeof(*s));
-				s->dev = slave_dev;
-				s->priority = srq.priority;
-				s->priority_bps = srq.priority;
-				s->priority_Bps = srq.priority / 8;
+			if (!s)
+				return -ENOMEM;
 
-				spin_lock_bh(&eql->queue.lock);
-				ret = __eql_insert_slave(&eql->queue, s);
-				if (ret) {
-					dev_put(slave_dev);
-					kfree(s);
-				}
-				spin_unlock_bh(&eql->queue.lock);
+			memset(s, 0, sizeof(*s));
+			s->dev = slave_dev;
+			s->priority = srq.priority;
+			s->priority_bps = srq.priority;
+			s->priority_Bps = srq.priority / 8;
 
-				return ret;
-			}
+			spin_lock_bh(&eql->queue.lock);
+			ret = __eql_insert_slave(&eql->queue, s);
+			if (ret)
+				kfree(s);
+
+			spin_unlock_bh(&eql->queue.lock);
+
+			return ret;
 		}
-		dev_put(slave_dev);
 	}
 
 	return -EINVAL;
@@ -461,24 +458,20 @@ static int eql_emancipate(struct net_device *master_dev, slaving_request_t __use
 	if (copy_from_user(&srq, srqp, sizeof (slaving_request_t)))
 		return -EFAULT;
 
-	slave_dev = dev_get_by_name(&init_net, srq.slave_name);
+	slave_dev = __dev_get_by_name(&init_net, srq.slave_name);
+	if (!slave_dev)
+		return -ENODEV;
+
 	ret = -EINVAL;
-	if (slave_dev) {
-		spin_lock_bh(&eql->queue.lock);
-
-		if (eql_is_slave(slave_dev)) {
-			slave_t *slave = __eql_find_slave_dev(&eql->queue,
-							      slave_dev);
-
-			if (slave) {
-				eql_kill_one_slave(&eql->queue, slave);
-				ret = 0;
-			}
+	spin_lock_bh(&eql->queue.lock);
+	if (eql_is_slave(slave_dev)) {
+		slave_t *slave = __eql_find_slave_dev(&eql->queue, slave_dev);
+		if (slave) {
+			eql_kill_one_slave(&eql->queue, slave);
+			ret = 0;
 		}
-		dev_put(slave_dev);
-
-		spin_unlock_bh(&eql->queue.lock);
 	}
+	spin_unlock_bh(&eql->queue.lock);
 
 	return ret;
 }
@@ -494,7 +487,7 @@ static int eql_g_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 	if (copy_from_user(&sc, scp, sizeof (slave_config_t)))
 		return -EFAULT;
 
-	slave_dev = dev_get_by_name(&init_net, sc.slave_name);
+	slave_dev = __dev_get_by_name(&init_net, sc.slave_name);
 	if (!slave_dev)
 		return -ENODEV;
 
@@ -509,8 +502,6 @@ static int eql_g_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 		}
 	}
 	spin_unlock_bh(&eql->queue.lock);
-
-	dev_put(slave_dev);
 
 	if (!ret && copy_to_user(scp, &sc, sizeof (slave_config_t)))
 		ret = -EFAULT;
@@ -529,7 +520,7 @@ static int eql_s_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 	if (copy_from_user(&sc, scp, sizeof (slave_config_t)))
 		return -EFAULT;
 
-	slave_dev = dev_get_by_name(&init_net, sc.slave_name);
+	slave_dev = __dev_get_by_name(&init_net, sc.slave_name);
 	if (!slave_dev)
 		return -ENODEV;
 
@@ -547,8 +538,6 @@ static int eql_s_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 		}
 	}
 	spin_unlock_bh(&eql->queue.lock);
-
-	dev_put(slave_dev);
 
 	return ret;
 }

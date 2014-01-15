@@ -3213,37 +3213,34 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	slave_dev = dev_get_by_name(net, ifr->ifr_slave);
+	slave_dev = __dev_get_by_name(net, ifr->ifr_slave);
 
 	pr_debug("slave_dev=%p:\n", slave_dev);
 
 	if (!slave_dev)
-		res = -ENODEV;
-	else {
-		pr_debug("slave_dev->name=%s:\n", slave_dev->name);
-		switch (cmd) {
-		case BOND_ENSLAVE_OLD:
-		case SIOCBONDENSLAVE:
-			res = bond_enslave(bond_dev, slave_dev);
-			break;
-		case BOND_RELEASE_OLD:
-		case SIOCBONDRELEASE:
-			res = bond_release(bond_dev, slave_dev);
-			break;
-		case BOND_SETHWADDR_OLD:
-		case SIOCBONDSETHWADDR:
-			bond_set_dev_addr(bond_dev, slave_dev);
-			res = 0;
-			break;
-		case BOND_CHANGE_ACTIVE_OLD:
-		case SIOCBONDCHANGEACTIVE:
-			res = bond_option_active_slave_set(bond, slave_dev);
-			break;
-		default:
-			res = -EOPNOTSUPP;
-		}
+		return -ENODEV;
 
-		dev_put(slave_dev);
+	pr_debug("slave_dev->name=%s:\n", slave_dev->name);
+	switch (cmd) {
+	case BOND_ENSLAVE_OLD:
+	case SIOCBONDENSLAVE:
+		res = bond_enslave(bond_dev, slave_dev);
+		break;
+	case BOND_RELEASE_OLD:
+	case SIOCBONDRELEASE:
+		res = bond_release(bond_dev, slave_dev);
+		break;
+	case BOND_SETHWADDR_OLD:
+	case SIOCBONDSETHWADDR:
+		bond_set_dev_addr(bond_dev, slave_dev);
+		res = 0;
+		break;
+	case BOND_CHANGE_ACTIVE_OLD:
+	case SIOCBONDCHANGEACTIVE:
+		res = bond_option_active_slave_set(bond, slave_dev);
+		break;
+	default:
+		res = -EOPNOTSUPP;
 	}
 
 	return res;
