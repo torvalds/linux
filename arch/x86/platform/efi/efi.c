@@ -65,8 +65,6 @@ struct efi_memory_map memmap;
 static struct efi efi_phys __initdata;
 static efi_system_table_t efi_systab __initdata;
 
-unsigned long x86_efi_facility;
-
 static __initdata efi_config_table_type_t arch_tables[] = {
 #ifdef CONFIG_X86_UV
 	{UV_SYSTEM_TABLE_GUID, "UVsystab", &efi.uv_systab},
@@ -82,6 +80,8 @@ int efi_enabled(int facility)
 	return test_bit(facility, &x86_efi_facility) != 0;
 }
 EXPORT_SYMBOL(efi_enabled);
+
+u64 efi_setup;		/* efi setup_data physical address */
 
 static bool __initdata disable_runtime = false;
 static int __init setup_noefi(char *arg)
@@ -450,7 +450,7 @@ void __init efi_reserve_boot_services(void)
 
 void __init efi_unmap_memmap(void)
 {
-	clear_bit(EFI_MEMMAP, &x86_efi_facility);
+	clear_bit(EFI_MEMMAP, &efi.flags);
 	if (memmap.map) {
 		early_iounmap(memmap.map, memmap.nr_map * memmap.desc_size);
 		memmap.map = NULL;
@@ -647,7 +647,7 @@ void __init efi_init(void)
 	if (efi_systab_init(efi_phys.systab))
 		return;
 
-	set_bit(EFI_SYSTEM_TABLES, &x86_efi_facility);
+	set_bit(EFI_SYSTEM_TABLES, &efi.flags);
 
 	/*
 	 * Show what we know for posterity
@@ -668,7 +668,7 @@ void __init efi_init(void)
 	if (efi_config_init(arch_tables))
 		return;
 
-	set_bit(EFI_CONFIG_TABLES, &x86_efi_facility);
+	set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
 	/*
 	 * Note: We currently don't support runtime services on an EFI
@@ -680,13 +680,13 @@ void __init efi_init(void)
 	else {
 		if (disable_runtime || efi_runtime_init())
 			return;
-		set_bit(EFI_RUNTIME_SERVICES, &x86_efi_facility);
+		set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 	}
 
 	if (efi_memmap_init())
 		return;
 
-	set_bit(EFI_MEMMAP, &x86_efi_facility);
+	set_bit(EFI_MEMMAP, &efi.flags);
 
 #ifdef CONFIG_X86_32
 	if (efi_is_native()) {
