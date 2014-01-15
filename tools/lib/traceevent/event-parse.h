@@ -105,7 +105,7 @@ typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 					 void *context);
 
 typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
-typedef int (*pevent_plugin_unload_func)(void);
+typedef int (*pevent_plugin_unload_func)(struct pevent *pevent);
 
 struct plugin_option {
 	struct plugin_option		*next;
@@ -130,7 +130,7 @@ struct plugin_option {
  * PEVENT_PLUGIN_UNLOADER:  (optional)
  *   The function called just before unloading
  *
- *   int PEVENT_PLUGIN_UNLOADER(void)
+ *   int PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
  *
  * PEVENT_PLUGIN_OPTIONS:  (optional)
  *   Plugin options that can be set before loading
@@ -411,7 +411,8 @@ enum pevent_errno {
 struct plugin_list;
 
 struct plugin_list *traceevent_load_plugins(struct pevent *pevent);
-void traceevent_unload_plugins(struct plugin_list *plugin_list);
+void traceevent_unload_plugins(struct plugin_list *plugin_list,
+			       struct pevent *pevent);
 
 struct cmdline;
 struct cmdline_list;

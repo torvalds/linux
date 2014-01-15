@@ -34,8 +34,8 @@ int trace_event__init(struct trace_event *t)
 
 void trace_event__cleanup(struct trace_event *t)
 {
+	traceevent_unload_plugins(t->plugin_list, t->pevent);
 	pevent_free(t->pevent);
-	traceevent_unload_plugins(t->plugin_list);
 }
 
 static struct event_format*

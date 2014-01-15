@@ -144,7 +144,7 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 	return 0;
 }
 
-void PEVENT_PLUGIN_UNLOADER(void)
+void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
 {
 	int i, x;
 
