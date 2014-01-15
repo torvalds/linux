@@ -111,6 +111,12 @@ fw_memblock_t * __init fw_getmdesc(int eva)
 	return &mdesc[0];
 }
 
+static void free_init_pages_eva_malta(void *begin, void *end)
+{
+	free_init_pages("unused kernel", __pa_symbol((unsigned long *)begin),
+			__pa_symbol((unsigned long *)end));
+}
+
 static int __init fw_memtype_classify(unsigned int type)
 {
 	switch (type) {
@@ -128,6 +134,8 @@ void __init fw_meminit(void)
 	fw_memblock_t *p;
 
 	p = fw_getmdesc(config_enabled(CONFIG_EVA));
+	free_init_pages_eva = (config_enabled(CONFIG_EVA) ?
+			       free_init_pages_eva_malta : NULL);
 
 	while (p->size) {
 		long type;
