@@ -2006,6 +2006,9 @@ config MIPS_CMP
 config MIPS_GIC_IPI
 	bool
 
+config MIPS_CM
+	bool
+
 config SB1_PASS_1_WORKAROUNDS
 	bool
 	depends on CPU_SB1_PASS_1
