@@ -123,6 +123,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 				     struct asoc_simple_card_info *info,
 				     struct device *dev)
 {
+	struct snd_soc_dai_link *dai_link = info->snd_card.dai_link;
 	struct device_node *np;
 	char *name;
 	int ret;
@@ -145,7 +146,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (np)
 		ret = asoc_simple_card_sub_parse_of(np,
 						  &info->cpu_dai,
-						  &info->snd_link.cpu_of_node);
+						  &dai_link->cpu_of_node);
 	if (ret < 0)
 		return ret;
 
@@ -155,7 +156,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (np)
 		ret = asoc_simple_card_sub_parse_of(np,
 						  &info->codec_dai,
-						  &info->snd_link.codec_of_node);
+						  &dai_link->codec_of_node);
 	if (ret < 0)
 		return ret;
 
@@ -169,10 +170,10 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			    GFP_KERNEL);
 	sprintf(name, "%s-%s", info->cpu_dai.name, info->codec_dai.name);
 	info->snd_card.name = name;
-	info->snd_link.name = info->snd_link.stream_name = name;
+	dai_link->name = dai_link->stream_name = name;
 
 	/* simple-card assumes platform == cpu */
-	info->snd_link.platform_of_node = info->snd_link.cpu_of_node;
+	dai_link->platform_of_node = dai_link->cpu_of_node;
 
 	dev_dbg(dev, "card-name : %s\n", name);
 	dev_dbg(dev, "platform : %04x\n", info->daifmt);
@@ -191,6 +192,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 static int asoc_simple_card_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_card_info *cinfo;
+	struct snd_soc_dai_link *dai_link;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	int ret;
@@ -204,8 +206,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	 */
 	cinfo->snd_card.owner		= THIS_MODULE;
 	cinfo->snd_card.dev = dev;
-	cinfo->snd_card.dai_link	= &cinfo->snd_link;
-	cinfo->snd_card.num_links	= 1;
+	dai_link = &cinfo->snd_link;
+	cinfo->snd_card.dai_link = dai_link;
+	cinfo->snd_card.num_links = 1;
 
 	if (np && of_device_is_available(np)) {
 
@@ -233,18 +236,18 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		}
 
 		cinfo->snd_card.name		= cinfo->card;
-		cinfo->snd_link.name		= cinfo->name;
-		cinfo->snd_link.stream_name	= cinfo->name;
-		cinfo->snd_link.platform_name	= cinfo->platform;
-		cinfo->snd_link.codec_name	= cinfo->codec;
+		dai_link->name		= cinfo->name;
+		dai_link->stream_name	= cinfo->name;
+		dai_link->platform_name	= cinfo->platform;
+		dai_link->codec_name	= cinfo->codec;
 	}
 
 	/*
 	 * init snd_soc_dai_link
 	 */
-	cinfo->snd_link.cpu_dai_name	= cinfo->cpu_dai.name;
-	cinfo->snd_link.codec_dai_name	= cinfo->codec_dai.name;
-	cinfo->snd_link.init		= asoc_simple_card_dai_init;
+	dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
+	dai_link->codec_dai_name = cinfo->codec_dai.name;
+	dai_link->init = asoc_simple_card_dai_init;
 
 	snd_soc_card_set_drvdata(&cinfo->snd_card, cinfo);
 
