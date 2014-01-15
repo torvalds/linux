@@ -156,6 +156,7 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_FLASH_UPDATE			78
 #define OPAL_GET_MSG				85
 #define OPAL_CHECK_ASYNC_COMPLETION		86
+#define OPAL_SYNC_HOST_REBOOT			87
 
 #ifndef __ASSEMBLY__
 
@@ -828,6 +829,7 @@ int64_t opal_update_flash(uint64_t blk_list);
 
 int64_t opal_get_msg(uint64_t buffer, size_t size);
 int64_t opal_check_completion(uint64_t buffer, size_t size, uint64_t token);
+int64_t opal_sync_host_reboot(void);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname, int depth, void *data);
