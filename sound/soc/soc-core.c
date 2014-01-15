@@ -3484,7 +3484,7 @@ int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return dai->codec->driver->set_sysclk(dai->codec, clk_id, 0,
 						      freq, dir);
 	else
-		return -EINVAL;
+		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 
@@ -3505,7 +3505,7 @@ int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		return codec->driver->set_sysclk(codec, clk_id, source,
 						 freq, dir);
 	else
-		return -EINVAL;
+		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_sysclk);
 
