@@ -2156,6 +2156,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	int err, reserve = 0;
 	void *ph;
 	struct sockaddr_ll *saddr = (struct sockaddr_ll *)msg->msg_name;
+	bool need_wait = !(msg->msg_flags & MSG_DONTWAIT);
 	int tp_len, size_max;
 	unsigned char *addr;
 	int len_sum = 0;
@@ -2198,10 +2199,10 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 
 	do {
 		ph = packet_current_frame(po, &po->tx_ring,
-				TP_STATUS_SEND_REQUEST);
-
+					  TP_STATUS_SEND_REQUEST);
 		if (unlikely(ph == NULL)) {
-			schedule();
+			if (need_wait && need_resched())
+				schedule();
 			continue;
 		}
 
@@ -2255,10 +2256,8 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		}
 		packet_increment_head(&po->tx_ring);
 		len_sum += tp_len;
-	} while (likely((ph != NULL) ||
-			((!(msg->msg_flags & MSG_DONTWAIT)) &&
-			 (atomic_read(&po->tx_ring.pending))))
-		);
+	} while (likely((ph != NULL) || (need_wait &&
+					 atomic_read(&po->tx_ring.pending))));
 
 	err = len_sum;
 	goto out_put;
