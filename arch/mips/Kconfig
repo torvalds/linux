@@ -1996,11 +1996,15 @@ config MIPS_VPE_APSP_API_MT
 config MIPS_CMP
 	bool "MIPS CMP support"
 	depends on SYS_SUPPORTS_MIPS_CMP && MIPS_MT_SMP
+	select MIPS_GIC_IPI
 	select SYNC_R4K
 	select WEAK_ORDERING
 	default n
 	help
 	  Enable Coherency Manager processor (CMP) support.
+
+config MIPS_GIC_IPI
+	bool
 
 config SB1_PASS_1_WORKAROUNDS
 	bool
