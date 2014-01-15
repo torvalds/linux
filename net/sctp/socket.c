@@ -2527,6 +2527,16 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	return 0;
 }
 
+static inline __u32 sctp_spp_sackdelay_enable(__u32 param_flags)
+{
+	return (param_flags & ~SPP_SACKDELAY) | SPP_SACKDELAY_ENABLE;
+}
+
+static inline __u32 sctp_spp_sackdelay_disable(__u32 param_flags)
+{
+	return (param_flags & ~SPP_SACKDELAY) | SPP_SACKDELAY_DISABLE;
+}
+
 /*
  * 7.1.23.  Get or set delayed ack timer (SCTP_DELAYED_SACK)
  *
@@ -2610,37 +2620,31 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 			asoc->sackdelay =
 				msecs_to_jiffies(params.sack_delay);
 			asoc->param_flags =
-				(asoc->param_flags & ~SPP_SACKDELAY) |
-				SPP_SACKDELAY_ENABLE;
+				sctp_spp_sackdelay_enable(asoc->param_flags);
 		} else {
 			sp->sackdelay = params.sack_delay;
 			sp->param_flags =
-				(sp->param_flags & ~SPP_SACKDELAY) |
-				SPP_SACKDELAY_ENABLE;
+				sctp_spp_sackdelay_enable(sp->param_flags);
 		}
 	}
 
 	if (params.sack_freq == 1) {
 		if (asoc) {
 			asoc->param_flags =
-				(asoc->param_flags & ~SPP_SACKDELAY) |
-				SPP_SACKDELAY_DISABLE;
+				sctp_spp_sackdelay_disable(asoc->param_flags);
 		} else {
 			sp->param_flags =
-				(sp->param_flags & ~SPP_SACKDELAY) |
-				SPP_SACKDELAY_DISABLE;
+				sctp_spp_sackdelay_disable(sp->param_flags);
 		}
 	} else if (params.sack_freq > 1) {
 		if (asoc) {
 			asoc->sackfreq = params.sack_freq;
 			asoc->param_flags =
-				(asoc->param_flags & ~SPP_SACKDELAY) |
-				SPP_SACKDELAY_ENABLE;
+				sctp_spp_sackdelay_enable(asoc->param_flags);
 		} else {
 			sp->sackfreq = params.sack_freq;
 			sp->param_flags =
-				(sp->param_flags & ~SPP_SACKDELAY) |
-				SPP_SACKDELAY_ENABLE;
+				sctp_spp_sackdelay_enable(sp->param_flags);
 		}
 	}
 
@@ -2652,18 +2656,15 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 				trans->sackdelay =
 					msecs_to_jiffies(params.sack_delay);
 				trans->param_flags =
-					(trans->param_flags & ~SPP_SACKDELAY) |
-					SPP_SACKDELAY_ENABLE;
+					sctp_spp_sackdelay_enable(trans->param_flags);
 			}
 			if (params.sack_freq == 1) {
 				trans->param_flags =
-					(trans->param_flags & ~SPP_SACKDELAY) |
-					SPP_SACKDELAY_DISABLE;
+					sctp_spp_sackdelay_disable(trans->param_flags);
 			} else if (params.sack_freq > 1) {
 				trans->sackfreq = params.sack_freq;
 				trans->param_flags =
-					(trans->param_flags & ~SPP_SACKDELAY) |
-					SPP_SACKDELAY_ENABLE;
+					sctp_spp_sackdelay_enable(trans->param_flags);
 			}
 		}
 	}
