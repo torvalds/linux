@@ -877,8 +877,12 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	int npages;
 	struct ib_ucontext *context = cq->buf.umem->context;
 
-	if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
-		return -EFAULT;
+	err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
+	if (err)
+		return err;
+
+	if (ucmd.reserved0 || ucmd.reserved1)
+		return -EINVAL;
 
 	umem = ib_umem_get(context, ucmd.buf_addr, entries * ucmd.cqe_size,
 			   IB_ACCESS_LOCAL_WRITE, 1);
