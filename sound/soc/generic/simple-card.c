@@ -60,8 +60,9 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 static int
 asoc_simple_card_sub_parse_of(struct device_node *np,
 			      struct asoc_simple_dai *dai,
-			      struct device_node **node)
+			      const struct device_node **p_node)
 {
+	struct device_node *node;
 	struct clk *clk;
 	int ret;
 
@@ -69,9 +70,10 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	 * get node via "sound-dai = <&phandle port>"
 	 * it will be used as xxx_of_node on soc_bind_dai_link()
 	 */
-	*node = of_parse_phandle(np, "sound-dai", 0);
-	if (!*node)
+	node = of_parse_phandle(np, "sound-dai", 0);
+	if (!node)
 		return -ENODEV;
+	*p_node = node;
 
 	/* get dai->name */
 	ret = snd_soc_of_get_dai_name(np, &dai->name);
@@ -104,7 +106,7 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 				     "system-clock-frequency",
 				     &dai->sysclk);
 	} else {
-		clk = of_clk_get(*node, 0);
+		clk = of_clk_get(node, 0);
 		if (!IS_ERR(clk))
 			dai->sysclk = clk_get_rate(clk);
 	}
@@ -112,17 +114,14 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	ret = 0;
 
 parse_error:
-	of_node_put(*node);
+	of_node_put(node);
 
 	return ret;
 }
 
 static int asoc_simple_card_parse_of(struct device_node *node,
 				     struct asoc_simple_card_info *info,
-				     struct device *dev,
-				     struct device_node **of_cpu,
-				     struct device_node **of_codec,
-				     struct device_node **of_platform)
+				     struct device *dev)
 {
 	struct device_node *np;
 	char *name;
@@ -146,7 +145,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (np)
 		ret = asoc_simple_card_sub_parse_of(np,
 						  &info->cpu_dai,
-						  of_cpu);
+						  &info->snd_link.cpu_of_node);
 	if (ret < 0)
 		return ret;
 
@@ -156,7 +155,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (np)
 		ret = asoc_simple_card_sub_parse_of(np,
 						  &info->codec_dai,
-						  of_codec);
+						  &info->snd_link.codec_of_node);
 	if (ret < 0)
 		return ret;
 
@@ -173,7 +172,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	info->snd_link.name = info->snd_link.stream_name = name;
 
 	/* simple-card assumes platform == cpu */
-	*of_platform = *of_cpu;
+	info->snd_link.platform_of_node = info->snd_link.cpu_of_node;
 
 	dev_dbg(dev, "card-name : %s\n", name);
 	dev_dbg(dev, "platform : %04x\n", info->daifmt);
@@ -193,34 +192,29 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_card_info *cinfo;
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *of_cpu, *of_codec, *of_platform;
 	struct device *dev = &pdev->dev;
 	int ret;
-
-	cinfo		= NULL;
-	of_cpu		= NULL;
-	of_codec	= NULL;
-	of_platform	= NULL;
 
 	cinfo = devm_kzalloc(dev, sizeof(*cinfo), GFP_KERNEL);
 	if (!cinfo)
 		return -ENOMEM;
 
-	if (np && of_device_is_available(np)) {
-		cinfo->snd_card.dev = dev;
+	/*
+	 * init snd_soc_card
+	 */
+	cinfo->snd_card.owner		= THIS_MODULE;
+	cinfo->snd_card.dev = dev;
+	cinfo->snd_card.dai_link	= &cinfo->snd_link;
+	cinfo->snd_card.num_links	= 1;
 
-		ret = asoc_simple_card_parse_of(np, cinfo, dev,
-						&of_cpu,
-						&of_codec,
-						&of_platform);
+	if (np && of_device_is_available(np)) {
+
+		ret = asoc_simple_card_parse_of(np, cinfo, dev);
 		if (ret < 0) {
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev, "parse error %d\n", ret);
 			return ret;
 		}
-		cinfo->snd_link.cpu_of_node	= of_cpu;
-		cinfo->snd_link.codec_of_node	= of_codec;
-		cinfo->snd_link.platform_of_node = of_platform;
 	} else {
 		if (!dev->platform_data) {
 			dev_err(dev, "no info for asoc-simple-card\n");
@@ -228,8 +222,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		}
 
 		memcpy(cinfo, dev->platform_data, sizeof(*cinfo));
-		cinfo->snd_card.dev = dev;
-
 		if (!cinfo->name	||
 		    !cinfo->card	||
 		    !cinfo->codec_dai.name	||
@@ -253,13 +245,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	cinfo->snd_link.cpu_dai_name	= cinfo->cpu_dai.name;
 	cinfo->snd_link.codec_dai_name	= cinfo->codec_dai.name;
 	cinfo->snd_link.init		= asoc_simple_card_dai_init;
-
-	/*
-	 * init snd_soc_card
-	 */
-	cinfo->snd_card.owner		= THIS_MODULE;
-	cinfo->snd_card.dai_link	= &cinfo->snd_link;
-	cinfo->snd_card.num_links	= 1;
 
 	snd_soc_card_set_drvdata(&cinfo->snd_card, cinfo);
 
