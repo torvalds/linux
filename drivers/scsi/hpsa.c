@@ -598,7 +598,7 @@ static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
 {
 	if (likely(h->transMethod & CFGTBL_Trans_Performant)) {
 		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
-		if (likely(h->msix_vector))
+		if (likely(h->msix_vector > 0))
 			c->Header.ReplyQueue =
 				raw_smp_processor_id() % h->nreply_queues;
 	}
@@ -4169,21 +4169,24 @@ static void hpsa_interrupt_mode(struct ctlr_info *h)
 		goto default_int_mode;
 	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSIX)) {
 		dev_info(&h->pdev->dev, "MSIX\n");
+		h->msix_vector = MAX_REPLY_QUEUES;
 		err = pci_enable_msix(h->pdev, hpsa_msix_entries,
-						MAX_REPLY_QUEUES);
-		if (!err) {
-			for (i = 0; i < MAX_REPLY_QUEUES; i++)
-				h->intr[i] = hpsa_msix_entries[i].vector;
-			h->msix_vector = 1;
-			return;
-		}
+				      h->msix_vector);
 		if (err > 0) {
 			dev_warn(&h->pdev->dev, "only %d MSI-X vectors "
 			       "available\n", err);
-			goto default_int_mode;
+			h->msix_vector = err;
+			err = pci_enable_msix(h->pdev, hpsa_msix_entries,
+					      h->msix_vector);
+		}
+		if (!err) {
+			for (i = 0; i < h->msix_vector; i++)
+				h->intr[i] = hpsa_msix_entries[i].vector;
+			return;
 		} else {
 			dev_warn(&h->pdev->dev, "MSI-X init failed %d\n",
 			       err);
+			h->msix_vector = 0;
 			goto default_int_mode;
 		}
 	}
@@ -4597,15 +4600,15 @@ static int hpsa_request_irq(struct ctlr_info *h,
 	for (i = 0; i < MAX_REPLY_QUEUES; i++)
 		h->q[i] = (u8) i;
 
-	if (h->intr_mode == PERF_MODE_INT && h->msix_vector) {
+	if (h->intr_mode == PERF_MODE_INT && h->msix_vector > 0) {
 		/* If performant mode and MSI-X, use multiple reply queues */
-		for (i = 0; i < MAX_REPLY_QUEUES; i++)
+		for (i = 0; i < h->msix_vector; i++)
 			rc = request_irq(h->intr[i], msixhandler,
 					0, h->devname,
 					&h->q[i]);
 	} else {
 		/* Use single reply pool */
-		if (h->msix_vector || h->msi_vector) {
+		if (h->msix_vector > 0 || h->msi_vector) {
 			rc = request_irq(h->intr[h->intr_mode],
 				msixhandler, 0, h->devname,
 				&h->q[h->intr_mode]);
@@ -4658,7 +4661,7 @@ static void free_irqs(struct ctlr_info *h)
 		return;
 	}
 
-	for (i = 0; i < MAX_REPLY_QUEUES; i++)
+	for (i = 0; i < h->msix_vector; i++)
 		free_irq(h->intr[i], &h->q[i]);
 }
 
@@ -5178,7 +5181,7 @@ static void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 	if (!(trans_support & PERFORMANT_MODE))
 		return;
 
-	h->nreply_queues = h->msix_vector ? MAX_REPLY_QUEUES : 1;
+	h->nreply_queues = h->msix_vector > 0 ? h->msix_vector : 1;
 	hpsa_get_max_perf_mode_cmds(h);
 	/* Performant mode ring buffer and supporting data structures */
 	h->reply_pool_size = h->max_commands * sizeof(u64) * h->nreply_queues;
