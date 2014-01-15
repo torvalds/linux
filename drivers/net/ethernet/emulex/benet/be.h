@@ -283,7 +283,6 @@ struct be_rx_compl_info {
 	u32 rss_hash;
 	u16 vlan_tag;
 	u16 pkt_size;
-	u16 rxq_idx;
 	u16 port;
 	u8 vlanf;
 	u8 num_rcvd;
