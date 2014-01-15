@@ -252,6 +252,7 @@ F:	Documentation/ABI/testing/sysfs-bus-acpi
 F:	drivers/pci/*acpi*
 F:	drivers/pci/*/*acpi*
 F:	drivers/pci/*/*/*acpi*
+F:	tools/power/acpi
 
 ACPI COMPONENT ARCHITECTURE (ACPICA)
 M:	Robert Moore <robert.moore@intel.com>
@@ -266,6 +267,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
 S:	Supported
 F:	drivers/acpi/acpica/
 F:	include/acpi/
+F:	tools/power/acpi/
 
 ACPI FAN DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
