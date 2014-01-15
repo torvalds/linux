@@ -280,7 +280,8 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	/* Decide if the new MAC is successfully activated only after
 	 * querying the FW
 	 */
-	status = be_cmd_get_active_mac(adapter, curr_pmac_id, mac);
+	status = be_cmd_get_active_mac(adapter, curr_pmac_id, mac,
+				       adapter->if_handle, true, 0);
 	if (status)
 		goto err;
 
@@ -2872,14 +2873,11 @@ static int be_vfs_mac_query(struct be_adapter *adapter)
 	int status, vf;
 	u8 mac[ETH_ALEN];
 	struct be_vf_cfg *vf_cfg;
-	bool active = false;
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		be_cmd_get_mac_from_list(adapter, mac, &active,
-					 &vf_cfg->pmac_id, 0);
-
-		status = be_cmd_mac_addr_query(adapter, mac, false,
-					       vf_cfg->if_handle, 0);
+		status = be_cmd_get_active_mac(adapter, vf_cfg->pmac_id,
+					       mac, vf_cfg->if_handle,
+					       false, vf+1);
 		if (status)
 			return status;
 		memcpy(vf_cfg->mac_addr, mac, ETH_ALEN);

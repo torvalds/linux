@@ -2057,8 +2057,10 @@ int be_cmd_get_fn_privileges(struct be_adapter *adapter, u32 *privilege,
 int be_cmd_set_fn_privileges(struct be_adapter *adapter, u32 privileges,
 			     u32 vf_num);
 int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
-			     bool *pmac_id_active, u32 *pmac_id, u8 domain);
-int be_cmd_get_active_mac(struct be_adapter *adapter, u32 pmac_id, u8 *mac);
+			     bool *pmac_id_active, u32 *pmac_id,
+			     u32 if_handle, u8 domain);
+int be_cmd_get_active_mac(struct be_adapter *adapter, u32 pmac_id, u8 *mac,
+			  u32 if_handle, bool active, u32 domain);
 int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac);
 int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array, u8 mac_count,
 			u32 domain);

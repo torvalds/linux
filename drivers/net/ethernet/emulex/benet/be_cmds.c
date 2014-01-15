@@ -2742,7 +2742,8 @@ err:
  *		  If pmac_id is returned, pmac_id_valid is returned as true
  */
 int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
-			     bool *pmac_id_valid, u32 *pmac_id, u8 domain)
+			     bool *pmac_id_valid, u32 *pmac_id, u32 if_handle,
+			     u8 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_mac_list *req;
@@ -2780,7 +2781,7 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 	req->mac_type = MAC_ADDRESS_TYPE_NETWORK;
 	if (*pmac_id_valid) {
 		req->mac_id = cpu_to_le32(*pmac_id);
-		req->iface_id = cpu_to_le16(adapter->if_handle);
+		req->iface_id = cpu_to_le16(if_handle);
 		req->perm_override = 0;
 	} else {
 		req->perm_override = 1;
@@ -2833,17 +2834,21 @@ out:
 	return status;
 }
 
-int be_cmd_get_active_mac(struct be_adapter *adapter, u32 curr_pmac_id, u8 *mac)
+int be_cmd_get_active_mac(struct be_adapter *adapter, u32 curr_pmac_id, u8 *mac,
+			  u32 if_handle, bool active, u32 domain)
 {
-	bool active = true;
 
+	if (!active)
+		be_cmd_get_mac_from_list(adapter, mac, &active, &curr_pmac_id,
+					 if_handle, domain);
 	if (BEx_chip(adapter))
 		return be_cmd_mac_addr_query(adapter, mac, false,
-					     adapter->if_handle, curr_pmac_id);
+					     if_handle, curr_pmac_id);
 	else
 		/* Fetch the MAC address using pmac_id */
 		return be_cmd_get_mac_from_list(adapter, mac, &active,
-						&curr_pmac_id, 0);
+						&curr_pmac_id,
+						if_handle, domain);
 }
 
 int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac)
@@ -2862,7 +2867,7 @@ int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac)
 						       adapter->if_handle, 0);
 	} else {
 		status = be_cmd_get_mac_from_list(adapter, mac, &pmac_valid,
-						  NULL, 0);
+						  NULL, adapter->if_handle, 0);
 	}
 
 	return status;
@@ -2923,7 +2928,8 @@ int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id, u32 dom)
 	int status;
 
 	status = be_cmd_get_mac_from_list(adapter, old_mac, &active_mac,
-					  &pmac_id, dom);
+					  &pmac_id, if_id, dom);
+
 	if (!status && active_mac)
 		be_cmd_pmac_del(adapter, if_id, pmac_id, dom);
 
