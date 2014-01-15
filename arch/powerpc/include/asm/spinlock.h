@@ -54,6 +54,11 @@
 #define SYNC_IO
 #endif
 
+static __always_inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	return lock.slock == 0;
+}
+
 /*
  * This returns the old value in the lock, so we succeeded
  * in getting the lock if the return value is 0.
