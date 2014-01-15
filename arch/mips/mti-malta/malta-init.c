@@ -21,6 +21,7 @@
 #include <asm/traps.h>
 #include <asm/fw/fw.h>
 #include <asm/mips-cm.h>
+#include <asm/mips-cpc.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/malta.h>
 
@@ -108,6 +109,11 @@ static void __init mips_ejtag_setup(void)
 		(void *)(CAC_BASE + 0x300);
 	memcpy(base, &except_vec_ejtag_debug, 0x80);
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
+}
+
+phys_t mips_cpc_default_phys_base(void)
+{
+	return CPC_BASE_ADDR;
 }
 
 extern struct plat_smp_ops msmtc_smp_ops;
@@ -277,6 +283,7 @@ mips_pci_controller:
 #endif
 	/* Early detection of CMP support */
 	mips_cm_probe();
+	mips_cpc_probe();
 
 	if (!register_cmp_smp_ops())
 		return;
