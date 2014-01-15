@@ -104,20 +104,6 @@ nla_put_failure:
 	goto done;
 }
 
-static void tcf_police_destroy(struct tcf_police *p)
-{
-	spin_lock_bh(&police_hash_info.lock);
-	hlist_del(&p->tcf_head);
-	spin_unlock_bh(&police_hash_info.lock);
-	gen_kill_estimator(&p->tcf_bstats,
-			   &p->tcf_rate_est);
-	/*
-	 * gen_estimator est_timer() might access p->tcf_lock
-	 * or bstats, wait a RCU grace period before freeing p
-	 */
-	kfree_rcu(p, tcf_rcu);
-}
-
 static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 	[TCA_POLICE_RATE]	= { .len = TC_RTAB_SIZE },
 	[TCA_POLICE_PEAKRATE]	= { .len = TC_RTAB_SIZE },
@@ -272,19 +258,9 @@ failure:
 static int tcf_act_police_cleanup(struct tc_action *a, int bind)
 {
 	struct tcf_police *p = a->priv;
-	int ret = 0;
-
-	if (p != NULL) {
-		if (bind)
-			p->tcf_bindcnt--;
-
-		p->tcf_refcnt--;
-		if (p->tcf_refcnt <= 0 && !p->tcf_bindcnt) {
-			tcf_police_destroy(p);
-			ret = 1;
-		}
-	}
-	return ret;
+	if (p)
+		return tcf_hash_release(&p->common, bind, &police_hash_info);
+	return 0;
 }
 
 static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
