@@ -24,17 +24,32 @@
 			" Compiled in " __DATE__ " at " __TIME__ ""
 
 /*========== platform define ==========*/
+/*---------- for sun4i ----------*/
+#ifdef CONFIG_ARCH_SUN4I
+#define REG_FIFO_OS				(0x100)
+#define SMC_IRQNO(x)			(SW_INT_IRQNO_SDMC0 + (x))
+
+#define MMC_SRCCLK_HOSC			"hosc"
+#define MMC_SRCCLK_PLL6			"sdram_pll_p"
+#define MMC_AHBCLK_PREFIX		"ahb_sdc"
+#define MMC_MODCLK_PREFIX		"sdc"
+#define MMC3_DMA_TL				(0x20070008)
+#define MMC_MAX_DMA_DES_BIT		13
+#define MMC_DMA_DES_BIT_LEFT	5
+#endif
+
 /*---------- for sun5i ----------*/
 #ifdef CONFIG_ARCH_SUN5I
-#define REG_FIFO_OS		(0x100)
-#define SMC_IRQNO(x)		(SW_INT_IRQNO_SDMC0 + (x))
+#define REG_FIFO_OS				(0x100)
+#define SMC_IRQNO(x)			(SW_INT_IRQNO_SDMC0 + (x))
 
-#define MMC_SRCCLK_HOSC		"hosc"
-#define MMC_SRCCLK_PLL5		"sdram_pll_p"
-#define MMC_SRCCLK_PLL6		"sata_pll_2"
-#define MMC_AHBCLK_PREFIX	"ahb_sdc"
-#define MMC_MODCLK_PREFIX	"sdc"
-#define MMC3_DMA_TL		(0x20070008)
+#define MMC_SRCCLK_HOSC			"hosc"
+#define MMC_SRCCLK_PLL6			"sata_pll_2"
+#define MMC_AHBCLK_PREFIX		"ahb_sdc"
+#define MMC_MODCLK_PREFIX		"sdc"
+#define MMC3_DMA_TL				(0x20070008)
+#define MMC_MAX_DMA_DES_BIT		16
+#define MMC_DMA_DES_BIT_LEFT	0
 #endif
 
 /*---------- for sun6i ----------*/
@@ -47,6 +62,8 @@
 #define MMC_AHBCLK_PREFIX       "ahb_sdmmc"
 #define MMC_MODCLK_PREFIX       "mod_sdc"
 #define MMC3_DMA_TL             (0x2007000f)
+#define MMC_MAX_DMA_DES_BIT		16
+#define MMC_DMA_DES_BIT_LEFT	0
 
 #ifdef CONFIG_AW_FPGA_PLATFORM
 #undef SMC_IRQNO
@@ -61,11 +78,12 @@
 #define SMC_IRQNO(x)	        (SW_INT_IRQNO_SDMC0 + (x))
 
 #define MMC_SRCCLK_HOSC         "hosc"
-#define MMC_SRCCLK_PLL5         "sdram_pll_p"
 #define MMC_SRCCLK_PLL6         "sata_pll"
 #define MMC_AHBCLK_PREFIX       "ahb_sdc"
 #define MMC_MODCLK_PREFIX       "sdc"
 #define MMC3_DMA_TL             (0x20070008)
+#define MMC_MAX_DMA_DES_BIT		16
+#define MMC_DMA_DES_BIT_LEFT	0
 
 #ifdef CONFIG_AW_FPGA_PLATFORM
 #undef SMC_IRQNO
@@ -232,7 +250,7 @@
 #define SDXC_IDMA_ERR (SDXC_IDMACFatalBusErr|SDXC_IDMACDesInvalid \
 			|SDXC_IDMACCardErrSum|SDXC_IDMACAbnormalIntSum)
 
-#define SDXC_DES_NUM_SHIFT	(15)
+#define SDXC_DES_NUM_SHIFT	(MMC_MAX_DMA_DES_BIT)
 #define SDXC_DES_BUFFER_MAX_LEN	(1U << SDXC_DES_NUM_SHIFT)
 struct sunxi_mmc_idma_des {
 	u32	config;
@@ -244,8 +262,9 @@ struct sunxi_mmc_idma_des {
 #define SDXC_IDMAC_DES0_CES	BIT(30) // card error summary
 #define SDXC_IDMAC_DES0_OWN	BIT(31) // des owner:1-idma owns it, 0-host owns it
 
-	u32	data_buf1_sz    :16,
-		data_buf2_sz    :16;
+	u32	data_buf1_sz    :MMC_MAX_DMA_DES_BIT,
+		data_buf2_sz    :MMC_MAX_DMA_DES_BIT,
+						:MMC_DMA_DES_BIT_LEFT;
 	u32	buf_addr_ptr1;
 	u32	buf_addr_ptr2;
 };

@@ -558,7 +558,7 @@ config MMC_SH_MMCIF
 
 config MMC_SUNXI_NEW
 	tristate "SUNXI MMC Card Interface support (new driver)"
-	depends on MMC && (ARCH_SUN5I || ARCH_SUN7I)
+	depends on MMC && (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
 	default y
 	help
 	  This selects support for the SD/MMC controller on AllWinner SoCs.
