@@ -118,6 +118,16 @@ static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
 	return edev ? edev->pdev : NULL;
 }
 
+/* Return values from eeh_ops::next_error */
+enum {
+	EEH_NEXT_ERR_NONE = 0,
+	EEH_NEXT_ERR_INF,
+	EEH_NEXT_ERR_FROZEN_PE,
+	EEH_NEXT_ERR_FENCED_PHB,
+	EEH_NEXT_ERR_DEAD_PHB,
+	EEH_NEXT_ERR_DEAD_IOC
+};
+
 /*
  * The struct is used to trace the registered EEH operation
  * callback functions. Actually, those operation callback
