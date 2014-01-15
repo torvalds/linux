@@ -247,6 +247,10 @@ void __init plat_mem_setup(void)
 {
 	unsigned int i;
 
+	if (config_enabled(CONFIG_EVA))
+		/* EVA has already been configured in mach-malta/kernel-init.h */
+		pr_info("Enhanced Virtual Addressing (EVA) activated\n");
+
 	mips_pcibios_init();
 
 	/* Request I/O space for devices used on the Malta board. */
