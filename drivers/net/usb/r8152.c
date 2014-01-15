@@ -1100,40 +1100,28 @@ static void free_all_mem(struct r8152 *tp)
 	int i;
 
 	for (i = 0; i < RTL8152_MAX_RX; i++) {
-		if (tp->rx_info[i].urb) {
-			usb_free_urb(tp->rx_info[i].urb);
-			tp->rx_info[i].urb = NULL;
-		}
+		usb_free_urb(tp->rx_info[i].urb);
+		tp->rx_info[i].urb = NULL;
 
-		if (tp->rx_info[i].buffer) {
-			kfree(tp->rx_info[i].buffer);
-			tp->rx_info[i].buffer = NULL;
-			tp->rx_info[i].head = NULL;
-		}
+		kfree(tp->rx_info[i].buffer);
+		tp->rx_info[i].buffer = NULL;
+		tp->rx_info[i].head = NULL;
 	}
 
 	for (i = 0; i < RTL8152_MAX_TX; i++) {
-		if (tp->tx_info[i].urb) {
-			usb_free_urb(tp->tx_info[i].urb);
-			tp->tx_info[i].urb = NULL;
-		}
+		usb_free_urb(tp->tx_info[i].urb);
+		tp->tx_info[i].urb = NULL;
 
-		if (tp->tx_info[i].buffer) {
-			kfree(tp->tx_info[i].buffer);
-			tp->tx_info[i].buffer = NULL;
-			tp->tx_info[i].head = NULL;
-		}
+		kfree(tp->tx_info[i].buffer);
+		tp->tx_info[i].buffer = NULL;
+		tp->tx_info[i].head = NULL;
 	}
 
-	if (tp->intr_urb) {
-		usb_free_urb(tp->intr_urb);
-		tp->intr_urb = NULL;
-	}
+	usb_free_urb(tp->intr_urb);
+	tp->intr_urb = NULL;
 
-	if (tp->intr_buff) {
-		kfree(tp->intr_buff);
-		tp->intr_buff = NULL;
-	}
+	kfree(tp->intr_buff);
+	tp->intr_buff = NULL;
 }
 
 static int alloc_all_mem(struct r8152 *tp)
@@ -2048,7 +2036,7 @@ static void r8153_first_init(struct r8152 *tp)
 	/* TX share fifo free credit full threshold */
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_TXFIFO_CTRL, TXFIFO_THR_NORMAL2);
 
-	// rx aggregation
+	/* rx aggregation */
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_USB_CTRL);
 	ocp_data &= ~RX_AGG_DISABLE;
 	ocp_write_word(tp, MCU_TYPE_USB, USB_USB_CTRL, ocp_data);
