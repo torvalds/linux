@@ -333,7 +333,8 @@ struct batadv_neigh_node {
 	struct rcu_head rcu;
 };
 
-/* struct batadv_neigh_node_bat_iv - neighbor information per outgoing
+/**
+ * struct batadv_neigh_node_bat_iv - neighbor information per outgoing
  *  interface for BATMAN IV
  * @tq_recv: ring buffer of received TQ values from this neigh node
  * @tq_index: ring buffer index
@@ -350,7 +351,8 @@ struct batadv_neigh_ifinfo_bat_iv {
 	uint8_t real_packet_count;
 };
 
-/* struct batadv_neigh_ifinfo - neighbor information per outgoing interface
+/**
+ * struct batadv_neigh_ifinfo - neighbor information per outgoing interface
  * @list: list node for batadv_neigh_node::ifinfo_list
  * @if_outgoing: pointer to outgoing hard interface
  * @bat_iv: B.A.T.M.A.N. IV private structure

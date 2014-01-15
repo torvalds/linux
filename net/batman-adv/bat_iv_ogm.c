@@ -598,7 +598,8 @@ out:
 	return res;
 }
 
-/* batadv_iv_ogm_aggregate_new - create a new aggregated packet and add this
+/**
+ * batadv_iv_ogm_aggregate_new - create a new aggregated packet and add this
  *  packet to it.
  * @packet_buff: pointer to the OGM
  * @packet_len: (total) length of the OGM
@@ -1745,7 +1746,8 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	return NET_RX_SUCCESS;
 }
 
-/* batadv_iv_ogm_orig_print_neigh - print neighbors for the originator table
+/**
+ * batadv_iv_ogm_orig_print_neigh - print neighbors for the originator table
  * @orig_node: the orig_node for which the neighbors are printed
  * @if_outgoing: outgoing interface for these entries
  * @seq: debugfs table seq_file struct
