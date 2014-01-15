@@ -225,6 +225,29 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 
 	ap_sta_id = mvmvif->ap_sta_id;
 
+	switch (ieee80211_vif_type_p2p(vif)) {
+	case NL80211_IFTYPE_ADHOC:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: ibss\n");
+		break;
+	case NL80211_IFTYPE_STATION:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: bss\n");
+		break;
+	case NL80211_IFTYPE_AP:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: ap\n");
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: p2p client\n");
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: p2p go\n");
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: p2p dev\n");
+		break;
+	default:
+		break;
+	}
+
 	pos += scnprintf(buf+pos, bufsz-pos, "mac id/color: %d / %d\n",
 			 mvmvif->id, mvmvif->color);
 	pos += scnprintf(buf+pos, bufsz-pos, "bssid: %pM\n",
