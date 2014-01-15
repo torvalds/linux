@@ -1737,7 +1737,7 @@ struct cfg80211_connect_params {
 	const u8 *ssid;
 	size_t ssid_len;
 	enum nl80211_auth_type auth_type;
-	u8 *ie;
+	const u8 *ie;
 	size_t ie_len;
 	bool privacy;
 	enum nl80211_mfp mfp;

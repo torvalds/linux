@@ -1391,7 +1391,7 @@ static int mwifiex_misc_ioctl_gen_ie(struct mwifiex_private *priv,
  * with requisite parameters and calls the IOCTL handler.
  */
 int
-mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len)
+mwifiex_set_gen_ie(struct mwifiex_private *priv, const u8 *ie, int ie_len)
 {
 	struct mwifiex_ds_misc_gen_ie gen_ie;
 

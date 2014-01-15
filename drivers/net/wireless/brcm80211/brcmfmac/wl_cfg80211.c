@@ -351,13 +351,11 @@ u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
  * triples, returning a pointer to the substring whose first element
  * matches tag
  */
-struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key)
+const struct brcmf_tlv *
+brcmf_parse_tlvs(const void *buf, int buflen, uint key)
 {
-	struct brcmf_tlv *elt;
-	int totlen;
-
-	elt = (struct brcmf_tlv *)buf;
-	totlen = buflen;
+	const struct brcmf_tlv *elt = buf;
+	int totlen = buflen;
 
 	/* find tagged parameter */
 	while (totlen >= TLV_HDR_LEN) {
@@ -378,8 +376,8 @@ struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key)
  * not update the tlvs buffer pointer/length.
  */
 static bool
-brcmf_tlv_has_ie(u8 *ie, u8 **tlvs, u32 *tlvs_len,
-		 u8 *oui, u32 oui_len, u8 type)
+brcmf_tlv_has_ie(const u8 *ie, const u8 **tlvs, u32 *tlvs_len,
+		 const u8 *oui, u32 oui_len, u8 type)
 {
 	/* If the contents match the OUI and the type */
 	if (ie[TLV_LEN_OFF] >= oui_len + 1 &&
@@ -401,12 +399,12 @@ brcmf_tlv_has_ie(u8 *ie, u8 **tlvs, u32 *tlvs_len,
 }
 
 static struct brcmf_vs_tlv *
-brcmf_find_wpaie(u8 *parse, u32 len)
+brcmf_find_wpaie(const u8 *parse, u32 len)
 {
-	struct brcmf_tlv *ie;
+	const struct brcmf_tlv *ie;
 
 	while ((ie = brcmf_parse_tlvs(parse, len, WLAN_EID_VENDOR_SPECIFIC))) {
-		if (brcmf_tlv_has_ie((u8 *)ie, &parse, &len,
+		if (brcmf_tlv_has_ie((const u8 *)ie, &parse, &len,
 				     WPA_OUI, TLV_OUI_LEN, WPA_OUI_TYPE))
 			return (struct brcmf_vs_tlv *)ie;
 	}
@@ -414,9 +412,9 @@ brcmf_find_wpaie(u8 *parse, u32 len)
 }
 
 static struct brcmf_vs_tlv *
-brcmf_find_wpsie(u8 *parse, u32 len)
+brcmf_find_wpsie(const u8 *parse, u32 len)
 {
-	struct brcmf_tlv *ie;
+	const struct brcmf_tlv *ie;
 
 	while ((ie = brcmf_parse_tlvs(parse, len, WLAN_EID_VENDOR_SPECIFIC))) {
 		if (brcmf_tlv_has_ie((u8 *)ie, &parse, &len,
@@ -1562,9 +1560,9 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	struct ieee80211_channel *chan = sme->channel;
 	struct brcmf_join_params join_params;
 	size_t join_params_size;
-	struct brcmf_tlv *rsn_ie;
-	struct brcmf_vs_tlv *wpa_ie;
-	void *ie;
+	const struct brcmf_tlv *rsn_ie;
+	const struct brcmf_vs_tlv *wpa_ie;
+	const void *ie;
 	u32 ie_len;
 	struct brcmf_ext_join_params_le *ext_join_params;
 	u16 chanspec;
@@ -1591,7 +1589,8 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 			ie_len = wpa_ie->len + TLV_HDR_LEN;
 		} else {
 			/* find the RSN_IE */
-			rsn_ie = brcmf_parse_tlvs((u8 *)sme->ie, sme->ie_len,
+			rsn_ie = brcmf_parse_tlvs((const u8 *)sme->ie,
+						  sme->ie_len,
 						  WLAN_EID_RSN);
 			if (rsn_ie) {
 				ie = rsn_ie;
@@ -2455,7 +2454,7 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_info *cfg,
 	struct brcmf_cfg80211_profile *profile = ndev_to_prof(ifp->ndev);
 	struct brcmf_bss_info_le *bi;
 	struct brcmf_ssid *ssid;
-	struct brcmf_tlv *tim;
+	const struct brcmf_tlv *tim;
 	u16 beacon_interval;
 	u8 dtim_period;
 	size_t ie_len;
@@ -3220,8 +3219,9 @@ static bool brcmf_valid_wpa_oui(u8 *oui, bool is_rsn_ie)
 }
 
 static s32
-brcmf_configure_wpaie(struct net_device *ndev, struct brcmf_vs_tlv *wpa_ie,
-		     bool is_rsn_ie)
+brcmf_configure_wpaie(struct net_device *ndev,
+		      const struct brcmf_vs_tlv *wpa_ie,
+		      bool is_rsn_ie)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	u32 auth = 0; /* d11 open authentication */
@@ -3707,11 +3707,11 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	s32 ie_offset;
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_tlv *ssid_ie;
+	const struct brcmf_tlv *ssid_ie;
 	struct brcmf_ssid_le ssid_le;
 	s32 err = -EPERM;
-	struct brcmf_tlv *rsn_ie;
-	struct brcmf_vs_tlv *wpa_ie;
+	const struct brcmf_tlv *rsn_ie;
+	const struct brcmf_vs_tlv *wpa_ie;
 	struct brcmf_join_params join_params;
 	enum nl80211_iftype dev_role;
 	struct brcmf_fil_bss_enable_le bss_enable;
