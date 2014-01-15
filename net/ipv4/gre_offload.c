@@ -11,6 +11,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <linux/init.h>
 #include <net/protocol.h>
 #include <net/gre.h>
 
@@ -283,11 +284,4 @@ static int __init gre_offload_init(void)
 {
 	return inet_add_offload(&gre_offload, IPPROTO_GRE);
 }
-
-static void __exit gre_offload_exit(void)
-{
-	inet_del_offload(&gre_offload, IPPROTO_GRE);
-}
-
-module_init(gre_offload_init);
-module_exit(gre_offload_exit);
+device_initcall(gre_offload_init);
