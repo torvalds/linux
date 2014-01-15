@@ -76,6 +76,7 @@ $(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
 
 CC = $(CROSS_COMPILE)gcc
 AR = $(CROSS_COMPILE)ar
+PKG_CONFIG = $(CROSS_COMPILE)pkg-config
 
 RM      = rm -f
 LN      = ln -f
