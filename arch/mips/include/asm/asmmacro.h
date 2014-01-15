@@ -169,6 +169,17 @@
 	fpu_restore_16even \thread \tmp
 	.endm
 
+#ifdef CONFIG_CPU_MIPSR2
+	.macro	_EXT	rd, rs, p, s
+	ext	\rd, \rs, \p, \s
+	.endm
+#else /* !CONFIG_CPU_MIPSR2 */
+	.macro	_EXT	rd, rs, p, s
+	srl	\rd, \rs, \p
+	andi	\rd, \rd, (1 << \s) - 1
+	.endm
+#endif /* !CONFIG_CPU_MIPSR2 */
+
 /*
  * Temporary until all gas have MT ASE support
  */
