@@ -66,7 +66,7 @@ MODULE_PARM_DESC(usb_xfer_mode,
 
 
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
-DECLARE_BITMAP(em28xx_devused, EM28XX_MAXBOARDS);
+static DECLARE_BITMAP(em28xx_devused, EM28XX_MAXBOARDS);
 
 struct em28xx_hash_table {
 	unsigned long hash;
