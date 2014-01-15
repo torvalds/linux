@@ -33,7 +33,7 @@
 #include "mxl5007t.h"
 #include "tda18271.h"
 
-int preallocate_big_buffers;
+static int preallocate_big_buffers;
 module_param_named(preallocate_big_buffers, preallocate_big_buffers, int, 0644);
 MODULE_PARM_DESC(preallocate_big_buffers, "Preallocate the larger transfer buffers at module load time");
 
