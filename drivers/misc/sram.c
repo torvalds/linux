@@ -87,8 +87,6 @@ static int sram_remove(struct platform_device *pdev)
 	if (gen_pool_avail(sram->pool) < gen_pool_size(sram->pool))
 		dev_dbg(&pdev->dev, "removed while SRAM allocated\n");
 
-	gen_pool_destroy(sram->pool);
-
 	if (sram->clk)
 		clk_disable_unprepare(sram->clk);
 
