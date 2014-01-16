@@ -2891,13 +2891,11 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 
 	/* Try to read receiver status if the link appears to be up */
 	if (!intel_dp_get_link_status(intel_dp, link_status)) {
-		intel_dp_link_down(intel_dp);
 		return;
 	}
 
 	/* Now read the DPCD to see if it's actually running */
 	if (!intel_dp_get_dpcd(intel_dp)) {
-		intel_dp_link_down(intel_dp);
 		return;
 	}
 
