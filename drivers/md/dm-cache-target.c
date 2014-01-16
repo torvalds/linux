@@ -2832,7 +2832,7 @@ static void cache_resume(struct dm_target *ti)
  * <#demotions> <#promotions> <#dirty>
  * <#features> <features>*
  * <#core args> <core args>
- * <#policy args> <policy args>*
+ * <policy name> <#policy args> <policy args>*
  */
 static void cache_status(struct dm_target *ti, status_type_t type,
 			 unsigned status_flags, char *result, unsigned maxlen)
@@ -2900,6 +2900,8 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		}
 
 		DMEMIT("2 migration_threshold %llu ", (unsigned long long) cache->migration_threshold);
+
+		DMEMIT("%s ", dm_cache_policy_get_name(cache->policy));
 		if (sz < maxlen) {
 			r = policy_emit_config_values(cache->policy, result + sz, maxlen - sz);
 			if (r)
