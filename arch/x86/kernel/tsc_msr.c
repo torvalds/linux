@@ -118,8 +118,10 @@ int try_msr_calibrate_tsc(unsigned long *fast_calibrate)
 	*fast_calibrate = freq * ratio;
 	pr_info("TSC runs at %lu KHz\n", *fast_calibrate);
 
+#ifdef CONFIG_X86_LOCAL_APIC
 	lapic_timer_frequency = (freq * 1000) / HZ;
 	pr_info("lapic_timer_frequency = %d\n", lapic_timer_frequency);
+#endif
 
 	return 1;
 }
