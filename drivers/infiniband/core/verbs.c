@@ -115,6 +115,8 @@ rdma_node_get_transport(enum rdma_node_type node_type)
 	case RDMA_NODE_RNIC:
 		return RDMA_TRANSPORT_IWARP;
 	case RDMA_NODE_USNIC:
+		return RDMA_TRANSPORT_USNIC;
+	case RDMA_NODE_USNIC_UDP:
 		return RDMA_TRANSPORT_USNIC_UDP;
 	default:
 		BUG();
