@@ -404,9 +404,9 @@ static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 	 * Update base->active_timers and base->next_timer
 	 */
 	if (!tbase_get_deferrable(timer->base)) {
-		if (time_before(timer->expires, base->next_timer))
+		if (!base->active_timers++ ||
+		    time_before(timer->expires, base->next_timer))
 			base->next_timer = timer->expires;
-		base->active_timers++;
 	}
 	base->all_timers++;
 }
