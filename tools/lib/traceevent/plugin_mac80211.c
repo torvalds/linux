@@ -93,3 +93,10 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 				      drv_bss_info_changed, NULL);
 	return 0;
 }
+
+void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+{
+	pevent_unregister_event_handler(pevent, -1, "mac80211",
+					"drv_bss_info_changed",
+					drv_bss_info_changed, NULL);
+}
