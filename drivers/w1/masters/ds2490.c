@@ -1,5 +1,5 @@
 /*
- *	dscore.c
+ *	ds2490.c  USB to one wire bridge
  *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
  *
@@ -27,6 +27,10 @@
 
 #include "../w1_int.h"
 #include "../w1.h"
+
+/* USB Standard */
+/* USB Control request vendor type */
+#define VENDOR				0x40
 
 /* COMMAND TYPE CODES */
 #define CONTROL_CMD			0x00
@@ -107,6 +111,8 @@
 #define ST_HALT				0x10  /* DS2490 is currently halted */
 #define ST_IDLE				0x20  /* DS2490 is currently idle */
 #define ST_EPOF				0x80
+/* Status transfer size, 16 bytes status, 16 byte result flags */
+#define ST_SIZE				0x20
 
 /* Result Register flags */
 #define RR_DETECT			0xA5 /* New device detected */
@@ -198,7 +204,7 @@ static int ds_send_control_cmd(struct ds_device *dev, u16 value, u16 index)
 	int err;
 
 	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]),
-			CONTROL_CMD, 0x40, value, index, NULL, 0, 1000);
+			CONTROL_CMD, VENDOR, value, index, NULL, 0, 1000);
 	if (err < 0) {
 		printk(KERN_ERR "Failed to send command control message %x.%x: err=%d.\n",
 				value, index, err);
@@ -213,7 +219,7 @@ static int ds_send_control_mode(struct ds_device *dev, u16 value, u16 index)
 	int err;
 
 	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]),
-			MODE_CMD, 0x40, value, index, NULL, 0, 1000);
+			MODE_CMD, VENDOR, value, index, NULL, 0, 1000);
 	if (err < 0) {
 		printk(KERN_ERR "Failed to send mode control message %x.%x: err=%d.\n",
 				value, index, err);
@@ -228,7 +234,7 @@ static int ds_send_control(struct ds_device *dev, u16 value, u16 index)
 	int err;
 
 	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]),
-			COMM_CMD, 0x40, value, index, NULL, 0, 1000);
+			COMM_CMD, VENDOR, value, index, NULL, 0, 1000);
 	if (err < 0) {
 		printk(KERN_ERR "Failed to send control message %x.%x: err=%d.\n",
 				value, index, err);
@@ -353,7 +359,7 @@ static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]),
 				buf, size, &count, 1000);
 	if (err < 0) {
-		u8 buf[0x20];
+		u8 buf[ST_SIZE];
 		int count;
 
 		printk(KERN_INFO "Clearing ep0x%x.\n", dev->ep[EP_DATA_IN]);
@@ -398,7 +404,7 @@ int ds_stop_pulse(struct ds_device *dev, int limit)
 {
 	struct ds_status st;
 	int count = 0, err = 0;
-	u8 buf[0x20];
+	u8 buf[ST_SIZE];
 
 	do {
 		err = ds_send_control(dev, CTL_HALT_EXE_IDLE, 0);
@@ -450,10 +456,11 @@ int ds_detect(struct ds_device *dev, struct ds_status *st)
 
 static int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 {
-	u8 buf[0x20];
+	u8 buf[ST_SIZE];
 	int err, count = 0;
 
 	do {
+		st->status = 0;
 		err = ds_recv_status_nodump(dev, st, buf, sizeof(buf));
 #if 0
 		if (err >= 0) {
@@ -464,7 +471,7 @@ static int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 			printk("\n");
 		}
 #endif
-	} while (!(buf[0x08] & ST_IDLE) && !(err < 0) && ++count < 100);
+	} while (!(st->status & ST_IDLE) && !(err < 0) && ++count < 100);
 
 	if (err >= 16 && st->status & ST_EPOF) {
 		printk(KERN_INFO "Resetting device after ST_EPOF.\n");
