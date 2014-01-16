@@ -99,7 +99,7 @@ DEFINES
 /*=== MACROS =================================================================*/
 /*============================================================================*/
 
-#define DRX_ISPOWERDOWNMODE(mode) (( mode == DRX_POWER_MODE_9) || \
+#define DRX_ISPOWERDOWNMODE(mode) ((mode == DRX_POWER_MODE_9) || \
 				       (mode == DRX_POWER_MODE_10) || \
 				       (mode == DRX_POWER_MODE_11) || \
 				       (mode == DRX_POWER_MODE_12) || \

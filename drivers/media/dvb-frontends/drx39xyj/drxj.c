@@ -570,7 +570,7 @@ DEFINES
 /*=== STANDARD RELATED MACROS ================================================*/
 /*============================================================================*/
 
-#define DRXJ_ISATVSTD(std) (( std == DRX_STANDARD_PAL_SECAM_BG) || \
+#define DRXJ_ISATVSTD(std) ((std == DRX_STANDARD_PAL_SECAM_BG) || \
 			       (std == DRX_STANDARD_PAL_SECAM_DK) || \
 			       (std == DRX_STANDARD_PAL_SECAM_I) || \
 			       (std == DRX_STANDARD_PAL_SECAM_L) || \
@@ -578,7 +578,7 @@ DEFINES
 			       (std == DRX_STANDARD_NTSC) || \
 			       (std == DRX_STANDARD_FM))
 
-#define DRXJ_ISQAMSTD(std) (( std == DRX_STANDARD_ITU_A) || \
+#define DRXJ_ISQAMSTD(std) ((std == DRX_STANDARD_ITU_A) || \
 			       (std == DRX_STANDARD_ITU_B) || \
 			       (std == DRX_STANDARD_ITU_C) || \
 			       (std == DRX_STANDARD_ITU_D))
