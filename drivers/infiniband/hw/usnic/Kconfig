@@ -1,6 +1,6 @@
 config INFINIBAND_USNIC
 	tristate "Verbs support for Cisco VIC"
-	depends on NETDEVICES && ETHERNET && PCI && INTEL_IOMMU
+	depends on NETDEVICES && ETHERNET && INET && PCI && INTEL_IOMMU
 	select ENIC
 	select NET_VENDOR_CISCO
 	select PCI_IOV
