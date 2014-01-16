@@ -615,7 +615,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			rxcb._offset, get_cmd_string(trans_pcie, pkt->hdr.cmd),
 			pkt->hdr.cmd);
 
-		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+		len = iwl_rx_packet_len(pkt);
 		len += sizeof(u32); /* account for status word */
 		trace_iwlwifi_dev_rx(trans->dev, trans, pkt, len);
 		trace_iwlwifi_dev_rx_data(trans->dev, trans, pkt, len);

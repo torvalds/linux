@@ -135,7 +135,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
 	len = img->sec[IWL_UCODE_SECTION_DATA].len;
 
-	if (!mvm->dbgfs_sram_offset && !mvm->dbgfs_sram_len) {
+	if (mvm->dbgfs_sram_len) {
 		ofs = mvm->dbgfs_sram_offset;
 		len = mvm->dbgfs_sram_len;
 	}
