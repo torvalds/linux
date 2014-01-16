@@ -2860,9 +2860,27 @@ static int bond_slave_netdev_event(unsigned long event,
 		 */
 		break;
 	case NETDEV_CHANGENAME:
-		/*
-		 * TODO: handle changing the primary's name
-		 */
+		/* we don't care if we don't have primary set */
+		if (!USES_PRIMARY(bond->params.mode) ||
+		    !bond->params.primary[0])
+			break;
+
+		if (slave == bond->primary_slave) {
+			/* slave's name changed - he's no longer primary */
+			bond->primary_slave = NULL;
+		} else if (!strcmp(slave_dev->name, bond->params.primary)) {
+			/* we have a new primary slave */
+			bond->primary_slave = slave;
+		} else { /* we didn't change primary - exit */
+			break;
+		}
+
+		pr_info("%s: Primary slave changed to %s, reselecting active slave.\n",
+			bond->dev->name, bond->primary_slave ? slave_dev->name :
+							       "none");
+		write_lock_bh(&bond->curr_slave_lock);
+		bond_select_active_slave(bond);
+		write_unlock_bh(&bond->curr_slave_lock);
 		break;
 	case NETDEV_FEAT_CHANGE:
 		bond_compute_features(bond);
