@@ -4709,8 +4709,10 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	/* FIXME(BDW): Check all the w/a, some might only apply to
 	 * pre-production hw. */
 
-	WARN(!i915_preliminary_hw_support,
-	     "GEN8_CENTROID_PIXEL_OPT_DIS not be needed for production\n");
+	/*
+	 * This GEN8_CENTROID_PIXEL_OPT_DIS W/A is only needed for
+	 * pre-production hardware
+	 */
 	I915_WRITE(HALF_SLICE_CHICKEN3,
 		   _MASKED_BIT_ENABLE(GEN8_CENTROID_PIXEL_OPT_DIS));
 	I915_WRITE(HALF_SLICE_CHICKEN3,
