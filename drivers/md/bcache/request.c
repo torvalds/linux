@@ -1203,22 +1203,13 @@ void bch_cached_dev_request_init(struct cached_dev *dc)
 static int flash_dev_cache_miss(struct btree *b, struct search *s,
 				struct bio *bio, unsigned sectors)
 {
-	struct bio_vec bv;
-	struct bvec_iter iter;
+	unsigned bytes = min(sectors, bio_sectors(bio)) << 9;
 
-	/* Zero fill bio */
+	swap(bio->bi_iter.bi_size, bytes);
+	zero_fill_bio(bio);
+	swap(bio->bi_iter.bi_size, bytes);
 
-	bio_for_each_segment(bv, bio, iter) {
-		unsigned j = min(bv.bv_len >> 9, sectors);
-
-		void *p = kmap(bv.bv_page);
-		memset(p + bv.bv_offset, 0, j << 9);
-		kunmap(bv.bv_page);
-
-		sectors	-= j;
-	}
-
-	bio_advance(bio, min(sectors << 9, bio->bi_iter.bi_size));
+	bio_advance(bio, bytes);
 
 	if (!bio->bi_iter.bi_size)
 		return MAP_DONE;
