@@ -1,7 +1,6 @@
 config SND_BCM2835_SOC_I2S
 	tristate "SoC Audio support for the Broadcom BCM2835 I2S module"
 	depends on ARCH_BCM2835 || COMPILE_TEST
-	select SND_SOC_DMAENGINE_PCM
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select REGMAP_MMIO
 	help

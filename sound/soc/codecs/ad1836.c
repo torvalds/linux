@@ -168,15 +168,15 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	int word_len = 0;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		word_len = AD1836_WORD_LEN_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		word_len = AD1836_WORD_LEN_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 24:
+	case 32:
 		word_len = AD1836_WORD_LEN_24;
 		break;
 	default:

@@ -8,6 +8,9 @@ config SND_SOC_FSL_SSI
 config SND_SOC_FSL_SPDIF
 	tristate
 
+config SND_SOC_FSL_ESAI
+	tristate
+
 config SND_SOC_FSL_UTILS
 	tristate
 

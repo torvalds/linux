@@ -778,17 +778,17 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 
 	dai_cfg1 = 0xFC & snd_soc_read(codec, DA7210_DAI_CFG1);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		dai_cfg1 |= DA7210_DAI_WORD_S16_LE;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		dai_cfg1 |= DA7210_DAI_WORD_S20_3LE;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		dai_cfg1 |= DA7210_DAI_WORD_S24_LE;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		dai_cfg1 |= DA7210_DAI_WORD_S32_LE;
 		break;
 	default:
