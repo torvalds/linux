@@ -252,7 +252,8 @@ static int ds_recv_status_nodump(struct ds_device *dev, struct ds_status *st,
 	memset(st, 0, sizeof(*st));
 
 	count = 0;
-	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_STATUS]), buf, size, &count, 100);
+	err = usb_interrupt_msg(dev->udev, usb_rcvintpipe(dev->udev,
+		dev->ep[EP_STATUS]), buf, size, &count, 100);
 	if (err < 0) {
 		printk(KERN_ERR "Failed to read 1-wire data from 0x%x: err=%d.\n", dev->ep[EP_STATUS], err);
 		return err;
@@ -917,7 +918,7 @@ static int ds_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_host_interface *iface_desc;
 	struct ds_device *dev;
-	int i, err;
+	int i, err, alt;
 
 	dev = kmalloc(sizeof(struct ds_device), GFP_KERNEL);
 	if (!dev) {
@@ -935,20 +936,25 @@ static int ds_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, dev);
 
-	err = usb_set_interface(dev->udev, intf->altsetting[0].desc.bInterfaceNumber, 3);
-	if (err) {
-		printk(KERN_ERR "Failed to set alternative setting 3 for %d interface: err=%d.\n",
-				intf->altsetting[0].desc.bInterfaceNumber, err);
-		goto err_out_clear;
-	}
-
 	err = usb_reset_configuration(dev->udev);
 	if (err) {
-		printk(KERN_ERR "Failed to reset configuration: err=%d.\n", err);
+		dev_err(&dev->udev->dev,
+			"Failed to reset configuration: err=%d.\n", err);
 		goto err_out_clear;
 	}
 
-	iface_desc = &intf->altsetting[0];
+	/* alternative 3, 1ms interrupt (greatly speeds search), 64 byte bulk */
+	alt = 3;
+	err = usb_set_interface(dev->udev,
+		intf->altsetting[alt].desc.bInterfaceNumber, alt);
+	if (err) {
+		dev_err(&dev->udev->dev, "Failed to set alternative setting %d "
+			"for %d interface: err=%d.\n", alt,
+			intf->altsetting[alt].desc.bInterfaceNumber, err);
+		goto err_out_clear;
+	}
+
+	iface_desc = &intf->altsetting[alt];
 	if (iface_desc->desc.bNumEndpoints != NUM_EP-1) {
 		printk(KERN_INFO "Num endpoints=%d. It is not DS9490R.\n", iface_desc->desc.bNumEndpoints);
 		err = -EINVAL;
