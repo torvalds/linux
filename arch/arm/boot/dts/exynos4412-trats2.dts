@@ -139,6 +139,7 @@
 			interrupt-parent = <&gpx0>;
 			interrupts = <7 0>;
 			reg = <0x09>;
+			#clock-cells = <1>;
 
 			voltage-regulators {
 				ldo1_reg: ldo1 {
