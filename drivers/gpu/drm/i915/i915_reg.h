@@ -2138,7 +2138,8 @@
 #define   DP_AUX_CHANNEL_D_INT_STATUS_G4X	(1 << 6)
 #define   DP_AUX_CHANNEL_C_INT_STATUS_G4X	(1 << 5)
 #define   DP_AUX_CHANNEL_B_INT_STATUS_G4X	(1 << 4)
-#define   DP_AUX_CHANNEL_MASK_INT_STATUS_G4X	(1 << 4)
+#define   DP_AUX_CHANNEL_MASK_INT_STATUS_G4X	(7 << 4)
+
 /* SDVO is different across gen3/4 */
 #define   SDVOC_HOTPLUG_INT_STATUS_G4X		(1 << 3)
 #define   SDVOB_HOTPLUG_INT_STATUS_G4X		(1 << 2)
