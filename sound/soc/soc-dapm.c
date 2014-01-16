@@ -371,12 +371,16 @@ static void dapm_reset(struct snd_soc_card *card)
 	}
 }
 
-static int soc_widget_read(struct snd_soc_dapm_widget *w, int reg)
+static int soc_widget_read(struct snd_soc_dapm_widget *w, int reg,
+	unsigned int *value)
 {
-	if (w->codec)
-		return snd_soc_read(w->codec, reg);
-	else if (w->platform)
-		return snd_soc_platform_read(w->platform, reg);
+	if (w->codec) {
+		*value = snd_soc_read(w->codec, reg);
+		return 0;
+	} else if (w->platform) {
+		*value = snd_soc_platform_read(w->platform, reg);
+		return 0;
+	}
 
 	dev_err(w->dapm->dev, "ASoC: no valid widget read method\n");
 	return -1;
@@ -430,13 +434,12 @@ static int soc_widget_update_bits_locked(struct snd_soc_dapm_widget *w,
 			return ret;
 	} else {
 		soc_widget_lock(w);
-		ret = soc_widget_read(w, reg);
+		ret = soc_widget_read(w, reg, &old);
 		if (ret < 0) {
 			soc_widget_unlock(w);
 			return ret;
 		}
 
-		old = ret;
 		new = (old & ~mask) | (value & mask);
 		change = old != new;
 		if (change) {
@@ -513,7 +516,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		unsigned int invert = mc->invert;
 
 		if (reg != SND_SOC_NOPM) {
-			val = soc_widget_read(w, reg);
+			soc_widget_read(w, reg, &val);
 			val = (val >> shift) & mask;
 			if (invert)
 				val = max - val;
@@ -529,7 +532,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 			w->kcontrol_news[i].private_value;
 		int val, item;
 
-		val = soc_widget_read(w, e->reg);
+		soc_widget_read(w, e->reg, &val);
 		item = (val >> e->shift_l) & e->mask;
 
 		if (item < e->max && !strcmp(p->name, e->texts[item]))
@@ -558,7 +561,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 			w->kcontrol_news[i].private_value;
 		int val, item;
 
-		val = soc_widget_read(w, e->reg);
+		soc_widget_read(w, e->reg, &val);
 		val = (val >> e->shift_l) & e->mask;
 		for (item = 0; item < e->max; item++) {
 			if (val == e->values[item])
@@ -2782,7 +2785,8 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 
 		/* Read the initial power state from the device */
 		if (w->reg >= 0) {
-			val = soc_widget_read(w, w->reg) >> w->shift;
+			soc_widget_read(w, w->reg, &val);
+			val = val >> w->shift;
 			val &= w->mask;
 			if (val == w->on_val)
 				w->power = 1;
@@ -3632,6 +3636,55 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 	}
 
 	return 0;
+}
+
+void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd = card->rtd;
+	struct snd_soc_dai *cpu_dai, *codec_dai;
+	struct snd_soc_dapm_route r;
+	int i;
+
+	memset(&r, 0, sizeof(r));
+
+	/* for each BE DAI link... */
+	for (i = 0; i < card->num_rtd; i++) {
+		rtd = &card->rtd[i];
+		cpu_dai = rtd->cpu_dai;
+		codec_dai = rtd->codec_dai;
+
+		/* dynamic FE links have no fixed DAI mapping */
+		if (rtd->dai_link->dynamic)
+			continue;
+
+		/* there is no point in connecting BE DAI links with dummies */
+		if (snd_soc_dai_is_dummy(codec_dai) ||
+			snd_soc_dai_is_dummy(cpu_dai))
+			continue;
+
+		/* connect BE DAI playback if widgets are valid */
+		if (codec_dai->playback_widget && cpu_dai->playback_widget) {
+			r.source = cpu_dai->playback_widget->name;
+			r.sink = codec_dai->playback_widget->name;
+			dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
+				cpu_dai->codec->name, r.source,
+				codec_dai->platform->name, r.sink);
+
+			snd_soc_dapm_add_route(&card->dapm, &r);
+		}
+
+		/* connect BE DAI capture if widgets are valid */
+		if (codec_dai->capture_widget && cpu_dai->capture_widget) {
+			r.source = codec_dai->capture_widget->name;
+			r.sink = cpu_dai->capture_widget->name;
+			dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
+				codec_dai->codec->name, r.source,
+				cpu_dai->platform->name, r.sink);
+
+			snd_soc_dapm_add_route(&card->dapm, &r);
+		}
+
+	}
 }
 
 static void soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,

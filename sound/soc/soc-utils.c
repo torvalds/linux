@@ -119,6 +119,13 @@ static struct snd_soc_dai_driver dummy_dai = {
 	 },
 };
 
+int snd_soc_dai_is_dummy(struct snd_soc_dai *dai)
+{
+	if (dai->driver == &dummy_dai)
+		return 1;
+	return 0;
+}
+
 static int snd_soc_dummy_probe(struct platform_device *pdev)
 {
 	int ret;
