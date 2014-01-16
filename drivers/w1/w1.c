@@ -960,8 +960,7 @@ void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb
 			tmp64 = (triplet_ret >> 2);
 			rn |= (tmp64 << i);
 
-			/* ensure we're called from kthread and not by netlink callback */
-			if (!dev->priv && kthread_should_stop()) {
+			if (test_bit(W1_ABORT_SEARCH, &dev->flags)) {
 				mutex_unlock(&dev->bus_mutex);
 				dev_dbg(&dev->dev, "Abort w1_search\n");
 				return;

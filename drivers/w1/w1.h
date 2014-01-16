@@ -155,6 +155,14 @@ struct w1_bus_master
 		u8, w1_slave_found_callback);
 };
 
+/**
+ * enum w1_master_flags - bitfields used in w1_master.flags
+ * @W1_ABORT_SEARCH: abort searching early on shutdown
+ */
+enum w1_master_flags {
+	W1_ABORT_SEARCH = 0,
+};
+
 struct w1_master
 {
 	struct list_head	w1_master_entry;
@@ -177,6 +185,8 @@ struct w1_master
 	int			enable_pullup;
 	/** 5V strong pullup duration in milliseconds, zero disabled. */
 	int			pullup_duration;
+
+	long			flags;
 
 	struct task_struct	*thread;
 	struct mutex		mutex;
