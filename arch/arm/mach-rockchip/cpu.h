@@ -3,6 +3,8 @@
 
 extern unsigned long rockchip_soc_id;
 
+static inline bool cpu_is_rockchip(void) { return rockchip_soc_id; }
+
 #define ROCKCHIP_CPU_MASK       0xffff0000
 #define ROCKCHIP_CPU_RK2928     0x29280000
 #define ROCKCHIP_CPU_RK3026     0x30260000
