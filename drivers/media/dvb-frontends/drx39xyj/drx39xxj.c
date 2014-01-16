@@ -33,9 +33,9 @@
 static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	drx_demod_instance_t *demod = state->demod;
+	struct drx_demod_instance *demod = state->demod;
 	int result;
-	drx_power_mode_t power_mode;
+	enum drx_power_mode power_mode;
 
 	if (enable)
 		power_mode = DRX_POWER_UP;
@@ -55,9 +55,9 @@ static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	drx_demod_instance_t *demod = state->demod;
+	struct drx_demod_instance *demod = state->demod;
 	int result;
-	drx_lock_status_t lock_status;
+	enum drx_lock_status lock_status;
 
 	*status = 0;
 
@@ -102,9 +102,9 @@ static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t *status)
 static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	drx_demod_instance_t *demod = state->demod;
+	struct drx_demod_instance *demod = state->demod;
 	int result;
-	drx_sig_quality_t sig_quality;
+	struct drx_sig_quality sig_quality;
 
 	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
@@ -121,9 +121,9 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 					 u16 *strength)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	drx_demod_instance_t *demod = state->demod;
+	struct drx_demod_instance *demod = state->demod;
 	int result;
-	drx_sig_quality_t sig_quality;
+	struct drx_sig_quality sig_quality;
 
 	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
@@ -140,9 +140,9 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	drx_demod_instance_t *demod = state->demod;
+	struct drx_demod_instance *demod = state->demod;
 	int result;
-	drx_sig_quality_t sig_quality;
+	struct drx_sig_quality sig_quality;
 
 	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
@@ -158,9 +158,9 @@ static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	drx_demod_instance_t *demod = state->demod;
+	struct drx_demod_instance *demod = state->demod;
 	int result;
-	drx_sig_quality_t sig_quality;
+	struct drx_sig_quality sig_quality;
 
 	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
@@ -180,12 +180,12 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 #endif
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	drx_demod_instance_t *demod = state->demod;
+	struct drx_demod_instance *demod = state->demod;
 	enum drx_standard standard = DRX_STANDARD_8VSB;
-	drx_channel_t channel;
+	struct drx_channel channel;
 	int result;
-	drxuio_data_t uio_data;
-	drx_channel_t def_channel = { /* frequency      */ 0,
+	struct drxuio_data uio_data;
+	struct drx_channel def_channel = { /* frequency      */ 0,
 		/* bandwidth      */ DRX_BANDWIDTH_6MHZ,
 		/* mirror         */ DRX_MIRROR_NO,
 		/* constellation  */ DRX_CONSTELLATION_AUTO,
@@ -268,7 +268,7 @@ static int drx39xxj_sleep(struct dvb_frontend *fe)
 static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	drx_demod_instance_t *demod = state->demod;
+	struct drx_demod_instance *demod = state->demod;
 	bool i2c_gate_state;
 	int result;
 
@@ -326,11 +326,11 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	struct drx39xxj_state *state = NULL;
 
 	struct i2c_device_addr *demod_addr = NULL;
-	drx_common_attr_t *demod_comm_attr = NULL;
+	struct drx_common_attr *demod_comm_attr = NULL;
 	drxj_data_t *demod_ext_attr = NULL;
-	drx_demod_instance_t *demod = NULL;
-	drxuio_cfg_t uio_cfg;
-	drxuio_data_t uio_data;
+	struct drx_demod_instance *demod = NULL;
+	struct drxuio_cfg uio_cfg;
+	struct drxuio_data uio_data;
 	int result;
 
 	/* allocate memory for the internal state */
@@ -338,7 +338,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	if (state == NULL)
 		goto error;
 
-	demod = kmalloc(sizeof(drx_demod_instance_t), GFP_KERNEL);
+	demod = kmalloc(sizeof(struct drx_demod_instance), GFP_KERNEL);
 	if (demod == NULL)
 		goto error;
 
@@ -346,7 +346,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	if (demod_addr == NULL)
 		goto error;
 
-	demod_comm_attr = kmalloc(sizeof(drx_common_attr_t), GFP_KERNEL);
+	demod_comm_attr = kmalloc(sizeof(struct drx_common_attr), GFP_KERNEL);
 	if (demod_comm_attr == NULL)
 		goto error;
 
@@ -358,7 +358,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	state->i2c = i2c;
 	state->demod = demod;
 
-	memcpy(demod, &drxj_default_demod_g, sizeof(drx_demod_instance_t));
+	memcpy(demod, &drxj_default_demod_g, sizeof(struct drx_demod_instance));
 
 	demod->my_i2c_dev_addr = demod_addr;
 	memcpy(demod->my_i2c_dev_addr, &drxj_default_addr_g,
@@ -366,7 +366,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	demod->my_i2c_dev_addr->user_data = state;
 	demod->my_common_attr = demod_comm_attr;
 	memcpy(demod->my_common_attr, &drxj_default_comm_attr_g,
-	       sizeof(drx_common_attr_t));
+	       sizeof(struct drx_common_attr));
 	demod->my_common_attr->microcode = DRXJ_MC_MAIN;
 #if 0
 	demod->my_common_attr->verify_microcode = false;

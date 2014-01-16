@@ -147,21 +147,21 @@ FUNCTIONS
 /* Prototype of default scanning function */
 static int
 scan_function_default(void *scan_context,
-		      drx_scan_command_t scan_command,
-		    pdrx_channel_t scan_channel, bool *get_next_channel);
+		      enum drx_scan_command scan_command,
+		    struct drx_channel *scan_channel, bool *get_next_channel);
 
 /**
 * \brief Get pointer to scanning function.
 * \param demod:    Pointer to demodulator instance.
 * \return drx_scan_func_t.
 */
-static drx_scan_func_t get_scan_function(pdrx_demod_instance_t demod)
+static drx_scan_func_t get_scan_function(struct drx_demod_instance *demod)
 {
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	drx_scan_func_t scan_func = (drx_scan_func_t) (NULL);
 
 	/* get scan function from common attributes */
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	scan_func = common_attr->scan_function;
 
 	if (scan_func != NULL) {
@@ -178,12 +178,12 @@ static drx_scan_func_t get_scan_function(pdrx_demod_instance_t demod)
 * \param scan_context: Context Pointer.
 * \return drx_scan_func_t.
 */
-static void *get_scan_context(pdrx_demod_instance_t demod, void *scan_context)
+static void *get_scan_context(struct drx_demod_instance *demod, void *scan_context)
 {
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 
 	/* get scan function from common attributes */
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	scan_context = common_attr->scan_context;
 
 	if (scan_context == NULL) {
@@ -211,11 +211,11 @@ static void *get_scan_context(pdrx_demod_instance_t demod, void *scan_context)
 * In case DRX_NEVER_LOCK is returned the poll-wait will be aborted.
 *
 */
-static int scan_wait_for_lock(pdrx_demod_instance_t demod, bool *is_locked)
+static int scan_wait_for_lock(struct drx_demod_instance *demod, bool *is_locked)
 {
 	bool done_waiting = false;
-	drx_lock_status_t lock_state = DRX_NOT_LOCKED;
-	drx_lock_status_t desired_lock_state = DRX_NOT_LOCKED;
+	enum drx_lock_status lock_state = DRX_NOT_LOCKED;
+	enum drx_lock_status desired_lock_state = DRX_NOT_LOCKED;
 	u32 timeout_value = 0;
 	u32 start_time_lock_stage = 0;
 	u32 current_time = 0;
@@ -273,17 +273,17 @@ static int scan_wait_for_lock(pdrx_demod_instance_t demod, bool *is_locked)
 *
 */
 static int
-scan_prepare_next_scan(pdrx_demod_instance_t demod, s32 skip)
+scan_prepare_next_scan(struct drx_demod_instance *demod, s32 skip)
 {
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	u16 table_index = 0;
 	u16 frequency_plan_size = 0;
-	p_drx_frequency_plan_t frequency_plan = (p_drx_frequency_plan_t) (NULL);
+	struct drx_frequency_plan *frequency_plan = (struct drx_frequency_plan *) (NULL);
 	s32 next_frequency = 0;
 	s32 tuner_min_frequency = 0;
 	s32 tuner_max_frequency = 0;
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	table_index = common_attr->scan_freq_plan_index;
 	frequency_plan = common_attr->scan_param->frequency_plan;
 	next_frequency = common_attr->scan_next_frequency;
@@ -355,14 +355,14 @@ scan_prepare_next_scan(pdrx_demod_instance_t demod, s32 skip)
 */
 static int
 scan_function_default(void *scan_context,
-		      drx_scan_command_t scan_command,
-		    pdrx_channel_t scan_channel, bool *get_next_channel)
+		      enum drx_scan_command scan_command,
+		    struct drx_channel *scan_channel, bool *get_next_channel)
 {
-	pdrx_demod_instance_t demod = NULL;
+	struct drx_demod_instance *demod = NULL;
 	int status = DRX_STS_ERROR;
 	bool is_locked = false;
 
-	demod = (pdrx_demod_instance_t) scan_context;
+	demod = (struct drx_demod_instance *) scan_context;
 
 	if (scan_command != DRX_SCAN_COMMAND_NEXT) {
 		/* just return OK if not doing "scan next" */
@@ -412,21 +412,21 @@ scan_function_default(void *scan_context,
 *
 */
 static int
-ctrl_scan_init(pdrx_demod_instance_t demod, p_drx_scan_param_t scan_param)
+ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_param)
 {
 	int status = DRX_STS_ERROR;
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	s32 max_tuner_freq = 0;
 	s32 min_tuner_freq = 0;
 	u16 nr_channels_in_plan = 0;
 	u16 i = 0;
 	void *scan_context = NULL;
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	common_attr->scan_active = true;
 
 	/* invalidate a previous SCAN_INIT */
-	common_attr->scan_param = (p_drx_scan_param_t) (NULL);
+	common_attr->scan_param = NULL;
 	common_attr->scan_next_frequency = 0;
 
 	/* Check parameters */
@@ -551,13 +551,13 @@ ctrl_scan_init(pdrx_demod_instance_t demod, p_drx_scan_param_t scan_param)
 * \retval DRX_STS_ERROR:       Something went wrong.
 * \retval DRX_STS_INVALID_ARG: Wrong parameters.
 */
-static int ctrl_scan_stop(pdrx_demod_instance_t demod)
+static int ctrl_scan_stop(struct drx_demod_instance *demod)
 {
 	int status = DRX_STS_ERROR;
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	void *scan_context = NULL;
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	common_attr->scan_active = true;
 
 	if ((common_attr->scan_param == NULL) ||
@@ -601,15 +601,15 @@ static int ctrl_scan_stop(pdrx_demod_instance_t demod)
 * Progress indication will run from 0 upto DRX_SCAN_MAX_PROGRESS during scan.
 *
 */
-static int ctrl_scan_next(pdrx_demod_instance_t demod, u16 *scan_progress)
+static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 {
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	bool *scan_ready = (bool *)(NULL);
 	u16 max_progress = DRX_SCAN_MAX_PROGRESS;
 	u32 num_tries = 0;
 	u32 i = 0;
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	/* Check scan parameters */
 	if (scan_progress == NULL) {
@@ -635,9 +635,9 @@ static int ctrl_scan_next(pdrx_demod_instance_t demod, u16 *scan_progress)
 	scan_ready = &(common_attr->scan_ready);
 
 	for (i = 0; ((i < num_tries) && ((*scan_ready) == false)); i++) {
-		drx_channel_t scan_channel = { 0 };
+		struct drx_channel scan_channel = { 0 };
 		int status = DRX_STS_ERROR;
-		p_drx_frequency_plan_t freq_plan = (p_drx_frequency_plan_t) (NULL);
+		struct drx_frequency_plan *freq_plan = (struct drx_frequency_plan *) (NULL);
 		bool next_channel = false;
 		void *scan_context = NULL;
 
@@ -728,9 +728,9 @@ static int ctrl_scan_next(pdrx_demod_instance_t demod, u16 *scan_progress)
 *
 */
 static int
-ctrl_program_tuner(pdrx_demod_instance_t demod, pdrx_channel_t channel)
+ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 	u32 tuner_mode = 0;
 	int status = DRX_STS_ERROR;
@@ -742,7 +742,7 @@ ctrl_program_tuner(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	/* select analog or digital tuner mode based on current standard */
 	if (drx_ctrl(demod, DRX_CTRL_GET_STANDARD, &standard) != DRX_STS_OK) {
@@ -839,8 +839,8 @@ ctrl_program_tuner(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 * \retval DRX_STS_INVALID_ARG: Wrong parameters.
 *
 */
-static int ctrl_dump_registers(pdrx_demod_instance_t demod,
-			      p_drx_reg_dump_t registers)
+static int ctrl_dump_registers(struct drx_demod_instance *demod,
+			      struct drx_reg_dump *registers)
 {
 	u16 i = 0;
 
@@ -982,8 +982,8 @@ static u16 u_code_compute_crc(u8 *block_data, u16 nr_words)
 *                    - Provided image is corrupt
 */
 static int
-ctrl_u_code(pdrx_demod_instance_t demod,
-	    p_drxu_code_info_t mc_info, drxu_code_action_t action)
+ctrl_u_code(struct drx_demod_instance *demod,
+	    struct drxu_code_info *mc_info, enum drxu_code_action action)
 {
 	int rc;
 	u16 i = 0;
@@ -1123,7 +1123,7 @@ ctrl_u_code(pdrx_demod_instance_t demod,
 					    [DRX_UCODE_MAX_BUF_SIZE];
 					u32 bytes_to_compare = 0;
 					u32 bytes_left_to_compare = 0;
-					dr_xaddr_t curr_addr = (dr_xaddr_t) 0;
+					u32 curr_addr = (dr_xaddr_t) 0;
 					u8 *curr_ptr = NULL;
 
 					bytes_left_to_compare = mc_block_nr_bytes;
@@ -1202,16 +1202,16 @@ ctrl_u_code(pdrx_demod_instance_t demod,
 * \retval DRX_STS_INVALID_ARG: Invalid arguments.
 */
 static int
-ctrl_version(pdrx_demod_instance_t demod, p_drx_version_list_t *version_list)
+ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version_list)
 {
 	static char drx_driver_core_module_name[] = "Core driver";
 	static char drx_driver_core_version_text[] =
 	    DRX_VERSIONSTRING(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
-	static drx_version_t drx_driver_core_version;
-	static drx_version_list_t drx_driver_core_versionList;
+	static struct drx_version drx_driver_core_version;
+	static struct drx_version_list drx_driver_core_versionList;
 
-	p_drx_version_list_t demod_version_list = (p_drx_version_list_t) (NULL);
+	struct drx_version_list *demod_version_list = (struct drx_version_list *) (NULL);
 	int return_status = DRX_STS_ERROR;
 
 	/* Check arguments */
@@ -1234,13 +1234,13 @@ ctrl_version(pdrx_demod_instance_t demod, p_drx_version_list_t *version_list)
 	drx_driver_core_version.v_string = drx_driver_core_version_text;
 
 	drx_driver_core_versionList.version = &drx_driver_core_version;
-	drx_driver_core_versionList.next = (p_drx_version_list_t) (NULL);
+	drx_driver_core_versionList.next = (struct drx_version_list *) (NULL);
 
 	if ((return_status == DRX_STS_OK) && (demod_version_list != NULL)) {
 		/* Append versioninfo from driver to versioninfo from demod  */
 		/* Return version info in "bottom-up" order. This way, multiple
 		   devices can be handled without using malloc. */
-		p_drx_version_list_t current_list_element = demod_version_list;
+		struct drx_version_list *current_list_element = demod_version_list;
 		while (current_list_element->next != NULL) {
 			current_list_element = current_list_element->next;
 		}
@@ -1271,7 +1271,7 @@ ctrl_version(pdrx_demod_instance_t demod, p_drx_version_list_t *version_list)
 *
 */
 
-int drx_init(pdrx_demod_instance_t demods[])
+int drx_init(struct drx_demod_instance *demods[])
 {
 	return DRX_STS_OK;
 }
@@ -1305,7 +1305,7 @@ int drx_term(void)
 *
 */
 
-int drx_open(pdrx_demod_instance_t demod)
+int drx_open(struct drx_demod_instance *demod)
 {
 	int status = DRX_STS_OK;
 
@@ -1342,7 +1342,7 @@ int drx_open(pdrx_demod_instance_t demod)
 * Put device into sleep mode.
 */
 
-int drx_close(pdrx_demod_instance_t demod)
+int drx_close(struct drx_demod_instance *demod)
 {
 	int status = DRX_STS_OK;
 
@@ -1383,7 +1383,7 @@ int drx_close(pdrx_demod_instance_t demod)
 */
 
 int
-drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
+drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 {
 	int status = DRX_STS_ERROR;
 
@@ -1420,7 +1420,7 @@ drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 
       /*======================================================================*/
 	case DRX_CTRL_VERSION:
-		return ctrl_version(demod, (p_drx_version_list_t *)ctrl_data);
+		return ctrl_version(demod, (struct drx_version_list **)ctrl_data);
 		break;
 
       /*======================================================================*/
@@ -1438,7 +1438,7 @@ drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 	 /*===================================================================*/
 		case DRX_CTRL_LOAD_UCODE:
 			return ctrl_u_code(demod,
-					 (p_drxu_code_info_t) ctrl_data,
+					 (struct drxu_code_info *)ctrl_data,
 					 UCODE_UPLOAD);
 			break;
 
@@ -1446,7 +1446,7 @@ drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 		case DRX_CTRL_VERIFY_UCODE:
 			{
 				return ctrl_u_code(demod,
-						 (p_drxu_code_info_t) ctrl_data,
+						 (struct drxu_code_info *)ctrl_data,
 						 UCODE_VERIFY);
 			}
 			break;
@@ -1456,7 +1456,7 @@ drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 		case DRX_CTRL_SCAN_INIT:
 			{
 				return ctrl_scan_init(demod,
-						    (p_drx_scan_param_t) ctrl_data);
+						    (struct drx_scan_param *) ctrl_data);
 			}
 			break;
 
@@ -1479,7 +1479,7 @@ drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 		case DRX_CTRL_PROGRAM_TUNER:
 			{
 				return ctrl_program_tuner(demod,
-							(pdrx_channel_t)
+							(struct drx_channel *)
 							ctrl_data);
 			}
 			break;
@@ -1488,7 +1488,7 @@ drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 		case DRX_CTRL_DUMP_REGISTERS:
 			{
 				return ctrl_dump_registers(demod,
-							 (p_drx_reg_dump_t)
+							 (struct drx_reg_dump *)
 							 ctrl_data);
 			}
 			break;

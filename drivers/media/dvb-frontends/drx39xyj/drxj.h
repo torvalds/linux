@@ -489,10 +489,10 @@ TYPEDEFS
 		u16 hi_cfg_transmit;	  /**< HI Configure() parameter 6                       */
 
 		/* UIO configuartion */
-		drxuio_mode_t uio_sma_rx_mode;/**< current mode of SmaRx pin                        */
-		drxuio_mode_t uio_sma_tx_mode;/**< current mode of SmaTx pin                        */
-		drxuio_mode_t uio_gpio_mode; /**< current mode of ASEL pin                         */
-		drxuio_mode_t uio_irqn_mode; /**< current mode of IRQN pin                         */
+		enum drxuio_mode uio_sma_rx_mode;/**< current mode of SmaRx pin                        */
+		enum drxuio_mode uio_sma_tx_mode;/**< current mode of SmaTx pin                        */
+		enum drxuio_mode uio_gpio_mode; /**< current mode of ASEL pin                         */
+		enum drxuio_mode uio_irqn_mode; /**< current mode of IRQN pin                         */
 
 		/* IQM fs frequecy shift and inversion */
 		u32 iqm_fs_rate_ofs;	   /**< frequency shifter setting after setchannel      */
@@ -531,8 +531,8 @@ TYPEDEFS
 
 		/* Version information */
 		char v_text[2][12];	  /**< allocated text versions */
-		drx_version_t v_version[2]; /**< allocated versions structs */
-		drx_version_list_t v_list_elements[2];
+		struct drx_version v_version[2]; /**< allocated versions structs */
+		struct drx_version_list v_list_elements[2];
 					  /**< allocated version list */
 
 		/* smart antenna configuration */
@@ -571,7 +571,7 @@ TYPEDEFS
 		u16 oob_pre_saw;
 		drxj_cfg_oob_lo_power_t oob_lo_pow;
 
-		drx_aud_data_t aud_data;
+		struct drx_aud_data aud_data;
 				    /**< audio storage                  */
 
 	} drxj_data_t, *pdrxj_data_t;
@@ -723,20 +723,20 @@ STRUCTS
 Exported FUNCTIONS
 -------------------------------------------------------------------------*/
 
-	int drxj_open(pdrx_demod_instance_t demod);
-	int drxj_close(pdrx_demod_instance_t demod);
-	int drxj_ctrl(pdrx_demod_instance_t demod,
+	int drxj_open(struct drx_demod_instance *demod);
+	int drxj_close(struct drx_demod_instance *demod);
+	int drxj_ctrl(struct drx_demod_instance *demod,
 				     u32 ctrl, void *ctrl_data);
 
 /*-------------------------------------------------------------------------
 Exported GLOBAL VARIABLES
 -------------------------------------------------------------------------*/
-	extern drx_access_func_t drx_dap_drxj_funct_g;
-	extern drx_demod_func_t drxj_functions_g;
+	extern struct drx_access_func drx_dap_drxj_funct_g;
+	extern struct drx_demod_func drxj_functions_g;
 	extern drxj_data_t drxj_data_g;
 	extern struct i2c_device_addr drxj_default_addr_g;
-	extern drx_common_attr_t drxj_default_comm_attr_g;
-	extern drx_demod_instance_t drxj_default_demod_g;
+	extern struct drx_common_attr drxj_default_comm_attr_g;
+	extern struct drx_demod_instance drxj_default_demod_g;
 
 /*-------------------------------------------------------------------------
 THE END

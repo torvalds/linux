@@ -586,9 +586,9 @@ DEFINES
 /*-----------------------------------------------------------------------------
 STATIC VARIABLES
 ----------------------------------------------------------------------------*/
-int drxj_open(pdrx_demod_instance_t demod);
-int drxj_close(pdrx_demod_instance_t demod);
-int drxj_ctrl(pdrx_demod_instance_t demod,
+int drxj_open(struct drx_demod_instance *demod);
+int drxj_close(struct drx_demod_instance *demod);
+int drxj_ctrl(struct drx_demod_instance *demod,
 		      u32 ctrl, void *ctrl_data);
 
 /*-----------------------------------------------------------------------------
@@ -599,59 +599,59 @@ GLOBAL VARIABLES
  */
 
 static int drxj_dap_read_block(struct i2c_device_addr *dev_addr,
-				      dr_xaddr_t addr,
+				      u32 addr,
 				      u16 datasize,
-				      u8 *data, dr_xflags_t flags);
+				      u8 *data, u32 flags);
 
 static int drxj_dap_read_modify_write_reg8(struct i2c_device_addr *dev_addr,
-						dr_xaddr_t waddr,
-						dr_xaddr_t raddr,
+						u32 waddr,
+						u32 raddr,
 						u8 wdata, u8 *rdata);
 
 static int drxj_dap_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
-						 dr_xaddr_t waddr,
-						 dr_xaddr_t raddr,
+						 u32 waddr,
+						 u32 raddr,
 						 u16 wdata, u16 *rdata);
 
 static int drxj_dap_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
-						 dr_xaddr_t waddr,
-						 dr_xaddr_t raddr,
+						 u32 waddr,
+						 u32 raddr,
 						 u32 wdata, u32 *rdata);
 
 static int drxj_dap_read_reg8(struct i2c_device_addr *dev_addr,
-				     dr_xaddr_t addr,
-				     u8 *data, dr_xflags_t flags);
+				     u32 addr,
+				     u8 *data, u32 flags);
 
 static int drxj_dap_read_reg16(struct i2c_device_addr *dev_addr,
-				      dr_xaddr_t addr,
-				      u16 *data, dr_xflags_t flags);
+				      u32 addr,
+				      u16 *data, u32 flags);
 
 static int drxj_dap_read_reg32(struct i2c_device_addr *dev_addr,
-				      dr_xaddr_t addr,
-				      u32 *data, dr_xflags_t flags);
+				      u32 addr,
+				      u32 *data, u32 flags);
 
 static int drxj_dap_write_block(struct i2c_device_addr *dev_addr,
-				       dr_xaddr_t addr,
+				       u32 addr,
 				       u16 datasize,
-				       u8 *data, dr_xflags_t flags);
+				       u8 *data, u32 flags);
 
 static int drxj_dap_write_reg8(struct i2c_device_addr *dev_addr,
-				      dr_xaddr_t addr,
-				      u8 data, dr_xflags_t flags);
+				      u32 addr,
+				      u8 data, u32 flags);
 
 static int drxj_dap_write_reg16(struct i2c_device_addr *dev_addr,
-				       dr_xaddr_t addr,
-				       u16 data, dr_xflags_t flags);
+				       u32 addr,
+				       u16 data, u32 flags);
 
 static int drxj_dap_write_reg32(struct i2c_device_addr *dev_addr,
-				       dr_xaddr_t addr,
-				       u32 data, dr_xflags_t flags);
+				       u32 addr,
+				       u32 data, u32 flags);
 
 /* The version structure of this protocol implementation */
 char drx_dap_drxj_module_name[] = "DRXJ Data Access Protocol";
 char drx_dap_drxj_version_text[] = "0.0.0";
 
-drx_version_t drx_dap_drxj_version = {
+struct drx_version drx_dap_drxj_version = {
 	DRX_MODULE_DAP,	      /**< type identifier of the module  */
 	drx_dap_drxj_module_name, /**< name or description of module  */
 
@@ -662,7 +662,7 @@ drx_version_t drx_dap_drxj_version = {
 };
 
 /* The structure containing the protocol interface */
-drx_access_func_t drx_dap_drxj_funct_g = {
+struct drx_access_func drx_dap_drxj_funct_g = {
 	&drx_dap_drxj_version,
 	drxj_dap_write_block,	/* Supported       */
 	drxj_dap_read_block,	/* Supported       */
@@ -681,7 +681,7 @@ drx_access_func_t drx_dap_drxj_funct_g = {
 * /var DRXJ_Func_g
 * /brief The driver functions of the drxj
 */
-drx_demod_func_t drxj_functions_g = {
+struct drx_demod_func drxj_functions_g = {
 	DRXJ_TYPE_ID,
 	drxj_open,
 	drxj_close,
@@ -848,7 +848,7 @@ drxj_data_t drxj_data_g = {
 	 "01234567890"		/* human readable version device specific code  */
 	 },
 	{
-	 {			/* drx_version_t for microcode                   */
+	 {			/* struct drx_version for microcode                   */
 	  DRX_MODULE_UNKNOWN,
 	  (char *)(NULL),
 	  0,
@@ -856,7 +856,7 @@ drxj_data_t drxj_data_g = {
 	  0,
 	  (char *)(NULL)
 	  },
-	 {			/* drx_version_t for device specific code */
+	 {			/* struct drx_version for device specific code */
 	  DRX_MODULE_UNKNOWN,
 	  (char *)(NULL),
 	  0,
@@ -866,13 +866,13 @@ drxj_data_t drxj_data_g = {
 	  }
 	 },
 	{
-	 {			/* drx_version_list_t for microcode */
-	  (pdrx_version_t) (NULL),
-	  (p_drx_version_list_t) (NULL)
+	 {			/* struct drx_version_list for microcode */
+	  (struct drx_version *) (NULL),
+	  (struct drx_version_list *) (NULL)
 	  },
-	 {			/* drx_version_list_t for device specific code */
-	  (pdrx_version_t) (NULL),
-	  (p_drx_version_list_t) (NULL)
+	 {			/* struct drx_version_list for device specific code */
+	  (struct drx_version *) (NULL),
+	  (struct drx_version_list *) (NULL)
 	  }
 	 },
 #endif
@@ -949,7 +949,7 @@ struct i2c_device_addr drxj_default_addr_g = {
 * \var drxj_default_comm_attr_g
 * \brief Default common attributes of a drxj demodulator instance.
 */
-drx_common_attr_t drxj_default_comm_attr_g = {
+struct drx_common_attr drxj_default_comm_attr_g = {
 	(u8 *)NULL,		/* ucode ptr            */
 	0,			/* ucode size           */
 	true,			/* ucode verify switch  */
@@ -1021,7 +1021,7 @@ drx_common_attr_t drxj_default_comm_attr_g = {
 * \var drxj_default_demod_g
 * \brief Default drxj demodulator instance.
 */
-drx_demod_instance_t drxj_default_demod_g = {
+struct drx_demod_instance drxj_default_demod_g = {
 	&drxj_functions_g,	/* demod functions */
 	&DRXJ_DAP,		/* data access protocol functions */
 	NULL,			/* tuner instance */
@@ -1036,7 +1036,7 @@ drx_demod_instance_t drxj_default_demod_g = {
 * This structure is DRXK specific.
 *
 */
-drx_aud_data_t drxj_default_aud_data_g = {
+struct drx_aud_data drxj_default_aud_data_g = {
 	false,			/* audio_is_active */
 	DRX_AUD_STANDARD_AUTO,	/* audio_standard  */
 
@@ -1150,31 +1150,31 @@ hi_command(struct i2c_device_addr *dev_addr,
 	   const pdrxj_hi_cmd_t cmd, u16 *result);
 
 static int
-ctrl_lock_status(pdrx_demod_instance_t demod, pdrx_lock_status_t lock_stat);
+ctrl_lock_status(struct drx_demod_instance *demod, enum drx_lock_status *lock_stat);
 
 static int
-ctrl_power_mode(pdrx_demod_instance_t demod, pdrx_power_mode_t mode);
+ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode);
 
-static int power_down_aud(pdrx_demod_instance_t demod);
+static int power_down_aud(struct drx_demod_instance *demod);
 
 #ifndef DRXJ_DIGITAL_ONLY
-static int power_up_aud(pdrx_demod_instance_t demod, bool set_standard);
+static int power_up_aud(struct drx_demod_instance *demod, bool set_standard);
 #endif
 
 static int
-aud_ctrl_set_standard(pdrx_demod_instance_t demod, pdrx_aud_standard_t standard);
+aud_ctrl_set_standard(struct drx_demod_instance *demod, enum drx_aud_standard *standard);
 
 static int
-ctrl_set_cfg_pre_saw(pdrx_demod_instance_t demod, p_drxj_cfg_pre_saw_t pre_saw);
+ctrl_set_cfg_pre_saw(struct drx_demod_instance *demod, p_drxj_cfg_pre_saw_t pre_saw);
 
 static int
-ctrl_set_cfg_afe_gain(pdrx_demod_instance_t demod, p_drxj_cfg_afe_gain_t afe_gain);
+ctrl_set_cfg_afe_gain(struct drx_demod_instance *demod, p_drxj_cfg_afe_gain_t afe_gain);
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 static int
-ctrl_u_codeUpload(pdrx_demod_instance_t demod,
-		  p_drxu_code_info_t mc_info,
-		drxu_code_action_t action, bool audio_mc_upload);
+ctrl_u_codeUpload(struct drx_demod_instance *demod,
+		  struct drxu_code_info *mc_info,
+		enum drxu_code_actionaction, bool audio_mc_upload);
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 
 /*============================================================================*/
@@ -1688,7 +1688,7 @@ static const u16 nicam_presc_table_val[43] =
 /*============================================================================*/
 
 /**
-* \fn bool is_handled_by_aud_tr_if( dr_xaddr_t addr )
+* \fn bool is_handled_by_aud_tr_if( u32 addr )
 * \brief Check if this address is handled by the audio token ring interface.
 * \param addr
 * \return bool
@@ -1697,7 +1697,7 @@ static const u16 nicam_presc_table_val[43] =
 *
 */
 static
-bool is_handled_by_aud_tr_if(dr_xaddr_t addr)
+bool is_handled_by_aud_tr_if(u32 addr)
 {
 	bool retval = false;
 
@@ -1713,9 +1713,9 @@ bool is_handled_by_aud_tr_if(dr_xaddr_t addr)
 /*============================================================================*/
 
 static int drxj_dap_read_block(struct i2c_device_addr *dev_addr,
-				      dr_xaddr_t addr,
+				      u32 addr,
 				      u16 datasize,
-				      u8 *data, dr_xflags_t flags)
+				      u8 *data, u32 flags)
 {
 	return drx_dap_fasi_funct_g.read_block_func(dev_addr,
 					       addr, datasize, data, flags);
@@ -1724,8 +1724,8 @@ static int drxj_dap_read_block(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_read_modify_write_reg8(struct i2c_device_addr *dev_addr,
-						dr_xaddr_t waddr,
-						dr_xaddr_t raddr,
+						u32 waddr,
+						u32 raddr,
 						u8 wdata, u8 *rdata)
 {
 	return drx_dap_fasi_funct_g.read_modify_write_reg8func(dev_addr,
@@ -1757,8 +1757,8 @@ static int drxj_dap_read_modify_write_reg8(struct i2c_device_addr *dev_addr,
    See comments drxj_dap_read_modify_write_reg16 */
 #if (DRXDAPFASI_LONG_ADDR_ALLOWED == 0)
 static int drxj_dap_rm_write_reg16short(struct i2c_device_addr *dev_addr,
-					      dr_xaddr_t waddr,
-					      dr_xaddr_t raddr,
+					      u32 waddr,
+					      u32 raddr,
 					      u16 wdata, u16 *rdata)
 {
 	int rc;
@@ -1796,8 +1796,8 @@ static int drxj_dap_rm_write_reg16short(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
-						 dr_xaddr_t waddr,
-						 dr_xaddr_t raddr,
+						 u32 waddr,
+						 u32 raddr,
 						 u16 wdata, u16 *rdata)
 {
 	/* TODO: correct short/long addressing format decision,
@@ -1815,8 +1815,8 @@ static int drxj_dap_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
-						 dr_xaddr_t waddr,
-						 dr_xaddr_t raddr,
+						 u32 waddr,
+						 u32 raddr,
 						 u32 wdata, u32 *rdata)
 {
 	return drx_dap_fasi_funct_g.read_modify_write_reg32func(dev_addr,
@@ -1827,8 +1827,8 @@ static int drxj_dap_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_read_reg8(struct i2c_device_addr *dev_addr,
-				     dr_xaddr_t addr,
-				     u8 *data, dr_xflags_t flags)
+				     u32 addr,
+				     u8 *data, u32 flags)
 {
 	return drx_dap_fasi_funct_g.read_reg8func(dev_addr, addr, data, flags);
 }
@@ -1849,7 +1849,7 @@ static int drxj_dap_read_reg8(struct i2c_device_addr *dev_addr,
 *
 */
 static int drxj_dap_read_aud_reg16(struct i2c_device_addr *dev_addr,
-					 dr_xaddr_t addr, u16 *data)
+					 u32 addr, u16 *data)
 {
 	u32 start_timer = 0;
 	u32 current_timer = 0;
@@ -1861,7 +1861,7 @@ static int drxj_dap_read_aud_reg16(struct i2c_device_addr *dev_addr,
 	if (DRXDAP_FASI_ADDR2BANK(addr) == 3) {
 		stat = DRX_STS_INVALID_ARG;
 	} else {
-		const dr_xaddr_t write_bit = ((dr_xaddr_t) 1) << 16;
+		const u32 write_bit = ((dr_xaddr_t) 1) << 16;
 
 		/* Force reset write bit */
 		addr &= (~write_bit);
@@ -1929,8 +1929,8 @@ static int drxj_dap_read_aud_reg16(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_read_reg16(struct i2c_device_addr *dev_addr,
-				      dr_xaddr_t addr,
-				      u16 *data, dr_xflags_t flags)
+				      u32 addr,
+				      u16 *data, u32 flags)
 {
 	int stat = DRX_STS_ERROR;
 
@@ -1952,8 +1952,8 @@ static int drxj_dap_read_reg16(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_read_reg32(struct i2c_device_addr *dev_addr,
-				      dr_xaddr_t addr,
-				      u32 *data, dr_xflags_t flags)
+				      u32 addr,
+				      u32 *data, u32 flags)
 {
 	return drx_dap_fasi_funct_g.read_reg32func(dev_addr, addr, data, flags);
 }
@@ -1961,9 +1961,9 @@ static int drxj_dap_read_reg32(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_write_block(struct i2c_device_addr *dev_addr,
-				       dr_xaddr_t addr,
+				       u32 addr,
 				       u16 datasize,
-				       u8 *data, dr_xflags_t flags)
+				       u8 *data, u32 flags)
 {
 	return drx_dap_fasi_funct_g.write_block_func(dev_addr,
 						addr, datasize, data, flags);
@@ -1972,8 +1972,8 @@ static int drxj_dap_write_block(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_write_reg8(struct i2c_device_addr *dev_addr,
-				      dr_xaddr_t addr,
-				      u8 data, dr_xflags_t flags)
+				      u32 addr,
+				      u8 data, u32 flags)
 {
 	return drx_dap_fasi_funct_g.write_reg8func(dev_addr, addr, data, flags);
 }
@@ -1994,7 +1994,7 @@ static int drxj_dap_write_reg8(struct i2c_device_addr *dev_addr,
 *
 */
 static int drxj_dap_write_aud_reg16(struct i2c_device_addr *dev_addr,
-					  dr_xaddr_t addr, u16 data)
+					  u32 addr, u16 data)
 {
 	int stat = DRX_STS_ERROR;
 
@@ -2006,7 +2006,7 @@ static int drxj_dap_write_aud_reg16(struct i2c_device_addr *dev_addr,
 		u32 current_timer = 0;
 		u32 delta_timer = 0;
 		u16 tr_status = 0;
-		const dr_xaddr_t write_bit = ((dr_xaddr_t) 1) << 16;
+		const u32 write_bit = ((dr_xaddr_t) 1) << 16;
 
 		/* Force write bit */
 		addr |= write_bit;
@@ -2041,8 +2041,8 @@ static int drxj_dap_write_aud_reg16(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_write_reg16(struct i2c_device_addr *dev_addr,
-				       dr_xaddr_t addr,
-				       u16 data, dr_xflags_t flags)
+				       u32 addr,
+				       u16 data, u32 flags)
 {
 	int stat = DRX_STS_ERROR;
 
@@ -2064,8 +2064,8 @@ static int drxj_dap_write_reg16(struct i2c_device_addr *dev_addr,
 /*============================================================================*/
 
 static int drxj_dap_write_reg32(struct i2c_device_addr *dev_addr,
-				       dr_xaddr_t addr,
-				       u32 data, dr_xflags_t flags)
+				       u32 addr,
+				       u32 data, u32 flags)
 {
 	return drx_dap_fasi_funct_g.write_reg32func(dev_addr, addr, data, flags);
 }
@@ -2095,7 +2095,7 @@ static int drxj_dap_write_reg32(struct i2c_device_addr *dev_addr,
 */
 static
 int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
-					  dr_xaddr_t addr,
+					  u32 addr,
 					  u16 datasize,
 					  u8 *data, bool read_flag)
 {
@@ -2169,8 +2169,8 @@ rw_error:
 */
 static
 int drxj_dap_atomic_read_reg32(struct i2c_device_addr *dev_addr,
-				     dr_xaddr_t addr,
-				     u32 *data, dr_xflags_t flags)
+				     u32 addr,
+				     u32 *data, u32 flags)
 {
 	u8 buf[sizeof(*data)];
 	int rc = DRX_STS_ERROR;
@@ -2219,7 +2219,7 @@ int drxj_dap_atomic_read_reg32(struct i2c_device_addr *dev_addr,
 * enable/disable should not need re-configuration of the HI.
 *
 */
-static int hi_cfg_command(const pdrx_demod_instance_t demod)
+static int hi_cfg_command(const struct drx_demod_instance *demod)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	drxj_hi_cmd_t hi_cmd;
@@ -2322,7 +2322,7 @@ rw_error:
 }
 
 /**
-* \fn int init_hi( const pdrx_demod_instance_t demod )
+* \fn int init_hi( const struct drx_demod_instance *demod )
 * \brief Initialise and configurate HI.
 * \param demod pointer to demod data.
 * \return int Return status.
@@ -2334,14 +2334,14 @@ rw_error:
 * bridging is controlled.
 *
 */
-static int init_hi(const pdrx_demod_instance_t demod)
+static int init_hi(const struct drx_demod_instance *demod)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 
 	/* PATCH for bug 5003, HI ucode v3.1.0 */
@@ -2411,16 +2411,16 @@ rw_error:
 *  * ext_attr->has_oob
 *
 */
-static int get_device_capabilities(pdrx_demod_instance_t demod)
+static int get_device_capabilities(struct drx_demod_instance *demod)
 {
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 	u16 sio_pdr_ohw_cfg = 0;
 	u32 sio_top_jtagid_lo = 0;
 	u16 bid = 0;
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 
@@ -2586,7 +2586,7 @@ rw_error:
 #define DRXJ_MAX_RETRIES_POWERUP 10
 #endif
 
-static int power_up_device(pdrx_demod_instance_t demod)
+static int power_up_device(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 	u8 data = 0;
@@ -2636,11 +2636,11 @@ static int power_up_device(pdrx_demod_instance_t demod)
 *
 */
 static int
-ctrl_set_cfg_mpeg_output(pdrx_demod_instance_t demod, pdrx_cfg_mpeg_output_t cfg_data)
+ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_output *cfg_data)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	u16 fec_oc_reg_mode = 0;
 	u16 fec_oc_reg_ipr_mode = 0;
 	u16 fec_oc_reg_ipr_invert = 0;
@@ -2661,7 +2661,7 @@ ctrl_set_cfg_mpeg_output(pdrx_demod_instance_t demod, pdrx_cfg_mpeg_output_t cfg
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	if (cfg_data->enable_mpeg_output == true) {
 		/* quick and dirty patch to set MPEG incase current std is not
@@ -3038,11 +3038,11 @@ rw_error:
 *
 */
 static int
-ctrl_get_cfg_mpeg_output(pdrx_demod_instance_t demod, pdrx_cfg_mpeg_output_t cfg_data)
+ctrl_get_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_output *cfg_data)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
-	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
+	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	u32 rate_reg = 0;
 	u32 data64hi = 0;
 	u32 data64lo = 0;
@@ -3095,7 +3095,7 @@ rw_error:
 * This routine should be called during a set channel of QAM/VSB
 *
 */
-static int set_mpegtei_handling(pdrx_demod_instance_t demod)
+static int set_mpegtei_handling(struct drx_demod_instance *demod)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
@@ -3143,7 +3143,7 @@ rw_error:
 * This routine should be called during a set channel of QAM/VSB
 *
 */
-static int bit_reverse_mpeg_output(pdrx_demod_instance_t demod)
+static int bit_reverse_mpeg_output(struct drx_demod_instance *demod)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
@@ -3179,7 +3179,7 @@ rw_error:
 * This routine should be called during a set channel of QAM/VSB
 *
 */
-static int set_mpeg_output_clock_rate(pdrx_demod_instance_t demod)
+static int set_mpeg_output_clock_rate(struct drx_demod_instance *demod)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
@@ -3207,12 +3207,12 @@ rw_error:
 * This routine should be called during a set channel of QAM/VSB
 *
 */
-static int set_mpeg_start_width(pdrx_demod_instance_t demod)
+static int set_mpeg_start_width(struct drx_demod_instance *demod)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 	u16 fec_oc_comm_mb = 0;
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) NULL;
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) NULL;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
@@ -3246,7 +3246,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_cfg_mpeg_output_misc(pdrx_demod_instance_t demod,
+ctrl_set_cfg_mpeg_output_misc(struct drx_demod_instance *demod,
 			      p_drxj_cfg_mpeg_output_misc_t cfg_data)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
@@ -3296,7 +3296,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_cfg_mpeg_output_misc(pdrx_demod_instance_t demod,
+ctrl_get_cfg_mpeg_output_misc(struct drx_demod_instance *demod,
 			      p_drxj_cfg_mpeg_output_misc_t cfg_data)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
@@ -3338,7 +3338,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_cfg_hw_cfg(pdrx_demod_instance_t demod, p_drxj_cfg_hw_cfg_t cfg_data)
+ctrl_get_cfg_hw_cfg(struct drx_demod_instance *demod, p_drxj_cfg_hw_cfg_t cfg_data)
 {
 	u16 data = 0;
 
@@ -3371,7 +3371,7 @@ rw_error:
 * \param uio_cfg Pointer to a configuration setting for a certain UIO.
 * \return int.
 */
-static int ctrl_set_uio_cfg(pdrx_demod_instance_t demod, pdrxuio_cfg_t uio_cfg)
+static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg *uio_cfg)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 
@@ -3484,11 +3484,11 @@ rw_error:
 * \param uio_cfg Pointer to a configuration setting for a certain UIO.
 * \return int.
 */
-static int CtrlGetuio_cfg(pdrx_demod_instance_t demod, pdrxuio_cfg_t uio_cfg)
+static int CtrlGetuio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg *uio_cfg)
 {
 
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
-	pdrxuio_mode_t uio_mode[4] = { NULL };
+	enum drxuio_mode *uio_mode[4] = { NULL };
 	bool *uio_available[4] = { NULL };
 
 	ext_attr = demod->my_ext_attr;
@@ -3528,7 +3528,7 @@ static int CtrlGetuio_cfg(pdrx_demod_instance_t demod, pdrxuio_cfg_t uio_cfg)
 * \return int.
 */
 static int
-ctrl_uio_write(pdrx_demod_instance_t demod, pdrxuio_data_t uio_data)
+ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	u16 pin_cfg_value = 0;
@@ -3673,7 +3673,7 @@ rw_error:
 * \param uio_data Pointer to data container for a certain UIO.
 * \return int.
 */
-static int ctrl_uio_read(pdrx_demod_instance_t demod, pdrxuio_data_t uio_data)
+static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	u16 pin_cfg_value = 0;
@@ -3820,7 +3820,7 @@ rw_error:
 
 */
 static int
-ctrl_i2c_bridge(pdrx_demod_instance_t demod, bool *bridge_closed)
+ctrl_i2c_bridge(struct drx_demod_instance *demod, bool *bridge_closed)
 {
 	drxj_hi_cmd_t hi_cmd;
 	u16 result = 0;
@@ -3851,16 +3851,16 @@ ctrl_i2c_bridge(pdrx_demod_instance_t demod, bool *bridge_closed)
 /**
 * \fn int smart_ant_init()
 * \brief Initialize Smart Antenna.
-* \param pointer to drx_demod_instance_t.
+* \param pointer to struct drx_demod_instance.
 * \return int.
 *
 */
-static int smart_ant_init(pdrx_demod_instance_t demod)
+static int smart_ant_init(struct drx_demod_instance *demod)
 {
 	u16 data = 0;
 	pdrxj_data_t ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
-	drxuio_cfg_t uio_cfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SMA };
+	struct drxuio_cfg uio_cfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SMA };
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
@@ -3899,7 +3899,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_cfg_smart_ant(pdrx_demod_instance_t demod, p_drxj_cfg_smart_ant_t smart_ant)
+ctrl_set_cfg_smart_ant(struct drx_demod_instance *demod, p_drxj_cfg_smart_ant_t smart_ant)
 {
 	pdrxj_data_t ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
@@ -4092,7 +4092,7 @@ rw_error:
 */
 #define ADDR_AT_SCU_SPACE(x) ((x - 0x82E000) * 2)
 static
-int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, dr_xaddr_t addr, u16 datasize,	/* max 30 bytes because the limit of SCU parameter */
+int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, u32 addr, u16 datasize,	/* max 30 bytes because the limit of SCU parameter */
 					      u8 *data, bool read_flag)
 {
 	drxjscu_cmd_t scu_cmd;
@@ -4154,8 +4154,8 @@ rw_error:
 */
 static
 int drxj_dap_scu_atomic_read_reg16(struct i2c_device_addr *dev_addr,
-					 dr_xaddr_t addr,
-					 u16 *data, dr_xflags_t flags)
+					 u32 addr,
+					 u16 *data, u32 flags)
 {
 	u8 buf[2];
 	int rc = DRX_STS_ERROR;
@@ -4181,8 +4181,8 @@ int drxj_dap_scu_atomic_read_reg16(struct i2c_device_addr *dev_addr,
 */
 static
 int drxj_dap_scu_atomic_write_reg16(struct i2c_device_addr *dev_addr,
-					  dr_xaddr_t addr,
-					  u16 data, dr_xflags_t flags)
+					  u32 addr,
+					  u16 data, u32 flags)
 {
 	u8 buf[2];
 	int rc = DRX_STS_ERROR;
@@ -4196,7 +4196,7 @@ int drxj_dap_scu_atomic_write_reg16(struct i2c_device_addr *dev_addr,
 }
 
 static int
-ctrl_i2c_write_read(pdrx_demod_instance_t demod, pdrxi2c_data_t i2c_data)
+ctrl_i2c_write_read(struct drx_demod_instance *demod, struct drxi2c_data *i2c_data)
 {
 	return (DRX_STS_FUNC_NOT_AVAILABLE);
 }
@@ -4211,7 +4211,7 @@ ctrl_i2c_write_read(pdrx_demod_instance_t demod, pdrxi2c_data_t i2c_data)
 * \retval DRX_STS_ERROR Failure: I2C error
 *
 */
-static int adc_sync_measurement(pdrx_demod_instance_t demod, u16 *count)
+static int adc_sync_measurement(struct drx_demod_instance *demod, u16 *count)
 {
 	u16 data = 0;
 	struct i2c_device_addr *dev_addr = NULL;
@@ -4256,7 +4256,7 @@ rw_error:
 *
 */
 
-static int adc_synchronization(pdrx_demod_instance_t demod)
+static int adc_synchronization(struct drx_demod_instance *demod)
 {
 	u16 count = 0;
 	struct i2c_device_addr *dev_addr = NULL;
@@ -4293,7 +4293,7 @@ rw_error:
 * \param active
 * \return int.
 */
-static int iqm_set_af(pdrx_demod_instance_t demod, bool active)
+static int iqm_set_af(struct drx_demod_instance *demod, bool active)
 {
 	u16 data = 0;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
@@ -4323,7 +4323,7 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 static int
-ctrl_set_cfg_atv_output(pdrx_demod_instance_t demod, p_drxj_cfg_atv_output_t output_cfg);
+ctrl_set_cfg_atv_output(struct drx_demod_instance *demod, p_drxj_cfg_atv_output_t output_cfg);
 
 /**
 * \brief set configuration of pin-safe mode
@@ -4332,7 +4332,7 @@ ctrl_set_cfg_atv_output(pdrx_demod_instance_t demod, p_drxj_cfg_atv_output_t out
 * \return int.
 */
 static int
-ctrl_set_cfg_pdr_safe_mode(pdrx_demod_instance_t demod, bool *enable)
+ctrl_set_cfg_pdr_safe_mode(struct drx_demod_instance *demod, bool *enable)
 {
 	pdrxj_data_t ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
@@ -4455,7 +4455,7 @@ rw_error:
 * \return int.
 */
 static int
-ctrl_get_cfg_pdr_safe_mode(pdrx_demod_instance_t demod, bool *enabled)
+ctrl_get_cfg_pdr_safe_mode(struct drx_demod_instance *demod, bool *enabled)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
@@ -4474,7 +4474,7 @@ ctrl_get_cfg_pdr_safe_mode(pdrx_demod_instance_t demod, bool *enabled)
 * \param demod Demodulator instance.
 * \return int.
 */
-static int ctrl_validate_u_code(pdrx_demod_instance_t demod)
+static int ctrl_validate_u_code(struct drx_demod_instance *demod)
 {
 	u32 mc_dev, mc_patch;
 	u16 ver_type;
@@ -4522,10 +4522,10 @@ static int ctrl_validate_u_code(pdrx_demod_instance_t demod)
 * \param channel pointer to channel data.
 * \return int.
 */
-static int init_agc(pdrx_demod_instance_t demod)
+static int init_agc(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	pdrxj_data_t ext_attr = NULL;
 	p_drxj_cfg_agc_t p_agc_rf_settings = NULL;
 	p_drxj_cfg_agc_t p_agc_if_settings = NULL;
@@ -4545,7 +4545,7 @@ static int init_agc(pdrx_demod_instance_t demod)
 	u16 agc_rf = 0;
 	u16 agc_if = 0;
 	dev_addr = demod->my_i2c_dev_addr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	switch (ext_attr->standard) {
@@ -4730,8 +4730,8 @@ rw_error:
 * \return int.
 */
 static int
-set_frequency(pdrx_demod_instance_t demod,
-	      pdrx_channel_t channel, s32 tuner_freq_offset)
+set_frequency(struct drx_demod_instance *demod,
+	      struct drx_channel *channel, s32 tuner_freq_offset)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	pdrxj_data_t ext_attr = demod->my_ext_attr;
@@ -4833,7 +4833,7 @@ rw_error:
 #define DRXJ_RFAGC_MAX  0x3fff
 #define DRXJ_RFAGC_MIN  0x800
 
-static int get_sig_strength(pdrx_demod_instance_t demod, u16 *sig_strength)
+static int get_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	u16 rf_gain = 0;
@@ -4888,7 +4888,7 @@ rw_error:
 * \retval DRX_STS_ERROR Erroneous data, sig_strength contains invalid data.
 */
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
-static int get_acc_pkt_err(pdrx_demod_instance_t demod, u16 *packet_err)
+static int get_acc_pkt_err(struct drx_demod_instance *demod, u16 *packet_err)
 {
 	static u16 pkt_err;
 	static u16 last_pkt_err;
@@ -4929,7 +4929,7 @@ rw_error:
 * \retval DRX_STS_OK.
 * \retval DRX_STS_ERROR Erroneous data.
 */
-static int ctrl_set_cfg_reset_pkt_err(pdrx_demod_instance_t demod)
+static int ctrl_set_cfg_reset_pkt_err(struct drx_demod_instance *demod)
 {
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
 	pdrxj_data_t ext_attr = NULL;
@@ -4951,7 +4951,7 @@ rw_error:
 * \brief Get symbol rate offset in QAM & 8VSB mode
 * \return Error code
 */
-static int get_str_freq_offset(pdrx_demod_instance_t demod, s32 *str_freq)
+static int get_str_freq_offset(struct drx_demod_instance *demod, s32 *str_freq)
 {
 	u32 symbol_frequency_ratio = 0;
 	u32 symbol_nom_frequency_ratio = 0;
@@ -4984,7 +4984,7 @@ rw_error:
 * \brief Get the value of ctl_freq in QAM & ATSC mode
 * \return Error code
 */
-static int get_ctl_freq_offset(pdrx_demod_instance_t demod, s32 *ctl_freq)
+static int get_ctl_freq_offset(struct drx_demod_instance *demod, s32 *ctl_freq)
 {
 	s32 sampling_frequency = 0;
 	s32 current_frequency = 0;
@@ -4994,12 +4994,12 @@ static int get_ctl_freq_offset(pdrx_demod_instance_t demod, s32 *ctl_freq)
 	u32 data64hi = 0;
 	u32 data64lo = 0;
 	pdrxj_data_t ext_attr = NULL;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	sampling_frequency = common_attr->sys_clock_freq / 3;
 
@@ -5041,16 +5041,16 @@ rw_error:
 * \return int.
 */
 static int
-set_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings, bool atomic)
+set_agc_rf(struct drx_demod_instance *demod, p_drxj_cfg_agc_t agc_settings, bool atomic)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
 	p_drxj_cfg_agc_t p_agc_settings = NULL;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	drx_write_reg16func_t scu_wr16 = NULL;
 	drx_read_reg16func_t scu_rr16 = NULL;
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
@@ -5219,7 +5219,7 @@ rw_error:
 * \return int.
 */
 static int
-get_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
+get_agc_rf(struct drx_demod_instance *demod, p_drxj_cfg_agc_t agc_settings)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -5280,16 +5280,16 @@ rw_error:
 * \return int.
 */
 static int
-set_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings, bool atomic)
+set_agc_if(struct drx_demod_instance *demod, p_drxj_cfg_agc_t agc_settings, bool atomic)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
 	p_drxj_cfg_agc_t p_agc_settings = NULL;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	drx_write_reg16func_t scu_wr16 = NULL;
 	drx_read_reg16func_t scu_rr16 = NULL;
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
@@ -5471,7 +5471,7 @@ rw_error:
 * \return int.
 */
 static int
-get_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
+get_agc_if(struct drx_demod_instance *demod, p_drxj_cfg_agc_t agc_settings)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -5532,7 +5532,7 @@ rw_error:
 * \param active
 * \return int.
 */
-static int set_iqm_af(pdrx_demod_instance_t demod, bool active)
+static int set_iqm_af(struct drx_demod_instance *demod, bool active)
 {
 	u16 data = 0;
 	struct i2c_device_addr *dev_addr = NULL;
@@ -5580,7 +5580,7 @@ rw_error:
 * \param channel pointer to channel data.
 * \return int.
 */
-static int power_down_vsb(pdrx_demod_instance_t demod, bool primary)
+static int power_down_vsb(struct drx_demod_instance *demod, bool primary)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	drxjscu_cmd_t cmd_scu = { /* command     */ 0,
@@ -5590,7 +5590,7 @@ static int power_down_vsb(pdrx_demod_instance_t demod, bool primary)
 		/* *result      */ NULL
 	};
 	u16 cmd_result = 0;
-	drx_cfg_mpeg_output_t cfg_mpeg_output;
+	struct drx_cfg_mpeg_output cfg_mpeg_output;
 
 	/*
 	   STOP demodulator
@@ -5632,7 +5632,7 @@ rw_error:
 * \param demod instance of demodulator.
 * \return int.
 */
-static int set_vsb_leak_n_gain(pdrx_demod_instance_t demod)
+static int set_vsb_leak_n_gain(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 
@@ -5842,12 +5842,12 @@ rw_error:
 * \return int.
 *
 */
-static int set_vsb(pdrx_demod_instance_t demod)
+static int set_vsb(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	u16 cmd_result = 0;
 	u16 cmd_param = 0;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	drxjscu_cmd_t cmd_scu;
 	pdrxj_data_t ext_attr = NULL;
 	const u8 vsb_taps_re[] = {
@@ -5882,7 +5882,7 @@ static int set_vsb(pdrx_demod_instance_t demod)
 	};
 
 	dev_addr = demod->my_i2c_dev_addr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* stop all comm_exec */
@@ -6003,7 +6003,7 @@ static int set_vsb(pdrx_demod_instance_t demod)
 	{
 		/* TODO: move to set_standard after hardware reset value problem is solved */
 		/* Configure initial MPEG output */
-		drx_cfg_mpeg_output_t cfg_mpeg_output;
+		struct drx_cfg_mpeg_output cfg_mpeg_output;
 		cfg_mpeg_output.enable_mpeg_output = true;
 		cfg_mpeg_output.insert_rs_byte = common_attr->mpeg_cfg.insert_rs_byte;
 		cfg_mpeg_output.enable_parallel =
@@ -6202,7 +6202,7 @@ rw_error:
 * \return int.
 */
 static int
-ctrl_get_vsb_constel(pdrx_demod_instance_t demod, pdrx_complex_t complex_nr)
+ctrl_get_vsb_constel(struct drx_demod_instance *demod, struct drx_complex *complex_nr)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 				       /**< device address                    */
@@ -6266,7 +6266,7 @@ rw_error:
 * \param channel pointer to channel data.
 * \return int.
 */
-static int power_down_qam(pdrx_demod_instance_t demod, bool primary)
+static int power_down_qam(struct drx_demod_instance *demod, bool primary)
 {
 	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
 		/* parameter_len */ 0,
@@ -6276,7 +6276,7 @@ static int power_down_qam(pdrx_demod_instance_t demod, bool primary)
 	};
 	u16 cmd_result = 0;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
-	drx_cfg_mpeg_output_t cfg_mpeg_output;
+	struct drx_cfg_mpeg_output cfg_mpeg_output;
 
 	/*
 	   STOP demodulator
@@ -6333,7 +6333,7 @@ rw_error:
 */
 #ifndef DRXJ_VSB_ONLY
 static int
-set_qam_measurement(pdrx_demod_instance_t demod,
+set_qam_measurement(struct drx_demod_instance *demod,
 		    enum drx_modulation constellation, u32 symbol_rate)
 {
 	struct i2c_device_addr *dev_addr = NULL;	/* device address for I2C writes */
@@ -6495,7 +6495,7 @@ rw_error:
 * \param demod instance of demod.
 * \return int.
 */
-static int set_qam16(pdrx_demod_instance_t demod)
+static int set_qam16(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	const u8 qam_dq_qual_fun[] = {
@@ -6575,7 +6575,7 @@ rw_error:
 * \param demod instance of demod.
 * \return int.
 */
-static int set_qam32(pdrx_demod_instance_t demod)
+static int set_qam32(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	const u8 qam_dq_qual_fun[] = {
@@ -6655,7 +6655,7 @@ rw_error:
 * \param demod instance of demod.
 * \return int.
 */
-static int set_qam64(pdrx_demod_instance_t demod)
+static int set_qam64(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	const u8 qam_dq_qual_fun[] = {	/* this is hw reset value. no necessary to re-write */
@@ -6735,7 +6735,7 @@ rw_error:
 * \param demod: instance of demod.
 * \return int.
 */
-static int set_qam128(pdrx_demod_instance_t demod)
+static int set_qam128(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	const u8 qam_dq_qual_fun[] = {
@@ -6815,7 +6815,7 @@ rw_error:
 * \param demod: instance of demod.
 * \return int.
 */
-static int set_qam256(pdrx_demod_instance_t demod)
+static int set_qam256(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	const u8 qam_dq_qual_fun[] = {
@@ -6900,12 +6900,12 @@ rw_error:
 * \return int.
 */
 static int
-set_qam(pdrx_demod_instance_t demod,
-	pdrx_channel_t channel, s32 tuner_freq_offset, u32 op)
+set_qam(struct drx_demod_instance *demod,
+	struct drx_channel *channel, s32 tuner_freq_offset, u32 op)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	u16 cmd_result = 0;
 	u32 adc_frequency = 0;
 	u32 iqm_rc_rate = 0;
@@ -7042,7 +7042,7 @@ set_qam(pdrx_demod_instance_t demod,
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
 		if (ext_attr->standard == DRX_STANDARD_ITU_B) {
@@ -7321,7 +7321,7 @@ set_qam(pdrx_demod_instance_t demod,
 		{
 			/* TODO: move to set_standard after hardware reset value problem is solved */
 			/* Configure initial MPEG output */
-			drx_cfg_mpeg_output_t cfg_mpeg_output;
+			struct drx_cfg_mpeg_output cfg_mpeg_output;
 
 			cfg_mpeg_output.enable_mpeg_output = true;
 			cfg_mpeg_output.insert_rs_byte =
@@ -7363,8 +7363,8 @@ rw_error:
 
 /*============================================================================*/
 static int
-ctrl_get_qam_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality);
-static int qam_flip_spec(pdrx_demod_instance_t demod, pdrx_channel_t channel)
+ctrl_get_qam_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_quality);
+static int qam_flip_spec(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
 	u32 iqm_fs_rate_ofs = 0;
 	u32 iqm_fs_rate_lo = 0;
@@ -7461,11 +7461,11 @@ rw_error:
 * \return int.
 */
 static int
-qam64auto(pdrx_demod_instance_t demod,
-	  pdrx_channel_t channel,
-	  s32 tuner_freq_offset, pdrx_lock_status_t lock_status)
+qam64auto(struct drx_demod_instance *demod,
+	  struct drx_channel *channel,
+	  s32 tuner_freq_offset, enum drx_lock_status *lock_status)
 {
-	drx_sig_quality_t sig_quality;
+	struct drx_sig_quality sig_quality;
 	u16 data = 0;
 	u32 state = NO_LOCK;
 	u32 start_time = 0;
@@ -7575,11 +7575,11 @@ rw_error:
 * \return int.
 */
 static int
-qam256auto(pdrx_demod_instance_t demod,
-	   pdrx_channel_t channel,
-	   s32 tuner_freq_offset, pdrx_lock_status_t lock_status)
+qam256auto(struct drx_demod_instance *demod,
+	   struct drx_channel *channel,
+	   s32 tuner_freq_offset, enum drx_lock_status *lock_status)
 {
-	drx_sig_quality_t sig_quality;
+	struct drx_sig_quality sig_quality;
 	u32 state = NO_LOCK;
 	u32 start_time = 0;
 	u32 d_locked_time = 0;
@@ -7644,10 +7644,10 @@ rw_error:
 * \return int.
 */
 static int
-set_qamChannel(pdrx_demod_instance_t demod,
-	       pdrx_channel_t channel, s32 tuner_freq_offset)
+set_qamChannel(struct drx_demod_instance *demod,
+	       struct drx_channel *channel, s32 tuner_freq_offset)
 {
-	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	pdrxj_data_t ext_attr = NULL;
 	bool auto_flag = false;
 
@@ -7848,7 +7848,7 @@ rw_error:
 *  Pre-condition: Device must be started and in lock.
 */
 static int
-ctrl_get_qam_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality)
+ctrl_get_qam_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_quality)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -8030,7 +8030,7 @@ rw_error:
 * \return int.
 */
 static int
-ctrl_get_qam_constel(pdrx_demod_instance_t demod, pdrx_complex_t complex_nr)
+ctrl_get_qam_constel(struct drx_demod_instance *demod, struct drx_complex *complex_nr)
 {
 	u16 fec_oc_ocr_mode = 0;
 			      /**< FEC OCR grabber configuration        */
@@ -8220,7 +8220,7 @@ static int atv_equ_coef_index(enum drx_standard standard, int *index)
 *
 */
 static int
-atv_update_config(pdrx_demod_instance_t demod, bool force_update)
+atv_update_config(struct drx_demod_instance *demod, bool force_update)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -8328,7 +8328,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_cfg_atv_output(pdrx_demod_instance_t demod, p_drxj_cfg_atv_output_t output_cfg)
+ctrl_set_cfg_atv_output(struct drx_demod_instance *demod, p_drxj_cfg_atv_output_t output_cfg)
 {
 	pdrxj_data_t ext_attr = NULL;
 
@@ -8385,7 +8385,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_cfg_atv_equ_coef(pdrx_demod_instance_t demod, p_drxj_cfg_atv_equ_coef_t coef)
+ctrl_set_cfg_atv_equ_coef(struct drx_demod_instance *demod, p_drxj_cfg_atv_equ_coef_t coef)
 {
 	pdrxj_data_t ext_attr = NULL;
 	int index;
@@ -8439,7 +8439,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_cfg_atv_equ_coef(pdrx_demod_instance_t demod, p_drxj_cfg_atv_equ_coef_t coef)
+ctrl_get_cfg_atv_equ_coef(struct drx_demod_instance *demod, p_drxj_cfg_atv_equ_coef_t coef)
 {
 	pdrxj_data_t ext_attr = NULL;
 	int index = 0;
@@ -8477,7 +8477,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_cfg_atv_misc(pdrx_demod_instance_t demod, p_drxj_cfg_atv_misc_t settings)
+ctrl_set_cfg_atv_misc(struct drx_demod_instance *demod, p_drxj_cfg_atv_misc_t settings)
 {
 	pdrxj_data_t ext_attr = NULL;
 
@@ -8522,7 +8522,7 @@ rw_error:
 * regitsers.
 */
 static int
-ctrl_get_cfg_atv_misc(pdrx_demod_instance_t demod, p_drxj_cfg_atv_misc_t settings)
+ctrl_get_cfg_atv_misc(struct drx_demod_instance *demod, p_drxj_cfg_atv_misc_t settings)
 {
 	pdrxj_data_t ext_attr = NULL;
 
@@ -8551,7 +8551,7 @@ ctrl_get_cfg_atv_misc(pdrx_demod_instance_t demod, p_drxj_cfg_atv_misc_t setting
 *
 */
 static int
-ctrl_get_cfg_atv_output(pdrx_demod_instance_t demod, p_drxj_cfg_atv_output_t output_cfg)
+ctrl_get_cfg_atv_output(struct drx_demod_instance *demod, p_drxj_cfg_atv_output_t output_cfg)
 {
 	u16 data = 0;
 
@@ -8590,7 +8590,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_cfg_atv_agc_status(pdrx_demod_instance_t demod,
+ctrl_get_cfg_atv_agc_status(struct drx_demod_instance *demod,
 			    p_drxj_cfg_atv_agc_status_t agc_status)
 {
 	struct i2c_device_addr *dev_addr = NULL;
@@ -8691,7 +8691,7 @@ rw_error:
 * * Starts ATV and IQM
 * * AUdio already started during standard init for ATV.
 */
-static int power_up_atv(pdrx_demod_instance_t demod, enum drx_standard standard)
+static int power_up_atv(struct drx_demod_instance *demod, enum drx_standard standard)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 
@@ -8725,7 +8725,7 @@ rw_error:
 *  Calls audio power down
 */
 static int
-power_down_atv(pdrx_demod_instance_t demod, enum drx_standard standard, bool primary)
+power_down_atv(struct drx_demod_instance *demod, enum drx_standard standard, bool primary)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
@@ -8783,7 +8783,7 @@ rw_error:
 #ifndef DRXJ_DIGITAL_ONLY
 #define SCU_RAM_ATV_ENABLE_IIR_WA__A 0x831F6D	/* TODO remove after done with reg import */
 static int
-set_atv_standard(pdrx_demod_instance_t demod, enum drx_standard *standard)
+set_atv_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 {
 /* TODO: enable alternative for tap settings via external file
 
@@ -9052,8 +9052,8 @@ trouble ?
 	u16 cmd_result = 0;
 	u16 cmd_param = 0;
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
-	drxu_code_info_t ucode_info;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drxu_code_info ucode_info;
+	struct drx_common_attr *common_attr = NULL;
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 	pdrxj_data_t ext_attr = NULL;
 
@@ -9398,9 +9398,9 @@ rw_error:
 *
 */
 static int
-set_atv_channel(pdrx_demod_instance_t demod,
+set_atv_channel(struct drx_demod_instance *demod,
 		s32 tuner_freq_offset,
-	      pdrx_channel_t channel, enum drx_standard standard)
+	      struct drx_channel *channel, enum drx_standard standard)
 {
 	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
 		/* parameter_len */ 0,
@@ -9465,8 +9465,8 @@ rw_error:
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-get_atv_channel(pdrx_demod_instance_t demod,
-		pdrx_channel_t channel, enum drx_standard standard)
+get_atv_channel(struct drx_demod_instance *demod,
+		struct drx_channel *channel, enum drx_standard standard)
 {
 	s32 offset = 0;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
@@ -9548,7 +9548,7 @@ rw_error:
 *         is not used ?
 */
 static int
-get_atv_sig_strength(pdrx_demod_instance_t demod, u16 *sig_strength)
+get_atv_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -9657,7 +9657,7 @@ rw_error:
 *
 */
 static int
-atv_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality)
+atv_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_quality)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	u16 quality_indicator = 0;
@@ -9715,9 +9715,9 @@ rw_error:
 * \return int.
 *
 */
-static int power_up_aud(pdrx_demod_instance_t demod, bool set_standard)
+static int power_up_aud(struct drx_demod_instance *demod, bool set_standard)
 {
-	drx_aud_standard_t aud_standard = DRX_AUD_STANDARD_AUTO;
+	enum drx_aud_standard aud_standard = DRX_AUD_STANDARD_AUTO;
 	struct i2c_device_addr *dev_addr = NULL;
 
 	dev_addr = demod->my_i2c_dev_addr;
@@ -9744,7 +9744,7 @@ rw_error:
 * \return int.
 *
 */
-static int power_down_aud(pdrx_demod_instance_t demod)
+static int power_down_aud(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -9769,7 +9769,7 @@ rw_error:
 * \return int.
 *
 */
-static int aud_get_modus(pdrx_demod_instance_t demod, u16 *modus)
+static int aud_get_modus(struct drx_demod_instance *demod, u16 *modus)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -9810,12 +9810,11 @@ rw_error:
 /**
 * \brief Get audio RDS dat
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_aud_rds_t
-* \return int.
+* \param pointer to struct drx_cfg_aud_rds * \return int.
 *
 */
 static int
-aud_ctrl_get_cfg_rds(pdrx_demod_instance_t demod, pdrx_cfg_aud_rds_t status)
+aud_ctrl_get_cfg_rds(struct drx_demod_instance *demod, struct drx_cfg_aud_rds *status)
 {
 	struct i2c_device_addr *addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -9885,7 +9884,7 @@ rw_error:
 *
 */
 static int
-aud_ctrl_get_carrier_detect_status(pdrx_demod_instance_t demod, pdrx_aud_status_t status)
+aud_ctrl_get_carrier_detect_status(struct drx_demod_instance *demod, struct drx_aud_status *status)
 {
 	pdrxj_data_t ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
@@ -9963,11 +9962,11 @@ rw_error:
 *
 */
 static int
-aud_ctrl_get_status(pdrx_demod_instance_t demod, pdrx_aud_status_t status)
+aud_ctrl_get_status(struct drx_demod_instance *demod, struct drx_aud_status *status)
 {
 	pdrxj_data_t ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
-	drx_cfg_aud_rds_t rds = { false, {0} };
+	struct drx_cfg_aud_rds rds = { false, {0} };
 	u16 r_data = 0;
 
 	if (status == NULL) {
@@ -9999,12 +9998,11 @@ rw_error:
 /**
 * \brief Get the current volume settings
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_aud_volume_t
-* \return int.
+* \param pointer to struct drx_cfg_aud_volume * \return int.
 *
 */
 static int
-aud_ctrl_get_cfg_volume(pdrx_demod_instance_t demod, pdrx_cfg_aud_volume_t volume)
+aud_ctrl_get_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_volume *volume)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -10133,12 +10131,11 @@ rw_error:
 /**
 * \brief Set the current volume settings
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_aud_volume_t
-* \return int.
+* \param pointer to struct drx_cfg_aud_volume * \return int.
 *
 */
 static int
-aud_ctrl_set_cfg_volume(pdrx_demod_instance_t demod, pdrx_cfg_aud_volume_t volume)
+aud_ctrl_set_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_volume *volume)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -10268,12 +10265,11 @@ rw_error:
 /**
 * \brief Get the I2S settings
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_i2s_output_t
-* \return int.
+* \param pointer to struct drx_cfg_i2s_output * \return int.
 *
 */
 static int
-aud_ctrl_get_cfg_output_i2s(pdrx_demod_instance_t demod, pdrx_cfg_i2s_output_t output)
+aud_ctrl_get_cfg_output_i2s(struct drx_demod_instance *demod, struct drx_cfg_i2s_output *output)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -10371,12 +10367,11 @@ rw_error:
 /**
 * \brief Set the I2S settings
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_i2s_output_t
-* \return int.
+* \param pointer to struct drx_cfg_i2s_output * \return int.
 *
 */
 static int
-aud_ctrl_set_cfg_output_i2s(pdrx_demod_instance_t demod, pdrx_cfg_i2s_output_t output)
+aud_ctrl_set_cfg_output_i2s(struct drx_demod_instance *demod, struct drx_cfg_i2s_output *output)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -10531,8 +10526,8 @@ rw_error:
 *
 */
 static int
-aud_ctrl_get_cfg_auto_sound(pdrx_demod_instance_t demod,
-			    pdrx_cfg_aud_auto_sound_t auto_sound)
+aud_ctrl_get_cfg_auto_sound(struct drx_demod_instance *demod,
+			    enum drx_cfg_aud_auto_sound *auto_sound)
 {
 	pdrxj_data_t ext_attr = NULL;
 	u16 r_modus = 0;
@@ -10584,8 +10579,8 @@ rw_error:
 *
 */
 static int
-aud_ctr_setl_cfg_auto_sound(pdrx_demod_instance_t demod,
-			    pdrx_cfg_aud_auto_sound_t auto_sound)
+aud_ctr_setl_cfg_auto_sound(struct drx_demod_instance *demod,
+			    enum drx_cfg_aud_auto_sound *auto_sound)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -10650,7 +10645,7 @@ rw_error:
 *
 */
 static int
-aud_ctrl_get_cfg_ass_thres(pdrx_demod_instance_t demod, pdrx_cfg_aud_ass_thres_t thres)
+aud_ctrl_get_cfg_ass_thres(struct drx_demod_instance *demod, struct drx_cfg_aud_ass_thres *thres)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -10694,7 +10689,7 @@ rw_error:
 *
 */
 static int
-aud_ctrl_set_cfg_ass_thres(pdrx_demod_instance_t demod, pdrx_cfg_aud_ass_thres_t thres)
+aud_ctrl_set_cfg_ass_thres(struct drx_demod_instance *demod, struct drx_cfg_aud_ass_thres *thres)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -10728,12 +10723,11 @@ rw_error:
 /**
 * \brief Get Audio Carrier settings
 * \param demod instance of demodulator
-* \param pointer to pdrx_aud_carrier_t
-* \return int.
+* \param pointer to struct drx_aud_carrier ** \return int.
 *
 */
 static int
-aud_ctrl_get_cfg_carrier(pdrx_demod_instance_t demod, pdrx_cfg_aud_carriers_t carriers)
+aud_ctrl_get_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_carriers *carriers)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -10833,12 +10827,11 @@ rw_error:
 /**
 * \brief Set Audio Carrier settings
 * \param demod instance of demodulator
-* \param pointer to pdrx_aud_carrier_t
-* \return int.
+* \param pointer to struct drx_aud_carrier ** \return int.
 *
 */
 static int
-aud_ctrl_set_cfg_carrier(pdrx_demod_instance_t demod, pdrx_cfg_aud_carriers_t carriers)
+aud_ctrl_set_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_carriers *carriers)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -10938,7 +10931,7 @@ rw_error:
 *
 */
 static int
-aud_ctrl_get_cfg_mixer(pdrx_demod_instance_t demod, pdrx_cfg_aud_mixer_t mixer)
+aud_ctrl_get_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixer *mixer)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -11033,7 +11026,7 @@ rw_error:
 *
 */
 static int
-aud_ctrl_set_cfg_mixer(pdrx_demod_instance_t demod, pdrx_cfg_aud_mixer_t mixer)
+aud_ctrl_set_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixer *mixer)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -11141,7 +11134,7 @@ rw_error:
 *
 */
 static int
-aud_ctrl_set_cfg_av_sync(pdrx_demod_instance_t demod, pdrx_cfg_aud_av_sync_t av_sync)
+aud_ctrl_set_cfg_av_sync(struct drx_demod_instance *demod, enum drx_cfg_aud_av_sync *av_sync)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -11206,7 +11199,7 @@ rw_error:
 *
 */
 static int
-aud_ctrl_get_cfg_av_sync(pdrx_demod_instance_t demod, pdrx_cfg_aud_av_sync_t av_sync)
+aud_ctrl_get_cfg_av_sync(struct drx_demod_instance *demod, enum drx_cfg_aud_av_sync *av_sync)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -11258,12 +11251,11 @@ rw_error:
 /**
 * \brief Get deviation mode
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_aud_deviation_t
-* \return int.
+* \param pointer to enum drx_cfg_aud_deviation * \return int.
 *
 */
 static int
-aud_ctrl_get_cfg_dev(pdrx_demod_instance_t demod, pdrx_cfg_aud_deviation_t dev)
+aud_ctrl_get_cfg_dev(struct drx_demod_instance *demod, enum drx_cfg_aud_deviation *dev)
 {
 	u16 r_modus = 0;
 
@@ -11292,12 +11284,11 @@ rw_error:
 /**
 * \brief Get deviation mode
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_aud_deviation_t
-* \return int.
+* \param pointer to enum drx_cfg_aud_deviation * \return int.
 *
 */
 static int
-aud_ctrl_set_cfg_dev(pdrx_demod_instance_t demod, pdrx_cfg_aud_deviation_t dev)
+aud_ctrl_set_cfg_dev(struct drx_demod_instance *demod, enum drx_cfg_aud_deviation *dev)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -11345,12 +11336,11 @@ rw_error:
 /**
 * \brief Get Prescaler settings
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_aud_prescale_t
-* \return int.
+* \param pointer to struct drx_cfg_aud_prescale * \return int.
 *
 */
 static int
-aud_ctrl_get_cfg_prescale(pdrx_demod_instance_t demod, pdrx_cfg_aud_prescale_t presc)
+aud_ctrl_get_cfg_prescale(struct drx_demod_instance *demod, struct drx_cfg_aud_prescale *presc)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -11420,12 +11410,11 @@ rw_error:
 /**
 * \brief Set Prescaler settings
 * \param demod instance of demodulator
-* \param pointer to drx_cfg_aud_prescale_t
-* \return int.
+* \param pointer to struct drx_cfg_aud_prescale * \return int.
 *
 */
 static int
-aud_ctrl_set_cfg_prescale(pdrx_demod_instance_t demod, pdrx_cfg_aud_prescale_t presc)
+aud_ctrl_set_cfg_prescale(struct drx_demod_instance *demod, struct drx_cfg_aud_prescale *presc)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -11503,11 +11492,10 @@ rw_error:
 /**
 * \brief Beep
 * \param demod instance of demodulator
-* \param pointer to drx_aud_beep_t
-* \return int.
+* \param pointer to struct drx_aud_beep * \return int.
 *
 */
-static int aud_ctrl_beep(pdrx_demod_instance_t demod, pdrx_aud_beep_t beep)
+static int aud_ctrl_beep(struct drx_demod_instance *demod, struct drx_aud_beep *beep)
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
@@ -11561,12 +11549,11 @@ rw_error:
 /**
 * \brief Set an audio standard
 * \param demod instance of demodulator
-* \param pointer to drx_aud_standard_t
-* \return int.
+* \param pointer to enum drx_aud_standard * \return int.
 *
 */
 static int
-aud_ctrl_set_standard(pdrx_demod_instance_t demod, pdrx_aud_standard_t standard)
+aud_ctrl_set_standard(struct drx_demod_instance *demod, enum drx_aud_standard *standard)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -11739,12 +11726,11 @@ rw_error:
 /**
 * \brief Get the current audio standard
 * \param demod instance of demodulator
-* \param pointer to drx_aud_standard_t
-* \return int.
+* \param pointer to enum drx_aud_standard * \return int.
 *
 */
 static int
-aud_ctrl_get_standard(pdrx_demod_instance_t demod, pdrx_aud_standard_t standard)
+aud_ctrl_get_standard(struct drx_demod_instance *demod, enum drx_aud_standard *standard)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -11851,9 +11837,9 @@ rw_error:
 *
 */
 static int
-fm_lock_status(pdrx_demod_instance_t demod, pdrx_lock_status_t lock_stat)
+fm_lock_status(struct drx_demod_instance *demod, enum drx_lock_status *lock_stat)
 {
-	drx_aud_status_t status;
+	struct drx_aud_status status;
 
 	/* Check detection of audio carriers */
 	CHK_ERROR(aud_ctrl_get_carrier_detect_status(demod, &status));
@@ -11883,9 +11869,9 @@ rw_error:
 *
 */
 static int
-fm_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality)
+fm_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_quality)
 {
-	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 
 	CHK_ERROR(fm_lock_status(demod, &lock_status));
 	if (lock_status == DRX_LOCKED) {
@@ -11923,8 +11909,8 @@ rw_error:
 *
 */
 static int
-get_oob_lock_status(pdrx_demod_instance_t demod,
-		    struct i2c_device_addr *dev_addr, pdrx_lock_status_t oob_lock)
+get_oob_lock_status(struct drx_demod_instance *demod,
+		    struct i2c_device_addr *dev_addr, enum drx_lock_status *oob_lock)
 {
 	drxjscu_cmd_t scu_cmd;
 	u16 cmd_result[2];
@@ -12059,7 +12045,7 @@ rw_error:
 *
 */
 static int
-get_oob_freq_offset(pdrx_demod_instance_t demod, s32 *freq_offset)
+get_oob_freq_offset(struct drx_demod_instance *demod, s32 *freq_offset)
 {
 	u16 data = 0;
 	u16 rot = 0;
@@ -12072,7 +12058,7 @@ get_oob_freq_offset(pdrx_demod_instance_t demod, s32 *freq_offset)
 	u32 data64hi = 0;
 	u32 data64lo = 0;
 	u32 temp_freq_offset = 0;
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	struct i2c_device_addr *dev_addr = NULL;
 
 	/* check arguments */
@@ -12081,7 +12067,7 @@ get_oob_freq_offset(pdrx_demod_instance_t demod, s32 *freq_offset)
 	}
 
 	dev_addr = demod->my_i2c_dev_addr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	*freq_offset = 0;
 
@@ -12160,7 +12146,7 @@ rw_error:
 *
 */
 static int
-get_oob_frequency(pdrx_demod_instance_t demod, s32 *frequency)
+get_oob_frequency(struct drx_demod_instance *demod, s32 *frequency)
 {
 	u16 data = 0;
 	s32 freq_offset = 0;
@@ -12335,7 +12321,7 @@ rw_error:
 * \param active
 * \return int.
 */
-static int set_orx_nsu_aox(pdrx_demod_instance_t demod, bool active)
+static int set_orx_nsu_aox(struct drx_demod_instance *demod, bool active)
 {
 	u16 data = 0;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
@@ -12394,7 +12380,7 @@ rw_error:
 /* Coefficients for the nyquist fitler (total: 27 taps) */
 #define NYQFILTERLEN 27
 
-static int ctrl_set_oob(pdrx_demod_instance_t demod, p_drxoob_t oob_param)
+static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_param)
 {
 #ifndef DRXJ_DIGITAL_ONLY
 	s32 freq = 0;	/* KHz */
@@ -12667,7 +12653,7 @@ rw_error:
 * \return int.
 */
 static int
-ctrl_get_oob(pdrx_demod_instance_t demod, pdrxoob_status_t oob_status)
+ctrl_get_oob(struct drx_demod_instance *demod, struct drxoob_status *oob_status)
 {
 #ifndef DRXJ_DIGITAL_ONLY
 	struct i2c_device_addr *dev_addr = NULL;
@@ -12711,7 +12697,7 @@ rw_error:
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-ctrl_set_cfg_oob_pre_saw(pdrx_demod_instance_t demod, u16 *cfg_data)
+ctrl_set_cfg_oob_pre_saw(struct drx_demod_instance *demod, u16 *cfg_data)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -12738,7 +12724,7 @@ rw_error:
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-ctrl_get_cfg_oob_pre_saw(pdrx_demod_instance_t demod, u16 *cfg_data)
+ctrl_get_cfg_oob_pre_saw(struct drx_demod_instance *demod, u16 *cfg_data)
 {
 	pdrxj_data_t ext_attr = NULL;
 
@@ -12761,7 +12747,7 @@ ctrl_get_cfg_oob_pre_saw(pdrx_demod_instance_t demod, u16 *cfg_data)
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-ctrl_set_cfg_oob_lo_power(pdrx_demod_instance_t demod, p_drxj_cfg_oob_lo_power_t cfg_data)
+ctrl_set_cfg_oob_lo_power(struct drx_demod_instance *demod, p_drxj_cfg_oob_lo_power_t cfg_data)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -12788,7 +12774,7 @@ rw_error:
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-ctrl_get_cfg_oob_lo_power(pdrx_demod_instance_t demod, p_drxj_cfg_oob_lo_power_t cfg_data)
+ctrl_get_cfg_oob_lo_power(struct drx_demod_instance *demod, p_drxj_cfg_oob_lo_power_t cfg_data)
 {
 	pdrxj_data_t ext_attr = NULL;
 
@@ -12825,7 +12811,7 @@ ctrl_get_cfg_oob_lo_power(pdrx_demod_instance_t demod, p_drxj_cfg_oob_lo_power_t
 *
 */
 static int
-ctrl_set_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
+ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
 
 	s32 tuner_set_freq = 0;
@@ -12836,7 +12822,7 @@ ctrl_set_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 	struct i2c_device_addr *dev_addr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 	u32 tuner_mode = 0;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	bool bridge_closed = false;
 #ifndef DRXJ_VSB_ONLY
 	u32 min_symbol_rate = 0;
@@ -12849,7 +12835,7 @@ ctrl_set_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 	standard = ext_attr->standard;
@@ -12931,7 +12917,7 @@ ctrl_set_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 #ifndef DRXJ_VSB_ONLY
 	if ((standard == DRX_STANDARD_ITU_A) ||
 	    (standard == DRX_STANDARD_ITU_C)) {
-		drxuio_cfg_t uio_cfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SAW };
+		struct drxuio_cfg uio_cfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SAW };
 		int bw_rolloff_factor = 0;
 
 		bw_rolloff_factor = (standard == DRX_STANDARD_ITU_A) ? 115 : 113;
@@ -13013,7 +12999,7 @@ ctrl_set_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 
 	if ((ext_attr->uio_sma_tx_mode) == DRX_UIO_MODE_FIRMWARE_SAW) {
 		/* SAW SW, user UIO is used for switchable SAW */
-		drxuio_data_t uio1 = { DRX_UIO1, false };
+		struct drxuio_data uio1 = { DRX_UIO1, false };
 
 		switch (channel->bandwidth) {
 		case DRX_BANDWIDTH_8MHZ:
@@ -13207,13 +13193,13 @@ rw_error:
 * \return int.
 */
 static int
-ctrl_get_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
+ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
-	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	s32 intermediate_freq = 0;
 	s32 ctl_freq_offset = 0;
 	u32 iqm_rc_rateLo = 0;
@@ -13231,7 +13217,7 @@ ctrl_get_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 	standard = ext_attr->standard;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	/* initialize channel fields */
 	channel->mirror = DRX_MIRROR_UNKNOWN;
@@ -13458,12 +13444,12 @@ mer2indicator(u16 mer, u16 min_mer, u16 threshold_mer, u16 max_mer)
 
 */
 static int
-ctrl_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality)
+ctrl_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_quality)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	u16 min_mer = 0;
 	u16 max_mer = 0;
 	u16 threshold_mer = 0;
@@ -13592,7 +13578,7 @@ rw_error:
 *
 */
 static int
-ctrl_lock_status(pdrx_demod_instance_t demod, pdrx_lock_status_t lock_stat)
+ctrl_lock_status(struct drx_demod_instance *demod, enum drx_lock_status *lock_stat)
 {
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 	pdrxj_data_t ext_attr = NULL;
@@ -13689,7 +13675,7 @@ rw_error:
 * \return int.
 */
 static int
-ctrl_constel(pdrx_demod_instance_t demod, pdrx_complex_t complex_nr)
+ctrl_constel(struct drx_demod_instance *demod, struct drx_complex *complex_nr)
 {
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 						     /**< active standard */
@@ -13737,7 +13723,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_standard(pdrx_demod_instance_t demod, enum drx_standard *standard)
+ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 {
 	pdrxj_data_t ext_attr = NULL;
 	enum drx_standard prev_standard;
@@ -13837,7 +13823,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_standard(pdrx_demod_instance_t demod, enum drx_standard *standard)
+ctrl_get_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 {
 	pdrxj_data_t ext_attr = NULL;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
@@ -13864,7 +13850,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_cfg_symbol_clock_offset(pdrx_demod_instance_t demod, s32 *rate_offset)
+ctrl_get_cfg_symbol_clock_offset(struct drx_demod_instance *demod, s32 *rate_offset)
 {
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 	pdrxj_data_t ext_attr = NULL;
@@ -13911,14 +13897,14 @@ rw_error:
 *
 */
 static int
-ctrl_power_mode(pdrx_demod_instance_t demod, pdrx_power_mode_t mode)
+ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 {
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) NULL;
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) NULL;
 	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	u16 sio_cc_pwd_mode = 0;
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 
@@ -14039,11 +14025,11 @@ rw_error:
 *
 */
 static int
-ctrl_version(pdrx_demod_instance_t demod, p_drx_version_list_t *version_list)
+ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version_list)
 {
 	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	u16 ucode_major_minor = 0;	/* BCD Ma:Ma:Ma:Mi */
 	u16 ucode_patch = 0;	/* BCD Pa:Pa:Pa:Pa */
 	u16 major = 0;
@@ -14061,7 +14047,7 @@ ctrl_version(pdrx_demod_instance_t demod, p_drx_version_list_t *version_list)
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	/* Microcode version *************************************** */
 
@@ -14163,14 +14149,14 @@ ctrl_version(pdrx_demod_instance_t demod, p_drx_version_list_t *version_list)
 	}
 
 	ext_attr->v_list_elements[1].version = &(ext_attr->v_version[1]);
-	ext_attr->v_list_elements[1].next = (p_drx_version_list_t) (NULL);
+	ext_attr->v_list_elements[1].next = (struct drx_version_list *) (NULL);
 
 	*version_list = &(ext_attr->v_list_elements[0]);
 
 	return (DRX_STS_OK);
 
 rw_error:
-	*version_list = (p_drx_version_list_t) (NULL);
+	*version_list = (struct drx_version_list *) (NULL);
 	return (DRX_STS_ERROR);
 
 }
@@ -14189,18 +14175,18 @@ rw_error:
 *
 */
 
-static int ctrl_probe_device(pdrx_demod_instance_t demod)
+static int ctrl_probe_device(struct drx_demod_instance *demod)
 {
-	drx_power_mode_t org_power_mode = DRX_POWER_UP;
+	enum drx_power_mode org_power_mode = DRX_POWER_UP;
 	int ret_status = DRX_STS_OK;
-	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	if (common_attr->is_opened == false
 	    || common_attr->current_power_mode != DRX_POWER_UP) {
 		struct i2c_device_addr *dev_addr = NULL;
-		drx_power_mode_t power_mode = DRX_POWER_UP;
+		enum drx_power_mode power_mode = DRX_POWER_UP;
 		u32 jtag = 0;
 
 		dev_addr = demod->my_i2c_dev_addr;
@@ -14287,9 +14273,9 @@ bool is_mc_block_audio(u32 addr)
 * \return int.
 */
 static int
-ctrl_u_codeUpload(pdrx_demod_instance_t demod,
-		  p_drxu_code_info_t mc_info,
-		drxu_code_action_t action, bool upload_audio_mc)
+ctrl_u_codeUpload(struct drx_demod_instance *demod,
+		  struct drxu_code_info *mc_info,
+		enum drxu_code_actionaction, bool upload_audio_mc)
 {
 	u16 i = 0;
 	u16 mc_nr_of_blks = 0;
@@ -14379,7 +14365,7 @@ ctrl_u_codeUpload(pdrx_demod_instance_t demod,
 					    [DRXJ_UCODE_MAX_BUF_SIZE];
 					u32 bytes_to_compare = 0;
 					u32 bytes_left_to_compare = 0;
-					dr_xaddr_t curr_addr = (dr_xaddr_t) 0;
+					u32 curr_addr = (dr_xaddr_t) 0;
 					u8 *curr_ptr = NULL;
 
 					bytes_left_to_compare = mc_block_nr_bytes;
@@ -14468,7 +14454,7 @@ ctrl_u_codeUpload(pdrx_demod_instance_t demod,
 
 */
 static int
-ctrl_sig_strength(pdrx_demod_instance_t demod, u16 *sig_strength)
+ctrl_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 {
 	pdrxj_data_t ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
@@ -14525,7 +14511,7 @@ rw_error:
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-ctrl_get_cfg_oob_misc(pdrx_demod_instance_t demod, p_drxj_cfg_oob_misc_t misc)
+ctrl_get_cfg_oob_misc(struct drx_demod_instance *demod, p_drxj_cfg_oob_misc_t misc)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	u16 lock = 0U;
@@ -14577,7 +14563,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_cfg_vsb_misc(pdrx_demod_instance_t demod, p_drxj_cfg_vsb_misc_t misc)
+ctrl_get_cfg_vsb_misc(struct drx_demod_instance *demod, p_drxj_cfg_vsb_misc_t misc)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 
@@ -14608,7 +14594,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_cfg_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
+ctrl_set_cfg_agc_if(struct drx_demod_instance *demod, p_drxj_cfg_agc_t agc_settings)
 {
 	/* check arguments */
 	if (agc_settings == NULL) {
@@ -14664,7 +14650,7 @@ ctrl_set_cfg_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 *
 */
 static int
-ctrl_get_cfg_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
+ctrl_get_cfg_agc_if(struct drx_demod_instance *demod, p_drxj_cfg_agc_t agc_settings)
 {
 	/* check arguments */
 	if (agc_settings == NULL) {
@@ -14711,7 +14697,7 @@ ctrl_get_cfg_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 *
 */
 static int
-ctrl_set_cfg_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
+ctrl_set_cfg_agc_rf(struct drx_demod_instance *demod, p_drxj_cfg_agc_t agc_settings)
 {
 	/* check arguments */
 	if (agc_settings == NULL) {
@@ -14767,7 +14753,7 @@ ctrl_set_cfg_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 *
 */
 static int
-ctrl_get_cfg_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
+ctrl_get_cfg_agc_rf(struct drx_demod_instance *demod, p_drxj_cfg_agc_t agc_settings)
 {
 	/* check arguments */
 	if (agc_settings == NULL) {
@@ -14814,10 +14800,10 @@ ctrl_get_cfg_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 *
 */
 static int
-ctrl_get_cfg_agc_internal(pdrx_demod_instance_t demod, u16 *agc_internal)
+ctrl_get_cfg_agc_internal(struct drx_demod_instance *demod, u16 *agc_internal)
 {
 	struct i2c_device_addr *dev_addr = NULL;
-	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	pdrxj_data_t ext_attr = NULL;
 	u16 iqm_cf_scale_sh = 0;
 	u16 iqm_cf_power = 0;
@@ -14897,7 +14883,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_cfg_pre_saw(pdrx_demod_instance_t demod, p_drxj_cfg_pre_saw_t pre_saw)
+ctrl_set_cfg_pre_saw(struct drx_demod_instance *demod, p_drxj_cfg_pre_saw_t pre_saw)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -14966,7 +14952,7 @@ rw_error:
 *
 */
 static int
-ctrl_set_cfg_afe_gain(pdrx_demod_instance_t demod, p_drxj_cfg_afe_gain_t afe_gain)
+ctrl_set_cfg_afe_gain(struct drx_demod_instance *demod, p_drxj_cfg_afe_gain_t afe_gain)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
@@ -15042,7 +15028,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_cfg_pre_saw(pdrx_demod_instance_t demod, p_drxj_cfg_pre_saw_t pre_saw)
+ctrl_get_cfg_pre_saw(struct drx_demod_instance *demod, p_drxj_cfg_pre_saw_t pre_saw)
 {
 	pdrxj_data_t ext_attr = NULL;
 
@@ -15099,7 +15085,7 @@ ctrl_get_cfg_pre_saw(pdrx_demod_instance_t demod, p_drxj_cfg_pre_saw_t pre_saw)
 *
 */
 static int
-ctrl_get_cfg_afe_gain(pdrx_demod_instance_t demod, p_drxj_cfg_afe_gain_t afe_gain)
+ctrl_get_cfg_afe_gain(struct drx_demod_instance *demod, p_drxj_cfg_afe_gain_t afe_gain)
 {
 	pdrxj_data_t ext_attr = NULL;
 
@@ -15141,7 +15127,7 @@ ctrl_get_cfg_afe_gain(pdrx_demod_instance_t demod, p_drxj_cfg_afe_gain_t afe_gai
 *
 */
 static int
-ctrl_get_fec_meas_seq_count(pdrx_demod_instance_t demod, u16 *fec_meas_seq_count)
+ctrl_get_fec_meas_seq_count(struct drx_demod_instance *demod, u16 *fec_meas_seq_count)
 {
 	/* check arguments */
 	if (fec_meas_seq_count == NULL) {
@@ -15169,7 +15155,7 @@ rw_error:
 *
 */
 static int
-ctrl_get_accum_cr_rs_cw_err(pdrx_demod_instance_t demod, u32 *accum_cr_rs_cw_err)
+ctrl_get_accum_cr_rs_cw_err(struct drx_demod_instance *demod, u32 *accum_cr_rs_cw_err)
 {
 	if (accum_cr_rs_cw_err == NULL) {
 		return (DRX_STS_INVALID_ARG);
@@ -15191,7 +15177,7 @@ rw_error:
 * \return int.
 
 */
-static int ctrl_set_cfg(pdrx_demod_instance_t demod, pdrx_cfg_t config)
+static int ctrl_set_cfg(struct drx_demod_instance *demod, struct drx_cfg *config)
 {
 	if (config == NULL) {
 		return (DRX_STS_INVALID_ARG);
@@ -15201,7 +15187,7 @@ static int ctrl_set_cfg(pdrx_demod_instance_t demod, pdrx_cfg_t config)
 	switch (config->cfg_type) {
 	case DRX_CFG_MPEG_OUTPUT:
 		return ctrl_set_cfg_mpeg_output(demod,
-					    (pdrx_cfg_mpeg_output_t) config->
+					    (struct drx_cfg_mpeg_output *) config->
 					    cfg_data);
 	case DRX_CFG_PINS_SAFE_MODE:
 		return ctrl_set_cfg_pdr_safe_mode(demod, (bool *)config->cfg_data);
@@ -15247,36 +15233,36 @@ static int ctrl_set_cfg(pdrx_demod_instance_t demod, pdrx_cfg_t config)
 #ifndef DRXJ_EXCLUDE_AUDIO
 	case DRX_CFG_AUD_VOLUME:
 		return aud_ctrl_set_cfg_volume(demod,
-					   (pdrx_cfg_aud_volume_t) config->
+					   (struct drx_cfg_aud_volume *) config->
 					   cfg_data);
 	case DRX_CFG_I2S_OUTPUT:
 		return aud_ctrl_set_cfg_output_i2s(demod,
-					      (pdrx_cfg_i2s_output_t) config->
+					      (struct drx_cfg_i2s_output *) config->
 					      cfg_data);
 	case DRX_CFG_AUD_AUTOSOUND:
-		return aud_ctr_setl_cfg_auto_sound(demod, (pdrx_cfg_aud_auto_sound_t)
+		return aud_ctr_setl_cfg_auto_sound(demod, (enum drx_cfg_aud_auto_sound *)
 					      config->cfg_data);
 	case DRX_CFG_AUD_ASS_THRES:
-		return aud_ctrl_set_cfg_ass_thres(demod, (pdrx_cfg_aud_ass_thres_t)
+		return aud_ctrl_set_cfg_ass_thres(demod, (struct drx_cfg_aud_ass_thres *)
 					     config->cfg_data);
 	case DRX_CFG_AUD_CARRIER:
 		return aud_ctrl_set_cfg_carrier(demod,
-					    (pdrx_cfg_aud_carriers_t) config->
+					    (struct drx_cfg_aud_carriers *) config->
 					    cfg_data);
 	case DRX_CFG_AUD_DEVIATION:
 		return aud_ctrl_set_cfg_dev(demod,
-					(pdrx_cfg_aud_deviation_t) config->
+					(enum drx_cfg_aud_deviation *) config->
 					cfg_data);
 	case DRX_CFG_AUD_PRESCALE:
 		return aud_ctrl_set_cfg_prescale(demod,
-					     (pdrx_cfg_aud_prescale_t) config->
+					     (struct drx_cfg_aud_prescale *) config->
 					     cfg_data);
 	case DRX_CFG_AUD_MIXER:
 		return aud_ctrl_set_cfg_mixer(demod,
-					  (pdrx_cfg_aud_mixer_t) config->cfg_data);
+					  (struct drx_cfg_aud_mixer *) config->cfg_data);
 	case DRX_CFG_AUD_AVSYNC:
 		return aud_ctrl_set_cfg_av_sync(demod,
-					   (pdrx_cfg_aud_av_sync_t) config->
+					   (enum drx_cfg_aud_av_sync *) config->
 					   cfg_data);
 
 #endif
@@ -15299,7 +15285,7 @@ rw_error:
 * \return int.
 */
 
-static int ctrl_get_cfg(pdrx_demod_instance_t demod, pdrx_cfg_t config)
+static int ctrl_get_cfg(struct drx_demod_instance *demod, struct drx_cfg *config)
 {
 	if (config == NULL) {
 		return (DRX_STS_INVALID_ARG);
@@ -15310,7 +15296,7 @@ static int ctrl_get_cfg(pdrx_demod_instance_t demod, pdrx_cfg_t config)
 	switch (config->cfg_type) {
 	case DRX_CFG_MPEG_OUTPUT:
 		return ctrl_get_cfg_mpeg_output(demod,
-					    (pdrx_cfg_mpeg_output_t) config->
+					    (struct drx_cfg_mpeg_output *) config->
 					    cfg_data);
 	case DRX_CFG_PINS_SAFE_MODE:
 		return ctrl_get_cfg_pdr_safe_mode(demod, (bool *)config->cfg_data);
@@ -15372,42 +15358,42 @@ static int ctrl_get_cfg(pdrx_demod_instance_t demod, pdrx_cfg_t config)
 #ifndef DRXJ_EXCLUDE_AUDIO
 	case DRX_CFG_AUD_VOLUME:
 		return aud_ctrl_get_cfg_volume(demod,
-					   (pdrx_cfg_aud_volume_t) config->
+					   (struct drx_cfg_aud_volume *) config->
 					   cfg_data);
 	case DRX_CFG_I2S_OUTPUT:
 		return aud_ctrl_get_cfg_output_i2s(demod,
-					      (pdrx_cfg_i2s_output_t) config->
+					      (struct drx_cfg_i2s_output *) config->
 					      cfg_data);
 
 	case DRX_CFG_AUD_RDS:
 		return aud_ctrl_get_cfg_rds(demod,
-					(pdrx_cfg_aud_rds_t) config->cfg_data);
+					(struct drx_cfg_aud_rds *) config->cfg_data);
 	case DRX_CFG_AUD_AUTOSOUND:
 		return aud_ctrl_get_cfg_auto_sound(demod,
-					      (pdrx_cfg_aud_auto_sound_t) config->
+					      (enum drx_cfg_aud_auto_sound *) config->
 					      cfg_data);
 	case DRX_CFG_AUD_ASS_THRES:
 		return aud_ctrl_get_cfg_ass_thres(demod,
-					     (pdrx_cfg_aud_ass_thres_t) config->
+					     (struct drx_cfg_aud_ass_thres *) config->
 					     cfg_data);
 	case DRX_CFG_AUD_CARRIER:
 		return aud_ctrl_get_cfg_carrier(demod,
-					    (pdrx_cfg_aud_carriers_t) config->
+					    (struct drx_cfg_aud_carriers *) config->
 					    cfg_data);
 	case DRX_CFG_AUD_DEVIATION:
 		return aud_ctrl_get_cfg_dev(demod,
-					(pdrx_cfg_aud_deviation_t) config->
+					(enum drx_cfg_aud_deviation *) config->
 					cfg_data);
 	case DRX_CFG_AUD_PRESCALE:
 		return aud_ctrl_get_cfg_prescale(demod,
-					     (pdrx_cfg_aud_prescale_t) config->
+					     (struct drx_cfg_aud_prescale *) config->
 					     cfg_data);
 	case DRX_CFG_AUD_MIXER:
 		return aud_ctrl_get_cfg_mixer(demod,
-					  (pdrx_cfg_aud_mixer_t) config->cfg_data);
+					  (struct drx_cfg_aud_mixer *) config->cfg_data);
 	case DRX_CFG_AUD_AVSYNC:
 		return aud_ctrl_get_cfg_av_sync(demod,
-					   (pdrx_cfg_aud_av_sync_t) config->
+					   (enum drx_cfg_aud_av_sync *) config->
 					   cfg_data);
 #endif
 
@@ -15432,14 +15418,14 @@ rw_error:
 * rely on SCU or AUD ucode to be present.
 *
 */
-int drxj_open(pdrx_demod_instance_t demod)
+int drxj_open(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	pdrxj_data_t ext_attr = NULL;
-	pdrx_common_attr_t common_attr = NULL;
+	struct drx_common_attr *common_attr = NULL;
 	u32 driver_version = 0;
-	drxu_code_info_t ucode_info;
-	drx_cfg_mpeg_output_t cfg_mpeg_output;
+	struct drxu_code_info ucode_info;
+	struct drx_cfg_mpeg_output cfg_mpeg_output;
 
 	/* Check arguments */
 	if (demod->my_ext_attr == NULL) {
@@ -15448,7 +15434,7 @@ int drxj_open(pdrx_demod_instance_t demod)
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
-	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	CHK_ERROR(power_up_device(demod));
 	common_attr->current_power_mode = DRX_POWER_UP;
@@ -15649,11 +15635,11 @@ rw_error:
 * \return Status_t Return status.
 *
 */
-int drxj_close(pdrx_demod_instance_t demod)
+int drxj_close(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
-	pdrx_common_attr_t common_attr = demod->my_common_attr;
-	drx_power_mode_t power_mode = DRX_POWER_UP;
+	struct drx_common_attr *common_attr = demod->my_common_attr;
+	enum drx_power_mode power_mode = DRX_POWER_UP;
 
 	/* power up */
 	CHK_ERROR(ctrl_power_mode(demod, &power_mode));
@@ -15687,26 +15673,26 @@ rw_error:
 * \return Status_t Return status.
 */
 int
-drxj_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
+drxj_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 {
 	switch (ctrl) {
       /*======================================================================*/
 	case DRX_CTRL_SET_CHANNEL:
 		{
-			return ctrl_set_channel(demod, (pdrx_channel_t) ctrl_data);
+			return ctrl_set_channel(demod, (struct drx_channel *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_CHANNEL:
 		{
-			return ctrl_get_channel(demod, (pdrx_channel_t) ctrl_data);
+			return ctrl_get_channel(demod, (struct drx_channel *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SIG_QUALITY:
 		{
 			return ctrl_sig_quality(demod,
-					      (pdrx_sig_quality_t) ctrl_data);
+					      (struct drx_sig_quality *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
@@ -15718,19 +15704,19 @@ drxj_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
       /*======================================================================*/
 	case DRX_CTRL_CONSTEL:
 		{
-			return ctrl_constel(demod, (pdrx_complex_t) ctrl_data);
+			return ctrl_constel(demod, (struct drx_complex *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SET_CFG:
 		{
-			return ctrl_set_cfg(demod, (pdrx_cfg_t) ctrl_data);
+			return ctrl_set_cfg(demod, (struct drx_cfg *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_CFG:
 		{
-			return ctrl_get_cfg(demod, (pdrx_cfg_t) ctrl_data);
+			return ctrl_get_cfg(demod, (struct drx_cfg *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
@@ -15743,7 +15729,7 @@ drxj_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 	case DRX_CTRL_LOCK_STATUS:
 		{
 			return ctrl_lock_status(demod,
-					      (pdrx_lock_status_t) ctrl_data);
+					      (enum drx_lock_status *)ctrl_data);
 		}
 		break;
       /*======================================================================*/
@@ -15763,14 +15749,14 @@ drxj_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
       /*======================================================================*/
 	case DRX_CTRL_POWER_MODE:
 		{
-			return ctrl_power_mode(demod, (pdrx_power_mode_t) ctrl_data);
+			return ctrl_power_mode(demod, (enum drx_power_mode *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_VERSION:
 		{
 			return ctrl_version(demod,
-					   (p_drx_version_list_t *)ctrl_data);
+					   (struct drx_version_list **)ctrl_data);
 		}
 		break;
       /*======================================================================*/
@@ -15782,64 +15768,64 @@ drxj_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
       /*======================================================================*/
 	case DRX_CTRL_SET_OOB:
 		{
-			return ctrl_set_oob(demod, (p_drxoob_t) ctrl_data);
+			return ctrl_set_oob(demod, (struct drxoob *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_OOB:
 		{
-			return ctrl_get_oob(demod, (pdrxoob_status_t) ctrl_data);
+			return ctrl_get_oob(demod, (struct drxoob_status *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SET_UIO_CFG:
 		{
-			return ctrl_set_uio_cfg(demod, (pdrxuio_cfg_t) ctrl_data);
+			return ctrl_set_uio_cfg(demod, (struct drxuio_cfg *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_UIO_CFG:
 		{
-			return CtrlGetuio_cfg(demod, (pdrxuio_cfg_t) ctrl_data);
+			return CtrlGetuio_cfg(demod, (struct drxuio_cfg *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_UIO_READ:
 		{
-			return ctrl_uio_read(demod, (pdrxuio_data_t) ctrl_data);
+			return ctrl_uio_read(demod, (struct drxuio_data *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_UIO_WRITE:
 		{
-			return ctrl_uio_write(demod, (pdrxuio_data_t) ctrl_data);
+			return ctrl_uio_write(demod, (struct drxuio_data *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_AUD_SET_STANDARD:
 		{
 			return aud_ctrl_set_standard(demod,
-						  (pdrx_aud_standard_t) ctrl_data);
+						  (enum drx_aud_standard *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_AUD_GET_STANDARD:
 		{
 			return aud_ctrl_get_standard(demod,
-						  (pdrx_aud_standard_t) ctrl_data);
+						  (enum drx_aud_standard *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_AUD_GET_STATUS:
 		{
 			return aud_ctrl_get_status(demod,
-						(pdrx_aud_status_t) ctrl_data);
+						(struct drx_aud_status *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_AUD_BEEP:
 		{
-			return aud_ctrl_beep(demod, (pdrx_aud_beep_t) ctrl_data);
+			return aud_ctrl_beep(demod, (struct drx_aud_beep *) ctrl_data);
 		}
 		break;
 
@@ -15847,7 +15833,7 @@ drxj_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 	case DRX_CTRL_I2C_READWRITE:
 		{
 			return ctrl_i2c_write_read(demod,
-						(pdrxi2c_data_t) ctrl_data);
+						(struct drxi2c_data *) ctrl_data);
 		}
 		break;
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD

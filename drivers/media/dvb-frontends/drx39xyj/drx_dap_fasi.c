@@ -56,62 +56,62 @@
 
 /* Function prototypes */
 static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					  dr_xaddr_t addr,	/* address of register/memory   */
+					  u32 addr,	/* address of register/memory   */
 					  u16 datasize,	/* size of data                 */
 					  u8 *data,	/* data to send                 */
-					  dr_xflags_t flags);	/* special device flags         */
+					  u32 flags);	/* special device flags         */
 
 static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					 dr_xaddr_t addr,	/* address of register/memory   */
+					 u32 addr,	/* address of register/memory   */
 					 u16 datasize,	/* size of data                 */
 					 u8 *data,	/* data to send                 */
-					 dr_xflags_t flags);	/* special device flags         */
+					 u32 flags);	/* special device flags         */
 
 static int drxdap_fasi_write_reg8(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					 dr_xaddr_t addr,	/* address of register          */
+					 u32 addr,	/* address of register          */
 					 u8 data,	/* data to write                */
-					 dr_xflags_t flags);	/* special device flags         */
+					 u32 flags);	/* special device flags         */
 
 static int drxdap_fasi_read_reg8(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					dr_xaddr_t addr,	/* address of register          */
+					u32 addr,	/* address of register          */
 					u8 *data,	/* buffer to receive data       */
-					dr_xflags_t flags);	/* special device flags         */
+					u32 flags);	/* special device flags         */
 
 static int drxdap_fasi_read_modify_write_reg8(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-						   dr_xaddr_t waddr,	/* address of register          */
-						   dr_xaddr_t raddr,	/* address to read back from    */
+						   u32 waddr,	/* address of register          */
+						   u32 raddr,	/* address to read back from    */
 						   u8 datain,	/* data to send                 */
 						   u8 *dataout);	/* data to receive back         */
 
 static int drxdap_fasi_write_reg16(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					  dr_xaddr_t addr,	/* address of register          */
+					  u32 addr,	/* address of register          */
 					  u16 data,	/* data to write                */
-					  dr_xflags_t flags);	/* special device flags         */
+					  u32 flags);	/* special device flags         */
 
 static int drxdap_fasi_read_reg16(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					 dr_xaddr_t addr,	/* address of register          */
+					 u32 addr,	/* address of register          */
 					 u16 *data,	/* buffer to receive data       */
-					 dr_xflags_t flags);	/* special device flags         */
+					 u32 flags);	/* special device flags         */
 
 static int drxdap_fasi_read_modify_write_reg16(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-						    dr_xaddr_t waddr,	/* address of register          */
-						    dr_xaddr_t raddr,	/* address to read back from    */
+						    u32 waddr,	/* address of register          */
+						    u32 raddr,	/* address to read back from    */
 						    u16 datain,	/* data to send                 */
 						    u16 *dataout);	/* data to receive back         */
 
 static int drxdap_fasi_write_reg32(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					  dr_xaddr_t addr,	/* address of register          */
+					  u32 addr,	/* address of register          */
 					  u32 data,	/* data to write                */
-					  dr_xflags_t flags);	/* special device flags         */
+					  u32 flags);	/* special device flags         */
 
 static int drxdap_fasi_read_reg32(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					 dr_xaddr_t addr,	/* address of register          */
+					 u32 addr,	/* address of register          */
 					 u32 *data,	/* buffer to receive data       */
-					 dr_xflags_t flags);	/* special device flags         */
+					 u32 flags);	/* special device flags         */
 
 static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-						    dr_xaddr_t waddr,	/* address of register          */
-						    dr_xaddr_t raddr,	/* address to read back from    */
+						    u32 waddr,	/* address of register          */
+						    u32 raddr,	/* address to read back from    */
 						    u32 datain,	/* data to send                 */
 						    u32 *dataout);	/* data to receive back         */
 
@@ -119,7 +119,7 @@ static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 char drx_dap_fasi_module_name[] = "FASI Data Access Protocol";
 char drx_dap_fasi_version_text[] = "";
 
-drx_version_t drx_dap_fasi_version = {
+struct drx_version drx_dap_fasi_version = {
 	DRX_MODULE_DAP,	      /**< type identifier of the module */
 	drx_dap_fasi_module_name, /**< name or description of module */
 
@@ -130,7 +130,7 @@ drx_version_t drx_dap_fasi_version = {
 };
 
 /* The structure containing the protocol interface */
-drx_access_func_t drx_dap_fasi_funct_g = {
+struct drx_access_func drx_dap_fasi_funct_g = {
 	&drx_dap_fasi_version,
 	drxdap_fasi_write_block,	/* Supported */
 	drxdap_fasi_read_block,	/* Supported */
@@ -150,24 +150,24 @@ drx_access_func_t drx_dap_fasi_funct_g = {
 /* Functions not supported by protocol*/
 
 static int drxdap_fasi_write_reg8(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					 dr_xaddr_t addr,	/* address of register          */
+					 u32 addr,	/* address of register          */
 					 u8 data,	/* data to write                */
-					 dr_xflags_t flags)
+					 u32 flags)
 {				/* special device flags         */
 	return DRX_STS_ERROR;
 }
 
 static int drxdap_fasi_read_reg8(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-					dr_xaddr_t addr,	/* address of register          */
+					u32 addr,	/* address of register          */
 					u8 *data,	/* buffer to receive data       */
-					dr_xflags_t flags)
+					u32 flags)
 {				/* special device flags         */
 	return DRX_STS_ERROR;
 }
 
 static int drxdap_fasi_read_modify_write_reg8(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-						   dr_xaddr_t waddr,	/* address of register          */
-						   dr_xaddr_t raddr,	/* address to read back from    */
+						   u32 waddr,	/* address of register          */
+						   u32 raddr,	/* address to read back from    */
 						   u8 datain,	/* data to send                 */
 						   u8 *dataout)
 {				/* data to receive back         */
@@ -175,8 +175,8 @@ static int drxdap_fasi_read_modify_write_reg8(struct i2c_device_addr *dev_addr,	
 }
 
 static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
-						    dr_xaddr_t waddr,	/* address of register          */
-						    dr_xaddr_t raddr,	/* address to read back from    */
+						    u32 waddr,	/* address of register          */
+						    u32 raddr,	/* address to read back from    */
 						    u32 datain,	/* data to send                 */
 						    u32 *dataout)
 {				/* data to receive back         */
@@ -189,10 +189,10 @@ static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 *
 * int drxdap_fasi_read_block (
 *      struct i2c_device_addr *dev_addr,      -- address of I2C device
-*      dr_xaddr_t        addr,         -- address of chip register/memory
+*      u32 addr,         -- address of chip register/memory
 *      u16            datasize,     -- number of bytes to read
 *      u8 *data,         -- data to receive
-*      dr_xflags_t       flags)        -- special device flags
+*      u32 flags)        -- special device flags
 *
 * Read block data from chip address. Because the chip is word oriented,
 * the number of bytes to read must be even.
@@ -211,9 +211,9 @@ static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 ******************************/
 
 static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
-					 dr_xaddr_t addr,
+					 u32 addr,
 					 u16 datasize,
-					 u8 *data, dr_xflags_t flags)
+					 u8 *data, u32 flags)
 {
 	u8 buf[4];
 	u16 bufx;
@@ -304,8 +304,8 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 *
 * int drxdap_fasi_read_modify_write_reg16 (
 *      struct i2c_device_addr *dev_addr,   -- address of I2C device
-*      dr_xaddr_t        waddr,     -- address of chip register/memory
-*      dr_xaddr_t        raddr,     -- chip address to read back from
+*      u32 waddr,     -- address of chip register/memory
+*      u32 raddr,     -- chip address to read back from
 *      u16            wdata,     -- data to send
 *      u16 *rdata)     -- data to receive back
 *
@@ -326,8 +326,8 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 ******************************/
 
 static int drxdap_fasi_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
-						    dr_xaddr_t waddr,
-						    dr_xaddr_t raddr,
+						    u32 waddr,
+						    u32 raddr,
 						    u16 wdata, u16 *rdata)
 {
 	int rc = DRX_STS_ERROR;
@@ -350,9 +350,9 @@ static int drxdap_fasi_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 *
 * int drxdap_fasi_read_reg16 (
 *     struct i2c_device_addr *dev_addr, -- address of I2C device
-*     dr_xaddr_t        addr,    -- address of chip register/memory
+*     u32 addr,    -- address of chip register/memory
 *     u16 *data,    -- data to receive
-*     dr_xflags_t       flags)   -- special device flags
+*     u32 flags)   -- special device flags
 *
 * Read one 16-bit register or memory location. The data received back is
 * converted back to the target platform's endianness.
@@ -365,8 +365,8 @@ static int drxdap_fasi_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 ******************************/
 
 static int drxdap_fasi_read_reg16(struct i2c_device_addr *dev_addr,
-					 dr_xaddr_t addr,
-					 u16 *data, dr_xflags_t flags)
+					 u32 addr,
+					 u16 *data, u32 flags)
 {
 	u8 buf[sizeof(*data)];
 	int rc;
@@ -383,9 +383,9 @@ static int drxdap_fasi_read_reg16(struct i2c_device_addr *dev_addr,
 *
 * int drxdap_fasi_read_reg32 (
 *     struct i2c_device_addr *dev_addr, -- address of I2C device
-*     dr_xaddr_t        addr,    -- address of chip register/memory
+*     u32 addr,    -- address of chip register/memory
 *     u32 *data,    -- data to receive
-*     dr_xflags_t       flags)   -- special device flags
+*     u32 flags)   -- special device flags
 *
 * Read one 32-bit register or memory location. The data received back is
 * converted back to the target platform's endianness.
@@ -398,8 +398,8 @@ static int drxdap_fasi_read_reg16(struct i2c_device_addr *dev_addr,
 ******************************/
 
 static int drxdap_fasi_read_reg32(struct i2c_device_addr *dev_addr,
-					 dr_xaddr_t addr,
-					 u32 *data, dr_xflags_t flags)
+					 u32 addr,
+					 u32 *data, u32 flags)
 {
 	u8 buf[sizeof(*data)];
 	int rc;
@@ -418,10 +418,10 @@ static int drxdap_fasi_read_reg32(struct i2c_device_addr *dev_addr,
 *
 * int drxdap_fasi_write_block (
 *      struct i2c_device_addr *dev_addr,    -- address of I2C device
-*      dr_xaddr_t        addr,       -- address of chip register/memory
+*      u32 addr,       -- address of chip register/memory
 *      u16            datasize,   -- number of bytes to read
 *      u8 *data,       -- data to receive
-*      dr_xflags_t       flags)      -- special device flags
+*      u32 flags)      -- special device flags
 *
 * Write block data to chip address. Because the chip is word oriented,
 * the number of bytes to write must be even.
@@ -437,9 +437,9 @@ static int drxdap_fasi_read_reg32(struct i2c_device_addr *dev_addr,
 ******************************/
 
 static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
-					  dr_xaddr_t addr,
+					  u32 addr,
 					  u16 datasize,
-					  u8 *data, dr_xflags_t flags)
+					  u8 *data, u32 flags)
 {
 	u8 buf[DRXDAP_MAX_WCHUNKSIZE];
 	int st = DRX_STS_ERROR;
@@ -562,9 +562,9 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 *
 * int drxdap_fasi_write_reg16 (
 *     struct i2c_device_addr *dev_addr, -- address of I2C device
-*     dr_xaddr_t        addr,    -- address of chip register/memory
+*     u32 addr,    -- address of chip register/memory
 *     u16            data,    -- data to send
-*     dr_xflags_t       flags)   -- special device flags
+*     u32 flags)   -- special device flags
 *
 * Write one 16-bit register or memory location. The data being written is
 * converted from the target platform's endianness to little endian.
@@ -576,8 +576,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 ******************************/
 
 static int drxdap_fasi_write_reg16(struct i2c_device_addr *dev_addr,
-					  dr_xaddr_t addr,
-					  u16 data, dr_xflags_t flags)
+					  u32 addr,
+					  u16 data, u32 flags)
 {
 	u8 buf[sizeof(data)];
 
@@ -591,9 +591,9 @@ static int drxdap_fasi_write_reg16(struct i2c_device_addr *dev_addr,
 *
 * int drxdap_fasi_write_reg32 (
 *     struct i2c_device_addr *dev_addr, -- address of I2C device
-*     dr_xaddr_t        addr,    -- address of chip register/memory
+*     u32 addr,    -- address of chip register/memory
 *     u32            data,    -- data to send
-*     dr_xflags_t       flags)   -- special device flags
+*     u32 flags)   -- special device flags
 *
 * Write one 32-bit register or memory location. The data being written is
 * converted from the target platform's endianness to little endian.
@@ -605,8 +605,8 @@ static int drxdap_fasi_write_reg16(struct i2c_device_addr *dev_addr,
 ******************************/
 
 static int drxdap_fasi_write_reg32(struct i2c_device_addr *dev_addr,
-					  dr_xaddr_t addr,
-					  u32 data, dr_xflags_t flags)
+					  u32 addr,
+					  u32 data, u32 flags)
 {
 	u8 buf[sizeof(data)];
 
