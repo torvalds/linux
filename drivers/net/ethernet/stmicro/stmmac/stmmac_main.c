@@ -2912,22 +2912,6 @@ int stmmac_resume(struct net_device *ndev)
 
 	return 0;
 }
-
-int stmmac_freeze(struct net_device *ndev)
-{
-	if (!ndev || !netif_running(ndev))
-		return 0;
-
-	return stmmac_release(ndev);
-}
-
-int stmmac_restore(struct net_device *ndev)
-{
-	if (!ndev || !netif_running(ndev))
-		return 0;
-
-	return stmmac_open(ndev);
-}
 #endif /* CONFIG_PM */
 
 /* Driver can be configured w/ and w/ both PCI and Platf drivers
