@@ -328,7 +328,6 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 		return -EINVAL;
 
 	nvdev->start_remove = true;
-	cancel_delayed_work_sync(&ndevctx->dwork);
 	cancel_work_sync(&ndevctx->work);
 	netif_tx_disable(ndev);
 	rndis_filter_device_remove(hdev);
