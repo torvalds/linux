@@ -2887,18 +2887,19 @@ int stmmac_resume(struct net_device *ndev)
 	 * this bit because it can generate problems while resuming
 	 * from another devices (e.g. serial console).
 	 */
-	if (device_may_wakeup(priv->device))
+	if (device_may_wakeup(priv->device)) {
 		priv->hw->mac->pmt(priv->ioaddr, 0);
-	else
+	} else {
 		/* enable the clk prevously disabled */
 		clk_prepare_enable(priv->stmmac_clk);
+		/* reset the phy so that it's ready */
+		if (priv->mii)
+			stmmac_mdio_reset(priv->mii);
+	}
 
 	netif_device_attach(ndev);
 
-	/* Enable the MAC and DMA */
-	stmmac_set_mac(priv->ioaddr, true);
-	priv->hw->dma->start_tx(priv->ioaddr);
-	priv->hw->dma->start_rx(priv->ioaddr);
+	stmmac_hw_setup(ndev);
 
 	napi_enable(&priv->napi);
 
