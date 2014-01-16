@@ -67,7 +67,6 @@ struct w1_slave
 	struct list_head	w1_slave_entry;
 	struct w1_reg_num	reg_num;
 	atomic_t		refcnt;
-	u8			rom[9];
 	int			ttl;
 	unsigned long		flags;
 

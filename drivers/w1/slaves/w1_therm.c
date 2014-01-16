@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "../w1.h"
@@ -58,6 +59,19 @@ MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS28EA00));
 static int w1_strong_pullup = 1;
 module_param_named(strong_pullup, w1_strong_pullup, int, 0);
 
+static int w1_therm_add_slave(struct w1_slave *sl)
+{
+	sl->family_data = kzalloc(9, GFP_KERNEL);
+	if (!sl->family_data)
+		return -ENOMEM;
+	return 0;
+}
+
+static void w1_therm_remove_slave(struct w1_slave *sl)
+{
+	kfree(sl->family_data);
+	sl->family_data = NULL;
+}
 
 static ssize_t w1_slave_show(struct device *device,
 	struct device_attribute *attr, char *buf);
@@ -71,6 +85,8 @@ static struct attribute *w1_therm_attrs[] = {
 ATTRIBUTE_GROUPS(w1_therm);
 
 static struct w1_family_ops w1_therm_fops = {
+	.add_slave	= w1_therm_add_slave,
+	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_therm_groups,
 };
 
@@ -253,12 +269,13 @@ static ssize_t w1_slave_show(struct device *device,
 	c -= snprintf(buf + PAGE_SIZE - c, c, ": crc=%02x %s\n",
 			   crc, (verdict) ? "YES" : "NO");
 	if (verdict)
-		memcpy(sl->rom, rom, sizeof(sl->rom));
+		memcpy(sl->family_data, rom, sizeof(rom));
 	else
 		dev_warn(device, "Read failed CRC check\n");
 
 	for (i = 0; i < 9; ++i)
-		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", sl->rom[i]);
+		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ",
+			      ((u8 *)sl->family_data)[i]);
 
 	c -= snprintf(buf + PAGE_SIZE - c, c, "t=%d\n",
 		w1_convert_temp(rom, sl->family->fid));
