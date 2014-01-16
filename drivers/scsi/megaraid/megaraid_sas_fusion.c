@@ -726,7 +726,7 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 
 	if (!fusion) {
 		megasas_return_cmd(instance, cmd);
-		return 1;
+		return -ENXIO;
 	}
 
 	dcmd = &cmd->frame->dcmd;
