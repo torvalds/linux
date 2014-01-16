@@ -3296,7 +3296,8 @@ recheck:
 	 */
 	if (user && !capable(CAP_SYS_NICE)) {
 		if (fair_policy(policy)) {
-			if (!can_nice(p, attr->sched_nice))
+			if (attr->sched_nice < TASK_NICE(p) &&
+			    !can_nice(p, attr->sched_nice))
 				return -EPERM;
 		}
 
