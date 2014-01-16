@@ -825,7 +825,7 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 		DRM_DEBUG_KMS("count[%d]e[0x%x]\n", count++, (int)e);
 
 		/*
-		 * quf == NULL condition means all event deletion.
+		 * qbuf == NULL condition means all event deletion.
 		 * stop operations want to delete all event list.
 		 * another case delete only same buf id.
 		 */
