@@ -260,6 +260,7 @@ static inline bool ixgbevf_qv_disable(struct ixgbevf_q_vector *q_vector)
 	spin_lock_bh(&q_vector->lock);
 	if (q_vector->state & IXGBEVF_QV_OWNED)
 		rc = false;
+	q_vector->state |= IXGBEVF_QV_STATE_DISABLED;
 	spin_unlock_bh(&q_vector->lock);
 	return rc;
 }
