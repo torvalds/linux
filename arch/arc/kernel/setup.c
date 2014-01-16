@@ -29,7 +29,10 @@
 
 int running_on_hw = 1;	/* vs. on ISS */
 
-char __initdata command_line[COMMAND_LINE_SIZE];
+/* Part of U-boot ABI: see head.S */
+int __initdata uboot_tag;
+char __initdata *uboot_arg;
+
 const struct machine_desc *machine_desc;
 
 struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
@@ -311,19 +314,31 @@ void setup_processor(void)
 	arc_chk_fpu();
 }
 
+static inline int is_kernel(unsigned long addr)
+{
+	if (addr >= (unsigned long)_stext && addr <= (unsigned long)_end)
+		return 1;
+	return 0;
+}
+
 void __init setup_arch(char **cmdline_p)
 {
-	/* This also populates @boot_command_line from /bootargs */
-	machine_desc = setup_machine_fdt(__dtb_start);
-	if (!machine_desc)
-		panic("Embedded DT invalid\n");
+		machine_desc = setup_machine_fdt(__dtb_start);
+		if (!machine_desc)
+			panic("Embedded DT invalid\n");
 
-	/* Append any u-boot provided cmdline */
-#ifdef CONFIG_CMDLINE_UBOOT
-	/* Add a whitespace seperator between the 2 cmdlines */
-	strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
-	strlcat(boot_command_line, command_line, COMMAND_LINE_SIZE);
-#endif
+		/*
+		 * Append uboot cmdline to embedded DT cmdline.
+		 * setup_machine_fdt() would have populated @boot_command_line
+		 */
+		if (uboot_tag == 1) {
+			BUG_ON(is_kernel(unsigned long)uboot_arg);
+
+			/* Ensure a whitespace between the 2 cmdlines */
+			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
+			strlcat(boot_command_line, uboot_arg,
+				COMMAND_LINE_SIZE);
+		}
 
 	/* Save unparsed command line copy for /proc/cmdline */
 	*cmdline_p = boot_command_line;
