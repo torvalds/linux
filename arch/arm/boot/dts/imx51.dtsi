@@ -25,6 +25,10 @@
 		gpio3 = &gpio4;
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc2;
+		mmc2 = &esdhc3;
+		mmc3 = &esdhc4;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
