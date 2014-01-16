@@ -210,6 +210,11 @@ struct w1_master
 	struct w1_bus_master	*bus_master;
 
 	u32			seq;
+	/* port id to send netlink responses to.  The value is temporarily
+	 * stored here while processing a message, set after locking the
+	 * mutex, zero before unlocking the mutex.
+	 */
+	u32			portid;
 };
 
 /**
