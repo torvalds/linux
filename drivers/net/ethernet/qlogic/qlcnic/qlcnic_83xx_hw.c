@@ -2196,36 +2196,6 @@ out:
 	return IRQ_HANDLED;
 }
 
-int qlcnic_enable_eswitch(struct qlcnic_adapter *adapter, u8 port, u8 enable)
-{
-	int err = -EIO;
-	struct qlcnic_cmd_args cmd;
-
-	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC) {
-		dev_err(&adapter->pdev->dev,
-			"%s: Error, invoked by non management func\n",
-			__func__);
-		return err;
-	}
-
-	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_TOGGLE_ESWITCH);
-	if (err)
-		return err;
-
-	cmd.req.arg[1] = (port & 0xf) | BIT_4;
-	err = qlcnic_issue_cmd(adapter, &cmd);
-
-	if (err != QLCNIC_RCODE_SUCCESS) {
-		dev_err(&adapter->pdev->dev, "Failed to enable eswitch%d\n",
-			err);
-		err = -EIO;
-	}
-	qlcnic_free_mbx_args(&cmd);
-
-	return err;
-
-}
-
 int qlcnic_83xx_set_nic_info(struct qlcnic_adapter *adapter,
 			     struct qlcnic_info *nic)
 {
