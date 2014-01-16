@@ -243,7 +243,9 @@ static ssize_t w1_master_attribute_store_search(struct device * dev,
 	mutex_lock(&md->mutex);
 	md->search_count = tmp;
 	mutex_unlock(&md->mutex);
-	wake_up_process(md->thread);
+	/* Only wake if it is going to be searching. */
+	if (tmp)
+		wake_up_process(md->thread);
 
 	return count;
 }
