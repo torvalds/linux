@@ -727,9 +727,11 @@ static void ds9490r_search(void *data, struct w1_master *master,
 	 */
 	u64 buf[2*64/8];
 
+	mutex_lock(&master->bus_mutex);
+
 	/* address to start searching at */
 	if (ds_send_data(dev, (u8 *)&master->search_id, 8) < 0)
-		return;
+		goto search_out;
 	master->search_id = 0;
 
 	value = COMM_SEARCH_ACCESS | COMM_IM | COMM_RST | COMM_SM | COMM_F |
@@ -739,7 +741,7 @@ static void ds9490r_search(void *data, struct w1_master *master,
 		search_limit = 0;
 	index = search_type | (search_limit << 8);
 	if (ds_send_control(dev, value, index) < 0)
-		return;
+		goto search_out;
 
 	do {
 		schedule_timeout(jtime);
@@ -791,6 +793,8 @@ static void ds9490r_search(void *data, struct w1_master *master,
 			master->max_slave_count);
 		set_bit(W1_WARN_MAX_COUNT, &master->flags);
 	}
+search_out:
+	mutex_unlock(&master->bus_mutex);
 }
 
 #if 0

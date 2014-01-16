@@ -246,11 +246,16 @@ static int w1_process_command_master(struct w1_master *dev,
 {
 	int err = -EINVAL;
 
+	/* drop bus_mutex for search (does it's own locking), and add/remove
+	 * which doesn't use the bus
+	 */
 	switch (req_cmd->cmd) {
 	case W1_CMD_SEARCH:
 	case W1_CMD_ALARM_SEARCH:
 	case W1_CMD_LIST_SLAVES:
+		mutex_unlock(&dev->bus_mutex);
 		err = w1_get_slaves(dev, req_msg, req_hdr, req_cmd);
+		mutex_lock(&dev->bus_mutex);
 		break;
 	case W1_CMD_READ:
 	case W1_CMD_WRITE:
@@ -262,8 +267,12 @@ static int w1_process_command_master(struct w1_master *dev,
 		break;
 	case W1_CMD_SLAVE_ADD:
 	case W1_CMD_SLAVE_REMOVE:
+		mutex_unlock(&dev->bus_mutex);
+		mutex_lock(&dev->mutex);
 		err = w1_process_command_addremove(dev, req_msg, req_hdr,
 			req_cmd);
+		mutex_unlock(&dev->mutex);
+		mutex_lock(&dev->bus_mutex);
 		break;
 	default:
 		err = -EINVAL;
@@ -400,7 +409,7 @@ static void w1_process_cb(struct w1_master *dev, struct w1_async_cmd *async_cmd)
 	struct w1_slave *sl = node->sl;
 	struct w1_netlink_cmd *cmd = NULL;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->bus_mutex);
 	dev->portid = node->block->portid;
 	if (sl && w1_reset_select_slave(sl))
 		err = -ENODEV;
@@ -437,7 +446,7 @@ static void w1_process_cb(struct w1_master *dev, struct w1_async_cmd *async_cmd)
 	else
 		atomic_dec(&dev->refcnt);
 	dev->portid = 0;
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->bus_mutex);
 
 	mutex_lock(&dev->list_mutex);
 	list_del(&async_cmd->async_entry);
