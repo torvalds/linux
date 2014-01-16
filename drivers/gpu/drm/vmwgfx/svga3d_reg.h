@@ -1973,7 +1973,9 @@ struct {
    uint32 sizeInBytes;
    uint32 validSizeInBytes;
    SVGAMobFormat ptDepth;
-} SVGA3dCmdSetOTableBase;  /* SVGA_3D_CMD_SET_OTABLE_BASE */
+}
+__attribute__((__packed__))
+SVGA3dCmdSetOTableBase;  /* SVGA_3D_CMD_SET_OTABLE_BASE */
 
 typedef
 struct {
@@ -1982,12 +1984,16 @@ struct {
    uint32 sizeInBytes;
    uint32 validSizeInBytes;
    SVGAMobFormat ptDepth;
-} SVGA3dCmdSetOTableBase64;  /* SVGA_3D_CMD_SET_OTABLE_BASE64 */
+}
+__attribute__((__packed__))
+SVGA3dCmdSetOTableBase64;  /* SVGA_3D_CMD_SET_OTABLE_BASE64 */
 
 typedef
 struct {
    SVGAOTableType type;
-} SVGA3dCmdReadbackOTable;  /* SVGA_3D_CMD_READBACK_OTABLE */
+}
+__attribute__((__packed__))
+SVGA3dCmdReadbackOTable;  /* SVGA_3D_CMD_READBACK_OTABLE */
 
 /*
  * Define a memory object (Mob) in the OTable.
@@ -1999,7 +2005,9 @@ struct SVGA3dCmdDefineGBMob {
    SVGAMobFormat ptDepth;
    PPN base;
    uint32 sizeInBytes;
-} SVGA3dCmdDefineGBMob;   /* SVGA_3D_CMD_DEFINE_GB_MOB */
+}
+__attribute__((__packed__))
+SVGA3dCmdDefineGBMob;   /* SVGA_3D_CMD_DEFINE_GB_MOB */
 
 
 /*
@@ -2009,7 +2017,9 @@ struct SVGA3dCmdDefineGBMob {
 typedef
 struct SVGA3dCmdDestroyGBMob {
    SVGAMobId mobid;
-} SVGA3dCmdDestroyGBMob;   /* SVGA_3D_CMD_DESTROY_GB_MOB */
+}
+__attribute__((__packed__))
+SVGA3dCmdDestroyGBMob;   /* SVGA_3D_CMD_DESTROY_GB_MOB */
 
 /*
  * Redefine an object in the OTable.
@@ -2021,7 +2031,9 @@ struct SVGA3dCmdRedefineGBMob {
    SVGAMobFormat ptDepth;
    PPN base;
    uint32 sizeInBytes;
-} SVGA3dCmdRedefineGBMob;   /* SVGA_3D_CMD_REDEFINE_GB_MOB */
+}
+__attribute__((__packed__))
+SVGA3dCmdRedefineGBMob;   /* SVGA_3D_CMD_REDEFINE_GB_MOB */
 
 /*
  * Define a memory object (Mob) in the OTable with a PPN64 base.
@@ -2034,6 +2046,7 @@ struct SVGA3dCmdDefineGBMob64 {
    PPN64 base;
    uint32 sizeInBytes;
 }
+__attribute__((__packed__))
 SVGA3dCmdDefineGBMob64;   /* SVGA_3D_CMD_DEFINE_GB_MOB64 */
 
 /*
@@ -2047,6 +2060,7 @@ struct SVGA3dCmdRedefineGBMob64 {
    PPN64 base;
    uint32 sizeInBytes;
 }
+__attribute__((__packed__))
 SVGA3dCmdRedefineGBMob64;   /* SVGA_3D_CMD_REDEFINE_GB_MOB64 */
 
 /*
@@ -2056,7 +2070,9 @@ SVGA3dCmdRedefineGBMob64;   /* SVGA_3D_CMD_REDEFINE_GB_MOB64 */
 typedef
 struct SVGA3dCmdUpdateGBMobMapping {
    SVGAMobId mobid;
-} SVGA3dCmdUpdateGBMobMapping;   /* SVGA_3D_CMD_UPDATE_GB_MOB_MAPPING */
+}
+__attribute__((__packed__))
+SVGA3dCmdUpdateGBMobMapping;   /* SVGA_3D_CMD_UPDATE_GB_MOB_MAPPING */
 
 /*
  * Define a guest-backed surface.
