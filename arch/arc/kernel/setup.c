@@ -323,22 +323,31 @@ static inline int is_kernel(unsigned long addr)
 
 void __init setup_arch(char **cmdline_p)
 {
+	/* make sure that uboot passed pointer to cmdline/dtb is valid */
+	if (uboot_tag && is_kernel((unsigned long)uboot_arg))
+		panic("Invalid uboot arg\n");
+
+	/* See if u-boot passed an external Device Tree blob */
+	machine_desc = setup_machine_fdt(uboot_arg);	/* uboot_tag == 2 */
+	if (!machine_desc) {
+		/* No, so try the embedded one */
 		machine_desc = setup_machine_fdt(__dtb_start);
 		if (!machine_desc)
 			panic("Embedded DT invalid\n");
 
 		/*
-		 * Append uboot cmdline to embedded DT cmdline.
+		 * If we are here, it is established that @uboot_arg didn't
+		 * point to DT blob. Instead if u-boot says it is cmdline,
+		 * Appent to embedded DT cmdline.
 		 * setup_machine_fdt() would have populated @boot_command_line
 		 */
 		if (uboot_tag == 1) {
-			BUG_ON(is_kernel(unsigned long)uboot_arg);
-
 			/* Ensure a whitespace between the 2 cmdlines */
 			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
 			strlcat(boot_command_line, uboot_arg,
 				COMMAND_LINE_SIZE);
 		}
+	}
 
 	/* Save unparsed command line copy for /proc/cmdline */
 	*cmdline_p = boot_command_line;
