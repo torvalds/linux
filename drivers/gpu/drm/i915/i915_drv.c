@@ -643,6 +643,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_init_pch_refclk(dev);
+		drm_mode_config_reset(dev);
 
 		mutex_lock(&dev->struct_mutex);
 
@@ -655,7 +656,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		intel_modeset_init_hw(dev);
 
 		drm_modeset_lock_all(dev);
-		drm_mode_config_reset(dev);
 		intel_modeset_setup_hw_state(dev, true);
 		drm_modeset_unlock_all(dev);
 

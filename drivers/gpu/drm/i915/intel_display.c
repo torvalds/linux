@@ -11441,7 +11441,6 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	intel_setup_overlay(dev);
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_mode_config_reset(dev);
 	intel_modeset_setup_hw_state(dev, false);
 	mutex_unlock(&dev->mode_config.mutex);
 }
