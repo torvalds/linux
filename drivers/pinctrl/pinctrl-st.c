@@ -271,12 +271,59 @@ struct st_pctl_group {
 	struct st_pinconf	*pin_conf;
 };
 
+/*
+ * Edge triggers are not supported at hardware level, it is supported by
+ * software by exploiting the level trigger support in hardware.
+ * Software uses a virtual register (EDGE_CONF) for edge trigger configuration
+ * of each gpio pin in a GPIO bank.
+ *
+ * Each bank has a 32 bit EDGE_CONF register which is divided in to 8 parts of
+ * 4-bits. Each 4-bit space is allocated for each pin in a gpio bank.
+ *
+ * bit allocation per pin is:
+ * Bits:  [0 - 3] | [4 - 7]  [8 - 11] ... ... ... ...  [ 28 - 31]
+ *       --------------------------------------------------------
+ *       |  pin-0  |  pin-2 | pin-3  | ... ... ... ... | pin -7 |
+ *       --------------------------------------------------------
+ *
+ *  A pin can have one of following the values in its edge configuration field.
+ *
+ *	-------   ----------------------------
+ *	[0-3]	- Description
+ *	-------   ----------------------------
+ *	0000	- No edge IRQ.
+ *	0001	- Falling edge IRQ.
+ *	0010	- Rising edge IRQ.
+ *	0011	- Rising and Falling edge IRQ.
+ *	-------   ----------------------------
+ */
+
+#define ST_IRQ_EDGE_CONF_BITS_PER_PIN	4
+#define ST_IRQ_EDGE_MASK		0xf
+#define ST_IRQ_EDGE_FALLING		BIT(0)
+#define ST_IRQ_EDGE_RISING		BIT(1)
+#define ST_IRQ_EDGE_BOTH		(BIT(0) | BIT(1))
+
+#define ST_IRQ_RISING_EDGE_CONF(pin) \
+	(ST_IRQ_EDGE_RISING << (pin * ST_IRQ_EDGE_CONF_BITS_PER_PIN))
+
+#define ST_IRQ_FALLING_EDGE_CONF(pin) \
+	(ST_IRQ_EDGE_FALLING << (pin * ST_IRQ_EDGE_CONF_BITS_PER_PIN))
+
+#define ST_IRQ_BOTH_EDGE_CONF(pin) \
+	(ST_IRQ_EDGE_BOTH << (pin * ST_IRQ_EDGE_CONF_BITS_PER_PIN))
+
+#define ST_IRQ_EDGE_CONF(conf, pin) \
+	(conf >> (pin * ST_IRQ_EDGE_CONF_BITS_PER_PIN) & ST_IRQ_EDGE_MASK)
+
 struct st_gpio_bank {
 	struct gpio_chip		gpio_chip;
 	struct pinctrl_gpio_range	range;
 	void __iomem			*base;
 	struct st_pio_control		pc;
 	struct	irq_domain		*domain;
+	unsigned long			irq_edge_conf;
+	spinlock_t                      lock;
 };
 
 struct st_pinctrl {
@@ -1262,17 +1309,36 @@ static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
 	unsigned long flags;
 	int comp, pin = d->hwirq;
 	u32 val;
+	u32 pin_edge_conf = 0;
 
 	switch (type) {
 	case IRQ_TYPE_LEVEL_HIGH:
 		comp = 0;
 		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		comp = 0;
+		pin_edge_conf = ST_IRQ_FALLING_EDGE_CONF(pin);
+		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		comp = 1;
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		comp = 1;
+		pin_edge_conf = ST_IRQ_RISING_EDGE_CONF(pin);
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		comp = st_gpio_get(&bank->gpio_chip, pin);
+		pin_edge_conf = ST_IRQ_BOTH_EDGE_CONF(pin);
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	spin_lock_irqsave(&bank->lock, flags);
+	bank->irq_edge_conf &=  ~(ST_IRQ_EDGE_MASK << (
+				pin * ST_IRQ_EDGE_CONF_BITS_PER_PIN));
+	bank->irq_edge_conf |= pin_edge_conf;
+	spin_unlock_irqrestore(&bank->lock, flags);
 
 	val = readl(bank->base + REG_PIO_PCOMP);
 	val &= ~BIT(pin);
@@ -1282,10 +1348,39 @@ static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
 	return 0;
 }
 
+/*
+ * As edge triggers are not supported at hardware level, it is supported by
+ * software by exploiting the level trigger support in hardware.
+ *
+ * Steps for detection raising edge interrupt in software.
+ *
+ * Step 1: CONFIGURE pin to detect level LOW interrupts.
+ *
+ * Step 2: DETECT level LOW interrupt and in irqmux/gpio bank interrupt handler,
+ * if the value of pin is low, then CONFIGURE pin for level HIGH interrupt.
+ * IGNORE calling the actual interrupt handler for the pin at this stage.
+ *
+ * Step 3: DETECT level HIGH interrupt and in irqmux/gpio-bank interrupt handler
+ * if the value of pin is HIGH, CONFIGURE pin for level LOW interrupt and then
+ * DISPATCH the interrupt to the interrupt handler of the pin.
+ *
+ *		 step-1  ________     __________
+ *				|     | step - 3
+ *			        |     |
+ *			step -2 |_____|
+ *
+ * falling edge is also detected int the same way.
+ *
+ */
 static void __gpio_irq_handler(struct st_gpio_bank *bank)
 {
 	unsigned long port_in, port_mask, port_comp, active_irqs;
-	int n;
+	unsigned long bank_edge_mask, flags;
+	int n, val, ecfg;
+
+	spin_lock_irqsave(&bank->lock, flags);
+	bank_edge_mask = bank->irq_edge_conf;
+	spin_unlock_irqrestore(&bank->lock, flags);
 
 	for (;;) {
 		port_in = readl(bank->base + REG_PIO_PIN);
@@ -1298,6 +1393,22 @@ static void __gpio_irq_handler(struct st_gpio_bank *bank)
 			break;
 
 		for_each_set_bit(n, &active_irqs, BITS_PER_LONG) {
+			/* check if we are detecting fake edges ... */
+			ecfg = ST_IRQ_EDGE_CONF(bank_edge_mask, n);
+
+			if (ecfg) {
+				/* edge detection. */
+				val = st_gpio_get(&bank->gpio_chip, n);
+
+				writel(BIT(n),
+					val ? bank->base + REG_PIO_SET_PCOMP :
+					bank->base + REG_PIO_CLR_PCOMP);
+
+				if (ecfg != ST_IRQ_EDGE_BOTH &&
+					!((ecfg & ST_IRQ_EDGE_FALLING) ^ val))
+					continue;
+			}
+
 			generic_handle_irq(irq_find_mapping(bank->domain, n));
 		}
 	}
@@ -1359,7 +1470,7 @@ static int st_gpio_irq_domain_map(struct irq_domain *h,
 	struct st_gpio_bank *bank = h->host_data;
 
 	irq_set_chip(virq, &st_gpio_irqchip);
-	irq_set_handler(virq, handle_level_irq);
+	irq_set_handler(virq, handle_simple_irq);
 	set_irq_flags(virq, IRQF_VALID);
 	irq_set_chip_data(virq, bank);
 
@@ -1392,6 +1503,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	bank->gpio_chip.base = bank_num * ST_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.ngpio = ST_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.of_node = np;
+	spin_lock_init(&bank->lock);
 
 	of_property_read_string(np, "st,bank-name", &range->name);
 	bank->gpio_chip.label = range->name;
