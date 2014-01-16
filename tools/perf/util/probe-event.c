@@ -794,6 +794,28 @@ int show_available_vars(struct perf_probe_event *pevs __maybe_unused,
 }
 #endif
 
+void line_range__clear(struct line_range *lr)
+{
+	struct line_node *ln;
+
+	free(lr->function);
+	free(lr->file);
+	free(lr->path);
+	free(lr->comp_dir);
+	while (!list_empty(&lr->line_list)) {
+		ln = list_first_entry(&lr->line_list, struct line_node, list);
+		list_del(&ln->list);
+		free(ln);
+	}
+	memset(lr, 0, sizeof(*lr));
+}
+
+void line_range__init(struct line_range *lr)
+{
+	memset(lr, 0, sizeof(*lr));
+	INIT_LIST_HEAD(&lr->line_list);
+}
+
 static int parse_line_num(char **ptr, int *val, const char *what)
 {
 	const char *start = *ptr;
