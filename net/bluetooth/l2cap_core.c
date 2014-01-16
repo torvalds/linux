@@ -737,6 +737,7 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 	case L2CAP_CHAN_RAW:
 		switch (chan->sec_level) {
 		case BT_SECURITY_HIGH:
+		case BT_SECURITY_FIPS:
 			return HCI_AT_DEDICATED_BONDING_MITM;
 		case BT_SECURITY_MEDIUM:
 			return HCI_AT_DEDICATED_BONDING;
@@ -749,7 +750,8 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 			if (chan->sec_level == BT_SECURITY_LOW)
 				chan->sec_level = BT_SECURITY_SDP;
 		}
-		if (chan->sec_level == BT_SECURITY_HIGH)
+		if (chan->sec_level == BT_SECURITY_HIGH ||
+		    chan->sec_level == BT_SECURITY_FIPS)
 			return HCI_AT_NO_BONDING_MITM;
 		else
 			return HCI_AT_NO_BONDING;
@@ -759,7 +761,8 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 			if (chan->sec_level == BT_SECURITY_LOW)
 				chan->sec_level = BT_SECURITY_SDP;
 
-			if (chan->sec_level == BT_SECURITY_HIGH)
+			if (chan->sec_level == BT_SECURITY_HIGH ||
+			    chan->sec_level == BT_SECURITY_FIPS)
 				return HCI_AT_NO_BONDING_MITM;
 			else
 				return HCI_AT_NO_BONDING;
@@ -768,6 +771,7 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 	default:
 		switch (chan->sec_level) {
 		case BT_SECURITY_HIGH:
+		case BT_SECURITY_FIPS:
 			return HCI_AT_GENERAL_BONDING_MITM;
 		case BT_SECURITY_MEDIUM:
 			return HCI_AT_GENERAL_BONDING;
@@ -7206,7 +7210,8 @@ static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
 	if (encrypt == 0x00) {
 		if (chan->sec_level == BT_SECURITY_MEDIUM) {
 			__set_chan_timer(chan, L2CAP_ENC_TIMEOUT);
-		} else if (chan->sec_level == BT_SECURITY_HIGH)
+		} else if (chan->sec_level == BT_SECURITY_HIGH ||
+			   chan->sec_level == BT_SECURITY_FIPS)
 			l2cap_chan_close(chan, ECONNREFUSED);
 	} else {
 		if (chan->sec_level == BT_SECURITY_MEDIUM)

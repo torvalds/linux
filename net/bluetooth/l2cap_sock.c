@@ -432,6 +432,10 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname,
 			opt = L2CAP_LM_AUTH | L2CAP_LM_ENCRYPT |
 			      L2CAP_LM_SECURE;
 			break;
+		case BT_SECURITY_FIPS:
+			opt = L2CAP_LM_AUTH | L2CAP_LM_ENCRYPT |
+			      L2CAP_LM_SECURE | L2CAP_LM_FIPS;
+			break;
 		default:
 			opt = 0;
 			break;
@@ -445,6 +449,7 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname,
 
 		if (put_user(opt, (u32 __user *) optval))
 			err = -EFAULT;
+
 		break;
 
 	case L2CAP_CONNINFO:
@@ -696,6 +701,11 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname,
 	case L2CAP_LM:
 		if (get_user(opt, (u32 __user *) optval)) {
 			err = -EFAULT;
+			break;
+		}
+
+		if (opt & L2CAP_LM_FIPS) {
+			err = -EINVAL;
 			break;
 		}
 
