@@ -33,8 +33,6 @@
 #include <linux/moduleparam.h>
 #include "intel_drv.h"
 
-#define PCI_LBPC 0xf4 /* legacy/combination backlight modes */
-
 void
 intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 		       struct drm_display_mode *adjusted_mode)
