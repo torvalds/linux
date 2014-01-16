@@ -24,6 +24,8 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/cache.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
@@ -580,6 +582,77 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 		spi->master->set_cs(spi, !enable);
 }
 
+static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
+{
+	struct device *dev = master->dev.parent;
+	struct device *tx_dev, *rx_dev;
+	struct spi_transfer *xfer;
+
+	if (msg->is_dma_mapped || !master->can_dma)
+		return 0;
+
+	tx_dev = &master->dma_tx->dev->device;
+	rx_dev = &master->dma_rx->dev->device;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		if (!master->can_dma(master, msg->spi, xfer))
+			continue;
+
+		if (xfer->tx_buf != NULL) {
+			xfer->tx_dma = dma_map_single(tx_dev,
+						      (void *)xfer->tx_buf,
+						      xfer->len,
+						      DMA_TO_DEVICE);
+			if (dma_mapping_error(dev, xfer->tx_dma)) {
+				dev_err(dev, "dma_map_single Tx failed\n");
+				return -ENOMEM;
+			}
+		}
+
+		if (xfer->rx_buf != NULL) {
+			xfer->rx_dma = dma_map_single(rx_dev,
+						      xfer->rx_buf, xfer->len,
+						      DMA_FROM_DEVICE);
+			if (dma_mapping_error(dev, xfer->rx_dma)) {
+				dev_err(dev, "dma_map_single Rx failed\n");
+				dma_unmap_single(tx_dev, xfer->tx_dma,
+						 xfer->len, DMA_TO_DEVICE);
+				return -ENOMEM;
+			}
+		}
+	}
+
+	master->cur_msg_mapped = true;
+
+	return 0;
+}
+
+static int spi_unmap_msg(struct spi_master *master, struct spi_message *msg)
+{
+	struct spi_transfer *xfer;
+	struct device *tx_dev, *rx_dev;
+
+	if (!master->cur_msg_mapped || msg->is_dma_mapped || !master->can_dma)
+		return 0;
+
+	tx_dev = &master->dma_tx->dev->device;
+	rx_dev = &master->dma_rx->dev->device;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		if (!master->can_dma(master, msg->spi, xfer))
+			continue;
+
+		if (xfer->rx_buf)
+			dma_unmap_single(rx_dev, xfer->rx_dma, xfer->len,
+					 DMA_FROM_DEVICE);
+		if (xfer->tx_buf)
+			dma_unmap_single(tx_dev, xfer->tx_dma, xfer->len,
+					 DMA_TO_DEVICE);
+	}
+
+	return 0;
+}
+
 /*
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
@@ -752,6 +825,13 @@ static void spi_pump_messages(struct kthread_work *work)
 		master->cur_msg_prepared = true;
 	}
 
+	ret = spi_map_msg(master, master->cur_msg);
+	if (ret) {
+		master->cur_msg->status = ret;
+		spi_finalize_current_message(master);
+		return;
+	}
+
 	ret = master->transfer_one_message(master, master->cur_msg);
 	if (ret) {
 		dev_err(&master->dev,
@@ -840,6 +920,8 @@ void spi_finalize_current_message(struct spi_master *master)
 
 	queue_kthread_work(&master->kworker, &master->pump_messages);
 	spin_unlock_irqrestore(&master->queue_lock, flags);
+
+	spi_unmap_msg(master, mesg);
 
 	if (master->cur_msg_prepared && master->unprepare_message) {
 		ret = master->unprepare_message(master, mesg);
