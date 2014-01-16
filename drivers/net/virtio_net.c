@@ -72,9 +72,6 @@ struct receive_queue {
 
 	struct napi_struct napi;
 
-	/* Number of input buffers, and max we've ever had. */
-	unsigned int num, max;
-
 	/* Chain pages by the private ptr. */
 	struct page *pages;
 
@@ -360,7 +357,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		}
 
 		page = virt_to_head_page(buf);
-		--rq->num;
 
 		num_skb_frags = skb_shinfo(curr_skb)->nr_frags;
 		if (unlikely(num_skb_frags == MAX_SKB_FRAGS)) {
@@ -406,7 +402,6 @@ err_skb:
 		}
 		page = virt_to_head_page(buf);
 		put_page(page);
-		--rq->num;
 	}
 err_buf:
 	dev->stats.rx_dropped++;
@@ -628,10 +623,7 @@ static bool try_fill_recv(struct receive_queue *rq, gfp_t gfp)
 		oom = err == -ENOMEM;
 		if (err)
 			break;
-		++rq->num;
 	} while (rq->vq->num_free);
-	if (unlikely(rq->num > rq->max))
-		rq->max = rq->num;
 	if (unlikely(!virtqueue_kick(rq->vq)))
 		return false;
 	return !oom;
@@ -699,11 +691,10 @@ again:
 	while (received < budget &&
 	       (buf = virtqueue_get_buf(rq->vq, &len)) != NULL) {
 		receive_buf(rq, buf, len);
-		--rq->num;
 		received++;
 	}
 
-	if (rq->num < rq->max / 2) {
+	if (rq->vq->num_free > virtqueue_get_vring_size(rq->vq) / 2) {
 		if (!try_fill_recv(rq, GFP_ATOMIC))
 			schedule_delayed_work(&vi->refill, 0);
 	}
@@ -1398,9 +1389,7 @@ static void free_unused_bufs(struct virtnet_info *vi)
 				give_pages(&vi->rq[i], buf);
 			else
 				dev_kfree_skb(buf);
-			--vi->rq[i].num;
 		}
-		BUG_ON(vi->rq[i].num != 0);
 	}
 }
 
@@ -1671,7 +1660,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 		try_fill_recv(&vi->rq[i], GFP_KERNEL);
 
 		/* If we didn't even get one input buffer, we're useless. */
-		if (vi->rq[i].num == 0) {
+		if (vi->rq[i].vq->num_free ==
+		    virtqueue_get_vring_size(vi->rq[i].vq)) {
 			free_unused_bufs(vi);
 			err = -ENOMEM;
 			goto free_recv_bufs;
