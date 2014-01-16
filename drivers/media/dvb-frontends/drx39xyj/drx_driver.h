@@ -237,9 +237,9 @@ struct tuner_ops {
 
 struct tuner_instance {
 	struct i2c_device_addr myI2CDevAddr;
-	struct tuner_common * myCommonAttr;
+	struct tuner_common *myCommonAttr;
 	void *myExtAttr;
-	struct tuner_ops * myFunct;
+	struct tuner_ops *myFunct;
 };
 
 
@@ -257,7 +257,7 @@ int DRXBSP_TUNER_GetFrequency(struct tuner_instance *tuner,
 					s32 * IFfrequency);
 
 int DRXBSP_TUNER_LockStatus(struct tuner_instance *tuner,
-					enum tuner_lock_status * lockStat);
+					enum tuner_lock_status *lockStat);
 
 int DRXBSP_TUNER_DefaultI2CWriteRead(struct tuner_instance *tuner,
 						struct i2c_device_addr *wDevAddr,
@@ -1223,7 +1223,7 @@ STRUCTS
 	typedef struct {
 		u32 *symbolrate;	  /**<  list of symbolrates to scan   */
 		u16 symbolrateSize;	  /**<  size of symbolrate array      */
-		enum drx_modulation * constellation;
+		enum drx_modulation *constellation;
 					  /**<  list of constellations        */
 		u16 constellationSize;    /**<  size of constellation array */
 		u16 ifAgcThreshold;	  /**<  thresholf for IF-AGC based

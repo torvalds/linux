@@ -6101,7 +6101,7 @@ rw_error:
 }
 
 /**
-* \fn static short GetVSBPostRSPckErr(struct i2c_device_addr * devAddr, u16 *PckErrs)
+* \fn static short GetVSBPostRSPckErr(struct i2c_device_addr *devAddr, u16 *PckErrs)
 * \brief Get the values of packet error in 8VSB mode
 * \return Error code
 */
@@ -6132,7 +6132,7 @@ rw_error:
 }
 
 /**
-* \fn static short GetVSBBer(struct i2c_device_addr * devAddr, u32 *ber)
+* \fn static short GetVSBBer(struct i2c_device_addr *devAddr, u32 *ber)
 * \brief Get the values of ber in VSB mode
 * \return Error code
 */
@@ -6170,7 +6170,7 @@ rw_error:
 }
 
 /**
-* \fn static short GetVSBpreViterbiBer(struct i2c_device_addr * devAddr, u32 *ber)
+* \fn static short GetVSBpreViterbiBer(struct i2c_device_addr *devAddr, u32 *ber)
 * \brief Get the values of ber in VSB mode
 * \return Error code
 */
@@ -6189,7 +6189,7 @@ rw_error:
 }
 
 /**
-* \fn static short GetVSBSymbErr(struct i2c_device_addr * devAddr, u32 *ber)
+* \fn static short GetVSBSymbErr(struct i2c_device_addr *devAddr, u32 *ber)
 * \brief Get the values of ber in VSB mode
 * \return Error code
 */
@@ -7834,7 +7834,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn static short GetQAMRSErrCount(struct i2c_device_addr * devAddr)
+* \fn static short GetQAMRSErrCount(struct i2c_device_addr *devAddr)
 * \brief Get RS error count in QAM mode (used for post RS BER calculation)
 * \return Error code
 *
@@ -8841,7 +8841,7 @@ rw_error:
 #ifndef DRXJ_DIGITAL_ONLY
 #define SCU_RAM_ATV_ENABLE_IIR_WA__A 0x831F6D	/* TODO remove after done with reg import */
 static int
-SetATVStandard(pDRXDemodInstance_t demod, enum drx_standard * standard)
+SetATVStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
 {
 /* TODO: enable alternative for tap settings via external file
 
@@ -13817,7 +13817,7 @@ rw_error:
 *
 */
 static int
-CtrlSetStandard(pDRXDemodInstance_t demod, enum drx_standard * standard)
+CtrlSetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
 {
 	pDRXJData_t extAttr = NULL;
 	enum drx_standard prevStandard;
@@ -13917,7 +13917,7 @@ rw_error:
 *
 */
 static int
-CtrlGetStandard(pDRXDemodInstance_t demod, enum drx_standard * standard)
+CtrlGetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
 {
 	pDRXJData_t extAttr = NULL;
 	extAttr = (pDRXJData_t) demod->myExtAttr;
