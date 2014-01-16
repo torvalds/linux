@@ -1199,7 +1199,7 @@ int gfs2_rgrp_go_lock(struct gfs2_holder *gh)
 
 	if (gh->gh_flags & GL_SKIP && sdp->sd_args.ar_rgrplvb)
 		return 0;
-	return gfs2_rgrp_bh_get((struct gfs2_rgrpd *)gh->gh_gl->gl_object);
+	return gfs2_rgrp_bh_get(rgd);
 }
 
 /**
