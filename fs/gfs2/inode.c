@@ -149,7 +149,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 	ip = GFS2_I(inode);
 
 	if (!inode)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-ENOMEM);
 
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);

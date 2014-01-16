@@ -2120,14 +2120,14 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
  *
  */
 
-int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
+void gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 {
 	struct gfs2_rgrpd *rgd = gl->gl_object;
 	struct gfs2_blkreserv *trs;
 	const struct rb_node *n;
 
 	if (rgd == NULL)
-		return 0;
+		return;
 	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u r:%u e:%u\n",
 		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
 		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes,
@@ -2138,7 +2138,6 @@ int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 		dump_rs(seq, trs);
 	}
 	spin_unlock(&rgd->rd_rsspin);
-	return 0;
 }
 
 static void gfs2_rgrp_error(struct gfs2_rgrpd *rgd)

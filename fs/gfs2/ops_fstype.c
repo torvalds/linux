@@ -231,7 +231,7 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 
 	page = alloc_page(GFP_NOFS);
 	if (unlikely(!page))
-		return -ENOBUFS;
+		return -ENOMEM;
 
 	ClearPageUptodate(page);
 	ClearPageDirty(page);

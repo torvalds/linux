@@ -437,21 +437,19 @@ static int inode_go_lock(struct gfs2_holder *gh)
  * @seq: The iterator
  * @ip: the inode
  *
- * Returns: 0 on success, -ENOBUFS when we run out of space
  */
 
-static int inode_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
+static void inode_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 {
 	const struct gfs2_inode *ip = gl->gl_object;
 	if (ip == NULL)
-		return 0;
+		return;
 	gfs2_print_dbg(seq, " I: n:%llu/%llu t:%u f:0x%02lx d:0x%08x s:%llu\n",
 		  (unsigned long long)ip->i_no_formal_ino,
 		  (unsigned long long)ip->i_no_addr,
 		  IF2DT(ip->i_inode.i_mode), ip->i_flags,
 		  (unsigned int)ip->i_diskflags,
 		  (unsigned long long)i_size_read(&ip->i_inode));
-	return 0;
 }
 
 /**
