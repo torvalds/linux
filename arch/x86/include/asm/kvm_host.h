@@ -605,6 +605,7 @@ struct kvm_arch {
 	/* fields used by HYPER-V emulation */
 	u64 hv_guest_os_id;
 	u64 hv_hypercall;
+	u64 hv_tsc_page;
 
 	#ifdef CONFIG_KVM_MMU_AUDIT
 	int audit_point;
