@@ -46,7 +46,7 @@ MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol.");
 
 static int w1_timeout = 10;
-int w1_max_slave_count = 10;
+int w1_max_slave_count = 64;
 int w1_max_slave_ttl = 10;
 
 module_param_named(timeout, w1_timeout, int, 0);
@@ -316,6 +316,24 @@ static ssize_t w1_master_attribute_show_timeout(struct device *dev, struct devic
 	return count;
 }
 
+static ssize_t w1_master_attribute_store_max_slave_count(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	long tmp;
+	struct w1_master *md = dev_to_w1_master(dev);
+
+	if (kstrtol(buf, 0, &tmp) == -EINVAL || tmp < 1)
+		return -EINVAL;
+
+	mutex_lock(&md->mutex);
+	md->max_slave_count = tmp;
+	/* allow each time the max_slave_count is updated */
+	clear_bit(W1_WARN_MAX_COUNT, &md->flags);
+	mutex_unlock(&md->mutex);
+
+	return count;
+}
+
 static ssize_t w1_master_attribute_show_max_slave_count(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_master *md = dev_to_w1_master(dev);
@@ -518,7 +536,7 @@ static ssize_t w1_master_attribute_store_remove(struct device *dev,
 static W1_MASTER_ATTR_RO(name, S_IRUGO);
 static W1_MASTER_ATTR_RO(slaves, S_IRUGO);
 static W1_MASTER_ATTR_RO(slave_count, S_IRUGO);
-static W1_MASTER_ATTR_RO(max_slave_count, S_IRUGO);
+static W1_MASTER_ATTR_RW(max_slave_count, S_IRUGO | S_IWUSR | S_IWGRP);
 static W1_MASTER_ATTR_RO(attempts, S_IRUGO);
 static W1_MASTER_ATTR_RO(timeout, S_IRUGO);
 static W1_MASTER_ATTR_RO(pointer, S_IRUGO);
@@ -975,6 +993,14 @@ void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb
 				last_device = 1;
 			desc_bit = last_zero;
 			cb(dev, rn);
+		}
+
+		if (!last_device && slave_count == dev->max_slave_count &&
+			!test_bit(W1_WARN_MAX_COUNT, &dev->flags)) {
+			dev_info(&dev->dev, "%s: max_slave_count %d reached, "
+				"additional sensors ignored\n", __func__,
+				dev->max_slave_count);
+			set_bit(W1_WARN_MAX_COUNT, &dev->flags);
 		}
 	}
 }

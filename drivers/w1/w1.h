@@ -158,9 +158,11 @@ struct w1_bus_master
 /**
  * enum w1_master_flags - bitfields used in w1_master.flags
  * @W1_ABORT_SEARCH: abort searching early on shutdown
+ * @W1_WARN_MAX_COUNT: limit warning when the maximum count is reached
  */
 enum w1_master_flags {
 	W1_ABORT_SEARCH = 0,
+	W1_WARN_MAX_COUNT = 1,
 };
 
 struct w1_master
