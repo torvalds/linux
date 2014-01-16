@@ -148,6 +148,9 @@ void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
 {
 	int i, x;
 
+	pevent_unregister_event_handler(pevent, -1, "ftrace", "function",
+					function_handler, NULL);
+
 	for (i = 0; i <= cpus; i++) {
 		for (x = 0; x < fstack[i].size && fstack[i].stack[x]; x++)
 			free(fstack[i].stack[x]);
