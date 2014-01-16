@@ -33,3 +33,8 @@ obj-$(CONFIG_ARCH_BCM2835)	+= board_bcm2835.o
 
 # BCM5301X
 obj-$(CONFIG_ARCH_BCM_5301X)	+= bcm_5301x.o
+
+ifeq ($(CONFIG_ARCH_BRCMSTB),y)
+obj-y				+= brcmstb.o
+obj-$(CONFIG_SMP)		+= headsmp-brcmstb.o platsmp-brcmstb.o
+endif
