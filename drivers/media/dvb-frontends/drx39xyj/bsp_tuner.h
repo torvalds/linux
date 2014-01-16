@@ -1,4 +1,6 @@
 /*
+  Tuner dependable type definitions, macro's and functions
+
   Copyright (c), 2004-2005,2007-2010 Trident Microsystems, Inc.
   All rights reserved.
 
@@ -26,13 +28,6 @@
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
-*/
-
-/**
-* \file $Id: bsp_tuner.h,v 1.5 2009/10/19 22:15:13 dingtao Exp $
-*
-* \brief Tuner dependable type definitions, macro's and functions
-*
 */
 
 #ifndef __DRXBSP_TUNER_H__

@@ -1,4 +1,6 @@
 /*
+  I2C API, implementation depends on board specifics
+
   Copyright (c), 2004-2005,2007-2010 Trident Microsystems, Inc.
   All rights reserved.
 
@@ -26,20 +28,12 @@
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
-*/
 
-/**
-* \file $Id: bsp_i2c.h,v 1.5 2009/07/07 14:20:30 justin Exp $
-*
-* \brief I2C API, implementation depends on board specifics
-*
-* This module encapsulates I2C access.In some applications several devices
-* share one I2C bus. If these devices have the same I2C address some kind
-* off "switch" must be implemented to ensure error free communication with
-* one device.  In case such a "switch" is used, the device ID can be used
-* to implement control over this "switch".
-*
-*
+  This module encapsulates I2C access.In some applications several devices
+  share one I2C bus. If these devices have the same I2C address some kind
+  off "switch" must be implemented to ensure error free communication with
+  one device.  In case such a "switch" is used, the device ID can be used
+  to implement control over this "switch".
 */
 
 #ifndef __BSPI2C_H__
@@ -123,7 +117,7 @@ Exported FUNCTIONS
 */
 	drx_status_t drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 					 u16 w_count,
-					 u8 *wData,
+					 u8 *w_data,
 					 struct i2c_device_addr *r_dev_addr,
 					 u16 r_count, u8 *r_data);
 
