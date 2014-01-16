@@ -221,10 +221,12 @@
 
 #define MVNETA_RX_BUF_SIZE(pkt_size)   ((pkt_size) + NET_SKB_PAD)
 
-struct mvneta_stats {
+struct mvneta_pcpu_stats {
 	struct	u64_stats_sync syncp;
-	u64	packets;
-	u64	bytes;
+	u64	rx_packets;
+	u64	rx_bytes;
+	u64	tx_packets;
+	u64	tx_bytes;
 };
 
 struct mvneta_port {
@@ -250,8 +252,7 @@ struct mvneta_port {
 	u8 mcast_count[256];
 	u16 tx_ring_size;
 	u16 rx_ring_size;
-	struct mvneta_stats tx_stats;
-	struct mvneta_stats rx_stats;
+	struct mvneta_pcpu_stats *stats;
 
 	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
@@ -461,21 +462,29 @@ struct rtnl_link_stats64 *mvneta_get_stats64(struct net_device *dev,
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 	unsigned int start;
+	int cpu;
 
-	memset(stats, 0, sizeof(struct rtnl_link_stats64));
+	for_each_possible_cpu(cpu) {
+		struct mvneta_pcpu_stats *cpu_stats;
+		u64 rx_packets;
+		u64 rx_bytes;
+		u64 tx_packets;
+		u64 tx_bytes;
 
-	do {
-		start = u64_stats_fetch_begin_bh(&pp->rx_stats.syncp);
-		stats->rx_packets = pp->rx_stats.packets;
-		stats->rx_bytes	= pp->rx_stats.bytes;
-	} while (u64_stats_fetch_retry_bh(&pp->rx_stats.syncp, start));
+		cpu_stats = per_cpu_ptr(pp->stats, cpu);
+		do {
+			start = u64_stats_fetch_begin_bh(&cpu_stats->syncp);
+			rx_packets = cpu_stats->rx_packets;
+			rx_bytes   = cpu_stats->rx_bytes;
+			tx_packets = cpu_stats->tx_packets;
+			tx_bytes   = cpu_stats->tx_bytes;
+		} while (u64_stats_fetch_retry_bh(&cpu_stats->syncp, start));
 
-
-	do {
-		start = u64_stats_fetch_begin_bh(&pp->tx_stats.syncp);
-		stats->tx_packets = pp->tx_stats.packets;
-		stats->tx_bytes	= pp->tx_stats.bytes;
-	} while (u64_stats_fetch_retry_bh(&pp->tx_stats.syncp, start));
+		stats->rx_packets += rx_packets;
+		stats->rx_bytes   += rx_bytes;
+		stats->tx_packets += tx_packets;
+		stats->tx_bytes   += tx_bytes;
+	}
 
 	stats->rx_errors	= dev->stats.rx_errors;
 	stats->rx_dropped	= dev->stats.rx_dropped;
@@ -1453,10 +1462,12 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 	}
 
 	if (rcvd_pkts) {
-		u64_stats_update_begin(&pp->rx_stats.syncp);
-		pp->rx_stats.packets += rcvd_pkts;
-		pp->rx_stats.bytes   += rcvd_bytes;
-		u64_stats_update_end(&pp->rx_stats.syncp);
+		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_packets += rcvd_pkts;
+		stats->rx_bytes   += rcvd_bytes;
+		u64_stats_update_end(&stats->syncp);
 	}
 
 	/* Update rxq management counters */
@@ -1589,11 +1600,12 @@ static int mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 
 out:
 	if (frags > 0) {
-		u64_stats_update_begin(&pp->tx_stats.syncp);
-		pp->tx_stats.packets++;
-		pp->tx_stats.bytes += skb->len;
-		u64_stats_update_end(&pp->tx_stats.syncp);
+		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 
+		u64_stats_update_begin(&stats->syncp);
+		stats->tx_packets++;
+		stats->tx_bytes  += skb->len;
+		u64_stats_update_end(&stats->syncp);
 	} else {
 		dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
@@ -2758,6 +2770,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	const char *mac_from;
 	int phy_mode;
 	int err;
+	int cpu;
 
 	/* Our multiqueue support is not complete, so for now, only
 	 * allow the usage of the first RX queue
@@ -2799,9 +2812,6 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp = netdev_priv(dev);
 
-	u64_stats_init(&pp->tx_stats.syncp);
-	u64_stats_init(&pp->rx_stats.syncp);
-
 	pp->weight = MVNETA_RX_POLL_WEIGHT;
 	pp->phy_node = phy_node;
 	pp->phy_interface = phy_mode;
@@ -2818,6 +2828,19 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (pp->base == NULL) {
 		err = -ENOMEM;
 		goto err_clk;
+	}
+
+	/* Alloc per-cpu stats */
+	pp->stats = alloc_percpu(struct mvneta_pcpu_stats);
+	if (!pp->stats) {
+		err = -ENOMEM;
+		goto err_unmap;
+	}
+
+	for_each_possible_cpu(cpu) {
+		struct mvneta_pcpu_stats *stats;
+		stats = per_cpu_ptr(pp->stats, cpu);
+		u64_stats_init(&stats->syncp);
 	}
 
 	dt_mac_addr = of_get_mac_address(dn);
@@ -2849,7 +2872,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	err = mvneta_init(pp, phy_addr);
 	if (err < 0) {
 		dev_err(&pdev->dev, "can't init eth hal\n");
-		goto err_unmap;
+		goto err_free_stats;
 	}
 	mvneta_port_power_up(pp, phy_mode);
 
@@ -2879,6 +2902,8 @@ static int mvneta_probe(struct platform_device *pdev)
 
 err_deinit:
 	mvneta_deinit(pp);
+err_free_stats:
+	free_percpu(pp->stats);
 err_unmap:
 	iounmap(pp->base);
 err_clk:
@@ -2899,6 +2924,7 @@ static int mvneta_remove(struct platform_device *pdev)
 	unregister_netdev(dev);
 	mvneta_deinit(pp);
 	clk_disable_unprepare(pp->clk);
+	free_percpu(pp->stats);
 	iounmap(pp->base);
 	irq_dispose_mapping(dev->irq);
 	free_netdev(dev);
