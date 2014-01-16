@@ -1044,8 +1044,8 @@ static int __reset_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 			!ceph_con_opened(&osd->o_con)) {
 		struct ceph_osd_request *req;
 
-		dout(" osd addr hasn't changed and connection never opened,"
-		     " letting msgr retry");
+		dout("osd addr hasn't changed and connection never opened, "
+		     "letting msgr retry\n");
 		/* touch each r_stamp for handle_timeout()'s benfit */
 		list_for_each_entry(req, &osd->o_requests, r_osd_item)
 			req->r_stamp = jiffies;
