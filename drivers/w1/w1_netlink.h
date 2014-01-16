@@ -27,7 +27,8 @@
 
 #include "w1.h"
 
-/** enum w1_netlink_message_types - message type
+/**
+ * enum w1_netlink_message_types - message type
  *
  * @W1_SLAVE_ADD: notification that a slave device was added
  * @W1_SLAVE_REMOVE: notification that a slave device was removed
@@ -63,7 +64,8 @@ struct w1_netlink_msg
 	__u8				data[0];
 };
 
-/** enum w1_commands - commands available for master or slave operations
+/**
+ * enum w1_commands - commands available for master or slave operations
  * @W1_CMD_READ: read len bytes
  * @W1_CMD_WRITE: write len bytes
  * @W1_CMD_SEARCH: initiate a standard search, returns only the slave

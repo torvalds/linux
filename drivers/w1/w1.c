@@ -50,8 +50,21 @@ int w1_max_slave_count = 64;
 int w1_max_slave_ttl = 10;
 
 module_param_named(timeout, w1_timeout, int, 0);
+MODULE_PARM_DESC(timeout, "time in seconds between automatic slave searches");
+/* A search stops when w1_max_slave_count devices have been found in that
+ * search.  The next search will start over and detect the same set of devices
+ * on a static 1-wire bus.  Memory is not allocated based on this number, just
+ * on the number of devices known to the kernel.  Having a high number does not
+ * consume additional resources.  As a special case, if there is only one
+ * device on the network and w1_max_slave_count is set to 1, the device id can
+ * be read directly skipping the normal slower search process.
+ */
 module_param_named(max_slave_count, w1_max_slave_count, int, 0);
+MODULE_PARM_DESC(max_slave_count,
+	"maximum number of slaves detected in a search");
 module_param_named(slave_ttl, w1_max_slave_ttl, int, 0);
+MODULE_PARM_DESC(slave_ttl,
+	"Number of searches not seeing a slave before it will be removed");
 
 DEFINE_MUTEX(w1_mlock);
 LIST_HEAD(w1_masters);
@@ -920,7 +933,12 @@ void w1_slave_found(struct w1_master *dev, u64 rn)
 }
 
 /**
- * Performs a ROM Search & registers any devices found.
+ * w1_search() - Performs a ROM Search & registers any devices found.
+ * @dev: The master device to search
+ * @search_type: W1_SEARCH to search all devices, or W1_ALARM_SEARCH
+ * to return only devices in the alarmed state
+ * @cb: Function to call when a device is found
+ *
  * The 1-wire search is a simple binary tree search.
  * For each bit of the address, we read two bits and write one bit.
  * The bit written will put to sleep all devies that don't match that bit.
@@ -930,8 +948,6 @@ void w1_slave_found(struct w1_master *dev, u64 rn)
  *
  * See "Application note 187 1-wire search algorithm" at www.maxim-ic.com
  *
- * @dev        The master device to search
- * @cb         Function to call when a device is found
  */
 void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb)
 {
@@ -990,7 +1006,7 @@ void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb
 			else
 				search_bit = ((last_rn >> i) & 0x1);
 
-			/** Read two bits and write one bit */
+			/* Read two bits and write one bit */
 			triplet_ret = w1_triplet(dev, search_bit);
 
 			/* quit if no device responded */
@@ -1074,6 +1090,12 @@ static void w1_search_process(struct w1_master *dev, u8 search_type)
 	w1_search_process_cb(dev, search_type, w1_slave_found);
 }
 
+/**
+ * w1_process_callbacks() - execute each dev->async_list callback entry
+ * @dev: w1_master device
+ *
+ * Return: 1 if there were commands to executed 0 otherwise
+ */
 int w1_process_callbacks(struct w1_master *dev)
 {
 	int ret = 0;

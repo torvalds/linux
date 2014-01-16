@@ -105,6 +105,10 @@ static void w1_free_dev(struct w1_master *dev)
 	device_unregister(&dev->dev);
 }
 
+/**
+ * w1_add_master_device() - registers a new master device
+ * @master:	master bus device to register
+ */
 int w1_add_master_device(struct w1_bus_master *master)
 {
 	struct w1_master *dev, *entry;
@@ -227,6 +231,10 @@ void __w1_remove_master_device(struct w1_master *dev)
 	w1_free_dev(dev);
 }
 
+/**
+ * w1_remove_master_device() - unregister a master device
+ * @bm:	master bus device to remove
+ */
 void w1_remove_master_device(struct w1_bus_master *bm)
 {
 	struct w1_master *dev, *found = NULL;

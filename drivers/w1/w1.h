@@ -22,6 +22,13 @@
 #ifndef __W1_H
 #define __W1_H
 
+/**
+ * struct w1_reg_num - broken out slave device id
+ *
+ * @family: identifies the type of device
+ * @id: along with family is the unique device id
+ * @crc: checksum of the other bytes
+ */
 struct w1_reg_num
 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -60,6 +67,22 @@ struct w1_reg_num
 #define W1_SLAVE_ACTIVE		0
 #define W1_SLAVE_DETACH		1
 
+/**
+ * struct w1_slave - holds a single slave device on the bus
+ *
+ * @owner: Points to the one wire "wire" kernel module.
+ * @name: Device id is ascii.
+ * @w1_slave_entry: data for the linked list
+ * @reg_num: the slave id in binary
+ * @refcnt: reference count, delete when 0
+ * @flags: bit flags for W1_SLAVE_ACTIVE W1_SLAVE_DETACH
+ * @ttl: decrement per search this slave isn't found, deatch at 0
+ * @master: bus which this slave is on
+ * @family: module for device family type
+ * @family_data: pointer for use by the family module
+ * @dev: kernel device identifier
+ *
+ */
 struct w1_slave
 {
 	struct module		*owner;
@@ -80,77 +103,74 @@ typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
 
 
 /**
+ * struct w1_bus_master - operations available on a bus master
+ *
+ * @data: the first parameter in all the functions below
+ *
+ * @read_bit: Sample the line level @return the level read (0 or 1)
+ *
+ * @write_bit: Sets the line level
+ *
+ * @touch_bit: the lowest-level function for devices that really support the
+ * 1-wire protocol.
+ * touch_bit(0) = write-0 cycle
+ * touch_bit(1) = write-1 / read cycle
+ * @return the bit read (0 or 1)
+ *
+ * @read_byte: Reads a bytes. Same as 8 touch_bit(1) calls.
+ * @return the byte read
+ *
+ * @write_byte: Writes a byte. Same as 8 touch_bit(x) calls.
+ *
+ * @read_block: Same as a series of read_byte() calls
+ * @return the number of bytes read
+ *
+ * @write_block: Same as a series of write_byte() calls
+ *
+ * @triplet: Combines two reads and a smart write for ROM searches
+ * @return bit0=Id bit1=comp_id bit2=dir_taken
+ *
+ * @reset_bus: long write-0 with a read for the presence pulse detection
+ * @return -1=Error, 0=Device present, 1=No device present
+ *
+ * @set_pullup: Put out a strong pull-up pulse of the specified duration.
+ * @return -1=Error, 0=completed
+ *
+ * @search: Really nice hardware can handles the different types of ROM search
+ * w1_master* is passed to the slave found callback.
+ * u8 is search_type, W1_SEARCH or W1_ALARM_SEARCH
+ *
  * Note: read_bit and write_bit are very low level functions and should only
  * be used with hardware that doesn't really support 1-wire operations,
  * like a parallel/serial port.
  * Either define read_bit and write_bit OR define, at minimum, touch_bit and
  * reset_bus.
+ *
  */
 struct w1_bus_master
 {
-	/** the first parameter in all the functions below */
 	void		*data;
 
-	/**
-	 * Sample the line level
-	 * @return the level read (0 or 1)
-	 */
 	u8		(*read_bit)(void *);
 
-	/** Sets the line level */
 	void		(*write_bit)(void *, u8);
 
-	/**
-	 * touch_bit is the lowest-level function for devices that really
-	 * support the 1-wire protocol.
-	 * touch_bit(0) = write-0 cycle
-	 * touch_bit(1) = write-1 / read cycle
-	 * @return the bit read (0 or 1)
-	 */
 	u8		(*touch_bit)(void *, u8);
 
-	/**
-	 * Reads a bytes. Same as 8 touch_bit(1) calls.
-	 * @return the byte read
-	 */
 	u8		(*read_byte)(void *);
 
-	/**
-	 * Writes a byte. Same as 8 touch_bit(x) calls.
-	 */
 	void		(*write_byte)(void *, u8);
 
-	/**
-	 * Same as a series of read_byte() calls
-	 * @return the number of bytes read
-	 */
 	u8		(*read_block)(void *, u8 *, int);
 
-	/** Same as a series of write_byte() calls */
 	void		(*write_block)(void *, const u8 *, int);
 
-	/**
-	 * Combines two reads and a smart write for ROM searches
-	 * @return bit0=Id bit1=comp_id bit2=dir_taken
-	 */
 	u8		(*triplet)(void *, u8);
 
-	/**
-	 * long write-0 with a read for the presence pulse detection
-	 * @return -1=Error, 0=Device present, 1=No device present
-	 */
 	u8		(*reset_bus)(void *);
 
-	/**
-	 * Put out a strong pull-up pulse of the specified duration.
-	 * @return -1=Error, 0=completed
-	 */
 	u8		(*set_pullup)(void *, int);
 
-	/** Really nice hardware can handles the different types of ROM search
-	 *  w1_master* is passed to the slave found callback.
-	 *  u8 is search_type, W1_SEARCH or W1_ALARM_SEARCH
-	 */
 	void		(*search)(void *, struct w1_master *,
 		u8, w1_slave_found_callback);
 };
@@ -165,6 +185,37 @@ enum w1_master_flags {
 	W1_WARN_MAX_COUNT = 1,
 };
 
+/**
+ * struct w1_master - one per bus master
+ * @w1_master_entry:	master linked list
+ * @owner:		module owner
+ * @name:		dynamically allocate bus name
+ * @list_mutex:		protect slist and async_list
+ * @slist:		linked list of slaves
+ * @async_list:		linked list of netlink commands to execute
+ * @max_slave_count:	maximum number of slaves to search for at a time
+ * @slave_count:	current number of slaves known
+ * @attempts:		number of searches ran
+ * @slave_ttl:		number of searches before a slave is timed out
+ * @initialized:	prevent init/removal race conditions
+ * @id:			w1 bus number
+ * @search_count:	number of automatic searches to run, -1 unlimited
+ * @search_id:		allows continuing a search
+ * @refcnt:		reference count
+ * @priv:		private data storage
+ * @priv_size:		size allocated
+ * @enable_pullup:	allows a strong pullup
+ * @pullup_duration:	time for the next strong pullup
+ * @flags:		one of w1_master_flags
+ * @thread:		thread for bus search and netlink commands
+ * @mutex:		protect most of w1_master
+ * @bus_mutex:		pretect concurrent bus access
+ * @driver:		sysfs driver
+ * @dev:		sysfs device
+ * @bus_master:		io operations available
+ * @seq:		sequence number used for netlink broadcasts
+ * @portid:		destination for the current netlink command
+ */
 struct w1_master
 {
 	struct list_head	w1_master_entry;
@@ -173,7 +224,7 @@ struct w1_master
 	/* list_mutex protects just slist and async_list so slaves can be
 	 * searched for and async commands added while the master has
 	 * w1_master.mutex locked and is operating on the bus.
-	 * lock order w1_mlock, w1_master.mutex, w1_master_list_mutex
+	 * lock order w1_mlock, w1_master.mutex, w1_master.list_mutex
 	 */
 	struct mutex		list_mutex;
 	struct list_head	slist;
@@ -290,7 +341,6 @@ extern int w1_max_slave_ttl;
 extern struct list_head w1_masters;
 extern struct mutex w1_mlock;
 
-/* returns 1 if there were commands to executed 0 otherwise */
 extern int w1_process_callbacks(struct w1_master *dev);
 extern int w1_process(void *);
 
