@@ -1087,6 +1087,70 @@ static inline void ixgbevf_irq_enable(struct ixgbevf_adapter *adapter)
 }
 
 /**
+ * ixgbevf_configure_tx_ring - Configure 82599 VF Tx ring after Reset
+ * @adapter: board private structure
+ * @ring: structure containing ring specific data
+ *
+ * Configure the Tx descriptor ring after a reset.
+ **/
+static void ixgbevf_configure_tx_ring(struct ixgbevf_adapter *adapter,
+				      struct ixgbevf_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u64 tdba = ring->dma;
+	int wait_loop = 10;
+	u32 txdctl = IXGBE_TXDCTL_ENABLE;
+	u8 reg_idx = ring->reg_idx;
+
+	/* disable queue to avoid issues while updating state */
+	IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(reg_idx), IXGBE_TXDCTL_SWFLSH);
+	IXGBE_WRITE_FLUSH(hw);
+
+	IXGBE_WRITE_REG(hw, IXGBE_VFTDBAL(reg_idx), tdba & DMA_BIT_MASK(32));
+	IXGBE_WRITE_REG(hw, IXGBE_VFTDBAH(reg_idx), tdba >> 32);
+	IXGBE_WRITE_REG(hw, IXGBE_VFTDLEN(reg_idx),
+			ring->count * sizeof(union ixgbe_adv_tx_desc));
+
+	/* disable head writeback */
+	IXGBE_WRITE_REG(hw, IXGBE_VFTDWBAH(reg_idx), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VFTDWBAL(reg_idx), 0);
+
+	/* enable relaxed ordering */
+	IXGBE_WRITE_REG(hw, IXGBE_VFDCA_TXCTRL(reg_idx),
+			(IXGBE_DCA_TXCTRL_DESC_RRO_EN |
+			 IXGBE_DCA_TXCTRL_DATA_RRO_EN));
+
+	/* reset head and tail pointers */
+	IXGBE_WRITE_REG(hw, IXGBE_VFTDH(reg_idx), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VFTDT(reg_idx), 0);
+	ring->tail = hw->hw_addr + IXGBE_VFTDT(reg_idx);
+
+	/* reset ntu and ntc to place SW in sync with hardwdare */
+	ring->next_to_clean = 0;
+	ring->next_to_use = 0;
+
+	/* In order to avoid issues WTHRESH + PTHRESH should always be equal
+	 * to or less than the number of on chip descriptors, which is
+	 * currently 40.
+	 */
+	txdctl |= (8 << 16);    /* WTHRESH = 8 */
+
+	/* Setting PTHRESH to 32 both improves performance */
+	txdctl |= (1 << 8) |    /* HTHRESH = 1 */
+		  32;          /* PTHRESH = 32 */
+
+	IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(reg_idx), txdctl);
+
+	/* poll to verify queue is enabled */
+	do {
+		usleep_range(1000, 2000);
+		txdctl = IXGBE_READ_REG(hw, IXGBE_VFTXDCTL(reg_idx));
+	}  while (--wait_loop && !(txdctl & IXGBE_TXDCTL_ENABLE));
+	if (!wait_loop)
+		pr_err("Could not enable Tx Queue %d\n", reg_idx);
+}
+
+/**
  * ixgbevf_configure_tx - Configure 82599 VF Transmit Unit after Reset
  * @adapter: board private structure
  *
@@ -1094,32 +1158,11 @@ static inline void ixgbevf_irq_enable(struct ixgbevf_adapter *adapter)
  **/
 static void ixgbevf_configure_tx(struct ixgbevf_adapter *adapter)
 {
-	u64 tdba;
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 i, j, tdlen, txctrl;
+	u32 i;
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		struct ixgbevf_ring *ring = adapter->tx_ring[i];
-		j = ring->reg_idx;
-		tdba = ring->dma;
-		tdlen = ring->count * sizeof(union ixgbe_adv_tx_desc);
-		IXGBE_WRITE_REG(hw, IXGBE_VFTDBAL(j),
-				(tdba & DMA_BIT_MASK(32)));
-		IXGBE_WRITE_REG(hw, IXGBE_VFTDBAH(j), (tdba >> 32));
-		IXGBE_WRITE_REG(hw, IXGBE_VFTDLEN(j), tdlen);
-		IXGBE_WRITE_REG(hw, IXGBE_VFTDH(j), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_VFTDT(j), 0);
-		ring->tail = hw->hw_addr + IXGBE_VFTDT(j);
-		ring->next_to_clean = 0;
-		ring->next_to_use = 0;
-		/* Disable Tx Head Writeback RO bit, since this hoses
-		 * bookkeeping if things aren't delivered in order.
-		 */
-		txctrl = IXGBE_READ_REG(hw, IXGBE_VFDCA_TXCTRL(j));
-		txctrl &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
-		IXGBE_WRITE_REG(hw, IXGBE_VFDCA_TXCTRL(j), txctrl);
-	}
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		ixgbevf_configure_tx_ring(adapter, adapter->tx_ring[i]);
 }
 
 #define IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT	2
@@ -1191,6 +1234,92 @@ static void ixgbevf_set_rx_buffer_len(struct ixgbevf_adapter *adapter)
 		adapter->rx_ring[i]->rx_buf_len = rx_buf_len;
 }
 
+#define IXGBEVF_MAX_RX_DESC_POLL 10
+static void ixgbevf_disable_rx_queue(struct ixgbevf_adapter *adapter,
+				     struct ixgbevf_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int wait_loop = IXGBEVF_MAX_RX_DESC_POLL;
+	u32 rxdctl;
+	u8 reg_idx = ring->reg_idx;
+
+	rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
+	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
+
+	/* write value back with RXDCTL.ENABLE bit cleared */
+	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(reg_idx), rxdctl);
+
+	/* the hardware may take up to 100us to really disable the rx queue */
+	do {
+		udelay(10);
+		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
+	} while (--wait_loop && (rxdctl & IXGBE_RXDCTL_ENABLE));
+
+	if (!wait_loop)
+		pr_err("RXDCTL.ENABLE queue %d not cleared while polling\n",
+		       reg_idx);
+}
+
+static void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
+					 struct ixgbevf_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int wait_loop = IXGBEVF_MAX_RX_DESC_POLL;
+	u32 rxdctl;
+	u8 reg_idx = ring->reg_idx;
+
+	do {
+		usleep_range(1000, 2000);
+		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
+	} while (--wait_loop && !(rxdctl & IXGBE_RXDCTL_ENABLE));
+
+	if (!wait_loop)
+		pr_err("RXDCTL.ENABLE queue %d not set while polling\n",
+		       reg_idx);
+}
+
+static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
+				      struct ixgbevf_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u64 rdba = ring->dma;
+	u32 rxdctl;
+	u8 reg_idx = ring->reg_idx;
+
+	/* disable queue to avoid issues while updating state */
+	rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
+	ixgbevf_disable_rx_queue(adapter, ring);
+
+	IXGBE_WRITE_REG(hw, IXGBE_VFRDBAL(reg_idx), rdba & DMA_BIT_MASK(32));
+	IXGBE_WRITE_REG(hw, IXGBE_VFRDBAH(reg_idx), rdba >> 32);
+	IXGBE_WRITE_REG(hw, IXGBE_VFRDLEN(reg_idx),
+			ring->count * sizeof(union ixgbe_adv_rx_desc));
+
+	/* enable relaxed ordering */
+	IXGBE_WRITE_REG(hw, IXGBE_VFDCA_RXCTRL(reg_idx),
+			IXGBE_DCA_RXCTRL_DESC_RRO_EN);
+
+	/* reset head and tail pointers */
+	IXGBE_WRITE_REG(hw, IXGBE_VFRDH(reg_idx), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VFRDT(reg_idx), 0);
+	ring->tail = hw->hw_addr + IXGBE_VFRDT(reg_idx);
+
+	/* reset ntu and ntc to place SW in sync with hardwdare */
+	ring->next_to_clean = 0;
+	ring->next_to_use = 0;
+
+	ixgbevf_configure_srrctl(adapter, reg_idx);
+
+	/* prevent DMA from exceeding buffer space available */
+	rxdctl &= ~IXGBE_RXDCTL_RLPMLMASK;
+	rxdctl |= ring->rx_buf_len | IXGBE_RXDCTL_RLPML_EN;
+	rxdctl |= IXGBE_RXDCTL_ENABLE | IXGBE_RXDCTL_VME;
+	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(reg_idx), rxdctl);
+
+	ixgbevf_rx_desc_queue_enable(adapter, ring);
+	ixgbevf_alloc_rx_buffers(adapter, ring, ixgbevf_desc_unused(ring));
+}
+
 /**
  * ixgbevf_configure_rx - Configure 82599 VF Receive Unit after Reset
  * @adapter: board private structure
@@ -1199,10 +1328,7 @@ static void ixgbevf_set_rx_buffer_len(struct ixgbevf_adapter *adapter)
  **/
 static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 {
-	u64 rdba;
-	struct ixgbe_hw *hw = &adapter->hw;
-	int i, j;
-	u32 rdlen;
+	int i;
 
 	ixgbevf_setup_psrtype(adapter);
 
@@ -1211,23 +1337,8 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring */
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct ixgbevf_ring *ring = adapter->rx_ring[i];
-		rdba = ring->dma;
-		j = ring->reg_idx;
-		rdlen = ring->count * sizeof(union ixgbe_adv_rx_desc);
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDBAL(j),
-				(rdba & DMA_BIT_MASK(32)));
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDBAH(j), (rdba >> 32));
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDLEN(j), rdlen);
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDH(j), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(j), 0);
-		ring->tail = hw->hw_addr + IXGBE_VFRDT(j);
-		ring->next_to_clean = 0;
-		ring->next_to_use = 0;
-
-		ixgbevf_configure_srrctl(adapter, j);
-	}
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		ixgbevf_configure_rx_ring(adapter, adapter->rx_ring[i]);
 }
 
 static int ixgbevf_vlan_rx_add_vid(struct net_device *netdev,
@@ -1409,68 +1520,14 @@ static int ixgbevf_configure_dcb(struct ixgbevf_adapter *adapter)
 
 static void ixgbevf_configure(struct ixgbevf_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-	int i;
-
 	ixgbevf_configure_dcb(adapter);
 
-	ixgbevf_set_rx_mode(netdev);
+	ixgbevf_set_rx_mode(adapter->netdev);
 
 	ixgbevf_restore_vlan(adapter);
 
 	ixgbevf_configure_tx(adapter);
 	ixgbevf_configure_rx(adapter);
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct ixgbevf_ring *ring = adapter->rx_ring[i];
-		ixgbevf_alloc_rx_buffers(adapter, ring,
-					 ixgbevf_desc_unused(ring));
-	}
-}
-
-#define IXGBEVF_MAX_RX_DESC_POLL 10
-static void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
-					 struct ixgbevf_ring *ring)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	int wait_loop = IXGBEVF_MAX_RX_DESC_POLL;
-	u32 rxdctl;
-	u8 reg_idx = ring->reg_idx;
-
-	do {
-		usleep_range(1000, 2000);
-		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
-	} while (--wait_loop && !(rxdctl & IXGBE_RXDCTL_ENABLE));
-
-	if (!wait_loop)
-		hw_dbg(hw, "RXDCTL.ENABLE queue %d not set while polling\n",
-		       reg_idx);
-
-	ixgbevf_release_rx_desc(ring, ring->count - 1);
-}
-
-static void ixgbevf_disable_rx_queue(struct ixgbevf_adapter *adapter,
-				     struct ixgbevf_ring *ring)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	int wait_loop = IXGBEVF_MAX_RX_DESC_POLL;
-	u32 rxdctl;
-	u8 reg_idx = ring->reg_idx;
-
-	rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
-	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
-
-	/* write value back with RXDCTL.ENABLE bit cleared */
-	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(reg_idx), rxdctl);
-
-	/* the hardware may take up to 100us to really disable the rx queue */
-	do {
-		udelay(10);
-		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
-	} while (--wait_loop && (rxdctl & IXGBE_RXDCTL_ENABLE));
-
-	if (!wait_loop)
-		hw_dbg(hw, "RXDCTL.ENABLE queue %d not cleared while polling\n",
-		       reg_idx);
 }
 
 static void ixgbevf_save_reset_stats(struct ixgbevf_adapter *adapter)
@@ -1535,37 +1592,6 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
-	int i, j = 0;
-	int num_rx_rings = adapter->num_rx_queues;
-	u32 txdctl, rxdctl;
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		j = adapter->tx_ring[i]->reg_idx;
-		txdctl = IXGBE_READ_REG(hw, IXGBE_VFTXDCTL(j));
-		/* enable WTHRESH=8 descriptors, to encourage burst writeback */
-		txdctl |= (8 << 16);
-		IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(j), txdctl);
-	}
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		j = adapter->tx_ring[i]->reg_idx;
-		txdctl = IXGBE_READ_REG(hw, IXGBE_VFTXDCTL(j));
-		txdctl |= IXGBE_TXDCTL_ENABLE;
-		IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(j), txdctl);
-	}
-
-	for (i = 0; i < num_rx_rings; i++) {
-		j = adapter->rx_ring[i]->reg_idx;
-		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(j));
-		rxdctl |= IXGBE_RXDCTL_ENABLE | IXGBE_RXDCTL_VME;
-		if (hw->mac.type == ixgbe_mac_X540_vf) {
-			rxdctl &= ~IXGBE_RXDCTL_RLPMLMASK;
-			rxdctl |= ((netdev->mtu + ETH_HLEN + ETH_FCS_LEN) |
-				   IXGBE_RXDCTL_RLPML_EN);
-		}
-		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(j), rxdctl);
-		ixgbevf_rx_desc_queue_enable(adapter, adapter->rx_ring[i]);
-	}
 
 	ixgbevf_configure_msix(adapter);
 
@@ -1704,8 +1730,7 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 txdctl;
-	int i, j;
+	int i;
 
 	/* signal that we are down to the interrupt handler */
 	set_bit(__IXGBEVF_DOWN, &adapter->state);
@@ -1733,10 +1758,10 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 
 	/* disable transmits in the hardware now that interrupts are off */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		j = adapter->tx_ring[i]->reg_idx;
-		txdctl = IXGBE_READ_REG(hw, IXGBE_VFTXDCTL(j));
-		IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(j),
-				(txdctl & ~IXGBE_TXDCTL_ENABLE));
+		u8 reg_idx = adapter->tx_ring[i]->reg_idx;
+
+		IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(reg_idx),
+				IXGBE_TXDCTL_SWFLSH);
 	}
 
 	netif_carrier_off(netdev);
@@ -2415,6 +2440,10 @@ void ixgbevf_free_tx_resources(struct ixgbevf_adapter *adapter,
 
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
+
+	/* if not set, then don't free */
+	if (!tx_ring->desc)
+		return;
 
 	dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
 			  tx_ring->dma);
