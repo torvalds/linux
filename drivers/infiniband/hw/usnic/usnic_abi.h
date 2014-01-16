@@ -21,7 +21,7 @@
 #define USNIC_ABI_H
 
 /* ABI between userspace and kernel */
-#define USNIC_UVERBS_ABI_VERSION	3
+#define USNIC_UVERBS_ABI_VERSION	4
 
 #define USNIC_QP_GRP_MAX_WQS		8
 #define USNIC_QP_GRP_MAX_RQS		8
