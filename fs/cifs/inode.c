@@ -404,7 +404,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 }
 
 static int
-cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
+cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	      struct cifs_sb_info *cifs_sb, unsigned int xid)
 {
 	int rc;
@@ -416,6 +416,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 	char buf[24];
 	unsigned int bytes_read;
 	char *pbuf;
+	int buf_type = CIFS_NO_BUFFER;
 
 	pbuf = buf;
 
@@ -441,57 +442,59 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 			 cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc == 0) {
-		int buf_type = CIFS_NO_BUFFER;
-			/* Read header */
-		io_parms.netfid = netfid;
-		io_parms.pid = current->tgid;
-		io_parms.tcon = tcon;
-		io_parms.offset = 0;
-		io_parms.length = 24;
-		rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf,
-				 &buf_type);
-		if ((rc == 0) && (bytes_read >= 8)) {
-			if (memcmp("IntxBLK", pbuf, 8) == 0) {
-				cifs_dbg(FYI, "Block device\n");
-				fattr->cf_mode |= S_IFBLK;
-				fattr->cf_dtype = DT_BLK;
-				if (bytes_read == 24) {
-					/* we have enough to decode dev num */
-					__u64 mjr; /* major */
-					__u64 mnr; /* minor */
-					mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
-					mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
-					fattr->cf_rdev = MKDEV(mjr, mnr);
-				}
-			} else if (memcmp("IntxCHR", pbuf, 8) == 0) {
-				cifs_dbg(FYI, "Char device\n");
-				fattr->cf_mode |= S_IFCHR;
-				fattr->cf_dtype = DT_CHR;
-				if (bytes_read == 24) {
-					/* we have enough to decode dev num */
-					__u64 mjr; /* major */
-					__u64 mnr; /* minor */
-					mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
-					mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
-					fattr->cf_rdev = MKDEV(mjr, mnr);
-				}
-			} else if (memcmp("IntxLNK", pbuf, 7) == 0) {
-				cifs_dbg(FYI, "Symlink\n");
-				fattr->cf_mode |= S_IFLNK;
-				fattr->cf_dtype = DT_LNK;
-			} else {
-				fattr->cf_mode |= S_IFREG; /* file? */
-				fattr->cf_dtype = DT_REG;
-				rc = -EOPNOTSUPP;
-			}
-		} else {
-			fattr->cf_mode |= S_IFREG; /* then it is a file */
-			fattr->cf_dtype = DT_REG;
-			rc = -EOPNOTSUPP; /* or some unknown SFU type */
-		}
-		CIFSSMBClose(xid, tcon, netfid);
+	if (rc) {
+		cifs_put_tlink(tlink);
+		return rc;
 	}
+
+	/* Read header */
+	io_parms.netfid = netfid;
+	io_parms.pid = current->tgid;
+	io_parms.tcon = tcon;
+	io_parms.offset = 0;
+	io_parms.length = 24;
+
+	rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf, &buf_type);
+	if ((rc == 0) && (bytes_read >= 8)) {
+		if (memcmp("IntxBLK", pbuf, 8) == 0) {
+			cifs_dbg(FYI, "Block device\n");
+			fattr->cf_mode |= S_IFBLK;
+			fattr->cf_dtype = DT_BLK;
+			if (bytes_read == 24) {
+				/* we have enough to decode dev num */
+				__u64 mjr; /* major */
+				__u64 mnr; /* minor */
+				mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
+				mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
+				fattr->cf_rdev = MKDEV(mjr, mnr);
+			}
+		} else if (memcmp("IntxCHR", pbuf, 8) == 0) {
+			cifs_dbg(FYI, "Char device\n");
+			fattr->cf_mode |= S_IFCHR;
+			fattr->cf_dtype = DT_CHR;
+			if (bytes_read == 24) {
+				/* we have enough to decode dev num */
+				__u64 mjr; /* major */
+				__u64 mnr; /* minor */
+				mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
+				mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
+				fattr->cf_rdev = MKDEV(mjr, mnr);
+			}
+		} else if (memcmp("IntxLNK", pbuf, 7) == 0) {
+			cifs_dbg(FYI, "Symlink\n");
+			fattr->cf_mode |= S_IFLNK;
+			fattr->cf_dtype = DT_LNK;
+		} else {
+			fattr->cf_mode |= S_IFREG; /* file? */
+			fattr->cf_dtype = DT_REG;
+			rc = -EOPNOTSUPP;
+		}
+	} else {
+		fattr->cf_mode |= S_IFREG; /* then it is a file */
+		fattr->cf_dtype = DT_REG;
+		rc = -EOPNOTSUPP; /* or some unknown SFU type */
+	}
+	CIFSSMBClose(xid, tcon, netfid);
 	cifs_put_tlink(tlink);
 	return rc;
 }
