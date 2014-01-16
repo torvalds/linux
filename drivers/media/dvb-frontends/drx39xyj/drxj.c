@@ -4204,22 +4204,6 @@ ctrl_i2c_write_read(pdrx_demod_instance_t demod, pdrxi2c_data_t i2c_data)
 	return (DRX_STS_FUNC_NOT_AVAILABLE);
 }
 
-int
-tuner_i2c_write_read(struct tuner_instance *tuner,
-		     struct i2c_device_addr *w_dev_addr,
-		  u16 w_count,
-		  u8 *wData,
-		  struct i2c_device_addr *r_dev_addr, u16 r_count, u8 *r_data)
-{
-	pdrx_demod_instance_t demod;
-	drxi2c_data_t i2c_data =
-	    { 2, w_dev_addr, w_count, wData, r_dev_addr, r_count, r_data };
-
-	demod = (pdrx_demod_instance_t) (tuner->my_common_attr->myUser_data);
-
-	return (ctrl_i2c_write_read(demod, &i2c_data));
-}
-
 /* -------------------------------------------------------------------------- */
 /**
 * \brief Measure result of ADC synchronisation
