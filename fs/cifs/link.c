@@ -320,16 +320,22 @@ cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc;
 	int oplock = 0;
-	__u16 netfid = 0;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 	struct cifs_io_parms io_parms;
 	int buf_type = CIFS_NO_BUFFER;
 	FILE_ALL_INFO file_info;
 
-	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, GENERIC_READ,
-			 CREATE_NOT_DIR, &netfid, &oplock, &file_info,
-			 cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = GENERIC_READ;
+	oparms.create_options = CREATE_NOT_DIR;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, &file_info);
 	if (rc)
 		return rc;
 
@@ -337,7 +343,7 @@ cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		/* it's not a symlink */
 		goto out;
 
-	io_parms.netfid = netfid;
+	io_parms.netfid = fid.netfid;
 	io_parms.pid = current->tgid;
 	io_parms.tcon = tcon;
 	io_parms.offset = 0;
@@ -345,7 +351,7 @@ cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = CIFSSMBRead(xid, &io_parms, pbytes_read, &pbuf, &buf_type);
 out:
-	CIFSSMBClose(xid, tcon, netfid);
+	CIFSSMBClose(xid, tcon, fid.netfid);
 	return rc;
 }
 
@@ -356,29 +362,35 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc;
 	int oplock = 0;
-	__u16 netfid = 0;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 	struct cifs_io_parms io_parms;
 	int create_options = CREATE_NOT_DIR;
 
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
-	rc = CIFSSMBOpen(xid, tcon, path, FILE_CREATE, GENERIC_WRITE,
-			 create_options, &netfid, &oplock, NULL,
-			 cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = GENERIC_WRITE;
+	oparms.create_options = create_options;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc)
 		return rc;
 
-	io_parms.netfid = netfid;
+	io_parms.netfid = fid.netfid;
 	io_parms.pid = current->tgid;
 	io_parms.tcon = tcon;
 	io_parms.offset = 0;
 	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
 
 	rc = CIFSSMBWrite(xid, &io_parms, pbytes_written, pbuf, NULL, 0);
-	CIFSSMBClose(xid, tcon, netfid);
+	CIFSSMBClose(xid, tcon, fid.netfid);
 	return rc;
 }
 

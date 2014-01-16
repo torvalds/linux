@@ -570,7 +570,8 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 	int oplock = 0;
-	u16 netfid;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 	FILE_ALL_INFO *buf = NULL;
 	unsigned int bytes_written;
 	struct win_dev *pdev;
@@ -640,10 +641,16 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
-	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_CREATE,
-			 GENERIC_WRITE, create_options,
-			 &netfid, &oplock, buf, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = GENERIC_WRITE;
+	oparms.create_options = create_options;
+	oparms.disposition = FILE_CREATE;
+	oparms.path = full_path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, buf);
 	if (rc)
 		goto mknod_out;
 
@@ -653,7 +660,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	 */
 
 	pdev = (struct win_dev *)buf;
-	io_parms.netfid = netfid;
+	io_parms.netfid = fid.netfid;
 	io_parms.pid = current->tgid;
 	io_parms.tcon = tcon;
 	io_parms.offset = 0;
@@ -671,7 +678,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 		rc = CIFSSMBWrite(xid, &io_parms, &bytes_written, (char *)pdev,
 				  NULL, 0);
 	} /* else if (S_ISFIFO) */
-	CIFSSMBClose(xid, tcon, netfid);
+	CIFSSMBClose(xid, tcon, fid.netfid);
 	d_drop(direntry);
 
 	/* FIXME: add code here to set EAs */

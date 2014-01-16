@@ -1273,10 +1273,8 @@ OldOpenRetry:
 }
 
 int
-CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
-	    const char *path, const int disposition, const int desired_access,
-	    const int create_options, __u16 *netfid, int *oplock,
-	    FILE_ALL_INFO *buf, const struct nls_table *nls, int remap)
+CIFS_open(const unsigned int xid, struct cifs_open_parms *oparms, int *oplock,
+	  FILE_ALL_INFO *buf)
 {
 	int rc = -EACCES;
 	OPEN_REQ *req = NULL;
@@ -1284,6 +1282,14 @@ CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned;
 	int name_len;
 	__u16 count;
+	struct cifs_sb_info *cifs_sb = oparms->cifs_sb;
+	struct cifs_tcon *tcon = oparms->tcon;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
+	const struct nls_table *nls = cifs_sb->local_nls;
+	int create_options = oparms->create_options;
+	int desired_access = oparms->desired_access;
+	int disposition = oparms->disposition;
+	const char *path = oparms->path;
 
 openRetry:
 	rc = smb_init(SMB_COM_NT_CREATE_ANDX, 24, tcon, (void **)&req,
@@ -1367,7 +1373,7 @@ openRetry:
 	/* 1 byte no need to le_to_cpu */
 	*oplock = rsp->OplockLevel;
 	/* cifs fid stays in le */
-	*netfid = rsp->Fid;
+	oparms->fid->netfid = rsp->Fid;
 
 	/* Let caller know file was created so we can set the mode. */
 	/* Do we care about the CreateAction in any other cases? */

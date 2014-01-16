@@ -409,9 +409,10 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 {
 	int rc;
 	int oplock = 0;
-	__u16 netfid;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 	struct cifs_io_parms io_parms;
 	char buf[24];
 	unsigned int bytes_read;
@@ -437,18 +438,23 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
 
-	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, GENERIC_READ,
-			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
-			 cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = GENERIC_READ;
+	oparms.create_options = CREATE_NOT_DIR;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc) {
 		cifs_put_tlink(tlink);
 		return rc;
 	}
 
 	/* Read header */
-	io_parms.netfid = netfid;
+	io_parms.netfid = fid.netfid;
 	io_parms.pid = current->tgid;
 	io_parms.tcon = tcon;
 	io_parms.offset = 0;
@@ -494,7 +500,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 		fattr->cf_dtype = DT_REG;
 		rc = -EOPNOTSUPP; /* or some unknown SFU type */
 	}
-	CIFSSMBClose(xid, tcon, netfid);
+	CIFSSMBClose(xid, tcon, fid.netfid);
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -1035,7 +1041,8 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 {
 	int oplock = 0;
 	int rc;
-	__u16 netfid;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 	struct inode *inode = dentry->d_inode;
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -1058,10 +1065,16 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 		goto out;
 	}
 
-	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
-			 DELETE|FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
-			 &netfid, &oplock, NULL, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = DELETE | FILE_WRITE_ATTRIBUTES;
+	oparms.create_options = CREATE_NOT_DIR;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = full_path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc != 0)
 		goto out;
 
@@ -1082,7 +1095,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 			goto out_close;
 		}
 		info_buf->Attributes = cpu_to_le32(dosattr);
-		rc = CIFSSMBSetFileInfo(xid, tcon, info_buf, netfid,
+		rc = CIFSSMBSetFileInfo(xid, tcon, info_buf, fid.netfid,
 					current->tgid);
 		/* although we would like to mark the file hidden
  		   if that fails we will still try to rename it */
@@ -1093,7 +1106,8 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 	}
 
 	/* rename the file */
-	rc = CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
+	rc = CIFSSMBRenameOpenFile(xid, tcon, fid.netfid, NULL,
+				   cifs_sb->local_nls,
 				   cifs_sb->mnt_cifs_flags &
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc != 0) {
@@ -1103,7 +1117,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 
 	/* try to set DELETE_ON_CLOSE */
 	if (!cifsInode->delete_pending) {
-		rc = CIFSSMBSetFileDisposition(xid, tcon, true, netfid,
+		rc = CIFSSMBSetFileDisposition(xid, tcon, true, fid.netfid,
 					       current->tgid);
 		/*
 		 * some samba versions return -ENOENT when we try to set the
@@ -1123,7 +1137,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 	}
 
 out_close:
-	CIFSSMBClose(xid, tcon, netfid);
+	CIFSSMBClose(xid, tcon, fid.netfid);
 out:
 	kfree(info_buf);
 	cifs_put_tlink(tlink);
@@ -1135,13 +1149,13 @@ out:
 	 * them anyway.
 	 */
 undo_rename:
-	CIFSSMBRenameOpenFile(xid, tcon, netfid, dentry->d_name.name,
+	CIFSSMBRenameOpenFile(xid, tcon, fid.netfid, dentry->d_name.name,
 				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
 undo_setattr:
 	if (dosattr != origattr) {
 		info_buf->Attributes = cpu_to_le32(origattr);
-		if (!CIFSSMBSetFileInfo(xid, tcon, info_buf, netfid,
+		if (!CIFSSMBSetFileInfo(xid, tcon, info_buf, fid.netfid,
 					current->tgid))
 			cifsInode->cifsAttrs = origattr;
 	}
@@ -1552,7 +1566,8 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
-	__u16 srcfid;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 	int oplock, rc;
 
 	tlink = cifs_sb_tlink(cifs_sb);
@@ -1579,17 +1594,23 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	if (to_dentry->d_parent != from_dentry->d_parent)
 		goto do_rename_exit;
 
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
 	/* open the file to be renamed -- we need DELETE perms */
-	rc = CIFSSMBOpen(xid, tcon, from_path, FILE_OPEN, DELETE,
-			 CREATE_NOT_DIR, &srcfid, &oplock, NULL,
-			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.desired_access = DELETE;
+	oparms.create_options = CREATE_NOT_DIR;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = from_path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc == 0) {
-		rc = CIFSSMBRenameOpenFile(xid, tcon, srcfid,
+		rc = CIFSSMBRenameOpenFile(xid, tcon, fid.netfid,
 				(const char *) to_dentry->d_name.name,
 				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		CIFSSMBClose(xid, tcon, srcfid);
+		CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 do_rename_exit:
 	cifs_put_tlink(tlink);
