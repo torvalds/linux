@@ -1498,6 +1498,7 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		int type;
 
 		head = head->next;
+		buf->next = NULL;
 
 		/* Ensure bearer is still enabled */
 		if (unlikely(!b_ptr->active))

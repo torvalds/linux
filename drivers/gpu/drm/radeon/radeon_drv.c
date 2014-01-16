@@ -77,9 +77,10 @@
  *   2.33.0 - Add SI tiling mode array query
  *   2.34.0 - Add CIK tiling mode array query
  *   2.35.0 - Add CIK macrotile mode array query
+ *   2.36.0 - Fix CIK DCE tiling setup
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	35
+#define KMS_DRIVER_MINOR	36
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -508,15 +509,6 @@ static const struct file_operations radeon_driver_kms_fops = {
 #endif
 };
 
-
-static void
-radeon_pci_shutdown(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
-
-	radeon_driver_unload_kms(dev);
-}
-
 static struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP |
@@ -586,7 +578,6 @@ static struct pci_driver radeon_kms_pci_driver = {
 	.probe = radeon_pci_probe,
 	.remove = radeon_pci_remove,
 	.driver.pm = &radeon_pm_ops,
-	.shutdown = radeon_pci_shutdown,
 };
 
 static int __init radeon_init(void)

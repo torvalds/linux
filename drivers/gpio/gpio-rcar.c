@@ -169,7 +169,8 @@ static irqreturn_t gpio_rcar_irq_handler(int irq, void *dev_id)
 	u32 pending;
 	unsigned int offset, irqs_handled = 0;
 
-	while ((pending = gpio_rcar_read(p, INTDT))) {
+	while ((pending = gpio_rcar_read(p, INTDT) &
+			  gpio_rcar_read(p, INTMSK))) {
 		offset = __ffs(pending);
 		gpio_rcar_write(p, INTCLR, BIT(offset));
 		generic_handle_irq(irq_find_mapping(p->irq_domain, offset));

@@ -88,6 +88,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	} else
 		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 
+search_again:
 	/* First see if there is a large enough contiguous idle region... */
 	list_for_each_entry(vma, &vm->inactive_list, mm_list) {
 		if (mark_free(vma, &unwind_list))
@@ -115,10 +116,17 @@ none:
 		list_del_init(&vma->exec_list);
 	}
 
-	/* We expect the caller to unpin, evict all and try again, or give up.
-	 * So calling i915_gem_evict_vm() is unnecessary.
+	/* Can we unpin some objects such as idle hw contents,
+	 * or pending flips?
 	 */
-	return -ENOSPC;
+	ret = nonblocking ? -ENOSPC : i915_gpu_idle(dev);
+	if (ret)
+		return ret;
+
+	/* Only idle the GPU and repeat the search once */
+	i915_gem_retire_requests(dev);
+	nonblocking = true;
+	goto search_again;
 
 found:
 	/* drm_mm doesn't allow any other other operations while

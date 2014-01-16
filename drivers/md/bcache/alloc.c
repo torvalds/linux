@@ -421,9 +421,11 @@ out:
 
 	if (watermark <= WATERMARK_METADATA) {
 		SET_GC_MARK(b, GC_MARK_METADATA);
+		SET_GC_MOVE(b, 0);
 		b->prio = BTREE_PRIO;
 	} else {
 		SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
+		SET_GC_MOVE(b, 0);
 		b->prio = INITIAL_PRIO;
 	}
 

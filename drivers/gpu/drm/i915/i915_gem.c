@@ -2343,24 +2343,30 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 	kfree(request);
 }
 
-static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
-				      struct intel_ring_buffer *ring)
+static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
+				       struct intel_ring_buffer *ring)
 {
-	u32 completed_seqno;
-	u32 acthd;
+	u32 completed_seqno = ring->get_seqno(ring, false);
+	u32 acthd = intel_ring_get_active_head(ring);
+	struct drm_i915_gem_request *request;
 
-	acthd = intel_ring_get_active_head(ring);
-	completed_seqno = ring->get_seqno(ring, false);
+	list_for_each_entry(request, &ring->request_list, list) {
+		if (i915_seqno_passed(completed_seqno, request->seqno))
+			continue;
 
+		i915_set_reset_status(ring, request, acthd);
+	}
+}
+
+static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
+					struct intel_ring_buffer *ring)
+{
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
 
 		request = list_first_entry(&ring->request_list,
 					   struct drm_i915_gem_request,
 					   list);
-
-		if (request->seqno > completed_seqno)
-			i915_set_reset_status(ring, request, acthd);
 
 		i915_gem_free_request(request);
 	}
@@ -2403,8 +2409,16 @@ void i915_gem_reset(struct drm_device *dev)
 	struct intel_ring_buffer *ring;
 	int i;
 
+	/*
+	 * Before we free the objects from the requests, we need to inspect
+	 * them for finding the guilty party. As the requests only borrow
+	 * their reference to the objects, the inspection must be done first.
+	 */
 	for_each_ring(ring, dev_priv, i)
-		i915_gem_reset_ring_lists(dev_priv, ring);
+		i915_gem_reset_ring_status(dev_priv, ring);
+
+	for_each_ring(ring, dev_priv, i)
+		i915_gem_reset_ring_cleanup(dev_priv, ring);
 
 	i915_gem_cleanup_ringbuffer(dev);
 

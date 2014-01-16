@@ -3808,6 +3808,109 @@ int t4_prep_adapter(struct adapter *adapter)
 	return 0;
 }
 
+/**
+ *      t4_init_tp_params - initialize adap->params.tp
+ *      @adap: the adapter
+ *
+ *      Initialize various fields of the adapter's TP Parameters structure.
+ */
+int t4_init_tp_params(struct adapter *adap)
+{
+	int chan;
+	u32 v;
+
+	v = t4_read_reg(adap, TP_TIMER_RESOLUTION);
+	adap->params.tp.tre = TIMERRESOLUTION_GET(v);
+	adap->params.tp.dack_re = DELAYEDACKRESOLUTION_GET(v);
+
+	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
+	for (chan = 0; chan < NCHAN; chan++)
+		adap->params.tp.tx_modq[chan] = chan;
+
+	/* Cache the adapter's Compressed Filter Mode and global Incress
+	 * Configuration.
+	 */
+	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			 &adap->params.tp.vlan_pri_map, 1,
+			 TP_VLAN_PRI_MAP);
+	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			 &adap->params.tp.ingress_config, 1,
+			 TP_INGRESS_CONFIG);
+
+	/* Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
+	 * shift positions of several elements of the Compressed Filter Tuple
+	 * for this adapter which we need frequently ...
+	 */
+	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
+	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
+	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
+	adap->params.tp.protocol_shift = t4_filter_field_shift(adap,
+							       F_PROTOCOL);
+
+	/* If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
+	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 */
+	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
+		adap->params.tp.vnic_shift = -1;
+
+	return 0;
+}
+
+/**
+ *      t4_filter_field_shift - calculate filter field shift
+ *      @adap: the adapter
+ *      @filter_sel: the desired field (from TP_VLAN_PRI_MAP bits)
+ *
+ *      Return the shift position of a filter field within the Compressed
+ *      Filter Tuple.  The filter field is specified via its selection bit
+ *      within TP_VLAN_PRI_MAL (filter mode).  E.g. F_VLAN.
+ */
+int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
+{
+	unsigned int filter_mode = adap->params.tp.vlan_pri_map;
+	unsigned int sel;
+	int field_shift;
+
+	if ((filter_mode & filter_sel) == 0)
+		return -1;
+
+	for (sel = 1, field_shift = 0; sel < filter_sel; sel <<= 1) {
+		switch (filter_mode & sel) {
+		case F_FCOE:
+			field_shift += W_FT_FCOE;
+			break;
+		case F_PORT:
+			field_shift += W_FT_PORT;
+			break;
+		case F_VNIC_ID:
+			field_shift += W_FT_VNIC_ID;
+			break;
+		case F_VLAN:
+			field_shift += W_FT_VLAN;
+			break;
+		case F_TOS:
+			field_shift += W_FT_TOS;
+			break;
+		case F_PROTOCOL:
+			field_shift += W_FT_PROTOCOL;
+			break;
+		case F_ETHERTYPE:
+			field_shift += W_FT_ETHERTYPE;
+			break;
+		case F_MACMATCH:
+			field_shift += W_FT_MACMATCH;
+			break;
+		case F_MPSHITTYPE:
+			field_shift += W_FT_MPSHITTYPE;
+			break;
+		case F_FRAGMENTATION:
+			field_shift += W_FT_FRAGMENTATION;
+			break;
+		}
+	}
+	return field_shift;
+}
+
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 {
 	u8 addr[6];

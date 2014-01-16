@@ -131,8 +131,9 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 static void kvmppc_core_vcpu_load_hv(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	unsigned long flags;
 
-	spin_lock(&vcpu->arch.tbacct_lock);
+	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
 	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE &&
 	    vc->preempt_tb != TB_NIL) {
 		vc->stolen_tb += mftb() - vc->preempt_tb;
@@ -143,19 +144,20 @@ static void kvmppc_core_vcpu_load_hv(struct kvm_vcpu *vcpu, int cpu)
 		vcpu->arch.busy_stolen += mftb() - vcpu->arch.busy_preempt;
 		vcpu->arch.busy_preempt = TB_NIL;
 	}
-	spin_unlock(&vcpu->arch.tbacct_lock);
+	spin_unlock_irqrestore(&vcpu->arch.tbacct_lock, flags);
 }
 
 static void kvmppc_core_vcpu_put_hv(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	unsigned long flags;
 
-	spin_lock(&vcpu->arch.tbacct_lock);
+	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
 	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
 		vc->preempt_tb = mftb();
 	if (vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST)
 		vcpu->arch.busy_preempt = mftb();
-	spin_unlock(&vcpu->arch.tbacct_lock);
+	spin_unlock_irqrestore(&vcpu->arch.tbacct_lock, flags);
 }
 
 static void kvmppc_set_msr_hv(struct kvm_vcpu *vcpu, u64 msr)
@@ -486,11 +488,11 @@ static u64 vcore_stolen_time(struct kvmppc_vcore *vc, u64 now)
 	 */
 	if (vc->vcore_state != VCORE_INACTIVE &&
 	    vc->runner->arch.run_task != current) {
-		spin_lock(&vc->runner->arch.tbacct_lock);
+		spin_lock_irq(&vc->runner->arch.tbacct_lock);
 		p = vc->stolen_tb;
 		if (vc->preempt_tb != TB_NIL)
 			p += now - vc->preempt_tb;
-		spin_unlock(&vc->runner->arch.tbacct_lock);
+		spin_unlock_irq(&vc->runner->arch.tbacct_lock);
 	} else {
 		p = vc->stolen_tb;
 	}
@@ -512,10 +514,10 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	core_stolen = vcore_stolen_time(vc, now);
 	stolen = core_stolen - vcpu->arch.stolen_logged;
 	vcpu->arch.stolen_logged = core_stolen;
-	spin_lock(&vcpu->arch.tbacct_lock);
+	spin_lock_irq(&vcpu->arch.tbacct_lock);
 	stolen += vcpu->arch.busy_stolen;
 	vcpu->arch.busy_stolen = 0;
-	spin_unlock(&vcpu->arch.tbacct_lock);
+	spin_unlock_irq(&vcpu->arch.tbacct_lock);
 	if (!dt || !vpa)
 		return;
 	memset(dt, 0, sizeof(struct dtl_entry));
@@ -589,7 +591,9 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		if (list_empty(&vcpu->kvm->arch.rtas_tokens))
 			return RESUME_HOST;
 
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		rc = kvmppc_rtas_hcall(vcpu);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 		if (rc == -ENOENT)
 			return RESUME_HOST;
@@ -1115,13 +1119,13 @@ static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 
 	if (vcpu->arch.state != KVMPPC_VCPU_RUNNABLE)
 		return;
-	spin_lock(&vcpu->arch.tbacct_lock);
+	spin_lock_irq(&vcpu->arch.tbacct_lock);
 	now = mftb();
 	vcpu->arch.busy_stolen += vcore_stolen_time(vc, now) -
 		vcpu->arch.stolen_logged;
 	vcpu->arch.busy_preempt = now;
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
-	spin_unlock(&vcpu->arch.tbacct_lock);
+	spin_unlock_irq(&vcpu->arch.tbacct_lock);
 	--vc->n_runnable;
 	list_del(&vcpu->arch.run_list);
 }

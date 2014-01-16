@@ -337,8 +337,8 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 		kfree(ppgtt->gen8_pt_dma_addr[i]);
 	}
 
-	__free_pages(ppgtt->gen8_pt_pages, ppgtt->num_pt_pages << PAGE_SHIFT);
-	__free_pages(ppgtt->pd_pages, ppgtt->num_pd_pages << PAGE_SHIFT);
+	__free_pages(ppgtt->gen8_pt_pages, get_order(ppgtt->num_pt_pages << PAGE_SHIFT));
+	__free_pages(ppgtt->pd_pages, get_order(ppgtt->num_pd_pages << PAGE_SHIFT));
 }
 
 /**
@@ -906,14 +906,12 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 		WARN_ON(readq(&gtt_entries[i-1])
 			!= gen8_pte_encode(addr, level, true));
 
-#if 0 /* TODO: Still needed on GEN8? */
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
 	 * have finished.
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
-#endif
 }
 
 /*
@@ -1241,6 +1239,11 @@ static inline unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
 	bdw_gmch_ctl &= BDW_GMCH_GGMS_MASK;
 	if (bdw_gmch_ctl)
 		bdw_gmch_ctl = 1 << bdw_gmch_ctl;
+	if (bdw_gmch_ctl > 4) {
+		WARN_ON(!i915_preliminary_hw_support);
+		return 4<<20;
+	}
+
 	return bdw_gmch_ctl << 20;
 }
 

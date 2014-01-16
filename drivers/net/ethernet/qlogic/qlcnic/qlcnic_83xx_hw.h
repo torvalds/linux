@@ -662,4 +662,5 @@ pci_ers_result_t qlcnic_83xx_io_error_detected(struct pci_dev *,
 					       pci_channel_state_t);
 pci_ers_result_t qlcnic_83xx_io_slot_reset(struct pci_dev *);
 void qlcnic_83xx_io_resume(struct pci_dev *);
+void qlcnic_83xx_stop_hw(struct qlcnic_adapter *);
 #endif
