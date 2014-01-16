@@ -842,8 +842,10 @@ write:
 	else if (err)
 		goto redirty_out;
 
-	if (wbc->for_reclaim)
+	if (wbc->for_reclaim) {
 		f2fs_submit_merged_bio(sbi, DATA, WRITE);
+		need_balance_fs = false;
+	}
 
 	clear_cold_data(page);
 out:
