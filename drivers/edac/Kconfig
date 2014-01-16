@@ -382,9 +382,17 @@ config EDAC_ALTERA_ECC_MGR
 	depends on EDAC_MM_EDAC && ARCH_SOCFPGA
 	help
 	  Support for error detection and correction on the
-	  Altera memories. Ensure these requirements are met.
-	  -L2    Note that the preloader must initialize
-	         the L2 memory & enable the L2 ECC before
-	         loading the kernel.
+	  Altera memories. Submodules are individually
+	  configurable.
+
+config EDAC_ALTERA_L2_ECC
+	bool "Altera L2 Cache EDAC"
+	depends on EDAC_ALTERA_ECC_MGR && CACHE_L2X0
+	help
+	  Support for error detection and correction on the
+	  Altera L2 cache memory.
+	  Ensure the preloader is configured to initialize
+	  the L2 memory & enable the L2 ECC before loading
+	  the kernel.
 
 endif # EDAC

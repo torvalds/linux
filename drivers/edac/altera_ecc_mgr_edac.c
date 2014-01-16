@@ -70,7 +70,7 @@ static irqreturn_t altr_ecc_mgr_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_EDAC_DEBUG
+#if defined(CONFIG_EDAC_DEBUG) && defined(CONFIG_EDAC_ALTERA_L2_ECC)
 static ssize_t altr_l2_ecc_trig(struct edac_device_ctl_info *edac_dci,
 				const char *buffer, size_t count)
 {
@@ -197,7 +197,9 @@ static const struct ecc_mgr_of_data l2ecc_data = {
 };
 
 static const struct of_device_id altr_ecc_mgr_of_match[] = {
+#ifdef CONFIG_EDAC_ALTERA_L2_ECC
 	{ .compatible = "altr,l2-edac", .data = (void *)&l2ecc_data },
+#endif
 	{},
 };
 
