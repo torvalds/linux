@@ -1586,6 +1586,86 @@ static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
 }
 
 /**
+ * stmmac_hw_setup: setup mac in a usable state.
+ *  @dev : pointer to the device structure.
+ *  Description:
+ *  This function sets up the ip in a usable state.
+ *  Return value:
+ *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  file on failure.
+ */
+static int stmmac_hw_setup(struct net_device *dev)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int ret;
+
+	ret = init_dma_desc_rings(dev);
+	if (ret < 0) {
+		pr_err("%s: DMA descriptors initialization failed\n", __func__);
+		return ret;
+	}
+	/* DMA initialization and SW reset */
+	ret = stmmac_init_dma_engine(priv);
+	if (ret < 0) {
+		pr_err("%s: DMA engine initialization failed\n", __func__);
+		return ret;
+	}
+
+	/* Copy the MAC addr into the HW  */
+	priv->hw->mac->set_umac_addr(priv->ioaddr, dev->dev_addr, 0);
+
+	/* If required, perform hw setup of the bus. */
+	if (priv->plat->bus_setup)
+		priv->plat->bus_setup(priv->ioaddr);
+
+	/* Initialize the MAC Core */
+	priv->hw->mac->core_init(priv->ioaddr);
+
+	/* Enable the MAC Rx/Tx */
+	stmmac_set_mac(priv->ioaddr, true);
+
+	/* Set the HW DMA mode and the COE */
+	stmmac_dma_operation_mode(priv);
+
+	stmmac_mmc_setup(priv);
+
+	ret = stmmac_init_ptp(priv);
+	if (ret)
+		pr_warn("%s: failed PTP initialisation\n", __func__);
+
+#ifdef CONFIG_STMMAC_DEBUG_FS
+	ret = stmmac_init_fs(dev);
+	if (ret < 0)
+		pr_warn("%s: failed debugFS registration\n", __func__);
+#endif
+	/* Start the ball rolling... */
+	pr_debug("%s: DMA RX/TX processes started...\n", dev->name);
+	priv->hw->dma->start_tx(priv->ioaddr);
+	priv->hw->dma->start_rx(priv->ioaddr);
+
+	/* Dump DMA/MAC registers */
+	if (netif_msg_hw(priv)) {
+		priv->hw->mac->dump_regs(priv->ioaddr);
+		priv->hw->dma->dump_regs(priv->ioaddr);
+	}
+	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
+
+	priv->eee_enabled = stmmac_eee_init(priv);
+
+	stmmac_init_tx_coalesce(priv);
+
+	if ((priv->use_riwt) && (priv->hw->dma->rx_watchdog)) {
+		priv->rx_riwt = MAX_DMA_RIWT;
+		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
+	}
+
+	if (priv->pcs && priv->hw->mac->ctrl_ane)
+		priv->hw->mac->ctrl_ane(priv->ioaddr, 0);
+
+	return 0;
+}
+
+/**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
  *  Description:
@@ -1613,6 +1693,10 @@ static int stmmac_open(struct net_device *dev)
 		}
 	}
 
+	/* Extra statistics */
+	memset(&priv->xstats, 0, sizeof(struct stmmac_extra_stats));
+	priv->xstats.threshold = tc;
+
 	/* Create and initialize the TX/RX descriptors chains. */
 	priv->dma_tx_size = STMMAC_ALIGN(dma_txsize);
 	priv->dma_rx_size = STMMAC_ALIGN(dma_rxsize);
@@ -1624,28 +1708,14 @@ static int stmmac_open(struct net_device *dev)
 		goto dma_desc_error;
 	}
 
-	ret = init_dma_desc_rings(dev);
+	ret = stmmac_hw_setup(dev);
 	if (ret < 0) {
-		pr_err("%s: DMA descriptors initialization failed\n", __func__);
-		goto dma_desc_error;
-	}
-
-	/* DMA initialization and SW reset */
-	ret = stmmac_init_dma_engine(priv);
-	if (ret < 0) {
-		pr_err("%s: DMA engine initialization failed\n", __func__);
+		pr_err("%s: Hw setup failed\n", __func__);
 		goto init_error;
 	}
 
-	/* Copy the MAC addr into the HW  */
-	priv->hw->mac->set_umac_addr(priv->ioaddr, dev->dev_addr, 0);
-
-	/* If required, perform hw setup of the bus. */
-	if (priv->plat->bus_setup)
-		priv->plat->bus_setup(priv->ioaddr);
-
-	/* Initialize the MAC Core */
-	priv->hw->mac->core_init(priv->ioaddr);
+	if (priv->phydev)
+		phy_start(priv->phydev);
 
 	/* Request the IRQ lines */
 	ret = request_irq(dev->irq, stmmac_interrupt,
@@ -1677,55 +1747,6 @@ static int stmmac_open(struct net_device *dev)
 			goto lpiirq_error;
 		}
 	}
-
-	/* Enable the MAC Rx/Tx */
-	stmmac_set_mac(priv->ioaddr, true);
-
-	/* Set the HW DMA mode and the COE */
-	stmmac_dma_operation_mode(priv);
-
-	/* Extra statistics */
-	memset(&priv->xstats, 0, sizeof(struct stmmac_extra_stats));
-	priv->xstats.threshold = tc;
-
-	stmmac_mmc_setup(priv);
-
-	ret = stmmac_init_ptp(priv);
-	if (ret)
-		pr_warn("%s: failed PTP initialisation\n", __func__);
-
-#ifdef CONFIG_STMMAC_DEBUG_FS
-	ret = stmmac_init_fs(dev);
-	if (ret < 0)
-		pr_warn("%s: failed debugFS registration\n", __func__);
-#endif
-	/* Start the ball rolling... */
-	pr_debug("%s: DMA RX/TX processes started...\n", dev->name);
-	priv->hw->dma->start_tx(priv->ioaddr);
-	priv->hw->dma->start_rx(priv->ioaddr);
-
-	/* Dump DMA/MAC registers */
-	if (netif_msg_hw(priv)) {
-		priv->hw->mac->dump_regs(priv->ioaddr);
-		priv->hw->dma->dump_regs(priv->ioaddr);
-	}
-
-	if (priv->phydev)
-		phy_start(priv->phydev);
-
-	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
-
-	priv->eee_enabled = stmmac_eee_init(priv);
-
-	stmmac_init_tx_coalesce(priv);
-
-	if ((priv->use_riwt) && (priv->hw->dma->rx_watchdog)) {
-		priv->rx_riwt = MAX_DMA_RIWT;
-		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
-	}
-
-	if (priv->pcs && priv->hw->mac->ctrl_ane)
-		priv->hw->mac->ctrl_ane(priv->ioaddr, 0);
 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
