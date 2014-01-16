@@ -2207,16 +2207,6 @@ static void mvneta_stop_dev(struct mvneta_port *pp)
 	mvneta_rx_reset(pp);
 }
 
-/* tx timeout callback - display a message and stop/start the network device */
-static void mvneta_tx_timeout(struct net_device *dev)
-{
-	struct mvneta_port *pp = netdev_priv(dev);
-
-	netdev_info(dev, "tx timeout\n");
-	mvneta_stop_dev(pp);
-	mvneta_start_dev(pp);
-}
-
 /* Return positive if MTU is valid */
 static int mvneta_check_mtu_valid(struct net_device *dev, int mtu)
 {
@@ -2567,7 +2557,6 @@ static const struct net_device_ops mvneta_netdev_ops = {
 	.ndo_set_rx_mode     = mvneta_set_rx_mode,
 	.ndo_set_mac_address = mvneta_set_mac_addr,
 	.ndo_change_mtu      = mvneta_change_mtu,
-	.ndo_tx_timeout      = mvneta_tx_timeout,
 	.ndo_get_stats64     = mvneta_get_stats64,
 };
 
