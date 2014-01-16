@@ -30,7 +30,7 @@ int drxbsp_tuner_set_frequency(struct tuner_instance *tuner,
 
 int
 drxbsp_tuner_get_frequency(struct tuner_instance *tuner,
-			  u32 mode,
+			   u32 mode,
 			  s32 *r_ffrequency,
 			  s32 *i_ffrequency)
 {

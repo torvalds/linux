@@ -723,9 +723,9 @@ STRUCTS
 Exported FUNCTIONS
 -------------------------------------------------------------------------*/
 
-	extern int drxj_open(pdrx_demod_instance_t demod);
-	extern int drxj_close(pdrx_demod_instance_t demod);
-	extern int drxj_ctrl(pdrx_demod_instance_t demod,
+	int drxj_open(pdrx_demod_instance_t demod);
+	int drxj_close(pdrx_demod_instance_t demod);
+	int drxj_ctrl(pdrx_demod_instance_t demod,
 				     u32 ctrl, void *ctrl_data);
 
 /*-------------------------------------------------------------------------

@@ -493,23 +493,23 @@ MACROS
 /**
 * \brief Macro to sign extend signed 9 bit value to signed  16 bit value
 */
-#define DRX_S9TOS16(x) ((((u16)x)&0x100)?((s16)((u16)(x)|0xFF00)):(x))
+#define DRX_S9TOS16(x) ((((u16)x)&0x100) ? ((s16)((u16)(x)|0xFF00)) : (x))
 
 /**
 * \brief Macro to sign extend signed 9 bit value to signed  16 bit value
 */
-#define DRX_S24TODRXFREQ(x) (( ( (u32) x) & 0x00800000UL ) ? \
+#define DRX_S24TODRXFREQ(x) ((( (u32) x) & 0x00800000UL) ? \
 				 ((s32) \
-				    (( (u32) x) | 0xFF000000 ) ) : \
-				 ((s32) x) )
+				    (((u32) x) | 0xFF000000) ) : \
+				 ((s32) x))
 
 /**
 * \brief Macro to convert 16 bit register value to a s32
 */
-#define DRX_U16TODRXFREQ(x)   (( x & 0x8000) ? \
+#define DRX_U16TODRXFREQ(x)   ((x & 0x8000) ? \
 				 ((s32) \
-				    (( (u32) x) | 0xFFFF0000 ) ) : \
-				 ((s32) x) )
+				    (((u32) x) | 0xFFFF0000) ) : \
+				 ((s32) x))
 
 /*-------------------------------------------------------------------------
 ENUM
@@ -2868,14 +2868,14 @@ Access macros
 #define DRX_GET_PRESET(d, x) \
    DRX_ACCESSMACRO_GET((d), (x), DRX_XS_CFG_PRESET, char*, "ERROR")
 
-#define DRX_SET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_SET( (d), (x), \
+#define DRX_SET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_SET((d), (x), \
 	 DRX_XS_CFG_AUD_BTSC_DETECT, drx_aud_btsc_detect_t)
-#define DRX_GET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_GET( (d), (x), \
+#define DRX_GET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_GET((d), (x), \
 	 DRX_XS_CFG_AUD_BTSC_DETECT, drx_aud_btsc_detect_t, DRX_UNKNOWN)
 
-#define DRX_SET_QAM_LOCKRANGE(d, x) DRX_ACCESSMACRO_SET( (d), (x), \
+#define DRX_SET_QAM_LOCKRANGE(d, x) DRX_ACCESSMACRO_SET((d), (x), \
 	 DRX_XS_CFG_QAM_LOCKRANGE, drx_qam_lock_range_t)
-#define DRX_GET_QAM_LOCKRANGE(d, x) DRX_ACCESSMACRO_GET( (d), (x), \
+#define DRX_GET_QAM_LOCKRANGE(d, x) DRX_ACCESSMACRO_GET((d), (x), \
 	 DRX_XS_CFG_QAM_LOCKRANGE, drx_qam_lock_range_t, DRX_UNKNOWN)
 
 /**
@@ -2883,20 +2883,20 @@ Access macros
 * \retval true std is an ATV standard
 * \retval false std is an ATV standard
 */
-#define DRX_ISATVSTD(std) ( ( (std) == DRX_STANDARD_PAL_SECAM_BG ) || \
+#define DRX_ISATVSTD(std) (( (std) == DRX_STANDARD_PAL_SECAM_BG) || \
 			      ((std) == DRX_STANDARD_PAL_SECAM_DK) || \
 			      ((std) == DRX_STANDARD_PAL_SECAM_I) || \
 			      ((std) == DRX_STANDARD_PAL_SECAM_L) || \
 			      ((std) == DRX_STANDARD_PAL_SECAM_LP) || \
 			      ((std) == DRX_STANDARD_NTSC) || \
-			      ((std) == DRX_STANDARD_FM) )
+			      ((std) == DRX_STANDARD_FM))
 
 /**
 * \brief Macro to check if std is an QAM standard
 * \retval true std is an QAM standards
 * \retval false std is an QAM standards
 */
-#define DRX_ISQAMSTD(std) ( ( (std) == DRX_STANDARD_ITU_A ) || \
+#define DRX_ISQAMSTD(std) (( (std) == DRX_STANDARD_ITU_A) || \
 			      ((std) == DRX_STANDARD_ITU_B) || \
 			      ((std) == DRX_STANDARD_ITU_C) || \
 			      ((std) == DRX_STANDARD_ITU_D))
@@ -2906,14 +2906,14 @@ Access macros
 * \retval true std is VSB standard
 * \retval false std is not VSB standard
 */
-#define DRX_ISVSBSTD(std) ( (std) == DRX_STANDARD_8VSB )
+#define DRX_ISVSBSTD(std) ((std) == DRX_STANDARD_8VSB)
 
 /**
 * \brief Macro to check if std is DVBT standard
 * \retval true std is DVBT standard
 * \retval false std is not DVBT standard
 */
-#define DRX_ISDVBTSTD(std) ( (std) == DRX_STANDARD_DVBT )
+#define DRX_ISDVBTSTD(std) ((std) == DRX_STANDARD_DVBT)
 
 /*-------------------------------------------------------------------------
 Exported FUNCTIONS

@@ -41,7 +41,7 @@
 #ifndef __DRXJ_MC_MAIN_H__
 #define __DRXJ_MC_MAIN_H__
 
-#define DRXJ_MC_MAIN ((u8 *) drxj_mc_main_g)
+#define DRXJ_MC_MAIN ((u8 *)drxj_mc_main_g)
 
 const u8 drxj_mc_main_g[] = {
 	0x48, 0x4c, 0x00, 0x06, 0x00, 0x00, 0xf3, 0x10, 0x00, 0x00, 0x00, 0x08,

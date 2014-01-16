@@ -99,7 +99,7 @@ DEFINES
 /*=== MACROS =================================================================*/
 /*============================================================================*/
 
-#define DRX_ISPOWERDOWNMODE(mode) (  ( mode == DRX_POWER_MODE_9  ) || \
+#define DRX_ISPOWERDOWNMODE(mode) (( mode == DRX_POWER_MODE_9) || \
 				       (mode == DRX_POWER_MODE_10) || \
 				       (mode == DRX_POWER_MODE_11) || \
 				       (mode == DRX_POWER_MODE_12) || \
@@ -107,7 +107,7 @@ DEFINES
 				       (mode == DRX_POWER_MODE_14) || \
 				       (mode == DRX_POWER_MODE_15) || \
 				       (mode == DRX_POWER_MODE_16) || \
-				       (mode == DRX_POWER_DOWN) )
+				       (mode == DRX_POWER_DOWN))
 
 /*------------------------------------------------------------------------------
 GLOBAL VARIABLES
@@ -147,7 +147,7 @@ FUNCTIONS
 /* Prototype of default scanning function */
 static int
 scan_function_default(void *scan_context,
-		    drx_scan_command_t scan_command,
+		      drx_scan_command_t scan_command,
 		    pdrx_channel_t scan_channel, bool *get_next_channel);
 
 /**
@@ -355,7 +355,7 @@ scan_prepare_next_scan(pdrx_demod_instance_t demod, s32 skip)
 */
 static int
 scan_function_default(void *scan_context,
-		    drx_scan_command_t scan_command,
+		      drx_scan_command_t scan_command,
 		    pdrx_channel_t scan_channel, bool *get_next_channel)
 {
 	pdrx_demod_instance_t demod = NULL;
@@ -604,7 +604,7 @@ static int ctrl_scan_stop(pdrx_demod_instance_t demod)
 static int ctrl_scan_next(pdrx_demod_instance_t demod, u16 *scan_progress)
 {
 	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
-	bool *scan_ready = (bool *) (NULL);
+	bool *scan_ready = (bool *)(NULL);
 	u16 max_progress = DRX_SCAN_MAX_PROGRESS;
 	u32 num_tries = 0;
 	u32 i = 0;
@@ -983,14 +983,14 @@ static u16 u_code_compute_crc(u8 *block_data, u16 nr_words)
 */
 static int
 ctrl_u_code(pdrx_demod_instance_t demod,
-	  p_drxu_code_info_t mc_info, drxu_code_action_t action)
+	    p_drxu_code_info_t mc_info, drxu_code_action_t action)
 {
 	int rc;
 	u16 i = 0;
 	u16 mc_nr_of_blks = 0;
 	u16 mc_magic_word = 0;
-	u8 *mc_data = (u8 *) (NULL);
-	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	u8 *mc_data = (u8 *)(NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 
 	dev_addr = demod->my_i2c_dev_addr;
 
@@ -1420,7 +1420,7 @@ drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 
       /*======================================================================*/
 	case DRX_CTRL_VERSION:
-		return ctrl_version(demod, (p_drx_version_list_t *) ctrl_data);
+		return ctrl_version(demod, (p_drx_version_list_t *)ctrl_data);
 		break;
 
       /*======================================================================*/
@@ -1463,7 +1463,7 @@ drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 	 /*===================================================================*/
 		case DRX_CTRL_SCAN_NEXT:
 			{
-				return ctrl_scan_next(demod, (u16 *) ctrl_data);
+				return ctrl_scan_next(demod, (u16 *)ctrl_data);
 			}
 			break;
 

@@ -41,7 +41,7 @@
 #ifndef __DRXJ_MC_VSB_H__
 #define __DRXJ_MC_VSB_H__
 
-#define DRXJ_MC_VSB ((u8 *) drxj_mc_vsb_g)
+#define DRXJ_MC_VSB ((u8 *)drxj_mc_vsb_g)
 
 const u8 drxj_mc_vsb_g[] = {
 	0x48, 0x4c, 0x00, 0x03, 0x00, 0x00, 0x2b, 0x62, 0x00, 0x00, 0x00, 0x08,

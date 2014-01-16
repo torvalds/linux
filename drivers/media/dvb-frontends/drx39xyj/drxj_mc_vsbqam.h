@@ -42,7 +42,7 @@
 #ifndef __DRXJ_MC_VSBQAM_H__
 #define __DRXJ_MC_VSBQAM_H__
 
-#define DRXJ_MC_VSBQAM ((u8 *) drxj_mc_vsbqam_g)
+#define DRXJ_MC_VSBQAM ((u8 *)drxj_mc_vsbqam_g)
 
 const u8 drxj_mc_vsbqam_g[] = {
 	0x48, 0x4c, 0x00, 0x04, 0x00, 0x00, 0x56, 0xa0, 0x00, 0x00, 0x00, 0x08,

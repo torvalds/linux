@@ -93,8 +93,8 @@
 #endif
 
 /* check */
-#if (( DRXDAPFASI_LONG_ADDR_ALLOWED == 0) && \
-      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 0) )
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 0) && \
+      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 0))
 #error  At least one of short- or long-addressing format must be allowed.
 *;				/* illegal statement to force compiler error */
 #endif

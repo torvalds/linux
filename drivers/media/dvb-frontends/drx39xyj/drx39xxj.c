@@ -376,7 +376,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 
 	demod->my_ext_attr = demod_ext_attr;
 	memcpy(demod->my_ext_attr, &drxj_data_g, sizeof(drxj_data_t));
-	((drxj_data_t *) demod->my_ext_attr)->uio_sma_tx_mode =
+	((drxj_data_t *)demod->my_ext_attr)->uio_sma_tx_mode =
 	    DRX_UIO_MODE_READWRITE;
 
 	demod->my_tuner = NULL;

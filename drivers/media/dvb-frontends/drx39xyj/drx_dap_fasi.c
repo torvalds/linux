@@ -252,8 +252,8 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 		addr &= ~DRXDAP_FASI_FLAGS;
 		addr |= flags;
 
-#if (( DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
-      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1) )
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
+      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
 		/* short format address preferred but long format otherwise */
 		if (DRXDAP_FASI_LONG_FORMAT(addr)) {
 #endif
@@ -263,8 +263,8 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 			buf[bufx++] = (u8) ((addr >> 24) & 0xFF);
 			buf[bufx++] = (u8) ((addr >> 7) & 0xFF);
 #endif
-#if (( DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
-      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1) )
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
+      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
 		} else {
 #endif
 #if (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1)
@@ -273,8 +273,8 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 			    (u8) (((addr >> 16) & 0x0F) |
 				    ((addr >> 18) & 0xF0));
 #endif
-#if (( DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
-      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1) )
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
+      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
 		}
 #endif
 
@@ -478,8 +478,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 		/* Buffer device address */
 		addr &= ~DRXDAP_FASI_FLAGS;
 		addr |= flags;
-#if (( (DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
-      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1) )
+#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
+      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
 		/* short format address preferred but long format otherwise */
 		if (DRXDAP_FASI_LONG_FORMAT(addr)) {
 #endif
@@ -489,8 +489,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 			buf[bufx++] = (u8) ((addr >> 24) & 0xFF);
 			buf[bufx++] = (u8) ((addr >> 7) & 0xFF);
 #endif
-#if (( (DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
-      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1) )
+#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
+      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
 		} else {
 #endif
 #if ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1)
@@ -499,8 +499,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 			    (u8) (((addr >> 16) & 0x0F) |
 				    ((addr >> 18) & 0xF0));
 #endif
-#if (( (DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
-      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1) )
+#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
+      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
 		}
 #endif
 
@@ -526,8 +526,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 			st = drxbsp_i2c_write_read(dev_addr,
 						  (u16) (bufx),
 						  buf,
-						  (struct i2c_device_addr *) (NULL),
-						  0, (u8 *) (NULL));
+						  (struct i2c_device_addr *)(NULL),
+						  0, (u8 *)(NULL));
 
 			if ((st != DRX_STS_OK) && (first_err == DRX_STS_OK)) {
 				/* at the end, return the first error encountered */
@@ -543,8 +543,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 		st = drxbsp_i2c_write_read(dev_addr,
 					  (u16) (bufx + todo),
 					  buf,
-					  (struct i2c_device_addr *) (NULL),
-					  0, (u8 *) (NULL));
+					  (struct i2c_device_addr *)(NULL),
+					  0, (u8 *)(NULL));
 
 		if ((st != DRX_STS_OK) && (first_err == DRX_STS_OK)) {
 			/* at the end, return the first error encountered */

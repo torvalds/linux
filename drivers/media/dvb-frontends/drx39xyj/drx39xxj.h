@@ -35,6 +35,6 @@ struct drx39xxj_state {
 	unsigned int i2c_gate_open:1;
 };
 
-extern struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c);
+struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c);
 
 #endif /* DVB_DUMMY_FE_H */
