@@ -197,6 +197,17 @@ config HP_ACCEL
 	  To compile this driver as a module, choose M here: the module will
 	  be called hp_accel.
 
+config HP_WIRELESS
+	tristate "HP WIRELESS"
+	depends on ACPI
+	depends on INPUT
+	help
+	 This driver provides supports for new HP wireless button for Windows 8.
+	 On such systems the driver should load automatically (via ACPI alias).
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called hp-wireless.
+
 config HP_WMI
 	tristate "HP WMI extras"
 	depends on ACPI_WMI
