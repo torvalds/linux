@@ -36,7 +36,7 @@ usnic_mac_to_gid(const char *const mac, char *raw_gid)
 }
 
 static inline void
-usnic_mac_ip_to_gid(const char *const mac, const uint32_t inaddr, char *raw_gid)
+usnic_mac_ip_to_gid(const char *const mac, const __be32 inaddr, char *raw_gid)
 {
 	raw_gid[0] = 0xfe;
 	raw_gid[1] = 0x80;

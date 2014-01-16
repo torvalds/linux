@@ -59,8 +59,7 @@ int usnic_transport_sock_to_str(char *buf, int buf_sz,
 	if (err)
 		return 0;
 
-	addr = htonl(addr);
-	return scnprintf(buf, buf_sz, "Proto:%u Addr:%pI4 Port:%hu",
+	return scnprintf(buf, buf_sz, "Proto:%u Addr:%pI4h Port:%hu",
 			proto, &addr, port);
 }
 
