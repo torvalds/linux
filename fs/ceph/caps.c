@@ -2350,11 +2350,11 @@ static void invalidate_aliases(struct inode *inode)
 	d_prune_aliases(inode);
 	/*
 	 * For non-directory inode, d_find_alias() only returns
-	 * connected dentry. After calling d_invalidate(), the
-	 * dentry become disconnected.
+	 * hashed dentry. After calling d_invalidate(), the
+	 * dentry becomes unhashed.
 	 *
 	 * For directory inode, d_find_alias() can return
-	 * disconnected dentry. But directory inode should have
+	 * unhashed dentry. But directory inode should have
 	 * one alias at most.
 	 */
 	while ((dn = d_find_alias(inode))) {
