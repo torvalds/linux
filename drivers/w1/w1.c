@@ -56,8 +56,6 @@ module_param_named(slave_ttl, w1_max_slave_ttl, int, 0);
 DEFINE_MUTEX(w1_mlock);
 LIST_HEAD(w1_masters);
 
-static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn);
-
 static int w1_master_match(struct device *dev, struct device_driver *drv)
 {
 	return 1;
@@ -444,7 +442,7 @@ static int w1_atoreg_num(struct device *dev, const char *buf, size_t count,
 /* Searches the slaves in the w1_master and returns a pointer or NULL.
  * Note: must hold the mutex
  */
-static struct w1_slave *w1_slave_search_device(struct w1_master *dev,
+struct w1_slave *w1_slave_search_device(struct w1_master *dev,
 	struct w1_reg_num *rn)
 {
 	struct w1_slave *sl;
@@ -711,7 +709,7 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 	return 0;
 }
 
-static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
+int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 {
 	struct w1_slave *sl;
 	struct w1_family *f;

@@ -213,6 +213,8 @@ struct w1_slave *w1_search_slave(struct w1_reg_num *id);
 void w1_slave_found(struct w1_master *dev, u64 rn);
 void w1_search_process_cb(struct w1_master *dev, u8 search_type,
 	w1_slave_found_callback cb);
+struct w1_slave *w1_slave_search_device(struct w1_master *dev,
+	struct w1_reg_num *rn);
 struct w1_master *w1_search_master_id(u32 id);
 
 /* Disconnect and reconnect devices in the given family.  Used for finding
@@ -221,6 +223,7 @@ struct w1_master *w1_search_master_id(u32 id);
  * has just been registered, to 0 when it has been unregistered.
  */
 void w1_reconnect_slaves(struct w1_family *f, int attach);
+int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn);
 void w1_slave_detach(struct w1_slave *sl);
 
 u8 w1_triplet(struct w1_master *dev, int bdir);

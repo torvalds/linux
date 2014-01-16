@@ -56,9 +56,6 @@ static void w1_send_slave(struct w1_master *dev, u64 rn)
 	int avail;
 	u64 *data;
 
-	/* update kernel slave list */
-	w1_slave_found(dev, rn);
-
 	avail = dev->priv_size - cmd->len;
 
 	if (avail < 8) {
@@ -79,23 +76,65 @@ static void w1_send_slave(struct w1_master *dev, u64 rn)
 	msg->len += 8;
 }
 
-static int w1_process_search_command(struct w1_master *dev, struct cn_msg *msg,
-		unsigned int avail)
+static void w1_found_send_slave(struct w1_master *dev, u64 rn)
 {
-	struct w1_netlink_msg *hdr = (struct w1_netlink_msg *)(msg + 1);
-	struct w1_netlink_cmd *cmd = (struct w1_netlink_cmd *)(hdr + 1);
-	int search_type = (cmd->cmd == W1_CMD_ALARM_SEARCH)?W1_ALARM_SEARCH:W1_SEARCH;
+	/* update kernel slave list */
+	w1_slave_found(dev, rn);
+
+	w1_send_slave(dev, rn);
+}
+
+/* Get the current slave list, or search (with or without alarm) */
+static int w1_get_slaves(struct w1_master *dev,
+		struct cn_msg *req_msg, struct w1_netlink_msg *req_hdr,
+		struct w1_netlink_cmd *req_cmd)
+{
+	struct cn_msg *msg;
+	struct w1_netlink_msg *hdr;
+	struct w1_netlink_cmd *cmd;
+	struct w1_slave *sl;
+
+	msg = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	msg->id = req_msg->id;
+	msg->seq = req_msg->seq;
+	msg->ack = 0;
+	msg->len = sizeof(struct w1_netlink_msg) +
+		sizeof(struct w1_netlink_cmd);
+
+	hdr = (struct w1_netlink_msg *)(msg + 1);
+	cmd = (struct w1_netlink_cmd *)(hdr + 1);
+
+	hdr->type = W1_MASTER_CMD;
+	hdr->id = req_hdr->id;
+	hdr->len = sizeof(struct w1_netlink_cmd);
+
+	cmd->cmd = req_cmd->cmd;
+	cmd->len = 0;
 
 	dev->priv = msg;
-	dev->priv_size = avail;
+	dev->priv_size = PAGE_SIZE - msg->len - sizeof(struct cn_msg);
 
-	w1_search_process_cb(dev, search_type, w1_send_slave);
+	if (req_cmd->cmd == W1_CMD_LIST_SLAVES) {
+		__u64 rn;
+		list_for_each_entry(sl, &dev->slist, w1_slave_entry) {
+			memcpy(&rn, &sl->reg_num, sizeof(rn));
+			w1_send_slave(dev, rn);
+		}
+	} else {
+		w1_search_process_cb(dev, cmd->cmd == W1_CMD_ALARM_SEARCH ?
+			W1_ALARM_SEARCH : W1_SEARCH, w1_found_send_slave);
+	}
 
 	msg->ack = 0;
 	cn_netlink_send(msg, 0, GFP_KERNEL);
 
 	dev->priv = NULL;
 	dev->priv_size = 0;
+
+	kfree(msg);
 
 	return 0;
 }
@@ -164,38 +203,52 @@ static int w1_process_command_io(struct w1_master *dev, struct cn_msg *msg,
 	return err;
 }
 
-static int w1_process_command_master(struct w1_master *dev, struct cn_msg *req_msg,
-		struct w1_netlink_msg *req_hdr, struct w1_netlink_cmd *req_cmd)
+static int w1_process_command_addremove(struct w1_master *dev,
+	struct cn_msg *msg, struct w1_netlink_msg *hdr,
+	struct w1_netlink_cmd *cmd)
+{
+	struct w1_slave *sl;
+	int err = 0;
+	struct w1_reg_num *id;
+
+	if (cmd->len != 8)
+		return -EINVAL;
+
+	id = (struct w1_reg_num *)cmd->data;
+
+	sl = w1_slave_search_device(dev, id);
+	switch (cmd->cmd) {
+	case W1_CMD_SLAVE_ADD:
+		if (sl)
+			err = -EINVAL;
+		else
+			err = w1_attach_slave_device(dev, id);
+		break;
+	case W1_CMD_SLAVE_REMOVE:
+		if (sl)
+			w1_slave_detach(sl);
+		else
+			err = -EINVAL;
+		break;
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+	return err;
+}
+
+static int w1_process_command_master(struct w1_master *dev,
+	struct cn_msg *req_msg, struct w1_netlink_msg *req_hdr,
+	struct w1_netlink_cmd *req_cmd)
 {
 	int err = -EINVAL;
-	struct cn_msg *msg;
-	struct w1_netlink_msg *hdr;
-	struct w1_netlink_cmd *cmd;
 
-	msg = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	msg->id = req_msg->id;
-	msg->seq = req_msg->seq;
-	msg->ack = 0;
-	msg->len = sizeof(struct w1_netlink_msg) + sizeof(struct w1_netlink_cmd);
-
-	hdr = (struct w1_netlink_msg *)(msg + 1);
-	cmd = (struct w1_netlink_cmd *)(hdr + 1);
-
-	hdr->type = W1_MASTER_CMD;
-	hdr->id = req_hdr->id;
-	hdr->len = sizeof(struct w1_netlink_cmd);
-
-	cmd->cmd = req_cmd->cmd;
-	cmd->len = 0;
-
-	switch (cmd->cmd) {
+	switch (req_cmd->cmd) {
 	case W1_CMD_SEARCH:
 	case W1_CMD_ALARM_SEARCH:
-		err = w1_process_search_command(dev, msg,
-				PAGE_SIZE - msg->len - sizeof(struct cn_msg));
+	case W1_CMD_LIST_SLAVES:
+		err = w1_get_slaves(dev, req_msg, req_hdr, req_cmd);
 		break;
 	case W1_CMD_READ:
 	case W1_CMD_WRITE:
@@ -205,12 +258,16 @@ static int w1_process_command_master(struct w1_master *dev, struct cn_msg *req_m
 	case W1_CMD_RESET:
 		err = w1_reset_bus(dev);
 		break;
+	case W1_CMD_SLAVE_ADD:
+	case W1_CMD_SLAVE_REMOVE:
+		err = w1_process_command_addremove(dev, req_msg, req_hdr,
+			req_cmd);
+		break;
 	default:
 		err = -EINVAL;
 		break;
 	}
 
-	kfree(msg);
 	return err;
 }
 
