@@ -776,6 +776,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	char phy_id_fmt[MII_BUS_ID_SIZE + 3];
 	char bus_id[MII_BUS_ID_SIZE];
 	int interface = priv->plat->interface;
+	int max_speed = priv->plat->max_speed;
 	priv->oldlink = 0;
 	priv->speed = 0;
 	priv->oldduplex = -1;
@@ -800,7 +801,8 @@ static int stmmac_init_phy(struct net_device *dev)
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
-	    (interface == PHY_INTERFACE_MODE_RMII))
+	    (interface == PHY_INTERFACE_MODE_RMII) ||
+		(max_speed < 1000 &&  max_speed > 0))
 		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
 					 SUPPORTED_1000baseT_Full);
 
