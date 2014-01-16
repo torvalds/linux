@@ -1276,13 +1276,16 @@ static void mvneta_rx_csum(struct mvneta_port *pp,
 	skb->ip_summed = CHECKSUM_NONE;
 }
 
-/* Return tx queue pointer (find last set bit) according to causeTxDone reg */
+/* Return tx queue pointer (find last set bit) according to <cause> returned
+ * form tx_done reg. <cause> must not be null. The return value is always a
+ * valid queue for matching the first one found in <cause>.
+ */
 static struct mvneta_tx_queue *mvneta_tx_done_policy(struct mvneta_port *pp,
 						     u32 cause)
 {
 	int queue = fls(cause) - 1;
 
-	return (queue < 0 || queue >= txq_number) ? NULL : &pp->txqs[queue];
+	return &pp->txqs[queue];
 }
 
 /* Free tx queue skbuffs */
@@ -1651,7 +1654,9 @@ static void mvneta_txq_done_force(struct mvneta_port *pp,
 	txq->txq_get_index = 0;
 }
 
-/* handle tx done - called from tx done timer callback */
+/* Handle tx done - called in softirq context. The <cause_tx_done> argument
+ * must be a valid cause according to MVNETA_TXQ_INTR_MASK_ALL.
+ */
 static u32 mvneta_tx_done_gbe(struct mvneta_port *pp, u32 cause_tx_done,
 			      int *tx_todo)
 {
@@ -1660,10 +1665,8 @@ static u32 mvneta_tx_done_gbe(struct mvneta_port *pp, u32 cause_tx_done,
 	struct netdev_queue *nq;
 
 	*tx_todo = 0;
-	while (cause_tx_done != 0) {
+	while (cause_tx_done) {
 		txq = mvneta_tx_done_policy(pp, cause_tx_done);
-		if (!txq)
-			break;
 
 		nq = netdev_get_tx_queue(pp->dev, txq->id);
 		__netif_tx_lock(nq, smp_processor_id());
