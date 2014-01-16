@@ -744,7 +744,7 @@ typedef enum fe_hierarchy {
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>int ioctl(int fd, int request = <link linkend="FE_READ_SNR">FE_READ_SNR</link>, int16_t
+<para>int ioctl(int fd, int request = <link linkend="FE_READ_SNR">FE_READ_SNR</link>, uint16_t
  &#x22C6;snr);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -766,7 +766,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row><row><entry
  align="char">
-<para>int16_t *snr</para>
+<para>uint16_t *snr</para>
 </entry><entry
  align="char">
 <para>The signal-to-noise ratio is stored into *snr.</para>
@@ -791,7 +791,7 @@ typedef enum fe_hierarchy {
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>int ioctl( int fd, int request =
- <link linkend="FE_READ_SIGNAL_STRENGTH">FE_READ_SIGNAL_STRENGTH</link>, int16_t &#x22C6;strength);</para>
+ <link linkend="FE_READ_SIGNAL_STRENGTH">FE_READ_SIGNAL_STRENGTH</link>, uint16_t &#x22C6;strength);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 
@@ -814,7 +814,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row><row><entry
  align="char">
-<para>int16_t *strength</para>
+<para>uint16_t *strength</para>
 </entry><entry
  align="char">
 <para>The signal strength value is stored into *strength.</para>
