@@ -99,16 +99,56 @@
 #define      MVNETA_CPU_RXQ_ACCESS_ALL_MASK      0x000000ff
 #define      MVNETA_CPU_TXQ_ACCESS_ALL_MASK      0x0000ff00
 #define MVNETA_RXQ_TIME_COAL_REG(q)              (0x2580 + ((q) << 2))
+
+/* Exception Interrupt Port/Queue Cause register */
+
 #define MVNETA_INTR_NEW_CAUSE                    0x25a0
-#define      MVNETA_RX_INTR_MASK(nr_rxqs)        (((1 << nr_rxqs) - 1) << 8)
 #define MVNETA_INTR_NEW_MASK                     0x25a4
+
+/* bits  0..7  = TXQ SENT, one bit per queue.
+ * bits  8..15 = RXQ OCCUP, one bit per queue.
+ * bits 16..23 = RXQ FREE, one bit per queue.
+ * bit  29 = OLD_REG_SUM, see old reg ?
+ * bit  30 = TX_ERR_SUM, one bit for 4 ports
+ * bit  31 = MISC_SUM,   one bit for 4 ports
+ */
+#define      MVNETA_TX_INTR_MASK(nr_txqs)        (((1 << nr_txqs) - 1) << 0)
+#define      MVNETA_TX_INTR_MASK_ALL             (0xff << 0)
+#define      MVNETA_RX_INTR_MASK(nr_rxqs)        (((1 << nr_rxqs) - 1) << 8)
+#define      MVNETA_RX_INTR_MASK_ALL             (0xff << 8)
+
 #define MVNETA_INTR_OLD_CAUSE                    0x25a8
 #define MVNETA_INTR_OLD_MASK                     0x25ac
+
+/* Data Path Port/Queue Cause Register */
 #define MVNETA_INTR_MISC_CAUSE                   0x25b0
 #define MVNETA_INTR_MISC_MASK                    0x25b4
+
+#define      MVNETA_CAUSE_PHY_STATUS_CHANGE      BIT(0)
+#define      MVNETA_CAUSE_LINK_CHANGE            BIT(1)
+#define      MVNETA_CAUSE_PTP                    BIT(4)
+
+#define      MVNETA_CAUSE_INTERNAL_ADDR_ERR      BIT(7)
+#define      MVNETA_CAUSE_RX_OVERRUN             BIT(8)
+#define      MVNETA_CAUSE_RX_CRC_ERROR           BIT(9)
+#define      MVNETA_CAUSE_RX_LARGE_PKT           BIT(10)
+#define      MVNETA_CAUSE_TX_UNDERUN             BIT(11)
+#define      MVNETA_CAUSE_PRBS_ERR               BIT(12)
+#define      MVNETA_CAUSE_PSC_SYNC_CHANGE        BIT(13)
+#define      MVNETA_CAUSE_SERDES_SYNC_ERR        BIT(14)
+
+#define      MVNETA_CAUSE_BMU_ALLOC_ERR_SHIFT    16
+#define      MVNETA_CAUSE_BMU_ALLOC_ERR_ALL_MASK   (0xF << MVNETA_CAUSE_BMU_ALLOC_ERR_SHIFT)
+#define      MVNETA_CAUSE_BMU_ALLOC_ERR_MASK(pool) (1 << (MVNETA_CAUSE_BMU_ALLOC_ERR_SHIFT + (pool)))
+
+#define      MVNETA_CAUSE_TXQ_ERROR_SHIFT        24
+#define      MVNETA_CAUSE_TXQ_ERROR_ALL_MASK     (0xFF << MVNETA_CAUSE_TXQ_ERROR_SHIFT)
+#define      MVNETA_CAUSE_TXQ_ERROR_MASK(q)      (1 << (MVNETA_CAUSE_TXQ_ERROR_SHIFT + (q)))
+
 #define MVNETA_INTR_ENABLE                       0x25b8
 #define      MVNETA_TXQ_INTR_ENABLE_ALL_MASK     0x0000ff00
-#define      MVNETA_RXQ_INTR_ENABLE_ALL_MASK     0xff000000
+#define      MVNETA_RXQ_INTR_ENABLE_ALL_MASK     0xff000000  // note: neta says it's 0x000000FF
+
 #define MVNETA_RXQ_CMD                           0x2680
 #define      MVNETA_RXQ_DISABLE_SHIFT            8
 #define      MVNETA_RXQ_ENABLE_MASK              0x000000ff
