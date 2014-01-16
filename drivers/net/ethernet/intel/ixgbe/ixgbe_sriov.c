@@ -631,11 +631,14 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 
 static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 {
+	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
 	struct ixgbe_hw *hw = &adapter->hw;
 	unsigned char *vf_mac = adapter->vfinfo[vf].vf_mac_addresses;
 	u32 reg, reg_offset, vf_shift;
 	u32 msgbuf[4] = {0, 0, 0, 0};
 	u8 *addr = (u8 *)(&msgbuf[1]);
+	u32 q_per_pool = __ALIGN_MASK(1, ~vmdq->mask);
+	int i;
 
 	e_info(probe, "VF Reset msg received from vf %d\n", vf);
 
@@ -653,6 +656,17 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 	reg = IXGBE_READ_REG(hw, IXGBE_VFTE(reg_offset));
 	reg |= 1 << vf_shift;
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), reg);
+
+	/* force drop enable for all VF Rx queues */
+	for (i = vf * q_per_pool; i < ((vf + 1) * q_per_pool); i++) {
+		/* flush previous write */
+		IXGBE_WRITE_FLUSH(hw);
+
+		/* indicate to hardware that we want to set drop enable */
+		reg = IXGBE_QDE_WRITE | IXGBE_QDE_ENABLE;
+		reg |= i <<  IXGBE_QDE_IDX_SHIFT;
+		IXGBE_WRITE_REG(hw, IXGBE_QDE, reg);
+	}
 
 	/* enable receive for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
@@ -683,6 +697,15 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 	reg = IXGBE_READ_REG(hw, IXGBE_VMECM(reg_offset));
 	reg |= (1 << vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VMECM(reg_offset), reg);
+
+	/*
+	 * Reset the VFs TDWBAL and TDWBAH registers
+	 * which are not cleared by an FLR
+	 */
+	for (i = 0; i < q_per_pool; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_PVFTDWBAHn(q_per_pool, vf, i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_PVFTDWBALn(q_per_pool, vf, i), 0);
+	}
 
 	/* reply to reset with ack and vf mac address */
 	msgbuf[0] = IXGBE_VF_RESET;
