@@ -43,6 +43,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
+#include <linux/pinctrl/consumer.h>
 #ifdef CONFIG_STMMAC_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -2864,6 +2865,7 @@ int stmmac_suspend(struct net_device *ndev)
 		priv->hw->mac->pmt(priv->ioaddr, priv->wolopts);
 	else {
 		stmmac_set_mac(priv->ioaddr, false);
+		pinctrl_pm_select_sleep_state(priv->device);
 		/* Disable clock in case of PWM is off */
 		clk_disable_unprepare(priv->stmmac_clk);
 	}
@@ -2890,6 +2892,7 @@ int stmmac_resume(struct net_device *ndev)
 	if (device_may_wakeup(priv->device)) {
 		priv->hw->mac->pmt(priv->ioaddr, 0);
 	} else {
+		pinctrl_pm_select_default_state(priv->device);
 		/* enable the clk prevously disabled */
 		clk_prepare_enable(priv->stmmac_clk);
 		/* reset the phy so that it's ready */
