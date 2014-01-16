@@ -6392,7 +6392,9 @@ static void ixgbe_reset_subtask(struct ixgbe_adapter *adapter)
 	netdev_err(adapter->netdev, "Reset adapter\n");
 	adapter->tx_timeout_count++;
 
+	rtnl_lock();
 	ixgbe_reinit_locked(adapter);
+	rtnl_unlock();
 }
 
 /**
