@@ -1237,6 +1237,9 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 	if (!hotplug_trigger)
 		return;
 
+	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
+			  hotplug_trigger);
+
 	spin_lock(&dev_priv->irq_lock);
 	for (i = 1; i < HPD_NUM_PINS; i++) {
 
@@ -1474,9 +1477,6 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
 			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
-
-			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
-					 hotplug_status);
 
 			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
 
@@ -3414,9 +3414,6 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
 			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
 
-			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
-				  hotplug_status);
-
 			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
@@ -3663,9 +3660,6 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			u32 hotplug_trigger = hotplug_status & (IS_G4X(dev) ?
 								  HOTPLUG_INT_STATUS_G4X :
 								  HOTPLUG_INT_STATUS_I915);
-
-			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
-				  hotplug_status);
 
 			intel_hpd_irq_handler(dev, hotplug_trigger,
 					      IS_G4X(dev) ? hpd_status_g4x : hpd_status_i915);
