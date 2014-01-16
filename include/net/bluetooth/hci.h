@@ -313,6 +313,7 @@ enum {
 #define HCI_LM_TRUSTED	0x0008
 #define HCI_LM_RELIABLE	0x0010
 #define HCI_LM_SECURE	0x0020
+#define HCI_LM_FIPS	0x0040
 
 /* Authentication types */
 #define HCI_AT_NO_BONDING		0x00

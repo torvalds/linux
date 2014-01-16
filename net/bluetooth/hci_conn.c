@@ -800,10 +800,17 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	if (!(conn->link_mode & HCI_LM_AUTH))
 		goto auth;
 
-	/* An authenticated combination key has sufficient security for any
-	   security level. */
-	if (conn->key_type == HCI_LK_AUTH_COMBINATION_P192 ||
-	    conn->key_type == HCI_LK_AUTH_COMBINATION_P256)
+	/* An authenticated FIPS approved combination key has sufficient
+	 * security for security level 4. */
+	if (conn->key_type == HCI_LK_AUTH_COMBINATION_P256 &&
+	    sec_level == BT_SECURITY_FIPS)
+		goto encrypt;
+
+	/* An authenticated combination key has sufficient security for
+	   security level 3. */
+	if ((conn->key_type == HCI_LK_AUTH_COMBINATION_P192 ||
+	     conn->key_type == HCI_LK_AUTH_COMBINATION_P256) &&
+	    sec_level == BT_SECURITY_HIGH)
 		goto encrypt;
 
 	/* An unauthenticated combination key has sufficient security for
@@ -818,7 +825,8 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	   is generated using maximum PIN code length (16).
 	   For pre 2.1 units. */
 	if (conn->key_type == HCI_LK_COMBINATION &&
-	    (sec_level != BT_SECURITY_HIGH || conn->pin_length == 16))
+	    (sec_level == BT_SECURITY_MEDIUM || sec_level == BT_SECURITY_LOW ||
+	     conn->pin_length == 16))
 		goto encrypt;
 
 auth:
