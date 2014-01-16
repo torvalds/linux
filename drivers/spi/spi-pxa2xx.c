@@ -1264,7 +1264,7 @@ static void pxa2xx_spi_shutdown(struct platform_device *pdev)
 		dev_err(&pdev->dev, "shutdown failed with %d\n", status);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pxa2xx_spi_suspend(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
