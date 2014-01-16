@@ -13,6 +13,10 @@
 #include "imx6qdl.dtsi"
 
 / {
+	aliases {
+		spi4 = &ecspi5;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
