@@ -765,12 +765,9 @@ again:
 		alias = discon_alias;
 		spin_lock(&alias->d_lock);
 		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
-			if (IS_ROOT(alias) &&
-			    (alias->d_flags & DCACHE_DISCONNECTED)) {
-				__dget_dlock(alias);
-				spin_unlock(&alias->d_lock);
-				return alias;
-			}
+			__dget_dlock(alias);
+			spin_unlock(&alias->d_lock);
+			return alias;
 		}
 		spin_unlock(&alias->d_lock);
 		goto again;
