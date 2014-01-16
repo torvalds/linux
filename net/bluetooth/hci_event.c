@@ -2898,6 +2898,9 @@ static void hci_remote_ext_features_evt(struct hci_dev *hdev,
 			 * features do not indicate SSP support */
 			clear_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 		}
+
+		if (ev->features[0] & LMP_HOST_SC)
+			set_bit(HCI_CONN_SC_ENABLED, &conn->flags);
 	}
 
 	if (conn->state != BT_CONFIG)

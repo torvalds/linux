@@ -448,6 +448,7 @@ enum {
 	HCI_CONN_LE_SMP_PEND,
 	HCI_CONN_MGMT_CONNECTED,
 	HCI_CONN_SSP_ENABLED,
+	HCI_CONN_SC_ENABLED,
 	HCI_CONN_POWER_SAVE,
 	HCI_CONN_REMOTE_OOB,
 	HCI_CONN_6LOWPAN,
@@ -458,6 +459,13 @@ static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
 	struct hci_dev *hdev = conn->hdev;
 	return test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 	       test_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
+}
+
+static inline bool hci_conn_sc_enabled(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	return test_bit(HCI_SC_ENABLED, &hdev->dev_flags) &&
+	       test_bit(HCI_CONN_SC_ENABLED, &conn->flags);
 }
 
 static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
