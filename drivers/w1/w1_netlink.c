@@ -45,7 +45,7 @@ void w1_netlink_send(struct w1_master *dev, struct w1_netlink_msg *msg)
 
 	memcpy(w, msg, sizeof(struct w1_netlink_msg));
 
-	cn_netlink_send(m, 0, GFP_KERNEL);
+	cn_netlink_send(m, 0, 0, GFP_KERNEL);
 }
 
 static void w1_send_slave(struct w1_master *dev, u64 rn)
@@ -60,7 +60,7 @@ static void w1_send_slave(struct w1_master *dev, u64 rn)
 
 	if (avail < 8) {
 		msg->ack++;
-		cn_netlink_send(msg, 0, GFP_KERNEL);
+		cn_netlink_send(msg, 0, 0, GFP_KERNEL);
 
 		msg->len = sizeof(struct w1_netlink_msg) +
 			sizeof(struct w1_netlink_cmd);
@@ -131,7 +131,7 @@ static int w1_get_slaves(struct w1_master *dev,
 	}
 
 	msg->ack = 0;
-	cn_netlink_send(msg, 0, GFP_KERNEL);
+	cn_netlink_send(msg, 0, 0, GFP_KERNEL);
 
 	dev->priv = NULL;
 	dev->priv_size = 0;
@@ -173,7 +173,7 @@ static int w1_send_read_reply(struct cn_msg *msg, struct w1_netlink_msg *hdr,
 
 	memcpy(c->data, cmd->data, c->len);
 
-	err = cn_netlink_send(cm, 0, GFP_KERNEL);
+	err = cn_netlink_send(cm, 0, 0, GFP_KERNEL);
 
 	kfree(data);
 
@@ -316,7 +316,7 @@ static int w1_process_command_root(struct cn_msg *msg, struct w1_netlink_msg *mc
 	mutex_lock(&w1_mlock);
 	list_for_each_entry(m, &w1_masters, w1_master_entry) {
 		if (cn->len + sizeof(*id) > PAGE_SIZE - sizeof(struct cn_msg)) {
-			cn_netlink_send(cn, 0, GFP_KERNEL);
+			cn_netlink_send(cn, 0, 0, GFP_KERNEL);
 			cn->ack++;
 			cn->len = sizeof(struct w1_netlink_msg);
 			w->len = 0;
@@ -329,7 +329,7 @@ static int w1_process_command_root(struct cn_msg *msg, struct w1_netlink_msg *mc
 		id++;
 	}
 	cn->ack = 0;
-	cn_netlink_send(cn, 0, GFP_KERNEL);
+	cn_netlink_send(cn, 0, 0, GFP_KERNEL);
 	mutex_unlock(&w1_mlock);
 
 	kfree(cn);
@@ -364,7 +364,7 @@ static int w1_netlink_send_error(struct cn_msg *rcmsg, struct w1_netlink_msg *rm
 		cmsg->len += sizeof(*cmd);
 	}
 
-	error = cn_netlink_send(cmsg, 0, GFP_KERNEL);
+	error = cn_netlink_send(cmsg, 0, 0, GFP_KERNEL);
 	kfree(cmsg);
 
 	return error;
