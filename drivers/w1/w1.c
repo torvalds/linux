@@ -918,7 +918,8 @@ void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb
 	u8  triplet_ret = 0;
 
 	search_bit = 0;
-	rn = last_rn = 0;
+	rn = dev->search_id;
+	last_rn = 0;
 	last_device = 0;
 	last_zero = -1;
 
@@ -989,16 +990,27 @@ void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb
 		mutex_unlock(&dev->bus_mutex);
 
 		if ( (triplet_ret & 0x03) != 0x03 ) {
-			if ( (desc_bit == last_zero) || (last_zero < 0))
+			if ((desc_bit == last_zero) || (last_zero < 0)) {
 				last_device = 1;
+				dev->search_id = 0;
+			} else {
+				dev->search_id = rn;
+			}
 			desc_bit = last_zero;
 			cb(dev, rn);
 		}
 
 		if (!last_device && slave_count == dev->max_slave_count &&
 			!test_bit(W1_WARN_MAX_COUNT, &dev->flags)) {
+			/* Only max_slave_count will be scanned in a search,
+			 * but it will start where it left off next search
+			 * until all ids are identified and then it will start
+			 * over.  A continued search will report the previous
+			 * last id as the first id (provided it is still on the
+			 * bus).
+			 */
 			dev_info(&dev->dev, "%s: max_slave_count %d reached, "
-				"additional sensors ignored\n", __func__,
+				"will continue next search.\n", __func__,
 				dev->max_slave_count);
 			set_bit(W1_WARN_MAX_COUNT, &dev->flags);
 		}

@@ -150,6 +150,7 @@ struct w1_bus_master
 
 	/** Really nice hardware can handles the different types of ROM search
 	 *  w1_master* is passed to the slave found callback.
+	 *  u8 is search_type, W1_SEARCH or W1_ALARM_SEARCH
 	 */
 	void		(*search)(void *, struct w1_master *,
 		u8, w1_slave_found_callback);
@@ -177,6 +178,8 @@ struct w1_master
 	int			initialized;
 	u32			id;
 	int			search_count;
+	/* id to start searching on, to continue a search or 0 to restart */
+	u64			search_id;
 
 	atomic_t		refcnt;
 
