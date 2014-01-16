@@ -291,6 +291,81 @@ static struct s3c2410_dma_client s3c64xx_spi_dma_client = {
 	.name = "samsung-spi-dma",
 };
 
+static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
+						struct spi_message *msg)
+{
+	struct device *dev = &sdd->pdev->dev;
+	struct spi_transfer *xfer;
+
+	if (is_polling(sdd) || msg->is_dma_mapped)
+		return 0;
+
+	/* First mark all xfer unmapped */
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		xfer->rx_dma = XFER_DMAADDR_INVALID;
+		xfer->tx_dma = XFER_DMAADDR_INVALID;
+	}
+
+	/* Map until end or first fail */
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+
+		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
+			continue;
+
+		if (xfer->tx_buf != NULL) {
+			xfer->tx_dma = dma_map_single(dev,
+					(void *)xfer->tx_buf, xfer->len,
+					DMA_TO_DEVICE);
+			if (dma_mapping_error(dev, xfer->tx_dma)) {
+				dev_err(dev, "dma_map_single Tx failed\n");
+				xfer->tx_dma = XFER_DMAADDR_INVALID;
+				return -ENOMEM;
+			}
+		}
+
+		if (xfer->rx_buf != NULL) {
+			xfer->rx_dma = dma_map_single(dev, xfer->rx_buf,
+						xfer->len, DMA_FROM_DEVICE);
+			if (dma_mapping_error(dev, xfer->rx_dma)) {
+				dev_err(dev, "dma_map_single Rx failed\n");
+				dma_unmap_single(dev, xfer->tx_dma,
+						xfer->len, DMA_TO_DEVICE);
+				xfer->tx_dma = XFER_DMAADDR_INVALID;
+				xfer->rx_dma = XFER_DMAADDR_INVALID;
+				return -ENOMEM;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
+						struct spi_message *msg)
+{
+	struct device *dev = &sdd->pdev->dev;
+	struct spi_transfer *xfer;
+
+	if (is_polling(sdd) || msg->is_dma_mapped)
+		return;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+
+		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
+			continue;
+
+		if (xfer->rx_buf != NULL
+				&& xfer->rx_dma != XFER_DMAADDR_INVALID)
+			dma_unmap_single(dev, xfer->rx_dma,
+						xfer->len, DMA_FROM_DEVICE);
+
+		if (xfer->tx_buf != NULL
+				&& xfer->tx_dma != XFER_DMAADDR_INVALID)
+			dma_unmap_single(dev, xfer->tx_dma,
+						xfer->len, DMA_TO_DEVICE);
+	}
+}
+
 static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 					unsigned len, dma_addr_t buf)
 {
@@ -378,7 +453,21 @@ static void s3c64xx_spi_dma_stop(struct s3c64xx_spi_driver_data *sdd,
 {
 	sdd->ops->stop((enum dma_ch)dma->ch);
 }
+
+#define s3c64xx_spi_can_dma NULL
+
 #else
+
+static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
+						struct spi_message *msg)
+{
+	return 0;
+}
+
+static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
+						struct spi_message *msg)
+{
+}
 
 static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 			struct sg_table *sgt)
@@ -437,6 +526,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 			ret = -EBUSY;
 			goto out;
 		}
+		spi->dma_rx = sdd->rx_dma.ch;
 
 		sdd->tx_dma.ch = dma_request_slave_channel_compat(mask, filter,
 				   (void *)sdd->tx_dma.dmach, dev, "tx");
@@ -445,6 +535,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 			ret = -EBUSY;
 			goto out_rx;
 		}
+		spi->dma_tx = sdd->tx_dma.ch;
 	}
 
 	ret = pm_runtime_get_sync(&sdd->pdev->dev);
@@ -482,6 +573,16 @@ static void s3c64xx_spi_dma_stop(struct s3c64xx_spi_driver_data *sdd,
 {
 	dmaengine_terminate_all(dma->ch);
 }
+
+static bool s3c64xx_spi_can_dma(struct spi_master *master,
+				struct spi_device *spi,
+				struct spi_transfer *xfer)
+{
+	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+
+	return xfer->len > (FIFO_LVL_MASK(sdd) >> 1) + 1;
+}
+
 #endif
 
 static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
@@ -763,81 +864,6 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 }
 
 #define XFER_DMAADDR_INVALID DMA_BIT_MASK(32)
-
-static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_message *msg)
-{
-	struct device *dev = &sdd->pdev->dev;
-	struct spi_transfer *xfer;
-
-	if (is_polling(sdd) || msg->is_dma_mapped)
-		return 0;
-
-	/* First mark all xfer unmapped */
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		xfer->rx_dma = XFER_DMAADDR_INVALID;
-		xfer->tx_dma = XFER_DMAADDR_INVALID;
-	}
-
-	/* Map until end or first fail */
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-
-		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
-			continue;
-
-		if (xfer->tx_buf != NULL) {
-			xfer->tx_dma = dma_map_single(dev,
-					(void *)xfer->tx_buf, xfer->len,
-					DMA_TO_DEVICE);
-			if (dma_mapping_error(dev, xfer->tx_dma)) {
-				dev_err(dev, "dma_map_single Tx failed\n");
-				xfer->tx_dma = XFER_DMAADDR_INVALID;
-				return -ENOMEM;
-			}
-		}
-
-		if (xfer->rx_buf != NULL) {
-			xfer->rx_dma = dma_map_single(dev, xfer->rx_buf,
-						xfer->len, DMA_FROM_DEVICE);
-			if (dma_mapping_error(dev, xfer->rx_dma)) {
-				dev_err(dev, "dma_map_single Rx failed\n");
-				dma_unmap_single(dev, xfer->tx_dma,
-						xfer->len, DMA_TO_DEVICE);
-				xfer->tx_dma = XFER_DMAADDR_INVALID;
-				xfer->rx_dma = XFER_DMAADDR_INVALID;
-				return -ENOMEM;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_message *msg)
-{
-	struct device *dev = &sdd->pdev->dev;
-	struct spi_transfer *xfer;
-
-	if (is_polling(sdd) || msg->is_dma_mapped)
-		return;
-
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-
-		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
-			continue;
-
-		if (xfer->rx_buf != NULL
-				&& xfer->rx_dma != XFER_DMAADDR_INVALID)
-			dma_unmap_single(dev, xfer->rx_dma,
-						xfer->len, DMA_FROM_DEVICE);
-
-		if (xfer->tx_buf != NULL
-				&& xfer->tx_dma != XFER_DMAADDR_INVALID)
-			dma_unmap_single(dev, xfer->tx_dma,
-						xfer->len, DMA_TO_DEVICE);
-	}
-}
 
 static int s3c64xx_spi_prepare_message(struct spi_master *master,
 				       struct spi_message *msg)
@@ -1338,6 +1364,8 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->auto_runtime_pm = true;
+	if (!is_polling(sdd))
+		master->can_dma = s3c64xx_spi_can_dma;
 
 	sdd->regs = devm_ioremap_resource(&pdev->dev, mem_res);
 	if (IS_ERR(sdd->regs)) {
