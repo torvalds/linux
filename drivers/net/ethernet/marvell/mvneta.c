@@ -1354,6 +1354,8 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 {
 	struct net_device *dev = pp->dev;
 	int rx_done, rx_filled;
+	u32 rcvd_pkts = 0;
+	u32 rcvd_bytes = 0;
 
 	/* Get number of received packets */
 	rx_done = mvneta_rxq_busy_desc_num_get(pp, rxq);
@@ -1391,10 +1393,8 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 
 		rx_bytes = rx_desc->data_size -
 			(ETH_FCS_LEN + MVNETA_MH_SIZE);
-		u64_stats_update_begin(&pp->rx_stats.syncp);
-		pp->rx_stats.packets++;
-		pp->rx_stats.bytes += rx_bytes;
-		u64_stats_update_end(&pp->rx_stats.syncp);
+		rcvd_pkts++;
+		rcvd_bytes += rx_bytes;
 
 		/* Linux processing */
 		skb_reserve(skb, MVNETA_MH_SIZE);
@@ -1413,6 +1413,13 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 			rxq->missed++;
 			rx_filled--;
 		}
+	}
+
+	if (rcvd_pkts) {
+		u64_stats_update_begin(&pp->rx_stats.syncp);
+		pp->rx_stats.packets += rcvd_pkts;
+		pp->rx_stats.bytes   += rcvd_bytes;
+		u64_stats_update_end(&pp->rx_stats.syncp);
 	}
 
 	/* Update rxq management counters */
