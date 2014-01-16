@@ -653,9 +653,10 @@ static void ir_do_keydown(struct rc_dev *dev, int scancode,
 			   "key 0x%04x, scancode 0x%04x\n",
 			   dev->input_name, keycode, scancode);
 		input_report_key(dev->input_dev, keycode, 1);
+
+		led_trigger_event(led_feedback, LED_FULL);
 	}
 
-	led_trigger_event(led_feedback, LED_FULL);
 	input_sync(dev->input_dev);
 }
 
