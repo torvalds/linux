@@ -75,24 +75,6 @@ static int report__config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
-static int report__resolve_callchain(struct report *rep, struct symbol **parent,
-				     struct perf_evsel *evsel, struct addr_location *al,
-				     struct perf_sample *sample)
-{
-	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		return machine__resolve_callchain(al->machine, evsel, al->thread, sample,
-						  parent, al, rep->max_stack);
-	}
-	return 0;
-}
-
-static int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample)
-{
-	if (!symbol_conf.use_callchain)
-		return 0;
-	return callchain_append(he->callchain, &callchain_cursor, sample->period);
-}
-
 static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_location *al,
 				      struct perf_sample *sample, struct perf_evsel *evsel,
 				      union perf_event *event)
@@ -103,7 +85,7 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	struct hist_entry *he;
 	struct mem_info *mi, *mx;
 	uint64_t cost;
-	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
+	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
 
 	if (err)
 		return err;
@@ -155,7 +137,7 @@ static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_loc
 	unsigned i;
 	struct hist_entry *he;
 	struct branch_info *bi, *bx;
-	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
+	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
 
 	if (err)
 		return err;
@@ -208,7 +190,7 @@ static int report__add_hist_entry(struct perf_tool *tool, struct perf_evsel *evs
 	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	struct hist_entry *he;
-	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
+	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
 
 	if (err)
 		return err;

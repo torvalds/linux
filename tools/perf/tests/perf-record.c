@@ -39,9 +39,9 @@ int test__PERF_RECORD(void)
 			.uid = UINT_MAX,
 			.uses_mmap = true,
 		},
-		.no_delay   = true,
-		.freq	    = 10,
-		.mmap_pages = 256,
+		.no_buffering = true,
+		.freq	      = 10,
+		.mmap_pages   = 256,
 	};
 	cpu_set_t cpu_mask;
 	size_t cpu_mask_size = sizeof(cpu_mask);

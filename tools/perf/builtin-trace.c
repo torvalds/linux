@@ -2258,7 +2258,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			},
 			.user_freq     = UINT_MAX,
 			.user_interval = ULLONG_MAX,
-			.no_delay      = true,
+			.no_buffering  = true,
 			.mmap_pages    = 1024,
 		},
 		.output = stdout,

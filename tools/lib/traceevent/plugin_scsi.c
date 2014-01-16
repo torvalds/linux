@@ -405,7 +405,7 @@ scsi_trace_parse_cdb(struct trace_seq *p, unsigned char *cdb, int len)
 unsigned long long process_scsi_trace_parse_cdb(struct trace_seq *s,
 						unsigned long long *args)
 {
-	scsi_trace_parse_cdb(s, (unsigned char *) args[1], args[2]);
+	scsi_trace_parse_cdb(s, (unsigned char *) (unsigned long) args[1], args[2]);
 	return 0;
 }
 

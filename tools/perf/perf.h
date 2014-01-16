@@ -252,7 +252,7 @@ struct record_opts {
 	int	     call_graph;
 	bool	     group;
 	bool	     inherit_stat;
-	bool	     no_delay;
+	bool	     no_buffering;
 	bool	     no_inherit;
 	bool	     no_inherit_set;
 	bool	     no_samples;

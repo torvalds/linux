@@ -11,10 +11,10 @@ int test__syscall_open_tp_fields(void)
 			.uid = UINT_MAX,
 			.uses_mmap = true,
 		},
-		.no_delay   = true,
-		.freq	    = 1,
-		.mmap_pages = 256,
-		.raw_samples = true,
+		.no_buffering = true,
+		.freq	      = 1,
+		.mmap_pages   = 256,
+		.raw_samples  = true,
 	};
 	const char *filename = "/etc/passwd";
 	int flags = O_RDONLY | O_DIRECTORY;
