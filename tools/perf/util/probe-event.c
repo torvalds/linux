@@ -173,54 +173,6 @@ const char *kernel_get_module_path(const char *module)
 	return (dso) ? dso->long_name : NULL;
 }
 
-#ifdef HAVE_DWARF_SUPPORT
-/* Copied from unwind.c */
-static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
-				    GElf_Shdr *shp, const char *name)
-{
-	Elf_Scn *sec = NULL;
-
-	while ((sec = elf_nextscn(elf, sec)) != NULL) {
-		char *str;
-
-		gelf_getshdr(sec, shp);
-		str = elf_strptr(elf, ep->e_shstrndx, shp->sh_name);
-		if (!strcmp(name, str))
-			break;
-	}
-
-	return sec;
-}
-
-static int get_text_start_address(const char *exec, unsigned long *address)
-{
-	Elf *elf;
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
-	int fd, ret = -ENOENT;
-
-	fd = open(exec, O_RDONLY);
-	if (fd < 0)
-		return -errno;
-
-	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
-	if (elf == NULL)
-		return -EINVAL;
-
-	if (gelf_getehdr(elf, &ehdr) == NULL)
-		goto out;
-
-	if (!elf_section_by_name(elf, &ehdr, &shdr, ".text"))
-		goto out;
-
-	*address = shdr.sh_addr - shdr.sh_offset;
-	ret = 0;
-out:
-	elf_end(elf);
-	return ret;
-}
-#endif
-
 static int init_user_exec(void)
 {
 	int ret = 0;
@@ -339,6 +291,34 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 	pp->retprobe = tp->retprobe;
 
 	return 0;
+}
+
+static int get_text_start_address(const char *exec, unsigned long *address)
+{
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	int fd, ret = -ENOENT;
+
+	fd = open(exec, O_RDONLY);
+	if (fd < 0)
+		return -errno;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		return -EINVAL;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out;
+
+	if (!elf_section_by_name(elf, &ehdr, &shdr, ".text", NULL))
+		goto out;
+
+	*address = shdr.sh_addr - shdr.sh_offset;
+	ret = 0;
+out:
+	elf_end(elf);
+	return ret;
 }
 
 static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,

@@ -52,6 +52,11 @@ static inline char *bfd_demangle(void __maybe_unused *v,
 # define PERF_ELF_C_READ_MMAP ELF_C_READ
 #endif
 
+#ifdef HAVE_LIBELF_SUPPORT
+extern Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
+				GElf_Shdr *shp, const char *name, size_t *idx);
+#endif
+
 #ifndef DMGL_PARAMS
 #define DMGL_PARAMS      (1 << 0)       /* Include function args */
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
