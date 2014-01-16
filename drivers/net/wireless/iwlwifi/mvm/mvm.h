@@ -239,6 +239,12 @@ enum iwl_mvm_smps_type_request {
 	NUM_IWL_MVM_SMPS_REQ,
 };
 
+enum iwl_mvm_ref_type {
+	IWL_MVM_REF_UCODE_DOWN,
+
+	IWL_MVM_REF_COUNT,
+};
+
 /**
 * struct iwl_mvm_vif_bf_data - beacon filtering related data
 * @bf_enabled: indicates if beacon filtering is enabled
@@ -541,6 +547,9 @@ struct iwl_mvm {
 	 * can hold 16 keys at most. Reflect this fact.
 	 */
 	unsigned long fw_key_table[BITS_TO_LONGS(STA_KEY_MAX_NUM)];
+
+	/* A bitmap of reference types taken by the driver. */
+	unsigned long ref_bitmap[BITS_TO_LONGS(IWL_MVM_REF_COUNT)];
 
 	u8 vif_count;
 
@@ -876,6 +885,10 @@ iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 }
 #endif
+
+/* D0i3 */
+void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
+void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
 
 /* BT Coex */
 int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm);

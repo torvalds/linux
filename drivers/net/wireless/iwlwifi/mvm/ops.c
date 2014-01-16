@@ -501,6 +501,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
 
+	/* rpm starts with a taken ref. only set the appropriate bit here. */
+	set_bit(IWL_MVM_REF_UCODE_DOWN, mvm->ref_bitmap);
+
 	return op_mode;
 
  out_unregister:
@@ -788,6 +791,9 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
 	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR && mvm->restart_fw) {
+		/* don't let the transport/FW power down */
+		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
+
 		if (mvm->restart_fw > 0)
 			mvm->restart_fw--;
 		ieee80211_restart_hw(mvm->hw);

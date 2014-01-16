@@ -202,6 +202,44 @@ static const struct iwl_fw_bcast_filter iwl_mvm_default_bcast_filters[] = {
 };
 #endif
 
+void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
+{
+	if (!mvm->trans->cfg->d0i3)
+		return;
+
+	IWL_DEBUG_RPM(mvm, "Take mvm reference - type %d\n", ref_type);
+	WARN_ON(test_and_set_bit(ref_type, mvm->ref_bitmap));
+	iwl_trans_ref(mvm->trans);
+}
+
+void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
+{
+	if (!mvm->trans->cfg->d0i3)
+		return;
+
+	IWL_DEBUG_RPM(mvm, "Leave mvm reference - type %d\n", ref_type);
+	WARN_ON(!test_and_clear_bit(ref_type, mvm->ref_bitmap));
+	iwl_trans_unref(mvm->trans);
+}
+
+static void
+iwl_mvm_unref_all_except(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref)
+{
+	int i;
+
+	if (!mvm->trans->cfg->d0i3)
+		return;
+
+	for_each_set_bit(i, mvm->ref_bitmap, IWL_MVM_REF_COUNT) {
+		if (ref == i)
+			continue;
+
+		IWL_DEBUG_RPM(mvm, "Cleanup: remove mvm ref type %d\n", i);
+		clear_bit(i, mvm->ref_bitmap);
+		iwl_trans_unref(mvm->trans);
+	}
+}
+
 static void iwl_mvm_reset_phy_ctxts(struct iwl_mvm *mvm)
 {
 	int i;
@@ -516,6 +554,10 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	ieee80211_wake_queues(mvm->hw);
 
+	/* cleanup all stale references (scan, roc), but keep the
+	 * ucode_down ref until reconfig is complete */
+	iwl_mvm_unref_all_except(mvm, IWL_MVM_REF_UCODE_DOWN);
+
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
 }
@@ -550,6 +592,9 @@ static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
 		IWL_ERR(mvm, "Failed to update quotas after restart (%d)\n",
 			ret);
 
+	/* allow transport/FW low power modes */
+	iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
+
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -560,6 +605,10 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	flush_work(&mvm->async_handlers_wk);
 
 	mutex_lock(&mvm->mutex);
+
+	/* disallow low power states when the FW is down */
+	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
+
 	/* async_handlers_wk is now blocked */
 
 	/*
