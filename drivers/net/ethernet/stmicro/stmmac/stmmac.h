@@ -105,6 +105,7 @@ struct stmmac_priv {
 	unsigned int default_addend;
 	u32 adv_ts;
 	int use_riwt;
+	int irq_wake;
 	spinlock_t ptp_lock;
 };
 
