@@ -79,19 +79,10 @@ static void w1_slave_release(struct device *dev)
 {
 	struct w1_slave *sl = dev_to_w1_slave(dev);
 
-	dev_dbg(dev, "%s: Releasing %s.\n", __func__, sl->name);
-
-	while (atomic_read(&sl->refcnt)) {
-		dev_dbg(dev, "Waiting for %s to become free: refcnt=%d.\n",
-				sl->name, atomic_read(&sl->refcnt));
-		if (msleep_interruptible(1000))
-			flush_signals(current);
-	}
+	dev_dbg(dev, "%s: Releasing %s [%p]\n", __func__, sl->name, sl);
 
 	w1_family_put(sl->family);
 	sl->master->slave_count--;
-
-	complete(&sl->released);
 }
 
 static ssize_t name_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -277,7 +268,6 @@ static ssize_t w1_master_attribute_store_pullup(struct device *dev,
 	mutex_lock(&md->mutex);
 	md->enable_pullup = tmp;
 	mutex_unlock(&md->mutex);
-	wake_up_process(md->thread);
 
 	return count;
 }
@@ -370,23 +360,20 @@ static ssize_t w1_master_attribute_show_slaves(struct device *dev,
 {
 	struct w1_master *md = dev_to_w1_master(dev);
 	int c = PAGE_SIZE;
+	struct list_head *ent, *n;
+	struct w1_slave *sl = NULL;
 
-	mutex_lock(&md->mutex);
+	mutex_lock(&md->list_mutex);
 
-	if (md->slave_count == 0)
-		c -= snprintf(buf + PAGE_SIZE - c, c, "not found.\n");
-	else {
-		struct list_head *ent, *n;
-		struct w1_slave *sl;
+	list_for_each_safe(ent, n, &md->slist) {
+		sl = list_entry(ent, struct w1_slave, w1_slave_entry);
 
-		list_for_each_safe(ent, n, &md->slist) {
-			sl = list_entry(ent, struct w1_slave, w1_slave_entry);
-
-			c -= snprintf(buf + PAGE_SIZE - c, c, "%s\n", sl->name);
-		}
+		c -= snprintf(buf + PAGE_SIZE - c, c, "%s\n", sl->name);
 	}
+	if (!sl)
+		c -= snprintf(buf + PAGE_SIZE - c, c, "not found.\n");
 
-	mutex_unlock(&md->mutex);
+	mutex_unlock(&md->list_mutex);
 
 	return PAGE_SIZE - c;
 }
@@ -440,19 +427,22 @@ static int w1_atoreg_num(struct device *dev, const char *buf, size_t count,
 }
 
 /* Searches the slaves in the w1_master and returns a pointer or NULL.
- * Note: must hold the mutex
+ * Note: must not hold list_mutex
  */
 struct w1_slave *w1_slave_search_device(struct w1_master *dev,
 	struct w1_reg_num *rn)
 {
 	struct w1_slave *sl;
+	mutex_lock(&dev->list_mutex);
 	list_for_each_entry(sl, &dev->slist, w1_slave_entry) {
 		if (sl->reg_num.family == rn->family &&
 				sl->reg_num.id == rn->id &&
 				sl->reg_num.crc == rn->crc) {
+			mutex_unlock(&dev->list_mutex);
 			return sl;
 		}
 	}
+	mutex_unlock(&dev->list_mutex);
 	return NULL;
 }
 
@@ -509,7 +499,10 @@ static ssize_t w1_master_attribute_store_remove(struct device *dev,
 	mutex_lock(&md->mutex);
 	sl = w1_slave_search_device(md, &rn);
 	if (sl) {
-		w1_slave_detach(sl);
+		result = w1_slave_detach(sl);
+		/* refcnt 0 means it was detached in the call */
+		if (result == 0)
+			result = count;
 	} else {
 		dev_info(dev, "Device %02x-%012llx doesn't exists\n", rn.family,
 			(unsigned long long)rn.id);
@@ -704,7 +697,9 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 	dev_set_uevent_suppress(&sl->dev, false);
 	kobject_uevent(&sl->dev.kobj, KOBJ_ADD);
 
+	mutex_lock(&sl->master->list_mutex);
 	list_add_tail(&sl->w1_slave_entry, &sl->master->slist);
+	mutex_unlock(&sl->master->list_mutex);
 
 	return 0;
 }
@@ -731,8 +726,8 @@ int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 
 	memset(&msg, 0, sizeof(msg));
 	memcpy(&sl->reg_num, rn, sizeof(sl->reg_num));
-	atomic_set(&sl->refcnt, 0);
-	init_completion(&sl->released);
+	atomic_set(&sl->refcnt, 1);
+	atomic_inc(&sl->master->refcnt);
 
 	/* slave modules need to be loaded in a context with unlocked mutex */
 	mutex_unlock(&dev->mutex);
@@ -772,23 +767,48 @@ int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	return 0;
 }
 
-void w1_slave_detach(struct w1_slave *sl)
+int w1_unref_slave(struct w1_slave *sl)
 {
-	struct w1_netlink_msg msg;
+	struct w1_master *dev = sl->master;
+	int refcnt;
+	mutex_lock(&dev->list_mutex);
+	refcnt = atomic_sub_return(1, &sl->refcnt);
+	if (refcnt == 0) {
+		struct w1_netlink_msg msg;
 
-	dev_dbg(&sl->dev, "%s: detaching %s [%p].\n", __func__, sl->name, sl);
+		dev_dbg(&sl->dev, "%s: detaching %s [%p].\n", __func__,
+			sl->name, sl);
 
-	list_del(&sl->w1_slave_entry);
+		list_del(&sl->w1_slave_entry);
 
-	memset(&msg, 0, sizeof(msg));
-	memcpy(msg.id.id, &sl->reg_num, sizeof(msg.id));
-	msg.type = W1_SLAVE_REMOVE;
-	w1_netlink_send(sl->master, &msg);
+		memset(&msg, 0, sizeof(msg));
+		memcpy(msg.id.id, &sl->reg_num, sizeof(msg.id));
+		msg.type = W1_SLAVE_REMOVE;
+		w1_netlink_send(sl->master, &msg);
 
-	device_unregister(&sl->dev);
+		device_unregister(&sl->dev);
+		#ifdef DEBUG
+		memset(sl, 0, sizeof(*sl));
+		#endif
+		kfree(sl);
+	}
+	atomic_dec(&dev->refcnt);
+	mutex_unlock(&dev->list_mutex);
+	return refcnt;
+}
 
-	wait_for_completion(&sl->released);
-	kfree(sl);
+int w1_slave_detach(struct w1_slave *sl)
+{
+	/* Only detach a slave once as it decreases the refcnt each time. */
+	int destroy_now;
+	mutex_lock(&sl->master->list_mutex);
+	destroy_now = !test_bit(W1_SLAVE_DETACH, &sl->flags);
+	set_bit(W1_SLAVE_DETACH, &sl->flags);
+	mutex_unlock(&sl->master->list_mutex);
+
+	if (destroy_now)
+		destroy_now = !w1_unref_slave(sl);
+	return destroy_now ? 0 : -EBUSY;
 }
 
 struct w1_master *w1_search_master_id(u32 id)
@@ -817,7 +837,7 @@ struct w1_slave *w1_search_slave(struct w1_reg_num *id)
 
 	mutex_lock(&w1_mlock);
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
-		mutex_lock(&dev->mutex);
+		mutex_lock(&dev->list_mutex);
 		list_for_each_entry(sl, &dev->slist, w1_slave_entry) {
 			if (sl->reg_num.family == id->family &&
 					sl->reg_num.id == id->id &&
@@ -828,7 +848,7 @@ struct w1_slave *w1_search_slave(struct w1_reg_num *id)
 				break;
 			}
 		}
-		mutex_unlock(&dev->mutex);
+		mutex_unlock(&dev->list_mutex);
 
 		if (found)
 			break;
@@ -848,6 +868,7 @@ void w1_reconnect_slaves(struct w1_family *f, int attach)
 		dev_dbg(&dev->dev, "Reconnecting slaves in device %s "
 			"for family %02x.\n", dev->name, f->fid);
 		mutex_lock(&dev->mutex);
+		mutex_lock(&dev->list_mutex);
 		list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
 			/* If it is a new family, slaves with the default
 			 * family driver and are that family will be
@@ -859,14 +880,19 @@ void w1_reconnect_slaves(struct w1_family *f, int attach)
 				(!attach && sl->family->fid == f->fid)) {
 				struct w1_reg_num rn;
 
+				mutex_unlock(&dev->list_mutex);
 				memcpy(&rn, &sl->reg_num, sizeof(rn));
-				w1_slave_detach(sl);
-
-				w1_attach_slave_device(dev, &rn);
+				/* If it was already in use let the automatic
+				 * scan pick it up again later.
+				 */
+				if (!w1_slave_detach(sl))
+					w1_attach_slave_device(dev, &rn);
+				mutex_lock(&dev->list_mutex);
 			}
 		}
 		dev_dbg(&dev->dev, "Reconnecting slaves in device %s "
 			"has been finished.\n", dev->name);
+		mutex_unlock(&dev->list_mutex);
 		mutex_unlock(&dev->mutex);
 	}
 	mutex_unlock(&w1_mlock);
@@ -1020,17 +1046,24 @@ void w1_search_process_cb(struct w1_master *dev, u8 search_type,
 {
 	struct w1_slave *sl, *sln;
 
+	mutex_lock(&dev->list_mutex);
 	list_for_each_entry(sl, &dev->slist, w1_slave_entry)
 		clear_bit(W1_SLAVE_ACTIVE, &sl->flags);
+	mutex_unlock(&dev->list_mutex);
 
 	w1_search_devices(dev, search_type, cb);
 
+	mutex_lock(&dev->list_mutex);
 	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
-		if (!test_bit(W1_SLAVE_ACTIVE, &sl->flags) && !--sl->ttl)
+		if (!test_bit(W1_SLAVE_ACTIVE, &sl->flags) && !--sl->ttl) {
+			mutex_unlock(&dev->list_mutex);
 			w1_slave_detach(sl);
+			mutex_lock(&dev->list_mutex);
+		}
 		else if (test_bit(W1_SLAVE_ACTIVE, &sl->flags))
 			sl->ttl = dev->slave_ttl;
 	}
+	mutex_unlock(&dev->list_mutex);
 
 	if (dev->search_count > 0)
 		dev->search_count--;
@@ -1041,6 +1074,26 @@ static void w1_search_process(struct w1_master *dev, u8 search_type)
 	w1_search_process_cb(dev, search_type, w1_slave_found);
 }
 
+int w1_process_callbacks(struct w1_master *dev)
+{
+	int ret = 0;
+	struct w1_async_cmd *async_cmd, *async_n;
+
+	/* The list can be added to in another thread, loop until it is empty */
+	while (!list_empty(&dev->async_list)) {
+		list_for_each_entry_safe(async_cmd, async_n, &dev->async_list,
+			async_entry) {
+			/* drop the lock, if it is a search it can take a long
+			 * time */
+			mutex_unlock(&dev->list_mutex);
+			async_cmd->cb(dev, async_cmd);
+			ret = 1;
+			mutex_lock(&dev->list_mutex);
+		}
+	}
+	return ret;
+}
+
 int w1_process(void *data)
 {
 	struct w1_master *dev = (struct w1_master *) data;
@@ -1048,23 +1101,46 @@ int w1_process(void *data)
 	 * time can be calculated in jiffies once.
 	 */
 	const unsigned long jtime = msecs_to_jiffies(w1_timeout * 1000);
+	/* remainder if it woke up early */
+	unsigned long jremain = 0;
 
-	while (!kthread_should_stop()) {
-		if (dev->search_count) {
+	for (;;) {
+
+		if (!jremain && dev->search_count) {
 			mutex_lock(&dev->mutex);
 			w1_search_process(dev, W1_SEARCH);
 			mutex_unlock(&dev->mutex);
 		}
 
+		mutex_lock(&dev->list_mutex);
+		/* Note, w1_process_callback drops the lock while processing,
+		 * but locks it again before returning.
+		 */
+		if (!w1_process_callbacks(dev) && jremain) {
+			/* a wake up is either to stop the thread, process
+			 * callbacks, or search, it isn't process callbacks, so
+			 * schedule a search.
+			 */
+			jremain = 1;
+		}
+
 		try_to_freeze();
 		__set_current_state(TASK_INTERRUPTIBLE);
+
+		/* hold list_mutex until after interruptible to prevent loosing
+		 * the wakeup signal when async_cmd is added.
+		 */
+		mutex_unlock(&dev->list_mutex);
 
 		if (kthread_should_stop())
 			break;
 
 		/* Only sleep when the search is active. */
-		if (dev->search_count)
-			schedule_timeout(jtime);
+		if (dev->search_count) {
+			if (!jremain)
+				jremain = jtime;
+			jremain = schedule_timeout(jremain);
+		}
 		else
 			schedule();
 	}

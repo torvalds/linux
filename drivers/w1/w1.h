@@ -58,6 +58,7 @@ struct w1_reg_num
 #define W1_RESUME_CMD		0xA5
 
 #define W1_SLAVE_ACTIVE		0
+#define W1_SLAVE_DETACH		1
 
 struct w1_slave
 {
@@ -74,7 +75,6 @@ struct w1_slave
 	struct w1_family	*family;
 	void			*family_data;
 	struct device		dev;
-	struct completion	released;
 };
 
 typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
@@ -171,7 +171,14 @@ struct w1_master
 	struct list_head	w1_master_entry;
 	struct module		*owner;
 	unsigned char		name[W1_MAXNAMELEN];
+	/* list_mutex protects just slist and async_list so slaves can be
+	 * searched for and async commands added while the master has
+	 * w1_master.mutex locked and is operating on the bus.
+	 * lock order w1_mlock, w1_master.mutex, w1_master_list_mutex
+	 */
+	struct mutex		list_mutex;
 	struct list_head	slist;
+	struct list_head	async_list;
 	int			max_slave_count, slave_count;
 	unsigned long		attempts;
 	int			slave_ttl;
@@ -205,11 +212,29 @@ struct w1_master
 	u32			seq;
 };
 
+/**
+ * struct w1_async_cmd - execute callback from the w1_process kthread
+ * @async_entry: link entry
+ * @cb: callback function, must list_del and destroy this list before
+ * returning
+ *
+ * When inserted into the w1_master async_list, w1_process will execute
+ * the callback.  Embed this into the structure with the command details.
+ */
+struct w1_async_cmd {
+	struct list_head	async_entry;
+	void (*cb)(struct w1_master *dev, struct w1_async_cmd *async_cmd);
+};
+
 int w1_create_master_attributes(struct w1_master *);
 void w1_destroy_master_attributes(struct w1_master *master);
 void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
 void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
+/* call w1_unref_slave to release the reference counts w1_search_slave added */
 struct w1_slave *w1_search_slave(struct w1_reg_num *id);
+/* decrements the reference on sl->master and sl, and cleans up if zero
+ * returns the reference count after it has been decremented */
+int w1_unref_slave(struct w1_slave *sl);
 void w1_slave_found(struct w1_master *dev, u64 rn);
 void w1_search_process_cb(struct w1_master *dev, u8 search_type,
 	w1_slave_found_callback cb);
@@ -224,7 +249,8 @@ struct w1_master *w1_search_master_id(u32 id);
  */
 void w1_reconnect_slaves(struct w1_family *f, int attach);
 int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn);
-void w1_slave_detach(struct w1_slave *sl);
+/* 0 success, otherwise EBUSY */
+int w1_slave_detach(struct w1_slave *sl);
 
 u8 w1_triplet(struct w1_master *dev, int bdir);
 void w1_write_8(struct w1_master *, u8);
@@ -260,6 +286,8 @@ extern int w1_max_slave_ttl;
 extern struct list_head w1_masters;
 extern struct mutex w1_mlock;
 
+/* returns 1 if there were commands to executed 0 otherwise */
+extern int w1_process_callbacks(struct w1_master *dev);
 extern int w1_process(void *);
 
 #endif /* __KERNEL__ */

@@ -119,10 +119,12 @@ static int w1_get_slaves(struct w1_master *dev,
 
 	if (req_cmd->cmd == W1_CMD_LIST_SLAVES) {
 		__u64 rn;
+		mutex_lock(&dev->list_mutex);
 		list_for_each_entry(sl, &dev->slist, w1_slave_entry) {
 			memcpy(&rn, &sl->reg_num, sizeof(rn));
 			w1_send_slave(dev, rn);
 		}
+		mutex_unlock(&dev->list_mutex);
 	} else {
 		w1_search_process_cb(dev, cmd->cmd == W1_CMD_ALARM_SEARCH ?
 			W1_ALARM_SEARCH : W1_SEARCH, w1_found_send_slave);
@@ -368,29 +370,134 @@ static int w1_netlink_send_error(struct cn_msg *rcmsg, struct w1_netlink_msg *rm
 	return error;
 }
 
+/* Bundle together a reference count, the full message, and broken out
+ * commands to be executed on each w1 master kthread in one memory allocation.
+ */
+struct w1_cb_block {
+	atomic_t refcnt;
+	struct cn_msg msg;
+	/* cn_msg data */
+	/* one or more variable length struct w1_cb_node */
+};
+struct w1_cb_node {
+	struct w1_async_cmd async;
+	/* pointers within w1_cb_block and msg data */
+	struct w1_cb_block *block;
+	struct w1_netlink_msg *m;
+	struct w1_slave *sl;
+	struct w1_master *dev;
+};
+
+static void w1_process_cb(struct w1_master *dev, struct w1_async_cmd *async_cmd)
+{
+	struct w1_cb_node *node = container_of(async_cmd, struct w1_cb_node,
+		async);
+	u16 mlen = node->m->len;
+	u8 *cmd_data = node->m->data;
+	int err = 0;
+	struct w1_slave *sl = node->sl;
+	struct w1_netlink_cmd *cmd = NULL;
+
+	mutex_lock(&dev->mutex);
+	if (sl && w1_reset_select_slave(sl))
+		err = -ENODEV;
+
+	while (mlen && !err) {
+		cmd = (struct w1_netlink_cmd *)cmd_data;
+
+		if (cmd->len + sizeof(struct w1_netlink_cmd) > mlen) {
+			err = -E2BIG;
+			break;
+		}
+
+		if (sl)
+			err = w1_process_command_slave(sl, &node->block->msg,
+				node->m, cmd);
+		else
+			err = w1_process_command_master(dev, &node->block->msg,
+				node->m, cmd);
+
+		w1_netlink_send_error(&node->block->msg, node->m, cmd, err);
+		err = 0;
+
+		cmd_data += cmd->len + sizeof(struct w1_netlink_cmd);
+		mlen -= cmd->len + sizeof(struct w1_netlink_cmd);
+	}
+
+	if (!cmd || err)
+		w1_netlink_send_error(&node->block->msg, node->m, cmd, err);
+
+	if (sl)
+		w1_unref_slave(sl);
+	else
+		atomic_dec(&dev->refcnt);
+	mutex_unlock(&dev->mutex);
+
+	mutex_lock(&dev->list_mutex);
+	list_del(&async_cmd->async_entry);
+	mutex_unlock(&dev->list_mutex);
+
+	if (atomic_sub_return(1, &node->block->refcnt) == 0)
+		kfree(node->block);
+}
+
 static void w1_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	struct w1_netlink_msg *m = (struct w1_netlink_msg *)(msg + 1);
-	struct w1_netlink_cmd *cmd;
 	struct w1_slave *sl;
 	struct w1_master *dev;
+	u16 msg_len;
 	int err = 0;
+	struct w1_cb_block *block = NULL;
+	struct w1_cb_node *node = NULL;
+	int node_count = 0;
 
-	while (msg->len && !err) {
+	/* Count the number of master or slave commands there are to allocate
+	 * space for one cb_node each.
+	 */
+	msg_len = msg->len;
+	while (msg_len && !err) {
+		if (m->len + sizeof(struct w1_netlink_msg) > msg_len) {
+			err = -E2BIG;
+			break;
+		}
+
+		if (m->type == W1_MASTER_CMD || m->type == W1_SLAVE_CMD)
+			++node_count;
+
+		msg_len -= sizeof(struct w1_netlink_msg) + m->len;
+		m = (struct w1_netlink_msg *)(((u8 *)m) +
+			sizeof(struct w1_netlink_msg) + m->len);
+	}
+	m = (struct w1_netlink_msg *)(msg + 1);
+	if (node_count) {
+		/* msg->len doesn't include itself */
+		long size = sizeof(struct w1_cb_block) + msg->len +
+			node_count*sizeof(struct w1_cb_node);
+		block = kmalloc(size, GFP_KERNEL);
+		if (!block) {
+			w1_netlink_send_error(msg, m, NULL, -ENOMEM);
+			return;
+		}
+		atomic_set(&block->refcnt, 1);
+		memcpy(&block->msg, msg, sizeof(*msg) + msg->len);
+		node = (struct w1_cb_node *)((u8 *)block->msg.data + msg->len);
+	}
+
+	msg_len = msg->len;
+	while (msg_len && !err) {
 		struct w1_reg_num id;
 		u16 mlen = m->len;
-		u8 *cmd_data = m->data;
 
 		dev = NULL;
 		sl = NULL;
-		cmd = NULL;
 
 		memcpy(&id, m->id.id, sizeof(id));
 #if 0
 		printk("%s: %02x.%012llx.%02x: type=%02x, len=%u.\n",
 				__func__, id.family, (unsigned long long)id.id, id.crc, m->type, m->len);
 #endif
-		if (m->len + sizeof(struct w1_netlink_msg) > msg->len) {
+		if (m->len + sizeof(struct w1_netlink_msg) > msg_len) {
 			err = -E2BIG;
 			break;
 		}
@@ -415,41 +522,24 @@ static void w1_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 		if (!mlen)
 			goto out_cont;
 
-		mutex_lock(&dev->mutex);
+		atomic_inc(&block->refcnt);
+		node->async.cb = w1_process_cb;
+		node->block = block;
+		node->m = (struct w1_netlink_msg *)((u8 *)&block->msg +
+			(size_t)((u8 *)m - (u8 *)msg));
+		node->sl = sl;
+		node->dev = dev;
 
-		if (sl && w1_reset_select_slave(sl)) {
-			err = -ENODEV;
-			goto out_up;
-		}
+		mutex_lock(&dev->list_mutex);
+		list_add_tail(&node->async.async_entry, &dev->async_list);
+		wake_up_process(dev->thread);
+		mutex_unlock(&dev->list_mutex);
+		++node;
 
-		while (mlen) {
-			cmd = (struct w1_netlink_cmd *)cmd_data;
-
-			if (cmd->len + sizeof(struct w1_netlink_cmd) > mlen) {
-				err = -E2BIG;
-				break;
-			}
-
-			if (sl)
-				err = w1_process_command_slave(sl, msg, m, cmd);
-			else
-				err = w1_process_command_master(dev, msg, m, cmd);
-
-			w1_netlink_send_error(msg, m, cmd, err);
-			err = 0;
-
-			cmd_data += cmd->len + sizeof(struct w1_netlink_cmd);
-			mlen -= cmd->len + sizeof(struct w1_netlink_cmd);
-		}
-out_up:
-		atomic_dec(&dev->refcnt);
-		if (sl)
-			atomic_dec(&sl->refcnt);
-		mutex_unlock(&dev->mutex);
 out_cont:
-		if (!cmd || err)
-			w1_netlink_send_error(msg, m, cmd, err);
-		msg->len -= sizeof(struct w1_netlink_msg) + m->len;
+		if (err)
+			w1_netlink_send_error(msg, m, NULL, err);
+		msg_len -= sizeof(struct w1_netlink_msg) + m->len;
 		m = (struct w1_netlink_msg *)(((u8 *)m) + sizeof(struct w1_netlink_msg) + m->len);
 
 		/*
@@ -458,6 +548,8 @@ out_cont:
 		if (err == -ENODEV)
 			err = 0;
 	}
+	if (block && atomic_sub_return(1, &block->refcnt) == 0)
+		kfree(block);
 }
 
 int w1_init_netlink(void)
