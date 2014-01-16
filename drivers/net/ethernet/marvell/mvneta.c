@@ -214,9 +214,6 @@
 #define MVNETA_RX_COAL_PKTS		32
 #define MVNETA_RX_COAL_USEC		100
 
-/* Timer */
-#define MVNETA_TX_DONE_TIMER_PERIOD	10
-
 /* Napi polling weight */
 #define MVNETA_RX_POLL_WEIGHT		64
 
@@ -272,15 +269,10 @@ struct mvneta_port {
 	void __iomem *base;
 	struct mvneta_rx_queue *rxqs;
 	struct mvneta_tx_queue *txqs;
-	struct timer_list tx_done_timer;
 	struct net_device *dev;
 
 	u32 cause_rx_tx;
 	struct napi_struct napi;
-
-	/* Flags */
-	unsigned long flags;
-#define MVNETA_F_TX_DONE_TIMER_BIT  0
 
 	/* Napi weight */
 	int weight;
@@ -1112,17 +1104,6 @@ static void mvneta_tx_done_pkts_coal_set(struct mvneta_port *pp,
 	txq->done_pkts_coal = value;
 }
 
-/* Trigger tx done timer in MVNETA_TX_DONE_TIMER_PERIOD msecs */
-static void mvneta_add_tx_done_timer(struct mvneta_port *pp)
-{
-	if (test_and_set_bit(MVNETA_F_TX_DONE_TIMER_BIT, &pp->flags) == 0) {
-		pp->tx_done_timer.expires = jiffies +
-			msecs_to_jiffies(MVNETA_TX_DONE_TIMER_PERIOD);
-		add_timer(&pp->tx_done_timer);
-	}
-}
-
-
 /* Handle rx descriptor fill by setting buf_cookie and buf_phys_addr */
 static void mvneta_rx_desc_fill(struct mvneta_rx_desc *rx_desc,
 				u32 phys_addr, u32 cookie)
@@ -1614,15 +1595,6 @@ out:
 		dev_kfree_skb_any(skb);
 	}
 
-	if (txq->count >= MVNETA_TXDONE_COAL_PKTS)
-		mvneta_txq_done(pp, txq);
-
-	/* If after calling mvneta_txq_done, count equals
-	 * frags, we need to set the timer
-	 */
-	if (txq->count == frags && frags > 0)
-		mvneta_add_tx_done_timer(pp);
-
 	return NETDEV_TX_OK;
 }
 
@@ -1898,14 +1870,22 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 
 	/* Read cause register */
 	cause_rx_tx = mvreg_read(pp, MVNETA_INTR_NEW_CAUSE) &
-		MVNETA_RX_INTR_MASK(rxq_number);
+		(MVNETA_RX_INTR_MASK(rxq_number) | MVNETA_TX_INTR_MASK(txq_number));
+
+	/* Release Tx descriptors */
+	if (cause_rx_tx & MVNETA_TX_INTR_MASK_ALL) {
+		int tx_todo = 0;
+
+		mvneta_tx_done_gbe(pp, (cause_rx_tx & MVNETA_TX_INTR_MASK_ALL), &tx_todo);
+		cause_rx_tx &= ~MVNETA_TX_INTR_MASK_ALL;
+	}
 
 	/* For the case where the last mvneta_poll did not process all
 	 * RX packets
 	 */
 	cause_rx_tx |= pp->cause_rx_tx;
 	if (rxq_number > 1) {
-		while ((cause_rx_tx != 0) && (budget > 0)) {
+		while ((cause_rx_tx & MVNETA_RX_INTR_MASK_ALL) && (budget > 0)) {
 			int count;
 			struct mvneta_rx_queue *rxq;
 			/* get rx queue number from cause_rx_tx */
@@ -1937,32 +1917,12 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 		napi_complete(napi);
 		local_irq_save(flags);
 		mvreg_write(pp, MVNETA_INTR_NEW_MASK,
-			    MVNETA_RX_INTR_MASK(rxq_number));
+			    MVNETA_RX_INTR_MASK(rxq_number) | MVNETA_TX_INTR_MASK(txq_number));
 		local_irq_restore(flags);
 	}
 
 	pp->cause_rx_tx = cause_rx_tx;
 	return rx_done;
-}
-
-/* tx done timer callback */
-static void mvneta_tx_done_timer_callback(unsigned long data)
-{
-	struct net_device *dev = (struct net_device *)data;
-	struct mvneta_port *pp = netdev_priv(dev);
-	int tx_done = 0, tx_todo = 0;
-
-	if (!netif_running(dev))
-		return ;
-
-	clear_bit(MVNETA_F_TX_DONE_TIMER_BIT, &pp->flags);
-
-	tx_done = mvneta_tx_done_gbe(pp,
-				     (((1 << txq_number) - 1) &
-				      MVNETA_CAUSE_TXQ_SENT_DESC_ALL_MASK),
-				     &tx_todo);
-	if (tx_todo > 0)
-		mvneta_add_tx_done_timer(pp);
 }
 
 /* Handle rxq fill: allocates rxq skbs; called when initializing a port */
@@ -2214,7 +2174,7 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 
 	/* Unmask interrupts */
 	mvreg_write(pp, MVNETA_INTR_NEW_MASK,
-		    MVNETA_RX_INTR_MASK(rxq_number));
+		    MVNETA_RX_INTR_MASK(rxq_number) | MVNETA_TX_INTR_MASK(txq_number));
 
 	phy_start(pp->phy_dev);
 	netif_tx_start_all_queues(pp->dev);
@@ -2475,8 +2435,6 @@ static int mvneta_stop(struct net_device *dev)
 	free_irq(dev->irq, pp);
 	mvneta_cleanup_rxqs(pp);
 	mvneta_cleanup_txqs(pp);
-	del_timer(&pp->tx_done_timer);
-	clear_bit(MVNETA_F_TX_DONE_TIMER_BIT, &pp->flags);
 
 	return 0;
 }
@@ -2777,10 +2735,6 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp = netdev_priv(dev);
 
-	pp->tx_done_timer.function = mvneta_tx_done_timer_callback;
-	init_timer(&pp->tx_done_timer);
-	clear_bit(MVNETA_F_TX_DONE_TIMER_BIT, &pp->flags);
-
 	pp->weight = MVNETA_RX_POLL_WEIGHT;
 	pp->phy_node = phy_node;
 	pp->phy_interface = phy_mode;
@@ -2805,8 +2759,6 @@ static int mvneta_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto err_clk;
 	}
-
-	pp->tx_done_timer.data = (unsigned long)dev;
 
 	pp->tx_ring_size = MVNETA_MAX_TXD;
 	pp->rx_ring_size = MVNETA_MAX_RXD;
