@@ -79,90 +79,90 @@ DEFINES
 TYPEDEFS
 ------------------------------------------------------------------------------*/
 
-	typedef u32 TUNERMode_t;
-	typedef u32 *pTUNERMode_t;
+	typedef u32 tuner_mode_t;
+	typedef u32 *ptuner_mode_t;
 
-	typedef char *TUNERSubMode_t;	/* description of submode */
-	typedef TUNERSubMode_t *pTUNERSubMode_t;
+	typedef char *tuner_sub_mode_t;	/* description of submode */
+	typedef tuner_sub_mode_t *ptuner_sub_mode_t;
 
 	typedef enum {
 
 		TUNER_LOCKED,
 		TUNER_NOT_LOCKED
-	} TUNERLockStatus_t, *pTUNERLockStatus_t;
+	} tuner_lock_status_t, *ptuner_lock_status_t;
 
 	typedef struct {
 
 		char *name;	/* Tuner brand & type name */
-		s32 minFreqRF;	/* Lowest  RF input frequency, in kHz */
-		s32 maxFreqRF;	/* Highest RF input frequency, in kHz */
+		s32 min_freq_rf;	/* Lowest  RF input frequency, in kHz */
+		s32 max_freq_rf;	/* Highest RF input frequency, in kHz */
 
-		u8 subMode;	/* Index to sub-mode in use */
-		pTUNERSubMode_t subModeDescriptions;	/* Pointer to description of sub-modes */
-		u8 subModes;	/* Number of available sub-modes      */
+		u8 sub_mode;	/* Index to sub-mode in use */
+		ptuner_sub_mode_t sub_modeDescriptions;	/* Pointer to description of sub-modes */
+		u8 sub_modes;	/* Number of available sub-modes      */
 
 		/* The following fields will be either 0, NULL or false and do not need
 		   initialisation */
-		void *selfCheck;	/* gives proof of initialization  */
-		bool programmed;	/* only valid if selfCheck is OK  */
-		s32 RFfrequency;	/* only valid if programmed       */
-		s32 IFfrequency;	/* only valid if programmed       */
+		void *self_check;	/* gives proof of initialization  */
+		bool programmed;	/* only valid if self_check is OK  */
+		s32 r_ffrequency;	/* only valid if programmed       */
+		s32 i_ffrequency;	/* only valid if programmed       */
 
-		void *myUserData;	/* pointer to associated demod instance */
-		u16 myCapabilities;	/* value for storing application flags  */
+		void *myUser_data;	/* pointer to associated demod instance */
+		u16 my_capabilities;	/* value for storing application flags  */
 
-	} TUNERCommonAttr_t, *pTUNERCommonAttr_t;
+	} tuner_common_attr_t, *ptuner_common_attr_t;
 
 /*
 * Generic functions for DRX devices.
 */
-	typedef struct TUNERInstance_s *pTUNERInstance_t;
+	typedef struct tuner_instance_s *p_tuner_instance_t;
 
-	typedef DRXStatus_t(*TUNEROpenFunc_t) (pTUNERInstance_t tuner);
-	typedef DRXStatus_t(*TUNERCloseFunc_t) (pTUNERInstance_t tuner);
+	typedef drx_status_t(*tuner_open_func_t) (p_tuner_instance_t tuner);
+	typedef drx_status_t(*tuner_close_func_t) (p_tuner_instance_t tuner);
 
-	typedef DRXStatus_t(*TUNERSetFrequencyFunc_t) (pTUNERInstance_t tuner,
-						       TUNERMode_t mode,
+	typedef drx_status_t(*tuner_set_frequency_func_t) (p_tuner_instance_t tuner,
+						       tuner_mode_t mode,
 						       s32
 						       frequency);
 
-	typedef DRXStatus_t(*TUNERGetFrequencyFunc_t) (pTUNERInstance_t tuner,
-						       TUNERMode_t mode,
+	typedef drx_status_t(*tuner_get_frequency_func_t) (p_tuner_instance_t tuner,
+						       tuner_mode_t mode,
 						       s32 *
-						       RFfrequency,
+						       r_ffrequency,
 						       s32 *
-						       IFfrequency);
+						       i_ffrequency);
 
-	typedef DRXStatus_t(*TUNERLockStatusFunc_t) (pTUNERInstance_t tuner,
-						     pTUNERLockStatus_t
-						     lockStat);
+	typedef drx_status_t(*tuner_lock_status_func_t) (p_tuner_instance_t tuner,
+						     ptuner_lock_status_t
+						     lock_stat);
 
-	typedef DRXStatus_t(*TUNERi2cWriteReadFunc_t) (pTUNERInstance_t tuner,
+	typedef drx_status_t(*tune_ri2c_write_read_func_t) (p_tuner_instance_t tuner,
 						       struct i2c_device_addr *
-						       wDevAddr, u16 wCount,
+						       w_dev_addr, u16 w_count,
 						       u8 *wData,
 						       struct i2c_device_addr *
-						       rDevAddr, u16 rCount,
-						       u8 *rData);
+						       r_dev_addr, u16 r_count,
+						       u8 *r_data);
 
 	typedef struct {
-		TUNEROpenFunc_t openFunc;
-		TUNERCloseFunc_t closeFunc;
-		TUNERSetFrequencyFunc_t setFrequencyFunc;
-		TUNERGetFrequencyFunc_t getFrequencyFunc;
-		TUNERLockStatusFunc_t lockStatusFunc;
-		TUNERi2cWriteReadFunc_t i2cWriteReadFunc;
+		tuner_open_func_t open_func;
+		tuner_close_func_t close_func;
+		tuner_set_frequency_func_t set_frequency_func;
+		tuner_get_frequency_func_t get_frequency_func;
+		tuner_lock_status_func_t lock_statusFunc;
+		tune_ri2c_write_read_func_t i2c_write_read_func;
 
-	} TUNERFunc_t, *pTUNERFunc_t;
+	} tuner_func_t, *ptuner_func_t;
 
-	typedef struct TUNERInstance_s {
+	typedef struct tuner_instance_s {
 
-		struct i2c_device_addr myI2CDevAddr;
-		pTUNERCommonAttr_t myCommonAttr;
-		void *myExtAttr;
-		pTUNERFunc_t myFunct;
+		struct i2c_device_addr my_i2c_dev_addr;
+		ptuner_common_attr_t my_common_attr;
+		void *my_ext_attr;
+		ptuner_func_t my_funct;
 
-	} TUNERInstance_t;
+	} tuner_instance_t;
 
 /*------------------------------------------------------------------------------
 ENUM
@@ -176,28 +176,28 @@ STRUCTS
 Exported FUNCTIONS
 ------------------------------------------------------------------------------*/
 
-	DRXStatus_t DRXBSP_TUNER_Open(pTUNERInstance_t tuner);
+	drx_status_t drxbsp_tuner_open(p_tuner_instance_t tuner);
 
-	DRXStatus_t DRXBSP_TUNER_Close(pTUNERInstance_t tuner);
+	drx_status_t drxbsp_tuner_close(p_tuner_instance_t tuner);
 
-	DRXStatus_t DRXBSP_TUNER_SetFrequency(pTUNERInstance_t tuner,
-					      TUNERMode_t mode,
+	drx_status_t drxbsp_tuner_set_frequency(p_tuner_instance_t tuner,
+					      tuner_mode_t mode,
 					      s32 frequency);
 
-	DRXStatus_t DRXBSP_TUNER_GetFrequency(pTUNERInstance_t tuner,
-					      TUNERMode_t mode,
-					      s32 *RFfrequency,
-					      s32 *IFfrequency);
+	drx_status_t drxbsp_tuner_get_frequency(p_tuner_instance_t tuner,
+					      tuner_mode_t mode,
+					      s32 *r_ffrequency,
+					      s32 *i_ffrequency);
 
-	DRXStatus_t DRXBSP_TUNER_LockStatus(pTUNERInstance_t tuner,
-					    pTUNERLockStatus_t lockStat);
+	drx_status_t drxbsp_tuner_lock_status(p_tuner_instance_t tuner,
+					    ptuner_lock_status_t lock_stat);
 
-	DRXStatus_t DRXBSP_TUNER_DefaultI2CWriteRead(pTUNERInstance_t tuner,
-						     struct i2c_device_addr *wDevAddr,
-						     u16 wCount,
+	drx_status_t drxbsp_tuner_default_i2c_write_read(p_tuner_instance_t tuner,
+						     struct i2c_device_addr *w_dev_addr,
+						     u16 w_count,
 						     u8 *wData,
-						     struct i2c_device_addr *rDevAddr,
-						     u16 rCount, u8 *rData);
+						     struct i2c_device_addr *r_dev_addr,
+						     u16 r_count, u8 *r_data);
 
 /*------------------------------------------------------------------------------
 THE END

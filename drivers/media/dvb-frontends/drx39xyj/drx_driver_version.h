@@ -53,8 +53,8 @@ extern "C" {
 
 #ifdef _REGISTERTABLE_
 #include <registertable.h>
-	extern RegisterTable_t drx_driver_version[];
-	extern RegisterTableInfo_t drx_driver_version_info[];
+	extern register_table_t drx_driver_version[];
+	extern register_table_info_t drx_driver_version_info[];
 #endif				/* _REGISTERTABLE_ */
 
 /*

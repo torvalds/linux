@@ -183,7 +183,7 @@ ENUMS
 DEFINES
 ----------------------------------------------------------------------------*/
 #ifndef DRXJ_WAKE_UP_KEY
-#define DRXJ_WAKE_UP_KEY (demod->myI2CDevAddr->i2cAddr)
+#define DRXJ_WAKE_UP_KEY (demod->my_i2c_dev_addr->i2c_addr)
 #endif
 
 /**
@@ -208,7 +208,7 @@ DEFINES
 * \def DRXJ_DAP
 * \brief Name of structure containing all data access protocol functions.
 */
-#define DRXJ_DAP drxDapDRXJFunct_g
+#define DRXJ_DAP drx_dap_drxj_funct_g
 
 /**
 * \def HI_I2C_DELAY
@@ -505,38 +505,38 @@ DEFINES
 #define DUMMY_READ() \
    do { \
       u16 dummy; \
-      RR16(demod->myI2CDevAddr, SCU_RAM_VERSION_HI__A, &dummy); \
+      RR16(demod->my_i2c_dev_addr, SCU_RAM_VERSION_HI__A, &dummy); \
    } while (0)
 
 #define WR16(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.writeReg16Func( (dev), (addr), (val), 0) )
+   CHK_ERROR(DRXJ_DAP.write_reg16func( (dev), (addr), (val), 0) )
 
 #define RR16(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.readReg16Func( (dev), (addr), (val), 0) )
+   CHK_ERROR(DRXJ_DAP.read_reg16func( (dev), (addr), (val), 0) )
 
 #define WR32(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.writeReg32Func( (dev), (addr), (val), 0) )
+   CHK_ERROR(DRXJ_DAP.write_reg32func( (dev), (addr), (val), 0) )
 
 #define RR32(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.readReg32Func( (dev), (addr), (val), 0) )
+   CHK_ERROR(DRXJ_DAP.read_reg32func( (dev), (addr), (val), 0) )
 
 #define WRB(dev, addr, len, block) \
-   CHK_ERROR(DRXJ_DAP.writeBlockFunc( (dev), (addr), (len), (block), 0) )
+   CHK_ERROR(DRXJ_DAP.write_block_func( (dev), (addr), (len), (block), 0) )
 
 #define RRB(dev, addr, len, block) \
-   CHK_ERROR(DRXJ_DAP.readBlockFunc( (dev), (addr), (len), (block), 0) )
+   CHK_ERROR(DRXJ_DAP.read_block_func( (dev), (addr), (len), (block), 0) )
 
 #define BCWR16(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.writeReg16Func( (dev), (addr), (val), DRXDAP_FASI_BROADCAST) )
+   CHK_ERROR(DRXJ_DAP.write_reg16func( (dev), (addr), (val), DRXDAP_FASI_BROADCAST) )
 
 #define ARR32(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP_AtomicReadReg32( (dev), (addr), (val), 0) )
+   CHK_ERROR(drxj_dap_atomic_read_reg32( (dev), (addr), (val), 0) )
 
 #define SARR16(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP_SCU_AtomicReadReg16( (dev), (addr), (val), 0) )
+   CHK_ERROR(drxj_dap_scu_atomic_read_reg16( (dev), (addr), (val), 0) )
 
 #define SAWR16(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP_SCU_AtomicWriteReg16( (dev), (addr), (val), 0) )
+   CHK_ERROR(drxj_dap_scu_atomic_write_reg16( (dev), (addr), (val), 0) )
 
 /**
 * This macro is used to create byte arrays for block writes.
@@ -586,10 +586,10 @@ DEFINES
 /*-----------------------------------------------------------------------------
 STATIC VARIABLES
 ----------------------------------------------------------------------------*/
-int DRXJ_Open(pDRXDemodInstance_t demod);
-int DRXJ_Close(pDRXDemodInstance_t demod);
-int DRXJ_Ctrl(pDRXDemodInstance_t demod,
-		      u32 ctrl, void *ctrlData);
+int drxj_open(pdrx_demod_instance_t demod);
+int drxj_close(pdrx_demod_instance_t demod);
+int drxj_ctrl(pdrx_demod_instance_t demod,
+		      u32 ctrl, void *ctrl_data);
 
 /*-----------------------------------------------------------------------------
 GLOBAL VARIABLES
@@ -598,105 +598,105 @@ GLOBAL VARIABLES
  * DRXJ DAP structures
  */
 
-static int DRXJ_DAP_ReadBlock(struct i2c_device_addr *devAddr,
-				      DRXaddr_t addr,
+static int drxj_dap_read_block(struct i2c_device_addr *dev_addr,
+				      dr_xaddr_t addr,
 				      u16 datasize,
-				      u8 *data, DRXflags_t flags);
+				      u8 *data, dr_xflags_t flags);
 
-static int DRXJ_DAP_ReadModifyWriteReg8(struct i2c_device_addr *devAddr,
-						DRXaddr_t waddr,
-						DRXaddr_t raddr,
+static int drxj_dap_read_modify_write_reg8(struct i2c_device_addr *dev_addr,
+						dr_xaddr_t waddr,
+						dr_xaddr_t raddr,
 						u8 wdata, u8 *rdata);
 
-static int DRXJ_DAP_ReadModifyWriteReg16(struct i2c_device_addr *devAddr,
-						 DRXaddr_t waddr,
-						 DRXaddr_t raddr,
+static int drxj_dap_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
+						 dr_xaddr_t waddr,
+						 dr_xaddr_t raddr,
 						 u16 wdata, u16 *rdata);
 
-static int DRXJ_DAP_ReadModifyWriteReg32(struct i2c_device_addr *devAddr,
-						 DRXaddr_t waddr,
-						 DRXaddr_t raddr,
+static int drxj_dap_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
+						 dr_xaddr_t waddr,
+						 dr_xaddr_t raddr,
 						 u32 wdata, u32 *rdata);
 
-static int DRXJ_DAP_ReadReg8(struct i2c_device_addr *devAddr,
-				     DRXaddr_t addr,
-				     u8 *data, DRXflags_t flags);
+static int drxj_dap_read_reg8(struct i2c_device_addr *dev_addr,
+				     dr_xaddr_t addr,
+				     u8 *data, dr_xflags_t flags);
 
-static int DRXJ_DAP_ReadReg16(struct i2c_device_addr *devAddr,
-				      DRXaddr_t addr,
-				      u16 *data, DRXflags_t flags);
+static int drxj_dap_read_reg16(struct i2c_device_addr *dev_addr,
+				      dr_xaddr_t addr,
+				      u16 *data, dr_xflags_t flags);
 
-static int DRXJ_DAP_ReadReg32(struct i2c_device_addr *devAddr,
-				      DRXaddr_t addr,
-				      u32 *data, DRXflags_t flags);
+static int drxj_dap_read_reg32(struct i2c_device_addr *dev_addr,
+				      dr_xaddr_t addr,
+				      u32 *data, dr_xflags_t flags);
 
-static int DRXJ_DAP_WriteBlock(struct i2c_device_addr *devAddr,
-				       DRXaddr_t addr,
+static int drxj_dap_write_block(struct i2c_device_addr *dev_addr,
+				       dr_xaddr_t addr,
 				       u16 datasize,
-				       u8 *data, DRXflags_t flags);
+				       u8 *data, dr_xflags_t flags);
 
-static int DRXJ_DAP_WriteReg8(struct i2c_device_addr *devAddr,
-				      DRXaddr_t addr,
-				      u8 data, DRXflags_t flags);
+static int drxj_dap_write_reg8(struct i2c_device_addr *dev_addr,
+				      dr_xaddr_t addr,
+				      u8 data, dr_xflags_t flags);
 
-static int DRXJ_DAP_WriteReg16(struct i2c_device_addr *devAddr,
-				       DRXaddr_t addr,
-				       u16 data, DRXflags_t flags);
+static int drxj_dap_write_reg16(struct i2c_device_addr *dev_addr,
+				       dr_xaddr_t addr,
+				       u16 data, dr_xflags_t flags);
 
-static int DRXJ_DAP_WriteReg32(struct i2c_device_addr *devAddr,
-				       DRXaddr_t addr,
-				       u32 data, DRXflags_t flags);
+static int drxj_dap_write_reg32(struct i2c_device_addr *dev_addr,
+				       dr_xaddr_t addr,
+				       u32 data, dr_xflags_t flags);
 
 /* The version structure of this protocol implementation */
-char drxDapDRXJModuleName[] = "DRXJ Data Access Protocol";
-char drxDapDRXJVersionText[] = "0.0.0";
+char drx_dap_drxj_module_name[] = "DRXJ Data Access Protocol";
+char drx_dap_drxj_version_text[] = "0.0.0";
 
-DRXVersion_t drxDapDRXJVersion = {
+drx_version_t drx_dap_drxj_version = {
 	DRX_MODULE_DAP,	      /**< type identifier of the module  */
-	drxDapDRXJModuleName, /**< name or description of module  */
+	drx_dap_drxj_module_name, /**< name or description of module  */
 
 	0,		      /**< major version number           */
 	0,		      /**< minor version number           */
 	0,		      /**< patch version number           */
-	drxDapDRXJVersionText /**< version as text string         */
+	drx_dap_drxj_version_text /**< version as text string         */
 };
 
 /* The structure containing the protocol interface */
-DRXAccessFunc_t drxDapDRXJFunct_g = {
-	&drxDapDRXJVersion,
-	DRXJ_DAP_WriteBlock,	/* Supported       */
-	DRXJ_DAP_ReadBlock,	/* Supported       */
-	DRXJ_DAP_WriteReg8,	/* Not supported   */
-	DRXJ_DAP_ReadReg8,	/* Not supported   */
-	DRXJ_DAP_ReadModifyWriteReg8,	/* Not supported   */
-	DRXJ_DAP_WriteReg16,	/* Supported       */
-	DRXJ_DAP_ReadReg16,	/* Supported       */
-	DRXJ_DAP_ReadModifyWriteReg16,	/* Supported       */
-	DRXJ_DAP_WriteReg32,	/* Supported       */
-	DRXJ_DAP_ReadReg32,	/* Supported       */
-	DRXJ_DAP_ReadModifyWriteReg32,	/* Not supported   */
+drx_access_func_t drx_dap_drxj_funct_g = {
+	&drx_dap_drxj_version,
+	drxj_dap_write_block,	/* Supported       */
+	drxj_dap_read_block,	/* Supported       */
+	drxj_dap_write_reg8,	/* Not supported   */
+	drxj_dap_read_reg8,	/* Not supported   */
+	drxj_dap_read_modify_write_reg8,	/* Not supported   */
+	drxj_dap_write_reg16,	/* Supported       */
+	drxj_dap_read_reg16,	/* Supported       */
+	drxj_dap_read_modify_write_reg16,	/* Supported       */
+	drxj_dap_write_reg32,	/* Supported       */
+	drxj_dap_read_reg32,	/* Supported       */
+	drxj_dap_read_modify_write_reg32,	/* Not supported   */
 };
 
 /**
 * /var DRXJ_Func_g
 * /brief The driver functions of the drxj
 */
-DRXDemodFunc_t DRXJFunctions_g = {
+drx_demod_func_t drxj_functions_g = {
 	DRXJ_TYPE_ID,
-	DRXJ_Open,
-	DRXJ_Close,
-	DRXJ_Ctrl
+	drxj_open,
+	drxj_close,
+	drxj_ctrl
 };
 
-DRXJData_t DRXJData_g = {
-	false,			/* hasLNA : true if LNA (aka PGA) present      */
-	false,			/* hasOOB : true if OOB supported              */
-	false,			/* hasNTSC: true if NTSC supported             */
-	false,			/* hasBTSC: true if BTSC supported             */
-	false,			/* hasSMATX: true if SMA_TX pin is available   */
-	false,			/* hasSMARX: true if SMA_RX pin is available   */
-	false,			/* hasGPIO : true if GPIO pin is available     */
-	false,			/* hasIRQN : true if IRQN pin is available     */
+drxj_data_t drxj_data_g = {
+	false,			/* has_lna : true if LNA (aka PGA) present      */
+	false,			/* has_oob : true if OOB supported              */
+	false,			/* has_ntsc: true if NTSC supported             */
+	false,			/* has_btsc: true if BTSC supported             */
+	false,			/* has_smatx: true if SMA_TX pin is available   */
+	false,			/* has_smarx: true if SMA_RX pin is available   */
+	false,			/* has_gpio : true if GPIO pin is available     */
+	false,			/* has_irqn : true if IRQN pin is available     */
 	0,			/* mfx A1/A2/A... */
 
 	/* tuner settings */
@@ -705,38 +705,38 @@ DRXJData_t DRXJData_g = {
 	DRX_STANDARD_UNKNOWN,	/* current standard           */
 	DRX_CONSTELLATION_AUTO,	/* constellation              */
 	0,			/* frequency in KHz           */
-	DRX_BANDWIDTH_UNKNOWN,	/* currBandwidth              */
+	DRX_BANDWIDTH_UNKNOWN,	/* curr_bandwidth              */
 	DRX_MIRROR_NO,		/* mirror                     */
 
 	/* signal quality information: */
 	/* default values taken from the QAM Programming guide */
-	/*   fecBitsDesired should not be less than 4000000    */
-	4000000,		/* fecBitsDesired    */
-	5,			/* fecVdPlen         */
-	4,			/* qamVdPrescale     */
+	/*   fec_bits_desired should not be less than 4000000    */
+	4000000,		/* fec_bits_desired    */
+	5,			/* fec_vd_plen         */
+	4,			/* qam_vd_prescale     */
 	0xFFFF,			/* qamVDPeriod       */
-	204 * 8,		/* fecRsPlen annex A */
-	1,			/* fecRsPrescale     */
-	FEC_RS_MEASUREMENT_PERIOD,	/* fecRsPeriod     */
-	true,			/* resetPktErrAcc    */
-	0,			/* pktErrAccStart    */
+	204 * 8,		/* fec_rs_plen annex A */
+	1,			/* fec_rs_prescale     */
+	FEC_RS_MEASUREMENT_PERIOD,	/* fec_rs_period     */
+	true,			/* reset_pkt_err_acc    */
+	0,			/* pkt_errAccStart    */
 
 	/* HI configuration */
-	0,			/* HICfgTimingDiv    */
-	0,			/* HICfgBridgeDelay  */
-	0,			/* HICfgWakeUpKey    */
-	0,			/* HICfgCtrl         */
+	0,			/* hi_cfg_timing_div    */
+	0,			/* hi_cfg_bridge_delay  */
+	0,			/* hi_cfg_wake_up_key    */
+	0,			/* hi_cfg_ctrl         */
 	0,			/* HICfgTimeout      */
 	/* UIO configuartion */
-	DRX_UIO_MODE_DISABLE,	/* uioSmaRxMode      */
-	DRX_UIO_MODE_DISABLE,	/* uioSmaTxMode      */
+	DRX_UIO_MODE_DISABLE,	/* uio_sma_rx_mode      */
+	DRX_UIO_MODE_DISABLE,	/* uio_sma_tx_mode      */
 	DRX_UIO_MODE_DISABLE,	/* uioASELMode       */
-	DRX_UIO_MODE_DISABLE,	/* uioIRQNMode       */
+	DRX_UIO_MODE_DISABLE,	/* uio_irqn_mode       */
 	/* FS setting */
-	0UL,			/* iqmFsRateOfs      */
-	false,			/* posImage          */
+	0UL,			/* iqm_fs_rate_ofs      */
+	false,			/* pos_image          */
 	/* RC setting */
-	0UL,			/* iqmRcRateOfs      */
+	0UL,			/* iqm_rc_rate_ofs      */
 	/* AUD information */
 /*   false,                  * flagSetAUDdone    */
 /*   false,                  * detectedRDS       */
@@ -746,7 +746,7 @@ DRXJData_t DRXJData_g = {
 /*   (u16) 0xFFF,          * rdsLastCount      */
 
 /*#ifdef DRXJ_SPLIT_UCODE_UPLOAD
-   false,                  * flagAudMcUploaded */
+   false,                  * flag_aud_mc_uploaded */
 /*#endif * DRXJ_SPLIT_UCODE_UPLOAD */
 	/* ATV configuartion */
 	0UL,			/* flags cfg changes */
@@ -788,57 +788,57 @@ DRXJData_t DRXJData_g = {
 	true,			/* flag CVBS ouput enable        */
 	false,			/* flag SIF ouput enable         */
 	DRXJ_SIF_ATTENUATION_0DB,	/* current SIF att setting       */
-	{			/* qamRfAgcCfg */
+	{			/* qam_rf_agc_cfg */
 	 DRX_STANDARD_ITU_B,	/* standard            */
-	 DRX_AGC_CTRL_AUTO,	/* ctrlMode            */
-	 0,			/* outputLevel         */
-	 0,			/* minOutputLevel      */
-	 0xFFFF,		/* maxOutputLevel      */
+	 DRX_AGC_CTRL_AUTO,	/* ctrl_mode            */
+	 0,			/* output_level         */
+	 0,			/* min_output_level      */
+	 0xFFFF,		/* max_output_level      */
 	 0x0000,		/* speed               */
 	 0x0000,		/* top                 */
 	 0x0000			/* c.o.c.              */
 	 },
-	{			/* qamIfAgcCfg */
+	{			/* qam_if_agc_cfg */
 	 DRX_STANDARD_ITU_B,	/* standard            */
-	 DRX_AGC_CTRL_AUTO,	/* ctrlMode            */
-	 0,			/* outputLevel         */
-	 0,			/* minOutputLevel      */
-	 0xFFFF,		/* maxOutputLevel      */
+	 DRX_AGC_CTRL_AUTO,	/* ctrl_mode            */
+	 0,			/* output_level         */
+	 0,			/* min_output_level      */
+	 0xFFFF,		/* max_output_level      */
 	 0x0000,		/* speed               */
 	 0x0000,		/* top    (don't care) */
 	 0x0000			/* c.o.c. (don't care) */
 	 },
-	{			/* vsbRfAgcCfg */
+	{			/* vsb_rf_agc_cfg */
 	 DRX_STANDARD_8VSB,	/* standard       */
-	 DRX_AGC_CTRL_AUTO,	/* ctrlMode       */
-	 0,			/* outputLevel    */
-	 0,			/* minOutputLevel */
-	 0xFFFF,		/* maxOutputLevel */
+	 DRX_AGC_CTRL_AUTO,	/* ctrl_mode       */
+	 0,			/* output_level    */
+	 0,			/* min_output_level */
+	 0xFFFF,		/* max_output_level */
 	 0x0000,		/* speed          */
 	 0x0000,		/* top    (don't care) */
 	 0x0000			/* c.o.c. (don't care) */
 	 },
-	{			/* vsbIfAgcCfg */
+	{			/* vsb_if_agc_cfg */
 	 DRX_STANDARD_8VSB,	/* standard       */
-	 DRX_AGC_CTRL_AUTO,	/* ctrlMode       */
-	 0,			/* outputLevel    */
-	 0,			/* minOutputLevel */
-	 0xFFFF,		/* maxOutputLevel */
+	 DRX_AGC_CTRL_AUTO,	/* ctrl_mode       */
+	 0,			/* output_level    */
+	 0,			/* min_output_level */
+	 0xFFFF,		/* max_output_level */
 	 0x0000,		/* speed          */
 	 0x0000,		/* top    (don't care) */
 	 0x0000			/* c.o.c. (don't care) */
 	 },
-	0,			/* qamPgaCfg */
-	0,			/* vsbPgaCfg */
-	{			/* qamPreSawCfg */
+	0,			/* qam_pga_cfg */
+	0,			/* vsb_pga_cfg */
+	{			/* qam_pre_saw_cfg */
 	 DRX_STANDARD_ITU_B,	/* standard  */
 	 0,			/* reference */
-	 false			/* usePreSaw */
+	 false			/* use_pre_saw */
 	 },
-	{			/* vsbPreSawCfg */
+	{			/* vsb_pre_saw_cfg */
 	 DRX_STANDARD_8VSB,	/* standard  */
 	 0,			/* reference */
-	 false			/* usePreSaw */
+	 false			/* use_pre_saw */
 	 },
 
 	/* Version information */
@@ -848,7 +848,7 @@ DRXJData_t DRXJData_g = {
 	 "01234567890"		/* human readable version device specific code  */
 	 },
 	{
-	 {			/* DRXVersion_t for microcode                   */
+	 {			/* drx_version_t for microcode                   */
 	  DRX_MODULE_UNKNOWN,
 	  (char *)(NULL),
 	  0,
@@ -856,7 +856,7 @@ DRXJData_t DRXJData_g = {
 	  0,
 	  (char *)(NULL)
 	  },
-	 {			/* DRXVersion_t for device specific code */
+	 {			/* drx_version_t for device specific code */
 	  DRX_MODULE_UNKNOWN,
 	  (char *)(NULL),
 	  0,
@@ -866,17 +866,17 @@ DRXJData_t DRXJData_g = {
 	  }
 	 },
 	{
-	 {			/* DRXVersionList_t for microcode */
-	  (pDRXVersion_t) (NULL),
-	  (pDRXVersionList_t) (NULL)
+	 {			/* drx_version_list_t for microcode */
+	  (pdrx_version_t) (NULL),
+	  (p_drx_version_list_t) (NULL)
 	  },
-	 {			/* DRXVersionList_t for device specific code */
-	  (pDRXVersion_t) (NULL),
-	  (pDRXVersionList_t) (NULL)
+	 {			/* drx_version_list_t for device specific code */
+	  (pdrx_version_t) (NULL),
+	  (p_drx_version_list_t) (NULL)
 	  }
 	 },
 #endif
-	false,			/* smartAntInverted */
+	false,			/* smart_ant_inverted */
 	/* Tracking filter setting for OOB  */
 	{
 	 12000,
@@ -887,69 +887,69 @@ DRXJData_t DRXJData_g = {
 	 3000,
 	 2000,
 	 0},
-	false,			/* oobPowerOn           */
-	0,			/* mpegTsStaticBitrate  */
-	false,			/* disableTEIhandling   */
-	false,			/* bitReverseMpegOutout */
-	DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO,	/* mpegOutputClockRate */
-	DRXJ_MPEG_START_WIDTH_1CLKCYC,	/* mpegStartWidth */
+	false,			/* oob_power_on           */
+	0,			/* mpeg_ts_static_bitrate  */
+	false,			/* disable_te_ihandling   */
+	false,			/* bit_reverse_mpeg_outout */
+	DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO,	/* mpeg_output_clock_rate */
+	DRXJ_MPEG_START_WIDTH_1CLKCYC,	/* mpeg_start_width */
 
 	/* Pre SAW & Agc configuration for ATV */
 	{
 	 DRX_STANDARD_NTSC,	/* standard     */
 	 7,			/* reference    */
-	 true			/* usePreSaw    */
+	 true			/* use_pre_saw    */
 	 },
 	{			/* ATV RF-AGC */
 	 DRX_STANDARD_NTSC,	/* standard              */
-	 DRX_AGC_CTRL_AUTO,	/* ctrlMode              */
-	 0,			/* outputLevel           */
-	 0,			/* minOutputLevel (d.c.) */
-	 0,			/* maxOutputLevel (d.c.) */
+	 DRX_AGC_CTRL_AUTO,	/* ctrl_mode              */
+	 0,			/* output_level           */
+	 0,			/* min_output_level (d.c.) */
+	 0,			/* max_output_level (d.c.) */
 	 3,			/* speed                 */
 	 9500,			/* top                   */
 	 4000			/* cut-off current       */
 	 },
 	{			/* ATV IF-AGC */
 	 DRX_STANDARD_NTSC,	/* standard              */
-	 DRX_AGC_CTRL_AUTO,	/* ctrlMode              */
-	 0,			/* outputLevel           */
-	 0,			/* minOutputLevel (d.c.) */
-	 0,			/* maxOutputLevel (d.c.) */
+	 DRX_AGC_CTRL_AUTO,	/* ctrl_mode              */
+	 0,			/* output_level           */
+	 0,			/* min_output_level (d.c.) */
+	 0,			/* max_output_level (d.c.) */
 	 3,			/* speed                 */
 	 2400,			/* top                   */
 	 0			/* c.o.c.         (d.c.) */
 	 },
 	140,			/* ATV PGA config */
-	0,			/* currSymbolRate */
+	0,			/* curr_symbol_rate */
 
-	false,			/* pdrSafeMode     */
-	SIO_PDR_GPIO_CFG__PRE,	/* pdrSafeRestoreValGpio  */
-	SIO_PDR_VSYNC_CFG__PRE,	/* pdrSafeRestoreValVSync */
-	SIO_PDR_SMA_RX_CFG__PRE,	/* pdrSafeRestoreValSmaRx */
-	SIO_PDR_SMA_TX_CFG__PRE,	/* pdrSafeRestoreValSmaTx */
+	false,			/* pdr_safe_mode     */
+	SIO_PDR_GPIO_CFG__PRE,	/* pdr_safe_restore_val_gpio  */
+	SIO_PDR_VSYNC_CFG__PRE,	/* pdr_safe_restore_val_v_sync */
+	SIO_PDR_SMA_RX_CFG__PRE,	/* pdr_safe_restore_val_sma_rx */
+	SIO_PDR_SMA_TX_CFG__PRE,	/* pdr_safe_restore_val_sma_tx */
 
-	4,			/* oobPreSaw            */
-	DRXJ_OOB_LO_POW_MINUS10DB,	/* oobLoPow             */
+	4,			/* oob_pre_saw            */
+	DRXJ_OOB_LO_POW_MINUS10DB,	/* oob_lo_pow             */
 	{
-	 false			/* audData, only first member */
+	 false			/* aud_data, only first member */
 	 },
 };
 
 /**
-* \var DRXJDefaultAddr_g
+* \var drxj_default_addr_g
 * \brief Default I2C address and device identifier.
 */
-struct i2c_device_addr DRXJDefaultAddr_g = {
+struct i2c_device_addr drxj_default_addr_g = {
 	DRXJ_DEF_I2C_ADDR,	/* i2c address */
 	DRXJ_DEF_DEMOD_DEV_ID	/* device id */
 };
 
 /**
-* \var DRXJDefaultCommAttr_g
+* \var drxj_default_comm_attr_g
 * \brief Default common attributes of a drxj demodulator instance.
 */
-DRXCommonAttr_t DRXJDefaultCommAttr_g = {
+drx_common_attr_t drxj_default_comm_attr_g = {
 	(u8 *) NULL,		/* ucode ptr            */
 	0,			/* ucode size           */
 	true,			/* ucode verify switch  */
@@ -980,7 +980,7 @@ DRXCommonAttr_t DRXJDefaultCommAttr_g = {
 	/* Initilisations below can be ommited, they require no user input and
 	   are initialy 0, NULL or false. The compiler will initialize them to these
 	   values when ommited.  */
-	false,			/* isOpened */
+	false,			/* is_opened */
 
 	/* SCAN */
 	NULL,			/* no scan params yet               */
@@ -1011,23 +1011,23 @@ DRXCommonAttr_t DRXJDefaultCommAttr_g = {
 	 },
 	DRX_STANDARD_UNKNOWN,	/* current standard */
 	DRX_STANDARD_UNKNOWN,	/* previous standard */
-	DRX_STANDARD_UNKNOWN,	/* diCacheStandard   */
-	false,			/* useBootloader */
+	DRX_STANDARD_UNKNOWN,	/* di_cache_standard   */
+	false,			/* use_bootloader */
 	0UL,			/* capabilities */
 	0			/* mfx */
 };
 
 /**
-* \var DRXJDefaultDemod_g
+* \var drxj_default_demod_g
 * \brief Default drxj demodulator instance.
 */
-DRXDemodInstance_t DRXJDefaultDemod_g = {
-	&DRXJFunctions_g,	/* demod functions */
+drx_demod_instance_t drxj_default_demod_g = {
+	&drxj_functions_g,	/* demod functions */
 	&DRXJ_DAP,		/* data access protocol functions */
 	NULL,			/* tuner instance */
-	&DRXJDefaultAddr_g,	/* i2c address & device id */
-	&DRXJDefaultCommAttr_g,	/* demod common attributes */
-	&DRXJData_g		/* demod device specific attributes */
+	&drxj_default_addr_g,	/* i2c address & device id */
+	&drxj_default_comm_attr_g,	/* demod common attributes */
+	&drxj_data_g		/* demod device specific attributes */
 };
 
 /**
@@ -1036,16 +1036,16 @@ DRXDemodInstance_t DRXJDefaultDemod_g = {
 * This structure is DRXK specific.
 *
 */
-DRXAudData_t DRXJDefaultAudData_g = {
-	false,			/* audioIsActive */
-	DRX_AUD_STANDARD_AUTO,	/* audioStandard  */
+drx_aud_data_t drxj_default_aud_data_g = {
+	false,			/* audio_is_active */
+	DRX_AUD_STANDARD_AUTO,	/* audio_standard  */
 
 	/* i2sdata */
 	{
-	 false,			/* outputEnable   */
+	 false,			/* output_enable   */
 	 48000,			/* frequency      */
 	 DRX_I2S_MODE_MASTER,	/* mode           */
-	 DRX_I2S_WORDLENGTH_32,	/* wordLength     */
+	 DRX_I2S_WORDLENGTH_32,	/* word_length     */
 	 DRX_I2S_POLARITY_RIGHT,	/* polarity       */
 	 DRX_I2S_FORMAT_WS_WITH_DATA	/* format         */
 	 },
@@ -1053,15 +1053,15 @@ DRXAudData_t DRXJDefaultAudData_g = {
 	{
 	 true,			/* mute;          */
 	 0,			/* volume         */
-	 DRX_AUD_AVC_OFF,	/* avcMode        */
-	 0,			/* avcRefLevel    */
-	 DRX_AUD_AVC_MAX_GAIN_12DB,	/* avcMaxGain     */
-	 DRX_AUD_AVC_MAX_ATTEN_24DB,	/* avcMaxAtten    */
-	 0,			/* strengthLeft   */
-	 0			/* strengthRight  */
+	 DRX_AUD_AVC_OFF,	/* avc_mode        */
+	 0,			/* avc_ref_level    */
+	 DRX_AUD_AVC_MAX_GAIN_12DB,	/* avc_max_gain     */
+	 DRX_AUD_AVC_MAX_ATTEN_24DB,	/* avc_max_atten    */
+	 0,			/* strength_left   */
+	 0			/* strength_right  */
 	 },
-	DRX_AUD_AUTO_SOUND_SELECT_ON_CHANGE_ON,	/* autoSound */
-	/*  assThresholds */
+	DRX_AUD_AUTO_SOUND_SELECT_ON_CHANGE_ON,	/* auto_sound */
+	/*  ass_thresholds */
 	{
 	 440,			/* A2    */
 	 12,			/* BTSC  */
@@ -1087,33 +1087,33 @@ DRXAudData_t DRXJDefaultAudData_g = {
 	 },
 	/* mixer */
 	{
-	 DRX_AUD_SRC_STEREO_OR_A,	/* sourceI2S */
-	 DRX_AUD_I2S_MATRIX_STEREO,	/* matrixI2S */
-	 DRX_AUD_FM_MATRIX_SOUND_A	/* matrixFm  */
+	 DRX_AUD_SRC_STEREO_OR_A,	/* source_i2s */
+	 DRX_AUD_I2S_MATRIX_STEREO,	/* matrix_i2s */
+	 DRX_AUD_FM_MATRIX_SOUND_A	/* matrix_fm  */
 	 },
 	DRX_AUD_DEVIATION_NORMAL,	/* deviation */
-	DRX_AUD_AVSYNC_OFF,	/* avSync */
+	DRX_AUD_AVSYNC_OFF,	/* av_sync */
 
 	/* prescale */
 	{
-	 DRX_AUD_MAX_FM_DEVIATION,	/* fmDeviation */
-	 DRX_AUD_MAX_NICAM_PRESCALE	/* nicamGain */
+	 DRX_AUD_MAX_FM_DEVIATION,	/* fm_deviation */
+	 DRX_AUD_MAX_NICAM_PRESCALE	/* nicam_gain */
 	 },
 	DRX_AUD_FM_DEEMPH_75US,	/* deemph */
-	DRX_BTSC_STEREO,	/* btscDetect */
-	0,			/* rdsDataCounter */
-	false			/* rdsDataPresent */
+	DRX_BTSC_STEREO,	/* btsc_detect */
+	0,			/* rds_data_counter */
+	false			/* rds_data_present */
 };
 
 /*-----------------------------------------------------------------------------
 STRUCTURES
 ----------------------------------------------------------------------------*/
 typedef struct {
-	u16 eqMSE;
-	u8 eqMode;
-	u8 eqCtrl;
-	u8 eqStat;
-} DRXJEQStat_t, *pDRXJEQStat_t;
+	u16 eq_mse;
+	u8 eq_mode;
+	u8 eq_ctrl;
+	u8 eq_stat;
+} drxjeq_stat_t, *pdrxjeq_stat_t;
 
 /* HI command */
 typedef struct {
@@ -1124,7 +1124,7 @@ typedef struct {
 	u16 param4;
 	u16 param5;
 	u16 param6;
-} DRXJHiCmd_t, *pDRXJHiCmd_t;
+} drxj_hi_cmd_t, *pdrxj_hi_cmd_t;
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 /*============================================================================*/
@@ -1138,7 +1138,7 @@ typedef struct {
 				   bit[1]= compression on/off
 				   bit[0]= CRC on/off */
 	u16 CRC;
-} DRXUCodeBlockHdr_t, *pDRXUCodeBlockHdr_t;
+} drxu_code_block_hdr_t, *pdrxu_code_block_hdr_t;
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 
 /*-----------------------------------------------------------------------------
@@ -1146,35 +1146,35 @@ FUNCTIONS
 ----------------------------------------------------------------------------*/
 /* Some prototypes */
 static int
-HICommand(struct i2c_device_addr *devAddr,
-	  const pDRXJHiCmd_t cmd, u16 *result);
+hi_command(struct i2c_device_addr *dev_addr,
+	  const pdrxj_hi_cmd_t cmd, u16 *result);
 
 static int
-CtrlLockStatus(pDRXDemodInstance_t demod, pDRXLockStatus_t lockStat);
+ctrl_lock_status(pdrx_demod_instance_t demod, pdrx_lock_status_t lock_stat);
 
 static int
-CtrlPowerMode(pDRXDemodInstance_t demod, pDRXPowerMode_t mode);
+ctrl_power_mode(pdrx_demod_instance_t demod, pdrx_power_mode_t mode);
 
-static int PowerDownAud(pDRXDemodInstance_t demod);
+static int power_down_aud(pdrx_demod_instance_t demod);
 
 #ifndef DRXJ_DIGITAL_ONLY
-static int PowerUpAud(pDRXDemodInstance_t demod, bool setStandard);
+static int power_up_aud(pdrx_demod_instance_t demod, bool set_standard);
 #endif
 
 static int
-AUDCtrlSetStandard(pDRXDemodInstance_t demod, pDRXAudStandard_t standard);
+aud_ctrl_set_standard(pdrx_demod_instance_t demod, pdrx_aud_standard_t standard);
 
 static int
-CtrlSetCfgPreSaw(pDRXDemodInstance_t demod, pDRXJCfgPreSaw_t preSaw);
+ctrl_set_cfg_pre_saw(pdrx_demod_instance_t demod, p_drxj_cfg_pre_saw_t pre_saw);
 
 static int
-CtrlSetCfgAfeGain(pDRXDemodInstance_t demod, pDRXJCfgAfeGain_t afeGain);
+ctrl_set_cfg_afe_gain(pdrx_demod_instance_t demod, p_drxj_cfg_afe_gain_t afe_gain);
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 static int
-CtrlUCodeUpload(pDRXDemodInstance_t demod,
-		pDRXUCodeInfo_t mcInfo,
-		DRXUCodeAction_t action, bool audioMCUpload);
+ctrl_u_codeUpload(pdrx_demod_instance_t demod,
+		p_drxu_code_info_t mc_info,
+		drxu_code_action_t action, bool audio_mc_upload);
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 
 /*============================================================================*/
@@ -1184,7 +1184,7 @@ CtrlUCodeUpload(pDRXDemodInstance_t demod,
 /*============================================================================*/
 
 /**
-* \fn void Mult32(u32 a, u32 b, u32 *h, u32 *l)
+* \fn void mult32(u32 a, u32 b, u32 *h, u32 *l)
 * \brief 32bitsx32bits signed multiplication
 * \param a 32 bits multiplicant, typecast from signed to unisgned
 * \param b 32 bits multiplier, typecast from signed to unisgned
@@ -1226,7 +1226,7 @@ CtrlUCodeUpload(pDRXDemodInstance_t demod,
 
 #define DRX_IS_BOOTH_NEGATIVE(__a)  (((__a) & (1 << (sizeof(u32) * 8 - 1))) != 0)
 
-static void Mult32(u32 a, u32 b, u32 *h, u32 *l)
+static void mult32(u32 a, u32 b, u32 *h, u32 *l)
 {
 	unsigned int i;
 	*h = *l = 0;
@@ -1276,7 +1276,7 @@ static void Mult32(u32 a, u32 b, u32 *h, u32 *l)
 /*============================================================================*/
 
 /*
-* \fn u32 Frac28(u32 N, u32 D)
+* \fn u32 frac28(u32 N, u32 D)
 * \brief Compute: (1<<28)*N/D
 * \param N 32 bits
 * \param D 32 bits
@@ -1284,7 +1284,7 @@ static void Mult32(u32 a, u32 b, u32 *h, u32 *l)
 * This function is used to avoid floating-point calculations as they may
 * not be present on the target platform.
 
-* Frac28 performs an unsigned 28/28 bits division to 32-bit fixed point
+* frac28 performs an unsigned 28/28 bits division to 32-bit fixed point
 * fraction used for setting the Frequency Shifter registers.
 * N and D can hold numbers up to width: 28-bits.
 * The 4 bits integer part and the 28 bits fractional part are calculated.
@@ -1295,7 +1295,7 @@ static void Mult32(u32 a, u32 b, u32 *h, u32 *l)
 * D: 0...(1<<28)-1
 * Q: 0...(1<<32)-1
 */
-static u32 Frac28(u32 N, u32 D)
+static u32 frac28(u32 N, u32 D)
 {
 	int i = 0;
 	u32 Q1 = 0;
@@ -1318,7 +1318,7 @@ static u32 Frac28(u32 N, u32 D)
 }
 
 /**
-* \fn u32 Log10Times100( u32 x)
+* \fn u32 log1_times100( u32 x)
 * \brief Compute: 100*log10(x)
 * \param x 32 bits
 * \return 100*log10(x)
@@ -1333,10 +1333,10 @@ static u32 Frac28(u32 N, u32 D)
 * where y = 2^k and 1<= (x/y) < 2
 */
 
-static u32 Log10Times100(u32 x)
+static u32 log1_times100(u32 x)
 {
 	static const u8 scale = 15;
-	static const u8 indexWidth = 5;
+	static const u8 index_width = 5;
 	/*
 	   log2lut[n] = (1<<scale) * 200 * log2( 1.0 + ( (1.0/(1<<INDEXWIDTH)) * n ))
 	   0 <= n < ((1<<INDEXWIDTH)+1)
@@ -1412,12 +1412,12 @@ static u32 Log10Times100(u32 x)
 	/* remove integer part */
 	x &= ((((u32) 1) << scale) - 1);
 	/* get index */
-	i = (u8) (x >> (scale - indexWidth));
+	i = (u8) (x >> (scale - index_width));
 	/* compute delta (x-a) */
-	d = x & ((((u32) 1) << (scale - indexWidth)) - 1);
+	d = x & ((((u32) 1) << (scale - index_width)) - 1);
 	/* compute log, multiplication ( d* (.. )) must be within range ! */
 	y += log2lut[i] +
-	    ((d * (log2lut[i + 1] - log2lut[i])) >> (scale - indexWidth));
+	    ((d * (log2lut[i + 1] - log2lut[i])) >> (scale - index_width));
 	/* Conver to log10() */
 	y /= 108853;		/* (log2(10) << scale) */
 	r = (y >> 1);
@@ -1430,7 +1430,7 @@ static u32 Log10Times100(u32 x)
 }
 
 /**
-* \fn u32 FracTimes1e6( u16 N, u32 D)
+* \fn u32 frac_times1e6( u16 N, u32 D)
 * \brief Compute: (N/D) * 1000000.
 * \param N nominator 16-bits.
 * \param D denominator 32-bits.
@@ -1439,7 +1439,7 @@ static u32 Log10Times100(u32 x)
 *
 * No check on D=0!
 */
-static u32 FracTimes1e6(u32 N, u32 D)
+static u32 frac_times1e6(u32 N, u32 D)
 {
 	u32 remainder = 0;
 	u32 frac = 0;
@@ -1467,41 +1467,41 @@ static u32 FracTimes1e6(u32 N, u32 D)
 /*============================================================================*/
 
 /**
-* \brief Compute: 100 * 10^( GdB / 200 ).
-* \param  u32   GdB      Gain in 0.1dB
+* \brief Compute: 100 * 10^( gd_b / 200 ).
+* \param  u32   gd_b      Gain in 0.1dB
 * \return u32            Gainfactor in 0.01 resolution
 *
 */
-static u32 dB2LinTimes100(u32 GdB)
+static u32 d_b2lin_times100(u32 gd_b)
 {
 	u32 result = 0;
-	u32 nr6dBSteps = 0;
+	u32 nr6d_b_steps = 0;
 	u32 remainder = 0;
-	u32 remainderFac = 0;
+	u32 remainder_fac = 0;
 
 	/* start with factors 2 (6.02dB) */
-	nr6dBSteps = GdB * 1000UL / 60206UL;
-	if (nr6dBSteps > 17) {
+	nr6d_b_steps = gd_b * 1000UL / 60206UL;
+	if (nr6d_b_steps > 17) {
 		/* Result max overflow if > log2( maxu32 / 2e4 ) ~= 17.7 */
 		return MAX_U32;
 	}
-	result = (1 << nr6dBSteps);
+	result = (1 << nr6d_b_steps);
 
 	/* calculate remaining factor,
-	   poly approximation of 10^(GdB/200):
+	   poly approximation of 10^(gd_b/200):
 
 	   y = 1E-04x2 + 0.0106x + 1.0026
 
 	   max deviation < 0.005 for range x = [0 ... 60]
 	 */
-	remainder = ((GdB * 1000UL) % 60206UL) / 1000UL;
+	remainder = ((gd_b * 1000UL) % 60206UL) / 1000UL;
 	/* using 1e-4 for poly calculation  */
-	remainderFac = 1 * remainder * remainder;
-	remainderFac += 106 * remainder;
-	remainderFac += 10026;
+	remainder_fac = 1 * remainder * remainder;
+	remainder_fac += 106 * remainder;
+	remainder_fac += 10026;
 
 	/* multiply by remaining factor */
-	result *= remainderFac;
+	result *= remainder_fac;
 
 	/* conversion from 1e-4 to 1e-2 */
 	return ((result + 50) / 100);
@@ -1512,7 +1512,7 @@ static u32 dB2LinTimes100(u32 GdB)
 #define FRAC_CEIL     1
 #define FRAC_ROUND    2
 /**
-* \fn u32 Frac( u32 N, u32 D, u16 RC )
+* \fn u32 frac( u32 N, u32 D, u16 RC )
 * \brief Compute: N/D.
 * \param N nominator 32-bits.
 * \param D denominator 32-bits.
@@ -1522,11 +1522,11 @@ static u32 dB2LinTimes100(u32 GdB)
 *
 * If D=0 returns 0
 */
-static u32 Frac(u32 N, u32 D, u16 RC)
+static u32 frac(u32 N, u32 D, u16 RC)
 {
 	u32 remainder = 0;
 	u32 frac = 0;
-	u16 bitCnt = 32;
+	u16 bit_cnt = 32;
 
 	if (D == 0) {
 		frac = 0;
@@ -1541,7 +1541,7 @@ static u32 Frac(u32 N, u32 D, u16 RC)
 	} else {
 		remainder = 0;
 		frac = N;
-		while (bitCnt-- > 0) {
+		while (bit_cnt-- > 0) {
 			remainder <<= 1;
 			remainder |= ((frac & 0x80000000) >> 31);
 			frac <<= 1;
@@ -1573,11 +1573,11 @@ static u32 Frac(u32 N, u32 D, u16 RC)
 /*============================================================================*/
 
 /**
-* \fn u16 UCodeRead16( u8 *addr)
+* \fn u16 u_code_read16( u8 *addr)
 * \brief Read a 16 bits word, expect big endian data.
 * \return u16 The data read.
 */
-static u16 UCodeRead16(u8 *addr)
+static u16 u_code_read16(u8 *addr)
 {
 	/* Works fo any host processor */
 
@@ -1593,11 +1593,11 @@ static u16 UCodeRead16(u8 *addr)
 /*============================================================================*/
 
 /**
-* \fn u32 UCodeRead32( u8 *addr)
+* \fn u32 u_code_read32( u8 *addr)
 * \brief Read a 32 bits word, expect big endian data.
 * \return u32 The data read.
 */
-static u32 UCodeRead32(u8 *addr)
+static u32 u_code_read32(u8 *addr)
 {
 	/* Works fo any host processor */
 
@@ -1617,31 +1617,31 @@ static u32 UCodeRead32(u8 *addr)
 /*============================================================================*/
 
 /**
-* \fn u16 UCodeComputeCRC (u8 *blockData, u16 nrWords)
+* \fn u16 u_code_compute_crc (u8 *block_data, u16 nr_words)
 * \brief Compute CRC of block of microcode data.
-* \param blockData Pointer to microcode data.
-* \param nrWords Size of microcode block (number of 16 bits words).
+* \param block_data Pointer to microcode data.
+* \param nr_words Size of microcode block (number of 16 bits words).
 * \return u16 The computed CRC residu.
 */
-static u16 UCodeComputeCRC(u8 *blockData, u16 nrWords)
+static u16 u_code_compute_crc(u8 *block_data, u16 nr_words)
 {
 	u16 i = 0;
 	u16 j = 0;
-	u32 CRCWord = 0;
+	u32 crc_word = 0;
 	u32 carry = 0;
 
-	while (i < nrWords) {
-		CRCWord |= (u32) UCodeRead16(blockData);
+	while (i < nr_words) {
+		crc_word |= (u32) u_code_read16(block_data);
 		for (j = 0; j < 16; j++) {
-			CRCWord <<= 1;
+			crc_word <<= 1;
 			if (carry != 0)
-				CRCWord ^= 0x80050000UL;
-			carry = CRCWord & 0x80000000UL;
+				crc_word ^= 0x80050000UL;
+			carry = crc_word & 0x80000000UL;
 		}
 		i++;
-		blockData += (sizeof(u16));
+		block_data += (sizeof(u16));
 	}
-	return ((u16) (CRCWord >> 16));
+	return ((u16) (crc_word >> 16));
 }
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 
@@ -1650,7 +1650,7 @@ static u16 UCodeComputeCRC(u8 *blockData, u16 nrWords)
 *        and rounded. For calc used formula: 16*10^(prescaleGain[dB]/20).
 *
 */
-static const u16 NicamPrescTableVal[43] =
+static const u16 nicam_presc_table_val[43] =
     { 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4,
 	5, 5, 6, 6, 7, 8, 9, 10, 11, 13, 14, 16,
 	18, 20, 23, 25, 28, 32, 36, 40, 45,
@@ -1688,7 +1688,7 @@ static const u16 NicamPrescTableVal[43] =
 /*============================================================================*/
 
 /**
-* \fn bool IsHandledByAudTrIf( DRXaddr_t addr )
+* \fn bool is_handled_by_aud_tr_if( dr_xaddr_t addr )
 * \brief Check if this address is handled by the audio token ring interface.
 * \param addr
 * \return bool
@@ -1697,7 +1697,7 @@ static const u16 NicamPrescTableVal[43] =
 *
 */
 static
-bool IsHandledByAudTrIf(DRXaddr_t addr)
+bool is_handled_by_aud_tr_if(dr_xaddr_t addr)
 {
 	bool retval = false;
 
@@ -1712,23 +1712,23 @@ bool IsHandledByAudTrIf(DRXaddr_t addr)
 
 /*============================================================================*/
 
-static int DRXJ_DAP_ReadBlock(struct i2c_device_addr *devAddr,
-				      DRXaddr_t addr,
+static int drxj_dap_read_block(struct i2c_device_addr *dev_addr,
+				      dr_xaddr_t addr,
 				      u16 datasize,
-				      u8 *data, DRXflags_t flags)
+				      u8 *data, dr_xflags_t flags)
 {
-	return drxDapFASIFunct_g.readBlockFunc(devAddr,
+	return drx_dap_fasi_funct_g.read_block_func(dev_addr,
 					       addr, datasize, data, flags);
 }
 
 /*============================================================================*/
 
-static int DRXJ_DAP_ReadModifyWriteReg8(struct i2c_device_addr *devAddr,
-						DRXaddr_t waddr,
-						DRXaddr_t raddr,
+static int drxj_dap_read_modify_write_reg8(struct i2c_device_addr *dev_addr,
+						dr_xaddr_t waddr,
+						dr_xaddr_t raddr,
 						u8 wdata, u8 *rdata)
 {
-	return drxDapFASIFunct_g.readModifyWriteReg8Func(devAddr,
+	return drx_dap_fasi_funct_g.read_modify_write_reg8func(dev_addr,
 							 waddr,
 							 raddr, wdata, rdata);
 }
@@ -1736,9 +1736,9 @@ static int DRXJ_DAP_ReadModifyWriteReg8(struct i2c_device_addr *devAddr,
 /*============================================================================*/
 
 /**
-* \fn int DRXJ_DAP_RMWriteReg16Short
+* \fn int drxj_dap_rm_write_reg16short
 * \brief Read modify write 16 bits audio register using short format only.
-* \param devAddr
+* \param dev_addr
 * \param waddr    Address to write to
 * \param raddr    Address to read from (usually SIO_HI_RA_RAM_S0_RMWBUF__A)
 * \param wdata    Data to write
@@ -1754,11 +1754,11 @@ static int DRXJ_DAP_ReadModifyWriteReg8(struct i2c_device_addr *devAddr,
 */
 
 /* TODO correct define should be #if ( DRXDAPFASI_SHORT_ADDR_ALLOWED==1 )
-   See comments DRXJ_DAP_ReadModifyWriteReg16 */
+   See comments drxj_dap_read_modify_write_reg16 */
 #if (DRXDAPFASI_LONG_ADDR_ALLOWED == 0)
-static int DRXJ_DAP_RMWriteReg16Short(struct i2c_device_addr *devAddr,
-					      DRXaddr_t waddr,
-					      DRXaddr_t raddr,
+static int drxj_dap_rm_write_reg16short(struct i2c_device_addr *dev_addr,
+					      dr_xaddr_t waddr,
+					      dr_xaddr_t raddr,
 					      u16 wdata, u16 *rdata)
 {
 	int rc;
@@ -1768,23 +1768,23 @@ static int DRXJ_DAP_RMWriteReg16Short(struct i2c_device_addr *devAddr,
 	}
 
 	/* Set RMW flag */
-	rc = drxDapFASIFunct_g.writeReg16Func(devAddr,
+	rc = drx_dap_fasi_funct_g.write_reg16func(dev_addr,
 					      SIO_HI_RA_RAM_S0_FLG_ACC__A,
 					      SIO_HI_RA_RAM_S0_FLG_ACC_S0_RWM__M,
 					      0x0000);
 	if (rc == DRX_STS_OK) {
 		/* Write new data: triggers RMW */
-		rc = drxDapFASIFunct_g.writeReg16Func(devAddr, waddr, wdata,
+		rc = drx_dap_fasi_funct_g.write_reg16func(dev_addr, waddr, wdata,
 						      0x0000);
 	}
 	if (rc == DRX_STS_OK) {
 		/* Read old data */
-		rc = drxDapFASIFunct_g.readReg16Func(devAddr, raddr, rdata,
+		rc = drx_dap_fasi_funct_g.read_reg16func(dev_addr, raddr, rdata,
 						     0x0000);
 	}
 	if (rc == DRX_STS_OK) {
 		/* Reset RMW flag */
-		rc = drxDapFASIFunct_g.writeReg16Func(devAddr,
+		rc = drx_dap_fasi_funct_g.write_reg16func(dev_addr,
 						      SIO_HI_RA_RAM_S0_FLG_ACC__A,
 						      0, 0x0000);
 	}
@@ -1795,50 +1795,50 @@ static int DRXJ_DAP_RMWriteReg16Short(struct i2c_device_addr *devAddr,
 
 /*============================================================================*/
 
-static int DRXJ_DAP_ReadModifyWriteReg16(struct i2c_device_addr *devAddr,
-						 DRXaddr_t waddr,
-						 DRXaddr_t raddr,
+static int drxj_dap_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
+						 dr_xaddr_t waddr,
+						 dr_xaddr_t raddr,
 						 u16 wdata, u16 *rdata)
 {
 	/* TODO: correct short/long addressing format decision,
 	   now long format has higher prio then short because short also
 	   needs virt bnks (not impl yet) for certain audio registers */
 #if (DRXDAPFASI_LONG_ADDR_ALLOWED == 1)
-	return drxDapFASIFunct_g.readModifyWriteReg16Func(devAddr,
+	return drx_dap_fasi_funct_g.read_modify_write_reg16func(dev_addr,
 							  waddr,
 							  raddr, wdata, rdata);
 #else
-	return DRXJ_DAP_RMWriteReg16Short(devAddr, waddr, raddr, wdata, rdata);
+	return drxj_dap_rm_write_reg16short(dev_addr, waddr, raddr, wdata, rdata);
 #endif
 }
 
 /*============================================================================*/
 
-static int DRXJ_DAP_ReadModifyWriteReg32(struct i2c_device_addr *devAddr,
-						 DRXaddr_t waddr,
-						 DRXaddr_t raddr,
+static int drxj_dap_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
+						 dr_xaddr_t waddr,
+						 dr_xaddr_t raddr,
 						 u32 wdata, u32 *rdata)
 {
-	return drxDapFASIFunct_g.readModifyWriteReg32Func(devAddr,
+	return drx_dap_fasi_funct_g.read_modify_write_reg32func(dev_addr,
 							  waddr,
 							  raddr, wdata, rdata);
 }
 
 /*============================================================================*/
 
-static int DRXJ_DAP_ReadReg8(struct i2c_device_addr *devAddr,
-				     DRXaddr_t addr,
-				     u8 *data, DRXflags_t flags)
+static int drxj_dap_read_reg8(struct i2c_device_addr *dev_addr,
+				     dr_xaddr_t addr,
+				     u8 *data, dr_xflags_t flags)
 {
-	return drxDapFASIFunct_g.readReg8Func(devAddr, addr, data, flags);
+	return drx_dap_fasi_funct_g.read_reg8func(dev_addr, addr, data, flags);
 }
 
 /*============================================================================*/
 
 /**
-* \fn int DRXJ_DAP_ReadAudReg16
+* \fn int drxj_dap_read_aud_reg16
 * \brief Read 16 bits audio register
-* \param devAddr
+* \param dev_addr
 * \param addr
 * \param data
 * \return int
@@ -1848,66 +1848,66 @@ static int DRXJ_DAP_ReadReg8(struct i2c_device_addr *devAddr,
 * 16 bits register read access via audio token ring interface.
 *
 */
-static int DRXJ_DAP_ReadAudReg16(struct i2c_device_addr *devAddr,
-					 DRXaddr_t addr, u16 *data)
+static int drxj_dap_read_aud_reg16(struct i2c_device_addr *dev_addr,
+					 dr_xaddr_t addr, u16 *data)
 {
-	u32 startTimer = 0;
-	u32 currentTimer = 0;
-	u32 deltaTimer = 0;
-	u16 trStatus = 0;
+	u32 start_timer = 0;
+	u32 current_timer = 0;
+	u32 delta_timer = 0;
+	u16 tr_status = 0;
 	int stat = DRX_STS_ERROR;
 
 	/* No read possible for bank 3, return with error */
 	if (DRXDAP_FASI_ADDR2BANK(addr) == 3) {
 		stat = DRX_STS_INVALID_ARG;
 	} else {
-		const DRXaddr_t writeBit = ((DRXaddr_t) 1) << 16;
+		const dr_xaddr_t write_bit = ((dr_xaddr_t) 1) << 16;
 
 		/* Force reset write bit */
-		addr &= (~writeBit);
+		addr &= (~write_bit);
 
 		/* Set up read */
-		startTimer = DRXBSP_HST_Clock();
+		start_timer = drxbsp_hst_clock();
 		do {
 			/* RMW to aud TR IF until request is granted or timeout */
-			stat = DRXJ_DAP_ReadModifyWriteReg16(devAddr,
+			stat = drxj_dap_read_modify_write_reg16(dev_addr,
 							     addr,
 							     SIO_HI_RA_RAM_S0_RMWBUF__A,
-							     0x0000, &trStatus);
+							     0x0000, &tr_status);
 
 			if (stat != DRX_STS_OK) {
 				break;
 			};
 
-			currentTimer = DRXBSP_HST_Clock();
-			deltaTimer = currentTimer - startTimer;
-			if (deltaTimer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
+			current_timer = drxbsp_hst_clock();
+			delta_timer = current_timer - start_timer;
+			if (delta_timer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
 				stat = DRX_STS_ERROR;
 				break;
 			};
 
-		} while (((trStatus & AUD_TOP_TR_CTR_FIFO_LOCK__M) ==
+		} while (((tr_status & AUD_TOP_TR_CTR_FIFO_LOCK__M) ==
 			  AUD_TOP_TR_CTR_FIFO_LOCK_LOCKED) ||
-			 ((trStatus & AUD_TOP_TR_CTR_FIFO_FULL__M) ==
+			 ((tr_status & AUD_TOP_TR_CTR_FIFO_FULL__M) ==
 			  AUD_TOP_TR_CTR_FIFO_FULL_FULL));
 	}			/* if ( DRXDAP_FASI_ADDR2BANK(addr)!=3 ) */
 
 	/* Wait for read ready status or timeout */
 	if (stat == DRX_STS_OK) {
-		startTimer = DRXBSP_HST_Clock();
+		start_timer = drxbsp_hst_clock();
 
-		while ((trStatus & AUD_TOP_TR_CTR_FIFO_RD_RDY__M) !=
+		while ((tr_status & AUD_TOP_TR_CTR_FIFO_RD_RDY__M) !=
 		       AUD_TOP_TR_CTR_FIFO_RD_RDY_READY) {
-			stat = DRXJ_DAP_ReadReg16(devAddr,
+			stat = drxj_dap_read_reg16(dev_addr,
 						  AUD_TOP_TR_CTR__A,
-						  &trStatus, 0x0000);
+						  &tr_status, 0x0000);
 			if (stat != DRX_STS_OK) {
 				break;
 			};
 
-			currentTimer = DRXBSP_HST_Clock();
-			deltaTimer = currentTimer - startTimer;
-			if (deltaTimer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
+			current_timer = drxbsp_hst_clock();
+			delta_timer = current_timer - start_timer;
+			if (delta_timer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
 				stat = DRX_STS_ERROR;
 				break;
 			};
@@ -1917,7 +1917,7 @@ static int DRXJ_DAP_ReadAudReg16(struct i2c_device_addr *devAddr,
 	/* if { stat == DRX_STS_OK ) */
 	/* Read value */
 	if (stat == DRX_STS_OK) {
-		stat = DRXJ_DAP_ReadModifyWriteReg16(devAddr,
+		stat = drxj_dap_read_modify_write_reg16(dev_addr,
 						     AUD_TOP_TR_RD_REG__A,
 						     SIO_HI_RA_RAM_S0_RMWBUF__A,
 						     0x0000, data);
@@ -1928,21 +1928,21 @@ static int DRXJ_DAP_ReadAudReg16(struct i2c_device_addr *devAddr,
 
 /*============================================================================*/
 
-static int DRXJ_DAP_ReadReg16(struct i2c_device_addr *devAddr,
-				      DRXaddr_t addr,
-				      u16 *data, DRXflags_t flags)
+static int drxj_dap_read_reg16(struct i2c_device_addr *dev_addr,
+				      dr_xaddr_t addr,
+				      u16 *data, dr_xflags_t flags)
 {
 	int stat = DRX_STS_ERROR;
 
 	/* Check param */
-	if ((devAddr == NULL) || (data == NULL)) {
+	if ((dev_addr == NULL) || (data == NULL)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	if (IsHandledByAudTrIf(addr)) {
-		stat = DRXJ_DAP_ReadAudReg16(devAddr, addr, data);
+	if (is_handled_by_aud_tr_if(addr)) {
+		stat = drxj_dap_read_aud_reg16(dev_addr, addr, data);
 	} else {
-		stat = drxDapFASIFunct_g.readReg16Func(devAddr,
+		stat = drx_dap_fasi_funct_g.read_reg16func(dev_addr,
 						       addr, data, flags);
 	}
 
@@ -1951,39 +1951,39 @@ static int DRXJ_DAP_ReadReg16(struct i2c_device_addr *devAddr,
 
 /*============================================================================*/
 
-static int DRXJ_DAP_ReadReg32(struct i2c_device_addr *devAddr,
-				      DRXaddr_t addr,
-				      u32 *data, DRXflags_t flags)
+static int drxj_dap_read_reg32(struct i2c_device_addr *dev_addr,
+				      dr_xaddr_t addr,
+				      u32 *data, dr_xflags_t flags)
 {
-	return drxDapFASIFunct_g.readReg32Func(devAddr, addr, data, flags);
+	return drx_dap_fasi_funct_g.read_reg32func(dev_addr, addr, data, flags);
 }
 
 /*============================================================================*/
 
-static int DRXJ_DAP_WriteBlock(struct i2c_device_addr *devAddr,
-				       DRXaddr_t addr,
+static int drxj_dap_write_block(struct i2c_device_addr *dev_addr,
+				       dr_xaddr_t addr,
 				       u16 datasize,
-				       u8 *data, DRXflags_t flags)
+				       u8 *data, dr_xflags_t flags)
 {
-	return drxDapFASIFunct_g.writeBlockFunc(devAddr,
+	return drx_dap_fasi_funct_g.write_block_func(dev_addr,
 						addr, datasize, data, flags);
 }
 
 /*============================================================================*/
 
-static int DRXJ_DAP_WriteReg8(struct i2c_device_addr *devAddr,
-				      DRXaddr_t addr,
-				      u8 data, DRXflags_t flags)
+static int drxj_dap_write_reg8(struct i2c_device_addr *dev_addr,
+				      dr_xaddr_t addr,
+				      u8 data, dr_xflags_t flags)
 {
-	return drxDapFASIFunct_g.writeReg8Func(devAddr, addr, data, flags);
+	return drx_dap_fasi_funct_g.write_reg8func(dev_addr, addr, data, flags);
 }
 
 /*============================================================================*/
 
 /**
-* \fn int DRXJ_DAP_WriteAudReg16
+* \fn int drxj_dap_write_aud_reg16
 * \brief Write 16 bits audio register
-* \param devAddr
+* \param dev_addr
 * \param addr
 * \param data
 * \return int
@@ -1993,8 +1993,8 @@ static int DRXJ_DAP_WriteReg8(struct i2c_device_addr *devAddr,
 * 16 bits register write access via audio token ring interface.
 *
 */
-static int DRXJ_DAP_WriteAudReg16(struct i2c_device_addr *devAddr,
-					  DRXaddr_t addr, u16 data)
+static int drxj_dap_write_aud_reg16(struct i2c_device_addr *dev_addr,
+					  dr_xaddr_t addr, u16 data)
 {
 	int stat = DRX_STS_ERROR;
 
@@ -2002,35 +2002,35 @@ static int DRXJ_DAP_WriteAudReg16(struct i2c_device_addr *devAddr,
 	if (DRXDAP_FASI_ADDR2BANK(addr) == 2) {
 		stat = DRX_STS_INVALID_ARG;
 	} else {
-		u32 startTimer = 0;
-		u32 currentTimer = 0;
-		u32 deltaTimer = 0;
-		u16 trStatus = 0;
-		const DRXaddr_t writeBit = ((DRXaddr_t) 1) << 16;
+		u32 start_timer = 0;
+		u32 current_timer = 0;
+		u32 delta_timer = 0;
+		u16 tr_status = 0;
+		const dr_xaddr_t write_bit = ((dr_xaddr_t) 1) << 16;
 
 		/* Force write bit */
-		addr |= writeBit;
-		startTimer = DRXBSP_HST_Clock();
+		addr |= write_bit;
+		start_timer = drxbsp_hst_clock();
 		do {
 			/* RMW to aud TR IF until request is granted or timeout */
-			stat = DRXJ_DAP_ReadModifyWriteReg16(devAddr,
+			stat = drxj_dap_read_modify_write_reg16(dev_addr,
 							     addr,
 							     SIO_HI_RA_RAM_S0_RMWBUF__A,
-							     data, &trStatus);
+							     data, &tr_status);
 			if (stat != DRX_STS_OK) {
 				break;
 			};
 
-			currentTimer = DRXBSP_HST_Clock();
-			deltaTimer = currentTimer - startTimer;
-			if (deltaTimer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
+			current_timer = drxbsp_hst_clock();
+			delta_timer = current_timer - start_timer;
+			if (delta_timer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
 				stat = DRX_STS_ERROR;
 				break;
 			};
 
-		} while (((trStatus & AUD_TOP_TR_CTR_FIFO_LOCK__M) ==
+		} while (((tr_status & AUD_TOP_TR_CTR_FIFO_LOCK__M) ==
 			  AUD_TOP_TR_CTR_FIFO_LOCK_LOCKED) ||
-			 ((trStatus & AUD_TOP_TR_CTR_FIFO_FULL__M) ==
+			 ((tr_status & AUD_TOP_TR_CTR_FIFO_FULL__M) ==
 			  AUD_TOP_TR_CTR_FIFO_FULL_FULL));
 
 	}			/* if ( DRXDAP_FASI_ADDR2BANK(addr)!=2 ) */
@@ -2040,21 +2040,21 @@ static int DRXJ_DAP_WriteAudReg16(struct i2c_device_addr *devAddr,
 
 /*============================================================================*/
 
-static int DRXJ_DAP_WriteReg16(struct i2c_device_addr *devAddr,
-				       DRXaddr_t addr,
-				       u16 data, DRXflags_t flags)
+static int drxj_dap_write_reg16(struct i2c_device_addr *dev_addr,
+				       dr_xaddr_t addr,
+				       u16 data, dr_xflags_t flags)
 {
 	int stat = DRX_STS_ERROR;
 
 	/* Check param */
-	if (devAddr == NULL) {
+	if (dev_addr == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	if (IsHandledByAudTrIf(addr)) {
-		stat = DRXJ_DAP_WriteAudReg16(devAddr, addr, data);
+	if (is_handled_by_aud_tr_if(addr)) {
+		stat = drxj_dap_write_aud_reg16(dev_addr, addr, data);
 	} else {
-		stat = drxDapFASIFunct_g.writeReg16Func(devAddr,
+		stat = drx_dap_fasi_funct_g.write_reg16func(dev_addr,
 							addr, data, flags);
 	}
 
@@ -2063,11 +2063,11 @@ static int DRXJ_DAP_WriteReg16(struct i2c_device_addr *devAddr,
 
 /*============================================================================*/
 
-static int DRXJ_DAP_WriteReg32(struct i2c_device_addr *devAddr,
-				       DRXaddr_t addr,
-				       u32 data, DRXflags_t flags)
+static int drxj_dap_write_reg32(struct i2c_device_addr *dev_addr,
+				       dr_xaddr_t addr,
+				       u32 data, dr_xflags_t flags)
 {
-	return drxDapFASIFunct_g.writeReg32Func(devAddr, addr, data, flags);
+	return drx_dap_fasi_funct_g.write_reg32func(dev_addr, addr, data, flags);
 }
 
 /*============================================================================*/
@@ -2082,9 +2082,9 @@ static int DRXJ_DAP_WriteReg32(struct i2c_device_addr *devAddr,
 #define DRXJ_HI_ATOMIC_WRITE     SIO_HI_RA_RAM_PAR_3_ACP_RW_WRITE
 
 /**
-* \fn int DRXJ_DAP_AtomicReadWriteBlock()
+* \fn int drxj_dap_atomic_read_write_block()
 * \brief Basic access routine for atomic read or write access
-* \param devAddr  pointer to i2c dev address
+* \param dev_addr  pointer to i2c dev address
 * \param addr     destination/source address
 * \param datasize size of data buffer in bytes
 * \param data     pointer to data buffer
@@ -2094,12 +2094,12 @@ static int DRXJ_DAP_WriteReg32(struct i2c_device_addr *devAddr,
 *
 */
 static
-int DRXJ_DAP_AtomicReadWriteBlock(struct i2c_device_addr *devAddr,
-					  DRXaddr_t addr,
+int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
+					  dr_xaddr_t addr,
 					  u16 datasize,
-					  u8 *data, bool readFlag)
+					  u8 *data, bool read_flag)
 {
-	DRXJHiCmd_t hiCmd;
+	drxj_hi_cmd_t hi_cmd;
 
 	u16 word;
 	u16 dummy = 0;
@@ -2107,46 +2107,46 @@ int DRXJ_DAP_AtomicReadWriteBlock(struct i2c_device_addr *devAddr,
 
 	/* Parameter check */
 	if ((data == NULL) ||
-	    (devAddr == NULL) || ((datasize % 2) != 0) || ((datasize / 2) > 8)
+	    (dev_addr == NULL) || ((datasize % 2) != 0) || ((datasize / 2) > 8)
 	    ) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
 	/* Set up HI parameters to read or write n bytes */
-	hiCmd.cmd = SIO_HI_RA_RAM_CMD_ATOMIC_COPY;
-	hiCmd.param1 =
+	hi_cmd.cmd = SIO_HI_RA_RAM_CMD_ATOMIC_COPY;
+	hi_cmd.param1 =
 	    (u16) ((DRXDAP_FASI_ADDR2BLOCK(DRXJ_HI_ATOMIC_BUF_START) << 6) +
 		     DRXDAP_FASI_ADDR2BANK(DRXJ_HI_ATOMIC_BUF_START));
-	hiCmd.param2 =
+	hi_cmd.param2 =
 	    (u16) DRXDAP_FASI_ADDR2OFFSET(DRXJ_HI_ATOMIC_BUF_START);
-	hiCmd.param3 = (u16) ((datasize / 2) - 1);
-	if (readFlag == false) {
-		hiCmd.param3 |= DRXJ_HI_ATOMIC_WRITE;
+	hi_cmd.param3 = (u16) ((datasize / 2) - 1);
+	if (read_flag == false) {
+		hi_cmd.param3 |= DRXJ_HI_ATOMIC_WRITE;
 	} else {
-		hiCmd.param3 |= DRXJ_HI_ATOMIC_READ;
+		hi_cmd.param3 |= DRXJ_HI_ATOMIC_READ;
 	}
-	hiCmd.param4 = (u16) ((DRXDAP_FASI_ADDR2BLOCK(addr) << 6) +
+	hi_cmd.param4 = (u16) ((DRXDAP_FASI_ADDR2BLOCK(addr) << 6) +
 				DRXDAP_FASI_ADDR2BANK(addr));
-	hiCmd.param5 = (u16) DRXDAP_FASI_ADDR2OFFSET(addr);
+	hi_cmd.param5 = (u16) DRXDAP_FASI_ADDR2OFFSET(addr);
 
-	if (readFlag == false) {
+	if (read_flag == false) {
 		/* write data to buffer */
 		for (i = 0; i < (datasize / 2); i++) {
 
 			word = ((u16) data[2 * i]);
 			word += (((u16) data[(2 * i) + 1]) << 8);
-			DRXJ_DAP_WriteReg16(devAddr,
+			drxj_dap_write_reg16(dev_addr,
 					    (DRXJ_HI_ATOMIC_BUF_START + i),
 					    word, 0);
 		}
 	}
 
-	CHK_ERROR(HICommand(devAddr, &hiCmd, &dummy));
+	CHK_ERROR(hi_command(dev_addr, &hi_cmd, &dummy));
 
-	if (readFlag == true) {
+	if (read_flag == true) {
 		/* read data from buffer */
 		for (i = 0; i < (datasize / 2); i++) {
-			DRXJ_DAP_ReadReg16(devAddr,
+			drxj_dap_read_reg16(dev_addr,
 					   (DRXJ_HI_ATOMIC_BUF_START + i),
 					   &word, 0);
 			data[2 * i] = (u8) (word & 0xFF);
@@ -2164,13 +2164,13 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int DRXJ_DAP_AtomicReadReg32()
+* \fn int drxj_dap_atomic_read_reg32()
 * \brief Atomic read of 32 bits words
 */
 static
-int DRXJ_DAP_AtomicReadReg32(struct i2c_device_addr *devAddr,
-				     DRXaddr_t addr,
-				     u32 *data, DRXflags_t flags)
+int drxj_dap_atomic_read_reg32(struct i2c_device_addr *dev_addr,
+				     dr_xaddr_t addr,
+				     u32 *data, dr_xflags_t flags)
 {
 	u8 buf[sizeof(*data)];
 	int rc = DRX_STS_ERROR;
@@ -2180,7 +2180,7 @@ int DRXJ_DAP_AtomicReadReg32(struct i2c_device_addr *devAddr,
 		return DRX_STS_INVALID_ARG;
 	}
 
-	rc = DRXJ_DAP_AtomicReadWriteBlock(devAddr, addr,
+	rc = drxj_dap_atomic_read_write_block(dev_addr, addr,
 					   sizeof(*data), buf, true);
 
 	word = (u32) buf[3];
@@ -2209,7 +2209,7 @@ int DRXJ_DAP_AtomicReadReg32(struct i2c_device_addr *devAddr,
 /*============================================================================*/
 
 /**
-* \fn int HICfgCommand()
+* \fn int hi_cfg_command()
 * \brief Configure HI with settings stored in the demod structure.
 * \param demod Demodulator.
 * \return int.
@@ -2219,26 +2219,26 @@ int DRXJ_DAP_AtomicReadReg32(struct i2c_device_addr *devAddr,
 * enable/disable should not need re-configuration of the HI.
 *
 */
-static int HICfgCommand(const pDRXDemodInstance_t demod)
+static int hi_cfg_command(const pdrx_demod_instance_t demod)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	DRXJHiCmd_t hiCmd;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	drxj_hi_cmd_t hi_cmd;
 	u16 result = 0;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	hiCmd.cmd = SIO_HI_RA_RAM_CMD_CONFIG;
-	hiCmd.param1 = SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY;
-	hiCmd.param2 = extAttr->HICfgTimingDiv;
-	hiCmd.param3 = extAttr->HICfgBridgeDelay;
-	hiCmd.param4 = extAttr->HICfgWakeUpKey;
-	hiCmd.param5 = extAttr->HICfgCtrl;
-	hiCmd.param6 = extAttr->HICfgTransmit;
+	hi_cmd.cmd = SIO_HI_RA_RAM_CMD_CONFIG;
+	hi_cmd.param1 = SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY;
+	hi_cmd.param2 = ext_attr->hi_cfg_timing_div;
+	hi_cmd.param3 = ext_attr->hi_cfg_bridge_delay;
+	hi_cmd.param4 = ext_attr->hi_cfg_wake_up_key;
+	hi_cmd.param5 = ext_attr->hi_cfg_ctrl;
+	hi_cmd.param6 = ext_attr->hi_cfg_transmit;
 
-	CHK_ERROR(HICommand(demod->myI2CDevAddr, &hiCmd, &result));
+	CHK_ERROR(hi_command(demod->my_i2c_dev_addr, &hi_cmd, &result));
 
 	/* Reset power down flag (set one call only) */
-	extAttr->HICfgCtrl &= (~(SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ));
+	ext_attr->hi_cfg_ctrl &= (~(SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ));
 
 	return (DRX_STS_OK);
 
@@ -2247,9 +2247,9 @@ rw_error:
 }
 
 /**
-* \fn int HICommand()
+* \fn int hi_command()
 * \brief Configure HI with settings stored in the demod structure.
-* \param devAddr I2C address.
+* \param dev_addr I2C address.
 * \param cmd HI command.
 * \param result HI command result.
 * \return int.
@@ -2258,10 +2258,10 @@ rw_error:
 *
 */
 static int
-HICommand(struct i2c_device_addr *devAddr, const pDRXJHiCmd_t cmd, u16 *result)
+hi_command(struct i2c_device_addr *dev_addr, const pdrxj_hi_cmd_t cmd, u16 *result)
 {
-	u16 waitCmd = 0;
-	u16 nrRetries = 0;
+	u16 wait_cmd = 0;
+	u16 nr_retries = 0;
 	bool powerdown_cmd = false;
 
 	/* Write parameters */
@@ -2269,14 +2269,14 @@ HICommand(struct i2c_device_addr *devAddr, const pDRXJHiCmd_t cmd, u16 *result)
 
 	case SIO_HI_RA_RAM_CMD_CONFIG:
 	case SIO_HI_RA_RAM_CMD_ATOMIC_COPY:
-		WR16(devAddr, SIO_HI_RA_RAM_PAR_6__A, cmd->param6);
-		WR16(devAddr, SIO_HI_RA_RAM_PAR_5__A, cmd->param5);
-		WR16(devAddr, SIO_HI_RA_RAM_PAR_4__A, cmd->param4);
-		WR16(devAddr, SIO_HI_RA_RAM_PAR_3__A, cmd->param3);
+		WR16(dev_addr, SIO_HI_RA_RAM_PAR_6__A, cmd->param6);
+		WR16(dev_addr, SIO_HI_RA_RAM_PAR_5__A, cmd->param5);
+		WR16(dev_addr, SIO_HI_RA_RAM_PAR_4__A, cmd->param4);
+		WR16(dev_addr, SIO_HI_RA_RAM_PAR_3__A, cmd->param3);
 		/* fallthrough */
 	case SIO_HI_RA_RAM_CMD_BRDCTRL:
-		WR16(devAddr, SIO_HI_RA_RAM_PAR_2__A, cmd->param2);
-		WR16(devAddr, SIO_HI_RA_RAM_PAR_1__A, cmd->param1);
+		WR16(dev_addr, SIO_HI_RA_RAM_PAR_2__A, cmd->param2);
+		WR16(dev_addr, SIO_HI_RA_RAM_PAR_1__A, cmd->param1);
 		/* fallthrough */
 	case SIO_HI_RA_RAM_CMD_NULL:
 		/* No parameters */
@@ -2288,11 +2288,11 @@ HICommand(struct i2c_device_addr *devAddr, const pDRXJHiCmd_t cmd, u16 *result)
 	}
 
 	/* Write command */
-	WR16(devAddr, SIO_HI_RA_RAM_CMD__A, cmd->cmd);
+	WR16(dev_addr, SIO_HI_RA_RAM_CMD__A, cmd->cmd);
 
 	if ((cmd->cmd) == SIO_HI_RA_RAM_CMD_RESET) {
 		/* Allow for HI to reset */
-		DRXBSP_HST_Sleep(1);
+		drxbsp_hst_sleep(1);
 	}
 
 	/* Detect power down to ommit reading result */
@@ -2303,16 +2303,16 @@ HICommand(struct i2c_device_addr *devAddr, const pDRXJHiCmd_t cmd, u16 *result)
 	if (powerdown_cmd == false) {
 		/* Wait until command rdy */
 		do {
-			nrRetries++;
-			if (nrRetries > DRXJ_MAX_RETRIES) {
+			nr_retries++;
+			if (nr_retries > DRXJ_MAX_RETRIES) {
 				goto rw_error;
 			};
 
-			RR16(devAddr, SIO_HI_RA_RAM_CMD__A, &waitCmd);
-		} while (waitCmd != 0);
+			RR16(dev_addr, SIO_HI_RA_RAM_CMD__A, &wait_cmd);
+		} while (wait_cmd != 0);
 
 		/* Read result */
-		RR16(devAddr, SIO_HI_RA_RAM_RES__A, result);
+		RR16(dev_addr, SIO_HI_RA_RAM_RES__A, result);
 
 	}
 	/* if ( powerdown_cmd == true ) */
@@ -2322,7 +2322,7 @@ rw_error:
 }
 
 /**
-* \fn int InitHI( const pDRXDemodInstance_t demod )
+* \fn int init_hi( const pdrx_demod_instance_t demod )
 * \brief Initialise and configurate HI.
 * \param demod pointer to demod data.
 * \return int Return status.
@@ -2334,50 +2334,50 @@ rw_error:
 * bridging is controlled.
 *
 */
-static int InitHI(const pDRXDemodInstance_t demod)
+static int init_hi(const pdrx_demod_instance_t demod)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	devAddr = demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* PATCH for bug 5003, HI ucode v3.1.0 */
-	WR16(devAddr, 0x4301D7, 0x801);
+	WR16(dev_addr, 0x4301D7, 0x801);
 
 	/* Timing div, 250ns/Psys */
 	/* Timing div, = ( delay (nano seconds) * sysclk (kHz) )/ 1000 */
-	extAttr->HICfgTimingDiv =
-	    (u16) ((commonAttr->sysClockFreq / 1000) * HI_I2C_DELAY) / 1000;
+	ext_attr->hi_cfg_timing_div =
+	    (u16) ((common_attr->sys_clock_freq / 1000) * HI_I2C_DELAY) / 1000;
 	/* Clipping */
-	if ((extAttr->HICfgTimingDiv) > SIO_HI_RA_RAM_PAR_2_CFG_DIV__M) {
-		extAttr->HICfgTimingDiv = SIO_HI_RA_RAM_PAR_2_CFG_DIV__M;
+	if ((ext_attr->hi_cfg_timing_div) > SIO_HI_RA_RAM_PAR_2_CFG_DIV__M) {
+		ext_attr->hi_cfg_timing_div = SIO_HI_RA_RAM_PAR_2_CFG_DIV__M;
 	}
 	/* Bridge delay, uses oscilator clock */
 	/* Delay = ( delay (nano seconds) * oscclk (kHz) )/ 1000 */
 	/* SDA brdige delay */
-	extAttr->HICfgBridgeDelay =
-	    (u16) ((commonAttr->oscClockFreq / 1000) * HI_I2C_BRIDGE_DELAY) /
+	ext_attr->hi_cfg_bridge_delay =
+	    (u16) ((common_attr->osc_clock_freq / 1000) * HI_I2C_BRIDGE_DELAY) /
 	    1000;
 	/* Clipping */
-	if ((extAttr->HICfgBridgeDelay) > SIO_HI_RA_RAM_PAR_3_CFG_DBL_SDA__M) {
-		extAttr->HICfgBridgeDelay = SIO_HI_RA_RAM_PAR_3_CFG_DBL_SDA__M;
+	if ((ext_attr->hi_cfg_bridge_delay) > SIO_HI_RA_RAM_PAR_3_CFG_DBL_SDA__M) {
+		ext_attr->hi_cfg_bridge_delay = SIO_HI_RA_RAM_PAR_3_CFG_DBL_SDA__M;
 	}
 	/* SCL bridge delay, same as SDA for now */
-	extAttr->HICfgBridgeDelay += ((extAttr->HICfgBridgeDelay) <<
+	ext_attr->hi_cfg_bridge_delay += ((ext_attr->hi_cfg_bridge_delay) <<
 				      SIO_HI_RA_RAM_PAR_3_CFG_DBL_SCL__B);
 	/* Wakeup key, setting the read flag (as suggest in the documentation) does
 	   not always result into a working solution (barebones worked VI2C failed).
 	   Not setting the bit works in all cases . */
-	extAttr->HICfgWakeUpKey = DRXJ_WAKE_UP_KEY;
+	ext_attr->hi_cfg_wake_up_key = DRXJ_WAKE_UP_KEY;
 	/* port/bridge/power down ctrl */
-	extAttr->HICfgCtrl = (SIO_HI_RA_RAM_PAR_5_CFG_SLV0_SLAVE);
+	ext_attr->hi_cfg_ctrl = (SIO_HI_RA_RAM_PAR_5_CFG_SLV0_SLAVE);
 	/* transit mode time out delay and watch dog divider */
-	extAttr->HICfgTransmit = SIO_HI_RA_RAM_PAR_6__PRE;
+	ext_attr->hi_cfg_transmit = SIO_HI_RA_RAM_PAR_6__PRE;
 
-	CHK_ERROR(HICfgCommand(demod));
+	CHK_ERROR(hi_cfg_command(demod));
 
 	return (DRX_STS_OK);
 
@@ -2396,7 +2396,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int GetDeviceCapabilities()
+* \fn int get_device_capabilities()
 * \brief Get and store device capabilities.
 * \param demod  Pointer to demodulator instance.
 * \return int.
@@ -2404,45 +2404,45 @@ rw_error:
 * \retval DRX_STS_ERROR Failure
 *
 * Depending on pulldowns on MDx pins the following internals are set:
-*  * commonAttr->oscClockFreq
-*  * extAttr->hasLNA
-*  * extAttr->hasNTSC
-*  * extAttr->hasBTSC
-*  * extAttr->hasOOB
+*  * common_attr->osc_clock_freq
+*  * ext_attr->has_lna
+*  * ext_attr->has_ntsc
+*  * ext_attr->has_btsc
+*  * ext_attr->has_oob
 *
 */
-static int GetDeviceCapabilities(pDRXDemodInstance_t demod)
+static int get_device_capabilities(pdrx_demod_instance_t demod)
 {
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
-	u16 sioPdrOhwCfg = 0;
-	u32 sioTopJtagidLo = 0;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	u16 sio_pdr_ohw_cfg = 0;
+	u32 sio_top_jtagid_lo = 0;
 	u16 bid = 0;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
-	RR16(devAddr, SIO_PDR_OHW_CFG__A, &sioPdrOhwCfg);
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	RR16(dev_addr, SIO_PDR_OHW_CFG__A, &sio_pdr_ohw_cfg);
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
 
-	switch ((sioPdrOhwCfg & SIO_PDR_OHW_CFG_FREF_SEL__M)) {
+	switch ((sio_pdr_ohw_cfg & SIO_PDR_OHW_CFG_FREF_SEL__M)) {
 	case 0:
 		/* ignore (bypass ?) */
 		break;
 	case 1:
 		/* 27 MHz */
-		commonAttr->oscClockFreq = 27000;
+		common_attr->osc_clock_freq = 27000;
 		break;
 	case 2:
 		/* 20.25 MHz */
-		commonAttr->oscClockFreq = 20250;
+		common_attr->osc_clock_freq = 20250;
 		break;
 	case 3:
 		/* 4 MHz */
-		commonAttr->oscClockFreq = 4000;
+		common_attr->osc_clock_freq = 4000;
 		break;
 	default:
 		return (DRX_STS_ERROR);
@@ -2452,114 +2452,114 @@ static int GetDeviceCapabilities(pDRXDemodInstance_t demod)
 	   Determine device capabilities
 	   Based on pinning v47
 	 */
-	RR32(devAddr, SIO_TOP_JTAGID_LO__A, &sioTopJtagidLo);
-	extAttr->mfx = (u8) ((sioTopJtagidLo >> 29) & 0xF);
+	RR32(dev_addr, SIO_TOP_JTAGID_LO__A, &sio_top_jtagid_lo);
+	ext_attr->mfx = (u8) ((sio_top_jtagid_lo >> 29) & 0xF);
 
-	switch ((sioTopJtagidLo >> 12) & 0xFF) {
+	switch ((sio_top_jtagid_lo >> 12) & 0xFF) {
 	case 0x31:
-		WR16(devAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
-		RR16(devAddr, SIO_PDR_UIO_IN_HI__A, &bid);
+		WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+		RR16(dev_addr, SIO_PDR_UIO_IN_HI__A, &bid);
 		bid = (bid >> 10) & 0xf;
-		WR16(devAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
+		WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
 
-		extAttr->hasLNA = true;
-		extAttr->hasNTSC = false;
-		extAttr->hasBTSC = false;
-		extAttr->hasOOB = false;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = false;
-		extAttr->hasGPIO = false;
-		extAttr->hasIRQN = false;
+		ext_attr->has_lna = true;
+		ext_attr->has_ntsc = false;
+		ext_attr->has_btsc = false;
+		ext_attr->has_oob = false;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = false;
+		ext_attr->has_gpio = false;
+		ext_attr->has_irqn = false;
 		break;
 	case 0x33:
-		extAttr->hasLNA = false;
-		extAttr->hasNTSC = false;
-		extAttr->hasBTSC = false;
-		extAttr->hasOOB = false;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = false;
-		extAttr->hasGPIO = false;
-		extAttr->hasIRQN = false;
+		ext_attr->has_lna = false;
+		ext_attr->has_ntsc = false;
+		ext_attr->has_btsc = false;
+		ext_attr->has_oob = false;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = false;
+		ext_attr->has_gpio = false;
+		ext_attr->has_irqn = false;
 		break;
 	case 0x45:
-		extAttr->hasLNA = true;
-		extAttr->hasNTSC = true;
-		extAttr->hasBTSC = false;
-		extAttr->hasOOB = false;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = true;
-		extAttr->hasGPIO = true;
-		extAttr->hasIRQN = false;
+		ext_attr->has_lna = true;
+		ext_attr->has_ntsc = true;
+		ext_attr->has_btsc = false;
+		ext_attr->has_oob = false;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = true;
+		ext_attr->has_gpio = true;
+		ext_attr->has_irqn = false;
 		break;
 	case 0x46:
-		extAttr->hasLNA = false;
-		extAttr->hasNTSC = true;
-		extAttr->hasBTSC = false;
-		extAttr->hasOOB = false;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = true;
-		extAttr->hasGPIO = true;
-		extAttr->hasIRQN = false;
+		ext_attr->has_lna = false;
+		ext_attr->has_ntsc = true;
+		ext_attr->has_btsc = false;
+		ext_attr->has_oob = false;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = true;
+		ext_attr->has_gpio = true;
+		ext_attr->has_irqn = false;
 		break;
 	case 0x41:
-		extAttr->hasLNA = true;
-		extAttr->hasNTSC = true;
-		extAttr->hasBTSC = true;
-		extAttr->hasOOB = false;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = true;
-		extAttr->hasGPIO = true;
-		extAttr->hasIRQN = false;
+		ext_attr->has_lna = true;
+		ext_attr->has_ntsc = true;
+		ext_attr->has_btsc = true;
+		ext_attr->has_oob = false;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = true;
+		ext_attr->has_gpio = true;
+		ext_attr->has_irqn = false;
 		break;
 	case 0x43:
-		extAttr->hasLNA = false;
-		extAttr->hasNTSC = true;
-		extAttr->hasBTSC = true;
-		extAttr->hasOOB = false;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = true;
-		extAttr->hasGPIO = true;
-		extAttr->hasIRQN = false;
+		ext_attr->has_lna = false;
+		ext_attr->has_ntsc = true;
+		ext_attr->has_btsc = true;
+		ext_attr->has_oob = false;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = true;
+		ext_attr->has_gpio = true;
+		ext_attr->has_irqn = false;
 		break;
 	case 0x32:
-		extAttr->hasLNA = true;
-		extAttr->hasNTSC = false;
-		extAttr->hasBTSC = false;
-		extAttr->hasOOB = true;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = true;
-		extAttr->hasGPIO = true;
-		extAttr->hasIRQN = true;
+		ext_attr->has_lna = true;
+		ext_attr->has_ntsc = false;
+		ext_attr->has_btsc = false;
+		ext_attr->has_oob = true;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = true;
+		ext_attr->has_gpio = true;
+		ext_attr->has_irqn = true;
 		break;
 	case 0x34:
-		extAttr->hasLNA = false;
-		extAttr->hasNTSC = true;
-		extAttr->hasBTSC = true;
-		extAttr->hasOOB = true;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = true;
-		extAttr->hasGPIO = true;
-		extAttr->hasIRQN = true;
+		ext_attr->has_lna = false;
+		ext_attr->has_ntsc = true;
+		ext_attr->has_btsc = true;
+		ext_attr->has_oob = true;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = true;
+		ext_attr->has_gpio = true;
+		ext_attr->has_irqn = true;
 		break;
 	case 0x42:
-		extAttr->hasLNA = true;
-		extAttr->hasNTSC = true;
-		extAttr->hasBTSC = true;
-		extAttr->hasOOB = true;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = true;
-		extAttr->hasGPIO = true;
-		extAttr->hasIRQN = true;
+		ext_attr->has_lna = true;
+		ext_attr->has_ntsc = true;
+		ext_attr->has_btsc = true;
+		ext_attr->has_oob = true;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = true;
+		ext_attr->has_gpio = true;
+		ext_attr->has_irqn = true;
 		break;
 	case 0x44:
-		extAttr->hasLNA = false;
-		extAttr->hasNTSC = true;
-		extAttr->hasBTSC = true;
-		extAttr->hasOOB = true;
-		extAttr->hasSMATX = true;
-		extAttr->hasSMARX = true;
-		extAttr->hasGPIO = true;
-		extAttr->hasIRQN = true;
+		ext_attr->has_lna = false;
+		ext_attr->has_ntsc = true;
+		ext_attr->has_btsc = true;
+		ext_attr->has_oob = true;
+		ext_attr->has_smatx = true;
+		ext_attr->has_smarx = true;
+		ext_attr->has_gpio = true;
+		ext_attr->has_irqn = true;
 		break;
 	default:
 		/* Unknown device variant */
@@ -2573,7 +2573,7 @@ rw_error:
 }
 
 /**
-* \fn int PowerUpDevice()
+* \fn int power_up_device()
 * \brief Power up device.
 * \param demod  Pointer to demodulator instance.
 * \return int.
@@ -2586,36 +2586,36 @@ rw_error:
 #define DRXJ_MAX_RETRIES_POWERUP 10
 #endif
 
-static int PowerUpDevice(pDRXDemodInstance_t demod)
+static int power_up_device(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
 	u8 data = 0;
-	u16 retryCount = 0;
-	struct i2c_device_addr wakeUpAddr;
+	u16 retry_count = 0;
+	struct i2c_device_addr wake_up_addr;
 
-	devAddr = demod->myI2CDevAddr;
-	wakeUpAddr.i2cAddr = DRXJ_WAKE_UP_KEY;
-	wakeUpAddr.i2cDevId = devAddr->i2cDevId;
-	wakeUpAddr.userData = devAddr->userData;
+	dev_addr = demod->my_i2c_dev_addr;
+	wake_up_addr.i2c_addr = DRXJ_WAKE_UP_KEY;
+	wake_up_addr.i2c_dev_id = dev_addr->i2c_dev_id;
+	wake_up_addr.user_data = dev_addr->user_data;
 	/* CHK_ERROR macro not used, I2C access may fail in this case: no ack
 	   dummy write must be used to wake uop device, dummy read must be used to
 	   reset HI state machine (avoiding actual writes) */
 	do {
 		data = 0;
-		DRXBSP_I2C_WriteRead(&wakeUpAddr, 1, &data,
+		drxbsp_i2c_write_read(&wake_up_addr, 1, &data,
 				     (struct i2c_device_addr *) (NULL), 0,
 				     (u8 *) (NULL));
-		DRXBSP_HST_Sleep(10);
-		retryCount++;
-	} while ((DRXBSP_I2C_WriteRead
-		  ((struct i2c_device_addr *) (NULL), 0, (u8 *) (NULL), devAddr, 1,
+		drxbsp_hst_sleep(10);
+		retry_count++;
+	} while ((drxbsp_i2c_write_read
+		  ((struct i2c_device_addr *) (NULL), 0, (u8 *) (NULL), dev_addr, 1,
 		   &data)
-		  != DRX_STS_OK) && (retryCount < DRXJ_MAX_RETRIES_POWERUP));
+		  != DRX_STS_OK) && (retry_count < DRXJ_MAX_RETRIES_POWERUP));
 
 	/* Need some recovery time .... */
-	DRXBSP_HST_Sleep(10);
+	drxbsp_hst_sleep(10);
 
-	if (retryCount == DRXJ_MAX_RETRIES_POWERUP) {
+	if (retry_count == DRXJ_MAX_RETRIES_POWERUP) {
 		return (DRX_STS_ERROR);
 	}
 
@@ -2626,47 +2626,47 @@ static int PowerUpDevice(pDRXDemodInstance_t demod)
 /* MPEG Output Configuration Functions - begin                                */
 /*----------------------------------------------------------------------------*/
 /**
-* \fn int CtrlSetCfgMPEGOutput()
+* \fn int ctrl_set_cfg_mpeg_output()
 * \brief Set MPEG output configuration of the device.
 * \param devmod  Pointer to demodulator instance.
-* \param cfgData Pointer to mpeg output configuaration.
+* \param cfg_data Pointer to mpeg output configuaration.
 * \return int.
 *
 *  Configure MPEG output parameters.
 *
 */
 static int
-CtrlSetCfgMPEGOutput(pDRXDemodInstance_t demod, pDRXCfgMPEGOutput_t cfgData)
+ctrl_set_cfg_mpeg_output(pdrx_demod_instance_t demod, pdrx_cfg_mpeg_output_t cfg_data)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	u16 fecOcRegMode = 0;
-	u16 fecOcRegIprMode = 0;
-	u16 fecOcRegIprInvert = 0;
-	u32 maxBitRate = 0;
-	u32 rcnRate = 0;
-	u32 nrBits = 0;
-	u16 sioPdrMdCfg = 0;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	u16 fec_oc_reg_mode = 0;
+	u16 fec_oc_reg_ipr_mode = 0;
+	u16 fec_oc_reg_ipr_invert = 0;
+	u32 max_bit_rate = 0;
+	u32 rcn_rate = 0;
+	u32 nr_bits = 0;
+	u16 sio_pdr_md_cfg = 0;
 	/* data mask for the output data byte */
-	u16 InvertDataMask =
+	u16 invert_data_mask =
 	    FEC_OC_IPR_INVERT_MD7__M | FEC_OC_IPR_INVERT_MD6__M |
 	    FEC_OC_IPR_INVERT_MD5__M | FEC_OC_IPR_INVERT_MD4__M |
 	    FEC_OC_IPR_INVERT_MD3__M | FEC_OC_IPR_INVERT_MD2__M |
 	    FEC_OC_IPR_INVERT_MD1__M | FEC_OC_IPR_INVERT_MD0__M;
 	/* check arguments */
-	if ((demod == NULL) || (cfgData == NULL)) {
+	if ((demod == NULL) || (cfg_data == NULL)) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
-	if (cfgData->enableMPEGOutput == true) {
+	if (cfg_data->enable_mpeg_output == true) {
 		/* quick and dirty patch to set MPEG incase current std is not
 		   producing MPEG */
-		switch (extAttr->standard) {
+		switch (ext_attr->standard) {
 		case DRX_STANDARD_8VSB:
 		case DRX_STANDARD_ITU_A:
 		case DRX_STANDARD_ITU_B:
@@ -2674,105 +2674,105 @@ CtrlSetCfgMPEGOutput(pDRXDemodInstance_t demod, pDRXCfgMPEGOutput_t cfgData)
 			break;
 		default:
 			/* not an MPEG producing std, just store MPEG cfg */
-			commonAttr->mpegCfg.enableMPEGOutput =
-			    cfgData->enableMPEGOutput;
-			commonAttr->mpegCfg.insertRSByte =
-			    cfgData->insertRSByte;
-			commonAttr->mpegCfg.enableParallel =
-			    cfgData->enableParallel;
-			commonAttr->mpegCfg.invertDATA = cfgData->invertDATA;
-			commonAttr->mpegCfg.invertERR = cfgData->invertERR;
-			commonAttr->mpegCfg.invertSTR = cfgData->invertSTR;
-			commonAttr->mpegCfg.invertVAL = cfgData->invertVAL;
-			commonAttr->mpegCfg.invertCLK = cfgData->invertCLK;
-			commonAttr->mpegCfg.staticCLK = cfgData->staticCLK;
-			commonAttr->mpegCfg.bitrate = cfgData->bitrate;
+			common_attr->mpeg_cfg.enable_mpeg_output =
+			    cfg_data->enable_mpeg_output;
+			common_attr->mpeg_cfg.insert_rs_byte =
+			    cfg_data->insert_rs_byte;
+			common_attr->mpeg_cfg.enable_parallel =
+			    cfg_data->enable_parallel;
+			common_attr->mpeg_cfg.invert_data = cfg_data->invert_data;
+			common_attr->mpeg_cfg.invert_err = cfg_data->invert_err;
+			common_attr->mpeg_cfg.invert_str = cfg_data->invert_str;
+			common_attr->mpeg_cfg.invert_val = cfg_data->invert_val;
+			common_attr->mpeg_cfg.invert_clk = cfg_data->invert_clk;
+			common_attr->mpeg_cfg.static_clk = cfg_data->static_clk;
+			common_attr->mpeg_cfg.bitrate = cfg_data->bitrate;
 			return (DRX_STS_OK);
 		}
 
-		WR16(devAddr, FEC_OC_OCR_INVERT__A, 0);
-		switch (extAttr->standard) {
+		WR16(dev_addr, FEC_OC_OCR_INVERT__A, 0);
+		switch (ext_attr->standard) {
 		case DRX_STANDARD_8VSB:
-			WR16(devAddr, FEC_OC_FCT_USAGE__A, 7);	/* 2048 bytes fifo ram */
-			WR16(devAddr, FEC_OC_TMD_CTL_UPD_RATE__A, 10);
-			WR16(devAddr, FEC_OC_TMD_INT_UPD_RATE__A, 10);
-			WR16(devAddr, FEC_OC_AVR_PARM_A__A, 5);
-			WR16(devAddr, FEC_OC_AVR_PARM_B__A, 7);
-			WR16(devAddr, FEC_OC_RCN_GAIN__A, 10);
+			WR16(dev_addr, FEC_OC_FCT_USAGE__A, 7);	/* 2048 bytes fifo ram */
+			WR16(dev_addr, FEC_OC_TMD_CTL_UPD_RATE__A, 10);
+			WR16(dev_addr, FEC_OC_TMD_INT_UPD_RATE__A, 10);
+			WR16(dev_addr, FEC_OC_AVR_PARM_A__A, 5);
+			WR16(dev_addr, FEC_OC_AVR_PARM_B__A, 7);
+			WR16(dev_addr, FEC_OC_RCN_GAIN__A, 10);
 			/* Low Water Mark for synchronization  */
-			WR16(devAddr, FEC_OC_SNC_LWM__A, 3);
+			WR16(dev_addr, FEC_OC_SNC_LWM__A, 3);
 			/* High Water Mark for synchronization */
-			WR16(devAddr, FEC_OC_SNC_HWM__A, 5);
+			WR16(dev_addr, FEC_OC_SNC_HWM__A, 5);
 			break;
 		case DRX_STANDARD_ITU_A:
 		case DRX_STANDARD_ITU_C:
-			switch (extAttr->constellation) {
+			switch (ext_attr->constellation) {
 			case DRX_CONSTELLATION_QAM256:
-				nrBits = 8;
+				nr_bits = 8;
 				break;
 			case DRX_CONSTELLATION_QAM128:
-				nrBits = 7;
+				nr_bits = 7;
 				break;
 			case DRX_CONSTELLATION_QAM64:
-				nrBits = 6;
+				nr_bits = 6;
 				break;
 			case DRX_CONSTELLATION_QAM32:
-				nrBits = 5;
+				nr_bits = 5;
 				break;
 			case DRX_CONSTELLATION_QAM16:
-				nrBits = 4;
+				nr_bits = 4;
 				break;
 			default:
 				return (DRX_STS_ERROR);
-			}	/* extAttr->constellation */
-			/* maxBitRate = symbolRate * nrBits * coef */
+			}	/* ext_attr->constellation */
+			/* max_bit_rate = symbol_rate * nr_bits * coef */
 			/* coef = 188/204                          */
-			maxBitRate =
-			    (extAttr->currSymbolRate / 8) * nrBits * 188;
+			max_bit_rate =
+			    (ext_attr->curr_symbol_rate / 8) * nr_bits * 188;
 			/* pass through b/c Annex A/c need following settings */
 		case DRX_STANDARD_ITU_B:
-			WR16(devAddr, FEC_OC_FCT_USAGE__A,
+			WR16(dev_addr, FEC_OC_FCT_USAGE__A,
 			     FEC_OC_FCT_USAGE__PRE);
-			WR16(devAddr, FEC_OC_TMD_CTL_UPD_RATE__A,
+			WR16(dev_addr, FEC_OC_TMD_CTL_UPD_RATE__A,
 			     FEC_OC_TMD_CTL_UPD_RATE__PRE);
-			WR16(devAddr, FEC_OC_TMD_INT_UPD_RATE__A, 5);
-			WR16(devAddr, FEC_OC_AVR_PARM_A__A,
+			WR16(dev_addr, FEC_OC_TMD_INT_UPD_RATE__A, 5);
+			WR16(dev_addr, FEC_OC_AVR_PARM_A__A,
 			     FEC_OC_AVR_PARM_A__PRE);
-			WR16(devAddr, FEC_OC_AVR_PARM_B__A,
+			WR16(dev_addr, FEC_OC_AVR_PARM_B__A,
 			     FEC_OC_AVR_PARM_B__PRE);
-			if (cfgData->staticCLK == true) {
-				WR16(devAddr, FEC_OC_RCN_GAIN__A, 0xD);
+			if (cfg_data->static_clk == true) {
+				WR16(dev_addr, FEC_OC_RCN_GAIN__A, 0xD);
 			} else {
-				WR16(devAddr, FEC_OC_RCN_GAIN__A,
+				WR16(dev_addr, FEC_OC_RCN_GAIN__A,
 				     FEC_OC_RCN_GAIN__PRE);
 			}
-			WR16(devAddr, FEC_OC_SNC_LWM__A, 2);
-			WR16(devAddr, FEC_OC_SNC_HWM__A, 12);
+			WR16(dev_addr, FEC_OC_SNC_LWM__A, 2);
+			WR16(dev_addr, FEC_OC_SNC_HWM__A, 12);
 			break;
 		default:
 			break;
 		}		/* swtich (standard) */
 
 		/* Check insertion of the Reed-Solomon parity bytes */
-		RR16(devAddr, FEC_OC_MODE__A, &fecOcRegMode);
-		RR16(devAddr, FEC_OC_IPR_MODE__A, &fecOcRegIprMode);
-		if (cfgData->insertRSByte == true) {
+		RR16(dev_addr, FEC_OC_MODE__A, &fec_oc_reg_mode);
+		RR16(dev_addr, FEC_OC_IPR_MODE__A, &fec_oc_reg_ipr_mode);
+		if (cfg_data->insert_rs_byte == true) {
 			/* enable parity symbol forward */
-			fecOcRegMode |= FEC_OC_MODE_PARITY__M;
+			fec_oc_reg_mode |= FEC_OC_MODE_PARITY__M;
 			/* MVAL disable during parity bytes */
-			fecOcRegIprMode |= FEC_OC_IPR_MODE_MVAL_DIS_PAR__M;
-			switch (extAttr->standard) {
+			fec_oc_reg_ipr_mode |= FEC_OC_IPR_MODE_MVAL_DIS_PAR__M;
+			switch (ext_attr->standard) {
 			case DRX_STANDARD_8VSB:
-				rcnRate = 0x004854D3;
+				rcn_rate = 0x004854D3;
 				break;
 			case DRX_STANDARD_ITU_B:
-				fecOcRegMode |= FEC_OC_MODE_TRANSPARENT__M;
-				switch (extAttr->constellation) {
+				fec_oc_reg_mode |= FEC_OC_MODE_TRANSPARENT__M;
+				switch (ext_attr->constellation) {
 				case DRX_CONSTELLATION_QAM256:
-					rcnRate = 0x008945E7;
+					rcn_rate = 0x008945E7;
 					break;
 				case DRX_CONSTELLATION_QAM64:
-					rcnRate = 0x005F64D4;
+					rcn_rate = 0x005F64D4;
 					break;
 				default:
 					return (DRX_STS_ERROR);
@@ -2780,34 +2780,34 @@ CtrlSetCfgMPEGOutput(pDRXDemodInstance_t demod, pDRXCfgMPEGOutput_t cfgData)
 				break;
 			case DRX_STANDARD_ITU_A:
 			case DRX_STANDARD_ITU_C:
-				/* insertRSByte = true -> coef = 188/188 -> 1, RS bits are in MPEG output */
-				rcnRate =
-				    (Frac28
-				     (maxBitRate,
-				      (u32) (commonAttr->sysClockFreq / 8))) /
+				/* insert_rs_byte = true -> coef = 188/188 -> 1, RS bits are in MPEG output */
+				rcn_rate =
+				    (frac28
+				     (max_bit_rate,
+				      (u32) (common_attr->sys_clock_freq / 8))) /
 				    188;
 				break;
 			default:
 				return (DRX_STS_ERROR);
-			}	/* extAttr->standard */
-		} else {	/* insertRSByte == false */
+			}	/* ext_attr->standard */
+		} else {	/* insert_rs_byte == false */
 
 			/* disable parity symbol forward */
-			fecOcRegMode &= (~FEC_OC_MODE_PARITY__M);
+			fec_oc_reg_mode &= (~FEC_OC_MODE_PARITY__M);
 			/* MVAL enable during parity bytes */
-			fecOcRegIprMode &= (~FEC_OC_IPR_MODE_MVAL_DIS_PAR__M);
-			switch (extAttr->standard) {
+			fec_oc_reg_ipr_mode &= (~FEC_OC_IPR_MODE_MVAL_DIS_PAR__M);
+			switch (ext_attr->standard) {
 			case DRX_STANDARD_8VSB:
-				rcnRate = 0x0041605C;
+				rcn_rate = 0x0041605C;
 				break;
 			case DRX_STANDARD_ITU_B:
-				fecOcRegMode &= (~FEC_OC_MODE_TRANSPARENT__M);
-				switch (extAttr->constellation) {
+				fec_oc_reg_mode &= (~FEC_OC_MODE_TRANSPARENT__M);
+				switch (ext_attr->constellation) {
 				case DRX_CONSTELLATION_QAM256:
-					rcnRate = 0x0082D6A0;
+					rcn_rate = 0x0082D6A0;
 					break;
 				case DRX_CONSTELLATION_QAM64:
-					rcnRate = 0x005AEC1A;
+					rcn_rate = 0x005AEC1A;
 					break;
 				default:
 					return (DRX_STS_ERROR);
@@ -2815,210 +2815,210 @@ CtrlSetCfgMPEGOutput(pDRXDemodInstance_t demod, pDRXCfgMPEGOutput_t cfgData)
 				break;
 			case DRX_STANDARD_ITU_A:
 			case DRX_STANDARD_ITU_C:
-				/* insertRSByte = false -> coef = 188/204, RS bits not in MPEG output */
-				rcnRate =
-				    (Frac28
-				     (maxBitRate,
-				      (u32) (commonAttr->sysClockFreq / 8))) /
+				/* insert_rs_byte = false -> coef = 188/204, RS bits not in MPEG output */
+				rcn_rate =
+				    (frac28
+				     (max_bit_rate,
+				      (u32) (common_attr->sys_clock_freq / 8))) /
 				    204;
 				break;
 			default:
 				return (DRX_STS_ERROR);
-			}	/* extAttr->standard */
+			}	/* ext_attr->standard */
 		}
 
-		if (cfgData->enableParallel == true) {	/* MPEG data output is paralel -> clear ipr_mode[0] */
-			fecOcRegIprMode &= (~(FEC_OC_IPR_MODE_SERIAL__M));
+		if (cfg_data->enable_parallel == true) {	/* MPEG data output is paralel -> clear ipr_mode[0] */
+			fec_oc_reg_ipr_mode &= (~(FEC_OC_IPR_MODE_SERIAL__M));
 		} else {	/* MPEG data output is serial -> set ipr_mode[0] */
-			fecOcRegIprMode |= FEC_OC_IPR_MODE_SERIAL__M;
+			fec_oc_reg_ipr_mode |= FEC_OC_IPR_MODE_SERIAL__M;
 		}
 
 		/* Control slective inversion of output bits */
-		if (cfgData->invertDATA == true) {
-			fecOcRegIprInvert |= InvertDataMask;
+		if (cfg_data->invert_data == true) {
+			fec_oc_reg_ipr_invert |= invert_data_mask;
 		} else {
-			fecOcRegIprInvert &= (~(InvertDataMask));
+			fec_oc_reg_ipr_invert &= (~(invert_data_mask));
 		}
 
-		if (cfgData->invertERR == true) {
-			fecOcRegIprInvert |= FEC_OC_IPR_INVERT_MERR__M;
+		if (cfg_data->invert_err == true) {
+			fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MERR__M;
 		} else {
-			fecOcRegIprInvert &= (~(FEC_OC_IPR_INVERT_MERR__M));
+			fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MERR__M));
 		}
 
-		if (cfgData->invertSTR == true) {
-			fecOcRegIprInvert |= FEC_OC_IPR_INVERT_MSTRT__M;
+		if (cfg_data->invert_str == true) {
+			fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MSTRT__M;
 		} else {
-			fecOcRegIprInvert &= (~(FEC_OC_IPR_INVERT_MSTRT__M));
+			fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MSTRT__M));
 		}
 
-		if (cfgData->invertVAL == true) {
-			fecOcRegIprInvert |= FEC_OC_IPR_INVERT_MVAL__M;
+		if (cfg_data->invert_val == true) {
+			fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MVAL__M;
 		} else {
-			fecOcRegIprInvert &= (~(FEC_OC_IPR_INVERT_MVAL__M));
+			fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MVAL__M));
 		}
 
-		if (cfgData->invertCLK == true) {
-			fecOcRegIprInvert |= FEC_OC_IPR_INVERT_MCLK__M;
+		if (cfg_data->invert_clk == true) {
+			fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MCLK__M;
 		} else {
-			fecOcRegIprInvert &= (~(FEC_OC_IPR_INVERT_MCLK__M));
+			fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MCLK__M));
 		}
 
-		if (cfgData->staticCLK == true) {	/* Static mode */
-			u32 dtoRate = 0;
-			u32 bitRate = 0;
-			u16 fecOcDtoBurstLen = 0;
-			u16 fecOcDtoPeriod = 0;
+		if (cfg_data->static_clk == true) {	/* Static mode */
+			u32 dto_rate = 0;
+			u32 bit_rate = 0;
+			u16 fec_oc_dto_burst_len = 0;
+			u16 fec_oc_dto_period = 0;
 
-			fecOcDtoBurstLen = FEC_OC_DTO_BURST_LEN__PRE;
+			fec_oc_dto_burst_len = FEC_OC_DTO_BURST_LEN__PRE;
 
-			switch (extAttr->standard) {
+			switch (ext_attr->standard) {
 			case DRX_STANDARD_8VSB:
-				fecOcDtoPeriod = 4;
-				if (cfgData->insertRSByte == true) {
-					fecOcDtoBurstLen = 208;
+				fec_oc_dto_period = 4;
+				if (cfg_data->insert_rs_byte == true) {
+					fec_oc_dto_burst_len = 208;
 				}
 				break;
 			case DRX_STANDARD_ITU_A:
 				{
-					u32 symbolRateTh = 6400000;
-					if (cfgData->insertRSByte == true) {
-						fecOcDtoBurstLen = 204;
-						symbolRateTh = 5900000;
+					u32 symbol_rate_th = 6400000;
+					if (cfg_data->insert_rs_byte == true) {
+						fec_oc_dto_burst_len = 204;
+						symbol_rate_th = 5900000;
 					}
-					if (extAttr->currSymbolRate >=
-					    symbolRateTh) {
-						fecOcDtoPeriod = 0;
+					if (ext_attr->curr_symbol_rate >=
+					    symbol_rate_th) {
+						fec_oc_dto_period = 0;
 					} else {
-						fecOcDtoPeriod = 1;
+						fec_oc_dto_period = 1;
 					}
 				}
 				break;
 			case DRX_STANDARD_ITU_B:
-				fecOcDtoPeriod = 1;
-				if (cfgData->insertRSByte == true) {
-					fecOcDtoBurstLen = 128;
+				fec_oc_dto_period = 1;
+				if (cfg_data->insert_rs_byte == true) {
+					fec_oc_dto_burst_len = 128;
 				}
 				break;
 			case DRX_STANDARD_ITU_C:
-				fecOcDtoPeriod = 1;
-				if (cfgData->insertRSByte == true) {
-					fecOcDtoBurstLen = 204;
+				fec_oc_dto_period = 1;
+				if (cfg_data->insert_rs_byte == true) {
+					fec_oc_dto_burst_len = 204;
 				}
 				break;
 			default:
 				return (DRX_STS_ERROR);
 			}
-			bitRate =
-			    commonAttr->sysClockFreq * 1000 / (fecOcDtoPeriod +
+			bit_rate =
+			    common_attr->sys_clock_freq * 1000 / (fec_oc_dto_period +
 							       2);
-			dtoRate =
-			    Frac28(bitRate, commonAttr->sysClockFreq * 1000);
-			dtoRate >>= 3;
-			WR16(devAddr, FEC_OC_DTO_RATE_HI__A,
-			     (u16) ((dtoRate >> 16) & FEC_OC_DTO_RATE_HI__M));
-			WR16(devAddr, FEC_OC_DTO_RATE_LO__A,
-			     (u16) (dtoRate & FEC_OC_DTO_RATE_LO_RATE_LO__M));
-			WR16(devAddr, FEC_OC_DTO_MODE__A,
+			dto_rate =
+			    frac28(bit_rate, common_attr->sys_clock_freq * 1000);
+			dto_rate >>= 3;
+			WR16(dev_addr, FEC_OC_DTO_RATE_HI__A,
+			     (u16) ((dto_rate >> 16) & FEC_OC_DTO_RATE_HI__M));
+			WR16(dev_addr, FEC_OC_DTO_RATE_LO__A,
+			     (u16) (dto_rate & FEC_OC_DTO_RATE_LO_RATE_LO__M));
+			WR16(dev_addr, FEC_OC_DTO_MODE__A,
 			     FEC_OC_DTO_MODE_DYNAMIC__M |
 			     FEC_OC_DTO_MODE_OFFSET_ENABLE__M);
-			WR16(devAddr, FEC_OC_FCT_MODE__A,
+			WR16(dev_addr, FEC_OC_FCT_MODE__A,
 			     FEC_OC_FCT_MODE_RAT_ENA__M |
 			     FEC_OC_FCT_MODE_VIRT_ENA__M);
-			WR16(devAddr, FEC_OC_DTO_BURST_LEN__A,
-			     fecOcDtoBurstLen);
-			if (extAttr->mpegOutputClockRate !=
+			WR16(dev_addr, FEC_OC_DTO_BURST_LEN__A,
+			     fec_oc_dto_burst_len);
+			if (ext_attr->mpeg_output_clock_rate !=
 			    DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO)
-				fecOcDtoPeriod =
-				    extAttr->mpegOutputClockRate - 1;
-			WR16(devAddr, FEC_OC_DTO_PERIOD__A, fecOcDtoPeriod);
+				fec_oc_dto_period =
+				    ext_attr->mpeg_output_clock_rate - 1;
+			WR16(dev_addr, FEC_OC_DTO_PERIOD__A, fec_oc_dto_period);
 		} else {	/* Dynamic mode */
 
-			WR16(devAddr, FEC_OC_DTO_MODE__A,
+			WR16(dev_addr, FEC_OC_DTO_MODE__A,
 			     FEC_OC_DTO_MODE_DYNAMIC__M);
-			WR16(devAddr, FEC_OC_FCT_MODE__A, 0);
+			WR16(dev_addr, FEC_OC_FCT_MODE__A, 0);
 		}
 
-		WR32(devAddr, FEC_OC_RCN_CTL_RATE_LO__A, rcnRate);
+		WR32(dev_addr, FEC_OC_RCN_CTL_RATE_LO__A, rcn_rate);
 
 		/* Write appropriate registers with requested configuration */
-		WR16(devAddr, FEC_OC_MODE__A, fecOcRegMode);
-		WR16(devAddr, FEC_OC_IPR_MODE__A, fecOcRegIprMode);
-		WR16(devAddr, FEC_OC_IPR_INVERT__A, fecOcRegIprInvert);
+		WR16(dev_addr, FEC_OC_MODE__A, fec_oc_reg_mode);
+		WR16(dev_addr, FEC_OC_IPR_MODE__A, fec_oc_reg_ipr_mode);
+		WR16(dev_addr, FEC_OC_IPR_INVERT__A, fec_oc_reg_ipr_invert);
 
 		/* enabling for both parallel and serial now */
 		/*  Write magic word to enable pdr reg write */
-		WR16(devAddr, SIO_TOP_COMM_KEY__A, 0xFABA);
+		WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);
 		/*  Set MPEG TS pads to outputmode */
-		WR16(devAddr, SIO_PDR_MSTRT_CFG__A, 0x0013);
-		WR16(devAddr, SIO_PDR_MERR_CFG__A, 0x0013);
-		WR16(devAddr, SIO_PDR_MCLK_CFG__A,
+		WR16(dev_addr, SIO_PDR_MSTRT_CFG__A, 0x0013);
+		WR16(dev_addr, SIO_PDR_MERR_CFG__A, 0x0013);
+		WR16(dev_addr, SIO_PDR_MCLK_CFG__A,
 		     MPEG_OUTPUT_CLK_DRIVE_STRENGTH << SIO_PDR_MCLK_CFG_DRIVE__B
 		     | 0x03 << SIO_PDR_MCLK_CFG_MODE__B);
-		WR16(devAddr, SIO_PDR_MVAL_CFG__A, 0x0013);
-		sioPdrMdCfg =
+		WR16(dev_addr, SIO_PDR_MVAL_CFG__A, 0x0013);
+		sio_pdr_md_cfg =
 		    MPEG_SERIAL_OUTPUT_PIN_DRIVE_STRENGTH <<
 		    SIO_PDR_MD0_CFG_DRIVE__B | 0x03 << SIO_PDR_MD0_CFG_MODE__B;
-		WR16(devAddr, SIO_PDR_MD0_CFG__A, sioPdrMdCfg);
-		if (cfgData->enableParallel == true) {	/* MPEG data output is paralel -> set MD1 to MD7 to output mode */
-			sioPdrMdCfg =
+		WR16(dev_addr, SIO_PDR_MD0_CFG__A, sio_pdr_md_cfg);
+		if (cfg_data->enable_parallel == true) {	/* MPEG data output is paralel -> set MD1 to MD7 to output mode */
+			sio_pdr_md_cfg =
 			    MPEG_PARALLEL_OUTPUT_PIN_DRIVE_STRENGTH <<
 			    SIO_PDR_MD0_CFG_DRIVE__B | 0x03 <<
 			    SIO_PDR_MD0_CFG_MODE__B;
-			WR16(devAddr, SIO_PDR_MD0_CFG__A, sioPdrMdCfg);
-			WR16(devAddr, SIO_PDR_MD1_CFG__A, sioPdrMdCfg);
-			WR16(devAddr, SIO_PDR_MD2_CFG__A, sioPdrMdCfg);
-			WR16(devAddr, SIO_PDR_MD3_CFG__A, sioPdrMdCfg);
-			WR16(devAddr, SIO_PDR_MD4_CFG__A, sioPdrMdCfg);
-			WR16(devAddr, SIO_PDR_MD5_CFG__A, sioPdrMdCfg);
-			WR16(devAddr, SIO_PDR_MD6_CFG__A, sioPdrMdCfg);
-			WR16(devAddr, SIO_PDR_MD7_CFG__A, sioPdrMdCfg);
+			WR16(dev_addr, SIO_PDR_MD0_CFG__A, sio_pdr_md_cfg);
+			WR16(dev_addr, SIO_PDR_MD1_CFG__A, sio_pdr_md_cfg);
+			WR16(dev_addr, SIO_PDR_MD2_CFG__A, sio_pdr_md_cfg);
+			WR16(dev_addr, SIO_PDR_MD3_CFG__A, sio_pdr_md_cfg);
+			WR16(dev_addr, SIO_PDR_MD4_CFG__A, sio_pdr_md_cfg);
+			WR16(dev_addr, SIO_PDR_MD5_CFG__A, sio_pdr_md_cfg);
+			WR16(dev_addr, SIO_PDR_MD6_CFG__A, sio_pdr_md_cfg);
+			WR16(dev_addr, SIO_PDR_MD7_CFG__A, sio_pdr_md_cfg);
 		} else {	/* MPEG data output is serial -> set MD1 to MD7 to tri-state */
-			WR16(devAddr, SIO_PDR_MD1_CFG__A, 0x0000);
-			WR16(devAddr, SIO_PDR_MD2_CFG__A, 0x0000);
-			WR16(devAddr, SIO_PDR_MD3_CFG__A, 0x0000);
-			WR16(devAddr, SIO_PDR_MD4_CFG__A, 0x0000);
-			WR16(devAddr, SIO_PDR_MD5_CFG__A, 0x0000);
-			WR16(devAddr, SIO_PDR_MD6_CFG__A, 0x0000);
-			WR16(devAddr, SIO_PDR_MD7_CFG__A, 0x0000);
+			WR16(dev_addr, SIO_PDR_MD1_CFG__A, 0x0000);
+			WR16(dev_addr, SIO_PDR_MD2_CFG__A, 0x0000);
+			WR16(dev_addr, SIO_PDR_MD3_CFG__A, 0x0000);
+			WR16(dev_addr, SIO_PDR_MD4_CFG__A, 0x0000);
+			WR16(dev_addr, SIO_PDR_MD5_CFG__A, 0x0000);
+			WR16(dev_addr, SIO_PDR_MD6_CFG__A, 0x0000);
+			WR16(dev_addr, SIO_PDR_MD7_CFG__A, 0x0000);
 		}
 		/*  Enable Monitor Bus output over MPEG pads and ctl input */
-		WR16(devAddr, SIO_PDR_MON_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MON_CFG__A, 0x0000);
 		/*  Write nomagic word to enable pdr reg write */
-		WR16(devAddr, SIO_TOP_COMM_KEY__A, 0x0000);
+		WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
 	} else {
 		/*  Write magic word to enable pdr reg write */
-		WR16(devAddr, SIO_TOP_COMM_KEY__A, 0xFABA);
+		WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);
 		/*  Set MPEG TS pads to inputmode */
-		WR16(devAddr, SIO_PDR_MSTRT_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MERR_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MCLK_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MVAL_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MD0_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MD1_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MD2_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MD3_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MD4_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MD5_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MD6_CFG__A, 0x0000);
-		WR16(devAddr, SIO_PDR_MD7_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MSTRT_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MERR_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MCLK_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MVAL_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MD0_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MD1_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MD2_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MD3_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MD4_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MD5_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MD6_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MD7_CFG__A, 0x0000);
 		/* Enable Monitor Bus output over MPEG pads and ctl input */
-		WR16(devAddr, SIO_PDR_MON_CFG__A, 0x0000);
+		WR16(dev_addr, SIO_PDR_MON_CFG__A, 0x0000);
 		/* Write nomagic word to enable pdr reg write */
-		WR16(devAddr, SIO_TOP_COMM_KEY__A, 0x0000);
+		WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
 	}
 
 	/* save values for restore after re-acquire */
-	commonAttr->mpegCfg.enableMPEGOutput = cfgData->enableMPEGOutput;
-	commonAttr->mpegCfg.insertRSByte = cfgData->insertRSByte;
-	commonAttr->mpegCfg.enableParallel = cfgData->enableParallel;
-	commonAttr->mpegCfg.invertDATA = cfgData->invertDATA;
-	commonAttr->mpegCfg.invertERR = cfgData->invertERR;
-	commonAttr->mpegCfg.invertSTR = cfgData->invertSTR;
-	commonAttr->mpegCfg.invertVAL = cfgData->invertVAL;
-	commonAttr->mpegCfg.invertCLK = cfgData->invertCLK;
-	commonAttr->mpegCfg.staticCLK = cfgData->staticCLK;
-	commonAttr->mpegCfg.bitrate = cfgData->bitrate;
+	common_attr->mpeg_cfg.enable_mpeg_output = cfg_data->enable_mpeg_output;
+	common_attr->mpeg_cfg.insert_rs_byte = cfg_data->insert_rs_byte;
+	common_attr->mpeg_cfg.enable_parallel = cfg_data->enable_parallel;
+	common_attr->mpeg_cfg.invert_data = cfg_data->invert_data;
+	common_attr->mpeg_cfg.invert_err = cfg_data->invert_err;
+	common_attr->mpeg_cfg.invert_str = cfg_data->invert_str;
+	common_attr->mpeg_cfg.invert_val = cfg_data->invert_val;
+	common_attr->mpeg_cfg.invert_clk = cfg_data->invert_clk;
+	common_attr->mpeg_cfg.static_clk = cfg_data->static_clk;
+	common_attr->mpeg_cfg.bitrate = cfg_data->bitrate;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3028,49 +3028,49 @@ rw_error:
 /*----------------------------------------------------------------------------*/
 
 /**
-* \fn int CtrlGetCfgMPEGOutput()
+* \fn int ctrl_get_cfg_mpeg_output()
 * \brief Get MPEG output configuration of the device.
 * \param devmod  Pointer to demodulator instance.
-* \param cfgData Pointer to MPEG output configuaration struct.
+* \param cfg_data Pointer to MPEG output configuaration struct.
 * \return int.
 *
 *  Retrieve MPEG output configuartion.
 *
 */
 static int
-CtrlGetCfgMPEGOutput(pDRXDemodInstance_t demod, pDRXCfgMPEGOutput_t cfgData)
+ctrl_get_cfg_mpeg_output(pdrx_demod_instance_t demod, pdrx_cfg_mpeg_output_t cfg_data)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	DRXLockStatus_t lockStatus = DRX_NOT_LOCKED;
-	u32 rateReg = 0;
-	u32 data64Hi = 0;
-	u32 data64Lo = 0;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	u32 rate_reg = 0;
+	u32 data64hi = 0;
+	u32 data64lo = 0;
 
-	if (cfgData == NULL) {
+	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	devAddr = demod->myI2CDevAddr;
-	commonAttr = demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	common_attr = demod->my_common_attr;
 
-	cfgData->enableMPEGOutput = commonAttr->mpegCfg.enableMPEGOutput;
-	cfgData->insertRSByte = commonAttr->mpegCfg.insertRSByte;
-	cfgData->enableParallel = commonAttr->mpegCfg.enableParallel;
-	cfgData->invertDATA = commonAttr->mpegCfg.invertDATA;
-	cfgData->invertERR = commonAttr->mpegCfg.invertERR;
-	cfgData->invertSTR = commonAttr->mpegCfg.invertSTR;
-	cfgData->invertVAL = commonAttr->mpegCfg.invertVAL;
-	cfgData->invertCLK = commonAttr->mpegCfg.invertCLK;
-	cfgData->staticCLK = commonAttr->mpegCfg.staticCLK;
-	cfgData->bitrate = 0;
+	cfg_data->enable_mpeg_output = common_attr->mpeg_cfg.enable_mpeg_output;
+	cfg_data->insert_rs_byte = common_attr->mpeg_cfg.insert_rs_byte;
+	cfg_data->enable_parallel = common_attr->mpeg_cfg.enable_parallel;
+	cfg_data->invert_data = common_attr->mpeg_cfg.invert_data;
+	cfg_data->invert_err = common_attr->mpeg_cfg.invert_err;
+	cfg_data->invert_str = common_attr->mpeg_cfg.invert_str;
+	cfg_data->invert_val = common_attr->mpeg_cfg.invert_val;
+	cfg_data->invert_clk = common_attr->mpeg_cfg.invert_clk;
+	cfg_data->static_clk = common_attr->mpeg_cfg.static_clk;
+	cfg_data->bitrate = 0;
 
-	CHK_ERROR(CtrlLockStatus(demod, &lockStatus));
-	if ((lockStatus == DRX_LOCKED)) {
-		RR32(devAddr, FEC_OC_RCN_DYN_RATE_LO__A, &rateReg);
-		/* Frcn_rate = rateReg * Fsys / 2 ^ 25 */
-		Mult32(rateReg, commonAttr->sysClockFreq * 1000, &data64Hi,
-		       &data64Lo);
-		cfgData->bitrate = (data64Hi << 7) | (data64Lo >> 25);
+	CHK_ERROR(ctrl_lock_status(demod, &lock_status));
+	if ((lock_status == DRX_LOCKED)) {
+		RR32(dev_addr, FEC_OC_RCN_DYN_RATE_LO__A, &rate_reg);
+		/* Frcn_rate = rate_reg * Fsys / 2 ^ 25 */
+		mult32(rate_reg, common_attr->sys_clock_freq * 1000, &data64hi,
+		       &data64lo);
+		cfg_data->bitrate = (data64hi << 7) | (data64lo >> 25);
 	}
 
 	return (DRX_STS_OK);
@@ -3087,7 +3087,7 @@ rw_error:
 /*----------------------------------------------------------------------------*/
 
 /**
-* \fn int SetMPEGTEIHandling()
+* \fn int set_mpegtei_handling()
 * \brief Activate MPEG TEI handling settings.
 * \param devmod  Pointer to demodulator instance.
 * \return int.
@@ -3095,38 +3095,38 @@ rw_error:
 * This routine should be called during a set channel of QAM/VSB
 *
 */
-static int SetMPEGTEIHandling(pDRXDemodInstance_t demod)
+static int set_mpegtei_handling(pdrx_demod_instance_t demod)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
-	u16 fecOcDprMode = 0;
-	u16 fecOcSncMode = 0;
-	u16 fecOcEmsMode = 0;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	u16 fec_oc_dpr_mode = 0;
+	u16 fec_oc_snc_mode = 0;
+	u16 fec_oc_ems_mode = 0;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	RR16(devAddr, FEC_OC_DPR_MODE__A, &fecOcDprMode);
-	RR16(devAddr, FEC_OC_SNC_MODE__A, &fecOcSncMode);
-	RR16(devAddr, FEC_OC_EMS_MODE__A, &fecOcEmsMode);
+	RR16(dev_addr, FEC_OC_DPR_MODE__A, &fec_oc_dpr_mode);
+	RR16(dev_addr, FEC_OC_SNC_MODE__A, &fec_oc_snc_mode);
+	RR16(dev_addr, FEC_OC_EMS_MODE__A, &fec_oc_ems_mode);
 
 	/* reset to default, allow TEI bit to be changed */
-	fecOcDprMode &= (~FEC_OC_DPR_MODE_ERR_DISABLE__M);
-	fecOcSncMode &= (~(FEC_OC_SNC_MODE_ERROR_CTL__M |
+	fec_oc_dpr_mode &= (~FEC_OC_DPR_MODE_ERR_DISABLE__M);
+	fec_oc_snc_mode &= (~(FEC_OC_SNC_MODE_ERROR_CTL__M |
 			   FEC_OC_SNC_MODE_CORR_DISABLE__M));
-	fecOcEmsMode &= (~FEC_OC_EMS_MODE_MODE__M);
+	fec_oc_ems_mode &= (~FEC_OC_EMS_MODE_MODE__M);
 
-	if (extAttr->disableTEIhandling == true) {
+	if (ext_attr->disable_te_ihandling == true) {
 		/* do not change TEI bit */
-		fecOcDprMode |= FEC_OC_DPR_MODE_ERR_DISABLE__M;
-		fecOcSncMode |= FEC_OC_SNC_MODE_CORR_DISABLE__M |
+		fec_oc_dpr_mode |= FEC_OC_DPR_MODE_ERR_DISABLE__M;
+		fec_oc_snc_mode |= FEC_OC_SNC_MODE_CORR_DISABLE__M |
 		    ((0x2) << (FEC_OC_SNC_MODE_ERROR_CTL__B));
-		fecOcEmsMode |= ((0x01) << (FEC_OC_EMS_MODE_MODE__B));
+		fec_oc_ems_mode |= ((0x01) << (FEC_OC_EMS_MODE_MODE__B));
 	}
 
-	WR16(devAddr, FEC_OC_DPR_MODE__A, fecOcDprMode);
-	WR16(devAddr, FEC_OC_SNC_MODE__A, fecOcSncMode);
-	WR16(devAddr, FEC_OC_EMS_MODE__A, fecOcEmsMode);
+	WR16(dev_addr, FEC_OC_DPR_MODE__A, fec_oc_dpr_mode);
+	WR16(dev_addr, FEC_OC_SNC_MODE__A, fec_oc_snc_mode);
+	WR16(dev_addr, FEC_OC_EMS_MODE__A, fec_oc_ems_mode);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3135,7 +3135,7 @@ rw_error:
 
 /*----------------------------------------------------------------------------*/
 /**
-* \fn int BitReverseMPEGOutput()
+* \fn int bit_reverse_mpeg_output()
 * \brief Set MPEG output bit-endian settings.
 * \param devmod  Pointer to demodulator instance.
 * \return int.
@@ -3143,26 +3143,26 @@ rw_error:
 * This routine should be called during a set channel of QAM/VSB
 *
 */
-static int BitReverseMPEGOutput(pDRXDemodInstance_t demod)
+static int bit_reverse_mpeg_output(pdrx_demod_instance_t demod)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
-	u16 fecOcIprMode = 0;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	u16 fec_oc_ipr_mode = 0;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	RR16(devAddr, FEC_OC_IPR_MODE__A, &fecOcIprMode);
+	RR16(dev_addr, FEC_OC_IPR_MODE__A, &fec_oc_ipr_mode);
 
 	/* reset to default (normal bit order) */
-	fecOcIprMode &= (~FEC_OC_IPR_MODE_REVERSE_ORDER__M);
+	fec_oc_ipr_mode &= (~FEC_OC_IPR_MODE_REVERSE_ORDER__M);
 
-	if (extAttr->bitReverseMpegOutout == true) {
+	if (ext_attr->bit_reverse_mpeg_outout == true) {
 		/* reverse bit order */
-		fecOcIprMode |= FEC_OC_IPR_MODE_REVERSE_ORDER__M;
+		fec_oc_ipr_mode |= FEC_OC_IPR_MODE_REVERSE_ORDER__M;
 	}
 
-	WR16(devAddr, FEC_OC_IPR_MODE__A, fecOcIprMode);
+	WR16(dev_addr, FEC_OC_IPR_MODE__A, fec_oc_ipr_mode);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3171,7 +3171,7 @@ rw_error:
 
 /*----------------------------------------------------------------------------*/
 /**
-* \fn int SetMPEGOutputClockRate()
+* \fn int set_mpeg_output_clock_rate()
 * \brief Set MPEG output clock rate.
 * \param devmod  Pointer to demodulator instance.
 * \return int.
@@ -3179,17 +3179,17 @@ rw_error:
 * This routine should be called during a set channel of QAM/VSB
 *
 */
-static int SetMPEGOutputClockRate(pDRXDemodInstance_t demod)
+static int set_mpeg_output_clock_rate(pdrx_demod_instance_t demod)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	if (extAttr->mpegOutputClockRate != DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO) {
-		WR16(devAddr, FEC_OC_DTO_PERIOD__A,
-		     extAttr->mpegOutputClockRate - 1);
+	if (ext_attr->mpeg_output_clock_rate != DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO) {
+		WR16(dev_addr, FEC_OC_DTO_PERIOD__A,
+		     ext_attr->mpeg_output_clock_rate - 1);
 	}
 
 	return (DRX_STS_OK);
@@ -3199,7 +3199,7 @@ rw_error:
 
 /*----------------------------------------------------------------------------*/
 /**
-* \fn int SetMPEGStartWidth()
+* \fn int set_mpeg_start_width()
 * \brief Set MPEG start width.
 * \param devmod  Pointer to demodulator instance.
 * \return int.
@@ -3207,25 +3207,25 @@ rw_error:
 * This routine should be called during a set channel of QAM/VSB
 *
 */
-static int SetMPEGStartWidth(pDRXDemodInstance_t demod)
+static int set_mpeg_start_width(pdrx_demod_instance_t demod)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
-	u16 fecOcCommMb = 0;
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	u16 fec_oc_comm_mb = 0;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	commonAttr = demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	common_attr = demod->my_common_attr;
 
-	if ((commonAttr->mpegCfg.staticCLK == true)
-	    && (commonAttr->mpegCfg.enableParallel == false)) {
-		RR16(devAddr, FEC_OC_COMM_MB__A, &fecOcCommMb);
-		fecOcCommMb &= ~FEC_OC_COMM_MB_CTL_ON;
-		if (extAttr->mpegStartWidth == DRXJ_MPEG_START_WIDTH_8CLKCYC) {
-			fecOcCommMb |= FEC_OC_COMM_MB_CTL_ON;
+	if ((common_attr->mpeg_cfg.static_clk == true)
+	    && (common_attr->mpeg_cfg.enable_parallel == false)) {
+		RR16(dev_addr, FEC_OC_COMM_MB__A, &fec_oc_comm_mb);
+		fec_oc_comm_mb &= ~FEC_OC_COMM_MB_CTL_ON;
+		if (ext_attr->mpeg_start_width == DRXJ_MPEG_START_WIDTH_8CLKCYC) {
+			fec_oc_comm_mb |= FEC_OC_COMM_MB_CTL_ON;
 		}
-		WR16(devAddr, FEC_OC_COMM_MB__A, fecOcCommMb);
+		WR16(dev_addr, FEC_OC_COMM_MB__A, fec_oc_comm_mb);
 	}
 
 	return (DRX_STS_OK);
@@ -3235,10 +3235,10 @@ rw_error:
 
 /*----------------------------------------------------------------------------*/
 /**
-* \fn int CtrlSetCfgMpegOutputMisc()
+* \fn int ctrl_set_cfg_mpeg_output_misc()
 * \brief Set miscellaneous configuartions
 * \param devmod  Pointer to demodulator instance.
-* \param cfgData pDRXJCfgMisc_t
+* \param cfg_data pDRXJCfgMisc_t
 * \return int.
 *
 *  This routine can be used to set configuartion options that are DRXJ
@@ -3246,16 +3246,16 @@ rw_error:
 *
 */
 static int
-CtrlSetCfgMpegOutputMisc(pDRXDemodInstance_t demod,
-			 pDRXJCfgMpegOutputMisc_t cfgData)
+ctrl_set_cfg_mpeg_output_misc(pdrx_demod_instance_t demod,
+			 p_drxj_cfg_mpeg_output_misc_t cfg_data)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 
-	if (cfgData == NULL) {
+	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/*
 	   Set disable TEI bit handling flag.
@@ -3266,15 +3266,15 @@ CtrlSetCfgMpegOutputMisc(pDRXDemodInstance_t demod,
 	   Set clock rate. Default is auto that is derived from symbol rate.
 	   The flags and values will also be used to set registers during a set channel.
 	 */
-	extAttr->disableTEIhandling = cfgData->disableTEIHandling;
-	extAttr->bitReverseMpegOutout = cfgData->bitReverseMpegOutout;
-	extAttr->mpegOutputClockRate = cfgData->mpegOutputClockRate;
-	extAttr->mpegStartWidth = cfgData->mpegStartWidth;
+	ext_attr->disable_te_ihandling = cfg_data->disable_tei_handling;
+	ext_attr->bit_reverse_mpeg_outout = cfg_data->bit_reverse_mpeg_outout;
+	ext_attr->mpeg_output_clock_rate = cfg_data->mpeg_output_clock_rate;
+	ext_attr->mpeg_start_width = cfg_data->mpeg_start_width;
 	/* Don't care what the active standard is, activate setting immediatly */
-	CHK_ERROR(SetMPEGTEIHandling(demod));
-	CHK_ERROR(BitReverseMPEGOutput(demod));
-	CHK_ERROR(SetMPEGOutputClockRate(demod));
-	CHK_ERROR(SetMPEGStartWidth(demod));
+	CHK_ERROR(set_mpegtei_handling(demod));
+	CHK_ERROR(bit_reverse_mpeg_output(demod));
+	CHK_ERROR(set_mpeg_output_clock_rate(demod));
+	CHK_ERROR(set_mpeg_start_width(demod));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3284,10 +3284,10 @@ rw_error:
 /*----------------------------------------------------------------------------*/
 
 /**
-* \fn int CtrlGetCfgMpegOutputMisc()
+* \fn int ctrl_get_cfg_mpeg_output_misc()
 * \brief Get miscellaneous configuartions.
 * \param devmod  Pointer to demodulator instance.
-* \param cfgData Pointer to DRXJCfgMisc_t.
+* \param cfg_data Pointer to DRXJCfgMisc_t.
 * \return int.
 *
 *  This routine can be used to retreive the current setting of the configuartion
@@ -3296,26 +3296,26 @@ rw_error:
 *
 */
 static int
-CtrlGetCfgMpegOutputMisc(pDRXDemodInstance_t demod,
-			 pDRXJCfgMpegOutputMisc_t cfgData)
+ctrl_get_cfg_mpeg_output_misc(pdrx_demod_instance_t demod,
+			 p_drxj_cfg_mpeg_output_misc_t cfg_data)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 	u16 data = 0;
 
-	if (cfgData == NULL) {
+	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	cfgData->disableTEIHandling = extAttr->disableTEIhandling;
-	cfgData->bitReverseMpegOutout = extAttr->bitReverseMpegOutout;
-	cfgData->mpegStartWidth = extAttr->mpegStartWidth;
-	if (extAttr->mpegOutputClockRate != DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO) {
-		cfgData->mpegOutputClockRate = extAttr->mpegOutputClockRate;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	cfg_data->disable_tei_handling = ext_attr->disable_te_ihandling;
+	cfg_data->bit_reverse_mpeg_outout = ext_attr->bit_reverse_mpeg_outout;
+	cfg_data->mpeg_start_width = ext_attr->mpeg_start_width;
+	if (ext_attr->mpeg_output_clock_rate != DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO) {
+		cfg_data->mpeg_output_clock_rate = ext_attr->mpeg_output_clock_rate;
 	} else {
-		RR16(demod->myI2CDevAddr, FEC_OC_DTO_PERIOD__A, &data);
-		cfgData->mpegOutputClockRate =
-		    (DRXJMpegOutputClockRate_t) (data + 1);
+		RR16(demod->my_i2c_dev_addr, FEC_OC_DTO_PERIOD__A, &data);
+		cfg_data->mpeg_output_clock_rate =
+		    (drxj_mpeg_output_clock_rate_t) (data + 1);
 	}
 
 	return (DRX_STS_OK);
@@ -3326,10 +3326,10 @@ rw_error:
 /*----------------------------------------------------------------------------*/
 
 /**
-* \fn int CtrlGetCfgHwCfg()
+* \fn int ctrl_get_cfg_hw_cfg()
 * \brief Get HW configuartions.
 * \param devmod  Pointer to demodulator instance.
-* \param cfgData Pointer to Bool.
+* \param cfg_data Pointer to Bool.
 * \return int.
 *
 *  This routine can be used to retreive the current setting of the configuartion
@@ -3338,22 +3338,22 @@ rw_error:
 *
 */
 static int
-CtrlGetCfgHwCfg(pDRXDemodInstance_t demod, pDRXJCfgHwCfg_t cfgData)
+ctrl_get_cfg_hw_cfg(pdrx_demod_instance_t demod, p_drxj_cfg_hw_cfg_t cfg_data)
 {
 	u16 data = 0;
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 
-	if (cfgData == NULL) {
+	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, 0xFABA);
-	RR16(demod->myI2CDevAddr, SIO_PDR_OHW_CFG__A, &data);
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, 0x0000);
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);
+	RR16(demod->my_i2c_dev_addr, SIO_PDR_OHW_CFG__A, &data);
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
 
-	cfgData->i2cSpeed = (DRXJI2CSpeed_t) ((data >> 6) & 0x1);
-	cfgData->xtalFreq = (DRXJXtalFreq_t) (data & 0x3);
+	cfg_data->i2c_speed = (drxji2c_speed_t) ((data >> 6) & 0x1);
+	cfg_data->xtal_freq = (drxj_xtal_freq_t) (data & 0x3);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3368,111 +3368,111 @@ rw_error:
 /* UIO Configuration Functions - begin                                        */
 /*----------------------------------------------------------------------------*/
 /**
-* \fn int CtrlSetUIOCfg()
+* \fn int ctrl_set_uio_cfg()
 * \brief Configure modus oprandi UIO.
 * \param demod Pointer to demodulator instance.
-* \param UIOCfg Pointer to a configuration setting for a certain UIO.
+* \param uio_cfg Pointer to a configuration setting for a certain UIO.
 * \return int.
 */
-static int CtrlSetUIOCfg(pDRXDemodInstance_t demod, pDRXUIOCfg_t UIOCfg)
+static int ctrl_set_uio_cfg(pdrx_demod_instance_t demod, pdrxuio_cfg_t uio_cfg)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 
-	if ((UIOCfg == NULL) || (demod == NULL)) {
+	if ((uio_cfg == NULL) || (demod == NULL)) {
 		return DRX_STS_INVALID_ARG;
 	}
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
-	switch (UIOCfg->uio) {
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	switch (uio_cfg->uio) {
       /*====================================================================*/
 	case DRX_UIO1:
 		/* DRX_UIO1: SMA_TX UIO-1 */
-		if (extAttr->hasSMATX != true)
+		if (ext_attr->has_smatx != true)
 			return DRX_STS_ERROR;
-		switch (UIOCfg->mode) {
+		switch (uio_cfg->mode) {
 		case DRX_UIO_MODE_FIRMWARE_SMA:	/* falltrough */
 		case DRX_UIO_MODE_FIRMWARE_SAW:	/* falltrough */
 		case DRX_UIO_MODE_READWRITE:
-			extAttr->uioSmaTxMode = UIOCfg->mode;
+			ext_attr->uio_sma_tx_mode = uio_cfg->mode;
 			break;
 		case DRX_UIO_MODE_DISABLE:
-			extAttr->uioSmaTxMode = UIOCfg->mode;
+			ext_attr->uio_sma_tx_mode = uio_cfg->mode;
 			/* pad configuration register is set 0 - input mode */
-			WR16(demod->myI2CDevAddr, SIO_PDR_SMA_TX_CFG__A, 0);
+			WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, 0);
 			break;
 		default:
 			return DRX_STS_INVALID_ARG;
-		}		/* switch ( UIOCfg->mode ) */
+		}		/* switch ( uio_cfg->mode ) */
 		break;
       /*====================================================================*/
 	case DRX_UIO2:
 		/* DRX_UIO2: SMA_RX UIO-2 */
-		if (extAttr->hasSMARX != true)
+		if (ext_attr->has_smarx != true)
 			return DRX_STS_ERROR;
-		switch (UIOCfg->mode) {
+		switch (uio_cfg->mode) {
 		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
 		case DRX_UIO_MODE_READWRITE:
-			extAttr->uioSmaRxMode = UIOCfg->mode;
+			ext_attr->uio_sma_rx_mode = uio_cfg->mode;
 			break;
 		case DRX_UIO_MODE_DISABLE:
-			extAttr->uioSmaRxMode = UIOCfg->mode;
+			ext_attr->uio_sma_rx_mode = uio_cfg->mode;
 			/* pad configuration register is set 0 - input mode */
-			WR16(demod->myI2CDevAddr, SIO_PDR_SMA_RX_CFG__A, 0);
+			WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, 0);
 			break;
 		default:
 			return DRX_STS_INVALID_ARG;
 			break;
-		}		/* switch ( UIOCfg->mode ) */
+		}		/* switch ( uio_cfg->mode ) */
 		break;
       /*====================================================================*/
 	case DRX_UIO3:
 		/* DRX_UIO3: GPIO UIO-3 */
-		if (extAttr->hasGPIO != true)
+		if (ext_attr->has_gpio != true)
 			return DRX_STS_ERROR;
-		switch (UIOCfg->mode) {
+		switch (uio_cfg->mode) {
 		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
 		case DRX_UIO_MODE_READWRITE:
-			extAttr->uioGPIOMode = UIOCfg->mode;
+			ext_attr->uio_gpio_mode = uio_cfg->mode;
 			break;
 		case DRX_UIO_MODE_DISABLE:
-			extAttr->uioGPIOMode = UIOCfg->mode;
+			ext_attr->uio_gpio_mode = uio_cfg->mode;
 			/* pad configuration register is set 0 - input mode */
-			WR16(demod->myI2CDevAddr, SIO_PDR_GPIO_CFG__A, 0);
+			WR16(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, 0);
 			break;
 		default:
 			return DRX_STS_INVALID_ARG;
 			break;
-		}		/* switch ( UIOCfg->mode ) */
+		}		/* switch ( uio_cfg->mode ) */
 		break;
       /*====================================================================*/
 	case DRX_UIO4:
 		/* DRX_UIO4: IRQN UIO-4 */
-		if (extAttr->hasIRQN != true)
+		if (ext_attr->has_irqn != true)
 			return DRX_STS_ERROR;
-		switch (UIOCfg->mode) {
+		switch (uio_cfg->mode) {
 		case DRX_UIO_MODE_READWRITE:
-			extAttr->uioIRQNMode = UIOCfg->mode;
+			ext_attr->uio_irqn_mode = uio_cfg->mode;
 			break;
 		case DRX_UIO_MODE_DISABLE:
 			/* pad configuration register is set 0 - input mode */
-			WR16(demod->myI2CDevAddr, SIO_PDR_IRQN_CFG__A, 0);
-			extAttr->uioIRQNMode = UIOCfg->mode;
+			WR16(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, 0);
+			ext_attr->uio_irqn_mode = uio_cfg->mode;
 			break;
 		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
 		default:
 			return DRX_STS_INVALID_ARG;
 			break;
-		}		/* switch ( UIOCfg->mode ) */
+		}		/* switch ( uio_cfg->mode ) */
 		break;
       /*====================================================================*/
 	default:
 		return DRX_STS_INVALID_ARG;
-	}			/* switch ( UIOCfg->uio ) */
+	}			/* switch ( uio_cfg->uio ) */
 
 	/*  Write magic word to disable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, 0x0000);
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3481,188 +3481,188 @@ rw_error:
 
 /*============================================================================*/
 /**
-* \fn int CtrlGetUIOCfg()
+* \fn int CtrlGetuio_cfg()
 * \brief Get modus oprandi UIO.
 * \param demod Pointer to demodulator instance.
-* \param UIOCfg Pointer to a configuration setting for a certain UIO.
+* \param uio_cfg Pointer to a configuration setting for a certain UIO.
 * \return int.
 */
-static int CtrlGetUIOCfg(pDRXDemodInstance_t demod, pDRXUIOCfg_t UIOCfg)
+static int CtrlGetuio_cfg(pdrx_demod_instance_t demod, pdrxuio_cfg_t uio_cfg)
 {
 
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
-	pDRXUIOMode_t UIOMode[4] = { NULL };
-	bool *UIOAvailable[4] = { NULL };
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
+	pdrxuio_mode_t uio_mode[4] = { NULL };
+	bool *uio_available[4] = { NULL };
 
-	extAttr = demod->myExtAttr;
+	ext_attr = demod->my_ext_attr;
 
-	UIOMode[DRX_UIO1] = &extAttr->uioSmaTxMode;
-	UIOMode[DRX_UIO2] = &extAttr->uioSmaRxMode;
-	UIOMode[DRX_UIO3] = &extAttr->uioGPIOMode;
-	UIOMode[DRX_UIO4] = &extAttr->uioIRQNMode;
+	uio_mode[DRX_UIO1] = &ext_attr->uio_sma_tx_mode;
+	uio_mode[DRX_UIO2] = &ext_attr->uio_sma_rx_mode;
+	uio_mode[DRX_UIO3] = &ext_attr->uio_gpio_mode;
+	uio_mode[DRX_UIO4] = &ext_attr->uio_irqn_mode;
 
-	UIOAvailable[DRX_UIO1] = &extAttr->hasSMATX;
-	UIOAvailable[DRX_UIO2] = &extAttr->hasSMARX;
-	UIOAvailable[DRX_UIO3] = &extAttr->hasGPIO;
-	UIOAvailable[DRX_UIO4] = &extAttr->hasIRQN;
+	uio_available[DRX_UIO1] = &ext_attr->has_smatx;
+	uio_available[DRX_UIO2] = &ext_attr->has_smarx;
+	uio_available[DRX_UIO3] = &ext_attr->has_gpio;
+	uio_available[DRX_UIO4] = &ext_attr->has_irqn;
 
-	if (UIOCfg == NULL) {
+	if (uio_cfg == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	if ((UIOCfg->uio > DRX_UIO4) || (UIOCfg->uio < DRX_UIO1)) {
+	if ((uio_cfg->uio > DRX_UIO4) || (uio_cfg->uio < DRX_UIO1)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	if (*UIOAvailable[UIOCfg->uio] == false) {
+	if (*uio_available[uio_cfg->uio] == false) {
 		return DRX_STS_ERROR;
 	}
 
-	UIOCfg->mode = *UIOMode[UIOCfg->uio];
+	uio_cfg->mode = *uio_mode[uio_cfg->uio];
 
 	return DRX_STS_OK;
 }
 
 /**
-* \fn int CtrlUIOWrite()
+* \fn int ctrl_uio_write()
 * \brief Write to a UIO.
 * \param demod Pointer to demodulator instance.
-* \param UIOData Pointer to data container for a certain UIO.
+* \param uio_data Pointer to data container for a certain UIO.
 * \return int.
 */
 static int
-CtrlUIOWrite(pDRXDemodInstance_t demod, pDRXUIOData_t UIOData)
+ctrl_uio_write(pdrx_demod_instance_t demod, pdrxuio_data_t uio_data)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	u16 pinCfgValue = 0;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	u16 pin_cfg_value = 0;
 	u16 value = 0;
 
-	if ((UIOData == NULL) || (demod == NULL)) {
+	if ((uio_data == NULL) || (demod == NULL)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
-	switch (UIOData->uio) {
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	switch (uio_data->uio) {
       /*====================================================================*/
 	case DRX_UIO1:
 		/* DRX_UIO1: SMA_TX UIO-1 */
-		if (extAttr->hasSMATX != true)
+		if (ext_attr->has_smatx != true)
 			return DRX_STS_ERROR;
-		if ((extAttr->uioSmaTxMode != DRX_UIO_MODE_READWRITE)
-		    && (extAttr->uioSmaTxMode != DRX_UIO_MODE_FIRMWARE_SAW)) {
+		if ((ext_attr->uio_sma_tx_mode != DRX_UIO_MODE_READWRITE)
+		    && (ext_attr->uio_sma_tx_mode != DRX_UIO_MODE_FIRMWARE_SAW)) {
 			return DRX_STS_ERROR;
 		}
-		pinCfgValue = 0;
+		pin_cfg_value = 0;
 		/* io_pad_cfg register (8 bit reg.) MSB bit is 1 (default value) */
-		pinCfgValue |= 0x0113;
+		pin_cfg_value |= 0x0113;
 		/* io_pad_cfg_mode output mode is drive always */
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - output mode */
-		WR16(demod->myI2CDevAddr, SIO_PDR_SMA_TX_CFG__A, pinCfgValue);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, pin_cfg_value);
 
 		/* use corresponding bit in io data output registar */
-		RR16(demod->myI2CDevAddr, SIO_PDR_UIO_OUT_LO__A, &value);
-		if (UIOData->value == false) {
+		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value);
+		if (uio_data->value == false) {
 			value &= 0x7FFF;	/* write zero to 15th bit - 1st UIO */
 		} else {
 			value |= 0x8000;	/* write one to 15th bit - 1st UIO */
 		}
 		/* write back to io data output register */
-		WR16(demod->myI2CDevAddr, SIO_PDR_UIO_OUT_LO__A, value);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value);
 		break;
    /*======================================================================*/
 	case DRX_UIO2:
 		/* DRX_UIO2: SMA_RX UIO-2 */
-		if (extAttr->hasSMARX != true)
+		if (ext_attr->has_smarx != true)
 			return DRX_STS_ERROR;
-		if (extAttr->uioSmaRxMode != DRX_UIO_MODE_READWRITE) {
+		if (ext_attr->uio_sma_rx_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
 		}
-		pinCfgValue = 0;
+		pin_cfg_value = 0;
 		/* io_pad_cfg register (8 bit reg.) MSB bit is 1 (default value) */
-		pinCfgValue |= 0x0113;
+		pin_cfg_value |= 0x0113;
 		/* io_pad_cfg_mode output mode is drive always */
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - output mode */
-		WR16(demod->myI2CDevAddr, SIO_PDR_SMA_RX_CFG__A, pinCfgValue);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, pin_cfg_value);
 
 		/* use corresponding bit in io data output registar */
-		RR16(demod->myI2CDevAddr, SIO_PDR_UIO_OUT_LO__A, &value);
-		if (UIOData->value == false) {
+		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value);
+		if (uio_data->value == false) {
 			value &= 0xBFFF;	/* write zero to 14th bit - 2nd UIO */
 		} else {
 			value |= 0x4000;	/* write one to 14th bit - 2nd UIO */
 		}
 		/* write back to io data output register */
-		WR16(demod->myI2CDevAddr, SIO_PDR_UIO_OUT_LO__A, value);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value);
 		break;
    /*====================================================================*/
 	case DRX_UIO3:
 		/* DRX_UIO3: ASEL UIO-3 */
-		if (extAttr->hasGPIO != true)
+		if (ext_attr->has_gpio != true)
 			return DRX_STS_ERROR;
-		if (extAttr->uioGPIOMode != DRX_UIO_MODE_READWRITE) {
+		if (ext_attr->uio_gpio_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
 		}
-		pinCfgValue = 0;
+		pin_cfg_value = 0;
 		/* io_pad_cfg register (8 bit reg.) MSB bit is 1 (default value) */
-		pinCfgValue |= 0x0113;
+		pin_cfg_value |= 0x0113;
 		/* io_pad_cfg_mode output mode is drive always */
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - output mode */
-		WR16(demod->myI2CDevAddr, SIO_PDR_GPIO_CFG__A, pinCfgValue);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, pin_cfg_value);
 
 		/* use corresponding bit in io data output registar */
-		RR16(demod->myI2CDevAddr, SIO_PDR_UIO_OUT_HI__A, &value);
-		if (UIOData->value == false) {
+		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_HI__A, &value);
+		if (uio_data->value == false) {
 			value &= 0xFFFB;	/* write zero to 2nd bit - 3rd UIO */
 		} else {
 			value |= 0x0004;	/* write one to 2nd bit - 3rd UIO */
 		}
 		/* write back to io data output register */
-		WR16(demod->myI2CDevAddr, SIO_PDR_UIO_OUT_HI__A, value);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_HI__A, value);
 		break;
    /*=====================================================================*/
 	case DRX_UIO4:
 		/* DRX_UIO4: IRQN UIO-4 */
-		if (extAttr->hasIRQN != true)
+		if (ext_attr->has_irqn != true)
 			return DRX_STS_ERROR;
 
-		if (extAttr->uioIRQNMode != DRX_UIO_MODE_READWRITE) {
+		if (ext_attr->uio_irqn_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
 		}
-		pinCfgValue = 0;
+		pin_cfg_value = 0;
 		/* io_pad_cfg register (8 bit reg.) MSB bit is 1 (default value) */
-		pinCfgValue |= 0x0113;
+		pin_cfg_value |= 0x0113;
 		/* io_pad_cfg_mode output mode is drive always */
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - output mode */
-		WR16(demod->myI2CDevAddr, SIO_PDR_IRQN_CFG__A, pinCfgValue);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, pin_cfg_value);
 
 		/* use corresponding bit in io data output registar */
-		RR16(demod->myI2CDevAddr, SIO_PDR_UIO_OUT_LO__A, &value);
-		if (UIOData->value == false) {
+		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value);
+		if (uio_data->value == false) {
 			value &= 0xEFFF;	/* write zero to 12th bit - 4th UIO */
 		} else {
 			value |= 0x1000;	/* write one to 12th bit - 4th UIO */
 		}
 		/* write back to io data output register */
-		WR16(demod->myI2CDevAddr, SIO_PDR_UIO_OUT_LO__A, value);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value);
 		break;
       /*=====================================================================*/
 	default:
 		return DRX_STS_INVALID_ARG;
-	}			/* switch ( UIOData->uio ) */
+	}			/* switch ( uio_data->uio ) */
 
 	/*  Write magic word to disable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, 0x0000);
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3670,137 +3670,137 @@ rw_error:
 }
 
 /**
-*\fn int CtrlUIORead
+*\fn int ctrl_uio_read
 *\brief Read from a UIO.
 * \param demod Pointer to demodulator instance.
-* \param UIOData Pointer to data container for a certain UIO.
+* \param uio_data Pointer to data container for a certain UIO.
 * \return int.
 */
-static int CtrlUIORead(pDRXDemodInstance_t demod, pDRXUIOData_t UIOData)
+static int ctrl_uio_read(pdrx_demod_instance_t demod, pdrxuio_data_t uio_data)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	u16 pinCfgValue = 0;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	u16 pin_cfg_value = 0;
 	u16 value = 0;
 
-	if ((UIOData == NULL) || (demod == NULL)) {
+	if ((uio_data == NULL) || (demod == NULL)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
-	switch (UIOData->uio) {
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	switch (uio_data->uio) {
       /*====================================================================*/
 	case DRX_UIO1:
 		/* DRX_UIO1: SMA_TX UIO-1 */
-		if (extAttr->hasSMATX != true)
+		if (ext_attr->has_smatx != true)
 			return DRX_STS_ERROR;
 
-		if (extAttr->uioSmaTxMode != DRX_UIO_MODE_READWRITE) {
+		if (ext_attr->uio_sma_tx_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
 		}
-		pinCfgValue = 0;
+		pin_cfg_value = 0;
 		/* io_pad_cfg register (8 bit reg.) MSB bit is 1 (default value) */
-		pinCfgValue |= 0x0110;
+		pin_cfg_value |= 0x0110;
 		/* io_pad_cfg_mode output mode is drive always */
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - input mode */
-		WR16(demod->myI2CDevAddr, SIO_PDR_SMA_TX_CFG__A, pinCfgValue);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, pin_cfg_value);
 
-		RR16(demod->myI2CDevAddr, SIO_PDR_UIO_IN_LO__A, &value);
+		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value);
 		if ((value & 0x8000) != 0) {	/* check 15th bit - 1st UIO */
-			UIOData->value = true;
+			uio_data->value = true;
 		} else {
-			UIOData->value = false;
+			uio_data->value = false;
 		}
 		break;
    /*======================================================================*/
 	case DRX_UIO2:
 		/* DRX_UIO2: SMA_RX UIO-2 */
-		if (extAttr->hasSMARX != true)
+		if (ext_attr->has_smarx != true)
 			return DRX_STS_ERROR;
 
-		if (extAttr->uioSmaRxMode != DRX_UIO_MODE_READWRITE) {
+		if (ext_attr->uio_sma_rx_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
 		}
-		pinCfgValue = 0;
+		pin_cfg_value = 0;
 		/* io_pad_cfg register (8 bit reg.) MSB bit is 1 (default value) */
-		pinCfgValue |= 0x0110;
+		pin_cfg_value |= 0x0110;
 		/* io_pad_cfg_mode output mode is drive always */
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - input mode */
-		WR16(demod->myI2CDevAddr, SIO_PDR_SMA_RX_CFG__A, pinCfgValue);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, pin_cfg_value);
 
-		RR16(demod->myI2CDevAddr, SIO_PDR_UIO_IN_LO__A, &value);
+		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value);
 
 		if ((value & 0x4000) != 0) {	/* check 14th bit - 2nd UIO */
-			UIOData->value = true;
+			uio_data->value = true;
 		} else {
-			UIOData->value = false;
+			uio_data->value = false;
 		}
 		break;
    /*=====================================================================*/
 	case DRX_UIO3:
 		/* DRX_UIO3: GPIO UIO-3 */
-		if (extAttr->hasGPIO != true)
+		if (ext_attr->has_gpio != true)
 			return DRX_STS_ERROR;
 
-		if (extAttr->uioGPIOMode != DRX_UIO_MODE_READWRITE) {
+		if (ext_attr->uio_gpio_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
 		}
-		pinCfgValue = 0;
+		pin_cfg_value = 0;
 		/* io_pad_cfg register (8 bit reg.) MSB bit is 1 (default value) */
-		pinCfgValue |= 0x0110;
+		pin_cfg_value |= 0x0110;
 		/* io_pad_cfg_mode output mode is drive always */
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - input mode */
-		WR16(demod->myI2CDevAddr, SIO_PDR_GPIO_CFG__A, pinCfgValue);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, pin_cfg_value);
 
 		/* read io input data registar */
-		RR16(demod->myI2CDevAddr, SIO_PDR_UIO_IN_HI__A, &value);
+		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_HI__A, &value);
 		if ((value & 0x0004) != 0) {	/* check 2nd bit - 3rd UIO */
-			UIOData->value = true;
+			uio_data->value = true;
 		} else {
-			UIOData->value = false;
+			uio_data->value = false;
 		}
 		break;
    /*=====================================================================*/
 	case DRX_UIO4:
 		/* DRX_UIO4: IRQN UIO-4 */
-		if (extAttr->hasIRQN != true)
+		if (ext_attr->has_irqn != true)
 			return DRX_STS_ERROR;
 
-		if (extAttr->uioIRQNMode != DRX_UIO_MODE_READWRITE) {
+		if (ext_attr->uio_irqn_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
 		}
-		pinCfgValue = 0;
+		pin_cfg_value = 0;
 		/* io_pad_cfg register (8 bit reg.) MSB bit is 1 (default value) */
-		pinCfgValue |= 0x0110;
+		pin_cfg_value |= 0x0110;
 		/* io_pad_cfg_mode output mode is drive always */
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - input mode */
-		WR16(demod->myI2CDevAddr, SIO_PDR_IRQN_CFG__A, pinCfgValue);
+		WR16(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, pin_cfg_value);
 
 		/* read io input data registar */
-		RR16(demod->myI2CDevAddr, SIO_PDR_UIO_IN_LO__A, &value);
+		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value);
 		if ((value & 0x1000) != 0) {	/* check 12th bit - 4th UIO */
-			UIOData->value = true;
+			uio_data->value = true;
 		} else {
-			UIOData->value = false;
+			uio_data->value = false;
 		}
 		break;
       /*====================================================================*/
 	default:
 		return DRX_STS_INVALID_ARG;
-	}			/* switch ( UIOData->uio ) */
+	}			/* switch ( uio_data->uio ) */
 
 	/*  Write magic word to disable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, 0x0000);
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3815,33 +3815,33 @@ rw_error:
 /* I2C Bridge Functions - begin                                               */
 /*----------------------------------------------------------------------------*/
 /**
-* \fn int CtrlI2CBridge()
+* \fn int ctrl_i2c_bridge()
 * \brief Open or close the I2C switch to tuner.
 * \param demod Pointer to demodulator instance.
-* \param bridgeClosed Pointer to bool indication if bridge is closed not.
+* \param bridge_closed Pointer to bool indication if bridge is closed not.
 * \return int.
 
 */
 static int
-CtrlI2CBridge(pDRXDemodInstance_t demod, bool *bridgeClosed)
+ctrl_i2c_bridge(pdrx_demod_instance_t demod, bool *bridge_closed)
 {
-	DRXJHiCmd_t hiCmd;
+	drxj_hi_cmd_t hi_cmd;
 	u16 result = 0;
 
 	/* check arguments */
-	if (bridgeClosed == NULL) {
+	if (bridge_closed == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	hiCmd.cmd = SIO_HI_RA_RAM_CMD_BRDCTRL;
-	hiCmd.param1 = SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY;
-	if (*bridgeClosed == true) {
-		hiCmd.param2 = SIO_HI_RA_RAM_PAR_2_BRD_CFG_CLOSED;
+	hi_cmd.cmd = SIO_HI_RA_RAM_CMD_BRDCTRL;
+	hi_cmd.param1 = SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY;
+	if (*bridge_closed == true) {
+		hi_cmd.param2 = SIO_HI_RA_RAM_PAR_2_BRD_CFG_CLOSED;
 	} else {
-		hiCmd.param2 = SIO_HI_RA_RAM_PAR_2_BRD_CFG_OPEN;
+		hi_cmd.param2 = SIO_HI_RA_RAM_PAR_2_BRD_CFG_OPEN;
 	}
 
-	return HICommand(demod->myI2CDevAddr, &hiCmd, &result);
+	return hi_command(demod->my_i2c_dev_addr, &hi_cmd, &result);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3852,42 +3852,42 @@ CtrlI2CBridge(pDRXDemodInstance_t demod, bool *bridgeClosed)
 /* Smart antenna Functions - begin                                            */
 /*----------------------------------------------------------------------------*/
 /**
-* \fn int SmartAntInit()
+* \fn int smart_ant_init()
 * \brief Initialize Smart Antenna.
-* \param pointer to DRXDemodInstance_t.
+* \param pointer to drx_demod_instance_t.
 * \return int.
 *
 */
-static int SmartAntInit(pDRXDemodInstance_t demod)
+static int smart_ant_init(pdrx_demod_instance_t demod)
 {
 	u16 data = 0;
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
-	DRXUIOCfg_t UIOCfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SMA };
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	drxuio_cfg_t uio_cfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SMA };
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
 	/* init smart antenna */
-	RR16(devAddr, SIO_SA_TX_COMMAND__A, &data);
-	if (extAttr->smartAntInverted)
-		WR16(devAddr, SIO_SA_TX_COMMAND__A,
+	RR16(dev_addr, SIO_SA_TX_COMMAND__A, &data);
+	if (ext_attr->smart_ant_inverted)
+		WR16(dev_addr, SIO_SA_TX_COMMAND__A,
 		     (data | SIO_SA_TX_COMMAND_TX_INVERT__M)
 		     | SIO_SA_TX_COMMAND_TX_ENABLE__M);
 	else
-		WR16(devAddr, SIO_SA_TX_COMMAND__A,
+		WR16(dev_addr, SIO_SA_TX_COMMAND__A,
 		     (data & (~SIO_SA_TX_COMMAND_TX_INVERT__M))
 		     | SIO_SA_TX_COMMAND_TX_ENABLE__M);
 
 	/* config SMA_TX pin to smart antenna mode */
-	CHK_ERROR(CtrlSetUIOCfg(demod, &UIOCfg));
-	WR16(demod->myI2CDevAddr, SIO_PDR_SMA_TX_CFG__A, 0x13);
-	WR16(demod->myI2CDevAddr, SIO_PDR_SMA_TX_GPIO_FNC__A, 0x03);
+	CHK_ERROR(ctrl_set_uio_cfg(demod, &uio_cfg));
+	WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, 0x13);
+	WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_GPIO_FNC__A, 0x03);
 
 	/*  Write magic word to disable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, 0x0000);
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3895,50 +3895,50 @@ rw_error:
 }
 
 /**
-* \fn int CtrlSetCfgSmartAnt()
+* \fn int ctrl_set_cfg_smart_ant()
 * \brief Set Smart Antenna.
-* \param pointer to DRXJCfgSmartAnt_t.
+* \param pointer to drxj_cfg_smart_ant_t.
 * \return int.
 *
 */
 static int
-CtrlSetCfgSmartAnt(pDRXDemodInstance_t demod, pDRXJCfgSmartAnt_t smartAnt)
+ctrl_set_cfg_smart_ant(pdrx_demod_instance_t demod, p_drxj_cfg_smart_ant_t smart_ant)
 {
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 	u16 data = 0;
-	u32 startTime = 0;
-	static bool bitInverted;
+	u32 start_time = 0;
+	static bool bit_inverted;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* check arguments */
-	if (smartAnt == NULL) {
+	if (smart_ant == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	if (bitInverted != extAttr->smartAntInverted
-	    || extAttr->uioSmaTxMode != DRX_UIO_MODE_FIRMWARE_SMA) {
-		CHK_ERROR(SmartAntInit(demod));
-		bitInverted = extAttr->smartAntInverted;
+	if (bit_inverted != ext_attr->smart_ant_inverted
+	    || ext_attr->uio_sma_tx_mode != DRX_UIO_MODE_FIRMWARE_SMA) {
+		CHK_ERROR(smart_ant_init(demod));
+		bit_inverted = ext_attr->smart_ant_inverted;
 	}
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
 
-	switch (smartAnt->io) {
+	switch (smart_ant->io) {
 	case DRXJ_SMT_ANT_OUTPUT:
 		/* enable Tx if Mode B (input) is supported */
 		/*
-		   RR16( devAddr, SIO_SA_TX_COMMAND__A, &data );
-		   WR16( devAddr, SIO_SA_TX_COMMAND__A, data | SIO_SA_TX_COMMAND_TX_ENABLE__M );
+		   RR16( dev_addr, SIO_SA_TX_COMMAND__A, &data );
+		   WR16( dev_addr, SIO_SA_TX_COMMAND__A, data | SIO_SA_TX_COMMAND_TX_ENABLE__M );
 		 */
-		startTime = DRXBSP_HST_Clock();
+		start_time = drxbsp_hst_clock();
 		do {
-			RR16(devAddr, SIO_SA_TX_STATUS__A, &data);
+			RR16(dev_addr, SIO_SA_TX_STATUS__A, &data);
 		} while ((data & SIO_SA_TX_STATUS_BUSY__M)
-			 && ((DRXBSP_HST_Clock() - startTime) <
+			 && ((drxbsp_hst_clock() - start_time) <
 			     DRXJ_MAX_WAITTIME));
 
 		if (data & SIO_SA_TX_STATUS_BUSY__M) {
@@ -3946,75 +3946,75 @@ CtrlSetCfgSmartAnt(pDRXDemodInstance_t demod, pDRXJCfgSmartAnt_t smartAnt)
 		}
 
 		/* write to smart antenna configuration register */
-		WR16(devAddr, SIO_SA_TX_DATA0__A, 0x9200
-		     | ((smartAnt->ctrlData & 0x0001) << 8)
-		     | ((smartAnt->ctrlData & 0x0002) << 10)
-		     | ((smartAnt->ctrlData & 0x0004) << 12)
+		WR16(dev_addr, SIO_SA_TX_DATA0__A, 0x9200
+		     | ((smart_ant->ctrl_data & 0x0001) << 8)
+		     | ((smart_ant->ctrl_data & 0x0002) << 10)
+		     | ((smart_ant->ctrl_data & 0x0004) << 12)
 		    );
-		WR16(devAddr, SIO_SA_TX_DATA1__A, 0x4924
-		     | ((smartAnt->ctrlData & 0x0008) >> 2)
-		     | ((smartAnt->ctrlData & 0x0010))
-		     | ((smartAnt->ctrlData & 0x0020) << 2)
-		     | ((smartAnt->ctrlData & 0x0040) << 4)
-		     | ((smartAnt->ctrlData & 0x0080) << 6)
+		WR16(dev_addr, SIO_SA_TX_DATA1__A, 0x4924
+		     | ((smart_ant->ctrl_data & 0x0008) >> 2)
+		     | ((smart_ant->ctrl_data & 0x0010))
+		     | ((smart_ant->ctrl_data & 0x0020) << 2)
+		     | ((smart_ant->ctrl_data & 0x0040) << 4)
+		     | ((smart_ant->ctrl_data & 0x0080) << 6)
 		    );
-		WR16(devAddr, SIO_SA_TX_DATA2__A, 0x2492
-		     | ((smartAnt->ctrlData & 0x0100) >> 8)
-		     | ((smartAnt->ctrlData & 0x0200) >> 6)
-		     | ((smartAnt->ctrlData & 0x0400) >> 4)
-		     | ((smartAnt->ctrlData & 0x0800) >> 2)
-		     | ((smartAnt->ctrlData & 0x1000))
-		     | ((smartAnt->ctrlData & 0x2000) << 2)
+		WR16(dev_addr, SIO_SA_TX_DATA2__A, 0x2492
+		     | ((smart_ant->ctrl_data & 0x0100) >> 8)
+		     | ((smart_ant->ctrl_data & 0x0200) >> 6)
+		     | ((smart_ant->ctrl_data & 0x0400) >> 4)
+		     | ((smart_ant->ctrl_data & 0x0800) >> 2)
+		     | ((smart_ant->ctrl_data & 0x1000))
+		     | ((smart_ant->ctrl_data & 0x2000) << 2)
 		    );
-		WR16(devAddr, SIO_SA_TX_DATA3__A, 0xff8d);
+		WR16(dev_addr, SIO_SA_TX_DATA3__A, 0xff8d);
 
 		/* trigger the sending */
-		WR16(devAddr, SIO_SA_TX_LENGTH__A, 56);
+		WR16(dev_addr, SIO_SA_TX_LENGTH__A, 56);
 
 		break;
 	case DRXJ_SMT_ANT_INPUT:
 		/* disable Tx if Mode B (input) is supported */
 		/*
-		   RR16( devAddr, SIO_SA_TX_COMMAND__A, &data );
-		   WR16( devAddr, SIO_SA_TX_COMMAND__A, data & (~SIO_SA_TX_COMMAND_TX_ENABLE__M) );
+		   RR16( dev_addr, SIO_SA_TX_COMMAND__A, &data );
+		   WR16( dev_addr, SIO_SA_TX_COMMAND__A, data & (~SIO_SA_TX_COMMAND_TX_ENABLE__M) );
 		 */
 	default:
 		return (DRX_STS_INVALID_ARG);
 	}
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->myI2CDevAddr, SIO_TOP_COMM_KEY__A, 0x0000);
+	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
 
 	return (DRX_STS_OK);
 rw_error:
 	return (DRX_STS_ERROR);
 }
 
-static int SCUCommand(struct i2c_device_addr *devAddr, pDRXJSCUCmd_t cmd)
+static int scu_command(struct i2c_device_addr *dev_addr, p_drxjscu_cmd_t cmd)
 {
-	u16 curCmd = 0;
-	u32 startTime = 0;
+	u16 cur_cmd = 0;
+	u32 start_time = 0;
 
 	/* Check param */
 	if (cmd == NULL)
 		return (DRX_STS_INVALID_ARG);
 
 	/* Wait until SCU command interface is ready to receive command */
-	RR16(devAddr, SCU_RAM_COMMAND__A, &curCmd);
-	if (curCmd != DRX_SCU_READY) {
+	RR16(dev_addr, SCU_RAM_COMMAND__A, &cur_cmd);
+	if (cur_cmd != DRX_SCU_READY) {
 		return (DRX_STS_ERROR);
 	}
 
-	switch (cmd->parameterLen) {
+	switch (cmd->parameter_len) {
 	case 5:
-		WR16(devAddr, SCU_RAM_PARAM_4__A, *(cmd->parameter + 4));	/* fallthrough */
+		WR16(dev_addr, SCU_RAM_PARAM_4__A, *(cmd->parameter + 4));	/* fallthrough */
 	case 4:
-		WR16(devAddr, SCU_RAM_PARAM_3__A, *(cmd->parameter + 3));	/* fallthrough */
+		WR16(dev_addr, SCU_RAM_PARAM_3__A, *(cmd->parameter + 3));	/* fallthrough */
 	case 3:
-		WR16(devAddr, SCU_RAM_PARAM_2__A, *(cmd->parameter + 2));	/* fallthrough */
+		WR16(dev_addr, SCU_RAM_PARAM_2__A, *(cmd->parameter + 2));	/* fallthrough */
 	case 2:
-		WR16(devAddr, SCU_RAM_PARAM_1__A, *(cmd->parameter + 1));	/* fallthrough */
+		WR16(dev_addr, SCU_RAM_PARAM_1__A, *(cmd->parameter + 1));	/* fallthrough */
 	case 1:
-		WR16(devAddr, SCU_RAM_PARAM_0__A, *(cmd->parameter + 0));	/* fallthrough */
+		WR16(dev_addr, SCU_RAM_PARAM_0__A, *(cmd->parameter + 0));	/* fallthrough */
 	case 0:
 		/* do nothing */
 		break;
@@ -4022,32 +4022,32 @@ static int SCUCommand(struct i2c_device_addr *devAddr, pDRXJSCUCmd_t cmd)
 		/* this number of parameters is not supported */
 		return (DRX_STS_ERROR);
 	}
-	WR16(devAddr, SCU_RAM_COMMAND__A, cmd->command);
+	WR16(dev_addr, SCU_RAM_COMMAND__A, cmd->command);
 
 	/* Wait until SCU has processed command */
-	startTime = DRXBSP_HST_Clock();
+	start_time = drxbsp_hst_clock();
 	do {
-		RR16(devAddr, SCU_RAM_COMMAND__A, &curCmd);
-	} while (!(curCmd == DRX_SCU_READY)
-		 && ((DRXBSP_HST_Clock() - startTime) < DRXJ_MAX_WAITTIME));
+		RR16(dev_addr, SCU_RAM_COMMAND__A, &cur_cmd);
+	} while (!(cur_cmd == DRX_SCU_READY)
+		 && ((drxbsp_hst_clock() - start_time) < DRXJ_MAX_WAITTIME));
 
-	if (curCmd != DRX_SCU_READY) {
+	if (cur_cmd != DRX_SCU_READY) {
 		return (DRX_STS_ERROR);
 	}
 
 	/* read results */
-	if ((cmd->resultLen > 0) && (cmd->result != NULL)) {
+	if ((cmd->result_len > 0) && (cmd->result != NULL)) {
 		s16 err;
 
-		switch (cmd->resultLen) {
+		switch (cmd->result_len) {
 		case 4:
-			RR16(devAddr, SCU_RAM_PARAM_3__A, cmd->result + 3);	/* fallthrough */
+			RR16(dev_addr, SCU_RAM_PARAM_3__A, cmd->result + 3);	/* fallthrough */
 		case 3:
-			RR16(devAddr, SCU_RAM_PARAM_2__A, cmd->result + 2);	/* fallthrough */
+			RR16(dev_addr, SCU_RAM_PARAM_2__A, cmd->result + 2);	/* fallthrough */
 		case 2:
-			RR16(devAddr, SCU_RAM_PARAM_1__A, cmd->result + 1);	/* fallthrough */
+			RR16(dev_addr, SCU_RAM_PARAM_1__A, cmd->result + 1);	/* fallthrough */
 		case 1:
-			RR16(devAddr, SCU_RAM_PARAM_0__A, cmd->result + 0);	/* fallthrough */
+			RR16(dev_addr, SCU_RAM_PARAM_0__A, cmd->result + 0);	/* fallthrough */
 		case 0:
 			/* do nothing */
 			break;
@@ -4084,7 +4084,7 @@ rw_error:
 /**
 * \fn int DRXJ_DAP_SCUAtomicReadWriteBlock()
 * \brief Basic access routine for SCU atomic read or write access
-* \param devAddr  pointer to i2c dev address
+* \param dev_addr  pointer to i2c dev address
 * \param addr     destination/source address
 * \param datasize size of data buffer in bytes
 * \param data     pointer to data buffer
@@ -4095,50 +4095,50 @@ rw_error:
 */
 #define ADDR_AT_SCU_SPACE(x) ((x - 0x82E000) * 2)
 static
-int DRXJ_DAP_SCU_AtomicReadWriteBlock(struct i2c_device_addr *devAddr, DRXaddr_t addr, u16 datasize,	/* max 30 bytes because the limit of SCU parameter */
-					      u8 *data, bool readFlag)
+int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, dr_xaddr_t addr, u16 datasize,	/* max 30 bytes because the limit of SCU parameter */
+					      u8 *data, bool read_flag)
 {
-	DRXJSCUCmd_t scuCmd;
-	u16 setParamParameters[15];
-	u16 cmdResult[15];
+	drxjscu_cmd_t scu_cmd;
+	u16 set_param_parameters[15];
+	u16 cmd_result[15];
 
 	/* Parameter check */
 	if ((data == NULL) ||
-	    (devAddr == NULL) || ((datasize % 2) != 0) || ((datasize / 2) > 16)
+	    (dev_addr == NULL) || ((datasize % 2) != 0) || ((datasize / 2) > 16)
 	    ) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	setParamParameters[1] = (u16) ADDR_AT_SCU_SPACE(addr);
-	if (readFlag) {		/* read */
-		setParamParameters[0] = ((~(0x0080)) & datasize);
-		scuCmd.parameterLen = 2;
-		scuCmd.resultLen = datasize / 2 + 2;
+	set_param_parameters[1] = (u16) ADDR_AT_SCU_SPACE(addr);
+	if (read_flag) {		/* read */
+		set_param_parameters[0] = ((~(0x0080)) & datasize);
+		scu_cmd.parameter_len = 2;
+		scu_cmd.result_len = datasize / 2 + 2;
 	} else {
 		int i = 0;
 
-		setParamParameters[0] = 0x0080 | datasize;
+		set_param_parameters[0] = 0x0080 | datasize;
 		for (i = 0; i < (datasize / 2); i++) {
-			setParamParameters[i + 2] =
+			set_param_parameters[i + 2] =
 			    (data[2 * i] | (data[(2 * i) + 1] << 8));
 		}
-		scuCmd.parameterLen = datasize / 2 + 2;
-		scuCmd.resultLen = 1;
+		scu_cmd.parameter_len = datasize / 2 + 2;
+		scu_cmd.result_len = 1;
 	}
 
-	scuCmd.command =
+	scu_cmd.command =
 	    SCU_RAM_COMMAND_STANDARD_TOP |
 	    SCU_RAM_COMMAND_CMD_AUX_SCU_ATOMIC_ACCESS;
-	scuCmd.result = cmdResult;
-	scuCmd.parameter = setParamParameters;
-	CHK_ERROR(SCUCommand(devAddr, &scuCmd));
+	scu_cmd.result = cmd_result;
+	scu_cmd.parameter = set_param_parameters;
+	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
 
-	if (readFlag == true) {
+	if (read_flag == true) {
 		int i = 0;
 		/* read data from buffer */
 		for (i = 0; i < (datasize / 2); i++) {
-			data[2 * i] = (u8) (scuCmd.result[i + 2] & 0xFF);
-			data[(2 * i) + 1] = (u8) (scuCmd.result[i + 2] >> 8);
+			data[2 * i] = (u8) (scu_cmd.result[i + 2] & 0xFF);
+			data[(2 * i) + 1] = (u8) (scu_cmd.result[i + 2] >> 8);
 		}
 	}
 
@@ -4156,9 +4156,9 @@ rw_error:
 * \brief Atomic read of 16 bits words
 */
 static
-int DRXJ_DAP_SCU_AtomicReadReg16(struct i2c_device_addr *devAddr,
-					 DRXaddr_t addr,
-					 u16 *data, DRXflags_t flags)
+int drxj_dap_scu_atomic_read_reg16(struct i2c_device_addr *dev_addr,
+					 dr_xaddr_t addr,
+					 u16 *data, dr_xflags_t flags)
 {
 	u8 buf[2];
 	int rc = DRX_STS_ERROR;
@@ -4168,7 +4168,7 @@ int DRXJ_DAP_SCU_AtomicReadReg16(struct i2c_device_addr *devAddr,
 		return DRX_STS_INVALID_ARG;
 	}
 
-	rc = DRXJ_DAP_SCU_AtomicReadWriteBlock(devAddr, addr, 2, buf, true);
+	rc = drxj_dap_scu_atomic_read_write_block(dev_addr, addr, 2, buf, true);
 
 	word = (u16) (buf[0] + (buf[1] << 8));
 
@@ -4179,13 +4179,13 @@ int DRXJ_DAP_SCU_AtomicReadReg16(struct i2c_device_addr *devAddr,
 
 /*============================================================================*/
 /**
-* \fn int DRXJ_DAP_SCU_AtomicWriteReg16()
+* \fn int drxj_dap_scu_atomic_write_reg16()
 * \brief Atomic read of 16 bits words
 */
 static
-int DRXJ_DAP_SCU_AtomicWriteReg16(struct i2c_device_addr *devAddr,
-					  DRXaddr_t addr,
-					  u16 data, DRXflags_t flags)
+int drxj_dap_scu_atomic_write_reg16(struct i2c_device_addr *dev_addr,
+					  dr_xaddr_t addr,
+					  u16 data, dr_xflags_t flags)
 {
 	u8 buf[2];
 	int rc = DRX_STS_ERROR;
@@ -4193,31 +4193,31 @@ int DRXJ_DAP_SCU_AtomicWriteReg16(struct i2c_device_addr *devAddr,
 	buf[0] = (u8) (data & 0xff);
 	buf[1] = (u8) ((data >> 8) & 0xff);
 
-	rc = DRXJ_DAP_SCU_AtomicReadWriteBlock(devAddr, addr, 2, buf, false);
+	rc = drxj_dap_scu_atomic_read_write_block(dev_addr, addr, 2, buf, false);
 
 	return rc;
 }
 
 static int
-CtrlI2CWriteRead(pDRXDemodInstance_t demod, pDRXI2CData_t i2cData)
+ctrl_i2c_write_read(pdrx_demod_instance_t demod, pdrxi2c_data_t i2c_data)
 {
 	return (DRX_STS_FUNC_NOT_AVAILABLE);
 }
 
 int
-TunerI2CWriteRead(struct tuner_instance *tuner,
-		  struct i2c_device_addr *wDevAddr,
-		  u16 wCount,
+tuner_i2c_write_read(struct tuner_instance *tuner,
+		  struct i2c_device_addr *w_dev_addr,
+		  u16 w_count,
 		  u8 *wData,
-		  struct i2c_device_addr *rDevAddr, u16 rCount, u8 *rData)
+		  struct i2c_device_addr *r_dev_addr, u16 r_count, u8 *r_data)
 {
-	pDRXDemodInstance_t demod;
-	DRXI2CData_t i2cData =
-	    { 2, wDevAddr, wCount, wData, rDevAddr, rCount, rData };
+	pdrx_demod_instance_t demod;
+	drxi2c_data_t i2c_data =
+	    { 2, w_dev_addr, w_count, wData, r_dev_addr, r_count, r_data };
 
-	demod = (pDRXDemodInstance_t) (tuner->myCommonAttr->myUserData);
+	demod = (pdrx_demod_instance_t) (tuner->my_common_attr->myUser_data);
 
-	return (CtrlI2CWriteRead(demod, &i2cData));
+	return (ctrl_i2c_write_read(demod, &i2c_data));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -4230,30 +4230,30 @@ TunerI2CWriteRead(struct tuner_instance *tuner,
 * \retval DRX_STS_ERROR Failure: I2C error
 *
 */
-static int ADCSyncMeasurement(pDRXDemodInstance_t demod, u16 *count)
+static int adc_sync_measurement(pdrx_demod_instance_t demod, u16 *count)
 {
 	u16 data = 0;
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Start measurement */
-	WR16(devAddr, IQM_AF_COMM_EXEC__A, IQM_AF_COMM_EXEC_ACTIVE);
-	WR16(devAddr, IQM_AF_START_LOCK__A, 1);
+	WR16(dev_addr, IQM_AF_COMM_EXEC__A, IQM_AF_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, IQM_AF_START_LOCK__A, 1);
 
 	/* Wait at least 3*128*(1/sysclk) <<< 1 millisec */
-	CHK_ERROR(DRXBSP_HST_Sleep(1));
+	CHK_ERROR(drxbsp_hst_sleep(1));
 
 	*count = 0;
-	RR16(devAddr, IQM_AF_PHASE0__A, &data);
+	RR16(dev_addr, IQM_AF_PHASE0__A, &data);
 	if (data == 127) {
 		*count = *count + 1;
 	}
-	RR16(devAddr, IQM_AF_PHASE1__A, &data);
+	RR16(dev_addr, IQM_AF_PHASE1__A, &data);
 	if (data == 127) {
 		*count = *count + 1;
 	}
-	RR16(devAddr, IQM_AF_PHASE2__A, &data);
+	RR16(dev_addr, IQM_AF_PHASE2__A, &data);
 	if (data == 127) {
 		*count = *count + 1;
 	}
@@ -4275,25 +4275,25 @@ rw_error:
 *
 */
 
-static int ADCSynchronization(pDRXDemodInstance_t demod)
+static int adc_synchronization(pdrx_demod_instance_t demod)
 {
 	u16 count = 0;
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
-	CHK_ERROR(ADCSyncMeasurement(demod, &count));
+	CHK_ERROR(adc_sync_measurement(demod, &count));
 
 	if (count == 1) {
 		/* Try sampling on a diffrent edge */
-		u16 clkNeg = 0;
+		u16 clk_neg = 0;
 
-		RR16(devAddr, IQM_AF_CLKNEG__A, &clkNeg);
+		RR16(dev_addr, IQM_AF_CLKNEG__A, &clk_neg);
 
-		clkNeg ^= IQM_AF_CLKNEG_CLKNEGDATA__M;
-		WR16(devAddr, IQM_AF_CLKNEG__A, clkNeg);
+		clk_neg ^= IQM_AF_CLKNEG_CLKNEGDATA__M;
+		WR16(dev_addr, IQM_AF_CLKNEG__A, clk_neg);
 
-		CHK_ERROR(ADCSyncMeasurement(demod, &count));
+		CHK_ERROR(adc_sync_measurement(demod, &count));
 	}
 
 	if (count < 2) {
@@ -4312,17 +4312,17 @@ rw_error:
 * \param active
 * \return int.
 */
-static int IQMSetAf(pDRXDemodInstance_t demod, bool active)
+static int iqm_set_af(pdrx_demod_instance_t demod, bool active)
 {
 	u16 data = 0;
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Configure IQM */
-	RR16(devAddr, IQM_AF_STDBY__A, &data);
+	RR16(dev_addr, IQM_AF_STDBY__A, &data);
 	if (!active) {
 		data &= ((~IQM_AF_STDBY_STDBY_ADC_A2_ACTIVE)
 			 & (~IQM_AF_STDBY_STDBY_AMP_A2_ACTIVE)
@@ -4338,7 +4338,7 @@ static int IQMSetAf(pDRXDemodInstance_t demod, bool active)
 			 | IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE
 			 | IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE);
 	}
-	WR16(devAddr, IQM_AF_STDBY__A, data);
+	WR16(dev_addr, IQM_AF_STDBY__A, data);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -4347,7 +4347,7 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 static int
-CtrlSetCfgATVOutput(pDRXDemodInstance_t demod, pDRXJCfgAtvOutput_t outputCfg);
+ctrl_set_cfg_atv_output(pdrx_demod_instance_t demod, p_drxj_cfg_atv_output_t output_cfg);
 
 /**
 * \brief set configuration of pin-safe mode
@@ -4356,102 +4356,102 @@ CtrlSetCfgATVOutput(pDRXDemodInstance_t demod, pDRXJCfgAtvOutput_t outputCfg);
 * \return int.
 */
 static int
-CtrlSetCfgPdrSafeMode(pDRXDemodInstance_t demod, bool *enable)
+ctrl_set_cfg_pdr_safe_mode(pdrx_demod_instance_t demod, bool *enable)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) NULL;
 
 	if (enable == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	commonAttr = demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	common_attr = demod->my_common_attr;
 
 	/*  Write magic word to enable pdr reg write  */
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
 
 	if (*enable == true) {
-		bool bridgeEnabled = false;
+		bool bridge_enabled = false;
 
 		/* MPEG pins to input */
-		WR16(devAddr, SIO_PDR_MSTRT_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MERR_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MCLK_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MVAL_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MD0_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MD1_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MD2_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MD3_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MD4_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MD5_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MD6_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_MD7_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MSTRT_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MERR_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MCLK_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MVAL_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MD0_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MD1_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MD2_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MD3_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MD4_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MD5_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MD6_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_MD7_CFG__A, DRXJ_PIN_SAFE_MODE);
 
 		/* PD_I2C_SDA2 Bridge off, Port2 Inactive
 		   PD_I2C_SCL2 Bridge off, Port2 Inactive */
-		CHK_ERROR(CtrlI2CBridge(demod, &bridgeEnabled));
-		WR16(devAddr, SIO_PDR_I2C_SDA2_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_I2C_SCL2_CFG__A, DRXJ_PIN_SAFE_MODE);
+		CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_enabled));
+		WR16(dev_addr, SIO_PDR_I2C_SDA2_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_I2C_SCL2_CFG__A, DRXJ_PIN_SAFE_MODE);
 
 		/*  PD_GPIO     Store and set to input
 		   PD_VSYNC    Store and set to input
 		   PD_SMA_RX   Store and set to input
 		   PD_SMA_TX   Store and set to input */
-		RR16(devAddr, SIO_PDR_GPIO_CFG__A,
-		     &extAttr->pdrSafeRestoreValGpio);
-		RR16(devAddr, SIO_PDR_VSYNC_CFG__A,
-		     &extAttr->pdrSafeRestoreValVSync);
-		RR16(devAddr, SIO_PDR_SMA_RX_CFG__A,
-		     &extAttr->pdrSafeRestoreValSmaRx);
-		RR16(devAddr, SIO_PDR_SMA_TX_CFG__A,
-		     &extAttr->pdrSafeRestoreValSmaTx);
-		WR16(devAddr, SIO_PDR_GPIO_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_VSYNC_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_SMA_RX_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_SMA_TX_CFG__A, DRXJ_PIN_SAFE_MODE);
+		RR16(dev_addr, SIO_PDR_GPIO_CFG__A,
+		     &ext_attr->pdr_safe_restore_val_gpio);
+		RR16(dev_addr, SIO_PDR_VSYNC_CFG__A,
+		     &ext_attr->pdr_safe_restore_val_v_sync);
+		RR16(dev_addr, SIO_PDR_SMA_RX_CFG__A,
+		     &ext_attr->pdr_safe_restore_val_sma_rx);
+		RR16(dev_addr, SIO_PDR_SMA_TX_CFG__A,
+		     &ext_attr->pdr_safe_restore_val_sma_tx);
+		WR16(dev_addr, SIO_PDR_GPIO_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_VSYNC_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_SMA_RX_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_SMA_TX_CFG__A, DRXJ_PIN_SAFE_MODE);
 
 		/*  PD_RF_AGC   Analog DAC outputs, cannot be set to input or tristate!
 		   PD_IF_AGC   Analog DAC outputs, cannot be set to input or tristate! */
-		CHK_ERROR(IQMSetAf(demod, false));
+		CHK_ERROR(iqm_set_af(demod, false));
 
 		/*  PD_CVBS     Analog DAC output, standby mode
 		   PD_SIF      Analog DAC output, standby mode */
-		WR16(devAddr, ATV_TOP_STDBY__A,
+		WR16(dev_addr, ATV_TOP_STDBY__A,
 		     (ATV_TOP_STDBY_SIF_STDBY_STANDBY &
 		      (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)));
 
 		/*  PD_I2S_CL   Input
 		   PD_I2S_DA   Input
 		   PD_I2S_WS   Input */
-		WR16(devAddr, SIO_PDR_I2S_CL_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_I2S_DA_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(devAddr, SIO_PDR_I2S_WS_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_I2S_CL_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_I2S_DA_CFG__A, DRXJ_PIN_SAFE_MODE);
+		WR16(dev_addr, SIO_PDR_I2S_WS_CFG__A, DRXJ_PIN_SAFE_MODE);
 	} else {
 		/* No need to restore MPEG pins;
 		   is done in SetStandard/SetChannel */
 
 		/* PD_I2C_SDA2 Port2 active
 		   PD_I2C_SCL2 Port2 active */
-		WR16(devAddr, SIO_PDR_I2C_SDA2_CFG__A,
+		WR16(dev_addr, SIO_PDR_I2C_SDA2_CFG__A,
 		     SIO_PDR_I2C_SDA2_CFG__PRE);
-		WR16(devAddr, SIO_PDR_I2C_SCL2_CFG__A,
+		WR16(dev_addr, SIO_PDR_I2C_SCL2_CFG__A,
 		     SIO_PDR_I2C_SCL2_CFG__PRE);
 
 		/*  PD_GPIO     Restore
 		   PD_VSYNC    Restore
 		   PD_SMA_RX   Restore
 		   PD_SMA_TX   Restore */
-		WR16(devAddr, SIO_PDR_GPIO_CFG__A,
-		     extAttr->pdrSafeRestoreValGpio);
-		WR16(devAddr, SIO_PDR_VSYNC_CFG__A,
-		     extAttr->pdrSafeRestoreValVSync);
-		WR16(devAddr, SIO_PDR_SMA_RX_CFG__A,
-		     extAttr->pdrSafeRestoreValSmaRx);
-		WR16(devAddr, SIO_PDR_SMA_TX_CFG__A,
-		     extAttr->pdrSafeRestoreValSmaTx);
+		WR16(dev_addr, SIO_PDR_GPIO_CFG__A,
+		     ext_attr->pdr_safe_restore_val_gpio);
+		WR16(dev_addr, SIO_PDR_VSYNC_CFG__A,
+		     ext_attr->pdr_safe_restore_val_v_sync);
+		WR16(dev_addr, SIO_PDR_SMA_RX_CFG__A,
+		     ext_attr->pdr_safe_restore_val_sma_rx);
+		WR16(dev_addr, SIO_PDR_SMA_TX_CFG__A,
+		     ext_attr->pdr_safe_restore_val_sma_tx);
 
 		/*  PD_RF_AGC, PD_IF_AGC
 		   No need to restore; will be restored in SetStandard/SetChannel */
@@ -4464,8 +4464,8 @@ CtrlSetCfgPdrSafeMode(pDRXDemodInstance_t demod, bool *enable)
 	}
 
 	/*  Write magic word to disable pdr reg write */
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, 0x0000);
-	extAttr->pdrSafeMode = *enable;
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+	ext_attr->pdr_safe_mode = *enable;
 
 	return (DRX_STS_OK);
 
@@ -4482,16 +4482,16 @@ rw_error:
 * \return int.
 */
 static int
-CtrlGetCfgPdrSafeMode(pDRXDemodInstance_t demod, bool *enabled)
+ctrl_get_cfg_pdr_safe_mode(pdrx_demod_instance_t demod, bool *enabled)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
 	if (enabled == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	*enabled = extAttr->pdrSafeMode;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	*enabled = ext_attr->pdr_safe_mode;
 
 	return (DRX_STS_OK);
 }
@@ -4501,10 +4501,10 @@ CtrlGetCfgPdrSafeMode(pDRXDemodInstance_t demod, bool *enabled)
 * \param demod Demodulator instance.
 * \return int.
 */
-static int CtrlValidateUCode(pDRXDemodInstance_t demod)
+static int ctrl_validate_u_code(pdrx_demod_instance_t demod)
 {
-	u32 mcDev, mcPatch;
-	u16 verType;
+	u32 mc_dev, mc_patch;
+	u16 ver_type;
 
 	/* Check device.
 	 *  Disallow microcode if:
@@ -4513,17 +4513,17 @@ static int CtrlValidateUCode(pDRXDemodInstance_t demod)
 	 *   - product ID in version record's device ID does not
 	 *     match DRXJ1 product IDs - 0x393 or 0x394
 	 */
-	DRX_GET_MCVERTYPE(demod, verType);
-	DRX_GET_MCDEV(demod, mcDev);
-	DRX_GET_MCPATCH(demod, mcPatch);
+	DRX_GET_MCVERTYPE(demod, ver_type);
+	DRX_GET_MCDEV(demod, mc_dev);
+	DRX_GET_MCPATCH(demod, mc_patch);
 
-	if (DRX_ISMCVERTYPE(verType)) {
-		if ((mcDev != 0) &&
-		    (((mcDev >> 16) & 0xFFF) != 0x393) &&
-		    (((mcDev >> 16) & 0xFFF) != 0x394)) {
+	if (DRX_ISMCVERTYPE(ver_type)) {
+		if ((mc_dev != 0) &&
+		    (((mc_dev >> 16) & 0xFFF) != 0x393) &&
+		    (((mc_dev >> 16) & 0xFFF) != 0x394)) {
 			/* Microcode is marked for another device - error */
 			return DRX_STS_INVALID_ARG;
-		} else if (mcPatch != 0) {
+		} else if (mc_patch != 0) {
 			/* Patch not allowed because there is no ROM */
 			return DRX_STS_INVALID_ARG;
 		}
@@ -4543,153 +4543,153 @@ static int CtrlValidateUCode(pDRXDemodInstance_t demod)
 /*============================================================================*/
 /*============================================================================*/
 /**
-* \fn int InitAGC ()
+* \fn int init_agc ()
 * \brief Initialize AGC for all standards.
 * \param demod instance of demodulator.
 * \param channel pointer to channel data.
 * \return int.
 */
-static int InitAGC(pDRXDemodInstance_t demod)
+static int init_agc(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXCommonAttr_t commonAttr = NULL;
-	pDRXJData_t extAttr = NULL;
-	pDRXJCfgAgc_t pAgcRfSettings = NULL;
-	pDRXJCfgAgc_t pAgcIfSettings = NULL;
-	u16 IngainTgtMax = 0;
-	u16 clpDirTo = 0;
-	u16 snsSumMax = 0;
-	u16 clpSumMax = 0;
-	u16 snsDirTo = 0;
-	u16 kiInnergainMin = 0;
-	u16 agcKi = 0;
-	u16 kiMax = 0;
-	u16 ifIaccuHiTgtMin = 0;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrx_common_attr_t common_attr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	p_drxj_cfg_agc_t p_agc_rf_settings = NULL;
+	p_drxj_cfg_agc_t p_agc_if_settings = NULL;
+	u16 ingain_tgt_max = 0;
+	u16 clp_dir_to = 0;
+	u16 sns_sum_max = 0;
+	u16 clp_sum_max = 0;
+	u16 sns_dir_to = 0;
+	u16 ki_innergain_min = 0;
+	u16 agc_ki = 0;
+	u16 ki_max = 0;
+	u16 if_iaccu_hi_tgt_min = 0;
 	u16 data = 0;
-	u16 agcKiDgain = 0;
-	u16 kiMin = 0;
-	u16 clpCtrlMode = 0;
-	u16 agcRf = 0;
-	u16 agcIf = 0;
-	devAddr = demod->myI2CDevAddr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	u16 agc_kiDgain = 0;
+	u16 ki_min = 0;
+	u16 clp_ctrl_mode = 0;
+	u16 agc_rf = 0;
+	u16 agc_if = 0;
+	dev_addr = demod->my_i2c_dev_addr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	switch (extAttr->standard) {
+	switch (ext_attr->standard) {
 	case DRX_STANDARD_8VSB:
-		clpSumMax = 1023;
-		clpDirTo = (u16) (-9);
-		snsSumMax = 1023;
-		snsDirTo = (u16) (-9);
-		kiInnergainMin = (u16) (-32768);
-		kiMax = 0x032C;
-		agcKiDgain = 0xC;
-		ifIaccuHiTgtMin = 2047;
-		kiMin = 0x0117;
-		IngainTgtMax = 16383;
-		clpCtrlMode = 0;
-		WR16(devAddr, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff);
-		WR16(devAddr, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0);
-		WR16(devAddr, SCU_RAM_AGC_CLP_SUM__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_CLP_CYCCNT__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_CLP_DIR_WD__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_CLP_DIR_STP__A, 1);
-		WR16(devAddr, SCU_RAM_AGC_SNS_SUM__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_SNS_CYCCNT__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_SNS_DIR_WD__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_SNS_DIR_STP__A, 1);
-		WR16(devAddr, SCU_RAM_AGC_INGAIN__A, 1024);
-		WR16(devAddr, SCU_RAM_VSB_AGC_POW_TGT__A, 22600);
-		WR16(devAddr, SCU_RAM_AGC_INGAIN_TGT__A, 13200);
-		pAgcIfSettings = &(extAttr->vsbIfAgcCfg);
-		pAgcRfSettings = &(extAttr->vsbRfAgcCfg);
+		clp_sum_max = 1023;
+		clp_dir_to = (u16) (-9);
+		sns_sum_max = 1023;
+		sns_dir_to = (u16) (-9);
+		ki_innergain_min = (u16) (-32768);
+		ki_max = 0x032C;
+		agc_kiDgain = 0xC;
+		if_iaccu_hi_tgt_min = 2047;
+		ki_min = 0x0117;
+		ingain_tgt_max = 16383;
+		clp_ctrl_mode = 0;
+		WR16(dev_addr, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff);
+		WR16(dev_addr, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0);
+		WR16(dev_addr, SCU_RAM_AGC_CLP_SUM__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_CLP_CYCCNT__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_WD__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_STP__A, 1);
+		WR16(dev_addr, SCU_RAM_AGC_SNS_SUM__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_SNS_CYCCNT__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_WD__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_STP__A, 1);
+		WR16(dev_addr, SCU_RAM_AGC_INGAIN__A, 1024);
+		WR16(dev_addr, SCU_RAM_VSB_AGC_POW_TGT__A, 22600);
+		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, 13200);
+		p_agc_if_settings = &(ext_attr->vsb_if_agc_cfg);
+		p_agc_rf_settings = &(ext_attr->vsb_rf_agc_cfg);
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_C:
 	case DRX_STANDARD_ITU_B:
-		IngainTgtMax = 5119;
-		clpSumMax = 1023;
-		clpDirTo = (u16) (-5);
-		snsSumMax = 127;
-		snsDirTo = (u16) (-3);
-		kiInnergainMin = 0;
-		kiMax = 0x0657;
-		ifIaccuHiTgtMin = 2047;
-		agcKiDgain = 0x7;
-		kiMin = 0x0117;
-		clpCtrlMode = 0;
-		WR16(devAddr, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff);
-		WR16(devAddr, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0);
-		WR16(devAddr, SCU_RAM_AGC_CLP_SUM__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_CLP_CYCCNT__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_CLP_DIR_WD__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_CLP_DIR_STP__A, 1);
-		WR16(devAddr, SCU_RAM_AGC_SNS_SUM__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_SNS_CYCCNT__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_SNS_DIR_WD__A, 0);
-		WR16(devAddr, SCU_RAM_AGC_SNS_DIR_STP__A, 1);
-		pAgcIfSettings = &(extAttr->qamIfAgcCfg);
-		pAgcRfSettings = &(extAttr->qamRfAgcCfg);
-		WR16(devAddr, SCU_RAM_AGC_INGAIN_TGT__A, pAgcIfSettings->top);
+		ingain_tgt_max = 5119;
+		clp_sum_max = 1023;
+		clp_dir_to = (u16) (-5);
+		sns_sum_max = 127;
+		sns_dir_to = (u16) (-3);
+		ki_innergain_min = 0;
+		ki_max = 0x0657;
+		if_iaccu_hi_tgt_min = 2047;
+		agc_kiDgain = 0x7;
+		ki_min = 0x0117;
+		clp_ctrl_mode = 0;
+		WR16(dev_addr, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff);
+		WR16(dev_addr, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0);
+		WR16(dev_addr, SCU_RAM_AGC_CLP_SUM__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_CLP_CYCCNT__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_WD__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_STP__A, 1);
+		WR16(dev_addr, SCU_RAM_AGC_SNS_SUM__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_SNS_CYCCNT__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_WD__A, 0);
+		WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_STP__A, 1);
+		p_agc_if_settings = &(ext_attr->qam_if_agc_cfg);
+		p_agc_rf_settings = &(ext_attr->qam_rf_agc_cfg);
+		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top);
 
-		RR16(devAddr, SCU_RAM_AGC_KI__A, &agcKi);
-		agcKi &= 0xf000;
-		WR16(devAddr, SCU_RAM_AGC_KI__A, agcKi);
+		RR16(dev_addr, SCU_RAM_AGC_KI__A, &agc_ki);
+		agc_ki &= 0xf000;
+		WR16(dev_addr, SCU_RAM_AGC_KI__A, agc_ki);
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_FM:
-		clpSumMax = 1023;
-		snsSumMax = 1023;
-		kiInnergainMin = (u16) (-32768);
-		ifIaccuHiTgtMin = 2047;
-		agcKiDgain = 0x7;
-		kiMin = 0x0225;
-		kiMax = 0x0547;
-		clpDirTo = (u16) (-9);
-		snsDirTo = (u16) (-9);
-		IngainTgtMax = 9000;
-		clpCtrlMode = 1;
-		pAgcIfSettings = &(extAttr->atvIfAgcCfg);
-		pAgcRfSettings = &(extAttr->atvRfAgcCfg);
-		WR16(devAddr, SCU_RAM_AGC_INGAIN_TGT__A, pAgcIfSettings->top);
+		clp_sum_max = 1023;
+		sns_sum_max = 1023;
+		ki_innergain_min = (u16) (-32768);
+		if_iaccu_hi_tgt_min = 2047;
+		agc_kiDgain = 0x7;
+		ki_min = 0x0225;
+		ki_max = 0x0547;
+		clp_dir_to = (u16) (-9);
+		sns_dir_to = (u16) (-9);
+		ingain_tgt_max = 9000;
+		clp_ctrl_mode = 1;
+		p_agc_if_settings = &(ext_attr->atv_if_agc_cfg);
+		p_agc_rf_settings = &(ext_attr->atv_rf_agc_cfg);
+		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top);
 		break;
 	case DRX_STANDARD_NTSC:
 	case DRX_STANDARD_PAL_SECAM_BG:
 	case DRX_STANDARD_PAL_SECAM_DK:
 	case DRX_STANDARD_PAL_SECAM_I:
-		clpSumMax = 1023;
-		snsSumMax = 1023;
-		kiInnergainMin = (u16) (-32768);
-		ifIaccuHiTgtMin = 2047;
-		agcKiDgain = 0x7;
-		kiMin = 0x0225;
-		kiMax = 0x0547;
-		clpDirTo = (u16) (-9);
-		IngainTgtMax = 9000;
-		pAgcIfSettings = &(extAttr->atvIfAgcCfg);
-		pAgcRfSettings = &(extAttr->atvRfAgcCfg);
-		snsDirTo = (u16) (-9);
-		clpCtrlMode = 1;
-		WR16(devAddr, SCU_RAM_AGC_INGAIN_TGT__A, pAgcIfSettings->top);
+		clp_sum_max = 1023;
+		sns_sum_max = 1023;
+		ki_innergain_min = (u16) (-32768);
+		if_iaccu_hi_tgt_min = 2047;
+		agc_kiDgain = 0x7;
+		ki_min = 0x0225;
+		ki_max = 0x0547;
+		clp_dir_to = (u16) (-9);
+		ingain_tgt_max = 9000;
+		p_agc_if_settings = &(ext_attr->atv_if_agc_cfg);
+		p_agc_rf_settings = &(ext_attr->atv_rf_agc_cfg);
+		sns_dir_to = (u16) (-9);
+		clp_ctrl_mode = 1;
+		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top);
 		break;
 	case DRX_STANDARD_PAL_SECAM_L:
 	case DRX_STANDARD_PAL_SECAM_LP:
-		clpSumMax = 1023;
-		snsSumMax = 1023;
-		kiInnergainMin = (u16) (-32768);
-		ifIaccuHiTgtMin = 2047;
-		agcKiDgain = 0x7;
-		kiMin = 0x0225;
-		kiMax = 0x0547;
-		clpDirTo = (u16) (-9);
-		snsDirTo = (u16) (-9);
-		IngainTgtMax = 9000;
-		clpCtrlMode = 1;
-		pAgcIfSettings = &(extAttr->atvIfAgcCfg);
-		pAgcRfSettings = &(extAttr->atvRfAgcCfg);
-		WR16(devAddr, SCU_RAM_AGC_INGAIN_TGT__A, pAgcIfSettings->top);
+		clp_sum_max = 1023;
+		sns_sum_max = 1023;
+		ki_innergain_min = (u16) (-32768);
+		if_iaccu_hi_tgt_min = 2047;
+		agc_kiDgain = 0x7;
+		ki_min = 0x0225;
+		ki_max = 0x0547;
+		clp_dir_to = (u16) (-9);
+		sns_dir_to = (u16) (-9);
+		ingain_tgt_max = 9000;
+		clp_ctrl_mode = 1;
+		p_agc_if_settings = &(ext_attr->atv_if_agc_cfg);
+		p_agc_rf_settings = &(ext_attr->atv_rf_agc_cfg);
+		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top);
 		break;
 #endif
 	default:
@@ -4697,51 +4697,51 @@ static int InitAGC(pDRXDemodInstance_t demod)
 	}
 
 	/* for new AGC interface */
-	WR16(devAddr, SCU_RAM_AGC_INGAIN_TGT_MIN__A, pAgcIfSettings->top);
-	WR16(devAddr, SCU_RAM_AGC_INGAIN__A, pAgcIfSettings->top);	/* Gain fed from inner to outer AGC */
-	WR16(devAddr, SCU_RAM_AGC_INGAIN_TGT_MAX__A, IngainTgtMax);
-	WR16(devAddr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MIN__A, ifIaccuHiTgtMin);
-	WR16(devAddr, SCU_RAM_AGC_IF_IACCU_HI__A, 0);	/* set to pAgcSettings->top before */
-	WR16(devAddr, SCU_RAM_AGC_IF_IACCU_LO__A, 0);
-	WR16(devAddr, SCU_RAM_AGC_RF_IACCU_HI__A, 0);
-	WR16(devAddr, SCU_RAM_AGC_RF_IACCU_LO__A, 0);
-	WR16(devAddr, SCU_RAM_AGC_RF_MAX__A, 32767);
-	WR16(devAddr, SCU_RAM_AGC_CLP_SUM_MAX__A, clpSumMax);
-	WR16(devAddr, SCU_RAM_AGC_SNS_SUM_MAX__A, snsSumMax);
-	WR16(devAddr, SCU_RAM_AGC_KI_INNERGAIN_MIN__A, kiInnergainMin);
-	WR16(devAddr, SCU_RAM_AGC_FAST_SNS_CTRL_DELAY__A, 50);
-	WR16(devAddr, SCU_RAM_AGC_KI_CYCLEN__A, 500);
-	WR16(devAddr, SCU_RAM_AGC_SNS_CYCLEN__A, 500);
-	WR16(devAddr, SCU_RAM_AGC_KI_MAXMINGAIN_TH__A, 20);
-	WR16(devAddr, SCU_RAM_AGC_KI_MIN__A, kiMin);
-	WR16(devAddr, SCU_RAM_AGC_KI_MAX__A, kiMax);
-	WR16(devAddr, SCU_RAM_AGC_KI_RED__A, 0);
-	WR16(devAddr, SCU_RAM_AGC_CLP_SUM_MIN__A, 8);
-	WR16(devAddr, SCU_RAM_AGC_CLP_CYCLEN__A, 500);
-	WR16(devAddr, SCU_RAM_AGC_CLP_DIR_TO__A, clpDirTo);
-	WR16(devAddr, SCU_RAM_AGC_SNS_SUM_MIN__A, 8);
-	WR16(devAddr, SCU_RAM_AGC_SNS_DIR_TO__A, snsDirTo);
-	WR16(devAddr, SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A, 50);
-	WR16(devAddr, SCU_RAM_AGC_CLP_CTRL_MODE__A, clpCtrlMode);
+	WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT_MIN__A, p_agc_if_settings->top);
+	WR16(dev_addr, SCU_RAM_AGC_INGAIN__A, p_agc_if_settings->top);	/* Gain fed from inner to outer AGC */
+	WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT_MAX__A, ingain_tgt_max);
+	WR16(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MIN__A, if_iaccu_hi_tgt_min);
+	WR16(dev_addr, SCU_RAM_AGC_IF_IACCU_HI__A, 0);	/* set to p_agc_settings->top before */
+	WR16(dev_addr, SCU_RAM_AGC_IF_IACCU_LO__A, 0);
+	WR16(dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A, 0);
+	WR16(dev_addr, SCU_RAM_AGC_RF_IACCU_LO__A, 0);
+	WR16(dev_addr, SCU_RAM_AGC_RF_MAX__A, 32767);
+	WR16(dev_addr, SCU_RAM_AGC_CLP_SUM_MAX__A, clp_sum_max);
+	WR16(dev_addr, SCU_RAM_AGC_SNS_SUM_MAX__A, sns_sum_max);
+	WR16(dev_addr, SCU_RAM_AGC_KI_INNERGAIN_MIN__A, ki_innergain_min);
+	WR16(dev_addr, SCU_RAM_AGC_FAST_SNS_CTRL_DELAY__A, 50);
+	WR16(dev_addr, SCU_RAM_AGC_KI_CYCLEN__A, 500);
+	WR16(dev_addr, SCU_RAM_AGC_SNS_CYCLEN__A, 500);
+	WR16(dev_addr, SCU_RAM_AGC_KI_MAXMINGAIN_TH__A, 20);
+	WR16(dev_addr, SCU_RAM_AGC_KI_MIN__A, ki_min);
+	WR16(dev_addr, SCU_RAM_AGC_KI_MAX__A, ki_max);
+	WR16(dev_addr, SCU_RAM_AGC_KI_RED__A, 0);
+	WR16(dev_addr, SCU_RAM_AGC_CLP_SUM_MIN__A, 8);
+	WR16(dev_addr, SCU_RAM_AGC_CLP_CYCLEN__A, 500);
+	WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_TO__A, clp_dir_to);
+	WR16(dev_addr, SCU_RAM_AGC_SNS_SUM_MIN__A, 8);
+	WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_TO__A, sns_dir_to);
+	WR16(dev_addr, SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A, 50);
+	WR16(dev_addr, SCU_RAM_AGC_CLP_CTRL_MODE__A, clp_ctrl_mode);
 
-	agcRf = 0x800 + pAgcRfSettings->cutOffCurrent;
-	if (commonAttr->tunerRfAgcPol == true) {
-		agcRf = 0x87ff - agcRf;
+	agc_rf = 0x800 + p_agc_rf_settings->cut_off_current;
+	if (common_attr->tuner_rf_agc_pol == true) {
+		agc_rf = 0x87ff - agc_rf;
 	}
 
-	agcIf = 0x800;
-	if (commonAttr->tunerIfAgcPol == true) {
-		agcRf = 0x87ff - agcRf;
+	agc_if = 0x800;
+	if (common_attr->tuner_if_agc_pol == true) {
+		agc_rf = 0x87ff - agc_rf;
 	}
 
-	WR16(devAddr, IQM_AF_AGC_RF__A, agcRf);
-	WR16(devAddr, IQM_AF_AGC_IF__A, agcIf);
+	WR16(dev_addr, IQM_AF_AGC_RF__A, agc_rf);
+	WR16(dev_addr, IQM_AF_AGC_IF__A, agc_if);
 
 	/* Set/restore Ki DGAIN factor */
-	RR16(devAddr, SCU_RAM_AGC_KI__A, &data);
+	RR16(dev_addr, SCU_RAM_AGC_KI__A, &data);
 	data &= ~SCU_RAM_AGC_KI_DGAIN__M;
-	data |= (agcKiDgain << SCU_RAM_AGC_KI_DGAIN__B);
-	WR16(devAddr, SCU_RAM_AGC_KI__A, data);
+	data |= (agc_kiDgain << SCU_RAM_AGC_KI_DGAIN__B);
+	WR16(dev_addr, SCU_RAM_AGC_KI__A, data);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -4749,101 +4749,101 @@ rw_error:
 }
 
 /**
-* \fn int SetFrequency ()
+* \fn int set_frequency ()
 * \brief Set frequency shift.
 * \param demod instance of demodulator.
 * \param channel pointer to channel data.
-* \param tunerFreqOffset residual frequency from tuner.
+* \param tuner_freq_offset residual frequency from tuner.
 * \return int.
 */
 static int
-SetFrequency(pDRXDemodInstance_t demod,
-	     pDRXChannel_t channel, s32 tunerFreqOffset)
+set_frequency(pdrx_demod_instance_t demod,
+	     pdrx_channel_t channel, s32 tuner_freq_offset)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXCommonAttr_t commonAttr = NULL;
-	s32 samplingFrequency = 0;
-	s32 frequencyShift = 0;
-	s32 ifFreqActual = 0;
-	s32 rfFreqResidual = 0;
-	s32 adcFreq = 0;
-	s32 intermediateFreq = 0;
-	u32 iqmFsRateOfs = 0;
-	pDRXJData_t extAttr = NULL;
-	bool adcFlip = true;
-	bool selectPosImage = false;
-	bool rfMirror = false;
-	bool tunerMirror = true;
-	bool imageToSelect = true;
-	s32 fmFrequencyShift = 0;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrx_common_attr_t common_attr = NULL;
+	s32 sampling_frequency = 0;
+	s32 frequency_shift = 0;
+	s32 if_freq_actual = 0;
+	s32 rf_freq_residual = 0;
+	s32 adc_freq = 0;
+	s32 intermediate_freq = 0;
+	u32 iqm_fs_rate_ofs = 0;
+	pdrxj_data_t ext_attr = NULL;
+	bool adc_flip = true;
+	bool select_pos_image = false;
+	bool rf_mirror = false;
+	bool tuner_mirror = true;
+	bool image_to_select = true;
+	s32 fm_frequency_shift = 0;
 
-	devAddr = demod->myI2CDevAddr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	rfFreqResidual = -1 * tunerFreqOffset;
-	rfMirror = (extAttr->mirror == DRX_MIRROR_YES) ? true : false;
-	tunerMirror = demod->myCommonAttr->mirrorFreqSpect ? false : true;
+	dev_addr = demod->my_i2c_dev_addr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	rf_freq_residual = -1 * tuner_freq_offset;
+	rf_mirror = (ext_attr->mirror == DRX_MIRROR_YES) ? true : false;
+	tuner_mirror = demod->my_common_attr->mirror_freq_spect ? false : true;
 	/*
 	   Program frequency shifter
 	   No need to account for mirroring on RF
 	 */
-	switch (extAttr->standard) {
+	switch (ext_attr->standard) {
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 	case DRX_STANDARD_8VSB:
-		selectPosImage = true;
+		select_pos_image = true;
 		break;
 	case DRX_STANDARD_FM:
 		/* After IQM FS sound carrier must appear at 4 Mhz in spect.
 		   Sound carrier is already 3Mhz above centre frequency due
 		   to tuner setting so now add an extra shift of 1MHz... */
-		fmFrequencyShift = 1000;
+		fm_frequency_shift = 1000;
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_NTSC:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_BG:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_DK:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_I:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_L:
-		selectPosImage = false;
+		select_pos_image = false;
 		break;
 	default:
 		return (DRX_STS_INVALID_ARG);
 	}
-	intermediateFreq = demod->myCommonAttr->intermediateFreq;
-	samplingFrequency = demod->myCommonAttr->sysClockFreq / 3;
-	if (tunerMirror == true) {
+	intermediate_freq = demod->my_common_attr->intermediate_freq;
+	sampling_frequency = demod->my_common_attr->sys_clock_freq / 3;
+	if (tuner_mirror == true) {
 		/* tuner doesn't mirror */
-		ifFreqActual =
-		    intermediateFreq + rfFreqResidual + fmFrequencyShift;
+		if_freq_actual =
+		    intermediate_freq + rf_freq_residual + fm_frequency_shift;
 	} else {
 		/* tuner mirrors */
-		ifFreqActual =
-		    intermediateFreq - rfFreqResidual - fmFrequencyShift;
+		if_freq_actual =
+		    intermediate_freq - rf_freq_residual - fm_frequency_shift;
 	}
-	if (ifFreqActual > samplingFrequency / 2) {
+	if (if_freq_actual > sampling_frequency / 2) {
 		/* adc mirrors */
-		adcFreq = samplingFrequency - ifFreqActual;
-		adcFlip = true;
+		adc_freq = sampling_frequency - if_freq_actual;
+		adc_flip = true;
 	} else {
 		/* adc doesn't mirror */
-		adcFreq = ifFreqActual;
-		adcFlip = false;
+		adc_freq = if_freq_actual;
+		adc_flip = false;
 	}
 
-	frequencyShift = adcFreq;
-	imageToSelect =
-	    (bool) (rfMirror ^ tunerMirror ^ adcFlip ^ selectPosImage);
-	iqmFsRateOfs = Frac28(frequencyShift, samplingFrequency);
+	frequency_shift = adc_freq;
+	image_to_select =
+	    (bool) (rf_mirror ^ tuner_mirror ^ adc_flip ^ select_pos_image);
+	iqm_fs_rate_ofs = frac28(frequency_shift, sampling_frequency);
 
-	if (imageToSelect)
-		iqmFsRateOfs = ~iqmFsRateOfs + 1;
+	if (image_to_select)
+		iqm_fs_rate_ofs = ~iqm_fs_rate_ofs + 1;
 
 	/* Program frequency shifter with tuner offset compensation */
-	/* frequencyShift += tunerFreqOffset; TODO */
-	WR32(devAddr, IQM_FS_RATE_OFS_LO__A, iqmFsRateOfs);
-	extAttr->iqmFsRateOfs = iqmFsRateOfs;
-	extAttr->posImage = (bool) (rfMirror ^ tunerMirror ^ selectPosImage);
+	/* frequency_shift += tuner_freq_offset; TODO */
+	WR32(dev_addr, IQM_FS_RATE_OFS_LO__A, iqm_fs_rate_ofs);
+	ext_attr->iqm_fs_rate_ofs = iqm_fs_rate_ofs;
+	ext_attr->pos_image = (bool) (rf_mirror ^ tuner_mirror ^ select_pos_image);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -4851,61 +4851,61 @@ rw_error:
 }
 
 /**
-* \fn int GetSigStrength()
+* \fn int get_sig_strength()
 * \brief Retrieve signal strength for VSB and QAM.
 * \param demod Pointer to demod instance
 * \param u16-t Pointer to signal strength data; range 0, .. , 100.
 * \return int.
-* \retval DRX_STS_OK sigStrength contains valid data.
-* \retval DRX_STS_INVALID_ARG sigStrength is NULL.
-* \retval DRX_STS_ERROR Erroneous data, sigStrength contains invalid data.
+* \retval DRX_STS_OK sig_strength contains valid data.
+* \retval DRX_STS_INVALID_ARG sig_strength is NULL.
+* \retval DRX_STS_ERROR Erroneous data, sig_strength contains invalid data.
 */
 #define DRXJ_AGC_TOP    0x2800
 #define DRXJ_AGC_SNS    0x1600
 #define DRXJ_RFAGC_MAX  0x3fff
 #define DRXJ_RFAGC_MIN  0x800
 
-static int GetSigStrength(pDRXDemodInstance_t demod, u16 *sigStrength)
+static int get_sig_strength(pdrx_demod_instance_t demod, u16 *sig_strength)
 {
-	u16 rfGain = 0;
-	u16 ifGain = 0;
-	u16 ifAgcSns = 0;
-	u16 ifAgcTop = 0;
-	u16 rfAgcMax = 0;
-	u16 rfAgcMin = 0;
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
+	u16 rf_gain = 0;
+	u16 if_gain = 0;
+	u16 if_agc_sns = 0;
+	u16 if_agc_top = 0;
+	u16 rf_agc_max = 0;
+	u16 rf_agc_min = 0;
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
-	RR16(devAddr, IQM_AF_AGC_IF__A, &ifGain);
-	ifGain &= IQM_AF_AGC_IF__M;
-	RR16(devAddr, IQM_AF_AGC_RF__A, &rfGain);
-	rfGain &= IQM_AF_AGC_RF__M;
+	RR16(dev_addr, IQM_AF_AGC_IF__A, &if_gain);
+	if_gain &= IQM_AF_AGC_IF__M;
+	RR16(dev_addr, IQM_AF_AGC_RF__A, &rf_gain);
+	rf_gain &= IQM_AF_AGC_RF__M;
 
-	ifAgcSns = DRXJ_AGC_SNS;
-	ifAgcTop = DRXJ_AGC_TOP;
-	rfAgcMax = DRXJ_RFAGC_MAX;
-	rfAgcMin = DRXJ_RFAGC_MIN;
+	if_agc_sns = DRXJ_AGC_SNS;
+	if_agc_top = DRXJ_AGC_TOP;
+	rf_agc_max = DRXJ_RFAGC_MAX;
+	rf_agc_min = DRXJ_RFAGC_MIN;
 
-	if (ifGain > ifAgcTop) {
-		if (rfGain > rfAgcMax)
-			*sigStrength = 100;
-		else if (rfGain > rfAgcMin) {
-			CHK_ZERO(rfAgcMax - rfAgcMin);
-			*sigStrength =
-			    75 + 25 * (rfGain - rfAgcMin) / (rfAgcMax -
-							     rfAgcMin);
+	if (if_gain > if_agc_top) {
+		if (rf_gain > rf_agc_max)
+			*sig_strength = 100;
+		else if (rf_gain > rf_agc_min) {
+			CHK_ZERO(rf_agc_max - rf_agc_min);
+			*sig_strength =
+			    75 + 25 * (rf_gain - rf_agc_min) / (rf_agc_max -
+							     rf_agc_min);
 		} else
-			*sigStrength = 75;
-	} else if (ifGain > ifAgcSns) {
-		CHK_ZERO(ifAgcTop - ifAgcSns);
-		*sigStrength =
-		    20 + 55 * (ifGain - ifAgcSns) / (ifAgcTop - ifAgcSns);
+			*sig_strength = 75;
+	} else if (if_gain > if_agc_sns) {
+		CHK_ZERO(if_agc_top - if_agc_sns);
+		*sig_strength =
+		    20 + 55 * (if_gain - if_agc_sns) / (if_agc_top - if_agc_sns);
 	} else {
-		CHK_ZERO(ifAgcSns);
-		*sigStrength = (20 * ifGain / ifAgcSns);
+		CHK_ZERO(if_agc_sns);
+		*sig_strength = (20 * if_gain / if_agc_sns);
 	}
 
 	return (DRX_STS_OK);
@@ -4914,42 +4914,42 @@ rw_error:
 }
 
 /**
-* \fn int GetAccPktErr()
+* \fn int get_acc_pkt_err()
 * \brief Retrieve signal strength for VSB and QAM.
 * \param demod Pointer to demod instance
-* \param packetErr Pointer to packet error
+* \param packet_err Pointer to packet error
 * \return int.
-* \retval DRX_STS_OK sigStrength contains valid data.
-* \retval DRX_STS_INVALID_ARG sigStrength is NULL.
-* \retval DRX_STS_ERROR Erroneous data, sigStrength contains invalid data.
+* \retval DRX_STS_OK sig_strength contains valid data.
+* \retval DRX_STS_INVALID_ARG sig_strength is NULL.
+* \retval DRX_STS_ERROR Erroneous data, sig_strength contains invalid data.
 */
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
-static int GetAccPktErr(pDRXDemodInstance_t demod, u16 *packetErr)
+static int get_acc_pkt_err(pdrx_demod_instance_t demod, u16 *packet_err)
 {
-	static u16 pktErr;
-	static u16 lastPktErr;
+	static u16 pkt_err;
+	static u16 last_pkt_err;
 	u16 data = 0;
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
-	RR16(devAddr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, &data);
-	if (extAttr->resetPktErrAcc == true) {
-		lastPktErr = data;
-		pktErr = 0;
-		extAttr->resetPktErrAcc = false;
+	RR16(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, &data);
+	if (ext_attr->reset_pkt_err_acc == true) {
+		last_pkt_err = data;
+		pkt_err = 0;
+		ext_attr->reset_pkt_err_acc = false;
 	}
 
-	if (data < lastPktErr) {
-		pktErr += 0xffff - lastPktErr;
-		pktErr += data;
+	if (data < last_pkt_err) {
+		pkt_err += 0xffff - last_pkt_err;
+		pkt_err += data;
 	} else {
-		pktErr += (data - lastPktErr);
+		pkt_err += (data - last_pkt_err);
 	}
-	*packetErr = pktErr;
-	lastPktErr = data;
+	*packet_err = pkt_err;
+	last_pkt_err = data;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -4965,16 +4965,16 @@ rw_error:
 * \retval DRX_STS_OK.
 * \retval DRX_STS_ERROR Erroneous data.
 */
-static int CtrlSetCfgResetPktErr(pDRXDemodInstance_t demod)
+static int ctrl_set_cfg_reset_pkt_err(pdrx_demod_instance_t demod)
 {
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
-	pDRXJData_t extAttr = NULL;
-	u16 packetError = 0;
+	pdrxj_data_t ext_attr = NULL;
+	u16 packet_error = 0;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	extAttr->resetPktErrAcc = true;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	ext_attr->reset_pkt_err_acc = true;
 	/* call to reset counter */
-	CHK_ERROR(GetAccPktErr(demod, &packetError));
+	CHK_ERROR(get_acc_pkt_err(demod, &packet_error));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -4983,37 +4983,37 @@ rw_error:
 }
 
 /**
-* \fn static short GetSTRFreqOffset()
+* \fn static short get_str_freq_offset()
 * \brief Get symbol rate offset in QAM & 8VSB mode
 * \return Error code
 */
-static int GetSTRFreqOffset(pDRXDemodInstance_t demod, s32 *STRFreq)
+static int get_str_freq_offset(pdrx_demod_instance_t demod, s32 *str_freq)
 {
-	u32 symbolFrequencyRatio = 0;
-	u32 symbolNomFrequencyRatio = 0;
+	u32 symbol_frequency_ratio = 0;
+	u32 symbol_nom_frequency_ratio = 0;
 
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	standard = extAttr->standard;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	standard = ext_attr->standard;
 
-	ARR32(devAddr, IQM_RC_RATE_LO__A, &symbolFrequencyRatio);
-	symbolNomFrequencyRatio = extAttr->iqmRcRateOfs;
+	ARR32(dev_addr, IQM_RC_RATE_LO__A, &symbol_frequency_ratio);
+	symbol_nom_frequency_ratio = ext_attr->iqm_rc_rate_ofs;
 
-	if (symbolFrequencyRatio > symbolNomFrequencyRatio)
-		*STRFreq =
+	if (symbol_frequency_ratio > symbol_nom_frequency_ratio)
+		*str_freq =
 		    -1 *
-		    FracTimes1e6((symbolFrequencyRatio -
-				  symbolNomFrequencyRatio),
-				 (symbolFrequencyRatio + (1 << 23)));
+		    frac_times1e6((symbol_frequency_ratio -
+				  symbol_nom_frequency_ratio),
+				 (symbol_frequency_ratio + (1 << 23)));
 	else
-		*STRFreq =
-		    FracTimes1e6((symbolNomFrequencyRatio -
-				  symbolFrequencyRatio),
-				 (symbolFrequencyRatio + (1 << 23)));
+		*str_freq =
+		    frac_times1e6((symbol_nom_frequency_ratio -
+				  symbol_frequency_ratio),
+				 (symbol_frequency_ratio + (1 << 23)));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -5021,51 +5021,51 @@ rw_error:
 }
 
 /**
-* \fn static short GetCTLFreqOffset
-* \brief Get the value of CTLFreq in QAM & ATSC mode
+* \fn static short get_ctl_freq_offset
+* \brief Get the value of ctl_freq in QAM & ATSC mode
 * \return Error code
 */
-static int GetCTLFreqOffset(pDRXDemodInstance_t demod, s32 *CTLFreq)
+static int get_ctl_freq_offset(pdrx_demod_instance_t demod, s32 *ctl_freq)
 {
-	s32 samplingFrequency = 0;
-	s32 currentFrequency = 0;
-	s32 nominalFrequency = 0;
-	s32 carrierFrequencyShift = 0;
+	s32 sampling_frequency = 0;
+	s32 current_frequency = 0;
+	s32 nominal_frequency = 0;
+	s32 carrier_frequency_shift = 0;
 	s32 sign = 1;
-	u32 data64Hi = 0;
-	u32 data64Lo = 0;
-	pDRXJData_t extAttr = NULL;
-	pDRXCommonAttr_t commonAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
+	u32 data64hi = 0;
+	u32 data64lo = 0;
+	pdrxj_data_t ext_attr = NULL;
+	pdrx_common_attr_t common_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
-	samplingFrequency = commonAttr->sysClockFreq / 3;
+	sampling_frequency = common_attr->sys_clock_freq / 3;
 
 	/* both registers are sign extended */
-	nominalFrequency = extAttr->iqmFsRateOfs;
-	ARR32(devAddr, IQM_FS_RATE_LO__A, (u32 *) &currentFrequency);
+	nominal_frequency = ext_attr->iqm_fs_rate_ofs;
+	ARR32(dev_addr, IQM_FS_RATE_LO__A, (u32 *) &current_frequency);
 
-	if (extAttr->posImage == true) {
+	if (ext_attr->pos_image == true) {
 		/* negative image */
-		carrierFrequencyShift = nominalFrequency - currentFrequency;
+		carrier_frequency_shift = nominal_frequency - current_frequency;
 	} else {
 		/* positive image */
-		carrierFrequencyShift = currentFrequency - nominalFrequency;
+		carrier_frequency_shift = current_frequency - nominal_frequency;
 	}
 
 	/* carrier Frequency Shift In Hz */
-	if (carrierFrequencyShift < 0) {
+	if (carrier_frequency_shift < 0) {
 		sign = -1;
-		carrierFrequencyShift *= sign;
+		carrier_frequency_shift *= sign;
 	}
 
-	/* *CTLFreq = carrierFrequencyShift * 50.625e6 / (1 << 28); */
-	Mult32(carrierFrequencyShift, samplingFrequency, &data64Hi, &data64Lo);
-	*CTLFreq =
-	    (s32) ((((data64Lo >> 28) & 0xf) | (data64Hi << 4)) * sign);
+	/* *ctl_freq = carrier_frequency_shift * 50.625e6 / (1 << 28); */
+	mult32(carrier_frequency_shift, sampling_frequency, &data64hi, &data64lo);
+	*ctl_freq =
+	    (s32) ((((data64lo >> 28) & 0xf) | (data64hi << 4)) * sign);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -5075,161 +5075,161 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int SetAgcRf ()
+* \fn int set_agc_rf ()
 * \brief Configure RF AGC
 * \param demod instance of demodulator.
-* \param agcSettings AGC configuration structure
+* \param agc_settings AGC configuration structure
 * \return int.
 */
 static int
-SetAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings, bool atomic)
+set_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings, bool atomic)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
-	pDRXJCfgAgc_t pAgcSettings = NULL;
-	pDRXCommonAttr_t commonAttr = NULL;
-	DRXWriteReg16Func_t ScuWr16 = NULL;
-	DRXReadReg16Func_t ScuRr16 = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	p_drxj_cfg_agc_t p_agc_settings = NULL;
+	pdrx_common_attr_t common_attr = NULL;
+	drx_write_reg16func_t scu_wr16 = NULL;
+	drx_read_reg16func_t scu_rr16 = NULL;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	if (atomic) {
-		ScuRr16 = DRXJ_DAP_SCU_AtomicReadReg16;
-		ScuWr16 = DRXJ_DAP_SCU_AtomicWriteReg16;
+		scu_rr16 = drxj_dap_scu_atomic_read_reg16;
+		scu_wr16 = drxj_dap_scu_atomic_write_reg16;
 	} else {
-		ScuRr16 = DRXJ_DAP.readReg16Func;
-		ScuWr16 = DRXJ_DAP.writeReg16Func;
+		scu_rr16 = DRXJ_DAP.read_reg16func;
+		scu_wr16 = DRXJ_DAP.write_reg16func;
 	}
 
 	/* Configure AGC only if standard is currently active */
-	if ((extAttr->standard == agcSettings->standard) ||
-	    (DRXJ_ISQAMSTD(extAttr->standard) &&
-	     DRXJ_ISQAMSTD(agcSettings->standard)) ||
-	    (DRXJ_ISATVSTD(extAttr->standard) &&
-	     DRXJ_ISATVSTD(agcSettings->standard))) {
+	if ((ext_attr->standard == agc_settings->standard) ||
+	    (DRXJ_ISQAMSTD(ext_attr->standard) &&
+	     DRXJ_ISQAMSTD(agc_settings->standard)) ||
+	    (DRXJ_ISATVSTD(ext_attr->standard) &&
+	     DRXJ_ISATVSTD(agc_settings->standard))) {
 		u16 data = 0;
 
-		switch (agcSettings->ctrlMode) {
+		switch (agc_settings->ctrl_mode) {
 		case DRX_AGC_CTRL_AUTO:
 
 			/* Enable RF AGC DAC */
-			RR16(devAddr, IQM_AF_STDBY__A, &data);
+			RR16(dev_addr, IQM_AF_STDBY__A, &data);
 			data |= IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE;
-			WR16(devAddr, IQM_AF_STDBY__A, data);
+			WR16(dev_addr, IQM_AF_STDBY__A, data);
 
 			/* Enable SCU RF AGC loop */
-			CHK_ERROR((*ScuRr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, &data, 0));
+			CHK_ERROR((*scu_rr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
 			data &= ~SCU_RAM_AGC_KI_RF__M;
-			if (extAttr->standard == DRX_STANDARD_8VSB) {
+			if (ext_attr->standard == DRX_STANDARD_8VSB) {
 				data |= (2 << SCU_RAM_AGC_KI_RF__B);
-			} else if (DRXJ_ISQAMSTD(extAttr->standard)) {
+			} else if (DRXJ_ISQAMSTD(ext_attr->standard)) {
 				data |= (5 << SCU_RAM_AGC_KI_RF__B);
 			} else {
 				data |= (4 << SCU_RAM_AGC_KI_RF__B);
 			}
 
-			if (commonAttr->tunerRfAgcPol) {
+			if (common_attr->tuner_rf_agc_pol) {
 				data |= SCU_RAM_AGC_KI_INV_RF_POL__M;
 			} else {
 				data &= ~SCU_RAM_AGC_KI_INV_RF_POL__M;
 			}
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, data, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
 
 			/* Set speed ( using complementary reduction value ) */
-			CHK_ERROR((*ScuRr16)
-				  (devAddr, SCU_RAM_AGC_KI_RED__A, &data, 0));
+			CHK_ERROR((*scu_rr16)
+				  (dev_addr, SCU_RAM_AGC_KI_RED__A, &data, 0));
 			data &= ~SCU_RAM_AGC_KI_RED_RAGC_RED__M;
-			CHK_ERROR((*ScuWr16) (devAddr, SCU_RAM_AGC_KI_RED__A,
+			CHK_ERROR((*scu_wr16) (dev_addr, SCU_RAM_AGC_KI_RED__A,
 					      (~
-					       (agcSettings->
+					       (agc_settings->
 						speed <<
 						SCU_RAM_AGC_KI_RED_RAGC_RED__B)
 & SCU_RAM_AGC_KI_RED_RAGC_RED__M)
 					      | data, 0));
 
-			if (agcSettings->standard == DRX_STANDARD_8VSB)
-				pAgcSettings = &(extAttr->vsbIfAgcCfg);
-			else if (DRXJ_ISQAMSTD(agcSettings->standard))
-				pAgcSettings = &(extAttr->qamIfAgcCfg);
-			else if (DRXJ_ISATVSTD(agcSettings->standard))
-				pAgcSettings = &(extAttr->atvIfAgcCfg);
+			if (agc_settings->standard == DRX_STANDARD_8VSB)
+				p_agc_settings = &(ext_attr->vsb_if_agc_cfg);
+			else if (DRXJ_ISQAMSTD(agc_settings->standard))
+				p_agc_settings = &(ext_attr->qam_if_agc_cfg);
+			else if (DRXJ_ISATVSTD(agc_settings->standard))
+				p_agc_settings = &(ext_attr->atv_if_agc_cfg);
 			else
 				return (DRX_STS_INVALID_ARG);
 
 			/* Set TOP, only if IF-AGC is in AUTO mode */
-			if (pAgcSettings->ctrlMode == DRX_AGC_CTRL_AUTO) {
-				CHK_ERROR((*ScuWr16)
-					  (devAddr,
+			if (p_agc_settings->ctrl_mode == DRX_AGC_CTRL_AUTO) {
+				CHK_ERROR((*scu_wr16)
+					  (dev_addr,
 					   SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-					   agcSettings->top, 0));
-				CHK_ERROR((*ScuWr16)
-					  (devAddr,
+					   agc_settings->top, 0));
+				CHK_ERROR((*scu_wr16)
+					  (dev_addr,
 					   SCU_RAM_AGC_IF_IACCU_HI_TGT__A,
-					   agcSettings->top, 0));
+					   agc_settings->top, 0));
 			}
 
 			/* Cut-Off current */
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_RF_IACCU_HI_CO__A,
-				   agcSettings->cutOffCurrent, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_RF_IACCU_HI_CO__A,
+				   agc_settings->cut_off_current, 0));
 			break;
 		case DRX_AGC_CTRL_USER:
 
 			/* Enable RF AGC DAC */
-			RR16(devAddr, IQM_AF_STDBY__A, &data);
+			RR16(dev_addr, IQM_AF_STDBY__A, &data);
 			data |= IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE;
-			WR16(devAddr, IQM_AF_STDBY__A, data);
+			WR16(dev_addr, IQM_AF_STDBY__A, data);
 
 			/* Disable SCU RF AGC loop */
-			CHK_ERROR((*ScuRr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, &data, 0));
+			CHK_ERROR((*scu_rr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
 			data &= ~SCU_RAM_AGC_KI_RF__M;
-			if (commonAttr->tunerRfAgcPol) {
+			if (common_attr->tuner_rf_agc_pol) {
 				data |= SCU_RAM_AGC_KI_INV_RF_POL__M;
 			} else {
 				data &= ~SCU_RAM_AGC_KI_INV_RF_POL__M;
 			}
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, data, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
 
 			/* Write value to output pin */
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_RF_IACCU_HI__A,
-				   agcSettings->outputLevel, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A,
+				   agc_settings->output_level, 0));
 			break;
 		case DRX_AGC_CTRL_OFF:
 
 			/* Disable RF AGC DAC */
-			RR16(devAddr, IQM_AF_STDBY__A, &data);
+			RR16(dev_addr, IQM_AF_STDBY__A, &data);
 			data &= (~IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE);
-			WR16(devAddr, IQM_AF_STDBY__A, data);
+			WR16(dev_addr, IQM_AF_STDBY__A, data);
 
 			/* Disable SCU RF AGC loop */
-			CHK_ERROR((*ScuRr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, &data, 0));
+			CHK_ERROR((*scu_rr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
 			data &= ~SCU_RAM_AGC_KI_RF__M;
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, data, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
 			break;
 		default:
 			return (DRX_STS_INVALID_ARG);
-		}		/* switch ( agcsettings->ctrlMode ) */
+		}		/* switch ( agcsettings->ctrl_mode ) */
 	}
 
 	/* Store rf agc settings */
-	switch (agcSettings->standard) {
+	switch (agc_settings->standard) {
 	case DRX_STANDARD_8VSB:
-		extAttr->vsbRfAgcCfg = *agcSettings;
+		ext_attr->vsb_rf_agc_cfg = *agc_settings;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_B:
 	case DRX_STANDARD_ITU_C:
-		extAttr->qamRfAgcCfg = *agcSettings;
+		ext_attr->qam_rf_agc_cfg = *agc_settings;
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
@@ -5240,7 +5240,7 @@ SetAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings, bool atomic)
 	case DRX_STANDARD_PAL_SECAM_LP:
 	case DRX_STANDARD_NTSC:
 	case DRX_STANDARD_FM:
-		extAttr->atvRfAgcCfg = *agcSettings;
+		ext_attr->atv_rf_agc_cfg = *agc_settings;
 		break;
 #endif
 	default:
@@ -5253,33 +5253,33 @@ rw_error:
 }
 
 /**
-* \fn int GetAgcRf ()
+* \fn int get_agc_rf ()
 * \brief get configuration of RF AGC
 * \param demod instance of demodulator.
-* \param agcSettings AGC configuration structure
+* \param agc_settings AGC configuration structure
 * \return int.
 */
 static int
-GetAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
+get_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* Return stored AGC settings */
-	standard = agcSettings->standard;
-	switch (agcSettings->standard) {
+	standard = agc_settings->standard;
+	switch (agc_settings->standard) {
 	case DRX_STANDARD_8VSB:
-		*agcSettings = extAttr->vsbRfAgcCfg;
+		*agc_settings = ext_attr->vsb_rf_agc_cfg;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_B:
 	case DRX_STANDARD_ITU_C:
-		*agcSettings = extAttr->qamRfAgcCfg;
+		*agc_settings = ext_attr->qam_rf_agc_cfg;
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
@@ -5290,22 +5290,22 @@ GetAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 	case DRX_STANDARD_PAL_SECAM_LP:
 	case DRX_STANDARD_NTSC:
 	case DRX_STANDARD_FM:
-		*agcSettings = extAttr->atvRfAgcCfg;
+		*agc_settings = ext_attr->atv_rf_agc_cfg;
 		break;
 #endif
 	default:
 		return (DRX_STS_ERROR);
 	}
-	agcSettings->standard = standard;
+	agc_settings->standard = standard;
 
 	/* Get AGC output only if standard is currently active. */
-	if ((extAttr->standard == agcSettings->standard) ||
-	    (DRXJ_ISQAMSTD(extAttr->standard) &&
-	     DRXJ_ISQAMSTD(agcSettings->standard)) ||
-	    (DRXJ_ISATVSTD(extAttr->standard) &&
-	     DRXJ_ISATVSTD(agcSettings->standard))) {
-		SARR16(devAddr, SCU_RAM_AGC_RF_IACCU_HI__A,
-		       &(agcSettings->outputLevel));
+	if ((ext_attr->standard == agc_settings->standard) ||
+	    (DRXJ_ISQAMSTD(ext_attr->standard) &&
+	     DRXJ_ISQAMSTD(agc_settings->standard)) ||
+	    (DRXJ_ISATVSTD(ext_attr->standard) &&
+	     DRXJ_ISATVSTD(agc_settings->standard))) {
+		SARR16(dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A,
+		       &(agc_settings->output_level));
 	}
 
 	return (DRX_STS_OK);
@@ -5314,108 +5314,108 @@ rw_error:
 }
 
 /**
-* \fn int SetAgcIf ()
+* \fn int set_agc_if ()
 * \brief Configure If AGC
 * \param demod instance of demodulator.
-* \param agcSettings AGC configuration structure
+* \param agc_settings AGC configuration structure
 * \return int.
 */
 static int
-SetAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings, bool atomic)
+set_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings, bool atomic)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
-	pDRXJCfgAgc_t pAgcSettings = NULL;
-	pDRXCommonAttr_t commonAttr = NULL;
-	DRXWriteReg16Func_t ScuWr16 = NULL;
-	DRXReadReg16Func_t ScuRr16 = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	p_drxj_cfg_agc_t p_agc_settings = NULL;
+	pdrx_common_attr_t common_attr = NULL;
+	drx_write_reg16func_t scu_wr16 = NULL;
+	drx_read_reg16func_t scu_rr16 = NULL;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	if (atomic) {
-		ScuRr16 = DRXJ_DAP_SCU_AtomicReadReg16;
-		ScuWr16 = DRXJ_DAP_SCU_AtomicWriteReg16;
+		scu_rr16 = drxj_dap_scu_atomic_read_reg16;
+		scu_wr16 = drxj_dap_scu_atomic_write_reg16;
 	} else {
-		ScuRr16 = DRXJ_DAP.readReg16Func;
-		ScuWr16 = DRXJ_DAP.writeReg16Func;
+		scu_rr16 = DRXJ_DAP.read_reg16func;
+		scu_wr16 = DRXJ_DAP.write_reg16func;
 	}
 
 	/* Configure AGC only if standard is currently active */
-	if ((extAttr->standard == agcSettings->standard) ||
-	    (DRXJ_ISQAMSTD(extAttr->standard) &&
-	     DRXJ_ISQAMSTD(agcSettings->standard)) ||
-	    (DRXJ_ISATVSTD(extAttr->standard) &&
-	     DRXJ_ISATVSTD(agcSettings->standard))) {
+	if ((ext_attr->standard == agc_settings->standard) ||
+	    (DRXJ_ISQAMSTD(ext_attr->standard) &&
+	     DRXJ_ISQAMSTD(agc_settings->standard)) ||
+	    (DRXJ_ISATVSTD(ext_attr->standard) &&
+	     DRXJ_ISATVSTD(agc_settings->standard))) {
 		u16 data = 0;
 
-		switch (agcSettings->ctrlMode) {
+		switch (agc_settings->ctrl_mode) {
 		case DRX_AGC_CTRL_AUTO:
 			/* Enable IF AGC DAC */
-			RR16(devAddr, IQM_AF_STDBY__A, &data);
+			RR16(dev_addr, IQM_AF_STDBY__A, &data);
 			data |= IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE;
-			WR16(devAddr, IQM_AF_STDBY__A, data);
+			WR16(dev_addr, IQM_AF_STDBY__A, data);
 
 			/* Enable SCU IF AGC loop */
-			CHK_ERROR((*ScuRr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, &data, 0));
+			CHK_ERROR((*scu_rr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
 			data &= ~SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
 			data &= ~SCU_RAM_AGC_KI_IF__M;
-			if (extAttr->standard == DRX_STANDARD_8VSB) {
+			if (ext_attr->standard == DRX_STANDARD_8VSB) {
 				data |= (3 << SCU_RAM_AGC_KI_IF__B);
-			} else if (DRXJ_ISQAMSTD(extAttr->standard)) {
+			} else if (DRXJ_ISQAMSTD(ext_attr->standard)) {
 				data |= (6 << SCU_RAM_AGC_KI_IF__B);
 			} else {
 				data |= (5 << SCU_RAM_AGC_KI_IF__B);
 			}
 
-			if (commonAttr->tunerIfAgcPol) {
+			if (common_attr->tuner_if_agc_pol) {
 				data |= SCU_RAM_AGC_KI_INV_IF_POL__M;
 			} else {
 				data &= ~SCU_RAM_AGC_KI_INV_IF_POL__M;
 			}
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, data, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
 
 			/* Set speed (using complementary reduction value) */
-			CHK_ERROR((*ScuRr16)
-				  (devAddr, SCU_RAM_AGC_KI_RED__A, &data, 0));
+			CHK_ERROR((*scu_rr16)
+				  (dev_addr, SCU_RAM_AGC_KI_RED__A, &data, 0));
 			data &= ~SCU_RAM_AGC_KI_RED_IAGC_RED__M;
-			CHK_ERROR((*ScuWr16) (devAddr, SCU_RAM_AGC_KI_RED__A,
+			CHK_ERROR((*scu_wr16) (dev_addr, SCU_RAM_AGC_KI_RED__A,
 					      (~
-					       (agcSettings->
+					       (agc_settings->
 						speed <<
 						SCU_RAM_AGC_KI_RED_IAGC_RED__B)
 & SCU_RAM_AGC_KI_RED_IAGC_RED__M)
 					      | data, 0));
 
-			if (agcSettings->standard == DRX_STANDARD_8VSB)
-				pAgcSettings = &(extAttr->vsbRfAgcCfg);
-			else if (DRXJ_ISQAMSTD(agcSettings->standard))
-				pAgcSettings = &(extAttr->qamRfAgcCfg);
-			else if (DRXJ_ISATVSTD(agcSettings->standard))
-				pAgcSettings = &(extAttr->atvRfAgcCfg);
+			if (agc_settings->standard == DRX_STANDARD_8VSB)
+				p_agc_settings = &(ext_attr->vsb_rf_agc_cfg);
+			else if (DRXJ_ISQAMSTD(agc_settings->standard))
+				p_agc_settings = &(ext_attr->qam_rf_agc_cfg);
+			else if (DRXJ_ISATVSTD(agc_settings->standard))
+				p_agc_settings = &(ext_attr->atv_rf_agc_cfg);
 			else
 				return (DRX_STS_INVALID_ARG);
 
 			/* Restore TOP */
-			if (pAgcSettings->ctrlMode == DRX_AGC_CTRL_AUTO) {
-				CHK_ERROR((*ScuWr16)
-					  (devAddr,
+			if (p_agc_settings->ctrl_mode == DRX_AGC_CTRL_AUTO) {
+				CHK_ERROR((*scu_wr16)
+					  (dev_addr,
 					   SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-					   pAgcSettings->top, 0));
-				CHK_ERROR((*ScuWr16)
-					  (devAddr,
+					   p_agc_settings->top, 0));
+				CHK_ERROR((*scu_wr16)
+					  (dev_addr,
 					   SCU_RAM_AGC_IF_IACCU_HI_TGT__A,
-					   pAgcSettings->top, 0));
+					   p_agc_settings->top, 0));
 			} else {
-				CHK_ERROR((*ScuWr16)
-					  (devAddr,
+				CHK_ERROR((*scu_wr16)
+					  (dev_addr,
 					   SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
 					   0, 0));
-				CHK_ERROR((*ScuWr16)
-					  (devAddr,
+				CHK_ERROR((*scu_wr16)
+					  (dev_addr,
 					   SCU_RAM_AGC_IF_IACCU_HI_TGT__A, 0,
 					   0));
 			}
@@ -5424,64 +5424,64 @@ SetAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings, bool atomic)
 		case DRX_AGC_CTRL_USER:
 
 			/* Enable IF AGC DAC */
-			RR16(devAddr, IQM_AF_STDBY__A, &data);
+			RR16(dev_addr, IQM_AF_STDBY__A, &data);
 			data |= IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE;
-			WR16(devAddr, IQM_AF_STDBY__A, data);
+			WR16(dev_addr, IQM_AF_STDBY__A, data);
 
 			/* Disable SCU IF AGC loop */
-			CHK_ERROR((*ScuRr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, &data, 0));
+			CHK_ERROR((*scu_rr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
 			data &= ~SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
 			data |= SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
-			if (commonAttr->tunerIfAgcPol) {
+			if (common_attr->tuner_if_agc_pol) {
 				data |= SCU_RAM_AGC_KI_INV_IF_POL__M;
 			} else {
 				data &= ~SCU_RAM_AGC_KI_INV_IF_POL__M;
 			}
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, data, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
 
 			/* Write value to output pin */
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-				   agcSettings->outputLevel, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
+				   agc_settings->output_level, 0));
 			break;
 
 		case DRX_AGC_CTRL_OFF:
 
 			/* Disable If AGC DAC */
-			RR16(devAddr, IQM_AF_STDBY__A, &data);
+			RR16(dev_addr, IQM_AF_STDBY__A, &data);
 			data &= (~IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE);
-			WR16(devAddr, IQM_AF_STDBY__A, data);
+			WR16(dev_addr, IQM_AF_STDBY__A, data);
 
 			/* Disable SCU IF AGC loop */
-			CHK_ERROR((*ScuRr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, &data, 0));
+			CHK_ERROR((*scu_rr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
 			data &= ~SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
 			data |= SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
-			CHK_ERROR((*ScuWr16)
-				  (devAddr, SCU_RAM_AGC_KI__A, data, 0));
+			CHK_ERROR((*scu_wr16)
+				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
 			break;
 		default:
 			return (DRX_STS_INVALID_ARG);
-		}		/* switch ( agcsettings->ctrlMode ) */
+		}		/* switch ( agcsettings->ctrl_mode ) */
 
 		/* always set the top to support configurations without if-loop */
-		CHK_ERROR((*ScuWr16) (devAddr,
+		CHK_ERROR((*scu_wr16) (dev_addr,
 				      SCU_RAM_AGC_INGAIN_TGT_MIN__A,
-				      agcSettings->top, 0));
+				      agc_settings->top, 0));
 	}
 
 	/* Store if agc settings */
-	switch (agcSettings->standard) {
+	switch (agc_settings->standard) {
 	case DRX_STANDARD_8VSB:
-		extAttr->vsbIfAgcCfg = *agcSettings;
+		ext_attr->vsb_if_agc_cfg = *agc_settings;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_B:
 	case DRX_STANDARD_ITU_C:
-		extAttr->qamIfAgcCfg = *agcSettings;
+		ext_attr->qam_if_agc_cfg = *agc_settings;
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
@@ -5492,7 +5492,7 @@ SetAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings, bool atomic)
 	case DRX_STANDARD_PAL_SECAM_LP:
 	case DRX_STANDARD_NTSC:
 	case DRX_STANDARD_FM:
-		extAttr->atvIfAgcCfg = *agcSettings;
+		ext_attr->atv_if_agc_cfg = *agc_settings;
 		break;
 #endif
 	default:
@@ -5505,33 +5505,33 @@ rw_error:
 }
 
 /**
-* \fn int GetAgcIf ()
+* \fn int get_agc_if ()
 * \brief get configuration of If AGC
 * \param demod instance of demodulator.
-* \param agcSettings AGC configuration structure
+* \param agc_settings AGC configuration structure
 * \return int.
 */
 static int
-GetAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
+get_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* Return stored ATV AGC settings */
-	standard = agcSettings->standard;
-	switch (agcSettings->standard) {
+	standard = agc_settings->standard;
+	switch (agc_settings->standard) {
 	case DRX_STANDARD_8VSB:
-		*agcSettings = extAttr->vsbIfAgcCfg;
+		*agc_settings = ext_attr->vsb_if_agc_cfg;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_B:
 	case DRX_STANDARD_ITU_C:
-		*agcSettings = extAttr->qamIfAgcCfg;
+		*agc_settings = ext_attr->qam_if_agc_cfg;
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
@@ -5542,23 +5542,23 @@ GetAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 	case DRX_STANDARD_PAL_SECAM_LP:
 	case DRX_STANDARD_NTSC:
 	case DRX_STANDARD_FM:
-		*agcSettings = extAttr->atvIfAgcCfg;
+		*agc_settings = ext_attr->atv_if_agc_cfg;
 		break;
 #endif
 	default:
 		return (DRX_STS_ERROR);
 	}
-	agcSettings->standard = standard;
+	agc_settings->standard = standard;
 
 	/* Get AGC output only if standard is currently active */
-	if ((extAttr->standard == agcSettings->standard) ||
-	    (DRXJ_ISQAMSTD(extAttr->standard) &&
-	     DRXJ_ISQAMSTD(agcSettings->standard)) ||
-	    (DRXJ_ISATVSTD(extAttr->standard) &&
-	     DRXJ_ISATVSTD(agcSettings->standard))) {
+	if ((ext_attr->standard == agc_settings->standard) ||
+	    (DRXJ_ISQAMSTD(ext_attr->standard) &&
+	     DRXJ_ISQAMSTD(agc_settings->standard)) ||
+	    (DRXJ_ISATVSTD(ext_attr->standard) &&
+	     DRXJ_ISATVSTD(agc_settings->standard))) {
 		/* read output level */
-		SARR16(devAddr, SCU_RAM_AGC_IF_IACCU_HI__A,
-		       &(agcSettings->outputLevel));
+		SARR16(dev_addr, SCU_RAM_AGC_IF_IACCU_HI__A,
+		       &(agc_settings->output_level));
 	}
 
 	return (DRX_STS_OK);
@@ -5567,21 +5567,21 @@ rw_error:
 }
 
 /**
-* \fn int SetIqmAf ()
+* \fn int set_iqm_af ()
 * \brief Configure IQM AF registers
 * \param demod instance of demodulator.
 * \param active
 * \return int.
 */
-static int SetIqmAf(pDRXDemodInstance_t demod, bool active)
+static int set_iqm_af(pdrx_demod_instance_t demod, bool active)
 {
 	u16 data = 0;
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Configure IQM */
-	RR16(devAddr, IQM_AF_STDBY__A, &data);
+	RR16(dev_addr, IQM_AF_STDBY__A, &data);
 	if (!active) {
 		data &= ((~IQM_AF_STDBY_STDBY_ADC_A2_ACTIVE)
 			 & (~IQM_AF_STDBY_STDBY_AMP_A2_ACTIVE)
@@ -5597,7 +5597,7 @@ static int SetIqmAf(pDRXDemodInstance_t demod, bool active)
 			 | IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE
 			 | IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE);
 	}
-	WR16(devAddr, IQM_AF_STDBY__A, data);
+	WR16(dev_addr, IQM_AF_STDBY__A, data);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -5615,55 +5615,55 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int PowerDownVSB ()
+* \fn int power_down_vsb ()
 * \brief Powr down QAM related blocks.
 * \param demod instance of demodulator.
 * \param channel pointer to channel data.
 * \return int.
 */
-static int PowerDownVSB(pDRXDemodInstance_t demod, bool primary)
+static int power_down_vsb(pdrx_demod_instance_t demod, bool primary)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	DRXJSCUCmd_t cmdSCU = { /* command     */ 0,
-		/* parameterLen */ 0,
-		/* resultLen    */ 0,
+	struct i2c_device_addr *dev_addr = NULL;
+	drxjscu_cmd_t cmd_scu = { /* command     */ 0,
+		/* parameter_len */ 0,
+		/* result_len    */ 0,
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
-	u16 cmdResult = 0;
-	pDRXJData_t extAttr = NULL;
-	DRXCfgMPEGOutput_t cfgMPEGOutput;
+	u16 cmd_result = 0;
+	pdrxj_data_t ext_attr = NULL;
+	drx_cfg_mpeg_output_t cfg_mpeg_output;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 	/*
 	   STOP demodulator
 	   reset of FEC and VSB HW
 	 */
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_VSB |
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_VSB |
 	    SCU_RAM_COMMAND_CMD_DEMOD_STOP;
-	cmdSCU.parameterLen = 0;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = NULL;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 0;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = NULL;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
 	/* stop all comm_exec */
-	WR16(devAddr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
-	WR16(devAddr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_STOP);
+	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
+	WR16(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_STOP);
 	if (primary == true) {
-		WR16(devAddr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
-		CHK_ERROR(SetIqmAf(demod, false));
+		WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
+		CHK_ERROR(set_iqm_af(demod, false));
 	} else {
-		WR16(devAddr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
 	}
 
-	cfgMPEGOutput.enableMPEGOutput = false;
-	CHK_ERROR(CtrlSetCfgMPEGOutput(demod, &cfgMPEGOutput));
+	cfg_mpeg_output.enable_mpeg_output = false;
+	CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -5671,14 +5671,14 @@ rw_error:
 }
 
 /**
-* \fn int SetVSBLeakNGain ()
+* \fn int set_vsb_leak_n_gain ()
 * \brief Set ATSC demod.
 * \param demod instance of demodulator.
 * \return int.
 */
-static int SetVSBLeakNGain(pDRXDemodInstance_t demod)
+static int set_vsb_leak_n_gain(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
 	const u8 vsb_ffe_leak_gain_ram0[] = {
 		DRXJ_16TO8(0x8),	/* FFETRAINLKRATIO1  */
@@ -5868,10 +5868,10 @@ static int SetVSBLeakNGain(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(0x1212)	/* DFEDDM2GAIN */
 	};
 
-	devAddr = demod->myI2CDevAddr;
-	WRB(devAddr, VSB_SYSCTRL_RAM0_FFETRAINLKRATIO1__A,
+	dev_addr = demod->my_i2c_dev_addr;
+	WRB(dev_addr, VSB_SYSCTRL_RAM0_FFETRAINLKRATIO1__A,
 	    sizeof(vsb_ffe_leak_gain_ram0), ((u8 *) vsb_ffe_leak_gain_ram0));
-	WRB(devAddr, VSB_SYSCTRL_RAM1_FIRRCA1GAIN9__A,
+	WRB(dev_addr, VSB_SYSCTRL_RAM1_FIRRCA1GAIN9__A,
 	    sizeof(vsb_ffe_leak_gain_ram1), ((u8 *) vsb_ffe_leak_gain_ram1));
 
 	return (DRX_STS_OK);
@@ -5880,20 +5880,20 @@ rw_error:
 }
 
 /**
-* \fn int SetVSB()
+* \fn int set_vsb()
 * \brief Set 8VSB demod.
 * \param demod instance of demodulator.
 * \return int.
 *
 */
-static int SetVSB(pDRXDemodInstance_t demod)
+static int set_vsb(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	u16 cmdResult = 0;
-	u16 cmdParam = 0;
-	pDRXCommonAttr_t commonAttr = NULL;
-	DRXJSCUCmd_t cmdSCU;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	u16 cmd_result = 0;
+	u16 cmd_param = 0;
+	pdrx_common_attr_t common_attr = NULL;
+	drxjscu_cmd_t cmd_scu;
+	pdrxj_data_t ext_attr = NULL;
 	const u8 vsb_taps_re[] = {
 		DRXJ_16TO8(-2),	/* re0  */
 		DRXJ_16TO8(4),	/* re1  */
@@ -5925,175 +5925,175 @@ static int SetVSB(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(629)	/* re27 */
 	};
 
-	devAddr = demod->myI2CDevAddr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* stop all comm_exec */
-	WR16(devAddr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
-	WR16(devAddr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
+	WR16(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
 
 	/* reset demodulator */
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_VSB
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_VSB
 	    | SCU_RAM_COMMAND_CMD_DEMOD_RESET;
-	cmdSCU.parameterLen = 0;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = NULL;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 0;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = NULL;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
-	WR16(devAddr, IQM_AF_DCF_BYPASS__A, 1);
-	WR16(devAddr, IQM_FS_ADJ_SEL__A, IQM_FS_ADJ_SEL_B_VSB);
-	WR16(devAddr, IQM_RC_ADJ_SEL__A, IQM_RC_ADJ_SEL_B_VSB);
-	extAttr->iqmRcRateOfs = 0x00AD0D79;
-	WR32(devAddr, IQM_RC_RATE_OFS_LO__A, extAttr->iqmRcRateOfs);
-	WR16(devAddr, VSB_TOP_CFAGC_GAINSHIFT__A, 4);
-	WR16(devAddr, VSB_TOP_CYGN1TRK__A, 1);
+	WR16(dev_addr, IQM_AF_DCF_BYPASS__A, 1);
+	WR16(dev_addr, IQM_FS_ADJ_SEL__A, IQM_FS_ADJ_SEL_B_VSB);
+	WR16(dev_addr, IQM_RC_ADJ_SEL__A, IQM_RC_ADJ_SEL_B_VSB);
+	ext_attr->iqm_rc_rate_ofs = 0x00AD0D79;
+	WR32(dev_addr, IQM_RC_RATE_OFS_LO__A, ext_attr->iqm_rc_rate_ofs);
+	WR16(dev_addr, VSB_TOP_CFAGC_GAINSHIFT__A, 4);
+	WR16(dev_addr, VSB_TOP_CYGN1TRK__A, 1);
 
-	WR16(devAddr, IQM_RC_CROUT_ENA__A, 1);
-	WR16(devAddr, IQM_RC_STRETCH__A, 28);
-	WR16(devAddr, IQM_RT_ACTIVE__A, 0);
-	WR16(devAddr, IQM_CF_SYMMETRIC__A, 0);
-	WR16(devAddr, IQM_CF_MIDTAP__A, 3);
-	WR16(devAddr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_VSB__M);
-	WR16(devAddr, IQM_CF_SCALE__A, 1393);
-	WR16(devAddr, IQM_CF_SCALE_SH__A, 0);
-	WR16(devAddr, IQM_CF_POW_MEAS_LEN__A, 1);
+	WR16(dev_addr, IQM_RC_CROUT_ENA__A, 1);
+	WR16(dev_addr, IQM_RC_STRETCH__A, 28);
+	WR16(dev_addr, IQM_RT_ACTIVE__A, 0);
+	WR16(dev_addr, IQM_CF_SYMMETRIC__A, 0);
+	WR16(dev_addr, IQM_CF_MIDTAP__A, 3);
+	WR16(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_VSB__M);
+	WR16(dev_addr, IQM_CF_SCALE__A, 1393);
+	WR16(dev_addr, IQM_CF_SCALE_SH__A, 0);
+	WR16(dev_addr, IQM_CF_POW_MEAS_LEN__A, 1);
 
-	WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(vsb_taps_re),
+	WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(vsb_taps_re),
 	    ((u8 *) vsb_taps_re));
-	WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(vsb_taps_re),
+	WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(vsb_taps_re),
 	    ((u8 *) vsb_taps_re));
 
-	WR16(devAddr, VSB_TOP_BNTHRESH__A, 330);	/* set higher threshold */
-	WR16(devAddr, VSB_TOP_CLPLASTNUM__A, 90);	/* burst detection on   */
-	WR16(devAddr, VSB_TOP_SNRTH_RCA1__A, 0x0042);	/* drop thresholds by 1 dB */
-	WR16(devAddr, VSB_TOP_SNRTH_RCA2__A, 0x0053);	/* drop thresholds by 2 dB */
-	WR16(devAddr, VSB_TOP_EQCTRL__A, 0x1);	/* cma on               */
-	WR16(devAddr, SCU_RAM_GPIO__A, 0);	/* GPIO               */
+	WR16(dev_addr, VSB_TOP_BNTHRESH__A, 330);	/* set higher threshold */
+	WR16(dev_addr, VSB_TOP_CLPLASTNUM__A, 90);	/* burst detection on   */
+	WR16(dev_addr, VSB_TOP_SNRTH_RCA1__A, 0x0042);	/* drop thresholds by 1 dB */
+	WR16(dev_addr, VSB_TOP_SNRTH_RCA2__A, 0x0053);	/* drop thresholds by 2 dB */
+	WR16(dev_addr, VSB_TOP_EQCTRL__A, 0x1);	/* cma on               */
+	WR16(dev_addr, SCU_RAM_GPIO__A, 0);	/* GPIO               */
 
 	/* Initialize the FEC Subsystem */
-	WR16(devAddr, FEC_TOP_ANNEX__A, FEC_TOP_ANNEX_D);
+	WR16(dev_addr, FEC_TOP_ANNEX__A, FEC_TOP_ANNEX_D);
 	{
-		u16 fecOcSncMode = 0;
-		RR16(devAddr, FEC_OC_SNC_MODE__A, &fecOcSncMode);
+		u16 fec_oc_snc_mode = 0;
+		RR16(dev_addr, FEC_OC_SNC_MODE__A, &fec_oc_snc_mode);
 		/* output data even when not locked */
-		WR16(devAddr, FEC_OC_SNC_MODE__A,
-		     fecOcSncMode | FEC_OC_SNC_MODE_UNLOCK_ENABLE__M);
+		WR16(dev_addr, FEC_OC_SNC_MODE__A,
+		     fec_oc_snc_mode | FEC_OC_SNC_MODE_UNLOCK_ENABLE__M);
 	}
 
 	/* set clip */
-	WR16(devAddr, IQM_AF_CLP_LEN__A, 0);
-	WR16(devAddr, IQM_AF_CLP_TH__A, 470);
-	WR16(devAddr, IQM_AF_SNS_LEN__A, 0);
-	WR16(devAddr, VSB_TOP_SNRTH_PT__A, 0xD4);
+	WR16(dev_addr, IQM_AF_CLP_LEN__A, 0);
+	WR16(dev_addr, IQM_AF_CLP_TH__A, 470);
+	WR16(dev_addr, IQM_AF_SNS_LEN__A, 0);
+	WR16(dev_addr, VSB_TOP_SNRTH_PT__A, 0xD4);
 	/* no transparent, no A&C framing; parity is set in mpegoutput */
 	{
-		u16 fecOcRegMode = 0;
-		RR16(devAddr, FEC_OC_MODE__A, &fecOcRegMode);
-		WR16(devAddr, FEC_OC_MODE__A, fecOcRegMode &
+		u16 fec_oc_reg_mode = 0;
+		RR16(dev_addr, FEC_OC_MODE__A, &fec_oc_reg_mode);
+		WR16(dev_addr, FEC_OC_MODE__A, fec_oc_reg_mode &
 		     (~(FEC_OC_MODE_TRANSPARENT__M
 			| FEC_OC_MODE_CLEAR__M | FEC_OC_MODE_RETAIN_FRAMING__M)
 		     ));
 	}
 
-	WR16(devAddr, FEC_DI_TIMEOUT_LO__A, 0);	/* timeout counter for restarting */
-	WR16(devAddr, FEC_DI_TIMEOUT_HI__A, 3);
-	WR16(devAddr, FEC_RS_MODE__A, 0);	/* bypass disabled */
+	WR16(dev_addr, FEC_DI_TIMEOUT_LO__A, 0);	/* timeout counter for restarting */
+	WR16(dev_addr, FEC_DI_TIMEOUT_HI__A, 3);
+	WR16(dev_addr, FEC_RS_MODE__A, 0);	/* bypass disabled */
 	/* initialize RS packet error measurement parameters */
-	WR16(devAddr, FEC_RS_MEASUREMENT_PERIOD__A, FEC_RS_MEASUREMENT_PERIOD);
-	WR16(devAddr, FEC_RS_MEASUREMENT_PRESCALE__A,
+	WR16(dev_addr, FEC_RS_MEASUREMENT_PERIOD__A, FEC_RS_MEASUREMENT_PERIOD);
+	WR16(dev_addr, FEC_RS_MEASUREMENT_PRESCALE__A,
 	     FEC_RS_MEASUREMENT_PRESCALE);
 
 	/* init measurement period of MER/SER */
-	WR16(devAddr, VSB_TOP_MEASUREMENT_PERIOD__A,
+	WR16(dev_addr, VSB_TOP_MEASUREMENT_PERIOD__A,
 	     VSB_TOP_MEASUREMENT_PERIOD);
-	WR32(devAddr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, 0);
-	WR16(devAddr, SCU_RAM_FEC_MEAS_COUNT__A, 0);
-	WR16(devAddr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
+	WR32(dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, 0);
+	WR16(dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, 0);
+	WR16(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
 
-	WR16(devAddr, VSB_TOP_CKGN1TRK__A, 128);
+	WR16(dev_addr, VSB_TOP_CKGN1TRK__A, 128);
 	/* B-Input to ADC, PGA+filter in standby */
-	if (extAttr->hasLNA == false) {
-		WR16(devAddr, IQM_AF_AMUX__A, 0x02);
+	if (ext_attr->has_lna == false) {
+		WR16(dev_addr, IQM_AF_AMUX__A, 0x02);
 	};
 
 	/* turn on IQMAF. It has to be in front of setAgc**() */
-	CHK_ERROR(SetIqmAf(demod, true));
-	CHK_ERROR(ADCSynchronization(demod));
+	CHK_ERROR(set_iqm_af(demod, true));
+	CHK_ERROR(adc_synchronization(demod));
 
-	CHK_ERROR(InitAGC(demod));
-	CHK_ERROR(SetAgcIf(demod, &(extAttr->vsbIfAgcCfg), false));
-	CHK_ERROR(SetAgcRf(demod, &(extAttr->vsbRfAgcCfg), false));
+	CHK_ERROR(init_agc(demod));
+	CHK_ERROR(set_agc_if(demod, &(ext_attr->vsb_if_agc_cfg), false));
+	CHK_ERROR(set_agc_rf(demod, &(ext_attr->vsb_rf_agc_cfg), false));
 	{
-		/* TODO fix this, store a DRXJCfgAfeGain_t structure in DRXJData_t instead
+		/* TODO fix this, store a drxj_cfg_afe_gain_t structure in drxj_data_t instead
 		   of only the gain */
-		DRXJCfgAfeGain_t vsbPgaCfg = { DRX_STANDARD_8VSB, 0 };
+		drxj_cfg_afe_gain_t vsb_pga_cfg = { DRX_STANDARD_8VSB, 0 };
 
-		vsbPgaCfg.gain = extAttr->vsbPgaCfg;
-		CHK_ERROR(CtrlSetCfgAfeGain(demod, &vsbPgaCfg));
+		vsb_pga_cfg.gain = ext_attr->vsb_pga_cfg;
+		CHK_ERROR(ctrl_set_cfg_afe_gain(demod, &vsb_pga_cfg));
 	}
-	CHK_ERROR(CtrlSetCfgPreSaw(demod, &(extAttr->vsbPreSawCfg)));
+	CHK_ERROR(ctrl_set_cfg_pre_saw(demod, &(ext_attr->vsb_pre_saw_cfg)));
 
 	/* Mpeg output has to be in front of FEC active */
-	CHK_ERROR(SetMPEGTEIHandling(demod));
-	CHK_ERROR(BitReverseMPEGOutput(demod));
-	CHK_ERROR(SetMPEGStartWidth(demod));
+	CHK_ERROR(set_mpegtei_handling(demod));
+	CHK_ERROR(bit_reverse_mpeg_output(demod));
+	CHK_ERROR(set_mpeg_start_width(demod));
 	{
-		/* TODO: move to setStandard after hardware reset value problem is solved */
+		/* TODO: move to set_standard after hardware reset value problem is solved */
 		/* Configure initial MPEG output */
-		DRXCfgMPEGOutput_t cfgMPEGOutput;
-		cfgMPEGOutput.enableMPEGOutput = true;
-		cfgMPEGOutput.insertRSByte = commonAttr->mpegCfg.insertRSByte;
-		cfgMPEGOutput.enableParallel =
-		    commonAttr->mpegCfg.enableParallel;
-		cfgMPEGOutput.invertDATA = commonAttr->mpegCfg.invertDATA;
-		cfgMPEGOutput.invertERR = commonAttr->mpegCfg.invertERR;
-		cfgMPEGOutput.invertSTR = commonAttr->mpegCfg.invertSTR;
-		cfgMPEGOutput.invertVAL = commonAttr->mpegCfg.invertVAL;
-		cfgMPEGOutput.invertCLK = commonAttr->mpegCfg.invertCLK;
-		cfgMPEGOutput.staticCLK = commonAttr->mpegCfg.staticCLK;
-		cfgMPEGOutput.bitrate = commonAttr->mpegCfg.bitrate;
-		CHK_ERROR(CtrlSetCfgMPEGOutput(demod, &cfgMPEGOutput));
+		drx_cfg_mpeg_output_t cfg_mpeg_output;
+		cfg_mpeg_output.enable_mpeg_output = true;
+		cfg_mpeg_output.insert_rs_byte = common_attr->mpeg_cfg.insert_rs_byte;
+		cfg_mpeg_output.enable_parallel =
+		    common_attr->mpeg_cfg.enable_parallel;
+		cfg_mpeg_output.invert_data = common_attr->mpeg_cfg.invert_data;
+		cfg_mpeg_output.invert_err = common_attr->mpeg_cfg.invert_err;
+		cfg_mpeg_output.invert_str = common_attr->mpeg_cfg.invert_str;
+		cfg_mpeg_output.invert_val = common_attr->mpeg_cfg.invert_val;
+		cfg_mpeg_output.invert_clk = common_attr->mpeg_cfg.invert_clk;
+		cfg_mpeg_output.static_clk = common_attr->mpeg_cfg.static_clk;
+		cfg_mpeg_output.bitrate = common_attr->mpeg_cfg.bitrate;
+		CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
 	}
 
 	/* TBD: what parameters should be set */
-	cmdParam = 0x00;	/* Default mode AGC on, etc */
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_VSB
+	cmd_param = 0x00;	/* Default mode AGC on, etc */
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_VSB
 	    | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM;
-	cmdSCU.parameterLen = 1;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = &cmdParam;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 1;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = &cmd_param;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
-	WR16(devAddr, VSB_TOP_BEAGC_GAINSHIFT__A, 0x0004);
-	WR16(devAddr, VSB_TOP_SNRTH_PT__A, 0x00D2);
-	WR16(devAddr, VSB_TOP_SYSSMTRNCTRL__A, VSB_TOP_SYSSMTRNCTRL__PRE
+	WR16(dev_addr, VSB_TOP_BEAGC_GAINSHIFT__A, 0x0004);
+	WR16(dev_addr, VSB_TOP_SNRTH_PT__A, 0x00D2);
+	WR16(dev_addr, VSB_TOP_SYSSMTRNCTRL__A, VSB_TOP_SYSSMTRNCTRL__PRE
 	     | VSB_TOP_SYSSMTRNCTRL_NCOTIMEOUTCNTEN__M);
-	WR16(devAddr, VSB_TOP_BEDETCTRL__A, 0x142);
-	WR16(devAddr, VSB_TOP_LBAGCREFLVL__A, 640);
-	WR16(devAddr, VSB_TOP_CYGN1ACQ__A, 4);
-	WR16(devAddr, VSB_TOP_CYGN1TRK__A, 2);
-	WR16(devAddr, VSB_TOP_CYGN2TRK__A, 3);
+	WR16(dev_addr, VSB_TOP_BEDETCTRL__A, 0x142);
+	WR16(dev_addr, VSB_TOP_LBAGCREFLVL__A, 640);
+	WR16(dev_addr, VSB_TOP_CYGN1ACQ__A, 4);
+	WR16(dev_addr, VSB_TOP_CYGN1TRK__A, 2);
+	WR16(dev_addr, VSB_TOP_CYGN2TRK__A, 3);
 
 	/* start demodulator */
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_VSB
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_VSB
 	    | SCU_RAM_COMMAND_CMD_DEMOD_START;
-	cmdSCU.parameterLen = 0;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = NULL;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 0;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = NULL;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
-	WR16(devAddr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
-	WR16(devAddr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_ACTIVE);
-	WR16(devAddr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6101,29 +6101,29 @@ rw_error:
 }
 
 /**
-* \fn static short GetVSBPostRSPckErr(struct i2c_device_addr *devAddr, u16 *PckErrs)
+* \fn static short get_vsb_post_rs_pck_err(struct i2c_device_addr *dev_addr, u16 *PckErrs)
 * \brief Get the values of packet error in 8VSB mode
 * \return Error code
 */
-static int GetVSBPostRSPckErr(struct i2c_device_addr *devAddr, u16 *pckErrs)
+static int get_vsb_post_rs_pck_err(struct i2c_device_addr *dev_addr, u16 *pck_errs)
 {
 	u16 data = 0;
 	u16 period = 0;
 	u16 prescale = 0;
-	u16 packetErrorsMant = 0;
-	u16 packetErrorsExp = 0;
+	u16 packet_errorsMant = 0;
+	u16 packet_errorsExp = 0;
 
-	RR16(devAddr, FEC_RS_NR_FAILURES__A, &data);
-	packetErrorsMant = data & FEC_RS_NR_FAILURES_FIXED_MANT__M;
-	packetErrorsExp = (data & FEC_RS_NR_FAILURES_EXP__M)
+	RR16(dev_addr, FEC_RS_NR_FAILURES__A, &data);
+	packet_errorsMant = data & FEC_RS_NR_FAILURES_FIXED_MANT__M;
+	packet_errorsExp = (data & FEC_RS_NR_FAILURES_EXP__M)
 	    >> FEC_RS_NR_FAILURES_EXP__B;
 	period = FEC_RS_MEASUREMENT_PERIOD;
 	prescale = FEC_RS_MEASUREMENT_PRESCALE;
 	/* packet error rate = (error packet number) per second */
 	/* 77.3 us is time for per packet */
 	CHK_ZERO(period * prescale);
-	*pckErrs =
-	    (u16) FracTimes1e6(packetErrorsMant * (1 << packetErrorsExp),
+	*pck_errs =
+	    (u16) frac_times1e6(packet_errorsMant * (1 << packet_errorsExp),
 				 (period * prescale * 77));
 
 	return (DRX_STS_OK);
@@ -6132,36 +6132,36 @@ rw_error:
 }
 
 /**
-* \fn static short GetVSBBer(struct i2c_device_addr *devAddr, u32 *ber)
+* \fn static short GetVSBBer(struct i2c_device_addr *dev_addr, u32 *ber)
 * \brief Get the values of ber in VSB mode
 * \return Error code
 */
-static int GetVSBpostViterbiBer(struct i2c_device_addr *devAddr, u32 *ber)
+static int get_vs_bpost_viterbi_ber(struct i2c_device_addr *dev_addr, u32 *ber)
 {
 	u16 data = 0;
 	u16 period = 0;
 	u16 prescale = 0;
-	u16 bitErrorsMant = 0;
-	u16 bitErrorsExp = 0;
+	u16 bit_errors_mant = 0;
+	u16 bit_errors_exp = 0;
 
-	RR16(devAddr, FEC_RS_NR_BIT_ERRORS__A, &data);
+	RR16(dev_addr, FEC_RS_NR_BIT_ERRORS__A, &data);
 	period = FEC_RS_MEASUREMENT_PERIOD;
 	prescale = FEC_RS_MEASUREMENT_PRESCALE;
 
-	bitErrorsMant = data & FEC_RS_NR_BIT_ERRORS_FIXED_MANT__M;
-	bitErrorsExp = (data & FEC_RS_NR_BIT_ERRORS_EXP__M)
+	bit_errors_mant = data & FEC_RS_NR_BIT_ERRORS_FIXED_MANT__M;
+	bit_errors_exp = (data & FEC_RS_NR_BIT_ERRORS_EXP__M)
 	    >> FEC_RS_NR_BIT_ERRORS_EXP__B;
 
-	if (((bitErrorsMant << bitErrorsExp) >> 3) > 68700)
+	if (((bit_errors_mant << bit_errors_exp) >> 3) > 68700)
 		*ber = 26570;
 	else {
 		CHK_ZERO(period * prescale);
 		*ber =
-		    FracTimes1e6(bitErrorsMant <<
-				 ((bitErrorsExp >
-				   2) ? (bitErrorsExp - 3) : bitErrorsExp),
+		    frac_times1e6(bit_errors_mant <<
+				 ((bit_errors_exp >
+				   2) ? (bit_errors_exp - 3) : bit_errors_exp),
 				 period * prescale * 207 *
-				 ((bitErrorsExp > 2) ? 1 : 8));
+				 ((bit_errors_exp > 2) ? 1 : 8));
 	}
 
 	return (DRX_STS_OK);
@@ -6170,17 +6170,17 @@ rw_error:
 }
 
 /**
-* \fn static short GetVSBpreViterbiBer(struct i2c_device_addr *devAddr, u32 *ber)
+* \fn static short get_vs_bpre_viterbi_ber(struct i2c_device_addr *dev_addr, u32 *ber)
 * \brief Get the values of ber in VSB mode
 * \return Error code
 */
-static int GetVSBpreViterbiBer(struct i2c_device_addr *devAddr, u32 *ber)
+static int get_vs_bpre_viterbi_ber(struct i2c_device_addr *dev_addr, u32 *ber)
 {
 	u16 data = 0;
 
-	RR16(devAddr, VSB_TOP_NR_SYM_ERRS__A, &data);
+	RR16(dev_addr, VSB_TOP_NR_SYM_ERRS__A, &data);
 	*ber =
-	    FracTimes1e6(data,
+	    frac_times1e6(data,
 			 VSB_TOP_MEASUREMENT_PERIOD * SYMBOLS_PER_SEGMENT);
 
 	return (DRX_STS_OK);
@@ -6189,28 +6189,28 @@ rw_error:
 }
 
 /**
-* \fn static short GetVSBSymbErr(struct i2c_device_addr *devAddr, u32 *ber)
+* \fn static short get_vsb_symb_err(struct i2c_device_addr *dev_addr, u32 *ber)
 * \brief Get the values of ber in VSB mode
 * \return Error code
 */
-static int GetVSBSymbErr(struct i2c_device_addr *devAddr, u32 *ser)
+static int get_vsb_symb_err(struct i2c_device_addr *dev_addr, u32 *ser)
 {
 	u16 data = 0;
 	u16 period = 0;
 	u16 prescale = 0;
-	u16 symbErrorsMant = 0;
-	u16 symbErrorsExp = 0;
+	u16 symb_errors_mant = 0;
+	u16 symb_errors_exp = 0;
 
-	RR16(devAddr, FEC_RS_NR_SYMBOL_ERRORS__A, &data);
+	RR16(dev_addr, FEC_RS_NR_SYMBOL_ERRORS__A, &data);
 	period = FEC_RS_MEASUREMENT_PERIOD;
 	prescale = FEC_RS_MEASUREMENT_PRESCALE;
 
-	symbErrorsMant = data & FEC_RS_NR_SYMBOL_ERRORS_FIXED_MANT__M;
-	symbErrorsExp = (data & FEC_RS_NR_SYMBOL_ERRORS_EXP__M)
+	symb_errors_mant = data & FEC_RS_NR_SYMBOL_ERRORS_FIXED_MANT__M;
+	symb_errors_exp = (data & FEC_RS_NR_SYMBOL_ERRORS_EXP__M)
 	    >> FEC_RS_NR_SYMBOL_ERRORS_EXP__B;
 
 	CHK_ZERO(period * prescale);
-	*ser = (u32) FracTimes1e6((symbErrorsMant << symbErrorsExp) * 1000,
+	*ser = (u32) frac_times1e6((symb_errors_mant << symb_errors_exp) * 1000,
 				    (period * prescale * 77318));
 
 	return (DRX_STS_OK);
@@ -6219,17 +6219,17 @@ rw_error:
 }
 
 /**
-* \fn static int GetVSBMER(struct i2c_device_addr *devAddr, u16 *mer)
+* \fn static int get_vsbmer(struct i2c_device_addr *dev_addr, u16 *mer)
 * \brief Get the values of MER
 * \return Error code
 */
-static int GetVSBMER(struct i2c_device_addr *devAddr, u16 *mer)
+static int get_vsbmer(struct i2c_device_addr *dev_addr, u16 *mer)
 {
-	u16 dataHi = 0;
+	u16 data_hi = 0;
 
-	RR16(devAddr, VSB_TOP_ERR_ENERGY_H__A, &dataHi);
+	RR16(dev_addr, VSB_TOP_ERR_ENERGY_H__A, &data_hi);
 	*mer =
-	    (u16) (Log10Times100(21504) - Log10Times100((dataHi << 6) / 52));
+	    (u16) (log1_times100(21504) - log1_times100((data_hi << 6) / 52));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6238,55 +6238,55 @@ rw_error:
 
 /*============================================================================*/
 /**
-* \fn int CtrlGetVSBConstel()
+* \fn int ctrl_get_vsb_constel()
 * \brief Retreive a VSB constellation point via I2C.
 * \param demod Pointer to demodulator instance.
-* \param complexNr Pointer to the structure in which to store the
+* \param complex_nr Pointer to the structure in which to store the
 		   constellation point.
 * \return int.
 */
 static int
-CtrlGetVSBConstel(pDRXDemodInstance_t demod, pDRXComplex_t complexNr)
+ctrl_get_vsb_constel(pdrx_demod_instance_t demod, pdrx_complex_t complex_nr)
 {
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 				       /**< device address                    */
-	u16 vsbTopCommMb = 0;	       /**< VSB SL MB configuration           */
-	u16 vsbTopCommMbInit = 0;    /**< VSB SL MB intial configuration    */
+	u16 vsb_top_comm_mb = 0;	       /**< VSB SL MB configuration           */
+	u16 vsb_top_comm_mbInit = 0;    /**< VSB SL MB intial configuration    */
 	u16 re = 0;		       /**< constellation Re part             */
 	u32 data = 0;
 
 	/* read device info */
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* TODO: */
 	/* Monitor bus grabbing is an open external interface issue  */
 	/* Needs to be checked when external interface PG is updated */
 
 	/* Configure MB (Monitor bus) */
-	RR16(devAddr, VSB_TOP_COMM_MB__A, &vsbTopCommMbInit);
+	RR16(dev_addr, VSB_TOP_COMM_MB__A, &vsb_top_comm_mbInit);
 	/* set observe flag & MB mux */
-	vsbTopCommMb = (vsbTopCommMbInit |
+	vsb_top_comm_mb = (vsb_top_comm_mbInit |
 			VSB_TOP_COMM_MB_OBS_OBS_ON |
 			VSB_TOP_COMM_MB_MUX_OBS_VSB_TCMEQ_2);
-	WR16(devAddr, VSB_TOP_COMM_MB__A, vsbTopCommMb);
+	WR16(dev_addr, VSB_TOP_COMM_MB__A, vsb_top_comm_mb);
 
 	/* Enable MB grabber in the FEC OC */
-	WR16(devAddr, FEC_OC_OCR_MODE__A, FEC_OC_OCR_MODE_GRAB_ENABLE__M);
+	WR16(dev_addr, FEC_OC_OCR_MODE__A, FEC_OC_OCR_MODE_GRAB_ENABLE__M);
 
 	/* Disable MB grabber in the FEC OC */
-	WR16(devAddr, FEC_OC_OCR_MODE__A, 0x0);
+	WR16(dev_addr, FEC_OC_OCR_MODE__A, 0x0);
 
 	/* read data */
-	RR32(devAddr, FEC_OC_OCR_GRAB_RD1__A, &data);
+	RR32(dev_addr, FEC_OC_OCR_GRAB_RD1__A, &data);
 	re = (u16) (((data >> 10) & 0x300) | ((data >> 2) & 0xff));
 	if (re & 0x0200) {
 		re |= 0xfc00;
 	}
-	complexNr->re = re;
-	complexNr->im = 0;
+	complex_nr->re = re;
+	complex_nr->im = 0;
 
 	/* Restore MB (Monitor bus) */
-	WR16(devAddr, VSB_TOP_COMM_MB__A, vsbTopCommMbInit);
+	WR16(dev_addr, VSB_TOP_COMM_MB__A, vsb_top_comm_mbInit);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6304,57 +6304,57 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int PowerDownQAM ()
+* \fn int power_down_qam ()
 * \brief Powr down QAM related blocks.
 * \param demod instance of demodulator.
 * \param channel pointer to channel data.
 * \return int.
 */
-static int PowerDownQAM(pDRXDemodInstance_t demod, bool primary)
+static int power_down_qam(pdrx_demod_instance_t demod, bool primary)
 {
-	DRXJSCUCmd_t cmdSCU = { /* command      */ 0,
-		/* parameterLen */ 0,
-		/* resultLen    */ 0,
+	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
+		/* parameter_len */ 0,
+		/* result_len    */ 0,
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
-	u16 cmdResult = 0;
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
-	DRXCfgMPEGOutput_t cfgMPEGOutput;
+	u16 cmd_result = 0;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	drx_cfg_mpeg_output_t cfg_mpeg_output;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/*
 	   STOP demodulator
 	   resets IQM, QAM and FEC HW blocks
 	 */
 	/* stop all comm_exec */
-	WR16(devAddr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
-	WR16(devAddr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP);
+	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
+	WR16(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP);
 
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_QAM |
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 	    SCU_RAM_COMMAND_CMD_DEMOD_STOP;
-	cmdSCU.parameterLen = 0;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = NULL;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 0;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = NULL;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
 	if (primary == true) {
-		WR16(devAddr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
-		CHK_ERROR(SetIqmAf(demod, false));
+		WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
+		CHK_ERROR(set_iqm_af(demod, false));
 	} else {
-		WR16(devAddr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
 	}
 
-	cfgMPEGOutput.enableMPEGOutput = false;
-	CHK_ERROR(CtrlSetCfgMPEGOutput(demod, &cfgMPEGOutput));
+	cfg_mpeg_output.enable_mpeg_output = false;
+	CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6364,7 +6364,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int SetQAMMeasurement ()
+* \fn int set_qam_measurement ()
 * \brief Setup of the QAM Measuremnt intervals for signal quality
 * \param demod instance of demod.
 * \param constellation current constellation.
@@ -6374,50 +6374,50 @@ rw_error:
 *  Take into account that for certain settings the errorcounters can overflow.
 *  The implementation does not check this.
 *
-*  TODO: overriding the extAttr->fecBitsDesired by constellation dependent
-*  constants to get a measurement period of approx. 1 sec. Remove fecBitsDesired
+*  TODO: overriding the ext_attr->fec_bits_desired by constellation dependent
+*  constants to get a measurement period of approx. 1 sec. Remove fec_bits_desired
 *  field ?
 *
 */
 #ifndef DRXJ_VSB_ONLY
 static int
-SetQAMMeasurement(pDRXDemodInstance_t demod,
-		  enum drx_modulation constellation, u32 symbolRate)
+set_qam_measurement(pdrx_demod_instance_t demod,
+		  enum drx_modulation constellation, u32 symbol_rate)
 {
-	struct i2c_device_addr *devAddr = NULL;	/* device address for I2C writes */
-	pDRXJData_t extAttr = NULL;	/* Global data container for DRXJ specif data */
-	u32 fecBitsDesired = 0;	/* BER accounting period */
-	u16 fecRsPlen = 0;	/* defines RS BER measurement period */
-	u16 fecRsPrescale = 0;	/* ReedSolomon Measurement Prescale */
-	u32 fecRsPeriod = 0;	/* Value for corresponding I2C register */
-	u32 fecRsBitCnt = 0;	/* Actual precise amount of bits */
-	u32 fecOcSncFailPeriod = 0;	/* Value for corresponding I2C register */
-	u32 qamVdPeriod = 0;	/* Value for corresponding I2C register */
-	u32 qamVdBitCnt = 0;	/* Actual precise amount of bits */
-	u16 fecVdPlen = 0;	/* no of trellis symbols: VD SER measur period */
-	u16 qamVdPrescale = 0;	/* Viterbi Measurement Prescale */
+	struct i2c_device_addr *dev_addr = NULL;	/* device address for I2C writes */
+	pdrxj_data_t ext_attr = NULL;	/* Global data container for DRXJ specif data */
+	u32 fec_bits_desired = 0;	/* BER accounting period */
+	u16 fec_rs_plen = 0;	/* defines RS BER measurement period */
+	u16 fec_rs_prescale = 0;	/* ReedSolomon Measurement Prescale */
+	u32 fec_rs_period = 0;	/* Value for corresponding I2C register */
+	u32 fec_rs_bit_cnt = 0;	/* Actual precise amount of bits */
+	u32 fec_oc_snc_fail_period = 0;	/* Value for corresponding I2C register */
+	u32 qam_vd_period = 0;	/* Value for corresponding I2C register */
+	u32 qam_vd_bit_cnt = 0;	/* Actual precise amount of bits */
+	u16 fec_vd_plen = 0;	/* no of trellis symbols: VD SER measur period */
+	u16 qam_vd_prescale = 0;	/* Viterbi Measurement Prescale */
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	fecBitsDesired = extAttr->fecBitsDesired;
-	fecRsPrescale = extAttr->fecRsPrescale;
+	fec_bits_desired = ext_attr->fec_bits_desired;
+	fec_rs_prescale = ext_attr->fec_rs_prescale;
 
 	switch (constellation) {
 	case DRX_CONSTELLATION_QAM16:
-		fecBitsDesired = 4 * symbolRate;
+		fec_bits_desired = 4 * symbol_rate;
 		break;
 	case DRX_CONSTELLATION_QAM32:
-		fecBitsDesired = 5 * symbolRate;
+		fec_bits_desired = 5 * symbol_rate;
 		break;
 	case DRX_CONSTELLATION_QAM64:
-		fecBitsDesired = 6 * symbolRate;
+		fec_bits_desired = 6 * symbol_rate;
 		break;
 	case DRX_CONSTELLATION_QAM128:
-		fecBitsDesired = 7 * symbolRate;
+		fec_bits_desired = 7 * symbol_rate;
 		break;
 	case DRX_CONSTELLATION_QAM256:
-		fecBitsDesired = 8 * symbolRate;
+		fec_bits_desired = 8 * symbol_rate;
 		break;
 	default:
 		return (DRX_STS_INVALID_ARG);
@@ -6429,44 +6429,44 @@ SetQAMMeasurement(pDRXDemodInstance_t demod,
 	/*     result is within 32 bit arithmetic ->                        */
 	/*     no need for mult or frac functions                           */
 
-	/* TODO: use constant instead of calculation and remove the fecRsPlen in extAttr */
-	switch (extAttr->standard) {
+	/* TODO: use constant instead of calculation and remove the fec_rs_plen in ext_attr */
+	switch (ext_attr->standard) {
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_C:
-		fecRsPlen = 204 * 8;
+		fec_rs_plen = 204 * 8;
 		break;
 	case DRX_STANDARD_ITU_B:
-		fecRsPlen = 128 * 7;
+		fec_rs_plen = 128 * 7;
 		break;
 	default:
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr->fecRsPlen = fecRsPlen;	/* for getSigQual */
-	fecRsBitCnt = fecRsPrescale * fecRsPlen;	/* temp storage   */
-	CHK_ZERO(fecRsBitCnt);
-	fecRsPeriod = fecBitsDesired / fecRsBitCnt + 1;	/* ceil */
-	if (extAttr->standard != DRX_STANDARD_ITU_B)
-		fecOcSncFailPeriod = fecRsPeriod;
+	ext_attr->fec_rs_plen = fec_rs_plen;	/* for getSigQual */
+	fec_rs_bit_cnt = fec_rs_prescale * fec_rs_plen;	/* temp storage   */
+	CHK_ZERO(fec_rs_bit_cnt);
+	fec_rs_period = fec_bits_desired / fec_rs_bit_cnt + 1;	/* ceil */
+	if (ext_attr->standard != DRX_STANDARD_ITU_B)
+		fec_oc_snc_fail_period = fec_rs_period;
 
 	/* limit to max 16 bit value (I2C register width) if needed */
-	if (fecRsPeriod > 0xFFFF)
-		fecRsPeriod = 0xFFFF;
+	if (fec_rs_period > 0xFFFF)
+		fec_rs_period = 0xFFFF;
 
 	/* write corresponding registers */
-	switch (extAttr->standard) {
+	switch (ext_attr->standard) {
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_C:
 		break;
 	case DRX_STANDARD_ITU_B:
 		switch (constellation) {
 		case DRX_CONSTELLATION_QAM64:
-			fecRsPeriod = 31581;
-			fecOcSncFailPeriod = 17932;
+			fec_rs_period = 31581;
+			fec_oc_snc_fail_period = 17932;
 			break;
 		case DRX_CONSTELLATION_QAM256:
-			fecRsPeriod = 45446;
-			fecOcSncFailPeriod = 25805;
+			fec_rs_period = 45446;
+			fec_oc_snc_fail_period = 25805;
 			break;
 		default:
 			return (DRX_STS_INVALID_ARG);
@@ -6476,16 +6476,16 @@ SetQAMMeasurement(pDRXDemodInstance_t demod,
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	WR16(devAddr, FEC_OC_SNC_FAIL_PERIOD__A, (u16) fecOcSncFailPeriod);
-	WR16(devAddr, FEC_RS_MEASUREMENT_PERIOD__A, (u16) fecRsPeriod);
-	WR16(devAddr, FEC_RS_MEASUREMENT_PRESCALE__A, fecRsPrescale);
-	extAttr->fecRsPeriod = (u16) fecRsPeriod;
-	extAttr->fecRsPrescale = fecRsPrescale;
-	WR32(devAddr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, 0);
-	WR16(devAddr, SCU_RAM_FEC_MEAS_COUNT__A, 0);
-	WR16(devAddr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
+	WR16(dev_addr, FEC_OC_SNC_FAIL_PERIOD__A, (u16) fec_oc_snc_fail_period);
+	WR16(dev_addr, FEC_RS_MEASUREMENT_PERIOD__A, (u16) fec_rs_period);
+	WR16(dev_addr, FEC_RS_MEASUREMENT_PRESCALE__A, fec_rs_prescale);
+	ext_attr->fec_rs_period = (u16) fec_rs_period;
+	ext_attr->fec_rs_prescale = fec_rs_prescale;
+	WR32(dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, 0);
+	WR16(dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, 0);
+	WR16(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
 
-	if (extAttr->standard == DRX_STANDARD_ITU_B) {
+	if (ext_attr->standard == DRX_STANDARD_ITU_B) {
 		/* Parameters for Viterbi Decoder */
 		/* qamvd_period = (int)ceil(FEC_BITS_DESIRED/                      */
 		/*                    (qamvd_prescale*plen*(qam_constellation+1))) */
@@ -6493,41 +6493,41 @@ SetQAMMeasurement(pDRXDemodInstance_t demod,
 		/*     result is within 32 bit arithmetic ->                       */
 		/*     no need for mult or frac functions                          */
 
-		/* a(8 bit) * b(8 bit) = 16 bit result => Mult32 not needed */
-		fecVdPlen = extAttr->fecVdPlen;
-		qamVdPrescale = extAttr->qamVdPrescale;
-		qamVdBitCnt = qamVdPrescale * fecVdPlen;	/* temp storage */
+		/* a(8 bit) * b(8 bit) = 16 bit result => mult32 not needed */
+		fec_vd_plen = ext_attr->fec_vd_plen;
+		qam_vd_prescale = ext_attr->qam_vd_prescale;
+		qam_vd_bit_cnt = qam_vd_prescale * fec_vd_plen;	/* temp storage */
 
 		switch (constellation) {
 		case DRX_CONSTELLATION_QAM64:
-			/* a(16 bit) * b(4 bit) = 20 bit result => Mult32 not needed */
-			qamVdPeriod =
-			    qamVdBitCnt * (QAM_TOP_CONSTELLATION_QAM64 + 1)
+			/* a(16 bit) * b(4 bit) = 20 bit result => mult32 not needed */
+			qam_vd_period =
+			    qam_vd_bit_cnt * (QAM_TOP_CONSTELLATION_QAM64 + 1)
 			    * (QAM_TOP_CONSTELLATION_QAM64 + 1);
 			break;
 		case DRX_CONSTELLATION_QAM256:
-			/* a(16 bit) * b(5 bit) = 21 bit result => Mult32 not needed */
-			qamVdPeriod =
-			    qamVdBitCnt * (QAM_TOP_CONSTELLATION_QAM256 + 1)
+			/* a(16 bit) * b(5 bit) = 21 bit result => mult32 not needed */
+			qam_vd_period =
+			    qam_vd_bit_cnt * (QAM_TOP_CONSTELLATION_QAM256 + 1)
 			    * (QAM_TOP_CONSTELLATION_QAM256 + 1);
 			break;
 		default:
 			return (DRX_STS_INVALID_ARG);
 		}
-		CHK_ZERO(qamVdPeriod);
-		qamVdPeriod = fecBitsDesired / qamVdPeriod;
+		CHK_ZERO(qam_vd_period);
+		qam_vd_period = fec_bits_desired / qam_vd_period;
 		/* limit to max 16 bit value (I2C register width) if needed */
-		if (qamVdPeriod > 0xFFFF)
-			qamVdPeriod = 0xFFFF;
+		if (qam_vd_period > 0xFFFF)
+			qam_vd_period = 0xFFFF;
 
-		/* a(16 bit) * b(16 bit) = 32 bit result => Mult32 not needed */
-		qamVdBitCnt *= qamVdPeriod;
+		/* a(16 bit) * b(16 bit) = 32 bit result => mult32 not needed */
+		qam_vd_bit_cnt *= qam_vd_period;
 
-		WR16(devAddr, QAM_VD_MEASUREMENT_PERIOD__A,
-		     (u16) qamVdPeriod);
-		WR16(devAddr, QAM_VD_MEASUREMENT_PRESCALE__A, qamVdPrescale);
-		extAttr->qamVdPeriod = (u16) qamVdPeriod;
-		extAttr->qamVdPrescale = qamVdPrescale;
+		WR16(dev_addr, QAM_VD_MEASUREMENT_PERIOD__A,
+		     (u16) qam_vd_period);
+		WR16(dev_addr, QAM_VD_MEASUREMENT_PRESCALE__A, qam_vd_prescale);
+		ext_attr->qam_vd_period = (u16) qam_vd_period;
+		ext_attr->qam_vd_prescale = qam_vd_prescale;
 	}
 
 	return (DRX_STS_OK);
@@ -6538,15 +6538,15 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int SetQAM16 ()
+* \fn int set_qam16 ()
 * \brief QAM16 specific setup
 * \param demod instance of demod.
 * \return int.
 */
-static int SetQAM16(pDRXDemodInstance_t demod)
+static int set_qam16(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = demod->myI2CDevAddr;
-	const u8 qamDqQualFun[] = {
+	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	const u8 qam_dq_qual_fun[] = {
 		DRXJ_16TO8(2),	/* fun0  */
 		DRXJ_16TO8(2),	/* fun1  */
 		DRXJ_16TO8(2),	/* fun2  */
@@ -6554,7 +6554,7 @@ static int SetQAM16(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(3),	/* fun4  */
 		DRXJ_16TO8(3),	/* fun5  */
 	};
-	const u8 qamEqCmaRad[] = {
+	const u8 qam_eq_cma_rad[] = {
 		DRXJ_16TO8(13517),	/* RAD0  */
 		DRXJ_16TO8(13517),	/* RAD1  */
 		DRXJ_16TO8(13517),	/* RAD2  */
@@ -6563,52 +6563,52 @@ static int SetQAM16(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(13517),	/* RAD5  */
 	};
 
-	WRB(devAddr, QAM_DQ_QUAL_FUN0__A, sizeof(qamDqQualFun),
-	    ((u8 *) qamDqQualFun));
-	WRB(devAddr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qamEqCmaRad),
-	    ((u8 *) qamEqCmaRad));
+	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
+	    ((u8 *) qam_dq_qual_fun));
+	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
+	    ((u8 *) qam_eq_cma_rad));
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RTH__A, 140);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FTH__A, 50);
-	WR16(devAddr, SCU_RAM_QAM_FSM_PTH__A, 120);
-	WR16(devAddr, SCU_RAM_QAM_FSM_QTH__A, 230);
-	WR16(devAddr, SCU_RAM_QAM_FSM_CTH__A, 95);
-	WR16(devAddr, SCU_RAM_QAM_FSM_MTH__A, 105);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 140);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 50);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 120);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 230);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 95);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 105);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 56);
-	WR16(devAddr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 56);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 220);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 25);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 6);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-24));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-65));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-127));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 220);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 25);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 6);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-24));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-65));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-127));
 
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 10);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_COARSE__A, 240);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_COARSE__A, 32);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 10);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 240);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 32);
 
-	WR16(devAddr, SCU_RAM_QAM_SL_SIG_POWER__A, 40960);
+	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 40960);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6618,15 +6618,15 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int SetQAM32 ()
+* \fn int set_qam32 ()
 * \brief QAM32 specific setup
 * \param demod instance of demod.
 * \return int.
 */
-static int SetQAM32(pDRXDemodInstance_t demod)
+static int set_qam32(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = demod->myI2CDevAddr;
-	const u8 qamDqQualFun[] = {
+	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	const u8 qam_dq_qual_fun[] = {
 		DRXJ_16TO8(3),	/* fun0  */
 		DRXJ_16TO8(3),	/* fun1  */
 		DRXJ_16TO8(3),	/* fun2  */
@@ -6634,7 +6634,7 @@ static int SetQAM32(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(4),	/* fun4  */
 		DRXJ_16TO8(4),	/* fun5  */
 	};
-	const u8 qamEqCmaRad[] = {
+	const u8 qam_eq_cma_rad[] = {
 		DRXJ_16TO8(6707),	/* RAD0  */
 		DRXJ_16TO8(6707),	/* RAD1  */
 		DRXJ_16TO8(6707),	/* RAD2  */
@@ -6643,52 +6643,52 @@ static int SetQAM32(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(6707),	/* RAD5  */
 	};
 
-	WRB(devAddr, QAM_DQ_QUAL_FUN0__A, sizeof(qamDqQualFun),
-	    ((u8 *) qamDqQualFun));
-	WRB(devAddr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qamEqCmaRad),
-	    ((u8 *) qamEqCmaRad));
+	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
+	    ((u8 *) qam_dq_qual_fun));
+	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
+	    ((u8 *) qam_eq_cma_rad));
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RTH__A, 90);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FTH__A, 50);
-	WR16(devAddr, SCU_RAM_QAM_FSM_PTH__A, 100);
-	WR16(devAddr, SCU_RAM_QAM_FSM_QTH__A, 170);
-	WR16(devAddr, SCU_RAM_QAM_FSM_CTH__A, 80);
-	WR16(devAddr, SCU_RAM_QAM_FSM_MTH__A, 100);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 90);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 50);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 170);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 100);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 56);
-	WR16(devAddr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 56);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 140);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16) (-8));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16) (-16));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-26));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-56));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-86));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 140);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16) (-8));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16) (-16));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-26));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-56));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-86));
 
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 10);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_COARSE__A, 176);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_COARSE__A, 8);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 10);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 176);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 8);
 
-	WR16(devAddr, SCU_RAM_QAM_SL_SIG_POWER__A, 20480);
+	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 20480);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6698,15 +6698,15 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int SetQAM64 ()
+* \fn int set_qam64 ()
 * \brief QAM64 specific setup
 * \param demod instance of demod.
 * \return int.
 */
-static int SetQAM64(pDRXDemodInstance_t demod)
+static int set_qam64(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = demod->myI2CDevAddr;
-	const u8 qamDqQualFun[] = {	/* this is hw reset value. no necessary to re-write */
+	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	const u8 qam_dq_qual_fun[] = {	/* this is hw reset value. no necessary to re-write */
 		DRXJ_16TO8(4),	/* fun0  */
 		DRXJ_16TO8(4),	/* fun1  */
 		DRXJ_16TO8(4),	/* fun2  */
@@ -6714,7 +6714,7 @@ static int SetQAM64(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(6),	/* fun4  */
 		DRXJ_16TO8(6),	/* fun5  */
 	};
-	const u8 qamEqCmaRad[] = {
+	const u8 qam_eq_cma_rad[] = {
 		DRXJ_16TO8(13336),	/* RAD0  */
 		DRXJ_16TO8(12618),	/* RAD1  */
 		DRXJ_16TO8(11988),	/* RAD2  */
@@ -6723,52 +6723,52 @@ static int SetQAM64(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(15609),	/* RAD5  */
 	};
 
-	WRB(devAddr, QAM_DQ_QUAL_FUN0__A, sizeof(qamDqQualFun),
-	    ((u8 *) qamDqQualFun));
-	WRB(devAddr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qamEqCmaRad),
-	    ((u8 *) qamEqCmaRad));
+	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
+	    ((u8 *) qam_dq_qual_fun));
+	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
+	    ((u8 *) qam_eq_cma_rad));
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RTH__A, 105);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FTH__A, 60);
-	WR16(devAddr, SCU_RAM_QAM_FSM_PTH__A, 100);
-	WR16(devAddr, SCU_RAM_QAM_FSM_QTH__A, 195);
-	WR16(devAddr, SCU_RAM_QAM_FSM_CTH__A, 80);
-	WR16(devAddr, SCU_RAM_QAM_FSM_MTH__A, 84);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 105);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 195);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 84);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 32);
-	WR16(devAddr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 32);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 141);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 7);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 0);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-15));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-45));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-80));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 141);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 7);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 0);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-15));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-45));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-80));
 
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 30);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 48);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_COARSE__A, 160);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_COARSE__A, 32);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 30);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 48);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 160);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 32);
 
-	WR16(devAddr, SCU_RAM_QAM_SL_SIG_POWER__A, 43008);
+	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 43008);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6778,15 +6778,15 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int SetQAM128 ()
+* \fn int set_qam128 ()
 * \brief QAM128 specific setup
 * \param demod: instance of demod.
 * \return int.
 */
-static int SetQAM128(pDRXDemodInstance_t demod)
+static int set_qam128(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = demod->myI2CDevAddr;
-	const u8 qamDqQualFun[] = {
+	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	const u8 qam_dq_qual_fun[] = {
 		DRXJ_16TO8(6),	/* fun0  */
 		DRXJ_16TO8(6),	/* fun1  */
 		DRXJ_16TO8(6),	/* fun2  */
@@ -6794,7 +6794,7 @@ static int SetQAM128(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(9),	/* fun4  */
 		DRXJ_16TO8(9),	/* fun5  */
 	};
-	const u8 qamEqCmaRad[] = {
+	const u8 qam_eq_cma_rad[] = {
 		DRXJ_16TO8(6164),	/* RAD0  */
 		DRXJ_16TO8(6598),	/* RAD1  */
 		DRXJ_16TO8(6394),	/* RAD2  */
@@ -6803,52 +6803,52 @@ static int SetQAM128(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(7238),	/* RAD5  */
 	};
 
-	WRB(devAddr, QAM_DQ_QUAL_FUN0__A, sizeof(qamDqQualFun),
-	    ((u8 *) qamDqQualFun));
-	WRB(devAddr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qamEqCmaRad),
-	    ((u8 *) qamEqCmaRad));
+	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
+	    ((u8 *) qam_dq_qual_fun));
+	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
+	    ((u8 *) qam_eq_cma_rad));
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RTH__A, 50);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FTH__A, 60);
-	WR16(devAddr, SCU_RAM_QAM_FSM_PTH__A, 100);
-	WR16(devAddr, SCU_RAM_QAM_FSM_QTH__A, 140);
-	WR16(devAddr, SCU_RAM_QAM_FSM_CTH__A, 80);
-	WR16(devAddr, SCU_RAM_QAM_FSM_MTH__A, 100);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 50);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 140);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 100);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 32);
-	WR16(devAddr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 32);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 8);
-	WR16(devAddr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 65);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 5);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 3);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-1));
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-23));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 8);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 65);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 5);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 3);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-1));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-23));
 
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 20);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_COARSE__A, 144);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_COARSE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 20);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 144);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 16);
 
-	WR16(devAddr, SCU_RAM_QAM_SL_SIG_POWER__A, 20992);
+	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 20992);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6858,15 +6858,15 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int SetQAM256 ()
+* \fn int set_qam256 ()
 * \brief QAM256 specific setup
 * \param demod: instance of demod.
 * \return int.
 */
-static int SetQAM256(pDRXDemodInstance_t demod)
+static int set_qam256(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = demod->myI2CDevAddr;
-	const u8 qamDqQualFun[] = {
+	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	const u8 qam_dq_qual_fun[] = {
 		DRXJ_16TO8(8),	/* fun0  */
 		DRXJ_16TO8(8),	/* fun1  */
 		DRXJ_16TO8(8),	/* fun2  */
@@ -6874,7 +6874,7 @@ static int SetQAM256(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(12),	/* fun4  */
 		DRXJ_16TO8(12),	/* fun5  */
 	};
-	const u8 qamEqCmaRad[] = {
+	const u8 qam_eq_cma_rad[] = {
 		DRXJ_16TO8(12345),	/* RAD0  */
 		DRXJ_16TO8(12345),	/* RAD1  */
 		DRXJ_16TO8(13626),	/* RAD2  */
@@ -6883,52 +6883,52 @@ static int SetQAM256(pDRXDemodInstance_t demod)
 		DRXJ_16TO8(15356),	/* RAD5  */
 	};
 
-	WRB(devAddr, QAM_DQ_QUAL_FUN0__A, sizeof(qamDqQualFun),
-	    ((u8 *) qamDqQualFun));
-	WRB(devAddr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qamEqCmaRad),
-	    ((u8 *) qamEqCmaRad));
+	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
+	    ((u8 *) qam_dq_qual_fun));
+	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
+	    ((u8 *) qam_eq_cma_rad));
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RTH__A, 50);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FTH__A, 60);
-	WR16(devAddr, SCU_RAM_QAM_FSM_PTH__A, 100);
-	WR16(devAddr, SCU_RAM_QAM_FSM_QTH__A, 150);
-	WR16(devAddr, SCU_RAM_QAM_FSM_CTH__A, 80);
-	WR16(devAddr, SCU_RAM_QAM_FSM_MTH__A, 110);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 50);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 150);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 110);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 8);
-	WR16(devAddr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 74);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 18);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 13);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, 7);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, 0);
-	WR16(devAddr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-8));
+	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 8);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 74);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 18);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 13);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, 7);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, 0);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-8));
 
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 50);
-	WR16(devAddr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 25);
-	WR16(devAddr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 48);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF_COARSE__A, 80);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(devAddr, SCU_RAM_QAM_LC_CF1_COARSE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 50);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 25);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 48);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 80);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
+	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 16);
 
-	WR16(devAddr, SCU_RAM_QAM_SL_SIG_POWER__A, 43520);
+	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 43520);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6941,33 +6941,33 @@ rw_error:
 #define QAM_SET_OP_SPECTRUM 0X4
 
 /**
-* \fn int SetQAM ()
+* \fn int set_qam ()
 * \brief Set QAM demod.
 * \param demod:   instance of demod.
 * \param channel: pointer to channel data.
 * \return int.
 */
 static int
-SetQAM(pDRXDemodInstance_t demod,
-       pDRXChannel_t channel, s32 tunerFreqOffset, u32 op)
+set_qam(pdrx_demod_instance_t demod,
+       pdrx_channel_t channel, s32 tuner_freq_offset, u32 op)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
-	pDRXCommonAttr_t commonAttr = NULL;
-	u16 cmdResult = 0;
-	u32 adcFrequency = 0;
-	u32 iqmRcRate = 0;
-	u16 lcSymbolFreq = 0;
-	u16 iqmRcStretch = 0;
-	u16 setEnvParameters = 0;
-	u16 setParamParameters[2] = { 0 };
-	DRXJSCUCmd_t cmdSCU = { /* command      */ 0,
-		/* parameterLen */ 0,
-		/* resultLen    */ 0,
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	pdrx_common_attr_t common_attr = NULL;
+	u16 cmd_result = 0;
+	u32 adc_frequency = 0;
+	u32 iqm_rc_rate = 0;
+	u16 lc_symbol_freq = 0;
+	u16 iqm_rc_stretch = 0;
+	u16 set_env_parameters = 0;
+	u16 set_param_parameters[2] = { 0 };
+	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
+		/* parameter_len */ 0,
+		/* result_len    */ 0,
 		/* parameter    */ NULL,
 		/* result       */ NULL
 	};
-	const u8 qamA_taps[] = {
+	const u8 qam_a_taps[] = {
 		DRXJ_16TO8(-1),	/* re0  */
 		DRXJ_16TO8(1),	/* re1  */
 		DRXJ_16TO8(1),	/* re2  */
@@ -6997,7 +6997,7 @@ SetQAM(pDRXDemodInstance_t demod,
 		DRXJ_16TO8(-40),	/* re26 */
 		DRXJ_16TO8(619)	/* re27 */
 	};
-	const u8 qamB64_taps[] = {
+	const u8 qam_b64_taps[] = {
 		DRXJ_16TO8(0),	/* re0  */
 		DRXJ_16TO8(-2),	/* re1  */
 		DRXJ_16TO8(1),	/* re2  */
@@ -7027,7 +7027,7 @@ SetQAM(pDRXDemodInstance_t demod,
 		DRXJ_16TO8(-46),	/* re26 */
 		DRXJ_16TO8(614)	/* re27 */
 	};
-	const u8 qamB256_taps[] = {
+	const u8 qam_b256_taps[] = {
 		DRXJ_16TO8(-2),	/* re0  */
 		DRXJ_16TO8(4),	/* re1  */
 		DRXJ_16TO8(1),	/* re2  */
@@ -7057,7 +7057,7 @@ SetQAM(pDRXDemodInstance_t demod,
 		DRXJ_16TO8(-32),	/* re26 */
 		DRXJ_16TO8(628)	/* re27 */
 	};
-	const u8 qamC_taps[] = {
+	const u8 qam_c_taps[] = {
 		DRXJ_16TO8(-3),	/* re0  */
 		DRXJ_16TO8(3),	/* re1  */
 		DRXJ_16TO8(2),	/* re2  */
@@ -7088,60 +7088,60 @@ SetQAM(pDRXDemodInstance_t demod,
 		DRXJ_16TO8(626)	/* re27 */
 	};
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
-		if (extAttr->standard == DRX_STANDARD_ITU_B) {
+		if (ext_attr->standard == DRX_STANDARD_ITU_B) {
 			switch (channel->constellation) {
 			case DRX_CONSTELLATION_QAM256:
-				iqmRcRate = 0x00AE3562;
-				lcSymbolFreq =
+				iqm_rc_rate = 0x00AE3562;
+				lc_symbol_freq =
 				    QAM_LC_SYMBOL_FREQ_FREQ_QAM_B_256;
 				channel->symbolrate = 5360537;
-				iqmRcStretch = IQM_RC_STRETCH_QAM_B_256;
+				iqm_rc_stretch = IQM_RC_STRETCH_QAM_B_256;
 				break;
 			case DRX_CONSTELLATION_QAM64:
-				iqmRcRate = 0x00C05A0E;
-				lcSymbolFreq = 409;
+				iqm_rc_rate = 0x00C05A0E;
+				lc_symbol_freq = 409;
 				channel->symbolrate = 5056941;
-				iqmRcStretch = IQM_RC_STRETCH_QAM_B_64;
+				iqm_rc_stretch = IQM_RC_STRETCH_QAM_B_64;
 				break;
 			default:
 				return (DRX_STS_INVALID_ARG);
 			}
 		} else {
-			adcFrequency = (commonAttr->sysClockFreq * 1000) / 3;
+			adc_frequency = (common_attr->sys_clock_freq * 1000) / 3;
 			CHK_ZERO(channel->symbolrate);
-			iqmRcRate =
-			    (adcFrequency / channel->symbolrate) * (1 << 21) +
-			    (Frac28
-			     ((adcFrequency % channel->symbolrate),
+			iqm_rc_rate =
+			    (adc_frequency / channel->symbolrate) * (1 << 21) +
+			    (frac28
+			     ((adc_frequency % channel->symbolrate),
 			      channel->symbolrate) >> 7) - (1 << 23);
-			lcSymbolFreq =
-			    (u16) (Frac28
+			lc_symbol_freq =
+			    (u16) (frac28
 				     (channel->symbolrate +
-				      (adcFrequency >> 13),
-				      adcFrequency) >> 16);
-			if (lcSymbolFreq > 511)
-				lcSymbolFreq = 511;
+				      (adc_frequency >> 13),
+				      adc_frequency) >> 16);
+			if (lc_symbol_freq > 511)
+				lc_symbol_freq = 511;
 
-			iqmRcStretch = 21;
+			iqm_rc_stretch = 21;
 		}
 
-		if (extAttr->standard == DRX_STANDARD_ITU_A) {
-			setEnvParameters = QAM_TOP_ANNEX_A;	/* annex             */
-			setParamParameters[0] = channel->constellation;	/* constellation     */
-			setParamParameters[1] = DRX_INTERLEAVEMODE_I12_J17;	/* interleave mode   */
-		} else if (extAttr->standard == DRX_STANDARD_ITU_B) {
-			setEnvParameters = QAM_TOP_ANNEX_B;	/* annex             */
-			setParamParameters[0] = channel->constellation;	/* constellation     */
-			setParamParameters[1] = channel->interleavemode;	/* interleave mode   */
-		} else if (extAttr->standard == DRX_STANDARD_ITU_C) {
-			setEnvParameters = QAM_TOP_ANNEX_C;	/* annex             */
-			setParamParameters[0] = channel->constellation;	/* constellation     */
-			setParamParameters[1] = DRX_INTERLEAVEMODE_I12_J17;	/* interleave mode   */
+		if (ext_attr->standard == DRX_STANDARD_ITU_A) {
+			set_env_parameters = QAM_TOP_ANNEX_A;	/* annex             */
+			set_param_parameters[0] = channel->constellation;	/* constellation     */
+			set_param_parameters[1] = DRX_INTERLEAVEMODE_I12_J17;	/* interleave mode   */
+		} else if (ext_attr->standard == DRX_STANDARD_ITU_B) {
+			set_env_parameters = QAM_TOP_ANNEX_B;	/* annex             */
+			set_param_parameters[0] = channel->constellation;	/* constellation     */
+			set_param_parameters[1] = channel->interleavemode;	/* interleave mode   */
+		} else if (ext_attr->standard == DRX_STANDARD_ITU_C) {
+			set_env_parameters = QAM_TOP_ANNEX_C;	/* annex             */
+			set_param_parameters[0] = channel->constellation;	/* constellation     */
+			set_param_parameters[1] = DRX_INTERLEAVEMODE_I12_J17;	/* interleave mode   */
 		} else {
 			return (DRX_STS_INVALID_ARG);
 		}
@@ -7154,21 +7154,21 @@ SetQAM(pDRXDemodInstance_t demod,
 		   resets SCU variables
 		 */
 		/* stop all comm_exec */
-		WR16(devAddr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
-		WR16(devAddr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+		WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
+		WR16(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
 
-		cmdSCU.command = SCU_RAM_COMMAND_STANDARD_QAM |
+		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 		    SCU_RAM_COMMAND_CMD_DEMOD_RESET;
-		cmdSCU.parameterLen = 0;
-		cmdSCU.resultLen = 1;
-		cmdSCU.parameter = NULL;
-		cmdSCU.result = &cmdResult;
-		CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+		cmd_scu.parameter_len = 0;
+		cmd_scu.result_len = 1;
+		cmd_scu.parameter = NULL;
+		cmd_scu.result = &cmd_result;
+		CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 	}
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
@@ -7177,25 +7177,25 @@ SetQAM(pDRXDemodInstance_t demod,
 		   -set env
 		   -set params (resets IQM,QAM,FEC HW; initializes some SCU variables )
 		 */
-		cmdSCU.command = SCU_RAM_COMMAND_STANDARD_QAM |
+		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 		    SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV;
-		cmdSCU.parameterLen = 1;
-		cmdSCU.resultLen = 1;
-		cmdSCU.parameter = &setEnvParameters;
-		cmdSCU.result = &cmdResult;
-		CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+		cmd_scu.parameter_len = 1;
+		cmd_scu.result_len = 1;
+		cmd_scu.parameter = &set_env_parameters;
+		cmd_scu.result = &cmd_result;
+		CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
-		cmdSCU.command = SCU_RAM_COMMAND_STANDARD_QAM |
+		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 		    SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM;
-		cmdSCU.parameterLen = 2;
-		cmdSCU.resultLen = 1;
-		cmdSCU.parameter = setParamParameters;
-		cmdSCU.result = &cmdResult;
-		CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+		cmd_scu.parameter_len = 2;
+		cmd_scu.result_len = 1;
+		cmd_scu.parameter = set_param_parameters;
+		cmd_scu.result = &cmd_result;
+		CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 		/* set symbol rate */
-		WR32(devAddr, IQM_RC_RATE_OFS_LO__A, iqmRcRate);
-		extAttr->iqmRcRateOfs = iqmRcRate;
-		CHK_ERROR(SetQAMMeasurement
+		WR32(dev_addr, IQM_RC_RATE_OFS_LO__A, iqm_rc_rate);
+		ext_attr->iqm_rc_rate_ofs = iqm_rc_rate;
+		CHK_ERROR(set_qam_measurement
 			  (demod, channel->constellation, channel->symbolrate));
 	}
 	/* STEP 3: enable the system in a mode where the ADC provides valid signal
@@ -7203,156 +7203,156 @@ SetQAM(pDRXDemodInstance_t demod,
 	/* from qam_cmd.py script (qam_driver_b) */
 	/* TODO: remove re-writes of HW reset values */
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_SPECTRUM)) {
-		CHK_ERROR(SetFrequency(demod, channel, tunerFreqOffset));
+		CHK_ERROR(set_frequency(demod, channel, tuner_freq_offset));
 	}
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
 
-		WR16(devAddr, QAM_LC_SYMBOL_FREQ__A, lcSymbolFreq);
-		WR16(devAddr, IQM_RC_STRETCH__A, iqmRcStretch);
+		WR16(dev_addr, QAM_LC_SYMBOL_FREQ__A, lc_symbol_freq);
+		WR16(dev_addr, IQM_RC_STRETCH__A, iqm_rc_stretch);
 	}
 
 	if (op & QAM_SET_OP_ALL) {
-		if (extAttr->hasLNA == false) {
-			WR16(devAddr, IQM_AF_AMUX__A, 0x02);
+		if (ext_attr->has_lna == false) {
+			WR16(dev_addr, IQM_AF_AMUX__A, 0x02);
 		}
-		WR16(devAddr, IQM_CF_SYMMETRIC__A, 0);
-		WR16(devAddr, IQM_CF_MIDTAP__A, 3);
-		WR16(devAddr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_QAM__M);
+		WR16(dev_addr, IQM_CF_SYMMETRIC__A, 0);
+		WR16(dev_addr, IQM_CF_MIDTAP__A, 3);
+		WR16(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_QAM__M);
 
-		WR16(devAddr, SCU_RAM_QAM_WR_RSV_0__A, 0x5f);	/* scu temporary shut down agc */
+		WR16(dev_addr, SCU_RAM_QAM_WR_RSV_0__A, 0x5f);	/* scu temporary shut down agc */
 
-		WR16(devAddr, IQM_AF_SYNC_SEL__A, 3);
-		WR16(devAddr, IQM_AF_CLP_LEN__A, 0);
-		WR16(devAddr, IQM_AF_CLP_TH__A, 448);
-		WR16(devAddr, IQM_AF_SNS_LEN__A, 0);
-		WR16(devAddr, IQM_AF_PDREF__A, 4);
-		WR16(devAddr, IQM_AF_STDBY__A, 0x10);
-		WR16(devAddr, IQM_AF_PGA_GAIN__A, 11);
+		WR16(dev_addr, IQM_AF_SYNC_SEL__A, 3);
+		WR16(dev_addr, IQM_AF_CLP_LEN__A, 0);
+		WR16(dev_addr, IQM_AF_CLP_TH__A, 448);
+		WR16(dev_addr, IQM_AF_SNS_LEN__A, 0);
+		WR16(dev_addr, IQM_AF_PDREF__A, 4);
+		WR16(dev_addr, IQM_AF_STDBY__A, 0x10);
+		WR16(dev_addr, IQM_AF_PGA_GAIN__A, 11);
 
-		WR16(devAddr, IQM_CF_POW_MEAS_LEN__A, 1);
-		WR16(devAddr, IQM_CF_SCALE_SH__A, IQM_CF_SCALE_SH__PRE);	/*! reset default val ! */
+		WR16(dev_addr, IQM_CF_POW_MEAS_LEN__A, 1);
+		WR16(dev_addr, IQM_CF_SCALE_SH__A, IQM_CF_SCALE_SH__PRE);	/*! reset default val ! */
 
-		WR16(devAddr, QAM_SY_TIMEOUT__A, QAM_SY_TIMEOUT__PRE);	/*! reset default val ! */
-		if (extAttr->standard == DRX_STANDARD_ITU_B) {
-			WR16(devAddr, QAM_SY_SYNC_LWM__A, QAM_SY_SYNC_LWM__PRE);	/*! reset default val ! */
-			WR16(devAddr, QAM_SY_SYNC_AWM__A, QAM_SY_SYNC_AWM__PRE);	/*! reset default val ! */
-			WR16(devAddr, QAM_SY_SYNC_HWM__A, QAM_SY_SYNC_HWM__PRE);	/*! reset default val ! */
+		WR16(dev_addr, QAM_SY_TIMEOUT__A, QAM_SY_TIMEOUT__PRE);	/*! reset default val ! */
+		if (ext_attr->standard == DRX_STANDARD_ITU_B) {
+			WR16(dev_addr, QAM_SY_SYNC_LWM__A, QAM_SY_SYNC_LWM__PRE);	/*! reset default val ! */
+			WR16(dev_addr, QAM_SY_SYNC_AWM__A, QAM_SY_SYNC_AWM__PRE);	/*! reset default val ! */
+			WR16(dev_addr, QAM_SY_SYNC_HWM__A, QAM_SY_SYNC_HWM__PRE);	/*! reset default val ! */
 		} else {
 			switch (channel->constellation) {
 			case DRX_CONSTELLATION_QAM16:
 			case DRX_CONSTELLATION_QAM64:
 			case DRX_CONSTELLATION_QAM256:
-				WR16(devAddr, QAM_SY_SYNC_LWM__A, 0x03);
-				WR16(devAddr, QAM_SY_SYNC_AWM__A, 0x04);
-				WR16(devAddr, QAM_SY_SYNC_HWM__A, QAM_SY_SYNC_HWM__PRE);	/*! reset default val ! */
+				WR16(dev_addr, QAM_SY_SYNC_LWM__A, 0x03);
+				WR16(dev_addr, QAM_SY_SYNC_AWM__A, 0x04);
+				WR16(dev_addr, QAM_SY_SYNC_HWM__A, QAM_SY_SYNC_HWM__PRE);	/*! reset default val ! */
 				break;
 			case DRX_CONSTELLATION_QAM32:
 			case DRX_CONSTELLATION_QAM128:
-				WR16(devAddr, QAM_SY_SYNC_LWM__A, 0x03);
-				WR16(devAddr, QAM_SY_SYNC_AWM__A, 0x05);
-				WR16(devAddr, QAM_SY_SYNC_HWM__A, 0x06);
+				WR16(dev_addr, QAM_SY_SYNC_LWM__A, 0x03);
+				WR16(dev_addr, QAM_SY_SYNC_AWM__A, 0x05);
+				WR16(dev_addr, QAM_SY_SYNC_HWM__A, 0x06);
 				break;
 			default:
 				return (DRX_STS_ERROR);
 			}	/* switch */
 		}
 
-		WR16(devAddr, QAM_LC_MODE__A, QAM_LC_MODE__PRE);	/*! reset default val ! */
-		WR16(devAddr, QAM_LC_RATE_LIMIT__A, 3);
-		WR16(devAddr, QAM_LC_LPF_FACTORP__A, 4);
-		WR16(devAddr, QAM_LC_LPF_FACTORI__A, 4);
-		WR16(devAddr, QAM_LC_MODE__A, 7);
-		WR16(devAddr, QAM_LC_QUAL_TAB0__A, 1);
-		WR16(devAddr, QAM_LC_QUAL_TAB1__A, 1);
-		WR16(devAddr, QAM_LC_QUAL_TAB2__A, 1);
-		WR16(devAddr, QAM_LC_QUAL_TAB3__A, 1);
-		WR16(devAddr, QAM_LC_QUAL_TAB4__A, 2);
-		WR16(devAddr, QAM_LC_QUAL_TAB5__A, 2);
-		WR16(devAddr, QAM_LC_QUAL_TAB6__A, 2);
-		WR16(devAddr, QAM_LC_QUAL_TAB8__A, 2);
-		WR16(devAddr, QAM_LC_QUAL_TAB9__A, 2);
-		WR16(devAddr, QAM_LC_QUAL_TAB10__A, 2);
-		WR16(devAddr, QAM_LC_QUAL_TAB12__A, 2);
-		WR16(devAddr, QAM_LC_QUAL_TAB15__A, 3);
-		WR16(devAddr, QAM_LC_QUAL_TAB16__A, 3);
-		WR16(devAddr, QAM_LC_QUAL_TAB20__A, 4);
-		WR16(devAddr, QAM_LC_QUAL_TAB25__A, 4);
+		WR16(dev_addr, QAM_LC_MODE__A, QAM_LC_MODE__PRE);	/*! reset default val ! */
+		WR16(dev_addr, QAM_LC_RATE_LIMIT__A, 3);
+		WR16(dev_addr, QAM_LC_LPF_FACTORP__A, 4);
+		WR16(dev_addr, QAM_LC_LPF_FACTORI__A, 4);
+		WR16(dev_addr, QAM_LC_MODE__A, 7);
+		WR16(dev_addr, QAM_LC_QUAL_TAB0__A, 1);
+		WR16(dev_addr, QAM_LC_QUAL_TAB1__A, 1);
+		WR16(dev_addr, QAM_LC_QUAL_TAB2__A, 1);
+		WR16(dev_addr, QAM_LC_QUAL_TAB3__A, 1);
+		WR16(dev_addr, QAM_LC_QUAL_TAB4__A, 2);
+		WR16(dev_addr, QAM_LC_QUAL_TAB5__A, 2);
+		WR16(dev_addr, QAM_LC_QUAL_TAB6__A, 2);
+		WR16(dev_addr, QAM_LC_QUAL_TAB8__A, 2);
+		WR16(dev_addr, QAM_LC_QUAL_TAB9__A, 2);
+		WR16(dev_addr, QAM_LC_QUAL_TAB10__A, 2);
+		WR16(dev_addr, QAM_LC_QUAL_TAB12__A, 2);
+		WR16(dev_addr, QAM_LC_QUAL_TAB15__A, 3);
+		WR16(dev_addr, QAM_LC_QUAL_TAB16__A, 3);
+		WR16(dev_addr, QAM_LC_QUAL_TAB20__A, 4);
+		WR16(dev_addr, QAM_LC_QUAL_TAB25__A, 4);
 
-		WR16(devAddr, IQM_FS_ADJ_SEL__A, 1);
-		WR16(devAddr, IQM_RC_ADJ_SEL__A, 1);
-		WR16(devAddr, IQM_CF_ADJ_SEL__A, 1);
-		WR16(devAddr, IQM_CF_POW_MEAS_LEN__A, 0);
-		WR16(devAddr, SCU_RAM_GPIO__A, 0);
+		WR16(dev_addr, IQM_FS_ADJ_SEL__A, 1);
+		WR16(dev_addr, IQM_RC_ADJ_SEL__A, 1);
+		WR16(dev_addr, IQM_CF_ADJ_SEL__A, 1);
+		WR16(dev_addr, IQM_CF_POW_MEAS_LEN__A, 0);
+		WR16(dev_addr, SCU_RAM_GPIO__A, 0);
 
 		/* No more resets of the IQM, current standard correctly set =>
 		   now AGCs can be configured. */
 		/* turn on IQMAF. It has to be in front of setAgc**() */
-		CHK_ERROR(SetIqmAf(demod, true));
-		CHK_ERROR(ADCSynchronization(demod));
+		CHK_ERROR(set_iqm_af(demod, true));
+		CHK_ERROR(adc_synchronization(demod));
 
-		CHK_ERROR(InitAGC(demod));
-		CHK_ERROR(SetAgcIf(demod, &(extAttr->qamIfAgcCfg), false));
-		CHK_ERROR(SetAgcRf(demod, &(extAttr->qamRfAgcCfg), false));
+		CHK_ERROR(init_agc(demod));
+		CHK_ERROR(set_agc_if(demod, &(ext_attr->qam_if_agc_cfg), false));
+		CHK_ERROR(set_agc_rf(demod, &(ext_attr->qam_rf_agc_cfg), false));
 		{
-			/* TODO fix this, store a DRXJCfgAfeGain_t structure in DRXJData_t instead
+			/* TODO fix this, store a drxj_cfg_afe_gain_t structure in drxj_data_t instead
 			   of only the gain */
-			DRXJCfgAfeGain_t qamPgaCfg = { DRX_STANDARD_ITU_B, 0 };
+			drxj_cfg_afe_gain_t qam_pga_cfg = { DRX_STANDARD_ITU_B, 0 };
 
-			qamPgaCfg.gain = extAttr->qamPgaCfg;
-			CHK_ERROR(CtrlSetCfgAfeGain(demod, &qamPgaCfg));
+			qam_pga_cfg.gain = ext_attr->qam_pga_cfg;
+			CHK_ERROR(ctrl_set_cfg_afe_gain(demod, &qam_pga_cfg));
 		}
-		CHK_ERROR(CtrlSetCfgPreSaw(demod, &(extAttr->qamPreSawCfg)));
+		CHK_ERROR(ctrl_set_cfg_pre_saw(demod, &(ext_attr->qam_pre_saw_cfg)));
 	}
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
-		if (extAttr->standard == DRX_STANDARD_ITU_A) {
-			WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(qamA_taps),
-			    ((u8 *) qamA_taps));
-			WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(qamA_taps),
-			    ((u8 *) qamA_taps));
-		} else if (extAttr->standard == DRX_STANDARD_ITU_B) {
+		if (ext_attr->standard == DRX_STANDARD_ITU_A) {
+			WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(qam_a_taps),
+			    ((u8 *) qam_a_taps));
+			WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(qam_a_taps),
+			    ((u8 *) qam_a_taps));
+		} else if (ext_attr->standard == DRX_STANDARD_ITU_B) {
 			switch (channel->constellation) {
 			case DRX_CONSTELLATION_QAM64:
-				WRB(devAddr, IQM_CF_TAP_RE0__A,
-				    sizeof(qamB64_taps), ((u8 *) qamB64_taps));
-				WRB(devAddr, IQM_CF_TAP_IM0__A,
-				    sizeof(qamB64_taps), ((u8 *) qamB64_taps));
+				WRB(dev_addr, IQM_CF_TAP_RE0__A,
+				    sizeof(qam_b64_taps), ((u8 *) qam_b64_taps));
+				WRB(dev_addr, IQM_CF_TAP_IM0__A,
+				    sizeof(qam_b64_taps), ((u8 *) qam_b64_taps));
 				break;
 			case DRX_CONSTELLATION_QAM256:
-				WRB(devAddr, IQM_CF_TAP_RE0__A,
-				    sizeof(qamB256_taps),
-				    ((u8 *) qamB256_taps));
-				WRB(devAddr, IQM_CF_TAP_IM0__A,
-				    sizeof(qamB256_taps),
-				    ((u8 *) qamB256_taps));
+				WRB(dev_addr, IQM_CF_TAP_RE0__A,
+				    sizeof(qam_b256_taps),
+				    ((u8 *) qam_b256_taps));
+				WRB(dev_addr, IQM_CF_TAP_IM0__A,
+				    sizeof(qam_b256_taps),
+				    ((u8 *) qam_b256_taps));
 				break;
 			default:
 				return (DRX_STS_ERROR);
 			}
-		} else if (extAttr->standard == DRX_STANDARD_ITU_C) {
-			WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(qamC_taps),
-			    ((u8 *) qamC_taps));
-			WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(qamC_taps),
-			    ((u8 *) qamC_taps));
+		} else if (ext_attr->standard == DRX_STANDARD_ITU_C) {
+			WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(qam_c_taps),
+			    ((u8 *) qam_c_taps));
+			WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(qam_c_taps),
+			    ((u8 *) qam_c_taps));
 		}
 
 		/* SETP 4: constellation specific setup */
 		switch (channel->constellation) {
 		case DRX_CONSTELLATION_QAM16:
-			CHK_ERROR(SetQAM16(demod));
+			CHK_ERROR(set_qam16(demod));
 			break;
 		case DRX_CONSTELLATION_QAM32:
-			CHK_ERROR(SetQAM32(demod));
+			CHK_ERROR(set_qam32(demod));
 			break;
 		case DRX_CONSTELLATION_QAM64:
-			CHK_ERROR(SetQAM64(demod));
+			CHK_ERROR(set_qam64(demod));
 			break;
 		case DRX_CONSTELLATION_QAM128:
-			CHK_ERROR(SetQAM128(demod));
+			CHK_ERROR(set_qam128(demod));
 			break;
 		case DRX_CONSTELLATION_QAM256:
-			CHK_ERROR(SetQAM256(demod));
+			CHK_ERROR(set_qam256(demod));
 			break;
 		default:
 			return (DRX_STS_ERROR);
@@ -7360,49 +7360,49 @@ SetQAM(pDRXDemodInstance_t demod,
 	}
 
 	if ((op & QAM_SET_OP_ALL)) {
-		WR16(devAddr, IQM_CF_SCALE_SH__A, 0);
+		WR16(dev_addr, IQM_CF_SCALE_SH__A, 0);
 
 		/* Mpeg output has to be in front of FEC active */
-		CHK_ERROR(SetMPEGTEIHandling(demod));
-		CHK_ERROR(BitReverseMPEGOutput(demod));
-		CHK_ERROR(SetMPEGStartWidth(demod));
+		CHK_ERROR(set_mpegtei_handling(demod));
+		CHK_ERROR(bit_reverse_mpeg_output(demod));
+		CHK_ERROR(set_mpeg_start_width(demod));
 		{
-			/* TODO: move to setStandard after hardware reset value problem is solved */
+			/* TODO: move to set_standard after hardware reset value problem is solved */
 			/* Configure initial MPEG output */
-			DRXCfgMPEGOutput_t cfgMPEGOutput;
+			drx_cfg_mpeg_output_t cfg_mpeg_output;
 
-			cfgMPEGOutput.enableMPEGOutput = true;
-			cfgMPEGOutput.insertRSByte =
-			    commonAttr->mpegCfg.insertRSByte;
-			cfgMPEGOutput.enableParallel =
-			    commonAttr->mpegCfg.enableParallel;
-			cfgMPEGOutput.invertDATA =
-			    commonAttr->mpegCfg.invertDATA;
-			cfgMPEGOutput.invertERR = commonAttr->mpegCfg.invertERR;
-			cfgMPEGOutput.invertSTR = commonAttr->mpegCfg.invertSTR;
-			cfgMPEGOutput.invertVAL = commonAttr->mpegCfg.invertVAL;
-			cfgMPEGOutput.invertCLK = commonAttr->mpegCfg.invertCLK;
-			cfgMPEGOutput.staticCLK = commonAttr->mpegCfg.staticCLK;
-			cfgMPEGOutput.bitrate = commonAttr->mpegCfg.bitrate;
-			CHK_ERROR(CtrlSetCfgMPEGOutput(demod, &cfgMPEGOutput));
+			cfg_mpeg_output.enable_mpeg_output = true;
+			cfg_mpeg_output.insert_rs_byte =
+			    common_attr->mpeg_cfg.insert_rs_byte;
+			cfg_mpeg_output.enable_parallel =
+			    common_attr->mpeg_cfg.enable_parallel;
+			cfg_mpeg_output.invert_data =
+			    common_attr->mpeg_cfg.invert_data;
+			cfg_mpeg_output.invert_err = common_attr->mpeg_cfg.invert_err;
+			cfg_mpeg_output.invert_str = common_attr->mpeg_cfg.invert_str;
+			cfg_mpeg_output.invert_val = common_attr->mpeg_cfg.invert_val;
+			cfg_mpeg_output.invert_clk = common_attr->mpeg_cfg.invert_clk;
+			cfg_mpeg_output.static_clk = common_attr->mpeg_cfg.static_clk;
+			cfg_mpeg_output.bitrate = common_attr->mpeg_cfg.bitrate;
+			CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
 		}
 	}
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
 
 		/* STEP 5: start QAM demodulator (starts FEC, QAM and IQM HW) */
-		cmdSCU.command = SCU_RAM_COMMAND_STANDARD_QAM |
+		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 		    SCU_RAM_COMMAND_CMD_DEMOD_START;
-		cmdSCU.parameterLen = 0;
-		cmdSCU.resultLen = 1;
-		cmdSCU.parameter = NULL;
-		cmdSCU.result = &cmdResult;
-		CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+		cmd_scu.parameter_len = 0;
+		cmd_scu.result_len = 1;
+		cmd_scu.parameter = NULL;
+		cmd_scu.result = &cmd_result;
+		CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 	}
 
-	WR16(devAddr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
-	WR16(devAddr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_ACTIVE);
-	WR16(devAddr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -7411,83 +7411,83 @@ rw_error:
 
 /*============================================================================*/
 static int
-CtrlGetQAMSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality);
-static int qamFlipSpec(pDRXDemodInstance_t demod, pDRXChannel_t channel)
+ctrl_get_qam_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality);
+static int qam_flip_spec(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 {
-	u32 iqmFsRateOfs = 0;
-	u32 iqmFsRateLo = 0;
-	u16 qamCtlEna = 0;
+	u32 iqm_fs_rate_ofs = 0;
+	u32 iqm_fs_rate_lo = 0;
+	u16 qam_ctl_ena = 0;
 	u16 data = 0;
-	u16 equMode = 0;
-	u16 fsmState = 0;
+	u16 equ_mode = 0;
+	u16 fsm_state = 0;
 	int i = 0;
 	int ofsofs = 0;
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* Silence the controlling of lc, equ, and the acquisition state machine */
-	RR16(devAddr, SCU_RAM_QAM_CTL_ENA__A, &qamCtlEna);
-	WR16(devAddr, SCU_RAM_QAM_CTL_ENA__A, qamCtlEna
+	RR16(dev_addr, SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena);
+	WR16(dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena
 	     & ~(SCU_RAM_QAM_CTL_ENA_ACQ__M
 		 | SCU_RAM_QAM_CTL_ENA_EQU__M | SCU_RAM_QAM_CTL_ENA_LC__M));
 
 	/* freeze the frequency control loop */
-	WR16(devAddr, QAM_LC_CF__A, 0);
-	WR16(devAddr, QAM_LC_CF1__A, 0);
+	WR16(dev_addr, QAM_LC_CF__A, 0);
+	WR16(dev_addr, QAM_LC_CF1__A, 0);
 
-	ARR32(devAddr, IQM_FS_RATE_OFS_LO__A, &iqmFsRateOfs);
-	ARR32(devAddr, IQM_FS_RATE_LO__A, &iqmFsRateLo);
-	ofsofs = iqmFsRateLo - iqmFsRateOfs;
-	iqmFsRateOfs = ~iqmFsRateOfs + 1;
-	iqmFsRateOfs -= 2 * ofsofs;
+	ARR32(dev_addr, IQM_FS_RATE_OFS_LO__A, &iqm_fs_rate_ofs);
+	ARR32(dev_addr, IQM_FS_RATE_LO__A, &iqm_fs_rate_lo);
+	ofsofs = iqm_fs_rate_lo - iqm_fs_rate_ofs;
+	iqm_fs_rate_ofs = ~iqm_fs_rate_ofs + 1;
+	iqm_fs_rate_ofs -= 2 * ofsofs;
 
 	/* freeze dq/fq updating */
-	RR16(devAddr, QAM_DQ_MODE__A, &data);
+	RR16(dev_addr, QAM_DQ_MODE__A, &data);
 	data = (data & 0xfff9);
-	WR16(devAddr, QAM_DQ_MODE__A, data);
-	WR16(devAddr, QAM_FQ_MODE__A, data);
+	WR16(dev_addr, QAM_DQ_MODE__A, data);
+	WR16(dev_addr, QAM_FQ_MODE__A, data);
 
 	/* lc_cp / _ci / _ca */
-	WR16(devAddr, QAM_LC_CI__A, 0);
-	WR16(devAddr, QAM_LC_EP__A, 0);
-	WR16(devAddr, QAM_FQ_LA_FACTOR__A, 0);
+	WR16(dev_addr, QAM_LC_CI__A, 0);
+	WR16(dev_addr, QAM_LC_EP__A, 0);
+	WR16(dev_addr, QAM_FQ_LA_FACTOR__A, 0);
 
 	/* flip the spec */
-	WR32(devAddr, IQM_FS_RATE_OFS_LO__A, iqmFsRateOfs);
-	extAttr->iqmFsRateOfs = iqmFsRateOfs;
-	extAttr->posImage = (extAttr->posImage) ? false : true;
+	WR32(dev_addr, IQM_FS_RATE_OFS_LO__A, iqm_fs_rate_ofs);
+	ext_attr->iqm_fs_rate_ofs = iqm_fs_rate_ofs;
+	ext_attr->pos_image = (ext_attr->pos_image) ? false : true;
 
 	/* freeze dq/fq updating */
-	RR16(devAddr, QAM_DQ_MODE__A, &data);
-	equMode = data;
+	RR16(dev_addr, QAM_DQ_MODE__A, &data);
+	equ_mode = data;
 	data = (data & 0xfff9);
-	WR16(devAddr, QAM_DQ_MODE__A, data);
-	WR16(devAddr, QAM_FQ_MODE__A, data);
+	WR16(dev_addr, QAM_DQ_MODE__A, data);
+	WR16(dev_addr, QAM_FQ_MODE__A, data);
 
 	for (i = 0; i < 28; i++) {
-		RR16(devAddr, QAM_DQ_TAP_IM_EL0__A + (2 * i), &data);
-		WR16(devAddr, QAM_DQ_TAP_IM_EL0__A + (2 * i), -data);
+		RR16(dev_addr, QAM_DQ_TAP_IM_EL0__A + (2 * i), &data);
+		WR16(dev_addr, QAM_DQ_TAP_IM_EL0__A + (2 * i), -data);
 	}
 
 	for (i = 0; i < 24; i++) {
-		RR16(devAddr, QAM_FQ_TAP_IM_EL0__A + (2 * i), &data);
-		WR16(devAddr, QAM_FQ_TAP_IM_EL0__A + (2 * i), -data);
+		RR16(dev_addr, QAM_FQ_TAP_IM_EL0__A + (2 * i), &data);
+		WR16(dev_addr, QAM_FQ_TAP_IM_EL0__A + (2 * i), -data);
 	}
 
-	data = equMode;
-	WR16(devAddr, QAM_DQ_MODE__A, data);
-	WR16(devAddr, QAM_FQ_MODE__A, data);
+	data = equ_mode;
+	WR16(dev_addr, QAM_DQ_MODE__A, data);
+	WR16(dev_addr, QAM_FQ_MODE__A, data);
 
-	WR16(devAddr, SCU_RAM_QAM_FSM_STATE_TGT__A, 4);
+	WR16(dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 4);
 
 	i = 0;
-	while ((fsmState != 4) && (i++ < 100)) {
-		RR16(devAddr, SCU_RAM_QAM_FSM_STATE__A, &fsmState);
+	while ((fsm_state != 4) && (i++ < 100)) {
+		RR16(dev_addr, SCU_RAM_QAM_FSM_STATE__A, &fsm_state);
 	}
-	WR16(devAddr, SCU_RAM_QAM_CTL_ENA__A, (qamCtlEna | 0x0016));
+	WR16(dev_addr, SCU_RAM_QAM_CTL_ENA__A, (qam_ctl_ena | 0x0016));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -7500,111 +7500,111 @@ rw_error:
 #define  SYNC_FLIPPED   0x2
 #define  SPEC_MIRRORED  0x4
 /**
-* \fn int QAM64Auto ()
+* \fn int qam64auto ()
 * \brief auto do sync pattern switching and mirroring.
 * \param demod:   instance of demod.
 * \param channel: pointer to channel data.
-* \param tunerFreqOffset: tuner frequency offset.
-* \param lockStatus: pointer to lock status.
+* \param tuner_freq_offset: tuner frequency offset.
+* \param lock_status: pointer to lock status.
 * \return int.
 */
 static int
-QAM64Auto(pDRXDemodInstance_t demod,
-	  pDRXChannel_t channel,
-	  s32 tunerFreqOffset, pDRXLockStatus_t lockStatus)
+qam64auto(pdrx_demod_instance_t demod,
+	  pdrx_channel_t channel,
+	  s32 tuner_freq_offset, pdrx_lock_status_t lock_status)
 {
-	DRXSigQuality_t sigQuality;
+	drx_sig_quality_t sig_quality;
 	u16 data = 0;
 	u32 state = NO_LOCK;
-	u32 startTime = 0;
-	u32 dLockedTime = 0;
-	pDRXJData_t extAttr = NULL;
-	u32 timeoutOfs = 0;
+	u32 start_time = 0;
+	u32 d_locked_time = 0;
+	pdrxj_data_t ext_attr = NULL;
+	u32 timeout_ofs = 0;
 
 	/* external attributes for storing aquired channel constellation */
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	*lockStatus = DRX_NOT_LOCKED;
-	startTime = DRXBSP_HST_Clock();
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	*lock_status = DRX_NOT_LOCKED;
+	start_time = drxbsp_hst_clock();
 	state = NO_LOCK;
 	do {
-		CHK_ERROR(CtrlLockStatus(demod, lockStatus));
+		CHK_ERROR(ctrl_lock_status(demod, lock_status));
 
 		switch (state) {
 		case NO_LOCK:
-			if (*lockStatus == DRXJ_DEMOD_LOCK) {
-				CHK_ERROR(CtrlGetQAMSigQuality
-					  (demod, &sigQuality));
-				if (sigQuality.MER > 208) {
+			if (*lock_status == DRXJ_DEMOD_LOCK) {
+				CHK_ERROR(ctrl_get_qam_sig_quality
+					  (demod, &sig_quality));
+				if (sig_quality.MER > 208) {
 					state = DEMOD_LOCKED;
 					/* some delay to see if fec_lock possible TODO find the right value */
-					timeoutOfs += DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;	/* see something, waiting longer */
-					dLockedTime = DRXBSP_HST_Clock();
+					timeout_ofs += DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;	/* see something, waiting longer */
+					d_locked_time = drxbsp_hst_clock();
 				}
 			}
 			break;
 		case DEMOD_LOCKED:
-			if ((*lockStatus == DRXJ_DEMOD_LOCK) &&	/* still demod_lock in 150ms */
-			    ((DRXBSP_HST_Clock() - dLockedTime) >
+			if ((*lock_status == DRXJ_DEMOD_LOCK) &&	/* still demod_lock in 150ms */
+			    ((drxbsp_hst_clock() - d_locked_time) >
 			     DRXJ_QAM_FEC_LOCK_WAITTIME)) {
-				RR16(demod->myI2CDevAddr, QAM_SY_TIMEOUT__A,
+				RR16(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A,
 				     &data);
-				WR16(demod->myI2CDevAddr, QAM_SY_TIMEOUT__A,
+				WR16(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A,
 				     data | 0x1);
 				state = SYNC_FLIPPED;
-				DRXBSP_HST_Sleep(10);
+				drxbsp_hst_sleep(10);
 			}
 			break;
 		case SYNC_FLIPPED:
-			if (*lockStatus == DRXJ_DEMOD_LOCK) {
+			if (*lock_status == DRXJ_DEMOD_LOCK) {
 				if (channel->mirror == DRX_MIRROR_AUTO) {
 					/* flip sync pattern back */
-					RR16(demod->myI2CDevAddr,
+					RR16(demod->my_i2c_dev_addr,
 					     QAM_SY_TIMEOUT__A, &data);
-					WR16(demod->myI2CDevAddr,
+					WR16(demod->my_i2c_dev_addr,
 					     QAM_SY_TIMEOUT__A, data & 0xFFFE);
 					/* flip spectrum */
-					extAttr->mirror = DRX_MIRROR_YES;
-					CHK_ERROR(qamFlipSpec(demod, channel));
+					ext_attr->mirror = DRX_MIRROR_YES;
+					CHK_ERROR(qam_flip_spec(demod, channel));
 					state = SPEC_MIRRORED;
 					/* reset timer TODO: still need 500ms? */
-					startTime = dLockedTime =
-					    DRXBSP_HST_Clock();
-					timeoutOfs = 0;
+					start_time = d_locked_time =
+					    drxbsp_hst_clock();
+					timeout_ofs = 0;
 				} else {	/* no need to wait lock */
 
-					startTime =
-					    DRXBSP_HST_Clock() -
-					    DRXJ_QAM_MAX_WAITTIME - timeoutOfs;
+					start_time =
+					    drxbsp_hst_clock() -
+					    DRXJ_QAM_MAX_WAITTIME - timeout_ofs;
 				}
 			}
 			break;
 		case SPEC_MIRRORED:
-			if ((*lockStatus == DRXJ_DEMOD_LOCK) &&	/* still demod_lock in 150ms */
-			    ((DRXBSP_HST_Clock() - dLockedTime) >
+			if ((*lock_status == DRXJ_DEMOD_LOCK) &&	/* still demod_lock in 150ms */
+			    ((drxbsp_hst_clock() - d_locked_time) >
 			     DRXJ_QAM_FEC_LOCK_WAITTIME)) {
-				CHK_ERROR(CtrlGetQAMSigQuality
-					  (demod, &sigQuality));
-				if (sigQuality.MER > 208) {
-					RR16(demod->myI2CDevAddr,
+				CHK_ERROR(ctrl_get_qam_sig_quality
+					  (demod, &sig_quality));
+				if (sig_quality.MER > 208) {
+					RR16(demod->my_i2c_dev_addr,
 					     QAM_SY_TIMEOUT__A, &data);
-					WR16(demod->myI2CDevAddr,
+					WR16(demod->my_i2c_dev_addr,
 					     QAM_SY_TIMEOUT__A, data | 0x1);
 					/* no need to wait lock */
-					startTime =
-					    DRXBSP_HST_Clock() -
-					    DRXJ_QAM_MAX_WAITTIME - timeoutOfs;
+					start_time =
+					    drxbsp_hst_clock() -
+					    DRXJ_QAM_MAX_WAITTIME - timeout_ofs;
 				}
 			}
 			break;
 		default:
 			break;
 		}
-		DRXBSP_HST_Sleep(10);
+		drxbsp_hst_sleep(10);
 	} while
-	    ((*lockStatus != DRX_LOCKED) &&
-	     (*lockStatus != DRX_NEVER_LOCK) &&
-	     ((DRXBSP_HST_Clock() - startTime) <
-	      (DRXJ_QAM_MAX_WAITTIME + timeoutOfs))
+	    ((*lock_status != DRX_LOCKED) &&
+	     (*lock_status != DRX_NEVER_LOCK) &&
+	     ((drxbsp_hst_clock() - start_time) <
+	      (DRXJ_QAM_MAX_WAITTIME + timeout_ofs))
 	    );
 	/* Returning control to apllication ... */
 
@@ -7614,56 +7614,56 @@ rw_error:
 }
 
 /**
-* \fn int QAM256Auto ()
+* \fn int qam256auto ()
 * \brief auto do sync pattern switching and mirroring.
 * \param demod:   instance of demod.
 * \param channel: pointer to channel data.
-* \param tunerFreqOffset: tuner frequency offset.
-* \param lockStatus: pointer to lock status.
+* \param tuner_freq_offset: tuner frequency offset.
+* \param lock_status: pointer to lock status.
 * \return int.
 */
 static int
-QAM256Auto(pDRXDemodInstance_t demod,
-	   pDRXChannel_t channel,
-	   s32 tunerFreqOffset, pDRXLockStatus_t lockStatus)
+qam256auto(pdrx_demod_instance_t demod,
+	   pdrx_channel_t channel,
+	   s32 tuner_freq_offset, pdrx_lock_status_t lock_status)
 {
-	DRXSigQuality_t sigQuality;
+	drx_sig_quality_t sig_quality;
 	u32 state = NO_LOCK;
-	u32 startTime = 0;
-	u32 dLockedTime = 0;
-	pDRXJData_t extAttr = NULL;
-	u32 timeoutOfs = DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;
+	u32 start_time = 0;
+	u32 d_locked_time = 0;
+	pdrxj_data_t ext_attr = NULL;
+	u32 timeout_ofs = DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;
 
 	/* external attributes for storing aquired channel constellation */
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	*lockStatus = DRX_NOT_LOCKED;
-	startTime = DRXBSP_HST_Clock();
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	*lock_status = DRX_NOT_LOCKED;
+	start_time = drxbsp_hst_clock();
 	state = NO_LOCK;
 	do {
-		CHK_ERROR(CtrlLockStatus(demod, lockStatus));
+		CHK_ERROR(ctrl_lock_status(demod, lock_status));
 		switch (state) {
 		case NO_LOCK:
-			if (*lockStatus == DRXJ_DEMOD_LOCK) {
-				CHK_ERROR(CtrlGetQAMSigQuality
-					  (demod, &sigQuality));
-				if (sigQuality.MER > 268) {
+			if (*lock_status == DRXJ_DEMOD_LOCK) {
+				CHK_ERROR(ctrl_get_qam_sig_quality
+					  (demod, &sig_quality));
+				if (sig_quality.MER > 268) {
 					state = DEMOD_LOCKED;
-					timeoutOfs += DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;	/* see something, wait longer */
-					dLockedTime = DRXBSP_HST_Clock();
+					timeout_ofs += DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;	/* see something, wait longer */
+					d_locked_time = drxbsp_hst_clock();
 				}
 			}
 			break;
 		case DEMOD_LOCKED:
-			if (*lockStatus == DRXJ_DEMOD_LOCK) {
+			if (*lock_status == DRXJ_DEMOD_LOCK) {
 				if ((channel->mirror == DRX_MIRROR_AUTO) &&
-				    ((DRXBSP_HST_Clock() - dLockedTime) >
+				    ((drxbsp_hst_clock() - d_locked_time) >
 				     DRXJ_QAM_FEC_LOCK_WAITTIME)) {
-					extAttr->mirror = DRX_MIRROR_YES;
-					CHK_ERROR(qamFlipSpec(demod, channel));
+					ext_attr->mirror = DRX_MIRROR_YES;
+					CHK_ERROR(qam_flip_spec(demod, channel));
 					state = SPEC_MIRRORED;
 					/* reset timer TODO: still need 300ms? */
-					startTime = DRXBSP_HST_Clock();
-					timeoutOfs = -DRXJ_QAM_MAX_WAITTIME / 2;
+					start_time = drxbsp_hst_clock();
+					timeout_ofs = -DRXJ_QAM_MAX_WAITTIME / 2;
 				}
 			}
 			break;
@@ -7672,12 +7672,12 @@ QAM256Auto(pDRXDemodInstance_t demod,
 		default:
 			break;
 		}
-		DRXBSP_HST_Sleep(10);
+		drxbsp_hst_sleep(10);
 	} while
-	    ((*lockStatus < DRX_LOCKED) &&
-	     (*lockStatus != DRX_NEVER_LOCK) &&
-	     ((DRXBSP_HST_Clock() - startTime) <
-	      (DRXJ_QAM_MAX_WAITTIME + timeoutOfs)));
+	    ((*lock_status < DRX_LOCKED) &&
+	     (*lock_status != DRX_NEVER_LOCK) &&
+	     ((drxbsp_hst_clock() - start_time) <
+	      (DRXJ_QAM_MAX_WAITTIME + timeout_ofs)));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -7685,22 +7685,22 @@ rw_error:
 }
 
 /**
-* \fn int SetQAMChannel ()
+* \fn int set_qamChannel ()
 * \brief Set QAM channel according to the requested constellation.
 * \param demod:   instance of demod.
 * \param channel: pointer to channel data.
 * \return int.
 */
 static int
-SetQAMChannel(pDRXDemodInstance_t demod,
-	      pDRXChannel_t channel, s32 tunerFreqOffset)
+set_qamChannel(pdrx_demod_instance_t demod,
+	      pdrx_channel_t channel, s32 tuner_freq_offset)
 {
-	DRXLockStatus_t lockStatus = DRX_NOT_LOCKED;
-	pDRXJData_t extAttr = NULL;
-	bool autoFlag = false;
+	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	pdrxj_data_t ext_attr = NULL;
+	bool auto_flag = false;
 
 	/* external attributes for storing aquired channel constellation */
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* set QAM channel constellation */
 	switch (channel->constellation) {
@@ -7709,110 +7709,110 @@ SetQAMChannel(pDRXDemodInstance_t demod,
 	case DRX_CONSTELLATION_QAM64:
 	case DRX_CONSTELLATION_QAM128:
 	case DRX_CONSTELLATION_QAM256:
-		extAttr->constellation = channel->constellation;
+		ext_attr->constellation = channel->constellation;
 		if (channel->mirror == DRX_MIRROR_AUTO) {
-			extAttr->mirror = DRX_MIRROR_NO;
+			ext_attr->mirror = DRX_MIRROR_NO;
 		} else {
-			extAttr->mirror = channel->mirror;
+			ext_attr->mirror = channel->mirror;
 		}
-		CHK_ERROR(SetQAM
-			  (demod, channel, tunerFreqOffset, QAM_SET_OP_ALL));
+		CHK_ERROR(set_qam
+			  (demod, channel, tuner_freq_offset, QAM_SET_OP_ALL));
 
-		if ((extAttr->standard == DRX_STANDARD_ITU_B) &&
+		if ((ext_attr->standard == DRX_STANDARD_ITU_B) &&
 		    (channel->constellation == DRX_CONSTELLATION_QAM64)) {
-			CHK_ERROR(QAM64Auto
-				  (demod, channel, tunerFreqOffset,
-				   &lockStatus));
+			CHK_ERROR(qam64auto
+				  (demod, channel, tuner_freq_offset,
+				   &lock_status));
 		}
 
-		if ((extAttr->standard == DRX_STANDARD_ITU_B) &&
+		if ((ext_attr->standard == DRX_STANDARD_ITU_B) &&
 		    (channel->mirror == DRX_MIRROR_AUTO) &&
 		    (channel->constellation == DRX_CONSTELLATION_QAM256)) {
-			CHK_ERROR(QAM256Auto
-				  (demod, channel, tunerFreqOffset,
-				   &lockStatus));
+			CHK_ERROR(qam256auto
+				  (demod, channel, tuner_freq_offset,
+				   &lock_status));
 		}
 		break;
 	case DRX_CONSTELLATION_AUTO:	/* for channel scan */
-		if (extAttr->standard == DRX_STANDARD_ITU_B) {
-			autoFlag = true;
+		if (ext_attr->standard == DRX_STANDARD_ITU_B) {
+			auto_flag = true;
 			/* try to lock default QAM constellation: QAM64 */
 			channel->constellation = DRX_CONSTELLATION_QAM256;
-			extAttr->constellation = DRX_CONSTELLATION_QAM256;
+			ext_attr->constellation = DRX_CONSTELLATION_QAM256;
 			if (channel->mirror == DRX_MIRROR_AUTO) {
-				extAttr->mirror = DRX_MIRROR_NO;
+				ext_attr->mirror = DRX_MIRROR_NO;
 			} else {
-				extAttr->mirror = channel->mirror;
+				ext_attr->mirror = channel->mirror;
 			}
-			CHK_ERROR(SetQAM
-				  (demod, channel, tunerFreqOffset,
+			CHK_ERROR(set_qam
+				  (demod, channel, tuner_freq_offset,
 				   QAM_SET_OP_ALL));
-			CHK_ERROR(QAM256Auto
-				  (demod, channel, tunerFreqOffset,
-				   &lockStatus));
+			CHK_ERROR(qam256auto
+				  (demod, channel, tuner_freq_offset,
+				   &lock_status));
 
-			if (lockStatus < DRX_LOCKED) {
+			if (lock_status < DRX_LOCKED) {
 				/* QAM254 not locked -> try to lock QAM64 constellation */
 				channel->constellation =
 				    DRX_CONSTELLATION_QAM64;
-				extAttr->constellation =
+				ext_attr->constellation =
 				    DRX_CONSTELLATION_QAM64;
 				if (channel->mirror == DRX_MIRROR_AUTO) {
-					extAttr->mirror = DRX_MIRROR_NO;
+					ext_attr->mirror = DRX_MIRROR_NO;
 				} else {
-					extAttr->mirror = channel->mirror;
+					ext_attr->mirror = channel->mirror;
 				}
 				{
-					u16 qamCtlEna = 0;
-					RR16(demod->myI2CDevAddr,
+					u16 qam_ctl_ena = 0;
+					RR16(demod->my_i2c_dev_addr,
 					     SCU_RAM_QAM_CTL_ENA__A,
-					     &qamCtlEna);
-					WR16(demod->myI2CDevAddr,
+					     &qam_ctl_ena);
+					WR16(demod->my_i2c_dev_addr,
 					     SCU_RAM_QAM_CTL_ENA__A,
-					     qamCtlEna &
+					     qam_ctl_ena &
 					     ~SCU_RAM_QAM_CTL_ENA_ACQ__M);
-					WR16(demod->myI2CDevAddr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2);	/* force to rate hunting */
+					WR16(demod->my_i2c_dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2);	/* force to rate hunting */
 
-					CHK_ERROR(SetQAM
+					CHK_ERROR(set_qam
 						  (demod, channel,
-						   tunerFreqOffset,
+						   tuner_freq_offset,
 						   QAM_SET_OP_CONSTELLATION));
-					WR16(demod->myI2CDevAddr,
-					     SCU_RAM_QAM_CTL_ENA__A, qamCtlEna);
+					WR16(demod->my_i2c_dev_addr,
+					     SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena);
 				}
-				CHK_ERROR(QAM64Auto
-					  (demod, channel, tunerFreqOffset,
-					   &lockStatus));
+				CHK_ERROR(qam64auto
+					  (demod, channel, tuner_freq_offset,
+					   &lock_status));
 			}
 			channel->constellation = DRX_CONSTELLATION_AUTO;
-		} else if (extAttr->standard == DRX_STANDARD_ITU_C) {
+		} else if (ext_attr->standard == DRX_STANDARD_ITU_C) {
 			channel->constellation = DRX_CONSTELLATION_QAM64;
-			extAttr->constellation = DRX_CONSTELLATION_QAM64;
-			autoFlag = true;
+			ext_attr->constellation = DRX_CONSTELLATION_QAM64;
+			auto_flag = true;
 
 			if (channel->mirror == DRX_MIRROR_AUTO) {
-				extAttr->mirror = DRX_MIRROR_NO;
+				ext_attr->mirror = DRX_MIRROR_NO;
 			} else {
-				extAttr->mirror = channel->mirror;
+				ext_attr->mirror = channel->mirror;
 			}
 			{
-				u16 qamCtlEna = 0;
-				RR16(demod->myI2CDevAddr,
-				     SCU_RAM_QAM_CTL_ENA__A, &qamCtlEna);
-				WR16(demod->myI2CDevAddr,
+				u16 qam_ctl_ena = 0;
+				RR16(demod->my_i2c_dev_addr,
+				     SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena);
+				WR16(demod->my_i2c_dev_addr,
 				     SCU_RAM_QAM_CTL_ENA__A,
-				     qamCtlEna & ~SCU_RAM_QAM_CTL_ENA_ACQ__M);
-				WR16(demod->myI2CDevAddr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2);	/* force to rate hunting */
+				     qam_ctl_ena & ~SCU_RAM_QAM_CTL_ENA_ACQ__M);
+				WR16(demod->my_i2c_dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2);	/* force to rate hunting */
 
-				CHK_ERROR(SetQAM
-					  (demod, channel, tunerFreqOffset,
+				CHK_ERROR(set_qam
+					  (demod, channel, tuner_freq_offset,
 					   QAM_SET_OP_CONSTELLATION));
-				WR16(demod->myI2CDevAddr,
-				     SCU_RAM_QAM_CTL_ENA__A, qamCtlEna);
+				WR16(demod->my_i2c_dev_addr,
+				     SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena);
 			}
-			CHK_ERROR(QAM64Auto
-				  (demod, channel, tunerFreqOffset,
-				   &lockStatus));
+			CHK_ERROR(qam64auto
+				  (demod, channel, tuner_freq_offset,
+				   &lock_status));
 			channel->constellation = DRX_CONSTELLATION_AUTO;
 		} else {
 			channel->constellation = DRX_CONSTELLATION_AUTO;
@@ -7826,7 +7826,7 @@ SetQAMChannel(pDRXDemodInstance_t demod,
 	return (DRX_STS_OK);
 rw_error:
 	/* restore starting value */
-	if (autoFlag)
+	if (auto_flag)
 		channel->constellation = DRX_CONSTELLATION_AUTO;
 	return (DRX_STS_ERROR);
 }
@@ -7834,7 +7834,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn static short GetQAMRSErrCount(struct i2c_device_addr *devAddr)
+* \fn static short GetQAMRSErr_count(struct i2c_device_addr *dev_addr)
 * \brief Get RS error count in QAM mode (used for post RS BER calculation)
 * \return Error code
 *
@@ -7842,39 +7842,39 @@ rw_error:
 *
 */
 static int
-GetQAMRSErrCount(struct i2c_device_addr *devAddr, pDRXJRSErrors_t RSErrors)
+GetQAMRSErr_count(struct i2c_device_addr *dev_addr, p_drxjrs_errors_t rs_errors)
 {
-	u16 nrBitErrors = 0,
-	    nrSymbolErrors = 0,
-	    nrPacketErrors = 0, nrFailures = 0, nrSncParFailCount = 0;
+	u16 nr_bit_errors = 0,
+	    nr_symbol_errors = 0,
+	    nr_packet_errors = 0, nr_failures = 0, nr_snc_par_fail_count = 0;
 
 	/* check arguments */
-	if (devAddr == NULL) {
+	if (dev_addr == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
 	/* all reported errors are received in the  */
 	/* most recently finished measurment period */
 	/*   no of pre RS bit errors */
-	RR16(devAddr, FEC_RS_NR_BIT_ERRORS__A, &nrBitErrors);
+	RR16(dev_addr, FEC_RS_NR_BIT_ERRORS__A, &nr_bit_errors);
 	/*   no of symbol errors      */
-	RR16(devAddr, FEC_RS_NR_SYMBOL_ERRORS__A, &nrSymbolErrors);
+	RR16(dev_addr, FEC_RS_NR_SYMBOL_ERRORS__A, &nr_symbol_errors);
 	/*   no of packet errors      */
-	RR16(devAddr, FEC_RS_NR_PACKET_ERRORS__A, &nrPacketErrors);
+	RR16(dev_addr, FEC_RS_NR_PACKET_ERRORS__A, &nr_packet_errors);
 	/*   no of failures to decode */
-	RR16(devAddr, FEC_RS_NR_FAILURES__A, &nrFailures);
+	RR16(dev_addr, FEC_RS_NR_FAILURES__A, &nr_failures);
 	/*   no of post RS bit erros  */
-	RR16(devAddr, FEC_OC_SNC_FAIL_COUNT__A, &nrSncParFailCount);
+	RR16(dev_addr, FEC_OC_SNC_FAIL_COUNT__A, &nr_snc_par_fail_count);
 	/* TODO: NOTE */
 	/* These register values are fetched in non-atomic fashion           */
 	/* It is possible that the read values contain unrelated information */
 
-	RSErrors->nrBitErrors = nrBitErrors & FEC_RS_NR_BIT_ERRORS__M;
-	RSErrors->nrSymbolErrors = nrSymbolErrors & FEC_RS_NR_SYMBOL_ERRORS__M;
-	RSErrors->nrPacketErrors = nrPacketErrors & FEC_RS_NR_PACKET_ERRORS__M;
-	RSErrors->nrFailures = nrFailures & FEC_RS_NR_FAILURES__M;
-	RSErrors->nrSncParFailCount =
-	    nrSncParFailCount & FEC_OC_SNC_FAIL_COUNT__M;
+	rs_errors->nr_bit_errors = nr_bit_errors & FEC_RS_NR_BIT_ERRORS__M;
+	rs_errors->nr_symbol_errors = nr_symbol_errors & FEC_RS_NR_SYMBOL_ERRORS__M;
+	rs_errors->nr_packet_errors = nr_packet_errors & FEC_RS_NR_PACKET_ERRORS__M;
+	rs_errors->nr_failures = nr_failures & FEC_RS_NR_FAILURES__M;
+	rs_errors->nr_snc_par_fail_count =
+	    nr_snc_par_fail_count & FEC_OC_SNC_FAIL_COUNT__M;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -7884,86 +7884,86 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetQAMSigQuality()
+* \fn int ctrl_get_qam_sig_quality()
 * \brief Retreive QAM signal quality from device.
 * \param devmod Pointer to demodulator instance.
-* \param sigQuality Pointer to signal quality data.
+* \param sig_quality Pointer to signal quality data.
 * \return int.
-* \retval DRX_STS_OK sigQuality contains valid data.
-* \retval DRX_STS_INVALID_ARG sigQuality is NULL.
-* \retval DRX_STS_ERROR Erroneous data, sigQuality contains invalid data.
+* \retval DRX_STS_OK sig_quality contains valid data.
+* \retval DRX_STS_INVALID_ARG sig_quality is NULL.
+* \retval DRX_STS_ERROR Erroneous data, sig_quality contains invalid data.
 
 *  Pre-condition: Device must be started and in lock.
 */
 static int
-CtrlGetQAMSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
+ctrl_get_qam_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	enum drx_modulation constellation = DRX_CONSTELLATION_UNKNOWN;
-	DRXJRSErrors_t measuredRSErrors = { 0, 0, 0, 0, 0 };
+	DRXJrs_errors_t measuredrs_errors = { 0, 0, 0, 0, 0 };
 
-	u32 preBitErrRS = 0;	/* pre RedSolomon Bit Error Rate */
-	u32 postBitErrRS = 0;	/* post RedSolomon Bit Error Rate */
-	u32 pktErrs = 0;	/* no of packet errors in RS */
-	u16 qamSlErrPower = 0;	/* accumulated error between raw and sliced symbols */
-	u16 qsymErrVD = 0;	/* quadrature symbol errors in QAM_VD */
-	u16 fecOcPeriod = 0;	/* SNC sync failure measurement period */
-	u16 fecRsPrescale = 0;	/* ReedSolomon Measurement Prescale */
-	u16 fecRsPeriod = 0;	/* Value for corresponding I2C register */
+	u32 pre_bit_err_rs = 0;	/* pre RedSolomon Bit Error Rate */
+	u32 post_bit_err_rs = 0;	/* post RedSolomon Bit Error Rate */
+	u32 pkt_errs = 0;	/* no of packet errors in RS */
+	u16 qam_sl_err_power = 0;	/* accumulated error between raw and sliced symbols */
+	u16 qsym_err_vd = 0;	/* quadrature symbol errors in QAM_VD */
+	u16 fec_oc_period = 0;	/* SNC sync failure measurement period */
+	u16 fec_rs_prescale = 0;	/* ReedSolomon Measurement Prescale */
+	u16 fec_rs_period = 0;	/* Value for corresponding I2C register */
 	/* calculation constants */
-	u32 rsBitCnt = 0;	/* RedSolomon Bit Count */
-	u32 qamSlSigPower = 0;	/* used for MER, depends of QAM constellation */
+	u32 rs_bit_cnt = 0;	/* RedSolomon Bit Count */
+	u32 qam_sl_sig_power = 0;	/* used for MER, depends of QAM constellation */
 	/* intermediate results */
 	u32 e = 0;		/* exponent value used for QAM BER/SER */
 	u32 m = 0;		/* mantisa value used for QAM BER/SER */
-	u32 berCnt = 0;	/* BER count */
+	u32 ber_cnt = 0;	/* BER count */
 	/* signal quality info */
-	u32 qamSlMer = 0;	/* QAM MER */
-	u32 qamPreRSBer = 0;	/* Pre RedSolomon BER */
-	u32 qamPostRSBer = 0;	/* Post RedSolomon BER */
-	u32 qamVDSer = 0;	/* ViterbiDecoder SER */
-	u16 qamVdPrescale = 0;	/* Viterbi Measurement Prescale */
-	u16 qamVdPeriod = 0;	/* Viterbi Measurement period */
-	u32 vdBitCnt = 0;	/* ViterbiDecoder Bit Count */
+	u32 qam_sl_mer = 0;	/* QAM MER */
+	u32 qam_pre_rs_ber = 0;	/* Pre RedSolomon BER */
+	u32 qam_post_rs_ber = 0;	/* Post RedSolomon BER */
+	u32 qam_vd_ser = 0;	/* ViterbiDecoder SER */
+	u16 qam_vd_prescale = 0;	/* Viterbi Measurement Prescale */
+	u16 qam_vd_period = 0;	/* Viterbi Measurement period */
+	u32 vd_bit_cnt = 0;	/* ViterbiDecoder Bit Count */
 
 	/* get device basic information */
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	constellation = extAttr->constellation;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	constellation = ext_attr->constellation;
 
 	/* read the physical registers */
 	/*   Get the RS error data */
-	CHK_ERROR(GetQAMRSErrCount(devAddr, &measuredRSErrors));
+	CHK_ERROR(GetQAMRSErr_count(dev_addr, &measuredrs_errors));
 	/* get the register value needed for MER */
-	RR16(devAddr, QAM_SL_ERR_POWER__A, &qamSlErrPower);
+	RR16(dev_addr, QAM_SL_ERR_POWER__A, &qam_sl_err_power);
 	/* get the register value needed for post RS BER */
-	RR16(devAddr, FEC_OC_SNC_FAIL_PERIOD__A, &fecOcPeriod);
+	RR16(dev_addr, FEC_OC_SNC_FAIL_PERIOD__A, &fec_oc_period);
 
 	/* get constants needed for signal quality calculation */
-	fecRsPeriod = extAttr->fecRsPeriod;
-	fecRsPrescale = extAttr->fecRsPrescale;
-	rsBitCnt = fecRsPeriod * fecRsPrescale * extAttr->fecRsPlen;
-	qamVdPeriod = extAttr->qamVdPeriod;
-	qamVdPrescale = extAttr->qamVdPrescale;
-	vdBitCnt = qamVdPeriod * qamVdPrescale * extAttr->fecVdPlen;
+	fec_rs_period = ext_attr->fec_rs_period;
+	fec_rs_prescale = ext_attr->fec_rs_prescale;
+	rs_bit_cnt = fec_rs_period * fec_rs_prescale * ext_attr->fec_rs_plen;
+	qam_vd_period = ext_attr->qam_vd_period;
+	qam_vd_prescale = ext_attr->qam_vd_prescale;
+	vd_bit_cnt = qam_vd_period * qam_vd_prescale * ext_attr->fec_vd_plen;
 
 	/* DRXJ_QAM_SL_SIG_POWER_QAMxxx  * 4     */
 	switch (constellation) {
 	case DRX_CONSTELLATION_QAM16:
-		qamSlSigPower = DRXJ_QAM_SL_SIG_POWER_QAM16 << 2;
+		qam_sl_sig_power = DRXJ_QAM_SL_SIG_POWER_QAM16 << 2;
 		break;
 	case DRX_CONSTELLATION_QAM32:
-		qamSlSigPower = DRXJ_QAM_SL_SIG_POWER_QAM32 << 2;
+		qam_sl_sig_power = DRXJ_QAM_SL_SIG_POWER_QAM32 << 2;
 		break;
 	case DRX_CONSTELLATION_QAM64:
-		qamSlSigPower = DRXJ_QAM_SL_SIG_POWER_QAM64 << 2;
+		qam_sl_sig_power = DRXJ_QAM_SL_SIG_POWER_QAM64 << 2;
 		break;
 	case DRX_CONSTELLATION_QAM128:
-		qamSlSigPower = DRXJ_QAM_SL_SIG_POWER_QAM128 << 2;
+		qam_sl_sig_power = DRXJ_QAM_SL_SIG_POWER_QAM128 << 2;
 		break;
 	case DRX_CONSTELLATION_QAM256:
-		qamSlSigPower = DRXJ_QAM_SL_SIG_POWER_QAM256 << 2;
+		qam_sl_sig_power = DRXJ_QAM_SL_SIG_POWER_QAM256 << 2;
 		break;
 	default:
 		return (DRX_STS_ERROR);
@@ -7975,12 +7975,12 @@ CtrlGetQAMSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
 	/* MER is good if it is above 27.5 for QAM256 or 21.5 for QAM64 */
 
 	/* 10.0*log10(qam_sl_sig_power * 4.0 / qam_sl_err_power); */
-	if (qamSlErrPower == 0)
-		qamSlMer = 0;
+	if (qam_sl_err_power == 0)
+		qam_sl_mer = 0;
 	else
-		qamSlMer =
-		    Log10Times100(qamSlSigPower) -
-		    Log10Times100((u32) qamSlErrPower);
+		qam_sl_mer =
+		    log1_times100(qam_sl_sig_power) -
+		    log1_times100((u32) qam_sl_err_power);
 
 	/* ----------------------------------------- */
 	/* Pre Viterbi Symbol Error Rate Calculation */
@@ -7989,20 +7989,20 @@ CtrlGetQAMSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
 
 	/* get the register value */
 	/*   no of quadrature symbol errors */
-	RR16(devAddr, QAM_VD_NR_QSYM_ERRORS__A, &qsymErrVD);
+	RR16(dev_addr, QAM_VD_NR_QSYM_ERRORS__A, &qsym_err_vd);
 	/* Extract the Exponent and the Mantisa  */
 	/* of number of quadrature symbol errors */
-	e = (qsymErrVD & QAM_VD_NR_QSYM_ERRORS_EXP__M) >>
+	e = (qsym_err_vd & QAM_VD_NR_QSYM_ERRORS_EXP__M) >>
 	    QAM_VD_NR_QSYM_ERRORS_EXP__B;
-	m = (qsymErrVD & QAM_VD_NR_SYMBOL_ERRORS_FIXED_MANT__M) >>
+	m = (qsym_err_vd & QAM_VD_NR_SYMBOL_ERRORS_FIXED_MANT__M) >>
 	    QAM_VD_NR_SYMBOL_ERRORS_FIXED_MANT__B;
 
-	if ((m << e) >> 3 > 549752) {	/* the max of FracTimes1e6 */
-		qamVDSer = 500000;	/* clip BER 0.5 */
+	if ((m << e) >> 3 > 549752) {	/* the max of frac_times1e6 */
+		qam_vd_ser = 500000;	/* clip BER 0.5 */
 	} else {
-		qamVDSer =
-		    FracTimes1e6(m << ((e > 2) ? (e - 3) : e),
-				 vdBitCnt * ((e > 2) ? 1 : 8) / 8);
+		qam_vd_ser =
+		    frac_times1e6(m << ((e > 2) ? (e - 3) : e),
+				 vd_bit_cnt * ((e > 2) ? 1 : 8) / 8);
 	}
 
 	/* --------------------------------------- */
@@ -8011,23 +8011,23 @@ CtrlGetQAMSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
 	/* pre RS BER is good if it is below 3.5e-4 */
 
 	/* get the register values */
-	preBitErrRS = (u32) measuredRSErrors.nrBitErrors;
-	pktErrs = postBitErrRS = (u32) measuredRSErrors.nrSncParFailCount;
+	pre_bit_err_rs = (u32) measuredrs_errors.nr_bit_errors;
+	pkt_errs = post_bit_err_rs = (u32) measuredrs_errors.nr_snc_par_fail_count;
 
 	/* Extract the Exponent and the Mantisa of the */
 	/* pre Reed-Solomon bit error count            */
-	e = (preBitErrRS & FEC_RS_NR_BIT_ERRORS_EXP__M) >>
+	e = (pre_bit_err_rs & FEC_RS_NR_BIT_ERRORS_EXP__M) >>
 	    FEC_RS_NR_BIT_ERRORS_EXP__B;
-	m = (preBitErrRS & FEC_RS_NR_BIT_ERRORS_FIXED_MANT__M) >>
+	m = (pre_bit_err_rs & FEC_RS_NR_BIT_ERRORS_FIXED_MANT__M) >>
 	    FEC_RS_NR_BIT_ERRORS_FIXED_MANT__B;
 
-	berCnt = m << e;
+	ber_cnt = m << e;
 
-	/*qamPreRSBer = FracTimes1e6( berCnt, rsBitCnt ); */
-	if (m > (rsBitCnt >> (e + 1)) || (rsBitCnt >> e) == 0) {
-		qamPreRSBer = 500000;	/* clip BER 0.5 */
+	/*qam_pre_rs_ber = frac_times1e6( ber_cnt, rs_bit_cnt ); */
+	if (m > (rs_bit_cnt >> (e + 1)) || (rs_bit_cnt >> e) == 0) {
+		qam_pre_rs_ber = 500000;	/* clip BER 0.5 */
 	} else {
-		qamPreRSBer = FracTimes1e6(m, rsBitCnt >> e);
+		qam_pre_rs_ber = frac_times1e6(m, rs_bit_cnt >> e);
 	}
 
 	/* post RS BER = 1000000* (11.17 * FEC_OC_SNC_FAIL_COUNT__A) /  */
@@ -8041,27 +8041,27 @@ CtrlGetQAMSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
 
 	   Precision errors still possible.
 	 */
-	e = postBitErrRS * 742686;
-	m = fecOcPeriod * 100;
-	if (fecOcPeriod == 0)
-		qamPostRSBer = 0xFFFFFFFF;
+	e = post_bit_err_rs * 742686;
+	m = fec_oc_period * 100;
+	if (fec_oc_period == 0)
+		qam_post_rs_ber = 0xFFFFFFFF;
 	else
-		qamPostRSBer = e / m;
+		qam_post_rs_ber = e / m;
 
 	/* fill signal quality data structure */
-	sigQuality->MER = ((u16) qamSlMer);
-	if (extAttr->standard == DRX_STANDARD_ITU_B) {
-		sigQuality->preViterbiBER = qamVDSer;
+	sig_quality->MER = ((u16) qam_sl_mer);
+	if (ext_attr->standard == DRX_STANDARD_ITU_B) {
+		sig_quality->pre_viterbi_ber = qam_vd_ser;
 	} else {
-		sigQuality->preViterbiBER = qamPreRSBer;
+		sig_quality->pre_viterbi_ber = qam_pre_rs_ber;
 	}
-	sigQuality->postViterbiBER = qamPreRSBer;
-	sigQuality->postReedSolomonBER = qamPostRSBer;
-	sigQuality->scaleFactorBER = ((u32) 1000000);
+	sig_quality->post_viterbi_ber = qam_pre_rs_ber;
+	sig_quality->post_reed_solomon_ber = qam_post_rs_ber;
+	sig_quality->scale_factor_ber = ((u32) 1000000);
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
-	CHK_ERROR(GetAccPktErr(demod, &sigQuality->packetError));
+	CHK_ERROR(get_acc_pkt_err(demod, &sig_quality->packet_error));
 #else
-	sigQuality->packetError = ((u16) pktErrs);
+	sig_quality->packet_error = ((u16) pkt_errs);
 #endif
 
 	return (DRX_STS_OK);
@@ -8070,45 +8070,45 @@ rw_error:
 }
 
 /**
-* \fn int CtrlGetQAMConstel()
+* \fn int ctrl_get_qam_constel()
 * \brief Retreive a QAM constellation point via I2C.
 * \param demod Pointer to demodulator instance.
-* \param complexNr Pointer to the structure in which to store the
+* \param complex_nr Pointer to the structure in which to store the
 		   constellation point.
 * \return int.
 */
 static int
-CtrlGetQAMConstel(pDRXDemodInstance_t demod, pDRXComplex_t complexNr)
+ctrl_get_qam_constel(pdrx_demod_instance_t demod, pdrx_complex_t complex_nr)
 {
-	u16 fecOcOcrMode = 0;
+	u16 fec_oc_ocr_mode = 0;
 			      /**< FEC OCR grabber configuration        */
-	u16 qamSlCommMb = 0;/**< QAM SL MB configuration              */
-	u16 qamSlCommMbInit = 0;
+	u16 qam_sl_comm_mb = 0;/**< QAM SL MB configuration              */
+	u16 qam_sl_comm_mbInit = 0;
 			      /**< QAM SL MB intial configuration       */
 	u16 im = 0;	      /**< constellation Im part                */
 	u16 re = 0;	      /**< constellation Re part                */
 	u32 data = 0;
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 				     /**< device address */
 
 	/* read device info */
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* TODO: */
 	/* Monitor bus grabbing is an open external interface issue  */
 	/* Needs to be checked when external interface PG is updated */
 
 	/* Configure MB (Monitor bus) */
-	RR16(devAddr, QAM_SL_COMM_MB__A, &qamSlCommMbInit);
+	RR16(dev_addr, QAM_SL_COMM_MB__A, &qam_sl_comm_mbInit);
 	/* set observe flag & MB mux */
-	qamSlCommMb = qamSlCommMbInit & (~(QAM_SL_COMM_MB_OBS__M +
+	qam_sl_comm_mb = qam_sl_comm_mbInit & (~(QAM_SL_COMM_MB_OBS__M +
 					   QAM_SL_COMM_MB_MUX_OBS__M));
-	qamSlCommMb |= (QAM_SL_COMM_MB_OBS_ON +
+	qam_sl_comm_mb |= (QAM_SL_COMM_MB_OBS_ON +
 			QAM_SL_COMM_MB_MUX_OBS_CONST_CORR);
-	WR16(devAddr, QAM_SL_COMM_MB__A, qamSlCommMb);
+	WR16(dev_addr, QAM_SL_COMM_MB__A, qam_sl_comm_mb);
 
 	/* Enable MB grabber in the FEC OC */
-	fecOcOcrMode = (/* output select:  observe bus */
+	fec_oc_ocr_mode = (/* output select:  observe bus */
 			       (FEC_OC_OCR_MODE_MB_SELECT__M &
 				(0x0 << FEC_OC_OCR_MODE_MB_SELECT__B)) |
 			       /* grabber enable: on          */
@@ -8120,13 +8120,13 @@ CtrlGetQAMConstel(pDRXDemodInstance_t demod, pDRXComplex_t complexNr)
 			       /* grabber mode:   continuous  */
 			       (FEC_OC_OCR_MODE_GRAB_COUNTED__M &
 				(0x0 << FEC_OC_OCR_MODE_GRAB_COUNTED__B)));
-	WR16(devAddr, FEC_OC_OCR_MODE__A, fecOcOcrMode);
+	WR16(dev_addr, FEC_OC_OCR_MODE__A, fec_oc_ocr_mode);
 
 	/* Disable MB grabber in the FEC OC */
-	WR16(devAddr, FEC_OC_OCR_MODE__A, 0x00);
+	WR16(dev_addr, FEC_OC_OCR_MODE__A, 0x00);
 
 	/* read data */
-	RR32(devAddr, FEC_OC_OCR_GRAB_RD0__A, &data);
+	RR32(dev_addr, FEC_OC_OCR_GRAB_RD0__A, &data);
 	re = (u16) (data & FEC_OC_OCR_GRAB_RD0__M);
 	im = (u16) ((data >> 16) & FEC_OC_OCR_GRAB_RD1__M);
 
@@ -8140,11 +8140,11 @@ CtrlGetQAMConstel(pDRXDemodInstance_t demod, pDRXComplex_t complexNr)
 	if ((im & 0x0200) == 0x0200) {
 		im |= 0xFC00;
 	}
-	complexNr->re = ((s16) re);
-	complexNr->im = ((s16) im);
+	complex_nr->re = ((s16) re);
+	complex_nr->im = ((s16) im);
 
 	/* Restore MB (Monitor bus) */
-	WR16(devAddr, QAM_SL_COMM_MB__A, qamSlCommMbInit);
+	WR16(dev_addr, QAM_SL_COMM_MB__A, qam_sl_comm_mbInit);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8199,7 +8199,7 @@ rw_error:
       will reset most of these settings. To avoid that the end user apllication
       has to perform these settings each time the ATV or FM standards is
       selected the driver will shadow these settings. This enables the end user
-      to perform the settings only once after a DRX_Open(). The driver must
+      to perform the settings only once after a drx_open(). The driver must
       write the shadow settings to HW/SCU incase:
 	 ( setstandard FM/ATV) ||
 	 ( settings have changed && FM/ATV standard is active)
@@ -8219,13 +8219,13 @@ rw_error:
 /* -------------------------------------------------------------------------- */
 
 /**
-* \brief Get array index for atv coef (extAttr->atvTopCoefX[index])
+* \brief Get array index for atv coef (ext_attr->atvTopCoefX[index])
 * \param standard
 * \param pointer to index
 * \return int.
 *
 */
-static int AtvEquCoefIndex(enum drx_standard standard, int *index)
+static int atv_equ_coef_index(enum drx_standard standard, int *index)
 {
 	switch (standard) {
 	case DRX_STANDARD_PAL_SECAM_BG:
@@ -8260,66 +8260,66 @@ static int AtvEquCoefIndex(enum drx_standard standard, int *index)
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int AtvUpdateConfig ()
+* \fn int atv_update_config ()
 * \brief Flush changes in ATV shadow registers to physical registers.
 * \param demod instance of demodulator
-* \param forceUpdate don't look at standard or change flags, flush all.
+* \param force_update don't look at standard or change flags, flush all.
 * \return int.
 *
 */
 static int
-AtvUpdateConfig(pDRXDemodInstance_t demod, bool forceUpdate)
+atv_update_config(pdrx_demod_instance_t demod, bool force_update)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* equalizer coefficients */
-	if (forceUpdate ||
-	    ((extAttr->atvCfgChangedFlags & DRXJ_ATV_CHANGED_COEF) != 0)) {
+	if (force_update ||
+	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_COEF) != 0)) {
 		int index = 0;
 
-		CHK_ERROR(AtvEquCoefIndex(extAttr->standard, &index));
-		WR16(devAddr, ATV_TOP_EQU0__A, extAttr->atvTopEqu0[index]);
-		WR16(devAddr, ATV_TOP_EQU1__A, extAttr->atvTopEqu1[index]);
-		WR16(devAddr, ATV_TOP_EQU2__A, extAttr->atvTopEqu2[index]);
-		WR16(devAddr, ATV_TOP_EQU3__A, extAttr->atvTopEqu3[index]);
+		CHK_ERROR(atv_equ_coef_index(ext_attr->standard, &index));
+		WR16(dev_addr, ATV_TOP_EQU0__A, ext_attr->atv_top_equ0[index]);
+		WR16(dev_addr, ATV_TOP_EQU1__A, ext_attr->atv_top_equ1[index]);
+		WR16(dev_addr, ATV_TOP_EQU2__A, ext_attr->atv_top_equ2[index]);
+		WR16(dev_addr, ATV_TOP_EQU3__A, ext_attr->atv_top_equ3[index]);
 	}
 
 	/* bypass fast carrier recovery */
-	if (forceUpdate) {
+	if (force_update) {
 		u16 data = 0;
 
-		RR16(devAddr, IQM_RT_ROT_BP__A, &data);
+		RR16(dev_addr, IQM_RT_ROT_BP__A, &data);
 		data &= (~((u16) IQM_RT_ROT_BP_ROT_OFF__M));
-		if (extAttr->phaseCorrectionBypass) {
+		if (ext_attr->phase_correction_bypass) {
 			data |= IQM_RT_ROT_BP_ROT_OFF_OFF;
 		} else {
 			data |= IQM_RT_ROT_BP_ROT_OFF_ACTIVE;
 		}
-		WR16(devAddr, IQM_RT_ROT_BP__A, data);
+		WR16(dev_addr, IQM_RT_ROT_BP__A, data);
 	}
 
 	/* peak filter setting */
-	if (forceUpdate ||
-	    ((extAttr->atvCfgChangedFlags & DRXJ_ATV_CHANGED_PEAK_FLT) != 0)) {
-		WR16(devAddr, ATV_TOP_VID_PEAK__A, extAttr->atvTopVidPeak);
+	if (force_update ||
+	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_PEAK_FLT) != 0)) {
+		WR16(dev_addr, ATV_TOP_VID_PEAK__A, ext_attr->atv_top_vid_peak);
 	}
 
 	/* noise filter setting */
-	if (forceUpdate ||
-	    ((extAttr->atvCfgChangedFlags & DRXJ_ATV_CHANGED_NOISE_FLT) != 0)) {
-		WR16(devAddr, ATV_TOP_NOISE_TH__A, extAttr->atvTopNoiseTh);
+	if (force_update ||
+	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_NOISE_FLT) != 0)) {
+		WR16(dev_addr, ATV_TOP_NOISE_TH__A, ext_attr->atv_top_noise_th);
 	}
 
 	/* SIF attenuation */
-	if (forceUpdate ||
-	    ((extAttr->atvCfgChangedFlags & DRXJ_ATV_CHANGED_SIF_ATT) != 0)) {
+	if (force_update ||
+	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_SIF_ATT) != 0)) {
 		u16 attenuation = 0;
 
-		switch (extAttr->sifAttenuation) {
+		switch (ext_attr->sif_attenuation) {
 		case DRXJ_SIF_ATTENUATION_0DB:
 			attenuation = ATV_TOP_AF_SIF_ATT_0DB;
 			break;
@@ -8336,30 +8336,30 @@ AtvUpdateConfig(pDRXDemodInstance_t demod, bool forceUpdate)
 			return DRX_STS_ERROR;
 			break;
 		}
-		WR16(devAddr, ATV_TOP_AF_SIF_ATT__A, attenuation);
+		WR16(dev_addr, ATV_TOP_AF_SIF_ATT__A, attenuation);
 	}
 
 	/* SIF & CVBS enable */
-	if (forceUpdate ||
-	    ((extAttr->atvCfgChangedFlags & DRXJ_ATV_CHANGED_OUTPUT) != 0)) {
+	if (force_update ||
+	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_OUTPUT) != 0)) {
 		u16 data = 0;
 
-		RR16(devAddr, ATV_TOP_STDBY__A, &data);
-		if (extAttr->enableCVBSOutput) {
+		RR16(dev_addr, ATV_TOP_STDBY__A, &data);
+		if (ext_attr->enable_cvbs_output) {
 			data |= ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE;
 		} else {
 			data &= (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE);
 		}
 
-		if (extAttr->enableSIFOutput) {
+		if (ext_attr->enable_sif_output) {
 			data &= (~ATV_TOP_STDBY_SIF_STDBY_STANDBY);
 		} else {
 			data |= ATV_TOP_STDBY_SIF_STDBY_STANDBY;
 		}
-		WR16(devAddr, ATV_TOP_STDBY__A, data);
+		WR16(dev_addr, ATV_TOP_STDBY__A, data);
 	}
 
-	extAttr->atvCfgChangedFlags = 0;
+	ext_attr->atv_cfg_changed_flags = 0;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8368,26 +8368,26 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int CtrlSetCfgATVOutput()
+* \fn int ctrl_set_cfg_atv_output()
 * \brief Configure ATV ouputs
 * \param demod instance of demodulator
-* \param outputCfg output configuaration
+* \param output_cfg output configuaration
 * \return int.
 *
 */
 static int
-CtrlSetCfgATVOutput(pDRXDemodInstance_t demod, pDRXJCfgAtvOutput_t outputCfg)
+ctrl_set_cfg_atv_output(pdrx_demod_instance_t demod, p_drxj_cfg_atv_output_t output_cfg)
 {
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
 	/* Check arguments */
-	if (outputCfg == NULL) {
+	if (output_cfg == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	if (outputCfg->enableSIFOutput) {
-		switch (outputCfg->sifAttenuation) {
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	if (output_cfg->enable_sif_output) {
+		switch (output_cfg->sif_attenuation) {
 		case DRXJ_SIF_ATTENUATION_0DB:	/* fallthrough */
 		case DRXJ_SIF_ATTENUATION_3DB:	/* fallthrough */
 		case DRXJ_SIF_ATTENUATION_6DB:	/* fallthrough */
@@ -8399,23 +8399,23 @@ CtrlSetCfgATVOutput(pDRXDemodInstance_t demod, pDRXJCfgAtvOutput_t outputCfg)
 			break;
 		}
 
-		if (extAttr->sifAttenuation != outputCfg->sifAttenuation) {
-			extAttr->sifAttenuation = outputCfg->sifAttenuation;
-			extAttr->atvCfgChangedFlags |= DRXJ_ATV_CHANGED_SIF_ATT;
+		if (ext_attr->sif_attenuation != output_cfg->sif_attenuation) {
+			ext_attr->sif_attenuation = output_cfg->sif_attenuation;
+			ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_SIF_ATT;
 		}
 	}
 
-	if (extAttr->enableCVBSOutput != outputCfg->enableCVBSOutput) {
-		extAttr->enableCVBSOutput = outputCfg->enableCVBSOutput;
-		extAttr->atvCfgChangedFlags |= DRXJ_ATV_CHANGED_OUTPUT;
+	if (ext_attr->enable_cvbs_output != output_cfg->enable_cvbs_output) {
+		ext_attr->enable_cvbs_output = output_cfg->enable_cvbs_output;
+		ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_OUTPUT;
 	}
 
-	if (extAttr->enableSIFOutput != outputCfg->enableSIFOutput) {
-		extAttr->enableSIFOutput = outputCfg->enableSIFOutput;
-		extAttr->atvCfgChangedFlags |= DRXJ_ATV_CHANGED_OUTPUT;
+	if (ext_attr->enable_sif_output != output_cfg->enable_sif_output) {
+		ext_attr->enable_sif_output = output_cfg->enable_sif_output;
+		ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_OUTPUT;
 	}
 
-	CHK_ERROR(AtvUpdateConfig(demod, false));
+	CHK_ERROR(atv_update_config(demod, false));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8425,7 +8425,7 @@ rw_error:
 /* -------------------------------------------------------------------------- */
 #ifndef DRXJ_DIGITAL_ONLY
 /**
-* \fn int CtrlSetCfgAtvEquCoef()
+* \fn int ctrl_set_cfg_atv_equ_coef()
 * \brief Set ATV equalizer coefficients
 * \param demod instance of demodulator
 * \param coef  the equalizer coefficients
@@ -8433,15 +8433,15 @@ rw_error:
 *
 */
 static int
-CtrlSetCfgAtvEquCoef(pDRXDemodInstance_t demod, pDRXJCfgAtvEquCoef_t coef)
+ctrl_set_cfg_atv_equ_coef(pdrx_demod_instance_t demod, p_drxj_cfg_atv_equ_coef_t coef)
 {
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	int index;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* current standard needs to be an ATV standard */
-	if (!DRXJ_ISATVSTD(extAttr->standard)) {
+	if (!DRXJ_ISATVSTD(ext_attr->standard)) {
 		return DRX_STS_ERROR;
 	}
 
@@ -8458,14 +8458,14 @@ CtrlSetCfgAtvEquCoef(pDRXDemodInstance_t demod, pDRXJCfgAtvEquCoef_t coef)
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	CHK_ERROR(AtvEquCoefIndex(extAttr->standard, &index));
-	extAttr->atvTopEqu0[index] = coef->coef0;
-	extAttr->atvTopEqu1[index] = coef->coef1;
-	extAttr->atvTopEqu2[index] = coef->coef2;
-	extAttr->atvTopEqu3[index] = coef->coef3;
-	extAttr->atvCfgChangedFlags |= DRXJ_ATV_CHANGED_COEF;
+	CHK_ERROR(atv_equ_coef_index(ext_attr->standard, &index));
+	ext_attr->atv_top_equ0[index] = coef->coef0;
+	ext_attr->atv_top_equ1[index] = coef->coef1;
+	ext_attr->atv_top_equ2[index] = coef->coef2;
+	ext_attr->atv_top_equ3[index] = coef->coef3;
+	ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_COEF;
 
-	CHK_ERROR(AtvUpdateConfig(demod, false));
+	CHK_ERROR(atv_update_config(demod, false));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8474,7 +8474,7 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int CtrlGetCfgAtvEquCoef()
+* \fn int ctrl_get_cfg_atv_equ_coef()
 * \brief Get ATV equ coef settings
 * \param demod instance of demodulator
 * \param coef The ATV equ coefficients
@@ -8487,15 +8487,15 @@ rw_error:
 *
 */
 static int
-CtrlGetCfgAtvEquCoef(pDRXDemodInstance_t demod, pDRXJCfgAtvEquCoef_t coef)
+ctrl_get_cfg_atv_equ_coef(pdrx_demod_instance_t demod, p_drxj_cfg_atv_equ_coef_t coef)
 {
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	int index = 0;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* current standard needs to be an ATV standard */
-	if (!DRXJ_ISATVSTD(extAttr->standard)) {
+	if (!DRXJ_ISATVSTD(ext_attr->standard)) {
 		return DRX_STS_ERROR;
 	}
 
@@ -8504,11 +8504,11 @@ CtrlGetCfgAtvEquCoef(pDRXDemodInstance_t demod, pDRXJCfgAtvEquCoef_t coef)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	CHK_ERROR(AtvEquCoefIndex(extAttr->standard, &index));
-	coef->coef0 = extAttr->atvTopEqu0[index];
-	coef->coef1 = extAttr->atvTopEqu1[index];
-	coef->coef2 = extAttr->atvTopEqu2[index];
-	coef->coef3 = extAttr->atvTopEqu3[index];
+	CHK_ERROR(atv_equ_coef_index(ext_attr->standard, &index));
+	coef->coef0 = ext_attr->atv_top_equ0[index];
+	coef->coef1 = ext_attr->atv_top_equ1[index];
+	coef->coef2 = ext_attr->atv_top_equ2[index];
+	coef->coef3 = ext_attr->atv_top_equ3[index];
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8517,7 +8517,7 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int CtrlSetCfgAtvMisc()
+* \fn int ctrl_set_cfg_atv_misc()
 * \brief Set misc. settings for ATV.
 * \param demod instance of demodulator
 * \param
@@ -8525,31 +8525,31 @@ rw_error:
 *
 */
 static int
-CtrlSetCfgAtvMisc(pDRXDemodInstance_t demod, pDRXJCfgAtvMisc_t settings)
+ctrl_set_cfg_atv_misc(pdrx_demod_instance_t demod, p_drxj_cfg_atv_misc_t settings)
 {
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
 	/* Check arguments */
 	if ((settings == NULL) ||
-	    ((settings->peakFilter) < (s16) (-8)) ||
-	    ((settings->peakFilter) > (s16) (15)) ||
-	    ((settings->noiseFilter) > 15)) {
+	    ((settings->peak_filter) < (s16) (-8)) ||
+	    ((settings->peak_filter) > (s16) (15)) ||
+	    ((settings->noise_filter) > 15)) {
 		return (DRX_STS_INVALID_ARG);
 	}
 	/* if */
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	if (settings->peakFilter != extAttr->atvTopVidPeak) {
-		extAttr->atvTopVidPeak = settings->peakFilter;
-		extAttr->atvCfgChangedFlags |= DRXJ_ATV_CHANGED_PEAK_FLT;
+	if (settings->peak_filter != ext_attr->atv_top_vid_peak) {
+		ext_attr->atv_top_vid_peak = settings->peak_filter;
+		ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_PEAK_FLT;
 	}
 
-	if (settings->noiseFilter != extAttr->atvTopNoiseTh) {
-		extAttr->atvTopNoiseTh = settings->noiseFilter;
-		extAttr->atvCfgChangedFlags |= DRXJ_ATV_CHANGED_NOISE_FLT;
+	if (settings->noise_filter != ext_attr->atv_top_noise_th) {
+		ext_attr->atv_top_noise_th = settings->noise_filter;
+		ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_NOISE_FLT;
 	}
 
-	CHK_ERROR(AtvUpdateConfig(demod, false));
+	CHK_ERROR(atv_update_config(demod, false));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8558,7 +8558,7 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int  CtrlGetCfgAtvMisc()
+* \fn int  ctrl_get_cfg_atv_misc()
 * \brief Get misc settings of ATV.
 * \param demod instance of demodulator
 * \param settings misc. ATV settings
@@ -8570,19 +8570,19 @@ rw_error:
 * regitsers.
 */
 static int
-CtrlGetCfgAtvMisc(pDRXDemodInstance_t demod, pDRXJCfgAtvMisc_t settings)
+ctrl_get_cfg_atv_misc(pdrx_demod_instance_t demod, p_drxj_cfg_atv_misc_t settings)
 {
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
 	/* Check arguments */
 	if (settings == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	settings->peakFilter = extAttr->atvTopVidPeak;
-	settings->noiseFilter = extAttr->atvTopNoiseTh;
+	settings->peak_filter = ext_attr->atv_top_vid_peak;
+	settings->noise_filter = ext_attr->atv_top_noise_th;
 
 	return (DRX_STS_OK);
 }
@@ -8591,36 +8591,36 @@ CtrlGetCfgAtvMisc(pDRXDemodInstance_t demod, pDRXJCfgAtvMisc_t settings)
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int  CtrlGetCfgAtvOutput()
+* \fn int  ctrl_get_cfg_atv_output()
 * \brief
 * \param demod instance of demodulator
-* \param outputCfg output configuaration
+* \param output_cfg output configuaration
 * \return int.
 *
 */
 static int
-CtrlGetCfgAtvOutput(pDRXDemodInstance_t demod, pDRXJCfgAtvOutput_t outputCfg)
+ctrl_get_cfg_atv_output(pdrx_demod_instance_t demod, p_drxj_cfg_atv_output_t output_cfg)
 {
 	u16 data = 0;
 
 	/* Check arguments */
-	if (outputCfg == NULL) {
+	if (output_cfg == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	RR16(demod->myI2CDevAddr, ATV_TOP_STDBY__A, &data);
+	RR16(demod->my_i2c_dev_addr, ATV_TOP_STDBY__A, &data);
 	if (data & ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE) {
-		outputCfg->enableCVBSOutput = true;
+		output_cfg->enable_cvbs_output = true;
 	} else {
-		outputCfg->enableCVBSOutput = false;
+		output_cfg->enable_cvbs_output = false;
 	}
 
 	if (data & ATV_TOP_STDBY_SIF_STDBY_STANDBY) {
-		outputCfg->enableSIFOutput = false;
+		output_cfg->enable_sif_output = false;
 	} else {
-		outputCfg->enableSIFOutput = true;
-		RR16(demod->myI2CDevAddr, ATV_TOP_AF_SIF_ATT__A, &data);
-		outputCfg->sifAttenuation = (DRXJSIFAttenuation_t) data;
+		output_cfg->enable_sif_output = true;
+		RR16(demod->my_i2c_dev_addr, ATV_TOP_AF_SIF_ATT__A, &data);
+		output_cfg->sif_attenuation = (drxjsif_attenuation_t) data;
 	}
 
 	return (DRX_STS_OK);
@@ -8630,29 +8630,29 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int  CtrlGetCfgAtvAgcStatus()
+* \fn int  ctrl_get_cfg_atv_agc_status()
 * \brief
 * \param demod instance of demodulator
-* \param agcStatus agc status
+* \param agc_status agc status
 * \return int.
 *
 */
 static int
-CtrlGetCfgAtvAgcStatus(pDRXDemodInstance_t demod,
-		       pDRXJCfgAtvAgcStatus_t agcStatus)
+ctrl_get_cfg_atv_agc_status(pdrx_demod_instance_t demod,
+		       p_drxj_cfg_atv_agc_status_t agc_status)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	u16 data = 0;
 	u32 tmp = 0;
 
 	/* Check arguments */
-	if (agcStatus == NULL) {
+	if (agc_status == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/*
 	   RFgain = (IQM_AF_AGC_RF__A * 26.75)/1000 (uA)
@@ -8660,12 +8660,12 @@ CtrlGetCfgAtvAgcStatus(pDRXDemodInstance_t demod,
 
 	   IQM_AF_AGC_RF__A * 27 is 20 bits worst case.
 	 */
-	RR16(devAddr, IQM_AF_AGC_RF__A, &data);
+	RR16(dev_addr, IQM_AF_AGC_RF__A, &data);
 	tmp = ((u32) data) * 27 - ((u32) (data >> 2));	/* nA */
-	agcStatus->rfAgcGain = (u16) (tmp / 1000);	/* uA */
+	agc_status->rf_agc_gain = (u16) (tmp / 1000);	/* uA */
 	/* rounding */
 	if (tmp % 1000 >= 500) {
-		(agcStatus->rfAgcGain)++;
+		(agc_status->rf_agc_gain)++;
 	}
 
 	/*
@@ -8674,12 +8674,12 @@ CtrlGetCfgAtvAgcStatus(pDRXDemodInstance_t demod,
 
 	   IQM_AF_AGC_IF__A * 27 is 20 bits worst case.
 	 */
-	RR16(devAddr, IQM_AF_AGC_IF__A, &data);
+	RR16(dev_addr, IQM_AF_AGC_IF__A, &data);
 	tmp = ((u32) data) * 27 - ((u32) (data >> 2));	/* nA */
-	agcStatus->ifAgcGain = (u16) (tmp / 1000);	/* uA */
+	agc_status->if_agc_gain = (u16) (tmp / 1000);	/* uA */
 	/* rounding */
 	if (tmp % 1000 >= 500) {
-		(agcStatus->ifAgcGain)++;
+		(agc_status->if_agc_gain)++;
 	}
 
 	/*
@@ -8690,14 +8690,14 @@ CtrlGetCfgAtvAgcStatus(pDRXDemodInstance_t demod,
 	   = (ATV_TOP_SFR_VID_GAIN__A/32) - 75 (in 0.1 dB)
 	 */
 
-	SARR16(devAddr, SCU_RAM_ATV_VID_GAIN_HI__A, &data);
+	SARR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, &data);
 	/* dividing by 32 inclusive rounding */
 	data >>= 4;
 	if ((data & 1) != 0) {
 		data++;
 	}
 	data >>= 1;
-	agcStatus->videoAgcGain = ((s16) data) - 75;	/* 0.1 dB */
+	agc_status->video_agc_gain = ((s16) data) - 75;	/* 0.1 dB */
 
 	/*
 	   audioGain = (SCU_RAM_ATV_SIF_GAIN__A -8)* 0.05 (dB)
@@ -8707,22 +8707,22 @@ CtrlGetCfgAtvAgcStatus(pDRXDemodInstance_t demod,
 	   = (SCU_RAM_ATV_SIF_GAIN__A/2) - 4 (in 0.1 dB)
 	 */
 
-	SARR16(devAddr, SCU_RAM_ATV_SIF_GAIN__A, &data);
+	SARR16(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, &data);
 	data &= SCU_RAM_ATV_SIF_GAIN__M;
 	/* dividing by 2 inclusive rounding */
 	if ((data & 1) != 0) {
 		data++;
 	}
 	data >>= 1;
-	agcStatus->audioAgcGain = ((s16) data) - 4;	/* 0.1 dB */
+	agc_status->audio_agc_gain = ((s16) data) - 4;	/* 0.1 dB */
 
 	/* Loop gain's */
-	SARR16(devAddr, SCU_RAM_AGC_KI__A, &data);
-	agcStatus->videoAgcLoopGain =
+	SARR16(dev_addr, SCU_RAM_AGC_KI__A, &data);
+	agc_status->video_agc_loop_gain =
 	    ((data & SCU_RAM_AGC_KI_DGAIN__M) >> SCU_RAM_AGC_KI_DGAIN__B);
-	agcStatus->rfAgcLoopGain =
+	agc_status->rf_agc_loop_gain =
 	    ((data & SCU_RAM_AGC_KI_RF__M) >> SCU_RAM_AGC_KI_RF__B);
-	agcStatus->ifAgcLoopGain =
+	agc_status->if_agc_loop_gain =
 	    ((data & SCU_RAM_AGC_KI_IF__M) >> SCU_RAM_AGC_KI_IF__B);
 
 	return (DRX_STS_OK);
@@ -8733,7 +8733,7 @@ rw_error:
 /* -------------------------------------------------------------------------- */
 
 /**
-* \fn int PowerUpATV ()
+* \fn int power_up_atv ()
 * \brief Power up ATV.
 * \param demod instance of demodulator
 * \param standard either NTSC or FM (sub strandard for ATV )
@@ -8742,21 +8742,21 @@ rw_error:
 * * Starts ATV and IQM
 * * AUdio already started during standard init for ATV.
 */
-static int PowerUpATV(pDRXDemodInstance_t demod, enum drx_standard standard)
+static int power_up_atv(pdrx_demod_instance_t demod, enum drx_standard standard)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* ATV NTSC */
-	WR16(devAddr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_ACTIVE);
 	/* turn on IQM_AF */
-	CHK_ERROR(SetIqmAf(demod, true));
-	CHK_ERROR(ADCSynchronization(demod));
+	CHK_ERROR(set_iqm_af(demod, true));
+	CHK_ERROR(adc_synchronization(demod));
 
-	WR16(devAddr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
 
 	/* Audio, already done during set standard */
 
@@ -8769,7 +8769,7 @@ rw_error:
 /* -------------------------------------------------------------------------- */
 
 /**
-* \fn int PowerDownATV ()
+* \fn int power_down_atv ()
 * \brief Power down ATV.
 * \param demod instance of demodulator
 * \param standard either NTSC or FM (sub strandard for ATV )
@@ -8780,46 +8780,46 @@ rw_error:
 *  Calls audio power down
 */
 static int
-PowerDownATV(pDRXDemodInstance_t demod, enum drx_standard standard, bool primary)
+power_down_atv(pdrx_demod_instance_t demod, enum drx_standard standard, bool primary)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	DRXJSCUCmd_t cmdSCU = { /* command      */ 0,
-		/* parameterLen */ 0,
-		/* resultLen    */ 0,
+	struct i2c_device_addr *dev_addr = NULL;
+	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
+		/* parameter_len */ 0,
+		/* result_len    */ 0,
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
-	u16 cmdResult = 0;
-	pDRXJData_t extAttr = NULL;
+	u16 cmd_result = 0;
+	pdrxj_data_t ext_attr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 	/* ATV NTSC */
 
 	/* Stop ATV SCU (will reset ATV and IQM hardware */
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_ATV |
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_ATV |
 	    SCU_RAM_COMMAND_CMD_DEMOD_STOP;
-	cmdSCU.parameterLen = 0;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = NULL;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 0;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = NULL;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 	/* Disable ATV outputs (ATV reset enables CVBS, undo this) */
-	WR16(devAddr, ATV_TOP_STDBY__A, (ATV_TOP_STDBY_SIF_STDBY_STANDBY &
+	WR16(dev_addr, ATV_TOP_STDBY__A, (ATV_TOP_STDBY_SIF_STDBY_STANDBY &
 					 (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)));
 
-	WR16(devAddr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_STOP);
+	WR16(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_STOP);
 	if (primary == true) {
-		WR16(devAddr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
-		CHK_ERROR(SetIqmAf(demod, false));
+		WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
+		CHK_ERROR(set_iqm_af(demod, false));
 	} else {
-		WR16(devAddr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-		WR16(devAddr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
+		WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
 	}
-	CHK_ERROR(PowerDownAud(demod));
+	CHK_ERROR(power_down_aud(demod));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8828,7 +8828,7 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int SetATVStandard ()
+* \fn int set_atv_standard ()
 * \brief Set up ATV demodulator.
 * \param demod instance of demodulator
 * \param standard either NTSC or FM (sub strandard for ATV )
@@ -8841,7 +8841,7 @@ rw_error:
 #ifndef DRXJ_DIGITAL_ONLY
 #define SCU_RAM_ATV_ENABLE_IIR_WA__A 0x831F6D	/* TODO remove after done with reg import */
 static int
-SetATVStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
+set_atv_standard(pdrx_demod_instance_t demod, enum drx_standard *standard)
 {
 /* TODO: enable alternative for tap settings via external file
 
@@ -9100,338 +9100,338 @@ trouble ?
 		DRXJ_16TO8(70)	/* im27 */
 	};
 
-	struct i2c_device_addr *devAddr = NULL;
-	DRXJSCUCmd_t cmdSCU = { /* command      */ 0,
-		/* parameterLen */ 0,
-		/* resultLen    */ 0,
+	struct i2c_device_addr *dev_addr = NULL;
+	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
+		/* parameter_len */ 0,
+		/* result_len    */ 0,
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
-	u16 cmdResult = 0;
-	u16 cmdParam = 0;
+	u16 cmd_result = 0;
+	u16 cmd_param = 0;
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
-	DRXUCodeInfo_t ucodeInfo;
-	pDRXCommonAttr_t commonAttr = NULL;
+	drxu_code_info_t ucode_info;
+	pdrx_common_attr_t common_attr = NULL;
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
-	commonAttr = demod->myCommonAttr;
+	common_attr = demod->my_common_attr;
 
 	/* Check if audio microcode is already uploaded */
-	if (!(extAttr->flagAudMcUploaded)) {
-		ucodeInfo.mcData = commonAttr->microcode;
-		ucodeInfo.mcSize = commonAttr->microcodeSize;
+	if (!(ext_attr->flag_aud_mc_uploaded)) {
+		ucode_info.mc_data = common_attr->microcode;
+		ucode_info.mc_size = common_attr->microcode_size;
 
 		/* Upload only audio microcode */
-		CHK_ERROR(CtrlUCodeUpload
-			  (demod, &ucodeInfo, UCODE_UPLOAD, true));
+		CHK_ERROR(ctrl_u_codeUpload
+			  (demod, &ucode_info, UCODE_UPLOAD, true));
 
-		if (commonAttr->verifyMicrocode == true) {
-			CHK_ERROR(CtrlUCodeUpload
-				  (demod, &ucodeInfo, UCODE_VERIFY, true));
+		if (common_attr->verify_microcode == true) {
+			CHK_ERROR(ctrl_u_codeUpload
+				  (demod, &ucode_info, UCODE_VERIFY, true));
 		}
 
 		/* Prevent uploading audio microcode again */
-		extAttr->flagAudMcUploaded = true;
+		ext_attr->flag_aud_mc_uploaded = true;
 	}
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 
-	WR16(devAddr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-	WR16(devAddr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+	WR16(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
+	WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
 	/* Reset ATV SCU */
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_ATV |
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_ATV |
 	    SCU_RAM_COMMAND_CMD_DEMOD_RESET;
-	cmdSCU.parameterLen = 0;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = NULL;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 0;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = NULL;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
-	WR16(devAddr, ATV_TOP_MOD_CONTROL__A, ATV_TOP_MOD_CONTROL__PRE);
+	WR16(dev_addr, ATV_TOP_MOD_CONTROL__A, ATV_TOP_MOD_CONTROL__PRE);
 
 	/* TODO remove AUTO/OFF patches after ucode fix. */
 	switch (*standard) {
 	case DRX_STANDARD_NTSC:
 		/* NTSC */
-		cmdParam = SCU_RAM_ATV_STANDARD_STANDARD_MN;
+		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_MN;
 
-		WR16(devAddr, IQM_RT_LO_INCR__A, IQM_RT_LO_INCR_MN);
-		WR16(devAddr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(ntsc_taps_re),
+		WR16(dev_addr, IQM_RT_LO_INCR__A, IQM_RT_LO_INCR_MN);
+		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
+		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(ntsc_taps_re),
 		    ((u8 *) ntsc_taps_re));
-		WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(ntsc_taps_im),
+		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(ntsc_taps_im),
 		    ((u8 *) ntsc_taps_im));
 
-		WR16(devAddr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_MN);
-		WR16(devAddr, ATV_TOP_CR_CONT__A,
+		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_MN);
+		WR16(dev_addr, ATV_TOP_CR_CONT__A,
 		     (ATV_TOP_CR_CONT_CR_P_MN |
 		      ATV_TOP_CR_CONT_CR_D_MN | ATV_TOP_CR_CONT_CR_I_MN));
-		WR16(devAddr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_MN);
-		WR16(devAddr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_MN |
+		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_MN);
+		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_MN |
 					       ATV_TOP_STD_VID_POL_MN));
-		WR16(devAddr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_MN);
+		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_MN);
 
-		WR16(devAddr, SCU_RAM_ATV_AGC_MODE__A,
+		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
 		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM |
 		      SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE));
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(devAddr, SCU_RAM_ATV_AMS_MAX_REF__A,
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
+		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
 		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_BG_MN);
-		extAttr->phaseCorrectionBypass = false;
-		extAttr->enableCVBSOutput = true;
+		ext_attr->phase_correction_bypass = false;
+		ext_attr->enable_cvbs_output = true;
 		break;
 	case DRX_STANDARD_FM:
 		/* FM */
-		cmdParam = SCU_RAM_ATV_STANDARD_STANDARD_FM;
+		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_FM;
 
-		WR16(devAddr, IQM_RT_LO_INCR__A, 2994);
-		WR16(devAddr, IQM_CF_MIDTAP__A, 0);
-		WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(fm_taps_re),
+		WR16(dev_addr, IQM_RT_LO_INCR__A, 2994);
+		WR16(dev_addr, IQM_CF_MIDTAP__A, 0);
+		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(fm_taps_re),
 		    ((u8 *) fm_taps_re));
-		WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(fm_taps_im),
+		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(fm_taps_im),
 		    ((u8 *) fm_taps_im));
-		WR16(devAddr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_FM |
+		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_FM |
 					       ATV_TOP_STD_VID_POL_FM));
-		WR16(devAddr, ATV_TOP_MOD_CONTROL__A, 0);
-		WR16(devAddr, ATV_TOP_CR_CONT__A, 0);
+		WR16(dev_addr, ATV_TOP_MOD_CONTROL__A, 0);
+		WR16(dev_addr, ATV_TOP_CR_CONT__A, 0);
 
-		WR16(devAddr, SCU_RAM_ATV_AGC_MODE__A,
+		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
 		     (SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW |
 		      SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM));
-		WR16(devAddr, IQM_RT_ROT_BP__A, IQM_RT_ROT_BP_ROT_OFF_OFF);
-		extAttr->phaseCorrectionBypass = true;
-		extAttr->enableCVBSOutput = false;
+		WR16(dev_addr, IQM_RT_ROT_BP__A, IQM_RT_ROT_BP_ROT_OFF_OFF);
+		ext_attr->phase_correction_bypass = true;
+		ext_attr->enable_cvbs_output = false;
 		break;
 	case DRX_STANDARD_PAL_SECAM_BG:
 		/* PAL/SECAM B/G */
-		cmdParam = SCU_RAM_ATV_STANDARD_STANDARD_B;
+		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_B;
 
-		WR16(devAddr, IQM_RT_LO_INCR__A, 1820);	/* TODO check with IS */
-		WR16(devAddr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(bg_taps_re),
+		WR16(dev_addr, IQM_RT_LO_INCR__A, 1820);	/* TODO check with IS */
+		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
+		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(bg_taps_re),
 		    ((u8 *) bg_taps_re));
-		WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(bg_taps_im),
+		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(bg_taps_im),
 		    ((u8 *) bg_taps_im));
-		WR16(devAddr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_BG);
-		WR16(devAddr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_BG);
-		WR16(devAddr, ATV_TOP_CR_CONT__A,
+		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_BG);
+		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_BG);
+		WR16(dev_addr, ATV_TOP_CR_CONT__A,
 		     (ATV_TOP_CR_CONT_CR_P_BG |
 		      ATV_TOP_CR_CONT_CR_D_BG | ATV_TOP_CR_CONT_CR_I_BG));
-		WR16(devAddr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_BG);
-		WR16(devAddr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_BG |
+		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_BG);
+		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_BG |
 					       ATV_TOP_STD_VID_POL_BG));
-		WR16(devAddr, SCU_RAM_ATV_AGC_MODE__A,
+		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
 		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM |
 		      SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE));
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(devAddr, SCU_RAM_ATV_AMS_MAX_REF__A,
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
+		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
 		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_BG_MN);
-		extAttr->phaseCorrectionBypass = false;
-		extAttr->atvIfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-		extAttr->enableCVBSOutput = true;
+		ext_attr->phase_correction_bypass = false;
+		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+		ext_attr->enable_cvbs_output = true;
 		break;
 	case DRX_STANDARD_PAL_SECAM_DK:
 		/* PAL/SECAM D/K */
-		cmdParam = SCU_RAM_ATV_STANDARD_STANDARD_DK;
+		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_DK;
 
-		WR16(devAddr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
-		WR16(devAddr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
+		WR16(dev_addr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
+		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
+		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
 		    ((u8 *) dk_i_l_lp_taps_re));
-		WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
+		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
 		    ((u8 *) dk_i_l_lp_taps_im));
-		WR16(devAddr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_DK);
-		WR16(devAddr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_DK);
-		WR16(devAddr, ATV_TOP_CR_CONT__A,
+		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_DK);
+		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_DK);
+		WR16(dev_addr, ATV_TOP_CR_CONT__A,
 		     (ATV_TOP_CR_CONT_CR_P_DK |
 		      ATV_TOP_CR_CONT_CR_D_DK | ATV_TOP_CR_CONT_CR_I_DK));
-		WR16(devAddr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_DK);
-		WR16(devAddr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_DK |
+		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_DK);
+		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_DK |
 					       ATV_TOP_STD_VID_POL_DK));
-		WR16(devAddr, SCU_RAM_ATV_AGC_MODE__A,
+		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
 		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM |
 		      SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE));
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(devAddr, SCU_RAM_ATV_AMS_MAX_REF__A,
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
+		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
 		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_DK);
-		extAttr->phaseCorrectionBypass = false;
-		extAttr->atvIfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-		extAttr->enableCVBSOutput = true;
+		ext_attr->phase_correction_bypass = false;
+		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+		ext_attr->enable_cvbs_output = true;
 		break;
 	case DRX_STANDARD_PAL_SECAM_I:
 		/* PAL/SECAM I   */
-		cmdParam = SCU_RAM_ATV_STANDARD_STANDARD_I;
+		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_I;
 
-		WR16(devAddr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
-		WR16(devAddr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
+		WR16(dev_addr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
+		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
+		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
 		    ((u8 *) dk_i_l_lp_taps_re));
-		WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
+		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
 		    ((u8 *) dk_i_l_lp_taps_im));
-		WR16(devAddr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_I);
-		WR16(devAddr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_I);
-		WR16(devAddr, ATV_TOP_CR_CONT__A,
+		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_I);
+		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_I);
+		WR16(dev_addr, ATV_TOP_CR_CONT__A,
 		     (ATV_TOP_CR_CONT_CR_P_I |
 		      ATV_TOP_CR_CONT_CR_D_I | ATV_TOP_CR_CONT_CR_I_I));
-		WR16(devAddr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_I);
-		WR16(devAddr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_I |
+		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_I);
+		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_I |
 					       ATV_TOP_STD_VID_POL_I));
-		WR16(devAddr, SCU_RAM_ATV_AGC_MODE__A,
+		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
 		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM |
 		      SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE));
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(devAddr, SCU_RAM_ATV_AMS_MAX_REF__A,
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
+		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
 		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_I);
-		extAttr->phaseCorrectionBypass = false;
-		extAttr->atvIfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-		extAttr->enableCVBSOutput = true;
+		ext_attr->phase_correction_bypass = false;
+		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+		ext_attr->enable_cvbs_output = true;
 		break;
 	case DRX_STANDARD_PAL_SECAM_L:
 		/* PAL/SECAM L with negative modulation */
-		cmdParam = SCU_RAM_ATV_STANDARD_STANDARD_L;
+		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_L;
 
-		WR16(devAddr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
-		WR16(devAddr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_L);
-		WR16(devAddr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
+		WR16(dev_addr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
+		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_L);
+		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
+		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
 		    ((u8 *) dk_i_l_lp_taps_re));
-		WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
+		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
 		    ((u8 *) dk_i_l_lp_taps_im));
-		WR16(devAddr, ATV_TOP_CR_AMP_TH__A, 0x2);	/* TODO check with IS */
-		WR16(devAddr, ATV_TOP_CR_CONT__A,
+		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, 0x2);	/* TODO check with IS */
+		WR16(dev_addr, ATV_TOP_CR_CONT__A,
 		     (ATV_TOP_CR_CONT_CR_P_L |
 		      ATV_TOP_CR_CONT_CR_D_L | ATV_TOP_CR_CONT_CR_I_L));
-		WR16(devAddr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_L);
-		WR16(devAddr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_L |
+		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_L);
+		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_L |
 					       ATV_TOP_STD_VID_POL_L));
-		WR16(devAddr, SCU_RAM_ATV_AGC_MODE__A,
+		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
 		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_AM |
 		      SCU_RAM_ATV_AGC_MODE_BP_EN_BPC_ENABLE |
 		      SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW));
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(devAddr, SCU_RAM_ATV_AMS_MAX_REF__A,
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
+		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
 		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_LLP);
-		extAttr->phaseCorrectionBypass = false;
-		extAttr->atvIfAgcCfg.ctrlMode = DRX_AGC_CTRL_USER;
-		extAttr->atvIfAgcCfg.outputLevel = extAttr->atvRfAgcCfg.top;
-		extAttr->enableCVBSOutput = true;
+		ext_attr->phase_correction_bypass = false;
+		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_USER;
+		ext_attr->atv_if_agc_cfg.output_level = ext_attr->atv_rf_agc_cfg.top;
+		ext_attr->enable_cvbs_output = true;
 		break;
 	case DRX_STANDARD_PAL_SECAM_LP:
 		/* PAL/SECAM L with positive modulation */
-		cmdParam = SCU_RAM_ATV_STANDARD_STANDARD_LP;
+		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_LP;
 
-		WR16(devAddr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_LP);
-		WR16(devAddr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
-		WR16(devAddr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(devAddr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
+		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_LP);
+		WR16(dev_addr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
+		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
+		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
 		    ((u8 *) dk_i_l_lp_taps_re));
-		WRB(devAddr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
+		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
 		    ((u8 *) dk_i_l_lp_taps_im));
-		WR16(devAddr, ATV_TOP_CR_AMP_TH__A, 0x2);	/* TODO check with IS */
-		WR16(devAddr, ATV_TOP_CR_CONT__A,
+		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, 0x2);	/* TODO check with IS */
+		WR16(dev_addr, ATV_TOP_CR_CONT__A,
 		     (ATV_TOP_CR_CONT_CR_P_LP |
 		      ATV_TOP_CR_CONT_CR_D_LP | ATV_TOP_CR_CONT_CR_I_LP));
-		WR16(devAddr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_LP);
-		WR16(devAddr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_LP |
+		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_LP);
+		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_LP |
 					       ATV_TOP_STD_VID_POL_LP));
-		WR16(devAddr, SCU_RAM_ATV_AGC_MODE__A,
+		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
 		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_AM |
 		      SCU_RAM_ATV_AGC_MODE_BP_EN_BPC_ENABLE |
 		      SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW));
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(devAddr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(devAddr, SCU_RAM_ATV_AMS_MAX_REF__A,
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
+		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
+		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
 		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_LLP);
-		extAttr->phaseCorrectionBypass = false;
-		extAttr->atvIfAgcCfg.ctrlMode = DRX_AGC_CTRL_USER;
-		extAttr->atvIfAgcCfg.outputLevel = extAttr->atvRfAgcCfg.top;
-		extAttr->enableCVBSOutput = true;
+		ext_attr->phase_correction_bypass = false;
+		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_USER;
+		ext_attr->atv_if_agc_cfg.output_level = ext_attr->atv_rf_agc_cfg.top;
+		ext_attr->enable_cvbs_output = true;
 		break;
 	default:
 		return (DRX_STS_ERROR);
 	}
 
 	/* Common initializations FM & NTSC & B/G & D/K & I & L & LP */
-	if (extAttr->hasLNA == false) {
-		WR16(devAddr, IQM_AF_AMUX__A, 0x01);
+	if (ext_attr->has_lna == false) {
+		WR16(dev_addr, IQM_AF_AMUX__A, 0x01);
 	}
 
-	WR16(devAddr, SCU_RAM_ATV_STANDARD__A, 0x002);
-	WR16(devAddr, IQM_AF_CLP_LEN__A, IQM_AF_CLP_LEN_ATV);
-	WR16(devAddr, IQM_AF_CLP_TH__A, IQM_AF_CLP_TH_ATV);
-	WR16(devAddr, IQM_AF_SNS_LEN__A, IQM_AF_SNS_LEN_ATV);
-	CHK_ERROR(CtrlSetCfgPreSaw(demod, &(extAttr->atvPreSawCfg)));
-	WR16(devAddr, IQM_AF_AGC_IF__A, 10248);
+	WR16(dev_addr, SCU_RAM_ATV_STANDARD__A, 0x002);
+	WR16(dev_addr, IQM_AF_CLP_LEN__A, IQM_AF_CLP_LEN_ATV);
+	WR16(dev_addr, IQM_AF_CLP_TH__A, IQM_AF_CLP_TH_ATV);
+	WR16(dev_addr, IQM_AF_SNS_LEN__A, IQM_AF_SNS_LEN_ATV);
+	CHK_ERROR(ctrl_set_cfg_pre_saw(demod, &(ext_attr->atv_pre_saw_cfg)));
+	WR16(dev_addr, IQM_AF_AGC_IF__A, 10248);
 
-	extAttr->iqmRcRateOfs = 0x00200000L;
-	WR32(devAddr, IQM_RC_RATE_OFS_LO__A, extAttr->iqmRcRateOfs);
-	WR16(devAddr, IQM_RC_ADJ_SEL__A, IQM_RC_ADJ_SEL_B_OFF);
-	WR16(devAddr, IQM_RC_STRETCH__A, IQM_RC_STRETCH_ATV);
+	ext_attr->iqm_rc_rate_ofs = 0x00200000L;
+	WR32(dev_addr, IQM_RC_RATE_OFS_LO__A, ext_attr->iqm_rc_rate_ofs);
+	WR16(dev_addr, IQM_RC_ADJ_SEL__A, IQM_RC_ADJ_SEL_B_OFF);
+	WR16(dev_addr, IQM_RC_STRETCH__A, IQM_RC_STRETCH_ATV);
 
-	WR16(devAddr, IQM_RT_ACTIVE__A, IQM_RT_ACTIVE_ACTIVE_RT_ATV_FCR_ON |
+	WR16(dev_addr, IQM_RT_ACTIVE__A, IQM_RT_ACTIVE_ACTIVE_RT_ATV_FCR_ON |
 	     IQM_RT_ACTIVE_ACTIVE_CR_ATV_CR_ON);
 
-	WR16(devAddr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_ATV__M);
-	WR16(devAddr, IQM_CF_SYMMETRIC__A, IQM_CF_SYMMETRIC_IM__M);
+	WR16(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_ATV__M);
+	WR16(dev_addr, IQM_CF_SYMMETRIC__A, IQM_CF_SYMMETRIC_IM__M);
 	/* default: SIF in standby */
-	WR16(devAddr, ATV_TOP_SYNC_SLICE__A, ATV_TOP_SYNC_SLICE_MN);
-	WR16(devAddr, ATV_TOP_MOD_ACCU__A, ATV_TOP_MOD_ACCU__PRE);
+	WR16(dev_addr, ATV_TOP_SYNC_SLICE__A, ATV_TOP_SYNC_SLICE_MN);
+	WR16(dev_addr, ATV_TOP_MOD_ACCU__A, ATV_TOP_MOD_ACCU__PRE);
 
-	WR16(devAddr, SCU_RAM_ATV_SIF_GAIN__A, 0x080);
-	WR16(devAddr, SCU_RAM_ATV_FAGC_TH_RED__A, 10);
-	WR16(devAddr, SCU_RAM_ATV_AAGC_CNT__A, 7);
-	WR16(devAddr, SCU_RAM_ATV_NAGC_KI_MIN__A, 0x0225);
-	WR16(devAddr, SCU_RAM_ATV_NAGC_KI_MAX__A, 0x0547);
-	WR16(devAddr, SCU_RAM_ATV_KI_CHANGE_TH__A, 20);
-	WR16(devAddr, SCU_RAM_ATV_LOCK__A, 0);
+	WR16(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, 0x080);
+	WR16(dev_addr, SCU_RAM_ATV_FAGC_TH_RED__A, 10);
+	WR16(dev_addr, SCU_RAM_ATV_AAGC_CNT__A, 7);
+	WR16(dev_addr, SCU_RAM_ATV_NAGC_KI_MIN__A, 0x0225);
+	WR16(dev_addr, SCU_RAM_ATV_NAGC_KI_MAX__A, 0x0547);
+	WR16(dev_addr, SCU_RAM_ATV_KI_CHANGE_TH__A, 20);
+	WR16(dev_addr, SCU_RAM_ATV_LOCK__A, 0);
 
-	WR16(devAddr, IQM_RT_DELAY__A, IQM_RT_DELAY__PRE);
-	WR16(devAddr, SCU_RAM_ATV_BPC_KI_MIN__A, 531);
-	WR16(devAddr, SCU_RAM_ATV_PAGC_KI_MIN__A, 1061);
-	WR16(devAddr, SCU_RAM_ATV_BP_REF_MIN__A, 100);
-	WR16(devAddr, SCU_RAM_ATV_BP_REF_MAX__A, 260);
-	WR16(devAddr, SCU_RAM_ATV_BP_LVL__A, 0);
-	WR16(devAddr, SCU_RAM_ATV_AMS_MAX__A, 0);
-	WR16(devAddr, SCU_RAM_ATV_AMS_MIN__A, 2047);
-	WR16(devAddr, SCU_RAM_GPIO__A, 0);
+	WR16(dev_addr, IQM_RT_DELAY__A, IQM_RT_DELAY__PRE);
+	WR16(dev_addr, SCU_RAM_ATV_BPC_KI_MIN__A, 531);
+	WR16(dev_addr, SCU_RAM_ATV_PAGC_KI_MIN__A, 1061);
+	WR16(dev_addr, SCU_RAM_ATV_BP_REF_MIN__A, 100);
+	WR16(dev_addr, SCU_RAM_ATV_BP_REF_MAX__A, 260);
+	WR16(dev_addr, SCU_RAM_ATV_BP_LVL__A, 0);
+	WR16(dev_addr, SCU_RAM_ATV_AMS_MAX__A, 0);
+	WR16(dev_addr, SCU_RAM_ATV_AMS_MIN__A, 2047);
+	WR16(dev_addr, SCU_RAM_GPIO__A, 0);
 
 	/* Override reset values with current shadow settings */
-	CHK_ERROR(AtvUpdateConfig(demod, true));
+	CHK_ERROR(atv_update_config(demod, true));
 
 	/* Configure/restore AGC settings */
-	CHK_ERROR(InitAGC(demod));
-	CHK_ERROR(SetAgcIf(demod, &(extAttr->atvIfAgcCfg), false));
-	CHK_ERROR(SetAgcRf(demod, &(extAttr->atvRfAgcCfg), false));
-	CHK_ERROR(CtrlSetCfgPreSaw(demod, &(extAttr->atvPreSawCfg)));
+	CHK_ERROR(init_agc(demod));
+	CHK_ERROR(set_agc_if(demod, &(ext_attr->atv_if_agc_cfg), false));
+	CHK_ERROR(set_agc_rf(demod, &(ext_attr->atv_rf_agc_cfg), false));
+	CHK_ERROR(ctrl_set_cfg_pre_saw(demod, &(ext_attr->atv_pre_saw_cfg)));
 
 	/* Set SCU ATV substandard,assuming this doesn't require running ATV block */
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_ATV |
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_ATV |
 	    SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV;
-	cmdSCU.parameterLen = 1;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = &cmdParam;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 1;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = &cmd_param;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
 	/* turn the analog work around on/off (must after set_env b/c it is set in mc) */
-	if (extAttr->mfx == 0x03) {
-		WR16(devAddr, SCU_RAM_ATV_ENABLE_IIR_WA__A, 0);
+	if (ext_attr->mfx == 0x03) {
+		WR16(dev_addr, SCU_RAM_ATV_ENABLE_IIR_WA__A, 0);
 	} else {
-		WR16(devAddr, SCU_RAM_ATV_ENABLE_IIR_WA__A, 1);
-		WR16(devAddr, SCU_RAM_ATV_IIR_CRIT__A, 225);
+		WR16(dev_addr, SCU_RAM_ATV_ENABLE_IIR_WA__A, 1);
+		WR16(dev_addr, SCU_RAM_ATV_IIR_CRIT__A, 225);
 	}
 
 	return (DRX_STS_OK);
@@ -9444,7 +9444,7 @@ rw_error:
 
 #ifndef DRXJ_DIGITAL_ONLY
 /**
-* \fn int SetATVChannel ()
+* \fn int set_atv_channel ()
 * \brief Set ATV channel.
 * \param demod:   instance of demod.
 * \return int.
@@ -9456,48 +9456,48 @@ rw_error:
 *
 */
 static int
-SetATVChannel(pDRXDemodInstance_t demod,
-	      s32 tunerFreqOffset,
-	      pDRXChannel_t channel, enum drx_standard standard)
+set_atv_channel(pdrx_demod_instance_t demod,
+	      s32 tuner_freq_offset,
+	      pdrx_channel_t channel, enum drx_standard standard)
 {
-	DRXJSCUCmd_t cmdSCU = { /* command      */ 0,
-		/* parameterLen */ 0,
-		/* resultLen    */ 0,
+	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
+		/* parameter_len */ 0,
+		/* result_len    */ 0,
 		/* parameter    */ NULL,
 		/* result       */ NULL
 	};
-	u16 cmdResult = 0;
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
+	u16 cmd_result = 0;
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/*
 	   Program frequency shifter
 	   No need to account for mirroring on RF
 	 */
 	if (channel->mirror == DRX_MIRROR_AUTO) {
-		extAttr->mirror = DRX_MIRROR_NO;
+		ext_attr->mirror = DRX_MIRROR_NO;
 	} else {
-		extAttr->mirror = channel->mirror;
+		ext_attr->mirror = channel->mirror;
 	}
 
-	CHK_ERROR(SetFrequency(demod, channel, tunerFreqOffset));
-	WR16(devAddr, ATV_TOP_CR_FREQ__A, ATV_TOP_CR_FREQ__PRE);
+	CHK_ERROR(set_frequency(demod, channel, tuner_freq_offset));
+	WR16(dev_addr, ATV_TOP_CR_FREQ__A, ATV_TOP_CR_FREQ__PRE);
 
 	/* Start ATV SCU */
-	cmdSCU.command = SCU_RAM_COMMAND_STANDARD_ATV |
+	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_ATV |
 	    SCU_RAM_COMMAND_CMD_DEMOD_START;
-	cmdSCU.parameterLen = 0;
-	cmdSCU.resultLen = 1;
-	cmdSCU.parameter = NULL;
-	cmdSCU.result = &cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 0;
+	cmd_scu.result_len = 1;
+	cmd_scu.parameter = NULL;
+	cmd_scu.result = &cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
-/*   if ( (extAttr->standard == DRX_STANDARD_FM) && (extAttr->flagSetAUDdone == true) )
+/*   if ( (ext_attr->standard == DRX_STANDARD_FM) && (ext_attr->flagSetAUDdone == true) )
    {
-      extAttr->detectedRDS = (bool)false;
+      ext_attr->detectedRDS = (bool)false;
    }*/
 
 	return (DRX_STS_OK);
@@ -9509,7 +9509,7 @@ rw_error:
 /* -------------------------------------------------------------------------- */
 
 /**
-* \fn int GetATVChannel ()
+* \fn int get_atv_channel ()
 * \brief Set ATV channel.
 * \param demod:   instance of demod.
 * \param channel: pointer to channel data.
@@ -9523,18 +9523,18 @@ rw_error:
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-GetATVChannel(pDRXDemodInstance_t demod,
-	      pDRXChannel_t channel, enum drx_standard standard)
+get_atv_channel(pdrx_demod_instance_t demod,
+	      pdrx_channel_t channel, enum drx_standard standard)
 {
 	s32 offset = 0;
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* Bandwidth */
-	channel->bandwidth = ((pDRXJData_t) demod->myExtAttr)->currBandwidth;
+	channel->bandwidth = ((pdrxj_data_t) demod->my_ext_attr)->curr_bandwidth;
 
 	switch (standard) {
 	case DRX_STANDARD_NTSC:
@@ -9543,32 +9543,32 @@ GetATVChannel(pDRXDemodInstance_t demod,
 	case DRX_STANDARD_PAL_SECAM_I:
 	case DRX_STANDARD_PAL_SECAM_L:
 		{
-			u16 measuredOffset = 0;
+			u16 measured_offset = 0;
 
 			/* get measured frequency offset */
-			RR16(devAddr, ATV_TOP_CR_FREQ__A, &measuredOffset);
+			RR16(dev_addr, ATV_TOP_CR_FREQ__A, &measured_offset);
 			/* Signed 8 bit register => sign extension needed */
-			if ((measuredOffset & 0x0080) != 0) {
+			if ((measured_offset & 0x0080) != 0) {
 				/* sign extension */
-				measuredOffset |= 0xFF80;
+				measured_offset |= 0xFF80;
 			}
 			offset +=
-			    (s32) (((s16) measuredOffset) * 10);
+			    (s32) (((s16) measured_offset) * 10);
 			break;
 		}
 	case DRX_STANDARD_PAL_SECAM_LP:
 		{
-			u16 measuredOffset = 0;
+			u16 measured_offset = 0;
 
 			/* get measured frequency offset */
-			RR16(devAddr, ATV_TOP_CR_FREQ__A, &measuredOffset);
+			RR16(dev_addr, ATV_TOP_CR_FREQ__A, &measured_offset);
 			/* Signed 8 bit register => sign extension needed */
-			if ((measuredOffset & 0x0080) != 0) {
+			if ((measured_offset & 0x0080) != 0) {
 				/* sign extension */
-				measuredOffset |= 0xFF80;
+				measured_offset |= 0xFF80;
 			}
 			offset -=
-			    (s32) (((s16) measuredOffset) * 10);
+			    (s32) (((s16) measured_offset) * 10);
 		}
 		break;
 	case DRX_STANDARD_FM:
@@ -9591,13 +9591,13 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int GetAtvSigStrength()
+* \fn int get_atv_sig_strength()
 * \brief Retrieve signal strength for ATV & FM.
 * \param devmod Pointer to demodulator instance.
-* \param sigQuality Pointer to signal strength data; range 0, .. , 100.
+* \param sig_quality Pointer to signal strength data; range 0, .. , 100.
 * \return int.
-* \retval DRX_STS_OK sigStrength contains valid data.
-* \retval DRX_STS_ERROR Erroneous data, sigStrength equals 0.
+* \retval DRX_STS_OK sig_strength contains valid data.
+* \retval DRX_STS_ERROR Erroneous data, sig_strength equals 0.
 *
 * Taking into account:
 *  * digital gain
@@ -9610,72 +9610,72 @@ rw_error:
 *         is not used ?
 */
 static int
-GetAtvSigStrength(pDRXDemodInstance_t demod, u16 *sigStrength)
+get_atv_sig_strength(pdrx_demod_instance_t demod, u16 *sig_strength)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
 	/* All weights must add up to 100 (%)
 	   TODO: change weights when IF ctrl is available */
-	u32 digitalWeight = 50;	/* 0 .. 100 */
-	u32 rfWeight = 50;	/* 0 .. 100 */
-	u32 ifWeight = 0;	/* 0 .. 100 */
+	u32 digital_weight = 50;	/* 0 .. 100 */
+	u32 rf_weight = 50;	/* 0 .. 100 */
+	u32 if_weight = 0;	/* 0 .. 100 */
 
-	u16 digitalCurrGain = 0;
-	u32 digitalMaxGain = 0;
-	u32 digitalMinGain = 0;
-	u16 rfCurrGain = 0;
-	u32 rfMaxGain = 0x800;	/* taken from ucode */
-	u32 rfMinGain = 0x7fff;
-	u16 ifCurrGain = 0;
-	u32 ifMaxGain = 0x800;	/* taken from ucode */
-	u32 ifMinGain = 0x7fff;
+	u16 digital_curr_gain = 0;
+	u32 digital_max_gain = 0;
+	u32 digital_min_gain = 0;
+	u16 rf_curr_gain = 0;
+	u32 rf_max_gain = 0x800;	/* taken from ucode */
+	u32 rf_min_gain = 0x7fff;
+	u16 if_curr_gain = 0;
+	u32 if_max_gain = 0x800;	/* taken from ucode */
+	u32 if_min_gain = 0x7fff;
 
-	u32 digitalStrength = 0;	/* 0.. 100 */
-	u32 rfStrength = 0;	/* 0.. 100 */
-	u32 ifStrength = 0;	/* 0.. 100 */
+	u32 digital_strength = 0;	/* 0.. 100 */
+	u32 rf_strength = 0;	/* 0.. 100 */
+	u32 if_strength = 0;	/* 0.. 100 */
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	*sigStrength = 0;
+	*sig_strength = 0;
 
-	switch (extAttr->standard) {
+	switch (ext_attr->standard) {
 	case DRX_STANDARD_PAL_SECAM_BG:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_DK:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_I:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 	case DRX_STANDARD_NTSC:
-		SARR16(devAddr, SCU_RAM_ATV_VID_GAIN_HI__A, &digitalCurrGain);
-		digitalMaxGain = 22512;	/* taken from ucode */
-		digitalMinGain = 2400;	/* taken from ucode */
+		SARR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, &digital_curr_gain);
+		digital_max_gain = 22512;	/* taken from ucode */
+		digital_min_gain = 2400;	/* taken from ucode */
 		break;
 	case DRX_STANDARD_FM:
-		SARR16(devAddr, SCU_RAM_ATV_SIF_GAIN__A, &digitalCurrGain);
-		digitalMaxGain = 0x4ff;	/* taken from ucode */
-		digitalMinGain = 0;	/* taken from ucode */
+		SARR16(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, &digital_curr_gain);
+		digital_max_gain = 0x4ff;	/* taken from ucode */
+		digital_min_gain = 0;	/* taken from ucode */
 		break;
 	default:
 		return (DRX_STS_ERROR);
 		break;
 	}
-	RR16(devAddr, IQM_AF_AGC_RF__A, &rfCurrGain);
-	RR16(devAddr, IQM_AF_AGC_IF__A, &ifCurrGain);
+	RR16(dev_addr, IQM_AF_AGC_RF__A, &rf_curr_gain);
+	RR16(dev_addr, IQM_AF_AGC_IF__A, &if_curr_gain);
 
 	/* clipping */
-	if (digitalCurrGain >= digitalMaxGain)
-		digitalCurrGain = (u16) digitalMaxGain;
-	if (digitalCurrGain <= digitalMinGain)
-		digitalCurrGain = (u16) digitalMinGain;
-	if (ifCurrGain <= ifMaxGain)
-		ifCurrGain = (u16) ifMaxGain;
-	if (ifCurrGain >= ifMinGain)
-		ifCurrGain = (u16) ifMinGain;
-	if (rfCurrGain <= rfMaxGain)
-		rfCurrGain = (u16) rfMaxGain;
-	if (rfCurrGain >= rfMinGain)
-		rfCurrGain = (u16) rfMinGain;
+	if (digital_curr_gain >= digital_max_gain)
+		digital_curr_gain = (u16) digital_max_gain;
+	if (digital_curr_gain <= digital_min_gain)
+		digital_curr_gain = (u16) digital_min_gain;
+	if (if_curr_gain <= if_max_gain)
+		if_curr_gain = (u16) if_max_gain;
+	if (if_curr_gain >= if_min_gain)
+		if_curr_gain = (u16) if_min_gain;
+	if (rf_curr_gain <= rf_max_gain)
+		rf_curr_gain = (u16) rf_max_gain;
+	if (rf_curr_gain >= rf_min_gain)
+		rf_curr_gain = (u16) rf_min_gain;
 
 	/* TODO: use SCU_RAM_ATV_RAGC_HR__A to shift max and min in case
 	   of clipping at ADC */
@@ -9684,22 +9684,22 @@ GetAtvSigStrength(pDRXDemodInstance_t demod, u16 *sigStrength)
 
 	/* Digital gain  */
 	/* TODO: ADC clipping not handled */
-	digitalStrength = (100 * (digitalMaxGain - (u32) digitalCurrGain)) /
-	    (digitalMaxGain - digitalMinGain);
+	digital_strength = (100 * (digital_max_gain - (u32) digital_curr_gain)) /
+	    (digital_max_gain - digital_min_gain);
 
 	/* TODO: IF gain not implemented yet in microcode, check after impl. */
-	ifStrength = (100 * ((u32) ifCurrGain - ifMaxGain)) /
-	    (ifMinGain - ifMaxGain);
+	if_strength = (100 * ((u32) if_curr_gain - if_max_gain)) /
+	    (if_min_gain - if_max_gain);
 
 	/* Rf gain */
 	/* TODO: ADC clipping not handled */
-	rfStrength = (100 * ((u32) rfCurrGain - rfMaxGain)) /
-	    (rfMinGain - rfMaxGain);
+	rf_strength = (100 * ((u32) rf_curr_gain - rf_max_gain)) /
+	    (rf_min_gain - rf_max_gain);
 
 	/* Compute a weighted signal strength (in %) */
-	*sigStrength = (u16) (digitalWeight * digitalStrength +
-				rfWeight * rfStrength + ifWeight * ifStrength);
-	*sigStrength /= 100;
+	*sig_strength = (u16) (digital_weight * digital_strength +
+				rf_weight * rf_strength + if_weight * if_strength);
+	*sig_strength /= 100;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -9708,31 +9708,31 @@ rw_error:
 
 /* -------------------------------------------------------------------------- */
 /**
-* \fn int AtvSigQuality()
+* \fn int atv_sig_quality()
 * \brief Retrieve signal quality indication for ATV.
 * \param devmod Pointer to demodulator instance.
-* \param sigQuality Pointer to signal quality structure.
+* \param sig_quality Pointer to signal quality structure.
 * \return int.
-* \retval DRX_STS_OK sigQuality contains valid data.
-* \retval DRX_STS_ERROR Erroneous data, sigQuality indicator equals 0.
+* \retval DRX_STS_OK sig_quality contains valid data.
+* \retval DRX_STS_ERROR Erroneous data, sig_quality indicator equals 0.
 *
 *
 */
 static int
-AtvSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
+atv_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	u16 qualityIndicator = 0;
+	struct i2c_device_addr *dev_addr = NULL;
+	u16 quality_indicator = 0;
 
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* defined values for fields not used */
-	sigQuality->MER = 0;
-	sigQuality->preViterbiBER = 0;
-	sigQuality->postViterbiBER = 0;
-	sigQuality->scaleFactorBER = 1;
-	sigQuality->packetError = 0;
-	sigQuality->postReedSolomonBER = 0;
+	sig_quality->MER = 0;
+	sig_quality->pre_viterbi_ber = 0;
+	sig_quality->post_viterbi_ber = 0;
+	sig_quality->scale_factor_ber = 1;
+	sig_quality->packet_error = 0;
+	sig_quality->post_reed_solomon_ber = 0;
 
 	/*
 	   Mapping:
@@ -9741,17 +9741,17 @@ AtvSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
 	   0x700..0x7ff: no signal      => 0%  .. 30%
 	 */
 
-	SARR16(devAddr, SCU_RAM_ATV_CR_LOCK__A, &qualityIndicator);
-	qualityIndicator &= SCU_RAM_ATV_CR_LOCK_CR_LOCK__M;
-	if (qualityIndicator <= 0x80) {
-		sigQuality->indicator =
-		    80 + ((20 * (0x80 - qualityIndicator)) / 0x80);
-	} else if (qualityIndicator <= 0x700) {
-		sigQuality->indicator = 30 +
-		    ((50 * (0x700 - qualityIndicator)) / (0x700 - 0x81));
+	SARR16(dev_addr, SCU_RAM_ATV_CR_LOCK__A, &quality_indicator);
+	quality_indicator &= SCU_RAM_ATV_CR_LOCK_CR_LOCK__M;
+	if (quality_indicator <= 0x80) {
+		sig_quality->indicator =
+		    80 + ((20 * (0x80 - quality_indicator)) / 0x80);
+	} else if (quality_indicator <= 0x700) {
+		sig_quality->indicator = 30 +
+		    ((50 * (0x700 - quality_indicator)) / (0x700 - 0x81));
 	} else {
-		sigQuality->indicator =
-		    (30 * (0x7FF - qualityIndicator)) / (0x7FF - 0x701);
+		sig_quality->indicator =
+		    (30 * (0x7FF - quality_indicator)) / (0x7FF - 0x701);
 	}
 
 	return (DRX_STS_OK);
@@ -9777,20 +9777,20 @@ rw_error:
 * \return int.
 *
 */
-static int PowerUpAud(pDRXDemodInstance_t demod, bool setStandard)
+static int power_up_aud(pdrx_demod_instance_t demod, bool set_standard)
 {
-	DRXAudStandard_t audStandard = DRX_AUD_STANDARD_AUTO;
-	struct i2c_device_addr *devAddr = NULL;
+	drx_aud_standard_t aud_standard = DRX_AUD_STANDARD_AUTO;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
-	WR16(devAddr, AUD_TOP_COMM_EXEC__A, AUD_TOP_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, AUD_TOP_COMM_EXEC__A, AUD_TOP_COMM_EXEC_ACTIVE);
 	/* setup TR interface: R/W mode, fifosize=8 */
-	WR16(devAddr, AUD_TOP_TR_MDE__A, 8);
-	WR16(devAddr, AUD_COMM_EXEC__A, AUD_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, AUD_TOP_TR_MDE__A, 8);
+	WR16(dev_addr, AUD_COMM_EXEC__A, AUD_COMM_EXEC_ACTIVE);
 
-	if (setStandard == true) {
-		CHK_ERROR(AUDCtrlSetStandard(demod, &audStandard));
+	if (set_standard == true) {
+		CHK_ERROR(aud_ctrl_set_standard(demod, &aud_standard));
 	}
 
 	return DRX_STS_OK;
@@ -9806,17 +9806,17 @@ rw_error:
 * \return int.
 *
 */
-static int PowerDownAud(pDRXDemodInstance_t demod)
+static int power_down_aud(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	WR16(devAddr, AUD_COMM_EXEC__A, AUD_COMM_EXEC_STOP);
+	WR16(dev_addr, AUD_COMM_EXEC__A, AUD_COMM_EXEC_STOP);
 
-	extAttr->audData.audioIsActive = false;
+	ext_attr->aud_data.audio_is_active = false;
 
 	return DRX_STS_OK;
 rw_error:
@@ -9831,36 +9831,36 @@ rw_error:
 * \return int.
 *
 */
-static int AUDGetModus(pDRXDemodInstance_t demod, u16 *modus)
+static int aud_get_modus(pdrx_demod_instance_t demod, u16 *modus)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	u16 rModus = 0;
-	u16 rModusHi = 0;
-	u16 rModusLo = 0;
+	u16 r_modus = 0;
+	u16 r_modusHi = 0;
+	u16 r_modusLo = 0;
 
 	if (modus == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* Modus register is combined in to RAM location */
-	RR16(devAddr, AUD_DEM_RAM_MODUS_HI__A, &rModusHi);
-	RR16(devAddr, AUD_DEM_RAM_MODUS_LO__A, &rModusLo);
+	RR16(dev_addr, AUD_DEM_RAM_MODUS_HI__A, &r_modusHi);
+	RR16(dev_addr, AUD_DEM_RAM_MODUS_LO__A, &r_modusLo);
 
-	rModus = ((rModusHi << 12) & AUD_DEM_RAM_MODUS_HI__M)
-	    | (((rModusLo & AUD_DEM_RAM_MODUS_LO__M)));
+	r_modus = ((r_modusHi << 12) & AUD_DEM_RAM_MODUS_HI__M)
+	    | (((r_modusLo & AUD_DEM_RAM_MODUS_LO__M)));
 
-	*modus = rModus;
+	*modus = r_modus;
 
 	return DRX_STS_OK;
 rw_error:
@@ -9872,65 +9872,65 @@ rw_error:
 /**
 * \brief Get audio RDS dat
 * \param demod instance of demodulator
-* \param pointer to DRXCfgAudRDS_t
+* \param pointer to drx_cfg_aud_rds_t
 * \return int.
 *
 */
 static int
-AUDCtrlGetCfgRDS(pDRXDemodInstance_t demod, pDRXCfgAudRDS_t status)
+aud_ctrl_get_cfg_rds(pdrx_demod_instance_t demod, pdrx_cfg_aud_rds_t status)
 {
 	struct i2c_device_addr *addr = NULL;
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	u16 rRDSArrayCntInit = 0;
-	u16 rRDSArrayCntCheck = 0;
-	u16 rRDSData = 0;
-	u16 RDSDataCnt = 0;
+	u16 r_rds_array_cnt_init = 0;
+	u16 r_rds_array_cnt_check = 0;
+	u16 r_rds_data = 0;
+	u16 rds_data_cnt = 0;
 
-	addr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	if (status == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	status->valid = false;
 
-	RR16(addr, AUD_DEM_RD_RDS_ARRAY_CNT__A, &rRDSArrayCntInit);
+	RR16(addr, AUD_DEM_RD_RDS_ARRAY_CNT__A, &r_rds_array_cnt_init);
 
-	if (rRDSArrayCntInit ==
+	if (r_rds_array_cnt_init ==
 	    AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT_RDS_DATA_NOT_VALID) {
 		/* invalid data */
 		return DRX_STS_OK;
 	}
 
-	if (extAttr->audData.rdsDataCounter == rRDSArrayCntInit) {
+	if (ext_attr->aud_data.rds_data_counter == r_rds_array_cnt_init) {
 		/* no new data */
 		return DRX_STS_OK;
 	}
 
 	/* RDS is detected, as long as FM radio is selected assume
 	   RDS will be available                                    */
-	extAttr->audData.rdsDataPresent = true;
+	ext_attr->aud_data.rds_data_present = true;
 
 	/* new data */
 	/* read the data */
-	for (RDSDataCnt = 0; RDSDataCnt < AUD_RDS_ARRAY_SIZE; RDSDataCnt++) {
-		RR16(addr, AUD_DEM_RD_RDS_DATA__A, &rRDSData);
-		status->data[RDSDataCnt] = rRDSData;
+	for (rds_data_cnt = 0; rds_data_cnt < AUD_RDS_ARRAY_SIZE; rds_data_cnt++) {
+		RR16(addr, AUD_DEM_RD_RDS_DATA__A, &r_rds_data);
+		status->data[rds_data_cnt] = r_rds_data;
 	}
 
-	RR16(addr, AUD_DEM_RD_RDS_ARRAY_CNT__A, &rRDSArrayCntCheck);
+	RR16(addr, AUD_DEM_RD_RDS_ARRAY_CNT__A, &r_rds_array_cnt_check);
 
-	if (rRDSArrayCntCheck == rRDSArrayCntInit) {
+	if (r_rds_array_cnt_check == r_rds_array_cnt_init) {
 		status->valid = true;
-		extAttr->audData.rdsDataCounter = rRDSArrayCntCheck;
+		ext_attr->aud_data.rds_data_counter = r_rds_array_cnt_check;
 	}
 
 	return DRX_STS_OK;
@@ -9942,71 +9942,71 @@ rw_error:
 /**
 * \brief Get the current audio carrier detection status
 * \param demod instance of demodulator
-* \param pointer to AUDCtrlGetStatus
+* \param pointer to aud_ctrl_get_status
 * \return int.
 *
 */
 static int
-AUDCtrlGetCarrierDetectStatus(pDRXDemodInstance_t demod, pDRXAudStatus_t status)
+aud_ctrl_get_carrier_detect_status(pdrx_demod_instance_t demod, pdrx_aud_status_t status)
 {
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	u16 rData = 0;
+	u16 r_data = 0;
 
 	if (status == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* initialize the variables */
-	status->carrierA = false;
-	status->carrierB = false;
-	status->nicamStatus = DRX_AUD_NICAM_NOT_DETECTED;
+	status->carrier_a = false;
+	status->carrier_b = false;
+	status->nicam_status = DRX_AUD_NICAM_NOT_DETECTED;
 	status->sap = false;
 	status->stereo = false;
 
 	/* read stereo sound mode indication */
-	RR16(devAddr, AUD_DEM_RD_STATUS__A, &rData);
+	RR16(dev_addr, AUD_DEM_RD_STATUS__A, &r_data);
 
 	/* carrier a detected */
-	if ((rData & AUD_DEM_RD_STATUS_STAT_CARR_A__M) ==
+	if ((r_data & AUD_DEM_RD_STATUS_STAT_CARR_A__M) ==
 	    AUD_DEM_RD_STATUS_STAT_CARR_A_DETECTED) {
-		status->carrierA = true;
+		status->carrier_a = true;
 	}
 
 	/* carrier b detected */
-	if ((rData & AUD_DEM_RD_STATUS_STAT_CARR_B__M) ==
+	if ((r_data & AUD_DEM_RD_STATUS_STAT_CARR_B__M) ==
 	    AUD_DEM_RD_STATUS_STAT_CARR_B_DETECTED) {
-		status->carrierB = true;
+		status->carrier_b = true;
 	}
 	/* nicam detected */
-	if ((rData & AUD_DEM_RD_STATUS_STAT_NICAM__M) ==
+	if ((r_data & AUD_DEM_RD_STATUS_STAT_NICAM__M) ==
 	    AUD_DEM_RD_STATUS_STAT_NICAM_NICAM_DETECTED) {
-		if ((rData & AUD_DEM_RD_STATUS_BAD_NICAM__M) ==
+		if ((r_data & AUD_DEM_RD_STATUS_BAD_NICAM__M) ==
 		    AUD_DEM_RD_STATUS_BAD_NICAM_OK) {
-			status->nicamStatus = DRX_AUD_NICAM_DETECTED;
+			status->nicam_status = DRX_AUD_NICAM_DETECTED;
 		} else {
-			status->nicamStatus = DRX_AUD_NICAM_BAD;
+			status->nicam_status = DRX_AUD_NICAM_BAD;
 		}
 	}
 
 	/* audio mode bilingual or SAP detected */
-	if ((rData & AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP__M) ==
+	if ((r_data & AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP__M) ==
 	    AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP_SAP) {
 		status->sap = true;
 	}
 
 	/* stereo detected */
-	if ((rData & AUD_DEM_RD_STATUS_STAT_STEREO__M) ==
+	if ((r_data & AUD_DEM_RD_STATUS_STAT_STEREO__M) ==
 	    AUD_DEM_RD_STATUS_STAT_STEREO_STEREO) {
 		status->stereo = true;
 	}
@@ -10020,37 +10020,37 @@ rw_error:
 /**
 * \brief Get the current audio status parameters
 * \param demod instance of demodulator
-* \param pointer to AUDCtrlGetStatus
+* \param pointer to aud_ctrl_get_status
 * \return int.
 *
 */
 static int
-AUDCtrlGetStatus(pDRXDemodInstance_t demod, pDRXAudStatus_t status)
+aud_ctrl_get_status(pdrx_demod_instance_t demod, pdrx_aud_status_t status)
 {
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
-	DRXCfgAudRDS_t rds = { false, {0} };
-	u16 rData = 0;
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	drx_cfg_aud_rds_t rds = { false, {0} };
+	u16 r_data = 0;
 
 	if (status == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* carrier detection */
-	CHK_ERROR(AUDCtrlGetCarrierDetectStatus(demod, status));
+	CHK_ERROR(aud_ctrl_get_carrier_detect_status(demod, status));
 
 	/* rds data */
 	status->rds = false;
-	CHK_ERROR(AUDCtrlGetCfgRDS(demod, &rds));
-	status->rds = extAttr->audData.rdsDataPresent;
+	CHK_ERROR(aud_ctrl_get_cfg_rds(demod, &rds));
+	status->rds = ext_attr->aud_data.rds_data_present;
 
-	/* fmIdent */
-	RR16(devAddr, AUD_DSP_RD_FM_IDENT_VALUE__A, &rData);
-	rData >>= AUD_DSP_RD_FM_IDENT_VALUE_FM_IDENT__B;
-	status->fmIdent = (s8) rData;
+	/* fm_ident */
+	RR16(dev_addr, AUD_DSP_RD_FM_IDENT_VALUE__A, &r_data);
+	r_data >>= AUD_DSP_RD_FM_IDENT_VALUE_FM_IDENT__B;
+	status->fm_ident = (s8) r_data;
 
 	return DRX_STS_OK;
 rw_error:
@@ -10061,43 +10061,43 @@ rw_error:
 /**
 * \brief Get the current volume settings
 * \param demod instance of demodulator
-* \param pointer to DRXCfgAudVolume_t
+* \param pointer to drx_cfg_aud_volume_t
 * \return int.
 *
 */
 static int
-AUDCtrlGetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
+aud_ctrl_get_cfg_volume(pdrx_demod_instance_t demod, pdrx_cfg_aud_volume_t volume)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	u16 rVolume = 0;
-	u16 rAVC = 0;
-	u16 rStrengthLeft = 0;
-	u16 rStrengthRight = 0;
+	u16 r_volume = 0;
+	u16 r_avc = 0;
+	u16 r_strength_left = 0;
+	u16 r_strength_right = 0;
 
 	if (volume == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* volume */
-	volume->mute = extAttr->audData.volume.mute;
-	RR16(devAddr, AUD_DSP_WR_VOLUME__A, &rVolume);
-	if (rVolume == 0) {
+	volume->mute = ext_attr->aud_data.volume.mute;
+	RR16(dev_addr, AUD_DSP_WR_VOLUME__A, &r_volume);
+	if (r_volume == 0) {
 		volume->mute = true;
-		volume->volume = extAttr->audData.volume.volume;
+		volume->volume = ext_attr->aud_data.volume.volume;
 	} else {
 		volume->mute = false;
-		volume->volume = ((rVolume & AUD_DSP_WR_VOLUME_VOL_MAIN__M) >>
+		volume->volume = ((r_volume & AUD_DSP_WR_VOLUME_VOL_MAIN__M) >>
 				  AUD_DSP_WR_VOLUME_VOL_MAIN__B) -
 		    AUD_VOLUME_ZERO_DB;
 		if (volume->volume < AUD_VOLUME_DB_MIN) {
@@ -10109,24 +10109,24 @@ AUDCtrlGetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	}
 
 	/* automatic volume control */
-	RR16(devAddr, AUD_DSP_WR_AVC__A, &rAVC);
+	RR16(dev_addr, AUD_DSP_WR_AVC__A, &r_avc);
 
-	if ((rAVC & AUD_DSP_WR_AVC_AVC_ON__M) == AUD_DSP_WR_AVC_AVC_ON_OFF)
+	if ((r_avc & AUD_DSP_WR_AVC_AVC_ON__M) == AUD_DSP_WR_AVC_AVC_ON_OFF)
 	{
-		volume->avcMode = DRX_AUD_AVC_OFF;
+		volume->avc_mode = DRX_AUD_AVC_OFF;
 	} else {
-		switch (rAVC & AUD_DSP_WR_AVC_AVC_DECAY__M) {
+		switch (r_avc & AUD_DSP_WR_AVC_AVC_DECAY__M) {
 		case AUD_DSP_WR_AVC_AVC_DECAY_20_MSEC:
-			volume->avcMode = DRX_AUD_AVC_DECAYTIME_20MS;
+			volume->avc_mode = DRX_AUD_AVC_DECAYTIME_20MS;
 			break;
 		case AUD_DSP_WR_AVC_AVC_DECAY_8_SEC:
-			volume->avcMode = DRX_AUD_AVC_DECAYTIME_8S;
+			volume->avc_mode = DRX_AUD_AVC_DECAYTIME_8S;
 			break;
 		case AUD_DSP_WR_AVC_AVC_DECAY_4_SEC:
-			volume->avcMode = DRX_AUD_AVC_DECAYTIME_4S;
+			volume->avc_mode = DRX_AUD_AVC_DECAYTIME_4S;
 			break;
 		case AUD_DSP_WR_AVC_AVC_DECAY_2_SEC:
-			volume->avcMode = DRX_AUD_AVC_DECAYTIME_2S;
+			volume->avc_mode = DRX_AUD_AVC_DECAYTIME_2S;
 			break;
 		default:
 			return DRX_STS_ERROR;
@@ -10135,15 +10135,15 @@ AUDCtrlGetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	}
 
 	/* max attenuation */
-	switch (rAVC & AUD_DSP_WR_AVC_AVC_MAX_ATT__M) {
+	switch (r_avc & AUD_DSP_WR_AVC_AVC_MAX_ATT__M) {
 	case AUD_DSP_WR_AVC_AVC_MAX_ATT_12DB:
-		volume->avcMaxAtten = DRX_AUD_AVC_MAX_ATTEN_12DB;
+		volume->avc_max_atten = DRX_AUD_AVC_MAX_ATTEN_12DB;
 		break;
 	case AUD_DSP_WR_AVC_AVC_MAX_ATT_18DB:
-		volume->avcMaxAtten = DRX_AUD_AVC_MAX_ATTEN_18DB;
+		volume->avc_max_atten = DRX_AUD_AVC_MAX_ATTEN_18DB;
 		break;
 	case AUD_DSP_WR_AVC_AVC_MAX_ATT_24DB:
-		volume->avcMaxAtten = DRX_AUD_AVC_MAX_ATTEN_24DB;
+		volume->avc_max_atten = DRX_AUD_AVC_MAX_ATTEN_24DB;
 		break;
 	default:
 		return DRX_STS_ERROR;
@@ -10151,15 +10151,15 @@ AUDCtrlGetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	}
 
 	/* max gain */
-	switch (rAVC & AUD_DSP_WR_AVC_AVC_MAX_GAIN__M) {
+	switch (r_avc & AUD_DSP_WR_AVC_AVC_MAX_GAIN__M) {
 	case AUD_DSP_WR_AVC_AVC_MAX_GAIN_0DB:
-		volume->avcMaxGain = DRX_AUD_AVC_MAX_GAIN_0DB;
+		volume->avc_max_gain = DRX_AUD_AVC_MAX_GAIN_0DB;
 		break;
 	case AUD_DSP_WR_AVC_AVC_MAX_GAIN_6DB:
-		volume->avcMaxGain = DRX_AUD_AVC_MAX_GAIN_6DB;
+		volume->avc_max_gain = DRX_AUD_AVC_MAX_GAIN_6DB;
 		break;
 	case AUD_DSP_WR_AVC_AVC_MAX_GAIN_12DB:
-		volume->avcMaxGain = DRX_AUD_AVC_MAX_GAIN_12DB;
+		volume->avc_max_gain = DRX_AUD_AVC_MAX_GAIN_12DB;
 		break;
 	default:
 		return DRX_STS_ERROR;
@@ -10167,7 +10167,7 @@ AUDCtrlGetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	}
 
 	/* reference level */
-	volume->avcRefLevel = (u16) ((rAVC & AUD_DSP_WR_AVC_AVC_REF_LEV__M) >>
+	volume->avc_ref_level = (u16) ((r_avc & AUD_DSP_WR_AVC_AVC_REF_LEV__M) >>
 				       AUD_DSP_WR_AVC_AVC_REF_LEV__B);
 
 	/* read qpeak registers and calculate strength of left and right carrier */
@@ -10177,13 +10177,13 @@ AUDCtrlGetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 
 	/* QP vaues */
 	/* left carrier */
-	RR16(devAddr, AUD_DSP_RD_QPEAK_L__A, &rStrengthLeft);
-	volume->strengthLeft = (((s16) Log10Times100(rStrengthLeft)) -
+	RR16(dev_addr, AUD_DSP_RD_QPEAK_L__A, &r_strength_left);
+	volume->strength_left = (((s16) log1_times100(r_strength_left)) -
 				AUD_CARRIER_STRENGTH_QP_0DB_LOG10T100) / 5;
 
 	/* right carrier */
-	RR16(devAddr, AUD_DSP_RD_QPEAK_R__A, &rStrengthRight);
-	volume->strengthRight = (((s16) Log10Times100(rStrengthRight)) -
+	RR16(dev_addr, AUD_DSP_RD_QPEAK_R__A, &r_strength_right);
+	volume->strength_right = (((s16) log1_times100(r_strength_right)) -
 				 AUD_CARRIER_STRENGTH_QP_0DB_LOG10T100) / 5;
 
 	return DRX_STS_OK;
@@ -10195,30 +10195,30 @@ rw_error:
 /**
 * \brief Set the current volume settings
 * \param demod instance of demodulator
-* \param pointer to DRXCfgAudVolume_t
+* \param pointer to drx_cfg_aud_volume_t
 * \return int.
 *
 */
 static int
-AUDCtrlSetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
+aud_ctrl_set_cfg_volume(pdrx_demod_instance_t demod, pdrx_cfg_aud_volume_t volume)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	u16 wVolume = 0;
-	u16 wAVC = 0;
+	u16 w_volume = 0;
+	u16 w_avc = 0;
 
 	if (volume == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* volume */
@@ -10228,48 +10228,48 @@ AUDCtrlSetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	RR16(devAddr, AUD_DSP_WR_VOLUME__A, &wVolume);
+	RR16(dev_addr, AUD_DSP_WR_VOLUME__A, &w_volume);
 
 	/* clear the volume mask */
-	wVolume &= (u16) ~AUD_DSP_WR_VOLUME_VOL_MAIN__M;
+	w_volume &= (u16) ~AUD_DSP_WR_VOLUME_VOL_MAIN__M;
 	if (volume->mute == true) {
 		/* mute */
 		/* mute overrules volume */
-		wVolume |= (u16) (0);
+		w_volume |= (u16) (0);
 
 	} else {
-		wVolume |= (u16) ((volume->volume + AUD_VOLUME_ZERO_DB) <<
+		w_volume |= (u16) ((volume->volume + AUD_VOLUME_ZERO_DB) <<
 				    AUD_DSP_WR_VOLUME_VOL_MAIN__B);
 	}
 
-	WR16(devAddr, AUD_DSP_WR_VOLUME__A, wVolume);
+	WR16(dev_addr, AUD_DSP_WR_VOLUME__A, w_volume);
 
 	/* automatic volume control */
-	RR16(devAddr, AUD_DSP_WR_AVC__A, &wAVC);
+	RR16(dev_addr, AUD_DSP_WR_AVC__A, &w_avc);
 
 	/* clear masks that require writing */
-	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_ON__M;
-	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_DECAY__M;
+	w_avc &= (u16) ~AUD_DSP_WR_AVC_AVC_ON__M;
+	w_avc &= (u16) ~AUD_DSP_WR_AVC_AVC_DECAY__M;
 
-	if (volume->avcMode == DRX_AUD_AVC_OFF) {
-		wAVC |= (AUD_DSP_WR_AVC_AVC_ON_OFF);
+	if (volume->avc_mode == DRX_AUD_AVC_OFF) {
+		w_avc |= (AUD_DSP_WR_AVC_AVC_ON_OFF);
 	} else {
 
-		wAVC |= (AUD_DSP_WR_AVC_AVC_ON_ON);
+		w_avc |= (AUD_DSP_WR_AVC_AVC_ON_ON);
 
 		/* avc decay */
-		switch (volume->avcMode) {
+		switch (volume->avc_mode) {
 		case DRX_AUD_AVC_DECAYTIME_20MS:
-			wAVC |= AUD_DSP_WR_AVC_AVC_DECAY_20_MSEC;
+			w_avc |= AUD_DSP_WR_AVC_AVC_DECAY_20_MSEC;
 			break;
 		case DRX_AUD_AVC_DECAYTIME_8S:
-			wAVC |= AUD_DSP_WR_AVC_AVC_DECAY_8_SEC;
+			w_avc |= AUD_DSP_WR_AVC_AVC_DECAY_8_SEC;
 			break;
 		case DRX_AUD_AVC_DECAYTIME_4S:
-			wAVC |= AUD_DSP_WR_AVC_AVC_DECAY_4_SEC;
+			w_avc |= AUD_DSP_WR_AVC_AVC_DECAY_4_SEC;
 			break;
 		case DRX_AUD_AVC_DECAYTIME_2S:
-			wAVC |= AUD_DSP_WR_AVC_AVC_DECAY_2_SEC;
+			w_avc |= AUD_DSP_WR_AVC_AVC_DECAY_2_SEC;
 			break;
 		default:
 			return DRX_STS_INVALID_ARG;
@@ -10277,49 +10277,49 @@ AUDCtrlSetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	}
 
 	/* max attenuation */
-	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_MAX_ATT__M;
-	switch (volume->avcMaxAtten) {
+	w_avc &= (u16) ~AUD_DSP_WR_AVC_AVC_MAX_ATT__M;
+	switch (volume->avc_max_atten) {
 	case DRX_AUD_AVC_MAX_ATTEN_12DB:
-		wAVC |= AUD_DSP_WR_AVC_AVC_MAX_ATT_12DB;
+		w_avc |= AUD_DSP_WR_AVC_AVC_MAX_ATT_12DB;
 		break;
 	case DRX_AUD_AVC_MAX_ATTEN_18DB:
-		wAVC |= AUD_DSP_WR_AVC_AVC_MAX_ATT_18DB;
+		w_avc |= AUD_DSP_WR_AVC_AVC_MAX_ATT_18DB;
 		break;
 	case DRX_AUD_AVC_MAX_ATTEN_24DB:
-		wAVC |= AUD_DSP_WR_AVC_AVC_MAX_ATT_24DB;
+		w_avc |= AUD_DSP_WR_AVC_AVC_MAX_ATT_24DB;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* max gain */
-	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_MAX_GAIN__M;
-	switch (volume->avcMaxGain) {
+	w_avc &= (u16) ~AUD_DSP_WR_AVC_AVC_MAX_GAIN__M;
+	switch (volume->avc_max_gain) {
 	case DRX_AUD_AVC_MAX_GAIN_0DB:
-		wAVC |= AUD_DSP_WR_AVC_AVC_MAX_GAIN_0DB;
+		w_avc |= AUD_DSP_WR_AVC_AVC_MAX_GAIN_0DB;
 		break;
 	case DRX_AUD_AVC_MAX_GAIN_6DB:
-		wAVC |= AUD_DSP_WR_AVC_AVC_MAX_GAIN_6DB;
+		w_avc |= AUD_DSP_WR_AVC_AVC_MAX_GAIN_6DB;
 		break;
 	case DRX_AUD_AVC_MAX_GAIN_12DB:
-		wAVC |= AUD_DSP_WR_AVC_AVC_MAX_GAIN_12DB;
+		w_avc |= AUD_DSP_WR_AVC_AVC_MAX_GAIN_12DB;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* avc reference level */
-	if (volume->avcRefLevel > AUD_MAX_AVC_REF_LEVEL) {
+	if (volume->avc_ref_level > AUD_MAX_AVC_REF_LEVEL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_REF_LEV__M;
-	wAVC |= (u16) (volume->avcRefLevel << AUD_DSP_WR_AVC_AVC_REF_LEV__B);
+	w_avc &= (u16) ~AUD_DSP_WR_AVC_AVC_REF_LEV__M;
+	w_avc |= (u16) (volume->avc_ref_level << AUD_DSP_WR_AVC_AVC_REF_LEV__B);
 
-	WR16(devAddr, AUD_DSP_WR_AVC__A, wAVC);
+	WR16(dev_addr, AUD_DSP_WR_AVC__A, w_avc);
 
 	/* all done, store config in data structure */
-	extAttr->audData.volume = *volume;
+	ext_attr->aud_data.volume = *volume;
 
 	return DRX_STS_OK;
 rw_error:
@@ -10330,37 +10330,37 @@ rw_error:
 /**
 * \brief Get the I2S settings
 * \param demod instance of demodulator
-* \param pointer to DRXCfgI2SOutput_t
+* \param pointer to drx_cfg_i2s_output_t
 * \return int.
 *
 */
 static int
-AUDCtrlGetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
+aud_ctrl_get_cfg_output_i2s(pdrx_demod_instance_t demod, pdrx_cfg_i2s_output_t output)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	u16 wI2SConfig = 0;
-	u16 rI2SFreq = 0;
+	u16 w_i2s_config = 0;
+	u16 r_i2s_freq = 0;
 
 	if (output == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	RR16(devAddr, AUD_DEM_RAM_I2S_CONFIG2__A, &wI2SConfig);
-	RR16(devAddr, AUD_DSP_WR_I2S_OUT_FS__A, &rI2SFreq);
+	RR16(dev_addr, AUD_DEM_RAM_I2S_CONFIG2__A, &w_i2s_config);
+	RR16(dev_addr, AUD_DSP_WR_I2S_OUT_FS__A, &r_i2s_freq);
 
 	/* I2S mode */
-	switch (wI2SConfig & AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST__M) {
+	switch (w_i2s_config & AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST__M) {
 	case AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST_MASTER:
 		output->mode = DRX_I2S_MODE_MASTER;
 		break;
@@ -10372,7 +10372,7 @@ AUDCtrlGetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 	}
 
 	/* I2S format */
-	switch (wI2SConfig & AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__M) {
+	switch (w_i2s_config & AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__M) {
 	case AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE_DELAY:
 		output->format = DRX_I2S_FORMAT_WS_ADVANCED;
 		break;
@@ -10384,19 +10384,19 @@ AUDCtrlGetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 	}
 
 	/* I2S word length */
-	switch (wI2SConfig & AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN__M) {
+	switch (w_i2s_config & AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN__M) {
 	case AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN_BIT_16:
-		output->wordLength = DRX_I2S_WORDLENGTH_16;
+		output->word_length = DRX_I2S_WORDLENGTH_16;
 		break;
 	case AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN_BIT_32:
-		output->wordLength = DRX_I2S_WORDLENGTH_32;
+		output->word_length = DRX_I2S_WORDLENGTH_32;
 		break;
 	default:
 		return DRX_STS_ERROR;
 	}
 
 	/* I2S polarity */
-	switch (wI2SConfig & AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL__M) {
+	switch (w_i2s_config & AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL__M) {
 	case AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL_LEFT_HIGH:
 		output->polarity = DRX_I2S_POLARITY_LEFT;
 		break;
@@ -10408,16 +10408,16 @@ AUDCtrlGetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 	}
 
 	/* I2S output enabled */
-	if ((wI2SConfig & AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE__M)
+	if ((w_i2s_config & AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE__M)
 	    == AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE_ENABLE) {
-		output->outputEnable = true;
+		output->output_enable = true;
 	} else {
-		output->outputEnable = false;
+		output->output_enable = false;
 	}
 
-	if (rI2SFreq > 0) {
-		output->frequency = 6144UL * 48000 / rI2SFreq;
-		if (output->wordLength == DRX_I2S_WORDLENGTH_16) {
+	if (r_i2s_freq > 0) {
+		output->frequency = 6144UL * 48000 / r_i2s_freq;
+		if (output->word_length == DRX_I2S_WORDLENGTH_16) {
 			output->frequency *= 2;
 		}
 	} else {
@@ -10433,104 +10433,104 @@ rw_error:
 /**
 * \brief Set the I2S settings
 * \param demod instance of demodulator
-* \param pointer to DRXCfgI2SOutput_t
+* \param pointer to drx_cfg_i2s_output_t
 * \return int.
 *
 */
 static int
-AUDCtrlSetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
+aud_ctrl_set_cfg_output_i2s(pdrx_demod_instance_t demod, pdrx_cfg_i2s_output_t output)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	u16 wI2SConfig = 0;
-	u16 wI2SPadsDataDa = 0;
-	u16 wI2SPadsDataCl = 0;
-	u16 wI2SPadsDataWs = 0;
-	u32 wI2SFreq = 0;
+	u16 w_i2s_config = 0;
+	u16 w_i2s_pads_data_da = 0;
+	u16 w_i2s_pads_data_cl = 0;
+	u16 w_i2s_pads_data_ws = 0;
+	u32 w_i2s_freq = 0;
 
 	if (output == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	RR16(devAddr, AUD_DEM_RAM_I2S_CONFIG2__A, &wI2SConfig);
+	RR16(dev_addr, AUD_DEM_RAM_I2S_CONFIG2__A, &w_i2s_config);
 
 	/* I2S mode */
-	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST__M;
+	w_i2s_config &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST__M;
 
 	switch (output->mode) {
 	case DRX_I2S_MODE_MASTER:
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST_MASTER;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST_MASTER;
 		break;
 	case DRX_I2S_MODE_SLAVE:
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST_SLAVE;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST_SLAVE;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* I2S format */
-	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__M;
+	w_i2s_config &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__M;
 
 	switch (output->format) {
 	case DRX_I2S_FORMAT_WS_ADVANCED:
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE_DELAY;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE_DELAY;
 		break;
 	case DRX_I2S_FORMAT_WS_WITH_DATA:
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE_NO_DELAY;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE_NO_DELAY;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* I2S word length */
-	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN__M;
+	w_i2s_config &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN__M;
 
-	switch (output->wordLength) {
+	switch (output->word_length) {
 	case DRX_I2S_WORDLENGTH_16:
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN_BIT_16;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN_BIT_16;
 		break;
 	case DRX_I2S_WORDLENGTH_32:
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN_BIT_32;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN_BIT_32;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* I2S polarity */
-	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL__M;
+	w_i2s_config &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL__M;
 	switch (output->polarity) {
 	case DRX_I2S_POLARITY_LEFT:
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL_LEFT_HIGH;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL_LEFT_HIGH;
 		break;
 	case DRX_I2S_POLARITY_RIGHT:
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL_LEFT_LOW;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL_LEFT_LOW;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* I2S output enabled */
-	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE__M;
-	if (output->outputEnable == true) {
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE_ENABLE;
+	w_i2s_config &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE__M;
+	if (output->output_enable == true) {
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE_ENABLE;
 	} else {
-		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE_DISABLE;
+		w_i2s_config |= AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE_DISABLE;
 	}
 
 	/*
 	   I2S frequency
 
-	   wI2SFreq = 6144 * 48000 * nrbits / ( 32 * frequency )
+	   w_i2s_freq = 6144 * 48000 * nrbits / ( 32 * frequency )
 
 	   16bit: 6144 * 48000 / ( 2 * freq ) = ( 6144 * 48000 / freq ) / 2
 	   32bit: 6144 * 48000 / freq         = ( 6144 * 48000 / freq )
@@ -10540,43 +10540,43 @@ AUDCtrlSetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	wI2SFreq = (6144UL * 48000UL) + (output->frequency >> 1);
-	wI2SFreq /= output->frequency;
+	w_i2s_freq = (6144UL * 48000UL) + (output->frequency >> 1);
+	w_i2s_freq /= output->frequency;
 
-	if (output->wordLength == DRX_I2S_WORDLENGTH_16) {
-		wI2SFreq *= 2;
+	if (output->word_length == DRX_I2S_WORDLENGTH_16) {
+		w_i2s_freq *= 2;
 	}
 
-	WR16(devAddr, AUD_DEM_WR_I2S_CONFIG2__A, wI2SConfig);
-	WR16(devAddr, AUD_DSP_WR_I2S_OUT_FS__A, (u16) wI2SFreq);
+	WR16(dev_addr, AUD_DEM_WR_I2S_CONFIG2__A, w_i2s_config);
+	WR16(dev_addr, AUD_DSP_WR_I2S_OUT_FS__A, (u16) w_i2s_freq);
 
 	/* configure I2S output pads for master or slave mode */
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
 
 	if (output->mode == DRX_I2S_MODE_MASTER) {
-		wI2SPadsDataDa = SIO_PDR_I2S_DA_CFG_MODE__MASTER |
+		w_i2s_pads_data_da = SIO_PDR_I2S_DA_CFG_MODE__MASTER |
 		    SIO_PDR_I2S_DA_CFG_DRIVE__MASTER;
-		wI2SPadsDataCl = SIO_PDR_I2S_CL_CFG_MODE__MASTER |
+		w_i2s_pads_data_cl = SIO_PDR_I2S_CL_CFG_MODE__MASTER |
 		    SIO_PDR_I2S_CL_CFG_DRIVE__MASTER;
-		wI2SPadsDataWs = SIO_PDR_I2S_WS_CFG_MODE__MASTER |
+		w_i2s_pads_data_ws = SIO_PDR_I2S_WS_CFG_MODE__MASTER |
 		    SIO_PDR_I2S_WS_CFG_DRIVE__MASTER;
 	} else {
-		wI2SPadsDataDa = SIO_PDR_I2S_DA_CFG_MODE__SLAVE |
+		w_i2s_pads_data_da = SIO_PDR_I2S_DA_CFG_MODE__SLAVE |
 		    SIO_PDR_I2S_DA_CFG_DRIVE__SLAVE;
-		wI2SPadsDataCl = SIO_PDR_I2S_CL_CFG_MODE__SLAVE |
+		w_i2s_pads_data_cl = SIO_PDR_I2S_CL_CFG_MODE__SLAVE |
 		    SIO_PDR_I2S_CL_CFG_DRIVE__SLAVE;
-		wI2SPadsDataWs = SIO_PDR_I2S_WS_CFG_MODE__SLAVE |
+		w_i2s_pads_data_ws = SIO_PDR_I2S_WS_CFG_MODE__SLAVE |
 		    SIO_PDR_I2S_WS_CFG_DRIVE__SLAVE;
 	}
 
-	WR16(devAddr, SIO_PDR_I2S_DA_CFG__A, wI2SPadsDataDa);
-	WR16(devAddr, SIO_PDR_I2S_CL_CFG__A, wI2SPadsDataCl);
-	WR16(devAddr, SIO_PDR_I2S_WS_CFG__A, wI2SPadsDataWs);
+	WR16(dev_addr, SIO_PDR_I2S_DA_CFG__A, w_i2s_pads_data_da);
+	WR16(dev_addr, SIO_PDR_I2S_CL_CFG__A, w_i2s_pads_data_cl);
+	WR16(dev_addr, SIO_PDR_I2S_WS_CFG__A, w_i2s_pads_data_ws);
 
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
 
 	/* all done, store config in data structure */
-	extAttr->audData.i2sdata = *output;
+	ext_attr->aud_data.i2sdata = *output;
 
 	return DRX_STS_OK;
 rw_error:
@@ -10593,42 +10593,42 @@ rw_error:
 *
 */
 static int
-AUDCtrlGetCfgAutoSound(pDRXDemodInstance_t demod,
-		       pDRXCfgAudAutoSound_t autoSound)
+aud_ctrl_get_cfg_auto_sound(pdrx_demod_instance_t demod,
+		       pdrx_cfg_aud_auto_sound_t auto_sound)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 rModus = 0;
+	u16 r_modus = 0;
 
-	if (autoSound == NULL) {
+	if (auto_sound == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	CHK_ERROR(AUDGetModus(demod, &rModus));
+	CHK_ERROR(aud_get_modus(demod, &r_modus));
 
-	switch (rModus & (AUD_DEM_WR_MODUS_MOD_ASS__M |
+	switch (r_modus & (AUD_DEM_WR_MODUS_MOD_ASS__M |
 			  AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG__M)) {
 	case AUD_DEM_WR_MODUS_MOD_ASS_OFF | AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_DISABLED:
 	case AUD_DEM_WR_MODUS_MOD_ASS_OFF | AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_ENABLED:
-		*autoSound =
+		*auto_sound =
 		    DRX_AUD_AUTO_SOUND_OFF;
 		break;
 	case AUD_DEM_WR_MODUS_MOD_ASS_ON | AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_ENABLED:
-		*autoSound =
+		*auto_sound =
 		    DRX_AUD_AUTO_SOUND_SELECT_ON_CHANGE_ON;
 		break;
 	case AUD_DEM_WR_MODUS_MOD_ASS_ON | AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_DISABLED:
-		*autoSound =
+		*auto_sound =
 		    DRX_AUD_AUTO_SOUND_SELECT_ON_CHANGE_OFF;
 		break;
 	default:
@@ -10650,57 +10650,57 @@ rw_error:
 *
 */
 static int
-AUDCtrSetlCfgAutoSound(pDRXDemodInstance_t demod,
-		       pDRXCfgAudAutoSound_t autoSound)
+aud_ctr_setl_cfg_auto_sound(pdrx_demod_instance_t demod,
+		       pdrx_cfg_aud_auto_sound_t auto_sound)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 rModus = 0;
-	u16 wModus = 0;
+	u16 r_modus = 0;
+	u16 w_modus = 0;
 
-	if (autoSound == NULL) {
+	if (auto_sound == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	CHK_ERROR(AUDGetModus(demod, &rModus));
+	CHK_ERROR(aud_get_modus(demod, &r_modus));
 
-	wModus = rModus;
+	w_modus = r_modus;
 	/* clear ASS & ASC bits */
-	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_ASS__M;
-	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG__M;
+	w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_ASS__M;
+	w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG__M;
 
-	switch (*autoSound) {
+	switch (*auto_sound) {
 	case DRX_AUD_AUTO_SOUND_OFF:
-		wModus |= AUD_DEM_WR_MODUS_MOD_ASS_OFF;
-		wModus |= AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_DISABLED;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_ASS_OFF;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_DISABLED;
 		break;
 	case DRX_AUD_AUTO_SOUND_SELECT_ON_CHANGE_ON:
-		wModus |= AUD_DEM_WR_MODUS_MOD_ASS_ON;
-		wModus |= AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_ENABLED;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_ASS_ON;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_ENABLED;
 		break;
 	case DRX_AUD_AUTO_SOUND_SELECT_ON_CHANGE_OFF:
-		wModus |= AUD_DEM_WR_MODUS_MOD_ASS_ON;
-		wModus |= AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_DISABLED;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_ASS_ON;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG_DISABLED;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
-	if (wModus != rModus) {
-		WR16(devAddr, AUD_DEM_WR_MODUS__A, wModus);
+	if (w_modus != r_modus) {
+		WR16(dev_addr, AUD_DEM_WR_MODUS__A, w_modus);
 	}
 	/* copy to data structure */
-	extAttr->audData.autoSound = *autoSound;
+	ext_attr->aud_data.auto_sound = *auto_sound;
 
 	return DRX_STS_OK;
 rw_error:
@@ -10716,35 +10716,35 @@ rw_error:
 *
 */
 static int
-AUDCtrlGetCfgASSThres(pDRXDemodInstance_t demod, pDRXCfgAudASSThres_t thres)
+aud_ctrl_get_cfg_ass_thres(pdrx_demod_instance_t demod, pdrx_cfg_aud_ass_thres_t thres)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 thresA2 = 0;
-	u16 thresBtsc = 0;
-	u16 thresNicam = 0;
+	u16 thres_a2 = 0;
+	u16 thres_btsc = 0;
+	u16 thres_nicam = 0;
 
 	if (thres == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	RR16(devAddr, AUD_DEM_RAM_A2_THRSHLD__A, &thresA2);
-	RR16(devAddr, AUD_DEM_RAM_BTSC_THRSHLD__A, &thresBtsc);
-	RR16(devAddr, AUD_DEM_RAM_NICAM_THRSHLD__A, &thresNicam);
+	RR16(dev_addr, AUD_DEM_RAM_A2_THRSHLD__A, &thres_a2);
+	RR16(dev_addr, AUD_DEM_RAM_BTSC_THRSHLD__A, &thres_btsc);
+	RR16(dev_addr, AUD_DEM_RAM_NICAM_THRSHLD__A, &thres_nicam);
 
-	thres->a2 = thresA2;
-	thres->btsc = thresBtsc;
-	thres->nicam = thresNicam;
+	thres->a2 = thres_a2;
+	thres->btsc = thres_btsc;
+	thres->nicam = thres_nicam;
 
 	return DRX_STS_OK;
 rw_error:
@@ -10760,30 +10760,30 @@ rw_error:
 *
 */
 static int
-AUDCtrlSetCfgASSThres(pDRXDemodInstance_t demod, pDRXCfgAudASSThres_t thres)
+aud_ctrl_set_cfg_ass_thres(pdrx_demod_instance_t demod, pdrx_cfg_aud_ass_thres_t thres)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
 	if (thres == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	WR16(devAddr, AUD_DEM_WR_A2_THRSHLD__A, thres->a2);
-	WR16(devAddr, AUD_DEM_WR_BTSC_THRSHLD__A, thres->btsc);
-	WR16(devAddr, AUD_DEM_WR_NICAM_THRSHLD__A, thres->nicam);
+	WR16(dev_addr, AUD_DEM_WR_A2_THRSHLD__A, thres->a2);
+	WR16(dev_addr, AUD_DEM_WR_BTSC_THRSHLD__A, thres->btsc);
+	WR16(dev_addr, AUD_DEM_WR_NICAM_THRSHLD__A, thres->nicam);
 
 	/* update DRXK data structure with hardware values */
-	extAttr->audData.assThresholds = *thres;
+	ext_attr->aud_data.ass_thresholds = *thres;
 
 	return DRX_STS_OK;
 rw_error:
@@ -10794,49 +10794,49 @@ rw_error:
 /**
 * \brief Get Audio Carrier settings
 * \param demod instance of demodulator
-* \param pointer to pDRXAudCarrier_t
+* \param pointer to pdrx_aud_carrier_t
 * \return int.
 *
 */
 static int
-AUDCtrlGetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
+aud_ctrl_get_cfg_carrier(pdrx_demod_instance_t demod, pdrx_cfg_aud_carriers_t carriers)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 wModus = 0;
+	u16 w_modus = 0;
 
-	u16 dcoAHi = 0;
-	u16 dcoALo = 0;
-	u16 dcoBHi = 0;
-	u16 dcoBLo = 0;
+	u16 dco_a_hi = 0;
+	u16 dco_a_lo = 0;
+	u16 dco_b_hi = 0;
+	u16 dco_b_lo = 0;
 
 	u32 valA = 0;
 	u32 valB = 0;
 
-	u16 dcLvlA = 0;
-	u16 dcLvlB = 0;
+	u16 dc_lvl_a = 0;
+	u16 dc_lvl_b = 0;
 
-	u16 cmThesA = 0;
-	u16 cmThesB = 0;
+	u16 cm_thes_a = 0;
+	u16 cm_thes_b = 0;
 
 	if (carriers == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	CHK_ERROR(AUDGetModus(demod, &wModus));
+	CHK_ERROR(aud_get_modus(demod, &w_modus));
 
 	/* Behaviour of primary audio channel */
-	switch (wModus & (AUD_DEM_WR_MODUS_MOD_CM_A__M)) {
+	switch (w_modus & (AUD_DEM_WR_MODUS_MOD_CM_A__M)) {
 	case AUD_DEM_WR_MODUS_MOD_CM_A_MUTE:
 		carriers->a.opt = DRX_NO_CARRIER_MUTE;
 		break;
@@ -10849,7 +10849,7 @@ AUDCtrlGetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
 	}
 
 	/* Behaviour of secondary audio channel */
-	switch (wModus & (AUD_DEM_WR_MODUS_MOD_CM_B__M)) {
+	switch (w_modus & (AUD_DEM_WR_MODUS_MOD_CM_B__M)) {
 	case AUD_DEM_WR_MODUS_MOD_CM_B_MUTE:
 		carriers->b.opt = DRX_NO_CARRIER_MUTE;
 		break;
@@ -10862,13 +10862,13 @@ AUDCtrlGetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
 	}
 
 	/* frequency adjustment for primary & secondary audio channel */
-	RR16(devAddr, AUD_DEM_RAM_DCO_A_HI__A, &dcoAHi);
-	RR16(devAddr, AUD_DEM_RAM_DCO_A_LO__A, &dcoALo);
-	RR16(devAddr, AUD_DEM_RAM_DCO_B_HI__A, &dcoBHi);
-	RR16(devAddr, AUD_DEM_RAM_DCO_B_LO__A, &dcoBLo);
+	RR16(dev_addr, AUD_DEM_RAM_DCO_A_HI__A, &dco_a_hi);
+	RR16(dev_addr, AUD_DEM_RAM_DCO_A_LO__A, &dco_a_lo);
+	RR16(dev_addr, AUD_DEM_RAM_DCO_B_HI__A, &dco_b_hi);
+	RR16(dev_addr, AUD_DEM_RAM_DCO_B_LO__A, &dco_b_lo);
 
-	valA = (((u32) dcoAHi) << 12) | ((u32) dcoALo & 0xFFF);
-	valB = (((u32) dcoBHi) << 12) | ((u32) dcoBLo & 0xFFF);
+	valA = (((u32) dco_a_hi) << 12) | ((u32) dco_a_lo & 0xFFF);
+	valB = (((u32) dco_b_hi) << 12) | ((u32) dco_b_lo & 0xFFF);
 
 	/* Multiply by 20250 * 1>>24  ~= 2 / 1657 */
 	carriers->a.dco = DRX_S24TODRXFREQ(valA) * 2L / 1657L;
@@ -10876,19 +10876,19 @@ AUDCtrlGetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
 
 	/* DC level of the incoming FM signal on the primary
 	   & seconday sound channel */
-	RR16(devAddr, AUD_DSP_RD_FM_DC_LEVEL_A__A, &dcLvlA);
-	RR16(devAddr, AUD_DSP_RD_FM_DC_LEVEL_B__A, &dcLvlB);
+	RR16(dev_addr, AUD_DSP_RD_FM_DC_LEVEL_A__A, &dc_lvl_a);
+	RR16(dev_addr, AUD_DSP_RD_FM_DC_LEVEL_B__A, &dc_lvl_b);
 
 	/* offset (kHz) = (dcLvl / 322) */
-	carriers->a.shift = (DRX_U16TODRXFREQ(dcLvlA) / 322L);
-	carriers->b.shift = (DRX_U16TODRXFREQ(dcLvlB) / 322L);
+	carriers->a.shift = (DRX_U16TODRXFREQ(dc_lvl_a) / 322L);
+	carriers->b.shift = (DRX_U16TODRXFREQ(dc_lvl_b) / 322L);
 
 	/* Carrier detetcion threshold for primary & secondary channel */
-	RR16(devAddr, AUD_DEM_RAM_CM_A_THRSHLD__A, &cmThesA);
-	RR16(devAddr, AUD_DEM_RAM_CM_B_THRSHLD__A, &cmThesB);
+	RR16(dev_addr, AUD_DEM_RAM_CM_A_THRSHLD__A, &cm_thes_a);
+	RR16(dev_addr, AUD_DEM_RAM_CM_B_THRSHLD__A, &cm_thes_b);
 
-	carriers->a.thres = cmThesA;
-	carriers->b.thres = cmThesB;
+	carriers->a.thres = cm_thes_a;
+	carriers->b.thres = cm_thes_b;
 
 	return DRX_STS_OK;
 rw_error:
@@ -10899,23 +10899,23 @@ rw_error:
 /**
 * \brief Set Audio Carrier settings
 * \param demod instance of demodulator
-* \param pointer to pDRXAudCarrier_t
+* \param pointer to pdrx_aud_carrier_t
 * \return int.
 *
 */
 static int
-AUDCtrlSetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
+aud_ctrl_set_cfg_carrier(pdrx_demod_instance_t demod, pdrx_cfg_aud_carriers_t carriers)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 wModus = 0;
-	u16 rModus = 0;
+	u16 w_modus = 0;
+	u16 r_modus = 0;
 
-	u16 dcoAHi = 0;
-	u16 dcoALo = 0;
-	u16 dcoBHi = 0;
-	u16 dcoBLo = 0;
+	u16 dco_a_hi = 0;
+	u16 dco_a_lo = 0;
+	u16 dco_b_hi = 0;
+	u16 dco_b_lo = 0;
 
 	s32 valA = 0;
 	s32 valB = 0;
@@ -10924,26 +10924,26 @@ AUDCtrlSetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	CHK_ERROR(AUDGetModus(demod, &rModus));
+	CHK_ERROR(aud_get_modus(demod, &r_modus));
 
-	wModus = rModus;
-	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_CM_A__M;
+	w_modus = r_modus;
+	w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_CM_A__M;
 	/* Behaviour of primary audio channel */
 	switch (carriers->a.opt) {
 	case DRX_NO_CARRIER_MUTE:
-		wModus |= AUD_DEM_WR_MODUS_MOD_CM_A_MUTE;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_CM_A_MUTE;
 		break;
 	case DRX_NO_CARRIER_NOISE:
-		wModus |= AUD_DEM_WR_MODUS_MOD_CM_A_NOISE;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_CM_A_NOISE;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
@@ -10951,13 +10951,13 @@ AUDCtrlSetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
 	}
 
 	/* Behaviour of secondary audio channel */
-	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_CM_B__M;
+	w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_CM_B__M;
 	switch (carriers->b.opt) {
 	case DRX_NO_CARRIER_MUTE:
-		wModus |= AUD_DEM_WR_MODUS_MOD_CM_B_MUTE;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_CM_B_MUTE;
 		break;
 	case DRX_NO_CARRIER_NOISE:
-		wModus |= AUD_DEM_WR_MODUS_MOD_CM_B_NOISE;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_CM_B_NOISE;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
@@ -10965,30 +10965,30 @@ AUDCtrlSetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
 	}
 
 	/* now update the modus register */
-	if (wModus != rModus) {
-		WR16(devAddr, AUD_DEM_WR_MODUS__A, wModus);
+	if (w_modus != r_modus) {
+		WR16(dev_addr, AUD_DEM_WR_MODUS__A, w_modus);
 	}
 
 	/* frequency adjustment for primary & secondary audio channel */
 	valA = (s32) ((carriers->a.dco) * 1657L / 2);
 	valB = (s32) ((carriers->b.dco) * 1657L / 2);
 
-	dcoAHi = (u16) ((valA >> 12) & 0xFFF);
-	dcoALo = (u16) (valA & 0xFFF);
-	dcoBHi = (u16) ((valB >> 12) & 0xFFF);
-	dcoBLo = (u16) (valB & 0xFFF);
+	dco_a_hi = (u16) ((valA >> 12) & 0xFFF);
+	dco_a_lo = (u16) (valA & 0xFFF);
+	dco_b_hi = (u16) ((valB >> 12) & 0xFFF);
+	dco_b_lo = (u16) (valB & 0xFFF);
 
-	WR16(devAddr, AUD_DEM_WR_DCO_A_HI__A, dcoAHi);
-	WR16(devAddr, AUD_DEM_WR_DCO_A_LO__A, dcoALo);
-	WR16(devAddr, AUD_DEM_WR_DCO_B_HI__A, dcoBHi);
-	WR16(devAddr, AUD_DEM_WR_DCO_B_LO__A, dcoBLo);
+	WR16(dev_addr, AUD_DEM_WR_DCO_A_HI__A, dco_a_hi);
+	WR16(dev_addr, AUD_DEM_WR_DCO_A_LO__A, dco_a_lo);
+	WR16(dev_addr, AUD_DEM_WR_DCO_B_HI__A, dco_b_hi);
+	WR16(dev_addr, AUD_DEM_WR_DCO_B_LO__A, dco_b_lo);
 
 	/* Carrier detetcion threshold for primary & secondary channel */
-	WR16(devAddr, AUD_DEM_WR_CM_A_THRSHLD__A, carriers->a.thres);
-	WR16(devAddr, AUD_DEM_WR_CM_B_THRSHLD__A, carriers->b.thres);
+	WR16(dev_addr, AUD_DEM_WR_CM_A_THRSHLD__A, carriers->a.thres);
+	WR16(dev_addr, AUD_DEM_WR_CM_B_THRSHLD__A, carriers->b.thres);
 
 	/* update DRXK data structure */
-	extAttr->audData.carriers = *carriers;
+	ext_attr->aud_data.carriers = *carriers;
 
 	return DRX_STS_OK;
 rw_error:
@@ -11004,82 +11004,82 @@ rw_error:
 *
 */
 static int
-AUDCtrlGetCfgMixer(pDRXDemodInstance_t demod, pDRXCfgAudMixer_t mixer)
+aud_ctrl_get_cfg_mixer(pdrx_demod_instance_t demod, pdrx_cfg_aud_mixer_t mixer)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 srcI2SMatr = 0;
-	u16 fmMatr = 0;
+	u16 src_i2s_matr = 0;
+	u16 fm_matr = 0;
 
 	if (mixer == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* Source Selctor */
-	RR16(devAddr, AUD_DSP_WR_SRC_I2S_MATR__A, &srcI2SMatr);
+	RR16(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, &src_i2s_matr);
 
-	switch (srcI2SMatr & AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M) {
+	switch (src_i2s_matr & AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M) {
 	case AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_MONO:
-		mixer->sourceI2S = DRX_AUD_SRC_MONO;
+		mixer->source_i2s = DRX_AUD_SRC_MONO;
 		break;
 	case AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_AB:
-		mixer->sourceI2S = DRX_AUD_SRC_STEREO_OR_AB;
+		mixer->source_i2s = DRX_AUD_SRC_STEREO_OR_AB;
 		break;
 	case AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_A:
-		mixer->sourceI2S = DRX_AUD_SRC_STEREO_OR_A;
+		mixer->source_i2s = DRX_AUD_SRC_STEREO_OR_A;
 		break;
 	case AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_B:
-		mixer->sourceI2S = DRX_AUD_SRC_STEREO_OR_B;
+		mixer->source_i2s = DRX_AUD_SRC_STEREO_OR_B;
 		break;
 	default:
 		return DRX_STS_ERROR;
 	}
 
 	/* Matrix */
-	switch (srcI2SMatr & AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S__M) {
+	switch (src_i2s_matr & AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S__M) {
 	case AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_MONO:
-		mixer->matrixI2S = DRX_AUD_I2S_MATRIX_MONO;
+		mixer->matrix_i2s = DRX_AUD_I2S_MATRIX_MONO;
 		break;
 	case AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_STEREO:
-		mixer->matrixI2S = DRX_AUD_I2S_MATRIX_STEREO;
+		mixer->matrix_i2s = DRX_AUD_I2S_MATRIX_STEREO;
 		break;
 	case AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_SOUND_A:
-		mixer->matrixI2S = DRX_AUD_I2S_MATRIX_A_MONO;
+		mixer->matrix_i2s = DRX_AUD_I2S_MATRIX_A_MONO;
 		break;
 	case AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_SOUND_B:
-		mixer->matrixI2S = DRX_AUD_I2S_MATRIX_B_MONO;
+		mixer->matrix_i2s = DRX_AUD_I2S_MATRIX_B_MONO;
 		break;
 	default:
 		return DRX_STS_ERROR;
 	}
 
 	/* FM Matrix */
-	RR16(devAddr, AUD_DEM_WR_FM_MATRIX__A, &fmMatr);
-	switch (fmMatr & AUD_DEM_WR_FM_MATRIX__M) {
+	RR16(dev_addr, AUD_DEM_WR_FM_MATRIX__A, &fm_matr);
+	switch (fm_matr & AUD_DEM_WR_FM_MATRIX__M) {
 	case AUD_DEM_WR_FM_MATRIX_NO_MATRIX:
-		mixer->matrixFm = DRX_AUD_FM_MATRIX_NO_MATRIX;
+		mixer->matrix_fm = DRX_AUD_FM_MATRIX_NO_MATRIX;
 		break;
 	case AUD_DEM_WR_FM_MATRIX_GERMAN_MATRIX:
-		mixer->matrixFm = DRX_AUD_FM_MATRIX_GERMAN;
+		mixer->matrix_fm = DRX_AUD_FM_MATRIX_GERMAN;
 		break;
 	case AUD_DEM_WR_FM_MATRIX_KOREAN_MATRIX:
-		mixer->matrixFm = DRX_AUD_FM_MATRIX_KOREAN;
+		mixer->matrix_fm = DRX_AUD_FM_MATRIX_KOREAN;
 		break;
 	case AUD_DEM_WR_FM_MATRIX_SOUND_A:
-		mixer->matrixFm = DRX_AUD_FM_MATRIX_SOUND_A;
+		mixer->matrix_fm = DRX_AUD_FM_MATRIX_SOUND_A;
 		break;
 	case AUD_DEM_WR_FM_MATRIX_SOUND_B:
-		mixer->matrixFm = DRX_AUD_FM_MATRIX_SOUND_B;
+		mixer->matrix_fm = DRX_AUD_FM_MATRIX_SOUND_B;
 		break;
 	default:
 		return DRX_STS_ERROR;
@@ -11099,99 +11099,99 @@ rw_error:
 *
 */
 static int
-AUDCtrlSetCfgMixer(pDRXDemodInstance_t demod, pDRXCfgAudMixer_t mixer)
+aud_ctrl_set_cfg_mixer(pdrx_demod_instance_t demod, pdrx_cfg_aud_mixer_t mixer)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 srcI2SMatr = 0;
-	u16 fmMatr = 0;
+	u16 src_i2s_matr = 0;
+	u16 fm_matr = 0;
 
 	if (mixer == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* Source Selctor */
-	RR16(devAddr, AUD_DSP_WR_SRC_I2S_MATR__A, &srcI2SMatr);
-	srcI2SMatr &= (u16) ~AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M;
+	RR16(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, &src_i2s_matr);
+	src_i2s_matr &= (u16) ~AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M;
 
-	switch (mixer->sourceI2S) {
+	switch (mixer->source_i2s) {
 	case DRX_AUD_SRC_MONO:
-		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_MONO;
+		src_i2s_matr |= AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_MONO;
 		break;
 	case DRX_AUD_SRC_STEREO_OR_AB:
-		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_AB;
+		src_i2s_matr |= AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_AB;
 		break;
 	case DRX_AUD_SRC_STEREO_OR_A:
-		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_A;
+		src_i2s_matr |= AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_A;
 		break;
 	case DRX_AUD_SRC_STEREO_OR_B:
-		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_B;
+		src_i2s_matr |= AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_B;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* Matrix */
-	srcI2SMatr &= (u16) ~AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S__M;
-	switch (mixer->matrixI2S) {
+	src_i2s_matr &= (u16) ~AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S__M;
+	switch (mixer->matrix_i2s) {
 	case DRX_AUD_I2S_MATRIX_MONO:
-		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_MONO;
+		src_i2s_matr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_MONO;
 		break;
 	case DRX_AUD_I2S_MATRIX_STEREO:
-		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_STEREO;
+		src_i2s_matr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_STEREO;
 		break;
 	case DRX_AUD_I2S_MATRIX_A_MONO:
-		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_SOUND_A;
+		src_i2s_matr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_SOUND_A;
 		break;
 	case DRX_AUD_I2S_MATRIX_B_MONO:
-		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_SOUND_B;
+		src_i2s_matr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_SOUND_B;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 	/* write the result */
-	WR16(devAddr, AUD_DSP_WR_SRC_I2S_MATR__A, srcI2SMatr);
+	WR16(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, src_i2s_matr);
 
 	/* FM Matrix */
-	RR16(devAddr, AUD_DEM_WR_FM_MATRIX__A, &fmMatr);
-	fmMatr &= (u16) ~AUD_DEM_WR_FM_MATRIX__M;
-	switch (mixer->matrixFm) {
+	RR16(dev_addr, AUD_DEM_WR_FM_MATRIX__A, &fm_matr);
+	fm_matr &= (u16) ~AUD_DEM_WR_FM_MATRIX__M;
+	switch (mixer->matrix_fm) {
 	case DRX_AUD_FM_MATRIX_NO_MATRIX:
-		fmMatr |= AUD_DEM_WR_FM_MATRIX_NO_MATRIX;
+		fm_matr |= AUD_DEM_WR_FM_MATRIX_NO_MATRIX;
 		break;
 	case DRX_AUD_FM_MATRIX_GERMAN:
-		fmMatr |= AUD_DEM_WR_FM_MATRIX_GERMAN_MATRIX;
+		fm_matr |= AUD_DEM_WR_FM_MATRIX_GERMAN_MATRIX;
 		break;
 	case DRX_AUD_FM_MATRIX_KOREAN:
-		fmMatr |= AUD_DEM_WR_FM_MATRIX_KOREAN_MATRIX;
+		fm_matr |= AUD_DEM_WR_FM_MATRIX_KOREAN_MATRIX;
 		break;
 	case DRX_AUD_FM_MATRIX_SOUND_A:
-		fmMatr |= AUD_DEM_WR_FM_MATRIX_SOUND_A;
+		fm_matr |= AUD_DEM_WR_FM_MATRIX_SOUND_A;
 		break;
 	case DRX_AUD_FM_MATRIX_SOUND_B:
-		fmMatr |= AUD_DEM_WR_FM_MATRIX_SOUND_B;
+		fm_matr |= AUD_DEM_WR_FM_MATRIX_SOUND_B;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* Only write if ASS is off */
-	if (extAttr->audData.autoSound == DRX_AUD_AUTO_SOUND_OFF) {
-		WR16(devAddr, AUD_DEM_WR_FM_MATRIX__A, fmMatr);
+	if (ext_attr->aud_data.auto_sound == DRX_AUD_AUTO_SOUND_OFF) {
+		WR16(dev_addr, AUD_DEM_WR_FM_MATRIX__A, fm_matr);
 	}
 
 	/* update the data structure with hardware state */
-	extAttr->audData.mixer = *mixer;
+	ext_attr->aud_data.mixer = *mixer;
 
 	return DRX_STS_OK;
 rw_error:
@@ -11207,48 +11207,48 @@ rw_error:
 *
 */
 static int
-AUDCtrlSetCfgAVSync(pDRXDemodInstance_t demod, pDRXCfgAudAVSync_t avSync)
+aud_ctrl_set_cfg_av_sync(pdrx_demod_instance_t demod, pdrx_cfg_aud_av_sync_t av_sync)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 wAudVidSync = 0;
+	u16 w_aud_vid_sync = 0;
 
-	if (avSync == NULL) {
+	if (av_sync == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* audio/video synchronisation */
-	RR16(devAddr, AUD_DSP_WR_AV_SYNC__A, &wAudVidSync);
+	RR16(dev_addr, AUD_DSP_WR_AV_SYNC__A, &w_aud_vid_sync);
 
-	wAudVidSync &= (u16) ~AUD_DSP_WR_AV_SYNC_AV_ON__M;
+	w_aud_vid_sync &= (u16) ~AUD_DSP_WR_AV_SYNC_AV_ON__M;
 
-	if (*avSync == DRX_AUD_AVSYNC_OFF) {
-		wAudVidSync |= AUD_DSP_WR_AV_SYNC_AV_ON_DISABLE;
+	if (*av_sync == DRX_AUD_AVSYNC_OFF) {
+		w_aud_vid_sync |= AUD_DSP_WR_AV_SYNC_AV_ON_DISABLE;
 	} else {
-		wAudVidSync |= AUD_DSP_WR_AV_SYNC_AV_ON_ENABLE;
+		w_aud_vid_sync |= AUD_DSP_WR_AV_SYNC_AV_ON_ENABLE;
 	}
 
-	wAudVidSync &= (u16) ~AUD_DSP_WR_AV_SYNC_AV_STD_SEL__M;
+	w_aud_vid_sync &= (u16) ~AUD_DSP_WR_AV_SYNC_AV_STD_SEL__M;
 
-	switch (*avSync) {
+	switch (*av_sync) {
 	case DRX_AUD_AVSYNC_NTSC:
-		wAudVidSync |= AUD_DSP_WR_AV_SYNC_AV_STD_SEL_NTSC;
+		w_aud_vid_sync |= AUD_DSP_WR_AV_SYNC_AV_STD_SEL_NTSC;
 		break;
 	case DRX_AUD_AVSYNC_MONOCHROME:
-		wAudVidSync |= AUD_DSP_WR_AV_SYNC_AV_STD_SEL_MONOCHROME;
+		w_aud_vid_sync |= AUD_DSP_WR_AV_SYNC_AV_STD_SEL_MONOCHROME;
 		break;
 	case DRX_AUD_AVSYNC_PAL_SECAM:
-		wAudVidSync |= AUD_DSP_WR_AV_SYNC_AV_STD_SEL_PAL_SECAM;
+		w_aud_vid_sync |= AUD_DSP_WR_AV_SYNC_AV_STD_SEL_PAL_SECAM;
 		break;
 	case DRX_AUD_AVSYNC_OFF:
 		/* OK */
@@ -11257,7 +11257,7 @@ AUDCtrlSetCfgAVSync(pDRXDemodInstance_t demod, pDRXCfgAudAVSync_t avSync)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	WR16(devAddr, AUD_DSP_WR_AV_SYNC__A, wAudVidSync);
+	WR16(dev_addr, AUD_DSP_WR_AV_SYNC__A, w_aud_vid_sync);
 	return DRX_STS_OK;
 rw_error:
 	return DRX_STS_ERROR;
@@ -11272,44 +11272,44 @@ rw_error:
 *
 */
 static int
-AUDCtrlGetCfgAVSync(pDRXDemodInstance_t demod, pDRXCfgAudAVSync_t avSync)
+aud_ctrl_get_cfg_av_sync(pdrx_demod_instance_t demod, pdrx_cfg_aud_av_sync_t av_sync)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 wAudVidSync = 0;
+	u16 w_aud_vid_sync = 0;
 
-	if (avSync == NULL) {
+	if (av_sync == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* audio/video synchronisation */
-	RR16(devAddr, AUD_DSP_WR_AV_SYNC__A, &wAudVidSync);
+	RR16(dev_addr, AUD_DSP_WR_AV_SYNC__A, &w_aud_vid_sync);
 
-	if ((wAudVidSync & AUD_DSP_WR_AV_SYNC_AV_ON__M) ==
+	if ((w_aud_vid_sync & AUD_DSP_WR_AV_SYNC_AV_ON__M) ==
 	    AUD_DSP_WR_AV_SYNC_AV_ON_DISABLE) {
-		*avSync = DRX_AUD_AVSYNC_OFF;
+		*av_sync = DRX_AUD_AVSYNC_OFF;
 		return DRX_STS_OK;
 	}
 
-	switch (wAudVidSync & AUD_DSP_WR_AV_SYNC_AV_STD_SEL__M) {
+	switch (w_aud_vid_sync & AUD_DSP_WR_AV_SYNC_AV_STD_SEL__M) {
 	case AUD_DSP_WR_AV_SYNC_AV_STD_SEL_NTSC:
-		*avSync = DRX_AUD_AVSYNC_NTSC;
+		*av_sync = DRX_AUD_AVSYNC_NTSC;
 		break;
 	case AUD_DSP_WR_AV_SYNC_AV_STD_SEL_MONOCHROME:
-		*avSync = DRX_AUD_AVSYNC_MONOCHROME;
+		*av_sync = DRX_AUD_AVSYNC_MONOCHROME;
 		break;
 	case AUD_DSP_WR_AV_SYNC_AV_STD_SEL_PAL_SECAM:
-		*avSync = DRX_AUD_AVSYNC_PAL_SECAM;
+		*av_sync = DRX_AUD_AVSYNC_PAL_SECAM;
 		break;
 	default:
 		return DRX_STS_ERROR;
@@ -11324,28 +11324,28 @@ rw_error:
 /**
 * \brief Get deviation mode
 * \param demod instance of demodulator
-* \param pointer to DRXCfgAudDeviation_t
+* \param pointer to drx_cfg_aud_deviation_t
 * \return int.
 *
 */
 static int
-AUDCtrlGetCfgDev(pDRXDemodInstance_t demod, pDRXCfgAudDeviation_t dev)
+aud_ctrl_get_cfg_dev(pdrx_demod_instance_t demod, pdrx_cfg_aud_deviation_t dev)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 rModus = 0;
+	u16 r_modus = 0;
 
 	if (dev == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
-	CHK_ERROR(AUDGetModus(demod, &rModus));
+	CHK_ERROR(aud_get_modus(demod, &r_modus));
 
-	switch (rModus & AUD_DEM_WR_MODUS_MOD_HDEV_A__M) {
+	switch (r_modus & AUD_DEM_WR_MODUS_MOD_HDEV_A__M) {
 	case AUD_DEM_WR_MODUS_MOD_HDEV_A_NORMAL:
 		*dev = DRX_AUD_DEVIATION_NORMAL;
 		break;
@@ -11365,49 +11365,49 @@ rw_error:
 /**
 * \brief Get deviation mode
 * \param demod instance of demodulator
-* \param pointer to DRXCfgAudDeviation_t
+* \param pointer to drx_cfg_aud_deviation_t
 * \return int.
 *
 */
 static int
-AUDCtrlSetCfgDev(pDRXDemodInstance_t demod, pDRXCfgAudDeviation_t dev)
+aud_ctrl_set_cfg_dev(pdrx_demod_instance_t demod, pdrx_cfg_aud_deviation_t dev)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 wModus = 0;
-	u16 rModus = 0;
+	u16 w_modus = 0;
+	u16 r_modus = 0;
 
 	if (dev == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
-	CHK_ERROR(AUDGetModus(demod, &rModus));
+	CHK_ERROR(aud_get_modus(demod, &r_modus));
 
-	wModus = rModus;
+	w_modus = r_modus;
 
-	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_HDEV_A__M;
+	w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_HDEV_A__M;
 
 	switch (*dev) {
 	case DRX_AUD_DEVIATION_NORMAL:
-		wModus |= AUD_DEM_WR_MODUS_MOD_HDEV_A_NORMAL;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_HDEV_A_NORMAL;
 		break;
 	case DRX_AUD_DEVIATION_HIGH:
-		wModus |= AUD_DEM_WR_MODUS_MOD_HDEV_A_HIGH_DEVIATION;
+		w_modus |= AUD_DEM_WR_MODUS_MOD_HDEV_A_HIGH_DEVIATION;
 		break;
 	default:
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* now update the modus register */
-	if (wModus != rModus) {
-		WR16(devAddr, AUD_DEM_WR_MODUS__A, wModus);
+	if (w_modus != r_modus) {
+		WR16(dev_addr, AUD_DEM_WR_MODUS__A, w_modus);
 	}
 	/* store in drxk data struct */
-	extAttr->audData.deviation = *dev;
+	ext_attr->aud_data.deviation = *dev;
 
 	return DRX_STS_OK;
 rw_error:
@@ -11418,70 +11418,70 @@ rw_error:
 /**
 * \brief Get Prescaler settings
 * \param demod instance of demodulator
-* \param pointer to DRXCfgAudPrescale_t
+* \param pointer to drx_cfg_aud_prescale_t
 * \return int.
 *
 */
 static int
-AUDCtrlGetCfgPrescale(pDRXDemodInstance_t demod, pDRXCfgAudPrescale_t presc)
+aud_ctrl_get_cfg_prescale(pdrx_demod_instance_t demod, pdrx_cfg_aud_prescale_t presc)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 rMaxFMDeviation = 0;
-	u16 rNicamPrescaler = 0;
+	u16 r_max_fm_deviation = 0;
+	u16 r_nicam_prescaler = 0;
 
 	if (presc == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* read register data */
-	RR16(devAddr, AUD_DSP_WR_NICAM_PRESC__A, &rNicamPrescaler);
-	RR16(devAddr, AUD_DSP_WR_FM_PRESC__A, &rMaxFMDeviation);
+	RR16(dev_addr, AUD_DSP_WR_NICAM_PRESC__A, &r_nicam_prescaler);
+	RR16(dev_addr, AUD_DSP_WR_FM_PRESC__A, &r_max_fm_deviation);
 
 	/* calculate max FM deviation */
-	rMaxFMDeviation >>= AUD_DSP_WR_FM_PRESC_FM_AM_PRESC__B;
-	if (rMaxFMDeviation > 0) {
-		presc->fmDeviation = 3600UL + (rMaxFMDeviation >> 1);
-		presc->fmDeviation /= rMaxFMDeviation;
+	r_max_fm_deviation >>= AUD_DSP_WR_FM_PRESC_FM_AM_PRESC__B;
+	if (r_max_fm_deviation > 0) {
+		presc->fm_deviation = 3600UL + (r_max_fm_deviation >> 1);
+		presc->fm_deviation /= r_max_fm_deviation;
 	} else {
-		presc->fmDeviation = 380;	/* kHz */
+		presc->fm_deviation = 380;	/* kHz */
 	}
 
 	/* calculate NICAM gain from pre-scaler */
 	/*
-	   nicamGain   = 20 * ( log10( preScaler / 16) )
+	   nicam_gain   = 20 * ( log10( preScaler / 16) )
 	   = ( 100log10( preScaler ) - 100log10( 16 ) ) / 5
 
-	   because Log10Times100() cannot return negative numbers
+	   because log1_times100() cannot return negative numbers
 	   = ( 100log10( 10 * preScaler ) - 100log10( 10 * 16) ) / 5
 
 	   for 0.1dB resolution:
 
-	   nicamGain   = 200 * ( log10( preScaler / 16) )
+	   nicam_gain   = 200 * ( log10( preScaler / 16) )
 	   = 2 * ( 100log10( 10 * preScaler ) - 100log10( 10 * 16) )
 	   = ( 100log10( 10 * preScaler^2 ) - 100log10( 10 * 16^2 ) )
 
 	 */
-	rNicamPrescaler >>= 8;
-	if (rNicamPrescaler <= 1) {
-		presc->nicamGain = -241;
+	r_nicam_prescaler >>= 8;
+	if (r_nicam_prescaler <= 1) {
+		presc->nicam_gain = -241;
 	} else {
 
-		presc->nicamGain = (s16) (((s32)
-					     (Log10Times100
-					      (10 * rNicamPrescaler *
-					       rNicamPrescaler)) - (s32)
-					     (Log10Times100(10 * 16 * 16))));
+		presc->nicam_gain = (s16) (((s32)
+					     (log1_times100
+					      (10 * r_nicam_prescaler *
+					       r_nicam_prescaler)) - (s32)
+					     (log1_times100(10 * 16 * 16))));
 	}
 
 	return DRX_STS_OK;
@@ -11493,79 +11493,79 @@ rw_error:
 /**
 * \brief Set Prescaler settings
 * \param demod instance of demodulator
-* \param pointer to DRXCfgAudPrescale_t
+* \param pointer to drx_cfg_aud_prescale_t
 * \return int.
 *
 */
 static int
-AUDCtrlSetCfgPrescale(pDRXDemodInstance_t demod, pDRXCfgAudPrescale_t presc)
+aud_ctrl_set_cfg_prescale(pdrx_demod_instance_t demod, pdrx_cfg_aud_prescale_t presc)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 wMaxFMDeviation = 0;
-	u16 nicamPrescaler;
+	u16 w_max_fm_deviation = 0;
+	u16 nicam_prescaler;
 
 	if (presc == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* setting of max FM deviation */
-	wMaxFMDeviation = (u16) (Frac(3600UL, presc->fmDeviation, 0));
-	wMaxFMDeviation <<= AUD_DSP_WR_FM_PRESC_FM_AM_PRESC__B;
-	if (wMaxFMDeviation >=
+	w_max_fm_deviation = (u16) (frac(3600UL, presc->fm_deviation, 0));
+	w_max_fm_deviation <<= AUD_DSP_WR_FM_PRESC_FM_AM_PRESC__B;
+	if (w_max_fm_deviation >=
 	    AUD_DSP_WR_FM_PRESC_FM_AM_PRESC_28_KHZ_FM_DEVIATION) {
-		wMaxFMDeviation =
+		w_max_fm_deviation =
 		    AUD_DSP_WR_FM_PRESC_FM_AM_PRESC_28_KHZ_FM_DEVIATION;
 	}
 
 	/* NICAM Prescaler */
-	if ((presc->nicamGain >= -241) && (presc->nicamGain <= 180)) {
+	if ((presc->nicam_gain >= -241) && (presc->nicam_gain <= 180)) {
 		/* calculation
 
-		   prescaler = 16 * 10^( GdB / 20 )
+		   prescaler = 16 * 10^( gd_b / 20 )
 
-		   minval of GdB = -20*log( 16 ) = -24.1dB
+		   minval of gd_b = -20*log( 16 ) = -24.1dB
 
-		   negative numbers not allowed for dB2LinTimes100, so
+		   negative numbers not allowed for d_b2lin_times100, so
 
-		   prescaler = 16 * 10^( GdB / 20 )
-		   = 10^( (GdB / 20) + log10(16) )
-		   = 10^( (GdB + 20log10(16)) / 20 )
+		   prescaler = 16 * 10^( gd_b / 20 )
+		   = 10^( (gd_b / 20) + log10(16) )
+		   = 10^( (gd_b + 20log10(16)) / 20 )
 
 		   in 0.1dB
 
 		   = 10^( G0.1dB + 200log10(16)) / 200 )
 
 		 */
-		nicamPrescaler = (u16)
-		    ((dB2LinTimes100(presc->nicamGain + 241UL) + 50UL) / 100UL);
+		nicam_prescaler = (u16)
+		    ((d_b2lin_times100(presc->nicam_gain + 241UL) + 50UL) / 100UL);
 
 		/* clip result */
-		if (nicamPrescaler > 127) {
-			nicamPrescaler = 127;
+		if (nicam_prescaler > 127) {
+			nicam_prescaler = 127;
 		}
 
 		/* shift before writing to register */
-		nicamPrescaler <<= 8;
+		nicam_prescaler <<= 8;
 	} else {
 		return (DRX_STS_INVALID_ARG);
 	}
 	/* end of setting NICAM Prescaler */
 
-	WR16(devAddr, AUD_DSP_WR_NICAM_PRESC__A, nicamPrescaler);
-	WR16(devAddr, AUD_DSP_WR_FM_PRESC__A, wMaxFMDeviation);
+	WR16(dev_addr, AUD_DSP_WR_NICAM_PRESC__A, nicam_prescaler);
+	WR16(dev_addr, AUD_DSP_WR_FM_PRESC__A, w_max_fm_deviation);
 
-	extAttr->audData.prescale = *presc;
+	ext_attr->aud_data.prescale = *presc;
 
 	return DRX_STS_OK;
 rw_error:
@@ -11576,16 +11576,16 @@ rw_error:
 /**
 * \brief Beep
 * \param demod instance of demodulator
-* \param pointer to DRXAudBeep_t
+* \param pointer to drx_aud_beep_t
 * \return int.
 *
 */
-static int AUDCtrlBeep(pDRXDemodInstance_t demod, pDRXAudBeep_t beep)
+static int aud_ctrl_beep(pdrx_demod_instance_t demod, pdrx_aud_beep_t beep)
 {
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
 
-	u16 theBeep = 0;
+	u16 the_beep = 0;
 	u16 volume = 0;
 	u32 frequency = 0;
 
@@ -11593,13 +11593,13 @@ static int AUDCtrlBeep(pDRXDemodInstance_t demod, pDRXAudBeep_t beep)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	if ((beep->volume > 0) || (beep->volume < -127)) {
@@ -11611,19 +11611,19 @@ static int AUDCtrlBeep(pDRXDemodInstance_t demod, pDRXAudBeep_t beep)
 	}
 
 	volume = (u16) beep->volume + 127;
-	theBeep |= volume << AUD_DSP_WR_BEEPER_BEEP_VOLUME__B;
+	the_beep |= volume << AUD_DSP_WR_BEEPER_BEEP_VOLUME__B;
 
 	frequency = ((u32) beep->frequency) * 23 / 500;
 	if (frequency > AUD_DSP_WR_BEEPER_BEEP_FREQUENCY__M) {
 		frequency = AUD_DSP_WR_BEEPER_BEEP_FREQUENCY__M;
 	}
-	theBeep |= (u16) frequency;
+	the_beep |= (u16) frequency;
 
 	if (beep->mute == true) {
-		theBeep = 0;
+		the_beep = 0;
 	}
 
-	WR16(devAddr, AUD_DSP_WR_BEEPER__A, theBeep);
+	WR16(dev_addr, AUD_DSP_WR_BEEPER__A, the_beep);
 
 	return DRX_STS_OK;
 rw_error:
@@ -11634,108 +11634,108 @@ rw_error:
 /**
 * \brief Set an audio standard
 * \param demod instance of demodulator
-* \param pointer to DRXAudStandard_t
+* \param pointer to drx_aud_standard_t
 * \return int.
 *
 */
 static int
-AUDCtrlSetStandard(pDRXDemodInstance_t demod, pDRXAudStandard_t standard)
+aud_ctrl_set_standard(pdrx_demod_instance_t demod, pdrx_aud_standard_t standard)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
-	enum drx_standard currentStandard = DRX_STANDARD_UNKNOWN;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	enum drx_standard current_standard = DRX_STANDARD_UNKNOWN;
 
-	u16 wStandard = 0;
-	u16 wModus = 0;
-	u16 rModus = 0;
+	u16 w_standard = 0;
+	u16 w_modus = 0;
+	u16 r_modus = 0;
 
-	bool muteBuffer = false;
-	s16 volumeBuffer = 0;
-	u16 wVolume = 0;
+	bool mute_buffer = false;
+	s16 volume_buffer = 0;
+	u16 w_volume = 0;
 
 	if (standard == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, false));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, false));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* reset RDS data availability flag */
-	extAttr->audData.rdsDataPresent = false;
+	ext_attr->aud_data.rds_data_present = false;
 
 	/* we need to mute from here to avoid noise during standard switching */
-	muteBuffer = extAttr->audData.volume.mute;
-	volumeBuffer = extAttr->audData.volume.volume;
+	mute_buffer = ext_attr->aud_data.volume.mute;
+	volume_buffer = ext_attr->aud_data.volume.volume;
 
-	extAttr->audData.volume.mute = true;
+	ext_attr->aud_data.volume.mute = true;
 	/* restore data structure from DRX ExtAttr, call volume first to mute */
-	CHK_ERROR(AUDCtrlSetCfgVolume(demod, &extAttr->audData.volume));
-	CHK_ERROR(AUDCtrlSetCfgCarrier(demod, &extAttr->audData.carriers));
-	CHK_ERROR(AUDCtrlSetCfgASSThres
-		  (demod, &extAttr->audData.assThresholds));
-	CHK_ERROR(AUDCtrSetlCfgAutoSound(demod, &extAttr->audData.autoSound));
-	CHK_ERROR(AUDCtrlSetCfgMixer(demod, &extAttr->audData.mixer));
-	CHK_ERROR(AUDCtrlSetCfgAVSync(demod, &extAttr->audData.avSync));
-	CHK_ERROR(AUDCtrlSetCfgOutputI2S(demod, &extAttr->audData.i2sdata));
+	CHK_ERROR(aud_ctrl_set_cfg_volume(demod, &ext_attr->aud_data.volume));
+	CHK_ERROR(aud_ctrl_set_cfg_carrier(demod, &ext_attr->aud_data.carriers));
+	CHK_ERROR(aud_ctrl_set_cfg_ass_thres
+		  (demod, &ext_attr->aud_data.ass_thresholds));
+	CHK_ERROR(aud_ctr_setl_cfg_auto_sound(demod, &ext_attr->aud_data.auto_sound));
+	CHK_ERROR(aud_ctrl_set_cfg_mixer(demod, &ext_attr->aud_data.mixer));
+	CHK_ERROR(aud_ctrl_set_cfg_av_sync(demod, &ext_attr->aud_data.av_sync));
+	CHK_ERROR(aud_ctrl_set_cfg_output_i2s(demod, &ext_attr->aud_data.i2sdata));
 
 	/* get prescaler from presets */
-	CHK_ERROR(AUDCtrlSetCfgPrescale(demod, &extAttr->audData.prescale));
+	CHK_ERROR(aud_ctrl_set_cfg_prescale(demod, &ext_attr->aud_data.prescale));
 
-	CHK_ERROR(AUDGetModus(demod, &rModus));
+	CHK_ERROR(aud_get_modus(demod, &r_modus));
 
-	wModus = rModus;
+	w_modus = r_modus;
 
 	switch (*standard) {
 	case DRX_AUD_STANDARD_AUTO:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_AUTO;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_AUTO;
 		break;
 	case DRX_AUD_STANDARD_BTSC:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_BTSC_STEREO;
-		if (extAttr->audData.btscDetect == DRX_BTSC_MONO_AND_SAP) {
-			wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_BTSC_SAP;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_BTSC_STEREO;
+		if (ext_attr->aud_data.btsc_detect == DRX_BTSC_MONO_AND_SAP) {
+			w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_BTSC_SAP;
 		}
 		break;
 	case DRX_AUD_STANDARD_A2:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_M_KOREA;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_M_KOREA;
 		break;
 	case DRX_AUD_STANDARD_EIAJ:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_EIA_J;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_EIA_J;
 		break;
 	case DRX_AUD_STANDARD_FM_STEREO:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_FM_RADIO;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_FM_RADIO;
 		break;
 	case DRX_AUD_STANDARD_BG_FM:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_BG_FM;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_BG_FM;
 		break;
 	case DRX_AUD_STANDARD_D_K1:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_D_K1;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_D_K1;
 		break;
 	case DRX_AUD_STANDARD_D_K2:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_D_K2;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_D_K2;
 		break;
 	case DRX_AUD_STANDARD_D_K3:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_D_K3;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_D_K3;
 		break;
 	case DRX_AUD_STANDARD_BG_NICAM_FM:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_BG_NICAM_FM;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_BG_NICAM_FM;
 		break;
 	case DRX_AUD_STANDARD_L_NICAM_AM:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_L_NICAM_AM;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_L_NICAM_AM;
 		break;
 	case DRX_AUD_STANDARD_I_NICAM_FM:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_I_NICAM_FM;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_I_NICAM_FM;
 		break;
 	case DRX_AUD_STANDARD_D_K_NICAM_FM:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_D_K_NICAM_FM;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_D_K_NICAM_FM;
 		break;
 	case DRX_AUD_STANDARD_UNKNOWN:
-		wStandard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_AUTO;
+		w_standard = AUD_DEM_WR_STANDARD_SEL_STD_SEL_AUTO;
 		break;
 	default:
 		return DRX_STS_ERROR;
@@ -11743,65 +11743,65 @@ AUDCtrlSetStandard(pDRXDemodInstance_t demod, pDRXAudStandard_t standard)
 
 	if (*standard == DRX_AUD_STANDARD_AUTO) {
 		/* we need the current standard here */
-		currentStandard = extAttr->standard;
+		current_standard = ext_attr->standard;
 
-		wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_6_5MHZ__M;
+		w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_6_5MHZ__M;
 
-		if ((currentStandard == DRX_STANDARD_PAL_SECAM_L) ||
-		    (currentStandard == DRX_STANDARD_PAL_SECAM_LP)) {
-			wModus |= (AUD_DEM_WR_MODUS_MOD_6_5MHZ_SECAM);
+		if ((current_standard == DRX_STANDARD_PAL_SECAM_L) ||
+		    (current_standard == DRX_STANDARD_PAL_SECAM_LP)) {
+			w_modus |= (AUD_DEM_WR_MODUS_MOD_6_5MHZ_SECAM);
 		} else {
-			wModus |= (AUD_DEM_WR_MODUS_MOD_6_5MHZ_D_K);
+			w_modus |= (AUD_DEM_WR_MODUS_MOD_6_5MHZ_D_K);
 		}
 
-		wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_4_5MHZ__M;
-		if (currentStandard == DRX_STANDARD_NTSC) {
-			wModus |= (AUD_DEM_WR_MODUS_MOD_4_5MHZ_M_BTSC);
+		w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_4_5MHZ__M;
+		if (current_standard == DRX_STANDARD_NTSC) {
+			w_modus |= (AUD_DEM_WR_MODUS_MOD_4_5MHZ_M_BTSC);
 
 		} else {	/* non USA, ignore standard M to save time */
 
-			wModus |= (AUD_DEM_WR_MODUS_MOD_4_5MHZ_CHROMA);
+			w_modus |= (AUD_DEM_WR_MODUS_MOD_4_5MHZ_CHROMA);
 		}
 
 	}
 
-	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_FMRADIO__M;
+	w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_FMRADIO__M;
 
 	/* just get hardcoded deemphasis and activate here */
-	if (extAttr->audData.deemph == DRX_AUD_FM_DEEMPH_50US) {
-		wModus |= (AUD_DEM_WR_MODUS_MOD_FMRADIO_EU_50U);
+	if (ext_attr->aud_data.deemph == DRX_AUD_FM_DEEMPH_50US) {
+		w_modus |= (AUD_DEM_WR_MODUS_MOD_FMRADIO_EU_50U);
 	} else {
-		wModus |= (AUD_DEM_WR_MODUS_MOD_FMRADIO_US_75U);
+		w_modus |= (AUD_DEM_WR_MODUS_MOD_FMRADIO_US_75U);
 	}
 
-	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_BTSC__M;
-	if (extAttr->audData.btscDetect == DRX_BTSC_STEREO) {
-		wModus |= (AUD_DEM_WR_MODUS_MOD_BTSC_BTSC_STEREO);
+	w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_BTSC__M;
+	if (ext_attr->aud_data.btsc_detect == DRX_BTSC_STEREO) {
+		w_modus |= (AUD_DEM_WR_MODUS_MOD_BTSC_BTSC_STEREO);
 	} else {		/* DRX_BTSC_MONO_AND_SAP */
 
-		wModus |= (AUD_DEM_WR_MODUS_MOD_BTSC_BTSC_SAP);
+		w_modus |= (AUD_DEM_WR_MODUS_MOD_BTSC_BTSC_SAP);
 	}
 
-	if (wModus != rModus) {
-		WR16(devAddr, AUD_DEM_WR_MODUS__A, wModus);
+	if (w_modus != r_modus) {
+		WR16(dev_addr, AUD_DEM_WR_MODUS__A, w_modus);
 	}
 
-	WR16(devAddr, AUD_DEM_WR_STANDARD_SEL__A, wStandard);
+	WR16(dev_addr, AUD_DEM_WR_STANDARD_SEL__A, w_standard);
 
    /**************************************************************************/
-	/* NOT calling AUDCtrlSetCfgVolume to avoid interfering standard          */
+	/* NOT calling aud_ctrl_set_cfg_volume to avoid interfering standard          */
 	/* detection, need to keep things very minimal here, but keep audio       */
 	/* buffers intact                                                         */
    /**************************************************************************/
-	extAttr->audData.volume.mute = muteBuffer;
-	if (extAttr->audData.volume.mute == false) {
-		wVolume |= (u16) ((volumeBuffer + AUD_VOLUME_ZERO_DB) <<
+	ext_attr->aud_data.volume.mute = mute_buffer;
+	if (ext_attr->aud_data.volume.mute == false) {
+		w_volume |= (u16) ((volume_buffer + AUD_VOLUME_ZERO_DB) <<
 				    AUD_DSP_WR_VOLUME_VOL_MAIN__B);
-		WR16(devAddr, AUD_DSP_WR_VOLUME__A, wVolume);
+		WR16(dev_addr, AUD_DSP_WR_VOLUME__A, w_volume);
 	}
 
 	/* write standard selected */
-	extAttr->audData.audioStandard = *standard;
+	ext_attr->aud_data.audio_standard = *standard;
 
 	return DRX_STS_OK;
 rw_error:
@@ -11812,43 +11812,43 @@ rw_error:
 /**
 * \brief Get the current audio standard
 * \param demod instance of demodulator
-* \param pointer to DRXAudStandard_t
+* \param pointer to drx_aud_standard_t
 * \return int.
 *
 */
 static int
-AUDCtrlGetStandard(pDRXDemodInstance_t demod, pDRXAudStandard_t standard)
+aud_ctrl_get_standard(pdrx_demod_instance_t demod, pdrx_aud_standard_t standard)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	u16 rData = 0;
+	u16 r_data = 0;
 
 	if (standard == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = (struct i2c_device_addr *) demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = (struct i2c_device_addr *) demod->my_i2c_dev_addr;
 
 	/* power up */
-	if (extAttr->audData.audioIsActive == false) {
-		CHK_ERROR(PowerUpAud(demod, true));
-		extAttr->audData.audioIsActive = true;
+	if (ext_attr->aud_data.audio_is_active == false) {
+		CHK_ERROR(power_up_aud(demod, true));
+		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	*standard = DRX_AUD_STANDARD_UNKNOWN;
 
-	RR16(devAddr, AUD_DEM_RD_STANDARD_RES__A, &rData);
+	RR16(dev_addr, AUD_DEM_RD_STANDARD_RES__A, &r_data);
 
 	/* return OK if the detection is not ready yet */
-	if (rData >= AUD_DEM_RD_STANDARD_RES_STD_RESULT_DETECTION_STILL_ACTIVE) {
+	if (r_data >= AUD_DEM_RD_STANDARD_RES_STD_RESULT_DETECTION_STILL_ACTIVE) {
 		*standard = DRX_AUD_STANDARD_NOT_READY;
 		return DRX_STS_OK;
 	}
 
 	/* detection done, return correct standard */
-	switch (rData) {
+	switch (r_data) {
 		/* no standard detected */
 	case AUD_DEM_RD_STANDARD_RES_STD_RESULT_NO_SOUND_STANDARD:
 		*standard = DRX_AUD_STANDARD_UNKNOWN;
@@ -11924,18 +11924,18 @@ rw_error:
 *
 */
 static int
-FmLockStatus(pDRXDemodInstance_t demod, pDRXLockStatus_t lockStat)
+fm_lock_status(pdrx_demod_instance_t demod, pdrx_lock_status_t lock_stat)
 {
-	DRXAudStatus_t status;
+	drx_aud_status_t status;
 
 	/* Check detection of audio carriers */
-	CHK_ERROR(AUDCtrlGetCarrierDetectStatus(demod, &status));
+	CHK_ERROR(aud_ctrl_get_carrier_detect_status(demod, &status));
 
 	/* locked if either primary or secondary carrier is detected */
-	if ((status.carrierA == true) || (status.carrierB == true)) {
-		*lockStat = DRX_LOCKED;
+	if ((status.carrier_a == true) || (status.carrier_b == true)) {
+		*lock_stat = DRX_LOCKED;
 	} else {
-		*lockStat = DRX_NOT_LOCKED;
+		*lock_stat = DRX_NOT_LOCKED;
 	}
 
 	return (DRX_STS_OK);
@@ -11956,15 +11956,15 @@ rw_error:
 *
 */
 static int
-FmSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
+fm_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality)
 {
-	DRXLockStatus_t lockStatus = DRX_NOT_LOCKED;
+	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
 
-	CHK_ERROR(FmLockStatus(demod, &lockStatus));
-	if (lockStatus == DRX_LOCKED) {
-		sigQuality->indicator = 100;
+	CHK_ERROR(fm_lock_status(demod, &lock_status));
+	if (lock_status == DRX_LOCKED) {
+		sig_quality->indicator = 100;
 	} else {
-		sigQuality->indicator = 0;
+		sig_quality->indicator = 0;
 	}
 
 	return (DRX_STS_OK);
@@ -11986,54 +11986,54 @@ rw_error:
 /*============================================================================*/
 #ifndef DRXJ_DIGITAL_ONLY
 /**
-* \fn int GetOOBLockStatus ()
+* \fn int get_oob_lock_status ()
 * \brief Get OOB lock status.
-* \param devAddr I2C address
-  \      oobLock OOB lock status.
+* \param dev_addr I2C address
+  \      oob_lock OOB lock status.
 * \return int.
 *
 * Gets OOB lock status
 *
 */
 static int
-GetOOBLockStatus(pDRXDemodInstance_t demod,
-		 struct i2c_device_addr *devAddr, pDRXLockStatus_t oobLock)
+get_oob_lock_status(pdrx_demod_instance_t demod,
+		 struct i2c_device_addr *dev_addr, pdrx_lock_status_t oob_lock)
 {
-	DRXJSCUCmd_t scuCmd;
-	u16 cmdResult[2];
-	u16 OOBLockState;
+	drxjscu_cmd_t scu_cmd;
+	u16 cmd_result[2];
+	u16 oob_lock_state;
 
-	*oobLock = DRX_NOT_LOCKED;
+	*oob_lock = DRX_NOT_LOCKED;
 
-	scuCmd.command = SCU_RAM_COMMAND_STANDARD_OOB |
+	scu_cmd.command = SCU_RAM_COMMAND_STANDARD_OOB |
 	    SCU_RAM_COMMAND_CMD_DEMOD_GET_LOCK;
-	scuCmd.resultLen = 2;
-	scuCmd.result = cmdResult;
-	scuCmd.parameterLen = 0;
+	scu_cmd.result_len = 2;
+	scu_cmd.result = cmd_result;
+	scu_cmd.parameter_len = 0;
 
-	CHK_ERROR(SCUCommand(devAddr, &scuCmd));
+	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
 
-	if (scuCmd.result[1] < 0x4000) {
+	if (scu_cmd.result[1] < 0x4000) {
 		/* 0x00 NOT LOCKED */
-		*oobLock = DRX_NOT_LOCKED;
-	} else if (scuCmd.result[1] < 0x8000) {
+		*oob_lock = DRX_NOT_LOCKED;
+	} else if (scu_cmd.result[1] < 0x8000) {
 		/* 0x40 DEMOD LOCKED */
-		*oobLock = DRXJ_OOB_SYNC_LOCK;
-	} else if (scuCmd.result[1] < 0xC000) {
+		*oob_lock = DRXJ_OOB_SYNC_LOCK;
+	} else if (scu_cmd.result[1] < 0xC000) {
 		/* 0x80 DEMOD + OOB LOCKED (system lock) */
-		OOBLockState = scuCmd.result[1] & 0x00FF;
+		oob_lock_state = scu_cmd.result[1] & 0x00FF;
 
-		if (OOBLockState & 0x0008) {
-			*oobLock = DRXJ_OOB_SYNC_LOCK;
-		} else if ((OOBLockState & 0x0002) && (OOBLockState & 0x0001)) {
-			*oobLock = DRXJ_OOB_AGC_LOCK;
+		if (oob_lock_state & 0x0008) {
+			*oob_lock = DRXJ_OOB_SYNC_LOCK;
+		} else if ((oob_lock_state & 0x0002) && (oob_lock_state & 0x0001)) {
+			*oob_lock = DRXJ_OOB_AGC_LOCK;
 		}
 	} else {
 		/* 0xC0 NEVER LOCKED (system will never be able to lock to the signal) */
-		*oobLock = DRX_NEVER_LOCK;
+		*oob_lock = DRX_NEVER_LOCK;
 	}
 
-	/* *oobLock = scuCmd.result[1]; */
+	/* *oob_lock = scu_cmd.result[1]; */
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12041,9 +12041,9 @@ rw_error:
 }
 
 /**
-* \fn int GetOOBSymbolRateOffset ()
+* \fn int get_oob_symbol_rate_offset ()
 * \brief Get OOB Symbol rate offset. Unit is [ppm]
-* \param devAddr I2C address
+* \param dev_addr I2C address
 * \      Symbol Rate Offset OOB parameter.
 * \return int.
 *
@@ -12051,70 +12051,70 @@ rw_error:
 *
 */
 static int
-GetOOBSymbolRateOffset(struct i2c_device_addr *devAddr, s32 *SymbolRateOffset)
+get_oob_symbol_rate_offset(struct i2c_device_addr *dev_addr, s32 *symbol_rate_offset)
 {
-/*  offset = -{(timingOffset/2^19)*(symbolRate/12,656250MHz)}*10^6 [ppm]  */
-/*  offset = -{(timingOffset/2^19)*(symbolRate/12656250)}*10^6 [ppm]  */
+/*  offset = -{(timing_offset/2^19)*(symbol_rate/12,656250MHz)}*10^6 [ppm]  */
+/*  offset = -{(timing_offset/2^19)*(symbol_rate/12656250)}*10^6 [ppm]  */
 /*  after reconfiguration: */
-/*  offset = -{(timingOffset*symbolRate)/(2^19*12656250)}*10^6 [ppm]  */
+/*  offset = -{(timing_offset*symbol_rate)/(2^19*12656250)}*10^6 [ppm]  */
 /*  shift symbol rate left by 5 without lossing information */
-/*  offset = -{(timingOffset*(symbolRate * 2^-5))/(2^14*12656250)}*10^6 [ppm]*/
+/*  offset = -{(timing_offset*(symbol_rate * 2^-5))/(2^14*12656250)}*10^6 [ppm]*/
 /*  shift 10^6 left by 6 without loosing information */
-/*  offset = -{(timingOffset*(symbolRate * 2^-5))/(2^8*12656250)}*15625 [ppm]*/
+/*  offset = -{(timing_offset*(symbol_rate * 2^-5))/(2^8*12656250)}*15625 [ppm]*/
 /*  trim 12656250/15625 = 810 */
-/*  offset = -{(timingOffset*(symbolRate * 2^-5))/(2^8*810)} [ppm]  */
-/*  offset = -[(symbolRate * 2^-5)*(timingOffset)/(2^8)]/810 [ppm]  */
-	s32 timingOffset = 0;
-	u32 unsignedTimingOffset = 0;
-	s32 divisionFactor = 810;
+/*  offset = -{(timing_offset*(symbol_rate * 2^-5))/(2^8*810)} [ppm]  */
+/*  offset = -[(symbol_rate * 2^-5)*(timing_offset)/(2^8)]/810 [ppm]  */
+	s32 timing_offset = 0;
+	u32 unsigned_timing_offset = 0;
+	s32 division_factor = 810;
 	u16 data = 0;
-	u32 symbolRate = 0;
+	u32 symbol_rate = 0;
 	bool negative = false;
 
-	*SymbolRateOffset = 0;
+	*symbol_rate_offset = 0;
 	/* read data rate */
-	SARR16(devAddr, SCU_RAM_ORX_RF_RX_DATA_RATE__A, &data);
+	SARR16(dev_addr, SCU_RAM_ORX_RF_RX_DATA_RATE__A, &data);
 	switch (data & SCU_RAM_ORX_RF_RX_DATA_RATE__M) {
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_REGSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_INVSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_REGSPEC_ALT:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_INVSPEC_ALT:
-		symbolRate = 1024000;	/* bps */
+		symbol_rate = 1024000;	/* bps */
 		break;
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_1544KBPS_REGSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_1544KBPS_INVSPEC:
-		symbolRate = 772000;	/* bps */
+		symbol_rate = 772000;	/* bps */
 		break;
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_REGSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_INVSPEC:
-		symbolRate = 1544000;	/* bps */
+		symbol_rate = 1544000;	/* bps */
 		break;
 	default:
 		return (DRX_STS_ERROR);
 	}
 
-	RR16(devAddr, ORX_CON_CTI_DTI_R__A, &data);
+	RR16(dev_addr, ORX_CON_CTI_DTI_R__A, &data);
 	/* convert data to positive and keep information about sign */
 	if ((data & 0x8000) == 0x8000) {
 		if (data == 0x8000)
-			unsignedTimingOffset = 32768;
+			unsigned_timing_offset = 32768;
 		else
-			unsignedTimingOffset = 0x00007FFF & (u32) (-data);
+			unsigned_timing_offset = 0x00007FFF & (u32) (-data);
 		negative = true;
 	} else
-		unsignedTimingOffset = (u32) data;
+		unsigned_timing_offset = (u32) data;
 
-	symbolRate = symbolRate >> 5;
-	unsignedTimingOffset = (unsignedTimingOffset * symbolRate);
-	unsignedTimingOffset = Frac(unsignedTimingOffset, 256, FRAC_ROUND);
-	unsignedTimingOffset = Frac(unsignedTimingOffset,
-				    divisionFactor, FRAC_ROUND);
+	symbol_rate = symbol_rate >> 5;
+	unsigned_timing_offset = (unsigned_timing_offset * symbol_rate);
+	unsigned_timing_offset = frac(unsigned_timing_offset, 256, FRAC_ROUND);
+	unsigned_timing_offset = frac(unsigned_timing_offset,
+				    division_factor, FRAC_ROUND);
 	if (negative)
-		timingOffset = (s32) unsignedTimingOffset;
+		timing_offset = (s32) unsigned_timing_offset;
 	else
-		timingOffset = -(s32) unsignedTimingOffset;
+		timing_offset = -(s32) unsigned_timing_offset;
 
-	*SymbolRateOffset = timingOffset;
+	*symbol_rate_offset = timing_offset;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12122,100 +12122,100 @@ rw_error:
 }
 
 /**
-* \fn int GetOOBFreqOffset ()
+* \fn int get_oob_freq_offset ()
 * \brief Get OOB lock status.
-* \param devAddr I2C address
-* \      freqOffset OOB frequency offset.
+* \param dev_addr I2C address
+* \      freq_offset OOB frequency offset.
 * \return int.
 *
 * Gets OOB frequency offset
 *
 */
 static int
-GetOOBFreqOffset(pDRXDemodInstance_t demod, s32 *freqOffset)
+get_oob_freq_offset(pdrx_demod_instance_t demod, s32 *freq_offset)
 {
 	u16 data = 0;
 	u16 rot = 0;
-	u16 symbolRateReg = 0;
-	u32 symbolRate = 0;
-	s32 coarseFreqOffset = 0;
-	s32 fineFreqOffset = 0;
-	s32 fineSign = 1;
-	s32 coarseSign = 1;
-	u32 data64Hi = 0;
-	u32 data64Lo = 0;
-	u32 tempFreqOffset = 0;
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	struct i2c_device_addr *devAddr = NULL;
+	u16 symbol_rateReg = 0;
+	u32 symbol_rate = 0;
+	s32 coarse_freq_offset = 0;
+	s32 fine_freq_offset = 0;
+	s32 fine_sign = 1;
+	s32 coarse_sign = 1;
+	u32 data64hi = 0;
+	u32 data64lo = 0;
+	u32 temp_freq_offset = 0;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	struct i2c_device_addr *dev_addr = NULL;
 
 	/* check arguments */
-	if ((demod == NULL) || (freqOffset == NULL)) {
+	if ((demod == NULL) || (freq_offset == NULL)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
-	*freqOffset = 0;
+	*freq_offset = 0;
 
 	/* read sign (spectrum inversion) */
-	RR16(devAddr, ORX_FWP_IQM_FRQ_W__A, &rot);
+	RR16(dev_addr, ORX_FWP_IQM_FRQ_W__A, &rot);
 
 	/* read frequency offset */
-	SARR16(devAddr, SCU_RAM_ORX_FRQ_OFFSET__A, &data);
+	SARR16(dev_addr, SCU_RAM_ORX_FRQ_OFFSET__A, &data);
 	/* find COARSE frequency offset */
-	/* coarseFreqOffset = ( 25312500Hz*FRQ_OFFSET >> 21 ); */
+	/* coarse_freq_offset = ( 25312500Hz*FRQ_OFFSET >> 21 ); */
 	if (data & 0x8000) {
 		data = (0xffff - data + 1);
-		coarseSign = -1;
+		coarse_sign = -1;
 	}
-	Mult32(data, (commonAttr->sysClockFreq * 1000) / 6, &data64Hi,
-	       &data64Lo);
-	tempFreqOffset = (((data64Lo >> 21) & 0x7ff) | (data64Hi << 11));
+	mult32(data, (common_attr->sys_clock_freq * 1000) / 6, &data64hi,
+	       &data64lo);
+	temp_freq_offset = (((data64lo >> 21) & 0x7ff) | (data64hi << 11));
 
 	/* get value in KHz */
-	coarseFreqOffset = coarseSign * Frac(tempFreqOffset, 1000, FRAC_ROUND);	/* KHz */
+	coarse_freq_offset = coarse_sign * frac(temp_freq_offset, 1000, FRAC_ROUND);	/* KHz */
 	/* read data rate */
-	SARR16(devAddr, SCU_RAM_ORX_RF_RX_DATA_RATE__A, &symbolRateReg);
-	switch (symbolRateReg & SCU_RAM_ORX_RF_RX_DATA_RATE__M) {
+	SARR16(dev_addr, SCU_RAM_ORX_RF_RX_DATA_RATE__A, &symbol_rateReg);
+	switch (symbol_rateReg & SCU_RAM_ORX_RF_RX_DATA_RATE__M) {
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_REGSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_INVSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_REGSPEC_ALT:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_INVSPEC_ALT:
-		symbolRate = 1024000;
+		symbol_rate = 1024000;
 		break;
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_1544KBPS_REGSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_1544KBPS_INVSPEC:
-		symbolRate = 772000;
+		symbol_rate = 772000;
 		break;
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_REGSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_INVSPEC:
-		symbolRate = 1544000;
+		symbol_rate = 1544000;
 		break;
 	default:
 		return (DRX_STS_ERROR);
 	}
 
 	/* find FINE frequency offset */
-	/* fineFreqOffset = ( (CORRECTION_VALUE*symbolRate) >> 18 ); */
-	RR16(devAddr, ORX_CON_CPH_FRQ_R__A, &data);
+	/* fine_freq_offset = ( (CORRECTION_VALUE*symbol_rate) >> 18 ); */
+	RR16(dev_addr, ORX_CON_CPH_FRQ_R__A, &data);
 	/* at least 5 MSB are 0 so first divide with 2^5 without information loss */
-	fineFreqOffset = (symbolRate >> 5);
+	fine_freq_offset = (symbol_rate >> 5);
 	if (data & 0x8000) {
-		fineFreqOffset *= 0xffff - data + 1;	/* Hz */
-		fineSign = -1;
+		fine_freq_offset *= 0xffff - data + 1;	/* Hz */
+		fine_sign = -1;
 	} else {
-		fineFreqOffset *= data;	/* Hz */
+		fine_freq_offset *= data;	/* Hz */
 	}
 	/* Left to divide with 8192 (2^13) */
-	fineFreqOffset = Frac(fineFreqOffset, 8192, FRAC_ROUND);
+	fine_freq_offset = frac(fine_freq_offset, 8192, FRAC_ROUND);
 	/* and to divide with 1000 to get KHz */
-	fineFreqOffset = fineSign * Frac(fineFreqOffset, 1000, FRAC_ROUND);	/* KHz */
+	fine_freq_offset = fine_sign * frac(fine_freq_offset, 1000, FRAC_ROUND);	/* KHz */
 
 	if ((rot & 0x8000) == 0x8000)
-		*freqOffset = -(coarseFreqOffset + fineFreqOffset);
+		*freq_offset = -(coarse_freq_offset + fine_freq_offset);
 	else
-		*freqOffset = (coarseFreqOffset + fineFreqOffset);
+		*freq_offset = (coarse_freq_offset + fine_freq_offset);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12223,9 +12223,9 @@ rw_error:
 }
 
 /**
-* \fn int GetOOBFrequency ()
+* \fn int get_oob_frequency ()
 * \brief Get OOB frequency (Unit:KHz).
-* \param devAddr I2C address
+* \param dev_addr I2C address
 * \      frequency OOB frequency parameters.
 * \return int.
 *
@@ -12233,24 +12233,24 @@ rw_error:
 *
 */
 static int
-GetOOBFrequency(pDRXDemodInstance_t demod, s32 *frequency)
+get_oob_frequency(pdrx_demod_instance_t demod, s32 *frequency)
 {
 	u16 data = 0;
-	s32 freqOffset = 0;
+	s32 freq_offset = 0;
 	s32 freq = 0;
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	*frequency = 0;		/* KHz */
 
-	SARR16(devAddr, SCU_RAM_ORX_RF_RX_FREQUENCY_VALUE__A, &data);
+	SARR16(dev_addr, SCU_RAM_ORX_RF_RX_FREQUENCY_VALUE__A, &data);
 
 	freq = (s32) ((s32) data * 50 + 50000L);
 
-	CHK_ERROR(GetOOBFreqOffset(demod, &freqOffset));
+	CHK_ERROR(get_oob_freq_offset(demod, &freq_offset));
 
-	*frequency = freq + freqOffset;
+	*frequency = freq + freq_offset;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12258,22 +12258,22 @@ rw_error:
 }
 
 /**
-* \fn int GetOOBMER ()
+* \fn int get_oobmer ()
 * \brief Get OOB MER.
-* \param devAddr I2C address
+* \param dev_addr I2C address
   \      MER OOB parameter in dB.
 * \return int.
 *
 * Gets OOB MER. Table for MER is in Programming guide.
 *
 */
-static int GetOOBMER(struct i2c_device_addr *devAddr, u32 *mer)
+static int get_oobmer(struct i2c_device_addr *dev_addr, u32 *mer)
 {
 	u16 data = 0;
 
 	*mer = 0;
 	/* READ MER */
-	RR16(devAddr, ORX_EQU_MER_MER_R__A, &data);
+	RR16(dev_addr, ORX_EQU_MER_MER_R__A, &data);
 	switch (data) {
 	case 0:		/* fall through */
 	case 1:
@@ -12402,23 +12402,23 @@ rw_error:
 #endif /*#ifndef DRXJ_DIGITAL_ONLY */
 
 /**
-* \fn int SetOrxNsuAox()
+* \fn int set_orx_nsu_aox()
 * \brief Configure OrxNsuAox for OOB
 * \param demod instance of demodulator.
 * \param active
 * \return int.
 */
-static int SetOrxNsuAox(pDRXDemodInstance_t demod, bool active)
+static int set_orx_nsu_aox(pdrx_demod_instance_t demod, bool active)
 {
 	u16 data = 0;
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Configure NSU_AOX */
-	RR16(devAddr, ORX_NSU_AOX_STDBY_W__A, &data);
+	RR16(dev_addr, ORX_NSU_AOX_STDBY_W__A, &data);
 	if (!active) {
 		data &= ((~ORX_NSU_AOX_STDBY_W_STDBYADC_A2_ON)
 			 & (~ORX_NSU_AOX_STDBY_W_STDBYAMP_A2_ON)
@@ -12440,7 +12440,7 @@ static int SetOrxNsuAox(pDRXDemodInstance_t demod, bool active)
 			 | ORX_NSU_AOX_STDBY_W_STDBYTAGC_RF_A2_ON
 			 | ORX_NSU_AOX_STDBY_W_STDBYFLT_A2_ON);
 	}
-	WR16(devAddr, ORX_NSU_AOX_STDBY_W__A, data);
+	WR16(dev_addr, ORX_NSU_AOX_STDBY_W__A, data);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12448,15 +12448,15 @@ rw_error:
 }
 
 /**
-* \fn int CtrlSetOOB()
+* \fn int ctrl_set_oob()
 * \brief Set OOB channel to be used.
 * \param demod instance of demodulator
-* \param oobParam OOB parameters for channel setting.
+* \param oob_param OOB parameters for channel setting.
 * \frequency should be in KHz
 * \return int.
 *
 * Accepts  only. Returns error otherwise.
-* Demapper value is written after SCUCommand START
+* Demapper value is written after scu_command START
 * because START command causes COMM_EXEC transition
 * from 0 to 1 which causes all registers to be
 * overwritten with initial value
@@ -12471,27 +12471,27 @@ rw_error:
 /* Coefficients for the nyquist fitler (total: 27 taps) */
 #define NYQFILTERLEN 27
 
-static int CtrlSetOOB(pDRXDemodInstance_t demod, pDRXOOB_t oobParam)
+static int ctrl_set_oob(pdrx_demod_instance_t demod, p_drxoob_t oob_param)
 {
 #ifndef DRXJ_DIGITAL_ONLY
-	DRXOOBDownstreamStandard_t standard = DRX_OOB_MODE_A;
+	drxoob_downstream_standard_t standard = DRX_OOB_MODE_A;
 	s32 freq = 0;	/* KHz */
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	u16 i = 0;
-	bool mirrorFreqSpectOOB = false;
-	u16 trkFilterValue = 0;
-	DRXJSCUCmd_t scuCmd;
-	u16 setParamParameters[3];
-	u16 cmdResult[2] = { 0, 0 };
-	s16 NyquistCoeffs[4][(NYQFILTERLEN + 1) / 2] = {
+	bool mirror_freq_spectOOB = false;
+	u16 trk_filter_value = 0;
+	drxjscu_cmd_t scu_cmd;
+	u16 set_param_parameters[3];
+	u16 cmd_result[2] = { 0, 0 };
+	s16 nyquist_coeffs[4][(NYQFILTERLEN + 1) / 2] = {
 		IMPULSE_COSINE_ALPHA_0_3,	/* Target Mode 0 */
 		IMPULSE_COSINE_ALPHA_0_3,	/* Target Mode 1 */
 		IMPULSE_COSINE_ALPHA_0_5,	/* Target Mode 2 */
 		IMPULSE_COSINE_ALPHA_RO_0_5	/* Target Mode 3 */
 	};
 	u8 mode_val[4] = { 2, 2, 0, 1 };
-	u8 PFICoeffs[4][6] = {
+	u8 pfi_coeffs[4][6] = {
 		{DRXJ_16TO8(-92), DRXJ_16TO8(-108), DRXJ_16TO8(100)},	/* TARGET_MODE = 0:     PFI_A = -23/32; PFI_B = -54/32;  PFI_C = 25/32; fg = 0.5 MHz (Att=26dB) */
 		{DRXJ_16TO8(-64), DRXJ_16TO8(-80), DRXJ_16TO8(80)},	/* TARGET_MODE = 1:     PFI_A = -16/32; PFI_B = -40/32;  PFI_C = 20/32; fg = 1.0 MHz (Att=28dB) */
 		{DRXJ_16TO8(-80), DRXJ_16TO8(-98), DRXJ_16TO8(92)},	/* TARGET_MODE = 2, 3:  PFI_A = -20/32; PFI_B = -49/32;  PFI_C = 23/32; fg = 0.8 MHz (Att=25dB) */
@@ -12499,29 +12499,29 @@ static int CtrlSetOOB(pDRXDemodInstance_t demod, pDRXOOB_t oobParam)
 	};
 	u16 mode_index;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	mirrorFreqSpectOOB = extAttr->mirrorFreqSpectOOB;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	mirror_freq_spectOOB = ext_attr->mirror_freq_spectOOB;
 
 	/* Check parameters */
-	if (oobParam == NULL) {
+	if (oob_param == NULL) {
 		/* power off oob module  */
-		scuCmd.command = SCU_RAM_COMMAND_STANDARD_OOB
+		scu_cmd.command = SCU_RAM_COMMAND_STANDARD_OOB
 		    | SCU_RAM_COMMAND_CMD_DEMOD_STOP;
-		scuCmd.parameterLen = 0;
-		scuCmd.resultLen = 1;
-		scuCmd.result = cmdResult;
-		CHK_ERROR(SCUCommand(devAddr, &scuCmd));
-		CHK_ERROR(SetOrxNsuAox(demod, false));
-		WR16(devAddr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_STOP);
+		scu_cmd.parameter_len = 0;
+		scu_cmd.result_len = 1;
+		scu_cmd.result = cmd_result;
+		CHK_ERROR(scu_command(dev_addr, &scu_cmd));
+		CHK_ERROR(set_orx_nsu_aox(demod, false));
+		WR16(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_STOP);
 
-		extAttr->oobPowerOn = false;
+		ext_attr->oob_power_on = false;
 		return (DRX_STS_OK);
 	}
 
-	standard = oobParam->standard;
+	standard = oob_param->standard;
 
-	freq = oobParam->frequency;
+	freq = oob_param->frequency;
 	if ((freq < 70000) || (freq > 130000))
 		return (DRX_STS_ERROR);
 	freq = (freq - 50000) / 50;
@@ -12529,13 +12529,13 @@ static int CtrlSetOOB(pDRXDemodInstance_t demod, pDRXOOB_t oobParam)
 	{
 		u16 index = 0;
 		u16 remainder = 0;
-		u16 *trkFiltercfg = extAttr->oobTrkFilterCfg;
+		u16 *trk_filtercfg = ext_attr->oob_trk_filter_cfg;
 
 		index = (u16) ((freq - 400) / 200);
 		remainder = (u16) ((freq - 400) % 200);
-		trkFilterValue =
-		    trkFiltercfg[index] - (trkFiltercfg[index] -
-					   trkFiltercfg[index +
+		trk_filter_value =
+		    trk_filtercfg[index] - (trk_filtercfg[index] -
+					   trk_filtercfg[index +
 							1]) / 10 * remainder /
 		    20;
 	}
@@ -12543,195 +12543,195 @@ static int CtrlSetOOB(pDRXDemodInstance_t demod, pDRXOOB_t oobParam)
    /*********/
 	/* Stop  */
    /*********/
-	WR16(devAddr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_STOP);
-	scuCmd.command = SCU_RAM_COMMAND_STANDARD_OOB
+	WR16(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_STOP);
+	scu_cmd.command = SCU_RAM_COMMAND_STANDARD_OOB
 	    | SCU_RAM_COMMAND_CMD_DEMOD_STOP;
-	scuCmd.parameterLen = 0;
-	scuCmd.resultLen = 1;
-	scuCmd.result = cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &scuCmd));
+	scu_cmd.parameter_len = 0;
+	scu_cmd.result_len = 1;
+	scu_cmd.result = cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
    /*********/
 	/* Reset */
    /*********/
-	scuCmd.command = SCU_RAM_COMMAND_STANDARD_OOB
+	scu_cmd.command = SCU_RAM_COMMAND_STANDARD_OOB
 	    | SCU_RAM_COMMAND_CMD_DEMOD_RESET;
-	scuCmd.parameterLen = 0;
-	scuCmd.resultLen = 1;
-	scuCmd.result = cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &scuCmd));
+	scu_cmd.parameter_len = 0;
+	scu_cmd.result_len = 1;
+	scu_cmd.result = cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
    /***********/
 	/* SET_ENV */
    /***********/
 	/* set frequency, spectrum inversion and data rate */
-	scuCmd.command = SCU_RAM_COMMAND_STANDARD_OOB
+	scu_cmd.command = SCU_RAM_COMMAND_STANDARD_OOB
 	    | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV;
-	scuCmd.parameterLen = 3;
+	scu_cmd.parameter_len = 3;
 	/* 1-data rate;2-frequency */
-	switch (oobParam->standard) {
+	switch (oob_param->standard) {
 	case DRX_OOB_MODE_A:
 		if (
 			   /* signal is transmitted inverted */
-			   ((oobParam->spectrumInverted == true) &
+			   ((oob_param->spectrum_inverted == true) &
 			    /* and tuner is not mirroring the signal */
-			    (mirrorFreqSpectOOB == false)) |
+			    (mirror_freq_spectOOB == false)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
-			   ((oobParam->spectrumInverted == false) &
+			   ((oob_param->spectrum_inverted == false) &
 			    /* and tuner is mirroring the signal */
-			    (mirrorFreqSpectOOB == true))
+			    (mirror_freq_spectOOB == true))
 		    )
-			setParamParameters[0] =
+			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_INVSPEC;
 		else
-			setParamParameters[0] =
+			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_REGSPEC;
 		break;
 	case DRX_OOB_MODE_B_GRADE_A:
 		if (
 			   /* signal is transmitted inverted */
-			   ((oobParam->spectrumInverted == true) &
+			   ((oob_param->spectrum_inverted == true) &
 			    /* and tuner is not mirroring the signal */
-			    (mirrorFreqSpectOOB == false)) |
+			    (mirror_freq_spectOOB == false)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
-			   ((oobParam->spectrumInverted == false) &
+			   ((oob_param->spectrum_inverted == false) &
 			    /* and tuner is mirroring the signal */
-			    (mirrorFreqSpectOOB == true))
+			    (mirror_freq_spectOOB == true))
 		    )
-			setParamParameters[0] =
+			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_1544KBPS_INVSPEC;
 		else
-			setParamParameters[0] =
+			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_1544KBPS_REGSPEC;
 		break;
 	case DRX_OOB_MODE_B_GRADE_B:
 	default:
 		if (
 			   /* signal is transmitted inverted */
-			   ((oobParam->spectrumInverted == true) &
+			   ((oob_param->spectrum_inverted == true) &
 			    /* and tuner is not mirroring the signal */
-			    (mirrorFreqSpectOOB == false)) |
+			    (mirror_freq_spectOOB == false)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
-			   ((oobParam->spectrumInverted == false) &
+			   ((oob_param->spectrum_inverted == false) &
 			    /* and tuner is mirroring the signal */
-			    (mirrorFreqSpectOOB == true))
+			    (mirror_freq_spectOOB == true))
 		    )
-			setParamParameters[0] =
+			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_INVSPEC;
 		else
-			setParamParameters[0] =
+			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_REGSPEC;
 		break;
 	}
-	setParamParameters[1] = (u16) (freq & 0xFFFF);
-	setParamParameters[2] = trkFilterValue;
-	scuCmd.parameter = setParamParameters;
-	scuCmd.resultLen = 1;
-	scuCmd.result = cmdResult;
-	mode_index = mode_val[(setParamParameters[0] & 0xC0) >> 6];
-	CHK_ERROR(SCUCommand(devAddr, &scuCmd));
+	set_param_parameters[1] = (u16) (freq & 0xFFFF);
+	set_param_parameters[2] = trk_filter_value;
+	scu_cmd.parameter = set_param_parameters;
+	scu_cmd.result_len = 1;
+	scu_cmd.result = cmd_result;
+	mode_index = mode_val[(set_param_parameters[0] & 0xC0) >> 6];
+	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
 
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, 0xFABA);	/*  Write magic word to enable pdr reg write  */
-	WR16(devAddr, SIO_PDR_OOB_CRX_CFG__A,
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);	/*  Write magic word to enable pdr reg write  */
+	WR16(dev_addr, SIO_PDR_OOB_CRX_CFG__A,
 	     OOB_CRX_DRIVE_STRENGTH << SIO_PDR_OOB_CRX_CFG_DRIVE__B
 	     | 0x03 << SIO_PDR_OOB_CRX_CFG_MODE__B);
-	WR16(devAddr, SIO_PDR_OOB_DRX_CFG__A,
+	WR16(dev_addr, SIO_PDR_OOB_DRX_CFG__A,
 	     OOB_DRX_DRIVE_STRENGTH << SIO_PDR_OOB_DRX_CFG_DRIVE__B
 	     | 0x03 << SIO_PDR_OOB_DRX_CFG_MODE__B);
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, 0x0000);	/*  Write magic word to disable pdr reg write */
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);	/*  Write magic word to disable pdr reg write */
 
-	WR16(devAddr, ORX_TOP_COMM_KEY__A, 0);
-	WR16(devAddr, ORX_FWP_AAG_LEN_W__A, 16000);
-	WR16(devAddr, ORX_FWP_AAG_THR_W__A, 40);
+	WR16(dev_addr, ORX_TOP_COMM_KEY__A, 0);
+	WR16(dev_addr, ORX_FWP_AAG_LEN_W__A, 16000);
+	WR16(dev_addr, ORX_FWP_AAG_THR_W__A, 40);
 
 	/* ddc */
-	WR16(devAddr, ORX_DDC_OFO_SET_W__A, ORX_DDC_OFO_SET_W__PRE);
+	WR16(dev_addr, ORX_DDC_OFO_SET_W__A, ORX_DDC_OFO_SET_W__PRE);
 
 	/* nsu */
-	WR16(devAddr, ORX_NSU_AOX_LOPOW_W__A, extAttr->oobLoPow);
+	WR16(dev_addr, ORX_NSU_AOX_LOPOW_W__A, ext_attr->oob_lo_pow);
 
 	/* initialization for target mode */
-	WR16(devAddr, SCU_RAM_ORX_TARGET_MODE__A,
+	WR16(dev_addr, SCU_RAM_ORX_TARGET_MODE__A,
 	     SCU_RAM_ORX_TARGET_MODE_2048KBPS_SQRT);
-	WR16(devAddr, SCU_RAM_ORX_FREQ_GAIN_CORR__A,
+	WR16(dev_addr, SCU_RAM_ORX_FREQ_GAIN_CORR__A,
 	     SCU_RAM_ORX_FREQ_GAIN_CORR_2048KBPS);
 
 	/* Reset bits for timing and freq. recovery */
-	WR16(devAddr, SCU_RAM_ORX_RST_CPH__A, 0x0001);
-	WR16(devAddr, SCU_RAM_ORX_RST_CTI__A, 0x0002);
-	WR16(devAddr, SCU_RAM_ORX_RST_KRN__A, 0x0004);
-	WR16(devAddr, SCU_RAM_ORX_RST_KRP__A, 0x0008);
+	WR16(dev_addr, SCU_RAM_ORX_RST_CPH__A, 0x0001);
+	WR16(dev_addr, SCU_RAM_ORX_RST_CTI__A, 0x0002);
+	WR16(dev_addr, SCU_RAM_ORX_RST_KRN__A, 0x0004);
+	WR16(dev_addr, SCU_RAM_ORX_RST_KRP__A, 0x0008);
 
 	/* AGN_LOCK = {2048>>3, -2048, 8, -8, 0, 1}; */
-	WR16(devAddr, SCU_RAM_ORX_AGN_LOCK_TH__A, 2048 >> 3);
-	WR16(devAddr, SCU_RAM_ORX_AGN_LOCK_TOTH__A, (u16) (-2048));
-	WR16(devAddr, SCU_RAM_ORX_AGN_ONLOCK_TTH__A, 8);
-	WR16(devAddr, SCU_RAM_ORX_AGN_UNLOCK_TTH__A, (u16) (-8));
-	WR16(devAddr, SCU_RAM_ORX_AGN_LOCK_MASK__A, 1);
+	WR16(dev_addr, SCU_RAM_ORX_AGN_LOCK_TH__A, 2048 >> 3);
+	WR16(dev_addr, SCU_RAM_ORX_AGN_LOCK_TOTH__A, (u16) (-2048));
+	WR16(dev_addr, SCU_RAM_ORX_AGN_ONLOCK_TTH__A, 8);
+	WR16(dev_addr, SCU_RAM_ORX_AGN_UNLOCK_TTH__A, (u16) (-8));
+	WR16(dev_addr, SCU_RAM_ORX_AGN_LOCK_MASK__A, 1);
 
 	/* DGN_LOCK = {10, -2048, 8, -8, 0, 1<<1}; */
-	WR16(devAddr, SCU_RAM_ORX_DGN_LOCK_TH__A, 10);
-	WR16(devAddr, SCU_RAM_ORX_DGN_LOCK_TOTH__A, (u16) (-2048));
-	WR16(devAddr, SCU_RAM_ORX_DGN_ONLOCK_TTH__A, 8);
-	WR16(devAddr, SCU_RAM_ORX_DGN_UNLOCK_TTH__A, (u16) (-8));
-	WR16(devAddr, SCU_RAM_ORX_DGN_LOCK_MASK__A, 1 << 1);
+	WR16(dev_addr, SCU_RAM_ORX_DGN_LOCK_TH__A, 10);
+	WR16(dev_addr, SCU_RAM_ORX_DGN_LOCK_TOTH__A, (u16) (-2048));
+	WR16(dev_addr, SCU_RAM_ORX_DGN_ONLOCK_TTH__A, 8);
+	WR16(dev_addr, SCU_RAM_ORX_DGN_UNLOCK_TTH__A, (u16) (-8));
+	WR16(dev_addr, SCU_RAM_ORX_DGN_LOCK_MASK__A, 1 << 1);
 
 	/* FRQ_LOCK = {15,-2048, 8, -8, 0, 1<<2}; */
-	WR16(devAddr, SCU_RAM_ORX_FRQ_LOCK_TH__A, 17);
-	WR16(devAddr, SCU_RAM_ORX_FRQ_LOCK_TOTH__A, (u16) (-2048));
-	WR16(devAddr, SCU_RAM_ORX_FRQ_ONLOCK_TTH__A, 8);
-	WR16(devAddr, SCU_RAM_ORX_FRQ_UNLOCK_TTH__A, (u16) (-8));
-	WR16(devAddr, SCU_RAM_ORX_FRQ_LOCK_MASK__A, 1 << 2);
+	WR16(dev_addr, SCU_RAM_ORX_FRQ_LOCK_TH__A, 17);
+	WR16(dev_addr, SCU_RAM_ORX_FRQ_LOCK_TOTH__A, (u16) (-2048));
+	WR16(dev_addr, SCU_RAM_ORX_FRQ_ONLOCK_TTH__A, 8);
+	WR16(dev_addr, SCU_RAM_ORX_FRQ_UNLOCK_TTH__A, (u16) (-8));
+	WR16(dev_addr, SCU_RAM_ORX_FRQ_LOCK_MASK__A, 1 << 2);
 
 	/* PHA_LOCK = {5000, -2048, 8, -8, 0, 1<<3}; */
-	WR16(devAddr, SCU_RAM_ORX_PHA_LOCK_TH__A, 3000);
-	WR16(devAddr, SCU_RAM_ORX_PHA_LOCK_TOTH__A, (u16) (-2048));
-	WR16(devAddr, SCU_RAM_ORX_PHA_ONLOCK_TTH__A, 8);
-	WR16(devAddr, SCU_RAM_ORX_PHA_UNLOCK_TTH__A, (u16) (-8));
-	WR16(devAddr, SCU_RAM_ORX_PHA_LOCK_MASK__A, 1 << 3);
+	WR16(dev_addr, SCU_RAM_ORX_PHA_LOCK_TH__A, 3000);
+	WR16(dev_addr, SCU_RAM_ORX_PHA_LOCK_TOTH__A, (u16) (-2048));
+	WR16(dev_addr, SCU_RAM_ORX_PHA_ONLOCK_TTH__A, 8);
+	WR16(dev_addr, SCU_RAM_ORX_PHA_UNLOCK_TTH__A, (u16) (-8));
+	WR16(dev_addr, SCU_RAM_ORX_PHA_LOCK_MASK__A, 1 << 3);
 
 	/* TIM_LOCK = {300,      -2048, 8, -8, 0, 1<<4}; */
-	WR16(devAddr, SCU_RAM_ORX_TIM_LOCK_TH__A, 400);
-	WR16(devAddr, SCU_RAM_ORX_TIM_LOCK_TOTH__A, (u16) (-2048));
-	WR16(devAddr, SCU_RAM_ORX_TIM_ONLOCK_TTH__A, 8);
-	WR16(devAddr, SCU_RAM_ORX_TIM_UNLOCK_TTH__A, (u16) (-8));
-	WR16(devAddr, SCU_RAM_ORX_TIM_LOCK_MASK__A, 1 << 4);
+	WR16(dev_addr, SCU_RAM_ORX_TIM_LOCK_TH__A, 400);
+	WR16(dev_addr, SCU_RAM_ORX_TIM_LOCK_TOTH__A, (u16) (-2048));
+	WR16(dev_addr, SCU_RAM_ORX_TIM_ONLOCK_TTH__A, 8);
+	WR16(dev_addr, SCU_RAM_ORX_TIM_UNLOCK_TTH__A, (u16) (-8));
+	WR16(dev_addr, SCU_RAM_ORX_TIM_LOCK_MASK__A, 1 << 4);
 
 	/* EQU_LOCK = {20,      -2048, 8, -8, 0, 1<<5}; */
-	WR16(devAddr, SCU_RAM_ORX_EQU_LOCK_TH__A, 20);
-	WR16(devAddr, SCU_RAM_ORX_EQU_LOCK_TOTH__A, (u16) (-2048));
-	WR16(devAddr, SCU_RAM_ORX_EQU_ONLOCK_TTH__A, 4);
-	WR16(devAddr, SCU_RAM_ORX_EQU_UNLOCK_TTH__A, (u16) (-4));
-	WR16(devAddr, SCU_RAM_ORX_EQU_LOCK_MASK__A, 1 << 5);
+	WR16(dev_addr, SCU_RAM_ORX_EQU_LOCK_TH__A, 20);
+	WR16(dev_addr, SCU_RAM_ORX_EQU_LOCK_TOTH__A, (u16) (-2048));
+	WR16(dev_addr, SCU_RAM_ORX_EQU_ONLOCK_TTH__A, 4);
+	WR16(dev_addr, SCU_RAM_ORX_EQU_UNLOCK_TTH__A, (u16) (-4));
+	WR16(dev_addr, SCU_RAM_ORX_EQU_LOCK_MASK__A, 1 << 5);
 
 	/* PRE-Filter coefficients (PFI) */
-	WRB(devAddr, ORX_FWP_PFI_A_W__A, sizeof(PFICoeffs[mode_index]),
-	    ((u8 *) PFICoeffs[mode_index]));
-	WR16(devAddr, ORX_TOP_MDE_W__A, mode_index);
+	WRB(dev_addr, ORX_FWP_PFI_A_W__A, sizeof(pfi_coeffs[mode_index]),
+	    ((u8 *) pfi_coeffs[mode_index]));
+	WR16(dev_addr, ORX_TOP_MDE_W__A, mode_index);
 
 	/* NYQUIST-Filter coefficients (NYQ) */
 	for (i = 0; i < (NYQFILTERLEN + 1) / 2; i++) {
-		WR16(devAddr, ORX_FWP_NYQ_ADR_W__A, i);
-		WR16(devAddr, ORX_FWP_NYQ_COF_RW__A,
-		     NyquistCoeffs[mode_index][i]);
+		WR16(dev_addr, ORX_FWP_NYQ_ADR_W__A, i);
+		WR16(dev_addr, ORX_FWP_NYQ_COF_RW__A,
+		     nyquist_coeffs[mode_index][i]);
 	}
-	WR16(devAddr, ORX_FWP_NYQ_ADR_W__A, 31);
-	WR16(devAddr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, ORX_FWP_NYQ_ADR_W__A, 31);
+	WR16(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_ACTIVE);
    /*********/
 	/* Start */
    /*********/
-	scuCmd.command = SCU_RAM_COMMAND_STANDARD_OOB
+	scu_cmd.command = SCU_RAM_COMMAND_STANDARD_OOB
 	    | SCU_RAM_COMMAND_CMD_DEMOD_START;
-	scuCmd.parameterLen = 0;
-	scuCmd.resultLen = 1;
-	scuCmd.result = cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &scuCmd));
+	scu_cmd.parameter_len = 0;
+	scu_cmd.result_len = 1;
+	scu_cmd.result = cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
 
-	CHK_ERROR(SetOrxNsuAox(demod, true));
-	WR16(devAddr, ORX_NSU_AOX_STHR_W__A, extAttr->oobPreSaw);
+	CHK_ERROR(set_orx_nsu_aox(demod, true));
+	WR16(dev_addr, ORX_NSU_AOX_STHR_W__A, ext_attr->oob_pre_saw);
 
-	extAttr->oobPowerOn = true;
+	ext_attr->oob_power_on = true;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12740,42 +12740,42 @@ rw_error:
 }
 
 /**
-* \fn int CtrlGetOOB()
+* \fn int ctrl_get_oob()
 * \brief Set modulation standard to be used.
 * \param demod instance of demodulator
-* \param oobStatus OOB status parameters.
+* \param oob_status OOB status parameters.
 * \return int.
 */
 static int
-CtrlGetOOB(pDRXDemodInstance_t demod, pDRXOOBStatus_t oobStatus)
+ctrl_get_oob(pdrx_demod_instance_t demod, pdrxoob_status_t oob_status)
 {
 #ifndef DRXJ_DIGITAL_ONLY
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	u16 data = 0;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* check arguments */
-	if (oobStatus == NULL) {
+	if (oob_status == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	if (extAttr->oobPowerOn == false)
+	if (ext_attr->oob_power_on == false)
 		return (DRX_STS_ERROR);
 
-	RR16(devAddr, ORX_DDC_OFO_SET_W__A, &data);
-	RR16(devAddr, ORX_NSU_TUN_RFGAIN_W__A, &data);
-	RR16(devAddr, ORX_FWP_AAG_THR_W__A, &data);
-	SARR16(devAddr, SCU_RAM_ORX_DGN_KI__A, &data);
-	RR16(devAddr, ORX_FWP_SRC_DGN_W__A, &data);
+	RR16(dev_addr, ORX_DDC_OFO_SET_W__A, &data);
+	RR16(dev_addr, ORX_NSU_TUN_RFGAIN_W__A, &data);
+	RR16(dev_addr, ORX_FWP_AAG_THR_W__A, &data);
+	SARR16(dev_addr, SCU_RAM_ORX_DGN_KI__A, &data);
+	RR16(dev_addr, ORX_FWP_SRC_DGN_W__A, &data);
 
-	CHK_ERROR(GetOOBLockStatus(demod, devAddr, &oobStatus->lock));
-	CHK_ERROR(GetOOBFrequency(demod, &oobStatus->frequency));
-	CHK_ERROR(GetOOBMER(devAddr, &oobStatus->mer));
-	CHK_ERROR(GetOOBSymbolRateOffset
-		  (devAddr, &oobStatus->symbolRateOffset));
+	CHK_ERROR(get_oob_lock_status(demod, dev_addr, &oob_status->lock));
+	CHK_ERROR(get_oob_frequency(demod, &oob_status->frequency));
+	CHK_ERROR(get_oobmer(dev_addr, &oob_status->mer));
+	CHK_ERROR(get_oob_symbol_rate_offset
+		  (dev_addr, &oob_status->symbol_rate_offset));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12784,26 +12784,26 @@ rw_error:
 }
 
 /**
-* \fn int CtrlSetCfgOOBPreSAW()
+* \fn int ctrl_set_cfg_oob_pre_saw()
 * \brief Configure PreSAW treshold value
-* \param cfgData Pointer to configuration parameter
+* \param cfg_data Pointer to configuration parameter
 * \return Error code
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-CtrlSetCfgOOBPreSAW(pDRXDemodInstance_t demod, u16 *cfgData)
+ctrl_set_cfg_oob_pre_saw(pdrx_demod_instance_t demod, u16 *cfg_data)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	if (cfgData == NULL) {
+	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	WR16(devAddr, ORX_NSU_AOX_STHR_W__A, *cfgData);
-	extAttr->oobPreSaw = *cfgData;
+	WR16(dev_addr, ORX_NSU_AOX_STHR_W__A, *cfg_data);
+	ext_attr->oob_pre_saw = *cfg_data;
 	return (DRX_STS_OK);
 rw_error:
 	return (DRX_STS_ERROR);
@@ -12811,49 +12811,49 @@ rw_error:
 #endif
 
 /**
-* \fn int CtrlGetCfgOOBPreSAW()
+* \fn int ctrl_get_cfg_oob_pre_saw()
 * \brief Configure PreSAW treshold value
-* \param cfgData Pointer to configuration parameter
+* \param cfg_data Pointer to configuration parameter
 * \return Error code
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-CtrlGetCfgOOBPreSAW(pDRXDemodInstance_t demod, u16 *cfgData)
+ctrl_get_cfg_oob_pre_saw(pdrx_demod_instance_t demod, u16 *cfg_data)
 {
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	if (cfgData == NULL) {
+	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	*cfgData = extAttr->oobPreSaw;
+	*cfg_data = ext_attr->oob_pre_saw;
 
 	return (DRX_STS_OK);
 }
 #endif
 
 /**
-* \fn int CtrlSetCfgOOBLoPower()
+* \fn int ctrl_set_cfg_oob_lo_power()
 * \brief Configure LO Power value
-* \param cfgData Pointer to pDRXJCfgOobLoPower_t
+* \param cfg_data Pointer to p_drxj_cfg_oob_lo_power_t
 * \return Error code
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-CtrlSetCfgOOBLoPower(pDRXDemodInstance_t demod, pDRXJCfgOobLoPower_t cfgData)
+ctrl_set_cfg_oob_lo_power(pdrx_demod_instance_t demod, p_drxj_cfg_oob_lo_power_t cfg_data)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	if (cfgData == NULL) {
+	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	WR16(devAddr, ORX_NSU_AOX_LOPOW_W__A, *cfgData);
-	extAttr->oobLoPow = *cfgData;
+	WR16(dev_addr, ORX_NSU_AOX_LOPOW_W__A, *cfg_data);
+	ext_attr->oob_lo_pow = *cfg_data;
 	return (DRX_STS_OK);
 rw_error:
 	return (DRX_STS_ERROR);
@@ -12861,23 +12861,23 @@ rw_error:
 #endif
 
 /**
-* \fn int CtrlGetCfgOOBLoPower()
+* \fn int ctrl_get_cfg_oob_lo_power()
 * \brief Configure LO Power value
-* \param cfgData Pointer to pDRXJCfgOobLoPower_t
+* \param cfg_data Pointer to p_drxj_cfg_oob_lo_power_t
 * \return Error code
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-CtrlGetCfgOOBLoPower(pDRXDemodInstance_t demod, pDRXJCfgOobLoPower_t cfgData)
+ctrl_get_cfg_oob_lo_power(pdrx_demod_instance_t demod, p_drxj_cfg_oob_lo_power_t cfg_data)
 {
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	if (cfgData == NULL) {
+	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	*cfgData = extAttr->oobLoPow;
+	*cfg_data = ext_attr->oob_lo_pow;
 
 	return (DRX_STS_OK);
 }
@@ -12891,10 +12891,10 @@ CtrlGetCfgOOBLoPower(pDRXDemodInstance_t demod, pDRXJCfgOobLoPower_t cfgData)
   ===========================================================================*/
 
 /*=============================================================================
-  ===== CtrlSetChannel() ==========================================================
+  ===== ctrl_set_channel() ==========================================================
   ===========================================================================*/
 /**
-* \fn int CtrlSetChannel()
+* \fn int ctrl_set_channel()
 * \brief Select a new transmission channel.
 * \param demod instance of demod.
 * \param channel Pointer to channel data.
@@ -12905,23 +12905,23 @@ CtrlGetCfgOOBLoPower(pDRXDemodInstance_t demod, pDRXJCfgOobLoPower_t cfgData)
 *
 */
 static int
-CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
+ctrl_set_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 {
 
-	s32 tunerSetFreq = 0;
-	s32 tunerGetFreq = 0;
-	s32 tunerFreqOffset = 0;
-	s32 intermediateFreq = 0;
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
+	s32 tuner_set_freq = 0;
+	s32 tuner_get_freq = 0;
+	s32 tuner_freq_offset = 0;
+	s32 intermediate_freq = 0;
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	u32 tunerMode = 0;
-	pDRXCommonAttr_t commonAttr = NULL;
-	bool bridgeClosed = false;
+	u32 tuner_mode = 0;
+	pdrx_common_attr_t common_attr = NULL;
+	bool bridge_closed = false;
 #ifndef DRXJ_VSB_ONLY
-	u32 minSymbolRate = 0;
-	u32 maxSymbolRate = 0;
-	int bandwidthTemp = 0;
+	u32 min_symbol_rate = 0;
+	u32 max_symbol_rate = 0;
+	int bandwidth_temp = 0;
 	int bandwidth = 0;
 #endif
    /*== check arguments ======================================================*/
@@ -12929,10 +12929,10 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	standard = extAttr->standard;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	standard = ext_attr->standard;
 
 	/* check valid standards */
 	switch (standard) {
@@ -13011,17 +13011,17 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 #ifndef DRXJ_VSB_ONLY
 	if ((standard == DRX_STANDARD_ITU_A) ||
 	    (standard == DRX_STANDARD_ITU_C)) {
-		DRXUIOCfg_t UIOCfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SAW };
-		int bwRolloffFactor = 0;
+		drxuio_cfg_t uio_cfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SAW };
+		int bw_rolloff_factor = 0;
 
-		bwRolloffFactor = (standard == DRX_STANDARD_ITU_A) ? 115 : 113;
-		minSymbolRate = DRXJ_QAM_SYMBOLRATE_MIN;
-		maxSymbolRate = DRXJ_QAM_SYMBOLRATE_MAX;
+		bw_rolloff_factor = (standard == DRX_STANDARD_ITU_A) ? 115 : 113;
+		min_symbol_rate = DRXJ_QAM_SYMBOLRATE_MIN;
+		max_symbol_rate = DRXJ_QAM_SYMBOLRATE_MAX;
 		/* config SMA_TX pin to SAW switch mode */
-		CHK_ERROR(CtrlSetUIOCfg(demod, &UIOCfg));
+		CHK_ERROR(ctrl_set_uio_cfg(demod, &uio_cfg));
 
-		if (channel->symbolrate < minSymbolRate ||
-		    channel->symbolrate > maxSymbolRate) {
+		if (channel->symbolrate < min_symbol_rate ||
+		    channel->symbolrate > max_symbol_rate) {
 			return (DRX_STS_INVALID_ARG);
 		}
 
@@ -13031,10 +13031,10 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 		case DRX_CONSTELLATION_QAM64:	/* fall through */
 		case DRX_CONSTELLATION_QAM128:	/* fall through */
 		case DRX_CONSTELLATION_QAM256:
-			bandwidthTemp = channel->symbolrate * bwRolloffFactor;
-			bandwidth = bandwidthTemp / 100;
+			bandwidth_temp = channel->symbolrate * bw_rolloff_factor;
+			bandwidth = bandwidth_temp / 100;
 
-			if ((bandwidthTemp % 100) >= 50) {
+			if ((bandwidth_temp % 100) >= 50) {
 				bandwidth++;
 			}
 
@@ -13091,9 +13091,9 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 		}
 	}
 
-	if ((extAttr->uioSmaTxMode) == DRX_UIO_MODE_FIRMWARE_SAW) {
+	if ((ext_attr->uio_sma_tx_mode) == DRX_UIO_MODE_FIRMWARE_SAW) {
 		/* SAW SW, user UIO is used for switchable SAW */
-		DRXUIOData_t uio1 = { DRX_UIO1, false };
+		drxuio_data_t uio1 = { DRX_UIO1, false };
 
 		switch (channel->bandwidth) {
 		case DRX_BANDWIDTH_8MHZ:
@@ -13110,12 +13110,12 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 			return (DRX_STS_INVALID_ARG);
 		}
 
-		CHK_ERROR(CtrlUIOWrite(demod, &uio1));
+		CHK_ERROR(ctrl_uio_write(demod, &uio1));
 	}
 #endif /* DRXJ_VSB_ONLY */
-	WR16(devAddr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
    /*== Tune, fast mode ======================================================*/
-	if (demod->myTuner != NULL) {
+	if (demod->my_tuner != NULL) {
 		/* Determine tuner mode and freq to tune to ... */
 		switch (standard) {
 #ifndef DRXJ_DIGITAL_ONLY
@@ -13127,14 +13127,14 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 		case DRX_STANDARD_PAL_SECAM_LP:
 			/* expecting center frequency, not picture carrier so no
 			   conversion .... */
-			tunerMode |= TUNER_MODE_ANALOG;
-			tunerSetFreq = channel->frequency;
+			tuner_mode |= TUNER_MODE_ANALOG;
+			tuner_set_freq = channel->frequency;
 			break;
 		case DRX_STANDARD_FM:
 			/* center frequency (equals sound carrier) as input,
 			   tune to edge of SAW */
-			tunerMode |= TUNER_MODE_ANALOG;
-			tunerSetFreq =
+			tuner_mode |= TUNER_MODE_ANALOG;
+			tuner_set_freq =
 			    channel->frequency + DRXJ_FM_CARRIER_FREQ_OFFSET;
 			break;
 #endif
@@ -13144,77 +13144,77 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 		case DRX_STANDARD_ITU_B:	/* fallthrough */
 		case DRX_STANDARD_ITU_C:
 #endif
-			tunerMode |= TUNER_MODE_DIGITAL;
-			tunerSetFreq = channel->frequency;
+			tuner_mode |= TUNER_MODE_DIGITAL;
+			tuner_set_freq = channel->frequency;
 			break;
 		case DRX_STANDARD_UNKNOWN:
 		default:
 			return (DRX_STS_ERROR);
 		}		/* switch(standard) */
 
-		tunerMode |= TUNER_MODE_SWITCH;
+		tuner_mode |= TUNER_MODE_SWITCH;
 		switch (channel->bandwidth) {
 		case DRX_BANDWIDTH_8MHZ:
-			tunerMode |= TUNER_MODE_8MHZ;
+			tuner_mode |= TUNER_MODE_8MHZ;
 			break;
 		case DRX_BANDWIDTH_7MHZ:
-			tunerMode |= TUNER_MODE_7MHZ;
+			tuner_mode |= TUNER_MODE_7MHZ;
 			break;
 		case DRX_BANDWIDTH_6MHZ:
-			tunerMode |= TUNER_MODE_6MHZ;
+			tuner_mode |= TUNER_MODE_6MHZ;
 			break;
 		default:
 			/* TODO: for FM which bandwidth to use ?
 			   also check offset from centre frequency ?
 			   For now using 6MHz.
 			 */
-			tunerMode |= TUNER_MODE_6MHZ;
+			tuner_mode |= TUNER_MODE_6MHZ;
 			break;
 			/* return (DRX_STS_INVALID_ARG); */
 		}
 
 		/* store bandwidth for GetChannel() */
-		extAttr->currBandwidth = channel->bandwidth;
-		extAttr->currSymbolRate = channel->symbolrate;
-		extAttr->frequency = tunerSetFreq;
-		if (commonAttr->tunerPortNr == 1) {
+		ext_attr->curr_bandwidth = channel->bandwidth;
+		ext_attr->curr_symbol_rate = channel->symbolrate;
+		ext_attr->frequency = tuner_set_freq;
+		if (common_attr->tuner_port_nr == 1) {
 			/* close tuner bridge */
-			bridgeClosed = true;
-			CHK_ERROR(CtrlI2CBridge(demod, &bridgeClosed));
+			bridge_closed = true;
+			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
 			/* set tuner frequency */
 		}
 
-		CHK_ERROR(DRXBSP_TUNER_SetFrequency(demod->myTuner,
-						    tunerMode, tunerSetFreq));
-		if (commonAttr->tunerPortNr == 1) {
+		CHK_ERROR(drxbsp_tuner_set_frequency(demod->my_tuner,
+						    tuner_mode, tuner_set_freq));
+		if (common_attr->tuner_port_nr == 1) {
 			/* open tuner bridge */
-			bridgeClosed = false;
-			CHK_ERROR(CtrlI2CBridge(demod, &bridgeClosed));
+			bridge_closed = false;
+			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
 		}
 
 		/* Get actual frequency set by tuner and compute offset */
-		CHK_ERROR(DRXBSP_TUNER_GetFrequency(demod->myTuner,
+		CHK_ERROR(drxbsp_tuner_get_frequency(demod->my_tuner,
 						    0,
-						    &tunerGetFreq,
-						    &intermediateFreq));
-		tunerFreqOffset = tunerGetFreq - tunerSetFreq;
-		commonAttr->intermediateFreq = intermediateFreq;
+						    &tuner_get_freq,
+						    &intermediate_freq));
+		tuner_freq_offset = tuner_get_freq - tuner_set_freq;
+		common_attr->intermediate_freq = intermediate_freq;
 	} else {
 		/* no tuner instance defined, use fixed intermediate frequency */
-		tunerFreqOffset = 0;
-		intermediateFreq = demod->myCommonAttr->intermediateFreq;
-	}			/* if ( demod->myTuner != NULL ) */
+		tuner_freq_offset = 0;
+		intermediate_freq = demod->my_common_attr->intermediate_freq;
+	}			/* if ( demod->my_tuner != NULL ) */
 
    /*== Setup demod for specific standard ====================================*/
 	switch (standard) {
 	case DRX_STANDARD_8VSB:
 		if (channel->mirror == DRX_MIRROR_AUTO) {
-			extAttr->mirror = DRX_MIRROR_NO;
+			ext_attr->mirror = DRX_MIRROR_NO;
 		} else {
-			extAttr->mirror = channel->mirror;
+			ext_attr->mirror = channel->mirror;
 		}
-		CHK_ERROR(SetVSB(demod));
-		CHK_ERROR(SetFrequency(demod, channel, tunerFreqOffset));
+		CHK_ERROR(set_vsb(demod));
+		CHK_ERROR(set_frequency(demod, channel, tuner_freq_offset));
 		break;
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_NTSC:	/* fallthrough */
@@ -13225,19 +13225,19 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 	case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:
 		if (channel->mirror == DRX_MIRROR_AUTO) {
-			extAttr->mirror = DRX_MIRROR_NO;
+			ext_attr->mirror = DRX_MIRROR_NO;
 		} else {
-			extAttr->mirror = channel->mirror;
+			ext_attr->mirror = channel->mirror;
 		}
-		CHK_ERROR(SetATVChannel(demod,
-					tunerFreqOffset, channel, standard));
+		CHK_ERROR(set_atv_channel(demod,
+					tuner_freq_offset, channel, standard));
 		break;
 #endif
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		CHK_ERROR(SetQAMChannel(demod, channel, tunerFreqOffset));
+		CHK_ERROR(set_qamChannel(demod, channel, tuner_freq_offset));
 		break;
 #endif
 	case DRX_STANDARD_UNKNOWN:
@@ -13246,30 +13246,30 @@ CtrlSetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 	}
 
    /*== Re-tune, slow mode ===================================================*/
-	if (demod->myTuner != NULL) {
+	if (demod->my_tuner != NULL) {
 		/* tune to slow mode */
-		tunerMode &= ~TUNER_MODE_SWITCH;
-		tunerMode |= TUNER_MODE_LOCK;
+		tuner_mode &= ~TUNER_MODE_SWITCH;
+		tuner_mode |= TUNER_MODE_LOCK;
 
-		if (commonAttr->tunerPortNr == 1) {
+		if (common_attr->tuner_port_nr == 1) {
 			/* close tuner bridge */
-			bridgeClosed = true;
-			CHK_ERROR(CtrlI2CBridge(demod, &bridgeClosed));
+			bridge_closed = true;
+			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
 		}
 
 		/* set tuner frequency */
-		CHK_ERROR(DRXBSP_TUNER_SetFrequency(demod->myTuner,
-						    tunerMode, tunerSetFreq));
-		if (commonAttr->tunerPortNr == 1) {
+		CHK_ERROR(drxbsp_tuner_set_frequency(demod->my_tuner,
+						    tuner_mode, tuner_set_freq));
+		if (common_attr->tuner_port_nr == 1) {
 			/* open tuner bridge */
-			bridgeClosed = false;
-			CHK_ERROR(CtrlI2CBridge(demod, &bridgeClosed));
+			bridge_closed = false;
+			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
 		}
 	}
 
-	/* if ( demod->myTuner !=NULL ) */
+	/* if ( demod->my_tuner !=NULL ) */
 	/* flag the packet error counter reset */
-	extAttr->resetPktErrAcc = true;
+	ext_attr->reset_pkt_err_acc = true;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -13277,29 +13277,29 @@ rw_error:
 }
 
 /*=============================================================================
-  ===== CtrlGetChannel() ==========================================================
+  ===== ctrl_get_channel() ==========================================================
   ===========================================================================*/
 /**
-* \fn int CtrlGetChannel()
+* \fn int ctrl_get_channel()
 * \brief Retreive parameters of current transmission channel.
 * \param demod   Pointer to demod instance.
 * \param channel Pointer to channel data.
 * \return int.
 */
 static int
-CtrlGetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
+ctrl_get_channel(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
-	DRXLockStatus_t lockStatus = DRX_NOT_LOCKED;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	pDRXCommonAttr_t commonAttr = NULL;
-	s32 intermediateFreq = 0;
-	s32 CTLFreqOffset = 0;
-	u32 iqmRcRateLo = 0;
-	u32 adcFrequency = 0;
+	pdrx_common_attr_t common_attr = NULL;
+	s32 intermediate_freq = 0;
+	s32 ctl_freq_offset = 0;
+	u32 iqm_rc_rateLo = 0;
+	u32 adc_frequency = 0;
 #ifndef DRXJ_VSB_ONLY
-	int bandwidthTemp = 0;
+	int bandwidth_temp = 0;
 	int bandwidth = 0;
 #endif
 
@@ -13308,10 +13308,10 @@ CtrlGetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	standard = extAttr->standard;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	standard = ext_attr->standard;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
 	/* initialize channel fields */
 	channel->mirror = DRX_MIRROR_UNKNOWN;
@@ -13330,22 +13330,22 @@ CtrlGetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 /*   channel->interleaver       = DRX_INTERLEAVER_UNKNOWN;*/
 	channel->ldpc = DRX_LDPC_UNKNOWN;
 
-	if (demod->myTuner != NULL) {
-		s32 tunerFreqOffset = 0;
-		bool tunerMirror = commonAttr->mirrorFreqSpect ? false : true;
+	if (demod->my_tuner != NULL) {
+		s32 tuner_freq_offset = 0;
+		bool tuner_mirror = common_attr->mirror_freq_spect ? false : true;
 
 		/* Get frequency from tuner */
-		CHK_ERROR(DRXBSP_TUNER_GetFrequency(demod->myTuner,
+		CHK_ERROR(drxbsp_tuner_get_frequency(demod->my_tuner,
 						    0,
 						    &(channel->frequency),
-						    &intermediateFreq));
-		tunerFreqOffset = channel->frequency - extAttr->frequency;
-		if (tunerMirror == true) {
+						    &intermediate_freq));
+		tuner_freq_offset = channel->frequency - ext_attr->frequency;
+		if (tuner_mirror == true) {
 			/* positive image */
-			channel->frequency += tunerFreqOffset;
+			channel->frequency += tuner_freq_offset;
 		} else {
 			/* negative image */
-			channel->frequency -= tunerFreqOffset;
+			channel->frequency -= tuner_freq_offset;
 		}
 
 		/* Handle sound carrier offset in RF domain */
@@ -13353,24 +13353,24 @@ CtrlGetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 			channel->frequency -= DRXJ_FM_CARRIER_FREQ_OFFSET;
 		}
 	} else {
-		intermediateFreq = commonAttr->intermediateFreq;
+		intermediate_freq = common_attr->intermediate_freq;
 	}
 
 	/* check lock status */
-	CHK_ERROR(CtrlLockStatus(demod, &lockStatus));
-	if ((lockStatus == DRX_LOCKED) || (lockStatus == DRXJ_DEMOD_LOCK)) {
-		ARR32(devAddr, IQM_RC_RATE_LO__A, &iqmRcRateLo);
-		adcFrequency = (commonAttr->sysClockFreq * 1000) / 3;
+	CHK_ERROR(ctrl_lock_status(demod, &lock_status));
+	if ((lock_status == DRX_LOCKED) || (lock_status == DRXJ_DEMOD_LOCK)) {
+		ARR32(dev_addr, IQM_RC_RATE_LO__A, &iqm_rc_rateLo);
+		adc_frequency = (common_attr->sys_clock_freq * 1000) / 3;
 
 		channel->symbolrate =
-		    Frac28(adcFrequency, (iqmRcRateLo + (1 << 23))) >> 7;
+		    frac28(adc_frequency, (iqm_rc_rateLo + (1 << 23))) >> 7;
 
 		switch (standard) {
 		case DRX_STANDARD_8VSB:
 			channel->bandwidth = DRX_BANDWIDTH_6MHZ;
 			/* get the channel frequency */
-			CHK_ERROR(GetCTLFreqOffset(demod, &CTLFreqOffset));
-			channel->frequency -= CTLFreqOffset;
+			CHK_ERROR(get_ctl_freq_offset(demod, &ctl_freq_offset));
+			channel->frequency -= ctl_freq_offset;
 			/* get the channel constellation */
 			channel->constellation = DRX_CONSTELLATION_AUTO;
 			break;
@@ -13380,26 +13380,26 @@ CtrlGetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 		case DRX_STANDARD_ITU_C:
 			{
 				/* get the channel frequency */
-				CHK_ERROR(GetCTLFreqOffset
-					  (demod, &CTLFreqOffset));
-				channel->frequency -= CTLFreqOffset;
+				CHK_ERROR(get_ctl_freq_offset
+					  (demod, &ctl_freq_offset));
+				channel->frequency -= ctl_freq_offset;
 
 				if (standard == DRX_STANDARD_ITU_B) {
 					channel->bandwidth = DRX_BANDWIDTH_6MHZ;
 				} else {
 					/* annex A & C */
 
-					u32 rollOff = 113;	/* default annex C */
+					u32 roll_off = 113;	/* default annex C */
 
 					if (standard == DRX_STANDARD_ITU_A) {
-						rollOff = 115;
+						roll_off = 115;
 					}
 
-					bandwidthTemp =
-					    channel->symbolrate * rollOff;
-					bandwidth = bandwidthTemp / 100;
+					bandwidth_temp =
+					    channel->symbolrate * roll_off;
+					bandwidth = bandwidth_temp / 100;
 
-					if ((bandwidthTemp % 100) >= 50) {
+					if ((bandwidth_temp % 100) >= 50) {
 						bandwidth++;
 					}
 
@@ -13417,30 +13417,30 @@ CtrlGetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 				}	/* if (standard == DRX_STANDARD_ITU_B) */
 
 				{
-					DRXJSCUCmd_t cmdSCU =
+					drxjscu_cmd_t cmd_scu =
 					    { /* command      */ 0,
-						/* parameterLen */ 0,
-						/* resultLen    */ 0,
+						/* parameter_len */ 0,
+						/* result_len    */ 0,
 						/* parameter    */ NULL,
 						/* result       */ NULL
 					};
-					u16 cmdResult[3] = { 0, 0, 0 };
+					u16 cmd_result[3] = { 0, 0, 0 };
 
-					cmdSCU.command =
+					cmd_scu.command =
 					    SCU_RAM_COMMAND_STANDARD_QAM |
 					    SCU_RAM_COMMAND_CMD_DEMOD_GET_PARAM;
-					cmdSCU.parameterLen = 0;
-					cmdSCU.resultLen = 3;
-					cmdSCU.parameter = NULL;
-					cmdSCU.result = cmdResult;
-					CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+					cmd_scu.parameter_len = 0;
+					cmd_scu.result_len = 3;
+					cmd_scu.parameter = NULL;
+					cmd_scu.result = cmd_result;
+					CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
 					channel->interleavemode =
-					    (enum drx_interleave_mode) (cmdSCU.
+					    (enum drx_interleave_mode) (cmd_scu.
 								    result[2]);
 				}
 
-				switch (extAttr->constellation) {
+				switch (ext_attr->constellation) {
 				case DRX_CONSTELLATION_QAM256:
 					channel->constellation =
 					    DRX_CONSTELLATION_QAM256;
@@ -13477,7 +13477,7 @@ CtrlGetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 		case DRX_STANDARD_PAL_SECAM_L:
 		case DRX_STANDARD_PAL_SECAM_LP:
 		case DRX_STANDARD_FM:
-			CHK_ERROR(GetATVChannel(demod, channel, standard));
+			CHK_ERROR(get_atv_channel(demod, channel, standard));
 			break;
 #endif
 		case DRX_STANDARD_UNKNOWN:	/* fall trough */
@@ -13485,11 +13485,11 @@ CtrlGetChannel(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 			return (DRX_STS_ERROR);
 		}		/* switch ( standard ) */
 
-		if (lockStatus == DRX_LOCKED) {
-			channel->mirror = extAttr->mirror;
+		if (lock_status == DRX_LOCKED) {
+			channel->mirror = ext_attr->mirror;
 		}
 	}
-	/* if ( lockStatus == DRX_LOCKED ) */
+	/* if ( lock_status == DRX_LOCKED ) */
 	return (DRX_STS_OK);
 rw_error:
 	return (DRX_STS_ERROR);
@@ -13500,22 +13500,22 @@ rw_error:
   ===========================================================================*/
 
 static u16
-mer2indicator(u16 mer, u16 minMer, u16 thresholdMer, u16 maxMer)
+mer2indicator(u16 mer, u16 min_mer, u16 threshold_mer, u16 max_mer)
 {
 	u16 indicator = 0;
 
-	if (mer < minMer) {
+	if (mer < min_mer) {
 		indicator = 0;
-	} else if (mer < thresholdMer) {
-		if ((thresholdMer - minMer) != 0) {
+	} else if (mer < threshold_mer) {
+		if ((threshold_mer - min_mer) != 0) {
 			indicator =
-			    25 * (mer - minMer) / (thresholdMer - minMer);
+			    25 * (mer - min_mer) / (threshold_mer - min_mer);
 		}
-	} else if (mer < maxMer) {
-		if ((maxMer - thresholdMer) != 0) {
+	} else if (mer < max_mer) {
+		if ((max_mer - threshold_mer) != 0) {
 			indicator =
-			    25 + 75 * (mer - thresholdMer) / (maxMer -
-							      thresholdMer);
+			    25 + 75 * (mer - threshold_mer) / (max_mer -
+							      threshold_mer);
 		} else {
 			indicator = 25;
 		}
@@ -13527,105 +13527,105 @@ mer2indicator(u16 mer, u16 minMer, u16 thresholdMer, u16 maxMer)
 }
 
 /**
-* \fn int CtrlSigQuality()
+* \fn int ctrl_sig_quality()
 * \brief Retreive signal quality form device.
 * \param devmod Pointer to demodulator instance.
-* \param sigQuality Pointer to signal quality data.
+* \param sig_quality Pointer to signal quality data.
 * \return int.
-* \retval DRX_STS_OK sigQuality contains valid data.
-* \retval DRX_STS_INVALID_ARG sigQuality is NULL.
-* \retval DRX_STS_ERROR Erroneous data, sigQuality contains invalid data.
+* \retval DRX_STS_OK sig_quality contains valid data.
+* \retval DRX_STS_INVALID_ARG sig_quality is NULL.
+* \retval DRX_STS_ERROR Erroneous data, sig_quality contains invalid data.
 
 */
 static int
-CtrlSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
+ctrl_sig_quality(pdrx_demod_instance_t demod, pdrx_sig_quality_t sig_quality)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	DRXLockStatus_t lockStatus = DRX_NOT_LOCKED;
-	u16 minMer = 0;
-	u16 maxMer = 0;
-	u16 thresholdMer = 0;
+	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	u16 min_mer = 0;
+	u16 max_mer = 0;
+	u16 threshold_mer = 0;
 
 	/* Check arguments */
-	if ((sigQuality == NULL) || (demod == NULL)) {
+	if ((sig_quality == NULL) || (demod == NULL)) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	standard = extAttr->standard;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	standard = ext_attr->standard;
 
 	/* get basic information */
-	devAddr = demod->myI2CDevAddr;
-	CHK_ERROR(CtrlLockStatus(demod, &lockStatus));
+	dev_addr = demod->my_i2c_dev_addr;
+	CHK_ERROR(ctrl_lock_status(demod, &lock_status));
 	switch (standard) {
 	case DRX_STANDARD_8VSB:
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
-		CHK_ERROR(GetAccPktErr(demod, &sigQuality->packetError));
+		CHK_ERROR(get_acc_pkt_err(demod, &sig_quality->packet_error));
 #else
-		CHK_ERROR(GetVSBPostRSPckErr
-			  (devAddr, &sigQuality->packetError));
+		CHK_ERROR(get_vsb_post_rs_pck_err
+			  (dev_addr, &sig_quality->packet_error));
 #endif
-		if (lockStatus != DRXJ_DEMOD_LOCK && lockStatus != DRX_LOCKED) {
-			sigQuality->postViterbiBER = 500000;
-			sigQuality->MER = 20;
-			sigQuality->preViterbiBER = 0;
+		if (lock_status != DRXJ_DEMOD_LOCK && lock_status != DRX_LOCKED) {
+			sig_quality->post_viterbi_ber = 500000;
+			sig_quality->MER = 20;
+			sig_quality->pre_viterbi_ber = 0;
 		} else {
 			/* PostViterbi is compute in steps of 10^(-6) */
-			CHK_ERROR(GetVSBpreViterbiBer
-				  (devAddr, &sigQuality->preViterbiBER));
-			CHK_ERROR(GetVSBpostViterbiBer
-				  (devAddr, &sigQuality->postViterbiBER));
-			CHK_ERROR(GetVSBMER(devAddr, &sigQuality->MER));
+			CHK_ERROR(get_vs_bpre_viterbi_ber
+				  (dev_addr, &sig_quality->pre_viterbi_ber));
+			CHK_ERROR(get_vs_bpost_viterbi_ber
+				  (dev_addr, &sig_quality->post_viterbi_ber));
+			CHK_ERROR(get_vsbmer(dev_addr, &sig_quality->MER));
 		}
-		minMer = 20;
-		maxMer = 360;
-		thresholdMer = 145;
-		sigQuality->postReedSolomonBER = 0;
-		sigQuality->scaleFactorBER = 1000000;
-		sigQuality->indicator =
-		    mer2indicator(sigQuality->MER, minMer, thresholdMer,
-				  maxMer);
+		min_mer = 20;
+		max_mer = 360;
+		threshold_mer = 145;
+		sig_quality->post_reed_solomon_ber = 0;
+		sig_quality->scale_factor_ber = 1000000;
+		sig_quality->indicator =
+		    mer2indicator(sig_quality->MER, min_mer, threshold_mer,
+				  max_mer);
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_B:
 	case DRX_STANDARD_ITU_C:
-		CHK_ERROR(CtrlGetQAMSigQuality(demod, sigQuality));
-		if (lockStatus != DRXJ_DEMOD_LOCK && lockStatus != DRX_LOCKED) {
-			switch (extAttr->constellation) {
+		CHK_ERROR(ctrl_get_qam_sig_quality(demod, sig_quality));
+		if (lock_status != DRXJ_DEMOD_LOCK && lock_status != DRX_LOCKED) {
+			switch (ext_attr->constellation) {
 			case DRX_CONSTELLATION_QAM256:
-				sigQuality->MER = 210;
+				sig_quality->MER = 210;
 				break;
 			case DRX_CONSTELLATION_QAM128:
-				sigQuality->MER = 180;
+				sig_quality->MER = 180;
 				break;
 			case DRX_CONSTELLATION_QAM64:
-				sigQuality->MER = 150;
+				sig_quality->MER = 150;
 				break;
 			case DRX_CONSTELLATION_QAM32:
-				sigQuality->MER = 120;
+				sig_quality->MER = 120;
 				break;
 			case DRX_CONSTELLATION_QAM16:
-				sigQuality->MER = 90;
+				sig_quality->MER = 90;
 				break;
 			default:
-				sigQuality->MER = 0;
+				sig_quality->MER = 0;
 				return (DRX_STS_ERROR);
 			}
 		}
 
-		switch (extAttr->constellation) {
+		switch (ext_attr->constellation) {
 		case DRX_CONSTELLATION_QAM256:
-			minMer = 210;
-			thresholdMer = 270;
-			maxMer = 380;
+			min_mer = 210;
+			threshold_mer = 270;
+			max_mer = 380;
 			break;
 		case DRX_CONSTELLATION_QAM64:
-			minMer = 150;
-			thresholdMer = 210;
-			maxMer = 380;
+			min_mer = 150;
+			threshold_mer = 210;
+			max_mer = 380;
 			break;
 		case DRX_CONSTELLATION_QAM128:
 		case DRX_CONSTELLATION_QAM32:
@@ -13634,9 +13634,9 @@ CtrlSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
 		default:
 			return (DRX_STS_ERROR);
 		}
-		sigQuality->indicator =
-		    mer2indicator(sigQuality->MER, minMer, thresholdMer,
-				  maxMer);
+		sig_quality->indicator =
+		    mer2indicator(sig_quality->MER, min_mer, threshold_mer,
+				  max_mer);
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
@@ -13646,10 +13646,10 @@ CtrlSigQuality(pDRXDemodInstance_t demod, pDRXSigQuality_t sigQuality)
 	case DRX_STANDARD_PAL_SECAM_L:
 	case DRX_STANDARD_PAL_SECAM_LP:
 	case DRX_STANDARD_NTSC:
-		CHK_ERROR(AtvSigQuality(demod, sigQuality));
+		CHK_ERROR(atv_sig_quality(demod, sig_quality));
 		break;
 	case DRX_STANDARD_FM:
-		CHK_ERROR(FmSigQuality(demod, sigQuality));
+		CHK_ERROR(fm_sig_quality(demod, sig_quality));
 		break;
 #endif
 	default:
@@ -13664,51 +13664,51 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlLockStatus()
+* \fn int ctrl_lock_status()
 * \brief Retreive lock status .
-* \param devAddr Pointer to demodulator device address.
-* \param lockStat Pointer to lock status structure.
+* \param dev_addr Pointer to demodulator device address.
+* \param lock_stat Pointer to lock status structure.
 * \return int.
 *
 */
 static int
-CtrlLockStatus(pDRXDemodInstance_t demod, pDRXLockStatus_t lockStat)
+ctrl_lock_status(pdrx_demod_instance_t demod, pdrx_lock_status_t lock_stat)
 {
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	pDRXJData_t extAttr = NULL;
-	struct i2c_device_addr *devAddr = NULL;
-	DRXJSCUCmd_t cmdSCU = { /* command      */ 0,
-		/* parameterLen */ 0,
-		/* resultLen    */ 0,
+	pdrxj_data_t ext_attr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	drxjscu_cmd_t cmd_scu = { /* command      */ 0,
+		/* parameter_len */ 0,
+		/* result_len    */ 0,
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
-	u16 cmdResult[2] = { 0, 0 };
-	u16 demodLock = SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_DEMOD_LOCKED;
+	u16 cmd_result[2] = { 0, 0 };
+	u16 demod_lock = SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_DEMOD_LOCKED;
 
 	/* check arguments */
-	if ((demod == NULL) || (lockStat == NULL)) {
+	if ((demod == NULL) || (lock_stat == NULL)) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	standard = extAttr->standard;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	standard = ext_attr->standard;
 
-	*lockStat = DRX_NOT_LOCKED;
+	*lock_stat = DRX_NOT_LOCKED;
 
 	/* define the SCU command code */
 	switch (standard) {
 	case DRX_STANDARD_8VSB:
-		cmdSCU.command = SCU_RAM_COMMAND_STANDARD_VSB |
+		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_VSB |
 		    SCU_RAM_COMMAND_CMD_DEMOD_GET_LOCK;
-		demodLock |= 0x6;
+		demod_lock |= 0x6;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_B:
 	case DRX_STANDARD_ITU_C:
-		cmdSCU.command = SCU_RAM_COMMAND_STANDARD_QAM |
+		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 		    SCU_RAM_COMMAND_CMD_DEMOD_GET_LOCK;
 		break;
 #endif
@@ -13719,11 +13719,11 @@ CtrlLockStatus(pDRXDemodInstance_t demod, pDRXLockStatus_t lockStat)
 	case DRX_STANDARD_PAL_SECAM_I:
 	case DRX_STANDARD_PAL_SECAM_L:
 	case DRX_STANDARD_PAL_SECAM_LP:
-		cmdSCU.command = SCU_RAM_COMMAND_STANDARD_ATV |
+		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_ATV |
 		    SCU_RAM_COMMAND_CMD_DEMOD_GET_LOCK;
 		break;
 	case DRX_STANDARD_FM:
-		return FmLockStatus(demod, lockStat);
+		return fm_lock_status(demod, lock_stat);
 #endif
 	case DRX_STANDARD_UNKNOWN:	/* fallthrough */
 	default:
@@ -13731,26 +13731,26 @@ CtrlLockStatus(pDRXDemodInstance_t demod, pDRXLockStatus_t lockStat)
 	}
 
 	/* define the SCU command paramters and execute the command */
-	cmdSCU.parameterLen = 0;
-	cmdSCU.resultLen = 2;
-	cmdSCU.parameter = NULL;
-	cmdSCU.result = cmdResult;
-	CHK_ERROR(SCUCommand(devAddr, &cmdSCU));
+	cmd_scu.parameter_len = 0;
+	cmd_scu.result_len = 2;
+	cmd_scu.parameter = NULL;
+	cmd_scu.result = cmd_result;
+	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
 
 	/* set the lock status */
-	if (cmdSCU.result[1] < demodLock) {
+	if (cmd_scu.result[1] < demod_lock) {
 		/* 0x0000 NOT LOCKED */
-		*lockStat = DRX_NOT_LOCKED;
-	} else if (cmdSCU.result[1] < SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_LOCKED) {
-		*lockStat = DRXJ_DEMOD_LOCK;
-	} else if (cmdSCU.result[1] <
+		*lock_stat = DRX_NOT_LOCKED;
+	} else if (cmd_scu.result[1] < SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_LOCKED) {
+		*lock_stat = DRXJ_DEMOD_LOCK;
+	} else if (cmd_scu.result[1] <
 		   SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_NEVER_LOCK) {
 		/* 0x8000 DEMOD + FEC LOCKED (system lock) */
-		*lockStat = DRX_LOCKED;
+		*lock_stat = DRX_LOCKED;
 	} else {
 		/* 0xC000 NEVER LOCKED */
 		/* (system will never be able to lock to the signal) */
-		*lockStat = DRX_NEVER_LOCK;
+		*lock_stat = DRX_NEVER_LOCK;
 	}
 
 	return (DRX_STS_OK);
@@ -13761,37 +13761,37 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlConstel()
+* \fn int ctrl_constel()
 * \brief Retreive a constellation point via I2C.
 * \param demod Pointer to demodulator instance.
-* \param complexNr Pointer to the structure in which to store the
+* \param complex_nr Pointer to the structure in which to store the
 		   constellation point.
 * \return int.
 */
 static int
-CtrlConstel(pDRXDemodInstance_t demod, pDRXComplex_t complexNr)
+ctrl_constel(pdrx_demod_instance_t demod, pdrx_complex_t complex_nr)
 {
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 						     /**< active standard */
 
 	/* check arguments */
-	if ((demod == NULL) || (complexNr == NULL)) {
+	if ((demod == NULL) || (complex_nr == NULL)) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
 	/* read device info */
-	standard = ((pDRXJData_t) demod->myExtAttr)->standard;
+	standard = ((pdrxj_data_t) demod->my_ext_attr)->standard;
 
 	/* Read constellation point  */
 	switch (standard) {
 	case DRX_STANDARD_8VSB:
-		CHK_ERROR(CtrlGetVSBConstel(demod, complexNr));
+		CHK_ERROR(ctrl_get_vsb_constel(demod, complex_nr));
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		CHK_ERROR(CtrlGetQAMConstel(demod, complexNr));
+		CHK_ERROR(ctrl_get_qam_constel(demod, complex_nr));
 		break;
 #endif
 	case DRX_STANDARD_UNKNOWN:
@@ -13807,7 +13807,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlSetStandard()
+* \fn int ctrl_set_standard()
 * \brief Set modulation standard to be used.
 * \param standard Modulation standard.
 * \return int.
@@ -13817,32 +13817,32 @@ rw_error:
 *
 */
 static int
-CtrlSetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
+ctrl_set_standard(pdrx_demod_instance_t demod, enum drx_standard *standard)
 {
-	pDRXJData_t extAttr = NULL;
-	enum drx_standard prevStandard;
+	pdrxj_data_t ext_attr = NULL;
+	enum drx_standard prev_standard;
 
 	/* check arguments */
 	if ((standard == NULL) || (demod == NULL)) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	prevStandard = extAttr->standard;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	prev_standard = ext_attr->standard;
 
 	/*
 	   Stop and power down previous standard
 	 */
-	switch (prevStandard) {
+	switch (prev_standard) {
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		CHK_ERROR(PowerDownQAM(demod, false));
+		CHK_ERROR(power_down_qam(demod, false));
 		break;
 #endif
 	case DRX_STANDARD_8VSB:
-		CHK_ERROR(PowerDownVSB(demod, false));
+		CHK_ERROR(power_down_vsb(demod, false));
 		break;
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_NTSC:	/* fallthrough */
@@ -13852,7 +13852,7 @@ CtrlSetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
 	case DRX_STANDARD_PAL_SECAM_I:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:
-		CHK_ERROR(PowerDownATV(demod, prevStandard, false));
+		CHK_ERROR(power_down_atv(demod, prev_standard, false));
 		break;
 #endif
 	case DRX_STANDARD_UNKNOWN:
@@ -13867,7 +13867,7 @@ CtrlSetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
 	   Initialize channel independent registers
 	   Power up new standard
 	 */
-	extAttr->standard = *standard;
+	ext_attr->standard = *standard;
 
 	switch (*standard) {
 #ifndef DRXJ_VSB_ONLY
@@ -13878,7 +13878,7 @@ CtrlSetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
 		break;
 #endif
 	case DRX_STANDARD_8VSB:
-		CHK_ERROR(SetVSBLeakNGain(demod));
+		CHK_ERROR(set_vsb_leak_n_gain(demod));
 		break;
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_NTSC:	/* fallthrough */
@@ -13888,12 +13888,12 @@ CtrlSetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
 	case DRX_STANDARD_PAL_SECAM_I:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:
-		CHK_ERROR(SetATVStandard(demod, standard));
-		CHK_ERROR(PowerUpATV(demod, *standard));
+		CHK_ERROR(set_atv_standard(demod, standard));
+		CHK_ERROR(power_up_atv(demod, *standard));
 		break;
 #endif
 	default:
-		extAttr->standard = DRX_STANDARD_UNKNOWN;
+		ext_attr->standard = DRX_STANDARD_UNKNOWN;
 		return (DRX_STS_INVALID_ARG);
 		break;
 	}
@@ -13901,14 +13901,14 @@ CtrlSetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
 	return (DRX_STS_OK);
 rw_error:
 	/* Don't know what the standard is now ... try again */
-	extAttr->standard = DRX_STANDARD_UNKNOWN;
+	ext_attr->standard = DRX_STANDARD_UNKNOWN;
 	return (DRX_STS_ERROR);
 }
 
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetStandard()
+* \fn int ctrl_get_standard()
 * \brief Get modulation standard currently used to demodulate.
 * \param standard Modulation standard.
 * \return int.
@@ -13917,16 +13917,16 @@ rw_error:
 *
 */
 static int
-CtrlGetStandard(pDRXDemodInstance_t demod, enum drx_standard *standard)
+ctrl_get_standard(pdrx_demod_instance_t demod, enum drx_standard *standard)
 {
-	pDRXJData_t extAttr = NULL;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	pdrxj_data_t ext_attr = NULL;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* check arguments */
 	if (standard == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	(*standard) = extAttr->standard;
+	(*standard) = ext_attr->standard;
 	DUMMY_READ();
 
 	return (DRX_STS_OK);
@@ -13937,27 +13937,27 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetCfgSymbolClockOffset()
+* \fn int ctrl_get_cfg_symbol_clock_offset()
 * \brief Get frequency offsets of STR.
 * \param pointer to s32.
 * \return int.
 *
 */
 static int
-CtrlGetCfgSymbolClockOffset(pDRXDemodInstance_t demod, s32 *rateOffset)
+ctrl_get_cfg_symbol_clock_offset(pdrx_demod_instance_t demod, s32 *rate_offset)
 {
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
 	/* check arguments */
-	if (rateOffset == NULL) {
+	if (rate_offset == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	standard = extAttr->standard;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	standard = ext_attr->standard;
 
 	switch (standard) {
 	case DRX_STANDARD_8VSB:	/* fallthrough */
@@ -13966,7 +13966,7 @@ CtrlGetCfgSymbolClockOffset(pDRXDemodInstance_t demod, s32 *rateOffset)
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
 #endif
-		CHK_ERROR(GetSTRFreqOffset(demod, rateOffset));
+		CHK_ERROR(get_str_freq_offset(demod, rate_offset));
 		break;
 	case DRX_STANDARD_NTSC:
 	case DRX_STANDARD_UNKNOWN:
@@ -13982,7 +13982,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlPowerMode()
+* \fn int ctrl_power_mode()
 * \brief Set the power mode of the device to the specified power mode
 * \param demod Pointer to demodulator instance.
 * \param mode  Pointer to new power mode.
@@ -13994,16 +13994,16 @@ rw_error:
 *
 */
 static int
-CtrlPowerMode(pDRXDemodInstance_t demod, pDRXPowerMode_t mode)
+ctrl_power_mode(pdrx_demod_instance_t demod, pdrx_power_mode_t mode)
 {
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) NULL;
-	pDRXJData_t extAttr = (pDRXJData_t) NULL;
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
-	u16 sioCcPwdMode = 0;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) NULL;
+	pdrxj_data_t ext_attr = (pdrxj_data_t) NULL;
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) NULL;
+	u16 sio_cc_pwd_mode = 0;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	devAddr = demod->myI2CDevAddr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Check arguments */
 	if (mode == NULL) {
@@ -14011,23 +14011,23 @@ CtrlPowerMode(pDRXDemodInstance_t demod, pDRXPowerMode_t mode)
 	}
 
 	/* If already in requested power mode, do nothing */
-	if (commonAttr->currentPowerMode == *mode) {
+	if (common_attr->current_power_mode == *mode) {
 		return (DRX_STS_OK);
 	}
 
 	switch (*mode) {
 	case DRX_POWER_UP:
 	case DRXJ_POWER_DOWN_MAIN_PATH:
-		sioCcPwdMode = SIO_CC_PWD_MODE_LEVEL_NONE;
+		sio_cc_pwd_mode = SIO_CC_PWD_MODE_LEVEL_NONE;
 		break;
 	case DRXJ_POWER_DOWN_CORE:
-		sioCcPwdMode = SIO_CC_PWD_MODE_LEVEL_CLOCK;
+		sio_cc_pwd_mode = SIO_CC_PWD_MODE_LEVEL_CLOCK;
 		break;
 	case DRXJ_POWER_DOWN_PLL:
-		sioCcPwdMode = SIO_CC_PWD_MODE_LEVEL_PLL;
+		sio_cc_pwd_mode = SIO_CC_PWD_MODE_LEVEL_PLL;
 		break;
 	case DRX_POWER_DOWN:
-		sioCcPwdMode = SIO_CC_PWD_MODE_LEVEL_OSC;
+		sio_cc_pwd_mode = SIO_CC_PWD_MODE_LEVEL_OSC;
 		break;
 	default:
 		/* Unknow sleep mode */
@@ -14036,8 +14036,8 @@ CtrlPowerMode(pDRXDemodInstance_t demod, pDRXPowerMode_t mode)
 	}
 
 	/* Check if device needs to be powered up */
-	if ((commonAttr->currentPowerMode != DRX_POWER_UP)) {
-		CHK_ERROR(PowerUpDevice(demod));
+	if ((common_attr->current_power_mode != DRX_POWER_UP)) {
+		CHK_ERROR(power_up_device(demod));
 	}
 
 	if ((*mode == DRX_POWER_UP)) {
@@ -14054,14 +14054,14 @@ CtrlPowerMode(pDRXDemodInstance_t demod, pDRXPowerMode_t mode)
 		   Stop and power down previous standard
 		 */
 
-		switch (extAttr->standard) {
+		switch (ext_attr->standard) {
 		case DRX_STANDARD_ITU_A:
 		case DRX_STANDARD_ITU_B:
 		case DRX_STANDARD_ITU_C:
-			CHK_ERROR(PowerDownQAM(demod, true));
+			CHK_ERROR(power_down_qam(demod, true));
 			break;
 		case DRX_STANDARD_8VSB:
-			CHK_ERROR(PowerDownVSB(demod, true));
+			CHK_ERROR(power_down_vsb(demod, true));
 			break;
 		case DRX_STANDARD_PAL_SECAM_BG:	/* fallthrough */
 		case DRX_STANDARD_PAL_SECAM_DK:	/* fallthrough */
@@ -14070,7 +14070,7 @@ CtrlPowerMode(pDRXDemodInstance_t demod, pDRXPowerMode_t mode)
 		case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 		case DRX_STANDARD_NTSC:	/* fallthrough */
 		case DRX_STANDARD_FM:
-			CHK_ERROR(PowerDownATV(demod, extAttr->standard, true));
+			CHK_ERROR(power_down_atv(demod, ext_attr->standard, true));
 			break;
 		case DRX_STANDARD_UNKNOWN:
 			/* Do nothing */
@@ -14081,18 +14081,18 @@ CtrlPowerMode(pDRXDemodInstance_t demod, pDRXPowerMode_t mode)
 		}
 
 		if (*mode != DRXJ_POWER_DOWN_MAIN_PATH) {
-			WR16(devAddr, SIO_CC_PWD_MODE__A, sioCcPwdMode);
-			WR16(devAddr, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
+			WR16(dev_addr, SIO_CC_PWD_MODE__A, sio_cc_pwd_mode);
+			WR16(dev_addr, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
 
 			/* Initialize HI, wakeup key especially before put IC to sleep */
-			CHK_ERROR(InitHI(demod));
+			CHK_ERROR(init_hi(demod));
 
-			extAttr->HICfgCtrl |= SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ;
-			CHK_ERROR(HICfgCommand(demod));
+			ext_attr->hi_cfg_ctrl |= SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ;
+			CHK_ERROR(hi_cfg_command(demod));
 		}
 	}
 
-	commonAttr->currentPowerMode = *mode;
+	common_attr->current_power_mode = *mode;
 
 	return (DRX_STS_OK);
 rw_error:
@@ -14102,10 +14102,10 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlVersion()
+* \fn int ctrl_version()
 * \brief Report version of microcode and if possible version of device
 * \param demod Pointer to demodulator instance.
-* \param versionList Pointer to pointer of linked list of versions.
+* \param version_list Pointer to pointer of linked list of versions.
 * \return int.
 *
 * Using static structures so no allocation of memory is needed.
@@ -14122,13 +14122,13 @@ rw_error:
 *
 */
 static int
-CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t *versionList)
+ctrl_version(pdrx_demod_instance_t demod, p_drx_version_list_t *version_list)
 {
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	u16 ucodeMajorMinor = 0;	/* BCD Ma:Ma:Ma:Mi */
-	u16 ucodePatch = 0;	/* BCD Pa:Pa:Pa:Pa */
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	u16 ucode_major_minor = 0;	/* BCD Ma:Ma:Ma:Mi */
+	u16 ucode_patch = 0;	/* BCD Pa:Pa:Pa:Pa */
 	u16 major = 0;
 	u16 minor = 0;
 	u16 patch = 0;
@@ -14139,121 +14139,121 @@ CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t *versionList)
 	u16 bid = 0;
 	u16 key = 0;
 
-	static char ucodeName[] = "Microcode";
-	static char deviceName[] = "Device";
+	static char ucode_name[] = "Microcode";
+	static char device_name[] = "Device";
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
 	/* Microcode version *************************************** */
 
-	extAttr->vVersion[0].moduleType = DRX_MODULE_MICROCODE;
-	extAttr->vVersion[0].moduleName = ucodeName;
-	extAttr->vVersion[0].vString = extAttr->vText[0];
+	ext_attr->v_version[0].module_type = DRX_MODULE_MICROCODE;
+	ext_attr->v_version[0].module_name = ucode_name;
+	ext_attr->v_version[0].v_string = ext_attr->v_text[0];
 
-	if (commonAttr->isOpened == true) {
-		SARR16(devAddr, SCU_RAM_VERSION_HI__A, &ucodeMajorMinor);
-		SARR16(devAddr, SCU_RAM_VERSION_LO__A, &ucodePatch);
+	if (common_attr->is_opened == true) {
+		SARR16(dev_addr, SCU_RAM_VERSION_HI__A, &ucode_major_minor);
+		SARR16(dev_addr, SCU_RAM_VERSION_LO__A, &ucode_patch);
 
 		/* Translate BCD to numbers and string */
 		/* TODO: The most significant Ma and Pa will be ignored, check with spec */
-		minor = (ucodeMajorMinor & 0xF);
-		ucodeMajorMinor >>= 4;
-		major = (ucodeMajorMinor & 0xF);
-		ucodeMajorMinor >>= 4;
-		major += (10 * (ucodeMajorMinor & 0xF));
-		patch = (ucodePatch & 0xF);
-		ucodePatch >>= 4;
-		patch += (10 * (ucodePatch & 0xF));
-		ucodePatch >>= 4;
-		patch += (100 * (ucodePatch & 0xF));
+		minor = (ucode_major_minor & 0xF);
+		ucode_major_minor >>= 4;
+		major = (ucode_major_minor & 0xF);
+		ucode_major_minor >>= 4;
+		major += (10 * (ucode_major_minor & 0xF));
+		patch = (ucode_patch & 0xF);
+		ucode_patch >>= 4;
+		patch += (10 * (ucode_patch & 0xF));
+		ucode_patch >>= 4;
+		patch += (100 * (ucode_patch & 0xF));
 	} else {
 		/* No microcode uploaded, No Rom existed, set version to 0.0.0 */
 		patch = 0;
 		minor = 0;
 		major = 0;
 	}
-	extAttr->vVersion[0].vMajor = major;
-	extAttr->vVersion[0].vMinor = minor;
-	extAttr->vVersion[0].vPatch = patch;
+	ext_attr->v_version[0].v_major = major;
+	ext_attr->v_version[0].v_minor = minor;
+	ext_attr->v_version[0].v_patch = patch;
 
 	if (major / 10 != 0) {
-		extAttr->vVersion[0].vString[idx++] =
+		ext_attr->v_version[0].v_string[idx++] =
 		    ((char)(major / 10)) + '0';
 		major %= 10;
 	}
-	extAttr->vVersion[0].vString[idx++] = ((char)major) + '0';
-	extAttr->vVersion[0].vString[idx++] = '.';
-	extAttr->vVersion[0].vString[idx++] = ((char)minor) + '0';
-	extAttr->vVersion[0].vString[idx++] = '.';
+	ext_attr->v_version[0].v_string[idx++] = ((char)major) + '0';
+	ext_attr->v_version[0].v_string[idx++] = '.';
+	ext_attr->v_version[0].v_string[idx++] = ((char)minor) + '0';
+	ext_attr->v_version[0].v_string[idx++] = '.';
 	if (patch / 100 != 0) {
-		extAttr->vVersion[0].vString[idx++] =
+		ext_attr->v_version[0].v_string[idx++] =
 		    ((char)(patch / 100)) + '0';
 		patch %= 100;
 	}
 	if (patch / 10 != 0) {
-		extAttr->vVersion[0].vString[idx++] =
+		ext_attr->v_version[0].v_string[idx++] =
 		    ((char)(patch / 10)) + '0';
 		patch %= 10;
 	}
-	extAttr->vVersion[0].vString[idx++] = ((char)patch) + '0';
-	extAttr->vVersion[0].vString[idx] = '\0';
+	ext_attr->v_version[0].v_string[idx++] = ((char)patch) + '0';
+	ext_attr->v_version[0].v_string[idx] = '\0';
 
-	extAttr->vListElements[0].version = &(extAttr->vVersion[0]);
-	extAttr->vListElements[0].next = &(extAttr->vListElements[1]);
+	ext_attr->v_list_elements[0].version = &(ext_attr->v_version[0]);
+	ext_attr->v_list_elements[0].next = &(ext_attr->v_list_elements[1]);
 
 	/* Device version *************************************** */
 	/* Check device id */
-	RR16(devAddr, SIO_TOP_COMM_KEY__A, &key);
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, 0xFABA);
-	RR32(devAddr, SIO_TOP_JTAGID_LO__A, &jtag);
-	RR16(devAddr, SIO_PDR_UIO_IN_HI__A, &bid);
-	WR16(devAddr, SIO_TOP_COMM_KEY__A, key);
+	RR16(dev_addr, SIO_TOP_COMM_KEY__A, &key);
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);
+	RR32(dev_addr, SIO_TOP_JTAGID_LO__A, &jtag);
+	RR16(dev_addr, SIO_PDR_UIO_IN_HI__A, &bid);
+	WR16(dev_addr, SIO_TOP_COMM_KEY__A, key);
 
-	extAttr->vVersion[1].moduleType = DRX_MODULE_DEVICE;
-	extAttr->vVersion[1].moduleName = deviceName;
-	extAttr->vVersion[1].vString = extAttr->vText[1];
-	extAttr->vVersion[1].vString[0] = 'D';
-	extAttr->vVersion[1].vString[1] = 'R';
-	extAttr->vVersion[1].vString[2] = 'X';
-	extAttr->vVersion[1].vString[3] = '3';
-	extAttr->vVersion[1].vString[4] = '9';
-	extAttr->vVersion[1].vString[7] = 'J';
-	extAttr->vVersion[1].vString[8] = ':';
-	extAttr->vVersion[1].vString[11] = '\0';
+	ext_attr->v_version[1].module_type = DRX_MODULE_DEVICE;
+	ext_attr->v_version[1].module_name = device_name;
+	ext_attr->v_version[1].v_string = ext_attr->v_text[1];
+	ext_attr->v_version[1].v_string[0] = 'D';
+	ext_attr->v_version[1].v_string[1] = 'R';
+	ext_attr->v_version[1].v_string[2] = 'X';
+	ext_attr->v_version[1].v_string[3] = '3';
+	ext_attr->v_version[1].v_string[4] = '9';
+	ext_attr->v_version[1].v_string[7] = 'J';
+	ext_attr->v_version[1].v_string[8] = ':';
+	ext_attr->v_version[1].v_string[11] = '\0';
 
 	/* DRX39xxJ type Ax */
 	/* TODO semantics of mfx and spin are unclear */
 	subtype = (u16) ((jtag >> 12) & 0xFF);
 	mfx = (u16) (jtag >> 29);
-	extAttr->vVersion[1].vMinor = 1;
+	ext_attr->v_version[1].v_minor = 1;
 	if (mfx == 0x03) {
-		extAttr->vVersion[1].vPatch = mfx + 2;
+		ext_attr->v_version[1].v_patch = mfx + 2;
 	} else {
-		extAttr->vVersion[1].vPatch = mfx + 1;
+		ext_attr->v_version[1].v_patch = mfx + 1;
 	}
-	extAttr->vVersion[1].vString[6] = ((char)(subtype & 0xF)) + '0';
-	extAttr->vVersion[1].vMajor = (subtype & 0x0F);
+	ext_attr->v_version[1].v_string[6] = ((char)(subtype & 0xF)) + '0';
+	ext_attr->v_version[1].v_major = (subtype & 0x0F);
 	subtype >>= 4;
-	extAttr->vVersion[1].vString[5] = ((char)(subtype & 0xF)) + '0';
-	extAttr->vVersion[1].vMajor += 10 * subtype;
-	extAttr->vVersion[1].vString[9] = 'A';
+	ext_attr->v_version[1].v_string[5] = ((char)(subtype & 0xF)) + '0';
+	ext_attr->v_version[1].v_major += 10 * subtype;
+	ext_attr->v_version[1].v_string[9] = 'A';
 	if (mfx == 0x03) {
-		extAttr->vVersion[1].vString[10] = ((char)(mfx & 0xF)) + '2';
+		ext_attr->v_version[1].v_string[10] = ((char)(mfx & 0xF)) + '2';
 	} else {
-		extAttr->vVersion[1].vString[10] = ((char)(mfx & 0xF)) + '1';
+		ext_attr->v_version[1].v_string[10] = ((char)(mfx & 0xF)) + '1';
 	}
 
-	extAttr->vListElements[1].version = &(extAttr->vVersion[1]);
-	extAttr->vListElements[1].next = (pDRXVersionList_t) (NULL);
+	ext_attr->v_list_elements[1].version = &(ext_attr->v_version[1]);
+	ext_attr->v_list_elements[1].next = (p_drx_version_list_t) (NULL);
 
-	*versionList = &(extAttr->vListElements[0]);
+	*version_list = &(ext_attr->v_list_elements[0]);
 
 	return (DRX_STS_OK);
 
 rw_error:
-	*versionList = (pDRXVersionList_t) (NULL);
+	*version_list = (p_drx_version_list_t) (NULL);
 	return (DRX_STS_ERROR);
 
 }
@@ -14261,7 +14261,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlProbeDevice()
+* \fn int ctrl_probe_device()
 * \brief Probe device, check if it is present
 * \param demod Pointer to demodulator instance.
 * \return int.
@@ -14272,37 +14272,37 @@ rw_error:
 *
 */
 
-static int CtrlProbeDevice(pDRXDemodInstance_t demod)
+static int ctrl_probe_device(pdrx_demod_instance_t demod)
 {
-	DRXPowerMode_t orgPowerMode = DRX_POWER_UP;
-	int retStatus = DRX_STS_OK;
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
+	drx_power_mode_t org_power_mode = DRX_POWER_UP;
+	int ret_status = DRX_STS_OK;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
-	if (commonAttr->isOpened == false
-	    || commonAttr->currentPowerMode != DRX_POWER_UP) {
-		struct i2c_device_addr *devAddr = NULL;
-		DRXPowerMode_t powerMode = DRX_POWER_UP;
+	if (common_attr->is_opened == false
+	    || common_attr->current_power_mode != DRX_POWER_UP) {
+		struct i2c_device_addr *dev_addr = NULL;
+		drx_power_mode_t power_mode = DRX_POWER_UP;
 		u32 jtag = 0;
 
-		devAddr = demod->myI2CDevAddr;
+		dev_addr = demod->my_i2c_dev_addr;
 
 		/* Remeber original power mode */
-		orgPowerMode = commonAttr->currentPowerMode;
+		org_power_mode = common_attr->current_power_mode;
 
-		if (demod->myCommonAttr->isOpened == false) {
-			CHK_ERROR(PowerUpDevice(demod));
-			commonAttr->currentPowerMode = DRX_POWER_UP;
+		if (demod->my_common_attr->is_opened == false) {
+			CHK_ERROR(power_up_device(demod));
+			common_attr->current_power_mode = DRX_POWER_UP;
 		} else {
 			/* Wake-up device, feedback from device */
-			CHK_ERROR(CtrlPowerMode(demod, &powerMode));
+			CHK_ERROR(ctrl_power_mode(demod, &power_mode));
 		}
 		/* Initialize HI, wakeup key especially */
-		CHK_ERROR(InitHI(demod));
+		CHK_ERROR(init_hi(demod));
 
 		/* Check device id */
-		RR32(devAddr, SIO_TOP_JTAGID_LO__A, &jtag);
+		RR32(dev_addr, SIO_TOP_JTAGID_LO__A, &jtag);
 		jtag = (jtag >> 12) & 0xFFFF;
 		switch (jtag) {
 		case 0x3931:	/* fallthrough */
@@ -14318,23 +14318,23 @@ static int CtrlProbeDevice(pDRXDemodInstance_t demod)
 			/* ok , do nothing */
 			break;
 		default:
-			retStatus = DRX_STS_ERROR;
+			ret_status = DRX_STS_ERROR;
 			break;
 		}
 
 		/* Device was not opened, return to orginal powermode,
 		   feedback from device */
-		CHK_ERROR(CtrlPowerMode(demod, &orgPowerMode));
+		CHK_ERROR(ctrl_power_mode(demod, &org_power_mode));
 	} else {
 		/* dummy read to make this function fail in case device
-		   suddenly disappears after a succesful DRX_Open */
+		   suddenly disappears after a succesful drx_open */
 		DUMMY_READ();
 	}
 
-	return (retStatus);
+	return (ret_status);
 
 rw_error:
-	commonAttr->currentPowerMode = orgPowerMode;
+	common_attr->current_power_mode = org_power_mode;
 	return (DRX_STS_ERROR);
 }
 
@@ -14342,14 +14342,14 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int IsMCBlockAudio()
+* \fn int is_mc_block_audio()
 * \brief Check if MC block is Audio or not Audio.
 * \param addr        Pointer to demodulator instance.
 * \param audioUpload true  if MC block is Audio
 		     false if MC block not Audio
 * \return bool.
 */
-bool IsMCBlockAudio(u32 addr)
+bool is_mc_block_audio(u32 addr)
 {
 	if ((addr == AUD_XFP_PRAM_4K__A) || (addr == AUD_XDFP_PRAM_4K__A)) {
 		return (true);
@@ -14360,93 +14360,93 @@ bool IsMCBlockAudio(u32 addr)
 /*============================================================================*/
 
 /**
-* \fn int CtrlUCodeUpload()
+* \fn int ctrl_u_codeUpload()
 * \brief Handle Audio or !Audio part of microcode upload.
 * \param demod          Pointer to demodulator instance.
-* \param mcInfo         Pointer to information about microcode data.
+* \param mc_info         Pointer to information about microcode data.
 * \param action         Either UCODE_UPLOAD or UCODE_VERIFY.
-* \param uploadAudioMC  true  if Audio MC need to be uploaded.
+* \param upload_audio_mc  true  if Audio MC need to be uploaded.
 			false if !Audio MC need to be uploaded.
 * \return int.
 */
 static int
-CtrlUCodeUpload(pDRXDemodInstance_t demod,
-		pDRXUCodeInfo_t mcInfo,
-		DRXUCodeAction_t action, bool uploadAudioMC)
+ctrl_u_codeUpload(pdrx_demod_instance_t demod,
+		p_drxu_code_info_t mc_info,
+		drxu_code_action_t action, bool upload_audio_mc)
 {
 	u16 i = 0;
-	u16 mcNrOfBlks = 0;
-	u16 mcMagicWord = 0;
-	u8 *mcData = (u8 *) (NULL);
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
-	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
+	u16 mc_nr_of_blks = 0;
+	u16 mc_magic_word = 0;
+	u8 *mc_data = (u8 *) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
+	pdrxj_data_t ext_attr = (pdrxj_data_t) (NULL);
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* Check arguments */
-	if ((mcInfo == NULL) ||
-	    (mcInfo->mcData == NULL) || (mcInfo->mcSize == 0)) {
+	if ((mc_info == NULL) ||
+	    (mc_info->mc_data == NULL) || (mc_info->mc_size == 0)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	mcData = mcInfo->mcData;
+	mc_data = mc_info->mc_data;
 
 	/* Check data */
-	mcMagicWord = UCodeRead16(mcData);
-	mcData += sizeof(u16);
-	mcNrOfBlks = UCodeRead16(mcData);
-	mcData += sizeof(u16);
+	mc_magic_word = u_code_read16(mc_data);
+	mc_data += sizeof(u16);
+	mc_nr_of_blks = u_code_read16(mc_data);
+	mc_data += sizeof(u16);
 
-	if ((mcMagicWord != DRXJ_UCODE_MAGIC_WORD) || (mcNrOfBlks == 0)) {
+	if ((mc_magic_word != DRXJ_UCODE_MAGIC_WORD) || (mc_nr_of_blks == 0)) {
 		/* wrong endianess or wrong data ? */
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* Process microcode blocks */
-	for (i = 0; i < mcNrOfBlks; i++) {
-		DRXUCodeBlockHdr_t blockHdr;
-		u16 mcBlockNrBytes = 0;
+	for (i = 0; i < mc_nr_of_blks; i++) {
+		drxu_code_block_hdr_t block_hdr;
+		u16 mc_block_nr_bytes = 0;
 
 		/* Process block header */
-		blockHdr.addr = UCodeRead32(mcData);
-		mcData += sizeof(u32);
-		blockHdr.size = UCodeRead16(mcData);
-		mcData += sizeof(u16);
-		blockHdr.flags = UCodeRead16(mcData);
-		mcData += sizeof(u16);
-		blockHdr.CRC = UCodeRead16(mcData);
-		mcData += sizeof(u16);
+		block_hdr.addr = u_code_read32(mc_data);
+		mc_data += sizeof(u32);
+		block_hdr.size = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
+		block_hdr.flags = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
+		block_hdr.CRC = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
 
 		/* Check block header on:
 		   - no data
 		   - data larger then 64Kb
 		   - if CRC enabled check CRC
 		 */
-		if ((blockHdr.size == 0) ||
-		    (blockHdr.size > 0x7FFF) ||
-		    (((blockHdr.flags & DRXJ_UCODE_CRC_FLAG) != 0) &&
-		     (blockHdr.CRC != UCodeComputeCRC(mcData, blockHdr.size)))
+		if ((block_hdr.size == 0) ||
+		    (block_hdr.size > 0x7FFF) ||
+		    (((block_hdr.flags & DRXJ_UCODE_CRC_FLAG) != 0) &&
+		     (block_hdr.CRC != u_code_compute_crc(mc_data, block_hdr.size)))
 		    ) {
 			/* Wrong data ! */
 			return DRX_STS_INVALID_ARG;
 		}
 
-		mcBlockNrBytes = blockHdr.size * sizeof(u16);
+		mc_block_nr_bytes = block_hdr.size * sizeof(u16);
 
 		/* Perform the desired action */
 		/* Check which part of MC need to be uploaded - Audio or not Audio */
-		if (IsMCBlockAudio(blockHdr.addr) == uploadAudioMC) {
+		if (is_mc_block_audio(block_hdr.addr) == upload_audio_mc) {
 			switch (action) {
 	    /*===================================================================*/
 			case UCODE_UPLOAD:
 				{
 					/* Upload microcode */
-					if (demod->myAccessFunct->
-					    writeBlockFunc(devAddr,
-							   (DRXaddr_t) blockHdr.
-							   addr, mcBlockNrBytes,
-							   mcData,
+					if (demod->my_access_funct->
+					    write_block_func(dev_addr,
+							   (dr_xaddr_t) block_hdr.
+							   addr, mc_block_nr_bytes,
+							   mc_data,
 							   0x0000) !=
 					    DRX_STS_OK) {
 						return (DRX_STS_ERROR);
@@ -14458,58 +14458,58 @@ CtrlUCodeUpload(pDRXDemodInstance_t demod,
 			case UCODE_VERIFY:
 				{
 					int result = 0;
-					u8 mcDataBuffer
+					u8 mc_dataBuffer
 					    [DRXJ_UCODE_MAX_BUF_SIZE];
-					u32 bytesToCompare = 0;
-					u32 bytesLeftToCompare = 0;
-					DRXaddr_t currAddr = (DRXaddr_t) 0;
-					u8 *currPtr = NULL;
+					u32 bytes_to_compare = 0;
+					u32 bytes_left_to_compare = 0;
+					dr_xaddr_t curr_addr = (dr_xaddr_t) 0;
+					u8 *curr_ptr = NULL;
 
-					bytesLeftToCompare = mcBlockNrBytes;
-					currAddr = blockHdr.addr;
-					currPtr = mcData;
+					bytes_left_to_compare = mc_block_nr_bytes;
+					curr_addr = block_hdr.addr;
+					curr_ptr = mc_data;
 
-					while (bytesLeftToCompare != 0) {
-						if (bytesLeftToCompare >
+					while (bytes_left_to_compare != 0) {
+						if (bytes_left_to_compare >
 						    ((u32)
 						     DRXJ_UCODE_MAX_BUF_SIZE)) {
-							bytesToCompare =
+							bytes_to_compare =
 							    ((u32)
 							     DRXJ_UCODE_MAX_BUF_SIZE);
 						} else {
-							bytesToCompare =
-							    bytesLeftToCompare;
+							bytes_to_compare =
+							    bytes_left_to_compare;
 						}
 
-						if (demod->myAccessFunct->
-						    readBlockFunc(devAddr,
-								  currAddr,
+						if (demod->my_access_funct->
+						    read_block_func(dev_addr,
+								  curr_addr,
 								  (u16)
-								  bytesToCompare,
+								  bytes_to_compare,
 								  (u8 *)
-								  mcDataBuffer,
+								  mc_dataBuffer,
 								  0x0000) !=
 						    DRX_STS_OK) {
 							return (DRX_STS_ERROR);
 						}
 
 						result =
-						    DRXBSP_HST_Memcmp(currPtr,
-								      mcDataBuffer,
-								      bytesToCompare);
+						    drxbsp_hst_memcmp(curr_ptr,
+								      mc_dataBuffer,
+								      bytes_to_compare);
 
 						if (result != 0) {
 							return (DRX_STS_ERROR);
 						};
 
-						currAddr +=
-						    ((DRXaddr_t)
-						     (bytesToCompare / 2));
-						currPtr =
-						    &(currPtr[bytesToCompare]);
-						bytesLeftToCompare -=
-						    ((u32) bytesToCompare);
-					}	/* while( bytesToCompare > DRXJ_UCODE_MAX_BUF_SIZE ) */
+						curr_addr +=
+						    ((dr_xaddr_t)
+						     (bytes_to_compare / 2));
+						curr_ptr =
+						    &(curr_ptr[bytes_to_compare]);
+						bytes_left_to_compare -=
+						    ((u32) bytes_to_compare);
+					}	/* while( bytes_to_compare > DRXJ_UCODE_MAX_BUF_SIZE ) */
 				};
 				break;
 
@@ -14521,13 +14521,13 @@ CtrlUCodeUpload(pDRXDemodInstance_t demod,
 			}	/* switch ( action ) */
 		}
 
-		/* if( IsMCBlockAudio( blockHdr.addr ) == uploadAudioMC ) */
+		/* if( is_mc_block_audio( block_hdr.addr ) == upload_audio_mc ) */
 		/* Next block */
-		mcData += mcBlockNrBytes;
-	}			/* for( i = 0 ; i<mcNrOfBlks ; i++ ) */
+		mc_data += mc_block_nr_bytes;
+	}			/* for( i = 0 ; i<mc_nr_of_blks ; i++ ) */
 
-	if (uploadAudioMC == false) {
-		extAttr->flagAudMcUploaded = false;
+	if (upload_audio_mc == false) {
+		ext_attr->flag_aud_mc_uploaded = false;
 	}
 
 	return (DRX_STS_OK);
@@ -14540,30 +14540,30 @@ CtrlUCodeUpload(pDRXDemodInstance_t demod,
 
 /*===== SigStrength() =========================================================*/
 /**
-* \fn int CtrlSigStrength()
+* \fn int ctrl_sig_strength()
 * \brief Retrieve signal strength.
 * \param devmod Pointer to demodulator instance.
-* \param sigQuality Pointer to signal strength data; range 0, .. , 100.
+* \param sig_quality Pointer to signal strength data; range 0, .. , 100.
 * \return int.
-* \retval DRX_STS_OK sigStrength contains valid data.
-* \retval DRX_STS_INVALID_ARG sigStrength is NULL.
-* \retval DRX_STS_ERROR Erroneous data, sigStrength contains invalid data.
+* \retval DRX_STS_OK sig_strength contains valid data.
+* \retval DRX_STS_INVALID_ARG sig_strength is NULL.
+* \retval DRX_STS_ERROR Erroneous data, sig_strength contains invalid data.
 
 */
 static int
-CtrlSigStrength(pDRXDemodInstance_t demod, u16 *sigStrength)
+ctrl_sig_strength(pdrx_demod_instance_t demod, u16 *sig_strength)
 {
-	pDRXJData_t extAttr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 
 	/* Check arguments */
-	if ((sigStrength == NULL) || (demod == NULL)) {
+	if ((sig_strength == NULL) || (demod == NULL)) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	standard = extAttr->standard;
-	*sigStrength = 0;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	standard = ext_attr->standard;
+	*sig_strength = 0;
 
 	/* Signal strength indication for each standard */
 	switch (standard) {
@@ -14573,7 +14573,7 @@ CtrlSigStrength(pDRXDemodInstance_t demod, u16 *sigStrength)
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
 #endif
-		CHK_ERROR(GetSigStrength(demod, sigStrength));
+		CHK_ERROR(get_sig_strength(demod, sig_strength));
 		break;
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_PAL_SECAM_BG:	/* fallthrough */
@@ -14583,7 +14583,7 @@ CtrlSigStrength(pDRXDemodInstance_t demod, u16 *sigStrength)
 	case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 	case DRX_STANDARD_NTSC:	/* fallthrough */
 	case DRX_STANDARD_FM:
-		CHK_ERROR(GetAtvSigStrength(demod, sigStrength));
+		CHK_ERROR(get_atv_sig_strength(demod, sig_strength));
 		break;
 #endif
 	case DRX_STANDARD_UNKNOWN:	/* fallthrough */
@@ -14600,50 +14600,50 @@ rw_error:
 
 /*============================================================================*/
 /**
-* \fn int CtrlGetCfgOOBMisc()
+* \fn int ctrl_get_cfg_oob_misc()
 * \brief Get current state information of OOB.
-* \param pointer to DRXJCfgOOBMisc_t.
+* \param pointer to drxj_cfg_oob_misc_t.
 * \return int.
 *
 */
 #ifndef DRXJ_DIGITAL_ONLY
 static int
-CtrlGetCfgOOBMisc(pDRXDemodInstance_t demod, pDRXJCfgOOBMisc_t misc)
+ctrl_get_cfg_oob_misc(pdrx_demod_instance_t demod, p_drxj_cfg_oob_misc_t misc)
 {
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 	u16 lock = 0U;
 	u16 state = 0U;
 	u16 data = 0U;
-	u16 digitalAGCMant = 0U;
-	u16 digitalAGCExp = 0U;
+	u16 digital_agc_mant = 0U;
+	u16 digital_agc_exp = 0U;
 
 	/* check arguments */
 	if (misc == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* TODO */
 	/* check if the same registers are used for all standards (QAM/VSB/ATV) */
-	RR16(devAddr, ORX_NSU_TUN_IFGAIN_W__A, &misc->agc.IFAGC);
-	RR16(devAddr, ORX_NSU_TUN_RFGAIN_W__A, &misc->agc.RFAGC);
-	RR16(devAddr, ORX_FWP_SRC_DGN_W__A, &data);
+	RR16(dev_addr, ORX_NSU_TUN_IFGAIN_W__A, &misc->agc.IFAGC);
+	RR16(dev_addr, ORX_NSU_TUN_RFGAIN_W__A, &misc->agc.RFAGC);
+	RR16(dev_addr, ORX_FWP_SRC_DGN_W__A, &data);
 
-	digitalAGCMant = data & ORX_FWP_SRC_DGN_W_MANT__M;
-	digitalAGCExp = (data & ORX_FWP_SRC_DGN_W_EXP__M)
+	digital_agc_mant = data & ORX_FWP_SRC_DGN_W_MANT__M;
+	digital_agc_exp = (data & ORX_FWP_SRC_DGN_W_EXP__M)
 	    >> ORX_FWP_SRC_DGN_W_EXP__B;
-	misc->agc.DigitalAGC = digitalAGCMant << digitalAGCExp;
+	misc->agc.digital_agc = digital_agc_mant << digital_agc_exp;
 
-	SARR16(devAddr, SCU_RAM_ORX_SCU_LOCK__A, &lock);
+	SARR16(dev_addr, SCU_RAM_ORX_SCU_LOCK__A, &lock);
 
-	misc->anaGainLock = ((lock & 0x0001) ? true : false);
-	misc->digGainLock = ((lock & 0x0002) ? true : false);
-	misc->freqLock = ((lock & 0x0004) ? true : false);
-	misc->phaseLock = ((lock & 0x0008) ? true : false);
-	misc->symTimingLock = ((lock & 0x0010) ? true : false);
-	misc->eqLock = ((lock & 0x0020) ? true : false);
+	misc->ana_gain_lock = ((lock & 0x0001) ? true : false);
+	misc->dig_gain_lock = ((lock & 0x0002) ? true : false);
+	misc->freq_lock = ((lock & 0x0004) ? true : false);
+	misc->phase_lock = ((lock & 0x0008) ? true : false);
+	misc->sym_timing_lock = ((lock & 0x0010) ? true : false);
+	misc->eq_lock = ((lock & 0x0020) ? true : false);
 
-	SARR16(devAddr, SCU_RAM_ORX_SCU_STATE__A, &state);
+	SARR16(dev_addr, SCU_RAM_ORX_SCU_STATE__A, &state);
 	misc->state = (state >> 8) & 0xff;
 
 	return (DRX_STS_OK);
@@ -14653,24 +14653,24 @@ rw_error:
 #endif
 
 /**
-* \fn int CtrlGetCfgVSBMisc()
+* \fn int ctrl_get_cfg_vsb_misc()
 * \brief Get current state information of OOB.
-* \param pointer to DRXJCfgOOBMisc_t.
+* \param pointer to drxj_cfg_oob_misc_t.
 * \return int.
 *
 */
 static int
-CtrlGetCfgVSBMisc(pDRXDemodInstance_t demod, pDRXJCfgVSBMisc_t misc)
+ctrl_get_cfg_vsb_misc(pdrx_demod_instance_t demod, p_drxj_cfg_vsb_misc_t misc)
 {
-	struct i2c_device_addr *devAddr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
 
 	/* check arguments */
 	if (misc == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
-	CHK_ERROR(GetVSBSymbErr(devAddr, &misc->symbError));
+	CHK_ERROR(get_vsb_symb_err(dev_addr, &misc->symb_error));
 
 	return (DRX_STS_OK);
 rw_error:
@@ -14680,10 +14680,10 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlSetCfgAgcIf()
+* \fn int ctrl_set_cfg_agc_if()
 * \brief Set IF AGC.
 * \param demod demod instance
-* \param agcSettings If agc configuration
+* \param agc_settings If agc configuration
 * \return int.
 *
 * Check arguments
@@ -14691,14 +14691,14 @@ rw_error:
 *
 */
 static int
-CtrlSetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
+ctrl_set_cfg_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 {
 	/* check arguments */
-	if (agcSettings == NULL) {
+	if (agc_settings == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	switch (agcSettings->ctrlMode) {
+	switch (agc_settings->ctrl_mode) {
 	case DRX_AGC_CTRL_AUTO:	/* fallthrough */
 	case DRX_AGC_CTRL_USER:	/* fallthrough */
 	case DRX_AGC_CTRL_OFF:	/* fallthrough */
@@ -14708,7 +14708,7 @@ CtrlSetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 	}
 
 	/* Distpatch */
-	switch (agcSettings->standard) {
+	switch (agc_settings->standard) {
 	case DRX_STANDARD_8VSB:	/* fallthrough */
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
@@ -14724,7 +14724,7 @@ CtrlSetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 	case DRX_STANDARD_NTSC:	/* fallthrough */
 	case DRX_STANDARD_FM:
 #endif
-		return SetAgcIf(demod, agcSettings, true);
+		return set_agc_if(demod, agc_settings, true);
 	case DRX_STANDARD_UNKNOWN:
 	default:
 		return (DRX_STS_INVALID_ARG);
@@ -14736,10 +14736,10 @@ CtrlSetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetCfgAgcIf()
+* \fn int ctrl_get_cfg_agc_if()
 * \brief Retrieve IF AGC settings.
 * \param demod demod instance
-* \param agcSettings If agc configuration
+* \param agc_settings If agc configuration
 * \return int.
 *
 * Check arguments
@@ -14747,15 +14747,15 @@ CtrlSetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 *
 */
 static int
-CtrlGetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
+ctrl_get_cfg_agc_if(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 {
 	/* check arguments */
-	if (agcSettings == NULL) {
+	if (agc_settings == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
 	/* Distpatch */
-	switch (agcSettings->standard) {
+	switch (agc_settings->standard) {
 	case DRX_STANDARD_8VSB:	/* fallthrough */
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
@@ -14771,7 +14771,7 @@ CtrlGetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 	case DRX_STANDARD_NTSC:	/* fallthrough */
 	case DRX_STANDARD_FM:
 #endif
-		return GetAgcIf(demod, agcSettings);
+		return get_agc_if(demod, agc_settings);
 	case DRX_STANDARD_UNKNOWN:
 	default:
 		return (DRX_STS_INVALID_ARG);
@@ -14783,10 +14783,10 @@ CtrlGetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 /*============================================================================*/
 
 /**
-* \fn int CtrlSetCfgAgcRf()
+* \fn int ctrl_set_cfg_agc_rf()
 * \brief Set RF AGC.
 * \param demod demod instance
-* \param agcSettings rf agc configuration
+* \param agc_settings rf agc configuration
 * \return int.
 *
 * Check arguments
@@ -14794,14 +14794,14 @@ CtrlGetCfgAgcIf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 *
 */
 static int
-CtrlSetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
+ctrl_set_cfg_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 {
 	/* check arguments */
-	if (agcSettings == NULL) {
+	if (agc_settings == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	switch (agcSettings->ctrlMode) {
+	switch (agc_settings->ctrl_mode) {
 	case DRX_AGC_CTRL_AUTO:	/* fallthrough */
 	case DRX_AGC_CTRL_USER:	/* fallthrough */
 	case DRX_AGC_CTRL_OFF:
@@ -14811,7 +14811,7 @@ CtrlSetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 	}
 
 	/* Distpatch */
-	switch (agcSettings->standard) {
+	switch (agc_settings->standard) {
 	case DRX_STANDARD_8VSB:	/* fallthrough */
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
@@ -14827,7 +14827,7 @@ CtrlSetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 	case DRX_STANDARD_NTSC:	/* fallthrough */
 	case DRX_STANDARD_FM:
 #endif
-		return SetAgcRf(demod, agcSettings, true);
+		return set_agc_rf(demod, agc_settings, true);
 	case DRX_STANDARD_UNKNOWN:
 	default:
 		return (DRX_STS_INVALID_ARG);
@@ -14839,10 +14839,10 @@ CtrlSetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetCfgAgcRf()
+* \fn int ctrl_get_cfg_agc_rf()
 * \brief Retrieve RF AGC settings.
 * \param demod demod instance
-* \param agcSettings Rf agc configuration
+* \param agc_settings Rf agc configuration
 * \return int.
 *
 * Check arguments
@@ -14850,15 +14850,15 @@ CtrlSetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 *
 */
 static int
-CtrlGetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
+ctrl_get_cfg_agc_rf(pdrx_demod_instance_t demod, p_drxj_cfg_agc_t agc_settings)
 {
 	/* check arguments */
-	if (agcSettings == NULL) {
+	if (agc_settings == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
 	/* Distpatch */
-	switch (agcSettings->standard) {
+	switch (agc_settings->standard) {
 	case DRX_STANDARD_8VSB:	/* fallthrough */
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
@@ -14874,7 +14874,7 @@ CtrlGetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 	case DRX_STANDARD_NTSC:	/* fallthrough */
 	case DRX_STANDARD_FM:
 #endif
-		return GetAgcRf(demod, agcSettings);
+		return get_agc_rf(demod, agc_settings);
 	case DRX_STANDARD_UNKNOWN:
 	default:
 		return (DRX_STS_INVALID_ARG);
@@ -14886,7 +14886,7 @@ CtrlGetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetCfgAgcInternal()
+* \fn int ctrl_get_cfg_agc_internal()
 * \brief Retrieve internal AGC value.
 * \param demod demod instance
 * \param u16
@@ -14897,47 +14897,47 @@ CtrlGetCfgAgcRf(pDRXDemodInstance_t demod, pDRXJCfgAgc_t agcSettings)
 *
 */
 static int
-CtrlGetCfgAgcInternal(pDRXDemodInstance_t demod, u16 *agcInternal)
+ctrl_get_cfg_agc_internal(pdrx_demod_instance_t demod, u16 *agc_internal)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	DRXLockStatus_t lockStatus = DRX_NOT_LOCKED;
-	pDRXJData_t extAttr = NULL;
-	u16 iqmCfScaleSh = 0;
-	u16 iqmCfPower = 0;
-	u16 iqmCfAmp = 0;
-	u16 iqmCfGain = 0;
+	struct i2c_device_addr *dev_addr = NULL;
+	drx_lock_status_t lock_status = DRX_NOT_LOCKED;
+	pdrxj_data_t ext_attr = NULL;
+	u16 iqm_cf_scale_sh = 0;
+	u16 iqm_cf_power = 0;
+	u16 iqm_cf_amp = 0;
+	u16 iqm_cf_gain = 0;
 
 	/* check arguments */
-	if (agcInternal == NULL) {
+	if (agc_internal == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	CHK_ERROR(CtrlLockStatus(demod, &lockStatus));
-	if (lockStatus != DRXJ_DEMOD_LOCK && lockStatus != DRX_LOCKED) {
-		*agcInternal = 0;
+	CHK_ERROR(ctrl_lock_status(demod, &lock_status));
+	if (lock_status != DRXJ_DEMOD_LOCK && lock_status != DRX_LOCKED) {
+		*agc_internal = 0;
 		return DRX_STS_OK;
 	}
 
 	/* Distpatch */
-	switch (extAttr->standard) {
+	switch (ext_attr->standard) {
 	case DRX_STANDARD_8VSB:
-		iqmCfGain = 57;
+		iqm_cf_gain = 57;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_B:
 	case DRX_STANDARD_ITU_C:
-		switch (extAttr->constellation) {
+		switch (ext_attr->constellation) {
 		case DRX_CONSTELLATION_QAM256:
 		case DRX_CONSTELLATION_QAM128:
 		case DRX_CONSTELLATION_QAM32:
 		case DRX_CONSTELLATION_QAM16:
-			iqmCfGain = 57;
+			iqm_cf_gain = 57;
 			break;
 		case DRX_CONSTELLATION_QAM64:
-			iqmCfGain = 56;
+			iqm_cf_gain = 56;
 			break;
 		default:
 			return (DRX_STS_ERROR);
@@ -14948,18 +14948,18 @@ CtrlGetCfgAgcInternal(pDRXDemodInstance_t demod, u16 *agcInternal)
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	RR16(devAddr, IQM_CF_POW__A, &iqmCfPower);
-	RR16(devAddr, IQM_CF_SCALE_SH__A, &iqmCfScaleSh);
-	RR16(devAddr, IQM_CF_AMP__A, &iqmCfAmp);
+	RR16(dev_addr, IQM_CF_POW__A, &iqm_cf_power);
+	RR16(dev_addr, IQM_CF_SCALE_SH__A, &iqm_cf_scale_sh);
+	RR16(dev_addr, IQM_CF_AMP__A, &iqm_cf_amp);
 	/* IQM_CF_PWR_CORRECTION_dB = 3;
 	   P5dB =10*log10(IQM_CF_POW)+12-6*9-IQM_CF_PWR_CORRECTION_dB; */
 	/* P4dB = P5dB -20*log10(IQM_CF_AMP)-6*10
 	   -IQM_CF_Gain_dB-18+6*(27-IQM_CF_SCALE_SH*2-10)
 	   +6*7+10*log10(1+0.115/4); */
 	/* PadcdB = P4dB +3 -6 +60; dBmV */
-	*agcInternal = (u16) (Log10Times100(iqmCfPower)
-				- 2 * Log10Times100(iqmCfAmp)
-				- iqmCfGain - 120 * iqmCfScaleSh + 781);
+	*agc_internal = (u16) (log1_times100(iqm_cf_power)
+				- 2 * log1_times100(iqm_cf_amp)
+				- iqm_cf_gain - 120 * iqm_cf_scale_sh + 781);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -14969,7 +14969,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlSetCfgPreSaw()
+* \fn int ctrl_set_cfg_pre_saw()
 * \brief Set Pre-saw reference.
 * \param demod demod instance
 * \param u16 *
@@ -14980,39 +14980,39 @@ rw_error:
 *
 */
 static int
-CtrlSetCfgPreSaw(pDRXDemodInstance_t demod, pDRXJCfgPreSaw_t preSaw)
+ctrl_set_cfg_pre_saw(pdrx_demod_instance_t demod, p_drxj_cfg_pre_saw_t pre_saw)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* check arguments */
-	if ((preSaw == NULL) || (preSaw->reference > IQM_AF_PDREF__M)
+	if ((pre_saw == NULL) || (pre_saw->reference > IQM_AF_PDREF__M)
 	    ) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
 	/* Only if standard is currently active */
-	if ((extAttr->standard == preSaw->standard) ||
-	    (DRXJ_ISQAMSTD(extAttr->standard) &&
-	     DRXJ_ISQAMSTD(preSaw->standard)) ||
-	    (DRXJ_ISATVSTD(extAttr->standard) &&
-	     DRXJ_ISATVSTD(preSaw->standard))) {
-		WR16(devAddr, IQM_AF_PDREF__A, preSaw->reference);
+	if ((ext_attr->standard == pre_saw->standard) ||
+	    (DRXJ_ISQAMSTD(ext_attr->standard) &&
+	     DRXJ_ISQAMSTD(pre_saw->standard)) ||
+	    (DRXJ_ISATVSTD(ext_attr->standard) &&
+	     DRXJ_ISATVSTD(pre_saw->standard))) {
+		WR16(dev_addr, IQM_AF_PDREF__A, pre_saw->reference);
 	}
 
 	/* Store pre-saw settings */
-	switch (preSaw->standard) {
+	switch (pre_saw->standard) {
 	case DRX_STANDARD_8VSB:
-		extAttr->vsbPreSawCfg = *preSaw;
+		ext_attr->vsb_pre_saw_cfg = *pre_saw;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		extAttr->qamPreSawCfg = *preSaw;
+		ext_attr->qam_pre_saw_cfg = *pre_saw;
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
@@ -15023,7 +15023,7 @@ CtrlSetCfgPreSaw(pDRXDemodInstance_t demod, pDRXJCfgPreSaw_t preSaw)
 	case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 	case DRX_STANDARD_NTSC:	/* fallthrough */
 	case DRX_STANDARD_FM:
-		extAttr->atvPreSawCfg = *preSaw;
+		ext_attr->atv_pre_saw_cfg = *pre_saw;
 		break;
 #endif
 	default:
@@ -15038,7 +15038,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlSetCfgAfeGain()
+* \fn int ctrl_set_cfg_afe_gain()
 * \brief Set AFE Gain.
 * \param demod demod instance
 * \param u16 *
@@ -15049,21 +15049,21 @@ rw_error:
 *
 */
 static int
-CtrlSetCfgAfeGain(pDRXDemodInstance_t demod, pDRXJCfgAfeGain_t afeGain)
+ctrl_set_cfg_afe_gain(pdrx_demod_instance_t demod, p_drxj_cfg_afe_gain_t afe_gain)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 	u8 gain = 0;
 
 	/* check arguments */
-	if (afeGain == NULL) {
+	if (afe_gain == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	switch (afeGain->standard) {
+	switch (afe_gain->standard) {
 	case DRX_STANDARD_8VSB:	/* fallthrough */
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
@@ -15079,27 +15079,27 @@ CtrlSetCfgAfeGain(pDRXDemodInstance_t demod, pDRXJCfgAfeGain_t afeGain)
 	/* TODO PGA gain is also written by microcode (at least by QAM and VSB)
 	   So I (PJ) think interface requires choice between auto, user mode */
 
-	if (afeGain->gain >= 329)
+	if (afe_gain->gain >= 329)
 		gain = 15;
-	else if (afeGain->gain <= 147)
+	else if (afe_gain->gain <= 147)
 		gain = 0;
 	else
-		gain = (afeGain->gain - 140 + 6) / 13;
+		gain = (afe_gain->gain - 140 + 6) / 13;
 
 	/* Only if standard is currently active */
-	if (extAttr->standard == afeGain->standard)
-		WR16(devAddr, IQM_AF_PGA_GAIN__A, gain);
+	if (ext_attr->standard == afe_gain->standard)
+		WR16(dev_addr, IQM_AF_PGA_GAIN__A, gain);
 
 	/* Store AFE Gain settings */
-	switch (afeGain->standard) {
+	switch (afe_gain->standard) {
 	case DRX_STANDARD_8VSB:
-		extAttr->vsbPgaCfg = gain * 13 + 140;
+		ext_attr->vsb_pga_cfg = gain * 13 + 140;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		extAttr->qamPgaCfg = gain * 13 + 140;
+		ext_attr->qam_pga_cfg = gain * 13 + 140;
 		break;
 #endif
 	default:
@@ -15114,7 +15114,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetCfgPreSaw()
+* \fn int ctrl_get_cfg_pre_saw()
 * \brief Get Pre-saw reference setting.
 * \param demod demod instance
 * \param u16 *
@@ -15125,28 +15125,28 @@ rw_error:
 *
 */
 static int
-CtrlGetCfgPreSaw(pDRXDemodInstance_t demod, pDRXJCfgPreSaw_t preSaw)
+ctrl_get_cfg_pre_saw(pdrx_demod_instance_t demod, p_drxj_cfg_pre_saw_t pre_saw)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
 	/* check arguments */
-	if (preSaw == NULL) {
+	if (pre_saw == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	switch (preSaw->standard) {
+	switch (pre_saw->standard) {
 	case DRX_STANDARD_8VSB:
-		*preSaw = extAttr->vsbPreSawCfg;
+		*pre_saw = ext_attr->vsb_pre_saw_cfg;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		*preSaw = extAttr->qamPreSawCfg;
+		*pre_saw = ext_attr->qam_pre_saw_cfg;
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
@@ -15156,12 +15156,12 @@ CtrlGetCfgPreSaw(pDRXDemodInstance_t demod, pDRXJCfgPreSaw_t preSaw)
 	case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 	case DRX_STANDARD_NTSC:
-		extAttr->atvPreSawCfg.standard = DRX_STANDARD_NTSC;
-		*preSaw = extAttr->atvPreSawCfg;
+		ext_attr->atv_pre_saw_cfg.standard = DRX_STANDARD_NTSC;
+		*pre_saw = ext_attr->atv_pre_saw_cfg;
 		break;
 	case DRX_STANDARD_FM:
-		extAttr->atvPreSawCfg.standard = DRX_STANDARD_FM;
-		*preSaw = extAttr->atvPreSawCfg;
+		ext_attr->atv_pre_saw_cfg.standard = DRX_STANDARD_FM;
+		*pre_saw = ext_attr->atv_pre_saw_cfg;
 		break;
 #endif
 	default:
@@ -15174,7 +15174,7 @@ CtrlGetCfgPreSaw(pDRXDemodInstance_t demod, pDRXJCfgPreSaw_t preSaw)
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetCfgAfeGain()
+* \fn int ctrl_get_cfg_afe_gain()
 * \brief Get AFE Gain.
 * \param demod demod instance
 * \param u16 *
@@ -15185,28 +15185,28 @@ CtrlGetCfgPreSaw(pDRXDemodInstance_t demod, pDRXJCfgPreSaw_t preSaw)
 *
 */
 static int
-CtrlGetCfgAfeGain(pDRXDemodInstance_t demod, pDRXJCfgAfeGain_t afeGain)
+ctrl_get_cfg_afe_gain(pdrx_demod_instance_t demod, p_drxj_cfg_afe_gain_t afe_gain)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
 
 	/* check arguments */
-	if (afeGain == NULL) {
+	if (afe_gain == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
-	switch (afeGain->standard) {
+	switch (afe_gain->standard) {
 	case DRX_STANDARD_8VSB:
-		afeGain->gain = extAttr->vsbPgaCfg;
+		afe_gain->gain = ext_attr->vsb_pga_cfg;
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		afeGain->gain = extAttr->qamPgaCfg;
+		afe_gain->gain = ext_attr->qam_pga_cfg;
 		break;
 #endif
 	default:
@@ -15219,7 +15219,7 @@ CtrlGetCfgAfeGain(pDRXDemodInstance_t demod, pDRXJCfgAfeGain_t afeGain)
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetFecMeasSeqCount()
+* \fn int ctrl_get_fec_meas_seq_count()
 * \brief Get FEC measurement sequnce number.
 * \param demod demod instance
 * \param u16 *
@@ -15230,14 +15230,14 @@ CtrlGetCfgAfeGain(pDRXDemodInstance_t demod, pDRXJCfgAfeGain_t afeGain)
 *
 */
 static int
-CtrlGetFecMeasSeqCount(pDRXDemodInstance_t demod, u16 *fecMeasSeqCount)
+ctrl_get_fec_meas_seq_count(pdrx_demod_instance_t demod, u16 *fec_meas_seq_count)
 {
 	/* check arguments */
-	if (fecMeasSeqCount == NULL) {
+	if (fec_meas_seq_count == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	RR16(demod->myI2CDevAddr, SCU_RAM_FEC_MEAS_COUNT__A, fecMeasSeqCount);
+	RR16(demod->my_i2c_dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, fec_meas_seq_count);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -15247,7 +15247,7 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetAccumCrRSCwErr()
+* \fn int ctrl_get_accum_cr_rs_cw_err()
 * \brief Get accumulative corrected RS codeword number.
 * \param demod demod instance
 * \param u32 *
@@ -15258,14 +15258,14 @@ rw_error:
 *
 */
 static int
-CtrlGetAccumCrRSCwErr(pDRXDemodInstance_t demod, u32 *accumCrRsCWErr)
+ctrl_get_accum_cr_rs_cw_err(pdrx_demod_instance_t demod, u32 *accum_cr_rs_cw_err)
 {
-	if (accumCrRsCWErr == NULL) {
+	if (accum_cr_rs_cw_err == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	RR32(demod->myI2CDevAddr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A,
-	     accumCrRsCWErr);
+	RR32(demod->my_i2c_dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A,
+	     accum_cr_rs_cw_err);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -15273,100 +15273,100 @@ rw_error:
 }
 
 /**
-* \fn int CtrlSetCfg()
+* \fn int ctrl_set_cfg()
 * \brief Set 'some' configuration of the device.
 * \param devmod Pointer to demodulator instance.
 * \param config Pointer to configuration parameters (type and data).
 * \return int.
 
 */
-static int CtrlSetCfg(pDRXDemodInstance_t demod, pDRXCfg_t config)
+static int ctrl_set_cfg(pdrx_demod_instance_t demod, pdrx_cfg_t config)
 {
 	if (config == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
 	DUMMY_READ();
-	switch (config->cfgType) {
+	switch (config->cfg_type) {
 	case DRX_CFG_MPEG_OUTPUT:
-		return CtrlSetCfgMPEGOutput(demod,
-					    (pDRXCfgMPEGOutput_t) config->
-					    cfgData);
+		return ctrl_set_cfg_mpeg_output(demod,
+					    (pdrx_cfg_mpeg_output_t) config->
+					    cfg_data);
 	case DRX_CFG_PINS_SAFE_MODE:
-		return CtrlSetCfgPdrSafeMode(demod, (bool *) config->cfgData);
+		return ctrl_set_cfg_pdr_safe_mode(demod, (bool *) config->cfg_data);
 	case DRXJ_CFG_AGC_RF:
-		return CtrlSetCfgAgcRf(demod, (pDRXJCfgAgc_t) config->cfgData);
+		return ctrl_set_cfg_agc_rf(demod, (p_drxj_cfg_agc_t) config->cfg_data);
 	case DRXJ_CFG_AGC_IF:
-		return CtrlSetCfgAgcIf(demod, (pDRXJCfgAgc_t) config->cfgData);
+		return ctrl_set_cfg_agc_if(demod, (p_drxj_cfg_agc_t) config->cfg_data);
 	case DRXJ_CFG_PRE_SAW:
-		return CtrlSetCfgPreSaw(demod,
-					(pDRXJCfgPreSaw_t) config->cfgData);
+		return ctrl_set_cfg_pre_saw(demod,
+					(p_drxj_cfg_pre_saw_t) config->cfg_data);
 	case DRXJ_CFG_AFE_GAIN:
-		return CtrlSetCfgAfeGain(demod,
-					 (pDRXJCfgAfeGain_t) config->cfgData);
+		return ctrl_set_cfg_afe_gain(demod,
+					 (p_drxj_cfg_afe_gain_t) config->cfg_data);
 	case DRXJ_CFG_SMART_ANT:
-		return CtrlSetCfgSmartAnt(demod,
-					  (pDRXJCfgSmartAnt_t) (config->
-								cfgData));
+		return ctrl_set_cfg_smart_ant(demod,
+					  (p_drxj_cfg_smart_ant_t) (config->
+								cfg_data));
 	case DRXJ_CFG_RESET_PACKET_ERR:
-		return CtrlSetCfgResetPktErr(demod);
+		return ctrl_set_cfg_reset_pkt_err(demod);
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRXJ_CFG_OOB_PRE_SAW:
-		return CtrlSetCfgOOBPreSAW(demod, (u16 *) (config->cfgData));
+		return ctrl_set_cfg_oob_pre_saw(demod, (u16 *) (config->cfg_data));
 	case DRXJ_CFG_OOB_LO_POW:
-		return CtrlSetCfgOOBLoPower(demod,
-					    (pDRXJCfgOobLoPower_t) (config->
-								    cfgData));
+		return ctrl_set_cfg_oob_lo_power(demod,
+					    (p_drxj_cfg_oob_lo_power_t) (config->
+								    cfg_data));
 	case DRXJ_CFG_ATV_MISC:
-		return CtrlSetCfgAtvMisc(demod,
-					 (pDRXJCfgAtvMisc_t) config->cfgData);
+		return ctrl_set_cfg_atv_misc(demod,
+					 (p_drxj_cfg_atv_misc_t) config->cfg_data);
 	case DRXJ_CFG_ATV_EQU_COEF:
-		return CtrlSetCfgAtvEquCoef(demod,
-					    (pDRXJCfgAtvEquCoef_t) config->
-					    cfgData);
+		return ctrl_set_cfg_atv_equ_coef(demod,
+					    (p_drxj_cfg_atv_equ_coef_t) config->
+					    cfg_data);
 	case DRXJ_CFG_ATV_OUTPUT:
-		return CtrlSetCfgATVOutput(demod,
-					   (pDRXJCfgAtvOutput_t) config->
-					   cfgData);
+		return ctrl_set_cfg_atv_output(demod,
+					   (p_drxj_cfg_atv_output_t) config->
+					   cfg_data);
 #endif
 	case DRXJ_CFG_MPEG_OUTPUT_MISC:
-		return CtrlSetCfgMpegOutputMisc(demod,
-						(pDRXJCfgMpegOutputMisc_t)
-						config->cfgData);
+		return ctrl_set_cfg_mpeg_output_misc(demod,
+						(p_drxj_cfg_mpeg_output_misc_t)
+						config->cfg_data);
 #ifndef DRXJ_EXCLUDE_AUDIO
 	case DRX_CFG_AUD_VOLUME:
-		return AUDCtrlSetCfgVolume(demod,
-					   (pDRXCfgAudVolume_t) config->
-					   cfgData);
+		return aud_ctrl_set_cfg_volume(demod,
+					   (pdrx_cfg_aud_volume_t) config->
+					   cfg_data);
 	case DRX_CFG_I2S_OUTPUT:
-		return AUDCtrlSetCfgOutputI2S(demod,
-					      (pDRXCfgI2SOutput_t) config->
-					      cfgData);
+		return aud_ctrl_set_cfg_output_i2s(demod,
+					      (pdrx_cfg_i2s_output_t) config->
+					      cfg_data);
 	case DRX_CFG_AUD_AUTOSOUND:
-		return AUDCtrSetlCfgAutoSound(demod, (pDRXCfgAudAutoSound_t)
-					      config->cfgData);
+		return aud_ctr_setl_cfg_auto_sound(demod, (pdrx_cfg_aud_auto_sound_t)
+					      config->cfg_data);
 	case DRX_CFG_AUD_ASS_THRES:
-		return AUDCtrlSetCfgASSThres(demod, (pDRXCfgAudASSThres_t)
-					     config->cfgData);
+		return aud_ctrl_set_cfg_ass_thres(demod, (pdrx_cfg_aud_ass_thres_t)
+					     config->cfg_data);
 	case DRX_CFG_AUD_CARRIER:
-		return AUDCtrlSetCfgCarrier(demod,
-					    (pDRXCfgAudCarriers_t) config->
-					    cfgData);
+		return aud_ctrl_set_cfg_carrier(demod,
+					    (pdrx_cfg_aud_carriers_t) config->
+					    cfg_data);
 	case DRX_CFG_AUD_DEVIATION:
-		return AUDCtrlSetCfgDev(demod,
-					(pDRXCfgAudDeviation_t) config->
-					cfgData);
+		return aud_ctrl_set_cfg_dev(demod,
+					(pdrx_cfg_aud_deviation_t) config->
+					cfg_data);
 	case DRX_CFG_AUD_PRESCALE:
-		return AUDCtrlSetCfgPrescale(demod,
-					     (pDRXCfgAudPrescale_t) config->
-					     cfgData);
+		return aud_ctrl_set_cfg_prescale(demod,
+					     (pdrx_cfg_aud_prescale_t) config->
+					     cfg_data);
 	case DRX_CFG_AUD_MIXER:
-		return AUDCtrlSetCfgMixer(demod,
-					  (pDRXCfgAudMixer_t) config->cfgData);
+		return aud_ctrl_set_cfg_mixer(demod,
+					  (pdrx_cfg_aud_mixer_t) config->cfg_data);
 	case DRX_CFG_AUD_AVSYNC:
-		return AUDCtrlSetCfgAVSync(demod,
-					   (pDRXCfgAudAVSync_t) config->
-					   cfgData);
+		return aud_ctrl_set_cfg_av_sync(demod,
+					   (pdrx_cfg_aud_av_sync_t) config->
+					   cfg_data);
 
 #endif
 	default:
@@ -15381,14 +15381,14 @@ rw_error:
 /*============================================================================*/
 
 /**
-* \fn int CtrlGetCfg()
+* \fn int ctrl_get_cfg()
 * \brief Get 'some' configuration of the device.
 * \param devmod Pointer to demodulator instance.
 * \param config Pointer to configuration parameters (type and data).
 * \return int.
 */
 
-static int CtrlGetCfg(pDRXDemodInstance_t demod, pDRXCfg_t config)
+static int ctrl_get_cfg(pdrx_demod_instance_t demod, pdrx_cfg_t config)
 {
 	if (config == NULL) {
 		return (DRX_STS_INVALID_ARG);
@@ -15396,108 +15396,108 @@ static int CtrlGetCfg(pDRXDemodInstance_t demod, pDRXCfg_t config)
 
 	DUMMY_READ();
 
-	switch (config->cfgType) {
+	switch (config->cfg_type) {
 	case DRX_CFG_MPEG_OUTPUT:
-		return CtrlGetCfgMPEGOutput(demod,
-					    (pDRXCfgMPEGOutput_t) config->
-					    cfgData);
+		return ctrl_get_cfg_mpeg_output(demod,
+					    (pdrx_cfg_mpeg_output_t) config->
+					    cfg_data);
 	case DRX_CFG_PINS_SAFE_MODE:
-		return CtrlGetCfgPdrSafeMode(demod, (bool *) config->cfgData);
+		return ctrl_get_cfg_pdr_safe_mode(demod, (bool *) config->cfg_data);
 	case DRXJ_CFG_AGC_RF:
-		return CtrlGetCfgAgcRf(demod, (pDRXJCfgAgc_t) config->cfgData);
+		return ctrl_get_cfg_agc_rf(demod, (p_drxj_cfg_agc_t) config->cfg_data);
 	case DRXJ_CFG_AGC_IF:
-		return CtrlGetCfgAgcIf(demod, (pDRXJCfgAgc_t) config->cfgData);
+		return ctrl_get_cfg_agc_if(demod, (p_drxj_cfg_agc_t) config->cfg_data);
 	case DRXJ_CFG_AGC_INTERNAL:
-		return CtrlGetCfgAgcInternal(demod, (u16 *) config->cfgData);
+		return ctrl_get_cfg_agc_internal(demod, (u16 *) config->cfg_data);
 	case DRXJ_CFG_PRE_SAW:
-		return CtrlGetCfgPreSaw(demod,
-					(pDRXJCfgPreSaw_t) config->cfgData);
+		return ctrl_get_cfg_pre_saw(demod,
+					(p_drxj_cfg_pre_saw_t) config->cfg_data);
 	case DRXJ_CFG_AFE_GAIN:
-		return CtrlGetCfgAfeGain(demod,
-					 (pDRXJCfgAfeGain_t) config->cfgData);
+		return ctrl_get_cfg_afe_gain(demod,
+					 (p_drxj_cfg_afe_gain_t) config->cfg_data);
 	case DRXJ_CFG_ACCUM_CR_RS_CW_ERR:
-		return CtrlGetAccumCrRSCwErr(demod, (u32 *) config->cfgData);
+		return ctrl_get_accum_cr_rs_cw_err(demod, (u32 *) config->cfg_data);
 	case DRXJ_CFG_FEC_MERS_SEQ_COUNT:
-		return CtrlGetFecMeasSeqCount(demod, (u16 *) config->cfgData);
+		return ctrl_get_fec_meas_seq_count(demod, (u16 *) config->cfg_data);
 	case DRXJ_CFG_VSB_MISC:
-		return CtrlGetCfgVSBMisc(demod,
-					 (pDRXJCfgVSBMisc_t) config->cfgData);
+		return ctrl_get_cfg_vsb_misc(demod,
+					 (p_drxj_cfg_vsb_misc_t) config->cfg_data);
 	case DRXJ_CFG_SYMBOL_CLK_OFFSET:
-		return CtrlGetCfgSymbolClockOffset(demod,
-						   (s32 *) config->cfgData);
+		return ctrl_get_cfg_symbol_clock_offset(demod,
+						   (s32 *) config->cfg_data);
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRXJ_CFG_OOB_MISC:
-		return CtrlGetCfgOOBMisc(demod,
-					 (pDRXJCfgOOBMisc_t) config->cfgData);
+		return ctrl_get_cfg_oob_misc(demod,
+					 (p_drxj_cfg_oob_misc_t) config->cfg_data);
 	case DRXJ_CFG_OOB_PRE_SAW:
-		return CtrlGetCfgOOBPreSAW(demod, (u16 *) (config->cfgData));
+		return ctrl_get_cfg_oob_pre_saw(demod, (u16 *) (config->cfg_data));
 	case DRXJ_CFG_OOB_LO_POW:
-		return CtrlGetCfgOOBLoPower(demod,
-					    (pDRXJCfgOobLoPower_t) (config->
-								    cfgData));
+		return ctrl_get_cfg_oob_lo_power(demod,
+					    (p_drxj_cfg_oob_lo_power_t) (config->
+								    cfg_data));
 	case DRXJ_CFG_ATV_EQU_COEF:
-		return CtrlGetCfgAtvEquCoef(demod,
-					    (pDRXJCfgAtvEquCoef_t) config->
-					    cfgData);
+		return ctrl_get_cfg_atv_equ_coef(demod,
+					    (p_drxj_cfg_atv_equ_coef_t) config->
+					    cfg_data);
 	case DRXJ_CFG_ATV_MISC:
-		return CtrlGetCfgAtvMisc(demod,
-					 (pDRXJCfgAtvMisc_t) config->cfgData);
+		return ctrl_get_cfg_atv_misc(demod,
+					 (p_drxj_cfg_atv_misc_t) config->cfg_data);
 	case DRXJ_CFG_ATV_OUTPUT:
-		return CtrlGetCfgAtvOutput(demod,
-					   (pDRXJCfgAtvOutput_t) config->
-					   cfgData);
+		return ctrl_get_cfg_atv_output(demod,
+					   (p_drxj_cfg_atv_output_t) config->
+					   cfg_data);
 	case DRXJ_CFG_ATV_AGC_STATUS:
-		return CtrlGetCfgAtvAgcStatus(demod,
-					      (pDRXJCfgAtvAgcStatus_t) config->
-					      cfgData);
+		return ctrl_get_cfg_atv_agc_status(demod,
+					      (p_drxj_cfg_atv_agc_status_t) config->
+					      cfg_data);
 #endif
 	case DRXJ_CFG_MPEG_OUTPUT_MISC:
-		return CtrlGetCfgMpegOutputMisc(demod,
-						(pDRXJCfgMpegOutputMisc_t)
-						config->cfgData);
+		return ctrl_get_cfg_mpeg_output_misc(demod,
+						(p_drxj_cfg_mpeg_output_misc_t)
+						config->cfg_data);
 	case DRXJ_CFG_HW_CFG:
-		return CtrlGetCfgHwCfg(demod,
-				       (pDRXJCfgHwCfg_t) config->cfgData);
+		return ctrl_get_cfg_hw_cfg(demod,
+				       (p_drxj_cfg_hw_cfg_t) config->cfg_data);
 #ifndef DRXJ_EXCLUDE_AUDIO
 	case DRX_CFG_AUD_VOLUME:
-		return AUDCtrlGetCfgVolume(demod,
-					   (pDRXCfgAudVolume_t) config->
-					   cfgData);
+		return aud_ctrl_get_cfg_volume(demod,
+					   (pdrx_cfg_aud_volume_t) config->
+					   cfg_data);
 	case DRX_CFG_I2S_OUTPUT:
-		return AUDCtrlGetCfgOutputI2S(demod,
-					      (pDRXCfgI2SOutput_t) config->
-					      cfgData);
+		return aud_ctrl_get_cfg_output_i2s(demod,
+					      (pdrx_cfg_i2s_output_t) config->
+					      cfg_data);
 
 	case DRX_CFG_AUD_RDS:
-		return AUDCtrlGetCfgRDS(demod,
-					(pDRXCfgAudRDS_t) config->cfgData);
+		return aud_ctrl_get_cfg_rds(demod,
+					(pdrx_cfg_aud_rds_t) config->cfg_data);
 	case DRX_CFG_AUD_AUTOSOUND:
-		return AUDCtrlGetCfgAutoSound(demod,
-					      (pDRXCfgAudAutoSound_t) config->
-					      cfgData);
+		return aud_ctrl_get_cfg_auto_sound(demod,
+					      (pdrx_cfg_aud_auto_sound_t) config->
+					      cfg_data);
 	case DRX_CFG_AUD_ASS_THRES:
-		return AUDCtrlGetCfgASSThres(demod,
-					     (pDRXCfgAudASSThres_t) config->
-					     cfgData);
+		return aud_ctrl_get_cfg_ass_thres(demod,
+					     (pdrx_cfg_aud_ass_thres_t) config->
+					     cfg_data);
 	case DRX_CFG_AUD_CARRIER:
-		return AUDCtrlGetCfgCarrier(demod,
-					    (pDRXCfgAudCarriers_t) config->
-					    cfgData);
+		return aud_ctrl_get_cfg_carrier(demod,
+					    (pdrx_cfg_aud_carriers_t) config->
+					    cfg_data);
 	case DRX_CFG_AUD_DEVIATION:
-		return AUDCtrlGetCfgDev(demod,
-					(pDRXCfgAudDeviation_t) config->
-					cfgData);
+		return aud_ctrl_get_cfg_dev(demod,
+					(pdrx_cfg_aud_deviation_t) config->
+					cfg_data);
 	case DRX_CFG_AUD_PRESCALE:
-		return AUDCtrlGetCfgPrescale(demod,
-					     (pDRXCfgAudPrescale_t) config->
-					     cfgData);
+		return aud_ctrl_get_cfg_prescale(demod,
+					     (pdrx_cfg_aud_prescale_t) config->
+					     cfg_data);
 	case DRX_CFG_AUD_MIXER:
-		return AUDCtrlGetCfgMixer(demod,
-					  (pDRXCfgAudMixer_t) config->cfgData);
+		return aud_ctrl_get_cfg_mixer(demod,
+					  (pdrx_cfg_aud_mixer_t) config->cfg_data);
 	case DRX_CFG_AUD_AVSYNC:
-		return AUDCtrlGetCfgAVSync(demod,
-					   (pDRXCfgAudAVSync_t) config->
-					   cfgData);
+		return aud_ctrl_get_cfg_av_sync(demod,
+					   (pdrx_cfg_aud_av_sync_t) config->
+					   cfg_data);
 #endif
 
 	default:
@@ -15512,262 +15512,262 @@ rw_error:
 /*=============================================================================
 ===== EXPORTED FUNCTIONS ====================================================*/
 /**
-* \fn DRXJ_Open()
+* \fn drxj_open()
 * \brief Open the demod instance, configure device, configure drxdriver
 * \return Status_t Return status.
 *
-* DRXJ_Open() can be called with a NULL ucode image => no ucode upload.
-* This means that DRXJ_Open() must NOT contain SCU commands or, in general,
+* drxj_open() can be called with a NULL ucode image => no ucode upload.
+* This means that drxj_open() must NOT contain SCU commands or, in general,
 * rely on SCU or AUD ucode to be present.
 *
 */
-int DRXJ_Open(pDRXDemodInstance_t demod)
+int drxj_open(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
-	pDRXCommonAttr_t commonAttr = NULL;
-	u32 driverVersion = 0;
-	DRXUCodeInfo_t ucodeInfo;
-	DRXCfgMPEGOutput_t cfgMPEGOutput;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	pdrx_common_attr_t common_attr = NULL;
+	u32 driver_version = 0;
+	drxu_code_info_t ucode_info;
+	drx_cfg_mpeg_output_t cfg_mpeg_output;
 
 	/* Check arguments */
-	if (demod->myExtAttr == NULL) {
+	if (demod->my_ext_attr == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
-	CHK_ERROR(PowerUpDevice(demod));
-	commonAttr->currentPowerMode = DRX_POWER_UP;
+	CHK_ERROR(power_up_device(demod));
+	common_attr->current_power_mode = DRX_POWER_UP;
 
 	/* has to be in front of setIqmAf and setOrxNsuAox */
-	CHK_ERROR(GetDeviceCapabilities(demod));
+	CHK_ERROR(get_device_capabilities(demod));
 
 	/* Soft reset of sys- and osc-clockdomain */
-	WR16(devAddr, SIO_CC_SOFT_RST__A, (SIO_CC_SOFT_RST_SYS__M |
+	WR16(dev_addr, SIO_CC_SOFT_RST__A, (SIO_CC_SOFT_RST_SYS__M |
 					   SIO_CC_SOFT_RST_OSC__M));
-	WR16(devAddr, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
-	CHK_ERROR(DRXBSP_HST_Sleep(1));
+	WR16(dev_addr, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
+	CHK_ERROR(drxbsp_hst_sleep(1));
 
 	/* TODO first make sure that everything keeps working before enabling this */
 	/* PowerDownAnalogBlocks() */
-	WR16(devAddr, ATV_TOP_STDBY__A, (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)
+	WR16(dev_addr, ATV_TOP_STDBY__A, (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)
 	     | ATV_TOP_STDBY_SIF_STDBY_STANDBY);
 
-	CHK_ERROR(SetIqmAf(demod, false));
-	CHK_ERROR(SetOrxNsuAox(demod, false));
+	CHK_ERROR(set_iqm_af(demod, false));
+	CHK_ERROR(set_orx_nsu_aox(demod, false));
 
-	CHK_ERROR(InitHI(demod));
+	CHK_ERROR(init_hi(demod));
 
 	/* disable mpegoutput pins */
-	cfgMPEGOutput.enableMPEGOutput = false;
-	CHK_ERROR(CtrlSetCfgMPEGOutput(demod, &cfgMPEGOutput));
+	cfg_mpeg_output.enable_mpeg_output = false;
+	CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
 	/* Stop AUD Inform SetAudio it will need to do all setting */
-	CHK_ERROR(PowerDownAud(demod));
+	CHK_ERROR(power_down_aud(demod));
 	/* Stop SCU */
-	WR16(devAddr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_STOP);
+	WR16(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_STOP);
 
 	/* Upload microcode */
-	if (commonAttr->microcode != NULL) {
+	if (common_attr->microcode != NULL) {
 		/* Dirty trick to use common ucode upload & verify,
 		   pretend device is already open */
-		commonAttr->isOpened = true;
-		ucodeInfo.mcData = commonAttr->microcode;
-		ucodeInfo.mcSize = commonAttr->microcodeSize;
+		common_attr->is_opened = true;
+		ucode_info.mc_data = common_attr->microcode;
+		ucode_info.mc_size = common_attr->microcode_size;
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 		/* Upload microcode without audio part */
-		CHK_ERROR(CtrlUCodeUpload
-			  (demod, &ucodeInfo, UCODE_UPLOAD, false));
+		CHK_ERROR(ctrl_u_codeUpload
+			  (demod, &ucode_info, UCODE_UPLOAD, false));
 #else
-		CHK_ERROR(DRX_Ctrl(demod, DRX_CTRL_LOAD_UCODE, &ucodeInfo));
+		CHK_ERROR(drx_ctrl(demod, DRX_CTRL_LOAD_UCODE, &ucode_info));
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
-		if (commonAttr->verifyMicrocode == true) {
+		if (common_attr->verify_microcode == true) {
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
-			CHK_ERROR(CtrlUCodeUpload
-				  (demod, &ucodeInfo, UCODE_VERIFY, false));
+			CHK_ERROR(ctrl_u_codeUpload
+				  (demod, &ucode_info, UCODE_VERIFY, false));
 #else
-			CHK_ERROR(DRX_Ctrl
-				  (demod, DRX_CTRL_VERIFY_UCODE, &ucodeInfo));
+			CHK_ERROR(drx_ctrl
+				  (demod, DRX_CTRL_VERIFY_UCODE, &ucode_info));
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 		}
-		commonAttr->isOpened = false;
+		common_attr->is_opened = false;
 	}
 
 	/* Run SCU for a little while to initialize microcode version numbers */
-	WR16(devAddr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+	WR16(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
 
 	/* Open tuner instance */
-	if (demod->myTuner != NULL) {
-		demod->myTuner->myCommonAttr->myUserData = (void *)demod;
+	if (demod->my_tuner != NULL) {
+		demod->my_tuner->my_common_attr->myUser_data = (void *)demod;
 
-		if (commonAttr->tunerPortNr == 1) {
-			bool bridgeClosed = true;
-			CHK_ERROR(CtrlI2CBridge(demod, &bridgeClosed));
+		if (common_attr->tuner_port_nr == 1) {
+			bool bridge_closed = true;
+			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
 		}
 
-		CHK_ERROR(DRXBSP_TUNER_Open(demod->myTuner));
+		CHK_ERROR(drxbsp_tuner_open(demod->my_tuner));
 
-		if (commonAttr->tunerPortNr == 1) {
-			bool bridgeClosed = false;
-			CHK_ERROR(CtrlI2CBridge(demod, &bridgeClosed));
+		if (common_attr->tuner_port_nr == 1) {
+			bool bridge_closed = false;
+			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
 		}
-		commonAttr->tunerMinFreqRF =
-		    ((demod->myTuner)->myCommonAttr->minFreqRF);
-		commonAttr->tunerMaxFreqRF =
-		    ((demod->myTuner)->myCommonAttr->maxFreqRF);
+		common_attr->tuner_min_freq_rf =
+		    ((demod->my_tuner)->my_common_attr->min_freq_rf);
+		common_attr->tuner_max_freq_rf =
+		    ((demod->my_tuner)->my_common_attr->max_freq_rf);
 	}
 
 	/* Initialize scan timeout */
-	commonAttr->scanDemodLockTimeout = DRXJ_SCAN_TIMEOUT;
-	commonAttr->scanDesiredLock = DRX_LOCKED;
+	common_attr->scan_demod_lock_timeout = DRXJ_SCAN_TIMEOUT;
+	common_attr->scan_desired_lock = DRX_LOCKED;
 
 	/* Initialize default AFE configuartion for QAM */
-	if (extAttr->hasLNA) {
+	if (ext_attr->has_lna) {
 		/* IF AGC off, PGA active */
 #ifndef DRXJ_VSB_ONLY
-		extAttr->qamIfAgcCfg.standard = DRX_STANDARD_ITU_B;
-		extAttr->qamIfAgcCfg.ctrlMode = DRX_AGC_CTRL_OFF;
-		extAttr->qamPgaCfg = 140 + (11 * 13);
+		ext_attr->qam_if_agc_cfg.standard = DRX_STANDARD_ITU_B;
+		ext_attr->qam_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_OFF;
+		ext_attr->qam_pga_cfg = 140 + (11 * 13);
 #endif
-		extAttr->vsbIfAgcCfg.standard = DRX_STANDARD_8VSB;
-		extAttr->vsbIfAgcCfg.ctrlMode = DRX_AGC_CTRL_OFF;
-		extAttr->vsbPgaCfg = 140 + (11 * 13);
+		ext_attr->vsb_if_agc_cfg.standard = DRX_STANDARD_8VSB;
+		ext_attr->vsb_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_OFF;
+		ext_attr->vsb_pga_cfg = 140 + (11 * 13);
 	} else {
 		/* IF AGC on, PGA not active */
 #ifndef DRXJ_VSB_ONLY
-		extAttr->qamIfAgcCfg.standard = DRX_STANDARD_ITU_B;
-		extAttr->qamIfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-		extAttr->qamIfAgcCfg.minOutputLevel = 0;
-		extAttr->qamIfAgcCfg.maxOutputLevel = 0x7FFF;
-		extAttr->qamIfAgcCfg.speed = 3;
-		extAttr->qamIfAgcCfg.top = 1297;
-		extAttr->qamPgaCfg = 140;
+		ext_attr->qam_if_agc_cfg.standard = DRX_STANDARD_ITU_B;
+		ext_attr->qam_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+		ext_attr->qam_if_agc_cfg.min_output_level = 0;
+		ext_attr->qam_if_agc_cfg.max_output_level = 0x7FFF;
+		ext_attr->qam_if_agc_cfg.speed = 3;
+		ext_attr->qam_if_agc_cfg.top = 1297;
+		ext_attr->qam_pga_cfg = 140;
 #endif
-		extAttr->vsbIfAgcCfg.standard = DRX_STANDARD_8VSB;
-		extAttr->vsbIfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-		extAttr->vsbIfAgcCfg.minOutputLevel = 0;
-		extAttr->vsbIfAgcCfg.maxOutputLevel = 0x7FFF;
-		extAttr->vsbIfAgcCfg.speed = 3;
-		extAttr->vsbIfAgcCfg.top = 1024;
-		extAttr->vsbPgaCfg = 140;
+		ext_attr->vsb_if_agc_cfg.standard = DRX_STANDARD_8VSB;
+		ext_attr->vsb_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+		ext_attr->vsb_if_agc_cfg.min_output_level = 0;
+		ext_attr->vsb_if_agc_cfg.max_output_level = 0x7FFF;
+		ext_attr->vsb_if_agc_cfg.speed = 3;
+		ext_attr->vsb_if_agc_cfg.top = 1024;
+		ext_attr->vsb_pga_cfg = 140;
 	}
-	/* TODO: remove minOutputLevel and maxOutputLevel for both QAM and VSB after */
+	/* TODO: remove min_output_level and max_output_level for both QAM and VSB after */
 	/* mc has not used them */
 #ifndef DRXJ_VSB_ONLY
-	extAttr->qamRfAgcCfg.standard = DRX_STANDARD_ITU_B;
-	extAttr->qamRfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-	extAttr->qamRfAgcCfg.minOutputLevel = 0;
-	extAttr->qamRfAgcCfg.maxOutputLevel = 0x7FFF;
-	extAttr->qamRfAgcCfg.speed = 3;
-	extAttr->qamRfAgcCfg.top = 9500;
-	extAttr->qamRfAgcCfg.cutOffCurrent = 4000;
-	extAttr->qamPreSawCfg.standard = DRX_STANDARD_ITU_B;
-	extAttr->qamPreSawCfg.reference = 0x07;
-	extAttr->qamPreSawCfg.usePreSaw = true;
+	ext_attr->qam_rf_agc_cfg.standard = DRX_STANDARD_ITU_B;
+	ext_attr->qam_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+	ext_attr->qam_rf_agc_cfg.min_output_level = 0;
+	ext_attr->qam_rf_agc_cfg.max_output_level = 0x7FFF;
+	ext_attr->qam_rf_agc_cfg.speed = 3;
+	ext_attr->qam_rf_agc_cfg.top = 9500;
+	ext_attr->qam_rf_agc_cfg.cut_off_current = 4000;
+	ext_attr->qam_pre_saw_cfg.standard = DRX_STANDARD_ITU_B;
+	ext_attr->qam_pre_saw_cfg.reference = 0x07;
+	ext_attr->qam_pre_saw_cfg.use_pre_saw = true;
 #endif
 	/* Initialize default AFE configuartion for VSB */
-	extAttr->vsbRfAgcCfg.standard = DRX_STANDARD_8VSB;
-	extAttr->vsbRfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-	extAttr->vsbRfAgcCfg.minOutputLevel = 0;
-	extAttr->vsbRfAgcCfg.maxOutputLevel = 0x7FFF;
-	extAttr->vsbRfAgcCfg.speed = 3;
-	extAttr->vsbRfAgcCfg.top = 9500;
-	extAttr->vsbRfAgcCfg.cutOffCurrent = 4000;
-	extAttr->vsbPreSawCfg.standard = DRX_STANDARD_8VSB;
-	extAttr->vsbPreSawCfg.reference = 0x07;
-	extAttr->vsbPreSawCfg.usePreSaw = true;
+	ext_attr->vsb_rf_agc_cfg.standard = DRX_STANDARD_8VSB;
+	ext_attr->vsb_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+	ext_attr->vsb_rf_agc_cfg.min_output_level = 0;
+	ext_attr->vsb_rf_agc_cfg.max_output_level = 0x7FFF;
+	ext_attr->vsb_rf_agc_cfg.speed = 3;
+	ext_attr->vsb_rf_agc_cfg.top = 9500;
+	ext_attr->vsb_rf_agc_cfg.cut_off_current = 4000;
+	ext_attr->vsb_pre_saw_cfg.standard = DRX_STANDARD_8VSB;
+	ext_attr->vsb_pre_saw_cfg.reference = 0x07;
+	ext_attr->vsb_pre_saw_cfg.use_pre_saw = true;
 
 #ifndef DRXJ_DIGITAL_ONLY
 	/* Initialize default AFE configuartion for ATV */
-	extAttr->atvRfAgcCfg.standard = DRX_STANDARD_NTSC;
-	extAttr->atvRfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-	extAttr->atvRfAgcCfg.top = 9500;
-	extAttr->atvRfAgcCfg.cutOffCurrent = 4000;
-	extAttr->atvRfAgcCfg.speed = 3;
-	extAttr->atvIfAgcCfg.standard = DRX_STANDARD_NTSC;
-	extAttr->atvIfAgcCfg.ctrlMode = DRX_AGC_CTRL_AUTO;
-	extAttr->atvIfAgcCfg.speed = 3;
-	extAttr->atvIfAgcCfg.top = 2400;
-	extAttr->atvPreSawCfg.reference = 0x0007;
-	extAttr->atvPreSawCfg.usePreSaw = true;
-	extAttr->atvPreSawCfg.standard = DRX_STANDARD_NTSC;
+	ext_attr->atv_rf_agc_cfg.standard = DRX_STANDARD_NTSC;
+	ext_attr->atv_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+	ext_attr->atv_rf_agc_cfg.top = 9500;
+	ext_attr->atv_rf_agc_cfg.cut_off_current = 4000;
+	ext_attr->atv_rf_agc_cfg.speed = 3;
+	ext_attr->atv_if_agc_cfg.standard = DRX_STANDARD_NTSC;
+	ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+	ext_attr->atv_if_agc_cfg.speed = 3;
+	ext_attr->atv_if_agc_cfg.top = 2400;
+	ext_attr->atv_pre_saw_cfg.reference = 0x0007;
+	ext_attr->atv_pre_saw_cfg.use_pre_saw = true;
+	ext_attr->atv_pre_saw_cfg.standard = DRX_STANDARD_NTSC;
 #endif
-	extAttr->standard = DRX_STANDARD_UNKNOWN;
+	ext_attr->standard = DRX_STANDARD_UNKNOWN;
 
-	CHK_ERROR(SmartAntInit(demod));
+	CHK_ERROR(smart_ant_init(demod));
 
 	/* Stamp driver version number in SCU data RAM in BCD code
 	   Done to enable field application engineers to retreive drxdriver version
 	   via I2C from SCU RAM
 	 */
-	driverVersion = (VERSION_MAJOR / 100) % 10;
-	driverVersion <<= 4;
-	driverVersion += (VERSION_MAJOR / 10) % 10;
-	driverVersion <<= 4;
-	driverVersion += (VERSION_MAJOR % 10);
-	driverVersion <<= 4;
-	driverVersion += (VERSION_MINOR % 10);
-	driverVersion <<= 4;
-	driverVersion += (VERSION_PATCH / 1000) % 10;
-	driverVersion <<= 4;
-	driverVersion += (VERSION_PATCH / 100) % 10;
-	driverVersion <<= 4;
-	driverVersion += (VERSION_PATCH / 10) % 10;
-	driverVersion <<= 4;
-	driverVersion += (VERSION_PATCH % 10);
-	WR16(devAddr, SCU_RAM_DRIVER_VER_HI__A, (u16) (driverVersion >> 16));
-	WR16(devAddr, SCU_RAM_DRIVER_VER_LO__A,
-	     (u16) (driverVersion & 0xFFFF));
+	driver_version = (VERSION_MAJOR / 100) % 10;
+	driver_version <<= 4;
+	driver_version += (VERSION_MAJOR / 10) % 10;
+	driver_version <<= 4;
+	driver_version += (VERSION_MAJOR % 10);
+	driver_version <<= 4;
+	driver_version += (VERSION_MINOR % 10);
+	driver_version <<= 4;
+	driver_version += (VERSION_PATCH / 1000) % 10;
+	driver_version <<= 4;
+	driver_version += (VERSION_PATCH / 100) % 10;
+	driver_version <<= 4;
+	driver_version += (VERSION_PATCH / 10) % 10;
+	driver_version <<= 4;
+	driver_version += (VERSION_PATCH % 10);
+	WR16(dev_addr, SCU_RAM_DRIVER_VER_HI__A, (u16) (driver_version >> 16));
+	WR16(dev_addr, SCU_RAM_DRIVER_VER_LO__A,
+	     (u16) (driver_version & 0xFFFF));
 
 	/* refresh the audio data structure with default */
-	extAttr->audData = DRXJDefaultAudData_g;
+	ext_attr->aud_data = drxj_default_aud_data_g;
 
 	return (DRX_STS_OK);
 rw_error:
-	commonAttr->isOpened = false;
+	common_attr->is_opened = false;
 	return (DRX_STS_ERROR);
 }
 
 /*============================================================================*/
 /**
-* \fn DRXJ_Close()
+* \fn drxj_close()
 * \brief Close the demod instance, power down the device
 * \return Status_t Return status.
 *
 */
-int DRXJ_Close(pDRXDemodInstance_t demod)
+int drxj_close(pdrx_demod_instance_t demod)
 {
-	struct i2c_device_addr *devAddr = NULL;
-	pDRXJData_t extAttr = NULL;
-	pDRXCommonAttr_t commonAttr = NULL;
-	DRXPowerMode_t powerMode = DRX_POWER_UP;
+	struct i2c_device_addr *dev_addr = NULL;
+	pdrxj_data_t ext_attr = NULL;
+	pdrx_common_attr_t common_attr = NULL;
+	drx_power_mode_t power_mode = DRX_POWER_UP;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	devAddr = demod->myI2CDevAddr;
-	extAttr = (pDRXJData_t) demod->myExtAttr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	dev_addr = demod->my_i2c_dev_addr;
+	ext_attr = (pdrxj_data_t) demod->my_ext_attr;
 
 	/* power up */
-	CHK_ERROR(CtrlPowerMode(demod, &powerMode));
+	CHK_ERROR(ctrl_power_mode(demod, &power_mode));
 
-	if (demod->myTuner != NULL) {
+	if (demod->my_tuner != NULL) {
 		/* Check if bridge is used */
-		if (commonAttr->tunerPortNr == 1) {
-			bool bridgeClosed = true;
-			CHK_ERROR(CtrlI2CBridge(demod, &bridgeClosed));
+		if (common_attr->tuner_port_nr == 1) {
+			bool bridge_closed = true;
+			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
 		}
-		CHK_ERROR(DRXBSP_TUNER_Close(demod->myTuner));
-		if (commonAttr->tunerPortNr == 1) {
-			bool bridgeClosed = false;
-			CHK_ERROR(CtrlI2CBridge(demod, &bridgeClosed));
+		CHK_ERROR(drxbsp_tuner_close(demod->my_tuner));
+		if (common_attr->tuner_port_nr == 1) {
+			bool bridge_closed = false;
+			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
 		}
 	};
 
-	WR16(devAddr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
-	powerMode = DRX_POWER_DOWN;
-	CHK_ERROR(CtrlPowerMode(demod, &powerMode));
+	WR16(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+	power_mode = DRX_POWER_DOWN;
+	CHK_ERROR(ctrl_power_mode(demod, &power_mode));
 
 	return DRX_STS_OK;
 rw_error:
@@ -15776,193 +15776,193 @@ rw_error:
 
 /*============================================================================*/
 /**
-* \fn DRXJ_Ctrl()
+* \fn drxj_ctrl()
 * \brief DRXJ specific control function
 * \return Status_t Return status.
 */
 int
-DRXJ_Ctrl(pDRXDemodInstance_t demod, u32 ctrl, void *ctrlData)
+drxj_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 {
 	switch (ctrl) {
       /*======================================================================*/
 	case DRX_CTRL_SET_CHANNEL:
 		{
-			return CtrlSetChannel(demod, (pDRXChannel_t) ctrlData);
+			return ctrl_set_channel(demod, (pdrx_channel_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_CHANNEL:
 		{
-			return CtrlGetChannel(demod, (pDRXChannel_t) ctrlData);
+			return ctrl_get_channel(demod, (pdrx_channel_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SIG_QUALITY:
 		{
-			return CtrlSigQuality(demod,
-					      (pDRXSigQuality_t) ctrlData);
+			return ctrl_sig_quality(demod,
+					      (pdrx_sig_quality_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SIG_STRENGTH:
 		{
-			return CtrlSigStrength(demod, (u16 *) ctrlData);
+			return ctrl_sig_strength(demod, (u16 *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_CONSTEL:
 		{
-			return CtrlConstel(demod, (pDRXComplex_t) ctrlData);
+			return ctrl_constel(demod, (pdrx_complex_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SET_CFG:
 		{
-			return CtrlSetCfg(demod, (pDRXCfg_t) ctrlData);
+			return ctrl_set_cfg(demod, (pdrx_cfg_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_CFG:
 		{
-			return CtrlGetCfg(demod, (pDRXCfg_t) ctrlData);
+			return ctrl_get_cfg(demod, (pdrx_cfg_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_I2C_BRIDGE:
 		{
-			return CtrlI2CBridge(demod, (bool *) ctrlData);
+			return ctrl_i2c_bridge(demod, (bool *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_LOCK_STATUS:
 		{
-			return CtrlLockStatus(demod,
-					      (pDRXLockStatus_t) ctrlData);
+			return ctrl_lock_status(demod,
+					      (pdrx_lock_status_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SET_STANDARD:
 		{
-			return CtrlSetStandard(demod,
-					       (enum drx_standard *) ctrlData);
+			return ctrl_set_standard(demod,
+					       (enum drx_standard *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_STANDARD:
 		{
-			return CtrlGetStandard(demod,
-					       (enum drx_standard *) ctrlData);
+			return ctrl_get_standard(demod,
+					       (enum drx_standard *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_POWER_MODE:
 		{
-			return CtrlPowerMode(demod, (pDRXPowerMode_t) ctrlData);
+			return ctrl_power_mode(demod, (pdrx_power_mode_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_VERSION:
 		{
-			return CtrlVersion(demod,
-					   (pDRXVersionList_t *) ctrlData);
+			return ctrl_version(demod,
+					   (p_drx_version_list_t *) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_PROBE_DEVICE:
 		{
-			return CtrlProbeDevice(demod);
+			return ctrl_probe_device(demod);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SET_OOB:
 		{
-			return CtrlSetOOB(demod, (pDRXOOB_t) ctrlData);
+			return ctrl_set_oob(demod, (p_drxoob_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_OOB:
 		{
-			return CtrlGetOOB(demod, (pDRXOOBStatus_t) ctrlData);
+			return ctrl_get_oob(demod, (pdrxoob_status_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_SET_UIO_CFG:
 		{
-			return CtrlSetUIOCfg(demod, (pDRXUIOCfg_t) ctrlData);
+			return ctrl_set_uio_cfg(demod, (pdrxuio_cfg_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_GET_UIO_CFG:
 		{
-			return CtrlGetUIOCfg(demod, (pDRXUIOCfg_t) ctrlData);
+			return CtrlGetuio_cfg(demod, (pdrxuio_cfg_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_UIO_READ:
 		{
-			return CtrlUIORead(demod, (pDRXUIOData_t) ctrlData);
+			return ctrl_uio_read(demod, (pdrxuio_data_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_UIO_WRITE:
 		{
-			return CtrlUIOWrite(demod, (pDRXUIOData_t) ctrlData);
+			return ctrl_uio_write(demod, (pdrxuio_data_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_AUD_SET_STANDARD:
 		{
-			return AUDCtrlSetStandard(demod,
-						  (pDRXAudStandard_t) ctrlData);
+			return aud_ctrl_set_standard(demod,
+						  (pdrx_aud_standard_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_AUD_GET_STANDARD:
 		{
-			return AUDCtrlGetStandard(demod,
-						  (pDRXAudStandard_t) ctrlData);
+			return aud_ctrl_get_standard(demod,
+						  (pdrx_aud_standard_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_AUD_GET_STATUS:
 		{
-			return AUDCtrlGetStatus(demod,
-						(pDRXAudStatus_t) ctrlData);
+			return aud_ctrl_get_status(demod,
+						(pdrx_aud_status_t) ctrl_data);
 		}
 		break;
       /*======================================================================*/
 	case DRX_CTRL_AUD_BEEP:
 		{
-			return AUDCtrlBeep(demod, (pDRXAudBeep_t) ctrlData);
+			return aud_ctrl_beep(demod, (pdrx_aud_beep_t) ctrl_data);
 		}
 		break;
 
       /*======================================================================*/
 	case DRX_CTRL_I2C_READWRITE:
 		{
-			return CtrlI2CWriteRead(demod,
-						(pDRXI2CData_t) ctrlData);
+			return ctrl_i2c_write_read(demod,
+						(pdrxi2c_data_t) ctrl_data);
 		}
 		break;
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 	case DRX_CTRL_LOAD_UCODE:
 		{
-			return CtrlUCodeUpload(demod,
-					       (pDRXUCodeInfo_t) ctrlData,
+			return ctrl_u_codeUpload(demod,
+					       (p_drxu_code_info_t) ctrl_data,
 					       UCODE_UPLOAD, false);
 		}
 		break;
 	case DRX_CTRL_VERIFY_UCODE:
 		{
-			return CtrlUCodeUpload(demod,
-					       (pDRXUCodeInfo_t) ctrlData,
+			return ctrl_u_codeUpload(demod,
+					       (p_drxu_code_info_t) ctrl_data,
 					       UCODE_VERIFY, false);
 		}
 		break;
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 	case DRX_CTRL_VALIDATE_UCODE:
 		{
-			return CtrlValidateUCode(demod);
+			return ctrl_validate_u_code(demod);
 		}
 		break;
 	default:

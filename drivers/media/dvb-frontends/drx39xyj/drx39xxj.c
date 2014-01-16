@@ -33,16 +33,16 @@
 static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	DRXDemodInstance_t *demod = state->demod;
+	drx_demod_instance_t *demod = state->demod;
 	int result;
-	DRXPowerMode_t powerMode;
+	drx_power_mode_t power_mode;
 
 	if (enable)
-		powerMode = DRX_POWER_UP;
+		power_mode = DRX_POWER_UP;
 	else
-		powerMode = DRX_POWER_DOWN;
+		power_mode = DRX_POWER_DOWN;
 
-	result = DRX_Ctrl(demod, DRX_CTRL_POWER_MODE, &powerMode);
+	result = drx_ctrl(demod, DRX_CTRL_POWER_MODE, &power_mode);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "Power state change failed\n");
 		return 0;
@@ -55,13 +55,13 @@ static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	DRXDemodInstance_t *demod = state->demod;
+	drx_demod_instance_t *demod = state->demod;
 	int result;
-	DRXLockStatus_t lock_status;
+	drx_lock_status_t lock_status;
 
 	*status = 0;
 
-	result = DRX_Ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_status);
+	result = drx_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_status);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "drx39xxj: could not get lock status!\n");
 		*status = 0;
@@ -102,18 +102,18 @@ static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t *status)
 static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	DRXDemodInstance_t *demod = state->demod;
+	drx_demod_instance_t *demod = state->demod;
 	int result;
-	DRXSigQuality_t sig_quality;
+	drx_sig_quality_t sig_quality;
 
-	result = DRX_Ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
+	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "drx39xxj: could not get ber!\n");
 		*ber = 0;
 		return 0;
 	}
 
-	*ber = sig_quality.postReedSolomonBER;
+	*ber = sig_quality.post_reed_solomon_ber;
 	return 0;
 }
 
@@ -121,11 +121,11 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 					 u16 *strength)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	DRXDemodInstance_t *demod = state->demod;
+	drx_demod_instance_t *demod = state->demod;
 	int result;
-	DRXSigQuality_t sig_quality;
+	drx_sig_quality_t sig_quality;
 
-	result = DRX_Ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
+	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "drx39xxj: could not get signal strength!\n");
 		*strength = 0;
@@ -140,11 +140,11 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	DRXDemodInstance_t *demod = state->demod;
+	drx_demod_instance_t *demod = state->demod;
 	int result;
-	DRXSigQuality_t sig_quality;
+	drx_sig_quality_t sig_quality;
 
-	result = DRX_Ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
+	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "drx39xxj: could not read snr!\n");
 		*snr = 0;
@@ -158,18 +158,18 @@ static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	DRXDemodInstance_t *demod = state->demod;
+	drx_demod_instance_t *demod = state->demod;
 	int result;
-	DRXSigQuality_t sig_quality;
+	drx_sig_quality_t sig_quality;
 
-	result = DRX_Ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
+	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "drx39xxj: could not get uc blocks!\n");
 		*ucblocks = 0;
 		return 0;
 	}
 
-	*ucblocks = sig_quality.packetError;
+	*ucblocks = sig_quality.packet_error;
 	return 0;
 }
 
@@ -180,12 +180,12 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 #endif
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	DRXDemodInstance_t *demod = state->demod;
+	drx_demod_instance_t *demod = state->demod;
 	enum drx_standard standard = DRX_STANDARD_8VSB;
-	DRXChannel_t channel;
+	drx_channel_t channel;
 	int result;
-	DRXUIOData_t uioData;
-	DRXChannel_t defChannel = { /* frequency      */ 0,
+	drxuio_data_t uio_data;
+	drx_channel_t def_channel = { /* frequency      */ 0,
 		/* bandwidth      */ DRX_BANDWIDTH_6MHZ,
 		/* mirror         */ DRX_MIRROR_NO,
 		/* constellation  */ DRX_CONSTELLATION_AUTO,
@@ -216,7 +216,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 
 	if (standard != state->current_standard || state->powered_up == 0) {
 		/* Set the standard (will be powered up if necessary */
-		result = DRX_Ctrl(demod, DRX_CTRL_SET_STANDARD, &standard);
+		result = drx_ctrl(demod, DRX_CTRL_SET_STANDARD, &standard);
 		if (result != DRX_STS_OK) {
 			printk(KERN_ERR "Failed to set standard! result=%02x\n",
 			       result);
@@ -227,21 +227,21 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	}
 
 	/* set channel parameters */
-	channel = defChannel;
+	channel = def_channel;
 	channel.frequency = p->frequency / 1000;
 	channel.bandwidth = DRX_BANDWIDTH_6MHZ;
 	channel.constellation = DRX_CONSTELLATION_AUTO;
 
 	/* program channel */
-	result = DRX_Ctrl(demod, DRX_CTRL_SET_CHANNEL, &channel);
+	result = drx_ctrl(demod, DRX_CTRL_SET_CHANNEL, &channel);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "Failed to set channel!\n");
 		return -EINVAL;
 	}
 	/* Just for giggles, let's shut off the LNA again.... */
-	uioData.uio = DRX_UIO1;
-	uioData.value = false;
-	result = DRX_Ctrl(demod, DRX_CTRL_UIO_WRITE, &uioData);
+	uio_data.uio = DRX_UIO1;
+	uio_data.value = false;
+	result = drx_ctrl(demod, DRX_CTRL_UIO_WRITE, &uio_data);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "Failed to disable LNA!\n");
 		return 0;
@@ -268,7 +268,7 @@ static int drx39xxj_sleep(struct dvb_frontend *fe)
 static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
-	DRXDemodInstance_t *demod = state->demod;
+	drx_demod_instance_t *demod = state->demod;
 	bool i2c_gate_state;
 	int result;
 
@@ -287,7 +287,7 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		return 0;
 	}
 
-	result = DRX_Ctrl(demod, DRX_CTRL_I2C_BRIDGE, &i2c_gate_state);
+	result = drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &i2c_gate_state);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "drx39xxj: could not open i2c gate [%d]\n",
 		       result);
@@ -325,12 +325,12 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 {
 	struct drx39xxj_state *state = NULL;
 
-	struct i2c_device_addr *demodAddr = NULL;
-	DRXCommonAttr_t *demodCommAttr = NULL;
-	DRXJData_t *demodExtAttr = NULL;
-	DRXDemodInstance_t *demod = NULL;
-	DRXUIOCfg_t uioCfg;
-	DRXUIOData_t uioData;
+	struct i2c_device_addr *demod_addr = NULL;
+	drx_common_attr_t *demod_comm_attr = NULL;
+	drxj_data_t *demod_ext_attr = NULL;
+	drx_demod_instance_t *demod = NULL;
+	drxuio_cfg_t uio_cfg;
+	drxuio_data_t uio_data;
 	int result;
 
 	/* allocate memory for the internal state */
@@ -338,50 +338,50 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	if (state == NULL)
 		goto error;
 
-	demod = kmalloc(sizeof(DRXDemodInstance_t), GFP_KERNEL);
+	demod = kmalloc(sizeof(drx_demod_instance_t), GFP_KERNEL);
 	if (demod == NULL)
 		goto error;
 
-	demodAddr = kmalloc(sizeof(struct i2c_device_addr), GFP_KERNEL);
-	if (demodAddr == NULL)
+	demod_addr = kmalloc(sizeof(struct i2c_device_addr), GFP_KERNEL);
+	if (demod_addr == NULL)
 		goto error;
 
-	demodCommAttr = kmalloc(sizeof(DRXCommonAttr_t), GFP_KERNEL);
-	if (demodCommAttr == NULL)
+	demod_comm_attr = kmalloc(sizeof(drx_common_attr_t), GFP_KERNEL);
+	if (demod_comm_attr == NULL)
 		goto error;
 
-	demodExtAttr = kmalloc(sizeof(DRXJData_t), GFP_KERNEL);
-	if (demodExtAttr == NULL)
+	demod_ext_attr = kmalloc(sizeof(drxj_data_t), GFP_KERNEL);
+	if (demod_ext_attr == NULL)
 		goto error;
 
 	/* setup the state */
 	state->i2c = i2c;
 	state->demod = demod;
 
-	memcpy(demod, &DRXJDefaultDemod_g, sizeof(DRXDemodInstance_t));
+	memcpy(demod, &drxj_default_demod_g, sizeof(drx_demod_instance_t));
 
-	demod->myI2CDevAddr = demodAddr;
-	memcpy(demod->myI2CDevAddr, &DRXJDefaultAddr_g,
+	demod->my_i2c_dev_addr = demod_addr;
+	memcpy(demod->my_i2c_dev_addr, &drxj_default_addr_g,
 	       sizeof(struct i2c_device_addr));
-	demod->myI2CDevAddr->userData = state;
-	demod->myCommonAttr = demodCommAttr;
-	memcpy(demod->myCommonAttr, &DRXJDefaultCommAttr_g,
-	       sizeof(DRXCommonAttr_t));
-	demod->myCommonAttr->microcode = DRXJ_MC_MAIN;
+	demod->my_i2c_dev_addr->user_data = state;
+	demod->my_common_attr = demod_comm_attr;
+	memcpy(demod->my_common_attr, &drxj_default_comm_attr_g,
+	       sizeof(drx_common_attr_t));
+	demod->my_common_attr->microcode = DRXJ_MC_MAIN;
 #if 0
-	demod->myCommonAttr->verifyMicrocode = false;
+	demod->my_common_attr->verify_microcode = false;
 #endif
-	demod->myCommonAttr->verifyMicrocode = true;
-	demod->myCommonAttr->intermediateFreq = 5000;
+	demod->my_common_attr->verify_microcode = true;
+	demod->my_common_attr->intermediate_freq = 5000;
 
-	demod->myExtAttr = demodExtAttr;
-	memcpy(demod->myExtAttr, &DRXJData_g, sizeof(DRXJData_t));
-	((DRXJData_t *) demod->myExtAttr)->uioSmaTxMode =
+	demod->my_ext_attr = demod_ext_attr;
+	memcpy(demod->my_ext_attr, &drxj_data_g, sizeof(drxj_data_t));
+	((drxj_data_t *) demod->my_ext_attr)->uio_sma_tx_mode =
 	    DRX_UIO_MODE_READWRITE;
 
-	demod->myTuner = NULL;
+	demod->my_tuner = NULL;
 
-	result = DRX_Open(demod);
+	result = drx_open(demod);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "DRX open failed!  Aborting\n");
 		kfree(state);
@@ -389,18 +389,18 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	}
 
 	/* Turn off the LNA */
-	uioCfg.uio = DRX_UIO1;
-	uioCfg.mode = DRX_UIO_MODE_READWRITE;
+	uio_cfg.uio = DRX_UIO1;
+	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
 	/* Configure user-I/O #3: enable read/write */
-	result = DRX_Ctrl(demod, DRX_CTRL_UIO_CFG, &uioCfg);
+	result = drx_ctrl(demod, DRX_CTRL_UIO_CFG, &uio_cfg);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "Failed to setup LNA GPIO!\n");
 		return NULL;
 	}
 
-	uioData.uio = DRX_UIO1;
-	uioData.value = false;
-	result = DRX_Ctrl(demod, DRX_CTRL_UIO_WRITE, &uioData);
+	uio_data.uio = DRX_UIO1;
+	uio_data.value = false;
+	result = drx_ctrl(demod, DRX_CTRL_UIO_WRITE, &uio_data);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "Failed to disable LNA!\n");
 		return NULL;

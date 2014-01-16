@@ -238,7 +238,7 @@
 extern "C" {
 #endif
 
-	extern DRXAccessFunc_t drxDapFASIFunct_g;
+	extern drx_access_func_t drx_dap_fasi_funct_g;
 
 #define DRXDAP_FASI_RMW           0x10000000
 #define DRXDAP_FASI_BROADCAST     0x20000000

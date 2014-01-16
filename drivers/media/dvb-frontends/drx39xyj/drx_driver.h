@@ -42,7 +42,7 @@
 INCLUDES
 -------------------------------------------------------------------------*/
 
-enum DRXStatus {
+enum drx_status {
 	DRX_STS_READY = 3,  /**< device/service is ready     */
 	DRX_STS_BUSY = 2,   /**< device/service is busy      */
 	DRX_STS_OK = 1,	    /**< everything is OK            */
@@ -54,13 +54,13 @@ enum DRXStatus {
 };
 
 /*
- * This structure contains the I2C address, the device ID and a userData pointer.
- * The userData pointer can be used for application specific purposes.
+ * This structure contains the I2C address, the device ID and a user_data pointer.
+ * The user_data pointer can be used for application specific purposes.
  */
 struct i2c_device_addr {
-	u16 i2cAddr;		/* The I2C address of the device. */
-	u16 i2cDevId;		/* The device identifier. */
-	void *userData;		/* User data pointer */
+	u16 i2c_addr;		/* The I2C address of the device. */
+	u16 i2c_dev_id;		/* The device identifier. */
+	void *user_data;		/* User data pointer */
 };
 
 /**
@@ -79,44 +79,44 @@ Exported FUNCTIONS
 ------------------------------------------------------------------------------*/
 
 /**
-* \fn DRXBSP_I2C_Init()
+* \fn drxbsp_i2c_init()
 * \brief Initialize I2C communication module.
 * \return int Return status.
 * \retval DRX_STS_OK Initialization successful.
 * \retval DRX_STS_ERROR Initialization failed.
 */
-int DRXBSP_I2C_Init(void);
+int drxbsp_i2c_init(void);
 
 /**
-* \fn DRXBSP_I2C_Term()
+* \fn drxbsp_i2c_term()
 * \brief Terminate I2C communication module.
 * \return int Return status.
 * \retval DRX_STS_OK Termination successful.
 * \retval DRX_STS_ERROR Termination failed.
 */
-int DRXBSP_I2C_Term(void);
+int drxbsp_i2c_term(void);
 
 /**
-* \fn int DRXBSP_I2C_WriteRead( struct i2c_device_addr *wDevAddr,
-*                                       u16 wCount,
+* \fn int drxbsp_i2c_write_read( struct i2c_device_addr *w_dev_addr,
+*                                       u16 w_count,
 *                                       u8 * wData,
-*                                       struct i2c_device_addr *rDevAddr,
-*                                       u16 rCount,
-*                                       u8 * rData)
+*                                       struct i2c_device_addr *r_dev_addr,
+*                                       u16 r_count,
+*                                       u8 * r_data)
 * \brief Read and/or write count bytes from I2C bus, store them in data[].
-* \param wDevAddr The device i2c address and the device ID to write to
-* \param wCount   The number of bytes to write
+* \param w_dev_addr The device i2c address and the device ID to write to
+* \param w_count   The number of bytes to write
 * \param wData    The array to write the data to
-* \param rDevAddr The device i2c address and the device ID to read from
-* \param rCount   The number of bytes to read
-* \param rData    The array to read the data from
+* \param r_dev_addr The device i2c address and the device ID to read from
+* \param r_count   The number of bytes to read
+* \param r_data    The array to read the data from
 * \return int Return status.
 * \retval DRX_STS_OK Succes.
 * \retval DRX_STS_ERROR Failure.
 * \retval DRX_STS_INVALID_ARG Parameter 'wcount' is not zero but parameter
 *                                       'wdata' contains NULL.
 *                                       Idem for 'rcount' and 'rdata'.
-*                                       Both wDevAddr and rDevAddr are NULL.
+*                                       Both w_dev_addr and r_dev_addr are NULL.
 *
 * This function must implement an atomic write and/or read action on the I2C bus
 * No other process may use the I2C bus when this function is executing.
@@ -126,26 +126,26 @@ int DRXBSP_I2C_Term(void);
 * The device ID can be useful if several devices share an I2C address.
 * It can be used to control a "switch" on the I2C bus to the correct device.
 */
-int DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
-					u16 wCount,
+int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
+					u16 w_count,
 					u8 *wData,
-					struct i2c_device_addr *rDevAddr,
-					u16 rCount, u8 *rData);
+					struct i2c_device_addr *r_dev_addr,
+					u16 r_count, u8 *r_data);
 
 /**
-* \fn DRXBSP_I2C_ErrorText()
+* \fn drxbsp_i2c_error_text()
 * \brief Returns a human readable error.
-* Counter part of numerical DRX_I2C_Error_g.
+* Counter part of numerical drx_i2c_error_g.
 *
 * \return char* Pointer to human readable error text.
 */
-char *DRXBSP_I2C_ErrorText(void);
+char *drxbsp_i2c_error_text(void);
 
 /**
-* \var DRX_I2C_Error_g;
+* \var drx_i2c_error_g;
 * \brief I2C specific error codes, platform dependent.
 */
-extern int DRX_I2C_Error_g;
+extern int drx_i2c_error_g;
 
 #define TUNER_MODE_SUB0    0x0001	/* for sub-mode (e.g. RF-AGC setting) */
 #define TUNER_MODE_SUB1    0x0002	/* for sub-mode (e.g. RF-AGC setting) */
@@ -178,105 +178,105 @@ enum tuner_lock_status {
 
 struct tuner_common {
 	char *name;	/* Tuner brand & type name */
-	s32 minFreqRF;	/* Lowest  RF input frequency, in kHz */
-	s32 maxFreqRF;	/* Highest RF input frequency, in kHz */
+	s32 min_freq_rf;	/* Lowest  RF input frequency, in kHz */
+	s32 max_freq_rf;	/* Highest RF input frequency, in kHz */
 
-	u8 subMode;	/* Index to sub-mode in use */
-	char ***subModeDescriptions;	/* Pointer to description of sub-modes */
-	u8 subModes;	/* Number of available sub-modes      */
+	u8 sub_mode;	/* Index to sub-mode in use */
+	char ***sub_modeDescriptions;	/* Pointer to description of sub-modes */
+	u8 sub_modes;	/* Number of available sub-modes      */
 
 	/* The following fields will be either 0, NULL or false and do not need
 		initialisation */
-	void *selfCheck;	/* gives proof of initialization  */
-	bool programmed;	/* only valid if selfCheck is OK  */
-	s32 RFfrequency;	/* only valid if programmed       */
-	s32 IFfrequency;	/* only valid if programmed       */
+	void *self_check;	/* gives proof of initialization  */
+	bool programmed;	/* only valid if self_check is OK  */
+	s32 r_ffrequency;	/* only valid if programmed       */
+	s32 i_ffrequency;	/* only valid if programmed       */
 
-	void *myUserData;	/* pointer to associated demod instance */
-	u16 myCapabilities;	/* value for storing application flags  */
+	void *myUser_data;	/* pointer to associated demod instance */
+	u16 my_capabilities;	/* value for storing application flags  */
 };
 
 struct tuner_instance;
 
-typedef int(*TUNEROpenFunc_t) (struct tuner_instance *tuner);
-typedef int(*TUNERCloseFunc_t) (struct tuner_instance *tuner);
+typedef int(*tuner_open_func_t) (struct tuner_instance *tuner);
+typedef int(*tuner_close_func_t) (struct tuner_instance *tuner);
 
-typedef int(*TUNERSetFrequencyFunc_t) (struct tuner_instance *tuner,
+typedef int(*tuner_set_frequency_func_t) (struct tuner_instance *tuner,
 						u32 mode,
 						s32
 						frequency);
 
-typedef int(*TUNERGetFrequencyFunc_t) (struct tuner_instance *tuner,
+typedef int(*tuner_get_frequency_func_t) (struct tuner_instance *tuner,
 						u32 mode,
 						s32 *
-						RFfrequency,
+						r_ffrequency,
 						s32 *
-						IFfrequency);
+						i_ffrequency);
 
-typedef int(*TUNERLockStatusFunc_t) (struct tuner_instance *tuner,
+typedef int(*tuner_lock_status_func_t) (struct tuner_instance *tuner,
 						enum tuner_lock_status *
-						lockStat);
+						lock_stat);
 
-typedef int(*TUNERi2cWriteReadFunc_t) (struct tuner_instance *tuner,
+typedef int(*tune_ri2c_write_read_func_t) (struct tuner_instance *tuner,
 						struct i2c_device_addr *
-						wDevAddr, u16 wCount,
+						w_dev_addr, u16 w_count,
 						u8 *wData,
 						struct i2c_device_addr *
-						rDevAddr, u16 rCount,
-						u8 *rData);
+						r_dev_addr, u16 r_count,
+						u8 *r_data);
 
 struct tuner_ops {
-	TUNEROpenFunc_t openFunc;
-	TUNERCloseFunc_t closeFunc;
-	TUNERSetFrequencyFunc_t setFrequencyFunc;
-	TUNERGetFrequencyFunc_t getFrequencyFunc;
-	TUNERLockStatusFunc_t lockStatusFunc;
-	TUNERi2cWriteReadFunc_t i2cWriteReadFunc;
+	tuner_open_func_t open_func;
+	tuner_close_func_t close_func;
+	tuner_set_frequency_func_t set_frequency_func;
+	tuner_get_frequency_func_t get_frequency_func;
+	tuner_lock_status_func_t lock_statusFunc;
+	tune_ri2c_write_read_func_t i2c_write_read_func;
 
 };
 
 struct tuner_instance {
-	struct i2c_device_addr myI2CDevAddr;
-	struct tuner_common *myCommonAttr;
-	void *myExtAttr;
-	struct tuner_ops *myFunct;
+	struct i2c_device_addr my_i2c_dev_addr;
+	struct tuner_common *my_common_attr;
+	void *my_ext_attr;
+	struct tuner_ops *my_funct;
 };
 
 
-int DRXBSP_TUNER_Open(struct tuner_instance *tuner);
+int drxbsp_tuner_open(struct tuner_instance *tuner);
 
-int DRXBSP_TUNER_Close(struct tuner_instance *tuner);
+int drxbsp_tuner_close(struct tuner_instance *tuner);
 
-int DRXBSP_TUNER_SetFrequency(struct tuner_instance *tuner,
+int drxbsp_tuner_set_frequency(struct tuner_instance *tuner,
 					u32 mode,
 					s32 frequency);
 
-int DRXBSP_TUNER_GetFrequency(struct tuner_instance *tuner,
+int drxbsp_tuner_get_frequency(struct tuner_instance *tuner,
 					u32 mode,
-					s32 *RFfrequency,
-					s32 *IFfrequency);
+					s32 *r_ffrequency,
+					s32 *i_ffrequency);
 
-int DRXBSP_TUNER_LockStatus(struct tuner_instance *tuner,
-					enum tuner_lock_status *lockStat);
+int drxbsp_tuner_lock_status(struct tuner_instance *tuner,
+					enum tuner_lock_status *lock_stat);
 
-int DRXBSP_TUNER_DefaultI2CWriteRead(struct tuner_instance *tuner,
-						struct i2c_device_addr *wDevAddr,
-						u16 wCount,
+int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
+						struct i2c_device_addr *w_dev_addr,
+						u16 w_count,
 						u8 *wData,
-						struct i2c_device_addr *rDevAddr,
-						u16 rCount, u8 *rData);
+						struct i2c_device_addr *r_dev_addr,
+						u16 r_count, u8 *r_data);
 
-int DRXBSP_HST_Init(void);
+int drxbsp_hst_init(void);
 
-int DRXBSP_HST_Term(void);
+int drxbsp_hst_term(void);
 
-void *DRXBSP_HST_Memcpy(void *to, void *from, u32 n);
+void *drxbsp_hst_memcpy(void *to, void *from, u32 n);
 
-int DRXBSP_HST_Memcmp(void *s1, void *s2, u32 n);
+int drxbsp_hst_memcmp(void *s1, void *s2, u32 n);
 
-u32 DRXBSP_HST_Clock(void);
+u32 drxbsp_hst_clock(void);
 
-int DRXBSP_HST_Sleep(u32 n);
+int drxbsp_hst_sleep(u32 n);
 
 
 
@@ -856,7 +856,7 @@ enum drx_pilot_mode {
 #define DRX_CTRL_MAX             (DRX_CTRL_BASE + 44)	/* never to be used    */
 
 /**
-* \enum DRXUCodeAction_t
+* \enum drxu_code_action_t
 * \brief Used to indicate if firmware has to be uploaded or verified.
 */
 
@@ -865,10 +865,10 @@ enum drx_pilot_mode {
 		  /**< Upload the microcode image to device        */
 		UCODE_VERIFY
 		  /**< Compare microcode image with code on device */
-	} DRXUCodeAction_t, *pDRXUCodeAction_t;
+	} drxu_code_action_t, *pdrxu_code_action_t;
 
 /**
-* \enum DRXLockStatus_t
+* \enum drx_lock_status_t
 * \brief Used to reflect current lock status of demodulator.
 *
 * The generic lock states have device dependent semantics.
@@ -897,7 +897,7 @@ enum drx_pilot_mode {
 		DRX_LOCK_STATE_9,
 			      /**< Generic lock state                    */
 		DRX_LOCKED    /**< Device is in lock                     */
-	} DRXLockStatus_t, *pDRXLockStatus_t;
+	} drx_lock_status_t, *pdrx_lock_status_t;
 
 /**
 * \enum DRXUIO_t
@@ -937,10 +937,10 @@ enum drx_pilot_mode {
 		DRX_UIO31,
 		DRX_UIO32,
 		DRX_UIO_MAX = DRX_UIO32
-	} DRXUIO_t, *pDRXUIO_t;
+	} DRXUIO_t, *p_drxuio_t;
 
 /**
-* \enum DRXUIOMode_t
+* \enum drxuio_mode_t
 * \brief Used to configure the modus oprandi of a UIO.
 *
 * DRX_UIO_MODE_FIRMWARE is an old uio mode.
@@ -967,10 +967,10 @@ enum drx_pilot_mode {
 				    /**< controlled by firmware, function 4   */
 		DRX_UIO_MODE_FIRMWARE5 = 0x80
 				    /**< controlled by firmware, function 5   */
-	} DRXUIOMode_t, *pDRXUIOMode_t;
+	} drxuio_mode_t, *pdrxuio_mode_t;
 
 /**
-* \enum DRXOOBDownstreamStandard_t
+* \enum drxoob_downstream_standard_t
 * \brief Used to select OOB standard.
 *
 * Based on ANSI 55-1 and 55-2
@@ -982,7 +982,7 @@ enum drx_pilot_mode {
 			       /**< ANSI 55-2 A */
 		DRX_OOB_MODE_B_GRADE_B
 			       /**< ANSI 55-2 B */
-	} DRXOOBDownstreamStandard_t, *pDRXOOBDownstreamStandard_t;
+	} drxoob_downstream_standard_t, *pdrxoob_downstream_standard_t;
 
 /*-------------------------------------------------------------------------
 STRUCTS
@@ -995,13 +995,13 @@ STRUCTS
 /*============================================================================*/
 
 /**
-* \enum DRXCfgType_t
+* \enum drx_cfg_type_t
 * \brief Generic configuration function identifiers.
 */
-	typedef u32 DRXCfgType_t, *pDRXCfgType_t;
+	typedef u32 drx_cfg_type_t, *pdrx_cfg_type_t;
 
 #ifndef DRX_CFG_BASE
-#define DRX_CFG_BASE          ((DRXCfgType_t)0)
+#define DRX_CFG_BASE          ((drx_cfg_type_t)0)
 #endif
 
 #define DRX_CFG_MPEG_OUTPUT         (DRX_CFG_BASE +  0)	/* MPEG TS output    */
@@ -1032,20 +1032,20 @@ STRUCTS
 /*============================================================================*/
 
 /**
-* \struct DRXUCodeInfo_t
+* \struct drxu_code_info_t
 * \brief Parameters for microcode upload and verfiy.
 *
 * Used by DRX_CTRL_LOAD_UCODE and DRX_CTRL_VERIFY_UCODE
 */
 	typedef struct {
-		u8 *mcData;
+		u8 *mc_data;
 		     /**< Pointer to microcode image. */
-		u16 mcSize;
+		u16 mc_size;
 		     /**< Microcode image size.       */
-	} DRXUCodeInfo_t, *pDRXUCodeInfo_t;
+	} drxu_code_info_t, *p_drxu_code_info_t;
 
 /**
-* \struct DRXMcVersionRec_t
+* \struct drx_mc_version_rec_t
 * \brief Microcode version record
 * Version numbers are stored in BCD format, as usual:
 *   o major number = bits 31-20 (first three nibbles of MSW)
@@ -1056,43 +1056,43 @@ STRUCTS
 * JTAG ID, using everything except the bond ID and the metal fix.
 *
 * Special values:
-* - mcDevType == 0         => any device allowed
-* - mcBaseVersion == 0.0.0 => full microcode (mcVersion is the version)
-* - mcBaseVersion != 0.0.0 => patch microcode, the base microcode version
-*                             (mcVersion is the version)
+* - mc_dev_type == 0         => any device allowed
+* - mc_base_version == 0.0.0 => full microcode (mc_version is the version)
+* - mc_base_version != 0.0.0 => patch microcode, the base microcode version
+*                             (mc_version is the version)
 */
 #define AUX_VER_RECORD 0x8000
 
 	typedef struct {
-		u16 auxType;	/* type of aux data - 0x8000 for version record     */
-		u32 mcDevType;	/* device type, based on JTAG ID                    */
-		u32 mcVersion;	/* version of microcode                             */
-		u32 mcBaseVersion;	/* in case of patch: the original microcode version */
-	} DRXMcVersionRec_t, *pDRXMcVersionRec_t;
+		u16 aux_type;	/* type of aux data - 0x8000 for version record     */
+		u32 mc_dev_type;	/* device type, based on JTAG ID                    */
+		u32 mc_version;	/* version of microcode                             */
+		u32 mc_base_version;	/* in case of patch: the original microcode version */
+	} drx_mc_version_rec_t, *pdrx_mc_version_rec_t;
 
 /*========================================*/
 
 /**
-* \struct DRXFilterInfo_t
+* \struct drx_filter_info_t
 * \brief Parameters for loading filter coefficients
 *
 * Used by DRX_CTRL_LOAD_FILTER
 */
 	typedef struct {
-		u8 *dataRe;
+		u8 *data_re;
 		      /**< pointer to coefficients for RE */
-		u8 *dataIm;
+		u8 *data_im;
 		      /**< pointer to coefficients for IM */
-		u16 sizeRe;
+		u16 size_re;
 		      /**< size of coefficients for RE    */
-		u16 sizeIm;
+		u16 size_im;
 		      /**< size of coefficients for IM    */
-	} DRXFilterInfo_t, *pDRXFilterInfo_t;
+	} drx_filter_info_t, *pdrx_filter_info_t;
 
 /*========================================*/
 
 /**
-* \struct DRXChannel_t
+* \struct drx_channel_t
 * \brief The set of parameters describing a single channel.
 *
 * Used by DRX_CTRL_SET_CHANNEL and DRX_CTRL_GET_CHANNEL.
@@ -1124,46 +1124,46 @@ STRUCTS
 		enum drx_frame_mode framemode;
 					/**< frame mode                       */
 		enum drx_pilot_mode pilot;	/**< pilot mode                       */
-	} DRXChannel_t, *pDRXChannel_t;
+	} drx_channel_t, *pdrx_channel_t;
 
 /*========================================*/
 
 /**
-* \struct DRXSigQuality_t
+* \struct drx_sig_quality_t
 * Signal quality metrics.
 *
 * Used by DRX_CTRL_SIG_QUALITY.
 */
 	typedef struct {
 		u16 MER;     /**< in steps of 0.1 dB                        */
-		u32 preViterbiBER;
-			       /**< in steps of 1/scaleFactorBER              */
-		u32 postViterbiBER;
-			       /**< in steps of 1/scaleFactorBER              */
-		u32 scaleFactorBER;
+		u32 pre_viterbi_ber;
+			       /**< in steps of 1/scale_factor_ber              */
+		u32 post_viterbi_ber;
+			       /**< in steps of 1/scale_factor_ber              */
+		u32 scale_factor_ber;
 			       /**< scale factor for BER                      */
-		u16 packetError;
+		u16 packet_error;
 			       /**< number of packet errors                   */
-		u32 postReedSolomonBER;
-			       /**< in steps of 1/scaleFactorBER              */
-		u32 preLdpcBER;
-			       /**< in steps of 1/scaleFactorBER              */
-		u32 averIter;/**< in steps of 0.01                          */
+		u32 post_reed_solomon_ber;
+			       /**< in steps of 1/scale_factor_ber              */
+		u32 pre_ldpc_ber;
+			       /**< in steps of 1/scale_factor_ber              */
+		u32 aver_iter;/**< in steps of 0.01                          */
 		u16 indicator;
 			       /**< indicative signal quality low=0..100=high */
-	} DRXSigQuality_t, *pDRXSigQuality_t;
+	} drx_sig_quality_t, *pdrx_sig_quality_t;
 
 	typedef enum {
 		DRX_SQI_SPEED_FAST = 0,
 		DRX_SQI_SPEED_MEDIUM,
 		DRX_SQI_SPEED_SLOW,
 		DRX_SQI_SPEED_UNKNOWN = DRX_UNKNOWN
-	} DRXCfgSqiSpeed_t, *pDRXCfgSqiSpeed_t;
+	} drx_cfg_sqi_speed_t, *pdrx_cfg_sqi_speed_t;
 
 /*========================================*/
 
 /**
-* \struct DRXComplex_t
+* \struct drx_complex_t
 * A complex number.
 *
 * Used by DRX_CTRL_CONSTEL.
@@ -1173,12 +1173,12 @@ STRUCTS
 	     /**< Imaginary part. */
 		s16 re;
 	     /**< Real part.      */
-	} DRXComplex_t, *pDRXComplex_t;
+	} drx_complex_t, *pdrx_complex_t;
 
 /*========================================*/
 
 /**
-* \struct DRXFrequencyPlan_t
+* \struct drx_frequency_plan_t
 * Array element of a frequency plan.
 *
 * Used by DRX_CTRL_SCAN_INIT.
@@ -1192,72 +1192,72 @@ STRUCTS
 			     /**< Stepping frequency in this band            */
 		enum drx_bandwidth bandwidth;
 			     /**< Bandwidth within this frequency band       */
-		u16 chNumber;
+		u16 ch_number;
 			     /**< First channel number in this band, or first
-				    index in chNames                         */
-		char **chNames;
+				    index in ch_names                         */
+		char **ch_names;
 			     /**< Optional list of channel names in this
 				    band                                     */
-	} DRXFrequencyPlan_t, *pDRXFrequencyPlan_t;
+	} drx_frequency_plan_t, *p_drx_frequency_plan_t;
 
 /*========================================*/
 
 /**
-* \struct DRXFrequencyPlanInfo_t
+* \struct drx_frequency_plan_info_t
 * Array element of a list of frequency plans.
 *
 * Used by frequency_plan.h
 */
 	typedef struct {
-		pDRXFrequencyPlan_t freqPlan;
-		int freqPlanSize;
-		char *freqPlanName;
-	} DRXFrequencyPlanInfo_t, *pDRXFrequencyPlanInfo_t;
+		p_drx_frequency_plan_t freq_plan;
+		int freq_planSize;
+		char *freq_planName;
+	} drx_frequency_plan_info_t, *pdrx_frequency_plan_info_t;
 
 /*========================================*/
 
 /**
-* /struct DRXScanDataQam_t
+* /struct drx_scan_data_qam_t
 * QAM specific scanning variables
 */
 	typedef struct {
 		u32 *symbolrate;	  /**<  list of symbolrates to scan   */
-		u16 symbolrateSize;	  /**<  size of symbolrate array      */
+		u16 symbolrate_size;	  /**<  size of symbolrate array      */
 		enum drx_modulation *constellation;
 					  /**<  list of constellations        */
-		u16 constellationSize;    /**<  size of constellation array */
-		u16 ifAgcThreshold;	  /**<  thresholf for IF-AGC based
+		u16 constellation_size;    /**<  size of constellation array */
+		u16 if_agc_threshold;	  /**<  thresholf for IF-AGC based
 						scanning filter               */
-	} DRXScanDataQam_t, *pDRXScanDataQam_t;
+	} drx_scan_data_qam_t, *pdrx_scan_data_qam_t;
 
 /*========================================*/
 
 /**
-* /struct DRXScanDataAtv_t
+* /struct drx_scan_data_atv_t
 * ATV specific scanning variables
 */
 	typedef struct {
-		s16 svrThreshold;
+		s16 svr_threshold;
 			/**< threshold of Sound/Video ratio in 0.1dB steps */
-	} DRXScanDataAtv_t, *pDRXScanDataAtv_t;
+	} drx_scan_data_atv_t, *pdrx_scan_data_atv_t;
 
 /*========================================*/
 
 /**
-* \struct DRXScanParam_t
+* \struct drx_scan_param_t
 * Parameters for channel scan.
 *
 * Used by DRX_CTRL_SCAN_INIT.
 */
 	typedef struct {
-		pDRXFrequencyPlan_t frequencyPlan;
+		p_drx_frequency_plan_t frequency_plan;
 					  /**< Frequency plan (array)*/
-		u16 frequencyPlanSize;  /**< Number of bands       */
-		u32 numTries;		  /**< Max channels tried    */
+		u16 frequency_plan_size;  /**< Number of bands       */
+		u32 num_tries;		  /**< Max channels tried    */
 		s32 skip;	  /**< Minimum frequency step to take
 						after a channel is found */
-		void *extParams;	  /**< Standard specific params */
-	} DRXScanParam_t, *pDRXScanParam_t;
+		void *ext_params;	  /**< Standard specific params */
+	} drx_scan_param_t, *p_drx_scan_param_t;
 
 /*========================================*/
 
@@ -1269,22 +1269,22 @@ STRUCTS
 		DRX_SCAN_COMMAND_INIT = 0,/**< Initialize scanning */
 		DRX_SCAN_COMMAND_NEXT,	  /**< Next scan           */
 		DRX_SCAN_COMMAND_STOP	  /**< Stop scanning       */
-	} DRXScanCommand_t, *pDRXScanCommand_t;
+	} drx_scan_command_t, *pdrx_scan_command_t;
 
 /*========================================*/
 
 /**
 * \brief Inner scan function prototype.
 */
-	typedef int(*DRXScanFunc_t) (void *scanContext,
-					     DRXScanCommand_t scanCommand,
-					     pDRXChannel_t scanChannel,
-					     bool *getNextChannel);
+	typedef int(*drx_scan_func_t) (void *scan_context,
+					     drx_scan_command_t scan_command,
+					     pdrx_channel_t scan_channel,
+					     bool *get_next_channel);
 
 /*========================================*/
 
 /**
-* \struct DRXTPSInfo_t
+* \struct drxtps_info_t
 * TPS information, DVB-T specific.
 *
 * Used by DRX_CTRL_TPS_INFO.
@@ -1296,14 +1296,14 @@ STRUCTS
 					/**< Constellation  */
 		enum drx_hierarchy hierarchy;
 					/**< Hierarchy      */
-		enum drx_coderate highCoderate;
+		enum drx_coderate high_coderate;
 					/**< High code rate */
-		enum drx_coderate lowCoderate;
+		enum drx_coderate low_coderate;
 					/**< Low cod rate   */
 		enum drx_tps_frame frame;	/**< Tps frame      */
 		u8 length;		/**< Length         */
-		u16 cellId;		/**< Cell id        */
-	} DRXTPSInfo_t, *pDRXTPSInfo_t;
+		u16 cell_id;		/**< Cell id        */
+	} drxtps_info_t, *pdrxtps_info_t;
 
 /*========================================*/
 
@@ -1350,12 +1350,12 @@ STRUCTS
 			 /**< Device specific , Power Down Mode */
 		DRX_POWER_DOWN = 255
 			 /**< Generic         , Power Down Mode */
-	} DRXPowerMode_t, *pDRXPowerMode_t;
+	} drx_power_mode_t, *pdrx_power_mode_t;
 
 /*========================================*/
 
 /**
-* \enum DRXModule_t
+* \enum drx_module_t
 * \brief Software module identification.
 *
 * Used by DRX_CTRL_VERSION.
@@ -1370,36 +1370,36 @@ STRUCTS
 		DRX_MODULE_BSP_TUNER,
 		DRX_MODULE_BSP_HOST,
 		DRX_MODULE_UNKNOWN
-	} DRXModule_t, *pDRXModule_t;
+	} drx_module_t, *pdrx_module_t;
 
 /**
-* \enum DRXVersion_t
+* \enum drx_version_t
 * \brief Version information of one software module.
 *
 * Used by DRX_CTRL_VERSION.
 */
 	typedef struct {
-		DRXModule_t moduleType;
+		drx_module_t module_type;
 			       /**< Type identifier of the module */
-		char *moduleName;
+		char *module_name;
 			       /**< Name or description of module */
-		u16 vMajor;  /**< Major version number          */
-		u16 vMinor;  /**< Minor version number          */
-		u16 vPatch;  /**< Patch version number          */
-		char *vString; /**< Version as text string        */
-	} DRXVersion_t, *pDRXVersion_t;
+		u16 v_major;  /**< Major version number          */
+		u16 v_minor;  /**< Minor version number          */
+		u16 v_patch;  /**< Patch version number          */
+		char *v_string; /**< Version as text string        */
+	} drx_version_t, *pdrx_version_t;
 
 /**
-* \enum DRXVersionList_t
+* \enum drx_version_list_t
 * \brief List element of NULL terminated, linked list for version information.
 *
 * Used by DRX_CTRL_VERSION.
 */
-	typedef struct DRXVersionList_s {
-		pDRXVersion_t version;/**< Version information */
-		struct DRXVersionList_s *next;
+	typedef struct drx_version_list_s {
+		pdrx_version_t version;/**< Version information */
+		struct drx_version_list_s *next;
 				      /**< Next list element   */
-	} DRXVersionList_t, *pDRXVersionList_t;
+	} drx_version_list_t, *p_drx_version_list_t;
 
 /*========================================*/
 
@@ -1411,9 +1411,9 @@ STRUCTS
 	typedef struct {
 		DRXUIO_t uio;
 		       /**< UIO identifier       */
-		DRXUIOMode_t mode;
+		drxuio_mode_t mode;
 		       /**< UIO operational mode */
-	} DRXUIOCfg_t, *pDRXUIOCfg_t;
+	} drxuio_cfg_t, *pdrxuio_cfg_t;
 
 /*========================================*/
 
@@ -1427,7 +1427,7 @@ STRUCTS
 		   /**< UIO identifier              */
 		bool value;
 		   /**< UIO value (true=1, false=0) */
-	} DRXUIOData_t, *pDRXUIOData_t;
+	} drxuio_data_t, *pdrxuio_data_t;
 
 /*========================================*/
 
@@ -1438,11 +1438,11 @@ STRUCTS
 */
 	typedef struct {
 		s32 frequency;	   /**< Frequency in kHz      */
-		DRXOOBDownstreamStandard_t standard;
+		drxoob_downstream_standard_t standard;
 						   /**< OOB standard          */
-		bool spectrumInverted;	   /**< If true, then spectrum
+		bool spectrum_inverted;	   /**< If true, then spectrum
 							 is inverted          */
-	} DRXOOB_t, *pDRXOOB_t;
+	} DRXOOB_t, *p_drxoob_t;
 
 /*========================================*/
 
@@ -1453,10 +1453,10 @@ STRUCTS
 */
 	typedef struct {
 		s32 frequency; /**< Frequency in Khz         */
-		DRXLockStatus_t lock;	  /**< Lock status              */
+		drx_lock_status_t lock;	  /**< Lock status              */
 		u32 mer;		  /**< MER                      */
-		s32 symbolRateOffset;	  /**< Symbolrate offset in ppm */
-	} DRXOOBStatus_t, *pDRXOOBStatus_t;
+		s32 symbol_rate_offset;	  /**< Symbolrate offset in ppm */
+	} drxoob_status_t, *pdrxoob_status_t;
 
 /*========================================*/
 
@@ -1464,14 +1464,14 @@ STRUCTS
 * \brief Device dependent configuration data.
 *
 * Used by DRX_CTRL_SET_CFG and DRX_CTRL_GET_CFG.
-* A sort of nested DRX_Ctrl() functionality for device specific controls.
+* A sort of nested drx_ctrl() functionality for device specific controls.
 */
 	typedef struct {
-		DRXCfgType_t cfgType;
+		drx_cfg_type_t cfg_type;
 			  /**< Function identifier */
-		void *cfgData;
+		void *cfg_data;
 			  /**< Function data */
-	} DRXCfg_t, *pDRXCfg_t;
+	} drx_cfg_t, *pdrx_cfg_t;
 
 /*========================================*/
 
@@ -1483,11 +1483,11 @@ STRUCTS
 	typedef enum {
 		DRX_MPEG_STR_WIDTH_1,
 		DRX_MPEG_STR_WIDTH_8
-	} DRXMPEGStrWidth_t, *pDRXMPEGStrWidth_t;
+	} drxmpeg_str_width_t, *pdrxmpeg_str_width_t;
 
 /* CTRL CFG MPEG ouput */
 /**
-* \struct DRXCfgMPEGOutput_t
+* \struct drx_cfg_mpeg_output_t
 * \brief Configuartion parameters for MPEG output control.
 *
 * Used by DRX_CFG_MPEG_OUTPUT, in combination with DRX_CTRL_SET_CFG and
@@ -1495,71 +1495,71 @@ STRUCTS
 */
 
 	typedef struct {
-		bool enableMPEGOutput;/**< If true, enable MPEG output      */
-		bool insertRSByte;	/**< If true, insert RS byte          */
-		bool enableParallel;	/**< If true, parallel out otherwise
+		bool enable_mpeg_output;/**< If true, enable MPEG output      */
+		bool insert_rs_byte;	/**< If true, insert RS byte          */
+		bool enable_parallel;	/**< If true, parallel out otherwise
 								     serial   */
-		bool invertDATA;	/**< If true, invert DATA signals     */
-		bool invertERR;	/**< If true, invert ERR signal       */
-		bool invertSTR;	/**< If true, invert STR signals      */
-		bool invertVAL;	/**< If true, invert VAL signals      */
-		bool invertCLK;	/**< If true, invert CLK signals      */
-		bool staticCLK;	/**< If true, static MPEG clockrate
+		bool invert_data;	/**< If true, invert DATA signals     */
+		bool invert_err;	/**< If true, invert ERR signal       */
+		bool invert_str;	/**< If true, invert STR signals      */
+		bool invert_val;	/**< If true, invert VAL signals      */
+		bool invert_clk;	/**< If true, invert CLK signals      */
+		bool static_clk;	/**< If true, static MPEG clockrate
 					     will be used, otherwise clockrate
 					     will adapt to the bitrate of the
 					     TS                               */
 		u32 bitrate;		/**< Maximum bitrate in b/s in case
 					     static clockrate is selected     */
-		DRXMPEGStrWidth_t widthSTR;
+		drxmpeg_str_width_t width_str;
 					/**< MPEG start width                 */
-	} DRXCfgMPEGOutput_t, *pDRXCfgMPEGOutput_t;
+	} drx_cfg_mpeg_output_t, *pdrx_cfg_mpeg_output_t;
 
 /* CTRL CFG SMA */
 /**
-* /struct DRXCfgSMAIO_t
+* /struct drx_cfg_smaio_t
 * smart antenna i/o.
 */
-	typedef enum DRXCfgSMAIO_t {
+	typedef enum drx_cfg_smaio_t {
 		DRX_SMA_OUTPUT = 0,
 		DRX_SMA_INPUT
-	} DRXCfgSMAIO_t, *pDRXCfgSMAIO_t;
+	} drx_cfg_smaio_t, *pdrx_cfg_smaio_t;
 
 /**
-* /struct DRXCfgSMA_t
+* /struct drx_cfg_sma_t
 * Set smart antenna.
 */
 	typedef struct {
-		DRXCfgSMAIO_t io;
-		u16 ctrlData;
-		bool smartAntInverted;
-	} DRXCfgSMA_t, *pDRXCfgSMA_t;
+		drx_cfg_smaio_t io;
+		u16 ctrl_data;
+		bool smart_ant_inverted;
+	} drx_cfg_sma_t, *pdrx_cfg_sma_t;
 
 /*========================================*/
 
 /**
-* \struct DRXI2CData_t
+* \struct drxi2c_data_t
 * \brief Data for I2C via 2nd or 3rd or etc I2C port.
 *
 * Used by DRX_CTRL_I2C_READWRITE.
-* If portNr is equal to primairy portNr BSPI2C will be used.
+* If port_nr is equal to primairy port_nr BSPI2C will be used.
 *
 */
 	typedef struct {
-		u16 portNr;	/**< I2C port number               */
-		struct i2c_device_addr *wDevAddr;
+		u16 port_nr;	/**< I2C port number               */
+		struct i2c_device_addr *w_dev_addr;
 				/**< Write device address          */
-		u16 wCount;	/**< Size of write data in bytes   */
+		u16 w_count;	/**< Size of write data in bytes   */
 		u8 *wData;	/**< Pointer to write data         */
-		struct i2c_device_addr *rDevAddr;
+		struct i2c_device_addr *r_dev_addr;
 				/**< Read device address           */
-		u16 rCount;	/**< Size of data to read in bytes */
-		u8 *rData;	/**< Pointer to read buffer        */
-	} DRXI2CData_t, *pDRXI2CData_t;
+		u16 r_count;	/**< Size of data to read in bytes */
+		u8 *r_data;	/**< Pointer to read buffer        */
+	} drxi2c_data_t, *pdrxi2c_data_t;
 
 /*========================================*/
 
 /**
-* \enum DRXAudStandard_t
+* \enum drx_aud_standard_t
 * \brief Audio standard identifier.
 *
 * Used by DRX_CTRL_SET_AUD.
@@ -1588,11 +1588,11 @@ STRUCTS
 					   /**< Automatic Standard Detection  */
 		DRX_AUD_STANDARD_UNKNOWN = DRX_UNKNOWN
 					   /**< used as auto and for readback */
-	} DRXAudStandard_t, *pDRXAudStandard_t;
+	} drx_aud_standard_t, *pdrx_aud_standard_t;
 
-/* CTRL_AUD_GET_STATUS    - DRXAudStatus_t */
+/* CTRL_AUD_GET_STATUS    - drx_aud_status_t */
 /**
-* \enum DRXAudNICAMStatus_t
+* \enum drx_aud_nicam_status_t
 * \brief Status of NICAM carrier.
 */
 	typedef enum {
@@ -1601,22 +1601,22 @@ STRUCTS
 		DRX_AUD_NICAM_NOT_DETECTED,
 					  /**< NICAM carrier not detected     */
 		DRX_AUD_NICAM_BAD	  /**< NICAM carrier bad quality      */
-	} DRXAudNICAMStatus_t, *pDRXAudNICAMStatus_t;
+	} drx_aud_nicam_status_t, *pdrx_aud_nicam_status_t;
 
 /**
-* \struct DRXAudStatus_t
+* \struct drx_aud_status_t
 * \brief Audio status characteristics.
 */
 	typedef struct {
 		bool stereo;		  /**< stereo detection               */
-		bool carrierA;	  /**< carrier A detected             */
-		bool carrierB;	  /**< carrier B detected             */
+		bool carrier_a;	  /**< carrier A detected             */
+		bool carrier_b;	  /**< carrier B detected             */
 		bool sap;		  /**< sap / bilingual detection      */
 		bool rds;		  /**< RDS data array present         */
-		DRXAudNICAMStatus_t nicamStatus;
+		drx_aud_nicam_status_t nicam_status;
 					  /**< status of NICAM carrier        */
-		s8 fmIdent;		  /**< FM Identification value        */
-	} DRXAudStatus_t, *pDRXAudStatus_t;
+		s8 fm_ident;		  /**< FM Identification value        */
+	} drx_aud_status_t, *pdrx_aud_status_t;
 
 /* CTRL_AUD_READ_RDS       - DRXRDSdata_t */
 
@@ -1627,9 +1627,9 @@ STRUCTS
 	typedef struct {
 		bool valid;		  /**< RDS data validation            */
 		u16 data[18];		  /**< data from one RDS data array   */
-	} DRXCfgAudRDS_t, *pDRXCfgAudRDS_t;
+	} drx_cfg_aud_rds_t, *pdrx_cfg_aud_rds_t;
 
-/* DRX_CFG_AUD_VOLUME      - DRXCfgAudVolume_t - set/get */
+/* DRX_CFG_AUD_VOLUME      - drx_cfg_aud_volume_t - set/get */
 /**
 * \enum DRXAudAVCDecayTime_t
 * \brief Automatic volume control configuration.
@@ -1640,7 +1640,7 @@ STRUCTS
 		DRX_AUD_AVC_DECAYTIME_4S, /**< level volume in  4 seconds     */
 		DRX_AUD_AVC_DECAYTIME_2S, /**< level volume in  2 seconds     */
 		DRX_AUD_AVC_DECAYTIME_20MS/**< level volume in 20 millisec    */
-	} DRXAudAVCMode_t, *pDRXAudAVCMode_t;
+	} drx_aud_avc_mode_t, *pdrx_aud_avc_mode_t;
 
 /**
 * /enum DRXAudMaxAVCGain_t
@@ -1650,7 +1650,7 @@ STRUCTS
 		DRX_AUD_AVC_MAX_GAIN_0DB, /**< maximum AVC gain  0 dB         */
 		DRX_AUD_AVC_MAX_GAIN_6DB, /**< maximum AVC gain  6 dB         */
 		DRX_AUD_AVC_MAX_GAIN_12DB /**< maximum AVC gain 12 dB         */
-	} DRXAudAVCMaxGain_t, *pDRXAudAVCMaxGain_t;
+	} drx_aud_avc_max_gain_t, *pdrx_aud_avc_max_gain_t;
 
 /**
 * /enum DRXAudMaxAVCAtten_t
@@ -1662,45 +1662,45 @@ STRUCTS
 		DRX_AUD_AVC_MAX_ATTEN_18DB,
 					  /**< maximum AVC attenuation 18 dB  */
 		DRX_AUD_AVC_MAX_ATTEN_24DB/**< maximum AVC attenuation 24 dB  */
-	} DRXAudAVCMaxAtten_t, *pDRXAudAVCMaxAtten_t;
+	} drx_aud_avc_max_atten_t, *pdrx_aud_avc_max_atten_t;
 /**
-* \struct DRXCfgAudVolume_t
+* \struct drx_cfg_aud_volume_t
 * \brief Audio volume configuration.
 */
 	typedef struct {
 		bool mute;		  /**< mute overrides volume setting  */
 		s16 volume;		  /**< volume, range -114 to 12 dB    */
-		DRXAudAVCMode_t avcMode;  /**< AVC auto volume control mode   */
-		u16 avcRefLevel;	  /**< AVC reference level            */
-		DRXAudAVCMaxGain_t avcMaxGain;
+		drx_aud_avc_mode_t avc_mode;  /**< AVC auto volume control mode   */
+		u16 avc_ref_level;	  /**< AVC reference level            */
+		drx_aud_avc_max_gain_t avc_max_gain;
 					  /**< AVC max gain selection         */
-		DRXAudAVCMaxAtten_t avcMaxAtten;
+		drx_aud_avc_max_atten_t avc_max_atten;
 					  /**< AVC max attenuation selection  */
-		s16 strengthLeft;	  /**< quasi-peak, left speaker       */
-		s16 strengthRight;	  /**< quasi-peak, right speaker      */
-	} DRXCfgAudVolume_t, *pDRXCfgAudVolume_t;
+		s16 strength_left;	  /**< quasi-peak, left speaker       */
+		s16 strength_right;	  /**< quasi-peak, right speaker      */
+	} drx_cfg_aud_volume_t, *pdrx_cfg_aud_volume_t;
 
-/* DRX_CFG_I2S_OUTPUT      - DRXCfgI2SOutput_t - set/get */
+/* DRX_CFG_I2S_OUTPUT      - drx_cfg_i2s_output_t - set/get */
 /**
-* \enum DRXI2SMode_t
+* \enum drxi2s_mode_t
 * \brief I2S output mode.
 */
 	typedef enum {
 		DRX_I2S_MODE_MASTER,	  /**< I2S is in master mode          */
 		DRX_I2S_MODE_SLAVE	  /**< I2S is in slave mode           */
-	} DRXI2SMode_t, *pDRXI2SMode_t;
+	} drxi2s_mode_t, *pdrxi2s_mode_t;
 
 /**
-* \enum DRXI2SWordLength_t
+* \enum drxi2s_word_length_t
 * \brief Width of I2S data.
 */
 	typedef enum {
 		DRX_I2S_WORDLENGTH_32 = 0,/**< I2S data is 32 bit wide        */
 		DRX_I2S_WORDLENGTH_16 = 1 /**< I2S data is 16 bit wide        */
-	} DRXI2SWordLength_t, *pDRXI2SWordLength_t;
+	} drxi2s_word_length_t, *pdrxi2s_word_length_t;
 
 /**
-* \enum DRXI2SFormat_t
+* \enum drxi2s_format_t
 * \brief Data wordstrobe alignment for I2S.
 */
 	typedef enum {
@@ -1708,34 +1708,34 @@ STRUCTS
 				    /**< I2S data and wordstrobe are aligned  */
 		DRX_I2S_FORMAT_WS_ADVANCED
 				    /**< I2S data one cycle after wordstrobe  */
-	} DRXI2SFormat_t, *pDRXI2SFormat_t;
+	} drxi2s_format_t, *pdrxi2s_format_t;
 
 /**
-* \enum DRXI2SPolarity_t
+* \enum drxi2s_polarity_t
 * \brief Polarity of I2S data.
 */
 	typedef enum {
 		DRX_I2S_POLARITY_RIGHT,/**< wordstrobe - right high, left low */
 		DRX_I2S_POLARITY_LEFT  /**< wordstrobe - right low, left high */
-	} DRXI2SPolarity_t, *pDRXI2SPolarity_t;
+	} drxi2s_polarity_t, *pdrxi2s_polarity_t;
 
 /**
-* \struct DRXCfgI2SOutput_t
+* \struct drx_cfg_i2s_output_t
 * \brief I2S output configuration.
 */
 	typedef struct {
-		bool outputEnable;	  /**< I2S output enable              */
+		bool output_enable;	  /**< I2S output enable              */
 		u32 frequency;	  /**< range from 8000-48000 Hz       */
-		DRXI2SMode_t mode;	  /**< I2S mode, master or slave      */
-		DRXI2SWordLength_t wordLength;
+		drxi2s_mode_t mode;	  /**< I2S mode, master or slave      */
+		drxi2s_word_length_t word_length;
 					  /**< I2S wordlength, 16 or 32 bits  */
-		DRXI2SPolarity_t polarity;/**< I2S wordstrobe polarity        */
-		DRXI2SFormat_t format;	  /**< I2S wordstrobe delay to data   */
-	} DRXCfgI2SOutput_t, *pDRXCfgI2SOutput_t;
+		drxi2s_polarity_t polarity;/**< I2S wordstrobe polarity        */
+		drxi2s_format_t format;	  /**< I2S wordstrobe delay to data   */
+	} drx_cfg_i2s_output_t, *pdrx_cfg_i2s_output_t;
 
 /* ------------------------------expert interface-----------------------------*/
 /**
-* /enum DRXAudFMDeemphasis_t
+* /enum drx_aud_fm_deemphasis_t
 * setting for FM-Deemphasis in audio demodulator.
 *
 */
@@ -1743,7 +1743,7 @@ STRUCTS
 		DRX_AUD_FM_DEEMPH_50US,
 		DRX_AUD_FM_DEEMPH_75US,
 		DRX_AUD_FM_DEEMPH_OFF
-	} DRXAudFMDeemphasis_t, *pDRXAudFMDeemphasis_t;
+	} drx_aud_fm_deemphasis_t, *pdrx_aud_fm_deemphasis_t;
 
 /**
 * /enum DRXAudDeviation_t
@@ -1753,17 +1753,17 @@ STRUCTS
 	typedef enum {
 		DRX_AUD_DEVIATION_NORMAL,
 		DRX_AUD_DEVIATION_HIGH
-	} DRXCfgAudDeviation_t, *pDRXCfgAudDeviation_t;
+	} drx_cfg_aud_deviation_t, *pdrx_cfg_aud_deviation_t;
 
 /**
-* /enum DRXNoCarrierOption_t
+* /enum drx_no_carrier_option_t
 * setting for carrier, mute/noise.
 *
 */
 	typedef enum {
 		DRX_NO_CARRIER_MUTE,
 		DRX_NO_CARRIER_NOISE
-	} DRXNoCarrierOption_t, *pDRXNoCarrierOption_t;
+	} drx_no_carrier_option_t, *pdrx_no_carrier_option_t;
 
 /**
 * \enum DRXAudAutoSound_t
@@ -1773,7 +1773,7 @@ STRUCTS
 		DRX_AUD_AUTO_SOUND_OFF = 0,
 		DRX_AUD_AUTO_SOUND_SELECT_ON_CHANGE_ON,
 		DRX_AUD_AUTO_SOUND_SELECT_ON_CHANGE_OFF
-	} DRXCfgAudAutoSound_t, *pDRXCfgAudAutoSound_t;
+	} drx_cfg_aud_auto_sound_t, *pdrx_cfg_aud_auto_sound_t;
 
 /**
 * \enum DRXAudASSThres_t
@@ -1783,30 +1783,30 @@ STRUCTS
 		u16 a2;	/* A2 Threshold for ASS configuration */
 		u16 btsc;	/* BTSC Threshold for ASS configuration */
 		u16 nicam;	/* Nicam Threshold for ASS configuration */
-	} DRXCfgAudASSThres_t, *pDRXCfgAudASSThres_t;
+	} drx_cfg_aud_ass_thres_t, *pdrx_cfg_aud_ass_thres_t;
 
 /**
-* \struct DRXAudCarrier_t
+* \struct drx_aud_carrier_t
 * \brief Carrier detection related parameters
 */
 	typedef struct {
 		u16 thres;	/* carrier detetcion threshold for primary carrier (A) */
-		DRXNoCarrierOption_t opt;	/* Mute or noise at no carrier detection (A) */
+		drx_no_carrier_option_t opt;	/* Mute or noise at no carrier detection (A) */
 		s32 shift;	/* DC level of incoming signal (A) */
 		s32 dco;	/* frequency adjustment (A) */
-	} DRXAudCarrier_t, *pDRXCfgAudCarrier_t;
+	} drx_aud_carrier_t, *p_drx_cfg_aud_carrier_t;
 
 /**
-* \struct DRXCfgAudCarriers_t
+* \struct drx_cfg_aud_carriers_t
 * \brief combining carrier A & B to one struct
 */
 	typedef struct {
-		DRXAudCarrier_t a;
-		DRXAudCarrier_t b;
-	} DRXCfgAudCarriers_t, *pDRXCfgAudCarriers_t;
+		drx_aud_carrier_t a;
+		drx_aud_carrier_t b;
+	} drx_cfg_aud_carriers_t, *pdrx_cfg_aud_carriers_t;
 
 /**
-* /enum DRXAudI2SSrc_t
+* /enum drx_aud_i2s_src_t
 * Selection of audio source
 */
 	typedef enum {
@@ -1814,10 +1814,10 @@ STRUCTS
 		DRX_AUD_SRC_STEREO_OR_AB,
 		DRX_AUD_SRC_STEREO_OR_A,
 		DRX_AUD_SRC_STEREO_OR_B
-	} DRXAudI2SSrc_t, *pDRXAudI2SSrc_t;
+	} drx_aud_i2s_src_t, *pdrx_aud_i2s_src_t;
 
 /**
-* \enum DRXAudI2SMatrix_t
+* \enum drx_aud_i2s_matrix_t
 * \brief Used for selecting I2S output.
 */
 	typedef enum {
@@ -1828,10 +1828,10 @@ STRUCTS
 		DRX_AUD_I2S_MATRIX_STEREO,
 					/**< A+B sound, transparant           */
 		DRX_AUD_I2S_MATRIX_MONO	/**< A+B mixed to mono sum, (L+R)/2   */
-	} DRXAudI2SMatrix_t, *pDRXAudI2SMatrix_t;
+	} drx_aud_i2s_matrix_t, *pdrx_aud_i2s_matrix_t;
 
 /**
-* /enum DRXAudFMMatrix_t
+* /enum drx_aud_fm_matrix_t
 * setting for FM-Matrix in audio demodulator.
 *
 */
@@ -1841,17 +1841,17 @@ STRUCTS
 		DRX_AUD_FM_MATRIX_KOREAN,
 		DRX_AUD_FM_MATRIX_SOUND_A,
 		DRX_AUD_FM_MATRIX_SOUND_B
-	} DRXAudFMMatrix_t, *pDRXAudFMMatrix_t;
+	} drx_aud_fm_matrix_t, *pdrx_aud_fm_matrix_t;
 
 /**
 * \struct DRXAudMatrices_t
 * \brief Mixer settings
 */
 	typedef struct {
-		DRXAudI2SSrc_t sourceI2S;
-		DRXAudI2SMatrix_t matrixI2S;
-		DRXAudFMMatrix_t matrixFm;
-	} DRXCfgAudMixer_t, *pDRXCfgAudMixer_t;
+		drx_aud_i2s_src_t source_i2s;
+		drx_aud_i2s_matrix_t matrix_i2s;
+		drx_aud_fm_matrix_t matrix_fm;
+	} drx_cfg_aud_mixer_t, *pdrx_cfg_aud_mixer_t;
 
 /**
 * \enum DRXI2SVidSync_t
@@ -1867,68 +1867,68 @@ STRUCTS
 				   /**< it is a MONOCHROME system            */
 		DRX_AUD_AVSYNC_PAL_SECAM
 				   /**< it is a PAL/SECAM system             */
-	} DRXCfgAudAVSync_t, *pDRXCfgAudAVSync_t;
+	} drx_cfg_aud_av_sync_t, *pdrx_cfg_aud_av_sync_t;
 
 /**
-* \struct DRXCfgAudPrescale_t
+* \struct drx_cfg_aud_prescale_t
 * \brief Prescalers
 */
 	typedef struct {
-		u16 fmDeviation;
-		s16 nicamGain;
-	} DRXCfgAudPrescale_t, *pDRXCfgAudPrescale_t;
+		u16 fm_deviation;
+		s16 nicam_gain;
+	} drx_cfg_aud_prescale_t, *pdrx_cfg_aud_prescale_t;
 
 /**
-* \struct DRXAudBeep_t
+* \struct drx_aud_beep_t
 * \brief Beep
 */
 	typedef struct {
 		s16 volume;	/* dB */
 		u16 frequency;	/* Hz */
 		bool mute;
-	} DRXAudBeep_t, *pDRXAudBeep_t;
+	} drx_aud_beep_t, *pdrx_aud_beep_t;
 
 /**
-* \enum DRXAudBtscDetect_t
+* \enum drx_aud_btsc_detect_t
 * \brief BTSC detetcion mode
 */
 	typedef enum {
 		DRX_BTSC_STEREO,
 		DRX_BTSC_MONO_AND_SAP
-	} DRXAudBtscDetect_t, *pDRXAudBtscDetect_t;
+	} drx_aud_btsc_detect_t, *pdrx_aud_btsc_detect_t;
 
 /**
-* \struct DRXAudData_t
+* \struct drx_aud_data_t
 * \brief Audio data structure
 */
 	typedef struct {
 		/* audio storage */
-		bool audioIsActive;
-		DRXAudStandard_t audioStandard;
-		DRXCfgI2SOutput_t i2sdata;
-		DRXCfgAudVolume_t volume;
-		DRXCfgAudAutoSound_t autoSound;
-		DRXCfgAudASSThres_t assThresholds;
-		DRXCfgAudCarriers_t carriers;
-		DRXCfgAudMixer_t mixer;
-		DRXCfgAudDeviation_t deviation;
-		DRXCfgAudAVSync_t avSync;
-		DRXCfgAudPrescale_t prescale;
-		DRXAudFMDeemphasis_t deemph;
-		DRXAudBtscDetect_t btscDetect;
+		bool audio_is_active;
+		drx_aud_standard_t audio_standard;
+		drx_cfg_i2s_output_t i2sdata;
+		drx_cfg_aud_volume_t volume;
+		drx_cfg_aud_auto_sound_t auto_sound;
+		drx_cfg_aud_ass_thres_t ass_thresholds;
+		drx_cfg_aud_carriers_t carriers;
+		drx_cfg_aud_mixer_t mixer;
+		drx_cfg_aud_deviation_t deviation;
+		drx_cfg_aud_av_sync_t av_sync;
+		drx_cfg_aud_prescale_t prescale;
+		drx_aud_fm_deemphasis_t deemph;
+		drx_aud_btsc_detect_t btsc_detect;
 		/* rds */
-		u16 rdsDataCounter;
-		bool rdsDataPresent;
-	} DRXAudData_t, *pDRXAudData_t;
+		u16 rds_data_counter;
+		bool rds_data_present;
+	} drx_aud_data_t, *pdrx_aud_data_t;
 
 /**
-* \enum DRXQamLockRange_t
+* \enum drx_qam_lock_range_t
 * \brief QAM lock range mode
 */
 	typedef enum {
 		DRX_QAM_LOCKRANGE_NORMAL,
 		DRX_QAM_LOCKRANGE_EXTENDED
-	} DRXQamLockRange_t, *pDRXQamLockRange_t;
+	} drx_qam_lock_range_t, *pdrx_qam_lock_range_t;
 
 /*============================================================================*/
 /*============================================================================*/
@@ -1937,108 +1937,108 @@ STRUCTS
 /*============================================================================*/
 
 /* Address on device */
-	typedef u32 DRXaddr_t, *pDRXaddr_t;
+	typedef u32 dr_xaddr_t, *pdr_xaddr_t;
 
 /* Protocol specific flags */
-	typedef u32 DRXflags_t, *pDRXflags_t;
+	typedef u32 dr_xflags_t, *pdr_xflags_t;
 
 /* Write block of data to device */
-	typedef int(*DRXWriteBlockFunc_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
-						   DRXaddr_t addr,	/* address of register/memory   */
+	typedef int(*drx_write_block_func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device        */
+						   dr_xaddr_t addr,	/* address of register/memory   */
 						   u16 datasize,	/* size of data in bytes        */
 						   u8 *data,	/* data to send                 */
-						   DRXflags_t flags);
+						   dr_xflags_t flags);
 
 /* Read block of data from device */
-	typedef int(*DRXReadBlockFunc_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
-						  DRXaddr_t addr,	/* address of register/memory   */
+	typedef int(*drx_read_block_func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device        */
+						  dr_xaddr_t addr,	/* address of register/memory   */
 						  u16 datasize,	/* size of data in bytes        */
 						  u8 *data,	/* receive buffer               */
-						  DRXflags_t flags);
+						  dr_xflags_t flags);
 
 /* Write 8-bits value to device */
-	typedef int(*DRXWriteReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
-						  DRXaddr_t addr,	/* address of register/memory   */
+	typedef int(*drx_write_reg8func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device        */
+						  dr_xaddr_t addr,	/* address of register/memory   */
 						  u8 data,	/* data to send                 */
-						  DRXflags_t flags);
+						  dr_xflags_t flags);
 
 /* Read 8-bits value to device */
-	typedef int(*DRXReadReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
-						 DRXaddr_t addr,	/* address of register/memory   */
+	typedef int(*drx_read_reg8func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device        */
+						 dr_xaddr_t addr,	/* address of register/memory   */
 						 u8 *data,	/* receive buffer               */
-						 DRXflags_t flags);
+						 dr_xflags_t flags);
 
 /* Read modify write 8-bits value to device */
-	typedef int(*DRXReadModifyWriteReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
-							    DRXaddr_t waddr,	/* write address of register   */
-							    DRXaddr_t raddr,	/* read  address of register   */
+	typedef int(*drx_read_modify_write_reg8func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device       */
+							    dr_xaddr_t waddr,	/* write address of register   */
+							    dr_xaddr_t raddr,	/* read  address of register   */
 							    u8 wdata,	/* data to write               */
 							    u8 *rdata);	/* data to read                */
 
 /* Write 16-bits value to device */
-	typedef int(*DRXWriteReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
-						   DRXaddr_t addr,	/* address of register/memory   */
+	typedef int(*drx_write_reg16func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device        */
+						   dr_xaddr_t addr,	/* address of register/memory   */
 						   u16 data,	/* data to send                 */
-						   DRXflags_t flags);
+						   dr_xflags_t flags);
 
 /* Read 16-bits value to device */
-	typedef int(*DRXReadReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
-						  DRXaddr_t addr,	/* address of register/memory   */
+	typedef int(*drx_read_reg16func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device        */
+						  dr_xaddr_t addr,	/* address of register/memory   */
 						  u16 *data,	/* receive buffer               */
-						  DRXflags_t flags);
+						  dr_xflags_t flags);
 
 /* Read modify write 16-bits value to device */
-	typedef int(*DRXReadModifyWriteReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
-							     DRXaddr_t waddr,	/* write address of register   */
-							     DRXaddr_t raddr,	/* read  address of register   */
+	typedef int(*drx_read_modify_write_reg16func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device       */
+							     dr_xaddr_t waddr,	/* write address of register   */
+							     dr_xaddr_t raddr,	/* read  address of register   */
 							     u16 wdata,	/* data to write               */
 							     u16 *rdata);	/* data to read                */
 
 /* Write 32-bits value to device */
-	typedef int(*DRXWriteReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
-						   DRXaddr_t addr,	/* address of register/memory   */
+	typedef int(*drx_write_reg32func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device        */
+						   dr_xaddr_t addr,	/* address of register/memory   */
 						   u32 data,	/* data to send                 */
-						   DRXflags_t flags);
+						   dr_xflags_t flags);
 
 /* Read 32-bits value to device */
-	typedef int(*DRXReadReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
-						  DRXaddr_t addr,	/* address of register/memory   */
+	typedef int(*drx_read_reg32func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device        */
+						  dr_xaddr_t addr,	/* address of register/memory   */
 						  u32 *data,	/* receive buffer               */
-						  DRXflags_t flags);
+						  dr_xflags_t flags);
 
 /* Read modify write 32-bits value to device */
-	typedef int(*DRXReadModifyWriteReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
-							     DRXaddr_t waddr,	/* write address of register   */
-							     DRXaddr_t raddr,	/* read  address of register   */
+	typedef int(*drx_read_modify_write_reg32func_t) (struct i2c_device_addr *dev_addr,	/* address of I2C device       */
+							     dr_xaddr_t waddr,	/* write address of register   */
+							     dr_xaddr_t raddr,	/* read  address of register   */
 							     u32 wdata,	/* data to write               */
 							     u32 *rdata);	/* data to read                */
 
 /**
-* \struct DRXAccessFunc_t
+* \struct drx_access_func_t
 * \brief Interface to an access protocol.
 */
 	typedef struct {
-		pDRXVersion_t protocolVersion;
-		DRXWriteBlockFunc_t writeBlockFunc;
-		DRXReadBlockFunc_t readBlockFunc;
-		DRXWriteReg8Func_t writeReg8Func;
-		DRXReadReg8Func_t readReg8Func;
-		DRXReadModifyWriteReg8Func_t readModifyWriteReg8Func;
-		DRXWriteReg16Func_t writeReg16Func;
-		DRXReadReg16Func_t readReg16Func;
-		DRXReadModifyWriteReg16Func_t readModifyWriteReg16Func;
-		DRXWriteReg32Func_t writeReg32Func;
-		DRXReadReg32Func_t readReg32Func;
-		DRXReadModifyWriteReg32Func_t readModifyWriteReg32Func;
-	} DRXAccessFunc_t, *pDRXAccessFunc_t;
+		pdrx_version_t protocolVersion;
+		drx_write_block_func_t write_block_func;
+		drx_read_block_func_t read_block_func;
+		drx_write_reg8func_t write_reg8func;
+		drx_read_reg8func_t read_reg8func;
+		drx_read_modify_write_reg8func_t read_modify_write_reg8func;
+		drx_write_reg16func_t write_reg16func;
+		drx_read_reg16func_t read_reg16func;
+		drx_read_modify_write_reg16func_t read_modify_write_reg16func;
+		drx_write_reg32func_t write_reg32func;
+		drx_read_reg32func_t read_reg32func;
+		drx_read_modify_write_reg32func_t read_modify_write_reg32func;
+	} drx_access_func_t, *pdrx_access_func_t;
 
 /* Register address and data for register dump function */
 	typedef struct {
 
-		DRXaddr_t address;
+		dr_xaddr_t address;
 		u32 data;
 
-	} DRXRegDump_t, *pDRXRegDump_t;
+	} drx_reg_dump_t, *p_drx_reg_dump_t;
 
 /*============================================================================*/
 /*============================================================================*/
@@ -2047,131 +2047,131 @@ STRUCTS
 /*============================================================================*/
 
 /**
-* \struct DRXCommonAttr_t
+* \struct drx_common_attr_t
 * \brief Set of common attributes, shared by all DRX devices.
 */
 	typedef struct {
 		/* Microcode (firmware) attributes */
 		u8 *microcode;   /**< Pointer to microcode image.           */
-		u16 microcodeSize;
+		u16 microcode_size;
 				   /**< Size of microcode image in bytes.     */
-		bool verifyMicrocode;
+		bool verify_microcode;
 				   /**< Use microcode verify or not.          */
-		DRXMcVersionRec_t mcversion;
+		drx_mc_version_rec_t mcversion;
 				   /**< Version record of microcode from file */
 
 		/* Clocks and tuner attributes */
-		s32 intermediateFreq;
+		s32 intermediate_freq;
 				     /**< IF,if tuner instance not used. (kHz)*/
-		s32 sysClockFreq;
+		s32 sys_clock_freq;
 				     /**< Systemclock frequency.  (kHz)       */
-		s32 oscClockFreq;
+		s32 osc_clock_freq;
 				     /**< Oscillator clock frequency.  (kHz)  */
-		s16 oscClockDeviation;
+		s16 osc_clock_deviation;
 				     /**< Oscillator clock deviation.  (ppm)  */
-		bool mirrorFreqSpect;
+		bool mirror_freq_spect;
 				     /**< Mirror IF frequency spectrum or not.*/
 
 		/* Initial MPEG output attributes */
-		DRXCfgMPEGOutput_t mpegCfg;
+		drx_cfg_mpeg_output_t mpeg_cfg;
 				     /**< MPEG configuration                  */
 
-		bool isOpened;     /**< if true instance is already opened. */
+		bool is_opened;     /**< if true instance is already opened. */
 
 		/* Channel scan */
-		pDRXScanParam_t scanParam;
+		p_drx_scan_param_t scan_param;
 				      /**< scan parameters                    */
-		u16 scanFreqPlanIndex;
+		u16 scan_freq_plan_index;
 				      /**< next index in freq plan            */
-		s32 scanNextFrequency;
+		s32 scan_next_frequency;
 				      /**< next freq to scan                  */
-		bool scanReady;     /**< scan ready flag                    */
-		u32 scanMaxChannels;/**< number of channels in freqplan     */
-		u32 scanChannelsScanned;
+		bool scan_ready;     /**< scan ready flag                    */
+		u32 scan_max_channels;/**< number of channels in freqplan     */
+		u32 scan_channelsScanned;
 					/**< number of channels scanned       */
 		/* Channel scan - inner loop: demod related */
-		DRXScanFunc_t scanFunction;
+		drx_scan_func_t scan_function;
 				      /**< function to check channel          */
 		/* Channel scan - inner loop: SYSObj related */
-		void *scanContext;    /**< Context Pointer of SYSObj          */
+		void *scan_context;    /**< Context Pointer of SYSObj          */
 		/* Channel scan - parameters for default DTV scan function in core driver  */
-		u16 scanDemodLockTimeout;
+		u16 scan_demod_lock_timeout;
 					 /**< millisecs to wait for lock      */
-		DRXLockStatus_t scanDesiredLock;
+		drx_lock_status_t scan_desired_lock;
 				      /**< lock requirement for channel found */
-		/* scanActive can be used by SetChannel to decide how to program the tuner,
+		/* scan_active can be used by SetChannel to decide how to program the tuner,
 		   fast or slow (but stable). Usually fast during scan. */
-		bool scanActive;    /**< true when scan routines are active */
+		bool scan_active;    /**< true when scan routines are active */
 
 		/* Power management */
-		DRXPowerMode_t currentPowerMode;
+		drx_power_mode_t current_power_mode;
 				      /**< current power management mode      */
 
 		/* Tuner */
-		u8 tunerPortNr;     /**< nr of I2C port to wich tuner is    */
-		s32 tunerMinFreqRF;
+		u8 tuner_port_nr;     /**< nr of I2C port to wich tuner is    */
+		s32 tuner_min_freq_rf;
 				      /**< minimum RF input frequency, in kHz */
-		s32 tunerMaxFreqRF;
+		s32 tuner_max_freq_rf;
 				      /**< maximum RF input frequency, in kHz */
-		bool tunerRfAgcPol; /**< if true invert RF AGC polarity     */
-		bool tunerIfAgcPol; /**< if true invert IF AGC polarity     */
-		bool tunerSlowMode; /**< if true invert IF AGC polarity     */
+		bool tuner_rf_agc_pol; /**< if true invert RF AGC polarity     */
+		bool tuner_if_agc_pol; /**< if true invert IF AGC polarity     */
+		bool tuner_slow_mode; /**< if true invert IF AGC polarity     */
 
-		DRXChannel_t currentChannel;
+		drx_channel_t current_channel;
 				      /**< current channel parameters         */
-		enum drx_standard currentStandard;
+		enum drx_standard current_standard;
 				      /**< current standard selection         */
-		enum drx_standard prevStandard;
+		enum drx_standard prev_standard;
 				      /**< previous standard selection        */
-		enum drx_standard diCacheStandard;
+		enum drx_standard di_cache_standard;
 				      /**< standard in DI cache if available  */
-		bool useBootloader; /**< use bootloader in open             */
+		bool use_bootloader; /**< use bootloader in open             */
 		u32 capabilities;   /**< capabilities flags                 */
-		u32 productId;      /**< product ID inc. metal fix number   */
+		u32 product_id;      /**< product ID inc. metal fix number   */
 
-	} DRXCommonAttr_t, *pDRXCommonAttr_t;
+	} drx_common_attr_t, *pdrx_common_attr_t;
 
 /*
 * Generic functions for DRX devices.
 */
-	typedef struct DRXDemodInstance_s *pDRXDemodInstance_t;
+	typedef struct drx_demod_instance_s *pdrx_demod_instance_t;
 
-	typedef int(*DRXOpenFunc_t) (pDRXDemodInstance_t demod);
-	typedef int(*DRXCloseFunc_t) (pDRXDemodInstance_t demod);
-	typedef int(*DRXCtrlFunc_t) (pDRXDemodInstance_t demod,
+	typedef int(*drx_open_func_t) (pdrx_demod_instance_t demod);
+	typedef int(*drx_close_func_t) (pdrx_demod_instance_t demod);
+	typedef int(*drx_ctrl_func_t) (pdrx_demod_instance_t demod,
 					     u32 ctrl,
-					     void *ctrlData);
+					     void *ctrl_data);
 
 /**
-* \struct DRXDemodFunc_t
+* \struct drx_demod_func_t
 * \brief A stucture containing all functions of a demodulator.
 */
 	typedef struct {
-		u32 typeId;		 /**< Device type identifier.      */
-		DRXOpenFunc_t openFunc;	 /**< Pointer to Open() function.  */
-		DRXCloseFunc_t closeFunc;/**< Pointer to Close() function. */
-		DRXCtrlFunc_t ctrlFunc;	 /**< Pointer to Ctrl() function.  */
-	} DRXDemodFunc_t, *pDRXDemodFunc_t;
+		u32 type_id;		 /**< Device type identifier.      */
+		drx_open_func_t open_func;	 /**< Pointer to Open() function.  */
+		drx_close_func_t close_func;/**< Pointer to Close() function. */
+		drx_ctrl_func_t ctrl_func;	 /**< Pointer to Ctrl() function.  */
+	} drx_demod_func_t, *pdrx_demod_func_t;
 
 /**
-* \struct DRXDemodInstance_t
+* \struct drx_demod_instance_t
 * \brief Top structure of demodulator instance.
 */
-	typedef struct DRXDemodInstance_s {
+	typedef struct drx_demod_instance_s {
 		/* type specific demodulator data */
-		pDRXDemodFunc_t myDemodFunct;
+		pdrx_demod_func_t my_demod_funct;
 				    /**< demodulator functions                */
-		pDRXAccessFunc_t myAccessFunct;
+		pdrx_access_func_t my_access_funct;
 				    /**< data access protocol functions       */
-		struct tuner_instance *myTuner;
+		struct tuner_instance *my_tuner;
 				    /**< tuner instance,if NULL then baseband */
-		struct i2c_device_addr *myI2CDevAddr;
+		struct i2c_device_addr *my_i2c_dev_addr;
 				    /**< i2c address and device identifier    */
-		pDRXCommonAttr_t myCommonAttr;
+		pdrx_common_attr_t my_common_attr;
 				    /**< common DRX attributes                */
-		void *myExtAttr;    /**< device specific attributes           */
+		void *my_ext_attr;    /**< device specific attributes           */
 		/* generic demodulator data */
-	} DRXDemodInstance_t;
+	} drx_demod_instance_t;
 
 /*-------------------------------------------------------------------------
 MACROS
@@ -2466,29 +2466,29 @@ Access macros
 *
 */
 
-#define DRX_ATTR_MCRECORD(d)        ((d)->myCommonAttr->mcversion)
-#define DRX_ATTR_MIRRORFREQSPECT(d) ((d)->myCommonAttr->mirrorFreqSpect)
-#define DRX_ATTR_CURRENTPOWERMODE(d)((d)->myCommonAttr->currentPowerMode)
-#define DRX_ATTR_ISOPENED(d)        ((d)->myCommonAttr->isOpened)
-#define DRX_ATTR_USEBOOTLOADER(d)   ((d)->myCommonAttr->useBootloader)
-#define DRX_ATTR_CURRENTSTANDARD(d) ((d)->myCommonAttr->currentStandard)
-#define DRX_ATTR_PREVSTANDARD(d)    ((d)->myCommonAttr->prevStandard)
-#define DRX_ATTR_CACHESTANDARD(d)   ((d)->myCommonAttr->diCacheStandard)
-#define DRX_ATTR_CURRENTCHANNEL(d)  ((d)->myCommonAttr->currentChannel)
-#define DRX_ATTR_MICROCODE(d)       ((d)->myCommonAttr->microcode)
-#define DRX_ATTR_MICROCODESIZE(d)   ((d)->myCommonAttr->microcodeSize)
-#define DRX_ATTR_VERIFYMICROCODE(d) ((d)->myCommonAttr->verifyMicrocode)
-#define DRX_ATTR_CAPABILITIES(d)    ((d)->myCommonAttr->capabilities)
-#define DRX_ATTR_PRODUCTID(d)       ((d)->myCommonAttr->productId)
-#define DRX_ATTR_INTERMEDIATEFREQ(d) ((d)->myCommonAttr->intermediateFreq)
-#define DRX_ATTR_SYSCLOCKFREQ(d)     ((d)->myCommonAttr->sysClockFreq)
-#define DRX_ATTR_TUNERRFAGCPOL(d)   ((d)->myCommonAttr->tunerRfAgcPol)
-#define DRX_ATTR_TUNERIFAGCPOL(d)    ((d)->myCommonAttr->tunerIfAgcPol)
-#define DRX_ATTR_TUNERSLOWMODE(d)    ((d)->myCommonAttr->tunerSlowMode)
-#define DRX_ATTR_TUNERSPORTNR(d)     ((d)->myCommonAttr->tunerPortNr)
-#define DRX_ATTR_TUNER(d)           ((d)->myTuner)
-#define DRX_ATTR_I2CADDR(d)         ((d)->myI2CDevAddr->i2cAddr)
-#define DRX_ATTR_I2CDEVID(d)        ((d)->myI2CDevAddr->i2cDevId)
+#define DRX_ATTR_MCRECORD(d)        ((d)->my_common_attr->mcversion)
+#define DRX_ATTR_MIRRORFREQSPECT(d) ((d)->my_common_attr->mirror_freq_spect)
+#define DRX_ATTR_CURRENTPOWERMODE(d)((d)->my_common_attr->current_power_mode)
+#define DRX_ATTR_ISOPENED(d)        ((d)->my_common_attr->is_opened)
+#define DRX_ATTR_USEBOOTLOADER(d)   ((d)->my_common_attr->use_bootloader)
+#define DRX_ATTR_CURRENTSTANDARD(d) ((d)->my_common_attr->current_standard)
+#define DRX_ATTR_PREVSTANDARD(d)    ((d)->my_common_attr->prev_standard)
+#define DRX_ATTR_CACHESTANDARD(d)   ((d)->my_common_attr->di_cache_standard)
+#define DRX_ATTR_CURRENTCHANNEL(d)  ((d)->my_common_attr->current_channel)
+#define DRX_ATTR_MICROCODE(d)       ((d)->my_common_attr->microcode)
+#define DRX_ATTR_MICROCODESIZE(d)   ((d)->my_common_attr->microcode_size)
+#define DRX_ATTR_VERIFYMICROCODE(d) ((d)->my_common_attr->verify_microcode)
+#define DRX_ATTR_CAPABILITIES(d)    ((d)->my_common_attr->capabilities)
+#define DRX_ATTR_PRODUCTID(d)       ((d)->my_common_attr->product_id)
+#define DRX_ATTR_INTERMEDIATEFREQ(d) ((d)->my_common_attr->intermediate_freq)
+#define DRX_ATTR_SYSCLOCKFREQ(d)     ((d)->my_common_attr->sys_clock_freq)
+#define DRX_ATTR_TUNERRFAGCPOL(d)   ((d)->my_common_attr->tuner_rf_agc_pol)
+#define DRX_ATTR_TUNERIFAGCPOL(d)    ((d)->my_common_attr->tuner_if_agc_pol)
+#define DRX_ATTR_TUNERSLOWMODE(d)    ((d)->my_common_attr->tuner_slow_mode)
+#define DRX_ATTR_TUNERSPORTNR(d)     ((d)->my_common_attr->tuner_port_nr)
+#define DRX_ATTR_TUNER(d)           ((d)->my_tuner)
+#define DRX_ATTR_I2CADDR(d)         ((d)->my_i2c_dev_addr->i2c_addr)
+#define DRX_ATTR_I2CDEVID(d)        ((d)->my_i2c_dev_addr->i2c_dev_id)
 
 /**
 * \brief Actual access macro's
@@ -2564,12 +2564,12 @@ Access macros
 
 #define DRX_SET_MCVERTYPE(d, x)                           \
    do {                                                     \
-      DRX_ATTR_MCRECORD(d).auxType = (x);                   \
+      DRX_ATTR_MCRECORD(d).aux_type = (x);                   \
    } while (0)
 
 #define DRX_GET_MCVERTYPE(d, x)                           \
    do {                                                     \
-      (x) = DRX_ATTR_MCRECORD(d).auxType;                   \
+      (x) = DRX_ATTR_MCRECORD(d).aux_type;                   \
    } while (0)
 
 /**************************/
@@ -2580,35 +2580,35 @@ Access macros
 
 #define DRX_SET_MCDEV(d, x)                               \
    do {                                                     \
-      DRX_ATTR_MCRECORD(d).mcDevType = (x);                 \
+      DRX_ATTR_MCRECORD(d).mc_dev_type = (x);                 \
    } while (0)
 
 #define DRX_GET_MCDEV(d, x)                               \
    do {                                                     \
-      (x) = DRX_ATTR_MCRECORD(d).mcDevType;                 \
+      (x) = DRX_ATTR_MCRECORD(d).mc_dev_type;                 \
    } while (0)
 
 /**************************/
 
 #define DRX_SET_MCVERSION(d, x)                           \
    do {                                                     \
-      DRX_ATTR_MCRECORD(d).mcVersion = (x);                 \
+      DRX_ATTR_MCRECORD(d).mc_version = (x);                 \
    } while (0)
 
 #define DRX_GET_MCVERSION(d, x)                           \
    do {                                                     \
-      (x) = DRX_ATTR_MCRECORD(d).mcVersion;                 \
+      (x) = DRX_ATTR_MCRECORD(d).mc_version;                 \
    } while (0)
 
 /**************************/
 #define DRX_SET_MCPATCH(d, x)                             \
    do {                                                     \
-      DRX_ATTR_MCRECORD(d).mcBaseVersion = (x);             \
+      DRX_ATTR_MCRECORD(d).mc_base_version = (x);             \
    } while (0)
 
 #define DRX_GET_MCPATCH(d, x)                             \
    do {                                                     \
-      (x) = DRX_ATTR_MCRECORD(d).mcBaseVersion;             \
+      (x) = DRX_ATTR_MCRECORD(d).mc_base_version;             \
    } while (0)
 
 /**************************/
@@ -2826,28 +2826,28 @@ Access macros
 
 /* Macros with device-specific handling are converted to CFG functions */
 
-#define DRX_ACCESSMACRO_SET(demod, value, cfgName, dataType)             \
+#define DRX_ACCESSMACRO_SET(demod, value, cfg_name, data_type)             \
    do {                                                                    \
-      DRXCfg_t config;                                                     \
-      dataType cfgData;                                                    \
-      config.cfgType = cfgName;                                            \
-      config.cfgData = &cfgData;                                           \
-      cfgData = value;                                                     \
-      DRX_Ctrl(demod, DRX_CTRL_SET_CFG, &config);                        \
+      drx_cfg_t config;                                                     \
+      data_type cfg_data;                                                    \
+      config.cfg_type = cfg_name;                                            \
+      config.cfg_data = &cfg_data;                                           \
+      cfg_data = value;                                                     \
+      drx_ctrl(demod, DRX_CTRL_SET_CFG, &config);                        \
    } while (0)
 
-#define DRX_ACCESSMACRO_GET(demod, value, cfgName, dataType, errorValue) \
+#define DRX_ACCESSMACRO_GET(demod, value, cfg_name, data_type, error_value) \
    do {                                                                    \
-      int cfgStatus;                                               \
-      DRXCfg_t    config;                                                  \
-      dataType    cfgData;                                                 \
-      config.cfgType = cfgName;                                            \
-      config.cfgData = &cfgData;                                           \
-      cfgStatus = DRX_Ctrl(demod, DRX_CTRL_GET_CFG, &config);            \
-      if (cfgStatus == DRX_STS_OK) {                                     \
-	 value = cfgData;                                                  \
+      int cfg_status;                                               \
+      drx_cfg_t    config;                                                  \
+      data_type    cfg_data;                                                 \
+      config.cfg_type = cfg_name;                                            \
+      config.cfg_data = &cfg_data;                                           \
+      cfg_status = drx_ctrl(demod, DRX_CTRL_GET_CFG, &config);            \
+      if (cfg_status == DRX_STS_OK) {                                     \
+	 value = cfg_data;                                                  \
       } else {                                                             \
-	 value = (dataType)errorValue;                                     \
+	 value = (data_type)error_value;                                     \
       }                                                                    \
    } while (0)
 
@@ -2869,14 +2869,14 @@ Access macros
    DRX_ACCESSMACRO_GET((d), (x), DRX_XS_CFG_PRESET, char*, "ERROR")
 
 #define DRX_SET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_SET( (d), (x), \
-	 DRX_XS_CFG_AUD_BTSC_DETECT, DRXAudBtscDetect_t)
+	 DRX_XS_CFG_AUD_BTSC_DETECT, drx_aud_btsc_detect_t)
 #define DRX_GET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_GET( (d), (x), \
-	 DRX_XS_CFG_AUD_BTSC_DETECT, DRXAudBtscDetect_t, DRX_UNKNOWN)
+	 DRX_XS_CFG_AUD_BTSC_DETECT, drx_aud_btsc_detect_t, DRX_UNKNOWN)
 
 #define DRX_SET_QAM_LOCKRANGE(d, x) DRX_ACCESSMACRO_SET( (d), (x), \
-	 DRX_XS_CFG_QAM_LOCKRANGE, DRXQamLockRange_t)
+	 DRX_XS_CFG_QAM_LOCKRANGE, drx_qam_lock_range_t)
 #define DRX_GET_QAM_LOCKRANGE(d, x) DRX_ACCESSMACRO_GET( (d), (x), \
-	 DRX_XS_CFG_QAM_LOCKRANGE, DRXQamLockRange_t, DRX_UNKNOWN)
+	 DRX_XS_CFG_QAM_LOCKRANGE, drx_qam_lock_range_t, DRX_UNKNOWN)
 
 /**
 * \brief Macro to check if std is an ATV standard
@@ -2919,16 +2919,16 @@ Access macros
 Exported FUNCTIONS
 -------------------------------------------------------------------------*/
 
-	int DRX_Init(pDRXDemodInstance_t demods[]);
+	int drx_init(pdrx_demod_instance_t demods[]);
 
-	int DRX_Term(void);
+	int drx_term(void);
 
-	int DRX_Open(pDRXDemodInstance_t demod);
+	int drx_open(pdrx_demod_instance_t demod);
 
-	int DRX_Close(pDRXDemodInstance_t demod);
+	int drx_close(pdrx_demod_instance_t demod);
 
-	int DRX_Ctrl(pDRXDemodInstance_t demod,
-			     u32 ctrl, void *ctrlData);
+	int drx_ctrl(pdrx_demod_instance_t demod,
+			     u32 ctrl, void *ctrl_data);
 
 /*-------------------------------------------------------------------------
 THE END

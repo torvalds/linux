@@ -53,8 +53,8 @@ extern "C" {
 
 #ifdef _REGISTERTABLE_
 #include <registertable.h>
-	extern RegisterTable_t drxj_map[];
-	extern RegisterTableInfo_t drxj_map_info[];
+	extern register_table_t drxj_map[];
+	extern register_table_info_t drxj_map_info[];
 #endif
 
 #define ATV_COMM_EXEC__A                                                    0xC00000

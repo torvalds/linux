@@ -48,13 +48,13 @@
 #include "bsp_types.h"
 
 /*
- * This structure contains the I2C address, the device ID and a userData pointer.
- * The userData pointer can be used for application specific purposes.
+ * This structure contains the I2C address, the device ID and a user_data pointer.
+ * The user_data pointer can be used for application specific purposes.
  */
 struct i2c_device_addr {
-	u16 i2cAddr;		/* The I2C address of the device. */
-	u16 i2cDevId;		/* The device identifier. */
-	void *userData;		/* User data pointer */
+	u16 i2c_addr;		/* The I2C address of the device. */
+	u16 i2c_dev_id;		/* The device identifier. */
+	void *user_data;		/* User data pointer */
 };
 
 
@@ -74,44 +74,44 @@ Exported FUNCTIONS
 ------------------------------------------------------------------------------*/
 
 /**
-* \fn DRXBSP_I2C_Init()
+* \fn drxbsp_i2c_init()
 * \brief Initialize I2C communication module.
-* \return DRXStatus_t Return status.
+* \return drx_status_t Return status.
 * \retval DRX_STS_OK Initialization successful.
 * \retval DRX_STS_ERROR Initialization failed.
 */
-	DRXStatus_t DRXBSP_I2C_Init(void);
+	drx_status_t drxbsp_i2c_init(void);
 
 /**
-* \fn DRXBSP_I2C_Term()
+* \fn drxbsp_i2c_term()
 * \brief Terminate I2C communication module.
-* \return DRXStatus_t Return status.
+* \return drx_status_t Return status.
 * \retval DRX_STS_OK Termination successful.
 * \retval DRX_STS_ERROR Termination failed.
 */
-	DRXStatus_t DRXBSP_I2C_Term(void);
+	drx_status_t drxbsp_i2c_term(void);
 
 /**
-* \fn DRXStatus_t DRXBSP_I2C_WriteRead( struct i2c_device_addr *wDevAddr,
-*                                       u16 wCount,
+* \fn drx_status_t drxbsp_i2c_write_read( struct i2c_device_addr *w_dev_addr,
+*                                       u16 w_count,
 *                                       u8 *wData,
-*                                       struct i2c_device_addr *rDevAddr,
-*                                       u16 rCount,
-*                                       u8 *rData)
+*                                       struct i2c_device_addr *r_dev_addr,
+*                                       u16 r_count,
+*                                       u8 *r_data)
 * \brief Read and/or write count bytes from I2C bus, store them in data[].
-* \param wDevAddr The device i2c address and the device ID to write to
-* \param wCount   The number of bytes to write
+* \param w_dev_addr The device i2c address and the device ID to write to
+* \param w_count   The number of bytes to write
 * \param wData    The array to write the data to
-* \param rDevAddr The device i2c address and the device ID to read from
-* \param rCount   The number of bytes to read
-* \param rData    The array to read the data from
-* \return DRXStatus_t Return status.
+* \param r_dev_addr The device i2c address and the device ID to read from
+* \param r_count   The number of bytes to read
+* \param r_data    The array to read the data from
+* \return drx_status_t Return status.
 * \retval DRX_STS_OK Succes.
 * \retval DRX_STS_ERROR Failure.
 * \retval DRX_STS_INVALID_ARG Parameter 'wcount' is not zero but parameter
 *                                       'wdata' contains NULL.
 *                                       Idem for 'rcount' and 'rdata'.
-*                                       Both wDevAddr and rDevAddr are NULL.
+*                                       Both w_dev_addr and r_dev_addr are NULL.
 *
 * This function must implement an atomic write and/or read action on the I2C bus
 * No other process may use the I2C bus when this function is executing.
@@ -121,25 +121,25 @@ Exported FUNCTIONS
 * The device ID can be useful if several devices share an I2C address.
 * It can be used to control a "switch" on the I2C bus to the correct device.
 */
-	DRXStatus_t DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
-					 u16 wCount,
+	drx_status_t drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
+					 u16 w_count,
 					 u8 *wData,
-					 struct i2c_device_addr *rDevAddr,
-					 u16 rCount, u8 *rData);
+					 struct i2c_device_addr *r_dev_addr,
+					 u16 r_count, u8 *r_data);
 
 /**
-* \fn DRXBSP_I2C_ErrorText()
+* \fn drxbsp_i2c_error_text()
 * \brief Returns a human readable error.
-* Counter part of numerical DRX_I2C_Error_g.
+* Counter part of numerical drx_i2c_error_g.
 *
 * \return char* Pointer to human readable error text.
 */
-	char *DRXBSP_I2C_ErrorText(void);
+	char *drxbsp_i2c_error_text(void);
 
 /**
-* \var DRX_I2C_Error_g;
+* \var drx_i2c_error_g;
 * \brief I2C specific error codes, platform dependent.
 */
-	extern int DRX_I2C_Error_g;
+	extern int drx_i2c_error_g;
 
 #endif				/* __BSPI2C_H__ */

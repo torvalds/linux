@@ -130,7 +130,7 @@ typedef struct {
 			- bit[15..2]=reserved */
 	u16 CRC;/**<  CRC value of the data block, only valid if CRC flag is
 			set. */
-} DRXUCodeBlockHdr_t, *pDRXUCodeBlockHdr_t;
+} drxu_code_block_hdr_t, *pdrxu_code_block_hdr_t;
 
 /*------------------------------------------------------------------------------
 FUNCTIONS
@@ -146,57 +146,57 @@ FUNCTIONS
 
 /* Prototype of default scanning function */
 static int
-ScanFunctionDefault(void *scanContext,
-		    DRXScanCommand_t scanCommand,
-		    pDRXChannel_t scanChannel, bool *getNextChannel);
+scan_function_default(void *scan_context,
+		    drx_scan_command_t scan_command,
+		    pdrx_channel_t scan_channel, bool *get_next_channel);
 
 /**
 * \brief Get pointer to scanning function.
 * \param demod:    Pointer to demodulator instance.
-* \return DRXScanFunc_t.
+* \return drx_scan_func_t.
 */
-static DRXScanFunc_t GetScanFunction(pDRXDemodInstance_t demod)
+static drx_scan_func_t get_scan_function(pdrx_demod_instance_t demod)
 {
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	DRXScanFunc_t scanFunc = (DRXScanFunc_t) (NULL);
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	drx_scan_func_t scan_func = (drx_scan_func_t) (NULL);
 
 	/* get scan function from common attributes */
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	scanFunc = commonAttr->scanFunction;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	scan_func = common_attr->scan_function;
 
-	if (scanFunc != NULL) {
+	if (scan_func != NULL) {
 		/* return device-specific scan function if it's not NULL */
-		return scanFunc;
+		return scan_func;
 	}
 	/* otherwise return default scan function in core driver */
-	return &ScanFunctionDefault;
+	return &scan_function_default;
 }
 
 /**
 * \brief Get Context pointer.
 * \param demod:    Pointer to demodulator instance.
-* \param scanContext: Context Pointer.
-* \return DRXScanFunc_t.
+* \param scan_context: Context Pointer.
+* \return drx_scan_func_t.
 */
-void *GetScanContext(pDRXDemodInstance_t demod, void *scanContext)
+void *get_scan_context(pdrx_demod_instance_t demod, void *scan_context)
 {
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
 
 	/* get scan function from common attributes */
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	scanContext = commonAttr->scanContext;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	scan_context = common_attr->scan_context;
 
-	if (scanContext == NULL) {
-		scanContext = (void *)demod;
+	if (scan_context == NULL) {
+		scan_context = (void *)demod;
 	}
 
-	return scanContext;
+	return scan_context;
 }
 
 /**
 * \brief Wait for lock while scanning.
 * \param demod:    Pointer to demodulator instance.
-* \param lockStat: Pointer to bool indicating if end result is lock or not.
+* \param lock_stat: Pointer to bool indicating if end result is lock or not.
 * \return int.
 * \retval DRX_STS_OK:    Success
 * \retval DRX_STS_ERROR: I2C failure or bsp function failure.
@@ -211,46 +211,46 @@ void *GetScanContext(pDRXDemodInstance_t demod, void *scanContext)
 * In case DRX_NEVER_LOCK is returned the poll-wait will be aborted.
 *
 */
-static int ScanWaitForLock(pDRXDemodInstance_t demod, bool *isLocked)
+static int scan_wait_for_lock(pdrx_demod_instance_t demod, bool *is_locked)
 {
-	bool doneWaiting = false;
-	DRXLockStatus_t lockState = DRX_NOT_LOCKED;
-	DRXLockStatus_t desiredLockState = DRX_NOT_LOCKED;
-	u32 timeoutValue = 0;
-	u32 startTimeLockStage = 0;
-	u32 currentTime = 0;
-	u32 timerValue = 0;
+	bool done_waiting = false;
+	drx_lock_status_t lock_state = DRX_NOT_LOCKED;
+	drx_lock_status_t desired_lock_state = DRX_NOT_LOCKED;
+	u32 timeout_value = 0;
+	u32 start_time_lock_stage = 0;
+	u32 current_time = 0;
+	u32 timer_value = 0;
 
-	*isLocked = false;
-	timeoutValue = (u32) demod->myCommonAttr->scanDemodLockTimeout;
-	desiredLockState = demod->myCommonAttr->scanDesiredLock;
-	startTimeLockStage = DRXBSP_HST_Clock();
+	*is_locked = false;
+	timeout_value = (u32) demod->my_common_attr->scan_demod_lock_timeout;
+	desired_lock_state = demod->my_common_attr->scan_desired_lock;
+	start_time_lock_stage = drxbsp_hst_clock();
 
 	/* Start polling loop, checking for lock & timeout */
-	while (doneWaiting == false) {
+	while (done_waiting == false) {
 
-		if (DRX_Ctrl(demod, DRX_CTRL_LOCK_STATUS, &lockState) !=
+		if (drx_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_state) !=
 		    DRX_STS_OK) {
 			return DRX_STS_ERROR;
 		}
-		currentTime = DRXBSP_HST_Clock();
+		current_time = drxbsp_hst_clock();
 
-		timerValue = currentTime - startTimeLockStage;
-		if (lockState >= desiredLockState) {
-			*isLocked = true;
-			doneWaiting = true;
-		} /* if ( lockState >= desiredLockState ) .. */
-		else if (lockState == DRX_NEVER_LOCK) {
-			doneWaiting = true;
-		} /* if ( lockState == DRX_NEVER_LOCK ) .. */
-		else if (timerValue > timeoutValue) {
-			/* lockState == DRX_NOT_LOCKED  and timeout */
-			doneWaiting = true;
+		timer_value = current_time - start_time_lock_stage;
+		if (lock_state >= desired_lock_state) {
+			*is_locked = true;
+			done_waiting = true;
+		} /* if ( lock_state >= desired_lock_state ) .. */
+		else if (lock_state == DRX_NEVER_LOCK) {
+			done_waiting = true;
+		} /* if ( lock_state == DRX_NEVER_LOCK ) .. */
+		else if (timer_value > timeout_value) {
+			/* lock_state == DRX_NOT_LOCKED  and timeout */
+			done_waiting = true;
 		} else {
-			if (DRXBSP_HST_Sleep(10) != DRX_STS_OK) {
+			if (drxbsp_hst_sleep(10) != DRX_STS_OK) {
 				return DRX_STS_ERROR;
 			}
-		}		/* if ( timerValue > timeoutValue ) .. */
+		}		/* if ( timer_value > timeout_value ) .. */
 
 	}			/* while */
 
@@ -267,70 +267,70 @@ static int ScanWaitForLock(pDRXDemodInstance_t demod, bool *isLocked)
 * \retval DRX_STS_OK:          Succes.
 * \retval DRX_STS_INVALID_ARG: Invalid frequency plan.
 *
-* Helper function for CtrlScanNext() function.
+* Helper function for ctrl_scan_next() function.
 * Compute next frequency & index in frequency plan.
 * Check if scan is ready.
 *
 */
 static int
-ScanPrepareNextScan(pDRXDemodInstance_t demod, s32 skip)
+scan_prepare_next_scan(pdrx_demod_instance_t demod, s32 skip)
 {
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	u16 tableIndex = 0;
-	u16 frequencyPlanSize = 0;
-	pDRXFrequencyPlan_t frequencyPlan = (pDRXFrequencyPlan_t) (NULL);
-	s32 nextFrequency = 0;
-	s32 tunerMinFrequency = 0;
-	s32 tunerMaxFrequency = 0;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	u16 table_index = 0;
+	u16 frequency_plan_size = 0;
+	p_drx_frequency_plan_t frequency_plan = (p_drx_frequency_plan_t) (NULL);
+	s32 next_frequency = 0;
+	s32 tuner_min_frequency = 0;
+	s32 tuner_max_frequency = 0;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	tableIndex = commonAttr->scanFreqPlanIndex;
-	frequencyPlan = commonAttr->scanParam->frequencyPlan;
-	nextFrequency = commonAttr->scanNextFrequency;
-	tunerMinFrequency = commonAttr->tunerMinFreqRF;
-	tunerMaxFrequency = commonAttr->tunerMaxFreqRF;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	table_index = common_attr->scan_freq_plan_index;
+	frequency_plan = common_attr->scan_param->frequency_plan;
+	next_frequency = common_attr->scan_next_frequency;
+	tuner_min_frequency = common_attr->tuner_min_freq_rf;
+	tuner_max_frequency = common_attr->tuner_max_freq_rf;
 
 	do {
 		/* Search next frequency to scan */
 
 		/* always take at least one step */
-		(commonAttr->scanChannelsScanned)++;
-		nextFrequency += frequencyPlan[tableIndex].step;
-		skip -= frequencyPlan[tableIndex].step;
+		(common_attr->scan_channelsScanned)++;
+		next_frequency += frequency_plan[table_index].step;
+		skip -= frequency_plan[table_index].step;
 
 		/* and then as many steps necessary to exceed 'skip'
 		   without exceeding end of the band */
 		while ((skip > 0) &&
-		       (nextFrequency <= frequencyPlan[tableIndex].last)) {
-			(commonAttr->scanChannelsScanned)++;
-			nextFrequency += frequencyPlan[tableIndex].step;
-			skip -= frequencyPlan[tableIndex].step;
+		       (next_frequency <= frequency_plan[table_index].last)) {
+			(common_attr->scan_channelsScanned)++;
+			next_frequency += frequency_plan[table_index].step;
+			skip -= frequency_plan[table_index].step;
 		}
 		/* reset skip, in case we move to the next band later */
 		skip = 0;
 
-		if (nextFrequency > frequencyPlan[tableIndex].last) {
+		if (next_frequency > frequency_plan[table_index].last) {
 			/* reached end of this band */
-			tableIndex++;
-			frequencyPlanSize =
-			    commonAttr->scanParam->frequencyPlanSize;
-			if (tableIndex >= frequencyPlanSize) {
+			table_index++;
+			frequency_plan_size =
+			    common_attr->scan_param->frequency_plan_size;
+			if (table_index >= frequency_plan_size) {
 				/* reached end of frequency plan */
-				commonAttr->scanReady = true;
+				common_attr->scan_ready = true;
 			} else {
-				nextFrequency = frequencyPlan[tableIndex].first;
+				next_frequency = frequency_plan[table_index].first;
 			}
 		}
-		if (nextFrequency > (tunerMaxFrequency)) {
+		if (next_frequency > (tuner_max_frequency)) {
 			/* reached end of tuner range */
-			commonAttr->scanReady = true;
+			common_attr->scan_ready = true;
 		}
-	} while ((nextFrequency < tunerMinFrequency) &&
-		 (commonAttr->scanReady == false));
+	} while ((next_frequency < tuner_min_frequency) &&
+		 (common_attr->scan_ready == false));
 
 	/* Store new values */
-	commonAttr->scanFreqPlanIndex = tableIndex;
-	commonAttr->scanNextFrequency = nextFrequency;
+	common_attr->scan_freq_plan_index = table_index;
+	common_attr->scan_next_frequency = next_frequency;
 
 	return DRX_STS_OK;
 }
@@ -341,9 +341,9 @@ ScanPrepareNextScan(pDRXDemodInstance_t demod, s32 skip)
 * \brief Default DTV scanning function.
 *
 * \param demod:          Pointer to demodulator instance.
-* \param scanCommand:    Scanning command: INIT, NEXT or STOP.
-* \param scanChannel:    Channel to check: frequency and bandwidth, others AUTO
-* \param getNextChannel: Return true if next frequency is desired at next call
+* \param scan_command:    Scanning command: INIT, NEXT or STOP.
+* \param scan_channel:    Channel to check: frequency and bandwidth, others AUTO
+* \param get_next_channel: Return true if next frequency is desired at next call
 *
 * \return int.
 * \retval DRX_STS_OK:      Channel found, DRX_CTRL_GET_CHANNEL can be used
@@ -351,40 +351,40 @@ ScanPrepareNextScan(pDRXDemodInstance_t demod, s32 skip)
 * \retval DRX_STS_BUSY:    Channel not found (yet).
 * \retval DRX_STS_ERROR:   Something went wrong.
 *
-* scanChannel and getNextChannel will be NULL for INIT and STOP.
+* scan_channel and get_next_channel will be NULL for INIT and STOP.
 */
 static int
-ScanFunctionDefault(void *scanContext,
-		    DRXScanCommand_t scanCommand,
-		    pDRXChannel_t scanChannel, bool *getNextChannel)
+scan_function_default(void *scan_context,
+		    drx_scan_command_t scan_command,
+		    pdrx_channel_t scan_channel, bool *get_next_channel)
 {
-	pDRXDemodInstance_t demod = NULL;
+	pdrx_demod_instance_t demod = NULL;
 	int status = DRX_STS_ERROR;
-	bool isLocked = false;
+	bool is_locked = false;
 
-	demod = (pDRXDemodInstance_t) scanContext;
+	demod = (pdrx_demod_instance_t) scan_context;
 
-	if (scanCommand != DRX_SCAN_COMMAND_NEXT) {
+	if (scan_command != DRX_SCAN_COMMAND_NEXT) {
 		/* just return OK if not doing "scan next" */
 		return DRX_STS_OK;
 	}
 
-	*getNextChannel = false;
+	*get_next_channel = false;
 
-	status = DRX_Ctrl(demod, DRX_CTRL_SET_CHANNEL, scanChannel);
+	status = drx_ctrl(demod, DRX_CTRL_SET_CHANNEL, scan_channel);
 	if (status != DRX_STS_OK) {
 		return (status);
 	}
 
-	status = ScanWaitForLock(demod, &isLocked);
+	status = scan_wait_for_lock(demod, &is_locked);
 	if (status != DRX_STS_OK) {
 		return status;
 	}
 
 	/* done with this channel, move to next one */
-	*getNextChannel = true;
+	*get_next_channel = true;
 
-	if (isLocked == false) {
+	if (is_locked == false) {
 		/* no channel found */
 		return DRX_STS_BUSY;
 	}
@@ -397,7 +397,7 @@ ScanFunctionDefault(void *scanContext,
 /**
 * \brief Initialize for channel scan.
 * \param demod:     Pointer to demodulator instance.
-* \param scanParam: Pointer to scan parameters.
+* \param scan_param: Pointer to scan parameters.
 * \return int.
 * \retval DRX_STS_OK:          Initialized for scan.
 * \retval DRX_STS_ERROR:       No overlap between frequency plan and tuner
@@ -412,131 +412,131 @@ ScanFunctionDefault(void *scanContext,
 *
 */
 static int
-CtrlScanInit(pDRXDemodInstance_t demod, pDRXScanParam_t scanParam)
+ctrl_scan_init(pdrx_demod_instance_t demod, p_drx_scan_param_t scan_param)
 {
 	int status = DRX_STS_ERROR;
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	s32 maxTunerFreq = 0;
-	s32 minTunerFreq = 0;
-	u16 nrChannelsInPlan = 0;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	s32 max_tuner_freq = 0;
+	s32 min_tuner_freq = 0;
+	u16 nr_channels_in_plan = 0;
 	u16 i = 0;
-	void *scanContext = NULL;
+	void *scan_context = NULL;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	commonAttr->scanActive = true;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr->scan_active = true;
 
 	/* invalidate a previous SCAN_INIT */
-	commonAttr->scanParam = (pDRXScanParam_t) (NULL);
-	commonAttr->scanNextFrequency = 0;
+	common_attr->scan_param = (p_drx_scan_param_t) (NULL);
+	common_attr->scan_next_frequency = 0;
 
 	/* Check parameters */
-	if (((demod->myTuner == NULL) &&
-	     (scanParam->numTries != 1)) ||
-	    (scanParam == NULL) ||
-	    (scanParam->numTries == 0) ||
-	    (scanParam->frequencyPlan == NULL) ||
-	    (scanParam->frequencyPlanSize == 0)
+	if (((demod->my_tuner == NULL) &&
+	     (scan_param->num_tries != 1)) ||
+	    (scan_param == NULL) ||
+	    (scan_param->num_tries == 0) ||
+	    (scan_param->frequency_plan == NULL) ||
+	    (scan_param->frequency_plan_size == 0)
 	    ) {
-		commonAttr->scanActive = false;
+		common_attr->scan_active = false;
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* Check frequency plan contents */
-	maxTunerFreq = commonAttr->tunerMaxFreqRF;
-	minTunerFreq = commonAttr->tunerMinFreqRF;
-	for (i = 0; i < (scanParam->frequencyPlanSize); i++) {
+	max_tuner_freq = common_attr->tuner_max_freq_rf;
+	min_tuner_freq = common_attr->tuner_min_freq_rf;
+	for (i = 0; i < (scan_param->frequency_plan_size); i++) {
 		s32 width = 0;
-		s32 step = scanParam->frequencyPlan[i].step;
-		s32 firstFreq = scanParam->frequencyPlan[i].first;
-		s32 lastFreq = scanParam->frequencyPlan[i].last;
-		s32 minFreq = 0;
-		s32 maxFreq = 0;
+		s32 step = scan_param->frequency_plan[i].step;
+		s32 first_freq = scan_param->frequency_plan[i].first;
+		s32 last_freq = scan_param->frequency_plan[i].last;
+		s32 min_freq = 0;
+		s32 max_freq = 0;
 
 		if (step <= 0) {
 			/* Step must be positive and non-zero */
-			commonAttr->scanActive = false;
+			common_attr->scan_active = false;
 			return DRX_STS_INVALID_ARG;
 		}
 
-		if (firstFreq > lastFreq) {
+		if (first_freq > last_freq) {
 			/* First center frequency is higher than last center frequency */
-			commonAttr->scanActive = false;
+			common_attr->scan_active = false;
 			return DRX_STS_INVALID_ARG;
 		}
 
-		width = lastFreq - firstFreq;
+		width = last_freq - first_freq;
 
 		if ((width % step) != 0) {
 			/* Difference between last and first center frequency is not
 			   an integer number of steps */
-			commonAttr->scanActive = false;
+			common_attr->scan_active = false;
 			return DRX_STS_INVALID_ARG;
 		}
 
 		/* Check if frequency plan entry intersects with tuner range */
-		if (lastFreq >= minTunerFreq) {
-			if (firstFreq <= maxTunerFreq) {
-				if (firstFreq >= minTunerFreq) {
-					minFreq = firstFreq;
+		if (last_freq >= min_tuner_freq) {
+			if (first_freq <= max_tuner_freq) {
+				if (first_freq >= min_tuner_freq) {
+					min_freq = first_freq;
 				} else {
 					s32 n = 0;
 
-					n = (minTunerFreq - firstFreq) / step;
-					if (((minTunerFreq -
-					      firstFreq) % step) != 0) {
+					n = (min_tuner_freq - first_freq) / step;
+					if (((min_tuner_freq -
+					      first_freq) % step) != 0) {
 						n++;
 					}
-					minFreq = firstFreq + n * step;
+					min_freq = first_freq + n * step;
 				}
 
-				if (lastFreq <= maxTunerFreq) {
-					maxFreq = lastFreq;
+				if (last_freq <= max_tuner_freq) {
+					max_freq = last_freq;
 				} else {
 					s32 n = 0;
 
-					n = (lastFreq - maxTunerFreq) / step;
-					if (((lastFreq -
-					      maxTunerFreq) % step) != 0) {
+					n = (last_freq - max_tuner_freq) / step;
+					if (((last_freq -
+					      max_tuner_freq) % step) != 0) {
 						n++;
 					}
-					maxFreq = lastFreq - n * step;
+					max_freq = last_freq - n * step;
 				}
 			}
 		}
 
 		/* Keep track of total number of channels within tuner range
 		   in this frequency plan. */
-		if ((minFreq != 0) && (maxFreq != 0)) {
-			nrChannelsInPlan +=
-			    (u16) (((maxFreq - minFreq) / step) + 1);
+		if ((min_freq != 0) && (max_freq != 0)) {
+			nr_channels_in_plan +=
+			    (u16) (((max_freq - min_freq) / step) + 1);
 
 			/* Determine first frequency (within tuner range) to scan */
-			if (commonAttr->scanNextFrequency == 0) {
-				commonAttr->scanNextFrequency = minFreq;
-				commonAttr->scanFreqPlanIndex = i;
+			if (common_attr->scan_next_frequency == 0) {
+				common_attr->scan_next_frequency = min_freq;
+				common_attr->scan_freq_plan_index = i;
 			}
 		}
 
 	}			/* for ( ... ) */
 
-	if (nrChannelsInPlan == 0) {
+	if (nr_channels_in_plan == 0) {
 		/* Tuner range and frequency plan ranges do not overlap */
-		commonAttr->scanActive = false;
+		common_attr->scan_active = false;
 		return DRX_STS_ERROR;
 	}
 
 	/* Store parameters */
-	commonAttr->scanReady = false;
-	commonAttr->scanMaxChannels = nrChannelsInPlan;
-	commonAttr->scanChannelsScanned = 0;
-	commonAttr->scanParam = scanParam;	/* SCAN_NEXT is now allowed */
+	common_attr->scan_ready = false;
+	common_attr->scan_max_channels = nr_channels_in_plan;
+	common_attr->scan_channelsScanned = 0;
+	common_attr->scan_param = scan_param;	/* SCAN_NEXT is now allowed */
 
-	scanContext = GetScanContext(demod, scanContext);
+	scan_context = get_scan_context(demod, scan_context);
 
-	status = (*(GetScanFunction(demod)))
-	    (scanContext, DRX_SCAN_COMMAND_INIT, NULL, NULL);
+	status = (*(get_scan_function(demod)))
+	    (scan_context, DRX_SCAN_COMMAND_INIT, NULL, NULL);
 
-	commonAttr->scanActive = false;
+	common_attr->scan_active = false;
 
 	return DRX_STS_OK;
 }
@@ -551,32 +551,32 @@ CtrlScanInit(pDRXDemodInstance_t demod, pDRXScanParam_t scanParam)
 * \retval DRX_STS_ERROR:       Something went wrong.
 * \retval DRX_STS_INVALID_ARG: Wrong parameters.
 */
-static int CtrlScanStop(pDRXDemodInstance_t demod)
+static int ctrl_scan_stop(pdrx_demod_instance_t demod)
 {
 	int status = DRX_STS_ERROR;
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	void *scanContext = NULL;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	void *scan_context = NULL;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
-	commonAttr->scanActive = true;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
+	common_attr->scan_active = true;
 
-	if ((commonAttr->scanParam == NULL) ||
-	    (commonAttr->scanMaxChannels == 0)) {
+	if ((common_attr->scan_param == NULL) ||
+	    (common_attr->scan_max_channels == 0)) {
 		/* Scan was not running, just return OK */
-		commonAttr->scanActive = false;
+		common_attr->scan_active = false;
 		return DRX_STS_OK;
 	}
 
 	/* Call default or device-specific scanning stop function */
-	scanContext = GetScanContext(demod, scanContext);
+	scan_context = get_scan_context(demod, scan_context);
 
-	status = (*(GetScanFunction(demod)))
-	    (scanContext, DRX_SCAN_COMMAND_STOP, NULL, NULL);
+	status = (*(get_scan_function(demod)))
+	    (scan_context, DRX_SCAN_COMMAND_STOP, NULL, NULL);
 
 	/* All done, invalidate scan-init */
-	commonAttr->scanParam = NULL;
-	commonAttr->scanMaxChannels = 0;
-	commonAttr->scanActive = false;
+	common_attr->scan_param = NULL;
+	common_attr->scan_max_channels = 0;
+	common_attr->scan_active = false;
 
 	return status;
 }
@@ -586,126 +586,126 @@ static int CtrlScanStop(pDRXDemodInstance_t demod)
 /**
 * \brief Scan for next channel.
 * \param demod:         Pointer to demodulator instance.
-* \param scanProgress:  Pointer to scan progress.
+* \param scan_progress:  Pointer to scan progress.
 * \return int.
 * \retval DRX_STS_OK:          Channel found, DRX_CTRL_GET_CHANNEL can be used
 *                              to retrieve channel parameters.
 * \retval DRX_STS_BUSY:        Tried part of the channels, as specified in
-*                              numTries field of scan parameters. At least one
+*                              num_tries field of scan parameters. At least one
 *                              more call to DRX_CTRL_SCAN_NEXT is needed to
 *                              complete scanning.
 * \retval DRX_STS_READY:       Reached end of scan range.
 * \retval DRX_STS_ERROR:       Something went wrong.
-* \retval DRX_STS_INVALID_ARG: Wrong parameters. The scanProgress may be NULL.
+* \retval DRX_STS_INVALID_ARG: Wrong parameters. The scan_progress may be NULL.
 *
 * Progress indication will run from 0 upto DRX_SCAN_MAX_PROGRESS during scan.
 *
 */
-static int CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
+static int ctrl_scan_next(pdrx_demod_instance_t demod, u16 *scan_progress)
 {
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	bool *scanReady = (bool *) (NULL);
-	u16 maxProgress = DRX_SCAN_MAX_PROGRESS;
-	u32 numTries = 0;
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
+	bool *scan_ready = (bool *) (NULL);
+	u16 max_progress = DRX_SCAN_MAX_PROGRESS;
+	u32 num_tries = 0;
 	u32 i = 0;
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
 	/* Check scan parameters */
-	if (scanProgress == NULL) {
-		commonAttr->scanActive = false;
+	if (scan_progress == NULL) {
+		common_attr->scan_active = false;
 		return DRX_STS_INVALID_ARG;
 	}
 
-	*scanProgress = 0;
-	commonAttr->scanActive = true;
-	if ((commonAttr->scanParam == NULL) ||
-	    (commonAttr->scanMaxChannels == 0)) {
-		/* CtrlScanInit() was not called succesfully before CtrlScanNext() */
-		commonAttr->scanActive = false;
+	*scan_progress = 0;
+	common_attr->scan_active = true;
+	if ((common_attr->scan_param == NULL) ||
+	    (common_attr->scan_max_channels == 0)) {
+		/* ctrl_scan_init() was not called succesfully before ctrl_scan_next() */
+		common_attr->scan_active = false;
 		return DRX_STS_ERROR;
 	}
 
-	*scanProgress = (u16) (((commonAttr->scanChannelsScanned) *
-				  ((u32) (maxProgress))) /
-				 (commonAttr->scanMaxChannels));
+	*scan_progress = (u16) (((common_attr->scan_channelsScanned) *
+				  ((u32) (max_progress))) /
+				 (common_attr->scan_max_channels));
 
 	/* Scan */
-	numTries = commonAttr->scanParam->numTries;
-	scanReady = &(commonAttr->scanReady);
+	num_tries = common_attr->scan_param->num_tries;
+	scan_ready = &(common_attr->scan_ready);
 
-	for (i = 0; ((i < numTries) && ((*scanReady) == false)); i++) {
-		DRXChannel_t scanChannel = { 0 };
+	for (i = 0; ((i < num_tries) && ((*scan_ready) == false)); i++) {
+		drx_channel_t scan_channel = { 0 };
 		int status = DRX_STS_ERROR;
-		pDRXFrequencyPlan_t freqPlan = (pDRXFrequencyPlan_t) (NULL);
-		bool nextChannel = false;
-		void *scanContext = NULL;
+		p_drx_frequency_plan_t freq_plan = (p_drx_frequency_plan_t) (NULL);
+		bool next_channel = false;
+		void *scan_context = NULL;
 
 		/* Next channel to scan */
-		freqPlan =
-		    &(commonAttr->scanParam->
-		      frequencyPlan[commonAttr->scanFreqPlanIndex]);
-		scanChannel.frequency = commonAttr->scanNextFrequency;
-		scanChannel.bandwidth = freqPlan->bandwidth;
-		scanChannel.mirror = DRX_MIRROR_AUTO;
-		scanChannel.constellation = DRX_CONSTELLATION_AUTO;
-		scanChannel.hierarchy = DRX_HIERARCHY_AUTO;
-		scanChannel.priority = DRX_PRIORITY_HIGH;
-		scanChannel.coderate = DRX_CODERATE_AUTO;
-		scanChannel.guard = DRX_GUARD_AUTO;
-		scanChannel.fftmode = DRX_FFTMODE_AUTO;
-		scanChannel.classification = DRX_CLASSIFICATION_AUTO;
-		scanChannel.symbolrate = 0;
-		scanChannel.interleavemode = DRX_INTERLEAVEMODE_AUTO;
-		scanChannel.ldpc = DRX_LDPC_AUTO;
-		scanChannel.carrier = DRX_CARRIER_AUTO;
-		scanChannel.framemode = DRX_FRAMEMODE_AUTO;
-		scanChannel.pilot = DRX_PILOT_AUTO;
+		freq_plan =
+		    &(common_attr->scan_param->
+		      frequency_plan[common_attr->scan_freq_plan_index]);
+		scan_channel.frequency = common_attr->scan_next_frequency;
+		scan_channel.bandwidth = freq_plan->bandwidth;
+		scan_channel.mirror = DRX_MIRROR_AUTO;
+		scan_channel.constellation = DRX_CONSTELLATION_AUTO;
+		scan_channel.hierarchy = DRX_HIERARCHY_AUTO;
+		scan_channel.priority = DRX_PRIORITY_HIGH;
+		scan_channel.coderate = DRX_CODERATE_AUTO;
+		scan_channel.guard = DRX_GUARD_AUTO;
+		scan_channel.fftmode = DRX_FFTMODE_AUTO;
+		scan_channel.classification = DRX_CLASSIFICATION_AUTO;
+		scan_channel.symbolrate = 0;
+		scan_channel.interleavemode = DRX_INTERLEAVEMODE_AUTO;
+		scan_channel.ldpc = DRX_LDPC_AUTO;
+		scan_channel.carrier = DRX_CARRIER_AUTO;
+		scan_channel.framemode = DRX_FRAMEMODE_AUTO;
+		scan_channel.pilot = DRX_PILOT_AUTO;
 
 		/* Call default or device-specific scanning function */
-		scanContext = GetScanContext(demod, scanContext);
+		scan_context = get_scan_context(demod, scan_context);
 
-		status = (*(GetScanFunction(demod)))
-		    (scanContext, DRX_SCAN_COMMAND_NEXT, &scanChannel,
-		     &nextChannel);
+		status = (*(get_scan_function(demod)))
+		    (scan_context, DRX_SCAN_COMMAND_NEXT, &scan_channel,
+		     &next_channel);
 
 		/* Proceed to next channel if requested */
-		if (nextChannel == true) {
-			int nextStatus = DRX_STS_ERROR;
+		if (next_channel == true) {
+			int next_status = DRX_STS_ERROR;
 			s32 skip = 0;
 
 			if (status == DRX_STS_OK) {
 				/* a channel was found, so skip some frequency steps */
-				skip = commonAttr->scanParam->skip;
+				skip = common_attr->scan_param->skip;
 			}
-			nextStatus = ScanPrepareNextScan(demod, skip);
+			next_status = scan_prepare_next_scan(demod, skip);
 
 			/* keep track of progress */
-			*scanProgress =
-			    (u16) (((commonAttr->scanChannelsScanned) *
-				      ((u32) (maxProgress))) /
-				     (commonAttr->scanMaxChannels));
+			*scan_progress =
+			    (u16) (((common_attr->scan_channelsScanned) *
+				      ((u32) (max_progress))) /
+				     (common_attr->scan_max_channels));
 
-			if (nextStatus != DRX_STS_OK) {
-				commonAttr->scanActive = false;
-				return (nextStatus);
+			if (next_status != DRX_STS_OK) {
+				common_attr->scan_active = false;
+				return (next_status);
 			}
 		}
 		if (status != DRX_STS_BUSY) {
 			/* channel found or error */
-			commonAttr->scanActive = false;
+			common_attr->scan_active = false;
 			return status;
 		}
-	}			/* for ( i = 0; i < ( ... numTries); i++) */
+	}			/* for ( i = 0; i < ( ... num_tries); i++) */
 
-	if ((*scanReady) == true) {
+	if ((*scan_ready) == true) {
 		/* End of scan reached: call stop-scan, ignore any error */
-		CtrlScanStop(demod);
-		commonAttr->scanActive = false;
+		ctrl_scan_stop(demod);
+		common_attr->scan_active = false;
 		return (DRX_STS_READY);
 	}
 
-	commonAttr->scanActive = false;
+	common_attr->scan_active = false;
 
 	return DRX_STS_BUSY;
 }
@@ -728,101 +728,101 @@ static int CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
 *
 */
 static int
-CtrlProgramTuner(pDRXDemodInstance_t demod, pDRXChannel_t channel)
+ctrl_program_tuner(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 {
-	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
+	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	u32 tunerMode = 0;
+	u32 tuner_mode = 0;
 	int status = DRX_STS_ERROR;
-	s32 ifFrequency = 0;
-	bool tunerSlowMode = false;
+	s32 if_frequency = 0;
+	bool tuner_slow_mode = false;
 
 	/* can't tune without a tuner */
-	if (demod->myTuner == NULL) {
+	if (demod->my_tuner == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
+	common_attr = (pdrx_common_attr_t) demod->my_common_attr;
 
 	/* select analog or digital tuner mode based on current standard */
-	if (DRX_Ctrl(demod, DRX_CTRL_GET_STANDARD, &standard) != DRX_STS_OK) {
+	if (drx_ctrl(demod, DRX_CTRL_GET_STANDARD, &standard) != DRX_STS_OK) {
 		return DRX_STS_ERROR;
 	}
 
 	if (DRX_ISATVSTD(standard)) {
-		tunerMode |= TUNER_MODE_ANALOG;
+		tuner_mode |= TUNER_MODE_ANALOG;
 	} else {		/* note: also for unknown standard */
 
-		tunerMode |= TUNER_MODE_DIGITAL;
+		tuner_mode |= TUNER_MODE_DIGITAL;
 	}
 
 	/* select tuner bandwidth */
 	switch (channel->bandwidth) {
 	case DRX_BANDWIDTH_6MHZ:
-		tunerMode |= TUNER_MODE_6MHZ;
+		tuner_mode |= TUNER_MODE_6MHZ;
 		break;
 	case DRX_BANDWIDTH_7MHZ:
-		tunerMode |= TUNER_MODE_7MHZ;
+		tuner_mode |= TUNER_MODE_7MHZ;
 		break;
 	case DRX_BANDWIDTH_8MHZ:
-		tunerMode |= TUNER_MODE_8MHZ;
+		tuner_mode |= TUNER_MODE_8MHZ;
 		break;
 	default:		/* note: also for unknown bandwidth */
 		return DRX_STS_INVALID_ARG;
 	}
 
-	DRX_GET_TUNERSLOWMODE(demod, tunerSlowMode);
+	DRX_GET_TUNERSLOWMODE(demod, tuner_slow_mode);
 
 	/* select fast (switch) or slow (lock) tuner mode */
-	if (tunerSlowMode) {
-		tunerMode |= TUNER_MODE_LOCK;
+	if (tuner_slow_mode) {
+		tuner_mode |= TUNER_MODE_LOCK;
 	} else {
-		tunerMode |= TUNER_MODE_SWITCH;
+		tuner_mode |= TUNER_MODE_SWITCH;
 	}
 
-	if (commonAttr->tunerPortNr == 1) {
-		bool bridgeClosed = true;
-		int statusBridge = DRX_STS_ERROR;
+	if (common_attr->tuner_port_nr == 1) {
+		bool bridge_closed = true;
+		int status_bridge = DRX_STS_ERROR;
 
-		statusBridge =
-		    DRX_Ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridgeClosed);
-		if (statusBridge != DRX_STS_OK) {
-			return statusBridge;
+		status_bridge =
+		    drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridge_closed);
+		if (status_bridge != DRX_STS_OK) {
+			return status_bridge;
 		}
 	}
 
-	status = DRXBSP_TUNER_SetFrequency(demod->myTuner,
-					   tunerMode, channel->frequency);
+	status = drxbsp_tuner_set_frequency(demod->my_tuner,
+					   tuner_mode, channel->frequency);
 
-	/* attempt restoring bridge before checking status of SetFrequency */
-	if (commonAttr->tunerPortNr == 1) {
-		bool bridgeClosed = false;
-		int statusBridge = DRX_STS_ERROR;
+	/* attempt restoring bridge before checking status of set_frequency */
+	if (common_attr->tuner_port_nr == 1) {
+		bool bridge_closed = false;
+		int status_bridge = DRX_STS_ERROR;
 
-		statusBridge =
-		    DRX_Ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridgeClosed);
-		if (statusBridge != DRX_STS_OK) {
-			return statusBridge;
+		status_bridge =
+		    drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridge_closed);
+		if (status_bridge != DRX_STS_OK) {
+			return status_bridge;
 		}
 	}
 
-	/* now check status of DRXBSP_TUNER_SetFrequency */
+	/* now check status of drxbsp_tuner_set_frequency */
 	if (status != DRX_STS_OK) {
 		return status;
 	}
 
 	/* get actual RF and IF frequencies from tuner */
-	status = DRXBSP_TUNER_GetFrequency(demod->myTuner,
-					   tunerMode,
+	status = drxbsp_tuner_get_frequency(demod->my_tuner,
+					   tuner_mode,
 					   &(channel->frequency),
-					   &(ifFrequency));
+					   &(if_frequency));
 	if (status != DRX_STS_OK) {
 		return status;
 	}
 
 	/* update common attributes with information available from this function;
 	   TODO: check if this is required and safe */
-	DRX_SET_INTERMEDIATEFREQ(demod, ifFrequency);
+	DRX_SET_INTERMEDIATEFREQ(demod, if_frequency);
 
 	return DRX_STS_OK;
 }
@@ -839,8 +839,8 @@ CtrlProgramTuner(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 * \retval DRX_STS_INVALID_ARG: Wrong parameters.
 *
 */
-int CtrlDumpRegisters(pDRXDemodInstance_t demod,
-			      pDRXRegDump_t registers)
+int ctrl_dump_registers(pdrx_demod_instance_t demod,
+			      p_drx_reg_dump_t registers)
 {
 	u16 i = 0;
 
@@ -856,7 +856,7 @@ int CtrlDumpRegisters(pDRXDemodInstance_t demod,
 		u32 data = 0;
 
 		status =
-		    demod->myAccessFunct->readReg16Func(demod->myI2CDevAddr,
+		    demod->my_access_funct->read_reg16func(demod->my_i2c_dev_addr,
 							registers[i].address,
 							&value, 0);
 
@@ -890,7 +890,7 @@ int CtrlDumpRegisters(pDRXDemodInstance_t demod,
 * host and the data contained in the microcode image file.
 *
 */
-static u16 UCodeRead16(u8 *addr)
+static u16 u_code_read16(u8 *addr)
 {
 	/* Works fo any host processor */
 
@@ -914,7 +914,7 @@ static u16 UCodeRead16(u8 *addr)
 * host and the data contained in the microcode image file.
 *
 */
-static u32 UCodeRead32(u8 *addr)
+static u32 u_code_read32(u8 *addr)
 {
 	/* Works fo any host processor */
 
@@ -935,38 +935,38 @@ static u32 UCodeRead32(u8 *addr)
 
 /**
 * \brief Compute CRC of block of microcode data.
-* \param blockData: Pointer to microcode data.
-* \param nrWords:   Size of microcode block (number of 16 bits words).
+* \param block_data: Pointer to microcode data.
+* \param nr_words:   Size of microcode block (number of 16 bits words).
 * \return u16 The computed CRC residu.
 */
-static u16 UCodeComputeCRC(u8 *blockData, u16 nrWords)
+static u16 u_code_compute_crc(u8 *block_data, u16 nr_words)
 {
 	u16 i = 0;
 	u16 j = 0;
-	u32 CRCWord = 0;
+	u32 crc_word = 0;
 	u32 carry = 0;
 
-	while (i < nrWords) {
-		CRCWord |= (u32) UCodeRead16(blockData);
+	while (i < nr_words) {
+		crc_word |= (u32) u_code_read16(block_data);
 		for (j = 0; j < 16; j++) {
-			CRCWord <<= 1;
+			crc_word <<= 1;
 			if (carry != 0) {
-				CRCWord ^= 0x80050000UL;
+				crc_word ^= 0x80050000UL;
 			}
-			carry = CRCWord & 0x80000000UL;
+			carry = crc_word & 0x80000000UL;
 		}
 		i++;
-		blockData += (sizeof(u16));
+		block_data += (sizeof(u16));
 	}
-	return ((u16) (CRCWord >> 16));
+	return ((u16) (crc_word >> 16));
 }
 
 /*============================================================================*/
 
 /**
 * \brief Handle microcode upload or verify.
-* \param devAddr: Address of device.
-* \param mcInfo:  Pointer to information about microcode data.
+* \param dev_addr: Address of device.
+* \param mc_info:  Pointer to information about microcode data.
 * \param action:  Either UCODE_UPLOAD or UCODE_VERIFY
 * \return int.
 * \retval DRX_STS_OK:
@@ -982,32 +982,32 @@ static u16 UCodeComputeCRC(u8 *blockData, u16 nrWords)
 *                    - Provided image is corrupt
 */
 static int
-CtrlUCode(pDRXDemodInstance_t demod,
-	  pDRXUCodeInfo_t mcInfo, DRXUCodeAction_t action)
+ctrl_u_code(pdrx_demod_instance_t demod,
+	  p_drxu_code_info_t mc_info, drxu_code_action_t action)
 {
 	int rc;
 	u16 i = 0;
-	u16 mcNrOfBlks = 0;
-	u16 mcMagicWord = 0;
-	u8 *mcData = (u8 *) (NULL);
-	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
+	u16 mc_nr_of_blks = 0;
+	u16 mc_magic_word = 0;
+	u8 *mc_data = (u8 *) (NULL);
+	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *) (NULL);
 
-	devAddr = demod->myI2CDevAddr;
+	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Check arguments */
-	if ((mcInfo == NULL) || (mcInfo->mcData == NULL)) {
+	if ((mc_info == NULL) || (mc_info->mc_data == NULL)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	mcData = mcInfo->mcData;
+	mc_data = mc_info->mc_data;
 
 	/* Check data */
-	mcMagicWord = UCodeRead16(mcData);
-	mcData += sizeof(u16);
-	mcNrOfBlks = UCodeRead16(mcData);
-	mcData += sizeof(u16);
+	mc_magic_word = u_code_read16(mc_data);
+	mc_data += sizeof(u16);
+	mc_nr_of_blks = u_code_read16(mc_data);
+	mc_data += sizeof(u16);
 
-	if ((mcMagicWord != DRX_UCODE_MAGIC_WORD) || (mcNrOfBlks == 0)) {
+	if ((mc_magic_word != DRX_UCODE_MAGIC_WORD) || (mc_nr_of_blks == 0)) {
 		/* wrong endianess or wrong data ? */
 		return DRX_STS_INVALID_ARG;
 	}
@@ -1019,95 +1019,95 @@ CtrlUCode(pDRXDemodInstance_t demod,
 		DRX_SET_MCDEV(demod, 0);
 		DRX_SET_MCVERSION(demod, 0);
 		DRX_SET_MCPATCH(demod, 0);
-		for (i = 0; i < mcNrOfBlks; i++) {
-			DRXUCodeBlockHdr_t blockHdr;
+		for (i = 0; i < mc_nr_of_blks; i++) {
+			drxu_code_block_hdr_t block_hdr;
 
 			/* Process block header */
-			blockHdr.addr = UCodeRead32(mcData);
-			mcData += sizeof(u32);
-			blockHdr.size = UCodeRead16(mcData);
-			mcData += sizeof(u16);
-			blockHdr.flags = UCodeRead16(mcData);
-			mcData += sizeof(u16);
-			blockHdr.CRC = UCodeRead16(mcData);
-			mcData += sizeof(u16);
+			block_hdr.addr = u_code_read32(mc_data);
+			mc_data += sizeof(u32);
+			block_hdr.size = u_code_read16(mc_data);
+			mc_data += sizeof(u16);
+			block_hdr.flags = u_code_read16(mc_data);
+			mc_data += sizeof(u16);
+			block_hdr.CRC = u_code_read16(mc_data);
+			mc_data += sizeof(u16);
 
-			if (blockHdr.flags & 0x8) {
+			if (block_hdr.flags & 0x8) {
 				/* Aux block. Check type */
-				u8 *auxblk = mcInfo->mcData + blockHdr.addr;
-				u16 auxtype = UCodeRead16(auxblk);
+				u8 *auxblk = mc_info->mc_data + block_hdr.addr;
+				u16 auxtype = u_code_read16(auxblk);
 				if (DRX_ISMCVERTYPE(auxtype)) {
 					DRX_SET_MCVERTYPE(demod,
-							  UCodeRead16(auxblk));
+							  u_code_read16(auxblk));
 					auxblk += sizeof(u16);
 					DRX_SET_MCDEV(demod,
-						      UCodeRead32(auxblk));
+						      u_code_read32(auxblk));
 					auxblk += sizeof(u32);
 					DRX_SET_MCVERSION(demod,
-							  UCodeRead32(auxblk));
+							  u_code_read32(auxblk));
 					auxblk += sizeof(u32);
 					DRX_SET_MCPATCH(demod,
-							UCodeRead32(auxblk));
+							u_code_read32(auxblk));
 				}
 			}
 
 			/* Next block */
-			mcData += blockHdr.size * sizeof(u16);
+			mc_data += block_hdr.size * sizeof(u16);
 		}
 
 		/* After scanning, validate the microcode.
 		   It is also valid if no validation control exists.
 		 */
-		rc = DRX_Ctrl(demod, DRX_CTRL_VALIDATE_UCODE, NULL);
+		rc = drx_ctrl(demod, DRX_CTRL_VALIDATE_UCODE, NULL);
 		if (rc != DRX_STS_OK && rc != DRX_STS_FUNC_NOT_AVAILABLE) {
 			return rc;
 		}
 
 		/* Restore data pointer */
-		mcData = mcInfo->mcData + 2 * sizeof(u16);
+		mc_data = mc_info->mc_data + 2 * sizeof(u16);
 	}
 
 	/* Process microcode blocks */
-	for (i = 0; i < mcNrOfBlks; i++) {
-		DRXUCodeBlockHdr_t blockHdr;
-		u16 mcBlockNrBytes = 0;
+	for (i = 0; i < mc_nr_of_blks; i++) {
+		drxu_code_block_hdr_t block_hdr;
+		u16 mc_block_nr_bytes = 0;
 
 		/* Process block header */
-		blockHdr.addr = UCodeRead32(mcData);
-		mcData += sizeof(u32);
-		blockHdr.size = UCodeRead16(mcData);
-		mcData += sizeof(u16);
-		blockHdr.flags = UCodeRead16(mcData);
-		mcData += sizeof(u16);
-		blockHdr.CRC = UCodeRead16(mcData);
-		mcData += sizeof(u16);
+		block_hdr.addr = u_code_read32(mc_data);
+		mc_data += sizeof(u32);
+		block_hdr.size = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
+		block_hdr.flags = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
+		block_hdr.CRC = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
 
 		/* Check block header on:
 		   - data larger than 64Kb
 		   - if CRC enabled check CRC
 		 */
-		if ((blockHdr.size > 0x7FFF) ||
-		    (((blockHdr.flags & DRX_UCODE_CRC_FLAG) != 0) &&
-		     (blockHdr.CRC != UCodeComputeCRC(mcData, blockHdr.size)))
+		if ((block_hdr.size > 0x7FFF) ||
+		    (((block_hdr.flags & DRX_UCODE_CRC_FLAG) != 0) &&
+		     (block_hdr.CRC != u_code_compute_crc(mc_data, block_hdr.size)))
 		    ) {
 			/* Wrong data ! */
 			return DRX_STS_INVALID_ARG;
 		}
 
-		mcBlockNrBytes = blockHdr.size * ((u16) sizeof(u16));
+		mc_block_nr_bytes = block_hdr.size * ((u16) sizeof(u16));
 
-		if (blockHdr.size != 0) {
+		if (block_hdr.size != 0) {
 			/* Perform the desired action */
 			switch (action) {
 	    /*================================================================*/
 			case UCODE_UPLOAD:
 				{
 					/* Upload microcode */
-					if (demod->myAccessFunct->
-					    writeBlockFunc(devAddr,
-							   (DRXaddr_t) blockHdr.
-							   addr, mcBlockNrBytes,
-							   mcData,
+					if (demod->my_access_funct->
+					    write_block_func(dev_addr,
+							   (dr_xaddr_t) block_hdr.
+							   addr, mc_block_nr_bytes,
+							   mc_data,
 							   0x0000) !=
 					    DRX_STS_OK) {
 						return (DRX_STS_ERROR);
@@ -1119,58 +1119,58 @@ CtrlUCode(pDRXDemodInstance_t demod,
 			case UCODE_VERIFY:
 				{
 					int result = 0;
-					u8 mcDataBuffer
+					u8 mc_dataBuffer
 					    [DRX_UCODE_MAX_BUF_SIZE];
-					u32 bytesToCompare = 0;
-					u32 bytesLeftToCompare = 0;
-					DRXaddr_t currAddr = (DRXaddr_t) 0;
-					u8 *currPtr = NULL;
+					u32 bytes_to_compare = 0;
+					u32 bytes_left_to_compare = 0;
+					dr_xaddr_t curr_addr = (dr_xaddr_t) 0;
+					u8 *curr_ptr = NULL;
 
-					bytesLeftToCompare = mcBlockNrBytes;
-					currAddr = blockHdr.addr;
-					currPtr = mcData;
+					bytes_left_to_compare = mc_block_nr_bytes;
+					curr_addr = block_hdr.addr;
+					curr_ptr = mc_data;
 
-					while (bytesLeftToCompare != 0) {
-						if (bytesLeftToCompare >
+					while (bytes_left_to_compare != 0) {
+						if (bytes_left_to_compare >
 						    ((u32)
 						     DRX_UCODE_MAX_BUF_SIZE)) {
-							bytesToCompare =
+							bytes_to_compare =
 							    ((u32)
 							     DRX_UCODE_MAX_BUF_SIZE);
 						} else {
-							bytesToCompare =
-							    bytesLeftToCompare;
+							bytes_to_compare =
+							    bytes_left_to_compare;
 						}
 
-						if (demod->myAccessFunct->
-						    readBlockFunc(devAddr,
-								  currAddr,
+						if (demod->my_access_funct->
+						    read_block_func(dev_addr,
+								  curr_addr,
 								  (u16)
-								  bytesToCompare,
+								  bytes_to_compare,
 								  (u8 *)
-								  mcDataBuffer,
+								  mc_dataBuffer,
 								  0x0000) !=
 						    DRX_STS_OK) {
 							return (DRX_STS_ERROR);
 						}
 
 						result =
-						    DRXBSP_HST_Memcmp(currPtr,
-								      mcDataBuffer,
-								      bytesToCompare);
+						    drxbsp_hst_memcmp(curr_ptr,
+								      mc_dataBuffer,
+								      bytes_to_compare);
 
 						if (result != 0) {
 							return DRX_STS_ERROR;
 						}
 
-						currAddr +=
-						    ((DRXaddr_t)
-						     (bytesToCompare / 2));
-						currPtr =
-						    &(currPtr[bytesToCompare]);
-						bytesLeftToCompare -=
-						    ((u32) bytesToCompare);
-					}	/* while( bytesToCompare > DRX_UCODE_MAX_BUF_SIZE ) */
+						curr_addr +=
+						    ((dr_xaddr_t)
+						     (bytes_to_compare / 2));
+						curr_ptr =
+						    &(curr_ptr[bytes_to_compare]);
+						bytes_left_to_compare -=
+						    ((u32) bytes_to_compare);
+					}	/* while( bytes_to_compare > DRX_UCODE_MAX_BUF_SIZE ) */
 				};
 				break;
 
@@ -1182,11 +1182,11 @@ CtrlUCode(pDRXDemodInstance_t demod,
 			}	/* switch ( action ) */
 		}
 
-		/* if (blockHdr.size != 0 ) */
+		/* if (block_hdr.size != 0 ) */
 		/* Next block */
-		mcData += mcBlockNrBytes;
+		mc_data += mc_block_nr_bytes;
 
-	}			/* for( i = 0 ; i<mcNrOfBlks ; i++ ) */
+	}			/* for( i = 0 ; i<mc_nr_of_blks ; i++ ) */
 
 	return DRX_STS_OK;
 }
@@ -1196,60 +1196,60 @@ CtrlUCode(pDRXDemodInstance_t demod,
 /**
 * \brief Build list of version information.
 * \param demod: A pointer to a demodulator instance.
-* \param versionList: Pointer to linked list of versions.
+* \param version_list: Pointer to linked list of versions.
 * \return int.
-* \retval DRX_STS_OK:          Version information stored in versionList
+* \retval DRX_STS_OK:          Version information stored in version_list
 * \retval DRX_STS_INVALID_ARG: Invalid arguments.
 */
 static int
-CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t *versionList)
+ctrl_version(pdrx_demod_instance_t demod, p_drx_version_list_t *version_list)
 {
-	static char drxDriverCoreModuleName[] = "Core driver";
-	static char drxDriverCoreVersionText[] =
+	static char drx_driver_core_module_name[] = "Core driver";
+	static char drx_driver_core_version_text[] =
 	    DRX_VERSIONSTRING(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
-	static DRXVersion_t drxDriverCoreVersion;
-	static DRXVersionList_t drxDriverCoreVersionList;
+	static drx_version_t drx_driver_core_version;
+	static drx_version_list_t drx_driver_core_versionList;
 
-	pDRXVersionList_t demodVersionList = (pDRXVersionList_t) (NULL);
-	int returnStatus = DRX_STS_ERROR;
+	p_drx_version_list_t demod_version_list = (p_drx_version_list_t) (NULL);
+	int return_status = DRX_STS_ERROR;
 
 	/* Check arguments */
-	if (versionList == NULL) {
+	if (version_list == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
 
 	/* Get version info list from demod */
-	returnStatus = (*(demod->myDemodFunct->ctrlFunc)) (demod,
+	return_status = (*(demod->my_demod_funct->ctrl_func)) (demod,
 							   DRX_CTRL_VERSION,
 							   (void *)
-							   &demodVersionList);
+							   &demod_version_list);
 
 	/* Always fill in the information of the driver SW . */
-	drxDriverCoreVersion.moduleType = DRX_MODULE_DRIVERCORE;
-	drxDriverCoreVersion.moduleName = drxDriverCoreModuleName;
-	drxDriverCoreVersion.vMajor = VERSION_MAJOR;
-	drxDriverCoreVersion.vMinor = VERSION_MINOR;
-	drxDriverCoreVersion.vPatch = VERSION_PATCH;
-	drxDriverCoreVersion.vString = drxDriverCoreVersionText;
+	drx_driver_core_version.module_type = DRX_MODULE_DRIVERCORE;
+	drx_driver_core_version.module_name = drx_driver_core_module_name;
+	drx_driver_core_version.v_major = VERSION_MAJOR;
+	drx_driver_core_version.v_minor = VERSION_MINOR;
+	drx_driver_core_version.v_patch = VERSION_PATCH;
+	drx_driver_core_version.v_string = drx_driver_core_version_text;
 
-	drxDriverCoreVersionList.version = &drxDriverCoreVersion;
-	drxDriverCoreVersionList.next = (pDRXVersionList_t) (NULL);
+	drx_driver_core_versionList.version = &drx_driver_core_version;
+	drx_driver_core_versionList.next = (p_drx_version_list_t) (NULL);
 
-	if ((returnStatus == DRX_STS_OK) && (demodVersionList != NULL)) {
+	if ((return_status == DRX_STS_OK) && (demod_version_list != NULL)) {
 		/* Append versioninfo from driver to versioninfo from demod  */
 		/* Return version info in "bottom-up" order. This way, multiple
 		   devices can be handled without using malloc. */
-		pDRXVersionList_t currentListElement = demodVersionList;
-		while (currentListElement->next != NULL) {
-			currentListElement = currentListElement->next;
+		p_drx_version_list_t current_list_element = demod_version_list;
+		while (current_list_element->next != NULL) {
+			current_list_element = current_list_element->next;
 		}
-		currentListElement->next = &drxDriverCoreVersionList;
+		current_list_element->next = &drx_driver_core_versionList;
 
-		*versionList = demodVersionList;
+		*version_list = demod_version_list;
 	} else {
 		/* Just return versioninfo from driver */
-		*versionList = &drxDriverCoreVersionList;
+		*version_list = &drx_driver_core_versionList;
 	}
 
 	return DRX_STS_OK;
@@ -1271,7 +1271,7 @@ CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t *versionList)
 *
 */
 
-int DRX_Init(pDRXDemodInstance_t demods[])
+int drx_init(pdrx_demod_instance_t demods[])
 {
 	return DRX_STS_OK;
 }
@@ -1287,7 +1287,7 @@ int DRX_Init(pDRXDemodInstance_t demods[])
 *
 */
 
-int DRX_Term(void)
+int drx_term(void)
 {
 	return DRX_STS_OK;
 }
@@ -1305,23 +1305,23 @@ int DRX_Term(void)
 *
 */
 
-int DRX_Open(pDRXDemodInstance_t demod)
+int drx_open(pdrx_demod_instance_t demod)
 {
 	int status = DRX_STS_OK;
 
 	if ((demod == NULL) ||
-	    (demod->myDemodFunct == NULL) ||
-	    (demod->myCommonAttr == NULL) ||
-	    (demod->myExtAttr == NULL) ||
-	    (demod->myI2CDevAddr == NULL) ||
-	    (demod->myCommonAttr->isOpened == true)) {
+	    (demod->my_demod_funct == NULL) ||
+	    (demod->my_common_attr == NULL) ||
+	    (demod->my_ext_attr == NULL) ||
+	    (demod->my_i2c_dev_addr == NULL) ||
+	    (demod->my_common_attr->is_opened == true)) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	status = (*(demod->myDemodFunct->openFunc)) (demod);
+	status = (*(demod->my_demod_funct->open_func)) (demod);
 
 	if (status == DRX_STS_OK) {
-		demod->myCommonAttr->isOpened = true;
+		demod->my_common_attr->is_opened = true;
 	}
 
 	return status;
@@ -1342,20 +1342,20 @@ int DRX_Open(pDRXDemodInstance_t demod)
 * Put device into sleep mode.
 */
 
-int DRX_Close(pDRXDemodInstance_t demod)
+int drx_close(pdrx_demod_instance_t demod)
 {
 	int status = DRX_STS_OK;
 
 	if ((demod == NULL) ||
-	    (demod->myDemodFunct == NULL) ||
-	    (demod->myCommonAttr == NULL) ||
-	    (demod->myExtAttr == NULL) ||
-	    (demod->myI2CDevAddr == NULL) ||
-	    (demod->myCommonAttr->isOpened == false)) {
+	    (demod->my_demod_funct == NULL) ||
+	    (demod->my_common_attr == NULL) ||
+	    (demod->my_ext_attr == NULL) ||
+	    (demod->my_i2c_dev_addr == NULL) ||
+	    (demod->my_common_attr->is_opened == false)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
-	status = (*(demod->myDemodFunct->closeFunc)) (demod);
+	status = (*(demod->my_demod_funct->close_func)) (demod);
 
 	DRX_SET_ISOPENED(demod, false);
 
@@ -1368,40 +1368,40 @@ int DRX_Close(pDRXDemodInstance_t demod)
 * \brief Control the device.
 * \param demod:    A pointer to a demodulator instance.
 * \param ctrl:     Reference to desired control function.
-* \param ctrlData: Pointer to data structure for control function.
+* \param ctrl_data: Pointer to data structure for control function.
 * \return int Return status.
 * \retval DRX_STS_OK:                 Control function completed successfully.
 * \retval DRX_STS_ERROR:              Driver not initialized or error during
 *                                     control demod.
-* \retval DRX_STS_INVALID_ARG:        Demod instance or ctrlData has invalid
+* \retval DRX_STS_INVALID_ARG:        Demod instance or ctrl_data has invalid
 *                                     content.
 * \retval DRX_STS_FUNC_NOT_AVAILABLE: Specified control function is not
 *                                     available.
 *
-* Data needed or returned by the control function is stored in ctrlData.
+* Data needed or returned by the control function is stored in ctrl_data.
 *
 */
 
 int
-DRX_Ctrl(pDRXDemodInstance_t demod, u32 ctrl, void *ctrlData)
+drx_ctrl(pdrx_demod_instance_t demod, u32 ctrl, void *ctrl_data)
 {
 	int status = DRX_STS_ERROR;
 
 	if ((demod == NULL) ||
-	    (demod->myDemodFunct == NULL) ||
-	    (demod->myCommonAttr == NULL) ||
-	    (demod->myExtAttr == NULL) || (demod->myI2CDevAddr == NULL)
+	    (demod->my_demod_funct == NULL) ||
+	    (demod->my_common_attr == NULL) ||
+	    (demod->my_ext_attr == NULL) || (demod->my_i2c_dev_addr == NULL)
 	    ) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	if (((demod->myCommonAttr->isOpened == false) &&
+	if (((demod->my_common_attr->is_opened == false) &&
 	     (ctrl != DRX_CTRL_PROBE_DEVICE) && (ctrl != DRX_CTRL_VERSION))
 	    ) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	if ((DRX_ISPOWERDOWNMODE(demod->myCommonAttr->currentPowerMode) &&
+	if ((DRX_ISPOWERDOWNMODE(demod->my_common_attr->current_power_mode) &&
 	     (ctrl != DRX_CTRL_POWER_MODE) &&
 	     (ctrl != DRX_CTRL_PROBE_DEVICE) &&
 	     (ctrl != DRX_CTRL_NOP) && (ctrl != DRX_CTRL_VERSION)
@@ -1420,7 +1420,7 @@ DRX_Ctrl(pDRXDemodInstance_t demod, u32 ctrl, void *ctrlData)
 
       /*======================================================================*/
 	case DRX_CTRL_VERSION:
-		return CtrlVersion(demod, (pDRXVersionList_t *) ctrlData);
+		return ctrl_version(demod, (p_drx_version_list_t *) ctrl_data);
 		break;
 
       /*======================================================================*/
@@ -1431,22 +1431,22 @@ DRX_Ctrl(pDRXDemodInstance_t demod, u32 ctrl, void *ctrlData)
 
 	/* Virtual functions */
 	/* First try calling function from derived class */
-	status = (*(demod->myDemodFunct->ctrlFunc)) (demod, ctrl, ctrlData);
+	status = (*(demod->my_demod_funct->ctrl_func)) (demod, ctrl, ctrl_data);
 	if (status == DRX_STS_FUNC_NOT_AVAILABLE) {
 		/* Now try calling a the base class function */
 		switch (ctrl) {
 	 /*===================================================================*/
 		case DRX_CTRL_LOAD_UCODE:
-			return CtrlUCode(demod,
-					 (pDRXUCodeInfo_t) ctrlData,
+			return ctrl_u_code(demod,
+					 (p_drxu_code_info_t) ctrl_data,
 					 UCODE_UPLOAD);
 			break;
 
 	 /*===================================================================*/
 		case DRX_CTRL_VERIFY_UCODE:
 			{
-				return CtrlUCode(demod,
-						 (pDRXUCodeInfo_t) ctrlData,
+				return ctrl_u_code(demod,
+						 (p_drxu_code_info_t) ctrl_data,
 						 UCODE_VERIFY);
 			}
 			break;
@@ -1455,22 +1455,22 @@ DRX_Ctrl(pDRXDemodInstance_t demod, u32 ctrl, void *ctrlData)
 	 /*===================================================================*/
 		case DRX_CTRL_SCAN_INIT:
 			{
-				return CtrlScanInit(demod,
-						    (pDRXScanParam_t) ctrlData);
+				return ctrl_scan_init(demod,
+						    (p_drx_scan_param_t) ctrl_data);
 			}
 			break;
 
 	 /*===================================================================*/
 		case DRX_CTRL_SCAN_NEXT:
 			{
-				return CtrlScanNext(demod, (u16 *) ctrlData);
+				return ctrl_scan_next(demod, (u16 *) ctrl_data);
 			}
 			break;
 
 	 /*===================================================================*/
 		case DRX_CTRL_SCAN_STOP:
 			{
-				return CtrlScanStop(demod);
+				return ctrl_scan_stop(demod);
 			}
 			break;
 #endif /* #ifndef DRX_EXCLUDE_SCAN */
@@ -1478,18 +1478,18 @@ DRX_Ctrl(pDRXDemodInstance_t demod, u32 ctrl, void *ctrlData)
 	 /*===================================================================*/
 		case DRX_CTRL_PROGRAM_TUNER:
 			{
-				return CtrlProgramTuner(demod,
-							(pDRXChannel_t)
-							ctrlData);
+				return ctrl_program_tuner(demod,
+							(pdrx_channel_t)
+							ctrl_data);
 			}
 			break;
 
 	 /*===================================================================*/
 		case DRX_CTRL_DUMP_REGISTERS:
 			{
-				return CtrlDumpRegisters(demod,
-							 (pDRXRegDump_t)
-							 ctrlData);
+				return ctrl_dump_registers(demod,
+							 (p_drx_reg_dump_t)
+							 ctrl_data);
 			}
 			break;
 

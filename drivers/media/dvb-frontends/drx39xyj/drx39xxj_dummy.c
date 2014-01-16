@@ -11,90 +11,90 @@
 #include "drx39xxj.h"
 
 /* Dummy function to satisfy drxj.c */
-int DRXBSP_TUNER_Open(struct tuner_instance *tuner)
+int drxbsp_tuner_open(struct tuner_instance *tuner)
 {
 	return DRX_STS_OK;
 }
 
-int DRXBSP_TUNER_Close(struct tuner_instance *tuner)
+int drxbsp_tuner_close(struct tuner_instance *tuner)
 {
 	return DRX_STS_OK;
 }
 
-int DRXBSP_TUNER_SetFrequency(struct tuner_instance *tuner,
+int drxbsp_tuner_set_frequency(struct tuner_instance *tuner,
 				      u32 mode,
-				      s32 centerFrequency)
+				      s32 center_frequency)
 {
 	return DRX_STS_OK;
 }
 
 int
-DRXBSP_TUNER_GetFrequency(struct tuner_instance *tuner,
+drxbsp_tuner_get_frequency(struct tuner_instance *tuner,
 			  u32 mode,
-			  s32 *RFfrequency,
-			  s32 *IFfrequency)
+			  s32 *r_ffrequency,
+			  s32 *i_ffrequency)
 {
 	return DRX_STS_OK;
 }
 
-int DRXBSP_HST_Sleep(u32 n)
+int drxbsp_hst_sleep(u32 n)
 {
 	msleep(n);
 	return DRX_STS_OK;
 }
 
-u32 DRXBSP_HST_Clock(void)
+u32 drxbsp_hst_clock(void)
 {
 	return jiffies_to_msecs(jiffies);
 }
 
-int DRXBSP_HST_Memcmp(void *s1, void *s2, u32 n)
+int drxbsp_hst_memcmp(void *s1, void *s2, u32 n)
 {
 	return (memcmp(s1, s2, (size_t) n));
 }
 
-void *DRXBSP_HST_Memcpy(void *to, void *from, u32 n)
+void *drxbsp_hst_memcpy(void *to, void *from, u32 n)
 {
 	return (memcpy(to, from, (size_t) n));
 }
 
-int DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
-				 u16 wCount,
+int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
+				 u16 w_count,
 				 u8 *wData,
-				 struct i2c_device_addr *rDevAddr,
-				 u16 rCount, u8 *rData)
+				 struct i2c_device_addr *r_dev_addr,
+				 u16 r_count, u8 *r_data)
 {
 	struct drx39xxj_state *state;
 	struct i2c_msg msg[2];
 	unsigned int num_msgs;
 
-	if (wDevAddr == NULL) {
+	if (w_dev_addr == NULL) {
 		/* Read only */
-		state = rDevAddr->userData;
-		msg[0].addr = rDevAddr->i2cAddr >> 1;
+		state = r_dev_addr->user_data;
+		msg[0].addr = r_dev_addr->i2c_addr >> 1;
 		msg[0].flags = I2C_M_RD;
-		msg[0].buf = rData;
-		msg[0].len = rCount;
+		msg[0].buf = r_data;
+		msg[0].len = r_count;
 		num_msgs = 1;
-	} else if (rDevAddr == NULL) {
+	} else if (r_dev_addr == NULL) {
 		/* Write only */
-		state = wDevAddr->userData;
-		msg[0].addr = wDevAddr->i2cAddr >> 1;
+		state = w_dev_addr->user_data;
+		msg[0].addr = w_dev_addr->i2c_addr >> 1;
 		msg[0].flags = 0;
 		msg[0].buf = wData;
-		msg[0].len = wCount;
+		msg[0].len = w_count;
 		num_msgs = 1;
 	} else {
 		/* Both write and read */
-		state = wDevAddr->userData;
-		msg[0].addr = wDevAddr->i2cAddr >> 1;
+		state = w_dev_addr->user_data;
+		msg[0].addr = w_dev_addr->i2c_addr >> 1;
 		msg[0].flags = 0;
 		msg[0].buf = wData;
-		msg[0].len = wCount;
-		msg[1].addr = rDevAddr->i2cAddr >> 1;
+		msg[0].len = w_count;
+		msg[1].addr = r_dev_addr->i2c_addr >> 1;
 		msg[1].flags = I2C_M_RD;
-		msg[1].buf = rData;
-		msg[1].len = rCount;
+		msg[1].buf = r_data;
+		msg[1].len = r_count;
 		num_msgs = 2;
 	}
 
@@ -110,17 +110,17 @@ int DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
 	return DRX_STS_OK;
 
 #ifdef DJH_DEBUG
-	struct drx39xxj_state *state = wDevAddr->userData;
+	struct drx39xxj_state *state = w_dev_addr->user_data;
 
 	struct i2c_msg msg[2] = {
-		{.addr = wDevAddr->i2cAddr,
-		 .flags = 0, .buf = wData, .len = wCount},
-		{.addr = rDevAddr->i2cAddr,
-		 .flags = I2C_M_RD, .buf = rData, .len = rCount},
+		{.addr = w_dev_addr->i2c_addr,
+		 .flags = 0, .buf = wData, .len = w_count},
+		{.addr = r_dev_addr->i2c_addr,
+		 .flags = I2C_M_RD, .buf = r_data, .len = r_count},
 	};
 
 	printk("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
-	       wDevAddr->i2cAddr, state->i2c, wCount, rCount);
+	       w_dev_addr->i2c_addr, state->i2c, w_count, r_count);
 
 	if (i2c_transfer(state->i2c, msg, 2) != 2) {
 		printk(KERN_WARNING "drx3933: I2C write/read failed\n");
