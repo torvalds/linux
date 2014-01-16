@@ -35,7 +35,10 @@ static void qlcnic_sriov_vf_cancel_fw_work(struct qlcnic_adapter *);
 static void qlcnic_sriov_cleanup_transaction(struct qlcnic_bc_trans *);
 static int qlcnic_sriov_issue_cmd(struct qlcnic_adapter *,
 				  struct qlcnic_cmd_args *);
+static int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *, u8);
 static void qlcnic_sriov_process_bc_cmd(struct work_struct *);
+static int qlcnic_sriov_vf_shutdown(struct pci_dev *);
+static int qlcnic_sriov_vf_resume(struct qlcnic_adapter *);
 
 static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.read_crb			= qlcnic_83xx_read_crb,
@@ -1424,7 +1427,7 @@ cleanup_transaction:
 	return rsp;
 }
 
-int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *adapter, u8 cmd_op)
+static int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *adapter, u8 cmd_op)
 {
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_vf_info *vf = &adapter->ahw->sriov->vf_info[0];
@@ -2037,7 +2040,7 @@ static void qlcnic_sriov_vf_free_mac_list(struct qlcnic_adapter *adapter)
 }
 
 
-int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
+static int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
@@ -2061,7 +2064,7 @@ int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
 	return 0;
 }
 
-int qlcnic_sriov_vf_resume(struct qlcnic_adapter *adapter)
+static int qlcnic_sriov_vf_resume(struct qlcnic_adapter *adapter)
 {
 	struct qlc_83xx_idc *idc = &adapter->ahw->idc;
 	struct net_device *netdev = adapter->netdev;

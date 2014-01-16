@@ -13,6 +13,23 @@
 #include <linux/interrupt.h>
 #include <linux/aer.h>
 
+static void __qlcnic_83xx_process_aen(struct qlcnic_adapter *);
+static int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *, u8);
+static void qlcnic_83xx_configure_mac(struct qlcnic_adapter *, u8 *, u8,
+				      struct qlcnic_cmd_args *);
+static int qlcnic_83xx_get_port_config(struct qlcnic_adapter *);
+static irqreturn_t qlcnic_83xx_handle_aen(int, void *);
+static pci_ers_result_t qlcnic_83xx_io_error_detected(struct pci_dev *,
+						      pci_channel_state_t);
+static int qlcnic_83xx_set_port_config(struct qlcnic_adapter *);
+static pci_ers_result_t qlcnic_83xx_io_slot_reset(struct pci_dev *);
+static void qlcnic_83xx_io_resume(struct pci_dev *);
+static int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *, u8);
+static void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *);
+static int qlcnic_83xx_resume(struct qlcnic_adapter *);
+static int qlcnic_83xx_shutdown(struct pci_dev *);
+static void qlcnic_83xx_get_beacon_state(struct qlcnic_adapter *);
+
 #define RSS_HASHTYPE_IP_TCP		0x3
 #define QLC_83XX_FW_MBX_CMD		0
 #define QLC_SKIP_INACTIVE_PCI_REGS	7
@@ -636,7 +653,7 @@ int qlcnic_83xx_get_port_info(struct qlcnic_adapter *adapter)
 	return status;
 }
 
-void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *adapter)
+static void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u16 act_pci_fn = ahw->total_nic_func;
@@ -871,7 +888,7 @@ static void qlcnic_83xx_handle_idc_comp_aen(struct qlcnic_adapter *adapter,
 	return;
 }
 
-void __qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
+static void __qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 event[QLC_83XX_MBX_AEN_CNT];
@@ -1388,7 +1405,7 @@ out:
 	netif_device_attach(netdev);
 }
 
-void qlcnic_83xx_get_beacon_state(struct qlcnic_adapter *adapter)
+static void qlcnic_83xx_get_beacon_state(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
@@ -1559,7 +1576,7 @@ void qlcnic_83xx_initialize_nic(struct qlcnic_adapter *adapter, int enable)
 	qlcnic_free_mbx_args(&cmd);
 }
 
-int qlcnic_83xx_set_port_config(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_set_port_config(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_cmd_args cmd;
 	int err;
@@ -1576,7 +1593,7 @@ int qlcnic_83xx_set_port_config(struct qlcnic_adapter *adapter)
 	return err;
 }
 
-int qlcnic_83xx_get_port_config(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_get_port_config(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_cmd_args cmd;
 	int err;
@@ -1745,7 +1762,7 @@ static void qlcnic_extend_lb_idc_cmpltn_wait(struct qlcnic_adapter *adapter,
 	ahw->extend_lb_time = 0;
 }
 
-int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
+static int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct net_device *netdev = adapter->netdev;
@@ -1814,7 +1831,7 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 	return status;
 }
 
-int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
+static int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 config = ahw->port_config, max_wait_count;
@@ -3552,7 +3569,7 @@ int qlcnic_83xx_shutdown(struct pci_dev *pdev)
 	return 0;
 }
 
-int qlcnic_83xx_resume(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_resume(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlc_83xx_idc *idc = &ahw->idc;

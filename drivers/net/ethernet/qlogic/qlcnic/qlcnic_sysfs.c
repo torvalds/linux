@@ -1286,7 +1286,7 @@ void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter)
 		device_remove_file(dev, &dev_attr_bridged_mode);
 }
 
-void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
+static void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 
@@ -1325,7 +1325,7 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 		dev_info(dev, "failed to create eswitch stats sysfs entry");
 }
 
-void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
+static void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 

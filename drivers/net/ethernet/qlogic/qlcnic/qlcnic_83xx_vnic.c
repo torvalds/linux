@@ -8,7 +8,7 @@
 #include "qlcnic.h"
 #include "qlcnic_hw.h"
 
-int qlcnic_83xx_enable_vnic_mode(struct qlcnic_adapter *adapter, int lock)
+static int qlcnic_83xx_enable_vnic_mode(struct qlcnic_adapter *adapter, int lock)
 {
 	if (lock) {
 		if (qlcnic_83xx_lock_driver(adapter))

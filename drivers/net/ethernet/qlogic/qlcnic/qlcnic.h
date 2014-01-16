@@ -1473,8 +1473,6 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter);
 int qlcnic_fw_cmd_set_port(struct qlcnic_adapter *adapter, u32 config);
 int qlcnic_pci_mem_write_2M(struct qlcnic_adapter *, u64 off, u64 data);
 int qlcnic_pci_mem_read_2M(struct qlcnic_adapter *, u64 off, u64 *data);
-void qlcnic_pci_camqm_read_2M(struct qlcnic_adapter *, u64, u64 *);
-void qlcnic_pci_camqm_write_2M(struct qlcnic_adapter *, u64, u64);
 
 #define ADDR_IN_RANGE(addr, low, high)	\
 	(((addr) < (high)) && ((addr) >= (low)))
@@ -1510,16 +1508,11 @@ void qlcnic_pcie_sem_unlock(struct qlcnic_adapter *, int);
 
 #define MAX_CTL_CHECK 1000
 
-int qlcnic_wol_supported(struct qlcnic_adapter *adapter);
 void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter);
 void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter);
 int qlcnic_dump_fw(struct qlcnic_adapter *);
 int qlcnic_enable_fw_dump_state(struct qlcnic_adapter *);
 bool qlcnic_check_fw_dump_state(struct qlcnic_adapter *);
-pci_ers_result_t qlcnic_82xx_io_error_detected(struct pci_dev *,
-					       pci_channel_state_t);
-pci_ers_result_t qlcnic_82xx_io_slot_reset(struct pci_dev *);
-void qlcnic_82xx_io_resume(struct pci_dev *);
 
 /* Functions from qlcnic_init.c */
 void qlcnic_schedule_work(struct qlcnic_adapter *, work_func_t, int);
@@ -1554,9 +1547,7 @@ int qlcnic_check_fw_status(struct qlcnic_adapter *adapter);
 void qlcnic_watchdog_task(struct work_struct *work);
 void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_rds_ring *rds_ring, u8 ring_id);
-int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max);
 void qlcnic_set_multi(struct net_device *netdev);
-void __qlcnic_set_multi(struct net_device *, u16);
 int qlcnic_nic_add_mac(struct qlcnic_adapter *, const u8 *, u16);
 int qlcnic_nic_del_mac(struct qlcnic_adapter *, const u8 *);
 void qlcnic_82xx_free_mac_list(struct qlcnic_adapter *adapter);
@@ -1569,13 +1560,11 @@ netdev_features_t qlcnic_fix_features(struct net_device *netdev,
 	netdev_features_t features);
 int qlcnic_set_features(struct net_device *netdev, netdev_features_t features);
 int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable);
-int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
 void qlcnic_update_cmd_producer(struct qlcnic_host_tx_ring *);
 
 /* Functions from qlcnic_ethtool.c */
 int qlcnic_check_loopback_buff(unsigned char *, u8 []);
 int qlcnic_do_lb_test(struct qlcnic_adapter *, u8);
-int qlcnic_loopback_test(struct net_device *, u8);
 
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);
@@ -1587,7 +1576,6 @@ void qlcnic_set_sds_ring_count(struct qlcnic_adapter *, u8);
 int qlcnic_setup_rings(struct qlcnic_adapter *, u8, u8);
 int qlcnic_validate_rings(struct qlcnic_adapter *, __u32, int);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
-void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
 void qlcnic_set_drv_version(struct qlcnic_adapter *);
 
@@ -1616,11 +1604,8 @@ void qlcnic_dump_mbx(struct qlcnic_adapter *, struct qlcnic_cmd_args *);
 
 void qlcnic_create_sysfs_entries(struct qlcnic_adapter *adapter);
 void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter);
-void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter);
-void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter);
 void qlcnic_82xx_add_sysfs(struct qlcnic_adapter *adapter);
 void qlcnic_82xx_remove_sysfs(struct qlcnic_adapter *adapter);
-int qlcnic_82xx_get_settings(struct qlcnic_adapter *, struct ethtool_cmd *);
 
 int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
 int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);
@@ -1643,7 +1628,6 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *);
 int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
-void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int, u16);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);

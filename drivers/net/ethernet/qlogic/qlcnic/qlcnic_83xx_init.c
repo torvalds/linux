@@ -39,6 +39,9 @@
 static int qlcnic_83xx_init_default_driver(struct qlcnic_adapter *adapter);
 static int qlcnic_83xx_check_heartbeat(struct qlcnic_adapter *p_dev);
 static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter);
+static int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev);
+static int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *);
+static void qlcnic_83xx_stop_hw(struct qlcnic_adapter *);
 
 /* Template header */
 struct qlc_83xx_reset_hdr {
@@ -1528,7 +1531,7 @@ static int qlcnic_83xx_check_cmd_peg_status(struct qlcnic_adapter *p_dev)
 	return -EIO;
 }
 
-int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev)
+static int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev)
 {
 	int err;
 
@@ -1601,7 +1604,7 @@ static int qlcnic_83xx_reset_template_checksum(struct qlcnic_adapter *p_dev)
 	}
 }
 
-int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *p_dev)
+static int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *p_dev)
 {
 	struct qlcnic_hardware_context *ahw = p_dev->ahw;
 	u32 addr, count, prev_ver, curr_ver;
@@ -1945,7 +1948,7 @@ static void qlcnic_83xx_exec_template_cmd(struct qlcnic_adapter *p_dev,
 	p_dev->ahw->reset.seq_index = index;
 }
 
-void qlcnic_83xx_stop_hw(struct qlcnic_adapter *p_dev)
+static void qlcnic_83xx_stop_hw(struct qlcnic_adapter *p_dev)
 {
 	p_dev->ahw->reset.seq_index = 0;
 
@@ -2028,7 +2031,7 @@ static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
 {
 	int err;
 	struct qlcnic_info nic_info;

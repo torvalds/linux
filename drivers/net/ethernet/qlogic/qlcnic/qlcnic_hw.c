@@ -505,7 +505,7 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan)
 	return 0;
 }
 
-void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
+static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -947,7 +947,7 @@ int qlcnic_82xx_linkevent_request(struct qlcnic_adapter *adapter, int enable)
 	return rv;
 }
 
-int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter)
+static int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_nic_req req;
 	u64 word;
@@ -1246,7 +1246,7 @@ static int qlcnic_pci_mem_access_direct(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-void
+static void
 qlcnic_pci_camqm_read_2M(struct qlcnic_adapter *adapter, u64 off, u64 *data)
 {
 	void __iomem *addr = adapter->ahw->pci_base0 +
@@ -1257,7 +1257,7 @@ qlcnic_pci_camqm_read_2M(struct qlcnic_adapter *adapter, u64 off, u64 *data)
 	mutex_unlock(&adapter->ahw->mem_lock);
 }
 
-void
+static void
 qlcnic_pci_camqm_write_2M(struct qlcnic_adapter *adapter, u64 off, u64 data)
 {
 	void __iomem *addr = adapter->ahw->pci_base0 +
@@ -1493,7 +1493,7 @@ int qlcnic_82xx_get_board_info(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-int
+static int
 qlcnic_wol_supported(struct qlcnic_adapter *adapter)
 {
 	u32 wol_cfg;
