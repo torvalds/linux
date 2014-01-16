@@ -740,6 +740,8 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 		/* set speed_in input in case RMII mode is used in 100Mbps */
 		if (phy->speed == 100)
 			mac_control |= BIT(15);
+		else if (phy->speed == 10)
+			mac_control |= BIT(18); /* In Band mode */
 
 		*link = true;
 	} else {
@@ -1151,6 +1153,12 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		 * receive descs
 		 */
 		cpsw_info(priv, ifup, "submitted %d rx descriptors\n", i);
+
+		if (cpts_register(&priv->pdev->dev, priv->cpts,
+				  priv->data.cpts_clock_mult,
+				  priv->data.cpts_clock_shift))
+			dev_err(priv->dev, "error registering cpts device\n");
+
 	}
 
 	/* Enable Interrupt pacing if configured */
@@ -1197,6 +1205,7 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	netif_carrier_off(priv->ndev);
 
 	if (cpsw_common_res_usage_state(priv) <= 1) {
+		cpts_unregister(priv->cpts);
 		cpsw_intr_disable(priv);
 		cpdma_ctlr_int_ctrl(priv->dma, false);
 		cpdma_ctlr_stop(priv->dma);
@@ -1816,6 +1825,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		}
 
 		i++;
+		if (i == data->slaves)
+			break;
 	}
 
 	return 0;
@@ -1983,8 +1994,14 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_runtime_disable_ret;
 	}
 	priv->regs = ss_regs;
-	priv->version = __raw_readl(&priv->regs->id_ver);
 	priv->host_port = HOST_PORT_NUM;
+
+	/* Need to enable clocks with runtime PM api to access module
+	 * registers
+	 */
+	pm_runtime_get_sync(&pdev->dev);
+	priv->version = readl(&priv->regs->id_ver);
+	pm_runtime_put_sync(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	priv->wr_regs = devm_ioremap_resource(&pdev->dev, res);
@@ -2091,7 +2108,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (devm_request_irq(&pdev->dev, i, cpsw_interrupt, 0,
-					     dev_name(priv->dev), priv)) {
+					     dev_name(&pdev->dev), priv)) {
 				dev_err(priv->dev, "error attaching irq\n");
 				goto clean_ale_ret;
 			}
@@ -2154,8 +2171,6 @@ static int cpsw_remove(struct platform_device *pdev)
 	if (priv->data.dual_emac)
 		unregister_netdev(cpsw_get_slave_ndev(priv, 1));
 	unregister_netdev(ndev);
-
-	cpts_unregister(priv->cpts);
 
 	cpsw_ale_destroy(priv->ale);
 	cpdma_chan_destroy(priv->txch);

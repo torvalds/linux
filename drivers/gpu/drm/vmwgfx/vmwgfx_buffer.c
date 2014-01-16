@@ -150,6 +150,8 @@ struct vmw_ttm_tt {
 	bool mapped;
 };
 
+const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
+
 /**
  * Helper functions to advance a struct vmw_piter iterator.
  *

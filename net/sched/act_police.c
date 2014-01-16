@@ -177,10 +177,12 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 			if (bind) {
 				police->tcf_bindcnt += 1;
 				police->tcf_refcnt += 1;
+				return 0;
 			}
 			if (ovr)
 				goto override;
-			return ret;
+			/* not replacing */
+			return -EEXIST;
 		}
 	}
 
@@ -407,7 +409,6 @@ static struct tc_action_ops act_police_ops = {
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,
 	.cleanup	=	tcf_act_police_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_act_police_locate,
 	.walk		=	tcf_act_police_walker
 };

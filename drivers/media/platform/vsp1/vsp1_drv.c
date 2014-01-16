@@ -323,7 +323,7 @@ static void vsp1_clocks_disable(struct vsp1_device *vsp1)
  * Increment the VSP1 reference count and initialize the device if the first
  * reference is taken.
  *
- * Return a pointer to the VSP1 device or NULL if an error occured.
+ * Return a pointer to the VSP1 device or NULL if an error occurred.
  */
 struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1)
 {

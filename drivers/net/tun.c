@@ -348,7 +348,8 @@ unlock:
  * different rxq no. here. If we could not get rxhash, then we would
  * hope the rxq no. may help here.
  */
-static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
+			    void *accel_priv)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 	struct tun_flow_entry *e;
@@ -1184,7 +1185,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 {
 	struct tun_pi pi = { 0, skb->protocol };
 	ssize_t total = 0;
-	int vlan_offset = 0;
+	int vlan_offset = 0, copied;
 
 	if (!(tun->flags & TUN_NO_PI)) {
 		if ((len -= sizeof(pi)) < 0)
@@ -1248,6 +1249,8 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 		total += tun->vnet_hdr_sz;
 	}
 
+	copied = total;
+	total += skb->len;
 	if (!vlan_tx_tag_present(skb)) {
 		len = min_t(int, skb->len, len);
 	} else {
@@ -1262,24 +1265,24 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 
 		vlan_offset = offsetof(struct vlan_ethhdr, h_vlan_proto);
 		len = min_t(int, skb->len + VLAN_HLEN, len);
+		total += VLAN_HLEN;
 
 		copy = min_t(int, vlan_offset, len);
-		ret = skb_copy_datagram_const_iovec(skb, 0, iv, total, copy);
+		ret = skb_copy_datagram_const_iovec(skb, 0, iv, copied, copy);
 		len -= copy;
-		total += copy;
+		copied += copy;
 		if (ret || !len)
 			goto done;
 
 		copy = min_t(int, sizeof(veth), len);
-		ret = memcpy_toiovecend(iv, (void *)&veth, total, copy);
+		ret = memcpy_toiovecend(iv, (void *)&veth, copied, copy);
 		len -= copy;
-		total += copy;
+		copied += copy;
 		if (ret || !len)
 			goto done;
 	}
 
-	skb_copy_datagram_const_iovec(skb, vlan_offset, iv, total, len);
-	total += len;
+	skb_copy_datagram_const_iovec(skb, vlan_offset, iv, copied, len);
 
 done:
 	tun->dev->stats.tx_packets++;
@@ -1356,6 +1359,8 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	ret = tun_do_read(tun, tfile, iocb, iv, len,
 			  file->f_flags & O_NONBLOCK);
 	ret = min_t(ssize_t, ret, len);
+	if (ret > 0)
+		iocb->ki_pos = ret;
 out:
 	tun_put(tun);
 	return ret;

@@ -6027,7 +6027,7 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc)
 		uint16_t postoff = 0;
 
 		if (intel_crtc->config.limited_color_range)
-			postoff = (16 * (1 << 13) / 255) & 0x1fff;
+			postoff = (16 * (1 << 12) / 255) & 0x1fff;
 
 		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), postoff);
 		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), postoff);
@@ -6614,7 +6614,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 
 	/* Make sure we're not on PC8 state before disabling PC8, otherwise
 	 * we'll hang the machine! */
-	dev_priv->uncore.funcs.force_wake_get(dev_priv, FORCEWAKE_ALL);
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
@@ -6648,7 +6648,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
 
-	dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
 void hsw_enable_pc8_work(struct work_struct *__work)
@@ -8581,7 +8581,8 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
 					DERRMR_PIPEB_PRI_FLIP_DONE |
 					DERRMR_PIPEC_PRI_FLIP_DONE));
-		intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1));
+		intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1) |
+				MI_SRM_LRM_GLOBAL_GTT);
 		intel_ring_emit(ring, DERRMR);
 		intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
 	}
@@ -9363,7 +9364,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);
 
-	if (!IS_HASWELL(dev)) {
+	if (!HAS_DDI(dev)) {
 		PIPE_CONF_CHECK_CLOCK_FUZZY(adjusted_mode.crtc_clock);
 		PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
 	}
@@ -10330,7 +10331,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_ddi_init(dev, PORT_D);
 	} else if (HAS_PCH_SPLIT(dev)) {
 		int found;
-		dpd_is_edp = intel_dpd_is_edp(dev);
+		dpd_is_edp = intel_dp_is_edp(dev, PORT_D);
 
 		if (has_edp_a(dev))
 			intel_dp_init(dev, DP_A, PORT_A);
@@ -10367,8 +10368,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIC,
 					PORT_C);
 			if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
-				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C,
-					      PORT_C);
+				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
 		}
 
 		intel_dsi_init(dev);
@@ -10816,11 +10816,20 @@ static struct intel_quirk intel_quirks[] = {
 	/* Sony Vaio Y cannot use SSC on LVDS */
 	{ 0x0046, 0x104d, 0x9076, quirk_ssc_force_disable },
 
-	/*
-	 * All GM45 Acer (and its brands eMachines and Packard Bell) laptops
-	 * seem to use inverted backlight PWM.
-	 */
-	{ 0x2a42, 0x1025, PCI_ANY_ID, quirk_invert_brightness },
+	/* Acer Aspire 5734Z must invert backlight brightness */
+	{ 0x2a42, 0x1025, 0x0459, quirk_invert_brightness },
+
+	/* Acer/eMachines G725 */
+	{ 0x2a42, 0x1025, 0x0210, quirk_invert_brightness },
+
+	/* Acer/eMachines e725 */
+	{ 0x2a42, 0x1025, 0x0212, quirk_invert_brightness },
+
+	/* Acer/Packard Bell NCL20 */
+	{ 0x2a42, 0x1025, 0x034b, quirk_invert_brightness },
+
+	/* Acer Aspire 4736Z */
+	{ 0x2a42, 0x1025, 0x0260, quirk_invert_brightness },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
@@ -11302,8 +11311,6 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	intel_modeset_check_state(dev);
-
-	drm_mode_config_reset(dev);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
@@ -11312,7 +11319,10 @@ void intel_modeset_gem_init(struct drm_device *dev)
 
 	intel_setup_overlay(dev);
 
+	mutex_lock(&dev->mode_config.mutex);
+	drm_mode_config_reset(dev);
 	intel_modeset_setup_hw_state(dev, false);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
@@ -11390,14 +11400,15 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned reg = INTEL_INFO(dev)->gen >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
 	u16 gmch_ctrl;
 
-	pci_read_config_word(dev_priv->bridge_dev, INTEL_GMCH_CTRL, &gmch_ctrl);
+	pci_read_config_word(dev_priv->bridge_dev, reg, &gmch_ctrl);
 	if (state)
 		gmch_ctrl &= ~INTEL_GMCH_VGA_DISABLE;
 	else
 		gmch_ctrl |= INTEL_GMCH_VGA_DISABLE;
-	pci_write_config_word(dev_priv->bridge_dev, INTEL_GMCH_CTRL, gmch_ctrl);
+	pci_write_config_word(dev_priv->bridge_dev, reg, gmch_ctrl);
 	return 0;
 }
 

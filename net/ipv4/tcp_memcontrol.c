@@ -6,13 +6,6 @@
 #include <linux/memcontrol.h>
 #include <linux/module.h>
 
-static void memcg_tcp_enter_memory_pressure(struct sock *sk)
-{
-	if (sk->sk_cgrp->memory_pressure)
-		sk->sk_cgrp->memory_pressure = 1;
-}
-EXPORT_SYMBOL(memcg_tcp_enter_memory_pressure);
-
 int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
 	/*

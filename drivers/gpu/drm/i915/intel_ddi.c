@@ -173,7 +173,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations = ddi_translations_dp;
 		break;
 	case PORT_D:
-		if (intel_dpd_is_edp(dev))
+		if (intel_dp_is_edp(dev, PORT_D))
 			ddi_translations = ddi_translations_edp;
 		else
 			ddi_translations = ddi_translations_dp;
@@ -1136,12 +1136,18 @@ void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
 	enum pipe pipe;
 	struct intel_crtc *intel_crtc;
 
+	dev_priv->ddi_plls.spll_refcount = 0;
+	dev_priv->ddi_plls.wrpll1_refcount = 0;
+	dev_priv->ddi_plls.wrpll2_refcount = 0;
+
 	for_each_pipe(pipe) {
 		intel_crtc =
 			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
-		if (!intel_crtc->active)
+		if (!intel_crtc->active) {
+			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_NONE;
 			continue;
+		}
 
 		intel_crtc->ddi_pll_sel = intel_ddi_get_crtc_pll(dev_priv,
 								 pipe);
@@ -1235,9 +1241,10 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	if (wait)
 		intel_wait_ddi_buf_idle(dev_priv, port);
 
-	if (type == INTEL_OUTPUT_EDP) {
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 		ironlake_edp_panel_off(intel_dp);
 	}
 

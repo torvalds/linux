@@ -100,23 +100,19 @@
 #define TASK_UNMAPPED_BASE	UL(0x00000000)
 #endif
 
-#ifndef PHYS_OFFSET
-#define PHYS_OFFSET 		UL(CONFIG_DRAM_BASE)
-#endif
-
 #ifndef END_MEM
 #define END_MEM     		(UL(CONFIG_DRAM_BASE) + CONFIG_DRAM_SIZE)
 #endif
 
 #ifndef PAGE_OFFSET
-#define PAGE_OFFSET		(PHYS_OFFSET)
+#define PAGE_OFFSET		PLAT_PHYS_OFFSET
 #endif
 
 /*
  * The module can be at any place in ram in nommu mode.
  */
 #define MODULES_END		(END_MEM)
-#define MODULES_VADDR		(PHYS_OFFSET)
+#define MODULES_VADDR		PAGE_OFFSET
 
 #define XIP_VIRT_ADDR(physaddr)  (physaddr)
 
@@ -156,6 +152,16 @@
 #define ARCH_PGD_SHIFT		0
 #endif
 #define ARCH_PGD_MASK		((1 << ARCH_PGD_SHIFT) - 1)
+
+/*
+ * PLAT_PHYS_OFFSET is the offset (from zero) of the start of physical
+ * memory.  This is used for XIP and NoMMU kernels, or by kernels which
+ * have their own mach/memory.h.  Assembly code must always use
+ * PLAT_PHYS_OFFSET and not PHYS_OFFSET.
+ */
+#ifndef PLAT_PHYS_OFFSET
+#define PLAT_PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -239,6 +245,8 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 
 #else
 
+#define PHYS_OFFSET	PLAT_PHYS_OFFSET
+
 static inline phys_addr_t __virt_to_phys(unsigned long x)
 {
 	return (phys_addr_t)x - PAGE_OFFSET + PHYS_OFFSET;
@@ -251,17 +259,6 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 
 #endif
 #endif
-#endif /* __ASSEMBLY__ */
-
-#ifndef PHYS_OFFSET
-#ifdef PLAT_PHYS_OFFSET
-#define PHYS_OFFSET	PLAT_PHYS_OFFSET
-#else
-#define PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
-#endif
-#endif
-
-#ifndef __ASSEMBLY__
 
 /*
  * PFNs are used to describe any physical page; this means
@@ -350,7 +347,8 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 #define ARCH_PFN_OFFSET		PHYS_PFN_OFFSET
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-#define virt_addr_valid(kaddr)	((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory)
+#define virt_addr_valid(kaddr)	(((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory) \
+					&& pfn_valid(__pa(kaddr) >> PAGE_SHIFT) )
 
 #endif
 

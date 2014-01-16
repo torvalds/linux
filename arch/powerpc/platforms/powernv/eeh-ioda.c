@@ -36,7 +36,6 @@
 #include "powernv.h"
 #include "pci.h"
 
-static char *hub_diag = NULL;
 static int ioda_eeh_nb_init = 0;
 
 static int ioda_eeh_event(struct notifier_block *nb,
@@ -138,15 +137,6 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 		}
 
 		ioda_eeh_nb_init = 1;
-	}
-
-	/* We needn't HUB diag-data on PHB3 */
-	if (phb->type == PNV_PHB_IODA1 && !hub_diag) {
-		hub_diag = (char *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-		if (!hub_diag) {
-			pr_err("%s: Out of memory !\n", __func__);
-			return -ENOMEM;
-		}
 	}
 
 #ifdef CONFIG_DEBUG_FS
@@ -633,11 +623,10 @@ static void ioda_eeh_hub_diag_common(struct OpalIoP7IOCErrorData *data)
 static void ioda_eeh_hub_diag(struct pci_controller *hose)
 {
 	struct pnv_phb *phb = hose->private_data;
-	struct OpalIoP7IOCErrorData *data;
+	struct OpalIoP7IOCErrorData *data = &phb->diag.hub_diag;
 	long rc;
 
-	data = (struct OpalIoP7IOCErrorData *)ioda_eeh_hub_diag;
-	rc = opal_pci_get_hub_diag_data(phb->hub_id, data, PAGE_SIZE);
+	rc = opal_pci_get_hub_diag_data(phb->hub_id, data, sizeof(*data));
 	if (rc != OPAL_SUCCESS) {
 		pr_warning("%s: Failed to get HUB#%llx diag-data (%ld)\n",
 			   __func__, phb->hub_id, rc);
@@ -820,14 +809,15 @@ static void ioda_eeh_phb_diag(struct pci_controller *hose)
 	struct OpalIoPhbErrorCommon *common;
 	long rc;
 
-	common = (struct OpalIoPhbErrorCommon *)phb->diag.blob;
-	rc = opal_pci_get_phb_diag_data2(phb->opal_id, common, PAGE_SIZE);
+	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
+					 PNV_PCI_DIAG_BUF_SIZE);
 	if (rc != OPAL_SUCCESS) {
 		pr_warning("%s: Failed to get diag-data for PHB#%x (%ld)\n",
 			    __func__, hose->global_number, rc);
 		return;
 	}
 
+	common = (struct OpalIoPhbErrorCommon *)phb->diag.blob;
 	switch (common->ioType) {
 	case OPAL_PHB_ERROR_DATA_TYPE_P7IOC:
 		ioda_eeh_p7ioc_phb_diag(hose, common);

@@ -767,20 +767,19 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	if (metadata) {
-		key.objectid = bytenr;
-		key.type = BTRFS_METADATA_ITEM_KEY;
-		key.offset = offset;
-	} else {
-		key.objectid = bytenr;
-		key.type = BTRFS_EXTENT_ITEM_KEY;
-		key.offset = offset;
-	}
-
 	if (!trans) {
 		path->skip_locking = 1;
 		path->search_commit_root = 1;
 	}
+
+search_again:
+	key.objectid = bytenr;
+	key.offset = offset;
+	if (metadata)
+		key.type = BTRFS_METADATA_ITEM_KEY;
+	else
+		key.type = BTRFS_EXTENT_ITEM_KEY;
+
 again:
 	ret = btrfs_search_slot(trans, root->fs_info->extent_root,
 				&key, path, 0, 0);
@@ -788,7 +787,6 @@ again:
 		goto out_free;
 
 	if (ret > 0 && metadata && key.type == BTRFS_METADATA_ITEM_KEY) {
-		metadata = 0;
 		if (path->slots[0]) {
 			path->slots[0]--;
 			btrfs_item_key_to_cpu(path->nodes[0], &key,
@@ -855,7 +853,7 @@ again:
 			mutex_lock(&head->mutex);
 			mutex_unlock(&head->mutex);
 			btrfs_put_delayed_ref(&head->node);
-			goto again;
+			goto search_again;
 		}
 		if (head->extent_op && head->extent_op->update_flags)
 			extent_flags |= head->extent_op->flags_to_set;

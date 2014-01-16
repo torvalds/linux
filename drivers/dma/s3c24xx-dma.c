@@ -628,42 +628,13 @@ retry:
 	s3cchan->state = S3C24XX_DMA_CHAN_IDLE;
 }
 
-static void s3c24xx_dma_unmap_buffers(struct s3c24xx_txd *txd)
-{
-	struct device *dev = txd->vd.tx.chan->device->dev;
-	struct s3c24xx_sg *dsg;
-
-	if (!(txd->vd.tx.flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-		if (txd->vd.tx.flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				dma_unmap_single(dev, dsg->src_addr, dsg->len,
-						DMA_TO_DEVICE);
-		else {
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				dma_unmap_page(dev, dsg->src_addr, dsg->len,
-						DMA_TO_DEVICE);
-		}
-	}
-
-	if (!(txd->vd.tx.flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-		if (txd->vd.tx.flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				dma_unmap_single(dev, dsg->dst_addr, dsg->len,
-						DMA_FROM_DEVICE);
-		else
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				dma_unmap_page(dev, dsg->dst_addr, dsg->len,
-						DMA_FROM_DEVICE);
-	}
-}
-
 static void s3c24xx_dma_desc_free(struct virt_dma_desc *vd)
 {
 	struct s3c24xx_txd *txd = to_s3c24xx_txd(&vd->tx);
 	struct s3c24xx_dma_chan *s3cchan = to_s3c24xx_dma_chan(vd->tx.chan);
 
 	if (!s3cchan->slave)
-		s3c24xx_dma_unmap_buffers(txd);
+		dma_descriptor_unmap(&vd->tx);
 
 	s3c24xx_dma_free_txd(txd);
 }
@@ -795,7 +766,7 @@ static enum dma_status s3c24xx_dma_tx_status(struct dma_chan *chan,
 
 	spin_lock_irqsave(&s3cchan->vc.lock, flags);
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS) {
+	if (ret == DMA_COMPLETE) {
 		spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
 		return ret;
 	}

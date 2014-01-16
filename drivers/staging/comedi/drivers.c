@@ -446,7 +446,7 @@ int comedi_load_firmware(struct comedi_device *dev,
 		release_firmware(fw);
 	}
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL_GPL(comedi_load_firmware);
 

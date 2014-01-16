@@ -2464,8 +2464,16 @@ void be_detect_error(struct be_adapter *adapter)
 	 */
 	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
 		adapter->hw_error = true;
-		dev_err(&adapter->pdev->dev,
-			"Error detected in the card\n");
+		/* Do not log error messages if its a FW reset */
+		if (sliport_err1 == SLIPORT_ERROR_FW_RESET1 &&
+		    sliport_err2 == SLIPORT_ERROR_FW_RESET2) {
+			dev_info(&adapter->pdev->dev,
+				 "Firmware update in progress\n");
+			return;
+		} else {
+			dev_err(&adapter->pdev->dev,
+				"Error detected in the card\n");
+		}
 	}
 
 	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
@@ -2736,13 +2744,16 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 		if (!BEx_chip(adapter))
 			adapter->rss_flags |= RSS_ENABLE_UDP_IPV4 |
 						RSS_ENABLE_UDP_IPV6;
+	} else {
+		/* Disable RSS, if only default RX Q is created */
+		adapter->rss_flags = RSS_ENABLE_NONE;
+	}
 
-		rc = be_cmd_rss_config(adapter, rsstable, adapter->rss_flags,
-				       128);
-		if (rc) {
-			adapter->rss_flags = 0;
-			return rc;
-		}
+	rc = be_cmd_rss_config(adapter, rsstable, adapter->rss_flags,
+			       128);
+	if (rc) {
+		adapter->rss_flags = RSS_ENABLE_NONE;
+		return rc;
 	}
 
 	/* First time posting */
@@ -2932,27 +2943,34 @@ static void be_cancel_worker(struct be_adapter *adapter)
 	}
 }
 
-static int be_clear(struct be_adapter *adapter)
+static void be_mac_clear(struct be_adapter *adapter)
 {
 	int i;
 
+	if (adapter->pmac_id) {
+		for (i = 0; i < (adapter->uc_macs + 1); i++)
+			be_cmd_pmac_del(adapter, adapter->if_handle,
+					adapter->pmac_id[i], 0);
+		adapter->uc_macs = 0;
+
+		kfree(adapter->pmac_id);
+		adapter->pmac_id = NULL;
+	}
+}
+
+static int be_clear(struct be_adapter *adapter)
+{
 	be_cancel_worker(adapter);
 
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
 	/* delete the primary mac along with the uc-mac list */
-	for (i = 0; i < (adapter->uc_macs + 1); i++)
-		be_cmd_pmac_del(adapter, adapter->if_handle,
-				adapter->pmac_id[i], 0);
-	adapter->uc_macs = 0;
+	be_mac_clear(adapter);
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
 
 	be_clear_queues(adapter);
-
-	kfree(adapter->pmac_id);
-	adapter->pmac_id = NULL;
 
 	be_msix_disable(adapter);
 	return 0;
@@ -3109,11 +3127,11 @@ static void BEx_get_resources(struct be_adapter *adapter,
 {
 	struct pci_dev *pdev = adapter->pdev;
 	bool use_sriov = false;
+	int max_vfs;
+
+	max_vfs = pci_sriov_get_totalvfs(pdev);
 
 	if (BE3_chip(adapter) && sriov_want(adapter)) {
-		int max_vfs;
-
-		max_vfs = pci_sriov_get_totalvfs(pdev);
 		res->max_vfs = max_vfs > 0 ? min(MAX_VFS, max_vfs) : 0;
 		use_sriov = res->max_vfs;
 	}
@@ -3144,7 +3162,11 @@ static void BEx_get_resources(struct be_adapter *adapter,
 					   BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
 	res->max_rx_qs = res->max_rss_qs + 1;
 
-	res->max_evt_qs = be_physfn(adapter) ? BE3_MAX_EVT_QS : 1;
+	if (be_physfn(adapter))
+		res->max_evt_qs = (max_vfs > 0) ?
+					BE3_SRIOV_MAX_EVT_QS : BE3_MAX_EVT_QS;
+	else
+		res->max_evt_qs = 1;
 
 	res->if_cap_flags = BE_IF_CAP_FLAGS_WANT;
 	if (!(adapter->function_caps & BE_FUNCTION_CAPS_RSS))
@@ -3812,6 +3834,8 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	}
 
 	if (change_status == LANCER_FW_RESET_NEEDED) {
+		dev_info(&adapter->pdev->dev,
+			 "Resetting adapter to activate new FW\n");
 		status = lancer_physdev_ctrl(adapter,
 					     PHYSDEV_CONTROL_FW_RESET_MASK);
 		if (status) {
@@ -4188,7 +4212,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
-	init_completion(&adapter->flash_compl);
+	init_completion(&adapter->et_cmd_compl);
 	pci_save_state(adapter->pdev);
 	return 0;
 
@@ -4363,13 +4387,13 @@ static int lancer_recover_func(struct be_adapter *adapter)
 			goto err;
 	}
 
-	dev_err(dev, "Error recovery successful\n");
+	dev_err(dev, "Adapter recovery successful\n");
 	return 0;
 err:
 	if (status == -EAGAIN)
 		dev_err(dev, "Waiting for resource provisioning\n");
 	else
-		dev_err(dev, "Error recovery failed\n");
+		dev_err(dev, "Adapter recovery failed\n");
 
 	return status;
 }

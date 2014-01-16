@@ -2439,7 +2439,20 @@ static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8962_CLOCKING_4,
 			    WM8962_SYSCLK_RATE_MASK, clocking4);
 
+	/* DSPCLK_DIV can be only generated correctly after enabling SYSCLK.
+	 * So we here provisionally enable it and then disable it afterward
+	 * if current bias_level hasn't reached SND_SOC_BIAS_ON.
+	 */
+	if (codec->dapm.bias_level != SND_SOC_BIAS_ON)
+		snd_soc_update_bits(codec, WM8962_CLOCKING2,
+				WM8962_SYSCLK_ENA_MASK, WM8962_SYSCLK_ENA);
+
 	dspclk = snd_soc_read(codec, WM8962_CLOCKING1);
+
+	if (codec->dapm.bias_level != SND_SOC_BIAS_ON)
+		snd_soc_update_bits(codec, WM8962_CLOCKING2,
+				WM8962_SYSCLK_ENA_MASK, 0);
+
 	if (dspclk < 0) {
 		dev_err(codec->dev, "Failed to read DSPCLK: %d\n", dspclk);
 		return;

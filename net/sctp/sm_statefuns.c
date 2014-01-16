@@ -820,7 +820,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(struct net *net,
 	SCTP_INC_STATS(net, SCTP_MIB_PASSIVEESTABS);
 	sctp_add_cmd_sf(commands, SCTP_CMD_HB_TIMERS_START, SCTP_NULL());
 
-	if (new_asoc->autoclose)
+	if (new_asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE])
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 
@@ -908,7 +908,7 @@ sctp_disposition_t sctp_sf_do_5_1E_ca(struct net *net,
 	SCTP_INC_STATS(net, SCTP_MIB_CURRESTAB);
 	SCTP_INC_STATS(net, SCTP_MIB_ACTIVEESTABS);
 	sctp_add_cmd_sf(commands, SCTP_CMD_HB_TIMERS_START, SCTP_NULL());
-	if (asoc->autoclose)
+	if (asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE])
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 
@@ -2970,7 +2970,7 @@ sctp_disposition_t sctp_sf_eat_data_6_2(struct net *net,
 	if (chunk->chunk_hdr->flags & SCTP_DATA_SACK_IMM)
 		force = SCTP_FORCE();
 
-	if (asoc->autoclose) {
+	if (asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE]) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 	}
@@ -3878,7 +3878,7 @@ sctp_disposition_t sctp_sf_eat_fwd_tsn(struct net *net,
 				SCTP_CHUNK(chunk));
 
 	/* Count this as receiving DATA. */
-	if (asoc->autoclose) {
+	if (asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE]) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 	}
@@ -5267,7 +5267,7 @@ sctp_disposition_t sctp_sf_do_9_2_start_shutdown(
 	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
 
-	if (asoc->autoclose)
+	if (asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE])
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 
@@ -5346,7 +5346,7 @@ sctp_disposition_t sctp_sf_do_9_2_shutdown_ack(
 	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T2_SHUTDOWN));
 
-	if (asoc->autoclose)
+	if (asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE])
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 

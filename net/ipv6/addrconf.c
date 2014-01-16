@@ -1671,7 +1671,7 @@ void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr)
 static void addrconf_join_anycast(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;
-	if (ifp->prefix_len == 127) /* RFC 6164 */
+	if (ifp->prefix_len >= 127) /* RFC 6164 */
 		return;
 	ipv6_addr_prefix(&addr, &ifp->addr, ifp->prefix_len);
 	if (ipv6_addr_any(&addr))
@@ -1682,7 +1682,7 @@ static void addrconf_join_anycast(struct inet6_ifaddr *ifp)
 static void addrconf_leave_anycast(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;
-	if (ifp->prefix_len == 127) /* RFC 6164 */
+	if (ifp->prefix_len >= 127) /* RFC 6164 */
 		return;
 	ipv6_addr_prefix(&addr, &ifp->addr, ifp->prefix_len);
 	if (ipv6_addr_any(&addr))
@@ -2509,7 +2509,8 @@ static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	struct inet6_ifaddr *ifp;
 
 	ifp = ipv6_add_addr(idev, addr, NULL, plen,
-			    scope, IFA_F_PERMANENT, 0, 0);
+			    scope, IFA_F_PERMANENT,
+			    INFINITY_LIFE_TIME, INFINITY_LIFE_TIME);
 	if (!IS_ERR(ifp)) {
 		spin_lock_bh(&ifp->lock);
 		ifp->flags &= ~IFA_F_TENTATIVE;
@@ -2613,7 +2614,7 @@ static void init_loopback(struct net_device *dev)
 			if (sp_ifa->rt)
 				continue;
 
-			sp_rt = addrconf_dst_alloc(idev, &sp_ifa->addr, 0);
+			sp_rt = addrconf_dst_alloc(idev, &sp_ifa->addr, false);
 
 			/* Failure cases are ignored */
 			if (!IS_ERR(sp_rt)) {
@@ -2637,7 +2638,8 @@ static void addrconf_add_linklocal(struct inet6_dev *idev, const struct in6_addr
 #endif
 
 
-	ifp = ipv6_add_addr(idev, addr, NULL, 64, IFA_LINK, addr_flags, 0, 0);
+	ifp = ipv6_add_addr(idev, addr, NULL, 64, IFA_LINK, addr_flags,
+			    INFINITY_LIFE_TIME, INFINITY_LIFE_TIME);
 	if (!IS_ERR(ifp)) {
 		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, idev->dev, 0, 0);
 		addrconf_dad_start(ifp);
@@ -3456,7 +3458,12 @@ restart:
 					 &inet6_addr_lst[i], addr_lst) {
 			unsigned long age;
 
-			if (ifp->flags & IFA_F_PERMANENT)
+			/* When setting preferred_lft to a value not zero or
+			 * infinity, while valid_lft is infinity
+			 * IFA_F_PERMANENT has a non-infinity life time.
+			 */
+			if ((ifp->flags & IFA_F_PERMANENT) &&
+			    (ifp->prefered_lft == INFINITY_LIFE_TIME))
 				continue;
 
 			spin_lock(&ifp->lock);
@@ -3481,7 +3488,8 @@ restart:
 					ifp->flags |= IFA_F_DEPRECATED;
 				}
 
-				if (time_before(ifp->tstamp + ifp->valid_lft * HZ, next))
+				if ((ifp->valid_lft != INFINITY_LIFE_TIME) &&
+				    (time_before(ifp->tstamp + ifp->valid_lft * HZ, next)))
 					next = ifp->tstamp + ifp->valid_lft * HZ;
 
 				spin_unlock(&ifp->lock);
@@ -3761,7 +3769,8 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 	put_ifaddrmsg(nlh, ifa->prefix_len, ifa->flags, rt_scope(ifa->scope),
 		      ifa->idev->dev->ifindex);
 
-	if (!(ifa->flags&IFA_F_PERMANENT)) {
+	if (!((ifa->flags&IFA_F_PERMANENT) &&
+	      (ifa->prefered_lft == INFINITY_LIFE_TIME))) {
 		preferred = ifa->prefered_lft;
 		valid = ifa->valid_lft;
 		if (preferred != INFINITY_LIFE_TIME) {

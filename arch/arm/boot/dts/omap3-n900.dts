@@ -9,7 +9,7 @@
 
 /dts-v1/;
 
-#include "omap34xx.dtsi"
+#include "omap34xx-hs.dtsi"
 
 / {
 	model = "Nokia N900";

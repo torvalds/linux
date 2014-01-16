@@ -1598,11 +1598,6 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
  *   do a "get_unaligned()" if this helps and is sufficiently
  *   fast.
  *
- * - Little-endian machines (so that we can generate the mask
- *   of low bytes efficiently). Again, we *could* do a byte
- *   swapping load on big-endian architectures if that is not
- *   expensive enough to make the optimization worthless.
- *
  * - non-CONFIG_DEBUG_PAGEALLOC configurations (so that we
  *   do not trap on the (extremely unlikely) case of a page
  *   crossing operation.
@@ -1646,7 +1641,7 @@ unsigned int full_name_hash(const unsigned char *name, unsigned int len)
 		if (!len)
 			goto done;
 	}
-	mask = ~(~0ul << len*8);
+	mask = bytemask_from_count(len);
 	hash += mask & a;
 done:
 	return fold_hash(hash);

@@ -266,6 +266,13 @@ enum {
 	BNX2X_DONT_CONSUME_CAM_CREDIT,
 	BNX2X_DONT_CONSUME_CAM_CREDIT_DEST,
 };
+/* When looking for matching filters, some flags are not interesting */
+#define BNX2X_VLAN_MAC_CMP_MASK	(1 << BNX2X_UC_LIST_MAC | \
+				 1 << BNX2X_ETH_MAC | \
+				 1 << BNX2X_ISCSI_ETH_MAC | \
+				 1 << BNX2X_NETQ_ETH_MAC)
+#define BNX2X_VLAN_MAC_CMP_FLAGS(flags) \
+	((flags) & BNX2X_VLAN_MAC_CMP_MASK)
 
 struct bnx2x_vlan_mac_ramrod_params {
 	/* Object to run the command from */

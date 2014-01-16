@@ -104,6 +104,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE3_MAX_RSS_QS		16
 #define BE3_MAX_TX_QS		16
 #define BE3_MAX_EVT_QS		16
+#define BE3_SRIOV_MAX_EVT_QS	8
 
 #define MAX_RX_QS		32
 #define MAX_EVT_QS		32
@@ -480,7 +481,7 @@ struct be_adapter {
 	struct list_head entry;
 
 	u32 flash_status;
-	struct completion flash_compl;
+	struct completion et_cmd_compl;
 
 	struct be_resources res;	/* resources available for the func */
 	u16 num_vfs;			/* Number of VFs provisioned by PF */

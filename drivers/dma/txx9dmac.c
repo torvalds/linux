@@ -406,7 +406,6 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	dma_async_tx_callback callback;
 	void *param;
 	struct dma_async_tx_descriptor *txd = &desc->txd;
-	struct txx9dmac_slave *ds = dc->chan.private;
 
 	dev_vdbg(chan2dev(&dc->chan), "descriptor %u %p complete\n",
 		 txd->cookie, desc);

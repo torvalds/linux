@@ -24,7 +24,7 @@
  */
 
 
-#include "linux/crc32.h"
+#include <linux/crc32.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"
