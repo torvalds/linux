@@ -996,66 +996,6 @@ static int init_dma_desc_rings(struct net_device *dev)
 		pr_debug("%s: txsize %d, rxsize %d, bfsize %d\n", __func__,
 			 txsize, rxsize, bfsize);
 
-	if (priv->extend_desc) {
-		priv->dma_erx = dma_alloc_coherent(priv->device, rxsize *
-						   sizeof(struct
-							  dma_extended_desc),
-						   &priv->dma_rx_phy,
-						   GFP_KERNEL);
-		if (!priv->dma_erx)
-			goto err_dma;
-
-		priv->dma_etx = dma_alloc_coherent(priv->device, txsize *
-						   sizeof(struct
-							  dma_extended_desc),
-						   &priv->dma_tx_phy,
-						   GFP_KERNEL);
-		if (!priv->dma_etx) {
-			dma_free_coherent(priv->device, priv->dma_rx_size *
-					sizeof(struct dma_extended_desc),
-					priv->dma_erx, priv->dma_rx_phy);
-			goto err_dma;
-		}
-	} else {
-		priv->dma_rx = dma_alloc_coherent(priv->device, rxsize *
-						  sizeof(struct dma_desc),
-						  &priv->dma_rx_phy,
-						  GFP_KERNEL);
-		if (!priv->dma_rx)
-			goto err_dma;
-
-		priv->dma_tx = dma_alloc_coherent(priv->device, txsize *
-						  sizeof(struct dma_desc),
-						  &priv->dma_tx_phy,
-						  GFP_KERNEL);
-		if (!priv->dma_tx) {
-			dma_free_coherent(priv->device, priv->dma_rx_size *
-					sizeof(struct dma_desc),
-					priv->dma_rx, priv->dma_rx_phy);
-			goto err_dma;
-		}
-	}
-
-	priv->rx_skbuff_dma = kmalloc_array(rxsize, sizeof(dma_addr_t),
-					    GFP_KERNEL);
-	if (!priv->rx_skbuff_dma)
-		goto err_rx_skbuff_dma;
-
-	priv->rx_skbuff = kmalloc_array(rxsize, sizeof(struct sk_buff *),
-					GFP_KERNEL);
-	if (!priv->rx_skbuff)
-		goto err_rx_skbuff;
-
-	priv->tx_skbuff_dma = kmalloc_array(txsize, sizeof(dma_addr_t),
-					    GFP_KERNEL);
-	if (!priv->tx_skbuff_dma)
-		goto err_tx_skbuff_dma;
-
-	priv->tx_skbuff = kmalloc_array(txsize, sizeof(struct sk_buff *),
-					GFP_KERNEL);
-	if (!priv->tx_skbuff)
-		goto err_tx_skbuff;
-
 	if (netif_msg_probe(priv)) {
 		pr_debug("(%s) dma_rx_phy=0x%08x dma_tx_phy=0x%08x\n", __func__,
 			 (u32) priv->dma_rx_phy, (u32) priv->dma_tx_phy);
@@ -1123,30 +1063,6 @@ static int init_dma_desc_rings(struct net_device *dev)
 err_init_rx_buffers:
 	while (--i >= 0)
 		stmmac_free_rx_buffers(priv, i);
-	kfree(priv->tx_skbuff);
-err_tx_skbuff:
-	kfree(priv->tx_skbuff_dma);
-err_tx_skbuff_dma:
-	kfree(priv->rx_skbuff);
-err_rx_skbuff:
-	kfree(priv->rx_skbuff_dma);
-err_rx_skbuff_dma:
-	if (priv->extend_desc) {
-		dma_free_coherent(priv->device, priv->dma_tx_size *
-				  sizeof(struct dma_extended_desc),
-				  priv->dma_etx, priv->dma_tx_phy);
-		dma_free_coherent(priv->device, priv->dma_rx_size *
-				  sizeof(struct dma_extended_desc),
-				  priv->dma_erx, priv->dma_rx_phy);
-	} else {
-		dma_free_coherent(priv->device,
-				priv->dma_tx_size * sizeof(struct dma_desc),
-				priv->dma_tx, priv->dma_tx_phy);
-		dma_free_coherent(priv->device,
-				priv->dma_rx_size * sizeof(struct dma_desc),
-				priv->dma_rx, priv->dma_rx_phy);
-	}
-err_dma:
 	return ret;
 }
 
@@ -1180,6 +1096,85 @@ static void dma_free_tx_skbufs(struct stmmac_priv *priv)
 			priv->tx_skbuff_dma[i] = 0;
 		}
 	}
+}
+
+static int alloc_dma_desc_resources(struct stmmac_priv *priv)
+{
+	unsigned int txsize = priv->dma_tx_size;
+	unsigned int rxsize = priv->dma_rx_size;
+	int ret = -ENOMEM;
+
+	priv->rx_skbuff_dma = kmalloc_array(rxsize, sizeof(dma_addr_t),
+					    GFP_KERNEL);
+	if (!priv->rx_skbuff_dma)
+		return -ENOMEM;
+
+	priv->rx_skbuff = kmalloc_array(rxsize, sizeof(struct sk_buff *),
+					GFP_KERNEL);
+	if (!priv->rx_skbuff)
+		goto err_rx_skbuff;
+
+	priv->tx_skbuff_dma = kmalloc_array(txsize, sizeof(dma_addr_t),
+					    GFP_KERNEL);
+	if (!priv->tx_skbuff_dma)
+		goto err_tx_skbuff_dma;
+
+	priv->tx_skbuff = kmalloc_array(txsize, sizeof(struct sk_buff *),
+					GFP_KERNEL);
+	if (!priv->tx_skbuff)
+		goto err_tx_skbuff;
+
+	if (priv->extend_desc) {
+		priv->dma_erx = dma_alloc_coherent(priv->device, rxsize *
+						   sizeof(struct
+							  dma_extended_desc),
+						   &priv->dma_rx_phy,
+						   GFP_KERNEL);
+		if (!priv->dma_erx)
+			goto err_dma;
+
+		priv->dma_etx = dma_alloc_coherent(priv->device, txsize *
+						   sizeof(struct
+							  dma_extended_desc),
+						   &priv->dma_tx_phy,
+						   GFP_KERNEL);
+		if (!priv->dma_etx) {
+			dma_free_coherent(priv->device, priv->dma_rx_size *
+					sizeof(struct dma_extended_desc),
+					priv->dma_erx, priv->dma_rx_phy);
+			goto err_dma;
+		}
+	} else {
+		priv->dma_rx = dma_alloc_coherent(priv->device, rxsize *
+						  sizeof(struct dma_desc),
+						  &priv->dma_rx_phy,
+						  GFP_KERNEL);
+		if (!priv->dma_rx)
+			goto err_dma;
+
+		priv->dma_tx = dma_alloc_coherent(priv->device, txsize *
+						  sizeof(struct dma_desc),
+						  &priv->dma_tx_phy,
+						  GFP_KERNEL);
+		if (!priv->dma_tx) {
+			dma_free_coherent(priv->device, priv->dma_rx_size *
+					sizeof(struct dma_desc),
+					priv->dma_rx, priv->dma_rx_phy);
+			goto err_dma;
+		}
+	}
+
+	return 0;
+
+err_dma:
+	kfree(priv->tx_skbuff);
+err_tx_skbuff:
+	kfree(priv->tx_skbuff_dma);
+err_tx_skbuff_dma:
+	kfree(priv->rx_skbuff);
+err_rx_skbuff:
+	kfree(priv->rx_skbuff_dma);
+	return ret;
 }
 
 static void free_dma_desc_resources(struct stmmac_priv *priv)
@@ -1622,6 +1617,12 @@ static int stmmac_open(struct net_device *dev)
 	priv->dma_tx_size = STMMAC_ALIGN(dma_txsize);
 	priv->dma_rx_size = STMMAC_ALIGN(dma_rxsize);
 	priv->dma_buf_sz = STMMAC_ALIGN(buf_sz);
+
+	alloc_dma_desc_resources(priv);
+	if (ret < 0) {
+		pr_err("%s: DMA descriptors allocation failed\n", __func__);
+		goto dma_desc_error;
+	}
 
 	ret = init_dma_desc_rings(dev);
 	if (ret < 0) {
