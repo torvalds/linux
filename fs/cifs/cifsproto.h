@@ -363,10 +363,10 @@ extern int CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
 extern int CIFSSMB_set_compression(const unsigned int xid,
 				   struct cifs_tcon *tcon, __u16 fid);
 extern int CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
-			const char *fileName, const int disposition,
-			const int access_flags, const int omode,
-			__u16 *netfid, int *pOplock, FILE_ALL_INFO *,
-			const struct nls_table *nls_codepage, int remap);
+		       const char *path, const int disposition,
+		       const int desired_access, const int create_options,
+		       __u16 *netfid, int *oplock, FILE_ALL_INFO *buf,
+		       const struct nls_table *nls, int remap);
 extern int SMBLegacyOpen(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,
