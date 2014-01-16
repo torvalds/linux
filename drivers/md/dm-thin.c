@@ -1941,7 +1941,7 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 	const char *arg_name;
 
 	static struct dm_arg _args[] = {
-		{0, 3, "Invalid number of pool feature arguments"},
+		{0, 4, "Invalid number of pool feature arguments"},
 	};
 
 	/*
