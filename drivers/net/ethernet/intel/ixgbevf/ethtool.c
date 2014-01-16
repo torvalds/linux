@@ -286,9 +286,9 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i].count = new_tx_count;
+			adapter->tx_ring[i]->count = new_tx_count;
 		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i].count = new_rx_count;
+			adapter->rx_ring[i]->count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
 		adapter->rx_ring_count = new_rx_count;
 		goto clear_reset;
@@ -303,7 +303,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 
 		for (i = 0; i < adapter->num_tx_queues; i++) {
 			/* clone ring and setup updated count */
-			tx_ring[i] = adapter->tx_ring[i];
+			tx_ring[i] = *adapter->tx_ring[i];
 			tx_ring[i].count = new_tx_count;
 			err = ixgbevf_setup_tx_resources(adapter, &tx_ring[i]);
 			if (!err)
@@ -329,7 +329,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			/* clone ring and setup updated count */
-			rx_ring[i] = adapter->rx_ring[i];
+			rx_ring[i] = *adapter->rx_ring[i];
 			rx_ring[i].count = new_rx_count;
 			err = ixgbevf_setup_rx_resources(adapter, &rx_ring[i]);
 			if (!err)
@@ -352,9 +352,8 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	/* Tx */
 	if (tx_ring) {
 		for (i = 0; i < adapter->num_tx_queues; i++) {
-			ixgbevf_free_tx_resources(adapter,
-						  &adapter->tx_ring[i]);
-			adapter->tx_ring[i] = tx_ring[i];
+			ixgbevf_free_tx_resources(adapter, adapter->tx_ring[i]);
+			*adapter->tx_ring[i] = tx_ring[i];
 		}
 		adapter->tx_ring_count = new_tx_count;
 
@@ -365,9 +364,8 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	/* Rx */
 	if (rx_ring) {
 		for (i = 0; i < adapter->num_rx_queues; i++) {
-			ixgbevf_free_rx_resources(adapter,
-						  &adapter->rx_ring[i]);
-			adapter->rx_ring[i] = rx_ring[i];
+			ixgbevf_free_rx_resources(adapter, adapter->rx_ring[i]);
+			*adapter->rx_ring[i] = rx_ring[i];
 		}
 		adapter->rx_ring_count = new_rx_count;
 
@@ -413,15 +411,15 @@ static void ixgbevf_get_ethtool_stats(struct net_device *netdev,
 	    tx_yields = 0, tx_cleaned = 0, tx_missed = 0;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		rx_yields += adapter->rx_ring[i].bp_yields;
-		rx_cleaned += adapter->rx_ring[i].bp_cleaned;
-		rx_yields += adapter->rx_ring[i].bp_yields;
+		rx_yields += adapter->rx_ring[i]->bp_yields;
+		rx_cleaned += adapter->rx_ring[i]->bp_cleaned;
+		rx_yields += adapter->rx_ring[i]->bp_yields;
 	}
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		tx_yields += adapter->tx_ring[i].bp_yields;
-		tx_cleaned += adapter->tx_ring[i].bp_cleaned;
-		tx_yields += adapter->tx_ring[i].bp_yields;
+		tx_yields += adapter->tx_ring[i]->bp_yields;
+		tx_cleaned += adapter->tx_ring[i]->bp_cleaned;
+		tx_yields += adapter->tx_ring[i]->bp_yields;
 	}
 
 	adapter->bp_rx_yields = rx_yields;
