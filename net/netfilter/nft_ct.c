@@ -133,7 +133,9 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 {
 	const struct nft_ct *priv = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
+#ifdef CONFIG_NF_CONNTRACK_MARK
 	u32 value = data[priv->sreg].data[0];
+#endif
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 

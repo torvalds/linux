@@ -859,7 +859,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		    nla[NFTA_CHAIN_HOOK] == NULL)
 			return -EOPNOTSUPP;
 
-		policy = nla_get_be32(nla[NFTA_CHAIN_POLICY]);
+		policy = ntohl(nla_get_be32(nla[NFTA_CHAIN_POLICY]));
 		switch (policy) {
 		case NF_DROP:
 		case NF_ACCEPT:

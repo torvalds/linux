@@ -429,7 +429,7 @@ config NF_TABLES
 	  To compile it as a module, choose M here.
 
 config NF_TABLES_INET
-	depends on NF_TABLES
+	depends on NF_TABLES && IPV6
 	select NF_TABLES_IPV4
 	select NF_TABLES_IPV6
 	tristate "Netfilter nf_tables mixed IPv4/IPv6 tables support"
