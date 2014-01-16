@@ -295,6 +295,7 @@ struct rfcomm_conninfo {
 #define RFCOMM_LM_TRUSTED	0x0008
 #define RFCOMM_LM_RELIABLE	0x0010
 #define RFCOMM_LM_SECURE	0x0020
+#define RFCOMM_LM_FIPS		0x0040
 
 #define rfcomm_pi(sk) ((struct rfcomm_pinfo *) sk)
 

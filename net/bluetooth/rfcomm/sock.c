@@ -648,6 +648,11 @@ static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname, char __u
 			break;
 		}
 
+		if (opt & RFCOMM_LM_FIPS) {
+			err = -EINVAL;
+			break;
+		}
+
 		if (opt & RFCOMM_LM_AUTH)
 			rfcomm_pi(sk)->sec_level = BT_SECURITY_LOW;
 		if (opt & RFCOMM_LM_ENCRYPT)
@@ -762,7 +767,11 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 			break;
 		case BT_SECURITY_HIGH:
 			opt = RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT |
-							RFCOMM_LM_SECURE;
+			      RFCOMM_LM_SECURE;
+			break;
+		case BT_SECURITY_FIPS:
+			opt = RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT |
+			      RFCOMM_LM_SECURE | RFCOMM_LM_FIPS;
 			break;
 		default:
 			opt = 0;
@@ -774,6 +783,7 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 
 		if (put_user(opt, (u32 __user *) optval))
 			err = -EFAULT;
+
 		break;
 
 	case RFCOMM_CONNINFO:
