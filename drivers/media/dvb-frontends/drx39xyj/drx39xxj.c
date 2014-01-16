@@ -327,7 +327,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 
 	struct i2c_device_addr *demod_addr = NULL;
 	struct drx_common_attr *demod_comm_attr = NULL;
-	drxj_data_t *demod_ext_attr = NULL;
+	struct drxj_data *demod_ext_attr = NULL;
 	struct drx_demod_instance *demod = NULL;
 	struct drxuio_cfg uio_cfg;
 	struct drxuio_data uio_data;
@@ -350,7 +350,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	if (demod_comm_attr == NULL)
 		goto error;
 
-	demod_ext_attr = kmalloc(sizeof(drxj_data_t), GFP_KERNEL);
+	demod_ext_attr = kmalloc(sizeof(struct drxj_data), GFP_KERNEL);
 	if (demod_ext_attr == NULL)
 		goto error;
 
@@ -375,8 +375,8 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	demod->my_common_attr->intermediate_freq = 5000;
 
 	demod->my_ext_attr = demod_ext_attr;
-	memcpy(demod->my_ext_attr, &drxj_data_g, sizeof(drxj_data_t));
-	((drxj_data_t *)demod->my_ext_attr)->uio_sma_tx_mode =
+	memcpy(demod->my_ext_attr, &drxj_data_g, sizeof(struct drxj_data));
+	((struct drxj_data *)demod->my_ext_attr)->uio_sma_tx_mode =
 	    DRX_UIO_MODE_READWRITE;
 
 	demod->my_tuner = NULL;

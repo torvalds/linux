@@ -1,3 +1,4 @@
+
 /*
   Copyright (c), 2004-2005,2007-2010 Trident Microsystems, Inc.
   All rights reserved.
@@ -74,7 +75,7 @@ TYPEDEFS
 /*============================================================================*/
 /*============================================================================*/
 
-	typedef struct {
+	struct drxjscu_cmd {
 		u16 command;
 			/**< Command number */
 		u16 parameter_len;
@@ -84,8 +85,7 @@ TYPEDEFS
 		u16 *parameter;
 			/**< General purpous param */
 		u16 *result;
-			/**< General purpous param */
-	} drxjscu_cmd_t, *p_drxjscu_cmd_t;
+			/**< General purpous param */};
 
 /*============================================================================*/
 /*============================================================================*/
@@ -111,7 +111,7 @@ TYPEDEFS
 /*#define DRX_CTRL_BASE         (0x0000)*/
 
 #define DRXJ_CTRL_CFG_BASE    (0x1000)
-	typedef enum {
+	enum drxj_cfg_type {
 		DRXJ_CFG_AGC_RF = DRXJ_CTRL_CFG_BASE,
 		DRXJ_CFG_AGC_IF,
 		DRXJ_CFG_AGC_INTERNAL,
@@ -136,96 +136,85 @@ TYPEDEFS
 		DRXJ_CFG_HW_CFG,
 		DRXJ_CFG_OOB_LO_POW,
 
-		DRXJ_CFG_MAX	/* dummy, never to be used */
-	} drxj_cfg_type_t, *pdrxj_cfg_type_t;
+		DRXJ_CFG_MAX	/* dummy, never to be used */};
 
 /**
-* /struct drxj_cfg_smart_ant_io_t
-* smart antenna i/o.
+* /struct enum drxj_cfg_smart_ant_io * smart antenna i/o.
 */
-	typedef enum drxj_cfg_smart_ant_io_t {
-		DRXJ_SMT_ANT_OUTPUT = 0,
-		DRXJ_SMT_ANT_INPUT
-	} drxj_cfg_smart_ant_io_t, *pdrxj_cfg_smart_ant_io_t;
+enum drxj_cfg_smart_ant_io {
+	DRXJ_SMT_ANT_OUTPUT = 0,
+	DRXJ_SMT_ANT_INPUT
+};
 
 /**
-* /struct drxj_cfg_smart_ant_t
-* Set smart antenna.
+* /struct struct drxj_cfg_smart_ant * Set smart antenna.
 */
-	typedef struct {
-		drxj_cfg_smart_ant_io_t io;
+	struct drxj_cfg_smart_ant {
+		enum drxj_cfg_smart_ant_io io;
 		u16 ctrl_data;
-	} drxj_cfg_smart_ant_t, *p_drxj_cfg_smart_ant_t;
+	};
 
 /**
 * /struct DRXJAGCSTATUS_t
 * AGC status information from the DRXJ-IQM-AF.
 */
-	typedef struct {
-		u16 IFAGC;
-		u16 RFAGC;
-		u16 digital_agc;
-	} drxj_agc_status_t, *pdrxj_agc_status_t;
+struct drxj_agc_status {
+	u16 IFAGC;
+	u16 RFAGC;
+	u16 digital_agc;
+};
 
 /* DRXJ_CFG_AGC_RF, DRXJ_CFG_AGC_IF */
 
 /**
-* /struct drxj_agc_ctrl_mode_t
-* Available AGCs modes in the DRXJ.
+* /struct enum drxj_agc_ctrl_mode * Available AGCs modes in the DRXJ.
 */
-	typedef enum {
+	enum drxj_agc_ctrl_mode {
 		DRX_AGC_CTRL_AUTO = 0,
 		DRX_AGC_CTRL_USER,
-		DRX_AGC_CTRL_OFF
-	} drxj_agc_ctrl_mode_t, *pdrxj_agc_ctrl_mode_t;
+		DRX_AGC_CTRL_OFF};
 
 /**
-* /struct drxj_cfg_agc_t
-* Generic interface for all AGCs present on the DRXJ.
+* /struct struct drxj_cfg_agc * Generic interface for all AGCs present on the DRXJ.
 */
-	typedef struct {
+	struct drxj_cfg_agc {
 		enum drx_standard standard;	/* standard for which these settings apply */
-		drxj_agc_ctrl_mode_t ctrl_mode;	/* off, user, auto          */
+		enum drxj_agc_ctrl_mode ctrl_mode;	/* off, user, auto          */
 		u16 output_level;	/* range dependent on AGC   */
 		u16 min_output_level;	/* range dependent on AGC   */
 		u16 max_output_level;	/* range dependent on AGC   */
 		u16 speed;	/* range dependent on AGC   */
 		u16 top;	/* rf-agc take over point   */
 		u16 cut_off_current;	/* rf-agc is accelerated if output current
-					   is below cut-off current                */
-	} drxj_cfg_agc_t, *p_drxj_cfg_agc_t;
+					   is below cut-off current                */};
 
 /* DRXJ_CFG_PRE_SAW */
 
 /**
-* /struct drxj_cfg_pre_saw_t
-* Interface to configure pre SAW sense.
+* /struct struct drxj_cfg_pre_saw * Interface to configure pre SAW sense.
 */
-	typedef struct {
+	struct drxj_cfg_pre_saw {
 		enum drx_standard standard;	/* standard to which these settings apply */
 		u16 reference;	/* pre SAW reference value, range 0 .. 31 */
-		bool use_pre_saw;	/* true algorithms must use pre SAW sense */
-	} drxj_cfg_pre_saw_t, *p_drxj_cfg_pre_saw_t;
+		bool use_pre_saw;	/* true algorithms must use pre SAW sense */};
 
 /* DRXJ_CFG_AFE_GAIN */
 
 /**
-* /struct drxj_cfg_afe_gain_t
-* Interface to configure gain of AFE (LNA + PGA).
+* /struct struct drxj_cfg_afe_gain * Interface to configure gain of AFE (LNA + PGA).
 */
-	typedef struct {
+	struct drxj_cfg_afe_gain {
 		enum drx_standard standard;	/* standard to which these settings apply */
-		u16 gain;	/* gain in 0.1 dB steps, DRXJ range 140 .. 335 */
-	} drxj_cfg_afe_gain_t, *p_drxj_cfg_afe_gain_t;
+		u16 gain;	/* gain in 0.1 dB steps, DRXJ range 140 .. 335 */};
 
 /**
-* /struct DRXJrs_errors_t
+* /struct drxjrs_errors
 * Available failure information in DRXJ_FEC_RS.
 *
 * Container for errors that are received in the most recently finished measurment period
 *
 */
-	typedef struct {
+	struct drxjrs_errors {
 		u16 nr_bit_errors;
 				/**< no of pre RS bit errors          */
 		u16 nr_symbol_errors;
@@ -236,41 +225,35 @@ TYPEDEFS
 				/**< no of post RS failures to decode */
 		u16 nr_snc_par_fail_count;
 				/**< no of post RS bit erros          */
-	} DRXJrs_errors_t, *p_drxjrs_errors_t;
+	};
 
 /**
-* /struct drxj_cfg_vsb_misc_t
-* symbol error rate
+* /struct struct drxj_cfg_vsb_misc * symbol error rate
 */
-	typedef struct {
+	struct drxj_cfg_vsb_misc {
 		u32 symb_error;
-			      /**< symbol error rate sps */
-	} drxj_cfg_vsb_misc_t, *p_drxj_cfg_vsb_misc_t;
+			      /**< symbol error rate sps */};
 
 /**
-* /enum drxj_mpeg_output_clock_rate_t
-* Mpeg output clock rate.
+* /enum enum drxj_mpeg_output_clock_rate * Mpeg output clock rate.
 *
 */
-	typedef enum {
+	enum drxj_mpeg_start_width {
 		DRXJ_MPEG_START_WIDTH_1CLKCYC,
-		DRXJ_MPEG_START_WIDTH_8CLKCYC
-	} drxj_mpeg_start_width_t, *pdrxj_mpeg_start_width_t;
+		DRXJ_MPEG_START_WIDTH_8CLKCYC};
 
 /**
-* /enum drxj_mpeg_output_clock_rate_t
-* Mpeg output clock rate.
+* /enum enum drxj_mpeg_output_clock_rate * Mpeg output clock rate.
 *
 */
-	typedef enum {
+	enum drxj_mpeg_output_clock_rate {
 		DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO,
 		DRXJ_MPEGOUTPUT_CLOCK_RATE_75973K,
 		DRXJ_MPEGOUTPUT_CLOCK_RATE_50625K,
 		DRXJ_MPEGOUTPUT_CLOCK_RATE_37968K,
 		DRXJ_MPEGOUTPUT_CLOCK_RATE_30375K,
 		DRXJ_MPEGOUTPUT_CLOCK_RATE_25313K,
-		DRXJ_MPEGOUTPUT_CLOCK_RATE_21696K
-	} drxj_mpeg_output_clock_rate_t, *pdrxj_mpeg_output_clock_rate_t;
+		DRXJ_MPEGOUTPUT_CLOCK_RATE_21696K};
 
 /**
 * /struct DRXJCfgMisc_t
@@ -278,56 +261,47 @@ TYPEDEFS
 * reverse MPEG output bit order
 * set MPEG output clock rate
 */
-	typedef struct {
+	struct drxj_cfg_mpeg_output_misc {
 		bool disable_tei_handling;	      /**< if true pass (not change) TEI bit */
 		bool bit_reverse_mpeg_outout;	      /**< if true, parallel: msb on MD0; serial: lsb out first */
-		drxj_mpeg_output_clock_rate_t mpeg_output_clock_rate;
+		enum drxj_mpeg_output_clock_rate mpeg_output_clock_rate;
 						      /**< set MPEG output clock rate that overwirtes the derived one from symbol rate */
-		drxj_mpeg_start_width_t mpeg_start_width;  /**< set MPEG output start width */
-	} drxj_cfg_mpeg_output_misc_t, *p_drxj_cfg_mpeg_output_misc_t;
+		enum drxj_mpeg_start_width mpeg_start_width;  /**< set MPEG output start width */};
 
 /**
-* /enum drxj_xtal_freq_t
-* Supported external crystal reference frequency.
+* /enum enum drxj_xtal_freq * Supported external crystal reference frequency.
 */
-	typedef enum {
+	enum drxj_xtal_freq {
 		DRXJ_XTAL_FREQ_RSVD,
 		DRXJ_XTAL_FREQ_27MHZ,
 		DRXJ_XTAL_FREQ_20P25MHZ,
-		DRXJ_XTAL_FREQ_4MHZ
-	} drxj_xtal_freq_t, *pdrxj_xtal_freq_t;
+		DRXJ_XTAL_FREQ_4MHZ};
 
 /**
-* /enum drxj_xtal_freq_t
-* Supported external crystal reference frequency.
+* /enum enum drxj_xtal_freq * Supported external crystal reference frequency.
 */
-	typedef enum {
+	enum drxji2c_speed {
 		DRXJ_I2C_SPEED_400KBPS,
-		DRXJ_I2C_SPEED_100KBPS
-	} drxji2c_speed_t, *pdrxji2c_speed_t;
+		DRXJ_I2C_SPEED_100KBPS};
 
 /**
-* /struct drxj_cfg_hw_cfg_t
-* Get hw configuration, such as crystal reference frequency, I2C speed, etc...
+* /struct struct drxj_cfg_hw_cfg * Get hw configuration, such as crystal reference frequency, I2C speed, etc...
 */
-	typedef struct {
-		drxj_xtal_freq_t xtal_freq;
+	struct drxj_cfg_hw_cfg {
+		enum drxj_xtal_freq xtal_freq;
 				   /**< crystal reference frequency */
-		drxji2c_speed_t i2c_speed;
-				   /**< 100 or 400 kbps */
-	} drxj_cfg_hw_cfg_t, *p_drxj_cfg_hw_cfg_t;
+		enum drxji2c_speed i2c_speed;
+				   /**< 100 or 400 kbps */};
 
 /*
  *  DRXJ_CFG_ATV_MISC
  */
-	typedef struct {
+	struct drxj_cfg_atv_misc {
 		s16 peak_filter;	/* -8 .. 15 */
-		u16 noise_filter;	/* 0 .. 15 */
-	} drxj_cfg_atv_misc_t, *p_drxj_cfg_atv_misc_t;
+		u16 noise_filter;	/* 0 .. 15 */};
 
 /*
- *  drxj_cfg_oob_misc_t
- */
+ *  struct drxj_cfg_oob_misc */
 #define   DRXJ_OOB_STATE_RESET                                        0x0
 #define   DRXJ_OOB_STATE_AGN_HUNT                                     0x1
 #define   DRXJ_OOB_STATE_DGN_HUNT                                     0x2
@@ -339,42 +313,40 @@ TYPEDEFS
 #define   DRXJ_OOB_STATE_EQT_HUNT                                     0x30
 #define   DRXJ_OOB_STATE_SYNC                                         0x40
 
-	typedef struct {
-		drxj_agc_status_t agc;
-		bool eq_lock;
-		bool sym_timing_lock;
-		bool phase_lock;
-		bool freq_lock;
-		bool dig_gain_lock;
-		bool ana_gain_lock;
-		u8 state;
-	} drxj_cfg_oob_misc_t, *p_drxj_cfg_oob_misc_t;
+struct drxj_cfg_oob_misc {
+	struct drxj_agc_status agc;
+	bool eq_lock;
+	bool sym_timing_lock;
+	bool phase_lock;
+	bool freq_lock;
+	bool dig_gain_lock;
+	bool ana_gain_lock;
+	u8 state;
+ };
 
 /*
  *  Index of in array of coef
  */
-	typedef enum {
+	enum drxj_cfg_oob_lo_power {
 		DRXJ_OOB_LO_POW_MINUS0DB = 0,
 		DRXJ_OOB_LO_POW_MINUS5DB,
 		DRXJ_OOB_LO_POW_MINUS10DB,
 		DRXJ_OOB_LO_POW_MINUS15DB,
-		DRXJ_OOB_LO_POW_MAX
-	} drxj_cfg_oob_lo_power_t, *p_drxj_cfg_oob_lo_power_t;
+		DRXJ_OOB_LO_POW_MAX};
 
 /*
  *  DRXJ_CFG_ATV_EQU_COEF
  */
-	typedef struct {
+	struct drxj_cfg_atv_equ_coef {
 		s16 coef0;	/* -256 .. 255 */
 		s16 coef1;	/* -256 .. 255 */
 		s16 coef2;	/* -256 .. 255 */
-		s16 coef3;	/* -256 .. 255 */
-	} drxj_cfg_atv_equ_coef_t, *p_drxj_cfg_atv_equ_coef_t;
+		s16 coef3;	/* -256 .. 255 */};
 
 /*
  *  Index of in array of coef
  */
-	typedef enum {
+	enum drxj_coef_array_index {
 		DRXJ_COEF_IDX_MN = 0,
 		DRXJ_COEF_IDX_FM,
 		DRXJ_COEF_IDX_L,
@@ -382,8 +354,7 @@ TYPEDEFS
 		DRXJ_COEF_IDX_BG,
 		DRXJ_COEF_IDX_DK,
 		DRXJ_COEF_IDX_I,
-		DRXJ_COEF_IDX_MAX
-	} drxj_coef_array_index_t, *pdrxj_coef_array_index_t;
+		DRXJ_COEF_IDX_MAX};
 
 /*
  *  DRXJ_CFG_ATV_OUTPUT
@@ -394,37 +365,34 @@ TYPEDEFS
 * Attenuation setting for SIF AGC.
 *
 */
-	typedef enum {
+	enum drxjsif_attenuation {
 		DRXJ_SIF_ATTENUATION_0DB,
 		DRXJ_SIF_ATTENUATION_3DB,
 		DRXJ_SIF_ATTENUATION_6DB,
-		DRXJ_SIF_ATTENUATION_9DB
-	} drxjsif_attenuation_t, *pdrxjsif_attenuation_t;
+		DRXJ_SIF_ATTENUATION_9DB};
 
 /**
-* /struct drxj_cfg_atv_output_t
-* SIF attenuation setting.
+* /struct struct drxj_cfg_atv_output * SIF attenuation setting.
 *
 */
-	typedef struct {
-		bool enable_cvbs_output;	/* true= enabled */
-		bool enable_sif_output;	/* true= enabled */
-		drxjsif_attenuation_t sif_attenuation;
-	} drxj_cfg_atv_output_t, *p_drxj_cfg_atv_output_t;
+struct drxj_cfg_atv_output {
+	bool enable_cvbs_output;	/* true= enabled */
+	bool enable_sif_output;	/* true= enabled */
+	enum drxjsif_attenuation sif_attenuation;
+};
 
 /*
    DRXJ_CFG_ATV_AGC_STATUS (get only)
 */
 /* TODO : AFE interface not yet finished, subject to change */
-	typedef struct {
+	struct drxj_cfg_atv_agc_status {
 		u16 rf_agc_gain;	/* 0 .. 877 uA */
 		u16 if_agc_gain;	/* 0 .. 877  uA */
 		s16 video_agc_gain;	/* -75 .. 1972 in 0.1 dB steps */
 		s16 audio_agc_gain;	/* -4 .. 1020 in 0.1 dB steps */
 		u16 rf_agc_loop_gain;	/* 0 .. 7 */
 		u16 if_agc_loop_gain;	/* 0 .. 7 */
-		u16 video_agc_loop_gain;	/* 0 .. 7 */
-	} drxj_cfg_atv_agc_status_t, *p_drxj_cfg_atv_agc_status_t;
+		u16 video_agc_loop_gain;	/* 0 .. 7 */};
 
 /*============================================================================*/
 /*============================================================================*/
@@ -439,13 +407,12 @@ TYPEDEFS
 
 /*========================================*/
 /**
-* /struct drxj_data_t
-* DRXJ specific attributes.
+* /struct struct drxj_data * DRXJ specific attributes.
 *
 * Global data container for DRXJ specific data.
 *
 */
-	typedef struct {
+	struct drxj_data {
 		/* device capabilties (determined during drx_open()) */
 		bool has_lna;		  /**< true if LNA (aka PGA) present */
 		bool has_oob;		  /**< true if OOB supported */
@@ -511,22 +478,22 @@ TYPEDEFS
 		u16 atv_top_noise_th;	  /**< shadow of ATV_TOP_NOISE_TH__A */
 		bool enable_cvbs_output;  /**< flag CVBS ouput enable */
 		bool enable_sif_output;	  /**< flag SIF ouput enable */
-		 drxjsif_attenuation_t sif_attenuation;
+		 enum drxjsif_attenuation sif_attenuation;
 					  /**< current SIF att setting */
 		/* Agc configuration for QAM and VSB */
-		drxj_cfg_agc_t qam_rf_agc_cfg; /**< qam RF AGC config */
-		drxj_cfg_agc_t qam_if_agc_cfg; /**< qam IF AGC config */
-		drxj_cfg_agc_t vsb_rf_agc_cfg; /**< vsb RF AGC config */
-		drxj_cfg_agc_t vsb_if_agc_cfg; /**< vsb IF AGC config */
+		struct drxj_cfg_agc qam_rf_agc_cfg; /**< qam RF AGC config */
+		struct drxj_cfg_agc qam_if_agc_cfg; /**< qam IF AGC config */
+		struct drxj_cfg_agc vsb_rf_agc_cfg; /**< vsb RF AGC config */
+		struct drxj_cfg_agc vsb_if_agc_cfg; /**< vsb IF AGC config */
 
 		/* PGA gain configuration for QAM and VSB */
 		u16 qam_pga_cfg;	  /**< qam PGA config */
 		u16 vsb_pga_cfg;	  /**< vsb PGA config */
 
 		/* Pre SAW configuration for QAM and VSB */
-		drxj_cfg_pre_saw_t qam_pre_saw_cfg;
+		struct drxj_cfg_pre_saw qam_pre_saw_cfg;
 					  /**< qam pre SAW config */
-		drxj_cfg_pre_saw_t vsb_pre_saw_cfg;
+		struct drxj_cfg_pre_saw vsb_pre_saw_cfg;
 					  /**< qam pre SAW config */
 
 		/* Version information */
@@ -546,16 +513,16 @@ TYPEDEFS
 		u32 mpeg_ts_static_bitrate;  /**< bitrate static MPEG output */
 		bool disable_te_ihandling;  /**< MPEG TS TEI handling */
 		bool bit_reverse_mpeg_outout;/**< MPEG output bit order */
-		 drxj_mpeg_output_clock_rate_t mpeg_output_clock_rate;
+		 enum drxj_mpeg_output_clock_rate mpeg_output_clock_rate;
 					    /**< MPEG output clock rate */
-		 drxj_mpeg_start_width_t mpeg_start_width;
+		 enum drxj_mpeg_start_width mpeg_start_width;
 					    /**< MPEG Start width */
 
 		/* Pre SAW & Agc configuration for ATV */
-		drxj_cfg_pre_saw_t atv_pre_saw_cfg;
+		struct drxj_cfg_pre_saw atv_pre_saw_cfg;
 					  /**< atv pre SAW config */
-		drxj_cfg_agc_t atv_rf_agc_cfg; /**< atv RF AGC config */
-		drxj_cfg_agc_t atv_if_agc_cfg; /**< atv IF AGC config */
+		struct drxj_cfg_agc atv_rf_agc_cfg; /**< atv RF AGC config */
+		struct drxj_cfg_agc atv_if_agc_cfg; /**< atv IF AGC config */
 		u16 atv_pga_cfg;	  /**< atv pga config    */
 
 		u32 curr_symbol_rate;
@@ -569,12 +536,10 @@ TYPEDEFS
 
 		/* OOB pre-saw value */
 		u16 oob_pre_saw;
-		drxj_cfg_oob_lo_power_t oob_lo_pow;
+		enum drxj_cfg_oob_lo_power oob_lo_pow;
 
 		struct drx_aud_data aud_data;
-				    /**< audio storage                  */
-
-	} drxj_data_t, *pdrxj_data_t;
+				    /**< audio storage                  */};
 
 /*-------------------------------------------------------------------------
 Access MACROS
@@ -591,7 +556,7 @@ Access MACROS
 */
 
 #define DRXJ_ATTR_BTSC_DETECT(d)                       \
-			(((pdrxj_data_t)(d)->my_ext_attr)->aud_data.btsc_detect)
+			(((struct drxj_data *)(d)->my_ext_attr)->aud_data.btsc_detect)
 
 /**
 * \brief Actual access macros
@@ -733,7 +698,7 @@ Exported GLOBAL VARIABLES
 -------------------------------------------------------------------------*/
 	extern struct drx_access_func drx_dap_drxj_funct_g;
 	extern struct drx_demod_func drxj_functions_g;
-	extern drxj_data_t drxj_data_g;
+	extern struct drxj_data drxj_data_g;
 	extern struct i2c_device_addr drxj_default_addr_g;
 	extern struct drx_common_attr drxj_default_comm_attr_g;
 	extern struct drx_demod_instance drxj_default_demod_g;
