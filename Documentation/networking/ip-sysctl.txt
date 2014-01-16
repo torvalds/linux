@@ -16,8 +16,12 @@ ip_default_ttl - INTEGER
 	Default: 64 (as recommended by RFC1700)
 
 ip_no_pmtu_disc - BOOLEAN
-	Disable Path MTU Discovery.
-	default FALSE
+	Disable Path MTU Discovery. If enabled and a
+	fragmentation-required ICMP is received, the PMTU to this
+	destination will be set to min_pmtu (see below). You will need
+	to raise min_pmtu to the smallest interface MTU on your system
+	manually if you want to avoid locally generated fragments.
+	Default: FALSE
 
 min_pmtu - INTEGER
 	default 552 - minimum discovered Path MTU

@@ -5685,7 +5685,10 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
+	unsigned long irqflags;
 	uint32_t tmp;
+
+	WARN_ON(dev_priv->pc8.enabled);
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	is_enabled = tmp & HSW_PWR_WELL_STATE_ENABLED;
@@ -5702,9 +5705,24 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 				      HSW_PWR_WELL_STATE_ENABLED), 20))
 				DRM_ERROR("Timeout enabling power well\n");
 		}
+
+		if (IS_BROADWELL(dev)) {
+			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_B),
+				   dev_priv->de_irq_mask[PIPE_B]);
+			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_B),
+				   ~dev_priv->de_irq_mask[PIPE_B] |
+				   GEN8_PIPE_VBLANK);
+			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_C),
+				   dev_priv->de_irq_mask[PIPE_C]);
+			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_C),
+				   ~dev_priv->de_irq_mask[PIPE_C] |
+				   GEN8_PIPE_VBLANK);
+			POSTING_READ(GEN8_DE_PIPE_IER(PIPE_C));
+			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		}
 	} else {
 		if (enable_requested) {
-			unsigned long irqflags;
 			enum pipe p;
 
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
@@ -5731,16 +5749,24 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 static void __intel_power_well_get(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
-	if (!power_well->count++)
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!power_well->count++) {
+		hsw_disable_package_c8(dev_priv);
 		__intel_set_power_well(dev, true);
+	}
 }
 
 static void __intel_power_well_put(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	WARN_ON(!power_well->count);
-	if (!--power_well->count && i915_disable_power_well)
+	if (!--power_well->count && i915_disable_power_well) {
 		__intel_set_power_well(dev, false);
+		hsw_enable_package_c8(dev_priv);
+	}
 }
 
 void intel_display_power_get(struct drm_device *dev,
@@ -6130,10 +6156,19 @@ int vlv_freq_opcode(int ddr_freq, int val)
 	return val;
 }
 
-void intel_pm_init(struct drm_device *dev)
+void intel_pm_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	mutex_init(&dev_priv->rps.hw_lock);
+
+	mutex_init(&dev_priv->pc8.lock);
+	dev_priv->pc8.requirements_met = false;
+	dev_priv->pc8.gpu_idle = false;
+	dev_priv->pc8.irqs_disabled = false;
+	dev_priv->pc8.enabled = false;
+	dev_priv->pc8.disable_count = 2; /* requirements_met + gpu_idle */
+	INIT_DELAYED_WORK(&dev_priv->pc8.enable_work, hsw_enable_pc8_work);
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }

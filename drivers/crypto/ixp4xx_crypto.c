@@ -1410,13 +1410,11 @@ static const struct platform_device_info ixp_dev_info __initdata = {
 static int __init ixp_module_init(void)
 {
 	int num = ARRAY_SIZE(ixp4xx_algos);
-	int i, err ;
+	int i, err;
 
 	pdev = platform_device_register_full(&ixp_dev_info);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
-
-	dev = &pdev->dev;
 
 	spin_lock_init(&desc_lock);
 	spin_lock_init(&emerg_lock);

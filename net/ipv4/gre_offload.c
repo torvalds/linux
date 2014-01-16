@@ -28,6 +28,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	netdev_features_t enc_features;
 	int ghl = GRE_HEADER_SECTION;
 	struct gre_base_hdr *greh;
+	u16 mac_offset = skb->mac_header;
 	int mac_len = skb->mac_len;
 	__be16 protocol = skb->protocol;
 	int tnl_hlen;
@@ -58,12 +59,12 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	} else
 		csum = false;
 
+	if (unlikely(!pskb_may_pull(skb, ghl)))
+		goto out;
+
 	/* setup inner skb. */
 	skb->protocol = greh->protocol;
 	skb->encapsulation = 0;
-
-	if (unlikely(!pskb_may_pull(skb, ghl)))
-		goto out;
 
 	__skb_pull(skb, ghl);
 	skb_reset_mac_header(skb);
@@ -73,8 +74,10 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	/* segment inner packet. */
 	enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
 	segs = skb_mac_gso_segment(skb, enc_features);
-	if (!segs || IS_ERR(segs))
+	if (!segs || IS_ERR(segs)) {
+		skb_gso_error_unwind(skb, protocol, ghl, mac_offset, mac_len);
 		goto out;
+	}
 
 	skb = segs;
 	tnl_hlen = skb_tnl_header_len(skb);

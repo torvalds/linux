@@ -45,6 +45,7 @@
 #include "l2t.h"
 #include "t4_msg.h"
 #include "t4fw_api.h"
+#include "t4_regs.h"
 
 #define VLAN_NONE 0xfff
 
@@ -410,6 +411,40 @@ done:
 	return e;
 }
 EXPORT_SYMBOL(cxgb4_l2t_get);
+
+u64 cxgb4_select_ntuple(struct net_device *dev,
+			const struct l2t_entry *l2t)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct tp_params *tp = &adap->params.tp;
+	u64 ntuple = 0;
+
+	/* Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && l2t->vlan != VLAN_NONE)
+		ntuple |= (F_FT_VLAN_VLD | l2t->vlan) << tp->vlan_shift;
+
+	if (tp->port_shift >= 0)
+		ntuple |= (u64)l2t->lport << tp->port_shift;
+
+	if (tp->protocol_shift >= 0)
+		ntuple |= (u64)IPPROTO_TCP << tp->protocol_shift;
+
+	if (tp->vnic_shift >= 0) {
+		u32 viid = cxgb4_port_viid(dev);
+		u32 vf = FW_VIID_VIN_GET(viid);
+		u32 pf = FW_VIID_PFN_GET(viid);
+		u32 vld = FW_VIID_VIVLD_GET(viid);
+
+		ntuple |= (u64)(V_FT_VNID_ID_VF(vf) |
+				V_FT_VNID_ID_PF(pf) |
+				V_FT_VNID_ID_VLD(vld)) << tp->vnic_shift;
+	}
+
+	return ntuple;
+}
+EXPORT_SYMBOL(cxgb4_select_ntuple);
 
 /*
  * Called when address resolution fails for an L2T entry to handle packets

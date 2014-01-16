@@ -261,9 +261,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	struct sk_buff *skb;
 
 	net = ((struct netvsc_device *)hv_get_drvdata(device_obj))->ndev;
-	if (!net) {
-		netdev_err(net, "got receive callback but net device"
-			" not initialized yet\n");
+	if (!net || net->reg_state != NETREG_REGISTERED) {
 		packet->status = NVSP_STAT_FAIL;
 		return 0;
 	}
@@ -327,7 +325,6 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 		return -EINVAL;
 
 	nvdev->start_remove = true;
-	cancel_delayed_work_sync(&ndevctx->dwork);
 	cancel_work_sync(&ndevctx->work);
 	netif_tx_disable(ndev);
 	rndis_filter_device_remove(hdev);
@@ -436,19 +433,11 @@ static int netvsc_probe(struct hv_device *dev,
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);
 
-	ret = register_netdev(net);
-	if (ret != 0) {
-		pr_err("Unable to register netdev.\n");
-		free_netdev(net);
-		goto out;
-	}
-
 	/* Notify the netvsc driver of the new device */
 	device_info.ring_size = ring_size;
 	ret = rndis_filter_device_add(dev, &device_info);
 	if (ret != 0) {
 		netdev_err(net, "unable to add netvsc device (ret %d)\n", ret);
-		unregister_netdev(net);
 		free_netdev(net);
 		hv_set_drvdata(dev, NULL);
 		return ret;
@@ -457,7 +446,13 @@ static int netvsc_probe(struct hv_device *dev,
 
 	netif_carrier_on(net);
 
-out:
+	ret = register_netdev(net);
+	if (ret != 0) {
+		pr_err("Unable to register netdev.\n");
+		rndis_filter_device_remove(dev);
+		free_netdev(net);
+	}
+
 	return ret;
 }
 

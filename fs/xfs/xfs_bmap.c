@@ -1635,7 +1635,7 @@ xfs_bmap_last_extent(
  * blocks at the end of the file which do not start at the previous data block,
  * we will try to align the new blocks at stripe unit boundaries.
  *
- * Returns 0 in bma->aeof if the file (fork) is empty as any new write will be
+ * Returns 1 in bma->aeof if the file (fork) is empty as any new write will be
  * at, or past the EOF.
  */
 STATIC int
@@ -1650,8 +1650,13 @@ xfs_bmap_isaeof(
 	bma->aeof = 0;
 	error = xfs_bmap_last_extent(NULL, bma->ip, whichfork, &rec,
 				     &is_empty);
-	if (error || is_empty)
+	if (error)
 		return error;
+
+	if (is_empty) {
+		bma->aeof = 1;
+		return 0;
+	}
 
 	/*
 	 * Check if we are allocation or past the last extent, or at least into
@@ -3643,10 +3648,19 @@ xfs_bmap_btalloc(
 	int		isaligned;
 	int		tryagain;
 	int		error;
+	int		stripe_align;
 
 	ASSERT(ap->length);
 
 	mp = ap->ip->i_mount;
+
+	/* stripe alignment for allocation is determined by mount parameters */
+	stripe_align = 0;
+	if (mp->m_swidth && (mp->m_flags & XFS_MOUNT_SWALLOC))
+		stripe_align = mp->m_swidth;
+	else if (mp->m_dalign)
+		stripe_align = mp->m_dalign;
+
 	align = ap->userdata ? xfs_get_extsz_hint(ap->ip) : 0;
 	if (unlikely(align)) {
 		error = xfs_bmap_extsize_align(mp, &ap->got, &ap->prev,
@@ -3655,6 +3669,8 @@ xfs_bmap_btalloc(
 		ASSERT(!error);
 		ASSERT(ap->length);
 	}
+
+
 	nullfb = *ap->firstblock == NULLFSBLOCK;
 	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp, *ap->firstblock);
 	if (nullfb) {
@@ -3730,7 +3746,7 @@ xfs_bmap_btalloc(
 	 */
 	if (!ap->flist->xbf_low && ap->aeof) {
 		if (!ap->offset) {
-			args.alignment = mp->m_dalign;
+			args.alignment = stripe_align;
 			atype = args.type;
 			isaligned = 1;
 			/*
@@ -3755,13 +3771,13 @@ xfs_bmap_btalloc(
 			 * of minlen+alignment+slop doesn't go up
 			 * between the calls.
 			 */
-			if (blen > mp->m_dalign && blen <= args.maxlen)
-				nextminlen = blen - mp->m_dalign;
+			if (blen > stripe_align && blen <= args.maxlen)
+				nextminlen = blen - stripe_align;
 			else
 				nextminlen = args.minlen;
-			if (nextminlen + mp->m_dalign > args.minlen + 1)
+			if (nextminlen + stripe_align > args.minlen + 1)
 				args.minalignslop =
-					nextminlen + mp->m_dalign -
+					nextminlen + stripe_align -
 					args.minlen - 1;
 			else
 				args.minalignslop = 0;
@@ -3783,7 +3799,7 @@ xfs_bmap_btalloc(
 		 */
 		args.type = atype;
 		args.fsbno = ap->blkno;
-		args.alignment = mp->m_dalign;
+		args.alignment = stripe_align;
 		args.minlen = nextminlen;
 		args.minalignslop = 0;
 		isaligned = 1;

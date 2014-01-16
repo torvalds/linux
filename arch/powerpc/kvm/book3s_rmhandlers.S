@@ -153,15 +153,11 @@ _GLOBAL(kvmppc_entry_trampoline)
 
 	li	r6, MSR_IR | MSR_DR
 	andc	r6, r5, r6	/* Clear DR and IR in MSR value */
-#ifdef CONFIG_PPC_BOOK3S_32
 	/*
 	 * Set EE in HOST_MSR so that it's enabled when we get into our
-	 * C exit handler function.  On 64-bit we delay enabling
-	 * interrupts until we have finished transferring stuff
-	 * to or from the PACA.
+	 * C exit handler function.
 	 */
 	ori	r5, r5, MSR_EE
-#endif
 	mtsrr0	r7
 	mtsrr1	r6
 	RFI
