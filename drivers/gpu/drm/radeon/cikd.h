@@ -30,6 +30,8 @@
 #define CIK_RB_BITMAP_WIDTH_PER_SH     2
 #define HAWAII_RB_BITMAP_WIDTH_PER_SH  4
 
+#define RADEON_NUM_OF_VMIDS	8
+
 /* DIDT IND registers */
 #define DIDT_SQ_CTRL0                                     0x0
 #       define DIDT_CTRL_EN                               (1 << 0)
