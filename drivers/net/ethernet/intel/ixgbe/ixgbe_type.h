@@ -1980,9 +1980,10 @@ enum {
 #define IXGBE_FWSM_TS_ENABLED	0x1
 
 /* Queue Drop Enable */
-#define IXGBE_QDE_ENABLE     0x00000001
-#define IXGBE_QDE_IDX_MASK   0x00007F00
-#define IXGBE_QDE_IDX_SHIFT           8
+#define IXGBE_QDE_ENABLE	0x00000001
+#define IXGBE_QDE_IDX_MASK	0x00007F00
+#define IXGBE_QDE_IDX_SHIFT	8
+#define IXGBE_QDE_WRITE		0x00010000
 
 #define IXGBE_TXD_POPTS_IXSM 0x01       /* Insert IP checksum */
 #define IXGBE_TXD_POPTS_TXSM 0x02       /* Insert TCP/UDP checksum */
