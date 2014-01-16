@@ -644,7 +644,10 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
 
-	init_frame->queue_info_new_phys_addr_lo = cpu_to_le32((u32)ioc_init_handle);
+	init_frame->queue_info_new_phys_addr_hi =
+		cpu_to_le32(upper_32_bits(ioc_init_handle));
+	init_frame->queue_info_new_phys_addr_lo =
+		cpu_to_le32(lower_32_bits(ioc_init_handle));
 	init_frame->data_xfer_len = cpu_to_le32(sizeof(struct MPI2_IOC_INIT_REQUEST));
 
 	req_desc =
