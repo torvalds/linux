@@ -456,11 +456,11 @@ static struct kvm *kvm_create_vm(unsigned long type)
 
 	r = kvm_arch_init_vm(kvm, type);
 	if (r)
-		goto out_err_nodisable;
+		goto out_err_no_disable;
 
 	r = hardware_enable_all();
 	if (r)
-		goto out_err_nodisable;
+		goto out_err_no_disable;
 
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	INIT_HLIST_HEAD(&kvm->mask_notifier_list);
@@ -472,10 +472,12 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	r = -ENOMEM;
 	kvm->memslots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
 	if (!kvm->memslots)
-		goto out_err_nosrcu;
+		goto out_err_no_srcu;
 	kvm_init_memslots_id(kvm);
 	if (init_srcu_struct(&kvm->srcu))
-		goto out_err_nosrcu;
+		goto out_err_no_srcu;
+	if (init_srcu_struct(&kvm->irq_srcu))
+		goto out_err_no_irq_srcu;
 	for (i = 0; i < KVM_NR_BUSES; i++) {
 		kvm->buses[i] = kzalloc(sizeof(struct kvm_io_bus),
 					GFP_KERNEL);
@@ -504,10 +506,12 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	return kvm;
 
 out_err:
+	cleanup_srcu_struct(&kvm->irq_srcu);
+out_err_no_irq_srcu:
 	cleanup_srcu_struct(&kvm->srcu);
-out_err_nosrcu:
+out_err_no_srcu:
 	hardware_disable_all();
-out_err_nodisable:
+out_err_no_disable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kfree(kvm->buses[i]);
 	kfree(kvm->memslots);

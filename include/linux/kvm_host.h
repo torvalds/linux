@@ -346,6 +346,7 @@ struct kvm {
 	struct mm_struct *mm; /* userspace tied to this vm */
 	struct kvm_memslots *memslots;
 	struct srcu_struct srcu;
+	struct srcu_struct irq_srcu;
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
 	u32 bsp_vcpu_id;
 #endif

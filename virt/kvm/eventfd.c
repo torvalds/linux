@@ -31,6 +31,7 @@
 #include <linux/list.h>
 #include <linux/eventfd.h>
 #include <linux/kernel.h>
+#include <linux/srcu.h>
 #include <linux/slab.h>
 
 #include "iodev.h"
@@ -118,19 +119,22 @@ static void
 irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
 {
 	struct _irqfd_resampler *resampler;
+	struct kvm *kvm;
 	struct _irqfd *irqfd;
+	int idx;
 
 	resampler = container_of(kian, struct _irqfd_resampler, notifier);
+	kvm = resampler->kvm;
 
-	kvm_set_irq(resampler->kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
+	kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
 		    resampler->notifier.gsi, 0, false);
 
-	rcu_read_lock();
+	idx = srcu_read_lock(&kvm->irq_srcu);
 
 	list_for_each_entry_rcu(irqfd, &resampler->list, resampler_link)
 		eventfd_signal(irqfd->resamplefd, 1);
 
-	rcu_read_unlock();
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
 static void
@@ -142,7 +146,7 @@ irqfd_resampler_shutdown(struct _irqfd *irqfd)
 	mutex_lock(&kvm->irqfds.resampler_lock);
 
 	list_del_rcu(&irqfd->resampler_link);
-	synchronize_rcu();
+	synchronize_srcu(&kvm->irq_srcu);
 
 	if (list_empty(&resampler->list)) {
 		list_del(&resampler->link);
@@ -221,17 +225,18 @@ irqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 	unsigned long flags = (unsigned long)key;
 	struct kvm_kernel_irq_routing_entry *irq;
 	struct kvm *kvm = irqfd->kvm;
+	int idx;
 
 	if (flags & POLLIN) {
-		rcu_read_lock();
-		irq = rcu_dereference(irqfd->irq_entry);
+		idx = srcu_read_lock(&kvm->irq_srcu);
+		irq = srcu_dereference(irqfd->irq_entry, &kvm->irq_srcu);
 		/* An event has been signaled, inject an interrupt */
 		if (irq)
 			kvm_set_msi(irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
 					false);
 		else
 			schedule_work(&irqfd->inject);
-		rcu_read_unlock();
+		srcu_read_unlock(&kvm->irq_srcu, idx);
 	}
 
 	if (flags & POLLHUP) {
@@ -363,7 +368,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 		}
 
 		list_add_rcu(&irqfd->resampler_link, &irqfd->resampler->list);
-		synchronize_rcu();
+		synchronize_srcu(&kvm->irq_srcu);
 
 		mutex_unlock(&kvm->irqfds.resampler_lock);
 	}
@@ -465,7 +470,7 @@ kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 			 * another thread calls kvm_irq_routing_update before
 			 * we flush workqueue below (we synchronize with
 			 * kvm_irq_routing_update using irqfds.lock).
-			 * It is paired with synchronize_rcu done by caller
+			 * It is paired with synchronize_srcu done by caller
 			 * of that function.
 			 */
 			rcu_assign_pointer(irqfd->irq_entry, NULL);
@@ -524,7 +529,7 @@ kvm_irqfd_release(struct kvm *kvm)
 
 /*
  * Change irq_routing and irqfd.
- * Caller must invoke synchronize_rcu afterwards.
+ * Caller must invoke synchronize_srcu(&kvm->irq_srcu) afterwards.
  */
 void kvm_irq_routing_update(struct kvm *kvm,
 			    struct kvm_irq_routing_table *irq_rt)
