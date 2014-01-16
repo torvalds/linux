@@ -332,7 +332,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->pdev = dev;
 	us_ibdev->netdev = pci_get_drvdata(dev);
 	us_ibdev->ib_dev.owner = THIS_MODULE;
-	us_ibdev->ib_dev.node_type = RDMA_NODE_USNIC;
+	us_ibdev->ib_dev.node_type = RDMA_NODE_USNIC_UDP;
 	us_ibdev->ib_dev.phys_port_cnt = USNIC_IB_PORT_CNT;
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
 	us_ibdev->ib_dev.dma_device = &dev->dev;
