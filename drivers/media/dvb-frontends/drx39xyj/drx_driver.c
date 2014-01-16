@@ -178,7 +178,7 @@ static drx_scan_func_t get_scan_function(pdrx_demod_instance_t demod)
 * \param scan_context: Context Pointer.
 * \return drx_scan_func_t.
 */
-void *get_scan_context(pdrx_demod_instance_t demod, void *scan_context)
+static void *get_scan_context(pdrx_demod_instance_t demod, void *scan_context)
 {
 	pdrx_common_attr_t common_attr = (pdrx_common_attr_t) (NULL);
 
@@ -839,7 +839,7 @@ ctrl_program_tuner(pdrx_demod_instance_t demod, pdrx_channel_t channel)
 * \retval DRX_STS_INVALID_ARG: Wrong parameters.
 *
 */
-int ctrl_dump_registers(pdrx_demod_instance_t demod,
+static int ctrl_dump_registers(pdrx_demod_instance_t demod,
 			      p_drx_reg_dump_t registers)
 {
 	u16 i = 0;
