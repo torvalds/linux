@@ -2183,6 +2183,9 @@ int drxj_dap_atomic_read_reg32(struct i2c_device_addr *dev_addr,
 	rc = drxj_dap_atomic_read_write_block(dev_addr, addr,
 					   sizeof(*data), buf, true);
 
+	if (rc < 0)
+		return 0;
+
 	word = (u32) buf[3];
 	word <<= 8;
 	word |= (u32) buf[2];
@@ -4166,6 +4169,8 @@ int drxj_dap_scu_atomic_read_reg16(struct i2c_device_addr *dev_addr,
 	}
 
 	rc = drxj_dap_scu_atomic_read_write_block(dev_addr, addr, 2, buf, true);
+	if (rc < 0)
+		return rc;
 
 	word = (u16) (buf[0] + (buf[1] << 8));
 
