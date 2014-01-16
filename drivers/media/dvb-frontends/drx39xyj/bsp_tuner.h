@@ -70,10 +70,10 @@ DEFINES
 #define TUNER_MODE_8MHZ    0x4000	/* for 8MHz bandwidth channels        */
 
 #define TUNER_MODE_SUB_MAX 8
-#define TUNER_MODE_SUBALL  (  TUNER_MODE_SUB0 | TUNER_MODE_SUB1 | \
+#define TUNER_MODE_SUBALL  (TUNER_MODE_SUB0 | TUNER_MODE_SUB1 | \
 			      TUNER_MODE_SUB2 | TUNER_MODE_SUB3 | \
 			      TUNER_MODE_SUB4 | TUNER_MODE_SUB5 | \
-			      TUNER_MODE_SUB6 | TUNER_MODE_SUB7 )
+			      TUNER_MODE_SUB6 | TUNER_MODE_SUB7)
 
 /*------------------------------------------------------------------------------
 TYPEDEFS

@@ -83,18 +83,18 @@
 */
 
 /* set default */
-#if !defined( DRXDAPFASI_LONG_ADDR_ALLOWED )
+#if !defined(DRXDAPFASI_LONG_ADDR_ALLOWED)
 #define  DRXDAPFASI_LONG_ADDR_ALLOWED 1
 #endif
 
 /* set default */
-#if !defined( DRXDAPFASI_SHORT_ADDR_ALLOWED )
+#if !defined(DRXDAPFASI_SHORT_ADDR_ALLOWED)
 #define  DRXDAPFASI_SHORT_ADDR_ALLOWED 1
 #endif
 
 /* check */
-#if ( ( DRXDAPFASI_LONG_ADDR_ALLOWED==0 ) && \
-      ( DRXDAPFASI_SHORT_ADDR_ALLOWED==0 ) )
+#if (( DRXDAPFASI_LONG_ADDR_ALLOWED == 0) && \
+      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 0) )
 #error  At least one of short- or long-addressing format must be allowed.
 *;				/* illegal statement to force compiler error */
 #endif
@@ -176,12 +176,12 @@
 */
 
 /* set default */
-#if !defined( DRXDAP_MAX_WCHUNKSIZE)
+#if !defined(DRXDAP_MAX_WCHUNKSIZE)
 #define  DRXDAP_MAX_WCHUNKSIZE 254
 #endif
 
 /* check */
-#if ( (DRXDAPFASI_LONG_ADDR_ALLOWED==0)&&(DRXDAPFASI_SHORT_ADDR_ALLOWED==1) )
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 0) && (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
 #if DRXDAP_SINGLE_MASTER
 #define  DRXDAP_MAX_WCHUNKSIZE_MIN 3
 #else
@@ -196,7 +196,7 @@
 #endif
 
 #if  DRXDAP_MAX_WCHUNKSIZE <  DRXDAP_MAX_WCHUNKSIZE_MIN
-#if ( (DRXDAPFASI_LONG_ADDR_ALLOWED==0)&&(DRXDAPFASI_SHORT_ADDR_ALLOWED==1) )
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 0) && (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
 #if DRXDAP_SINGLE_MASTER
 #error  DRXDAP_MAX_WCHUNKSIZE must be at least 3 in single master mode
 *;				/* illegal statement to force compiler error */
@@ -216,7 +216,7 @@
 #endif
 
 /* set default */
-#if !defined( DRXDAP_MAX_RCHUNKSIZE)
+#if !defined(DRXDAP_MAX_RCHUNKSIZE)
 #define  DRXDAP_MAX_RCHUNKSIZE 254
 #endif
 
@@ -249,13 +249,13 @@ extern "C" {
 #define DRXDAP_FASI_MODEFLAGS     0xC0000000
 #define DRXDAP_FASI_FLAGS         0xF0000000
 
-#define DRXDAP_FASI_ADDR2BLOCK( addr )  (((addr)>>22)&0x3F)
-#define DRXDAP_FASI_ADDR2BANK( addr )   (((addr)>>16)&0x3F)
-#define DRXDAP_FASI_ADDR2OFFSET( addr ) ((addr)&0x7FFF)
+#define DRXDAP_FASI_ADDR2BLOCK(addr)  (((addr)>>22)&0x3F)
+#define DRXDAP_FASI_ADDR2BANK(addr)   (((addr)>>16)&0x3F)
+#define DRXDAP_FASI_ADDR2OFFSET(addr) ((addr)&0x7FFF)
 
-#define DRXDAP_FASI_SHORT_FORMAT( addr )     (((addr)& 0xFC30FF80)==0)
-#define DRXDAP_FASI_LONG_FORMAT( addr )      (((addr)& 0xFC30FF80)!=0)
-#define DRXDAP_FASI_OFFSET_TOO_LARGE( addr ) (((addr)& 0x00008000)!=0)
+#define DRXDAP_FASI_SHORT_FORMAT(addr)     (((addr) & 0xFC30FF80) == 0)
+#define DRXDAP_FASI_LONG_FORMAT(addr)      (((addr) & 0xFC30FF80) != 0)
+#define DRXDAP_FASI_OFFSET_TOO_LARGE(addr) (((addr) & 0x00008000) != 0)
 
 #ifdef __cplusplus
 }

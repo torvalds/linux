@@ -99,15 +99,15 @@ DEFINES
 /*=== MACROS =================================================================*/
 /*============================================================================*/
 
-#define DRX_ISPOWERDOWNMODE( mode ) (  ( mode == DRX_POWER_MODE_9  ) || \
-				       ( mode == DRX_POWER_MODE_10 ) || \
-				       ( mode == DRX_POWER_MODE_11 ) || \
-				       ( mode == DRX_POWER_MODE_12 ) || \
-				       ( mode == DRX_POWER_MODE_13 ) || \
-				       ( mode == DRX_POWER_MODE_14 ) || \
-				       ( mode == DRX_POWER_MODE_15 ) || \
-				       ( mode == DRX_POWER_MODE_16 ) || \
-				       ( mode == DRX_POWER_DOWN    ) )
+#define DRX_ISPOWERDOWNMODE(mode) (  ( mode == DRX_POWER_MODE_9  ) || \
+				       (mode == DRX_POWER_MODE_10) || \
+				       (mode == DRX_POWER_MODE_11) || \
+				       (mode == DRX_POWER_MODE_12) || \
+				       (mode == DRX_POWER_MODE_13) || \
+				       (mode == DRX_POWER_MODE_14) || \
+				       (mode == DRX_POWER_MODE_15) || \
+				       (mode == DRX_POWER_MODE_16) || \
+				       (mode == DRX_POWER_DOWN) )
 
 /*------------------------------------------------------------------------------
 GLOBAL VARIABLES
@@ -148,7 +148,7 @@ FUNCTIONS
 static int
 ScanFunctionDefault(void *scanContext,
 		    DRXScanCommand_t scanCommand,
-		    pDRXChannel_t scanChannel, bool * getNextChannel);
+		    pDRXChannel_t scanChannel, bool *getNextChannel);
 
 /**
 * \brief Get pointer to scanning function.
@@ -211,7 +211,7 @@ void *GetScanContext(pDRXDemodInstance_t demod, void *scanContext)
 * In case DRX_NEVER_LOCK is returned the poll-wait will be aborted.
 *
 */
-static int ScanWaitForLock(pDRXDemodInstance_t demod, bool * isLocked)
+static int ScanWaitForLock(pDRXDemodInstance_t demod, bool *isLocked)
 {
 	bool doneWaiting = false;
 	DRXLockStatus_t lockState = DRX_NOT_LOCKED;
@@ -356,7 +356,7 @@ ScanPrepareNextScan(pDRXDemodInstance_t demod, s32 skip)
 static int
 ScanFunctionDefault(void *scanContext,
 		    DRXScanCommand_t scanCommand,
-		    pDRXChannel_t scanChannel, bool * getNextChannel)
+		    pDRXChannel_t scanChannel, bool *getNextChannel)
 {
 	pDRXDemodInstance_t demod = NULL;
 	int status = DRX_STS_ERROR;
@@ -604,7 +604,7 @@ static int CtrlScanStop(pDRXDemodInstance_t demod)
 static int CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
 {
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	bool * scanReady = (bool *) (NULL);
+	bool *scanReady = (bool *) (NULL);
 	u16 maxProgress = DRX_SCAN_MAX_PROGRESS;
 	u32 numTries = 0;
 	u32 i = 0;
@@ -1202,7 +1202,7 @@ CtrlUCode(pDRXDemodInstance_t demod,
 * \retval DRX_STS_INVALID_ARG: Invalid arguments.
 */
 static int
-CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t * versionList)
+CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t *versionList)
 {
 	static char drxDriverCoreModuleName[] = "Core driver";
 	static char drxDriverCoreVersionText[] =

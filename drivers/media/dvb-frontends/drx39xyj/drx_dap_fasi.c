@@ -252,29 +252,29 @@ static int DRXDAP_FASI_ReadBlock(struct i2c_device_addr *devAddr,
 		addr &= ~DRXDAP_FASI_FLAGS;
 		addr |= flags;
 
-#if ( ( DRXDAPFASI_LONG_ADDR_ALLOWED==1 ) && \
-      ( DRXDAPFASI_SHORT_ADDR_ALLOWED==1 ) )
+#if (( DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
+      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1) )
 		/* short format address preferred but long format otherwise */
 		if (DRXDAP_FASI_LONG_FORMAT(addr)) {
 #endif
-#if ( DRXDAPFASI_LONG_ADDR_ALLOWED==1 )
+#if (DRXDAPFASI_LONG_ADDR_ALLOWED == 1)
 			buf[bufx++] = (u8) (((addr << 1) & 0xFF) | 0x01);
 			buf[bufx++] = (u8) ((addr >> 16) & 0xFF);
 			buf[bufx++] = (u8) ((addr >> 24) & 0xFF);
 			buf[bufx++] = (u8) ((addr >> 7) & 0xFF);
 #endif
-#if ( ( DRXDAPFASI_LONG_ADDR_ALLOWED==1 ) && \
-      ( DRXDAPFASI_SHORT_ADDR_ALLOWED==1 ) )
+#if (( DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
+      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1) )
 		} else {
 #endif
-#if ( DRXDAPFASI_SHORT_ADDR_ALLOWED==1 )
+#if (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1)
 			buf[bufx++] = (u8) ((addr << 1) & 0xFF);
 			buf[bufx++] =
 			    (u8) (((addr >> 16) & 0x0F) |
 				    ((addr >> 18) & 0xF0));
 #endif
-#if ( ( DRXDAPFASI_LONG_ADDR_ALLOWED==1 ) && \
-      ( DRXDAPFASI_SHORT_ADDR_ALLOWED==1 ) )
+#if (( DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
+      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1) )
 		}
 #endif
 
@@ -332,7 +332,7 @@ static int DRXDAP_FASI_ReadModifyWriteReg16(struct i2c_device_addr *devAddr,
 {
 	int rc = DRX_STS_ERROR;
 
-#if ( DRXDAPFASI_LONG_ADDR_ALLOWED==1 )
+#if (DRXDAPFASI_LONG_ADDR_ALLOWED == 1)
 	if (rdata == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
@@ -478,29 +478,29 @@ static int DRXDAP_FASI_WriteBlock(struct i2c_device_addr *devAddr,
 		/* Buffer device address */
 		addr &= ~DRXDAP_FASI_FLAGS;
 		addr |= flags;
-#if ( ( (DRXDAPFASI_LONG_ADDR_ALLOWED)==1 ) && \
-      ( (DRXDAPFASI_SHORT_ADDR_ALLOWED)==1 ) )
+#if (( (DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
+      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1) )
 		/* short format address preferred but long format otherwise */
 		if (DRXDAP_FASI_LONG_FORMAT(addr)) {
 #endif
-#if ( (DRXDAPFASI_LONG_ADDR_ALLOWED)==1 )
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1)
 			buf[bufx++] = (u8) (((addr << 1) & 0xFF) | 0x01);
 			buf[bufx++] = (u8) ((addr >> 16) & 0xFF);
 			buf[bufx++] = (u8) ((addr >> 24) & 0xFF);
 			buf[bufx++] = (u8) ((addr >> 7) & 0xFF);
 #endif
-#if ( ( (DRXDAPFASI_LONG_ADDR_ALLOWED)==1 ) && \
-      ( (DRXDAPFASI_SHORT_ADDR_ALLOWED)==1 ) )
+#if (( (DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
+      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1) )
 		} else {
 #endif
-#if ( (DRXDAPFASI_SHORT_ADDR_ALLOWED)==1 )
+#if ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1)
 			buf[bufx++] = (u8) ((addr << 1) & 0xFF);
 			buf[bufx++] =
 			    (u8) (((addr >> 16) & 0x0F) |
 				    ((addr >> 18) & 0xF0));
 #endif
-#if ( ( (DRXDAPFASI_LONG_ADDR_ALLOWED)==1 ) && \
-      ( (DRXDAPFASI_SHORT_ADDR_ALLOWED)==1 ) )
+#if (( (DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
+      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1) )
 		}
 #endif
 

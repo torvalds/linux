@@ -170,7 +170,7 @@ INCLUDE FILES
 
 #include "drx_driver_version.h"
 
-//#define DRX_DEBUG
+/* #define DRX_DEBUG */
 #ifdef DRX_DEBUG
 #include <stdio.h>
 #endif
@@ -183,7 +183,7 @@ ENUMS
 DEFINES
 ----------------------------------------------------------------------------*/
 #ifndef DRXJ_WAKE_UP_KEY
-#define DRXJ_WAKE_UP_KEY (demod -> myI2CDevAddr -> i2cAddr)
+#define DRXJ_WAKE_UP_KEY (demod->myI2CDevAddr->i2cAddr)
 #endif
 
 /**
@@ -306,11 +306,11 @@ DEFINES
 #endif
 
 /* ATV config changed flags */
-#define DRXJ_ATV_CHANGED_COEF          ( 0x00000001UL )
-#define DRXJ_ATV_CHANGED_PEAK_FLT      ( 0x00000008UL )
-#define DRXJ_ATV_CHANGED_NOISE_FLT     ( 0x00000010UL )
-#define DRXJ_ATV_CHANGED_OUTPUT        ( 0x00000020UL )
-#define DRXJ_ATV_CHANGED_SIF_ATT       ( 0x00000040UL )
+#define DRXJ_ATV_CHANGED_COEF          (0x00000001UL)
+#define DRXJ_ATV_CHANGED_PEAK_FLT      (0x00000008UL)
+#define DRXJ_ATV_CHANGED_NOISE_FLT     (0x00000010UL)
+#define DRXJ_ATV_CHANGED_OUTPUT        (0x00000020UL)
+#define DRXJ_ATV_CHANGED_SIF_ATT       (0x00000040UL)
 
 /* UIO define */
 #define DRX_UIO_MODE_FIRMWARE_SMA DRX_UIO_MODE_FIRMWARE0
@@ -424,7 +424,7 @@ DEFINES
 /**
 * \brief FM Matrix register fix
 */
-#ifdef  AUD_DEM_WR_FM_MATRIX__A
+#ifdef AUD_DEM_WR_FM_MATRIX__A
 #undef  AUD_DEM_WR_FM_MATRIX__A
 #endif
 #define AUD_DEM_WR_FM_MATRIX__A              0x105006F
@@ -480,63 +480,63 @@ DEFINES
 
 #ifdef DRXJDRIVER_DEBUG
 #include <stdio.h>
-#define CHK_ERROR( s ) \
-	do{ \
-	    if ( (s) != DRX_STS_OK ) \
+#define CHK_ERROR(s) \
+	do { \
+	    if ((s) != DRX_STS_OK) \
 	    { \
 	       fprintf(stderr, \
 		       "ERROR[\n file    : %s\n line    : %d\n]\n", \
-		       __FILE__,__LINE__); \
+		       __FILE__, __LINE__); \
 	       goto rw_error; }; \
 	    } \
 	while (0 != 0)
 #else
-#define CHK_ERROR( s ) \
-   do{ \
-      if ( (s) != DRX_STS_OK ) { goto rw_error; } \
+#define CHK_ERROR(s) \
+   do { \
+      if ((s) != DRX_STS_OK) { goto rw_error; } \
    } while (0 != 0)
 #endif
 
-#define CHK_ZERO( s ) \
-   do{ \
-      if ( (s) == 0 ) return DRX_STS_ERROR; \
+#define CHK_ZERO(s) \
+   do { \
+      if ((s) == 0) return DRX_STS_ERROR; \
    } while (0)
 
 #define DUMMY_READ() \
-   do{ \
+   do { \
       u16 dummy; \
-      RR16( demod->myI2CDevAddr, SCU_RAM_VERSION_HI__A, &dummy ); \
+      RR16(demod->myI2CDevAddr, SCU_RAM_VERSION_HI__A, &dummy); \
    } while (0)
 
-#define WR16( dev, addr, val) \
-   CHK_ERROR( DRXJ_DAP.writeReg16Func( (dev), (addr), (val), 0 ) )
+#define WR16(dev, addr, val) \
+   CHK_ERROR(DRXJ_DAP.writeReg16Func( (dev), (addr), (val), 0) )
 
-#define RR16( dev, addr, val) \
-   CHK_ERROR( DRXJ_DAP.readReg16Func( (dev), (addr), (val), 0 ) )
+#define RR16(dev, addr, val) \
+   CHK_ERROR(DRXJ_DAP.readReg16Func( (dev), (addr), (val), 0) )
 
-#define WR32( dev, addr, val) \
-   CHK_ERROR( DRXJ_DAP.writeReg32Func( (dev), (addr), (val), 0 ) )
+#define WR32(dev, addr, val) \
+   CHK_ERROR(DRXJ_DAP.writeReg32Func( (dev), (addr), (val), 0) )
 
-#define RR32( dev, addr, val) \
-   CHK_ERROR( DRXJ_DAP.readReg32Func( (dev), (addr), (val), 0 ) )
+#define RR32(dev, addr, val) \
+   CHK_ERROR(DRXJ_DAP.readReg32Func( (dev), (addr), (val), 0) )
 
-#define WRB( dev, addr, len, block ) \
-   CHK_ERROR( DRXJ_DAP.writeBlockFunc( (dev), (addr), (len), (block), 0 ) )
+#define WRB(dev, addr, len, block) \
+   CHK_ERROR(DRXJ_DAP.writeBlockFunc( (dev), (addr), (len), (block), 0) )
 
-#define RRB( dev, addr, len, block ) \
-   CHK_ERROR( DRXJ_DAP.readBlockFunc( (dev), (addr), (len), (block), 0 ) )
+#define RRB(dev, addr, len, block) \
+   CHK_ERROR(DRXJ_DAP.readBlockFunc( (dev), (addr), (len), (block), 0) )
 
-#define BCWR16( dev, addr, val ) \
-   CHK_ERROR( DRXJ_DAP.writeReg16Func( (dev), (addr), (val), DRXDAP_FASI_BROADCAST ) )
+#define BCWR16(dev, addr, val) \
+   CHK_ERROR(DRXJ_DAP.writeReg16Func( (dev), (addr), (val), DRXDAP_FASI_BROADCAST) )
 
-#define ARR32( dev, addr, val) \
-   CHK_ERROR( DRXJ_DAP_AtomicReadReg32( (dev), (addr), (val), 0 ) )
+#define ARR32(dev, addr, val) \
+   CHK_ERROR(DRXJ_DAP_AtomicReadReg32( (dev), (addr), (val), 0) )
 
-#define SARR16( dev, addr, val) \
-   CHK_ERROR( DRXJ_DAP_SCU_AtomicReadReg16( (dev), (addr), (val), 0 ) )
+#define SARR16(dev, addr, val) \
+   CHK_ERROR(DRXJ_DAP_SCU_AtomicReadReg16( (dev), (addr), (val), 0) )
 
-#define SAWR16( dev, addr, val) \
-   CHK_ERROR( DRXJ_DAP_SCU_AtomicWriteReg16( (dev), (addr), (val), 0 ) )
+#define SAWR16(dev, addr, val) \
+   CHK_ERROR(DRXJ_DAP_SCU_AtomicWriteReg16( (dev), (addr), (val), 0) )
 
 /**
 * This macro is used to create byte arrays for block writes.
@@ -544,14 +544,14 @@ DEFINES
 * The macro takes care of the required byte order in a 16 bits word.
 * x -> lowbyte(x), highbyte(x)
 */
-#define DRXJ_16TO8( x ) ((u8) (((u16)x)    &0xFF)), \
+#define DRXJ_16TO8(x) ((u8) (((u16)x) & 0xFF)), \
 			((u8)((((u16)x)>>8)&0xFF))
 /**
 * This macro is used to convert byte array to 16 bit register value for block read.
 * Block read speed up I2C traffic between host and demod.
 * The macro takes care of the required byte order in a 16 bits word.
 */
-#define DRXJ_8TO16( x ) ((u16) (x[0] | (x[1] << 8)))
+#define DRXJ_8TO16(x) ((u16) (x[0] | (x[1] << 8)))
 
 /*============================================================================*/
 /*=== MISC DEFINES ===========================================================*/
@@ -570,18 +570,18 @@ DEFINES
 /*=== STANDARD RELATED MACROS ================================================*/
 /*============================================================================*/
 
-#define DRXJ_ISATVSTD( std ) ( ( std == DRX_STANDARD_PAL_SECAM_BG ) || \
-			       ( std == DRX_STANDARD_PAL_SECAM_DK ) || \
-			       ( std == DRX_STANDARD_PAL_SECAM_I  ) || \
-			       ( std == DRX_STANDARD_PAL_SECAM_L  ) || \
-			       ( std == DRX_STANDARD_PAL_SECAM_LP ) || \
-			       ( std == DRX_STANDARD_NTSC ) || \
-			       ( std == DRX_STANDARD_FM ) )
+#define DRXJ_ISATVSTD(std) ( ( std == DRX_STANDARD_PAL_SECAM_BG ) || \
+			       (std == DRX_STANDARD_PAL_SECAM_DK) || \
+			       (std == DRX_STANDARD_PAL_SECAM_I) || \
+			       (std == DRX_STANDARD_PAL_SECAM_L) || \
+			       (std == DRX_STANDARD_PAL_SECAM_LP) || \
+			       (std == DRX_STANDARD_NTSC) || \
+			       (std == DRX_STANDARD_FM) )
 
-#define DRXJ_ISQAMSTD( std ) ( ( std == DRX_STANDARD_ITU_A ) || \
-			       ( std == DRX_STANDARD_ITU_B ) || \
-			       ( std == DRX_STANDARD_ITU_C ) || \
-			       ( std == DRX_STANDARD_ITU_D ))
+#define DRXJ_ISQAMSTD(std) ( ( std == DRX_STANDARD_ITU_A ) || \
+			       (std == DRX_STANDARD_ITU_B) || \
+			       (std == DRX_STANDARD_ITU_C) || \
+			       (std == DRX_STANDARD_ITU_D))
 
 /*-----------------------------------------------------------------------------
 STATIC VARIABLES
@@ -1224,7 +1224,7 @@ CtrlUCodeUpload(pDRXDemodInstance_t demod,
 *
 */
 
-#define DRX_IS_BOOTH_NEGATIVE(__a)  (((__a) & (1 << (sizeof (u32) * 8 - 1))) != 0)
+#define DRX_IS_BOOTH_NEGATIVE(__a)  (((__a) & (1 << (sizeof(u32) * 8 - 1))) != 0)
 
 static void Mult32(u32 a, u32 b, u32 *h, u32 *l)
 {
@@ -1683,7 +1683,7 @@ static const u16 NicamPrescTableVal[43] =
    TODO: check ignoring single/multimaster is ok for AUD access ?
 */
 
-#define DRXJ_ISAUDWRITE( addr ) (((((addr)>>16)&1)==1)?true:false)
+#define DRXJ_ISAUDWRITE(addr) (((((addr)>>16)&1) == 1)?true:false)
 #define DRXJ_DAP_AUDTRIF_TIMEOUT 80	/* millisec */
 /*============================================================================*/
 
@@ -1755,7 +1755,7 @@ static int DRXJ_DAP_ReadModifyWriteReg8(struct i2c_device_addr *devAddr,
 
 /* TODO correct define should be #if ( DRXDAPFASI_SHORT_ADDR_ALLOWED==1 )
    See comments DRXJ_DAP_ReadModifyWriteReg16 */
-#if ( DRXDAPFASI_LONG_ADDR_ALLOWED == 0 )
+#if (DRXDAPFASI_LONG_ADDR_ALLOWED == 0)
 static int DRXJ_DAP_RMWriteReg16Short(struct i2c_device_addr *devAddr,
 					      DRXaddr_t waddr,
 					      DRXaddr_t raddr,
@@ -1803,7 +1803,7 @@ static int DRXJ_DAP_ReadModifyWriteReg16(struct i2c_device_addr *devAddr,
 	/* TODO: correct short/long addressing format decision,
 	   now long format has higher prio then short because short also
 	   needs virt bnks (not impl yet) for certain audio registers */
-#if ( DRXDAPFASI_LONG_ADDR_ALLOWED==1 )
+#if (DRXDAPFASI_LONG_ADDR_ALLOWED == 1)
 	return drxDapFASIFunct_g.readModifyWriteReg16Func(devAddr,
 							  waddr,
 							  raddr, wdata, rdata);
@@ -3492,7 +3492,7 @@ static int CtrlGetUIOCfg(pDRXDemodInstance_t demod, pDRXUIOCfg_t UIOCfg)
 
 	pDRXJData_t extAttr = (pDRXJData_t) NULL;
 	pDRXUIOMode_t UIOMode[4] = { NULL };
-	bool * UIOAvailable[4] = { NULL };
+	bool *UIOAvailable[4] = { NULL };
 
 	extAttr = demod->myExtAttr;
 
@@ -3823,7 +3823,7 @@ rw_error:
 
 */
 static int
-CtrlI2CBridge(pDRXDemodInstance_t demod, bool * bridgeClosed)
+CtrlI2CBridge(pDRXDemodInstance_t demod, bool *bridgeClosed)
 {
 	DRXJHiCmd_t hiCmd;
 	u16 result = 0;
@@ -3908,7 +3908,7 @@ CtrlSetCfgSmartAnt(pDRXDemodInstance_t demod, pDRXJCfgSmartAnt_t smartAnt)
 	struct i2c_device_addr *devAddr = NULL;
 	u16 data = 0;
 	u32 startTime = 0;
-	static bool bitInverted = false;
+	static bool bitInverted;
 
 	devAddr = demod->myI2CDevAddr;
 	extAttr = (pDRXJData_t) demod->myExtAttr;
@@ -4356,7 +4356,7 @@ CtrlSetCfgATVOutput(pDRXDemodInstance_t demod, pDRXJCfgAtvOutput_t outputCfg);
 * \return int.
 */
 static int
-CtrlSetCfgPdrSafeMode(pDRXDemodInstance_t demod, bool * enable)
+CtrlSetCfgPdrSafeMode(pDRXDemodInstance_t demod, bool *enable)
 {
 	pDRXJData_t extAttr = (pDRXJData_t) NULL;
 	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) NULL;
@@ -4482,7 +4482,7 @@ rw_error:
 * \return int.
 */
 static int
-CtrlGetCfgPdrSafeMode(pDRXDemodInstance_t demod, bool * enabled)
+CtrlGetCfgPdrSafeMode(pDRXDemodInstance_t demod, bool *enabled)
 {
 	pDRXJData_t extAttr = (pDRXJData_t) NULL;
 
@@ -4926,8 +4926,8 @@ rw_error:
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
 static int GetAccPktErr(pDRXDemodInstance_t demod, u16 *packetErr)
 {
-	static u16 pktErr = 0;
-	static u16 lastPktErr = 0;
+	static u16 pktErr;
+	static u16 lastPktErr;
 	u16 data = 0;
 	pDRXJData_t extAttr = NULL;
 	struct i2c_device_addr *devAddr = NULL;
@@ -5046,7 +5046,7 @@ static int GetCTLFreqOffset(pDRXDemodInstance_t demod, s32 *CTLFreq)
 
 	/* both registers are sign extended */
 	nominalFrequency = extAttr->iqmFsRateOfs;
-	ARR32(devAddr, IQM_FS_RATE_LO__A, (u32 *) & currentFrequency);
+	ARR32(devAddr, IQM_FS_RATE_LO__A, (u32 *) &currentFrequency);
 
 	if (extAttr->posImage == true) {
 		/* negative image */
@@ -6174,7 +6174,7 @@ rw_error:
 * \brief Get the values of ber in VSB mode
 * \return Error code
 */
-static int GetVSBpreViterbiBer(struct i2c_device_addr *devAddr, u32 * ber)
+static int GetVSBpreViterbiBer(struct i2c_device_addr *devAddr, u32 *ber)
 {
 	u16 data = 0;
 
@@ -8108,7 +8108,7 @@ CtrlGetQAMConstel(pDRXDemodInstance_t demod, pDRXComplex_t complexNr)
 	WR16(devAddr, QAM_SL_COMM_MB__A, qamSlCommMb);
 
 	/* Enable MB grabber in the FEC OC */
-	fecOcOcrMode = (	/* output select:  observe bus */
+	fecOcOcrMode = (/* output select:  observe bus */
 			       (FEC_OC_OCR_MODE_MB_SELECT__M &
 				(0x0 << FEC_OC_OCR_MODE_MB_SELECT__B)) |
 			       /* grabber enable: on          */
@@ -8451,10 +8451,10 @@ CtrlSetCfgAtvEquCoef(pDRXDemodInstance_t demod, pDRXJCfgAtvEquCoef_t coef)
 	    (coef->coef1 > (ATV_TOP_EQU1_EQU_C1__M / 2)) ||
 	    (coef->coef2 > (ATV_TOP_EQU2_EQU_C2__M / 2)) ||
 	    (coef->coef3 > (ATV_TOP_EQU3_EQU_C3__M / 2)) ||
-	    (coef->coef0 < ((s16) ~ (ATV_TOP_EQU0_EQU_C0__M >> 1))) ||
-	    (coef->coef1 < ((s16) ~ (ATV_TOP_EQU1_EQU_C1__M >> 1))) ||
-	    (coef->coef2 < ((s16) ~ (ATV_TOP_EQU2_EQU_C2__M >> 1))) ||
-	    (coef->coef3 < ((s16) ~ (ATV_TOP_EQU3_EQU_C3__M >> 1)))) {
+	    (coef->coef0 < ((s16) ~(ATV_TOP_EQU0_EQU_C0__M >> 1))) ||
+	    (coef->coef1 < ((s16) ~(ATV_TOP_EQU1_EQU_C1__M >> 1))) ||
+	    (coef->coef2 < ((s16) ~(ATV_TOP_EQU2_EQU_C2__M >> 1))) ||
+	    (coef->coef3 < ((s16) ~(ATV_TOP_EQU3_EQU_C3__M >> 1)))) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
@@ -10231,7 +10231,7 @@ AUDCtrlSetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	RR16(devAddr, AUD_DSP_WR_VOLUME__A, &wVolume);
 
 	/* clear the volume mask */
-	wVolume &= (u16) ~ AUD_DSP_WR_VOLUME_VOL_MAIN__M;
+	wVolume &= (u16) ~AUD_DSP_WR_VOLUME_VOL_MAIN__M;
 	if (volume->mute == true) {
 		/* mute */
 		/* mute overrules volume */
@@ -10248,8 +10248,8 @@ AUDCtrlSetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	RR16(devAddr, AUD_DSP_WR_AVC__A, &wAVC);
 
 	/* clear masks that require writing */
-	wAVC &= (u16) ~ AUD_DSP_WR_AVC_AVC_ON__M;
-	wAVC &= (u16) ~ AUD_DSP_WR_AVC_AVC_DECAY__M;
+	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_ON__M;
+	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_DECAY__M;
 
 	if (volume->avcMode == DRX_AUD_AVC_OFF) {
 		wAVC |= (AUD_DSP_WR_AVC_AVC_ON_OFF);
@@ -10277,7 +10277,7 @@ AUDCtrlSetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	}
 
 	/* max attenuation */
-	wAVC &= (u16) ~ AUD_DSP_WR_AVC_AVC_MAX_ATT__M;
+	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_MAX_ATT__M;
 	switch (volume->avcMaxAtten) {
 	case DRX_AUD_AVC_MAX_ATTEN_12DB:
 		wAVC |= AUD_DSP_WR_AVC_AVC_MAX_ATT_12DB;
@@ -10293,7 +10293,7 @@ AUDCtrlSetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 	}
 
 	/* max gain */
-	wAVC &= (u16) ~ AUD_DSP_WR_AVC_AVC_MAX_GAIN__M;
+	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_MAX_GAIN__M;
 	switch (volume->avcMaxGain) {
 	case DRX_AUD_AVC_MAX_GAIN_0DB:
 		wAVC |= AUD_DSP_WR_AVC_AVC_MAX_GAIN_0DB;
@@ -10313,7 +10313,7 @@ AUDCtrlSetCfgVolume(pDRXDemodInstance_t demod, pDRXCfgAudVolume_t volume)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	wAVC &= (u16) ~ AUD_DSP_WR_AVC_AVC_REF_LEV__M;
+	wAVC &= (u16) ~AUD_DSP_WR_AVC_AVC_REF_LEV__M;
 	wAVC |= (u16) (volume->avcRefLevel << AUD_DSP_WR_AVC_AVC_REF_LEV__B);
 
 	WR16(devAddr, AUD_DSP_WR_AVC__A, wAVC);
@@ -10465,7 +10465,7 @@ AUDCtrlSetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 	RR16(devAddr, AUD_DEM_RAM_I2S_CONFIG2__A, &wI2SConfig);
 
 	/* I2S mode */
-	wI2SConfig &= (u16) ~ AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST__M;
+	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST__M;
 
 	switch (output->mode) {
 	case DRX_I2S_MODE_MASTER:
@@ -10479,7 +10479,7 @@ AUDCtrlSetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 	}
 
 	/* I2S format */
-	wI2SConfig &= (u16) ~ AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__M;
+	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__M;
 
 	switch (output->format) {
 	case DRX_I2S_FORMAT_WS_ADVANCED:
@@ -10493,7 +10493,7 @@ AUDCtrlSetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 	}
 
 	/* I2S word length */
-	wI2SConfig &= (u16) ~ AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN__M;
+	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN__M;
 
 	switch (output->wordLength) {
 	case DRX_I2S_WORDLENGTH_16:
@@ -10507,7 +10507,7 @@ AUDCtrlSetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 	}
 
 	/* I2S polarity */
-	wI2SConfig &= (u16) ~ AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL__M;
+	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL__M;
 	switch (output->polarity) {
 	case DRX_I2S_POLARITY_LEFT:
 		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_WS_POL_LEFT_HIGH;
@@ -10520,7 +10520,7 @@ AUDCtrlSetCfgOutputI2S(pDRXDemodInstance_t demod, pDRXCfgI2SOutput_t output)
 	}
 
 	/* I2S output enabled */
-	wI2SConfig &= (u16) ~ AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE__M;
+	wI2SConfig &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE__M;
 	if (output->outputEnable == true) {
 		wI2SConfig |= AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE_ENABLE;
 	} else {
@@ -10676,8 +10676,8 @@ AUDCtrSetlCfgAutoSound(pDRXDemodInstance_t demod,
 
 	wModus = rModus;
 	/* clear ASS & ASC bits */
-	wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_ASS__M;
-	wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG__M;
+	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_ASS__M;
+	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG__M;
 
 	switch (*autoSound) {
 	case DRX_AUD_AUTO_SOUND_OFF:
@@ -10936,7 +10936,7 @@ AUDCtrlSetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
 	CHK_ERROR(AUDGetModus(demod, &rModus));
 
 	wModus = rModus;
-	wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_CM_A__M;
+	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_CM_A__M;
 	/* Behaviour of primary audio channel */
 	switch (carriers->a.opt) {
 	case DRX_NO_CARRIER_MUTE:
@@ -10951,7 +10951,7 @@ AUDCtrlSetCfgCarrier(pDRXDemodInstance_t demod, pDRXCfgAudCarriers_t carriers)
 	}
 
 	/* Behaviour of secondary audio channel */
-	wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_CM_B__M;
+	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_CM_B__M;
 	switch (carriers->b.opt) {
 	case DRX_NO_CARRIER_MUTE:
 		wModus |= AUD_DEM_WR_MODUS_MOD_CM_B_MUTE;
@@ -11122,7 +11122,7 @@ AUDCtrlSetCfgMixer(pDRXDemodInstance_t demod, pDRXCfgAudMixer_t mixer)
 
 	/* Source Selctor */
 	RR16(devAddr, AUD_DSP_WR_SRC_I2S_MATR__A, &srcI2SMatr);
-	srcI2SMatr &= (u16) ~ AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M;
+	srcI2SMatr &= (u16) ~AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M;
 
 	switch (mixer->sourceI2S) {
 	case DRX_AUD_SRC_MONO:
@@ -11142,7 +11142,7 @@ AUDCtrlSetCfgMixer(pDRXDemodInstance_t demod, pDRXCfgAudMixer_t mixer)
 	}
 
 	/* Matrix */
-	srcI2SMatr &= (u16) ~ AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S__M;
+	srcI2SMatr &= (u16) ~AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S__M;
 	switch (mixer->matrixI2S) {
 	case DRX_AUD_I2S_MATRIX_MONO:
 		srcI2SMatr |= AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_MONO;
@@ -11164,7 +11164,7 @@ AUDCtrlSetCfgMixer(pDRXDemodInstance_t demod, pDRXCfgAudMixer_t mixer)
 
 	/* FM Matrix */
 	RR16(devAddr, AUD_DEM_WR_FM_MATRIX__A, &fmMatr);
-	fmMatr &= (u16) ~ AUD_DEM_WR_FM_MATRIX__M;
+	fmMatr &= (u16) ~AUD_DEM_WR_FM_MATRIX__M;
 	switch (mixer->matrixFm) {
 	case DRX_AUD_FM_MATRIX_NO_MATRIX:
 		fmMatr |= AUD_DEM_WR_FM_MATRIX_NO_MATRIX;
@@ -11230,7 +11230,7 @@ AUDCtrlSetCfgAVSync(pDRXDemodInstance_t demod, pDRXCfgAudAVSync_t avSync)
 	/* audio/video synchronisation */
 	RR16(devAddr, AUD_DSP_WR_AV_SYNC__A, &wAudVidSync);
 
-	wAudVidSync &= (u16) ~ AUD_DSP_WR_AV_SYNC_AV_ON__M;
+	wAudVidSync &= (u16) ~AUD_DSP_WR_AV_SYNC_AV_ON__M;
 
 	if (*avSync == DRX_AUD_AVSYNC_OFF) {
 		wAudVidSync |= AUD_DSP_WR_AV_SYNC_AV_ON_DISABLE;
@@ -11238,7 +11238,7 @@ AUDCtrlSetCfgAVSync(pDRXDemodInstance_t demod, pDRXCfgAudAVSync_t avSync)
 		wAudVidSync |= AUD_DSP_WR_AV_SYNC_AV_ON_ENABLE;
 	}
 
-	wAudVidSync &= (u16) ~ AUD_DSP_WR_AV_SYNC_AV_STD_SEL__M;
+	wAudVidSync &= (u16) ~AUD_DSP_WR_AV_SYNC_AV_STD_SEL__M;
 
 	switch (*avSync) {
 	case DRX_AUD_AVSYNC_NTSC:
@@ -11389,7 +11389,7 @@ AUDCtrlSetCfgDev(pDRXDemodInstance_t demod, pDRXCfgAudDeviation_t dev)
 
 	wModus = rModus;
 
-	wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_HDEV_A__M;
+	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_HDEV_A__M;
 
 	switch (*dev) {
 	case DRX_AUD_DEVIATION_NORMAL:
@@ -11745,7 +11745,7 @@ AUDCtrlSetStandard(pDRXDemodInstance_t demod, pDRXAudStandard_t standard)
 		/* we need the current standard here */
 		currentStandard = extAttr->standard;
 
-		wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_6_5MHZ__M;
+		wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_6_5MHZ__M;
 
 		if ((currentStandard == DRX_STANDARD_PAL_SECAM_L) ||
 		    (currentStandard == DRX_STANDARD_PAL_SECAM_LP)) {
@@ -11754,7 +11754,7 @@ AUDCtrlSetStandard(pDRXDemodInstance_t demod, pDRXAudStandard_t standard)
 			wModus |= (AUD_DEM_WR_MODUS_MOD_6_5MHZ_D_K);
 		}
 
-		wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_4_5MHZ__M;
+		wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_4_5MHZ__M;
 		if (currentStandard == DRX_STANDARD_NTSC) {
 			wModus |= (AUD_DEM_WR_MODUS_MOD_4_5MHZ_M_BTSC);
 
@@ -11765,7 +11765,7 @@ AUDCtrlSetStandard(pDRXDemodInstance_t demod, pDRXAudStandard_t standard)
 
 	}
 
-	wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_FMRADIO__M;
+	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_FMRADIO__M;
 
 	/* just get hardcoded deemphasis and activate here */
 	if (extAttr->audData.deemph == DRX_AUD_FM_DEEMPH_50US) {
@@ -11774,7 +11774,7 @@ AUDCtrlSetStandard(pDRXDemodInstance_t demod, pDRXAudStandard_t standard)
 		wModus |= (AUD_DEM_WR_MODUS_MOD_FMRADIO_US_75U);
 	}
 
-	wModus &= (u16) ~ AUD_DEM_WR_MODUS_MOD_BTSC__M;
+	wModus &= (u16) ~AUD_DEM_WR_MODUS_MOD_BTSC__M;
 	if (extAttr->audData.btscDetect == DRX_BTSC_STEREO) {
 		wModus |= (AUD_DEM_WR_MODUS_MOD_BTSC_BTSC_STEREO);
 	} else {		/* DRX_BTSC_MONO_AND_SAP */
@@ -12464,9 +12464,9 @@ rw_error:
 */
 
 /* Nyquist filter impulse response */
-#define IMPULSE_COSINE_ALPHA_0_3    {-3,-4,-1, 6,10, 7,-5,-20,-25,-10,29,79,123,140}	/*sqrt raised-cosine filter with alpha=0.3 */
-#define IMPULSE_COSINE_ALPHA_0_5    { 2, 0,-2,-2, 2, 5, 2,-10,-20,-14,20,74,125,145}	/*sqrt raised-cosine filter with alpha=0.5 */
-#define IMPULSE_COSINE_ALPHA_RO_0_5 { 0, 0, 1, 2, 3, 0,-7,-15,-16,  0,34,77,114,128}	/*full raised-cosine filter with alpha=0.5 (receiver only) */
+#define IMPULSE_COSINE_ALPHA_0_3    {-3, -4, -1, 6, 10, 7, -5, -20, -25, -10, 29, 79, 123, 140}	/*sqrt raised-cosine filter with alpha=0.3 */
+#define IMPULSE_COSINE_ALPHA_0_5    { 2, 0, -2, -2, 2, 5, 2, -10, -20, -14, 20, 74, 125, 145}	/*sqrt raised-cosine filter with alpha=0.5 */
+#define IMPULSE_COSINE_ALPHA_RO_0_5 { 0, 0, 1, 2, 3, 0, -7, -15, -16,  0, 34, 77, 114, 128}	/*full raised-cosine filter with alpha=0.5 (receiver only) */
 
 /* Coefficients for the nyquist fitler (total: 27 taps) */
 #define NYQFILTERLEN 27
@@ -14122,7 +14122,7 @@ rw_error:
 *
 */
 static int
-CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t * versionList)
+CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t *versionList)
 {
 	pDRXJData_t extAttr = (pDRXJData_t) (NULL);
 	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);

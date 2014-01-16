@@ -114,9 +114,9 @@ int DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
 
 	struct i2c_msg msg[2] = {
 		{.addr = wDevAddr->i2cAddr,
-		 .flags = 0,.buf = wData,.len = wCount},
+		 .flags = 0, .buf = wData, .len = wCount},
 		{.addr = rDevAddr->i2cAddr,
-		 .flags = I2C_M_RD,.buf = rData,.len = rCount},
+		 .flags = I2C_M_RD, .buf = rData, .len = rCount},
 	};
 
 	printk("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",

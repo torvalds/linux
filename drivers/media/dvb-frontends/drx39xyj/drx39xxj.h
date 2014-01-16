@@ -37,4 +37,4 @@ struct drx39xxj_state {
 
 extern struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c);
 
-#endif // DVB_DUMMY_FE_H
+#endif /* DVB_DUMMY_FE_H */

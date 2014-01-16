@@ -53,7 +53,7 @@ extern "C" {
 /* Multi master mode and short addr format only will not work.
    RMW, CRC reset, broadcast and switching back to single master mode
    cannot be done with short addr only in multi master mode. */
-#if ((DRXDAP_SINGLE_MASTER==0)&&(DRXDAPFASI_LONG_ADDR_ALLOWED==0))
+#if ((DRXDAP_SINGLE_MASTER == 0) && (DRXDAPFASI_LONG_ADDR_ALLOWED == 0))
 #error "Multi master mode and short addressing only is an illegal combination"
 	*;			/* Generate a fatal compiler error to make sure it stops here,
 				   this is necesarry because not all compilers stop after a #error. */
@@ -590,7 +590,7 @@ Access MACROS
 *
 */
 
-#define DRXJ_ATTR_BTSC_DETECT( d )                       \
+#define DRXJ_ATTR_BTSC_DETECT(d)                       \
 			(((pDRXJData_t)(d)->myExtAttr)->audData.btscDetect)
 
 /**
@@ -604,15 +604,15 @@ Access MACROS
 * substituted by "direct-access-inline-code" or a function call.
 *
 */
-#define DRXJ_GET_BTSC_DETECT( d, x )                     \
+#define DRXJ_GET_BTSC_DETECT(d, x)                     \
    do {                                                  \
-      (x) = DRXJ_ATTR_BTSC_DETECT(( d );                 \
-   } while(0)
+      (x) = DRXJ_ATTR_BTSC_DETECT((d);                 \
+   } while (0)
 
-#define DRXJ_SET_BTSC_DETECT( d, x )                     \
+#define DRXJ_SET_BTSC_DETECT(d, x)                     \
    do {                                                  \
-      DRXJ_ATTR_BTSC_DETECT( d ) = (x);                  \
-   } while(0)
+      DRXJ_ATTR_BTSC_DETECT(d) = (x);                  \
+   } while (0)
 
 /*-------------------------------------------------------------------------
 DEFINES
@@ -704,12 +704,12 @@ DEFINES
 
 /* Convert OOB lock status to string */
 #define DRXJ_STR_OOB_LOCKSTATUS(x) ( \
-   ( x == DRX_NEVER_LOCK               )  ?  "Never"           : \
-   ( x == DRX_NOT_LOCKED               )  ?  "No"              : \
-   ( x == DRX_LOCKED                   )  ?  "Locked"          : \
-   ( x == DRX_LOCK_STATE_1             )  ?  "AGC lock"        : \
-   ( x == DRX_LOCK_STATE_2             )  ?  "sync lock"       : \
-					     "(Invalid)" )
+   (x == DRX_NEVER_LOCK)  ?  "Never"           : \
+   (x == DRX_NOT_LOCKED)  ?  "No"              : \
+   (x == DRX_LOCKED)  ?  "Locked"          : \
+   (x == DRX_LOCK_STATE_1)  ?  "AGC lock"        : \
+   (x == DRX_LOCK_STATE_2)  ?  "sync lock"       : \
+					     "(Invalid)")
 
 /*-------------------------------------------------------------------------
 ENUM
