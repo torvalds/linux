@@ -40,6 +40,8 @@
 INCLUDE FILES
 ----------------------------------------------------------------------------*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "drxj.h"
 #include "drxj_map.h"
 
@@ -477,66 +479,6 @@ DEFINES
 /*============================================================================*/
 /*=== REGISTER ACCESS MACROS =================================================*/
 /*============================================================================*/
-
-#ifdef DRXJDRIVER_DEBUG
-#include <stdio.h>
-#define CHK_ERROR(s) \
-	do { \
-	    if ((s) != DRX_STS_OK) \
-	    { \
-	       fprintf(stderr, \
-		       "ERROR[\n file    : %s\n line    : %d\n]\n", \
-		       __FILE__, __LINE__); \
-	       goto rw_error; }; \
-	    } \
-	while (0 != 0)
-#else
-#define CHK_ERROR(s) \
-   do { \
-      if ((s) != DRX_STS_OK) { goto rw_error; } \
-   } while (0 != 0)
-#endif
-
-#define CHK_ZERO(s) \
-   do { \
-      if ((s) == 0) return DRX_STS_ERROR; \
-   } while (0)
-
-#define DUMMY_READ() \
-   do { \
-      u16 dummy; \
-      RR16(demod->my_i2c_dev_addr, SCU_RAM_VERSION_HI__A, &dummy); \
-   } while (0)
-
-#define WR16(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.write_reg16func((dev), (addr), (val), 0))
-
-#define RR16(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.read_reg16func((dev), (addr), (val), 0))
-
-#define WR32(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.write_reg32func((dev), (addr), (val), 0))
-
-#define RR32(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.read_reg32func((dev), (addr), (val), 0))
-
-#define WRB(dev, addr, len, block) \
-   CHK_ERROR(DRXJ_DAP.write_block_func((dev), (addr), (len), (block), 0))
-
-#define RRB(dev, addr, len, block) \
-   CHK_ERROR(DRXJ_DAP.read_block_func((dev), (addr), (len), (block), 0))
-
-#define BCWR16(dev, addr, val) \
-   CHK_ERROR(DRXJ_DAP.write_reg16func((dev), (addr), (val), DRXDAP_FASI_BROADCAST))
-
-#define ARR32(dev, addr, val) \
-   CHK_ERROR(drxj_dap_atomic_read_reg32((dev), (addr), (val), 0))
-
-#define SARR16(dev, addr, val) \
-   CHK_ERROR(drxj_dap_scu_atomic_read_reg16((dev), (addr), (val), 0))
-
-#define SAWR16(dev, addr, val) \
-   CHK_ERROR(drxj_dap_scu_atomic_write_reg16((dev), (addr), (val), 0))
 
 /**
 * This macro is used to create byte arrays for block writes.
@@ -2100,7 +2042,7 @@ int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
 					  u8 *data, bool read_flag)
 {
 	drxj_hi_cmd_t hi_cmd;
-
+	int rc;
 	u16 word;
 	u16 dummy = 0;
 	u16 i = 0;
@@ -2141,7 +2083,11 @@ int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
 		}
 	}
 
-	CHK_ERROR(hi_command(dev_addr, &hi_cmd, &dummy));
+	rc = hi_command(dev_addr, &hi_cmd, &dummy);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (read_flag == true) {
 		/* read data from buffer */
@@ -2227,6 +2173,7 @@ static int hi_cfg_command(const struct drx_demod_instance *demod)
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
 	drxj_hi_cmd_t hi_cmd;
 	u16 result = 0;
+	int rc;
 
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
@@ -2238,7 +2185,11 @@ static int hi_cfg_command(const struct drx_demod_instance *demod)
 	hi_cmd.param5 = ext_attr->hi_cfg_ctrl;
 	hi_cmd.param6 = ext_attr->hi_cfg_transmit;
 
-	CHK_ERROR(hi_command(demod->my_i2c_dev_addr, &hi_cmd, &result));
+	rc = hi_command(demod->my_i2c_dev_addr, &hi_cmd, &result);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Reset power down flag (set one call only) */
 	ext_attr->hi_cfg_ctrl &= (~(SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ));
@@ -2266,20 +2217,45 @@ hi_command(struct i2c_device_addr *dev_addr, const pdrxj_hi_cmd_t cmd, u16 *resu
 	u16 wait_cmd = 0;
 	u16 nr_retries = 0;
 	bool powerdown_cmd = false;
+	int rc;
 
 	/* Write parameters */
 	switch (cmd->cmd) {
 
 	case SIO_HI_RA_RAM_CMD_CONFIG:
 	case SIO_HI_RA_RAM_CMD_ATOMIC_COPY:
-		WR16(dev_addr, SIO_HI_RA_RAM_PAR_6__A, cmd->param6);
-		WR16(dev_addr, SIO_HI_RA_RAM_PAR_5__A, cmd->param5);
-		WR16(dev_addr, SIO_HI_RA_RAM_PAR_4__A, cmd->param4);
-		WR16(dev_addr, SIO_HI_RA_RAM_PAR_3__A, cmd->param3);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_HI_RA_RAM_PAR_6__A, cmd->param6, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_HI_RA_RAM_PAR_5__A, cmd->param5, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_HI_RA_RAM_PAR_4__A, cmd->param4, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_HI_RA_RAM_PAR_3__A, cmd->param3, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/* fallthrough */
 	case SIO_HI_RA_RAM_CMD_BRDCTRL:
-		WR16(dev_addr, SIO_HI_RA_RAM_PAR_2__A, cmd->param2);
-		WR16(dev_addr, SIO_HI_RA_RAM_PAR_1__A, cmd->param1);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_HI_RA_RAM_PAR_2__A, cmd->param2, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_HI_RA_RAM_PAR_1__A, cmd->param1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/* fallthrough */
 	case SIO_HI_RA_RAM_CMD_NULL:
 		/* No parameters */
@@ -2291,7 +2267,11 @@ hi_command(struct i2c_device_addr *dev_addr, const pdrxj_hi_cmd_t cmd, u16 *resu
 	}
 
 	/* Write command */
-	WR16(dev_addr, SIO_HI_RA_RAM_CMD__A, cmd->cmd);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_HI_RA_RAM_CMD__A, cmd->cmd, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if ((cmd->cmd) == SIO_HI_RA_RAM_CMD_RESET) {
 		/* Allow for HI to reset */
@@ -2311,11 +2291,19 @@ hi_command(struct i2c_device_addr *dev_addr, const pdrxj_hi_cmd_t cmd, u16 *resu
 				goto rw_error;
 			};
 
-			RR16(dev_addr, SIO_HI_RA_RAM_CMD__A, &wait_cmd);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_HI_RA_RAM_CMD__A, &wait_cmd, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		} while (wait_cmd != 0);
 
 		/* Read result */
-		RR16(dev_addr, SIO_HI_RA_RAM_RES__A, result);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_HI_RA_RAM_RES__A, result, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 	}
 	/* if ( powerdown_cmd == true ) */
@@ -2342,13 +2330,18 @@ static int init_hi(const struct drx_demod_instance *demod)
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
+	int rc;
 
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 
 	/* PATCH for bug 5003, HI ucode v3.1.0 */
-	WR16(dev_addr, 0x4301D7, 0x801);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, 0x4301D7, 0x801, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Timing div, 250ns/Psys */
 	/* Timing div, = ( delay (nano seconds) * sysclk (kHz) )/ 1000 */
@@ -2380,7 +2373,11 @@ static int init_hi(const struct drx_demod_instance *demod)
 	/* transit mode time out delay and watch dog divider */
 	ext_attr->hi_cfg_transmit = SIO_HI_RA_RAM_PAR_6__PRE;
 
-	CHK_ERROR(hi_cfg_command(demod));
+	rc = hi_cfg_command(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 
@@ -2422,14 +2419,27 @@ static int get_device_capabilities(struct drx_demod_instance *demod)
 	u16 sio_pdr_ohw_cfg = 0;
 	u32 sio_top_jtagid_lo = 0;
 	u16 bid = 0;
+	int rc;
 
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
-	RR16(dev_addr, SIO_PDR_OHW_CFG__A, &sio_pdr_ohw_cfg);
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_PDR_OHW_CFG__A, &sio_pdr_ohw_cfg, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	switch ((sio_pdr_ohw_cfg & SIO_PDR_OHW_CFG_FREF_SEL__M)) {
 	case 0:
@@ -2455,15 +2465,31 @@ static int get_device_capabilities(struct drx_demod_instance *demod)
 	   Determine device capabilities
 	   Based on pinning v47
 	 */
-	RR32(dev_addr, SIO_TOP_JTAGID_LO__A, &sio_top_jtagid_lo);
+	rc = DRXJ_DAP.read_reg32func(dev_addr, SIO_TOP_JTAGID_LO__A, &sio_top_jtagid_lo, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->mfx = (u8) ((sio_top_jtagid_lo >> 29) & 0xF);
 
 	switch ((sio_top_jtagid_lo >> 12) & 0xFF) {
 	case 0x31:
-		WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
-		RR16(dev_addr, SIO_PDR_UIO_IN_HI__A, &bid);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_PDR_UIO_IN_HI__A, &bid, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		bid = (bid >> 10) & 0xf;
-		WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		ext_attr->has_lna = true;
 		ext_attr->has_ntsc = false;
@@ -2600,9 +2626,11 @@ static int power_up_device(struct drx_demod_instance *demod)
 	wake_up_addr.i2c_addr = DRXJ_WAKE_UP_KEY;
 	wake_up_addr.i2c_dev_id = dev_addr->i2c_dev_id;
 	wake_up_addr.user_data = dev_addr->user_data;
-	/* CHK_ERROR macro not used, I2C access may fail in this case: no ack
-	   dummy write must be used to wake uop device, dummy read must be used to
-	   reset HI state machine (avoiding actual writes) */
+	/*
+	 * I2C access may fail in this case: no ack
+	 * dummy write must be used to wake uop device, dummy read must be used to
+	 * reset HI state machine (avoiding actual writes)
+	 */
 	do {
 		data = 0;
 		drxbsp_i2c_write_read(&wake_up_addr, 1, &data,
@@ -2644,6 +2672,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
+	int rc;
 	u16 fec_oc_reg_mode = 0;
 	u16 fec_oc_reg_ipr_mode = 0;
 	u16 fec_oc_reg_ipr_invert = 0;
@@ -2657,6 +2686,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 	    FEC_OC_IPR_INVERT_MD5__M | FEC_OC_IPR_INVERT_MD4__M |
 	    FEC_OC_IPR_INVERT_MD3__M | FEC_OC_IPR_INVERT_MD2__M |
 	    FEC_OC_IPR_INVERT_MD1__M | FEC_OC_IPR_INVERT_MD0__M;
+
 	/* check arguments */
 	if ((demod == NULL) || (cfg_data == NULL)) {
 		return (DRX_STS_INVALID_ARG);
@@ -2693,19 +2723,55 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			return (DRX_STS_OK);
 		}
 
-		WR16(dev_addr, FEC_OC_OCR_INVERT__A, 0);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_OCR_INVERT__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		switch (ext_attr->standard) {
 		case DRX_STANDARD_8VSB:
-			WR16(dev_addr, FEC_OC_FCT_USAGE__A, 7);	/* 2048 bytes fifo ram */
-			WR16(dev_addr, FEC_OC_TMD_CTL_UPD_RATE__A, 10);
-			WR16(dev_addr, FEC_OC_TMD_INT_UPD_RATE__A, 10);
-			WR16(dev_addr, FEC_OC_AVR_PARM_A__A, 5);
-			WR16(dev_addr, FEC_OC_AVR_PARM_B__A, 7);
-			WR16(dev_addr, FEC_OC_RCN_GAIN__A, 10);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_FCT_USAGE__A, 7, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/* 2048 bytes fifo ram */
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_TMD_CTL_UPD_RATE__A, 10, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_TMD_INT_UPD_RATE__A, 10, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_AVR_PARM_A__A, 5, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_AVR_PARM_B__A, 7, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_RCN_GAIN__A, 10, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			/* Low Water Mark for synchronization  */
-			WR16(dev_addr, FEC_OC_SNC_LWM__A, 3);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_SNC_LWM__A, 3, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			/* High Water Mark for synchronization */
-			WR16(dev_addr, FEC_OC_SNC_HWM__A, 5);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_SNC_HWM__A, 5, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_STANDARD_ITU_A:
 		case DRX_STANDARD_ITU_C:
@@ -2734,31 +2800,70 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			    (ext_attr->curr_symbol_rate / 8) * nr_bits * 188;
 			/* pass through b/c Annex A/c need following settings */
 		case DRX_STANDARD_ITU_B:
-			WR16(dev_addr, FEC_OC_FCT_USAGE__A,
-			     FEC_OC_FCT_USAGE__PRE);
-			WR16(dev_addr, FEC_OC_TMD_CTL_UPD_RATE__A,
-			     FEC_OC_TMD_CTL_UPD_RATE__PRE);
-			WR16(dev_addr, FEC_OC_TMD_INT_UPD_RATE__A, 5);
-			WR16(dev_addr, FEC_OC_AVR_PARM_A__A,
-			     FEC_OC_AVR_PARM_A__PRE);
-			WR16(dev_addr, FEC_OC_AVR_PARM_B__A,
-			     FEC_OC_AVR_PARM_B__PRE);
-			if (cfg_data->static_clk == true) {
-				WR16(dev_addr, FEC_OC_RCN_GAIN__A, 0xD);
-			} else {
-				WR16(dev_addr, FEC_OC_RCN_GAIN__A,
-				     FEC_OC_RCN_GAIN__PRE);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_FCT_USAGE__A, FEC_OC_FCT_USAGE__PRE, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
 			}
-			WR16(dev_addr, FEC_OC_SNC_LWM__A, 2);
-			WR16(dev_addr, FEC_OC_SNC_HWM__A, 12);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_TMD_CTL_UPD_RATE__A, FEC_OC_TMD_CTL_UPD_RATE__PRE, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_TMD_INT_UPD_RATE__A, 5, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_AVR_PARM_A__A, FEC_OC_AVR_PARM_A__PRE, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_AVR_PARM_B__A, FEC_OC_AVR_PARM_B__PRE, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			if (cfg_data->static_clk == true) {
+				rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_RCN_GAIN__A, 0xD, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+			} else {
+				rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_RCN_GAIN__A, FEC_OC_RCN_GAIN__PRE, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_SNC_LWM__A, 2, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_SNC_HWM__A, 12, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		default:
 			break;
 		}		/* swtich (standard) */
 
 		/* Check insertion of the Reed-Solomon parity bytes */
-		RR16(dev_addr, FEC_OC_MODE__A, &fec_oc_reg_mode);
-		RR16(dev_addr, FEC_OC_IPR_MODE__A, &fec_oc_reg_ipr_mode);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_MODE__A, &fec_oc_reg_mode, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_IPR_MODE__A, &fec_oc_reg_ipr_mode, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (cfg_data->insert_rs_byte == true) {
 			/* enable parity symbol forward */
 			fec_oc_reg_mode |= FEC_OC_MODE_PARITY__M;
@@ -2918,97 +3023,287 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			dto_rate =
 			    frac28(bit_rate, common_attr->sys_clock_freq * 1000);
 			dto_rate >>= 3;
-			WR16(dev_addr, FEC_OC_DTO_RATE_HI__A,
-			     (u16) ((dto_rate >> 16) & FEC_OC_DTO_RATE_HI__M));
-			WR16(dev_addr, FEC_OC_DTO_RATE_LO__A,
-			     (u16) (dto_rate & FEC_OC_DTO_RATE_LO_RATE_LO__M));
-			WR16(dev_addr, FEC_OC_DTO_MODE__A,
-			     FEC_OC_DTO_MODE_DYNAMIC__M |
-			     FEC_OC_DTO_MODE_OFFSET_ENABLE__M);
-			WR16(dev_addr, FEC_OC_FCT_MODE__A,
-			     FEC_OC_FCT_MODE_RAT_ENA__M |
-			     FEC_OC_FCT_MODE_VIRT_ENA__M);
-			WR16(dev_addr, FEC_OC_DTO_BURST_LEN__A,
-			     fec_oc_dto_burst_len);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_DTO_RATE_HI__A, (u16)((dto_rate >> 16) & FEC_OC_DTO_RATE_HI__M), 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_DTO_RATE_LO__A, (u16)(dto_rate & FEC_OC_DTO_RATE_LO_RATE_LO__M), 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_DTO_MODE__A, FEC_OC_DTO_MODE_DYNAMIC__M | FEC_OC_DTO_MODE_OFFSET_ENABLE__M, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_FCT_MODE__A, FEC_OC_FCT_MODE_RAT_ENA__M | FEC_OC_FCT_MODE_VIRT_ENA__M, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_DTO_BURST_LEN__A, fec_oc_dto_burst_len, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			if (ext_attr->mpeg_output_clock_rate !=
 			    DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO)
 				fec_oc_dto_period =
 				    ext_attr->mpeg_output_clock_rate - 1;
-			WR16(dev_addr, FEC_OC_DTO_PERIOD__A, fec_oc_dto_period);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_DTO_PERIOD__A, fec_oc_dto_period, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		} else {	/* Dynamic mode */
 
-			WR16(dev_addr, FEC_OC_DTO_MODE__A,
-			     FEC_OC_DTO_MODE_DYNAMIC__M);
-			WR16(dev_addr, FEC_OC_FCT_MODE__A, 0);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_DTO_MODE__A, FEC_OC_DTO_MODE_DYNAMIC__M, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_FCT_MODE__A, 0, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 
-		WR32(dev_addr, FEC_OC_RCN_CTL_RATE_LO__A, rcn_rate);
+		rc = DRXJ_DAP.write_reg32func(dev_addr, FEC_OC_RCN_CTL_RATE_LO__A, rcn_rate, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* Write appropriate registers with requested configuration */
-		WR16(dev_addr, FEC_OC_MODE__A, fec_oc_reg_mode);
-		WR16(dev_addr, FEC_OC_IPR_MODE__A, fec_oc_reg_ipr_mode);
-		WR16(dev_addr, FEC_OC_IPR_INVERT__A, fec_oc_reg_ipr_invert);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_MODE__A, fec_oc_reg_mode, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_IPR_MODE__A, fec_oc_reg_ipr_mode, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_IPR_INVERT__A, fec_oc_reg_ipr_invert, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* enabling for both parallel and serial now */
 		/*  Write magic word to enable pdr reg write */
-		WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/*  Set MPEG TS pads to outputmode */
-		WR16(dev_addr, SIO_PDR_MSTRT_CFG__A, 0x0013);
-		WR16(dev_addr, SIO_PDR_MERR_CFG__A, 0x0013);
-		WR16(dev_addr, SIO_PDR_MCLK_CFG__A,
-		     MPEG_OUTPUT_CLK_DRIVE_STRENGTH << SIO_PDR_MCLK_CFG_DRIVE__B
-		     | 0x03 << SIO_PDR_MCLK_CFG_MODE__B);
-		WR16(dev_addr, SIO_PDR_MVAL_CFG__A, 0x0013);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MSTRT_CFG__A, 0x0013, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MERR_CFG__A, 0x0013, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MCLK_CFG__A, MPEG_OUTPUT_CLK_DRIVE_STRENGTH << SIO_PDR_MCLK_CFG_DRIVE__B | 0x03 << SIO_PDR_MCLK_CFG_MODE__B, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MVAL_CFG__A, 0x0013, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		sio_pdr_md_cfg =
 		    MPEG_SERIAL_OUTPUT_PIN_DRIVE_STRENGTH <<
 		    SIO_PDR_MD0_CFG_DRIVE__B | 0x03 << SIO_PDR_MD0_CFG_MODE__B;
-		WR16(dev_addr, SIO_PDR_MD0_CFG__A, sio_pdr_md_cfg);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD0_CFG__A, sio_pdr_md_cfg, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (cfg_data->enable_parallel == true) {	/* MPEG data output is paralel -> set MD1 to MD7 to output mode */
 			sio_pdr_md_cfg =
 			    MPEG_PARALLEL_OUTPUT_PIN_DRIVE_STRENGTH <<
 			    SIO_PDR_MD0_CFG_DRIVE__B | 0x03 <<
 			    SIO_PDR_MD0_CFG_MODE__B;
-			WR16(dev_addr, SIO_PDR_MD0_CFG__A, sio_pdr_md_cfg);
-			WR16(dev_addr, SIO_PDR_MD1_CFG__A, sio_pdr_md_cfg);
-			WR16(dev_addr, SIO_PDR_MD2_CFG__A, sio_pdr_md_cfg);
-			WR16(dev_addr, SIO_PDR_MD3_CFG__A, sio_pdr_md_cfg);
-			WR16(dev_addr, SIO_PDR_MD4_CFG__A, sio_pdr_md_cfg);
-			WR16(dev_addr, SIO_PDR_MD5_CFG__A, sio_pdr_md_cfg);
-			WR16(dev_addr, SIO_PDR_MD6_CFG__A, sio_pdr_md_cfg);
-			WR16(dev_addr, SIO_PDR_MD7_CFG__A, sio_pdr_md_cfg);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD0_CFG__A, sio_pdr_md_cfg, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD1_CFG__A, sio_pdr_md_cfg, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD2_CFG__A, sio_pdr_md_cfg, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD3_CFG__A, sio_pdr_md_cfg, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD4_CFG__A, sio_pdr_md_cfg, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD5_CFG__A, sio_pdr_md_cfg, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD6_CFG__A, sio_pdr_md_cfg, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD7_CFG__A, sio_pdr_md_cfg, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		} else {	/* MPEG data output is serial -> set MD1 to MD7 to tri-state */
-			WR16(dev_addr, SIO_PDR_MD1_CFG__A, 0x0000);
-			WR16(dev_addr, SIO_PDR_MD2_CFG__A, 0x0000);
-			WR16(dev_addr, SIO_PDR_MD3_CFG__A, 0x0000);
-			WR16(dev_addr, SIO_PDR_MD4_CFG__A, 0x0000);
-			WR16(dev_addr, SIO_PDR_MD5_CFG__A, 0x0000);
-			WR16(dev_addr, SIO_PDR_MD6_CFG__A, 0x0000);
-			WR16(dev_addr, SIO_PDR_MD7_CFG__A, 0x0000);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD1_CFG__A, 0x0000, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD2_CFG__A, 0x0000, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD3_CFG__A, 0x0000, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD4_CFG__A, 0x0000, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD5_CFG__A, 0x0000, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD6_CFG__A, 0x0000, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD7_CFG__A, 0x0000, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 		/*  Enable Monitor Bus output over MPEG pads and ctl input */
-		WR16(dev_addr, SIO_PDR_MON_CFG__A, 0x0000);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MON_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/*  Write nomagic word to enable pdr reg write */
-		WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	} else {
 		/*  Write magic word to enable pdr reg write */
-		WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/*  Set MPEG TS pads to inputmode */
-		WR16(dev_addr, SIO_PDR_MSTRT_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MERR_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MCLK_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MVAL_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MD0_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MD1_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MD2_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MD3_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MD4_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MD5_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MD6_CFG__A, 0x0000);
-		WR16(dev_addr, SIO_PDR_MD7_CFG__A, 0x0000);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MSTRT_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MERR_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MCLK_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MVAL_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD0_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD1_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD2_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD3_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD4_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD5_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD6_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD7_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/* Enable Monitor Bus output over MPEG pads and ctl input */
-		WR16(dev_addr, SIO_PDR_MON_CFG__A, 0x0000);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MON_CFG__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/* Write nomagic word to enable pdr reg write */
-		WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* save values for restore after re-acquire */
@@ -3046,6 +3341,7 @@ ctrl_get_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
+	int rc;
 	u32 rate_reg = 0;
 	u32 data64hi = 0;
 	u32 data64lo = 0;
@@ -3067,9 +3363,17 @@ ctrl_get_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 	cfg_data->static_clk = common_attr->mpeg_cfg.static_clk;
 	cfg_data->bitrate = 0;
 
-	CHK_ERROR(ctrl_lock_status(demod, &lock_status));
+	rc = ctrl_lock_status(demod, &lock_status);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if ((lock_status == DRX_LOCKED)) {
-		RR32(dev_addr, FEC_OC_RCN_DYN_RATE_LO__A, &rate_reg);
+		rc = DRXJ_DAP.read_reg32func(dev_addr, FEC_OC_RCN_DYN_RATE_LO__A, &rate_reg, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/* Frcn_rate = rate_reg * Fsys / 2 ^ 25 */
 		mult32(rate_reg, common_attr->sys_clock_freq * 1000, &data64hi,
 		       &data64lo);
@@ -3102,6 +3406,7 @@ static int set_mpegtei_handling(struct drx_demod_instance *demod)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
+	int rc;
 	u16 fec_oc_dpr_mode = 0;
 	u16 fec_oc_snc_mode = 0;
 	u16 fec_oc_ems_mode = 0;
@@ -3109,9 +3414,21 @@ static int set_mpegtei_handling(struct drx_demod_instance *demod)
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
-	RR16(dev_addr, FEC_OC_DPR_MODE__A, &fec_oc_dpr_mode);
-	RR16(dev_addr, FEC_OC_SNC_MODE__A, &fec_oc_snc_mode);
-	RR16(dev_addr, FEC_OC_EMS_MODE__A, &fec_oc_ems_mode);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_DPR_MODE__A, &fec_oc_dpr_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_SNC_MODE__A, &fec_oc_snc_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_EMS_MODE__A, &fec_oc_ems_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* reset to default, allow TEI bit to be changed */
 	fec_oc_dpr_mode &= (~FEC_OC_DPR_MODE_ERR_DISABLE__M);
@@ -3127,9 +3444,21 @@ static int set_mpegtei_handling(struct drx_demod_instance *demod)
 		fec_oc_ems_mode |= ((0x01) << (FEC_OC_EMS_MODE_MODE__B));
 	}
 
-	WR16(dev_addr, FEC_OC_DPR_MODE__A, fec_oc_dpr_mode);
-	WR16(dev_addr, FEC_OC_SNC_MODE__A, fec_oc_snc_mode);
-	WR16(dev_addr, FEC_OC_EMS_MODE__A, fec_oc_ems_mode);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_DPR_MODE__A, fec_oc_dpr_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_SNC_MODE__A, fec_oc_snc_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_EMS_MODE__A, fec_oc_ems_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3150,12 +3479,17 @@ static int bit_reverse_mpeg_output(struct drx_demod_instance *demod)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
+	int rc;
 	u16 fec_oc_ipr_mode = 0;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
-	RR16(dev_addr, FEC_OC_IPR_MODE__A, &fec_oc_ipr_mode);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_IPR_MODE__A, &fec_oc_ipr_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* reset to default (normal bit order) */
 	fec_oc_ipr_mode &= (~FEC_OC_IPR_MODE_REVERSE_ORDER__M);
@@ -3165,7 +3499,11 @@ static int bit_reverse_mpeg_output(struct drx_demod_instance *demod)
 		fec_oc_ipr_mode |= FEC_OC_IPR_MODE_REVERSE_ORDER__M;
 	}
 
-	WR16(dev_addr, FEC_OC_IPR_MODE__A, fec_oc_ipr_mode);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_IPR_MODE__A, fec_oc_ipr_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3186,13 +3524,17 @@ static int set_mpeg_output_clock_rate(struct drx_demod_instance *demod)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	if (ext_attr->mpeg_output_clock_rate != DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO) {
-		WR16(dev_addr, FEC_OC_DTO_PERIOD__A,
-		     ext_attr->mpeg_output_clock_rate - 1);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_DTO_PERIOD__A, ext_attr->mpeg_output_clock_rate - 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	return (DRX_STS_OK);
@@ -3214,8 +3556,9 @@ static int set_mpeg_start_width(struct drx_demod_instance *demod)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
-	u16 fec_oc_comm_mb = 0;
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) NULL;
+	int rc;
+	u16 fec_oc_comm_mb = 0;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -3223,12 +3566,20 @@ static int set_mpeg_start_width(struct drx_demod_instance *demod)
 
 	if ((common_attr->mpeg_cfg.static_clk == true)
 	    && (common_attr->mpeg_cfg.enable_parallel == false)) {
-		RR16(dev_addr, FEC_OC_COMM_MB__A, &fec_oc_comm_mb);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_COMM_MB__A, &fec_oc_comm_mb, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		fec_oc_comm_mb &= ~FEC_OC_COMM_MB_CTL_ON;
 		if (ext_attr->mpeg_start_width == DRXJ_MPEG_START_WIDTH_8CLKCYC) {
 			fec_oc_comm_mb |= FEC_OC_COMM_MB_CTL_ON;
 		}
-		WR16(dev_addr, FEC_OC_COMM_MB__A, fec_oc_comm_mb);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_COMM_MB__A, fec_oc_comm_mb, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	return (DRX_STS_OK);
@@ -3253,6 +3604,7 @@ ctrl_set_cfg_mpeg_output_misc(struct drx_demod_instance *demod,
 			      struct drxj_cfg_mpeg_output_misc *cfg_data)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
+	int rc;
 
 	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
@@ -3274,10 +3626,26 @@ ctrl_set_cfg_mpeg_output_misc(struct drx_demod_instance *demod,
 	ext_attr->mpeg_output_clock_rate = cfg_data->mpeg_output_clock_rate;
 	ext_attr->mpeg_start_width = cfg_data->mpeg_start_width;
 	/* Don't care what the active standard is, activate setting immediatly */
-	CHK_ERROR(set_mpegtei_handling(demod));
-	CHK_ERROR(bit_reverse_mpeg_output(demod));
-	CHK_ERROR(set_mpeg_output_clock_rate(demod));
-	CHK_ERROR(set_mpeg_start_width(demod));
+	rc = set_mpegtei_handling(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = bit_reverse_mpeg_output(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = set_mpeg_output_clock_rate(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = set_mpeg_start_width(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3303,6 +3671,7 @@ ctrl_get_cfg_mpeg_output_misc(struct drx_demod_instance *demod,
 			      struct drxj_cfg_mpeg_output_misc *cfg_data)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
+	int rc;
 	u16 data = 0;
 
 	if (cfg_data == NULL) {
@@ -3316,7 +3685,11 @@ ctrl_get_cfg_mpeg_output_misc(struct drx_demod_instance *demod,
 	if (ext_attr->mpeg_output_clock_rate != DRXJ_MPEGOUTPUT_CLOCK_RATE_AUTO) {
 		cfg_data->mpeg_output_clock_rate = ext_attr->mpeg_output_clock_rate;
 	} else {
-		RR16(demod->my_i2c_dev_addr, FEC_OC_DTO_PERIOD__A, &data);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, FEC_OC_DTO_PERIOD__A, &data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		cfg_data->mpeg_output_clock_rate =
 		    (enum drxj_mpeg_output_clock_rate) (data + 1);
 	}
@@ -3343,14 +3716,27 @@ rw_error:
 static int
 ctrl_get_cfg_hw_cfg(struct drx_demod_instance *demod, struct drxj_cfg_hw_cfg *cfg_data)
 {
+	int rc;
 	u16 data = 0;
 
 	if (cfg_data == NULL)
 		return (DRX_STS_INVALID_ARG);
 
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);
-	RR16(demod->my_i2c_dev_addr, SIO_PDR_OHW_CFG__A, &data);
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_OHW_CFG__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	cfg_data->i2c_speed = (enum drxji2c_speed) ((data >> 6) & 0x1);
 	cfg_data->xtal_freq = (enum drxj_xtal_freq) (data & 0x3);
@@ -3377,6 +3763,7 @@ rw_error:
 static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg *uio_cfg)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
+	int rc;
 
 	if ((uio_cfg == NULL) || (demod == NULL)) {
 		return DRX_STS_INVALID_ARG;
@@ -3384,7 +3771,11 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	switch (uio_cfg->uio) {
       /*====================================================================*/
 	case DRX_UIO1:
@@ -3400,7 +3791,11 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		case DRX_UIO_MODE_DISABLE:
 			ext_attr->uio_sma_tx_mode = uio_cfg->mode;
 			/* pad configuration register is set 0 - input mode */
-			WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, 0);
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, 0, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		default:
 			return DRX_STS_INVALID_ARG;
@@ -3419,7 +3814,11 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		case DRX_UIO_MODE_DISABLE:
 			ext_attr->uio_sma_rx_mode = uio_cfg->mode;
 			/* pad configuration register is set 0 - input mode */
-			WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, 0);
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, 0, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		default:
 			return DRX_STS_INVALID_ARG;
@@ -3439,7 +3838,11 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		case DRX_UIO_MODE_DISABLE:
 			ext_attr->uio_gpio_mode = uio_cfg->mode;
 			/* pad configuration register is set 0 - input mode */
-			WR16(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, 0);
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, 0, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		default:
 			return DRX_STS_INVALID_ARG;
@@ -3457,7 +3860,11 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 			break;
 		case DRX_UIO_MODE_DISABLE:
 			/* pad configuration register is set 0 - input mode */
-			WR16(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, 0);
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, 0, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			ext_attr->uio_irqn_mode = uio_cfg->mode;
 			break;
 		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
@@ -3472,7 +3879,11 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 	}			/* switch ( uio_cfg->uio ) */
 
 	/*  Write magic word to disable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3534,6 +3945,7 @@ static int
 ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
+	int rc;
 	u16 pin_cfg_value = 0;
 	u16 value = 0;
 
@@ -3544,7 +3956,11 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	switch (uio_data->uio) {
       /*====================================================================*/
 	case DRX_UIO1:
@@ -3562,17 +3978,29 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - output mode */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, pin_cfg_value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, pin_cfg_value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* use corresponding bit in io data output registar */
-		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (uio_data->value == false) {
 			value &= 0x7FFF;	/* write zero to 15th bit - 1st UIO */
 		} else {
 			value |= 0x8000;	/* write one to 15th bit - 1st UIO */
 		}
 		/* write back to io data output register */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
    /*======================================================================*/
 	case DRX_UIO2:
@@ -3589,17 +4017,29 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - output mode */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, pin_cfg_value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, pin_cfg_value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* use corresponding bit in io data output registar */
-		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (uio_data->value == false) {
 			value &= 0xBFFF;	/* write zero to 14th bit - 2nd UIO */
 		} else {
 			value |= 0x4000;	/* write one to 14th bit - 2nd UIO */
 		}
 		/* write back to io data output register */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
    /*====================================================================*/
 	case DRX_UIO3:
@@ -3616,17 +4056,29 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - output mode */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, pin_cfg_value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, pin_cfg_value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* use corresponding bit in io data output registar */
-		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_HI__A, &value);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_HI__A, &value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (uio_data->value == false) {
 			value &= 0xFFFB;	/* write zero to 2nd bit - 3rd UIO */
 		} else {
 			value |= 0x0004;	/* write one to 2nd bit - 3rd UIO */
 		}
 		/* write back to io data output register */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_HI__A, value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_HI__A, value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
    /*=====================================================================*/
 	case DRX_UIO4:
@@ -3644,17 +4096,29 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - output mode */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, pin_cfg_value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, pin_cfg_value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* use corresponding bit in io data output registar */
-		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, &value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (uio_data->value == false) {
 			value &= 0xEFFF;	/* write zero to 12th bit - 4th UIO */
 		} else {
 			value |= 0x1000;	/* write one to 12th bit - 4th UIO */
 		}
 		/* write back to io data output register */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_OUT_LO__A, value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
       /*=====================================================================*/
 	default:
@@ -3662,7 +4126,11 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 	}			/* switch ( uio_data->uio ) */
 
 	/*  Write magic word to disable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3679,6 +4147,7 @@ rw_error:
 static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
+	int rc;
 	u16 pin_cfg_value = 0;
 	u16 value = 0;
 
@@ -3689,7 +4158,11 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	switch (uio_data->uio) {
       /*====================================================================*/
 	case DRX_UIO1:
@@ -3707,9 +4180,17 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - input mode */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, pin_cfg_value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, pin_cfg_value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
-		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if ((value & 0x8000) != 0) {	/* check 15th bit - 1st UIO */
 			uio_data->value = true;
 		} else {
@@ -3732,9 +4213,17 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - input mode */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, pin_cfg_value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_SMA_RX_CFG__A, pin_cfg_value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
-		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		if ((value & 0x4000) != 0) {	/* check 14th bit - 2nd UIO */
 			uio_data->value = true;
@@ -3758,10 +4247,18 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - input mode */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, pin_cfg_value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_GPIO_CFG__A, pin_cfg_value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* read io input data registar */
-		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_HI__A, &value);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_HI__A, &value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if ((value & 0x0004) != 0) {	/* check 2nd bit - 3rd UIO */
 			uio_data->value = true;
 		} else {
@@ -3784,10 +4281,18 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
 		/* io_pad_cfg_drive is set to power 2 (23 mA) */
 
 		/* write to io pad configuration register - input mode */
-		WR16(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, pin_cfg_value);
+		rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_IRQN_CFG__A, pin_cfg_value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* read io input data registar */
-		RR16(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SIO_PDR_UIO_IN_LO__A, &value, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if ((value & 0x1000) != 0) {	/* check 12th bit - 4th UIO */
 			uio_data->value = true;
 		} else {
@@ -3800,7 +4305,11 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
 	}			/* switch ( uio_data->uio ) */
 
 	/*  Write magic word to disable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3860,34 +4369,67 @@ ctrl_i2c_bridge(struct drx_demod_instance *demod, bool *bridge_closed)
 */
 static int smart_ant_init(struct drx_demod_instance *demod)
 {
-	u16 data = 0;
 	struct drxj_data *ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxuio_cfg uio_cfg = { DRX_UIO1, DRX_UIO_MODE_FIRMWARE_SMA };
+	int rc;
+	u16 data = 0;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* init smart antenna */
-	RR16(dev_addr, SIO_SA_TX_COMMAND__A, &data);
-	if (ext_attr->smart_ant_inverted)
-		WR16(dev_addr, SIO_SA_TX_COMMAND__A,
-		     (data | SIO_SA_TX_COMMAND_TX_INVERT__M)
-		     | SIO_SA_TX_COMMAND_TX_ENABLE__M);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_SA_TX_COMMAND__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	if (ext_attr->smart_ant_inverted){
+
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_SA_TX_COMMAND__A, (data | SIO_SA_TX_COMMAND_TX_INVERT__M) | SIO_SA_TX_COMMAND_TX_ENABLE__M, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+		}
 	else
-		WR16(dev_addr, SIO_SA_TX_COMMAND__A,
-		     (data & (~SIO_SA_TX_COMMAND_TX_INVERT__M))
-		     | SIO_SA_TX_COMMAND_TX_ENABLE__M);
+		{
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_SA_TX_COMMAND__A, (data & (~SIO_SA_TX_COMMAND_TX_INVERT__M)) | SIO_SA_TX_COMMAND_TX_ENABLE__M, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+		}
 
 	/* config SMA_TX pin to smart antenna mode */
-	CHK_ERROR(ctrl_set_uio_cfg(demod, &uio_cfg));
-	WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, 0x13);
-	WR16(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_GPIO_FNC__A, 0x03);
+	rc = ctrl_set_uio_cfg(demod, &uio_cfg);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_CFG__A, 0x13, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_PDR_SMA_TX_GPIO_FNC__A, 0x03, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/*  Write magic word to disable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3906,8 +4448,9 @@ ctrl_set_cfg_smart_ant(struct drx_demod_instance *demod, struct drxj_cfg_smart_a
 {
 	struct drxj_data *ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
-	u16 data = 0;
+	int rc;
 	u32 start_time = 0;
+	u16 data = 0;
 	static bool bit_inverted;
 
 	dev_addr = demod->my_i2c_dev_addr;
@@ -3920,12 +4463,20 @@ ctrl_set_cfg_smart_ant(struct drx_demod_instance *demod, struct drxj_cfg_smart_a
 
 	if (bit_inverted != ext_attr->smart_ant_inverted
 	    || ext_attr->uio_sma_tx_mode != DRX_UIO_MODE_FIRMWARE_SMA) {
-		CHK_ERROR(smart_ant_init(demod));
+		rc = smart_ant_init(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		bit_inverted = ext_attr->smart_ant_inverted;
 	}
 
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	switch (smart_ant->io) {
 	case DRXJ_SMT_ANT_OUTPUT:
@@ -3936,7 +4487,11 @@ ctrl_set_cfg_smart_ant(struct drx_demod_instance *demod, struct drxj_cfg_smart_a
 		 */
 		start_time = drxbsp_hst_clock();
 		do {
-			RR16(dev_addr, SIO_SA_TX_STATUS__A, &data);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_SA_TX_STATUS__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		} while ((data & SIO_SA_TX_STATUS_BUSY__M)
 			 && ((drxbsp_hst_clock() - start_time) <
 			     DRXJ_MAX_WAITTIME));
@@ -3946,30 +4501,33 @@ ctrl_set_cfg_smart_ant(struct drx_demod_instance *demod, struct drxj_cfg_smart_a
 		}
 
 		/* write to smart antenna configuration register */
-		WR16(dev_addr, SIO_SA_TX_DATA0__A, 0x9200
-		     | ((smart_ant->ctrl_data & 0x0001) << 8)
-		     | ((smart_ant->ctrl_data & 0x0002) << 10)
-		     | ((smart_ant->ctrl_data & 0x0004) << 12)
-		    );
-		WR16(dev_addr, SIO_SA_TX_DATA1__A, 0x4924
-		     | ((smart_ant->ctrl_data & 0x0008) >> 2)
-		     | ((smart_ant->ctrl_data & 0x0010))
-		     | ((smart_ant->ctrl_data & 0x0020) << 2)
-		     | ((smart_ant->ctrl_data & 0x0040) << 4)
-		     | ((smart_ant->ctrl_data & 0x0080) << 6)
-		    );
-		WR16(dev_addr, SIO_SA_TX_DATA2__A, 0x2492
-		     | ((smart_ant->ctrl_data & 0x0100) >> 8)
-		     | ((smart_ant->ctrl_data & 0x0200) >> 6)
-		     | ((smart_ant->ctrl_data & 0x0400) >> 4)
-		     | ((smart_ant->ctrl_data & 0x0800) >> 2)
-		     | ((smart_ant->ctrl_data & 0x1000))
-		     | ((smart_ant->ctrl_data & 0x2000) << 2)
-		    );
-		WR16(dev_addr, SIO_SA_TX_DATA3__A, 0xff8d);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_SA_TX_DATA0__A, 0x9200 | ((smart_ant->ctrl_data & 0x0001) << 8) | ((smart_ant->ctrl_data & 0x0002) << 10) | ((smart_ant->ctrl_data & 0x0004) << 12), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_SA_TX_DATA1__A, 0x4924 | ((smart_ant->ctrl_data & 0x0008) >> 2) | ((smart_ant->ctrl_data & 0x0010)) | ((smart_ant->ctrl_data & 0x0020) << 2) | ((smart_ant->ctrl_data & 0x0040) << 4) | ((smart_ant->ctrl_data & 0x0080) << 6), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_SA_TX_DATA2__A, 0x2492 | ((smart_ant->ctrl_data & 0x0100) >> 8) | ((smart_ant->ctrl_data & 0x0200) >> 6) | ((smart_ant->ctrl_data & 0x0400) >> 4) | ((smart_ant->ctrl_data & 0x0800) >> 2) | ((smart_ant->ctrl_data & 0x1000)) | ((smart_ant->ctrl_data & 0x2000) << 2), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_SA_TX_DATA3__A, 0xff8d, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* trigger the sending */
-		WR16(dev_addr, SIO_SA_TX_LENGTH__A, 56);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_SA_TX_LENGTH__A, 56, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		break;
 	case DRXJ_SMT_ANT_INPUT:
@@ -3982,7 +4540,11 @@ ctrl_set_cfg_smart_ant(struct drx_demod_instance *demod, struct drxj_cfg_smart_a
 		return (DRX_STS_INVALID_ARG);
 	}
 	/*  Write magic word to enable pdr reg write               */
-	WR16(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+	rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -3991,30 +4553,55 @@ rw_error:
 
 static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd)
 {
-	u16 cur_cmd = 0;
+	int rc;
 	u32 start_time = 0;
+	u16 cur_cmd = 0;
 
 	/* Check param */
 	if (cmd == NULL)
 		return (DRX_STS_INVALID_ARG);
 
 	/* Wait until SCU command interface is ready to receive command */
-	RR16(dev_addr, SCU_RAM_COMMAND__A, &cur_cmd);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_COMMAND__A, &cur_cmd, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (cur_cmd != DRX_SCU_READY) {
 		return (DRX_STS_ERROR);
 	}
 
 	switch (cmd->parameter_len) {
 	case 5:
-		WR16(dev_addr, SCU_RAM_PARAM_4__A, *(cmd->parameter + 4));	/* fallthrough */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_PARAM_4__A, *(cmd->parameter + 4), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/* fallthrough */
 	case 4:
-		WR16(dev_addr, SCU_RAM_PARAM_3__A, *(cmd->parameter + 3));	/* fallthrough */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_PARAM_3__A, *(cmd->parameter + 3), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/* fallthrough */
 	case 3:
-		WR16(dev_addr, SCU_RAM_PARAM_2__A, *(cmd->parameter + 2));	/* fallthrough */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_PARAM_2__A, *(cmd->parameter + 2), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/* fallthrough */
 	case 2:
-		WR16(dev_addr, SCU_RAM_PARAM_1__A, *(cmd->parameter + 1));	/* fallthrough */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_PARAM_1__A, *(cmd->parameter + 1), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/* fallthrough */
 	case 1:
-		WR16(dev_addr, SCU_RAM_PARAM_0__A, *(cmd->parameter + 0));	/* fallthrough */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_PARAM_0__A, *(cmd->parameter + 0), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/* fallthrough */
 	case 0:
 		/* do nothing */
 		break;
@@ -4022,12 +4609,20 @@ static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd
 		/* this number of parameters is not supported */
 		return (DRX_STS_ERROR);
 	}
-	WR16(dev_addr, SCU_RAM_COMMAND__A, cmd->command);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_COMMAND__A, cmd->command, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Wait until SCU has processed command */
 	start_time = drxbsp_hst_clock();
 	do {
-		RR16(dev_addr, SCU_RAM_COMMAND__A, &cur_cmd);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_COMMAND__A, &cur_cmd, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	} while (!(cur_cmd == DRX_SCU_READY)
 		 && ((drxbsp_hst_clock() - start_time) < DRXJ_MAX_WAITTIME));
 
@@ -4041,13 +4636,29 @@ static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd
 
 		switch (cmd->result_len) {
 		case 4:
-			RR16(dev_addr, SCU_RAM_PARAM_3__A, cmd->result + 3);	/* fallthrough */
+			rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_PARAM_3__A, cmd->result + 3, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/* fallthrough */
 		case 3:
-			RR16(dev_addr, SCU_RAM_PARAM_2__A, cmd->result + 2);	/* fallthrough */
+			rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_PARAM_2__A, cmd->result + 2, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/* fallthrough */
 		case 2:
-			RR16(dev_addr, SCU_RAM_PARAM_1__A, cmd->result + 1);	/* fallthrough */
+			rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_PARAM_1__A, cmd->result + 1, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/* fallthrough */
 		case 1:
-			RR16(dev_addr, SCU_RAM_PARAM_0__A, cmd->result + 0);	/* fallthrough */
+			rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_PARAM_0__A, cmd->result + 0, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/* fallthrough */
 		case 0:
 			/* do nothing */
 			break;
@@ -4099,6 +4710,7 @@ int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, u32 a
 					      u8 *data, bool read_flag)
 {
 	struct drxjscu_cmd scu_cmd;
+	int rc;
 	u16 set_param_parameters[15];
 	u16 cmd_result[15];
 
@@ -4131,7 +4743,11 @@ int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, u32 a
 	    SCU_RAM_COMMAND_CMD_AUX_SCU_ATOMIC_ACCESS;
 	scu_cmd.result = cmd_result;
 	scu_cmd.parameter = set_param_parameters;
-	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
+	rc = scu_command(dev_addr, &scu_cmd);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (read_flag == true) {
 		int i = 0;
@@ -4218,28 +4834,53 @@ ctrl_i2c_write_read(struct drx_demod_instance *demod, struct drxi2c_data *i2c_da
 */
 static int adc_sync_measurement(struct drx_demod_instance *demod, u16 *count)
 {
-	u16 data = 0;
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
+	u16 data = 0;
 
 	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Start measurement */
-	WR16(dev_addr, IQM_AF_COMM_EXEC__A, IQM_AF_COMM_EXEC_ACTIVE);
-	WR16(dev_addr, IQM_AF_START_LOCK__A, 1);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_COMM_EXEC__A, IQM_AF_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_START_LOCK__A, 1, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Wait at least 3*128*(1/sysclk) <<< 1 millisec */
-	CHK_ERROR(drxbsp_hst_sleep(1));
+	rc = drxbsp_hst_sleep(1);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	*count = 0;
-	RR16(dev_addr, IQM_AF_PHASE0__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_PHASE0__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (data == 127) {
 		*count = *count + 1;
 	}
-	RR16(dev_addr, IQM_AF_PHASE1__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_PHASE1__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (data == 127) {
 		*count = *count + 1;
 	}
-	RR16(dev_addr, IQM_AF_PHASE2__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_PHASE2__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (data == 127) {
 		*count = *count + 1;
 	}
@@ -4263,23 +4904,40 @@ rw_error:
 
 static int adc_synchronization(struct drx_demod_instance *demod)
 {
-	u16 count = 0;
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
+	u16 count = 0;
 
 	dev_addr = demod->my_i2c_dev_addr;
 
-	CHK_ERROR(adc_sync_measurement(demod, &count));
+	rc = adc_sync_measurement(demod, &count);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (count == 1) {
 		/* Try sampling on a diffrent edge */
 		u16 clk_neg = 0;
 
-		RR16(dev_addr, IQM_AF_CLKNEG__A, &clk_neg);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_CLKNEG__A, &clk_neg, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		clk_neg ^= IQM_AF_CLKNEG_CLKNEGDATA__M;
-		WR16(dev_addr, IQM_AF_CLKNEG__A, clk_neg);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_CLKNEG__A, clk_neg, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
-		CHK_ERROR(adc_sync_measurement(demod, &count));
+		rc = adc_sync_measurement(demod, &count);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	if (count < 2) {
@@ -4300,11 +4958,16 @@ rw_error:
 */
 static int iqm_set_af(struct drx_demod_instance *demod, bool active)
 {
-	u16 data = 0;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
+	u16 data = 0;
 
 	/* Configure IQM */
-	RR16(dev_addr, IQM_AF_STDBY__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_STDBY__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (!active) {
 		data &= ((~IQM_AF_STDBY_STDBY_ADC_A2_ACTIVE)
 			 & (~IQM_AF_STDBY_STDBY_AMP_A2_ACTIVE)
@@ -4319,7 +4982,11 @@ static int iqm_set_af(struct drx_demod_instance *demod, bool active)
 			 | IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE
 			 | IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE);
 	}
-	WR16(dev_addr, IQM_AF_STDBY__A, data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -4341,6 +5008,7 @@ ctrl_set_cfg_pdr_safe_mode(struct drx_demod_instance *demod, bool *enable)
 {
 	struct drxj_data *ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 
 	if (enable == NULL)
 		return (DRX_STS_INVALID_ARG);
@@ -4349,87 +5017,215 @@ ctrl_set_cfg_pdr_safe_mode(struct drx_demod_instance *demod, bool *enable)
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/*  Write magic word to enable pdr reg write  */
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (*enable == true) {
 		bool bridge_enabled = false;
 
 		/* MPEG pins to input */
-		WR16(dev_addr, SIO_PDR_MSTRT_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MERR_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MCLK_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MVAL_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MD0_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MD1_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MD2_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MD3_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MD4_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MD5_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MD6_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_MD7_CFG__A, DRXJ_PIN_SAFE_MODE);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MSTRT_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MERR_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MCLK_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MVAL_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD0_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD1_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD2_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD3_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD4_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD5_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD6_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_MD7_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* PD_I2C_SDA2 Bridge off, Port2 Inactive
 		   PD_I2C_SCL2 Bridge off, Port2 Inactive */
-		CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_enabled));
-		WR16(dev_addr, SIO_PDR_I2C_SDA2_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_I2C_SCL2_CFG__A, DRXJ_PIN_SAFE_MODE);
+		rc = ctrl_i2c_bridge(demod, &bridge_enabled);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2C_SDA2_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2C_SCL2_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/*  PD_GPIO     Store and set to input
 		   PD_VSYNC    Store and set to input
 		   PD_SMA_RX   Store and set to input
 		   PD_SMA_TX   Store and set to input */
-		RR16(dev_addr, SIO_PDR_GPIO_CFG__A,
-		     &ext_attr->pdr_safe_restore_val_gpio);
-		RR16(dev_addr, SIO_PDR_VSYNC_CFG__A,
-		     &ext_attr->pdr_safe_restore_val_v_sync);
-		RR16(dev_addr, SIO_PDR_SMA_RX_CFG__A,
-		     &ext_attr->pdr_safe_restore_val_sma_rx);
-		RR16(dev_addr, SIO_PDR_SMA_TX_CFG__A,
-		     &ext_attr->pdr_safe_restore_val_sma_tx);
-		WR16(dev_addr, SIO_PDR_GPIO_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_VSYNC_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_SMA_RX_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_SMA_TX_CFG__A, DRXJ_PIN_SAFE_MODE);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_PDR_GPIO_CFG__A, &ext_attr->pdr_safe_restore_val_gpio, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_PDR_VSYNC_CFG__A, &ext_attr->pdr_safe_restore_val_v_sync, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_PDR_SMA_RX_CFG__A, &ext_attr->pdr_safe_restore_val_sma_rx, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_PDR_SMA_TX_CFG__A, &ext_attr->pdr_safe_restore_val_sma_tx, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_GPIO_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_VSYNC_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_SMA_RX_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_SMA_TX_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/*  PD_RF_AGC   Analog DAC outputs, cannot be set to input or tristate!
 		   PD_IF_AGC   Analog DAC outputs, cannot be set to input or tristate! */
-		CHK_ERROR(iqm_set_af(demod, false));
+		rc = iqm_set_af(demod, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/*  PD_CVBS     Analog DAC output, standby mode
 		   PD_SIF      Analog DAC output, standby mode */
-		WR16(dev_addr, ATV_TOP_STDBY__A,
-		     (ATV_TOP_STDBY_SIF_STDBY_STANDBY &
-		      (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)));
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STDBY__A, (ATV_TOP_STDBY_SIF_STDBY_STANDBY & (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/*  PD_I2S_CL   Input
 		   PD_I2S_DA   Input
 		   PD_I2S_WS   Input */
-		WR16(dev_addr, SIO_PDR_I2S_CL_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_I2S_DA_CFG__A, DRXJ_PIN_SAFE_MODE);
-		WR16(dev_addr, SIO_PDR_I2S_WS_CFG__A, DRXJ_PIN_SAFE_MODE);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2S_CL_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2S_DA_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2S_WS_CFG__A, DRXJ_PIN_SAFE_MODE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	} else {
 		/* No need to restore MPEG pins;
 		   is done in SetStandard/SetChannel */
 
 		/* PD_I2C_SDA2 Port2 active
 		   PD_I2C_SCL2 Port2 active */
-		WR16(dev_addr, SIO_PDR_I2C_SDA2_CFG__A,
-		     SIO_PDR_I2C_SDA2_CFG__PRE);
-		WR16(dev_addr, SIO_PDR_I2C_SCL2_CFG__A,
-		     SIO_PDR_I2C_SCL2_CFG__PRE);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2C_SDA2_CFG__A, SIO_PDR_I2C_SDA2_CFG__PRE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2C_SCL2_CFG__A, SIO_PDR_I2C_SCL2_CFG__PRE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/*  PD_GPIO     Restore
 		   PD_VSYNC    Restore
 		   PD_SMA_RX   Restore
 		   PD_SMA_TX   Restore */
-		WR16(dev_addr, SIO_PDR_GPIO_CFG__A,
-		     ext_attr->pdr_safe_restore_val_gpio);
-		WR16(dev_addr, SIO_PDR_VSYNC_CFG__A,
-		     ext_attr->pdr_safe_restore_val_v_sync);
-		WR16(dev_addr, SIO_PDR_SMA_RX_CFG__A,
-		     ext_attr->pdr_safe_restore_val_sma_rx);
-		WR16(dev_addr, SIO_PDR_SMA_TX_CFG__A,
-		     ext_attr->pdr_safe_restore_val_sma_tx);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_GPIO_CFG__A, ext_attr->pdr_safe_restore_val_gpio, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_VSYNC_CFG__A, ext_attr->pdr_safe_restore_val_v_sync, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_SMA_RX_CFG__A, ext_attr->pdr_safe_restore_val_sma_rx, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_SMA_TX_CFG__A, ext_attr->pdr_safe_restore_val_sma_tx, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/*  PD_RF_AGC, PD_IF_AGC
 		   No need to restore; will be restored in SetStandard/SetChannel */
@@ -4442,7 +5238,11 @@ ctrl_set_cfg_pdr_safe_mode(struct drx_demod_instance *demod, bool *enable)
 	}
 
 	/*  Write magic word to disable pdr reg write */
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->pdr_safe_mode = *enable;
 
 	return (DRX_STS_OK);
@@ -4534,6 +5334,7 @@ static int init_agc(struct drx_demod_instance *demod)
 	struct drxj_data *ext_attr = NULL;
 	struct drxj_cfg_agc *p_agc_rf_settings = NULL;
 	struct drxj_cfg_agc *p_agc_if_settings = NULL;
+	int rc;
 	u16 ingain_tgt_max = 0;
 	u16 clp_dir_to = 0;
 	u16 sns_sum_max = 0;
@@ -4549,6 +5350,7 @@ static int init_agc(struct drx_demod_instance *demod)
 	u16 clp_ctrl_mode = 0;
 	u16 agc_rf = 0;
 	u16 agc_if = 0;
+
 	dev_addr = demod->my_i2c_dev_addr;
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -4566,19 +5368,71 @@ static int init_agc(struct drx_demod_instance *demod)
 		ki_min = 0x0117;
 		ingain_tgt_max = 16383;
 		clp_ctrl_mode = 0;
-		WR16(dev_addr, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff);
-		WR16(dev_addr, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0);
-		WR16(dev_addr, SCU_RAM_AGC_CLP_SUM__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_CLP_CYCCNT__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_WD__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_STP__A, 1);
-		WR16(dev_addr, SCU_RAM_AGC_SNS_SUM__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_SNS_CYCCNT__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_WD__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_STP__A, 1);
-		WR16(dev_addr, SCU_RAM_AGC_INGAIN__A, 1024);
-		WR16(dev_addr, SCU_RAM_VSB_AGC_POW_TGT__A, 22600);
-		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, 13200);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_SUM__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_CYCCNT__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_DIR_WD__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_DIR_STP__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_SUM__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_CYCCNT__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_DIR_WD__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_DIR_STP__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN__A, 1024, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_VSB_AGC_POW_TGT__A, 22600, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, 13200, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		p_agc_if_settings = &(ext_attr->vsb_if_agc_cfg);
 		p_agc_rf_settings = &(ext_attr->vsb_rf_agc_cfg);
 		break;
@@ -4597,23 +5451,75 @@ static int init_agc(struct drx_demod_instance *demod)
 		agc_kiDgain = 0x7;
 		ki_min = 0x0117;
 		clp_ctrl_mode = 0;
-		WR16(dev_addr, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff);
-		WR16(dev_addr, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0);
-		WR16(dev_addr, SCU_RAM_AGC_CLP_SUM__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_CLP_CYCCNT__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_WD__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_STP__A, 1);
-		WR16(dev_addr, SCU_RAM_AGC_SNS_SUM__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_SNS_CYCCNT__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_WD__A, 0);
-		WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_STP__A, 1);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_SUM__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_CYCCNT__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_DIR_WD__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_DIR_STP__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_SUM__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_CYCCNT__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_DIR_WD__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_DIR_STP__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		p_agc_if_settings = &(ext_attr->qam_if_agc_cfg);
 		p_agc_rf_settings = &(ext_attr->qam_rf_agc_cfg);
-		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
-		RR16(dev_addr, SCU_RAM_AGC_KI__A, &agc_ki);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_AGC_KI__A, &agc_ki, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		agc_ki &= 0xf000;
-		WR16(dev_addr, SCU_RAM_AGC_KI__A, agc_ki);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI__A, agc_ki, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 #ifndef DRXJ_DIGITAL_ONLY
@@ -4631,7 +5537,11 @@ static int init_agc(struct drx_demod_instance *demod)
 		clp_ctrl_mode = 1;
 		p_agc_if_settings = &(ext_attr->atv_if_agc_cfg);
 		p_agc_rf_settings = &(ext_attr->atv_rf_agc_cfg);
-		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 	case DRX_STANDARD_NTSC:
 	case DRX_STANDARD_PAL_SECAM_BG:
@@ -4650,7 +5560,11 @@ static int init_agc(struct drx_demod_instance *demod)
 		p_agc_rf_settings = &(ext_attr->atv_rf_agc_cfg);
 		sns_dir_to = (u16) (-9);
 		clp_ctrl_mode = 1;
-		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 	case DRX_STANDARD_PAL_SECAM_L:
 	case DRX_STANDARD_PAL_SECAM_LP:
@@ -4667,7 +5581,11 @@ static int init_agc(struct drx_demod_instance *demod)
 		clp_ctrl_mode = 1;
 		p_agc_if_settings = &(ext_attr->atv_if_agc_cfg);
 		p_agc_rf_settings = &(ext_attr->atv_rf_agc_cfg);
-		WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN_TGT__A, p_agc_if_settings->top, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 	default:
@@ -4675,32 +5593,136 @@ static int init_agc(struct drx_demod_instance *demod)
 	}
 
 	/* for new AGC interface */
-	WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT_MIN__A, p_agc_if_settings->top);
-	WR16(dev_addr, SCU_RAM_AGC_INGAIN__A, p_agc_if_settings->top);	/* Gain fed from inner to outer AGC */
-	WR16(dev_addr, SCU_RAM_AGC_INGAIN_TGT_MAX__A, ingain_tgt_max);
-	WR16(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MIN__A, if_iaccu_hi_tgt_min);
-	WR16(dev_addr, SCU_RAM_AGC_IF_IACCU_HI__A, 0);	/* set to p_agc_settings->top before */
-	WR16(dev_addr, SCU_RAM_AGC_IF_IACCU_LO__A, 0);
-	WR16(dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A, 0);
-	WR16(dev_addr, SCU_RAM_AGC_RF_IACCU_LO__A, 0);
-	WR16(dev_addr, SCU_RAM_AGC_RF_MAX__A, 32767);
-	WR16(dev_addr, SCU_RAM_AGC_CLP_SUM_MAX__A, clp_sum_max);
-	WR16(dev_addr, SCU_RAM_AGC_SNS_SUM_MAX__A, sns_sum_max);
-	WR16(dev_addr, SCU_RAM_AGC_KI_INNERGAIN_MIN__A, ki_innergain_min);
-	WR16(dev_addr, SCU_RAM_AGC_FAST_SNS_CTRL_DELAY__A, 50);
-	WR16(dev_addr, SCU_RAM_AGC_KI_CYCLEN__A, 500);
-	WR16(dev_addr, SCU_RAM_AGC_SNS_CYCLEN__A, 500);
-	WR16(dev_addr, SCU_RAM_AGC_KI_MAXMINGAIN_TH__A, 20);
-	WR16(dev_addr, SCU_RAM_AGC_KI_MIN__A, ki_min);
-	WR16(dev_addr, SCU_RAM_AGC_KI_MAX__A, ki_max);
-	WR16(dev_addr, SCU_RAM_AGC_KI_RED__A, 0);
-	WR16(dev_addr, SCU_RAM_AGC_CLP_SUM_MIN__A, 8);
-	WR16(dev_addr, SCU_RAM_AGC_CLP_CYCLEN__A, 500);
-	WR16(dev_addr, SCU_RAM_AGC_CLP_DIR_TO__A, clp_dir_to);
-	WR16(dev_addr, SCU_RAM_AGC_SNS_SUM_MIN__A, 8);
-	WR16(dev_addr, SCU_RAM_AGC_SNS_DIR_TO__A, sns_dir_to);
-	WR16(dev_addr, SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A, 50);
-	WR16(dev_addr, SCU_RAM_AGC_CLP_CTRL_MODE__A, clp_ctrl_mode);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN_TGT_MIN__A, p_agc_if_settings->top, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN__A, p_agc_if_settings->top, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* Gain fed from inner to outer AGC */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_INGAIN_TGT_MAX__A, ingain_tgt_max, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MIN__A, if_iaccu_hi_tgt_min, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_IF_IACCU_HI__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* set to p_agc_settings->top before */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_IF_IACCU_LO__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_RF_IACCU_LO__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_RF_MAX__A, 32767, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_SUM_MAX__A, clp_sum_max, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_SUM_MAX__A, sns_sum_max, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_INNERGAIN_MIN__A, ki_innergain_min, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_FAST_SNS_CTRL_DELAY__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_CYCLEN__A, 500, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_CYCLEN__A, 500, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_MAXMINGAIN_TH__A, 20, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_MIN__A, ki_min, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_MAX__A, ki_max, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI_RED__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_SUM_MIN__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_CYCLEN__A, 500, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_DIR_TO__A, clp_dir_to, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_SUM_MIN__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_SNS_DIR_TO__A, sns_dir_to, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_CLP_CTRL_MODE__A, clp_ctrl_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	agc_rf = 0x800 + p_agc_rf_settings->cut_off_current;
 	if (common_attr->tuner_rf_agc_pol == true) {
@@ -4712,14 +5734,30 @@ static int init_agc(struct drx_demod_instance *demod)
 		agc_rf = 0x87ff - agc_rf;
 	}
 
-	WR16(dev_addr, IQM_AF_AGC_RF__A, agc_rf);
-	WR16(dev_addr, IQM_AF_AGC_IF__A, agc_if);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AGC_RF__A, agc_rf, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AGC_IF__A, agc_if, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Set/restore Ki DGAIN factor */
-	RR16(dev_addr, SCU_RAM_AGC_KI__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_AGC_KI__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	data &= ~SCU_RAM_AGC_KI_DGAIN__M;
 	data |= (agc_kiDgain << SCU_RAM_AGC_KI_DGAIN__B);
-	WR16(dev_addr, SCU_RAM_AGC_KI__A, data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_AGC_KI__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -4740,6 +5778,7 @@ set_frequency(struct drx_demod_instance *demod,
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	struct drxj_data *ext_attr = demod->my_ext_attr;
+	int rc;
 	s32 sampling_frequency = 0;
 	s32 frequency_shift = 0;
 	s32 if_freq_actual = 0;
@@ -4814,7 +5853,11 @@ set_frequency(struct drx_demod_instance *demod,
 
 	/* Program frequency shifter with tuner offset compensation */
 	/* frequency_shift += tuner_freq_offset; TODO */
-	WR32(dev_addr, IQM_FS_RATE_OFS_LO__A, iqm_fs_rate_ofs);
+	rc = DRXJ_DAP.write_reg32func(dev_addr, IQM_FS_RATE_OFS_LO__A, iqm_fs_rate_ofs, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->iqm_fs_rate_ofs = iqm_fs_rate_ofs;
 	ext_attr->pos_image = (bool) (rf_mirror ^ tuner_mirror ^ select_pos_image);
 
@@ -4841,6 +5884,7 @@ rw_error:
 static int get_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
 	u16 rf_gain = 0;
 	u16 if_gain = 0;
 	u16 if_agc_sns = 0;
@@ -4848,9 +5892,17 @@ static int get_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 	u16 rf_agc_max = 0;
 	u16 rf_agc_min = 0;
 
-	RR16(dev_addr, IQM_AF_AGC_IF__A, &if_gain);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_AGC_IF__A, &if_gain, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if_gain &= IQM_AF_AGC_IF__M;
-	RR16(dev_addr, IQM_AF_AGC_RF__A, &rf_gain);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_AGC_RF__A, &rf_gain, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	rf_gain &= IQM_AF_AGC_RF__M;
 
 	if_agc_sns = DRXJ_AGC_SNS;
@@ -4862,18 +5914,27 @@ static int get_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 		if (rf_gain > rf_agc_max)
 			*sig_strength = 100;
 		else if (rf_gain > rf_agc_min) {
-			CHK_ZERO(rf_agc_max - rf_agc_min);
+			if (rf_agc_max == rf_agc_min) {
+				pr_err("error: rf_agc_max == rf_agc_min\n");
+				return DRX_STS_ERROR;;
+			}
 			*sig_strength =
 			    75 + 25 * (rf_gain - rf_agc_min) / (rf_agc_max -
 							     rf_agc_min);
 		} else
 			*sig_strength = 75;
 	} else if (if_gain > if_agc_sns) {
-		CHK_ZERO(if_agc_top - if_agc_sns);
+		if (if_agc_top == if_agc_sns) {
+			pr_err("error: if_agc_top == if_agc_sns\n");
+			return DRX_STS_ERROR;;
+		}
 		*sig_strength =
 		    20 + 55 * (if_gain - if_agc_sns) / (if_agc_top - if_agc_sns);
 	} else {
-		CHK_ZERO(if_agc_sns);
+		if (!if_agc_sns) {
+			pr_err("error: if_agc_sns is zero!\n");
+			return DRX_STS_ERROR;;
+		}
 		*sig_strength = (20 * if_gain / if_agc_sns);
 	}
 
@@ -4895,6 +5956,7 @@ rw_error:
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
 static int get_acc_pkt_err(struct drx_demod_instance *demod, u16 *packet_err)
 {
+	int rc;
 	static u16 pkt_err;
 	static u16 last_pkt_err;
 	u16 data = 0;
@@ -4904,7 +5966,11 @@ static int get_acc_pkt_err(struct drx_demod_instance *demod, u16 *packet_err)
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 
-	RR16(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (ext_attr->reset_pkt_err_acc == true) {
 		last_pkt_err = data;
 		pkt_err = 0;
@@ -4938,12 +6004,17 @@ static int ctrl_set_cfg_reset_pkt_err(struct drx_demod_instance *demod)
 {
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	u16 packet_error = 0;
 
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	ext_attr->reset_pkt_err_acc = true;
 	/* call to reset counter */
-	CHK_ERROR(get_acc_pkt_err(demod, &packet_error));
+	rc = get_acc_pkt_err(demod, &packet_error);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -4958,13 +6029,18 @@ rw_error:
 */
 static int get_str_freq_offset(struct drx_demod_instance *demod, s32 *str_freq)
 {
+	int rc;
 	u32 symbol_frequency_ratio = 0;
 	u32 symbol_nom_frequency_ratio = 0;
 
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	struct drxj_data *ext_attr = demod->my_ext_attr;
 
-	ARR32(dev_addr, IQM_RC_RATE_LO__A, &symbol_frequency_ratio);
+	rc = drxj_dap_atomic_read_reg32(dev_addr, IQM_RC_RATE_LO__A, &symbol_frequency_ratio, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	symbol_nom_frequency_ratio = ext_attr->iqm_rc_rate_ofs;
 
 	if (symbol_frequency_ratio > symbol_nom_frequency_ratio)
@@ -5001,6 +6077,7 @@ static int get_ctl_freq_offset(struct drx_demod_instance *demod, s32 *ctl_freq)
 	struct drxj_data *ext_attr = NULL;
 	struct drx_common_attr *common_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -5010,7 +6087,11 @@ static int get_ctl_freq_offset(struct drx_demod_instance *demod, s32 *ctl_freq)
 
 	/* both registers are sign extended */
 	nominal_frequency = ext_attr->iqm_fs_rate_ofs;
-	ARR32(dev_addr, IQM_FS_RATE_LO__A, (u32 *)&current_frequency);
+	rc = drxj_dap_atomic_read_reg32(dev_addr, IQM_FS_RATE_LO__A, (u32 *)&current_frequency, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (ext_attr->pos_image == true) {
 		/* negative image */
@@ -5052,6 +6133,7 @@ set_agc_rf(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 	struct drxj_data *ext_attr = NULL;
 	struct drxj_cfg_agc *p_agc_settings = NULL;
 	struct drx_common_attr *common_attr = NULL;
+	int rc;
 	drx_write_reg16func_t scu_wr16 = NULL;
 	drx_read_reg16func_t scu_rr16 = NULL;
 
@@ -5079,13 +6161,24 @@ set_agc_rf(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 		case DRX_AGC_CTRL_AUTO:
 
 			/* Enable RF AGC DAC */
-			RR16(dev_addr, IQM_AF_STDBY__A, &data);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_STDBY__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data |= IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE;
-			WR16(dev_addr, IQM_AF_STDBY__A, data);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Enable SCU RF AGC loop */
-			CHK_ERROR((*scu_rr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
+			rc = (*scu_rr16)(dev_addr, SCU_RAM_AGC_KI__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= ~SCU_RAM_AGC_KI_RF__M;
 			if (ext_attr->standard == DRX_STANDARD_8VSB) {
 				data |= (2 << SCU_RAM_AGC_KI_RF__B);
@@ -5100,20 +6193,24 @@ set_agc_rf(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 			} else {
 				data &= ~SCU_RAM_AGC_KI_INV_RF_POL__M;
 			}
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_KI__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Set speed ( using complementary reduction value ) */
-			CHK_ERROR((*scu_rr16)
-				  (dev_addr, SCU_RAM_AGC_KI_RED__A, &data, 0));
+			rc = (*scu_rr16)(dev_addr, SCU_RAM_AGC_KI_RED__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= ~SCU_RAM_AGC_KI_RED_RAGC_RED__M;
-			CHK_ERROR((*scu_wr16) (dev_addr, SCU_RAM_AGC_KI_RED__A,
-					       (~
-					       (agc_settings->
-						speed <<
-						SCU_RAM_AGC_KI_RED_RAGC_RED__B)
-& SCU_RAM_AGC_KI_RED_RAGC_RED__M)
-					      | data, 0));
+			rc = (*scu_wr16) (dev_addr, SCU_RAM_AGC_KI_RED__A,(~(agc_settings->speed << SCU_RAM_AGC_KI_RED_RAGC_RED__B) & SCU_RAM_AGC_KI_RED_RAGC_RED__M) | data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			if (agc_settings->standard == DRX_STANDARD_8VSB)
 				p_agc_settings = &(ext_attr->vsb_if_agc_cfg);
@@ -5126,58 +6223,92 @@ set_agc_rf(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 
 			/* Set TOP, only if IF-AGC is in AUTO mode */
 			if (p_agc_settings->ctrl_mode == DRX_AGC_CTRL_AUTO) {
-				CHK_ERROR((*scu_wr16)
-					  (dev_addr,
-					   SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-					   agc_settings->top, 0));
-				CHK_ERROR((*scu_wr16)
-					  (dev_addr,
-					   SCU_RAM_AGC_IF_IACCU_HI_TGT__A,
-					   agc_settings->top, 0));
+				rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A, agc_settings->top, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT__A, agc_settings->top, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 			}
 
 			/* Cut-Off current */
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_RF_IACCU_HI_CO__A,
-				   agc_settings->cut_off_current, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_RF_IACCU_HI_CO__A, agc_settings->cut_off_current, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_AGC_CTRL_USER:
 
 			/* Enable RF AGC DAC */
-			RR16(dev_addr, IQM_AF_STDBY__A, &data);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_STDBY__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data |= IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE;
-			WR16(dev_addr, IQM_AF_STDBY__A, data);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Disable SCU RF AGC loop */
-			CHK_ERROR((*scu_rr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
+			rc = (*scu_rr16)(dev_addr, SCU_RAM_AGC_KI__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= ~SCU_RAM_AGC_KI_RF__M;
 			if (common_attr->tuner_rf_agc_pol) {
 				data |= SCU_RAM_AGC_KI_INV_RF_POL__M;
 			} else {
 				data &= ~SCU_RAM_AGC_KI_INV_RF_POL__M;
 			}
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_KI__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Write value to output pin */
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A,
-				   agc_settings->output_level, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A, agc_settings->output_level, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_AGC_CTRL_OFF:
 
 			/* Disable RF AGC DAC */
-			RR16(dev_addr, IQM_AF_STDBY__A, &data);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_STDBY__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= (~IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE);
-			WR16(dev_addr, IQM_AF_STDBY__A, data);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Disable SCU RF AGC loop */
-			CHK_ERROR((*scu_rr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
+			rc = (*scu_rr16)(dev_addr, SCU_RAM_AGC_KI__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= ~SCU_RAM_AGC_KI_RF__M;
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_KI__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		default:
 			return (DRX_STS_INVALID_ARG);
@@ -5229,6 +6360,7 @@ get_agc_rf(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings)
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -5268,8 +6400,11 @@ get_agc_rf(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings)
 	     DRXJ_ISQAMSTD(agc_settings->standard)) ||
 	    (DRXJ_ISATVSTD(ext_attr->standard) &&
 	     DRXJ_ISATVSTD(agc_settings->standard))) {
-		SARR16(dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A,
-		       &(agc_settings->output_level));
+		rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_AGC_RF_IACCU_HI__A, &(agc_settings->output_level), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	return (DRX_STS_OK);
@@ -5293,6 +6428,7 @@ set_agc_if(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 	struct drx_common_attr *common_attr = NULL;
 	drx_write_reg16func_t scu_wr16 = NULL;
 	drx_read_reg16func_t scu_rr16 = NULL;
+	int rc;
 
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	dev_addr = demod->my_i2c_dev_addr;
@@ -5317,13 +6453,24 @@ set_agc_if(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 		switch (agc_settings->ctrl_mode) {
 		case DRX_AGC_CTRL_AUTO:
 			/* Enable IF AGC DAC */
-			RR16(dev_addr, IQM_AF_STDBY__A, &data);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_STDBY__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data |= IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE;
-			WR16(dev_addr, IQM_AF_STDBY__A, data);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Enable SCU IF AGC loop */
-			CHK_ERROR((*scu_rr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
+			rc = (*scu_rr16)(dev_addr, SCU_RAM_AGC_KI__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= ~SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
 			data &= ~SCU_RAM_AGC_KI_IF__M;
 			if (ext_attr->standard == DRX_STANDARD_8VSB) {
@@ -5339,20 +6486,24 @@ set_agc_if(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 			} else {
 				data &= ~SCU_RAM_AGC_KI_INV_IF_POL__M;
 			}
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_KI__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Set speed (using complementary reduction value) */
-			CHK_ERROR((*scu_rr16)
-				  (dev_addr, SCU_RAM_AGC_KI_RED__A, &data, 0));
+			rc = (*scu_rr16)(dev_addr, SCU_RAM_AGC_KI_RED__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= ~SCU_RAM_AGC_KI_RED_IAGC_RED__M;
-			CHK_ERROR((*scu_wr16) (dev_addr, SCU_RAM_AGC_KI_RED__A,
-					       (~
-					       (agc_settings->
-						speed <<
-						SCU_RAM_AGC_KI_RED_IAGC_RED__B)
-& SCU_RAM_AGC_KI_RED_IAGC_RED__M)
-					      | data, 0));
+			rc = (*scu_wr16) (dev_addr, SCU_RAM_AGC_KI_RED__A, (~(agc_settings->speed << SCU_RAM_AGC_KI_RED_IAGC_RED__B) & SCU_RAM_AGC_KI_RED_IAGC_RED__M) | data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			if (agc_settings->standard == DRX_STANDARD_8VSB)
 				p_agc_settings = &(ext_attr->vsb_rf_agc_cfg);
@@ -5365,36 +6516,51 @@ set_agc_if(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 
 			/* Restore TOP */
 			if (p_agc_settings->ctrl_mode == DRX_AGC_CTRL_AUTO) {
-				CHK_ERROR((*scu_wr16)
-					  (dev_addr,
-					   SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-					   p_agc_settings->top, 0));
-				CHK_ERROR((*scu_wr16)
-					  (dev_addr,
-					   SCU_RAM_AGC_IF_IACCU_HI_TGT__A,
-					   p_agc_settings->top, 0));
+				rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A, p_agc_settings->top, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT__A, p_agc_settings->top, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 			} else {
-				CHK_ERROR((*scu_wr16)
-					  (dev_addr,
-					   SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-					   0, 0));
-				CHK_ERROR((*scu_wr16)
-					  (dev_addr,
-					   SCU_RAM_AGC_IF_IACCU_HI_TGT__A, 0,
-					   0));
+				rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A, 0, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT__A, 0, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 			}
 			break;
 
 		case DRX_AGC_CTRL_USER:
 
 			/* Enable IF AGC DAC */
-			RR16(dev_addr, IQM_AF_STDBY__A, &data);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_STDBY__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data |= IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE;
-			WR16(dev_addr, IQM_AF_STDBY__A, data);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Disable SCU IF AGC loop */
-			CHK_ERROR((*scu_rr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
+			rc = (*scu_rr16)(dev_addr, SCU_RAM_AGC_KI__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= ~SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
 			data |= SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
 			if (common_attr->tuner_if_agc_pol) {
@@ -5402,38 +6568,59 @@ set_agc_if(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings, 
 			} else {
 				data &= ~SCU_RAM_AGC_KI_INV_IF_POL__M;
 			}
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_KI__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Write value to output pin */
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-				   agc_settings->output_level, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A, agc_settings->output_level, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 
 		case DRX_AGC_CTRL_OFF:
 
 			/* Disable If AGC DAC */
-			RR16(dev_addr, IQM_AF_STDBY__A, &data);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_STDBY__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= (~IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE);
-			WR16(dev_addr, IQM_AF_STDBY__A, data);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Disable SCU IF AGC loop */
-			CHK_ERROR((*scu_rr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, &data, 0));
+			rc = (*scu_rr16)(dev_addr, SCU_RAM_AGC_KI__A, &data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data &= ~SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
 			data |= SCU_RAM_AGC_KI_IF_AGC_DISABLE__M;
-			CHK_ERROR((*scu_wr16)
-				  (dev_addr, SCU_RAM_AGC_KI__A, data, 0));
+			rc = (*scu_wr16)(dev_addr, SCU_RAM_AGC_KI__A, data, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		default:
 			return (DRX_STS_INVALID_ARG);
 		}		/* switch ( agcsettings->ctrl_mode ) */
 
 		/* always set the top to support configurations without if-loop */
-		CHK_ERROR((*scu_wr16) (dev_addr,
-				       SCU_RAM_AGC_INGAIN_TGT_MIN__A,
-				      agc_settings->top, 0));
+		rc = (*scu_wr16) (dev_addr, SCU_RAM_AGC_INGAIN_TGT_MIN__A, agc_settings->top, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* Store if agc settings */
@@ -5481,6 +6668,7 @@ get_agc_if(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings)
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -5521,8 +6709,11 @@ get_agc_if(struct drx_demod_instance *demod, struct drxj_cfg_agc *agc_settings)
 	    (DRXJ_ISATVSTD(ext_attr->standard) &&
 	     DRXJ_ISATVSTD(agc_settings->standard))) {
 		/* read output level */
-		SARR16(dev_addr, SCU_RAM_AGC_IF_IACCU_HI__A,
-		       &(agc_settings->output_level));
+		rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_AGC_IF_IACCU_HI__A, &(agc_settings->output_level), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	return (DRX_STS_OK);
@@ -5541,11 +6732,16 @@ static int set_iqm_af(struct drx_demod_instance *demod, bool active)
 {
 	u16 data = 0;
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Configure IQM */
-	RR16(dev_addr, IQM_AF_STDBY__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_STDBY__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (!active) {
 		data &= ((~IQM_AF_STDBY_STDBY_ADC_A2_ACTIVE)
 			 & (~IQM_AF_STDBY_STDBY_AMP_A2_ACTIVE)
@@ -5561,7 +6757,11 @@ static int set_iqm_af(struct drx_demod_instance *demod, bool active)
 			 | IQM_AF_STDBY_STDBY_TAGC_IF_A2_ACTIVE
 			 | IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE);
 	}
-	WR16(dev_addr, IQM_AF_STDBY__A, data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -5594,8 +6794,9 @@ static int power_down_vsb(struct drx_demod_instance *demod, bool primary)
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
-	u16 cmd_result = 0;
 	struct drx_cfg_mpeg_output cfg_mpeg_output;
+	int rc;
+	u16 cmd_result = 0;
 
 	/*
 	   STOP demodulator
@@ -5607,24 +6808,68 @@ static int power_down_vsb(struct drx_demod_instance *demod, bool primary)
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = NULL;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* stop all comm_exec */
-	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
-	WR16(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_STOP);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (primary == true) {
-		WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
-		CHK_ERROR(set_iqm_af(demod, false));
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = set_iqm_af(demod, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	} else {
-		WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	cfg_mpeg_output.enable_mpeg_output = false;
-	CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
+	rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -5640,6 +6885,7 @@ rw_error:
 static int set_vsb_leak_n_gain(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 
 	const u8 vsb_ffe_leak_gain_ram0[] = {
 		DRXJ_16TO8(0x8),	/* FFETRAINLKRATIO1  */
@@ -5830,10 +7076,16 @@ static int set_vsb_leak_n_gain(struct drx_demod_instance *demod)
 	};
 
 	dev_addr = demod->my_i2c_dev_addr;
-	WRB(dev_addr, VSB_SYSCTRL_RAM0_FFETRAINLKRATIO1__A,
-	    sizeof(vsb_ffe_leak_gain_ram0), ((u8 *)vsb_ffe_leak_gain_ram0));
-	WRB(dev_addr, VSB_SYSCTRL_RAM1_FIRRCA1GAIN9__A,
-	    sizeof(vsb_ffe_leak_gain_ram1), ((u8 *)vsb_ffe_leak_gain_ram1));
+	rc = DRXJ_DAP.write_block_func(dev_addr, VSB_SYSCTRL_RAM0_FFETRAINLKRATIO1__A, sizeof(vsb_ffe_leak_gain_ram0), ((u8 *)vsb_ffe_leak_gain_ram0), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_block_func(dev_addr, VSB_SYSCTRL_RAM1_FIRRCA1GAIN9__A, sizeof(vsb_ffe_leak_gain_ram1), ((u8 *)vsb_ffe_leak_gain_ram1), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -5850,11 +7102,12 @@ rw_error:
 static int set_vsb(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
-	u16 cmd_result = 0;
-	u16 cmd_param = 0;
+	int rc;
 	struct drx_common_attr *common_attr = NULL;
 	struct drxjscu_cmd cmd_scu;
 	struct drxj_data *ext_attr = NULL;
+	u16 cmd_result = 0;
+	u16 cmd_param = 0;
 	const u8 vsb_taps_re[] = {
 		DRXJ_16TO8(-2),	/* re0  */
 		DRXJ_16TO8(4),	/* re1  */
@@ -5891,13 +7144,41 @@ static int set_vsb(struct drx_demod_instance *demod)
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/* stop all comm_exec */
-	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
-	WR16(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* reset demodulator */
 	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_VSB
@@ -5906,105 +7187,313 @@ static int set_vsb(struct drx_demod_instance *demod)
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = NULL;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, IQM_AF_DCF_BYPASS__A, 1);
-	WR16(dev_addr, IQM_FS_ADJ_SEL__A, IQM_FS_ADJ_SEL_B_VSB);
-	WR16(dev_addr, IQM_RC_ADJ_SEL__A, IQM_RC_ADJ_SEL_B_VSB);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_DCF_BYPASS__A, 1, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FS_ADJ_SEL__A, IQM_FS_ADJ_SEL_B_VSB, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_ADJ_SEL__A, IQM_RC_ADJ_SEL_B_VSB, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->iqm_rc_rate_ofs = 0x00AD0D79;
-	WR32(dev_addr, IQM_RC_RATE_OFS_LO__A, ext_attr->iqm_rc_rate_ofs);
-	WR16(dev_addr, VSB_TOP_CFAGC_GAINSHIFT__A, 4);
-	WR16(dev_addr, VSB_TOP_CYGN1TRK__A, 1);
+	rc = DRXJ_DAP.write_reg32func(dev_addr, IQM_RC_RATE_OFS_LO__A, ext_attr->iqm_rc_rate_ofs, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_CFAGC_GAINSHIFT__A, 4, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_CYGN1TRK__A, 1, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, IQM_RC_CROUT_ENA__A, 1);
-	WR16(dev_addr, IQM_RC_STRETCH__A, 28);
-	WR16(dev_addr, IQM_RT_ACTIVE__A, 0);
-	WR16(dev_addr, IQM_CF_SYMMETRIC__A, 0);
-	WR16(dev_addr, IQM_CF_MIDTAP__A, 3);
-	WR16(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_VSB__M);
-	WR16(dev_addr, IQM_CF_SCALE__A, 1393);
-	WR16(dev_addr, IQM_CF_SCALE_SH__A, 0);
-	WR16(dev_addr, IQM_CF_POW_MEAS_LEN__A, 1);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_CROUT_ENA__A, 1, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_STRETCH__A, 28, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_ACTIVE__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_SYMMETRIC__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_VSB__M, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_SCALE__A, 1393, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_SCALE_SH__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_POW_MEAS_LEN__A, 1, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(vsb_taps_re),
-	    ((u8 *)vsb_taps_re));
-	WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(vsb_taps_re),
-	    ((u8 *)vsb_taps_re));
+	rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(vsb_taps_re), ((u8 *)vsb_taps_re), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(vsb_taps_re), ((u8 *)vsb_taps_re), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, VSB_TOP_BNTHRESH__A, 330);	/* set higher threshold */
-	WR16(dev_addr, VSB_TOP_CLPLASTNUM__A, 90);	/* burst detection on   */
-	WR16(dev_addr, VSB_TOP_SNRTH_RCA1__A, 0x0042);	/* drop thresholds by 1 dB */
-	WR16(dev_addr, VSB_TOP_SNRTH_RCA2__A, 0x0053);	/* drop thresholds by 2 dB */
-	WR16(dev_addr, VSB_TOP_EQCTRL__A, 0x1);	/* cma on               */
-	WR16(dev_addr, SCU_RAM_GPIO__A, 0);	/* GPIO               */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_BNTHRESH__A, 330, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* set higher threshold */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_CLPLASTNUM__A, 90, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* burst detection on   */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_SNRTH_RCA1__A, 0x0042, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* drop thresholds by 1 dB */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_SNRTH_RCA2__A, 0x0053, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* drop thresholds by 2 dB */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_EQCTRL__A, 0x1, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* cma on               */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_GPIO__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* GPIO               */
 
 	/* Initialize the FEC Subsystem */
-	WR16(dev_addr, FEC_TOP_ANNEX__A, FEC_TOP_ANNEX_D);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_TOP_ANNEX__A, FEC_TOP_ANNEX_D, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	{
 		u16 fec_oc_snc_mode = 0;
-		RR16(dev_addr, FEC_OC_SNC_MODE__A, &fec_oc_snc_mode);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_SNC_MODE__A, &fec_oc_snc_mode, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/* output data even when not locked */
-		WR16(dev_addr, FEC_OC_SNC_MODE__A,
-		     fec_oc_snc_mode | FEC_OC_SNC_MODE_UNLOCK_ENABLE__M);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_SNC_MODE__A, fec_oc_snc_mode | FEC_OC_SNC_MODE_UNLOCK_ENABLE__M, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* set clip */
-	WR16(dev_addr, IQM_AF_CLP_LEN__A, 0);
-	WR16(dev_addr, IQM_AF_CLP_TH__A, 470);
-	WR16(dev_addr, IQM_AF_SNS_LEN__A, 0);
-	WR16(dev_addr, VSB_TOP_SNRTH_PT__A, 0xD4);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_CLP_LEN__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_CLP_TH__A, 470, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_SNS_LEN__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_SNRTH_PT__A, 0xD4, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* no transparent, no A&C framing; parity is set in mpegoutput */
 	{
 		u16 fec_oc_reg_mode = 0;
-		RR16(dev_addr, FEC_OC_MODE__A, &fec_oc_reg_mode);
-		WR16(dev_addr, FEC_OC_MODE__A, fec_oc_reg_mode &
-		     (~(FEC_OC_MODE_TRANSPARENT__M
-			| FEC_OC_MODE_CLEAR__M | FEC_OC_MODE_RETAIN_FRAMING__M)
-		     ));
+		rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_MODE__A, &fec_oc_reg_mode, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_MODE__A, fec_oc_reg_mode & (~(FEC_OC_MODE_TRANSPARENT__M | FEC_OC_MODE_CLEAR__M | FEC_OC_MODE_RETAIN_FRAMING__M)), 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
-	WR16(dev_addr, FEC_DI_TIMEOUT_LO__A, 0);	/* timeout counter for restarting */
-	WR16(dev_addr, FEC_DI_TIMEOUT_HI__A, 3);
-	WR16(dev_addr, FEC_RS_MODE__A, 0);	/* bypass disabled */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_DI_TIMEOUT_LO__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* timeout counter for restarting */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_DI_TIMEOUT_HI__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_RS_MODE__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}	/* bypass disabled */
 	/* initialize RS packet error measurement parameters */
-	WR16(dev_addr, FEC_RS_MEASUREMENT_PERIOD__A, FEC_RS_MEASUREMENT_PERIOD);
-	WR16(dev_addr, FEC_RS_MEASUREMENT_PRESCALE__A,
-	     FEC_RS_MEASUREMENT_PRESCALE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_RS_MEASUREMENT_PERIOD__A, FEC_RS_MEASUREMENT_PERIOD, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_RS_MEASUREMENT_PRESCALE__A, FEC_RS_MEASUREMENT_PRESCALE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* init measurement period of MER/SER */
-	WR16(dev_addr, VSB_TOP_MEASUREMENT_PERIOD__A,
-	     VSB_TOP_MEASUREMENT_PERIOD);
-	WR32(dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, 0);
-	WR16(dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, 0);
-	WR16(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_MEASUREMENT_PERIOD__A, VSB_TOP_MEASUREMENT_PERIOD, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg32func(dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, VSB_TOP_CKGN1TRK__A, 128);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_CKGN1TRK__A, 128, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* B-Input to ADC, PGA+filter in standby */
 	if (ext_attr->has_lna == false) {
-		WR16(dev_addr, IQM_AF_AMUX__A, 0x02);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AMUX__A, 0x02, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	};
 
 	/* turn on IQMAF. It has to be in front of setAgc**() */
-	CHK_ERROR(set_iqm_af(demod, true));
-	CHK_ERROR(adc_synchronization(demod));
+	rc = set_iqm_af(demod, true);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = adc_synchronization(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	CHK_ERROR(init_agc(demod));
-	CHK_ERROR(set_agc_if(demod, &(ext_attr->vsb_if_agc_cfg), false));
-	CHK_ERROR(set_agc_rf(demod, &(ext_attr->vsb_rf_agc_cfg), false));
+	rc = init_agc(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = set_agc_if(demod, &(ext_attr->vsb_if_agc_cfg), false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = set_agc_rf(demod, &(ext_attr->vsb_rf_agc_cfg), false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	{
 		/* TODO fix this, store a struct drxj_cfg_afe_gain structure in struct drxj_data instead
 		   of only the gain */
 		struct drxj_cfg_afe_gain vsb_pga_cfg = { DRX_STANDARD_8VSB, 0 };
 
 		vsb_pga_cfg.gain = ext_attr->vsb_pga_cfg;
-		CHK_ERROR(ctrl_set_cfg_afe_gain(demod, &vsb_pga_cfg));
+		rc = ctrl_set_cfg_afe_gain(demod, &vsb_pga_cfg);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
-	CHK_ERROR(ctrl_set_cfg_pre_saw(demod, &(ext_attr->vsb_pre_saw_cfg)));
+	rc = ctrl_set_cfg_pre_saw(demod, &(ext_attr->vsb_pre_saw_cfg));
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Mpeg output has to be in front of FEC active */
-	CHK_ERROR(set_mpegtei_handling(demod));
-	CHK_ERROR(bit_reverse_mpeg_output(demod));
-	CHK_ERROR(set_mpeg_start_width(demod));
+	rc = set_mpegtei_handling(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = bit_reverse_mpeg_output(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = set_mpeg_start_width(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	{
 		/* TODO: move to set_standard after hardware reset value problem is solved */
 		/* Configure initial MPEG output */
@@ -6020,7 +7509,11 @@ static int set_vsb(struct drx_demod_instance *demod)
 		cfg_mpeg_output.invert_clk = common_attr->mpeg_cfg.invert_clk;
 		cfg_mpeg_output.static_clk = common_attr->mpeg_cfg.static_clk;
 		cfg_mpeg_output.bitrate = common_attr->mpeg_cfg.bitrate;
-		CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
+		rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* TBD: what parameters should be set */
@@ -6031,17 +7524,52 @@ static int set_vsb(struct drx_demod_instance *demod)
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = &cmd_param;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, VSB_TOP_BEAGC_GAINSHIFT__A, 0x0004);
-	WR16(dev_addr, VSB_TOP_SNRTH_PT__A, 0x00D2);
-	WR16(dev_addr, VSB_TOP_SYSSMTRNCTRL__A, VSB_TOP_SYSSMTRNCTRL__PRE
-	     | VSB_TOP_SYSSMTRNCTRL_NCOTIMEOUTCNTEN__M);
-	WR16(dev_addr, VSB_TOP_BEDETCTRL__A, 0x142);
-	WR16(dev_addr, VSB_TOP_LBAGCREFLVL__A, 640);
-	WR16(dev_addr, VSB_TOP_CYGN1ACQ__A, 4);
-	WR16(dev_addr, VSB_TOP_CYGN1TRK__A, 2);
-	WR16(dev_addr, VSB_TOP_CYGN2TRK__A, 3);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_BEAGC_GAINSHIFT__A, 0x0004, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_SNRTH_PT__A, 0x00D2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_SYSSMTRNCTRL__A, VSB_TOP_SYSSMTRNCTRL__PRE | VSB_TOP_SYSSMTRNCTRL_NCOTIMEOUTCNTEN__M, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_BEDETCTRL__A, 0x142, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_LBAGCREFLVL__A, 640, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_CYGN1ACQ__A, 4, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_CYGN1TRK__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_CYGN2TRK__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* start demodulator */
 	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_VSB
@@ -6050,11 +7578,27 @@ static int set_vsb(struct drx_demod_instance *demod)
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = NULL;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
-	WR16(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_ACTIVE);
-	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_COMM_EXEC__A, VSB_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6068,13 +7612,18 @@ rw_error:
 */
 static int get_vsb_post_rs_pck_err(struct i2c_device_addr *dev_addr, u16 *pck_errs)
 {
+	int rc;
 	u16 data = 0;
 	u16 period = 0;
 	u16 prescale = 0;
 	u16 packet_errorsMant = 0;
 	u16 packet_errorsExp = 0;
 
-	RR16(dev_addr, FEC_RS_NR_FAILURES__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_RS_NR_FAILURES__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	packet_errorsMant = data & FEC_RS_NR_FAILURES_FIXED_MANT__M;
 	packet_errorsExp = (data & FEC_RS_NR_FAILURES_EXP__M)
 	    >> FEC_RS_NR_FAILURES_EXP__B;
@@ -6082,7 +7631,10 @@ static int get_vsb_post_rs_pck_err(struct i2c_device_addr *dev_addr, u16 *pck_er
 	prescale = FEC_RS_MEASUREMENT_PRESCALE;
 	/* packet error rate = (error packet number) per second */
 	/* 77.3 us is time for per packet */
-	CHK_ZERO(period * prescale);
+	if (period * prescale == 0) {
+		pr_err("error: period and/or prescale is zero!\n");
+		return DRX_STS_ERROR;;
+	}
 	*pck_errs =
 	    (u16) frac_times1e6(packet_errorsMant * (1 << packet_errorsExp),
 				 (period * prescale * 77));
@@ -6099,13 +7651,18 @@ rw_error:
 */
 static int get_vs_bpost_viterbi_ber(struct i2c_device_addr *dev_addr, u32 *ber)
 {
+	int rc;
 	u16 data = 0;
 	u16 period = 0;
 	u16 prescale = 0;
 	u16 bit_errors_mant = 0;
 	u16 bit_errors_exp = 0;
 
-	RR16(dev_addr, FEC_RS_NR_BIT_ERRORS__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_RS_NR_BIT_ERRORS__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	period = FEC_RS_MEASUREMENT_PERIOD;
 	prescale = FEC_RS_MEASUREMENT_PRESCALE;
 
@@ -6116,7 +7673,10 @@ static int get_vs_bpost_viterbi_ber(struct i2c_device_addr *dev_addr, u32 *ber)
 	if (((bit_errors_mant << bit_errors_exp) >> 3) > 68700)
 		*ber = 26570;
 	else {
-		CHK_ZERO(period * prescale);
+		if (period * prescale == 0) {
+			pr_err("error: period and/or prescale is zero!\n");
+			return DRX_STS_ERROR;;
+		}
 		*ber =
 		    frac_times1e6(bit_errors_mant <<
 				 ((bit_errors_exp >
@@ -6138,8 +7698,13 @@ rw_error:
 static int get_vs_bpre_viterbi_ber(struct i2c_device_addr *dev_addr, u32 *ber)
 {
 	u16 data = 0;
+	int rc;
 
-	RR16(dev_addr, VSB_TOP_NR_SYM_ERRS__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, VSB_TOP_NR_SYM_ERRS__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	*ber =
 	    frac_times1e6(data,
 			 VSB_TOP_MEASUREMENT_PERIOD * SYMBOLS_PER_SEGMENT);
@@ -6156,13 +7721,18 @@ rw_error:
 */
 static int get_vsb_symb_err(struct i2c_device_addr *dev_addr, u32 *ser)
 {
+	int rc;
 	u16 data = 0;
 	u16 period = 0;
 	u16 prescale = 0;
 	u16 symb_errors_mant = 0;
 	u16 symb_errors_exp = 0;
 
-	RR16(dev_addr, FEC_RS_NR_SYMBOL_ERRORS__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_RS_NR_SYMBOL_ERRORS__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	period = FEC_RS_MEASUREMENT_PERIOD;
 	prescale = FEC_RS_MEASUREMENT_PRESCALE;
 
@@ -6170,7 +7740,10 @@ static int get_vsb_symb_err(struct i2c_device_addr *dev_addr, u32 *ser)
 	symb_errors_exp = (data & FEC_RS_NR_SYMBOL_ERRORS_EXP__M)
 	    >> FEC_RS_NR_SYMBOL_ERRORS_EXP__B;
 
-	CHK_ZERO(period * prescale);
+	if (period * prescale == 0) {
+		pr_err("error: period and/or prescale is zero!\n");
+		return DRX_STS_ERROR;;
+	}
 	*ser = (u32) frac_times1e6((symb_errors_mant << symb_errors_exp) * 1000,
 				    (period * prescale * 77318));
 
@@ -6186,9 +7759,14 @@ rw_error:
 */
 static int get_vsbmer(struct i2c_device_addr *dev_addr, u16 *mer)
 {
+	int rc;
 	u16 data_hi = 0;
 
-	RR16(dev_addr, VSB_TOP_ERR_ENERGY_H__A, &data_hi);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, VSB_TOP_ERR_ENERGY_H__A, &data_hi, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	*mer =
 	    (u16) (log1_times100(21504) - log1_times100((data_hi << 6) / 52));
 
@@ -6210,6 +7788,7 @@ static int
 ctrl_get_vsb_constel(struct drx_demod_instance *demod, struct drx_complex *complex_nr)
 {
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 				       /**< device address                    */
 	u16 vsb_top_comm_mb = 0;	       /**< VSB SL MB configuration           */
 	u16 vsb_top_comm_mbInit = 0;    /**< VSB SL MB intial configuration    */
@@ -6224,21 +7803,41 @@ ctrl_get_vsb_constel(struct drx_demod_instance *demod, struct drx_complex *compl
 	/* Needs to be checked when external interface PG is updated */
 
 	/* Configure MB (Monitor bus) */
-	RR16(dev_addr, VSB_TOP_COMM_MB__A, &vsb_top_comm_mbInit);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, VSB_TOP_COMM_MB__A, &vsb_top_comm_mbInit, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* set observe flag & MB mux */
 	vsb_top_comm_mb = (vsb_top_comm_mbInit |
 			VSB_TOP_COMM_MB_OBS_OBS_ON |
 			VSB_TOP_COMM_MB_MUX_OBS_VSB_TCMEQ_2);
-	WR16(dev_addr, VSB_TOP_COMM_MB__A, vsb_top_comm_mb);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_COMM_MB__A, vsb_top_comm_mb, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Enable MB grabber in the FEC OC */
-	WR16(dev_addr, FEC_OC_OCR_MODE__A, FEC_OC_OCR_MODE_GRAB_ENABLE__M);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_OCR_MODE__A, FEC_OC_OCR_MODE_GRAB_ENABLE__M, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Disable MB grabber in the FEC OC */
-	WR16(dev_addr, FEC_OC_OCR_MODE__A, 0x0);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_OCR_MODE__A, 0x0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* read data */
-	RR32(dev_addr, FEC_OC_OCR_GRAB_RD1__A, &data);
+	rc = DRXJ_DAP.read_reg32func(dev_addr, FEC_OC_OCR_GRAB_RD1__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	re = (u16) (((data >> 10) & 0x300) | ((data >> 2) & 0xff));
 	if (re & 0x0200) {
 		re |= 0xfc00;
@@ -6247,7 +7846,11 @@ ctrl_get_vsb_constel(struct drx_demod_instance *demod, struct drx_complex *compl
 	complex_nr->im = 0;
 
 	/* Restore MB (Monitor bus) */
-	WR16(dev_addr, VSB_TOP_COMM_MB__A, vsb_top_comm_mbInit);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, VSB_TOP_COMM_MB__A, vsb_top_comm_mbInit, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6279,17 +7882,26 @@ static int power_down_qam(struct drx_demod_instance *demod, bool primary)
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
-	u16 cmd_result = 0;
+	int rc;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	struct drx_cfg_mpeg_output cfg_mpeg_output;
+	u16 cmd_result = 0;
 
 	/*
 	   STOP demodulator
 	   resets IQM, QAM and FEC HW blocks
 	 */
 	/* stop all comm_exec */
-	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
-	WR16(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 	    SCU_RAM_COMMAND_CMD_DEMOD_STOP;
@@ -6297,21 +7909,57 @@ static int power_down_qam(struct drx_demod_instance *demod, bool primary)
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = NULL;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (primary == true) {
-		WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
-		CHK_ERROR(set_iqm_af(demod, false));
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = set_iqm_af(demod, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	} else {
-		WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	cfg_mpeg_output.enable_mpeg_output = false;
-	CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
+	rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6343,6 +7991,7 @@ set_qam_measurement(struct drx_demod_instance *demod,
 {
 	struct i2c_device_addr *dev_addr = NULL;	/* device address for I2C writes */
 	struct drxj_data *ext_attr = NULL;	/* Global data container for DRXJ specif data */
+	int rc;
 	u32 fec_bits_desired = 0;	/* BER accounting period */
 	u16 fec_rs_plen = 0;	/* defines RS BER measurement period */
 	u16 fec_rs_prescale = 0;	/* ReedSolomon Measurement Prescale */
@@ -6401,7 +8050,10 @@ set_qam_measurement(struct drx_demod_instance *demod,
 
 	ext_attr->fec_rs_plen = fec_rs_plen;	/* for getSigQual */
 	fec_rs_bit_cnt = fec_rs_prescale * fec_rs_plen;	/* temp storage   */
-	CHK_ZERO(fec_rs_bit_cnt);
+	if (fec_rs_bit_cnt == 0) {
+		pr_err("error: fec_rs_bit_cnt is zero!\n");
+		return DRX_STS_ERROR;;
+	}
 	fec_rs_period = fec_bits_desired / fec_rs_bit_cnt + 1;	/* ceil */
 	if (ext_attr->standard != DRX_STANDARD_ITU_B)
 		fec_oc_snc_fail_period = fec_rs_period;
@@ -6433,14 +8085,38 @@ set_qam_measurement(struct drx_demod_instance *demod,
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	WR16(dev_addr, FEC_OC_SNC_FAIL_PERIOD__A, (u16) fec_oc_snc_fail_period);
-	WR16(dev_addr, FEC_RS_MEASUREMENT_PERIOD__A, (u16) fec_rs_period);
-	WR16(dev_addr, FEC_RS_MEASUREMENT_PRESCALE__A, fec_rs_prescale);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_SNC_FAIL_PERIOD__A, (u16)fec_oc_snc_fail_period, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_RS_MEASUREMENT_PERIOD__A, (u16)fec_rs_period, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_RS_MEASUREMENT_PRESCALE__A, fec_rs_prescale, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->fec_rs_period = (u16) fec_rs_period;
 	ext_attr->fec_rs_prescale = fec_rs_prescale;
-	WR32(dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, 0);
-	WR16(dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, 0);
-	WR16(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
+	rc = DRXJ_DAP.write_reg32func(dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (ext_attr->standard == DRX_STANDARD_ITU_B) {
 		/* Parameters for Viterbi Decoder */
@@ -6471,7 +8147,10 @@ set_qam_measurement(struct drx_demod_instance *demod,
 		default:
 			return (DRX_STS_INVALID_ARG);
 		}
-		CHK_ZERO(qam_vd_period);
+		if (qam_vd_period == 0) {
+			pr_err("error: qam_vd_period is zero!\n");
+			return DRX_STS_ERROR;;
+		}
 		qam_vd_period = fec_bits_desired / qam_vd_period;
 		/* limit to max 16 bit value (I2C register width) if needed */
 		if (qam_vd_period > 0xFFFF)
@@ -6480,9 +8159,16 @@ set_qam_measurement(struct drx_demod_instance *demod,
 		/* a(16 bit) * b(16 bit) = 32 bit result => mult32 not needed */
 		qam_vd_bit_cnt *= qam_vd_period;
 
-		WR16(dev_addr, QAM_VD_MEASUREMENT_PERIOD__A,
-		     (u16) qam_vd_period);
-		WR16(dev_addr, QAM_VD_MEASUREMENT_PRESCALE__A, qam_vd_prescale);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_VD_MEASUREMENT_PERIOD__A, (u16)qam_vd_period, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_VD_MEASUREMENT_PRESCALE__A, qam_vd_prescale, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->qam_vd_period = (u16) qam_vd_period;
 		ext_attr->qam_vd_prescale = qam_vd_prescale;
 	}
@@ -6503,6 +8189,7 @@ rw_error:
 static int set_qam16(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
 	const u8 qam_dq_qual_fun[] = {
 		DRXJ_16TO8(2),	/* fun0  */
 		DRXJ_16TO8(2),	/* fun1  */
@@ -6520,52 +8207,206 @@ static int set_qam16(struct drx_demod_instance *demod)
 		DRXJ_16TO8(13517),	/* RAD5  */
 	};
 
-	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
-	    ((u8 *)qam_dq_qual_fun));
-	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
-	    ((u8 *)qam_eq_cma_rad));
+	rc = DRXJ_DAP.write_block_func(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun), ((u8 *)qam_dq_qual_fun), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_block_func(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad), ((u8 *)qam_eq_cma_rad), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 140);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 50);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 120);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 230);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 95);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 105);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 140, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 120, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 230, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 95, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 105, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 56);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 56, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 220);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 25);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 6);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-24));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-65));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-127));
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 220, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 25, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 6, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16)(-24), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16)(-65), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16)(-127), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 10);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 240);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 32);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 10, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 240, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 32, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 40960);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 40960, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6583,6 +8424,7 @@ rw_error:
 static int set_qam32(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
 	const u8 qam_dq_qual_fun[] = {
 		DRXJ_16TO8(3),	/* fun0  */
 		DRXJ_16TO8(3),	/* fun1  */
@@ -6600,52 +8442,206 @@ static int set_qam32(struct drx_demod_instance *demod)
 		DRXJ_16TO8(6707),	/* RAD5  */
 	};
 
-	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
-	    ((u8 *)qam_dq_qual_fun));
-	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
-	    ((u8 *)qam_eq_cma_rad));
+	rc = DRXJ_DAP.write_block_func(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun), ((u8 *)qam_dq_qual_fun), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_block_func(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad), ((u8 *)qam_eq_cma_rad), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 90);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 50);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 170);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 100);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 90, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 170, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 100, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 56);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 56, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 140);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16) (-8));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16) (-16));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-26));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-56));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-86));
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 140, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16)(-8), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16)(-16), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16)(-26), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16)(-56), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16)(-86), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 10);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 176);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 8);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 10, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 176, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 20480);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 20480, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6663,6 +8659,7 @@ rw_error:
 static int set_qam64(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
 	const u8 qam_dq_qual_fun[] = {	/* this is hw reset value. no necessary to re-write */
 		DRXJ_16TO8(4),	/* fun0  */
 		DRXJ_16TO8(4),	/* fun1  */
@@ -6680,52 +8677,206 @@ static int set_qam64(struct drx_demod_instance *demod)
 		DRXJ_16TO8(15609),	/* RAD5  */
 	};
 
-	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
-	    ((u8 *)qam_dq_qual_fun));
-	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
-	    ((u8 *)qam_eq_cma_rad));
+	rc = DRXJ_DAP.write_block_func(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun), ((u8 *)qam_dq_qual_fun), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_block_func(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad), ((u8 *)qam_eq_cma_rad), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 105);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 195);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 84);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 105, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 195, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 84, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 32);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 32, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 141);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 7);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 0);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-15));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) (-45));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-80));
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 141, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 7, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16)(-15), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16)(-45), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16)(-80), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 30);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 48);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 160);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 32);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 30, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 48, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 160, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 32, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 43008);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 43008, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6743,6 +8894,7 @@ rw_error:
 static int set_qam128(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
 	const u8 qam_dq_qual_fun[] = {
 		DRXJ_16TO8(6),	/* fun0  */
 		DRXJ_16TO8(6),	/* fun1  */
@@ -6760,52 +8912,206 @@ static int set_qam128(struct drx_demod_instance *demod)
 		DRXJ_16TO8(7238),	/* RAD5  */
 	};
 
-	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
-	    ((u8 *)qam_dq_qual_fun));
-	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
-	    ((u8 *)qam_eq_cma_rad));
+	rc = DRXJ_DAP.write_block_func(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun), ((u8 *)qam_dq_qual_fun), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_block_func(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad), ((u8 *)qam_eq_cma_rad), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 50);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 140);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 100);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 140, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 100, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 32);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 32, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 8);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 65);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 5);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 3);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) (-1));
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-23));
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 65, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 5, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16)(-1), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16)(-23), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 20);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 144);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 16);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 20, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 32, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 144, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 20992);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 20992, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6823,6 +9129,7 @@ rw_error:
 static int set_qam256(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
 	const u8 qam_dq_qual_fun[] = {
 		DRXJ_16TO8(8),	/* fun0  */
 		DRXJ_16TO8(8),	/* fun1  */
@@ -6840,52 +9147,206 @@ static int set_qam256(struct drx_demod_instance *demod)
 		DRXJ_16TO8(15356),	/* RAD5  */
 	};
 
-	WRB(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun),
-	    ((u8 *)qam_dq_qual_fun));
-	WRB(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad),
-	    ((u8 *)qam_eq_cma_rad));
+	rc = DRXJ_DAP.write_block_func(dev_addr, QAM_DQ_QUAL_FUN0__A, sizeof(qam_dq_qual_fun), ((u8 *)qam_dq_qual_fun), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_block_func(dev_addr, SCU_RAM_QAM_EQ_CMA_RAD0__A, sizeof(qam_eq_cma_rad), ((u8 *)qam_eq_cma_rad), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 50);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 150);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 110);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RTH__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FTH__A, 60, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_PTH__A, 100, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_QTH__A, 150, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_CTH__A, 80, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MTH__A, 110, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RATE_LIM__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_FREQ_LIM__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_COUNT_LIM__A, 3, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 8);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 74);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 18);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 13);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, 7);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, 0);
-	WR16(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) (-8));
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, 74, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, 18, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, 13, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, 7, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16)(-8), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 50);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 25);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 48);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 80);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15);
-	WR16(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 16);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_FINE__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CA_COARSE__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_MEDIUM__A, 50, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CP_COARSE__A, 255, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_FINE__A, 2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_MEDIUM__A, 25, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CI_COARSE__A, 80, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EP_COARSE__A, 24, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_FINE__A, 12, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_EI_COARSE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_FINE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_MEDIUM__A, 48, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF_COARSE__A, 80, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_FINE__A, 5, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 15, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_LC_CF1_COARSE__A, 16, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 43520);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_SL_SIG_POWER__A, 43520, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -6911,9 +9372,10 @@ set_qam(struct drx_demod_instance *demod,
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
 	struct drx_common_attr *common_attr = NULL;
-	u16 cmd_result = 0;
+	int rc;
 	u32 adc_frequency = 0;
 	u32 iqm_rc_rate = 0;
+	u16 cmd_result = 0;
 	u16 lc_symbol_freq = 0;
 	u16 iqm_rc_stretch = 0;
 	u16 set_env_parameters = 0;
@@ -7070,7 +9532,10 @@ set_qam(struct drx_demod_instance *demod,
 			}
 		} else {
 			adc_frequency = (common_attr->sys_clock_freq * 1000) / 3;
-			CHK_ZERO(channel->symbolrate);
+			if (channel->symbolrate == 0) {
+				pr_err("error: channel symbolrate is zero!\n");
+				return DRX_STS_ERROR;;
+			}
 			iqm_rc_rate =
 			    (adc_frequency / channel->symbolrate) * (1 << 21) +
 			    (frac28
@@ -7111,13 +9576,41 @@ set_qam(struct drx_demod_instance *demod,
 		   resets SCU variables
 		 */
 		/* stop all comm_exec */
-		WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
-		WR16(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 		    SCU_RAM_COMMAND_CMD_DEMOD_RESET;
@@ -7125,7 +9618,11 @@ set_qam(struct drx_demod_instance *demod,
 		cmd_scu.result_len = 1;
 		cmd_scu.parameter = NULL;
 		cmd_scu.result = &cmd_result;
-		CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+		rc = scu_command(dev_addr, &cmd_scu);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
@@ -7140,7 +9637,11 @@ set_qam(struct drx_demod_instance *demod,
 		cmd_scu.result_len = 1;
 		cmd_scu.parameter = &set_env_parameters;
 		cmd_scu.result = &cmd_result;
-		CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+		rc = scu_command(dev_addr, &cmd_scu);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		cmd_scu.command = SCU_RAM_COMMAND_STANDARD_QAM |
 		    SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM;
@@ -7148,168 +9649,457 @@ set_qam(struct drx_demod_instance *demod,
 		cmd_scu.result_len = 1;
 		cmd_scu.parameter = set_param_parameters;
 		cmd_scu.result = &cmd_result;
-		CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+		rc = scu_command(dev_addr, &cmd_scu);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		/* set symbol rate */
-		WR32(dev_addr, IQM_RC_RATE_OFS_LO__A, iqm_rc_rate);
+		rc = DRXJ_DAP.write_reg32func(dev_addr, IQM_RC_RATE_OFS_LO__A, iqm_rc_rate, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->iqm_rc_rate_ofs = iqm_rc_rate;
-		CHK_ERROR(set_qam_measurement
-			  (demod, channel->constellation, channel->symbolrate));
+		rc = set_qam_measurement(demod, channel->constellation, channel->symbolrate);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 	/* STEP 3: enable the system in a mode where the ADC provides valid signal
 	   setup constellation independent registers */
 	/* from qam_cmd.py script (qam_driver_b) */
 	/* TODO: remove re-writes of HW reset values */
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_SPECTRUM)) {
-		CHK_ERROR(set_frequency(demod, channel, tuner_freq_offset));
+		rc = set_frequency(demod, channel, tuner_freq_offset);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
 
-		WR16(dev_addr, QAM_LC_SYMBOL_FREQ__A, lc_symbol_freq);
-		WR16(dev_addr, IQM_RC_STRETCH__A, iqm_rc_stretch);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_SYMBOL_FREQ__A, lc_symbol_freq, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_STRETCH__A, iqm_rc_stretch, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	if (op & QAM_SET_OP_ALL) {
 		if (ext_attr->has_lna == false) {
-			WR16(dev_addr, IQM_AF_AMUX__A, 0x02);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AMUX__A, 0x02, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
-		WR16(dev_addr, IQM_CF_SYMMETRIC__A, 0);
-		WR16(dev_addr, IQM_CF_MIDTAP__A, 3);
-		WR16(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_QAM__M);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_SYMMETRIC__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, 3, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_QAM__M, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
-		WR16(dev_addr, SCU_RAM_QAM_WR_RSV_0__A, 0x5f);	/* scu temporary shut down agc */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_WR_RSV_0__A, 0x5f, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/* scu temporary shut down agc */
 
-		WR16(dev_addr, IQM_AF_SYNC_SEL__A, 3);
-		WR16(dev_addr, IQM_AF_CLP_LEN__A, 0);
-		WR16(dev_addr, IQM_AF_CLP_TH__A, 448);
-		WR16(dev_addr, IQM_AF_SNS_LEN__A, 0);
-		WR16(dev_addr, IQM_AF_PDREF__A, 4);
-		WR16(dev_addr, IQM_AF_STDBY__A, 0x10);
-		WR16(dev_addr, IQM_AF_PGA_GAIN__A, 11);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_SYNC_SEL__A, 3, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_CLP_LEN__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_CLP_TH__A, 448, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_SNS_LEN__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_PDREF__A, 4, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_STDBY__A, 0x10, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_PGA_GAIN__A, 11, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
-		WR16(dev_addr, IQM_CF_POW_MEAS_LEN__A, 1);
-		WR16(dev_addr, IQM_CF_SCALE_SH__A, IQM_CF_SCALE_SH__PRE);	/*! reset default val ! */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_POW_MEAS_LEN__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_SCALE_SH__A, IQM_CF_SCALE_SH__PRE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/*! reset default val ! */
 
-		WR16(dev_addr, QAM_SY_TIMEOUT__A, QAM_SY_TIMEOUT__PRE);	/*! reset default val ! */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_TIMEOUT__A, QAM_SY_TIMEOUT__PRE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/*! reset default val ! */
 		if (ext_attr->standard == DRX_STANDARD_ITU_B) {
-			WR16(dev_addr, QAM_SY_SYNC_LWM__A, QAM_SY_SYNC_LWM__PRE);	/*! reset default val ! */
-			WR16(dev_addr, QAM_SY_SYNC_AWM__A, QAM_SY_SYNC_AWM__PRE);	/*! reset default val ! */
-			WR16(dev_addr, QAM_SY_SYNC_HWM__A, QAM_SY_SYNC_HWM__PRE);	/*! reset default val ! */
+			rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_LWM__A, QAM_SY_SYNC_LWM__PRE, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/*! reset default val ! */
+			rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_AWM__A, QAM_SY_SYNC_AWM__PRE, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/*! reset default val ! */
+			rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_HWM__A, QAM_SY_SYNC_HWM__PRE, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/*! reset default val ! */
 		} else {
 			switch (channel->constellation) {
 			case DRX_CONSTELLATION_QAM16:
 			case DRX_CONSTELLATION_QAM64:
 			case DRX_CONSTELLATION_QAM256:
-				WR16(dev_addr, QAM_SY_SYNC_LWM__A, 0x03);
-				WR16(dev_addr, QAM_SY_SYNC_AWM__A, 0x04);
-				WR16(dev_addr, QAM_SY_SYNC_HWM__A, QAM_SY_SYNC_HWM__PRE);	/*! reset default val ! */
+				rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_LWM__A, 0x03, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_AWM__A, 0x04, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_HWM__A, QAM_SY_SYNC_HWM__PRE, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}	/*! reset default val ! */
 				break;
 			case DRX_CONSTELLATION_QAM32:
 			case DRX_CONSTELLATION_QAM128:
-				WR16(dev_addr, QAM_SY_SYNC_LWM__A, 0x03);
-				WR16(dev_addr, QAM_SY_SYNC_AWM__A, 0x05);
-				WR16(dev_addr, QAM_SY_SYNC_HWM__A, 0x06);
+				rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_LWM__A, 0x03, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_AWM__A, 0x05, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SY_SYNC_HWM__A, 0x06, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 				break;
 			default:
 				return (DRX_STS_ERROR);
 			}	/* switch */
 		}
 
-		WR16(dev_addr, QAM_LC_MODE__A, QAM_LC_MODE__PRE);	/*! reset default val ! */
-		WR16(dev_addr, QAM_LC_RATE_LIMIT__A, 3);
-		WR16(dev_addr, QAM_LC_LPF_FACTORP__A, 4);
-		WR16(dev_addr, QAM_LC_LPF_FACTORI__A, 4);
-		WR16(dev_addr, QAM_LC_MODE__A, 7);
-		WR16(dev_addr, QAM_LC_QUAL_TAB0__A, 1);
-		WR16(dev_addr, QAM_LC_QUAL_TAB1__A, 1);
-		WR16(dev_addr, QAM_LC_QUAL_TAB2__A, 1);
-		WR16(dev_addr, QAM_LC_QUAL_TAB3__A, 1);
-		WR16(dev_addr, QAM_LC_QUAL_TAB4__A, 2);
-		WR16(dev_addr, QAM_LC_QUAL_TAB5__A, 2);
-		WR16(dev_addr, QAM_LC_QUAL_TAB6__A, 2);
-		WR16(dev_addr, QAM_LC_QUAL_TAB8__A, 2);
-		WR16(dev_addr, QAM_LC_QUAL_TAB9__A, 2);
-		WR16(dev_addr, QAM_LC_QUAL_TAB10__A, 2);
-		WR16(dev_addr, QAM_LC_QUAL_TAB12__A, 2);
-		WR16(dev_addr, QAM_LC_QUAL_TAB15__A, 3);
-		WR16(dev_addr, QAM_LC_QUAL_TAB16__A, 3);
-		WR16(dev_addr, QAM_LC_QUAL_TAB20__A, 4);
-		WR16(dev_addr, QAM_LC_QUAL_TAB25__A, 4);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_MODE__A, QAM_LC_MODE__PRE, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}	/*! reset default val ! */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_RATE_LIMIT__A, 3, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_LPF_FACTORP__A, 4, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_LPF_FACTORI__A, 4, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_MODE__A, 7, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB0__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB1__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB2__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB3__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB4__A, 2, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB5__A, 2, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB6__A, 2, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB8__A, 2, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB9__A, 2, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB10__A, 2, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB12__A, 2, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB15__A, 3, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB16__A, 3, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB20__A, 4, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_QUAL_TAB25__A, 4, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
-		WR16(dev_addr, IQM_FS_ADJ_SEL__A, 1);
-		WR16(dev_addr, IQM_RC_ADJ_SEL__A, 1);
-		WR16(dev_addr, IQM_CF_ADJ_SEL__A, 1);
-		WR16(dev_addr, IQM_CF_POW_MEAS_LEN__A, 0);
-		WR16(dev_addr, SCU_RAM_GPIO__A, 0);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FS_ADJ_SEL__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_ADJ_SEL__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_ADJ_SEL__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_POW_MEAS_LEN__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_GPIO__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* No more resets of the IQM, current standard correctly set =>
 		   now AGCs can be configured. */
 		/* turn on IQMAF. It has to be in front of setAgc**() */
-		CHK_ERROR(set_iqm_af(demod, true));
-		CHK_ERROR(adc_synchronization(demod));
+		rc = set_iqm_af(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = adc_synchronization(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
-		CHK_ERROR(init_agc(demod));
-		CHK_ERROR(set_agc_if(demod, &(ext_attr->qam_if_agc_cfg), false));
-		CHK_ERROR(set_agc_rf(demod, &(ext_attr->qam_rf_agc_cfg), false));
+		rc = init_agc(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = set_agc_if(demod, &(ext_attr->qam_if_agc_cfg), false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = set_agc_rf(demod, &(ext_attr->qam_rf_agc_cfg), false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		{
 			/* TODO fix this, store a struct drxj_cfg_afe_gain structure in struct drxj_data instead
 			   of only the gain */
 			struct drxj_cfg_afe_gain qam_pga_cfg = { DRX_STANDARD_ITU_B, 0 };
 
 			qam_pga_cfg.gain = ext_attr->qam_pga_cfg;
-			CHK_ERROR(ctrl_set_cfg_afe_gain(demod, &qam_pga_cfg));
+			rc = ctrl_set_cfg_afe_gain(demod, &qam_pga_cfg);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
-		CHK_ERROR(ctrl_set_cfg_pre_saw(demod, &(ext_attr->qam_pre_saw_cfg)));
+		rc = ctrl_set_cfg_pre_saw(demod, &(ext_attr->qam_pre_saw_cfg));
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	if ((op & QAM_SET_OP_ALL) || (op & QAM_SET_OP_CONSTELLATION)) {
 		if (ext_attr->standard == DRX_STANDARD_ITU_A) {
-			WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(qam_a_taps),
-			    ((u8 *)qam_a_taps));
-			WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(qam_a_taps),
-			    ((u8 *)qam_a_taps));
+			rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(qam_a_taps), ((u8 *)qam_a_taps), 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(qam_a_taps), ((u8 *)qam_a_taps), 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		} else if (ext_attr->standard == DRX_STANDARD_ITU_B) {
 			switch (channel->constellation) {
 			case DRX_CONSTELLATION_QAM64:
-				WRB(dev_addr, IQM_CF_TAP_RE0__A,
-				    sizeof(qam_b64_taps), ((u8 *)qam_b64_taps));
-				WRB(dev_addr, IQM_CF_TAP_IM0__A,
-				    sizeof(qam_b64_taps), ((u8 *)qam_b64_taps));
+				rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(qam_b64_taps), ((u8 *)qam_b64_taps), 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(qam_b64_taps), ((u8 *)qam_b64_taps), 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 				break;
 			case DRX_CONSTELLATION_QAM256:
-				WRB(dev_addr, IQM_CF_TAP_RE0__A,
-				    sizeof(qam_b256_taps),
-				    ((u8 *)qam_b256_taps));
-				WRB(dev_addr, IQM_CF_TAP_IM0__A,
-				    sizeof(qam_b256_taps),
-				    ((u8 *)qam_b256_taps));
+				rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(qam_b256_taps), ((u8 *)qam_b256_taps), 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(qam_b256_taps), ((u8 *)qam_b256_taps), 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 				break;
 			default:
 				return (DRX_STS_ERROR);
 			}
 		} else if (ext_attr->standard == DRX_STANDARD_ITU_C) {
-			WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(qam_c_taps),
-			    ((u8 *)qam_c_taps));
-			WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(qam_c_taps),
-			    ((u8 *)qam_c_taps));
+			rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(qam_c_taps), ((u8 *)qam_c_taps), 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(qam_c_taps), ((u8 *)qam_c_taps), 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 
 		/* SETP 4: constellation specific setup */
 		switch (channel->constellation) {
 		case DRX_CONSTELLATION_QAM16:
-			CHK_ERROR(set_qam16(demod));
+			rc = set_qam16(demod);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_CONSTELLATION_QAM32:
-			CHK_ERROR(set_qam32(demod));
+			rc = set_qam32(demod);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_CONSTELLATION_QAM64:
-			CHK_ERROR(set_qam64(demod));
+			rc = set_qam64(demod);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_CONSTELLATION_QAM128:
-			CHK_ERROR(set_qam128(demod));
+			rc = set_qam128(demod);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_CONSTELLATION_QAM256:
-			CHK_ERROR(set_qam256(demod));
+			rc = set_qam256(demod);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		default:
 			return (DRX_STS_ERROR);
@@ -7317,12 +10107,28 @@ set_qam(struct drx_demod_instance *demod,
 	}
 
 	if ((op & QAM_SET_OP_ALL)) {
-		WR16(dev_addr, IQM_CF_SCALE_SH__A, 0);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_SCALE_SH__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* Mpeg output has to be in front of FEC active */
-		CHK_ERROR(set_mpegtei_handling(demod));
-		CHK_ERROR(bit_reverse_mpeg_output(demod));
-		CHK_ERROR(set_mpeg_start_width(demod));
+		rc = set_mpegtei_handling(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = bit_reverse_mpeg_output(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = set_mpeg_start_width(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		{
 			/* TODO: move to set_standard after hardware reset value problem is solved */
 			/* Configure initial MPEG output */
@@ -7341,7 +10147,11 @@ set_qam(struct drx_demod_instance *demod,
 			cfg_mpeg_output.invert_clk = common_attr->mpeg_cfg.invert_clk;
 			cfg_mpeg_output.static_clk = common_attr->mpeg_cfg.static_clk;
 			cfg_mpeg_output.bitrate = common_attr->mpeg_cfg.bitrate;
-			CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
+			rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 	}
 
@@ -7354,12 +10164,28 @@ set_qam(struct drx_demod_instance *demod,
 		cmd_scu.result_len = 1;
 		cmd_scu.parameter = NULL;
 		cmd_scu.result = &cmd_result;
-		CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+		rc = scu_command(dev_addr, &cmd_scu);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
-	WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
-	WR16(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_ACTIVE);
-	WR16(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_COMM_EXEC__A, QAM_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -7371,6 +10197,7 @@ static int
 ctrl_get_qam_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_quality);
 static int qam_flip_spec(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
+	int rc;
 	u32 iqm_fs_rate_ofs = 0;
 	u32 iqm_fs_rate_lo = 0;
 	u16 qam_ctl_ena = 0;
@@ -7386,65 +10213,163 @@ static int qam_flip_spec(struct drx_demod_instance *demod, struct drx_channel *c
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/* Silence the controlling of lc, equ, and the acquisition state machine */
-	RR16(dev_addr, SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena);
-	WR16(dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena
-	     & ~(SCU_RAM_QAM_CTL_ENA_ACQ__M
-		 | SCU_RAM_QAM_CTL_ENA_EQU__M | SCU_RAM_QAM_CTL_ENA_LC__M));
+	rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena & ~(SCU_RAM_QAM_CTL_ENA_ACQ__M | SCU_RAM_QAM_CTL_ENA_EQU__M | SCU_RAM_QAM_CTL_ENA_LC__M), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* freeze the frequency control loop */
-	WR16(dev_addr, QAM_LC_CF__A, 0);
-	WR16(dev_addr, QAM_LC_CF1__A, 0);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_CF__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_CF1__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	ARR32(dev_addr, IQM_FS_RATE_OFS_LO__A, &iqm_fs_rate_ofs);
-	ARR32(dev_addr, IQM_FS_RATE_LO__A, &iqm_fs_rate_lo);
+	rc = drxj_dap_atomic_read_reg32(dev_addr, IQM_FS_RATE_OFS_LO__A, &iqm_fs_rate_ofs, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = drxj_dap_atomic_read_reg32(dev_addr, IQM_FS_RATE_LO__A, &iqm_fs_rate_lo, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ofsofs = iqm_fs_rate_lo - iqm_fs_rate_ofs;
 	iqm_fs_rate_ofs = ~iqm_fs_rate_ofs + 1;
 	iqm_fs_rate_ofs -= 2 * ofsofs;
 
 	/* freeze dq/fq updating */
-	RR16(dev_addr, QAM_DQ_MODE__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, QAM_DQ_MODE__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	data = (data & 0xfff9);
-	WR16(dev_addr, QAM_DQ_MODE__A, data);
-	WR16(dev_addr, QAM_FQ_MODE__A, data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_DQ_MODE__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_FQ_MODE__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* lc_cp / _ci / _ca */
-	WR16(dev_addr, QAM_LC_CI__A, 0);
-	WR16(dev_addr, QAM_LC_EP__A, 0);
-	WR16(dev_addr, QAM_FQ_LA_FACTOR__A, 0);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_CI__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_LC_EP__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_FQ_LA_FACTOR__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* flip the spec */
-	WR32(dev_addr, IQM_FS_RATE_OFS_LO__A, iqm_fs_rate_ofs);
+	rc = DRXJ_DAP.write_reg32func(dev_addr, IQM_FS_RATE_OFS_LO__A, iqm_fs_rate_ofs, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->iqm_fs_rate_ofs = iqm_fs_rate_ofs;
 	ext_attr->pos_image = (ext_attr->pos_image) ? false : true;
 
 	/* freeze dq/fq updating */
-	RR16(dev_addr, QAM_DQ_MODE__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, QAM_DQ_MODE__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	equ_mode = data;
 	data = (data & 0xfff9);
-	WR16(dev_addr, QAM_DQ_MODE__A, data);
-	WR16(dev_addr, QAM_FQ_MODE__A, data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_DQ_MODE__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_FQ_MODE__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	for (i = 0; i < 28; i++) {
-		RR16(dev_addr, QAM_DQ_TAP_IM_EL0__A + (2 * i), &data);
-		WR16(dev_addr, QAM_DQ_TAP_IM_EL0__A + (2 * i), -data);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, QAM_DQ_TAP_IM_EL0__A + (2 * i), &data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_DQ_TAP_IM_EL0__A + (2 * i), -data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	for (i = 0; i < 24; i++) {
-		RR16(dev_addr, QAM_FQ_TAP_IM_EL0__A + (2 * i), &data);
-		WR16(dev_addr, QAM_FQ_TAP_IM_EL0__A + (2 * i), -data);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, QAM_FQ_TAP_IM_EL0__A + (2 * i), &data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_FQ_TAP_IM_EL0__A + (2 * i), -data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	data = equ_mode;
-	WR16(dev_addr, QAM_DQ_MODE__A, data);
-	WR16(dev_addr, QAM_FQ_MODE__A, data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_DQ_MODE__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_FQ_MODE__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 4);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 4, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	i = 0;
 	while ((fsm_state != 4) && (i++ < 100)) {
-		RR16(dev_addr, SCU_RAM_QAM_FSM_STATE__A, &fsm_state);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_QAM_FSM_STATE__A, &fsm_state, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
-	WR16(dev_addr, SCU_RAM_QAM_CTL_ENA__A, (qam_ctl_ena | 0x0016));
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_QAM_CTL_ENA__A, (qam_ctl_ena | 0x0016), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -7471,12 +10396,13 @@ qam64auto(struct drx_demod_instance *demod,
 	  s32 tuner_freq_offset, enum drx_lock_status *lock_status)
 {
 	struct drx_sig_quality sig_quality;
-	u16 data = 0;
+	struct drxj_data *ext_attr = NULL;
+	int rc;
 	u32 state = NO_LOCK;
 	u32 start_time = 0;
 	u32 d_locked_time = 0;
-	struct drxj_data *ext_attr = NULL;
 	u32 timeout_ofs = 0;
+	u16 data = 0;
 
 	/* external attributes for storing aquired channel constellation */
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -7484,13 +10410,20 @@ qam64auto(struct drx_demod_instance *demod,
 	start_time = drxbsp_hst_clock();
 	state = NO_LOCK;
 	do {
-		CHK_ERROR(ctrl_lock_status(demod, lock_status));
+		rc = ctrl_lock_status(demod, lock_status);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		switch (state) {
 		case NO_LOCK:
 			if (*lock_status == DRXJ_DEMOD_LOCK) {
-				CHK_ERROR(ctrl_get_qam_sig_quality
-					  (demod, &sig_quality));
+				rc = ctrl_get_qam_sig_quality(demod, &sig_quality);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 				if (sig_quality.MER > 208) {
 					state = DEMOD_LOCKED;
 					/* some delay to see if fec_lock possible TODO find the right value */
@@ -7503,10 +10436,16 @@ qam64auto(struct drx_demod_instance *demod,
 			if ((*lock_status == DRXJ_DEMOD_LOCK) &&	/* still demod_lock in 150ms */
 			    ((drxbsp_hst_clock() - d_locked_time) >
 			     DRXJ_QAM_FEC_LOCK_WAITTIME)) {
-				RR16(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A,
-				     &data);
-				WR16(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A,
-				     data | 0x1);
+				rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A, &data, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A, data | 0x1, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 				state = SYNC_FLIPPED;
 				drxbsp_hst_sleep(10);
 			}
@@ -7515,13 +10454,23 @@ qam64auto(struct drx_demod_instance *demod,
 			if (*lock_status == DRXJ_DEMOD_LOCK) {
 				if (channel->mirror == DRX_MIRROR_AUTO) {
 					/* flip sync pattern back */
-					RR16(demod->my_i2c_dev_addr,
-					     QAM_SY_TIMEOUT__A, &data);
-					WR16(demod->my_i2c_dev_addr,
-					     QAM_SY_TIMEOUT__A, data & 0xFFFE);
+					rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A, &data, 0);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
+					rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A, data & 0xFFFE, 0);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
 					/* flip spectrum */
 					ext_attr->mirror = DRX_MIRROR_YES;
-					CHK_ERROR(qam_flip_spec(demod, channel));
+					rc = qam_flip_spec(demod, channel);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
 					state = SPEC_MIRRORED;
 					/* reset timer TODO: still need 500ms? */
 					start_time = d_locked_time =
@@ -7539,13 +10488,22 @@ qam64auto(struct drx_demod_instance *demod,
 			if ((*lock_status == DRXJ_DEMOD_LOCK) &&	/* still demod_lock in 150ms */
 			    ((drxbsp_hst_clock() - d_locked_time) >
 			     DRXJ_QAM_FEC_LOCK_WAITTIME)) {
-				CHK_ERROR(ctrl_get_qam_sig_quality
-					  (demod, &sig_quality));
+				rc = ctrl_get_qam_sig_quality(demod, &sig_quality);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 				if (sig_quality.MER > 208) {
-					RR16(demod->my_i2c_dev_addr,
-					     QAM_SY_TIMEOUT__A, &data);
-					WR16(demod->my_i2c_dev_addr,
-					     QAM_SY_TIMEOUT__A, data | 0x1);
+					rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A, &data, 0);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
+					rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, QAM_SY_TIMEOUT__A, data | 0x1, 0);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
 					/* no need to wait lock */
 					start_time =
 					    drxbsp_hst_clock() -
@@ -7585,10 +10543,11 @@ qam256auto(struct drx_demod_instance *demod,
 	   s32 tuner_freq_offset, enum drx_lock_status *lock_status)
 {
 	struct drx_sig_quality sig_quality;
+	struct drxj_data *ext_attr = NULL;
+	int rc;
 	u32 state = NO_LOCK;
 	u32 start_time = 0;
 	u32 d_locked_time = 0;
-	struct drxj_data *ext_attr = NULL;
 	u32 timeout_ofs = DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;
 
 	/* external attributes for storing aquired channel constellation */
@@ -7597,12 +10556,19 @@ qam256auto(struct drx_demod_instance *demod,
 	start_time = drxbsp_hst_clock();
 	state = NO_LOCK;
 	do {
-		CHK_ERROR(ctrl_lock_status(demod, lock_status));
+		rc = ctrl_lock_status(demod, lock_status);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		switch (state) {
 		case NO_LOCK:
 			if (*lock_status == DRXJ_DEMOD_LOCK) {
-				CHK_ERROR(ctrl_get_qam_sig_quality
-					  (demod, &sig_quality));
+				rc = ctrl_get_qam_sig_quality(demod, &sig_quality);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 				if (sig_quality.MER > 268) {
 					state = DEMOD_LOCKED;
 					timeout_ofs += DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;	/* see something, wait longer */
@@ -7616,7 +10582,11 @@ qam256auto(struct drx_demod_instance *demod,
 				    ((drxbsp_hst_clock() - d_locked_time) >
 				     DRXJ_QAM_FEC_LOCK_WAITTIME)) {
 					ext_attr->mirror = DRX_MIRROR_YES;
-					CHK_ERROR(qam_flip_spec(demod, channel));
+					rc = qam_flip_spec(demod, channel);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
 					state = SPEC_MIRRORED;
 					/* reset timer TODO: still need 300ms? */
 					start_time = drxbsp_hst_clock();
@@ -7652,8 +10622,9 @@ static int
 set_qamChannel(struct drx_demod_instance *demod,
 	       struct drx_channel *channel, s32 tuner_freq_offset)
 {
-	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
+	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	bool auto_flag = false;
 
 	/* external attributes for storing aquired channel constellation */
@@ -7672,22 +10643,29 @@ set_qamChannel(struct drx_demod_instance *demod,
 		} else {
 			ext_attr->mirror = channel->mirror;
 		}
-		CHK_ERROR(set_qam
-			  (demod, channel, tuner_freq_offset, QAM_SET_OP_ALL));
+		rc = set_qam(demod, channel, tuner_freq_offset, QAM_SET_OP_ALL);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		if ((ext_attr->standard == DRX_STANDARD_ITU_B) &&
 		    (channel->constellation == DRX_CONSTELLATION_QAM64)) {
-			CHK_ERROR(qam64auto
-				  (demod, channel, tuner_freq_offset,
-				   &lock_status));
+			rc = qam64auto(demod, channel, tuner_freq_offset, &lock_status);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 
 		if ((ext_attr->standard == DRX_STANDARD_ITU_B) &&
 		    (channel->mirror == DRX_MIRROR_AUTO) &&
 		    (channel->constellation == DRX_CONSTELLATION_QAM256)) {
-			CHK_ERROR(qam256auto
-				  (demod, channel, tuner_freq_offset,
-				   &lock_status));
+			rc = qam256auto(demod, channel, tuner_freq_offset, &lock_status);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 		break;
 	case DRX_CONSTELLATION_AUTO:	/* for channel scan */
@@ -7701,12 +10679,16 @@ set_qamChannel(struct drx_demod_instance *demod,
 			} else {
 				ext_attr->mirror = channel->mirror;
 			}
-			CHK_ERROR(set_qam
-				  (demod, channel, tuner_freq_offset,
-				   QAM_SET_OP_ALL));
-			CHK_ERROR(qam256auto
-				  (demod, channel, tuner_freq_offset,
-				   &lock_status));
+			rc = set_qam(demod, channel, tuner_freq_offset, QAM_SET_OP_ALL);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = qam256auto(demod, channel, tuner_freq_offset, &lock_status);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			if (lock_status < DRX_LOCKED) {
 				/* QAM254 not locked -> try to lock QAM64 constellation */
@@ -7721,25 +10703,38 @@ set_qamChannel(struct drx_demod_instance *demod,
 				}
 				{
 					u16 qam_ctl_ena = 0;
-					RR16(demod->my_i2c_dev_addr,
-					     SCU_RAM_QAM_CTL_ENA__A,
-					     &qam_ctl_ena);
-					WR16(demod->my_i2c_dev_addr,
-					     SCU_RAM_QAM_CTL_ENA__A,
-					     qam_ctl_ena &
-					     ~SCU_RAM_QAM_CTL_ENA_ACQ__M);
-					WR16(demod->my_i2c_dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2);	/* force to rate hunting */
+					rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena, 0);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
+					rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena & ~SCU_RAM_QAM_CTL_ENA_ACQ__M, 0);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
+					rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2, 0);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}	/* force to rate hunting */
 
-					CHK_ERROR(set_qam
-						  (demod, channel,
-						   tuner_freq_offset,
-						   QAM_SET_OP_CONSTELLATION));
-					WR16(demod->my_i2c_dev_addr,
-					     SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena);
+					rc = set_qam(demod, channel, tuner_freq_offset, QAM_SET_OP_CONSTELLATION);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
+					rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena, 0);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
 				}
-				CHK_ERROR(qam64auto
-					  (demod, channel, tuner_freq_offset,
-					   &lock_status));
+				rc = qam64auto(demod, channel, tuner_freq_offset, &lock_status);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 			}
 			channel->constellation = DRX_CONSTELLATION_AUTO;
 		} else if (ext_attr->standard == DRX_STANDARD_ITU_C) {
@@ -7754,22 +10749,38 @@ set_qamChannel(struct drx_demod_instance *demod,
 			}
 			{
 				u16 qam_ctl_ena = 0;
-				RR16(demod->my_i2c_dev_addr,
-				     SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena);
-				WR16(demod->my_i2c_dev_addr,
-				     SCU_RAM_QAM_CTL_ENA__A,
-				     qam_ctl_ena & ~SCU_RAM_QAM_CTL_ENA_ACQ__M);
-				WR16(demod->my_i2c_dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2);	/* force to rate hunting */
+				rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena & ~SCU_RAM_QAM_CTL_ENA_ACQ__M, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}	/* force to rate hunting */
 
-				CHK_ERROR(set_qam
-					  (demod, channel, tuner_freq_offset,
-					   QAM_SET_OP_CONSTELLATION));
-				WR16(demod->my_i2c_dev_addr,
-				     SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena);
+				rc = set_qam(demod, channel, tuner_freq_offset, QAM_SET_OP_CONSTELLATION);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
+				rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena, 0);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 			}
-			CHK_ERROR(qam64auto
-				  (demod, channel, tuner_freq_offset,
-				   &lock_status));
+			rc = qam64auto(demod, channel, tuner_freq_offset, &lock_status);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			channel->constellation = DRX_CONSTELLATION_AUTO;
 		} else {
 			channel->constellation = DRX_CONSTELLATION_AUTO;
@@ -7801,6 +10812,7 @@ rw_error:
 static int
 GetQAMRSErr_count(struct i2c_device_addr *dev_addr, struct drxjrs_errors *rs_errors)
 {
+	int rc;
 	u16 nr_bit_errors = 0,
 	    nr_symbol_errors = 0,
 	    nr_packet_errors = 0, nr_failures = 0, nr_snc_par_fail_count = 0;
@@ -7813,15 +10825,35 @@ GetQAMRSErr_count(struct i2c_device_addr *dev_addr, struct drxjrs_errors *rs_err
 	/* all reported errors are received in the  */
 	/* most recently finished measurment period */
 	/*   no of pre RS bit errors */
-	RR16(dev_addr, FEC_RS_NR_BIT_ERRORS__A, &nr_bit_errors);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_RS_NR_BIT_ERRORS__A, &nr_bit_errors, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/*   no of symbol errors      */
-	RR16(dev_addr, FEC_RS_NR_SYMBOL_ERRORS__A, &nr_symbol_errors);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_RS_NR_SYMBOL_ERRORS__A, &nr_symbol_errors, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/*   no of packet errors      */
-	RR16(dev_addr, FEC_RS_NR_PACKET_ERRORS__A, &nr_packet_errors);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_RS_NR_PACKET_ERRORS__A, &nr_packet_errors, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/*   no of failures to decode */
-	RR16(dev_addr, FEC_RS_NR_FAILURES__A, &nr_failures);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_RS_NR_FAILURES__A, &nr_failures, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/*   no of post RS bit erros  */
-	RR16(dev_addr, FEC_OC_SNC_FAIL_COUNT__A, &nr_snc_par_fail_count);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_SNC_FAIL_COUNT__A, &nr_snc_par_fail_count, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* TODO: NOTE */
 	/* These register values are fetched in non-atomic fashion           */
 	/* It is possible that the read values contain unrelated information */
@@ -7857,6 +10889,7 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod, struct drx_sig_qualit
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	enum drx_modulation constellation = DRX_CONSTELLATION_UNKNOWN;
 	struct drxjrs_errors measuredrs_errors = { 0, 0, 0, 0, 0 };
 
@@ -7891,11 +10924,23 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod, struct drx_sig_qualit
 
 	/* read the physical registers */
 	/*   Get the RS error data */
-	CHK_ERROR(GetQAMRSErr_count(dev_addr, &measuredrs_errors));
+	rc = GetQAMRSErr_count(dev_addr, &measuredrs_errors);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* get the register value needed for MER */
-	RR16(dev_addr, QAM_SL_ERR_POWER__A, &qam_sl_err_power);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, QAM_SL_ERR_POWER__A, &qam_sl_err_power, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* get the register value needed for post RS BER */
-	RR16(dev_addr, FEC_OC_SNC_FAIL_PERIOD__A, &fec_oc_period);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, FEC_OC_SNC_FAIL_PERIOD__A, &fec_oc_period, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* get constants needed for signal quality calculation */
 	fec_rs_period = ext_attr->fec_rs_period;
@@ -7946,7 +10991,11 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod, struct drx_sig_qualit
 
 	/* get the register value */
 	/*   no of quadrature symbol errors */
-	RR16(dev_addr, QAM_VD_NR_QSYM_ERRORS__A, &qsym_err_vd);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, QAM_VD_NR_QSYM_ERRORS__A, &qsym_err_vd, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* Extract the Exponent and the Mantisa  */
 	/* of number of quadrature symbol errors */
 	e = (qsym_err_vd & QAM_VD_NR_QSYM_ERRORS_EXP__M) >>
@@ -8016,7 +11065,11 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod, struct drx_sig_qualit
 	sig_quality->post_reed_solomon_ber = qam_post_rs_ber;
 	sig_quality->scale_factor_ber = ((u32) 1000000);
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
-	CHK_ERROR(get_acc_pkt_err(demod, &sig_quality->packet_error));
+	rc = get_acc_pkt_err(demod, &sig_quality->packet_error);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 #else
 	sig_quality->packet_error = ((u16) pkt_errs);
 #endif
@@ -8037,6 +11090,9 @@ rw_error:
 static int
 ctrl_get_qam_constel(struct drx_demod_instance *demod, struct drx_complex *complex_nr)
 {
+	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
+	u32 data = 0;
 	u16 fec_oc_ocr_mode = 0;
 			      /**< FEC OCR grabber configuration        */
 	u16 qam_sl_comm_mb = 0;/**< QAM SL MB configuration              */
@@ -8044,8 +11100,6 @@ ctrl_get_qam_constel(struct drx_demod_instance *demod, struct drx_complex *compl
 			      /**< QAM SL MB intial configuration       */
 	u16 im = 0;	      /**< constellation Im part                */
 	u16 re = 0;	      /**< constellation Re part                */
-	u32 data = 0;
-	struct i2c_device_addr *dev_addr = NULL;
 				     /**< device address */
 
 	/* read device info */
@@ -8056,13 +11110,21 @@ ctrl_get_qam_constel(struct drx_demod_instance *demod, struct drx_complex *compl
 	/* Needs to be checked when external interface PG is updated */
 
 	/* Configure MB (Monitor bus) */
-	RR16(dev_addr, QAM_SL_COMM_MB__A, &qam_sl_comm_mbInit);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, QAM_SL_COMM_MB__A, &qam_sl_comm_mbInit, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* set observe flag & MB mux */
 	qam_sl_comm_mb = qam_sl_comm_mbInit & (~(QAM_SL_COMM_MB_OBS__M +
 					   QAM_SL_COMM_MB_MUX_OBS__M));
 	qam_sl_comm_mb |= (QAM_SL_COMM_MB_OBS_ON +
 			QAM_SL_COMM_MB_MUX_OBS_CONST_CORR);
-	WR16(dev_addr, QAM_SL_COMM_MB__A, qam_sl_comm_mb);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SL_COMM_MB__A, qam_sl_comm_mb, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Enable MB grabber in the FEC OC */
 	fec_oc_ocr_mode = (/* output select:  observe bus */
@@ -8077,13 +11139,25 @@ ctrl_get_qam_constel(struct drx_demod_instance *demod, struct drx_complex *compl
 			       /* grabber mode:   continuous  */
 			       (FEC_OC_OCR_MODE_GRAB_COUNTED__M &
 				(0x0 << FEC_OC_OCR_MODE_GRAB_COUNTED__B)));
-	WR16(dev_addr, FEC_OC_OCR_MODE__A, fec_oc_ocr_mode);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_OCR_MODE__A, fec_oc_ocr_mode, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Disable MB grabber in the FEC OC */
-	WR16(dev_addr, FEC_OC_OCR_MODE__A, 0x00);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, FEC_OC_OCR_MODE__A, 0x00, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* read data */
-	RR32(dev_addr, FEC_OC_OCR_GRAB_RD0__A, &data);
+	rc = DRXJ_DAP.read_reg32func(dev_addr, FEC_OC_OCR_GRAB_RD0__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	re = (u16) (data & FEC_OC_OCR_GRAB_RD0__M);
 	im = (u16) ((data >> 16) & FEC_OC_OCR_GRAB_RD1__M);
 
@@ -8101,7 +11175,11 @@ ctrl_get_qam_constel(struct drx_demod_instance *demod, struct drx_complex *compl
 	complex_nr->im = ((s16) im);
 
 	/* Restore MB (Monitor bus) */
-	WR16(dev_addr, QAM_SL_COMM_MB__A, qam_sl_comm_mbInit);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, QAM_SL_COMM_MB__A, qam_sl_comm_mbInit, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8229,6 +11307,7 @@ atv_update_config(struct drx_demod_instance *demod, bool force_update)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -8238,37 +11317,73 @@ atv_update_config(struct drx_demod_instance *demod, bool force_update)
 	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_COEF) != 0)) {
 		int index = 0;
 
-		CHK_ERROR(atv_equ_coef_index(ext_attr->standard, &index));
-		WR16(dev_addr, ATV_TOP_EQU0__A, ext_attr->atv_top_equ0[index]);
-		WR16(dev_addr, ATV_TOP_EQU1__A, ext_attr->atv_top_equ1[index]);
-		WR16(dev_addr, ATV_TOP_EQU2__A, ext_attr->atv_top_equ2[index]);
-		WR16(dev_addr, ATV_TOP_EQU3__A, ext_attr->atv_top_equ3[index]);
+		rc = atv_equ_coef_index(ext_attr->standard, &index);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_EQU0__A, ext_attr->atv_top_equ0[index], 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_EQU1__A, ext_attr->atv_top_equ1[index], 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_EQU2__A, ext_attr->atv_top_equ2[index], 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_EQU3__A, ext_attr->atv_top_equ3[index], 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* bypass fast carrier recovery */
 	if (force_update) {
 		u16 data = 0;
 
-		RR16(dev_addr, IQM_RT_ROT_BP__A, &data);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_RT_ROT_BP__A, &data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		data &= (~((u16) IQM_RT_ROT_BP_ROT_OFF__M));
 		if (ext_attr->phase_correction_bypass) {
 			data |= IQM_RT_ROT_BP_ROT_OFF_OFF;
 		} else {
 			data |= IQM_RT_ROT_BP_ROT_OFF_ACTIVE;
 		}
-		WR16(dev_addr, IQM_RT_ROT_BP__A, data);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_ROT_BP__A, data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* peak filter setting */
 	if (force_update ||
 	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_PEAK_FLT) != 0)) {
-		WR16(dev_addr, ATV_TOP_VID_PEAK__A, ext_attr->atv_top_vid_peak);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_VID_PEAK__A, ext_attr->atv_top_vid_peak, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* noise filter setting */
 	if (force_update ||
 	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_NOISE_FLT) != 0)) {
-		WR16(dev_addr, ATV_TOP_NOISE_TH__A, ext_attr->atv_top_noise_th);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_NOISE_TH__A, ext_attr->atv_top_noise_th, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* SIF attenuation */
@@ -8293,7 +11408,11 @@ atv_update_config(struct drx_demod_instance *demod, bool force_update)
 			return DRX_STS_ERROR;
 			break;
 		}
-		WR16(dev_addr, ATV_TOP_AF_SIF_ATT__A, attenuation);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_AF_SIF_ATT__A, attenuation, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* SIF & CVBS enable */
@@ -8301,7 +11420,11 @@ atv_update_config(struct drx_demod_instance *demod, bool force_update)
 	    ((ext_attr->atv_cfg_changed_flags & DRXJ_ATV_CHANGED_OUTPUT) != 0)) {
 		u16 data = 0;
 
-		RR16(dev_addr, ATV_TOP_STDBY__A, &data);
+		rc = DRXJ_DAP.read_reg16func(dev_addr, ATV_TOP_STDBY__A, &data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (ext_attr->enable_cvbs_output) {
 			data |= ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE;
 		} else {
@@ -8313,7 +11436,11 @@ atv_update_config(struct drx_demod_instance *demod, bool force_update)
 		} else {
 			data |= ATV_TOP_STDBY_SIF_STDBY_STANDBY;
 		}
-		WR16(dev_addr, ATV_TOP_STDBY__A, data);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STDBY__A, data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	ext_attr->atv_cfg_changed_flags = 0;
@@ -8336,6 +11463,7 @@ static int
 ctrl_set_cfg_atv_output(struct drx_demod_instance *demod, struct drxj_cfg_atv_output *output_cfg)
 {
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	/* Check arguments */
 	if (output_cfg == NULL) {
@@ -8372,7 +11500,11 @@ ctrl_set_cfg_atv_output(struct drx_demod_instance *demod, struct drxj_cfg_atv_ou
 		ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_OUTPUT;
 	}
 
-	CHK_ERROR(atv_update_config(demod, false));
+	rc = atv_update_config(demod, false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8393,6 +11525,7 @@ static int
 ctrl_set_cfg_atv_equ_coef(struct drx_demod_instance *demod, struct drxj_cfg_atv_equ_coef *coef)
 {
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	int index;
 
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -8415,14 +11548,22 @@ ctrl_set_cfg_atv_equ_coef(struct drx_demod_instance *demod, struct drxj_cfg_atv_
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	CHK_ERROR(atv_equ_coef_index(ext_attr->standard, &index));
+	rc = atv_equ_coef_index(ext_attr->standard, &index);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->atv_top_equ0[index] = coef->coef0;
 	ext_attr->atv_top_equ1[index] = coef->coef1;
 	ext_attr->atv_top_equ2[index] = coef->coef2;
 	ext_attr->atv_top_equ3[index] = coef->coef3;
 	ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_COEF;
 
-	CHK_ERROR(atv_update_config(demod, false));
+	rc = atv_update_config(demod, false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8447,6 +11588,7 @@ static int
 ctrl_get_cfg_atv_equ_coef(struct drx_demod_instance *demod, struct drxj_cfg_atv_equ_coef *coef)
 {
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	int index = 0;
 
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -8461,7 +11603,11 @@ ctrl_get_cfg_atv_equ_coef(struct drx_demod_instance *demod, struct drxj_cfg_atv_
 		return DRX_STS_INVALID_ARG;
 	}
 
-	CHK_ERROR(atv_equ_coef_index(ext_attr->standard, &index));
+	rc = atv_equ_coef_index(ext_attr->standard, &index);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	coef->coef0 = ext_attr->atv_top_equ0[index];
 	coef->coef1 = ext_attr->atv_top_equ1[index];
 	coef->coef2 = ext_attr->atv_top_equ2[index];
@@ -8485,6 +11631,7 @@ static int
 ctrl_set_cfg_atv_misc(struct drx_demod_instance *demod, struct drxj_cfg_atv_misc *settings)
 {
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	/* Check arguments */
 	if ((settings == NULL) ||
@@ -8506,7 +11653,11 @@ ctrl_set_cfg_atv_misc(struct drx_demod_instance *demod, struct drxj_cfg_atv_misc
 		ext_attr->atv_cfg_changed_flags |= DRXJ_ATV_CHANGED_NOISE_FLT;
 	}
 
-	CHK_ERROR(atv_update_config(demod, false));
+	rc = atv_update_config(demod, false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -8532,9 +11683,8 @@ ctrl_get_cfg_atv_misc(struct drx_demod_instance *demod, struct drxj_cfg_atv_misc
 	struct drxj_data *ext_attr = NULL;
 
 	/* Check arguments */
-	if (settings == NULL) {
+	if (settings == NULL)
 		return DRX_STS_INVALID_ARG;
-	}
 
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
@@ -8558,6 +11708,7 @@ ctrl_get_cfg_atv_misc(struct drx_demod_instance *demod, struct drxj_cfg_atv_misc
 static int
 ctrl_get_cfg_atv_output(struct drx_demod_instance *demod, struct drxj_cfg_atv_output *output_cfg)
 {
+	int rc;
 	u16 data = 0;
 
 	/* Check arguments */
@@ -8565,7 +11716,11 @@ ctrl_get_cfg_atv_output(struct drx_demod_instance *demod, struct drxj_cfg_atv_ou
 		return DRX_STS_INVALID_ARG;
 	}
 
-	RR16(demod->my_i2c_dev_addr, ATV_TOP_STDBY__A, &data);
+	rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, ATV_TOP_STDBY__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (data & ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE) {
 		output_cfg->enable_cvbs_output = true;
 	} else {
@@ -8576,7 +11731,11 @@ ctrl_get_cfg_atv_output(struct drx_demod_instance *demod, struct drxj_cfg_atv_ou
 		output_cfg->enable_sif_output = false;
 	} else {
 		output_cfg->enable_sif_output = true;
-		RR16(demod->my_i2c_dev_addr, ATV_TOP_AF_SIF_ATT__A, &data);
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, ATV_TOP_AF_SIF_ATT__A, &data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		output_cfg->sif_attenuation = (enum drxjsif_attenuation) data;
 	}
 
@@ -8599,6 +11758,7 @@ ctrl_get_cfg_atv_agc_status(struct drx_demod_instance *demod,
 			    struct drxj_cfg_atv_agc_status *agc_status)
 {
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 	u16 data = 0;
 	u32 tmp = 0;
 
@@ -8614,7 +11774,11 @@ ctrl_get_cfg_atv_agc_status(struct drx_demod_instance *demod,
 
 	   IQM_AF_AGC_RF__A * 27 is 20 bits worst case.
 	 */
-	RR16(dev_addr, IQM_AF_AGC_RF__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_AGC_RF__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	tmp = ((u32) data) * 27 - ((u32) (data >> 2));	/* nA */
 	agc_status->rf_agc_gain = (u16) (tmp / 1000);	/* uA */
 	/* rounding */
@@ -8628,7 +11792,11 @@ ctrl_get_cfg_atv_agc_status(struct drx_demod_instance *demod,
 
 	   IQM_AF_AGC_IF__A * 27 is 20 bits worst case.
 	 */
-	RR16(dev_addr, IQM_AF_AGC_IF__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_AGC_IF__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	tmp = ((u32) data) * 27 - ((u32) (data >> 2));	/* nA */
 	agc_status->if_agc_gain = (u16) (tmp / 1000);	/* uA */
 	/* rounding */
@@ -8644,7 +11812,11 @@ ctrl_get_cfg_atv_agc_status(struct drx_demod_instance *demod,
 	   = (ATV_TOP_SFR_VID_GAIN__A/32) - 75 (in 0.1 dB)
 	 */
 
-	SARR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, &data);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* dividing by 32 inclusive rounding */
 	data >>= 4;
 	if ((data & 1) != 0) {
@@ -8661,7 +11833,11 @@ ctrl_get_cfg_atv_agc_status(struct drx_demod_instance *demod,
 	   = (SCU_RAM_ATV_SIF_GAIN__A/2) - 4 (in 0.1 dB)
 	 */
 
-	SARR16(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, &data);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	data &= SCU_RAM_ATV_SIF_GAIN__M;
 	/* dividing by 2 inclusive rounding */
 	if ((data & 1) != 0) {
@@ -8671,7 +11847,11 @@ ctrl_get_cfg_atv_agc_status(struct drx_demod_instance *demod,
 	agc_status->audio_agc_gain = ((s16) data) - 4;	/* 0.1 dB */
 
 	/* Loop gain's */
-	SARR16(dev_addr, SCU_RAM_AGC_KI__A, &data);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_AGC_KI__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	agc_status->video_agc_loop_gain =
 	    ((data & SCU_RAM_AGC_KI_DGAIN__M) >> SCU_RAM_AGC_KI_DGAIN__B);
 	agc_status->rf_agc_loop_gain =
@@ -8699,14 +11879,31 @@ rw_error:
 static int power_up_atv(struct drx_demod_instance *demod, enum drx_standard standard)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
 
 	/* ATV NTSC */
-	WR16(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* turn on IQM_AF */
-	CHK_ERROR(set_iqm_af(demod, true));
-	CHK_ERROR(adc_synchronization(demod));
+	rc = set_iqm_af(demod, true);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = adc_synchronization(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Audio, already done during set standard */
 
@@ -8739,6 +11936,7 @@ power_down_atv(struct drx_demod_instance *demod, enum drx_standard standard, boo
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
+	int rc;
 	u16 cmd_result = 0;
 
 	/* ATV NTSC */
@@ -8750,23 +11948,66 @@ power_down_atv(struct drx_demod_instance *demod, enum drx_standard standard, boo
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = NULL;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
-	/* Disable ATV outputs (ATV reset enables CVBS, undo this) */
-	WR16(dev_addr, ATV_TOP_STDBY__A, (ATV_TOP_STDBY_SIF_STDBY_STANDBY &
-					 (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)));
-
-	WR16(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_STOP);
-	if (primary == true) {
-		WR16(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP);
-		CHK_ERROR(set_iqm_af(demod, false));
-	} else {
-		WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-		WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
 	}
-	CHK_ERROR(power_down_aud(demod));
+	/* Disable ATV outputs (ATV reset enables CVBS, undo this) */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STDBY__A, (ATV_TOP_STDBY_SIF_STDBY_STANDBY & (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	if (primary == true) {
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = set_iqm_af(demod, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+	} else {
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+	}
+	rc = power_down_aud(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -9061,6 +12302,7 @@ trouble ?
 	struct drx_common_attr *common_attr = NULL;
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	dev_addr = demod->my_i2c_dev_addr;
@@ -9074,12 +12316,18 @@ trouble ?
 		ucode_info.mc_size = common_attr->microcode_size;
 
 		/* Upload only audio microcode */
-		CHK_ERROR(ctrl_u_codeUpload
-			  (demod, &ucode_info, UCODE_UPLOAD, true));
+		rc = ctrl_u_codeUpload(demod, &ucode_info, UCODE_UPLOAD, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		if (common_attr->verify_microcode == true) {
-			CHK_ERROR(ctrl_u_codeUpload
-				  (demod, &ucode_info, UCODE_VERIFY, true));
+			rc = ctrl_u_codeUpload(demod, &ucode_info, UCODE_VERIFY, true);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 
 		/* Prevent uploading audio microcode again */
@@ -9087,12 +12335,36 @@ trouble ?
 	}
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 
-	WR16(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP);
-	WR16(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_COMM_EXEC__A, ATV_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FS_COMM_EXEC__A, IQM_FS_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_FD_COMM_EXEC__A, IQM_FD_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_COMM_EXEC__A, IQM_RC_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_COMM_EXEC__A, IQM_RT_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_COMM_EXEC__A, IQM_CF_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 	/* Reset ATV SCU */
 	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_ATV |
 	    SCU_RAM_COMMAND_CMD_DEMOD_RESET;
@@ -9100,9 +12372,17 @@ trouble ?
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = NULL;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, ATV_TOP_MOD_CONTROL__A, ATV_TOP_MOD_CONTROL__PRE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_MOD_CONTROL__A, ATV_TOP_MOD_CONTROL__PRE, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* TODO remove AUTO/OFF patches after ucode fix. */
 	switch (*standard) {
@@ -9110,29 +12390,73 @@ trouble ?
 		/* NTSC */
 		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_MN;
 
-		WR16(dev_addr, IQM_RT_LO_INCR__A, IQM_RT_LO_INCR_MN);
-		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(ntsc_taps_re),
-		    ((u8 *)ntsc_taps_re));
-		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(ntsc_taps_im),
-		    ((u8 *)ntsc_taps_im));
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_LO_INCR__A, IQM_RT_LO_INCR_MN, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(ntsc_taps_re), ((u8 *)ntsc_taps_re), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(ntsc_taps_im), ((u8 *)ntsc_taps_im), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 
-		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_MN);
-		WR16(dev_addr, ATV_TOP_CR_CONT__A,
-		     (ATV_TOP_CR_CONT_CR_P_MN |
-		      ATV_TOP_CR_CONT_CR_D_MN | ATV_TOP_CR_CONT_CR_I_MN));
-		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_MN);
-		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_MN |
-					       ATV_TOP_STD_VID_POL_MN));
-		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_MN);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_MN, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_CONT__A, (ATV_TOP_CR_CONT_CR_P_MN | ATV_TOP_CR_CONT_CR_D_MN | ATV_TOP_CR_CONT_CR_I_MN), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_MN, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_MN | ATV_TOP_STD_VID_POL_MN), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_MN, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 
-		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
-		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM |
-		      SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE));
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
-		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_BG_MN);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AGC_MODE__A, (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM | SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A, SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_BG_MN, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 		ext_attr->phase_correction_bypass = false;
 		ext_attr->enable_cvbs_output = true;
 		break;
@@ -9140,21 +12464,52 @@ trouble ?
 		/* FM */
 		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_FM;
 
-		WR16(dev_addr, IQM_RT_LO_INCR__A, 2994);
-		WR16(dev_addr, IQM_CF_MIDTAP__A, 0);
-		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(fm_taps_re),
-		    ((u8 *)fm_taps_re));
-		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(fm_taps_im),
-		    ((u8 *)fm_taps_im));
-		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_FM |
-					       ATV_TOP_STD_VID_POL_FM));
-		WR16(dev_addr, ATV_TOP_MOD_CONTROL__A, 0);
-		WR16(dev_addr, ATV_TOP_CR_CONT__A, 0);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_LO_INCR__A, 2994, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(fm_taps_re), ((u8 *)fm_taps_re), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(fm_taps_im), ((u8 *)fm_taps_im), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_FM | ATV_TOP_STD_VID_POL_FM), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_MOD_CONTROL__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_CONT__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 
-		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
-		     (SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW |
-		      SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM));
-		WR16(dev_addr, IQM_RT_ROT_BP__A, IQM_RT_ROT_BP_ROT_OFF_OFF);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AGC_MODE__A, (SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW | SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_ROT_BP__A, IQM_RT_ROT_BP_ROT_OFF_OFF, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 		ext_attr->phase_correction_bypass = true;
 		ext_attr->enable_cvbs_output = false;
 		break;
@@ -9162,27 +12517,71 @@ trouble ?
 		/* PAL/SECAM B/G */
 		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_B;
 
-		WR16(dev_addr, IQM_RT_LO_INCR__A, 1820);	/* TODO check with IS */
-		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(bg_taps_re),
-		    ((u8 *)bg_taps_re));
-		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(bg_taps_im),
-		    ((u8 *)bg_taps_im));
-		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_BG);
-		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_BG);
-		WR16(dev_addr, ATV_TOP_CR_CONT__A,
-		     (ATV_TOP_CR_CONT_CR_P_BG |
-		      ATV_TOP_CR_CONT_CR_D_BG | ATV_TOP_CR_CONT_CR_I_BG));
-		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_BG);
-		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_BG |
-					       ATV_TOP_STD_VID_POL_BG));
-		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
-		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM |
-		      SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE));
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
-		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_BG_MN);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_LO_INCR__A, 1820, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}	/* TODO check with IS */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(bg_taps_re), ((u8 *)bg_taps_re), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(bg_taps_im), ((u8 *)bg_taps_im), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_BG, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_BG, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_CONT__A, (ATV_TOP_CR_CONT_CR_P_BG | ATV_TOP_CR_CONT_CR_D_BG | ATV_TOP_CR_CONT_CR_I_BG), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_BG, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_BG | ATV_TOP_STD_VID_POL_BG), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AGC_MODE__A, (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM | SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A, SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_BG_MN, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 		ext_attr->phase_correction_bypass = false;
 		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
 		ext_attr->enable_cvbs_output = true;
@@ -9191,27 +12590,71 @@ trouble ?
 		/* PAL/SECAM D/K */
 		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_DK;
 
-		WR16(dev_addr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
-		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
-		    ((u8 *)dk_i_l_lp_taps_re));
-		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
-		    ((u8 *)dk_i_l_lp_taps_im));
-		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_DK);
-		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_DK);
-		WR16(dev_addr, ATV_TOP_CR_CONT__A,
-		     (ATV_TOP_CR_CONT_CR_P_DK |
-		      ATV_TOP_CR_CONT_CR_D_DK | ATV_TOP_CR_CONT_CR_I_DK));
-		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_DK);
-		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_DK |
-					       ATV_TOP_STD_VID_POL_DK));
-		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
-		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM |
-		      SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE));
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
-		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_DK);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_LO_INCR__A, 2225, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}	/* TODO check with IS */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re), ((u8 *)dk_i_l_lp_taps_re), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im), ((u8 *)dk_i_l_lp_taps_im), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_DK, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_DK, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_CONT__A, (ATV_TOP_CR_CONT_CR_P_DK | ATV_TOP_CR_CONT_CR_D_DK | ATV_TOP_CR_CONT_CR_I_DK), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_DK, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_DK | ATV_TOP_STD_VID_POL_DK), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AGC_MODE__A, (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM | SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A, SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_DK, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 		ext_attr->phase_correction_bypass = false;
 		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
 		ext_attr->enable_cvbs_output = true;
@@ -9220,27 +12663,71 @@ trouble ?
 		/* PAL/SECAM I   */
 		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_I;
 
-		WR16(dev_addr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
-		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
-		    ((u8 *)dk_i_l_lp_taps_re));
-		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
-		    ((u8 *)dk_i_l_lp_taps_im));
-		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_I);
-		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_I);
-		WR16(dev_addr, ATV_TOP_CR_CONT__A,
-		     (ATV_TOP_CR_CONT_CR_P_I |
-		      ATV_TOP_CR_CONT_CR_D_I | ATV_TOP_CR_CONT_CR_I_I));
-		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_I);
-		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_I |
-					       ATV_TOP_STD_VID_POL_I));
-		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
-		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM |
-		      SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE));
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
-		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_I);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_LO_INCR__A, 2225, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}	/* TODO check with IS */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re), ((u8 *)dk_i_l_lp_taps_re), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im), ((u8 *)dk_i_l_lp_taps_im), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_AMP_TH__A, ATV_TOP_CR_AMP_TH_I, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_I, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_CONT__A, (ATV_TOP_CR_CONT_CR_P_I | ATV_TOP_CR_CONT_CR_D_I | ATV_TOP_CR_CONT_CR_I_I), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_I, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_I | ATV_TOP_STD_VID_POL_I), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AGC_MODE__A, (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_FM | SCU_RAM_ATV_AGC_MODE_FAST_VAGC_EN_FAGC_ENABLE), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A, SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_I, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 		ext_attr->phase_correction_bypass = false;
 		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
 		ext_attr->enable_cvbs_output = true;
@@ -9249,28 +12736,71 @@ trouble ?
 		/* PAL/SECAM L with negative modulation */
 		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_L;
 
-		WR16(dev_addr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
-		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_L);
-		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
-		    ((u8 *)dk_i_l_lp_taps_re));
-		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
-		    ((u8 *)dk_i_l_lp_taps_im));
-		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, 0x2);	/* TODO check with IS */
-		WR16(dev_addr, ATV_TOP_CR_CONT__A,
-		     (ATV_TOP_CR_CONT_CR_P_L |
-		      ATV_TOP_CR_CONT_CR_D_L | ATV_TOP_CR_CONT_CR_I_L));
-		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_L);
-		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_L |
-					       ATV_TOP_STD_VID_POL_L));
-		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
-		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_AM |
-		      SCU_RAM_ATV_AGC_MODE_BP_EN_BPC_ENABLE |
-		      SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW));
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
-		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_LLP);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_LO_INCR__A, 2225, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}	/* TODO check with IS */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_L, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re), ((u8 *)dk_i_l_lp_taps_re), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im), ((u8 *)dk_i_l_lp_taps_im), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_AMP_TH__A, 0x2, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}	/* TODO check with IS */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_CONT__A, (ATV_TOP_CR_CONT_CR_P_L | ATV_TOP_CR_CONT_CR_D_L | ATV_TOP_CR_CONT_CR_I_L), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_L, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_L | ATV_TOP_STD_VID_POL_L), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AGC_MODE__A, (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_AM | SCU_RAM_ATV_AGC_MODE_BP_EN_BPC_ENABLE | SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A, SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_LLP, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 		ext_attr->phase_correction_bypass = false;
 		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_USER;
 		ext_attr->atv_if_agc_cfg.output_level = ext_attr->atv_rf_agc_cfg.top;
@@ -9280,28 +12810,71 @@ trouble ?
 		/* PAL/SECAM L with positive modulation */
 		cmd_param = SCU_RAM_ATV_STANDARD_STANDARD_LP;
 
-		WR16(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_LP);
-		WR16(dev_addr, IQM_RT_LO_INCR__A, 2225);	/* TODO check with IS */
-		WR16(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M);
-		WRB(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re),
-		    ((u8 *)dk_i_l_lp_taps_re));
-		WRB(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im),
-		    ((u8 *)dk_i_l_lp_taps_im));
-		WR16(dev_addr, ATV_TOP_CR_AMP_TH__A, 0x2);	/* TODO check with IS */
-		WR16(dev_addr, ATV_TOP_CR_CONT__A,
-		     (ATV_TOP_CR_CONT_CR_P_LP |
-		      ATV_TOP_CR_CONT_CR_D_LP | ATV_TOP_CR_CONT_CR_I_LP));
-		WR16(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_LP);
-		WR16(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_LP |
-					       ATV_TOP_STD_VID_POL_LP));
-		WR16(dev_addr, SCU_RAM_ATV_AGC_MODE__A,
-		     (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_AM |
-		      SCU_RAM_ATV_AGC_MODE_BP_EN_BPC_ENABLE |
-		      SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW));
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000);
-		WR16(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000);
-		WR16(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A,
-		     SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_LLP);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_VID_AMP__A, ATV_TOP_VID_AMP_LP, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_LO_INCR__A, 2225, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}	/* TODO check with IS */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_MIDTAP__A, IQM_CF_MIDTAP_RE__M, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_RE0__A, sizeof(dk_i_l_lp_taps_re), ((u8 *)dk_i_l_lp_taps_re), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_block_func(dev_addr, IQM_CF_TAP_IM0__A, sizeof(dk_i_l_lp_taps_im), ((u8 *)dk_i_l_lp_taps_im), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_AMP_TH__A, 0x2, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}	/* TODO check with IS */
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_CONT__A, (ATV_TOP_CR_CONT_CR_P_LP | ATV_TOP_CR_CONT_CR_D_LP | ATV_TOP_CR_CONT_CR_I_LP), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_OVM_TH__A, ATV_TOP_CR_OVM_TH_LP, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STD__A, (ATV_TOP_STD_MODE_LP | ATV_TOP_STD_VID_POL_LP), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AGC_MODE__A, (SCU_RAM_ATV_AGC_MODE_SIF_STD_SIF_AGC_AM | SCU_RAM_ATV_AGC_MODE_BP_EN_BPC_ENABLE | SCU_RAM_ATV_AGC_MODE_VAGC_VEL_AGC_SLOW), 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, 0x1000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_VID_GAIN_LO__A, 0x0000, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AMS_MAX_REF__A, SCU_RAM_ATV_AMS_MAX_REF_AMS_MAX_REF_LLP, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 		ext_attr->phase_correction_bypass = false;
 		ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_USER;
 		ext_attr->atv_if_agc_cfg.output_level = ext_attr->atv_rf_agc_cfg.top;
@@ -9313,56 +12886,199 @@ trouble ?
 
 	/* Common initializations FM & NTSC & B/G & D/K & I & L & LP */
 	if (ext_attr->has_lna == false) {
-		WR16(dev_addr, IQM_AF_AMUX__A, 0x01);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AMUX__A, 0x01, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 	}
 
-	WR16(dev_addr, SCU_RAM_ATV_STANDARD__A, 0x002);
-	WR16(dev_addr, IQM_AF_CLP_LEN__A, IQM_AF_CLP_LEN_ATV);
-	WR16(dev_addr, IQM_AF_CLP_TH__A, IQM_AF_CLP_TH_ATV);
-	WR16(dev_addr, IQM_AF_SNS_LEN__A, IQM_AF_SNS_LEN_ATV);
-	CHK_ERROR(ctrl_set_cfg_pre_saw(demod, &(ext_attr->atv_pre_saw_cfg)));
-	WR16(dev_addr, IQM_AF_AGC_IF__A, 10248);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_STANDARD__A, 0x002, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_CLP_LEN__A, IQM_AF_CLP_LEN_ATV, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_CLP_TH__A, IQM_AF_CLP_TH_ATV, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_SNS_LEN__A, IQM_AF_SNS_LEN_ATV, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = ctrl_set_cfg_pre_saw(demod, &(ext_attr->atv_pre_saw_cfg));
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AGC_IF__A, 10248, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	ext_attr->iqm_rc_rate_ofs = 0x00200000L;
-	WR32(dev_addr, IQM_RC_RATE_OFS_LO__A, ext_attr->iqm_rc_rate_ofs);
-	WR16(dev_addr, IQM_RC_ADJ_SEL__A, IQM_RC_ADJ_SEL_B_OFF);
-	WR16(dev_addr, IQM_RC_STRETCH__A, IQM_RC_STRETCH_ATV);
+	rc = DRXJ_DAP.write_reg32func(dev_addr, IQM_RC_RATE_OFS_LO__A, ext_attr->iqm_rc_rate_ofs, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_ADJ_SEL__A, IQM_RC_ADJ_SEL_B_OFF, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RC_STRETCH__A, IQM_RC_STRETCH_ATV, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
-	WR16(dev_addr, IQM_RT_ACTIVE__A, IQM_RT_ACTIVE_ACTIVE_RT_ATV_FCR_ON |
-	     IQM_RT_ACTIVE_ACTIVE_CR_ATV_CR_ON);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_ACTIVE__A, IQM_RT_ACTIVE_ACTIVE_RT_ATV_FCR_ON | IQM_RT_ACTIVE_ACTIVE_CR_ATV_CR_ON, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
-	WR16(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_ATV__M);
-	WR16(dev_addr, IQM_CF_SYMMETRIC__A, IQM_CF_SYMMETRIC_IM__M);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_OUT_ENA__A, IQM_CF_OUT_ENA_ATV__M, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_CF_SYMMETRIC__A, IQM_CF_SYMMETRIC_IM__M, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 	/* default: SIF in standby */
-	WR16(dev_addr, ATV_TOP_SYNC_SLICE__A, ATV_TOP_SYNC_SLICE_MN);
-	WR16(dev_addr, ATV_TOP_MOD_ACCU__A, ATV_TOP_MOD_ACCU__PRE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_SYNC_SLICE__A, ATV_TOP_SYNC_SLICE_MN, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_MOD_ACCU__A, ATV_TOP_MOD_ACCU__PRE, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
-	WR16(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, 0x080);
-	WR16(dev_addr, SCU_RAM_ATV_FAGC_TH_RED__A, 10);
-	WR16(dev_addr, SCU_RAM_ATV_AAGC_CNT__A, 7);
-	WR16(dev_addr, SCU_RAM_ATV_NAGC_KI_MIN__A, 0x0225);
-	WR16(dev_addr, SCU_RAM_ATV_NAGC_KI_MAX__A, 0x0547);
-	WR16(dev_addr, SCU_RAM_ATV_KI_CHANGE_TH__A, 20);
-	WR16(dev_addr, SCU_RAM_ATV_LOCK__A, 0);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, 0x080, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_FAGC_TH_RED__A, 10, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AAGC_CNT__A, 7, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_NAGC_KI_MIN__A, 0x0225, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_NAGC_KI_MAX__A, 0x0547, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_KI_CHANGE_TH__A, 20, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_LOCK__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
-	WR16(dev_addr, IQM_RT_DELAY__A, IQM_RT_DELAY__PRE);
-	WR16(dev_addr, SCU_RAM_ATV_BPC_KI_MIN__A, 531);
-	WR16(dev_addr, SCU_RAM_ATV_PAGC_KI_MIN__A, 1061);
-	WR16(dev_addr, SCU_RAM_ATV_BP_REF_MIN__A, 100);
-	WR16(dev_addr, SCU_RAM_ATV_BP_REF_MAX__A, 260);
-	WR16(dev_addr, SCU_RAM_ATV_BP_LVL__A, 0);
-	WR16(dev_addr, SCU_RAM_ATV_AMS_MAX__A, 0);
-	WR16(dev_addr, SCU_RAM_ATV_AMS_MIN__A, 2047);
-	WR16(dev_addr, SCU_RAM_GPIO__A, 0);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_RT_DELAY__A, IQM_RT_DELAY__PRE, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_BPC_KI_MIN__A, 531, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_PAGC_KI_MIN__A, 1061, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_BP_REF_MIN__A, 100, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_BP_REF_MAX__A, 260, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_BP_LVL__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AMS_MAX__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_AMS_MIN__A, 2047, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_GPIO__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* Override reset values with current shadow settings */
-	CHK_ERROR(atv_update_config(demod, true));
+	rc = atv_update_config(demod, true);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Configure/restore AGC settings */
-	CHK_ERROR(init_agc(demod));
-	CHK_ERROR(set_agc_if(demod, &(ext_attr->atv_if_agc_cfg), false));
-	CHK_ERROR(set_agc_rf(demod, &(ext_attr->atv_rf_agc_cfg), false));
-	CHK_ERROR(ctrl_set_cfg_pre_saw(demod, &(ext_attr->atv_pre_saw_cfg)));
+	rc = init_agc(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = set_agc_if(demod, &(ext_attr->atv_if_agc_cfg), false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = set_agc_rf(demod, &(ext_attr->atv_rf_agc_cfg), false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = ctrl_set_cfg_pre_saw(demod, &(ext_attr->atv_pre_saw_cfg));
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Set SCU ATV substandard,assuming this doesn't require running ATV block */
 	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_ATV |
@@ -9371,14 +13087,30 @@ trouble ?
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = &cmd_param;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* turn the analog work around on/off (must after set_env b/c it is set in mc) */
 	if (ext_attr->mfx == 0x03) {
-		WR16(dev_addr, SCU_RAM_ATV_ENABLE_IIR_WA__A, 0);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_ENABLE_IIR_WA__A, 0, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 	} else {
-		WR16(dev_addr, SCU_RAM_ATV_ENABLE_IIR_WA__A, 1);
-		WR16(dev_addr, SCU_RAM_ATV_IIR_CRIT__A, 225);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_ENABLE_IIR_WA__A, 1, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ATV_IIR_CRIT__A, 225, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 	}
 
 	return (DRX_STS_OK);
@@ -9416,6 +13148,7 @@ set_atv_channel(struct drx_demod_instance *demod,
 	u16 cmd_result = 0;
 	struct drxj_data *ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -9430,8 +13163,16 @@ set_atv_channel(struct drx_demod_instance *demod,
 		ext_attr->mirror = channel->mirror;
 	}
 
-	CHK_ERROR(set_frequency(demod, channel, tuner_freq_offset));
-	WR16(dev_addr, ATV_TOP_CR_FREQ__A, ATV_TOP_CR_FREQ__PRE);
+	rc = set_frequency(demod, channel, tuner_freq_offset);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_CR_FREQ__A, ATV_TOP_CR_FREQ__PRE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Start ATV SCU */
 	cmd_scu.command = SCU_RAM_COMMAND_STANDARD_ATV |
@@ -9440,7 +13181,11 @@ set_atv_channel(struct drx_demod_instance *demod,
 	cmd_scu.result_len = 1;
 	cmd_scu.parameter = NULL;
 	cmd_scu.result = &cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 /*   if ( (ext_attr->standard == DRX_STANDARD_FM) && (ext_attr->flagSetAUDdone == true) )
    {
@@ -9475,6 +13220,7 @@ get_atv_channel(struct drx_demod_instance *demod,
 {
 	s32 offset = 0;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
 
 	/* Bandwidth */
 	channel->bandwidth = ((struct drxj_data *) demod->my_ext_attr)->curr_bandwidth;
@@ -9489,7 +13235,11 @@ get_atv_channel(struct drx_demod_instance *demod,
 			u16 measured_offset = 0;
 
 			/* get measured frequency offset */
-			RR16(dev_addr, ATV_TOP_CR_FREQ__A, &measured_offset);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, ATV_TOP_CR_FREQ__A, &measured_offset, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			/* Signed 8 bit register => sign extension needed */
 			if ((measured_offset & 0x0080) != 0) {
 				/* sign extension */
@@ -9504,7 +13254,11 @@ get_atv_channel(struct drx_demod_instance *demod,
 			u16 measured_offset = 0;
 
 			/* get measured frequency offset */
-			RR16(dev_addr, ATV_TOP_CR_FREQ__A, &measured_offset);
+			rc = DRXJ_DAP.read_reg16func(dev_addr, ATV_TOP_CR_FREQ__A, &measured_offset, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			/* Signed 8 bit register => sign extension needed */
 			if ((measured_offset & 0x0080) != 0) {
 				/* sign extension */
@@ -9557,6 +13311,7 @@ get_atv_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	/* All weights must add up to 100 (%)
 	   TODO: change weights when IF ctrl is available */
@@ -9590,12 +13345,20 @@ get_atv_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 	case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 	case DRX_STANDARD_NTSC:
-		SARR16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, &digital_curr_gain);
+		rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ATV_VID_GAIN_HI__A, &digital_curr_gain, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		digital_max_gain = 22512;	/* taken from ucode */
 		digital_min_gain = 2400;	/* taken from ucode */
 		break;
 	case DRX_STANDARD_FM:
-		SARR16(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, &digital_curr_gain);
+		rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ATV_SIF_GAIN__A, &digital_curr_gain, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		digital_max_gain = 0x4ff;	/* taken from ucode */
 		digital_min_gain = 0;	/* taken from ucode */
 		break;
@@ -9603,8 +13366,16 @@ get_atv_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 		return (DRX_STS_ERROR);
 		break;
 	}
-	RR16(dev_addr, IQM_AF_AGC_RF__A, &rf_curr_gain);
-	RR16(dev_addr, IQM_AF_AGC_IF__A, &if_curr_gain);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_AGC_RF__A, &rf_curr_gain, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_AF_AGC_IF__A, &if_curr_gain, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* clipping */
 	if (digital_curr_gain >= digital_max_gain)
@@ -9666,6 +13437,7 @@ atv_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_qu
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	u16 quality_indicator = 0;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 
@@ -9684,7 +13456,11 @@ atv_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_qu
 	   0x700..0x7ff: no signal      => 0%  .. 30%
 	 */
 
-	SARR16(dev_addr, SCU_RAM_ATV_CR_LOCK__A, &quality_indicator);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ATV_CR_LOCK__A, &quality_indicator, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	quality_indicator &= SCU_RAM_ATV_CR_LOCK_CR_LOCK__M;
 	if (quality_indicator <= 0x80) {
 		sig_quality->indicator =
@@ -9724,16 +13500,33 @@ static int power_up_aud(struct drx_demod_instance *demod, bool set_standard)
 {
 	enum drx_aud_standard aud_standard = DRX_AUD_STANDARD_AUTO;
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 
-	WR16(dev_addr, AUD_TOP_COMM_EXEC__A, AUD_TOP_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_TOP_COMM_EXEC__A, AUD_TOP_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* setup TR interface: R/W mode, fifosize=8 */
-	WR16(dev_addr, AUD_TOP_TR_MDE__A, 8);
-	WR16(dev_addr, AUD_COMM_EXEC__A, AUD_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_TOP_TR_MDE__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_COMM_EXEC__A, AUD_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (set_standard == true) {
-		CHK_ERROR(aud_ctrl_set_standard(demod, &aud_standard));
+		rc = aud_ctrl_set_standard(demod, &aud_standard);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	return DRX_STS_OK;
@@ -9753,11 +13546,16 @@ static int power_down_aud(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	dev_addr = (struct i2c_device_addr *)demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
-	WR16(dev_addr, AUD_COMM_EXEC__A, AUD_COMM_EXEC_STOP);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_COMM_EXEC__A, AUD_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	ext_attr->aud_data.audio_is_active = false;
 
@@ -9778,6 +13576,7 @@ static int aud_get_modus(struct drx_demod_instance *demod, u16 *modus)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	u16 r_modus = 0;
 	u16 r_modusHi = 0;
@@ -9792,13 +13591,25 @@ static int aud_get_modus(struct drx_demod_instance *demod, u16 *modus)
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* Modus register is combined in to RAM location */
-	RR16(dev_addr, AUD_DEM_RAM_MODUS_HI__A, &r_modusHi);
-	RR16(dev_addr, AUD_DEM_RAM_MODUS_LO__A, &r_modusLo);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_MODUS_HI__A, &r_modusHi, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_MODUS_LO__A, &r_modusLo, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	r_modus = ((r_modusHi << 12) & AUD_DEM_RAM_MODUS_HI__M)
 	    | (((r_modusLo & AUD_DEM_RAM_MODUS_LO__M)));
@@ -9823,6 +13634,7 @@ aud_ctrl_get_cfg_rds(struct drx_demod_instance *demod, struct drx_cfg_aud_rds *s
 {
 	struct i2c_device_addr *addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	u16 r_rds_array_cnt_init = 0;
 	u16 r_rds_array_cnt_check = 0;
@@ -9838,13 +13650,21 @@ aud_ctrl_get_cfg_rds(struct drx_demod_instance *demod, struct drx_cfg_aud_rds *s
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	status->valid = false;
 
-	RR16(addr, AUD_DEM_RD_RDS_ARRAY_CNT__A, &r_rds_array_cnt_init);
+	rc = DRXJ_DAP.read_reg16func(addr, AUD_DEM_RD_RDS_ARRAY_CNT__A, &r_rds_array_cnt_init, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (r_rds_array_cnt_init ==
 	    AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT_RDS_DATA_NOT_VALID) {
@@ -9864,11 +13684,19 @@ aud_ctrl_get_cfg_rds(struct drx_demod_instance *demod, struct drx_cfg_aud_rds *s
 	/* new data */
 	/* read the data */
 	for (rds_data_cnt = 0; rds_data_cnt < AUD_RDS_ARRAY_SIZE; rds_data_cnt++) {
-		RR16(addr, AUD_DEM_RD_RDS_DATA__A, &r_rds_data);
+		rc = DRXJ_DAP.read_reg16func(addr, AUD_DEM_RD_RDS_DATA__A, &r_rds_data, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		status->data[rds_data_cnt] = r_rds_data;
 	}
 
-	RR16(addr, AUD_DEM_RD_RDS_ARRAY_CNT__A, &r_rds_array_cnt_check);
+	rc = DRXJ_DAP.read_reg16func(addr, AUD_DEM_RD_RDS_ARRAY_CNT__A, &r_rds_array_cnt_check, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (r_rds_array_cnt_check == r_rds_array_cnt_init) {
 		status->valid = true;
@@ -9893,7 +13721,7 @@ aud_ctrl_get_carrier_detect_status(struct drx_demod_instance *demod, struct drx_
 {
 	struct drxj_data *ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
-
+	int rc;
 	u16 r_data = 0;
 
 	if (status == NULL) {
@@ -9905,7 +13733,11 @@ aud_ctrl_get_carrier_detect_status(struct drx_demod_instance *demod, struct drx_
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
@@ -9917,7 +13749,11 @@ aud_ctrl_get_carrier_detect_status(struct drx_demod_instance *demod, struct drx_
 	status->stereo = false;
 
 	/* read stereo sound mode indication */
-	RR16(dev_addr, AUD_DEM_RD_STATUS__A, &r_data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RD_STATUS__A, &r_data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* carrier a detected */
 	if ((r_data & AUD_DEM_RD_STATUS_STAT_CARR_A__M) ==
@@ -9972,6 +13808,7 @@ aud_ctrl_get_status(struct drx_demod_instance *demod, struct drx_aud_status *sta
 	struct drxj_data *ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drx_cfg_aud_rds rds = { false, {0} };
+	int rc;
 	u16 r_data = 0;
 
 	if (status == NULL) {
@@ -9982,15 +13819,27 @@ aud_ctrl_get_status(struct drx_demod_instance *demod, struct drx_aud_status *sta
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/* carrier detection */
-	CHK_ERROR(aud_ctrl_get_carrier_detect_status(demod, status));
+	rc = aud_ctrl_get_carrier_detect_status(demod, status);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* rds data */
 	status->rds = false;
-	CHK_ERROR(aud_ctrl_get_cfg_rds(demod, &rds));
+	rc = aud_ctrl_get_cfg_rds(demod, &rds);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	status->rds = ext_attr->aud_data.rds_data_present;
 
 	/* fm_ident */
-	RR16(dev_addr, AUD_DSP_RD_FM_IDENT_VALUE__A, &r_data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_RD_FM_IDENT_VALUE__A, &r_data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	r_data >>= AUD_DSP_RD_FM_IDENT_VALUE_FM_IDENT__B;
 	status->fm_ident = (s8) r_data;
 
@@ -10011,6 +13860,7 @@ aud_ctrl_get_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	u16 r_volume = 0;
 	u16 r_avc = 0;
@@ -10026,13 +13876,21 @@ aud_ctrl_get_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* volume */
 	volume->mute = ext_attr->aud_data.volume.mute;
-	RR16(dev_addr, AUD_DSP_WR_VOLUME__A, &r_volume);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_VOLUME__A, &r_volume, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (r_volume == 0) {
 		volume->mute = true;
 		volume->volume = ext_attr->aud_data.volume.volume;
@@ -10050,7 +13908,11 @@ aud_ctrl_get_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 	}
 
 	/* automatic volume control */
-	RR16(dev_addr, AUD_DSP_WR_AVC__A, &r_avc);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_AVC__A, &r_avc, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if ((r_avc & AUD_DSP_WR_AVC_AVC_ON__M) == AUD_DSP_WR_AVC_AVC_ON_OFF)
 	{
@@ -10118,12 +13980,20 @@ aud_ctrl_get_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 
 	/* QP vaues */
 	/* left carrier */
-	RR16(dev_addr, AUD_DSP_RD_QPEAK_L__A, &r_strength_left);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_RD_QPEAK_L__A, &r_strength_left, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	volume->strength_left = (((s16) log1_times100(r_strength_left)) -
 				AUD_CARRIER_STRENGTH_QP_0DB_LOG10T100) / 5;
 
 	/* right carrier */
-	RR16(dev_addr, AUD_DSP_RD_QPEAK_R__A, &r_strength_right);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_RD_QPEAK_R__A, &r_strength_right, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	volume->strength_right = (((s16) log1_times100(r_strength_right)) -
 				 AUD_CARRIER_STRENGTH_QP_0DB_LOG10T100) / 5;
 
@@ -10144,6 +14014,7 @@ aud_ctrl_set_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	u16 w_volume = 0;
 	u16 w_avc = 0;
@@ -10157,7 +14028,11 @@ aud_ctrl_set_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
@@ -10168,7 +14043,11 @@ aud_ctrl_set_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 		return DRX_STS_INVALID_ARG;
 	}
 
-	RR16(dev_addr, AUD_DSP_WR_VOLUME__A, &w_volume);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_VOLUME__A, &w_volume, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* clear the volume mask */
 	w_volume &= (u16) ~AUD_DSP_WR_VOLUME_VOL_MAIN__M;
@@ -10182,10 +14061,18 @@ aud_ctrl_set_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 				    AUD_DSP_WR_VOLUME_VOL_MAIN__B);
 	}
 
-	WR16(dev_addr, AUD_DSP_WR_VOLUME__A, w_volume);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_VOLUME__A, w_volume, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* automatic volume control */
-	RR16(dev_addr, AUD_DSP_WR_AVC__A, &w_avc);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_AVC__A, &w_avc, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* clear masks that require writing */
 	w_avc &= (u16) ~AUD_DSP_WR_AVC_AVC_ON__M;
@@ -10256,7 +14143,11 @@ aud_ctrl_set_cfg_volume(struct drx_demod_instance *demod, struct drx_cfg_aud_vol
 	w_avc &= (u16) ~AUD_DSP_WR_AVC_AVC_REF_LEV__M;
 	w_avc |= (u16) (volume->avc_ref_level << AUD_DSP_WR_AVC_AVC_REF_LEV__B);
 
-	WR16(dev_addr, AUD_DSP_WR_AVC__A, w_avc);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_AVC__A, w_avc, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* all done, store config in data structure */
 	ext_attr->aud_data.volume = *volume;
@@ -10278,7 +14169,7 @@ aud_ctrl_get_cfg_output_i2s(struct drx_demod_instance *demod, struct drx_cfg_i2s
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
-
+	int rc;
 	u16 w_i2s_config = 0;
 	u16 r_i2s_freq = 0;
 
@@ -10291,12 +14182,24 @@ aud_ctrl_get_cfg_output_i2s(struct drx_demod_instance *demod, struct drx_cfg_i2s
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	RR16(dev_addr, AUD_DEM_RAM_I2S_CONFIG2__A, &w_i2s_config);
-	RR16(dev_addr, AUD_DSP_WR_I2S_OUT_FS__A, &r_i2s_freq);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_I2S_CONFIG2__A, &w_i2s_config, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_I2S_OUT_FS__A, &r_i2s_freq, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* I2S mode */
 	switch (w_i2s_config & AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST__M) {
@@ -10380,7 +14283,7 @@ aud_ctrl_set_cfg_output_i2s(struct drx_demod_instance *demod, struct drx_cfg_i2s
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
-
+	int rc;
 	u16 w_i2s_config = 0;
 	u16 w_i2s_pads_data_da = 0;
 	u16 w_i2s_pads_data_cl = 0;
@@ -10396,11 +14299,19 @@ aud_ctrl_set_cfg_output_i2s(struct drx_demod_instance *demod, struct drx_cfg_i2s
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	RR16(dev_addr, AUD_DEM_RAM_I2S_CONFIG2__A, &w_i2s_config);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_I2S_CONFIG2__A, &w_i2s_config, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* I2S mode */
 	w_i2s_config &= (u16) ~AUD_DEM_WR_I2S_CONFIG2_I2S_SLV_MST__M;
@@ -10485,11 +14396,23 @@ aud_ctrl_set_cfg_output_i2s(struct drx_demod_instance *demod, struct drx_cfg_i2s
 		w_i2s_freq *= 2;
 	}
 
-	WR16(dev_addr, AUD_DEM_WR_I2S_CONFIG2__A, w_i2s_config);
-	WR16(dev_addr, AUD_DSP_WR_I2S_OUT_FS__A, (u16) w_i2s_freq);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_I2S_CONFIG2__A, w_i2s_config, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_I2S_OUT_FS__A, (u16)w_i2s_freq, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* configure I2S output pads for master or slave mode */
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (output->mode == DRX_I2S_MODE_MASTER) {
 		w_i2s_pads_data_da = SIO_PDR_I2S_DA_CFG_MODE__MASTER |
@@ -10507,11 +14430,27 @@ aud_ctrl_set_cfg_output_i2s(struct drx_demod_instance *demod, struct drx_cfg_i2s
 		    SIO_PDR_I2S_WS_CFG_DRIVE__SLAVE;
 	}
 
-	WR16(dev_addr, SIO_PDR_I2S_DA_CFG__A, w_i2s_pads_data_da);
-	WR16(dev_addr, SIO_PDR_I2S_CL_CFG__A, w_i2s_pads_data_cl);
-	WR16(dev_addr, SIO_PDR_I2S_WS_CFG__A, w_i2s_pads_data_ws);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2S_DA_CFG__A, w_i2s_pads_data_da, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2S_CL_CFG__A, w_i2s_pads_data_cl, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_I2S_WS_CFG__A, w_i2s_pads_data_ws, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY__PRE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* all done, store config in data structure */
 	ext_attr->aud_data.i2sdata = *output;
@@ -10535,6 +14474,7 @@ aud_ctrl_get_cfg_auto_sound(struct drx_demod_instance *demod,
 			    enum drx_cfg_aud_auto_sound *auto_sound)
 {
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	u16 r_modus = 0;
 
 	if (auto_sound == NULL)
@@ -10544,11 +14484,19 @@ aud_ctrl_get_cfg_auto_sound(struct drx_demod_instance *demod,
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	CHK_ERROR(aud_get_modus(demod, &r_modus));
+	rc = aud_get_modus(demod, &r_modus);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	switch (r_modus & (AUD_DEM_WR_MODUS_MOD_ASS__M |
 			  AUD_DEM_WR_MODUS_MOD_DIS_STD_CHG__M)) {
@@ -10589,7 +14537,7 @@ aud_ctr_setl_cfg_auto_sound(struct drx_demod_instance *demod,
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 r_modus = 0;
 	u16 w_modus = 0;
 
@@ -10602,11 +14550,19 @@ aud_ctr_setl_cfg_auto_sound(struct drx_demod_instance *demod,
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	CHK_ERROR(aud_get_modus(demod, &r_modus));
+	rc = aud_get_modus(demod, &r_modus);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	w_modus = r_modus;
 	/* clear ASS & ASC bits */
@@ -10631,7 +14587,11 @@ aud_ctr_setl_cfg_auto_sound(struct drx_demod_instance *demod,
 	}
 
 	if (w_modus != r_modus) {
-		WR16(dev_addr, AUD_DEM_WR_MODUS__A, w_modus);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_MODUS__A, w_modus, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 	/* copy to data structure */
 	ext_attr->aud_data.auto_sound = *auto_sound;
@@ -10654,7 +14614,7 @@ aud_ctrl_get_cfg_ass_thres(struct drx_demod_instance *demod, struct drx_cfg_aud_
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 thres_a2 = 0;
 	u16 thres_btsc = 0;
 	u16 thres_nicam = 0;
@@ -10668,13 +14628,29 @@ aud_ctrl_get_cfg_ass_thres(struct drx_demod_instance *demod, struct drx_cfg_aud_
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	RR16(dev_addr, AUD_DEM_RAM_A2_THRSHLD__A, &thres_a2);
-	RR16(dev_addr, AUD_DEM_RAM_BTSC_THRSHLD__A, &thres_btsc);
-	RR16(dev_addr, AUD_DEM_RAM_NICAM_THRSHLD__A, &thres_nicam);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_A2_THRSHLD__A, &thres_a2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_BTSC_THRSHLD__A, &thres_btsc, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_NICAM_THRSHLD__A, &thres_nicam, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	thres->a2 = thres_a2;
 	thres->btsc = thres_btsc;
@@ -10698,7 +14674,7 @@ aud_ctrl_set_cfg_ass_thres(struct drx_demod_instance *demod, struct drx_cfg_aud_
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	if (thres == NULL) {
 		return DRX_STS_INVALID_ARG;
 	}
@@ -10708,13 +14684,29 @@ aud_ctrl_set_cfg_ass_thres(struct drx_demod_instance *demod, struct drx_cfg_aud_
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	WR16(dev_addr, AUD_DEM_WR_A2_THRSHLD__A, thres->a2);
-	WR16(dev_addr, AUD_DEM_WR_BTSC_THRSHLD__A, thres->btsc);
-	WR16(dev_addr, AUD_DEM_WR_NICAM_THRSHLD__A, thres->nicam);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_A2_THRSHLD__A, thres->a2, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_BTSC_THRSHLD__A, thres->btsc, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_NICAM_THRSHLD__A, thres->nicam, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* update DRXK data structure with hardware values */
 	ext_attr->aud_data.ass_thresholds = *thres;
@@ -10736,7 +14728,7 @@ aud_ctrl_get_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_ca
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 w_modus = 0;
 
 	u16 dco_a_hi = 0;
@@ -10762,11 +14754,19 @@ aud_ctrl_get_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_ca
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	CHK_ERROR(aud_get_modus(demod, &w_modus));
+	rc = aud_get_modus(demod, &w_modus);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Behaviour of primary audio channel */
 	switch (w_modus & (AUD_DEM_WR_MODUS_MOD_CM_A__M)) {
@@ -10795,10 +14795,26 @@ aud_ctrl_get_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_ca
 	}
 
 	/* frequency adjustment for primary & secondary audio channel */
-	RR16(dev_addr, AUD_DEM_RAM_DCO_A_HI__A, &dco_a_hi);
-	RR16(dev_addr, AUD_DEM_RAM_DCO_A_LO__A, &dco_a_lo);
-	RR16(dev_addr, AUD_DEM_RAM_DCO_B_HI__A, &dco_b_hi);
-	RR16(dev_addr, AUD_DEM_RAM_DCO_B_LO__A, &dco_b_lo);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_DCO_A_HI__A, &dco_a_hi, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_DCO_A_LO__A, &dco_a_lo, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_DCO_B_HI__A, &dco_b_hi, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_DCO_B_LO__A, &dco_b_lo, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	valA = (((u32) dco_a_hi) << 12) | ((u32) dco_a_lo & 0xFFF);
 	valB = (((u32) dco_b_hi) << 12) | ((u32) dco_b_lo & 0xFFF);
@@ -10809,16 +14825,32 @@ aud_ctrl_get_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_ca
 
 	/* DC level of the incoming FM signal on the primary
 	   & seconday sound channel */
-	RR16(dev_addr, AUD_DSP_RD_FM_DC_LEVEL_A__A, &dc_lvl_a);
-	RR16(dev_addr, AUD_DSP_RD_FM_DC_LEVEL_B__A, &dc_lvl_b);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_RD_FM_DC_LEVEL_A__A, &dc_lvl_a, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_RD_FM_DC_LEVEL_B__A, &dc_lvl_b, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* offset (kHz) = (dcLvl / 322) */
 	carriers->a.shift = (DRX_U16TODRXFREQ(dc_lvl_a) / 322L);
 	carriers->b.shift = (DRX_U16TODRXFREQ(dc_lvl_b) / 322L);
 
 	/* Carrier detetcion threshold for primary & secondary channel */
-	RR16(dev_addr, AUD_DEM_RAM_CM_A_THRSHLD__A, &cm_thes_a);
-	RR16(dev_addr, AUD_DEM_RAM_CM_B_THRSHLD__A, &cm_thes_b);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_CM_A_THRSHLD__A, &cm_thes_a, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RAM_CM_B_THRSHLD__A, &cm_thes_b, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	carriers->a.thres = cm_thes_a;
 	carriers->b.thres = cm_thes_b;
@@ -10840,7 +14872,7 @@ aud_ctrl_set_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_ca
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 w_modus = 0;
 	u16 r_modus = 0;
 
@@ -10861,11 +14893,19 @@ aud_ctrl_set_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_ca
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
-	CHK_ERROR(aud_get_modus(demod, &r_modus));
+	rc = aud_get_modus(demod, &r_modus);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	w_modus = r_modus;
 	w_modus &= (u16) ~AUD_DEM_WR_MODUS_MOD_CM_A__M;
@@ -10898,7 +14938,11 @@ aud_ctrl_set_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_ca
 
 	/* now update the modus register */
 	if (w_modus != r_modus) {
-		WR16(dev_addr, AUD_DEM_WR_MODUS__A, w_modus);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_MODUS__A, w_modus, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* frequency adjustment for primary & secondary audio channel */
@@ -10910,14 +14954,38 @@ aud_ctrl_set_cfg_carrier(struct drx_demod_instance *demod, struct drx_cfg_aud_ca
 	dco_b_hi = (u16) ((valB >> 12) & 0xFFF);
 	dco_b_lo = (u16) (valB & 0xFFF);
 
-	WR16(dev_addr, AUD_DEM_WR_DCO_A_HI__A, dco_a_hi);
-	WR16(dev_addr, AUD_DEM_WR_DCO_A_LO__A, dco_a_lo);
-	WR16(dev_addr, AUD_DEM_WR_DCO_B_HI__A, dco_b_hi);
-	WR16(dev_addr, AUD_DEM_WR_DCO_B_LO__A, dco_b_lo);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_DCO_A_HI__A, dco_a_hi, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_DCO_A_LO__A, dco_a_lo, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_DCO_B_HI__A, dco_b_hi, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_DCO_B_LO__A, dco_b_lo, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Carrier detetcion threshold for primary & secondary channel */
-	WR16(dev_addr, AUD_DEM_WR_CM_A_THRSHLD__A, carriers->a.thres);
-	WR16(dev_addr, AUD_DEM_WR_CM_B_THRSHLD__A, carriers->b.thres);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_CM_A_THRSHLD__A, carriers->a.thres, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_CM_B_THRSHLD__A, carriers->b.thres, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* update DRXK data structure */
 	ext_attr->aud_data.carriers = *carriers;
@@ -10940,7 +15008,7 @@ aud_ctrl_get_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixe
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 src_i2s_matr = 0;
 	u16 fm_matr = 0;
 
@@ -10953,12 +15021,20 @@ aud_ctrl_get_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixe
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* Source Selctor */
-	RR16(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, &src_i2s_matr);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, &src_i2s_matr, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	switch (src_i2s_matr & AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M) {
 	case AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_MONO:
@@ -10996,7 +15072,11 @@ aud_ctrl_get_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixe
 	}
 
 	/* FM Matrix */
-	RR16(dev_addr, AUD_DEM_WR_FM_MATRIX__A, &fm_matr);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_WR_FM_MATRIX__A, &fm_matr, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	switch (fm_matr & AUD_DEM_WR_FM_MATRIX__M) {
 	case AUD_DEM_WR_FM_MATRIX_NO_MATRIX:
 		mixer->matrix_fm = DRX_AUD_FM_MATRIX_NO_MATRIX;
@@ -11035,7 +15115,7 @@ aud_ctrl_set_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixe
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 src_i2s_matr = 0;
 	u16 fm_matr = 0;
 
@@ -11048,12 +15128,20 @@ aud_ctrl_set_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixe
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* Source Selctor */
-	RR16(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, &src_i2s_matr);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, &src_i2s_matr, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	src_i2s_matr &= (u16) ~AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M;
 
 	switch (mixer->source_i2s) {
@@ -11092,10 +15180,18 @@ aud_ctrl_set_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixe
 		return DRX_STS_INVALID_ARG;
 	}
 	/* write the result */
-	WR16(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, src_i2s_matr);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_SRC_I2S_MATR__A, src_i2s_matr, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* FM Matrix */
-	RR16(dev_addr, AUD_DEM_WR_FM_MATRIX__A, &fm_matr);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_WR_FM_MATRIX__A, &fm_matr, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	fm_matr &= (u16) ~AUD_DEM_WR_FM_MATRIX__M;
 	switch (mixer->matrix_fm) {
 	case DRX_AUD_FM_MATRIX_NO_MATRIX:
@@ -11119,7 +15215,11 @@ aud_ctrl_set_cfg_mixer(struct drx_demod_instance *demod, struct drx_cfg_aud_mixe
 
 	/* Only write if ASS is off */
 	if (ext_attr->aud_data.auto_sound == DRX_AUD_AUTO_SOUND_OFF) {
-		WR16(dev_addr, AUD_DEM_WR_FM_MATRIX__A, fm_matr);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_FM_MATRIX__A, fm_matr, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* update the data structure with hardware state */
@@ -11143,7 +15243,7 @@ aud_ctrl_set_cfg_av_sync(struct drx_demod_instance *demod, enum drx_cfg_aud_av_s
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 w_aud_vid_sync = 0;
 
 	if (av_sync == NULL) {
@@ -11155,12 +15255,20 @@ aud_ctrl_set_cfg_av_sync(struct drx_demod_instance *demod, enum drx_cfg_aud_av_s
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* audio/video synchronisation */
-	RR16(dev_addr, AUD_DSP_WR_AV_SYNC__A, &w_aud_vid_sync);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_AV_SYNC__A, &w_aud_vid_sync, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	w_aud_vid_sync &= (u16) ~AUD_DSP_WR_AV_SYNC_AV_ON__M;
 
@@ -11189,7 +15297,11 @@ aud_ctrl_set_cfg_av_sync(struct drx_demod_instance *demod, enum drx_cfg_aud_av_s
 		return DRX_STS_INVALID_ARG;
 	}
 
-	WR16(dev_addr, AUD_DSP_WR_AV_SYNC__A, w_aud_vid_sync);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_AV_SYNC__A, w_aud_vid_sync, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	return DRX_STS_OK;
 rw_error:
 	return DRX_STS_ERROR;
@@ -11208,7 +15320,7 @@ aud_ctrl_get_cfg_av_sync(struct drx_demod_instance *demod, enum drx_cfg_aud_av_s
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 w_aud_vid_sync = 0;
 
 	if (av_sync == NULL) {
@@ -11220,12 +15332,20 @@ aud_ctrl_get_cfg_av_sync(struct drx_demod_instance *demod, enum drx_cfg_aud_av_s
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* audio/video synchronisation */
-	RR16(dev_addr, AUD_DSP_WR_AV_SYNC__A, &w_aud_vid_sync);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_AV_SYNC__A, &w_aud_vid_sync, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if ((w_aud_vid_sync & AUD_DSP_WR_AV_SYNC_AV_ON__M) ==
 	    AUD_DSP_WR_AV_SYNC_AV_ON_DISABLE) {
@@ -11263,11 +15383,16 @@ static int
 aud_ctrl_get_cfg_dev(struct drx_demod_instance *demod, enum drx_cfg_aud_deviation *dev)
 {
 	u16 r_modus = 0;
+	int rc;
 
 	if (dev == NULL)
 		return DRX_STS_INVALID_ARG;
 
-	CHK_ERROR(aud_get_modus(demod, &r_modus));
+	rc = aud_get_modus(demod, &r_modus);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	switch (r_modus & AUD_DEM_WR_MODUS_MOD_HDEV_A__M) {
 	case AUD_DEM_WR_MODUS_MOD_HDEV_A_NORMAL:
@@ -11297,7 +15422,7 @@ aud_ctrl_set_cfg_dev(struct drx_demod_instance *demod, enum drx_cfg_aud_deviatio
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 w_modus = 0;
 	u16 r_modus = 0;
 
@@ -11308,7 +15433,11 @@ aud_ctrl_set_cfg_dev(struct drx_demod_instance *demod, enum drx_cfg_aud_deviatio
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 
-	CHK_ERROR(aud_get_modus(demod, &r_modus));
+	rc = aud_get_modus(demod, &r_modus);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	w_modus = r_modus;
 
@@ -11327,7 +15456,11 @@ aud_ctrl_set_cfg_dev(struct drx_demod_instance *demod, enum drx_cfg_aud_deviatio
 
 	/* now update the modus register */
 	if (w_modus != r_modus) {
-		WR16(dev_addr, AUD_DEM_WR_MODUS__A, w_modus);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_MODUS__A, w_modus, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 	/* store in drxk data struct */
 	ext_attr->aud_data.deviation = *dev;
@@ -11349,7 +15482,7 @@ aud_ctrl_get_cfg_prescale(struct drx_demod_instance *demod, struct drx_cfg_aud_p
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 r_max_fm_deviation = 0;
 	u16 r_nicam_prescaler = 0;
 
@@ -11362,13 +15495,25 @@ aud_ctrl_get_cfg_prescale(struct drx_demod_instance *demod, struct drx_cfg_aud_p
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	/* read register data */
-	RR16(dev_addr, AUD_DSP_WR_NICAM_PRESC__A, &r_nicam_prescaler);
-	RR16(dev_addr, AUD_DSP_WR_FM_PRESC__A, &r_max_fm_deviation);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_NICAM_PRESC__A, &r_nicam_prescaler, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DSP_WR_FM_PRESC__A, &r_max_fm_deviation, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* calculate max FM deviation */
 	r_max_fm_deviation >>= AUD_DSP_WR_FM_PRESC_FM_AM_PRESC__B;
@@ -11423,7 +15568,7 @@ aud_ctrl_set_cfg_prescale(struct drx_demod_instance *demod, struct drx_cfg_aud_p
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 w_max_fm_deviation = 0;
 	u16 nicam_prescaler;
 
@@ -11436,7 +15581,11 @@ aud_ctrl_set_cfg_prescale(struct drx_demod_instance *demod, struct drx_cfg_aud_p
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
@@ -11483,8 +15632,16 @@ aud_ctrl_set_cfg_prescale(struct drx_demod_instance *demod, struct drx_cfg_aud_p
 	}
 	/* end of setting NICAM Prescaler */
 
-	WR16(dev_addr, AUD_DSP_WR_NICAM_PRESC__A, nicam_prescaler);
-	WR16(dev_addr, AUD_DSP_WR_FM_PRESC__A, w_max_fm_deviation);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_NICAM_PRESC__A, nicam_prescaler, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_FM_PRESC__A, w_max_fm_deviation, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	ext_attr->aud_data.prescale = *presc;
 
@@ -11504,7 +15661,7 @@ static int aud_ctrl_beep(struct drx_demod_instance *demod, struct drx_aud_beep *
 {
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
-
+	int rc;
 	u16 the_beep = 0;
 	u16 volume = 0;
 	u32 frequency = 0;
@@ -11518,7 +15675,11 @@ static int aud_ctrl_beep(struct drx_demod_instance *demod, struct drx_aud_beep *
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
@@ -11543,7 +15704,11 @@ static int aud_ctrl_beep(struct drx_demod_instance *demod, struct drx_aud_beep *
 		the_beep = 0;
 	}
 
-	WR16(dev_addr, AUD_DSP_WR_BEEPER__A, the_beep);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_BEEPER__A, the_beep, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return DRX_STS_OK;
 rw_error:
@@ -11563,7 +15728,7 @@ aud_ctrl_set_standard(struct drx_demod_instance *demod, enum drx_aud_standard *s
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
 	enum drx_standard current_standard = DRX_STANDARD_UNKNOWN;
-
+	int rc;
 	u16 w_standard = 0;
 	u16 w_modus = 0;
 	u16 r_modus = 0;
@@ -11581,7 +15746,11 @@ aud_ctrl_set_standard(struct drx_demod_instance *demod, enum drx_aud_standard *s
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, false));
+		rc = power_up_aud(demod, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
@@ -11594,19 +15763,54 @@ aud_ctrl_set_standard(struct drx_demod_instance *demod, enum drx_aud_standard *s
 
 	ext_attr->aud_data.volume.mute = true;
 	/* restore data structure from DRX ExtAttr, call volume first to mute */
-	CHK_ERROR(aud_ctrl_set_cfg_volume(demod, &ext_attr->aud_data.volume));
-	CHK_ERROR(aud_ctrl_set_cfg_carrier(demod, &ext_attr->aud_data.carriers));
-	CHK_ERROR(aud_ctrl_set_cfg_ass_thres
-		  (demod, &ext_attr->aud_data.ass_thresholds));
-	CHK_ERROR(aud_ctr_setl_cfg_auto_sound(demod, &ext_attr->aud_data.auto_sound));
-	CHK_ERROR(aud_ctrl_set_cfg_mixer(demod, &ext_attr->aud_data.mixer));
-	CHK_ERROR(aud_ctrl_set_cfg_av_sync(demod, &ext_attr->aud_data.av_sync));
-	CHK_ERROR(aud_ctrl_set_cfg_output_i2s(demod, &ext_attr->aud_data.i2sdata));
+	rc = aud_ctrl_set_cfg_volume(demod, &ext_attr->aud_data.volume);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = aud_ctrl_set_cfg_carrier(demod, &ext_attr->aud_data.carriers);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = aud_ctrl_set_cfg_ass_thres(demod, &ext_attr->aud_data.ass_thresholds);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = aud_ctr_setl_cfg_auto_sound(demod, &ext_attr->aud_data.auto_sound);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = aud_ctrl_set_cfg_mixer(demod, &ext_attr->aud_data.mixer);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = aud_ctrl_set_cfg_av_sync(demod, &ext_attr->aud_data.av_sync);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = aud_ctrl_set_cfg_output_i2s(demod, &ext_attr->aud_data.i2sdata);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* get prescaler from presets */
-	CHK_ERROR(aud_ctrl_set_cfg_prescale(demod, &ext_attr->aud_data.prescale));
+	rc = aud_ctrl_set_cfg_prescale(demod, &ext_attr->aud_data.prescale);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	CHK_ERROR(aud_get_modus(demod, &r_modus));
+	rc = aud_get_modus(demod, &r_modus);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	w_modus = r_modus;
 
@@ -11702,10 +15906,18 @@ aud_ctrl_set_standard(struct drx_demod_instance *demod, enum drx_aud_standard *s
 	}
 
 	if (w_modus != r_modus) {
-		WR16(dev_addr, AUD_DEM_WR_MODUS__A, w_modus);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_MODUS__A, w_modus, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
-	WR16(dev_addr, AUD_DEM_WR_STANDARD_SEL__A, w_standard);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DEM_WR_STANDARD_SEL__A, w_standard, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
    /**************************************************************************/
 	/* NOT calling aud_ctrl_set_cfg_volume to avoid interfering standard          */
@@ -11716,7 +15928,11 @@ aud_ctrl_set_standard(struct drx_demod_instance *demod, enum drx_aud_standard *s
 	if (ext_attr->aud_data.volume.mute == false) {
 		w_volume |= (u16) ((volume_buffer + AUD_VOLUME_ZERO_DB) <<
 				    AUD_DSP_WR_VOLUME_VOL_MAIN__B);
-		WR16(dev_addr, AUD_DSP_WR_VOLUME__A, w_volume);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, AUD_DSP_WR_VOLUME__A, w_volume, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* write standard selected */
@@ -11739,7 +15955,7 @@ aud_ctrl_get_standard(struct drx_demod_instance *demod, enum drx_aud_standard *s
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
-
+	int rc;
 	u16 r_data = 0;
 
 	if (standard == NULL) {
@@ -11751,13 +15967,21 @@ aud_ctrl_get_standard(struct drx_demod_instance *demod, enum drx_aud_standard *s
 
 	/* power up */
 	if (ext_attr->aud_data.audio_is_active == false) {
-		CHK_ERROR(power_up_aud(demod, true));
+		rc = power_up_aud(demod, true);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		ext_attr->aud_data.audio_is_active = true;
 	}
 
 	*standard = DRX_AUD_STANDARD_UNKNOWN;
 
-	RR16(dev_addr, AUD_DEM_RD_STANDARD_RES__A, &r_data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, AUD_DEM_RD_STANDARD_RES__A, &r_data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* return OK if the detection is not ready yet */
 	if (r_data >= AUD_DEM_RD_STANDARD_RES_STD_RESULT_DETECTION_STILL_ACTIVE) {
@@ -11845,9 +16069,14 @@ static int
 fm_lock_status(struct drx_demod_instance *demod, enum drx_lock_status *lock_stat)
 {
 	struct drx_aud_status status;
+	int rc;
 
 	/* Check detection of audio carriers */
-	CHK_ERROR(aud_ctrl_get_carrier_detect_status(demod, &status));
+	rc = aud_ctrl_get_carrier_detect_status(demod, &status);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* locked if either primary or secondary carrier is detected */
 	if ((status.carrier_a == true) || (status.carrier_b == true)) {
@@ -11877,8 +16106,13 @@ static int
 fm_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_quality)
 {
 	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
+	int rc;
 
-	CHK_ERROR(fm_lock_status(demod, &lock_status));
+	rc = fm_lock_status(demod, &lock_status);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (lock_status == DRX_LOCKED) {
 		sig_quality->indicator = 100;
 	} else {
@@ -11918,6 +16152,7 @@ get_oob_lock_status(struct drx_demod_instance *demod,
 		    struct i2c_device_addr *dev_addr, enum drx_lock_status *oob_lock)
 {
 	struct drxjscu_cmd scu_cmd;
+	int rc;
 	u16 cmd_result[2];
 	u16 oob_lock_state;
 
@@ -11929,7 +16164,11 @@ get_oob_lock_status(struct drx_demod_instance *demod,
 	scu_cmd.result = cmd_result;
 	scu_cmd.parameter_len = 0;
 
-	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
+	rc = scu_command(dev_addr, &scu_cmd);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (scu_cmd.result[1] < 0x4000) {
 		/* 0x00 NOT LOCKED */
@@ -11982,6 +16221,7 @@ get_oob_symbol_rate_offset(struct i2c_device_addr *dev_addr, s32 *symbol_rate_of
 /*  trim 12656250/15625 = 810 */
 /*  offset = -{(timing_offset*(symbol_rate * 2^-5))/(2^8*810)} [ppm]  */
 /*  offset = -[(symbol_rate * 2^-5)*(timing_offset)/(2^8)]/810 [ppm]  */
+	int rc;
 	s32 timing_offset = 0;
 	u32 unsigned_timing_offset = 0;
 	s32 division_factor = 810;
@@ -11991,7 +16231,11 @@ get_oob_symbol_rate_offset(struct i2c_device_addr *dev_addr, s32 *symbol_rate_of
 
 	*symbol_rate_offset = 0;
 	/* read data rate */
-	SARR16(dev_addr, SCU_RAM_ORX_RF_RX_DATA_RATE__A, &data);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ORX_RF_RX_DATA_RATE__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 	switch (data & SCU_RAM_ORX_RF_RX_DATA_RATE__M) {
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_REGSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_INVSPEC:
@@ -12011,7 +16255,11 @@ get_oob_symbol_rate_offset(struct i2c_device_addr *dev_addr, s32 *symbol_rate_of
 		return (DRX_STS_ERROR);
 	}
 
-	RR16(dev_addr, ORX_CON_CTI_DTI_R__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_CON_CTI_DTI_R__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 	/* convert data to positive and keep information about sign */
 	if ((data & 0x8000) == 0x8000) {
 		if (data == 0x8000)
@@ -12052,6 +16300,9 @@ rw_error:
 static int
 get_oob_freq_offset(struct drx_demod_instance *demod, s32 *freq_offset)
 {
+	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
+	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 	u16 data = 0;
 	u16 rot = 0;
 	u16 symbol_rateReg = 0;
@@ -12063,8 +16314,6 @@ get_oob_freq_offset(struct drx_demod_instance *demod, s32 *freq_offset)
 	u32 data64hi = 0;
 	u32 data64lo = 0;
 	u32 temp_freq_offset = 0;
-	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
-	struct i2c_device_addr *dev_addr = NULL;
 
 	/* check arguments */
 	if ((demod == NULL) || (freq_offset == NULL)) {
@@ -12077,10 +16326,18 @@ get_oob_freq_offset(struct drx_demod_instance *demod, s32 *freq_offset)
 	*freq_offset = 0;
 
 	/* read sign (spectrum inversion) */
-	RR16(dev_addr, ORX_FWP_IQM_FRQ_W__A, &rot);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_FWP_IQM_FRQ_W__A, &rot, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* read frequency offset */
-	SARR16(dev_addr, SCU_RAM_ORX_FRQ_OFFSET__A, &data);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ORX_FRQ_OFFSET__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* find COARSE frequency offset */
 	/* coarse_freq_offset = ( 25312500Hz*FRQ_OFFSET >> 21 ); */
 	if (data & 0x8000) {
@@ -12094,7 +16351,11 @@ get_oob_freq_offset(struct drx_demod_instance *demod, s32 *freq_offset)
 	/* get value in KHz */
 	coarse_freq_offset = coarse_sign * frac(temp_freq_offset, 1000, FRAC_ROUND);	/* KHz */
 	/* read data rate */
-	SARR16(dev_addr, SCU_RAM_ORX_RF_RX_DATA_RATE__A, &symbol_rateReg);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ORX_RF_RX_DATA_RATE__A, &symbol_rateReg, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	switch (symbol_rateReg & SCU_RAM_ORX_RF_RX_DATA_RATE__M) {
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_REGSPEC:
 	case SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_INVSPEC:
@@ -12116,7 +16377,11 @@ get_oob_freq_offset(struct drx_demod_instance *demod, s32 *freq_offset)
 
 	/* find FINE frequency offset */
 	/* fine_freq_offset = ( (CORRECTION_VALUE*symbol_rate) >> 18 ); */
-	RR16(dev_addr, ORX_CON_CPH_FRQ_R__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_CON_CPH_FRQ_R__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* at least 5 MSB are 0 so first divide with 2^5 without information loss */
 	fine_freq_offset = (symbol_rate >> 5);
 	if (data & 0x8000) {
@@ -12153,20 +16418,29 @@ rw_error:
 static int
 get_oob_frequency(struct drx_demod_instance *demod, s32 *frequency)
 {
+	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 	u16 data = 0;
 	s32 freq_offset = 0;
 	s32 freq = 0;
-	struct i2c_device_addr *dev_addr = NULL;
 
 	dev_addr = demod->my_i2c_dev_addr;
 
 	*frequency = 0;		/* KHz */
 
-	SARR16(dev_addr, SCU_RAM_ORX_RF_RX_FREQUENCY_VALUE__A, &data);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ORX_RF_RX_FREQUENCY_VALUE__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	freq = (s32) ((s32) data * 50 + 50000L);
 
-	CHK_ERROR(get_oob_freq_offset(demod, &freq_offset));
+	rc = get_oob_freq_offset(demod, &freq_offset);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	*frequency = freq + freq_offset;
 
@@ -12187,11 +16461,16 @@ rw_error:
 */
 static int get_oobmer(struct i2c_device_addr *dev_addr, u32 *mer)
 {
+	int rc;
 	u16 data = 0;
 
 	*mer = 0;
 	/* READ MER */
-	RR16(dev_addr, ORX_EQU_MER_MER_R__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_EQU_MER_MER_R__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	switch (data) {
 	case 0:		/* fall through */
 	case 1:
@@ -12328,11 +16607,16 @@ rw_error:
 */
 static int set_orx_nsu_aox(struct drx_demod_instance *demod, bool active)
 {
-	u16 data = 0;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
+	u16 data = 0;
 
 	/* Configure NSU_AOX */
-	RR16(dev_addr, ORX_NSU_AOX_STDBY_W__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_NSU_AOX_STDBY_W__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (!active) {
 		data &= ((~ORX_NSU_AOX_STDBY_W_STDBYADC_A2_ON)
 			 & (~ORX_NSU_AOX_STDBY_W_STDBYAMP_A2_ON)
@@ -12354,7 +16638,11 @@ static int set_orx_nsu_aox(struct drx_demod_instance *demod, bool active)
 			 | ORX_NSU_AOX_STDBY_W_STDBYTAGC_RF_A2_ON
 			 | ORX_NSU_AOX_STDBY_W_STDBYFLT_A2_ON);
 	}
-	WR16(dev_addr, ORX_NSU_AOX_STDBY_W__A, data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_NSU_AOX_STDBY_W__A, data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12388,6 +16676,7 @@ rw_error:
 static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_param)
 {
 #ifndef DRXJ_DIGITAL_ONLY
+	int rc;
 	s32 freq = 0;	/* KHz */
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
@@ -12424,9 +16713,21 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 		scu_cmd.parameter_len = 0;
 		scu_cmd.result_len = 1;
 		scu_cmd.result = cmd_result;
-		CHK_ERROR(scu_command(dev_addr, &scu_cmd));
-		CHK_ERROR(set_orx_nsu_aox(demod, false));
-		WR16(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_STOP);
+		rc = scu_command(dev_addr, &scu_cmd);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = set_orx_nsu_aox(demod, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_STOP, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 
 		ext_attr->oob_power_on = false;
 		return (DRX_STS_OK);
@@ -12454,13 +16755,21 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
    /*********/
 	/* Stop  */
    /*********/
-	WR16(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_STOP);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 	scu_cmd.command = SCU_RAM_COMMAND_STANDARD_OOB
 	    | SCU_RAM_COMMAND_CMD_DEMOD_STOP;
 	scu_cmd.parameter_len = 0;
 	scu_cmd.result_len = 1;
 	scu_cmd.result = cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
+	rc = scu_command(dev_addr, &scu_cmd);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
    /*********/
 	/* Reset */
    /*********/
@@ -12469,7 +16778,11 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 	scu_cmd.parameter_len = 0;
 	scu_cmd.result_len = 1;
 	scu_cmd.result = cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
+	rc = scu_command(dev_addr, &scu_cmd);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
    /***********/
 	/* SET_ENV */
    /***********/
@@ -12541,94 +16854,294 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 	scu_cmd.result_len = 1;
 	scu_cmd.result = cmd_result;
 	mode_index = mode_val[(set_param_parameters[0] & 0xC0) >> 6];
-	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
+	rc = scu_command(dev_addr, &scu_cmd);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);	/*  Write magic word to enable pdr reg write  */
-	WR16(dev_addr, SIO_PDR_OOB_CRX_CFG__A,
-	     OOB_CRX_DRIVE_STRENGTH << SIO_PDR_OOB_CRX_CFG_DRIVE__B
-	     | 0x03 << SIO_PDR_OOB_CRX_CFG_MODE__B);
-	WR16(dev_addr, SIO_PDR_OOB_DRX_CFG__A,
-	     OOB_DRX_DRIVE_STRENGTH << SIO_PDR_OOB_DRX_CFG_DRIVE__B
-	     | 0x03 << SIO_PDR_OOB_DRX_CFG_MODE__B);
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000);	/*  Write magic word to disable pdr reg write */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}	/*  Write magic word to enable pdr reg write  */
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_OOB_CRX_CFG__A, OOB_CRX_DRIVE_STRENGTH << SIO_PDR_OOB_CRX_CFG_DRIVE__B | 0x03 << SIO_PDR_OOB_CRX_CFG_MODE__B, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_PDR_OOB_DRX_CFG__A, OOB_DRX_DRIVE_STRENGTH << SIO_PDR_OOB_DRX_CFG_DRIVE__B | 0x03 << SIO_PDR_OOB_DRX_CFG_MODE__B, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}	/*  Write magic word to disable pdr reg write */
 
-	WR16(dev_addr, ORX_TOP_COMM_KEY__A, 0);
-	WR16(dev_addr, ORX_FWP_AAG_LEN_W__A, 16000);
-	WR16(dev_addr, ORX_FWP_AAG_THR_W__A, 40);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_TOP_COMM_KEY__A, 0, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_FWP_AAG_LEN_W__A, 16000, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_FWP_AAG_THR_W__A, 40, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* ddc */
-	WR16(dev_addr, ORX_DDC_OFO_SET_W__A, ORX_DDC_OFO_SET_W__PRE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_DDC_OFO_SET_W__A, ORX_DDC_OFO_SET_W__PRE, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* nsu */
-	WR16(dev_addr, ORX_NSU_AOX_LOPOW_W__A, ext_attr->oob_lo_pow);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_NSU_AOX_LOPOW_W__A, ext_attr->oob_lo_pow, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* initialization for target mode */
-	WR16(dev_addr, SCU_RAM_ORX_TARGET_MODE__A,
-	     SCU_RAM_ORX_TARGET_MODE_2048KBPS_SQRT);
-	WR16(dev_addr, SCU_RAM_ORX_FREQ_GAIN_CORR__A,
-	     SCU_RAM_ORX_FREQ_GAIN_CORR_2048KBPS);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_TARGET_MODE__A, SCU_RAM_ORX_TARGET_MODE_2048KBPS_SQRT, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_FREQ_GAIN_CORR__A, SCU_RAM_ORX_FREQ_GAIN_CORR_2048KBPS, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* Reset bits for timing and freq. recovery */
-	WR16(dev_addr, SCU_RAM_ORX_RST_CPH__A, 0x0001);
-	WR16(dev_addr, SCU_RAM_ORX_RST_CTI__A, 0x0002);
-	WR16(dev_addr, SCU_RAM_ORX_RST_KRN__A, 0x0004);
-	WR16(dev_addr, SCU_RAM_ORX_RST_KRP__A, 0x0008);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_RST_CPH__A, 0x0001, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_RST_CTI__A, 0x0002, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_RST_KRN__A, 0x0004, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_RST_KRP__A, 0x0008, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* AGN_LOCK = {2048>>3, -2048, 8, -8, 0, 1}; */
-	WR16(dev_addr, SCU_RAM_ORX_AGN_LOCK_TH__A, 2048 >> 3);
-	WR16(dev_addr, SCU_RAM_ORX_AGN_LOCK_TOTH__A, (u16) (-2048));
-	WR16(dev_addr, SCU_RAM_ORX_AGN_ONLOCK_TTH__A, 8);
-	WR16(dev_addr, SCU_RAM_ORX_AGN_UNLOCK_TTH__A, (u16) (-8));
-	WR16(dev_addr, SCU_RAM_ORX_AGN_LOCK_MASK__A, 1);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_AGN_LOCK_TH__A, 2048 >> 3, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_AGN_LOCK_TOTH__A, (u16)(-2048), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_AGN_ONLOCK_TTH__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_AGN_UNLOCK_TTH__A, (u16)(-8), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_AGN_LOCK_MASK__A, 1, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* DGN_LOCK = {10, -2048, 8, -8, 0, 1<<1}; */
-	WR16(dev_addr, SCU_RAM_ORX_DGN_LOCK_TH__A, 10);
-	WR16(dev_addr, SCU_RAM_ORX_DGN_LOCK_TOTH__A, (u16) (-2048));
-	WR16(dev_addr, SCU_RAM_ORX_DGN_ONLOCK_TTH__A, 8);
-	WR16(dev_addr, SCU_RAM_ORX_DGN_UNLOCK_TTH__A, (u16) (-8));
-	WR16(dev_addr, SCU_RAM_ORX_DGN_LOCK_MASK__A, 1 << 1);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_DGN_LOCK_TH__A, 10, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_DGN_LOCK_TOTH__A, (u16)(-2048), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_DGN_ONLOCK_TTH__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_DGN_UNLOCK_TTH__A, (u16)(-8), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_DGN_LOCK_MASK__A, 1 << 1, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* FRQ_LOCK = {15,-2048, 8, -8, 0, 1<<2}; */
-	WR16(dev_addr, SCU_RAM_ORX_FRQ_LOCK_TH__A, 17);
-	WR16(dev_addr, SCU_RAM_ORX_FRQ_LOCK_TOTH__A, (u16) (-2048));
-	WR16(dev_addr, SCU_RAM_ORX_FRQ_ONLOCK_TTH__A, 8);
-	WR16(dev_addr, SCU_RAM_ORX_FRQ_UNLOCK_TTH__A, (u16) (-8));
-	WR16(dev_addr, SCU_RAM_ORX_FRQ_LOCK_MASK__A, 1 << 2);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_FRQ_LOCK_TH__A, 17, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_FRQ_LOCK_TOTH__A, (u16)(-2048), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_FRQ_ONLOCK_TTH__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_FRQ_UNLOCK_TTH__A, (u16)(-8), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_FRQ_LOCK_MASK__A, 1 << 2, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* PHA_LOCK = {5000, -2048, 8, -8, 0, 1<<3}; */
-	WR16(dev_addr, SCU_RAM_ORX_PHA_LOCK_TH__A, 3000);
-	WR16(dev_addr, SCU_RAM_ORX_PHA_LOCK_TOTH__A, (u16) (-2048));
-	WR16(dev_addr, SCU_RAM_ORX_PHA_ONLOCK_TTH__A, 8);
-	WR16(dev_addr, SCU_RAM_ORX_PHA_UNLOCK_TTH__A, (u16) (-8));
-	WR16(dev_addr, SCU_RAM_ORX_PHA_LOCK_MASK__A, 1 << 3);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_PHA_LOCK_TH__A, 3000, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_PHA_LOCK_TOTH__A, (u16)(-2048), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_PHA_ONLOCK_TTH__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_PHA_UNLOCK_TTH__A, (u16)(-8), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_PHA_LOCK_MASK__A, 1 << 3, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* TIM_LOCK = {300,      -2048, 8, -8, 0, 1<<4}; */
-	WR16(dev_addr, SCU_RAM_ORX_TIM_LOCK_TH__A, 400);
-	WR16(dev_addr, SCU_RAM_ORX_TIM_LOCK_TOTH__A, (u16) (-2048));
-	WR16(dev_addr, SCU_RAM_ORX_TIM_ONLOCK_TTH__A, 8);
-	WR16(dev_addr, SCU_RAM_ORX_TIM_UNLOCK_TTH__A, (u16) (-8));
-	WR16(dev_addr, SCU_RAM_ORX_TIM_LOCK_MASK__A, 1 << 4);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_TIM_LOCK_TH__A, 400, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_TIM_LOCK_TOTH__A, (u16)(-2048), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_TIM_ONLOCK_TTH__A, 8, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_TIM_UNLOCK_TTH__A, (u16)(-8), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_TIM_LOCK_MASK__A, 1 << 4, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* EQU_LOCK = {20,      -2048, 8, -8, 0, 1<<5}; */
-	WR16(dev_addr, SCU_RAM_ORX_EQU_LOCK_TH__A, 20);
-	WR16(dev_addr, SCU_RAM_ORX_EQU_LOCK_TOTH__A, (u16) (-2048));
-	WR16(dev_addr, SCU_RAM_ORX_EQU_ONLOCK_TTH__A, 4);
-	WR16(dev_addr, SCU_RAM_ORX_EQU_UNLOCK_TTH__A, (u16) (-4));
-	WR16(dev_addr, SCU_RAM_ORX_EQU_LOCK_MASK__A, 1 << 5);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_EQU_LOCK_TH__A, 20, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_EQU_LOCK_TOTH__A, (u16)(-2048), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_EQU_ONLOCK_TTH__A, 4, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_EQU_UNLOCK_TTH__A, (u16)(-4), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_ORX_EQU_LOCK_MASK__A, 1 << 5, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* PRE-Filter coefficients (PFI) */
-	WRB(dev_addr, ORX_FWP_PFI_A_W__A, sizeof(pfi_coeffs[mode_index]),
-	    ((u8 *)pfi_coeffs[mode_index]));
-	WR16(dev_addr, ORX_TOP_MDE_W__A, mode_index);
+	rc = DRXJ_DAP.write_block_func(dev_addr, ORX_FWP_PFI_A_W__A, sizeof(pfi_coeffs[mode_index]), ((u8 *)pfi_coeffs[mode_index]), 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_TOP_MDE_W__A, mode_index, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	/* NYQUIST-Filter coefficients (NYQ) */
 	for (i = 0; i < (NYQFILTERLEN + 1) / 2; i++) {
-		WR16(dev_addr, ORX_FWP_NYQ_ADR_W__A, i);
-		WR16(dev_addr, ORX_FWP_NYQ_COF_RW__A,
-		     nyquist_coeffs[mode_index][i]);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_FWP_NYQ_ADR_W__A, i, 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
+		rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_FWP_NYQ_COF_RW__A, nyquist_coeffs[mode_index][i], 0);
+		if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+		}
 	}
-	WR16(dev_addr, ORX_FWP_NYQ_ADR_W__A, 31);
-	WR16(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_FWP_NYQ_ADR_W__A, 31, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_COMM_EXEC__A, ORX_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
    /*********/
 	/* Start */
    /*********/
@@ -12637,10 +17150,22 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 	scu_cmd.parameter_len = 0;
 	scu_cmd.result_len = 1;
 	scu_cmd.result = cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &scu_cmd));
+	rc = scu_command(dev_addr, &scu_cmd);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	CHK_ERROR(set_orx_nsu_aox(demod, true));
-	WR16(dev_addr, ORX_NSU_AOX_STHR_W__A, ext_attr->oob_pre_saw);
+	rc = set_orx_nsu_aox(demod, true);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_NSU_AOX_STHR_W__A, ext_attr->oob_pre_saw, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
 	ext_attr->oob_power_on = true;
 
@@ -12661,6 +17186,7 @@ static int
 ctrl_get_oob(struct drx_demod_instance *demod, struct drxoob_status *oob_status)
 {
 #ifndef DRXJ_DIGITAL_ONLY
+	int rc;
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
 	u16 data = 0;
@@ -12676,17 +17202,52 @@ ctrl_get_oob(struct drx_demod_instance *demod, struct drxoob_status *oob_status)
 	if (ext_attr->oob_power_on == false)
 		return (DRX_STS_ERROR);
 
-	RR16(dev_addr, ORX_DDC_OFO_SET_W__A, &data);
-	RR16(dev_addr, ORX_NSU_TUN_RFGAIN_W__A, &data);
-	RR16(dev_addr, ORX_FWP_AAG_THR_W__A, &data);
-	SARR16(dev_addr, SCU_RAM_ORX_DGN_KI__A, &data);
-	RR16(dev_addr, ORX_FWP_SRC_DGN_W__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_DDC_OFO_SET_W__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_NSU_TUN_RFGAIN_W__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_FWP_AAG_THR_W__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ORX_DGN_KI__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_FWP_SRC_DGN_W__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+	pr_err("error %d\n", rc);
+	goto rw_error;
+	}
 
-	CHK_ERROR(get_oob_lock_status(demod, dev_addr, &oob_status->lock));
-	CHK_ERROR(get_oob_frequency(demod, &oob_status->frequency));
-	CHK_ERROR(get_oobmer(dev_addr, &oob_status->mer));
-	CHK_ERROR(get_oob_symbol_rate_offset
-		  (dev_addr, &oob_status->symbol_rate_offset));
+	rc = get_oob_lock_status(demod, dev_addr, &oob_status->lock);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = get_oob_frequency(demod, &oob_status->frequency);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = get_oobmer(dev_addr, &oob_status->mer);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = get_oob_symbol_rate_offset(dev_addr, &oob_status->symbol_rate_offset);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -12706,6 +17267,7 @@ ctrl_set_cfg_oob_pre_saw(struct drx_demod_instance *demod, u16 *cfg_data)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
@@ -12713,7 +17275,11 @@ ctrl_set_cfg_oob_pre_saw(struct drx_demod_instance *demod, u16 *cfg_data)
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
-	WR16(dev_addr, ORX_NSU_AOX_STHR_W__A, *cfg_data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_NSU_AOX_STHR_W__A, *cfg_data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->oob_pre_saw = *cfg_data;
 	return (DRX_STS_OK);
 rw_error:
@@ -12755,6 +17321,7 @@ ctrl_set_cfg_oob_lo_power(struct drx_demod_instance *demod, enum drxj_cfg_oob_lo
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	if (cfg_data == NULL) {
 		return (DRX_STS_INVALID_ARG);
@@ -12762,7 +17329,11 @@ ctrl_set_cfg_oob_lo_power(struct drx_demod_instance *demod, enum drxj_cfg_oob_lo
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
-	WR16(dev_addr, ORX_NSU_AOX_LOPOW_W__A, *cfg_data);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ORX_NSU_AOX_LOPOW_W__A, *cfg_data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	ext_attr->oob_lo_pow = *cfg_data;
 	return (DRX_STS_OK);
 rw_error:
@@ -12816,7 +17387,7 @@ ctrl_get_cfg_oob_lo_power(struct drx_demod_instance *demod, enum drxj_cfg_oob_lo
 static int
 ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
-
+	int rc;
 	s32 tuner_set_freq = 0;
 	s32 tuner_get_freq = 0;
 	s32 tuner_freq_offset = 0;
@@ -12927,7 +17498,11 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		min_symbol_rate = DRXJ_QAM_SYMBOLRATE_MIN;
 		max_symbol_rate = DRXJ_QAM_SYMBOLRATE_MAX;
 		/* config SMA_TX pin to SAW switch mode */
-		CHK_ERROR(ctrl_set_uio_cfg(demod, &uio_cfg));
+		rc = ctrl_set_uio_cfg(demod, &uio_cfg);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		if (channel->symbolrate < min_symbol_rate ||
 		    channel->symbolrate > max_symbol_rate) {
@@ -13019,10 +17594,18 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 			return (DRX_STS_INVALID_ARG);
 		}
 
-		CHK_ERROR(ctrl_uio_write(demod, &uio1));
+		rc = ctrl_uio_write(demod, &uio1);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 #endif /* DRXJ_VSB_ONLY */
-	WR16(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
    /*== Tune, fast mode ======================================================*/
 	if (demod->my_tuner != NULL) {
 		/* Determine tuner mode and freq to tune to ... */
@@ -13089,23 +17672,35 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		if (common_attr->tuner_port_nr == 1) {
 			/* close tuner bridge */
 			bridge_closed = true;
-			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
+			rc = ctrl_i2c_bridge(demod, &bridge_closed);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			/* set tuner frequency */
 		}
 
-		CHK_ERROR(drxbsp_tuner_set_frequency(demod->my_tuner,
-						     tuner_mode, tuner_set_freq));
+		rc = drxbsp_tuner_set_frequency(demod->my_tuner, tuner_mode, tuner_set_freq);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (common_attr->tuner_port_nr == 1) {
 			/* open tuner bridge */
 			bridge_closed = false;
-			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
+			rc = ctrl_i2c_bridge(demod, &bridge_closed);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 
 		/* Get actual frequency set by tuner and compute offset */
-		CHK_ERROR(drxbsp_tuner_get_frequency(demod->my_tuner,
-						     0,
-						    &tuner_get_freq,
-						    &intermediate_freq));
+		rc = drxbsp_tuner_get_frequency(demod->my_tuner, 0, &tuner_get_freq, &intermediate_freq);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		tuner_freq_offset = tuner_get_freq - tuner_set_freq;
 		common_attr->intermediate_freq = intermediate_freq;
 	} else {
@@ -13122,8 +17717,16 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		} else {
 			ext_attr->mirror = channel->mirror;
 		}
-		CHK_ERROR(set_vsb(demod));
-		CHK_ERROR(set_frequency(demod, channel, tuner_freq_offset));
+		rc = set_vsb(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = set_frequency(demod, channel, tuner_freq_offset);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_NTSC:	/* fallthrough */
@@ -13138,15 +17741,22 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		} else {
 			ext_attr->mirror = channel->mirror;
 		}
-		CHK_ERROR(set_atv_channel(demod,
-					  tuner_freq_offset, channel, standard));
+		rc = set_atv_channel(demod, tuner_freq_offset, channel, standard);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		CHK_ERROR(set_qamChannel(demod, channel, tuner_freq_offset));
+		rc = set_qamChannel(demod, channel, tuner_freq_offset);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 	case DRX_STANDARD_UNKNOWN:
@@ -13163,16 +17773,27 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		if (common_attr->tuner_port_nr == 1) {
 			/* close tuner bridge */
 			bridge_closed = true;
-			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
+			rc = ctrl_i2c_bridge(demod, &bridge_closed);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 
 		/* set tuner frequency */
-		CHK_ERROR(drxbsp_tuner_set_frequency(demod->my_tuner,
-						     tuner_mode, tuner_set_freq));
+		rc = drxbsp_tuner_set_frequency(demod->my_tuner, tuner_mode, tuner_set_freq);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (common_attr->tuner_port_nr == 1) {
 			/* open tuner bridge */
 			bridge_closed = false;
-			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
+			rc = ctrl_i2c_bridge(demod, &bridge_closed);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 	}
 
@@ -13200,6 +17821,7 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 	struct drx_common_attr *common_attr = NULL;
@@ -13244,10 +17866,11 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		bool tuner_mirror = common_attr->mirror_freq_spect ? false : true;
 
 		/* Get frequency from tuner */
-		CHK_ERROR(drxbsp_tuner_get_frequency(demod->my_tuner,
-						     0,
-						    &(channel->frequency),
-						    &intermediate_freq));
+		rc = drxbsp_tuner_get_frequency(demod->my_tuner, 0, &(channel->frequency), &intermediate_freq);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		tuner_freq_offset = channel->frequency - ext_attr->frequency;
 		if (tuner_mirror == true) {
 			/* positive image */
@@ -13266,9 +17889,17 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 	}
 
 	/* check lock status */
-	CHK_ERROR(ctrl_lock_status(demod, &lock_status));
+	rc = ctrl_lock_status(demod, &lock_status);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if ((lock_status == DRX_LOCKED) || (lock_status == DRXJ_DEMOD_LOCK)) {
-		ARR32(dev_addr, IQM_RC_RATE_LO__A, &iqm_rc_rateLo);
+		rc = drxj_dap_atomic_read_reg32(dev_addr, IQM_RC_RATE_LO__A, &iqm_rc_rateLo, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		adc_frequency = (common_attr->sys_clock_freq * 1000) / 3;
 
 		channel->symbolrate =
@@ -13278,7 +17909,11 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		case DRX_STANDARD_8VSB:
 			channel->bandwidth = DRX_BANDWIDTH_6MHZ;
 			/* get the channel frequency */
-			CHK_ERROR(get_ctl_freq_offset(demod, &ctl_freq_offset));
+			rc = get_ctl_freq_offset(demod, &ctl_freq_offset);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			channel->frequency -= ctl_freq_offset;
 			/* get the channel constellation */
 			channel->constellation = DRX_CONSTELLATION_AUTO;
@@ -13289,8 +17924,11 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		case DRX_STANDARD_ITU_C:
 			{
 				/* get the channel frequency */
-				CHK_ERROR(get_ctl_freq_offset
-					  (demod, &ctl_freq_offset));
+				rc = get_ctl_freq_offset(demod, &ctl_freq_offset);
+				if (rc != DRX_STS_OK) {
+					pr_err("error %d\n", rc);
+					goto rw_error;
+				}
 				channel->frequency -= ctl_freq_offset;
 
 				if (standard == DRX_STANDARD_ITU_B) {
@@ -13342,7 +17980,11 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 					cmd_scu.result_len = 3;
 					cmd_scu.parameter = NULL;
 					cmd_scu.result = cmd_result;
-					CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+					rc = scu_command(dev_addr, &cmd_scu);
+					if (rc != DRX_STS_OK) {
+						pr_err("error %d\n", rc);
+						goto rw_error;
+					}
 
 					channel->interleavemode =
 					    (enum drx_interleave_mode) (cmd_scu.
@@ -13386,7 +18028,11 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		case DRX_STANDARD_PAL_SECAM_L:
 		case DRX_STANDARD_PAL_SECAM_LP:
 		case DRX_STANDARD_FM:
-			CHK_ERROR(get_atv_channel(demod, channel, standard));
+			rc = get_atv_channel(demod, channel, standard);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 #endif
 		case DRX_STANDARD_UNKNOWN:	/* fall trough */
@@ -13451,6 +18097,7 @@ ctrl_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_q
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	u16 min_mer = 0;
@@ -13467,14 +18114,25 @@ ctrl_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_q
 
 	/* get basic information */
 	dev_addr = demod->my_i2c_dev_addr;
-	CHK_ERROR(ctrl_lock_status(demod, &lock_status));
+	rc = ctrl_lock_status(demod, &lock_status);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	switch (standard) {
 	case DRX_STANDARD_8VSB:
 #ifdef DRXJ_SIGNAL_ACCUM_ERR
-		CHK_ERROR(get_acc_pkt_err(demod, &sig_quality->packet_error));
+		rc = get_acc_pkt_err(demod, &sig_quality->packet_error);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 #else
-		CHK_ERROR(get_vsb_post_rs_pck_err
-			  (dev_addr, &sig_quality->packet_error));
+		rc = get_vsb_post_rs_pck_err(dev_addr, &sig_quality->packet_error);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 #endif
 		if (lock_status != DRXJ_DEMOD_LOCK && lock_status != DRX_LOCKED) {
 			sig_quality->post_viterbi_ber = 500000;
@@ -13482,11 +18140,21 @@ ctrl_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_q
 			sig_quality->pre_viterbi_ber = 0;
 		} else {
 			/* PostViterbi is compute in steps of 10^(-6) */
-			CHK_ERROR(get_vs_bpre_viterbi_ber
-				  (dev_addr, &sig_quality->pre_viterbi_ber));
-			CHK_ERROR(get_vs_bpost_viterbi_ber
-				  (dev_addr, &sig_quality->post_viterbi_ber));
-			CHK_ERROR(get_vsbmer(dev_addr, &sig_quality->MER));
+			rc = get_vs_bpre_viterbi_ber(dev_addr, &sig_quality->pre_viterbi_ber);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = get_vs_bpost_viterbi_ber(dev_addr, &sig_quality->post_viterbi_ber);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = get_vsbmer(dev_addr, &sig_quality->MER);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 		min_mer = 20;
 		max_mer = 360;
@@ -13501,7 +18169,11 @@ ctrl_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_q
 	case DRX_STANDARD_ITU_A:
 	case DRX_STANDARD_ITU_B:
 	case DRX_STANDARD_ITU_C:
-		CHK_ERROR(ctrl_get_qam_sig_quality(demod, sig_quality));
+		rc = ctrl_get_qam_sig_quality(demod, sig_quality);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (lock_status != DRXJ_DEMOD_LOCK && lock_status != DRX_LOCKED) {
 			switch (ext_attr->constellation) {
 			case DRX_CONSTELLATION_QAM256:
@@ -13555,10 +18227,18 @@ ctrl_sig_quality(struct drx_demod_instance *demod, struct drx_sig_quality *sig_q
 	case DRX_STANDARD_PAL_SECAM_L:
 	case DRX_STANDARD_PAL_SECAM_LP:
 	case DRX_STANDARD_NTSC:
-		CHK_ERROR(atv_sig_quality(demod, sig_quality));
+		rc = atv_sig_quality(demod, sig_quality);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 	case DRX_STANDARD_FM:
-		CHK_ERROR(fm_sig_quality(demod, sig_quality));
+		rc = fm_sig_quality(demod, sig_quality);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 	default:
@@ -13592,6 +18272,7 @@ ctrl_lock_status(struct drx_demod_instance *demod, enum drx_lock_status *lock_st
 		/* *parameter   */ NULL,
 		/* *result      */ NULL
 	};
+	int rc;
 	u16 cmd_result[2] = { 0, 0 };
 	u16 demod_lock = SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_DEMOD_LOCKED;
 
@@ -13644,7 +18325,11 @@ ctrl_lock_status(struct drx_demod_instance *demod, enum drx_lock_status *lock_st
 	cmd_scu.result_len = 2;
 	cmd_scu.parameter = NULL;
 	cmd_scu.result = cmd_result;
-	CHK_ERROR(scu_command(dev_addr, &cmd_scu));
+	rc = scu_command(dev_addr, &cmd_scu);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* set the lock status */
 	if (cmd_scu.result[1] < demod_lock) {
@@ -13680,6 +18365,7 @@ rw_error:
 static int
 ctrl_constel(struct drx_demod_instance *demod, struct drx_complex *complex_nr)
 {
+	int rc;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 						     /**< active standard */
 
@@ -13694,13 +18380,21 @@ ctrl_constel(struct drx_demod_instance *demod, struct drx_complex *complex_nr)
 	/* Read constellation point  */
 	switch (standard) {
 	case DRX_STANDARD_8VSB:
-		CHK_ERROR(ctrl_get_vsb_constel(demod, complex_nr));
+		rc = ctrl_get_vsb_constel(demod, complex_nr);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #ifndef DRXJ_VSB_ONLY
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		CHK_ERROR(ctrl_get_qam_constel(demod, complex_nr));
+		rc = ctrl_get_qam_constel(demod, complex_nr);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 	case DRX_STANDARD_UNKNOWN:
@@ -13729,6 +18423,7 @@ static int
 ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 {
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	enum drx_standard prev_standard;
 
 	/* check arguments */
@@ -13747,11 +18442,19 @@ ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		CHK_ERROR(power_down_qam(demod, false));
+		rc = power_down_qam(demod, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 	case DRX_STANDARD_8VSB:
-		CHK_ERROR(power_down_vsb(demod, false));
+		rc = power_down_vsb(demod, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_NTSC:	/* fallthrough */
@@ -13761,7 +18464,11 @@ ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 	case DRX_STANDARD_PAL_SECAM_I:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:
-		CHK_ERROR(power_down_atv(demod, prev_standard, false));
+		rc = power_down_atv(demod, prev_standard, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 	case DRX_STANDARD_UNKNOWN:
@@ -13783,11 +18490,22 @@ ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 	case DRX_STANDARD_ITU_A:	/* fallthrough */
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
-		DUMMY_READ();
+		do {
+			u16 dummy;
+			rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_VERSION_HI__A, &dummy, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+		}while (0);
 		break;
 #endif
 	case DRX_STANDARD_8VSB:
-		CHK_ERROR(set_vsb_leak_n_gain(demod));
+		rc = set_vsb_leak_n_gain(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_NTSC:	/* fallthrough */
@@ -13797,8 +18515,16 @@ ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 	case DRX_STANDARD_PAL_SECAM_I:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
 	case DRX_STANDARD_PAL_SECAM_LP:
-		CHK_ERROR(set_atv_standard(demod, standard));
-		CHK_ERROR(power_up_atv(demod, *standard));
+		rc = set_atv_standard(demod, standard);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = power_up_atv(demod, *standard);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 	default:
@@ -13829,6 +18555,7 @@ static int
 ctrl_get_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 {
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/* check arguments */
@@ -13836,7 +18563,14 @@ ctrl_get_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 		return (DRX_STS_INVALID_ARG);
 	}
 	(*standard) = ext_attr->standard;
-	DUMMY_READ();
+	do {
+		u16 dummy;
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_VERSION_HI__A, &dummy, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+	}while (0);
 
 	return (DRX_STS_OK);
 rw_error:
@@ -13856,6 +18590,7 @@ static int
 ctrl_get_cfg_symbol_clock_offset(struct drx_demod_instance *demod, s32 *rate_offset)
 {
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
+	int rc;
 	struct drxj_data *ext_attr = NULL;
 
 	/* check arguments */
@@ -13872,7 +18607,11 @@ ctrl_get_cfg_symbol_clock_offset(struct drx_demod_instance *demod, s32 *rate_off
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
 #endif
-		CHK_ERROR(get_str_freq_offset(demod, rate_offset));
+		rc = get_str_freq_offset(demod, rate_offset);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 	case DRX_STANDARD_NTSC:
 	case DRX_STANDARD_UNKNOWN:
@@ -13905,6 +18644,7 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) NULL;
 	struct drxj_data *ext_attr = (struct drxj_data *) NULL;
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)NULL;
+	int rc;
 	u16 sio_cc_pwd_mode = 0;
 
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
@@ -13943,7 +18683,11 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 
 	/* Check if device needs to be powered up */
 	if ((common_attr->current_power_mode != DRX_POWER_UP)) {
-		CHK_ERROR(power_up_device(demod));
+		rc = power_up_device(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	if ((*mode == DRX_POWER_UP)) {
@@ -13964,10 +18708,18 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 		case DRX_STANDARD_ITU_A:
 		case DRX_STANDARD_ITU_B:
 		case DRX_STANDARD_ITU_C:
-			CHK_ERROR(power_down_qam(demod, true));
+			rc = power_down_qam(demod, true);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_STANDARD_8VSB:
-			CHK_ERROR(power_down_vsb(demod, true));
+			rc = power_down_vsb(demod, true);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_STANDARD_PAL_SECAM_BG:	/* fallthrough */
 		case DRX_STANDARD_PAL_SECAM_DK:	/* fallthrough */
@@ -13976,7 +18728,11 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 		case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 		case DRX_STANDARD_NTSC:	/* fallthrough */
 		case DRX_STANDARD_FM:
-			CHK_ERROR(power_down_atv(demod, ext_attr->standard, true));
+			rc = power_down_atv(demod, ext_attr->standard, true);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			break;
 		case DRX_STANDARD_UNKNOWN:
 			/* Do nothing */
@@ -13987,14 +18743,30 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 		}
 
 		if (*mode != DRXJ_POWER_DOWN_MAIN_PATH) {
-			WR16(dev_addr, SIO_CC_PWD_MODE__A, sio_cc_pwd_mode);
-			WR16(dev_addr, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_CC_PWD_MODE__A, sio_cc_pwd_mode, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			/* Initialize HI, wakeup key especially before put IC to sleep */
-			CHK_ERROR(init_hi(demod));
+			rc = init_hi(demod);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 
 			ext_attr->hi_cfg_ctrl |= SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ;
-			CHK_ERROR(hi_cfg_command(demod));
+			rc = hi_cfg_command(demod);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 	}
 
@@ -14033,6 +18805,7 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
+	int rc;
 	u16 ucode_major_minor = 0;	/* BCD Ma:Ma:Ma:Mi */
 	u16 ucode_patch = 0;	/* BCD Pa:Pa:Pa:Pa */
 	u16 major = 0;
@@ -14059,8 +18832,16 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 	ext_attr->v_version[0].v_string = ext_attr->v_text[0];
 
 	if (common_attr->is_opened == true) {
-		SARR16(dev_addr, SCU_RAM_VERSION_HI__A, &ucode_major_minor);
-		SARR16(dev_addr, SCU_RAM_VERSION_LO__A, &ucode_patch);
+		rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_VERSION_HI__A, &ucode_major_minor, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+		rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_VERSION_LO__A, &ucode_patch, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* Translate BCD to numbers and string */
 		/* TODO: The most significant Ma and Pa will be ignored, check with spec */
@@ -14111,11 +18892,31 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 
 	/* Device version *************************************** */
 	/* Check device id */
-	RR16(dev_addr, SIO_TOP_COMM_KEY__A, &key);
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA);
-	RR32(dev_addr, SIO_TOP_JTAGID_LO__A, &jtag);
-	RR16(dev_addr, SIO_PDR_UIO_IN_HI__A, &bid);
-	WR16(dev_addr, SIO_TOP_COMM_KEY__A, key);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, &key, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg32func(dev_addr, SIO_TOP_JTAGID_LO__A, &jtag, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_PDR_UIO_IN_HI__A, &bid, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_TOP_COMM_KEY__A, key, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	ext_attr->v_version[1].module_type = DRX_MODULE_DEVICE;
 	ext_attr->v_version[1].module_name = device_name;
@@ -14183,6 +18984,7 @@ static int ctrl_probe_device(struct drx_demod_instance *demod)
 	enum drx_power_mode org_power_mode = DRX_POWER_UP;
 	int ret_status = DRX_STS_OK;
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
+	int rc;
 
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
@@ -14198,17 +19000,33 @@ static int ctrl_probe_device(struct drx_demod_instance *demod)
 		org_power_mode = common_attr->current_power_mode;
 
 		if (demod->my_common_attr->is_opened == false) {
-			CHK_ERROR(power_up_device(demod));
+			rc = power_up_device(demod);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			common_attr->current_power_mode = DRX_POWER_UP;
 		} else {
 			/* Wake-up device, feedback from device */
-			CHK_ERROR(ctrl_power_mode(demod, &power_mode));
+			rc = ctrl_power_mode(demod, &power_mode);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 		/* Initialize HI, wakeup key especially */
-		CHK_ERROR(init_hi(demod));
+		rc = init_hi(demod);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		/* Check device id */
-		RR32(dev_addr, SIO_TOP_JTAGID_LO__A, &jtag);
+		rc = DRXJ_DAP.read_reg32func(dev_addr, SIO_TOP_JTAGID_LO__A, &jtag, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		jtag = (jtag >> 12) & 0xFFFF;
 		switch (jtag) {
 		case 0x3931:	/* fallthrough */
@@ -14230,11 +19048,22 @@ static int ctrl_probe_device(struct drx_demod_instance *demod)
 
 		/* Device was not opened, return to orginal powermode,
 		   feedback from device */
-		CHK_ERROR(ctrl_power_mode(demod, &org_power_mode));
+		rc = ctrl_power_mode(demod, &org_power_mode);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	} else {
 		/* dummy read to make this function fail in case device
 		   suddenly disappears after a succesful drx_open */
-		DUMMY_READ();
+		do {
+			u16 dummy;
+			rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_VERSION_HI__A, &dummy, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+		}while (0);
 	}
 
 	return (ret_status);
@@ -14286,6 +19115,7 @@ ctrl_u_codeUpload(struct drx_demod_instance *demod,
 	u8 *mc_data = (u8 *)(NULL);
 	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -14461,6 +19291,7 @@ ctrl_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 {
 	struct drxj_data *ext_attr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
+	int rc;
 
 	/* Check arguments */
 	if ((sig_strength == NULL) || (demod == NULL)) {
@@ -14479,7 +19310,11 @@ ctrl_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
 #endif
-		CHK_ERROR(get_sig_strength(demod, sig_strength));
+		rc = get_sig_strength(demod, sig_strength);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #ifndef DRXJ_DIGITAL_ONLY
 	case DRX_STANDARD_PAL_SECAM_BG:	/* fallthrough */
@@ -14489,7 +19324,11 @@ ctrl_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 	case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
 	case DRX_STANDARD_NTSC:	/* fallthrough */
 	case DRX_STANDARD_FM:
-		CHK_ERROR(get_atv_sig_strength(demod, sig_strength));
+		rc = get_atv_sig_strength(demod, sig_strength);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		break;
 #endif
 	case DRX_STANDARD_UNKNOWN:	/* fallthrough */
@@ -14517,6 +19356,7 @@ static int
 ctrl_get_cfg_oob_misc(struct drx_demod_instance *demod, struct drxj_cfg_oob_misc *misc)
 {
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 	u16 lock = 0U;
 	u16 state = 0U;
 	u16 data = 0U;
@@ -14531,16 +19371,32 @@ ctrl_get_cfg_oob_misc(struct drx_demod_instance *demod, struct drxj_cfg_oob_misc
 
 	/* TODO */
 	/* check if the same registers are used for all standards (QAM/VSB/ATV) */
-	RR16(dev_addr, ORX_NSU_TUN_IFGAIN_W__A, &misc->agc.IFAGC);
-	RR16(dev_addr, ORX_NSU_TUN_RFGAIN_W__A, &misc->agc.RFAGC);
-	RR16(dev_addr, ORX_FWP_SRC_DGN_W__A, &data);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_NSU_TUN_IFGAIN_W__A, &misc->agc.IFAGC, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_NSU_TUN_RFGAIN_W__A, &misc->agc.RFAGC, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_FWP_SRC_DGN_W__A, &data, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	digital_agc_mant = data & ORX_FWP_SRC_DGN_W_MANT__M;
 	digital_agc_exp = (data & ORX_FWP_SRC_DGN_W_EXP__M)
 	    >> ORX_FWP_SRC_DGN_W_EXP__B;
 	misc->agc.digital_agc = digital_agc_mant << digital_agc_exp;
 
-	SARR16(dev_addr, SCU_RAM_ORX_SCU_LOCK__A, &lock);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ORX_SCU_LOCK__A, &lock, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	misc->ana_gain_lock = ((lock & 0x0001) ? true : false);
 	misc->dig_gain_lock = ((lock & 0x0002) ? true : false);
@@ -14549,7 +19405,11 @@ ctrl_get_cfg_oob_misc(struct drx_demod_instance *demod, struct drxj_cfg_oob_misc
 	misc->sym_timing_lock = ((lock & 0x0010) ? true : false);
 	misc->eq_lock = ((lock & 0x0020) ? true : false);
 
-	SARR16(dev_addr, SCU_RAM_ORX_SCU_STATE__A, &state);
+	rc = drxj_dap_scu_atomic_read_reg16(dev_addr, SCU_RAM_ORX_SCU_STATE__A, &state, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	misc->state = (state >> 8) & 0xff;
 
 	return (DRX_STS_OK);
@@ -14569,6 +19429,7 @@ static int
 ctrl_get_cfg_vsb_misc(struct drx_demod_instance *demod, struct drxj_cfg_vsb_misc *misc)
 {
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 
 	/* check arguments */
 	if (misc == NULL) {
@@ -14576,7 +19437,11 @@ ctrl_get_cfg_vsb_misc(struct drx_demod_instance *demod, struct drxj_cfg_vsb_misc
 	}
 	dev_addr = demod->my_i2c_dev_addr;
 
-	CHK_ERROR(get_vsb_symb_err(dev_addr, &misc->symb_error));
+	rc = get_vsb_symb_err(dev_addr, &misc->symb_error);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -14806,6 +19671,7 @@ static int
 ctrl_get_cfg_agc_internal(struct drx_demod_instance *demod, u16 *agc_internal)
 {
 	struct i2c_device_addr *dev_addr = NULL;
+	int rc;
 	enum drx_lock_status lock_status = DRX_NOT_LOCKED;
 	struct drxj_data *ext_attr = NULL;
 	u16 iqm_cf_scale_sh = 0;
@@ -14820,7 +19686,11 @@ ctrl_get_cfg_agc_internal(struct drx_demod_instance *demod, u16 *agc_internal)
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
-	CHK_ERROR(ctrl_lock_status(demod, &lock_status));
+	rc = ctrl_lock_status(demod, &lock_status);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	if (lock_status != DRXJ_DEMOD_LOCK && lock_status != DRX_LOCKED) {
 		*agc_internal = 0;
 		return DRX_STS_OK;
@@ -14854,9 +19724,21 @@ ctrl_get_cfg_agc_internal(struct drx_demod_instance *demod, u16 *agc_internal)
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	RR16(dev_addr, IQM_CF_POW__A, &iqm_cf_power);
-	RR16(dev_addr, IQM_CF_SCALE_SH__A, &iqm_cf_scale_sh);
-	RR16(dev_addr, IQM_CF_AMP__A, &iqm_cf_amp);
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_CF_POW__A, &iqm_cf_power, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_CF_SCALE_SH__A, &iqm_cf_scale_sh, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.read_reg16func(dev_addr, IQM_CF_AMP__A, &iqm_cf_amp, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* IQM_CF_PWR_CORRECTION_dB = 3;
 	   P5dB =10*log10(IQM_CF_POW)+12-6*9-IQM_CF_PWR_CORRECTION_dB; */
 	/* P4dB = P5dB -20*log10(IQM_CF_AMP)-6*10
@@ -14890,6 +19772,7 @@ ctrl_set_cfg_pre_saw(struct drx_demod_instance *demod, struct drxj_cfg_pre_saw *
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
@@ -14906,7 +19789,11 @@ ctrl_set_cfg_pre_saw(struct drx_demod_instance *demod, struct drxj_cfg_pre_saw *
 	     DRXJ_ISQAMSTD(pre_saw->standard)) ||
 	    (DRXJ_ISATVSTD(ext_attr->standard) &&
 	     DRXJ_ISATVSTD(pre_saw->standard))) {
-		WR16(dev_addr, IQM_AF_PDREF__A, pre_saw->reference);
+		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_PDREF__A, pre_saw->reference, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 	}
 
 	/* Store pre-saw settings */
@@ -14959,6 +19846,7 @@ ctrl_set_cfg_afe_gain(struct drx_demod_instance *demod, struct drxj_cfg_afe_gain
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
+	int rc;
 	u8 gain = 0;
 
 	/* check arguments */
@@ -14993,8 +19881,14 @@ ctrl_set_cfg_afe_gain(struct drx_demod_instance *demod, struct drxj_cfg_afe_gain
 		gain = (afe_gain->gain - 140 + 6) / 13;
 
 	/* Only if standard is currently active */
-	if (ext_attr->standard == afe_gain->standard)
-		WR16(dev_addr, IQM_AF_PGA_GAIN__A, gain);
+	if (ext_attr->standard == afe_gain->standard){
+
+			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_PGA_GAIN__A, gain, 0);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+		}
 
 	/* Store AFE Gain settings */
 	switch (afe_gain->standard) {
@@ -15132,12 +20026,17 @@ ctrl_get_cfg_afe_gain(struct drx_demod_instance *demod, struct drxj_cfg_afe_gain
 static int
 ctrl_get_fec_meas_seq_count(struct drx_demod_instance *demod, u16 *fec_meas_seq_count)
 {
+	int rc;
 	/* check arguments */
 	if (fec_meas_seq_count == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	RR16(demod->my_i2c_dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, fec_meas_seq_count);
+	rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_FEC_MEAS_COUNT__A, fec_meas_seq_count, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -15160,12 +20059,16 @@ rw_error:
 static int
 ctrl_get_accum_cr_rs_cw_err(struct drx_demod_instance *demod, u32 *accum_cr_rs_cw_err)
 {
+	int rc;
 	if (accum_cr_rs_cw_err == NULL) {
 		return (DRX_STS_INVALID_ARG);
 	}
 
-	RR32(demod->my_i2c_dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A,
-	     accum_cr_rs_cw_err);
+	rc = DRXJ_DAP.read_reg32func(demod->my_i2c_dev_addr, SCU_RAM_FEC_ACCUM_CW_CORRECTED_LO__A, accum_cr_rs_cw_err, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return (DRX_STS_OK);
 rw_error:
@@ -15182,11 +20085,19 @@ rw_error:
 */
 static int ctrl_set_cfg(struct drx_demod_instance *demod, struct drx_cfg *config)
 {
-	if (config == NULL) {
-		return (DRX_STS_INVALID_ARG);
-	}
+	int rc;
 
-	DUMMY_READ();
+	if (config == NULL)
+		return (DRX_STS_INVALID_ARG);
+
+	do {
+		u16 dummy;
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_VERSION_HI__A, &dummy, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+	}while (0);
 	switch (config->cfg_type) {
 	case DRX_CFG_MPEG_OUTPUT:
 		return ctrl_set_cfg_mpeg_output(demod,
@@ -15290,11 +20201,19 @@ rw_error:
 
 static int ctrl_get_cfg(struct drx_demod_instance *demod, struct drx_cfg *config)
 {
-	if (config == NULL) {
-		return (DRX_STS_INVALID_ARG);
-	}
+	int rc;
 
-	DUMMY_READ();
+	if (config == NULL)
+		return (DRX_STS_INVALID_ARG);
+
+	do {
+		u16 dummy;
+		rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_VERSION_HI__A, &dummy, 0);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
+	}while (0);
 
 	switch (config->cfg_type) {
 	case DRX_CFG_MPEG_OUTPUT:
@@ -15429,45 +20348,91 @@ int drxj_open(struct drx_demod_instance *demod)
 	u32 driver_version = 0;
 	struct drxu_code_info ucode_info;
 	struct drx_cfg_mpeg_output cfg_mpeg_output;
+	int rc;
 
 	/* Check arguments */
-	if (demod->my_ext_attr == NULL) {
+	if (demod->my_ext_attr == NULL)
 		return (DRX_STS_INVALID_ARG);
-	}
 
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
-	CHK_ERROR(power_up_device(demod));
+	rc = power_up_device(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	common_attr->current_power_mode = DRX_POWER_UP;
 
 	/* has to be in front of setIqmAf and setOrxNsuAox */
-	CHK_ERROR(get_device_capabilities(demod));
+	rc = get_device_capabilities(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Soft reset of sys- and osc-clockdomain */
-	WR16(dev_addr, SIO_CC_SOFT_RST__A, (SIO_CC_SOFT_RST_SYS__M |
-					   SIO_CC_SOFT_RST_OSC__M));
-	WR16(dev_addr, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
-	CHK_ERROR(drxbsp_hst_sleep(1));
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_CC_SOFT_RST__A, (SIO_CC_SOFT_RST_SYS__M | SIO_CC_SOFT_RST_OSC__M), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = drxbsp_hst_sleep(1);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* TODO first make sure that everything keeps working before enabling this */
 	/* PowerDownAnalogBlocks() */
-	WR16(dev_addr, ATV_TOP_STDBY__A, (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE)
-	     | ATV_TOP_STDBY_SIF_STDBY_STANDBY);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, ATV_TOP_STDBY__A, (~ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE) | ATV_TOP_STDBY_SIF_STDBY_STANDBY, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	CHK_ERROR(set_iqm_af(demod, false));
-	CHK_ERROR(set_orx_nsu_aox(demod, false));
+	rc = set_iqm_af(demod, false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = set_orx_nsu_aox(demod, false);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
-	CHK_ERROR(init_hi(demod));
+	rc = init_hi(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* disable mpegoutput pins */
 	cfg_mpeg_output.enable_mpeg_output = false;
-	CHK_ERROR(ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output));
+	rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* Stop AUD Inform SetAudio it will need to do all setting */
-	CHK_ERROR(power_down_aud(demod));
+	rc = power_down_aud(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	/* Stop SCU */
-	WR16(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_STOP);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_STOP, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Upload microcode */
 	if (common_attr->microcode != NULL) {
@@ -15479,25 +20444,42 @@ int drxj_open(struct drx_demod_instance *demod)
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 		/* Upload microcode without audio part */
-		CHK_ERROR(ctrl_u_codeUpload
-			  (demod, &ucode_info, UCODE_UPLOAD, false));
+		rc = ctrl_u_codeUpload(demod, &ucode_info, UCODE_UPLOAD, false);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 #else
-		CHK_ERROR(drx_ctrl(demod, DRX_CTRL_LOAD_UCODE, &ucode_info));
+		rc = drx_ctrl(demod, DRX_CTRL_LOAD_UCODE, &ucode_info);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 		if (common_attr->verify_microcode == true) {
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
-			CHK_ERROR(ctrl_u_codeUpload
-				  (demod, &ucode_info, UCODE_VERIFY, false));
+			rc = ctrl_u_codeUpload(demod, &ucode_info, UCODE_VERIFY, false);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 #else
-			CHK_ERROR(drx_ctrl
-				  (demod, DRX_CTRL_VERIFY_UCODE, &ucode_info));
+			rc = drx_ctrl(demod, DRX_CTRL_VERIFY_UCODE, &ucode_info);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 		}
 		common_attr->is_opened = false;
 	}
 
 	/* Run SCU for a little while to initialize microcode version numbers */
-	WR16(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Open tuner instance */
 	if (demod->my_tuner != NULL) {
@@ -15505,14 +20487,26 @@ int drxj_open(struct drx_demod_instance *demod)
 
 		if (common_attr->tuner_port_nr == 1) {
 			bool bridge_closed = true;
-			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
+			rc = ctrl_i2c_bridge(demod, &bridge_closed);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 
-		CHK_ERROR(drxbsp_tuner_open(demod->my_tuner));
+		rc = drxbsp_tuner_open(demod->my_tuner);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 
 		if (common_attr->tuner_port_nr == 1) {
 			bool bridge_closed = false;
-			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
+			rc = ctrl_i2c_bridge(demod, &bridge_closed);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 		common_attr->tuner_min_freq_rf =
 		    ((demod->my_tuner)->my_common_attr->min_freq_rf);
@@ -15597,7 +20591,11 @@ int drxj_open(struct drx_demod_instance *demod)
 #endif
 	ext_attr->standard = DRX_STANDARD_UNKNOWN;
 
-	CHK_ERROR(smart_ant_init(demod));
+	rc = smart_ant_init(demod);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* Stamp driver version number in SCU data RAM in BCD code
 	   Done to enable field application engineers to retreive drxdriver version
@@ -15618,9 +20616,16 @@ int drxj_open(struct drx_demod_instance *demod)
 	driver_version += (VERSION_PATCH / 10) % 10;
 	driver_version <<= 4;
 	driver_version += (VERSION_PATCH % 10);
-	WR16(dev_addr, SCU_RAM_DRIVER_VER_HI__A, (u16) (driver_version >> 16));
-	WR16(dev_addr, SCU_RAM_DRIVER_VER_LO__A,
-	     (u16) (driver_version & 0xFFFF));
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_DRIVER_VER_HI__A, (u16)(driver_version >> 16), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_RAM_DRIVER_VER_LO__A, (u16)(driver_version & 0xFFFF), 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	/* refresh the audio data structure with default */
 	ext_attr->aud_data = drxj_default_aud_data_g;
@@ -15642,27 +20647,52 @@ int drxj_close(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	struct drx_common_attr *common_attr = demod->my_common_attr;
+	int rc;
 	enum drx_power_mode power_mode = DRX_POWER_UP;
 
 	/* power up */
-	CHK_ERROR(ctrl_power_mode(demod, &power_mode));
+	rc = ctrl_power_mode(demod, &power_mode);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	if (demod->my_tuner != NULL) {
 		/* Check if bridge is used */
 		if (common_attr->tuner_port_nr == 1) {
 			bool bridge_closed = true;
-			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
+			rc = ctrl_i2c_bridge(demod, &bridge_closed);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
-		CHK_ERROR(drxbsp_tuner_close(demod->my_tuner));
+		rc = drxbsp_tuner_close(demod->my_tuner);
+		if (rc != DRX_STS_OK) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
+		}
 		if (common_attr->tuner_port_nr == 1) {
 			bool bridge_closed = false;
-			CHK_ERROR(ctrl_i2c_bridge(demod, &bridge_closed));
+			rc = ctrl_i2c_bridge(demod, &bridge_closed);
+			if (rc != DRX_STS_OK) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 		}
 	};
 
-	WR16(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE, 0);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 	power_mode = DRX_POWER_DOWN;
-	CHK_ERROR(ctrl_power_mode(demod, &power_mode));
+	rc = ctrl_power_mode(demod, &power_mode);
+	if (rc != DRX_STS_OK) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
 
 	return DRX_STS_OK;
 rw_error:
@@ -15865,5 +20895,3 @@ drxj_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 	}
 	return (DRX_STS_OK);
 }
-
-/* END OF FILE */
