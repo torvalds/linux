@@ -722,6 +722,7 @@ config GPIO_MCP23S08
 	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
 	  I/O expanders.
 	  This provides a GPIO interface supporting inputs and outputs.
+	  The I2C versions of the chips can be used as interrupt-controller.
 
 config GPIO_MC33880
 	tristate "Freescale MC33880 high-side/low-side switch"
