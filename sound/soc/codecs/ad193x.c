@@ -249,15 +249,15 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	struct ad193x_priv *ad193x = snd_soc_codec_get_drvdata(codec);
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		word_len = 3;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		word_len = 1;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 24:
+	case 32:
 		word_len = 0;
 		break;
 	}

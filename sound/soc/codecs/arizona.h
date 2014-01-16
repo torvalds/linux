@@ -166,20 +166,21 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MIXER_INPUT_ROUTES(name " Input 4")
 
 #define ARIZONA_DSP_ROUTES(name) \
-	{ name, NULL, name " Aux 1" }, \
-	{ name, NULL, name " Aux 2" }, \
-	{ name, NULL, name " Aux 3" }, \
-	{ name, NULL, name " Aux 4" }, \
-	{ name, NULL, name " Aux 5" }, \
-	{ name, NULL, name " Aux 6" }, \
+	{ name, NULL, name " Preloader"}, \
+	{ name " Preloader", NULL, name " Aux 1" }, \
+	{ name " Preloader", NULL, name " Aux 2" }, \
+	{ name " Preloader", NULL, name " Aux 3" }, \
+	{ name " Preloader", NULL, name " Aux 4" }, \
+	{ name " Preloader", NULL, name " Aux 5" }, \
+	{ name " Preloader", NULL, name " Aux 6" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 1"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 2"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 3"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 4"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 5"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 6"), \
-	ARIZONA_MIXER_ROUTES(name, name "L"), \
-	ARIZONA_MIXER_ROUTES(name, name "R")
+	ARIZONA_MIXER_ROUTES(name " Preloader", name "L"), \
+	ARIZONA_MIXER_ROUTES(name " Preloader", name "R")
 
 #define ARIZONA_RATE_ENUM_SIZE 4
 extern const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];

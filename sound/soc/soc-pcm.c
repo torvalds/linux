@@ -240,14 +240,15 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 		cpu_stream->channels_min);
 	hw->channels_max = min(codec_stream->channels_max,
 		cpu_stream->channels_max);
-	hw->formats = codec_stream->formats & cpu_stream->formats;
-	hw->rates = codec_stream->rates & cpu_stream->rates;
-	if (codec_stream->rates
-		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
-		hw->rates |= cpu_stream->rates;
-	if (cpu_stream->rates
-		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
-		hw->rates |= codec_stream->rates;
+	if (hw->formats)
+		hw->formats &= codec_stream->formats & cpu_stream->formats;
+	else
+		hw->formats = codec_stream->formats & cpu_stream->formats;
+	hw->rates = snd_pcm_rate_mask_intersect(codec_stream->rates,
+		cpu_stream->rates);
+
+	hw->rate_min = 0;
+	hw->rate_max = UINT_MAX;
 
 	snd_pcm_limit_hw_rates(runtime);
 
@@ -776,7 +777,7 @@ static int soc_pcm_bespoke_trigger(struct snd_pcm_substream *substream,
 			return ret;
 	}
 
-	if (platform->driver->ops && platform->driver->bespoke_trigger) {
+	if (platform->driver->bespoke_trigger) {
 		ret = platform->driver->bespoke_trigger(substream, cmd);
 		if (ret < 0)
 			return ret;
@@ -1235,6 +1236,20 @@ unwind:
 	return err;
 }
 
+static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
+	struct snd_soc_pcm_stream *stream)
+{
+	runtime->hw.rate_min = stream->rate_min;
+	runtime->hw.rate_max = stream->rate_max;
+	runtime->hw.channels_min = stream->channels_min;
+	runtime->hw.channels_max = stream->channels_max;
+	if (runtime->hw.formats)
+		runtime->hw.formats &= stream->formats;
+	else
+		runtime->hw.formats = stream->formats;
+	runtime->hw.rates = stream->rates;
+}
+
 static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -1242,21 +1257,10 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai_driver *cpu_dai_drv = cpu_dai->driver;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		runtime->hw.rate_min = cpu_dai_drv->playback.rate_min;
-		runtime->hw.rate_max = cpu_dai_drv->playback.rate_max;
-		runtime->hw.channels_min = cpu_dai_drv->playback.channels_min;
-		runtime->hw.channels_max = cpu_dai_drv->playback.channels_max;
-		runtime->hw.formats &= cpu_dai_drv->playback.formats;
-		runtime->hw.rates = cpu_dai_drv->playback.rates;
-	} else {
-		runtime->hw.rate_min = cpu_dai_drv->capture.rate_min;
-		runtime->hw.rate_max = cpu_dai_drv->capture.rate_max;
-		runtime->hw.channels_min = cpu_dai_drv->capture.channels_min;
-		runtime->hw.channels_max = cpu_dai_drv->capture.channels_max;
-		runtime->hw.formats &= cpu_dai_drv->capture.formats;
-		runtime->hw.rates = cpu_dai_drv->capture.rates;
-	}
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->playback);
+	else
+		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->capture);
 }
 
 static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
@@ -2137,10 +2141,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	int ret = 0, playback = 0, capture = 0;
 
 	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm) {
-		if (cpu_dai->driver->playback.channels_min)
-			playback = 1;
-		if (cpu_dai->driver->capture.channels_min)
-			capture = 1;
+		playback = rtd->dai_link->dpcm_playback;
+		capture = rtd->dai_link->dpcm_capture;
 	} else {
 		if (codec_dai->driver->playback.channels_min &&
 		    cpu_dai->driver->playback.channels_min)

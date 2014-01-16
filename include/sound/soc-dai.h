@@ -123,6 +123,8 @@ int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate);
 int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
 			     int direction);
 
+int snd_soc_dai_is_dummy(struct snd_soc_dai *dai);
+
 struct snd_soc_dai_ops {
 	/*
 	 * DAI clocking configuration, all optional.

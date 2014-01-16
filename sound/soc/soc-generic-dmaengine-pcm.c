@@ -144,6 +144,8 @@ static int dmaengine_pcm_set_runtime_hwparams(struct snd_pcm_substream *substrea
 	if (ret == 0) {
 		if (dma_caps.cmd_pause)
 			hw.info |= SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME;
+		if (dma_caps.residue_granularity <= DMA_RESIDUE_GRANULARITY_SEGMENT)
+			hw.info |= SNDRV_PCM_INFO_BATCH;
 	}
 
 	return snd_soc_set_runtime_hwparams(substream, &hw);
@@ -185,6 +187,21 @@ static struct dma_chan *dmaengine_pcm_compat_request_channel(
 
 	return snd_dmaengine_pcm_request_channel(pcm->config->compat_filter_fn,
 						 dma_data->filter_data);
+}
+
+static bool dmaengine_pcm_can_report_residue(struct dma_chan *chan)
+{
+	struct dma_slave_caps dma_caps;
+	int ret;
+
+	ret = dma_get_slave_caps(chan, &dma_caps);
+	if (ret != 0)
+		return true;
+
+	if (dma_caps.residue_granularity == DMA_RESIDUE_GRANULARITY_DESCRIPTOR)
+		return false;
+
+	return true;
 }
 
 static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
@@ -239,6 +256,16 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 				max_buffer_size);
 		if (ret)
 			goto err_free;
+
+		/*
+		 * This will only return false if we know for sure that at least
+		 * one channel does not support residue reporting. If the DMA
+		 * driver does not implement the slave_caps API we rely having
+		 * the NO_RESIDUE flag set manually in case residue reporting is
+		 * not supported.
+		 */
+		if (!dmaengine_pcm_can_report_residue(pcm->chan[i]))
+			pcm->flags |= SND_DMAENGINE_PCM_FLAG_NO_RESIDUE;
 	}
 
 	return 0;
@@ -248,6 +275,18 @@ err_free:
 	return ret;
 }
 
+static snd_pcm_uframes_t dmaengine_pcm_pointer(
+	struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct dmaengine_pcm *pcm = soc_platform_to_pcm(rtd->platform);
+
+	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
+		return snd_dmaengine_pcm_pointer_no_residue(substream);
+	else
+		return snd_dmaengine_pcm_pointer(substream);
+}
+
 static const struct snd_pcm_ops dmaengine_pcm_ops = {
 	.open		= dmaengine_pcm_open,
 	.close		= snd_dmaengine_pcm_close,
@@ -255,28 +294,11 @@ static const struct snd_pcm_ops dmaengine_pcm_ops = {
 	.hw_params	= dmaengine_pcm_hw_params,
 	.hw_free	= snd_pcm_lib_free_pages,
 	.trigger	= snd_dmaengine_pcm_trigger,
-	.pointer	= snd_dmaengine_pcm_pointer,
+	.pointer	= dmaengine_pcm_pointer,
 };
 
 static const struct snd_soc_platform_driver dmaengine_pcm_platform = {
 	.ops		= &dmaengine_pcm_ops,
-	.pcm_new	= dmaengine_pcm_new,
-	.pcm_free	= dmaengine_pcm_free,
-	.probe_order	= SND_SOC_COMP_ORDER_LATE,
-};
-
-static const struct snd_pcm_ops dmaengine_no_residue_pcm_ops = {
-	.open		= dmaengine_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= dmaengine_pcm_hw_params,
-	.hw_free	= snd_pcm_lib_free_pages,
-	.trigger	= snd_dmaengine_pcm_trigger,
-	.pointer	= snd_dmaengine_pcm_pointer_no_residue,
-};
-
-static const struct snd_soc_platform_driver dmaengine_no_residue_pcm_platform = {
-	.ops		= &dmaengine_no_residue_pcm_ops,
 	.pcm_new	= dmaengine_pcm_new,
 	.pcm_free	= dmaengine_pcm_free,
 	.probe_order	= SND_SOC_COMP_ORDER_LATE,
@@ -374,12 +396,8 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	if (ret)
 		goto err_free_dma;
 
-	if (flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
-		ret = snd_soc_add_platform(dev, &pcm->platform,
-				&dmaengine_no_residue_pcm_platform);
-	else
-		ret = snd_soc_add_platform(dev, &pcm->platform,
-				&dmaengine_pcm_platform);
+	ret = snd_soc_add_platform(dev, &pcm->platform,
+		&dmaengine_pcm_platform);
 	if (ret)
 		goto err_free_dma;
 
