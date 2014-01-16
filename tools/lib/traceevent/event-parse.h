@@ -631,6 +631,8 @@ int pevent_register_print_function(struct pevent *pevent,
 				   pevent_func_handler func,
 				   enum pevent_func_arg_type ret_type,
 				   char *name, ...);
+int pevent_unregister_print_function(struct pevent *pevent,
+				     pevent_func_handler func, char *name);
 
 struct format_field *pevent_find_common_field(struct event_format *event, const char *name);
 struct format_field *pevent_find_field(struct event_format *event, const char *name);

@@ -5560,6 +5560,29 @@ int pevent_register_print_function(struct pevent *pevent,
 	return ret;
 }
 
+/**
+ * pevent_unregister_print_function - unregister a helper function
+ * @pevent: the handle to the pevent
+ * @func: the function to process the helper function
+ * @name: the name of the helper function
+ *
+ * This function removes existing print handler for function @name.
+ *
+ * Returns 0 if the handler was removed successully, -1 otherwise.
+ */
+int pevent_unregister_print_function(struct pevent *pevent,
+				     pevent_func_handler func, char *name)
+{
+	struct pevent_function_handler *func_handle;
+
+	func_handle = find_func_handler(pevent, name);
+	if (func_handle && func_handle->func == func) {
+		remove_func_handler(pevent, name);
+		return 0;
+	}
+	return -1;
+}
+
 static struct event_format *pevent_search_event(struct pevent *pevent, int id,
 						const char *sys_name,
 						const char *event_name)
