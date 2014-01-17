@@ -250,7 +250,7 @@ static void __init intel_scu_spi_device_register(struct spi_board_info *sdev)
 			sdev->modalias);
 		return;
 	}
-	memcpy(new_dev, sdev, sizeof(*sdev));
+	*new_dev = *sdev;
 
 	spi_devs[spi_next_dev++] = new_dev;
 }
@@ -271,7 +271,7 @@ static void __init intel_scu_i2c_device_register(int bus,
 			idev->type);
 		return;
 	}
-	memcpy(new_dev, idev, sizeof(*idev));
+	*new_dev = *idev;
 
 	i2c_bus[i2c_next_dev] = bus;
 	i2c_devs[i2c_next_dev++] = new_dev;
