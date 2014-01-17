@@ -304,12 +304,14 @@ nv84_graph_tlb_flush(struct nouveau_engine *engine)
 	return timeout ? -EBUSY : 0;
 }
 
-static const struct nouveau_enum nv50_mp_exec_error_names[] = {
-	{ 3, "STACK_UNDERFLOW", NULL },
-	{ 4, "QUADON_ACTIVE", NULL },
-	{ 8, "TIMEOUT", NULL },
-	{ 0x10, "INVALID_OPCODE", NULL },
-	{ 0x40, "BREAKPOINT", NULL },
+static const struct nouveau_bitfield nv50_mp_exec_errors[] = {
+	{ 0x01, "STACK_UNDERFLOW" },
+	{ 0x02, "STACK_MISMATCH" },
+	{ 0x04, "QUADON_ACTIVE" },
+	{ 0x08, "TIMEOUT" },
+	{ 0x10, "INVALID_OPCODE" },
+	{ 0x20, "PM_OVERFLOW" },
+	{ 0x40, "BREAKPOINT" },
 	{}
 };
 
@@ -474,8 +476,8 @@ nv50_priv_mp_trap(struct nv50_graph_priv *priv, int tpid, int display)
 			oplow = nv_rd32(priv, addr + 0x70);
 			ophigh = nv_rd32(priv, addr + 0x74);
 			nv_error(priv, "TRAP_MP_EXEC - "
-					"TP %d MP %d: ", tpid, i);
-			nouveau_enum_print(nv50_mp_exec_error_names, status);
+					"TP %d MP %d:", tpid, i);
+			nouveau_bitfield_print(nv50_mp_exec_errors, status);
 			pr_cont(" at %06x warp %d, opcode %08x %08x\n",
 					pc&0xffffff, pc >> 24,
 					oplow, ophigh);
