@@ -2775,4 +2775,5 @@ module_exit(vxlan_cleanup_module);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(VXLAN_VERSION);
 MODULE_AUTHOR("Stephen Hemminger <stephen@networkplumber.org>");
+MODULE_DESCRIPTION("Driver for VXLAN encapsulated traffic");
 MODULE_ALIAS_RTNL_LINK("vxlan");
