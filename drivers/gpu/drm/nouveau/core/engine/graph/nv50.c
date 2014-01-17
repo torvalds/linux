@@ -315,6 +315,20 @@ static const struct nouveau_bitfield nv50_mp_exec_errors[] = {
 	{}
 };
 
+static const struct nouveau_bitfield nv50_mpc_traps[] = {
+	{ 0x0000001, "LOCAL_LIMIT_READ" },
+	{ 0x0000010, "LOCAL_LIMIT_WRITE" },
+	{ 0x0000040, "STACK_LIMIT" },
+	{ 0x0000100, "GLOBAL_LIMIT_READ" },
+	{ 0x0001000, "GLOBAL_LIMIT_WRITE" },
+	{ 0x0010000, "MP0" },
+	{ 0x0020000, "MP1" },
+	{ 0x0040000, "GLOBAL_LIMIT_RED" },
+	{ 0x0400000, "GLOBAL_LIMIT_ATOM" },
+	{ 0x4000000, "MP2" },
+	{}
+};
+
 static const struct nouveau_bitfield nv50_graph_trap_m2mf[] = {
 	{ 0x00000001, "NOTIFY" },
 	{ 0x00000002, "IN" },
@@ -523,6 +537,12 @@ nv50_priv_tp_trap(struct nv50_graph_priv *priv, int type, u32 ustatus_old,
 			if (ustatus & 0x04030000) {
 				nv50_priv_mp_trap(priv, i, display);
 				ustatus &= ~0x04030000;
+			}
+			if (ustatus && display) {
+				nv_error("%s - TP%d:", name, i);
+				nouveau_bitfield_print(nv50_mpc_traps, ustatus);
+				pr_cont("\n");
+				ustatus = 0;
 			}
 			break;
 		case 8: /* PROP error */
