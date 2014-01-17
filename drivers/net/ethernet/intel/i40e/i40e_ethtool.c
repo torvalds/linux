@@ -1135,6 +1135,7 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		ret = i40e_get_rss_hash_opts(pf, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = 10;
 		ret = 0;
 		break;
 	case ETHTOOL_GRXCLSRULE:
@@ -1369,6 +1370,13 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	ip->saddr = fsp->h_u.tcp_ip4_spec.ip4src;
 	tcp->source = fsp->h_u.tcp_ip4_spec.psrc;
 
+	if (add) {
+		if (pf->flags & I40E_FLAG_FD_ATR_ENABLED) {
+			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
+			pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+		}
+	}
+
 	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN;
 	ret = i40e_program_fdir_filter(fd_data, pf, add);
 
@@ -1508,8 +1516,8 @@ static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
 	fd_data.flex_off = 0;
 	fd_data.pctype = 0;
 	fd_data.dest_vsi = vsi->id;
-	fd_data.dest_ctl = 0;
-	fd_data.fd_status = 0;
+	fd_data.dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DIRECT_PACKET_QINDEX;
+	fd_data.fd_status = I40E_FILTER_PROGRAM_DESC_FD_STATUS_FD_ID;
 	fd_data.cnt_index = 0;
 	fd_data.fd_id = 0;
 
