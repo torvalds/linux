@@ -288,7 +288,6 @@ static int __init eisa_request_resources(struct eisa_root_device *root,
 			edev->res[i].flags = IORESOURCE_IO | IORESOURCE_BUSY;
 		}
 
-		dev_printk(KERN_DEBUG, &edev->dev, "%pR\n", &edev->res[i]);
 		if (request_resource(root->res, &edev->res[i]))
 			goto failed;
 	}
