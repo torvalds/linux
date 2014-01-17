@@ -607,9 +607,9 @@ static inline int check_nid_range(struct f2fs_sb_info *sbi, nid_t nid)
 static inline int F2FS_HAS_BLOCKS(struct inode *inode)
 {
 	if (F2FS_I(inode)->i_xattr_nid)
-		return (inode->i_blocks > F2FS_DEFAULT_ALLOCATED_BLOCKS + 1);
+		return inode->i_blocks > F2FS_DEFAULT_ALLOCATED_BLOCKS + 1;
 	else
-		return (inode->i_blocks > F2FS_DEFAULT_ALLOCATED_BLOCKS);
+		return inode->i_blocks > F2FS_DEFAULT_ALLOCATED_BLOCKS;
 }
 
 static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
@@ -1231,7 +1231,7 @@ struct f2fs_stat_info {
 
 static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 {
-	return (struct f2fs_stat_info*)sbi->stat_info;
+	return (struct f2fs_stat_info *)sbi->stat_info;
 }
 
 #define stat_inc_call_count(si)		((si)->call_count++)

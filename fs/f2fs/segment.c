@@ -946,7 +946,8 @@ void write_data_page(struct page *page, struct dnode_of_data *dn,
 	do_write_page(sbi, page, dn->data_blkaddr, new_blkaddr, &sum, fio);
 }
 
-void rewrite_data_page(struct page *page, block_t old_blkaddr, struct f2fs_io_info *fio)
+void rewrite_data_page(struct page *page, block_t old_blkaddr,
+					struct f2fs_io_info *fio)
 {
 	struct inode *inode = page->mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
@@ -1647,7 +1648,8 @@ static void build_sit_entries(struct f2fs_sb_info *sbi)
 
 			mutex_lock(&curseg->curseg_mutex);
 			for (i = 0; i < sits_in_cursum(sum); i++) {
-				if (le32_to_cpu(segno_in_journal(sum, i)) == start) {
+				if (le32_to_cpu(segno_in_journal(sum, i))
+								== start) {
 					sit = sit_in_journal(sum, i);
 					mutex_unlock(&curseg->curseg_mutex);
 					goto got_it;

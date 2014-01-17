@@ -448,8 +448,8 @@ static inline int reserved_sections(struct f2fs_sb_info *sbi)
 
 static inline bool need_SSR(struct f2fs_sb_info *sbi)
 {
-	return ((prefree_segments(sbi) / sbi->segs_per_sec)
-			+ free_sections(sbi) < overprovision_sections(sbi));
+	return (prefree_segments(sbi) / sbi->segs_per_sec)
+			+ free_sections(sbi) < overprovision_sections(sbi);
 }
 
 static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
@@ -460,18 +460,19 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 	if (unlikely(sbi->por_doing))
 		return false;
 
-	return ((free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
-						reserved_sections(sbi)));
+	return (free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
+						reserved_sections(sbi));
 }
 
 static inline bool excess_prefree_segs(struct f2fs_sb_info *sbi)
 {
-	return (prefree_segments(sbi) > SM_I(sbi)->rec_prefree_segments);
+	return prefree_segments(sbi) > SM_I(sbi)->rec_prefree_segments;
 }
 
 static inline int utilization(struct f2fs_sb_info *sbi)
 {
-	return div_u64((u64)valid_user_blocks(sbi) * 100, sbi->user_block_count);
+	return div_u64((u64)valid_user_blocks(sbi) * 100,
+					sbi->user_block_count);
 }
 
 /*

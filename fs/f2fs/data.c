@@ -792,7 +792,7 @@ static int f2fs_write_data_page(struct page *page,
 	int err = 0;
 	struct f2fs_io_info fio = {
 		.type = DATA,
-		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC: WRITE,
+		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE,
 	};
 
 	if (page->index < end_index)

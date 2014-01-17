@@ -535,7 +535,8 @@ static int segment_info_seq_show(struct seq_file *seq, void *offset)
 {
 	struct super_block *sb = seq->private;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	unsigned int total_segs = le32_to_cpu(sbi->raw_super->segment_count_main);
+	unsigned int total_segs =
+			le32_to_cpu(sbi->raw_super->segment_count_main);
 	int i;
 
 	for (i = 0; i < total_segs; i++) {
@@ -816,8 +817,9 @@ retry:
 	/* sanity checking of raw super */
 	if (sanity_check_raw_super(sb, *raw_super)) {
 		brelse(*raw_super_buf);
-		f2fs_msg(sb, KERN_ERR, "Can't find a valid F2FS filesystem "
-				"in %dth superblock", block + 1);
+		f2fs_msg(sb, KERN_ERR,
+			"Can't find valid F2FS filesystem in %dth superblock",
+								block + 1);
 		if (block == 0) {
 			block++;
 			goto retry;
