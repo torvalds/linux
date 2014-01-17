@@ -232,6 +232,18 @@ static bool cpt_can_enable_serr_int(struct drm_device *dev)
 	return true;
 }
 
+static void i9xx_clear_fifo_underrun(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg = PIPESTAT(pipe);
+	u32 pipestat = I915_READ(reg) & 0x7fff0000;
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	I915_WRITE(reg, pipestat | PIPE_FIFO_UNDERRUN_STATUS);
+	POSTING_READ(reg);
+}
+
 static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
 						 enum pipe pipe, bool enable)
 {
@@ -393,7 +405,9 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 
 	intel_crtc->cpu_fifo_underrun_disabled = !enable;
 
-	if (IS_GEN5(dev) || IS_GEN6(dev))
+	if (enable && (INTEL_INFO(dev)->gen < 5 || IS_VALLEYVIEW(dev)))
+		i9xx_clear_fifo_underrun(dev, pipe);
+	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN7(dev))
 		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable);
@@ -1454,12 +1468,8 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			/*
 			 * Clear the PIPE*STAT regs before the IIR
 			 */
-			if (pipe_stats[pipe] & 0x8000ffff) {
-				if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
-					DRM_DEBUG_DRIVER("pipe %c underrun\n",
-							 pipe_name(pipe));
+			if (pipe_stats[pipe] & 0x8000ffff)
 				I915_WRITE(reg, pipe_stats[pipe]);
-			}
 		}
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
@@ -1474,6 +1484,10 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
 				i9xx_pipe_crc_irq_handler(dev, pipe);
+
+			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
+			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
+				DRM_DEBUG_DRIVER("pipe %c underrun\n", pipe_name(pipe));
 		}
 
 		/* Consume port.  Then clear IIR or we'll miss events */
@@ -3198,12 +3212,8 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 			/*
 			 * Clear the PIPE*STAT regs before the IIR
 			 */
-			if (pipe_stats[pipe] & 0x8000ffff) {
-				if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
-					DRM_DEBUG_DRIVER("pipe %c underrun\n",
-							 pipe_name(pipe));
+			if (pipe_stats[pipe] & 0x8000ffff)
 				I915_WRITE(reg, pipe_stats[pipe]);
-			}
 		}
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
@@ -3226,6 +3236,10 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
 				i9xx_pipe_crc_irq_handler(dev, pipe);
+
+			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
+			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
+				DRM_DEBUG_DRIVER("pipe %c underrun\n", pipe_name(pipe));
 		}
 
 		iir = new_iir;
@@ -3379,9 +3393,6 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 			/* Clear the PIPE*STAT regs before the IIR */
 			if (pipe_stats[pipe] & 0x8000ffff) {
-				if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
-					DRM_DEBUG_DRIVER("pipe %c underrun\n",
-							 pipe_name(pipe));
 				I915_WRITE(reg, pipe_stats[pipe]);
 				irq_received = true;
 			}
@@ -3423,6 +3434,10 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
 				i9xx_pipe_crc_irq_handler(dev, pipe);
+
+			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
+			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
+				DRM_DEBUG_DRIVER("pipe %c underrun\n", pipe_name(pipe));
 		}
 
 		if (blc_event || (iir & I915_ASLE_INTERRUPT))
@@ -3617,9 +3632,6 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			 * Clear the PIPE*STAT regs before the IIR
 			 */
 			if (pipe_stats[pipe] & 0x8000ffff) {
-				if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
-					DRM_DEBUG_DRIVER("pipe %c underrun\n",
-							 pipe_name(pipe));
 				I915_WRITE(reg, pipe_stats[pipe]);
 				irq_received = true;
 			}
@@ -3667,8 +3679,11 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
 				i9xx_pipe_crc_irq_handler(dev, pipe);
-		}
 
+			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
+			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
+				DRM_DEBUG_DRIVER("pipe %c underrun\n", pipe_name(pipe));
+		}
 
 		if (blc_event || (iir & I915_ASLE_INTERRUPT))
 			intel_opregion_asle_intr(dev);

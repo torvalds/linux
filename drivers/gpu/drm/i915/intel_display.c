@@ -4170,6 +4170,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(dev_priv, pipe, false, is_dsi);
+	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
 	intel_enable_primary_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
@@ -4208,6 +4209,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(dev_priv, pipe, false, false);
+	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
 	intel_enable_primary_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	/* The fixup needs to happen before cursor is enabled */
@@ -4266,6 +4268,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	intel_disable_planes(crtc);
 	intel_disable_primary_plane(dev_priv, plane, pipe);
 
+	intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
 	intel_disable_pipe(dev_priv, pipe);
 
 	i9xx_pfit_disable(intel_crtc);
