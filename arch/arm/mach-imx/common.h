@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -145,8 +145,12 @@ void imx6sl_set_wait_clk(bool enter);
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
 
+void imx6_suspend(void __iomem *ocram_vbase);
 void imx6q_pm_init(void);
+void imx6dl_pm_init(void);
+void imx6sl_pm_init(void);
 void imx6q_pm_set_ccm_base(void __iomem *base);
+
 #ifdef CONFIG_PM
 void imx5_pm_init(void);
 #else

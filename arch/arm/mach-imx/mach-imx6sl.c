@@ -58,8 +58,7 @@ static void __init imx6sl_init_machine(void)
 
 	imx6sl_fec_init();
 	imx_anatop_init();
-	/* Reuse imx6q pm code */
-	imx6q_pm_init();
+	imx6sl_pm_init();
 }
 
 static void __init imx6sl_init_irq(void)
