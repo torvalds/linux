@@ -5205,9 +5205,9 @@ static int ctrl_validate_u_code(struct drx_demod_instance *demod)
 	 *   - product ID in version record's device ID does not
 	 *     match DRXJ1 product IDs - 0x393 or 0x394
 	 */
-	DRX_GET_MCVERTYPE(demod, ver_type);
-	DRX_GET_MCDEV(demod, mc_dev);
-	DRX_GET_MCPATCH(demod, mc_patch);
+	ver_type = DRX_ATTR_MCRECORD(demod).aux_type;
+	mc_dev = DRX_ATTR_MCRECORD(demod).mc_dev_type;
+	mc_patch = DRX_ATTR_MCRECORD(demod).mc_base_version;
 
 	if (DRX_ISMCVERTYPE(ver_type)) {
 		if ((mc_dev != 0) &&

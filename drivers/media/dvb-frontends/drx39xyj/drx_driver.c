@@ -767,7 +767,7 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 		return -EINVAL;
 	}
 
-	DRX_GET_TUNERSLOWMODE(demod, tuner_slow_mode);
+	tuner_slow_mode = DRX_ATTR_TUNERSLOWMODE(demod);
 
 	/* select fast (switch) or slow (lock) tuner mode */
 	if (tuner_slow_mode) {
@@ -818,7 +818,7 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 
 	/* update common attributes with information available from this function;
 	   TODO: check if this is required and safe */
-	DRX_SET_INTERMEDIATEFREQ(demod, if_frequency);
+	DRX_ATTR_INTERMEDIATEFREQ(demod) = if_frequency;
 
 	return 0;
 }
@@ -1010,10 +1010,10 @@ ctrl_u_code(struct drx_demod_instance *demod,
 	/* Scan microcode blocks first for version info if uploading */
 	if (action == UCODE_UPLOAD) {
 		/* Clear version block */
-		DRX_SET_MCVERTYPE(demod, 0);
-		DRX_SET_MCDEV(demod, 0);
-		DRX_SET_MCVERSION(demod, 0);
-		DRX_SET_MCPATCH(demod, 0);
+		DRX_ATTR_MCRECORD(demod).aux_type = 0;
+		DRX_ATTR_MCRECORD(demod).mc_dev_type = 0;
+		DRX_ATTR_MCRECORD(demod).mc_version = 0;
+		DRX_ATTR_MCRECORD(demod).mc_base_version = 0;
 		for (i = 0; i < mc_nr_of_blks; i++) {
 			drxu_code_block_hdr_t block_hdr;
 
@@ -1032,17 +1032,13 @@ ctrl_u_code(struct drx_demod_instance *demod,
 				u8 *auxblk = mc_info->mc_data + block_hdr.addr;
 				u16 auxtype = u_code_read16(auxblk);
 				if (DRX_ISMCVERTYPE(auxtype)) {
-					DRX_SET_MCVERTYPE(demod,
-							  u_code_read16(auxblk));
+					DRX_ATTR_MCRECORD(demod).aux_type = u_code_read16(auxblk);
 					auxblk += sizeof(u16);
-					DRX_SET_MCDEV(demod,
-						      u_code_read32(auxblk));
+					DRX_ATTR_MCRECORD(demod).mc_dev_type = u_code_read32(auxblk);
 					auxblk += sizeof(u32);
-					DRX_SET_MCVERSION(demod,
-							  u_code_read32(auxblk));
+					DRX_ATTR_MCRECORD(demod).mc_version = u_code_read32(auxblk);
 					auxblk += sizeof(u32);
-					DRX_SET_MCPATCH(demod,
-							u_code_read32(auxblk));
+					DRX_ATTR_MCRECORD(demod).mc_base_version = u_code_read32(auxblk);
 				}
 			}
 
@@ -1351,7 +1347,7 @@ int drx_close(struct drx_demod_instance *demod)
 
 	status = (*(demod->my_demod_funct->close_func)) (demod);
 
-	DRX_SET_ISOPENED(demod, false);
+	DRX_ATTR_ISOPENED(demod) = false;
 
 	return status;
 }
