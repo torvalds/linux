@@ -3523,9 +3523,9 @@ static const char readme_msg[] =
 #ifdef CONFIG_DYNAMIC_FTRACE
 	"\n  available_filter_functions - list of functions that can be filtered on\n"
 	"  set_ftrace_filter\t- echo function name in here to only trace these functions\n"
-	"            accepts: func_full_name, *func_end, func_begin*, *func_middle*\n"
-	"            modules: Can select a group via module\n"
-	"             Format: :mod:<module-name>\n"
+	"             accepts: func_full_name, *func_end, func_begin*, *func_middle*\n"
+	"             modules: Can select a group via module\n"
+	"              Format: :mod:<module-name>\n"
 	"             example: echo :mod:ext3 > set_ftrace_filter\n"
 	"            triggers: a command to perform when function is hit\n"
 	"              Format: <function>:<trigger>[:count]\n"
@@ -3573,6 +3573,37 @@ static const char readme_msg[] =
 	"  stack_trace_filter\t- Like set_ftrace_filter but limits what stack_trace traces\n"
 #endif
 #endif /* CONFIG_STACK_TRACER */
+	"  events/\t\t- Directory containing all trace event subsystems:\n"
+	"      enable\t\t- Write 0/1 to enable/disable tracing of all events\n"
+	"  events/<system>/\t- Directory containing all trace events for <system>:\n"
+	"      enable\t\t- Write 0/1 to enable/disable tracing of all <system> events\n"
+	"      filter\t\t- If set, only events passing filter are traced\n"
+	"  events/<system>/<event>/\t- Directory containing control files for <event>:\n"
+	"      enable\t\t- Write 0/1 to enable/disable tracing of <event>\n"
+	"      filter\t\t- If set, only events passing filter are traced\n"
+	"      trigger\t\t- If set, a command to perform when event is hit\n"
+	"            Format: <trigger>[:count][if <filter>]\n"
+	"           trigger: traceon, traceoff\n"
+	"                    enable_event:<system>:<event>\n"
+	"                    disable_event:<system>:<event>\n"
+#ifdef CONFIG_STACKTRACE
+	"                    stacktrace\n"
+#endif
+#ifdef CONFIG_TRACER_SNAPSHOT
+	"                    snapshot\n"
+#endif
+	"           example: echo traceoff > events/block/block_unplug/trigger\n"
+	"                    echo traceoff:3 > events/block/block_unplug/trigger\n"
+	"                    echo 'enable_event:kmem:kmalloc:3 if nr_rq > 1' > events/block/block_unplug/trigger\n"
+	"           The first disables tracing every time block_unplug is hit.\n"
+	"           The second disables tracing the first 3 times block_unplug is hit.\n"
+	"           The third enables the kmalloc event the first 3 times block_unplug\n"
+	"             is hit and has value of greater than 1 for the 'nr_rq' event field.\n"
+	"           To remove a trigger without a count:\n"
+	"             echo '!<trigger> > <system>/<event>/trigger\n"
+	"           To remove a trigger with a count:\n"
+	"             echo '!<trigger>:0 > <system>/<event>/trigger\n"
+	"           Filters can be ignored when removing a trigger.\n"
 ;
 
 static ssize_t
