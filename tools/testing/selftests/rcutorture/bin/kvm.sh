@@ -35,6 +35,7 @@ trap 'rm -rf $T' 0
 mkdir $T
 
 dur=30
+dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
 builddir="${KVM}/b1"
@@ -56,6 +57,7 @@ usage () {
 	echo "       --configs \"config-file list\""
 	echo "       --cpus N"
 	echo "       --datestamp string"
+	echo "       --dryrun sched|script"
 	echo "       --duration minutes"
 	echo "       --interactive"
 	echo "       --kmake-arg kernel-make-arguments"
@@ -99,6 +101,11 @@ do
 	--datestamp)
 		checkarg --datestamp "(relative pathname)" "$#" "$2" '^[^/]*$' '^--'
 		ds=$2
+		shift
+		;;
+	--dryrun)
+		checkarg --dryrun "sched|script" $# "$2" 'sched\|script' '^--'
+		dryrun=$2
 		shift
 		;;
 	--duration)
@@ -179,9 +186,12 @@ else
 	fi
 fi
 mkdir $resdir/$ds
-echo Results directory: $resdir/$ds
+if test "$dryrun" = ""
+then
+	echo Results directory: $resdir/$ds
+	echo $scriptname $args
+fi
 touch $resdir/$ds/log
-echo $scriptname $args
 echo $scriptname $args >> $resdir/$ds/log
 
 pwd > $resdir/$ds/testid.txt
@@ -231,7 +241,7 @@ function dump(first, pastlast)
 		print "echo ", cf[j], cpus[j] ": Starting build."
 		print "rm -f " builddir ".*"
 		print "touch " builddir ".wait"
-		print "mkdir " builddir " || :"
+		print "mkdir " builddir " > /dev/null 2>&1 || :"
 		if (cfrep[cf[j]] == "") {
 			cfr[j] = cf[j];
 			cfrep[cf[j]] = 1;
@@ -286,7 +296,28 @@ END {
 		dump(first, i);
 }' > $T/script
 
-sh $T/script
+if test "$dryrun" = script
+then
+	echo CONFIGFRAG="$CONFIGFRAG; export CONFIGFRAG"
+	echo KVM="$KVM; export KVM"
+	echo KVPATH="$KVPATH; export KVPATH"
+	echo PATH="$PATH; export PATH"
+	echo RCU_BUILDONLY="$RCU_BUILDONLY; export RCU_BUILDONLY"
+	echo RCU_INITRD="$RCU_INITRD; export RCU_INITRD"
+	echo RCU_KMAKE_ARG="$RCU_KMAKE_ARG; export RCU_KMAKE_ARG"
+	echo RCU_QEMU_CMD="$RCU_QEMU_CMD; export RCU_QEMU_CMD"
+	echo RCU_QEMU_INTERACTIVE="$RCU_QEMU_INTERACTIVE; export RCU_QEMU_INTERACTIVE"
+	echo RCU_QEMU_MAC="$RCU_QEMU_MAC; export RCU_QEMU_MAC"
+	cat $T/script
+	exit 0
+elif test "$dryrun" = sched
+then
+	egrep 'start batch|Starting build\.' $T/script |
+		sed -e 's/:.*$//' -e 's/^echo //'
+	exit 0
+else
+	sh $T/script
+fi
 
 # Tracing: trace_event=rcu:rcu_grace_period,rcu:rcu_future_grace_period,rcu:rcu_grace_period_init,rcu:rcu_nocb_wake,rcu:rcu_preempt_task,rcu:rcu_unlock_preempted_task,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_kfree_callback,rcu:rcu_batch_start,rcu:rcu_invoke_callback,rcu:rcu_invoke_kfree_callback,rcu:rcu_batch_end,rcu:rcu_torture_read,rcu:rcu_barrier
 
