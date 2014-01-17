@@ -481,10 +481,16 @@ static inline void fl_link(struct ipv6_pinfo *np, struct ipv6_fl_socklist *sfl,
 	spin_unlock_bh(&ip6_sk_fl_lock);
 }
 
-int ipv6_flowlabel_opt_get(struct sock *sk, struct in6_flowlabel_req *freq)
+int ipv6_flowlabel_opt_get(struct sock *sk, struct in6_flowlabel_req *freq,
+			   int flags)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_fl_socklist *sfl;
+
+	if (flags & IPV6_FL_F_REMOTE) {
+		freq->flr_label = np->rcv_flowinfo & IPV6_FLOWLABEL_MASK;
+		return 0;
+	}
 
 	if (np->repflow) {
 		freq->flr_label = np->flow_label;

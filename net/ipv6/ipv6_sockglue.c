@@ -1221,6 +1221,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	case IPV6_FLOWLABEL_MGR:
 	{
 		struct in6_flowlabel_req freq;
+		int flags;
 
 		if (len < sizeof(freq))
 			return -EINVAL;
@@ -1232,9 +1233,11 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 
 		len = sizeof(freq);
+		flags = freq.flr_flags;
+
 		memset(&freq, 0, sizeof(freq));
 
-		val = ipv6_flowlabel_opt_get(sk, &freq);
+		val = ipv6_flowlabel_opt_get(sk, &freq, flags);
 		if (val < 0)
 			return val;
 

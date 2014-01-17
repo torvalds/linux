@@ -253,7 +253,8 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions *opt_space,
 					 struct ipv6_txoptions *fopt);
 void fl6_free_socklist(struct sock *sk);
 int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen);
-int ipv6_flowlabel_opt_get(struct sock *sk, struct in6_flowlabel_req *freq);
+int ipv6_flowlabel_opt_get(struct sock *sk, struct in6_flowlabel_req *freq,
+			   int flags);
 int ip6_flowlabel_init(void);
 void ip6_flowlabel_cleanup(void);
 

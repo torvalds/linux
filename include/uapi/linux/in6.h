@@ -86,6 +86,7 @@ struct in6_flowlabel_req {
 #define IPV6_FL_F_CREATE	1
 #define IPV6_FL_F_EXCL		2
 #define IPV6_FL_F_REFLECT	4
+#define IPV6_FL_F_REMOTE	8
 
 #define IPV6_FL_S_NONE		0
 #define IPV6_FL_S_EXCL		1
