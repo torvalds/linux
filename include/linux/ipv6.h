@@ -4,6 +4,7 @@
 #include <uapi/linux/ipv6.h>
 
 #define ipv6_optlen(p)  (((p)->hdrlen+1) << 3)
+#define ipv6_authlen(p) (((p)->hdrlen+2) << 2)
 /*
  * This structure contains configuration options per IPv6 link.
  */

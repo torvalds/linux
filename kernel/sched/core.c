@@ -2660,6 +2660,7 @@ asmlinkage void __sched notrace preempt_schedule(void)
 	} while (need_resched());
 }
 EXPORT_SYMBOL(preempt_schedule);
+#endif /* CONFIG_PREEMPT */
 
 /*
  * this is the entry point to schedule() from kernel preemption
@@ -2692,8 +2693,6 @@ asmlinkage void __sched preempt_schedule_irq(void)
 
 	exception_exit(prev_state);
 }
-
-#endif /* CONFIG_PREEMPT */
 
 int default_wake_function(wait_queue_t *curr, unsigned mode, int wake_flags,
 			  void *key)
@@ -4762,7 +4761,7 @@ static void rq_attach_root(struct rq *rq, struct root_domain *rd)
 		cpumask_clear_cpu(rq->cpu, old_rd->span);
 
 		/*
-		 * If we dont want to free the old_rt yet then
+		 * If we dont want to free the old_rd yet then
 		 * set old_rd to NULL to skip the freeing later
 		 * in this function:
 		 */
@@ -4903,6 +4902,7 @@ DEFINE_PER_CPU(struct sched_domain *, sd_asym);
 static void update_top_cache_domain(int cpu)
 {
 	struct sched_domain *sd;
+	struct sched_domain *busy_sd = NULL;
 	int id = cpu;
 	int size = 1;
 
@@ -4910,8 +4910,9 @@ static void update_top_cache_domain(int cpu)
 	if (sd) {
 		id = cpumask_first(sched_domain_span(sd));
 		size = cpumask_weight(sched_domain_span(sd));
-		rcu_assign_pointer(per_cpu(sd_busy, cpu), sd->parent);
+		busy_sd = sd->parent; /* sd_busy */
 	}
+	rcu_assign_pointer(per_cpu(sd_busy, cpu), busy_sd);
 
 	rcu_assign_pointer(per_cpu(sd_llc, cpu), sd);
 	per_cpu(sd_llc_size, cpu) = size;
@@ -5112,6 +5113,7 @@ build_overlap_sched_groups(struct sched_domain *sd, int cpu)
 		 * die on a /0 trap.
 		 */
 		sg->sgp->power = SCHED_POWER_SCALE * cpumask_weight(sg_span);
+		sg->sgp->power_orig = sg->sgp->power;
 
 		/*
 		 * Make sure the first group of this domain contains the

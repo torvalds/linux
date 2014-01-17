@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
-#include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>

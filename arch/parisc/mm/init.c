@@ -32,6 +32,7 @@
 #include <asm/sections.h>
 
 extern int  data_start;
+extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
 
 #if PT_NLEVELS == 3
 /* NOTE: This layout exactly conforms to the hybrid L2/L3 page table layout
@@ -324,8 +325,9 @@ static void __init setup_bootmem(void)
 	reserve_bootmem_node(NODE_DATA(0), 0UL,
 			(unsigned long)(PAGE0->mem_free +
 				PDC_CONSOLE_IO_IODC_SIZE), BOOTMEM_DEFAULT);
-	reserve_bootmem_node(NODE_DATA(0), __pa((unsigned long)_text),
-			(unsigned long)(_end - _text), BOOTMEM_DEFAULT);
+	reserve_bootmem_node(NODE_DATA(0), __pa(KERNEL_BINARY_TEXT_START),
+			(unsigned long)(_end - KERNEL_BINARY_TEXT_START),
+			BOOTMEM_DEFAULT);
 	reserve_bootmem_node(NODE_DATA(0), (bootmap_start_pfn << PAGE_SHIFT),
 			((bootmap_pfn - bootmap_start_pfn) << PAGE_SHIFT),
 			BOOTMEM_DEFAULT);
@@ -376,6 +378,17 @@ static void __init setup_bootmem(void)
 		request_resource(res, &data_resource);
 	}
 	request_resource(&sysram_resources[0], &pdcdata_resource);
+}
+
+static int __init parisc_text_address(unsigned long vaddr)
+{
+	static unsigned long head_ptr __initdata;
+
+	if (!head_ptr)
+		head_ptr = PAGE_MASK & (unsigned long)
+			dereference_function_descriptor(&parisc_kernel_start);
+
+	return core_kernel_text(vaddr) || vaddr == head_ptr;
 }
 
 static void __init map_pages(unsigned long start_vaddr,
@@ -466,7 +479,7 @@ static void __init map_pages(unsigned long start_vaddr,
 				 */
 				if (force)
 					pte =  __mk_pte(address, pgprot);
-				else if (core_kernel_text(vaddr) &&
+				else if (parisc_text_address(vaddr) &&
 					 address != fv_addr)
 					pte = __mk_pte(address, PAGE_KERNEL_EXEC);
 				else

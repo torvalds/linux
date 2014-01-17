@@ -1795,9 +1795,6 @@ static int udc_start(struct ci_hdrc *ci)
 	pm_runtime_no_callbacks(&ci->gadget.dev);
 	pm_runtime_enable(&ci->gadget.dev);
 
-	/* Update ci->vbus_active */
-	ci_handle_vbus_change(ci);
-
 	return retval;
 
 destroy_eps:

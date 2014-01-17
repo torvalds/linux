@@ -208,7 +208,7 @@ static int bnx2x_get_vf_id(struct bnx2x *bp, u32 *vf_id)
 		return -EINVAL;
 	}
 
-	BNX2X_ERR("valid ME register value: 0x%08x\n", me_reg);
+	DP(BNX2X_MSG_IOV, "valid ME register value: 0x%08x\n", me_reg);
 
 	*vf_id = (me_reg & ME_REG_VF_NUM_MASK) >> ME_REG_VF_NUM_SHIFT;
 

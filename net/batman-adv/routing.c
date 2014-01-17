@@ -308,7 +308,7 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 		memcpy(icmph->dst, icmph->orig, ETH_ALEN);
 		memcpy(icmph->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 		icmph->msg_type = BATADV_ECHO_REPLY;
-		icmph->header.ttl = BATADV_TTL;
+		icmph->ttl = BATADV_TTL;
 
 		res = batadv_send_skb_to_orig(skb, orig_node, NULL);
 		if (res != NET_XMIT_DROP)
@@ -338,9 +338,9 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 	icmp_packet = (struct batadv_icmp_packet *)skb->data;
 
 	/* send TTL exceeded if packet is an echo request (traceroute) */
-	if (icmp_packet->icmph.msg_type != BATADV_ECHO_REQUEST) {
+	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
 		pr_debug("Warning - can't forward icmp packet from %pM to %pM: ttl exceeded\n",
-			 icmp_packet->icmph.orig, icmp_packet->icmph.dst);
+			 icmp_packet->orig, icmp_packet->dst);
 		goto out;
 	}
 
@@ -349,7 +349,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 		goto out;
 
 	/* get routing information */
-	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->icmph.orig);
+	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->orig);
 	if (!orig_node)
 		goto out;
 
@@ -359,11 +359,11 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 
 	icmp_packet = (struct batadv_icmp_packet *)skb->data;
 
-	memcpy(icmp_packet->icmph.dst, icmp_packet->icmph.orig, ETH_ALEN);
-	memcpy(icmp_packet->icmph.orig, primary_if->net_dev->dev_addr,
+	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
+	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr,
 	       ETH_ALEN);
-	icmp_packet->icmph.msg_type = BATADV_TTL_EXCEEDED;
-	icmp_packet->icmph.header.ttl = BATADV_TTL;
+	icmp_packet->msg_type = BATADV_TTL_EXCEEDED;
+	icmp_packet->ttl = BATADV_TTL;
 
 	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
 		ret = NET_RX_SUCCESS;
@@ -434,7 +434,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 		return batadv_recv_my_icmp_packet(bat_priv, skb);
 
 	/* TTL exceeded */
-	if (icmph->header.ttl < 2)
+	if (icmph->ttl < 2)
 		return batadv_recv_icmp_ttl_exceeded(bat_priv, skb);
 
 	/* get routing information */
@@ -449,7 +449,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	icmph = (struct batadv_icmp_header *)skb->data;
 
 	/* decrement ttl */
-	icmph->header.ttl--;
+	icmph->ttl--;
 
 	/* route it */
 	if (batadv_send_skb_to_orig(skb, orig_node, recv_if) != NET_XMIT_DROP)
@@ -709,7 +709,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 
 	/* TTL exceeded */
-	if (unicast_packet->header.ttl < 2) {
+	if (unicast_packet->ttl < 2) {
 		pr_debug("Warning - can't forward unicast packet from %pM to %pM: ttl exceeded\n",
 			 ethhdr->h_source, unicast_packet->dest);
 		goto out;
@@ -727,9 +727,9 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 
 	/* decrement ttl */
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
-	unicast_packet->header.ttl--;
+	unicast_packet->ttl--;
 
-	switch (unicast_packet->header.packet_type) {
+	switch (unicast_packet->packet_type) {
 	case BATADV_UNICAST_4ADDR:
 		hdr_len = sizeof(struct batadv_unicast_4addr_packet);
 		break;
@@ -970,7 +970,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 	unicast_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
 
-	is4addr = unicast_packet->header.packet_type == BATADV_UNICAST_4ADDR;
+	is4addr = unicast_packet->packet_type == BATADV_UNICAST_4ADDR;
 	/* the caller function should have already pulled 2 bytes */
 	if (is4addr)
 		hdr_size = sizeof(*unicast_4addr_packet);
@@ -1160,7 +1160,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	if (batadv_is_my_mac(bat_priv, bcast_packet->orig))
 		goto out;
 
-	if (bcast_packet->header.ttl < 2)
+	if (bcast_packet->ttl < 2)
 		goto out;
 
 	orig_node = batadv_orig_hash_find(bat_priv, bcast_packet->orig);

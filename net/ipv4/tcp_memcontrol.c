@@ -6,13 +6,6 @@
 #include <linux/memcontrol.h>
 #include <linux/module.h>
 
-static void memcg_tcp_enter_memory_pressure(struct sock *sk)
-{
-	if (sk->sk_cgrp->memory_pressure)
-		sk->sk_cgrp->memory_pressure = 1;
-}
-EXPORT_SYMBOL(memcg_tcp_enter_memory_pressure);
-
 int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
 	/*
@@ -60,7 +53,6 @@ EXPORT_SYMBOL(tcp_destroy_cgroup);
 static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 {
 	struct cg_proto *cg_proto;
-	u64 old_lim;
 	int i;
 	int ret;
 
@@ -71,7 +63,6 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 	if (val > RES_COUNTER_MAX)
 		val = RES_COUNTER_MAX;
 
-	old_lim = res_counter_read_u64(&cg_proto->memory_allocated, RES_LIMIT);
 	ret = res_counter_set_limit(&cg_proto->memory_allocated, val);
 	if (ret)
 		return ret;

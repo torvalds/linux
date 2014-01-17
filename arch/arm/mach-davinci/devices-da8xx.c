@@ -487,7 +487,7 @@ int __init da8xx_register_emac(void)
 
 static struct resource da830_mcasp1_resources[] = {
 	{
-		.name	= "mcasp1",
+		.name	= "mpu",
 		.start	= DAVINCI_DA830_MCASP1_REG_BASE,
 		.end	= DAVINCI_DA830_MCASP1_REG_BASE + (SZ_1K * 12) - 1,
 		.flags	= IORESOURCE_MEM,
@@ -515,7 +515,7 @@ static struct platform_device da830_mcasp1_device = {
 
 static struct resource da850_mcasp_resources[] = {
 	{
-		.name	= "mcasp",
+		.name	= "mpu",
 		.start	= DAVINCI_DA8XX_MCASP0_REG_BASE,
 		.end	= DAVINCI_DA8XX_MCASP0_REG_BASE + (SZ_1K * 12) - 1,
 		.flags	= IORESOURCE_MEM,

@@ -94,7 +94,7 @@ static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 
 void efx_rx_config_page_split(struct efx_nic *efx)
 {
-	efx->rx_page_buf_step = ALIGN(efx->rx_dma_len + NET_IP_ALIGN,
+	efx->rx_page_buf_step = ALIGN(efx->rx_dma_len + efx->rx_ip_align,
 				      EFX_RX_BUF_ALIGNMENT);
 	efx->rx_bufs_per_page = efx->rx_buffer_order ? 1 :
 		((PAGE_SIZE - sizeof(struct efx_rx_page_state)) /
@@ -189,9 +189,9 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
 		do {
 			index = rx_queue->added_count & rx_queue->ptr_mask;
 			rx_buf = efx_rx_buffer(rx_queue, index);
-			rx_buf->dma_addr = dma_addr + NET_IP_ALIGN;
+			rx_buf->dma_addr = dma_addr + efx->rx_ip_align;
 			rx_buf->page = page;
-			rx_buf->page_offset = page_offset + NET_IP_ALIGN;
+			rx_buf->page_offset = page_offset + efx->rx_ip_align;
 			rx_buf->len = efx->rx_dma_len;
 			rx_buf->flags = 0;
 			++rx_queue->added_count;

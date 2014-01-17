@@ -818,7 +818,7 @@ static void aead_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		       ivsize, 1);
 	print_hex_dump(KERN_ERR, "dst    @"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, sg_virt(req->dst),
-		       req->cryptlen, 1);
+		       req->cryptlen - ctx->authsize, 1);
 #endif
 
 	if (err) {
@@ -972,12 +972,9 @@ static void init_aead_job(u32 *sh_desc, dma_addr_t ptr,
 				 (edesc->src_nents ? : 1);
 		in_options = LDST_SGF;
 	}
-	if (encrypt)
-		append_seq_in_ptr(desc, src_dma, req->assoclen + ivsize +
-				  req->cryptlen - authsize, in_options);
-	else
-		append_seq_in_ptr(desc, src_dma, req->assoclen + ivsize +
-				  req->cryptlen, in_options);
+
+	append_seq_in_ptr(desc, src_dma, req->assoclen + ivsize + req->cryptlen,
+			  in_options);
 
 	if (likely(req->src == req->dst)) {
 		if (all_contig) {
@@ -998,7 +995,8 @@ static void init_aead_job(u32 *sh_desc, dma_addr_t ptr,
 		}
 	}
 	if (encrypt)
-		append_seq_out_ptr(desc, dst_dma, req->cryptlen, out_options);
+		append_seq_out_ptr(desc, dst_dma, req->cryptlen + authsize,
+				   out_options);
 	else
 		append_seq_out_ptr(desc, dst_dma, req->cryptlen - authsize,
 				   out_options);
@@ -1048,8 +1046,8 @@ static void init_aead_giv_job(u32 *sh_desc, dma_addr_t ptr,
 		sec4_sg_index += edesc->assoc_nents + 1 + edesc->src_nents;
 		in_options = LDST_SGF;
 	}
-	append_seq_in_ptr(desc, src_dma, req->assoclen + ivsize +
-			  req->cryptlen - authsize, in_options);
+	append_seq_in_ptr(desc, src_dma, req->assoclen + ivsize + req->cryptlen,
+			  in_options);
 
 	if (contig & GIV_DST_CONTIG) {
 		dst_dma = edesc->iv_dma;
@@ -1066,7 +1064,8 @@ static void init_aead_giv_job(u32 *sh_desc, dma_addr_t ptr,
 		}
 	}
 
-	append_seq_out_ptr(desc, dst_dma, ivsize + req->cryptlen, out_options);
+	append_seq_out_ptr(desc, dst_dma, ivsize + req->cryptlen + authsize,
+			   out_options);
 }
 
 /*
@@ -1130,7 +1129,8 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
  * allocate and map the aead extended descriptor
  */
 static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
-					   int desc_bytes, bool *all_contig_ptr)
+					   int desc_bytes, bool *all_contig_ptr,
+					   bool encrypt)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
@@ -1145,12 +1145,22 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	bool assoc_chained = false, src_chained = false, dst_chained = false;
 	int ivsize = crypto_aead_ivsize(aead);
 	int sec4_sg_index, sec4_sg_len = 0, sec4_sg_bytes;
+	unsigned int authsize = ctx->authsize;
 
 	assoc_nents = sg_count(req->assoc, req->assoclen, &assoc_chained);
-	src_nents = sg_count(req->src, req->cryptlen, &src_chained);
 
-	if (unlikely(req->dst != req->src))
-		dst_nents = sg_count(req->dst, req->cryptlen, &dst_chained);
+	if (unlikely(req->dst != req->src)) {
+		src_nents = sg_count(req->src, req->cryptlen, &src_chained);
+		dst_nents = sg_count(req->dst,
+				     req->cryptlen +
+					(encrypt ? authsize : (-authsize)),
+				     &dst_chained);
+	} else {
+		src_nents = sg_count(req->src,
+				     req->cryptlen +
+					(encrypt ? authsize : 0),
+				     &src_chained);
+	}
 
 	sgc = dma_map_sg_chained(jrdev, req->assoc, assoc_nents ? : 1,
 				 DMA_TO_DEVICE, assoc_chained);
@@ -1234,11 +1244,9 @@ static int aead_encrypt(struct aead_request *req)
 	u32 *desc;
 	int ret = 0;
 
-	req->cryptlen += ctx->authsize;
-
 	/* allocate extended descriptor */
 	edesc = aead_edesc_alloc(req, DESC_JOB_IO_LEN *
-				 CAAM_CMD_SZ, &all_contig);
+				 CAAM_CMD_SZ, &all_contig, true);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
@@ -1275,7 +1283,7 @@ static int aead_decrypt(struct aead_request *req)
 
 	/* allocate extended descriptor */
 	edesc = aead_edesc_alloc(req, DESC_JOB_IO_LEN *
-				 CAAM_CMD_SZ, &all_contig);
+				 CAAM_CMD_SZ, &all_contig, false);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
@@ -1332,7 +1340,8 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 	src_nents = sg_count(req->src, req->cryptlen, &src_chained);
 
 	if (unlikely(req->dst != req->src))
-		dst_nents = sg_count(req->dst, req->cryptlen, &dst_chained);
+		dst_nents = sg_count(req->dst, req->cryptlen + ctx->authsize,
+				     &dst_chained);
 
 	sgc = dma_map_sg_chained(jrdev, req->assoc, assoc_nents ? : 1,
 				 DMA_TO_DEVICE, assoc_chained);
@@ -1425,8 +1434,6 @@ static int aead_givencrypt(struct aead_givcrypt_request *areq)
 	u32 contig;
 	u32 *desc;
 	int ret = 0;
-
-	req->cryptlen += ctx->authsize;
 
 	/* allocate extended descriptor */
 	edesc = aead_giv_edesc_alloc(areq, DESC_JOB_IO_LEN *

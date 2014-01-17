@@ -72,7 +72,7 @@ static int nft_reject_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_reject *priv = nft_expr_priv(expr);
 
-	if (nla_put_be32(skb, NFTA_REJECT_TYPE, priv->type))
+	if (nla_put_be32(skb, NFTA_REJECT_TYPE, htonl(priv->type)))
 		goto nla_put_failure;
 
 	switch (priv->type) {

@@ -925,7 +925,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.dev = s5m8767->dev;
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = s5m8767;
-		config.regmap = iodev->regmap;
+		config.regmap = iodev->regmap_pmic;
 		config.of_node = pdata->regulators[i].reg_node;
 
 		rdev[i] = devm_regulator_register(&pdev->dev, &regulators[id],

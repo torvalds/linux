@@ -655,6 +655,11 @@ S: Stanford University
 S: Stanford, California 94305
 S: USA
 
+N: Carlos Chinea
+E: carlos.chinea@nokia.com
+E: cch.devel@gmail.com
+D: Author of HSI Subsystem
+
 N: Randolph Chung
 E: tausq@debian.org
 D: Linux/PA-RISC hacker

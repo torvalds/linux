@@ -1415,7 +1415,7 @@ int devm_spi_register_master(struct device *dev, struct spi_master *master)
 		return -ENOMEM;
 
 	ret = spi_register_master(master);
-	if (ret != 0) {
+	if (!ret) {
 		*ptr = master;
 		devres_add(dev, ptr);
 	} else {

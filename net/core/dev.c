@@ -4500,7 +4500,7 @@ struct net_device *netdev_all_upper_get_next_dev_rcu(struct net_device *dev,
 {
 	struct netdev_adjacent *upper;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !lockdep_rtnl_is_held());
 
 	upper = list_entry_rcu((*iter)->next, struct netdev_adjacent, list);
 

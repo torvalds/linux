@@ -690,8 +690,19 @@ static netdev_features_t macvlan_fix_features(struct net_device *dev,
 					      netdev_features_t features)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
+	netdev_features_t mask;
 
-	return features & (vlan->set_features | ~MACVLAN_FEATURES);
+	features |= NETIF_F_ALL_FOR_ALL;
+	features &= (vlan->set_features | ~MACVLAN_FEATURES);
+	mask = features;
+
+	features = netdev_increment_features(vlan->lowerdev->features,
+					     features,
+					     mask);
+	if (!vlan->fwd_priv)
+		features |= NETIF_F_LLTX;
+
+	return features;
 }
 
 static const struct ethtool_ops macvlan_ethtool_ops = {
@@ -1019,9 +1030,8 @@ static int macvlan_device_event(struct notifier_block *unused,
 		break;
 	case NETDEV_FEAT_CHANGE:
 		list_for_each_entry(vlan, &port->vlans, list) {
-			vlan->dev->features = dev->features & MACVLAN_FEATURES;
 			vlan->dev->gso_max_size = dev->gso_max_size;
-			netdev_features_change(vlan->dev);
+			netdev_update_features(vlan->dev);
 		}
 		break;
 	case NETDEV_UNREGISTER:

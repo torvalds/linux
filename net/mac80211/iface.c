@@ -1325,7 +1325,6 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.bssid = NULL;
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
-		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		sdata->vif.bss_conf.bssid = sdata->vif.addr;
 		break;

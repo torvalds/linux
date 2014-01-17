@@ -91,22 +91,18 @@
 			phy0: ethernet-phy@7 {
 				interrupts = <1 1 0 0>;
 				reg = <0x7>;
-				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
 				interrupts = <2 1 0 0>;
 				reg = <0x1>;
-				device_type = "ethernet-phy";
 			};
 			phy2: ethernet-phy@2 {
 				interrupts = <1 1 0 0>;
 				reg = <0x2>;
-				device_type = "ethernet-phy";
 			};
 			phy3: ethernet-phy@3 {
 				interrupts = <2 1 0 0>;
 				reg = <0x3>;
-				device_type = "ethernet-phy";
 			};
 			tbi0: tbi-phy@11 {
 				reg = <0x11>;
@@ -236,25 +232,21 @@
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1 0 0>;
 				reg = <0x7>;
-				device_type = "ethernet-phy";
 			};
 			qe_phy1: ethernet-phy@01 {
 				interrupt-parent = <&mpic>;
 				interrupts = <2 1 0 0>;
 				reg = <0x1>;
-				device_type = "ethernet-phy";
 			};
 			qe_phy2: ethernet-phy@02 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1 0 0>;
 				reg = <0x2>;
-				device_type = "ethernet-phy";
 			};
 			qe_phy3: ethernet-phy@03 {
 				interrupt-parent = <&mpic>;
 				interrupts = <2 1 0 0>;
 				reg = <0x3>;
-				device_type = "ethernet-phy";
 			};
 		};
 	};

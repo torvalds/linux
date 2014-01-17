@@ -58,8 +58,8 @@ struct nouveau_plane {
 };
 
 static uint32_t formats[] = {
-	DRM_FORMAT_NV12,
 	DRM_FORMAT_UYVY,
+	DRM_FORMAT_NV12,
 };
 
 /* Sine can be approximated with
@@ -99,25 +99,34 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_bo *cur = nv_plane->cur;
 	bool flip = nv_plane->flip;
-	int format = ALIGN(src_w * 4, 0x100);
 	int soff = NV_PCRTC0_SIZE * nv_crtc->index;
 	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->index;
-	int ret;
+	int format, ret;
+
+	/* Source parameters given in 16.16 fixed point, ignore fractional. */
+	src_x >>= 16;
+	src_y >>= 16;
+	src_w >>= 16;
+	src_h >>= 16;
+
+	format = ALIGN(src_w * 4, 0x100);
 
 	if (format > 0xffff)
-		return -EINVAL;
+		return -ERANGE;
+
+	if (dev->chipset >= 0x30) {
+		if (crtc_w < (src_w >> 1) || crtc_h < (src_h >> 1))
+			return -ERANGE;
+	} else {
+		if (crtc_w < (src_w >> 3) || crtc_h < (src_h >> 3))
+			return -ERANGE;
+	}
 
 	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM);
 	if (ret)
 		return ret;
 
 	nv_plane->cur = nv_fb->nvbo;
-
-	/* Source parameters given in 16.16 fixed point, ignore fractional. */
-	src_x = src_x >> 16;
-	src_y = src_y >> 16;
-	src_w = src_w >> 16;
-	src_h = src_h >> 16;
 
 	nv_mask(dev, NV_PCRTC_ENGINE_CTRL + soff, NV_CRTC_FSEL_OVERLAY, NV_CRTC_FSEL_OVERLAY);
 	nv_mask(dev, NV_PCRTC_ENGINE_CTRL + soff2, NV_CRTC_FSEL_OVERLAY, 0);
@@ -245,14 +254,25 @@ nv10_overlay_init(struct drm_device *device)
 {
 	struct nouveau_device *dev = nouveau_dev(device);
 	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
+	int num_formats = ARRAY_SIZE(formats);
 	int ret;
 
 	if (!plane)
 		return;
 
+	switch (dev->chipset) {
+	case 0x10:
+	case 0x11:
+	case 0x15:
+	case 0x1a:
+	case 0x20:
+		num_formats = 1;
+		break;
+	}
+
 	ret = drm_plane_init(device, &plane->base, 3 /* both crtc's */,
 			     &nv10_plane_funcs,
-			     formats, ARRAY_SIZE(formats), false);
+			     formats, num_formats, false);
 	if (ret)
 		goto err;
 

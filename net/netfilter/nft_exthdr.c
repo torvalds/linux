@@ -31,7 +31,7 @@ static void nft_exthdr_eval(const struct nft_expr *expr,
 {
 	struct nft_exthdr *priv = nft_expr_priv(expr);
 	struct nft_data *dest = &data[priv->dreg];
-	unsigned int offset;
+	unsigned int offset = 0;
 	int err;
 
 	err = ipv6_find_hdr(pkt->skb, &offset, priv->type, NULL, NULL);

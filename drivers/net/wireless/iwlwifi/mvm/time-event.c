@@ -176,8 +176,11 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	 * P2P Device discoveribility, while there are other higher priority
 	 * events in the system).
 	 */
-	if (WARN_ONCE(!le32_to_cpu(notif->status),
-		      "Failed to schedule time event\n")) {
+	if (!le32_to_cpu(notif->status)) {
+		bool start = le32_to_cpu(notif->action) &
+				TE_V2_NOTIF_HOST_EVENT_START;
+		IWL_WARN(mvm, "Time Event %s notification failure\n",
+			 start ? "start" : "end");
 		if (iwl_mvm_te_check_disconnect(mvm, te_data->vif, NULL)) {
 			iwl_mvm_te_clear_data(mvm, te_data);
 			return;

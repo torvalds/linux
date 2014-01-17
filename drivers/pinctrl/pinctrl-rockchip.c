@@ -504,6 +504,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 			data |= (3 << bit);
 			break;
 		default:
+			spin_unlock_irqrestore(&bank->slock, flags);
 			dev_err(info->dev, "unsupported pull setting %d\n",
 				pull);
 			return -EINVAL;
@@ -1453,8 +1454,8 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	if (ctrl->type == RK3188) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		info->reg_pull = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(info->reg_base))
-			return PTR_ERR(info->reg_base);
+		if (IS_ERR(info->reg_pull))
+			return PTR_ERR(info->reg_pull);
 	}
 
 	ret = rockchip_gpiolib_register(pdev, info);
