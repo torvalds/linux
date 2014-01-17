@@ -1804,6 +1804,28 @@ i40e_status i40e_aq_delete_element(struct i40e_hw *hw, u16 seid,
 }
 
 /**
+ * i40e_aq_dcb_updated - DCB Updated Command
+ * @hw: pointer to the hw struct
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * EMP will return when the shared RPB settings have been
+ * recomputed and modified. The retval field in the descriptor
+ * will be set to 0 when RPB is modified.
+ **/
+i40e_status i40e_aq_dcb_updated(struct i40e_hw *hw,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_dcb_updated);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
  * i40e_aq_tx_sched_cmd - generic Tx scheduler AQ command handler
  * @hw: pointer to the hw struct
  * @seid: seid for the physical port/switching component/vsi
@@ -1879,6 +1901,40 @@ i40e_status i40e_aq_config_vsi_tc_bw(struct i40e_hw *hw,
 	return i40e_aq_tx_sched_cmd(hw, seid, (void *)bw_data, sizeof(*bw_data),
 				    i40e_aqc_opc_configure_vsi_tc_bw,
 				    cmd_details);
+}
+
+/**
+ * i40e_aq_config_switch_comp_ets - Enable/Disable/Modify ETS on the port
+ * @hw: pointer to the hw struct
+ * @seid: seid of the switching component connected to Physical Port
+ * @ets_data: Buffer holding ETS parameters
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_config_switch_comp_ets(struct i40e_hw *hw,
+		u16 seid,
+		struct i40e_aqc_configure_switching_comp_ets_data *ets_data,
+		enum i40e_admin_queue_opc opcode,
+		struct i40e_asq_cmd_details *cmd_details)
+{
+	return i40e_aq_tx_sched_cmd(hw, seid, (void *)ets_data,
+				    sizeof(*ets_data), opcode, cmd_details);
+}
+
+/**
+ * i40e_aq_config_switch_comp_bw_config - Config Switch comp BW Alloc per TC
+ * @hw: pointer to the hw struct
+ * @seid: seid of the switching component
+ * @bw_data: Buffer holding enabled TCs, relative/absolute TC BW limit/credits
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_config_switch_comp_bw_config(struct i40e_hw *hw,
+	u16 seid,
+	struct i40e_aqc_configure_switching_comp_bw_config_data *bw_data,
+	struct i40e_asq_cmd_details *cmd_details)
+{
+	return i40e_aq_tx_sched_cmd(hw, seid, (void *)bw_data, sizeof(*bw_data),
+			    i40e_aqc_opc_configure_switching_comp_bw_config,
+			    cmd_details);
 }
 
 /**
@@ -2134,6 +2190,69 @@ i40e_status i40e_set_filter_control(struct i40e_hw *hw,
 
 	return 0;
 }
+
+/**
+ * i40e_aq_add_rem_control_packet_filter - Add or Remove Control Packet Filter
+ * @hw: pointer to the hw struct
+ * @mac_addr: MAC address to use in the filter
+ * @ethtype: Ethertype to use in the filter
+ * @flags: Flags that needs to be applied to the filter
+ * @vsi_seid: seid of the control VSI
+ * @queue: VSI queue number to send the packet to
+ * @is_add: Add control packet filter if True else remove
+ * @stats: Structure to hold information on control filter counts
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * This command will Add or Remove control packet filter for a control VSI.
+ * In return it will update the total number of perfect filter count in
+ * the stats member.
+ **/
+i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
+				u8 *mac_addr, u16 ethtype, u16 flags,
+				u16 vsi_seid, u16 queue, bool is_add,
+				struct i40e_control_filter_stats *stats,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_add_remove_control_packet_filter *cmd =
+		(struct i40e_aqc_add_remove_control_packet_filter *)
+		&desc.params.raw;
+	struct i40e_aqc_add_remove_control_packet_filter_completion *resp =
+		(struct i40e_aqc_add_remove_control_packet_filter_completion *)
+		&desc.params.raw;
+	i40e_status status;
+
+	if (vsi_seid == 0)
+		return I40E_ERR_PARAM;
+
+	if (is_add) {
+		i40e_fill_default_direct_cmd_desc(&desc,
+				i40e_aqc_opc_add_control_packet_filter);
+		cmd->queue = cpu_to_le16(queue);
+	} else {
+		i40e_fill_default_direct_cmd_desc(&desc,
+				i40e_aqc_opc_remove_control_packet_filter);
+	}
+
+	if (mac_addr)
+		memcpy(cmd->mac, mac_addr, ETH_ALEN);
+
+	cmd->etype = cpu_to_le16(ethtype);
+	cmd->flags = cpu_to_le16(flags);
+	cmd->seid = cpu_to_le16(vsi_seid);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	if (!status && stats) {
+		stats->mac_etype_used = le16_to_cpu(resp->mac_etype_used);
+		stats->etype_used = le16_to_cpu(resp->etype_used);
+		stats->mac_etype_free = le16_to_cpu(resp->mac_etype_free);
+		stats->etype_free = le16_to_cpu(resp->etype_free);
+	}
+
+	return status;
+}
+
 /**
  * i40e_set_pci_config_data - store PCI bus info
  * @hw: pointer to hardware structure
