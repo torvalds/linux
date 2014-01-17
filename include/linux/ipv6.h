@@ -191,6 +191,7 @@ struct ipv6_pinfo {
 	/* sockopt flags */
 	__u16			recverr:1,
 	                        sndflow:1,
+				repflow:1,
 				pmtudisc:3,
 				ipv6only:1,
 				srcprefs:3,	/* 001: prefer temporary address

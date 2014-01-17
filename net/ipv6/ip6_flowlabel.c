@@ -486,6 +486,11 @@ int ipv6_flowlabel_opt_get(struct sock *sk, struct in6_flowlabel_req *freq)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_fl_socklist *sfl;
 
+	if (np->repflow) {
+		freq->flr_label = np->flow_label;
+		return 0;
+	}
+
 	rcu_read_lock_bh();
 
 	for_each_sk_fl_rcu(np, sfl) {
@@ -527,6 +532,15 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 
 	switch (freq.flr_action) {
 	case IPV6_FL_A_PUT:
+		if (freq.flr_flags & IPV6_FL_F_REFLECT) {
+			if (sk->sk_protocol != IPPROTO_TCP)
+				return -ENOPROTOOPT;
+			if (!np->repflow)
+				return -ESRCH;
+			np->flow_label = 0;
+			np->repflow = 0;
+			return 0;
+		}
 		spin_lock_bh(&ip6_sk_fl_lock);
 		for (sflp = &np->ipv6_fl_list;
 		     (sfl = rcu_dereference(*sflp))!=NULL;
@@ -567,6 +581,13 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 		return -ESRCH;
 
 	case IPV6_FL_A_GET:
+		if (freq.flr_flags & IPV6_FL_F_REFLECT) {
+			if (sk->sk_protocol != IPPROTO_TCP)
+				return -ENOPROTOOPT;
+			np->repflow = 1;
+			return 0;
+		}
+
 		if (freq.flr_label & ~IPV6_FLOWLABEL_MASK)
 			return -EINVAL;
 
