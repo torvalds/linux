@@ -127,7 +127,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 		 * APs with pairwise keys should never receive Michael MIC
 		 * errors for non-zero keyidx because these are reserved for
 		 * group keys and only the AP is sending real multicast
-		 * frames in the BSS. (
+		 * frames in the BSS.
 		 */
 		return RX_DROP_UNUSABLE;
 	}

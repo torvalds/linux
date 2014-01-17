@@ -1857,6 +1857,7 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_CCMP = 16,
 	WLAN_KEY_LEN_TKIP = 32,
 	WLAN_KEY_LEN_AES_CMAC = 16,
+	WLAN_KEY_LEN_SMS4 = 32,
 };
 
 #define IEEE80211_WEP_IV_LEN		4
@@ -1902,6 +1903,7 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_EXT_CAPA5_TDLS_PROHIBITED	BIT(6)
 
 #define WLAN_EXT_CAPA8_OPMODE_NOTIF	BIT(6)
+#define WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED	BIT(7)
 
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2

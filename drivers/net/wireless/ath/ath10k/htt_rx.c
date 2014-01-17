@@ -838,6 +838,20 @@ static bool ath10k_htt_rx_has_fcs_err(struct sk_buff *skb)
 	return false;
 }
 
+static bool ath10k_htt_rx_has_mic_err(struct sk_buff *skb)
+{
+	struct htt_rx_desc *rxd;
+	u32 flags;
+
+	rxd = (void *)skb->data - sizeof(*rxd);
+	flags = __le32_to_cpu(rxd->attention.flags);
+
+	if (flags & RX_ATTENTION_FLAGS_TKIP_MIC_ERR)
+		return true;
+
+	return false;
+}
+
 static int ath10k_htt_rx_get_csum_state(struct sk_buff *skb)
 {
 	struct htt_rx_desc *rxd;
@@ -960,6 +974,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 
 			info.skb     = msdu_head;
 			info.fcs_err = ath10k_htt_rx_has_fcs_err(msdu_head);
+			info.mic_err = ath10k_htt_rx_has_mic_err(msdu_head);
 			info.signal  = ATH10K_DEFAULT_NOISE_FLOOR;
 			info.signal += rx->ppdu.combined_rssi;
 

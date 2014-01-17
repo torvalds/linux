@@ -287,6 +287,9 @@ static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	s32 retry = 0;
 	int ret;
 
+	if (sdiodev->bus_if->state == BRCMF_BUS_NOMEDIUM)
+		return -ENOMEDIUM;
+
 	/*
 	 * figure out how to read the register based on address range
 	 * 0x00 ~ 0x7FF: function 0 CCCR and FBR
@@ -306,9 +309,12 @@ static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 			usleep_range(1000, 2000);
 		ret = brcmf_sdiod_request_data(sdiodev, func_num, addr, regsz,
 					       data, write);
-	} while (ret != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
+	} while (ret != 0 && ret != -ENOMEDIUM &&
+		 retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
-	if (ret != 0)
+	if (ret == -ENOMEDIUM)
+		brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_NOMEDIUM);
+	else if (ret != 0)
 		brcmf_err("failed with %d\n", ret);
 
 	return ret;
@@ -319,6 +325,9 @@ brcmf_sdiod_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 {
 	int err = 0, i;
 	u8 addr[3];
+
+	if (sdiodev->bus_if->state == BRCMF_BUS_NOMEDIUM)
+		return -ENOMEDIUM;
 
 	addr[0] = (address >> 8) & SBSDIO_SBADDRLOW_MASK;
 	addr[1] = (address >> 16) & SBSDIO_SBADDRMID_MASK;
@@ -429,6 +438,7 @@ static int brcmf_sdiod_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 			     bool write, u32 addr, struct sk_buff *pkt)
 {
 	unsigned int req_sz;
+	int err;
 
 	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
 	if (brcmf_sdiod_pm_resume_error(sdiodev))
@@ -439,18 +449,18 @@ static int brcmf_sdiod_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	req_sz &= (uint)~3;
 
 	if (write)
-		return sdio_memcpy_toio(sdiodev->func[fn], addr,
-					((u8 *)(pkt->data)),
-					req_sz);
+		err = sdio_memcpy_toio(sdiodev->func[fn], addr,
+				       ((u8 *)(pkt->data)), req_sz);
 	else if (fn == 1)
-		return sdio_memcpy_fromio(sdiodev->func[fn],
-					  ((u8 *)(pkt->data)),
-					  addr, req_sz);
+		err = sdio_memcpy_fromio(sdiodev->func[fn], ((u8 *)(pkt->data)),
+					 addr, req_sz);
 	else
 		/* function 2 read is FIFO operation */
-		return sdio_readsb(sdiodev->func[fn],
-				   ((u8 *)(pkt->data)), addr,
-				   req_sz);
+		err = sdio_readsb(sdiodev->func[fn], ((u8 *)(pkt->data)), addr,
+				  req_sz);
+	if (err == -ENOMEDIUM)
+		brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_NOMEDIUM);
+	return err;
 }
 
 /**
@@ -593,7 +603,11 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		mmc_wait_for_req(sdiodev->func[fn]->card->host, &mmc_req);
 
 		ret = mmc_cmd.error ? mmc_cmd.error : mmc_dat.error;
-		if (ret != 0) {
+		if (ret == -ENOMEDIUM) {
+			brcmf_bus_change_state(sdiodev->bus_if,
+					       BRCMF_BUS_NOMEDIUM);
+			break;
+		} else if (ret != 0) {
 			brcmf_err("CMD53 sg block %s failed %d\n",
 				  write ? "write" : "read", ret);
 			ret = -EIO;
@@ -852,8 +866,6 @@ int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 
 static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 {
-	sdiodev->bus_if->state = BRCMF_BUS_DOWN;
-
 	if (sdiodev->bus) {
 		brcmf_sdio_remove(sdiodev->bus);
 		sdiodev->bus = NULL;

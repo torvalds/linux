@@ -519,6 +519,7 @@ static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 {
 	struct ieee80211_hdr *hdr = data;
 	struct ieee80211_tim_ie *tim_ie;
+	struct ath_common *common = &ar->common;
 	u8 *tim;
 	u8 tim_len;
 	bool cam;
@@ -526,17 +527,13 @@ static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 	if (likely(!(ar->hw->conf.flags & IEEE80211_CONF_PS)))
 		return;
 
-	/* check if this really is a beacon */
-	if (!ieee80211_is_beacon(hdr->frame_control))
-		return;
-
 	/* min. beacon length + FCS_LEN */
 	if (len <= 40 + FCS_LEN)
 		return;
 
+	/* check if this really is a beacon */
 	/* and only beacons from the associated BSSID, please */
-	if (!ether_addr_equal_64bits(hdr->addr3, ar->common.curbssid) ||
-	    !ar->common.curaid)
+	if (!ath_is_mybeacon(common, hdr) || !common->curaid)
 		return;
 
 	ar->ps.last_beacon = jiffies;

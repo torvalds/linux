@@ -675,7 +675,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 	do {
 		remote_miu = sock->remote_miu > LLCP_MAX_MIU ?
-				local->remote_miu : sock->remote_miu;
+				LLCP_DEFAULT_MIU : sock->remote_miu;
 
 		frag_len = min_t(size_t, remote_miu, remaining_len);
 
@@ -684,8 +684,10 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 		pdu = llcp_allocate_pdu(sock, LLCP_PDU_I,
 					frag_len + LLCP_SEQUENCE_SIZE);
-		if (pdu == NULL)
+		if (pdu == NULL) {
+			kfree(msg_data);
 			return -ENOMEM;
+		}
 
 		skb_put(pdu, LLCP_SEQUENCE_SIZE);
 

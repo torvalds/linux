@@ -146,7 +146,9 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 
 #define ATH_AN_2_TID(_an, _tidno)  (&(_an)->tid[(_tidno)])
 
-#define IS_CCK_RATE(rate) ((rate >= 0x18) && (rate <= 0x1e))
+#define IS_HT_RATE(rate)   (rate & 0x80)
+#define IS_CCK_RATE(rate)  ((rate >= 0x18) && (rate <= 0x1e))
+#define IS_OFDM_RATE(rate) ((rate >= 0x8) && (rate <= 0xf))
 
 struct ath_txq {
 	int mac80211_qnum; /* mac80211 queue number, -1 means not mac80211 Q */
@@ -262,6 +264,10 @@ struct ath_node {
 
 	bool sleeping;
 	bool no_ps_filter;
+
+#ifdef CONFIG_ATH9K_STATION_STATISTICS
+	struct ath_rx_rate_stats rx_rate_stats;
+#endif
 };
 
 struct ath_tx_control {
@@ -685,6 +691,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 #define DEFAULT_CACHELINE       32
 #define ATH_CABQ_READY_TIME     80      /* % of beacon interval */
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
+#define MAX_GTT_CNT             5
 
 enum sc_op_flags {
 	SC_OP_INVALID,
@@ -727,6 +734,7 @@ struct ath_softc {
 	unsigned long sc_flags;
 	unsigned long driver_data;
 
+	u8 gtt_cnt;
 	u32 intrstatus;
 	u16 ps_flags; /* PS_* */
 	u16 curtxpow;

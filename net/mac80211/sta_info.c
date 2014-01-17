@@ -300,6 +300,35 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return NULL;
 
+	rcu_read_lock();
+	tx_latency = rcu_dereference(local->tx_latency);
+	/* init stations Tx latency statistics && TID bins */
+	if (tx_latency) {
+		sta->tx_lat = kzalloc(IEEE80211_NUM_TIDS *
+				      sizeof(struct ieee80211_tx_latency_stat),
+				      GFP_ATOMIC);
+		if (!sta->tx_lat) {
+			rcu_read_unlock();
+			goto free;
+		}
+
+		if (tx_latency->n_ranges) {
+			for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+				/* size of bins is size of the ranges +1 */
+				sta->tx_lat[i].bin_count =
+					tx_latency->n_ranges + 1;
+				sta->tx_lat[i].bins =
+					kcalloc(sta->tx_lat[i].bin_count,
+						sizeof(u32), GFP_ATOMIC);
+				if (!sta->tx_lat[i].bins) {
+					rcu_read_unlock();
+					goto free;
+				}
+			}
+		}
+	}
+	rcu_read_unlock();
+
 	spin_lock_init(&sta->lock);
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
@@ -324,10 +353,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
 		ewma_init(&sta->chain_signal_avg[i], 1024, 8);
 
-	if (sta_prepare_rate_control(local, sta, gfp)) {
-		kfree(sta);
-		return NULL;
-	}
+	if (sta_prepare_rate_control(local, sta, gfp))
+		goto free;
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 		/*
@@ -371,34 +398,17 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	rcu_read_lock();
-
-	tx_latency = rcu_dereference(local->tx_latency);
-	/* init stations Tx latency statistics && TID bins */
-	if (tx_latency)
-		sta->tx_lat = kzalloc(IEEE80211_NUM_TIDS *
-				      sizeof(struct ieee80211_tx_latency_stat),
-				      GFP_ATOMIC);
-
-	/*
-	 * if Tx latency and bins are enabled and the previous allocation
-	 * succeeded
-	 */
-	if (tx_latency && tx_latency->n_ranges && sta->tx_lat)
-		for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
-			/* size of bins is size of the ranges +1 */
-			sta->tx_lat[i].bin_count =
-				tx_latency->n_ranges + 1;
-			sta->tx_lat[i].bins  = kcalloc(sta->tx_lat[i].bin_count,
-						       sizeof(u32),
-						       GFP_ATOMIC);
-		}
-
-	rcu_read_unlock();
-
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
-
 	return sta;
+
+free:
+	if (sta->tx_lat) {
+		for (i = 0; i < IEEE80211_NUM_TIDS; i++)
+			kfree(sta->tx_lat[i].bins);
+		kfree(sta->tx_lat);
+	}
+	kfree(sta);
+	return NULL;
 }
 
 static int sta_info_insert_check(struct sta_info *sta)
@@ -1143,7 +1153,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 					 struct sta_info *sta, int tid,
-					 enum ieee80211_frame_release_type reason)
+					 enum ieee80211_frame_release_type reason,
+					 bool call_driver)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_qos_hdr *nullfunc;
@@ -1201,7 +1212,9 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 		       IEEE80211_TX_STATUS_EOSP |
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
-	drv_allow_buffered_frames(local, sta, BIT(tid), 1, reason, false);
+	if (call_driver)
+		drv_allow_buffered_frames(local, sta, BIT(tid), 1,
+					  reason, false);
 
 	skb->dev = sdata->dev;
 
@@ -1217,6 +1230,17 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 }
 
+static int find_highest_prio_tid(unsigned long tids)
+{
+	/* lower 3 TIDs aren't ordered perfectly */
+	if (tids & 0xF8)
+		return fls(tids) - 1;
+	/* TID 0 is BE just like TID 3 */
+	if (tids & BIT(0))
+		return 0;
+	return fls(tids) - 1;
+}
+
 static void
 ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 				  int n_frames, u8 ignored_acs,
@@ -1224,7 +1248,6 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
-	bool found = false;
 	bool more_data = false;
 	int ac;
 	unsigned long driver_release_tids = 0;
@@ -1235,9 +1258,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 	__skb_queue_head_init(&frames);
 
-	/*
-	 * Get response frame(s) and more data bit for it.
-	 */
+	/* Get response frame(s) and more data bit for the last one. */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
@@ -1246,43 +1267,48 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		tids = ieee80211_tids_for_ac(ac);
 
-		if (!found) {
-			driver_release_tids = sta->driver_buffered_tids & tids;
-			if (driver_release_tids) {
-				found = true;
-			} else {
-				struct sk_buff *skb;
+		/* if we already have frames from software, then we can't also
+		 * release from hardware queues
+		 */
+		if (skb_queue_empty(&frames))
+			driver_release_tids |= sta->driver_buffered_tids & tids;
 
-				while (n_frames > 0) {
-					skb = skb_dequeue(&sta->tx_filtered[ac]);
-					if (!skb) {
-						skb = skb_dequeue(
-							&sta->ps_tx_buf[ac]);
-						if (skb)
-							local->total_ps_buffered--;
-					}
-					if (!skb)
-						break;
-					n_frames--;
-					found = true;
-					__skb_queue_tail(&frames, skb);
-				}
-			}
-
-			/*
-			 * If the driver has data on more than one TID then
+		if (driver_release_tids) {
+			/* If the driver has data on more than one TID then
 			 * certainly there's more data if we release just a
-			 * single frame now (from a single TID).
+			 * single frame now (from a single TID). This will
+			 * only happen for PS-Poll.
 			 */
 			if (reason == IEEE80211_FRAME_RELEASE_PSPOLL &&
 			    hweight16(driver_release_tids) > 1) {
 				more_data = true;
 				driver_release_tids =
-					BIT(ffs(driver_release_tids) - 1);
+					BIT(find_highest_prio_tid(
+						driver_release_tids));
 				break;
+			}
+		} else {
+			struct sk_buff *skb;
+
+			while (n_frames > 0) {
+				skb = skb_dequeue(&sta->tx_filtered[ac]);
+				if (!skb) {
+					skb = skb_dequeue(
+						&sta->ps_tx_buf[ac]);
+					if (skb)
+						local->total_ps_buffered--;
+				}
+				if (!skb)
+					break;
+				n_frames--;
+				__skb_queue_tail(&frames, skb);
 			}
 		}
 
+		/* If we have more frames buffered on this AC, then set the
+		 * more-data bit and abort the loop since we can't send more
+		 * data from other ACs before the buffered frames from this.
+		 */
 		if (!skb_queue_empty(&sta->tx_filtered[ac]) ||
 		    !skb_queue_empty(&sta->ps_tx_buf[ac])) {
 			more_data = true;
@@ -1290,7 +1316,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		}
 	}
 
-	if (!found) {
+	if (skb_queue_empty(&frames) && !driver_release_tids) {
 		int tid;
 
 		/*
@@ -1311,15 +1337,13 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		/* This will evaluate to 1, 3, 5 or 7. */
 		tid = 7 - ((ffs(~ignored_acs) - 1) << 1);
 
-		ieee80211_send_null_response(sdata, sta, tid, reason);
-		return;
-	}
-
-	if (!driver_release_tids) {
+		ieee80211_send_null_response(sdata, sta, tid, reason, true);
+	} else if (!driver_release_tids) {
 		struct sk_buff_head pending;
 		struct sk_buff *skb;
 		int num = 0;
 		u16 tids = 0;
+		bool need_null = false;
 
 		skb_queue_head_init(&pending);
 
@@ -1353,22 +1377,57 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			    ieee80211_is_qos_nullfunc(hdr->frame_control))
 				qoshdr = ieee80211_get_qos_ctl(hdr);
 
-			/* end service period after last frame */
-			if (skb_queue_empty(&frames)) {
-				if (reason == IEEE80211_FRAME_RELEASE_UAPSD &&
-				    qoshdr)
-					*qoshdr |= IEEE80211_QOS_CTL_EOSP;
+			tids |= BIT(skb->priority);
+
+			__skb_queue_tail(&pending, skb);
+
+			/* end service period after last frame or add one */
+			if (!skb_queue_empty(&frames))
+				continue;
+
+			if (reason != IEEE80211_FRAME_RELEASE_UAPSD) {
+				/* for PS-Poll, there's only one frame */
+				info->flags |= IEEE80211_TX_STATUS_EOSP |
+					       IEEE80211_TX_CTL_REQ_TX_STATUS;
+				break;
+			}
+
+			/* For uAPSD, things are a bit more complicated. If the
+			 * last frame has a QoS header (i.e. is a QoS-data or
+			 * QoS-nulldata frame) then just set the EOSP bit there
+			 * and be done.
+			 * If the frame doesn't have a QoS header (which means
+			 * it should be a bufferable MMPDU) then we can't set
+			 * the EOSP bit in the QoS header; add a QoS-nulldata
+			 * frame to the list to send it after the MMPDU.
+			 *
+			 * Note that this code is only in the mac80211-release
+			 * code path, we assume that the driver will not buffer
+			 * anything but QoS-data frames, or if it does, will
+			 * create the QoS-nulldata frame by itself if needed.
+			 *
+			 * Cf. 802.11-2012 10.2.1.10 (c).
+			 */
+			if (qoshdr) {
+				*qoshdr |= IEEE80211_QOS_CTL_EOSP;
 
 				info->flags |= IEEE80211_TX_STATUS_EOSP |
 					       IEEE80211_TX_CTL_REQ_TX_STATUS;
+			} else {
+				/* The standard isn't completely clear on this
+				 * as it says the more-data bit should be set
+				 * if there are more BUs. The QoS-Null frame
+				 * we're about to send isn't buffered yet, we
+				 * only create it below, but let's pretend it
+				 * was buffered just in case some clients only
+				 * expect more-data=0 when eosp=1.
+				 */
+				hdr->frame_control |=
+					cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+				need_null = true;
+				num++;
 			}
-
-			if (qoshdr)
-				tids |= BIT(*qoshdr & IEEE80211_QOS_CTL_TID_MASK);
-			else
-				tids |= BIT(0);
-
-			__skb_queue_tail(&pending, skb);
+			break;
 		}
 
 		drv_allow_buffered_frames(local, sta, tids, num,
@@ -1376,17 +1435,22 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		ieee80211_add_pending_skbs(local, &pending);
 
+		if (need_null)
+			ieee80211_send_null_response(
+				sdata, sta, find_highest_prio_tid(tids),
+				reason, false);
+
 		sta_info_recalc_tim(sta);
 	} else {
 		/*
 		 * We need to release a frame that is buffered somewhere in the
 		 * driver ... it'll have to handle that.
-		 * Note that, as per the comment above, it'll also have to see
-		 * if there is more than just one frame on the specific TID that
-		 * we're releasing from, and it needs to set the more-data bit
-		 * accordingly if we tell it that there's no more data. If we do
-		 * tell it there's more data, then of course the more-data bit
-		 * needs to be set anyway.
+		 * Note that the driver also has to check the number of frames
+		 * on the TIDs we're releasing from - if there are more than
+		 * n_frames it has to set the more-data bit (if we didn't ask
+		 * it to set it anyway due to other buffered frames); if there
+		 * are fewer than n_frames it has to make sure to adjust that
+		 * to allow the service period to end properly.
 		 */
 		drv_release_buffered_frames(local, sta, driver_release_tids,
 					    n_frames, reason, more_data);
@@ -1394,9 +1458,9 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		/*
 		 * Note that we don't recalculate the TIM bit here as it would
 		 * most likely have no effect at all unless the driver told us
-		 * that the TID became empty before returning here from the
+		 * that the TID(s) became empty before returning here from the
 		 * release function.
-		 * Either way, however, when the driver tells us that the TID
+		 * Either way, however, when the driver tells us that the TID(s)
 		 * became empty we'll do the TIM recalculation.
 		 */
 	}
@@ -1484,6 +1548,8 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 
 	if (WARN_ON(tid >= IEEE80211_NUM_TIDS))
 		return;
+
+	trace_api_sta_set_buffered(sta->local, pubsta, tid, buffered);
 
 	if (buffered)
 		set_bit(tid, &sta->driver_buffered_tids);

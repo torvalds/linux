@@ -258,6 +258,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		}
 	}
 
+	sc->gtt_cnt = 0;
 	ieee80211_wake_queues(sc->hw);
 
 	return true;
@@ -476,6 +477,19 @@ void ath9k_tasklet(unsigned long data)
 		}
 	}
 
+	if (status & ATH9K_INT_GTT) {
+		sc->gtt_cnt++;
+
+		if ((sc->gtt_cnt >= MAX_GTT_CNT) && !ath9k_hw_check_alive(ah)) {
+			type = RESET_TYPE_TX_GTT;
+			ath9k_queue_reset(sc, type);
+			atomic_inc(&ah->intr_ref_cnt);
+			ath_dbg(common, ANY,
+				"GTT: Skipping interrupts\n");
+			goto out;
+		}
+	}
+
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
 		/*
@@ -503,10 +517,19 @@ void ath9k_tasklet(unsigned long data)
 	}
 
 	if (status & ATH9K_INT_TX) {
-		if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+			/*
+			 * For EDMA chips, TX completion is enabled for the
+			 * beacon queue, so if a beacon has been transmitted
+			 * successfully after a GTT interrupt, the GTT counter
+			 * gets reset to zero here.
+			 */
+			/* sc->gtt_cnt = 0; */
+
 			ath_tx_edma_tasklet(sc);
-		else
+		} else {
 			ath_tx_tasklet(sc);
+		}
 
 		wake_up(&sc->tx_wait);
 	}
@@ -536,13 +559,13 @@ irqreturn_t ath_isr(int irq, void *dev)
 		ATH9K_INT_TX |			\
 		ATH9K_INT_BMISS |		\
 		ATH9K_INT_CST |			\
+		ATH9K_INT_GTT |			\
 		ATH9K_INT_TSFOOR |		\
 		ATH9K_INT_GENTIMER |		\
 		ATH9K_INT_MCI)
 
 	struct ath_softc *sc = dev;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath9k_int status;
 	u32 sync_cause = 0;
 	bool sched = false;
@@ -603,13 +626,11 @@ irqreturn_t ath_isr(int irq, void *dev)
 #ifdef CONFIG_ATH9K_WOW
 	if (status & ATH9K_INT_BMISS) {
 		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
-			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
 			atomic_inc(&sc->wow_got_bmiss_intr);
 			atomic_dec(&sc->wow_sleep_proc_intr);
 		}
 	}
 #endif
-
 
 	if (status & ATH9K_INT_SWBA)
 		tasklet_schedule(&sc->bcon_tasklet);
@@ -735,7 +756,12 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (ah->config.hw_hang_checks & HW_BB_WATCHDOG)
 		ah->imask |= ATH9K_INT_BB_WATCHDOG;
 
-	ah->imask |= ATH9K_INT_GTT;
+	/*
+	 * Enable GTT interrupts only for AR9003/AR9004 chips
+	 * for now.
+	 */
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		ah->imask |= ATH9K_INT_GTT;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ah->imask |= ATH9K_INT_CST;
@@ -2111,7 +2137,7 @@ struct ieee80211_ops ath9k_ops = {
 	.get_et_strings     = ath9k_get_et_strings,
 #endif
 
-#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_STATION_STATISTICS)
 	.sta_add_debugfs    = ath9k_sta_add_debugfs,
 #endif
 	.sw_scan_start	    = ath9k_sw_scan_start,

@@ -390,7 +390,6 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
-		seq_number += 0x10;
 		is_data_qos = true;
 		is_ampdu = info->flags & IEEE80211_TX_CTL_AMPDU;
 	}
@@ -407,13 +406,13 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 
 	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
-		     tid, txq_id, seq_number);
+		     tid, txq_id, IEEE80211_SEQ_TO_SN(seq_number));
 
 	if (iwl_trans_tx(mvm->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
 	if (is_data_qos && !ieee80211_has_morefrags(fc))
-		mvmsta->tid_data[tid].seq_number = seq_number;
+		mvmsta->tid_data[tid].seq_number = seq_number + 0x10;
 
 	spin_unlock(&mvmsta->lock);
 
@@ -704,7 +703,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			 */
 			spin_lock_bh(&mvmsta->lock);
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-			if (IS_ERR_OR_NULL(sta)) {
+			if (!sta || PTR_ERR(sta) == -EBUSY) {
 				/*
 				 * Station disappeared in the meantime:
 				 * so we are draining.
@@ -713,7 +712,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 				schedule_work(&mvm->sta_drained_wk);
 			}
 			spin_unlock_bh(&mvmsta->lock);
-		} else if (!mvmsta) {
+		} else if (!mvmsta && PTR_ERR(sta) == -EBUSY) {
 			/* Tx response without STA, so we are draining */
 			set_bit(sta_id, mvm->sta_drained);
 			schedule_work(&mvm->sta_drained_wk);

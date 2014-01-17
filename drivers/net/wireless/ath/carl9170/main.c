@@ -1967,18 +1967,6 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 		return -ENOMEM;
 	ar->num_channels = chans;
 
-	/*
-	 * I measured this, a bandswitch takes roughly
-	 * 135 ms and a frequency switch about 80.
-	 *
-	 * FIXME: measure these values again once EEPROM settings
-	 *	  are used, that will influence them!
-	 */
-	if (bands == 2)
-		ar->hw->channel_change_time = 135 * 1000;
-	else
-		ar->hw->channel_change_time = 80 * 1000;
-
 	regulatory->current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
 
 	/* second part of wiphy init */

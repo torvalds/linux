@@ -934,7 +934,7 @@ int brcmf_bus_start(struct device *dev)
 		p2p_ifp = NULL;
 
 	/* signal bus ready */
-	bus_if->state = BRCMF_BUS_DATA;
+	brcmf_bus_change_state(bus_if, BRCMF_BUS_DATA);
 
 	/* Bus is ready, do any initialization */
 	ret = brcmf_c_preinit_dcmds(ifp);
@@ -1028,6 +1028,8 @@ void brcmf_detach(struct device *dev)
 
 	/* stop firmware event handling */
 	brcmf_fweh_detach(drvr);
+
+	brcmf_bus_change_state(bus_if, BRCMF_BUS_DOWN);
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)

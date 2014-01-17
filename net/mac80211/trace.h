@@ -1835,6 +1835,33 @@ TRACE_EVENT(api_eosp,
 	)
 );
 
+TRACE_EVENT(api_sta_set_buffered,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u8 tid, bool buffered),
+
+	TP_ARGS(local, sta, tid, buffered),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+		__field(u8, tid)
+		__field(bool, buffered)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+		__entry->tid = tid;
+		__entry->buffered = buffered;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT " tid:%d buffered:%d",
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->tid, __entry->buffered
+	)
+);
+
 /*
  * Tracing for internal functions
  * (which may also be called in response to driver calls)

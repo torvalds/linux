@@ -335,11 +335,8 @@ exit:
 	kfree_skb(skb);
 
 exit_noskb:
-	if (r) {
-		/* TODO: There was an error dispatching the event,
-		 * how to propagate up to nfc core?
-		 */
-	}
+	if (r)
+		nfc_hci_driver_failure(hdev, r);
 }
 
 static void nfc_hci_cmd_timeout(unsigned long data)

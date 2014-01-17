@@ -176,6 +176,16 @@ struct iwl_rx_packet {
 	u8 data[];
 } __packed;
 
+static inline u32 iwl_rx_packet_len(const struct iwl_rx_packet *pkt)
+{
+	return le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+}
+
+static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
+{
+	return iwl_rx_packet_len(pkt) - sizeof(pkt->hdr);
+}
+
 /**
  * enum CMD_MODE - how to send the host commands ?
  *
