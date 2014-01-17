@@ -38,9 +38,10 @@
 #define SIXAXIS_CONTROLLER_BT   BIT(2)
 #define BUZZ_CONTROLLER         BIT(3)
 #define PS3REMOTE		BIT(4)
-#define DUALSHOCK4_CONTROLLER   BIT(5)
+#define DUALSHOCK4_CONTROLLER_USB BIT(5)
+#define DUALSHOCK4_CONTROLLER_BT  BIT(6)
 
-#define SONY_LED_SUPPORT (SIXAXIS_CONTROLLER_USB | BUZZ_CONTROLLER | DUALSHOCK4_CONTROLLER)
+#define SONY_LED_SUPPORT (SIXAXIS_CONTROLLER_USB | BUZZ_CONTROLLER | DUALSHOCK4_CONTROLLER_USB)
 
 #define MAX_LEDS 4
 
@@ -478,7 +479,7 @@ static void sony_set_leds(struct hid_device *hdev, const __u8 *leds, int count)
 	if (drv_data->quirks & BUZZ_CONTROLLER && count == 4) {
 		buzz_set_leds(hdev, leds);
 	} else if ((drv_data->quirks & SIXAXIS_CONTROLLER_USB) ||
-		   (drv_data->quirks & DUALSHOCK4_CONTROLLER)) {
+		   (drv_data->quirks & DUALSHOCK4_CONTROLLER_USB)) {
 		for (n = 0; n < count; n++)
 			drv_data->led_state[n] = leds[n];
 		schedule_work(&drv_data->state_worker);
@@ -583,7 +584,7 @@ static int sony_leds_init(struct hid_device *hdev)
 		name_fmt = "%s::sony%d";
 	}
 
-	if (drv_data->quirks & DUALSHOCK4_CONTROLLER) {
+	if (drv_data->quirks & DUALSHOCK4_CONTROLLER_USB) {
 		drv_data->led_count = 3;
 		max_brightness = 255;
 	} else {
@@ -775,7 +776,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 	else if (sc->quirks & SIXAXIS_CONTROLLER_BT)
 		ret = sixaxis_set_operational_bt(hdev);
-	else if (sc->quirks & DUALSHOCK4_CONTROLLER) {
+	else if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
 		ret = 0;
 		INIT_WORK(&sc->state_worker, dualshock4_state_worker);
 	} else {
@@ -840,9 +841,9 @@ static const struct hid_device_id sony_devices[] = {
 		.driver_data = PS3REMOTE },
 	/* Sony Dualshock 4 controllers for PS4 */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
-		.driver_data = DUALSHOCK4_CONTROLLER },
+		.driver_data = DUALSHOCK4_CONTROLLER_USB },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
-		.driver_data = DUALSHOCK4_CONTROLLER },
+		.driver_data = DUALSHOCK4_CONTROLLER_BT },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sony_devices);
