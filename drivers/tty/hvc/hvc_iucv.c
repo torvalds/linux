@@ -126,7 +126,7 @@ static struct iucv_handler hvc_iucv_handler = {
  * This function returns the struct hvc_iucv_private instance that corresponds
  * to the HVC virtual terminal number specified as parameter @num.
  */
-struct hvc_iucv_private *hvc_iucv_get_private(uint32_t num)
+static struct hvc_iucv_private *hvc_iucv_get_private(uint32_t num)
 {
 	if ((num < HVC_IUCV_MAGIC) || (num - HVC_IUCV_MAGIC > hvc_iucv_devices))
 		return NULL;
