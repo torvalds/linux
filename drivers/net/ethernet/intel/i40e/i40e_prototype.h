@@ -59,8 +59,7 @@ void i40e_debug_aq(struct i40e_hw *hw,
 
 void i40e_idle_aq(struct i40e_hw *hw);
 bool i40e_check_asq_alive(struct i40e_hw *hw);
-i40e_status i40e_aq_queue_shutdown(struct i40e_hw *hw,
-				   bool unloading);
+i40e_status i40e_aq_queue_shutdown(struct i40e_hw *hw, bool unloading);
 
 u32 i40e_led_get(struct i40e_hw *hw);
 void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink);

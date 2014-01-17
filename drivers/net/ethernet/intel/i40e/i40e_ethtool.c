@@ -1552,6 +1552,7 @@ static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
 
 	return ret;
 }
+
 /**
  * i40e_set_rxnfc - command to set RX flow classification rules
  * @netdev: network interface device structure

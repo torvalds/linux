@@ -1557,8 +1557,8 @@ i40e_status i40e_aq_discover_capabilities(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aqc_list_capabilites *cmd;
-	i40e_status status = 0;
 	struct i40e_aq_desc desc;
+	i40e_status status = 0;
 
 	cmd = (struct i40e_aqc_list_capabilites *)&desc.params.raw;
 
