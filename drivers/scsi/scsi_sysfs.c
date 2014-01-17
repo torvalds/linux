@@ -300,7 +300,9 @@ store_shost_eh_deadline(struct device *dev, struct device_attribute *attr,
 	int ret = -EINVAL;
 	unsigned long deadline, flags;
 
-	if (shost->transportt && shost->transportt->eh_strategy_handler)
+	if (shost->transportt &&
+	    (shost->transportt->eh_strategy_handler ||
+	     !shost->hostt->eh_host_reset_handler))
 		return ret;
 
 	if (!strncmp(buf, "off", strlen("off")))
