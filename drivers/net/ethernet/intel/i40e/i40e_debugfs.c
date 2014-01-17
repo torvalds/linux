@@ -1748,8 +1748,35 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 					 pf->hw.aq.asq_last_status);
 				goto command_write_done;
 			}
+			ret = i40e_aq_add_rem_control_packet_filter(&pf->hw,
+						pf->hw.mac.addr,
+						I40E_ETH_P_LLDP, 0,
+						pf->vsi[pf->lan_vsi]->seid,
+						0, true, NULL, NULL);
+			if (ret) {
+				dev_info(&pf->pdev->dev,
+					"%s: Add Control Packet Filter AQ command failed =0x%x\n",
+					__func__, pf->hw.aq.asq_last_status);
+				goto command_write_done;
+			}
+#ifdef CONFIG_I40E_DCB
+			pf->dcbx_cap = DCB_CAP_DCBX_HOST |
+				       DCB_CAP_DCBX_VER_IEEE;
+#endif /* CONFIG_I40E_DCB */
 		} else if (strncmp(&cmd_buf[5], "start", 5) == 0) {
 			int ret;
+			ret = i40e_aq_add_rem_control_packet_filter(&pf->hw,
+						pf->hw.mac.addr,
+						I40E_ETH_P_LLDP, 0,
+						pf->vsi[pf->lan_vsi]->seid,
+						0, false, NULL, NULL);
+			if (ret) {
+				dev_info(&pf->pdev->dev,
+					"%s: Remove Control Packet Filter AQ command failed =0x%x\n",
+					__func__, pf->hw.aq.asq_last_status);
+				/* Continue and start FW LLDP anyways */
+			}
+
 			ret = i40e_aq_start_lldp(&pf->hw, NULL);
 			if (ret) {
 				dev_info(&pf->pdev->dev,
@@ -1757,6 +1784,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 					 pf->hw.aq.asq_last_status);
 				goto command_write_done;
 			}
+#ifdef CONFIG_I40E_DCB
+			pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED |
+				       DCB_CAP_DCBX_VER_IEEE;
+#endif /* CONFIG_I40E_DCB */
 		} else if (strncmp(&cmd_buf[5],
 			   "get local", 9) == 0) {
 			u16 llen, rlen;
