@@ -1050,37 +1050,34 @@ struct drx_aud_data drxj_default_aud_data_g = {
 /*-----------------------------------------------------------------------------
 STRUCTURES
 ----------------------------------------------------------------------------*/
-typedef struct {
+struct drxjeq_stat {
 	u16 eq_mse;
 	u8 eq_mode;
 	u8 eq_ctrl;
-	u8 eq_stat;
-} drxjeq_stat_t, *pdrxjeq_stat_t;
+	u8 eq_stat;};
 
 /* HI command */
-typedef struct {
+struct drxj_hi_cmd {
 	u16 cmd;
 	u16 param1;
 	u16 param2;
 	u16 param3;
 	u16 param4;
 	u16 param5;
-	u16 param6;
-} drxj_hi_cmd_t, *pdrxj_hi_cmd_t;
+	u16 param6;};
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 /*============================================================================*/
 /*=== MICROCODE RELATED STRUCTURES ===========================================*/
 /*============================================================================*/
 
-typedef struct {
+struct drxu_code_block_hdr {
 	u32 addr;
 	u16 size;
 	u16 flags;		/* bit[15..2]=reserved,
 				   bit[1]= compression on/off
 				   bit[0]= CRC on/off */
-	u16 CRC;
-} drxu_code_block_hdr_t, *pdrxu_code_block_hdr_t;
+	u16 CRC;};
 #endif /* DRXJ_SPLIT_UCODE_UPLOAD */
 
 /*-----------------------------------------------------------------------------
@@ -1089,7 +1086,7 @@ FUNCTIONS
 /* Some prototypes */
 static int
 hi_command(struct i2c_device_addr *dev_addr,
-	   const pdrxj_hi_cmd_t cmd, u16 *result);
+	   const struct drxj_hi_cmd *cmd, u16 *result);
 
 static int
 ctrl_lock_status(struct drx_demod_instance *demod, enum drx_lock_status *lock_stat);
@@ -2041,7 +2038,7 @@ int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
 					  u16 datasize,
 					  u8 *data, bool read_flag)
 {
-	drxj_hi_cmd_t hi_cmd;
+	struct drxj_hi_cmd hi_cmd;
 	int rc;
 	u16 word;
 	u16 dummy = 0;
@@ -2171,7 +2168,7 @@ int drxj_dap_atomic_read_reg32(struct i2c_device_addr *dev_addr,
 static int hi_cfg_command(const struct drx_demod_instance *demod)
 {
 	struct drxj_data *ext_attr = (struct drxj_data *) (NULL);
-	drxj_hi_cmd_t hi_cmd;
+	struct drxj_hi_cmd hi_cmd;
 	u16 result = 0;
 	int rc;
 
@@ -2212,7 +2209,7 @@ rw_error:
 *
 */
 static int
-hi_command(struct i2c_device_addr *dev_addr, const pdrxj_hi_cmd_t cmd, u16 *result)
+hi_command(struct i2c_device_addr *dev_addr, const struct drxj_hi_cmd *cmd, u16 *result)
 {
 	u16 wait_cmd = 0;
 	u16 nr_retries = 0;
@@ -4334,7 +4331,7 @@ rw_error:
 static int
 ctrl_i2c_bridge(struct drx_demod_instance *demod, bool *bridge_closed)
 {
-	drxj_hi_cmd_t hi_cmd;
+	struct drxj_hi_cmd hi_cmd;
 	u16 result = 0;
 
 	/* check arguments */
@@ -19141,7 +19138,7 @@ ctrl_u_code_upload(struct drx_demod_instance *demod,
 
 	/* Process microcode blocks */
 	for (i = 0; i < mc_nr_of_blks; i++) {
-		drxu_code_block_hdr_t block_hdr;
+		struct drxu_code_block_hdr block_hdr;
 		u16 mc_block_nr_bytes = 0;
 
 		/* Process block header */
