@@ -141,19 +141,27 @@ static int usb_device_supports_lpm(struct usb_device *udev)
 		return 0;
 	}
 
-	/* All USB 3.0 must support LPM, but we need their max exit latency
-	 * information from the SuperSpeed Extended Capabilities BOS descriptor.
+	/*
+	 * According to the USB 3.0 spec, all USB 3.0 devices must support LPM.
+	 * However, there are some that don't, and they set the U1/U2 exit
+	 * latencies to zero.
 	 */
 	if (!udev->bos->ss_cap) {
-		dev_warn(&udev->dev, "No LPM exit latency info found.  "
-				"Power management will be impacted.\n");
+		dev_info(&udev->dev, "No LPM exit latency info found, disabling LPM.\n");
 		return 0;
 	}
-	if (udev->parent->lpm_capable)
-		return 1;
 
-	dev_warn(&udev->dev, "Parent hub missing LPM exit latency info.  "
-			"Power management will be impacted.\n");
+	if (udev->bos->ss_cap->bU1devExitLat == 0 &&
+			udev->bos->ss_cap->bU2DevExitLat == 0) {
+		if (udev->parent)
+			dev_info(&udev->dev, "LPM exit latency is zeroed, disabling LPM.\n");
+		else
+			dev_info(&udev->dev, "We don't know the algorithms for LPM for this host, disabling LPM.\n");
+		return 0;
+	}
+
+	if (!udev->parent || udev->parent->lpm_capable)
+		return 1;
 	return 0;
 }
 
