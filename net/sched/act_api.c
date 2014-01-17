@@ -62,8 +62,9 @@ int tcf_hash_release(struct tcf_common *p, int bind,
 EXPORT_SYMBOL(tcf_hash_release);
 
 static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
-			   struct tc_action *a, struct tcf_hashinfo *hinfo)
+			   struct tc_action *a)
 {
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	struct hlist_head *head;
 	struct tcf_common *p;
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
@@ -109,9 +110,9 @@ nla_put_failure:
 	goto done;
 }
 
-static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
-			  struct tcf_hashinfo *hinfo)
+static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a)
 {
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	struct hlist_head *head;
 	struct hlist_node *n;
 	struct tcf_common *p;
@@ -145,12 +146,10 @@ nla_put_failure:
 static int tcf_generic_walker(struct sk_buff *skb, struct netlink_callback *cb,
 			      int type, struct tc_action *a)
 {
-	struct tcf_hashinfo *hinfo = a->ops->hinfo;
-
 	if (type == RTM_DELACTION) {
-		return tcf_del_walker(skb, a, hinfo);
+		return tcf_del_walker(skb, a);
 	} else if (type == RTM_GETACTION) {
-		return tcf_dump_walker(skb, cb, a, hinfo);
+		return tcf_dump_walker(skb, cb, a);
 	} else {
 		WARN(1, "tcf_generic_walker: unknown action %d\n", type);
 		return -EINVAL;
@@ -199,9 +198,9 @@ static int tcf_hash_search(struct tc_action *a, u32 index)
 	return 0;
 }
 
-struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a, int bind,
-				  struct tcf_hashinfo *hinfo)
+struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a, int bind)
 {
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	struct tcf_common *p = NULL;
 	if (index && (p = tcf_hash_lookup(index, hinfo)) != NULL) {
 		if (bind)
@@ -214,9 +213,9 @@ struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a, int bind,
 EXPORT_SYMBOL(tcf_hash_check);
 
 struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est,
-				   struct tc_action *a, int size, int bind,
-				   struct tcf_hashinfo *hinfo)
+				   struct tc_action *a, int size, int bind)
 {
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	struct tcf_common *p = kzalloc(size, GFP_KERNEL);
 
 	if (unlikely(!p))
@@ -495,6 +494,7 @@ struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 	if (a == NULL)
 		goto err_mod;
 
+	a->ops = a_o;
 	INIT_LIST_HEAD(&a->list);
 	/* backward compatibility for policer */
 	if (name == NULL)
@@ -510,7 +510,6 @@ struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 	 */
 	if (err != ACT_P_CREATED)
 		module_put(a_o->owner);
-	a->ops = a_o;
 
 	return a;
 

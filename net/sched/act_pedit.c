@@ -57,12 +57,11 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (nla_len(tb[TCA_PEDIT_PARMS]) < sizeof(*parm) + ksize)
 		return -EINVAL;
 
-	pc = tcf_hash_check(parm->index, a, bind, &pedit_hash_info);
+	pc = tcf_hash_check(parm->index, a, bind);
 	if (!pc) {
 		if (!parm->nkeys)
 			return -EINVAL;
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind,
-				     &pedit_hash_info);
+		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 		p = to_pedit(pc);
@@ -77,7 +76,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else {
 		p = to_pedit(pc);
-		tcf_hash_release(pc, bind, &pedit_hash_info);
+		tcf_hash_release(pc, bind, a->ops->hinfo);
 		if (bind)
 			return 0;
 		if (!ovr)
@@ -101,7 +100,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	memcpy(p->tcfp_keys, parm->keys, ksize);
 	spin_unlock_bh(&p->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &pedit_hash_info);
+		tcf_hash_insert(pc, a->ops->hinfo);
 	return ret;
 }
 

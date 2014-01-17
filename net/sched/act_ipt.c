@@ -125,10 +125,9 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	if (tb[TCA_IPT_INDEX] != NULL)
 		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
-	pc = tcf_hash_check(index, a, bind, &ipt_hash_info);
+	pc = tcf_hash_check(index, a, bind);
 	if (!pc) {
-		pc = tcf_hash_create(index, est, a, sizeof(*ipt), bind,
-				     &ipt_hash_info);
+		pc = tcf_hash_create(index, est, a, sizeof(*ipt), bind);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
@@ -171,7 +170,7 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	ipt->tcfi_hook  = hook;
 	spin_unlock_bh(&ipt->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &ipt_hash_info);
+		tcf_hash_insert(pc, a->ops->hinfo);
 	return ret;
 
 err3:

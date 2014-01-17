@@ -63,17 +63,16 @@ static int tcf_csum_init(struct net *n, struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 	parm = nla_data(tb[TCA_CSUM_PARMS]);
 
-	pc = tcf_hash_check(parm->index, a, bind, &csum_hash_info);
+	pc = tcf_hash_check(parm->index, a, bind);
 	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind,
-				     &csum_hash_info);
+		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_hash_release(pc, bind, &csum_hash_info);
+		tcf_hash_release(pc, bind, a->ops->hinfo);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -85,7 +84,7 @@ static int tcf_csum_init(struct net *n, struct nlattr *nla, struct nlattr *est,
 	spin_unlock_bh(&p->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &csum_hash_info);
+		tcf_hash_insert(pc, a->ops->hinfo);
 
 	return ret;
 }

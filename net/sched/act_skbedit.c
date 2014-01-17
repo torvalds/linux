@@ -100,10 +100,9 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_SKBEDIT_PARMS]);
 
-	pc = tcf_hash_check(parm->index, a, bind, &skbedit_hash_info);
+	pc = tcf_hash_check(parm->index, a, bind);
 	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind,
-				     &skbedit_hash_info);
+		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 
@@ -113,7 +112,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		d = to_skbedit(pc);
 		if (bind)
 			return 0;
-		tcf_hash_release(pc, bind, &skbedit_hash_info);
+		tcf_hash_release(pc, bind, a->ops->hinfo);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -133,7 +132,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&d->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &skbedit_hash_info);
+		tcf_hash_insert(pc, a->ops->hinfo);
 	return ret;
 }
 

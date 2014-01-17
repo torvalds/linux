@@ -86,17 +86,16 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	}
 #endif
 
-	pc = tcf_hash_check(parm->index, a, bind, &gact_hash_info);
+	pc = tcf_hash_check(parm->index, a, bind);
 	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*gact),
-				     bind, &gact_hash_info);
+		pc = tcf_hash_create(parm->index, est, a, sizeof(*gact), bind);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_hash_release(pc, bind, &gact_hash_info);
+		tcf_hash_release(pc, bind, a->ops->hinfo);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -114,7 +113,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 #endif
 	spin_unlock_bh(&gact->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &gact_hash_info);
+		tcf_hash_insert(pc, a->ops->hinfo);
 	return ret;
 }
 
@@ -123,7 +122,7 @@ static int tcf_gact_cleanup(struct tc_action *a, int bind)
 	struct tcf_gact *gact = a->priv;
 
 	if (gact)
-		return tcf_hash_release(&gact->common, bind, &gact_hash_info);
+		return tcf_hash_release(&gact->common, bind, a->ops->hinfo);
 	return 0;
 }
 

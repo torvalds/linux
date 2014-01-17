@@ -59,17 +59,18 @@ struct tc_police_compat {
 static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *cb,
 			      int type, struct tc_action *a)
 {
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	struct hlist_head *head;
 	struct tcf_common *p;
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
 	struct nlattr *nest;
 
-	spin_lock_bh(&police_hash_info.lock);
+	spin_lock_bh(&hinfo->lock);
 
 	s_i = cb->args[0];
 
 	for (i = 0; i < (POL_TAB_MASK + 1); i++) {
-		head = &police_hash_info.htab[tcf_hash(i, POL_TAB_MASK)];
+		head = &hinfo->htab[tcf_hash(i, POL_TAB_MASK)];
 
 		hlist_for_each_entry_rcu(p, head, tcfc_head) {
 			index++;
@@ -94,7 +95,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 		}
 	}
 done:
-	spin_unlock_bh(&police_hash_info.lock);
+	spin_unlock_bh(&hinfo->lock);
 	if (n_i)
 		cb->args[0] += n_i;
 	return n_i;
@@ -121,6 +122,7 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 	struct tc_police *parm;
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	int size;
 
 	if (nla == NULL)
@@ -140,7 +142,7 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 	if (parm->index) {
 		struct tcf_common *pc;
 
-		pc = tcf_hash_lookup(parm->index, &police_hash_info);
+		pc = tcf_hash_lookup(parm->index, hinfo);
 		if (pc != NULL) {
 			a->priv = pc;
 			police = to_police(pc);
@@ -236,11 +238,11 @@ override:
 
 	police->tcfp_t_c = ktime_to_ns(ktime_get());
 	police->tcf_index = parm->index ? parm->index :
-		tcf_hash_new_index(&police_hash_info);
+		tcf_hash_new_index(a->ops->hinfo);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
-	spin_lock_bh(&police_hash_info.lock);
-	hlist_add_head(&police->tcf_head, &police_hash_info.htab[h]);
-	spin_unlock_bh(&police_hash_info.lock);
+	spin_lock_bh(&hinfo->lock);
+	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
+	spin_unlock_bh(&hinfo->lock);
 
 	a->priv = police;
 	return ret;

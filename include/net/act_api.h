@@ -103,10 +103,10 @@ int tcf_hash_release(struct tcf_common *p, int bind,
 		     struct tcf_hashinfo *hinfo);
 u32 tcf_hash_new_index(struct tcf_hashinfo *hinfo);
 struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a,
-				  int bind, struct tcf_hashinfo *hinfo);
+				  int bind);
 struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est,
 				   struct tc_action *a, int size,
-				   int bind, struct tcf_hashinfo *hinfo);
+				   int bind);
 void tcf_hash_insert(struct tcf_common *p, struct tcf_hashinfo *hinfo);
 
 int tcf_register_action(struct tc_action_ops *a);
