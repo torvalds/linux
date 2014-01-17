@@ -71,8 +71,8 @@ Exported FUNCTIONS
 * \fn drxbsp_i2c_init()
 * \brief Initialize I2C communication module.
 * \return drx_status_t Return status.
-* \retval DRX_STS_OK Initialization successful.
-* \retval DRX_STS_ERROR Initialization failed.
+* \retval 0 Initialization successful.
+* \retval -EIO Initialization failed.
 */
 	drx_status_t drxbsp_i2c_init(void);
 
@@ -80,8 +80,8 @@ Exported FUNCTIONS
 * \fn drxbsp_i2c_term()
 * \brief Terminate I2C communication module.
 * \return drx_status_t Return status.
-* \retval DRX_STS_OK Termination successful.
-* \retval DRX_STS_ERROR Termination failed.
+* \retval 0 Termination successful.
+* \retval -EIO Termination failed.
 */
 	drx_status_t drxbsp_i2c_term(void);
 
@@ -100,9 +100,9 @@ Exported FUNCTIONS
 * \param r_count   The number of bytes to read
 * \param r_data    The array to read the data from
 * \return drx_status_t Return status.
-* \retval DRX_STS_OK Succes.
-* \retval DRX_STS_ERROR Failure.
-* \retval DRX_STS_INVALID_ARG Parameter 'wcount' is not zero but parameter
+* \retval 0 Succes.
+* \retval -EIO Failure.
+* \retval -EINVAL Parameter 'wcount' is not zero but parameter
 *                                       'wdata' contains NULL.
 *                                       Idem for 'rcount' and 'rdata'.
 *                                       Both w_dev_addr and r_dev_addr are NULL.

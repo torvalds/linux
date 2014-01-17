@@ -28,30 +28,11 @@
   POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
-* \file $Id: drx_driver.h,v 1.84 2010/01/14 22:47:50 dingtao Exp $
-*
-* \brief DRX driver API
-*
-*/
 #ifndef __DRXDRIVER_H__
 #define __DRXDRIVER_H__
 
 #include <linux/kernel.h>
-/*-------------------------------------------------------------------------
-INCLUDES
--------------------------------------------------------------------------*/
-
-enum drx_status {
-	DRX_STS_READY = 3,  /**< device/service is ready     */
-	DRX_STS_BUSY = 2,   /**< device/service is busy      */
-	DRX_STS_OK = 1,	    /**< everything is OK            */
-	DRX_STS_INVALID_ARG = -1,
-				/**< invalid arguments           */
-	DRX_STS_ERROR = -2, /**< general error               */
-	DRX_STS_FUNC_NOT_AVAILABLE = -3
-				/**< unavailable functionality   */
-};
+#include <linux/errno.h>
 
 /*
  * This structure contains the I2C address, the device ID and a user_data pointer.
@@ -82,8 +63,8 @@ Exported FUNCTIONS
 * \fn drxbsp_i2c_init()
 * \brief Initialize I2C communication module.
 * \return int Return status.
-* \retval DRX_STS_OK Initialization successful.
-* \retval DRX_STS_ERROR Initialization failed.
+* \retval 0 Initialization successful.
+* \retval -EIO Initialization failed.
 */
 int drxbsp_i2c_init(void);
 
@@ -91,8 +72,8 @@ int drxbsp_i2c_init(void);
 * \fn drxbsp_i2c_term()
 * \brief Terminate I2C communication module.
 * \return int Return status.
-* \retval DRX_STS_OK Termination successful.
-* \retval DRX_STS_ERROR Termination failed.
+* \retval 0 Termination successful.
+* \retval -EIO Termination failed.
 */
 int drxbsp_i2c_term(void);
 
@@ -111,9 +92,9 @@ int drxbsp_i2c_term(void);
 * \param r_count   The number of bytes to read
 * \param r_data    The array to read the data from
 * \return int Return status.
-* \retval DRX_STS_OK Succes.
-* \retval DRX_STS_ERROR Failure.
-* \retval DRX_STS_INVALID_ARG Parameter 'wcount' is not zero but parameter
+* \retval 0 Succes.
+* \retval -EIO Failure.
+* \retval -EINVAL Parameter 'wcount' is not zero but parameter
 *                                       'wdata' contains NULL.
 *                                       Idem for 'rcount' and 'rdata'.
 *                                       Both w_dev_addr and r_dev_addr are NULL.
@@ -2738,7 +2719,7 @@ Access macros
       config.cfg_type = cfg_name;                                            \
       config.cfg_data = &cfg_data;                                           \
       cfg_status = drx_ctrl(demod, DRX_CTRL_GET_CFG, &config);            \
-      if (cfg_status == DRX_STS_OK) {                                     \
+      if (cfg_status == 0) {                                     \
 	 value = cfg_data;                                                  \
       } else {                                                             \
 	 value = (data_type)error_value;                                     \

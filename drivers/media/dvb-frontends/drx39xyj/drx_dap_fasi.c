@@ -154,7 +154,7 @@ static int drxdap_fasi_write_reg8(struct i2c_device_addr *dev_addr,	/* address o
 					 u8 data,	/* data to write                */
 					 u32 flags)
 {				/* special device flags         */
-	return DRX_STS_ERROR;
+	return -EIO;
 }
 
 static int drxdap_fasi_read_reg8(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
@@ -162,7 +162,7 @@ static int drxdap_fasi_read_reg8(struct i2c_device_addr *dev_addr,	/* address of
 					u8 *data,	/* buffer to receive data       */
 					u32 flags)
 {				/* special device flags         */
-	return DRX_STS_ERROR;
+	return -EIO;
 }
 
 static int drxdap_fasi_read_modify_write_reg8(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
@@ -171,7 +171,7 @@ static int drxdap_fasi_read_modify_write_reg8(struct i2c_device_addr *dev_addr,	
 						   u8 datain,	/* data to send                 */
 						   u8 *dataout)
 {				/* data to receive back         */
-	return DRX_STS_ERROR;
+	return -EIO;
 }
 
 static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,	/* address of I2C device        */
@@ -180,7 +180,7 @@ static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 						    u32 datain,	/* data to send                 */
 						    u32 *dataout)
 {				/* data to receive back         */
-	return DRX_STS_ERROR;
+	return -EIO;
 }
 
 /*============================================================================*/
@@ -204,9 +204,9 @@ static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 * the target platform.
 *
 * Output:
-* - DRX_STS_OK     if reading was successful
+* - 0     if reading was successful
 *                  in that case: data read is in *data.
-* - DRX_STS_ERROR  if anything went wrong
+* - -EIO  if anything went wrong
 *
 ******************************/
 
@@ -222,7 +222,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 
 	/* Check parameters ******************************************************* */
 	if (dev_addr == NULL) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	overhead_size = (IS_I2C_10BIT(dev_addr->i2c_addr) ? 2 : 1) +
@@ -233,7 +233,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 	     DRXDAP_FASI_LONG_FORMAT(addr)) ||
 	    (overhead_size > (DRXDAP_MAX_WCHUNKSIZE)) ||
 	    ((datasize != 0) && (data == NULL)) || ((datasize & 1) == 1)) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	/* ReadModifyWrite & mode flag bits are not allowed */
@@ -284,7 +284,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 		 * No special action is needed for write chunks here.
 		 */
 		rc = drxbsp_i2c_write_read(dev_addr, bufx, buf, 0, 0, 0);
-		if (rc == DRX_STS_OK)
+		if (rc == 0)
 			rc = drxbsp_i2c_write_read(0, 0, 0, dev_addr, todo, data);
 #else
 		/* In multi master mode, do everything in one RW action */
@@ -294,7 +294,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 		data += todo;
 		addr += (todo >> 1);
 		datasize -= todo;
-	} while (datasize && rc == DRX_STS_OK);
+	} while (datasize && rc == 0);
 
 	return rc;
 }
@@ -318,9 +318,9 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 * master on the I2C bus.
 *
 * Output:
-* - DRX_STS_OK     if reading was successful
+* - 0     if reading was successful
 *                  in that case: read back data is at *rdata
-* - DRX_STS_ERROR  if anything went wrong
+* - -EIO  if anything went wrong
 *
 ******************************/
 
@@ -329,15 +329,15 @@ static int drxdap_fasi_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 						    u32 raddr,
 						    u16 wdata, u16 *rdata)
 {
-	int rc = DRX_STS_ERROR;
+	int rc = -EIO;
 
 #if (DRXDAPFASI_LONG_ADDR_ALLOWED == 1)
 	if (rdata == NULL) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	rc = drxdap_fasi_write_reg16(dev_addr, waddr, wdata, DRXDAP_FASI_RMW);
-	if (rc == DRX_STS_OK)
+	if (rc == 0)
 		rc = drxdap_fasi_read_reg16(dev_addr, raddr, rdata, 0);
 #endif
 
@@ -356,9 +356,9 @@ static int drxdap_fasi_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 * converted back to the target platform's endianness.
 *
 * Output:
-* - DRX_STS_OK     if reading was successful
+* - 0     if reading was successful
 *                  in that case: read data is at *data
-* - DRX_STS_ERROR  if anything went wrong
+* - -EIO  if anything went wrong
 *
 ******************************/
 
@@ -370,7 +370,7 @@ static int drxdap_fasi_read_reg16(struct i2c_device_addr *dev_addr,
 	int rc;
 
 	if (!data) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 	rc = drxdap_fasi_read_block(dev_addr, addr, sizeof(*data), buf, flags);
 	*data = buf[0] + (((u16) buf[1]) << 8);
@@ -389,9 +389,9 @@ static int drxdap_fasi_read_reg16(struct i2c_device_addr *dev_addr,
 * converted back to the target platform's endianness.
 *
 * Output:
-* - DRX_STS_OK     if reading was successful
+* - 0     if reading was successful
 *                  in that case: read data is at *data
-* - DRX_STS_ERROR  if anything went wrong
+* - -EIO  if anything went wrong
 *
 ******************************/
 
@@ -403,7 +403,7 @@ static int drxdap_fasi_read_reg32(struct i2c_device_addr *dev_addr,
 	int rc;
 
 	if (!data) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 	rc = drxdap_fasi_read_block(dev_addr, addr, sizeof(*data), buf, flags);
 	*data = (((u32) buf[0]) << 0) +
@@ -429,8 +429,8 @@ static int drxdap_fasi_read_reg32(struct i2c_device_addr *dev_addr,
 * the target platform.
 *
 * Output:
-* - DRX_STS_OK     if writing was successful
-* - DRX_STS_ERROR  if anything went wrong
+* - 0     if writing was successful
+* - -EIO  if anything went wrong
 *
 ******************************/
 
@@ -440,14 +440,14 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 					  u8 *data, u32 flags)
 {
 	u8 buf[DRXDAP_MAX_WCHUNKSIZE];
-	int st = DRX_STS_ERROR;
-	int first_err = DRX_STS_OK;
+	int st = -EIO;
+	int first_err = 0;
 	u16 overhead_size = 0;
 	u16 block_size = 0;
 
 	/* Check parameters ******************************************************* */
 	if (dev_addr == NULL) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	overhead_size = (IS_I2C_10BIT(dev_addr->i2c_addr) ? 2 : 1) +
@@ -458,7 +458,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 	     DRXDAP_FASI_LONG_FORMAT(addr)) ||
 	    (overhead_size > (DRXDAP_MAX_WCHUNKSIZE)) ||
 	    ((datasize != 0) && (data == NULL)) || ((datasize & 1) == 1)) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	flags &= DRXDAP_FASI_FLAGS;
@@ -527,7 +527,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 						  (struct i2c_device_addr *)(NULL),
 						  0, (u8 *)(NULL));
 
-			if ((st != DRX_STS_OK) && (first_err == DRX_STS_OK)) {
+			if ((st != 0) && (first_err == 0)) {
 				/* at the end, return the first error encountered */
 				first_err = st;
 			}
@@ -544,7 +544,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 					  (struct i2c_device_addr *)(NULL),
 					  0, (u8 *)(NULL));
 
-		if ((st != DRX_STS_OK) && (first_err == DRX_STS_OK)) {
+		if ((st != 0) && (first_err == 0)) {
 			/* at the end, return the first error encountered */
 			first_err = st;
 		}
@@ -568,8 +568,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 * converted from the target platform's endianness to little endian.
 *
 * Output:
-* - DRX_STS_OK     if writing was successful
-* - DRX_STS_ERROR  if anything went wrong
+* - 0     if writing was successful
+* - -EIO  if anything went wrong
 *
 ******************************/
 
@@ -597,8 +597,8 @@ static int drxdap_fasi_write_reg16(struct i2c_device_addr *dev_addr,
 * converted from the target platform's endianness to little endian.
 *
 * Output:
-* - DRX_STS_OK     if writing was successful
-* - DRX_STS_ERROR  if anything went wrong
+* - 0     if writing was successful
+* - -EIO  if anything went wrong
 *
 ******************************/
 

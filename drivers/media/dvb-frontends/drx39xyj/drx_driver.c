@@ -197,8 +197,8 @@ static void *get_scan_context(struct drx_demod_instance *demod, void *scan_conte
 * \param demod:    Pointer to demodulator instance.
 * \param lock_stat: Pointer to bool indicating if end result is lock or not.
 * \return int.
-* \retval DRX_STS_OK:    Success
-* \retval DRX_STS_ERROR: I2C failure or bsp function failure.
+* \retval 0:    Success
+* \retval -EIO: I2C failure or bsp function failure.
 *
 * Wait until timeout, desired lock or NEVER_LOCK.
 * Assume:
@@ -229,8 +229,8 @@ static int scan_wait_for_lock(struct drx_demod_instance *demod, bool *is_locked)
 	while (!done_waiting) {
 
 		if (drx_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_state) !=
-		    DRX_STS_OK) {
-			return DRX_STS_ERROR;
+		    0) {
+			return -EIO;
 		}
 		current_time = drxbsp_hst_clock();
 
@@ -246,14 +246,14 @@ static int scan_wait_for_lock(struct drx_demod_instance *demod, bool *is_locked)
 			/* lock_state == DRX_NOT_LOCKED  and timeout */
 			done_waiting = true;
 		} else {
-			if (drxbsp_hst_sleep(10) != DRX_STS_OK) {
-				return DRX_STS_ERROR;
+			if (drxbsp_hst_sleep(10) != 0) {
+				return -EIO;
 			}
 		}		/* if ( timer_value > timeout_value ) .. */
 
 	}			/* while */
 
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -263,8 +263,8 @@ static int scan_wait_for_lock(struct drx_demod_instance *demod, bool *is_locked)
 * \param demod: Pointer to demodulator instance.
 * \param skip : Minimum frequency step to take.
 * \return int.
-* \retval DRX_STS_OK:          Succes.
-* \retval DRX_STS_INVALID_ARG: Invalid frequency plan.
+* \retval 0:          Succes.
+* \retval -EINVAL: Invalid frequency plan.
 *
 * Helper function for ctrl_scan_next() function.
 * Compute next frequency & index in frequency plan.
@@ -331,7 +331,7 @@ scan_prepare_next_scan(struct drx_demod_instance *demod, s32 skip)
 	common_attr->scan_freq_plan_index = table_index;
 	common_attr->scan_next_frequency = next_frequency;
 
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -345,10 +345,10 @@ scan_prepare_next_scan(struct drx_demod_instance *demod, s32 skip)
 * \param get_next_channel: Return true if next frequency is desired at next call
 *
 * \return int.
-* \retval DRX_STS_OK:      Channel found, DRX_CTRL_GET_CHANNEL can be used
+* \retval 0:      Channel found, DRX_CTRL_GET_CHANNEL can be used
 *                             to retrieve channel parameters.
-* \retval DRX_STS_BUSY:    Channel not found (yet).
-* \retval DRX_STS_ERROR:   Something went wrong.
+* \retval -EBUSY:    Channel not found (yet).
+* \retval -EIO:   Something went wrong.
 *
 * scan_channel and get_next_channel will be NULL for INIT and STOP.
 */
@@ -358,25 +358,25 @@ scan_function_default(void *scan_context,
 		    struct drx_channel *scan_channel, bool *get_next_channel)
 {
 	struct drx_demod_instance *demod = NULL;
-	int status = DRX_STS_ERROR;
+	int status = -EIO;
 	bool is_locked = false;
 
 	demod = (struct drx_demod_instance *) scan_context;
 
 	if (scan_command != DRX_SCAN_COMMAND_NEXT) {
 		/* just return OK if not doing "scan next" */
-		return DRX_STS_OK;
+		return 0;
 	}
 
 	*get_next_channel = false;
 
 	status = drx_ctrl(demod, DRX_CTRL_SET_CHANNEL, scan_channel);
-	if (status != DRX_STS_OK) {
+	if (status != 0) {
 		return status;
 	}
 
 	status = scan_wait_for_lock(demod, &is_locked);
-	if (status != DRX_STS_OK) {
+	if (status != 0) {
 		return status;
 	}
 
@@ -385,10 +385,10 @@ scan_function_default(void *scan_context,
 
 	if (!is_locked) {
 		/* no channel found */
-		return DRX_STS_BUSY;
+		return -EBUSY;
 	}
 	/* channel found */
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -398,10 +398,10 @@ scan_function_default(void *scan_context,
 * \param demod:     Pointer to demodulator instance.
 * \param scan_param: Pointer to scan parameters.
 * \return int.
-* \retval DRX_STS_OK:          Initialized for scan.
-* \retval DRX_STS_ERROR:       No overlap between frequency plan and tuner
+* \retval 0:          Initialized for scan.
+* \retval -EIO:       No overlap between frequency plan and tuner
 *                              range.
-* \retval DRX_STS_INVALID_ARG: Wrong parameters.
+* \retval -EINVAL: Wrong parameters.
 *
 * This function should be called before starting a complete channel scan.
 * It will prepare everything for a complete channel scan.
@@ -413,7 +413,6 @@ scan_function_default(void *scan_context,
 static int
 ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_param)
 {
-	int status = DRX_STS_ERROR;
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	s32 max_tuner_freq = 0;
 	s32 min_tuner_freq = 0;
@@ -437,7 +436,7 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 	    (scan_param->frequency_plan_size == 0)
 	    ) {
 		common_attr->scan_active = false;
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	/* Check frequency plan contents */
@@ -454,13 +453,13 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 		if (step <= 0) {
 			/* Step must be positive and non-zero */
 			common_attr->scan_active = false;
-			return DRX_STS_INVALID_ARG;
+			return -EINVAL;
 		}
 
 		if (first_freq > last_freq) {
 			/* First center frequency is higher than last center frequency */
 			common_attr->scan_active = false;
-			return DRX_STS_INVALID_ARG;
+			return -EINVAL;
 		}
 
 		width = last_freq - first_freq;
@@ -469,7 +468,7 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 			/* Difference between last and first center frequency is not
 			   an integer number of steps */
 			common_attr->scan_active = false;
-			return DRX_STS_INVALID_ARG;
+			return -EINVAL;
 		}
 
 		/* Check if frequency plan entry intersects with tuner range */
@@ -517,7 +516,7 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 	if (nr_channels_in_plan == 0) {
 		/* Tuner range and frequency plan ranges do not overlap */
 		common_attr->scan_active = false;
-		return DRX_STS_ERROR;
+		return -EIO;
 	}
 
 	/* Store parameters */
@@ -528,12 +527,14 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 
 	scan_context = get_scan_context(demod, scan_context);
 
-	status = (*(get_scan_function(demod)))
-	    (scan_context, DRX_SCAN_COMMAND_INIT, NULL, NULL);
+	/*
+	 * FIXME: Should we really ignore the result of the scan function?
+	 */
+	(*(get_scan_function(demod)))(scan_context, DRX_SCAN_COMMAND_INIT, NULL, NULL);
 
 	common_attr->scan_active = false;
 
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -542,13 +543,13 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 * \brief Stop scanning.
 * \param demod:         Pointer to demodulator instance.
 * \return int.
-* \retval DRX_STS_OK:          Scan stopped.
-* \retval DRX_STS_ERROR:       Something went wrong.
-* \retval DRX_STS_INVALID_ARG: Wrong parameters.
+* \retval 0:          Scan stopped.
+* \retval -EIO:       Something went wrong.
+* \retval -EINVAL: Wrong parameters.
 */
 static int ctrl_scan_stop(struct drx_demod_instance *demod)
 {
-	int status = DRX_STS_ERROR;
+	int status = -EIO;
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	void *scan_context = NULL;
 
@@ -559,7 +560,7 @@ static int ctrl_scan_stop(struct drx_demod_instance *demod)
 	    (common_attr->scan_max_channels == 0)) {
 		/* Scan was not running, just return OK */
 		common_attr->scan_active = false;
-		return DRX_STS_OK;
+		return 0;
 	}
 
 	/* Call default or device-specific scanning stop function */
@@ -583,15 +584,15 @@ static int ctrl_scan_stop(struct drx_demod_instance *demod)
 * \param demod:         Pointer to demodulator instance.
 * \param scan_progress:  Pointer to scan progress.
 * \return int.
-* \retval DRX_STS_OK:          Channel found, DRX_CTRL_GET_CHANNEL can be used
+* \retval 0:          Channel found, DRX_CTRL_GET_CHANNEL can be used
 *                              to retrieve channel parameters.
-* \retval DRX_STS_BUSY:        Tried part of the channels, as specified in
+* \retval -EBUSY:        Tried part of the channels, as specified in
 *                              num_tries field of scan parameters. At least one
 *                              more call to DRX_CTRL_SCAN_NEXT is needed to
 *                              complete scanning.
-* \retval DRX_STS_READY:       Reached end of scan range.
-* \retval DRX_STS_ERROR:       Something went wrong.
-* \retval DRX_STS_INVALID_ARG: Wrong parameters. The scan_progress may be NULL.
+* \retval -ERANGE:       Reached end of scan range.
+* \retval -EIO:       Something went wrong.
+* \retval -EINVAL: Wrong parameters. The scan_progress may be NULL.
 *
 * Progress indication will run from 0 upto DRX_SCAN_MAX_PROGRESS during scan.
 *
@@ -609,7 +610,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 	/* Check scan parameters */
 	if (scan_progress == NULL) {
 		common_attr->scan_active = false;
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	*scan_progress = 0;
@@ -618,7 +619,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 	    (common_attr->scan_max_channels == 0)) {
 		/* ctrl_scan_init() was not called succesfully before ctrl_scan_next() */
 		common_attr->scan_active = false;
-		return DRX_STS_ERROR;
+		return -EIO;
 	}
 
 	*scan_progress = (u16) (((common_attr->scan_channels_scanned) *
@@ -631,7 +632,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 
 	for (i = 0; ((i < num_tries) && (!(*scan_ready))); i++) {
 		struct drx_channel scan_channel = { 0 };
-		int status = DRX_STS_ERROR;
+		int status = -EIO;
 		struct drx_frequency_plan *freq_plan = (struct drx_frequency_plan *) (NULL);
 		bool next_channel = false;
 		void *scan_context = NULL;
@@ -666,10 +667,10 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 
 		/* Proceed to next channel if requested */
 		if (next_channel) {
-			int next_status = DRX_STS_ERROR;
+			int next_status = -EIO;
 			s32 skip = 0;
 
-			if (status == DRX_STS_OK) {
+			if (status == 0) {
 				/* a channel was found, so skip some frequency steps */
 				skip = common_attr->scan_param->skip;
 			}
@@ -681,12 +682,12 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 				      ((u32) (max_progress))) /
 				     (common_attr->scan_max_channels));
 
-			if (next_status != DRX_STS_OK) {
+			if (next_status != 0) {
 				common_attr->scan_active = false;
 				return next_status;
 			}
 		}
-		if (status != DRX_STS_BUSY) {
+		if (status != -EBUSY) {
 			/* channel found or error */
 			common_attr->scan_active = false;
 			return status;
@@ -697,12 +698,12 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 		/* End of scan reached: call stop-scan, ignore any error */
 		ctrl_scan_stop(demod);
 		common_attr->scan_active = false;
-		return DRX_STS_READY;
+		return -ERANGE;
 	}
 
 	common_attr->scan_active = false;
 
-	return DRX_STS_BUSY;
+	return -EBUSY;
 }
 
 #endif /* #ifndef DRX_EXCLUDE_SCAN */
@@ -714,9 +715,9 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 * \param demod:         Pointer to demodulator instance.
 * \param tunerChannel:  Pointer to tuning parameters.
 * \return int.
-* \retval DRX_STS_OK:          Tuner programmed successfully.
-* \retval DRX_STS_ERROR:       Something went wrong.
-* \retval DRX_STS_INVALID_ARG: Wrong parameters.
+* \retval 0:          Tuner programmed successfully.
+* \retval -EIO:       Something went wrong.
+* \retval -EINVAL: Wrong parameters.
 *
 * tunerChannel passes parameters to program the tuner,
 * but also returns the actual RF and IF frequency from the tuner.
@@ -728,20 +729,20 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 	struct drx_common_attr *common_attr = (struct drx_common_attr *) (NULL);
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
 	u32 tuner_mode = 0;
-	int status = DRX_STS_ERROR;
+	int status = -EIO;
 	s32 if_frequency = 0;
 	bool tuner_slow_mode = false;
 
 	/* can't tune without a tuner */
 	if (demod->my_tuner == NULL) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	/* select analog or digital tuner mode based on current standard */
-	if (drx_ctrl(demod, DRX_CTRL_GET_STANDARD, &standard) != DRX_STS_OK) {
-		return DRX_STS_ERROR;
+	if (drx_ctrl(demod, DRX_CTRL_GET_STANDARD, &standard) != 0) {
+		return -EIO;
 	}
 
 	if (DRX_ISATVSTD(standard)) {
@@ -763,7 +764,7 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 		tuner_mode |= TUNER_MODE_8MHZ;
 		break;
 	default:		/* note: also for unknown bandwidth */
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	DRX_GET_TUNERSLOWMODE(demod, tuner_slow_mode);
@@ -777,11 +778,11 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 
 	if (common_attr->tuner_port_nr == 1) {
 		bool bridge_closed = true;
-		int status_bridge = DRX_STS_ERROR;
+		int status_bridge = -EIO;
 
 		status_bridge =
 		    drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridge_closed);
-		if (status_bridge != DRX_STS_OK) {
+		if (status_bridge != 0) {
 			return status_bridge;
 		}
 	}
@@ -792,17 +793,17 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 	/* attempt restoring bridge before checking status of set_frequency */
 	if (common_attr->tuner_port_nr == 1) {
 		bool bridge_closed = false;
-		int status_bridge = DRX_STS_ERROR;
+		int status_bridge = -EIO;
 
 		status_bridge =
 		    drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridge_closed);
-		if (status_bridge != DRX_STS_OK) {
+		if (status_bridge != 0) {
 			return status_bridge;
 		}
 	}
 
 	/* now check status of drxbsp_tuner_set_frequency */
-	if (status != DRX_STS_OK) {
+	if (status != 0) {
 		return status;
 	}
 
@@ -811,7 +812,7 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 					   tuner_mode,
 					   &(channel->frequency),
 					   &(if_frequency));
-	if (status != DRX_STS_OK) {
+	if (status != 0) {
 		return status;
 	}
 
@@ -819,7 +820,7 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 	   TODO: check if this is required and safe */
 	DRX_SET_INTERMEDIATEFREQ(demod, if_frequency);
 
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -829,9 +830,9 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 * \param demod:            Pointer to demodulator instance.
 * \param registers:        Registers to dump.
 * \return int.
-* \retval DRX_STS_OK:          Dump executed successfully.
-* \retval DRX_STS_ERROR:       Something went wrong.
-* \retval DRX_STS_INVALID_ARG: Wrong parameters.
+* \retval 0:          Dump executed successfully.
+* \retval -EIO:       Something went wrong.
+* \retval -EINVAL: Wrong parameters.
 *
 */
 static int ctrl_dump_registers(struct drx_demod_instance *demod,
@@ -841,12 +842,12 @@ static int ctrl_dump_registers(struct drx_demod_instance *demod,
 
 	if (registers == NULL) {
 		/* registers not supplied */
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	/* start dumping registers */
 	while (registers[i].address != 0) {
-		int status = DRX_STS_ERROR;
+		int status = -EIO;
 		u16 value = 0;
 		u32 data = 0;
 
@@ -857,7 +858,7 @@ static int ctrl_dump_registers(struct drx_demod_instance *demod,
 
 		data = (u32) value;
 
-		if (status != DRX_STS_OK) {
+		if (status != 0) {
 			/* no breakouts;
 			   depending on device ID, some HW blocks might not be available */
 			data |= ((u32) status) << 16;
@@ -867,7 +868,7 @@ static int ctrl_dump_registers(struct drx_demod_instance *demod,
 	}
 
 	/* all done, all OK (any errors are saved inside data) */
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -963,15 +964,15 @@ static u16 u_code_compute_crc(u8 *block_data, u16 nr_words)
 * \param mc_info:  Pointer to information about microcode data.
 * \param action:  Either UCODE_UPLOAD or UCODE_VERIFY
 * \return int.
-* \retval DRX_STS_OK:
+* \retval 0:
 *                    - In case of UCODE_UPLOAD: code is successfully uploaded.
 *                    - In case of UCODE_VERIFY: image on device is equal to
 *                      image provided to this control function.
-* \retval DRX_STS_ERROR:
+* \retval -EIO:
 *                    - In case of UCODE_UPLOAD: I2C error.
 *                    - In case of UCODE_VERIFY: I2C error or image on device
 *                      is not equal to image provided to this control function.
-* \retval DRX_STS_INVALID_ARG:
+* \retval -EINVAL:
 *                    - Invalid arguments.
 *                    - Provided image is corrupt
 */
@@ -990,7 +991,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 
 	/* Check arguments */
 	if ((mc_info == NULL) || (mc_info->mc_data == NULL)) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	mc_data = mc_info->mc_data;
@@ -1003,7 +1004,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 
 	if ((mc_magic_word != DRX_UCODE_MAGIC_WORD) || (mc_nr_of_blks == 0)) {
 		/* wrong endianess or wrong data ? */
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	/* Scan microcode blocks first for version info if uploading */
@@ -1053,7 +1054,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 		   It is also valid if no validation control exists.
 		 */
 		rc = drx_ctrl(demod, DRX_CTRL_VALIDATE_UCODE, NULL);
-		if (rc != DRX_STS_OK && rc != DRX_STS_FUNC_NOT_AVAILABLE) {
+		if (rc != 0 && rc != -ENOTSUPP) {
 			return rc;
 		}
 
@@ -1085,7 +1086,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 		     (block_hdr.CRC != u_code_compute_crc(mc_data, block_hdr.size)))
 		    ) {
 			/* Wrong data ! */
-			return DRX_STS_INVALID_ARG;
+			return -EINVAL;
 		}
 
 		mc_block_nr_bytes = block_hdr.size * ((u16) sizeof(u16));
@@ -1103,8 +1104,8 @@ ctrl_u_code(struct drx_demod_instance *demod,
 							   addr, mc_block_nr_bytes,
 							   mc_data,
 							   0x0000) !=
-					    DRX_STS_OK) {
-						return DRX_STS_ERROR;
+					    0) {
+						return -EIO;
 					}	/* if */
 				}
 				break;
@@ -1144,8 +1145,8 @@ ctrl_u_code(struct drx_demod_instance *demod,
 								  (u8 *)
 								  mc_data_buffer,
 								  0x0000) !=
-						    DRX_STS_OK) {
-							return DRX_STS_ERROR;
+						    0) {
+							return -EIO;
 						}
 
 						result =
@@ -1154,7 +1155,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 								      bytes_to_compare);
 
 						if (result != 0) {
-							return DRX_STS_ERROR;
+							return -EIO;
 						}
 
 						curr_addr +=
@@ -1170,7 +1171,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 
 	    /*================================================================*/
 			default:
-				return DRX_STS_INVALID_ARG;
+				return -EINVAL;
 				break;
 
 			}	/* switch ( action ) */
@@ -1182,7 +1183,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 
 	}			/* for( i = 0 ; i<mc_nr_of_blks ; i++ ) */
 
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -1192,8 +1193,8 @@ ctrl_u_code(struct drx_demod_instance *demod,
 * \param demod: A pointer to a demodulator instance.
 * \param version_list: Pointer to linked list of versions.
 * \return int.
-* \retval DRX_STS_OK:          Version information stored in version_list
-* \retval DRX_STS_INVALID_ARG: Invalid arguments.
+* \retval 0:          Version information stored in version_list
+* \retval -EINVAL: Invalid arguments.
 */
 static int
 ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version_list)
@@ -1206,11 +1207,11 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 	static struct drx_version_list drx_driver_core_version_list;
 
 	struct drx_version_list *demod_version_list = (struct drx_version_list *) (NULL);
-	int return_status = DRX_STS_ERROR;
+	int return_status = -EIO;
 
 	/* Check arguments */
 	if (version_list == NULL) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	/* Get version info list from demod */
@@ -1230,7 +1231,7 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 	drx_driver_core_version_list.version = &drx_driver_core_version;
 	drx_driver_core_version_list.next = (struct drx_version_list *) (NULL);
 
-	if ((return_status == DRX_STS_OK) && (demod_version_list != NULL)) {
+	if ((return_status == 0) && (demod_version_list != NULL)) {
 		/* Append versioninfo from driver to versioninfo from demod  */
 		/* Return version info in "bottom-up" order. This way, multiple
 		   devices can be handled without using malloc. */
@@ -1246,7 +1247,7 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 		*version_list = &drx_driver_core_version_list;
 	}
 
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -1259,7 +1260,7 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 * \brief This function is obsolete.
 * \param demods: Don't care, parameter is ignored.
 * \return int Return status.
-* \retval DRX_STS_OK: Initialization completed.
+* \retval 0: Initialization completed.
 *
 * This function is obsolete, prototype available for backward compatability.
 *
@@ -1267,7 +1268,7 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 
 int drx_init(struct drx_demod_instance *demods[])
 {
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -1275,7 +1276,7 @@ int drx_init(struct drx_demod_instance *demods[])
 /**
 * \brief This function is obsolete.
 * \return int Return status.
-* \retval DRX_STS_OK: Terminated driver successful.
+* \retval 0: Terminated driver successful.
 *
 * This function is obsolete, prototype available for backward compatability.
 *
@@ -1283,7 +1284,7 @@ int drx_init(struct drx_demod_instance *demods[])
 
 int drx_term(void)
 {
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/
@@ -1292,16 +1293,16 @@ int drx_term(void)
 * \brief Open a demodulator instance.
 * \param demod: A pointer to a demodulator instance.
 * \return int Return status.
-* \retval DRX_STS_OK:          Opened demod instance with succes.
-* \retval DRX_STS_ERROR:       Driver not initialized or unable to initialize
+* \retval 0:          Opened demod instance with succes.
+* \retval -EIO:       Driver not initialized or unable to initialize
 *                              demod.
-* \retval DRX_STS_INVALID_ARG: Demod instance has invalid content.
+* \retval -EINVAL: Demod instance has invalid content.
 *
 */
 
 int drx_open(struct drx_demod_instance *demod)
 {
-	int status = DRX_STS_OK;
+	int status = 0;
 
 	if ((demod == NULL) ||
 	    (demod->my_demod_funct == NULL) ||
@@ -1309,12 +1310,12 @@ int drx_open(struct drx_demod_instance *demod)
 	    (demod->my_ext_attr == NULL) ||
 	    (demod->my_i2c_dev_addr == NULL) ||
 	    (demod->my_common_attr->is_opened)) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	status = (*(demod->my_demod_funct->open_func)) (demod);
 
-	if (status == DRX_STS_OK)
+	if (status == 0)
 		demod->my_common_attr->is_opened = true;
 
 	return status;
@@ -1326,10 +1327,10 @@ int drx_open(struct drx_demod_instance *demod)
 * \brief Close device.
 * \param demod: A pointer to a demodulator instance.
 * \return int Return status.
-* \retval DRX_STS_OK:          Closed demod instance with succes.
-* \retval DRX_STS_ERROR:       Driver not initialized or error during close
+* \retval 0:          Closed demod instance with succes.
+* \retval -EIO:       Driver not initialized or error during close
 *                              demod.
-* \retval DRX_STS_INVALID_ARG: Demod instance has invalid content.
+* \retval -EINVAL: Demod instance has invalid content.
 *
 * Free resources occupied by device instance.
 * Put device into sleep mode.
@@ -1337,7 +1338,7 @@ int drx_open(struct drx_demod_instance *demod)
 
 int drx_close(struct drx_demod_instance *demod)
 {
-	int status = DRX_STS_OK;
+	int status = 0;
 
 	if ((demod == NULL) ||
 	    (demod->my_demod_funct == NULL) ||
@@ -1345,7 +1346,7 @@ int drx_close(struct drx_demod_instance *demod)
 	    (demod->my_ext_attr == NULL) ||
 	    (demod->my_i2c_dev_addr == NULL) ||
 	    (!demod->my_common_attr->is_opened)) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	status = (*(demod->my_demod_funct->close_func)) (demod);
@@ -1363,12 +1364,12 @@ int drx_close(struct drx_demod_instance *demod)
 * \param ctrl:     Reference to desired control function.
 * \param ctrl_data: Pointer to data structure for control function.
 * \return int Return status.
-* \retval DRX_STS_OK:                 Control function completed successfully.
-* \retval DRX_STS_ERROR:              Driver not initialized or error during
+* \retval 0:                 Control function completed successfully.
+* \retval -EIO:              Driver not initialized or error during
 *                                     control demod.
-* \retval DRX_STS_INVALID_ARG:        Demod instance or ctrl_data has invalid
+* \retval -EINVAL:        Demod instance or ctrl_data has invalid
 *                                     content.
-* \retval DRX_STS_FUNC_NOT_AVAILABLE: Specified control function is not
+* \retval -ENOTSUPP: Specified control function is not
 *                                     available.
 *
 * Data needed or returned by the control function is stored in ctrl_data.
@@ -1378,20 +1379,20 @@ int drx_close(struct drx_demod_instance *demod)
 int
 drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 {
-	int status = DRX_STS_ERROR;
+	int status = -EIO;
 
 	if ((demod == NULL) ||
 	    (demod->my_demod_funct == NULL) ||
 	    (demod->my_common_attr == NULL) ||
 	    (demod->my_ext_attr == NULL) || (demod->my_i2c_dev_addr == NULL)
 	    ) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	if (((!demod->my_common_attr->is_opened) &&
 	     (ctrl != DRX_CTRL_PROBE_DEVICE) && (ctrl != DRX_CTRL_VERSION))
 	    ) {
-		return DRX_STS_INVALID_ARG;
+		return -EINVAL;
 	}
 
 	if ((DRX_ISPOWERDOWNMODE(demod->my_common_attr->current_power_mode) &&
@@ -1400,7 +1401,7 @@ drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 	     (ctrl != DRX_CTRL_NOP) && (ctrl != DRX_CTRL_VERSION)
 	    )
 	    ) {
-		return DRX_STS_FUNC_NOT_AVAILABLE;
+		return -ENOTSUPP;
 	}
 
 	/* Fixed control functions */
@@ -1408,7 +1409,7 @@ drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
       /*======================================================================*/
 	case DRX_CTRL_NOP:
 		/* No operation */
-		return DRX_STS_OK;
+		return 0;
 		break;
 
       /*======================================================================*/
@@ -1425,7 +1426,7 @@ drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 	/* Virtual functions */
 	/* First try calling function from derived class */
 	status = (*(demod->my_demod_funct->ctrl_func)) (demod, ctrl, ctrl_data);
-	if (status == DRX_STS_FUNC_NOT_AVAILABLE) {
+	if (status == -ENOTSUPP) {
 		/* Now try calling a the base class function */
 		switch (ctrl) {
 	 /*===================================================================*/
@@ -1488,13 +1489,13 @@ drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 
 	 /*===================================================================*/
 		default:
-			return DRX_STS_FUNC_NOT_AVAILABLE;
+			return -ENOTSUPP;
 		}
 	} else {
 		return status;
 	}
 
-	return DRX_STS_OK;
+	return 0;
 }
 
 /*============================================================================*/

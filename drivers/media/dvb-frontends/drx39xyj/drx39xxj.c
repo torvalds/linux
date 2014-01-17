@@ -43,7 +43,7 @@ static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 		power_mode = DRX_POWER_DOWN;
 
 	result = drx_ctrl(demod, DRX_CTRL_POWER_MODE, &power_mode);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "Power state change failed\n");
 		return 0;
 	}
@@ -62,7 +62,7 @@ static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	*status = 0;
 
 	result = drx_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_status);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "drx39xxj: could not get lock status!\n");
 		*status = 0;
 	}
@@ -107,7 +107,7 @@ static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 *ber)
 	struct drx_sig_quality sig_quality;
 
 	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "drx39xxj: could not get ber!\n");
 		*ber = 0;
 		return 0;
@@ -126,7 +126,7 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 	struct drx_sig_quality sig_quality;
 
 	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "drx39xxj: could not get signal strength!\n");
 		*strength = 0;
 		return 0;
@@ -145,7 +145,7 @@ static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 *snr)
 	struct drx_sig_quality sig_quality;
 
 	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "drx39xxj: could not read snr!\n");
 		*snr = 0;
 		return 0;
@@ -163,7 +163,7 @@ static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	struct drx_sig_quality sig_quality;
 
 	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "drx39xxj: could not get uc blocks!\n");
 		*ucblocks = 0;
 		return 0;
@@ -217,7 +217,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	if (standard != state->current_standard || state->powered_up == 0) {
 		/* Set the standard (will be powered up if necessary */
 		result = drx_ctrl(demod, DRX_CTRL_SET_STANDARD, &standard);
-		if (result != DRX_STS_OK) {
+		if (result != 0) {
 			printk(KERN_ERR "Failed to set standard! result=%02x\n",
 			       result);
 			return -EINVAL;
@@ -234,7 +234,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 
 	/* program channel */
 	result = drx_ctrl(demod, DRX_CTRL_SET_CHANNEL, &channel);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "Failed to set channel!\n");
 		return -EINVAL;
 	}
@@ -242,7 +242,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	uio_data.uio = DRX_UIO1;
 	uio_data.value = false;
 	result = drx_ctrl(demod, DRX_CTRL_UIO_WRITE, &uio_data);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "Failed to disable LNA!\n");
 		return 0;
 	}
@@ -288,7 +288,7 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	}
 
 	result = drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &i2c_gate_state);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "drx39xxj: could not open i2c gate [%d]\n",
 		       result);
 		dump_stack();
@@ -382,7 +382,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	demod->my_tuner = NULL;
 
 	result = drx_open(demod);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "DRX open failed!  Aborting\n");
 		kfree(state);
 		return NULL;
@@ -393,7 +393,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
 	/* Configure user-I/O #3: enable read/write */
 	result = drx_ctrl(demod, DRX_CTRL_UIO_CFG, &uio_cfg);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "Failed to setup LNA GPIO!\n");
 		return NULL;
 	}
@@ -401,7 +401,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	uio_data.uio = DRX_UIO1;
 	uio_data.value = false;
 	result = drx_ctrl(demod, DRX_CTRL_UIO_WRITE, &uio_data);
-	if (result != DRX_STS_OK) {
+	if (result != 0) {
 		printk(KERN_ERR "Failed to disable LNA!\n");
 		return NULL;
 	}

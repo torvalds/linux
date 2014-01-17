@@ -13,19 +13,19 @@
 /* Dummy function to satisfy drxj.c */
 int drxbsp_tuner_open(struct tuner_instance *tuner)
 {
-	return DRX_STS_OK;
+	return 0;
 }
 
 int drxbsp_tuner_close(struct tuner_instance *tuner)
 {
-	return DRX_STS_OK;
+	return 0;
 }
 
 int drxbsp_tuner_set_frequency(struct tuner_instance *tuner,
 				      u32 mode,
 				      s32 center_frequency)
 {
-	return DRX_STS_OK;
+	return 0;
 }
 
 int
@@ -34,13 +34,13 @@ drxbsp_tuner_get_frequency(struct tuner_instance *tuner,
 			  s32 *r_ffrequency,
 			  s32 *i_ffrequency)
 {
-	return DRX_STS_OK;
+	return 0;
 }
 
 int drxbsp_hst_sleep(u32 n)
 {
 	msleep(n);
-	return DRX_STS_OK;
+	return 0;
 }
 
 u32 drxbsp_hst_clock(void)
@@ -107,7 +107,7 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 		return -EREMOTEIO;
 	}
 
-	return DRX_STS_OK;
+	return 0;
 
 #ifdef DJH_DEBUG
 	struct drx39xxj_state *state = w_dev_addr->user_data;
