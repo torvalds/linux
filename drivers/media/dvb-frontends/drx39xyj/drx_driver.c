@@ -227,7 +227,7 @@ static int scan_wait_for_lock(struct drx_demod_instance *demod, bool *is_locked)
 	start_time_lock_stage = drxbsp_hst_clock();
 
 	/* Start polling loop, checking for lock & timeout */
-	while (done_waiting == false) {
+	while (!done_waiting) {
 
 		if (drx_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_state) !=
 		    DRX_STS_OK) {
@@ -326,7 +326,7 @@ scan_prepare_next_scan(struct drx_demod_instance *demod, s32 skip)
 			common_attr->scan_ready = true;
 		}
 	} while ((next_frequency < tuner_min_frequency) &&
-		 (common_attr->scan_ready == false));
+		 (!common_attr->scan_ready));
 
 	/* Store new values */
 	common_attr->scan_freq_plan_index = table_index;
@@ -384,7 +384,7 @@ scan_function_default(void *scan_context,
 	/* done with this channel, move to next one */
 	*get_next_channel = true;
 
-	if (is_locked == false) {
+	if (!is_locked) {
 		/* no channel found */
 		return DRX_STS_BUSY;
 	}
@@ -634,7 +634,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 	num_tries = common_attr->scan_param->num_tries;
 	scan_ready = &(common_attr->scan_ready);
 
-	for (i = 0; ((i < num_tries) && ((*scan_ready) == false)); i++) {
+	for (i = 0; ((i < num_tries) && (!(*scan_ready))); i++) {
 		struct drx_channel scan_channel = { 0 };
 		int status = DRX_STS_ERROR;
 		struct drx_frequency_plan *freq_plan = (struct drx_frequency_plan *) (NULL);
@@ -670,7 +670,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 		     &next_channel);
 
 		/* Proceed to next channel if requested */
-		if (next_channel == true) {
+		if (next_channel) {
 			int next_status = DRX_STS_ERROR;
 			s32 skip = 0;
 
@@ -698,7 +698,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 		}
 	}			/* for ( i = 0; i < ( ... num_tries); i++) */
 
-	if ((*scan_ready) == true) {
+	if ((*scan_ready)) {
 		/* End of scan reached: call stop-scan, ignore any error */
 		ctrl_scan_stop(demod);
 		common_attr->scan_active = false;
@@ -1112,7 +1112,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 					    DRX_STS_OK) {
 						return DRX_STS_ERROR;
 					}	/* if */
-				};
+				}
 				break;
 
 	    /*================================================================*/
@@ -1171,7 +1171,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 						bytes_left_to_compare -=
 						    ((u32) bytes_to_compare);
 					}	/* while( bytes_to_compare > DRX_UCODE_MAX_BUF_SIZE ) */
-				};
+				}
 				break;
 
 	    /*================================================================*/
@@ -1314,7 +1314,7 @@ int drx_open(struct drx_demod_instance *demod)
 	    (demod->my_common_attr == NULL) ||
 	    (demod->my_ext_attr == NULL) ||
 	    (demod->my_i2c_dev_addr == NULL) ||
-	    (demod->my_common_attr->is_opened == true)) {
+	    (demod->my_common_attr->is_opened)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
@@ -1351,7 +1351,7 @@ int drx_close(struct drx_demod_instance *demod)
 	    (demod->my_common_attr == NULL) ||
 	    (demod->my_ext_attr == NULL) ||
 	    (demod->my_i2c_dev_addr == NULL) ||
-	    (demod->my_common_attr->is_opened == false)) {
+	    (!demod->my_common_attr->is_opened)) {
 		return DRX_STS_INVALID_ARG;
 	}
 
@@ -1395,7 +1395,7 @@ drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	if (((demod->my_common_attr->is_opened == false) &&
+	if (((!demod->my_common_attr->is_opened) &&
 	     (ctrl != DRX_CTRL_PROBE_DEVICE) && (ctrl != DRX_CTRL_VERSION))
 	    ) {
 		return DRX_STS_INVALID_ARG;

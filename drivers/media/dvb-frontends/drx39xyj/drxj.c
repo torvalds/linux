@@ -1819,14 +1819,14 @@ static int drxj_dap_read_aud_reg16(struct i2c_device_addr *dev_addr,
 
 			if (stat != DRX_STS_OK) {
 				break;
-			};
+			}
 
 			current_timer = drxbsp_hst_clock();
 			delta_timer = current_timer - start_timer;
 			if (delta_timer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
 				stat = DRX_STS_ERROR;
 				break;
-			};
+			}
 
 		} while (((tr_status & AUD_TOP_TR_CTR_FIFO_LOCK__M) ==
 			  AUD_TOP_TR_CTR_FIFO_LOCK_LOCKED) ||
@@ -1845,14 +1845,14 @@ static int drxj_dap_read_aud_reg16(struct i2c_device_addr *dev_addr,
 						  &tr_status, 0x0000);
 			if (stat != DRX_STS_OK) {
 				break;
-			};
+			}
 
 			current_timer = drxbsp_hst_clock();
 			delta_timer = current_timer - start_timer;
 			if (delta_timer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
 				stat = DRX_STS_ERROR;
 				break;
-			};
+			}
 		}		/* while ( ... ) */
 	}
 
@@ -1961,14 +1961,14 @@ static int drxj_dap_write_aud_reg16(struct i2c_device_addr *dev_addr,
 							     data, &tr_status);
 			if (stat != DRX_STS_OK) {
 				break;
-			};
+			}
 
 			current_timer = drxbsp_hst_clock();
 			delta_timer = current_timer - start_timer;
 			if (delta_timer > DRXJ_DAP_AUDTRIF_TIMEOUT) {
 				stat = DRX_STS_ERROR;
 				break;
-			};
+			}
 
 		} while (((tr_status & AUD_TOP_TR_CTR_FIFO_LOCK__M) ==
 			  AUD_TOP_TR_CTR_FIFO_LOCK_LOCKED) ||
@@ -2062,7 +2062,7 @@ int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
 	hi_cmd.param2 =
 	    (u16) DRXDAP_FASI_ADDR2OFFSET(DRXJ_HI_ATOMIC_BUF_START);
 	hi_cmd.param3 = (u16) ((datasize / 2) - 1);
-	if (read_flag == false) {
+	if (!read_flag) {
 		hi_cmd.param3 |= DRXJ_HI_ATOMIC_WRITE;
 	} else {
 		hi_cmd.param3 |= DRXJ_HI_ATOMIC_READ;
@@ -2071,7 +2071,7 @@ int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
 				DRXDAP_FASI_ADDR2BANK(addr));
 	hi_cmd.param5 = (u16) DRXDAP_FASI_ADDR2OFFSET(addr);
 
-	if (read_flag == false) {
+	if (!read_flag) {
 		/* write data to buffer */
 		for (i = 0; i < (datasize / 2); i++) {
 
@@ -2089,7 +2089,7 @@ int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
 		goto rw_error;
 	}
 
-	if (read_flag == true) {
+	if (read_flag) {
 		/* read data from buffer */
 		for (i = 0; i < (datasize / 2); i++) {
 			drxj_dap_read_reg16(dev_addr,
@@ -2283,13 +2283,13 @@ hi_command(struct i2c_device_addr *dev_addr, const pdrxj_hi_cmd_t cmd, u16 *resu
 				  (((cmd->
 				     param5) & SIO_HI_RA_RAM_PAR_5_CFG_SLEEP__M)
 				   == SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ));
-	if (powerdown_cmd == false) {
+	if (!powerdown_cmd) {
 		/* Wait until command rdy */
 		do {
 			nr_retries++;
 			if (nr_retries > DRXJ_MAX_RETRIES) {
 				goto rw_error;
-			};
+			}
 
 			rc = DRXJ_DAP.read_reg16func(dev_addr, SIO_HI_RA_RAM_CMD__A, &wait_cmd, 0);
 			if (rc != DRX_STS_OK) {
@@ -3436,7 +3436,7 @@ static int set_mpegtei_handling(struct drx_demod_instance *demod)
 			   FEC_OC_SNC_MODE_CORR_DISABLE__M));
 	fec_oc_ems_mode &= (~FEC_OC_EMS_MODE_MODE__M);
 
-	if (ext_attr->disable_te_ihandling == true) {
+	if (ext_attr->disable_te_ihandling) {
 		/* do not change TEI bit */
 		fec_oc_dpr_mode |= FEC_OC_DPR_MODE_ERR_DISABLE__M;
 		fec_oc_snc_mode |= FEC_OC_SNC_MODE_CORR_DISABLE__M |
@@ -3494,7 +3494,7 @@ static int bit_reverse_mpeg_output(struct drx_demod_instance *demod)
 	/* reset to default (normal bit order) */
 	fec_oc_ipr_mode &= (~FEC_OC_IPR_MODE_REVERSE_ORDER__M);
 
-	if (ext_attr->bit_reverse_mpeg_outout == true) {
+	if (ext_attr->bit_reverse_mpeg_outout) {
 		/* reverse bit order */
 		fec_oc_ipr_mode |= FEC_OC_IPR_MODE_REVERSE_ORDER__M;
 	}
@@ -3780,7 +3780,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
       /*====================================================================*/
 	case DRX_UIO1:
 		/* DRX_UIO1: SMA_TX UIO-1 */
-		if (ext_attr->has_smatx != true)
+		if (!ext_attr->has_smatx)
 			return DRX_STS_ERROR;
 		switch (uio_cfg->mode) {
 		case DRX_UIO_MODE_FIRMWARE_SMA:	/* falltrough */
@@ -3804,7 +3804,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
       /*====================================================================*/
 	case DRX_UIO2:
 		/* DRX_UIO2: SMA_RX UIO-2 */
-		if (ext_attr->has_smarx != true)
+		if (!ext_attr->has_smarx)
 			return DRX_STS_ERROR;
 		switch (uio_cfg->mode) {
 		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
@@ -3828,7 +3828,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
       /*====================================================================*/
 	case DRX_UIO3:
 		/* DRX_UIO3: GPIO UIO-3 */
-		if (ext_attr->has_gpio != true)
+		if (!ext_attr->has_gpio)
 			return DRX_STS_ERROR;
 		switch (uio_cfg->mode) {
 		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
@@ -3852,7 +3852,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
       /*====================================================================*/
 	case DRX_UIO4:
 		/* DRX_UIO4: IRQN UIO-4 */
-		if (ext_attr->has_irqn != true)
+		if (!ext_attr->has_irqn)
 			return DRX_STS_ERROR;
 		switch (uio_cfg->mode) {
 		case DRX_UIO_MODE_READWRITE:
@@ -3925,7 +3925,7 @@ static int CtrlGetuio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg *u
 		return DRX_STS_INVALID_ARG;
 	}
 
-	if (*uio_available[uio_cfg->uio] == false) {
+	if (!*uio_available[uio_cfg->uio]) {
 		return DRX_STS_ERROR;
 	}
 
@@ -3965,7 +3965,7 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
       /*====================================================================*/
 	case DRX_UIO1:
 		/* DRX_UIO1: SMA_TX UIO-1 */
-		if (ext_attr->has_smatx != true)
+		if (!ext_attr->has_smatx)
 			return DRX_STS_ERROR;
 		if ((ext_attr->uio_sma_tx_mode != DRX_UIO_MODE_READWRITE)
 		    && (ext_attr->uio_sma_tx_mode != DRX_UIO_MODE_FIRMWARE_SAW)) {
@@ -4005,7 +4005,7 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
    /*======================================================================*/
 	case DRX_UIO2:
 		/* DRX_UIO2: SMA_RX UIO-2 */
-		if (ext_attr->has_smarx != true)
+		if (!ext_attr->has_smarx)
 			return DRX_STS_ERROR;
 		if (ext_attr->uio_sma_rx_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
@@ -4044,7 +4044,7 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
    /*====================================================================*/
 	case DRX_UIO3:
 		/* DRX_UIO3: ASEL UIO-3 */
-		if (ext_attr->has_gpio != true)
+		if (!ext_attr->has_gpio)
 			return DRX_STS_ERROR;
 		if (ext_attr->uio_gpio_mode != DRX_UIO_MODE_READWRITE) {
 			return DRX_STS_ERROR;
@@ -4083,7 +4083,7 @@ ctrl_uio_write(struct drx_demod_instance *demod, struct drxuio_data *uio_data)
    /*=====================================================================*/
 	case DRX_UIO4:
 		/* DRX_UIO4: IRQN UIO-4 */
-		if (ext_attr->has_irqn != true)
+		if (!ext_attr->has_irqn)
 			return DRX_STS_ERROR;
 
 		if (ext_attr->uio_irqn_mode != DRX_UIO_MODE_READWRITE) {
@@ -4167,7 +4167,7 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
       /*====================================================================*/
 	case DRX_UIO1:
 		/* DRX_UIO1: SMA_TX UIO-1 */
-		if (ext_attr->has_smatx != true)
+		if (!ext_attr->has_smatx)
 			return DRX_STS_ERROR;
 
 		if (ext_attr->uio_sma_tx_mode != DRX_UIO_MODE_READWRITE) {
@@ -4200,7 +4200,7 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
    /*======================================================================*/
 	case DRX_UIO2:
 		/* DRX_UIO2: SMA_RX UIO-2 */
-		if (ext_attr->has_smarx != true)
+		if (!ext_attr->has_smarx)
 			return DRX_STS_ERROR;
 
 		if (ext_attr->uio_sma_rx_mode != DRX_UIO_MODE_READWRITE) {
@@ -4234,7 +4234,7 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
    /*=====================================================================*/
 	case DRX_UIO3:
 		/* DRX_UIO3: GPIO UIO-3 */
-		if (ext_attr->has_gpio != true)
+		if (!ext_attr->has_gpio)
 			return DRX_STS_ERROR;
 
 		if (ext_attr->uio_gpio_mode != DRX_UIO_MODE_READWRITE) {
@@ -4268,7 +4268,7 @@ static int ctrl_uio_read(struct drx_demod_instance *demod, struct drxuio_data *u
    /*=====================================================================*/
 	case DRX_UIO4:
 		/* DRX_UIO4: IRQN UIO-4 */
-		if (ext_attr->has_irqn != true)
+		if (!ext_attr->has_irqn)
 			return DRX_STS_ERROR;
 
 		if (ext_attr->uio_irqn_mode != DRX_UIO_MODE_READWRITE) {
@@ -4344,7 +4344,7 @@ ctrl_i2c_bridge(struct drx_demod_instance *demod, bool *bridge_closed)
 
 	hi_cmd.cmd = SIO_HI_RA_RAM_CMD_BRDCTRL;
 	hi_cmd.param1 = SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY;
-	if (*bridge_closed == true) {
+	if (*bridge_closed) {
 		hi_cmd.param2 = SIO_HI_RA_RAM_PAR_2_BRD_CFG_CLOSED;
 	} else {
 		hi_cmd.param2 = SIO_HI_RA_RAM_PAR_2_BRD_CFG_OPEN;
@@ -4749,7 +4749,7 @@ int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, u32 a
 		goto rw_error;
 	}
 
-	if (read_flag == true) {
+	if (read_flag) {
 		int i = 0;
 		/* read data from buffer */
 		for (i = 0; i < (datasize / 2); i++) {
@@ -5023,7 +5023,7 @@ ctrl_set_cfg_pdr_safe_mode(struct drx_demod_instance *demod, bool *enable)
 		goto rw_error;
 	}
 
-	if (*enable == true) {
+	if (*enable) {
 		bool bridge_enabled = false;
 
 		/* MPEG pins to input */
@@ -5824,7 +5824,7 @@ set_frequency(struct drx_demod_instance *demod,
 	}
 	intermediate_freq = demod->my_common_attr->intermediate_freq;
 	sampling_frequency = demod->my_common_attr->sys_clock_freq / 3;
-	if (tuner_mirror == true) {
+	if (tuner_mirror) {
 		/* tuner doesn't mirror */
 		if_freq_actual =
 		    intermediate_freq + rf_freq_residual + fm_frequency_shift;
@@ -5971,7 +5971,7 @@ static int get_acc_pkt_err(struct drx_demod_instance *demod, u16 *packet_err)
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-	if (ext_attr->reset_pkt_err_acc == true) {
+	if (ext_attr->reset_pkt_err_acc) {
 		last_pkt_err = data;
 		pkt_err = 0;
 		ext_attr->reset_pkt_err_acc = false;
@@ -6093,7 +6093,7 @@ static int get_ctl_freq_offset(struct drx_demod_instance *demod, s32 *ctl_freq)
 		goto rw_error;
 	}
 
-	if (ext_attr->pos_image == true) {
+	if (ext_attr->pos_image) {
 		/* negative image */
 		carrier_frequency_shift = nominal_frequency - current_frequency;
 	} else {
@@ -6825,7 +6825,7 @@ static int power_down_vsb(struct drx_demod_instance *demod, bool primary)
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-	if (primary == true) {
+	if (primary) {
 		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP, 0);
 		if (rc != DRX_STS_OK) {
 			pr_err("error %d\n", rc);
@@ -7425,13 +7425,13 @@ static int set_vsb(struct drx_demod_instance *demod)
 		goto rw_error;
 	}
 	/* B-Input to ADC, PGA+filter in standby */
-	if (ext_attr->has_lna == false) {
+	if (!ext_attr->has_lna) {
 		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AMUX__A, 0x02, 0);
 		if (rc != DRX_STS_OK) {
 			pr_err("error %d\n", rc);
 			goto rw_error;
 		}
-	};
+	}
 
 	/* turn on IQMAF. It has to be in front of setAgc**() */
 	rc = set_iqm_af(demod, true);
@@ -7915,7 +7915,7 @@ static int power_down_qam(struct drx_demod_instance *demod, bool primary)
 		goto rw_error;
 	}
 
-	if (primary == true) {
+	if (primary) {
 		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP, 0);
 		if (rc != DRX_STS_OK) {
 			pr_err("error %d\n", rc);
@@ -9694,7 +9694,7 @@ set_qam(struct drx_demod_instance *demod,
 	}
 
 	if (op & QAM_SET_OP_ALL) {
-		if (ext_attr->has_lna == false) {
+		if (!ext_attr->has_lna) {
 			rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AMUX__A, 0x02, 0);
 			if (rc != DRX_STS_OK) {
 				pr_err("error %d\n", rc);
@@ -11965,7 +11965,7 @@ power_down_atv(struct drx_demod_instance *demod, enum drx_standard standard, boo
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-	if (primary == true) {
+	if (primary) {
 		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_COMM_EXEC__A, IQM_COMM_EXEC_STOP, 0);
 		if (rc != DRX_STS_OK) {
 			pr_err("error %d\n", rc);
@@ -12885,7 +12885,7 @@ trouble ?
 	}
 
 	/* Common initializations FM & NTSC & B/G & D/K & I & L & LP */
-	if (ext_attr->has_lna == false) {
+	if (!ext_attr->has_lna) {
 		rc = DRXJ_DAP.write_reg16func(dev_addr, IQM_AF_AMUX__A, 0x01, 0);
 		if (rc != DRX_STS_OK) {
 		pr_err("error %d\n", rc);
@@ -13521,7 +13521,7 @@ static int power_up_aud(struct drx_demod_instance *demod, bool set_standard)
 		goto rw_error;
 	}
 
-	if (set_standard == true) {
+	if (set_standard) {
 		rc = aud_ctrl_set_standard(demod, &aud_standard);
 		if (rc != DRX_STS_OK) {
 			pr_err("error %d\n", rc);
@@ -16797,12 +16797,12 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 			   /* signal is transmitted inverted */
 			   ((oob_param->spectrum_inverted == true) &
 			    /* and tuner is not mirroring the signal */
-			    (mirror_freq_spectOOB == false)) |
+			    (!mirror_freq_spectOOB)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
 			   ((oob_param->spectrum_inverted == false) &
 			    /* and tuner is mirroring the signal */
-			    (mirror_freq_spectOOB == true))
+			    (mirror_freq_spectOOB))
 		    )
 			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_2048KBPS_INVSPEC;
@@ -16815,12 +16815,12 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 			   /* signal is transmitted inverted */
 			   ((oob_param->spectrum_inverted == true) &
 			    /* and tuner is not mirroring the signal */
-			    (mirror_freq_spectOOB == false)) |
+			    (!mirror_freq_spectOOB)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
 			   ((oob_param->spectrum_inverted == false) &
 			    /* and tuner is mirroring the signal */
-			    (mirror_freq_spectOOB == true))
+			    (mirror_freq_spectOOB))
 		    )
 			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_1544KBPS_INVSPEC;
@@ -16834,12 +16834,12 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 			   /* signal is transmitted inverted */
 			   ((oob_param->spectrum_inverted == true) &
 			    /* and tuner is not mirroring the signal */
-			    (mirror_freq_spectOOB == false)) |
+			    (!mirror_freq_spectOOB)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
 			   ((oob_param->spectrum_inverted == false) &
 			    /* and tuner is mirroring the signal */
-			    (mirror_freq_spectOOB == true))
+			    (mirror_freq_spectOOB))
 		    )
 			set_param_parameters[0] =
 			    SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_INVSPEC;
@@ -17199,7 +17199,7 @@ ctrl_get_oob(struct drx_demod_instance *demod, struct drxoob_status *oob_status)
 		return DRX_STS_INVALID_ARG;
 	}
 
-	if (ext_attr->oob_power_on == false)
+	if (!ext_attr->oob_power_on)
 		return DRX_STS_ERROR;
 
 	rc = DRXJ_DAP.read_reg16func(dev_addr, ORX_DDC_OFO_SET_W__A, &data, 0);
@@ -17872,7 +17872,7 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 			goto rw_error;
 		}
 		tuner_freq_offset = channel->frequency - ext_attr->frequency;
-		if (tuner_mirror == true) {
+		if (tuner_mirror) {
 			/* positive image */
 			channel->frequency += tuner_freq_offset;
 		} else {
@@ -19187,7 +19187,7 @@ ctrl_u_codeUpload(struct drx_demod_instance *demod,
 					    DRX_STS_OK) {
 						return DRX_STS_ERROR;
 					}
-				};
+				}
 				break;
 
 	    /*===================================================================*/
@@ -19236,7 +19236,7 @@ ctrl_u_codeUpload(struct drx_demod_instance *demod,
 
 						if (result != 0) {
 							return DRX_STS_ERROR;
-						};
+						}
 
 						curr_addr +=
 						    ((dr_xaddr_t)
@@ -19246,7 +19246,7 @@ ctrl_u_codeUpload(struct drx_demod_instance *demod,
 						bytes_left_to_compare -=
 						    ((u32) bytes_to_compare);
 					}	/* while( bytes_to_compare > DRXJ_UCODE_MAX_BUF_SIZE ) */
-				};
+				}
 				break;
 
 	    /*===================================================================*/
@@ -19262,7 +19262,7 @@ ctrl_u_codeUpload(struct drx_demod_instance *demod,
 		mc_data += mc_block_nr_bytes;
 	}			/* for( i = 0 ; i<mc_nr_of_blks ; i++ ) */
 
-	if (upload_audio_mc == false) {
+	if (!upload_audio_mc) {
 		ext_attr->flag_aud_mc_uploaded = false;
 	}
 
@@ -20680,7 +20680,7 @@ int drxj_close(struct drx_demod_instance *demod)
 				goto rw_error;
 			}
 		}
-	};
+	}
 
 	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE, 0);
 	if (rc != DRX_STS_OK) {
