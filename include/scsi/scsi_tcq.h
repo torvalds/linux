@@ -67,7 +67,8 @@ static inline void scsi_activate_tcq(struct scsi_device *sdev, int depth)
 	if (!sdev->tagged_supported)
 		return;
 
-	if (!blk_queue_tagged(sdev->request_queue))
+	if (!shost_use_blk_mq(sdev->host) &&
+	    blk_queue_tagged(sdev->request_queue))
 		blk_queue_init_tags(sdev->request_queue, depth,
 				    sdev->host->bqt);
 
@@ -80,7 +81,8 @@ static inline void scsi_activate_tcq(struct scsi_device *sdev, int depth)
  **/
 static inline void scsi_deactivate_tcq(struct scsi_device *sdev, int depth)
 {
-	if (blk_queue_tagged(sdev->request_queue))
+	if (!shost_use_blk_mq(sdev->host) &&
+	    blk_queue_tagged(sdev->request_queue))
 		blk_queue_free_tags(sdev->request_queue);
 	scsi_adjust_queue_depth(sdev, 0, depth);
 }
@@ -108,6 +110,15 @@ static inline int scsi_populate_tag_msg(struct scsi_cmnd *cmd, char *msg)
 	return 0;
 }
 
+static inline struct scsi_cmnd *scsi_mq_find_tag(struct Scsi_Host *shost,
+		unsigned int hw_ctx, int tag)
+{
+	struct request *req;
+
+	req = blk_mq_tag_to_rq(shost->tag_set.tags[hw_ctx], tag);
+	return req ? (struct scsi_cmnd *)req->special : NULL;
+}
+
 /**
  * scsi_find_tag - find a tagged command by device
  * @SDpnt:	pointer to the ScSI device
@@ -118,10 +129,12 @@ static inline int scsi_populate_tag_msg(struct scsi_cmnd *cmd, char *msg)
  **/
 static inline struct scsi_cmnd *scsi_find_tag(struct scsi_device *sdev, int tag)
 {
-
         struct request *req;
 
         if (tag != SCSI_NO_TAG) {
+		if (shost_use_blk_mq(sdev->host))
+			return scsi_mq_find_tag(sdev->host, 0, tag);
+
         	req = blk_queue_find_tag(sdev->request_queue, tag);
 	        return req ? (struct scsi_cmnd *)req->special : NULL;
 	}
@@ -130,6 +143,7 @@ static inline struct scsi_cmnd *scsi_find_tag(struct scsi_device *sdev, int tag)
 	return sdev->current_cmnd;
 }
 
+
 /**
  * scsi_init_shared_tag_map - create a shared tag map
  * @shost:	the host to share the tag map among all devices
@@ -137,6 +151,12 @@ static inline struct scsi_cmnd *scsi_find_tag(struct scsi_device *sdev, int tag)
  */
 static inline int scsi_init_shared_tag_map(struct Scsi_Host *shost, int depth)
 {
+	/*
+	 * We always have a shared tag map around when using blk-mq.
+	 */
+	if (shost_use_blk_mq(shost))
+		return 0;
+
 	/*
 	 * If the shared tag map isn't already initialized, do it now.
 	 * This saves callers from having to check ->bqt when setting up
@@ -165,6 +185,8 @@ static inline struct scsi_cmnd *scsi_host_find_tag(struct Scsi_Host *shost,
 	struct request *req;
 
 	if (tag != SCSI_NO_TAG) {
+		if (shost_use_blk_mq(shost))
+			return scsi_mq_find_tag(shost, 0, tag);
 		req = blk_map_queue_find_tag(shost->bqt, tag);
 		return req ? (struct scsi_cmnd *)req->special : NULL;
 	}
