@@ -1471,9 +1471,17 @@ void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 			  NULL, 0, NULL);
 }
 
-static int efx_mcdi_reset_port(struct efx_nic *efx)
+static int efx_mcdi_reset_func(struct efx_nic *efx)
 {
-	return efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, NULL, 0, NULL, 0, NULL);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_ENTITY_RESET_IN_LEN);
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_ENTITY_RESET_OUT_LEN != 0);
+	MCDI_POPULATE_DWORD_1(inbuf, ENTITY_RESET_IN_FLAG,
+			      ENTITY_RESET_IN_FUNCTION_RESOURCE_RESET, 1);
+	rc = efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, inbuf, sizeof(inbuf),
+			  NULL, 0, NULL);
+	return rc;
 }
 
 static int efx_mcdi_reset_mc(struct efx_nic *efx)
@@ -1510,7 +1518,7 @@ int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method)
 	if (method == RESET_TYPE_WORLD)
 		return efx_mcdi_reset_mc(efx);
 	else
-		return efx_mcdi_reset_port(efx);
+		return efx_mcdi_reset_func(efx);
 }
 
 static int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,

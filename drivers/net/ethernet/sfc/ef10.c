@@ -683,6 +683,17 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 	return 0;
 }
 
+static void efx_ef10_reset_mc_allocations(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	/* All our allocations have been reset */
+	nic_data->must_realloc_vis = true;
+	nic_data->must_restore_filters = true;
+	nic_data->must_restore_piobufs = true;
+	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
+}
+
 static int efx_ef10_map_reset_flags(u32 *flags)
 {
 	enum {
@@ -711,6 +722,19 @@ static int efx_ef10_map_reset_flags(u32 *flags)
 	/* no invisible reset implemented */
 
 	return -EINVAL;
+}
+
+static int efx_ef10_reset(struct efx_nic *efx, enum reset_type reset_type)
+{
+	int rc = efx_mcdi_reset(efx, reset_type);
+
+	/* If it was a port reset, trigger reallocation of MC resources.
+	 * Note that on an MC reset nothing needs to be done now because we'll
+	 * detect the MC reset later and handle it then.
+	 */
+	if (reset_type == RESET_TYPE_ALL && !rc)
+		efx_ef10_reset_mc_allocations(efx);
+	return rc;
 }
 
 #define EF10_DMA_STAT(ext_name, mcdi_name)			\
@@ -1078,10 +1102,7 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 	nic_data->warm_boot_count = rc;
 
 	/* All our allocations have been reset */
-	nic_data->must_realloc_vis = true;
-	nic_data->must_restore_filters = true;
-	nic_data->must_restore_piobufs = true;
-	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
+	efx_ef10_reset_mc_allocations(efx);
 
 	/* The datapath firmware might have been changed */
 	nic_data->must_check_datapath_caps = true;
@@ -3571,7 +3592,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.fini = efx_port_dummy_op_void,
 	.map_reset_reason = efx_mcdi_map_reset_reason,
 	.map_reset_flags = efx_ef10_map_reset_flags,
-	.reset = efx_mcdi_reset,
+	.reset = efx_ef10_reset,
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
 	.fini_dmaq = efx_ef10_fini_dmaq,
