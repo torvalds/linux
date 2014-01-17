@@ -2273,7 +2273,8 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	}
 
 	em28xx_tuner_setup(dev);
-	em28xx_init_camera(dev);
+	if (dev->em28xx_sensor != EM28XX_NOSENSOR)
+		em28xx_init_camera(dev);
 
 	/* Configure audio */
 	ret = em28xx_audio_setup(dev);
