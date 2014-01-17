@@ -120,7 +120,7 @@ do {						\
 do {									    \
 	LASSERT(!in_interrupt() ||					    \
 		((size) <= LIBCFS_VMALLOC_SIZE &&			    \
-		 ((mask) & GFP_ATOMIC)) != 0);			    \
+		 ((mask) & __GFP_WAIT) == 0));				    \
 } while (0)
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \
