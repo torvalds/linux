@@ -29,8 +29,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/fsl_ifc.h>
 #include <asm/prom.h>
-#include <asm/fsl_ifc.h>
 
 struct fsl_ifc_ctrl *fsl_ifc_ctrl_dev;
 EXPORT_SYMBOL(fsl_ifc_ctrl_dev);
@@ -298,7 +298,11 @@ static struct platform_driver fsl_ifc_ctrl_driver = {
 	.remove      = fsl_ifc_ctrl_remove,
 };
 
-module_platform_driver(fsl_ifc_ctrl_driver);
+static int __init fsl_ifc_init(void)
+{
+	return platform_driver_register(&fsl_ifc_ctrl_driver);
+}
+subsys_initcall(fsl_ifc_init);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale Semiconductor");
