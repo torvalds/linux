@@ -61,11 +61,9 @@
 #include "dgap_conf.h"
 #include "dgap_sysfs.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
 #define init_MUTEX(sem)         sema_init(sem, 1)
 #define DECLARE_MUTEX(name)     \
         struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
-#endif
 
 /*
  * internal variables
@@ -131,13 +129,8 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value);
 static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_info);
 static int dgap_tty_digigetcustombaud(struct tty_struct *tty, int __user *retinfo);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
 static int dgap_tty_tiocmget(struct tty_struct *tty);
 static int dgap_tty_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear);
-#else
-static int dgap_tty_tiocmget(struct tty_struct *tty, struct file *file);
-static int dgap_tty_tiocmset(struct tty_struct *tty, struct file *file, unsigned int set, unsigned int clear);
-#endif
 static int dgap_tty_send_break(struct tty_struct *tty, int msec);
 static void dgap_tty_wait_until_sent(struct tty_struct *tty, int timeout);
 static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int count);
@@ -237,10 +230,6 @@ int dgap_tty_register(struct board_t *brd)
 	if (!brd->SerialDriver->ttys)
 		return(-ENOMEM);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-	brd->SerialDriver->refcount = brd->TtyRefCnt;
-#endif
-
 	/*
 	 * Entry points for driver.  Called by the kernel from
 	 * tty_io.c and n_tty.c.
@@ -269,10 +258,6 @@ int dgap_tty_register(struct board_t *brd)
 	brd->PrintDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->PrintDriver->ttys)
 		return(-ENOMEM);
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-	brd->PrintDriver->refcount = brd->TtyRefCnt;
-#endif
 
 	/*
 	 * Entry points for driver.  Called by the kernel from
@@ -2109,11 +2094,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 /*
  * Return modem signals to ld.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
 static int dgap_tty_tiocmget(struct tty_struct *tty)
-#else
-static int dgap_tty_tiocmget(struct tty_struct *tty, struct file *file)
-#endif
 {
 	struct channel_t *ch;
 	struct un_t *un;
@@ -2168,13 +2149,9 @@ static int dgap_tty_tiocmget(struct tty_struct *tty, struct file *file)
  *
  * Set modem signals, called by ld.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+
 static int dgap_tty_tiocmset(struct tty_struct *tty,
                 unsigned int set, unsigned int clear)
-#else
-static int dgap_tty_tiocmset(struct tty_struct *tty, struct file *file,
-		unsigned int set, unsigned int clear)
-#endif
 {
 	struct board_t *bd;
 	struct channel_t *ch;

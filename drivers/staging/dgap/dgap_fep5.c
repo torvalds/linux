@@ -30,10 +30,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>	/* For tty_schedule_flip */
 #include <linux/slab.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
 #include <linux/sched.h>
-#endif
 
 #include "dgap_driver.h"
 #include "dgap_pci.h"
@@ -1805,19 +1802,11 @@ static int dgap_event(struct board_t *bd)
 				if (ch->ch_tun.un_flags & UN_ISOPEN) {
 					if ((ch->ch_tun.un_tty->flags &
 					   (1 << TTY_DO_WRITE_WAKEUP)) &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 						ch->ch_tun.un_tty->ldisc->ops->write_wakeup)
-#else
-						ch->ch_tun.un_tty->ldisc.ops->write_wakeup)
-#endif
 					{
 						DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 						DGAP_UNLOCK(bd->bd_lock, lock_flags);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 						(ch->ch_tun.un_tty->ldisc->ops->write_wakeup)(ch->ch_tun.un_tty);
-#else
-						(ch->ch_tun.un_tty->ldisc.ops->write_wakeup)(ch->ch_tun.un_tty);
-#endif
 						DGAP_LOCK(bd->bd_lock, lock_flags);
 						DGAP_LOCK(ch->ch_lock, lock_flags2);
 					}
@@ -1833,19 +1822,11 @@ static int dgap_event(struct board_t *bd)
 				if (ch->ch_pun.un_flags & UN_ISOPEN) {
 					if ((ch->ch_pun.un_tty->flags &
 					   (1 << TTY_DO_WRITE_WAKEUP)) &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 						ch->ch_pun.un_tty->ldisc->ops->write_wakeup)
-#else
-						ch->ch_pun.un_tty->ldisc.ops->write_wakeup)
-#endif
 					{
 						DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 						DGAP_UNLOCK(bd->bd_lock, lock_flags);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 						(ch->ch_pun.un_tty->ldisc->ops->write_wakeup)(ch->ch_pun.un_tty);
-#else
-						(ch->ch_pun.un_tty->ldisc.ops->write_wakeup)(ch->ch_pun.un_tty);
-#endif
 						DGAP_LOCK(bd->bd_lock, lock_flags);
 						DGAP_LOCK(ch->ch_lock, lock_flags2);
 					}
@@ -1871,19 +1852,12 @@ static int dgap_event(struct board_t *bd)
 				if (ch->ch_tun.un_flags & UN_ISOPEN) {
 					if ((ch->ch_tun.un_tty->flags &
 					   (1 << TTY_DO_WRITE_WAKEUP)) &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 						ch->ch_tun.un_tty->ldisc->ops->write_wakeup)
-#else
-						ch->ch_tun.un_tty->ldisc.ops->write_wakeup)
-#endif
 					{
 						DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 						DGAP_UNLOCK(bd->bd_lock, lock_flags);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
+
 						(ch->ch_tun.un_tty->ldisc->ops->write_wakeup)(ch->ch_tun.un_tty);
-#else
-						(ch->ch_tun.un_tty->ldisc.ops->write_wakeup)(ch->ch_tun.un_tty);
-#endif
 						DGAP_LOCK(bd->bd_lock, lock_flags);
 						DGAP_LOCK(ch->ch_lock, lock_flags2);
 					}
@@ -1897,19 +1871,11 @@ static int dgap_event(struct board_t *bd)
 				if (ch->ch_pun.un_flags & UN_ISOPEN) {
 					if ((ch->ch_pun.un_tty->flags &
 					   (1 << TTY_DO_WRITE_WAKEUP)) &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 						ch->ch_pun.un_tty->ldisc->ops->write_wakeup)
-#else
-						ch->ch_pun.un_tty->ldisc.ops->write_wakeup)
-#endif
 					{
 						DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 						DGAP_UNLOCK(bd->bd_lock, lock_flags);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 						(ch->ch_pun.un_tty->ldisc->ops->write_wakeup)(ch->ch_pun.un_tty);
-#else
-						(ch->ch_pun.un_tty->ldisc.ops->write_wakeup)(ch->ch_pun.un_tty);
-#endif
 						DGAP_LOCK(bd->bd_lock, lock_flags);
 						DGAP_LOCK(ch->ch_lock, lock_flags2);
 					}

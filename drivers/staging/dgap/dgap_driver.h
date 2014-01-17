@@ -396,10 +396,6 @@ struct board_t
 	u32		dgap_Serial_Major;
 	u32		dgap_TransparentPrint_Major;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-	u32		TtyRefCnt;
-#endif
-
 	struct bs_t	*bd_bs;			/* Base structure pointer       */
 
 	char	*flipbuf;		/* Our flip buffer, alloced if board is found */
