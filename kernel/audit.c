@@ -1068,8 +1068,6 @@ static int __net_init audit_net_init(struct net *net)
 
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
-	pr_info("initializing netlink socket in namespace\n");
-
 	aunet->nlsk = netlink_kernel_create(net, NETLINK_AUDIT, &cfg);
 	if (aunet->nlsk == NULL) {
 		audit_panic("cannot initialize netlink socket in namespace");
