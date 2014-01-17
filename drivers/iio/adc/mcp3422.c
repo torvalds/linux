@@ -88,10 +88,10 @@ static const int mcp3422_sample_rates[4] = {
 
 /* sample rates to sign extension table */
 static const int mcp3422_sign_extend[4] = {
-	[MCP3422_SRATE_240] = 12,
-	[MCP3422_SRATE_60] = 14,
-	[MCP3422_SRATE_15] = 16,
-	[MCP3422_SRATE_3] = 18 };
+	[MCP3422_SRATE_240] = 11,
+	[MCP3422_SRATE_60] = 13,
+	[MCP3422_SRATE_15] = 15,
+	[MCP3422_SRATE_3] = 17 };
 
 /* Client data (each client gets its own) */
 struct mcp3422 {

@@ -360,13 +360,13 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *parser,
 	struct radeon_bo *bo;
 	int r;
 
-	r = radeon_vm_bo_update_pte(rdev, vm, rdev->ring_tmp_bo.bo, &rdev->ring_tmp_bo.bo->tbo.mem);
+	r = radeon_vm_bo_update(rdev, vm, rdev->ring_tmp_bo.bo, &rdev->ring_tmp_bo.bo->tbo.mem);
 	if (r) {
 		return r;
 	}
 	list_for_each_entry(lobj, &parser->validated, tv.head) {
 		bo = lobj->bo;
-		r = radeon_vm_bo_update_pte(parser->rdev, vm, bo, &bo->tbo.mem);
+		r = radeon_vm_bo_update(parser->rdev, vm, bo, &bo->tbo.mem);
 		if (r) {
 			return r;
 		}

@@ -943,14 +943,19 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 		 params.chandef.chan->center_freq);
 
 	params.block_tx = csa_ie.mode & WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT;
-	if (beacon)
+	if (beacon) {
 		ifmsh->chsw_ttl = csa_ie.ttl - 1;
-	else
-		ifmsh->chsw_ttl = 0;
+		if (ifmsh->pre_value >= csa_ie.pre_value)
+			return false;
+		ifmsh->pre_value = csa_ie.pre_value;
+	}
 
-	if (ifmsh->chsw_ttl > 0)
+	if (ifmsh->chsw_ttl < ifmsh->mshcfg.dot11MeshTTL) {
 		if (ieee80211_mesh_csa_beacon(sdata, &params, false) < 0)
 			return false;
+	} else {
+		return false;
+	}
 
 	sdata->csa_radar_required = params.radar_required;
 
@@ -1163,7 +1168,6 @@ static int mesh_fwd_csa_frame(struct ieee80211_sub_if_data *sdata,
 	offset_ttl = (len < 42) ? 7 : 10;
 	*(pos + offset_ttl) -= 1;
 	*(pos + offset_ttl + 1) &= ~WLAN_EID_CHAN_SWITCH_PARAM_INITIATOR;
-	sdata->u.mesh.chsw_ttl = *(pos + offset_ttl);
 
 	memcpy(mgmt_fwd, mgmt, len);
 	eth_broadcast_addr(mgmt_fwd->da);
@@ -1182,7 +1186,7 @@ static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
 	u16 pre_value;
 	bool fwd_csa = true;
 	size_t baselen;
-	u8 *pos, ttl;
+	u8 *pos;
 
 	if (mgmt->u.action.u.measurement.action_code !=
 	    WLAN_ACTION_SPCT_CHL_SWITCH)
@@ -1193,8 +1197,8 @@ static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
 			   u.action.u.chan_switch.variable);
 	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
 
-	ttl = elems.mesh_chansw_params_ie->mesh_ttl;
-	if (!--ttl)
+	ifmsh->chsw_ttl = elems.mesh_chansw_params_ie->mesh_ttl;
+	if (!--ifmsh->chsw_ttl)
 		fwd_csa = false;
 
 	pre_value = le16_to_cpu(elems.mesh_chansw_params_ie->mesh_pre_value);

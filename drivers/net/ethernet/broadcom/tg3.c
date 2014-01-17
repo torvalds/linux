@@ -8932,6 +8932,9 @@ static int tg3_chip_reset(struct tg3 *tp)
 	void (*write_op)(struct tg3 *, u32, u32);
 	int i, err;
 
+	if (!pci_device_is_present(tp->pdev))
+		return -ENODEV;
+
 	tg3_nvram_lock(tp);
 
 	tg3_ape_lock(tp, TG3_APE_LOCK_GRC);
@@ -10629,10 +10632,8 @@ static void tg3_sd_scan_scratchpad(struct tg3 *tp, struct tg3_ocir *ocir)
 static ssize_t tg3_show_temp(struct device *dev,
 			     struct device_attribute *devattr, char *buf)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct tg3 *tp = netdev_priv(netdev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct tg3 *tp = dev_get_drvdata(dev);
 	u32 temperature;
 
 	spin_lock_bh(&tp->lock);
@@ -10650,29 +10651,25 @@ static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, tg3_show_temp, NULL,
 static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, tg3_show_temp, NULL,
 			  TG3_TEMP_MAX_OFFSET);
 
-static struct attribute *tg3_attributes[] = {
+static struct attribute *tg3_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	NULL
 };
-
-static const struct attribute_group tg3_group = {
-	.attrs = tg3_attributes,
-};
+ATTRIBUTE_GROUPS(tg3);
 
 static void tg3_hwmon_close(struct tg3 *tp)
 {
 	if (tp->hwmon_dev) {
 		hwmon_device_unregister(tp->hwmon_dev);
 		tp->hwmon_dev = NULL;
-		sysfs_remove_group(&tp->pdev->dev.kobj, &tg3_group);
 	}
 }
 
 static void tg3_hwmon_open(struct tg3 *tp)
 {
-	int i, err;
+	int i;
 	u32 size = 0;
 	struct pci_dev *pdev = tp->pdev;
 	struct tg3_ocir ocirs[TG3_SD_NUM_RECS];
@@ -10690,18 +10687,11 @@ static void tg3_hwmon_open(struct tg3 *tp)
 	if (!size)
 		return;
 
-	/* Register hwmon sysfs hooks */
-	err = sysfs_create_group(&pdev->dev.kobj, &tg3_group);
-	if (err) {
-		dev_err(&pdev->dev, "Cannot create sysfs group, aborting\n");
-		return;
-	}
-
-	tp->hwmon_dev = hwmon_device_register(&pdev->dev);
+	tp->hwmon_dev = hwmon_device_register_with_groups(&pdev->dev, "tg3",
+							  tp, tg3_groups);
 	if (IS_ERR(tp->hwmon_dev)) {
 		tp->hwmon_dev = NULL;
 		dev_err(&pdev->dev, "Cannot register hwmon device, aborting\n");
-		sysfs_remove_group(&pdev->dev.kobj, &tg3_group);
 	}
 }
 
@@ -11594,10 +11584,11 @@ static int tg3_close(struct net_device *dev)
 	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
 	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
 
-	tg3_power_down_prepare(tp);
+	if (pci_device_is_present(tp->pdev)) {
+		tg3_power_down_prepare(tp);
 
-	tg3_carrier_off(tp);
-
+		tg3_carrier_off(tp);
+	}
 	return 0;
 }
 
@@ -16512,6 +16503,9 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	/* Clear this out for sanity. */
 	tw32(TG3PCI_MEM_WIN_BASE_ADDR, 0);
 
+	/* Clear TG3PCI_REG_BASE_ADDR to prevent hangs. */
+	tw32(TG3PCI_REG_BASE_ADDR, 0);
+
 	pci_read_config_dword(tp->pdev, TG3PCI_PCISTATE,
 			      &pci_state_reg);
 	if ((pci_state_reg & PCISTATE_CONV_PCI_MODE) == 0 &&
@@ -17739,10 +17733,12 @@ static int tg3_suspend(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct tg3 *tp = netdev_priv(dev);
-	int err;
+	int err = 0;
+
+	rtnl_lock();
 
 	if (!netif_running(dev))
-		return 0;
+		goto unlock;
 
 	tg3_reset_task_cancel(tp);
 	tg3_phy_stop(tp);
@@ -17784,6 +17780,8 @@ out:
 			tg3_phy_start(tp);
 	}
 
+unlock:
+	rtnl_unlock();
 	return err;
 }
 
@@ -17792,10 +17790,12 @@ static int tg3_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct tg3 *tp = netdev_priv(dev);
-	int err;
+	int err = 0;
+
+	rtnl_lock();
 
 	if (!netif_running(dev))
-		return 0;
+		goto unlock;
 
 	netif_device_attach(dev);
 
@@ -17819,6 +17819,8 @@ out:
 	if (!err)
 		tg3_phy_start(tp);
 
+unlock:
+	rtnl_unlock();
 	return err;
 }
 #endif /* CONFIG_PM_SLEEP */

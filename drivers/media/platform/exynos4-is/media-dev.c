@@ -759,7 +759,7 @@ static int fimc_md_register_platform_entity(struct fimc_md *fmd,
 		goto dev_unlock;
 
 	drvdata = dev_get_drvdata(dev);
-	/* Some subdev didn't probe succesfully id drvdata is NULL */
+	/* Some subdev didn't probe successfully id drvdata is NULL */
 	if (drvdata) {
 		switch (plat_entity) {
 		case IDX_FIMC:

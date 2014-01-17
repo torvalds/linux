@@ -667,29 +667,24 @@ qlcnic_set_ringparam(struct net_device *dev,
 static int qlcnic_validate_ring_count(struct qlcnic_adapter *adapter,
 				      u8 rx_ring, u8 tx_ring)
 {
+	if (rx_ring == 0 || tx_ring == 0)
+		return -EINVAL;
+
 	if (rx_ring != 0) {
 		if (rx_ring > adapter->max_sds_rings) {
-			netdev_err(adapter->netdev, "Invalid ring count, SDS ring count %d should not be greater than max %d driver sds rings.\n",
+			netdev_err(adapter->netdev,
+				   "Invalid ring count, SDS ring count %d should not be greater than max %d driver sds rings.\n",
 				   rx_ring, adapter->max_sds_rings);
 			return -EINVAL;
 		}
 	}
 
 	 if (tx_ring != 0) {
-		if (qlcnic_82xx_check(adapter) &&
-		    (tx_ring > adapter->max_tx_rings)) {
+		if (tx_ring > adapter->max_tx_rings) {
 			netdev_err(adapter->netdev,
 				   "Invalid ring count, Tx ring count %d should not be greater than max %d driver Tx rings.\n",
 				   tx_ring, adapter->max_tx_rings);
 			return -EINVAL;
-		}
-
-		if (qlcnic_83xx_check(adapter) &&
-		    (tx_ring > QLCNIC_SINGLE_RING)) {
-			netdev_err(adapter->netdev,
-				   "Invalid ring count, Tx ring count %d should not be greater than %d driver Tx rings.\n",
-				   tx_ring, QLCNIC_SINGLE_RING);
-			 return -EINVAL;
 		}
 	}
 
@@ -948,6 +943,7 @@ static int qlcnic_irq_test(struct net_device *netdev)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
 	int ret, drv_sds_rings = adapter->drv_sds_rings;
+	int drv_tx_rings = adapter->drv_tx_rings;
 
 	if (qlcnic_83xx_check(adapter))
 		return qlcnic_83xx_interrupt_test(netdev);
@@ -980,6 +976,7 @@ free_diag_res:
 
 clear_diag_irq:
 	adapter->drv_sds_rings = drv_sds_rings;
+	adapter->drv_tx_rings = drv_tx_rings;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 
 	return ret;

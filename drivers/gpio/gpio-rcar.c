@@ -169,7 +169,8 @@ static irqreturn_t gpio_rcar_irq_handler(int irq, void *dev_id)
 	u32 pending;
 	unsigned int offset, irqs_handled = 0;
 
-	while ((pending = gpio_rcar_read(p, INTDT))) {
+	while ((pending = gpio_rcar_read(p, INTDT) &
+			  gpio_rcar_read(p, INTMSK))) {
 		offset = __ffs(pending);
 		gpio_rcar_write(p, INTCLR, BIT(offset));
 		generic_handle_irq(irq_find_mapping(p->irq_domain, offset));
@@ -381,7 +382,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	if (!p->irq_domain) {
 		ret = -ENXIO;
 		dev_err(&pdev->dev, "cannot initialize irq domain\n");
-		goto err1;
+		goto err0;
 	}
 
 	if (devm_request_irq(&pdev->dev, irq->start,

@@ -225,6 +225,13 @@ static const unsigned int buzz_keymap[] = {
 struct sony_sc {
 	unsigned long quirks;
 
+#ifdef CONFIG_SONY_FF
+	struct work_struct rumble_worker;
+	struct hid_device *hdev;
+	__u8 left;
+	__u8 right;
+#endif
+
 	void *extra;
 };
 
@@ -615,9 +622,9 @@ static void buzz_remove(struct hid_device *hdev)
 }
 
 #ifdef CONFIG_SONY_FF
-static int sony_play_effect(struct input_dev *dev, void *data,
-			    struct ff_effect *effect)
+static void sony_rumble_worker(struct work_struct *work)
 {
+	struct sony_sc *sc = container_of(work, struct sony_sc, rumble_worker);
 	unsigned char buf[] = {
 		0x01,
 		0x00, 0xff, 0x00, 0xff, 0x00,
@@ -628,21 +635,28 @@ static int sony_play_effect(struct input_dev *dev, void *data,
 		0xff, 0x27, 0x10, 0x00, 0x32,
 		0x00, 0x00, 0x00, 0x00, 0x00
 	};
-	__u8 left;
-	__u8 right;
+
+	buf[3] = sc->right;
+	buf[5] = sc->left;
+
+	sc->hdev->hid_output_raw_report(sc->hdev, buf, sizeof(buf),
+					HID_OUTPUT_REPORT);
+}
+
+static int sony_play_effect(struct input_dev *dev, void *data,
+			    struct ff_effect *effect)
+{
 	struct hid_device *hid = input_get_drvdata(dev);
+	struct sony_sc *sc = hid_get_drvdata(hid);
 
 	if (effect->type != FF_RUMBLE)
 		return 0;
 
-	left = effect->u.rumble.strong_magnitude / 256;
-	right = effect->u.rumble.weak_magnitude ? 1 : 0;
+	sc->left = effect->u.rumble.strong_magnitude / 256;
+	sc->right = effect->u.rumble.weak_magnitude ? 1 : 0;
 
-	buf[3] = right;
-	buf[5] = left;
-
-	return hid->hid_output_raw_report(hid, buf, sizeof(buf),
-					  HID_OUTPUT_REPORT);
+	schedule_work(&sc->rumble_worker);
+	return 0;
 }
 
 static int sony_init_ff(struct hid_device *hdev)
@@ -650,15 +664,30 @@ static int sony_init_ff(struct hid_device *hdev)
 	struct hid_input *hidinput = list_entry(hdev->inputs.next,
 						struct hid_input, list);
 	struct input_dev *input_dev = hidinput->input;
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	sc->hdev = hdev;
+	INIT_WORK(&sc->rumble_worker, sony_rumble_worker);
 
 	input_set_capability(input_dev, EV_FF, FF_RUMBLE);
 	return input_ff_create_memless(input_dev, NULL, sony_play_effect);
+}
+
+static void sony_destroy_ff(struct hid_device *hdev)
+{
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	cancel_work_sync(&sc->rumble_worker);
 }
 
 #else
 static int sony_init_ff(struct hid_device *hdev)
 {
 	return 0;
+}
+
+static void sony_destroy_ff(struct hid_device *hdev)
+{
 }
 #endif
 
@@ -727,6 +756,8 @@ static void sony_remove(struct hid_device *hdev)
 
 	if (sc->quirks & BUZZ_CONTROLLER)
 		buzz_remove(hdev);
+
+	sony_destroy_ff(hdev);
 
 	hid_hw_stop(hdev);
 }

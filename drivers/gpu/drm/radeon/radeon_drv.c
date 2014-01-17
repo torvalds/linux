@@ -508,15 +508,6 @@ static const struct file_operations radeon_driver_kms_fops = {
 #endif
 };
 
-
-static void
-radeon_pci_shutdown(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
-
-	radeon_driver_unload_kms(dev);
-}
-
 static struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP |
@@ -586,7 +577,6 @@ static struct pci_driver radeon_kms_pci_driver = {
 	.probe = radeon_pci_probe,
 	.remove = radeon_pci_remove,
 	.driver.pm = &radeon_pm_ops,
-	.shutdown = radeon_pci_shutdown,
 };
 
 static int __init radeon_init(void)

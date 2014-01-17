@@ -160,6 +160,7 @@ asmlinkage void secondary_start_kernel(void)
 
 	local_irq_enable();
 	local_fiq_enable();
+	local_async_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us

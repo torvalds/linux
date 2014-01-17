@@ -1149,32 +1149,24 @@ static int aead_setkey(struct crypto_aead *tfm, const u8 *key,
 			unsigned int keylen)
 {
 	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
-	struct rtattr *rta = (struct rtattr *)key;
-	struct crypto_authenc_key_param *param;
+	struct crypto_authenc_keys keys;
 
-	if (!RTA_OK(rta, keylen))
-		goto badkey;
-	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
-		goto badkey;
-	if (RTA_PAYLOAD(rta) < sizeof(*param))
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-	param = RTA_DATA(rta);
-	ctx->enckey_len = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < ctx->enckey_len)
+	if (keys.authkeylen > sizeof(ctx->authkey))
 		goto badkey;
 
-	ctx->authkey_len = keylen - ctx->enckey_len;
-	memcpy(ctx->enckey, key + ctx->authkey_len, ctx->enckey_len);
-	memcpy(ctx->authkey, key, ctx->authkey_len);
+	if (keys.enckeylen > sizeof(ctx->enckey))
+		goto badkey;
+
+	memcpy(ctx->authkey, keys.authkey, keys.authkeylen);
+	memcpy(ctx->enckey, keys.enckey, keys.enckeylen);
+	ctx->authkey_len = keys.authkeylen;
+	ctx->enckey_len = keys.enckeylen;
 
 	return aead_setup(tfm, crypto_aead_authsize(tfm));
 badkey:
-	ctx->enckey_len = 0;
 	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }

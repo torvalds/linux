@@ -347,10 +347,8 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	mutex_lock(&dev->struct_mutex);
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
 	idr_destroy(&file_priv->context_idr);
-	mutex_unlock(&dev->struct_mutex);
 }
 
 static struct i915_hw_context *
@@ -423,11 +421,21 @@ static int do_switch(struct i915_hw_context *to)
 	if (ret)
 		return ret;
 
-	/* Clear this page out of any CPU caches for coherent swap-in/out. Note
+	/*
+	 * Pin can switch back to the default context if we end up calling into
+	 * evict_everything - as a last ditch gtt defrag effort that also
+	 * switches to the default context. Hence we need to reload from here.
+	 */
+	from = ring->last_context;
+
+	/*
+	 * Clear this page out of any CPU caches for coherent swap-in/out. Note
 	 * that thanks to write = false in this call and us not setting any gpu
 	 * write domains when putting a context object onto the active list
 	 * (when switching away from it), this won't block.
-	 * XXX: We need a real interface to do this instead of trickery. */
+	 *
+	 * XXX: We need a real interface to do this instead of trickery.
+	 */
 	ret = i915_gem_object_set_to_gtt_domain(to->obj, false);
 	if (ret) {
 		i915_gem_object_unpin(to->obj);

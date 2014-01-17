@@ -447,8 +447,9 @@ irqreturn_t qlcnic_83xx_intr(int irq, void *data)
 
 	qlcnic_83xx_poll_process_aen(adapter);
 
-	if (ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
-		ahw->diag_cnt++;
+	if (ahw->diag_test) {
+		if (ahw->diag_test == QLCNIC_INTERRUPT_TEST)
+			ahw->diag_cnt++;
 		qlcnic_83xx_enable_legacy_msix_mbx_intr(adapter);
 		return IRQ_HANDLED;
 	}
@@ -1345,11 +1346,6 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
 	}
 
 	if (adapter->ahw->diag_test == QLCNIC_LOOPBACK_TEST) {
-		/* disable and free mailbox interrupt */
-		if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
-			qlcnic_83xx_enable_mbx_poll(adapter);
-			qlcnic_83xx_free_mbx_intr(adapter);
-		}
 		adapter->ahw->loopback_state = 0;
 		adapter->ahw->hw_ops->setup_link_event(adapter, 1);
 	}
@@ -1363,33 +1359,20 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_host_sds_ring *sds_ring;
-	int ring, err;
+	int ring;
 
 	clear_bit(__QLCNIC_DEV_UP, &adapter->state);
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			qlcnic_83xx_disable_intr(adapter, sds_ring);
-			if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
-				qlcnic_83xx_enable_mbx_poll(adapter);
+			if (adapter->flags & QLCNIC_MSIX_ENABLED)
+				qlcnic_83xx_disable_intr(adapter, sds_ring);
 		}
 	}
 
 	qlcnic_fw_destroy_ctx(adapter);
 	qlcnic_detach(adapter);
 
-	if (adapter->ahw->diag_test == QLCNIC_LOOPBACK_TEST) {
-		if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
-			err = qlcnic_83xx_setup_mbx_intr(adapter);
-			qlcnic_83xx_disable_mbx_poll(adapter);
-			if (err) {
-				dev_err(&adapter->pdev->dev,
-					"%s: failed to setup mbx interrupt\n",
-					__func__);
-				goto out;
-			}
-		}
-	}
 	adapter->ahw->diag_test = 0;
 	adapter->drv_sds_rings = drv_sds_rings;
 
@@ -1399,9 +1382,6 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 	if (netif_running(netdev))
 		__qlcnic_up(adapter, netdev);
 
-	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST &&
-	    !(adapter->flags & QLCNIC_MSIX_ENABLED))
-		qlcnic_83xx_disable_mbx_poll(adapter);
 out:
 	netif_device_attach(netdev);
 }
@@ -3754,6 +3734,19 @@ static void qlcnic_83xx_decode_mbx_rsp(struct qlcnic_adapter *adapter,
 	return;
 }
 
+static inline void qlcnic_dump_mailbox_registers(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u32 offset;
+
+	offset = QLCRDX(ahw, QLCNIC_DEF_INT_MASK);
+	dev_info(&adapter->pdev->dev, "Mbx interrupt mask=0x%x, Mbx interrupt enable=0x%x, Host mbx control=0x%x, Fw mbx control=0x%x",
+		 readl(ahw->pci_base0 + offset),
+		 QLCRDX(ahw, QLCNIC_MBX_INTR_ENBL),
+		 QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL),
+		 QLCRDX(ahw, QLCNIC_FW_MBX_CTRL));
+}
+
 static void qlcnic_83xx_mailbox_worker(struct work_struct *work)
 {
 	struct qlcnic_mailbox *mbx = container_of(work, struct qlcnic_mailbox,
@@ -3798,6 +3791,8 @@ static void qlcnic_83xx_mailbox_worker(struct work_struct *work)
 				__func__, cmd->cmd_op, cmd->type, ahw->pci_func,
 				ahw->op_mode);
 			clear_bit(QLC_83XX_MBX_READY, &mbx->status);
+			qlcnic_dump_mailbox_registers(adapter);
+			qlcnic_83xx_get_mbx_data(adapter, cmd);
 			qlcnic_dump_mbx(adapter, cmd);
 			qlcnic_83xx_idc_request_reset(adapter,
 						      QLCNIC_FORCE_FW_DUMP_KEY);

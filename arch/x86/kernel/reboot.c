@@ -558,6 +558,17 @@ void native_machine_shutdown(void)
 {
 	/* Stop the cpus and apics */
 #ifdef CONFIG_X86_IO_APIC
+	/*
+	 * Disabling IO APIC before local APIC is a workaround for
+	 * erratum AVR31 in "Intel Atom Processor C2000 Product Family
+	 * Specification Update". In this situation, interrupts that target
+	 * a Logical Processor whose Local APIC is either in the process of
+	 * being hardware disabled or software disabled are neither delivered
+	 * nor discarded. When this erratum occurs, the processor may hang.
+	 *
+	 * Even without the erratum, it still makes sense to quiet IO APIC
+	 * before disabling Local APIC.
+	 */
 	disable_IO_APIC();
 #endif
 

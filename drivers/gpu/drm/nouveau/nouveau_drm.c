@@ -858,6 +858,12 @@ static int nouveau_pmops_runtime_suspend(struct device *dev)
 	if (nouveau_runtime_pm == 0)
 		return -EINVAL;
 
+	/* are we optimus enabled? */
+	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
+		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+		return -EINVAL;
+	}
+
 	nv_debug_level(SILENT);
 	drm_kms_helper_poll_disable(drm_dev);
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);

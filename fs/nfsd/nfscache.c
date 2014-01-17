@@ -132,6 +132,13 @@ nfsd_reply_cache_alloc(void)
 }
 
 static void
+nfsd_reply_cache_unhash(struct svc_cacherep *rp)
+{
+	hlist_del_init(&rp->c_hash);
+	list_del_init(&rp->c_lru);
+}
+
+static void
 nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
 {
 	if (rp->c_type == RC_REPLBUFF && rp->c_replvec.iov_base) {
@@ -417,7 +424,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 		rp = list_first_entry(&lru_head, struct svc_cacherep, c_lru);
 		if (nfsd_cache_entry_expired(rp) ||
 		    num_drc_entries >= max_drc_entries) {
-			lru_put_end(rp);
+			nfsd_reply_cache_unhash(rp);
 			prune_cache_entries();
 			goto search_cache;
 		}

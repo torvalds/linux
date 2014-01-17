@@ -1603,7 +1603,7 @@ static int snd_microii_controls_create(struct usb_mixer_interface *mixer)
 			return err;
 	}
 
-	return err;
+	return 0;
 }
 
 int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)

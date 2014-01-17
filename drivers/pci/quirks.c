@@ -9,10 +9,6 @@
  *
  *  Init/reset quirks for USB host controllers should be in the
  *  USB quirks file, where their drivers can access reuse it.
- *
- *  The bridge optimization stuff has been removed. If you really
- *  have a silly BIOS which is unable to set your host bridge right,
- *  use the PowerTweak utility (see http://powertweak.sourceforge.net).
  */
 
 #include <linux/types.h>
