@@ -1200,7 +1200,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		ironlake_edp_panel_on(intel_dp);
+		intel_edp_panel_on(intel_dp);
 	}
 
 	WARN_ON(intel_crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
@@ -1244,7 +1244,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
-		ironlake_edp_panel_off(intel_dp);
+		intel_edp_panel_off(intel_dp);
 	}
 
 	I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
@@ -1279,7 +1279,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 		if (port == PORT_A)
 			intel_dp_stop_link_train(intel_dp);
 
-		ironlake_edp_backlight_on(intel_dp);
+		intel_edp_backlight_on(intel_dp);
 		intel_edp_psr_enable(intel_dp);
 	}
 
@@ -1312,7 +1312,7 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		intel_edp_psr_disable(intel_dp);
-		ironlake_edp_backlight_off(intel_dp);
+		intel_edp_backlight_off(intel_dp);
 	}
 }
 

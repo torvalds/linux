@@ -730,12 +730,10 @@ void intel_dp_check_link_status(struct intel_dp *intel_dp);
 bool intel_dp_compute_config(struct intel_encoder *encoder,
 			     struct intel_crtc_config *pipe_config);
 bool intel_dp_is_edp(struct drm_device *dev, enum port port);
-void ironlake_edp_backlight_on(struct intel_dp *intel_dp);
-void ironlake_edp_backlight_off(struct intel_dp *intel_dp);
-void ironlake_edp_panel_on(struct intel_dp *intel_dp);
-void ironlake_edp_panel_off(struct intel_dp *intel_dp);
-void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
-void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
+void intel_edp_backlight_on(struct intel_dp *intel_dp);
+void intel_edp_backlight_off(struct intel_dp *intel_dp);
+void intel_edp_panel_on(struct intel_dp *intel_dp);
+void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_edp_psr_enable(struct intel_dp *intel_dp);
 void intel_edp_psr_disable(struct intel_dp *intel_dp);
 void intel_edp_psr_update(struct drm_device *dev);
