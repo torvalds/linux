@@ -57,7 +57,7 @@ fi
 resdir=${3}
 if test -z "$resdir" -o ! -d "$resdir" -o ! -w "$resdir"
 then
-	echo "kvm-test-1-rcu.sh :$resdir: Not a writable directory, cannot build into it"
+	echo "kvm-test-1-rcu.sh :$resdir: Not a writable directory, cannot store results into it"
 	exit 1
 fi
 cp $config_template $resdir/ConfigFragment
