@@ -26,6 +26,7 @@
 #include <linux/if_vlan.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/average.h>
 
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
@@ -36,10 +37,17 @@ module_param(gso, bool, 0444);
 
 /* FIXME: MTU in config. */
 #define GOOD_PACKET_LEN (ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN)
-#define MERGE_BUFFER_LEN (ALIGN(GOOD_PACKET_LEN + \
-                                sizeof(struct virtio_net_hdr_mrg_rxbuf), \
-                                L1_CACHE_BYTES))
 #define GOOD_COPY_LEN	128
+
+/* Weight used for the RX packet size EWMA. The average packet size is used to
+ * determine the packet buffer size when refilling RX rings. As the entire RX
+ * ring may be refilled at once, the weight is chosen so that the EWMA will be
+ * insensitive to short-term, transient changes in packet size.
+ */
+#define RECEIVE_AVG_WEIGHT 64
+
+/* Minimum alignment for mergeable packet buffers. */
+#define MERGEABLE_BUFFER_ALIGN max(L1_CACHE_BYTES, 256)
 
 #define VIRTNET_DRIVER_VERSION "1.0.0"
 
@@ -74,6 +82,12 @@ struct receive_queue {
 
 	/* Chain pages by the private ptr. */
 	struct page *pages;
+
+	/* Average packet length for mergeable receive buffers. */
+	struct ewma mrg_avg_pkt_len;
+
+	/* Page frag for packet buffer allocation. */
+	struct page_frag alloc_frag;
 
 	/* RX: fragments + linear part + virtio header */
 	struct scatterlist sg[MAX_SKB_FRAGS + 2];
@@ -122,11 +136,6 @@ struct virtnet_info {
 
 	/* Lock for config space updates */
 	struct mutex config_lock;
-
-	/* Page_frag for GFP_KERNEL packet buffer allocation when we run
-	 * low on memory.
-	 */
-	struct page_frag alloc_frag;
 
 	/* Does the affinity hint is set for virtqueues? */
 	bool affinity_hint_set;
@@ -216,6 +225,24 @@ static void skb_xmit_done(struct virtqueue *vq)
 
 	/* We were probably waiting for more output buffers. */
 	netif_wake_subqueue(vi->dev, vq2txq(vq));
+}
+
+static unsigned int mergeable_ctx_to_buf_truesize(unsigned long mrg_ctx)
+{
+	unsigned int truesize = mrg_ctx & (MERGEABLE_BUFFER_ALIGN - 1);
+	return (truesize + 1) * MERGEABLE_BUFFER_ALIGN;
+}
+
+static void *mergeable_ctx_to_buf_address(unsigned long mrg_ctx)
+{
+	return (void *)(mrg_ctx & -MERGEABLE_BUFFER_ALIGN);
+
+}
+
+static unsigned long mergeable_buf_to_ctx(void *buf, unsigned int truesize)
+{
+	unsigned int size = truesize / MERGEABLE_BUFFER_ALIGN;
+	return (unsigned long)buf | (size - 1);
 }
 
 /* Called from bottom half context */
@@ -326,36 +353,33 @@ err:
 
 static struct sk_buff *receive_mergeable(struct net_device *dev,
 					 struct receive_queue *rq,
-					 void *buf,
+					 unsigned long ctx,
 					 unsigned int len)
 {
+	void *buf = mergeable_ctx_to_buf_address(ctx);
 	struct skb_vnet_hdr *hdr = buf;
 	int num_buf = hdr->mhdr.num_buffers;
 	struct page *page = virt_to_head_page(buf);
 	int offset = buf - page_address(page);
-	struct sk_buff *head_skb = page_to_skb(rq, page, offset, len,
-					       MERGE_BUFFER_LEN);
+	unsigned int truesize = max(len, mergeable_ctx_to_buf_truesize(ctx));
+
+	struct sk_buff *head_skb = page_to_skb(rq, page, offset, len, truesize);
 	struct sk_buff *curr_skb = head_skb;
 
 	if (unlikely(!curr_skb))
 		goto err_skb;
-
 	while (--num_buf) {
 		int num_skb_frags;
 
-		buf = virtqueue_get_buf(rq->vq, &len);
-		if (unlikely(!buf)) {
+		ctx = (unsigned long)virtqueue_get_buf(rq->vq, &len);
+		if (unlikely(!ctx)) {
 			pr_debug("%s: rx error: %d buffers out of %d missing\n",
 				 dev->name, num_buf, hdr->mhdr.num_buffers);
 			dev->stats.rx_length_errors++;
 			goto err_buf;
 		}
-		if (unlikely(len > MERGE_BUFFER_LEN)) {
-			pr_debug("%s: rx error: merge buffer too long\n",
-				 dev->name);
-			len = MERGE_BUFFER_LEN;
-		}
 
+		buf = mergeable_ctx_to_buf_address(ctx);
 		page = virt_to_head_page(buf);
 
 		num_skb_frags = skb_shinfo(curr_skb)->nr_frags;
@@ -372,35 +396,37 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			head_skb->truesize += nskb->truesize;
 			num_skb_frags = 0;
 		}
+		truesize = max(len, mergeable_ctx_to_buf_truesize(ctx));
 		if (curr_skb != head_skb) {
 			head_skb->data_len += len;
 			head_skb->len += len;
-			head_skb->truesize += MERGE_BUFFER_LEN;
+			head_skb->truesize += truesize;
 		}
 		offset = buf - page_address(page);
 		if (skb_can_coalesce(curr_skb, num_skb_frags, page, offset)) {
 			put_page(page);
 			skb_coalesce_rx_frag(curr_skb, num_skb_frags - 1,
-					     len, MERGE_BUFFER_LEN);
+					     len, truesize);
 		} else {
 			skb_add_rx_frag(curr_skb, num_skb_frags, page,
-					offset, len, MERGE_BUFFER_LEN);
+					offset, len, truesize);
 		}
 	}
 
+	ewma_add(&rq->mrg_avg_pkt_len, head_skb->len);
 	return head_skb;
 
 err_skb:
 	put_page(page);
 	while (--num_buf) {
-		buf = virtqueue_get_buf(rq->vq, &len);
-		if (unlikely(!buf)) {
+		ctx = (unsigned long)virtqueue_get_buf(rq->vq, &len);
+		if (unlikely(!ctx)) {
 			pr_debug("%s: rx error: %d buffers missing\n",
 				 dev->name, num_buf);
 			dev->stats.rx_length_errors++;
 			break;
 		}
-		page = virt_to_head_page(buf);
+		page = virt_to_head_page(mergeable_ctx_to_buf_address(ctx));
 		put_page(page);
 	}
 err_buf:
@@ -420,17 +446,20 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 	if (unlikely(len < sizeof(struct virtio_net_hdr) + ETH_HLEN)) {
 		pr_debug("%s: short packet %i\n", dev->name, len);
 		dev->stats.rx_length_errors++;
-		if (vi->mergeable_rx_bufs)
-			put_page(virt_to_head_page(buf));
-		else if (vi->big_packets)
+		if (vi->mergeable_rx_bufs) {
+			unsigned long ctx = (unsigned long)buf;
+			void *base = mergeable_ctx_to_buf_address(ctx);
+			put_page(virt_to_head_page(base));
+		} else if (vi->big_packets) {
 			give_pages(rq, buf);
-		else
+		} else {
 			dev_kfree_skb(buf);
+		}
 		return;
 	}
 
 	if (vi->mergeable_rx_bufs)
-		skb = receive_mergeable(dev, rq, buf, len);
+		skb = receive_mergeable(dev, rq, (unsigned long)buf, len);
 	else if (vi->big_packets)
 		skb = receive_big(dev, rq, buf, len);
 	else
@@ -571,28 +600,45 @@ static int add_recvbuf_big(struct receive_queue *rq, gfp_t gfp)
 	return err;
 }
 
+static unsigned int get_mergeable_buf_len(struct ewma *avg_pkt_len)
+{
+	const size_t hdr_len = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+	unsigned int len;
+
+	len = hdr_len + clamp_t(unsigned int, ewma_read(avg_pkt_len),
+			GOOD_PACKET_LEN, PAGE_SIZE - hdr_len);
+	return ALIGN(len, MERGEABLE_BUFFER_ALIGN);
+}
+
 static int add_recvbuf_mergeable(struct receive_queue *rq, gfp_t gfp)
 {
-	struct virtnet_info *vi = rq->vq->vdev->priv;
-	char *buf = NULL;
+	struct page_frag *alloc_frag = &rq->alloc_frag;
+	char *buf;
+	unsigned long ctx;
 	int err;
+	unsigned int len, hole;
 
-	if (gfp & __GFP_WAIT) {
-		if (skb_page_frag_refill(MERGE_BUFFER_LEN, &vi->alloc_frag,
-					 gfp)) {
-			buf = (char *)page_address(vi->alloc_frag.page) +
-			      vi->alloc_frag.offset;
-			get_page(vi->alloc_frag.page);
-			vi->alloc_frag.offset += MERGE_BUFFER_LEN;
-		}
-	} else {
-		buf = netdev_alloc_frag(MERGE_BUFFER_LEN);
-	}
-	if (!buf)
+	len = get_mergeable_buf_len(&rq->mrg_avg_pkt_len);
+	if (unlikely(!skb_page_frag_refill(len, alloc_frag, gfp)))
 		return -ENOMEM;
 
-	sg_init_one(rq->sg, buf, MERGE_BUFFER_LEN);
-	err = virtqueue_add_inbuf(rq->vq, rq->sg, 1, buf, gfp);
+	buf = (char *)page_address(alloc_frag->page) + alloc_frag->offset;
+	ctx = mergeable_buf_to_ctx(buf, len);
+	get_page(alloc_frag->page);
+	alloc_frag->offset += len;
+	hole = alloc_frag->size - alloc_frag->offset;
+	if (hole < len) {
+		/* To avoid internal fragmentation, if there is very likely not
+		 * enough space for another buffer, add the remaining space to
+		 * the current buffer. This extra space is not included in
+		 * the truesize stored in ctx.
+		 */
+		len += hole;
+		alloc_frag->offset += hole;
+	}
+
+	sg_init_one(rq->sg, buf, len);
+	err = virtqueue_add_inbuf(rq->vq, rq->sg, 1, (void *)ctx, gfp);
 	if (err < 0)
 		put_page(virt_to_head_page(buf));
 
@@ -612,6 +658,7 @@ static bool try_fill_recv(struct receive_queue *rq, gfp_t gfp)
 	int err;
 	bool oom;
 
+	gfp |= __GFP_COLD;
 	do {
 		if (vi->mergeable_rx_bufs)
 			err = add_recvbuf_mergeable(rq, gfp);
@@ -1368,6 +1415,14 @@ static void free_receive_bufs(struct virtnet_info *vi)
 	}
 }
 
+static void free_receive_page_frags(struct virtnet_info *vi)
+{
+	int i;
+	for (i = 0; i < vi->max_queue_pairs; i++)
+		if (vi->rq[i].alloc_frag.page)
+			put_page(vi->rq[i].alloc_frag.page);
+}
+
 static void free_unused_bufs(struct virtnet_info *vi)
 {
 	void *buf;
@@ -1383,12 +1438,15 @@ static void free_unused_bufs(struct virtnet_info *vi)
 		struct virtqueue *vq = vi->rq[i].vq;
 
 		while ((buf = virtqueue_detach_unused_buf(vq)) != NULL) {
-			if (vi->mergeable_rx_bufs)
-				put_page(virt_to_head_page(buf));
-			else if (vi->big_packets)
+			if (vi->mergeable_rx_bufs) {
+				unsigned long ctx = (unsigned long)buf;
+				void *base = mergeable_ctx_to_buf_address(ctx);
+				put_page(virt_to_head_page(base));
+			} else if (vi->big_packets) {
 				give_pages(&vi->rq[i], buf);
-			else
+			} else {
 				dev_kfree_skb(buf);
+			}
 		}
 	}
 }
@@ -1496,6 +1554,7 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 			       napi_weight);
 
 		sg_init_table(vi->rq[i].sg, ARRAY_SIZE(vi->rq[i].sg));
+		ewma_init(&vi->rq[i].mrg_avg_pkt_len, 1, RECEIVE_AVG_WEIGHT);
 		sg_init_table(vi->sq[i].sg, ARRAY_SIZE(vi->sq[i].sg));
 	}
 
@@ -1531,6 +1590,33 @@ err_free:
 err:
 	return ret;
 }
+
+#ifdef CONFIG_SYSFS
+static ssize_t mergeable_rx_buffer_size_show(struct netdev_rx_queue *queue,
+		struct rx_queue_attribute *attribute, char *buf)
+{
+	struct virtnet_info *vi = netdev_priv(queue->dev);
+	unsigned int queue_index = get_netdev_rx_queue_index(queue);
+	struct ewma *avg;
+
+	BUG_ON(queue_index >= vi->max_queue_pairs);
+	avg = &vi->rq[queue_index].mrg_avg_pkt_len;
+	return sprintf(buf, "%u\n", get_mergeable_buf_len(avg));
+}
+
+static struct rx_queue_attribute mergeable_rx_buffer_size_attribute =
+	__ATTR_RO(mergeable_rx_buffer_size);
+
+static struct attribute *virtio_net_mrg_rx_attrs[] = {
+	&mergeable_rx_buffer_size_attribute.attr,
+	NULL
+};
+
+static const struct attribute_group virtio_net_mrg_rx_group = {
+	.name = "virtio_net",
+	.attrs = virtio_net_mrg_rx_attrs
+};
+#endif
 
 static int virtnet_probe(struct virtio_device *vdev)
 {
@@ -1646,6 +1732,10 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (err)
 		goto free_stats;
 
+#ifdef CONFIG_SYSFS
+	if (vi->mergeable_rx_bufs)
+		dev->sysfs_rx_queue_group = &virtio_net_mrg_rx_group;
+#endif
 	netif_set_real_num_tx_queues(dev, vi->curr_queue_pairs);
 	netif_set_real_num_rx_queues(dev, vi->curr_queue_pairs);
 
@@ -1695,9 +1785,8 @@ free_recv_bufs:
 	unregister_netdev(dev);
 free_vqs:
 	cancel_delayed_work_sync(&vi->refill);
+	free_receive_page_frags(vi);
 	virtnet_del_vqs(vi);
-	if (vi->alloc_frag.page)
-		put_page(vi->alloc_frag.page);
 free_stats:
 	free_percpu(vi->stats);
 free:
@@ -1713,6 +1802,8 @@ static void remove_vq_common(struct virtnet_info *vi)
 	free_unused_bufs(vi);
 
 	free_receive_bufs(vi);
+
+	free_receive_page_frags(vi);
 
 	virtnet_del_vqs(vi);
 }
@@ -1731,8 +1822,6 @@ static void virtnet_remove(struct virtio_device *vdev)
 	unregister_netdev(vi->dev);
 
 	remove_vq_common(vi);
-	if (vi->alloc_frag.page)
-		put_page(vi->alloc_frag.page);
 
 	flush_work(&vi->config_work);
 
