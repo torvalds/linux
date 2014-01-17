@@ -45,7 +45,7 @@ static const char i40evf_copyright[] =
  *   Class, Class Mask, private data (not used) }
  */
 static DEFINE_PCI_DEVICE_TABLE(i40evf_pci_tbl) = {
-	{PCI_VDEVICE(INTEL, I40E_VF_DEVICE_ID), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_VF), 0},
 	/* required last entry */
 	{0, }
 };

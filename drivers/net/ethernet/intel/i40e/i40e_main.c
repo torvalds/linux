@@ -65,16 +65,16 @@ static int i40e_veb_get_bw_info(struct i40e_veb *veb);
  *   Class, Class Mask, private data (not used) }
  */
 static DEFINE_PCI_DEVICE_TABLE(i40e_pci_tbl) = {
-	{PCI_VDEVICE(INTEL, I40E_SFP_XL710_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_SFP_X710_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_QEMU_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_KX_A_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_KX_B_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_KX_C_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_KX_D_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_QSFP_A_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_QSFP_B_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_QSFP_C_DEVICE_ID), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_XL710), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_X710), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QEMU), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_A), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_B), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_C), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_D), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_A), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_B), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C), 0},
 	/* required last entry */
 	{0, }
 };
@@ -469,7 +469,7 @@ static void i40e_stat_update48(struct i40e_hw *hw, u32 hireg, u32 loreg,
 {
 	u64 new_data;
 
-	if (hw->device_id == I40E_QEMU_DEVICE_ID) {
+	if (hw->device_id == I40E_DEV_ID_QEMU) {
 		new_data = rd32(hw, loreg);
 		new_data |= ((u64)(rd32(hw, hireg) & 0xFFFF)) << 32;
 	} else {

@@ -39,20 +39,20 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 
 	if (hw->vendor_id == PCI_VENDOR_ID_INTEL) {
 		switch (hw->device_id) {
-		case I40E_SFP_XL710_DEVICE_ID:
-		case I40E_SFP_X710_DEVICE_ID:
-		case I40E_QEMU_DEVICE_ID:
-		case I40E_KX_A_DEVICE_ID:
-		case I40E_KX_B_DEVICE_ID:
-		case I40E_KX_C_DEVICE_ID:
-		case I40E_KX_D_DEVICE_ID:
-		case I40E_QSFP_A_DEVICE_ID:
-		case I40E_QSFP_B_DEVICE_ID:
-		case I40E_QSFP_C_DEVICE_ID:
+		case I40E_DEV_ID_SFP_XL710:
+		case I40E_DEV_ID_SFP_X710:
+		case I40E_DEV_ID_QEMU:
+		case I40E_DEV_ID_KX_A:
+		case I40E_DEV_ID_KX_B:
+		case I40E_DEV_ID_KX_C:
+		case I40E_DEV_ID_KX_D:
+		case I40E_DEV_ID_QSFP_A:
+		case I40E_DEV_ID_QSFP_B:
+		case I40E_DEV_ID_QSFP_C:
 			hw->mac.type = I40E_MAC_XL710;
 			break;
-		case I40E_VF_DEVICE_ID:
-		case I40E_VF_HV_DEVICE_ID:
+		case I40E_DEV_ID_VF:
+		case I40E_DEV_ID_VF_HV:
 			hw->mac.type = I40E_MAC_VF;
 			break;
 		default:

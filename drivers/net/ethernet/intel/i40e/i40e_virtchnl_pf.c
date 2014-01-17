@@ -700,7 +700,7 @@ static bool i40e_vfs_are_assigned(struct i40e_pf *pf)
 	struct pci_dev *vfdev;
 
 	/* loop through all the VFs to see if we own any that are assigned */
-	vfdev = pci_get_device(PCI_VENDOR_ID_INTEL, I40E_VF_DEVICE_ID , NULL);
+	vfdev = pci_get_device(PCI_VENDOR_ID_INTEL, I40E_DEV_ID_VF , NULL);
 	while (vfdev) {
 		/* if we don't own it we don't care */
 		if (vfdev->is_virtfn && pci_physfn(vfdev) == pdev) {
@@ -710,7 +710,7 @@ static bool i40e_vfs_are_assigned(struct i40e_pf *pf)
 		}
 
 		vfdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				       I40E_VF_DEVICE_ID,
+				       I40E_DEV_ID_VF,
 				       vfdev);
 	}
 
