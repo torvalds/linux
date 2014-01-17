@@ -567,6 +567,31 @@ static int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
 	return 0;
 }
 
+static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
+{
+	struct sock *sk = sock->sk;
+	struct tipc_port *tport = tipc_sk_port(sk);
+	DEFINE_WAIT(wait);
+	int done;
+
+	do {
+		int err = sock_error(sk);
+		if (err)
+			return err;
+		if (sock->state == SS_DISCONNECTING)
+			return -EPIPE;
+		if (!*timeo_p)
+			return -EAGAIN;
+		if (signal_pending(current))
+			return sock_intr_errno(*timeo_p);
+
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+		done = sk_wait_event(sk, timeo_p, !tport->congested);
+		finish_wait(sk_sleep(sk), &wait);
+	} while (!done);
+	return 0;
+}
+
 /**
  * send_msg - send message in connectionless manner
  * @iocb: if NULL, indicates that socket lock is already held
@@ -588,7 +613,7 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 	struct tipc_port *tport = tipc_sk_port(sk);
 	struct sockaddr_tipc *dest = (struct sockaddr_tipc *)m->msg_name;
 	int needs_conn;
-	long timeout_val;
+	long timeo;
 	int res = -EINVAL;
 
 	if (unlikely(!dest))
@@ -625,8 +650,7 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 		reject_rx_queue(sk);
 	}
 
-	timeout_val = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
-
+	timeo = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
 	do {
 		if (dest->addrtype == TIPC_ADDR_NAME) {
 			res = dest_name_check(dest, m);
@@ -660,14 +684,9 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 				sock->state = SS_CONNECTING;
 			break;
 		}
-		if (timeout_val <= 0L) {
-			res = timeout_val ? timeout_val : -EWOULDBLOCK;
+		res = tipc_wait_for_sndmsg(sock, &timeo);
+		if (res)
 			break;
-		}
-		release_sock(sk);
-		timeout_val = wait_event_interruptible_timeout(*sk_sleep(sk),
-					       !tport->congested, timeout_val);
-		lock_sock(sk);
 	} while (1);
 
 exit:
