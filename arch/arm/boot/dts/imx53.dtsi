@@ -175,7 +175,9 @@
 				};
 
 				ssi2: ssi@50014000 {
-					compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+					compatible = "fsl,imx53-ssi",
+							"fsl,imx51-ssi",
+							"fsl,imx21-ssi";
 					reg = <0x50014000 0x4000>;
 					interrupts = <30>;
 					clocks = <&clks IMX5_CLK_SSI2_IPG_GATE>;
@@ -594,7 +596,8 @@
 			};
 
 			ssi1: ssi@63fcc000 {
-				compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+				compatible = "fsl,imx53-ssi", "fsl,imx51-ssi",
+						"fsl,imx21-ssi";
 				reg = <0x63fcc000 0x4000>;
 				interrupts = <29>;
 				clocks = <&clks IMX5_CLK_SSI1_IPG_GATE>;
@@ -621,7 +624,8 @@
 			};
 
 			ssi3: ssi@63fe8000 {
-				compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+				compatible = "fsl,imx53-ssi", "fsl,imx51-ssi",
+						"fsl,imx21-ssi";
 				reg = <0x63fe8000 0x4000>;
 				interrupts = <96>;
 				clocks = <&clks IMX5_CLK_SSI3_IPG_GATE>;
