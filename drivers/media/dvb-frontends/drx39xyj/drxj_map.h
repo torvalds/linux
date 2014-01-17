@@ -47,10 +47,6 @@
 #ifndef __DRXJ_MAP__H__
 #define __DRXJ_MAP__H__ INCLUDED
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef _REGISTERTABLE_
 #include <registertable.h>
 	extern register_table_t drxj_map[];
@@ -15056,7 +15052,4 @@ extern "C" {
 #define   VSB_EQTAP_RAM_EQTAP_RAM__M                                        0xFFF
 #define   VSB_EQTAP_RAM_EQTAP_RAM__PRE                                      0x0
 
-#ifdef __cplusplus
-}
-#endif
 #endif

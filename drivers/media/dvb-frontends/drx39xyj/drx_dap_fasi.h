@@ -234,11 +234,7 @@
 
 /*-------- Public API functions ----------------------------------------------*/
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-	extern struct drx_access_func drx_dap_fasi_funct_g;
+extern struct drx_access_func drx_dap_fasi_funct_g;
 
 #define DRXDAP_FASI_RMW           0x10000000
 #define DRXDAP_FASI_BROADCAST     0x20000000
@@ -257,7 +253,4 @@ extern "C" {
 #define DRXDAP_FASI_LONG_FORMAT(addr)      (((addr) & 0xFC30FF80) != 0)
 #define DRXDAP_FASI_OFFSET_TOO_LARGE(addr) (((addr) & 0x00008000) != 0)
 
-#ifdef __cplusplus
-}
-#endif
 #endif				/* __DRX_DAP_FASI_H__ */

@@ -226,31 +226,25 @@ static int scan_wait_for_lock(struct drx_demod_instance *demod, bool *is_locked)
 
 	/* Start polling loop, checking for lock & timeout */
 	while (!done_waiting) {
-
-		if (drx_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_state) !=
-		    0) {
+		if (drx_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_state))
 			return -EIO;
-		}
+
 		current_time = drxbsp_hst_clock();
 
 		timer_value = current_time - start_time_lock_stage;
 		if (lock_state >= desired_lock_state) {
 			*is_locked = true;
 			done_waiting = true;
-		} /* if ( lock_state >= desired_lock_state ) .. */
-		else if (lock_state == DRX_NEVER_LOCK) {
+		} else if (lock_state == DRX_NEVER_LOCK) {
 			done_waiting = true;
-		} /* if ( lock_state == DRX_NEVER_LOCK ) .. */
-		else if (timer_value > timeout_value) {
+		} else if (timer_value > timeout_value) {
 			/* lock_state == DRX_NOT_LOCKED  and timeout */
 			done_waiting = true;
 		} else {
-			if (drxbsp_hst_sleep(10) != 0) {
+			if (drxbsp_hst_sleep(10) != 0)
 				return -EIO;
-			}
-		}		/* if ( timer_value > timeout_value ) .. */
-
-	}			/* while */
+		}
+	}
 
 	return 0;
 }
@@ -356,36 +350,30 @@ scan_function_default(void *scan_context,
 		      enum drx_scan_command scan_command,
 		    struct drx_channel *scan_channel, bool *get_next_channel)
 {
-	struct drx_demod_instance *demod = NULL;
-	int status = -EIO;
+	struct drx_demod_instance *demod = scan_context;
+	int status;
 	bool is_locked = false;
 
-	demod = (struct drx_demod_instance *) scan_context;
-
-	if (scan_command != DRX_SCAN_COMMAND_NEXT) {
-		/* just return OK if not doing "scan next" */
+	/* just return OK if not doing "scan next" */
+	if (scan_command != DRX_SCAN_COMMAND_NEXT)
 		return 0;
-	}
 
 	*get_next_channel = false;
 
 	status = drx_ctrl(demod, DRX_CTRL_SET_CHANNEL, scan_channel);
-	if (status != 0) {
+	if (status)
 		return status;
-	}
 
 	status = scan_wait_for_lock(demod, &is_locked);
-	if (status != 0) {
+	if (status)
 		return status;
-	}
 
 	/* done with this channel, move to next one */
 	*get_next_channel = true;
 
-	if (!is_locked) {
-		/* no channel found */
-		return -EBUSY;
-	}
+	if (!is_locked)
+		return -EBUSY;		/* no channel found */
+
 	/* channel found */
 	return 0;
 }
@@ -733,23 +721,20 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 	bool tuner_slow_mode = false;
 
 	/* can't tune without a tuner */
-	if (demod->my_tuner == NULL) {
+	if (demod->my_tuner == NULL)
 		return -EINVAL;
-	}
 
-	common_attr = (struct drx_common_attr *) demod->my_common_attr;
+	common_attr = demod->my_common_attr;
 
 	/* select analog or digital tuner mode based on current standard */
-	if (drx_ctrl(demod, DRX_CTRL_GET_STANDARD, &standard) != 0) {
+	if (drx_ctrl(demod, DRX_CTRL_GET_STANDARD, &standard))
 		return -EIO;
-	}
 
-	if (DRX_ISATVSTD(standard)) {
+	if (DRX_ISATVSTD(standard))
 		tuner_mode |= TUNER_MODE_ANALOG;
-	} else {		/* note: also for unknown standard */
+	else
 
-		tuner_mode |= TUNER_MODE_DIGITAL;
-	}
+		tuner_mode |= TUNER_MODE_DIGITAL; /* also for unknown standard */
 
 	/* select tuner bandwidth */
 	switch (channel->bandwidth) {
@@ -769,25 +754,23 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 	tuner_slow_mode = DRX_ATTR_TUNERSLOWMODE(demod);
 
 	/* select fast (switch) or slow (lock) tuner mode */
-	if (tuner_slow_mode) {
+	if (tuner_slow_mode)
 		tuner_mode |= TUNER_MODE_LOCK;
-	} else {
+	else
 		tuner_mode |= TUNER_MODE_SWITCH;
-	}
 
 	if (common_attr->tuner_port_nr == 1) {
 		bool bridge_closed = true;
 		int status_bridge = -EIO;
 
-		status_bridge =
-		    drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridge_closed);
-		if (status_bridge != 0) {
+		status_bridge = drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE,
+					 &bridge_closed);
+		if (status_bridge)
 			return status_bridge;
-		}
 	}
 
 	status = drxbsp_tuner_set_frequency(demod->my_tuner,
-					   tuner_mode, channel->frequency);
+					    tuner_mode, channel->frequency);
 
 	/* attempt restoring bridge before checking status of set_frequency */
 	if (common_attr->tuner_port_nr == 1) {
@@ -796,24 +779,21 @@ ctrl_program_tuner(struct drx_demod_instance *demod, struct drx_channel *channel
 
 		status_bridge =
 		    drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridge_closed);
-		if (status_bridge != 0) {
+		if (status_bridge)
 			return status_bridge;
-		}
 	}
 
 	/* now check status of drxbsp_tuner_set_frequency */
-	if (status != 0) {
+	if (status)
 		return status;
-	}
 
 	/* get actual RF and IF frequencies from tuner */
 	status = drxbsp_tuner_get_frequency(demod->my_tuner,
 					   tuner_mode,
 					   &(channel->frequency),
 					   &(if_frequency));
-	if (status != 0) {
+	if (status)
 		return status;
-	}
 
 	/* update common attributes with information available from this function;
 	   TODO: check if this is required and safe */
@@ -839,29 +819,27 @@ static int ctrl_dump_registers(struct drx_demod_instance *demod,
 {
 	u16 i = 0;
 
-	if (registers == NULL) {
-		/* registers not supplied */
-		return -EINVAL;
-	}
+	if (registers == NULL)
+		return -EINVAL;		/* registers not supplied */
 
 	/* start dumping registers */
-	while (registers[i].address != 0) {
+	while (registers[i].address) {
 		int status = -EIO;
 		u16 value = 0;
 		u32 data = 0;
 
-		status =
-		    demod->my_access_funct->read_reg16func(demod->my_i2c_dev_addr,
+		status = demod->my_access_funct->read_reg16func(demod->my_i2c_dev_addr,
 							registers[i].address,
 							&value, 0);
 
 		data = (u32) value;
 
-		if (status != 0) {
-			/* no breakouts;
-			   depending on device ID, some HW blocks might not be available */
+		/*
+		 * On error: no breakouts;
+		 *   depending on device ID, some HW blocks might not be available
+		 */
+		if (status)
 			data |= ((u32) status) << 16;
-		}
 		registers[i].data = data;
 		i++;
 	}
@@ -989,9 +967,8 @@ ctrl_u_code(struct drx_demod_instance *demod,
 	dev_addr = demod->my_i2c_dev_addr;
 
 	/* Check arguments */
-	if ((mc_info == NULL) || (mc_info->mc_data == NULL)) {
+	if ((mc_info == NULL) || (mc_info->mc_data == NULL))
 		return -EINVAL;
-	}
 
 	mc_data = mc_info->mc_data;
 
@@ -1001,10 +978,8 @@ ctrl_u_code(struct drx_demod_instance *demod,
 	mc_nr_of_blks = u_code_read16(mc_data);
 	mc_data += sizeof(u16);
 
-	if ((mc_magic_word != DRX_UCODE_MAGIC_WORD) || (mc_nr_of_blks == 0)) {
-		/* wrong endianess or wrong data ? */
-		return -EINVAL;
-	}
+	if ((mc_magic_word != DRX_UCODE_MAGIC_WORD) || (mc_nr_of_blks == 0))
+		return -EINVAL;		/* wrong endianess or wrong data ? */
 
 	/* Scan microcode blocks first for version info if uploading */
 	if (action == UCODE_UPLOAD) {
@@ -1049,9 +1024,8 @@ ctrl_u_code(struct drx_demod_instance *demod,
 		   It is also valid if no validation control exists.
 		 */
 		rc = drx_ctrl(demod, DRX_CTRL_VALIDATE_UCODE, NULL);
-		if (rc != 0 && rc != -ENOTSUPP) {
+		if (rc != 0 && rc != -ENOTSUPP)
 			return rc;
-		}
 
 		/* Restore data pointer */
 		mc_data = mc_info->mc_data + 2 * sizeof(u16);
@@ -1149,9 +1123,8 @@ ctrl_u_code(struct drx_demod_instance *demod,
 								      mc_data_buffer,
 								      bytes_to_compare);
 
-						if (result != 0) {
+						if (result != 0)
 							return -EIO;
-						}
 
 						curr_addr +=
 						    ((dr_xaddr_t)
@@ -1205,9 +1178,8 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 	int return_status = -EIO;
 
 	/* Check arguments */
-	if (version_list == NULL) {
+	if (version_list == NULL)
 		return -EINVAL;
-	}
 
 	/* Get version info list from demod */
 	return_status = (*(demod->my_demod_funct->ctrl_func)) (demod,
@@ -1231,9 +1203,8 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 		/* Return version info in "bottom-up" order. This way, multiple
 		   devices can be handled without using malloc. */
 		struct drx_version_list *current_list_element = demod_version_list;
-		while (current_list_element->next != NULL) {
+		while (current_list_element->next != NULL)
 			current_list_element = current_list_element->next;
-		}
 		current_list_element->next = &drx_driver_core_version_list;
 
 		*version_list = demod_version_list;

@@ -2056,275 +2056,275 @@ Conversion from enum values to human readable form.
 /* standard */
 
 #define DRX_STR_STANDARD(x) ( \
-   (x == DRX_STANDARD_DVBT)  ? "DVB-T"            : \
-   (x == DRX_STANDARD_8VSB)  ? "8VSB"             : \
-   (x == DRX_STANDARD_NTSC)  ? "NTSC"             : \
-   (x == DRX_STANDARD_PAL_SECAM_BG)  ? "PAL/SECAM B/G"    : \
-   (x == DRX_STANDARD_PAL_SECAM_DK)  ? "PAL/SECAM D/K"    : \
-   (x == DRX_STANDARD_PAL_SECAM_I)  ? "PAL/SECAM I"      : \
-   (x == DRX_STANDARD_PAL_SECAM_L)  ? "PAL/SECAM L"      : \
-   (x == DRX_STANDARD_PAL_SECAM_LP)  ? "PAL/SECAM LP"     : \
-   (x == DRX_STANDARD_ITU_A)  ? "ITU-A"            : \
-   (x == DRX_STANDARD_ITU_B)  ? "ITU-B"            : \
-   (x == DRX_STANDARD_ITU_C)  ? "ITU-C"            : \
-   (x == DRX_STANDARD_ITU_D)  ? "ITU-D"            : \
-   (x == DRX_STANDARD_FM)  ? "FM"               : \
-   (x == DRX_STANDARD_DTMB)  ? "DTMB"             : \
-   (x == DRX_STANDARD_AUTO)  ? "Auto"             : \
-   (x == DRX_STANDARD_UNKNOWN)  ? "Unknown"          : \
-					     "(Invalid)")
+	(x == DRX_STANDARD_DVBT)  ? "DVB-T"            : \
+	(x == DRX_STANDARD_8VSB)  ? "8VSB"             : \
+	(x == DRX_STANDARD_NTSC)  ? "NTSC"             : \
+	(x == DRX_STANDARD_PAL_SECAM_BG)  ? "PAL/SECAM B/G"    : \
+	(x == DRX_STANDARD_PAL_SECAM_DK)  ? "PAL/SECAM D/K"    : \
+	(x == DRX_STANDARD_PAL_SECAM_I)  ? "PAL/SECAM I"      : \
+	(x == DRX_STANDARD_PAL_SECAM_L)  ? "PAL/SECAM L"      : \
+	(x == DRX_STANDARD_PAL_SECAM_LP)  ? "PAL/SECAM LP"     : \
+	(x == DRX_STANDARD_ITU_A)  ? "ITU-A"            : \
+	(x == DRX_STANDARD_ITU_B)  ? "ITU-B"            : \
+	(x == DRX_STANDARD_ITU_C)  ? "ITU-C"            : \
+	(x == DRX_STANDARD_ITU_D)  ? "ITU-D"            : \
+	(x == DRX_STANDARD_FM)  ? "FM"               : \
+	(x == DRX_STANDARD_DTMB)  ? "DTMB"             : \
+	(x == DRX_STANDARD_AUTO)  ? "Auto"             : \
+	(x == DRX_STANDARD_UNKNOWN)  ? "Unknown"          : \
+	"(Invalid)")
 
 /* channel */
 
 #define DRX_STR_BANDWIDTH(x) ( \
-   (x == DRX_BANDWIDTH_8MHZ)  ?  "8 MHz"            : \
-   (x == DRX_BANDWIDTH_7MHZ)  ?  "7 MHz"            : \
-   (x == DRX_BANDWIDTH_6MHZ)  ?  "6 MHz"            : \
-   (x == DRX_BANDWIDTH_AUTO)  ?  "Auto"             : \
-   (x == DRX_BANDWIDTH_UNKNOWN)  ?  "Unknown"          : \
-					     "(Invalid)")
+	(x == DRX_BANDWIDTH_8MHZ)  ?  "8 MHz"            : \
+	(x == DRX_BANDWIDTH_7MHZ)  ?  "7 MHz"            : \
+	(x == DRX_BANDWIDTH_6MHZ)  ?  "6 MHz"            : \
+	(x == DRX_BANDWIDTH_AUTO)  ?  "Auto"             : \
+	(x == DRX_BANDWIDTH_UNKNOWN)  ?  "Unknown"          : \
+	"(Invalid)")
 #define DRX_STR_FFTMODE(x) ( \
-   (x == DRX_FFTMODE_2K)  ?  "2k"               : \
-   (x == DRX_FFTMODE_4K)  ?  "4k"               : \
-   (x == DRX_FFTMODE_8K)  ?  "8k"               : \
-   (x == DRX_FFTMODE_AUTO)  ?  "Auto"             : \
-   (x == DRX_FFTMODE_UNKNOWN)  ?  "Unknown"          : \
-					     "(Invalid)")
+	(x == DRX_FFTMODE_2K)  ?  "2k"               : \
+	(x == DRX_FFTMODE_4K)  ?  "4k"               : \
+	(x == DRX_FFTMODE_8K)  ?  "8k"               : \
+	(x == DRX_FFTMODE_AUTO)  ?  "Auto"             : \
+	(x == DRX_FFTMODE_UNKNOWN)  ?  "Unknown"          : \
+	"(Invalid)")
 #define DRX_STR_GUARD(x) ( \
-   (x == DRX_GUARD_1DIV32)  ?  "1/32nd"           : \
-   (x == DRX_GUARD_1DIV16)  ?  "1/16th"           : \
-   (x == DRX_GUARD_1DIV8)  ?  "1/8th"            : \
-   (x == DRX_GUARD_1DIV4)  ?  "1/4th"            : \
-   (x == DRX_GUARD_AUTO)  ?  "Auto"             : \
-   (x == DRX_GUARD_UNKNOWN)  ?  "Unknown"          : \
-					     "(Invalid)")
+	(x == DRX_GUARD_1DIV32)  ?  "1/32nd"           : \
+	(x == DRX_GUARD_1DIV16)  ?  "1/16th"           : \
+	(x == DRX_GUARD_1DIV8)  ?  "1/8th"            : \
+	(x == DRX_GUARD_1DIV4)  ?  "1/4th"            : \
+	(x == DRX_GUARD_AUTO)  ?  "Auto"             : \
+	(x == DRX_GUARD_UNKNOWN)  ?  "Unknown"          : \
+	"(Invalid)")
 #define DRX_STR_CONSTELLATION(x) ( \
-   (x == DRX_CONSTELLATION_BPSK)  ?  "BPSK"            : \
-   (x == DRX_CONSTELLATION_QPSK)  ?  "QPSK"            : \
-   (x == DRX_CONSTELLATION_PSK8)  ?  "PSK8"            : \
-   (x == DRX_CONSTELLATION_QAM16)  ?  "QAM16"           : \
-   (x == DRX_CONSTELLATION_QAM32)  ?  "QAM32"           : \
-   (x == DRX_CONSTELLATION_QAM64)  ?  "QAM64"           : \
-   (x == DRX_CONSTELLATION_QAM128)  ?  "QAM128"          : \
-   (x == DRX_CONSTELLATION_QAM256)  ?  "QAM256"          : \
-   (x == DRX_CONSTELLATION_QAM512)  ?  "QAM512"          : \
-   (x == DRX_CONSTELLATION_QAM1024)  ?  "QAM1024"         : \
-   (x == DRX_CONSTELLATION_QPSK_NR)  ?  "QPSK_NR"            : \
-   (x == DRX_CONSTELLATION_AUTO)  ?  "Auto"            : \
-   (x == DRX_CONSTELLATION_UNKNOWN)  ?  "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_CONSTELLATION_BPSK)  ?  "BPSK"            : \
+	(x == DRX_CONSTELLATION_QPSK)  ?  "QPSK"            : \
+	(x == DRX_CONSTELLATION_PSK8)  ?  "PSK8"            : \
+	(x == DRX_CONSTELLATION_QAM16)  ?  "QAM16"           : \
+	(x == DRX_CONSTELLATION_QAM32)  ?  "QAM32"           : \
+	(x == DRX_CONSTELLATION_QAM64)  ?  "QAM64"           : \
+	(x == DRX_CONSTELLATION_QAM128)  ?  "QAM128"          : \
+	(x == DRX_CONSTELLATION_QAM256)  ?  "QAM256"          : \
+	(x == DRX_CONSTELLATION_QAM512)  ?  "QAM512"          : \
+	(x == DRX_CONSTELLATION_QAM1024)  ?  "QAM1024"         : \
+	(x == DRX_CONSTELLATION_QPSK_NR)  ?  "QPSK_NR"            : \
+	(x == DRX_CONSTELLATION_AUTO)  ?  "Auto"            : \
+	(x == DRX_CONSTELLATION_UNKNOWN)  ?  "Unknown"         : \
+	"(Invalid)")
 #define DRX_STR_CODERATE(x) ( \
-   (x == DRX_CODERATE_1DIV2)  ?  "1/2nd"           : \
-   (x == DRX_CODERATE_2DIV3)  ?  "2/3rd"           : \
-   (x == DRX_CODERATE_3DIV4)  ?  "3/4th"           : \
-   (x == DRX_CODERATE_5DIV6)  ?  "5/6th"           : \
-   (x == DRX_CODERATE_7DIV8)  ?  "7/8th"           : \
-   (x == DRX_CODERATE_AUTO)  ?  "Auto"            : \
-   (x == DRX_CODERATE_UNKNOWN)  ?  "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_CODERATE_1DIV2)  ?  "1/2nd"           : \
+	(x == DRX_CODERATE_2DIV3)  ?  "2/3rd"           : \
+	(x == DRX_CODERATE_3DIV4)  ?  "3/4th"           : \
+	(x == DRX_CODERATE_5DIV6)  ?  "5/6th"           : \
+	(x == DRX_CODERATE_7DIV8)  ?  "7/8th"           : \
+	(x == DRX_CODERATE_AUTO)  ?  "Auto"            : \
+	(x == DRX_CODERATE_UNKNOWN)  ?  "Unknown"         : \
+	"(Invalid)")
 #define DRX_STR_HIERARCHY(x) ( \
-   (x == DRX_HIERARCHY_NONE)  ?  "None"            : \
-   (x == DRX_HIERARCHY_ALPHA1)  ?  "Alpha=1"         : \
-   (x == DRX_HIERARCHY_ALPHA2)  ?  "Alpha=2"         : \
-   (x == DRX_HIERARCHY_ALPHA4)  ?  "Alpha=4"         : \
-   (x == DRX_HIERARCHY_AUTO)  ?  "Auto"            : \
-   (x == DRX_HIERARCHY_UNKNOWN)  ?  "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_HIERARCHY_NONE)  ?  "None"            : \
+	(x == DRX_HIERARCHY_ALPHA1)  ?  "Alpha=1"         : \
+	(x == DRX_HIERARCHY_ALPHA2)  ?  "Alpha=2"         : \
+	(x == DRX_HIERARCHY_ALPHA4)  ?  "Alpha=4"         : \
+	(x == DRX_HIERARCHY_AUTO)  ?  "Auto"            : \
+	(x == DRX_HIERARCHY_UNKNOWN)  ?  "Unknown"         : \
+	"(Invalid)")
 #define DRX_STR_PRIORITY(x) ( \
-   (x == DRX_PRIORITY_LOW)  ?  "Low"             : \
-   (x == DRX_PRIORITY_HIGH)  ?  "High"            : \
-   (x == DRX_PRIORITY_UNKNOWN)  ?  "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_PRIORITY_LOW)  ?  "Low"             : \
+	(x == DRX_PRIORITY_HIGH)  ?  "High"            : \
+	(x == DRX_PRIORITY_UNKNOWN)  ?  "Unknown"         : \
+	"(Invalid)")
 #define DRX_STR_MIRROR(x) ( \
-   (x == DRX_MIRROR_NO)  ?  "Normal"          : \
-   (x == DRX_MIRROR_YES)  ?  "Mirrored"        : \
-   (x == DRX_MIRROR_AUTO)  ?  "Auto"            : \
-   (x == DRX_MIRROR_UNKNOWN)  ?  "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_MIRROR_NO)  ?  "Normal"          : \
+	(x == DRX_MIRROR_YES)  ?  "Mirrored"        : \
+	(x == DRX_MIRROR_AUTO)  ?  "Auto"            : \
+	(x == DRX_MIRROR_UNKNOWN)  ?  "Unknown"         : \
+	"(Invalid)")
 #define DRX_STR_CLASSIFICATION(x) ( \
-   (x == DRX_CLASSIFICATION_GAUSS)  ?  "Gaussion"        : \
-   (x == DRX_CLASSIFICATION_HVY_GAUSS)  ?  "Heavy Gaussion"  : \
-   (x == DRX_CLASSIFICATION_COCHANNEL)  ?  "Co-channel"      : \
-   (x == DRX_CLASSIFICATION_STATIC)  ?  "Static echo"     : \
-   (x == DRX_CLASSIFICATION_MOVING)  ?  "Moving echo"     : \
-   (x == DRX_CLASSIFICATION_ZERODB)  ?  "Zero dB echo"    : \
-   (x == DRX_CLASSIFICATION_UNKNOWN)  ?  "Unknown"         : \
-   (x == DRX_CLASSIFICATION_AUTO)  ?  "Auto"            : \
-					     "(Invalid)")
+	(x == DRX_CLASSIFICATION_GAUSS)  ?  "Gaussion"        : \
+	(x == DRX_CLASSIFICATION_HVY_GAUSS)  ?  "Heavy Gaussion"  : \
+	(x == DRX_CLASSIFICATION_COCHANNEL)  ?  "Co-channel"      : \
+	(x == DRX_CLASSIFICATION_STATIC)  ?  "Static echo"     : \
+	(x == DRX_CLASSIFICATION_MOVING)  ?  "Moving echo"     : \
+	(x == DRX_CLASSIFICATION_ZERODB)  ?  "Zero dB echo"    : \
+	(x == DRX_CLASSIFICATION_UNKNOWN)  ?  "Unknown"         : \
+	(x == DRX_CLASSIFICATION_AUTO)  ?  "Auto"            : \
+	"(Invalid)")
 
 #define DRX_STR_INTERLEAVEMODE(x) ( \
-   (x == DRX_INTERLEAVEMODE_I128_J1) ? "I128_J1"         : \
-   (x == DRX_INTERLEAVEMODE_I128_J1_V2) ? "I128_J1_V2"      : \
-   (x == DRX_INTERLEAVEMODE_I128_J2) ? "I128_J2"         : \
-   (x == DRX_INTERLEAVEMODE_I64_J2) ? "I64_J2"          : \
-   (x == DRX_INTERLEAVEMODE_I128_J3) ? "I128_J3"         : \
-   (x == DRX_INTERLEAVEMODE_I32_J4) ? "I32_J4"          : \
-   (x == DRX_INTERLEAVEMODE_I128_J4) ? "I128_J4"         : \
-   (x == DRX_INTERLEAVEMODE_I16_J8) ? "I16_J8"          : \
-   (x == DRX_INTERLEAVEMODE_I128_J5) ? "I128_J5"         : \
-   (x == DRX_INTERLEAVEMODE_I8_J16) ? "I8_J16"          : \
-   (x == DRX_INTERLEAVEMODE_I128_J6) ? "I128_J6"         : \
-   (x == DRX_INTERLEAVEMODE_RESERVED_11) ? "Reserved 11"     : \
-   (x == DRX_INTERLEAVEMODE_I128_J7) ? "I128_J7"         : \
-   (x == DRX_INTERLEAVEMODE_RESERVED_13) ? "Reserved 13"     : \
-   (x == DRX_INTERLEAVEMODE_I128_J8) ? "I128_J8"         : \
-   (x == DRX_INTERLEAVEMODE_RESERVED_15) ? "Reserved 15"     : \
-   (x == DRX_INTERLEAVEMODE_I12_J17) ? "I12_J17"         : \
-   (x == DRX_INTERLEAVEMODE_I5_J4) ? "I5_J4"           : \
-   (x == DRX_INTERLEAVEMODE_B52_M240) ? "B52_M240"        : \
-   (x == DRX_INTERLEAVEMODE_B52_M720) ? "B52_M720"        : \
-   (x == DRX_INTERLEAVEMODE_B52_M48) ? "B52_M48"         : \
-   (x == DRX_INTERLEAVEMODE_B52_M0) ? "B52_M0"          : \
-   (x == DRX_INTERLEAVEMODE_UNKNOWN) ? "Unknown"         : \
-   (x == DRX_INTERLEAVEMODE_AUTO) ? "Auto"            : \
-					     "(Invalid)")
+	(x == DRX_INTERLEAVEMODE_I128_J1) ? "I128_J1"         : \
+	(x == DRX_INTERLEAVEMODE_I128_J1_V2) ? "I128_J1_V2"      : \
+	(x == DRX_INTERLEAVEMODE_I128_J2) ? "I128_J2"         : \
+	(x == DRX_INTERLEAVEMODE_I64_J2) ? "I64_J2"          : \
+	(x == DRX_INTERLEAVEMODE_I128_J3) ? "I128_J3"         : \
+	(x == DRX_INTERLEAVEMODE_I32_J4) ? "I32_J4"          : \
+	(x == DRX_INTERLEAVEMODE_I128_J4) ? "I128_J4"         : \
+	(x == DRX_INTERLEAVEMODE_I16_J8) ? "I16_J8"          : \
+	(x == DRX_INTERLEAVEMODE_I128_J5) ? "I128_J5"         : \
+	(x == DRX_INTERLEAVEMODE_I8_J16) ? "I8_J16"          : \
+	(x == DRX_INTERLEAVEMODE_I128_J6) ? "I128_J6"         : \
+	(x == DRX_INTERLEAVEMODE_RESERVED_11) ? "Reserved 11"     : \
+	(x == DRX_INTERLEAVEMODE_I128_J7) ? "I128_J7"         : \
+	(x == DRX_INTERLEAVEMODE_RESERVED_13) ? "Reserved 13"     : \
+	(x == DRX_INTERLEAVEMODE_I128_J8) ? "I128_J8"         : \
+	(x == DRX_INTERLEAVEMODE_RESERVED_15) ? "Reserved 15"     : \
+	(x == DRX_INTERLEAVEMODE_I12_J17) ? "I12_J17"         : \
+	(x == DRX_INTERLEAVEMODE_I5_J4) ? "I5_J4"           : \
+	(x == DRX_INTERLEAVEMODE_B52_M240) ? "B52_M240"        : \
+	(x == DRX_INTERLEAVEMODE_B52_M720) ? "B52_M720"        : \
+	(x == DRX_INTERLEAVEMODE_B52_M48) ? "B52_M48"         : \
+	(x == DRX_INTERLEAVEMODE_B52_M0) ? "B52_M0"          : \
+	(x == DRX_INTERLEAVEMODE_UNKNOWN) ? "Unknown"         : \
+	(x == DRX_INTERLEAVEMODE_AUTO) ? "Auto"            : \
+	"(Invalid)")
 
 #define DRX_STR_LDPC(x) ( \
-   (x == DRX_LDPC_0_4) ? "0.4"             : \
-   (x == DRX_LDPC_0_6) ? "0.6"             : \
-   (x == DRX_LDPC_0_8) ? "0.8"             : \
-   (x == DRX_LDPC_AUTO) ? "Auto"            : \
-   (x == DRX_LDPC_UNKNOWN) ? "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_LDPC_0_4) ? "0.4"             : \
+	(x == DRX_LDPC_0_6) ? "0.6"             : \
+	(x == DRX_LDPC_0_8) ? "0.8"             : \
+	(x == DRX_LDPC_AUTO) ? "Auto"            : \
+	(x == DRX_LDPC_UNKNOWN) ? "Unknown"         : \
+	"(Invalid)")
 
 #define DRX_STR_CARRIER(x) ( \
-   (x == DRX_CARRIER_MULTI) ? "Multi"           : \
-   (x == DRX_CARRIER_SINGLE) ? "Single"          : \
-   (x == DRX_CARRIER_AUTO) ? "Auto"            : \
-   (x == DRX_CARRIER_UNKNOWN) ? "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_CARRIER_MULTI) ? "Multi"           : \
+	(x == DRX_CARRIER_SINGLE) ? "Single"          : \
+	(x == DRX_CARRIER_AUTO) ? "Auto"            : \
+	(x == DRX_CARRIER_UNKNOWN) ? "Unknown"         : \
+	"(Invalid)")
 
 #define DRX_STR_FRAMEMODE(x) ( \
-   (x == DRX_FRAMEMODE_420)  ? "420"                : \
-   (x == DRX_FRAMEMODE_595)  ? "595"                : \
-   (x == DRX_FRAMEMODE_945)  ? "945"                : \
-   (x == DRX_FRAMEMODE_420_FIXED_PN)  ? "420 with fixed PN"  : \
-   (x == DRX_FRAMEMODE_945_FIXED_PN)  ? "945 with fixed PN"  : \
-   (x == DRX_FRAMEMODE_AUTO)  ? "Auto"               : \
-   (x == DRX_FRAMEMODE_UNKNOWN)  ? "Unknown"            : \
-					  "(Invalid)")
+	(x == DRX_FRAMEMODE_420)  ? "420"                : \
+	(x == DRX_FRAMEMODE_595)  ? "595"                : \
+	(x == DRX_FRAMEMODE_945)  ? "945"                : \
+	(x == DRX_FRAMEMODE_420_FIXED_PN)  ? "420 with fixed PN"  : \
+	(x == DRX_FRAMEMODE_945_FIXED_PN)  ? "945 with fixed PN"  : \
+	(x == DRX_FRAMEMODE_AUTO)  ? "Auto"               : \
+	(x == DRX_FRAMEMODE_UNKNOWN)  ? "Unknown"            : \
+	"(Invalid)")
 
 #define DRX_STR_PILOT(x) ( \
-   (x == DRX_PILOT_ON) ?   "On"              : \
-   (x == DRX_PILOT_OFF) ?   "Off"             : \
-   (x == DRX_PILOT_AUTO) ?   "Auto"            : \
-   (x == DRX_PILOT_UNKNOWN) ?   "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_PILOT_ON) ?   "On"              : \
+	(x == DRX_PILOT_OFF) ?   "Off"             : \
+	(x == DRX_PILOT_AUTO) ?   "Auto"            : \
+	(x == DRX_PILOT_UNKNOWN) ?   "Unknown"         : \
+	"(Invalid)")
 /* TPS */
 
 #define DRX_STR_TPS_FRAME(x)  ( \
-   (x == DRX_TPS_FRAME1)  ?  "Frame1"          : \
-   (x == DRX_TPS_FRAME2)  ?  "Frame2"          : \
-   (x == DRX_TPS_FRAME3)  ?  "Frame3"          : \
-   (x == DRX_TPS_FRAME4)  ?  "Frame4"          : \
-   (x == DRX_TPS_FRAME_UNKNOWN)  ?  "Unknown"         : \
-					     "(Invalid)")
+	(x == DRX_TPS_FRAME1)  ?  "Frame1"          : \
+	(x == DRX_TPS_FRAME2)  ?  "Frame2"          : \
+	(x == DRX_TPS_FRAME3)  ?  "Frame3"          : \
+	(x == DRX_TPS_FRAME4)  ?  "Frame4"          : \
+	(x == DRX_TPS_FRAME_UNKNOWN)  ?  "Unknown"         : \
+	"(Invalid)")
 
 /* lock status */
 
 #define DRX_STR_LOCKSTATUS(x) ( \
-   (x == DRX_NEVER_LOCK)  ?  "Never"           : \
-   (x == DRX_NOT_LOCKED)  ?  "No"              : \
-   (x == DRX_LOCKED)  ?  "Locked"          : \
-   (x == DRX_LOCK_STATE_1)  ?  "Lock state 1"    : \
-   (x == DRX_LOCK_STATE_2)  ?  "Lock state 2"    : \
-   (x == DRX_LOCK_STATE_3)  ?  "Lock state 3"    : \
-   (x == DRX_LOCK_STATE_4)  ?  "Lock state 4"    : \
-   (x == DRX_LOCK_STATE_5)  ?  "Lock state 5"    : \
-   (x == DRX_LOCK_STATE_6)  ?  "Lock state 6"    : \
-   (x == DRX_LOCK_STATE_7)  ?  "Lock state 7"    : \
-   (x == DRX_LOCK_STATE_8)  ?  "Lock state 8"    : \
-   (x == DRX_LOCK_STATE_9)  ?  "Lock state 9"    : \
-					     "(Invalid)")
+	(x == DRX_NEVER_LOCK)  ?  "Never"           : \
+	(x == DRX_NOT_LOCKED)  ?  "No"              : \
+	(x == DRX_LOCKED)  ?  "Locked"          : \
+	(x == DRX_LOCK_STATE_1)  ?  "Lock state 1"    : \
+	(x == DRX_LOCK_STATE_2)  ?  "Lock state 2"    : \
+	(x == DRX_LOCK_STATE_3)  ?  "Lock state 3"    : \
+	(x == DRX_LOCK_STATE_4)  ?  "Lock state 4"    : \
+	(x == DRX_LOCK_STATE_5)  ?  "Lock state 5"    : \
+	(x == DRX_LOCK_STATE_6)  ?  "Lock state 6"    : \
+	(x == DRX_LOCK_STATE_7)  ?  "Lock state 7"    : \
+	(x == DRX_LOCK_STATE_8)  ?  "Lock state 8"    : \
+	(x == DRX_LOCK_STATE_9)  ?  "Lock state 9"    : \
+	"(Invalid)")
 
 /* version information , modules */
 #define DRX_STR_MODULE(x) ( \
-   (x == DRX_MODULE_DEVICE)  ?  "Device"                : \
-   (x == DRX_MODULE_MICROCODE)  ?  "Microcode"             : \
-   (x == DRX_MODULE_DRIVERCORE)  ?  "CoreDriver"            : \
-   (x == DRX_MODULE_DEVICEDRIVER)  ?  "DeviceDriver"          : \
-   (x == DRX_MODULE_BSP_I2C)  ?  "BSP I2C"               : \
-   (x == DRX_MODULE_BSP_TUNER)  ?  "BSP Tuner"             : \
-   (x == DRX_MODULE_BSP_HOST)  ?  "BSP Host"              : \
-   (x == DRX_MODULE_DAP)  ?  "Data Access Protocol"  : \
-   (x == DRX_MODULE_UNKNOWN)  ?  "Unknown"               : \
-					     "(Invalid)")
+	(x == DRX_MODULE_DEVICE)  ?  "Device"                : \
+	(x == DRX_MODULE_MICROCODE)  ?  "Microcode"             : \
+	(x == DRX_MODULE_DRIVERCORE)  ?  "CoreDriver"            : \
+	(x == DRX_MODULE_DEVICEDRIVER)  ?  "DeviceDriver"          : \
+	(x == DRX_MODULE_BSP_I2C)  ?  "BSP I2C"               : \
+	(x == DRX_MODULE_BSP_TUNER)  ?  "BSP Tuner"             : \
+	(x == DRX_MODULE_BSP_HOST)  ?  "BSP Host"              : \
+	(x == DRX_MODULE_DAP)  ?  "Data Access Protocol"  : \
+	(x == DRX_MODULE_UNKNOWN)  ?  "Unknown"               : \
+	"(Invalid)")
 
 #define DRX_STR_POWER_MODE(x) ( \
-   (x == DRX_POWER_UP)  ?  "DRX_POWER_UP    "  : \
-   (x == DRX_POWER_MODE_1)  ?  "DRX_POWER_MODE_1"  : \
-   (x == DRX_POWER_MODE_2)  ?  "DRX_POWER_MODE_2"  : \
-   (x == DRX_POWER_MODE_3)  ?  "DRX_POWER_MODE_3"  : \
-   (x == DRX_POWER_MODE_4)  ?  "DRX_POWER_MODE_4"  : \
-   (x == DRX_POWER_MODE_5)  ?  "DRX_POWER_MODE_5"  : \
-   (x == DRX_POWER_MODE_6)  ?  "DRX_POWER_MODE_6"  : \
-   (x == DRX_POWER_MODE_7)  ?  "DRX_POWER_MODE_7"  : \
-   (x == DRX_POWER_MODE_8)  ?  "DRX_POWER_MODE_8"  : \
-   (x == DRX_POWER_MODE_9)  ?  "DRX_POWER_MODE_9"  : \
-   (x == DRX_POWER_MODE_10)  ?  "DRX_POWER_MODE_10" : \
-   (x == DRX_POWER_MODE_11)  ?  "DRX_POWER_MODE_11" : \
-   (x == DRX_POWER_MODE_12)  ?  "DRX_POWER_MODE_12" : \
-   (x == DRX_POWER_MODE_13)  ?  "DRX_POWER_MODE_13" : \
-   (x == DRX_POWER_MODE_14)  ?  "DRX_POWER_MODE_14" : \
-   (x == DRX_POWER_MODE_15)  ?  "DRX_POWER_MODE_15" : \
-   (x == DRX_POWER_MODE_16)  ?  "DRX_POWER_MODE_16" : \
-   (x == DRX_POWER_DOWN)  ?  "DRX_POWER_DOWN  " : \
-					     "(Invalid)")
+	(x == DRX_POWER_UP)  ?  "DRX_POWER_UP    "  : \
+	(x == DRX_POWER_MODE_1)  ?  "DRX_POWER_MODE_1"  : \
+	(x == DRX_POWER_MODE_2)  ?  "DRX_POWER_MODE_2"  : \
+	(x == DRX_POWER_MODE_3)  ?  "DRX_POWER_MODE_3"  : \
+	(x == DRX_POWER_MODE_4)  ?  "DRX_POWER_MODE_4"  : \
+	(x == DRX_POWER_MODE_5)  ?  "DRX_POWER_MODE_5"  : \
+	(x == DRX_POWER_MODE_6)  ?  "DRX_POWER_MODE_6"  : \
+	(x == DRX_POWER_MODE_7)  ?  "DRX_POWER_MODE_7"  : \
+	(x == DRX_POWER_MODE_8)  ?  "DRX_POWER_MODE_8"  : \
+	(x == DRX_POWER_MODE_9)  ?  "DRX_POWER_MODE_9"  : \
+	(x == DRX_POWER_MODE_10)  ?  "DRX_POWER_MODE_10" : \
+	(x == DRX_POWER_MODE_11)  ?  "DRX_POWER_MODE_11" : \
+	(x == DRX_POWER_MODE_12)  ?  "DRX_POWER_MODE_12" : \
+	(x == DRX_POWER_MODE_13)  ?  "DRX_POWER_MODE_13" : \
+	(x == DRX_POWER_MODE_14)  ?  "DRX_POWER_MODE_14" : \
+	(x == DRX_POWER_MODE_15)  ?  "DRX_POWER_MODE_15" : \
+	(x == DRX_POWER_MODE_16)  ?  "DRX_POWER_MODE_16" : \
+	(x == DRX_POWER_DOWN)  ?  "DRX_POWER_DOWN  " : \
+	"(Invalid)")
 
 #define DRX_STR_OOB_STANDARD(x) ( \
-   (x == DRX_OOB_MODE_A)  ?  "ANSI 55-1  " : \
-   (x == DRX_OOB_MODE_B_GRADE_A)  ?  "ANSI 55-2 A" : \
-   (x == DRX_OOB_MODE_B_GRADE_B)  ?  "ANSI 55-2 B" : \
-					     "(Invalid)")
+	(x == DRX_OOB_MODE_A)  ?  "ANSI 55-1  " : \
+	(x == DRX_OOB_MODE_B_GRADE_A)  ?  "ANSI 55-2 A" : \
+	(x == DRX_OOB_MODE_B_GRADE_B)  ?  "ANSI 55-2 B" : \
+	"(Invalid)")
 
 #define DRX_STR_AUD_STANDARD(x) ( \
-   (x == DRX_AUD_STANDARD_BTSC)  ? "BTSC"                     : \
-   (x == DRX_AUD_STANDARD_A2)  ? "A2"                       : \
-   (x == DRX_AUD_STANDARD_EIAJ)  ? "EIAJ"                     : \
-   (x == DRX_AUD_STANDARD_FM_STEREO)  ? "FM Stereo"                : \
-   (x == DRX_AUD_STANDARD_AUTO)  ? "Auto"                     : \
-   (x == DRX_AUD_STANDARD_M_MONO)  ? "M-Standard Mono"          : \
-   (x == DRX_AUD_STANDARD_D_K_MONO)  ? "D/K Mono FM"              : \
-   (x == DRX_AUD_STANDARD_BG_FM)  ? "B/G-Dual Carrier FM (A2)" : \
-   (x == DRX_AUD_STANDARD_D_K1)  ? "D/K1-Dual Carrier FM"     : \
-   (x == DRX_AUD_STANDARD_D_K2)  ? "D/K2-Dual Carrier FM"     : \
-   (x == DRX_AUD_STANDARD_D_K3)  ? "D/K3-Dual Carrier FM"     : \
-   (x == DRX_AUD_STANDARD_BG_NICAM_FM)  ? "B/G-NICAM-FM"             : \
-   (x == DRX_AUD_STANDARD_L_NICAM_AM)  ? "L-NICAM-AM"               : \
-   (x == DRX_AUD_STANDARD_I_NICAM_FM)  ? "I-NICAM-FM"               : \
-   (x == DRX_AUD_STANDARD_D_K_NICAM_FM)  ? "D/K-NICAM-FM"             : \
-   (x == DRX_AUD_STANDARD_UNKNOWN)  ? "Unknown"                  : \
-					     "(Invalid)")
+	(x == DRX_AUD_STANDARD_BTSC)  ? "BTSC"                     : \
+	(x == DRX_AUD_STANDARD_A2)  ? "A2"                       : \
+	(x == DRX_AUD_STANDARD_EIAJ)  ? "EIAJ"                     : \
+	(x == DRX_AUD_STANDARD_FM_STEREO)  ? "FM Stereo"                : \
+	(x == DRX_AUD_STANDARD_AUTO)  ? "Auto"                     : \
+	(x == DRX_AUD_STANDARD_M_MONO)  ? "M-Standard Mono"          : \
+	(x == DRX_AUD_STANDARD_D_K_MONO)  ? "D/K Mono FM"              : \
+	(x == DRX_AUD_STANDARD_BG_FM)  ? "B/G-Dual Carrier FM (A2)" : \
+	(x == DRX_AUD_STANDARD_D_K1)  ? "D/K1-Dual Carrier FM"     : \
+	(x == DRX_AUD_STANDARD_D_K2)  ? "D/K2-Dual Carrier FM"     : \
+	(x == DRX_AUD_STANDARD_D_K3)  ? "D/K3-Dual Carrier FM"     : \
+	(x == DRX_AUD_STANDARD_BG_NICAM_FM)  ? "B/G-NICAM-FM"             : \
+	(x == DRX_AUD_STANDARD_L_NICAM_AM)  ? "L-NICAM-AM"               : \
+	(x == DRX_AUD_STANDARD_I_NICAM_FM)  ? "I-NICAM-FM"               : \
+	(x == DRX_AUD_STANDARD_D_K_NICAM_FM)  ? "D/K-NICAM-FM"             : \
+	(x == DRX_AUD_STANDARD_UNKNOWN)  ? "Unknown"                  : \
+	"(Invalid)")
 #define DRX_STR_AUD_STEREO(x) ( \
-   (x == true)  ? "Stereo"           : \
-   (x == false)  ? "Mono"             : \
-					     "(Invalid)")
+	(x == true)  ? "Stereo"           : \
+	(x == false)  ? "Mono"             : \
+	"(Invalid)")
 
 #define DRX_STR_AUD_SAP(x) ( \
-   (x == true)  ? "Present"          : \
-   (x == false)  ? "Not present"      : \
-					     "(Invalid)")
+	(x == true)  ? "Present"          : \
+	(x == false)  ? "Not present"      : \
+	"(Invalid)")
 
 #define DRX_STR_AUD_CARRIER(x) ( \
-   (x == true)  ? "Present"          : \
-   (x == false)  ? "Not present"      : \
-					     "(Invalid)")
+	(x == true)  ? "Present"          : \
+	(x == false)  ? "Not present"      : \
+	"(Invalid)")
 
 #define DRX_STR_AUD_RDS(x) ( \
-   (x == true)  ? "Available"        : \
-   (x == false)  ? "Not Available"    : \
-					     "(Invalid)")
+	(x == true)  ? "Available"        : \
+	(x == false)  ? "Not Available"    : \
+	"(Invalid)")
 
 #define DRX_STR_AUD_NICAM_STATUS(x) ( \
-   (x == DRX_AUD_NICAM_DETECTED)  ? "Detected"         : \
-   (x == DRX_AUD_NICAM_NOT_DETECTED)  ? "Not detected"     : \
-   (x == DRX_AUD_NICAM_BAD)  ? "Bad"              : \
-					     "(Invalid)")
+	(x == DRX_AUD_NICAM_DETECTED)  ? "Detected"         : \
+	(x == DRX_AUD_NICAM_NOT_DETECTED)  ? "Not detected"     : \
+	(x == DRX_AUD_NICAM_BAD)  ? "Bad"              : \
+	"(Invalid)")
 
 #define DRX_STR_RDS_VALID(x) ( \
-   (x == true)  ? "Valid"            : \
-   (x == false)  ? "Not Valid"        : \
-					     "(Invalid)")
+	(x == true)  ? "Valid"            : \
+	(x == false)  ? "Not Valid"        : \
+	"(Invalid)")
 
 /*-------------------------------------------------------------------------
 Access macros
@@ -2371,29 +2371,29 @@ Access macros
 /* Macros with device-specific handling are converted to CFG functions */
 
 #define DRX_ACCESSMACRO_SET(demod, value, cfg_name, data_type)             \
-   do {                                                                    \
-      struct drx_cfg config;                                                     \
-      data_type cfg_data;                                                    \
-      config.cfg_type = cfg_name;                                            \
-      config.cfg_data = &cfg_data;                                           \
-      cfg_data = value;                                                     \
-      drx_ctrl(demod, DRX_CTRL_SET_CFG, &config);                        \
-   } while (0)
+	do {                                                               \
+		struct drx_cfg config;                                     \
+		data_type cfg_data;                                        \
+		config.cfg_type = cfg_name;                                \
+		config.cfg_data = &cfg_data;                               \
+		cfg_data = value;                                          \
+		drx_ctrl(demod, DRX_CTRL_SET_CFG, &config);                \
+	} while (0)
 
 #define DRX_ACCESSMACRO_GET(demod, value, cfg_name, data_type, error_value) \
-   do {                                                                    \
-      int cfg_status;                                               \
-      struct drx_cfg config;                                                  \
-      data_type    cfg_data;                                                 \
-      config.cfg_type = cfg_name;                                            \
-      config.cfg_data = &cfg_data;                                           \
-      cfg_status = drx_ctrl(demod, DRX_CTRL_GET_CFG, &config);            \
-      if (cfg_status == 0) {                                     \
-	 value = cfg_data;                                                  \
-      } else {                                                             \
-	 value = (data_type)error_value;                                     \
-      }                                                                    \
-   } while (0)
+	do {                                                                \
+		int cfg_status;                                             \
+		struct drx_cfg config;                                      \
+		data_type    cfg_data;                                      \
+		config.cfg_type = cfg_name;                                 \
+		config.cfg_data = &cfg_data;                                \
+		cfg_status = drx_ctrl(demod, DRX_CTRL_GET_CFG, &config);    \
+		if (cfg_status == 0) {                                      \
+			value = cfg_data;                                   \
+		} else {                                                    \
+			value = (data_type)error_value;                     \
+		}                                                           \
+	} while (0)
 
 /* Configuration functions for usage by Access (XS) Macros */
 
@@ -2408,9 +2408,9 @@ Access macros
 /* Access Macros with device-specific handling */
 
 #define DRX_SET_PRESET(d, x) \
-   DRX_ACCESSMACRO_SET((d), (x), DRX_XS_CFG_PRESET, char*)
+	DRX_ACCESSMACRO_SET((d), (x), DRX_XS_CFG_PRESET, char*)
 #define DRX_GET_PRESET(d, x) \
-   DRX_ACCESSMACRO_GET((d), (x), DRX_XS_CFG_PRESET, char*, "ERROR")
+	DRX_ACCESSMACRO_GET((d), (x), DRX_XS_CFG_PRESET, char*, "ERROR")
 
 #define DRX_SET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_SET((d), (x), \
 	 DRX_XS_CFG_AUD_BTSC_DETECT, enum drx_aud_btsc_detect)

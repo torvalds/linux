@@ -27,14 +27,10 @@
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
-*/
 
-/**
-* \file $Id: drxj.h,v 1.132 2009/12/22 12:13:48 danielg Exp $
-*
-* \brief DRXJ specific header file
-*
-* \author Dragan Savic, Milos Nikolic, Mihajlo Katona, Tao Ding, Paul Janssen
+ DRXJ specific header file
+
+ Authors: Dragan Savic, Milos Nikolic, Mihajlo Katona, Tao Ding, Paul Janssen
 */
 
 #ifndef __DRXJ_H__
@@ -45,10 +41,6 @@ INCLUDES
 
 #include "drx_driver.h"
 #include "drx_dap_fasi.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Check DRX-J specific dap condition */
 /* Multi master mode and short addr format only will not work.
@@ -322,7 +314,7 @@ struct drxj_cfg_oob_misc {
 	bool dig_gain_lock;
 	bool ana_gain_lock;
 	u8 state;
- };
+};
 
 /*
  *  Index of in array of coef
@@ -558,27 +550,6 @@ Access MACROS
 #define DRXJ_ATTR_BTSC_DETECT(d)                       \
 			(((struct drxj_data *)(d)->my_ext_attr)->aud_data.btsc_detect)
 
-/**
-* \brief Actual access macros
-* \param d pointer to demod instance
-* \param x value to set or to get
-*
-* SET macros must be used to set the value of an attribute.
-* GET macros must be used to retrieve the value of an attribute.
-* Depending on the value of DRX_USE_ACCESS_FUNCTIONS the macro's will be
-* substituted by "direct-access-inline-code" or a function call.
-*
-*/
-#define DRXJ_GET_BTSC_DETECT(d, x)                     \
-   do {                                                  \
-      (x) = DRXJ_ATTR_BTSC_DETECT((d);                 \
-   } while (0)
-
-#define DRXJ_SET_BTSC_DETECT(d, x)                     \
-   do {                                                  \
-      DRXJ_ATTR_BTSC_DETECT(d) = (x);                  \
-   } while (0)
-
 /*-------------------------------------------------------------------------
 DEFINES
 -------------------------------------------------------------------------*/
@@ -669,12 +640,12 @@ DEFINES
 
 /* Convert OOB lock status to string */
 #define DRXJ_STR_OOB_LOCKSTATUS(x) ( \
-   (x == DRX_NEVER_LOCK)  ?  "Never"           : \
-   (x == DRX_NOT_LOCKED)  ?  "No"              : \
-   (x == DRX_LOCKED)  ?  "Locked"          : \
-   (x == DRX_LOCK_STATE_1)  ?  "AGC lock"        : \
-   (x == DRX_LOCK_STATE_2)  ?  "sync lock"       : \
-					     "(Invalid)")
+	(x == DRX_NEVER_LOCK) ? "Never" : \
+	(x == DRX_NOT_LOCKED) ? "No" : \
+	(x == DRX_LOCKED) ? "Locked" : \
+	(x == DRX_LOCK_STATE_1) ? "AGC lock" : \
+	(x == DRX_LOCK_STATE_2) ? "sync lock" : \
+	"(Invalid)")
 
 /*-------------------------------------------------------------------------
 ENUM
@@ -706,7 +677,4 @@ Exported GLOBAL VARIABLES
 /*-------------------------------------------------------------------------
 THE END
 -------------------------------------------------------------------------*/
-#ifdef __cplusplus
-}
-#endif
 #endif				/* __DRXJ_H__ */

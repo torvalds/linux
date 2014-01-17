@@ -47,10 +47,6 @@
 #ifndef __DRX_DRIVER_VERSION__H__
 #define __DRX_DRIVER_VERSION__H__ INCLUDED
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef _REGISTERTABLE_
 #include <registertable.h>
 	extern register_table_t drx_driver_version[];
@@ -69,9 +65,6 @@ extern "C" {
 #define   VERSION_MINOR 0
 #define   VERSION_PATCH 56
 
-#ifdef __cplusplus
-}
-#endif
 #endif				/* __DRX_DRIVER_VERSION__H__ */
 /*
  * End of file (drx_driver_version.h)

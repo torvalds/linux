@@ -26,28 +26,17 @@
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
-*/
 
-/*******************************************************************************
-* FILENAME: $Id: drx_dap_fasi.c,v 1.7 2009/12/28 14:36:21 carlo Exp $
-*
-* DESCRIPTION:
-* Part of DRX driver.
-* Data access protocol: Fast Access Sequential Interface (fasi)
-* Fast access, because of short addressing format (16 instead of 32 bits addr)
-* Sequential, because of I2C.
-* These functions know how the chip's memory and registers are to be accessed,
-* but nothing more.
-*
-* These functions should not need adapting to a new platform.
-*
-* USAGE:
-* -
-*
-* NOTES:
-*
-*
-*******************************************************************************/
+  DESCRIPTION:
+  Part of DRX driver.
+  Data access protocol: Fast Access Sequential Interface (fasi)
+  Fast access, because of short addressing format (16 instead of 32 bits addr)
+  Sequential, because of I2C.
+  These functions know how the chip's memory and registers are to be accessed,
+  but nothing more.
+
+  These functions should not need adapting to a new platform.
+*/
 
 #include "drx_dap_fasi.h"
 #include "drx_driver.h"		/* for drxbsp_hst_memcpy() */
@@ -221,9 +210,8 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 	u16 overhead_size = 0;
 
 	/* Check parameters ******************************************************* */
-	if (dev_addr == NULL) {
+	if (dev_addr == NULL)
 		return -EINVAL;
-	}
 
 	overhead_size = (IS_I2C_10BIT(dev_addr->i2c_addr) ? 2 : 1) +
 	    (DRXDAP_FASI_LONG_FORMAT(addr) ? 4 : 2);
@@ -252,8 +240,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 		addr &= ~DRXDAP_FASI_FLAGS;
 		addr |= flags;
 
-#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
-      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
 		/* short format address preferred but long format otherwise */
 		if (DRXDAP_FASI_LONG_FORMAT(addr)) {
 #endif
@@ -263,8 +250,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 			buf[bufx++] = (u8) ((addr >> 24) & 0xFF);
 			buf[bufx++] = (u8) ((addr >> 7) & 0xFF);
 #endif
-#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
-      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
 		} else {
 #endif
 #if (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1)
@@ -273,8 +259,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 			    (u8) (((addr >> 16) & 0x0F) |
 				    ((addr >> 18) & 0xF0));
 #endif
-#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && \
-      (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
+#if ((DRXDAPFASI_LONG_ADDR_ALLOWED == 1) && (DRXDAPFASI_SHORT_ADDR_ALLOWED == 1))
 		}
 #endif
 
@@ -332,9 +317,8 @@ static int drxdap_fasi_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 	int rc = -EIO;
 
 #if (DRXDAPFASI_LONG_ADDR_ALLOWED == 1)
-	if (rdata == NULL) {
+	if (rdata == NULL)
 		return -EINVAL;
-	}
 
 	rc = drxdap_fasi_write_reg16(dev_addr, waddr, wdata, DRXDAP_FASI_RMW);
 	if (rc == 0)
@@ -369,9 +353,9 @@ static int drxdap_fasi_read_reg16(struct i2c_device_addr *dev_addr,
 	u8 buf[sizeof(*data)];
 	int rc;
 
-	if (!data) {
+	if (!data)
 		return -EINVAL;
-	}
+
 	rc = drxdap_fasi_read_block(dev_addr, addr, sizeof(*data), buf, flags);
 	*data = buf[0] + (((u16) buf[1]) << 8);
 	return rc;
@@ -402,9 +386,9 @@ static int drxdap_fasi_read_reg32(struct i2c_device_addr *dev_addr,
 	u8 buf[sizeof(*data)];
 	int rc;
 
-	if (!data) {
+	if (!data)
 		return -EINVAL;
-	}
+
 	rc = drxdap_fasi_read_block(dev_addr, addr, sizeof(*data), buf, flags);
 	*data = (((u32) buf[0]) << 0) +
 	    (((u32) buf[1]) << 8) +
@@ -446,9 +430,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 	u16 block_size = 0;
 
 	/* Check parameters ******************************************************* */
-	if (dev_addr == NULL) {
+	if (dev_addr == NULL)
 		return -EINVAL;
-	}
 
 	overhead_size = (IS_I2C_10BIT(dev_addr->i2c_addr) ? 2 : 1) +
 	    (DRXDAP_FASI_LONG_FORMAT(addr) ? 4 : 2);
@@ -457,9 +440,8 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 	    ((!(DRXDAPFASI_LONG_ADDR_ALLOWED)) &&
 	     DRXDAP_FASI_LONG_FORMAT(addr)) ||
 	    (overhead_size > (DRXDAP_MAX_WCHUNKSIZE)) ||
-	    ((datasize != 0) && (data == NULL)) || ((datasize & 1) == 1)) {
+	    ((datasize != 0) && (data == NULL)) || ((datasize & 1) == 1))
 		return -EINVAL;
-	}
 
 	flags &= DRXDAP_FASI_FLAGS;
 	flags &= ~DRXDAP_FASI_MODEFLAGS;
@@ -476,8 +458,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 		/* Buffer device address */
 		addr &= ~DRXDAP_FASI_FLAGS;
 		addr |= flags;
-#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
-      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
+#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
 		/* short format address preferred but long format otherwise */
 		if (DRXDAP_FASI_LONG_FORMAT(addr)) {
 #endif
@@ -487,8 +468,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 			buf[bufx++] = (u8) ((addr >> 24) & 0xFF);
 			buf[bufx++] = (u8) ((addr >> 7) & 0xFF);
 #endif
-#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
-      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
+#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
 		} else {
 #endif
 #if ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1)
@@ -497,8 +477,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 			    (u8) (((addr >> 16) & 0x0F) |
 				    ((addr >> 18) & 0xF0));
 #endif
-#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && \
-      ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
+#if (((DRXDAPFASI_LONG_ADDR_ALLOWED) == 1) && ((DRXDAPFASI_SHORT_ADDR_ALLOWED) == 1))
 		}
 #endif
 
