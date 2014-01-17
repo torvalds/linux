@@ -203,6 +203,7 @@ struct slave {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll *np;
 #endif
+	struct kobject kobj;
 };
 
 /*
@@ -421,6 +422,8 @@ int bond_create(struct net *net, const char *name);
 int bond_create_sysfs(struct bond_net *net);
 void bond_destroy_sysfs(struct bond_net *net);
 void bond_prepare_sysfs_group(struct bonding *bond);
+int bond_sysfs_slave_add(struct slave *slave);
+void bond_sysfs_slave_del(struct slave *slave);
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count);
@@ -469,6 +472,7 @@ int bond_option_lacp_rate_set(struct bonding *bond, int lacp_rate);
 int bond_option_ad_select_set(struct bonding *bond, int ad_select);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
+const char *bond_slave_link_status(s8 link);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */

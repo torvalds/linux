@@ -159,18 +159,6 @@ static void bond_info_show_master(struct seq_file *seq)
 	}
 }
 
-static const char *bond_slave_link_status(s8 link)
-{
-	static const char * const status[] = {
-		[BOND_LINK_UP] = "up",
-		[BOND_LINK_FAIL] = "going down",
-		[BOND_LINK_DOWN] = "down",
-		[BOND_LINK_BACK] = "going back",
-	};
-
-	return status[link];
-}
-
 static void bond_info_show_slave(struct seq_file *seq,
 				 const struct slave *slave)
 {
