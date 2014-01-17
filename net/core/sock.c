@@ -1836,9 +1836,7 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio)
 		put_page(pfrag->page);
 	}
 
-	/* We restrict high order allocations to users that can afford to wait */
-	order = (prio & __GFP_WAIT) ? SKB_FRAG_PAGE_ORDER : 0;
-
+	order = SKB_FRAG_PAGE_ORDER;
 	do {
 		gfp_t gfp = prio;
 
