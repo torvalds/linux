@@ -30,6 +30,9 @@
 #include "stmmac.h"
 
 static const struct of_device_id stmmac_dt_ids[] = {
+#ifdef CONFIG_DWMAC_SUNXI
+	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
+#endif
 	/* SoC specific glue layers should come before generic bindings */
 	{ .compatible = "st,spear600-gmac"},
 	{ .compatible = "snps,dwmac-3.610"},

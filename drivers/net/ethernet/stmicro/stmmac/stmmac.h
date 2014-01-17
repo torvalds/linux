@@ -130,6 +130,9 @@ void stmmac_disable_eee_mode(struct stmmac_priv *priv);
 bool stmmac_eee_init(struct stmmac_priv *priv);
 
 #ifdef CONFIG_STMMAC_PLATFORM
+#ifdef CONFIG_DWMAC_SUNXI
+extern const struct stmmac_of_data sun7i_gmac_data;
+#endif
 extern struct platform_driver stmmac_pltfr_driver;
 static inline int stmmac_register_platform(void)
 {
