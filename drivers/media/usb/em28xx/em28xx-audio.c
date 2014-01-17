@@ -252,7 +252,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int ret = 0;
+	int nonblock, ret = 0;
 
 	if (!dev) {
 		em28xx_err("BUG: em28xx can't find device struct."
@@ -265,15 +265,15 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
+	nonblock = !!(substream->f_flags & O_NONBLOCK);
+	if (nonblock) {
+		if (!mutex_trylock(&dev->lock))
+		return -EAGAIN;
+	} else
+		mutex_lock(&dev->lock);
+
 	runtime->hw = snd_em28xx_hw_capture;
 	if ((dev->alt == 0 || dev->is_audio_only) && dev->adev.users == 0) {
-		int nonblock = !!(substream->f_flags & O_NONBLOCK);
-
-		if (nonblock) {
-			if (!mutex_trylock(&dev->lock))
-				return -EAGAIN;
-		} else
-			mutex_lock(&dev->lock);
 		if (dev->is_audio_only)
 			/* vendor audio is on a separate interface */
 			dev->alt = 1;
@@ -299,10 +299,10 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		ret = em28xx_audio_analog_set(dev);
 		if (ret < 0)
 			goto err;
-
-		dev->adev.users++;
-		mutex_unlock(&dev->lock);
 	}
+
+	dev->adev.users++;
+	mutex_unlock(&dev->lock);
 
 	/* Dynamically adjust the period size */
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
