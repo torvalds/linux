@@ -35,6 +35,29 @@ enum rc_driver_type {
 };
 
 /**
+ * struct rc_scancode_filter - Filter scan codes.
+ * @data:	Scancode data to match.
+ * @mask:	Mask of bits of scancode to compare.
+ */
+struct rc_scancode_filter {
+	u32 data;
+	u32 mask;
+};
+
+/**
+ * enum rc_filter_type - Filter type constants.
+ * @RC_FILTER_NORMAL:	Filter for normal operation.
+ * @RC_FILTER_WAKEUP:	Filter for waking from suspend.
+ * @RC_FILTER_MAX:	Number of filter types.
+ */
+enum rc_filter_type {
+	RC_FILTER_NORMAL = 0,
+	RC_FILTER_WAKEUP,
+
+	RC_FILTER_MAX
+};
+
+/**
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
  * @input_name: name of the input child device
@@ -70,6 +93,7 @@ enum rc_driver_type {
  * @max_timeout: maximum timeout supported by device
  * @rx_resolution : resolution (in ns) of input sampler
  * @tx_resolution: resolution (in ns) of output sampler
+ * @scancode_filters: scancode filters (indexed by enum rc_filter_type)
  * @change_protocol: allow changing the protocol used on hardware decoders
  * @open: callback to allow drivers to enable polling/irq when IR input device
  *	is opened.
@@ -84,6 +108,7 @@ enum rc_driver_type {
  *	device doesn't interrupt host until it sees IR pulses
  * @s_learning_mode: enable wide band receiver used for learning
  * @s_carrier_report: enable carrier reports
+ * @s_filter: set the scancode filter of a given type
  */
 struct rc_dev {
 	struct device			dev;
@@ -116,6 +141,7 @@ struct rc_dev {
 	u32				max_timeout;
 	u32				rx_resolution;
 	u32				tx_resolution;
+	struct rc_scancode_filter	scancode_filters[RC_FILTER_MAX];
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_type);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);
@@ -127,6 +153,9 @@ struct rc_dev {
 	void				(*s_idle)(struct rc_dev *dev, bool enable);
 	int				(*s_learning_mode)(struct rc_dev *dev, int enable);
 	int				(*s_carrier_report) (struct rc_dev *dev, int enable);
+	int				(*s_filter)(struct rc_dev *dev,
+						    enum rc_filter_type type,
+						    struct rc_scancode_filter *filter);
 };
 
 #define to_rc_dev(d) container_of(d, struct rc_dev, dev)

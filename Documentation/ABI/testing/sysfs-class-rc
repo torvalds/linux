@@ -32,3 +32,61 @@ Description:
 		Writing "none" will disable all protocols.
 		Write fails with EINVAL if an invalid protocol combination or
 		unknown protocol name is used.
+
+What:		/sys/class/rc/rcN/filter
+Date:		Jan 2014
+KernelVersion:	3.15
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Description:
+		Sets the scancode filter expected value.
+		Use in combination with /sys/class/rc/rcN/filter_mask to set the
+		expected value of the bits set in the filter mask.
+		If the hardware supports it then scancodes which do not match
+		the filter will be ignored. Otherwise the write will fail with
+		an error.
+		This value may be reset to 0 if the current protocol is altered.
+
+What:		/sys/class/rc/rcN/filter_mask
+Date:		Jan 2014
+KernelVersion:	3.15
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Description:
+		Sets the scancode filter mask of bits to compare.
+		Use in combination with /sys/class/rc/rcN/filter to set the bits
+		of the scancode which should be compared against the expected
+		value. A value of 0 disables the filter to allow all valid
+		scancodes to be processed.
+		If the hardware supports it then scancodes which do not match
+		the filter will be ignored. Otherwise the write will fail with
+		an error.
+		This value may be reset to 0 if the current protocol is altered.
+
+What:		/sys/class/rc/rcN/wakeup_filter
+Date:		Jan 2014
+KernelVersion:	3.15
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Description:
+		Sets the scancode wakeup filter expected value.
+		Use in combination with /sys/class/rc/rcN/wakeup_filter_mask to
+		set the expected value of the bits set in the wakeup filter mask
+		to trigger a system wake event.
+		If the hardware supports it and wakeup_filter_mask is not 0 then
+		scancodes which match the filter will wake the system from e.g.
+		suspend to RAM or power off.
+		Otherwise the write will fail with an error.
+		This value may be reset to 0 if the current protocol is altered.
+
+What:		/sys/class/rc/rcN/wakeup_filter_mask
+Date:		Jan 2014
+KernelVersion:	3.15
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Description:
+		Sets the scancode wakeup filter mask of bits to compare.
+		Use in combination with /sys/class/rc/rcN/wakeup_filter to set
+		the bits of the scancode which should be compared against the
+		expected value to trigger a system wake event.
+		If the hardware supports it and wakeup_filter_mask is not 0 then
+		scancodes which match the filter will wake the system from e.g.
+		suspend to RAM or power off.
+		Otherwise the write will fail with an error.
+		This value may be reset to 0 if the current protocol is altered.
