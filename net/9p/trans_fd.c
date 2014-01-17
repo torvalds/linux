@@ -212,15 +212,9 @@ static void p9_conn_cancel(struct p9_conn *m, int err)
 	m->err = err;
 
 	list_for_each_entry_safe(req, rtmp, &m->req_list, req_list) {
-		req->status = REQ_STATUS_ERROR;
-		if (!req->t_err)
-			req->t_err = err;
 		list_move(&req->req_list, &cancel_list);
 	}
 	list_for_each_entry_safe(req, rtmp, &m->unsent_req_list, req_list) {
-		req->status = REQ_STATUS_ERROR;
-		if (!req->t_err)
-			req->t_err = err;
 		list_move(&req->req_list, &cancel_list);
 	}
 	spin_unlock_irqrestore(&m->client->lock, flags);
@@ -228,7 +222,9 @@ static void p9_conn_cancel(struct p9_conn *m, int err)
 	list_for_each_entry_safe(req, rtmp, &cancel_list, req_list) {
 		p9_debug(P9_DEBUG_ERROR, "call back req %p\n", req);
 		list_del(&req->req_list);
-		p9_client_cb(m->client, req);
+		if (!req->t_err)
+			req->t_err = err;
+		p9_client_cb(m->client, req, REQ_STATUS_ERROR);
 	}
 }
 
@@ -302,6 +298,7 @@ static void p9_read_work(struct work_struct *work)
 {
 	int n, err;
 	struct p9_conn *m;
+	int status = REQ_STATUS_ERROR;
 
 	m = container_of(work, struct p9_conn, rq);
 
@@ -375,10 +372,10 @@ static void p9_read_work(struct work_struct *work)
 		p9_debug(P9_DEBUG_TRANS, "got new packet\n");
 		spin_lock(&m->client->lock);
 		if (m->req->status != REQ_STATUS_ERROR)
-			m->req->status = REQ_STATUS_RCVD;
+			status = REQ_STATUS_RCVD;
 		list_del(&m->req->req_list);
 		spin_unlock(&m->client->lock);
-		p9_client_cb(m->client, m->req);
+		p9_client_cb(m->client, m->req, status);
 		m->rbuf = NULL;
 		m->rpos = 0;
 		m->rsize = 0;

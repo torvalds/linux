@@ -305,8 +305,7 @@ handle_recv(struct p9_client *client, struct p9_trans_rdma *rdma,
 	}
 
 	req->rc = c->rc;
-	req->status = REQ_STATUS_RCVD;
-	p9_client_cb(client, req);
+	p9_client_cb(client, req, REQ_STATUS_RCVD);
 
 	return;
 

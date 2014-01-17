@@ -261,7 +261,7 @@ int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
 int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status);
 int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *fl);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
-void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
+void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 
 int p9_parse_header(struct p9_fcall *, int32_t *, int8_t *, int16_t *, int);
 int p9stat_read(struct p9_client *, char *, int, struct p9_wstat *);
