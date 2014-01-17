@@ -439,6 +439,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+	/* Initialize tx backoffs to the minimal possible */
+	iwl_mvm_tt_tx_backoff(mvm, 0);
+
 	ret = iwl_mvm_power_update_device_mode(mvm);
 	if (ret)
 		goto error;
