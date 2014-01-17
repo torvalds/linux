@@ -214,7 +214,42 @@ do
 done
 sort -k2nr $T/cfgcpu > $T/cfgcpu.sort
 
-awk < $T/cfgcpu.sort \
+awk < $T/cfgcpu.sort > $T/cfgcpu.pack -v ncpus=$cpus '
+BEGIN {
+	njobs = 0;
+}
+
+{
+	cf[njobs] = $1;
+	cpus[njobs] = $2;
+	njobs++;
+}
+
+END {
+	alldone = 0;
+	batch = 0;
+	nc = -1;
+	while (nc != ncpus) {
+		batch++;
+		nc = ncpus;
+		for (i = 0; i < njobs; i++) {
+			if (done[i])
+				continue;
+			if (nc >= cpus[i] || nc == ncpus) {
+				done[i] = batch;
+				nc -= cpus[i];
+				if (nc <= 0)
+					break;
+			}
+		}
+	}
+	for (b = 1; b <= batch; b++)
+		for (i = 0; i < njobs; i++)
+			if (done[i] == b)
+				print cf[i], cpus[i];
+}'
+
+awk < $T/cfgcpu.pack \
 	-v CONFIGDIR="$CONFIGFRAG/$kversion/" \
 	-v KVM="$KVM" \
 	-v ncpus=$cpus \
