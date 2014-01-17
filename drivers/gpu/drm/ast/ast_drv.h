@@ -102,6 +102,7 @@ struct ast_private {
 	 * we have. */
 	struct ttm_bo_kmap_obj cache_kmap;
 	int next_cursor;
+	bool support_wide_screen;
 };
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags);
