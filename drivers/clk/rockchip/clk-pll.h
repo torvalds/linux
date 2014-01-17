@@ -5,8 +5,6 @@
 #include <linux/delay.h>
 
 
-#define MHZ			(1000UL * 1000UL)
-#define KHZ			(1000UL)
 #define CLK_LOOPS_JIFFY_REF	(11996091ULL)
 #define CLK_LOOPS_RATE_REF	(1200UL) //Mhz
 #define CLK_LOOPS_RECALC(rate)  \

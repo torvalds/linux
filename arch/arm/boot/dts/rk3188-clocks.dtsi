@@ -276,6 +276,7 @@
 						clocks = <&clk_i2s_div>, <&clk_i2s_frac>, <&xin12m>;
 						clock-output-names = "clk_i2s";
 						rockchip,clkops-idx = <CLKOPS_RATE_I2S>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						#clock-cells = <0>;
 					};
 
@@ -308,6 +309,7 @@
 						clocks = <&clk_spdif_div>, <&clk_spdif_frac>, <&xin12m>;
 						clock-output-names = "clk_spdif";
 						rockchip,clkops-idx = <CLKOPS_RATE_I2S>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						#clock-cells = <0>;
 					};
 
@@ -496,6 +498,7 @@
 						       <&xin24m>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_UART>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						clock-output-names = "clk_uart0";
 						#clock-cells = <0>;
 					};
@@ -528,6 +531,7 @@
 						       <&xin24m>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_UART>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						clock-output-names = "clk_uart1";
 						#clock-cells = <0>;
 					};
@@ -560,6 +564,7 @@
 						       <&xin24m>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_UART>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						clock-output-names = "clk_uart2";
 						#clock-cells = <0>;
 					};
@@ -592,6 +597,7 @@
 						       <&xin24m>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_UART>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						clock-output-names = "clk_uart3";
 						#clock-cells = <0>;
 					};
@@ -612,7 +618,7 @@
 						/* numerator	denominator */
 						rockchip,bits = <0 32>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART_FRAC>;
+							<CLKOPS_RATE_FRAC>;
 						#clock-cells = <0>;
 					};
 				};
@@ -628,7 +634,7 @@
 						/* numerator	denominator */
 						rockchip,bits = <0 32>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART_FRAC>;
+							<CLKOPS_RATE_FRAC>;
 						#clock-cells = <0>;
 					};
 				};
@@ -644,7 +650,7 @@
 						/* numerator	denominator */
 						rockchip,bits = <0 32>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART_FRAC>;
+							<CLKOPS_RATE_FRAC>;
 						#clock-cells = <0>;
 					};
 				};
@@ -660,7 +666,7 @@
 						/* numerator	denominator */
 						rockchip,bits = <0 32>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART_FRAC>;
+							<CLKOPS_RATE_FRAC>;
 						#clock-cells = <0>;
 					};
 				};
@@ -687,6 +693,7 @@
 						clocks = <&clk_mac_pll_mux>, <&rmii_clkin>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MAC_REF>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						clock-output-names = "clk_mac";
 						#clock-cells = <0>;
 					};
@@ -697,6 +704,8 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 5>;
 						clocks = <&clk_mac_pll_mux>;
+						rockchip,clkops-idx =
+							<CLKOPS_RATE_MUX_DIV>;
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 
 					};
@@ -727,6 +736,7 @@
 							 <&clk_hsadc_ext>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_HSADC>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						clock-output-names = "clk_hsadc";
 						#clock-cells = <0>;
 					};
@@ -762,7 +772,7 @@
 						/* numerator	denominator */
 						rockchip,bits = <0 32>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_HSADC_FRAC>;
+							<CLKOPS_RATE_FRAC>;
 						#clock-cells = <0>;
 					};
 				};
@@ -907,6 +917,8 @@
 						rockchip,bits = <1 5>;
 						clocks = <&cif_out_pll_mux>;
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
+						rockchip,clkops-idx =
+							<CLKOPS_RATE_MUX_DIV>;
 					};
 
 					/* reg[6]: reserved */
@@ -917,6 +929,7 @@
 						clocks = <&cif_out_pll_mux>, <&xin24m>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_CIFOUT>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 						clock-output-names = "clk_cif0";
 						#clock-cells = <0>;
 					};

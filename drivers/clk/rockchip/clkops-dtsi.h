@@ -9,20 +9,19 @@
 #define GPLL_ID 	3
 
 
-
 /* rate_ops index */
 #define CLKOPS_RATE_MUX_DIV		0
 #define CLKOPS_RATE_EVENDIV		1
 #define CLKOPS_RATE_DCLK_LCDC		2
-#define CLKOPS_RATE_CIFOUT		3
-#define CLKOPS_RATE_I2S_FRAC		4
+#define CLKOPS_RATE_I2S_FRAC		3
+#define CLKOPS_RATE_FRAC		4
 #define CLKOPS_RATE_I2S			5
-#define CLKOPS_RATE_HSADC_FRAC		6
-#define CLKOPS_RATE_UART_FRAC		7
-#define CLKOPS_RATE_UART		8
-#define CLKOPS_RATE_HSADC		9
-#define CLKOPS_RATE_MAC_REF		10
-#define CLKOPS_TABLE_END		~0
+#define CLKOPS_RATE_CIFOUT		6
+#define CLKOPS_RATE_UART		7
+#define CLKOPS_RATE_HSADC		8
+#define CLKOPS_RATE_MAC_REF		9
+#define CLKOPS_TABLE_END		(~0)
+
 
 #ifndef BIT
 #define BIT(nr)			(1 << (nr))
@@ -37,4 +36,20 @@
 #define CLK_DIVIDER_USER_DEFINE		BIT(7)
 /* CLK_DIVIDER_MASK defined the bits been used above */
 #define CLK_DIVIDER_MASK		(0xFF)
+
+
+/*
+ * flags used across common struct clk.  these flags should only affect the
+ * top-level framework.  custom flags for dealing with hardware specifics
+ * belong in struct clk_foo
+ */
+#define CLK_SET_RATE_GATE	BIT(0) /* must be gated across rate change */
+#define CLK_SET_PARENT_GATE	BIT(1) /* must be gated across re-parent */
+#define CLK_SET_RATE_PARENT	BIT(2) /* propagate rate change up one level */
+#define CLK_IGNORE_UNUSED	BIT(3) /* do not gate even if unused */
+#define CLK_IS_ROOT		BIT(4) /* root clk, has no parent */
+#define CLK_IS_BASIC		BIT(5) /* Basic clk, can't do a to_clk_foo() */
+#define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
+#define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
+
 #endif /* __RK_CLKOPS_H */

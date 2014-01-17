@@ -24,8 +24,6 @@
 #include "clk-pll.h"
 
 
-static DEFINE_SPINLOCK(clk_lock);
-
 struct rkclk_divmap_table {
 	u32		reg_val;
 	u32		div_val;
@@ -53,6 +51,7 @@ struct rkclk_muxinfo {
 	u32		width;
 	u32		parent_num;
 	u32		clkops_idx;
+	u32		flags;
 	const char	*clk_name;
 	const char	**parent_names;
 	struct list_head	node;
@@ -108,8 +107,10 @@ struct rkclk {
 	struct list_head		node;
 };
 
+static DEFINE_SPINLOCK(clk_lock);
 LIST_HEAD(rk_clks);
 void __iomem *reg_start = 0;
+
 #define RKCLK_PLL_TYPE	(1 << 0)
 #define RKCLK_MUX_TYPE	(1 << 1)
 #define RKCLK_DIV_TYPE	(1 << 2)
@@ -132,6 +133,11 @@ static int rkclk_init_muxinfo(struct device_node *np,
 	ret = of_property_read_u32_index(np, "rockchip,bits", 0, &mux->shift);
 	if (ret != 0)
 		return -EINVAL;
+
+	ret = of_property_read_u32(np, "rockchip,flags", &mux->flags);
+	if (ret != 0)
+		mux->flags = 0;
+
 	ret = of_property_read_u32(np, "rockchip,clkops-idx", &mux->clkops_idx);
 	if (ret != 0)
 		mux->clkops_idx = CLKOPS_TABLE_END;
@@ -186,6 +192,7 @@ static int rkclk_init_muxinfo(struct device_node *np,
 	}
 	return 0;
 }
+
 static int rkclk_init_divinfo(struct device_node *np,
 		struct rkclk_divinfo *div, void __iomem *addr)
 {
@@ -202,6 +209,7 @@ static int rkclk_init_divinfo(struct device_node *np,
 	div->addr = addr;
 
 	of_property_read_u32(np, "rockchip,div-type", &div->div_type);
+
 	ret = of_property_read_u32(np, "rockchip,clkops-idx", &div->clkops_idx);
 	if (ret != 0)
 		div->clkops_idx = CLKOPS_TABLE_END;
@@ -276,6 +284,7 @@ static int rkclk_init_divinfo(struct device_node *np,
 
 
 }
+
 static int rkclk_init_fracinfo(struct device_node *np,
 		struct rkclk_fracinfo *frac, void __iomem *addr)
 {
@@ -448,6 +457,7 @@ static int __init rkclk_init_gatecon(struct device_node *np)
 	}
 	return 0;
 }
+
 static int __init rkclk_init_pllcon(struct device_node *np)
 {
 	struct rkclk_pllinfo *pllinfo;
@@ -529,27 +539,6 @@ static int __init rkclk_init_pllcon(struct device_node *np)
 	return 0;
 }
 
-
-static unsigned long clk_frac_recalc_rate(struct clk_hw *hw,
-		unsigned long parent_rate)
-{
-	return parent_rate;
-}
-static long clk_frac_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *prate)
-{
-	return rate;
-}
-static int clk_frac_set_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
-{
-	return 0;
-}
-const struct clk_ops clk_frac_ops = {
-	.recalc_rate = clk_frac_recalc_rate,
-	.round_rate = clk_frac_round_rate,
-	.set_rate = clk_frac_set_rate,
-};
 static unsigned long clk_div_special_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
@@ -565,12 +554,14 @@ static int clk_div_special_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	return 0;
 }
+
 // For fixed div clks and For user defined div clk
 const struct clk_ops clk_div_special_ops = {
 	.recalc_rate = clk_div_special_recalc_rate,
 	.round_rate = clk_div_special_round_rate,
 	.set_rate = clk_div_special_set_rate,
 };
+
 static int rkclk_register(struct rkclk *rkclk)
 {
 	struct clk_mux		*mux = NULL;
@@ -586,9 +577,11 @@ static int rkclk_register(struct rkclk *rkclk)
 	struct clk_hw		*rate_hw;
 	int			parent_num;
 	struct device_node	*node = rkclk->np;
-	/* Single clk */
-	clk_debug("%s: %s clk_type=%x\n", __func__,
-			rkclk->clk_name, rkclk->clk_type);
+	unsigned long		flags = 0;
+
+
+	clk_debug("%s >>>>>start: clk_name=%s, clk_type=%x\n",
+			__func__, rkclk->clk_name, rkclk->clk_type);
 
 	if (rkclk->clk_type & RKCLK_PLL_TYPE) {
 		pll = kzalloc(sizeof(struct clk_pll), GFP_KERNEL);
@@ -604,18 +597,18 @@ static int rkclk_register(struct rkclk *rkclk)
 
 	} else if (rkclk->clk_type & RKCLK_FRAC_TYPE) {
 		div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
-		if (rkclk->frac_info->clkops_idx != CLKOPS_TABLE_END)
-			rate_ops = rk_get_clkops(rkclk->frac_info->clkops_idx);
-		else
-			rate_ops = &clk_frac_ops;
 		div->reg = rkclk->frac_info->addr;
 		div->shift = (u8)rkclk->frac_info->shift;
 		div->width = rkclk->frac_info->width;
 		div->flags = CLK_DIVIDER_HIWORD_MASK;
+
 		rate_hw = &div->hw;
+		rate_ops = rk_get_clkops(rkclk->frac_info->clkops_idx);
 
 		parent_num = 1;
 		parent_names = &rkclk->frac_info->parent_name;
+
+		flags |= CLK_SET_RATE_PARENT;
 
 	} else if (rkclk->clk_type & RKCLK_DIV_TYPE) {
 		div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
@@ -655,6 +648,7 @@ static int rkclk_register(struct rkclk *rkclk)
 
 		parent_num = rkclk->mux_info->parent_num;
 		parent_names = rkclk->mux_info->parent_names;
+		flags |= rkclk->mux_info->flags;
 	}
 
 	if (rkclk->clk_type & RKCLK_GATE_TYPE) {
@@ -668,46 +662,43 @@ static int rkclk_register(struct rkclk *rkclk)
 	// FIXME: flag(CLK_IGNORE_UNUSED) may need an input argument
 	if (rkclk->clk_type == RKCLK_MUX_TYPE
 			&& rkclk->mux_info->clkops_idx == CLKOPS_TABLE_END) {
+		clk_debug("use clk_register_mux\n");
 		clk = clk_register_mux(NULL, rkclk->clk_name,
 				rkclk->mux_info->parent_names,
 				(u8)rkclk->mux_info->parent_num,
-				CLK_SET_RATE_PARENT,
-				mux->reg, mux->shift, mux->mask,
+				flags, mux->reg, mux->shift, mux->mask,
 				0, &clk_lock);
 	} else if (rkclk->clk_type == RKCLK_DIV_TYPE) {
+		clk_debug("use clk_register_divider\n");
 		clk = clk_register_divider(NULL, rkclk->clk_name,
 				rkclk->div_info->parent_name,
-				CLK_SET_RATE_PARENT, div->reg, div->shift,
+				flags, div->reg, div->shift,
 				div->width, div->flags, &clk_lock);
 	} else if (rkclk->clk_type == RKCLK_GATE_TYPE) {
+		clk_debug("use clk_register_gate\n");
 		clk = clk_register_gate(NULL, rkclk->clk_name,
 				rkclk->gate_info->parent_name,
-				CLK_IGNORE_UNUSED, gate->reg,
+				flags, gate->reg,
 				gate->bit_idx,
 				gate->flags, &clk_lock);
 	} else if (rkclk->clk_type == RKCLK_PLL_TYPE) {
+		clk_debug("use rk_clk_register_pll\n");
 		clk = rk_clk_register_pll(NULL, rkclk->clk_name,
 				rkclk->pll_info->parent_name,
-				0, pll->reg, pll->width, pll->id,
-				&clk_lock);
+				flags, pll->reg, pll->width,
+				pll->id, &clk_lock);
 	} else {
-		int i = 0;
-		clk_debug("%s: composite clk(\"%s\") parents:\n",
-				__func__, rkclk->clk_name);
-
-		for (i = 0; i < parent_num; i++) {
-			clk_debug("\t\t%s: parent[%d]=%s\n", __func__,
-					i, parent_names[i]);
-		}
-
+		clk_debug("use clk_register_composite\n");
 		clk = clk_register_composite(NULL, rkclk->clk_name,
 				parent_names, parent_num,
 				mux ? &mux->hw : NULL, mux ? mux_ops : NULL,
 				rate_hw, rate_ops,
 				gate ? &gate->hw : NULL, gate ? &clk_gate_ops : NULL,
-				CLK_IGNORE_UNUSED);
+				flags);
 	}
+
 	if (clk) {
+		clk_debug("clk name=%s, flags=0x%lx\n", clk->name, clk->flags);
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 		clk_register_clkdev(clk, rkclk->clk_name, NULL);
 	} else {
@@ -718,39 +709,51 @@ static int rkclk_register(struct rkclk *rkclk)
 	return 0;
 }
 
+#ifdef RKCLK_TEST
 struct test_table {
 	const char *name;
 	u32 rate;
 };
+
 struct test_table t_table[] = {
 	{.name = "clk_gpu",	.rate = 297000000},
-	{.name = "dclk_lcdc0",	.rate = 297000000},
-	{.name = "clk_i2s",	.rate = 11289600},
-	{.name = "clk_spdif",	.rate = 11289600},
+	{.name = "dclk_lcdc0",	.rate = 100000000},
+	{.name = "aclk_lcdc0",	.rate = 297000000},
+
 	{.name = "clk_sdmmc",	.rate = 50000000},
 	{.name = "clk_emmc",	.rate = 50000000},
 	{.name = "clk_sdio",	.rate = 50000000},
+
+	{.name = "clk_i2s_div",	.rate = 300000000},
+	{.name = "clk_i2s_frac",.rate = 22579200},
+	{.name = "clk_i2s",	.rate = 11289600},
+	{.name = "clk_spdif",	.rate = 11289600},
+
+	{.name = "cif_out_pll",	.rate = 48000000},
+	{.name = "clk_cif0",	.rate = 12000000},
+
 	{.name = "clk_uart0",	.rate = 12288000},
+	{.name = "clk_uart1",	.rate = 48000000},
 	{.name = "clk_hsadc",	.rate = 12288000},
 	{.name = "clk_mac",  	.rate = 50000000},
-	{.name = "clk_cif0",	.rate = 12000000},
-	{.name = "aclk_lcdc0",	.rate = 297000000},
-	{.name = "clk_apll",	.rate = 600000000},
-	{.name = "clk_dpll",	.rate = 600000000},
+
+	{.name = "clk_apll",	.rate = 500000000},
+	{.name = "clk_dpll",	.rate = 400000000},
 	{.name = "clk_cpll",	.rate = 600000000},
 	{.name = "clk_gpll",	.rate = 800000000},
 };
 
-
-#ifdef RKCLK_DEBUG
 void rk_clk_test(void)
 {
 	const char *clk_name;
 	struct clk *clk;
-	u32 rate,recalc_rate,round_rate = 0;
-
+	unsigned long rate=0, recalc_rate=0, round_rate=0, get_rate=0;
 	u32 i = 0, j = 0;
+	int ret;
+
 	for (j = 0; j < ARRAY_SIZE(t_table); j++) {
+		clk_debug(">>>>>>test %u\n", j);
+
 		clk_name = t_table[j].name;
 		rate = t_table[j].rate;
 
@@ -760,55 +763,50 @@ void rk_clk_test(void)
 					__func__, clk_name);
 		} else
 			clk_debug("%s: clk(\"%s\") \tclk_get success\n",
-					__func__, __clk_get_name(clk));
+					__func__, clk_name);
 
-		/*TEST: clk_round_rate*/
-		if (clk->ops->round_rate) {
-			round_rate = clk_round_rate(clk, rate);
-			clk_debug("%s: clk(\"%s\") \tclk_round_rate from %lu to %lu\n",
-						__func__, __clk_get_name(clk),
-						rate, round_rate);
-		} else {
-			clk_debug("%s: clk(\"%s\") have no round ops\n",
-					__func__, clk->name);
-		}
+		/* TEST: clk_round_rate */
+		round_rate = clk_round_rate(clk, rate);
+		clk_debug("%s: clk(\"%s\") \tclk_round_rate from %lu to %lu\n",
+				__func__, clk_name, rate, round_rate);
 
 		/* TEST: clk_set_rate */
-		if (clk->ops->set_rate) {
-			if (0 != clk_set_rate(clk, rate)) {
-				clk_err("%s: clk(\"%s\") \tclk_set_rate error\n",
-						__func__, clk_name);
-			} else {
-				clk_debug("%s: clk(\"%s\") \tclk_set_rate success\n",
-						__func__, __clk_get_name(clk));
-			}
+		ret = clk_set_rate(clk, rate);
+		if (ret) {
+			clk_err("%s: clk(\"%s\") \tclk_set_rate error, ret=%d\n",
+					__func__, clk_name, ret);
 		} else {
-			clk_debug("%s: clk(\"%s\") have no set ops\n",
-					__func__, clk->name);
+			clk_debug("%s: clk(\"%s\") \tclk_set_rate success\n",
+					__func__, clk_name);
 		}
 
-		/*TEST: clk_recalc_rate*/
+		/* TEST: recalc_rate\clk_get_rate */
 		if (clk->ops->recalc_rate) {
 			recalc_rate = clk->ops->recalc_rate(clk->hw,
-							clk->parent->rate);
+					clk->parent->rate);
 			clk_debug("%s: clk(\"%s\") \tclk_recalc_rate %lu\n",
-						__func__, __clk_get_name(clk),
-						recalc_rate);
+					__func__, clk_name, recalc_rate);
 		} else {
 			clk_debug("%s: clk(\"%s\") have no recalc ops\n",
-					__func__, clk->name);
+					__func__, clk_name);
+			get_rate = clk_get_rate(clk);
+			clk_debug("%s: clk(\"%s\") \tclk_get_rate %lu\n",
+					__func__, clk_name, get_rate);
 		}
 
-	}
+#if 0
+		printk("\n");
+		printk("dump cru regs:");
+		for (i = 0; i * 4 <= 0xf4; i++) {
+			if (i % 4 == 0)
+				printk("\n%s: \t[0x%08x]: ",
+						__func__, 0x20000000 + i * 4);
+			printk("%08x ", readl(reg_start + i * 4));
+		}
+		printk("\n\n");
 
-	printk("dump cru regs:\n");
-	for (i = 0; i * 4 <= 0xf4; i++) {
-		if (i % 4 == 0)
-			printk("\n%s: \t[0x%08x]: ",
-					__func__, 0x20000000 + i * 4);
-		printk("%08x ", readl(reg_start + i * 4));
+#endif
 	}
-	printk("\n\n");
 
 }
 EXPORT_SYMBOL_GPL(rk_clk_test);
@@ -816,27 +814,22 @@ EXPORT_SYMBOL_GPL(rk_clk_test);
 void rk_clk_test(void){};
 EXPORT_SYMBOL_GPL(rk_clk_test);
 #endif
-extern void clk_dump_tree(void);
-
 
 void rkclk_init_clks(struct device_node *node);
 
 static void __init rk_clk_tree_init(struct device_node *np)
 {
 	struct device_node *node;
-	
+
 	struct device_node *node_init;
 	struct rkclk *rkclk;
 
 	node_init=of_find_node_by_name(NULL,"clocks-init");
 	if(!node_init)
-	{	
-		printk("%s:can not get  clocks-init node\n",__FUNCTION__);	
+	{
+		printk("%s:can not get  clocks-init node\n",__FUNCTION__);
 		return;
 	}
-
-
-	
 
 	for_each_available_child_of_node(np, node) {
 
@@ -875,7 +868,6 @@ static void __init rk_clk_tree_init(struct device_node *np)
 
 	};
 
-
 #if 0
 	list_for_each_entry(rkclk, &rk_clks, node) {
 		int i;
@@ -909,12 +901,13 @@ static void __init rk_clk_tree_init(struct device_node *np)
 		}
 	}
 #endif
+
 	list_for_each_entry(rkclk, &rk_clks, node) {
 		rkclk_register(rkclk);
 	}
+
 	/* check clock parents init */
 	list_for_each_entry(rkclk, &rk_clks, node) {
-
 		struct clk *clk;
 		int i = 0;
 		const char *clk_name = rkclk->clk_name;
@@ -950,9 +943,10 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	rkclk_init_clks(node_init);
 
 }
-CLK_OF_DECLARE(rk_clocks,	"rockchip,rk-clock-regs",	rk_clk_tree_init);
+CLK_OF_DECLARE(rk_clocks, "rockchip,rk-clock-regs", rk_clk_tree_init);
 
-/********************************** rock chip clks init****************************************/
+
+/********************************** rockchip clks init****************************************/
 const char *of_clk_init_rate_get_info(struct device_node *np, int index,u32 *rate)
 {
 	struct of_phandle_args clkspec;
@@ -963,15 +957,15 @@ const char *of_clk_init_rate_get_info(struct device_node *np, int index,u32 *rat
 		return NULL;
 
 	rc = of_parse_phandle_with_args(np, "rockchip,clocks-init-rate", "#clock-init-cells", index,
-					&clkspec);
+			&clkspec);
 	if (rc)
 		return NULL;
 
 	if (of_property_read_string_index(clkspec.np, "clock-output-names",0,&clk_name) < 0)
 		return NULL;
-	
+
 	*rate= clkspec.args[0];
-	
+
 	of_node_put(clkspec.np);
 	return clk_name;
 }
@@ -988,14 +982,14 @@ const char *of_clk_init_parent_get_info(struct device_node *np, int index,const 
 		return NULL;
 
 	rc = of_parse_phandle_with_args(np, "rockchip,clocks-init-parent", "#clock-init-cells", index,
-					&clkspec);
+			&clkspec);
 	if (rc)
 		return NULL;
 
 	if (of_property_read_string_index(clkspec.np, "clock-output-names",0,&clk_name) < 0)
 		return NULL;
 
-	
+
 	phandle = clkspec.args[0];
 
 	of_node_put(clkspec.np);
@@ -1006,21 +1000,21 @@ const char *of_clk_init_parent_get_info(struct device_node *np, int index,const 
 		if (!node) {
 			return NULL;
 		}
-		
+
 		if (of_property_read_string_index(node, "clock-output-names",0,clk_child_name) < 0)
 			return NULL;
-		
+
 		of_node_put(node);//???
 		node=NULL;
 	}
 	else
 		return NULL;
-	
+
 	return clk_name;
 }
 
 void rkclk_init_clks(struct device_node *np)
-{	
+{
 	//struct device_node *np;
 	int i,cnt_parent,cnt_rate;
 	u32 clk_rate;
@@ -1031,36 +1025,36 @@ void rkclk_init_clks(struct device_node *np)
 
 
 	cnt_parent = of_count_phandle_with_args(np, "rockchip,clocks-init-parent", "#clock-init-cells");
-	
-	printk("%s:cnt_parent =%d\n",__FUNCTION__,cnt_parent);	
+
+	printk("%s:cnt_parent =%d\n",__FUNCTION__,cnt_parent);
 
 
 	for (i = 0; i < cnt_parent; i++) {
 		clk_parent_name=NULL;
 		clk_name=of_clk_init_parent_get_info(np, i,&clk_parent_name);
-		
+
 		if(clk_name==NULL||clk_parent_name==NULL)
 			continue;
-		
+
 		clk_c=clk_get(NULL,clk_name);
 		clk_p=clk_get(NULL,clk_parent_name);
 
 		printk("%s: set parent %s=%x,%s=%x\n",__FUNCTION__,clk_name,(u32)clk_c,clk_parent_name,(u32)clk_p);
-		if(IS_ERR(clk_c)||IS_ERR(clk_p))	
+		if(IS_ERR(clk_c)||IS_ERR(clk_p))
 			continue;
 		//clk_set_parent(clk_name, clk_parent_name);
 	}
 
 	cnt_rate = of_count_phandle_with_args(np, "rockchip,clocks-init-rate", "#clock-init-cells");
 
-	printk("%s:rate cnt=%d\n",__FUNCTION__,cnt_rate);	
+	printk("%s:rate cnt=%d\n",__FUNCTION__,cnt_rate);
 
 	for (i = 0; i < cnt_rate; i++) {
 		clk_name=of_clk_init_rate_get_info(np, i,&clk_rate);
-		
+
 		if(clk_name==NULL)
 			continue;
-		
+
 		clk_p=clk_get(NULL,clk_name);
 
 		printk("%s: set rate %s=%x,rate=%d\n",__FUNCTION__,clk_name,(u32)clk_p,clk_rate);
@@ -1068,12 +1062,8 @@ void rkclk_init_clks(struct device_node *np)
 		if(IS_ERR(clk_c)||(clk_rate<1*1000*1000)||(clk_rate>2000*1000*1000))
 			continue;
 		//clk_set_rate(clk_p,clk_rate);
-				
+
 	}
-	
+
 }
-
-
-	
-
 
