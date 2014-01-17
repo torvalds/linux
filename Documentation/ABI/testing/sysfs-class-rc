@@ -1,0 +1,34 @@
+What:		/sys/class/rc/
+Date:		Apr 2010
+KernelVersion:	2.6.35
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Description:
+		The rc/ class sub-directory belongs to the Remote Controller
+		core and provides a sysfs interface for configuring infrared
+		remote controller receivers.
+
+What:		/sys/class/rc/rcN/
+Date:		Apr 2010
+KernelVersion:	2.6.35
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Description:
+		A /sys/class/rc/rcN directory is created for each remote
+		control receiver device where N is the number of the receiver.
+
+What:		/sys/class/rc/rcN/protocols
+Date:		Jun 2010
+KernelVersion:	2.6.36
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Description:
+		Reading this file returns a list of available protocols,
+		something like:
+		    "rc5 [rc6] nec jvc [sony]"
+		Enabled protocols are shown in [] brackets.
+		Writing "+proto" will add a protocol to the list of enabled
+		protocols.
+		Writing "-proto" will remove a protocol from the list of enabled
+		protocols.
+		Writing "proto" will enable only "proto".
+		Writing "none" will disable all protocols.
+		Write fails with EINVAL if an invalid protocol combination or
+		unknown protocol name is used.
