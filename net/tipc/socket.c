@@ -1566,6 +1566,42 @@ static int listen(struct socket *sock, int len)
 	return res;
 }
 
+static int tipc_wait_for_accept(struct socket *sock, long timeo)
+{
+	struct sock *sk = sock->sk;
+	DEFINE_WAIT(wait);
+	int err;
+
+	/* True wake-one mechanism for incoming connections: only
+	 * one process gets woken up, not the 'whole herd'.
+	 * Since we do not 'race & poll' for established sockets
+	 * anymore, the common case will execute the loop only once.
+	*/
+	for (;;) {
+		prepare_to_wait_exclusive(sk_sleep(sk), &wait,
+					  TASK_INTERRUPTIBLE);
+		if (skb_queue_empty(&sk->sk_receive_queue)) {
+			release_sock(sk);
+			timeo = schedule_timeout(timeo);
+			lock_sock(sk);
+		}
+		err = 0;
+		if (!skb_queue_empty(&sk->sk_receive_queue))
+			break;
+		err = -EINVAL;
+		if (sock->state != SS_LISTENING)
+			break;
+		err = sock_intr_errno(timeo);
+		if (signal_pending(current))
+			break;
+		err = -EAGAIN;
+		if (!timeo)
+			break;
+	}
+	finish_wait(sk_sleep(sk), &wait);
+	return err;
+}
+
 /**
  * accept - wait for connection request
  * @sock: listening socket
@@ -1582,7 +1618,7 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 	struct tipc_port *new_tport;
 	struct tipc_msg *msg;
 	u32 new_ref;
-
+	long timeo;
 	int res;
 
 	lock_sock(sk);
@@ -1592,18 +1628,10 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 		goto exit;
 	}
 
-	while (skb_queue_empty(&sk->sk_receive_queue)) {
-		if (flags & O_NONBLOCK) {
-			res = -EWOULDBLOCK;
-			goto exit;
-		}
-		release_sock(sk);
-		res = wait_event_interruptible(*sk_sleep(sk),
-				(!skb_queue_empty(&sk->sk_receive_queue)));
-		lock_sock(sk);
-		if (res)
-			goto exit;
-	}
+	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	res = tipc_wait_for_accept(sock, timeo);
+	if (res)
+		goto exit;
 
 	buf = skb_peek(&sk->sk_receive_queue);
 
