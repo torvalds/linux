@@ -426,7 +426,7 @@ struct drxj_cfg_atv_output {
 		u8 mfx;		  /**< metal fix */
 
 		/* tuner settings */
-		bool mirror_freq_spectOOB;/**< tuner inversion (true = tuner mirrors the signal */
+		bool mirror_freq_spect_oob;/**< tuner inversion (true = tuner mirrors the signal */
 
 		/* standard/channel settings */
 		enum drx_standard standard;	  /**< current standard information                     */
@@ -446,7 +446,7 @@ struct drxj_cfg_atv_output {
 		u16 fec_rs_prescale;	  /**< ReedSolomon Measurement Prescale                 */
 		u16 fec_rs_period;	  /**< ReedSolomon Measurement period                   */
 		bool reset_pkt_err_acc;	  /**< Set a flag to reset accumulated packet error     */
-		u16 pkt_errAccStart;	  /**< Set a flag to reset accumulated packet error     */
+		u16 pkt_err_acc_start;	  /**< Set a flag to reset accumulated packet error     */
 
 		/* HI configuration */
 		u16 hi_cfg_timing_div;	  /**< HI Configure() parameter 2                       */

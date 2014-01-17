@@ -514,13 +514,13 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 		 */
 		todo = (block_size < datasize ? block_size : datasize);
 		if (todo == 0) {
-			u16 overhead_sizeI2cAddr = 0;
+			u16 overhead_size_i2c_addr = 0;
 			u16 data_block_size = 0;
 
-			overhead_sizeI2cAddr =
+			overhead_size_i2c_addr =
 			    (IS_I2C_10BIT(dev_addr->i2c_addr) ? 2 : 1);
 			data_block_size =
-			    (DRXDAP_MAX_WCHUNKSIZE - overhead_sizeI2cAddr) & ~1;
+			    (DRXDAP_MAX_WCHUNKSIZE - overhead_size_i2c_addr) & ~1;
 
 			/* write device address */
 			st = drxbsp_i2c_write_read(dev_addr,

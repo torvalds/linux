@@ -294,7 +294,7 @@ scan_prepare_next_scan(struct drx_demod_instance *demod, s32 skip)
 		/* Search next frequency to scan */
 
 		/* always take at least one step */
-		(common_attr->scan_channelsScanned)++;
+		(common_attr->scan_channels_scanned)++;
 		next_frequency += frequency_plan[table_index].step;
 		skip -= frequency_plan[table_index].step;
 
@@ -302,7 +302,7 @@ scan_prepare_next_scan(struct drx_demod_instance *demod, s32 skip)
 		   without exceeding end of the band */
 		while ((skip > 0) &&
 		       (next_frequency <= frequency_plan[table_index].last)) {
-			(common_attr->scan_channelsScanned)++;
+			(common_attr->scan_channels_scanned)++;
 			next_frequency += frequency_plan[table_index].step;
 			skip -= frequency_plan[table_index].step;
 		}
@@ -528,7 +528,7 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 	/* Store parameters */
 	common_attr->scan_ready = false;
 	common_attr->scan_max_channels = nr_channels_in_plan;
-	common_attr->scan_channelsScanned = 0;
+	common_attr->scan_channels_scanned = 0;
 	common_attr->scan_param = scan_param;	/* SCAN_NEXT is now allowed */
 
 	scan_context = get_scan_context(demod, scan_context);
@@ -626,7 +626,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 		return DRX_STS_ERROR;
 	}
 
-	*scan_progress = (u16) (((common_attr->scan_channelsScanned) *
+	*scan_progress = (u16) (((common_attr->scan_channels_scanned) *
 				  ((u32) (max_progress))) /
 				 (common_attr->scan_max_channels));
 
@@ -682,7 +682,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 
 			/* keep track of progress */
 			*scan_progress =
-			    (u16) (((common_attr->scan_channelsScanned) *
+			    (u16) (((common_attr->scan_channels_scanned) *
 				      ((u32) (max_progress))) /
 				     (common_attr->scan_max_channels));
 
@@ -1119,7 +1119,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 			case UCODE_VERIFY:
 				{
 					int result = 0;
-					u8 mc_dataBuffer
+					u8 mc_data_buffer
 					    [DRX_UCODE_MAX_BUF_SIZE];
 					u32 bytes_to_compare = 0;
 					u32 bytes_left_to_compare = 0;
@@ -1148,7 +1148,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 								  (u16)
 								  bytes_to_compare,
 								  (u8 *)
-								  mc_dataBuffer,
+								  mc_data_buffer,
 								  0x0000) !=
 						    DRX_STS_OK) {
 							return DRX_STS_ERROR;
@@ -1156,7 +1156,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 
 						result =
 						    drxbsp_hst_memcmp(curr_ptr,
-								      mc_dataBuffer,
+								      mc_data_buffer,
 								      bytes_to_compare);
 
 						if (result != 0) {
@@ -1209,7 +1209,7 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 	    DRX_VERSIONSTRING(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
 	static struct drx_version drx_driver_core_version;
-	static struct drx_version_list drx_driver_core_versionList;
+	static struct drx_version_list drx_driver_core_version_list;
 
 	struct drx_version_list *demod_version_list = (struct drx_version_list *) (NULL);
 	int return_status = DRX_STS_ERROR;
@@ -1233,8 +1233,8 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 	drx_driver_core_version.v_patch = VERSION_PATCH;
 	drx_driver_core_version.v_string = drx_driver_core_version_text;
 
-	drx_driver_core_versionList.version = &drx_driver_core_version;
-	drx_driver_core_versionList.next = (struct drx_version_list *) (NULL);
+	drx_driver_core_version_list.version = &drx_driver_core_version;
+	drx_driver_core_version_list.next = (struct drx_version_list *) (NULL);
 
 	if ((return_status == DRX_STS_OK) && (demod_version_list != NULL)) {
 		/* Append versioninfo from driver to versioninfo from demod  */
@@ -1244,12 +1244,12 @@ ctrl_version(struct drx_demod_instance *demod, struct drx_version_list **version
 		while (current_list_element->next != NULL) {
 			current_list_element = current_list_element->next;
 		}
-		current_list_element->next = &drx_driver_core_versionList;
+		current_list_element->next = &drx_driver_core_version_list;
 
 		*version_list = demod_version_list;
 	} else {
 		/* Just return versioninfo from driver */
-		*version_list = &drx_driver_core_versionList;
+		*version_list = &drx_driver_core_version_list;
 	}
 
 	return DRX_STS_OK;

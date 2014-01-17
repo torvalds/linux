@@ -182,7 +182,7 @@ struct tuner_common {
 	s32 max_freq_rf;	/* Highest RF input frequency, in kHz */
 
 	u8 sub_mode;	/* Index to sub-mode in use */
-	char ***sub_modeDescriptions;	/* Pointer to description of sub-modes */
+	char ***sub_mode_descriptions;	/* Pointer to description of sub-modes */
 	u8 sub_modes;	/* Number of available sub-modes      */
 
 	/* The following fields will be either 0, NULL or false and do not need
@@ -192,7 +192,7 @@ struct tuner_common {
 	s32 r_ffrequency;	/* only valid if programmed       */
 	s32 i_ffrequency;	/* only valid if programmed       */
 
-	void *myUser_data;	/* pointer to associated demod instance */
+	void *my_user_data;	/* pointer to associated demod instance */
 	u16 my_capabilities;	/* value for storing application flags  */
 };
 
@@ -230,7 +230,7 @@ struct tuner_ops {
 	tuner_close_func_t close_func;
 	tuner_set_frequency_func_t set_frequency_func;
 	tuner_get_frequency_func_t get_frequency_func;
-	tuner_lock_status_func_t lock_statusFunc;
+	tuner_lock_status_func_t lock_status_func;
 	tune_ri2c_write_read_func_t i2c_write_read_func;
 
 };
@@ -1985,7 +1985,7 @@ struct drx_reg_dump {
 				      /**< next freq to scan                  */
 		bool scan_ready;     /**< scan ready flag                    */
 		u32 scan_max_channels;/**< number of channels in freqplan     */
-		u32 scan_channelsScanned;
+		u32 scan_channels_scanned;
 					/**< number of channels scanned       */
 		/* Channel scan - inner loop: demod related */
 		drx_scan_func_t scan_function;
