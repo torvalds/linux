@@ -219,11 +219,16 @@ static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch,
 	if (skb->priority == sch->handle)
 		return HTB_DIRECT;	/* X:0 (direct flow) selected */
 	cl = htb_find(skb->priority, sch);
-	if (cl && cl->level == 0)
-		return cl;
+	if (cl) {
+		if (cl->level == 0)
+			return cl;
+		/* Start with inner filter chain if a non-leaf class is selected */
+		tcf = cl->filter_list;
+	} else {
+		tcf = q->filter_list;
+	}
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	tcf = q->filter_list;
 	while (tcf && (result = tc_classify(skb, tcf, &res)) >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
