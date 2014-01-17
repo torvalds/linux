@@ -2449,7 +2449,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		       ETH_ALEN);
 		mef_entry->filter[filt_num].byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] =
 								ETH_ALEN;
-		mef_entry->filter[filt_num].offset = 14;
+		mef_entry->filter[filt_num].offset = 28;
 		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
 		if (filt_num)
 			mef_entry->filter[filt_num].filt_action = TYPE_OR;
