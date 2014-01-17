@@ -776,6 +776,9 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 	if (WARN_ON_ONCE(tu->tp.size + dsize > PAGE_SIZE))
 		return;
 
+	if (ftrace_trigger_soft_disabled(ftrace_file))
+		return;
+
 	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 	size = esize + tu->tp.size + dsize;
 	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,
@@ -795,8 +798,7 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 
 	memcpy(data, ucb->buf, tu->tp.size + dsize);
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(buffer, event, 0, 0);
+	event_trigger_unlock_commit(ftrace_file, buffer, event, entry, 0, 0);
 }
 
 /* uprobe handler */
