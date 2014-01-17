@@ -791,6 +791,7 @@ static struct {
 	  RC_BIT_SONY20,	"sony"		},
 	{ RC_BIT_RC5_SZ,	"rc-5-sz"	},
 	{ RC_BIT_SANYO,		"sanyo"		},
+	{ RC_BIT_SHARP,		"sharp"		},
 	{ RC_BIT_MCE_KBD,	"mce_kbd"	},
 	{ RC_BIT_LIRC,		"lirc"		},
 };
