@@ -144,6 +144,9 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 	case 0x02:
 		bus->max_bus_speed = PCIE_SPEED_5_0GT;
 		break;
+	case 0x04:
+		bus->max_bus_speed = PCIE_SPEED_8_0GT;
+		break;
 	default:
 		bus->max_bus_speed = PCI_SPEED_UNKNOWN;
 		break;
@@ -155,6 +158,9 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 		break;
 	case 0x02:
 		bus->cur_bus_speed = PCIE_SPEED_5_0GT;
+		break;
+	case 0x04:
+		bus->cur_bus_speed = PCIE_SPEED_8_0GT;
 		break;
 	default:
 		bus->cur_bus_speed = PCI_SPEED_UNKNOWN;
