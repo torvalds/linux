@@ -1118,6 +1118,14 @@ bindv6only - BOOLEAN
 
 	Default: FALSE (as specified in RFC3493)
 
+flowlabel_consistency - BOOLEAN
+	Protect the consistency (and unicity) of flow label.
+	You have to disable it to use IPV6_FL_F_REFLECT flag on the
+	flow label manager.
+	TRUE: enabled
+	FALSE: disabled
+	Default: TRUE
+
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6
 	echo reply

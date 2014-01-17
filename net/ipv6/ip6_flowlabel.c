@@ -588,8 +588,15 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 
 	case IPV6_FL_A_GET:
 		if (freq.flr_flags & IPV6_FL_F_REFLECT) {
+			struct net *net = sock_net(sk);
+			if (net->ipv6.sysctl.flowlabel_consistency) {
+				net_info_ratelimited("Can not set IPV6_FL_F_REFLECT if flowlabel_consistency sysctl is enable\n");
+				return -EPERM;
+			}
+
 			if (sk->sk_protocol != IPPROTO_TCP)
 				return -ENOPROTOOPT;
+
 			np->repflow = 1;
 			return 0;
 		}
