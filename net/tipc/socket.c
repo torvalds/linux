@@ -1438,6 +1438,28 @@ static void wakeupdispatch(struct tipc_port *tport)
 	sk->sk_write_space(sk);
 }
 
+static int tipc_wait_for_connect(struct socket *sock, long *timeo_p)
+{
+	struct sock *sk = sock->sk;
+	DEFINE_WAIT(wait);
+	int done;
+
+	do {
+		int err = sock_error(sk);
+		if (err)
+			return err;
+		if (!*timeo_p)
+			return -ETIMEDOUT;
+		if (signal_pending(current))
+			return sock_intr_errno(*timeo_p);
+
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+		done = sk_wait_event(sk, timeo_p, sock->state != SS_CONNECTING);
+		finish_wait(sk_sleep(sk), &wait);
+	} while (!done);
+	return 0;
+}
+
 /**
  * connect - establish a connection to another TIPC port
  * @sock: socket structure
@@ -1453,7 +1475,8 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	struct sock *sk = sock->sk;
 	struct sockaddr_tipc *dst = (struct sockaddr_tipc *)dest;
 	struct msghdr m = {NULL,};
-	unsigned int timeout;
+	long timeout = (flags & O_NONBLOCK) ? 0 : tipc_sk(sk)->conn_timeout;
+	socket_state previous;
 	int res;
 
 	lock_sock(sk);
@@ -1475,8 +1498,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 		goto exit;
 	}
 
-	timeout = (flags & O_NONBLOCK) ? 0 : tipc_sk(sk)->conn_timeout;
-
+	previous = sock->state;
 	switch (sock->state) {
 	case SS_UNCONNECTED:
 		/* Send a 'SYN-' to destination */
@@ -1498,41 +1520,22 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 		 * case is EINPROGRESS, rather than EALREADY.
 		 */
 		res = -EINPROGRESS;
-		break;
 	case SS_CONNECTING:
-		res = -EALREADY;
+		if (previous == SS_CONNECTING)
+			res = -EALREADY;
+		if (!timeout)
+			goto exit;
+		timeout = msecs_to_jiffies(timeout);
+		/* Wait until an 'ACK' or 'RST' arrives, or a timeout occurs */
+		res = tipc_wait_for_connect(sock, &timeout);
 		break;
 	case SS_CONNECTED:
 		res = -EISCONN;
 		break;
 	default:
 		res = -EINVAL;
-		goto exit;
+		break;
 	}
-
-	if (sock->state == SS_CONNECTING) {
-		if (!timeout)
-			goto exit;
-
-		/* Wait until an 'ACK' or 'RST' arrives, or a timeout occurs */
-		release_sock(sk);
-		res = wait_event_interruptible_timeout(*sk_sleep(sk),
-				sock->state != SS_CONNECTING,
-				timeout ? (long)msecs_to_jiffies(timeout)
-					: MAX_SCHEDULE_TIMEOUT);
-		if (res <= 0) {
-			if (res == 0)
-				res = -ETIMEDOUT;
-			return res;
-		}
-		lock_sock(sk);
-	}
-
-	if (unlikely(sock->state == SS_DISCONNECTING))
-		res = sock_error(sk);
-	else
-		res = 0;
-
 exit:
 	release_sock(sk);
 	return res;
