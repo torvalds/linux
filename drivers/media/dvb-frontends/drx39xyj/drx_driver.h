@@ -1021,8 +1021,6 @@ STRUCTS
 struct drxu_code_info {
 	u8 *mc_data;
 	     /**< Pointer to microcode image. */
-	u16 mc_size;
-	     /**< Microcode image size.       */
 };
 
 /**
@@ -1932,7 +1930,6 @@ struct drx_reg_dump {
 	struct drx_common_attr {
 		/* Microcode (firmware) attributes */
 		u8 *microcode;   /**< Pointer to microcode image.           */
-		u16 microcode_size;
 				   /**< Size of microcode image in bytes.     */
 		bool verify_microcode;
 				   /**< Use microcode verify or not.          */
@@ -2351,7 +2348,6 @@ Access macros
 #define DRX_ATTR_CACHESTANDARD(d)   ((d)->my_common_attr->di_cache_standard)
 #define DRX_ATTR_CURRENTCHANNEL(d)  ((d)->my_common_attr->current_channel)
 #define DRX_ATTR_MICROCODE(d)       ((d)->my_common_attr->microcode)
-#define DRX_ATTR_MICROCODESIZE(d)   ((d)->my_common_attr->microcode_size)
 #define DRX_ATTR_VERIFYMICROCODE(d) ((d)->my_common_attr->verify_microcode)
 #define DRX_ATTR_CAPABILITIES(d)    ((d)->my_common_attr->capabilities)
 #define DRX_ATTR_PRODUCTID(d)       ((d)->my_common_attr->product_id)

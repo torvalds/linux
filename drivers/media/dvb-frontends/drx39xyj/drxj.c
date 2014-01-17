@@ -876,7 +876,6 @@ struct i2c_device_addr drxj_default_addr_g = {
 */
 struct drx_common_attr drxj_default_comm_attr_g = {
 	(u8 *)NULL,		/* ucode ptr            */
-	0,			/* ucode size           */
 	true,			/* ucode verify switch  */
 	{0},			/* version record       */
 
@@ -12171,7 +12170,6 @@ trouble ?
 	/* Check if audio microcode is already uploaded */
 	if (!(ext_attr->flag_aud_mc_uploaded)) {
 		ucode_info.mc_data = common_attr->microcode;
-		ucode_info.mc_size = common_attr->microcode_size;
 
 		/* Upload only audio microcode */
 		rc = ctrl_u_code_upload(demod, &ucode_info, UCODE_UPLOAD, true);
@@ -18831,8 +18829,8 @@ bool is_mc_block_audio(u32 addr)
 */
 static int
 ctrl_u_code_upload(struct drx_demod_instance *demod,
-		  struct drxu_code_info *mc_info,
-		enum drxu_code_actionaction, bool upload_audio_mc)
+		   struct drxu_code_info *mc_info,
+		   enum drxu_code_actionaction, bool upload_audio_mc)
 {
 	u16 i = 0;
 	u16 mc_nr_of_blks = 0;
@@ -18846,8 +18844,7 @@ ctrl_u_code_upload(struct drx_demod_instance *demod,
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 
 	/* Check arguments */
-	if ((mc_info == NULL) ||
-	    (mc_info->mc_data == NULL) || (mc_info->mc_size == 0)) {
+	if (!mc_info || !mc_info->mc_data) {
 		return -EINVAL;
 	}
 
@@ -20147,7 +20144,6 @@ int drxj_open(struct drx_demod_instance *demod)
 		   pretend device is already open */
 		common_attr->is_opened = true;
 		ucode_info.mc_data = common_attr->microcode;
-		ucode_info.mc_size = common_attr->microcode_size;
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 		/* Upload microcode without audio part */
