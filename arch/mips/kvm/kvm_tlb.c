@@ -145,30 +145,6 @@ void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 	}
 }
 
-void kvm_mips_dump_shadow_tlbs(struct kvm_vcpu *vcpu)
-{
-	int i;
-	volatile struct kvm_mips_tlb tlb;
-
-	printk("Shadow TLBs:\n");
-	for (i = 0; i < KVM_MIPS_GUEST_TLB_SIZE; i++) {
-		tlb = vcpu->arch.shadow_tlb[smp_processor_id()][i];
-		printk("TLB%c%3d Hi 0x%08lx ",
-		       (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
-		       i, tlb.tlb_hi);
-		printk("Lo0=0x%09" PRIx64 " %c%c attr %lx ",
-		       (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
-		       (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
-		       (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
-		       (tlb.tlb_lo0 >> 3) & 7);
-		printk("Lo1=0x%09" PRIx64 " %c%c attr %lx sz=%lx\n",
-		       (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
-		       (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
-		       (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
-		       (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
-	}
-}
-
 static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
 {
 	int srcu_idx, err = 0;
@@ -655,70 +631,6 @@ kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
 	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
 }
 
-void kvm_shadow_tlb_put(struct kvm_vcpu *vcpu)
-{
-	unsigned long flags;
-	unsigned long old_entryhi;
-	unsigned long old_pagemask;
-	int entry = 0;
-	int cpu = smp_processor_id();
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-	old_pagemask = read_c0_pagemask();
-
-	for (entry = 0; entry < current_cpu_data.tlbsize; entry++) {
-		write_c0_index(entry);
-		mtc0_tlbw_hazard();
-		tlb_read();
-		tlbw_use_hazard();
-
-		vcpu->arch.shadow_tlb[cpu][entry].tlb_hi = read_c0_entryhi();
-		vcpu->arch.shadow_tlb[cpu][entry].tlb_lo0 = read_c0_entrylo0();
-		vcpu->arch.shadow_tlb[cpu][entry].tlb_lo1 = read_c0_entrylo1();
-		vcpu->arch.shadow_tlb[cpu][entry].tlb_mask = read_c0_pagemask();
-	}
-
-	write_c0_entryhi(old_entryhi);
-	write_c0_pagemask(old_pagemask);
-	mtc0_tlbw_hazard();
-
-	local_irq_restore(flags);
-
-}
-
-void kvm_shadow_tlb_load(struct kvm_vcpu *vcpu)
-{
-	unsigned long flags;
-	unsigned long old_ctx;
-	int entry;
-	int cpu = smp_processor_id();
-
-	local_irq_save(flags);
-
-	old_ctx = read_c0_entryhi();
-
-	for (entry = 0; entry < current_cpu_data.tlbsize; entry++) {
-		write_c0_entryhi(vcpu->arch.shadow_tlb[cpu][entry].tlb_hi);
-		mtc0_tlbw_hazard();
-		write_c0_entrylo0(vcpu->arch.shadow_tlb[cpu][entry].tlb_lo0);
-		write_c0_entrylo1(vcpu->arch.shadow_tlb[cpu][entry].tlb_lo1);
-
-		write_c0_index(entry);
-		mtc0_tlbw_hazard();
-
-		tlb_write_indexed();
-		tlbw_use_hazard();
-	}
-
-	tlbw_use_hazard();
-	write_c0_entryhi(old_ctx);
-	mtc0_tlbw_hazard();
-	local_irq_restore(flags);
-}
-
-
 void kvm_local_flush_tlb_all(void)
 {
 	unsigned long flags;
@@ -745,30 +657,6 @@ void kvm_local_flush_tlb_all(void)
 	mtc0_tlbw_hazard();
 
 	local_irq_restore(flags);
-}
-
-void kvm_mips_init_shadow_tlb(struct kvm_vcpu *vcpu)
-{
-	int cpu, entry;
-
-	for_each_possible_cpu(cpu) {
-		for (entry = 0; entry < current_cpu_data.tlbsize; entry++) {
-			vcpu->arch.shadow_tlb[cpu][entry].tlb_hi =
-			    UNIQUE_ENTRYHI(entry);
-			vcpu->arch.shadow_tlb[cpu][entry].tlb_lo0 = 0x0;
-			vcpu->arch.shadow_tlb[cpu][entry].tlb_lo1 = 0x0;
-			vcpu->arch.shadow_tlb[cpu][entry].tlb_mask =
-			    read_c0_pagemask();
-#ifdef DEBUG
-			kvm_debug
-			    ("shadow_tlb[%d][%d]: tlb_hi: %#lx, lo0: %#lx, lo1: %#lx\n",
-			     cpu, entry,
-			     vcpu->arch.shadow_tlb[cpu][entry].tlb_hi,
-			     vcpu->arch.shadow_tlb[cpu][entry].tlb_lo0,
-			     vcpu->arch.shadow_tlb[cpu][entry].tlb_lo1);
-#endif
-		}
-	}
 }
 
 /* Restore ASID once we are scheduled back after preemption */
@@ -807,14 +695,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		kvm_info("[%d->%d]KVM VCPU[%d] switch\n",
 			 vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
 	}
-
-	/* Only reload shadow host TLB if new ASIDs haven't been allocated */
-#if 0
-	if ((atomic_read(&kvm_mips_instance) > 1) && !newasid) {
-		kvm_mips_flush_host_tlb(0);
-		kvm_shadow_tlb_load(vcpu);
-	}
-#endif
 
 	if (!newasid) {
 		/* If we preempted while the guest was executing, then reload the pre-empted ASID */
@@ -860,12 +740,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.preempt_entryhi = read_c0_entryhi();
 	vcpu->arch.last_sched_cpu = cpu;
-
-#if 0
-	if ((atomic_read(&kvm_mips_instance) > 1)) {
-		kvm_shadow_tlb_put(vcpu);
-	}
-#endif
 
 	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
 	     ASID_VERSION_MASK)) {
@@ -928,10 +802,8 @@ uint32_t kvm_get_inst(uint32_t *opc, struct kvm_vcpu *vcpu)
 }
 
 EXPORT_SYMBOL(kvm_local_flush_tlb_all);
-EXPORT_SYMBOL(kvm_shadow_tlb_put);
 EXPORT_SYMBOL(kvm_mips_handle_mapped_seg_tlb_fault);
 EXPORT_SYMBOL(kvm_mips_handle_commpage_tlb_fault);
-EXPORT_SYMBOL(kvm_mips_init_shadow_tlb);
 EXPORT_SYMBOL(kvm_mips_dump_host_tlbs);
 EXPORT_SYMBOL(kvm_mips_handle_kseg0_tlb_fault);
 EXPORT_SYMBOL(kvm_mips_host_tlb_lookup);
@@ -939,8 +811,6 @@ EXPORT_SYMBOL(kvm_mips_flush_host_tlb);
 EXPORT_SYMBOL(kvm_mips_guest_tlb_lookup);
 EXPORT_SYMBOL(kvm_mips_host_tlb_inv);
 EXPORT_SYMBOL(kvm_mips_translate_guest_kseg0_to_hpa);
-EXPORT_SYMBOL(kvm_shadow_tlb_load);
-EXPORT_SYMBOL(kvm_mips_dump_shadow_tlbs);
 EXPORT_SYMBOL(kvm_mips_dump_guest_tlbs);
 EXPORT_SYMBOL(kvm_get_inst);
 EXPORT_SYMBOL(kvm_arch_vcpu_load);
