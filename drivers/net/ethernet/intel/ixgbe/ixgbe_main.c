@@ -8019,8 +8019,8 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Mailbox */
 	ixgbe_init_mbx_params_pf(hw);
 	memcpy(&hw->mbx.ops, ii->mbx_ops, sizeof(hw->mbx.ops));
-	ixgbe_enable_sriov(adapter);
 	pci_sriov_set_totalvfs(pdev, IXGBE_MAX_VFS_DRV_LIMIT);
+	ixgbe_enable_sriov(adapter);
 skip_sriov:
 
 #endif
