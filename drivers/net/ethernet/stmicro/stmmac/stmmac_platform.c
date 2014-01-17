@@ -26,7 +26,19 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/of_device.h>
 #include "stmmac.h"
+
+static const struct of_device_id stmmac_dt_ids[] = {
+	/* SoC specific glue layers should come before generic bindings */
+	{ .compatible = "st,spear600-gmac"},
+	{ .compatible = "snps,dwmac-3.610"},
+	{ .compatible = "snps,dwmac-3.70a"},
+	{ .compatible = "snps,dwmac-3.710"},
+	{ .compatible = "snps,dwmac"},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
 
 #ifdef CONFIG_OF
 static int stmmac_probe_config_dt(struct platform_device *pdev,
@@ -35,9 +47,31 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct stmmac_dma_cfg *dma_cfg;
+	const struct of_device_id *device;
 
 	if (!np)
 		return -ENODEV;
+
+	device = of_match_device(stmmac_dt_ids, &pdev->dev);
+	if (!device)
+		return -ENODEV;
+
+	if (device->data) {
+		const struct stmmac_of_data *data = device->data;
+		plat->has_gmac = data->has_gmac;
+		plat->enh_desc = data->enh_desc;
+		plat->tx_coe = data->tx_coe;
+		plat->rx_coe = data->rx_coe;
+		plat->bugged_jumbo = data->bugged_jumbo;
+		plat->pmt = data->pmt;
+		plat->riwt_off = data->riwt_off;
+		plat->fix_mac_speed = data->fix_mac_speed;
+		plat->bus_setup = data->bus_setup;
+		plat->setup = data->setup;
+		plat->free = data->free;
+		plat->init = data->init;
+		plat->exit = data->exit;
+	}
 
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);
@@ -258,16 +292,6 @@ static int stmmac_pltfr_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops,
 			stmmac_pltfr_suspend, stmmac_pltfr_resume);
-
-static const struct of_device_id stmmac_dt_ids[] = {
-	{ .compatible = "st,spear600-gmac"},
-	{ .compatible = "snps,dwmac-3.610"},
-	{ .compatible = "snps,dwmac-3.70a"},
-	{ .compatible = "snps,dwmac-3.710"},
-	{ .compatible = "snps,dwmac"},
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
 
 struct platform_driver stmmac_pltfr_driver = {
 	.probe = stmmac_pltfr_probe,
