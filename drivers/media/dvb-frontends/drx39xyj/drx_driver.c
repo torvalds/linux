@@ -117,7 +117,7 @@ GLOBAL VARIABLES
 STRUCTURES
 ------------------------------------------------------------------------------*/
 /** \brief  Structure of the microcode block headers */
-typedef struct {
+struct drxu_code_block_hdr {
 	u32 addr;
 		  /**<  Destination address of the data in this block */
 	u16 size;
@@ -129,8 +129,7 @@ typedef struct {
 			- bit[1]= compression on/off
 			- bit[15..2]=reserved */
 	u16 CRC;/**<  CRC value of the data block, only valid if CRC flag is
-			set. */
-} drxu_code_block_hdr_t, *pdrxu_code_block_hdr_t;
+			set. */};
 
 /*------------------------------------------------------------------------------
 FUNCTIONS
@@ -1015,7 +1014,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 		DRX_ATTR_MCRECORD(demod).mc_version = 0;
 		DRX_ATTR_MCRECORD(demod).mc_base_version = 0;
 		for (i = 0; i < mc_nr_of_blks; i++) {
-			drxu_code_block_hdr_t block_hdr;
+			struct drxu_code_block_hdr block_hdr;
 
 			/* Process block header */
 			block_hdr.addr = u_code_read32(mc_data);
@@ -1060,7 +1059,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 
 	/* Process microcode blocks */
 	for (i = 0; i < mc_nr_of_blks; i++) {
-		drxu_code_block_hdr_t block_hdr;
+		struct drxu_code_block_hdr block_hdr;
 		u16 mc_block_nr_bytes = 0;
 
 		/* Process block header */
