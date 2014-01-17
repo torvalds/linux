@@ -240,8 +240,8 @@ struct i40e_pf {
 #define I40E_FLAG_PROCESS_VFLR_EVENT           (u64)(1 << 18)
 #define I40E_FLAG_SRIOV_ENABLED                (u64)(1 << 19)
 #define I40E_FLAG_DCB_ENABLED                  (u64)(1 << 20)
-#define I40E_FLAG_FDIR_ENABLED                 (u64)(1 << 21)
-#define I40E_FLAG_FDIR_ATR_ENABLED             (u64)(1 << 22)
+#define I40E_FLAG_FD_SB_ENABLED                (u64)(1 << 21)
+#define I40E_FLAG_FD_ATR_ENABLED               (u64)(1 << 22)
 #define I40E_FLAG_PTP                          (u64)(1 << 25)
 #define I40E_FLAG_MFP_ENABLED                  (u64)(1 << 26)
 #ifdef CONFIG_I40E_VXLAN
