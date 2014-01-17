@@ -97,7 +97,7 @@ struct tc_action_ops {
 	int     (*walk)(struct sk_buff *, struct netlink_callback *, int, struct tc_action *);
 };
 
-struct tcf_common *tcf_hash_lookup(u32 index, struct tcf_hashinfo *hinfo);
+int tcf_hash_search(struct tc_action *a, u32 index);
 void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo);
 int tcf_hash_release(struct tcf_common *p, int bind,
 		     struct tcf_hashinfo *hinfo);

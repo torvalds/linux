@@ -140,12 +140,8 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_POLICE_TBF]);
 
 	if (parm->index) {
-		struct tcf_common *pc;
-
-		pc = tcf_hash_lookup(parm->index, hinfo);
-		if (pc != NULL) {
-			a->priv = pc;
-			police = to_police(pc);
+		if (tcf_hash_search(a, parm->index)) {
+			police = to_police(a->priv);
 			if (bind) {
 				police->tcf_bindcnt += 1;
 				police->tcf_refcnt += 1;
