@@ -288,6 +288,7 @@ struct ath10k_vif {
 
 	u8 fixed_rate;
 	u8 fixed_nss;
+	u8 force_sgi;
 };
 
 struct ath10k_vif_iter {

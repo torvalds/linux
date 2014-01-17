@@ -3909,7 +3909,8 @@ static bool ath10k_get_fixed_rate_nss(const struct cfg80211_bitrate_mask *mask,
 
 static int ath10k_set_fixed_rate_param(struct ath10k_vif *arvif,
 				       u8 fixed_rate,
-				       u8 fixed_nss)
+				       u8 fixed_nss,
+				       u8 force_sgi)
 {
 	struct ath10k *ar = arvif->ar;
 	u32 vdev_param;
@@ -3918,11 +3919,15 @@ static int ath10k_set_fixed_rate_param(struct ath10k_vif *arvif,
 	mutex_lock(&ar->conf_mutex);
 
 	if (arvif->fixed_rate == fixed_rate &&
-	    arvif->fixed_nss == fixed_nss)
+	    arvif->fixed_nss == fixed_nss &&
+	    arvif->force_sgi == force_sgi)
 		goto exit;
 
 	if (fixed_rate == WMI_FIXED_RATE_NONE)
 		ath10k_dbg(ATH10K_DBG_MAC, "mac disable fixed bitrate mask\n");
+
+	if (force_sgi)
+		ath10k_dbg(ATH10K_DBG_MAC, "mac force sgi\n");
 
 	vdev_param = ar->wmi.vdev_param->fixed_rate;
 	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
@@ -3949,6 +3954,19 @@ static int ath10k_set_fixed_rate_param(struct ath10k_vif *arvif,
 
 	arvif->fixed_nss = fixed_nss;
 
+	vdev_param = ar->wmi.vdev_param->sgi;
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
+					force_sgi);
+
+	if (ret) {
+		ath10k_warn("Could not set sgi param %d: %d\n",
+			    force_sgi, ret);
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	arvif->force_sgi = force_sgi;
+
 exit:
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
@@ -3963,6 +3981,11 @@ static int ath10k_set_bitrate_mask(struct ieee80211_hw *hw,
 	enum ieee80211_band band = ar->hw->conf.chandef.chan->band;
 	u8 fixed_rate = WMI_FIXED_RATE_NONE;
 	u8 fixed_nss = ar->num_rf_chains;
+	u8 force_sgi;
+
+	force_sgi = mask->control[band].gi;
+	if (force_sgi == NL80211_TXRATE_FORCE_LGI)
+		return -EINVAL;
 
 	if (!ath10k_default_bitrate_mask(ar, band, mask)) {
 		if (!ath10k_get_fixed_rate_nss(mask, band,
@@ -3971,7 +3994,13 @@ static int ath10k_set_bitrate_mask(struct ieee80211_hw *hw,
 			return -EINVAL;
 	}
 
-	return ath10k_set_fixed_rate_param(arvif, fixed_rate, fixed_nss);
+	if (fixed_rate == WMI_FIXED_RATE_NONE && force_sgi) {
+		ath10k_warn("Could not force SGI usage for default rate settings\n");
+		return -EINVAL;
+	}
+
+	return ath10k_set_fixed_rate_param(arvif, fixed_rate,
+					   fixed_nss, force_sgi);
 }
 
 static void ath10k_channel_switch_beacon(struct ieee80211_hw *hw,
