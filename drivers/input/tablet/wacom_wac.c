@@ -331,7 +331,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Enter report */
 	if ((data[1] & 0xfc) == 0xc0) {
-		if (features->quirks == WACOM_QUIRK_MULTI_INPUT)
+		if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
 			wacom->shared->stylus_in_proximity = true;
 
 		/* serial number of the tool */
@@ -436,7 +436,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
-		if (features->quirks == WACOM_QUIRK_MULTI_INPUT)
+		if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
 			wacom->shared->stylus_in_proximity = false;
 
 		/*
