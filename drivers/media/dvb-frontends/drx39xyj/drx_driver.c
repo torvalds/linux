@@ -373,7 +373,7 @@ scan_function_default(void *scan_context,
 
 	status = drx_ctrl(demod, DRX_CTRL_SET_CHANNEL, scan_channel);
 	if (status != DRX_STS_OK) {
-		return (status);
+		return status;
 	}
 
 	status = scan_wait_for_lock(demod, &is_locked);
@@ -688,7 +688,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 
 			if (next_status != DRX_STS_OK) {
 				common_attr->scan_active = false;
-				return (next_status);
+				return next_status;
 			}
 		}
 		if (status != DRX_STS_BUSY) {
@@ -702,7 +702,7 @@ static int ctrl_scan_next(struct drx_demod_instance *demod, u16 *scan_progress)
 		/* End of scan reached: call stop-scan, ignore any error */
 		ctrl_scan_stop(demod);
 		common_attr->scan_active = false;
-		return (DRX_STS_READY);
+		return DRX_STS_READY;
 	}
 
 	common_attr->scan_active = false;
@@ -958,7 +958,7 @@ static u16 u_code_compute_crc(u8 *block_data, u16 nr_words)
 		i++;
 		block_data += (sizeof(u16));
 	}
-	return ((u16) (crc_word >> 16));
+	return (u16)(crc_word >> 16);
 }
 
 /*============================================================================*/
@@ -1110,7 +1110,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 							   mc_data,
 							   0x0000) !=
 					    DRX_STS_OK) {
-						return (DRX_STS_ERROR);
+						return DRX_STS_ERROR;
 					}	/* if */
 				};
 				break;
@@ -1151,7 +1151,7 @@ ctrl_u_code(struct drx_demod_instance *demod,
 								  mc_dataBuffer,
 								  0x0000) !=
 						    DRX_STS_OK) {
-							return (DRX_STS_ERROR);
+							return DRX_STS_ERROR;
 						}
 
 						result =
@@ -1315,7 +1315,7 @@ int drx_open(struct drx_demod_instance *demod)
 	    (demod->my_ext_attr == NULL) ||
 	    (demod->my_i2c_dev_addr == NULL) ||
 	    (demod->my_common_attr->is_opened == true)) {
-		return (DRX_STS_INVALID_ARG);
+		return DRX_STS_INVALID_ARG;
 	}
 
 	status = (*(demod->my_demod_funct->open_func)) (demod);
@@ -1392,13 +1392,13 @@ drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 	    (demod->my_common_attr == NULL) ||
 	    (demod->my_ext_attr == NULL) || (demod->my_i2c_dev_addr == NULL)
 	    ) {
-		return (DRX_STS_INVALID_ARG);
+		return DRX_STS_INVALID_ARG;
 	}
 
 	if (((demod->my_common_attr->is_opened == false) &&
 	     (ctrl != DRX_CTRL_PROBE_DEVICE) && (ctrl != DRX_CTRL_VERSION))
 	    ) {
-		return (DRX_STS_INVALID_ARG);
+		return DRX_STS_INVALID_ARG;
 	}
 
 	if ((DRX_ISPOWERDOWNMODE(demod->my_common_attr->current_power_mode) &&
@@ -1498,7 +1498,7 @@ drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
 			return DRX_STS_FUNC_NOT_AVAILABLE;
 		}
 	} else {
-		return (status);
+		return status;
 	}
 
 	return DRX_STS_OK;

@@ -50,12 +50,12 @@ u32 drxbsp_hst_clock(void)
 
 int drxbsp_hst_memcmp(void *s1, void *s2, u32 n)
 {
-	return (memcmp(s1, s2, (size_t) n));
+	return memcmp(s1, s2, (size_t)n);
 }
 
 void *drxbsp_hst_memcpy(void *to, void *from, u32 n)
 {
-	return (memcpy(to, from, (size_t) n));
+	return memcpy(to, from, (size_t)n);
 }
 
 int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
