@@ -2704,8 +2704,15 @@ need_resched:
 
 	pre_schedule(rq, prev);
 
-	if (unlikely(!rq->nr_running))
-		idle_balance(rq);
+	if (unlikely(!rq->nr_running)) {
+		/*
+		 * We must set idle_stamp _before_ calling idle_balance(), such
+		 * that we measure the duration of idle_balance() as idle time.
+		 */
+		rq->idle_stamp = rq_clock(rq);
+		if (idle_balance(rq))
+			rq->idle_stamp = 0;
+	}
 
 	put_prev_task(rq, prev);
 	next = pick_next_task(rq);
