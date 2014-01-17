@@ -76,6 +76,7 @@ static inline int mips_sc_is_activated(struct cpuinfo_mips *c)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_1074K:
 	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
 	case CPU_BMIPS5000:

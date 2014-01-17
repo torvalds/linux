@@ -1113,9 +1113,10 @@ static void probe_pcache(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_1074K:
 	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
-		if (current_cpu_type() == CPU_74K)
+		if ((c->cputype == CPU_74K) || (c->cputype == CPU_1074K))
 			alias_74k_erratum(c);
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
 		    (c->icache.waysize > PAGE_SIZE))

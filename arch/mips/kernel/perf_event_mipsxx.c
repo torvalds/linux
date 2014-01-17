@@ -1442,6 +1442,7 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 #endif
 		break;
 	case CPU_74K:
+	case CPU_1074K:
 		if (IS_BOTH_COUNTERS_74K_EVENT(base_id))
 			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
 		else
@@ -1581,6 +1582,11 @@ init_hw_perf_events(void)
 		break;
 	case CPU_1004K:
 		mipspmu.name = "mips/1004K";
+		mipspmu.general_event_map = &mipsxxcore_event_map;
+		mipspmu.cache_event_map = &mipsxxcore_cache_map;
+		break;
+	case CPU_1074K:
+		mipspmu.name = "mips/1074K";
 		mipspmu.general_event_map = &mipsxxcore_event_map;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map;
 		break;
