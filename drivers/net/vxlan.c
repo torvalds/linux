@@ -2681,10 +2681,12 @@ static int vxlan_lowerdev_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
+	struct vxlan_net *vn;
 
-	if (event == NETDEV_UNREGISTER)
+	if (event == NETDEV_UNREGISTER) {
+		vn = net_generic(dev_net(dev), vxlan_net_id);
 		vxlan_handle_lowerdev_unregister(vn, dev);
+	}
 
 	return NOTIFY_DONE;
 }
