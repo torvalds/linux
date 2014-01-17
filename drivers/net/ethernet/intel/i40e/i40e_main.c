@@ -4704,12 +4704,8 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 		}
 	} while (err);
 
-	if (pf->hw.revision_id == 0 && (pf->flags & I40E_FLAG_MFP_ENABLED)) {
-		pf->hw.func_caps.num_msix_vectors += 1;
-		pf->hw.func_caps.num_tx_qp =
-			min_t(int, pf->hw.func_caps.num_tx_qp,
-			      I40E_MAX_NPAR_QPS);
-	}
+	/* increment MSI-X count because current FW skips one */
+	pf->hw.func_caps.num_msix_vectors++;
 
 	if (pf->hw.debug_mask & I40E_DEBUG_USER)
 		dev_info(&pf->pdev->dev,
