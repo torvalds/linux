@@ -1360,8 +1360,6 @@ typedef struct drm_i915_private {
 	drm_dma_handle_t *status_page_dmah;
 	struct resource mch_res;
 
-	atomic_t irq_received;
-
 	/* protects the irq masks */
 	spinlock_t irq_lock;
 
