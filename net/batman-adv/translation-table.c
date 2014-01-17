@@ -1382,7 +1382,8 @@ out:
 	return ret;
 }
 
-/* batadv_transtable_best_orig - Get best originator list entry from tt entry
+/**
+ * batadv_transtable_best_orig - Get best originator list entry from tt entry
  * @bat_priv: the bat priv with all the soft interface information
  * @tt_global_entry: global translation table entry to be analyzed
  *
@@ -1426,8 +1427,9 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 	return best_entry;
 }
 
-/* batadv_tt_global_print_entry - print all orig nodes who announce the address
- * for this global entry
+/**
+ * batadv_tt_global_print_entry - print all orig nodes who announce the address
+ *  for this global entry
  * @bat_priv: the bat priv with all the soft interface information
  * @tt_global_entry: global translation table entry to be printed
  * @seq: debugfs table seq_file struct
