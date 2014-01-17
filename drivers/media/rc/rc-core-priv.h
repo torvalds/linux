@@ -88,6 +88,12 @@ struct ir_raw_event_ctrl {
 		unsigned count;
 		u64 bits;
 	} sanyo;
+	struct sharp_dec {
+		int state;
+		unsigned count;
+		u32 bits;
+		unsigned int pulse_len;
+	} sharp;
 	struct mce_kbd_dec {
 		struct input_dev *idev;
 		struct timer_list rx_timeout;
