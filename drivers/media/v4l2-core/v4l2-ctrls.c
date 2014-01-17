@@ -1424,8 +1424,11 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 
 	if (ctrl == NULL)
 		return;
-	changed = !ctrl->type_ops->equal(ctrl, ctrl->p_cur, ctrl->p_new);
-	ptr_to_ptr(ctrl, ctrl->p_new, ctrl->p_cur);
+
+	/* has_changed is set by cluster_changed */
+	changed = ctrl->has_changed;
+	if (changed)
+		ptr_to_ptr(ctrl, ctrl->p_new, ctrl->p_cur);
 
 	if (ch_flags & V4L2_EVENT_CTRL_CH_FLAGS) {
 		/* Note: CH_FLAGS is only set for auto clusters. */
@@ -1462,17 +1465,19 @@ static void cur_to_new(struct v4l2_ctrl *ctrl)
    value that differs from the current value. */
 static int cluster_changed(struct v4l2_ctrl *master)
 {
-	int diff = 0;
+	bool changed = false;
 	int i;
 
-	for (i = 0; !diff && i < master->ncontrols; i++) {
+	for (i = 0; i < master->ncontrols; i++) {
 		struct v4l2_ctrl *ctrl = master->cluster[i];
 
 		if (ctrl == NULL)
 			continue;
-		diff = !ctrl->type_ops->equal(ctrl, ctrl->p_cur, ctrl->p_new);
+		ctrl->has_changed = !ctrl->type_ops->equal(ctrl,
+						ctrl->p_cur, ctrl->p_new);
+		changed |= ctrl->has_changed;
 	}
-	return diff;
+	return changed;
 }
 
 /* Control range checking */

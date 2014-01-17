@@ -96,6 +96,8 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
   * @is_new:	Set when the user specified a new value for this control. It
   *		is also set when called from v4l2_ctrl_handler_setup. Drivers
   *		should never set this flag.
+  * @has_changed: Set when the current value differs from the new value. Drivers
+  *		should never use this flag.
   * @is_private: If set, then this control is private to its handler and it
   *		will not be added to any other handlers. Drivers can set
   *		this flag.
@@ -158,6 +160,7 @@ struct v4l2_ctrl {
 	unsigned int done:1;
 
 	unsigned int is_new:1;
+	unsigned int has_changed:1;
 	unsigned int is_private:1;
 	unsigned int is_auto:1;
 	unsigned int is_int:1;
