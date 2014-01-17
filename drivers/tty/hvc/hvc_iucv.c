@@ -773,18 +773,37 @@ static int hvc_iucv_filter_connreq(u8 ipvmid[8])
 static	int hvc_iucv_path_pending(struct iucv_path *path,
 				  u8 ipvmid[8], u8 ipuser[16])
 {
-	struct hvc_iucv_private *priv;
+	struct hvc_iucv_private *priv, *tmp;
+	u8 wildcard[9] = "lnxhvc  ";
+	int i, rc, find_unused;
 	u8 nuser_data[16];
 	u8 vm_user_id[9];
-	int i, rc;
 
+	ASCEBC(wildcard, sizeof(wildcard));
+	find_unused = !memcmp(wildcard, ipuser, 8);
+
+	/* First, check if the pending path request is managed by this
+	 * IUCV handler:
+	 * - find a disconnected device if ipuser contains the wildcard
+	 * - find the device that matches the terminal ID in ipuser
+	 */
 	priv = NULL;
-	for (i = 0; i < hvc_iucv_devices; i++)
-		if (hvc_iucv_table[i] &&
-		    (0 == memcmp(hvc_iucv_table[i]->srv_name, ipuser, 8))) {
-			priv = hvc_iucv_table[i];
+	for (i = 0; i < hvc_iucv_devices; i++) {
+		tmp = hvc_iucv_table[i];
+		if (!tmp)
+			continue;
+
+		if (find_unused) {
+			spin_lock(&tmp->lock);
+			if (tmp->iucv_state == IUCV_DISCONN)
+				priv = tmp;
+			spin_unlock(&tmp->lock);
+
+		} else if (!memcmp(tmp->srv_name, ipuser, 8))
+				priv = tmp;
+		if (priv)
 			break;
-		}
+	}
 	if (!priv)
 		return -ENODEV;
 
