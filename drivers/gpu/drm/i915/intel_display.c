@@ -1747,14 +1747,12 @@ static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 /**
  * intel_enable_pipe - enable a pipe, asserting requirements
  * @crtc: crtc responsible for the pipe
- * @dsi: output type is DSI
  * @wait_for_vblank: whether we should for a vblank or not after enabling it
  *
  * Enable @crtc's pipe, making sure that various hardware specific requirements
  * are met, if applicable, e.g. PLL enabled, LVDS pairs enabled, etc.
  */
-static void intel_enable_pipe(struct intel_crtc *crtc,
-			      bool dsi, bool wait_for_vblank)
+static void intel_enable_pipe(struct intel_crtc *crtc, bool wait_for_vblank)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1780,7 +1778,7 @@ static void intel_enable_pipe(struct intel_crtc *crtc,
 	 * need the check.
 	 */
 	if (!HAS_PCH_SPLIT(dev_priv->dev))
-		if (dsi)
+		if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DSI))
 			assert_dsi_pll_enabled(dev_priv);
 		else
 			assert_pll_enabled(dev_priv, pipe);
@@ -3598,7 +3596,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_load_lut(crtc);
 
 	intel_update_watermarks(crtc);
-	intel_enable_pipe(intel_crtc, false, true);
+	intel_enable_pipe(intel_crtc, true);
 	intel_enable_primary_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
@@ -3743,7 +3741,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_ddi_enable_transcoder_func(crtc);
 
 	intel_update_watermarks(crtc);
-	intel_enable_pipe(intel_crtc, false, false);
+	intel_enable_pipe(intel_crtc, false);
 
 	if (intel_crtc->config.has_pch_encoder)
 		lpt_pch_enable(crtc);
@@ -4168,7 +4166,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_load_lut(crtc);
 
 	intel_update_watermarks(crtc);
-	intel_enable_pipe(intel_crtc, is_dsi, true);
+	intel_enable_pipe(intel_crtc, true);
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
 	intel_enable_primary_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
@@ -4207,7 +4205,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_load_lut(crtc);
 
 	intel_update_watermarks(crtc);
-	intel_enable_pipe(intel_crtc, false, true);
+	intel_enable_pipe(intel_crtc, true);
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
 	intel_enable_primary_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
