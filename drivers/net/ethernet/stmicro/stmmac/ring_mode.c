@@ -53,6 +53,7 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum,
 						STMMAC_RING_MODE);
 		wmb();
+		priv->tx_skbuff[entry] = NULL;
 		entry = (++priv->cur_tx) % txsize;
 		desc = priv->dma_tx + entry;
 
@@ -64,7 +65,6 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 						STMMAC_RING_MODE);
 		wmb();
 		priv->hw->desc->set_tx_owner(desc);
-		priv->tx_skbuff[entry] = NULL;
 	} else {
 		desc->des2 = dma_map_single(priv->device, skb->data,
 					    nopaged_len, DMA_TO_DEVICE);

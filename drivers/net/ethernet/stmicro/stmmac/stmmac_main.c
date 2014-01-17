@@ -360,7 +360,7 @@ static void stmmac_get_tx_hwtstamp(struct stmmac_priv *priv,
 		return;
 
 	/* exit if skb doesn't support hw tstamp */
-	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)))
+	if (likely(!skb || !(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)))
 		return;
 
 	if (priv->adv_ts)
@@ -1135,21 +1135,24 @@ static void dma_free_tx_skbufs(struct stmmac_priv *priv)
 	int i;
 
 	for (i = 0; i < priv->dma_tx_size; i++) {
-		if (priv->tx_skbuff[i] != NULL) {
-			struct dma_desc *p;
-			if (priv->extend_desc)
-				p = &((priv->dma_etx + i)->basic);
-			else
-				p = priv->dma_tx + i;
+		struct dma_desc *p;
 
-			if (priv->tx_skbuff_dma[i])
-				dma_unmap_single(priv->device,
-						 priv->tx_skbuff_dma[i],
-						 priv->hw->desc->get_tx_len(p),
-						 DMA_TO_DEVICE);
+		if (priv->extend_desc)
+			p = &((priv->dma_etx + i)->basic);
+		else
+			p = priv->dma_tx + i;
+
+		if (priv->tx_skbuff_dma[i]) {
+			dma_unmap_single(priv->device,
+					 priv->tx_skbuff_dma[i],
+					 priv->hw->desc->get_tx_len(p),
+					 DMA_TO_DEVICE);
+			priv->tx_skbuff_dma[i] = 0;
+		}
+
+		if (priv->tx_skbuff[i] != NULL) {
 			dev_kfree_skb_any(priv->tx_skbuff[i]);
 			priv->tx_skbuff[i] = NULL;
-			priv->tx_skbuff_dma[i] = 0;
 		}
 	}
 }
@@ -1827,8 +1830,6 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			 "\t\tn_frags: %d, ip_summed: %d\n",
 			 skb->len, nopaged_len, nfrags, skb->ip_summed);
 #endif
-	priv->tx_skbuff[entry] = skb;
-
 	/* To program the descriptors according to the size of the frame */
 	if (priv->mode == STMMAC_RING_MODE) {
 		is_jumbo = priv->hw->ring->is_jumbo_frm(skb->len,
@@ -1856,6 +1857,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		int len = skb_frag_size(frag);
 
+		priv->tx_skbuff[entry] = NULL;
 		entry = (++priv->cur_tx) % txsize;
 		if (priv->extend_desc)
 			desc = (struct dma_desc *)(priv->dma_etx + entry);
@@ -1866,13 +1868,14 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		desc->des2 = skb_frag_dma_map(priv->device, frag, 0, len,
 					      DMA_TO_DEVICE);
 		priv->tx_skbuff_dma[entry] = desc->des2;
-		priv->tx_skbuff[entry] = NULL;
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum_insertion,
 						priv->mode);
 		wmb();
 		priv->hw->desc->set_tx_owner(desc);
 		wmb();
 	}
+
+	priv->tx_skbuff[entry] = skb;
 
 	/* Finalize the latest segment. */
 	priv->hw->desc->close_tx_desc(desc);
