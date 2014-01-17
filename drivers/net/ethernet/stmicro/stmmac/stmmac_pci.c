@@ -100,9 +100,9 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	stmmac_default_data();
 
 	priv = stmmac_dvr_probe(&(pdev->dev), &plat_dat, addr);
-	if (!priv) {
+	if (IS_ERR(priv)) {
 		pr_err("%s: main driver probe failed", __func__);
-		ret = -ENODEV;
+		ret = PTR_ERR(priv);
 		goto err_out;
 	}
 	priv->dev->irq = pdev->irq;

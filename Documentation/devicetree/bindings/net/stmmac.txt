@@ -30,6 +30,9 @@ Required properties:
 
 Optional properties:
 - mac-address: 6 bytes, mac address
+- resets: Should contain a phandle to the STMMAC reset signal, if any
+- reset-names: Should contain the reset signal name "stmmaceth", if a
+	reset phandle is given
 
 Examples:
 

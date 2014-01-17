@@ -5,6 +5,7 @@ config STMMAC_ETH
 	select PHYLIB
 	select CRC32
 	select PTP_1588_CLOCK
+	select RESET_CONTROLLER
 	---help---
 	  This is the driver for the Ethernet IPs are built around a
 	  Synopsys IP Core and only tested on the STMicroelectronics
