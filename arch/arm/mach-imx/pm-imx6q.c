@@ -109,6 +109,18 @@ static const u32 imx6q_mmdc_io_offset[] __initconst = {
 	0x74c,			    /* GPR_ADDS */
 };
 
+static const u32 imx6dl_mmdc_io_offset[] __initconst = {
+	0x470, 0x474, 0x478, 0x47c, /* DQM0 ~ DQM3 */
+	0x480, 0x484, 0x488, 0x48c, /* DQM4 ~ DQM7 */
+	0x464, 0x490, 0x4ac, 0x4b0, /* CAS, RAS, SDCLK_0, SDCLK_1 */
+	0x4bc, 0x4c0, 0x4c4, 0x4c8, /* DRAM_SDQS0 ~ DRAM_SDQS3 */
+	0x4cc, 0x4d0, 0x4d4, 0x4d8, /* DRAM_SDQS4 ~ DRAM_SDQS7 */
+	0x764, 0x770, 0x778, 0x77c, /* GPR_B0DS ~ GPR_B3DS */
+	0x780, 0x784, 0x78c, 0x748, /* GPR_B4DS ~ GPR_B7DS */
+	0x4b4, 0x4b8, 0x750, 0x760, /* SODT0, SODT1, MODE_CTL, MODE */
+	0x74c,			    /* GPR_ADDS */
+};
+
 static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
 	.cpu_type = MXC_CPU_IMX6Q,
 	.mmdc_compat = "fsl,imx6q-mmdc",
@@ -117,6 +129,16 @@ static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
 	.gpc_compat = "fsl,imx6q-gpc",
 	.mmdc_io_num = ARRAY_SIZE(imx6q_mmdc_io_offset),
 	.mmdc_io_offset = imx6q_mmdc_io_offset,
+};
+
+static const struct imx6_pm_socdata imx6dl_pm_data __initconst = {
+	.cpu_type = MXC_CPU_IMX6DL,
+	.mmdc_compat = "fsl,imx6q-mmdc",
+	.src_compat = "fsl,imx6q-src",
+	.iomuxc_compat = "fsl,imx6dl-iomuxc",
+	.gpc_compat = "fsl,imx6q-gpc",
+	.mmdc_io_num = ARRAY_SIZE(imx6dl_mmdc_io_offset),
+	.mmdc_io_offset = imx6dl_mmdc_io_offset,
 };
 
 /*
@@ -503,7 +525,7 @@ void __init imx6q_pm_init(void)
 
 void __init imx6dl_pm_init(void)
 {
-	imx6_pm_common_init(NULL);
+	imx6_pm_common_init(&imx6dl_pm_data);
 }
 
 void __init imx6sl_pm_init(void)
