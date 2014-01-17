@@ -1550,6 +1550,8 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 	}
 
 	mutex_unlock(&conn->chan_lock);
+
+	queue_work(hcon->hdev->workqueue, &conn->pending_rx_work);
 }
 
 /* Notify sockets that we cannot guaranty reliability anymore */
@@ -1674,6 +1676,9 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	BT_DBG("hcon %p conn %p, err %d", hcon, conn, err);
 
 	kfree_skb(conn->rx_skb);
+
+	skb_queue_purge(&conn->pending_rx);
+	flush_work(&conn->pending_rx_work);
 
 	l2cap_unregister_all_users(conn);
 
@@ -6880,8 +6885,15 @@ drop:
 static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct l2cap_hdr *lh = (void *) skb->data;
+	struct hci_conn *hcon = conn->hcon;
 	u16 cid, len;
 	__le16 psm;
+
+	if (hcon->state != BT_CONNECTED) {
+		BT_DBG("queueing pending rx skb");
+		skb_queue_tail(&conn->pending_rx, skb);
+		return;
+	}
 
 	skb_pull(skb, L2CAP_HDR_SIZE);
 	cid = __le16_to_cpu(lh->cid);
@@ -6926,6 +6938,18 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 		l2cap_data_channel(conn, cid, skb);
 		break;
 	}
+}
+
+static void process_pending_rx(struct work_struct *work)
+{
+	struct l2cap_conn *conn = container_of(work, struct l2cap_conn,
+					       pending_rx_work);
+	struct sk_buff *skb;
+
+	BT_DBG("");
+
+	while ((skb = skb_dequeue(&conn->pending_rx)))
+		l2cap_recv_frame(conn, skb);
 }
 
 static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
@@ -6982,6 +7006,9 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 		INIT_DELAYED_WORK(&conn->security_timer, security_timeout);
 	else
 		INIT_DELAYED_WORK(&conn->info_timer, l2cap_info_timeout);
+
+	skb_queue_head_init(&conn->pending_rx);
+	INIT_WORK(&conn->pending_rx_work, process_pending_rx);
 
 	conn->disc_reason = HCI_ERROR_REMOTE_USER_TERM;
 

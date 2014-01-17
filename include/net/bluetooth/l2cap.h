@@ -624,6 +624,9 @@ struct l2cap_conn {
 	__u32			rx_len;
 	__u8			tx_ident;
 
+	struct sk_buff_head	pending_rx;
+	struct work_struct	pending_rx_work;
+
 	__u8			disc_reason;
 
 	struct delayed_work	security_timer;
