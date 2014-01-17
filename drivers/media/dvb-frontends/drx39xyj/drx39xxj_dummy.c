@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -99,11 +101,11 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 	}
 
 	if (state->i2c == NULL) {
-		printk("i2c was zero, aborting\n");
+		pr_err("i2c was zero, aborting\n");
 		return 0;
 	}
 	if (i2c_transfer(state->i2c, msg, num_msgs) != num_msgs) {
-		printk(KERN_WARNING "drx3933: I2C write/read failed\n");
+		pr_warn("drx3933: I2C write/read failed\n");
 		return -EREMOTEIO;
 	}
 
@@ -119,11 +121,11 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 		 .flags = I2C_M_RD, .buf = r_data, .len = r_count},
 	};
 
-	printk("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
+	pr_dbg("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
 	       w_dev_addr->i2c_addr, state->i2c, w_count, r_count);
 
 	if (i2c_transfer(state->i2c, msg, 2) != 2) {
-		printk(KERN_WARNING "drx3933: I2C write/read failed\n");
+		pr_warn("drx3933: I2C write/read failed\n");
 		return -EREMOTEIO;
 	}
 #endif
