@@ -324,8 +324,9 @@ const struct dentry_operations kernfs_dops = {
 	.d_release	= kernfs_dop_release,
 };
 
-struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
-				    umode_t mode, unsigned flags)
+static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
+					     const char *name, umode_t mode,
+					     unsigned flags)
 {
 	char *dup_name = NULL;
 	struct kernfs_node *kn;
@@ -362,6 +363,20 @@ struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
 	return NULL;
 }
 
+struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
+				    const char *name, umode_t mode,
+				    unsigned flags)
+{
+	struct kernfs_node *kn;
+
+	kn = __kernfs_new_node(kernfs_root(parent), name, mode, flags);
+	if (kn) {
+		kernfs_get(parent);
+		kn->parent = parent;
+	}
+	return kn;
+}
+
 /**
  *	kernfs_addrm_start - prepare for kernfs_node add/remove
  *	@acxt: pointer to kernfs_addrm_cxt to be used
@@ -386,11 +401,10 @@ void kernfs_addrm_start(struct kernfs_addrm_cxt *acxt)
  *	kernfs_add_one - add kernfs_node to parent without warning
  *	@acxt: addrm context to use
  *	@kn: kernfs_node to be added
- *	@parent: the parent kernfs_node to add @kn to
  *
- *	Get @parent and set @kn->parent to it and increment nlink of the
- *	parent inode if @kn is a directory and link into the children list
- *	of the parent.
+ *	The caller must already have initialized @kn->parent.  This
+ *	function increments nlink of the parent's inode if @kn is a
+ *	directory and link into the children list of the parent.
  *
  *	This function should be called between calls to
  *	kernfs_addrm_start() and kernfs_addrm_finish() and should be passed
@@ -403,9 +417,9 @@ void kernfs_addrm_start(struct kernfs_addrm_cxt *acxt)
  *	0 on success, -EEXIST if entry with the given name already
  *	exists.
  */
-int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
-		  struct kernfs_node *parent)
+int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn)
 {
+	struct kernfs_node *parent = kn->parent;
 	bool has_ns = kernfs_ns_enabled(parent);
 	struct kernfs_iattrs *ps_iattr;
 	int ret;
@@ -423,8 +437,6 @@ int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
 		return -ENOENT;
 
 	kn->hash = kernfs_name_hash(kn->name, kn->ns);
-	kn->parent = parent;
-	kernfs_get(parent);
 
 	ret = kernfs_link_sibling(kn);
 	if (ret)
@@ -600,7 +612,8 @@ struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
 
 	ida_init(&root->ino_ida);
 
-	kn = kernfs_new_node(root, "", S_IFDIR | S_IRUGO | S_IXUGO, KERNFS_DIR);
+	kn = __kernfs_new_node(root, "", S_IFDIR | S_IRUGO | S_IXUGO,
+			       KERNFS_DIR);
 	if (!kn) {
 		ida_destroy(&root->ino_ida);
 		kfree(root);
@@ -648,8 +661,7 @@ struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 	int rc;
 
 	/* allocate */
-	kn = kernfs_new_node(kernfs_root(parent), name, mode | S_IFDIR,
-			     KERNFS_DIR);
+	kn = kernfs_new_node(parent, name, mode | S_IFDIR, KERNFS_DIR);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -659,7 +671,7 @@ struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 
 	/* link in */
 	kernfs_addrm_start(&acxt);
-	rc = kernfs_add_one(&acxt, kn, parent);
+	rc = kernfs_add_one(&acxt, kn);
 	kernfs_addrm_finish(&acxt);
 
 	if (!rc)

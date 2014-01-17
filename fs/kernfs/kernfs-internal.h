@@ -101,11 +101,11 @@ extern const struct inode_operations kernfs_dir_iops;
 struct kernfs_node *kernfs_get_active(struct kernfs_node *kn);
 void kernfs_put_active(struct kernfs_node *kn);
 void kernfs_addrm_start(struct kernfs_addrm_cxt *acxt);
-int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
-		   struct kernfs_node *parent);
+int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn);
 void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt);
-struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
-				    umode_t mode, unsigned flags);
+struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
+				    const char *name, umode_t mode,
+				    unsigned flags);
 
 /*
  * file.c

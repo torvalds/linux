@@ -30,8 +30,7 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	struct kernfs_addrm_cxt acxt;
 	int error;
 
-	kn = kernfs_new_node(kernfs_root(parent), name, S_IFLNK|S_IRWXUGO,
-			     KERNFS_LINK);
+	kn = kernfs_new_node(parent, name, S_IFLNK|S_IRWXUGO, KERNFS_LINK);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -41,7 +40,7 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	kernfs_get(target);	/* ref owned by symlink */
 
 	kernfs_addrm_start(&acxt);
-	error = kernfs_add_one(&acxt, kn, parent);
+	error = kernfs_add_one(&acxt, kn);
 	kernfs_addrm_finish(&acxt);
 
 	if (!error)

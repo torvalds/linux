@@ -829,8 +829,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 	if (name_is_static)
 		flags |= KERNFS_STATIC_NAME;
 
-	kn = kernfs_new_node(kernfs_root(parent), name,
-			     (mode & S_IALLUGO) | S_IFREG, flags);
+	kn = kernfs_new_node(parent, name, (mode & S_IALLUGO) | S_IFREG, flags);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -857,7 +856,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 		kn->flags |= KERNFS_HAS_MMAP;
 
 	kernfs_addrm_start(&acxt);
-	rc = kernfs_add_one(&acxt, kn, parent);
+	rc = kernfs_add_one(&acxt, kn);
 	kernfs_addrm_finish(&acxt);
 
 	if (rc) {
