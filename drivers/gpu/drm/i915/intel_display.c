@@ -1793,8 +1793,11 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
-	if (val & PIPECONF_ENABLE)
+	if (val & PIPECONF_ENABLE) {
+		WARN_ON(!(pipe == PIPE_A &&
+			  dev_priv->quirks & QUIRK_PIPEA_FORCE));
 		return;
+	}
 
 	I915_WRITE(reg, val | PIPECONF_ENABLE);
 	POSTING_READ(reg);
