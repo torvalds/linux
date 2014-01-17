@@ -396,10 +396,6 @@ static int davinci_spi_setup(struct spi_device *spi)
 	dspi = spi_master_get_devdata(spi->master);
 	pdata = &dspi->pdata;
 
-	/* if bits per word length is zero then set it default 8 */
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	if (!(spi->mode & SPI_NO_CS)) {
 		if ((pdata->chip_sel == NULL) ||
 		    (pdata->chip_sel[spi->chip_select] == SPI_INTERN_CS))

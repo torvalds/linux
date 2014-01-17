@@ -373,9 +373,6 @@ static int dspi_setup(struct spi_device *spi)
 	if (!spi->max_speed_hz)
 		return -EINVAL;
 
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	return dspi_setup_transfer(spi, NULL);
 }
 

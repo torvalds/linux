@@ -254,9 +254,6 @@ error:
 
 static int sc18is602_setup(struct spi_device *spi)
 {
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	if (spi->mode & ~(SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST))
 		return -EINVAL;
 
