@@ -616,7 +616,7 @@ static int dsps_probe(struct platform_device *pdev)
 	wrp = match->data;
 
 	/* allocate glue */
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&pdev->dev, "unable to allocate glue memory\n");
 		return -ENOMEM;
@@ -644,7 +644,6 @@ err3:
 	pm_runtime_put(&pdev->dev);
 err2:
 	pm_runtime_disable(&pdev->dev);
-	kfree(glue);
 	return ret;
 }
 
@@ -657,7 +656,6 @@ static int dsps_remove(struct platform_device *pdev)
 	/* disable usbss clocks */
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	kfree(glue);
 	return 0;
 }
 
