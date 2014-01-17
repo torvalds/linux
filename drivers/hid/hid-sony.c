@@ -33,11 +33,11 @@
 
 #include "hid-ids.h"
 
-#define VAIO_RDESC_CONSTANT     BIT(0)
-#define SIXAXIS_CONTROLLER_USB  BIT(1)
-#define SIXAXIS_CONTROLLER_BT   BIT(2)
-#define BUZZ_CONTROLLER         BIT(3)
-#define PS3REMOTE		BIT(4)
+#define VAIO_RDESC_CONSTANT       BIT(0)
+#define SIXAXIS_CONTROLLER_USB    BIT(1)
+#define SIXAXIS_CONTROLLER_BT     BIT(2)
+#define BUZZ_CONTROLLER           BIT(3)
+#define PS3REMOTE                 BIT(4)
 #define DUALSHOCK4_CONTROLLER_USB BIT(5)
 #define DUALSHOCK4_CONTROLLER_BT  BIT(6)
 
