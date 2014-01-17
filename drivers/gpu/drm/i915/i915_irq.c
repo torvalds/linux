@@ -3613,7 +3613,6 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	u32 iir, new_iir;
 	u32 pipe_stats[I915_MAX_PIPES];
 	unsigned long irqflags;
-	int irq_received;
 	int ret = IRQ_NONE, pipe;
 	u32 flip_mask =
 		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
@@ -3624,9 +3623,8 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	iir = I915_READ(IIR);
 
 	for (;;) {
+		bool irq_received = (iir & ~flip_mask) != 0;
 		bool blc_event = false;
-
-		irq_received = (iir & ~flip_mask) != 0;
 
 		/* Can't rely on pipestat interrupt bit in iir as it might
 		 * have been cleared after the pipestat interrupt was received.
@@ -3649,7 +3647,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 					DRM_DEBUG_DRIVER("pipe %c underrun\n",
 							 pipe_name(pipe));
 				I915_WRITE(reg, pipe_stats[pipe]);
-				irq_received = 1;
+				irq_received = true;
 			}
 		}
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
