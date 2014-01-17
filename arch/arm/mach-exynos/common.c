@@ -303,6 +303,11 @@ void __init exynos_cpuidle_init(void)
 	platform_device_register(&exynos_cpuidle);
 }
 
+void __init exynos_cpufreq_init(void)
+{
+	platform_device_register_simple("exynos-cpufreq", -1, NULL, 0);
+}
+
 void __init exynos_init_late(void)
 {
 	if (of_machine_is_compatible("samsung,exynos5440"))
