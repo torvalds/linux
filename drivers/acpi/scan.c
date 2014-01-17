@@ -86,6 +86,9 @@ int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
  * Creates hid/cid(s) string needed for modalias and uevent
  * e.g. on a device with hid:IBM0001 and cid:ACPI0001 you get:
  * char *modalias: "acpi:IBM0001:ACPI0001"
+ * Return: 0: no _HID and no _CID
+ *         -EINVAL: output error
+ *         -ENOMEM: output is truncated
 */
 static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 			   int size)
@@ -102,8 +105,10 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 
 	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
 		count = snprintf(&modalias[len], size, "%s:", id->id);
-		if (count < 0 || count >= size)
-			return -EINVAL;
+		if (count < 0)
+			return EINVAL;
+		if (count >= size)
+			return -ENOMEM;
 		len += count;
 		size -= count;
 	}
@@ -112,15 +117,71 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	return len;
 }
 
+/*
+ * Creates uevent modalias field for ACPI enumerated devices.
+ * Because the other buses does not support ACPI HIDs & CIDs.
+ * e.g. for a device with hid:IBM0001 and cid:ACPI0001 you get:
+ * "acpi:IBM0001:ACPI0001"
+ */
+int acpi_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct acpi_device *acpi_dev;
+	int len;
+
+	acpi_dev = ACPI_COMPANION(dev);
+	if (!acpi_dev)
+		return -ENODEV;
+
+	/* Fall back to bus specific way of modalias exporting */
+	if (list_empty(&acpi_dev->pnp.ids))
+		return -ENODEV;
+
+	if (add_uevent_var(env, "MODALIAS="))
+		return -ENOMEM;
+	len = create_modalias(acpi_dev, &env->buf[env->buflen - 1],
+				sizeof(env->buf) - env->buflen);
+	if (len <= 0)
+		return len;
+	env->buflen += len;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_device_uevent_modalias);
+
+/*
+ * Creates modalias sysfs attribute for ACPI enumerated devices.
+ * Because the other buses does not support ACPI HIDs & CIDs.
+ * e.g. for a device with hid:IBM0001 and cid:ACPI0001 you get:
+ * "acpi:IBM0001:ACPI0001"
+ */
+int acpi_device_modalias(struct device *dev, char *buf, int size)
+{
+	struct acpi_device *acpi_dev;
+	int len;
+
+	acpi_dev = ACPI_COMPANION(dev);
+	if (!acpi_dev)
+		return -ENODEV;
+
+	/* Fall back to bus specific way of modalias exporting */
+	if (list_empty(&acpi_dev->pnp.ids))
+		return -ENODEV;
+
+	len = create_modalias(acpi_dev, buf, size -1);
+	if (len <= 0)
+		return len;
+	buf[len++] = '\n';
+	return len;
+}
+EXPORT_SYMBOL_GPL(acpi_device_modalias);
+
 static ssize_t
 acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	int len;
 
-	/* Device has no HID and no CID or string is >1024 */
 	len = create_modalias(acpi_dev, buf, 1024);
 	if (len <= 0)
-		return 0;
+		return len;
 	buf[len++] = '\n';
 	return len;
 }
@@ -839,8 +900,8 @@ static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return -ENOMEM;
 	len = create_modalias(acpi_dev, &env->buf[env->buflen - 1],
 			      sizeof(env->buf) - env->buflen);
-	if (len >= (sizeof(env->buf) - env->buflen))
-		return -ENOMEM;
+	if (len <= 0)
+		return len;
 	env->buflen += len;
 	return 0;
 }
