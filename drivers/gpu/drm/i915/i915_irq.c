@@ -1487,7 +1487,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
 			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
-				DRM_DEBUG_DRIVER("pipe %c underrun\n", pipe_name(pipe));
+				DRM_ERROR("pipe %c underrun\n", pipe_name(pipe));
 		}
 
 		/* Consume port.  Then clear IIR or we'll miss events */
@@ -1564,12 +1564,12 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	if (pch_iir & SDE_TRANSA_FIFO_UNDER)
 		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A,
 							  false))
-			DRM_DEBUG_DRIVER("PCH transcoder A FIFO underrun\n");
+			DRM_ERROR("PCH transcoder A FIFO underrun\n");
 
 	if (pch_iir & SDE_TRANSB_FIFO_UNDER)
 		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_B,
 							  false))
-			DRM_DEBUG_DRIVER("PCH transcoder B FIFO underrun\n");
+			DRM_ERROR("PCH transcoder B FIFO underrun\n");
 }
 
 static void ivb_err_int_handler(struct drm_device *dev)
@@ -1585,8 +1585,8 @@ static void ivb_err_int_handler(struct drm_device *dev)
 		if (err_int & ERR_INT_FIFO_UNDERRUN(pipe)) {
 			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe,
 								  false))
-				DRM_DEBUG_DRIVER("Pipe %c FIFO underrun\n",
-						 pipe_name(pipe));
+				DRM_ERROR("Pipe %c FIFO underrun\n",
+					  pipe_name(pipe));
 		}
 
 		if (err_int & ERR_INT_PIPE_CRC_DONE(pipe)) {
@@ -1611,17 +1611,17 @@ static void cpt_serr_int_handler(struct drm_device *dev)
 	if (serr_int & SERR_INT_TRANS_A_FIFO_UNDERRUN)
 		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A,
 							  false))
-			DRM_DEBUG_DRIVER("PCH transcoder A FIFO underrun\n");
+			DRM_ERROR("PCH transcoder A FIFO underrun\n");
 
 	if (serr_int & SERR_INT_TRANS_B_FIFO_UNDERRUN)
 		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_B,
 							  false))
-			DRM_DEBUG_DRIVER("PCH transcoder B FIFO underrun\n");
+			DRM_ERROR("PCH transcoder B FIFO underrun\n");
 
 	if (serr_int & SERR_INT_TRANS_C_FIFO_UNDERRUN)
 		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_C,
 							  false))
-			DRM_DEBUG_DRIVER("PCH transcoder C FIFO underrun\n");
+			DRM_ERROR("PCH transcoder C FIFO underrun\n");
 
 	I915_WRITE(SERR_INT, serr_int);
 }
@@ -1683,8 +1683,8 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 
 		if (de_iir & DE_PIPE_FIFO_UNDERRUN(pipe))
 			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
-				DRM_DEBUG_DRIVER("Pipe %c FIFO underrun\n",
-						 pipe_name(pipe));
+				DRM_ERROR("Pipe %c FIFO underrun\n",
+					  pipe_name(pipe));
 
 		if (de_iir & DE_PIPE_CRC_DONE(pipe))
 			i9xx_pipe_crc_irq_handler(dev, pipe);
@@ -1885,8 +1885,8 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		if (pipe_iir & GEN8_PIPE_FIFO_UNDERRUN) {
 			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe,
 								  false))
-				DRM_DEBUG_DRIVER("Pipe %c FIFO underrun\n",
-						 pipe_name(pipe));
+				DRM_ERROR("Pipe %c FIFO underrun\n",
+					  pipe_name(pipe));
 		}
 
 		if (pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS) {
@@ -3239,7 +3239,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
 			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
-				DRM_DEBUG_DRIVER("pipe %c underrun\n", pipe_name(pipe));
+				DRM_ERROR("pipe %c underrun\n", pipe_name(pipe));
 		}
 
 		iir = new_iir;
@@ -3437,7 +3437,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
 			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
-				DRM_DEBUG_DRIVER("pipe %c underrun\n", pipe_name(pipe));
+				DRM_ERROR("pipe %c underrun\n", pipe_name(pipe));
 		}
 
 		if (blc_event || (iir & I915_ASLE_INTERRUPT))
@@ -3682,7 +3682,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
 			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
-				DRM_DEBUG_DRIVER("pipe %c underrun\n", pipe_name(pipe));
+				DRM_ERROR("pipe %c underrun\n", pipe_name(pipe));
 		}
 
 		if (blc_event || (iir & I915_ASLE_INTERRUPT))
