@@ -1170,8 +1170,10 @@ static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
 
 	nvec = rc;
 	rc = pci_enable_msi_block(pdev, nvec);
-	if (rc)
+	if (rc < 0)
 		goto intx;
+	else if (rc > 0)
+		goto single_msi;
 
 	return nvec;
 
