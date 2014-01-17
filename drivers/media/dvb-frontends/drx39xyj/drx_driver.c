@@ -186,9 +186,8 @@ static void *get_scan_context(struct drx_demod_instance *demod, void *scan_conte
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	scan_context = common_attr->scan_context;
 
-	if (scan_context == NULL) {
+	if (scan_context == NULL)
 		scan_context = (void *)demod;
-	}
 
 	return scan_context;
 }
@@ -482,10 +481,8 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 					s32 n = 0;
 
 					n = (min_tuner_freq - first_freq) / step;
-					if (((min_tuner_freq -
-					      first_freq) % step) != 0) {
+					if (((min_tuner_freq - first_freq) % step) != 0)
 						n++;
-					}
 					min_freq = first_freq + n * step;
 				}
 
@@ -495,10 +492,8 @@ ctrl_scan_init(struct drx_demod_instance *demod, struct drx_scan_param *scan_par
 					s32 n = 0;
 
 					n = (last_freq - max_tuner_freq) / step;
-					if (((last_freq -
-					      max_tuner_freq) % step) != 0) {
+					if (((last_freq - max_tuner_freq) % step) != 0)
 						n++;
-					}
 					max_freq = last_freq - n * step;
 				}
 			}
@@ -950,9 +945,8 @@ static u16 u_code_compute_crc(u8 *block_data, u16 nr_words)
 		crc_word |= (u32) u_code_read16(block_data);
 		for (j = 0; j < 16; j++) {
 			crc_word <<= 1;
-			if (carry != 0) {
+			if (carry != 0)
 				crc_word ^= 0x80050000UL;
-			}
 			carry = crc_word & 0x80000000UL;
 		}
 		i++;
@@ -1320,9 +1314,8 @@ int drx_open(struct drx_demod_instance *demod)
 
 	status = (*(demod->my_demod_funct->open_func)) (demod);
 
-	if (status == DRX_STS_OK) {
+	if (status == DRX_STS_OK)
 		demod->my_common_attr->is_opened = true;
-	}
 
 	return status;
 }
