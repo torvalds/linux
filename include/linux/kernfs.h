@@ -18,6 +18,7 @@
 #include <linux/completion.h>
 
 struct file;
+struct dentry;
 struct iattr;
 struct seq_file;
 struct vm_area_struct;
