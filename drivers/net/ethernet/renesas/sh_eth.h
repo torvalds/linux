@@ -155,6 +155,7 @@ enum {
 
 enum {
 	SH_ETH_REG_GIGABIT,
+	SH_ETH_REG_FAST_RZ,
 	SH_ETH_REG_FAST_RCAR,
 	SH_ETH_REG_FAST_SH4,
 	SH_ETH_REG_FAST_SH3_SH2
@@ -169,7 +170,7 @@ enum {
 
 /* Register's bits
  */
-/* EDSR : sh7734, sh7757, sh7763, and r8a7740 only */
+/* EDSR : sh7734, sh7757, sh7763, r8a7740, and r7s72100 only */
 enum EDSR_BIT {
 	EDSR_ENT = 0x01, EDSR_ENR = 0x02,
 };
