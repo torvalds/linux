@@ -600,18 +600,25 @@ static int add_recvbuf_big(struct receive_queue *rq, gfp_t gfp)
 	return err;
 }
 
-static int add_recvbuf_mergeable(struct receive_queue *rq, gfp_t gfp)
+static unsigned int get_mergeable_buf_len(struct ewma *avg_pkt_len)
 {
 	const size_t hdr_len = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+	unsigned int len;
+
+	len = hdr_len + clamp_t(unsigned int, ewma_read(avg_pkt_len),
+			GOOD_PACKET_LEN, PAGE_SIZE - hdr_len);
+	return ALIGN(len, MERGEABLE_BUFFER_ALIGN);
+}
+
+static int add_recvbuf_mergeable(struct receive_queue *rq, gfp_t gfp)
+{
 	struct page_frag *alloc_frag = &rq->alloc_frag;
 	char *buf;
 	unsigned long ctx;
 	int err;
 	unsigned int len, hole;
 
-	len = hdr_len + clamp_t(unsigned int, ewma_read(&rq->mrg_avg_pkt_len),
-				GOOD_PACKET_LEN, PAGE_SIZE - hdr_len);
-	len = ALIGN(len, MERGEABLE_BUFFER_ALIGN);
+	len = get_mergeable_buf_len(&rq->mrg_avg_pkt_len);
 	if (unlikely(!skb_page_frag_refill(len, alloc_frag, gfp)))
 		return -ENOMEM;
 
@@ -1584,6 +1591,33 @@ err:
 	return ret;
 }
 
+#ifdef CONFIG_SYSFS
+static ssize_t mergeable_rx_buffer_size_show(struct netdev_rx_queue *queue,
+		struct rx_queue_attribute *attribute, char *buf)
+{
+	struct virtnet_info *vi = netdev_priv(queue->dev);
+	unsigned int queue_index = get_netdev_rx_queue_index(queue);
+	struct ewma *avg;
+
+	BUG_ON(queue_index >= vi->max_queue_pairs);
+	avg = &vi->rq[queue_index].mrg_avg_pkt_len;
+	return sprintf(buf, "%u\n", get_mergeable_buf_len(avg));
+}
+
+static struct rx_queue_attribute mergeable_rx_buffer_size_attribute =
+	__ATTR_RO(mergeable_rx_buffer_size);
+
+static struct attribute *virtio_net_mrg_rx_attrs[] = {
+	&mergeable_rx_buffer_size_attribute.attr,
+	NULL
+};
+
+static const struct attribute_group virtio_net_mrg_rx_group = {
+	.name = "virtio_net",
+	.attrs = virtio_net_mrg_rx_attrs
+};
+#endif
+
 static int virtnet_probe(struct virtio_device *vdev)
 {
 	int i, err;
@@ -1698,6 +1732,10 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (err)
 		goto free_stats;
 
+#ifdef CONFIG_SYSFS
+	if (vi->mergeable_rx_bufs)
+		dev->sysfs_rx_queue_group = &virtio_net_mrg_rx_group;
+#endif
 	netif_set_real_num_tx_queues(dev, vi->curr_queue_pairs);
 	netif_set_real_num_rx_queues(dev, vi->curr_queue_pairs);
 
