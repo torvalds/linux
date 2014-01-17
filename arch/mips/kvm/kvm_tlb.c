@@ -25,6 +25,7 @@
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
+#include <asm/tlb.h>
 
 #undef CONFIG_MIPS_MT
 #include <asm/r4kcache.h>
@@ -34,9 +35,6 @@
 #define KVM_GUEST_SP_TLB    1
 
 #define PRIx64 "llx"
-
-/* Use VZ EntryHi.EHINV to invalidate TLB entries */
-#define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
 
 atomic_t kvm_mips_instance;
 EXPORT_SYMBOL(kvm_mips_instance);
