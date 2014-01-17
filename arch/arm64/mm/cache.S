@@ -230,7 +230,7 @@ ENTRY(__inval_dcache_area)
  *	- start   - virtual start address of region
  *	- size    - size in question
  */
-__dma_inv_area:
+ENTRY(__dma_inv_area)
 	add	x1, x1, x0
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
@@ -269,7 +269,7 @@ ENTRY(__clean_dcache_area_poc)
  *	- start   - virtual start address of region
  *	- size    - size in question
  */
-__dma_clean_area:
+ENTRY(__dma_clean_area)
 	dcache_by_line_op cvac, sy, x0, x1, x2, x3
 	ret
 ENDPIPROC(__clean_dcache_area_poc)
