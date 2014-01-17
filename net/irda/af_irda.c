@@ -1652,7 +1652,7 @@ static int irda_sendmsg_ultra(struct kiocb *iocb, struct socket *sock,
 
 	/* Check if an address was specified with sendto. Jean II */
 	if (msg->msg_name) {
-		struct sockaddr_irda *addr = (struct sockaddr_irda *) msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_irda *, addr, msg->msg_name);
 		err = -EINVAL;
 		/* Check address, extract pid. Jean II */
 		if (msg->msg_namelen < sizeof(*addr))

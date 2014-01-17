@@ -1413,7 +1413,7 @@ static void l2cap_sock_destruct(struct sock *sk)
 static void l2cap_skb_msg_name(struct sk_buff *skb, void *msg_name,
 			       int *msg_namelen)
 {
-	struct sockaddr_l2 *la = (struct sockaddr_l2 *) msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_l2 *, la, msg_name);
 
 	memset(la, 0, sizeof(struct sockaddr_l2));
 	la->l2_family = AF_BLUETOOTH;
