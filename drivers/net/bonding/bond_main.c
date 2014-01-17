@@ -3883,6 +3883,7 @@ static const struct net_device_ops bond_netdev_ops = {
 #endif
 	.ndo_add_slave		= bond_enslave,
 	.ndo_del_slave		= bond_release,
+	.ndo_get_slave		= bond_get_slave,
 	.ndo_fix_features	= bond_fix_features,
 };
 
