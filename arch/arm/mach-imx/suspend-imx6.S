@@ -63,6 +63,7 @@
 #define MX6Q_SRC_GPR1	0x20
 #define MX6Q_SRC_GPR2	0x24
 #define MX6Q_MMDC_MAPSR	0x404
+#define MX6Q_MMDC_MPDGCTRL0	0x83c
 #define MX6Q_GPC_IMR1	0x08
 #define MX6Q_GPC_IMR2	0x0c
 #define MX6Q_GPC_IMR3	0x10
@@ -107,14 +108,36 @@
 	ldreq	r11, [r0, #PM_INFO_MX6Q_MMDC_V_OFFSET]
 	ldrne	r11, [r0, #PM_INFO_MX6Q_MMDC_P_OFFSET]
 
+	cmp 	r3, #MXC_CPU_IMX6SL
+	bne	4f
+
+	/* reset read FIFO, RST_RD_FIFO */
+	ldr	r7, =MX6Q_MMDC_MPDGCTRL0
+	ldr	r6, [r11, r7]
+	orr     r6, r6, #(1 << 31)
+	str	r6, [r11, r7]
+2:
+	ldr	r6, [r11, r7]
+	ands	r6, r6, #(1 << 31)
+	bne	2b
+
+	/* reset FIFO a second time */
+	ldr	r6, [r11, r7]
+	orr     r6, r6, #(1 << 31)
+	str	r6, [r11, r7]
+3:
+	ldr	r6, [r11, r7]
+	ands	r6, r6, #(1 << 31)
+	bne	3b
+4:
 	/* let DDR out of self-refresh */
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	bic	r7, r7, #(1 << 21)
 	str	r7, [r11, #MX6Q_MMDC_MAPSR]
-2:
+5:
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	ands	r7, r7, #(1 << 25)
-	bne	2b
+	bne	5b
 
 	/* enable DDR auto power saving */
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
@@ -182,11 +205,26 @@ poll_dvfs_set:
 	ldr	r7, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
 	ldr	r8, =PM_INFO_MMDC_IO_VAL_OFFSET
 	add	r8, r8, r0
+	/* i.MX6SL's last 3 IOs need special setting */
+	cmp	r3, #MXC_CPU_IMX6SL
+	subeq	r7, r7, #0x3
 set_mmdc_io_lpm:
 	ldr	r9, [r8], #0x8
 	str	r6, [r11, r9]
 	subs	r7, r7, #0x1
 	bne	set_mmdc_io_lpm
+
+	cmp 	r3, #MXC_CPU_IMX6SL
+	bne	set_mmdc_io_lpm_done
+	ldr	r6, =0x1000
+	ldr	r9, [r8], #0x8
+	str	r6, [r11, r9]
+	ldr	r9, [r8], #0x8
+	str	r6, [r11, r9]
+	ldr	r6, =0x80000
+	ldr	r9, [r8]
+	str	r6, [r11, r9]
+set_mmdc_io_lpm_done:
 
 	/*
 	 * mask all GPC interrupts before
@@ -282,6 +320,7 @@ resume:
 	str	r7, [r11, #MX6Q_SRC_GPR1]
 	str	r7, [r11, #MX6Q_SRC_GPR2]
 
+	ldr	r3, [r0, #PM_INFO_CPU_TYPE_OFFSET]
 	mov	r5, #0x1
 	resume_mmdc
 
