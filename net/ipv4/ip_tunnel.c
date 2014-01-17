@@ -68,27 +68,27 @@ static unsigned int ip_tunnel_hash(struct ip_tunnel_net *itn,
 			 IP_TNL_HASH_BITS);
 }
 
-static inline void __tunnel_dst_set(struct ip_tunnel_dst *idst,
-				    struct dst_entry *dst)
+static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
+			     struct dst_entry *dst)
 {
 	struct dst_entry *old_dst;
 
-	if (dst && (dst->flags & DST_NOCACHE))
-		dst = NULL;
-
-	spin_lock_bh(&idst->lock);
-	old_dst = rcu_dereference(idst->dst);
-	rcu_assign_pointer(idst->dst, dst);
+	if (dst) {
+		if (dst->flags & DST_NOCACHE)
+			dst = NULL;
+		else
+			dst_clone(dst);
+	}
+	old_dst = xchg((__force struct dst_entry **)&idst->dst, dst);
 	dst_release(old_dst);
-	spin_unlock_bh(&idst->lock);
 }
 
-static inline void tunnel_dst_set(struct ip_tunnel *t, struct dst_entry *dst)
+static void tunnel_dst_set(struct ip_tunnel *t, struct dst_entry *dst)
 {
 	__tunnel_dst_set(this_cpu_ptr(t->dst_cache), dst);
 }
 
-static inline void tunnel_dst_reset(struct ip_tunnel *t)
+static void tunnel_dst_reset(struct ip_tunnel *t)
 {
 	tunnel_dst_set(t, NULL);
 }
@@ -101,7 +101,7 @@ static void tunnel_dst_reset_all(struct ip_tunnel *t)
 		__tunnel_dst_set(per_cpu_ptr(t->dst_cache, i), NULL);
 }
 
-static inline struct dst_entry *tunnel_dst_get(struct ip_tunnel *t)
+static struct dst_entry *tunnel_dst_get(struct ip_tunnel *t)
 {
 	struct dst_entry *dst;
 
@@ -413,7 +413,7 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 
 		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
-			tunnel_dst_set(tunnel, dst_clone(&rt->dst));
+			tunnel_dst_set(tunnel, &rt->dst);
 			ip_rt_put(rt);
 		}
 		if (dev->type != ARPHRD_ETHER)
@@ -668,7 +668,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 			goto tx_error;
 		}
 		if (connected)
-			tunnel_dst_set(tunnel, dst_clone(&rt->dst));
+			tunnel_dst_set(tunnel, &rt->dst);
 	}
 
 	if (rt->dst.dev == dev) {
@@ -1064,12 +1064,6 @@ int ip_tunnel_init(struct net_device *dev)
 	if (!tunnel->dst_cache) {
 		free_percpu(dev->tstats);
 		return -ENOMEM;
-	}
-
-	for_each_possible_cpu(i) {
-		struct ip_tunnel_dst *idst = per_cpu_ptr(tunnel->dst_cache, i);
-		idst-> dst = NULL;
-		spin_lock_init(&idst->lock);
 	}
 
 	err = gro_cells_init(&tunnel->gro_cells, dev);

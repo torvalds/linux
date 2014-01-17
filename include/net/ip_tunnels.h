@@ -40,7 +40,6 @@ struct ip_tunnel_prl_entry {
 
 struct ip_tunnel_dst {
 	struct dst_entry __rcu 		*dst;
-	spinlock_t			lock;
 };
 
 struct ip_tunnel {
