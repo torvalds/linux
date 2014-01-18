@@ -106,7 +106,6 @@ struct ixgbevf_ring {
 	};
 
 	u64 hw_csum_rx_error;
-	u64 hw_csum_rx_good;
 	u8 __iomem *tail;
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
@@ -336,7 +335,6 @@ static inline u16 ixgbevf_desc_unused(struct ixgbevf_ring *ring)
 struct ixgbevf_adapter {
 	struct timer_list watchdog_timer;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	u16 bd_number;
 	struct work_struct reset_task;
 	struct ixgbevf_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 
@@ -349,25 +347,18 @@ struct ixgbevf_adapter {
 	u32 eims_other;
 
 	/* TX */
-	struct ixgbevf_ring *tx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	int num_tx_queues;
+	struct ixgbevf_ring *tx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	u64 restart_queue;
-	u64 hw_csum_tx_good;
-	u64 lsc_int;
-	u64 hw_tso_ctxt;
-	u64 hw_tso6_ctxt;
 	u32 tx_timeout_count;
 
 	/* RX */
-	struct ixgbevf_ring *rx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	int num_rx_queues;
+	struct ixgbevf_ring *rx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
-	u64 hw_csum_rx_good;
 	u64 non_eop_descs;
 	int num_msix_vectors;
-	struct msix_entry *msix_entries;
-
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
@@ -379,6 +370,8 @@ struct ixgbevf_adapter {
 #define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 1)
 #define IXGBEVF_FLAG_QUEUE_RESET_REQUESTED	(u32)(1 << 2)
 
+	struct msix_entry *msix_entries;
+
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
@@ -386,9 +379,11 @@ struct ixgbevf_adapter {
 	/* structs defined in ixgbe_vf.h */
 	struct ixgbe_hw hw;
 	u16 msg_enable;
-	struct ixgbevf_hw_stats stats;
+	u16 bd_number;
 	/* Interrupt Throttle Rate */
 	u32 eitr_param;
+
+	struct ixgbevf_hw_stats stats;
 
 	unsigned long state;
 	u64 tx_busy;
@@ -408,9 +403,9 @@ struct ixgbevf_adapter {
 	u32 link_speed;
 	bool link_up;
 
-	struct work_struct watchdog_task;
-
 	spinlock_t mbx_lock;
+
+	struct work_struct watchdog_task;
 };
 
 enum ixbgevf_state_t {

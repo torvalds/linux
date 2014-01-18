@@ -79,9 +79,7 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_busy", IXGBEVF_ZSTAT(tx_busy)},
 	{"multicast", IXGBEVF_STAT(stats.vfmprc, stats.base_vfmprc,
 				   stats.saved_reset_vfmprc)},
-	{"rx_csum_offload_good", IXGBEVF_ZSTAT(hw_csum_rx_good)},
 	{"rx_csum_offload_errors", IXGBEVF_ZSTAT(hw_csum_rx_error)},
-	{"tx_csum_offload_ctxt", IXGBEVF_ZSTAT(hw_csum_tx_good)},
 #ifdef BP_EXTENDED_STATS
 	{"rx_bp_poll_yield", IXGBEVF_ZSTAT(bp_rx_yields)},
 	{"rx_bp_cleaned", IXGBEVF_ZSTAT(bp_rx_cleaned)},

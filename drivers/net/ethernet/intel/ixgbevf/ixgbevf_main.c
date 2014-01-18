@@ -357,7 +357,6 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_ring *ring,
 
 	/* It must be a TCP or UDP packet with a valid checksum */
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	ring->hw_csum_rx_good++;
 }
 
 /**
@@ -2263,10 +2262,7 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
 	for (i = 0;  i  < adapter->num_rx_queues;  i++) {
 		adapter->hw_csum_rx_error +=
 			adapter->rx_ring[i]->hw_csum_rx_error;
-		adapter->hw_csum_rx_good +=
-			adapter->rx_ring[i]->hw_csum_rx_good;
 		adapter->rx_ring[i]->hw_csum_rx_error = 0;
-		adapter->rx_ring[i]->hw_csum_rx_good = 0;
 	}
 }
 
