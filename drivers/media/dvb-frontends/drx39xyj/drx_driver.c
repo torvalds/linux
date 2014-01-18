@@ -1,4 +1,6 @@
 /*
+  Generic DRX functionality, DRX driver core.
+
   Copyright (c), 2004-2005,2007-2010 Trident Microsystems, Inc.
   All rights reserved.
 
@@ -28,12 +30,8 @@
   POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
-* \file $Id: drx_driver.c,v 1.40 2010/01/12 01:24:56 lfeng Exp $
-*
-* \brief Generic DRX functionality, DRX driver core.
-*
-*/
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+
 
 /*------------------------------------------------------------------------------
 INCLUDE FILES
@@ -957,32 +955,64 @@ static int
 ctrl_u_code(struct drx_demod_instance *demod,
 	    struct drxu_code_info *mc_info, enum drxu_code_action action)
 {
+	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	int rc;
 	u16 i = 0;
 	u16 mc_nr_of_blks = 0;
 	u16 mc_magic_word = 0;
-	u8 *mc_data = (u8 *)(NULL);
-	struct i2c_device_addr *dev_addr = (struct i2c_device_addr *)(NULL);
-
-	dev_addr = demod->my_i2c_dev_addr;
+	const u8 *mc_data_init = NULL;
+	u8 *mc_data = NULL;
+	char *mc_file = mc_info->mc_file;
 
 	/* Check arguments */
-	if ((mc_info == NULL) || (mc_info->mc_data == NULL))
+	if (!mc_info || !mc_file)
 		return -EINVAL;
 
-	mc_data = mc_info->mc_data;
+	if (demod->firmware) {
+		mc_data_init = demod->firmware->data;
+		mc_data = (void *)mc_data_init;
 
-	/* Check data */
-	mc_magic_word = u_code_read16(mc_data);
-	mc_data += sizeof(u16);
-	mc_nr_of_blks = u_code_read16(mc_data);
-	mc_data += sizeof(u16);
+		/* Check data */
+		mc_magic_word = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
+		mc_nr_of_blks = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
+	} else {
+		const struct firmware *fw = NULL;
+		unsigned size = 0;
 
-	if ((mc_magic_word != DRX_UCODE_MAGIC_WORD) || (mc_nr_of_blks == 0))
-		return -EINVAL;		/* wrong endianess or wrong data ? */
+		rc = request_firmware(&fw, mc_file, demod->i2c->dev.parent);
+		if (rc < 0) {
+			pr_err("Couldn't read firmware %s\n", mc_file);
+			return -ENOENT;
+		}
+		demod->firmware = fw;
+		mc_data_init = demod->firmware->data;
+		size = demod->firmware->size;
 
-	/* Scan microcode blocks first for version info if uploading */
-	if (action == UCODE_UPLOAD) {
+		pr_info("Firmware %s, size %u\n", mc_file, size);
+
+		mc_data = (void *)mc_data_init;
+		/* Check data */
+		if (mc_data - mc_data_init + 2 * sizeof(u16) > size)
+			goto eof;
+		mc_magic_word = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
+		mc_nr_of_blks = u_code_read16(mc_data);
+		mc_data += sizeof(u16);
+
+
+		if ((mc_magic_word != DRX_UCODE_MAGIC_WORD) || (mc_nr_of_blks == 0)) {
+			rc = -EINVAL;		/* wrong endianess or wrong data ? */
+			pr_err("Firmware magic word doesn't match\n");
+			goto release;
+		}
+
+		/*
+		 * Scan microcode blocks first for version info
+		 * and firmware check
+		 */
+
 		/* Clear version block */
 		DRX_ATTR_MCRECORD(demod).aux_type = 0;
 		DRX_ATTR_MCRECORD(demod).mc_dev_type = 0;
@@ -991,6 +1021,9 @@ ctrl_u_code(struct drx_demod_instance *demod,
 		for (i = 0; i < mc_nr_of_blks; i++) {
 			struct drxu_code_block_hdr block_hdr;
 
+			if (mc_data - mc_data_init +
+			    3 * sizeof(u16) + sizeof(u32) > size)
+				goto eof;
 			/* Process block header */
 			block_hdr.addr = u_code_read32(mc_data);
 			mc_data += sizeof(u32);
@@ -1002,9 +1035,15 @@ ctrl_u_code(struct drx_demod_instance *demod,
 			mc_data += sizeof(u16);
 
 			if (block_hdr.flags & 0x8) {
+				u8 *auxblk = ((void *)mc_data_init) + block_hdr.addr;
+				u16 auxtype;
+
+				if (mc_data - mc_data_init + sizeof(u16) +
+				    2 * sizeof(u32) > size)
+					goto eof;
+
 				/* Aux block. Check type */
-				u8 *auxblk = mc_info->mc_data + block_hdr.addr;
-				u16 auxtype = u_code_read16(auxblk);
+				auxtype = u_code_read16(auxblk);
 				if (DRX_ISMCVERTYPE(auxtype)) {
 					DRX_ATTR_MCRECORD(demod).aux_type = u_code_read16(auxblk);
 					auxblk += sizeof(u16);
@@ -1015,20 +1054,28 @@ ctrl_u_code(struct drx_demod_instance *demod,
 					DRX_ATTR_MCRECORD(demod).mc_base_version = u_code_read32(auxblk);
 				}
 			}
+			if (mc_data - mc_data_init +
+			    block_hdr.size * sizeof(u16) > size)
+				goto eof;
 
 			/* Next block */
 			mc_data += block_hdr.size * sizeof(u16);
 		}
 
+		/* Restore data pointer */
+		mc_data = ((void *)mc_data_init) + 2 * sizeof(u16);
+	}
+
+	if (action == UCODE_UPLOAD) {
 		/* After scanning, validate the microcode.
 		   It is also valid if no validation control exists.
 		 */
 		rc = drx_ctrl(demod, DRX_CTRL_VALIDATE_UCODE, NULL);
-		if (rc != 0 && rc != -ENOTSUPP)
-			return rc;
-
-		/* Restore data pointer */
-		mc_data = mc_info->mc_data + 2 * sizeof(u16);
+		if (rc != 0 && rc != -ENOTSUPP) {
+			pr_err("Validate ucode not supported\n");
+			goto release;
+		}
+		pr_info("Uploading firmware %s\n", mc_file);
 	}
 
 	/* Process microcode blocks */
@@ -1055,103 +1102,85 @@ ctrl_u_code(struct drx_demod_instance *demod,
 		     (block_hdr.CRC != u_code_compute_crc(mc_data, block_hdr.size)))
 		    ) {
 			/* Wrong data ! */
-			return -EINVAL;
+			rc = -EINVAL;
+			pr_err("firmware CRC is wrong\n");
+			goto release;
 		}
+
+		if (!block_hdr.size)
+			continue;
 
 		mc_block_nr_bytes = block_hdr.size * ((u16) sizeof(u16));
 
-		if (block_hdr.size != 0) {
-			/* Perform the desired action */
-			switch (action) {
-	    /*================================================================*/
-			case UCODE_UPLOAD:
-				{
-					/* Upload microcode */
-					if (demod->my_access_funct->
-					    write_block_func(dev_addr,
-							   (dr_xaddr_t) block_hdr.
-							   addr, mc_block_nr_bytes,
-							   mc_data,
-							   0x0000) !=
-					    0) {
-						return -EIO;
-					}	/* if */
+		/* Perform the desired action */
+		switch (action) {
+		case UCODE_UPLOAD:
+			/* Upload microcode */
+			if (demod->my_access_funct->write_block_func(dev_addr,
+							block_hdr.addr,
+							mc_block_nr_bytes,
+							mc_data, 0x0000)) {
+				pr_err("error writing firmware\n");
+				goto release;
+			}
+			break;
+		case UCODE_VERIFY: {
+			int result = 0;
+			u8 mc_data_buffer[DRX_UCODE_MAX_BUF_SIZE];
+			u32 bytes_to_comp = 0;
+			u32 bytes_left = mc_block_nr_bytes;
+			u32 curr_addr = block_hdr.addr;
+			u8 *curr_ptr = mc_data;
+
+			while (bytes_left != 0) {
+				if (bytes_left > DRX_UCODE_MAX_BUF_SIZE)
+					bytes_to_comp = DRX_UCODE_MAX_BUF_SIZE;
+				else
+					bytes_to_comp = bytes_left;
+
+				if (demod->my_access_funct->
+				    read_block_func(dev_addr,
+						    curr_addr,
+						    (u16)bytes_to_comp,
+						    (u8 *)mc_data_buffer,
+						    0x0000)) {
+					pr_err("error reading firmware\n");
+					goto release;
 				}
-				break;
 
-	    /*================================================================*/
-			case UCODE_VERIFY:
-				{
-					int result = 0;
-					u8 mc_data_buffer
-					    [DRX_UCODE_MAX_BUF_SIZE];
-					u32 bytes_to_compare = 0;
-					u32 bytes_left_to_compare = 0;
-					u32 curr_addr = (dr_xaddr_t) 0;
-					u8 *curr_ptr = NULL;
+				result =drxbsp_hst_memcmp(curr_ptr,
+							  mc_data_buffer,
+							  bytes_to_comp);
 
-					bytes_left_to_compare = mc_block_nr_bytes;
-					curr_addr = block_hdr.addr;
-					curr_ptr = mc_data;
-
-					while (bytes_left_to_compare != 0) {
-						if (bytes_left_to_compare >
-						    ((u32)
-						     DRX_UCODE_MAX_BUF_SIZE)) {
-							bytes_to_compare =
-							    ((u32)
-							     DRX_UCODE_MAX_BUF_SIZE);
-						} else {
-							bytes_to_compare =
-							    bytes_left_to_compare;
-						}
-
-						if (demod->my_access_funct->
-						    read_block_func(dev_addr,
-								  curr_addr,
-								  (u16)
-								  bytes_to_compare,
-								  (u8 *)
-								  mc_data_buffer,
-								  0x0000) !=
-						    0) {
-							return -EIO;
-						}
-
-						result =
-						    drxbsp_hst_memcmp(curr_ptr,
-								      mc_data_buffer,
-								      bytes_to_compare);
-
-						if (result != 0)
-							return -EIO;
-
-						curr_addr +=
-						    ((dr_xaddr_t)
-						     (bytes_to_compare / 2));
-						curr_ptr =
-						    &(curr_ptr[bytes_to_compare]);
-						bytes_left_to_compare -=
-						    ((u32) bytes_to_compare);
-					}	/* while( bytes_to_compare > DRX_UCODE_MAX_BUF_SIZE ) */
+				if (result) {
+					pr_err("error verifying firmware\n");
+					return -EIO;
 				}
-				break;
 
-	    /*================================================================*/
-			default:
-				return -EINVAL;
-				break;
-
-			}	/* switch ( action ) */
+				curr_addr += ((dr_xaddr_t)(bytes_to_comp / 2));
+				curr_ptr =&(curr_ptr[bytes_to_comp]);
+				bytes_left -=((u32) bytes_to_comp);
+			}
+			break;
 		}
+		default:
+			return -EINVAL;
+			break;
 
-		/* if (block_hdr.size != 0 ) */
-		/* Next block */
+		}
 		mc_data += mc_block_nr_bytes;
-
-	}			/* for( i = 0 ; i<mc_nr_of_blks ; i++ ) */
+	}
 
 	return 0;
+eof:
+	rc = -ENOENT;
+	pr_err("Firmware file %s is truncated at pos %lu\n",
+	       mc_file, (unsigned long)(mc_data - mc_data_init));
+release:
+	release_firmware(demod->firmware);
+	demod->firmware = NULL;
+
+	return rc;
 }
 
 /*============================================================================*/

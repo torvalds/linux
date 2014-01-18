@@ -33,6 +33,7 @@ struct drx39xxj_state {
 	struct dvb_frontend frontend;
 	int powered_up:1;
 	unsigned int i2c_gate_open:1;
+	const struct firmware *fw;
 };
 
 struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c);

@@ -875,7 +875,7 @@ struct i2c_device_addr drxj_default_addr_g = {
 * \brief Default common attributes of a drxj demodulator instance.
 */
 struct drx_common_attr drxj_default_comm_attr_g = {
-	(u8 *)NULL,		/* ucode ptr            */
+	NULL,			/* ucode file           */
 	true,			/* ucode verify switch  */
 	{0},			/* version record       */
 
@@ -20139,11 +20139,11 @@ int drxj_open(struct drx_demod_instance *demod)
 	}
 
 	/* Upload microcode */
-	if (common_attr->microcode != NULL) {
+	if (common_attr->microcode_file != NULL) {
 		/* Dirty trick to use common ucode upload & verify,
 		   pretend device is already open */
 		common_attr->is_opened = true;
-		ucode_info.mc_data = common_attr->microcode;
+		ucode_info.mc_file = common_attr->microcode_file;
 
 #ifdef DRXJ_SPLIT_UCODE_UPLOAD
 		/* Upload microcode without audio part */

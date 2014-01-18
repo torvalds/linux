@@ -29,8 +29,9 @@
 #include "dvb_frontend.h"
 #include "drx39xxj.h"
 #include "drx_driver.h"
-#include "drxj_mc.h"
 #include "drxj.h"
+
+#define DRX39XX_MAIN_FIRMWARE "dvb-fe-drxj-mc-1.0.8.fw"
 
 static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 {
@@ -323,6 +324,8 @@ static void drx39xxj_release(struct dvb_frontend *fe)
 	kfree(demod->my_ext_attr);
 	kfree(demod->my_common_attr);
 	kfree(demod->my_i2c_dev_addr);
+	if (demod->firmware)
+		release_firmware(demod->firmware);
 	kfree(demod);
 	kfree(state);
 }
@@ -377,15 +380,13 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	demod->my_i2c_dev_addr = demod_addr;
 	demod->my_common_attr = demod_comm_attr;
 	demod->my_i2c_dev_addr->user_data = state;
-	demod->my_common_attr->microcode = DRXJ_MC_MAIN;
-#if 0
-	demod->my_common_attr->verify_microcode = false;
-#endif
+	demod->my_common_attr->microcode_file = DRX39XX_MAIN_FIRMWARE;
 	demod->my_common_attr->verify_microcode = true;
 	demod->my_common_attr->intermediate_freq = 5000;
 	demod->my_ext_attr = demod_ext_attr;
 	((struct drxj_data *)demod_ext_attr)->uio_sma_tx_mode = DRX_UIO_MODE_READWRITE;
 	demod->my_tuner = NULL;
+	demod->i2c = i2c;
 
 	result = drx_open(demod);
 	if (result != 0) {
@@ -455,3 +456,4 @@ static struct dvb_frontend_ops drx39xxj_ops = {
 MODULE_DESCRIPTION("Micronas DRX39xxj Frontend");
 MODULE_AUTHOR("Devin Heitmueller");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(DRX39XX_MAIN_FIRMWARE);

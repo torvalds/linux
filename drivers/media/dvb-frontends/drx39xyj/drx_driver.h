@@ -33,6 +33,8 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/firmware.h>
+#include <linux/i2c.h>
 
 /*
  * This structure contains the I2C address, the device ID and a user_data pointer.
@@ -1014,13 +1016,14 @@ STRUCTS
 /*============================================================================*/
 
 /**
-* \struct struct drxu_code_info * \brief Parameters for microcode upload and verfiy.
-*
-* Used by DRX_CTRL_LOAD_UCODE and DRX_CTRL_VERIFY_UCODE
-*/
+ * struct drxu_code_info	Parameters for microcode upload and verfiy.
+ *
+ * @mc_file:	microcode file name
+ *
+ * Used by DRX_CTRL_LOAD_UCODE and DRX_CTRL_VERIFY_UCODE
+ */
 struct drxu_code_info {
-	u8 *mc_data;
-	     /**< Pointer to microcode image. */
+	char 			*mc_file;
 };
 
 /**
@@ -1929,8 +1932,7 @@ struct drx_reg_dump {
 */
 	struct drx_common_attr {
 		/* Microcode (firmware) attributes */
-		u8 *microcode;   /**< Pointer to microcode image.           */
-				   /**< Size of microcode image in bytes.     */
+		char *microcode_file;   /**<  microcode filename           */
 		bool verify_microcode;
 				   /**< Use microcode verify or not.          */
 		struct drx_mc_version_rec mcversion;
@@ -2029,21 +2031,24 @@ struct drx_demod_instance;
 /**
 * \struct struct drx_demod_instance * \brief Top structure of demodulator instance.
 */
-	struct drx_demod_instance {
-		/* type specific demodulator data */
-		struct drx_demod_func *my_demod_funct;
-				    /**< demodulator functions                */
-		struct drx_access_func *my_access_funct;
-				    /**< data access protocol functions       */
-		struct tuner_instance *my_tuner;
-				    /**< tuner instance,if NULL then baseband */
-		struct i2c_device_addr *my_i2c_dev_addr;
-				    /**< i2c address and device identifier    */
-		struct drx_common_attr *my_common_attr;
-				    /**< common DRX attributes                */
-		void *my_ext_attr;    /**< device specific attributes           */
-		/* generic demodulator data */
-	};
+struct drx_demod_instance {
+	/* type specific demodulator data */
+	struct drx_demod_func *my_demod_funct;
+				/**< demodulator functions                */
+	struct drx_access_func *my_access_funct;
+				/**< data access protocol functions       */
+	struct tuner_instance *my_tuner;
+				/**< tuner instance,if NULL then baseband */
+	struct i2c_device_addr *my_i2c_dev_addr;
+				/**< i2c address and device identifier    */
+	struct drx_common_attr *my_common_attr;
+				/**< common DRX attributes                */
+	void *my_ext_attr;    /**< device specific attributes           */
+	/* generic demodulator data */
+
+	struct i2c_adapter	*i2c;
+	const struct firmware	*firmware;
+};
 
 /*-------------------------------------------------------------------------
 MACROS
