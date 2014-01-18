@@ -22,10 +22,12 @@ locations such as buffers like the printk buffer or the process table.
 Retrieving a full system memory dump is also possible over the FireWire,
 using data transfer rates in the order of 10MB/s or more.
 
-Memory access is currently limited to the low 4G of physical address
-space which can be a problem on IA64 machines where memory is located
-mostly above that limit, but it is rarely a problem on more common
-hardware such as hardware based on x86, x86-64 and PowerPC.
+With most FireWire controllers, memory access is limited to the low 4 GB
+of physical address space.  This can be a problem on IA64 machines where
+memory is located mostly above that limit, but it is rarely a problem on
+more common hardware such as x86, x86-64 and PowerPC.  However, at least
+Agere/LSI FW643e and FW643e2 controllers are known to support access to
+physical addresses above 4 GB.
 
 Together with a early initialization of the OHCI-1394 controller for debugging,
 this facility proved most useful for examining long debugs logs in the printk
@@ -98,6 +100,9 @@ Step-by-step instructions for using firescope with early OHCI initialization:
    systems, it most likely is. Only specialized shops have cards which are not
    compliant, they are based on TI PCILynx chips and require drivers for Win-
    dows operating systems.
+
+   The mentioned kernel log message contains ">4 GB phys DMA" in case of
+   OHCI-1394 controllers which support accesses above this limit.
 
 2) Establish a working FireWire cable connection:
 
