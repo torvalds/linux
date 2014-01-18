@@ -110,6 +110,13 @@ struct netem_sched_data {
 		CLG_GILB_ELL,
 	} loss_model;
 
+	enum {
+		TX_IN_GAP_PERIOD = 1,
+		TX_IN_BURST_PERIOD,
+		LOST_IN_GAP_PERIOD,
+		LOST_IN_BURST_PERIOD,
+	} _4_state_model;
+
 	/* Correlated Loss Generation models */
 	struct clgstate {
 		/* state of the Markov chain */
@@ -205,43 +212,45 @@ static bool loss_4state(struct netem_sched_data *q)
 	 * probabilities outgoing from the current state, then decides the
 	 * next state and if the next packet has to be transmitted or lost.
 	 * The four states correspond to:
-	 *   1 => successfully transmitted packets within a gap period
-	 *   4 => isolated losses within a gap period
-	 *   3 => lost packets within a burst period
-	 *   2 => successfully transmitted packets within a burst period
+	 *   TX_IN_GAP_PERIOD => successfully transmitted packets within a gap period
+	 *   LOST_IN_BURST_PERIOD => isolated losses within a gap period
+	 *   LOST_IN_GAP_PERIOD => lost packets within a burst period
+	 *   TX_IN_GAP_PERIOD => successfully transmitted packets within a burst period
 	 */
 	switch (clg->state) {
-	case 1:
+	case TX_IN_GAP_PERIOD:
 		if (rnd < clg->a4) {
-			clg->state = 4;
+			clg->state = LOST_IN_BURST_PERIOD;
 			return true;
 		} else if (clg->a4 < rnd && rnd < clg->a1 + clg->a4) {
-			clg->state = 3;
+			clg->state = LOST_IN_GAP_PERIOD;
 			return true;
-		} else if (clg->a1 + clg->a4 < rnd)
-			clg->state = 1;
+		} else if (clg->a1 + clg->a4 < rnd) {
+			clg->state = TX_IN_GAP_PERIOD;
+		}
 
 		break;
-	case 2:
+	case TX_IN_BURST_PERIOD:
 		if (rnd < clg->a5) {
-			clg->state = 3;
+			clg->state = LOST_IN_GAP_PERIOD;
 			return true;
-		} else
-			clg->state = 2;
+		} else {
+			clg->state = TX_IN_BURST_PERIOD;
+		}
 
 		break;
-	case 3:
+	case LOST_IN_GAP_PERIOD:
 		if (rnd < clg->a3)
-			clg->state = 2;
+			clg->state = TX_IN_BURST_PERIOD;
 		else if (clg->a3 < rnd && rnd < clg->a2 + clg->a3) {
-			clg->state = 1;
+			clg->state = TX_IN_GAP_PERIOD;
 		} else if (clg->a2 + clg->a3 < rnd) {
-			clg->state = 3;
+			clg->state = LOST_IN_GAP_PERIOD;
 			return true;
 		}
 		break;
-	case 4:
-		clg->state = 1;
+	case LOST_IN_BURST_PERIOD:
+		clg->state = TX_IN_GAP_PERIOD;
 		break;
 	}
 
