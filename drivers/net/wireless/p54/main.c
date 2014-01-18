@@ -756,7 +756,6 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 				      BIT(NL80211_IFTYPE_AP) |
 				      BIT(NL80211_IFTYPE_MESH_POINT);
 
-	dev->channel_change_time = 1000;	/* TODO: find actual value */
 	priv->beacon_req_id = cpu_to_le32(0);
 	priv->tx_stats[P54_QUEUE_BEACON].limit = 1;
 	priv->tx_stats[P54_QUEUE_FWSCAN].limit = 1;

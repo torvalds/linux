@@ -21,7 +21,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
-#include <asm/processor.h>
+#include <linux/prefetch.h>
 
 #include "wil6210.h"
 #include "wmi.h"

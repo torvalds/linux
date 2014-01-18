@@ -264,14 +264,13 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 				  struct ieee80211_sta_vht_cap *vht_cap)
 {
 	int num_ants = num_of_ant(data->valid_rx_ant);
-	int bf_sts_cap = num_ants - 1;
 
 	vht_cap->vht_supported = true;
 
 	vht_cap->cap = IEEE80211_VHT_CAP_SHORT_GI_80 |
 		       IEEE80211_VHT_CAP_RXSTBC_1 |
 		       IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
-		       bf_sts_cap << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT |
+		       3 << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT |
 		       7 << IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
 
 	if (num_ants > 1)
@@ -290,9 +289,6 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
 			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 14);
 
-	/* Max rate for Long GI NSS=2 80Mhz is 780Mbps */
-	vht_cap->vht_mcs.rx_highest = cpu_to_le16(780);
-
 	if (num_ants == 1 ||
 	    cfg->rx_with_siso_diversity) {
 		vht_cap->cap |= IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN |
@@ -300,12 +296,9 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 		/* this works because NOT_SUPPORTED == 3 */
 		vht_cap->vht_mcs.rx_mcs_map |=
 			cpu_to_le16(IEEE80211_VHT_MCS_NOT_SUPPORTED << 2);
-		/* Max rate for Long GI NSS=1 80Mhz is 390Mbps */
-		vht_cap->vht_mcs.rx_highest = cpu_to_le16(390);
 	}
 
 	vht_cap->vht_mcs.tx_mcs_map = vht_cap->vht_mcs.rx_mcs_map;
-	vht_cap->vht_mcs.tx_highest = vht_cap->vht_mcs.rx_highest;
 }
 
 static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,

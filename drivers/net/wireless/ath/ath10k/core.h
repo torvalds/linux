@@ -253,6 +253,9 @@ struct ath10k_vif {
 			u8 bssid[ETH_ALEN];
 		} ibss;
 	} u;
+
+	u8 fixed_rate;
+	u8 fixed_nss;
 };
 
 struct ath10k_vif_iter {
@@ -272,6 +275,8 @@ struct ath10k_debug {
 	struct delayed_work htt_stats_dwork;
 	struct ath10k_dfs_stats dfs_stats;
 	struct ath_dfs_pool_stats dfs_pool_stats;
+
+	u32 fw_dbglog_mask;
 };
 
 enum ath10k_state {
@@ -305,6 +310,9 @@ enum ath10k_fw_features {
 
 	/* firmware support tx frame management over WMI, otherwise it's HTT */
 	ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX = 2,
+
+	/* Firmware does not support P2P */
+	ATH10K_FW_FEATURE_NO_P2P = 3,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -428,6 +436,9 @@ struct ath10k {
 	struct list_head arvifs;
 	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
+
+	/* number of created peers; protected by data_lock */
+	int num_peers;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;

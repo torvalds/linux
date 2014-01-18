@@ -32,6 +32,7 @@ brcmfmac-objs += \
 		bcdc.o \
 		dhd_common.o \
 		dhd_linux.o \
+		nvram.o \
 		btcoex.o
 brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		dhd_sdio.o \

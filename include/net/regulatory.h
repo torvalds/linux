@@ -96,6 +96,10 @@ struct regulatory_request {
  *	initiator is %REGDOM_SET_BY_CORE). Drivers that use
  *	wiphy_apply_custom_regulatory() should have this flag set
  *	or the regulatory core will set it for the wiphy.
+ *	If you use regulatory_hint() *after* using
+ *	wiphy_apply_custom_regulatory() the wireless core will
+ *	clear the REGULATORY_CUSTOM_REG for your wiphy as it would be
+ *	implied that the device somehow gained knowledge of its region.
  * @REGULATORY_STRICT_REG: tells us that the wiphy for this device
  *	has regulatory domain that it wishes to be considered as the
  *	superset for regulatory rules. After this device gets its regulatory

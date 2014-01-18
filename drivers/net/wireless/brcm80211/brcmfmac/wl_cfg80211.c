@@ -2989,6 +2989,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 		}
 
 		set_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
+		cfg->escan_info.run = brcmf_run_escan;
 		err = brcmf_do_escan(cfg, wiphy, ifp, request);
 		if (err) {
 			clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);

@@ -4640,6 +4640,14 @@ void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
  */
 void cfg80211_crit_proto_stopped(struct wireless_dev *wdev, gfp_t gfp);
 
+/**
+ * ieee80211_get_num_supported_channels - get number of channels device has
+ * @wiphy: the wiphy
+ *
+ * Return: the number of channels supported by the device.
+ */
+unsigned int ieee80211_get_num_supported_channels(struct wiphy *wiphy);
+
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
 /* wiphy_printk helpers, similar to dev_printk */

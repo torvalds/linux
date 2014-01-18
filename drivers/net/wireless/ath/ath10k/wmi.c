@@ -16,6 +16,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <linux/ctype.h>
 
 #include "core.h"
 #include "htc.h"
@@ -875,6 +876,7 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	struct wmi_mgmt_rx_event_v2 *ev_v2;
 	struct wmi_mgmt_rx_hdr_v1 *ev_hdr;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_channel *ch;
 	struct ieee80211_hdr *hdr;
 	u32 rx_status;
 	u32 channel;
@@ -927,7 +929,25 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	if (rx_status & WMI_RX_STATUS_ERR_MIC)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
-	status->band = phy_mode_to_band(phy_mode);
+	/* HW can Rx CCK rates on 5GHz. In that case phy_mode is set to
+	 * MODE_11B. This means phy_mode is not a reliable source for the band
+	 * of mgmt rx. */
+
+	ch = ar->scan_channel;
+	if (!ch)
+		ch = ar->rx_channel;
+
+	if (ch) {
+		status->band = ch->band;
+
+		if (phy_mode == MODE_11B &&
+		    status->band == IEEE80211_BAND_5GHZ)
+			ath10k_dbg(ATH10K_DBG_MGMT, "wmi mgmt rx 11b (CCK) on 5GHz\n");
+	} else {
+		ath10k_warn("using (unreliable) phy_mode to extract band for mgmt rx\n");
+		status->band = phy_mode_to_band(phy_mode);
+	}
+
 	status->freq = ieee80211_channel_to_frequency(channel, status->band);
 	status->signal = snr + ATH10K_DEFAULT_NOISE_FLOOR;
 	status->rate_idx = get_rate_idx(rate, status->band);
@@ -937,7 +957,11 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
 
-	if (fc & IEEE80211_FCTL_PROTECTED) {
+	/* FW delivers WEP Shared Auth frame with Protected Bit set and
+	 * encrypted payload. However in case of PMF it delivers decrypted
+	 * frames with Protected Bit set. */
+	if (ieee80211_has_protected(hdr->frame_control) &&
+	    !ieee80211_is_auth(hdr->frame_control)) {
 		status->flag |= RX_FLAG_DECRYPTED | RX_FLAG_IV_STRIPPED |
 				RX_FLAG_MMIC_STRIPPED;
 		hdr->frame_control = __cpu_to_le16(fc &
@@ -1047,9 +1071,14 @@ static void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb)
 	ath10k_dbg(ATH10K_DBG_WMI, "WMI_ECHO_EVENTID\n");
 }
 
-static void ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
+static int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_DEBUG_MESG_EVENTID\n");
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi event debug mesg len %d\n",
+		   skb->len);
+
+	trace_ath10k_wmi_dbglog(skb->data, skb->len);
+
+	return 0;
 }
 
 static void ath10k_wmi_event_update_stats(struct ath10k *ar,
@@ -1653,9 +1682,37 @@ static void ath10k_wmi_event_profile_match(struct ath10k *ar,
 }
 
 static void ath10k_wmi_event_debug_print(struct ath10k *ar,
-				  struct sk_buff *skb)
+					 struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_DEBUG_PRINT_EVENTID\n");
+	char buf[101], c;
+	int i;
+
+	for (i = 0; i < sizeof(buf) - 1; i++) {
+		if (i >= skb->len)
+			break;
+
+		c = skb->data[i];
+
+		if (c == '\0')
+			break;
+
+		if (isascii(c) && isprint(c))
+			buf[i] = c;
+		else
+			buf[i] = '.';
+	}
+
+	if (i == sizeof(buf) - 1)
+		ath10k_warn("wmi debug print truncated: %d\n", skb->len);
+
+	/* for some reason the debug prints end with \n, remove that */
+	if (skb->data[i - 1] == '\n')
+		i--;
+
+	/* the last byte is always reserved for the null character */
+	buf[i] = '\0';
+
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi event debug print '%s'\n", buf);
 }
 
 static void ath10k_wmi_event_pdev_qvit(struct ath10k *ar, struct sk_buff *skb)
@@ -3444,4 +3501,41 @@ int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 	ath10k_dbg(ATH10K_DBG_WMI, "wmi force fw hang %d delay %d\n",
 		   type, delay_ms);
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->force_fw_hang_cmdid);
+}
+
+int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable)
+{
+	struct wmi_dbglog_cfg_cmd *cmd;
+	struct sk_buff *skb;
+	u32 cfg;
+
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_dbglog_cfg_cmd *)skb->data;
+
+	if (module_enable) {
+		cfg = SM(ATH10K_DBGLOG_LEVEL_VERBOSE,
+			 ATH10K_DBGLOG_CFG_LOG_LVL);
+	} else {
+		/* set back defaults, all modules with WARN level */
+		cfg = SM(ATH10K_DBGLOG_LEVEL_WARN,
+			 ATH10K_DBGLOG_CFG_LOG_LVL);
+		module_enable = ~0;
+	}
+
+	cmd->module_enable = __cpu_to_le32(module_enable);
+	cmd->module_valid = __cpu_to_le32(~0);
+	cmd->config_enable = __cpu_to_le32(cfg);
+	cmd->config_valid = __cpu_to_le32(ATH10K_DBGLOG_CFG_LOG_LVL_MASK);
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi dbglog cfg modules %08x %08x config %08x %08x\n",
+		   __le32_to_cpu(cmd->module_enable),
+		   __le32_to_cpu(cmd->module_valid),
+		   __le32_to_cpu(cmd->config_enable),
+		   __le32_to_cpu(cmd->config_valid));
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->dbglog_cfg_cmdid);
 }

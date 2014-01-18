@@ -632,7 +632,8 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 	const struct ieee80211_regdomain *regd;
 
 	wiphy->reg_notifier = reg_notifier;
-	wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
+	wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
+				   REGULATORY_CUSTOM_REG;
 
 	if (ath_is_world_regd(reg)) {
 		/*
@@ -640,8 +641,7 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 		 * saved on the wiphy orig_* parameters
 		 */
 		regd = ath_world_regdomain(reg);
-		wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
-					   REGULATORY_COUNTRY_IE_FOLLOW_POWER;
+		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_FOLLOW_POWER;
 	} else {
 		/*
 		 * This gets applied in the case of the absence of CRDA,
@@ -650,6 +650,7 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 		 */
 		regd = ath_default_world_regdomain();
 	}
+
 	wiphy_apply_custom_regulatory(wiphy, regd);
 	ath_reg_apply_radar_flags(wiphy);
 	ath_reg_apply_world_flags(wiphy, NL80211_REGDOM_SET_BY_DRIVER, reg);
