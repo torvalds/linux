@@ -661,7 +661,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 		hlist_add_head(&policy->bydst, chain);
 	xfrm_pol_hold(policy);
 	net->xfrm.policy_count[dir]++;
-	atomic_inc(&flow_cache_genid);
+	atomic_inc(&net->xfrm.flow_cache_genid);
 
 	/* After previous checking, family can either be AF_INET or AF_INET6 */
 	if (policy->family == AF_INET)
@@ -2567,14 +2567,14 @@ static void __xfrm_garbage_collect(struct net *net)
 
 void xfrm_garbage_collect(struct net *net)
 {
-	flow_cache_flush();
+	flow_cache_flush(net);
 	__xfrm_garbage_collect(net);
 }
 EXPORT_SYMBOL(xfrm_garbage_collect);
 
 static void xfrm_garbage_collect_deferred(struct net *net)
 {
-	flow_cache_flush_deferred();
+	flow_cache_flush_deferred(net);
 	__xfrm_garbage_collect(net);
 }
 
@@ -2947,6 +2947,7 @@ static int __net_init xfrm_net_init(struct net *net)
 	spin_lock_init(&net->xfrm.xfrm_policy_sk_bundle_lock);
 	mutex_init(&net->xfrm.xfrm_cfg_mutex);
 
+	flow_cache_init(net);
 	return 0;
 
 out_sysctl:
