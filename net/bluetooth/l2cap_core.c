@@ -330,44 +330,20 @@ static inline bool l2cap_seq_list_contains(struct l2cap_seq_list *seq_list,
 	return seq_list->list[seq & seq_list->mask] != L2CAP_SEQ_LIST_CLEAR;
 }
 
-static u16 l2cap_seq_list_remove(struct l2cap_seq_list *seq_list, u16 seq)
-{
-	u16 mask = seq_list->mask;
-
-	if (seq_list->head == L2CAP_SEQ_LIST_CLEAR) {
-		/* In case someone tries to pop the head of an empty list */
-		return L2CAP_SEQ_LIST_CLEAR;
-	} else if (seq_list->head == seq) {
-		/* Head can be removed in constant time */
-		seq_list->head = seq_list->list[seq & mask];
-		seq_list->list[seq & mask] = L2CAP_SEQ_LIST_CLEAR;
-
-		if (seq_list->head == L2CAP_SEQ_LIST_TAIL) {
-			seq_list->head = L2CAP_SEQ_LIST_CLEAR;
-			seq_list->tail = L2CAP_SEQ_LIST_CLEAR;
-		}
-	} else {
-		/* Walk the list to find the sequence number */
-		u16 prev = seq_list->head;
-		while (seq_list->list[prev & mask] != seq) {
-			prev = seq_list->list[prev & mask];
-			if (prev == L2CAP_SEQ_LIST_TAIL)
-				return L2CAP_SEQ_LIST_CLEAR;
-		}
-
-		/* Unlink the number from the list and clear it */
-		seq_list->list[prev & mask] = seq_list->list[seq & mask];
-		seq_list->list[seq & mask] = L2CAP_SEQ_LIST_CLEAR;
-		if (seq_list->tail == seq)
-			seq_list->tail = prev;
-	}
-	return seq;
-}
-
 static inline u16 l2cap_seq_list_pop(struct l2cap_seq_list *seq_list)
 {
-	/* Remove the head in constant time */
-	return l2cap_seq_list_remove(seq_list, seq_list->head);
+	u16 seq = seq_list->head;
+	u16 mask = seq_list->mask;
+
+	seq_list->head = seq_list->list[seq & mask];
+	seq_list->list[seq & mask] = L2CAP_SEQ_LIST_CLEAR;
+
+	if (seq_list->head == L2CAP_SEQ_LIST_TAIL) {
+		seq_list->head = L2CAP_SEQ_LIST_CLEAR;
+		seq_list->tail = L2CAP_SEQ_LIST_CLEAR;
+	}
+
+	return seq;
 }
 
 static void l2cap_seq_list_clear(struct l2cap_seq_list *seq_list)
