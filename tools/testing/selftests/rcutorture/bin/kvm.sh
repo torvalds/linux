@@ -300,30 +300,34 @@ function dump(first, pastlast)
 			cfrep[cf[j]]++;
 			cfr[jn] = cf[j] "." cfrep[cf[j]];
 		}
-		print "echo ", cfr[jn], cpusr[jn] ": Starting build.";
+		if (cpusr[jn] > ncpus && ncpus != 0)
+			ovf = "(!)";
+		else
+			ovf = "";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build.";
 		print "rm -f " builddir ".*";
 		print "touch " builddir ".wait";
 		print "mkdir " builddir " > /dev/null 2>&1 || :";
 		print "mkdir " rd cfr[jn] " || :";
 		print "kvm-test-1-rcu.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" RCU_QEMU_ARG "\" \"" RCU_BOOTARGS "\" > " builddir ".out 2>&1 &"
-		print "echo ", cfr[jn], cpusr[jn] ": Waiting for build to complete."
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete."
 		print "while test -f " builddir ".wait"
 		print "do"
 		print "\tsleep 1"
 		print "done"
-		print "echo ", cfr[jn], cpusr[jn] ": Build complete."
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete."
 		jn++;
 	}
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
 		print "rm -f " builddir ".ready"
-		print "echo ----", cfr[j], cpusr[j] ": Starting kernel"
+		print "echo ----", cfr[j], cpusr[j] ovf ": Starting kernel"
 	}
 	print "wait"
 	print "echo ---- All kernel runs complete"
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
-		print "echo ----", cfr[j], cpusr[j] ": Build/run results:"
+		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results:"
 		print "cat " builddir ".out"
 	}
 }
