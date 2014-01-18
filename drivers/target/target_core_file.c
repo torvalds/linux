@@ -700,6 +700,140 @@ static sector_t fd_get_blocks(struct se_device *dev)
 		       dev->dev_attrib.block_size);
 }
 
+static int fd_init_prot(struct se_device *dev)
+{
+	struct fd_dev *fd_dev = FD_DEV(dev);
+	struct file *prot_file, *file = fd_dev->fd_file;
+	struct inode *inode;
+	int ret, flags = O_RDWR | O_CREAT | O_LARGEFILE | O_DSYNC;
+	char buf[FD_MAX_DEV_PROT_NAME];
+
+	if (!file) {
+		pr_err("Unable to locate fd_dev->fd_file\n");
+		return -ENODEV;
+	}
+
+	inode = file->f_mapping->host;
+	if (S_ISBLK(inode->i_mode)) {
+		pr_err("FILEIO Protection emulation only supported on"
+		       " !S_ISBLK\n");
+		return -ENOSYS;
+	}
+
+	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE)
+		flags &= ~O_DSYNC;
+
+	snprintf(buf, FD_MAX_DEV_PROT_NAME, "%s.protection",
+		 fd_dev->fd_dev_name);
+
+	prot_file = filp_open(buf, flags, 0600);
+	if (IS_ERR(prot_file)) {
+		pr_err("filp_open(%s) failed\n", buf);
+		ret = PTR_ERR(prot_file);
+		return ret;
+	}
+	fd_dev->fd_prot_file = prot_file;
+
+	return 0;
+}
+
+static void fd_init_format_buf(struct se_device *dev, unsigned char *buf,
+			       u32 unit_size, u32 *ref_tag, u16 app_tag,
+			       bool inc_reftag)
+{
+	unsigned char *p = buf;
+	int i;
+
+	for (i = 0; i < unit_size; i += dev->prot_length) {
+		*((u16 *)&p[0]) = 0xffff;
+		*((__be16 *)&p[2]) = cpu_to_be16(app_tag);
+		*((__be32 *)&p[4]) = cpu_to_be32(*ref_tag);
+
+		if (inc_reftag)
+			(*ref_tag)++;
+
+		p += dev->prot_length;
+	}
+}
+
+static int fd_format_prot(struct se_device *dev)
+{
+	struct fd_dev *fd_dev = FD_DEV(dev);
+	struct file *prot_fd = fd_dev->fd_prot_file;
+	sector_t prot_length, prot;
+	unsigned char *buf;
+	loff_t pos = 0;
+	u32 ref_tag = 0;
+	int unit_size = FDBD_FORMAT_UNIT_SIZE * dev->dev_attrib.block_size;
+	int rc, ret = 0, size, len;
+	bool inc_reftag = false;
+
+	if (!dev->dev_attrib.pi_prot_type) {
+		pr_err("Unable to format_prot while pi_prot_type == 0\n");
+		return -ENODEV;
+	}
+	if (!prot_fd) {
+		pr_err("Unable to locate fd_dev->fd_prot_file\n");
+		return -ENODEV;
+	}
+
+	switch (dev->dev_attrib.pi_prot_type) {
+	case TARGET_DIF_TYPE3_PROT:
+		ref_tag = 0xffffffff;
+		break;
+	case TARGET_DIF_TYPE2_PROT:
+	case TARGET_DIF_TYPE1_PROT:
+		inc_reftag = true;
+		break;
+	default:
+		break;
+	}
+
+	buf = vzalloc(unit_size);
+	if (!buf) {
+		pr_err("Unable to allocate FILEIO prot buf\n");
+		return -ENOMEM;
+	}
+
+	prot_length = (dev->transport->get_blocks(dev) + 1) * dev->prot_length;
+	size = prot_length;
+
+	pr_debug("Using FILEIO prot_length: %llu\n",
+		 (unsigned long long)prot_length);
+
+	for (prot = 0; prot < prot_length; prot += unit_size) {
+
+		fd_init_format_buf(dev, buf, unit_size, &ref_tag, 0xffff,
+				   inc_reftag);
+
+		len = min(unit_size, size);
+
+		rc = kernel_write(prot_fd, buf, len, pos);
+		if (rc != len) {
+			pr_err("vfs_write to prot file failed: %d\n", rc);
+			ret = -ENODEV;
+			goto out;
+		}
+		pos += len;
+		size -= len;
+	}
+
+out:
+	vfree(buf);
+	return ret;
+}
+
+static void fd_free_prot(struct se_device *dev)
+{
+	struct fd_dev *fd_dev = FD_DEV(dev);
+
+	if (!fd_dev->fd_prot_file)
+		return;
+
+	filp_close(fd_dev->fd_prot_file, NULL);
+	fd_dev->fd_prot_file = NULL;
+}
+
 static struct sbc_ops fd_sbc_ops = {
 	.execute_rw		= fd_execute_rw,
 	.execute_sync_cache	= fd_execute_sync_cache,
@@ -730,6 +864,9 @@ static struct se_subsystem_api fileio_template = {
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= fd_get_blocks,
+	.init_prot		= fd_init_prot,
+	.format_prot		= fd_format_prot,
+	.free_prot		= fd_free_prot,
 };
 
 static int __init fileio_module_init(void)
