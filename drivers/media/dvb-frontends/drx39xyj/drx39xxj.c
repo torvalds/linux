@@ -342,7 +342,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	int result;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct drx39xxj_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct drx39xxj_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 
@@ -353,39 +353,38 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	demod_addr = kmalloc(sizeof(struct i2c_device_addr), GFP_KERNEL);
 	if (demod_addr == NULL)
 		goto error;
+	memcpy(demod_addr, &drxj_default_addr_g,
+	       sizeof(struct i2c_device_addr));
 
 	demod_comm_attr = kmalloc(sizeof(struct drx_common_attr), GFP_KERNEL);
 	if (demod_comm_attr == NULL)
 		goto error;
+	memcpy(demod_comm_attr, &drxj_default_comm_attr_g,
+	       sizeof(struct drx_common_attr));
 
 	demod_ext_attr = kmalloc(sizeof(struct drxj_data), GFP_KERNEL);
 	if (demod_ext_attr == NULL)
 		goto error;
+	memcpy(demod_ext_attr, &drxj_data_g, sizeof(struct drxj_data));
 
 	/* setup the state */
 	state->i2c = i2c;
 	state->demod = demod;
 
+	/* setup the demod data */
 	memcpy(demod, &drxj_default_demod_g, sizeof(struct drx_demod_instance));
 
 	demod->my_i2c_dev_addr = demod_addr;
-	memcpy(demod->my_i2c_dev_addr, &drxj_default_addr_g,
-	       sizeof(struct i2c_device_addr));
-	demod->my_i2c_dev_addr->user_data = state;
 	demod->my_common_attr = demod_comm_attr;
-	memcpy(demod->my_common_attr, &drxj_default_comm_attr_g,
-	       sizeof(struct drx_common_attr));
+	demod->my_i2c_dev_addr->user_data = state;
 	demod->my_common_attr->microcode = DRXJ_MC_MAIN;
 #if 0
 	demod->my_common_attr->verify_microcode = false;
 #endif
 	demod->my_common_attr->verify_microcode = true;
 	demod->my_common_attr->intermediate_freq = 5000;
-
 	demod->my_ext_attr = demod_ext_attr;
-	memcpy(demod->my_ext_attr, &drxj_data_g, sizeof(struct drxj_data));
-	((struct drxj_data *)demod->my_ext_attr)->uio_sma_tx_mode = DRX_UIO_MODE_READWRITE;
-
+	((struct drxj_data *)demod_ext_attr)->uio_sma_tx_mode = DRX_UIO_MODE_READWRITE;
 	demod->my_tuner = NULL;
 
 	result = drx_open(demod);
