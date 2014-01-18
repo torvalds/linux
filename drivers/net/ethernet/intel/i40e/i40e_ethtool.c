@@ -1135,6 +1135,7 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		ret = i40e_get_rss_hash_opts(pf, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = 10;
 		ret = 0;
 		break;
 	case ETHTOOL_GRXCLSRULE:
@@ -1369,6 +1370,13 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	ip->saddr = fsp->h_u.tcp_ip4_spec.ip4src;
 	tcp->source = fsp->h_u.tcp_ip4_spec.psrc;
 
+	if (add) {
+		if (pf->flags & I40E_FLAG_FD_ATR_ENABLED) {
+			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
+			pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+		}
+	}
+
 	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN;
 	ret = i40e_program_fdir_filter(fd_data, pf, add);
 
@@ -1508,8 +1516,8 @@ static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
 	fd_data.flex_off = 0;
 	fd_data.pctype = 0;
 	fd_data.dest_vsi = vsi->id;
-	fd_data.dest_ctl = 0;
-	fd_data.fd_status = 0;
+	fd_data.dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DIRECT_PACKET_QINDEX;
+	fd_data.fd_status = I40E_FILTER_PROGRAM_DESC_FD_STATUS_FD_ID;
 	fd_data.cnt_index = 0;
 	fd_data.fd_id = 0;
 
@@ -1552,6 +1560,7 @@ static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
 
 	return ret;
 }
+
 /**
  * i40e_set_rxnfc - command to set RX flow classification rules
  * @netdev: network interface device structure
@@ -1614,7 +1623,7 @@ static void i40e_get_channels(struct net_device *dev,
 	ch->max_combined = i40e_max_channels(vsi);
 
 	/* report info for other vector */
-	ch->other_count = (pf->flags & I40E_FLAG_FDIR_ENABLED) ? 1 : 0;
+	ch->other_count = (pf->flags & I40E_FLAG_FD_SB_ENABLED) ? 1 : 0;
 	ch->max_other = ch->other_count;
 
 	/* Note: This code assumes DCB is disabled for now. */
@@ -1647,7 +1656,7 @@ static int i40e_set_channels(struct net_device *dev,
 		return -EINVAL;
 
 	/* verify other_count has not changed */
-	if (ch->other_count != ((pf->flags & I40E_FLAG_FDIR_ENABLED) ? 1 : 0))
+	if (ch->other_count != ((pf->flags & I40E_FLAG_FD_SB_ENABLED) ? 1 : 0))
 		return -EINVAL;
 
 	/* verify the number of channels does not exceed hardware limits */

@@ -43,7 +43,7 @@ static const char i40e_driver_string[] =
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
 const char i40e_driver_version_str[] = DRV_VERSION;
-static const char i40e_copyright[] = "Copyright (c) 2013 Intel Corporation.";
+static const char i40e_copyright[] = "Copyright (c) 2013 - 2014 Intel Corporation.";
 
 /* a bit of forward declarations */
 static void i40e_vsi_reinit_locked(struct i40e_vsi *vsi);
@@ -54,6 +54,8 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit);
 static int i40e_setup_misc_vector(struct i40e_pf *pf);
 static void i40e_determine_queue_usage(struct i40e_pf *pf);
 static int i40e_setup_pf_filter_control(struct i40e_pf *pf);
+static void i40e_fdir_sb_setup(struct i40e_pf *pf);
+static int i40e_veb_get_bw_info(struct i40e_veb *veb);
 
 /* i40e_pci_tbl - PCI Device ID Table
  *
@@ -63,16 +65,16 @@ static int i40e_setup_pf_filter_control(struct i40e_pf *pf);
  *   Class, Class Mask, private data (not used) }
  */
 static DEFINE_PCI_DEVICE_TABLE(i40e_pci_tbl) = {
-	{PCI_VDEVICE(INTEL, I40E_SFP_XL710_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_SFP_X710_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_QEMU_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_KX_A_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_KX_B_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_KX_C_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_KX_D_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_QSFP_A_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_QSFP_B_DEVICE_ID), 0},
-	{PCI_VDEVICE(INTEL, I40E_QSFP_C_DEVICE_ID), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_XL710), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_X710), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QEMU), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_A), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_B), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_C), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_D), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_A), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_B), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C), 0},
 	/* required last entry */
 	{0, }
 };
@@ -467,7 +469,7 @@ static void i40e_stat_update48(struct i40e_hw *hw, u32 hireg, u32 loreg,
 {
 	u64 new_data;
 
-	if (hw->device_id == I40E_QEMU_DEVICE_ID) {
+	if (hw->device_id == I40E_DEV_ID_QEMU) {
 		new_data = rd32(hw, loreg);
 		new_data |= ((u64)(rd32(hw, hireg) & 0xFFFF)) << 32;
 	} else {
@@ -1072,7 +1074,7 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 		if (!i40e_find_filter(vsi, macaddr, f->vlan,
 				      is_vf, is_netdev)) {
 			if (!i40e_add_filter(vsi, macaddr, f->vlan,
-						is_vf, is_netdev))
+					     is_vf, is_netdev))
 				return NULL;
 		}
 	}
@@ -1271,6 +1273,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	u8 offset;
 	u16 qmap;
 	int i;
+	u16 num_tc_qps = 0;
 
 	sections = I40E_AQ_VSI_PROP_QUEUE_MAP_VALID;
 	offset = 0;
@@ -1292,6 +1295,9 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 
 	vsi->tc_config.numtc = numtc;
 	vsi->tc_config.enabled_tc = enabled_tc ? enabled_tc : 1;
+	/* Number of queues per enabled TC */
+	num_tc_qps = rounddown_pow_of_two(vsi->alloc_queue_pairs/numtc);
+	num_tc_qps = min_t(int, num_tc_qps, I40E_MAX_QUEUES_PER_TC);
 
 	/* Setup queue offset/count for all TCs for given VSI */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
@@ -1299,30 +1305,25 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 		if (vsi->tc_config.enabled_tc & (1 << i)) { /* TC is enabled */
 			int pow, num_qps;
 
-			vsi->tc_config.tc_info[i].qoffset = offset;
 			switch (vsi->type) {
 			case I40E_VSI_MAIN:
-				if (i == 0)
-					qcount = pf->rss_size;
-				else
-					qcount = pf->num_tc_qps;
-				vsi->tc_config.tc_info[i].qcount = qcount;
+				qcount = min_t(int, pf->rss_size, num_tc_qps);
 				break;
 			case I40E_VSI_FDIR:
 			case I40E_VSI_SRIOV:
 			case I40E_VSI_VMDQ2:
 			default:
-				qcount = vsi->alloc_queue_pairs;
-				vsi->tc_config.tc_info[i].qcount = qcount;
+				qcount = num_tc_qps;
 				WARN_ON(i != 0);
 				break;
 			}
+			vsi->tc_config.tc_info[i].qoffset = offset;
+			vsi->tc_config.tc_info[i].qcount = qcount;
 
 			/* find the power-of-2 of the number of queue pairs */
-			num_qps = vsi->tc_config.tc_info[i].qcount;
+			num_qps = qcount;
 			pow = 0;
-			while (num_qps &&
-			      ((1 << pow) < vsi->tc_config.tc_info[i].qcount)) {
+			while (num_qps && ((1 << pow) < qcount)) {
 				pow++;
 				num_qps >>= 1;
 			}
@@ -1332,7 +1333,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 			    (offset << I40E_AQ_VSI_TC_QUE_OFFSET_SHIFT) |
 			    (pow << I40E_AQ_VSI_TC_QUE_NUMBER_SHIFT);
 
-			offset += vsi->tc_config.tc_info[i].qcount;
+			offset += qcount;
 		} else {
 			/* TC is not enabled so set the offset to
 			 * default queue and allocate one queue
@@ -2152,7 +2153,7 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	u32 qtx_ctl = 0;
 
 	/* some ATR related tx ring init */
-	if (vsi->back->flags & I40E_FLAG_FDIR_ATR_ENABLED) {
+	if (vsi->back->flags & I40E_FLAG_FD_ATR_ENABLED) {
 		ring->atr_sample_rate = vsi->back->atr_sample_rate;
 		ring->atr_count = 0;
 	} else {
@@ -2161,6 +2162,7 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 
 	/* initialize XPS */
 	if (ring->q_vector && ring->netdev &&
+	    vsi->tc_config.numtc <= 1 &&
 	    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state))
 		netif_set_xps_queue(ring->netdev,
 				    &ring->q_vector->affinity_mask,
@@ -2172,8 +2174,8 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	tx_ctx.new_context = 1;
 	tx_ctx.base = (ring->dma / 128);
 	tx_ctx.qlen = ring->count;
-	tx_ctx.fd_ena = !!(vsi->back->flags & (I40E_FLAG_FDIR_ENABLED |
-					       I40E_FLAG_FDIR_ATR_ENABLED));
+	tx_ctx.fd_ena = !!(vsi->back->flags & (I40E_FLAG_FD_SB_ENABLED |
+					       I40E_FLAG_FD_ATR_ENABLED));
 	tx_ctx.timesync_ena = !!(vsi->back->flags & I40E_FLAG_PTP);
 
 	/* As part of VSI creation/update, FW allocates certain
@@ -2636,23 +2638,6 @@ static irqreturn_t i40e_msix_clean_rings(int irq, void *data)
 }
 
 /**
- * i40e_fdir_clean_rings - Interrupt Handler for FDIR rings
- * @irq: interrupt number
- * @data: pointer to a q_vector
- **/
-static irqreturn_t i40e_fdir_clean_rings(int irq, void *data)
-{
-	struct i40e_q_vector *q_vector = data;
-
-	if (!q_vector->tx.ring && !q_vector->rx.ring)
-		return IRQ_HANDLED;
-
-	pr_info("fdir ring cleaning needed\n");
-
-	return IRQ_HANDLED;
-}
-
-/**
  * i40e_vsi_request_irq_msix - Initialize MSI-X interrupts
  * @vsi: the VSI being configured
  * @basename: name for the vector
@@ -2900,6 +2885,94 @@ enable_intr:
 	}
 
 	return ret;
+}
+
+/**
+ * i40e_clean_fdir_tx_irq - Reclaim resources after transmit completes
+ * @tx_ring:  tx ring to clean
+ * @budget:   how many cleans we're allowed
+ *
+ * Returns true if there's any budget left (e.g. the clean is finished)
+ **/
+static bool i40e_clean_fdir_tx_irq(struct i40e_ring *tx_ring, int budget)
+{
+	struct i40e_vsi *vsi = tx_ring->vsi;
+	u16 i = tx_ring->next_to_clean;
+	struct i40e_tx_buffer *tx_buf;
+	struct i40e_tx_desc *tx_desc;
+
+	tx_buf = &tx_ring->tx_bi[i];
+	tx_desc = I40E_TX_DESC(tx_ring, i);
+	i -= tx_ring->count;
+
+	do {
+		struct i40e_tx_desc *eop_desc = tx_buf->next_to_watch;
+
+		/* if next_to_watch is not set then there is no work pending */
+		if (!eop_desc)
+			break;
+
+		/* prevent any other reads prior to eop_desc */
+		read_barrier_depends();
+
+		/* if the descriptor isn't done, no work yet to do */
+		if (!(eop_desc->cmd_type_offset_bsz &
+		      cpu_to_le64(I40E_TX_DESC_DTYPE_DESC_DONE)))
+			break;
+
+		/* clear next_to_watch to prevent false hangs */
+		tx_buf->next_to_watch = NULL;
+
+		/* unmap skb header data */
+		dma_unmap_single(tx_ring->dev,
+				 dma_unmap_addr(tx_buf, dma),
+				 dma_unmap_len(tx_buf, len),
+				 DMA_TO_DEVICE);
+
+		dma_unmap_len_set(tx_buf, len, 0);
+
+
+		/* move to the next desc and buffer to clean */
+		tx_buf++;
+		tx_desc++;
+		i++;
+		if (unlikely(!i)) {
+			i -= tx_ring->count;
+			tx_buf = tx_ring->tx_bi;
+			tx_desc = I40E_TX_DESC(tx_ring, 0);
+		}
+
+		/* update budget accounting */
+		budget--;
+	} while (likely(budget));
+
+	i += tx_ring->count;
+	tx_ring->next_to_clean = i;
+
+	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+		i40e_irq_dynamic_enable(vsi,
+				tx_ring->q_vector->v_idx + vsi->base_vector);
+	}
+	return budget > 0;
+}
+
+/**
+ * i40e_fdir_clean_ring - Interrupt Handler for FDIR SB ring
+ * @irq: interrupt number
+ * @data: pointer to a q_vector
+ **/
+static irqreturn_t i40e_fdir_clean_ring(int irq, void *data)
+{
+	struct i40e_q_vector *q_vector = data;
+	struct i40e_vsi *vsi;
+
+	if (!q_vector->tx.ring)
+		return IRQ_HANDLED;
+
+	vsi = q_vector->tx.ring->vsi;
+	i40e_clean_fdir_tx_irq(q_vector->tx.ring, vsi->work_limit);
+
+	return IRQ_HANDLED;
 }
 
 /**
@@ -3816,6 +3889,149 @@ out:
 }
 
 /**
+ * i40e_veb_config_tc - Configure TCs for given VEB
+ * @veb: given VEB
+ * @enabled_tc: TC bitmap
+ *
+ * Configures given TC bitmap for VEB (switching) element
+ **/
+int i40e_veb_config_tc(struct i40e_veb *veb, u8 enabled_tc)
+{
+	struct i40e_aqc_configure_switching_comp_bw_config_data bw_data = {0};
+	struct i40e_pf *pf = veb->pf;
+	int ret = 0;
+	int i;
+
+	/* No TCs or already enabled TCs just return */
+	if (!enabled_tc || veb->enabled_tc == enabled_tc)
+		return ret;
+
+	bw_data.tc_valid_bits = enabled_tc;
+	/* bw_data.absolute_credits is not set (relative) */
+
+	/* Enable ETS TCs with equal BW Share for now */
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+		if (enabled_tc & (1 << i))
+			bw_data.tc_bw_share_credits[i] = 1;
+	}
+
+	ret = i40e_aq_config_switch_comp_bw_config(&pf->hw, veb->seid,
+						   &bw_data, NULL);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "veb bw config failed, aq_err=%d\n",
+			 pf->hw.aq.asq_last_status);
+		goto out;
+	}
+
+	/* Update the BW information */
+	ret = i40e_veb_get_bw_info(veb);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "Failed getting veb bw config, aq_err=%d\n",
+			 pf->hw.aq.asq_last_status);
+	}
+
+out:
+	return ret;
+}
+
+#ifdef CONFIG_I40E_DCB
+/**
+ * i40e_dcb_reconfigure - Reconfigure all VEBs and VSIs
+ * @pf: PF struct
+ *
+ * Reconfigure VEB/VSIs on a given PF; it is assumed that
+ * the caller would've quiesce all the VSIs before calling
+ * this function
+ **/
+static void i40e_dcb_reconfigure(struct i40e_pf *pf)
+{
+	u8 tc_map = 0;
+	int ret;
+	u8 v;
+
+	/* Enable the TCs available on PF to all VEBs */
+	tc_map = i40e_pf_get_tc_map(pf);
+	for (v = 0; v < I40E_MAX_VEB; v++) {
+		if (!pf->veb[v])
+			continue;
+		ret = i40e_veb_config_tc(pf->veb[v], tc_map);
+		if (ret) {
+			dev_info(&pf->pdev->dev,
+				 "Failed configuring TC for VEB seid=%d\n",
+				 pf->veb[v]->seid);
+			/* Will try to configure as many components */
+		}
+	}
+
+	/* Update each VSI */
+	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+		if (!pf->vsi[v])
+			continue;
+
+		/* - Enable all TCs for the LAN VSI
+		 * - For all others keep them at TC0 for now
+		 */
+		if (v == pf->lan_vsi)
+			tc_map = i40e_pf_get_tc_map(pf);
+		else
+			tc_map = i40e_pf_get_default_tc(pf);
+
+		ret = i40e_vsi_config_tc(pf->vsi[v], tc_map);
+		if (ret) {
+			dev_info(&pf->pdev->dev,
+				 "Failed configuring TC for VSI seid=%d\n",
+				 pf->vsi[v]->seid);
+			/* Will try to configure as many components */
+		} else {
+			if (pf->vsi[v]->netdev)
+				i40e_dcbnl_set_all(pf->vsi[v]);
+		}
+	}
+}
+
+/**
+ * i40e_init_pf_dcb - Initialize DCB configuration
+ * @pf: PF being configured
+ *
+ * Query the current DCB configuration and cache it
+ * in the hardware structure
+ **/
+static int i40e_init_pf_dcb(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	int err = 0;
+
+	if (pf->hw.func_caps.npar_enable)
+		goto out;
+
+	/* Get the initial DCB configuration */
+	err = i40e_init_dcb(hw);
+	if (!err) {
+		/* Device/Function is not DCBX capable */
+		if ((!hw->func_caps.dcb) ||
+		    (hw->dcbx_status == I40E_DCBX_STATUS_DISABLED)) {
+			dev_info(&pf->pdev->dev,
+				 "DCBX offload is not supported or is disabled for this PF.\n");
+
+			if (pf->flags & I40E_FLAG_MFP_ENABLED)
+				goto out;
+
+		} else {
+			/* When status is not DISABLED then DCBX in FW */
+			pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED |
+				       DCB_CAP_DCBX_VER_IEEE;
+			pf->flags |= I40E_FLAG_DCB_ENABLED;
+		}
+	}
+
+out:
+	return err;
+}
+#endif /* CONFIG_I40E_DCB */
+
+/**
  * i40e_up_complete - Finish the last steps of bringing up a connection
  * @vsi: the VSI being configured
  **/
@@ -4176,6 +4392,130 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		return;
 	}
 }
+
+#ifdef CONFIG_I40E_DCB
+/**
+ * i40e_dcb_need_reconfig - Check if DCB needs reconfig
+ * @pf: board private structure
+ * @old_cfg: current DCB config
+ * @new_cfg: new DCB config
+ **/
+bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
+			    struct i40e_dcbx_config *old_cfg,
+			    struct i40e_dcbx_config *new_cfg)
+{
+	bool need_reconfig = false;
+
+	/* Check if ETS configuration has changed */
+	if (memcmp(&new_cfg->etscfg,
+		   &old_cfg->etscfg,
+		   sizeof(new_cfg->etscfg))) {
+		/* If Priority Table has changed reconfig is needed */
+		if (memcmp(&new_cfg->etscfg.prioritytable,
+			   &old_cfg->etscfg.prioritytable,
+			   sizeof(new_cfg->etscfg.prioritytable))) {
+			need_reconfig = true;
+			dev_info(&pf->pdev->dev, "ETS UP2TC changed.\n");
+		}
+
+		if (memcmp(&new_cfg->etscfg.tcbwtable,
+			   &old_cfg->etscfg.tcbwtable,
+			   sizeof(new_cfg->etscfg.tcbwtable)))
+			dev_info(&pf->pdev->dev, "ETS TC BW Table changed.\n");
+
+		if (memcmp(&new_cfg->etscfg.tsatable,
+			   &old_cfg->etscfg.tsatable,
+			   sizeof(new_cfg->etscfg.tsatable)))
+			dev_info(&pf->pdev->dev, "ETS TSA Table changed.\n");
+	}
+
+	/* Check if PFC configuration has changed */
+	if (memcmp(&new_cfg->pfc,
+		   &old_cfg->pfc,
+		   sizeof(new_cfg->pfc))) {
+		need_reconfig = true;
+		dev_info(&pf->pdev->dev, "PFC config change detected.\n");
+	}
+
+	/* Check if APP Table has changed */
+	if (memcmp(&new_cfg->app,
+		   &old_cfg->app,
+		   sizeof(new_cfg->app)))
+		need_reconfig = true;
+		dev_info(&pf->pdev->dev, "APP Table change detected.\n");
+
+	return need_reconfig;
+}
+
+/**
+ * i40e_handle_lldp_event - Handle LLDP Change MIB event
+ * @pf: board private structure
+ * @e: event info posted on ARQ
+ **/
+static int i40e_handle_lldp_event(struct i40e_pf *pf,
+				  struct i40e_arq_event_info *e)
+{
+	struct i40e_aqc_lldp_get_mib *mib =
+		(struct i40e_aqc_lldp_get_mib *)&e->desc.params.raw;
+	struct i40e_hw *hw = &pf->hw;
+	struct i40e_dcbx_config *dcbx_cfg = &hw->local_dcbx_config;
+	struct i40e_dcbx_config tmp_dcbx_cfg;
+	bool need_reconfig = false;
+	int ret = 0;
+	u8 type;
+
+	/* Ignore if event is not for Nearest Bridge */
+	type = ((mib->type >> I40E_AQ_LLDP_BRIDGE_TYPE_SHIFT)
+		& I40E_AQ_LLDP_BRIDGE_TYPE_MASK);
+	if (type != I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE)
+		return ret;
+
+	/* Check MIB Type and return if event for Remote MIB update */
+	type = mib->type & I40E_AQ_LLDP_MIB_TYPE_MASK;
+	if (type == I40E_AQ_LLDP_MIB_REMOTE) {
+		/* Update the remote cached instance and return */
+		ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_REMOTE,
+				I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE,
+				&hw->remote_dcbx_config);
+		goto exit;
+	}
+
+	/* Convert/store the DCBX data from LLDPDU temporarily */
+	memset(&tmp_dcbx_cfg, 0, sizeof(tmp_dcbx_cfg));
+	ret = i40e_lldp_to_dcb_config(e->msg_buf, &tmp_dcbx_cfg);
+	if (ret) {
+		/* Error in LLDPDU parsing return */
+		dev_info(&pf->pdev->dev, "Failed parsing LLDPDU from event buffer\n");
+		goto exit;
+	}
+
+	/* No change detected in DCBX configs */
+	if (!memcmp(&tmp_dcbx_cfg, dcbx_cfg, sizeof(tmp_dcbx_cfg))) {
+		dev_info(&pf->pdev->dev, "No change detected in DCBX configuration.\n");
+		goto exit;
+	}
+
+	need_reconfig = i40e_dcb_need_reconfig(pf, dcbx_cfg, &tmp_dcbx_cfg);
+
+	i40e_dcbnl_flush_apps(pf, &tmp_dcbx_cfg);
+
+	/* Overwrite the new configuration */
+	*dcbx_cfg = tmp_dcbx_cfg;
+
+	if (!need_reconfig)
+		goto exit;
+
+	/* Reconfiguration needed quiesce all VSIs */
+	i40e_pf_quiesce_all_vsi(pf);
+
+	/* Changes in configuration update VEB/VSI */
+	i40e_dcb_reconfigure(pf);
+
+	i40e_pf_unquiesce_all_vsi(pf);
+exit:
+	return ret;
+}
+#endif /* CONFIG_I40E_DCB */
 
 /**
  * i40e_do_reset_safe - Protected reset path for userland calls.
@@ -4563,6 +4903,11 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 			break;
 		case i40e_aqc_opc_lldp_update_mib:
 			dev_info(&pf->pdev->dev, "ARQ: Update LLDP MIB event received\n");
+#ifdef CONFIG_I40E_DCB
+			rtnl_lock();
+			ret = i40e_handle_lldp_event(pf, &event);
+			rtnl_unlock();
+#endif /* CONFIG_I40E_DCB */
 			break;
 		case i40e_aqc_opc_event_lan_overflow:
 			dev_info(&pf->pdev->dev, "ARQ LAN queue overflow event received\n");
@@ -4704,12 +5049,8 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 		}
 	} while (err);
 
-	if (pf->hw.revision_id == 0 && (pf->flags & I40E_FLAG_MFP_ENABLED)) {
-		pf->hw.func_caps.num_msix_vectors += 1;
-		pf->hw.func_caps.num_tx_qp =
-			min_t(int, pf->hw.func_caps.num_tx_qp,
-			      I40E_MAX_NPAR_QPS);
-	}
+	/* increment MSI-X count because current FW skips one */
+	pf->hw.func_caps.num_msix_vectors++;
 
 	if (pf->hw.debug_mask & I40E_DEBUG_USER)
 		dev_info(&pf->pdev->dev,
@@ -4734,54 +5075,77 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 	return 0;
 }
 
+static int i40e_vsi_clear(struct i40e_vsi *vsi);
+
 /**
- * i40e_fdir_setup - initialize the Flow Director resources
+ * i40e_fdir_sb_setup - initialize the Flow Director resources for Sideband
  * @pf: board private structure
  **/
-static void i40e_fdir_setup(struct i40e_pf *pf)
+static void i40e_fdir_sb_setup(struct i40e_pf *pf)
 {
 	struct i40e_vsi *vsi;
 	bool new_vsi = false;
 	int err, i;
 
-	if (!(pf->flags & (I40E_FLAG_FDIR_ENABLED |
-			   I40E_FLAG_FDIR_ATR_ENABLED)))
+	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
 		return;
 
-	pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
-
-	/* find existing or make new FDIR VSI */
+	/* find existing VSI and see if it needs configuring */
 	vsi = NULL;
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
-		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR)
+	for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR) {
 			vsi = pf->vsi[i];
+			break;
+		}
+	}
+
+	/* create a new VSI if none exists */
 	if (!vsi) {
-		vsi = i40e_vsi_setup(pf, I40E_VSI_FDIR, pf->mac_seid, 0);
+		vsi = i40e_vsi_setup(pf, I40E_VSI_FDIR,
+				     pf->vsi[pf->lan_vsi]->seid, 0);
 		if (!vsi) {
 			dev_info(&pf->pdev->dev, "Couldn't create FDir VSI\n");
-			pf->flags &= ~I40E_FLAG_FDIR_ENABLED;
-			return;
+			goto err_vsi;
 		}
 		new_vsi = true;
 	}
-	WARN_ON(vsi->base_queue != I40E_FDIR_RING);
-	i40e_vsi_setup_irqhandler(vsi, i40e_fdir_clean_rings);
+	i40e_vsi_setup_irqhandler(vsi, i40e_fdir_clean_ring);
 
 	err = i40e_vsi_setup_tx_resources(vsi);
-	if (!err)
-		err = i40e_vsi_setup_rx_resources(vsi);
-	if (!err)
-		err = i40e_vsi_configure(vsi);
-	if (!err && new_vsi) {
+	if (err)
+		goto err_setup_tx;
+	err = i40e_vsi_setup_rx_resources(vsi);
+	if (err)
+		goto err_setup_rx;
+
+	if (new_vsi) {
 		char int_name[IFNAMSIZ + 9];
+		err = i40e_vsi_configure(vsi);
+		if (err)
+			goto err_setup_rx;
 		snprintf(int_name, sizeof(int_name) - 1, "%s-fdir",
 			 dev_driver_string(&pf->pdev->dev));
 		err = i40e_vsi_request_irq(vsi, int_name);
-	}
-	if (!err)
+		if (err)
+			goto err_setup_rx;
 		err = i40e_up_complete(vsi);
+		if (err)
+			goto err_up_complete;
+	}
 
 	clear_bit(__I40E_NEEDS_RESTART, &vsi->state);
+	return;
+
+err_up_complete:
+	i40e_down(vsi);
+	i40e_vsi_free_irq(vsi);
+err_setup_rx:
+	i40e_vsi_free_rx_resources(vsi);
+err_setup_tx:
+	i40e_vsi_free_tx_resources(vsi);
+err_vsi:
+	pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+	i40e_vsi_clear(vsi);
 }
 
 /**
@@ -4891,6 +5255,14 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 		dev_info(&pf->pdev->dev, "configure_lan_hmc failed: %d\n", ret);
 		goto end_core_reset;
 	}
+
+#ifdef CONFIG_I40E_DCB
+	ret = i40e_init_pf_dcb(pf);
+	if (ret) {
+		dev_info(&pf->pdev->dev, "init_pf_dcb failed: %d\n", ret);
+		goto end_core_reset;
+	}
+#endif /* CONFIG_I40E_DCB */
 
 	/* do basic switch setup */
 	ret = i40e_setup_pf_switch(pf, reinit);
@@ -5547,7 +5919,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	pf->num_vmdq_msix = pf->num_vmdq_qps;
 	v_budget = 1 + pf->num_lan_msix;
 	v_budget += (pf->num_vmdq_vsis * pf->num_vmdq_msix);
-	if (pf->flags & I40E_FLAG_FDIR_ENABLED)
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
 		v_budget++;
 
 	/* Scale down if necessary, and the rings will share vectors */
@@ -5683,13 +6055,13 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
 		err = i40e_init_msix(pf);
 		if (err) {
-			pf->flags &= ~(I40E_FLAG_MSIX_ENABLED	   |
-					I40E_FLAG_RSS_ENABLED	   |
-					I40E_FLAG_DCB_ENABLED	   |
-					I40E_FLAG_SRIOV_ENABLED	   |
-					I40E_FLAG_FDIR_ENABLED	   |
-					I40E_FLAG_FDIR_ATR_ENABLED |
-					I40E_FLAG_VMDQ_ENABLED);
+			pf->flags &= ~(I40E_FLAG_MSIX_ENABLED	|
+				       I40E_FLAG_RSS_ENABLED	|
+				       I40E_FLAG_DCB_ENABLED	|
+				       I40E_FLAG_SRIOV_ENABLED	|
+				       I40E_FLAG_FD_SB_ENABLED	|
+				       I40E_FLAG_FD_ATR_ENABLED	|
+				       I40E_FLAG_VMDQ_ENABLED);
 
 			/* rework the queue expectations without MSIX */
 			i40e_determine_queue_usage(pf);
@@ -5869,6 +6241,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	if (pf->hw.func_caps.rss) {
 		pf->flags |= I40E_FLAG_RSS_ENABLED;
 		pf->rss_size = min_t(int, pf->rss_size_max, num_online_cpus());
+		pf->rss_size = rounddown_pow_of_two(pf->rss_size);
 	} else {
 		pf->rss_size = 1;
 	}
@@ -5879,26 +6252,25 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		dev_info(&pf->pdev->dev, "MFP mode Enabled\n");
 	}
 
-	if (pf->hw.func_caps.dcb)
-		pf->num_tc_qps = I40E_DEFAULT_QUEUES_PER_TC;
-	else
-		pf->num_tc_qps = 0;
-
-	if (pf->hw.func_caps.fd) {
-		/* FW/NVM is not yet fixed in this regard */
-		if ((pf->hw.func_caps.fd_filters_guaranteed > 0) ||
-		    (pf->hw.func_caps.fd_filters_best_effort > 0)) {
-			pf->flags |= I40E_FLAG_FDIR_ATR_ENABLED;
-			dev_info(&pf->pdev->dev,
-				 "Flow Director ATR mode Enabled\n");
-			pf->flags |= I40E_FLAG_FDIR_ENABLED;
+	/* FW/NVM is not yet fixed in this regard */
+	if ((pf->hw.func_caps.fd_filters_guaranteed > 0) ||
+	    (pf->hw.func_caps.fd_filters_best_effort > 0)) {
+		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+		pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
+		dev_info(&pf->pdev->dev,
+			"Flow Director ATR mode Enabled\n");
+		if (!(pf->flags & I40E_FLAG_MFP_ENABLED)) {
+			pf->flags |= I40E_FLAG_FD_SB_ENABLED;
 			dev_info(&pf->pdev->dev,
 				 "Flow Director Side Band mode Enabled\n");
-			pf->fdir_pf_filter_count =
-					 pf->hw.func_caps.fd_filters_guaranteed;
+		} else {
+			dev_info(&pf->pdev->dev,
+				 "Flow Director Side Band mode Disabled in MFP mode\n");
 		}
-	} else {
-		pf->fdir_pf_filter_count = 0;
+		pf->fdir_pf_filter_count =
+				 pf->hw.func_caps.fd_filters_guaranteed;
+		pf->hw.fdir_shared_filter_count =
+				 pf->hw.func_caps.fd_filters_best_effort;
 	}
 
 	if (pf->hw.func_caps.vmdq) {
@@ -6189,10 +6561,6 @@ static void i40e_vsi_delete(struct i40e_vsi *vsi)
 	if (vsi == vsi->back->vsi[vsi->back->lan_vsi])
 		return;
 
-	/* there is no HW VSI for FDIR */
-	if (vsi->type == I40E_VSI_FDIR)
-		return;
-
 	i40e_aq_delete_element(&vsi->back->hw, vsi->seid, NULL);
 	return;
 }
@@ -6276,12 +6644,12 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		break;
 
 	case I40E_VSI_FDIR:
-		/* no queue mapping or actual HW VSI needed */
-		vsi->info.valid_sections = 0;
-		vsi->seid = 0;
-		vsi->id = 0;
+		ctxt.pf_num = hw->pf_id;
+		ctxt.vf_num = 0;
+		ctxt.uplink_seid = vsi->uplink_seid;
+		ctxt.connection_type = 0x1;     /* regular data port */
+		ctxt.flags = I40E_AQ_VSI_TYPE_PF;
 		i40e_vsi_setup_queue_map(vsi, &ctxt, enabled_tc, true);
-		return 0;
 		break;
 
 	case I40E_VSI_VMDQ2:
@@ -6650,6 +7018,8 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 	if (v_idx < 0)
 		goto err_alloc;
 	vsi = pf->vsi[v_idx];
+	if (!vsi)
+		goto err_alloc;
 	vsi->type = type;
 	vsi->veb_idx = (veb ? veb->idx : I40E_NO_VEB);
 
@@ -6658,7 +7028,8 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 	else if (type == I40E_VSI_SRIOV)
 		vsi->vf_id = param1;
 	/* assign it some queues */
-	ret = i40e_get_lump(pf, pf->qp_pile, vsi->alloc_queue_pairs, vsi->idx);
+	ret = i40e_get_lump(pf, pf->qp_pile, vsi->alloc_queue_pairs,
+				vsi->idx);
 	if (ret < 0) {
 		dev_info(&pf->pdev->dev, "VSI %d get_lump failed %d\n",
 			 vsi->seid, ret);
@@ -6684,6 +7055,10 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 			goto err_netdev;
 		vsi->netdev_registered = true;
 		netif_carrier_off(vsi->netdev);
+#ifdef CONFIG_I40E_DCB
+		/* Setup DCB netlink interface */
+		i40e_dcbnl_setup(vsi);
+#endif /* CONFIG_I40E_DCB */
 		/* fall through */
 
 	case I40E_VSI_FDIR:
@@ -7232,12 +7607,6 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 	}
 	i40e_pf_reset_stats(pf);
 
-	/* fdir VSI must happen first to be sure it gets queue 0, but only
-	 * if there is enough room for the fdir VSI
-	 */
-	if (pf->num_lan_qps > 1)
-		i40e_fdir_setup(pf);
-
 	/* first time setup */
 	if (pf->lan_vsi == I40E_NO_VSI || reinit) {
 		struct i40e_vsi *vsi = NULL;
@@ -7267,6 +7636,8 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		i40e_vsi_config_tc(pf->vsi[pf->lan_vsi], enabled_tc);
 	}
 	i40e_vlan_stripping_disable(pf->vsi[pf->lan_vsi]);
+
+	i40e_fdir_sb_setup(pf);
 
 	/* Setup static PF queue filter control settings */
 	ret = i40e_setup_pf_filter_control(pf);
@@ -7351,33 +7722,14 @@ fc_complete:
 }
 
 /**
- * i40e_set_rss_size - helper to set rss_size
- * @pf: board private structure
- * @queues_left: how many queues
- */
-static u16 i40e_set_rss_size(struct i40e_pf *pf, int queues_left)
-{
-	int num_tc0;
-
-	num_tc0 = min_t(int, queues_left, pf->rss_size_max);
-	num_tc0 = min_t(int, num_tc0, num_online_cpus());
-	num_tc0 = rounddown_pow_of_two(num_tc0);
-
-	return num_tc0;
-}
-
-/**
  * i40e_determine_queue_usage - Work out queue distribution
  * @pf: board private structure
  **/
 static void i40e_determine_queue_usage(struct i40e_pf *pf)
 {
-	int accum_tc_size;
 	int queues_left;
 
 	pf->num_lan_qps = 0;
-	pf->num_tc_qps = rounddown_pow_of_two(pf->num_tc_qps);
-	accum_tc_size = (I40E_MAX_TRAFFIC_CLASS - 1) * pf->num_tc_qps;
 
 	/* Find the max queues to be put into basic use.  We'll always be
 	 * using TC0, whether or not DCB is running, and TC0 will get the
@@ -7385,97 +7737,45 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 	 */
 	queues_left = pf->hw.func_caps.num_tx_qp;
 
-	if   (!(pf->flags & I40E_FLAG_MSIX_ENABLED) ||
-		!(pf->flags & (I40E_FLAG_RSS_ENABLED |
-		I40E_FLAG_FDIR_ENABLED | I40E_FLAG_DCB_ENABLED)) ||
-		(queues_left == 1)) {
-
+	if ((queues_left == 1) ||
+	    !(pf->flags & I40E_FLAG_MSIX_ENABLED) ||
+	    !(pf->flags & (I40E_FLAG_RSS_ENABLED | I40E_FLAG_FD_SB_ENABLED |
+			   I40E_FLAG_DCB_ENABLED))) {
 		/* one qp for PF, no queues for anything else */
 		queues_left = 0;
 		pf->rss_size = pf->num_lan_qps = 1;
 
 		/* make sure all the fancies are disabled */
-		pf->flags &= ~(I40E_FLAG_RSS_ENABLED       |
-				I40E_FLAG_FDIR_ENABLED	   |
-				I40E_FLAG_FDIR_ATR_ENABLED |
-				I40E_FLAG_DCB_ENABLED	   |
-				I40E_FLAG_SRIOV_ENABLED	   |
-				I40E_FLAG_VMDQ_ENABLED);
-
-	} else if (pf->flags & I40E_FLAG_RSS_ENABLED	  &&
-		   !(pf->flags & I40E_FLAG_FDIR_ENABLED)  &&
-		   !(pf->flags & I40E_FLAG_DCB_ENABLED)) {
-
-		pf->rss_size = i40e_set_rss_size(pf, queues_left);
-
-		queues_left -= pf->rss_size;
-		pf->num_lan_qps = pf->rss_size_max;
-
-	} else if (pf->flags & I40E_FLAG_RSS_ENABLED	  &&
-		   !(pf->flags & I40E_FLAG_FDIR_ENABLED)  &&
-		   (pf->flags & I40E_FLAG_DCB_ENABLED)) {
-
-		/* save num_tc_qps queues for TCs 1 thru 7 and the rest
-		 * are set up for RSS in TC0
-		 */
-		queues_left -= accum_tc_size;
-
-		pf->rss_size = i40e_set_rss_size(pf, queues_left);
-
-		queues_left -= pf->rss_size;
-		if (queues_left < 0) {
-			dev_info(&pf->pdev->dev, "not enough queues for DCB\n");
-			return;
-		}
-
-		pf->num_lan_qps = pf->rss_size_max + accum_tc_size;
-
-	} else if (pf->flags & I40E_FLAG_RSS_ENABLED   &&
-		  (pf->flags & I40E_FLAG_FDIR_ENABLED) &&
-		  !(pf->flags & I40E_FLAG_DCB_ENABLED)) {
-
-		queues_left -= 1; /* save 1 queue for FD */
-
-		pf->rss_size = i40e_set_rss_size(pf, queues_left);
-
-		queues_left -= pf->rss_size;
-		if (queues_left < 0) {
-			dev_info(&pf->pdev->dev, "not enough queues for Flow Director\n");
-			return;
-		}
-
-		pf->num_lan_qps = pf->rss_size_max;
-
-	} else if (pf->flags & I40E_FLAG_RSS_ENABLED   &&
-		  (pf->flags & I40E_FLAG_FDIR_ENABLED) &&
-		  (pf->flags & I40E_FLAG_DCB_ENABLED)) {
-
-		/* save 1 queue for TCs 1 thru 7,
-		 * 1 queue for flow director,
-		 * and the rest are set up for RSS in TC0
-		 */
-		queues_left -= 1;
-		queues_left -= accum_tc_size;
-
-		pf->rss_size = i40e_set_rss_size(pf, queues_left);
-		queues_left -= pf->rss_size;
-		if (queues_left < 0) {
-			dev_info(&pf->pdev->dev, "not enough queues for DCB and Flow Director\n");
-			return;
-		}
-
-		pf->num_lan_qps = pf->rss_size_max + accum_tc_size;
-
+		pf->flags &= ~(I40E_FLAG_RSS_ENABLED	|
+			       I40E_FLAG_FD_SB_ENABLED	|
+			       I40E_FLAG_FD_ATR_ENABLED	|
+			       I40E_FLAG_DCB_ENABLED	|
+			       I40E_FLAG_SRIOV_ENABLED	|
+			       I40E_FLAG_VMDQ_ENABLED);
 	} else {
-		dev_info(&pf->pdev->dev,
-			 "Invalid configuration, flags=0x%08llx\n", pf->flags);
-		return;
+		/* Not enough queues for all TCs */
+		if ((pf->flags & I40E_FLAG_DCB_ENABLED) &&
+		    (queues_left < I40E_MAX_TRAFFIC_CLASS)) {
+			pf->flags &= ~I40E_FLAG_DCB_ENABLED;
+			dev_info(&pf->pdev->dev, "not enough queues for DCB. DCB is disabled.\n");
+		}
+		pf->num_lan_qps = pf->rss_size_max;
+		queues_left -= pf->num_lan_qps;
+	}
+
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
+		if (queues_left > 1) {
+			queues_left -= 1; /* save 1 queue for FD */
+		} else {
+			pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+			dev_info(&pf->pdev->dev, "not enough queues for Flow Director. Flow Director feature is disabled\n");
+		}
 	}
 
 	if ((pf->flags & I40E_FLAG_SRIOV_ENABLED) &&
 	    pf->num_vf_qps && pf->num_req_vfs && queues_left) {
-		pf->num_req_vfs = min_t(int, pf->num_req_vfs, (queues_left /
-							       pf->num_vf_qps));
+		pf->num_req_vfs = min_t(int, pf->num_req_vfs,
+					(queues_left / pf->num_vf_qps));
 		queues_left -= (pf->num_req_vfs * pf->num_vf_qps);
 	}
 
@@ -7508,7 +7808,7 @@ static int i40e_setup_pf_filter_control(struct i40e_pf *pf)
 	settings->hash_lut_size = I40E_HASH_LUT_SIZE_128;
 
 	/* Flow Director is enabled */
-	if (pf->flags & (I40E_FLAG_FDIR_ENABLED | I40E_FLAG_FDIR_ATR_ENABLED))
+	if (pf->flags & (I40E_FLAG_FD_SB_ENABLED | I40E_FLAG_FD_ATR_ENABLED))
 		settings->enable_fdir = true;
 
 	/* Ethtype and MACVLAN filters enabled for PF */
@@ -7697,6 +7997,14 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, pf);
 	pci_save_state(pdev);
+#ifdef CONFIG_I40E_DCB
+	err = i40e_init_pf_dcb(pf);
+	if (err) {
+		dev_info(&pdev->dev, "init_pf_dcb failed: %d\n", err);
+		pf->flags &= ~I40E_FLAG_DCB_ENABLED;
+		goto err_init_dcb;
+	}
+#endif /* CONFIG_I40E_DCB */
 
 	/* set up periodic task facility */
 	setup_timer(&pf->service_timer, i40e_service_timer, (unsigned long)pf);
@@ -7810,6 +8118,9 @@ err_vsis:
 err_switch_setup:
 	i40e_reset_interrupt_capability(pf);
 	del_timer_sync(&pf->service_timer);
+#ifdef CONFIG_I40E_DCB
+err_init_dcb:
+#endif /* CONFIG_I40E_DCB */
 err_mac_addr:
 err_configure_lan_hmc:
 	(void)i40e_shutdown_lan_hmc(hw);

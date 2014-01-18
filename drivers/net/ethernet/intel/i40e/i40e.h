@@ -57,13 +57,13 @@
 #include "i40e_virtchnl.h"
 #include "i40e_virtchnl_pf.h"
 #include "i40e_txrx.h"
+#include "i40e_dcb.h"
 
 /* Useful i40e defaults */
 #define I40E_BASE_PF_SEID     16
 #define I40E_BASE_VSI_SEID    512
 #define I40E_BASE_VEB_SEID    288
 #define I40E_MAX_VEB          16
-#define I40E_MAX_NPAR_QPS     32
 
 #define I40E_MAX_NUM_DESCRIPTORS      4096
 #define I40E_MAX_REGISTER     0x800000
@@ -75,6 +75,7 @@
 #define I40E_DEFAULT_QUEUES_PER_VMDQ  2 /* max 16 qps */
 #define I40E_DEFAULT_QUEUES_PER_VF    4
 #define I40E_DEFAULT_QUEUES_PER_TC    1 /* should be a power of 2 */
+#define I40E_MAX_QUEUES_PER_TC        64 /* should be a power of 2 */
 #define I40E_FDIR_RING                0
 #define I40E_FDIR_RING_COUNT          32
 #define I40E_MAX_AQ_BUF_SIZE          4096
@@ -164,6 +165,8 @@ struct i40e_fdir_data {
 	u8  *raw_packet;
 };
 
+#define I40E_ETH_P_LLDP			0x88cc
+
 #define I40E_DCB_PRIO_TYPE_STRICT	0
 #define I40E_DCB_PRIO_TYPE_ETS		1
 #define I40E_DCB_STRICT_PRIO_CREDITS	127
@@ -198,7 +201,6 @@ struct i40e_pf {
 	u16 num_vmdq_msix;         /* num queue vectors per vmdq pool */
 	u16 num_req_vfs;           /* num vfs requested for this vf */
 	u16 num_vf_qps;            /* num queue pairs per vf */
-	u16 num_tc_qps;            /* num queue pairs per TC */
 	u16 num_lan_qps;           /* num lan queues this pf has set up */
 	u16 num_lan_msix;          /* num queue vectors for the base pf vsi */
 	int queues_left;           /* queues left unclaimed */
@@ -241,8 +243,8 @@ struct i40e_pf {
 #define I40E_FLAG_PROCESS_VFLR_EVENT           (u64)(1 << 18)
 #define I40E_FLAG_SRIOV_ENABLED                (u64)(1 << 19)
 #define I40E_FLAG_DCB_ENABLED                  (u64)(1 << 20)
-#define I40E_FLAG_FDIR_ENABLED                 (u64)(1 << 21)
-#define I40E_FLAG_FDIR_ATR_ENABLED             (u64)(1 << 22)
+#define I40E_FLAG_FD_SB_ENABLED                (u64)(1 << 21)
+#define I40E_FLAG_FD_ATR_ENABLED               (u64)(1 << 22)
 #define I40E_FLAG_PTP                          (u64)(1 << 25)
 #define I40E_FLAG_MFP_ENABLED                  (u64)(1 << 26)
 #ifdef CONFIG_I40E_VXLAN
@@ -553,6 +555,7 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc);
 void i40e_veb_release(struct i40e_veb *veb);
 
+int i40e_veb_config_tc(struct i40e_veb *veb, u8 enabled_tc);
 i40e_status i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid);
 void i40e_vsi_remove_pvid(struct i40e_vsi *vsi);
 void i40e_vsi_reset_stats(struct i40e_vsi *vsi);
@@ -581,7 +584,15 @@ bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi);
 struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, u8 *macaddr,
 				      bool is_vf, bool is_netdev);
 void i40e_vlan_stripping_enable(struct i40e_vsi *vsi);
-
+#ifdef CONFIG_I40E_DCB
+void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
+			   struct i40e_dcbx_config *new_cfg);
+void i40e_dcbnl_set_all(struct i40e_vsi *vsi);
+void i40e_dcbnl_setup(struct i40e_vsi *vsi);
+bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
+			    struct i40e_dcbx_config *old_cfg,
+			    struct i40e_dcbx_config *new_cfg);
+#endif /* CONFIG_I40E_DCB */
 void i40e_ptp_rx_hang(struct i40e_vsi *vsi);
 void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf);
 void i40e_ptp_rx_hwtstamp(struct i40e_pf *pf, struct sk_buff *skb, u8 index);

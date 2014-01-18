@@ -323,7 +323,7 @@ i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 {
 	i40e_status ret_code = 0;
 	u16 checksum_sr = 0;
-	u16 checksum_local;
+	u16 checksum_local = 0;
 
 	ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
 	if (ret_code)
