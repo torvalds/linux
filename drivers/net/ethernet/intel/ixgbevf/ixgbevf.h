@@ -52,9 +52,9 @@ struct ixgbevf_tx_buffer {
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	__be16 protocol;
-	dma_addr_t dma;
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;
-	u16 length;
 };
 
 struct ixgbevf_rx_buffer {
@@ -147,7 +147,6 @@ struct ixgbevf_ring {
 #define IXGBE_TX_FLAGS_VLAN		(u32)(1 << 1)
 #define IXGBE_TX_FLAGS_TSO		(u32)(1 << 2)
 #define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 3)
-#define IXGBE_TX_FLAGS_MAPPED_AS_PAGE	(u32)(1 << 4)
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0x0000e000
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16

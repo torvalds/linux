@@ -145,28 +145,25 @@ static void ixgbevf_set_ivar(struct ixgbevf_adapter *adapter, s8 direction,
 }
 
 static void ixgbevf_unmap_and_free_tx_resource(struct ixgbevf_ring *tx_ring,
-					       struct ixgbevf_tx_buffer
-					       *tx_buffer_info)
+					struct ixgbevf_tx_buffer *tx_buffer)
 {
-	if (tx_buffer_info->dma) {
-		if (tx_buffer_info->tx_flags & IXGBE_TX_FLAGS_MAPPED_AS_PAGE)
-			dma_unmap_page(tx_ring->dev,
-				       tx_buffer_info->dma,
-				       tx_buffer_info->length,
-				       DMA_TO_DEVICE);
-		else
+	if (tx_buffer->skb) {
+		dev_kfree_skb_any(tx_buffer->skb);
+		if (dma_unmap_len(tx_buffer, len))
 			dma_unmap_single(tx_ring->dev,
-					 tx_buffer_info->dma,
-					 tx_buffer_info->length,
+					 dma_unmap_addr(tx_buffer, dma),
+					 dma_unmap_len(tx_buffer, len),
 					 DMA_TO_DEVICE);
-		tx_buffer_info->dma = 0;
+	} else if (dma_unmap_len(tx_buffer, len)) {
+		dma_unmap_page(tx_ring->dev,
+			       dma_unmap_addr(tx_buffer, dma),
+			       dma_unmap_len(tx_buffer, len),
+			       DMA_TO_DEVICE);
 	}
-	if (tx_buffer_info->skb) {
-		dev_kfree_skb_any(tx_buffer_info->skb);
-		tx_buffer_info->skb = NULL;
-	}
-	tx_buffer_info->time_stamp = 0;
-	/* tx_buffer_info must be completely set up in the transmit path */
+	tx_buffer->next_to_watch = NULL;
+	tx_buffer->skb = NULL;
+	dma_unmap_len_set(tx_buffer, len, 0);
+	/* tx_buffer must be completely set up in the transmit path */
 }
 
 #define IXGBE_MAX_TXD_PWR	14
@@ -221,8 +218,18 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
 
+		/* free the skb */
+		dev_kfree_skb_any(tx_buffer->skb);
+
+		/* unmap skb header data */
+		dma_unmap_single(tx_ring->dev,
+				 dma_unmap_addr(tx_buffer, dma),
+				 dma_unmap_len(tx_buffer, len),
+				 DMA_TO_DEVICE);
+
 		/* clear tx_buffer data */
-		ixgbevf_unmap_and_free_tx_resource(tx_ring, tx_buffer);
+		tx_buffer->skb = NULL;
+		dma_unmap_len_set(tx_buffer, len, 0);
 
 		/* unmap remaining buffers */
 		while (tx_desc != eop_desc) {
@@ -237,7 +244,14 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 				tx_desc = IXGBEVF_TX_DESC(tx_ring, 0);
 			}
 
-			ixgbevf_unmap_and_free_tx_resource(tx_ring, tx_buffer);
+			/* unmap any remaining paged data */
+			if (dma_unmap_len(tx_buffer, len)) {
+				dma_unmap_page(tx_ring->dev,
+					       dma_unmap_addr(tx_buffer, dma),
+					       dma_unmap_len(tx_buffer, len),
+					       DMA_TO_DEVICE);
+				dma_unmap_len_set(tx_buffer, len, 0);
+			}
 		}
 
 		tx_desc->wb.status = 0;
@@ -2904,6 +2918,7 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 			  struct ixgbevf_tx_buffer *first)
 {
+	dma_addr_t dma;
 	struct sk_buff *skb = first->skb;
 	struct ixgbevf_tx_buffer *tx_buffer_info;
 	unsigned int len;
@@ -2921,13 +2936,15 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
 		size = min(len, (unsigned int)IXGBE_MAX_DATA_PER_TXD);
 
-		tx_buffer_info->length = size;
 		tx_buffer_info->tx_flags = first->tx_flags;
-		tx_buffer_info->dma = dma_map_single(tx_ring->dev,
-						     skb->data + offset,
-						     size, DMA_TO_DEVICE);
-		if (dma_mapping_error(tx_ring->dev, tx_buffer_info->dma))
+		dma = dma_map_single(tx_ring->dev, skb->data + offset,
+				     size, DMA_TO_DEVICE);
+		if (dma_mapping_error(tx_ring->dev, dma))
 			goto dma_error;
+
+		/* record length, and DMA address */
+		dma_unmap_len_set(tx_buffer_info, len, size);
+		dma_unmap_addr_set(tx_buffer_info, dma, dma);
 
 		len -= size;
 		total -= size;
@@ -2949,15 +2966,14 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 			tx_buffer_info = &tx_ring->tx_buffer_info[i];
 			size = min(len, (unsigned int)IXGBE_MAX_DATA_PER_TXD);
 
-			tx_buffer_info->length = size;
-			tx_buffer_info->dma =
-				skb_frag_dma_map(tx_ring->dev, frag,
-						 offset, size, DMA_TO_DEVICE);
-			tx_buffer_info->tx_flags |=
-						IXGBE_TX_FLAGS_MAPPED_AS_PAGE;
-			if (dma_mapping_error(tx_ring->dev,
-					      tx_buffer_info->dma))
+			dma = skb_frag_dma_map(tx_ring->dev, frag,
+					       offset, size, DMA_TO_DEVICE);
+			if (dma_mapping_error(tx_ring->dev, dma))
 				goto dma_error;
+
+			/* record length, and DMA address */
+			dma_unmap_len_set(tx_buffer_info, len, size);
+			dma_unmap_addr_set(tx_buffer_info, dma, dma);
 
 			len -= size;
 			total -= size;
@@ -3043,11 +3059,15 @@ static void ixgbevf_tx_queue(struct ixgbevf_ring *tx_ring,
 
 	i = tx_ring->next_to_use;
 	while (count--) {
+		dma_addr_t dma;
+		unsigned int len;
+
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
+		dma = dma_unmap_addr(tx_buffer_info, dma);
+		len = dma_unmap_len(tx_buffer_info, len);
 		tx_desc = IXGBEVF_TX_DESC(tx_ring, i);
-		tx_desc->read.buffer_addr = cpu_to_le64(tx_buffer_info->dma);
-		tx_desc->read.cmd_type_len =
-			cpu_to_le32(cmd_type_len | tx_buffer_info->length);
+		tx_desc->read.buffer_addr = cpu_to_le64(dma);
+		tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type_len | len);
 		tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 		i++;
 		if (i == tx_ring->count)
