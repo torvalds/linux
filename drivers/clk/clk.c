@@ -575,16 +575,19 @@ struct clk_hw *__clk_get_hw(struct clk *clk)
 {
 	return !clk ? NULL : clk->hw;
 }
+EXPORT_SYMBOL_GPL(__clk_get_hw);
 
 u8 __clk_get_num_parents(struct clk *clk)
 {
 	return !clk ? 0 : clk->num_parents;
 }
+EXPORT_SYMBOL_GPL(__clk_get_num_parents);
 
 struct clk *__clk_get_parent(struct clk *clk)
 {
 	return !clk ? NULL : clk->parent;
 }
+EXPORT_SYMBOL_GPL(__clk_get_parent);
 
 struct clk *clk_get_parent_by_index(struct clk *clk, u8 index)
 {
@@ -598,6 +601,7 @@ struct clk *clk_get_parent_by_index(struct clk *clk, u8 index)
 	else
 		return clk->parents[index];
 }
+EXPORT_SYMBOL_GPL(clk_get_parent_by_index);
 
 unsigned int __clk_get_enable_count(struct clk *clk)
 {
@@ -629,6 +633,7 @@ unsigned long __clk_get_rate(struct clk *clk)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__clk_get_rate);
 
 unsigned long __clk_get_accuracy(struct clk *clk)
 {
@@ -685,6 +690,7 @@ bool __clk_is_enabled(struct clk *clk)
 out:
 	return !!ret;
 }
+EXPORT_SYMBOL_GPL(__clk_is_enabled);
 
 static struct clk *__clk_lookup_subtree(const char *name, struct clk *clk)
 {
@@ -776,6 +782,7 @@ out:
 
 	return best;
 }
+EXPORT_SYMBOL_GPL(__clk_mux_determine_rate);
 
 /***        clk api        ***/
 
