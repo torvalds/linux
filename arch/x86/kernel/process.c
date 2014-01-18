@@ -428,18 +428,22 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 
 static void mwait_idle(void)
 {
-	if (!need_resched()) {
-		if (this_cpu_has(X86_BUG_CLFLUSH_MONITOR))
+	if (!current_set_polling_and_test()) {
+		if (this_cpu_has(X86_BUG_CLFLUSH_MONITOR)) {
+			smp_mb(); /* quirk */
 			clflush((void *)&current_thread_info()->flags);
+			smp_mb(); /* quirk */
+		}
 
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
 		if (!need_resched())
 			__sti_mwait(0, 0);
 		else
 			local_irq_enable();
-	} else
+	} else {
 		local_irq_enable();
+	}
+	__current_clr_polling();
 }
 
 void select_idle_routine(const struct cpuinfo_x86 *c)
