@@ -183,6 +183,7 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_TXD_CMD_DEXT   0x20000000 /* Descriptor extension (0 = legacy) */
 #define IXGBE_TXD_CMD_VLE    0x40000000 /* Add VLAN tag */
 #define IXGBE_TXD_STAT_DD    0x00000001 /* Descriptor Done */
+#define IXGBE_TXD_CMD	     (IXGBE_TXD_CMD_EOP | IXGBE_TXD_CMD_RS)
 
 /* Transmit Descriptor - Advanced */
 union ixgbe_adv_tx_desc {
