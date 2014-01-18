@@ -1021,6 +1021,7 @@ void __init efi_enter_virtual_mode(void)
 
 	efi_setup_page_tables();
 	efi_sync_low_kernel_mappings();
+	efi_dump_pagetable();
 
 	if (!efi_setup) {
 		status = phys_efi_set_virtual_address_map(
