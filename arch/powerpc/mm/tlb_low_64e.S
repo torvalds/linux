@@ -240,6 +240,7 @@ itlb_miss_fault_bolted:
 	beq	tlb_miss_common_bolted
 	b	itlb_miss_kernel_bolted
 
+#ifdef CONFIG_PPC_FSL_BOOK3E
 /*
  * TLB miss handling for e6500 and derivatives, using hardware tablewalk.
  *
@@ -409,7 +410,7 @@ itlb_miss_fault_e6500:
 	TLB_MISS_STATS_I(MMSTAT_TLB_MISS_NORM_FAULT)
 	tlb_epilog_bolted
 	b	exc_instruction_storage_book3e
-
+#endif /* CONFIG_PPC_FSL_BOOK3E */
 
 /**********************************************************************
  *                                                                    *

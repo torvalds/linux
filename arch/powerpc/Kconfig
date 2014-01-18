@@ -526,6 +526,7 @@ config PPC_16K_PAGES
 
 config PPC_64K_PAGES
 	bool "64k page size" if 44x || PPC_STD_MMU_64 || PPC_BOOK3E_64
+	depends on !PPC_FSL_BOOK3E
 	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
 
 config PPC_256K_PAGES
