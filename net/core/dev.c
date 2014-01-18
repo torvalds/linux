@@ -6998,28 +6998,18 @@ static int __init net_dev_init(void)
 	for_each_possible_cpu(i) {
 		struct softnet_data *sd = &per_cpu(softnet_data, i);
 
-		memset(sd, 0, sizeof(*sd));
 		skb_queue_head_init(&sd->input_pkt_queue);
 		skb_queue_head_init(&sd->process_queue);
-		sd->completion_queue = NULL;
 		INIT_LIST_HEAD(&sd->poll_list);
-		sd->output_queue = NULL;
 		sd->output_queue_tailp = &sd->output_queue;
 #ifdef CONFIG_RPS
 		sd->csd.func = rps_trigger_softirq;
 		sd->csd.info = sd;
-		sd->csd.flags = 0;
 		sd->cpu = i;
 #endif
 
 		sd->backlog.poll = process_backlog;
 		sd->backlog.weight = weight_p;
-		sd->backlog.gro_list = NULL;
-		sd->backlog.gro_count = 0;
-
-#ifdef CONFIG_NET_FLOW_LIMIT
-		sd->flow_limit = NULL;
-#endif
 	}
 
 	dev_boot_phase = 0;
