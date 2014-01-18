@@ -102,7 +102,7 @@ static ssize_t slave_show(struct kobject *kobj,
 	return slave_attr->show(slave, buf);
 }
 
-const struct sysfs_ops slave_sysfs_ops = {
+static const struct sysfs_ops slave_sysfs_ops = {
 	.show = slave_show,
 };
 
