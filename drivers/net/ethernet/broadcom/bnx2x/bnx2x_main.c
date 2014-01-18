@@ -13083,26 +13083,26 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 	}
 
 	bnx2x_disable_pcie_error_reporting(bp);
+	if (remove_netdev) {
+		if (bp->regview)
+			iounmap(bp->regview);
 
-	if (bp->regview)
-		iounmap(bp->regview);
+		/* For vfs, doorbells are part of the regview and were unmapped
+		 * along with it. FW is only loaded by PF.
+		 */
+		if (IS_PF(bp)) {
+			if (bp->doorbells)
+				iounmap(bp->doorbells);
 
-	/* for vf doorbells are part of the regview and were unmapped along with
-	 * it. FW is only loaded by PF.
-	 */
-	if (IS_PF(bp)) {
-		if (bp->doorbells)
-			iounmap(bp->doorbells);
+			bnx2x_release_firmware(bp);
+		}
+		bnx2x_free_mem_bp(bp);
 
-		bnx2x_release_firmware(bp);
-	}
-	bnx2x_free_mem_bp(bp);
-
-	if (remove_netdev)
 		free_netdev(dev);
 
-	if (atomic_read(&pdev->enable_cnt) == 1)
-		pci_release_regions(pdev);
+		if (atomic_read(&pdev->enable_cnt) == 1)
+			pci_release_regions(pdev);
+	}
 
 	pci_disable_device(pdev);
 }

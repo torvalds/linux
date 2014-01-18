@@ -425,10 +425,7 @@ static void null_del_dev(struct nullb *nullb)
 	list_del_init(&nullb->list);
 
 	del_gendisk(nullb->disk);
-	if (queue_mode == NULL_Q_MQ)
-		blk_mq_free_queue(nullb->q);
-	else
-		blk_cleanup_queue(nullb->q);
+	blk_cleanup_queue(nullb->q);
 	put_disk(nullb->disk);
 	kfree(nullb);
 }
@@ -578,10 +575,7 @@ static int null_add_dev(void)
 	disk = nullb->disk = alloc_disk_node(1, home_node);
 	if (!disk) {
 queue_fail:
-		if (queue_mode == NULL_Q_MQ)
-			blk_mq_free_queue(nullb->q);
-		else
-			blk_cleanup_queue(nullb->q);
+		blk_cleanup_queue(nullb->q);
 		cleanup_queues(nullb);
 err:
 		kfree(nullb);
