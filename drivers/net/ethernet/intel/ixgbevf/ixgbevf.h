@@ -46,12 +46,15 @@
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
 struct ixgbevf_tx_buffer {
-	struct sk_buff *skb;
-	dma_addr_t dma;
-	unsigned long time_stamp;
 	union ixgbe_adv_tx_desc *next_to_watch;
+	unsigned long time_stamp;
+	struct sk_buff *skb;
+	unsigned int bytecount;
+	unsigned short gso_segs;
+	__be16 protocol;
+	dma_addr_t dma;
+	u32 tx_flags;
 	u16 length;
-	u16 mapped_as_page;
 };
 
 struct ixgbevf_rx_buffer {
@@ -144,8 +147,7 @@ struct ixgbevf_ring {
 #define IXGBE_TX_FLAGS_VLAN		(u32)(1 << 1)
 #define IXGBE_TX_FLAGS_TSO		(u32)(1 << 2)
 #define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 3)
-#define IXGBE_TX_FLAGS_FCOE		(u32)(1 << 4)
-#define IXGBE_TX_FLAGS_FSO		(u32)(1 << 5)
+#define IXGBE_TX_FLAGS_MAPPED_AS_PAGE	(u32)(1 << 4)
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0x0000e000
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16
