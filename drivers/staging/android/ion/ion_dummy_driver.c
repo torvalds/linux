@@ -20,6 +20,7 @@
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/sizes.h>
+#include <linux/io.h>
 #include "ion.h"
 #include "ion_priv.h"
 
