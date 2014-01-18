@@ -268,8 +268,8 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 	}
 
 	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->total_bytes += total_bytes;
-	tx_ring->total_packets += total_packets;
+	tx_ring->stats.bytes += total_bytes;
+	tx_ring->stats.packets += total_packets;
 	u64_stats_update_end(&tx_ring->syncp);
 	q_vector->tx.total_bytes += total_bytes;
 	q_vector->tx.total_packets += total_packets;
@@ -343,7 +343,7 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_ring *ring,
 	/* if IP and error */
 	if ((status_err & IXGBE_RXD_STAT_IPCS) &&
 	    (status_err & IXGBE_RXDADV_ERR_IPE)) {
-		ring->hw_csum_rx_error++;
+		ring->rx_stats.csum_err++;
 		return;
 	}
 
@@ -351,7 +351,7 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_ring *ring,
 		return;
 
 	if (status_err & IXGBE_RXDADV_ERR_TCPE) {
-		ring->hw_csum_rx_error++;
+		ring->rx_stats.csum_err++;
 		return;
 	}
 
@@ -362,10 +362,9 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_ring *ring,
 
 /**
  * ixgbevf_alloc_rx_buffers - Replace used receive buffers; packet split
- * @adapter: address of board private structure
+ * @rx_ring: rx descriptor ring (for a specific queue) to setup buffers on
  **/
-static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
-				     struct ixgbevf_ring *rx_ring,
+static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
 				     int cleaned_count)
 {
 	union ixgbe_adv_rx_desc *rx_desc;
@@ -404,7 +403,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 	}
 
 no_buffers:
-	adapter->alloc_rx_buff_failed++;
+	rx_ring->rx_stats.alloc_rx_buff_failed++;
 	if (rx_ring->next_to_use != i)
 		ixgbevf_release_rx_desc(rx_ring, i);
 }
@@ -421,7 +420,6 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 				struct ixgbevf_ring *rx_ring,
 				int budget)
 {
-	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
 	struct ixgbevf_rx_buffer *rx_buffer_info, *next_buffer;
 	struct sk_buff *skb;
@@ -467,7 +465,7 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		if (!(staterr & IXGBE_RXD_STAT_EOP)) {
 			skb->next = next_buffer->skb;
 			IXGBE_CB(skb->next)->prev = skb;
-			adapter->non_eop_descs++;
+			rx_ring->rx_stats.non_eop_descs++;
 			goto next_desc;
 		}
 
@@ -499,7 +497,7 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		 * source pruning.
 		 */
 		if ((skb->pkt_type & (PACKET_BROADCAST | PACKET_MULTICAST)) &&
-		    ether_addr_equal(adapter->netdev->dev_addr,
+		    ether_addr_equal(rx_ring->netdev->dev_addr,
 				     eth_hdr(skb)->h_source)) {
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
@@ -512,8 +510,7 @@ next_desc:
 
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IXGBEVF_RX_BUFFER_WRITE) {
-			ixgbevf_alloc_rx_buffers(adapter, rx_ring,
-						 cleaned_count);
+			ixgbevf_alloc_rx_buffers(rx_ring, cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -528,11 +525,11 @@ next_desc:
 	cleaned_count = ixgbevf_desc_unused(rx_ring);
 
 	if (cleaned_count)
-		ixgbevf_alloc_rx_buffers(adapter, rx_ring, cleaned_count);
+		ixgbevf_alloc_rx_buffers(rx_ring, cleaned_count);
 
 	u64_stats_update_begin(&rx_ring->syncp);
-	rx_ring->total_packets += total_rx_packets;
-	rx_ring->total_bytes += total_rx_bytes;
+	rx_ring->stats.packets += total_rx_packets;
+	rx_ring->stats.bytes += total_rx_bytes;
 	u64_stats_update_end(&rx_ring->syncp);
 	q_vector->rx.total_packets += total_rx_packets;
 	q_vector->rx.total_bytes += total_rx_bytes;
@@ -637,9 +634,9 @@ static int ixgbevf_busy_poll_recv(struct napi_struct *napi)
 		found = ixgbevf_clean_rx_irq(q_vector, ring, 4);
 #ifdef BP_EXTENDED_STATS
 		if (found)
-			ring->bp_cleaned += found;
+			ring->stats.cleaned += found;
 		else
-			ring->bp_misses++;
+			ring->stats.misses++;
 #endif
 		if (found)
 			break;
@@ -1313,7 +1310,7 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(reg_idx), rxdctl);
 
 	ixgbevf_rx_desc_queue_enable(adapter, ring);
-	ixgbevf_alloc_rx_buffers(adapter, ring, ixgbevf_desc_unused(ring));
+	ixgbevf_alloc_rx_buffers(ring, ixgbevf_desc_unused(ring));
 }
 
 /**
@@ -3048,8 +3045,6 @@ static void ixgbevf_tx_queue(struct ixgbevf_ring *tx_ring, int tx_flags,
 
 static int __ixgbevf_maybe_stop_tx(struct ixgbevf_ring *tx_ring, int size)
 {
-	struct ixgbevf_adapter *adapter = netdev_priv(tx_ring->netdev);
-
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	/* Herbert's original patch had:
 	 *  smp_mb__after_netif_stop_queue();
@@ -3063,7 +3058,8 @@ static int __ixgbevf_maybe_stop_tx(struct ixgbevf_ring *tx_ring, int size)
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
 	netif_start_subqueue(tx_ring->netdev, tx_ring->queue_index);
-	++adapter->restart_queue;
+	++tx_ring->tx_stats.restart_queue;
+
 	return 0;
 }
 
@@ -3108,7 +3104,7 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	count += skb_shinfo(skb)->nr_frags;
 #endif
 	if (ixgbevf_maybe_stop_tx(tx_ring, count + 3)) {
-		adapter->tx_busy++;
+		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
 	}
 
@@ -3308,8 +3304,8 @@ static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
 		ring = adapter->rx_ring[i];
 		do {
 			start = u64_stats_fetch_begin_bh(&ring->syncp);
-			bytes = ring->total_bytes;
-			packets = ring->total_packets;
+			bytes = ring->stats.bytes;
+			packets = ring->stats.packets;
 		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
 		stats->rx_bytes += bytes;
 		stats->rx_packets += packets;
@@ -3319,8 +3315,8 @@ static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
 		ring = adapter->tx_ring[i];
 		do {
 			start = u64_stats_fetch_begin_bh(&ring->syncp);
-			bytes = ring->total_bytes;
-			packets = ring->total_packets;
+			bytes = ring->stats.bytes;
+			packets = ring->stats.packets;
 		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
 		stats->tx_bytes += bytes;
 		stats->tx_packets += packets;

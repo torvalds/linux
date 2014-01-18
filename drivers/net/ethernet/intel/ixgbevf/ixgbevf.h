@@ -59,6 +59,29 @@ struct ixgbevf_rx_buffer {
 	dma_addr_t dma;
 };
 
+struct ixgbevf_stats {
+	u64 packets;
+	u64 bytes;
+#ifdef BP_EXTENDED_STATS
+	u64 yields;
+	u64 misses;
+	u64 cleaned;
+#endif
+};
+
+struct ixgbevf_tx_queue_stats {
+	u64 restart_queue;
+	u64 tx_busy;
+	u64 tx_done_old;
+};
+
+struct ixgbevf_rx_queue_stats {
+	u64 non_eop_descs;
+	u64 alloc_rx_page_failed;
+	u64 alloc_rx_buff_failed;
+	u64 csum_err;
+};
+
 struct ixgbevf_ring {
 	struct ixgbevf_ring *next;
 	struct net_device *netdev;
@@ -70,22 +93,20 @@ struct ixgbevf_ring {
 	unsigned int next_to_use;
 	unsigned int next_to_clean;
 
-	int queue_index; /* needed for multiqueue queue management */
 	union {
 		struct ixgbevf_tx_buffer *tx_buffer_info;
 		struct ixgbevf_rx_buffer *rx_buffer_info;
 	};
 
-	u64			total_bytes;
-	u64			total_packets;
-	struct u64_stats_sync	syncp;
+	struct ixgbevf_stats stats;
+	struct u64_stats_sync syncp;
+	union {
+		struct ixgbevf_tx_queue_stats tx_stats;
+		struct ixgbevf_rx_queue_stats rx_stats;
+	};
+
 	u64 hw_csum_rx_error;
 	u64 hw_csum_rx_good;
-#ifdef BP_EXTENDED_STATS
-	u64 bp_yields;
-	u64 bp_misses;
-	u64 bp_cleaned;
-#endif
 	u8 __iomem *tail;
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
@@ -93,6 +114,7 @@ struct ixgbevf_ring {
 		      * for DCB and RSS modes */
 
 	u16 rx_buf_len;
+	int queue_index; /* needed for multiqueue queue management */
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
@@ -186,7 +208,7 @@ static inline bool ixgbevf_qv_lock_napi(struct ixgbevf_q_vector *q_vector)
 		q_vector->state |= IXGBEVF_QV_STATE_NAPI_YIELD;
 		rc = false;
 #ifdef BP_EXTENDED_STATS
-		q_vector->tx.ring->bp_yields++;
+		q_vector->tx.ring->stats.yields++;
 #endif
 	} else {
 		/* we don't care if someone yielded */
@@ -221,7 +243,7 @@ static inline bool ixgbevf_qv_lock_poll(struct ixgbevf_q_vector *q_vector)
 		q_vector->state |= IXGBEVF_QV_STATE_POLL_YIELD;
 		rc = false;
 #ifdef BP_EXTENDED_STATS
-		q_vector->rx.ring->bp_yields++;
+		q_vector->rx.ring->stats.yields++;
 #endif
 	} else {
 		/* preserve yield marks */

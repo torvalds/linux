@@ -411,15 +411,15 @@ static void ixgbevf_get_ethtool_stats(struct net_device *netdev,
 	    tx_yields = 0, tx_cleaned = 0, tx_missed = 0;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		rx_yields += adapter->rx_ring[i]->bp_yields;
-		rx_cleaned += adapter->rx_ring[i]->bp_cleaned;
-		rx_yields += adapter->rx_ring[i]->bp_yields;
+		rx_yields += adapter->rx_ring[i]->stats.yields;
+		rx_cleaned += adapter->rx_ring[i]->stats.cleaned;
+		rx_yields += adapter->rx_ring[i]->stats.yields;
 	}
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		tx_yields += adapter->tx_ring[i]->bp_yields;
-		tx_cleaned += adapter->tx_ring[i]->bp_cleaned;
-		tx_yields += adapter->tx_ring[i]->bp_yields;
+		tx_yields += adapter->tx_ring[i]->stats.yields;
+		tx_cleaned += adapter->tx_ring[i]->stats.cleaned;
+		tx_yields += adapter->tx_ring[i]->stats.yields;
 	}
 
 	adapter->bp_rx_yields = rx_yields;
