@@ -188,6 +188,7 @@ fi
 mkdir $resdir/$ds
 if test "$dryrun" = ""
 then
+	# Be noisy only if running the script.
 	echo Results directory: $resdir/$ds
 	echo $scriptname $args
 fi
@@ -201,6 +202,7 @@ then
 	git rev-parse HEAD >> $resdir/$ds/testid.txt
 fi
 
+# Create a file of test-name/#cpus pairs, sorted by decreasing #cpus.
 touch $T/cfgcpu
 for CF in $configs
 do
@@ -214,12 +216,14 @@ do
 done
 sort -k2nr $T/cfgcpu > $T/cfgcpu.sort
 
+# Use a greedy bin-packing algorithm, sorting the list accordingly.
 awk < $T/cfgcpu.sort > $T/cfgcpu.pack -v ncpus=$cpus '
 BEGIN {
 	njobs = 0;
 }
 
 {
+	# Read file of tests and corresponding required numbers of CPUs.
 	cf[njobs] = $1;
 	cpus[njobs] = $2;
 	njobs++;
@@ -229,26 +233,40 @@ END {
 	alldone = 0;
 	batch = 0;
 	nc = -1;
+
+	# Each pass through the following loop creates on test batch
+	# that can be executed concurrently given ncpus.  Note that a
+	# given test that requires more than the available CPUs will run in
+	# their own batch.  Such tests just have to make do with what
+	# is available.
 	while (nc != ncpus) {
 		batch++;
 		nc = ncpus;
+
+		# Each pass through the following loop considers one
+		# test for inclusion in the current batch.
 		for (i = 0; i < njobs; i++) {
 			if (done[i])
-				continue;
+				continue; # Already part of a batch.
 			if (nc >= cpus[i] || nc == ncpus) {
+
+				# This test fits into the current batch.
 				done[i] = batch;
 				nc -= cpus[i];
 				if (nc <= 0)
-					break;
+					break; # Too-big test in its own batch.
 			}
 		}
 	}
+
+	# Dump out the tests in batch order.
 	for (b = 1; b <= batch; b++)
 		for (i = 0; i < njobs; i++)
 			if (done[i] == b)
 				print cf[i], cpus[i];
 }'
 
+# Generate a script to execute the tests in appropriate batches.
 awk < $T/cfgcpu.pack \
 	-v CONFIGDIR="$CONFIGFRAG/$kversion/" \
 	-v KVM="$KVM" \
@@ -267,6 +285,7 @@ awk < $T/cfgcpu.pack \
 	i++;
 }
 
+# Dump out the scripting required to run one test batch.
 function dump(first, pastlast)
 {
 	print "echo ----start batch----"
@@ -313,23 +332,31 @@ END {
 	njobs = i;
 	nc = ncpus;
 	first = 0;
+
+	# Each pass through the following loop considers one test.
 	for (i = 0; i < njobs; i++) {
 		if (ncpus == 0) {
+			# Sequential test specified, each test its own batch.
 			dump(i, i + 1);
 			first = i;
 		} else if (nc < cpus[i] && i != 0) {
+			# Out of CPUs, dump out a batch.
 			dump(first, i);
 			first = i;
 			nc = ncpus;
 		}
+		# Account for the CPUs needed by the current test.
 		nc -= cpus[i];
 	}
+	# Dump the last batch.
 	if (ncpus != 0)
 		dump(first, i);
 }' > $T/script
 
 if test "$dryrun" = script
 then
+	# Dump out the script, but define the environment variables that
+	# it needs to run standalone.
 	echo CONFIGFRAG="$CONFIGFRAG; export CONFIGFRAG"
 	echo KVM="$KVM; export KVM"
 	echo KVPATH="$KVPATH; export KVPATH"
@@ -344,10 +371,12 @@ then
 	exit 0
 elif test "$dryrun" = sched
 then
+	# Extract the test run schedule from the script.
 	egrep 'start batch|Starting build\.' $T/script |
 		sed -e 's/:.*$//' -e 's/^echo //'
 	exit 0
 else
+	# Not a dryru, so run the script.
 	sh $T/script
 fi
 
