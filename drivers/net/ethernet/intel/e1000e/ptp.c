@@ -47,6 +47,7 @@ static int e1000e_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 						     ptp_clock_info);
 	struct e1000_hw *hw = &adapter->hw;
 	bool neg_adj = false;
+	unsigned long flags;
 	u64 adjustment;
 	u32 timinca, incvalue;
 	s32 ret_val;
@@ -64,6 +65,8 @@ static int e1000e_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	if (ret_val)
 		return ret_val;
 
+	spin_lock_irqsave(&adapter->systim_lock, flags);
+
 	incvalue = timinca & E1000_TIMINCA_INCVALUE_MASK;
 
 	adjustment = incvalue;
@@ -76,6 +79,8 @@ static int e1000e_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	timinca |= incvalue;
 
 	ew32(TIMINCA, timinca);
+
+	spin_unlock_irqrestore(&adapter->systim_lock, flags);
 
 	return 0;
 }
