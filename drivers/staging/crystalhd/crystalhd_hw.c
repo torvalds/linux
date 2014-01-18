@@ -433,10 +433,12 @@ static void crystalhd_rx_pkt_rel_call_back(void *context, void *data)
 }
 
 #define crystalhd_hw_delete_ioq(adp, q)		\
+do {						\
 	if (q) {				\
 		crystalhd_delete_dioq(adp, q);	\
 		q = NULL;			\
-	}
+	}					\
+} while (0)
 
 static void crystalhd_hw_delete_ioqs(struct crystalhd_hw *hw)
 {
