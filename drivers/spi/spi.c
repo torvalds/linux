@@ -599,8 +599,10 @@ static int spi_transfer_one_message(struct spi_master *master,
 			goto out;
 		}
 
-		if (ret > 0)
+		if (ret > 0) {
+			ret = 0;
 			wait_for_completion(&master->xfer_completion);
+		}
 
 		trace_spi_transfer_stop(msg, xfer);
 
