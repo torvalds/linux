@@ -3,7 +3,7 @@
 
 
 #define DDR_DUMP_INTERNAL_DEVICE_MEMORY 0xBFC02B00
-#define MIPS_CLOCK_REG 	0x0f000820
+#define MIPS_CLOCK_REG 0x0f000820
 
 /* DDR INIT-133Mhz */
 #define T3_SKIP_CLOCK_PROGRAM_DUMP_133MHZ 12  /* index for 0x0F007000 */
@@ -818,13 +818,13 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 	if ((Adapter->chip_id !=  BCS220_2) &&
 		(Adapter->chip_id !=  BCS220_2BC) &&
 		(Adapter->chip_id != BCS220_3)) {
-		retval = rdmalt(Adapter,(UINT)0x0f000830, &uiResetValue, sizeof(uiResetValue));
+		retval = rdmalt(Adapter, (UINT)0x0f000830, &uiResetValue, sizeof(uiResetValue));
 		if (retval < 0) {
 			BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 			return retval;
 		}
 		uiResetValue |= 0x44;
-		retval = wrmalt(Adapter,(UINT)0x0f000830, &uiResetValue, sizeof(uiResetValue));
+		retval = wrmalt(Adapter, (UINT)0x0f000830, &uiResetValue, sizeof(uiResetValue));
 		if (retval < 0) {
 			BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 			return retval;
@@ -871,7 +871,7 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 	case 0xbece0121:
 	case 0xbece0130:
 	case 0xbece0300:
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "DDR Setting: %x\n", Adapter->DDRSetting);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "DDR Setting: %x\n", Adapter->DDRSetting);
 		switch (Adapter->DDRSetting) {
 		case DDR_80_MHZ:
 			psDDRSetting = asT3_DDRSetting80MHz;
@@ -933,7 +933,7 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 	}
 
 	value = 0;
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Register Count is =%lu\n", RegCount);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Register Count is =%lu\n", RegCount);
 	while (RegCount && !retval) {
 		if (uiClockSetting && psDDRSetting->ulRegAddress == MIPS_CLOCK_REG)
 			value = uiClockSetting;
@@ -990,12 +990,12 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 		 * we will change this when we will have internal PMU.
 		 */
 		if (Adapter->PmuMode == HYBRID_MODE_7C) {
-			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
+			retval = rdmalt(Adapter, (UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
 			if (retval < 0) {
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
 			}
-			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
+			retval = rdmalt(Adapter, (UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
 			if (retval < 0) {
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
@@ -1006,12 +1006,12 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
 			}
-			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
+			retval = rdmalt(Adapter, (UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
 			if (retval < 0) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
 			}
-			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
+			retval = rdmalt(Adapter, (UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
 			if (retval < 0) {
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
@@ -1024,12 +1024,12 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 			}
 		} else if (Adapter->PmuMode == HYBRID_MODE_6) {
 
-			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
+			retval = rdmalt(Adapter, (UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
 			if (retval < 0) {
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
 			}
-			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
+			retval = rdmalt(Adapter, (UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
 			if (retval < 0) {
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
@@ -1040,12 +1040,12 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
 			}
-			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
+			retval = rdmalt(Adapter, (UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
 			if (retval < 0) {
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
 			}
-			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
+			retval = rdmalt(Adapter, (UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
 			if (retval < 0) {
 				BCM_DEBUG_PRINT(Adapter, CMHOST, RDM, DBG_LVL_ALL, "%s:%d RDM failed\n", __func__, __LINE__);
 				return retval;
@@ -1215,7 +1215,7 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 		ul_ddr_setting_load_addr += sizeof(ULONG);
 		if (!retval) {
 			if (bOverrideSelfRefresh && (psDDRSetting->ulRegAddress == 0x0F007018)) {
-				value = (psDDRSetting->ulRegValue |(1<<8));
+				value = (psDDRSetting->ulRegValue | (1<<8));
 			if (STATUS_SUCCESS != wrmalt(Adapter, ul_ddr_setting_load_addr,
 				&value, sizeof(value))) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
