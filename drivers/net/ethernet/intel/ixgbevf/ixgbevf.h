@@ -420,10 +420,10 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter);
 void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter);
 void ixgbevf_reset(struct ixgbevf_adapter *adapter);
 void ixgbevf_set_ethtool_ops(struct net_device *netdev);
-int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *, struct ixgbevf_ring *);
-int ixgbevf_setup_tx_resources(struct ixgbevf_adapter *, struct ixgbevf_ring *);
-void ixgbevf_free_rx_resources(struct ixgbevf_adapter *, struct ixgbevf_ring *);
-void ixgbevf_free_tx_resources(struct ixgbevf_adapter *, struct ixgbevf_ring *);
+int ixgbevf_setup_rx_resources(struct ixgbevf_ring *);
+int ixgbevf_setup_tx_resources(struct ixgbevf_ring *);
+void ixgbevf_free_rx_resources(struct ixgbevf_ring *);
+void ixgbevf_free_tx_resources(struct ixgbevf_ring *);
 void ixgbevf_update_stats(struct ixgbevf_adapter *adapter);
 int ethtool_ioctl(struct ifreq *ifr);
 
