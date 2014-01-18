@@ -153,6 +153,7 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx53-qsb.dtb \
 	imx53-smd.dtb \
 	imx6dl-cubox-i.dtb \
+	imx6dl-dfi-fs700-m60.dtb \
 	imx6dl-gw51xx.dtb \
 	imx6dl-gw52xx.dtb \
 	imx6dl-gw53xx.dtb \
@@ -166,6 +167,7 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6q-arm2.dtb \
 	imx6q-cm-fx6.dtb \
 	imx6q-cubox-i.dtb \
+	imx6q-dfi-fs700-m60.dtb \
 	imx6q-dmo-edmqmx6.dtb \
 	imx6q-gw51xx.dtb \
 	imx6q-gw52xx.dtb \
