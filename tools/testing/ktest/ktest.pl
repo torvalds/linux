@@ -41,6 +41,7 @@ my %default = (
     "CLEAR_LOG"			=> 0,
     "BISECT_MANUAL"		=> 0,
     "BISECT_SKIP"		=> 1,
+    "BISECT_TRIES"		=> 1,
     "MIN_CONFIG_TYPE"		=> "boot",
     "SUCCESS_LINE"		=> "login:",
     "DETECT_TRIPLE_FAULT"	=> 1,
@@ -139,6 +140,7 @@ my $bisect_bad_commit = "";
 my $reverse_bisect;
 my $bisect_manual;
 my $bisect_skip;
+my $bisect_tries;
 my $config_bisect_good;
 my $bisect_ret_good;
 my $bisect_ret_bad;
@@ -276,6 +278,7 @@ my %option_map = (
     "IGNORE_ERRORS"		=> \$ignore_errors,
     "BISECT_MANUAL"		=> \$bisect_manual,
     "BISECT_SKIP"		=> \$bisect_skip,
+    "BISECT_TRIES"		=> \$bisect_tries,
     "CONFIG_BISECT_GOOD"	=> \$config_bisect_good,
     "BISECT_RET_GOOD"		=> \$bisect_ret_good,
     "BISECT_RET_BAD"		=> \$bisect_ret_bad,
@@ -2584,10 +2587,27 @@ sub run_bisect {
 	$buildtype = "useconfig:$minconfig";
     }
 
-    my $ret = run_bisect_test $type, $buildtype;
+    # If the user sets bisect_tries to less than 1, then no tries
+    # is a success.
+    my $ret = 1;
 
-    if ($bisect_manual) {
+    # Still let the user manually decide that though.
+    if ($bisect_tries < 1 && $bisect_manual) {
 	$ret = answer_bisect;
+    }
+
+    for (my $i = 0; $i < $bisect_tries; $i++) {
+	if ($bisect_tries > 1) {
+	    my $t = $i + 1;
+	    doprint("Running bisect trial $t of $bisect_tries:\n");
+	}
+	$ret = run_bisect_test $type, $buildtype;
+
+	if ($bisect_manual) {
+	    $ret = answer_bisect;
+	}
+
+	last if (!$ret);
     }
 
     # Are we looking for where it worked, not failed?
