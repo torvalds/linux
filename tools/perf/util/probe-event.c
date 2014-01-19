@@ -72,6 +72,7 @@ static int e_snprintf(char *str, size_t size, const char *format, ...)
 static char *synthesize_perf_probe_point(struct perf_probe_point *pp);
 static int convert_name_to_addr(struct perf_probe_event *pev,
 				const char *exec);
+static void clear_probe_trace_event(struct probe_trace_event *tev);
 static struct machine machine;
 
 /* Initialize symbol maps and path of vmlinux/modules */
@@ -171,54 +172,6 @@ const char *kernel_get_module_path(const char *module)
 	struct dso *dso = kernel_get_module_dso(module);
 	return (dso) ? dso->long_name : NULL;
 }
-
-#ifdef HAVE_DWARF_SUPPORT
-/* Copied from unwind.c */
-static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
-				    GElf_Shdr *shp, const char *name)
-{
-	Elf_Scn *sec = NULL;
-
-	while ((sec = elf_nextscn(elf, sec)) != NULL) {
-		char *str;
-
-		gelf_getshdr(sec, shp);
-		str = elf_strptr(elf, ep->e_shstrndx, shp->sh_name);
-		if (!strcmp(name, str))
-			break;
-	}
-
-	return sec;
-}
-
-static int get_text_start_address(const char *exec, unsigned long *address)
-{
-	Elf *elf;
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
-	int fd, ret = -ENOENT;
-
-	fd = open(exec, O_RDONLY);
-	if (fd < 0)
-		return -errno;
-
-	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
-	if (elf == NULL)
-		return -EINVAL;
-
-	if (gelf_getehdr(elf, &ehdr) == NULL)
-		goto out;
-
-	if (!elf_section_by_name(elf, &ehdr, &shdr, ".text"))
-		goto out;
-
-	*address = shdr.sh_addr - shdr.sh_offset;
-	ret = 0;
-out:
-	elf_end(elf);
-	return ret;
-}
-#endif
 
 static int init_user_exec(void)
 {
@@ -340,6 +293,34 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 	return 0;
 }
 
+static int get_text_start_address(const char *exec, unsigned long *address)
+{
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	int fd, ret = -ENOENT;
+
+	fd = open(exec, O_RDONLY);
+	if (fd < 0)
+		return -errno;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		return -EINVAL;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out;
+
+	if (!elf_section_by_name(elf, &ehdr, &shdr, ".text", NULL))
+		goto out;
+
+	*address = shdr.sh_addr - shdr.sh_offset;
+	ret = 0;
+out:
+	elf_end(elf);
+	return ret;
+}
+
 static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
 					  int ntevs, const char *exec)
 {
@@ -407,6 +388,14 @@ static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
 	return ret;
 }
 
+static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
+{
+	int i;
+
+	for (i = 0; i < ntevs; i++)
+		clear_probe_trace_event(tevs + i);
+}
+
 /* Try to find perf_probe_event with debuginfo */
 static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 					  struct probe_trace_event **tevs,
@@ -441,6 +430,10 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 			else
 				ret = add_module_to_probe_trace_events(*tevs,
 						 ntevs, target);
+		}
+		if (ret < 0) {
+			clear_probe_trace_events(*tevs, ntevs);
+			zfree(tevs);
 		}
 		return ret < 0 ? ret : ntevs;
 	}
@@ -780,6 +773,28 @@ int show_available_vars(struct perf_probe_event *pevs __maybe_unused,
 	return -ENOSYS;
 }
 #endif
+
+void line_range__clear(struct line_range *lr)
+{
+	struct line_node *ln;
+
+	free(lr->function);
+	free(lr->file);
+	free(lr->path);
+	free(lr->comp_dir);
+	while (!list_empty(&lr->line_list)) {
+		ln = list_first_entry(&lr->line_list, struct line_node, list);
+		list_del(&ln->list);
+		free(ln);
+	}
+	memset(lr, 0, sizeof(*lr));
+}
+
+void line_range__init(struct line_range *lr)
+{
+	memset(lr, 0, sizeof(*lr));
+	INIT_LIST_HEAD(&lr->line_list);
+}
 
 static int parse_line_num(char **ptr, int *val, const char *what)
 {
