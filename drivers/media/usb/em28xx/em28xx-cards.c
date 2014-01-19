@@ -2145,6 +2145,7 @@ struct em28xx_board em28xx_boards[] = {
 		.has_dvb      = 1,
 		.dvb_gpio     = em2874_pctv_80e_digital,
 		.decoder      = EM28XX_NODECODER,
+		.ir_codes     = RC_MAP_PINNACLE_PCTV_HD,
 	},
 	/* 1ae7:9003/9004 SpeedLink Vicious And Devine Laplace webcam
 	 * Empia EM2765 + OmniVision OV2640 */
