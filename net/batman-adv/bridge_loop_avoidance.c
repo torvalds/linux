@@ -882,7 +882,7 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 	proto = ethhdr->h_proto;
 	headlen = ETH_HLEN;
 	if (vid & BATADV_VLAN_HAS_TAG) {
-		vhdr = (struct vlan_ethhdr *)ethhdr;
+		vhdr = vlan_eth_hdr(skb);
 		proto = vhdr->h_vlan_encapsulated_proto;
 		headlen += VLAN_HLEN;
 	}
