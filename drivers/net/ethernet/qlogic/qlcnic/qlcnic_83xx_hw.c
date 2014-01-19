@@ -2066,8 +2066,8 @@ void qlcnic_83xx_change_l2_filter(struct qlcnic_adapter *adapter, u64 *addr,
 	qlcnic_83xx_sre_macaddr_change(adapter, mac, vlan_id, QLCNIC_MAC_ADD);
 }
 
-void qlcnic_83xx_configure_mac(struct qlcnic_adapter *adapter, u8 *mac,
-			       u8 type, struct qlcnic_cmd_args *cmd)
+static void qlcnic_83xx_configure_mac(struct qlcnic_adapter *adapter, u8 *mac,
+				      u8 type, struct qlcnic_cmd_args *cmd)
 {
 	switch (type) {
 	case QLCNIC_SET_STATION_MAC:
@@ -2170,7 +2170,7 @@ static void qlcnic_83xx_handle_link_aen(struct qlcnic_adapter *adapter,
 	qlcnic_advert_link_change(adapter, link_status);
 }
 
-irqreturn_t qlcnic_83xx_handle_aen(int irq, void *data)
+static irqreturn_t qlcnic_83xx_handle_aen(int irq, void *data)
 {
 	struct qlcnic_adapter *adapter = data;
 	struct qlcnic_mailbox *mbx;
@@ -3517,7 +3517,7 @@ int qlcnic_83xx_flash_test(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-int qlcnic_83xx_shutdown(struct pci_dev *pdev)
+static int qlcnic_83xx_shutdown(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
@@ -3892,8 +3892,8 @@ int qlcnic_83xx_init_mailbox_work(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-pci_ers_result_t qlcnic_83xx_io_error_detected(struct pci_dev *pdev,
-					       pci_channel_state_t state)
+static pci_ers_result_t qlcnic_83xx_io_error_detected(struct pci_dev *pdev,
+						      pci_channel_state_t state)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 
@@ -3914,7 +3914,7 @@ pci_ers_result_t qlcnic_83xx_io_error_detected(struct pci_dev *pdev,
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
-pci_ers_result_t qlcnic_83xx_io_slot_reset(struct pci_dev *pdev)
+static pci_ers_result_t qlcnic_83xx_io_slot_reset(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 	int err = 0;
@@ -3937,7 +3937,7 @@ disconnect:
 	return PCI_ERS_RESULT_DISCONNECT;
 }
 
-void qlcnic_83xx_io_resume(struct pci_dev *pdev)
+static void qlcnic_83xx_io_resume(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 
