@@ -276,8 +276,13 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 		idx++;
 	}
 
-	/* Give the remainder of the session to the first binding */
-	le32_add_cpu(&cmd.quotas[0].quota, quota_rem);
+	/* Give the remainder of the session to the first data binding */
+	for (i = 0; i < MAX_BINDINGS; i++) {
+		if (le32_to_cpu(cmd.quotas[i].quota) != 0) {
+			le32_add_cpu(&cmd.quotas[i].quota, quota_rem);
+			break;
+		}
+	}
 
 	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
 
