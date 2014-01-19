@@ -1430,7 +1430,7 @@ static int mlx4_ib_inet_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static int mlx4_ib_inet6_event(struct notifier_block *this, unsigned long event,
 				void *ptr)
 {
@@ -1450,7 +1450,7 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 				 struct mlx4_ib_dev *ibdev, u8 port)
 {
 	struct in_device *in_dev;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct inet6_dev *in6_dev;
 	union ib_gid  *pgid;
 	struct inet6_ifaddr *ifp;
@@ -1473,7 +1473,7 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 		endfor_ifa(in_dev);
 		in_dev_put(in_dev);
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	/* IPv6 gids */
 	in6_dev = in6_dev_get(dev);
 	if (in6_dev) {
@@ -1874,7 +1874,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 				goto err_notif;
 			}
 		}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		if (!iboe->nb_inet6.notifier_call) {
 			iboe->nb_inet6.notifier_call = mlx4_ib_inet6_event;
 			err = register_inet6addr_notifier(&iboe->nb_inet6);
@@ -1921,7 +1921,7 @@ err_notif:
 			pr_warn("failure unregistering notifier\n");
 		ibdev->iboe.nb_inet.notifier_call = NULL;
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	if (ibdev->iboe.nb_inet6.notifier_call) {
 		if (unregister_inet6addr_notifier(&ibdev->iboe.nb_inet6))
 			pr_warn("failure unregistering notifier\n");
@@ -1976,7 +1976,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 			pr_warn("failure unregistering notifier\n");
 		ibdev->iboe.nb_inet.notifier_call = NULL;
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	if (ibdev->iboe.nb_inet6.notifier_call) {
 		if (unregister_inet6addr_notifier(&ibdev->iboe.nb_inet6))
 			pr_warn("failure unregistering notifier\n");
