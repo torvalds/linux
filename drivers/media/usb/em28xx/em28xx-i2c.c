@@ -226,10 +226,18 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		 * (even with high payload) ...
 		 */
 	}
-	if (i2c_debug)
-		em28xx_warn("write to i2c device at 0x%x timed out (status=%i)\n",
-			    addr, ret);
-	return -ETIMEDOUT;
+
+	if (ret == 0x02 || ret == 0x04) {
+		/* NOTE: these errors seem to be related to clock stretching */
+		if (i2c_debug)
+			em28xx_warn("write to i2c device at 0x%x timed out (status=%i)\n",
+				    addr, ret);
+		return -ETIMEDOUT;
+	}
+
+	em28xx_warn("write to i2c device at 0x%x failed with unknown error (status=%i)\n",
+		    addr, ret);
+	return -EIO;
 }
 
 /*
@@ -279,8 +287,17 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 		return -ENXIO;
 	}
 
-	em28xx_warn("unknown i2c error (status=%i)\n", ret);
-	return -ETIMEDOUT;
+	if (ret == 0x02 || ret == 0x04) {
+		/* NOTE: these errors seem to be related to clock stretching */
+		if (i2c_debug)
+			em28xx_warn("write to i2c device at 0x%x timed out (status=%i)\n",
+				    addr, ret);
+		return -ETIMEDOUT;
+	}
+
+	em28xx_warn("write to i2c device at 0x%x failed with unknown error (status=%i)\n",
+		    addr, ret);
+	return -EIO;
 }
 
 /*
