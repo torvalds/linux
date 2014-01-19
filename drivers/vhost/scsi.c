@@ -728,7 +728,7 @@ vhost_scsi_get_tag(struct vhost_virtqueue *vq,
 	}
 	se_sess = tv_nexus->tvn_se_sess;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
 	if (tag < 0) {
 		pr_err("Unable to obtain tag for tcm_vhost_cmd\n");
 		return ERR_PTR(-ENOMEM);
