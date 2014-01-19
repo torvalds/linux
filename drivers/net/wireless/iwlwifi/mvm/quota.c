@@ -234,15 +234,24 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 				break;
 			}
 		}
-		if (n_non_lowlat) {
-			quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_non_lowlat;
-			quota_rem = QUOTA_100 - n_non_lowlat * quota -
-				    QUOTA_LOWLAT_MIN;
-		} else {
-			quota = QUOTA_100;
-			quota_rem = 0;
-		}
+	}
+
+	if (data.n_low_latency_bindings == 1 && n_non_lowlat) {
+		/*
+		 * Reserve quota for the low latency binding in case that
+		 * there are several data bindings but only a single
+		 * low latency one. Split the rest of the quota equally
+		 * between the other data interfaces.
+		 */
+		quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_non_lowlat;
+		quota_rem = QUOTA_100 - n_non_lowlat * quota -
+			    QUOTA_LOWLAT_MIN;
 	} else if (num_active_macs) {
+		/*
+		 * There are 0 or more than 1 low latency bindings, or all the
+		 * data interfaces belong to the single low latency binding.
+		 * Split the quota equally between the data interfaces.
+		 */
 		quota = QUOTA_100 / num_active_macs;
 		quota_rem = QUOTA_100 % num_active_macs;
 	} else {
@@ -262,10 +271,21 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 			cmd.quotas[idx].quota = cpu_to_le32(0);
 		else if (data.n_low_latency_bindings == 1 && n_non_lowlat &&
 			 data.low_latency[i])
+			/*
+			 * There is more than one binding, but only one of the
+			 * bindings is in low latency. For this case, allocate
+			 * the minimal required quota for the low latency
+			 * binding.
+			 */
 			cmd.quotas[idx].quota = cpu_to_le32(QUOTA_LOWLAT_MIN);
+
 		else
 			cmd.quotas[idx].quota =
 				cpu_to_le32(quota * data.n_interfaces[i]);
+
+		WARN_ONCE(le32_to_cpu(cmd.quotas[idx].quota) > QUOTA_100,
+			  "Binding=%d, quota=%u > max=%u\n",
+			  idx, le32_to_cpu(cmd.quotas[idx].quota), QUOTA_100);
 
 		if (data.n_interfaces[i] && !data.low_latency[i])
 			cmd.quotas[idx].max_duration =
