@@ -162,7 +162,7 @@ tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
 	dev->stats.tx_errors++;
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
