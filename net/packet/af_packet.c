@@ -2009,19 +2009,20 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		sll->sll_ifindex = dev->ifindex;
 
 	smp_mb();
+
 #if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE == 1
-	{
+	if (po->tp_version <= TPACKET_V2) {
 		u8 *start, *end;
 
-		if (po->tp_version <= TPACKET_V2) {
-			end = (u8 *)PAGE_ALIGN((unsigned long)h.raw
-				+ macoff + snaplen);
-			for (start = h.raw; start < end; start += PAGE_SIZE)
-				flush_dcache_page(pgv_to_page(start));
-		}
-		smp_wmb();
+		end = (u8 *) PAGE_ALIGN((unsigned long) h.raw +
+					macoff + snaplen);
+
+		for (start = h.raw; start < end; start += PAGE_SIZE)
+			flush_dcache_page(pgv_to_page(start));
 	}
+	smp_wmb();
 #endif
+
 	if (po->tp_version <= TPACKET_V2)
 		__packet_set_status(po, h.raw, status);
 	else
@@ -2050,9 +2051,9 @@ ring_is_full:
 static void tpacket_destruct_skb(struct sk_buff *skb)
 {
 	struct packet_sock *po = pkt_sk(skb->sk);
-	void *ph;
 
 	if (likely(po->tx_ring.pg_vec)) {
+		void *ph;
 		__u32 ts;
 
 		ph = skb_shinfo(skb)->destructor_arg;
@@ -3649,34 +3650,26 @@ static void free_pg_vec(struct pgv *pg_vec, unsigned int order,
 
 static char *alloc_one_pg_vec_page(unsigned long order)
 {
-	char *buffer = NULL;
+	char *buffer;
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP |
 			  __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY;
 
 	buffer = (char *) __get_free_pages(gfp_flags, order);
-
 	if (buffer)
 		return buffer;
 
-	/*
-	 * __get_free_pages failed, fall back to vmalloc
-	 */
+	/* __get_free_pages failed, fall back to vmalloc */
 	buffer = vzalloc((1 << order) * PAGE_SIZE);
-
 	if (buffer)
 		return buffer;
 
-	/*
-	 * vmalloc failed, lets dig into swap here
-	 */
+	/* vmalloc failed, lets dig into swap here */
 	gfp_flags &= ~__GFP_NORETRY;
-	buffer = (char *)__get_free_pages(gfp_flags, order);
+	buffer = (char *) __get_free_pages(gfp_flags, order);
 	if (buffer)
 		return buffer;
 
-	/*
-	 * complete and utter failure
-	 */
+	/* complete and utter failure */
 	return NULL;
 }
 
