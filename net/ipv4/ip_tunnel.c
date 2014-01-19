@@ -61,8 +61,7 @@
 #include <net/ip6_route.h>
 #endif
 
-static unsigned int ip_tunnel_hash(struct ip_tunnel_net *itn,
-				   __be32 key, __be32 remote)
+static unsigned int ip_tunnel_hash(__be32 key, __be32 remote)
 {
 	return hash_32((__force u32)key ^ (__force u32)remote,
 			 IP_TNL_HASH_BITS);
@@ -204,7 +203,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 	struct ip_tunnel *t, *cand = NULL;
 	struct hlist_head *head;
 
-	hash = ip_tunnel_hash(itn, key, remote);
+	hash = ip_tunnel_hash(key, remote);
 	head = &itn->tunnels[hash];
 
 	hlist_for_each_entry_rcu(t, head, hash_node) {
@@ -236,7 +235,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 			cand = t;
 	}
 
-	hash = ip_tunnel_hash(itn, key, 0);
+	hash = ip_tunnel_hash(key, 0);
 	head = &itn->tunnels[hash];
 
 	hlist_for_each_entry_rcu(t, head, hash_node) {
@@ -292,7 +291,7 @@ static struct hlist_head *ip_bucket(struct ip_tunnel_net *itn,
 	else
 		remote = 0;
 
-	h = ip_tunnel_hash(itn, parms->i_key, remote);
+	h = ip_tunnel_hash(parms->i_key, remote);
 	return &itn->tunnels[h];
 }
 
