@@ -174,6 +174,10 @@ static int ocrdma_inetaddr_event(struct notifier_block *notifier,
 	return ocrdma_addr_event(event, netdev, &gid);
 }
 
+static struct notifier_block ocrdma_inetaddr_notifier = {
+	.notifier_call = ocrdma_inetaddr_event
+};
+
 #if IS_ENABLED(CONFIG_IPV6)
 
 static int ocrdma_inet6addr_event(struct notifier_block *notifier,
@@ -184,10 +188,6 @@ static int ocrdma_inet6addr_event(struct notifier_block *notifier,
 	struct net_device *netdev = ifa->idev->dev;
 	return ocrdma_addr_event(event, netdev, gid);
 }
-
-static struct notifier_block ocrdma_inetaddr_notifier = {
-	.notifier_call = ocrdma_inetaddr_event
-};
 
 static struct notifier_block ocrdma_inet6addr_notifier = {
 	.notifier_call = ocrdma_inet6addr_event
