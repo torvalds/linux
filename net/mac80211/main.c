@@ -893,10 +893,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* mac80211 supports control port protocol changing */
 	local->hw.wiphy->flags |= WIPHY_FLAG_CONTROL_PORT_PROTOCOL;
 
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
-	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
+	} else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC) {
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+		if (hw->max_signal <= 0) {
+			result = -EINVAL;
+			goto fail_wiphy_register;
+		}
+	}
 
 	WARN((local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)
 	     && (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK),
