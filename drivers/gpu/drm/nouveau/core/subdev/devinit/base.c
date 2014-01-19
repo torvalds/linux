@@ -26,6 +26,7 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/init.h>
+#include <subdev/vga.h>
 
 #include "priv.h"
 
@@ -37,6 +38,9 @@ _nouveau_devinit_fini(struct nouveau_object *object, bool suspend)
 	/* force full reinit on resume */
 	if (suspend)
 		devinit->post = true;
+
+	/* unlock the extended vga crtc regs */
+	nv_lockvgac(devinit, false);
 
 	return nouveau_subdev_fini(&devinit->base, suspend);
 }
@@ -59,6 +63,17 @@ _nouveau_devinit_init(struct nouveau_object *object)
 	if (impl->disable)
 		nv_device(devinit)->disable_mask |= impl->disable(devinit);
 	return 0;
+}
+
+void
+_nouveau_devinit_dtor(struct nouveau_object *object)
+{
+	struct nouveau_devinit *devinit = (void *)object;
+
+	/* lock crtc regs */
+	nv_lockvgac(devinit, true);
+
+	nouveau_subdev_destroy(&devinit->base);
 }
 
 int

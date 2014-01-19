@@ -15,8 +15,10 @@ struct nouveau_devinit_impl {
 
 #define nouveau_devinit_create(p,e,o,d)                                        \
 	nouveau_devinit_create_((p), (e), (o), sizeof(**d), (void **)d)
-#define nouveau_devinit_destroy(p)                                             \
-	nouveau_subdev_destroy(&(p)->base)
+#define nouveau_devinit_destroy(p) ({                                          \
+	struct nouveau_devinit *d = (p);                                       \
+	_nouveau_devinit_dtor(nv_object(d));                                   \
+})
 #define nouveau_devinit_init(p) ({                                             \
 	struct nouveau_devinit *d = (p);                                       \
 	_nouveau_devinit_init(nv_object(d));                                   \
@@ -28,7 +30,7 @@ struct nouveau_devinit_impl {
 
 int nouveau_devinit_create_(struct nouveau_object *, struct nouveau_object *,
 			    struct nouveau_oclass *, int, void **);
-#define _nouveau_devinit_dtor _nouveau_subdev_dtor
+void _nouveau_devinit_dtor(struct nouveau_object *);
 int _nouveau_devinit_init(struct nouveau_object *);
 int _nouveau_devinit_fini(struct nouveau_object *, bool suspend);
 

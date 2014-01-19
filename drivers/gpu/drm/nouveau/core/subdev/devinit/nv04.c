@@ -388,17 +388,21 @@ int
 nv04_devinit_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nv04_devinit_priv *priv = (void *)object;
+	int ret;
 
 	/* make i2c busses accessible */
 	nv_mask(priv, 0x000200, 0x00000001, 0x00000001);
 
-	/* unlock extended vga crtc regs, and unslave crtcs */
-	nv_lockvgac(priv, false);
+	ret = nouveau_devinit_fini(&priv->base, suspend);
+	if (ret)
+		return ret;
+
+	/* unslave crtcs */
 	if (priv->owner < 0)
 		priv->owner = nv_rdvgaowner(priv);
 	nv_wrvgaowner(priv, 0);
 
-	return nouveau_devinit_fini(&priv->base, suspend);
+	return 0;
 }
 
 int
@@ -426,9 +430,8 @@ nv04_devinit_dtor(struct nouveau_object *object)
 {
 	struct nv04_devinit_priv *priv = (void *)object;
 
-	/* restore vga owner saved at first init, and lock crtc regs  */
+	/* restore vga owner saved at first init */
 	nv_wrvgaowner(priv, priv->owner);
-	nv_lockvgac(priv, true);
 
 	nouveau_devinit_destroy(&priv->base);
 }
