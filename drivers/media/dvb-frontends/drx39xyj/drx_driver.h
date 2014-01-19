@@ -2464,10 +2464,6 @@ Access macros
 Exported FUNCTIONS
 -------------------------------------------------------------------------*/
 
-	int drx_init(struct drx_demod_instance *demods[]);
-
-	int drx_term(void);
-
 	int drx_open(struct drx_demod_instance *demod);
 
 	int drx_close(struct drx_demod_instance *demod);
