@@ -188,7 +188,8 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	struct drx_channel channel;
 	int result;
 	struct drxuio_data uio_data;
-	struct drx_channel def_channel = { /* frequency      */ 0,
+	static const struct drx_channel def_channel = {
+		/* frequency      */ 0,
 		/* bandwidth      */ DRX_BANDWIDTH_6MHZ,
 		/* mirror         */ DRX_MIRROR_NO,
 		/* constellation  */ DRX_CONSTELLATION_AUTO,
@@ -204,6 +205,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 		/* carrier        */ DRX_CARRIER_UNKNOWN,
 		/* frame mode     */ DRX_FRAMEMODE_UNKNOWN
 	};
+	u32 constellation = DRX_CONSTELLATION_AUTO;
 
 	/* Bring the demod out of sleep */
 	drx39xxj_set_powerstate(fe, 1);
@@ -215,6 +217,29 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+
+	switch (p->delivery_system) {
+	case SYS_ATSC:
+		standard = DRX_STANDARD_8VSB;
+		break;
+	case SYS_DVBC_ANNEX_B:
+		standard = DRX_STANDARD_ITU_B;
+
+		switch (p->modulation) {
+		case QAM_64:
+			constellation = DRX_CONSTELLATION_QAM64;
+			break;
+		case QAM_256:
+			constellation = DRX_CONSTELLATION_QAM256;
+			break;
+		default:
+			constellation = DRX_CONSTELLATION_AUTO;
+			break;
+		}
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	if (standard != state->current_standard || state->powered_up == 0) {
@@ -233,7 +258,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	channel = def_channel;
 	channel.frequency = p->frequency / 1000;
 	channel.bandwidth = DRX_BANDWIDTH_6MHZ;
-	channel.constellation = DRX_CONSTELLATION_AUTO;
+	channel.constellation = constellation;
 
 	/* program channel */
 	result = drx_ctrl(demod, DRX_CTRL_SET_CHANNEL, &channel);
