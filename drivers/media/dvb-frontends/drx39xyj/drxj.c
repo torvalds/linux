@@ -18354,6 +18354,81 @@ rw_error:
 
 /*============================================================================*/
 
+static void drxj_reset_mode(struct drxj_data *ext_attr)
+{
+	/* Initialize default AFE configuartion for QAM */
+	if (ext_attr->has_lna) {
+		/* IF AGC off, PGA active */
+#ifndef DRXJ_VSB_ONLY
+		ext_attr->qam_if_agc_cfg.standard = DRX_STANDARD_ITU_B;
+		ext_attr->qam_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_OFF;
+		ext_attr->qam_pga_cfg = 140 + (11 * 13);
+#endif
+		ext_attr->vsb_if_agc_cfg.standard = DRX_STANDARD_8VSB;
+		ext_attr->vsb_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_OFF;
+		ext_attr->vsb_pga_cfg = 140 + (11 * 13);
+	} else {
+		/* IF AGC on, PGA not active */
+#ifndef DRXJ_VSB_ONLY
+		ext_attr->qam_if_agc_cfg.standard = DRX_STANDARD_ITU_B;
+		ext_attr->qam_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+		ext_attr->qam_if_agc_cfg.min_output_level = 0;
+		ext_attr->qam_if_agc_cfg.max_output_level = 0x7FFF;
+		ext_attr->qam_if_agc_cfg.speed = 3;
+		ext_attr->qam_if_agc_cfg.top = 1297;
+		ext_attr->qam_pga_cfg = 140;
+#endif
+		ext_attr->vsb_if_agc_cfg.standard = DRX_STANDARD_8VSB;
+		ext_attr->vsb_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+		ext_attr->vsb_if_agc_cfg.min_output_level = 0;
+		ext_attr->vsb_if_agc_cfg.max_output_level = 0x7FFF;
+		ext_attr->vsb_if_agc_cfg.speed = 3;
+		ext_attr->vsb_if_agc_cfg.top = 1024;
+		ext_attr->vsb_pga_cfg = 140;
+	}
+	/* TODO: remove min_output_level and max_output_level for both QAM and VSB after */
+	/* mc has not used them */
+#ifndef DRXJ_VSB_ONLY
+	ext_attr->qam_rf_agc_cfg.standard = DRX_STANDARD_ITU_B;
+	ext_attr->qam_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+	ext_attr->qam_rf_agc_cfg.min_output_level = 0;
+	ext_attr->qam_rf_agc_cfg.max_output_level = 0x7FFF;
+	ext_attr->qam_rf_agc_cfg.speed = 3;
+	ext_attr->qam_rf_agc_cfg.top = 9500;
+	ext_attr->qam_rf_agc_cfg.cut_off_current = 4000;
+	ext_attr->qam_pre_saw_cfg.standard = DRX_STANDARD_ITU_B;
+	ext_attr->qam_pre_saw_cfg.reference = 0x07;
+	ext_attr->qam_pre_saw_cfg.use_pre_saw = true;
+#endif
+	/* Initialize default AFE configuartion for VSB */
+	ext_attr->vsb_rf_agc_cfg.standard = DRX_STANDARD_8VSB;
+	ext_attr->vsb_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+	ext_attr->vsb_rf_agc_cfg.min_output_level = 0;
+	ext_attr->vsb_rf_agc_cfg.max_output_level = 0x7FFF;
+	ext_attr->vsb_rf_agc_cfg.speed = 3;
+	ext_attr->vsb_rf_agc_cfg.top = 9500;
+	ext_attr->vsb_rf_agc_cfg.cut_off_current = 4000;
+	ext_attr->vsb_pre_saw_cfg.standard = DRX_STANDARD_8VSB;
+	ext_attr->vsb_pre_saw_cfg.reference = 0x07;
+	ext_attr->vsb_pre_saw_cfg.use_pre_saw = true;
+
+#ifndef DRXJ_DIGITAL_ONLY
+	/* Initialize default AFE configuartion for ATV */
+	ext_attr->atv_rf_agc_cfg.standard = DRX_STANDARD_NTSC;
+	ext_attr->atv_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+	ext_attr->atv_rf_agc_cfg.top = 9500;
+	ext_attr->atv_rf_agc_cfg.cut_off_current = 4000;
+	ext_attr->atv_rf_agc_cfg.speed = 3;
+	ext_attr->atv_if_agc_cfg.standard = DRX_STANDARD_NTSC;
+	ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
+	ext_attr->atv_if_agc_cfg.speed = 3;
+	ext_attr->atv_if_agc_cfg.top = 2400;
+	ext_attr->atv_pre_saw_cfg.reference = 0x0007;
+	ext_attr->atv_pre_saw_cfg.use_pre_saw = true;
+	ext_attr->atv_pre_saw_cfg.standard = DRX_STANDARD_NTSC;
+#endif
+}
+
 /**
 * \fn int ctrl_power_mode()
 * \brief Set the power mode of the device to the specified power mode
@@ -18418,6 +18493,9 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 
 	if ((*mode == DRX_POWER_UP)) {
 		/* Restore analog & pin configuartion */
+
+		/* Initialize default AFE configuartion for VSB */
+		drxj_reset_mode(ext_attr);
 	} else {
 		/* Power down to requested mode */
 		/* Backup some register settings */
@@ -20034,6 +20112,7 @@ rw_error:
 
 /*=============================================================================
 ===== EXPORTED FUNCTIONS ====================================================*/
+
 /**
 * \fn drxj_open()
 * \brief Open the demod instance, configure device, configure drxdriver
@@ -20221,77 +20300,7 @@ int drxj_open(struct drx_demod_instance *demod)
 	common_attr->scan_demod_lock_timeout = DRXJ_SCAN_TIMEOUT;
 	common_attr->scan_desired_lock = DRX_LOCKED;
 
-	/* Initialize default AFE configuartion for QAM */
-	if (ext_attr->has_lna) {
-		/* IF AGC off, PGA active */
-#ifndef DRXJ_VSB_ONLY
-		ext_attr->qam_if_agc_cfg.standard = DRX_STANDARD_ITU_B;
-		ext_attr->qam_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_OFF;
-		ext_attr->qam_pga_cfg = 140 + (11 * 13);
-#endif
-		ext_attr->vsb_if_agc_cfg.standard = DRX_STANDARD_8VSB;
-		ext_attr->vsb_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_OFF;
-		ext_attr->vsb_pga_cfg = 140 + (11 * 13);
-	} else {
-		/* IF AGC on, PGA not active */
-#ifndef DRXJ_VSB_ONLY
-		ext_attr->qam_if_agc_cfg.standard = DRX_STANDARD_ITU_B;
-		ext_attr->qam_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
-		ext_attr->qam_if_agc_cfg.min_output_level = 0;
-		ext_attr->qam_if_agc_cfg.max_output_level = 0x7FFF;
-		ext_attr->qam_if_agc_cfg.speed = 3;
-		ext_attr->qam_if_agc_cfg.top = 1297;
-		ext_attr->qam_pga_cfg = 140;
-#endif
-		ext_attr->vsb_if_agc_cfg.standard = DRX_STANDARD_8VSB;
-		ext_attr->vsb_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
-		ext_attr->vsb_if_agc_cfg.min_output_level = 0;
-		ext_attr->vsb_if_agc_cfg.max_output_level = 0x7FFF;
-		ext_attr->vsb_if_agc_cfg.speed = 3;
-		ext_attr->vsb_if_agc_cfg.top = 1024;
-		ext_attr->vsb_pga_cfg = 140;
-	}
-	/* TODO: remove min_output_level and max_output_level for both QAM and VSB after */
-	/* mc has not used them */
-#ifndef DRXJ_VSB_ONLY
-	ext_attr->qam_rf_agc_cfg.standard = DRX_STANDARD_ITU_B;
-	ext_attr->qam_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
-	ext_attr->qam_rf_agc_cfg.min_output_level = 0;
-	ext_attr->qam_rf_agc_cfg.max_output_level = 0x7FFF;
-	ext_attr->qam_rf_agc_cfg.speed = 3;
-	ext_attr->qam_rf_agc_cfg.top = 9500;
-	ext_attr->qam_rf_agc_cfg.cut_off_current = 4000;
-	ext_attr->qam_pre_saw_cfg.standard = DRX_STANDARD_ITU_B;
-	ext_attr->qam_pre_saw_cfg.reference = 0x07;
-	ext_attr->qam_pre_saw_cfg.use_pre_saw = true;
-#endif
-	/* Initialize default AFE configuartion for VSB */
-	ext_attr->vsb_rf_agc_cfg.standard = DRX_STANDARD_8VSB;
-	ext_attr->vsb_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
-	ext_attr->vsb_rf_agc_cfg.min_output_level = 0;
-	ext_attr->vsb_rf_agc_cfg.max_output_level = 0x7FFF;
-	ext_attr->vsb_rf_agc_cfg.speed = 3;
-	ext_attr->vsb_rf_agc_cfg.top = 9500;
-	ext_attr->vsb_rf_agc_cfg.cut_off_current = 4000;
-	ext_attr->vsb_pre_saw_cfg.standard = DRX_STANDARD_8VSB;
-	ext_attr->vsb_pre_saw_cfg.reference = 0x07;
-	ext_attr->vsb_pre_saw_cfg.use_pre_saw = true;
-
-#ifndef DRXJ_DIGITAL_ONLY
-	/* Initialize default AFE configuartion for ATV */
-	ext_attr->atv_rf_agc_cfg.standard = DRX_STANDARD_NTSC;
-	ext_attr->atv_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
-	ext_attr->atv_rf_agc_cfg.top = 9500;
-	ext_attr->atv_rf_agc_cfg.cut_off_current = 4000;
-	ext_attr->atv_rf_agc_cfg.speed = 3;
-	ext_attr->atv_if_agc_cfg.standard = DRX_STANDARD_NTSC;
-	ext_attr->atv_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
-	ext_attr->atv_if_agc_cfg.speed = 3;
-	ext_attr->atv_if_agc_cfg.top = 2400;
-	ext_attr->atv_pre_saw_cfg.reference = 0x0007;
-	ext_attr->atv_pre_saw_cfg.use_pre_saw = true;
-	ext_attr->atv_pre_saw_cfg.standard = DRX_STANDARD_NTSC;
-#endif
+	drxj_reset_mode(ext_attr);
 	ext_attr->standard = DRX_STANDARD_UNKNOWN;
 
 	rc = smart_ant_init(demod);
