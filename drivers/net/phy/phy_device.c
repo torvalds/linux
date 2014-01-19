@@ -767,12 +767,6 @@ static int genphy_config_advert(struct phy_device *phydev)
 	return changed;
 }
 
-int gen10g_config_advert(struct phy_device *dev)
-{
-	return 0;
-}
-EXPORT_SYMBOL(gen10g_config_advert);
-
 /**
  * genphy_setup_forced - configures/forces speed/duplex from @phydev
  * @phydev: target phy_device struct
@@ -820,12 +814,6 @@ int genphy_restart_aneg(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_restart_aneg);
 
-int gen10g_restart_aneg(struct phy_device *phydev)
-{
-	return 0;
-}
-EXPORT_SYMBOL(gen10g_restart_aneg);
-
 /**
  * genphy_config_aneg - restart auto-negotiation or write BMCR
  * @phydev: target phy_device struct
@@ -867,11 +855,10 @@ int genphy_config_aneg(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_config_aneg);
 
-int gen10g_config_aneg(struct phy_device *phydev)
+static int gen10g_config_aneg(struct phy_device *phydev)
 {
 	return 0;
 }
-EXPORT_SYMBOL(gen10g_config_aneg);
 
 /**
  * genphy_update_link - update link status in @phydev
@@ -1004,7 +991,7 @@ int genphy_read_status(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_read_status);
 
-int gen10g_read_status(struct phy_device *phydev)
+static int gen10g_read_status(struct phy_device *phydev)
 {
 	int devad, reg;
 	u32 mmd_mask = phydev->c45_ids.devices_in_package;
@@ -1030,7 +1017,6 @@ int gen10g_read_status(struct phy_device *phydev)
 
 	return 0;
 }
-EXPORT_SYMBOL(gen10g_read_status);
 
 static int genphy_config_init(struct phy_device *phydev)
 {
@@ -1102,11 +1088,10 @@ int genphy_suspend(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_suspend);
 
-int gen10g_suspend(struct phy_device *phydev)
+static int gen10g_suspend(struct phy_device *phydev)
 {
 	return 0;
 }
-EXPORT_SYMBOL(gen10g_suspend);
 
 int genphy_resume(struct phy_device *phydev)
 {
@@ -1123,11 +1108,10 @@ int genphy_resume(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_resume);
 
-int gen10g_resume(struct phy_device *phydev)
+static int gen10g_resume(struct phy_device *phydev)
 {
 	return 0;
 }
-EXPORT_SYMBOL(gen10g_resume);
 
 /**
  * phy_probe - probe and init a PHY device
