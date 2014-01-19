@@ -1437,7 +1437,9 @@ int __ipv6_get_lladdr(struct inet6_dev *idev, struct in6_addr *addr,
 	struct inet6_ifaddr *ifp;
 	int err = -EADDRNOTAVAIL;
 
-	list_for_each_entry(ifp, &idev->addr_list, if_list) {
+	list_for_each_entry_reverse(ifp, &idev->addr_list, if_list) {
+		if (ifp->scope > IFA_LINK)
+			break;
 		if (ifp->scope == IFA_LINK &&
 		    !(ifp->flags & banned_flags)) {
 			*addr = ifp->addr;
@@ -1858,7 +1860,9 @@ static int ipv6_inherit_eui64(u8 *eui, struct inet6_dev *idev)
 	struct inet6_ifaddr *ifp;
 
 	read_lock_bh(&idev->lock);
-	list_for_each_entry(ifp, &idev->addr_list, if_list) {
+	list_for_each_entry_reverse(ifp, &idev->addr_list, if_list) {
+		if (ifp->scope > IFA_LINK)
+			break;
 		if (ifp->scope == IFA_LINK && !(ifp->flags&IFA_F_TENTATIVE)) {
 			memcpy(eui, ifp->addr.s6_addr+8, 8);
 			err = 0;
@@ -3239,7 +3243,9 @@ static bool ipv6_lonely_lladdr(struct inet6_ifaddr *ifp)
 	struct inet6_ifaddr *ifpiter;
 	struct inet6_dev *idev = ifp->idev;
 
-	list_for_each_entry(ifpiter, &idev->addr_list, if_list) {
+	list_for_each_entry_reverse(ifpiter, &idev->addr_list, if_list) {
+		if (ifpiter->scope > IFA_LINK)
+			break;
 		if (ifp != ifpiter && ifpiter->scope == IFA_LINK &&
 		    (ifpiter->flags & (IFA_F_PERMANENT|IFA_F_TENTATIVE|
 				       IFA_F_OPTIMISTIC|IFA_F_DADFAILED)) ==
