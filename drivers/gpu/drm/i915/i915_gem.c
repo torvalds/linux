@@ -3106,7 +3106,7 @@ i915_find_fence_reg(struct drm_device *dev)
 	}
 
 	if (avail == NULL)
-		return NULL;
+		goto deadlock;
 
 	/* None available, try to steal one or wait for a user to finish */
 	list_for_each_entry(reg, &dev_priv->mm.fence_list, lru_list) {
@@ -3116,7 +3116,12 @@ i915_find_fence_reg(struct drm_device *dev)
 		return reg;
 	}
 
-	return NULL;
+deadlock:
+	/* Wait for completion of pending flips which consume fences */
+	if (intel_has_pending_fb_unpin(dev))
+		return ERR_PTR(-EAGAIN);
+
+	return ERR_PTR(-EDEADLK);
 }
 
 /**
@@ -3161,8 +3166,8 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 		}
 	} else if (enable) {
 		reg = i915_find_fence_reg(dev);
-		if (reg == NULL)
-			return -EDEADLK;
+		if (IS_ERR(reg))
+			return PTR_ERR(reg);
 
 		if (reg->obj) {
 			struct drm_i915_gem_object *old = reg->obj;

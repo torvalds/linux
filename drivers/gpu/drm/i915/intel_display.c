@@ -2982,6 +2982,30 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	return pending;
 }
 
+bool intel_has_pending_fb_unpin(struct drm_device *dev)
+{
+	struct intel_crtc *crtc;
+
+	/* Note that we don't need to be called with mode_config.lock here
+	 * as our list of CRTC objects is static for the lifetime of the
+	 * device and so cannot disappear as we iterate. Similarly, we can
+	 * happily treat the predicates as racy, atomic checks as userspace
+	 * cannot claim and pin a new fb without at least acquring the
+	 * struct_mutex and so serialising with us.
+	 */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		if (atomic_read(&crtc->unpin_work_count) == 0)
+			continue;
+
+		if (crtc->unpin_work)
+			intel_wait_for_vblank(dev, crtc->pipe);
+
+		return true;
+	}
+
+	return false;
+}
+
 static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
