@@ -911,8 +911,8 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 {
 	struct fsl_spdif_priv *spdif_private = snd_soc_dai_get_drvdata(dai);
 
-	dai->playback_dma_data = &spdif_private->dma_params_tx;
-	dai->capture_dma_data = &spdif_private->dma_params_rx;
+	snd_soc_dai_init_dma_data(dai, &spdif_private->dma_params_tx,
+				  &spdif_private->dma_params_rx);
 
 	snd_soc_add_dai_controls(dai, fsl_spdif_ctrls, ARRAY_SIZE(fsl_spdif_ctrls));
 
