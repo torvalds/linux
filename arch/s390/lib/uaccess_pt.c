@@ -211,7 +211,7 @@ fault:
 	return 0;
 }
 
-size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
+static size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
 {
 	size_t rc;
 
@@ -223,7 +223,7 @@ size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
 	return rc;
 }
 
-size_t copy_to_user_pt(size_t n, void __user *to, const void *from)
+static size_t copy_to_user_pt(size_t n, void __user *to, const void *from)
 {
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return copy_in_kernel(n, to, (void __user *) from);
