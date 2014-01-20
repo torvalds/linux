@@ -122,5 +122,11 @@
 			reg-shift = <2>;
 			status = "disabled";
 		};
+
+		sata@a000000 {
+			compatible = "hisilicon,hisi-ahci";
+			reg = <0xa000000 0x1000000>;
+			interrupts = <0 372 4>;
+		};
 	};
 };
