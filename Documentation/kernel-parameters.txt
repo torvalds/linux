@@ -890,6 +890,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			The xen output can only be used by Xen PV guests.
 
+	edac_report=	[HW,EDAC] Control how to report EDAC event
+			Format: {"on" | "off" | "force"}
+			on: enable EDAC to report H/W event. May be overridden
+			by other higher priority error reporting module.
+			off: disable H/W event reporting through EDAC.
+			force: enforce the use of EDAC to report H/W event.
+			default: on.
+
 	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
 			ekgdboc=kbd
 
