@@ -1414,7 +1414,7 @@ static void __init xen_boot_params_init_edd(void)
  * is PVH which is not going to use xen_load_gdt_boot or other
  * __init functions.
  */
-void __ref xen_setup_gdt(int cpu)
+static void __ref xen_setup_gdt(int cpu)
 {
 	if (xen_feature(XENFEAT_auto_translated_physmap)) {
 #ifdef CONFIG_X86_64
@@ -1462,13 +1462,40 @@ void __ref xen_setup_gdt(int cpu)
 	pv_cpu_ops.load_gdt = xen_load_gdt;
 }
 
+/*
+ * A PV guest starts with default flags that are not set for PVH, set them
+ * here asap.
+ */
+static void xen_pvh_set_cr_flags(int cpu)
+{
+
+	/* Some of these are setup in 'secondary_startup_64'. The others:
+	 * X86_CR0_TS, X86_CR0_PE, X86_CR0_ET are set by Xen for HVM guests
+	 * (which PVH shared codepaths), while X86_CR0_PG is for PVH. */
+	write_cr0(read_cr0() | X86_CR0_MP | X86_CR0_NE | X86_CR0_WP | X86_CR0_AM);
+}
+
+/*
+ * Note, that it is ref - because the only caller of this after init
+ * is PVH which is not going to use xen_load_gdt_boot or other
+ * __init functions.
+ */
+void __ref xen_pvh_secondary_vcpu_init(int cpu)
+{
+	xen_setup_gdt(cpu);
+	xen_pvh_set_cr_flags(cpu);
+}
+
 static void __init xen_pvh_early_guest_init(void)
 {
 	if (!xen_feature(XENFEAT_auto_translated_physmap))
 		return;
 
-	if (xen_feature(XENFEAT_hvm_callback_vector))
-		xen_have_vector_callback = 1;
+	if (!xen_feature(XENFEAT_hvm_callback_vector))
+		return;
+
+	xen_have_vector_callback = 1;
+	xen_pvh_set_cr_flags(0);
 
 #ifdef CONFIG_X86_32
 	BUG(); /* PVH: Implement proper support. */

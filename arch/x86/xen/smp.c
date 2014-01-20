@@ -105,7 +105,7 @@ static void cpu_bringup_and_idle(int cpu)
 #ifdef CONFIG_X86_64
 	if (xen_feature(XENFEAT_auto_translated_physmap) &&
 	    xen_feature(XENFEAT_supervisor_mode_kernel))
-		xen_setup_gdt(cpu);
+		xen_pvh_secondary_vcpu_init(cpu);
 #endif
 	cpu_bringup();
 	cpu_startup_entry(CPUHP_ONLINE);
