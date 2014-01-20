@@ -370,15 +370,9 @@ struct ymmh_struct {
 	u32 ymmh_space[64];
 };
 
+/* We don't support LWP yet: */
 struct lwp_struct {
-	u64 lwpcb_addr;
-	u32 flags;
-	u32 buf_head_offset;
-	u64 buf_base;
-	u32 buf_size;
-	u32 filters;
-	u64 saved_event_record[4];
-	u32 event_counter[16];
+	u8 reserved[128];
 };
 
 struct bndregs_struct {
