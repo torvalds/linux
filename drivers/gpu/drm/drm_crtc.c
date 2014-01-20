@@ -3784,9 +3784,26 @@ int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_create_dumb *args = data;
+	u32 cpp, stride, size;
 
 	if (!dev->driver->dumb_create)
 		return -ENOSYS;
+	if (!args->width || !args->height || !args->bpp)
+		return -EINVAL;
+
+	/* overflow checks for 32bit size calculations */
+	cpp = DIV_ROUND_UP(args->bpp, 8);
+	if (cpp > 0xffffffffU / args->width)
+		return -EINVAL;
+	stride = cpp * args->width;
+	if (args->height > 0xffffffffU / stride)
+		return -EINVAL;
+
+	/* test for wrap-around */
+	size = args->height * stride;
+	if (PAGE_ALIGN(size) == 0)
+		return -EINVAL;
+
 	return dev->driver->dumb_create(file_priv, dev, args);
 }
 
