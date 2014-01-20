@@ -117,12 +117,3 @@ DT_MACHINE_START(HI3620, "Hisilicon Hi3620 (Flattened Device Tree)")
 	.smp		= smp_ops(hi3xxx_smp_ops),
 	.restart	= hi3xxx_restart,
 MACHINE_END
-
-static const char *hip04_compat[] __initconst = {
-	"hisilicon,hip04-d01",
-	NULL,
-};
-
-DT_MACHINE_START(HIP01, "Hisilicon HiP04 (Flattened Device Tree)")
-	.dt_compat	= hip04_compat,
-MACHINE_END

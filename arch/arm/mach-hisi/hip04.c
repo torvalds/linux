@@ -284,6 +284,29 @@ bool __init hip04_smp_init_ops(void)
 	return true;
 }
 
+#define HIP04_SATA_BASE		(0xea000000)
+
+static int sata_vsemiphy_init(struct device *dev, void __iomem *addr)
+{
+	return 0;
+}
+
+static struct ahci_platform_data hip04_sata_pdata = {
+	.init	= sata_vsemiphy_init,
+};
+
+static struct of_dev_auxdata hip04_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("hisilicon,hisi-ahci", HIP04_SATA_BASE,
+			NULL, &hip04_sata_pdata),
+	{},
+};
+
+static void __init hip04_init_machine(void)
+{
+	of_platform_populate(NULL, of_default_bus_match_table,
+			hip04_auxdata_lookup, NULL);
+}
+
 static const char *hip04_compat[] __initconst = {
 	"hisilicon,hip04-d01",
 	NULL,
@@ -297,5 +320,6 @@ static void __init hip04_reserve(void)
 DT_MACHINE_START(HIP01, "Hisilicon HiP04 (Flattened Device Tree)")
 	.dt_compat	= hip04_compat,
 	.smp_init	= smp_init_ops(hip04_smp_init_ops),
+	.init_machine	= hip04_init_machine,
 	.reserve	= hip04_reserve,
 MACHINE_END
