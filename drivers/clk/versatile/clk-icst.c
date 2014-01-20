@@ -120,6 +120,7 @@ static const struct clk_ops icst_ops = {
 struct clk *icst_clk_register(struct device *dev,
 			const struct clk_icst_desc *desc,
 			const char *name,
+			const char *parent_name,
 			void __iomem *base)
 {
 	struct clk *clk;

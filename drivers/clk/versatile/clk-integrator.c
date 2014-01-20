@@ -43,6 +43,7 @@ static void __init of_integrator_cm_osc_setup(struct device_node *np)
 	struct clk *clk = ERR_PTR(-EINVAL);
 	const char *clk_name = np->name;
 	const struct clk_icst_desc *desc = &cm_auxosc_desc;
+	const char *parent_name;
 
 	if (!cm_base) {
 		/* Remap the core module base if not done yet */
@@ -60,7 +61,8 @@ static void __init of_integrator_cm_osc_setup(struct device_node *np)
 		}
 	}
 
-	clk = icst_clk_register(NULL, desc, clk_name, cm_base);
+	parent_name = of_clk_get_parent_name(np, 0);
+	clk = icst_clk_register(NULL, desc, clk_name, parent_name, cm_base);
 	if (!IS_ERR(clk))
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
