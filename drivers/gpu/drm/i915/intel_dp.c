@@ -415,6 +415,36 @@ static uint32_t vlv_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	return index ? 0 : 100;
 }
 
+static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
+				      bool has_aux_irq,
+				      int send_bytes,
+				      uint32_t aux_clock_divider)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	uint32_t precharge, timeout;
+
+	if (IS_GEN6(dev))
+		precharge = 3;
+	else
+		precharge = 5;
+
+	if (IS_BROADWELL(dev) && intel_dp->aux_ch_ctl_reg == DPA_AUX_CH_CTL)
+		timeout = DP_AUX_CH_CTL_TIME_OUT_600us;
+	else
+		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
+
+	return DP_AUX_CH_CTL_SEND_BUSY |
+	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
+	       timeout |
+	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+	       (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
+	       DP_AUX_CH_CTL_DONE |
+	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
+	       DP_AUX_CH_CTL_RECEIVE_ERROR;
+}
+
 static int
 intel_dp_aux_ch(struct intel_dp *intel_dp,
 		uint8_t *send, int send_bytes,
@@ -428,9 +458,8 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	uint32_t aux_clock_divider;
 	int i, ret, recv_bytes;
 	uint32_t status;
-	int try, precharge, clock = 0;
+	int try, clock = 0;
 	bool has_aux_irq = true;
-	uint32_t timeout;
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
 	 * lowest possible wakeup latency and so prevent the cpu from going into
@@ -439,16 +468,6 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	pm_qos_update_request(&dev_priv->pm_qos, 0);
 
 	intel_dp_check_edp(intel_dp);
-
-	if (IS_GEN6(dev))
-		precharge = 3;
-	else
-		precharge = 5;
-
-	if (IS_BROADWELL(dev) && ch_ctl == DPA_AUX_CH_CTL)
-		timeout = DP_AUX_CH_CTL_TIME_OUT_600us;
-	else
-		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
 
 	intel_aux_display_runtime_get(dev_priv);
 
@@ -474,6 +493,11 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	}
 
 	while ((aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, clock++))) {
+		u32 send_ctl = i9xx_get_aux_send_ctl(intel_dp,
+						     has_aux_irq,
+						     send_bytes,
+						     aux_clock_divider);
+
 		/* Must try at least 3 times according to DP spec */
 		for (try = 0; try < 5; try++) {
 			/* Load the send data into the aux channel data registers */
@@ -482,16 +506,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 					   pack_aux(send + i, send_bytes - i));
 
 			/* Send the command and wait for it to complete */
-			I915_WRITE(ch_ctl,
-				   DP_AUX_CH_CTL_SEND_BUSY |
-				   (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
-				   timeout |
-				   (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-				   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
-				   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
-				   DP_AUX_CH_CTL_DONE |
-				   DP_AUX_CH_CTL_TIME_OUT_ERROR |
-				   DP_AUX_CH_CTL_RECEIVE_ERROR);
+			I915_WRITE(ch_ctl, send_ctl);
 
 			status = intel_dp_aux_wait_done(intel_dp, has_aux_irq);
 
