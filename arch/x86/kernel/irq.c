@@ -193,9 +193,13 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	if (!handle_irq(irq, regs)) {
 		ack_APIC_irq();
 
-		if (printk_ratelimit())
-			pr_emerg("%s: %d.%d No irq handler for vector (irq %d)\n",
-				__func__, smp_processor_id(), vector, irq);
+		if (irq != VECTOR_RETRIGGERED) {
+			pr_emerg_ratelimited("%s: %d.%d No irq handler for vector (irq %d)\n",
+					     __func__, smp_processor_id(),
+					     vector, irq);
+		} else {
+			__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
+		}
 	}
 
 	irq_exit();
@@ -344,7 +348,7 @@ void fixup_irqs(void)
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		unsigned int irr;
 
-		if (__this_cpu_read(vector_irq[vector]) < 0)
+		if (__this_cpu_read(vector_irq[vector]) <= VECTOR_UNDEFINED)
 			continue;
 
 		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
@@ -355,11 +359,14 @@ void fixup_irqs(void)
 			data = irq_desc_get_irq_data(desc);
 			chip = irq_data_get_irq_chip(data);
 			raw_spin_lock(&desc->lock);
-			if (chip->irq_retrigger)
+			if (chip->irq_retrigger) {
 				chip->irq_retrigger(data);
+				__this_cpu_write(vector_irq[vector], VECTOR_RETRIGGERED);
+			}
 			raw_spin_unlock(&desc->lock);
 		}
-		__this_cpu_write(vector_irq[vector], -1);
+		if (__this_cpu_read(vector_irq[vector]) != VECTOR_RETRIGGERED)
+			__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
 	}
 }
 #endif
