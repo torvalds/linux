@@ -898,7 +898,7 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 			goto err;
 		continue;
 
-	err:
+err:
 		err = -EINVAL;
 		break;
 	}
