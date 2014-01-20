@@ -124,7 +124,7 @@ const struct mcs_group minstrel_mcs_groups[] = {
 
 #define MINSTREL_CCK_GROUP	(ARRAY_SIZE(minstrel_mcs_groups) - 1)
 
-static u8 sample_table[SAMPLE_COLUMNS][MCS_GROUP_RATES];
+static u8 sample_table[SAMPLE_COLUMNS][MCS_GROUP_RATES] __read_mostly;
 
 static void
 minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi);
@@ -1048,8 +1048,7 @@ static const struct rate_control_ops mac80211_minstrel_ht = {
 };
 
 
-static void
-init_sample_table(void)
+static void __init init_sample_table(void)
 {
 	int col, i, new_idx;
 	u8 rnd[MCS_GROUP_RATES];
