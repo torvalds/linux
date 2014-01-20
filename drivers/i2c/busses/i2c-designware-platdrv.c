@@ -159,6 +159,13 @@ static int dw_i2c_probe(struct platform_device *pdev)
 					"i2c-sda-hold-time-ns", &ht);
 		dev->sda_hold_time = div_u64((u64)ic_clk * ht + 500000,
 					     1000000);
+
+		of_property_read_u32(pdev->dev.of_node,
+				     "i2c-sda-falling-time-ns",
+				     &dev->sda_falling_time);
+		of_property_read_u32(pdev->dev.of_node,
+				     "i2c-scl-falling-time-ns",
+				     &dev->scl_falling_time);
 	}
 
 	dev->functionality =
