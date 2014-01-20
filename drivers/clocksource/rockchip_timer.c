@@ -17,6 +17,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 
+#include <asm/delay.h>
 #include <asm/localtimer.h>
 #include <asm/sched_clock.h>
 
@@ -225,6 +226,11 @@ static void __init rk_timer_init_ce_timer(struct device_node *np, unsigned int c
 	irq->handler = rk_timer_clockevent_interrupt;
 }
 
+static struct delay_timer rk_delay_timer = {
+	.read_current_timer = (unsigned long (*)(void))rockchip_read_sched_clock,
+	.freq = 24000000,
+};
+
 static int num_called;
 static void __init rk_timer_init(struct device_node *np)
 {
@@ -233,6 +239,7 @@ static void __init rk_timer_init(struct device_node *np)
 		rk_timer_init_clocksource(np);
 		setup_sched_clock(rockchip_read_sched_clock, 32, 24000000);
 		local_timer_register(&rk_local_timer_ops);
+		register_current_timer_delay(&rk_delay_timer);
 		break;
 	default:
 		rk_timer_init_ce_timer(np, num_called - 1);
