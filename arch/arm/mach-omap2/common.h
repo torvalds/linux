@@ -62,8 +62,14 @@ static inline int omap3_pm_init(void)
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP4)
 int omap4_pm_init(void);
+int omap4_pm_init_early(void);
 #else
 static inline int omap4_pm_init(void)
+{
+	return 0;
+}
+
+static inline int omap4_pm_init_early(void)
 {
 	return 0;
 }
