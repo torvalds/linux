@@ -1592,26 +1592,27 @@ int s3c_camif_create_subdev(struct camif_dev *camif)
 			ARRAY_SIZE(s3c_camif_test_pattern_menu) - 1, 0, 0,
 			s3c_camif_test_pattern_menu);
 
-	camif->ctrl_colorfx = v4l2_ctrl_new_std_menu(handler,
+	if (camif->variant->has_img_effect) {
+		camif->ctrl_colorfx = v4l2_ctrl_new_std_menu(handler,
 				&s3c_camif_subdev_ctrl_ops,
 				V4L2_CID_COLORFX, V4L2_COLORFX_SET_CBCR,
 				~0x981f, V4L2_COLORFX_NONE);
 
-	camif->ctrl_colorfx_cbcr = v4l2_ctrl_new_std(handler,
+		camif->ctrl_colorfx_cbcr = v4l2_ctrl_new_std(handler,
 				&s3c_camif_subdev_ctrl_ops,
 				V4L2_CID_COLORFX_CBCR, 0, 0xffff, 1, 0);
+	}
+
 	if (handler->error) {
 		v4l2_ctrl_handler_free(handler);
 		media_entity_cleanup(&sd->entity);
 		return handler->error;
 	}
 
-	v4l2_ctrl_auto_cluster(2, &camif->ctrl_colorfx,
+	if (camif->variant->has_img_effect)
+		v4l2_ctrl_auto_cluster(2, &camif->ctrl_colorfx,
 			       V4L2_COLORFX_SET_CBCR, false);
-	if (!camif->variant->has_img_effect) {
-		camif->ctrl_colorfx->flags |= V4L2_CTRL_FLAG_DISABLED;
-		camif->ctrl_colorfx_cbcr->flags |= V4L2_CTRL_FLAG_DISABLED;
-	}
+
 	sd->ctrl_handler = handler;
 	v4l2_set_subdevdata(sd, camif);
 
