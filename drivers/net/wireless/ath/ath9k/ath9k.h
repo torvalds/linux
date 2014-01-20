@@ -442,7 +442,8 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_set_beacon(struct ath_softc *sc);
-bool ath9k_csa_is_finished(struct ath_softc *sc);
+bool ath9k_csa_is_finished(struct ath_softc *sc, struct ieee80211_vif *vif);
+void ath9k_csa_update(struct ath_softc *sc);
 
 /*******************/
 /* Link Monitoring */
@@ -774,7 +775,6 @@ struct ath_softc {
 #endif
 
 	struct ath_descdma txsdma;
-	struct ieee80211_vif *csa_vif;
 
 	struct ath_ant_comb ant_comb;
 	u8 ant_tx, ant_rx;
