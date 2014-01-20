@@ -9407,10 +9407,8 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);
 
-	if (!HAS_DDI(dev)) {
-		PIPE_CONF_CHECK_CLOCK_FUZZY(adjusted_mode.crtc_clock);
-		PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
-	}
+	PIPE_CONF_CHECK_CLOCK_FUZZY(adjusted_mode.crtc_clock);
+	PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
 
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
