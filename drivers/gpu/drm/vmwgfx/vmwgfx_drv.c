@@ -680,8 +680,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->prim_bb_mem = dev_priv->vram_size;
 
 	ret = vmw_dma_masks(dev_priv);
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
+		mutex_unlock(&dev_priv->hw_mutex);
 		goto out_err0;
+	}
 
 	if (unlikely(dev_priv->prim_bb_mem < dev_priv->vram_size))
 		dev_priv->prim_bb_mem = dev_priv->vram_size;

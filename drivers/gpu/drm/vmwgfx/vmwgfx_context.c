@@ -744,7 +744,7 @@ static void vmw_context_binding_transfer(struct vmw_ctx_binding_state *cbs,
  * Emits FIFO commands to scrub a binding represented by @cb.
  * Then stops tracking the binding and re-initializes its storage.
  */
-void vmw_context_binding_kill(struct vmw_ctx_binding *cb)
+static void vmw_context_binding_kill(struct vmw_ctx_binding *cb)
 {
 	(void) vmw_scrub_funcs[cb->bi.bt](&cb->bi);
 	vmw_context_binding_drop(cb);

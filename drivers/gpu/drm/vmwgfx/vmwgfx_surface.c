@@ -1117,6 +1117,7 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
 			  "destruction.\n");
+		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
 
