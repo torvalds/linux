@@ -54,7 +54,9 @@
 #include <linux/gameport.h>
 #include <linux/mutex.h>
 #include <linux/export.h>
-
+#include <linux/module.h>
+#include <linux/firmware.h>
+#include <linux/vmalloc.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -330,13 +332,146 @@ int snd_cs46xx_download(struct snd_cs46xx *chip,
 	return 0;
 }
 
+static inline void memcpy_le32(void *dst, const void *src, unsigned int len)
+{
+#ifdef __LITTLE_ENDIAN
+	memcpy(dst, src, len);
+#else
+	u32 *_dst = dst;
+	const __le32 *_src = src;
+	len /= 4;
+	while (len-- > 0)
+		*_dst++ = le32_to_cpu(*_src++);
+#endif
+}
+
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 
-#include "imgs/cwc4630.h"
-#include "imgs/cwcasync.h"
-#include "imgs/cwcsnoop.h"
-#include "imgs/cwcbinhack.h"
-#include "imgs/cwcdma.h"
+static const char *module_names[CS46XX_DSP_MODULES] = {
+	"cwc4630", "cwcasync", "cwcsnoop", "cwcbinhack", "cwcdma"
+};
+
+MODULE_FIRMWARE("cs46xx/cwc4630");
+MODULE_FIRMWARE("cs46xx/cwcasync");
+MODULE_FIRMWARE("cs46xx/cwcsnoop");
+MODULE_FIRMWARE("cs46xx/cwcbinhack");
+MODULE_FIRMWARE("cs46xx/cwcdma");
+
+static void free_module_desc(struct dsp_module_desc *module)
+{
+	if (!module)
+		return;
+	kfree(module->module_name);
+	kfree(module->symbol_table.symbols);
+	if (module->segments) {
+		int i;
+		for (i = 0; i < module->nsegments; i++)
+			kfree(module->segments[i].data);
+		kfree(module->segments);
+	}
+}
+
+/* firmware binary format:
+ * le32 nsymbols;
+ * struct {
+ *	le32 address;
+ *	char symbol_name[DSP_MAX_SYMBOL_NAME];
+ *	le32 symbol_type;
+ * } symbols[nsymbols];
+ * le32 nsegments;
+ * struct {
+ *	le32 segment_type;
+ *	le32 offset;
+ *	le32 size;
+ *	le32 data[size];
+ * } segments[nsegments];
+ */
+
+static int load_firmware(struct snd_cs46xx *chip,
+			 struct dsp_module_desc **module_ret,
+			 const char *fw_name)
+{
+	int i, err;
+	unsigned int nums, fwlen, fwsize;
+	const __le32 *fwdat;
+	struct dsp_module_desc *module = NULL;
+	const struct firmware *fw;
+	char fw_path[32];
+
+	sprintf(fw_path, "cs46xx/%s", fw_name);
+	err = request_firmware(&fw, fw_path, &chip->pci->dev);
+	if (err < 0)
+		return err;
+	fwsize = fw->size / 4;
+	if (fwsize < 2) {
+		err = -EINVAL;
+		goto error;
+	}
+
+	err = -ENOMEM;
+	module = kzalloc(sizeof(*module), GFP_KERNEL);
+	if (!module)
+		goto error;
+	module->module_name = kstrdup(fw_name, GFP_KERNEL);
+	if (!module->module_name)
+		goto error;
+
+	fwlen = 0;
+	fwdat = (const __le32 *)fw->data;
+	nums = module->symbol_table.nsymbols = le32_to_cpu(fwdat[fwlen++]);
+	if (nums >= 40)
+		goto error_inval;
+	module->symbol_table.symbols =
+		kcalloc(nums, sizeof(struct dsp_symbol_entry), GFP_KERNEL);
+	if (!module->symbol_table.symbols)
+		goto error;
+	for (i = 0; i < nums; i++) {
+		struct dsp_symbol_entry *entry =
+			&module->symbol_table.symbols[i];
+		if (fwlen + 2 + DSP_MAX_SYMBOL_NAME / 4 > fwsize)
+			goto error_inval;
+		entry->address = le32_to_cpu(fwdat[fwlen++]);
+		memcpy(entry->symbol_name, &fwdat[fwlen], DSP_MAX_SYMBOL_NAME - 1);
+		fwlen += DSP_MAX_SYMBOL_NAME / 4;
+		entry->symbol_type = le32_to_cpu(fwdat[fwlen++]);
+	}
+
+	if (fwlen >= fwsize)
+		goto error_inval;
+	nums = module->nsegments = le32_to_cpu(fwdat[fwlen++]);
+	if (nums > 10)
+		goto error_inval;
+	module->segments =
+		kcalloc(nums, sizeof(struct dsp_segment_desc), GFP_KERNEL);
+	if (!module->segments)
+		goto error;
+	for (i = 0; i < nums; i++) {
+		struct dsp_segment_desc *entry = &module->segments[i];
+		if (fwlen + 3 > fwsize)
+			goto error_inval;
+		entry->segment_type = le32_to_cpu(fwdat[fwlen++]);
+		entry->offset = le32_to_cpu(fwdat[fwlen++]);
+		entry->size = le32_to_cpu(fwdat[fwlen++]);
+		if (fwlen + entry->size > fwsize)
+			goto error_inval;
+		entry->data = kmalloc(entry->size * 4, GFP_KERNEL);
+		if (!entry->data)
+			goto error;
+		memcpy_le32(entry->data, &fwdat[fwlen], entry->size * 4);
+		fwlen += entry->size;
+	}
+
+	*module_ret = module;
+	release_firmware(fw);
+	return 0;
+
+ error_inval:
+	err = -EINVAL;
+ error:
+	free_module_desc(module);
+	release_firmware(fw);
+	return err;
+}
 
 int snd_cs46xx_clear_BA1(struct snd_cs46xx *chip,
                          unsigned long offset,
@@ -361,20 +496,63 @@ int snd_cs46xx_clear_BA1(struct snd_cs46xx *chip,
 
 #else /* old DSP image */
 
-#include "cs46xx_image.h"
+struct ba1_struct {
+	struct {
+		u32 offset;
+		u32 size;
+	} memory[BA1_MEMORY_COUNT];
+	u32 map[BA1_DWORD_SIZE];
+};
+
+MODULE_FIRMWARE("cs46xx/ba1");
+
+static int load_firmware(struct snd_cs46xx *chip)
+{
+	const struct firmware *fw;
+	int i, size, err;
+
+	err = request_firmware(&fw, "cs46xx/ba1", &chip->pci->dev);
+	if (err < 0)
+		return err;
+	if (fw->size != sizeof(*chip->ba1)) {
+		err = -EINVAL;
+		goto error;
+	}
+
+	chip->ba1 = vmalloc(sizeof(*chip->ba1));
+	if (!chip->ba1) {
+		err = -ENOMEM;
+		goto error;
+	}
+
+	memcpy_le32(chip->ba1, fw->data, sizeof(*chip->ba1));
+
+	/* sanity check */
+	size = 0;
+	for (i = 0; i < BA1_MEMORY_COUNT; i++)
+		size += chip->ba1->memory[i].size;
+	if (size > BA1_DWORD_SIZE * 4)
+		err = -EINVAL;
+
+ error:
+	release_firmware(fw);
+	return err;
+}
 
 int snd_cs46xx_download_image(struct snd_cs46xx *chip)
 {
 	int idx, err;
-	unsigned long offset = 0;
+	unsigned int offset = 0;
+	struct ba1_struct *ba1 = chip->ba1;
 
 	for (idx = 0; idx < BA1_MEMORY_COUNT; idx++) {
-		if ((err = snd_cs46xx_download(chip,
-					       &BA1Struct.map[offset],
-					       BA1Struct.memory[idx].offset,
-					       BA1Struct.memory[idx].size)) < 0)
+		err = snd_cs46xx_download(chip,
+					  &ba1->map[offset],
+					  ba1->memory[idx].offset,
+					  ba1->memory[idx].size);
+		if (err < 0)
 			return err;
-		offset += BA1Struct.memory[idx].size >> 2;
+		offset += ba1->memory[idx].size >> 2;
 	}	
 	return 0;
 }
@@ -2798,6 +2976,10 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 		cs46xx_dsp_spos_destroy(chip);
 		chip->dsp_spos_instance = NULL;
 	}
+	for (idx = 0; idx < CS46XX_DSP_MODULES; idx++)
+		free_module_desc(chip->modules[idx]);
+#else
+	vfree(chip->ba1);
 #endif
 	
 #ifdef CONFIG_PM_SLEEP
@@ -3067,6 +3249,11 @@ static void cs46xx_enable_stream_irqs(struct snd_cs46xx *chip)
 int snd_cs46xx_start_dsp(struct snd_cs46xx *chip)
 {	
 	unsigned int tmp;
+#ifdef CONFIG_SND_CS46XX_NEW_DSP
+	int i;
+#endif
+	int err;
+
 	/*
 	 *  Reset the processor.
 	 */
@@ -3075,45 +3262,33 @@ int snd_cs46xx_start_dsp(struct snd_cs46xx *chip)
 	 *  Download the image to the processor.
 	 */
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-#if 0
-	if (cs46xx_dsp_load_module(chip, &cwcemb80_module) < 0) {
-		snd_printk(KERN_ERR "image download error\n");
-		return -EIO;
-	}
-#endif
-
-	if (cs46xx_dsp_load_module(chip, &cwc4630_module) < 0) {
-		snd_printk(KERN_ERR "image download error [cwc4630]\n");
-		return -EIO;
-	}
-
-	if (cs46xx_dsp_load_module(chip, &cwcasync_module) < 0) {
-		snd_printk(KERN_ERR "image download error [cwcasync]\n");
-		return -EIO;
-	}
-
-	if (cs46xx_dsp_load_module(chip, &cwcsnoop_module) < 0) {
-		snd_printk(KERN_ERR "image download error [cwcsnoop]\n");
-		return -EIO;
-	}
-
-	if (cs46xx_dsp_load_module(chip, &cwcbinhack_module) < 0) {
-		snd_printk(KERN_ERR "image download error [cwcbinhack]\n");
-		return -EIO;
-	}
-
-	if (cs46xx_dsp_load_module(chip, &cwcdma_module) < 0) {
-		snd_printk(KERN_ERR "image download error [cwcdma]\n");
-		return -EIO;
+	for (i = 0; i < CS46XX_DSP_MODULES; i++) {
+		err = load_firmware(chip, &chip->modules[i], module_names[i]);
+		if (err < 0) {
+			snd_printk(KERN_ERR "firmware load error [%s]\n",
+				   module_names[i]);
+			return err;
+		}
+		err = cs46xx_dsp_load_module(chip, chip->modules[i]);
+		if (err < 0) {
+			snd_printk(KERN_ERR "image download error [%s]\n",
+				   module_names[i]);
+			return err;
+		}
 	}
 
 	if (cs46xx_dsp_scb_and_task_init(chip) < 0)
 		return -EIO;
 #else
+	err = load_firmware(chip);
+	if (err < 0)
+		return err;
+
 	/* old image */
-	if (snd_cs46xx_download_image(chip) < 0) {
+	err = snd_cs46xx_download_image(chip);
+	if (err < 0) {
 		snd_printk(KERN_ERR "image download error\n");
-		return -EIO;
+		return err;
 	}
 
 	/*
