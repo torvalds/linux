@@ -63,6 +63,7 @@ struct ipcm_cookie {
 };
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
+#define PKTINFO_SKB_CB(skb) ((struct in_pktinfo *)((skb)->cb))
 
 struct ip_ra_chain {
 	struct ip_ra_chain __rcu *next;

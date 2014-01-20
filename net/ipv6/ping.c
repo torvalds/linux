@@ -62,10 +62,9 @@ static int dummy_ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len,
 {
 	return -EAFNOSUPPORT;
 }
-static int dummy_ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
+static void dummy_ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
 				       struct sk_buff *skb)
 {
-	return -EAFNOSUPPORT;
 }
 static int dummy_icmpv6_err_convert(u8 type, u8 code, int *err)
 {
@@ -254,7 +253,9 @@ int __init pingv6_init(void)
 		return ret;
 #endif
 	pingv6_ops.ipv6_recv_error = ipv6_recv_error;
-	pingv6_ops.ip6_datagram_recv_ctl = ip6_datagram_recv_ctl;
+	pingv6_ops.ip6_datagram_recv_common_ctl = ip6_datagram_recv_common_ctl;
+	pingv6_ops.ip6_datagram_recv_specific_ctl =
+		ip6_datagram_recv_specific_ctl;
 	pingv6_ops.icmpv6_err_convert = icmpv6_err_convert;
 	pingv6_ops.ipv6_icmp_error = ipv6_icmp_error;
 	pingv6_ops.ipv6_chk_addr = ipv6_chk_addr;
@@ -267,7 +268,8 @@ int __init pingv6_init(void)
 void pingv6_exit(void)
 {
 	pingv6_ops.ipv6_recv_error = dummy_ipv6_recv_error;
-	pingv6_ops.ip6_datagram_recv_ctl = dummy_ip6_datagram_recv_ctl;
+	pingv6_ops.ip6_datagram_recv_common_ctl = dummy_ip6_datagram_recv_ctl;
+	pingv6_ops.ip6_datagram_recv_specific_ctl = dummy_ip6_datagram_recv_ctl;
 	pingv6_ops.icmpv6_err_convert = dummy_icmpv6_err_convert;
 	pingv6_ops.ipv6_icmp_error = dummy_ipv6_icmp_error;
 	pingv6_ops.ipv6_chk_addr = dummy_ipv6_chk_addr;

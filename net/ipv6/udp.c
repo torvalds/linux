@@ -477,12 +477,16 @@ try_again:
 		}
 		*addr_len = sizeof(*sin6);
 	}
+
+	if (np->rxopt.all)
+		ip6_datagram_recv_common_ctl(sk, msg, skb);
+
 	if (is_udp4) {
 		if (inet->cmsg_flags)
 			ip_cmsg_recv(msg, skb);
 	} else {
 		if (np->rxopt.all)
-			ip6_datagram_recv_ctl(sk, msg, skb);
+			ip6_datagram_recv_specific_ctl(sk, msg, skb);
 	}
 
 	err = copied;

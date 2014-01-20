@@ -1002,10 +1002,8 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		release_sock(sk);
 
 		if (skb) {
-			int err = ip6_datagram_recv_ctl(sk, &msg, skb);
+			ip6_datagram_recv_ctl(sk, &msg, skb);
 			kfree_skb(skb);
-			if (err)
-				return err;
 		} else {
 			if (np->rxopt.bits.rxinfo) {
 				struct in6_pktinfo src_info;
