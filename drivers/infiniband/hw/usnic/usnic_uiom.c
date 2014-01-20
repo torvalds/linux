@@ -498,7 +498,7 @@ int usnic_uiom_attach_dev_to_pd(struct usnic_uiom_pd *pd, struct device *dev)
 	struct usnic_uiom_dev *uiom_dev;
 	int err;
 
-	uiom_dev = kzalloc(sizeof(*uiom_dev), GFP_KERNEL);
+	uiom_dev = kzalloc(sizeof(*uiom_dev), GFP_ATOMIC);
 	if (!uiom_dev)
 		return -ENOMEM;
 	uiom_dev->dev = dev;
