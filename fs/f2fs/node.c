@@ -87,7 +87,7 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
  */
 static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 {
-	struct address_space *mapping = sbi->meta_inode->i_mapping;
+	struct address_space *mapping = META_MAPPING(sbi);
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct page *page;
 	pgoff_t index;

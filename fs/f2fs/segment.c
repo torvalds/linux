@@ -1585,7 +1585,7 @@ static int build_curseg(struct f2fs_sb_info *sbi)
 
 static int ra_sit_pages(struct f2fs_sb_info *sbi, int start, int nrpages)
 {
-	struct address_space *mapping = sbi->meta_inode->i_mapping;
+	struct address_space *mapping = META_MAPPING(sbi);
 	struct page *page;
 	block_t blk_addr, prev_blk_addr = 0;
 	int sit_blk_cnt = SIT_BLK_CNT(sbi);
