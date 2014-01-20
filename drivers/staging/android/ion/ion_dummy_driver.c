@@ -71,7 +71,7 @@ static int __init ion_dummy_init(void)
 	heaps = kzalloc(sizeof(struct ion_heap *) * dummy_ion_pdata.nr,
 			GFP_KERNEL);
 	if (!heaps)
-		return PTR_ERR(heaps);
+		return -ENOMEM;
 
 
 	/* Allocate a dummy carveout heap */
