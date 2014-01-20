@@ -9,6 +9,8 @@
  *
  */
 
+//智器SmartQ7的参数定义
+
 #include <linux/fb.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
