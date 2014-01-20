@@ -315,7 +315,7 @@ struct iwl_scale_tbl_info {
 	u8 is_dup;	/* 1 = duplicated data streams */
 	u8 action;	/* change modulation; IWL_[LEGACY/SISO/MIMO]_SWITCH_* */
 	u8 max_search;	/* maximun number of tables we can search */
-	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
+	const u16 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
 	u32 current_rate;  /* rate_n_flags, uCode API format */
 	struct iwl_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
 };
