@@ -1500,13 +1500,14 @@ static inline u32 nfsd4_read_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 
 static inline u32 nfsd4_readdir_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
+	u32 maxcount = svc_max_payload(rqstp);
 	u32 rlen = op->u.readdir.rd_maxcount;
 
-	if (rlen > PAGE_SIZE)
-		rlen = PAGE_SIZE;
+	if (rlen > maxcount)
+		rlen = maxcount;
 
-	return (op_encode_hdr_size + op_encode_verifier_maxsz)
-		 * sizeof(__be32) + rlen;
+	return (op_encode_hdr_size + op_encode_verifier_maxsz +
+		XDR_QUADLEN(rlen)) * sizeof(__be32);
 }
 
 static inline u32 nfsd4_remove_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)

@@ -2575,8 +2575,8 @@ static inline int attributes_need_mount(u32 *bmval)
 }
 
 static __be32
-nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
-		const char *name, int namlen, __be32 **p, int buflen)
+nfsd4_encode_dirent_fattr(struct xdr_stream *xdr, struct nfsd4_readdir *cd,
+			const char *name, int namlen)
 {
 	struct svc_export *exp = cd->rd_fhp->fh_export;
 	struct dentry *dentry;
@@ -2628,8 +2628,7 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 
 	}
 out_encode:
-	nfserr = nfsd4_encode_fattr_to_buf(p, buflen, NULL, exp, dentry,
-					cd->rd_bmval,
+	nfserr = nfsd4_encode_fattr(xdr, NULL, exp, dentry, cd->rd_bmval,
 					cd->rd_rqstp, ignore_crossmnt);
 out_put:
 	dput(dentry);
@@ -2638,9 +2637,12 @@ out_put:
 }
 
 static __be32 *
-nfsd4_encode_rdattr_error(__be32 *p, int buflen, __be32 nfserr)
+nfsd4_encode_rdattr_error(struct xdr_stream *xdr, __be32 nfserr)
 {
-	if (buflen < 6)
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 6);
+	if (!p)
 		return NULL;
 	*p++ = htonl(2);
 	*p++ = htonl(FATTR4_WORD0_RDATTR_ERROR); /* bmval0 */
@@ -2657,10 +2659,13 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 {
 	struct readdir_cd *ccd = ccdv;
 	struct nfsd4_readdir *cd = container_of(ccd, struct nfsd4_readdir, common);
-	int buflen;
-	__be32 *p = cd->buffer;
-	__be32 *cookiep;
+	struct xdr_stream *xdr = cd->xdr;
+	int start_offset = xdr->buf->len;
+	int cookie_offset;
+	int entry_bytes;
 	__be32 nfserr = nfserr_toosmall;
+	__be64 wire_offset;
+	__be32 *p;
 
 	/* In nfsv4, "." and ".." never make it onto the wire.. */
 	if (name && isdotent(name, namlen)) {
@@ -2668,19 +2673,24 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 		return 0;
 	}
 
-	if (cd->offset)
-		xdr_encode_hyper(cd->offset, (u64) offset);
+	if (cd->cookie_offset) {
+		wire_offset = cpu_to_be64(offset);
+		write_bytes_to_xdr_buf(xdr->buf, cd->cookie_offset,
+							&wire_offset, 8);
+	}
 
-	buflen = cd->buflen - 4 - XDR_QUADLEN(namlen);
-	if (buflen < 0)
+	p = xdr_reserve_space(xdr, 4);
+	if (!p)
 		goto fail;
-
 	*p++ = xdr_one;                             /* mark entry present */
-	cookiep = p;
+	cookie_offset = xdr->buf->len;
+	p = xdr_reserve_space(xdr, 3*4 + namlen);
+	if (!p)
+		goto fail;
 	p = xdr_encode_hyper(p, NFS_OFFSET_MAX);    /* offset of next entry */
 	p = xdr_encode_array(p, name, namlen);      /* name length & name */
 
-	nfserr = nfsd4_encode_dirent_fattr(cd, name, namlen, &p, buflen);
+	nfserr = nfsd4_encode_dirent_fattr(xdr, cd, name, namlen);
 	switch (nfserr) {
 	case nfs_ok:
 		break;
@@ -2699,19 +2709,23 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 		 */
 		if (!(cd->rd_bmval[0] & FATTR4_WORD0_RDATTR_ERROR))
 			goto fail;
-		p = nfsd4_encode_rdattr_error(p, buflen, nfserr);
+		p = nfsd4_encode_rdattr_error(xdr, nfserr);
 		if (p == NULL) {
 			nfserr = nfserr_toosmall;
 			goto fail;
 		}
 	}
-	cd->buflen -= (p - cd->buffer);
-	cd->buffer = p;
-	cd->offset = cookiep;
+	nfserr = nfserr_toosmall;
+	entry_bytes = xdr->buf->len - start_offset;
+	if (entry_bytes > cd->rd_maxcount)
+		goto fail;
+	cd->rd_maxcount -= entry_bytes;
+	cd->cookie_offset = cookie_offset;
 skip_entry:
 	cd->common.err = nfs_ok;
 	return 0;
 fail:
+	xdr_truncate_encode(xdr, start_offset);
 	cd->common.err = nfserr;
 	return -EINVAL;
 }
@@ -3206,10 +3220,11 @@ static __be32
 nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_readdir *readdir)
 {
 	int maxcount;
+	int bytes_left;
 	loff_t offset;
+	__be64 wire_offset;
 	struct xdr_stream *xdr = &resp->xdr;
 	int starting_len = xdr->buf->len;
-	__be32 *page, *tailbase;
 	__be32 *p;
 
 	if (nfserr)
@@ -3219,38 +3234,38 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	if (!p)
 		return nfserr_resource;
 
-	if (resp->xdr.buf->page_len)
-		return nfserr_resource;
-	if (!*resp->rqstp->rq_next_page)
-		return nfserr_resource;
-
 	/* XXX: Following NFSv3, we ignore the READDIR verifier for now. */
 	WRITE32(0);
 	WRITE32(0);
 	resp->xdr.buf->head[0].iov_len = ((char *)resp->xdr.p)
 				- (char *)resp->xdr.buf->head[0].iov_base;
-	tailbase = p;
-
-	maxcount = PAGE_SIZE;
-	if (maxcount > readdir->rd_maxcount)
-		maxcount = readdir->rd_maxcount;
 
 	/*
-	 * Convert from bytes to words, account for the two words already
-	 * written, make sure to leave two words at the end for the next
-	 * pointer and eof field.
+	 * Number of bytes left for directory entries allowing for the
+	 * final 8 bytes of the readdir and a following failed op:
 	 */
-	maxcount = (maxcount >> 2) - 4;
-	if (maxcount < 0) {
-		nfserr =  nfserr_toosmall;
+	bytes_left = xdr->buf->buflen - xdr->buf->len
+			- COMPOUND_ERR_SLACK_SPACE - 8;
+	if (bytes_left < 0) {
+		nfserr = nfserr_resource;
 		goto err_no_verf;
 	}
+	maxcount = min_t(u32, readdir->rd_maxcount, INT_MAX);
+	/*
+	 * Note the rfc defines rd_maxcount as the size of the
+	 * READDIR4resok structure, which includes the verifier above
+	 * and the 8 bytes encoded at the end of this function:
+	 */
+	if (maxcount < 16) {
+		nfserr = nfserr_toosmall;
+		goto err_no_verf;
+	}
+	maxcount = min_t(int, maxcount-16, bytes_left);
 
-	page = page_address(*(resp->rqstp->rq_next_page++));
+	readdir->xdr = xdr;
+	readdir->rd_maxcount = maxcount;
 	readdir->common.err = 0;
-	readdir->buflen = maxcount;
-	readdir->buffer = page;
-	readdir->offset = NULL;
+	readdir->cookie_offset = 0;
 
 	offset = readdir->rd_cookie;
 	nfserr = nfsd_readdir(readdir->rd_rqstp, readdir->rd_fhp,
@@ -3258,33 +3273,31 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 			      &readdir->common, nfsd4_encode_dirent);
 	if (nfserr == nfs_ok &&
 	    readdir->common.err == nfserr_toosmall &&
-	    readdir->buffer == page) 
-		nfserr = nfserr_toosmall;
+	    xdr->buf->len == starting_len + 8) {
+		/* nothing encoded; which limit did we hit?: */
+		if (maxcount - 16 < bytes_left)
+			/* It was the fault of rd_maxcount: */
+			nfserr = nfserr_toosmall;
+		else
+			/* We ran out of buffer space: */
+			nfserr = nfserr_resource;
+	}
 	if (nfserr)
 		goto err_no_verf;
 
-	if (readdir->offset)
-		xdr_encode_hyper(readdir->offset, offset);
+	if (readdir->cookie_offset) {
+		wire_offset = cpu_to_be64(offset);
+		write_bytes_to_xdr_buf(xdr->buf, readdir->cookie_offset,
+							&wire_offset, 8);
+	}
 
-	p = readdir->buffer;
+	p = xdr_reserve_space(xdr, 8);
+	if (!p) {
+		WARN_ON_ONCE(1);
+		goto err_no_verf;
+	}
 	*p++ = 0;	/* no more entries */
 	*p++ = htonl(readdir->common.err == nfserr_eof);
-	resp->xdr.buf->page_len = ((char *)p) -
-		(char*)page_address(*(resp->rqstp->rq_next_page-1));
-	xdr->buf->len += xdr->buf->page_len;
-
-	xdr->iov = xdr->buf->tail;
-
-	xdr->page_ptr++;
-	xdr->buf->buflen -= PAGE_SIZE;
-	xdr->iov = xdr->buf->tail;
-
-	/* Use rest of head for padding and remaining ops: */
-	resp->xdr.buf->tail[0].iov_base = tailbase;
-	resp->xdr.buf->tail[0].iov_len = 0;
-	resp->xdr.p = resp->xdr.buf->tail[0].iov_base;
-	resp->xdr.end = resp->xdr.p +
-			(PAGE_SIZE - resp->xdr.buf->head[0].iov_len)/4;
 
 	return 0;
 err_no_verf:

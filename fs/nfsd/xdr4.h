@@ -287,9 +287,8 @@ struct nfsd4_readdir {
 	struct svc_fh * rd_fhp;             /* response */
 
 	struct readdir_cd	common;
-	__be32 *		buffer;
-	int			buflen;
-	__be32 *		offset;
+	struct xdr_stream	*xdr;
+	int			cookie_offset;
 };
 
 struct nfsd4_release_lockowner {
