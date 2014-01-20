@@ -2627,7 +2627,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			for RCU-preempt, and "s" for RCU-sched, and "N"
 			is the CPU number.  This reduces OS jitter on the
 			offloaded CPUs, which can be useful for HPC and
-
 			real-time workloads.  It can also improve energy
 			efficiency for asymmetric multiprocessors.
 
@@ -2643,8 +2642,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			periodically wake up to do the polling.
 
 	rcutree.blimit=	[KNL]
-			Set maximum number of finished RCU callbacks to process
-			in one batch.
+			Set maximum number of finished RCU callbacks to
+			process in one batch.
 
 	rcutree.rcu_fanout_leaf= [KNL]
 			Increase the number of CPUs assigned to each
@@ -2663,8 +2662,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			value is one, and maximum value is HZ.
 
 	rcutree.qhimark= [KNL]
-			Set threshold of queued
-			RCU callbacks over which batch limiting is disabled.
+			Set threshold of queued RCU callbacks beyond which
+			batch limiting is disabled.
 
 	rcutree.qlowmark= [KNL]
 			Set threshold of queued RCU callbacks below which
