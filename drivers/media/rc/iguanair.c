@@ -364,18 +364,12 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 			rc = -EINVAL;
 			goto out;
 		}
-		while (periods > 127) {
-			ir->packet->payload[size++] = 127 | space;
-			periods -= 127;
+		while (periods) {
+			unsigned p = min(periods, 127u);
+			ir->packet->payload[size++] = p | space;
+			periods -= p;
 		}
-
-		ir->packet->payload[size++] = periods | space;
 		space ^= 0x80;
-	}
-
-	if (count == 0) {
-		rc = -EINVAL;
-		goto out;
 	}
 
 	ir->packet->header.start = 0;
