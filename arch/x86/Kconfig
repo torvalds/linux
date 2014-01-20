@@ -1065,10 +1065,6 @@ config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
 
-config MICROCODE_INTEL_LIB
-	def_bool y
-	depends on MICROCODE_INTEL
-
 config MICROCODE_INTEL_EARLY
 	def_bool n
 

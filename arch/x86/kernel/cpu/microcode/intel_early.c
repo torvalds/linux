@@ -365,16 +365,6 @@ out:
 	return state;
 }
 
-#define native_rdmsr(msr, val1, val2)		\
-do {						\
-	u64 __val = native_read_msr((msr));	\
-	(void)((val1) = (u32)__val);		\
-	(void)((val2) = (u32)(__val >> 32));	\
-} while (0)
-
-#define native_wrmsr(msr, low, high)		\
-	native_write_msr(msr, low, high);
-
 static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 {
 	unsigned int val[2];

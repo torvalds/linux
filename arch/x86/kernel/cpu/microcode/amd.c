@@ -182,10 +182,10 @@ int __apply_microcode_amd(struct microcode_amd *mc_amd)
 {
 	u32 rev, dummy;
 
-	wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc_amd->hdr.data_code);
+	native_wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc_amd->hdr.data_code);
 
 	/* verify patch application was successful */
-	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 	if (rev != mc_amd->hdr.patch_id)
 		return -1;
 
@@ -332,6 +332,9 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	patch->patch_id  = mc_hdr->patch_id;
 	patch->equiv_cpu = proc_id;
 
+	pr_debug("%s: Added patch_id: 0x%08x, proc_id: 0x%04x\n",
+		 __func__, patch->patch_id, proc_id);
+
 	/* ... and add to cache. */
 	update_cache(patch);
 
@@ -390,9 +393,9 @@ enum ucode_state load_microcode_amd(u8 family, const u8 *data, size_t size)
 	if (cpu_data(smp_processor_id()).cpu_index == boot_cpu_data.cpu_index) {
 		struct ucode_patch *p = find_patch(smp_processor_id());
 		if (p) {
-			memset(amd_bsp_mpb, 0, MPB_MAX_SIZE);
-			memcpy(amd_bsp_mpb, p->data, min_t(u32, ksize(p->data),
-							   MPB_MAX_SIZE));
+			memset(amd_ucode_patch, 0, PATCH_MAX_SIZE);
+			memcpy(amd_ucode_patch, p->data, min_t(u32, ksize(p->data),
+							       PATCH_MAX_SIZE));
 		}
 	}
 #endif
