@@ -371,6 +371,9 @@ static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (addr_len < sizeof(*lsa))
 		return -EINVAL;
 
+	if (usin->sin6_family != AF_INET6)
+		return -EINVAL;
+
 	addr_type = ipv6_addr_type(&usin->sin6_addr);
 	if (addr_type & IPV6_ADDR_MULTICAST)
 		return -EINVAL;

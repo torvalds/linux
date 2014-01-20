@@ -250,6 +250,10 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	if (addr_len < SIN6_LEN_RFC2133)
 		return -EINVAL;
+
+	if (addr->sin6_family != AF_INET6)
+		return -EINVAL;
+
 	addr_type = ipv6_addr_type(&addr->sin6_addr);
 
 	/* Raw sockets are IPv6 only */
@@ -1209,7 +1213,7 @@ struct proto rawv6_prot = {
 	.owner		   = THIS_MODULE,
 	.close		   = rawv6_close,
 	.destroy	   = raw6_destroy,
-	.connect	   = ip6_datagram_connect,
+	.connect	   = ip6_datagram_connect_v6_only,
 	.disconnect	   = udp_disconnect,
 	.ioctl		   = rawv6_ioctl,
 	.init		   = rawv6_init_sk,
