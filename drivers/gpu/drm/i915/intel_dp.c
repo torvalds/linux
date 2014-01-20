@@ -661,6 +661,16 @@ static uint32_t vlv_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	return index ? 0 : 100;
 }
 
+static uint32_t skl_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
+{
+	/*
+	 * SKL doesn't need us to program the AUX clock divider (Hardware will
+	 * derive the clock from CDCLK automatically). We still implement the
+	 * get_aux_clock_divider vfunc to plug-in into the existing code.
+	 */
+	return index ? 0 : 1;
+}
+
 static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
 				      bool has_aux_irq,
 				      int send_bytes,
@@ -5083,7 +5093,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->pps_pipe = INVALID_PIPE;
 
 	/* intel_dp vfuncs */
-	if (IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen >= 9)
+		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
+	else if (IS_VALLEYVIEW(dev))
 		intel_dp->get_aux_clock_divider = vlv_get_aux_clock_divider;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
