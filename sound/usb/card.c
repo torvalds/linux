@@ -691,12 +691,12 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 	}
 
 	list_for_each_entry(mixer, &chip->mixer_list, list)
-		snd_usb_mixer_inactivate(mixer);
+		snd_usb_mixer_suspend(mixer);
 
 	return 0;
 }
 
-static int usb_audio_resume(struct usb_interface *intf)
+static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 {
 	struct snd_usb_audio *chip = usb_get_intfdata(intf);
 	struct usb_mixer_interface *mixer;
@@ -711,7 +711,7 @@ static int usb_audio_resume(struct usb_interface *intf)
 	 * we just notify and restart the mixers
 	 */
 	list_for_each_entry(mixer, &chip->mixer_list, list) {
-		err = snd_usb_mixer_activate(mixer);
+		err = snd_usb_mixer_resume(mixer, reset_resume);
 		if (err < 0)
 			goto err_out;
 	}
@@ -723,9 +723,20 @@ static int usb_audio_resume(struct usb_interface *intf)
 err_out:
 	return err;
 }
+
+static int usb_audio_resume(struct usb_interface *intf)
+{
+	return __usb_audio_resume(intf, false);
+}
+
+static int usb_audio_reset_resume(struct usb_interface *intf)
+{
+	return __usb_audio_resume(intf, true);
+}
 #else
 #define usb_audio_suspend	NULL
 #define usb_audio_resume	NULL
+#define usb_audio_reset_resume	NULL
 #endif		/* CONFIG_PM */
 
 static struct usb_device_id usb_audio_ids [] = {
@@ -747,6 +758,7 @@ static struct usb_driver usb_audio_driver = {
 	.disconnect =	usb_audio_disconnect,
 	.suspend =	usb_audio_suspend,
 	.resume =	usb_audio_resume,
+	.reset_resume =	usb_audio_reset_resume,
 	.id_table =	usb_audio_ids,
 	.supports_autosuspend = 1,
 };
