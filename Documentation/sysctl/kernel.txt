@@ -33,6 +33,10 @@ show up in /proc/sys/kernel:
 - domainname
 - hostname
 - hotplug
+- hung_task_panic
+- hung_task_check_count
+- hung_task_timeout_secs
+- hung_task_warnings
 - kptr_restrict
 - kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
@@ -284,6 +288,44 @@ hotplug:
 
 Path for the hotplug policy agent.
 Default value is "/sbin/hotplug".
+
+==============================================================
+
+hung_task_panic:
+
+Controls the kernel's behavior when a hung task is detected.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0: continue operation. This is the default behavior.
+
+1: panic immediately.
+
+==============================================================
+
+hung_task_check_count:
+
+The upper bound on the number of tasks that are checked.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+==============================================================
+
+hung_task_timeout_secs:
+
+Check interval. When a task in D state did not get scheduled
+for more than this value report a warning.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0: means infinite timeout - no checking done.
+
+==============================================================
+
+hung_task_warning:
+
+The maximum number of warnings to report. During a check interval
+When this value is reached, no more the warnings will be reported.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+-1: report an infinite number of warnings.
 
 ==============================================================
 
