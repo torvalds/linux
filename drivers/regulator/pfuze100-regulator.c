@@ -323,7 +323,7 @@ static int pfuze_identify(struct pfuze_chip *pfuze_chip)
 	if (ret)
 		return ret;
 	dev_info(pfuze_chip->dev,
-		 "Full lay: %x, Metal lay: %x\n",
+		 "Full layer: %x, Metal layer: %x\n",
 		 (value & 0xf0) >> 4, value & 0x0f);
 
 	ret = regmap_read(pfuze_chip->regmap, PFUZE100_FABID, &value);
