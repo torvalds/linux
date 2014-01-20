@@ -29,7 +29,6 @@
 #define pr_fmt(fmt) "summit: %s: " fmt, __func__
 
 #include <linux/mm.h>
-#include <linux/init.h>
 #include <asm/io.h>
 #include <asm/bios_ebda.h>
 
