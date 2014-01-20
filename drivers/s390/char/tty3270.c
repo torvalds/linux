@@ -125,10 +125,7 @@ static void tty3270_resize_work(struct work_struct *work);
  */
 static void tty3270_set_timer(struct tty3270 *tp, int expires)
 {
-	if (expires == 0)
-		del_timer(&tp->timer);
-	else
-		mod_timer(&tp->timer, jiffies + expires);
+	mod_timer(&tp->timer, jiffies + expires);
 }
 
 /*
@@ -744,7 +741,6 @@ tty3270_free_view(struct tty3270 *tp)
 {
 	int pages;
 
-	del_timer_sync(&tp->timer);
 	kbd_free(tp->kbd);
 	raw3270_request_free(tp->kreset);
 	raw3270_request_free(tp->read);
@@ -877,6 +873,7 @@ tty3270_free(struct raw3270_view *view)
 {
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
 
+	del_timer_sync(&tp->timer);
 	tty3270_free_screen(tp->screen, tp->view.rows);
 	tty3270_free_view(tp);
 }

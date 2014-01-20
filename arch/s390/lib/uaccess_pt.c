@@ -74,8 +74,8 @@ static size_t copy_in_kernel(size_t count, void __user *to,
 
 /*
  * Returns kernel address for user virtual address. If the returned address is
- * >= -4095 (IS_ERR_VALUE(x) returns true), a fault has occured and the address
- * contains the (negative) exception code.
+ * >= -4095 (IS_ERR_VALUE(x) returns true), a fault has occurred and the
+ * address contains the (negative) exception code.
  */
 #ifdef CONFIG_64BIT
 
