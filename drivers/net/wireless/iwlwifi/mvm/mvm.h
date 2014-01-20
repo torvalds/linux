@@ -91,8 +91,7 @@ enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_MCAST = 5,
 };
 
-extern struct ieee80211_ops iwl_mvm_hw_ops;
-extern const struct iwl_mvm_power_ops pm_mac_ops;
+extern const struct ieee80211_ops iwl_mvm_hw_ops;
 
 /**
  * struct iwl_mvm_mod_params - module parameters for iwlmvm
