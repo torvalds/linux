@@ -138,14 +138,14 @@ static inline unsigned alloc_local_tag(struct percpu_ida_cpu *tags)
  * tag_pool_init()), or otherwise -ENOSPC on allocation failure.
  *
  * Safe to be called from interrupt context (assuming it isn't passed
- * TASK_UNINTERRUPTIBLE, of course).
+ * TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE, of course).
  *
  * @gfp indicates whether or not to wait until a free id is available (it's not
  * used for internal memory allocations); thus if passed __GFP_WAIT we may sleep
  * however long it takes until another thread frees an id (same semantics as a
  * mempool).
  *
- * Will not fail if passed TASK_UNINTERRUPTIBLE.
+ * Will not fail if passed TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE.
  */
 int percpu_ida_alloc(struct percpu_ida *pool, int state)
 {
@@ -194,6 +194,11 @@ int percpu_ida_alloc(struct percpu_ida *pool, int state)
 
 		if (tag >= 0 || state == TASK_RUNNING)
 			break;
+
+		if (signal_pending_state(state, current)) {
+			tag = -ERESTARTSYS;
+			break;
+		}
 
 		schedule();
 
