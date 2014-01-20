@@ -98,13 +98,18 @@ static int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
 {
 	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
+	struct drm_device *dev = intel_dp->attached_connector->base.dev;
 
 	switch (max_link_bw) {
 	case DP_LINK_BW_1_62:
 	case DP_LINK_BW_2_7:
 		break;
 	case DP_LINK_BW_5_4: /* 1.2 capable displays may advertise higher bw */
-		max_link_bw = DP_LINK_BW_2_7;
+		if ((IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8) &&
+		    intel_dp->dpcd[DP_DPCD_REV] >= 0x12)
+			max_link_bw = DP_LINK_BW_5_4;
+		else
+			max_link_bw = DP_LINK_BW_2_7;
 		break;
 	default:
 		WARN(1, "invalid max DP link bw val %x, using 1.62Gbps\n",
@@ -807,9 +812,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int lane_count, clock;
 	int max_lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
-	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
+	/* Conveniently, the link BW constants become indices with a shift...*/
+	int max_clock = intel_dp_max_link_bw(intel_dp) >> 3;
 	int bpp, mode_rate;
-	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
+	static int bws[] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7, DP_LINK_BW_5_4 };
 	int link_avail, link_clock;
 
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && port != PORT_A)
@@ -2644,10 +2650,15 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 	bool channel_eq = false;
 	int tries, cr_tries;
 	uint32_t DP = intel_dp->DP;
+	uint32_t training_pattern = DP_TRAINING_PATTERN_2;
+
+	/* Training Pattern 3 for HBR2 ot 1.2 devices that support it*/
+	if (intel_dp->link_bw == DP_LINK_BW_5_4 || intel_dp->use_tps3)
+		training_pattern = DP_TRAINING_PATTERN_3;
 
 	/* channel equalization */
 	if (!intel_dp_set_link_train(intel_dp, &DP,
-				     DP_TRAINING_PATTERN_2 |
+				     training_pattern |
 				     DP_LINK_SCRAMBLING_DISABLE)) {
 		DRM_ERROR("failed to start channel equalization\n");
 		return;
@@ -2674,7 +2685,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		if (!drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
 			intel_dp_start_link_train(intel_dp);
 			intel_dp_set_link_train(intel_dp, &DP,
-						DP_TRAINING_PATTERN_2 |
+						training_pattern |
 						DP_LINK_SCRAMBLING_DISABLE);
 			cr_tries++;
 			continue;
@@ -2690,7 +2701,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			intel_dp_link_down(intel_dp);
 			intel_dp_start_link_train(intel_dp);
 			intel_dp_set_link_train(intel_dp, &DP,
-						DP_TRAINING_PATTERN_2 |
+						training_pattern |
 						DP_LINK_SCRAMBLING_DISABLE);
 			tries = 0;
 			cr_tries++;
@@ -2831,6 +2842,14 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 			DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
 		}
 	}
+
+	/* Training Pattern 3 support */
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x12 &&
+	    intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED) {
+		intel_dp->use_tps3 = true;
+		DRM_DEBUG_KMS("Displayport TPS3 supported");
+	} else
+		intel_dp->use_tps3 = false;
 
 	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 	      DP_DWN_STRM_PORT_PRESENT))
