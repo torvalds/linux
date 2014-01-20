@@ -10,6 +10,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
 / {
@@ -58,21 +59,21 @@
 
 		power {
 			label = "Power Button";
-			gpios = <&gpio3 29 0>;
+			gpios = <&gpio3 29 GPIO_ACTIVE_LOW>;
 			gpio-key,wakeup;
 			linux,code = <KEY_POWER>;
 		};
 
 		volume-up {
 			label = "Volume Up";
-			gpios = <&gpio1 4 0>;
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 			gpio-key,wakeup;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		volume-down {
 			label = "Volume Down";
-			gpios = <&gpio1 5 0>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 			gpio-key,wakeup;
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
