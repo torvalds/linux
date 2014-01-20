@@ -289,13 +289,15 @@ static void iwl_pcie_txq_inval_byte_cnt_tbl(struct iwl_trans *trans,
  */
 void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 reg = 0;
 	int txq_id = txq->q.id;
 
 	if (txq->need_update == 0)
 		return;
 
-	if (trans->cfg->base_params->shadow_reg_enable) {
+	if (trans->cfg->base_params->shadow_reg_enable ||
+	    txq_id == trans_pcie->cmd_queue) {
 		/* shadow register enabled */
 		iwl_write32(trans, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
