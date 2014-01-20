@@ -2154,9 +2154,19 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	amba_ports[i] = uap;
 
 	amba_set_drvdata(dev, uap);
+
+	if (!amba_reg.state) {
+		ret = uart_register_driver(&amba_reg);
+		if (ret < 0) {
+			pr_err("Failed to register AMBA-PL011 driver\n");
+			return ret;
+		}
+	}
+
 	ret = uart_add_one_port(&amba_reg, &uap->port);
 	if (ret) {
 		amba_ports[i] = NULL;
+		uart_unregister_driver(&amba_reg);
 		pl011_dma_remove(uap);
 	}
  out:
@@ -2175,6 +2185,7 @@ static int pl011_remove(struct amba_device *dev)
 			amba_ports[i] = NULL;
 
 	pl011_dma_remove(uap);
+	uart_unregister_driver(&amba_reg);
 	return 0;
 }
 
@@ -2230,22 +2241,14 @@ static struct amba_driver pl011_driver = {
 
 static int __init pl011_init(void)
 {
-	int ret;
 	printk(KERN_INFO "Serial: AMBA PL011 UART driver\n");
 
-	ret = uart_register_driver(&amba_reg);
-	if (ret == 0) {
-		ret = amba_driver_register(&pl011_driver);
-		if (ret)
-			uart_unregister_driver(&amba_reg);
-	}
-	return ret;
+	return amba_driver_register(&pl011_driver);
 }
 
 static void __exit pl011_exit(void)
 {
 	amba_driver_unregister(&pl011_driver);
-	uart_unregister_driver(&amba_reg);
 }
 
 /*
