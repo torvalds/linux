@@ -2778,8 +2778,9 @@ int dev_loopback_xmit(struct sk_buff *skb)
 EXPORT_SYMBOL(dev_loopback_xmit);
 
 /**
- *	dev_queue_xmit - transmit a buffer
+ *	__dev_queue_xmit - transmit a buffer
  *	@skb: buffer to transmit
+ *	@accel_priv: private data used for L2 forwarding offload
  *
  *	Queue a buffer for transmission to a network device. The caller must
  *	have set the device and priority and built the buffer before calling
