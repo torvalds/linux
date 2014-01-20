@@ -230,7 +230,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	u32 sprctl, sprscale = 0;
 	unsigned long sprsurf_offset, linear_offset;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
-	bool scaling_was_enabled = dev_priv->sprite_scaling_enabled;
 
 	sprctl = I915_READ(SPRCTL(pipe));
 
@@ -291,21 +290,8 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	crtc_w--;
 	crtc_h--;
 
-	/*
-	 * IVB workaround: must disable low power watermarks for at least
-	 * one frame before enabling scaling.  LP watermarks can be re-enabled
-	 * when scaling is disabled.
-	 */
-	if (crtc_w != src_w || crtc_h != src_h) {
-		dev_priv->sprite_scaling_enabled |= 1 << pipe;
-
-		if (!scaling_was_enabled) {
-			intel_update_watermarks(crtc);
-			intel_wait_for_vblank(dev, pipe);
-		}
+	if (crtc_w != src_w || crtc_h != src_h)
 		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
-	} else
-		dev_priv->sprite_scaling_enabled &= ~(1 << pipe);
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(SPRPOS(pipe), (crtc_y << 16) | crtc_x);
@@ -332,10 +318,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	I915_MODIFY_DISPBASE(SPRSURF(pipe),
 			     i915_gem_obj_ggtt_offset(obj) + sprsurf_offset);
 	POSTING_READ(SPRSURF(pipe));
-
-	/* potentially re-enable LP watermarks */
-	if (scaling_was_enabled && !dev_priv->sprite_scaling_enabled)
-		intel_update_watermarks(crtc);
 }
 
 static void
@@ -345,7 +327,6 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int pipe = intel_plane->pipe;
-	bool scaling_was_enabled = dev_priv->sprite_scaling_enabled;
 
 	I915_WRITE(SPRCTL(pipe), I915_READ(SPRCTL(pipe)) & ~SPRITE_ENABLE);
 	/* Can't leave the scaler enabled... */
@@ -355,13 +336,13 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	I915_MODIFY_DISPBASE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
 
-	dev_priv->sprite_scaling_enabled &= ~(1 << pipe);
+	/*
+	 * Avoid underruns when disabling the sprite.
+	 * FIXME remove once watermark updates are done properly.
+	 */
+	intel_wait_for_vblank(dev, pipe);
 
 	intel_update_sprite_watermarks(plane, crtc, 0, 0, false, false);
-
-	/* potentially re-enable LP watermarks */
-	if (scaling_was_enabled && !dev_priv->sprite_scaling_enabled)
-		intel_update_watermarks(crtc);
 }
 
 static int
@@ -488,7 +469,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	crtc_h--;
 
 	dvsscale = 0;
-	if (IS_GEN5(dev) || crtc_w != src_w || crtc_h != src_h)
+	if (crtc_w != src_w || crtc_h != src_h)
 		dvsscale = DVS_SCALE_ENABLE | (src_w << 16) | src_h;
 
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
@@ -527,6 +508,12 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	/* Flush double buffered register updates */
 	I915_MODIFY_DISPBASE(DVSSURF(pipe), 0);
 	POSTING_READ(DVSSURF(pipe));
+
+	/*
+	 * Avoid underruns when disabling the sprite.
+	 * FIXME remove once watermark updates are done properly.
+	 */
+	intel_wait_for_vblank(dev, pipe);
 
 	intel_update_sprite_watermarks(plane, crtc, 0, 0, false, false);
 }
@@ -659,6 +646,15 @@ format_is_yuv(uint32_t format)
 	default:
 		return false;
 	}
+}
+
+static bool colorkey_enabled(struct intel_plane *intel_plane)
+{
+	struct drm_intel_sprite_colorkey key;
+
+	intel_plane->get_colorkey(&intel_plane->base, &key);
+
+	return key.flags != I915_SET_COLORKEY_NONE;
 }
 
 static int
@@ -846,7 +842,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * If the sprite is completely covering the primary plane,
 	 * we can disable the primary and save power.
 	 */
-	disable_primary = drm_rect_equals(&dst, &clip);
+	disable_primary = drm_rect_equals(&dst, &clip) && !colorkey_enabled(intel_plane);
 	WARN_ON(disable_primary && !visible && intel_crtc->active);
 
 	mutex_lock(&dev->struct_mutex);

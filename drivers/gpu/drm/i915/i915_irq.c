@@ -62,7 +62,7 @@ static const u32 hpd_mask_i915[] = {
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_EN
 };
 
-static const u32 hpd_status_gen4[] = {
+static const u32 hpd_status_g4x[] = {
 	[HPD_CRT] = CRT_HOTPLUG_INT_STATUS,
 	[HPD_SDVO_B] = SDVOB_HOTPLUG_INT_STATUS_G4X,
 	[HPD_SDVO_C] = SDVOC_HOTPLUG_INT_STATUS_G4X,
@@ -1233,9 +1233,10 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 	spin_lock(&dev_priv->irq_lock);
 	for (i = 1; i < HPD_NUM_PINS; i++) {
 
-		WARN(((hpd[i] & hotplug_trigger) &&
-		      dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED),
-		     "Received HPD interrupt although disabled\n");
+		WARN_ONCE(hpd[i] & hotplug_trigger &&
+			  dev_priv->hpd_stats[i].hpd_mark == HPD_DISABLED,
+			  "Received HPD interrupt (0x%08x) on pin %d (0x%08x) although disabled\n",
+			  hotplug_trigger, i, hpd[i]);
 
 		if (!(hpd[i] & hotplug_trigger) ||
 		    dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED)
@@ -2714,6 +2715,8 @@ static void gen8_irq_preinstall(struct drm_device *dev)
 #undef GEN8_IRQ_INIT_NDX
 
 	POSTING_READ(GEN8_PCU_IIR);
+
+	ibx_irq_preinstall(dev);
 }
 
 static void ibx_hpd_irq_setup(struct drm_device *dev)
@@ -3220,7 +3223,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 
 		for_each_pipe(pipe) {
 			int plane = pipe;
-			if (IS_MOBILE(dev))
+			if (HAS_FBC(dev))
 				plane = !plane;
 
 			if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS &&
@@ -3421,7 +3424,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 		for_each_pipe(pipe) {
 			int plane = pipe;
-			if (IS_MOBILE(dev))
+			if (HAS_FBC(dev))
 				plane = !plane;
 
 			if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS &&
@@ -3658,7 +3661,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 				  hotplug_status);
 
 			intel_hpd_irq_handler(dev, hotplug_trigger,
-					      IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i915);
+					      IS_G4X(dev) ? hpd_status_g4x : hpd_status_i915);
 
 			if (IS_G4X(dev) &&
 			    (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X))

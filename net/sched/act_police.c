@@ -177,10 +177,12 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 			if (bind) {
 				police->tcf_bindcnt += 1;
 				police->tcf_refcnt += 1;
+				return 0;
 			}
 			if (ovr)
 				goto override;
-			return ret;
+			/* not replacing */
+			return -EEXIST;
 		}
 	}
 

@@ -1211,15 +1211,12 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
+static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 	bool enabled;
 
-	if (HAS_PCH_LPT(dev_priv->dev)) {
-		DRM_DEBUG_DRIVER("LPT does not has PCH refclk, skipping check\n");
-		return;
-	}
+	WARN_ON(!(HAS_PCH_IBX(dev_priv->dev) || HAS_PCH_CPT(dev_priv->dev)));
 
 	val = I915_READ(PCH_DREF_CONTROL);
 	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_NONSPREAD_SOURCE_MASK |
@@ -1367,11 +1364,24 @@ static void intel_init_dpio(struct drm_device *dev)
 	if (!IS_VALLEYVIEW(dev))
 		return;
 
-	/* Enable the CRI clock source so we can get at the display */
+	DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO;
+}
+
+static void intel_reset_dpio(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_VALLEYVIEW(dev))
+		return;
+
+	/*
+	 * Enable the CRI clock source so we can get at the display and the
+	 * reference clock for VGA hotplug / manual detection.
+	 */
 	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+		   DPLL_REFA_CLK_ENABLE_VLV |
 		   DPLL_INTEGRATED_CRI_CLK_VLV);
 
-	DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO;
 	/*
 	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
 	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
@@ -1498,9 +1508,12 @@ static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	/* Make sure the pipe isn't still relying on us */
 	assert_pipe_disabled(dev_priv, pipe);
 
-	/* Leave integrated clock source enabled */
+	/*
+	 * Leave integrated clock source and reference clock enabled for pipe B.
+	 * The latter is needed for VGA hotplug / manual detection.
+	 */
 	if (pipe == PIPE_B)
-		val = DPLL_INTEGRATED_CRI_CLK_VLV;
+		val = DPLL_INTEGRATED_CRI_CLK_VLV | DPLL_REFA_CLK_ENABLE_VLV;
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
 }
@@ -2373,6 +2386,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 			I915_WRITE(PF_WIN_POS(intel_crtc->pipe), 0);
 			I915_WRITE(PF_WIN_SZ(intel_crtc->pipe), 0);
 		}
+		intel_crtc->config.pipe_src_w = adjusted_mode->crtc_hdisplay;
+		intel_crtc->config.pipe_src_h = adjusted_mode->crtc_vdisplay;
 	}
 
 	ret = dev_priv->display.update_plane(crtc, fb, x, y);
@@ -3422,9 +3437,8 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		/* Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
-		 * mailbox." Therefore we need to defer waiting on the state
-		 * change.
-		 * TODO: need to fix this for state checker
+		 * mailbox." Moreover, the mailbox may return a bogus state,
+		 * so we need to just enable it and continue on.
 		 */
 	} else {
 		I915_WRITE(IPS_CTL, IPS_ENABLE);
@@ -3451,9 +3465,10 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 		mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
 		mutex_unlock(&dev_priv->rps.hw_lock);
-	} else
+	} else {
 		I915_WRITE(IPS_CTL, 0);
-	POSTING_READ(IPS_CTL);
+		POSTING_READ(IPS_CTL);
+	}
 
 	/* We need to wait for a vblank before we can disable the plane. */
 	intel_wait_for_vblank(dev, crtc->pipe);
@@ -3488,7 +3503,7 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	/* Workaround : Do not read or write the pipe palette/gamma data while
 	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
 	 */
-	if (intel_crtc->config.ips_enabled &&
+	if (IS_HASWELL(dev) && intel_crtc->config.ips_enabled &&
 	    ((I915_READ(GAMMA_MODE(pipe)) & GAMMA_MODE_MODE_MASK) ==
 	     GAMMA_MODE_MODE_SPLIT)) {
 		hsw_disable_ips(intel_crtc);
@@ -4975,7 +4990,11 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW11(pipe), 0x87871000);
 
-	/* Enable DPIO clock input */
+	/*
+	 * Enable DPIO clock input. We should never disable the reference
+	 * clock for pipe B, since VGA hotplug / manual detection depends
+	 * on it.
+	 */
 	dpll = DPLL_EXT_BUFFER_ENABLE_VLV | DPLL_REFA_CLK_ENABLE_VLV |
 		DPLL_VGA_MODE_DIS | DPLL_INTEGRATED_CLOCK_VLV;
 	/* We should never disable this, set it here for state tracking */
@@ -5419,6 +5438,9 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
+
+	if (INTEL_INFO(dev)->gen <= 3 && (IS_I830(dev) || !IS_MOBILE(dev)))
+		return;
 
 	tmp = I915_READ(PFIT_CONTROL);
 	if (!(tmp & PFIT_ENABLE))
@@ -6995,8 +7017,9 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	if (intel_display_power_enabled(dev, pfit_domain))
 		ironlake_get_pfit_config(crtc, pipe_config);
 
-	pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
-				   (I915_READ(IPS_CTL) & IPS_ENABLE);
+	if (IS_HASWELL(dev))
+		pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
+			(I915_READ(IPS_CTL) & IPS_ENABLE);
 
 	pipe_config->pixel_multiplier = 1;
 
@@ -7951,7 +7974,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		else
 			i9xx_clock(refclk, &clock);
 	} else {
-		u32 lvds = I915_READ(LVDS);
+		u32 lvds = IS_I830(dev) ? 0 : I915_READ(LVDS);
 		bool is_lvds = (pipe == 1) && (lvds & LVDS_PORT_EN);
 
 		if (is_lvds) {
@@ -9326,7 +9349,9 @@ intel_pipe_config_compare(struct drm_device *dev,
 		PIPE_CONF_CHECK_I(pch_pfit.size);
 	}
 
-	PIPE_CONF_CHECK_I(ips_enabled);
+	/* BDW+ don't expose a synchronous way to read the state */
+	if (IS_HASWELL(dev))
+		PIPE_CONF_CHECK_I(ips_enabled);
 
 	PIPE_CONF_CHECK_I(double_wide);
 
@@ -9339,7 +9364,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);
 
-	if (!IS_HASWELL(dev)) {
+	if (!HAS_DDI(dev)) {
 		PIPE_CONF_CHECK_CLOCK_FUZZY(adjusted_mode.crtc_clock);
 		PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
 	}
@@ -9913,17 +9938,21 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	/* Check for any encoders that needs to be disabled. */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
 			    base.head) {
+		int num_connectors = 0;
 		list_for_each_entry(connector,
 				    &dev->mode_config.connector_list,
 				    base.head) {
 			if (connector->new_encoder == encoder) {
 				WARN_ON(!connector->new_encoder->new_crtc);
-
-				goto next_encoder;
+				num_connectors++;
 			}
 		}
-		encoder->new_crtc = NULL;
-next_encoder:
+
+		if (num_connectors == 0)
+			encoder->new_crtc = NULL;
+		else if (num_connectors > 1)
+			return -EINVAL;
+
 		/* Only now check for crtc changes so we don't miss encoders
 		 * that will be disabled. */
 		if (&encoder->new_crtc->base != encoder->base.crtc) {
@@ -9994,6 +10023,16 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 		ret = intel_pipe_set_base(set->crtc,
 					  set->x, set->y, set->fb);
+		/*
+		 * In the fastboot case this may be our only check of the
+		 * state after boot.  It would be better to only do it on
+		 * the first update, but we don't have a nice way of doing that
+		 * (and really, set_config isn't used much for high freq page
+		 * flipping, so increasing its cost here shouldn't be a big
+		 * deal).
+		 */
+		if (i915_fastboot && ret == 0)
+			intel_modeset_check_state(set->crtc->dev);
 	}
 
 	if (ret) {
@@ -10054,7 +10093,7 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
 	/* PCH refclock must be enabled first */
-	assert_pch_refclk_enabled(dev_priv);
+	ibx_assert_pch_refclk_enabled(dev_priv);
 
 	I915_WRITE(PCH_DPLL(pll->id), pll->hw_state.dpll);
 
@@ -10122,8 +10161,6 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 		dev_priv->num_shared_dpll = 0;
 
 	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
-	DRM_DEBUG_KMS("%i shared PLLs initialized\n",
-		      dev_priv->num_shared_dpll);
 }
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
@@ -10151,7 +10188,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	 */
 	intel_crtc->pipe = pipe;
 	intel_crtc->plane = pipe;
-	if (IS_MOBILE(dev) && INTEL_INFO(dev)->gen < 4) {
+	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4) {
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = !pipe;
 	}
@@ -10238,6 +10275,28 @@ static bool has_edp_a(struct drm_device *dev)
 		return false;
 
 	return true;
+}
+
+const char *intel_output_name(int output)
+{
+	static const char *names[] = {
+		[INTEL_OUTPUT_UNUSED] = "Unused",
+		[INTEL_OUTPUT_ANALOG] = "Analog",
+		[INTEL_OUTPUT_DVO] = "DVO",
+		[INTEL_OUTPUT_SDVO] = "SDVO",
+		[INTEL_OUTPUT_LVDS] = "LVDS",
+		[INTEL_OUTPUT_TVOUT] = "TV",
+		[INTEL_OUTPUT_HDMI] = "HDMI",
+		[INTEL_OUTPUT_DISPLAYPORT] = "DisplayPort",
+		[INTEL_OUTPUT_EDP] = "eDP",
+		[INTEL_OUTPUT_DSI] = "DSI",
+		[INTEL_OUTPUT_UNKNOWN] = "Unknown",
+	};
+
+	if (output < 0 || output >= ARRAY_SIZE(names) || !names[output])
+		return "Invalid";
+
+	return names[output];
 }
 
 static void intel_setup_outputs(struct drm_device *dev)
@@ -10757,11 +10816,20 @@ static struct intel_quirk intel_quirks[] = {
 	/* Sony Vaio Y cannot use SSC on LVDS */
 	{ 0x0046, 0x104d, 0x9076, quirk_ssc_force_disable },
 
-	/*
-	 * All GM45 Acer (and its brands eMachines and Packard Bell) laptops
-	 * seem to use inverted backlight PWM.
-	 */
-	{ 0x2a42, 0x1025, PCI_ANY_ID, quirk_invert_brightness },
+	/* Acer Aspire 5734Z must invert backlight brightness */
+	{ 0x2a42, 0x1025, 0x0459, quirk_invert_brightness },
+
+	/* Acer/eMachines G725 */
+	{ 0x2a42, 0x1025, 0x0210, quirk_invert_brightness },
+
+	/* Acer/eMachines e725 */
+	{ 0x2a42, 0x1025, 0x0212, quirk_invert_brightness },
+
+	/* Acer/Packard Bell NCL20 */
+	{ 0x2a42, 0x1025, 0x034b, quirk_invert_brightness },
+
+	/* Acer Aspire 4736Z */
+	{ 0x2a42, 0x1025, 0x0260, quirk_invert_brightness },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
@@ -10809,7 +10877,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 
 	intel_init_clock_gating(dev);
 
-	intel_init_dpio(dev);
+	intel_reset_dpio(dev);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_enable_gt_powersave(dev);
@@ -10870,6 +10938,9 @@ void intel_modeset_init(struct drm_device *dev)
 					      pipe_name(i), sprite_name(i, j), ret);
 		}
 	}
+
+	intel_init_dpio(dev);
+	intel_reset_dpio(dev);
 
 	intel_cpu_pll_init(dev);
 	intel_shared_dpll_init(dev);
@@ -11218,7 +11289,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		pll->on = false;
 	}
 
-	if (IS_HASWELL(dev))
+	if (HAS_PCH_SPLIT(dev))
 		ilk_wm_get_hw_state(dev);
 
 	if (force_restore) {
@@ -11240,8 +11311,6 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	intel_modeset_check_state(dev);
-
-	drm_mode_config_reset(dev);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
@@ -11250,7 +11319,10 @@ void intel_modeset_gem_init(struct drm_device *dev)
 
 	intel_setup_overlay(dev);
 
+	mutex_lock(&dev->mode_config.mutex);
+	drm_mode_config_reset(dev);
 	intel_modeset_setup_hw_state(dev, false);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
@@ -11328,14 +11400,15 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned reg = INTEL_INFO(dev)->gen >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
 	u16 gmch_ctrl;
 
-	pci_read_config_word(dev_priv->bridge_dev, INTEL_GMCH_CTRL, &gmch_ctrl);
+	pci_read_config_word(dev_priv->bridge_dev, reg, &gmch_ctrl);
 	if (state)
 		gmch_ctrl &= ~INTEL_GMCH_VGA_DISABLE;
 	else
 		gmch_ctrl |= INTEL_GMCH_VGA_DISABLE;
-	pci_write_config_word(dev_priv->bridge_dev, INTEL_GMCH_CTRL, gmch_ctrl);
+	pci_write_config_word(dev_priv->bridge_dev, reg, gmch_ctrl);
 	return 0;
 }
 
@@ -11445,7 +11518,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 		enum transcoder cpu_transcoder = transcoders[i];
 
 		error->transcoder[i].power_domain_on =
-			intel_display_power_enabled_sw(dev, POWER_DOMAIN_PIPE(i));
+			intel_display_power_enabled_sw(dev,
+				POWER_DOMAIN_TRANSCODER(cpu_transcoder));
 		if (!error->transcoder[i].power_domain_on)
 			continue;
 

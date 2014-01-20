@@ -1184,6 +1184,11 @@ struct intel_vbt_data {
 	int edp_bpp;
 	struct edp_power_seq edp_pps;
 
+	struct {
+		u16 pwm_freq_hz;
+		bool active_low_pwm;
+	} backlight;
+
 	/* MIPI DSI */
 	struct {
 		u16 panel_id;
@@ -1210,7 +1215,7 @@ struct intel_wm_level {
 	uint32_t fbc_val;
 };
 
-struct hsw_wm_values {
+struct ilk_wm_values {
 	uint32_t wm_pipe[3];
 	uint32_t wm_lp[3];
 	uint32_t wm_lp_spr[3];
@@ -1396,7 +1401,6 @@ typedef struct drm_i915_private {
 
 	/* overlay */
 	struct intel_overlay *overlay;
-	unsigned int sprite_scaling_enabled;
 
 	/* backlight registers and fields in struct intel_panel */
 	spinlock_t backlight_lock;
@@ -1517,7 +1521,7 @@ typedef struct drm_i915_private {
 		uint16_t cur_latency[5];
 
 		/* current hardware state */
-		struct hsw_wm_values hw;
+		struct ilk_wm_values hw;
 	} wm;
 
 	struct i915_package_c8 pc8;
@@ -1840,7 +1844,7 @@ struct drm_i915_file_private {
 
 #define HAS_FW_BLC(dev) (INTEL_INFO(dev)->gen > 2)
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
-#define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
+#define HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
 #define HAS_IPS(dev)		(IS_ULT(dev) || IS_BROADWELL(dev))
 
@@ -1848,7 +1852,7 @@ struct drm_i915_file_private {
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev))
 #define HAS_PC8(dev)		(IS_HASWELL(dev)) /* XXX HSW:ULX */
-#define HAS_RUNTIME_PM(dev)	false
+#define HAS_RUNTIME_PM(dev)	(IS_HASWELL(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
@@ -1933,9 +1937,7 @@ void i915_queue_hangcheck(struct drm_device *dev);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
-extern void intel_pm_init(struct drm_device *dev);
 extern void intel_hpd_init(struct drm_device *dev);
-extern void intel_pm_init(struct drm_device *dev);
 
 extern void intel_uncore_sanitize(struct drm_device *dev);
 extern void intel_uncore_early_sanitize(struct drm_device *dev);
@@ -2015,6 +2017,7 @@ void i915_gem_object_unpin(struct drm_i915_gem_object *obj);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 int __must_check i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
+void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 

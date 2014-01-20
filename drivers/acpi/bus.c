@@ -156,6 +156,16 @@ int acpi_bus_get_private_data(acpi_handle handle, void **data)
 }
 EXPORT_SYMBOL(acpi_bus_get_private_data);
 
+void acpi_bus_no_hotplug(acpi_handle handle)
+{
+	struct acpi_device *adev = NULL;
+
+	acpi_bus_get_device(handle, &adev);
+	if (adev)
+		adev->flags.no_hotplug = true;
+}
+EXPORT_SYMBOL_GPL(acpi_bus_no_hotplug);
+
 static void acpi_print_osc_error(acpi_handle handle,
 	struct acpi_osc_context *context, char *error)
 {

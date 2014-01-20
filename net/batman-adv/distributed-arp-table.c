@@ -349,7 +349,7 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	unicast_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
 
-	switch (unicast_4addr_packet->u.header.packet_type) {
+	switch (unicast_4addr_packet->u.packet_type) {
 	case BATADV_UNICAST:
 		batadv_dbg(BATADV_DBG_DAT, bat_priv,
 			   "* encapsulated within a UNICAST packet\n");
@@ -374,7 +374,7 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			break;
 		default:
 			batadv_dbg(BATADV_DBG_DAT, bat_priv, "* type: Unknown (%u)!\n",
-				   unicast_4addr_packet->u.header.packet_type);
+				   unicast_4addr_packet->u.packet_type);
 		}
 		break;
 	case BATADV_BCAST:
@@ -387,7 +387,7 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	default:
 		batadv_dbg(BATADV_DBG_DAT, bat_priv,
 			   "* encapsulated within an unknown packet type (0x%x)\n",
-			   unicast_4addr_packet->u.header.packet_type);
+			   unicast_4addr_packet->u.packet_type);
 	}
 }
 

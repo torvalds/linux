@@ -193,10 +193,13 @@
 #define   MI_SCENE_COUNT	(1 << 3) /* just increment scene count */
 #define   MI_END_SCENE		(1 << 4) /* flush binner and incr scene count */
 #define   MI_INVALIDATE_ISP	(1 << 5) /* invalidate indirect state pointers */
+#define MI_REPORT_HEAD		MI_INSTR(0x07, 0)
+#define MI_ARB_ON_OFF		MI_INSTR(0x08, 0)
+#define   MI_ARB_ENABLE			(1<<0)
+#define   MI_ARB_DISABLE		(0<<0)
 #define MI_BATCH_BUFFER_END	MI_INSTR(0x0a, 0)
 #define MI_SUSPEND_FLUSH	MI_INSTR(0x0b, 0)
 #define   MI_SUSPEND_FLUSH_EN	(1<<0)
-#define MI_REPORT_HEAD		MI_INSTR(0x07, 0)
 #define MI_OVERLAY_FLIP		MI_INSTR(0x11, 0)
 #define   MI_OVERLAY_CONTINUE	(0x0<<21)
 #define   MI_OVERLAY_ON		(0x1<<21)
@@ -212,10 +215,24 @@
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
 #define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
-#define MI_ARB_ON_OFF		MI_INSTR(0x08, 0)
-#define   MI_ARB_ENABLE			(1<<0)
-#define   MI_ARB_DISABLE		(0<<0)
-
+#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
+#define   MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
+#define   MI_SEMAPHORE_UPDATE	    (1<<21)
+#define   MI_SEMAPHORE_COMPARE	    (1<<20)
+#define   MI_SEMAPHORE_REGISTER	    (1<<18)
+#define   MI_SEMAPHORE_SYNC_VR	    (0<<16) /* RCS  wait for VCS  (RVSYNC) */
+#define   MI_SEMAPHORE_SYNC_VER	    (1<<16) /* RCS  wait for VECS (RVESYNC) */
+#define   MI_SEMAPHORE_SYNC_BR	    (2<<16) /* RCS  wait for BCS  (RBSYNC) */
+#define   MI_SEMAPHORE_SYNC_BV	    (0<<16) /* VCS  wait for BCS  (VBSYNC) */
+#define   MI_SEMAPHORE_SYNC_VEV	    (1<<16) /* VCS  wait for VECS (VVESYNC) */
+#define   MI_SEMAPHORE_SYNC_RV	    (2<<16) /* VCS  wait for RCS  (VRSYNC) */
+#define   MI_SEMAPHORE_SYNC_RB	    (0<<16) /* BCS  wait for RCS  (BRSYNC) */
+#define   MI_SEMAPHORE_SYNC_VEB	    (1<<16) /* BCS  wait for VECS (BVESYNC) */
+#define   MI_SEMAPHORE_SYNC_VB	    (2<<16) /* BCS  wait for VCS  (BVSYNC) */
+#define   MI_SEMAPHORE_SYNC_BVE	    (0<<16) /* VECS wait for BCS  (VEBSYNC) */
+#define   MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
+#define   MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
+#define   MI_SEMAPHORE_SYNC_INVALID  (3<<16)
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)
@@ -235,7 +252,7 @@
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
 #define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*x-1)
-#define  MI_SRM_LRM_GLOBAL_GTT		(1<<22)
+#define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
 #define   MI_INVALIDATE_TLB		(1<<18)
@@ -246,30 +263,13 @@
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE		(1)
 /* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */
-#define   MI_BATCH_NON_SECURE_I965 	(1<<8)
+#define   MI_BATCH_NON_SECURE_I965	(1<<8)
 #define   MI_BATCH_PPGTT_HSW		(1<<8)
-#define   MI_BATCH_NON_SECURE_HSW 	(1<<13)
+#define   MI_BATCH_NON_SECURE_HSW	(1<<13)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
-#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
-#define  MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
-#define  MI_SEMAPHORE_UPDATE	    (1<<21)
-#define  MI_SEMAPHORE_COMPARE	    (1<<20)
-#define  MI_SEMAPHORE_REGISTER	    (1<<18)
-#define  MI_SEMAPHORE_SYNC_VR	    (0<<16) /* RCS  wait for VCS  (RVSYNC) */
-#define  MI_SEMAPHORE_SYNC_VER	    (1<<16) /* RCS  wait for VECS (RVESYNC) */
-#define  MI_SEMAPHORE_SYNC_BR	    (2<<16) /* RCS  wait for BCS  (RBSYNC) */
-#define  MI_SEMAPHORE_SYNC_BV	    (0<<16) /* VCS  wait for BCS  (VBSYNC) */
-#define  MI_SEMAPHORE_SYNC_VEV	    (1<<16) /* VCS  wait for VECS (VVESYNC) */
-#define  MI_SEMAPHORE_SYNC_RV	    (2<<16) /* VCS  wait for RCS  (VRSYNC) */
-#define  MI_SEMAPHORE_SYNC_RB	    (0<<16) /* BCS  wait for RCS  (BRSYNC) */
-#define  MI_SEMAPHORE_SYNC_VEB	    (1<<16) /* BCS  wait for VECS (BVESYNC) */
-#define  MI_SEMAPHORE_SYNC_VB	    (2<<16) /* BCS  wait for VCS  (BVSYNC) */
-#define  MI_SEMAPHORE_SYNC_BVE	    (0<<16) /* VECS wait for BCS  (VEBSYNC) */
-#define  MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
-#define  MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
-#define  MI_SEMAPHORE_SYNC_INVALID  (3<<16)
+
 
 #define MI_PREDICATE_RESULT_2	(0x2214)
 #define  LOWER_SLICE_ENABLED	(1<<0)
@@ -3430,42 +3430,6 @@
 /* the unit of memory self-refresh latency time is 0.5us */
 #define  ILK_SRLT_MASK		0x3f
 
-/* define the fifo size on Ironlake */
-#define ILK_DISPLAY_FIFO	128
-#define ILK_DISPLAY_MAXWM	64
-#define ILK_DISPLAY_DFTWM	8
-#define ILK_CURSOR_FIFO		32
-#define ILK_CURSOR_MAXWM	16
-#define ILK_CURSOR_DFTWM	8
-
-#define ILK_DISPLAY_SR_FIFO	512
-#define ILK_DISPLAY_MAX_SRWM	0x1ff
-#define ILK_DISPLAY_DFT_SRWM	0x3f
-#define ILK_CURSOR_SR_FIFO	64
-#define ILK_CURSOR_MAX_SRWM	0x3f
-#define ILK_CURSOR_DFT_SRWM	8
-
-#define ILK_FIFO_LINE_SIZE	64
-
-/* define the WM info on Sandybridge */
-#define SNB_DISPLAY_FIFO	128
-#define SNB_DISPLAY_MAXWM	0x7f	/* bit 16:22 */
-#define SNB_DISPLAY_DFTWM	8
-#define SNB_CURSOR_FIFO		32
-#define SNB_CURSOR_MAXWM	0x1f	/* bit 4:0 */
-#define SNB_CURSOR_DFTWM	8
-
-#define SNB_DISPLAY_SR_FIFO	512
-#define SNB_DISPLAY_MAX_SRWM	0x1ff	/* bit 16:8 */
-#define SNB_DISPLAY_DFT_SRWM	0x3f
-#define SNB_CURSOR_SR_FIFO	64
-#define SNB_CURSOR_MAX_SRWM	0x3f	/* bit 5:0 */
-#define SNB_CURSOR_DFT_SRWM	8
-
-#define SNB_FBC_MAX_SRWM	0xf	/* bit 23:20 */
-
-#define SNB_FIFO_LINE_SIZE	64
-
 
 /* the address where we get all kinds of latency value */
 #define SSKPD			0x5d10
@@ -4148,6 +4112,8 @@
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
 #define  DISP_FBC_WM_DIS		(1<<15)
+#define DISP_ARB_CTL2	0x45004
+#define  DISP_DATA_PARTITION_5_6	(1<<6)
 #define GEN7_MSG_CTL	0x45010
 #define  WAIT_FOR_PCH_RESET_ACK		(1<<1)
 #define  WAIT_FOR_PCH_FLR_ACK		(1<<0)
@@ -4856,6 +4822,8 @@
 #define  FORCEWAKE_ACK				0x130090
 #define  VLV_GTLC_WAKE_CTRL			0x130090
 #define  VLV_GTLC_PW_STATUS			0x130094
+#define VLV_GTLC_PW_RENDER_STATUS_MASK		0x80
+#define VLV_GTLC_PW_MEDIA_STATUS_MASK		0x20
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define   FORCEWAKE_KERNEL			0x1
 #define   FORCEWAKE_USER			0x2

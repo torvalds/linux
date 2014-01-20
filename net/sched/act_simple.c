@@ -142,10 +142,13 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else {
 		d = to_defact(pc);
-		if (!ovr) {
-			tcf_simp_release(d, bind);
+
+		if (bind)
+			return 0;
+		tcf_simp_release(d, bind);
+		if (!ovr)
 			return -EEXIST;
-		}
+
 		reset_policy(d, defdata, parm);
 	}
 

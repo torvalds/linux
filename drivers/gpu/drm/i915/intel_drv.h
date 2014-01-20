@@ -65,8 +65,8 @@
 #define wait_for_atomic_us(COND, US) _wait_for((COND), \
 					       DIV_ROUND_UP((US), 1000), 0)
 
-#define KHz(x) (1000*x)
-#define MHz(x) KHz(1000*x)
+#define KHz(x) (1000 * (x))
+#define MHz(x) KHz(1000 * (x))
 
 /*
  * Display related stuff
@@ -625,6 +625,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 
 
 /* intel_display.c */
+const char *intel_output_name(int output);
 int intel_pch_rawclk(struct drm_device *dev);
 void intel_mark_busy(struct drm_device *dev);
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
@@ -838,6 +839,7 @@ void intel_update_sprite_watermarks(struct drm_plane *plane,
 				    uint32_t sprite_width, int pixel_size,
 				    bool enabled, bool scaled);
 void intel_init_pm(struct drm_device *dev);
+void intel_pm_setup(struct drm_device *dev);
 bool intel_fbc_enabled(struct drm_device *dev);
 void intel_update_fbc(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);

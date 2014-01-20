@@ -480,12 +480,12 @@ check_next:
 bool i915_semaphore_is_enabled(struct drm_device *dev)
 {
 	if (INTEL_INFO(dev)->gen < 6)
-		return 0;
+		return false;
 
 	/* Until we get further testing... */
 	if (IS_GEN8(dev)) {
 		WARN_ON(!i915_preliminary_hw_support);
-		return 0;
+		return false;
 	}
 
 	if (i915_semaphores >= 0)
@@ -497,7 +497,7 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 		return false;
 #endif
 
-	return 1;
+	return true;
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
@@ -657,6 +657,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		intel_modeset_init_hw(dev);
 
 		drm_modeset_lock_all(dev);
+		drm_mode_config_reset(dev);
 		intel_modeset_setup_hw_state(dev, true);
 		drm_modeset_unlock_all(dev);
 
@@ -919,6 +920,9 @@ static int i915_runtime_suspend(struct device *device)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
+	i915_gem_release_all_mmaps(dev_priv);
+
+	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 	dev_priv->pm.suspended = true;
 	intel_opregion_notify_adapter(dev, PCI_D3cold);
 

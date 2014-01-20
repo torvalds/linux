@@ -373,6 +373,22 @@ struct bdb_lvds_lfp_data {
 	struct bdb_lvds_lfp_data_entry data[16];
 } __packed;
 
+struct bdb_lfp_backlight_data_entry {
+	u8 type:2;
+	u8 active_low_pwm:1;
+	u8 obsolete1:5;
+	u16 pwm_freq_hz;
+	u8 min_brightness;
+	u8 obsolete2;
+	u8 obsolete3;
+} __packed;
+
+struct bdb_lfp_backlight_data {
+	u8 entry_size;
+	struct bdb_lfp_backlight_data_entry data[16];
+	u8 level[16];
+} __packed;
+
 struct aimdb_header {
 	char signature[16];
 	char oem_device[20];

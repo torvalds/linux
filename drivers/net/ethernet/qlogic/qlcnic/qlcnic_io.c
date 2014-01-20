@@ -687,17 +687,15 @@ void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup)
 	if (adapter->ahw->linkup && !linkup) {
 		netdev_info(netdev, "NIC Link is down\n");
 		adapter->ahw->linkup = 0;
-		if (netif_running(netdev)) {
-			netif_carrier_off(netdev);
-			netif_tx_stop_all_queues(netdev);
-		}
+		netif_carrier_off(netdev);
 	} else if (!adapter->ahw->linkup && linkup) {
+		/* Do not advertise Link up if the port is in loopback mode */
+		if (qlcnic_83xx_check(adapter) && adapter->ahw->lb_mode)
+			return;
+
 		netdev_info(netdev, "NIC Link is up\n");
 		adapter->ahw->linkup = 1;
-		if (netif_running(netdev)) {
-			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
-		}
+		netif_carrier_on(netdev);
 	}
 }
 
@@ -784,7 +782,7 @@ static int qlcnic_process_cmd_ring(struct qlcnic_adapter *adapter,
 	struct net_device *netdev = adapter->netdev;
 	struct qlcnic_skb_frag *frag;
 
-	if (!spin_trylock(&adapter->tx_clean_lock))
+	if (!spin_trylock(&tx_ring->tx_clean_lock))
 		return 1;
 
 	sw_consumer = tx_ring->sw_consumer;
@@ -813,8 +811,9 @@ static int qlcnic_process_cmd_ring(struct qlcnic_adapter *adapter,
 			break;
 	}
 
+	tx_ring->sw_consumer = sw_consumer;
+
 	if (count && netif_running(netdev)) {
-		tx_ring->sw_consumer = sw_consumer;
 		smp_mb();
 		if (netif_tx_queue_stopped(tx_ring->txq) &&
 		    netif_carrier_ok(netdev)) {
@@ -840,7 +839,8 @@ static int qlcnic_process_cmd_ring(struct qlcnic_adapter *adapter,
 	 */
 	hw_consumer = le32_to_cpu(*(tx_ring->hw_consumer));
 	done = (sw_consumer == hw_consumer);
-	spin_unlock(&adapter->tx_clean_lock);
+
+	spin_unlock(&tx_ring->tx_clean_lock);
 
 	return done;
 }
