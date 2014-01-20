@@ -868,6 +868,14 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose)
 
 		pci_bus_read_config_dword(hose->bus,
 			PCI_DEVFN(0, 0), PCI_BASE_ADDRESS_0, &base);
+
+		/*
+		 * For PEXCSRBAR, bit 3-0 indicate prefetchable and
+		 * address type. So when getting base address, these
+		 * bits should be masked
+		 */
+		base &= PCI_BASE_ADDRESS_MEM_MASK;
+
 		return base;
 	}
 #endif
