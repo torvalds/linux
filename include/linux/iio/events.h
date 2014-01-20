@@ -46,10 +46,6 @@ struct iio_event_data {
 	 ((u16)chan))
 
 
-#define IIO_EV_DIR_MAX 4
-#define IIO_EV_BIT(type, direction)			\
-	(1 << (type*IIO_EV_DIR_MAX + direction))
-
 /**
  * IIO_MOD_EVENT_CODE() - create event identifier for modified channels
  * @chan_type:	Type of the channel. Should be one of enum iio_chan_type.

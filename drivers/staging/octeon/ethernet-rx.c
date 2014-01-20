@@ -29,7 +29,6 @@
 #include <linux/cache.h>
 #include <linux/cpumask.h>
 #include <linux/netdevice.h>
-#include <linux/init.h>
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
 #include <linux/string.h>

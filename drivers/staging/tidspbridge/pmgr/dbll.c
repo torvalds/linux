@@ -33,9 +33,6 @@
 #include <dspbridge/dbll.h>
 #include <dspbridge/rmm.h>
 
-/* Number of buckets for symbol hash table */
-#define MAXBUCKETS 211
-
 /* Max buffer length */
 #define MAXEXPR 128
 
@@ -183,8 +180,8 @@ static int execute(struct dynamic_loader_initialize *this, ldr_addr start);
 static void release(struct dynamic_loader_initialize *this);
 
 /* symbol table hash functions */
-static u16 name_hash(void *key, u16 max_bucket);
-static bool name_match(void *key, void *sp);
+static u32 name_hash(const void *key);
+static bool name_match(const void *key, const void *sp);
 static void sym_delete(void *value);
 
 /* Symbol Redefinition */
@@ -277,17 +274,16 @@ bool dbll_get_addr(struct dbll_library_obj *zl_lib, char *name,
 		   struct dbll_sym_val **sym_val)
 {
 	struct dbll_symbol *sym;
-	bool status = false;
 
 	sym = (struct dbll_symbol *)gh_find(zl_lib->sym_tab, name);
-	if (sym != NULL) {
-		*sym_val = &sym->value;
-		status = true;
-	}
+	if (IS_ERR(sym))
+		return false;
 
-	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p, status 0x%x\n",
-		__func__, zl_lib, name, sym_val, status);
-	return status;
+	*sym_val = &sym->value;
+
+	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p\n",
+		__func__, zl_lib, name, sym_val);
+	return true;
 }
 
 /*
@@ -312,7 +308,6 @@ bool dbll_get_c_addr(struct dbll_library_obj *zl_lib, char *name,
 {
 	struct dbll_symbol *sym;
 	char cname[MAXEXPR + 1];
-	bool status = false;
 
 	cname[0] = '_';
 
@@ -321,13 +316,12 @@ bool dbll_get_c_addr(struct dbll_library_obj *zl_lib, char *name,
 
 	/* Check for C name, if not found */
 	sym = (struct dbll_symbol *)gh_find(zl_lib->sym_tab, cname);
+	if (IS_ERR(sym))
+		return false;
 
-	if (sym != NULL) {
-		*sym_val = &sym->value;
-		status = true;
-	}
+	*sym_val = &sym->value;
 
-	return status;
+	return true;
 }
 
 /*
@@ -378,8 +372,8 @@ int dbll_get_sect(struct dbll_library_obj *lib, char *name, u32 *paddr,
 		opened_doff = false;
 	}
 
-	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p psize: %p, "
-		"status 0x%x\n", __func__, lib, name, paddr, psize, status);
+	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p psize: %p, status 0x%x\n",
+			__func__, lib, name, paddr, psize, status);
 
 	return status;
 }
@@ -416,12 +410,13 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 		/* Create a hash table for symbols if not already created */
 		if (zl_lib->sym_tab == NULL) {
 			got_symbols = false;
-			zl_lib->sym_tab = gh_create(MAXBUCKETS,
-						    sizeof(struct dbll_symbol),
+			zl_lib->sym_tab = gh_create(sizeof(struct dbll_symbol),
 						    name_hash,
 						    name_match, sym_delete);
-			if (zl_lib->sym_tab == NULL)
-				status = -ENOMEM;
+			if (IS_ERR(zl_lib->sym_tab)) {
+				status = PTR_ERR(zl_lib->sym_tab);
+				zl_lib->sym_tab = NULL;
+			}
 
 		}
 		/*
@@ -593,10 +588,11 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 		goto func_cont;
 
 	zl_lib->sym_tab =
-	    gh_create(MAXBUCKETS, sizeof(struct dbll_symbol), name_hash,
-		      name_match, sym_delete);
-	if (zl_lib->sym_tab == NULL) {
-		status = -ENOMEM;
+	    gh_create(sizeof(struct dbll_symbol), name_hash, name_match,
+		      sym_delete);
+	if (IS_ERR(zl_lib->sym_tab)) {
+		status = PTR_ERR(zl_lib->sym_tab);
+		zl_lib->sym_tab = NULL;
 	} else {
 		/* Do a fake load to get symbols - set write func to no_op */
 		zl_lib->init.dl_init.writemem = no_op;
@@ -705,8 +701,8 @@ func_cont:
 		opened_doff = false;
 	}
 
-	dev_dbg(bridge, "%s: lib: %p name: %s buf: %p size: 0x%x, "
-		"status 0x%x\n", __func__, lib, name, buf, size, status);
+	dev_dbg(bridge, "%s: lib: %p name: %s buf: %p size: 0x%x, status 0x%x\n",
+			__func__, lib, name, buf, size, status);
 	return status;
 }
 
@@ -793,11 +789,10 @@ static int dof_open(struct dbll_library_obj *zl_lib)
 /*
  *  ======== name_hash ========
  */
-static u16 name_hash(void *key, u16 max_bucket)
+static u32 name_hash(const void *key)
 {
-	u16 ret;
-	u16 hash;
-	char *name = (char *)key;
+	u32 hash;
+	const char *name = key;
 
 	hash = 0;
 
@@ -806,19 +801,16 @@ static u16 name_hash(void *key, u16 max_bucket)
 		hash ^= *name++;
 	}
 
-	ret = hash % max_bucket;
-
-	return ret;
+	return hash;
 }
 
 /*
  *  ======== name_match ========
  */
-static bool name_match(void *key, void *sp)
+static bool name_match(const void *key, const void *sp)
 {
 	if ((key != NULL) && (sp != NULL)) {
-		if (strcmp((char *)key, ((struct dbll_symbol *)sp)->name) ==
-		    0)
+		if (strcmp(key, ((struct dbll_symbol *)sp)->name) == 0)
 			return true;
 	}
 	return false;
@@ -915,10 +907,10 @@ static struct dynload_symbol *dbll_find_symbol(struct dynamic_loader_sym *this,
 			status = dbll_get_addr((struct dbll_library_obj *)lib,
 					       (char *)name, &dbll_sym);
 			if (!status) {
-				status =
-				    dbll_get_c_addr((struct dbll_library_obj *)
-						    lib, (char *)name,
-						    &dbll_sym);
+				status = dbll_get_c_addr(
+						(struct dbll_library_obj *)
+						lib, (char *)name,
+						&dbll_sym);
 			}
 		}
 	}
@@ -937,7 +929,6 @@ static struct dynload_symbol *find_in_symbol_table(struct dynamic_loader_sym
 						   *this, const char *name,
 						   unsigned moduleid)
 {
-	struct dynload_symbol *ret_sym;
 	struct ldr_symbol *ldr_sym = (struct ldr_symbol *)this;
 	struct dbll_library_obj *lib;
 	struct dbll_symbol *sym;
@@ -945,8 +936,10 @@ static struct dynload_symbol *find_in_symbol_table(struct dynamic_loader_sym
 	lib = ldr_sym->lib;
 	sym = (struct dbll_symbol *)gh_find(lib->sym_tab, (char *)name);
 
-	ret_sym = (struct dynload_symbol *)&sym->value;
-	return ret_sym;
+	if (IS_ERR(sym))
+		return NULL;
+
+	return (struct dynload_symbol *)&sym->value;
 }
 
 /*
@@ -991,8 +984,10 @@ static struct dynload_symbol *dbll_add_to_symbol_table(struct dynamic_loader_sym
 		sym_ptr =
 		    (struct dbll_symbol *)gh_insert(lib->sym_tab, (void *)name,
 						    (void *)&symbol);
-		if (sym_ptr == NULL)
+		if (IS_ERR(sym_ptr)) {
 			kfree(symbol.name);
+			sym_ptr = NULL;
+		}
 
 	}
 	if (sym_ptr != NULL)
@@ -1172,8 +1167,7 @@ func_cont:
 		if (!run_addr_flag)
 			info->run_addr = info->load_addr;
 		info->context = (u32) rmm_addr_obj.segid;
-		dev_dbg(bridge, "%s: %s base = 0x%x len = 0x%x, "
-			"info->run_addr 0x%x, info->load_addr 0x%x\n",
+		dev_dbg(bridge, "%s: %s base = 0x%x len = 0x%x, info->run_addr 0x%x, info->load_addr 0x%x\n",
 			__func__, info->name, info->load_addr / DSPWORDSIZE,
 			info->size / DSPWORDSIZE, info->run_addr,
 			info->load_addr);
@@ -1399,7 +1393,7 @@ void find_symbol_callback(void *elem, void *user_data)
  * @sym_addr_output:	Symbol Output address
  * @name_output:		String with the dsp symbol
  *
- * 	This function retrieves the dsp symbol from the dsp binary.
+ *	This function retrieves the dsp symbol from the dsp binary.
  */
 bool dbll_find_dsp_symbol(struct dbll_library_obj *zl_lib, u32 address,
 				u32 offset_range, u32 *sym_addr_output,

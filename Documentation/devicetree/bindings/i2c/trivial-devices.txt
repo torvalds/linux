@@ -16,6 +16,7 @@ adt7461			+/-1C TDM Extended Temp Range I.C
 at,24c08		i2c serial eeprom  (24cxx)
 atmel,24c02		i2c serial eeprom  (24cxx)
 atmel,at97sc3204t	i2c trusted platform module (TPM)
+capella,cm32181		CM32181: Ambient Light Sensor
 catalyst,24c32		i2c serial eeprom
 dallas,ds1307		64 x 8, Serial, I2C Real-Time Clock
 dallas,ds1338		I2C RTC with 56-Byte NV RAM

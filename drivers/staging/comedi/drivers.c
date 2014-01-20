@@ -95,7 +95,7 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
 
-static void cleanup_device(struct comedi_device *dev)
+static void comedi_device_detach_cleanup(struct comedi_device *dev)
 {
 	int i;
 	struct comedi_subdevice *s;
@@ -133,10 +133,14 @@ static void cleanup_device(struct comedi_device *dev)
 
 void comedi_device_detach(struct comedi_device *dev)
 {
+	comedi_device_cancel_all(dev);
+	down_write(&dev->attach_lock);
 	dev->attached = false;
+	dev->detach_count++;
 	if (dev->driver)
 		dev->driver->detach(dev);
-	cleanup_device(dev);
+	comedi_device_detach_cleanup(dev);
+	up_write(&dev->attach_lock);
 }
 
 static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -355,8 +359,9 @@ static int comedi_device_postconfig(struct comedi_device *dev)
 	ret = __comedi_device_postconfig(dev);
 	if (ret < 0)
 		return ret;
-	smp_wmb();
+	down_write(&dev->attach_lock);
 	dev->attached = true;
+	up_write(&dev->attach_lock);
 	return 0;
 }
 
@@ -598,8 +603,12 @@ int comedi_auto_config(struct device *hardware_device,
 	}
 
 	dev = comedi_alloc_board_minor(hardware_device);
-	if (IS_ERR(dev))
+	if (IS_ERR(dev)) {
+		dev_warn(hardware_device,
+			 "driver '%s' could not create device.\n",
+			 driver->driver_name);
 		return PTR_ERR(dev);
+	}
 	/* Note: comedi_alloc_board_minor() locked dev->mutex. */
 
 	dev->driver = driver;
@@ -611,8 +620,20 @@ int comedi_auto_config(struct device *hardware_device,
 		comedi_device_detach(dev);
 	mutex_unlock(&dev->mutex);
 
-	if (ret < 0)
+	if (ret < 0) {
+		dev_warn(hardware_device,
+			 "driver '%s' failed to auto-configure device.\n",
+			 driver->driver_name);
 		comedi_release_hardware_device(hardware_device);
+	} else {
+		/*
+		 * class_dev should be set properly here
+		 *  after a successful auto config
+		 */
+		dev_info(dev->class_dev,
+			 "driver '%s' has successfully auto-configured '%s'.\n",
+			 driver->driver_name, dev->board_name);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(comedi_auto_config);
@@ -657,7 +678,7 @@ void comedi_driver_unregister(struct comedi_driver *driver)
 
 	/* check for devices using this driver */
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device *dev = comedi_dev_from_minor(i);
+		struct comedi_device *dev = comedi_dev_get_from_minor(i);
 
 		if (!dev)
 			continue;
@@ -671,6 +692,7 @@ void comedi_driver_unregister(struct comedi_driver *driver)
 			comedi_device_detach(dev);
 		}
 		mutex_unlock(&dev->mutex);
+		comedi_dev_put(dev);
 	}
 }
 EXPORT_SYMBOL_GPL(comedi_driver_unregister);

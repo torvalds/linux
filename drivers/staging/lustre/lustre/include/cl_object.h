@@ -2388,7 +2388,11 @@ struct cl_io {
 	 * Right now, only two opertaions need to verify layout: glimpse
 	 * and setattr.
 	 */
-			     ci_verify_layout:1;
+			     ci_verify_layout:1,
+	/**
+	 * file is released, restore has to to be triggered by vvp layer
+	 */
+			     ci_restore_needed:1;
 	/**
 	 * Number of pages owned by this IO. For invariant checking.
 	 */

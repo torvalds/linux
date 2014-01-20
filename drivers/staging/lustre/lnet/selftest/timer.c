@@ -171,19 +171,14 @@ stt_check_timers(cfs_time_t *last)
 int
 stt_timer_main(void *arg)
 {
-	int rc = 0;
-	UNUSED(arg);
-
-	SET_BUT_UNUSED(rc);
-
 	cfs_block_allsigs();
 
 	while (!stt_data.stt_shuttingdown) {
 		stt_check_timers(&stt_data.stt_prev_slot);
 
-		rc = wait_event_timeout(stt_data.stt_waitq,
-					stt_data.stt_shuttingdown,
-					cfs_time_seconds(STTIMER_SLOTTIME));
+		wait_event_timeout(stt_data.stt_waitq,
+				   stt_data.stt_shuttingdown,
+				   cfs_time_seconds(STTIMER_SLOTTIME));
 	}
 
 	spin_lock(&stt_data.stt_lock);
