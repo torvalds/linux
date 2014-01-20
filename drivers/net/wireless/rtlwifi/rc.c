@@ -260,7 +260,7 @@ static void rtl_rate_free_sta(void *rtlpriv,
 	kfree(rate_priv);
 }
 
-static struct rate_control_ops rtl_rate_ops = {
+static const struct rate_control_ops rtl_rate_ops = {
 	.module = NULL,
 	.name = "rtl_rc",
 	.alloc = rtl_rate_alloc,

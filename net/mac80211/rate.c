@@ -18,7 +18,7 @@
 
 struct rate_control_alg {
 	struct list_head list;
-	struct rate_control_ops *ops;
+	const struct rate_control_ops *ops;
 };
 
 static LIST_HEAD(rate_ctrl_algs);
@@ -29,7 +29,7 @@ module_param(ieee80211_default_rc_algo, charp, 0644);
 MODULE_PARM_DESC(ieee80211_default_rc_algo,
 		 "Default rate control algorithm for mac80211 to use");
 
-int ieee80211_rate_control_register(struct rate_control_ops *ops)
+int ieee80211_rate_control_register(const struct rate_control_ops *ops)
 {
 	struct rate_control_alg *alg;
 
@@ -60,7 +60,7 @@ int ieee80211_rate_control_register(struct rate_control_ops *ops)
 }
 EXPORT_SYMBOL(ieee80211_rate_control_register);
 
-void ieee80211_rate_control_unregister(struct rate_control_ops *ops)
+void ieee80211_rate_control_unregister(const struct rate_control_ops *ops)
 {
 	struct rate_control_alg *alg;
 
@@ -76,11 +76,11 @@ void ieee80211_rate_control_unregister(struct rate_control_ops *ops)
 }
 EXPORT_SYMBOL(ieee80211_rate_control_unregister);
 
-static struct rate_control_ops *
+static const struct rate_control_ops *
 ieee80211_try_rate_control_ops_get(const char *name)
 {
 	struct rate_control_alg *alg;
-	struct rate_control_ops *ops = NULL;
+	const struct rate_control_ops *ops = NULL;
 
 	if (!name)
 		return NULL;
@@ -98,10 +98,10 @@ ieee80211_try_rate_control_ops_get(const char *name)
 }
 
 /* Get the rate control algorithm. */
-static struct rate_control_ops *
+static const struct rate_control_ops *
 ieee80211_rate_control_ops_get(const char *name)
 {
-	struct rate_control_ops *ops;
+	const struct rate_control_ops *ops;
 	const char *alg_name;
 
 	kparam_block_sysfs_write(ieee80211_default_rc_algo);
@@ -127,7 +127,7 @@ ieee80211_rate_control_ops_get(const char *name)
 	return ops;
 }
 
-static void ieee80211_rate_control_ops_put(struct rate_control_ops *ops)
+static void ieee80211_rate_control_ops_put(const struct rate_control_ops *ops)
 {
 	module_put(ops->module);
 }

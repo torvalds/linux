@@ -4555,8 +4555,8 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 			   struct ieee80211_sta *pubsta,
 			   struct ieee80211_sta_rates *rates);
 
-int ieee80211_rate_control_register(struct rate_control_ops *ops);
-void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
+int ieee80211_rate_control_register(const struct rate_control_ops *ops);
+void ieee80211_rate_control_unregister(const struct rate_control_ops *ops);
 
 static inline bool
 conf_is_ht20(struct ieee80211_conf *conf)

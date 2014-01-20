@@ -452,7 +452,7 @@ static void rate_control_pid_free_sta(void *priv, struct ieee80211_sta *sta,
 	kfree(priv_sta);
 }
 
-static struct rate_control_ops mac80211_rcpid = {
+static const struct rate_control_ops mac80211_rcpid = {
 	.name = "pid",
 	.tx_status = rate_control_pid_tx_status,
 	.get_rate = rate_control_pid_get_rate,

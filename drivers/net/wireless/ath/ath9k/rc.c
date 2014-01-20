@@ -1466,7 +1466,7 @@ static void ath_rate_free_sta(void *priv, struct ieee80211_sta *sta,
 	kfree(rate_priv);
 }
 
-static struct rate_control_ops ath_rate_ops = {
+static const struct rate_control_ops ath_rate_ops = {
 	.module = NULL,
 	.name = "ath9k_rate_control",
 	.tx_status = ath_tx_status,
