@@ -176,17 +176,20 @@ static struct dma_chan *dmaengine_pcm_compat_request_channel(
 {
 	struct dmaengine_pcm *pcm = soc_platform_to_pcm(rtd->platform);
 	struct snd_dmaengine_dai_dma_data *dma_data;
+	dma_filter_fn fn = NULL;
 
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX) && pcm->chan[0])
 		return pcm->chan[0];
 
-	if (pcm->config->compat_request_channel)
+	if (pcm->config && pcm->config->compat_request_channel)
 		return pcm->config->compat_request_channel(rtd, substream);
 
-	return snd_dmaengine_pcm_request_channel(pcm->config->compat_filter_fn,
-						 dma_data->filter_data);
+	if (pcm->config)
+		fn = pcm->config->compat_filter_fn;
+
+	return snd_dmaengine_pcm_request_channel(fn, dma_data->filter_data);
 }
 
 static bool dmaengine_pcm_can_report_residue(struct dma_chan *chan)
