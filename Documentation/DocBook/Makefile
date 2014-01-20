@@ -36,6 +36,7 @@ PS_METHOD	= $(prefer-db2x)
 # The targets that may be used.
 PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs
 
+targets += $(DOCBOOKS)
 BOOKS := $(addprefix $(obj)/,$(DOCBOOKS))
 xmldocs: $(BOOKS)
 sgmldocs: xmldocs
@@ -89,14 +90,6 @@ endef
 
 %.xml: %.tmpl FORCE
 	$(call if_changed_rule,docproc)
-
-###
-#Read in all saved dependency files
-cmd_files := $(wildcard $(foreach f,$(BOOKS),$(dir $(f)).$(notdir $(f)).cmd))
-
-ifneq ($(cmd_files),)
-  include $(cmd_files)
-endif
 
 ###
 # Changes in kernel-doc force a rebuild of all documentation
