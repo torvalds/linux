@@ -1028,13 +1028,13 @@ isert_rx_login_req(struct iser_rx_desc *rx_desc, int rx_buflen,
 }
 
 static struct iscsi_cmd
-*isert_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp)
+*isert_allocate_cmd(struct iscsi_conn *conn)
 {
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct isert_cmd *isert_cmd;
 	struct iscsi_cmd *cmd;
 
-	cmd = iscsit_allocate_cmd(conn, gfp);
+	cmd = iscsit_allocate_cmd(conn, TASK_INTERRUPTIBLE);
 	if (!cmd) {
 		pr_err("Unable to allocate iscsi_cmd + isert_cmd\n");
 		return NULL;
@@ -1223,7 +1223,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 
 	switch (opcode) {
 	case ISCSI_OP_SCSI_CMD:
-		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn);
 		if (!cmd)
 			break;
 
@@ -1237,7 +1237,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 					rx_desc, (unsigned char *)hdr);
 		break;
 	case ISCSI_OP_NOOP_OUT:
-		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn);
 		if (!cmd)
 			break;
 
@@ -1250,7 +1250,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 						(unsigned char *)hdr);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
-		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn);
 		if (!cmd)
 			break;
 
@@ -1258,7 +1258,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 						(unsigned char *)hdr);
 		break;
 	case ISCSI_OP_LOGOUT:
-		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn);
 		if (!cmd)
 			break;
 
@@ -1269,7 +1269,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 						    HZ);
 		break;
 	case ISCSI_OP_TEXT:
-		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn);
 		if (!cmd)
 			break;
 
