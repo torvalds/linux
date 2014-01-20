@@ -46,6 +46,18 @@
 
 #define ATH10K_MAX_NUM_MGMT_PENDING 128
 
+/* number of failed packets */
+#define ATH10K_KICKOUT_THRESHOLD 50
+
+/*
+ * Use insanely high numbers to make sure that the firmware implementation
+ * won't start, we have the same functionality already in hostapd. Unit
+ * is seconds.
+ */
+#define ATH10K_KEEPALIVE_MIN_IDLE 3747
+#define ATH10K_KEEPALIVE_MAX_IDLE 3895
+#define ATH10K_KEEPALIVE_MAX_UNRESPONSIVE 3900
+
 struct ath10k;
 
 struct ath10k_skb_cb {

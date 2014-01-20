@@ -339,6 +339,50 @@ static int ath10k_peer_create(struct ath10k *ar, u32 vdev_id, const u8 *addr)
 	return 0;
 }
 
+static int ath10k_mac_set_kickout(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+	u32 param;
+	int ret;
+
+	param = ar->wmi.pdev_param->sta_kickout_th;
+	ret = ath10k_wmi_pdev_set_param(ar, param,
+					ATH10K_KICKOUT_THRESHOLD);
+	if (ret) {
+		ath10k_warn("Failed to set kickout threshold: %d\n", ret);
+		return ret;
+	}
+
+	param = ar->wmi.vdev_param->ap_keepalive_min_idle_inactive_time_secs;
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, param,
+					ATH10K_KEEPALIVE_MIN_IDLE);
+	if (ret) {
+		ath10k_warn("Failed to set keepalive minimum idle time : %d\n",
+			    ret);
+		return ret;
+	}
+
+	param = ar->wmi.vdev_param->ap_keepalive_max_idle_inactive_time_secs;
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, param,
+					ATH10K_KEEPALIVE_MAX_IDLE);
+	if (ret) {
+		ath10k_warn("Failed to set keepalive maximum idle time: %d\n",
+			    ret);
+		return ret;
+	}
+
+	param = ar->wmi.vdev_param->ap_keepalive_max_unresponsive_time_secs;
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, param,
+					ATH10K_KEEPALIVE_MAX_UNRESPONSIVE);
+	if (ret) {
+		ath10k_warn("Failed to set keepalive maximum unresponsive time: %d\n",
+			    ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int  ath10k_mac_set_rts(struct ath10k_vif *arvif, u32 value)
 {
 	struct ath10k *ar = arvif->ar;
@@ -2214,7 +2258,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	enum wmi_sta_powersave_param param;
 	int ret = 0;
-	u32 value, param_id;
+	u32 value;
 	int bit;
 	u32 vdev_param;
 
@@ -2307,12 +2351,12 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 			goto err_vdev_delete;
 		}
 
-		param_id = ar->wmi.pdev_param->sta_kickout_th;
-
-		/* Disable STA KICKOUT functionality in FW */
-		ret = ath10k_wmi_pdev_set_param(ar, param_id, 0);
-		if (ret)
-			ath10k_warn("Failed to disable STA KICKOUT\n");
+		ret = ath10k_mac_set_kickout(arvif);
+		if (ret) {
+			ath10k_warn("Failed to set kickout parameters: %d\n",
+				    ret);
+			goto err_peer_delete;
+		}
 	}
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_STA) {

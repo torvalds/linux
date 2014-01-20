@@ -1116,7 +1116,27 @@ static void ath10k_wmi_event_vdev_stopped(struct ath10k *ar,
 static void ath10k_wmi_event_peer_sta_kickout(struct ath10k *ar,
 					      struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_PEER_STA_KICKOUT_EVENTID\n");
+	struct wmi_peer_sta_kickout_event *ev;
+	struct ieee80211_sta *sta;
+
+	ev = (struct wmi_peer_sta_kickout_event *)skb->data;
+
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi event peer sta kickout %pM\n",
+		   ev->peer_macaddr.addr);
+
+	rcu_read_lock();
+
+	sta = ieee80211_find_sta_by_ifaddr(ar->hw, ev->peer_macaddr.addr, NULL);
+	if (!sta) {
+		ath10k_warn("Spurious quick kickout for STA %pM\n",
+			    ev->peer_macaddr.addr);
+		goto exit;
+	}
+
+	ieee80211_report_low_ack(sta, 10);
+
+exit:
+	rcu_read_unlock();
 }
 
 /*

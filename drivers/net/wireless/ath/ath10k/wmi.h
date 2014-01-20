@@ -4039,6 +4039,10 @@ struct wmi_chan_info_event {
 	__le32 cycle_count;
 } __packed;
 
+struct wmi_peer_sta_kickout_event {
+	struct wmi_mac_addr peer_macaddr;
+} __packed;
+
 #define WMI_CHAN_INFO_FLAG_COMPLETE BIT(0)
 
 /* FIXME: empirically extrapolated */
