@@ -820,7 +820,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_gem_object *obj;
 	struct drm_vma_offset_node *node;
-	int ret = 0;
+	int ret;
 
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
