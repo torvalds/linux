@@ -112,7 +112,7 @@ struct mic_device {
 	struct work_struct shutdown_work;
 	u8 state;
 	u8 shutdown_status;
-	struct sysfs_dirent *state_sysfs;
+	struct kernfs_node *state_sysfs;
 	struct completion reset_wait;
 	void *log_buf_addr;
 	int *log_buf_len;
