@@ -108,7 +108,6 @@ static void __init rk3188_boot_mode_init(void)
 
 static void __init rk3188_dt_map_io(void)
 {
-	preset_lpj = 11996091ULL / 2;
 	iotable_init(rk3188_io_desc, ARRAY_SIZE(rk3188_io_desc));
 	debug_ll_io_init();
 
