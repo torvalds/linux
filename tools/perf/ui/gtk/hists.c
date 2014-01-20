@@ -375,7 +375,7 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 
 	gtk_container_add(GTK_CONTAINER(window), vbox);
 
-	list_for_each_entry(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		struct hists *hists = &pos->hists;
 		const char *evname = perf_evsel__name(pos);
 		GtkWidget *scrolled_window;

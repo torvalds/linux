@@ -1,5 +1,5 @@
-#ifndef __LK_DEBUGFS_H__
-#define __LK_DEBUGFS_H__
+#ifndef __API_DEBUGFS_H__
+#define __API_DEBUGFS_H__
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -26,4 +26,4 @@ char *debugfs_mount(const char *mountpoint);
 
 extern char debugfs_mountpoint[];
 
-#endif /* __LK_DEBUGFS_H__ */
+#endif /* __API_DEBUGFS_H__ */

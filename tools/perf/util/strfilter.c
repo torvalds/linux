@@ -14,7 +14,7 @@ static void strfilter_node__delete(struct strfilter_node *node)
 {
 	if (node) {
 		if (node->p && !is_operator(*node->p))
-			free((char *)node->p);
+			zfree((char **)&node->p);
 		strfilter_node__delete(node->l);
 		strfilter_node__delete(node->r);
 		free(node);

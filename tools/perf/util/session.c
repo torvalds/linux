@@ -132,18 +132,18 @@ static void perf_session__delete_threads(struct perf_session *session)
 
 static void perf_session_env__delete(struct perf_session_env *env)
 {
-	free(env->hostname);
-	free(env->os_release);
-	free(env->version);
-	free(env->arch);
-	free(env->cpu_desc);
-	free(env->cpuid);
+	zfree(&env->hostname);
+	zfree(&env->os_release);
+	zfree(&env->version);
+	zfree(&env->arch);
+	zfree(&env->cpu_desc);
+	zfree(&env->cpuid);
 
-	free(env->cmdline);
-	free(env->sibling_cores);
-	free(env->sibling_threads);
-	free(env->numa_nodes);
-	free(env->pmu_mappings);
+	zfree(&env->cmdline);
+	zfree(&env->sibling_cores);
+	zfree(&env->sibling_threads);
+	zfree(&env->numa_nodes);
+	zfree(&env->pmu_mappings);
 }
 
 void perf_session__delete(struct perf_session *session)
@@ -247,27 +247,6 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 	}
 }
  
-void mem_bswap_32(void *src, int byte_size)
-{
-	u32 *m = src;
-	while (byte_size > 0) {
-		*m = bswap_32(*m);
-		byte_size -= sizeof(u32);
-		++m;
-	}
-}
-
-void mem_bswap_64(void *src, int byte_size)
-{
-	u64 *m = src;
-
-	while (byte_size > 0) {
-		*m = bswap_64(*m);
-		byte_size -= sizeof(u64);
-		++m;
-	}
-}
-
 static void swap_sample_id_all(union perf_event *event, void *data)
 {
 	void *end = (void *) event + event->header.size;
@@ -851,6 +830,7 @@ static struct machine *
 					       struct perf_sample *sample)
 {
 	const u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	struct machine *machine;
 
 	if (perf_guest &&
 	    ((cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
@@ -863,7 +843,11 @@ static struct machine *
 		else
 			pid = sample->pid;
 
-		return perf_session__findnew_machine(session, pid);
+		machine = perf_session__find_machine(session, pid);
+		if (!machine)
+			machine = perf_session__findnew_machine(session,
+						DEFAULT_GUEST_KERNEL_ID);
+		return machine;
 	}
 
 	return &session->machines.host;
@@ -1158,7 +1142,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session,
 	void *buf = NULL;
 	int skip = 0;
 	u64 head;
-	int err;
+	ssize_t err;
 	void *p;
 
 	perf_tool__fill_defaults(tool);
@@ -1400,7 +1384,7 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &session->evlist->entries, node) {
+	evlist__for_each(session->evlist, evsel) {
 		if (evsel->attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 	}
@@ -1458,7 +1442,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 
 	ret += events_stats__fprintf(&session->stats, fp);
 
-	list_for_each_entry(pos, &session->evlist->entries, node) {
+	evlist__for_each(session->evlist, pos) {
 		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
 		ret += events_stats__fprintf(&pos->hists.stats, fp);
 	}
@@ -1480,35 +1464,30 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 {
 	struct perf_evsel *pos;
 
-	list_for_each_entry(pos, &session->evlist->entries, node) {
+	evlist__for_each(session->evlist, pos) {
 		if (pos->attr.type == type)
 			return pos;
 	}
 	return NULL;
 }
 
-void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
-			  struct perf_sample *sample, struct machine *machine,
+void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
+			  struct addr_location *al,
 			  unsigned int print_opts, unsigned int stack_depth)
 {
-	struct addr_location al;
 	struct callchain_cursor_node *node;
 	int print_ip = print_opts & PRINT_IP_OPT_IP;
 	int print_sym = print_opts & PRINT_IP_OPT_SYM;
 	int print_dso = print_opts & PRINT_IP_OPT_DSO;
 	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
 	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
+	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
 	char s = print_oneline ? ' ' : '\t';
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
-		error("problem processing %d event, skipping it.\n",
-			event->header.type);
-		return;
-	}
-
 	if (symbol_conf.use_callchain && sample->callchain) {
+		struct addr_location node_al;
 
-		if (machine__resolve_callchain(machine, evsel, al.thread,
+		if (machine__resolve_callchain(al->machine, evsel, al->thread,
 					       sample, NULL, NULL,
 					       PERF_MAX_STACK_DEPTH) != 0) {
 			if (verbose)
@@ -1517,20 +1496,31 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 		}
 		callchain_cursor_commit(&callchain_cursor);
 
+		if (print_symoffset)
+			node_al = *al;
+
 		while (stack_depth) {
+			u64 addr = 0;
+
 			node = callchain_cursor_current(&callchain_cursor);
 			if (!node)
 				break;
 
+			if (node->sym && node->sym->ignore)
+				goto next;
+
 			if (print_ip)
 				printf("%c%16" PRIx64, s, node->ip);
+
+			if (node->map)
+				addr = node->map->map_ip(node->map, node->ip);
 
 			if (print_sym) {
 				printf(" ");
 				if (print_symoffset) {
-					al.addr = node->ip;
-					al.map  = node->map;
-					symbol__fprintf_symname_offs(node->sym, &al, stdout);
+					node_al.addr = addr;
+					node_al.map  = node->map;
+					symbol__fprintf_symname_offs(node->sym, &node_al, stdout);
 				} else
 					symbol__fprintf_symname(node->sym, stdout);
 			}
@@ -1541,32 +1531,42 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 				printf(")");
 			}
 
+			if (print_srcline)
+				map__fprintf_srcline(node->map, addr, "\n  ",
+						     stdout);
+
 			if (!print_oneline)
 				printf("\n");
 
-			callchain_cursor_advance(&callchain_cursor);
-
 			stack_depth--;
+next:
+			callchain_cursor_advance(&callchain_cursor);
 		}
 
 	} else {
+		if (al->sym && al->sym->ignore)
+			return;
+
 		if (print_ip)
 			printf("%16" PRIx64, sample->ip);
 
 		if (print_sym) {
 			printf(" ");
 			if (print_symoffset)
-				symbol__fprintf_symname_offs(al.sym, &al,
+				symbol__fprintf_symname_offs(al->sym, al,
 							     stdout);
 			else
-				symbol__fprintf_symname(al.sym, stdout);
+				symbol__fprintf_symname(al->sym, stdout);
 		}
 
 		if (print_dso) {
 			printf(" (");
-			map__fprintf_dsoname(al.map, stdout);
+			map__fprintf_dsoname(al->map, stdout);
 			printf(")");
 		}
+
+		if (print_srcline)
+			map__fprintf_srcline(al->map, al->addr, "\n  ", stdout);
 	}
 }
 

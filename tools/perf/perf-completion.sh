@@ -1,4 +1,4 @@
-# perf completion
+# perf bash and zsh completion
 
 # Taken from git.git's completion script.
 __my_reassemble_comp_words_by_ref()
@@ -89,37 +89,117 @@ __ltrim_colon_completions()
 	fi
 }
 
-type perf &>/dev/null &&
-_perf()
+__perfcomp ()
 {
-	local cur words cword prev cmd
+	COMPREPLY=( $( compgen -W "$1" -- "$2" ) )
+}
 
-	COMPREPLY=()
-	_get_comp_words_by_ref -n =: cur words cword prev
+__perfcomp_colon ()
+{
+	__perfcomp "$1" "$2"
+	__ltrim_colon_completions $cur
+}
+
+__perf_main ()
+{
+	local cmd
 
 	cmd=${words[0]}
+	COMPREPLY=()
 
 	# List perf subcommands or long options
 	if [ $cword -eq 1 ]; then
 		if [[ $cur == --* ]]; then
-			COMPREPLY=( $( compgen -W '--help --version \
+			__perfcomp '--help --version \
 			--exec-path --html-path --paginate --no-pager \
-			--perf-dir --work-tree --debugfs-dir' -- "$cur" ) )
+			--perf-dir --work-tree --debugfs-dir' -- "$cur"
 		else
 			cmds=$($cmd --list-cmds)
-			COMPREPLY=( $( compgen -W '$cmds' -- "$cur" ) )
+			__perfcomp "$cmds" "$cur"
 		fi
 	# List possible events for -e option
 	elif [[ $prev == "-e" && "${words[1]}" == @(record|stat|top) ]]; then
 		evts=$($cmd list --raw-dump)
-		COMPREPLY=( $( compgen -W '$evts' -- "$cur" ) )
-		__ltrim_colon_completions $cur
+		__perfcomp_colon "$evts" "$cur"
+	# List subcommands for 'perf kvm'
+	elif [[ $prev == "kvm" ]]; then
+		subcmds="top record report diff buildid-list stat"
+		__perfcomp_colon "$subcmds" "$cur"
 	# List long option names
 	elif [[ $cur == --* ]];  then
 		subcmd=${words[1]}
 		opts=$($cmd $subcmd --list-opts)
-		COMPREPLY=( $( compgen -W '$opts' -- "$cur" ) )
+		__perfcomp "$opts" "$cur"
 	fi
+}
+
+if [[ -n ${ZSH_VERSION-} ]]; then
+	autoload -U +X compinit && compinit
+
+	__perfcomp ()
+	{
+		emulate -L zsh
+
+		local c IFS=$' \t\n'
+		local -a array
+
+		for c in ${=1}; do
+			case $c in
+			--*=*|*.) ;;
+			*) c="$c " ;;
+			esac
+			array[${#array[@]}+1]="$c"
+		done
+
+		compset -P '*[=:]'
+		compadd -Q -S '' -a -- array && _ret=0
+	}
+
+	__perfcomp_colon ()
+	{
+		emulate -L zsh
+
+		local cur_="${2-$cur}"
+		local c IFS=$' \t\n'
+		local -a array
+
+		if [[ "$cur_" == *:* ]]; then
+			local colon_word=${cur_%"${cur_##*:}"}
+		fi
+
+		for c in ${=1}; do
+			case $c in
+			--*=*|*.) ;;
+			*) c="$c " ;;
+			esac
+			array[$#array+1]=${c#"$colon_word"}
+		done
+
+		compset -P '*[=:]'
+		compadd -Q -S '' -a -- array && _ret=0
+	}
+
+	_perf ()
+	{
+		local _ret=1 cur cword prev
+		cur=${words[CURRENT]}
+		prev=${words[CURRENT-1]}
+		let cword=CURRENT-1
+		emulate ksh -c __perf_main
+		let _ret && _default && _ret=0
+		return _ret
+	}
+
+	compdef _perf perf
+	return
+fi
+
+type perf &>/dev/null &&
+_perf()
+{
+	local cur words cword prev
+	_get_comp_words_by_ref -n =: cur words cword prev
+	__perf_main
 } &&
 
 complete -o bashdefault -o default -o nospace -F _perf perf 2>/dev/null \

@@ -28,6 +28,7 @@
 #include "session.h"
 #include "perf_regs.h"
 #include "unwind.h"
+#include "symbol.h"
 #include "util.h"
 
 extern int
@@ -158,23 +159,6 @@ static int __dw_read_encoded_value(u8 **p, u8 *end, u64 *val,
 	__v;                                                    \
 	})
 
-static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
-				    GElf_Shdr *shp, const char *name)
-{
-	Elf_Scn *sec = NULL;
-
-	while ((sec = elf_nextscn(elf, sec)) != NULL) {
-		char *str;
-
-		gelf_getshdr(sec, shp);
-		str = elf_strptr(elf, ep->e_shstrndx, shp->sh_name);
-		if (!strcmp(name, str))
-			break;
-	}
-
-	return sec;
-}
-
 static u64 elf_section_offset(int fd, const char *name)
 {
 	Elf *elf;
@@ -190,7 +174,7 @@ static u64 elf_section_offset(int fd, const char *name)
 		if (gelf_getehdr(elf, &ehdr) == NULL)
 			break;
 
-		if (!elf_section_by_name(elf, &ehdr, &shdr, name))
+		if (!elf_section_by_name(elf, &ehdr, &shdr, name, NULL))
 			break;
 
 		offset = shdr.sh_offset;
@@ -340,10 +324,10 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	/* Check the .debug_frame section for unwinding info */
 	if (!read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
 		memset(&di, 0, sizeof(di));
-		dwarf_find_debug_frame(0, &di, ip, 0, map->dso->name,
-				       map->start, map->end);
-		return dwarf_search_unwind_table(as, ip, &di, pi,
-						 need_unwind_info, arg);
+		if (dwarf_find_debug_frame(0, &di, ip, 0, map->dso->name,
+					   map->start, map->end))
+			return dwarf_search_unwind_table(as, ip, &di, pi,
+							 need_unwind_info, arg);
 	}
 #endif
 
