@@ -1545,7 +1545,7 @@ static int r820t_imr_cross(struct r820t_priv *priv,
 		cross[i].value = rc;
 
 		if (cross[i].value < tmp.value)
-			memcpy(&tmp, &cross[i], sizeof(tmp));
+			tmp = cross[i];
 	}
 
 	if ((tmp.phase_y & 0x1f) == 1) {	/* y-direction */
