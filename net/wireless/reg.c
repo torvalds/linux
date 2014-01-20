@@ -91,7 +91,7 @@ static struct regulatory_request __rcu *last_request =
 /* To trigger userspace events */
 static struct platform_device *reg_pdev;
 
-static struct device_type reg_device_type = {
+static const struct device_type reg_device_type = {
 	.uevent = reg_device_uevent,
 };
 
