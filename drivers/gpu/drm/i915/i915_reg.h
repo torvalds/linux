@@ -3634,6 +3634,7 @@ enum punit_power_well {
 #define   DP_AUX_CH_CTL_PRECHARGE_TEST	    (1 << 11)
 #define   DP_AUX_CH_CTL_BIT_CLOCK_2X_MASK    (0x7ff)
 #define   DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT   0
+#define   DP_AUX_CH_CTL_SYNC_PULSE_SKL(c)   ((c) - 1)
 
 /*
  * Computing GMCH M and N values for the Display Port link

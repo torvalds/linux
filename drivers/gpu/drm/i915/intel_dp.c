@@ -701,6 +701,21 @@ static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
 	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT);
 }
 
+static uint32_t skl_get_aux_send_ctl(struct intel_dp *intel_dp,
+				      bool has_aux_irq,
+				      int send_bytes,
+				      uint32_t unused)
+{
+	return DP_AUX_CH_CTL_SEND_BUSY |
+	       DP_AUX_CH_CTL_DONE |
+	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
+	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
+	       DP_AUX_CH_CTL_TIME_OUT_1600us |
+	       DP_AUX_CH_CTL_RECEIVE_ERROR |
+	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+	       DP_AUX_CH_CTL_SYNC_PULSE_SKL(32);
+}
+
 static int
 intel_dp_aux_ch(struct intel_dp *intel_dp,
 		uint8_t *send, int send_bytes,
@@ -5104,7 +5119,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else
 		intel_dp->get_aux_clock_divider = i9xx_get_aux_clock_divider;
 
-	intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
+	if (INTEL_INFO(dev)->gen >= 9)
+		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
+	else
+		intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
 
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
