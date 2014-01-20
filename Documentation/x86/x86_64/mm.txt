@@ -28,4 +28,11 @@ reference.
 Current X86-64 implementations only support 40 bits of address space,
 but we support up to 46 bits. This expands into MBZ space in the page tables.
 
+->trampoline_pgd:
+
+We map EFI runtime services in the aforementioned PGD in the virtual
+range of 64Gb (arbitrarily set, can be raised if needed)
+
+0xffffffef00000000 - 0xffffffff00000000
+
 -Andi Kleen, Jul 2004
