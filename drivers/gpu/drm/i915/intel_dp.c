@@ -435,14 +435,14 @@ static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
 		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
 
 	return DP_AUX_CH_CTL_SEND_BUSY |
+	       DP_AUX_CH_CTL_DONE |
 	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
+	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
 	       timeout |
+	       DP_AUX_CH_CTL_RECEIVE_ERROR |
 	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 	       (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
-	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
-	       DP_AUX_CH_CTL_DONE |
-	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
-	       DP_AUX_CH_CTL_RECEIVE_ERROR;
+	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT);
 }
 
 static int
