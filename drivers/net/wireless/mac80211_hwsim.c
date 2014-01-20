@@ -451,7 +451,7 @@ static struct genl_family hwsim_genl_family = {
 
 /* MAC80211_HWSIM netlink policy */
 
-static struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
+static const struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
 	[HWSIM_ATTR_ADDR_RECEIVER] = { .type = NLA_UNSPEC, .len = ETH_ALEN },
 	[HWSIM_ATTR_ADDR_TRANSMITTER] = { .type = NLA_UNSPEC, .len = ETH_ALEN },
 	[HWSIM_ATTR_FRAME] = { .type = NLA_BINARY,
