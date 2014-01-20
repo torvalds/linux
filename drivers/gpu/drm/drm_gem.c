@@ -693,6 +693,8 @@ drm_gem_object_release(struct drm_gem_object *obj)
 
 	if (obj->filp)
 		fput(obj->filp);
+
+	drm_gem_free_mmap_offset(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
 
