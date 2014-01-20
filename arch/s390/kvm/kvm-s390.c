@@ -738,6 +738,10 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 						current->thread.gmap_addr;
 		vcpu->run->s390_ucontrol.pgm_code = 0x10;
 		rc = -EREMOTE;
+	} else {
+		VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
+		trace_kvm_s390_sie_fault(vcpu);
+		rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	}
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
