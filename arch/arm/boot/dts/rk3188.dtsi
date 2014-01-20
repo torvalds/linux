@@ -346,6 +346,7 @@
 	lcdc0:lcdc@1010c000 {
 		compatible = "rockchip,rk3188-lcdc";
 		rockchip,prop = <PRMRY>;
+		rochchip,pwr18 = <0>;
 		reg = <0x1010c000 0x1000>;
 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -354,8 +355,12 @@
 	lcdc1:lcdc@1010e000 {
 		compatible = "rockchip,rk3188-lcdc";
 		rockchip,prop = <EXTEND>;
+		rockchip,pwr18 = <0>;
 		reg = <0x1010e000 0x1000>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&lcdc1_lcdc>;
+		pinctrl-1 = <&lcdc1_gpio>;
 		status = "disabled";
         };
 

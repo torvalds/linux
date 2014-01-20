@@ -441,6 +441,76 @@
 			};
 
 		};
+	
+		gpio2_lcdc1 {
+			lcdc1_lcdc:lcdc1-lcdc {
+				rockchip,pins = <LCDC1_D0>,
+						<LCDC1_D1>,
+						<LCDC1_D2>,
+						<LCDC1_D3>,
+						<LCDC1_D4>,
+						<LCDC1_D5>,
+						<LCDC1_D6>,
+						<LCDC1_D7>,
+						<LCDC1_D8>,
+						<LCDC1_D9>,
+						<LCDC1_D10>,
+						<LCDC1_D11>,
+						<LCDC1_D12>,
+						<LCDC1_D13>,
+						<LCDC1_D14>,
+						<LCDC1_D15>,
+						<LCDC1_D16>,
+						<LCDC1_D17>,
+						<LCDC1_D18>,
+						<LCDC1_D19>,
+						<LCDC1_D20>,
+						<LCDC1_D21>,
+						<LCDC1_D22>,
+						<LCDC1_D23>,
+						<LCDC1_DCLK>,
+						<LCDC1_DEN>,
+						<LCDC1_HSYNC>,
+						<LCDC1_VSYNC>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+			
+			lcdc1_gpio:lcdc1-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(LCDC1_D0)>,
+                                                <FUNC_TO_GPIO(LCDC1_D1)>,
+                                                <FUNC_TO_GPIO(LCDC1_D2)>,
+                                                <FUNC_TO_GPIO(LCDC1_D3)>,
+                                                <FUNC_TO_GPIO(LCDC1_D4)>,
+                                                <FUNC_TO_GPIO(LCDC1_D5)>,
+                                                <FUNC_TO_GPIO(LCDC1_D6)>,
+                                                <FUNC_TO_GPIO(LCDC1_D7)>,
+                                                <FUNC_TO_GPIO(LCDC1_D8)>,
+                                                <FUNC_TO_GPIO(LCDC1_D9)>,
+                                                <FUNC_TO_GPIO(LCDC1_D10)>,
+                                                <FUNC_TO_GPIO(LCDC1_D11)>,
+                                                <FUNC_TO_GPIO(LCDC1_D12)>,
+                                                <FUNC_TO_GPIO(LCDC1_D13)>,
+                                                <FUNC_TO_GPIO(LCDC1_D14)>,
+                                                <FUNC_TO_GPIO(LCDC1_D15)>,
+                                                <FUNC_TO_GPIO(LCDC1_D16)>,
+                                                <FUNC_TO_GPIO(LCDC1_D17)>,
+                                                <FUNC_TO_GPIO(LCDC1_D18)>,
+                                                <FUNC_TO_GPIO(LCDC1_D19)>,
+                                                <FUNC_TO_GPIO(LCDC1_D20)>,
+                                                <FUNC_TO_GPIO(LCDC1_D21)>,
+                                                <FUNC_TO_GPIO(LCDC1_D22)>,
+                                                <FUNC_TO_GPIO(LCDC1_D23)>,
+                                                <FUNC_TO_GPIO(LCDC1_DCLK)>,
+                                                <FUNC_TO_GPIO(LCDC1_DEN)>,
+                                                <FUNC_TO_GPIO(LCDC1_HSYNC)>,
+                                                <FUNC_TO_GPIO(LCDC1_VSYNC)>;
+                                rockchip,pull = <VALUE_PULL_DISABLE>;
+                                rockchip,drive = <VALUE_DRV_DEFAULT>;
+				
+			};
+			
+		};
 
 		gpio1_spdif {
 			spdif_tx: spdif-tx {

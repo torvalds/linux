@@ -5,7 +5,7 @@
 
 / {
 	 	disp_power_ctr: power_ctr {
-                        rockchip,debug = <1>;
+                        rockchip,debug = <0>;
                         lcd_en:lcd_en {
                                 rockchip,power_type = <GPIO>;
                                 gpios = <&gpio0 GPIO_B0 1>;

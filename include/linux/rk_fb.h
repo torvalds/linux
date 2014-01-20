@@ -218,25 +218,26 @@ typedef enum _TRSP_MODE {
 	TRSP_INVAL
 } TRSP_MODE;
 
-struct layer_par {
+struct rk_lcdc_win {
 	char name[5];
 	int id;
-	bool state;		//on or off
+	bool state;		/*on or off*/
 	u32 pseudo_pal[16];
-	u32 y_offset;		//yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx
-	u32 c_offset;		//cb cr offset--->LCDC_WINx_CBR_MSTx
-	u32 xpos;		//start point in panel  --->LCDC_WINx_DSP_ST
+	u32 y_offset;		/*yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx*/
+	u32 c_offset;		/*cb cr offset--->LCDC_WINx_CBR_MSTx*/
+	u32 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/
 	u32 ypos;
-	u16 xsize;		// display window width/height  -->LCDC_WINx_DSP_INFO
+	u16 xsize;		/* display window width/height  -->LCDC_WINx_DSP_INFO*/
 	u16 ysize;
-	u16 xact;		//origin display window size -->LCDC_WINx_ACT_INFO
+	u16 xact;		/*origin display window size -->LCDC_WINx_ACT_INFO*/
 	u16 yact;
-	u16 xvir;		//virtual width/height     -->LCDC_WINx_VIR
+	u16 xvir;		/*virtual width/height     -->LCDC_WINx_VIR*/
 	u16 yvir;
 	unsigned long smem_start;
-	unsigned long cbr_start;	// Cbr memory start address
+	unsigned long cbr_start;	/*Cbr memory start address*/
 	enum data_format format;
-
+	struct ion_client *ion_client;
+		
 	bool support_3d;
 	u32 scale_yrgb_x;
 	u32 scale_yrgb_y;
@@ -269,11 +270,11 @@ struct rk_lcdc_drv_ops {
 	 ssize_t(*get_disp_info) (struct rk_lcdc_driver * dev_drv, char *buf,
 				  int layer_id);
 	int (*load_screen) (struct rk_lcdc_driver * dev_drv, bool initscreen);
-	int (*get_layer_state) (struct rk_lcdc_driver * dev_drv, int layer_id);
+	int (*get_win_state) (struct rk_lcdc_driver * dev_drv, int layer_id);
 	int (*ovl_mgr) (struct rk_lcdc_driver * dev_drv, int swap, bool set);	//overlay manager
 	int (*fps_mgr) (struct rk_lcdc_driver * dev_drv, int fps, bool set);
-	int (*fb_get_layer) (struct rk_lcdc_driver * dev_drv, const char *id);	//find layer for fb
-	int (*fb_layer_remap) (struct rk_lcdc_driver * dev_drv,
+	int (*fb_get_win_id) (struct rk_lcdc_driver * dev_drv, const char *id);	//find layer for fb
+	int (*fb_win_remap) (struct rk_lcdc_driver * dev_drv,
 			       enum fb_win_map_order order);
 	int (*set_dsp_lut) (struct rk_lcdc_driver * dev_drv, int *lut);
 	int (*read_dsp_lut) (struct rk_lcdc_driver * dev_drv, int *lut);
@@ -281,7 +282,7 @@ struct rk_lcdc_drv_ops {
 	int (*poll_vblank) (struct rk_lcdc_driver * dev_drv);
 	int (*lcdc_rst) (struct rk_lcdc_driver * dev_drv);
 	int (*dpi_open) (struct rk_lcdc_driver * dev_drv, bool open);
-	int (*dpi_layer_sel) (struct rk_lcdc_driver * dev_drv, int layer_id);
+	int (*dpi_win_sel) (struct rk_lcdc_driver * dev_drv, int layer_id);
 	int (*dpi_status) (struct rk_lcdc_driver * dev_drv);
 
 };
@@ -292,14 +293,13 @@ struct rk_lcdc_driver {
 	int prop;
 	struct device *dev;
 
-	struct layer_par *layer_par[RK_MAX_FB_SUPPORT];
-	struct layer_par *def_layer_par;
-	int num_layer;
+	struct rk_lcdc_win *win[RK_MAX_FB_SUPPORT];
+	int num_win;
 	int num_buf;		//the num_of buffer
 	int fb_index_base;	//the first fb index of the lcdc device
-	rk_screen *screen0;	//some platform have only one lcdc,but extend
-	rk_screen *screen1;	//two display devices for dual display,such as rk2918,rk2928
-	rk_screen *cur_screen;	//screen0 is primary screen ,like lcd panel,screen1 is  extend screen,like hdmi
+	struct rk_screen *screen0;	//some platform have only one lcdc,but extend
+	struct rk_screen *screen1;	//two display devices for dual display,such as rk2918,rk2928
+	struct rk_screen *cur_screen;	//screen0 is primary screen ,like lcd panel,screen1 is  extend screen,like hdmi
 	u32 pixclock;
 
 	char fb0_win_id;
@@ -338,11 +338,10 @@ struct rk_fb {
 
 };
 extern int rk_fb_register(struct rk_lcdc_driver *dev_drv,
-				struct layer_par *layer_par, int id);
+				struct rk_lcdc_win *win, int id);
 extern int rk_fb_unregister(struct rk_lcdc_driver *dev_drv);
-extern int get_fb_layer_id(struct fb_fix_screeninfo *fix);
 extern struct rk_lcdc_driver *rk_get_lcdc_drv(char *name);
-extern rk_screen *rk_fb_get_prmry_screen(void);
+extern struct rk_screen *rk_fb_get_prmry_screen(void);
 extern u32 rk_fb_get_prmry_screen_pixclock(void);
 extern int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv);
 extern int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv);
@@ -360,34 +359,12 @@ extern int rk_fb_dpi_open(bool open);
 extern int rk_fb_dpi_layer_sel(int layer_id);
 extern int rk_fb_dpi_status(void);
 
-extern int rk_fb_switch_screen(rk_screen * screen, int enable, int lcdc_id);
+extern int rk_fb_switch_screen(struct rk_screen * screen, int enable, int lcdc_id);
 extern int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id);
 extern int rkfb_create_sysfs(struct fb_info *fbi);
 extern char *get_format_string(enum data_format, char *fmt);
 extern int support_uboot_display(void);
-static int inline rk_fb_calc_fps(rk_screen * screen, u32 pixclock)
-{
-	int x, y;
-	unsigned long long hz;
-	if (!screen) {
-		printk(KERN_ERR "%s:null screen!\n", __func__);
-		return 0;
-	}
-	x = screen->x_res + screen->left_margin + screen->right_margin +
-	    screen->hsync_len;
-	y = screen->y_res + screen->upper_margin + screen->lower_margin +
-	    screen->vsync_len;
-
-	hz = 1000000000000ULL;	/* 1e12 picoseconds per second */
-
-	hz += (x * y) / 2;
-	do_div(hz, x * y);	/* divide by x * y with rounding */
-
-	hz += pixclock / 2;
-	do_div(hz, pixclock);	/* divide by pixclock with rounding */
-
-	return hz;
-}
+extern int  rk_fb_calc_fps(struct rk_screen * screen, u32 pixclock);
 
 #if defined(CONFIG_BACKLIGHT_RK29_BL)
 void rk29_backlight_set(bool on);

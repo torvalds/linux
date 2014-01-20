@@ -38,12 +38,14 @@ static ssize_t show_screen_info(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
-	rk_screen *screen = dev_drv->screen0;
+	struct rk_screen *screen = dev_drv->screen0;
 	int fps;
-	u64 ft = (u64) (screen->upper_margin + screen->lower_margin + screen->y_res + screen->vsync_len) * (screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len) * (dev_drv->pixclock);	// one frame time ,(pico seconds)
+	u32 x = (screen->mode.left_margin + screen->mode.right_margin + screen->mode.xres + screen->mode.hsync_len);
+	u32 y = (screen->mode.upper_margin + screen->mode.lower_margin + screen->mode.yres + screen->mode.vsync_len);
+	u64 ft = (u64)x * y * (dev_drv->pixclock);	// one frame time ,(pico seconds)
 	fps = div64_u64(1000000000000llu, ft);
 	return snprintf(buf, PAGE_SIZE, "xres:%d\nyres:%d\nfps:%d\n",
-			screen->x_res, screen->y_res, fps);
+			screen->mode.xres, screen->mode.yres, fps);
 }
 
 static ssize_t show_disp_info(struct device *dev,
@@ -51,9 +53,9 @@ static ssize_t show_disp_info(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
-	int layer_id = dev_drv->ops->fb_get_layer(dev_drv, fbi->fix.id);
+	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	if (dev_drv->ops->get_disp_info)
-		return dev_drv->ops->get_disp_info(dev_drv, buf, layer_id);
+		return dev_drv->ops->get_disp_info(dev_drv, buf, win_id);
 
 	return 0;
 }
@@ -81,8 +83,8 @@ static ssize_t show_fb_state(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int layer_id = dev_drv->ops->fb_get_layer(dev_drv, fbi->fix.id);
-	int state = dev_drv->ops->get_layer_state(dev_drv, layer_id);
+	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
+	int state = dev_drv->ops->get_win_state(dev_drv, win_id);
 	return snprintf(buf, PAGE_SIZE, "%s\n", state ? "enabled" : "disabled");
 
 }
@@ -90,14 +92,9 @@ static ssize_t show_fb_state(struct device *dev,
 static ssize_t show_dual_mode(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	int mode = 0;
-#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
-	mode = 1;
-#elif defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
-	mode = 2;
-#else
-	mode = 0;
-#endif
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb *rk_fb = dev_get_drvdata(fbi->device);
+	int mode= rk_fb->disp_mode; 
 	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
 
 }
@@ -108,14 +105,14 @@ static ssize_t set_fb_state(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int layer_id = dev_drv->ops->fb_get_layer(dev_drv, fbi->fix.id);
+	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	int state;
 	int ret;
 	ret = kstrtoint(buf, 0, &state);
 	if (ret) {
 		return ret;
 	}
-	dev_drv->ops->open(dev_drv, layer_id, state);
+	dev_drv->ops->open(dev_drv, win_id, state);
 	return count;
 }
 
@@ -237,7 +234,7 @@ static ssize_t set_fb_win_map(struct device *dev, struct device_attribute *attr,
 		       "fb0-win2\n" "fb1-win1\n" "fb2-win0\n");
 		return count;
 	} else {
-		dev_drv->ops->fb_layer_remap(dev_drv, order);
+		dev_drv->ops->fb_win_remap(dev_drv, order);
 	}
 
 	return count;
@@ -256,7 +253,7 @@ static ssize_t set_dsp_lut(struct device *dev, struct device_attribute *attr,
 {
 	int dsp_lut[256];
 	const char *start = buf;
-	int i = 256, j, temp;
+	int i = 256, temp;
 	int space_max = 10;
 
 	struct fb_info *fbi = dev_get_drvdata(dev);

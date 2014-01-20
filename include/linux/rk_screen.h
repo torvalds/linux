@@ -100,49 +100,23 @@ struct rk29lcd_info {
 };
 
 
-/* Screen description */
-typedef struct rk29fb_screen {
-	/* screen type & hardware connect format & out face */
+/* Screen description 
+*type:LVDS,RGB,MIPI,MCU
+*lvds_fromat:lvds data format,set it if the screen is lvds
+*face:thi display output face,18bit,24bit,etc
+*ft: the time need to display one frame time
+*/
+struct rk_screen {
 	u16 type;
-	u16 lvds_format;  //lvds data format
+	u16 lvds_format; 
 	u16 face;
-	u8 lcdc_id;    //which output interface the screeen connect to
-	u8 screen_id; //screen number
-
-	/* Screen size */
-	u16 x_res;
-	u16 y_res;
+	u8 lcdc_id;   
+	u8 screen_id; 
+	struct fb_videomode mode;
 	u16 width;
 	u16 height;
-
-	u32 mode;
-	/* Timing */
-	u32 pixclock;
-	u32 fps;
-	u16 left_margin;
-	u16 right_margin;
-	u16 hsync_len;
-	u16 upper_margin;
-	u16 lower_margin;
-	u16 vsync_len;
-	u8  ft;	//the time need to display one frame,in ms
-	int *dsp_lut; //display lut 
-	struct rk29fb_screen *ext_screen;
-#if defined(CONFIG_HDMI_DUAL_DISP) || defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
-    /* Scaler mode Timing */
-	u32 s_pixclock;
-	u16 s_left_margin;
-	u16 s_right_margin;
-	u16 s_hsync_len;
-	u16 s_upper_margin;
-	u16 s_lower_margin;
-	u16 s_vsync_len; 
-	u16 s_hsync_st;
-	u16 s_vsync_st;
-	bool s_den_inv;
-	bool s_hv_sync_inv;
-	bool s_clk_inv;
-#endif
+	u8  ft;
+	int *dsp_lut; 
 
 #if defined(CONFIG_MFD_RK616)
 	u32 pll_cfg_val;  //bellow are for jettaB
@@ -153,18 +127,14 @@ typedef struct rk29fb_screen {
 	u16 vif_hst;
 #endif
 	u8 hdmi_resolution;
-	    /* mcu need */
 	u8 mcu_wrperiod;
 	u8 mcu_usefmk;
 	u8 mcu_frmrate;
 
-		/* Pin polarity */
 	u8 pin_hsync;
 	u8 pin_vsync;
 	u8 pin_den;
 	u8 pin_dclk;
-	u32 lcdc_aclk;
-	u8 pin_dispon;
 
 	/* Swap rule */
 	u8 swap_gb;
@@ -184,15 +154,16 @@ typedef struct rk29fb_screen {
 	int ypos;
 	int xsize; //horizontal and vertical display size on he screen,they can be changed by application
 	int ysize;
+	struct rk_screen *ext_screen;
 	/* Operation function*/
 	int (*init)(void);
 	int (*standby)(u8 enable);
 	int (*refresh)(u8 arg);
 	int (*scandir)(u16 dir);
 	int (*disparea)(u8 area);
-	int (*sscreen_get)(struct rk29fb_screen *screen, u8 resolution);
-	int (*sscreen_set)(struct rk29fb_screen *screen, bool type);// 1: use scaler 0:bypass
-} rk_screen;
+	int (*sscreen_get)(struct rk_screen *screen, u8 resolution);
+	int (*sscreen_set)(struct rk_screen *screen, bool type);// 1: use scaler 0:bypass
+};
 
 struct rk29fb_info {
 	u32 fb_id;
@@ -203,13 +174,13 @@ struct rk29fb_info {
 	int (*io_deinit)(void);
 	int (*io_enable)(void);
 	int (*io_disable)(void);
-	void (*set_screen_info)(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info );
+	void (*set_screen_info)(struct rk_screen *screen, struct rk29lcd_info *lcd_info );
 };
 
-extern void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info);
+extern void set_lcd_info(struct rk_screen *screen, struct rk29lcd_info *lcd_info);
 extern size_t get_fb_size(void);
 
-extern void set_tv_info(struct rk29fb_screen *screen);
-extern void set_hdmi_info(struct rk29fb_screen *screen);
+extern void set_tv_info(struct rk_screen *screen);
+extern void set_hdmi_info(struct rk_screen *screen);
 
 #endif

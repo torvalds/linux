@@ -319,11 +319,11 @@
 
 #define CalScale(x, y)	             ((((u32)(x-1))*0x1000)/(y-1))
 
-struct rk3188_lcdc_device{
+struct lcdc_device{
 	int id;
 	struct rk_lcdc_driver driver;
 	struct device *dev;
-	rk_screen *screen;
+	struct rk_screen *screen;
 
 	void __iomem *regs;
 	void *regsbak;			//back up reg
@@ -332,8 +332,10 @@ struct rk3188_lcdc_device{
 	spinlock_t  reg_lock;		//one time only one process allowed to config the register
 	
 	int __iomem *dsp_lut_addr_base;
-	
-	
+
+	int prop;			/*used for primary or extended display device*/
+	bool pre_init;
+	bool pwr18;			/*if lcdc use 1.8v power supply*/
 	bool clk_on;			//if aclk or hclk is closed ,acess to register is not allowed
 	u8 atv_layer_cnt;		//active layer counter,when  atv_layer_cnt = 0,disable lcdc
 	
@@ -351,7 +353,7 @@ struct rk3188_lcdc_device{
 
 
 
-static inline void lcdc_writel(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u32 v)
+static inline void lcdc_writel(struct lcdc_device *lcdc_dev,u32 offset,u32 v)
 {
 	u32 *_pv = (u32*)lcdc_dev->regsbak;	
 	_pv += (offset >> 2);	
@@ -359,7 +361,7 @@ static inline void lcdc_writel(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u3
 	writel_relaxed(v,lcdc_dev->regs+offset);	
 }
 
-static inline u32 lcdc_readl(struct rk3188_lcdc_device *lcdc_dev,u32 offset)
+static inline u32 lcdc_readl(struct lcdc_device *lcdc_dev,u32 offset)
 {
 	u32 v;
 	u32 *_pv = (u32*)lcdc_dev->regsbak;
@@ -369,14 +371,14 @@ static inline u32 lcdc_readl(struct rk3188_lcdc_device *lcdc_dev,u32 offset)
 	return v;
 }
 
-static inline u32 lcdc_read_bit(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u32 msk) 
+static inline u32 lcdc_read_bit(struct lcdc_device *lcdc_dev,u32 offset,u32 msk) 
 {
        u32 _v = readl_relaxed(lcdc_dev->regs+offset); 
        _v &= msk;
        return (_v >> msk);   
 }
 
-static inline void  lcdc_set_bit(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u32 msk) 
+static inline void  lcdc_set_bit(struct lcdc_device *lcdc_dev,u32 offset,u32 msk) 
 {
 	u32* _pv = (u32*)lcdc_dev->regsbak;	
 	_pv += (offset >> 2);				
@@ -384,7 +386,7 @@ static inline void  lcdc_set_bit(struct rk3188_lcdc_device *lcdc_dev,u32 offset,
 	writel_relaxed(*_pv,lcdc_dev->regs + offset); 
 } 
 
-static inline void lcdc_clr_bit(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u32 msk)
+static inline void lcdc_clr_bit(struct lcdc_device *lcdc_dev,u32 offset,u32 msk)
 {
 	u32* _pv = (u32*)lcdc_dev->regsbak;	
 	_pv += (offset >> 2);				
@@ -392,7 +394,7 @@ static inline void lcdc_clr_bit(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u
 	writel_relaxed(*_pv,lcdc_dev->regs + offset); 
 } 
 
-static inline void  lcdc_msk_reg(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u32 msk,u32 v)
+static inline void  lcdc_msk_reg(struct lcdc_device *lcdc_dev,u32 offset,u32 msk,u32 v)
 {
 	u32 *_pv = (u32*)lcdc_dev->regsbak;	
 	_pv += (offset >> 2);			
@@ -401,7 +403,7 @@ static inline void  lcdc_msk_reg(struct rk3188_lcdc_device *lcdc_dev,u32 offset,
 	writel_relaxed(*_pv,lcdc_dev->regs+offset);	
 }
 
-static inline void lcdc_cfg_done(struct rk3188_lcdc_device *lcdc_dev) 
+static inline void lcdc_cfg_done(struct lcdc_device *lcdc_dev) 
 {
 	writel_relaxed(0x01,lcdc_dev->regs+REG_CFG_DONE); 
 	dsb();	

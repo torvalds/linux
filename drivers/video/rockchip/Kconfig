@@ -60,7 +60,7 @@ config THREE_FB_BUFFER
 
 
 source "drivers/video/rockchip/lcdc/Kconfig"
-source "drivers/video/rockchip/screen/Kconfig"
+#source "drivers/video/rockchip/screen/Kconfig"
 source "drivers/video/rockchip/transmitter/Kconfig"
 source "drivers/video/rockchip/hdmi/Kconfig"
 source "drivers/video/rockchip/tve/Kconfig"
