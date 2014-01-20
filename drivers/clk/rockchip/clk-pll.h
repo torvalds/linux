@@ -11,7 +11,10 @@
 	div_u64(CLK_LOOPS_JIFFY_REF*(rate),CLK_LOOPS_RATE_REF*MHZ)
 /*******************cru reg offset***************************/
 #define CRU_MODE_CON		0x40
+#define CRU_CLKSEL_CON		0x44
+
 #define PLL_CONS(id, i)		((id) * 0x10 + ((i) * 4))
+#define CRU_CLKSELS_CON(i)	(CRU_CLKSEL_CON + ((i) * 4))
 
 /*******************cru BITS*********************************/
 #define CRU_GET_REG_BITS_VAL(reg,bits_shift, msk)  (((reg) >> (bits_shift))&(msk))
@@ -94,6 +97,37 @@
 #define PLL_MODE_NORM(id)	((0x1<<((id)*4))|(0x3<<(16+(id)*4)))
 #define PLL_MODE_DEEP(id)	((0x2<<((id)*4))|(0x3<<(16+(id)*4)))
 
+/*******************CLKSEL0 BITS***************************/
+//core_preiph div
+#define CORE_PERIPH_W_MSK	(3 << 22)
+#define CORE_PERIPH_MSK		(3 << 6)
+#define CORE_PERIPH_2		(0 << 6)
+#define CORE_PERIPH_4		(1 << 6)
+#define CORE_PERIPH_8		(2 << 6)
+#define CORE_PERIPH_16		(3 << 6)
+
+//clk_core
+#define CORE_SEL_PLL_MSK	(1 << 8)
+#define CORE_SEL_PLL_W_MSK	(1 << 24)
+#define CORE_SEL_APLL		(0 << 8)
+#define CORE_SEL_GPLL		(1 << 8)
+
+#define CORE_CLK_DIV_W_MSK	(0x1F << 25)
+#define CORE_CLK_DIV_MSK	(0x1F << 9)
+#define CORE_CLK_DIV(i)		((((i) - 1) & 0x1F) << 9)
+#define CORE_CLK_MAX_DIV	32
+
+/*******************CLKSEL1 BITS***************************/
+//aclk_core div
+#define CORE_ACLK_W_MSK		(7 << 19)
+#define CORE_ACLK_MSK		(7 << 3)
+#define CORE_ACLK_11		(0 << 3)
+#define CORE_ACLK_21		(1 << 3)
+#define CORE_ACLK_31		(2 << 3)
+#define CORE_ACLK_41		(3 << 3)
+#define CORE_ACLK_81		(4 << 3)
+#define GET_CORE_ACLK_VAL(reg)	((reg)>=4 ? 8:((reg)+1))
+
 /*******************PLL SET*********************************/
 #define _PLL_SET_CLKS(_mhz, nr, nf, no) \
 { \
@@ -103,6 +137,20 @@
 	.pllcon2 = PLL_CLK_BWADJ_SET(nf >> 1),\
 	.rst_dly=((nr*500)/24+1),\
 }
+
+#define _APLL_SET_CLKS(_mhz, nr, nf, no, _periph_div, _aclk_div) \
+{ \
+        .rate   = _mhz * MHZ, \
+        .pllcon0 = PLL_CLKR_SET(nr) | PLL_CLKOD_SET(no), \
+        .pllcon1 = PLL_CLKF_SET(nf),\
+        .pllcon2 = PLL_CLK_BWADJ_SET(nf >> 1),\
+        .clksel0 = CORE_PERIPH_W_MSK | CORE_PERIPH_##_periph_div,\
+        .clksel1 = CORE_ACLK_W_MSK | CORE_ACLK_##_aclk_div,\
+        .lpj= (CLK_LOOPS_JIFFY_REF*_mhz) / CLK_LOOPS_RATE_REF,\
+        .rst_dly=((nr*500)/24+1),\
+}
+
+
 /*******************OTHERS*********************************/
 #define rk30_clock_udelay(a) udelay(a)
 

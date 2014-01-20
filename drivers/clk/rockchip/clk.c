@@ -709,6 +709,26 @@ static int rkclk_register(struct rkclk *rkclk)
 	return 0;
 }
 
+#ifdef RKCLK_DEBUG
+void rk_dump_cru(void)
+{
+	u32 i;
+
+	printk("\n");
+	printk("dump cru regs:");
+	for (i = 0; i * 4 <= 0xf4; i++) {
+		if (i % 4 == 0)
+			printk("\n%s: \t[0x%08x]: ",
+					__func__, 0x20000000 + i * 4);
+		printk("%08x ", readl(reg_start + i * 4));
+	}
+	printk("\n\n");
+}
+#else
+void rk_dump_cru(void){}
+#endif
+EXPORT_SYMBOL_GPL(rk_dump_cru);
+
 #ifdef RKCLK_TEST
 struct test_table {
 	const char *name;
@@ -748,7 +768,7 @@ void rk_clk_test(void)
 	const char *clk_name;
 	struct clk *clk;
 	unsigned long rate=0, recalc_rate=0, round_rate=0, get_rate=0;
-	u32 i = 0, j = 0;
+	u32 j = 0;
 	int ret;
 
 	for (j = 0; j < ARRAY_SIZE(t_table); j++) {
@@ -794,26 +814,15 @@ void rk_clk_test(void)
 					__func__, clk_name, get_rate);
 		}
 
-#if 0
-		printk("\n");
-		printk("dump cru regs:");
-		for (i = 0; i * 4 <= 0xf4; i++) {
-			if (i % 4 == 0)
-				printk("\n%s: \t[0x%08x]: ",
-						__func__, 0x20000000 + i * 4);
-			printk("%08x ", readl(reg_start + i * 4));
-		}
-		printk("\n\n");
-
-#endif
+		rk_dump_cru();
 	}
 
 }
-EXPORT_SYMBOL_GPL(rk_clk_test);
 #else
-void rk_clk_test(void){};
-EXPORT_SYMBOL_GPL(rk_clk_test);
+void rk_clk_test(void){}
 #endif
+EXPORT_SYMBOL_GPL(rk_clk_test);
+
 
 void rkclk_init_clks(struct device_node *node);
 
