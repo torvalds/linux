@@ -245,14 +245,6 @@ error:
 	return status;
 }
 
-static int sc18is602_setup(struct spi_device *spi)
-{
-	if (spi->mode & ~(SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST))
-		return -EINVAL;
-
-	return sc18is602_check_transfer(spi, NULL, 0);
-}
-
 static int sc18is602_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
@@ -306,7 +298,6 @@ static int sc18is602_probe(struct i2c_client *client,
 	master->bus_num = client->adapter->nr;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->setup = sc18is602_setup;
 	master->transfer_one_message = sc18is602_transfer_one;
 	master->dev.of_node = np;
 
