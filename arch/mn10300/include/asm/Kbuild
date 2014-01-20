@@ -1,4 +1,5 @@
 
+generic-y += barrier.h
 generic-y += clkdev.h
 generic-y += exec.h
 generic-y += trace_clock.h
