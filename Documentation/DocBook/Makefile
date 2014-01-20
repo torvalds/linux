@@ -88,12 +88,8 @@ define rule_docproc
         ) > $(dir $@).$(notdir $@).cmd
 endef
 
-%.xml: %.tmpl FORCE
+%.xml: %.tmpl $(KERNELDOC) $(DOCPROC) FORCE
 	$(call if_changed_rule,docproc)
-
-###
-# Changes in kernel-doc force a rebuild of all documentation
-$(BOOKS): $(KERNELDOC)
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
