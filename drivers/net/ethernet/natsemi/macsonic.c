@@ -52,7 +52,6 @@
 #include <linux/bitrev.h>
 #include <linux/slab.h>
 
-#include <asm/bootinfo.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/hwtest.h>
