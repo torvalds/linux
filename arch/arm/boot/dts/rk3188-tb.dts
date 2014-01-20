@@ -11,7 +11,7 @@
 	};
 
 	chosen {
-		bootargs = "";
+		bootargs = "clk_ignore_unused";
 	};
 
 	fiq-debugger {
