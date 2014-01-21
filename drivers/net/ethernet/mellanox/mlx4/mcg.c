@@ -943,9 +943,6 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	u8 port = gid[5];
 	u8 new_entry = 0;
 
-	if (port < 1 || port > dev->caps.num_ports)
-		return -EINVAL;
-
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
