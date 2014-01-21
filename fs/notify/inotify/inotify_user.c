@@ -124,6 +124,13 @@ static unsigned int inotify_poll(struct file *file, poll_table *wait)
 	return ret;
 }
 
+static int round_event_name_len(struct fsnotify_event *event)
+{
+	if (!event->name_len)
+		return 0;
+	return roundup(event->name_len + 1, sizeof(struct inotify_event));
+}
+
 /*
  * Get an inotify_kernel_event if one exists and is small
  * enough to fit in "count". Return an error pointer if
@@ -144,9 +151,7 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	if (event->name_len)
-		event_size += roundup(event->name_len + 1, event_size);
-
+	event_size += round_event_name_len(event);
 	if (event_size > count)
 		return ERR_PTR(-EINVAL);
 
@@ -171,7 +176,8 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	struct fsnotify_event_private_data *fsn_priv;
 	struct inotify_event_private_data *priv;
 	size_t event_size = sizeof(struct inotify_event);
-	size_t name_len = 0;
+	size_t name_len;
+	size_t pad_name_len;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
@@ -189,14 +195,13 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 		inotify_free_event_priv(fsn_priv);
 	}
 
+	name_len = event->name_len;
 	/*
-	 * round up event->name_len so it is a multiple of event_size
+	 * round up name length so it is a multiple of event_size
 	 * plus an extra byte for the terminating '\0'.
 	 */
-	if (event->name_len)
-		name_len = roundup(event->name_len + 1, event_size);
-	inotify_event.len = name_len;
-
+	pad_name_len = round_event_name_len(event);
+	inotify_event.len = pad_name_len;
 	inotify_event.mask = inotify_mask_to_arg(event->mask);
 	inotify_event.cookie = event->sync_cookie;
 
@@ -209,20 +214,18 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	/*
 	 * fsnotify only stores the pathname, so here we have to send the pathname
 	 * and then pad that pathname out to a multiple of sizeof(inotify_event)
-	 * with zeros.  I get my zeros from the nul_inotify_event.
+	 * with zeros.
 	 */
-	if (name_len) {
-		unsigned int len_to_zero = name_len - event->name_len;
+	if (pad_name_len) {
 		/* copy the path name */
-		if (copy_to_user(buf, event->file_name, event->name_len))
+		if (copy_to_user(buf, event->file_name, name_len))
 			return -EFAULT;
-		buf += event->name_len;
+		buf += name_len;
 
 		/* fill userspace with 0's */
-		if (clear_user(buf, len_to_zero))
+		if (clear_user(buf, pad_name_len - name_len))
 			return -EFAULT;
-		buf += len_to_zero;
-		event_size += name_len;
+		event_size += pad_name_len;
 	}
 
 	return event_size;
@@ -314,9 +317,7 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 		list_for_each_entry(holder, &group->notification_list, event_list) {
 			event = holder->event;
 			send_len += sizeof(struct inotify_event);
-			if (event->name_len)
-				send_len += roundup(event->name_len + 1,
-						sizeof(struct inotify_event));
+			send_len += round_event_name_len(event);
 		}
 		mutex_unlock(&group->notification_mutex);
 		ret = put_user(send_len, (int __user *) p);
