@@ -1744,7 +1744,6 @@ static void carm_remove_one (struct pci_dev *pdev)
 	kfree(host);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 module_pci_driver(carm_driver);
