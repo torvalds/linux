@@ -57,3 +57,7 @@
 &lcdc1 {
 	status = "okay";
 };
+&rk_pwm3 {
+        status = "okay";
+};
+
