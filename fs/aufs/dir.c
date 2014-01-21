@@ -19,7 +19,7 @@ void au_add_nlink(struct inode *dir, struct inode *h_dir)
 	nlink += h_dir->i_nlink - 2;
 	if (h_dir->i_nlink < 2)
 		nlink += 2;
-	smp_mb();
+	smp_mb(); /* for i_nlink */
 	/* 0 can happen in revaliding */
 	set_nlink(dir, nlink);
 }
@@ -34,7 +34,7 @@ void au_sub_nlink(struct inode *dir, struct inode *h_dir)
 	nlink -= h_dir->i_nlink - 2;
 	if (h_dir->i_nlink < 2)
 		nlink -= 2;
-	smp_mb();
+	smp_mb(); /* for i_nlink */
 	/* nlink == 0 means the branch-fs is broken */
 	set_nlink(dir, nlink);
 }
