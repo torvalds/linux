@@ -54,6 +54,7 @@
 		charger-led {
 			gpios = <&gpio1 2 0>;
 			linux,default-trigger = "max8903-charger-charging";
+			retain-state-suspended;
 		};
 	};
 
