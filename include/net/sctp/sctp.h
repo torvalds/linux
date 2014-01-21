@@ -171,8 +171,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
  */
 
 /* spin lock wrappers. */
-#define sctp_spin_lock(lock)    spin_lock(lock)
-#define sctp_spin_unlock(lock)  spin_unlock(lock)
 #define sctp_write_lock(lock)   write_lock(lock)
 #define sctp_write_unlock(lock) write_unlock(lock)
 #define sctp_read_lock(lock)    read_lock(lock)
@@ -349,11 +347,11 @@ static inline void sctp_skb_list_tail(struct sk_buff_head *list,
 	unsigned long flags;
 
 	spin_lock_irqsave(&head->lock, flags);
-	sctp_spin_lock(&list->lock);
+	spin_lock(&list->lock);
 
 	skb_queue_splice_tail_init(list, head);
 
-	sctp_spin_unlock(&list->lock);
+	spin_unlock(&list->lock);
 	spin_unlock_irqrestore(&head->lock, flags);
 }
 
