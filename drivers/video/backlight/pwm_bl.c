@@ -103,6 +103,8 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	int length;
 	u32 value;
 	int gpio,ret;
+	 enum of_gpio_flags flags;
+
 
 	if (!node)
 		return -ENODEV;
@@ -134,20 +136,20 @@ static int pwm_backlight_parse_dt(struct device *dev,
 					   &value);
 		if (ret < 0)
 			return ret;
-		data->gpios = devm_kzalloc(dev,
+		data->gpio = devm_kzalloc(dev,
 				sizeof(struct gpio) * 1,
 				GFP_KERNEL);
-		gpio = of_get_named_gpio(node, "gpios", 0);
-		data->gpios->gpio = gpio;
+		gpio = of_get_named_gpio_flags(node, "gpios", 0, &flags);
+		data->gpio->gpio = gpio;
 
 
 		if (gpio != -1) {
 			ret = devm_gpio_request(dev, gpio, "gpio_pwm_bl_en");
 			if(ret){
-				data->gpios->gpio = -1;
+				data->gpio->gpio = -1;
 				goto err_free_pwm;
 			}
-			ret = gpio_direction_output(data->gpios->gpio , 1);
+			ret = gpio_direction_output(data->gpio->gpio , flags);
 			if(ret){
 				goto err_free_pwm;
 			}

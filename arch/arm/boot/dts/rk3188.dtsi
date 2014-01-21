@@ -21,10 +21,6 @@
 		i2c4 = &i2c4;
 		lcdc0 = &lcdc0;
 		lcdc1 = &lcdc1;
-		pwm0 = &rk_pwm0;
-		pwm1 = &rk_pwm1;
-		pmw2 = &rk_pwm2;
-		pwm3 = &rk_pwm3;
 	};
 
 	cpus {
@@ -351,48 +347,48 @@
 		status = "disabled";
         };
 
-	rk_pwm0: pwm@20030000{
+	pwm0: pwm@20030000{
                 compatible = "rockchip,pwm";
                 reg = <0x20030000 0x10>; /*0x20030000*/
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
-                pinctrl-0 = <&pwm0>;
+                pinctrl-0 = <&pwm0_pin>;
                 status = "disabled";
 
         };
 
-        rk_pwm1: pwm@20030010{
+        pwm1: pwm@20030010{
                 compatible = "rockchip,pwm";
                 reg = <0x20030010 0x10>; /*0x20030000*/
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
-                pinctrl-0 = <&pwm1>;
+                pinctrl-0 = <&pwm1_pin>;
                 status = "disabled";
 
         };
-    	rk_pwm2: pwm@20050020{
+    	pwm2: pwm@20050020{
                 compatible = "rockchip,pwm";
                 reg = <0x20050020 0x10>; /*0x20030000*/
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
-                pinctrl-0 = <&pwm2>;
+                pinctrl-0 = <&pwm2_pin>;
                 status = "disabled";
 
         };
 
-        rk_pwm3: pwm@20050030{
+        pwm3: pwm@20050030{
                 compatible = "rockchip,pwm";
                 reg = <0x20050030 0x10>; /*0x20030000*/
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
-                pinctrl-0 = <&pwm3>;
+                pinctrl-0 = <&pwm3_pin>;
                 status = "disabled";
 
         };
 
         backlight {
                 compatible = "pwm-backlight";
-                pwms = <&rk_pwm3 0 5000000>;
+                pwms = <&pwm3 0 5000000>;
                 brightness-levels = <0 4 8 16 32 64 128 255>;
                 default-brightness-level = <6>;
                 gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;

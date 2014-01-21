@@ -443,7 +443,7 @@
 		};
 
 		gpio3_pwm {
-			pwm0:pwm0 {
+			pwm0_pin:pwm0 {
 				rockchip,pins = <PWM0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
@@ -453,7 +453,7 @@
 			};
 
 
-			pwm1:pwm1 {
+			pwm1_pin:pwm1 {
 				rockchip,pins = <PWM1>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
@@ -462,7 +462,7 @@
 			};
 
 
-			pwm2:pwm2 {
+			pwm2_pin:pwm2 {
 				rockchip,pins = <PWM2>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
@@ -471,7 +471,7 @@
 			};
 
 
-			pwm3:pwm3 {
+			pwm3_pin:pwm3 {
 				rockchip,pins = <PWM3>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;

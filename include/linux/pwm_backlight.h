@@ -14,7 +14,7 @@ struct platform_pwm_backlight_data {
 	unsigned int pwm_period_ns;
 	unsigned int *levels;
 
-	struct gpio *gpios;
+	struct gpio *gpio;
 	
 	int (*init)(struct device *dev);
 	int (*notify)(struct device *dev, int brightness);
