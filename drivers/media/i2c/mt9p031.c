@@ -232,12 +232,15 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	struct mt9p031_platform_data *pdata = mt9p031->pdata;
+	int ret;
 
 	mt9p031->clk = devm_clk_get(&client->dev, NULL);
 	if (IS_ERR(mt9p031->clk))
 		return PTR_ERR(mt9p031->clk);
 
-	clk_set_rate(mt9p031->clk, pdata->ext_freq);
+	ret = clk_set_rate(mt9p031->clk, pdata->ext_freq);
+	if (ret < 0)
+		return ret;
 
 	/* If the external clock frequency is out of bounds for the PLL use the
 	 * pixel clock divider only and disable the PLL.
@@ -318,8 +321,14 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 		return ret;
 
 	/* Enable clock */
-	if (mt9p031->clk)
-		clk_prepare_enable(mt9p031->clk);
+	if (mt9p031->clk) {
+		ret = clk_prepare_enable(mt9p031->clk);
+		if (ret) {
+			regulator_bulk_disable(ARRAY_SIZE(mt9p031->regulators),
+					       mt9p031->regulators);
+			return ret;
+		}
+	}
 
 	/* Now RESET_BAR must be high */
 	if (gpio_is_valid(mt9p031->reset)) {
