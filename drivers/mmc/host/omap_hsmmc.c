@@ -916,7 +916,7 @@ omap_hsmmc_cmd_done(struct omap_hsmmc_host *host, struct mmc_command *cmd)
 		}
 	}
 	if ((host->data == NULL && !host->response_busy) || cmd->error)
-		omap_hsmmc_request_done(host, cmd->mrq);
+		omap_hsmmc_request_done(host, host->mrq);
 }
 
 /*
