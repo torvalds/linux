@@ -58,8 +58,8 @@ static inline void print_cp_instr(const struct coproc_params *p)
 {
 	/* Look, we even formatted it for you to paste into the table! */
 	if (p->is_64bit) {
-		kvm_pr_unimpl(" { CRm(%2lu), Op1(%2lu), is64, func_%s },\n",
-			      p->CRm, p->Op1, p->is_write ? "write" : "read");
+		kvm_pr_unimpl(" { CRm64(%2lu), Op1(%2lu), is64, func_%s },\n",
+			      p->CRn, p->Op1, p->is_write ? "write" : "read");
 	} else {
 		kvm_pr_unimpl(" { CRn(%2lu), CRm(%2lu), Op1(%2lu), Op2(%2lu), is32,"
 			      " func_%s },\n",

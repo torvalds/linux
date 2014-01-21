@@ -443,7 +443,7 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	struct coproc_params params;
 
-	params.CRm = (kvm_vcpu_get_hsr(vcpu) >> 1) & 0xf;
+	params.CRn = (kvm_vcpu_get_hsr(vcpu) >> 1) & 0xf;
 	params.Rt1 = (kvm_vcpu_get_hsr(vcpu) >> 5) & 0xf;
 	params.is_write = ((kvm_vcpu_get_hsr(vcpu) & 1) == 0);
 	params.is_64bit = true;
@@ -451,7 +451,7 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	params.Op1 = (kvm_vcpu_get_hsr(vcpu) >> 16) & 0xf;
 	params.Op2 = 0;
 	params.Rt2 = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
-	params.CRn = 0;
+	params.CRm = 0;
 
 	return emulate_cp15(vcpu, &params);
 }
