@@ -35,19 +35,11 @@
 
 #ifdef CONFIG_64BIT
 #define VMW_PPN_SIZE 8
-#define vmw_cmd_set_otable_base SVGA3dCmdSetOTableBase64
-#define VMW_ID_SET_OTABLE_BASE SVGA_3D_CMD_SET_OTABLE_BASE64
-#define vmw_cmd_define_gb_mob SVGA3dCmdDefineGBMob64
-#define VMW_ID_DEFINE_GB_MOB SVGA_3D_CMD_DEFINE_GB_MOB64
 #define VMW_MOBFMT_PTDEPTH_0 SVGA3D_MOBFMT_PTDEPTH64_0
 #define VMW_MOBFMT_PTDEPTH_1 SVGA3D_MOBFMT_PTDEPTH64_1
 #define VMW_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PTDEPTH64_2
 #else
 #define VMW_PPN_SIZE 4
-#define vmw_cmd_set_otable_base SVGA3dCmdSetOTableBase
-#define VMW_ID_SET_OTABLE_BASE SVGA_3D_CMD_SET_OTABLE_BASE
-#define vmw_cmd_define_gb_mob SVGA3dCmdDefineGBMob
-#define VMW_ID_DEFINE_GB_MOB SVGA_3D_CMD_DEFINE_GB_MOB
 #define VMW_MOBFMT_PTDEPTH_0 SVGA3D_MOBFMT_PTDEPTH_0
 #define VMW_MOBFMT_PTDEPTH_1 SVGA3D_MOBFMT_PTDEPTH_1
 #define VMW_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PTDEPTH_2
@@ -105,7 +97,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 {
 	struct {
 		SVGA3dCmdHeader header;
-		vmw_cmd_set_otable_base body;
+		SVGA3dCmdSetOTableBase64 body;
 	} *cmd;
 	struct vmw_mob *mob;
 	const struct vmw_sg_table *vsgt;
@@ -146,10 +138,10 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	}
 
 	memset(cmd, 0, sizeof(*cmd));
-	cmd->header.id = VMW_ID_SET_OTABLE_BASE;
+	cmd->header.id = SVGA_3D_CMD_SET_OTABLE_BASE64;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.type = type;
-	cmd->body.baseAddress = mob->pt_root_page >> PAGE_SHIFT;
+	cmd->body.baseAddress = cpu_to_le64(mob->pt_root_page >> PAGE_SHIFT);
 	cmd->body.sizeInBytes = otable->size;
 	cmd->body.validSizeInBytes = 0;
 	cmd->body.ptDepth = mob->pt_level;
@@ -188,11 +180,12 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 		SVGA3dCmdHeader header;
 		SVGA3dCmdSetOTableBase body;
 	} *cmd;
-	struct ttm_buffer_object *bo = otable->page_table->pt_bo;
+	struct ttm_buffer_object *bo;
 
 	if (otable->page_table == NULL)
 		return;
 
+	bo = otable->page_table->pt_bo;
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		DRM_ERROR("Failed reserving FIFO space for OTable setup.\n");
@@ -210,7 +203,7 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 	if (bo) {
 		int ret;
 
-		ret = ttm_bo_reserve(bo, false, true, false, false);
+		ret = ttm_bo_reserve(bo, false, true, false, NULL);
 		BUG_ON(ret != 0);
 
 		vmw_fence_single_bo(bo, NULL);
@@ -276,7 +269,7 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	if (unlikely(ret != 0))
 		goto out_no_bo;
 
-	ret = ttm_bo_reserve(dev_priv->otable_bo, false, true, false, false);
+	ret = ttm_bo_reserve(dev_priv->otable_bo, false, true, false, NULL);
 	BUG_ON(ret != 0);
 	ret = vmw_bo_driver.ttm_tt_populate(dev_priv->otable_bo->ttm);
 	if (unlikely(ret != 0))
@@ -329,7 +322,7 @@ void vmw_otables_takedown(struct vmw_private *dev_priv)
 		vmw_takedown_otable_base(dev_priv, i,
 					 &dev_priv->otables[i]);
 
-	ret = ttm_bo_reserve(bo, false, true, false, false);
+	ret = ttm_bo_reserve(bo, false, true, false, NULL);
 	BUG_ON(ret != 0);
 
 	vmw_fence_single_bo(bo, NULL);
@@ -402,7 +395,7 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(mob->pt_bo, false, true, false, false);
+	ret = ttm_bo_reserve(mob->pt_bo, false, true, false, NULL);
 
 	BUG_ON(ret != 0);
 	ret = vmw_bo_driver.ttm_tt_populate(mob->pt_bo->ttm);
@@ -433,15 +426,15 @@ out_unreserve:
  * *@addr according to the page table entry size.
  */
 #if (VMW_PPN_SIZE == 8)
-static void vmw_mob_assign_ppn(uint32_t **addr, dma_addr_t val)
+static void vmw_mob_assign_ppn(__le32 **addr, dma_addr_t val)
 {
-	*((uint64_t *) *addr) = val >> PAGE_SHIFT;
+	*((__le64 *) *addr) = cpu_to_le64(val >> PAGE_SHIFT);
 	*addr += 2;
 }
 #else
-static void vmw_mob_assign_ppn(uint32_t **addr, dma_addr_t val)
+static void vmw_mob_assign_ppn(__le32 **addr, dma_addr_t val)
 {
-	*(*addr)++ = val >> PAGE_SHIFT;
+	*(*addr)++ = cpu_to_le32(val >> PAGE_SHIFT);
 }
 #endif
 
@@ -463,7 +456,7 @@ static unsigned long vmw_mob_build_pt(struct vmw_piter *data_iter,
 	unsigned long pt_size = num_data_pages * VMW_PPN_SIZE;
 	unsigned long num_pt_pages = DIV_ROUND_UP(pt_size, PAGE_SIZE);
 	unsigned long pt_page;
-	uint32_t *addr, *save_addr;
+	__le32 *addr, *save_addr;
 	unsigned long i;
 	struct page *page;
 
@@ -507,7 +500,7 @@ static void vmw_mob_pt_setup(struct vmw_mob *mob,
 	const struct vmw_sg_table *vsgt;
 	int ret;
 
-	ret = ttm_bo_reserve(bo, false, true, false, 0);
+	ret = ttm_bo_reserve(bo, false, true, false, NULL);
 	BUG_ON(ret != 0);
 
 	vsgt = vmw_bo_sg_table(bo);
@@ -557,7 +550,7 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
 	struct ttm_buffer_object *bo = mob->pt_bo;
 
 	if (bo) {
-		ret = ttm_bo_reserve(bo, false, true, false, 0);
+		ret = ttm_bo_reserve(bo, false, true, false, NULL);
 		/*
 		 * Noone else should be using this buffer.
 		 */
@@ -606,7 +599,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 	struct vmw_piter data_iter;
 	struct {
 		SVGA3dCmdHeader header;
-		vmw_cmd_define_gb_mob body;
+		SVGA3dCmdDefineGBMob64 body;
 	} *cmd;
 
 	mob->id = mob_id;
@@ -639,11 +632,11 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 		goto out_no_cmd_space;
 	}
 
-	cmd->header.id = VMW_ID_DEFINE_GB_MOB;
+	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_MOB64;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.mobid = mob_id;
 	cmd->body.ptDepth = mob->pt_level;
-	cmd->body.base = mob->pt_root_page >> PAGE_SHIFT;
+	cmd->body.base = cpu_to_le64(mob->pt_root_page >> PAGE_SHIFT);
 	cmd->body.sizeInBytes = num_data_pages * PAGE_SIZE;
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
