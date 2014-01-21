@@ -617,13 +617,23 @@ static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 	if (r)
 		goto out;
 
-	for (i = old_len; !r && i < smm->begin; i++) {
-		r = sm_ll_inc(&smm->ll, i, &ev);
+	/*
+	 * We repeatedly increment then commit until the commit doesn't
+	 * allocate any new blocks.
+	 */
+	do {
+		for (i = old_len; !r && i < smm->begin; i++) {
+			r = sm_ll_inc(&smm->ll, i, &ev);
+			if (r)
+				goto out;
+		}
+		old_len = smm->begin;
+
+		r = sm_ll_commit(&smm->ll);
 		if (r)
 			goto out;
-	}
 
-	r = sm_metadata_commit(sm);
+	} while (old_len != smm->begin);
 
 out:
 	/*
