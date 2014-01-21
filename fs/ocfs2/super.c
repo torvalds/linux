@@ -68,7 +68,6 @@
 #include "super.h"
 #include "sysfile.h"
 #include "uptodate.h"
-#include "ver.h"
 #include "xattr.h"
 #include "quota.h"
 #include "refcounttree.h"
@@ -90,6 +89,7 @@ static struct dentry *ocfs2_debugfs_root = NULL;
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("OCFS2 cluster file system");
 
 struct mount_options
 {
@@ -1617,8 +1617,6 @@ wait_queue_head_t ocfs2__ioend_wq[OCFS2_IOEND_WQ_HASH_SZ];
 static int __init ocfs2_init(void)
 {
 	int status, i;
-
-	ocfs2_print_version();
 
 	for (i = 0; i < OCFS2_IOEND_WQ_HASH_SZ; i++)
 		init_waitqueue_head(&ocfs2__ioend_wq[i]);
