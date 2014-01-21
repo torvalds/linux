@@ -445,13 +445,12 @@ static inline bool compound_tail_refcounted(struct page *page)
 static inline void get_huge_page_tail(struct page *page)
 {
 	/*
-	 * __split_huge_page_refcount() cannot run
-	 * from under us.
-	 * In turn no need of compound_trans_head here.
+	 * __split_huge_page_refcount() cannot run from under us.
 	 */
+	VM_BUG_ON(!PageTail(page));
 	VM_BUG_ON(page_mapcount(page) < 0);
 	VM_BUG_ON(atomic_read(&page->_count) != 0);
-	if (compound_tail_refcounted(compound_head(page)))
+	if (compound_tail_refcounted(page->first_page))
 		atomic_inc(&page->_mapcount);
 }
 
