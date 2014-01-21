@@ -489,6 +489,16 @@ static inline int m25p80_dummy_cycles_read(struct m25p *flash)
 	}
 }
 
+static inline unsigned int m25p80_rx_nbits(const struct m25p *flash)
+{
+	switch (flash->flash_read) {
+	case M25P80_QUAD:
+		return 4;
+	default:
+		return 0;
+	}
+}
+
 /*
  * Read an address range from the flash chip.  The address range
  * may be any size provided it is within the physical boundaries.
@@ -519,6 +529,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].rx_buf = buf;
+	t[1].rx_nbits = m25p80_rx_nbits(flash);
 	t[1].len = len;
 	spi_message_add_tail(&t[1], &m);
 
