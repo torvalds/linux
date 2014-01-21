@@ -753,9 +753,9 @@ efx_ptp_process_times(struct efx_nic *efx, MCDI_DECLARE_STRUCT_PTR(synch_buf),
 		if (window < SYNCHRONISATION_GRANULARITY_NS) {
 			++ptp->invalid_sync_windows;
 		} else if (corrected >= MAX_SYNCHRONISATION_NS) {
-			++ptp->undersize_sync_windows;
-		} else if (corrected < ptp->min_synchronisation_ns) {
 			++ptp->oversize_sync_windows;
+		} else if (corrected < ptp->min_synchronisation_ns) {
+			++ptp->undersize_sync_windows;
 		} else {
 			ngood++;
 			last_good = i;
