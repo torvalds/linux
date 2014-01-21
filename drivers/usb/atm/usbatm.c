@@ -170,9 +170,9 @@ struct usbatm_control {
 static void usbatm_atm_dev_close(struct atm_dev *atm_dev);
 static int usbatm_atm_open(struct atm_vcc *vcc);
 static void usbatm_atm_close(struct atm_vcc *vcc);
-static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user * arg);
+static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user *arg);
 static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb);
-static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t * pos, char *page);
+static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t *pos, char *page);
 
 static struct atmdev_ops usbatm_atm_devops = {
 	.dev_close	= usbatm_atm_dev_close,
@@ -739,7 +739,7 @@ static void usbatm_atm_dev_close(struct atm_dev *atm_dev)
 	usbatm_put_instance(instance);	/* taken in usbatm_atm_init */
 }
 
-static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t * pos, char *page)
+static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t *pos, char *page)
 {
 	struct usbatm_data *instance = atm_dev->dev_data;
 	int left = *pos;
@@ -895,7 +895,7 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 }
 
 static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd,
-			  void __user * arg)
+			  void __user *arg)
 {
 	struct usbatm_data *instance = atm_dev->dev_data;
 

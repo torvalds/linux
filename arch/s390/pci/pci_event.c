@@ -43,9 +43,8 @@ struct zpci_ccdf_avail {
 	u16 pec;			/* PCI event code */
 } __packed;
 
-void zpci_event_error(void *data)
+static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 {
-	struct zpci_ccdf_err *ccdf = data;
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
 
 	zpci_err("error CCDF:\n");
@@ -58,9 +57,14 @@ void zpci_event_error(void *data)
 	       pci_name(zdev->pdev), ccdf->pec, ccdf->fid);
 }
 
-void zpci_event_availability(void *data)
+void zpci_event_error(void *data)
 {
-	struct zpci_ccdf_avail *ccdf = data;
+	if (zpci_is_enabled())
+		__zpci_event_error(data);
+}
+
+static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
+{
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
 	struct pci_dev *pdev = zdev ? zdev->pdev : NULL;
 	int ret;
@@ -75,6 +79,7 @@ void zpci_event_availability(void *data)
 		if (!zdev || zdev->state == ZPCI_FN_STATE_CONFIGURED)
 			break;
 		zdev->state = ZPCI_FN_STATE_CONFIGURED;
+		zdev->fh = ccdf->fh;
 		ret = zpci_enable_device(zdev);
 		if (ret)
 			break;
@@ -98,9 +103,14 @@ void zpci_event_availability(void *data)
 
 		break;
 	case 0x0304: /* Configured -> Standby */
-		if (pdev)
+		if (pdev) {
+			/* Give the driver a hint that the function is
+			 * already unusable. */
+			pdev->error_state = pci_channel_io_perm_failure;
 			pci_stop_and_remove_bus_device(pdev);
+		}
 
+		zdev->fh = ccdf->fh;
 		zpci_disable_device(zdev);
 		zdev->state = ZPCI_FN_STATE_STANDBY;
 		break;
@@ -108,10 +118,18 @@ void zpci_event_availability(void *data)
 		clp_rescan_pci_devices();
 		break;
 	case 0x0308: /* Standby -> Reserved */
+		if (!zdev)
+			break;
 		pci_stop_root_bus(zdev->bus);
 		pci_remove_root_bus(zdev->bus);
 		break;
 	default:
 		break;
 	}
+}
+
+void zpci_event_availability(void *data)
+{
+	if (zpci_is_enabled())
+		__zpci_event_availability(data);
 }

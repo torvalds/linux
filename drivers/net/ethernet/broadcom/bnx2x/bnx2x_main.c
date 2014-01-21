@@ -11447,9 +11447,9 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 		}
 	}
 
-	/* adjust igu_sb_cnt to MF for E1x */
-	if (CHIP_IS_E1x(bp) && IS_MF(bp))
-		bp->igu_sb_cnt /= E1HVN_MAX;
+	/* adjust igu_sb_cnt to MF for E1H */
+	if (CHIP_IS_E1H(bp) && IS_MF(bp))
+		bp->igu_sb_cnt = min_t(u8, bp->igu_sb_cnt, E1H_MAX_MF_SB_COUNT);
 
 	/* port info */
 	bnx2x_get_port_hwinfo(bp);
@@ -12942,25 +12942,26 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
-	if (bp->regview)
-		iounmap(bp->regview);
+	if (remove_netdev) {
+		if (bp->regview)
+			iounmap(bp->regview);
 
-	/* for vf doorbells are part of the regview and were unmapped along with
-	 * it. FW is only loaded by PF.
-	 */
-	if (IS_PF(bp)) {
-		if (bp->doorbells)
-			iounmap(bp->doorbells);
+		/* For vfs, doorbells are part of the regview and were unmapped
+		 * along with it. FW is only loaded by PF.
+		 */
+		if (IS_PF(bp)) {
+			if (bp->doorbells)
+				iounmap(bp->doorbells);
 
-		bnx2x_release_firmware(bp);
-	}
-	bnx2x_free_mem_bp(bp);
+			bnx2x_release_firmware(bp);
+		}
+		bnx2x_free_mem_bp(bp);
 
-	if (remove_netdev)
 		free_netdev(dev);
 
-	if (atomic_read(&pdev->enable_cnt) == 1)
-		pci_release_regions(pdev);
+		if (atomic_read(&pdev->enable_cnt) == 1)
+			pci_release_regions(pdev);
+	}
 
 	pci_disable_device(pdev);
 }

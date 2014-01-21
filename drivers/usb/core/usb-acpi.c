@@ -92,7 +92,7 @@ static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
 	int ret = 0;
 
 	/*
-	 * Accoding to ACPI Spec 9.13. PLD indicates whether usb port is
+	 * According to ACPI Spec 9.13. PLD indicates whether usb port is
 	 * user visible and _UPC indicates whether it is connectable. If
 	 * the port was visible and connectable, it could be freely connected
 	 * and disconnected with USB devices. If no visible and connectable,

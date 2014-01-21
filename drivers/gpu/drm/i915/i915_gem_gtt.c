@@ -906,14 +906,12 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 		WARN_ON(readq(&gtt_entries[i-1])
 			!= gen8_pte_encode(addr, level, true));
 
-#if 0 /* TODO: Still needed on GEN8? */
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
 	 * have finished.
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
-#endif
 }
 
 /*

@@ -200,7 +200,7 @@ void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 		class_import_put(desc->bd_import);
 
 	if (unpin) {
-		for (i = 0; i < desc->bd_iov_count ; i++)
+		for (i = 0; i < desc->bd_iov_count; i++)
 			page_cache_release(desc->bd_iov[i].kiov_page);
 	}
 
@@ -459,7 +459,7 @@ ptlrpc_init_rq_pool(int num_rq, int msgsize,
 {
 	struct ptlrpc_request_pool *pool;
 
-	OBD_ALLOC(pool, sizeof (struct ptlrpc_request_pool));
+	OBD_ALLOC(pool, sizeof(struct ptlrpc_request_pool));
 	if (!pool)
 		return NULL;
 
@@ -475,7 +475,7 @@ ptlrpc_init_rq_pool(int num_rq, int msgsize,
 
 	if (list_empty(&pool->prp_req_list)) {
 		/* have not allocated a single request for the pool */
-		OBD_FREE(pool, sizeof (struct ptlrpc_request_pool));
+		OBD_FREE(pool, sizeof(struct ptlrpc_request_pool));
 		pool = NULL;
 	}
 	return pool;
@@ -881,7 +881,7 @@ void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 	/* Requests on the set should either all be completed, or all be new */
 	expected_phase = (atomic_read(&set->set_remaining) == 0) ?
 			 RQ_PHASE_COMPLETE : RQ_PHASE_NEW;
-	list_for_each (tmp, &set->set_requests) {
+	list_for_each(tmp, &set->set_requests) {
 		struct ptlrpc_request *req =
 			list_entry(tmp, struct ptlrpc_request,
 				       rq_set_chain);
@@ -912,7 +912,7 @@ void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 		req->rq_invalid_rqset = 0;
 		spin_unlock(&req->rq_lock);
 
-		ptlrpc_req_finished (req);
+		ptlrpc_req_finished(req);
 	}
 
 	LASSERT(atomic_read(&set->set_remaining) == 0);
@@ -1020,7 +1020,7 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 {
 	int delay = 0;
 
-	LASSERT (status != NULL);
+	LASSERT(status != NULL);
 	*status = 0;
 
 	if (req->rq_ctx_init || req->rq_ctx_fini) {
@@ -1039,7 +1039,7 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 		*status = -EIO;
 	} else if (req->rq_send_state == LUSTRE_IMP_CONNECTING &&
 		   imp->imp_state == LUSTRE_IMP_CONNECTING) {
-		/* allow CONNECT even if import is invalid */ ;
+		/* allow CONNECT even if import is invalid */
 		if (atomic_read(&imp->imp_inval_count) != 0) {
 			DEBUG_REQ(D_ERROR, req, "invalidate in flight");
 			*status = -EIO;
@@ -1596,7 +1596,8 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					continue;
 
 				spin_lock(&imp->imp_lock);
-				if (ptlrpc_import_delay_req(imp, req, &status)){
+				if (ptlrpc_import_delay_req(imp, req,
+							    &status)) {
 					/* put on delay list - only if we wait
 					 * recovery finished - before send */
 					list_del_init(&req->rq_list);
@@ -1752,7 +1753,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 
 		ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
 
-	interpret:
+interpret:
 		LASSERT(req->rq_phase == RQ_PHASE_INTERPRET);
 
 		/* This moves to "unregistering" phase we need to wait for
@@ -1907,7 +1908,7 @@ int ptlrpc_expired_set(void *data)
 	/*
 	 * A timeout expired. See which reqs it applies to...
 	 */
-	list_for_each (tmp, &set->set_requests) {
+	list_for_each(tmp, &set->set_requests) {
 		struct ptlrpc_request *req =
 			list_entry(tmp, struct ptlrpc_request,
 				       rq_set_chain);
@@ -2688,7 +2689,7 @@ int ptlrpc_replay_req(struct ptlrpc_request *req)
 
 	LASSERT(req->rq_import->imp_state == LUSTRE_IMP_REPLAY);
 
-	LASSERT (sizeof (*aa) <= sizeof (req->rq_async_args));
+	LASSERT(sizeof(*aa) <= sizeof(req->rq_async_args));
 	aa = ptlrpc_req_async_args(req);
 	memset(aa, 0, sizeof(*aa));
 
@@ -2962,7 +2963,7 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 	init_waitqueue_head(&req->rq_set_waitq);
 	atomic_set(&req->rq_refcount, 1);
 
-	CLASSERT (sizeof(*args) <= sizeof(req->rq_async_args));
+	CLASSERT(sizeof(*args) <= sizeof(req->rq_async_args));
 	args = ptlrpc_req_async_args(req);
 	args->magic  = PTLRPC_WORK_MAGIC;
 	args->cb     = cb;

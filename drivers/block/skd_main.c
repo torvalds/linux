@@ -5269,7 +5269,7 @@ const char *skd_skdev_state_to_str(enum skd_drvr_state state)
 	}
 }
 
-const char *skd_skmsg_state_to_str(enum skd_fit_msg_state state)
+static const char *skd_skmsg_state_to_str(enum skd_fit_msg_state state)
 {
 	switch (state) {
 	case SKD_MSG_STATE_IDLE:
@@ -5281,7 +5281,7 @@ const char *skd_skmsg_state_to_str(enum skd_fit_msg_state state)
 	}
 }
 
-const char *skd_skreq_state_to_str(enum skd_req_state state)
+static const char *skd_skreq_state_to_str(enum skd_req_state state)
 {
 	switch (state) {
 	case SKD_REQ_STATE_IDLE:

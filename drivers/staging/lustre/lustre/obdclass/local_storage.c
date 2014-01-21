@@ -246,7 +246,7 @@ int local_object_create(const struct lu_env *env,
 			struct dt_object_format *dof, struct thandle *th)
 {
 	struct dt_thread_info	*dti = dt_info(env);
-	obd_id			 lastid;
+	__le64			 lastid;
 	int			 rc;
 
 	rc = dt_create(env, o, attr, NULL, dof, th);
@@ -855,9 +855,12 @@ out_los:
 		(*los)->los_seq = fid_seq(first_fid);
 		(*los)->los_last_oid = le64_to_cpu(lastid);
 		(*los)->los_obj = o;
-		/* read value should not be less than initial one */
-		LASSERTF((*los)->los_last_oid >= first_oid, "%u < %u\n",
-			 (*los)->los_last_oid, first_oid);
+		/* Read value should not be less than initial one
+		 * but possible after upgrade from older fs.
+		 * In this case just switch to the first_oid in memory and
+		 * it will be updated on disk with first object generated */
+		if ((*los)->los_last_oid < first_oid)
+			(*los)->los_last_oid = first_oid;
 	}
 out:
 	mutex_unlock(&ls->ls_los_mutex);

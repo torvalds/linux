@@ -2,6 +2,7 @@
 header-y += ucontext.h
 
 generic-y += auxvec.h
+generic-y += barrier.h
 generic-y += bug.h
 generic-y += bugs.h
 generic-y += clkdev.h

@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/list.h>
@@ -2514,6 +2513,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add hcd\n");
 		goto clean_up3;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 
@@ -2534,7 +2534,7 @@ static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
 	.remove =	r8a66597_remove,
 	.driver		= {
-		.name = (char *) hcd_name,
+		.name = hcd_name,
 		.owner	= THIS_MODULE,
 		.pm	= R8A66597_DEV_PM_OPS,
 	},

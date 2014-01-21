@@ -17,22 +17,22 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE! 
+ *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
  *
  *	This is shared code between Digi's CVS archive and the
  *	Linux Kernel sources.
  *	Changing the source just for reformatting needlessly breaks
  *	our CVS diff history.
  *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com. 
- *	Thank you. 
+ *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
+ *	Thank you.
  */
 
 /************************************************************************
- * 
+ *
  * This file implements the tty driver functionality for the
  * FEP5 based product lines.
- * 
+ *
  ************************************************************************
  *
  * $Id: dgap_tty.c,v 1.3 2011/06/23 12:11:31 markh Exp $
@@ -155,7 +155,7 @@ static const struct tty_operations dgap_tty_ops = {
 	.flush_chars = dgap_tty_flush_chars,
 	.ioctl = dgap_tty_ioctl,
 	.set_termios = dgap_tty_set_termios,
-	.stop = dgap_tty_stop, 
+	.stop = dgap_tty_stop,
 	.start = dgap_tty_start,
 	.throttle = dgap_tty_throttle,
 	.unthrottle = dgap_tty_unthrottle,
@@ -173,11 +173,11 @@ static const struct tty_operations dgap_tty_ops = {
 
 
 /************************************************************************
- *                      
+ *
  * TTY Initialization/Cleanup Functions
- *      
+ *
  ************************************************************************/
-         
+
 /*
  * dgap_tty_preinit()
  *
@@ -187,7 +187,7 @@ int dgap_tty_preinit(void)
 {
 	unsigned long flags;
 
-	DGAP_LOCK(dgap_global_lock, flags);  
+	DGAP_LOCK(dgap_global_lock, flags);
 
 	/*
 	 * Allocate a buffer for doing the copy from user space to
@@ -202,7 +202,7 @@ int dgap_tty_preinit(void)
 		DPR_INIT(("unable to allocate tmp write buf"));
 		return (-ENOMEM);
 	}
-         
+
         DGAP_UNLOCK(dgap_global_lock, flags);
         return(0);
 }
@@ -226,14 +226,14 @@ int dgap_tty_register(struct board_t *brd)
 	brd->SerialDriver->name_base = 0;
 	brd->SerialDriver->major = 0;
 	brd->SerialDriver->minor_start = 0;
-	brd->SerialDriver->type = TTY_DRIVER_TYPE_SERIAL; 
-	brd->SerialDriver->subtype = SERIAL_TYPE_NORMAL;   
+	brd->SerialDriver->type = TTY_DRIVER_TYPE_SERIAL;
+	brd->SerialDriver->subtype = SERIAL_TYPE_NORMAL;
 	brd->SerialDriver->init_termios = DgapDefaultTermios;
 	brd->SerialDriver->driver_name = DRVSTR;
 	brd->SerialDriver->flags = (TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK);
 
 	/* The kernel wants space to store pointers to tty_structs */
-	brd->SerialDriver->ttys = dgap_driver_kzmalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->SerialDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->SerialDriver->ttys)
 		return(-ENOMEM);
 
@@ -259,14 +259,14 @@ int dgap_tty_register(struct board_t *brd)
 	brd->PrintDriver->name_base = 0;
 	brd->PrintDriver->major = 0;
 	brd->PrintDriver->minor_start = 0;
-	brd->PrintDriver->type = TTY_DRIVER_TYPE_SERIAL;   
+	brd->PrintDriver->type = TTY_DRIVER_TYPE_SERIAL;
 	brd->PrintDriver->subtype = SERIAL_TYPE_NORMAL;
 	brd->PrintDriver->init_termios = DgapDefaultTermios;
 	brd->PrintDriver->driver_name = DRVSTR;
 	brd->PrintDriver->flags = (TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK);
 
 	/* The kernel wants space to store pointers to tty_structs */
-	brd->PrintDriver->ttys = dgap_driver_kzmalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->PrintDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->PrintDriver->ttys)
 		return(-ENOMEM);
 
@@ -380,7 +380,7 @@ int dgap_tty_init(struct board_t *brd)
 	 */
 	for (i = 0; i < brd->nasync; i++) {
 		if (!brd->channels[i]) {
-			brd->channels[i] = dgap_driver_kzmalloc(sizeof(struct channel_t), GFP_ATOMIC);
+			brd->channels[i] = kzalloc(sizeof(struct channel_t), GFP_ATOMIC);
 			if (!brd->channels[i]) {
 				DPR_CORE(("%s:%d Unable to allocate memory for channel struct\n",
 				    __FILE__, __LINE__));
@@ -450,7 +450,7 @@ int dgap_tty_init(struct board_t *brd)
 
 		/*
 		 * Set queue water marks, interrupt mask,
-		 * and general tty parameters. 
+		 * and general tty parameters.
 		 */
 		ch->ch_tlw = tlw = ch->ch_tsize >= 2000 ? ((ch->ch_tsize * 5) / 8) : ch->ch_tsize / 2;
 
@@ -479,7 +479,7 @@ int dgap_tty_init(struct board_t *brd)
 			writew(0, &(ch->ch_bs->edelay));
 		else
 			writew(100, &(ch->ch_bs->edelay));
-	
+
 		writeb(1, &(ch->ch_bs->idata));
 	}
 
@@ -506,7 +506,7 @@ void dgap_tty_post_uninit(void)
  * dgap_tty_uninit()
  *
  * Uninitialize the TTY portion of this driver.  Free all memory and
- * resources. 
+ * resources.
  */
 void dgap_tty_uninit(struct board_t *brd)
 {
@@ -611,7 +611,7 @@ static void dgap_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *b
 			if (n == 0) {
 				return;
 			}
-	
+
 			/*
 			 * Copy as much data as will fit.
 			 */
@@ -661,9 +661,9 @@ static void dgap_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *b
 /*=======================================================================
  *
  *      dgap_input - Process received data.
- * 
+ *
  *              ch      - Pointer to channel structure.
- * 
+ *
  *=======================================================================*/
 
 void dgap_input(struct channel_t *ch)
@@ -704,8 +704,8 @@ void dgap_input(struct channel_t *ch)
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
-	/* 
-	 *      Figure the number of characters in the buffer.   
+	/*
+	 *      Figure the number of characters in the buffer.
 	 *      Exit immediately if none.
 	 */
 
@@ -775,13 +775,13 @@ void dgap_input(struct channel_t *ch)
 	len = min(len, (N_TTY_BUF_SIZE - 1));
 
 	ld = tty_ldisc_ref(tp);
-                
+
 #ifdef TTY_DONT_FLIP
 	/*
 	 * If the DONT_FLIP flag is on, don't flush our buffer, and act
-	 * like the ld doesn't have any space to put the data right now.  
+	 * like the ld doesn't have any space to put the data right now.
 	 */
-	if (test_bit(TTY_DONT_FLIP, &tp->flags))   
+	if (test_bit(TTY_DONT_FLIP, &tp->flags))
 		len = 0;
 #endif
 
@@ -879,9 +879,9 @@ void dgap_input(struct channel_t *ch)
 }
 
 
-/************************************************************************   
+/************************************************************************
  * Determines when CARRIER changes state and takes appropriate
- * action. 
+ * action.
  ************************************************************************/
 void dgap_carrier(struct channel_t *ch)
 {
@@ -889,7 +889,7 @@ void dgap_carrier(struct channel_t *ch)
 
         int virt_carrier = 0;
         int phys_carrier = 0;
- 
+
 	DPR_CARR(("dgap_carrier called...\n"));
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
@@ -917,11 +917,11 @@ void dgap_carrier(struct channel_t *ch)
 
 	if (ch->ch_digi.digi_flags & DIGI_FORCEDCD) {
 		virt_carrier = 1;
-	}  
+	}
 
 	if (ch->ch_c_cflag & CLOCAL) {
 		virt_carrier = 1;
-	}  
+	}
 
 
 	DPR_CARR(("DCD: physical: %d virt: %d\n", phys_carrier, virt_carrier));
@@ -968,7 +968,7 @@ void dgap_carrier(struct channel_t *ch)
 	 *  "make pretend that carrier is there".
 	 */
 	if ((virt_carrier == 0) && ((ch->ch_flags & CH_CD) != 0) &&
-	    (phys_carrier == 0)) 
+	    (phys_carrier == 0))
 	{
 
 		/*
@@ -991,7 +991,7 @@ void dgap_carrier(struct channel_t *ch)
 			tty_hangup(ch->ch_tun.un_tty);
 		}
 
-		if (ch->ch_pun.un_open_count > 0) { 
+		if (ch->ch_pun.un_open_count > 0) {
 			DPR_CARR(("Sending pr hangup\n"));
 			tty_hangup(ch->ch_pun.un_tty);
 		}
@@ -1002,7 +1002,7 @@ void dgap_carrier(struct channel_t *ch)
 	 */
 	if (virt_carrier == 1)
 		ch->ch_flags |= CH_FCAR;
-	else      
+	else
 		ch->ch_flags &= ~CH_FCAR;
 
 	if (phys_carrier == 1)
@@ -1013,9 +1013,9 @@ void dgap_carrier(struct channel_t *ch)
 
 
 /************************************************************************
- *      
+ *
  * TTY Entry points and helper functions
- *              
+ *
  ************************************************************************/
 
 /*
@@ -1165,7 +1165,7 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	 */
 	dgap_param(tty);
 
-	/*                              
+	/*
 	 * follow protocol for opening port
 	 */
 
@@ -1195,13 +1195,13 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 }
 
 
-/*   
+/*
  * dgap_block_til_ready()
  *
  * Wait for DCD, if needed.
  */
 static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struct channel_t *ch)
-{ 
+{
 	int retval = 0;
 	struct un_t *un = NULL;
 	ulong   lock_flags;
@@ -1246,7 +1246,7 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 		 * If either unit is in the middle of the fragile part of close,
 		 * we just cannot touch the channel safely.
 		 * Go back to sleep, knowing that when the channel can be
-		 * touched safely, the close routine will signal the 
+		 * touched safely, the close routine will signal the
 		 * ch_wait_flags to wake us back up.
 		 */
 		if (!((ch->ch_tun.un_flags | ch->ch_pun.un_flags) & UN_CLOSING)) {
@@ -1354,7 +1354,7 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
  * dgap_tty_hangup()
  *
  * Hangup the port.  Like a close, but don't wait for output to drain.
- */     
+ */
 static void dgap_tty_hangup(struct tty_struct *tty)
 {
 	struct board_t	*bd;
@@ -1436,7 +1436,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 		 */
 		APR(("tty->count is 1, un open count is %d\n", un->un_open_count));
 		un->un_open_count = 1;
-	}  
+	}
 
 	if (--un->un_open_count < 0) {
 		APR(("bad serial port open count of %d\n", un->un_open_count));
@@ -1497,7 +1497,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 			dgap_cmdb( ch, SMODEM, 0, D_DTR(ch)|D_RTS(ch), 0 );
 
 			/*
-			 * Go to sleep to ensure RTS/DTR 
+			 * Go to sleep to ensure RTS/DTR
 			 * have been dropped for modems to see it.
 			 */
 			if (ch->ch_close_delay) {
@@ -1535,7 +1535,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 	wake_up_interruptible(&un->un_flags_wait);
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
-                
+
         DPR_BASIC(("dgap_tty_close - complete\n"));
 }
 
@@ -1637,7 +1637,7 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 		}
 	}
 
- 	DPR_WRITE(("dgap_tty_chars_in_buffer. Port: %x - %d (head: %d tail: %d tsize: %d)\n", 
+ 	DPR_WRITE(("dgap_tty_chars_in_buffer. Port: %x - %d (head: %d tail: %d tsize: %d)\n",
 		ch->ch_portnum, chars, thead, ttail, ch->ch_tsize));
         return(chars);
 }
@@ -1702,14 +1702,14 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 }
 
 
-/*               
+/*
  * dgap_maxcps_room
  *
  * Reduces bytes_available to the max number of characters
  * that can be sent currently given the maxcps value, and
  * returns the new bytes_available.  This only affects printer
  * output.
- */                     
+ */
 static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 {
 	struct channel_t *ch = NULL;
@@ -1750,7 +1750,7 @@ static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 		}
 		else {
 			/* no room in the buffer */
-			cps_limit = 0; 
+			cps_limit = 0;
 		}
 
 		bytes_available = min(cps_limit, bytes_available);
@@ -1793,7 +1793,7 @@ static inline void dgap_set_firmware_event(struct un_t *un, unsigned int event)
  * dgap_tty_write_room()
  *
  * Return space available in Tx buffer
- */        
+ */
 static int dgap_tty_write_room(struct tty_struct *tty)
 {
 	struct channel_t *ch = NULL;
@@ -1831,7 +1831,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	ret = dgap_maxcps_room(tty, ret);
 
 	/*
-	 * If we are printer device, leave space for 
+	 * If we are printer device, leave space for
 	 * possibly both the on and off strings.
 	 */
 	if (un->un_type == DGAP_PRINT) {
@@ -1856,7 +1856,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	 */
 	dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
- 
+
 	DPR_WRITE(("dgap_tty_write_room - %d tail: %d head: %d\n", ret, tail, head));
 
         return(ret);
@@ -1867,7 +1867,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
  * dgap_tty_put_char()
  *
  * Put a character into ch->ch_buf
- *                              
+ *
  *      - used by the line discipline for OPOST processing
  */
 static int dgap_tty_put_char(struct tty_struct *tty, unsigned char c)
@@ -2094,7 +2094,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	if (from_user) {
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
 		up(&dgap_TmpWriteSem);
-	} 
+	}
 	else {
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
 	}
@@ -2206,12 +2206,12 @@ static int dgap_tty_tiocmset(struct tty_struct *tty, struct file *file,
 	if (set & TIOCM_RTS) {
 		ch->ch_mforce |= D_RTS(ch);
 		ch->ch_mval   |= D_RTS(ch);
-        }         
+        }
 
 	if (set & TIOCM_DTR) {
 		ch->ch_mforce |= D_DTR(ch);
 		ch->ch_mval   |= D_DTR(ch);
-        }         
+        }
 
 	if (clear & TIOCM_RTS) {
 		ch->ch_mforce |= D_RTS(ch);
@@ -2316,7 +2316,7 @@ static void dgap_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 
 /*
  * dgap_send_xchar()
- * 
+ *
  * send a high priority character, called by ld.
  */
 static void dgap_tty_send_xchar(struct tty_struct *tty, char c)
@@ -2529,7 +2529,7 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 
 
 /*
- * dgap_tty_digigeta() 
+ * dgap_tty_digigeta()
  *
  * Ioctl to get the information for ditty.
  *
@@ -2571,7 +2571,7 @@ static int dgap_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retin
 
 
 /*
- * dgap_tty_digiseta() 
+ * dgap_tty_digiseta()
  *
  * Ioctl to set the information for ditty.
  *
@@ -2614,10 +2614,10 @@ static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 
 	memcpy(&ch->ch_digi, &new_digi, sizeof(struct digi_t));
 
-	if (ch->ch_digi.digi_maxcps < 1) 
+	if (ch->ch_digi.digi_maxcps < 1)
 		ch->ch_digi.digi_maxcps = 1;
 
-	if (ch->ch_digi.digi_maxcps > 10000) 
+	if (ch->ch_digi.digi_maxcps > 10000)
 		ch->ch_digi.digi_maxcps = 10000;
 
 	if (ch->ch_digi.digi_bufsize < 10)
@@ -2647,7 +2647,7 @@ static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 
 
 /*
- * dgap_tty_digigetedelay() 
+ * dgap_tty_digigetedelay()
  *
  * Ioctl to get the current edelay setting.
  *
@@ -2689,7 +2689,7 @@ static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo)
 
 
 /*
- * dgap_tty_digisetedelay() 
+ * dgap_tty_digisetedelay()
  *
  * Ioctl to set the EDELAY setting
  *
@@ -2783,7 +2783,7 @@ static int dgap_tty_digigetcustombaud(struct tty_struct *tty, int __user *retinf
 
 
 /*
- * dgap_tty_digisetcustombaud() 
+ * dgap_tty_digisetcustombaud()
  *
  * Ioctl to set the custom baud rate setting
  */
@@ -2898,7 +2898,7 @@ static void dgap_tty_throttle(struct tty_struct *tty)
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
-        
+
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
                 return;
@@ -2938,7 +2938,7 @@ static void dgap_tty_unthrottle(struct tty_struct *tty)
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
-        
+
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
                 return;
@@ -2979,7 +2979,7 @@ static void dgap_tty_start(struct tty_struct *tty)
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
-        
+
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
                 return;
@@ -3016,7 +3016,7 @@ static void dgap_tty_stop(struct tty_struct *tty)
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
-        
+
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
                 return;
@@ -3039,7 +3039,7 @@ static void dgap_tty_stop(struct tty_struct *tty)
 }
 
 
-/* 
+/*
  * dgap_tty_flush_chars()
  *
  * Flush the cook buffer
@@ -3066,7 +3066,7 @@ static void dgap_tty_flush_chars(struct tty_struct *tty)
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
-        
+
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
                 return;
@@ -3092,7 +3092,7 @@ static void dgap_tty_flush_chars(struct tty_struct *tty)
 
 /*
  * dgap_tty_flush_buffer()
- *              
+ *
  * Flush Tx buffer (make in == out)
  */
 static void dgap_tty_flush_buffer(struct tty_struct *tty)
@@ -3110,7 +3110,7 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
-        
+
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
                 return;
@@ -3153,7 +3153,7 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
  * The IOCTL function and all of its helpers
  *
  *****************************************************************************/
-                        
+
 /*
  * dgap_tty_ioctl()
  *
@@ -3186,7 +3186,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return (-ENODEV);
 
-	DPR_IOCTL(("dgap_tty_ioctl start on port %d - cmd %s (%x), arg %lx\n", 
+	DPR_IOCTL(("dgap_tty_ioctl start on port %d - cmd %s (%x), arg %lx\n",
 		ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
 	DGAP_LOCK(bd->bd_lock, lock_flags);
@@ -3205,7 +3205,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 	case TCSBRK:
 		/*
-		 * TCSBRK is SVID version: non-zero arg --> no break  
+		 * TCSBRK is SVID version: non-zero arg --> no break
 		 * this behaviour is exploited by tcdrain().
 		 *
 		 * According to POSIX.1 spec (7.2.2.1.2) breaks should be
@@ -3236,7 +3236,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n", 
+		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
 			ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
                 return(0);
@@ -3270,7 +3270,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n", 
+		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
 			ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
 		return(0);
@@ -3303,11 +3303,11 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n", 
+		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
 			ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
 		return 0;
-                
+
         case TIOCCBRK:
 		/*
 		 * FEP5 doesn't support turning off a break unconditionally.
@@ -3343,7 +3343,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
 		return(0);
-                        
+
 	case TIOCMGET:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
@@ -3359,8 +3359,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		/*
 		 * Here are any additional ioctl's that we want to implement
 		 */
-                        
-	case TCFLSH:  
+
+	case TCFLSH:
 		/*
 		 * The linux tty driver doesn't have a flush
 		 * input routine for the driver, assuming all backed
@@ -3369,7 +3369,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 * act on the ioctl, but then lie and say we didn't
 		 * so the line discipline will process the flush
 		 * also.
-		 */   
+		 */
 		rc = tty_check_change(tty);
 		if (rc) {
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
@@ -3407,13 +3407,13 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			tty_wakeup(tty);
 			DGAP_LOCK(bd->bd_lock, lock_flags);
 			DGAP_LOCK(ch->ch_lock, lock_flags2);
-		}                  
+		}
 
-		/* pretend we didn't recognize this IOCTL */  
+		/* pretend we didn't recognize this IOCTL */
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		DPR_IOCTL(("dgap_tty_ioctl (LINE:%d) finish on port %d - cmd %s (%x), arg %lx\n", 
+		DPR_IOCTL(("dgap_tty_ioctl (LINE:%d) finish on port %d - cmd %s (%x), arg %lx\n",
 			__LINE__, ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
 		return(-ENOIOCTLCMD);
@@ -3445,7 +3445,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			return(-EINTR);
 		}
 
-		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n", 
+		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
 			ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
 		/* pretend we didn't recognize this */
@@ -3462,7 +3462,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		}
 
 		/* pretend we didn't recognize this */
-		return(-ENOIOCTLCMD);  
+		return(-ENOIOCTLCMD);
 
 	case TCXONC:
 		/*
@@ -3572,7 +3572,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
 		DPR_IOCTL(("dgap_tty_ioctl - in default\n"));
-		DPR_IOCTL(("dgap_tty_ioctl end - cmd %s (%x), arg %lx\n", 
+		DPR_IOCTL(("dgap_tty_ioctl end - cmd %s (%x), arg %lx\n",
 			dgap_ioctl_name(cmd), cmd, arg));
 
 		return(-ENOIOCTLCMD);

@@ -951,7 +951,7 @@ static void init_dummy_udc_hw(struct dummy *dum)
 		list_add_tail(&ep->ep.ep_list, &dum->gadget.ep_list);
 		ep->halted = ep->wedged = ep->already_seen =
 				ep->setup_stage = 0;
-		ep->ep.maxpacket = ~0;
+		usb_ep_set_maxpacket_limit(&ep->ep, ~0);
 		ep->ep.max_streams = 16;
 		ep->last_io = jiffies;
 		ep->gadget = &dum->gadget;
