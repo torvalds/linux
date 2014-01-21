@@ -640,7 +640,7 @@ out:
  *
  * Called by SPI drivers using the core transfer_one_message()
  * implementation to notify it that the current interrupt driven
- * transfer has finised and the next one may be scheduled.
+ * transfer has finished and the next one may be scheduled.
  */
 void spi_finalize_current_transfer(struct spi_master *master)
 {
