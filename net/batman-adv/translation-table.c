@@ -96,7 +96,7 @@ batadv_tt_hash_find(struct batadv_hashtable *hash, const uint8_t *addr,
 	if (!hash)
 		return NULL;
 
-	memcpy(to_search.addr, addr, ETH_ALEN);
+	ether_addr_copy(to_search.addr, addr);
 	to_search.vid = vid;
 
 	index = batadv_choose_tt(&to_search, hash->size);
@@ -333,7 +333,7 @@ static void batadv_tt_local_event(struct batadv_priv *bat_priv,
 	tt_change_node->change.flags = flags;
 	memset(tt_change_node->change.reserved, 0,
 	       sizeof(tt_change_node->change.reserved));
-	memcpy(tt_change_node->change.addr, common->addr, ETH_ALEN);
+	ether_addr_copy(tt_change_node->change.addr, common->addr);
 	tt_change_node->change.vid = htons(common->vid);
 
 	del_op_requested = flags & BATADV_TT_CLIENT_DEL;
@@ -549,7 +549,7 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 		   addr, BATADV_PRINT_VID(vid),
 		   (uint8_t)atomic_read(&bat_priv->tt.vn));
 
-	memcpy(tt_local->common.addr, addr, ETH_ALEN);
+	ether_addr_copy(tt_local->common.addr, addr);
 	/* The local entry has to be marked as NEW to avoid to send it in
 	 * a full table response going out before the next ttvn increment
 	 * (consistency check)
@@ -1277,7 +1277,7 @@ static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 			goto out;
 
 		common = &tt_global_entry->common;
-		memcpy(common->addr, tt_addr, ETH_ALEN);
+		ether_addr_copy(common->addr, tt_addr);
 		common->vid = vid;
 
 		common->flags = flags;
@@ -2160,7 +2160,7 @@ batadv_new_tt_req_node(struct batadv_priv *bat_priv,
 	if (!tt_req_node)
 		goto unlock;
 
-	memcpy(tt_req_node->addr, orig_node->orig, ETH_ALEN);
+	ether_addr_copy(tt_req_node->addr, orig_node->orig);
 	tt_req_node->issued_at = jiffies;
 
 	list_add(&tt_req_node->list, &bat_priv->tt.req_list);
@@ -2240,8 +2240,7 @@ static void batadv_tt_tvlv_generate(struct batadv_priv *bat_priv,
 			if ((valid_cb) && (!valid_cb(tt_common_entry, cb_data)))
 				continue;
 
-			memcpy(tt_change->addr, tt_common_entry->addr,
-			       ETH_ALEN);
+			ether_addr_copy(tt_change->addr, tt_common_entry->addr);
 			tt_change->flags = tt_common_entry->flags;
 			tt_change->vid = htons(tt_common_entry->vid);
 			memset(tt_change->reserved, 0,
@@ -2932,7 +2931,7 @@ static bool batadv_tt_check_roam_count(struct batadv_priv *bat_priv,
 		tt_roam_node->first_time = jiffies;
 		atomic_set(&tt_roam_node->counter,
 			   BATADV_ROAMING_MAX_COUNT - 1);
-		memcpy(tt_roam_node->addr, client, ETH_ALEN);
+		ether_addr_copy(tt_roam_node->addr, client);
 
 		list_add(&tt_roam_node->list, &bat_priv->tt.roam_list);
 		ret = true;

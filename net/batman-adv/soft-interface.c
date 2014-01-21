@@ -111,8 +111,8 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(old_addr, dev->dev_addr, ETH_ALEN);
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	ether_addr_copy(old_addr, dev->dev_addr);
+	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	/* only modify transtable if it has been initialized before */
 	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_ACTIVE) {
@@ -279,8 +279,8 @@ send:
 		/* hw address of first interface is the orig mac because only
 		 * this mac is known throughout the mesh
 		 */
-		memcpy(bcast_packet->orig,
-		       primary_if->net_dev->dev_addr, ETH_ALEN);
+		ether_addr_copy(bcast_packet->orig,
+				primary_if->net_dev->dev_addr);
 
 		/* set broadcast sequence number */
 		seqno = atomic_inc_return(&bat_priv->bcast_seqno);

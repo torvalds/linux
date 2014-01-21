@@ -1133,8 +1133,8 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
 	unicast_tvlv_packet->reserved = 0;
 	unicast_tvlv_packet->tvlv_len = htons(tvlv_len);
 	unicast_tvlv_packet->align = 0;
-	memcpy(unicast_tvlv_packet->src, src, ETH_ALEN);
-	memcpy(unicast_tvlv_packet->dst, dst, ETH_ALEN);
+	ether_addr_copy(unicast_tvlv_packet->src, src);
+	ether_addr_copy(unicast_tvlv_packet->dst, dst);
 
 	tvlv_buff = (unsigned char *)(unicast_tvlv_packet + 1);
 	tvlv_hdr = (struct batadv_tvlv_hdr *)tvlv_buff;

@@ -763,7 +763,7 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
 		if (*p != ETH_ALEN)
 			return BATADV_DHCP_NO;
 
-		memcpy(chaddr, skb->data + chaddr_offset, ETH_ALEN);
+		ether_addr_copy(chaddr, skb->data + chaddr_offset);
 	}
 
 	return ret;

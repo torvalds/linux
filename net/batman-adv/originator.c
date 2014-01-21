@@ -446,7 +446,7 @@ batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
 	INIT_HLIST_HEAD(&neigh_node->ifinfo_list);
 	spin_lock_init(&neigh_node->ifinfo_lock);
 
-	memcpy(neigh_node->addr, neigh_addr, ETH_ALEN);
+	ether_addr_copy(neigh_node->addr, neigh_addr);
 	neigh_node->if_incoming = hard_iface;
 	neigh_node->orig_node = orig_node;
 
@@ -666,7 +666,7 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 
 	orig_node->tt_initialised = false;
 	orig_node->bat_priv = bat_priv;
-	memcpy(orig_node->orig, addr, ETH_ALEN);
+	ether_addr_copy(orig_node->orig, addr);
 	batadv_dat_init_orig_node_addr(orig_node);
 	atomic_set(&orig_node->last_ttvn, 0);
 	orig_node->tt_buff = NULL;

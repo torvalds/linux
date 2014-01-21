@@ -59,8 +59,8 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 
 	ethhdr = eth_hdr(skb);
-	memcpy(ethhdr->h_source, hard_iface->net_dev->dev_addr, ETH_ALEN);
-	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
+	ether_addr_copy(ethhdr->h_source, hard_iface->net_dev->dev_addr);
+	ether_addr_copy(ethhdr->h_dest, dst_addr);
 	ethhdr->h_proto = htons(ETH_P_BATMAN);
 
 	skb_set_network_header(skb, ETH_HLEN);
@@ -165,7 +165,7 @@ batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
 	/* set unicast ttl */
 	unicast_packet->ttl = BATADV_TTL;
 	/* copy the destination for faster routing */
-	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
+	ether_addr_copy(unicast_packet->dest, orig_node->orig);
 	/* set the destination tt version number */
 	unicast_packet->ttvn = ttvn;
 
@@ -220,7 +220,7 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 
 	uc_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
 	uc_4addr_packet->u.packet_type = BATADV_UNICAST_4ADDR;
-	memcpy(uc_4addr_packet->src, primary_if->net_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(uc_4addr_packet->src, primary_if->net_dev->dev_addr);
 	uc_4addr_packet->subtype = packet_subtype;
 	uc_4addr_packet->reserved = 0;
 
