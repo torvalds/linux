@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 #include <linux/fb.h>
+#include <linux/hdmi.h>
 #include <drm/drm_mode.h>
 
 #include <drm/drm_fourcc.h>
@@ -181,6 +182,7 @@ struct drm_display_mode {
 
 	int vrefresh;		/* in Hz */
 	int hsync;		/* in kHz */
+	enum hdmi_picture_aspect picture_aspect_ratio;
 };
 
 static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
