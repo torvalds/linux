@@ -1336,7 +1336,7 @@ static int gen_unique_name(struct send_ctx *sctx,
 		return -ENOMEM;
 
 	while (1) {
-		len = snprintf(tmp, sizeof(tmp) - 1, "o%llu-%llu-%llu",
+		len = snprintf(tmp, sizeof(tmp), "o%llu-%llu-%llu",
 				ino, gen, idx);
 		if (len >= sizeof(tmp)) {
 			/* should really not happen */
