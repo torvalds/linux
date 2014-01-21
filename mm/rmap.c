@@ -1684,9 +1684,13 @@ void __put_anon_vma(struct anon_vma *anon_vma)
 }
 
 #ifdef CONFIG_MIGRATION
-static struct anon_vma *rmap_walk_anon_lock(struct page *page)
+static struct anon_vma *rmap_walk_anon_lock(struct page *page,
+					struct rmap_walk_control *rwc)
 {
 	struct anon_vma *anon_vma;
+
+	if (rwc->anon_lock)
+		return rwc->anon_lock(page);
 
 	/*
 	 * Note: remove_migration_ptes() cannot use page_lock_anon_vma_read()
@@ -1713,15 +1717,21 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
 	struct anon_vma_chain *avc;
 	int ret = SWAP_AGAIN;
 
-	anon_vma = rmap_walk_anon_lock(page);
+	anon_vma = rmap_walk_anon_lock(page, rwc);
 	if (!anon_vma)
 		return ret;
 
 	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff, pgoff) {
 		struct vm_area_struct *vma = avc->vma;
 		unsigned long address = vma_address(page, vma);
+
+		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
+			continue;
+
 		ret = rwc->rmap_one(page, vma, address, rwc->arg);
 		if (ret != SWAP_AGAIN)
+			break;
+		if (rwc->done && rwc->done(page))
 			break;
 	}
 	anon_vma_unlock_read(anon_vma);
@@ -1740,15 +1750,26 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
 	mutex_lock(&mapping->i_mmap_mutex);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
 		unsigned long address = vma_address(page, vma);
+
+		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
+			continue;
+
 		ret = rwc->rmap_one(page, vma, address, rwc->arg);
 		if (ret != SWAP_AGAIN)
-			break;
+			goto done;
+		if (rwc->done && rwc->done(page))
+			goto done;
 	}
-	/*
-	 * No nonlinear handling: being always shared, nonlinear vmas
-	 * never contain migration ptes.  Decide what to do about this
-	 * limitation to linear when we need rmap_walk() on nonlinear.
-	 */
+
+	if (!rwc->file_nonlinear)
+		goto done;
+
+	if (list_empty(&mapping->i_mmap_nonlinear))
+		goto done;
+
+	ret = rwc->file_nonlinear(page, mapping, vma);
+
+done:
 	mutex_unlock(&mapping->i_mmap_mutex);
 	return ret;
 }

@@ -2032,9 +2032,16 @@ again:
 			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
 				continue;
 
+			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
+				continue;
+
 			ret = rwc->rmap_one(page, vma,
 					rmap_item->address, rwc->arg);
 			if (ret != SWAP_AGAIN) {
+				anon_vma_unlock_read(anon_vma);
+				goto out;
+			}
+			if (rwc->done && rwc->done(page)) {
 				anon_vma_unlock_read(anon_vma);
 				goto out;
 			}

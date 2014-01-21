@@ -235,10 +235,25 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page);
 void page_unlock_anon_vma_read(struct anon_vma *anon_vma);
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
 
+/*
+ * rmap_walk_control: To control rmap traversing for specific needs
+ *
+ * arg: passed to rmap_one() and invalid_vma()
+ * rmap_one: executed on each vma where page is mapped
+ * done: for checking traversing termination condition
+ * file_nonlinear: for handling file nonlinear mapping
+ * anon_lock: for getting anon_lock by optimized way rather than default
+ * invalid_vma: for skipping uninterested vma
+ */
 struct rmap_walk_control {
 	void *arg;
 	int (*rmap_one)(struct page *page, struct vm_area_struct *vma,
 					unsigned long addr, void *arg);
+	int (*done)(struct page *page);
+	int (*file_nonlinear)(struct page *, struct address_space *,
+					struct vm_area_struct *vma);
+	struct anon_vma *(*anon_lock)(struct page *page);
+	bool (*invalid_vma)(struct vm_area_struct *vma, void *arg);
 };
 
 /*
