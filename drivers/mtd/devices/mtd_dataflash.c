@@ -10,7 +10,6 @@
  * 2 of the License, or (at your option) any later version.
 */
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/device.h>

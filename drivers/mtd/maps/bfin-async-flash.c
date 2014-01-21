@@ -14,7 +14,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>

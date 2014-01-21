@@ -15,7 +15,6 @@
  *
  */
 
-#include <linux/init.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/module.h>

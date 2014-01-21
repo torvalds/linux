@@ -22,7 +22,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/init.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
