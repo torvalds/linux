@@ -1891,30 +1891,38 @@ struct drm_i915_file_private {
 
 extern const struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
-extern int i915_panel_ignore_lid __read_mostly;
-extern unsigned int i915_powersave __read_mostly;
-extern int i915_semaphores __read_mostly;
-extern unsigned int i915_lvds_downclock __read_mostly;
-extern int i915_lvds_channel_mode __read_mostly;
-extern int i915_panel_use_ssc __read_mostly;
-extern int i915_vbt_sdvo_panel_type __read_mostly;
-extern int i915_enable_rc6 __read_mostly;
-extern int i915_enable_fbc __read_mostly;
-extern bool i915_enable_hangcheck __read_mostly;
-extern int i915_enable_ppgtt __read_mostly;
-extern int i915_enable_psr __read_mostly;
-extern unsigned int i915_preliminary_hw_support __read_mostly;
-extern int i915_disable_power_well __read_mostly;
-extern int i915_enable_ips __read_mostly;
-extern bool i915_fastboot __read_mostly;
-extern int i915_enable_pc8 __read_mostly;
-extern int i915_pc8_timeout __read_mostly;
-extern bool i915_prefault_disable __read_mostly;
 
 extern int i915_suspend(struct drm_device *dev, pm_message_t state);
 extern int i915_resume(struct drm_device *dev);
 extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
 extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
+
+/* i915_params.c */
+struct i915_params {
+	int modeset;
+	int panel_ignore_lid;
+	unsigned int powersave;
+	int semaphores;
+	unsigned int lvds_downclock;
+	int lvds_channel_mode;
+	int panel_use_ssc;
+	int vbt_sdvo_panel_type;
+	int enable_rc6;
+	int enable_fbc;
+	bool enable_hangcheck;
+	int enable_ppgtt;
+	int enable_psr;
+	unsigned int preliminary_hw_support;
+	int disable_power_well;
+	int enable_ips;
+	bool fastboot;
+	int enable_pc8;
+	int pc8_timeout;
+	bool prefault_disable;
+	bool reset;
+	int invert_brightness;
+};
+extern struct i915_params i915 __read_mostly;
 
 				/* i915_dma.c */
 void i915_update_dri1_breadcrumb(struct drm_device *dev);
@@ -2295,10 +2303,10 @@ static inline void i915_gem_chipset_flush(struct drm_device *dev)
 int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 static inline bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 {
-	if (i915_enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+	if (i915.enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
 		return false;
 
-	if (i915_enable_ppgtt == 1 && full)
+	if (i915.enable_ppgtt == 1 && full)
 		return false;
 
 #ifdef CONFIG_INTEL_IOMMU

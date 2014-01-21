@@ -1725,7 +1725,7 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	if (!i915_enable_psr) {
+	if (!i915.enable_psr) {
 		DRM_DEBUG_KMS("PSR disable by flag\n");
 		return false;
 	}

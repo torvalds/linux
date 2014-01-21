@@ -2495,7 +2495,7 @@ static void i915_hangcheck_elapsed(unsigned long data)
 #define HUNG 20
 #define FIRE 30
 
-	if (!i915_enable_hangcheck)
+	if (!i915.enable_hangcheck)
 		return;
 
 	for_each_ring(ring, dev_priv, i) {
@@ -2597,7 +2597,7 @@ static void i915_hangcheck_elapsed(unsigned long data)
 void i915_queue_hangcheck(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	if (!i915_enable_hangcheck)
+	if (!i915.enable_hangcheck)
 		return;
 
 	mod_timer(&dev_priv->gpu_error.hangcheck_timer,

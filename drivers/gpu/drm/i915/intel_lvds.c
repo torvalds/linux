@@ -848,8 +848,8 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* use the module option value if specified */
-	if (i915_lvds_channel_mode > 0)
-		return i915_lvds_channel_mode == 2;
+	if (i915.lvds_channel_mode > 0)
+		return i915.lvds_channel_mode == 2;
 
 	if (dmi_check_system(intel_dual_link_lvds))
 		return true;
@@ -1036,7 +1036,7 @@ void intel_lvds_init(struct drm_device *dev)
 					intel_find_panel_downclock(dev,
 					fixed_mode, connector);
 				if (intel_connector->panel.downclock_mode !=
-					NULL &&	i915_lvds_downclock) {
+					NULL &&	i915.lvds_downclock) {
 					/* We found the downclock for LVDS. */
 					dev_priv->lvds_downclock_avail = true;
 					dev_priv->lvds_downclock =

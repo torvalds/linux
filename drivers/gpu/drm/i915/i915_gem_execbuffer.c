@@ -896,7 +896,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 		if (!access_ok(VERIFY_WRITE, ptr, length))
 			return -EFAULT;
 
-		if (likely(!i915_prefault_disable)) {
+		if (likely(!i915.prefault_disable)) {
 			if (fault_in_multipages_readable(ptr, length))
 				return -EFAULT;
 		}

@@ -469,7 +469,7 @@ void intel_update_fbc(struct drm_device *dev)
 		return;
 	}
 
-	if (!i915_powersave) {
+	if (!i915.powersave) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODULE_PARAM))
 			DRM_DEBUG_KMS("fbc disabled per module param\n");
 		return;
@@ -508,13 +508,13 @@ void intel_update_fbc(struct drm_device *dev)
 	obj = intel_fb->obj;
 	adjusted_mode = &intel_crtc->config.adjusted_mode;
 
-	if (i915_enable_fbc < 0 &&
+	if (i915.enable_fbc < 0 &&
 	    INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev)) {
 		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))
 			DRM_DEBUG_KMS("disabled per chip default\n");
 		goto out_disable;
 	}
-	if (!i915_enable_fbc) {
+	if (!i915.enable_fbc) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODULE_PARAM))
 			DRM_DEBUG_KMS("fbc disabled per module param\n");
 		goto out_disable;
@@ -3154,8 +3154,8 @@ int intel_enable_rc6(const struct drm_device *dev)
 		return 0;
 
 	/* Respect the kernel parameter if it is set */
-	if (i915_enable_rc6 >= 0)
-		return i915_enable_rc6;
+	if (i915.enable_rc6 >= 0)
+		return i915.enable_rc6;
 
 	/* Disable RC6 on Ironlake */
 	if (INTEL_INFO(dev)->gen == 5)
@@ -5279,7 +5279,7 @@ static void __intel_power_well_put(struct drm_device *dev,
 	WARN_ON(!power_well->count);
 
 	if (!--power_well->count && power_well->set &&
-	    i915_disable_power_well) {
+	    i915.disable_power_well) {
 		power_well->set(dev, power_well, false);
 		hsw_enable_package_c8(dev_priv);
 	}
