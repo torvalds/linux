@@ -45,6 +45,7 @@
 /* OMAP HSMMC Host Controller Registers */
 #define OMAP_HSMMC_SYSSTATUS	0x0014
 #define OMAP_HSMMC_CON		0x002C
+#define OMAP_HSMMC_SDMASA	0x0100
 #define OMAP_HSMMC_BLK		0x0104
 #define OMAP_HSMMC_ARG		0x0108
 #define OMAP_HSMMC_CMD		0x010C
@@ -58,6 +59,7 @@
 #define OMAP_HSMMC_STAT		0x0130
 #define OMAP_HSMMC_IE		0x0134
 #define OMAP_HSMMC_ISE		0x0138
+#define OMAP_HSMMC_AC12		0x013C
 #define OMAP_HSMMC_CAPA		0x0140
 
 #define VS18			(1 << 26)
@@ -81,6 +83,7 @@
 #define DTO_MASK		0x000F0000
 #define DTO_SHIFT		16
 #define INIT_STREAM		(1 << 1)
+#define ACEN_ACMD23		(2 << 2)
 #define DP_SELECT		(1 << 21)
 #define DDIR			(1 << 4)
 #define DMAE			0x1
@@ -111,12 +114,20 @@
 #define DTO_EN			(1 << 20)
 #define DCRC_EN			(1 << 21)
 #define DEB_EN			(1 << 22)
+#define ACE_EN			(1 << 24)
 #define CERR_EN			(1 << 28)
 #define BADA_EN			(1 << 29)
 
-#define INT_EN_MASK		(BADA_EN | CERR_EN | DEB_EN | DCRC_EN |\
+#define INT_EN_MASK (BADA_EN | CERR_EN | ACE_EN | DEB_EN | DCRC_EN |\
 		DTO_EN | CIE_EN | CEB_EN | CCRC_EN | CTO_EN | \
 		BRR_EN | BWR_EN | TC_EN | CC_EN)
+
+#define CNI	(1 << 7)
+#define ACIE	(1 << 4)
+#define ACEB	(1 << 3)
+#define ACCE	(1 << 2)
+#define ACTO	(1 << 1)
+#define ACNE	(1 << 0)
 
 #define MMC_AUTOSUSPEND_DELAY	100
 #define MMC_TIMEOUT_MS		20		/* 20 mSec */
@@ -129,6 +140,7 @@
 #define VDD_3V0			3000000		/* 300000 uV */
 #define VDD_165_195		(ffs(MMC_VDD_165_195) - 1)
 
+#define AUTO_CMD23		(1 << 1)	/* Auto CMD23 support */
 /*
  * One controller can have multiple slots, like on some omap boards using
  * omap.c controller driver. Luckily this is not currently done on any known
@@ -193,6 +205,7 @@ struct omap_hsmmc_host {
 	int			use_reg;
 	int			req_in_progress;
 	unsigned long		clk_rate;
+	unsigned int		flags;
 	struct omap_hsmmc_next	next_data;
 	struct	omap_mmc_platform_data	*pdata;
 };
@@ -813,6 +826,11 @@ omap_hsmmc_start_command(struct omap_hsmmc_host *host, struct mmc_command *cmd,
 
 	cmdreg = (cmd->opcode << 24) | (resptype << 16) | (cmdtype << 22);
 
+	if ((host->flags & AUTO_CMD23) && mmc_op_multi(cmd->opcode) &&
+	    host->mrq->sbc) {
+		cmdreg |= ACEN_ACMD23;
+		OMAP_HSMMC_WRITE(host->base, SDMASA, host->mrq->sbc->arg);
+	}
 	if (data) {
 		cmdreg |= DP_SELECT | MSBS | BCE;
 		if (data->flags & MMC_DATA_READ)
@@ -905,7 +923,7 @@ omap_hsmmc_cmd_done(struct omap_hsmmc_host *host, struct mmc_command *cmd)
 	host->cmd = NULL;
 
 	if (host->mrq->sbc && (host->cmd == host->mrq->sbc) &&
-	    !host->mrq->sbc->error) {
+	    !host->mrq->sbc->error && !(host->flags & AUTO_CMD23)) {
 		omap_hsmmc_start_dma_transfer(host);
 		omap_hsmmc_start_command(host, host->mrq->cmd,
 						host->mrq->data);
@@ -1048,6 +1066,7 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
 {
 	struct mmc_data *data;
 	int end_cmd = 0, end_trans = 0;
+	int error = 0;
 
 	data = host->data;
 	dev_vdbg(mmc_dev(host->mmc), "IRQ Status is %x\n", status);
@@ -1062,6 +1081,20 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
 		else if (status & (CCRC_EN | DCRC_EN))
 			hsmmc_command_incomplete(host, -EILSEQ, end_cmd);
 
+		if (status & ACE_EN) {
+			u32 ac12;
+			ac12 = OMAP_HSMMC_READ(host->base, AC12);
+			if (!(ac12 & ACNE) && host->mrq->sbc) {
+				end_cmd = 1;
+				if (ac12 & ACTO)
+					error =  -ETIMEDOUT;
+				else if (ac12 & (ACCE | ACEB | ACIE))
+					error = -EILSEQ;
+				host->mrq->sbc->error = error;
+				hsmmc_command_incomplete(host, error, end_cmd);
+			}
+			dev_dbg(mmc_dev(host->mmc), "AC12 err: 0x%x\n", ac12);
+		}
 		if (host->data || host->response_busy) {
 			end_trans = !end_cmd;
 			host->response_busy = 0;
@@ -1513,7 +1546,7 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 		mmc_request_done(mmc, req);
 		return;
 	}
-	if (req->sbc) {
+	if (req->sbc && !(host->flags & AUTO_CMD23)) {
 		omap_hsmmc_start_command(host, req->sbc, NULL);
 		return;
 	}
