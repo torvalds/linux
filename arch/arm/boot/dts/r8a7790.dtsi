@@ -304,7 +304,7 @@
 		compatible = "renesas,scifa-r8a7790", "renesas,scifa";
 		reg = <0 0xe6c40000 0 64>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 144 4>;
+		interrupts = <0 144 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFA0>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -314,7 +314,7 @@
 		compatible = "renesas,scifa-r8a7790", "renesas,scifa";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6c50000 0 64>;
-		interrupts = <0 145 4>;
+		interrupts = <0 145 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFA1>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -324,7 +324,7 @@
 		compatible = "renesas,scifa-r8a7790", "renesas,scifa";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6c60000 0 64>;
-		interrupts = <0 151 4>;
+		interrupts = <0 151 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFA2>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -334,7 +334,7 @@
 		compatible = "renesas,scifb-r8a7790", "renesas,scifb";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6c20000 0 64>;
-		interrupts = <0 148 4>;
+		interrupts = <0 148 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFB0>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -344,7 +344,7 @@
 		compatible = "renesas,scifb-r8a7790", "renesas,scifb";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6c30000 0 64>;
-		interrupts = <0 149 4>;
+		interrupts = <0 149 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFB1>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -354,7 +354,7 @@
 		compatible = "renesas,scifb-r8a7790", "renesas,scifb";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6ce0000 0 64>;
-		interrupts = <0 150 4>;
+		interrupts = <0 150 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFB2>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -364,7 +364,7 @@
 		compatible = "renesas,scif-r8a7790", "renesas,scif";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6e60000 0 64>;
-		interrupts = <0 152 4>;
+		interrupts = <0 152 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7790_CLK_SCIF0>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -374,7 +374,7 @@
 		compatible = "renesas,scif-r8a7790", "renesas,scif";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6e68000 0 64>;
-		interrupts = <0 153 4>;
+		interrupts = <0 153 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7790_CLK_SCIF1>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -384,7 +384,7 @@
 		compatible = "renesas,hscif-r8a7790", "renesas,hscif";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe62c0000 0 96>;
-		interrupts = <0 154 4>;
+		interrupts = <0 154 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7790_CLK_HSCIF0>;
 		clock-names = "sci_ick";
 		status = "disabled";
@@ -394,7 +394,7 @@
 		compatible = "renesas,hscif-r8a7790", "renesas,hscif";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe62c8000 0 96>;
-		interrupts = <0 155 4>;
+		interrupts = <0 155 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7790_CLK_HSCIF1>;
 		clock-names = "sci_ick";
 		status = "disabled";
