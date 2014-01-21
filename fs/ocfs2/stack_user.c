@@ -979,7 +979,7 @@ static void user_recover_done(void *arg, struct dlm_slot *slots,
 	wake_up(&lc->oc_wait);
 }
 
-const struct dlm_lockspace_ops ocfs2_ls_ops = {
+static const struct dlm_lockspace_ops ocfs2_ls_ops = {
 	.recover_prep = user_recover_prep,
 	.recover_slot = user_recover_slot,
 	.recover_done = user_recover_done,
