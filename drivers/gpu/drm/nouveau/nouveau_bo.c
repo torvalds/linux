@@ -1212,9 +1212,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	}
 
 	/* Fallback to software copy. */
-	spin_lock(&bo->bdev->fence_lock);
 	ret = ttm_bo_wait(bo, true, intr, no_wait_gpu);
-	spin_unlock(&bo->bdev->fence_lock);
 	if (ret == 0)
 		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 
@@ -1457,26 +1455,19 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	ttm_pool_unpopulate(ttm);
 }
 
-void
-nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
-{
-	struct nouveau_fence *new_fence = nouveau_fence_ref(fence);
-	struct nouveau_fence *old_fence = NULL;
-
-	lockdep_assert_held(&nvbo->bo.resv->lock.base);
-
-	spin_lock(&nvbo->bo.bdev->fence_lock);
-	old_fence = nvbo->bo.sync_obj;
-	nvbo->bo.sync_obj = new_fence;
-	spin_unlock(&nvbo->bo.bdev->fence_lock);
-
-	nouveau_fence_unref(&old_fence);
-}
-
 static void
 nouveau_bo_fence_unref(void **sync_obj)
 {
 	nouveau_fence_unref((struct nouveau_fence **)sync_obj);
+}
+
+void
+nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
+{
+	lockdep_assert_held(&nvbo->bo.resv->lock.base);
+
+	nouveau_bo_fence_unref(&nvbo->bo.sync_obj);
+	nvbo->bo.sync_obj = nouveau_fence_ref(fence);
 }
 
 static void *

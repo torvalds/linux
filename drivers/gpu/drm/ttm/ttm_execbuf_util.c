@@ -217,7 +217,6 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 	glob = bo->glob;
 
 	spin_lock(&glob->lru_lock);
-	spin_lock(&bdev->fence_lock);
 
 	list_for_each_entry(entry, list, head) {
 		bo = entry->bo;
@@ -227,7 +226,6 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 		__ttm_bo_unreserve(bo);
 		entry->reserved = false;
 	}
-	spin_unlock(&bdev->fence_lock);
 	spin_unlock(&glob->lru_lock);
 	if (ticket)
 		ww_acquire_fini(ticket);

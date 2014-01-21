@@ -567,12 +567,13 @@ static int vmw_user_dmabuf_synccpu_grab(struct vmw_user_dma_buffer *user_bo,
 	int ret;
 
 	if (flags & drm_vmw_synccpu_allow_cs) {
-		struct ttm_bo_device *bdev = bo->bdev;
+		bool nonblock = !!(flags & drm_vmw_synccpu_dontblock);
 
-		spin_lock(&bdev->fence_lock);
-		ret = ttm_bo_wait(bo, false, true,
-				  !!(flags & drm_vmw_synccpu_dontblock));
-		spin_unlock(&bdev->fence_lock);
+		ret = ttm_bo_reserve(bo, true, nonblock, false, NULL);
+		if (!ret) {
+			ret = ttm_bo_wait(bo, false, true, nonblock);
+			ttm_bo_unreserve(bo);
+		}
 		return ret;
 	}
 
@@ -1429,12 +1430,10 @@ void vmw_fence_single_bo(struct ttm_buffer_object *bo,
 	else
 		driver->sync_obj_ref(fence);
 
-	spin_lock(&bdev->fence_lock);
 
 	old_fence_obj = bo->sync_obj;
 	bo->sync_obj = fence;
 
-	spin_unlock(&bdev->fence_lock);
 
 	if (old_fence_obj)
 		vmw_fence_obj_unreference(&old_fence_obj);
@@ -1475,7 +1474,6 @@ void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 
 	if (mem->mem_type != VMW_PL_MOB) {
 		struct vmw_resource *res, *n;
-		struct ttm_bo_device *bdev = bo->bdev;
 		struct ttm_validate_buffer val_buf;
 
 		val_buf.bo = bo;
@@ -1491,9 +1489,7 @@ void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 			list_del_init(&res->mob_head);
 		}
 
-		spin_lock(&bdev->fence_lock);
 		(void) ttm_bo_wait(bo, false, false, false);
-		spin_unlock(&bdev->fence_lock);
 	}
 }
 

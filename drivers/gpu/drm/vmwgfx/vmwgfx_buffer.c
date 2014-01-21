@@ -863,11 +863,7 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
  */
 static void vmw_swap_notify(struct ttm_buffer_object *bo)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
-
-	spin_lock(&bdev->fence_lock);
 	ttm_bo_wait(bo, false, false, false);
-	spin_unlock(&bdev->fence_lock);
 }
 
 

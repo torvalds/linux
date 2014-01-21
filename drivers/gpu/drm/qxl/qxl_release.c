@@ -337,7 +337,6 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 	glob = bo->glob;
 
 	spin_lock(&glob->lru_lock);
-	spin_lock(&bdev->fence_lock);
 
 	list_for_each_entry(entry, &release->bos, head) {
 		bo = entry->bo;
@@ -352,7 +351,6 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		__ttm_bo_unreserve(bo);
 		entry->reserved = false;
 	}
-	spin_unlock(&bdev->fence_lock);
 	spin_unlock(&glob->lru_lock);
 	ww_acquire_fini(&release->ticket);
 }

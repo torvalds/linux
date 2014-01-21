@@ -237,10 +237,7 @@ struct ttm_buffer_object {
 	struct list_head io_reserve_lru;
 
 	/**
-	 * Members protected by struct buffer_object_device::fence_lock
-	 * In addition, setting sync_obj to anything else
-	 * than NULL requires bo::reserved to be held. This allows for
-	 * checking NULL while reserved but not holding the mentioned lock.
+	 * Members protected by a bo reservation.
 	 */
 
 	void *sync_obj;

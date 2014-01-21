@@ -60,9 +60,6 @@ int qxl_fence_remove_release(struct qxl_fence *qfence, uint32_t rel_id)
 {
 	void *ret;
 	int retval = 0;
-	struct qxl_bo *bo = container_of(qfence, struct qxl_bo, fence);
-
-	spin_lock(&bo->tbo.bdev->fence_lock);
 
 	ret = radix_tree_delete(&qfence->tree, rel_id);
 	if (ret == qfence)
@@ -71,7 +68,6 @@ int qxl_fence_remove_release(struct qxl_fence *qfence, uint32_t rel_id)
 		DRM_DEBUG("didn't find fence in radix tree for %d\n", rel_id);
 		retval = -ENOENT;
 	}
-	spin_unlock(&bo->tbo.bdev->fence_lock);
 	return retval;
 }
 
