@@ -1,8 +1,4 @@
 /*
- *
- * arch/arm/mach-u300/timer.c
- *
- *
  * Copyright (C) 2007-2009 ST-Ericsson AB
  * License terms: GNU General Public License (GPL) version 2
  * Timer COH 901 328, runs the OS timer interrupt.
