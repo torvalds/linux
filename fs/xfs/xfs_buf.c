@@ -445,7 +445,7 @@ _xfs_buf_find(
 	numbytes = BBTOB(numblks);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
-	ASSERT(!(numbytes < (1 << btp->bt_sshift)));
+	ASSERT(!(numbytes < btp->bt_ssize));
 	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_smask));
 
 	/*
@@ -1599,8 +1599,7 @@ xfs_setsize_buftarg(
 	unsigned int		blocksize,
 	unsigned int		sectorsize)
 {
-	btp->bt_bsize = blocksize;
-	btp->bt_sshift = ffs(sectorsize) - 1;
+	btp->bt_ssize = sectorsize;
 	btp->bt_smask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {

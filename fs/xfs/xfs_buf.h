@@ -93,8 +93,7 @@ typedef struct xfs_buftarg {
 	struct block_device	*bt_bdev;
 	struct backing_dev_info	*bt_bdi;
 	struct xfs_mount	*bt_mount;
-	unsigned int		bt_bsize;
-	unsigned int		bt_sshift;
+	unsigned int		bt_ssize;
 	size_t			bt_smask;
 
 	/* LRU control structures */
