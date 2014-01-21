@@ -202,6 +202,8 @@ struct omap_mmc_of_data {
 	u8 controller_flags;
 };
 
+static void omap_hsmmc_start_dma_transfer(struct omap_hsmmc_host *host);
+
 static int omap_hsmmc_card_detect(struct device *dev, int slot)
 {
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
@@ -888,11 +890,10 @@ omap_hsmmc_xfer_done(struct omap_hsmmc_host *host, struct mmc_data *data)
 	else
 		data->bytes_xfered = 0;
 
-	if (!data->stop) {
+	if (data->stop && (data->error || !host->mrq->sbc))
+		omap_hsmmc_start_command(host, data->stop, NULL);
+	else
 		omap_hsmmc_request_done(host, data->mrq);
-		return;
-	}
-	omap_hsmmc_start_command(host, data->stop, NULL);
 }
 
 /*
@@ -902,6 +903,14 @@ static void
 omap_hsmmc_cmd_done(struct omap_hsmmc_host *host, struct mmc_command *cmd)
 {
 	host->cmd = NULL;
+
+	if (host->mrq->sbc && (host->cmd == host->mrq->sbc) &&
+	    !host->mrq->sbc->error) {
+		omap_hsmmc_start_dma_transfer(host);
+		omap_hsmmc_start_command(host, host->mrq->cmd,
+						host->mrq->data);
+		return;
+	}
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
@@ -1502,6 +1511,10 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 			req->data->error = err;
 		host->mrq = NULL;
 		mmc_request_done(mmc, req);
+		return;
+	}
+	if (req->sbc) {
+		omap_hsmmc_start_command(host, req->sbc, NULL);
 		return;
 	}
 
