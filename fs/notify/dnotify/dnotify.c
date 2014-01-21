@@ -94,6 +94,10 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	struct fown_struct *fown;
 	__u32 test_mask = mask & ~FS_EVENT_ON_CHILD;
 
+	/* not a dir, dnotify doesn't care */
+	if (!S_ISDIR(inode->i_mode))
+		return 0;
+
 	BUG_ON(vfsmount_mark);
 
 	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
@@ -121,23 +125,6 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	return 0;
 }
 
-/*
- * Given an inode and mask determine if dnotify would be interested in sending
- * userspace notification for that pair.
- */
-static bool dnotify_should_send_event(struct fsnotify_group *group,
-				      struct inode *inode,
-				      struct fsnotify_mark *inode_mark,
-				      struct fsnotify_mark *vfsmount_mark,
-				      __u32 mask, void *data, int data_type)
-{
-	/* not a dir, dnotify doesn't care */
-	if (!S_ISDIR(inode->i_mode))
-		return false;
-
-	return true;
-}
-
 static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 {
 	struct dnotify_mark *dn_mark = container_of(fsn_mark,
@@ -151,7 +138,6 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 
 static struct fsnotify_ops dnotify_fsnotify_ops = {
 	.handle_event = dnotify_handle_event,
-	.should_send_event = dnotify_should_send_event,
 	.free_group_priv = NULL,
 	.freeing_mark = NULL,
 	.free_event = NULL,

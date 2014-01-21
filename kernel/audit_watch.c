@@ -465,14 +465,6 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 	}
 }
 
-static bool audit_watch_should_send_event(struct fsnotify_group *group, struct inode *inode,
-					  struct fsnotify_mark *inode_mark,
-					  struct fsnotify_mark *vfsmount_mark,
-					  __u32 mask, void *data, int data_type)
-{
-       return true;
-}
-
 /* Update watch data in audit rules based on fsnotify events. */
 static int audit_watch_handle_event(struct fsnotify_group *group,
 				    struct inode *to_tell,
@@ -512,7 +504,6 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 }
 
 static const struct fsnotify_ops audit_watch_fsnotify_ops = {
-	.should_send_event = 	audit_watch_should_send_event,
 	.handle_event = 	audit_watch_handle_event,
 	.free_group_priv = 	NULL,
 	.freeing_mark = 	NULL,

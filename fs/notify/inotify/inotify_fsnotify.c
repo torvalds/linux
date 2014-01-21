@@ -81,6 +81,13 @@ int inotify_handle_event(struct fsnotify_group *group,
 
 	BUG_ON(vfsmount_mark);
 
+	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
+	    (data_type == FSNOTIFY_EVENT_PATH)) {
+		struct path *path = data;
+
+		if (d_unlinked(path->dentry))
+			return 0;
+	}
 	if (file_name) {
 		len = strlen(file_name);
 		alloc_len += len + 1;
@@ -120,22 +127,6 @@ int inotify_handle_event(struct fsnotify_group *group,
 static void inotify_freeing_mark(struct fsnotify_mark *fsn_mark, struct fsnotify_group *group)
 {
 	inotify_ignored_and_remove_idr(fsn_mark, group);
-}
-
-static bool inotify_should_send_event(struct fsnotify_group *group, struct inode *inode,
-				      struct fsnotify_mark *inode_mark,
-				      struct fsnotify_mark *vfsmount_mark,
-				      __u32 mask, void *data, int data_type)
-{
-	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
-	    (data_type == FSNOTIFY_EVENT_PATH)) {
-		struct path *path = data;
-
-		if (d_unlinked(path->dentry))
-			return false;
-	}
-
-	return true;
 }
 
 /*
@@ -189,7 +180,6 @@ static void inotify_free_event(struct fsnotify_event *fsn_event)
 
 const struct fsnotify_ops inotify_fsnotify_ops = {
 	.handle_event = inotify_handle_event,
-	.should_send_event = inotify_should_send_event,
 	.free_group_priv = inotify_free_group_priv,
 	.free_event = inotify_free_event,
 	.freeing_mark = inotify_freeing_mark,
