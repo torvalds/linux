@@ -805,7 +805,7 @@ static const struct register_whitelist {
 	uint32_t size;
 	uint32_t gen_bitmask; /* support gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
 } whitelist[] = {
-	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, 0xF0 },
+	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, 0x1F0 },
 };
 
 int i915_reg_read_ioctl(struct drm_device *dev,
