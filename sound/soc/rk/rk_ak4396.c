@@ -19,7 +19,7 @@
 #include <sound/soc-dapm.h>
 #include <asm/io.h>
 #include <mach/hardware.h>
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 
 #include <mach/gpio.h>
@@ -42,7 +42,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
     DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
 
     /* set codec DAI configuration */
-    #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+    #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
     ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_RIGHT_J |
 	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS); 
     if (ret < 0)        return ret; 
@@ -80,7 +80,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 
     DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+	#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
 	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (2 * 32 )-1); //bclk = 2 * 32 * lrck
 
@@ -121,12 +121,12 @@ static struct snd_soc_dai_link rk29_dai = {
 	.stream_name = "AK4396 PCM",
 	.codec_name = "spi1.0",
 	.platform_name = "rockchip-audio",
-#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
-	.cpu_dai_name = "rk29_i2s.0",
-#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-	.cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
+	.cpu_dai_name = "rk_i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+	.cpu_dai_name = "rk_i2s.1",
 #else
-	.cpu_dai_name = "rk29_i2s.2",
+	.cpu_dai_name = "rk_i2s.2",
 #endif
 	.codec_dai_name = "AK4396 HiFi",
 	.init = rk29_ak4396_init,
@@ -134,7 +134,7 @@ static struct snd_soc_dai_link rk29_dai = {
 };
 
 static struct snd_soc_card snd_soc_card_rk29 = {
-	.name = "RK29_AK4396",
+	.name = "RK_AK4396",
 	.dai_link = &rk29_dai,
 	.num_links = 1,
 };

@@ -47,7 +47,7 @@
 #include <mach/dma-pl330.h>
 #endif
 
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 
 #if 0
 #define RK_SPDIF_DBG(x...) printk(KERN_INFO "rk_spdif:"x)

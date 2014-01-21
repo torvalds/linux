@@ -34,7 +34,7 @@
 #include <mach/iomux.h>
 #include <mach/cru.h>
 
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 
 
@@ -334,7 +334,7 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
                         return -EINVAL;
         }
         I2S_DBG("Enter::%s----%d, I2S_TXCR=0x%X\n",__FUNCTION__,__LINE__,tx_ctl);
-#if 0//defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
+#if 0//defined(CONFIG_SND_RK_SOC_alc5631) || defined(CONFIG_SND_RK_SOC_alc5621)
         rx_ctl = tx_ctl;
         rx_ctl &= ~I2S_MODE_MASK;   
         rx_ctl |= I2S_SLAVE_MODE;  // set tx slave, rx master
@@ -406,11 +406,11 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
                 iismod |= I2S_DATA_WIDTH(31);
                 break;
         }
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+        #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
         iismod &= ~I2S_SLAVE_MODE;
         #endif
 
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+        #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
         iismod |= I2S_SLAVE_MODE;
         #endif
 
@@ -424,7 +424,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 
         writel(dmarc, &(pheadi2s->I2S_DMACR));
         I2S_DBG("Enter %s, %d I2S_TXCR=0x%08X\n", __func__, __LINE__, iismod);  
-#if 0//defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
+#if 0//defined(CONFIG_SND_RK_SOC_alc5631) || defined(CONFIG_SND_RK_SOC_alc5621)
         dmarc = iismod;
         dmarc &= ~I2S_MODE_MASK;   
         dmarc |= I2S_SLAVE_MODE;     // set tx slave, rx master
@@ -560,7 +560,7 @@ int rockchip_i2s_resume(struct snd_soc_dai *cpu_dai)
 #define rockchip_i2s_resume NULL
 #endif
 
-#if defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
+#if defined(CONFIG_SND_RK_SOC_alc5631) || defined(CONFIG_SND_RK_SOC_alc5621)
 #define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_44100)  //zyy 20110704, playback and record use same sample rate
 #else
 #define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
@@ -702,11 +702,11 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	dai->id = pdev->id;
 	dai->symmetric_rates = 1;
 	if(pdev->id == 0) {
-		dai->name = "rk29_i2s.0";
+		dai->name = "rk_i2s.0";
         	dai->playback.channels_min = 2;
         	dai->playback.channels_max = 8;
 	}else{
-		dai->name = "rk29_i2s.1";
+		dai->name = "rk_i2s.1";
                 dai->playback.channels_min = 2;
         	dai->playback.channels_max = 2;
 	}

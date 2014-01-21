@@ -211,7 +211,7 @@ MODULE_DEVICE_TABLE(i2c, es8323_i2c_id);
 static int es8323_proc_init(void);
 #endif
 
-static int __devinit es8323_i2c_probe(struct i2c_client *i2c,
+static int es8323_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	DBG("%s\n", __func__);
@@ -226,7 +226,7 @@ static int __devinit es8323_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int __devexit es8323_i2c_remove(struct i2c_client *i2c)
+static int es8323_i2c_remove(struct i2c_client *i2c)
 {
 	return 0;
 }
@@ -237,7 +237,7 @@ struct i2c_driver es8323_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = es8323_i2c_probe,
-	.remove   = __devexit_p(es8323_i2c_remove),
+	.remove   = es8323_i2c_remove,
 	.id_table = es8323_i2c_id,
 };
 

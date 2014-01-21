@@ -21,7 +21,7 @@
 #include <asm/io.h>
 #include <mach/hardware.h>
 #include "../codecs/wm8994.h"
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 #include <linux/clk.h>
 
@@ -46,12 +46,12 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
 	/* set codec DAI configuration */
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 	DBG("Set codec_dai slave\n");
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 	 	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 #endif	
-#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 			   
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 			   
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	DBG("Set codec_dai master\n");
@@ -60,12 +60,12 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 		return ret; 
 
 	/* set cpu DAI configuration */
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 	DBG("Set cpu_dai master\n");
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 #endif	
-#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)  
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)  
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
 	DBG("Set cpu_dai slave\n"); 
@@ -381,10 +381,10 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "WM8994 PCM",
 		.codec_name = "wm8994-codec",
 		.platform_name = "rockchip-audio",
-#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
-        	.cpu_dai_name = "rk29_i2s.0",
-#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		.cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
+        	.cpu_dai_name = "rk_i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+		.cpu_dai_name = "rk_i2s.1",
 #endif
 		.codec_dai_name = "wm8994-aif1",
 		.ops = &rk29_aif1_ops,
@@ -395,10 +395,10 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "WM8994 PCM",
 		.codec_name = "wm8994-codec",
 		.platform_name = "rockchip-audio",
-#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
-        .cpu_dai_name = "rk29_i2s.0",
-#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		.cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
+        .cpu_dai_name = "rk_i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+		.cpu_dai_name = "rk_i2s.1",
 #endif
 		.codec_dai_name = "wm8994-aif2",
 		.ops = &rk29_aif2_ops,
@@ -406,7 +406,7 @@ static struct snd_soc_dai_link rk29_dai[] = {
 };
 
 static struct snd_soc_card snd_soc_card_rk29 = {
-	.name = "RK29_WM8994",
+	.name = "RK_WM8994",
 	.dai_link = rk29_dai,
 	.num_links = ARRAY_SIZE(rk29_dai),
 };

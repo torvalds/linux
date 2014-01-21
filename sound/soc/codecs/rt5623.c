@@ -164,7 +164,7 @@ MODULE_DEVICE_TABLE(i2c, rt5623_i2c_id);
 
 static int rt5623_proc_init(void);
 
-static int __devinit rt5623_i2c_probe(struct i2c_client *i2c,
+static int rt5623_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	pr_info("%s(%d)\n", __func__, __LINE__);

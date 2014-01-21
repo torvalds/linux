@@ -2404,7 +2404,7 @@ static int aic3262_codec_probe(struct snd_soc_codec *codec)
 
 	aic3262->mute_asi = 0;
 
-	snd_soc_add_controls(codec, aic3262_snd_controls,
+	snd_soc_add_codec_controls(codec, aic3262_snd_controls,
 			ARRAY_SIZE(aic3262_snd_controls));
 	mutex_init(&codec->mutex);
 
@@ -2499,7 +2499,7 @@ static struct platform_driver aic326x_codec_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = aic326x_probe,
-	.remove = __devexit_p(aic326x_remove),
+	.remove = aic326x_remove,
 };
 /*
  *----------------------------------------------------------------------------

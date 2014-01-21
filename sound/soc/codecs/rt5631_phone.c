@@ -2222,7 +2222,7 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	rt5631->codec = codec;
 	rt5631_codec = codec;
-	snd_soc_add_controls(codec, rt5631_snd_controls,
+	snd_soc_add_codec_controls(codec, rt5631_snd_controls,
 			ARRAY_SIZE(rt5631_snd_controls));
 	snd_soc_dapm_new_controls(&codec->dapm, rt5631_dapm_widgets,
 			ARRAY_SIZE(rt5631_dapm_widgets));
@@ -2363,7 +2363,7 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int rt5631_i2c_remove(struct i2c_client *client)
+static int rt5631_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	kfree(i2c_get_clientdata(client));
@@ -2387,7 +2387,7 @@ struct i2c_driver rt5631_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = rt5631_i2c_probe,
-	.remove = __devexit_p(rt5631_i2c_remove),
+	.remove = rt5631_i2c_remove,
 	.shutdown = rt5631_i2c_shutdown,
 	.id_table = rt5631_i2c_id,
 };

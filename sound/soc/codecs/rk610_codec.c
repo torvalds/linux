@@ -631,7 +631,7 @@ static int rk610_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 	rk610_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_DISABLE|ASC_INT_DISABLE);  //0x00
 
 	/* set iface & srate */
-	#ifdef CONFIG_SND_RK29_CODEC_SOC_MASTER
+	#ifdef CONFIG_SND_RK_CODEC_SOC_MASTER
 	iface |= ASC_INVERT_BCLK;//翻转BCLK  master状态送出的少了半个时钟，导致未到最大音量的时候破音、
 	#endif
 	rk610_codec_write(codec, ACCELCODEC_R09, iface);

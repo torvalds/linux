@@ -1480,7 +1480,7 @@ static int rt5512_codec_probe(struct snd_soc_codec *codec)
         
     
 
-	snd_soc_add_controls(codec, rt5512_snd_controls,
+	snd_soc_add_codec_controls(codec, rt5512_snd_controls,
 			ARRAY_SIZE(rt5512_snd_controls));
 	return 0;
 }
@@ -1753,7 +1753,7 @@ static const struct file_operations codec_debug_ops = {
 };
 #endif
 
-static int __devinit rt5512_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int rt5512_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret;
 	struct rt5512_codec_chip *chip;
@@ -1807,7 +1807,7 @@ codec_reg_fail:
 	return ret;
 }
 
-static int __devexit rt5512_i2c_remove(struct i2c_client *client)
+static int rt5512_i2c_remove(struct i2c_client *client)
 {
 	struct rt5512_codec_chip *chip = i2c_get_clientdata(client);
 	
@@ -1831,7 +1831,7 @@ struct i2c_driver rt5512_i2c_driver =
 		.owner = THIS_MODULE,
 	},
 	.probe = rt5512_i2c_probe,
-	.remove = __devexit_p(rt5512_i2c_remove),
+	.remove = rt5512_i2c_remove,
 	.id_table = rt5512_i2c_id,
 };
 

@@ -1251,7 +1251,7 @@ int rt5640_dsp_probe(struct snd_soc_codec *codec)
 	if (codec == NULL)
 		return -EINVAL;
 
-	snd_soc_add_controls(codec, rt5640_dsp_snd_controls,
+	snd_soc_add_codec_controls(codec, rt5640_dsp_snd_controls,
 			ARRAY_SIZE(rt5640_dsp_snd_controls));
 	snd_soc_dapm_new_controls(&codec->dapm, rt5640_dsp_dapm_widgets,
 			ARRAY_SIZE(rt5640_dsp_dapm_widgets));

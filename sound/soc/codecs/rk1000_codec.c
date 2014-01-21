@@ -834,7 +834,7 @@ static int rk1000_codec_probe(struct snd_soc_codec *codec)
 		return -ENOMEM;
 
 	rk1000_reg_init(codec);
-//	snd_soc_add_controls(codec, rk1000_codec_snd_controls,
+//	snd_soc_add_codec_controls(codec, rk1000_codec_snd_controls,
 //				ARRAY_SIZE(rk1000_codec_snd_controls));
 //	snd_soc_dapm_new_controls(codec, rk1000_codec_dapm_widgets,
 //				  ARRAY_SIZE(rk1000_codec_dapm_widgets));
@@ -873,7 +873,7 @@ static struct snd_soc_codec_driver soc_codec_dev_rk1000_codec = {
 static int rk1000_codec_proc_init(void);
 #endif
 
-static __devinit int rk1000_codec_i2c_probe(struct i2c_client *i2c,
+static int rk1000_codec_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct rk1000_codec_priv *rk1000_codec;
@@ -899,7 +899,7 @@ static __devinit int rk1000_codec_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int rk1000_codec_i2c_remove(struct i2c_client *client)
+static int rk1000_codec_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	kfree(i2c_get_clientdata(client));	
@@ -919,7 +919,7 @@ static struct i2c_driver rk1000_codec_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = rk1000_codec_i2c_probe,
-	.remove = __devexit_p(rk1000_codec_i2c_remove),
+	.remove = rk1000_codec_i2c_remove,
 	.id_table = rk1000_codec_i2c_id,
 };
 
@@ -1162,4 +1162,4 @@ module_exit(rk1000_control_exit);
 MODULE_DESCRIPTION("ASoC RK1000 CODEC driver");
 MODULE_AUTHOR("lhh lhh@rock-chips.com");
 MODULE_LICENSE("GPL");
-#endif 
+#endif

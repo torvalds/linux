@@ -35,7 +35,7 @@
 #include <mach/dma-pl330.h>
 #include <linux/spinlock.h>
 
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 
 #define ANDROID_REC
@@ -301,10 +301,10 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 	
 	iis_ckr_value = readl(&(pheadi2s->I2S_CKR));
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+	#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 	iis_ckr_value &= ~I2S_SLAVE_MODE;
 	#endif
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+	#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 	iis_ckr_value |= I2S_SLAVE_MODE;
 	#endif
 	writel(iis_ckr_value, &(pheadi2s->I2S_CKR));   
@@ -666,17 +666,17 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	switch(pdev->id)
 	{
 	case 0:
-		dai->name = "rk29_i2s.0";
+		dai->name = "rk_i2s.0";
 		dai->playback.channels_min = 2;
 		dai->playback.channels_max = 8;
 		break;
 	case 1:
-		dai->name = "rk29_i2s.1";
+		dai->name = "rk_i2s.1";
 		dai->playback.channels_min = 2;
 		dai->playback.channels_max = 2;	
 		break;
 	case 2:
-		dai->name = "rk29_i2s.2";
+		dai->name = "rk_i2s.2";
 		dai->playback.channels_min = 2;
 		dai->playback.channels_max = 2;			
 		break;
@@ -842,10 +842,10 @@ MODULE_LICENSE("GPL");
 #include <linux/seq_file.h>
 static int proc_i2s_show(struct seq_file *s, void *v)
 {
-#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
+#ifdef CONFIG_SND_RK_SOC_I2S_8CH
 	struct rk29_i2s_info *i2s=&rk29_i2s[0];
 #else 
-#ifdef CONFIG_SND_RK29_SOC_I2S_2CH
+#ifdef CONFIG_SND_RK_SOC_I2S_2CH
 	struct rk29_i2s_info *i2s=&rk29_i2s[1];
 #else
 	struct rk29_i2s_info *i2s=&rk29_i2s[2];
@@ -879,10 +879,10 @@ static int proc_i2s_show(struct seq_file *s, void *v)
 static ssize_t i2s_reg_write(struct file *file,
 		const char __user *user_buf, size_t count, loff_t *ppos)
 {
-#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
+#ifdef CONFIG_SND_RK_SOC_I2S_8CH
 	struct rk29_i2s_info *i2s=&rk29_i2s[0];
 #else 
-#ifdef CONFIG_SND_RK29_SOC_I2S_2CH
+#ifdef CONFIG_SND_RK_SOC_I2S_2CH
 	struct rk29_i2s_info *i2s=&rk29_i2s[1];
 #else
 	struct rk29_i2s_info *i2s=&rk29_i2s[2];

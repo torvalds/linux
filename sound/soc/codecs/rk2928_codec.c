@@ -632,7 +632,7 @@ static struct snd_soc_dai_driver rk2928_codec_dai = {
 	.ops = &rk2928_audio_codec_ops,
 };
 
-static __devinit int rk2928_codec_probe(struct platform_device *pdev)
+static int rk2928_codec_probe(struct platform_device *pdev)
 {
 	int r;
 	

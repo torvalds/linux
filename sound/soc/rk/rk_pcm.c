@@ -1,5 +1,5 @@
 /*
- * rk29_pcm.c  --  ALSA SoC ROCKCHIP PCM Audio Layer Platform driver
+ * rk_pcm.c  --  ALSA SoC ROCKCHIP PCM Audio Layer Platform driver
  *
  * Driver for rockchip pcm audio
  *
@@ -26,7 +26,7 @@
 #include <mach/hardware.h>
 #include <mach/dma-pl330.h>
 
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 
 #define PCM_DMA_DEBUG 0
 

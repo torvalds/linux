@@ -22,7 +22,7 @@
 #include <mach/rk29_iomap.h>
 #include <mach/gpio.h>
 #include "../codecs/tlv320aic3111.h"
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 
 #if 0
@@ -59,14 +59,14 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	else
 	{   
 		/* set codec DAI configuration */
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 			ret = snd_soc_dai_set_fmt(codec_dai, 
 							SND_SOC_DAIFMT_I2S |
 							SND_SOC_DAIFMT_NB_NF | 
 							SND_SOC_DAIFMT_CBS_CFS);
 		#endif
 
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+		#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 				ret = snd_soc_dai_set_fmt(codec_dai, 
 							SND_SOC_DAIFMT_I2S |
 							SND_SOC_DAIFMT_NB_NF |
@@ -77,14 +77,14 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 			return ret; 
 
 		/* set cpu DAI configuration */
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 				ret = snd_soc_dai_set_fmt(cpu_dai, 
 							SND_SOC_DAIFMT_I2S |
 							SND_SOC_DAIFMT_NB_NF | 
 							SND_SOC_DAIFMT_CBM_CFM);
 		#endif
 		
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+		#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 				ret = snd_soc_dai_set_fmt(cpu_dai, 
 							SND_SOC_DAIFMT_I2S |
 							SND_SOC_DAIFMT_NB_NF | 
@@ -172,14 +172,14 @@ static struct snd_soc_dai_link rk29_dai = {
 	.stream_name = "AIC3111 PCM",
 	.codec_name = "AIC3111.0-0018",
 	.platform_name = "rockchip-audio",
-	.cpu_dai_name = "rk29_i2s.0",
+	.cpu_dai_name = "rk_i2s.0",
 	.codec_dai_name = "AIC3111 HiFi",
 	.init = rk29_aic3111_init,
 	.ops = &rk29_ops,
 };
 
 static struct snd_soc_card snd_soc_card_rk29 = {
-	.name = "RK29_AIC3111",
+	.name = "RK_AIC3111",
 	.dai_link = &rk29_dai,
 	.num_links = 1,
 };

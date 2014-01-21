@@ -22,7 +22,7 @@
 #include <mach/hardware.h>
 #include <mach/rk29_iomap.h>
 #include "../codecs/cs42l52.h"
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 
 
@@ -64,20 +64,20 @@ static int rk29_cs42l52_hw_params(struct snd_pcm_substream *substream,
         else
     	{       
             /* set codec DAI configuration */
-            #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+            #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
             ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
             #endif	
-            #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+            #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
             ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
             #endif
             if (ret < 0)
               return ret; 
 
             /* set cpu DAI configuration */
-            #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+            #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
             ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
             #endif	
-            #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+            #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
             ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
             #endif		
             if (ret < 0)
@@ -102,7 +102,7 @@ static int rk29_cs42l52_hw_params(struct snd_pcm_substream *substream,
                 break;
         }
 
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+        #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
 		general_pll=clk_get(NULL, "general_pll");
 		if(clk_get_rate(general_pll)>260000000)
 		{
@@ -164,7 +164,7 @@ static struct snd_soc_dai_link rk29_cs42l52_dai_link = {
 };
 
 static struct snd_soc_card snd_soc_card_rk29_cs42l52 = {
-	  .name = "RK29_CS42L52",
+	  .name = "RK_CS42L52",
 	  .platform = &rk29_soc_platform,
 	  .dai_link = &rk29_cs42l52_dai_link,
 	  .num_links = 1,
@@ -181,7 +181,7 @@ static struct platform_device *rk29_cs42l52_snd_device;
 static int rk29_cs42l52_probe(struct platform_device *pdev)
 {
 	int ret =0;	
-	printk("RK29 CS42L52 SoC Audio driver\n");
+	printk("RK CS42L52 SoC Audio driver\n");
 	rk29_cs42l52_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!rk29_cs42l52_snd_device) {
 		  ret = -ENOMEM;

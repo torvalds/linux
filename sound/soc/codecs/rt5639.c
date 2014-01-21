@@ -3057,7 +3057,7 @@ static int rt5639_probe(struct snd_soc_codec *codec)
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	rt5639->codec = codec;
 
-	snd_soc_add_controls(codec, rt5639_snd_controls,
+	snd_soc_add_codec_controls(codec, rt5639_snd_controls,
 			ARRAY_SIZE(rt5639_snd_controls));
 	snd_soc_dapm_new_controls(&codec->dapm, rt5639_dapm_widgets,
 			ARRAY_SIZE(rt5639_dapm_widgets));
@@ -3190,7 +3190,7 @@ static const struct i2c_device_id rt5639_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5639_i2c_id);
 
-static int __devinit rt5639_i2c_probe(struct i2c_client *i2c,
+static int rt5639_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	struct rt5639_priv *rt5639;
@@ -3210,7 +3210,7 @@ printk("rt5639 i2c probe initial\n");
 	return ret;
 }
 
-static int __devexit rt5639_i2c_remove(struct i2c_client *i2c)
+static int rt5639_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
 	kfree(i2c_get_clientdata(i2c));
@@ -3233,7 +3233,7 @@ struct i2c_driver rt5639_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = rt5639_i2c_probe,
-	.remove   = __devexit_p(rt5639_i2c_remove),
+	.remove   = rt5639_i2c_remove,
 	.shutdown = rt5639_i2c_shutdown,
 	.id_table = rt5639_i2c_id,
 };

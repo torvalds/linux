@@ -36,7 +36,7 @@
 #include <asm/io.h>
 #include <mach/hardware.h>
 #include "../codecs/wm8994.h"
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 #include <linux/clk.h>
 #include <linux/mfd/tlv320aic3262-registers.h>
@@ -161,11 +161,11 @@ static int rk29_aic3262_init(struct snd_soc_pcm_runtime *rtd)
 
 	DBG_AIC3262("rk29_aic3262_init\n");
 
-	ret = snd_soc_add_controls(codec, rk29_aic326x_controls,
+	ret = snd_soc_add_codec_controls(codec, rk29_aic326x_controls,
 				   ARRAY_SIZE(rk29_aic326x_controls));
 
 	if (ret < 0) {
-		printk("rk29_aic3262: Err snd_soc_add_controls ret: %d\n", ret );
+		printk("rk29_aic3262: Err snd_soc_add_codec_controls ret: %d\n", ret );
 		return ret;
 	}
 
@@ -211,12 +211,12 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 	printk("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
 	/* set codec DAI configuration */
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 	DBG_AIC3262("Set codec_dai slave\n");
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 	 	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 #endif	
-#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 			   
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 			   
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	DBG_AIC3262("Set codec_dai master\n");
@@ -225,12 +225,12 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 		return ret; 
 
 	/* set cpu DAI configuration */
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 	DBG_AIC3262("Set cpu_dai master\n");
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 #endif	
-#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)  
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)  
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
 	DBG_AIC3262("Set cpu_dai slave\n"); 
@@ -444,12 +444,12 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
 		.platform_name = "rockchip-audio",
-#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
-        .cpu_dai_name = "rk29_i2s.0",
-#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		.cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
+        .cpu_dai_name = "rk_i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+		.cpu_dai_name = "rk_i2s.1",
 #else	
-		.cpu_dai_name = "rk29_i2s.2",
+		.cpu_dai_name = "rk_i2s.2",
 #endif
 		.codec_dai_name = "aic326x-asi1",
 		.ops = &rk29_aif1_ops,
@@ -461,12 +461,12 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
 		.platform_name = "rockchip-audio",
-#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
-        	.cpu_dai_name = "rk29_i2s.0",
-#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		.cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
+        	.cpu_dai_name = "rk_i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+		.cpu_dai_name = "rk_i2s.1",
 #else	
-		.cpu_dai_name = "rk29_i2s.2",
+		.cpu_dai_name = "rk_i2s.2",
 #endif
 		.codec_dai_name = "aic326x-asi2",
 		.ops = &rk29_aif2_ops,
@@ -478,12 +478,12 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
 		.platform_name = "rockchip-audio",
-#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
-        	.cpu_dai_name = "rk29_i2s.0",
-#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		.cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
+        	.cpu_dai_name = "rk_i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+		.cpu_dai_name = "rk_i2s.1",
 #else	
-		.cpu_dai_name = "rk29_i2s.2",
+		.cpu_dai_name = "rk_i2s.2",
 #endif
 		.codec_dai_name = "aic326x-asi3",
 		.ops = &rk29_aif3_ops,
@@ -493,7 +493,7 @@ static struct snd_soc_dai_link rk29_dai[] = {
 
 
 static struct snd_soc_card snd_soc_card_rk29 = {
-	.name = "RK29_AIC3262",
+	.name = "RK_AIC3262",
 	.dai_link = rk29_dai,
 	.num_links = ARRAY_SIZE(rk29_dai),
 };

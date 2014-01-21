@@ -2087,7 +2087,7 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 		codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 		rk3026_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-		snd_soc_add_controls(codec, rk3026_snd_controls,
+		snd_soc_add_codec_controls(codec, rk3026_snd_controls,
 			ARRAY_SIZE(rk3026_snd_controls));
 		snd_soc_dapm_new_controls(&codec->dapm, rk3026_dapm_widgets,
 			ARRAY_SIZE(rk3026_dapm_widgets));
@@ -2163,7 +2163,7 @@ static struct snd_soc_codec_driver soc_codec_dev_rk3026 = {
 	.reg_cache_step = sizeof(unsigned int),
 };
 
-static __devinit int rk3026_platform_probe(struct platform_device *pdev)
+static int rk3026_platform_probe(struct platform_device *pdev)
 {
 	DBG("%s\n", __func__);
 
@@ -2171,7 +2171,7 @@ static __devinit int rk3026_platform_probe(struct platform_device *pdev)
 			&soc_codec_dev_rk3026, rk3026_dai, ARRAY_SIZE(rk3026_dai));
 }
 
-static __devexit int rk3026_platform_remove(struct platform_device *pdev)
+static int rk3026_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -2217,7 +2217,7 @@ static struct platform_driver rk3026_codec_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = rk3026_platform_probe,
-	.remove = __devexit_p(rk3026_platform_remove),
+	.remove = rk3026_platform_remove,
 	.shutdown = rk3026_platform_shutdown,
 };
 

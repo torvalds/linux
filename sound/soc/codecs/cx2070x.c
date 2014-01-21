@@ -902,7 +902,7 @@ static int cx2070x_add_controls(struct snd_soc_codec *codec)
 {
     INFO("%lu: %s() called\n",jiffies,__func__);
 
-    return (snd_soc_add_controls(codec, cx2070x_snd_controls, ARRAY_SIZE(cx2070x_snd_controls)));
+    return (snd_soc_add_codec_controls(codec, cx2070x_snd_controls, ARRAY_SIZE(cx2070x_snd_controls)));
 }
 
 static int hpportpga_event(struct snd_soc_dapm_widget *w,
@@ -1785,7 +1785,7 @@ static int NOINLINE cx2070x_init(struct snd_soc_codec* codec)
 
     //cx2070x_add_controls(codec);
     //cx2070x_add_widgets(codec);
-    snd_soc_add_controls(codec, cx2070x_snd_path_controls,
+    snd_soc_add_codec_controls(codec, cx2070x_snd_path_controls,
 				ARRAY_SIZE(cx2070x_snd_path_controls));
 
     //snd_soc_dapm_nc_pin(&codec->dapm, "LINE IN");

@@ -21,7 +21,7 @@
 #include <mach/hardware.h>
 #include <mach/rk29_iomap.h>
 #include "../codecs/rt5621.h"
-#include "rk29_pcm.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 
 #if 0
@@ -51,22 +51,22 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	} else {
 		/* set codec DAI configuration */
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS); 
 #endif
-#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
 #endif
 		if (ret < 0)
 			return ret; 
 		/* set cpu DAI configuration */
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 #endif
-#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
 #endif
@@ -94,7 +94,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	}
 	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
 #if 0	//use pll from blck
 	/*Set the pll of rt5621,the Pll source from BITCLK on CPU is master mode*/
 	//bitclk is 64fs           
@@ -113,7 +113,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 #endif
   
 
-  #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+  #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 
 	if((24576000%params_rate(params))==0)	//for 8k,16k,32k,48k
 	{
@@ -129,7 +129,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 #endif
 
 
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
 	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
@@ -179,14 +179,14 @@ static struct snd_soc_dai_link rk29_dai = {
 	.stream_name = "RT5621 PCM",
 	.codec_name = "RT5621.0-001a",
 	.platform_name = "rockchip-audio",
-	.cpu_dai_name = "rk29_i2s.0",
+	.cpu_dai_name = "rk_i2s.0",
 	.codec_dai_name = "RT5621 HiFi",
 	.init = rk29_rt5621_init,
 	.ops = &rk29_ops,
 };
 
 static struct snd_soc_card snd_soc_card_rk29 = {
-	.name = "RK29_RT5621",
+	.name = "RK_RT5621",
 	.dai_link = &rk29_dai,
 	.num_links = 1,
 };

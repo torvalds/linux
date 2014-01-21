@@ -19,9 +19,9 @@
 #include <sound/soc-dapm.h>
 #include <asm/io.h>
 #include <mach/hardware.h>
-#include <mach/rk29_iomap.h>
-#include "../codecs/rt5625.h"
-#include "rk29_pcm.h"
+
+#include "../codecs/rt3261.h"
+#include "rk_pcm.h"
 #include "rk29_i2s.h"
 
 #if 1
@@ -50,12 +50,12 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	} else {
                 
 		/* set codec DAI configuration */
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 
 		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 		                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 		#endif	
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+		#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 
 		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 		                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
@@ -64,11 +64,11 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 			return ret; 
 
 		/* set cpu DAI configuration */
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 		#endif	
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+		#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
 		#endif		
@@ -114,7 +114,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int rt5625_voice_hw_params(struct snd_pcm_substream *substream,
+static int rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -158,7 +158,7 @@ static int rt5625_voice_hw_params(struct snd_pcm_substream *substream,
 			break;
 	}
 
-	snd_soc_dai_set_pll(codec_dai, RT5625_PLL_MCLK_TO_VSYSCLK, 0, pll_out, 24576000);
+	//snd_soc_dai_set_pll(codec_dai, RT5625_PLL_MCLK_TO_VSYSCLK, 0, pll_out, 24576000);???????
 
 	/*Set the system clk for codec*/
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 24576000, SND_SOC_CLOCK_IN);
@@ -177,33 +177,33 @@ static struct snd_soc_ops rk29_ops = {
 	.hw_params = rk29_hw_params,
 };
 
-static struct snd_soc_ops rt5625_voice_ops = {
-	.hw_params = rt5625_voice_hw_params,
+static struct snd_soc_ops rt5639_voice_ops = {
+	.hw_params = rt3261_voice_hw_params,
 };
 
 static struct snd_soc_dai_link rk29_dai[] = {
 	{
-		.name = "RT5625 I2S1",
-		.stream_name = "RT5625 PCM",
-		.codec_name = "rt5625.0-001f",
+		.name = "RT5639 I2S1",
+		.stream_name = "RT5639 PCM",
+		.codec_name = "rt5639.0-001c",
 		.platform_name = "rockchip-audio",
-		.cpu_dai_name = "rk29_i2s.0",
-		.codec_dai_name = "rt5625-aif1",
+		.cpu_dai_name = "rk_i2s.0",
+		.codec_dai_name = "rt5639-aif1",
 		.ops = &rk29_ops,
 	},
 	{
-		.name = "RT5625 I2S2",
-		.stream_name = "RT5625 PCM",
-		.codec_name = "rt5625.0-001f",
+		.name = "RT5639 I2S2",
+		.stream_name = "RT5639 PCM",
+		.codec_name = "rt5639.0-001c",
 		.platform_name = "rockchip-audio",
-		.cpu_dai_name = "rk29_i2s.0",
-		.codec_dai_name = "rt5625-aif2",
-		.ops = &rt5625_voice_ops,
+		.cpu_dai_name = "rk_i2s.0",
+		.codec_dai_name = "rt5639-aif2",
+		.ops = &rt5639_voice_ops,
 	},
 };
 
 static struct snd_soc_card snd_soc_card_rk29 = {
-	.name = "RK29_RT5625",
+	.name = "RK_RT5639",
 	.dai_link = rk29_dai,
 	.num_links = 2,
 };
@@ -239,7 +239,7 @@ static void __exit audio_card_exit(void)
 	platform_device_unregister(rk29_snd_device);
 }
 
-module_init(audio_card_init);
+module_init(audio_card_init);  
 module_exit(audio_card_exit);
 /* Module information */
 MODULE_AUTHOR("rockchip");
