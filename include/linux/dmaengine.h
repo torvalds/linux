@@ -22,6 +22,7 @@
 #define LINUX_DMAENGINE_H
 
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/uio.h>
 #include <linux/bug.h>
 #include <linux/scatterlist.h>
@@ -363,6 +364,32 @@ struct dma_slave_config {
 	unsigned int slave_id;
 };
 
+/**
+ * enum dma_residue_granularity - Granularity of the reported transfer residue
+ * @DMA_RESIDUE_GRANULARITY_DESCRIPTOR: Residue reporting is not support. The
+ *  DMA channel is only able to tell whether a descriptor has been completed or
+ *  not, which means residue reporting is not supported by this channel. The
+ *  residue field of the dma_tx_state field will always be 0.
+ * @DMA_RESIDUE_GRANULARITY_SEGMENT: Residue is updated after each successfully
+ *  completed segment of the transfer (For cyclic transfers this is after each
+ *  period). This is typically implemented by having the hardware generate an
+ *  interrupt after each transferred segment and then the drivers updates the
+ *  outstanding residue by the size of the segment. Another possibility is if
+ *  the hardware supports scatter-gather and the segment descriptor has a field
+ *  which gets set after the segment has been completed. The driver then counts
+ *  the number of segments without the flag set to compute the residue.
+ * @DMA_RESIDUE_GRANULARITY_BURST: Residue is updated after each transferred
+ *  burst. This is typically only supported if the hardware has a progress
+ *  register of some sort (E.g. a register with the current read/write address
+ *  or a register with the amount of bursts/beats/bytes that have been
+ *  transferred or still need to be transferred).
+ */
+enum dma_residue_granularity {
+	DMA_RESIDUE_GRANULARITY_DESCRIPTOR = 0,
+	DMA_RESIDUE_GRANULARITY_SEGMENT = 1,
+	DMA_RESIDUE_GRANULARITY_BURST = 2,
+};
+
 /* struct dma_slave_caps - expose capabilities of a slave channel only
  *
  * @src_addr_widths: bit mask of src addr widths the channel supports
@@ -373,6 +400,7 @@ struct dma_slave_config {
  * 	should be checked by controller as well
  * @cmd_pause: true, if pause and thereby resume is supported
  * @cmd_terminate: true, if terminate cmd is supported
+ * @residue_granularity: granularity of the reported transfer residue
  */
 struct dma_slave_caps {
 	u32 src_addr_widths;
@@ -380,6 +408,7 @@ struct dma_slave_caps {
 	u32 directions;
 	bool cmd_pause;
 	bool cmd_terminate;
+	enum dma_residue_granularity residue_granularity;
 };
 
 static inline const char *dma_chan_name(struct dma_chan *chan)
@@ -1040,6 +1069,8 @@ enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx);
 void dma_issue_pending_all(void);
 struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 					dma_filter_fn fn, void *fn_param);
+struct dma_chan *dma_request_slave_channel_reason(struct device *dev,
+						  const char *name);
 struct dma_chan *dma_request_slave_channel(struct device *dev, const char *name);
 void dma_release_channel(struct dma_chan *chan);
 #else
@@ -1062,6 +1093,11 @@ static inline struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 					      dma_filter_fn fn, void *fn_param)
 {
 	return NULL;
+}
+static inline struct dma_chan *dma_request_slave_channel_reason(
+					struct device *dev, const char *name)
+{
+	return ERR_PTR(-ENODEV);
 }
 static inline struct dma_chan *dma_request_slave_channel(struct device *dev,
 							 const char *name)

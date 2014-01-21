@@ -1422,7 +1422,7 @@ static void snd_es1968_free_dmabuf(struct es1968 *chip)
 
 	if (! chip->dma.area)
 		return;
-	snd_dma_reserve_buf(&chip->dma, snd_dma_pci_buf_id(chip->pci));
+	snd_dma_free_pages(&chip->dma);
 	while ((p = chip->buf_list.next) != &chip->buf_list) {
 		struct esm_memory *chunk = list_entry(p, struct esm_memory, list);
 		list_del(p);
@@ -1438,20 +1438,18 @@ snd_es1968_init_dmabuf(struct es1968 *chip)
 
 	chip->dma.dev.type = SNDRV_DMA_TYPE_DEV;
 	chip->dma.dev.dev = snd_dma_pci_data(chip->pci);
-	if (! snd_dma_get_reserved_buf(&chip->dma, snd_dma_pci_buf_id(chip->pci))) {
-		err = snd_dma_alloc_pages_fallback(SNDRV_DMA_TYPE_DEV,
-						   snd_dma_pci_data(chip->pci),
-						   chip->total_bufsize, &chip->dma);
-		if (err < 0 || ! chip->dma.area) {
-			snd_printk(KERN_ERR "es1968: can't allocate dma pages for size %d\n",
-				   chip->total_bufsize);
-			return -ENOMEM;
-		}
-		if ((chip->dma.addr + chip->dma.bytes - 1) & ~((1 << 28) - 1)) {
-			snd_dma_free_pages(&chip->dma);
-			snd_printk(KERN_ERR "es1968: DMA buffer beyond 256MB.\n");
-			return -ENOMEM;
-		}
+	err = snd_dma_alloc_pages_fallback(SNDRV_DMA_TYPE_DEV,
+					   snd_dma_pci_data(chip->pci),
+					   chip->total_bufsize, &chip->dma);
+	if (err < 0 || ! chip->dma.area) {
+		snd_printk(KERN_ERR "es1968: can't allocate dma pages for size %d\n",
+			   chip->total_bufsize);
+		return -ENOMEM;
+	}
+	if ((chip->dma.addr + chip->dma.bytes - 1) & ~((1 << 28) - 1)) {
+		snd_dma_free_pages(&chip->dma);
+		snd_printk(KERN_ERR "es1968: DMA buffer beyond 256MB.\n");
+		return -ENOMEM;
 	}
 
 	INIT_LIST_HEAD(&chip->buf_list);

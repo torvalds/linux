@@ -1,0 +1,77 @@
+Simple-Card:
+
+Simple-Card specifies audio DAI connection of SoC <-> codec.
+
+Required properties:
+
+- compatible				: "simple-audio-card"
+
+Optional properties:
+
+- simple-audio-card,format		: CPU/CODEC common audio format.
+					  "i2s", "right_j", "left_j" , "dsp_a"
+					  "dsp_b", "ac97", "pdm", "msb", "lsb"
+- simple-audio-card,routing		: A list of the connections between audio components.
+					  Each entry is a pair of strings, the first being the
+					  connection's sink, the second being the connection's
+					  source.
+
+Required subnodes:
+
+- simple-audio-card,cpu			: CPU   sub-node
+- simple-audio-card,codec		: CODEC sub-node
+
+Required CPU/CODEC subnodes properties:
+
+- sound-dai				: phandle and port of CPU/CODEC
+
+Optional CPU/CODEC subnodes properties:
+
+- format				: CPU/CODEC specific audio format if needed.
+					  see simple-audio-card,format
+- frame-master				: bool property. add this if subnode is frame master
+- bitclock-master			: bool property. add this if subnode is bitclock master
+- bitclock-inversion			: bool property. add this if subnode has clock inversion
+- frame-inversion			: bool property. add this if subnode has frame inversion
+- clocks / system-clock-frequency	: specify subnode's clock if needed.
+					  it can be specified via "clocks" if system has
+					  clock node (= common clock), or "system-clock-frequency"
+					  (if system doens't support common clock)
+
+Example:
+
+sound {
+	compatible = "simple-audio-card";
+	simple-audio-card,format = "left_j";
+	simple-audio-routing =
+		"MIC_IN", "Mic Jack",
+		"Headphone Jack", "HP_OUT",
+		"Ext Spk", "LINE_OUT";
+
+	simple-audio-card,cpu {
+		sound-dai = <&sh_fsi2 0>;
+	};
+
+	simple-audio-card,codec {
+		sound-dai = <&ak4648>;
+		bitclock-master;
+		frame-master;
+		clocks = <&osc>;
+	};
+};
+
+&i2c0 {
+	ak4648: ak4648@12 {
+		#sound-dai-cells = <0>;
+		compatible = "asahi-kasei,ak4648";
+		reg = <0x12>;
+	};
+};
+
+sh_fsi2: sh_fsi2@ec230000 {
+	#sound-dai-cells = <1>;
+	compatible = "renesas,sh_fsi2";
+	reg = <0xec230000 0x400>;
+	interrupt-parent = <&gic>;
+	interrupts = <0 146 0x4>;
+};

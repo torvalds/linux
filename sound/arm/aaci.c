@@ -753,7 +753,7 @@ static struct snd_pcm_ops aaci_capture_ops = {
  * Power Management.
  */
 #ifdef CONFIG_PM
-static int aaci_do_suspend(struct snd_card *card, unsigned int state)
+static int aaci_do_suspend(struct snd_card *card)
 {
 	struct aaci *aaci = card->private_data;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
@@ -761,28 +761,28 @@ static int aaci_do_suspend(struct snd_card *card, unsigned int state)
 	return 0;
 }
 
-static int aaci_do_resume(struct snd_card *card, unsigned int state)
+static int aaci_do_resume(struct snd_card *card)
 {
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 
-static int aaci_suspend(struct amba_device *dev, pm_message_t state)
+static int aaci_suspend(struct device *dev)
 {
-	struct snd_card *card = amba_get_drvdata(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	return card ? aaci_do_suspend(card) : 0;
 }
 
-static int aaci_resume(struct amba_device *dev)
+static int aaci_resume(struct device *dev)
 {
-	struct snd_card *card = amba_get_drvdata(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	return card ? aaci_do_resume(card) : 0;
 }
+
+static SIMPLE_DEV_PM_OPS(aaci_dev_pm_ops, aaci_suspend, aaci_resume);
+#define AACI_DEV_PM_OPS (&aaci_dev_pm_ops)
 #else
-#define aaci_do_suspend		NULL
-#define aaci_do_resume		NULL
-#define aaci_suspend		NULL
-#define aaci_resume		NULL
+#define AACI_DEV_PM_OPS NULL
 #endif
 
 
@@ -1100,11 +1100,10 @@ MODULE_DEVICE_TABLE(amba, aaci_ids);
 static struct amba_driver aaci_driver = {
 	.drv		= {
 		.name	= DRIVER_NAME,
+		.pm	= AACI_DEV_PM_OPS,
 	},
 	.probe		= aaci_probe,
 	.remove		= aaci_remove,
-	.suspend	= aaci_suspend,
-	.resume		= aaci_resume,
 	.id_table	= aaci_ids,
 };
 

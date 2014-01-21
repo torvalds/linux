@@ -750,29 +750,25 @@ static struct snd_soc_codec_driver soc_codec_dev_mc13783 = {
 	.num_dapm_routes = ARRAY_SIZE(mc13783_routes),
 };
 
-static int mc13783_codec_probe(struct platform_device *pdev)
+static int __init mc13783_codec_probe(struct platform_device *pdev)
 {
-	struct mc13xxx *mc13xxx;
 	struct mc13783_priv *priv;
 	struct mc13xxx_codec_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
 
-	mc13xxx = dev_get_drvdata(pdev->dev.parent);
-
-
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (priv == NULL)
+	if (!priv)
 		return -ENOMEM;
 
-	dev_set_drvdata(&pdev->dev, priv);
-	priv->mc13xxx = mc13xxx;
 	if (pdata) {
 		priv->adc_ssi_port = pdata->adc_ssi_port;
 		priv->dac_ssi_port = pdata->dac_ssi_port;
 	} else {
-		priv->adc_ssi_port = MC13783_SSI1_PORT;
-		priv->dac_ssi_port = MC13783_SSI2_PORT;
+		return -ENOSYS;
 	}
+
+	dev_set_drvdata(&pdev->dev, priv);
+	priv->mc13xxx = dev_get_drvdata(pdev->dev.parent);
 
 	if (priv->adc_ssi_port == priv->dac_ssi_port)
 		ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_mc13783,
@@ -780,14 +776,6 @@ static int mc13783_codec_probe(struct platform_device *pdev)
 	else
 		ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_mc13783,
 			mc13783_dai_async, ARRAY_SIZE(mc13783_dai_async));
-
-	if (ret)
-		goto err_register_codec;
-
-	return 0;
-
-err_register_codec:
-	dev_err(&pdev->dev, "register codec failed with %d\n", ret);
 
 	return ret;
 }
@@ -801,14 +789,12 @@ static int mc13783_codec_remove(struct platform_device *pdev)
 
 static struct platform_driver mc13783_codec_driver = {
 	.driver = {
-		   .name = "mc13783-codec",
-		   .owner = THIS_MODULE,
-		   },
-	.probe = mc13783_codec_probe,
+		.name	= "mc13783-codec",
+		.owner	= THIS_MODULE,
+	},
 	.remove = mc13783_codec_remove,
 };
-
-module_platform_driver(mc13783_codec_driver);
+module_platform_driver_probe(mc13783_codec_driver, mc13783_codec_probe);
 
 MODULE_DESCRIPTION("ASoC MC13783 driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>");
