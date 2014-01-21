@@ -154,6 +154,12 @@ nonsc_processor:
  * Do SMP slave processor setup necessary before we can safely execute C code.
  */
 	.macro	smp_slave_setup
+#ifdef CONFIG_EVA
+	sync
+	ehb
+	mfc0    t1, CP0_CONFIG
+	eva_entry
+#endif
 	.endm
 
 #endif /* __ASM_MACH_MIPS_KERNEL_ENTRY_INIT_H */
