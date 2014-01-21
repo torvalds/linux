@@ -81,154 +81,150 @@ static void __put_compound_page(struct page *page)
 
 static void put_compound_page(struct page *page)
 {
-	if (unlikely(PageTail(page))) {
-		/* __split_huge_page_refcount can run under us */
-		struct page *page_head = compound_trans_head(page);
+	struct page *page_head;
+
+	if (likely(!PageTail(page))) {
+		if (put_page_testzero(page)) {
+			/*
+			 * By the time all refcounts have been released
+			 * split_huge_page cannot run anymore from under us.
+			 */
+			if (PageHead(page))
+				__put_compound_page(page);
+			else
+				__put_single_page(page);
+		}
+		return;
+	}
+
+	/* __split_huge_page_refcount can run under us */
+	page_head = compound_trans_head(page);
+
+	/*
+	 * THP can not break up slab pages so avoid taking
+	 * compound_lock() and skip the tail page refcounting (in
+	 * _mapcount) too. Slab performs non-atomic bit ops on
+	 * page->flags for better performance. In particular
+	 * slab_unlock() in slub used to be a hot path. It is still
+	 * hot on arches that do not support
+	 * this_cpu_cmpxchg_double().
+	 *
+	 * If "page" is part of a slab or hugetlbfs page it cannot be
+	 * splitted and the head page cannot change from under us. And
+	 * if "page" is part of a THP page under splitting, if the
+	 * head page pointed by the THP tail isn't a THP head anymore,
+	 * we'll find PageTail clear after smp_rmb() and we'll treat
+	 * it as a single page.
+	 */
+	if (!__compound_tail_refcounted(page_head)) {
+		/*
+		 * If "page" is a THP tail, we must read the tail page
+		 * flags after the head page flags. The
+		 * split_huge_page side enforces write memory barriers
+		 * between clearing PageTail and before the head page
+		 * can be freed and reallocated.
+		 */
+		smp_rmb();
+		if (likely(PageTail(page))) {
+			/*
+			 * __split_huge_page_refcount cannot race
+			 * here.
+			 */
+			VM_BUG_ON(!PageHead(page_head));
+			VM_BUG_ON(page_mapcount(page) != 0);
+			if (put_page_testzero(page_head)) {
+				/*
+				 * If this is the tail of a slab
+				 * compound page, the tail pin must
+				 * not be the last reference held on
+				 * the page, because the PG_slab
+				 * cannot be cleared before all tail
+				 * pins (which skips the _mapcount
+				 * tail refcounting) have been
+				 * released. For hugetlbfs the tail
+				 * pin may be the last reference on
+				 * the page instead, because
+				 * PageHeadHuge will not go away until
+				 * the compound page enters the buddy
+				 * allocator.
+				 */
+				VM_BUG_ON(PageSlab(page_head));
+				__put_compound_page(page_head);
+			}
+			return;
+		} else
+			/*
+			 * __split_huge_page_refcount run before us,
+			 * "page" was a THP tail. The split page_head
+			 * has been freed and reallocated as slab or
+			 * hugetlbfs page of smaller order (only
+			 * possible if reallocated as slab on x86).
+			 */
+			goto out_put_single;
+	}
+
+	if (likely(page != page_head && get_page_unless_zero(page_head))) {
+		unsigned long flags;
 
 		/*
-		 * THP can not break up slab pages so avoid taking
-		 * compound_lock() and skip the tail page refcounting
-		 * (in _mapcount) too. Slab performs non-atomic bit
-		 * ops on page->flags for better performance. In
-		 * particular slab_unlock() in slub used to be a hot
-		 * path. It is still hot on arches that do not support
-		 * this_cpu_cmpxchg_double().
-		 *
-		 * If "page" is part of a slab or hugetlbfs page it
-		 * cannot be splitted and the head page cannot change
-		 * from under us. And if "page" is part of a THP page
-		 * under splitting, if the head page pointed by the
-		 * THP tail isn't a THP head anymore, we'll find
-		 * PageTail clear after smp_rmb() and we'll treat it
-		 * as a single page.
+		 * page_head wasn't a dangling pointer but it may not
+		 * be a head page anymore by the time we obtain the
+		 * lock. That is ok as long as it can't be freed from
+		 * under us.
 		 */
-		if (!__compound_tail_refcounted(page_head)) {
-			/*
-			 * If "page" is a THP tail, we must read the tail page
-			 * flags after the head page flags. The
-			 * split_huge_page side enforces write memory
-			 * barriers between clearing PageTail and before the
-			 * head page can be freed and reallocated.
-			 */
-			smp_rmb();
-			if (likely(PageTail(page))) {
-				/*
-				 * __split_huge_page_refcount
-				 * cannot race here.
-				 */
-				VM_BUG_ON(!PageHead(page_head));
-				VM_BUG_ON(page_mapcount(page) != 0);
-				if (put_page_testzero(page_head)) {
-					/*
-					 * If this is the tail of a
-					 * slab compound page, the
-					 * tail pin must not be the
-					 * last reference held on the
-					 * page, because the PG_slab
-					 * cannot be cleared before
-					 * all tail pins (which skips
-					 * the _mapcount tail
-					 * refcounting) have been
-					 * released. For hugetlbfs the
-					 * tail pin may be the last
-					 * reference on the page
-					 * instead, because
-					 * PageHeadHuge will not go
-					 * away until the compound
-					 * page enters the buddy
-					 * allocator.
-					 */
-					VM_BUG_ON(PageSlab(page_head));
-					__put_compound_page(page_head);
-				}
-				return;
-			} else
-				/*
-				 * __split_huge_page_refcount
-				 * run before us, "page" was a
-				 * THP tail. The split
-				 * page_head has been freed
-				 * and reallocated as slab or
-				 * hugetlbfs page of smaller
-				 * order (only possible if
-				 * reallocated as slab on
-				 * x86).
-				 */
-				goto out_put_single;
-		}
-
-		if (likely(page != page_head &&
-			   get_page_unless_zero(page_head))) {
-			unsigned long flags;
-
-			/*
-			 * page_head wasn't a dangling pointer but it
-			 * may not be a head page anymore by the time
-			 * we obtain the lock. That is ok as long as it
-			 * can't be freed from under us.
-			 */
-			flags = compound_lock_irqsave(page_head);
-			if (unlikely(!PageTail(page))) {
-				/* __split_huge_page_refcount run before us */
-				compound_unlock_irqrestore(page_head, flags);
-				if (put_page_testzero(page_head)) {
-					/*
-					 * The head page may have been
-					 * freed and reallocated as a
-					 * compound page of smaller
-					 * order and then freed again.
-					 * All we know is that it
-					 * cannot have become: a THP
-					 * page, a compound page of
-					 * higher order, a tail page.
-					 * That is because we still
-					 * hold the refcount of the
-					 * split THP tail and
-					 * page_head was the THP head
-					 * before the split.
-					 */
-					if (PageHead(page_head))
-						__put_compound_page(page_head);
-					else
-						__put_single_page(page_head);
-				}
-out_put_single:
-				if (put_page_testzero(page))
-					__put_single_page(page);
-				return;
-			}
-			VM_BUG_ON(page_head != page->first_page);
-			/*
-			 * We can release the refcount taken by
-			 * get_page_unless_zero() now that
-			 * __split_huge_page_refcount() is blocked on
-			 * the compound_lock.
-			 */
-			if (put_page_testzero(page_head))
-				VM_BUG_ON(1);
-			/* __split_huge_page_refcount will wait now */
-			VM_BUG_ON(page_mapcount(page) <= 0);
-			atomic_dec(&page->_mapcount);
-			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
-			VM_BUG_ON(atomic_read(&page->_count) != 0);
+		flags = compound_lock_irqsave(page_head);
+		if (unlikely(!PageTail(page))) {
+			/* __split_huge_page_refcount run before us */
 			compound_unlock_irqrestore(page_head, flags);
-
 			if (put_page_testzero(page_head)) {
+				/*
+				 * The head page may have been freed
+				 * and reallocated as a compound page
+				 * of smaller order and then freed
+				 * again.  All we know is that it
+				 * cannot have become: a THP page, a
+				 * compound page of higher order, a
+				 * tail page.  That is because we
+				 * still hold the refcount of the
+				 * split THP tail and page_head was
+				 * the THP head before the split.
+				 */
 				if (PageHead(page_head))
 					__put_compound_page(page_head);
 				else
 					__put_single_page(page_head);
 			}
-		} else {
-			/* page_head is a dangling pointer */
-			VM_BUG_ON(PageTail(page));
-			goto out_put_single;
+out_put_single:
+			if (put_page_testzero(page))
+				__put_single_page(page);
+			return;
 		}
-	} else if (put_page_testzero(page)) {
-		if (PageHead(page))
-			__put_compound_page(page);
-		else
-			__put_single_page(page);
+		VM_BUG_ON(page_head != page->first_page);
+		/*
+		 * We can release the refcount taken by
+		 * get_page_unless_zero() now that
+		 * __split_huge_page_refcount() is blocked on the
+		 * compound_lock.
+		 */
+		if (put_page_testzero(page_head))
+			VM_BUG_ON(1);
+		/* __split_huge_page_refcount will wait now */
+		VM_BUG_ON(page_mapcount(page) <= 0);
+		atomic_dec(&page->_mapcount);
+		VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
+		VM_BUG_ON(atomic_read(&page->_count) != 0);
+		compound_unlock_irqrestore(page_head, flags);
+
+		if (put_page_testzero(page_head)) {
+			if (PageHead(page_head))
+				__put_compound_page(page_head);
+			else
+				__put_single_page(page_head);
+		}
+	} else {
+		/* page_head is a dangling pointer */
+		VM_BUG_ON(PageTail(page));
+		goto out_put_single;
 	}
 }
 
