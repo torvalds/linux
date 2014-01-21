@@ -911,18 +911,18 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
  * memblock_set_node - set node ID on memblock regions
  * @base: base of area to set node ID for
  * @size: size of area to set node ID for
+ * @type: memblock type to set node ID for
  * @nid: node ID to set
  *
- * Set the nid of memblock memory regions in [@base,@base+@size) to @nid.
+ * Set the nid of memblock @type regions in [@base,@base+@size) to @nid.
  * Regions which cross the area boundaries are split as necessary.
  *
  * RETURNS:
  * 0 on success, -errno on failure.
  */
 int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
-				      int nid)
+				      struct memblock_type *type, int nid)
 {
-	struct memblock_type *type = &memblock.memory;
 	int start_rgn, end_rgn;
 	int i, ret;
 
