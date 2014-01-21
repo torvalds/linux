@@ -726,9 +726,9 @@ static void __sctp_hash_endpoint(struct sctp_endpoint *ep)
 /* Add an endpoint to the hash. Local BH-safe. */
 void sctp_hash_endpoint(struct sctp_endpoint *ep)
 {
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_hash_endpoint(ep);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /* Remove endpoint from the hash table.  */
@@ -752,9 +752,9 @@ static void __sctp_unhash_endpoint(struct sctp_endpoint *ep)
 /* Remove endpoint from the hash.  Local BH-safe. */
 void sctp_unhash_endpoint(struct sctp_endpoint *ep)
 {
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_unhash_endpoint(ep);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /* Look up an endpoint. */
@@ -809,9 +809,9 @@ void sctp_hash_established(struct sctp_association *asoc)
 	if (asoc->temp)
 		return;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_hash_established(asoc);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /* Remove association from the hash table.  */
@@ -839,9 +839,9 @@ void sctp_unhash_established(struct sctp_association *asoc)
 	if (asoc->temp)
 		return;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_unhash_established(asoc);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /* Look up an association. */
@@ -891,9 +891,9 @@ struct sctp_association *sctp_lookup_association(struct net *net,
 {
 	struct sctp_association *asoc;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	asoc = __sctp_lookup_association(net, laddr, paddr, transportp);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return asoc;
 }

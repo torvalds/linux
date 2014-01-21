@@ -1510,7 +1510,7 @@ static void sctp_close(struct sock *sk, long timeout)
 	/* Supposedly, no process has access to the socket, but
 	 * the net layers still may.
 	 */
-	sctp_local_bh_disable();
+	local_bh_disable();
 	sctp_bh_lock_sock(sk);
 
 	/* Hold the sock, since sk_common_release() will put sock_put()
@@ -1520,7 +1520,7 @@ static void sctp_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 
 	sctp_bh_unlock_sock(sk);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	sock_put(sk);
 
@@ -5918,7 +5918,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 
 	pr_debug("%s: begins, snum:%d\n", __func__, snum);
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 
 	if (snum == 0) {
 		/* Search for an available port. */
@@ -6052,7 +6052,7 @@ fail_unlock:
 	sctp_spin_unlock(&head->lock);
 
 fail:
-	sctp_local_bh_enable();
+	local_bh_enable();
 	return ret;
 }
 
@@ -6297,9 +6297,9 @@ static inline void __sctp_put_port(struct sock *sk)
 
 void sctp_put_port(struct sock *sk)
 {
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_put_port(sk);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /*
@@ -6950,14 +6950,14 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	/* Hook this new socket in to the bind_hash list. */
 	head = &sctp_port_hashtable[sctp_phashfn(sock_net(oldsk),
 						 inet_sk(oldsk)->inet_num)];
-	sctp_local_bh_disable();
+	local_bh_disable();
 	sctp_spin_lock(&head->lock);
 	pp = sctp_sk(oldsk)->bind_hash;
 	sk_add_bind_node(newsk, &pp->owner);
 	sctp_sk(newsk)->bind_hash = pp;
 	inet_sk(newsk)->inet_num = inet_sk(oldsk)->inet_num;
 	sctp_spin_unlock(&head->lock);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	/* Copy the bind_addr list from the original endpoint to the new
 	 * endpoint so that we can handle restarts properly
