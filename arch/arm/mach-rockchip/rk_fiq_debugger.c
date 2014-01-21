@@ -48,13 +48,13 @@ struct rk_fiq_debugger {
 static inline void rk_fiq_write(struct rk_fiq_debugger *t,
 	unsigned int val, unsigned int off)
 {
-	__raw_writeb(val, t->debug_port_base + off * 4);
+	__raw_writel(val, t->debug_port_base + off * 4);
 }
 
 static inline unsigned int rk_fiq_read(struct rk_fiq_debugger *t,
 	unsigned int off)
 {
-	return __raw_readb(t->debug_port_base + off * 4);
+	return __raw_readl(t->debug_port_base + off * 4);
 }
 
 static inline unsigned int rk_fiq_read_lsr(struct rk_fiq_debugger *t)
