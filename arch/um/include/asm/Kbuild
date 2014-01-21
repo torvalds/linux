@@ -15,6 +15,7 @@ generic-y += hw_irq.h
 generic-y += io.h
 generic-y += irq_regs.h
 generic-y += kdebug.h
+generic-y += mcs_spinlock.h
 generic-y += mutex.h
 generic-y += param.h
 generic-y += pci.h
