@@ -31,7 +31,7 @@
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/regmap.h>
 
-static struct mfd_cell s5m8751_devs[] = {
+static const struct mfd_cell s5m8751_devs[] = {
 	{
 		.name = "s5m8751-pmic",
 	}, {
@@ -41,7 +41,7 @@ static struct mfd_cell s5m8751_devs[] = {
 	},
 };
 
-static struct mfd_cell s5m8763_devs[] = {
+static const struct mfd_cell s5m8763_devs[] = {
 	{
 		.name = "s5m8763-pmic",
 	}, {
@@ -51,15 +51,17 @@ static struct mfd_cell s5m8763_devs[] = {
 	},
 };
 
-static struct mfd_cell s5m8767_devs[] = {
+static const struct mfd_cell s5m8767_devs[] = {
 	{
 		.name = "s5m8767-pmic",
 	}, {
 		.name = "s5m-rtc",
-	},
+	}, {
+		.name = "s5m8767-clk",
+	}
 };
 
-static struct mfd_cell s2mps11_devs[] = {
+static const struct mfd_cell s2mps11_devs[] = {
 	{
 		.name = "s2mps11-pmic",
 	}, {
@@ -134,12 +136,12 @@ static bool s5m8763_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config sec_regmap_config = {
+static const struct regmap_config sec_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
 
-static struct regmap_config s2mps11_regmap_config = {
+static const struct regmap_config s2mps11_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -148,7 +150,7 @@ static struct regmap_config s2mps11_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static struct regmap_config s5m8763_regmap_config = {
+static const struct regmap_config s5m8763_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -157,7 +159,7 @@ static struct regmap_config s5m8763_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static struct regmap_config s5m8767_regmap_config = {
+static const struct regmap_config s5m8767_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -204,7 +206,7 @@ static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 					struct device *dev)
 {
-	return 0;
+	return NULL;
 }
 #endif
 
@@ -323,6 +325,8 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	if (ret)
 		goto err;
 
+	device_init_wakeup(sec_pmic->dev, sec_pmic->wakeup);
+
 	return ret;
 
 err:
@@ -341,6 +345,43 @@ static int sec_pmic_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static int sec_pmic_suspend(struct device *dev)
+{
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct sec_pmic_dev *sec_pmic = i2c_get_clientdata(i2c);
+
+	if (device_may_wakeup(dev)) {
+		enable_irq_wake(sec_pmic->irq);
+		/*
+		 * PMIC IRQ must be disabled during suspend for RTC alarm
+		 * to work properly.
+		 * When device is woken up from suspend by RTC Alarm, an
+		 * interrupt occurs before resuming I2C bus controller.
+		 * The interrupt is handled by regmap_irq_thread which tries
+		 * to read RTC registers. This read fails (I2C is still
+		 * suspended) and RTC Alarm interrupt is disabled.
+		 */
+		disable_irq(sec_pmic->irq);
+	}
+
+	return 0;
+}
+
+static int sec_pmic_resume(struct device *dev)
+{
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct sec_pmic_dev *sec_pmic = i2c_get_clientdata(i2c);
+
+	if (device_may_wakeup(dev)) {
+		disable_irq_wake(sec_pmic->irq);
+		enable_irq(sec_pmic->irq);
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(sec_pmic_pm_ops, sec_pmic_suspend, sec_pmic_resume);
+
 static const struct i2c_device_id sec_pmic_id[] = {
 	{ "sec_pmic", 0 },
 	{ }
@@ -351,6 +392,7 @@ static struct i2c_driver sec_pmic_driver = {
 	.driver = {
 		   .name = "sec_pmic",
 		   .owner = THIS_MODULE,
+		   .pm = &sec_pmic_pm_ops,
 		   .of_match_table = of_match_ptr(sec_dt_match),
 	},
 	.probe = sec_pmic_probe,

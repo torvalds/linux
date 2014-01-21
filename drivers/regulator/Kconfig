@@ -343,7 +343,7 @@ config REGULATOR_MC13XXX_CORE
 
 config REGULATOR_MC13783
 	tristate "Freescale MC13783 regulator driver"
-	depends on MFD_MC13783
+	depends on MFD_MC13XXX
 	select REGULATOR_MC13XXX_CORE
 	help
 	  Say y here to support the regulators found on the Freescale MC13783

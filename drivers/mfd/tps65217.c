@@ -30,7 +30,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65217.h>
 
-static struct mfd_cell tps65217s[] = {
+static const struct mfd_cell tps65217s[] = {
 	{
 		.name = "tps65217-pmic",
 	},
