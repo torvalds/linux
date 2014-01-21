@@ -1511,7 +1511,7 @@ static void sctp_close(struct sock *sk, long timeout)
 	 * the net layers still may.
 	 */
 	local_bh_disable();
-	sctp_bh_lock_sock(sk);
+	bh_lock_sock(sk);
 
 	/* Hold the sock, since sk_common_release() will put sock_put()
 	 * and we have just a little more cleanup.
@@ -1519,7 +1519,7 @@ static void sctp_close(struct sock *sk, long timeout)
 	sock_hold(sk);
 	sk_common_release(sk);
 
-	sctp_bh_unlock_sock(sk);
+	bh_unlock_sock(sk);
 	local_bh_enable();
 
 	sock_put(sk);

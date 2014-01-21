@@ -170,10 +170,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
  *  Section:  Macros, externs, and inlines
  */
 
-/* sock lock wrappers. */
-#define sctp_bh_lock_sock(sk)    bh_lock_sock(sk)
-#define sctp_bh_unlock_sock(sk)  bh_unlock_sock(sk)
-
 /* SCTP SNMP MIB stats handlers */
 #define SCTP_INC_STATS(net, field)      SNMP_INC_STATS((net)->sctp.sctp_statistics, field)
 #define SCTP_INC_STATS_BH(net, field)   SNMP_INC_STATS_BH((net)->sctp.sctp_statistics, field)

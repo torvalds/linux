@@ -238,7 +238,7 @@ int sctp_rcv(struct sk_buff *skb)
 	 * bottom halves on this lock, but a user may be in the lock too,
 	 * so check if it is busy.
 	 */
-	sctp_bh_lock_sock(sk);
+	bh_lock_sock(sk);
 
 	if (sk != rcvr->sk) {
 		/* Our cached sk is different from the rcvr->sk.  This is
@@ -248,14 +248,14 @@ int sctp_rcv(struct sk_buff *skb)
 		 * be doing something with the new socket.  Switch our veiw
 		 * of the current sk.
 		 */
-		sctp_bh_unlock_sock(sk);
+		bh_unlock_sock(sk);
 		sk = rcvr->sk;
-		sctp_bh_lock_sock(sk);
+		bh_lock_sock(sk);
 	}
 
 	if (sock_owned_by_user(sk)) {
 		if (sctp_add_backlog(sk, skb)) {
-			sctp_bh_unlock_sock(sk);
+			bh_unlock_sock(sk);
 			sctp_chunk_free(chunk);
 			skb = NULL; /* sctp_chunk_free already freed the skb */
 			goto discard_release;
@@ -266,7 +266,7 @@ int sctp_rcv(struct sk_buff *skb)
 		sctp_inq_push(&chunk->rcvr->inqueue, chunk);
 	}
 
-	sctp_bh_unlock_sock(sk);
+	bh_unlock_sock(sk);
 
 	/* Release the asoc/ep ref we took in the lookup calls. */
 	if (asoc)
@@ -327,7 +327,7 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 		 */
 
 		sk = rcvr->sk;
-		sctp_bh_lock_sock(sk);
+		bh_lock_sock(sk);
 
 		if (sock_owned_by_user(sk)) {
 			if (sk_add_backlog(sk, skb, sk->sk_rcvbuf))
@@ -337,7 +337,7 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 		} else
 			sctp_inq_push(inqueue, chunk);
 
-		sctp_bh_unlock_sock(sk);
+		bh_unlock_sock(sk);
 
 		/* If the chunk was backloged again, don't drop refs */
 		if (backloged)
@@ -522,7 +522,7 @@ struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *skb,
 		goto out;
 	}
 
-	sctp_bh_lock_sock(sk);
+	bh_lock_sock(sk);
 
 	/* If too many ICMPs get dropped on busy
 	 * servers this needs to be solved differently.
@@ -542,7 +542,7 @@ out:
 /* Common cleanup code for icmp/icmpv6 error handler. */
 void sctp_err_finish(struct sock *sk, struct sctp_association *asoc)
 {
-	sctp_bh_unlock_sock(sk);
+	bh_unlock_sock(sk);
 	sctp_association_put(asoc);
 }
 
