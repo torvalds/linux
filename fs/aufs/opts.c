@@ -1373,7 +1373,7 @@ static int au_opt_br(struct super_block *sb, struct au_opt *opt,
 		goto add;
 	case Opt_prepend:
 		opt->add.bindex = 0;
-	add:
+	add: /* indented label */
 	case Opt_add:
 		err = au_br_add(sb, &opt->add,
 				au_ftest_opts(opts->flags, REMOUNT));
