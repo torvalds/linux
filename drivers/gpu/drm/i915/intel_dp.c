@@ -358,31 +358,46 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 	return status;
 }
 
-static uint32_t get_aux_clock_divider(struct intel_dp *intel_dp,
-				      int index)
+static uint32_t i9xx_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+
+	/*
+	 * The clock divider is based off the hrawclk, and would like to run at
+	 * 2MHz.  So, take the hrawclk value and divide by 2 and use that
+	 */
+	return index ? 0 : intel_hrawclk(dev) / 2;
+}
+
+static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+
+	if (index)
+		return 0;
+
+	if (intel_dig_port->port == PORT_A) {
+		if (IS_GEN6(dev) || IS_GEN7(dev))
+			return 200; /* SNB & IVB eDP input clock at 400Mhz */
+		else
+			return 225; /* eDP input clock at 450Mhz */
+	} else {
+		return DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
+	}
+}
+
+static uint32_t hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* The clock divider is based off the hrawclk,
-	 * and would like to run at 2MHz. So, take the
-	 * hrawclk value and divide by 2 and use that
-	 *
-	 * Note that PCH attached eDP panels should use a 125MHz input
-	 * clock divider.
-	 */
-	if (IS_VALLEYVIEW(dev)) {
-		return index ? 0 : 100;
-	} else if (intel_dig_port->port == PORT_A) {
+	if (intel_dig_port->port == PORT_A) {
 		if (index)
 			return 0;
-		if (HAS_DDI(dev))
-			return DIV_ROUND_CLOSEST(intel_ddi_get_cdclk_freq(dev_priv), 2000);
-		else if (IS_GEN6(dev) || IS_GEN7(dev))
-			return 200; /* SNB & IVB eDP input clock at 400Mhz */
-		else
-			return 225; /* eDP input clock at 450Mhz */
+		return DIV_ROUND_CLOSEST(intel_ddi_get_cdclk_freq(dev_priv), 2000);
 	} else if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 		/* Workaround for non-ULT HSW */
 		switch (index) {
@@ -390,11 +405,14 @@ static uint32_t get_aux_clock_divider(struct intel_dp *intel_dp,
 		case 1: return 72;
 		default: return 0;
 		}
-	} else if (HAS_PCH_SPLIT(dev)) {
+	} else  {
 		return index ? 0 : DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
-	} else {
-		return index ? 0 :intel_hrawclk(dev) / 2;
 	}
+}
+
+static uint32_t vlv_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
+{
+	return index ? 0 : 100;
 }
 
 static int
@@ -455,7 +473,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		goto out;
 	}
 
-	while ((aux_clock_divider = get_aux_clock_divider(intel_dp, clock++))) {
+	while ((aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, clock++))) {
 		/* Must try at least 3 times according to DP spec */
 		for (try = 0; try < 5; try++) {
 			/* Load the send data into the aux channel data registers */
@@ -1619,9 +1637,11 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t aux_clock_divider = get_aux_clock_divider(intel_dp, 0);
+	uint32_t aux_clock_divider;
 	int precharge = 0x3;
 	int msg_size = 5;       /* Header(4) + Message(1) */
+
+	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
 	/* Enable PSR in sink */
 	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT)
@@ -3678,6 +3698,16 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct edp_power_seq power_seq = { 0 };
 	const char *name = NULL;
 	int type, error;
+
+	/* intel_dp vfuncs */
+	if (IS_VALLEYVIEW(dev))
+		intel_dp->get_aux_clock_divider = vlv_get_aux_clock_divider;
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
+	else if (HAS_PCH_SPLIT(dev))
+		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
+	else
+		intel_dp->get_aux_clock_divider = i9xx_get_aux_clock_divider;
 
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);

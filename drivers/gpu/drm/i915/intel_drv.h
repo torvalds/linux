@@ -493,6 +493,8 @@ struct intel_dp {
 	bool psr_setup_done;
 	bool use_tps3;
 	struct intel_connector *attached_connector;
+
+	uint32_t (*get_aux_clock_divider)(struct intel_dp *dp, int index);
 };
 
 struct intel_digital_port {
