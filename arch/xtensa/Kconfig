@@ -64,6 +64,9 @@ config MMU
 config VARIANT_IRQ_SWITCH
 	def_bool n
 
+config HAVE_XTENSA_GPIO32
+	def_bool n
+
 menu "Processor type and features"
 
 choice
@@ -73,16 +76,19 @@ choice
 config XTENSA_VARIANT_FSF
 	bool "fsf - default (not generic) configuration"
 	select MMU
+	select HAVE_XTENSA_GPIO32
 
 config XTENSA_VARIANT_DC232B
 	bool "dc232b - Diamond 232L Standard Core Rev.B (LE)"
 	select MMU
+	select HAVE_XTENSA_GPIO32
 	help
 	  This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
 
 config XTENSA_VARIANT_DC233C
 	bool "dc233c - Diamond 233L Standard Core Rev.C (LE)"
 	select MMU
+	select HAVE_XTENSA_GPIO32
 	help
 	  This variant refers to Tensilica's Diamond 233L Standard core Rev.C (LE).
 

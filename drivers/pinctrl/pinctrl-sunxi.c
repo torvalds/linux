@@ -547,7 +547,7 @@ static struct gpio_chip sunxi_pinctrl_gpio_chip = {
 	.of_xlate		= sunxi_pinctrl_gpio_of_xlate,
 	.to_irq			= sunxi_pinctrl_gpio_to_irq,
 	.of_gpio_n_cells	= 3,
-	.can_sleep		= 0,
+	.can_sleep		= false,
 };
 
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d,

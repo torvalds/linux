@@ -384,7 +384,7 @@ static struct gpio_chip bcm2835_gpio_chip = {
 	.to_irq = bcm2835_gpio_to_irq,
 	.base = -1,
 	.ngpio = BCM2835_NUM_GPIOS,
-	.can_sleep = 0,
+	.can_sleep = false,
 };
 
 static irqreturn_t bcm2835_gpio_irq_handler(int irq, void *dev_id)

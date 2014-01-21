@@ -30,6 +30,7 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/adc.h>
 #include <plat/cpu.h>

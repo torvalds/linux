@@ -2,10 +2,11 @@
 
 Required Properties:
 
-  - compatible: should be one of the following.
+  - compatible: should contain one of the following.
     - "renesas,gpio-r8a7778": for R8A7778 (R-Mobile M1) compatible GPIO controller.
     - "renesas,gpio-r8a7779": for R8A7779 (R-Car H1) compatible GPIO controller.
     - "renesas,gpio-r8a7790": for R8A7790 (R-Car H2) compatible GPIO controller.
+    - "renesas,gpio-r8a7791": for R8A7791 (R-Car M2) compatible GPIO controller.
     - "renesas,gpio-rcar": for generic R-Car GPIO controller.
 
   - reg: Base address and length of each memory resource used by the GPIO

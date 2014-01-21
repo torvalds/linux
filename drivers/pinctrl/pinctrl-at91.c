@@ -1527,7 +1527,7 @@ static struct gpio_chip at91_gpio_template = {
 	.set			= at91_gpio_set,
 	.to_irq			= at91_gpio_to_irq,
 	.dbg_show		= at91_gpio_dbg_show,
-	.can_sleep		= 0,
+	.can_sleep		= false,
 	.ngpio			= MAX_NB_GPIO_PER_BANK,
 };
 
