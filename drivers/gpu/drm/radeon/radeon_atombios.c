@@ -1511,6 +1511,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v1.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v1.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v1.usSpreadRateInKhz);
+					ss->percentage_divider = 100;
 					return true;
 				}
 				ss_assign = (union asic_ss_assignment *)
@@ -1528,6 +1529,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v2.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v2.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v2.usSpreadRateIn10Hz);
+					ss->percentage_divider = 100;
 					if ((crev == 2) &&
 					    ((id == ASIC_INTERNAL_ENGINE_SS) ||
 					     (id == ASIC_INTERNAL_MEMORY_SS)))
@@ -1549,6 +1551,11 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v3.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v3.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v3.usSpreadRateIn10Hz);
+					if (ss_assign->v3.ucSpreadSpectrumMode &
+					    SS_MODE_V3_PERCENTAGE_DIV_BY_1000_MASK)
+						ss->percentage_divider = 1000;
+					else
+						ss->percentage_divider = 100;
 					if ((id == ASIC_INTERNAL_ENGINE_SS) ||
 					    (id == ASIC_INTERNAL_MEMORY_SS))
 						ss->rate /= 100;
@@ -3867,16 +3874,18 @@ int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
 							((u8 *)format + sizeof(ATOM_INIT_REG_INDEX_FORMAT));
 					}
 					reg_table->last = i;
-					while ((*(u32 *)reg_data != END_OF_REG_DATA_BLOCK) &&
+					while ((le32_to_cpu(*(u32 *)reg_data) != END_OF_REG_DATA_BLOCK) &&
 					       (num_ranges < VBIOS_MAX_AC_TIMING_ENTRIES)) {
-						t_mem_id = (u8)((*(u32 *)reg_data & MEM_ID_MASK) >> MEM_ID_SHIFT);
+						t_mem_id = (u8)((le32_to_cpu(*(u32 *)reg_data) & MEM_ID_MASK)
+								>> MEM_ID_SHIFT);
 						if (module_index == t_mem_id) {
 							reg_table->mc_reg_table_entry[num_ranges].mclk_max =
-								(u32)((*(u32 *)reg_data & CLOCK_RANGE_MASK) >> CLOCK_RANGE_SHIFT);
+								(u32)((le32_to_cpu(*(u32 *)reg_data) & CLOCK_RANGE_MASK)
+								      >> CLOCK_RANGE_SHIFT);
 							for (i = 0, j = 1; i < reg_table->last; i++) {
 								if ((reg_table->mc_reg_address[i].pre_reg_data & LOW_NIBBLE_MASK) == DATA_FROM_TABLE) {
 									reg_table->mc_reg_table_entry[num_ranges].mc_data[i] =
-										(u32)*((u32 *)reg_data + j);
+										(u32)le32_to_cpu(*((u32 *)reg_data + j));
 									j++;
 								} else if ((reg_table->mc_reg_address[i].pre_reg_data & LOW_NIBBLE_MASK) == DATA_EQU_PREV) {
 									reg_table->mc_reg_table_entry[num_ranges].mc_data[i] =
@@ -3888,7 +3897,7 @@ int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
 						reg_data = (ATOM_MEMORY_SETTING_DATA_BLOCK *)
 							((u8 *)reg_data + le16_to_cpu(reg_block->usRegDataBlkSize));
 					}
-					if (*(u32 *)reg_data != END_OF_REG_DATA_BLOCK)
+					if (le32_to_cpu(*(u32 *)reg_data) != END_OF_REG_DATA_BLOCK)
 						return -EINVAL;
 					reg_table->num_entries = num_ranges;
 				} else

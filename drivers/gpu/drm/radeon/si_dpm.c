@@ -2395,7 +2395,7 @@ static int si_populate_sq_ramping_values(struct radeon_device *rdev,
 	if (SISLANDS_DPM2_SQ_RAMP_STI_SIZE > (STI_SIZE_MASK >> STI_SIZE_SHIFT))
 		enable_sq_ramping = false;
 
-	if (NISLANDS_DPM2_SQ_RAMP_LTI_RATIO <= (LTI_RATIO_MASK >> LTI_RATIO_SHIFT))
+	if (SISLANDS_DPM2_SQ_RAMP_LTI_RATIO <= (LTI_RATIO_MASK >> LTI_RATIO_SHIFT))
 		enable_sq_ramping = false;
 
 	for (i = 0; i < state->performance_level_count; i++) {
@@ -5413,7 +5413,7 @@ static void si_populate_mc_reg_addresses(struct radeon_device *rdev,
 
 	for (i = 0, j = 0; j < si_pi->mc_reg_table.last; j++) {
 		if (si_pi->mc_reg_table.valid_flag & (1 << j)) {
-			if (i >= SMC_NISLANDS_MC_REGISTER_ARRAY_SIZE)
+			if (i >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
 				break;
 			mc_reg_table->address[i].s0 =
 				cpu_to_be16(si_pi->mc_reg_table.mc_reg_address[j].s0);

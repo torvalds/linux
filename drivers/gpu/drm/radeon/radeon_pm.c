@@ -924,6 +924,10 @@ void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)
 
 	if (rdev->asic->dpm.powergate_uvd) {
 		mutex_lock(&rdev->pm.mutex);
+		/* don't powergate anything if we
+		   have active but pause streams */
+		enable |= rdev->pm.dpm.sd > 0;
+		enable |= rdev->pm.dpm.hd > 0;
 		/* enable/disable UVD */
 		radeon_dpm_powergate_uvd(rdev, !enable);
 		mutex_unlock(&rdev->pm.mutex);
@@ -1231,6 +1235,9 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_RV670:
 	case CHIP_RS780:
 	case CHIP_RS880:
+	case CHIP_BARTS:
+	case CHIP_TURKS:
+	case CHIP_CAICOS:
 	case CHIP_CAYMAN:
 		/* DPM requires the RLC, RV770+ dGPU requires SMC */
 		if (!rdev->rlc_fw)
@@ -1256,9 +1263,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_PALM:
 	case CHIP_SUMO:
 	case CHIP_SUMO2:
-	case CHIP_BARTS:
-	case CHIP_TURKS:
-	case CHIP_CAICOS:
 	case CHIP_ARUBA:
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:

@@ -3487,6 +3487,51 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 }
 
 /**
+ * cik_hdp_flush_cp_ring_emit - emit an hdp flush on the cp
+ *
+ * @rdev: radeon_device pointer
+ * @ridx: radeon ring index
+ *
+ * Emits an hdp flush on the cp.
+ */
+static void cik_hdp_flush_cp_ring_emit(struct radeon_device *rdev,
+				       int ridx)
+{
+	struct radeon_ring *ring = &rdev->ring[ridx];
+	u32 ref_and_mask;
+
+	switch (ring->idx) {
+	case CAYMAN_RING_TYPE_CP1_INDEX:
+	case CAYMAN_RING_TYPE_CP2_INDEX:
+	default:
+		switch (ring->me) {
+		case 0:
+			ref_and_mask = CP2 << ring->pipe;
+			break;
+		case 1:
+			ref_and_mask = CP6 << ring->pipe;
+			break;
+		default:
+			return;
+		}
+		break;
+	case RADEON_RING_TYPE_GFX_INDEX:
+		ref_and_mask = CP0;
+		break;
+	}
+
+	radeon_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
+	radeon_ring_write(ring, (WAIT_REG_MEM_OPERATION(1) | /* write, wait, write */
+				 WAIT_REG_MEM_FUNCTION(3) |  /* == */
+				 WAIT_REG_MEM_ENGINE(1)));   /* pfp */
+	radeon_ring_write(ring, GPU_HDP_FLUSH_REQ >> 2);
+	radeon_ring_write(ring, GPU_HDP_FLUSH_DONE >> 2);
+	radeon_ring_write(ring, ref_and_mask);
+	radeon_ring_write(ring, ref_and_mask);
+	radeon_ring_write(ring, 0x20); /* poll interval */
+}
+
+/**
  * cik_fence_gfx_ring_emit - emit a fence on the gfx ring
  *
  * @rdev: radeon_device pointer
@@ -3512,15 +3557,7 @@ void cik_fence_gfx_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, fence->seq);
 	radeon_ring_write(ring, 0);
 	/* HDP flush */
-	/* We should be using the new WAIT_REG_MEM special op packet here
-	 * but it causes the CP to hang
-	 */
-	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(0)));
-	radeon_ring_write(ring, HDP_MEM_COHERENCY_FLUSH_CNTL >> 2);
-	radeon_ring_write(ring, 0);
-	radeon_ring_write(ring, 0);
+	cik_hdp_flush_cp_ring_emit(rdev, fence->ring);
 }
 
 /**
@@ -3550,15 +3587,7 @@ void cik_fence_compute_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, fence->seq);
 	radeon_ring_write(ring, 0);
 	/* HDP flush */
-	/* We should be using the new WAIT_REG_MEM special op packet here
-	 * but it causes the CP to hang
-	 */
-	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(0)));
-	radeon_ring_write(ring, HDP_MEM_COHERENCY_FLUSH_CNTL >> 2);
-	radeon_ring_write(ring, 0);
-	radeon_ring_write(ring, 0);
+	cik_hdp_flush_cp_ring_emit(rdev, fence->ring);
 }
 
 bool cik_semaphore_ring_emit(struct radeon_device *rdev,
@@ -3566,8 +3595,6 @@ bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 			     struct radeon_semaphore *semaphore,
 			     bool emit_wait)
 {
-/* TODO: figure out why semaphore cause lockups */
-#if 0
 	uint64_t addr = semaphore->gpu_addr;
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
@@ -3576,9 +3603,6 @@ bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
 
 	return true;
-#else
-	return false;
-#endif
 }
 
 /**
@@ -5329,20 +5353,6 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 				WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT |
 				WRITE_PROTECTION_FAULT_ENABLE_DEFAULT);
 
-	/* TC cache setup ??? */
-	WREG32(TC_CFG_L1_LOAD_POLICY0, 0);
-	WREG32(TC_CFG_L1_LOAD_POLICY1, 0);
-	WREG32(TC_CFG_L1_STORE_POLICY, 0);
-
-	WREG32(TC_CFG_L2_LOAD_POLICY0, 0);
-	WREG32(TC_CFG_L2_LOAD_POLICY1, 0);
-	WREG32(TC_CFG_L2_STORE_POLICY0, 0);
-	WREG32(TC_CFG_L2_STORE_POLICY1, 0);
-	WREG32(TC_CFG_L2_ATOMIC_POLICY, 0);
-
-	WREG32(TC_CFG_L1_VOLATILE, 0);
-	WREG32(TC_CFG_L2_VOLATILE, 0);
-
 	if (rdev->family == CHIP_KAVERI) {
 		u32 tmp = RREG32(CHUB_CONTROL);
 		tmp &= ~BYPASS_VM;
@@ -5558,16 +5568,7 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	radeon_ring_write(ring, VMID(0));
 
 	/* HDP flush */
-	/* We should be using the WAIT_REG_MEM packet here like in
-	 * cik_fence_ring_emit(), but it causes the CP to hang in this
-	 * context...
-	 */
-	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(0)));
-	radeon_ring_write(ring, HDP_MEM_COHERENCY_FLUSH_CNTL >> 2);
-	radeon_ring_write(ring, 0);
-	radeon_ring_write(ring, 0);
+	cik_hdp_flush_cp_ring_emit(rdev, ridx);
 
 	/* bits 0-15 are the VM contexts0-15 */
 	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
