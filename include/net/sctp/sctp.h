@@ -170,10 +170,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
  *  Section:  Macros, externs, and inlines
  */
 
-/* spin lock wrappers. */
-#define sctp_read_lock(lock)    read_lock(lock)
-#define sctp_read_unlock(lock)  read_unlock(lock)
-
 /* sock lock wrappers. */
 #define sctp_lock_sock(sk)       lock_sock(sk)
 #define sctp_release_sock(sk)    release_sock(sk)
