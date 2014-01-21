@@ -1143,6 +1143,7 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 	res->add_to_ml = 0;
 	res->del_from_ml = 0;
 	res->resetting_device = 0;
+	res->reset_occurred = 0;
 	res->sdev = NULL;
 	res->sata_port = NULL;
 
@@ -5015,6 +5016,7 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 	} else
 		rc = ipr_device_reset(ioa_cfg, res);
 	res->resetting_device = 0;
+	res->reset_occurred = 1;
 
 	LEAVE;
 	return rc ? FAILED : SUCCESS;
@@ -6183,8 +6185,10 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 			ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
 
 		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_LINK_DESC;
-		if (ipr_is_gscsi(res))
+		if (ipr_is_gscsi(res) && res->reset_occurred) {
+			res->reset_occurred = 0;
 			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_DELAY_AFTER_RST;
+		}
 		ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_ALIGNED_BFR;
 		ioarcb->cmd_pkt.flags_lo |= ipr_get_task_attributes(scsi_cmd);
 	}

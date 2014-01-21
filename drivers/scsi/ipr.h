@@ -1252,6 +1252,7 @@ struct ipr_resource_entry {
 	u8 add_to_ml:1;
 	u8 del_from_ml:1;
 	u8 resetting_device:1;
+	u8 reset_occurred:1;
 
 	u32 bus;		/* AKA channel */
 	u32 target;		/* AKA id */
