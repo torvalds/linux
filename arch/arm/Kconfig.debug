@@ -956,7 +956,7 @@ config DEBUG_STI_UART
 
 config DEBUG_MSM_UART
 	bool
-	depends on ARCH_MSM
+	depends on ARCH_MSM || ARCH_QCOM
 
 config DEBUG_LL_INCLUDE
 	string
