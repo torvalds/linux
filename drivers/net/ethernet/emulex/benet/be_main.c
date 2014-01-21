@@ -1097,8 +1097,6 @@ static int be_vid_config(struct be_adapter *adapter)
 				dev_info(&adapter->pdev->dev,
 					 "Disabling VLAN Promiscuous mode.\n");
 				adapter->flags &= ~BE_FLAGS_VLAN_PROMISC;
-				dev_info(&adapter->pdev->dev,
-					 "Re-Enabling HW VLAN filtering\n");
 			}
 		}
 	}
@@ -1106,12 +1104,12 @@ static int be_vid_config(struct be_adapter *adapter)
 	return status;
 
 set_vlan_promisc:
-	dev_warn(&adapter->pdev->dev, "Exhausted VLAN HW filters.\n");
+	if (adapter->flags & BE_FLAGS_VLAN_PROMISC)
+		return 0;
 
 	status = be_cmd_rx_filter(adapter, BE_FLAGS_VLAN_PROMISC, ON);
 	if (!status) {
 		dev_info(&adapter->pdev->dev, "Enable VLAN Promiscuous mode\n");
-		dev_info(&adapter->pdev->dev, "Disabling HW VLAN filtering\n");
 		adapter->flags |= BE_FLAGS_VLAN_PROMISC;
 	} else
 		dev_err(&adapter->pdev->dev,
@@ -1124,19 +1122,18 @@ static int be_vlan_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
 
-
 	/* Packets with VID 0 are always received by Lancer by default */
 	if (lancer_chip(adapter) && vid == 0)
 		goto ret;
 
 	adapter->vlan_tag[vid] = 1;
-	if (adapter->vlans_added <= (be_max_vlans(adapter) + 1))
-		status = be_vid_config(adapter);
+	adapter->vlans_added++;
 
-	if (!status)
-		adapter->vlans_added++;
-	else
+	status = be_vid_config(adapter);
+	if (status) {
+		adapter->vlans_added--;
 		adapter->vlan_tag[vid] = 0;
+	}
 ret:
 	return status;
 }
@@ -1151,9 +1148,7 @@ static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 		goto ret;
 
 	adapter->vlan_tag[vid] = 0;
-	if (adapter->vlans_added <= be_max_vlans(adapter))
-		status = be_vid_config(adapter);
-
+	status = be_vid_config(adapter);
 	if (!status)
 		adapter->vlans_added--;
 	else
