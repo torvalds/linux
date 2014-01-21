@@ -2673,8 +2673,8 @@ int (*resume) (struct drm_device *);</synopsis>
         DRM core provides multiple character-devices for user-space to use.
         Depending on which device is opened, user-space can perform a different
         set of operations (mainly ioctls). The primary node is always created
-        and called <term>card&lt;num&gt;</term>. Additionally, a currently
-        unused control node, called <term>controlD&lt;num&gt;</term> is also
+        and called card&lt;num&gt;. Additionally, a currently
+        unused control node, called controlD&lt;num&gt; is also
         created. The primary node provides all legacy operations and
         historically was the only interface used by userspace. With KMS, the
         control node was introduced. However, the planned KMS control interface
@@ -2689,21 +2689,21 @@ int (*resume) (struct drm_device *);</synopsis>
         nodes were introduced. Render nodes solely serve render clients, that
         is, no modesetting or privileged ioctls can be issued on render nodes.
         Only non-global rendering commands are allowed. If a driver supports
-        render nodes, it must advertise it via the <term>DRIVER_RENDER</term>
+        render nodes, it must advertise it via the DRIVER_RENDER
         DRM driver capability. If not supported, the primary node must be used
         for render clients together with the legacy drmAuth authentication
         procedure.
       </para>
       <para>
         If a driver advertises render node support, DRM core will create a
-        separate render node called <term>renderD&lt;num&gt;</term>. There will
+        separate render node called renderD&lt;num&gt;. There will
         be one render node per device. No ioctls except  PRIME-related ioctls
-        will be allowed on this node. Especially <term>GEM_OPEN</term> will be
+        will be allowed on this node. Especially GEM_OPEN will be
         explicitly prohibited. Render nodes are designed to avoid the
         buffer-leaks, which occur if clients guess the flink names or mmap
         offsets on the legacy interface. Additionally to this basic interface,
         drivers must mark their driver-dependent render-only ioctls as
-        <term>DRM_RENDER_ALLOW</term> so render clients can use them. Driver
+        DRM_RENDER_ALLOW so render clients can use them. Driver
         authors must be careful not to allow any privileged ioctls on render
         nodes.
       </para>
