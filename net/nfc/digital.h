@@ -72,6 +72,7 @@ void digital_poll_next_tech(struct nfc_digital_dev *ddev);
 
 int digital_in_send_sens_req(struct nfc_digital_dev *ddev, u8 rf_tech);
 int digital_in_send_sensf_req(struct nfc_digital_dev *ddev, u8 rf_tech);
+int digital_in_send_iso15693_inv_req(struct nfc_digital_dev *ddev, u8 rf_tech);
 
 int digital_target_found(struct nfc_digital_dev *ddev,
 			 struct nfc_target *target, u8 protocol);
