@@ -640,6 +640,17 @@ static inline void local_r4k_flush_icache_range(unsigned long start, unsigned lo
 			break;
 		}
 	}
+#ifdef CONFIG_EVA
+	/*
+	 * Due to all possible segment mappings, there might cache aliases
+	 * caused by the bootloader being in non-EVA mode, and the CPU switching
+	 * to EVA during early kernel init. It's best to flush the scache
+	 * to avoid having secondary cores fetching stale data and lead to
+	 * kernel crashes.
+	 */
+	bc_wback_inv(start, (end - start));
+	__sync();
+#endif
 }
 
 static inline void local_r4k_flush_icache_range_ipi(void *args)
