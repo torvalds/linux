@@ -1799,7 +1799,8 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 		if (misc & ATOM_DOUBLE_CLOCK_MODE)
 			mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 
-		mode->clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
+		mode->crtc_clock = mode->clock =
+			le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
 
 		if (index == 1) {
 			/* PAL timings appear to have wrong values for totals */
@@ -1842,7 +1843,8 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 		if (misc & ATOM_DOUBLE_CLOCK_MODE)
 			mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 
-		mode->clock = le16_to_cpu(dtd_timings->usPixClk) * 10;
+		mode->crtc_clock = mode->clock =
+			le16_to_cpu(dtd_timings->usPixClk) * 10;
 		break;
 	}
 	return true;

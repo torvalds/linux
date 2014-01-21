@@ -719,7 +719,7 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
 						     vblank_time, flags,
-						     drmcrtc);
+						     drmcrtc, &drmcrtc->hwmode);
 }
 
 #define KMS_INVALID_IOCTL(name)						\

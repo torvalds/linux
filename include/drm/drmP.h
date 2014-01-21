@@ -845,6 +845,7 @@ struct drm_driver {
 	 *
 	 * \param dev  DRM device.
 	 * \param crtc Id of the crtc to query.
+	 * \param flags Flags from the caller (DRM_CALLED_FROM_VBLIRQ or 0).
 	 * \param *vpos Target location for current vertical scanout position.
 	 * \param *hpos Target location for current horizontal scanout position.
 	 * \param *stime Target location for timestamp taken immediately before
@@ -867,6 +868,7 @@ struct drm_driver {
 	 *
 	 */
 	int (*get_scanout_position) (struct drm_device *dev, int crtc,
+				     unsigned int flags,
 				     int *vpos, int *hpos, ktime_t *stime,
 				     ktime_t *etime);
 
@@ -1401,8 +1403,10 @@ extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 						 int crtc, int *max_error,
 						 struct timeval *vblank_time,
 						 unsigned flags,
-						 struct drm_crtc *refcrtc);
-extern void drm_calc_timestamping_constants(struct drm_crtc *crtc);
+						 const struct drm_crtc *refcrtc,
+						 const struct drm_display_mode *mode);
+extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
+					    const struct drm_display_mode *mode);
 
 extern bool
 drm_mode_parse_command_line_for_connector(const char *mode_option,

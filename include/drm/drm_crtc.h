@@ -449,7 +449,7 @@ struct drm_crtc {
 	uint16_t *gamma_store;
 
 	/* Constants needed for precise vblank and swap timestamping. */
-	s64 framedur_ns, linedur_ns, pixeldur_ns;
+	int framedur_ns, linedur_ns, pixeldur_ns;
 
 	/* if you are using the helper */
 	void *helper_private;
