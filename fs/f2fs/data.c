@@ -249,6 +249,7 @@ int reserve_new_block(struct dnode_of_data *dn)
 
 	__set_data_blkaddr(dn, NEW_ADDR);
 	dn->data_blkaddr = NEW_ADDR;
+	mark_inode_dirty(dn->inode);
 	sync_inode_page(dn);
 	return 0;
 }
@@ -564,7 +565,6 @@ repeat:
 		i_size_write(inode, ((index + 1) << PAGE_CACHE_SHIFT));
 		/* Only the directory inode sets new_i_size */
 		set_inode_flag(F2FS_I(inode), FI_UPDATE_DIR);
-		mark_inode_dirty_sync(inode);
 	}
 	return page;
 
@@ -1060,6 +1060,8 @@ static int f2fs_set_data_page_dirty(struct page *page)
 	trace_f2fs_set_page_dirty(page, DATA);
 
 	SetPageUptodate(page);
+	mark_inode_dirty(inode);
+
 	if (!PageDirty(page)) {
 		__set_page_dirty_nobuffers(page);
 		set_dirty_dir_page(inode, page);

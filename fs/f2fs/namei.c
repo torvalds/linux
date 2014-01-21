@@ -430,6 +430,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (old_dir_entry)
 			drop_nlink(new_inode);
 		drop_nlink(new_inode);
+		mark_inode_dirty(new_inode);
 
 		if (!new_inode->i_nlink)
 			add_orphan_inode(sbi, new_inode->i_ino);
@@ -459,11 +460,13 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			f2fs_set_link(old_inode, old_dir_entry,
 						old_dir_page, new_dir);
 			F2FS_I(old_inode)->i_pino = new_dir->i_ino;
+			update_inode_page(old_inode);
 		} else {
 			kunmap(old_dir_page);
 			f2fs_put_page(old_dir_page, 0);
 		}
 		drop_nlink(old_dir);
+		mark_inode_dirty(old_dir);
 		update_inode_page(old_dir);
 	}
 
