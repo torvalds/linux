@@ -171,8 +171,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
  */
 
 /* spin lock wrappers. */
-#define sctp_write_lock(lock)   write_lock(lock)
-#define sctp_write_unlock(lock) write_unlock(lock)
 #define sctp_read_lock(lock)    read_lock(lock)
 #define sctp_read_unlock(lock)  read_unlock(lock)
 
