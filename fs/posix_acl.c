@@ -22,11 +22,80 @@
 
 #include <linux/errno.h>
 
-EXPORT_SYMBOL(posix_acl_init);
-EXPORT_SYMBOL(posix_acl_alloc);
-EXPORT_SYMBOL(posix_acl_valid);
-EXPORT_SYMBOL(posix_acl_equiv_mode);
-EXPORT_SYMBOL(posix_acl_from_mode);
+struct posix_acl **acl_by_type(struct inode *inode, int type)
+{
+	switch (type) {
+	case ACL_TYPE_ACCESS:
+		return &inode->i_acl;
+	case ACL_TYPE_DEFAULT:
+		return &inode->i_default_acl;
+	default:
+		BUG();
+	}
+}
+EXPORT_SYMBOL(acl_by_type);
+
+struct posix_acl *get_cached_acl(struct inode *inode, int type)
+{
+	struct posix_acl **p = acl_by_type(inode, type);
+	struct posix_acl *acl = ACCESS_ONCE(*p);
+	if (acl) {
+		spin_lock(&inode->i_lock);
+		acl = *p;
+		if (acl != ACL_NOT_CACHED)
+			acl = posix_acl_dup(acl);
+		spin_unlock(&inode->i_lock);
+	}
+	return acl;
+}
+EXPORT_SYMBOL(get_cached_acl);
+
+struct posix_acl *get_cached_acl_rcu(struct inode *inode, int type)
+{
+	return rcu_dereference(*acl_by_type(inode, type));
+}
+EXPORT_SYMBOL(get_cached_acl_rcu);
+
+void set_cached_acl(struct inode *inode, int type, struct posix_acl *acl)
+{
+	struct posix_acl **p = acl_by_type(inode, type);
+	struct posix_acl *old;
+	spin_lock(&inode->i_lock);
+	old = *p;
+	rcu_assign_pointer(*p, posix_acl_dup(acl));
+	spin_unlock(&inode->i_lock);
+	if (old != ACL_NOT_CACHED)
+		posix_acl_release(old);
+}
+EXPORT_SYMBOL(set_cached_acl);
+
+void forget_cached_acl(struct inode *inode, int type)
+{
+	struct posix_acl **p = acl_by_type(inode, type);
+	struct posix_acl *old;
+	spin_lock(&inode->i_lock);
+	old = *p;
+	*p = ACL_NOT_CACHED;
+	spin_unlock(&inode->i_lock);
+	if (old != ACL_NOT_CACHED)
+		posix_acl_release(old);
+}
+EXPORT_SYMBOL(forget_cached_acl);
+
+void forget_all_cached_acls(struct inode *inode)
+{
+	struct posix_acl *old_access, *old_default;
+	spin_lock(&inode->i_lock);
+	old_access = inode->i_acl;
+	old_default = inode->i_default_acl;
+	inode->i_acl = inode->i_default_acl = ACL_NOT_CACHED;
+	spin_unlock(&inode->i_lock);
+	if (old_access != ACL_NOT_CACHED)
+		posix_acl_release(old_access);
+	if (old_default != ACL_NOT_CACHED)
+		posix_acl_release(old_default);
+}
+EXPORT_SYMBOL(forget_all_cached_acls);
 
 /*
  * Init a fresh posix_acl
@@ -37,6 +106,7 @@ posix_acl_init(struct posix_acl *acl, int count)
 	atomic_set(&acl->a_refcount, 1);
 	acl->a_count = count;
 }
+EXPORT_SYMBOL(posix_acl_init);
 
 /*
  * Allocate a new ACL with the specified number of entries.
@@ -51,6 +121,7 @@ posix_acl_alloc(int count, gfp_t flags)
 		posix_acl_init(acl, count);
 	return acl;
 }
+EXPORT_SYMBOL(posix_acl_alloc);
 
 /*
  * Clone an ACL.
@@ -146,6 +217,7 @@ posix_acl_valid(const struct posix_acl *acl)
 		return 0;
 	return -EINVAL;
 }
+EXPORT_SYMBOL(posix_acl_valid);
 
 /*
  * Returns 0 if the acl can be exactly represented in the traditional
@@ -186,6 +258,7 @@ posix_acl_equiv_mode(const struct posix_acl *acl, umode_t *mode_p)
                 *mode_p = (*mode_p & ~S_IRWXUGO) | mode;
         return not_equiv;
 }
+EXPORT_SYMBOL(posix_acl_equiv_mode);
 
 /*
  * Create an ACL representing the file mode permission bits of an inode.
@@ -207,6 +280,7 @@ posix_acl_from_mode(umode_t mode, gfp_t flags)
 	acl->a_entries[2].e_perm = (mode & S_IRWXO);
 	return acl;
 }
+EXPORT_SYMBOL(posix_acl_from_mode);
 
 /*
  * Return 0 if current is granted want access to the inode
