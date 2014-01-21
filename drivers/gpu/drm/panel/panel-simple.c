@@ -430,6 +430,33 @@ struct panel_desc_dsi {
 	unsigned int lanes;
 };
 
+static const struct drm_display_mode lg_ld070wx3_sl01_mode = {
+	.clock = 71000,
+	.hdisplay = 800,
+	.hsync_start = 800 + 32,
+	.hsync_end = 800 + 32 + 1,
+	.htotal = 800 + 32 + 1 + 57,
+	.vdisplay = 1280,
+	.vsync_start = 1280 + 28,
+	.vsync_end = 1280 + 28 + 1,
+	.vtotal = 1280 + 28 + 1 + 14,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi lg_ld070wx3_sl01 = {
+	.desc = {
+		.modes = &lg_ld070wx3_sl01_mode,
+		.num_modes = 1,
+		.size = {
+			.width = 94,
+			.height = 151,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
 static const struct drm_display_mode lg_lh500wx1_sd03_mode = {
 	.clock = 67000,
 	.hdisplay = 720,
@@ -486,6 +513,9 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 
 static const struct of_device_id dsi_of_match[] = {
 	{
+		.compatible = "lg,ld070wx3-sl01",
+		.data = &lg_ld070wx3_sl01
+	}, {
 		.compatible = "lg,lh500wx1-sd03",
 		.data = &lg_lh500wx1_sd03
 	}, {
