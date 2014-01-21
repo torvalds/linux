@@ -52,7 +52,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->free_secs = free_sections(sbi);
 	si->prefree_count = prefree_segments(sbi);
 	si->dirty_count = dirty_segments(sbi);
-	si->node_pages = sbi->node_inode->i_mapping->nrpages;
+	si->node_pages = NODE_MAPPING(sbi)->nrpages;
 	si->meta_pages = META_MAPPING(sbi)->nrpages;
 	si->nats = NM_I(sbi)->nat_cnt;
 	si->sits = SIT_I(sbi)->dirty_sentries;
@@ -166,7 +166,7 @@ get_cache:
 	/* free nids */
 	si->cache_mem = NM_I(sbi)->fcnt;
 	si->cache_mem += NM_I(sbi)->nat_cnt;
-	npages = sbi->node_inode->i_mapping->nrpages;
+	npages = NODE_MAPPING(sbi)->nrpages;
 	si->cache_mem += npages << PAGE_CACHE_SHIFT;
 	npages = META_MAPPING(sbi)->nrpages;
 	si->cache_mem += npages << PAGE_CACHE_SHIFT;

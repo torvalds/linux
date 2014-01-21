@@ -771,7 +771,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	/* wait for previous submitted node/meta pages writeback */
 	wait_on_all_pages_writeback(sbi);
 
-	filemap_fdatawait_range(sbi->node_inode->i_mapping, 0, LONG_MAX);
+	filemap_fdatawait_range(NODE_MAPPING(sbi), 0, LONG_MAX);
 	filemap_fdatawait_range(META_MAPPING(sbi), 0, LONG_MAX);
 
 	/* update user_block_counts */
