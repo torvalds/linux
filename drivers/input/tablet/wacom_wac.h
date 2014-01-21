@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 /* maximum packet length for USB devices */
-#define WACOM_PKGLEN_MAX	64
+#define WACOM_PKGLEN_MAX	68
 
 #define WACOM_NAME_MAX		64
 
@@ -29,6 +29,7 @@
 #define WACOM_PKGLEN_WIRELESS	32
 #define WACOM_PKGLEN_MTOUCH	62
 #define WACOM_PKGLEN_MTTPC	40
+#define WACOM_PKGLEN_DTUS	68
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
@@ -47,11 +48,13 @@
 #define WACOM_REPORT_INTUOSWRITE	6
 #define WACOM_REPORT_INTUOSPAD		12
 #define WACOM_REPORT_INTUOS5PAD		3
+#define WACOM_REPORT_DTUSPAD		21
 #define WACOM_REPORT_TPC1FG		6
 #define WACOM_REPORT_TPC2FG		13
 #define WACOM_REPORT_TPCMT		13
 #define WACOM_REPORT_TPCHID		15
 #define WACOM_REPORT_TPCST		16
+#define WACOM_REPORT_DTUS		17
 #define WACOM_REPORT_TPC1FGE		18
 #define WACOM_REPORT_24HDT		1
 #define WACOM_REPORT_WL			128
@@ -70,6 +73,7 @@ enum {
 	PTU,
 	PL,
 	DTU,
+	DTUS,
 	INTUOS,
 	INTUOS3S,
 	INTUOS3,
