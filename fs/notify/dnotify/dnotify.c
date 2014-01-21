@@ -138,9 +138,6 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 
 static struct fsnotify_ops dnotify_fsnotify_ops = {
 	.handle_event = dnotify_handle_event,
-	.free_group_priv = NULL,
-	.freeing_mark = NULL,
-	.free_event = NULL,
 };
 
 /*

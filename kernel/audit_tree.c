@@ -936,8 +936,6 @@ static void audit_tree_freeing_mark(struct fsnotify_mark *entry, struct fsnotify
 
 static const struct fsnotify_ops audit_tree_ops = {
 	.handle_event = audit_tree_handle_event,
-	.free_group_priv = NULL,
-	.free_event = NULL,
 	.freeing_mark = audit_tree_freeing_mark,
 };
 

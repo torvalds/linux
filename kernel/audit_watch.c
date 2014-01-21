@@ -505,9 +505,6 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 
 static const struct fsnotify_ops audit_watch_fsnotify_ops = {
 	.handle_event = 	audit_watch_handle_event,
-	.free_group_priv = 	NULL,
-	.freeing_mark = 	NULL,
-	.free_event = 		NULL,
 };
 
 static int __init audit_watch_init(void)
