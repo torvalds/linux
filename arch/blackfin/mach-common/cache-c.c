@@ -6,7 +6,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
 
