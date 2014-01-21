@@ -833,9 +833,7 @@ static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 	ath10k_err("firmware crashed!\n");
 	ath10k_err("hardware name %s version 0x%x\n",
 		   ar->hw_params.name, ar->target_version);
-	ath10k_err("firmware version: %u.%u.%u.%u\n", ar->fw_version_major,
-		   ar->fw_version_minor, ar->fw_version_release,
-		   ar->fw_version_build);
+	ath10k_err("firmware version: %s\n", ar->hw->wiphy->fw_version);
 
 	host_addr = host_interest_item_address(HI_ITEM(hi_failure_state));
 	ret = ath10k_pci_diag_read_mem(ar, host_addr,
