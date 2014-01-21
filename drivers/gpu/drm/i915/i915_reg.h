@@ -5312,8 +5312,12 @@
 #define  SPLL_PLL_ENABLE		(1<<31)
 #define  SPLL_PLL_SSC			(1<<28)
 #define  SPLL_PLL_NON_SSC		(2<<28)
+#define  SPLL_PLL_LCPLL			(3<<28)
+#define  SPLL_PLL_REF_MASK		(3<<28)
 #define  SPLL_PLL_FREQ_810MHz		(0<<26)
 #define  SPLL_PLL_FREQ_1350MHz		(1<<26)
+#define  SPLL_PLL_FREQ_2700MHz		(2<<26)
+#define  SPLL_PLL_FREQ_MASK		(3<<26)
 
 /* WRPLL */
 #define WRPLL_CTL1			0x46040
@@ -5324,8 +5328,13 @@
 #define  WRPLL_PLL_SELECT_LCPLL_2700	(0x03<<28)
 /* WRPLL divider programming */
 #define  WRPLL_DIVIDER_REFERENCE(x)	((x)<<0)
+#define  WRPLL_DIVIDER_REF_MASK		(0xff)
 #define  WRPLL_DIVIDER_POST(x)		((x)<<8)
+#define  WRPLL_DIVIDER_POST_MASK	(0x3f<<8)
+#define  WRPLL_DIVIDER_POST_SHIFT	8
 #define  WRPLL_DIVIDER_FEEDBACK(x)	((x)<<16)
+#define  WRPLL_DIVIDER_FB_SHIFT		16
+#define  WRPLL_DIVIDER_FB_MASK		(0xff<<16)
 
 /* Port clock selection */
 #define PORT_CLK_SEL_A			0x46100
@@ -5338,6 +5347,7 @@
 #define  PORT_CLK_SEL_WRPLL1		(4<<29)
 #define  PORT_CLK_SEL_WRPLL2		(5<<29)
 #define  PORT_CLK_SEL_NONE		(7<<29)
+#define  PORT_CLK_SEL_MASK		(7<<29)
 
 /* Transcoder clock selection */
 #define TRANS_CLK_SEL_A			0x46140
