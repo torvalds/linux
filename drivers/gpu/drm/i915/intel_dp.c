@@ -493,10 +493,10 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	}
 
 	while ((aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, clock++))) {
-		u32 send_ctl = i9xx_get_aux_send_ctl(intel_dp,
-						     has_aux_irq,
-						     send_bytes,
-						     aux_clock_divider);
+		u32 send_ctl = intel_dp->get_aux_send_ctl(intel_dp,
+							  has_aux_irq,
+							  send_bytes,
+							  aux_clock_divider);
 
 		/* Must try at least 3 times according to DP spec */
 		for (try = 0; try < 5; try++) {
@@ -3723,6 +3723,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
 	else
 		intel_dp->get_aux_clock_divider = i9xx_get_aux_clock_divider;
+
+	intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
 
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
