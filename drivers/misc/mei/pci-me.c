@@ -27,7 +27,6 @@
 #include <linux/aio.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/cdev.h>
 #include <linux/sched.h>
