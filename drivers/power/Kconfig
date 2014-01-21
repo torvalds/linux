@@ -317,6 +317,13 @@ config CHARGER_MANAGER
           runtime and in suspend-to-RAM by waking up the system periodically
           with help of suspend_again support.
 
+config CHARGER_MAX14577
+	tristate "Maxim MAX14577 MUIC battery charger driver"
+	depends on MFD_MAX14577
+	help
+	  Say Y to enable support for the battery charger control sysfs and
+	  platform data of MAX14577 MUICs.
+
 config CHARGER_MAX8997
 	tristate "Maxim MAX8997/MAX8966 PMIC battery charger driver"
 	depends on MFD_MAX8997 && REGULATOR_MAX8997
