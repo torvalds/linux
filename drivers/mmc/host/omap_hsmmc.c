@@ -1285,7 +1285,7 @@ static int omap_hsmmc_pre_dma_transfer(struct omap_hsmmc_host *host,
 /*
  * Routine to configure and start DMA for the MMC card
  */
-static int omap_hsmmc_start_dma_transfer(struct omap_hsmmc_host *host,
+static int omap_hsmmc_setup_dma_transfer(struct omap_hsmmc_host *host,
 					struct mmc_request *req)
 {
 	struct dma_slave_config cfg;
@@ -1344,8 +1344,6 @@ static int omap_hsmmc_start_dma_transfer(struct omap_hsmmc_host *host,
 
 	host->dma_ch = 1;
 
-	dma_async_issue_pending(chan);
-
 	return 0;
 }
 
@@ -1386,6 +1384,21 @@ static void set_data_timeout(struct omap_hsmmc_host *host,
 	OMAP_HSMMC_WRITE(host->base, SYSCTL, reg);
 }
 
+static void omap_hsmmc_start_dma_transfer(struct omap_hsmmc_host *host)
+{
+	struct mmc_request *req = host->mrq;
+	struct dma_chan *chan;
+
+	if (!req->data)
+		return;
+	OMAP_HSMMC_WRITE(host->base, BLK, (req->data->blksz)
+				| (req->data->blocks << 16));
+	set_data_timeout(host, req->data->timeout_ns,
+				req->data->timeout_clks);
+	chan = omap_hsmmc_get_dma_chan(host, req->data);
+	dma_async_issue_pending(chan);
+}
+
 /*
  * Configure block length for MMC/SD cards and initiate the transfer.
  */
@@ -1406,12 +1419,8 @@ omap_hsmmc_prepare_data(struct omap_hsmmc_host *host, struct mmc_request *req)
 		return 0;
 	}
 
-	OMAP_HSMMC_WRITE(host->base, BLK, (req->data->blksz)
-					| (req->data->blocks << 16));
-	set_data_timeout(host, req->data->timeout_ns, req->data->timeout_clks);
-
 	if (host->use_dma) {
-		ret = omap_hsmmc_start_dma_transfer(host, req);
+		ret = omap_hsmmc_setup_dma_transfer(host, req);
 		if (ret != 0) {
 			dev_err(mmc_dev(host->mmc), "MMC start dma failure\n");
 			return ret;
@@ -1496,6 +1505,7 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 		return;
 	}
 
+	omap_hsmmc_start_dma_transfer(host);
 	omap_hsmmc_start_command(host, req->cmd, req->data);
 }
 
