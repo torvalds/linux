@@ -1876,7 +1876,6 @@ struct drm_i915_file_private {
 
 extern const struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
-extern unsigned int i915_fbpercrtc __always_unused;
 extern int i915_panel_ignore_lid __read_mostly;
 extern unsigned int i915_powersave __read_mostly;
 extern int i915_semaphores __read_mostly;

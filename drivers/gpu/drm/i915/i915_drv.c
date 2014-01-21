@@ -44,9 +44,6 @@ MODULE_PARM_DESC(modeset,
 		"Use kernel modesetting [KMS] (0=DRM_I915_KMS from .config, "
 		"1=on, -1=force vga console preference [default])");
 
-unsigned int i915_fbpercrtc __always_unused = 0;
-module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
-
 int i915_panel_ignore_lid __read_mostly = 1;
 module_param_named(panel_ignore_lid, i915_panel_ignore_lid, int, 0600);
 MODULE_PARM_DESC(panel_ignore_lid,
