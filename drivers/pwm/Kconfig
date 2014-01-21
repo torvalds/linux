@@ -201,13 +201,13 @@ config PWM_VT8500
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-vt8500.
 
-config PWM_ROCKCHIPS
-        tristate "ROCKCHIPS PWM support"
+config PWM_ROCKCHIP
+        tristate "ROCKCHIP PWM support"
         depends on OF
         help
-          Generic PWM framework driver for ROCKCHIPS.
+          Generic PWM framework driver for ROCKCHIP.
 
           To compile this driver as a module, choose M here: the module
-          will be called pwm-rk.
+          will be called pwm-rockchip.
 
 endif
