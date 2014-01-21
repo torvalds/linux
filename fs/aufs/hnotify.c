@@ -380,7 +380,7 @@ static struct dentry *lookup_wlock_by_name(char *name, unsigned int nlen,
 			break;
 		}
 
-	cont_unlock:
+cont_unlock:
 		spin_unlock(&d->d_lock);
 	}
 	spin_unlock(&parent->d_lock);
