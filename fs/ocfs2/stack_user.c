@@ -103,6 +103,11 @@
 #define OCFS2_CONTROL_MESSAGE_VERNUM_LEN	2
 #define OCFS2_CONTROL_MESSAGE_NODENUM_LEN	8
 
+enum ocfs2_connection_type {
+	WITH_CONTROLD,
+	NO_CONTROLD
+};
+
 /*
  * ocfs2_live_connection is refcounted because the filesystem and
  * miscdevice sides can detach in different order.  Let's just be safe.
@@ -110,6 +115,7 @@
 struct ocfs2_live_connection {
 	struct list_head		oc_list;
 	struct ocfs2_cluster_connection	*oc_conn;
+	enum ocfs2_connection_type	oc_type;
 	atomic_t                        oc_this_node;
 	int                             oc_our_slot;
 };
@@ -840,6 +846,7 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 		goto out;
 	}
 
+	lc->oc_type = WITH_CONTROLD;
 	rc = ocfs2_live_connection_attach(conn, lc);
 	if (rc)
 		goto out;
@@ -886,11 +893,16 @@ static int user_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 	return 0;
 }
 
-static int user_cluster_this_node(unsigned int *this_node)
+static int user_cluster_this_node(struct ocfs2_cluster_connection *conn,
+				  unsigned int *this_node)
 {
 	int rc;
+	struct ocfs2_live_connection *lc = conn->cc_private;
 
-	rc = ocfs2_control_get_this_node();
+	if (lc->oc_type == WITH_CONTROLD)
+		rc = ocfs2_control_get_this_node();
+	else
+		rc = -EINVAL;
 	if (rc < 0)
 		return rc;
 

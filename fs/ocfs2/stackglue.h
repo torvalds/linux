@@ -157,7 +157,8 @@ struct ocfs2_stack_operations {
 	 * ->this_node() returns the cluster's unique identifier for the
 	 * local node.
 	 */
-	int (*this_node)(unsigned int *node);
+	int (*this_node)(struct ocfs2_cluster_connection *conn,
+			 unsigned int *node);
 
 	/*
 	 * Call the underlying dlm lock function.  The ->dlm_lock()
@@ -267,7 +268,8 @@ int ocfs2_cluster_connect_agnostic(const char *group,
 int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 			     int hangup_pending);
 void ocfs2_cluster_hangup(const char *group, int grouplen);
-int ocfs2_cluster_this_node(unsigned int *node);
+int ocfs2_cluster_this_node(struct ocfs2_cluster_connection *conn,
+			    unsigned int *node);
 
 struct ocfs2_lock_res;
 int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,

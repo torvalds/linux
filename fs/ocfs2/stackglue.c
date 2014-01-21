@@ -465,9 +465,10 @@ void ocfs2_cluster_hangup(const char *group, int grouplen)
 }
 EXPORT_SYMBOL_GPL(ocfs2_cluster_hangup);
 
-int ocfs2_cluster_this_node(unsigned int *node)
+int ocfs2_cluster_this_node(struct ocfs2_cluster_connection *conn,
+			    unsigned int *node)
 {
-	return active_stack->sp_ops->this_node(node);
+	return active_stack->sp_ops->this_node(conn, node);
 }
 EXPORT_SYMBOL_GPL(ocfs2_cluster_this_node);
 
