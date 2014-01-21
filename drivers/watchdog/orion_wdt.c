@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/clk.h>
