@@ -3196,9 +3196,6 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_IFTYPE_MESH_POINT:
 		ifmsh = &sdata->u.mesh;
 
-		if (!ifmsh->mesh_id)
-			return -EINVAL;
-
 		if (params->chandef.width != sdata->vif.bss_conf.chandef.width)
 			return -EINVAL;
 
