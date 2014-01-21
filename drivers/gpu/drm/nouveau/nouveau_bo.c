@@ -1463,6 +1463,8 @@ nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 	struct nouveau_fence *new_fence = nouveau_fence_ref(fence);
 	struct nouveau_fence *old_fence = NULL;
 
+	lockdep_assert_held(&nvbo->bo.resv->lock.base);
+
 	spin_lock(&nvbo->bo.bdev->fence_lock);
 	old_fence = nvbo->bo.sync_obj;
 	nvbo->bo.sync_obj = new_fence;
