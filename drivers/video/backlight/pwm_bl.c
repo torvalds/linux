@@ -147,11 +147,11 @@ static int pwm_backlight_parse_dt(struct device *dev,
 			ret = devm_gpio_request(dev, gpio, "gpio_pwm_bl_en");
 			if(ret){
 				data->gpio->gpio = -1;
-				goto err_free_pwm;
+				printk("PWM_BL_EN  request ERROR");
 			}
-			ret = gpio_direction_output(data->gpio->gpio , flags);
+			ret = gpio_direction_output(data->gpio->gpio , !flags);
 			if(ret){
-				goto err_free_pwm;
+				printk("PWM_BL_EN  request ERROR");
 			}
 
 		}
@@ -167,9 +167,6 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	 */
 
 	return 0;
-	err_free_pwm:
-		printk("PWM_BL_EN  request ERROR");
-	return 1;
 }
 
 static struct of_device_id pwm_backlight_of_match[] = {

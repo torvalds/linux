@@ -349,7 +349,7 @@
 
 	pwm0: pwm@20030000{
                 compatible = "rockchip,pwm";
-                reg = <0x20030000 0x10>; /*0x20030000*/
+                reg = <0x20030000 0x10>; 
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
                 pinctrl-0 = <&pwm0_pin>;
@@ -385,13 +385,4 @@
                 status = "disabled";
 
         };
-
-        backlight {
-                compatible = "pwm-backlight";
-                pwms = <&pwm3 0 5000000>;
-                brightness-levels = <0 4 8 16 32 64 128 255>;
-                default-brightness-level = <6>;
-                gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
-        };
-
 };
