@@ -1019,13 +1019,13 @@ static int tcp_metrics_flush_all(struct net *net)
 static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 {
 	struct tcpm_hash_bucket *hb;
-	struct tcp_metrics_block *tm, *tmlist = NULL;
+	struct tcp_metrics_block *tm;
 	struct tcp_metrics_block __rcu **pp;
 	struct inetpeer_addr saddr, daddr;
 	unsigned int hash;
 	struct net *net = genl_info_net(info);
 	int ret;
-	bool src = true;
+	bool src = true, found = false;
 
 	ret = parse_nl_addr(info, &daddr, &hash, 1);
 	if (ret < 0)
@@ -1044,19 +1044,15 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 		if (addr_same(&tm->tcpm_daddr, &daddr) &&
 		    (!src || addr_same(&tm->tcpm_saddr, &saddr))) {
 			*pp = tm->tcpm_next;
-			tm->tcpm_next = tmlist;
-			tmlist = tm;
+			kfree_rcu(tm, rcu_head);
+			found = true;
 		} else {
 			pp = &tm->tcpm_next;
 		}
 	}
 	spin_unlock_bh(&tcp_metrics_lock);
-	if (!tmlist)
+	if (!found)
 		return -ESRCH;
-	for (tm = tmlist; tm; tm = tmlist) {
-		tmlist = tm->tcpm_next;
-		kfree_rcu(tm, rcu_head);
-	}
 	return 0;
 }
 
