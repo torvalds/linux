@@ -20,6 +20,8 @@
 #define CLKOPS_RATE_UART		7
 #define CLKOPS_RATE_HSADC		8
 #define CLKOPS_RATE_MAC_REF		9
+#define CLKOPS_RATE_CORE		10
+#define CLKOPS_RATE_CORE_PERI		11
 #define CLKOPS_TABLE_END		(~0)
 
 

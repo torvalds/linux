@@ -154,7 +154,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 		rate = rate64;
 	} else {
 		rate = parent_rate;
-		clk_debug("pll id=%d  by pass mode\n", pll_id);
+		clk_debug("pll id=%d  slow mode\n", pll_id);
 	}
 
 	clk_debug("pll id=%d, recalc rate =%lu\n", pll->id, rate);
@@ -284,8 +284,10 @@ static int _pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id,
 	if (lock)
 		spin_unlock_irqrestore(lock, flags);
 
-	clk_debug("pll id=%d, dump reg:\n con0=%x,con1=%x,mode=%x\n", pll_id,
-			cru_readl(PLL_CONS(pll_id,0)),(PLL_CONS(pll_id,1)),
+	clk_debug("pll id=%d, dump reg: con0=0x%08x, con1=0x%08x, mode=0x%08x\n",
+			pll_id,
+			cru_readl(PLL_CONS(pll_id,0)),
+			cru_readl(PLL_CONS(pll_id,1)),
 			cru_readl(CRU_MODE_CON));
 
 	clk_debug("_pll_clk_set_rate end!\n");
@@ -412,8 +414,9 @@ static int clk_apll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 CHANGE_APLL:
 	ps = apll_get_best_set(rate, apll_table);
-	clk_debug("apll will set rate(%lu) table con(%x,%x,%x),sel(%x,%x)\n",
-			ps->rate, ps->pllcon0, ps->pllcon1, ps->pllcon2,
+	clk_debug("apll will set rate %lu\n", ps->rate);
+	clk_debug("table con:%08x,%08x,%08x, sel:%08x,%08x\n",
+			ps->pllcon0, ps->pllcon1, ps->pllcon2,
 			ps->clksel0, ps->clksel1);
 
 	local_irq_save(flags);
@@ -421,8 +424,9 @@ CHANGE_APLL:
 	/* If core src don't select gpll, apll need to enter slow mode
 	 * before power down
 	 */
+	//FIXME
 	//if(!sel_gpll)
-	cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
+	cru_writel(PLL_MODE_SLOW(pll->id), CRU_MODE_CON);
 
 	/* PLL power down */
 	cru_writel((0x1<<(16+1))|(0x1<<1), PLL_CONS(pll->id, 3));
@@ -451,8 +455,9 @@ CHANGE_APLL:
 	}
 
 	/* PLL return from slow mode */
-	//if (!sel_gpll)
-	cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
+	//FIXME
+	//if(!sel_gpll)
+	cru_writel(PLL_MODE_NORM(pll->id), CRU_MODE_CON);
 
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {

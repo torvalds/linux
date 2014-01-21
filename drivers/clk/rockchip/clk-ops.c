@@ -310,12 +310,81 @@ const struct clk_ops clkops_rate_i2s_frac = {
 	.set_rate	= clk_fracdiv_set_rate,
 };
 
+static unsigned long clk_core_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	/* As parent rate could be changed in clk_core.set_rate
+	 * ops, the passing_in parent_rate may not be the newest
+	 * and we should use the parent->rate instead. As a side
+	 * effect, we should NOT directly set clk_core's parent
+	 * (apll) rate, otherwise we will get a wrong recalc rate
+	 * with clk_core_recalc_rate.
+	 */
+	struct clk *parent = __clk_get_parent(hw->clk);
+
+	return clk_divider_recalc_rate(hw, __clk_get_rate(parent));
+}
+
+static long clk_core_determine_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *best_parent_rate,
+		struct clk **best_parent_p)
+{
+	struct clk *parent = __clk_get_parent(hw->clk);
+
+	if (IS_ERR_OR_NULL(parent)) {
+		clk_err("fail to get parent!\n");
+		return 0;
+	}
+
+	return clk_round_rate(parent, rate);
+}
+
+static long clk_core_round_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	return clk_core_determine_rate(hw, rate, prate, NULL);
+}
+
+static int clk_core_set_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct clk *parent = __clk_get_parent(hw->clk);
+	struct clk *grand_p = __clk_get_parent(parent);
+	int ret;
+
+	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(grand_p)) {
+		clk_err("fail to get parent or grand_parent!\n");
+		return -EINVAL;
+	}
+
+	ret = parent->ops->set_rate(parent->hw, rate, __clk_get_rate(grand_p));
+	parent->rate = parent->ops->recalc_rate(parent->hw,
+			__clk_get_rate(grand_p));
+
+	return ret;
+}
+
+const struct clk_ops clkops_rate_core = {
+	.recalc_rate	= clk_core_recalc_rate,
+	.round_rate	= clk_core_round_rate,
+	.set_rate	= clk_core_set_rate,
+	.determine_rate = clk_core_determine_rate,
+};
+
+const struct clk_ops clkops_rate_core_peri = {
+	.recalc_rate	= clk_divider_recalc_rate,
+	.round_rate	= clk_divider_round_rate,
+	.set_rate	= NULL,
+};
+
 struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_MUX_DIV,		.clk_ops = &clkops_rate_auto_parent},
 	{.index = CLKOPS_RATE_EVENDIV,		.clk_ops = &clkops_rate_evendiv},
 	{.index = CLKOPS_RATE_DCLK_LCDC,	.clk_ops = &clkops_rate_dclk_lcdc},
 	{.index = CLKOPS_RATE_I2S_FRAC,		.clk_ops = &clkops_rate_i2s_frac},
 	{.index = CLKOPS_RATE_FRAC,		.clk_ops = &clkops_rate_frac},
+	{.index = CLKOPS_RATE_CORE,		.clk_ops = &clkops_rate_core},
+	{.index = CLKOPS_RATE_CORE_PERI,	.clk_ops = &clkops_rate_core_peri},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_UART,		.clk_ops = NULL},
