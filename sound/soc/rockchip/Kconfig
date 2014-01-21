@@ -1,6 +1,6 @@
 config SND_RK_SOC
 	tristate "SoC Audio for the Rockchip System-on-Chip"
-	depends on SND_SOC#PLAT_RK && SND_SOC
+	depends on SND_SOC
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the ROCKCHIP IIS interface. You will also need
@@ -331,6 +331,16 @@ config SND_RK_SOC_RK3026
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK3026 internal codec.
+
+config SND_RK_SOC_RK3190
+        tristate "SoC I2S Audio support for rockchip - RK3190"
+        depends on SND_RK_SOC
+        select SND_RK_SOC_I2S
+        select SND_SOC_RK3190
+        select SND_RK_CODEC_SOC_SLAVE
+        help
+          Say Y if you want to add support for SoC audio on rockchip
+          with the RK3190 internal codec.
 
 if SND_RK_SOC_I2S_2CH || SND_RK_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH  
 choice
