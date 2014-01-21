@@ -231,6 +231,7 @@
 #define IPR_WAIT_FOR_RESET_TIMEOUT		(2 * HZ)
 #define IPR_CHECK_FOR_RESET_TIMEOUT		(HZ / 10)
 #define IPR_WAIT_FOR_BIST_TIMEOUT		(2 * HZ)
+#define IPR_PCI_ERROR_RECOVERY_TIMEOUT	(120 * HZ)
 #define IPR_PCI_RESET_TIMEOUT			(HZ / 2)
 #define IPR_SIS32_DUMP_TIMEOUT			(15 * HZ)
 #define IPR_SIS64_DUMP_TIMEOUT			(40 * HZ)
@@ -1443,6 +1444,7 @@ struct ipr_ioa_cfg {
 	u8 dump_timeout:1;
 	u8 cfg_locked:1;
 	u8 clear_isr:1;
+	u8 probe_done:1;
 
 	u8 revid;
 
@@ -1521,6 +1523,7 @@ struct ipr_ioa_cfg {
 
 	wait_queue_head_t reset_wait_q;
 	wait_queue_head_t msi_wait_q;
+	wait_queue_head_t eeh_wait_q;
 
 	struct ipr_dump *dump;
 	enum ipr_sdt_state sdt_state;
