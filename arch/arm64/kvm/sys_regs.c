@@ -437,6 +437,8 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
 	int Rt2 = (hsr >> 10) & 0xf;
 
+	params.is_aarch32 = true;
+	params.is_32bit = false;
 	params.CRm = (hsr >> 1) & 0xf;
 	params.Rt = (hsr >> 5) & 0xf;
 	params.is_write = ((hsr & 1) == 0);
@@ -480,6 +482,8 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	struct sys_reg_params params;
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
 
+	params.is_aarch32 = true;
+	params.is_32bit = true;
 	params.CRm = (hsr >> 1) & 0xf;
 	params.Rt  = (hsr >> 5) & 0xf;
 	params.is_write = ((hsr & 1) == 0);
@@ -549,6 +553,8 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	struct sys_reg_params params;
 	unsigned long esr = kvm_vcpu_get_hsr(vcpu);
 
+	params.is_aarch32 = false;
+	params.is_32bit = false;
 	params.Op0 = (esr >> 20) & 3;
 	params.Op1 = (esr >> 14) & 0x7;
 	params.CRn = (esr >> 10) & 0xf;
