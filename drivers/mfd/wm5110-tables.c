@@ -14,6 +14,7 @@
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/registers.h>
+#include <linux/device.h>
 
 #include "arizona.h"
 
@@ -524,6 +525,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000300, 0x0000 },    /* R768   - Input Enables */
 	{ 0x00000308, 0x0000 },    /* R776   - Input Rate */
 	{ 0x00000309, 0x0022 },    /* R777   - Input Volume Ramp */
+	{ 0x0000030C, 0x0002 },    /* R780   - HPF Control */
 	{ 0x00000310, 0x2080 },    /* R784   - IN1L Control */
 	{ 0x00000311, 0x0180 },    /* R785   - ADC Digital Volume 1L */
 	{ 0x00000312, 0x0000 },    /* R786   - DMIC1L Control */
@@ -545,6 +547,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000328, 0x2000 },    /* R808   - IN4L Control */
 	{ 0x00000329, 0x0180 },    /* R809   - ADC Digital Volume 4L */
 	{ 0x0000032A, 0x0000 },    /* R810   - DMIC4L Control */
+	{ 0x0000032C, 0x0000 },    /* R812   - IN4R Control */
 	{ 0x0000032D, 0x0180 },    /* R813   - ADC Digital Volume 4R */
 	{ 0x0000032E, 0x0000 },    /* R814   - DMIC4R Control */
 	{ 0x00000400, 0x0000 },    /* R1024  - Output Enables 1 */
@@ -1342,6 +1345,64 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00001404, 0x0000 },    /* R5124  - DSP4 Status 1 */
 };
 
+static bool wm5110_is_rev_b_adsp_memory(unsigned int reg)
+{
+	if ((reg >= 0x100000 && reg < 0x103000) ||
+	    (reg >= 0x180000 && reg < 0x181000) ||
+	    (reg >= 0x190000 && reg < 0x192000) ||
+	    (reg >= 0x1a8000 && reg < 0x1a9000) ||
+	    (reg >= 0x200000 && reg < 0x209000) ||
+	    (reg >= 0x280000 && reg < 0x281000) ||
+	    (reg >= 0x290000 && reg < 0x29a000) ||
+	    (reg >= 0x2a8000 && reg < 0x2aa000) ||
+	    (reg >= 0x300000 && reg < 0x30f000) ||
+	    (reg >= 0x380000 && reg < 0x382000) ||
+	    (reg >= 0x390000 && reg < 0x39e000) ||
+	    (reg >= 0x3a8000 && reg < 0x3b6000) ||
+	    (reg >= 0x400000 && reg < 0x403000) ||
+	    (reg >= 0x480000 && reg < 0x481000) ||
+	    (reg >= 0x490000 && reg < 0x492000) ||
+	    (reg >= 0x4a8000 && reg < 0x4a9000))
+		return true;
+	else
+		return false;
+}
+
+static bool wm5110_is_rev_d_adsp_memory(unsigned int reg)
+{
+	if ((reg >= 0x100000 && reg < 0x106000) ||
+	    (reg >= 0x180000 && reg < 0x182000) ||
+	    (reg >= 0x190000 && reg < 0x198000) ||
+	    (reg >= 0x1a8000 && reg < 0x1aa000) ||
+	    (reg >= 0x200000 && reg < 0x20f000) ||
+	    (reg >= 0x280000 && reg < 0x282000) ||
+	    (reg >= 0x290000 && reg < 0x29c000) ||
+	    (reg >= 0x2a6000 && reg < 0x2b4000) ||
+	    (reg >= 0x300000 && reg < 0x30f000) ||
+	    (reg >= 0x380000 && reg < 0x382000) ||
+	    (reg >= 0x390000 && reg < 0x3a2000) ||
+	    (reg >= 0x3a6000 && reg < 0x3b4000) ||
+	    (reg >= 0x400000 && reg < 0x406000) ||
+	    (reg >= 0x480000 && reg < 0x482000) ||
+	    (reg >= 0x490000 && reg < 0x498000) ||
+	    (reg >= 0x4a8000 && reg < 0x4aa000))
+		return true;
+	else
+		return false;
+}
+
+static bool wm5110_is_adsp_memory(struct device *dev, unsigned int reg)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	switch (arizona->rev) {
+	case 0 ... 2:
+		return wm5110_is_rev_b_adsp_memory(reg);
+	default:
+		return wm5110_is_rev_d_adsp_memory(reg);
+	}
+}
+
 static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -1460,6 +1521,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_INPUT_RATE:
 	case ARIZONA_INPUT_VOLUME_RAMP:
+	case ARIZONA_HPF_CONTROL:
 	case ARIZONA_IN1L_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_1L:
 	case ARIZONA_DMIC1L_CONTROL:
@@ -1481,6 +1543,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_IN4L_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_4L:
 	case ARIZONA_DMIC4L_CONTROL:
+	case ARIZONA_IN4R_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_4R:
 	case ARIZONA_DMIC4R_CONTROL:
 	case ARIZONA_OUTPUT_ENABLES_1:
@@ -2331,7 +2394,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP4_SCRATCH_3:
 		return true;
 	default:
-		return false;
+		return wm5110_is_adsp_memory(dev, reg);
 	}
 }
 
@@ -2407,16 +2470,18 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP4_SCRATCH_3:
 		return true;
 	default:
-		return false;
+		return wm5110_is_adsp_memory(dev, reg);
 	}
 }
+
+#define WM5110_MAX_REGISTER 0x4a9fff
 
 const struct regmap_config wm5110_spi_regmap = {
 	.reg_bits = 32,
 	.pad_bits = 16,
 	.val_bits = 16,
 
-	.max_register = ARIZONA_DSP1_STATUS_2,
+	.max_register = WM5110_MAX_REGISTER,
 	.readable_reg = wm5110_readable_register,
 	.volatile_reg = wm5110_volatile_register,
 
@@ -2430,7 +2495,7 @@ const struct regmap_config wm5110_i2c_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
 
-	.max_register = ARIZONA_DSP1_STATUS_2,
+	.max_register = WM5110_MAX_REGISTER,
 	.readable_reg = wm5110_readable_register,
 	.volatile_reg = wm5110_volatile_register,
 
