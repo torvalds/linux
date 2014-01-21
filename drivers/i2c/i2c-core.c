@@ -256,10 +256,9 @@ static int i2c_device_probe(struct device *dev)
 
 	acpi_dev_pm_attach(&client->dev, true);
 	status = driver->probe(client, i2c_match_id(driver->id_table, client));
-	if (status) {
-		i2c_set_clientdata(client, NULL);
+	if (status)
 		acpi_dev_pm_detach(&client->dev, true);
-	}
+
 	return status;
 }
 
@@ -267,7 +266,7 @@ static int i2c_device_remove(struct device *dev)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
 	struct i2c_driver	*driver;
-	int			status;
+	int status = 0;
 
 	if (!client || !dev->driver)
 		return 0;
@@ -276,12 +275,8 @@ static int i2c_device_remove(struct device *dev)
 	if (driver->remove) {
 		dev_dbg(dev, "remove\n");
 		status = driver->remove(client);
-	} else {
-		dev->driver = NULL;
-		status = 0;
 	}
-	if (status == 0)
-		i2c_set_clientdata(client, NULL);
+
 	acpi_dev_pm_detach(&client->dev, true);
 	return status;
 }
