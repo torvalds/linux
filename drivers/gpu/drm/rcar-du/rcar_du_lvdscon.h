@@ -20,6 +20,7 @@ struct rcar_du_panel_data;
 
 int rcar_du_lvds_connector_init(struct rcar_du_device *rcdu,
 				struct rcar_du_encoder *renc,
-				const struct rcar_du_panel_data *panel);
+				const struct rcar_du_panel_data *panel,
+				struct device_node *np);
 
 #endif /* __RCAR_DU_LVDSCON_H__ */

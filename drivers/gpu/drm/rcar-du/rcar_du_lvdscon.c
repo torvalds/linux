@@ -15,6 +15,10 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 
+#include <video/display_timing.h>
+#include <video/of_display_timing.h>
+#include <video/videomode.h>
+
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
@@ -23,7 +27,7 @@
 struct rcar_du_lvds_connector {
 	struct rcar_du_connector connector;
 
-	const struct rcar_du_panel_data *panel;
+	struct rcar_du_panel_data panel;
 };
 
 #define to_rcar_lvds_connector(c) \
@@ -41,7 +45,7 @@ static int rcar_du_lvds_connector_get_modes(struct drm_connector *connector)
 
 	mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 
-	drm_display_mode_from_videomode(&lvdscon->panel->mode, mode);
+	drm_display_mode_from_videomode(&lvdscon->panel.mode, mode);
 
 	drm_mode_probed_add(connector, mode);
 
@@ -74,7 +78,8 @@ static const struct drm_connector_funcs connector_funcs = {
 
 int rcar_du_lvds_connector_init(struct rcar_du_device *rcdu,
 				struct rcar_du_encoder *renc,
-				const struct rcar_du_panel_data *panel)
+				const struct rcar_du_panel_data *panel,
+				/* TODO const */ struct device_node *np)
 {
 	struct rcar_du_lvds_connector *lvdscon;
 	struct drm_connector *connector;
@@ -84,11 +89,24 @@ int rcar_du_lvds_connector_init(struct rcar_du_device *rcdu,
 	if (lvdscon == NULL)
 		return -ENOMEM;
 
-	lvdscon->panel = panel;
+	if (panel) {
+		lvdscon->panel = *panel;
+	} else {
+		struct display_timing timing;
+
+		ret = of_get_display_timing(np, "panel-timing", &timing);
+		if (ret < 0)
+			return ret;
+
+		videomode_from_timing(&timing, &lvdscon->panel.mode);
+
+		of_property_read_u32(np, "width-mm", &lvdscon->panel.width_mm);
+		of_property_read_u32(np, "height-mm", &lvdscon->panel.height_mm);
+	}
 
 	connector = &lvdscon->connector.connector;
-	connector->display_info.width_mm = panel->width_mm;
-	connector->display_info.height_mm = panel->height_mm;
+	connector->display_info.width_mm = lvdscon->panel.width_mm;
+	connector->display_info.height_mm = lvdscon->panel.height_mm;
 
 	ret = drm_connector_init(rcdu->ddev, connector, &connector_funcs,
 				 DRM_MODE_CONNECTOR_LVDS);

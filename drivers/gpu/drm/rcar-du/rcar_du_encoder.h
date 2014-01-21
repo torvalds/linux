@@ -44,6 +44,7 @@ rcar_du_connector_best_encoder(struct drm_connector *connector);
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_encoder_type type,
 			 enum rcar_du_output output,
-			 const struct rcar_du_encoder_data *data);
+			 const struct rcar_du_encoder_data *data,
+			 struct device_node *np);
 
 #endif /* __RCAR_DU_ENCODER_H__ */
