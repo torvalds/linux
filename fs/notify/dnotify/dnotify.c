@@ -82,20 +82,19 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  * events.
  */
 static int dnotify_handle_event(struct fsnotify_group *group,
+				struct inode *inode,
 				struct fsnotify_mark *inode_mark,
 				struct fsnotify_mark *vfsmount_mark,
-				struct fsnotify_event *event)
+				u32 mask, void *data, int data_type,
+				const unsigned char *file_name)
 {
 	struct dnotify_mark *dn_mark;
-	struct inode *to_tell;
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
 	struct fown_struct *fown;
-	__u32 test_mask = event->mask & ~FS_EVENT_ON_CHILD;
+	__u32 test_mask = mask & ~FS_EVENT_ON_CHILD;
 
 	BUG_ON(vfsmount_mark);
-
-	to_tell = event->to_tell;
 
 	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
 
@@ -155,7 +154,7 @@ static struct fsnotify_ops dnotify_fsnotify_ops = {
 	.should_send_event = dnotify_should_send_event,
 	.free_group_priv = NULL,
 	.freeing_mark = NULL,
-	.free_event_priv = NULL,
+	.free_event = NULL,
 };
 
 /*
