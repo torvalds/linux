@@ -1378,7 +1378,8 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	 * from runtime suspend.  If it is not there, don't allow runtime PM.
 	 * Note sdhci_pci_add_own_cd() sets slot->cd_gpio to -EINVAL on failure.
 	 */
-	if (chip->fixes->own_cd_for_runtime_pm && !gpio_is_valid(slot->cd_gpio))
+	if (chip->fixes && chip->fixes->own_cd_for_runtime_pm &&
+	    !gpio_is_valid(slot->cd_gpio))
 		chip->allow_runtime_pm = false;
 
 	return slot;
