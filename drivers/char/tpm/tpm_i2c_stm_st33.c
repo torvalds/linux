@@ -38,7 +38,6 @@
 #include <linux/miscdevice.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
