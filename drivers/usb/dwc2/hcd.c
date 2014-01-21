@@ -2935,6 +2935,8 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	if (retval < 0)
 		goto error3;
 
+	device_wakeup_enable(hcd->self.controller);
+
 	dwc2_hcd_dump_state(hsotg);
 
 	dwc2_enable_global_interrupts(hsotg);

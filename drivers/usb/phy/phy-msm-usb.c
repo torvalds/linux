@@ -669,6 +669,7 @@ static void msm_otg_start_host(struct usb_phy *phy, int on)
 			pdata->setup_gpio(OTG_STATE_A_HOST);
 #ifdef CONFIG_USB
 		usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
+		device_wakeup_enable(hcd->self.controller);
 #endif
 	} else {
 		dev_dbg(phy->dev, "host off\n");

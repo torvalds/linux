@@ -1012,7 +1012,7 @@ static void nop_release(struct device *dev)
 
 }
 
-struct usb_gadget usba_gadget_template = {
+static struct usb_gadget usba_gadget_template = {
 	.ops		= &usba_udc_ops,
 	.max_speed	= USB_SPEED_HIGH,
 	.name		= "atmel_usba_udc",
@@ -1904,7 +1904,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		ep->dma_regs = udc->regs + USBA_DMA_BASE(i);
 		ep->fifo = udc->fifo + USBA_FIFO_BASE(i);
 		ep->ep.ops = &usba_ep_ops;
-		ep->ep.maxpacket = ep->fifo_size;
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->fifo_size);
 		ep->udc = udc;
 		INIT_LIST_HEAD(&ep->queue);
 
@@ -1957,7 +1957,8 @@ static struct usba_ep * usba_udc_pdata(struct platform_device *pdev,
 		ep->fifo = udc->fifo + USBA_FIFO_BASE(i);
 		ep->ep.ops = &usba_ep_ops;
 		ep->ep.name = pdata->ep[i].name;
-		ep->fifo_size = ep->ep.maxpacket = pdata->ep[i].fifo_size;
+		ep->fifo_size = pdata->ep[i].fifo_size;
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->fifo_size);
 		ep->udc = udc;
 		INIT_LIST_HEAD(&ep->queue);
 		ep->nr_banks = pdata->ep[i].nr_banks;
@@ -1995,14 +1996,12 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	pclk = clk_get(&pdev->dev, "pclk");
+	pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(pclk))
 		return PTR_ERR(pclk);
-	hclk = clk_get(&pdev->dev, "hclk");
-	if (IS_ERR(hclk)) {
-		ret = PTR_ERR(hclk);
-		goto err_get_hclk;
-	}
+	hclk = devm_clk_get(&pdev->dev, "hclk");
+	if (IS_ERR(hclk))
+		return PTR_ERR(hclk);
 
 	spin_lock_init(&udc->lock);
 	udc->pdev = pdev;
@@ -2011,17 +2010,17 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	udc->vbus_pin = -ENODEV;
 
 	ret = -ENOMEM;
-	udc->regs = ioremap(regs->start, resource_size(regs));
+	udc->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
 	if (!udc->regs) {
 		dev_err(&pdev->dev, "Unable to map I/O memory, aborting.\n");
-		goto err_map_regs;
+		return ret;
 	}
 	dev_info(&pdev->dev, "MMIO registers at 0x%08lx mapped at %p\n",
 		 (unsigned long)regs->start, udc->regs);
-	udc->fifo = ioremap(fifo->start, resource_size(fifo));
+	udc->fifo = devm_ioremap(&pdev->dev, fifo->start, resource_size(fifo));
 	if (!udc->fifo) {
 		dev_err(&pdev->dev, "Unable to map FIFO, aborting.\n");
-		goto err_map_fifo;
+		return ret;
 	}
 	dev_info(&pdev->dev, "FIFO at 0x%08lx mapped at %p\n",
 		 (unsigned long)fifo->start, udc->fifo);
@@ -2032,7 +2031,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(pclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to enable pclk, aborting.\n");
-		goto err_clk_enable;
+		return ret;
 	}
 	toggle_bias(0);
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
@@ -2043,22 +2042,22 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	else
 		udc->usba_ep = usba_udc_pdata(pdev, udc);
 
-	if (IS_ERR(udc->usba_ep)) {
-		ret = PTR_ERR(udc->usba_ep);
-		goto err_alloc_ep;
-	}
+	if (IS_ERR(udc->usba_ep))
+		return PTR_ERR(udc->usba_ep);
 
-	ret = request_irq(irq, usba_udc_irq, 0, "atmel_usba_udc", udc);
+	ret = devm_request_irq(&pdev->dev, irq, usba_udc_irq, 0,
+				"atmel_usba_udc", udc);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot request irq %d (error %d)\n",
 			irq, ret);
-		goto err_request_irq;
+		return ret;
 	}
 	udc->irq = irq;
 
 	if (gpio_is_valid(udc->vbus_pin)) {
 		if (!devm_gpio_request(&pdev->dev, udc->vbus_pin, "atmel_usba_udc")) {
-			ret = request_irq(gpio_to_irq(udc->vbus_pin),
+			ret = devm_request_irq(&pdev->dev,
+					gpio_to_irq(udc->vbus_pin),
 					usba_vbus_irq, 0,
 					"atmel_usba_udc", udc);
 			if (ret) {
@@ -2077,31 +2076,13 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 
 	ret = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (ret)
-		goto err_add_udc;
+		return ret;
 
 	usba_init_debugfs(udc);
 	for (i = 1; i < udc->num_ep; i++)
 		usba_ep_init_debugfs(udc, &udc->usba_ep[i]);
 
 	return 0;
-
-err_add_udc:
-	if (gpio_is_valid(udc->vbus_pin))
-		free_irq(gpio_to_irq(udc->vbus_pin), udc);
-
-	free_irq(irq, udc);
-err_request_irq:
-err_alloc_ep:
-err_clk_enable:
-	iounmap(udc->fifo);
-err_map_fifo:
-	iounmap(udc->regs);
-err_map_regs:
-	clk_put(hclk);
-err_get_hclk:
-	clk_put(pclk);
-
-	return ret;
 }
 
 static int __exit usba_udc_remove(struct platform_device *pdev)
@@ -2116,16 +2097,6 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 	for (i = 1; i < udc->num_ep; i++)
 		usba_ep_cleanup_debugfs(&udc->usba_ep[i]);
 	usba_cleanup_debugfs(udc);
-
-	if (gpio_is_valid(udc->vbus_pin)) {
-		free_irq(gpio_to_irq(udc->vbus_pin), udc);
-	}
-
-	free_irq(udc->irq, udc);
-	iounmap(udc->fifo);
-	iounmap(udc->regs);
-	clk_put(udc->hclk);
-	clk_put(udc->pclk);
 
 	return 0;
 }

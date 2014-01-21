@@ -837,7 +837,7 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 	device_remove_bin_file(dev, &dev_bin_attr_descriptors);
 }
 
-/* Interface Accociation Descriptor fields */
+/* Interface Association Descriptor fields */
 #define usb_intf_assoc_attr(field, format_string)			\
 static ssize_t								\
 iad_##field##_show(struct device *dev, struct device_attribute *attr,	\
