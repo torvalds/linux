@@ -301,7 +301,7 @@
 	};
 
 	scifa0: serial@e6c40000 {
-		compatible = "renesas,scifa-r8a7790", "renesas,scifa-generic";
+		compatible = "renesas,scifa-r8a7790", "renesas,scifa";
 		reg = <0 0xe6c40000 0 64>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 144 4>;
@@ -311,7 +311,7 @@
 	};
 
 	scifa1: serial@e6c50000 {
-		compatible = "renesas,scifa-r8a7790", "renesas,scifa-generic";
+		compatible = "renesas,scifa-r8a7790", "renesas,scifa";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6c50000 0 64>;
 		interrupts = <0 145 4>;
@@ -321,7 +321,7 @@
 	};
 
 	scifa2: serial@e6c60000 {
-		compatible = "renesas,scifa-r8a7790", "renesas,scifa-generic";
+		compatible = "renesas,scifa-r8a7790", "renesas,scifa";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6c60000 0 64>;
 		interrupts = <0 151 4>;
@@ -331,7 +331,7 @@
 	};
 
 	scifb0: serial@e6c20000 {
-		compatible = "renesas,scifb-r8a7790", "renesas,scifb-generic";
+		compatible = "renesas,scifb-r8a7790", "renesas,scifb";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6c20000 0 64>;
 		interrupts = <0 148 4>;
@@ -341,7 +341,7 @@
 	};
 
 	scifb1: serial@e6c30000 {
-		compatible = "renesas,scifb-r8a7790", "renesas,scifb-generic";
+		compatible = "renesas,scifb-r8a7790", "renesas,scifb";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6c30000 0 64>;
 		interrupts = <0 149 4>;
@@ -351,7 +351,7 @@
 	};
 
 	scifb2: serial@e6ce0000 {
-		compatible = "renesas,scifb-r8a7790", "renesas,scifb-generic";
+		compatible = "renesas,scifb-r8a7790", "renesas,scifb";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6ce0000 0 64>;
 		interrupts = <0 150 4>;
@@ -361,7 +361,7 @@
 	};
 
 	scif0: serial@e6e60000 {
-		compatible = "renesas,scif-r8a7790", "renesas,scif-generic";
+		compatible = "renesas,scif-r8a7790", "renesas,scif";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6e60000 0 64>;
 		interrupts = <0 152 4>;
@@ -371,7 +371,7 @@
 	};
 
 	scif1: serial@e6e68000 {
-		compatible = "renesas,scif-r8a7790", "renesas,scif-generic";
+		compatible = "renesas,scif-r8a7790", "renesas,scif";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe6e68000 0 64>;
 		interrupts = <0 153 4>;
@@ -381,7 +381,7 @@
 	};
 
 	hscif0: serial@e62c0000 {
-		compatible = "renesas,hscif-r8a7790", "renesas,hscif-generic";
+		compatible = "renesas,hscif-r8a7790", "renesas,hscif";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe62c0000 0 96>;
 		interrupts = <0 154 4>;
@@ -391,7 +391,7 @@
 	};
 
 	hscif1: serial@e62c8000 {
-		compatible = "renesas,hscif-r8a7790", "renesas,hscif-generic";
+		compatible = "renesas,hscif-r8a7790", "renesas,hscif";
 		interrupt-parent = <&gic>;
 		reg = <0 0xe62c8000 0 96>;
 		interrupts = <0 155 4>;
