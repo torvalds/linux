@@ -25,7 +25,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of.h>
-
+#include <linux/memblock.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -38,6 +38,22 @@
 #include "common.h"
 
 void __iomem *zynq_scu_base;
+
+/**
+ * zynq_memory_init() - Initialize special memory
+ *
+ * We need to stop things allocating the low memory as DMA can't work in
+ * the 1st 512K of memory.  Using reserve vs remove is not totally clear yet.
+ */
+static void __init zynq_memory_init(void)
+{
+	/*
+	 * Reserve the 0-0x4000 addresses (before page tables and kernel)
+	 * which can't be used for DMA
+	 */
+	if (!__pa(PAGE_OFFSET))
+		memblock_reserve(0, 0x4000);
+}
 
 static struct of_device_id zynq_of_bus_ids[] __initdata = {
 	{ .compatible = "simple-bus", },
@@ -113,5 +129,6 @@ DT_MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
 	.init_machine	= zynq_init_machine,
 	.init_time	= zynq_timer_init,
 	.dt_compat	= zynq_dt_match,
+	.reserve	= zynq_memory_init,
 	.restart	= zynq_system_reset,
 MACHINE_END
