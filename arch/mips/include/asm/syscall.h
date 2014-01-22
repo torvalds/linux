@@ -86,11 +86,10 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	unsigned long arg;
 	int ret;
 
 	while (n--)
-		ret |= mips_get_syscall_arg(&arg, task, regs, i++);
+		ret |= mips_get_syscall_arg(args++, task, regs, i++);
 
 	/*
 	 * No way to communicate an error because this is a void function.
