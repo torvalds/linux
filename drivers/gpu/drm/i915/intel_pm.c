@@ -4933,7 +4933,6 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	 * This implements the WaDisableRCZUnitClockGating:vlv workaround.
 	 */
 	I915_WRITE(GEN6_UCGCTL2,
-		   GEN7_TDLUNIT_CLOCK_GATE_DISABLE |
 		   GEN6_RCZUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableL3Bank2xClockGate:vlv */
