@@ -27,6 +27,7 @@
 
 #include "bond_3ad.h"
 #include "bond_alb.h"
+#include "bond_options.h"
 
 #define DRV_VERSION	"3.7.1"
 #define DRV_RELDATE	"April 27, 2011"
@@ -451,35 +452,8 @@ void bond_setup(struct net_device *bond_dev);
 unsigned int bond_get_num_tx_queues(void);
 int bond_netlink_init(void);
 void bond_netlink_fini(void);
-int bond_option_mode_set(struct bonding *bond, int mode);
-int bond_option_active_slave_set(struct bonding *bond, struct net_device *slave_dev);
-int bond_option_miimon_set(struct bonding *bond, int miimon);
-int bond_option_updelay_set(struct bonding *bond, int updelay);
-int bond_option_downdelay_set(struct bonding *bond, int downdelay);
-int bond_option_use_carrier_set(struct bonding *bond, int use_carrier);
-int bond_option_arp_interval_set(struct bonding *bond, int arp_interval);
-int bond_option_arp_ip_targets_set(struct bonding *bond, __be32 *targets,
-				   int count);
 int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
 int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
-int bond_option_arp_validate_set(struct bonding *bond, int arp_validate);
-int bond_option_arp_all_targets_set(struct bonding *bond, int arp_all_targets);
-int bond_option_primary_set(struct bonding *bond, const char *primary);
-int bond_option_primary_reselect_set(struct bonding *bond,
-				     int primary_reselect);
-int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac);
-int bond_option_xmit_hash_policy_set(struct bonding *bond,
-				     int xmit_hash_policy);
-int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp);
-int bond_option_num_peer_notif_set(struct bonding *bond, int num_peer_notif);
-int bond_option_all_slaves_active_set(struct bonding *bond,
-				      int all_slaves_active);
-int bond_option_min_links_set(struct bonding *bond, int min_links);
-int bond_option_lp_interval_set(struct bonding *bond, int min_links);
-int bond_option_packets_per_slave_set(struct bonding *bond,
-				      int packets_per_slave);
-int bond_option_lacp_rate_set(struct bonding *bond, int lacp_rate);
-int bond_option_ad_select_set(struct bonding *bond, int ad_select);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
 const char *bond_slave_link_status(s8 link);
@@ -562,7 +536,6 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 /* exported from bond_main.c */
 extern int bond_net_id;
 extern const struct bond_parm_tbl bond_lacp_tbl[];
-extern const struct bond_parm_tbl bond_mode_tbl[];
 extern const struct bond_parm_tbl xmit_hashtype_tbl[];
 extern const struct bond_parm_tbl arp_validate_tbl[];
 extern const struct bond_parm_tbl arp_all_targets_tbl[];
