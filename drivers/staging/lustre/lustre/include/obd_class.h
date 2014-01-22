@@ -175,8 +175,12 @@ enum {
 	CONFIG_T_CONFIG  = 0,
 	CONFIG_T_SPTLRPC = 1,
 	CONFIG_T_RECOVER = 2,
-	CONFIG_T_MAX     = 3
+	CONFIG_T_PARAMS  = 3,
+	CONFIG_T_MAX     = 4
 };
+
+#define PARAMS_FILENAME	"params"
+#define LCTL_UPCALL	"lctl"
 
 /* list of active configuration logs  */
 struct config_llog_data {
@@ -185,7 +189,8 @@ struct config_llog_data {
 	struct list_head		  cld_list_chain;
 	atomic_t		cld_refcount;
 	struct config_llog_data    *cld_sptlrpc;/* depended sptlrpc log */
-	struct config_llog_data    *cld_recover;    /* imperative recover log */
+	struct config_llog_data	   *cld_params;	/* common parameters log */
+	struct config_llog_data    *cld_recover;/* imperative recover log */
 	struct obd_export	  *cld_mgcexp;
 	struct mutex		    cld_lock;
 	int			 cld_type;
