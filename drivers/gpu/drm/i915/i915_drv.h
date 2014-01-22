@@ -904,8 +904,6 @@ struct intel_gen6_power_mgmt {
 	struct work_struct work;
 	u32 pm_iir;
 
-	/* The below variables an all the rps hw state are protected by
-	 * dev->struct mutext. */
 	u8 cur_delay;
 	u8 min_delay;
 	u8 max_delay;
