@@ -368,9 +368,9 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 {
 	struct sctp_association *asoc;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	asoc = __sctp_endpoint_lookup_assoc(ep, paddr, transport);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return asoc;
 }

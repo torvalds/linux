@@ -634,10 +634,10 @@ static void sctp_addr_wq_timeout_handler(unsigned long arg)
 			/* ignore bound-specific endpoints */
 			if (!sctp_is_ep_boundall(sk))
 				continue;
-			sctp_bh_lock_sock(sk);
+			bh_lock_sock(sk);
 			if (sctp_asconf_mgmt(sp, addrw) < 0)
 				pr_debug("%s: sctp_asconf_mgmt failed\n", __func__);
-			sctp_bh_unlock_sock(sk);
+			bh_unlock_sock(sk);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 free_next:

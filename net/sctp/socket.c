@@ -272,7 +272,7 @@ static int sctp_bind(struct sock *sk, struct sockaddr *addr, int addr_len)
 {
 	int retval = 0;
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	pr_debug("%s: sk:%p, addr:%p, addr_len:%d\n", __func__, sk,
 		 addr, addr_len);
@@ -284,7 +284,7 @@ static int sctp_bind(struct sock *sk, struct sockaddr *addr, int addr_len)
 	else
 		retval = -EINVAL;
 
-	sctp_release_sock(sk);
+	release_sock(sk);
 
 	return retval;
 }
@@ -1461,7 +1461,7 @@ static void sctp_close(struct sock *sk, long timeout)
 
 	pr_debug("%s: sk:%p, timeout:%ld\n", __func__, sk, timeout);
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 	sk->sk_shutdown = SHUTDOWN_MASK;
 	sk->sk_state = SCTP_SS_CLOSING;
 
@@ -1505,13 +1505,13 @@ static void sctp_close(struct sock *sk, long timeout)
 		sctp_wait_for_close(sk, timeout);
 
 	/* This will run the backlog queue.  */
-	sctp_release_sock(sk);
+	release_sock(sk);
 
 	/* Supposedly, no process has access to the socket, but
 	 * the net layers still may.
 	 */
-	sctp_local_bh_disable();
-	sctp_bh_lock_sock(sk);
+	local_bh_disable();
+	bh_lock_sock(sk);
 
 	/* Hold the sock, since sk_common_release() will put sock_put()
 	 * and we have just a little more cleanup.
@@ -1519,8 +1519,8 @@ static void sctp_close(struct sock *sk, long timeout)
 	sock_hold(sk);
 	sk_common_release(sk);
 
-	sctp_bh_unlock_sock(sk);
-	sctp_local_bh_enable();
+	bh_unlock_sock(sk);
+	local_bh_enable();
 
 	sock_put(sk);
 
@@ -1665,7 +1665,7 @@ static int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	pr_debug("%s: about to look up association\n", __func__);
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	/* If a msg_name has been specified, assume this is to be used.  */
 	if (msg_name) {
@@ -1949,7 +1949,7 @@ out_free:
 		sctp_association_free(asoc);
 	}
 out_unlock:
-	sctp_release_sock(sk);
+	release_sock(sk);
 
 out_nounlock:
 	return sctp_error(sk, msg_flags, err);
@@ -2035,7 +2035,7 @@ static int sctp_recvmsg(struct kiocb *iocb, struct sock *sk,
 		 "addr_len:%p)\n", __func__, sk, msg, len, noblock, flags,
 		 addr_len);
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	if (sctp_style(sk, TCP) && !sctp_sstate(sk, ESTABLISHED)) {
 		err = -ENOTCONN;
@@ -2119,7 +2119,7 @@ out_free:
 		sctp_ulpevent_free(event);
 	}
 out:
-	sctp_release_sock(sk);
+	release_sock(sk);
 	return err;
 }
 
@@ -3590,7 +3590,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		goto out_nounlock;
 	}
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	switch (optname) {
 	case SCTP_SOCKOPT_BINDX_ADD:
@@ -3708,7 +3708,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	}
 
-	sctp_release_sock(sk);
+	release_sock(sk);
 
 out_nounlock:
 	return retval;
@@ -3736,7 +3736,7 @@ static int sctp_connect(struct sock *sk, struct sockaddr *addr,
 	int err = 0;
 	struct sctp_af *af;
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	pr_debug("%s: sk:%p, sockaddr:%p, addr_len:%d\n", __func__, sk,
 		 addr, addr_len);
@@ -3752,7 +3752,7 @@ static int sctp_connect(struct sock *sk, struct sockaddr *addr,
 		err = __sctp_connect(sk, addr, af->sockaddr_len, NULL);
 	}
 
-	sctp_release_sock(sk);
+	release_sock(sk);
 	return err;
 }
 
@@ -3778,7 +3778,7 @@ static struct sock *sctp_accept(struct sock *sk, int flags, int *err)
 	long timeo;
 	int error = 0;
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	sp = sctp_sk(sk);
 	ep = sp->ep;
@@ -3816,7 +3816,7 @@ static struct sock *sctp_accept(struct sock *sk, int flags, int *err)
 	sctp_sock_migrate(sk, newsk, asoc, SCTP_SOCKET_TCP);
 
 out:
-	sctp_release_sock(sk);
+	release_sock(sk);
 	*err = error;
 	return newsk;
 }
@@ -3826,7 +3826,7 @@ static int sctp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
 	int rc = -ENOTCONN;
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	/*
 	 * SEQPACKET-style sockets in LISTENING state are valid, for
@@ -3856,7 +3856,7 @@ static int sctp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		break;
 	}
 out:
-	sctp_release_sock(sk);
+	release_sock(sk);
 	return rc;
 }
 
@@ -5754,7 +5754,7 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 	if (get_user(len, optlen))
 		return -EFAULT;
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	switch (optname) {
 	case SCTP_STATUS:
@@ -5878,7 +5878,7 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	}
 
-	sctp_release_sock(sk);
+	release_sock(sk);
 	return retval;
 }
 
@@ -5918,7 +5918,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 
 	pr_debug("%s: begins, snum:%d\n", __func__, snum);
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 
 	if (snum == 0) {
 		/* Search for an available port. */
@@ -5937,14 +5937,14 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 				continue;
 			index = sctp_phashfn(sock_net(sk), rover);
 			head = &sctp_port_hashtable[index];
-			sctp_spin_lock(&head->lock);
+			spin_lock(&head->lock);
 			sctp_for_each_hentry(pp, &head->chain)
 				if ((pp->port == rover) &&
 				    net_eq(sock_net(sk), pp->net))
 					goto next;
 			break;
 		next:
-			sctp_spin_unlock(&head->lock);
+			spin_unlock(&head->lock);
 		} while (--remaining > 0);
 
 		/* Exhausted local port range during search? */
@@ -5965,7 +5965,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 		 * port iterator, pp being NULL.
 		 */
 		head = &sctp_port_hashtable[sctp_phashfn(sock_net(sk), snum)];
-		sctp_spin_lock(&head->lock);
+		spin_lock(&head->lock);
 		sctp_for_each_hentry(pp, &head->chain) {
 			if ((pp->port == snum) && net_eq(pp->net, sock_net(sk)))
 				goto pp_found;
@@ -6049,10 +6049,10 @@ success:
 	ret = 0;
 
 fail_unlock:
-	sctp_spin_unlock(&head->lock);
+	spin_unlock(&head->lock);
 
 fail:
-	sctp_local_bh_enable();
+	local_bh_enable();
 	return ret;
 }
 
@@ -6144,7 +6144,7 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 	if (unlikely(backlog < 0))
 		return err;
 
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 	/* Peeled-off sockets are not allowed to listen().  */
 	if (sctp_style(sk, UDP_HIGH_BANDWIDTH))
@@ -6177,7 +6177,7 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 
 	err = 0;
 out:
-	sctp_release_sock(sk);
+	release_sock(sk);
 	return err;
 }
 
@@ -6286,20 +6286,20 @@ static inline void __sctp_put_port(struct sock *sk)
 						  inet_sk(sk)->inet_num)];
 	struct sctp_bind_bucket *pp;
 
-	sctp_spin_lock(&head->lock);
+	spin_lock(&head->lock);
 	pp = sctp_sk(sk)->bind_hash;
 	__sk_del_bind_node(sk);
 	sctp_sk(sk)->bind_hash = NULL;
 	inet_sk(sk)->inet_num = 0;
 	sctp_bucket_destroy(pp);
-	sctp_spin_unlock(&head->lock);
+	spin_unlock(&head->lock);
 }
 
 void sctp_put_port(struct sock *sk)
 {
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_put_port(sk);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /*
@@ -6474,9 +6474,9 @@ static int sctp_wait_for_packet(struct sock *sk, int *err, long *timeo_p)
 	 * does not fit in the user's buffer, but this seems to be the
 	 * only way to honor MSG_DONTWAIT realistically.
 	 */
-	sctp_release_sock(sk);
+	release_sock(sk);
 	*timeo_p = schedule_timeout(*timeo_p);
-	sctp_lock_sock(sk);
+	lock_sock(sk);
 
 ready:
 	finish_wait(sk_sleep(sk), &wait);
@@ -6659,10 +6659,10 @@ static int sctp_wait_for_sndbuf(struct sctp_association *asoc, long *timeo_p,
 		/* Let another process have a go.  Since we are going
 		 * to sleep anyway.
 		 */
-		sctp_release_sock(sk);
+		release_sock(sk);
 		current_timeo = schedule_timeout(current_timeo);
 		BUG_ON(sk != asoc->base.sk);
-		sctp_lock_sock(sk);
+		lock_sock(sk);
 
 		*timeo_p = current_timeo;
 	}
@@ -6767,9 +6767,9 @@ static int sctp_wait_for_connect(struct sctp_association *asoc, long *timeo_p)
 		/* Let another process have a go.  Since we are going
 		 * to sleep anyway.
 		 */
-		sctp_release_sock(sk);
+		release_sock(sk);
 		current_timeo = schedule_timeout(current_timeo);
-		sctp_lock_sock(sk);
+		lock_sock(sk);
 
 		*timeo_p = current_timeo;
 	}
@@ -6812,9 +6812,9 @@ static int sctp_wait_for_accept(struct sock *sk, long timeo)
 					  TASK_INTERRUPTIBLE);
 
 		if (list_empty(&ep->asocs)) {
-			sctp_release_sock(sk);
+			release_sock(sk);
 			timeo = schedule_timeout(timeo);
-			sctp_lock_sock(sk);
+			lock_sock(sk);
 		}
 
 		err = -EINVAL;
@@ -6847,9 +6847,9 @@ static void sctp_wait_for_close(struct sock *sk, long timeout)
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		if (list_empty(&sctp_sk(sk)->ep->asocs))
 			break;
-		sctp_release_sock(sk);
+		release_sock(sk);
 		timeout = schedule_timeout(timeout);
-		sctp_lock_sock(sk);
+		lock_sock(sk);
 	} while (!signal_pending(current) && timeout);
 
 	finish_wait(sk_sleep(sk), &wait);
@@ -6950,14 +6950,14 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	/* Hook this new socket in to the bind_hash list. */
 	head = &sctp_port_hashtable[sctp_phashfn(sock_net(oldsk),
 						 inet_sk(oldsk)->inet_num)];
-	sctp_local_bh_disable();
-	sctp_spin_lock(&head->lock);
+	local_bh_disable();
+	spin_lock(&head->lock);
 	pp = sctp_sk(oldsk)->bind_hash;
 	sk_add_bind_node(newsk, &pp->owner);
 	sctp_sk(newsk)->bind_hash = pp;
 	inet_sk(newsk)->inet_num = inet_sk(oldsk)->inet_num;
-	sctp_spin_unlock(&head->lock);
-	sctp_local_bh_enable();
+	spin_unlock(&head->lock);
+	local_bh_enable();
 
 	/* Copy the bind_addr list from the original endpoint to the new
 	 * endpoint so that we can handle restarts properly
@@ -7046,7 +7046,7 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		newsk->sk_shutdown |= RCV_SHUTDOWN;
 
 	newsk->sk_state = SCTP_SS_ESTABLISHED;
-	sctp_release_sock(newsk);
+	release_sock(newsk);
 }
 
 

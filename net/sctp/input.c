@@ -238,7 +238,7 @@ int sctp_rcv(struct sk_buff *skb)
 	 * bottom halves on this lock, but a user may be in the lock too,
 	 * so check if it is busy.
 	 */
-	sctp_bh_lock_sock(sk);
+	bh_lock_sock(sk);
 
 	if (sk != rcvr->sk) {
 		/* Our cached sk is different from the rcvr->sk.  This is
@@ -248,14 +248,14 @@ int sctp_rcv(struct sk_buff *skb)
 		 * be doing something with the new socket.  Switch our veiw
 		 * of the current sk.
 		 */
-		sctp_bh_unlock_sock(sk);
+		bh_unlock_sock(sk);
 		sk = rcvr->sk;
-		sctp_bh_lock_sock(sk);
+		bh_lock_sock(sk);
 	}
 
 	if (sock_owned_by_user(sk)) {
 		if (sctp_add_backlog(sk, skb)) {
-			sctp_bh_unlock_sock(sk);
+			bh_unlock_sock(sk);
 			sctp_chunk_free(chunk);
 			skb = NULL; /* sctp_chunk_free already freed the skb */
 			goto discard_release;
@@ -266,7 +266,7 @@ int sctp_rcv(struct sk_buff *skb)
 		sctp_inq_push(&chunk->rcvr->inqueue, chunk);
 	}
 
-	sctp_bh_unlock_sock(sk);
+	bh_unlock_sock(sk);
 
 	/* Release the asoc/ep ref we took in the lookup calls. */
 	if (asoc)
@@ -327,7 +327,7 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 		 */
 
 		sk = rcvr->sk;
-		sctp_bh_lock_sock(sk);
+		bh_lock_sock(sk);
 
 		if (sock_owned_by_user(sk)) {
 			if (sk_add_backlog(sk, skb, sk->sk_rcvbuf))
@@ -337,7 +337,7 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 		} else
 			sctp_inq_push(inqueue, chunk);
 
-		sctp_bh_unlock_sock(sk);
+		bh_unlock_sock(sk);
 
 		/* If the chunk was backloged again, don't drop refs */
 		if (backloged)
@@ -522,7 +522,7 @@ struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *skb,
 		goto out;
 	}
 
-	sctp_bh_lock_sock(sk);
+	bh_lock_sock(sk);
 
 	/* If too many ICMPs get dropped on busy
 	 * servers this needs to be solved differently.
@@ -542,7 +542,7 @@ out:
 /* Common cleanup code for icmp/icmpv6 error handler. */
 void sctp_err_finish(struct sock *sk, struct sctp_association *asoc)
 {
-	sctp_bh_unlock_sock(sk);
+	bh_unlock_sock(sk);
 	sctp_association_put(asoc);
 }
 
@@ -718,17 +718,17 @@ static void __sctp_hash_endpoint(struct sctp_endpoint *ep)
 	epb->hashent = sctp_ep_hashfn(net, epb->bind_addr.port);
 	head = &sctp_ep_hashtable[epb->hashent];
 
-	sctp_write_lock(&head->lock);
+	write_lock(&head->lock);
 	hlist_add_head(&epb->node, &head->chain);
-	sctp_write_unlock(&head->lock);
+	write_unlock(&head->lock);
 }
 
 /* Add an endpoint to the hash. Local BH-safe. */
 void sctp_hash_endpoint(struct sctp_endpoint *ep)
 {
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_hash_endpoint(ep);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /* Remove endpoint from the hash table.  */
@@ -744,17 +744,17 @@ static void __sctp_unhash_endpoint(struct sctp_endpoint *ep)
 
 	head = &sctp_ep_hashtable[epb->hashent];
 
-	sctp_write_lock(&head->lock);
+	write_lock(&head->lock);
 	hlist_del_init(&epb->node);
-	sctp_write_unlock(&head->lock);
+	write_unlock(&head->lock);
 }
 
 /* Remove endpoint from the hash.  Local BH-safe. */
 void sctp_unhash_endpoint(struct sctp_endpoint *ep)
 {
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_unhash_endpoint(ep);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /* Look up an endpoint. */
@@ -798,9 +798,9 @@ static void __sctp_hash_established(struct sctp_association *asoc)
 
 	head = &sctp_assoc_hashtable[epb->hashent];
 
-	sctp_write_lock(&head->lock);
+	write_lock(&head->lock);
 	hlist_add_head(&epb->node, &head->chain);
-	sctp_write_unlock(&head->lock);
+	write_unlock(&head->lock);
 }
 
 /* Add an association to the hash. Local BH-safe. */
@@ -809,9 +809,9 @@ void sctp_hash_established(struct sctp_association *asoc)
 	if (asoc->temp)
 		return;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_hash_established(asoc);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /* Remove association from the hash table.  */
@@ -828,9 +828,9 @@ static void __sctp_unhash_established(struct sctp_association *asoc)
 
 	head = &sctp_assoc_hashtable[epb->hashent];
 
-	sctp_write_lock(&head->lock);
+	write_lock(&head->lock);
 	hlist_del_init(&epb->node);
-	sctp_write_unlock(&head->lock);
+	write_unlock(&head->lock);
 }
 
 /* Remove association from the hash table.  Local BH-safe. */
@@ -839,9 +839,9 @@ void sctp_unhash_established(struct sctp_association *asoc)
 	if (asoc->temp)
 		return;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	__sctp_unhash_established(asoc);
-	sctp_local_bh_enable();
+	local_bh_enable();
 }
 
 /* Look up an association. */
@@ -891,9 +891,9 @@ struct sctp_association *sctp_lookup_association(struct net *net,
 {
 	struct sctp_association *asoc;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	asoc = __sctp_lookup_association(net, laddr, paddr, transportp);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return asoc;
 }

@@ -218,7 +218,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 		return -ENOMEM;
 
 	head = &sctp_ep_hashtable[hash];
-	sctp_local_bh_disable();
+	local_bh_disable();
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, &head->chain) {
 		ep = sctp_ep(epb);
@@ -235,7 +235,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "\n");
 	}
 	read_unlock(&head->lock);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return 0;
 }
@@ -326,7 +326,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		return -ENOMEM;
 
 	head = &sctp_assoc_hashtable[hash];
-	sctp_local_bh_disable();
+	local_bh_disable();
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, &head->chain) {
 		assoc = sctp_assoc(epb);
@@ -362,7 +362,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "\n");
 	}
 	read_unlock(&head->lock);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return 0;
 }
@@ -446,7 +446,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 		return -ENOMEM;
 
 	head = &sctp_assoc_hashtable[hash];
-	sctp_local_bh_disable();
+	local_bh_disable();
 	read_lock(&head->lock);
 	rcu_read_lock();
 	sctp_for_each_hentry(epb, &head->chain) {
@@ -505,7 +505,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 
 	rcu_read_unlock();
 	read_unlock(&head->lock);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return 0;
 

@@ -248,7 +248,7 @@ void sctp_generate_t3_rtx_event(unsigned long peer)
 
 	/* Check whether a task is in the sock.  */
 
-	sctp_bh_lock_sock(asoc->base.sk);
+	bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		pr_debug("%s: sock is busy\n", __func__);
 
@@ -275,7 +275,7 @@ void sctp_generate_t3_rtx_event(unsigned long peer)
 		asoc->base.sk->sk_err = -error;
 
 out_unlock:
-	sctp_bh_unlock_sock(asoc->base.sk);
+	bh_unlock_sock(asoc->base.sk);
 	sctp_transport_put(transport);
 }
 
@@ -288,7 +288,7 @@ static void sctp_generate_timeout_event(struct sctp_association *asoc,
 	struct net *net = sock_net(asoc->base.sk);
 	int error = 0;
 
-	sctp_bh_lock_sock(asoc->base.sk);
+	bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		pr_debug("%s: sock is busy: timer %d\n", __func__,
 			 timeout_type);
@@ -315,7 +315,7 @@ static void sctp_generate_timeout_event(struct sctp_association *asoc,
 		asoc->base.sk->sk_err = -error;
 
 out_unlock:
-	sctp_bh_unlock_sock(asoc->base.sk);
+	bh_unlock_sock(asoc->base.sk);
 	sctp_association_put(asoc);
 }
 
@@ -367,7 +367,7 @@ void sctp_generate_heartbeat_event(unsigned long data)
 	struct sctp_association *asoc = transport->asoc;
 	struct net *net = sock_net(asoc->base.sk);
 
-	sctp_bh_lock_sock(asoc->base.sk);
+	bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		pr_debug("%s: sock is busy\n", __func__);
 
@@ -392,7 +392,7 @@ void sctp_generate_heartbeat_event(unsigned long data)
 		 asoc->base.sk->sk_err = -error;
 
 out_unlock:
-	sctp_bh_unlock_sock(asoc->base.sk);
+	bh_unlock_sock(asoc->base.sk);
 	sctp_transport_put(transport);
 }
 
@@ -405,7 +405,7 @@ void sctp_generate_proto_unreach_event(unsigned long data)
 	struct sctp_association *asoc = transport->asoc;
 	struct net *net = sock_net(asoc->base.sk);
 
-	sctp_bh_lock_sock(asoc->base.sk);
+	bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		pr_debug("%s: sock is busy\n", __func__);
 
@@ -427,7 +427,7 @@ void sctp_generate_proto_unreach_event(unsigned long data)
 		   asoc->state, asoc->ep, asoc, transport, GFP_ATOMIC);
 
 out_unlock:
-	sctp_bh_unlock_sock(asoc->base.sk);
+	bh_unlock_sock(asoc->base.sk);
 	sctp_association_put(asoc);
 }
 
