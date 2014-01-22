@@ -2219,6 +2219,17 @@ void intel_crt_init(struct drm_device *dev)
 !Iinclude/drm/drm_flip_work.h
 !Edrivers/gpu/drm/drm_flip_work.c
     </sect2>
+    <sect2>
+      <title>HDMI Infoframes Helper Reference</title>
+      <para>
+	Strictly speaking this is not a DRM helper library but generally useable
+	by any driver interfacing with HDMI outputs like v4l or alsa drivers.
+	But it nicely fits into the overall topic of mode setting helper
+	libraries and hence is also included here.
+      </para>
+!Iinclude/linux/hdmi.h
+!Edrivers/video/hdmi.c
+    </sect2>
   </sect1>
 
   <!-- Internals: kms properties -->
