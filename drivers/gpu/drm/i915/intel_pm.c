@@ -4931,11 +4931,8 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	/*
 	 * According to the spec, bit 13 (RCZUNIT) must be set on IVB.
 	 * This implements the WaDisableRCZUnitClockGating:vlv workaround.
-	 *
-	 * Also apply WaDisableVDSUnitClockGating:vlv.
 	 */
 	I915_WRITE(GEN6_UCGCTL2,
-		   GEN7_VDSUNIT_CLOCK_GATE_DISABLE |
 		   GEN7_TDLUNIT_CLOCK_GATE_DISABLE |
 		   GEN6_RCZUNIT_CLOCK_GATE_DISABLE);
 
