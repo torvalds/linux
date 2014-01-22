@@ -214,8 +214,9 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
-	dev_info(dev, "rhport(%u) sockfd(%d) devid(%u) speed(%u)\n",
-		 rhport, sockfd, devid, speed);
+	dev_info(dev,
+		 "rhport(%u) sockfd(%d) devid(%u) speed(%u) speed_str(%s)\n",
+		 rhport, sockfd, devid, speed, usb_speed_string(speed));
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;
