@@ -295,7 +295,8 @@ static int piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 	/* Aux SMBus does not support IRQ information */
 	if (aux) {
 		dev_info(&PIIX4_dev->dev,
-			 "SMBus Host Controller at 0x%x\n", piix4_smba);
+			 "Auxiliary SMBus Host Controller at 0x%x\n",
+			 piix4_smba);
 		return piix4_smba;
 	}
 
