@@ -4945,6 +4945,10 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
 
+	/*
+	 * BSpec says this must be set, even though
+	 * WaDisable4x2SubspanOptimization isn't listed for VLV.
+	 */
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 
