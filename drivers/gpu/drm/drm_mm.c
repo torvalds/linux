@@ -47,8 +47,6 @@
 #include <linux/seq_file.h>
 #include <linux/export.h>
 
-#define MM_UNUSED_TARGET 4
-
 static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 						unsigned long size,
 						unsigned alignment,
