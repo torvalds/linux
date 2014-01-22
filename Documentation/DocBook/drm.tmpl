@@ -2579,32 +2579,44 @@ int num_ioctls;</synopsis>
       </para>
     </sect2>
   </sect1>
-
   <sect1>
-    <title>Suspend/Resume</title>
+    <title>Legacy Support Code</title>
     <para>
-      The DRM core provides some suspend/resume code, but drivers wanting full
-      suspend/resume support should provide save() and restore() functions.
-      These are called at suspend, hibernate, or resume time, and should perform
-      any state save or restore required by your device across suspend or
-      hibernate states.
+      The section very brievely covers some of the old legacy support code which
+      is only used by old DRM drivers which have done a so-called shadow-attach
+      to the underlying device instead of registering as a real driver. This
+      also includes some of the old generic buffer mangement and command
+      submission code. Do not use any of this in new and modern drivers.
     </para>
-    <synopsis>int (*suspend) (struct drm_device *, pm_message_t state);
-int (*resume) (struct drm_device *);</synopsis>
-    <para>
-      Those are legacy suspend and resume methods. New driver should use the
-      power management interface provided by their bus type (usually through
-      the struct <structname>device_driver</structname> dev_pm_ops) and set
-      these methods to NULL.
-    </para>
-  </sect1>
 
-  <sect1>
-    <title>DMA services</title>
-    <para>
-      This should cover how DMA mapping etc. is supported by the core.
-      These functions are deprecated and should not be used.
-    </para>
+    <sect2>
+      <title>Legacy Suspend/Resume</title>
+      <para>
+	The DRM core provides some suspend/resume code, but drivers wanting full
+	suspend/resume support should provide save() and restore() functions.
+	These are called at suspend, hibernate, or resume time, and should perform
+	any state save or restore required by your device across suspend or
+	hibernate states.
+      </para>
+      <synopsis>int (*suspend) (struct drm_device *, pm_message_t state);
+  int (*resume) (struct drm_device *);</synopsis>
+      <para>
+	Those are legacy suspend and resume methods which
+	<emphasis>only</emphasis> work with the legacy shadow-attach driver
+	registration functions. New driver should use the power management
+	interface provided by their bus type (usually through
+	the struct <structname>device_driver</structname> dev_pm_ops) and set
+	these methods to NULL.
+      </para>
+    </sect2>
+
+    <sect2>
+      <title>Legacy DMA Services</title>
+      <para>
+	This should cover how DMA mapping etc. is supported by the core.
+	These functions are deprecated and should not be used.
+      </para>
+    </sect2>
   </sect1>
   </chapter>
 
