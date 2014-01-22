@@ -105,6 +105,12 @@ static struct bond_opt_value bond_use_carrier_tbl[] = {
 	{ NULL,  -1, 0}
 };
 
+static struct bond_opt_value bond_all_slaves_active_tbl[] = {
+	{ "off", 0,  BOND_VALFLAG_DEFAULT},
+	{ "on",  1,  0},
+	{ NULL,  -1, 0}
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -260,6 +266,13 @@ static struct bond_option bond_opts[] = {
 		.desc = "Set queue id of a slave",
 		.flags = BOND_OPTFLAG_RAWVAL,
 		.set = bond_option_queue_id_set
+	},
+	[BOND_OPT_ALL_SLAVES_ACTIVE] = {
+		.id = BOND_OPT_ALL_SLAVES_ACTIVE,
+		.name = "all_slaves_active",
+		.desc = "Keep all frames received on an interface by setting active flag for all slaves",
+		.values = bond_all_slaves_active_tbl,
+		.set = bond_option_all_slaves_active_set
 	},
 	{ }
 };
@@ -1049,25 +1062,17 @@ int bond_option_num_peer_notif_set(struct bonding *bond,
 }
 
 int bond_option_all_slaves_active_set(struct bonding *bond,
-				      int all_slaves_active)
+				      struct bond_opt_value *newval)
 {
 	struct list_head *iter;
 	struct slave *slave;
 
-	if (all_slaves_active == bond->params.all_slaves_active)
+	if (newval->value == bond->params.all_slaves_active)
 		return 0;
-
-	if ((all_slaves_active == 0) || (all_slaves_active == 1)) {
-		bond->params.all_slaves_active = all_slaves_active;
-	} else {
-		pr_info("%s: Ignoring invalid all_slaves_active value %d.\n",
-			bond->dev->name, all_slaves_active);
-		return -EINVAL;
-	}
-
+	bond->params.all_slaves_active = newval->value;
 	bond_for_each_slave(bond, slave, iter) {
 		if (!bond_is_active_slave(slave)) {
-			if (all_slaves_active)
+			if (newval->value)
 				slave->inactive = 0;
 			else
 				slave->inactive = 1;

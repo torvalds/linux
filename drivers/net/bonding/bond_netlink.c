@@ -282,8 +282,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int all_slaves_active =
 			nla_get_u8(data[IFLA_BOND_ALL_SLAVES_ACTIVE]);
 
-		err = bond_option_all_slaves_active_set(bond,
-							all_slaves_active);
+		bond_opt_initval(&newval, all_slaves_active);
+		err = __bond_opt_set(bond, BOND_OPT_ALL_SLAVES_ACTIVE, &newval);
 		if (err)
 			return err;
 	}
