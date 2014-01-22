@@ -47,6 +47,45 @@
 #include <linux/seq_file.h>
 #include <linux/export.h>
 
+/**
+ * DOC: Overview
+ *
+ * drm_mm provides a simple range allocator. The drivers are free to use the
+ * resource allocator from the linux core if it suits them, the upside of drm_mm
+ * is that it's in the DRM core. Which means that it's easier to extend for
+ * some of the crazier special purpose needs of gpus.
+ *
+ * The main data struct is &drm_mm, allocations are tracked in &drm_mm_node.
+ * Drivers are free to embed either of them into their own suitable
+ * datastructures. drm_mm itself will not do any allocations of its own, so if
+ * drivers choose not to embed nodes they need to still allocate them
+ * themselves.
+ *
+ * The range allocator also supports reservation of preallocated blocks. This is
+ * useful for taking over initial mode setting configurations from the firmware,
+ * where an object needs to be created which exactly matches the firmware's
+ * scanout target. As long as the range is still free it can be inserted anytime
+ * after the allocator is initialized, which helps with avoiding looped
+ * depencies in the driver load sequence.
+ *
+ * drm_mm maintains a stack of most recently freed holes, which of all
+ * simplistic datastructures seems to be a fairly decent approach to clustering
+ * allocations and avoiding too much fragmentation. This means free space
+ * searches are O(num_holes). Given that all the fancy features drm_mm supports
+ * something better would be fairly complex and since gfx thrashing is a fairly
+ * steep cliff not a real concern. Removing a node again is O(1).
+ *
+ * drm_mm supports a few features: Alignment and range restrictions can be
+ * supplied. Further more every &drm_mm_node has a color value (which is just an
+ * opaqua unsigned long) which in conjunction with a driver callback can be used
+ * to implement sophisticated placement restrictions. The i915 DRM driver uses
+ * this to implement guard pages between incompatible caching domains in the
+ * graphics TT.
+ *
+ * Finally iteration helpers to walk all nodes and all holes are provided as are
+ * some basic allocator dumpers for debugging.
+ */
+
 static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 						unsigned long size,
 						unsigned alignment,
@@ -398,6 +437,34 @@ void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 	new->allocated = 1;
 }
 EXPORT_SYMBOL(drm_mm_replace_node);
+
+/**
+ * DOC: lru scan roaster
+ *
+ * Very often GPUs need to have continuous allocations for a given object. When
+ * evicting objects to make space for a new one it is therefore not most
+ * efficient when we simply start to select all objects from the tail of an LRU
+ * until there's a suitable hole: Especially for big objects or nodes that
+ * otherwise have special allocation constraints there's a good chance we evict
+ * lots of (smaller) objects unecessarily.
+ *
+ * The DRM range allocator supports this use-case through the scanning
+ * interfaces. First a scan operation needs to be initialized with
+ * drm_mm_init_scan() or drm_mm_init_scan_with_range(). The the driver adds
+ * objects to the roaster (probably by walking an LRU list, but this can be
+ * freely implemented) until a suitable hole is found or there's no further
+ * evitable object.
+ *
+ * The the driver must walk through all objects again in exactly the reverse
+ * order to restore the allocator state. Note that while the allocator is used
+ * in the scan mode no other operation is allowed.
+ *
+ * Finally the driver evicts all objects selected in the scan. Adding and
+ * removing an object is O(1), and since freeing a node is also O(1) the overall
+ * complexity is O(scanned_objects). So like the free stack which needs to be
+ * walked before a scan operation even begins this is linear in the number of
+ * objects. It doesn't seem to hurt badly.
+ */
 
 /**
  * Initializa lru scanning.
