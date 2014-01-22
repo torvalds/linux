@@ -800,28 +800,6 @@ static size_t rtnl_port_size(const struct net_device *dev)
 		return port_self_size;
 }
 
-static size_t rtnl_bond_slave_size(const struct net_device *dev)
-{
-	struct net_device *bond;
-	size_t slave_size =
-		nla_total_size(sizeof(struct nlattr)) +	/* IFLA_BOND_SLAVE */
-		nla_total_size(1) +	/* IFLA_BOND_SLAVE_STATE */
-		nla_total_size(1) +	/* IFLA_BOND_SLAVE_MII_STATUS */
-		nla_total_size(4) +	/* IFLA_BOND_SLAVE_LINK_FAILURE_COUNT */
-		nla_total_size(MAX_ADDR_LEN) +	/* IFLA_BOND_SLAVE_PERM_HWADDR */
-		nla_total_size(2) +	/* IFLA_BOND_SLAVE_QUEUE_ID */
-		nla_total_size(2) +	/* IFLA_BOND_SLAVE_AD_AGGREGATOR_ID */
-		0;
-
-	if (netif_is_bond_slave((struct net_device *)dev)) {
-		bond = netdev_master_upper_dev_get((struct net_device *)dev);
-		if (bond && bond->netdev_ops->ndo_get_slave)
-			return slave_size;
-	}
-
-	return 0;
-}
-
 static noinline size_t if_nlmsg_size(const struct net_device *dev,
 				     u32 ext_filter_mask)
 {
@@ -851,7 +829,6 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + rtnl_port_size(dev) /* IFLA_VF_PORTS + IFLA_PORT_SELF */
 	       + rtnl_link_get_size(dev) /* IFLA_LINKINFO */
 	       + rtnl_link_get_af_size(dev) /* IFLA_AF_SPEC */
-	       + rtnl_bond_slave_size(dev) /* IFLA_SLAVE */
 	       + nla_total_size(MAX_PHYS_PORT_ID_LEN); /* IFLA_PHYS_PORT_ID */
 }
 
@@ -945,34 +922,6 @@ static int rtnl_phys_port_id_fill(struct sk_buff *skb, struct net_device *dev)
 
 	if (nla_put(skb, IFLA_PHYS_PORT_ID, ppid.id_len, ppid.id))
 		return -EMSGSIZE;
-
-	return 0;
-}
-
-static size_t rtnl_bond_slave_fill(struct sk_buff *skb, struct net_device *dev)
-{
-	struct net_device *bond;
-	struct nlattr *nest;
-	int err;
-
-	if (!netif_is_bond_slave(dev))
-		return 0;
-
-	bond = netdev_master_upper_dev_get(dev);
-	if (!bond || !bond->netdev_ops->ndo_get_slave)
-		return 0;
-
-	nest = nla_nest_start(skb, IFLA_BOND_SLAVE);
-	if (!nest)
-		return -EMSGSIZE;
-
-	err = bond->netdev_ops->ndo_get_slave(dev, skb);
-	if (err) {
-		nla_nest_cancel(skb, nest);
-		return (err == -EMSGSIZE) ? err : 0;
-	}
-
-	nla_nest_end(skb, nest);
 
 	return 0;
 }

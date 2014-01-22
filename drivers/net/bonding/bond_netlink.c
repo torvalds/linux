@@ -21,10 +21,23 @@
 #include <net/rtnetlink.h>
 #include "bonding.h"
 
-int bond_get_slave(struct net_device *slave_dev, struct sk_buff *skb)
+static size_t bond_get_slave_size(const struct net_device *bond_dev,
+				  const struct net_device *slave_dev)
+{
+	return nla_total_size(sizeof(u8)) +	/* IFLA_BOND_SLAVE_STATE */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_SLAVE_MII_STATUS */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_SLAVE_LINK_FAILURE_COUNT */
+		nla_total_size(MAX_ADDR_LEN) +	/* IFLA_BOND_SLAVE_PERM_HWADDR */
+		nla_total_size(sizeof(u16)) +	/* IFLA_BOND_SLAVE_QUEUE_ID */
+		nla_total_size(sizeof(u16)) +	/* IFLA_BOND_SLAVE_AD_AGGREGATOR_ID */
+		0;
+}
+
+static int bond_fill_slave_info(struct sk_buff *skb,
+				const struct net_device *bond_dev,
+				const struct net_device *slave_dev)
 {
 	struct slave *slave = bond_slave_get_rtnl(slave_dev);
-	const struct aggregator *agg;
 
 	if (nla_put_u8(skb, IFLA_BOND_SLAVE_STATE, bond_slave_state(slave)))
 		goto nla_put_failure;
@@ -44,6 +57,8 @@ int bond_get_slave(struct net_device *slave_dev, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	if (slave->bond->params.mode == BOND_MODE_8023AD) {
+		const struct aggregator *agg;
+
 		agg = SLAVE_AD_INFO(slave).port.aggregator;
 		if (agg)
 			if (nla_put_u16(skb, IFLA_BOND_SLAVE_AD_AGGREGATOR_ID,
@@ -541,6 +556,8 @@ struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.get_num_tx_queues	= bond_get_num_tx_queues,
 	.get_num_rx_queues	= bond_get_num_tx_queues, /* Use the same number
 							     as for TX queues */
+	.get_slave_size		= bond_get_slave_size,
+	.fill_slave_info	= bond_fill_slave_info,
 };
 
 int __init bond_netlink_init(void)
