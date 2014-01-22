@@ -4145,7 +4145,8 @@ static int bond_check_params(struct bond_params *params)
 		resend_igmp = BOND_DEFAULT_RESEND_IGMP;
 	}
 
-	if (packets_per_slave < 0 || packets_per_slave > USHRT_MAX) {
+	bond_opt_initval(&newval, packets_per_slave);
+	if (!bond_opt_parse(bond_opt_get(BOND_OPT_PACKETS_PER_SLAVE), &newval)) {
 		pr_warn("Warning: packets_per_slave (%d) should be between 0 and %u resetting to 1\n",
 			packets_per_slave, USHRT_MAX);
 		packets_per_slave = 1;

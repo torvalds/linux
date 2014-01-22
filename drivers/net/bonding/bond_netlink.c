@@ -287,8 +287,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int packets_per_slave =
 			nla_get_u32(data[IFLA_BOND_PACKETS_PER_SLAVE]);
 
-		err = bond_option_packets_per_slave_set(bond,
-							packets_per_slave);
+		bond_opt_initval(&newval, packets_per_slave);
+		err = __bond_opt_set(bond, BOND_OPT_PACKETS_PER_SLAVE, &newval);
 		if (err)
 			return err;
 	}

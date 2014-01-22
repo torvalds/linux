@@ -30,6 +30,12 @@ static struct bond_opt_value bond_mode_tbl[] = {
 	{ NULL,            -1,                     0},
 };
 
+static struct bond_opt_value bond_pps_tbl[] = {
+	{ "default", 1,         BOND_VALFLAG_DEFAULT},
+	{ "maxval",  USHRT_MAX, BOND_VALFLAG_MAX},
+	{ NULL,      -1,        0},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -38,6 +44,14 @@ static struct bond_option bond_opts[] = {
 		.flags = BOND_OPTFLAG_NOSLAVES | BOND_OPTFLAG_IFDOWN,
 		.values = bond_mode_tbl,
 		.set = bond_option_mode_set
+	},
+	[BOND_OPT_PACKETS_PER_SLAVE] = {
+		.id = BOND_OPT_PACKETS_PER_SLAVE,
+		.name = "packets_per_slave",
+		.desc = "Packets to send per slave in RR mode",
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ROUNDROBIN)),
+		.values = bond_pps_tbl,
+		.set = bond_option_pps_set
 	},
 	{ }
 };
@@ -934,23 +948,12 @@ int bond_option_lp_interval_set(struct bonding *bond, int lp_interval)
 	return 0;
 }
 
-int bond_option_packets_per_slave_set(struct bonding *bond,
-				      int packets_per_slave)
+int bond_option_pps_set(struct bonding *bond, struct bond_opt_value *newval)
 {
-	if (packets_per_slave < 0 || packets_per_slave > USHRT_MAX) {
-		pr_err("%s: packets_per_slave must be between 0 and %u\n",
-		       bond->dev->name, USHRT_MAX);
-		return -EINVAL;
-	}
-
-	if (bond->params.mode != BOND_MODE_ROUNDROBIN)
-		pr_warn("%s: Warning: packets_per_slave has effect only in balance-rr mode\n",
-			bond->dev->name);
-
-	bond->params.packets_per_slave = packets_per_slave;
-	if (packets_per_slave > 0) {
+	bond->params.packets_per_slave = newval->value;
+	if (newval->value > 0) {
 		bond->params.reciprocal_packets_per_slave =
-			reciprocal_value(packets_per_slave);
+			reciprocal_value(newval->value);
 	} else {
 		/* reciprocal_packets_per_slave is unused if
 		 * packets_per_slave is 0 or 1, just initialize it
