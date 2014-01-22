@@ -16,7 +16,279 @@
 #include <linux/netdevice.h>
 #include <linux/rwlock.h>
 #include <linux/rcupdate.h>
+#include <linux/ctype.h>
 #include "bonding.h"
+
+static struct bond_option bond_opts[] = {
+	{ }
+};
+
+/* Searches for a value in opt's values[] table */
+struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val)
+{
+	struct bond_option *opt;
+	int i;
+
+	opt = bond_opt_get(option);
+	if (WARN_ON(!opt))
+		return NULL;
+	for (i = 0; opt->values && opt->values[i].string; i++)
+		if (opt->values[i].value == val)
+			return &opt->values[i];
+
+	return NULL;
+}
+
+/* Searches for a value in opt's values[] table which matches the flagmask */
+static struct bond_opt_value *bond_opt_get_flags(const struct bond_option *opt,
+						 u32 flagmask)
+{
+	int i;
+
+	for (i = 0; opt->values && opt->values[i].string; i++)
+		if (opt->values[i].flags & flagmask)
+			return &opt->values[i];
+
+	return NULL;
+}
+
+/* If maxval is missing then there's no range to check. In case minval is
+ * missing then it's considered to be 0.
+ */
+static bool bond_opt_check_range(const struct bond_option *opt, u64 val)
+{
+	struct bond_opt_value *minval, *maxval;
+
+	minval = bond_opt_get_flags(opt, BOND_VALFLAG_MIN);
+	maxval = bond_opt_get_flags(opt, BOND_VALFLAG_MAX);
+	if (!maxval || (minval && val < minval->value) || val > maxval->value)
+		return false;
+
+	return true;
+}
+
+/**
+ * bond_opt_parse - parse option value
+ * @opt: the option to parse against
+ * @val: value to parse
+ *
+ * This function tries to extract the value from @val and check if it's
+ * a possible match for the option and returns NULL if a match isn't found,
+ * or the struct_opt_value that matched. It also strips the new line from
+ * @val->string if it's present.
+ */
+struct bond_opt_value *bond_opt_parse(const struct bond_option *opt,
+				      struct bond_opt_value *val)
+{
+	char *p, valstr[BOND_OPT_MAX_NAMELEN + 1] = { 0, };
+	struct bond_opt_value *tbl, *ret = NULL;
+	bool checkval;
+	int i, rv;
+
+	/* No parsing if the option wants a raw val */
+	if (opt->flags & BOND_OPTFLAG_RAWVAL)
+		return val;
+
+	tbl = opt->values;
+	if (!tbl)
+		goto out;
+
+	/* ULLONG_MAX is used to bypass string processing */
+	checkval = val->value != ULLONG_MAX;
+	if (!checkval) {
+		if (!val->string)
+			goto out;
+		p = strchr(val->string, '\n');
+		if (p)
+			*p = '\0';
+		for (p = val->string; *p; p++)
+			if (!(isdigit(*p) || isspace(*p)))
+				break;
+		/* The following code extracts the string to match or the value
+		 * and sets checkval appropriately
+		 */
+		if (*p) {
+			rv = sscanf(val->string, "%32s", valstr);
+		} else {
+			rv = sscanf(val->string, "%llu", &val->value);
+			checkval = true;
+		}
+		if (!rv)
+			goto out;
+	}
+
+	for (i = 0; tbl[i].string; i++) {
+		/* Check for exact match */
+		if (checkval) {
+			if (val->value == tbl[i].value)
+				ret = &tbl[i];
+		} else {
+			if (!strcmp(valstr, "default") &&
+			    (tbl[i].flags & BOND_VALFLAG_DEFAULT))
+				ret = &tbl[i];
+
+			if (!strcmp(valstr, tbl[i].string))
+				ret = &tbl[i];
+		}
+		/* Found an exact match */
+		if (ret)
+			goto out;
+	}
+	/* Possible range match */
+	if (checkval && bond_opt_check_range(opt, val->value))
+		ret = val;
+out:
+	return ret;
+}
+
+/* Check opt's dependencies against bond mode and currently set options */
+static int bond_opt_check_deps(struct bonding *bond,
+			       const struct bond_option *opt)
+{
+	struct bond_params *params = &bond->params;
+
+	if (test_bit(params->mode, &opt->unsuppmodes))
+		return -EACCES;
+	if ((opt->flags & BOND_OPTFLAG_NOSLAVES) && bond_has_slaves(bond))
+		return -ENOTEMPTY;
+	if ((opt->flags & BOND_OPTFLAG_IFDOWN) && (bond->dev->flags & IFF_UP))
+		return -EBUSY;
+
+	return 0;
+}
+
+static void bond_opt_dep_print(struct bonding *bond,
+			       const struct bond_option *opt)
+{
+	struct bond_params *params;
+
+	params = &bond->params;
+	if (test_bit(params->mode, &opt->unsuppmodes))
+		pr_err("%s: option %s: mode dependency failed\n",
+		       bond->dev->name, opt->name);
+}
+
+static void bond_opt_error_interpret(struct bonding *bond,
+				     const struct bond_option *opt,
+				     int error, struct bond_opt_value *val)
+{
+	struct bond_opt_value *minval, *maxval;
+	char *p;
+
+	switch (error) {
+	case -EINVAL:
+		if (val) {
+			if (val->string) {
+				/* sometimes RAWVAL opts may have new lines */
+				p = strchr(val->string, '\n');
+				if (p)
+					*p = '\0';
+				pr_err("%s: option %s: invalid value (%s).\n",
+				       bond->dev->name, opt->name, val->string);
+			} else {
+				pr_err("%s: option %s: invalid value (%llu).\n",
+				       bond->dev->name, opt->name, val->value);
+			}
+		}
+		minval = bond_opt_get_flags(opt, BOND_VALFLAG_MIN);
+		maxval = bond_opt_get_flags(opt, BOND_VALFLAG_MAX);
+		if (!maxval)
+			break;
+		pr_err("%s: option %s: allowed values %llu - %llu.\n",
+		       bond->dev->name, opt->name, minval ? minval->value : 0,
+		       maxval->value);
+		break;
+	case -EACCES:
+		bond_opt_dep_print(bond, opt);
+		break;
+	case -ENOTEMPTY:
+		pr_err("%s: option %s: unable to set because the bond device has slaves.\n",
+		       bond->dev->name, opt->name);
+		break;
+	case -EBUSY:
+		pr_err("%s: option %s: unable to set because the bond device is up.\n",
+		       bond->dev->name, opt->name);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
+ * __bond_opt_set - set a bonding option
+ * @bond: target bond device
+ * @option: option to set
+ * @val: value to set it to
+ *
+ * This function is used to change the bond's option value, it can be
+ * used for both enabling/changing an option and for disabling it. RTNL lock
+ * must be obtained before calling this function.
+ */
+int __bond_opt_set(struct bonding *bond,
+		   unsigned int option, struct bond_opt_value *val)
+{
+	struct bond_opt_value *retval = NULL;
+	const struct bond_option *opt;
+	int ret = -ENOENT;
+
+	ASSERT_RTNL();
+
+	opt = bond_opt_get(option);
+	if (WARN_ON(!val) || WARN_ON(!opt))
+		goto out;
+	ret = bond_opt_check_deps(bond, opt);
+	if (ret)
+		goto out;
+	retval = bond_opt_parse(opt, val);
+	if (!retval) {
+		ret = -EINVAL;
+		goto out;
+	}
+	ret = opt->set(bond, retval);
+out:
+	if (ret)
+		bond_opt_error_interpret(bond, opt, ret, val);
+
+	return ret;
+}
+
+/**
+ * bond_opt_tryset_rtnl - try to acquire rtnl and call __bond_opt_set
+ * @bond: target bond device
+ * @option: option to set
+ * @buf: value to set it to
+ *
+ * This function tries to acquire RTNL without blocking and if successful
+ * calls __bond_opt_set. It is mainly used for sysfs option manipulation.
+ */
+int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf)
+{
+	struct bond_opt_value optval;
+	int ret;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+	bond_opt_initstr(&optval, buf);
+	ret = __bond_opt_set(bond, option, &optval);
+	rtnl_unlock();
+
+	return ret;
+}
+
+/**
+ * bond_opt_get - get a pointer to an option
+ * @option: option for which to return a pointer
+ *
+ * This function checks if option is valid and if so returns a pointer
+ * to its entry in the bond_opts[] option array.
+ */
+struct bond_option *bond_opt_get(unsigned int option)
+{
+	if (!BOND_OPT_VALID(option))
+		return NULL;
+
+	return &bond_opts[option];
+}
 
 int bond_option_mode_set(struct bonding *bond, int mode)
 {

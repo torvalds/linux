@@ -27,6 +27,7 @@
 
 #include "bond_3ad.h"
 #include "bond_alb.h"
+#include "bond_options.h"
 
 #define DRV_VERSION	"3.7.1"
 #define DRV_RELDATE	"April 27, 2011"
