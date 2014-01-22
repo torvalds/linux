@@ -1421,11 +1421,31 @@ int of_count_phandle_with_args(const struct device_node *np, const char *list_na
 EXPORT_SYMBOL(of_count_phandle_with_args);
 
 /**
+ * __of_add_property - Add a property to a node without lock operations
+ */
+static int __of_add_property(struct device_node *np, struct property *prop)
+{
+	struct property **next;
+
+	prop->next = NULL;
+	next = &np->properties;
+	while (*next) {
+		if (strcmp(prop->name, (*next)->name) == 0)
+			/* duplicate ! don't insert it */
+			return -EEXIST;
+
+		next = &(*next)->next;
+	}
+	*next = prop;
+
+	return 0;
+}
+
+/**
  * of_add_property - Add a property to a node
  */
 int of_add_property(struct device_node *np, struct property *prop)
 {
-	struct property **next;
 	unsigned long flags;
 	int rc;
 
@@ -1433,26 +1453,13 @@ int of_add_property(struct device_node *np, struct property *prop)
 	if (rc)
 		return rc;
 
-	prop->next = NULL;
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	next = &np->properties;
-	while (*next) {
-		if (strcmp(prop->name, (*next)->name) == 0) {
-			/* duplicate ! don't insert it */
-			raw_spin_unlock_irqrestore(&devtree_lock, flags);
-			return -1;
-		}
-		next = &(*next)->next;
-	}
-	*next = prop;
+	rc = __of_add_property(np, prop);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-	if (rc)
-		return rc;
-
-	if (of_node_is_attached(np))
+	if (!rc)
 		__of_add_property_sysfs(np, prop);
 
-	return 0;
+	return rc;
 }
 
 /**
