@@ -533,7 +533,7 @@ void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 		return;
 
 	free_irq(irq, d);
-	/* We should unmap the domain but... */
+	irq_domain_remove(d->domain);
 	kfree(d->wake_buf);
 	kfree(d->mask_buf_def);
 	kfree(d->mask_buf);
