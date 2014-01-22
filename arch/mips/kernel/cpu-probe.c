@@ -181,11 +181,12 @@ static char unknown_isa[] = KERN_ERR \
 static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 {
 	unsigned int config6;
-	/*
-	 * Config6 is implementation dependent and it's currently only
-	 * used by proAptiv
-	 */
-	if (c->cputype == CPU_PROAPTIV) {
+
+	/* It's implementation dependent how the FTLB can be enabled */
+	switch (c->cputype) {
+	case CPU_PROAPTIV:
+	case CPU_P5600:
+		/* proAptiv & related cores use Config6 to enable the FTLB */
 		config6 = read_c0_config6();
 		if (enable)
 			/* Enable FTLB */
@@ -194,6 +195,7 @@ static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 			/* Disable FTLB */
 			write_c0_config6(config6 &  ~MIPS_CONF6_FTLBEN);
 		back_to_back_c0_hazard();
+		break;
 	}
 }
 
