@@ -139,7 +139,8 @@ static int bond_changelink(struct net_device *bond_dev,
 	if (data[IFLA_BOND_UPDELAY]) {
 		int updelay = nla_get_u32(data[IFLA_BOND_UPDELAY]);
 
-		err = bond_option_updelay_set(bond, updelay);
+		bond_opt_initval(&newval, updelay);
+		err = __bond_opt_set(bond, BOND_OPT_UPDELAY, &newval);
 		if (err)
 			return err;
 	}
