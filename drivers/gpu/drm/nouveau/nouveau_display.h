@@ -36,6 +36,7 @@ struct nouveau_display {
 	int  (*init)(struct drm_device *);
 	void (*fini)(struct drm_device *);
 
+	struct nouveau_object *core;
 	struct nouveau_eventh **vblank;
 
 	struct drm_property *dithering_mode;

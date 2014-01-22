@@ -407,10 +407,31 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_disable(dev);
 
 	if (drm->vbios.dcb.entries) {
-		if (nv_device(drm->device)->card_type < NV_50)
-			ret = nv04_display_create(dev);
-		else
-			ret = nv50_display_create(dev);
+		static const u16 oclass[] = {
+			NVF0_DISP_CLASS,
+			NVE0_DISP_CLASS,
+			NVD0_DISP_CLASS,
+			NVA3_DISP_CLASS,
+			NV94_DISP_CLASS,
+			NVA0_DISP_CLASS,
+			NV84_DISP_CLASS,
+			NV50_DISP_CLASS,
+			NV04_DISP_CLASS,
+		};
+		int i;
+
+		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
+			ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE,
+						 NVDRM_DISPLAY, oclass[i],
+						 NULL, 0, &disp->core);
+		}
+
+		if (ret == 0) {
+			if (nv_mclass(disp->core) < NV50_DISP_CLASS)
+				ret = nv04_display_create(dev);
+			else
+				ret = nv50_display_create(dev);
+		}
 	} else {
 		ret = 0;
 	}
@@ -439,6 +460,7 @@ void
 nouveau_display_destroy(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	nouveau_backlight_exit(dev);
 	nouveau_display_vblank_fini(dev);
@@ -448,6 +470,8 @@ nouveau_display_destroy(struct drm_device *dev)
 
 	if (disp->dtor)
 		disp->dtor(dev);
+
+	nouveau_object_del(nv_object(drm), NVDRM_DEVICE, NVDRM_DISPLAY);
 
 	nouveau_drm(dev)->display = NULL;
 	kfree(disp);
