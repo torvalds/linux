@@ -16,4 +16,4 @@
  */
 extern void *get_penwell_ops(void) __attribute__((weak));
 extern void *get_cloverview_ops(void) __attribute__((weak));
-extern void * __init get_tangier_ops(void) __attribute__((weak));
+extern void *get_tangier_ops(void) __attribute__((weak));
