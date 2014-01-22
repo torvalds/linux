@@ -268,7 +268,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int num_peer_notif =
 			nla_get_u8(data[IFLA_BOND_NUM_PEER_NOTIF]);
 
-		err = bond_option_num_peer_notif_set(bond, num_peer_notif);
+		bond_opt_initval(&newval, num_peer_notif);
+		err = __bond_opt_set(bond, BOND_OPT_NUM_PEER_NOTIF, &newval);
 		if (err)
 			return err;
 	}

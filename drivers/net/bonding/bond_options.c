@@ -85,6 +85,13 @@ static struct bond_opt_value bond_ad_select_tbl[] = {
 	{ NULL,        -1,                0},
 };
 
+static struct bond_opt_value bond_num_peer_notif_tbl[] = {
+	{ "off",     0,   0},
+	{ "maxval",  255, BOND_VALFLAG_MAX},
+	{ "default", 1,   BOND_VALFLAG_DEFAULT},
+	{ NULL,      -1,  0}
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -185,6 +192,13 @@ static struct bond_option bond_opts[] = {
 		.flags = BOND_OPTFLAG_IFDOWN,
 		.values = bond_ad_select_tbl,
 		.set = bond_option_ad_select_set
+	},
+	[BOND_OPT_NUM_PEER_NOTIF] = {
+		.id = BOND_OPT_NUM_PEER_NOTIF,
+		.name = "num_unsol_na",
+		.desc = "Number of peer notifications to send on failover event",
+		.values = bond_num_peer_notif_tbl,
+		.set = bond_option_num_peer_notif_set
 	},
 	{ }
 };
@@ -977,9 +991,11 @@ int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp)
 	return 0;
 }
 
-int bond_option_num_peer_notif_set(struct bonding *bond, int num_peer_notif)
+int bond_option_num_peer_notif_set(struct bonding *bond,
+				   struct bond_opt_value *newval)
 {
-	bond->params.num_peer_notif = num_peer_notif;
+	bond->params.num_peer_notif = newval->value;
+
 	return 0;
 }
 

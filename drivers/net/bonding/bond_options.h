@@ -51,6 +51,7 @@ enum {
 	BOND_OPT_LACP_RATE,
 	BOND_OPT_MINLINKS,
 	BOND_OPT_AD_SELECT,
+	BOND_OPT_NUM_PEER_NOTIF,
 	BOND_OPT_LAST
 };
 
@@ -136,4 +137,6 @@ int bond_option_min_links_set(struct bonding *bond,
 			      struct bond_opt_value *newval);
 int bond_option_ad_select_set(struct bonding *bond,
 			      struct bond_opt_value *newval);
+int bond_option_num_peer_notif_set(struct bonding *bond,
+				   struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */
