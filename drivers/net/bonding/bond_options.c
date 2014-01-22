@@ -16,7 +16,6 @@
 #include <linux/netdevice.h>
 #include <linux/rwlock.h>
 #include <linux/rcupdate.h>
-#include <linux/reciprocal_div.h>
 #include "bonding.h"
 
 int bond_option_mode_set(struct bonding *bond, int mode)
@@ -671,11 +670,17 @@ int bond_option_packets_per_slave_set(struct bonding *bond,
 		pr_warn("%s: Warning: packets_per_slave has effect only in balance-rr mode\n",
 			bond->dev->name);
 
-	if (packets_per_slave > 1)
-		bond->params.packets_per_slave =
+	bond->params.packets_per_slave = packets_per_slave;
+	if (packets_per_slave > 0) {
+		bond->params.reciprocal_packets_per_slave =
 			reciprocal_value(packets_per_slave);
-	else
-		bond->params.packets_per_slave = packets_per_slave;
+	} else {
+		/* reciprocal_packets_per_slave is unused if
+		 * packets_per_slave is 0 or 1, just initialize it
+		 */
+		bond->params.reciprocal_packets_per_slave =
+			(struct reciprocal_value) { 0 };
+	}
 
 	return 0;
 }

@@ -79,7 +79,6 @@
 #include <net/pkt_sched.h>
 #include <linux/rculist.h>
 #include <net/flow_keys.h>
-#include <linux/reciprocal_div.h>
 #include "bonding.h"
 #include "bond_3ad.h"
 #include "bond_alb.h"
@@ -3596,8 +3595,9 @@ static void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int sl
  */
 static u32 bond_rr_gen_slave_id(struct bonding *bond)
 {
-	int packets_per_slave = bond->params.packets_per_slave;
 	u32 slave_id;
+	struct reciprocal_value reciprocal_packets_per_slave;
+	int packets_per_slave = bond->params.packets_per_slave;
 
 	switch (packets_per_slave) {
 	case 0:
@@ -3607,8 +3607,10 @@ static u32 bond_rr_gen_slave_id(struct bonding *bond)
 		slave_id = bond->rr_tx_counter;
 		break;
 	default:
+		reciprocal_packets_per_slave =
+			bond->params.reciprocal_packets_per_slave;
 		slave_id = reciprocal_divide(bond->rr_tx_counter,
-					     packets_per_slave);
+					     reciprocal_packets_per_slave);
 		break;
 	}
 	bond->rr_tx_counter++;
@@ -4343,10 +4345,18 @@ static int bond_check_params(struct bond_params *params)
 	params->resend_igmp = resend_igmp;
 	params->min_links = min_links;
 	params->lp_interval = lp_interval;
-	if (packets_per_slave > 1)
-		params->packets_per_slave = reciprocal_value(packets_per_slave);
-	else
-		params->packets_per_slave = packets_per_slave;
+	params->packets_per_slave = packets_per_slave;
+	if (packets_per_slave > 0) {
+		params->reciprocal_packets_per_slave =
+			reciprocal_value(packets_per_slave);
+	} else {
+		/* reciprocal_packets_per_slave is unused if
+		 * packets_per_slave is 0 or 1, just initialize it
+		 */
+		params->reciprocal_packets_per_slave =
+			(struct reciprocal_value) { 0 };
+	}
+
 	if (primary) {
 		strncpy(params->primary, primary, IFNAMSIZ);
 		params->primary[IFNAMSIZ - 1] = 0;

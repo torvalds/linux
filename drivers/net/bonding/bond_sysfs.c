@@ -39,7 +39,6 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <linux/nsproxy.h>
-#include <linux/reciprocal_div.h>
 
 #include "bonding.h"
 
@@ -1374,10 +1373,6 @@ static ssize_t bonding_show_packets_per_slave(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	unsigned int packets_per_slave = bond->params.packets_per_slave;
-
-	if (packets_per_slave > 1)
-		packets_per_slave = reciprocal_value(packets_per_slave);
-
 	return sprintf(buf, "%u\n", packets_per_slave);
 }
 
