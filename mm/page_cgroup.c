@@ -451,7 +451,7 @@ unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
  * lookup_swap_cgroup_id - lookup mem_cgroup id tied to swap entry
  * @ent: swap entry to be looked up.
  *
- * Returns CSS ID of mem_cgroup at success. 0 at failure. (0 is invalid ID)
+ * Returns ID of mem_cgroup at success. 0 at failure. (0 is invalid ID)
  */
 unsigned short lookup_swap_cgroup_id(swp_entry_t ent)
 {

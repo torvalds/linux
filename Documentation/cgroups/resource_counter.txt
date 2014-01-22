@@ -97,8 +97,8 @@ to work with it.
 		(struct res_counter *rc, struct res_counter *top,
 		 unsinged long val)
 
-	Almost same as res_cunter_uncharge() but propagation of uncharge
-	stops when rc == top. This is useful when kill a res_coutner in
+	Almost same as res_counter_uncharge() but propagation of uncharge
+	stops when rc == top. This is useful when kill a res_counter in
 	child cgroup.
 
  2.1 Other accounting routines
