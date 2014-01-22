@@ -1701,7 +1701,7 @@ static void e1000_clean_rx_ring(struct e1000_ring *rx_ring)
 	adapter->flags2 &= ~FLAG2_IS_DISCARDING;
 
 	writel(0, rx_ring->head);
-	if (rx_ring->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+	if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
 		e1000e_update_rdt_wa(rx_ring, 0);
 	else
 		writel(0, rx_ring->tail);
@@ -2405,7 +2405,7 @@ static void e1000_clean_tx_ring(struct e1000_ring *tx_ring)
 	tx_ring->next_to_clean = 0;
 
 	writel(0, tx_ring->head);
-	if (tx_ring->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+	if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
 		e1000e_update_tdt_wa(tx_ring, 0);
 	else
 		writel(0, tx_ring->tail);
