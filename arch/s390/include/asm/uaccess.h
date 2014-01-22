@@ -93,12 +93,12 @@ static inline unsigned long extable_fixup(const struct exception_table_entry *x)
 #define ARCH_HAS_SEARCH_EXTABLE
 
 struct uaccess_ops {
-	size_t (*copy_from_user)(size_t, const void __user *, void *);
-	size_t (*copy_to_user)(size_t, void __user *, const void *);
-	size_t (*copy_in_user)(size_t, void __user *, const void __user *);
-	size_t (*clear_user)(size_t, void __user *);
-	size_t (*strnlen_user)(size_t, const char __user *);
-	size_t (*strncpy_from_user)(size_t, const char __user *, char *);
+	size_t (*copy_from_user)(void *, const void __user *, size_t);
+	size_t (*copy_to_user)(void __user *, const void *, size_t);
+	size_t (*copy_in_user)(void __user *, const void __user *, size_t);
+	size_t (*clear_user)(void __user *, size_t);
+	size_t (*strnlen_user)(const char __user *, size_t);
+	size_t (*strncpy_from_user)(char *, const char __user *, size_t);
 	int (*futex_atomic_op)(int op, u32 __user *, int oparg, int *old);
 	int (*futex_atomic_cmpxchg)(u32 *, u32 __user *, u32 old, u32 new);
 };
@@ -109,15 +109,15 @@ extern struct uaccess_ops uaccess_pt;
 
 extern int __handle_fault(unsigned long, unsigned long, int);
 
-static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
+static inline int __put_user_fn(void *x, void __user *ptr, size_t size)
 {
-	size = uaccess.copy_to_user(size, ptr, x);
+	size = uaccess.copy_to_user(ptr, x, size);
 	return size ? -EFAULT : size;
 }
 
-static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
+static inline int __get_user_fn(void *x, const void __user *ptr, size_t size)
 {
-	size = uaccess.copy_from_user(size, ptr, x);
+	size = uaccess.copy_from_user(x, ptr, size);
 	return size ? -EFAULT : size;
 }
 
@@ -135,8 +135,8 @@ static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
 	case 2:							\
 	case 4:							\
 	case 8:							\
-		__pu_err = __put_user_fn(sizeof (*(ptr)),	\
-					 ptr, &__x);		\
+		__pu_err = __put_user_fn(&__x, ptr,		\
+					 sizeof(*(ptr)));	\
 		break;						\
 	default:						\
 		__put_user_bad();				\
@@ -161,29 +161,29 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 	switch (sizeof(*(ptr))) {				\
 	case 1: {						\
 		unsigned char __x;				\
-		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
-					 ptr, &__x);		\
+		__gu_err = __get_user_fn(&__x, ptr,		\
+					 sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 2: {						\
 		unsigned short __x;				\
-		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
-					 ptr, &__x);		\
+		__gu_err = __get_user_fn(&__x, ptr,		\
+					 sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 4: {						\
 		unsigned int __x;				\
-		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
-					 ptr, &__x);		\
+		__gu_err = __get_user_fn(&__x, ptr,		\
+					 sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 8: {						\
 		unsigned long long __x;				\
-		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
-					 ptr, &__x);		\
+		__gu_err = __get_user_fn(&__x, ptr,		\
+					 sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
@@ -222,7 +222,7 @@ extern int __get_user_bad(void) __attribute__((noreturn));
 static inline unsigned long __must_check
 __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	return uaccess.copy_to_user(n, to, from);
+	return uaccess.copy_to_user(to, from, n);
 }
 
 #define __copy_to_user_inatomic __copy_to_user
@@ -268,7 +268,7 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 static inline unsigned long __must_check
 __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	return uaccess.copy_from_user(n, from, to);
+	return uaccess.copy_from_user(to, from, n);
 }
 
 extern void copy_from_user_overflow(void)
@@ -309,7 +309,7 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 static inline unsigned long __must_check
 __copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
-	return uaccess.copy_in_user(n, to, from);
+	return uaccess.copy_in_user(to, from, n);
 }
 
 static inline unsigned long __must_check
@@ -326,14 +326,14 @@ static inline long __must_check
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	might_fault();
-	return uaccess.strncpy_from_user(count, src, dst);
+	return uaccess.strncpy_from_user(dst, src, count);
 }
 
 static inline unsigned long
 strnlen_user(const char __user * src, unsigned long n)
 {
 	might_fault();
-	return uaccess.strnlen_user(n, src);
+	return uaccess.strnlen_user(src, n);
 }
 
 /**
@@ -359,14 +359,14 @@ strnlen_user(const char __user * src, unsigned long n)
 static inline unsigned long __must_check
 __clear_user(void __user *to, unsigned long n)
 {
-	return uaccess.clear_user(n, to);
+	return uaccess.clear_user(to, n);
 }
 
 static inline unsigned long __must_check
 clear_user(void __user *to, unsigned long n)
 {
 	might_fault();
-	return uaccess.clear_user(n, to);
+	return uaccess.clear_user(to, n);
 }
 
 extern int copy_to_user_real(void __user *dest, void *src, size_t count);

@@ -26,7 +26,7 @@
 #define SLR	"slgr"
 #endif
 
-static size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
+static size_t copy_from_user_mvcos(void *x, const void __user *ptr, size_t size)
 {
 	register unsigned long reg0 asm("0") = 0x81UL;
 	unsigned long tmp1, tmp2;
@@ -65,7 +65,7 @@ static size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
 	return size;
 }
 
-static size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
+static size_t copy_to_user_mvcos(void __user *ptr, const void *x, size_t size)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
@@ -94,8 +94,8 @@ static size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
 	return size;
 }
 
-static size_t copy_in_user_mvcos(size_t size, void __user *to,
-				 const void __user *from)
+static size_t copy_in_user_mvcos(void __user *to, const void __user *from,
+				 size_t size)
 {
 	register unsigned long reg0 asm("0") = 0x810081UL;
 	unsigned long tmp1, tmp2;
@@ -117,7 +117,7 @@ static size_t copy_in_user_mvcos(size_t size, void __user *to,
 	return size;
 }
 
-static size_t clear_user_mvcos(size_t size, void __user *to)
+static size_t clear_user_mvcos(void __user *to, size_t size)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
@@ -145,7 +145,7 @@ static size_t clear_user_mvcos(size_t size, void __user *to)
 	return size;
 }
 
-static size_t strnlen_user_mvcos(size_t count, const char __user *src)
+static size_t strnlen_user_mvcos(const char __user *src, size_t count)
 {
 	size_t done, len, offset, len_str;
 	char buf[256];
@@ -155,7 +155,7 @@ static size_t strnlen_user_mvcos(size_t count, const char __user *src)
 		offset = (size_t)src & ~PAGE_MASK;
 		len = min(256UL, PAGE_SIZE - offset);
 		len = min(count - done, len);
-		if (copy_from_user_mvcos(len, src, buf))
+		if (copy_from_user_mvcos(buf, src, len))
 			return 0;
 		len_str = strnlen(buf, len);
 		done += len_str;
@@ -164,8 +164,8 @@ static size_t strnlen_user_mvcos(size_t count, const char __user *src)
 	return done + 1;
 }
 
-static size_t strncpy_from_user_mvcos(size_t count, const char __user *src,
-				      char *dst)
+static size_t strncpy_from_user_mvcos(char *dst, const char __user *src,
+				      size_t count)
 {
 	size_t done, len, offset, len_str;
 
@@ -175,7 +175,7 @@ static size_t strncpy_from_user_mvcos(size_t count, const char __user *src,
 	do {
 		offset = (size_t)src & ~PAGE_MASK;
 		len = min(count - done, PAGE_SIZE - offset);
-		if (copy_from_user_mvcos(len, src, dst))
+		if (copy_from_user_mvcos(dst, src, len))
 			return -EFAULT;
 		len_str = strnlen(dst, len);
 		done += len_str;
