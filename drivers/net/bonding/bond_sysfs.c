@@ -809,34 +809,14 @@ static ssize_t bonding_store_active_slave(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	int ret;
 	struct bonding *bond = to_bond(d);
-	char ifname[IFNAMSIZ];
-	struct net_device *dev;
+	int ret;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
-	if (!strlen(ifname) || buf[0] == '\n') {
-		dev = NULL;
-	} else {
-		dev = __dev_get_by_name(dev_net(bond->dev), ifname);
-		if (!dev) {
-			ret = -ENODEV;
-			goto out;
-		}
-	}
-
-	ret = bond_option_active_slave_set(bond, dev);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_ACTIVE_SLAVE, (char *)buf);
 	if (!ret)
 		ret = count;
 
- out:
-	rtnl_unlock();
-
 	return ret;
-
 }
 static DEVICE_ATTR(active_slave, S_IRUGO | S_IWUSR,
 		   bonding_show_active_slave, bonding_store_active_slave);

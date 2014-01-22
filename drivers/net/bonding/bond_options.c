@@ -244,6 +244,16 @@ static struct bond_option bond_opts[] = {
 		.values = bond_use_carrier_tbl,
 		.set = bond_option_use_carrier_set
 	},
+	[BOND_OPT_ACTIVE_SLAVE] = {
+		.id = BOND_OPT_ACTIVE_SLAVE,
+		.name = "active_slave",
+		.desc = "Currently active slave",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ACTIVEBACKUP) |
+						BIT(BOND_MODE_TLB) |
+						BIT(BOND_MODE_ALB)),
+		.set = bond_option_active_slave_set
+	},
 	{ }
 };
 
@@ -556,9 +566,20 @@ struct net_device *bond_option_active_slave_get(struct bonding *bond)
 }
 
 int bond_option_active_slave_set(struct bonding *bond,
-				 struct net_device *slave_dev)
+				 struct bond_opt_value *newval)
 {
+	char ifname[IFNAMSIZ] = { 0, };
+	struct net_device *slave_dev;
 	int ret = 0;
+
+	sscanf(newval->string, "%15s", ifname); /* IFNAMSIZ */
+	if (!strlen(ifname) || newval->string[0] == '\n') {
+		slave_dev = NULL;
+	} else {
+		slave_dev = __dev_get_by_name(dev_net(bond->dev), ifname);
+		if (!slave_dev)
+			return -ENODEV;
+	}
 
 	if (slave_dev) {
 		if (!netif_is_bond_slave(slave_dev)) {
@@ -572,12 +593,6 @@ int bond_option_active_slave_set(struct bonding *bond,
 			       bond->dev->name, slave_dev->name);
 			return -EINVAL;
 		}
-	}
-
-	if (!USES_PRIMARY(bond->params.mode)) {
-		pr_err("%s: Unable to change active slave; %s is in mode %d\n",
-		       bond->dev->name, bond->dev->name, bond->params.mode);
-		return -EINVAL;
 	}
 
 	block_netpoll_tx();
@@ -616,6 +631,7 @@ int bond_option_active_slave_set(struct bonding *bond,
 
 	write_unlock_bh(&bond->curr_slave_lock);
 	unblock_netpoll_tx();
+
 	return ret;
 }
 

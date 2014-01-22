@@ -116,16 +116,17 @@ static int bond_changelink(struct net_device *bond_dev,
 	if (data[IFLA_BOND_ACTIVE_SLAVE]) {
 		int ifindex = nla_get_u32(data[IFLA_BOND_ACTIVE_SLAVE]);
 		struct net_device *slave_dev;
+		char *active_slave = "";
 
-		if (ifindex == 0) {
-			slave_dev = NULL;
-		} else {
+		if (ifindex != 0) {
 			slave_dev = __dev_get_by_index(dev_net(bond_dev),
 						       ifindex);
 			if (!slave_dev)
 				return -ENODEV;
+			active_slave = slave_dev->name;
 		}
-		err = bond_option_active_slave_set(bond, slave_dev);
+		bond_opt_initstr(&newval, active_slave);
+		err = __bond_opt_set(bond, BOND_OPT_ACTIVE_SLAVE, &newval);
 		if (err)
 			return err;
 	}
