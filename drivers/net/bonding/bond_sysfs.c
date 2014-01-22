@@ -357,10 +357,12 @@ static ssize_t bonding_show_arp_all_targets(struct device *d,
 					 char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	int value = bond->params.arp_all_targets;
+	struct bond_opt_value *val;
 
-	return sprintf(buf, "%s %d\n", arp_all_targets_tbl[value].modename,
-		       value);
+	val = bond_opt_get_val(BOND_OPT_ARP_ALL_TARGETS,
+			       bond->params.arp_all_targets);
+	return sprintf(buf, "%s %d\n",
+		       val->string, bond->params.arp_all_targets);
 }
 
 static ssize_t bonding_store_arp_all_targets(struct device *d,
@@ -368,23 +370,11 @@ static ssize_t bonding_store_arp_all_targets(struct device *d,
 					  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret;
+	int ret;
 
-	new_value = bond_parse_parm(buf, arp_all_targets_tbl);
-	if (new_value < 0) {
-		pr_err("%s: Ignoring invalid arp_all_targets value %s\n",
-		       bond->dev->name, buf);
-		return -EINVAL;
-	}
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_arp_all_targets_set(bond, new_value);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_ARP_ALL_TARGETS, (char *)buf);
 	if (!ret)
 		ret = count;
-
-	rtnl_unlock();
 
 	return ret;
 }

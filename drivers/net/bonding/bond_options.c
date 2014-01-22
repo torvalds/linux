@@ -53,6 +53,12 @@ static struct bond_opt_value bond_arp_validate_tbl[] = {
 	{ NULL,     -1,                       0},
 };
 
+static struct bond_opt_value bond_arp_all_targets_tbl[] = {
+	{ "any", BOND_ARP_TARGETS_ANY, BOND_VALFLAG_DEFAULT},
+	{ "all", BOND_ARP_TARGETS_ALL, 0},
+	{ NULL,  -1,                   0},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -84,6 +90,13 @@ static struct bond_option bond_opts[] = {
 		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ACTIVEBACKUP)),
 		.values = bond_arp_validate_tbl,
 		.set = bond_option_arp_validate_set
+	},
+	[BOND_OPT_ARP_ALL_TARGETS] = {
+		.id = BOND_OPT_ARP_ALL_TARGETS,
+		.name = "arp_all_targets",
+		.desc = "fail on any/all arp targets timeout",
+		.values = bond_arp_all_targets_tbl,
+		.set = bond_option_arp_all_targets_set
 	},
 	{ }
 };
@@ -767,19 +780,12 @@ int bond_option_arp_validate_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_arp_all_targets_set(struct bonding *bond, int arp_all_targets)
+int bond_option_arp_all_targets_set(struct bonding *bond,
+				    struct bond_opt_value *newval)
 {
-	if (bond_parm_tbl_lookup(arp_all_targets, arp_all_targets_tbl) < 0) {
-		pr_err("%s: Ignoring invalid arp_all_targets value %d.\n",
-		       bond->dev->name, arp_all_targets);
-		return -EINVAL;
-	}
-
-	pr_info("%s: setting arp_all_targets to %s (%d).\n",
-		bond->dev->name, arp_all_targets_tbl[arp_all_targets].modename,
-		arp_all_targets);
-
-	bond->params.arp_all_targets = arp_all_targets;
+	pr_info("%s: setting arp_all_targets to %s (%llu).\n",
+		bond->dev->name, newval->string, newval->value);
+	bond->params.arp_all_targets = newval->value;
 
 	return 0;
 }

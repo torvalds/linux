@@ -202,7 +202,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int arp_all_targets =
 			nla_get_u32(data[IFLA_BOND_ARP_ALL_TARGETS]);
 
-		err = bond_option_arp_all_targets_set(bond, arp_all_targets);
+		bond_opt_initval(&newval, arp_all_targets);
+		err = __bond_opt_set(bond, BOND_OPT_ARP_ALL_TARGETS, &newval);
 		if (err)
 			return err;
 	}
