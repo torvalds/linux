@@ -844,6 +844,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_PROAPTIV;
 		__cpu_name[cpu] = "MIPS proAptiv (multi)";
 		break;
+	case PRID_IMP_P5600:
+		c->cputype = CPU_P5600;
+		__cpu_name[cpu] = "MIPS P5600";
+		break;
 	}
 
 	decode_configs(c);
