@@ -139,7 +139,7 @@ static int imx1_read_2bit(struct imx1_pinctrl *ipctl, unsigned int pin_id,
 		u32 reg_offset)
 {
 	void __iomem *reg = imx1_mem(ipctl, pin_id) + reg_offset;
-	int offset = pin_id % 16;
+	int offset = (pin_id % 16) * 2;
 
 	/* Use the next register if the pin's port pin number is >=16 */
 	if (pin_id % 32 >= 16)
