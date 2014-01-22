@@ -98,6 +98,7 @@ static int bond_changelink(struct net_device *bond_dev,
 			   struct nlattr *tb[], struct nlattr *data[])
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct bond_opt_value newval;
 	int miimon = 0;
 	int err;
 
@@ -107,7 +108,8 @@ static int bond_changelink(struct net_device *bond_dev,
 	if (data[IFLA_BOND_MODE]) {
 		int mode = nla_get_u8(data[IFLA_BOND_MODE]);
 
-		err = bond_option_mode_set(bond, mode);
+		bond_opt_initval(&newval, mode);
+		err = __bond_opt_set(bond, BOND_OPT_MODE, &newval);
 		if (err)
 			return err;
 	}

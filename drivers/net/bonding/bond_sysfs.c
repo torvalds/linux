@@ -263,37 +263,24 @@ static ssize_t bonding_show_mode(struct device *d,
 				 struct device_attribute *attr, char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	struct bond_opt_value *val;
 
-	return sprintf(buf, "%s %d\n",
-			bond_mode_tbl[bond->params.mode].modename,
-			bond->params.mode);
+	val = bond_opt_get_val(BOND_OPT_MODE, bond->params.mode);
+
+	return sprintf(buf, "%s %d\n", val->string, bond->params.mode);
 }
 
 static ssize_t bonding_store_mode(struct device *d,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	int new_value, ret;
 	struct bonding *bond = to_bond(d);
+	int ret;
 
-	new_value = bond_parse_parm(buf, bond_mode_tbl);
-	if (new_value < 0)  {
-		pr_err("%s: Ignoring invalid mode value %.*s.\n",
-		       bond->dev->name, (int)strlen(buf) - 1, buf);
-		return -EINVAL;
-	}
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_mode_set(bond, new_value);
-	if (!ret) {
-		pr_info("%s: setting mode to %s (%d).\n",
-			bond->dev->name, bond_mode_tbl[new_value].modename,
-			new_value);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_MODE, (char *)buf);
+	if (!ret)
 		ret = count;
-	}
 
-	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(mode, S_IRUGO | S_IWUSR,

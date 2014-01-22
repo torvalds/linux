@@ -214,17 +214,6 @@ const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	NULL,		-1},
 };
 
-const struct bond_parm_tbl bond_mode_tbl[] = {
-{	"balance-rr",		BOND_MODE_ROUNDROBIN},
-{	"active-backup",	BOND_MODE_ACTIVEBACKUP},
-{	"balance-xor",		BOND_MODE_XOR},
-{	"broadcast",		BOND_MODE_BROADCAST},
-{	"802.3ad",		BOND_MODE_8023AD},
-{	"balance-tlb",		BOND_MODE_TLB},
-{	"balance-alb",		BOND_MODE_ALB},
-{	NULL,			-1},
-};
-
 const struct bond_parm_tbl xmit_hashtype_tbl[] = {
 {	"layer2",		BOND_XMIT_POLICY_LAYER2},
 {	"layer3+4",		BOND_XMIT_POLICY_LAYER34},
@@ -4028,18 +4017,20 @@ int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 static int bond_check_params(struct bond_params *params)
 {
 	int arp_validate_value, fail_over_mac_value, primary_reselect_value, i;
+	struct bond_opt_value newval, *valptr;
 	int arp_all_targets_value;
 
 	/*
 	 * Convert string parameters.
 	 */
 	if (mode) {
-		bond_mode = bond_parse_parm(mode, bond_mode_tbl);
-		if (bond_mode == -1) {
-			pr_err("Error: Invalid bonding mode \"%s\"\n",
-			       mode == NULL ? "NULL" : mode);
+		bond_opt_initstr(&newval, mode);
+		valptr = bond_opt_parse(bond_opt_get(BOND_OPT_MODE), &newval);
+		if (!valptr) {
+			pr_err("Error: Invalid bonding mode \"%s\"\n", mode);
 			return -EINVAL;
 		}
+		bond_mode = valptr->value;
 	}
 
 	if (xmit_hash_policy) {

@@ -38,6 +38,7 @@ enum {
 
 /* Option IDs, their bit positions correspond to their IDs */
 enum {
+	BOND_OPT_MODE,
 	BOND_OPT_LAST
 };
 
@@ -97,4 +98,6 @@ static inline void __bond_opt_init(struct bond_opt_value *optval,
 }
 #define bond_opt_initval(optval, value) __bond_opt_init(optval, NULL, value)
 #define bond_opt_initstr(optval, str) __bond_opt_init(optval, str, ULLONG_MAX)
+
+int bond_option_mode_set(struct bonding *bond, struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */

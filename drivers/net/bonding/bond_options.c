@@ -19,7 +19,26 @@
 #include <linux/ctype.h>
 #include "bonding.h"
 
+static struct bond_opt_value bond_mode_tbl[] = {
+	{ "balance-rr",    BOND_MODE_ROUNDROBIN,   BOND_VALFLAG_DEFAULT},
+	{ "active-backup", BOND_MODE_ACTIVEBACKUP, 0},
+	{ "balance-xor",   BOND_MODE_XOR,          0},
+	{ "broadcast",     BOND_MODE_BROADCAST,    0},
+	{ "802.3ad",       BOND_MODE_8023AD,       0},
+	{ "balance-tlb",   BOND_MODE_TLB,          0},
+	{ "balance-alb",   BOND_MODE_ALB,          0},
+	{ NULL,            -1,                     0},
+};
+
 static struct bond_option bond_opts[] = {
+	[BOND_OPT_MODE] = {
+		.id = BOND_OPT_MODE,
+		.name = "mode",
+		.desc = "bond device mode",
+		.flags = BOND_OPTFLAG_NOSLAVES | BOND_OPTFLAG_IFDOWN,
+		.values = bond_mode_tbl,
+		.set = bond_option_mode_set
+	},
 	{ }
 };
 
@@ -160,12 +179,15 @@ static int bond_opt_check_deps(struct bonding *bond,
 static void bond_opt_dep_print(struct bonding *bond,
 			       const struct bond_option *opt)
 {
+	struct bond_opt_value *modeval;
 	struct bond_params *params;
 
 	params = &bond->params;
+	modeval = bond_opt_get_val(BOND_OPT_MODE, params->mode);
 	if (test_bit(params->mode, &opt->unsuppmodes))
-		pr_err("%s: option %s: mode dependency failed\n",
-		       bond->dev->name, opt->name);
+		pr_err("%s: option %s: mode dependency failed, not supported in mode %s(%llu)\n",
+		       bond->dev->name, opt->name,
+		       modeval->string, modeval->value);
 }
 
 static void bond_opt_error_interpret(struct bonding *bond,
@@ -290,29 +312,11 @@ struct bond_option *bond_opt_get(unsigned int option)
 	return &bond_opts[option];
 }
 
-int bond_option_mode_set(struct bonding *bond, int mode)
+int bond_option_mode_set(struct bonding *bond, struct bond_opt_value *newval)
 {
-	if (bond_parm_tbl_lookup(mode, bond_mode_tbl) < 0) {
-		pr_err("%s: Ignoring invalid mode value %d.\n",
-		       bond->dev->name, mode);
-		return -EINVAL;
-	}
-
-	if (bond->dev->flags & IFF_UP) {
-		pr_err("%s: unable to update mode because interface is up.\n",
-		       bond->dev->name);
-		return -EPERM;
-	}
-
-	if (bond_has_slaves(bond)) {
-		pr_err("%s: unable to update mode because bond has slaves.\n",
-			bond->dev->name);
-		return -EPERM;
-	}
-
-	if (BOND_NO_USES_ARP(mode) && bond->params.arp_interval) {
+	if (BOND_NO_USES_ARP(newval->value) && bond->params.arp_interval) {
 		pr_info("%s: %s mode is incompatible with arp monitoring, start mii monitoring\n",
-			bond->dev->name, bond_mode_tbl[mode].modename);
+			bond->dev->name, newval->string);
 		/* disable arp monitoring */
 		bond->params.arp_interval = 0;
 		/* set miimon to default value */
@@ -323,7 +327,8 @@ int bond_option_mode_set(struct bonding *bond, int mode)
 
 	/* don't cache arp_validate between modes */
 	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
-	bond->params.mode = mode;
+	bond->params.mode = newval->value;
+
 	return 0;
 }
 
