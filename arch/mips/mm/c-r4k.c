@@ -1115,6 +1115,7 @@ static void probe_pcache(void)
 	case CPU_1004K:
 	case CPU_1074K:
 	case CPU_INTERAPTIV:
+	case CPU_P5600:
 	case CPU_PROAPTIV:
 		if ((c->cputype == CPU_74K) || (c->cputype == CPU_1074K))
 			alias_74k_erratum(c);
