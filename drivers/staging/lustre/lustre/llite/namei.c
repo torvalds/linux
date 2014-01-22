@@ -400,11 +400,16 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 {
 	struct dentry *new;
+	int rc;
 
 	if (inode) {
 		new = ll_find_alias(inode, de);
 		if (new) {
-			ll_dops_init(new, 1, 1);
+			rc = ll_d_init(new);
+			if (rc < 0) {
+				dput(new);
+				return ERR_PTR(rc);
+			}
 			d_move(new, de);
 			iput(inode);
 			CDEBUG(D_DENTRY,
@@ -413,8 +418,9 @@ struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 			return new;
 		}
 	}
-	ll_dops_init(de, 1, 1);
-	__d_lustre_invalidate(de);
+	rc = ll_d_init(de);
+	if (rc < 0)
+		return ERR_PTR(rc);
 	d_add(de, inode);
 	CDEBUG(D_DENTRY, "Add dentry %p inode %p refc %d flags %#x\n",
 	       de, de->d_inode, d_count(de), de->d_flags);
@@ -455,8 +461,11 @@ int ll_lookup_it_finish(struct ptlrpc_request *request,
 	/* Only hash *de if it is unhashed (new dentry).
 	 * Atoimc_open may passin hashed dentries for open.
 	 */
-	if (d_unhashed(*de))
+	if (d_unhashed(*de)) {
 		*de = ll_splice_alias(inode, *de);
+		if (IS_ERR(*de))
+			return PTR_ERR(*de);
+	}
 
 	if (!it_disposition(it, DISP_LOOKUP_NEG)) {
 		/* we have lookup look - unhide dentry */
@@ -504,16 +513,6 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 		CERROR("Tell Peter, lookup on mtpt, it %s\n", LL_IT2STR(it));
 
 	ll_frob_intent(&it, &lookup_it);
-
-	/* As do_lookup is called before follow_mount, root dentry may be left
-	 * not valid, revalidate it here. */
-	if (parent->i_sb->s_root && (parent->i_sb->s_root->d_inode == parent) &&
-	    (it->it_op & (IT_OPEN | IT_CREAT))) {
-		rc = ll_inode_revalidate_it(parent->i_sb->s_root, it,
-					    MDS_INODELOCK_LOOKUP);
-		if (rc)
-			return ERR_PTR(rc);
-	}
 
 	if (it->it_op == IT_GETATTR) {
 		rc = ll_statahead_enter(parent, &dentry, 0);
@@ -585,7 +584,6 @@ static struct dentry *ll_lookup_nd(struct inode *parent, struct dentry *dentry,
 
 	/* Optimize away (CREATE && !OPEN). Let .create handle the race. */
 	if ((flags & LOOKUP_CREATE ) && !(flags & LOOKUP_OPEN)) {
-		ll_dops_init(dentry, 1, 1);
 		__d_lustre_invalidate(dentry);
 		d_add(dentry, NULL);
 		return NULL;

@@ -877,9 +877,6 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	if (d_mountpoint(dentry))
 		return 1;
 
-	if (unlikely(dentry == dentry->d_sb->s_root))
-		return 1;
-
 	entry->se_inode = igrab(inode);
 	rc = md_revalidate_lock(ll_i2mdexp(dir), &it, ll_inode2fid(inode),NULL);
 	if (rc == 1) {
@@ -1590,6 +1587,10 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 				if ((*dentryp)->d_inode == NULL) {
 					*dentryp = ll_splice_alias(inode,
 								   *dentryp);
+					if (IS_ERR(*dentryp)) {
+						ll_sai_unplug(sai, entry);
+						return PTR_ERR(*dentryp);
+					}
 				} else if ((*dentryp)->d_inode != inode) {
 					/* revalidate, but inode is recreated */
 					CDEBUG(D_READA,

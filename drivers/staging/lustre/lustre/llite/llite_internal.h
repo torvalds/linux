@@ -828,7 +828,7 @@ int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 
 /* llite/dcache.c */
 
-int ll_dops_init(struct dentry *de, int block, int init_sa);
+int ll_d_init(struct dentry *de);
 extern struct dentry_operations ll_d_ops;
 void ll_intent_drop_lock(struct lookup_intent *);
 void ll_intent_release(struct lookup_intent *);
@@ -1320,7 +1320,8 @@ ll_statahead_mark(struct inode *dir, struct dentry *dentry)
 	if (lli->lli_opendir_pid != current_pid())
 		return;
 
-	if (sai != NULL && ldd != NULL)
+	LASSERT(ldd != NULL);
+	if (sai != NULL)
 		ldd->lld_sa_generation = sai->sai_generation;
 }
 

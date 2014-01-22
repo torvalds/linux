@@ -155,11 +155,6 @@ void ll_free_sbi(struct super_block *sb)
 	}
 }
 
-static struct dentry_operations ll_d_root_ops = {
-	.d_compare = ll_dcompare,
-	.d_revalidate = ll_revalidate_nd,
-};
-
 static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				    struct vfsmount *mnt)
 {
@@ -578,10 +573,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 			ll_get_fsname(sb, NULL, 0));
 		GOTO(out_root, err = -ENOMEM);
 	}
-
-	/* kernel >= 2.6.38 store dentry operations in sb->s_d_op. */
-	d_set_d_op(sb->s_root, &ll_d_root_ops);
-	sb->s_d_op = &ll_d_ops;
 
 	sbi->ll_sdev_orig = sb->s_dev;
 
@@ -1013,6 +1004,8 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 		GOTO(out_free, err);
 
 	sb->s_bdi = &lsi->lsi_bdi;
+	/* kernel >= 2.6.38 store dentry operations in sb->s_d_op. */
+	sb->s_d_op = &ll_d_ops;
 
 	/* Generate a string unique to this super, in case some joker tries
 	   to mount the same fs at two mount points.
