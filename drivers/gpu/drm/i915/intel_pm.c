@@ -4657,11 +4657,18 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 {
 	uint32_t reg = I915_READ(GEN7_FF_THREAD_MODE);
 
+	/*
+	 * WaVSThreadDispatchOverride:ivb,hsw
+	 *
+	 * This actually overrides the dispatch
+	 * mode for all thread types.
+	 */
 	reg &= ~GEN7_FF_SCHED_MASK;
 	reg |= GEN7_FF_TS_SCHED_HW;
 	reg |= GEN7_FF_VS_SCHED_HW;
 	reg |= GEN7_FF_DS_SCHED_HW;
 
+	/* WaVSRefCountFullforceMissDisable:hsw */
 	if (IS_HASWELL(dev_priv->dev))
 		reg &= ~GEN7_FF_VS_REF_CNT_FFME;
 
@@ -4775,7 +4782,6 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 			I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 			GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
 
-	/* WaVSRefCountFullforceMissDisable:hsw */
 	gen7_setup_fixed_func_scheduler(dev_priv);
 
 	/* WaDisable4x2SubspanOptimization:hsw */
@@ -4853,7 +4859,6 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 
 	g4x_disable_trickle_feed(dev);
 
-	/* WaVSRefCountFullforceMissDisable:ivb */
 	gen7_setup_fixed_func_scheduler(dev_priv);
 
 	/* WaDisable4x2SubspanOptimization:ivb */
