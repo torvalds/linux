@@ -206,7 +206,7 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
 		if (WARN_ON(!rdev->scan_req->notified))
 			rdev->scan_req->aborted = true;
-		___cfg80211_scan_done(rdev);
+		___cfg80211_scan_done(rdev, false);
 	}
 }
 
@@ -862,7 +862,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
 			if (WARN_ON(!rdev->scan_req->notified))
 				rdev->scan_req->aborted = true;
-			___cfg80211_scan_done(rdev);
+			___cfg80211_scan_done(rdev, false);
 		}
 
 		if (WARN_ON(rdev->sched_scan_req &&
