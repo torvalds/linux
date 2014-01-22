@@ -4658,7 +4658,7 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	uint32_t reg = I915_READ(GEN7_FF_THREAD_MODE);
 
 	/*
-	 * WaVSThreadDispatchOverride:ivb
+	 * WaVSThreadDispatchOverride:ivb,vlv
 	 *
 	 * This actually overrides the dispatch
 	 * mode for all thread types.
@@ -4930,6 +4930,8 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
 		   I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 		   GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
+
+	gen7_setup_fixed_func_scheduler(dev_priv);
 
 	/*
 	 * According to the spec, bit 13 (RCZUNIT) must be set on IVB.
