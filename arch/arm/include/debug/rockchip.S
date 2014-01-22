@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ROCKCHIP, Inc.
+ * Copyright (C) 2013-2014 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -12,11 +12,20 @@
  *
  */
 
+#include <../mach-rockchip/iomap.h>
 #define UART_SHIFT 2
 
 	.macro addruart, rp, rv, tmp
-		ldr	\rp, = 0x20064000
-		ldr	\rv, = 0xfed64000
+		mrc	p15, 0, \tmp, c0, c0, 0
+		ldr	\rv, = 0x413fc090
+		cmp	\tmp, \rv
+		ldreq	\rp, = RK3188_UART2_PHYS
+		ldrne	\rp, = RK3288_UART_DBG_PHYS
+		ldr	\rv, = 0xff000000
+		mov	\tmp, \rp
+		bic	\tmp, \tmp, #0xff000000
+		bic	\tmp, \tmp, #0x00f00000
+		add	\rv, \rv, \tmp
 	.endm
 
 #include "8250_32.S"

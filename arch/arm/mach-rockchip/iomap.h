@@ -1,7 +1,9 @@
 #ifndef __MACH_ROCKCHIP_IOMAP_H
 #define __MACH_ROCKCHIP_IOMAP_H
 
+#ifndef __ASSEMBLY__
 #include <asm/io.h>
+#endif
 
 #define RK_IO_ADDRESS(x)        IOMEM(0xFED00000 + x)
 
@@ -45,5 +47,12 @@
 #define RK3188_UART2_PHYS       0x20064000
 #define RK3188_UART3_PHYS       0x20068000
 #define RK3188_UART_SIZE        SZ_4K
+
+#define RK3288_UART_BT_PHYS     0xff180000
+#define RK3288_UART_BB_PHYS     0xff190000
+#define RK3288_UART_DBG_PHYS    0xff690000
+#define RK3288_UART_GPS_PHYS    0xff1b0000
+#define RK3288_UART_EXP_PHYS    0xff1c0000
+#define RK3288_UART_SIZE        SZ_4K
 
 #endif

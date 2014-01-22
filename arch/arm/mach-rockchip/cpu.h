@@ -12,6 +12,7 @@ static inline bool cpu_is_rockchip(void) { return rockchip_soc_id; }
 #define ROCKCHIP_CPU_RK3066B    0x31680000
 #define ROCKCHIP_CPU_RK3188     0x31880000
 #define ROCKCHIP_CPU_RK319X     0x31900000
+#define ROCKCHIP_CPU_RK3288     0x32880000
 
 static inline bool cpu_is_rk2928(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK2928; }
 static inline bool cpu_is_rk3026(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3026; }
@@ -19,6 +20,7 @@ static inline bool cpu_is_rk30xx(void)  { return (rockchip_soc_id & ROCKCHIP_CPU
 static inline bool cpu_is_rk3066b(void) { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3066B; }
 static inline bool cpu_is_rk3188(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3188; }
 static inline bool cpu_is_rk319x(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK319X; }
+static inline bool cpu_is_rk3288(void)  { return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3288; }
 
 #define ROCKCHIP_SOC_RK2926     (ROCKCHIP_CPU_RK2928 | 0x00)
 #define ROCKCHIP_SOC_RK2928G    (ROCKCHIP_CPU_RK2928 | 0x01)
@@ -34,6 +36,7 @@ static inline bool cpu_is_rk319x(void)  { return (rockchip_soc_id & ROCKCHIP_CPU
 #define ROCKCHIP_SOC_RK3188     (ROCKCHIP_CPU_RK3188 | 0x00)
 #define ROCKCHIP_SOC_RK3188PLUS (ROCKCHIP_CPU_RK3188 | 0x10)
 #define ROCKCHIP_SOC_RK3190     (ROCKCHIP_CPU_RK319X | 0x00)
+#define ROCKCHIP_SOC_RK3288     (ROCKCHIP_CPU_RK3288 | 0x00)
 
 static inline bool soc_is_rk2926(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK2926; }
 static inline bool soc_is_rk2928g(void) { return rockchip_soc_id == ROCKCHIP_SOC_RK2928G; }
@@ -49,5 +52,6 @@ static inline bool soc_is_rk3028(void)  { return rockchip_soc_id == ROCKCHIP_SOC
 static inline bool soc_is_rk3188(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3188; }
 static inline bool soc_is_rk3188plus(void) { return rockchip_soc_id == ROCKCHIP_SOC_RK3188PLUS; }
 static inline bool soc_is_rk3190(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3190; }
+static inline bool soc_is_rk3288(void)  { return rockchip_soc_id == ROCKCHIP_SOC_RK3288; }
 
 #endif
