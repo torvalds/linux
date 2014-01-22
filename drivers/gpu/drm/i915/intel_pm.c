@@ -4942,8 +4942,9 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_COMMON_SLICE_CHICKEN1,
 		   GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC);
 
-	/* WaApplyL3ControlAndL3ChickenMode:vlv */
+	/* WaDisableL3CacheAging:vlv */
 	I915_WRITE(GEN7_L3CNTLREG1, I915_READ(GEN7_L3CNTLREG1) | GEN7_L3AGDIS);
+	/* WaApplyL3ControlAndL3ChickenMode:vlv */
 	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER, GEN7_WA_L3_CHICKEN_MODE);
 
 	/* WaForceL3Serialization:vlv */
