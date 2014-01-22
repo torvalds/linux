@@ -310,7 +310,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int lacp_rate =
 			nla_get_u8(data[IFLA_BOND_AD_LACP_RATE]);
 
-		err = bond_option_lacp_rate_set(bond, lacp_rate);
+		bond_opt_initval(&newval, lacp_rate);
+		err = __bond_opt_set(bond, BOND_OPT_LACP_RATE, &newval);
 		if (err)
 			return err;
 	}

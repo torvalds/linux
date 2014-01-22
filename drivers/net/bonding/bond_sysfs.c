@@ -548,10 +548,11 @@ static ssize_t bonding_show_lacp(struct device *d,
 				 char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	struct bond_opt_value *val;
 
-	return sprintf(buf, "%s %d\n",
-		bond_lacp_tbl[bond->params.lacp_fast].modename,
-		bond->params.lacp_fast);
+	val = bond_opt_get_val(BOND_OPT_LACP_RATE, bond->params.lacp_fast);
+
+	return sprintf(buf, "%s %d\n", val->string, bond->params.lacp_fast);
 }
 
 static ssize_t bonding_store_lacp(struct device *d,
@@ -559,23 +560,12 @@ static ssize_t bonding_store_lacp(struct device *d,
 				  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret;
+	int ret;
 
-	new_value = bond_parse_parm(buf, bond_lacp_tbl);
-	if (new_value < 0) {
-		pr_err("%s: Ignoring invalid LACP rate value %.*s.\n",
-		       bond->dev->name, (int)strlen(buf) - 1, buf);
-		return -EINVAL;
-	}
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_lacp_rate_set(bond, new_value);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_LACP_RATE, (char *)buf);
 	if (!ret)
 		ret = count;
 
-	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR,

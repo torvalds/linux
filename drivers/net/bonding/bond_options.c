@@ -72,6 +72,12 @@ static struct bond_opt_value bond_intmax_tbl[] = {
 	{ "maxval",  INT_MAX, BOND_VALFLAG_MAX},
 };
 
+static struct bond_opt_value bond_lacp_rate_tbl[] = {
+	{ "slow", AD_LACP_SLOW, 0},
+	{ "fast", AD_LACP_FAST, 0},
+	{ NULL,   -1,           0},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -149,7 +155,15 @@ static struct bond_option bond_opts[] = {
 		.values = bond_intmax_tbl,
 		.set = bond_option_updelay_set
 	},
-
+	[BOND_OPT_LACP_RATE] = {
+		.id = BOND_OPT_LACP_RATE,
+		.name = "lacp_rate",
+		.desc = "LACPDU tx rate to request from 802.3ad partner",
+		.flags = BOND_OPTFLAG_IFDOWN,
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_8023AD)),
+		.values = bond_lacp_rate_tbl,
+		.set = bond_option_lacp_rate_set
+	},
 	{ }
 };
 
@@ -1015,31 +1029,13 @@ int bond_option_pps_set(struct bonding *bond, struct bond_opt_value *newval)
 	return 0;
 }
 
-int bond_option_lacp_rate_set(struct bonding *bond, int lacp_rate)
+int bond_option_lacp_rate_set(struct bonding *bond,
+			      struct bond_opt_value *newval)
 {
-	if (bond_parm_tbl_lookup(lacp_rate, bond_lacp_tbl) < 0) {
-		pr_err("%s: Ignoring invalid LACP rate value %d.\n",
-		       bond->dev->name, lacp_rate);
-		return -EINVAL;
-	}
-
-	if (bond->dev->flags & IFF_UP) {
-		pr_err("%s: Unable to update LACP rate because interface is up.\n",
-		       bond->dev->name);
-		return -EPERM;
-	}
-
-	if (bond->params.mode != BOND_MODE_8023AD) {
-		pr_err("%s: Unable to update LACP rate because bond is not in 802.3ad mode.\n",
-		       bond->dev->name);
-		return -EPERM;
-	}
-
-	bond->params.lacp_fast = lacp_rate;
+	pr_info("%s: Setting LACP rate to %s (%llu).\n",
+		bond->dev->name, newval->string, newval->value);
+	bond->params.lacp_fast = newval->value;
 	bond_3ad_update_lacp_rate(bond);
-	pr_info("%s: Setting LACP rate to %s (%d).\n",
-		bond->dev->name, bond_lacp_tbl[lacp_rate].modename,
-		lacp_rate);
 
 	return 0;
 }
