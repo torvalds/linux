@@ -256,11 +256,6 @@ static void __init armada_370_xp_timer_common_init(struct device_node *np)
 	ticks_per_jiffy = (timer_clk + HZ / 2) / HZ;
 
 	/*
-	 * Set scale and timer for sched_clock.
-	 */
-	sched_clock_register(armada_370_xp_read_sched_clock, 32, timer_clk);
-
-	/*
 	 * Setup free-running clocksource timer (interrupts
 	 * disabled).
 	 */
@@ -269,6 +264,11 @@ static void __init armada_370_xp_timer_common_init(struct device_node *np)
 
 	timer_ctrl_clrset(0, TIMER0_EN | TIMER0_RELOAD_EN |
 			     TIMER0_DIV(TIMER_DIVIDER_SHIFT));
+
+	/*
+	 * Set scale and timer for sched_clock.
+	 */
+	sched_clock_register(armada_370_xp_read_sched_clock, 32, timer_clk);
 
 	clocksource_mmio_init(timer_base + TIMER0_VAL_OFF,
 			      "armada_370_xp_clocksource",

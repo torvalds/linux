@@ -581,7 +581,8 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		unsigned long timeout;
 
 		/* Restart the AUTOCLOSE timer when sending data. */
-		if (sctp_state(asoc, ESTABLISHED) && asoc->autoclose) {
+		if (sctp_state(asoc, ESTABLISHED) &&
+		    asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE]) {
 			timer = &asoc->timers[SCTP_EVENT_TIMEOUT_AUTOCLOSE];
 			timeout = asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE];
 

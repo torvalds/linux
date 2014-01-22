@@ -78,6 +78,8 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	if (elems->mesh_chansw_params_ie) {
 		csa_ie->ttl = elems->mesh_chansw_params_ie->mesh_ttl;
 		csa_ie->mode = elems->mesh_chansw_params_ie->mesh_flags;
+		csa_ie->pre_value = le16_to_cpu(
+				elems->mesh_chansw_params_ie->mesh_pre_value);
 	}
 
 	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);

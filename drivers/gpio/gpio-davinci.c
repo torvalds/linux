@@ -327,7 +327,7 @@ static int gpio_to_irq_unbanked(struct gpio_chip *chip, unsigned offset)
 	 * NOTE:  we assume for now that only irqs in the first gpio_chip
 	 * can provide direct-mapped IRQs to AINTC (up to 32 GPIOs).
 	 */
-	if (offset < d->irq_base)
+	if (offset < d->gpio_unbanked)
 		return d->gpio_irq + offset;
 	else
 		return -ENODEV;
@@ -419,6 +419,8 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 
 		/* pass "bank 0" GPIO IRQs to AINTC */
 		chips[0].chip.to_irq = gpio_to_irq_unbanked;
+		chips[0].gpio_irq = bank_irq;
+		chips[0].gpio_unbanked = pdata->gpio_unbanked;
 		binten = BIT(0);
 
 		/* AINTC handles mask/unmask; GPIO handles triggering */

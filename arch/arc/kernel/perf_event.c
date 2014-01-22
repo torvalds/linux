@@ -79,9 +79,9 @@ static int arc_pmu_cache_event(u64 config)
 	cache_result	= (config >> 16) & 0xff;
 	if (cache_type >= PERF_COUNT_HW_CACHE_MAX)
 		return -EINVAL;
-	if (cache_type >= PERF_COUNT_HW_CACHE_OP_MAX)
+	if (cache_op >= PERF_COUNT_HW_CACHE_OP_MAX)
 		return -EINVAL;
-	if (cache_type >= PERF_COUNT_HW_CACHE_RESULT_MAX)
+	if (cache_result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
 		return -EINVAL;
 
 	ret = arc_pmu_cache_map[cache_type][cache_op][cache_result];

@@ -967,7 +967,7 @@ struct dmaengine_unmap_pool {
 #define __UNMAP_POOL(x) { .size = x, .name = "dmaengine-unmap-" __stringify(x) }
 static struct dmaengine_unmap_pool unmap_pool[] = {
 	__UNMAP_POOL(2),
-	#if IS_ENABLED(CONFIG_ASYNC_TX_DMA)
+	#if IS_ENABLED(CONFIG_DMA_ENGINE_RAID)
 	__UNMAP_POOL(16),
 	__UNMAP_POOL(128),
 	__UNMAP_POOL(256),
@@ -1109,7 +1109,7 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 	dma_cookie_t cookie;
 	unsigned long flags;
 
-	unmap = dmaengine_get_unmap_data(dev->dev, 2, GFP_NOIO);
+	unmap = dmaengine_get_unmap_data(dev->dev, 2, GFP_NOWAIT);
 	if (!unmap)
 		return -ENOMEM;
 

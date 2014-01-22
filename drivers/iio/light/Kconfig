@@ -43,6 +43,7 @@ config GP2AP020A00F
 	depends on I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	select IRQ_WORK
 	help
 	  Say Y here if you have a Sharp GP2AP020A00F proximity/ALS combo-chip
 	  hooked to an I2C bus.

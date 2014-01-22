@@ -173,28 +173,37 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 static void exynos_drm_preclose(struct drm_device *dev,
 					struct drm_file *file)
 {
-	struct exynos_drm_private *private = dev->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	unsigned long flags;
-
-	/* release events of current file */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	list_for_each_entry_safe(e, t, &private->pageflip_event_list,
-			base.link) {
-		if (e->base.file_priv == file) {
-			list_del(&e->base.link);
-			e->base.destroy(&e->base);
-		}
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
 	exynos_drm_subdrv_close(dev, file);
 }
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_pending_vblank_event *v, *vt;
+	struct drm_pending_event *e, *et;
+	unsigned long flags;
+
 	if (!file->driver_priv)
 		return;
+
+	/* Release all events not unhandled by page flip handler. */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	list_for_each_entry_safe(v, vt, &private->pageflip_event_list,
+			base.link) {
+		if (v->base.file_priv == file) {
+			list_del(&v->base.link);
+			drm_vblank_put(dev, v->pipe);
+			v->base.destroy(&v->base);
+		}
+	}
+
+	/* Release all events handled by page flip handler but not freed. */
+	list_for_each_entry_safe(e, et, &file->event_list, link) {
+		list_del(&e->link);
+		e->destroy(e);
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
 
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;

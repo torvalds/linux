@@ -239,7 +239,7 @@ static void s5p_mfc_handle_frame_copy_time(struct s5p_mfc_ctx *ctx)
 	frame_type = s5p_mfc_hw_call(dev->mfc_ops, get_dec_frame_type, dev);
 
 	/* Copy timestamp / timecode from decoded src to dst and set
-	   appropraite flags */
+	   appropriate flags */
 	src_buf = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	list_for_each_entry(dst_buf, &ctx->dst_queue, list) {
 		if (vb2_dma_contig_plane_dma_addr(dst_buf->b, 0) == dec_y_addr) {
@@ -428,7 +428,7 @@ static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
 		case MFCINST_FINISHING:
 		case MFCINST_FINISHED:
 		case MFCINST_RUNNING:
-			/* It is higly probable that an error occured
+			/* It is highly probable that an error occurred
 			 * while decoding a frame */
 			clear_work_bit(ctx);
 			ctx->state = MFCINST_ERROR;
@@ -611,7 +611,7 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	mfc_debug(1, "Int reason: %d (err: %08x)\n", reason, err);
 	switch (reason) {
 	case S5P_MFC_R2H_CMD_ERR_RET:
-		/* An error has occured */
+		/* An error has occurred */
 		if (ctx->state == MFCINST_RUNNING &&
 			s5p_mfc_hw_call(dev->mfc_ops, err_dec, err) >=
 				dev->warn_start)
@@ -840,7 +840,7 @@ static int s5p_mfc_open(struct file *file)
 	mutex_unlock(&dev->mfc_mutex);
 	mfc_debug_leave();
 	return ret;
-	/* Deinit when failure occured */
+	/* Deinit when failure occurred */
 err_queue_init:
 	if (dev->num_inst == 1)
 		s5p_mfc_deinit_hw(dev);
@@ -881,14 +881,14 @@ static int s5p_mfc_release(struct file *file)
 	/* Mark context as idle */
 	clear_work_bit_irqsave(ctx);
 	/* If instance was initialised then
-	 * return instance and free reosurces */
+	 * return instance and free resources */
 	if (ctx->inst_no != MFC_NO_INSTANCE_SET) {
 		mfc_debug(2, "Has to free instance\n");
 		ctx->state = MFCINST_RETURN_INST;
 		set_work_bit_irqsave(ctx);
 		s5p_mfc_clean_ctx_int_flags(ctx);
 		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
-		/* Wait until instance is returned or timeout occured */
+		/* Wait until instance is returned or timeout occurred */
 		if (s5p_mfc_wait_for_done_ctx
 		    (ctx, S5P_MFC_R2H_CMD_CLOSE_INSTANCE_RET, 0)) {
 			s5p_mfc_clock_off();

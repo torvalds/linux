@@ -1001,6 +1001,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 		}
 	}
 
+	platform_set_drvdata(op, pdev);
 	dev_info(pdev->device.dev, "initialized %d channels\n", dma_channels);
 	return 0;
 }

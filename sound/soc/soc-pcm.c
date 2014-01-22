@@ -600,12 +600,13 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = rtd->codec;
+	bool playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
 	/* apply codec digital mute */
-	if (!codec->active)
+	if ((playback && codec_dai->playback_active == 1) ||
+	    (!playback && codec_dai->capture_active == 1))
 		snd_soc_dai_digital_mute(codec_dai, 1, substream->stream);
 
 	/* free any machine hw params */

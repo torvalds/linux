@@ -2755,7 +2755,7 @@ static int resize_cache_dev(struct cache *cache, dm_cblock_t new_size)
 {
 	int r;
 
-	r = dm_cache_resize(cache->cmd, cache->cache_size);
+	r = dm_cache_resize(cache->cmd, new_size);
 	if (r) {
 		DMERR("could not resize cache metadata");
 		return r;

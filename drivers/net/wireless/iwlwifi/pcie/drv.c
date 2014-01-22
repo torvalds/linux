@@ -353,6 +353,27 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 
 /* 7265 Series */
 	{IWL_PCI_DEVICE(0x095A, 0x5010, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5110, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5310, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5302, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5210, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5012, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x500A, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5410, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x1010, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5000, iwl7265_2n_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5200, iwl7265_2n_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5002, iwl7265_n_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5202, iwl7265_n_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9010, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9210, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9410, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5020, iwl7265_2n_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x502A, iwl7265_2n_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5420, iwl7265_2n_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5090, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5290, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5490, iwl7265_2ac_cfg)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
