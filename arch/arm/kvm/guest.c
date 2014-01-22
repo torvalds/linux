@@ -38,6 +38,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
+	vcpu->arch.hcr = HCR_GUEST_MASK;
 	return 0;
 }
 

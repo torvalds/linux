@@ -597,17 +597,14 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 
 /* Enable/Disable: stage-2 trans., trap interrupts, trap wfi, trap smc */
 .macro configure_hyp_role operation
-	mrc	p15, 4, r2, c1, c1, 0	@ HCR
-	bic	r2, r2, #HCR_VIRT_EXCP_MASK
-	ldr	r3, =HCR_GUEST_MASK
 	.if \operation == vmentry
-	orr	r2, r2, r3
+	ldr	r2, [vcpu, #VCPU_HCR]
 	ldr	r3, [vcpu, #VCPU_IRQ_LINES]
 	orr	r2, r2, r3
 	.else
-	bic	r2, r2, r3
+	mov	r2, #0
 	.endif
-	mcr	p15, 4, r2, c1, c1, 0
+	mcr	p15, 4, r2, c1, c1, 0	@ HCR
 .endm
 
 .macro load_vcpu
