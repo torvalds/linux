@@ -521,7 +521,7 @@ send_to_lecd(struct lec_priv *priv, atmlec_msg_type type,
 	if (data != NULL)
 		mesg->sizeoftlvs = data->len;
 	if (mac_addr)
-		ether_addr_copy(&mesg->content.normal.mac_addr, mac_addr);
+		ether_addr_copy(mesg->content.normal.mac_addr, mac_addr);
 	else
 		mesg->content.normal.targetless_le_arp = 1;
 	if (atm_addr)
