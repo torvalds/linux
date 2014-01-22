@@ -140,8 +140,7 @@ static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_loc
 	if (err)
 		return err;
 
-	bi = machine__resolve_bstack(al->machine, al->thread,
-				     sample->branch_stack);
+	bi = sample__resolve_bstack(sample, al);
 	if (!bi)
 		return -ENOMEM;
 
