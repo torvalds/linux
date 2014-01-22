@@ -275,4 +275,4 @@ int __init init_ramfs_fs(void)
 
 	return err;
 }
-module_init(init_ramfs_fs)
+fs_initcall(init_ramfs_fs);

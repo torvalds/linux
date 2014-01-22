@@ -47,11 +47,9 @@ static inline void __get_page_tail_foll(struct page *page,
 	 * page_cache_get_speculative()) on tail pages.
 	 */
 	VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
-	VM_BUG_ON(atomic_read(&page->_count) != 0);
-	VM_BUG_ON(page_mapcount(page) < 0);
 	if (get_page_head)
 		atomic_inc(&page->first_page->_count);
-	atomic_inc(&page->_mapcount);
+	get_huge_page_tail(page);
 }
 
 /*
