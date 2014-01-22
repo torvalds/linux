@@ -135,6 +135,13 @@ static struct bond_option bond_opts[] = {
 		.flags = BOND_OPTFLAG_RAWVAL,
 		.set = bond_option_arp_ip_targets_set
 	},
+	[BOND_OPT_DOWNDELAY] = {
+		.id = BOND_OPT_DOWNDELAY,
+		.name = "downdelay",
+		.desc = "Delay before considering link down, in milliseconds",
+		.values = bond_intmax_tbl,
+		.set = bond_option_downdelay_set
+	},
 	{ }
 };
 
@@ -580,31 +587,25 @@ int bond_option_updelay_set(struct bonding *bond, int updelay)
 	return 0;
 }
 
-int bond_option_downdelay_set(struct bonding *bond, int downdelay)
+int bond_option_downdelay_set(struct bonding *bond,
+			      struct bond_opt_value *newval)
 {
-	if (!(bond->params.miimon)) {
+	if (!bond->params.miimon) {
 		pr_err("%s: Unable to set down delay as MII monitoring is disabled\n",
 		       bond->dev->name);
 		return -EPERM;
 	}
-
-	if (downdelay < 0) {
-		pr_err("%s: Invalid down delay value %d not in range %d-%d; rejected.\n",
-		       bond->dev->name, downdelay, 0, INT_MAX);
-		return -EINVAL;
-	} else {
-		if ((downdelay % bond->params.miimon) != 0) {
-			pr_warn("%s: Warning: down delay (%d) is not a multiple of miimon (%d), delay rounded to %d ms\n",
-				bond->dev->name, downdelay,
-				bond->params.miimon,
-				(downdelay / bond->params.miimon) *
-				bond->params.miimon);
-		}
-		bond->params.downdelay = downdelay / bond->params.miimon;
-		pr_info("%s: Setting down delay to %d.\n",
-			bond->dev->name,
-			bond->params.downdelay * bond->params.miimon);
+	if ((newval->value % bond->params.miimon) != 0) {
+		pr_warn("%s: Warning: down delay (%llu) is not a multiple of miimon (%d), delay rounded to %llu ms\n",
+			bond->dev->name, newval->value,
+			bond->params.miimon,
+			(newval->value / bond->params.miimon) *
+			bond->params.miimon);
 	}
+	bond->params.downdelay = newval->value / bond->params.miimon;
+	pr_info("%s: Setting down delay to %d.\n",
+		bond->dev->name,
+		bond->params.downdelay * bond->params.miimon);
 
 	return 0;
 }
