@@ -4608,12 +4608,10 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	 * According to the spec, bit 11 (RCCUNIT) must also be set,
 	 * but we didn't debug actual testcases to find it out.
 	 *
-	 * Also apply WaDisableVDSUnitClockGating:snb and
-	 * WaDisableRCCUnitClockGating:snb and
-	 * WaDisableRCPBUnitClockGating:snb.
+	 * WaDisableRCCUnitClockGating:snb
+	 * WaDisableRCPBUnitClockGating:snb
 	 */
 	I915_WRITE(GEN6_UCGCTL2,
-		   GEN7_VDSUNIT_CLOCK_GATE_DISABLE |
 		   GEN6_RCPBUNIT_CLOCK_GATE_DISABLE |
 		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
 
