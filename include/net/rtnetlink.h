@@ -79,6 +79,20 @@ struct rtnl_link_ops {
 					       const struct net_device *dev);
 	unsigned int		(*get_num_tx_queues)(void);
 	unsigned int		(*get_num_rx_queues)(void);
+
+	int			slave_maxtype;
+	const struct nla_policy	*slave_policy;
+	int			(*slave_validate)(struct nlattr *tb[],
+						  struct nlattr *data[]);
+	int			(*slave_changelink)(struct net_device *dev,
+						    struct net_device *slave_dev,
+						    struct nlattr *tb[],
+						    struct nlattr *data[]);
+	size_t			(*get_slave_size)(const struct net_device *dev,
+						  const struct net_device *slave_dev);
+	int			(*fill_slave_info)(struct sk_buff *skb,
+						   const struct net_device *dev,
+						   const struct net_device *slave_dev);
 };
 
 int __rtnl_link_register(struct rtnl_link_ops *ops);
