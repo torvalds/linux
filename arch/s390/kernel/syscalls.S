@@ -353,3 +353,5 @@ SYSCALL(sys_process_vm_writev,sys_process_vm_writev,compat_sys_process_vm_writev
 SYSCALL(sys_ni_syscall,sys_s390_runtime_instr,sys_s390_runtime_instr_wrapper)
 SYSCALL(sys_kcmp,sys_kcmp,sys_kcmp_wrapper)
 SYSCALL(sys_finit_module,sys_finit_module,sys_finit_module_wrapper)
+SYSCALL(sys_sched_setattr,sys_sched_setattr,sys_sched_setattr_wrapper) /* 345 */
+SYSCALL(sys_sched_getattr,sys_sched_getattr,sys_sched_getattr_wrapper)
