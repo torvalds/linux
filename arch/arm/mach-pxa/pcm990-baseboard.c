@@ -153,6 +153,7 @@ static struct platform_pwm_backlight_data pcm990_backlight_data = {
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
 	.pwm_period_ns	= 78770,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device pcm990_backlight_device = {

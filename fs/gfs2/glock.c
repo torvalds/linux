@@ -1899,7 +1899,8 @@ static int gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
 			gi->nhash = 0;
 		}
 	/* Skip entries for other sb and dead entries */
-	} while (gi->sdp != gi->gl->gl_sbd || __lockref_is_dead(&gl->gl_lockref));
+	} while (gi->sdp != gi->gl->gl_sbd ||
+		 __lockref_is_dead(&gi->gl->gl_lockref));
 
 	return 0;
 }

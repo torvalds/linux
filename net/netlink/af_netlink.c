@@ -2017,7 +2017,7 @@ out:
  * netlink_set_err - report error to broadcast listeners
  * @ssk: the kernel netlink socket, as returned by netlink_kernel_create()
  * @portid: the PORTID of a process that we want to skip (if any)
- * @groups: the broadcast group that will notice the error
+ * @group: the broadcast group that will notice the error
  * @code: error code, must be negative (as usual in kernelspace)
  *
  * This function returns the number of broadcast listeners that have set the
@@ -2334,8 +2334,6 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 			data_skb = skb_shinfo(skb)->frag_list;
 	}
 #endif
-
-	msg->msg_namelen = 0;
 
 	copied = data_skb->len;
 	if (len < copied) {

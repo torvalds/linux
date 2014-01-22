@@ -65,6 +65,9 @@ static struct acpi_scan_handler pci_root_handler = {
 	.ids = root_device_ids,
 	.attach = acpi_pci_root_add,
 	.detach = acpi_pci_root_remove,
+	.hotplug = {
+		.ignore = true,
+	},
 };
 
 static DEFINE_MUTEX(osc_lock);
@@ -575,6 +578,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		dev_err(&device->dev,
 			"Bus %04x:%02x not present in PCI namespace\n",
 			root->segment, (unsigned int)root->secondary.start);
+		device->driver_data = NULL;
 		result = -ENODEV;
 		goto end;
 	}

@@ -366,7 +366,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	dev_replace->tgtdev = tgt_device;
 
 	printk_in_rcu(KERN_INFO
-		      "btrfs: dev_replace from %s (devid %llu) to %s) started\n",
+		      "btrfs: dev_replace from %s (devid %llu) to %s started\n",
 		      src_device->missing ? "<missing disk>" :
 		        rcu_str_deref(src_device->name),
 		      src_device->devid,

@@ -160,6 +160,10 @@ enum v4l2_colorfx {
  * of controls. Total of 16 controls is reserved for this driver */
 #define V4L2_CID_USER_SI476X_BASE		(V4L2_CID_USER_BASE + 0x1040)
 
+/* The base for the TI VPE driver controls. Total of 16 controls is reserved for
+ * this driver */
+#define V4L2_CID_USER_TI_VPE_BASE		(V4L2_CID_USER_BASE + 0x1050)
+
 /* MPEG-class control IDs */
 /* The MPEG controls are applicable to all codec controls
  * and the 'MPEG' part of the define is historical */

@@ -53,6 +53,7 @@ static unsigned int omap_getspeed(unsigned int cpu)
 
 static int omap_target(struct cpufreq_policy *policy, unsigned int index)
 {
+	int r, ret;
 	struct dev_pm_opp *opp;
 	unsigned long freq, volt = 0, volt_old = 0, tol = 0;
 	unsigned int old_freq, new_freq;

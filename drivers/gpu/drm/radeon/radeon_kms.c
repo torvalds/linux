@@ -340,7 +340,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_BACKEND_MAP:
 		if (rdev->family >= CHIP_BONAIRE)
-			return -EINVAL;
+			*value = rdev->config.cik.backend_map;
 		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.backend_map;
 		else if (rdev->family >= CHIP_CAYMAN)
@@ -446,6 +446,15 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			value_size = sizeof(uint32_t)*32;
 		} else {
 			DRM_DEBUG_KMS("tile mode array is si+ only!\n");
+			return -EINVAL;
+		}
+		break;
+	case RADEON_INFO_CIK_MACROTILE_MODE_ARRAY:
+		if (rdev->family >= CHIP_BONAIRE) {
+			value = rdev->config.cik.macrotile_mode_array;
+			value_size = sizeof(uint32_t)*16;
+		} else {
+			DRM_DEBUG_KMS("macrotile mode array is cik+ only!\n");
 			return -EINVAL;
 		}
 		break;

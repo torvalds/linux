@@ -677,7 +677,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->tdev = ttm_object_device_init
-	    (dev_priv->mem_global_ref.object, 12);
+		(dev_priv->mem_global_ref.object, 12, &vmw_prime_dmabuf_ops);
 
 	if (unlikely(dev_priv->tdev == NULL)) {
 		DRM_ERROR("Unable to initialize TTM object management.\n");
@@ -1210,7 +1210,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	DRIVER_MODESET,
+	DRIVER_MODESET | DRIVER_PRIME,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
 	.lastclose = vmw_lastclose,
@@ -1234,6 +1234,9 @@ static struct drm_driver driver = {
 	.dumb_create = vmw_dumb_create,
 	.dumb_map_offset = vmw_dumb_map_offset,
 	.dumb_destroy = vmw_dumb_destroy,
+
+	.prime_fd_to_handle = vmw_prime_fd_to_handle,
+	.prime_handle_to_fd = vmw_prime_handle_to_fd,
 
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,

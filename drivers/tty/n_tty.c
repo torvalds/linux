@@ -768,7 +768,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 	 * data at the tail to prevent a subsequent overrun */
 	while (ldata->echo_commit - tail >= ECHO_DISCARD_WATERMARK) {
 		if (echo_buf(ldata, tail) == ECHO_OP_START) {
-			if (echo_buf(ldata, tail) == ECHO_OP_ERASE_TAB)
+			if (echo_buf(ldata, tail + 1) == ECHO_OP_ERASE_TAB)
 				tail += 3;
 			else
 				tail += 2;
@@ -810,7 +810,8 @@ static void process_echoes(struct tty_struct *tty)
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t echoed;
 
-	if (!L_ECHO(tty) || ldata->echo_commit == ldata->echo_tail)
+	if ((!L_ECHO(tty) && !L_ECHONL(tty)) ||
+	    ldata->echo_commit == ldata->echo_tail)
 		return;
 
 	mutex_lock(&ldata->output_lock);
@@ -825,7 +826,8 @@ static void flush_echoes(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	if (!L_ECHO(tty) || ldata->echo_commit == ldata->echo_head)
+	if ((!L_ECHO(tty) && !L_ECHONL(tty)) ||
+	    ldata->echo_commit == ldata->echo_head)
 		return;
 
 	mutex_lock(&ldata->output_lock);
@@ -1998,7 +2000,10 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 		found = 1;
 
 	size = N_TTY_BUF_SIZE - tail;
-	n = (found + eol + size) & (N_TTY_BUF_SIZE - 1);
+	n = eol - tail;
+	if (n > 4096)
+		n += 4096;
+	n += found;
 	c = n;
 
 	if (found && read_buf(ldata, eol) == __DISABLED_CHAR) {
@@ -2243,18 +2248,19 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		if (time)
 			timeout = time;
 	}
-	mutex_unlock(&ldata->atomic_read_lock);
-	remove_wait_queue(&tty->read_wait, &wait);
+	n_tty_set_room(tty);
+	up_read(&tty->termios_rwsem);
 
+	remove_wait_queue(&tty->read_wait, &wait);
 	if (!waitqueue_active(&tty->read_wait))
 		ldata->minimum_to_wake = minimum;
+
+	mutex_unlock(&ldata->atomic_read_lock);
 
 	__set_current_state(TASK_RUNNING);
 	if (b - buf)
 		retval = b - buf;
 
-	n_tty_set_room(tty);
-	up_read(&tty->termios_rwsem);
 	return retval;
 }
 

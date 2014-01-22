@@ -602,9 +602,8 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 
 		/* Create a symlink to domain objects */
 		resource->domain_devices[i] = NULL;
-		status = acpi_bus_get_device(element->reference.handle,
-					     &resource->domain_devices[i]);
-		if (ACPI_FAILURE(status))
+		if (acpi_bus_get_device(element->reference.handle,
+					&resource->domain_devices[i]))
 			continue;
 
 		obj = resource->domain_devices[i];

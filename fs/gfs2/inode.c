@@ -1171,8 +1171,11 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (d != NULL)
 		dentry = d;
 	if (dentry->d_inode) {
-		if (!(*opened & FILE_OPENED))
+		if (!(*opened & FILE_OPENED)) {
+			if (d == NULL)
+				dget(dentry);
 			return finish_no_open(file, dentry);
+		}
 		dput(d);
 		return 0;
 	}

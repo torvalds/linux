@@ -1952,11 +1952,6 @@ static int free_io_failure(struct inode *inode, struct io_failure_record *rec,
 	return err;
 }
 
-static void repair_io_failure_callback(struct bio *bio, int err)
-{
-	complete(bio->bi_private);
-}
-
 /*
  * this bypasses the standard btrfs submit functions deliberately, as
  * the standard behavior is to write all copies in a raid setup. here we only
@@ -1973,13 +1968,13 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 {
 	struct bio *bio;
 	struct btrfs_device *dev;
-	DECLARE_COMPLETION_ONSTACK(compl);
 	u64 map_length = 0;
 	u64 sector;
 	struct btrfs_bio *bbio = NULL;
 	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	int ret;
 
+	ASSERT(!(fs_info->sb->s_flags & MS_RDONLY));
 	BUG_ON(!mirror_num);
 
 	/* we can't repair anything in raid56 yet */
@@ -1989,8 +1984,6 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio)
 		return -EIO;
-	bio->bi_private = &compl;
-	bio->bi_end_io = repair_io_failure_callback;
 	bio->bi_size = 0;
 	map_length = length;
 
@@ -2011,10 +2004,8 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	}
 	bio->bi_bdev = dev->bdev;
 	bio_add_page(bio, page, length, start - page_offset(page));
-	btrfsic_submit_bio(WRITE_SYNC, bio);
-	wait_for_completion(&compl);
 
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
+	if (btrfsic_submit_bio_wait(WRITE_SYNC, bio)) {
 		/* try to remap that extent elsewhere? */
 		bio_put(bio);
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_WRITE_ERRS);
@@ -2035,6 +2026,9 @@ int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 	u64 start = eb->start;
 	unsigned long i, num_pages = num_extent_pages(eb->start, eb->len);
 	int ret = 0;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = extent_buffer_page(eb, i);
@@ -2057,12 +2051,12 @@ static int clean_io_failure(u64 start, struct page *page)
 	u64 private;
 	u64 private_failure;
 	struct io_failure_record *failrec;
-	struct btrfs_fs_info *fs_info;
+	struct inode *inode = page->mapping->host;
+	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	struct extent_state *state;
 	int num_copies;
 	int did_repair = 0;
 	int ret;
-	struct inode *inode = page->mapping->host;
 
 	private = 0;
 	ret = count_range_bits(&BTRFS_I(inode)->io_failure_tree, &private,
@@ -2085,6 +2079,8 @@ static int clean_io_failure(u64 start, struct page *page)
 		did_repair = 1;
 		goto out;
 	}
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		goto out;
 
 	spin_lock(&BTRFS_I(inode)->io_tree.lock);
 	state = find_first_extent_bit_state(&BTRFS_I(inode)->io_tree,
@@ -2094,7 +2090,6 @@ static int clean_io_failure(u64 start, struct page *page)
 
 	if (state && state->start <= failrec->start &&
 	    state->end >= failrec->start + failrec->len - 1) {
-		fs_info = BTRFS_I(inode)->root->fs_info;
 		num_copies = btrfs_num_copies(fs_info, failrec->logical,
 					      failrec->len);
 		if (num_copies > 1)  {

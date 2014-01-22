@@ -1984,7 +1984,7 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver,
 		      char *fw_on_flash);
 int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *, int num);
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
-		       u32 num, bool untagged, bool promiscuous);
+		       u32 num, bool promiscuous);
 int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 status);
 int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc);
 int be_cmd_get_flow_control(struct be_adapter *adapter, u32 *tx_fc, u32 *rx_fc);

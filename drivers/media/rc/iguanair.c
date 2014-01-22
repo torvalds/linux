@@ -308,22 +308,12 @@ static int iguanair_set_tx_carrier(struct rc_dev *dev, uint32_t carrier)
 		cycles = DIV_ROUND_CLOSEST(24000000, carrier * 2) -
 							ir->cycle_overhead;
 
-		/*  make up the the remainer of 4-cycle blocks */
-		switch (cycles & 3) {
-		case 0:
-			sevens = 0;
-			break;
-		case 1:
-			sevens = 3;
-			break;
-		case 2:
-			sevens = 2;
-			break;
-		case 3:
-			sevens = 1;
-			break;
-		}
-
+		/*
+		 * Calculate minimum number of 7 cycles needed so
+		 * we are left with a multiple of 4; so we want to have
+		 * (sevens * 7) & 3 == cycles & 3
+		 */
+		sevens = (4 - cycles) & 3;
 		fours = (cycles - sevens * 7) / 4;
 
 		/* magic happens here */

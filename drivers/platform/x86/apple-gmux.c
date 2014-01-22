@@ -519,7 +519,7 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
 
-	gmux_data->dhandle = DEVICE_ACPI_HANDLE(&pnp->dev);
+	gmux_data->dhandle = ACPI_HANDLE(&pnp->dev);
 	if (!gmux_data->dhandle) {
 		pr_err("Cannot find acpi handle for pnp device %s\n",
 		       dev_name(&pnp->dev));

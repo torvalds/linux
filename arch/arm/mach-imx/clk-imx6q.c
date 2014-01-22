@@ -122,13 +122,14 @@ static struct clk_div_table clk_enet_ref_table[] = {
 	{ .val = 1, .div = 10, },
 	{ .val = 2, .div = 5, },
 	{ .val = 3, .div = 4, },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table post_div_table[] = {
 	{ .val = 2, .div = 1, },
 	{ .val = 1, .div = 2, },
 	{ .val = 0, .div = 4, },
-	{ }
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table video_div_table[] = {
@@ -136,7 +137,7 @@ static struct clk_div_table video_div_table[] = {
 	{ .val = 1, .div = 2, },
 	{ .val = 2, .div = 1, },
 	{ .val = 3, .div = 4, },
-	{ }
+	{ /* sentinel */ }
 };
 
 static void __init imx6q_clocks_init(struct device_node *ccm_node)
@@ -298,7 +299,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk[asrc_podf]        = imx_clk_divider("asrc_podf",        "asrc_pred",         base + 0x30, 9,  3);
 	clk[spdif_pred]       = imx_clk_divider("spdif_pred",       "spdif_sel",         base + 0x30, 25, 3);
 	clk[spdif_podf]       = imx_clk_divider("spdif_podf",       "spdif_pred",        base + 0x30, 22, 3);
-	clk[can_root]         = imx_clk_divider("can_root",         "pll3_usb_otg",      base + 0x20, 2,  6);
+	clk[can_root]         = imx_clk_divider("can_root",         "pll3_60m",          base + 0x20, 2,  6);
 	clk[ecspi_root]       = imx_clk_divider("ecspi_root",       "pll3_60m",          base + 0x38, 19, 6);
 	clk[gpu2d_core_podf]  = imx_clk_divider("gpu2d_core_podf",  "gpu2d_core_sel",    base + 0x18, 23, 3);
 	clk[gpu3d_core_podf]  = imx_clk_divider("gpu3d_core_podf",  "gpu3d_core_sel",    base + 0x18, 26, 3);

@@ -196,7 +196,7 @@ static bool intel_dsm_pci_probe(struct pci_dev *pdev)
 	acpi_handle dhandle;
 	int ret;
 
-	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	dhandle = ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
 		return false;
 

@@ -148,12 +148,12 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream,
 	}
 }
 
-static void soc_pcm_init_runtime_hw(struct snd_pcm_hardware *hw,
+static void soc_pcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 	struct snd_soc_pcm_stream *codec_stream,
 	struct snd_soc_pcm_stream *cpu_stream)
 {
-	hw->rate_min = max(codec_stream->rate_min, cpu_stream->rate_min);
-	hw->rate_max = max(codec_stream->rate_max, cpu_stream->rate_max);
+	struct snd_pcm_hardware *hw = &runtime->hw;
+
 	hw->channels_min = max(codec_stream->channels_min,
 		cpu_stream->channels_min);
 	hw->channels_max = min(codec_stream->channels_max,
@@ -166,6 +166,13 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_hardware *hw,
 	if (cpu_stream->rates
 		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
 		hw->rates |= codec_stream->rates;
+
+	snd_pcm_limit_hw_rates(runtime);
+
+	hw->rate_min = max(hw->rate_min, cpu_stream->rate_min);
+	hw->rate_min = max(hw->rate_min, codec_stream->rate_min);
+	hw->rate_max = min_not_zero(hw->rate_max, cpu_stream->rate_max);
+	hw->rate_max = min_not_zero(hw->rate_max, codec_stream->rate_max);
 }
 
 /*
@@ -235,15 +242,14 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 
 	/* Check that the codec and cpu DAIs are compatible */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		soc_pcm_init_runtime_hw(&runtime->hw, &codec_dai_drv->playback,
+		soc_pcm_init_runtime_hw(runtime, &codec_dai_drv->playback,
 			&cpu_dai_drv->playback);
 	} else {
-		soc_pcm_init_runtime_hw(&runtime->hw, &codec_dai_drv->capture,
+		soc_pcm_init_runtime_hw(runtime, &codec_dai_drv->capture,
 			&cpu_dai_drv->capture);
 	}
 
 	ret = -EINVAL;
-	snd_pcm_limit_hw_rates(runtime);
 	if (!runtime->hw.rates) {
 		printk(KERN_ERR "ASoC: %s <-> %s No matching rates\n",
 			codec_dai->name, cpu_dai->name);

@@ -142,7 +142,8 @@ CORE_FEATURE_TESTS =			\
 	libunwind			\
 	on-exit				\
 	stackprotector			\
-	stackprotector-all
+	stackprotector-all		\
+	timerfd
 
 #
 # So here we detect whether test-all was rebuilt, to be able
@@ -328,8 +329,14 @@ ifndef NO_LIBUNWIND
     msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 1.1);
     NO_LIBUNWIND := 1
   else
-    ifneq ($(feature-libunwind-debug-frame), 1)
-      msg := $(warning No debug_frame support found in libunwind);
+    ifeq ($(ARCH),arm)
+      $(call feature_check,libunwind-debug-frame)
+      ifneq ($(feature-libunwind-debug-frame), 1)
+        msg := $(warning No debug_frame support found in libunwind);
+        CFLAGS += -DNO_LIBUNWIND_DEBUG_FRAME
+      endif
+    else
+      # non-ARM has no dwarf_find_debug_frame() function:
       CFLAGS += -DNO_LIBUNWIND_DEBUG_FRAME
     endif
   endif
@@ -405,7 +412,6 @@ else
   endif
 endif
 
-$(call feature_check,timerfd)
 ifeq ($(feature-timerfd), 1)
   CFLAGS += -DHAVE_TIMERFD_SUPPORT
 else

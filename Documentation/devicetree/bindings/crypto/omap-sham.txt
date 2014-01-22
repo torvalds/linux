@@ -6,7 +6,7 @@ Required properties:
   SHAM versions:
   - "ti,omap2-sham" for OMAP2 & OMAP3.
   - "ti,omap4-sham" for OMAP4 and AM33XX.
-  Note that these two versions are incompatible.
+  - "ti,omap5-sham" for OMAP5, DRA7 and AM43XX.
 - ti,hwmods: Name of the hwmod associated with the SHAM module
 - reg : Offset and length of the register set for the module
 - interrupts : the interrupt-specifier for the SHAM module.

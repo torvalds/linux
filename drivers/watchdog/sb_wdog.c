@@ -341,7 +341,6 @@ MODULE_PARM_DESC(timeout,
       "Watchdog timeout in microseconds (max/default 8388607 or 8.3ish secs)");
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 /*
  * example code that can be put in a platform code area to utilize the

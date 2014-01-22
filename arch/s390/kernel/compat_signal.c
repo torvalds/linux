@@ -194,7 +194,7 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 		return -EINVAL;
 
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
-	regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
+	regs->psw.mask = (regs->psw.mask & ~(PSW_MASK_USER | PSW_MASK_RI)) |
 		(__u64)(user_sregs.regs.psw.mask & PSW32_MASK_USER) << 32 |
 		(__u64)(user_sregs.regs.psw.mask & PSW32_MASK_RI) << 32 |
 		(__u64)(user_sregs.regs.psw.addr & PSW32_ADDR_AMODE);

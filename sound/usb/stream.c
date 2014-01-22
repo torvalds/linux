@@ -273,8 +273,8 @@ static struct snd_pcm_chmap_elem *convert_chmap(int channels, unsigned int bits,
 		SNDRV_CHMAP_TSL,	/* top side left */
 		SNDRV_CHMAP_TSR,	/* top side right */
 		SNDRV_CHMAP_BC,		/* bottom center */
-		SNDRV_CHMAP_BLC,	/* bottom left center */
-		SNDRV_CHMAP_BRC,	/* bottom right center */
+		SNDRV_CHMAP_RLC,	/* back left of center */
+		SNDRV_CHMAP_RRC,	/* back right of center */
 		0 /* terminator */
 	};
 	struct snd_pcm_chmap_elem *chmap;

@@ -7,6 +7,7 @@
  * Copyright (C) 2006 Hannes Reinecke
  */
 
+#include <linux/acpi.h>
 #include <linux/ata.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -18,8 +19,6 @@
 #include <linux/pci.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
-
-#include <acpi/acpi_bus.h>
 
 #define REGS_PER_GTF		7
 
@@ -128,7 +127,7 @@ static int ide_get_dev_handle(struct device *dev, acpi_handle *handle,
 
 	DEBPRINT("ENTER: pci %02x:%02x.%01x\n", bus, devnum, func);
 
-	dev_handle = DEVICE_ACPI_HANDLE(dev);
+	dev_handle = ACPI_HANDLE(dev);
 	if (!dev_handle) {
 		DEBPRINT("no acpi handle for device\n");
 		goto err;

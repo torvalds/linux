@@ -163,6 +163,7 @@ static void cell_edac_init_csrows(struct mem_ctl_info *mci)
 			csrow->first_page, nr_pages);
 		break;
 	}
+	of_node_put(np);
 }
 
 static int cell_edac_probe(struct platform_device *pdev)

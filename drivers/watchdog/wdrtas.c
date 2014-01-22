@@ -48,8 +48,6 @@
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>");
 MODULE_DESCRIPTION("RTAS watchdog driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-MODULE_ALIAS_MISCDEV(TEMP_MINOR);
 
 static bool wdrtas_nowayout = WATCHDOG_NOWAYOUT;
 static atomic_t wdrtas_miscdev_open = ATOMIC_INIT(0);

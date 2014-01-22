@@ -366,6 +366,8 @@ BEGIN_FTR_SECTION_NESTED(96);		\
 	cmpwi dest,0;			\
 	beq-  90b;			\
 END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
+#elif defined(CONFIG_8xx)
+#define MFTB(dest)			mftb dest
 #else
 #define MFTB(dest)			mfspr dest, SPRN_TBRL
 #endif

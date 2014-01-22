@@ -1115,6 +1115,9 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 			return _FAIL;
 	}
 
+	/* fix bug of flush_cam_entry at STOP AP mode */
+	psta->state |= WIFI_AP_STATE;
+	rtw_indicate_connect(padapter);
 	pmlmepriv->cur_network.join_res = true;/* for check if already set beacon */
 	return ret;
 }

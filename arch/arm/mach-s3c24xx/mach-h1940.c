@@ -504,6 +504,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 	.dft_brightness = 50,
 	/* tcnt = 0x31 */
 	.pwm_period_ns  = 36296,
+	.enable_gpio    = -1,
 	.init           = h1940_backlight_init,
 	.notify		= h1940_backlight_notify,
 	.exit           = h1940_backlight_exit,

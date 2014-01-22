@@ -1180,7 +1180,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->crtc_clock;
-	htotal = adjusted_mode->htotal;
+	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
@@ -1267,7 +1267,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	crtc = intel_get_crtc_for_plane(dev, plane);
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->crtc_clock;
-	htotal = adjusted_mode->htotal;
+	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
@@ -1498,7 +1498,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		const struct drm_display_mode *adjusted_mode =
 			&to_intel_crtc(crtc)->config.adjusted_mode;
 		int clock = adjusted_mode->crtc_clock;
-		int htotal = adjusted_mode->htotal;
+		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 		int pixel_size = crtc->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
@@ -1624,8 +1624,8 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		const struct drm_display_mode *adjusted_mode =
 			&to_intel_crtc(enabled)->config.adjusted_mode;
 		int clock = adjusted_mode->crtc_clock;
-		int htotal = adjusted_mode->htotal;
-		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
+		int htotal = adjusted_mode->crtc_htotal;
+		int hdisplay = to_intel_crtc(enabled)->config.pipe_src_w;
 		int pixel_size = enabled->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
@@ -1776,7 +1776,7 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
 	crtc = intel_get_crtc_for_plane(dev, plane);
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->crtc_clock;
-	htotal = adjusted_mode->htotal;
+	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
@@ -2469,8 +2469,9 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	/* The WM are computed with base on how long it takes to fill a single
 	 * row at the given clock rate, multiplied by 8.
 	 * */
-	linetime = DIV_ROUND_CLOSEST(mode->htotal * 1000 * 8, mode->clock);
-	ips_linetime = DIV_ROUND_CLOSEST(mode->htotal * 1000 * 8,
+	linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
+				     mode->crtc_clock);
+	ips_linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
 					 intel_ddi_get_cdclk_freq(dev_priv));
 
 	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
@@ -3888,7 +3889,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
-	if (INTEL_INFO(dev)->gen <= 6 || IS_IVYBRIDGE(dev))
+	if (IS_IVYBRIDGE(dev))
 		I915_WRITE(GEN6_RC6_THRESHOLD, 125000);
 	else
 		I915_WRITE(GEN6_RC6_THRESHOLD, 50000);

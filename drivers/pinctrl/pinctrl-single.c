@@ -1604,6 +1604,9 @@ static inline void pcs_irq_set(struct pcs_soc_data *pcs_soc,
 		pcs->write(mask, pcswi->reg);
 		raw_spin_unlock(&pcs->lock);
 	}
+
+	if (pcs_soc->rearm)
+		pcs_soc->rearm();
 }
 
 /**
@@ -1626,8 +1629,6 @@ static void pcs_irq_unmask(struct irq_data *d)
 	struct pcs_soc_data *pcs_soc = irq_data_get_irq_chip_data(d);
 
 	pcs_irq_set(pcs_soc, d->irq, true);
-	if (pcs_soc->rearm)
-		pcs_soc->rearm();
 }
 
 /**
@@ -1677,11 +1678,6 @@ static int pcs_irq_handle(struct pcs_soc_data *pcs_soc)
 			count++;
 		}
 	}
-
-	/*
-	 * For debugging on omaps, you may want to call pcs_soc->rearm()
-	 * here to see wake-up interrupts during runtime also.
-	 */
 
 	return count;
 }

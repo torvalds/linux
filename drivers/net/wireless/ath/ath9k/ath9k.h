@@ -632,15 +632,16 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 /* Main driver core */
 /********************/
 
-#define ATH9K_PCI_CUS198      0x0001
-#define ATH9K_PCI_CUS230      0x0002
-#define ATH9K_PCI_CUS217      0x0004
-#define ATH9K_PCI_CUS252      0x0008
-#define ATH9K_PCI_WOW         0x0010
-#define ATH9K_PCI_BT_ANT_DIV  0x0020
-#define ATH9K_PCI_D3_L1_WAR   0x0040
-#define ATH9K_PCI_AR9565_1ANT 0x0080
-#define ATH9K_PCI_AR9565_2ANT 0x0100
+#define ATH9K_PCI_CUS198          0x0001
+#define ATH9K_PCI_CUS230          0x0002
+#define ATH9K_PCI_CUS217          0x0004
+#define ATH9K_PCI_CUS252          0x0008
+#define ATH9K_PCI_WOW             0x0010
+#define ATH9K_PCI_BT_ANT_DIV      0x0020
+#define ATH9K_PCI_D3_L1_WAR       0x0040
+#define ATH9K_PCI_AR9565_1ANT     0x0080
+#define ATH9K_PCI_AR9565_2ANT     0x0100
+#define ATH9K_PCI_NO_PLL_PWRSAVE  0x0200
 
 /*
  * Default cache line size, in bytes.

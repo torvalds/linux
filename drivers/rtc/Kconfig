@@ -626,7 +626,7 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on X86 || ALPHA || ARM || M32R || ATARI || PPC || MIPS || SPARC64
+	depends on X86 || ARM || M32R || ATARI || PPC || MIPS || SPARC64
 	default y if X86
 	help
 	  Say "yes" here to get direct support for the real time clock
@@ -642,6 +642,14 @@ config RTC_DRV_CMOS
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-cmos.
+
+config RTC_DRV_ALPHA
+	bool "Alpha PC-style CMOS"
+	depends on ALPHA
+	default y
+	help
+	  Direct support for the real-time clock found on every Alpha
+	  system, specifically MC146818 compatibles.  If in doubt, say Y.
 
 config RTC_DRV_VRTC
 	tristate "Virtual RTC for Intel MID platforms"

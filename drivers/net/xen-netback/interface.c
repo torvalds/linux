@@ -461,6 +461,9 @@ void xenvif_disconnect(struct xenvif *vif)
 	if (netif_carrier_ok(vif->dev))
 		xenvif_carrier_off(vif);
 
+	if (vif->task)
+		kthread_stop(vif->task);
+
 	if (vif->tx_irq) {
 		if (vif->tx_irq == vif->rx_irq)
 			unbind_from_irqhandler(vif->tx_irq, vif);
@@ -470,9 +473,6 @@ void xenvif_disconnect(struct xenvif *vif)
 		}
 		vif->tx_irq = 0;
 	}
-
-	if (vif->task)
-		kthread_stop(vif->task);
 
 	xenvif_unmap_frontend_rings(vif);
 }

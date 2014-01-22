@@ -155,9 +155,9 @@ int clp_add_pci_device(u32 fid, u32 fh, int configured)
 	int rc;
 
 	zpci_dbg(3, "add fid:%x, fh:%x, c:%d\n", fid, fh, configured);
-	zdev = zpci_alloc_device();
-	if (IS_ERR(zdev))
-		return PTR_ERR(zdev);
+	zdev = kzalloc(sizeof(*zdev), GFP_KERNEL);
+	if (!zdev)
+		return -ENOMEM;
 
 	zdev->fh = fh;
 	zdev->fid = fid;
@@ -178,7 +178,7 @@ int clp_add_pci_device(u32 fid, u32 fh, int configured)
 	return 0;
 
 error:
-	zpci_free_device(zdev);
+	kfree(zdev);
 	return rc;
 }
 

@@ -4384,7 +4384,11 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		md_wakeup_thread(mddev->thread);
 		wait_event(mddev->sb_wait, mddev->flags == 0 ||
-			   kthread_should_stop());
+			   test_bit(MD_RECOVERY_INTR, &mddev->recovery));
+		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
+			allow_barrier(conf);
+			return sectors_done;
+		}
 		conf->reshape_safe = mddev->reshape_position;
 		allow_barrier(conf);
 	}

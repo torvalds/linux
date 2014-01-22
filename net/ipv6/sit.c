@@ -478,14 +478,44 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 	dev_put(dev);
 }
 
+/* Generate icmpv6 with type/code ICMPV6_DEST_UNREACH/ICMPV6_ADDR_UNREACH
+ * if sufficient data bytes are available
+ */
+static int ipip6_err_gen_icmpv6_unreach(struct sk_buff *skb)
+{
+	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	struct rt6_info *rt;
+	struct sk_buff *skb2;
+
+	if (!pskb_may_pull(skb, iph->ihl * 4 + sizeof(struct ipv6hdr) + 8))
+		return 1;
+
+	skb2 = skb_clone(skb, GFP_ATOMIC);
+
+	if (!skb2)
+		return 1;
+
+	skb_dst_drop(skb2);
+	skb_pull(skb2, iph->ihl * 4);
+	skb_reset_network_header(skb2);
+
+	rt = rt6_lookup(dev_net(skb->dev), &ipv6_hdr(skb2)->saddr, NULL, 0, 0);
+
+	if (rt && rt->dst.dev)
+		skb2->dev = rt->dst.dev;
+
+	icmpv6_send(skb2, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
+
+	if (rt)
+		ip6_rt_put(rt);
+
+	kfree_skb(skb2);
+
+	return 0;
+}
 
 static int ipip6_err(struct sk_buff *skb, u32 info)
 {
-
-/* All the routers (except for Linux) return only
-   8 bytes of packet payload. It means, that precise relaying of
-   ICMP in the real Internet is absolutely infeasible.
- */
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
@@ -500,7 +530,6 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 	case ICMP_DEST_UNREACH:
 		switch (code) {
 		case ICMP_SR_FAILED:
-		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
 			return 0;
 		default:
@@ -545,6 +574,9 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 		goto out;
 
 	err = 0;
+	if (!ipip6_err_gen_icmpv6_unreach(skb))
+		goto out;
+
 	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
 		goto out;
 
@@ -919,7 +951,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		if (!new_skb) {
 			ip_rt_put(rt);
 			dev->stats.tx_dropped++;
-			dev_kfree_skb(skb);
+			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
@@ -945,7 +977,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 out:
 	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
@@ -985,7 +1017,7 @@ static netdev_tx_t sit_tunnel_xmit(struct sk_buff *skb,
 
 tx_err:
 	dev->stats.tx_errors++;
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 
 }
@@ -1619,6 +1651,15 @@ static const struct nla_policy ipip6_policy[IFLA_IPTUN_MAX + 1] = {
 #endif
 };
 
+static void ipip6_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct net *net = dev_net(dev);
+	struct sit_net *sitn = net_generic(net, sit_net_id);
+
+	if (dev != sitn->fb_tunnel_dev)
+		unregister_netdevice_queue(dev, head);
+}
+
 static struct rtnl_link_ops sit_link_ops __read_mostly = {
 	.kind		= "sit",
 	.maxtype	= IFLA_IPTUN_MAX,
@@ -1630,6 +1671,7 @@ static struct rtnl_link_ops sit_link_ops __read_mostly = {
 	.changelink	= ipip6_changelink,
 	.get_size	= ipip6_get_size,
 	.fill_info	= ipip6_fill_info,
+	.dellink	= ipip6_dellink,
 };
 
 static struct xfrm_tunnel sit_handler __read_mostly = {
@@ -1644,9 +1686,10 @@ static struct xfrm_tunnel ipip_handler __read_mostly = {
 	.priority	=	2,
 };
 
-static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
+static void __net_exit sit_destroy_tunnels(struct net *net,
+					   struct list_head *head)
 {
-	struct net *net = dev_net(sitn->fb_tunnel_dev);
+	struct sit_net *sitn = net_generic(net, sit_net_id);
 	struct net_device *dev, *aux;
 	int prio;
 
@@ -1721,11 +1764,10 @@ err_alloc_dev:
 
 static void __net_exit sit_exit_net(struct net *net)
 {
-	struct sit_net *sitn = net_generic(net, sit_net_id);
 	LIST_HEAD(list);
 
 	rtnl_lock();
-	sit_destroy_tunnels(sitn, &list);
+	sit_destroy_tunnels(net, &list);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }

@@ -116,17 +116,17 @@ config NFS_V4_2
 config PNFS_FILE_LAYOUT
 	tristate
 	depends on NFS_V4_1
-	default m
+	default NFS_V4
 
 config PNFS_BLOCK
 	tristate
 	depends on NFS_V4_1 && BLK_DEV_DM
-	default m
+	default NFS_V4
 
 config PNFS_OBJLAYOUT
 	tristate
 	depends on NFS_V4_1 && SCSI_OSD_ULD
-	default m
+	default NFS_V4
 
 config NFS_V4_1_IMPLEMENTATION_ID_DOMAIN
 	string "NFSv4.1 Implementation ID Domain"

@@ -308,8 +308,7 @@ static void sdio_acpi_set_handle(struct sdio_func *func)
 	struct mmc_host *host = func->card->host;
 	u64 addr = (host->slotno << 16) | func->num;
 
-	ACPI_HANDLE_SET(&func->dev,
-			acpi_get_child(ACPI_HANDLE(host->parent), addr));
+	acpi_preset_companion(&func->dev, ACPI_HANDLE(host->parent), addr);
 }
 #else
 static inline void sdio_acpi_set_handle(struct sdio_func *func) {}

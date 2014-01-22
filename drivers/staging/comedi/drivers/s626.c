@@ -494,7 +494,7 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
  * Private helper function: Write setpoint to an application DAC channel.
  */
 static void s626_set_dac(struct comedi_device *dev, uint16_t chan,
-			 unsigned short dacdata)
+			 int16_t dacdata)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t signmask;

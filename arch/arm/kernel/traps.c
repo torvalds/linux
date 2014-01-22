@@ -856,7 +856,7 @@ static void __init kuser_init(void *vectors)
 		memcpy(vectors + 0xfe0, vectors + 0xfe8, 4);
 }
 #else
-static void __init kuser_init(void *vectors)
+static inline void __init kuser_init(void *vectors)
 {
 }
 #endif

@@ -609,7 +609,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	struct sysfs_open_file *of;
-	bool has_read, has_write;
+	bool has_read, has_write, has_mmap;
 	int error = -EACCES;
 
 	/* need attr_sd for attr and ops, its parent for kobj */
@@ -621,6 +621,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 
 		has_read = battr->read || battr->mmap;
 		has_write = battr->write || battr->mmap;
+		has_mmap = battr->mmap;
 	} else {
 		const struct sysfs_ops *ops = sysfs_file_ops(attr_sd);
 
@@ -632,6 +633,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 
 		has_read = ops->show;
 		has_write = ops->store;
+		has_mmap = false;
 	}
 
 	/* check perms and supported operations */
@@ -649,7 +651,23 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	if (!of)
 		goto err_out;
 
-	mutex_init(&of->mutex);
+	/*
+	 * The following is done to give a different lockdep key to
+	 * @of->mutex for files which implement mmap.  This is a rather
+	 * crude way to avoid false positive lockdep warning around
+	 * mm->mmap_sem - mmap nests @of->mutex under mm->mmap_sem and
+	 * reading /sys/block/sda/trace/act_mask grabs sr_mutex, under
+	 * which mm->mmap_sem nests, while holding @of->mutex.  As each
+	 * open file has a separate mutex, it's okay as long as those don't
+	 * happen on the same file.  At this point, we can't easily give
+	 * each file a separate locking class.  Let's differentiate on
+	 * whether the file has mmap or not for now.
+	 */
+	if (has_mmap)
+		mutex_init(&of->mutex);
+	else
+		mutex_init(&of->mutex);
+
 	of->sd = attr_sd;
 	of->file = file;
 

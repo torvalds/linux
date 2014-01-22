@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= irq.o gpio.o setup.o
+obj-y		:= irq.o gpio.o setup.o sysirq_mask.o
 obj-m		:=
 obj-n		:=
 obj-		:=

@@ -707,7 +707,8 @@ static irqreturn_t irq_handler(int i, void *blah)
 				pr_warn("ignoring spike: %d %d %lx %lx %lx %lx\n",
 					dcd, sense,
 					tv.tv_sec, lasttv.tv_sec,
-					tv.tv_usec, lasttv.tv_usec);
+					(unsigned long)tv.tv_usec,
+					(unsigned long)lasttv.tv_usec);
 				continue;
 			}
 
@@ -719,7 +720,8 @@ static irqreturn_t irq_handler(int i, void *blah)
 				pr_warn("%d %d %lx %lx %lx %lx\n",
 					dcd, sense,
 					tv.tv_sec, lasttv.tv_sec,
-					tv.tv_usec, lasttv.tv_usec);
+					(unsigned long)tv.tv_usec,
+					(unsigned long)lasttv.tv_usec);
 				data = PULSE_MASK;
 			} else if (deltv > 15) {
 				data = PULSE_MASK; /* really long time */
@@ -728,7 +730,8 @@ static irqreturn_t irq_handler(int i, void *blah)
 					pr_warn("AIEEEE: %d %d %lx %lx %lx %lx\n",
 						dcd, sense,
 						tv.tv_sec, lasttv.tv_sec,
-						tv.tv_usec, lasttv.tv_usec);
+						(unsigned long)tv.tv_usec,
+						(unsigned long)lasttv.tv_usec);
 					/*
 					 * detecting pulse while this
 					 * MUST be a space!

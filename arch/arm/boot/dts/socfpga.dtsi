@@ -245,14 +245,14 @@
 
 					mpu_periph_clk: mpu_periph_clk {
 						#clock-cells = <0>;
-						compatible = "altr,socfpga-gate-clk";
+						compatible = "altr,socfpga-perip-clk";
 						clocks = <&mpuclk>;
 						fixed-divider = <4>;
 					};
 
 					mpu_l2_ram_clk: mpu_l2_ram_clk {
 						#clock-cells = <0>;
-						compatible = "altr,socfpga-gate-clk";
+						compatible = "altr,socfpga-perip-clk";
 						clocks = <&mpuclk>;
 						fixed-divider = <2>;
 					};
@@ -266,8 +266,9 @@
 
 					l3_main_clk: l3_main_clk {
 						#clock-cells = <0>;
-						compatible = "altr,socfpga-gate-clk";
+						compatible = "altr,socfpga-perip-clk";
 						clocks = <&mainclk>;
+						fixed-divider = <1>;
 					};
 
 					l3_mp_clk: l3_mp_clk {

@@ -569,7 +569,7 @@ void ui_browser__argv_seek(struct ui_browser *browser, off_t offset, int whence)
 		browser->top = browser->top + browser->top_idx + offset;
 		break;
 	case SEEK_END:
-		browser->top = browser->top + browser->nr_entries + offset;
+		browser->top = browser->top + browser->nr_entries - 1 + offset;
 		break;
 	default:
 		return;
@@ -680,7 +680,7 @@ static void __ui_browser__line_arrow_down(struct ui_browser *browser,
 	if (end >= browser->top_idx + browser->height)
 		end_row = browser->height - 1;
 	else
-		end_row = end - browser->top_idx;;
+		end_row = end - browser->top_idx;
 
 	ui_browser__gotorc(browser, row, column);
 	SLsmg_draw_vline(end_row - row + 1);

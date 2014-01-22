@@ -223,7 +223,7 @@ static void null_softirq_done_fn(struct request *rq)
 	blk_end_request_all(rq, 0);
 }
 
-#if defined(CONFIG_SMP) && defined(CONFIG_USE_GENERIC_SMP_HELPERS)
+#ifdef CONFIG_SMP
 
 static void null_ipi_cmd_end_io(void *data)
 {
@@ -260,7 +260,7 @@ static void null_cmd_end_ipi(struct nullb_cmd *cmd)
 	put_cpu();
 }
 
-#endif /* CONFIG_SMP && CONFIG_USE_GENERIC_SMP_HELPERS */
+#endif /* CONFIG_SMP */
 
 static inline void null_handle_cmd(struct nullb_cmd *cmd)
 {
@@ -270,7 +270,7 @@ static inline void null_handle_cmd(struct nullb_cmd *cmd)
 		end_cmd(cmd);
 		break;
 	case NULL_IRQ_SOFTIRQ:
-#if defined(CONFIG_SMP) && defined(CONFIG_USE_GENERIC_SMP_HELPERS)
+#ifdef CONFIG_SMP
 		null_cmd_end_ipi(cmd);
 #else
 		end_cmd(cmd);
@@ -571,7 +571,7 @@ static int __init null_init(void)
 {
 	unsigned int i;
 
-#if !defined(CONFIG_SMP) || !defined(CONFIG_USE_GENERIC_SMP_HELPERS)
+#if !defined(CONFIG_SMP)
 	if (irqmode == NULL_IRQ_SOFTIRQ) {
 		pr_warn("null_blk: softirq completions not available.\n");
 		pr_warn("null_blk: using direct completions.\n");

@@ -18,7 +18,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct machine *machine,
 			struct thread *thread,
 			u64 sample_uregs,
-			struct perf_sample *data);
+			struct perf_sample *data, int max_stack);
 int unwind__arch_reg_id(int regnum);
 #else
 static inline int
@@ -27,7 +27,8 @@ unwind__get_entries(unwind_entry_cb_t cb __maybe_unused,
 		    struct machine *machine __maybe_unused,
 		    struct thread *thread __maybe_unused,
 		    u64 sample_uregs __maybe_unused,
-		    struct perf_sample *data __maybe_unused)
+		    struct perf_sample *data __maybe_unused,
+		    int max_stack __maybe_unused)
 {
 	return 0;
 }

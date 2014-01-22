@@ -510,7 +510,7 @@ static int __init beagle_opp_init(void)
 		mpu_dev = get_cpu_device(0);
 		iva_dev = omap_device_get_by_hwmod_name("iva");
 
-		if (IS_ERR(mpu_dev) || IS_ERR(iva_dev)) {
+		if (!mpu_dev || IS_ERR(iva_dev)) {
 			pr_err("%s: Aiee.. no mpu/dsp devices? %p %p\n",
 				__func__, mpu_dev, iva_dev);
 			return -ENODEV;

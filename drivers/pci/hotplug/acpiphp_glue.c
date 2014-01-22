@@ -325,7 +325,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
 	list_add_tail(&slot->node, &bridge->slots);
 
-	/* Register slots for ejectable funtions only. */
+	/* Register slots for ejectable functions only. */
 	if (acpi_pci_check_ejectable(pbus, handle)  || is_dock_device(handle)) {
 		unsigned long long sun;
 		int retval;

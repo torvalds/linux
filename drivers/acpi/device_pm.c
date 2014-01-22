@@ -22,15 +22,11 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#include <linux/device.h>
+#include <linux/acpi.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
-
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 #include "internal.h"
 
@@ -548,7 +544,7 @@ static int acpi_dev_pm_get_state(struct device *dev, struct acpi_device *adev,
  */
 int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 	int ret, d_min, d_max;
 
@@ -656,7 +652,7 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 	if (!device_run_wake(phys_dev))
 		return -EINVAL;
 
-	handle = DEVICE_ACPI_HANDLE(phys_dev);
+	handle = ACPI_HANDLE(phys_dev);
 	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(phys_dev, "ACPI handle without context in %s!\n",
 			__func__);
@@ -700,7 +696,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 	if (!device_can_wakeup(dev))
 		return -EINVAL;
 
-	handle = DEVICE_ACPI_HANDLE(dev);
+	handle = ACPI_HANDLE(dev);
 	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
 		return -ENODEV;
@@ -722,7 +718,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
  */
 struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 
 	return handle && !acpi_bus_get_device(handle, &adev) ? adev : NULL;

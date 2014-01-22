@@ -598,22 +598,20 @@ fh_update(struct svc_fh *fhp)
 		_fh_update_old(dentry, fhp->fh_export, &fhp->fh_handle);
 	} else {
 		if (fhp->fh_handle.fh_fileid_type != FILEID_ROOT)
-			goto out;
+			return 0;
 
 		_fh_update(fhp, fhp->fh_export, dentry);
 		if (fhp->fh_handle.fh_fileid_type == FILEID_INVALID)
 			return nfserr_opnotsupp;
 	}
-out:
 	return 0;
-
 out_bad:
 	printk(KERN_ERR "fh_update: fh not verified!\n");
-	goto out;
+	return nfserr_serverfault;
 out_negative:
 	printk(KERN_ERR "fh_update: %pd2 still negative!\n",
 		dentry);
-	goto out;
+	return nfserr_serverfault;
 }
 
 /*

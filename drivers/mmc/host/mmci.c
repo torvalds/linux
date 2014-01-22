@@ -1730,37 +1730,28 @@ static int mmci_suspend(struct device *dev)
 {
 	struct amba_device *adev = to_amba_device(dev);
 	struct mmc_host *mmc = amba_get_drvdata(adev);
-	int ret = 0;
 
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
-
-		ret = mmc_suspend_host(mmc);
-		if (ret == 0) {
-			pm_runtime_get_sync(dev);
-			writel(0, host->base + MMCIMASK0);
-		}
+		pm_runtime_get_sync(dev);
+		writel(0, host->base + MMCIMASK0);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mmci_resume(struct device *dev)
 {
 	struct amba_device *adev = to_amba_device(dev);
 	struct mmc_host *mmc = amba_get_drvdata(adev);
-	int ret = 0;
 
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
-
 		writel(MCI_IRQENABLE, host->base + MMCIMASK0);
 		pm_runtime_put(dev);
-
-		ret = mmc_resume_host(mmc);
 	}
 
-	return ret;
+	return 0;
 }
 #endif
 

@@ -36,7 +36,10 @@ module_param(csum, bool, 0444);
 module_param(gso, bool, 0444);
 
 /* FIXME: MTU in config. */
-#define MAX_PACKET_LEN (ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN)
+#define GOOD_PACKET_LEN (ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN)
+#define MERGE_BUFFER_LEN (ALIGN(GOOD_PACKET_LEN + \
+                                sizeof(struct virtio_net_hdr_mrg_rxbuf), \
+                                L1_CACHE_BYTES))
 #define GOOD_COPY_LEN	128
 
 #define VIRTNET_DRIVER_VERSION "1.0.0"
@@ -296,35 +299,76 @@ static struct sk_buff *page_to_skb(struct receive_queue *rq,
 	return skb;
 }
 
-static int receive_mergeable(struct receive_queue *rq, struct sk_buff *head_skb)
+static struct sk_buff *receive_small(void *buf, unsigned int len)
 {
-	struct skb_vnet_hdr *hdr = skb_vnet_hdr(head_skb);
-	struct sk_buff *curr_skb = head_skb;
-	char *buf;
-	struct page *page;
-	int num_buf, len, offset;
+	struct sk_buff * skb = buf;
 
-	num_buf = hdr->mhdr.num_buffers;
+	len -= sizeof(struct virtio_net_hdr);
+	skb_trim(skb, len);
+
+	return skb;
+}
+
+static struct sk_buff *receive_big(struct net_device *dev,
+				   struct receive_queue *rq,
+				   void *buf,
+				   unsigned int len)
+{
+	struct page *page = buf;
+	struct sk_buff *skb = page_to_skb(rq, page, 0, len, PAGE_SIZE);
+
+	if (unlikely(!skb))
+		goto err;
+
+	return skb;
+
+err:
+	dev->stats.rx_dropped++;
+	give_pages(rq, page);
+	return NULL;
+}
+
+static struct sk_buff *receive_mergeable(struct net_device *dev,
+					 struct receive_queue *rq,
+					 void *buf,
+					 unsigned int len)
+{
+	struct skb_vnet_hdr *hdr = buf;
+	int num_buf = hdr->mhdr.num_buffers;
+	struct page *page = virt_to_head_page(buf);
+	int offset = buf - page_address(page);
+	struct sk_buff *head_skb = page_to_skb(rq, page, offset, len,
+					       MERGE_BUFFER_LEN);
+	struct sk_buff *curr_skb = head_skb;
+
+	if (unlikely(!curr_skb))
+		goto err_skb;
+
 	while (--num_buf) {
-		int num_skb_frags = skb_shinfo(curr_skb)->nr_frags;
+		int num_skb_frags;
+
 		buf = virtqueue_get_buf(rq->vq, &len);
 		if (unlikely(!buf)) {
-			pr_debug("%s: rx error: %d buffers missing\n",
-				 head_skb->dev->name, hdr->mhdr.num_buffers);
-			head_skb->dev->stats.rx_length_errors++;
-			return -EINVAL;
+			pr_debug("%s: rx error: %d buffers out of %d missing\n",
+				 dev->name, num_buf, hdr->mhdr.num_buffers);
+			dev->stats.rx_length_errors++;
+			goto err_buf;
 		}
-		if (unlikely(len > MAX_PACKET_LEN)) {
+		if (unlikely(len > MERGE_BUFFER_LEN)) {
 			pr_debug("%s: rx error: merge buffer too long\n",
-				 head_skb->dev->name);
-			len = MAX_PACKET_LEN;
+				 dev->name);
+			len = MERGE_BUFFER_LEN;
 		}
+
+		page = virt_to_head_page(buf);
+		--rq->num;
+
+		num_skb_frags = skb_shinfo(curr_skb)->nr_frags;
 		if (unlikely(num_skb_frags == MAX_SKB_FRAGS)) {
 			struct sk_buff *nskb = alloc_skb(0, GFP_ATOMIC);
-			if (unlikely(!nskb)) {
-				head_skb->dev->stats.rx_dropped++;
-				return -ENOMEM;
-			}
+
+			if (unlikely(!nskb))
+				goto err_skb;
 			if (curr_skb == head_skb)
 				skb_shinfo(curr_skb)->frag_list = nskb;
 			else
@@ -336,22 +380,39 @@ static int receive_mergeable(struct receive_queue *rq, struct sk_buff *head_skb)
 		if (curr_skb != head_skb) {
 			head_skb->data_len += len;
 			head_skb->len += len;
-			head_skb->truesize += MAX_PACKET_LEN;
+			head_skb->truesize += MERGE_BUFFER_LEN;
 		}
-		page = virt_to_head_page(buf);
-		offset = buf - (char *)page_address(page);
+		offset = buf - page_address(page);
 		if (skb_can_coalesce(curr_skb, num_skb_frags, page, offset)) {
 			put_page(page);
 			skb_coalesce_rx_frag(curr_skb, num_skb_frags - 1,
-					     len, MAX_PACKET_LEN);
+					     len, MERGE_BUFFER_LEN);
 		} else {
 			skb_add_rx_frag(curr_skb, num_skb_frags, page,
-					offset, len,
-					MAX_PACKET_LEN);
+					offset, len, MERGE_BUFFER_LEN);
 		}
+	}
+
+	return head_skb;
+
+err_skb:
+	put_page(page);
+	while (--num_buf) {
+		buf = virtqueue_get_buf(rq->vq, &len);
+		if (unlikely(!buf)) {
+			pr_debug("%s: rx error: %d buffers missing\n",
+				 dev->name, num_buf);
+			dev->stats.rx_length_errors++;
+			break;
+		}
+		page = virt_to_head_page(buf);
+		put_page(page);
 		--rq->num;
 	}
-	return 0;
+err_buf:
+	dev->stats.rx_dropped++;
+	dev_kfree_skb(head_skb);
+	return NULL;
 }
 
 static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
@@ -360,7 +421,6 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 	struct net_device *dev = vi->dev;
 	struct virtnet_stats *stats = this_cpu_ptr(vi->stats);
 	struct sk_buff *skb;
-	struct page *page;
 	struct skb_vnet_hdr *hdr;
 
 	if (unlikely(len < sizeof(struct virtio_net_hdr) + ETH_HLEN)) {
@@ -375,33 +435,15 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 		return;
 	}
 
-	if (!vi->mergeable_rx_bufs && !vi->big_packets) {
-		skb = buf;
-		len -= sizeof(struct virtio_net_hdr);
-		skb_trim(skb, len);
-	} else if (vi->mergeable_rx_bufs) {
-		struct page *page = virt_to_head_page(buf);
-		skb = page_to_skb(rq, page,
-				  (char *)buf - (char *)page_address(page),
-				  len, MAX_PACKET_LEN);
-		if (unlikely(!skb)) {
-			dev->stats.rx_dropped++;
-			put_page(page);
-			return;
-		}
-		if (receive_mergeable(rq, skb)) {
-			dev_kfree_skb(skb);
-			return;
-		}
-	} else {
-		page = buf;
-		skb = page_to_skb(rq, page, 0, len, PAGE_SIZE);
-		if (unlikely(!skb)) {
-			dev->stats.rx_dropped++;
-			give_pages(rq, page);
-			return;
-		}
-	}
+	if (vi->mergeable_rx_bufs)
+		skb = receive_mergeable(dev, rq, buf, len);
+	else if (vi->big_packets)
+		skb = receive_big(dev, rq, buf, len);
+	else
+		skb = receive_small(buf, len);
+
+	if (unlikely(!skb))
+		return;
 
 	hdr = skb_vnet_hdr(skb);
 
@@ -471,11 +513,11 @@ static int add_recvbuf_small(struct receive_queue *rq, gfp_t gfp)
 	struct skb_vnet_hdr *hdr;
 	int err;
 
-	skb = __netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN, gfp);
+	skb = __netdev_alloc_skb_ip_align(vi->dev, GOOD_PACKET_LEN, gfp);
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	skb_put(skb, MAX_PACKET_LEN);
+	skb_put(skb, GOOD_PACKET_LEN);
 
 	hdr = skb_vnet_hdr(skb);
 	sg_set_buf(rq->sg, &hdr->hdr, sizeof hdr->hdr);
@@ -542,20 +584,20 @@ static int add_recvbuf_mergeable(struct receive_queue *rq, gfp_t gfp)
 	int err;
 
 	if (gfp & __GFP_WAIT) {
-		if (skb_page_frag_refill(MAX_PACKET_LEN, &vi->alloc_frag,
+		if (skb_page_frag_refill(MERGE_BUFFER_LEN, &vi->alloc_frag,
 					 gfp)) {
 			buf = (char *)page_address(vi->alloc_frag.page) +
 			      vi->alloc_frag.offset;
 			get_page(vi->alloc_frag.page);
-			vi->alloc_frag.offset += MAX_PACKET_LEN;
+			vi->alloc_frag.offset += MERGE_BUFFER_LEN;
 		}
 	} else {
-		buf = netdev_alloc_frag(MAX_PACKET_LEN);
+		buf = netdev_alloc_frag(MERGE_BUFFER_LEN);
 	}
 	if (!buf)
 		return -ENOMEM;
 
-	sg_init_one(rq->sg, buf, MAX_PACKET_LEN);
+	sg_init_one(rq->sg, buf, MERGE_BUFFER_LEN);
 	err = virtqueue_add_inbuf(rq->vq, rq->sg, 1, buf, gfp);
 	if (err < 0)
 		put_page(virt_to_head_page(buf));
@@ -1082,7 +1124,7 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_MAC,
 				  VIRTIO_NET_CTRL_MAC_TABLE_SET,
 				  sg, NULL))
-		dev_warn(&dev->dev, "Failed to set MAC fitler table.\n");
+		dev_warn(&dev->dev, "Failed to set MAC filter table.\n");
 
 	kfree(buf);
 }
@@ -1619,8 +1661,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (err)
 		goto free_stats;
 
-	netif_set_real_num_tx_queues(dev, 1);
-	netif_set_real_num_rx_queues(dev, 1);
+	netif_set_real_num_tx_queues(dev, vi->curr_queue_pairs);
+	netif_set_real_num_rx_queues(dev, vi->curr_queue_pairs);
 
 	err = register_netdev(dev);
 	if (err) {

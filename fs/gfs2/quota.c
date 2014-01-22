@@ -667,7 +667,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	struct buffer_head *bh;
 	struct page *page;
 	void *kaddr, *ptr;
-	struct gfs2_quota q, *qp;
+	struct gfs2_quota q;
 	int err, nbytes;
 	u64 size;
 
@@ -683,28 +683,25 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 		return err;
 
 	err = -EIO;
-	qp = &q;
-	qp->qu_value = be64_to_cpu(qp->qu_value);
-	qp->qu_value += change;
-	qp->qu_value = cpu_to_be64(qp->qu_value);
-	qd->qd_qb.qb_value = qp->qu_value;
+	be64_add_cpu(&q.qu_value, change);
+	qd->qd_qb.qb_value = q.qu_value;
 	if (fdq) {
 		if (fdq->d_fieldmask & FS_DQ_BSOFT) {
-			qp->qu_warn = cpu_to_be64(fdq->d_blk_softlimit >> sdp->sd_fsb2bb_shift);
-			qd->qd_qb.qb_warn = qp->qu_warn;
+			q.qu_warn = cpu_to_be64(fdq->d_blk_softlimit >> sdp->sd_fsb2bb_shift);
+			qd->qd_qb.qb_warn = q.qu_warn;
 		}
 		if (fdq->d_fieldmask & FS_DQ_BHARD) {
-			qp->qu_limit = cpu_to_be64(fdq->d_blk_hardlimit >> sdp->sd_fsb2bb_shift);
-			qd->qd_qb.qb_limit = qp->qu_limit;
+			q.qu_limit = cpu_to_be64(fdq->d_blk_hardlimit >> sdp->sd_fsb2bb_shift);
+			qd->qd_qb.qb_limit = q.qu_limit;
 		}
 		if (fdq->d_fieldmask & FS_DQ_BCOUNT) {
-			qp->qu_value = cpu_to_be64(fdq->d_bcount >> sdp->sd_fsb2bb_shift);
-			qd->qd_qb.qb_value = qp->qu_value;
+			q.qu_value = cpu_to_be64(fdq->d_bcount >> sdp->sd_fsb2bb_shift);
+			qd->qd_qb.qb_value = q.qu_value;
 		}
 	}
 
 	/* Write the quota into the quota file on disk */
-	ptr = qp;
+	ptr = &q;
 	nbytes = sizeof(struct gfs2_quota);
 get_a_page:
 	page = find_or_create_page(mapping, index, GFP_NOFS);

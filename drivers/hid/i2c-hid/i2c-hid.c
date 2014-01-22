@@ -1008,7 +1008,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	hid->hid_get_raw_report = i2c_hid_get_raw_report;
 	hid->hid_output_raw_report = i2c_hid_output_raw_report;
 	hid->dev.parent = &client->dev;
-	ACPI_HANDLE_SET(&hid->dev, ACPI_HANDLE(&client->dev));
+	ACPI_COMPANION_SET(&hid->dev, ACPI_COMPANION(&client->dev));
 	hid->bus = BUS_I2C;
 	hid->version = le16_to_cpu(ihid->hdesc.bcdVersion);
 	hid->vendor = le16_to_cpu(ihid->hdesc.wVendorID);
@@ -1061,6 +1061,7 @@ static int i2c_hid_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
+	disable_irq(client->irq);
 	if (device_may_wakeup(&client->dev))
 		enable_irq_wake(client->irq);
 
@@ -1075,6 +1076,7 @@ static int i2c_hid_resume(struct device *dev)
 	int ret;
 	struct i2c_client *client = to_i2c_client(dev);
 
+	enable_irq(client->irq);
 	ret = i2c_hid_hwreset(client);
 	if (ret)
 		return ret;

@@ -152,7 +152,7 @@ static int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
 	if (bp->old_bulletin.valid_bitmap & 1 << CHANNEL_DOWN) {
 		DP(BNX2X_MSG_IOV, "detecting channel down. Aborting message\n");
 		*done = PFVF_STATUS_SUCCESS;
-		return 0;
+		return -EINVAL;
 	}
 
 	/* Write message address */

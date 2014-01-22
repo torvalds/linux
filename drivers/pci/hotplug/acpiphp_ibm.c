@@ -116,7 +116,7 @@ static struct bin_attribute ibm_apci_table_attr = {
 	    .read = ibm_read_apci_table,
 	    .write = NULL,
 };
-static struct acpiphp_attention_info ibm_attention_info = 
+static struct acpiphp_attention_info ibm_attention_info =
 {
 	.set_attn = ibm_set_attention_status,
 	.get_attn = ibm_get_attention_status,
@@ -171,9 +171,9 @@ ibm_slot_done:
  */
 static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
 {
-	union acpi_object args[2]; 
+	union acpi_object args[2];
 	struct acpi_object_list params = { .pointer = args, .count = 2 };
-	acpi_status stat; 
+	acpi_status stat;
 	unsigned long long rc;
 	union apci_descriptor *ibm_slot;
 
@@ -208,7 +208,7 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
  *
  * Description: This method is registered with the acpiphp module as a
  * callback to do the device specific task of getting the LED status.
- * 
+ *
  * Because there is no direct method of getting the LED status directly
  * from an ACPI call, we read the aPCI table and parse out our
  * slot descriptor to read the status from that.
@@ -259,7 +259,7 @@ static void ibm_handle_events(acpi_handle handle, u32 event, void *context)
 	pr_debug("%s: Received notification %02x\n", __func__, event);
 
 	if (subevent == 0x80) {
-		pr_debug("%s: generationg bus event\n", __func__);
+		pr_debug("%s: generating bus event\n", __func__);
 		acpi_bus_generate_netlink_event(note->device->pnp.device_class,
 						  dev_name(&note->device->dev),
 						  note->event, detail);
@@ -387,7 +387,7 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		u32 lvl, void *context, void **rv)
 {
 	acpi_handle *phandle = (acpi_handle *)context;
-	acpi_status status; 
+	acpi_status status;
 	struct acpi_device_info *info;
 	int retval = 0;
 
@@ -405,7 +405,7 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 			info->hardware_id.string, handle);
 		*phandle = handle;
 		/* returning non-zero causes the search to stop
-		 * and returns this value to the caller of 
+		 * and returns this value to the caller of
 		 * acpi_walk_namespace, but it also causes some warnings
 		 * in the acpi debug code to print...
 		 */

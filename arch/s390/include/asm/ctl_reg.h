@@ -7,6 +7,8 @@
 #ifndef __ASM_CTL_REG_H
 #define __ASM_CTL_REG_H
 
+#include <linux/bug.h>
+
 #ifdef CONFIG_64BIT
 # define __CTL_LOAD	"lctlg"
 # define __CTL_STORE	"stctg"

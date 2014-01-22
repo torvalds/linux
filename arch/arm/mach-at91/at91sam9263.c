@@ -330,6 +330,9 @@ static void __init at91sam9263_initialize(void)
 	arm_pm_idle = at91sam9_idle;
 	arm_pm_restart = at91sam9_alt_restart;
 
+	at91_sysirq_mask_rtt(AT91SAM9263_BASE_RTT0);
+	at91_sysirq_mask_rtt(AT91SAM9263_BASE_RTT1);
+
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9263_gpio, 5);
 }

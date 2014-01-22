@@ -483,7 +483,7 @@ void __init startup_init(void)
 	detect_diag44();
 	detect_machine_facilities();
 	setup_topology();
-	sclp_facilities_detect();
+	sclp_early_detect();
 #ifdef CONFIG_DYNAMIC_FTRACE
 	S390_lowcore.ftrace_func = (unsigned long)ftrace_caller;
 #endif

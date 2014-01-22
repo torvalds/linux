@@ -972,10 +972,10 @@ out:
 
 #ifdef CONFIG_SYSCTL
 sysctl_fail:
-	ipv6_packet_cleanup();
+	pingv6_exit();
 #endif
 pingv6_fail:
-	pingv6_exit();
+	ipv6_packet_cleanup();
 ipv6_packet_fail:
 	tcpv6_exit();
 tcpv6_fail:

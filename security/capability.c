@@ -777,9 +777,15 @@ static int cap_xfrm_policy_delete_security(struct xfrm_sec_ctx *ctx)
 	return 0;
 }
 
-static int cap_xfrm_state_alloc_security(struct xfrm_state *x,
-					 struct xfrm_user_sec_ctx *sec_ctx,
-					 u32 secid)
+static int cap_xfrm_state_alloc(struct xfrm_state *x,
+				struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static int cap_xfrm_state_alloc_acquire(struct xfrm_state *x,
+					struct xfrm_sec_ctx *polsec,
+					u32 secid)
 {
 	return 0;
 }
@@ -1101,7 +1107,8 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, xfrm_policy_clone_security);
 	set_to_cap_if_null(ops, xfrm_policy_free_security);
 	set_to_cap_if_null(ops, xfrm_policy_delete_security);
-	set_to_cap_if_null(ops, xfrm_state_alloc_security);
+	set_to_cap_if_null(ops, xfrm_state_alloc);
+	set_to_cap_if_null(ops, xfrm_state_alloc_acquire);
 	set_to_cap_if_null(ops, xfrm_state_free_security);
 	set_to_cap_if_null(ops, xfrm_state_delete_security);
 	set_to_cap_if_null(ops, xfrm_policy_lookup);

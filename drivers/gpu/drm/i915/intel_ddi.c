@@ -173,7 +173,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations = ddi_translations_dp;
 		break;
 	case PORT_D:
-		if (intel_dpd_is_edp(dev))
+		if (intel_dp_is_edp(dev, PORT_D))
 			ddi_translations = ddi_translations_edp;
 		else
 			ddi_translations = ddi_translations_dp;
@@ -1158,9 +1158,10 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	if (wait)
 		intel_wait_ddi_buf_idle(dev_priv, port);
 
-	if (type == INTEL_OUTPUT_EDP) {
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		ironlake_edp_panel_vdd_on(intel_dp);
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 		ironlake_edp_panel_off(intel_dp);
 	}
 
@@ -1405,6 +1406,26 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	default:
 		break;
+	}
+
+	if (encoder->type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp_bpp &&
+	    pipe_config->pipe_bpp > dev_priv->vbt.edp_bpp) {
+		/*
+		 * This is a big fat ugly hack.
+		 *
+		 * Some machines in UEFI boot mode provide us a VBT that has 18
+		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
+		 * unknown we fail to light up. Yet the same BIOS boots up with
+		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
+		 * max, not what it tells us to use.
+		 *
+		 * Note: This will still be broken if the eDP panel is not lit
+		 * up by the BIOS, and thus we can't get the mode at module
+		 * load.
+		 */
+		DRM_DEBUG_KMS("pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
+			      pipe_config->pipe_bpp, dev_priv->vbt.edp_bpp);
+		dev_priv->vbt.edp_bpp = pipe_config->pipe_bpp;
 	}
 }
 

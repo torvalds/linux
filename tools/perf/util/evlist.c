@@ -819,7 +819,9 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (target__has_task(target))
+	if (target->force_per_cpu)
+		evlist->cpus = cpu_map__new(target->cpu_list);
+	else if (target__has_task(target))
 		evlist->cpus = cpu_map__dummy_new();
 	else if (!target__has_cpu(target) && !target->uses_mmap)
 		evlist->cpus = cpu_map__dummy_new();
@@ -1148,7 +1150,7 @@ size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)
 				   perf_evsel__name(evsel));
 	}
 
-	return printed + fprintf(fp, "\n");;
+	return printed + fprintf(fp, "\n");
 }
 
 int perf_evlist__strerror_tp(struct perf_evlist *evlist __maybe_unused,

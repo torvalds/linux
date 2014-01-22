@@ -123,7 +123,7 @@ static int keene_cmd_set(struct keene_device *radio)
 	/* If bit 0 is set, then transmit mono, otherwise stereo.
 	   If bit 2 is set, then enable 75 us preemphasis, otherwise
 	   it is 50 us. */
-	radio->buffer[3] = (!radio->stereo) | (radio->preemph_75_us ? 4 : 0);
+	radio->buffer[3] = (radio->stereo ? 0 : 1) | (radio->preemph_75_us ? 4 : 0);
 	radio->buffer[4] = 0x00;
 	radio->buffer[5] = 0x00;
 	radio->buffer[6] = 0x00;

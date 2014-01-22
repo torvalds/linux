@@ -111,8 +111,6 @@ struct thread_info {
 #define THREAD_SHIFT PAGE_SHIFT
 #endif /* PAGE_SHIFT == 13 */
 
-#define PREEMPT_ACTIVE		0x10000000
-
 /*
  * macros/functions for gaining access to the thread information structure
  */

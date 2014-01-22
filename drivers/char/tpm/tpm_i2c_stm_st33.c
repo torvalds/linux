@@ -584,7 +584,7 @@ static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
 static DEVICE_ATTR(active, S_IRUGO, tpm_show_active, NULL);
 static DEVICE_ATTR(owned, S_IRUGO, tpm_show_owned, NULL);
 static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated, NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps_1_2, NULL);
+static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
 static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
 
 static struct attribute *stm_tpm_attrs[] = {
@@ -746,8 +746,6 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	tpm_get_timeouts(chip);
 
-	i2c_set_clientdata(client, chip);
-
 	dev_info(chip->dev, "TPM I2C Initialized\n");
 	return 0;
 _irq_set:
@@ -807,24 +805,18 @@ static int tpm_st33_i2c_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 /*
  * tpm_st33_i2c_pm_suspend suspend the TPM device
- * Added: Work around when suspend and no tpm application is running, suspend
- * may fail because chip->data_buffer is not set (only set in tpm_open in Linux
- * TPM core)
  * @param: client, the i2c_client drescription (TPM I2C description).
  * @param: mesg, the power management message.
  * @return: 0 in case of success.
  */
 static int tpm_st33_i2c_pm_suspend(struct device *dev)
 {
-	struct tpm_chip *chip = dev_get_drvdata(dev);
 	struct st33zp24_platform_data *pin_infos = dev->platform_data;
 	int ret = 0;
 
 	if (power_mgt) {
 		gpio_set_value(pin_infos->io_lpcpd, 0);
 	} else {
-		if (chip->data_buffer == NULL)
-			chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
 		ret = tpm_pm_suspend(dev);
 	}
 	return ret;
@@ -849,8 +841,6 @@ static int tpm_st33_i2c_pm_resume(struct device *dev)
 					  TPM_STS_VALID) == TPM_STS_VALID,
 					  chip->vendor.timeout_b);
 	} else {
-		if (chip->data_buffer == NULL)
-			chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
 		ret = tpm_pm_resume(dev);
 		if (!ret)
 			tpm_do_selftest(chip);

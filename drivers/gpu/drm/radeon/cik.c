@@ -1560,17 +1560,17 @@ u32 cik_get_xclk(struct radeon_device *rdev)
  * cik_mm_rdoorbell - read a doorbell dword
  *
  * @rdev: radeon_device pointer
- * @offset: byte offset into the aperture
+ * @index: doorbell index
  *
  * Returns the value in the doorbell aperture at the
- * requested offset (CIK).
+ * requested doorbell index (CIK).
  */
-u32 cik_mm_rdoorbell(struct radeon_device *rdev, u32 offset)
+u32 cik_mm_rdoorbell(struct radeon_device *rdev, u32 index)
 {
-	if (offset < rdev->doorbell.size) {
-		return readl(((void __iomem *)rdev->doorbell.ptr) + offset);
+	if (index < rdev->doorbell.num_doorbells) {
+		return readl(rdev->doorbell.ptr + index);
 	} else {
-		DRM_ERROR("reading beyond doorbell aperture: 0x%08x!\n", offset);
+		DRM_ERROR("reading beyond doorbell aperture: 0x%08x!\n", index);
 		return 0;
 	}
 }
@@ -1579,18 +1579,18 @@ u32 cik_mm_rdoorbell(struct radeon_device *rdev, u32 offset)
  * cik_mm_wdoorbell - write a doorbell dword
  *
  * @rdev: radeon_device pointer
- * @offset: byte offset into the aperture
+ * @index: doorbell index
  * @v: value to write
  *
  * Writes @v to the doorbell aperture at the
- * requested offset (CIK).
+ * requested doorbell index (CIK).
  */
-void cik_mm_wdoorbell(struct radeon_device *rdev, u32 offset, u32 v)
+void cik_mm_wdoorbell(struct radeon_device *rdev, u32 index, u32 v)
 {
-	if (offset < rdev->doorbell.size) {
-		writel(v, ((void __iomem *)rdev->doorbell.ptr) + offset);
+	if (index < rdev->doorbell.num_doorbells) {
+		writel(v, rdev->doorbell.ptr + index);
 	} else {
-		DRM_ERROR("writing beyond doorbell aperture: 0x%08x!\n", offset);
+		DRM_ERROR("writing beyond doorbell aperture: 0x%08x!\n", index);
 	}
 }
 
@@ -2427,6 +2427,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.cik.macrotile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_MACROTILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 	} else if (num_pipe_configs == 4) {
@@ -2773,6 +2774,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.cik.macrotile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_MACROTILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 	} else if (num_pipe_configs == 2) {
@@ -2990,6 +2992,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.cik.macrotile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_MACROTILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 	} else
@@ -3556,17 +3559,24 @@ void cik_fence_compute_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, 0);
 }
 
-void cik_semaphore_ring_emit(struct radeon_device *rdev,
+bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 			     struct radeon_ring *ring,
 			     struct radeon_semaphore *semaphore,
 			     bool emit_wait)
 {
+/* TODO: figure out why semaphore cause lockups */
+#if 0
 	uint64_t addr = semaphore->gpu_addr;
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
 	radeon_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
 	radeon_ring_write(ring, addr & 0xffffffff);
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
+
+	return true;
+#else
+	return false;
+#endif
 }
 
 /**
@@ -3609,13 +3619,8 @@ int cik_copy_cpdma(struct radeon_device *rdev,
 		return r;
 	}
 
-	if (radeon_fence_need_sync(*fence, ring->idx)) {
-		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
-					    ring->idx);
-		radeon_fence_note_sync(*fence, ring->idx);
-	} else {
-		radeon_semaphore_free(rdev, &sem, NULL);
-	}
+	radeon_semaphore_sync_to(sem, *fence);
+	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_bytes = size_in_bytes;
@@ -4052,7 +4057,7 @@ void cik_compute_ring_set_wptr(struct radeon_device *rdev,
 			       struct radeon_ring *ring)
 {
 	rdev->wb.wb[ring->wptr_offs/4] = cpu_to_le32(ring->wptr);
-	WDOORBELL32(ring->doorbell_offset, ring->wptr);
+	WDOORBELL32(ring->doorbell_index, ring->wptr);
 }
 
 /**
@@ -4393,10 +4398,6 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 			return r;
 		}
 
-		/* doorbell offset */
-		rdev->ring[idx].doorbell_offset =
-			(rdev->ring[idx].doorbell_page_num * PAGE_SIZE) + 0;
-
 		/* init the mqd struct */
 		memset(buf, 0, sizeof(struct bonaire_mqd));
 
@@ -4508,7 +4509,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 				RREG32(CP_HQD_PQ_DOORBELL_CONTROL);
 			mqd->queue_state.cp_hqd_pq_doorbell_control &= ~DOORBELL_OFFSET_MASK;
 			mqd->queue_state.cp_hqd_pq_doorbell_control |=
-				DOORBELL_OFFSET(rdev->ring[idx].doorbell_offset / 4);
+				DOORBELL_OFFSET(rdev->ring[idx].doorbell_index);
 			mqd->queue_state.cp_hqd_pq_doorbell_control |= DOORBELL_EN;
 			mqd->queue_state.cp_hqd_pq_doorbell_control &=
 				~(DOORBELL_SOURCE | DOORBELL_HIT);
@@ -7839,14 +7840,14 @@ int cik_init(struct radeon_device *rdev)
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 1024 * 1024);
-	r = radeon_doorbell_get(rdev, &ring->doorbell_page_num);
+	r = radeon_doorbell_get(rdev, &ring->doorbell_index);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 1024 * 1024);
-	r = radeon_doorbell_get(rdev, &ring->doorbell_page_num);
+	r = radeon_doorbell_get(rdev, &ring->doorbell_index);
 	if (r)
 		return r;
 

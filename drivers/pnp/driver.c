@@ -197,6 +197,11 @@ static int pnp_bus_freeze(struct device *dev)
 	return __pnp_bus_suspend(dev, PMSG_FREEZE);
 }
 
+static int pnp_bus_poweroff(struct device *dev)
+{
+	return __pnp_bus_suspend(dev, PMSG_HIBERNATE);
+}
+
 static int pnp_bus_resume(struct device *dev)
 {
 	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
@@ -234,9 +239,14 @@ static int pnp_bus_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops pnp_bus_dev_pm_ops = {
+	/* Suspend callbacks */
 	.suspend = pnp_bus_suspend,
-	.freeze = pnp_bus_freeze,
 	.resume = pnp_bus_resume,
+	/* Hibernate callbacks */
+	.freeze = pnp_bus_freeze,
+	.thaw = pnp_bus_resume,
+	.poweroff = pnp_bus_poweroff,
+	.restore = pnp_bus_resume,
 };
 
 struct bus_type pnp_bus_type = {

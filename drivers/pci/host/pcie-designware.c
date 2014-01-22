@@ -197,7 +197,7 @@ static int find_valid_pos0(struct pcie_port *pp, int msgvec, int pos, int *pos0)
 			return -ENOSPC;
 		/*
 		 * Check if this position is at correct offset.nvec is always a
-		 * power of two. pos0 must be nvec bit alligned.
+		 * power of two. pos0 must be nvec bit aligned.
 		 */
 		if (pos % msgvec)
 			pos += msgvec - (pos % msgvec);

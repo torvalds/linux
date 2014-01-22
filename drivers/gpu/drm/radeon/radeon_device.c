@@ -251,28 +251,23 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
  */
 int radeon_doorbell_init(struct radeon_device *rdev)
 {
-	int i;
-
 	/* doorbell bar mapping */
 	rdev->doorbell.base = pci_resource_start(rdev->pdev, 2);
 	rdev->doorbell.size = pci_resource_len(rdev->pdev, 2);
 
-	/* limit to 4 MB for now */
-	if (rdev->doorbell.size > (4 * 1024 * 1024))
-		rdev->doorbell.size = 4 * 1024 * 1024;
+	rdev->doorbell.num_doorbells = min_t(u32, rdev->doorbell.size / sizeof(u32), RADEON_MAX_DOORBELLS);
+	if (rdev->doorbell.num_doorbells == 0)
+		return -EINVAL;
 
-	rdev->doorbell.ptr = ioremap(rdev->doorbell.base, rdev->doorbell.size);
+	rdev->doorbell.ptr = ioremap(rdev->doorbell.base, rdev->doorbell.num_doorbells * sizeof(u32));
 	if (rdev->doorbell.ptr == NULL) {
 		return -ENOMEM;
 	}
 	DRM_INFO("doorbell mmio base: 0x%08X\n", (uint32_t)rdev->doorbell.base);
 	DRM_INFO("doorbell mmio size: %u\n", (unsigned)rdev->doorbell.size);
 
-	rdev->doorbell.num_pages = rdev->doorbell.size / PAGE_SIZE;
+	memset(&rdev->doorbell.used, 0, sizeof(rdev->doorbell.used));
 
-	for (i = 0; i < rdev->doorbell.num_pages; i++) {
-		rdev->doorbell.free[i] = true;
-	}
 	return 0;
 }
 
@@ -290,40 +285,38 @@ void radeon_doorbell_fini(struct radeon_device *rdev)
 }
 
 /**
- * radeon_doorbell_get - Allocate a doorbell page
+ * radeon_doorbell_get - Allocate a doorbell entry
  *
  * @rdev: radeon_device pointer
- * @doorbell: doorbell page number
+ * @doorbell: doorbell index
  *
- * Allocate a doorbell page for use by the driver (all asics).
+ * Allocate a doorbell for use by the driver (all asics).
  * Returns 0 on success or -EINVAL on failure.
  */
 int radeon_doorbell_get(struct radeon_device *rdev, u32 *doorbell)
 {
-	int i;
-
-	for (i = 0; i < rdev->doorbell.num_pages; i++) {
-		if (rdev->doorbell.free[i]) {
-			rdev->doorbell.free[i] = false;
-			*doorbell = i;
-			return 0;
-		}
+	unsigned long offset = find_first_zero_bit(rdev->doorbell.used, rdev->doorbell.num_doorbells);
+	if (offset < rdev->doorbell.num_doorbells) {
+		__set_bit(offset, rdev->doorbell.used);
+		*doorbell = offset;
+		return 0;
+	} else {
+		return -EINVAL;
 	}
-	return -EINVAL;
 }
 
 /**
- * radeon_doorbell_free - Free a doorbell page
+ * radeon_doorbell_free - Free a doorbell entry
  *
  * @rdev: radeon_device pointer
- * @doorbell: doorbell page number
+ * @doorbell: doorbell index
  *
- * Free a doorbell page allocated for use by the driver (all asics)
+ * Free a doorbell allocated for use by the driver (all asics)
  */
 void radeon_doorbell_free(struct radeon_device *rdev, u32 doorbell)
 {
-	if (doorbell < rdev->doorbell.num_pages)
-		rdev->doorbell.free[doorbell] = true;
+	if (doorbell < rdev->doorbell.num_doorbells)
+		__clear_bit(doorbell, rdev->doorbell.used);
 }
 
 /*

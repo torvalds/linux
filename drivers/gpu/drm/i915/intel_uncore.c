@@ -217,6 +217,19 @@ static void gen6_force_wake_work(struct work_struct *work)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static void intel_uncore_forcewake_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_VALLEYVIEW(dev)) {
+		vlv_force_wake_reset(dev_priv);
+	} else if (INTEL_INFO(dev)->gen >= 6) {
+		__gen6_gt_force_wake_reset(dev_priv);
+		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
+			__gen6_gt_force_wake_mt_reset(dev_priv);
+	}
+}
+
 void intel_uncore_early_sanitize(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -234,19 +247,8 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 		dev_priv->ellc_size = 128;
 		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
 	}
-}
 
-static void intel_uncore_forcewake_reset(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (IS_VALLEYVIEW(dev)) {
-		vlv_force_wake_reset(dev_priv);
-	} else if (INTEL_INFO(dev)->gen >= 6) {
-		__gen6_gt_force_wake_reset(dev_priv);
-		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
-			__gen6_gt_force_wake_mt_reset(dev_priv);
-	}
+	intel_uncore_forcewake_reset(dev);
 }
 
 void intel_uncore_sanitize(struct drm_device *dev)

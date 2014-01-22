@@ -142,10 +142,8 @@ static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
 
 	mutex_lock(&tegra_cpu_lock);
 
-	if (is_suspended) {
-		ret = -EBUSY;
+	if (is_suspended)
 		goto out;
-	}
 
 	freq = freq_table[index].frequency;
 

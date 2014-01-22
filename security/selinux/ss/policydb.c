@@ -3203,9 +3203,8 @@ static int range_write_helper(void *key, void *data, void *ptr)
 
 static int range_write(struct policydb *p, void *fp)
 {
-	size_t nel;
 	__le32 buf[1];
-	int rc;
+	int rc, nel;
 	struct policy_data pd;
 
 	pd.p = p;

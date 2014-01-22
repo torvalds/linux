@@ -77,6 +77,15 @@
  * the integrity of (super)-block write requests, do not
  * enable the config option BTRFS_FS_CHECK_INTEGRITY to
  * include and compile the integrity check tool.
+ *
+ * Expect millions of lines of information in the kernel log with an
+ * enabled check_int_print_mask. Therefore set LOG_BUF_SHIFT in the
+ * kernel config to at least 26 (which is 64MB). Usually the value is
+ * limited to 21 (which is 2MB) in init/Kconfig. The file needs to be
+ * changed like this before LOG_BUF_SHIFT can be set to a high value:
+ * config LOG_BUF_SHIFT
+ *       int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
+ *       range 12 30
  */
 
 #include <linux/sched.h>
@@ -124,6 +133,7 @@
 #define BTRFSIC_PRINT_MASK_INITIAL_DATABASE			0x00000400
 #define BTRFSIC_PRINT_MASK_NUM_COPIES				0x00000800
 #define BTRFSIC_PRINT_MASK_TREE_WITH_ALL_MIRRORS		0x00001000
+#define BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH_VERBOSE		0x00002000
 
 struct btrfsic_dev_state;
 struct btrfsic_state;
@@ -323,7 +333,6 @@ static void btrfsic_release_block_ctx(struct btrfsic_block_data_ctx *block_ctx);
 static int btrfsic_read_block(struct btrfsic_state *state,
 			      struct btrfsic_block_data_ctx *block_ctx);
 static void btrfsic_dump_database(struct btrfsic_state *state);
-static void btrfsic_complete_bio_end_io(struct bio *bio, int err);
 static int btrfsic_test_for_metadata(struct btrfsic_state *state,
 				     char **datav, unsigned int num_pages);
 static void btrfsic_process_written_block(struct btrfsic_dev_state *dev_state,
@@ -1677,7 +1686,6 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 	for (i = 0; i < num_pages;) {
 		struct bio *bio;
 		unsigned int j;
-		DECLARE_COMPLETION_ONSTACK(complete);
 
 		bio = btrfs_io_bio_alloc(GFP_NOFS, num_pages - i);
 		if (!bio) {
@@ -1688,8 +1696,6 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 		}
 		bio->bi_bdev = block_ctx->dev->bdev;
 		bio->bi_sector = dev_bytenr >> 9;
-		bio->bi_end_io = btrfsic_complete_bio_end_io;
-		bio->bi_private = &complete;
 
 		for (j = i; j < num_pages; j++) {
 			ret = bio_add_page(bio, block_ctx->pagev[j],
@@ -1702,12 +1708,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 			       "btrfsic: error, failed to add a single page!\n");
 			return -1;
 		}
-		submit_bio(READ, bio);
-
-		/* this will also unplug the queue */
-		wait_for_completion(&complete);
-
-		if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
+		if (submit_bio_wait(READ, bio)) {
 			printk(KERN_INFO
 			       "btrfsic: read error at logical %llu dev %s!\n",
 			       block_ctx->start, block_ctx->dev->name);
@@ -1728,11 +1729,6 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 	}
 
 	return block_ctx->len;
-}
-
-static void btrfsic_complete_bio_end_io(struct bio *bio, int err)
-{
-	complete((struct completion *)bio->bi_private);
 }
 
 static void btrfsic_dump_database(struct btrfsic_state *state)
@@ -2998,14 +2994,12 @@ int btrfsic_submit_bh(int rw, struct buffer_head *bh)
 	return submit_bh(rw, bh);
 }
 
-void btrfsic_submit_bio(int rw, struct bio *bio)
+static void __btrfsic_submit_bio(int rw, struct bio *bio)
 {
 	struct btrfsic_dev_state *dev_state;
 
-	if (!btrfsic_is_initialized) {
-		submit_bio(rw, bio);
+	if (!btrfsic_is_initialized)
 		return;
-	}
 
 	mutex_lock(&btrfsic_mutex);
 	/* since btrfsic_submit_bio() is also called before
@@ -3015,6 +3009,7 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 	    (rw & WRITE) && NULL != bio->bi_io_vec) {
 		unsigned int i;
 		u64 dev_bytenr;
+		u64 cur_bytenr;
 		int bio_is_patched;
 		char **mapped_datav;
 
@@ -3033,6 +3028,7 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 				       GFP_NOFS);
 		if (!mapped_datav)
 			goto leave;
+		cur_bytenr = dev_bytenr;
 		for (i = 0; i < bio->bi_vcnt; i++) {
 			BUG_ON(bio->bi_io_vec[i].bv_len != PAGE_CACHE_SIZE);
 			mapped_datav[i] = kmap(bio->bi_io_vec[i].bv_page);
@@ -3044,16 +3040,13 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 				kfree(mapped_datav);
 				goto leave;
 			}
-			if ((BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH |
-			     BTRFSIC_PRINT_MASK_VERBOSE) ==
-			    (dev_state->state->print_mask &
-			     (BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH |
-			      BTRFSIC_PRINT_MASK_VERBOSE)))
+			if (dev_state->state->print_mask &
+			    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH_VERBOSE)
 				printk(KERN_INFO
-				       "#%u: page=%p, len=%u, offset=%u\n",
-				       i, bio->bi_io_vec[i].bv_page,
-				       bio->bi_io_vec[i].bv_len,
+				       "#%u: bytenr=%llu, len=%u, offset=%u\n",
+				       i, cur_bytenr, bio->bi_io_vec[i].bv_len,
 				       bio->bi_io_vec[i].bv_offset);
+			cur_bytenr += bio->bi_io_vec[i].bv_len;
 		}
 		btrfsic_process_written_block(dev_state, dev_bytenr,
 					      mapped_datav, bio->bi_vcnt,
@@ -3097,8 +3090,18 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 	}
 leave:
 	mutex_unlock(&btrfsic_mutex);
+}
 
+void btrfsic_submit_bio(int rw, struct bio *bio)
+{
+	__btrfsic_submit_bio(rw, bio);
 	submit_bio(rw, bio);
+}
+
+int btrfsic_submit_bio_wait(int rw, struct bio *bio)
+{
+	__btrfsic_submit_bio(rw, bio);
+	return submit_bio_wait(rw, bio);
 }
 
 int btrfsic_mount(struct btrfs_root *root,

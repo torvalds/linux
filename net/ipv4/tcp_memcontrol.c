@@ -60,7 +60,6 @@ EXPORT_SYMBOL(tcp_destroy_cgroup);
 static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 {
 	struct cg_proto *cg_proto;
-	u64 old_lim;
 	int i;
 	int ret;
 
@@ -71,7 +70,6 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 	if (val > RES_COUNTER_MAX)
 		val = RES_COUNTER_MAX;
 
-	old_lim = res_counter_read_u64(&cg_proto->memory_allocated, RES_LIMIT);
 	ret = res_counter_set_limit(&cg_proto->memory_allocated, val);
 	if (ret)
 		return ret;

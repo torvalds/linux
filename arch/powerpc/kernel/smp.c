@@ -597,22 +597,6 @@ out:
 	return id;
 }
 
-/* Return the value of the chip-id property corresponding
- * to the given logical cpu.
- */
-int cpu_to_chip_id(int cpu)
-{
-	struct device_node *np;
-
-	np = of_get_cpu_node(cpu, NULL);
-	if (!np)
-		return -1;
-
-	of_node_put(np);
-	return of_get_ibm_chip_id(np);
-}
-EXPORT_SYMBOL(cpu_to_chip_id);
-
 /* Helper routines for cpu to core mapping */
 int cpu_core_index_of_thread(int cpu)
 {

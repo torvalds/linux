@@ -909,7 +909,7 @@ config NETFILTER_XT_MATCH_CONNLABEL
 	  connection simultaneously.
 
 config NETFILTER_XT_MATCH_CONNLIMIT
-	tristate '"connlimit" match support"'
+	tristate '"connlimit" match support'
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	---help---

@@ -377,7 +377,7 @@ out_master_put:
 
 static int bcm2835_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
+	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 
 	free_irq(bs->irq, master);

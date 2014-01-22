@@ -362,7 +362,8 @@ static int __ath_reg_dyn_country(struct wiphy *wiphy,
 {
 	u16 country_code;
 
-	if (!ath_is_world_regd(reg))
+	if (request->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	    !ath_is_world_regd(reg))
 		return -EINVAL;
 
 	country_code = ath_regd_find_country_by_name(request->alpha2);
