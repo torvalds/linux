@@ -2822,6 +2822,174 @@ static const struct file_operations i915_display_crc_ctl_fops = {
 	.write = display_crc_ctl_write
 };
 
+static void wm_latency_show(struct seq_file *m, const uint16_t wm[5])
+{
+	struct drm_device *dev = m->private;
+	int num_levels = IS_HASWELL(dev) || IS_BROADWELL(dev) ? 5 : 4;
+	int level;
+
+	drm_modeset_lock_all(dev);
+
+	for (level = 0; level < num_levels; level++) {
+		unsigned int latency = wm[level];
+
+		/* WM1+ latency values in 0.5us units */
+		if (level > 0)
+			latency *= 5;
+
+		seq_printf(m, "WM%d %u (%u.%u usec)\n",
+			   level, wm[level],
+			   latency / 10, latency % 10);
+	}
+
+	drm_modeset_unlock_all(dev);
+}
+
+static int pri_wm_latency_show(struct seq_file *m, void *data)
+{
+	struct drm_device *dev = m->private;
+
+	wm_latency_show(m, to_i915(dev)->wm.pri_latency);
+
+	return 0;
+}
+
+static int spr_wm_latency_show(struct seq_file *m, void *data)
+{
+	struct drm_device *dev = m->private;
+
+	wm_latency_show(m, to_i915(dev)->wm.spr_latency);
+
+	return 0;
+}
+
+static int cur_wm_latency_show(struct seq_file *m, void *data)
+{
+	struct drm_device *dev = m->private;
+
+	wm_latency_show(m, to_i915(dev)->wm.cur_latency);
+
+	return 0;
+}
+
+static int pri_wm_latency_open(struct inode *inode, struct file *file)
+{
+	struct drm_device *dev = inode->i_private;
+
+	if (!HAS_PCH_SPLIT(dev))
+		return -ENODEV;
+
+	return single_open(file, pri_wm_latency_show, dev);
+}
+
+static int spr_wm_latency_open(struct inode *inode, struct file *file)
+{
+	struct drm_device *dev = inode->i_private;
+
+	if (!HAS_PCH_SPLIT(dev))
+		return -ENODEV;
+
+	return single_open(file, spr_wm_latency_show, dev);
+}
+
+static int cur_wm_latency_open(struct inode *inode, struct file *file)
+{
+	struct drm_device *dev = inode->i_private;
+
+	if (!HAS_PCH_SPLIT(dev))
+		return -ENODEV;
+
+	return single_open(file, cur_wm_latency_show, dev);
+}
+
+static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
+				size_t len, loff_t *offp, uint16_t wm[5])
+{
+	struct seq_file *m = file->private_data;
+	struct drm_device *dev = m->private;
+	uint16_t new[5] = { 0 };
+	int num_levels = IS_HASWELL(dev) || IS_BROADWELL(dev) ? 5 : 4;
+	int level;
+	int ret;
+	char tmp[32];
+
+	if (len >= sizeof(tmp))
+		return -EINVAL;
+
+	if (copy_from_user(tmp, ubuf, len))
+		return -EFAULT;
+
+	tmp[len] = '\0';
+
+	ret = sscanf(tmp, "%hu %hu %hu %hu %hu", &new[0], &new[1], &new[2], &new[3], &new[4]);
+	if (ret != num_levels)
+		return -EINVAL;
+
+	drm_modeset_lock_all(dev);
+
+	for (level = 0; level < num_levels; level++)
+		wm[level] = new[level];
+
+	drm_modeset_unlock_all(dev);
+
+	return len;
+}
+
+
+static ssize_t pri_wm_latency_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_device *dev = m->private;
+
+	return wm_latency_write(file, ubuf, len, offp, to_i915(dev)->wm.pri_latency);
+}
+
+static ssize_t spr_wm_latency_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_device *dev = m->private;
+
+	return wm_latency_write(file, ubuf, len, offp, to_i915(dev)->wm.spr_latency);
+}
+
+static ssize_t cur_wm_latency_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_device *dev = m->private;
+
+	return wm_latency_write(file, ubuf, len, offp, to_i915(dev)->wm.cur_latency);
+}
+
+static const struct file_operations i915_pri_wm_latency_fops = {
+	.owner = THIS_MODULE,
+	.open = pri_wm_latency_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = pri_wm_latency_write
+};
+
+static const struct file_operations i915_spr_wm_latency_fops = {
+	.owner = THIS_MODULE,
+	.open = spr_wm_latency_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = spr_wm_latency_write
+};
+
+static const struct file_operations i915_cur_wm_latency_fops = {
+	.owner = THIS_MODULE,
+	.open = cur_wm_latency_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = cur_wm_latency_write
+};
+
 static int
 i915_wedged_get(void *data, u64 *val)
 {
@@ -3336,6 +3504,9 @@ static const struct i915_debugfs_files {
 	{"i915_error_state", &i915_error_state_fops},
 	{"i915_next_seqno", &i915_next_seqno_fops},
 	{"i915_display_crc_ctl", &i915_display_crc_ctl_fops},
+	{"i915_pri_wm_latency", &i915_pri_wm_latency_fops},
+	{"i915_spr_wm_latency", &i915_spr_wm_latency_fops},
+	{"i915_cur_wm_latency", &i915_cur_wm_latency_fops},
 };
 
 void intel_display_crc_init(struct drm_device *dev)
