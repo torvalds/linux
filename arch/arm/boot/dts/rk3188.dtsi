@@ -158,34 +158,46 @@
 		reg = <0x20004000 0x4000>;
 	};
 
-	timer@200380a0 {
-		compatible = "rockchip,timer";
-		reg = <0x200380a0 0x20>;
-		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
 	timer@20038000 {
 		compatible = "rockchip,timer";
 		reg = <0x20038000 0x20>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <0>;
 	};
 
 	timer@20038020 {
 		compatible = "rockchip,timer";
 		reg = <0x20038020 0x20>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <1>;
+	};
+
+	timer@20038040 {
+		compatible = "rockchip,timer";
+		reg = <0x20038040 0x20>;
+		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <2>;
 	};
 
 	timer@20038060 {
 		compatible = "rockchip,timer";
 		reg = <0x20038060 0x20>;
 		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <3>;
 	};
 
 	timer@20038080 {
 		compatible = "rockchip,timer";
 		reg = <0x20038080 0x20>;
 		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,broadcast = <1>;
+	};
+
+	timer@200380a0 {
+		compatible = "rockchip,timer";
+		reg = <0x200380a0 0x20>;
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,clocksource = <1>;
 	};
 
 	uart0: serial@10124000 {

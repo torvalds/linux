@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ROCKCHIP, Inc.
+ * Copyright (C) 2013-2014 ROCKCHIP, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,12 +12,12 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/clockchips.h>
+#include <linux/delay.h>
 #include <linux/percpu.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 
-#include <asm/delay.h>
 #include <asm/localtimer.h>
 #include <asm/sched_clock.h>
 
@@ -51,8 +51,18 @@ struct ce_timer {
 	char name[16];
 };
 
+struct bc_timer {
+	struct clock_event_device ce;
+	void __iomem *base;
+	struct clk *clk;
+	struct clk *pclk;
+	struct irqaction irq;
+	char name[16];
+};
+
 static struct cs_timer cs_timer;
 static DEFINE_PER_CPU(struct ce_timer, ce_timer);
+static struct bc_timer bc_timer;
 
 static inline void rk_timer_disable(void __iomem *base)
 {
@@ -83,10 +93,8 @@ static inline u32 rk_timer_read_current_value64(void __iomem *base)
 	return ((u64) upper << 32) + lower;
 }
 
-static int rk_timer_set_next_event(unsigned long cycles, struct clock_event_device *ce)
+static inline int rk_timer_do_set_next_event(unsigned long cycles, void __iomem *base)
 {
-	void __iomem *base = __get_cpu_var(ce_timer).base;
-
 	rk_timer_disable(base);
 	writel_relaxed(cycles, base + TIMER_LOAD_COUNT0);
 	writel_relaxed(0, base + TIMER_LOAD_COUNT1);
@@ -95,11 +103,18 @@ static int rk_timer_set_next_event(unsigned long cycles, struct clock_event_devi
 	return 0;
 }
 
-static void rk_timer_set_mode(enum clock_event_mode mode, struct clock_event_device *ce)
+static int rk_timer_set_next_event(unsigned long cycles, struct clock_event_device *ce)
 {
-	struct ce_timer *timer = &__get_cpu_var(ce_timer);
-	void __iomem *base = timer->base;
+	return rk_timer_do_set_next_event(cycles, __get_cpu_var(ce_timer).base);
+}
 
+static int rk_timer_broadcast_set_next_event(unsigned long cycles, struct clock_event_device *ce)
+{
+	return rk_timer_do_set_next_event(cycles, bc_timer.base);
+}
+
+static inline void rk_timer_do_set_mode(enum clock_event_mode mode, void __iomem *base)
+{
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		rk_timer_disable(base);
@@ -116,12 +131,18 @@ static void rk_timer_set_mode(enum clock_event_mode mode, struct clock_event_dev
 	}
 }
 
-static irqreturn_t rk_timer_clockevent_interrupt(int irq, void *dev_id)
+static void rk_timer_set_mode(enum clock_event_mode mode, struct clock_event_device *ce)
 {
-	struct clock_event_device *ce = dev_id;
-	struct ce_timer *timer = &__get_cpu_var(ce_timer);
-	void __iomem *base = timer->base;
+	rk_timer_do_set_mode(mode, __get_cpu_var(ce_timer).base);
+}
 
+static void rk_timer_broadcast_set_mode(enum clock_event_mode mode, struct clock_event_device *ce)
+{
+	rk_timer_do_set_mode(mode, bc_timer.base);
+}
+
+static inline irqreturn_t rk_timer_interrupt(void __iomem *base, struct clock_event_device *ce)
+{
 	/* clear interrupt */
 	writel_relaxed(1, base + TIMER_INT_STATUS);
 	if (ce->mode == CLOCK_EVT_MODE_ONESHOT) {
@@ -132,6 +153,16 @@ static irqreturn_t rk_timer_clockevent_interrupt(int irq, void *dev_id)
 	ce->event_handler(ce);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t rk_timer_clockevent_interrupt(int irq, void *dev_id)
+{
+	return rk_timer_interrupt(__get_cpu_var(ce_timer).base, dev_id);
+}
+
+static irqreturn_t rk_timer_broadcast_interrupt(int irq, void *dev_id)
+{
+	return rk_timer_interrupt(bc_timer.base, dev_id);
 }
 
 static __cpuinit int rk_timer_init_clockevent(struct clock_event_device *ce, unsigned int cpu)
@@ -162,6 +193,41 @@ static __cpuinit int rk_timer_init_clockevent(struct clock_event_device *ce, uns
 	return 0;
 }
 
+static __init void rk_timer_init_broadcast(struct device_node *np)
+{
+	struct bc_timer *timer = &bc_timer;
+	struct irqaction *irq = &timer->irq;
+	struct clock_event_device *ce = &timer->ce;
+	void __iomem *base;
+
+	base = of_iomap(np, 0);
+	if (!base)
+		return;
+
+	timer->base = base;
+	snprintf(timer->name, sizeof(timer->name), TIMER_NAME);
+	irq->irq = irq_of_parse_and_map(np, 0);
+	irq->name = timer->name;
+	irq->flags = IRQF_TIMER | IRQF_NOBALANCING;
+	irq->handler = rk_timer_broadcast_interrupt;
+
+	ce->name = timer->name;
+	ce->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	ce->set_next_event = rk_timer_broadcast_set_next_event;
+	ce->set_mode = rk_timer_broadcast_set_mode;
+	ce->irq = irq->irq;
+	ce->cpumask = cpumask_of(0);
+	ce->rating = 250;
+
+	writel_relaxed(1, base + TIMER_INT_STATUS);
+	rk_timer_disable(base);
+
+	irq->dev_id = ce;
+	setup_irq(irq->irq, irq);
+
+	clockevents_config_and_register(ce, 24000000, 0xF, 0xFFFFFFFF);
+}
+
 static int __cpuinit rk_local_timer_setup(struct clock_event_device *ce)
 {
 	ce->rating = 450;
@@ -182,6 +248,11 @@ static struct local_timer_ops rk_local_timer_ops __cpuinitdata = {
 static cycle_t rk_timer_read(struct clocksource *cs)
 {
 	return ~rk_timer_read_current_value(cs_timer.base);
+}
+
+static cycle_t rk_timer_read_up(struct clocksource *cs)
+{
+	return rk_timer_read_current_value(cs_timer.base);
 }
 
 static struct clocksource rk_timer_clocksource = {
@@ -213,6 +284,11 @@ static u32 rockchip_read_sched_clock(void)
 	return ~rk_timer_read_current_value(cs_timer.base);
 }
 
+static u32 rockchip_read_sched_clock_up(void)
+{
+	return rk_timer_read_current_value(cs_timer.base);
+}
+
 static void __init rk_timer_init_ce_timer(struct device_node *np, unsigned int cpu)
 {
 	struct ce_timer *timer = &per_cpu(ce_timer, cpu);
@@ -231,21 +307,29 @@ static struct delay_timer rk_delay_timer = {
 	.freq = 24000000,
 };
 
-static int num_called;
 static void __init rk_timer_init(struct device_node *np)
 {
-	switch (num_called) {
-	case 0:
-		rk_timer_init_clocksource(np);
-		setup_sched_clock(rockchip_read_sched_clock, 32, 24000000);
+	u32 val = 0;
+	if (of_property_read_u32(np, "rockchip,percpu", &val) == 0) {
 		local_timer_register(&rk_local_timer_ops);
-		register_current_timer_delay(&rk_delay_timer);
-		break;
-	default:
-		rk_timer_init_ce_timer(np, num_called - 1);
-		break;
+		rk_timer_init_ce_timer(np, val);
+	} else if (of_property_read_u32(np, "rockchip,clocksource", &val) == 0 && val) {
+		u32 count_up = 0;
+		of_property_read_u32(np, "rockchip,count-up", &count_up);
+		if (count_up) {
+			rk_timer_clocksource.read = rk_timer_read_up;
+			rk_delay_timer.read_current_timer = (unsigned long (*)(void))rockchip_read_sched_clock_up;
+		}
+		rk_timer_init_clocksource(np);
+		if (!lpj_fine) {
+			if (count_up)
+				setup_sched_clock(rockchip_read_sched_clock_up, 32, 24000000);
+			else
+				setup_sched_clock(rockchip_read_sched_clock, 32, 24000000);
+			register_current_timer_delay(&rk_delay_timer);
+		}
+	} else if (of_property_read_u32(np, "rockchip,broadcast", &val) == 0 && val) {
+		rk_timer_init_broadcast(np);
 	}
-
-	num_called++;
 }
 CLOCKSOURCE_OF_DECLARE(rk_timer, "rockchip,timer", rk_timer_init);
