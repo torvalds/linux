@@ -292,14 +292,17 @@ void scsi_device_unbusy(struct scsi_device *sdev)
 	struct scsi_target *starget = scsi_target(sdev);
 	unsigned long flags;
 
-	spin_lock_irqsave(shost->host_lock, flags);
-	shost->host_busy--;
+	atomic_dec(&shost->host_busy);
 	atomic_dec(&starget->target_busy);
+
 	if (unlikely(scsi_host_in_recovery(shost) &&
-		     (shost->host_failed || shost->host_eh_scheduled)))
+		     (shost->host_failed || shost->host_eh_scheduled))) {
+		spin_lock_irqsave(shost->host_lock, flags);
 		scsi_eh_wakeup(shost);
-	spin_unlock(shost->host_lock);
-	spin_lock(sdev->request_queue->queue_lock);
+		spin_unlock_irqrestore(shost->host_lock, flags);
+	}
+
+	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	sdev->device_busy--;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
 }
@@ -367,7 +370,8 @@ static inline int scsi_target_is_busy(struct scsi_target *starget)
 
 static inline int scsi_host_is_busy(struct Scsi_Host *shost)
 {
-	if ((shost->can_queue > 0 && shost->host_busy >= shost->can_queue) ||
+	if ((shost->can_queue > 0 &&
+	     atomic_read(&shost->host_busy) >= shost->can_queue) ||
 	    shost->host_blocked || shost->host_self_blocked)
 		return 1;
 
@@ -1334,38 +1338,54 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 				   struct Scsi_Host *shost,
 				   struct scsi_device *sdev)
 {
-	int ret = 0;
-
-	spin_lock_irq(shost->host_lock);
+	unsigned int busy;
 
 	if (scsi_host_in_recovery(shost))
-		goto out;
-	if (shost->host_busy == 0 && shost->host_blocked) {
+		return 0;
+
+	busy = atomic_inc_return(&shost->host_busy) - 1;
+	if (shost->host_blocked) {
+		if (busy)
+			goto starved;
+
 		/*
 		 * unblock after host_blocked iterates to zero
 		 */
-		if (--shost->host_blocked != 0)
-			goto out;
+		spin_lock_irq(shost->host_lock);
+		if (--shost->host_blocked != 0) {
+			spin_unlock_irq(shost->host_lock);
+			goto out_dec;
+		}
+		spin_unlock_irq(shost->host_lock);
 
 		SCSI_LOG_MLQUEUE(3,
 			shost_printk(KERN_INFO, shost,
 				     "unblocking host at zero depth\n"));
 	}
-	if (scsi_host_is_busy(shost)) {
-		if (list_empty(&sdev->starved_entry))
-			list_add_tail(&sdev->starved_entry, &shost->starved_list);
-		goto out;
-	}
+
+	if (shost->can_queue > 0 && busy >= shost->can_queue)
+		goto starved;
+	if (shost->host_self_blocked)
+		goto starved;
 
 	/* We're OK to process the command, so we can't be starved */
-	if (!list_empty(&sdev->starved_entry))
-		list_del_init(&sdev->starved_entry);
+	if (!list_empty(&sdev->starved_entry)) {
+		spin_lock_irq(shost->host_lock);
+		if (!list_empty(&sdev->starved_entry))
+			list_del_init(&sdev->starved_entry);
+		spin_unlock_irq(shost->host_lock);
+	}
 
-	shost->host_busy++;
-	ret = 1;
-out:
+	return 1;
+
+starved:
+	spin_lock_irq(shost->host_lock);
+	if (list_empty(&sdev->starved_entry))
+		list_add_tail(&sdev->starved_entry, &shost->starved_list);
 	spin_unlock_irq(shost->host_lock);
-	return ret;
+out_dec:
+	atomic_dec(&shost->host_busy);
+	return 0;
 }
 
 /*
@@ -1429,12 +1449,8 @@ static void scsi_kill_request(struct request *req, struct request_queue *q)
 	 * with the locks as normal issue path does.
 	 */
 	sdev->device_busy++;
-	spin_unlock(sdev->request_queue->queue_lock);
-	spin_lock(shost->host_lock);
-	shost->host_busy++;
+	atomic_inc(&shost->host_busy);
 	atomic_inc(&starget->target_busy);
-	spin_unlock(shost->host_lock);
-	spin_lock(sdev->request_queue->queue_lock);
 
 	blk_complete_request(req);
 }

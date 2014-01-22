@@ -2971,7 +2971,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	 */
 	for (;;) {
 		spin_lock_irqsave(session->host->host_lock, flags);
-		if (!session->host->host_busy) { /* OK for ERL == 0 */
+		if (!atomic_read(&session->host->host_busy)) { /* OK for ERL == 0 */
 			spin_unlock_irqrestore(session->host->host_lock, flags);
 			break;
 		}
@@ -2979,7 +2979,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 		msleep_interruptible(500);
 		iscsi_conn_printk(KERN_INFO, conn, "iscsi conn_destroy(): "
 				  "host_busy %d host_failed %d\n",
-				  session->host->host_busy,
+				  atomic_read(&session->host->host_busy),
 				  session->host->host_failed);
 		/*
 		 * force eh_abort() to unblock

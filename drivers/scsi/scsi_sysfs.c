@@ -334,7 +334,6 @@ store_shost_eh_deadline(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(eh_deadline, S_IRUGO | S_IWUSR, show_shost_eh_deadline, store_shost_eh_deadline);
 
 shost_rd_attr(unique_id, "%u\n");
-shost_rd_attr(host_busy, "%hu\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
 shost_rd_attr(can_queue, "%hd\n");
 shost_rd_attr(sg_tablesize, "%hu\n");
@@ -343,6 +342,14 @@ shost_rd_attr(unchecked_isa_dma, "%d\n");
 shost_rd_attr(prot_capabilities, "%u\n");
 shost_rd_attr(prot_guard_type, "%hd\n");
 shost_rd_attr2(proc_name, hostt->proc_name, "%s\n");
+
+static ssize_t
+show_host_busy(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	return snprintf(buf, 20, "%d\n", atomic_read(&shost->host_busy));
+}
+static DEVICE_ATTR(host_busy, S_IRUGO, show_host_busy, NULL);
 
 static struct attribute *scsi_sysfs_shost_attrs[] = {
 	&dev_attr_unique_id.attr,
