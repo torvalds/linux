@@ -65,6 +65,7 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
 static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
+	struct bond_opt_value *optval;
 	struct slave *curr;
 	int i;
 
@@ -84,9 +85,10 @@ static void bond_info_show_master(struct seq_file *seq)
 
 	if (bond->params.mode == BOND_MODE_XOR ||
 		bond->params.mode == BOND_MODE_8023AD) {
+		optval = bond_opt_get_val(BOND_OPT_XMIT_HASH,
+					  bond->params.xmit_policy);
 		seq_printf(seq, "Transmit Hash Policy: %s (%d)\n",
-			xmit_hashtype_tbl[bond->params.xmit_policy].modename,
-			bond->params.xmit_policy);
+			   optval->string, bond->params.xmit_policy);
 	}
 
 	if (USES_PRIMARY(bond->params.mode)) {

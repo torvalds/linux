@@ -294,35 +294,24 @@ static ssize_t bonding_show_xmit_hash(struct device *d,
 				      char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	struct bond_opt_value *val;
 
-	return sprintf(buf, "%s %d\n",
-		       xmit_hashtype_tbl[bond->params.xmit_policy].modename,
-		       bond->params.xmit_policy);
+	val = bond_opt_get_val(BOND_OPT_XMIT_HASH, bond->params.xmit_policy);
+
+	return sprintf(buf, "%s %d\n", val->string, bond->params.xmit_policy);
 }
 
 static ssize_t bonding_store_xmit_hash(struct device *d,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int new_value, ret;
 	struct bonding *bond = to_bond(d);
+	int ret;
 
-	new_value = bond_parse_parm(buf, xmit_hashtype_tbl);
-	if (new_value < 0)  {
-		pr_err("%s: Ignoring invalid xmit hash policy value %.*s.\n",
-		       bond->dev->name,
-		       (int)strlen(buf) - 1, buf);
-		return -EINVAL;
-	}
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_xmit_hash_policy_set(bond, new_value);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_XMIT_HASH, (char *)buf);
 	if (!ret)
 		ret = count;
 
-	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(xmit_hash_policy, S_IRUGO | S_IWUSR,

@@ -40,6 +40,7 @@ enum {
 enum {
 	BOND_OPT_MODE,
 	BOND_OPT_PACKETS_PER_SLAVE,
+	BOND_OPT_XMIT_HASH,
 	BOND_OPT_LAST
 };
 
@@ -102,4 +103,6 @@ static inline void __bond_opt_init(struct bond_opt_value *optval,
 
 int bond_option_mode_set(struct bonding *bond, struct bond_opt_value *newval);
 int bond_option_pps_set(struct bonding *bond, struct bond_opt_value *newval);
+int bond_option_xmit_hash_policy_set(struct bonding *bond,
+				     struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */

@@ -36,6 +36,15 @@ static struct bond_opt_value bond_pps_tbl[] = {
 	{ NULL,      -1,        0},
 };
 
+static struct bond_opt_value bond_xmit_hashtype_tbl[] = {
+	{ "layer2",   BOND_XMIT_POLICY_LAYER2, BOND_VALFLAG_DEFAULT},
+	{ "layer3+4", BOND_XMIT_POLICY_LAYER34, 0},
+	{ "layer2+3", BOND_XMIT_POLICY_LAYER23, 0},
+	{ "encap2+3", BOND_XMIT_POLICY_ENCAP23, 0},
+	{ "encap3+4", BOND_XMIT_POLICY_ENCAP34, 0},
+	{ NULL,       -1,                       0},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -52,6 +61,13 @@ static struct bond_option bond_opts[] = {
 		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ROUNDROBIN)),
 		.values = bond_pps_tbl,
 		.set = bond_option_pps_set
+	},
+	[BOND_OPT_XMIT_HASH] = {
+		.id = BOND_OPT_XMIT_HASH,
+		.name = "xmit_hash_policy",
+		.desc = "balance-xor and 802.3ad hashing method",
+		.values = bond_xmit_hashtype_tbl,
+		.set = bond_option_xmit_hash_policy_set
 	},
 	{ }
 };
@@ -860,18 +876,12 @@ int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac)
 	return 0;
 }
 
-int bond_option_xmit_hash_policy_set(struct bonding *bond, int xmit_hash_policy)
+int bond_option_xmit_hash_policy_set(struct bonding *bond,
+				     struct bond_opt_value *newval)
 {
-	if (bond_parm_tbl_lookup(xmit_hash_policy, xmit_hashtype_tbl) < 0) {
-		pr_err("%s: Ignoring invalid xmit_hash_policy value %d.\n",
-		       bond->dev->name, xmit_hash_policy);
-		return -EINVAL;
-	}
-
-	bond->params.xmit_policy = xmit_hash_policy;
-	pr_info("%s: setting xmit hash policy to %s (%d).\n",
-		bond->dev->name,
-		xmit_hashtype_tbl[xmit_hash_policy].modename, xmit_hash_policy);
+	pr_info("%s: setting xmit hash policy to %s (%llu).\n",
+		bond->dev->name, newval->string, newval->value);
+	bond->params.xmit_policy = newval->value;
 
 	return 0;
 }

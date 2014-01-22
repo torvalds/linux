@@ -238,7 +238,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int xmit_hash_policy =
 			nla_get_u8(data[IFLA_BOND_XMIT_HASH_POLICY]);
 
-		err = bond_option_xmit_hash_policy_set(bond, xmit_hash_policy);
+		bond_opt_initval(&newval, xmit_hash_policy);
+		err = __bond_opt_set(bond, BOND_OPT_XMIT_HASH, &newval);
 		if (err)
 			return err;
 	}

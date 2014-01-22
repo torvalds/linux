@@ -214,15 +214,6 @@ const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	NULL,		-1},
 };
 
-const struct bond_parm_tbl xmit_hashtype_tbl[] = {
-{	"layer2",		BOND_XMIT_POLICY_LAYER2},
-{	"layer3+4",		BOND_XMIT_POLICY_LAYER34},
-{	"layer2+3",		BOND_XMIT_POLICY_LAYER23},
-{	"encap2+3",		BOND_XMIT_POLICY_ENCAP23},
-{	"encap3+4",		BOND_XMIT_POLICY_ENCAP34},
-{	NULL,			-1},
-};
-
 const struct bond_parm_tbl arp_all_targets_tbl[] = {
 {	"any",			BOND_ARP_TARGETS_ANY},
 {	"all",			BOND_ARP_TARGETS_ALL},
@@ -4039,14 +4030,15 @@ static int bond_check_params(struct bond_params *params)
 			pr_info("xmit_hash_policy param is irrelevant in mode %s\n",
 			       bond_mode_name(bond_mode));
 		} else {
-			xmit_hashtype = bond_parse_parm(xmit_hash_policy,
-							xmit_hashtype_tbl);
-			if (xmit_hashtype == -1) {
+			bond_opt_initstr(&newval, xmit_hash_policy);
+			valptr = bond_opt_parse(bond_opt_get(BOND_OPT_XMIT_HASH),
+						&newval);
+			if (!valptr) {
 				pr_err("Error: Invalid xmit_hash_policy \"%s\"\n",
-				       xmit_hash_policy == NULL ? "NULL" :
 				       xmit_hash_policy);
 				return -EINVAL;
 			}
+			xmit_hashtype = valptr->value;
 		}
 	}
 
