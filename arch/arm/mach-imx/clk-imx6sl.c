@@ -66,6 +66,10 @@ static struct clk_div_table video_div_table[] = {
 static struct clk *clks[IMX6SL_CLK_END];
 static struct clk_onecell_data clk_data;
 
+static const u32 clks_init_on[] __initconst = {
+	IMX6SL_CLK_IPG, IMX6SL_CLK_ARM, IMX6SL_CLK_MMDC_ROOT,
+};
+
 /*
  * ERR005311 CCM: After exit from WAIT mode, unwanted interrupt(s) taken
  *           during WAIT mode entry process could cause cache memory
@@ -290,6 +294,13 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 	if (ret)
 		pr_warn("%s: failed to set AHB clock rate %d!\n",
 			__func__, ret);
+
+	/*
+	 * Make sure those always on clocks are enabled to maintain the correct
+	 * usecount and enabling/disabling of parent PLLs.
+	 */
+	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
+		clk_prepare_enable(clks[clks_init_on[i]]);
 
 	if (IS_ENABLED(CONFIG_USB_MXS_PHY)) {
 		clk_prepare_enable(clks[IMX6SL_CLK_USBPHY1_GATE]);
