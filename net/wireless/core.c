@@ -203,8 +203,11 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 
 	rdev->opencount--;
 
-	WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev &&
-		!rdev->scan_req->notified);
+	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
+		if (WARN_ON(!rdev->scan_req->notified))
+			rdev->scan_req->aborted = true;
+		___cfg80211_scan_done(rdev);
+	}
 }
 
 static int cfg80211_rfkill_set_block(void *data, bool blocked)
@@ -856,8 +859,11 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		break;
 	case NETDEV_DOWN:
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
-		WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev &&
-			!rdev->scan_req->notified);
+		if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
+			if (WARN_ON(!rdev->scan_req->notified))
+				rdev->scan_req->aborted = true;
+			___cfg80211_scan_done(rdev);
+		}
 
 		if (WARN_ON(rdev->sched_scan_req &&
 			    rdev->sched_scan_req->dev == wdev->netdev)) {
