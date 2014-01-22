@@ -49,6 +49,7 @@ enum {
 	BOND_OPT_DOWNDELAY,
 	BOND_OPT_UPDELAY,
 	BOND_OPT_LACP_RATE,
+	BOND_OPT_MINLINKS,
 	BOND_OPT_LAST
 };
 
@@ -129,5 +130,7 @@ int bond_option_downdelay_set(struct bonding *bond,
 int bond_option_updelay_set(struct bonding *bond,
 			    struct bond_opt_value *newval);
 int bond_option_lacp_rate_set(struct bonding *bond,
+			      struct bond_opt_value *newval);
+int bond_option_min_links_set(struct bonding *bond,
 			      struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */

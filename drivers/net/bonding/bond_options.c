@@ -164,6 +164,13 @@ static struct bond_option bond_opts[] = {
 		.values = bond_lacp_rate_tbl,
 		.set = bond_option_lacp_rate_set
 	},
+	[BOND_OPT_MINLINKS] = {
+		.id = BOND_OPT_MINLINKS,
+		.name = "min_links",
+		.desc = "Minimum number of available links before turning on carrier",
+		.values = bond_intmax_tbl,
+		.set = bond_option_min_links_set
+	},
 	{ }
 };
 
@@ -990,11 +997,12 @@ int bond_option_all_slaves_active_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_min_links_set(struct bonding *bond, int min_links)
+int bond_option_min_links_set(struct bonding *bond,
+			      struct bond_opt_value *newval)
 {
-	pr_info("%s: Setting min links value to %u\n",
-		bond->dev->name, min_links);
-	bond->params.min_links = min_links;
+	pr_info("%s: Setting min links value to %llu\n",
+		bond->dev->name, newval->value);
+	bond->params.min_links = newval->value;
 
 	return 0;
 }

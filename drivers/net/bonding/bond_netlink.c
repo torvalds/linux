@@ -285,7 +285,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int min_links =
 			nla_get_u32(data[IFLA_BOND_MIN_LINKS]);
 
-		err = bond_option_min_links_set(bond, min_links);
+		bond_opt_initval(&newval, min_links);
+		err = __bond_opt_set(bond, BOND_OPT_MINLINKS, &newval);
 		if (err)
 			return err;
 	}

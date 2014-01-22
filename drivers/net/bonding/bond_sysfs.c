@@ -586,23 +586,11 @@ static ssize_t bonding_store_min_links(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	int ret;
-	unsigned int new_value;
 
-	ret = kstrtouint(buf, 0, &new_value);
-	if (ret < 0) {
-		pr_err("%s: Ignoring invalid min links value %s.\n",
-		       bond->dev->name, buf);
-		return ret;
-	}
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_min_links_set(bond, new_value);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_MINLINKS, (char *)buf);
 	if (!ret)
 		ret = count;
 
-	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(min_links, S_IRUGO | S_IWUSR,
