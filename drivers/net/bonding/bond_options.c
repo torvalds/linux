@@ -45,6 +45,14 @@ static struct bond_opt_value bond_xmit_hashtype_tbl[] = {
 	{ NULL,       -1,                       0},
 };
 
+static struct bond_opt_value bond_arp_validate_tbl[] = {
+	{ "none",   BOND_ARP_VALIDATE_NONE,   BOND_VALFLAG_DEFAULT},
+	{ "active", BOND_ARP_VALIDATE_ACTIVE, 0},
+	{ "backup", BOND_ARP_VALIDATE_BACKUP, 0},
+	{ "all",    BOND_ARP_VALIDATE_ALL,    0},
+	{ NULL,     -1,                       0},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -68,6 +76,14 @@ static struct bond_option bond_opts[] = {
 		.desc = "balance-xor and 802.3ad hashing method",
 		.values = bond_xmit_hashtype_tbl,
 		.set = bond_option_xmit_hash_policy_set
+	},
+	[BOND_OPT_ARP_VALIDATE] = {
+		.id = BOND_OPT_ARP_VALIDATE,
+		.name = "arp_validate",
+		.desc = "validate src/dst of ARP probes",
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ACTIVEBACKUP)),
+		.values = bond_arp_validate_tbl,
+		.set = bond_option_arp_validate_set
 	},
 	{ }
 };
@@ -734,31 +750,19 @@ int bond_option_arp_ip_targets_set(struct bonding *bond, __be32 *targets,
 	return ret;
 }
 
-int bond_option_arp_validate_set(struct bonding *bond, int arp_validate)
+int bond_option_arp_validate_set(struct bonding *bond,
+				 struct bond_opt_value *newval)
 {
-	if (bond_parm_tbl_lookup(arp_validate, arp_validate_tbl) < 0) {
-		pr_err("%s: Ignoring invalid arp_validate value %d.\n",
-		       bond->dev->name, arp_validate);
-		return -EINVAL;
-	}
-
-	if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
-		pr_err("%s: arp_validate only supported in active-backup mode.\n",
-		       bond->dev->name);
-		return -EINVAL;
-	}
-
-	pr_info("%s: setting arp_validate to %s (%d).\n",
-		bond->dev->name, arp_validate_tbl[arp_validate].modename,
-		arp_validate);
+	pr_info("%s: setting arp_validate to %s (%llu).\n",
+		bond->dev->name, newval->string, newval->value);
 
 	if (bond->dev->flags & IFF_UP) {
-		if (!arp_validate)
+		if (!newval->value)
 			bond->recv_probe = NULL;
 		else if (bond->params.arp_interval)
 			bond->recv_probe = bond_arp_rcv;
 	}
-	bond->params.arp_validate = arp_validate;
+	bond->params.arp_validate = newval->value;
 
 	return 0;
 }

@@ -41,6 +41,7 @@ enum {
 	BOND_OPT_MODE,
 	BOND_OPT_PACKETS_PER_SLAVE,
 	BOND_OPT_XMIT_HASH,
+	BOND_OPT_ARP_VALIDATE,
 	BOND_OPT_LAST
 };
 
@@ -105,4 +106,6 @@ int bond_option_mode_set(struct bonding *bond, struct bond_opt_value *newval);
 int bond_option_pps_set(struct bonding *bond, struct bond_opt_value *newval);
 int bond_option_xmit_hash_policy_set(struct bonding *bond,
 				     struct bond_opt_value *newval);
+int bond_option_arp_validate_set(struct bonding *bond,
+				 struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */

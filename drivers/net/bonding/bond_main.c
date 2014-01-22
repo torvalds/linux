@@ -220,14 +220,6 @@ const struct bond_parm_tbl arp_all_targets_tbl[] = {
 {	NULL,			-1},
 };
 
-const struct bond_parm_tbl arp_validate_tbl[] = {
-{	"none",			BOND_ARP_VALIDATE_NONE},
-{	"active",		BOND_ARP_VALIDATE_ACTIVE},
-{	"backup",		BOND_ARP_VALIDATE_BACKUP},
-{	"all",			BOND_ARP_VALIDATE_ALL},
-{	NULL,			-1},
-};
-
 const struct bond_parm_tbl fail_over_mac_tbl[] = {
 {	"none",			BOND_FOM_NONE},
 {	"active",		BOND_FOM_ACTIVE},
@@ -4224,15 +4216,18 @@ static int bond_check_params(struct bond_params *params)
 			return -EINVAL;
 		}
 
-		arp_validate_value = bond_parse_parm(arp_validate,
-						     arp_validate_tbl);
-		if (arp_validate_value == -1) {
+		bond_opt_initstr(&newval, arp_validate);
+		valptr = bond_opt_parse(bond_opt_get(BOND_OPT_ARP_VALIDATE),
+					&newval);
+		if (!valptr) {
 			pr_err("Error: invalid arp_validate \"%s\"\n",
-			       arp_validate == NULL ? "NULL" : arp_validate);
+			       arp_validate);
 			return -EINVAL;
 		}
-	} else
+		arp_validate_value = valptr->value;
+	} else {
 		arp_validate_value = 0;
+	}
 
 	arp_all_targets_value = 0;
 	if (arp_all_targets) {
@@ -4249,10 +4244,10 @@ static int bond_check_params(struct bond_params *params)
 	if (miimon) {
 		pr_info("MII link monitoring set to %d ms\n", miimon);
 	} else if (arp_interval) {
+		valptr = bond_opt_get_val(BOND_OPT_ARP_VALIDATE,
+					  arp_validate_value);
 		pr_info("ARP monitoring set to %d ms, validate %s, with %d target(s):",
-			arp_interval,
-			arp_validate_tbl[arp_validate_value].modename,
-			arp_ip_count);
+			arp_interval, valptr->string, arp_ip_count);
 
 		for (i = 0; i < arp_ip_count; i++)
 			pr_info(" %s", arp_ip_target[i]);

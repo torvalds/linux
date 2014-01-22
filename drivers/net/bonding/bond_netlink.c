@@ -193,7 +193,8 @@ static int bond_changelink(struct net_device *bond_dev,
 			return -EINVAL;
 		}
 
-		err = bond_option_arp_validate_set(bond, arp_validate);
+		bond_opt_initval(&newval, arp_validate);
+		err = __bond_opt_set(bond, BOND_OPT_ARP_VALIDATE, &newval);
 		if (err)
 			return err;
 	}

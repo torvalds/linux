@@ -325,10 +325,12 @@ static ssize_t bonding_show_arp_validate(struct device *d,
 					 char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	struct bond_opt_value *val;
 
-	return sprintf(buf, "%s %d\n",
-		       arp_validate_tbl[bond->params.arp_validate].modename,
-		       bond->params.arp_validate);
+	val = bond_opt_get_val(BOND_OPT_ARP_VALIDATE,
+			       bond->params.arp_validate);
+
+	return sprintf(buf, "%s %d\n", val->string, bond->params.arp_validate);
 }
 
 static ssize_t bonding_store_arp_validate(struct device *d,
@@ -336,22 +338,11 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 					  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret;
+	int ret;
 
-	new_value = bond_parse_parm(buf, arp_validate_tbl);
-	if (new_value < 0) {
-		pr_err("%s: Ignoring invalid arp_validate value %s\n",
-		       bond->dev->name, buf);
-		return -EINVAL;
-	}
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_arp_validate_set(bond, new_value);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_ARP_VALIDATE, (char *)buf);
 	if (!ret)
 		ret = count;
-
-	rtnl_unlock();
 
 	return ret;
 }
