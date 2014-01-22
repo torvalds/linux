@@ -1453,12 +1453,9 @@ static inline u64 __synchronize_entity_decay(struct sched_entity *se)
 	u64 decays = atomic64_read(&cfs_rq->decay_counter);
 
 	decays -= se->avg.decay_count;
-	if (!decays)
-		return 0;
-
-	se->avg.load_avg_contrib = decay_load(se->avg.load_avg_contrib, decays);
+	if (decays)
+		se->avg.load_avg_contrib = decay_load(se->avg.load_avg_contrib, decays);
 	se->avg.decay_count = 0;
-
 	return decays;
 }
 
@@ -3679,12 +3676,13 @@ unsigned int hmp_next_up_threshold = 4096;
 unsigned int hmp_next_down_threshold = 4096;
 
 #ifdef CONFIG_SCHED_HMP_LITTLE_PACKING
-unsigned int hmp_packing_enabled = 1;
 #ifndef CONFIG_ARCH_VEXPRESS_TC2
+unsigned int hmp_packing_enabled = 1;
 unsigned int hmp_full_threshold = (NICE_0_LOAD * 9) / 8;
 #else
 /* TC2 has a sharp consumption curve @ around 800Mhz, so
    we aim to spread the load around that frequency. */
+unsigned int hmp_packing_enabled;
 unsigned int hmp_full_threshold = 650;  /*  80% of the 800Mhz freq * NICE_0_LOAD */
 #endif
 #endif
@@ -4349,6 +4347,16 @@ unlock:
  * load-balance).
  */
 #ifdef CONFIG_FAIR_GROUP_SCHED
+
+#ifdef CONFIG_NO_HZ_COMMON
+static int nohz_test_cpu(int cpu);
+#else
+static inline int nohz_test_cpu(int cpu)
+{
+	return 0;
+}
+#endif
+
 /*
  * Called immediately before a task is migrated to a new cpu; task_cpu(p) and
  * cfs_rq_of(p) references at time of call are still valid and identify the
@@ -4368,6 +4376,25 @@ migrate_task_rq_fair(struct task_struct *p, int next_cpu)
 	 * be negative here since on-rq tasks have decay-count == 0.
 	 */
 	if (se->avg.decay_count) {
+		/*
+		 * If we migrate a sleeping task away from a CPU
+		 * which has the tick stopped, then both the clock_task
+		 * and decay_counter will be out of date for that CPU
+		 * and we will not decay load correctly.
+		 */
+		if (!se->on_rq && nohz_test_cpu(task_cpu(p))) {
+			struct rq *rq = cpu_rq(task_cpu(p));
+			unsigned long flags;
+			/*
+			 * Current CPU cannot be holding rq->lock in this
+			 * circumstance, but another might be. We must hold
+			 * rq->lock before we go poking around in its clocks
+			 */
+			raw_spin_lock_irqsave(&rq->lock, flags);
+			update_rq_clock(rq);
+			update_cfs_rq_blocked_load(cfs_rq, 0);
+			raw_spin_unlock_irqrestore(&rq->lock, flags);
+		}
 		se->avg.decay_count = -__synchronize_entity_decay(se);
 		atomic64_add(se->avg.load_avg_contrib, &cfs_rq->removed_load);
 	}
@@ -6300,6 +6327,18 @@ static struct {
 	unsigned long next_balance;     /* in jiffy units */
 } nohz ____cacheline_aligned;
 
+/*
+ * nohz_test_cpu used when load tracking is enabled. FAIR_GROUP_SCHED
+ * dependency below may be removed when load tracking guards are
+ * removed.
+ */
+#ifdef CONFIG_FAIR_GROUP_SCHED
+static int nohz_test_cpu(int cpu)
+{
+	return cpumask_test_cpu(cpu, nohz.idle_cpus_mask);
+}
+#endif
+
 #ifdef CONFIG_SCHED_HMP_LITTLE_PACKING
 /*
  * Decide if the tasks on the busy CPUs in the
@@ -6310,6 +6349,10 @@ static int hmp_packing_ilb_needed(int cpu)
 	struct hmp_domain *hmp;
 	/* always allow ilb on non-slowest domain */
 	if (!hmp_cpu_is_slowest(cpu))
+		return 1;
+
+	/* if disabled, use normal ILB behaviour */
+	if (!hmp_packing_enabled)
 		return 1;
 
 	hmp = hmp_cpu_domain(cpu);
@@ -6984,13 +7027,13 @@ static void hmp_migrate_runnable_task(struct rq *rq)
 	 * with the source rq.
 	 */
 	if (src_rq->active_balance)
-		return;
+		goto out;
 
 	if (src_rq->nr_running <= 1)
-		return;
+		goto out;
 
 	if (task_rq(p) != src_rq)
-		return;
+		goto out;
 	/*
 	 * Not sure if this applies here but one can never
 	 * be too cautious
@@ -7025,6 +7068,8 @@ static void hmp_migrate_runnable_task(struct rq *rq)
 
 	rcu_read_unlock();
 	double_unlock_balance(src_rq, dst_rq);
+out:
+	put_task_struct(p);
 }
 
 static DEFINE_SPINLOCK(hmp_force_migration);
