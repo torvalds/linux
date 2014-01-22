@@ -1216,7 +1216,7 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	sdata_lock(sdata);
 
 	/* mesh already went down */
-	if (!sdata->wdev.mesh_id_len)
+	if (!sdata->u.mesh.mesh_id_len)
 		goto out;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
@@ -1269,7 +1269,7 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 	sdata_lock(sdata);
 
 	/* mesh already went down */
-	if (!sdata->wdev.mesh_id_len)
+	if (!sdata->u.mesh.mesh_id_len)
 		goto out;
 
 	if (ifmsh->preq_queue_len &&
