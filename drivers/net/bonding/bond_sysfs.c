@@ -200,58 +200,15 @@ static ssize_t bonding_store_slaves(struct device *d,
 				    struct device_attribute *attr,
 				    const char *buffer, size_t count)
 {
-	char command[IFNAMSIZ + 1] = { 0, };
-	char *ifname;
-	int res, ret = count;
-	struct net_device *dev;
 	struct bonding *bond = to_bond(d);
+	int ret;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_SLAVES, (char *)buffer);
+	if (!ret)
+		ret = count;
 
-	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
-	ifname = command + 1;
-	if ((strlen(command) <= 1) ||
-	    !dev_valid_name(ifname))
-		goto err_no_cmd;
-
-	dev = __dev_get_by_name(dev_net(bond->dev), ifname);
-	if (!dev) {
-		pr_info("%s: Interface %s does not exist!\n",
-			bond->dev->name, ifname);
-		ret = -ENODEV;
-		goto out;
-	}
-
-	switch (command[0]) {
-	case '+':
-		pr_info("%s: Adding slave %s.\n", bond->dev->name, dev->name);
-		res = bond_enslave(bond->dev, dev);
-		break;
-
-	case '-':
-		pr_info("%s: Removing slave %s.\n", bond->dev->name, dev->name);
-		res = bond_release(bond->dev, dev);
-		break;
-
-	default:
-		goto err_no_cmd;
-	}
-
-	if (res)
-		ret = res;
-	goto out;
-
-err_no_cmd:
-	pr_err("no command found in slaves file for bond %s. Use +ifname or -ifname.\n",
-	       bond->dev->name);
-	ret = -EPERM;
-
-out:
-	rtnl_unlock();
 	return ret;
 }
-
 static DEVICE_ATTR(slaves, S_IRUGO | S_IWUSR, bonding_show_slaves,
 		   bonding_store_slaves);
 

@@ -300,6 +300,13 @@ static struct bond_option bond_opts[] = {
 		.values = bond_lp_interval_tbl,
 		.set = bond_option_lp_interval_set
 	},
+	[BOND_OPT_SLAVES] = {
+		.id = BOND_OPT_SLAVES,
+		.name = "slaves",
+		.desc = "Slave membership management",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.set = bond_option_slaves_set
+	},
 	{ }
 };
 
@@ -1220,4 +1227,50 @@ err_no_cmd:
 	ret = -EPERM;
 	goto out;
 
+}
+
+int bond_option_slaves_set(struct bonding *bond, struct bond_opt_value *newval)
+{
+	char command[IFNAMSIZ + 1] = { 0, };
+	struct net_device *dev;
+	char *ifname;
+	int ret;
+
+	sscanf(newval->string, "%16s", command); /* IFNAMSIZ*/
+	ifname = command + 1;
+	if ((strlen(command) <= 1) ||
+	    !dev_valid_name(ifname))
+		goto err_no_cmd;
+
+	dev = __dev_get_by_name(dev_net(bond->dev), ifname);
+	if (!dev) {
+		pr_info("%s: Interface %s does not exist!\n",
+			bond->dev->name, ifname);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	switch (command[0]) {
+	case '+':
+		pr_info("%s: Adding slave %s.\n", bond->dev->name, dev->name);
+		ret = bond_enslave(bond->dev, dev);
+		break;
+
+	case '-':
+		pr_info("%s: Removing slave %s.\n", bond->dev->name, dev->name);
+		ret = bond_release(bond->dev, dev);
+		break;
+
+	default:
+		goto err_no_cmd;
+	}
+
+out:
+	return ret;
+
+err_no_cmd:
+	pr_err("no command found in slaves file for bond %s. Use +ifname or -ifname.\n",
+	       bond->dev->name);
+	ret = -EPERM;
+	goto out;
 }
