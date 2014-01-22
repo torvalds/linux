@@ -118,7 +118,16 @@ syscall_trace_entry:
 	SAVE_STATIC
 	move	s0, t2
 	move	a0, sp
-	jal	syscall_trace_enter
+
+	/*
+	 * syscall number is in v0 unless we called syscall(__NR_###)
+	 * where the real syscall number is in a0
+	 */
+	addiu	a1, v0,  __NR_O32_Linux
+	bnez	v0, 1f /* __NR_syscall at offset 0 */
+	lw	a1, PT_R4(sp)
+
+1:	jal	syscall_trace_enter
 
 	bltz	v0, 2f			# seccomp failed? Skip syscall
 

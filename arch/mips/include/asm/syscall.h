@@ -19,11 +19,22 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
+#include <asm/unistd.h>
+
+#ifndef __NR_syscall /* Only defined if _MIPS_SIM == _MIPS_SIM_ABI32 */
+#define __NR_syscall 4000
+#endif
 
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
 {
-	return regs->regs[2];
+	/* O32 ABI syscall() - Either 64-bit with O32 or 32-bit */
+	if ((config_enabled(CONFIG_32BIT) ||
+	    test_tsk_thread_flag(task, TIF_32BIT_REGS)) &&
+	    (regs->regs[2] == __NR_syscall))
+		return regs->regs[4];
+	else
+		return regs->regs[2];
 }
 
 static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
@@ -91,6 +102,13 @@ static inline void syscall_get_arguments(struct task_struct *task,
 {
 	unsigned long arg;
 	int ret;
+	/* O32 ABI syscall() - Either 64-bit with O32 or 32-bit */
+	if ((config_enabled(CONFIG_32BIT) ||
+	    test_tsk_thread_flag(task, TIF_32BIT_REGS)) &&
+	    (regs->regs[2] == __NR_syscall)) {
+		i++;
+		n++;
+	}
 
 	while (n--)
 		ret |= mips_get_syscall_arg(&arg, task, regs, i++);
