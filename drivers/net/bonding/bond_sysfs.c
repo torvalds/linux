@@ -454,8 +454,8 @@ static ssize_t bonding_show_arp_targets(struct device *d,
 					struct device_attribute *attr,
 					char *buf)
 {
-	int i, res = 0;
 	struct bonding *bond = to_bond(d);
+	int i, res = 0;
 
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
 		if (bond->params.arp_targets[i])
@@ -464,6 +464,7 @@ static ssize_t bonding_show_arp_targets(struct device *d,
 	}
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
+
 	return res;
 }
 
@@ -472,30 +473,12 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 					 const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	__be32 target;
-	int ret = -EPERM;
+	int ret;
 
-	if (!in4_pton(buf + 1, -1, (u8 *)&target, -1, NULL)) {
-		pr_err("%s: invalid ARP target %pI4 specified\n",
-		       bond->dev->name, &target);
-		return -EPERM;
-	}
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	if (buf[0] == '+')
-		ret = bond_option_arp_ip_target_add(bond, target);
-	else if (buf[0] == '-')
-		ret = bond_option_arp_ip_target_rem(bond, target);
-	else
-		pr_err("no command found in arp_ip_targets file for bond %s. Use +<addr> or -<addr>.\n",
-		       bond->dev->name);
-
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_ARP_TARGETS, (char *)buf);
 	if (!ret)
 		ret = count;
 
-	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(arp_ip_target, S_IRUGO | S_IWUSR , bonding_show_arp_targets, bonding_store_arp_targets);

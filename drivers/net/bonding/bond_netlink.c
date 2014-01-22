@@ -172,16 +172,23 @@ static int bond_changelink(struct net_device *bond_dev,
 			return err;
 	}
 	if (data[IFLA_BOND_ARP_IP_TARGET]) {
-		__be32 targets[BOND_MAX_ARP_TARGETS] = { 0, };
 		struct nlattr *attr;
 		int i = 0, rem;
 
+		bond_option_arp_ip_targets_clear(bond);
 		nla_for_each_nested(attr, data[IFLA_BOND_ARP_IP_TARGET], rem) {
 			__be32 target = nla_get_be32(attr);
-			targets[i++] = target;
-		}
 
-		err = bond_option_arp_ip_targets_set(bond, targets, i);
+			bond_opt_initval(&newval, target);
+			err = __bond_opt_set(bond, BOND_OPT_ARP_TARGETS,
+					     &newval);
+			if (err)
+				break;
+			i++;
+		}
+		if (i == 0 && bond->params.arp_interval)
+			pr_warn("%s: removing last arp target with arp_interval on\n",
+				bond->dev->name);
 		if (err)
 			return err;
 	}

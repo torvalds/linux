@@ -45,6 +45,7 @@ enum {
 	BOND_OPT_ARP_ALL_TARGETS,
 	BOND_OPT_FAIL_OVER_MAC,
 	BOND_OPT_ARP_INTERVAL,
+	BOND_OPT_ARP_TARGETS,
 	BOND_OPT_LAST
 };
 
@@ -117,4 +118,7 @@ int bond_option_fail_over_mac_set(struct bonding *bond,
 				  struct bond_opt_value *newval);
 int bond_option_arp_interval_set(struct bonding *bond,
 				 struct bond_opt_value *newval);
+int bond_option_arp_ip_targets_set(struct bonding *bond,
+				   struct bond_opt_value *newval);
+void bond_option_arp_ip_targets_clear(struct bonding *bond);
 #endif /* _BOND_OPTIONS_H */

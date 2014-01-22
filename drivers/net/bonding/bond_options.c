@@ -17,6 +17,7 @@
 #include <linux/rwlock.h>
 #include <linux/rcupdate.h>
 #include <linux/ctype.h>
+#include <linux/inet.h>
 #include "bonding.h"
 
 static struct bond_opt_value bond_mode_tbl[] = {
@@ -126,6 +127,13 @@ static struct bond_option bond_opts[] = {
 			       BIT(BOND_MODE_ALB),
 		.values = bond_intmax_tbl,
 		.set = bond_option_arp_interval_set
+	},
+	[BOND_OPT_ARP_TARGETS] = {
+		.id = BOND_OPT_ARP_TARGETS,
+		.name = "arp_ip_target",
+		.desc = "arp targets in n.n.n.n form",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.set = bond_option_arp_ip_targets_set
 	},
 	{ }
 };
@@ -757,29 +765,41 @@ int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 	return 0;
 }
 
-int bond_option_arp_ip_targets_set(struct bonding *bond, __be32 *targets,
-				   int count)
+void bond_option_arp_ip_targets_clear(struct bonding *bond)
 {
-	int i, ret = 0;
+	int i;
 
 	/* not to race with bond_arp_rcv */
 	write_lock_bh(&bond->lock);
-
-	/* clear table */
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
 		_bond_options_arp_ip_target_set(bond, i, 0, 0);
+	write_unlock_bh(&bond->lock);
+}
 
-	if (count == 0 && bond->params.arp_interval)
-		pr_warn("%s: removing last arp target with arp_interval on\n",
-			bond->dev->name);
+int bond_option_arp_ip_targets_set(struct bonding *bond,
+				   struct bond_opt_value *newval)
+{
+	int ret = -EPERM;
+	__be32 target;
 
-	for (i = 0; i < count; i++) {
-		ret = _bond_option_arp_ip_target_add(bond, targets[i]);
-		if (ret)
-			break;
+	if (newval->string) {
+		if (!in4_pton(newval->string+1, -1, (u8 *)&target, -1, NULL)) {
+			pr_err("%s: invalid ARP target %pI4 specified\n",
+			       bond->dev->name, &target);
+			return ret;
+		}
+		if (newval->string[0] == '+')
+			ret = bond_option_arp_ip_target_add(bond, target);
+		else if (newval->string[0] == '-')
+			ret = bond_option_arp_ip_target_rem(bond, target);
+		else
+			pr_err("no command found in arp_ip_targets file for bond %s. Use +<addr> or -<addr>.\n",
+			       bond->dev->name);
+	} else {
+		target = newval->value;
+		ret = bond_option_arp_ip_target_add(bond, target);
 	}
 
-	write_unlock_bh(&bond->lock);
 	return ret;
 }
 
