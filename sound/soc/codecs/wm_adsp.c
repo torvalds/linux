@@ -1679,6 +1679,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 			list_del(&alg_region->list);
 			kfree(alg_region);
 		}
+
+		adsp_dbg(dsp, "Shutdown complete\n");
 		break;
 
 	default:
