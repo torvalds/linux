@@ -15,7 +15,7 @@
 #include <net/protocol.h>
 
 static DEFINE_SPINLOCK(udp_offload_lock);
-static struct udp_offload_priv *udp_offload_base __read_mostly;
+static struct udp_offload_priv __rcu *udp_offload_base __read_mostly;
 
 struct udp_offload_priv {
 	struct udp_offload	*offload;
@@ -100,7 +100,7 @@ out:
 
 int udp_add_offload(struct udp_offload *uo)
 {
-	struct udp_offload_priv **head = &udp_offload_base;
+	struct udp_offload_priv __rcu **head = &udp_offload_base;
 	struct udp_offload_priv *new_offload = kzalloc(sizeof(*new_offload), GFP_KERNEL);
 
 	if (!new_offload)
@@ -110,7 +110,7 @@ int udp_add_offload(struct udp_offload *uo)
 
 	spin_lock(&udp_offload_lock);
 	rcu_assign_pointer(new_offload->next, rcu_dereference(*head));
-	rcu_assign_pointer(*head, rcu_dereference(new_offload));
+	rcu_assign_pointer(*head, new_offload);
 	spin_unlock(&udp_offload_lock);
 
 	return 0;
@@ -140,7 +140,7 @@ void udp_del_offload(struct udp_offload *uo)
 		}
 		head = &uo_priv->next;
 	}
-	pr_warn("udp_del_offload: didn't find offload for port %d\n", htons(uo->port));
+	pr_warn("udp_del_offload: didn't find offload for port %d\n", ntohs(uo->port));
 unlock:
 	spin_unlock(&udp_offload_lock);
 	if (uo_priv != NULL)
