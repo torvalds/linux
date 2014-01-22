@@ -94,7 +94,7 @@ static int h1940_hw_params(struct snd_pcm_substream *substream,
 			div++;
 		break;
 	default:
-		dev_err(&rtd->dev, "%s: rate %d is not supported\n",
+		dev_err(rtd->dev, "%s: rate %d is not supported\n",
 			__func__, rate);
 		return -EINVAL;
 	}
