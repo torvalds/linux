@@ -87,7 +87,7 @@ static struct map_desc rk3188_io_desc[] __initdata = {
 	{
 		.virtual	= (unsigned long) RK_DEBUG_UART_VIRT,
 		.pfn		= __phys_to_pfn(RK3188_UART2_PHYS),
-		.length		= RK3188_UART2_SIZE,
+		.length		= RK3188_UART_SIZE,
 		.type		= MT_DEVICE,
 	},
 };
