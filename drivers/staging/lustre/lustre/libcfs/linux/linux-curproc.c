@@ -55,16 +55,6 @@
  * for Linux kernel.
  */
 
-int    cfs_curproc_groups_nr(void)
-{
-	int nr;
-
-	task_lock(current);
-	nr = current_cred()->group_info->ngroups;
-	task_unlock(current);
-	return nr;
-}
-
 /* Currently all the CFS_CAP_* defines match CAP_* ones. */
 #define cfs_cap_pack(cap) (cap)
 #define cfs_cap_unpack(cap) (cap)
@@ -292,7 +282,6 @@ out:
 }
 EXPORT_SYMBOL(cfs_get_environ);
 
-EXPORT_SYMBOL(cfs_curproc_groups_nr);
 EXPORT_SYMBOL(cfs_cap_raise);
 EXPORT_SYMBOL(cfs_cap_lower);
 EXPORT_SYMBOL(cfs_cap_raised);

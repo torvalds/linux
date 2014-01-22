@@ -44,13 +44,6 @@
 #define __LIBCFS_CURPROC_H__
 
 /*
- * Portable API to access common characteristics of "current" UNIX process.
- *
- * Implemented in portals/include/libcfs/<os>/
- */
-int    cfs_curproc_groups_nr(void);
-
-/*
  * Plus, platform-specific constant
  *
  * CFS_CURPROC_COMM_MAX,
