@@ -1312,6 +1312,13 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 	return idx;
 }
 
+static unsigned int fanout_demux_qm(struct packet_fanout *f,
+				    struct sk_buff *skb,
+				    unsigned int num)
+{
+	return skb_get_queue_mapping(skb) % num;
+}
+
 static bool fanout_has_flag(struct packet_fanout *f, u16 flag)
 {
 	return f->flags & (flag >> 8);
@@ -1350,6 +1357,9 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 		break;
 	case PACKET_FANOUT_RND:
 		idx = fanout_demux_rnd(f, skb, num);
+		break;
+	case PACKET_FANOUT_QM:
+		idx = fanout_demux_qm(f, skb, num);
 		break;
 	case PACKET_FANOUT_ROLLOVER:
 		idx = fanout_demux_rollover(f, skb, 0, (unsigned int) -1, num);
@@ -1421,6 +1431,7 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 	case PACKET_FANOUT_LB:
 	case PACKET_FANOUT_CPU:
 	case PACKET_FANOUT_RND:
+	case PACKET_FANOUT_QM:
 		break;
 	default:
 		return -EINVAL;
