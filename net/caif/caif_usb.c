@@ -14,6 +14,7 @@
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/usbnet.h>
+#include <linux/etherdevice.h>
 #include <net/netns/generic.h>
 #include <net/caif/caif_dev.h>
 #include <net/caif/caif_layer.h>
