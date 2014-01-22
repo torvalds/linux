@@ -28,6 +28,10 @@
 #define GPIO_BANK(gpio)				((gpio) >> 5)
 #define GPIO_BIT(gpio)				((gpio) & (GPIO_PER_BANK - 1))
 
+/* There is a GPIO control register for each GPIO */
+#define GPIO_CONTROL(gpio)			(0x00000100 + ((gpio) << 2))
+
+/* The remaining registers are per GPIO bank */
 #define GPIO_OUT_STATUS(bank)			(0x00000000 + ((bank) << 2))
 #define GPIO_IN_STATUS(bank)			(0x00000020 + ((bank) << 2))
 #define GPIO_OUT_SET(bank)			(0x00000040 + ((bank) << 2))
@@ -35,7 +39,6 @@
 #define GPIO_INT_STATUS(bank)			(0x00000080 + ((bank) << 2))
 #define GPIO_INT_MASK(bank)			(0x000000a0 + ((bank) << 2))
 #define GPIO_INT_MSKCLR(bank)			(0x000000c0 + ((bank) << 2))
-#define GPIO_CONTROL(bank)			(0x00000100 + ((bank) << 2))
 #define GPIO_PWD_STATUS(bank)			(0x00000500 + ((bank) << 2))
 
 #define GPIO_GPPWR_OFFSET			0x00000520
