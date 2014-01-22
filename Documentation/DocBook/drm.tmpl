@@ -272,8 +272,8 @@ char *date;</synopsis>
       <para>
         The <methodname>load</methodname> method is the driver and device
         initialization entry point. The method is responsible for allocating and
-        initializing driver private data, specifying supported performance
-        counters, performing resource allocation and mapping (e.g. acquiring
+	initializing driver private data, performing resource allocation and
+	mapping (e.g. acquiring
         clocks, mapping registers or allocating command buffers), initializing
         the memory manager (<xref linkend="drm-memory-management"/>), installing
         the IRQ handler (<xref linkend="drm-irq-registration"/>), setting up
@@ -303,7 +303,7 @@ char *date;</synopsis>
 	their <methodname>load</methodname> method called with flags to 0.
       </para>
       <sect3>
-        <title>Driver Private &amp; Performance Counters</title>
+        <title>Driver Private Data</title>
         <para>
           The driver private hangs off the main
           <structname>drm_device</structname> structure and can be used for
@@ -314,14 +314,6 @@ char *date;</synopsis>
           appropriately; it should be freed and
           <structname>drm_device</structname>.<structfield>dev_priv</structfield>
           set to NULL when the driver is unloaded.
-        </para>
-        <para>
-          DRM supports several counters which were used for rough performance
-          characterization. This stat counter system is deprecated and should not
-          be used. If performance monitoring is desired, the developer should
-          investigate and potentially enhance the kernel perf and tracing
-          infrastructure to export GPU related performance information for
-          consumption by performance monitoring tools and applications.
         </para>
       </sect3>
       <sect3 id="drm-irq-registration">
