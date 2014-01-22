@@ -121,6 +121,74 @@ struct send_ctx {
 	int name_cache_size;
 
 	char *read_buf;
+
+	/*
+	 * We process inodes by their increasing order, so if before an
+	 * incremental send we reverse the parent/child relationship of
+	 * directories such that a directory with a lower inode number was
+	 * the parent of a directory with a higher inode number, and the one
+	 * becoming the new parent got renamed too, we can't rename/move the
+	 * directory with lower inode number when we finish processing it - we
+	 * must process the directory with higher inode number first, then
+	 * rename/move it and then rename/move the directory with lower inode
+	 * number. Example follows.
+	 *
+	 * Tree state when the first send was performed:
+	 *
+	 * .
+	 * |-- a                   (ino 257)
+	 *     |-- b               (ino 258)
+	 *         |
+	 *         |
+	 *         |-- c           (ino 259)
+	 *         |   |-- d       (ino 260)
+	 *         |
+	 *         |-- c2          (ino 261)
+	 *
+	 * Tree state when the second (incremental) send is performed:
+	 *
+	 * .
+	 * |-- a                   (ino 257)
+	 *     |-- b               (ino 258)
+	 *         |-- c2          (ino 261)
+	 *             |-- d2      (ino 260)
+	 *                 |-- cc  (ino 259)
+	 *
+	 * The sequence of steps that lead to the second state was:
+	 *
+	 * mv /a/b/c/d /a/b/c2/d2
+	 * mv /a/b/c /a/b/c2/d2/cc
+	 *
+	 * "c" has lower inode number, but we can't move it (2nd mv operation)
+	 * before we move "d", which has higher inode number.
+	 *
+	 * So we just memorize which move/rename operations must be performed
+	 * later when their respective parent is processed and moved/renamed.
+	 */
+
+	/* Indexed by parent directory inode number. */
+	struct rb_root pending_dir_moves;
+
+	/*
+	 * Reverse index, indexed by the inode number of a directory that
+	 * is waiting for the move/rename of its immediate parent before its
+	 * own move/rename can be performed.
+	 */
+	struct rb_root waiting_dir_moves;
+};
+
+struct pending_dir_move {
+	struct rb_node node;
+	struct list_head list;
+	u64 parent_ino;
+	u64 ino;
+	u64 gen;
+	struct list_head update_refs;
+};
+
+struct waiting_dir_move {
+	struct rb_node node;
+	u64 ino;
 };
 
 struct name_cache_entry {
@@ -143,6 +211,8 @@ struct name_cache_entry {
 	int name_len;
 	char name[];
 };
+
+static int is_waiting_for_move(struct send_ctx *sctx, u64 ino);
 
 static int need_send_hole(struct send_ctx *sctx)
 {
@@ -1897,6 +1967,7 @@ static void name_cache_free(struct send_ctx *sctx)
  */
 static int __get_cur_name_and_parent(struct send_ctx *sctx,
 				     u64 ino, u64 gen,
+				     int skip_name_cache,
 				     u64 *parent_ino,
 				     u64 *parent_gen,
 				     struct fs_path *dest)
@@ -1906,6 +1977,8 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	struct btrfs_path *path = NULL;
 	struct name_cache_entry *nce = NULL;
 
+	if (skip_name_cache)
+		goto get_ref;
 	/*
 	 * First check if we already did a call to this function with the same
 	 * ino/gen. If yes, check if the cache entry is still up-to-date. If yes
@@ -1950,11 +2023,12 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 		goto out_cache;
 	}
 
+get_ref:
 	/*
 	 * Depending on whether the inode was already processed or not, use
 	 * send_root or parent_root for ref lookup.
 	 */
-	if (ino < sctx->send_progress)
+	if (ino < sctx->send_progress && !skip_name_cache)
 		ret = get_first_ref(sctx->send_root, ino,
 				    parent_ino, parent_gen, dest);
 	else
@@ -1978,6 +2052,8 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 			goto out;
 		ret = 1;
 	}
+	if (skip_name_cache)
+		goto out;
 
 out_cache:
 	/*
@@ -2045,6 +2121,9 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 	u64 parent_inode = 0;
 	u64 parent_gen = 0;
 	int stop = 0;
+	u64 start_ino = ino;
+	u64 start_gen = gen;
+	int skip_name_cache = 0;
 
 	name = fs_path_alloc();
 	if (!name) {
@@ -2052,18 +2131,31 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 		goto out;
 	}
 
+	if (is_waiting_for_move(sctx, ino))
+		skip_name_cache = 1;
+
+again:
 	dest->reversed = 1;
 	fs_path_reset(dest);
 
 	while (!stop && ino != BTRFS_FIRST_FREE_OBJECTID) {
 		fs_path_reset(name);
 
-		ret = __get_cur_name_and_parent(sctx, ino, gen,
+		ret = __get_cur_name_and_parent(sctx, ino, gen, skip_name_cache,
 				&parent_inode, &parent_gen, name);
 		if (ret < 0)
 			goto out;
 		if (ret)
 			stop = 1;
+
+		if (!skip_name_cache &&
+		    is_waiting_for_move(sctx, parent_inode)) {
+			ino = start_ino;
+			gen = start_gen;
+			stop = 0;
+			skip_name_cache = 1;
+			goto again;
+		}
 
 		ret = fs_path_add_path(dest, name);
 		if (ret < 0)
@@ -2636,10 +2728,349 @@ out:
 	return ret;
 }
 
+static int is_waiting_for_move(struct send_ctx *sctx, u64 ino)
+{
+	struct rb_node *n = sctx->waiting_dir_moves.rb_node;
+	struct waiting_dir_move *entry;
+
+	while (n) {
+		entry = rb_entry(n, struct waiting_dir_move, node);
+		if (ino < entry->ino)
+			n = n->rb_left;
+		else if (ino > entry->ino)
+			n = n->rb_right;
+		else
+			return 1;
+	}
+	return 0;
+}
+
+static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino)
+{
+	struct rb_node **p = &sctx->waiting_dir_moves.rb_node;
+	struct rb_node *parent = NULL;
+	struct waiting_dir_move *entry, *dm;
+
+	dm = kmalloc(sizeof(*dm), GFP_NOFS);
+	if (!dm)
+		return -ENOMEM;
+	dm->ino = ino;
+
+	while (*p) {
+		parent = *p;
+		entry = rb_entry(parent, struct waiting_dir_move, node);
+		if (ino < entry->ino) {
+			p = &(*p)->rb_left;
+		} else if (ino > entry->ino) {
+			p = &(*p)->rb_right;
+		} else {
+			kfree(dm);
+			return -EEXIST;
+		}
+	}
+
+	rb_link_node(&dm->node, parent, p);
+	rb_insert_color(&dm->node, &sctx->waiting_dir_moves);
+	return 0;
+}
+
+#ifdef CONFIG_BTRFS_ASSERT
+
+static int del_waiting_dir_move(struct send_ctx *sctx, u64 ino)
+{
+	struct rb_node *n = sctx->waiting_dir_moves.rb_node;
+	struct waiting_dir_move *entry;
+
+	while (n) {
+		entry = rb_entry(n, struct waiting_dir_move, node);
+		if (ino < entry->ino) {
+			n = n->rb_left;
+		} else if (ino > entry->ino) {
+			n = n->rb_right;
+		} else {
+			rb_erase(&entry->node, &sctx->waiting_dir_moves);
+			kfree(entry);
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+#endif
+
+static int add_pending_dir_move(struct send_ctx *sctx, u64 parent_ino)
+{
+	struct rb_node **p = &sctx->pending_dir_moves.rb_node;
+	struct rb_node *parent = NULL;
+	struct pending_dir_move *entry, *pm;
+	struct recorded_ref *cur;
+	int exists = 0;
+	int ret;
+
+	pm = kmalloc(sizeof(*pm), GFP_NOFS);
+	if (!pm)
+		return -ENOMEM;
+	pm->parent_ino = parent_ino;
+	pm->ino = sctx->cur_ino;
+	pm->gen = sctx->cur_inode_gen;
+	INIT_LIST_HEAD(&pm->list);
+	INIT_LIST_HEAD(&pm->update_refs);
+	RB_CLEAR_NODE(&pm->node);
+
+	while (*p) {
+		parent = *p;
+		entry = rb_entry(parent, struct pending_dir_move, node);
+		if (parent_ino < entry->parent_ino) {
+			p = &(*p)->rb_left;
+		} else if (parent_ino > entry->parent_ino) {
+			p = &(*p)->rb_right;
+		} else {
+			exists = 1;
+			break;
+		}
+	}
+
+	list_for_each_entry(cur, &sctx->deleted_refs, list) {
+		ret = dup_ref(cur, &pm->update_refs);
+		if (ret < 0)
+			goto out;
+	}
+	list_for_each_entry(cur, &sctx->new_refs, list) {
+		ret = dup_ref(cur, &pm->update_refs);
+		if (ret < 0)
+			goto out;
+	}
+
+	ret = add_waiting_dir_move(sctx, pm->ino);
+	if (ret)
+		goto out;
+
+	if (exists) {
+		list_add_tail(&pm->list, &entry->list);
+	} else {
+		rb_link_node(&pm->node, parent, p);
+		rb_insert_color(&pm->node, &sctx->pending_dir_moves);
+	}
+	ret = 0;
+out:
+	if (ret) {
+		__free_recorded_refs(&pm->update_refs);
+		kfree(pm);
+	}
+	return ret;
+}
+
+static struct pending_dir_move *get_pending_dir_moves(struct send_ctx *sctx,
+						      u64 parent_ino)
+{
+	struct rb_node *n = sctx->pending_dir_moves.rb_node;
+	struct pending_dir_move *entry;
+
+	while (n) {
+		entry = rb_entry(n, struct pending_dir_move, node);
+		if (parent_ino < entry->parent_ino)
+			n = n->rb_left;
+		else if (parent_ino > entry->parent_ino)
+			n = n->rb_right;
+		else
+			return entry;
+	}
+	return NULL;
+}
+
+static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
+{
+	struct fs_path *from_path = NULL;
+	struct fs_path *to_path = NULL;
+	u64 orig_progress = sctx->send_progress;
+	struct recorded_ref *cur;
+	int ret;
+
+	from_path = fs_path_alloc();
+	if (!from_path)
+		return -ENOMEM;
+
+	sctx->send_progress = pm->ino;
+	ret = get_cur_path(sctx, pm->ino, pm->gen, from_path);
+	if (ret < 0)
+		goto out;
+
+	to_path = fs_path_alloc();
+	if (!to_path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	sctx->send_progress = sctx->cur_ino + 1;
+	ASSERT(del_waiting_dir_move(sctx, pm->ino) == 0);
+	ret = get_cur_path(sctx, pm->ino, pm->gen, to_path);
+	if (ret < 0)
+		goto out;
+
+	ret = send_rename(sctx, from_path, to_path);
+	if (ret < 0)
+		goto out;
+
+	ret = send_utimes(sctx, pm->ino, pm->gen);
+	if (ret < 0)
+		goto out;
+
+	/*
+	 * After rename/move, need to update the utimes of both new parent(s)
+	 * and old parent(s).
+	 */
+	list_for_each_entry(cur, &pm->update_refs, list) {
+		ret = send_utimes(sctx, cur->dir, cur->dir_gen);
+		if (ret < 0)
+			goto out;
+	}
+
+out:
+	fs_path_free(from_path);
+	fs_path_free(to_path);
+	sctx->send_progress = orig_progress;
+
+	return ret;
+}
+
+static void free_pending_move(struct send_ctx *sctx, struct pending_dir_move *m)
+{
+	if (!list_empty(&m->list))
+		list_del(&m->list);
+	if (!RB_EMPTY_NODE(&m->node))
+		rb_erase(&m->node, &sctx->pending_dir_moves);
+	__free_recorded_refs(&m->update_refs);
+	kfree(m);
+}
+
+static void tail_append_pending_moves(struct pending_dir_move *moves,
+				      struct list_head *stack)
+{
+	if (list_empty(&moves->list)) {
+		list_add_tail(&moves->list, stack);
+	} else {
+		LIST_HEAD(list);
+		list_splice_init(&moves->list, &list);
+		list_add_tail(&moves->list, stack);
+		list_splice_tail(&list, stack);
+	}
+}
+
+static int apply_children_dir_moves(struct send_ctx *sctx)
+{
+	struct pending_dir_move *pm;
+	struct list_head stack;
+	u64 parent_ino = sctx->cur_ino;
+	int ret = 0;
+
+	pm = get_pending_dir_moves(sctx, parent_ino);
+	if (!pm)
+		return 0;
+
+	INIT_LIST_HEAD(&stack);
+	tail_append_pending_moves(pm, &stack);
+
+	while (!list_empty(&stack)) {
+		pm = list_first_entry(&stack, struct pending_dir_move, list);
+		parent_ino = pm->ino;
+		ret = apply_dir_move(sctx, pm);
+		free_pending_move(sctx, pm);
+		if (ret)
+			goto out;
+		pm = get_pending_dir_moves(sctx, parent_ino);
+		if (pm)
+			tail_append_pending_moves(pm, &stack);
+	}
+	return 0;
+
+out:
+	while (!list_empty(&stack)) {
+		pm = list_first_entry(&stack, struct pending_dir_move, list);
+		free_pending_move(sctx, pm);
+	}
+	return ret;
+}
+
+static int wait_for_parent_move(struct send_ctx *sctx,
+				struct recorded_ref *parent_ref)
+{
+	int ret;
+	u64 ino = parent_ref->dir;
+	u64 parent_ino_before, parent_ino_after;
+	u64 new_gen, old_gen;
+	struct fs_path *path_before = NULL;
+	struct fs_path *path_after = NULL;
+	int len1, len2;
+
+	if (parent_ref->dir <= sctx->cur_ino)
+		return 0;
+
+	if (is_waiting_for_move(sctx, ino))
+		return 1;
+
+	ret = get_inode_info(sctx->parent_root, ino, NULL, &old_gen,
+			     NULL, NULL, NULL, NULL);
+	if (ret == -ENOENT)
+		return 0;
+	else if (ret < 0)
+		return ret;
+
+	ret = get_inode_info(sctx->send_root, ino, NULL, &new_gen,
+			     NULL, NULL, NULL, NULL);
+	if (ret < 0)
+		return ret;
+
+	if (new_gen != old_gen)
+		return 0;
+
+	path_before = fs_path_alloc();
+	if (!path_before)
+		return -ENOMEM;
+
+	ret = get_first_ref(sctx->parent_root, ino, &parent_ino_before,
+			    NULL, path_before);
+	if (ret == -ENOENT) {
+		ret = 0;
+		goto out;
+	} else if (ret < 0) {
+		goto out;
+	}
+
+	path_after = fs_path_alloc();
+	if (!path_after) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = get_first_ref(sctx->send_root, ino, &parent_ino_after,
+			    NULL, path_after);
+	if (ret == -ENOENT) {
+		ret = 0;
+		goto out;
+	} else if (ret < 0) {
+		goto out;
+	}
+
+	len1 = fs_path_len(path_before);
+	len2 = fs_path_len(path_after);
+	if ((parent_ino_before != parent_ino_after) && (len1 != len2 ||
+	     memcmp(path_before->start, path_after->start, len1))) {
+		ret = 1;
+		goto out;
+	}
+	ret = 0;
+
+out:
+	fs_path_free(path_before);
+	fs_path_free(path_after);
+
+	return ret;
+}
+
 /*
  * This does all the move/link/unlink/rmdir magic.
  */
-static int process_recorded_refs(struct send_ctx *sctx)
+static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 {
 	int ret = 0;
 	struct recorded_ref *cur;
@@ -2788,11 +3219,17 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 				 * dirs, we always have one new and one deleted
 				 * ref. The deleted ref is ignored later.
 				 */
-				ret = send_rename(sctx, valid_path,
-						cur->full_path);
-				if (ret < 0)
-					goto out;
-				ret = fs_path_copy(valid_path, cur->full_path);
+				if (wait_for_parent_move(sctx, cur)) {
+					ret = add_pending_dir_move(sctx,
+								   cur->dir);
+					*pending_move = 1;
+				} else {
+					ret = send_rename(sctx, valid_path,
+							  cur->full_path);
+					if (!ret)
+						ret = fs_path_copy(valid_path,
+							       cur->full_path);
+				}
 				if (ret < 0)
 					goto out;
 			} else {
@@ -3161,6 +3598,7 @@ static int process_all_refs(struct send_ctx *sctx,
 	struct extent_buffer *eb;
 	int slot;
 	iterate_inode_ref_t cb;
+	int pending_move = 0;
 
 	path = alloc_path_for_send();
 	if (!path)
@@ -3204,7 +3642,9 @@ static int process_all_refs(struct send_ctx *sctx,
 	}
 	btrfs_release_path(path);
 
-	ret = process_recorded_refs(sctx);
+	ret = process_recorded_refs(sctx, &pending_move);
+	/* Only applicable to an incremental send. */
+	ASSERT(pending_move == 0);
 
 out:
 	btrfs_free_path(path);
@@ -4165,7 +4605,9 @@ out:
 	return ret;
 }
 
-static int process_recorded_refs_if_needed(struct send_ctx *sctx, int at_end)
+static int process_recorded_refs_if_needed(struct send_ctx *sctx, int at_end,
+					   int *pending_move,
+					   int *refs_processed)
 {
 	int ret = 0;
 
@@ -4177,17 +4619,11 @@ static int process_recorded_refs_if_needed(struct send_ctx *sctx, int at_end)
 	if (list_empty(&sctx->new_refs) && list_empty(&sctx->deleted_refs))
 		goto out;
 
-	ret = process_recorded_refs(sctx);
+	ret = process_recorded_refs(sctx, pending_move);
 	if (ret < 0)
 		goto out;
 
-	/*
-	 * We have processed the refs and thus need to advance send_progress.
-	 * Now, calls to get_cur_xxx will take the updated refs of the current
-	 * inode into account.
-	 */
-	sctx->send_progress = sctx->cur_ino + 1;
-
+	*refs_processed = 1;
 out:
 	return ret;
 }
@@ -4203,10 +4639,28 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 	u64 right_gid;
 	int need_chmod = 0;
 	int need_chown = 0;
+	int pending_move = 0;
+	int refs_processed = 0;
 
-	ret = process_recorded_refs_if_needed(sctx, at_end);
+	ret = process_recorded_refs_if_needed(sctx, at_end, &pending_move,
+					      &refs_processed);
 	if (ret < 0)
 		goto out;
+
+	/*
+	 * We have processed the refs and thus need to advance send_progress.
+	 * Now, calls to get_cur_xxx will take the updated refs of the current
+	 * inode into account.
+	 *
+	 * On the other hand, if our current inode is a directory and couldn't
+	 * be moved/renamed because its parent was renamed/moved too and it has
+	 * a higher inode number, we can only move/rename our current inode
+	 * after we moved/renamed its parent. Therefore in this case operate on
+	 * the old path (pre move/rename) of our current inode, and the
+	 * move/rename will be performed later.
+	 */
+	if (refs_processed && !pending_move)
+		sctx->send_progress = sctx->cur_ino + 1;
 
 	if (sctx->cur_ino == 0 || sctx->cur_inode_deleted)
 		goto out;
@@ -4269,9 +4723,21 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 	}
 
 	/*
-	 * Need to send that every time, no matter if it actually changed
-	 * between the two trees as we have done changes to the inode before.
+	 * If other directory inodes depended on our current directory
+	 * inode's move/rename, now do their move/rename operations.
 	 */
+	if (!is_waiting_for_move(sctx, sctx->cur_ino)) {
+		ret = apply_children_dir_moves(sctx);
+		if (ret)
+			goto out;
+	}
+
+	/*
+	 * Need to send that every time, no matter if it actually
+	 * changed between the two trees as we have done changes to
+	 * the inode before.
+	 */
+	sctx->send_progress = sctx->cur_ino + 1;
 	ret = send_utimes(sctx, sctx->cur_ino, sctx->cur_inode_gen);
 	if (ret < 0)
 		goto out;
@@ -4839,6 +5305,9 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		goto out;
 	}
 
+	sctx->pending_dir_moves = RB_ROOT;
+	sctx->waiting_dir_moves = RB_ROOT;
+
 	sctx->clone_roots = vzalloc(sizeof(struct clone_root) *
 			(arg->clone_sources_count + 1));
 	if (!sctx->clone_roots) {
@@ -4947,6 +5416,34 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	}
 
 out:
+	WARN_ON(sctx && !ret && !RB_EMPTY_ROOT(&sctx->pending_dir_moves));
+	while (sctx && !RB_EMPTY_ROOT(&sctx->pending_dir_moves)) {
+		struct rb_node *n;
+		struct pending_dir_move *pm;
+
+		n = rb_first(&sctx->pending_dir_moves);
+		pm = rb_entry(n, struct pending_dir_move, node);
+		while (!list_empty(&pm->list)) {
+			struct pending_dir_move *pm2;
+
+			pm2 = list_first_entry(&pm->list,
+					       struct pending_dir_move, list);
+			free_pending_move(sctx, pm2);
+		}
+		free_pending_move(sctx, pm);
+	}
+
+	WARN_ON(sctx && !ret && !RB_EMPTY_ROOT(&sctx->waiting_dir_moves));
+	while (sctx && !RB_EMPTY_ROOT(&sctx->waiting_dir_moves)) {
+		struct rb_node *n;
+		struct waiting_dir_move *dm;
+
+		n = rb_first(&sctx->waiting_dir_moves);
+		dm = rb_entry(n, struct waiting_dir_move, node);
+		rb_erase(&dm->node, &sctx->waiting_dir_moves);
+		kfree(dm);
+	}
+
 	if (sort_clone_roots) {
 		for (i = 0; i < sctx->clone_roots_cnt; i++)
 			btrfs_root_dec_send_in_progress(
