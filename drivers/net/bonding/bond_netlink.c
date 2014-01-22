@@ -265,7 +265,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int resend_igmp =
 			nla_get_u32(data[IFLA_BOND_RESEND_IGMP]);
 
-		err = bond_option_resend_igmp_set(bond, resend_igmp);
+		bond_opt_initval(&newval, resend_igmp);
+		err = __bond_opt_set(bond, BOND_OPT_RESEND_IGMP, &newval);
 		if (err)
 			return err;
 	}

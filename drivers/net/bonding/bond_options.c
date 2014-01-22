@@ -111,6 +111,13 @@ static struct bond_opt_value bond_all_slaves_active_tbl[] = {
 	{ NULL,  -1, 0}
 };
 
+static struct bond_opt_value bond_resend_igmp_tbl[] = {
+	{ "off",     0,   0},
+	{ "maxval",  255, BOND_VALFLAG_MAX},
+	{ "default", 1,   BOND_VALFLAG_DEFAULT},
+	{ NULL,      -1,  0}
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -273,6 +280,13 @@ static struct bond_option bond_opts[] = {
 		.desc = "Keep all frames received on an interface by setting active flag for all slaves",
 		.values = bond_all_slaves_active_tbl,
 		.set = bond_option_all_slaves_active_set
+	},
+	[BOND_OPT_RESEND_IGMP] = {
+		.id = BOND_OPT_RESEND_IGMP,
+		.name = "resend_igmp",
+		.desc = "Number of IGMP membership reports to send on link failure",
+		.values = bond_resend_igmp_tbl,
+		.set = bond_option_resend_igmp_set
 	},
 	{ }
 };
@@ -1038,17 +1052,12 @@ int bond_option_xmit_hash_policy_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp)
+int bond_option_resend_igmp_set(struct bonding *bond,
+				struct bond_opt_value *newval)
 {
-	if (resend_igmp < 0 || resend_igmp > 255) {
-		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, resend_igmp);
-		return -EINVAL;
-	}
-
-	bond->params.resend_igmp = resend_igmp;
-	pr_info("%s: Setting resend_igmp to %d.\n",
-		bond->dev->name, resend_igmp);
+	pr_info("%s: Setting resend_igmp to %llu.\n",
+		bond->dev->name, newval->value);
+	bond->params.resend_igmp = newval->value;
 
 	return 0;
 }

@@ -59,6 +59,7 @@ enum {
 	BOND_OPT_ACTIVE_SLAVE,
 	BOND_OPT_QUEUE_ID,
 	BOND_OPT_ALL_SLAVES_ACTIVE,
+	BOND_OPT_RESEND_IGMP,
 	BOND_OPT_LAST
 };
 
@@ -159,4 +160,6 @@ int bond_option_queue_id_set(struct bonding *bond,
 			     struct bond_opt_value *newval);
 int bond_option_all_slaves_active_set(struct bonding *bond,
 				      struct bond_opt_value *newval);
+int bond_option_resend_igmp_set(struct bonding *bond,
+				struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */
