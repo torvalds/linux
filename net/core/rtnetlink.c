@@ -725,13 +725,13 @@ static size_t rtnl_bond_slave_size(const struct net_device *dev)
 {
 	struct net_device *bond;
 	size_t slave_size =
-		nla_total_size(sizeof(struct nlattr)) +	/* IFLA_SLAVE */
-		nla_total_size(1) +	/* IFLA_SLAVE_STATE */
-		nla_total_size(1) +	/* IFLA_SLAVE_MII_STATUS */
-		nla_total_size(4) +	/* IFLA_SLAVE_LINK_FAILURE_COUNT */
-		nla_total_size(MAX_ADDR_LEN) +	/* IFLA_SLAVE_PERM_HWADDR */
-		nla_total_size(2) +	/* IFLA_SLAVE_QUEUE_ID */
-		nla_total_size(2) +	/* IFLA_SLAVE_AD_AGGREGATOR_ID */
+		nla_total_size(sizeof(struct nlattr)) +	/* IFLA_BOND_SLAVE */
+		nla_total_size(1) +	/* IFLA_BOND_SLAVE_STATE */
+		nla_total_size(1) +	/* IFLA_BOND_SLAVE_MII_STATUS */
+		nla_total_size(4) +	/* IFLA_BOND_SLAVE_LINK_FAILURE_COUNT */
+		nla_total_size(MAX_ADDR_LEN) +	/* IFLA_BOND_SLAVE_PERM_HWADDR */
+		nla_total_size(2) +	/* IFLA_BOND_SLAVE_QUEUE_ID */
+		nla_total_size(2) +	/* IFLA_BOND_SLAVE_AD_AGGREGATOR_ID */
 		0;
 
 	if (netif_is_bond_slave((struct net_device *)dev)) {
@@ -883,7 +883,7 @@ static size_t rtnl_bond_slave_fill(struct sk_buff *skb, struct net_device *dev)
 	if (!bond || !bond->netdev_ops->ndo_get_slave)
 		return 0;
 
-	nest = nla_nest_start(skb, IFLA_SLAVE);
+	nest = nla_nest_start(skb, IFLA_BOND_SLAVE);
 	if (!nest)
 		return -EMSGSIZE;
 

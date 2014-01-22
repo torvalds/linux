@@ -26,27 +26,27 @@ int bond_get_slave(struct net_device *slave_dev, struct sk_buff *skb)
 	struct slave *slave = bond_slave_get_rtnl(slave_dev);
 	const struct aggregator *agg;
 
-	if (nla_put_u8(skb, IFLA_SLAVE_STATE, bond_slave_state(slave)))
+	if (nla_put_u8(skb, IFLA_BOND_SLAVE_STATE, bond_slave_state(slave)))
 		goto nla_put_failure;
 
-	if (nla_put_u8(skb, IFLA_SLAVE_MII_STATUS, slave->link))
+	if (nla_put_u8(skb, IFLA_BOND_SLAVE_MII_STATUS, slave->link))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, IFLA_SLAVE_LINK_FAILURE_COUNT,
+	if (nla_put_u32(skb, IFLA_BOND_SLAVE_LINK_FAILURE_COUNT,
 			slave->link_failure_count))
 		goto nla_put_failure;
 
-	if (nla_put(skb, IFLA_SLAVE_PERM_HWADDR,
+	if (nla_put(skb, IFLA_BOND_SLAVE_PERM_HWADDR,
 		    slave_dev->addr_len, slave->perm_hwaddr))
 		goto nla_put_failure;
 
-	if (nla_put_u16(skb, IFLA_SLAVE_QUEUE_ID, slave->queue_id))
+	if (nla_put_u16(skb, IFLA_BOND_SLAVE_QUEUE_ID, slave->queue_id))
 		goto nla_put_failure;
 
 	if (slave->bond->params.mode == BOND_MODE_8023AD) {
 		agg = SLAVE_AD_INFO(slave).port.aggregator;
 		if (agg)
-			if (nla_put_u16(skb, IFLA_SLAVE_AD_AGGREGATOR_ID,
+			if (nla_put_u16(skb, IFLA_BOND_SLAVE_AD_AGGREGATOR_ID,
 					agg->aggregator_identifier))
 				goto nla_put_failure;
 	}
