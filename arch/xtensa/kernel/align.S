@@ -8,6 +8,7 @@
  * this archive for more details.
  *
  * Copyright (C) 2001 - 2005 Tensilica, Inc.
+ * Copyright (C) 2014 Cadence Design Systems Inc.
  *
  * Rewritten by Chris Zankel <chris@zankel.net>
  *
@@ -173,6 +174,10 @@ ENTRY(fast_unaligned)
 	rsr	a0, depc
 	s32i	a0, a2, PT_AREG2
 	s32i	a3, a2, PT_AREG3
+
+	rsr	a3, excsave1
+	movi	a4, fast_unaligned_fixup
+	s32i	a4, a3, EXC_TABLE_FIXUP
 
 	/* Keep value of SAR in a0 */
 
@@ -430,6 +435,10 @@ ENTRY(fast_unaligned)
 .Linvalid_instruction_store:
 .Linvalid_instruction:
 
+	movi	a4, 0
+	rsr	a3, excsave1
+	s32i	a4, a3, EXC_TABLE_FIXUP
+
 	/* Restore a4...a8 and SAR, set SP, and jump to default exception. */
 
 	l32i	a8, a2, PT_AREG8
@@ -450,5 +459,39 @@ ENTRY(fast_unaligned)
 	jx	a0
 
 ENDPROC(fast_unaligned)
+
+ENTRY(fast_unaligned_fixup)
+
+	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	wsr	a3, excsave1
+
+	l32i	a8, a2, PT_AREG8
+	l32i	a7, a2, PT_AREG7
+	l32i	a6, a2, PT_AREG6
+	l32i	a5, a2, PT_AREG5
+	l32i	a4, a2, PT_AREG4
+	l32i	a0, a2, PT_AREG2
+	xsr	a0, depc			# restore depc and a0
+	wsr	a0, sar
+
+	rsr	a0, exccause
+	s32i	a0, a2, PT_DEPC			# mark as a regular exception
+
+	rsr	a0, ps
+	bbsi.l  a0, PS_UM_BIT, 1f		# jump if user mode
+
+	rsr	a0, exccause
+	addx4	a0, a0, a3              	# find entry in table
+	l32i	a0, a0, EXC_TABLE_FAST_KERNEL   # load handler
+	l32i	a3, a2, PT_AREG3
+	jx	a0
+1:
+	rsr	a0, exccause
+	addx4	a0, a0, a3              	# find entry in table
+	l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
+	l32i	a3, a2, PT_AREG3
+	jx	a0
+
+ENDPROC(fast_unaligned_fixup)
 
 #endif /* XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION */
