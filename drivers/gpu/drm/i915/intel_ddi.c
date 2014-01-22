@@ -663,7 +663,8 @@ static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	p = (wrpll & WRPLL_DIVIDER_POST_MASK) >> WRPLL_DIVIDER_POST_SHIFT;
 	n = (wrpll & WRPLL_DIVIDER_FB_MASK) >> WRPLL_DIVIDER_FB_SHIFT;
 
-	return (LC_FREQ * n) / (p * r);
+	/* Convert to KHz, p & r have a fixed point portion */
+	return (refclk * n * 100) / (p * r);
 }
 
 static void intel_ddi_clock_get(struct intel_encoder *encoder,
