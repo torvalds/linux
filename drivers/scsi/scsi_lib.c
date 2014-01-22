@@ -294,7 +294,7 @@ void scsi_device_unbusy(struct scsi_device *sdev)
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->host_busy--;
-	starget->target_busy--;
+	atomic_dec(&starget->target_busy);
 	if (unlikely(scsi_host_in_recovery(shost) &&
 		     (shost->host_failed || shost->host_eh_scheduled)))
 		scsi_eh_wakeup(shost);
@@ -361,7 +361,7 @@ static inline int scsi_device_is_busy(struct scsi_device *sdev)
 static inline int scsi_target_is_busy(struct scsi_target *starget)
 {
 	return ((starget->can_queue > 0 &&
-		 starget->target_busy >= starget->can_queue) ||
+		 atomic_read(&starget->target_busy) >= starget->can_queue) ||
 		 starget->target_blocked);
 }
 
@@ -1279,37 +1279,50 @@ static inline int scsi_target_queue_ready(struct Scsi_Host *shost,
 					   struct scsi_device *sdev)
 {
 	struct scsi_target *starget = scsi_target(sdev);
-	int ret = 0;
+	unsigned int busy;
 
-	spin_lock_irq(shost->host_lock);
 	if (starget->single_lun) {
+		spin_lock_irq(shost->host_lock);
 		if (starget->starget_sdev_user &&
-		    starget->starget_sdev_user != sdev)
-			goto out;
+		    starget->starget_sdev_user != sdev) {
+			spin_unlock_irq(shost->host_lock);
+			return 0;
+		}
 		starget->starget_sdev_user = sdev;
+		spin_unlock_irq(shost->host_lock);
 	}
 
-	if (starget->target_busy == 0 && starget->target_blocked) {
+	busy = atomic_inc_return(&starget->target_busy) - 1;
+	if (starget->target_blocked) {
+		if (busy)
+			goto starved;
+
 		/*
 		 * unblock after target_blocked iterates to zero
 		 */
-		if (--starget->target_blocked != 0)
-			goto out;
+		spin_lock_irq(shost->host_lock);
+		if (--starget->target_blocked != 0) {
+			spin_unlock_irq(shost->host_lock);
+			goto out_dec;
+		}
+		spin_unlock_irq(shost->host_lock);
 
 		SCSI_LOG_MLQUEUE(3, starget_printk(KERN_INFO, starget,
 				 "unblocking target at zero depth\n"));
 	}
 
-	if (scsi_target_is_busy(starget)) {
-		list_move_tail(&sdev->starved_entry, &shost->starved_list);
-		goto out;
-	}
+	if (starget->can_queue > 0 && busy >= starget->can_queue)
+		goto starved;
 
-	scsi_target(sdev)->target_busy++;
-	ret = 1;
-out:
+	return 1;
+
+starved:
+	spin_lock_irq(shost->host_lock);
+	list_move_tail(&sdev->starved_entry, &shost->starved_list);
 	spin_unlock_irq(shost->host_lock);
-	return ret;
+out_dec:
+	atomic_dec(&starget->target_busy);
+	return 0;
 }
 
 /*
@@ -1419,7 +1432,7 @@ static void scsi_kill_request(struct request *req, struct request_queue *q)
 	spin_unlock(sdev->request_queue->queue_lock);
 	spin_lock(shost->host_lock);
 	shost->host_busy++;
-	starget->target_busy++;
+	atomic_inc(&starget->target_busy);
 	spin_unlock(shost->host_lock);
 	spin_lock(sdev->request_queue->queue_lock);
 
@@ -1589,9 +1602,7 @@ static void scsi_request_fn(struct request_queue *q)
 	return;
 
  host_not_ready:
-	spin_lock_irq(shost->host_lock);
-	scsi_target(sdev)->target_busy--;
-	spin_unlock_irq(shost->host_lock);
+	atomic_dec(&scsi_target(sdev)->target_busy);
  not_ready:
 	/*
 	 * lock q, handle tag, requeue req, and decrement device_busy. We

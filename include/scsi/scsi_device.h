@@ -291,8 +291,8 @@ struct scsi_target {
 	unsigned int		expecting_lun_change:1;	/* A device has reported
 						 * a 3F/0E UA, other devices on
 						 * the same target will also. */
-	/* commands actually active on LLD. protected by host lock. */
-	unsigned int		target_busy;
+	/* commands actually active on LLD. */
+	atomic_t		target_busy;
 	/*
 	 * LLDs should set this in the slave_alloc host template callout.
 	 * If set to zero then there is not limit.
