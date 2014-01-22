@@ -76,12 +76,10 @@ static int report__config(const char *var, const char *value, void *cb)
 }
 
 static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_location *al,
-				      struct perf_sample *sample, struct perf_evsel *evsel,
-				      union perf_event *event)
+				      struct perf_sample *sample, struct perf_evsel *evsel)
 {
 	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct hist_entry *he;
 	struct mem_info *mi, *mx;
 	uint64_t cost;
@@ -90,7 +88,7 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	if (err)
 		return err;
 
-	mi = machine__resolve_mem(al->machine, al->thread, sample, cpumode);
+	mi = machine__resolve_mem(al->machine, al->thread, sample, al->cpumode);
 	if (!mi)
 		return -ENOMEM;
 
@@ -240,7 +238,7 @@ static int process_sample_event(struct perf_tool *tool,
 		if (ret < 0)
 			pr_debug("problem adding lbr entry, skipping event\n");
 	} else if (rep->mem_mode == 1) {
-		ret = report__add_mem_hist_entry(tool, &al, sample, evsel, event);
+		ret = report__add_mem_hist_entry(tool, &al, sample, evsel);
 		if (ret < 0)
 			pr_debug("problem adding mem entry, skipping event\n");
 	} else {
