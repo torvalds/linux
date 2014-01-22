@@ -1557,9 +1557,12 @@ static void scsi_request_fn(struct request_queue *q)
 		 * Dispatch the command to the low-level driver.
 		 */
 		rtn = scsi_dispatch_cmd(cmd);
-		spin_lock_irq(q->queue_lock);
-		if (rtn)
+		if (rtn) {
+			scsi_queue_insert(cmd, rtn);
+			spin_lock_irq(q->queue_lock);
 			goto out_delay;
+		}
+		spin_lock_irq(q->queue_lock);
 	}
 
 	return;
@@ -1579,7 +1582,7 @@ static void scsi_request_fn(struct request_queue *q)
 	blk_requeue_request(q, req);
 	sdev->device_busy--;
 out_delay:
-	if (sdev->device_busy == 0)
+	if (sdev->device_busy == 0 && !scsi_device_blocked(sdev))
 		blk_delay_queue(q, SCSI_QUEUE_DELAY);
 }
 
