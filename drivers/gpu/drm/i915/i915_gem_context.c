@@ -577,7 +577,10 @@ mi_set_context(struct intel_ring_buffer *ring,
 			MI_SAVE_EXT_STATE_EN |
 			MI_RESTORE_EXT_STATE_EN |
 			hw_flags);
-	/* w/a: MI_SET_CONTEXT must always be followed by MI_NOOP */
+	/*
+	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
+	 * WaMiSetContext_Hang:snb,ivb,vlv
+	 */
 	intel_ring_emit(ring, MI_NOOP);
 
 	if (IS_GEN7(ring->dev))
