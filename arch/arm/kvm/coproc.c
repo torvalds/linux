@@ -328,6 +328,12 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn(10), CRm( 2), Op1( 0), Op2( 1), is32,
 			NULL, reset_unknown, c10_NMRR},
 
+	/* AMAIR0/AMAIR1: swapped by interrupt.S. */
+	{ CRn(10), CRm( 3), Op1( 0), Op2( 0), is32,
+			access_vm_reg, reset_unknown, c10_AMAIR0},
+	{ CRn(10), CRm( 3), Op1( 0), Op2( 1), is32,
+			access_vm_reg, reset_unknown, c10_AMAIR1},
+
 	/* VBAR: swapped by interrupt.S. */
 	{ CRn(12), CRm( 0), Op1( 0), Op2( 0), is32,
 			NULL, reset_val, c12_VBAR, 0x00000000 },
