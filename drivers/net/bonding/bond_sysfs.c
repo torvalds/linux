@@ -985,72 +985,15 @@ static ssize_t bonding_store_queue_id(struct device *d,
 				      struct device_attribute *attr,
 				      const char *buffer, size_t count)
 {
-	struct slave *slave, *update_slave;
 	struct bonding *bond = to_bond(d);
-	struct list_head *iter;
-	u16 qid;
-	int ret = count;
-	char *delim;
-	struct net_device *sdev = NULL;
+	int ret;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_QUEUE_ID, (char *)buffer);
+	if (!ret)
+		ret = count;
 
-	/* delim will point to queue id if successful */
-	delim = strchr(buffer, ':');
-	if (!delim)
-		goto err_no_cmd;
-
-	/*
-	 * Terminate string that points to device name and bump it
-	 * up one, so we can read the queue id there.
-	 */
-	*delim = '\0';
-	if (sscanf(++delim, "%hd\n", &qid) != 1)
-		goto err_no_cmd;
-
-	/* Check buffer length, valid ifname and queue id */
-	if (strlen(buffer) > IFNAMSIZ ||
-	    !dev_valid_name(buffer) ||
-	    qid > bond->dev->real_num_tx_queues)
-		goto err_no_cmd;
-
-	/* Get the pointer to that interface if it exists */
-	sdev = __dev_get_by_name(dev_net(bond->dev), buffer);
-	if (!sdev)
-		goto err_no_cmd;
-
-	/* Search for thes slave and check for duplicate qids */
-	update_slave = NULL;
-	bond_for_each_slave(bond, slave, iter) {
-		if (sdev == slave->dev)
-			/*
-			 * We don't need to check the matching
-			 * slave for dups, since we're overwriting it
-			 */
-			update_slave = slave;
-		else if (qid && qid == slave->queue_id) {
-			goto err_no_cmd;
-		}
-	}
-
-	if (!update_slave)
-		goto err_no_cmd;
-
-	/* Actually set the qids for the slave */
-	update_slave->queue_id = qid;
-
-out:
-	rtnl_unlock();
 	return ret;
-
-err_no_cmd:
-	pr_info("invalid input for queue_id set for %s.\n",
-		bond->dev->name);
-	ret = -EPERM;
-	goto out;
 }
-
 static DEVICE_ATTR(queue_id, S_IRUGO | S_IWUSR, bonding_show_queue_id,
 		   bonding_store_queue_id);
 

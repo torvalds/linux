@@ -254,6 +254,13 @@ static struct bond_option bond_opts[] = {
 						BIT(BOND_MODE_ALB)),
 		.set = bond_option_active_slave_set
 	},
+	[BOND_OPT_QUEUE_ID] = {
+		.id = BOND_OPT_QUEUE_ID,
+		.name = "queue_id",
+		.desc = "Set queue id of a slave",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.set = bond_option_queue_id_set
+	},
 	{ }
 };
 
@@ -1129,4 +1136,67 @@ int bond_option_ad_select_set(struct bonding *bond,
 	bond->params.ad_select = newval->value;
 
 	return 0;
+}
+
+int bond_option_queue_id_set(struct bonding *bond,
+			     struct bond_opt_value *newval)
+{
+	struct slave *slave, *update_slave;
+	struct net_device *sdev;
+	struct list_head *iter;
+	char *delim;
+	int ret = 0;
+	u16 qid;
+
+	/* delim will point to queue id if successful */
+	delim = strchr(newval->string, ':');
+	if (!delim)
+		goto err_no_cmd;
+
+	/* Terminate string that points to device name and bump it
+	 * up one, so we can read the queue id there.
+	 */
+	*delim = '\0';
+	if (sscanf(++delim, "%hd\n", &qid) != 1)
+		goto err_no_cmd;
+
+	/* Check buffer length, valid ifname and queue id */
+	if (strlen(newval->string) > IFNAMSIZ ||
+	    !dev_valid_name(newval->string) ||
+	    qid > bond->dev->real_num_tx_queues)
+		goto err_no_cmd;
+
+	/* Get the pointer to that interface if it exists */
+	sdev = __dev_get_by_name(dev_net(bond->dev), newval->string);
+	if (!sdev)
+		goto err_no_cmd;
+
+	/* Search for thes slave and check for duplicate qids */
+	update_slave = NULL;
+	bond_for_each_slave(bond, slave, iter) {
+		if (sdev == slave->dev)
+			/* We don't need to check the matching
+			 * slave for dups, since we're overwriting it
+			 */
+			update_slave = slave;
+		else if (qid && qid == slave->queue_id) {
+			goto err_no_cmd;
+		}
+	}
+
+	if (!update_slave)
+		goto err_no_cmd;
+
+	/* Actually set the qids for the slave */
+	update_slave->queue_id = qid;
+
+out:
+	return ret;
+
+err_no_cmd:
+	pr_info("invalid input for queue_id set for %s.\n",
+		bond->dev->name);
+	ret = -EPERM;
+	goto out;
+
 }

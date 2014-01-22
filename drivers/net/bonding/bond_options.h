@@ -57,6 +57,7 @@ enum {
 	BOND_OPT_PRIMARY_RESELECT,
 	BOND_OPT_USE_CARRIER,
 	BOND_OPT_ACTIVE_SLAVE,
+	BOND_OPT_QUEUE_ID,
 	BOND_OPT_LAST
 };
 
@@ -153,4 +154,6 @@ int bond_option_use_carrier_set(struct bonding *bond,
 				struct bond_opt_value *newval);
 int bond_option_active_slave_set(struct bonding *bond,
 				 struct bond_opt_value *newval);
+int bond_option_queue_id_set(struct bonding *bond,
+			     struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */
