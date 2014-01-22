@@ -4453,7 +4453,6 @@ struct ieee80211_tx_rate_control {
 };
 
 struct rate_control_ops {
-	struct module *module;
 	const char *name;
 	void *(*alloc)(struct ieee80211_hw *hw, struct dentry *debugfsdir);
 	void (*free)(void *priv);
