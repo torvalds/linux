@@ -710,21 +710,12 @@ static ssize_t bonding_store_primary(struct device *d,
 				     const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	char ifname[IFNAMSIZ];
 	int ret;
 
-	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
-	if (ifname[0] == '\n')
-		ifname[0] = '\0';
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_primary_set(bond, ifname);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_PRIMARY, (char *)buf);
 	if (!ret)
 		ret = count;
 
-	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(primary, S_IRUGO | S_IWUSR,

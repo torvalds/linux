@@ -207,6 +207,16 @@ static struct bond_option bond_opts[] = {
 		.values = bond_intmax_tbl,
 		.set = bond_option_miimon_set
 	},
+	[BOND_OPT_PRIMARY] = {
+		.id = BOND_OPT_PRIMARY,
+		.name = "primary",
+		.desc = "Primary network device to use",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ACTIVEBACKUP) |
+						BIT(BOND_MODE_TLB) |
+						BIT(BOND_MODE_ALB)),
+		.set = bond_option_primary_set
+	},
 	{ }
 };
 
@@ -885,23 +895,19 @@ int bond_option_arp_all_targets_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_primary_set(struct bonding *bond, const char *primary)
+int bond_option_primary_set(struct bonding *bond, struct bond_opt_value *newval)
 {
+	char *p, *primary = newval->string;
 	struct list_head *iter;
 	struct slave *slave;
-	int err = 0;
 
 	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
-	if (!USES_PRIMARY(bond->params.mode)) {
-		pr_err("%s: Unable to set primary slave; %s is in mode %d\n",
-		       bond->dev->name, bond->dev->name, bond->params.mode);
-		err = -EINVAL;
-		goto out;
-	}
-
+	p = strchr(primary, '\n');
+	if (p)
+		*p = '\0';
 	/* check to see if we are clearing primary */
 	if (!strlen(primary)) {
 		pr_info("%s: Setting primary slave to None.\n",
@@ -934,7 +940,7 @@ out:
 	read_unlock(&bond->lock);
 	unblock_netpoll_tx();
 
-	return err;
+	return 0;
 }
 
 int bond_option_primary_reselect_set(struct bonding *bond, int primary_reselect)

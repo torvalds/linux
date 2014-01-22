@@ -227,7 +227,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (dev)
 			primary = dev->name;
 
-		err = bond_option_primary_set(bond, primary);
+		bond_opt_initstr(&newval, primary);
+		err = __bond_opt_set(bond, BOND_OPT_PRIMARY, &newval);
 		if (err)
 			return err;
 	}
