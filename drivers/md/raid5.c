@@ -675,8 +675,10 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 					 || !conf->inactive_blocked),
 					*(conf->hash_locks + hash));
 				conf->inactive_blocked = 0;
-			} else
+			} else {
 				init_stripe(sh, sector, previous);
+				atomic_inc(&sh->count);
+			}
 		} else {
 			spin_lock(&conf->device_lock);
 			if (atomic_read(&sh->count)) {
@@ -695,12 +697,10 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 					sh->group = NULL;
 				}
 			}
+			atomic_inc(&sh->count);
 			spin_unlock(&conf->device_lock);
 		}
 	} while (sh == NULL);
-
-	if (sh)
-		atomic_inc(&sh->count);
 
 	spin_unlock_irq(conf->hash_locks + hash);
 	return sh;
