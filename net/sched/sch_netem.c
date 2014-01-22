@@ -91,7 +91,7 @@ struct netem_sched_data {
 	u64 rate;
 	s32 packet_overhead;
 	u32 cell_size;
-	u32 cell_size_reciprocal;
+	struct reciprocal_value cell_size_reciprocal;
 	s32 cell_overhead;
 
 	struct crndstate {
@@ -725,9 +725,11 @@ static void get_rate(struct Qdisc *sch, const struct nlattr *attr)
 	q->rate = r->rate;
 	q->packet_overhead = r->packet_overhead;
 	q->cell_size = r->cell_size;
+	q->cell_overhead = r->cell_overhead;
 	if (q->cell_size)
 		q->cell_size_reciprocal = reciprocal_value(q->cell_size);
-	q->cell_overhead = r->cell_overhead;
+	else
+		q->cell_size_reciprocal = (struct reciprocal_value) { 0 };
 }
 
 static int get_loss_clg(struct Qdisc *sch, const struct nlattr *attr)

@@ -130,7 +130,8 @@ struct red_parms {
 	u32		qth_max;	/* Max avg length threshold: Wlog scaled */
 	u32		Scell_max;
 	u32		max_P;		/* probability, [0 .. 1.0] 32 scaled */
-	u32		max_P_reciprocal; /* reciprocal_value(max_P / qth_delta) */
+	/* reciprocal_value(max_P / qth_delta) */
+	struct reciprocal_value	max_P_reciprocal;
 	u32		qth_delta;	/* max_th - min_th */
 	u32		target_min;	/* min_th + 0.4*(max_th - min_th) */
 	u32		target_max;	/* min_th + 0.6*(max_th - min_th) */
