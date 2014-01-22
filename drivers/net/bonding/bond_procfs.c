@@ -140,8 +140,10 @@ static void bond_info_show_master(struct seq_file *seq)
 		seq_printf(seq, "LACP rate: %s\n",
 			   (bond->params.lacp_fast) ? "fast" : "slow");
 		seq_printf(seq, "Min links: %d\n", bond->params.min_links);
+		optval = bond_opt_get_val(BOND_OPT_AD_SELECT,
+					  bond->params.ad_select);
 		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
-			   ad_select_tbl[bond->params.ad_select].modename);
+			   optval->string);
 
 		if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
 			seq_printf(seq, "bond %s has no active aggregator\n",

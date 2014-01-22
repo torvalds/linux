@@ -214,13 +214,6 @@ const struct bond_parm_tbl pri_reselect_tbl[] = {
 {	NULL,			-1},
 };
 
-struct bond_parm_tbl ad_select_tbl[] = {
-{	"stable",	BOND_AD_STABLE},
-{	"bandwidth",	BOND_AD_BANDWIDTH},
-{	"count",	BOND_AD_COUNT},
-{	NULL,		-1},
-};
-
 /*-------------------------- Forward declarations ---------------------------*/
 
 static int bond_init(struct net_device *bond_dev);
@@ -4032,16 +4025,16 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (ad_select) {
-		params->ad_select = bond_parse_parm(ad_select, ad_select_tbl);
-		if (params->ad_select == -1) {
-			pr_err("Error: Invalid ad_select \"%s\"\n",
-			       ad_select == NULL ? "NULL" : ad_select);
+		bond_opt_initstr(&newval, lacp_rate);
+		valptr = bond_opt_parse(bond_opt_get(BOND_OPT_AD_SELECT),
+					&newval);
+		if (!valptr) {
+			pr_err("Error: Invalid ad_select \"%s\"\n", ad_select);
 			return -EINVAL;
 		}
-
-		if (bond_mode != BOND_MODE_8023AD) {
+		params->ad_select = valptr->value;
+		if (bond_mode != BOND_MODE_8023AD)
 			pr_warning("ad_select param only affects 802.3ad mode\n");
-		}
 	} else {
 		params->ad_select = BOND_AD_STABLE;
 	}

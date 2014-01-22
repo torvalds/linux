@@ -320,7 +320,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int ad_select =
 			nla_get_u8(data[IFLA_BOND_AD_SELECT]);
 
-		err = bond_option_ad_select_set(bond, ad_select);
+		bond_opt_initval(&newval, ad_select);
+		err = __bond_opt_set(bond, BOND_OPT_AD_SELECT, &newval);
 		if (err)
 			return err;
 	}

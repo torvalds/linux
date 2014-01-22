@@ -78,6 +78,13 @@ static struct bond_opt_value bond_lacp_rate_tbl[] = {
 	{ NULL,   -1,           0},
 };
 
+static struct bond_opt_value bond_ad_select_tbl[] = {
+	{ "stable",    BOND_AD_STABLE,    BOND_VALFLAG_DEFAULT},
+	{ "bandwidth", BOND_AD_BANDWIDTH, 0},
+	{ "count",     BOND_AD_COUNT,     0},
+	{ NULL,        -1,                0},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -170,6 +177,14 @@ static struct bond_option bond_opts[] = {
 		.desc = "Minimum number of available links before turning on carrier",
 		.values = bond_intmax_tbl,
 		.set = bond_option_min_links_set
+	},
+	[BOND_OPT_AD_SELECT] = {
+		.id = BOND_OPT_AD_SELECT,
+		.name = "ad_select",
+		.desc = "803.ad aggregation selection logic",
+		.flags = BOND_OPTFLAG_IFDOWN,
+		.values = bond_ad_select_tbl,
+		.set = bond_option_ad_select_set
 	},
 	{ }
 };
@@ -1048,24 +1063,12 @@ int bond_option_lacp_rate_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_ad_select_set(struct bonding *bond, int ad_select)
+int bond_option_ad_select_set(struct bonding *bond,
+			      struct bond_opt_value *newval)
 {
-	if (bond_parm_tbl_lookup(ad_select, ad_select_tbl) < 0) {
-		pr_err("%s: Ignoring invalid ad_select value %d.\n",
-		       bond->dev->name, ad_select);
-		return -EINVAL;
-	}
-
-	if (bond->dev->flags & IFF_UP) {
-		pr_err("%s: Unable to update ad_select because interface is up.\n",
-		       bond->dev->name);
-		return -EPERM;
-	}
-
-	bond->params.ad_select = ad_select;
-	pr_info("%s: Setting ad_select to %s (%d).\n",
-		bond->dev->name, ad_select_tbl[ad_select].modename,
-		ad_select);
+	pr_info("%s: Setting ad_select to %s (%llu).\n",
+		bond->dev->name, newval->string, newval->value);
+	bond->params.ad_select = newval->value;
 
 	return 0;
 }

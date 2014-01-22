@@ -601,10 +601,11 @@ static ssize_t bonding_show_ad_select(struct device *d,
 				      char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	struct bond_opt_value *val;
 
-	return sprintf(buf, "%s %d\n",
-		ad_select_tbl[bond->params.ad_select].modename,
-		bond->params.ad_select);
+	val = bond_opt_get_val(BOND_OPT_AD_SELECT, bond->params.ad_select);
+
+	return sprintf(buf, "%s %d\n", val->string, bond->params.ad_select);
 }
 
 
@@ -612,24 +613,13 @@ static ssize_t bonding_store_ad_select(struct device *d,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int new_value, ret;
 	struct bonding *bond = to_bond(d);
+	int ret;
 
-	new_value = bond_parse_parm(buf, ad_select_tbl);
-	if (new_value < 0) {
-		pr_err("%s: Ignoring invalid ad_select value %.*s.\n",
-		       bond->dev->name, (int)strlen(buf) - 1, buf);
-		return -EINVAL;
-	}
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_ad_select_set(bond, new_value);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_AD_SELECT, (char *)buf);
 	if (!ret)
 		ret = count;
 
-	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
