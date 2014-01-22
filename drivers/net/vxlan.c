@@ -2784,12 +2784,10 @@ static int vxlan_lowerdev_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct vxlan_net *vn;
+	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
 
-	if (event == NETDEV_UNREGISTER) {
-		vn = net_generic(dev_net(dev), vxlan_net_id);
+	if (event == NETDEV_UNREGISTER)
 		vxlan_handle_lowerdev_unregister(vn, dev);
-	}
 
 	return NOTIFY_DONE;
 }
@@ -2812,22 +2810,8 @@ static __net_init int vxlan_init_net(struct net *net)
 	return 0;
 }
 
-static __net_exit void vxlan_exit_net(struct net *net)
-{
-	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
-	struct vxlan_dev *vxlan, *next;
-	LIST_HEAD(list_kill);
-
-	rtnl_lock();
-	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next)
-		vxlan_dellink(vxlan->dev, &list_kill);
-	unregister_netdevice_many(&list_kill);
-	rtnl_unlock();
-}
-
 static struct pernet_operations vxlan_net_ops = {
 	.init = vxlan_init_net,
-	.exit = vxlan_exit_net,
 	.id   = &vxlan_net_id,
 	.size = sizeof(struct vxlan_net),
 };
@@ -2842,7 +2826,7 @@ static int __init vxlan_init_module(void)
 
 	get_random_bytes(&vxlan_salt, sizeof(vxlan_salt));
 
-	rc = register_pernet_device(&vxlan_net_ops);
+	rc = register_pernet_subsys(&vxlan_net_ops);
 	if (rc)
 		goto out1;
 
@@ -2858,7 +2842,7 @@ static int __init vxlan_init_module(void)
 out3:
 	unregister_netdevice_notifier(&vxlan_notifier_block);
 out2:
-	unregister_pernet_device(&vxlan_net_ops);
+	unregister_pernet_subsys(&vxlan_net_ops);
 out1:
 	destroy_workqueue(vxlan_wq);
 	return rc;
@@ -2870,8 +2854,8 @@ static void __exit vxlan_cleanup_module(void)
 	rtnl_link_unregister(&vxlan_link_ops);
 	unregister_netdevice_notifier(&vxlan_notifier_block);
 	destroy_workqueue(vxlan_wq);
-	unregister_pernet_device(&vxlan_net_ops);
-	rcu_barrier();
+	unregister_pernet_subsys(&vxlan_net_ops);
+	/* rcu_barrier() is called by netns */
 }
 module_exit(vxlan_cleanup_module);
 
