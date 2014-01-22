@@ -4960,9 +4960,6 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	 * Sanctuary and Tropics, and apparently anything else with
 	 * alpha test or pixel discard.
 	 *
-	 * According to the spec, bit 11 (RCCUNIT) must also be set,
-	 * but we didn't debug actual testcases to find it out.
-	 *
 	 * According to the spec, bit 13 (RCZUNIT) must be set on IVB.
 	 * This implements the WaDisableRCZUnitClockGating:vlv workaround.
 	 *
@@ -4973,8 +4970,7 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		   GEN7_VDSUNIT_CLOCK_GATE_DISABLE |
 		   GEN7_TDLUNIT_CLOCK_GATE_DISABLE |
 		   GEN6_RCZUNIT_CLOCK_GATE_DISABLE |
-		   GEN6_RCPBUNIT_CLOCK_GATE_DISABLE |
-		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
+		   GEN6_RCPBUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableL3Bank2xClockGate:vlv */
 	I915_WRITE(GEN7_UCGCTL4, GEN7_L3BANK2X_CLOCK_GATE_DISABLE);
