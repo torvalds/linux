@@ -2296,7 +2296,7 @@ pl022_remove(struct amba_device *adev)
  */
 static void pl022_suspend_resources(struct pl022 *pl022, bool runtime)
 {
-	clk_disable(pl022->clk);
+	clk_disable_unprepare(pl022->clk);
 
 	if (runtime)
 		pinctrl_pm_select_idle_state(&pl022->adev->dev);
@@ -2312,7 +2312,7 @@ static void pl022_resume_resources(struct pl022 *pl022, bool runtime)
 		/* Then let's idle the pins until the next transfer happens */
 		pinctrl_pm_select_idle_state(&pl022->adev->dev);
 
-	clk_enable(pl022->clk);
+	clk_prepare_enable(pl022->clk);
 }
 #endif
 
