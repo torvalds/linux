@@ -3207,13 +3207,13 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		    params->chandef.chan->band)
 			return -EINVAL;
 
-		if (!ifmsh->pre_value)
-			ifmsh->pre_value = 1;
-		else
-			ifmsh->pre_value++;
-
-		if (ifmsh->csa_role == IEEE80211_MESH_CSA_ROLE_NONE)
+		if (ifmsh->csa_role == IEEE80211_MESH_CSA_ROLE_NONE) {
 			ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_INIT;
+			if (!ifmsh->pre_value)
+				ifmsh->pre_value = 1;
+			else
+				ifmsh->pre_value++;
+		}
 
 		/* see comments in the NL80211_IFTYPE_AP block */
 		if (params->count > 1) {
