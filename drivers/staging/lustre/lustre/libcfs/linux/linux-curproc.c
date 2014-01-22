@@ -116,15 +116,6 @@ cfs_cap_t cfs_curproc_cap_pack(void)
 	return cap;
 }
 
-void cfs_curproc_cap_unpack(cfs_cap_t cap)
-{
-	struct cred *cred;
-	if ((cred = prepare_creds())) {
-		cfs_kernel_cap_unpack(&cred->cap_effective, cap);
-		commit_creds(cred);
-	}
-}
-
 int cfs_capable(cfs_cap_t cap)
 {
 	return capable(cfs_cap_unpack(cap));
@@ -286,7 +277,6 @@ EXPORT_SYMBOL(cfs_cap_raise);
 EXPORT_SYMBOL(cfs_cap_lower);
 EXPORT_SYMBOL(cfs_cap_raised);
 EXPORT_SYMBOL(cfs_curproc_cap_pack);
-EXPORT_SYMBOL(cfs_curproc_cap_unpack);
 EXPORT_SYMBOL(cfs_capable);
 
 /*
