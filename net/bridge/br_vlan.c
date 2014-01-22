@@ -151,27 +151,6 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	br_vlan_get_tag(skb, &vid);
 	if (test_bit(vid, pv->untagged_bitmap))
 		skb = br_vlan_untag(skb);
-	else {
-		/* Egress policy says "send tagged".  If output device
-		 * is the  bridge, we need to add the VLAN header
-		 * ourselves since we'll be going through the RX path.
-		 * Sending to ports puts the frame on the TX path and
-		 * we let dev_hard_start_xmit() add the header.
-		 */
-		if (skb->protocol != htons(ETH_P_8021Q) &&
-		    pv->port_idx == 0) {
-			/* vlan_put_tag expects skb->data to point to
-			 * mac header.
-			 */
-			skb_push(skb, ETH_HLEN);
-			skb = __vlan_put_tag(skb, skb->vlan_proto, skb->vlan_tci);
-			if (!skb)
-				goto out;
-			/* put skb->data back to where it was */
-			skb_pull(skb, ETH_HLEN);
-			skb->vlan_tci = 0;
-		}
-	}
 
 out:
 	return skb;
