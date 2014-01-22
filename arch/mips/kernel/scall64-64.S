@@ -82,6 +82,8 @@ syscall_trace_entry:
 	move	a0, sp
 	jal	syscall_trace_enter
 
+	bltz	v0, 2f			# seccomp failed? Skip syscall
+
 	move	t0, s0
 	RESTORE_STATIC
 	ld	a0, PT_R4(sp)		# Restore argument registers
@@ -102,7 +104,7 @@ syscall_trace_entry:
 	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
-	j	syscall_exit
+2:	j	syscall_exit
 
 illegal_syscall:
 	/* This also isn't a 64-bit syscall, throw an error.  */
