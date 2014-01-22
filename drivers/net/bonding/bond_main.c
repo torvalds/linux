@@ -86,12 +86,11 @@
 /*---------------------------- Module parameters ----------------------------*/
 
 /* monitor all links that often (in milliseconds). <=0 disables monitoring */
-#define BOND_LINK_MON_INTERV	0
 
 static int max_bonds	= BOND_DEFAULT_MAX_BONDS;
 static int tx_queues	= BOND_DEFAULT_TX_QUEUES;
 static int num_peer_notif = 1;
-static int miimon	= BOND_LINK_MON_INTERV;
+static int miimon;
 static int updelay;
 static int downdelay;
 static int use_carrier	= 1;
@@ -4046,9 +4045,9 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (miimon < 0) {
-		pr_warning("Warning: miimon module parameter (%d), not in range 0-%d, so it was reset to %d\n",
-			   miimon, INT_MAX, BOND_LINK_MON_INTERV);
-		miimon = BOND_LINK_MON_INTERV;
+		pr_warning("Warning: miimon module parameter (%d), not in range 0-%d, so it was reset to 0\n",
+			   miimon, INT_MAX);
+		miimon = 0;
 	}
 
 	if (updelay < 0) {

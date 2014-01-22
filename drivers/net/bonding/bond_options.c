@@ -200,6 +200,13 @@ static struct bond_option bond_opts[] = {
 		.values = bond_num_peer_notif_tbl,
 		.set = bond_option_num_peer_notif_set
 	},
+	[BOND_OPT_MIIMON] = {
+		.id = BOND_OPT_MIIMON,
+		.name = "miimon",
+		.desc = "Link check interval in milliseconds",
+		.values = bond_intmax_tbl,
+		.set = bond_option_miimon_set
+	},
 	{ }
 };
 
@@ -575,16 +582,11 @@ int bond_option_active_slave_set(struct bonding *bond,
 	return ret;
 }
 
-int bond_option_miimon_set(struct bonding *bond, int miimon)
+int bond_option_miimon_set(struct bonding *bond, struct bond_opt_value *newval)
 {
-	if (miimon < 0) {
-		pr_err("%s: Invalid miimon value %d not in range %d-%d; rejected.\n",
-		       bond->dev->name, miimon, 0, INT_MAX);
-		return -EINVAL;
-	}
-	pr_info("%s: Setting MII monitoring interval to %d.\n",
-		bond->dev->name, miimon);
-	bond->params.miimon = miimon;
+	pr_info("%s: Setting MII monitoring interval to %llu.\n",
+		bond->dev->name, newval->value);
+	bond->params.miimon = newval->value;
 	if (bond->params.updelay)
 		pr_info("%s: Note: Updating updelay (to %d) since it is a multiple of the miimon value.\n",
 			bond->dev->name,
@@ -593,7 +595,7 @@ int bond_option_miimon_set(struct bonding *bond, int miimon)
 		pr_info("%s: Note: Updating downdelay (to %d) since it is a multiple of the miimon value.\n",
 			bond->dev->name,
 			bond->params.downdelay * bond->params.miimon);
-	if (miimon && bond->params.arp_interval) {
+	if (newval->value && bond->params.arp_interval) {
 		pr_info("%s: MII monitoring cannot be used with ARP monitoring. Disabling ARP monitoring...\n",
 			bond->dev->name);
 		bond->params.arp_interval = 0;
@@ -606,13 +608,14 @@ int bond_option_miimon_set(struct bonding *bond, int miimon)
 		 * timer will get fired off when the open function
 		 * is called.
 		 */
-		if (!miimon) {
+		if (!newval->value) {
 			cancel_delayed_work_sync(&bond->mii_work);
 		} else {
 			cancel_delayed_work_sync(&bond->arp_work);
 			queue_delayed_work(bond->wq, &bond->mii_work, 0);
 		}
 	}
+
 	return 0;
 }
 

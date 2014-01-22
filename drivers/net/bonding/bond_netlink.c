@@ -132,7 +132,8 @@ static int bond_changelink(struct net_device *bond_dev,
 	if (data[IFLA_BOND_MIIMON]) {
 		miimon = nla_get_u32(data[IFLA_BOND_MIIMON]);
 
-		err = bond_option_miimon_set(bond, miimon);
+		bond_opt_initval(&newval, miimon);
+		err = __bond_opt_set(bond, BOND_OPT_MIIMON, &newval);
 		if (err)
 			return err;
 	}
