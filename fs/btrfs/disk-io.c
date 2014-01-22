@@ -2745,13 +2745,13 @@ retry_root_backup:
 	ret = btrfs_init_space_info(fs_info);
 	if (ret) {
 		printk(KERN_ERR "BTRFS: Failed to initial space info: %d\n", ret);
-		goto fail_block_groups;
+		goto fail_sysfs;
 	}
 
 	ret = btrfs_read_block_groups(extent_root);
 	if (ret) {
 		printk(KERN_ERR "BTRFS: Failed to read block groups: %d\n", ret);
-		goto fail_block_groups;
+		goto fail_sysfs;
 	}
 	fs_info->num_tolerated_disk_barrier_failures =
 		btrfs_calc_num_tolerated_disk_barrier_failures(fs_info);
@@ -2760,13 +2760,13 @@ retry_root_backup:
 	    !(sb->s_flags & MS_RDONLY)) {
 		printk(KERN_WARNING "BTRFS: "
 			"too many missing devices, writeable mount is not allowed\n");
-		goto fail_block_groups;
+		goto fail_sysfs;
 	}
 
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
 	if (IS_ERR(fs_info->cleaner_kthread))
-		goto fail_block_groups;
+		goto fail_sysfs;
 
 	fs_info->transaction_kthread = kthread_run(transaction_kthread,
 						   tree_root,
@@ -2947,6 +2947,9 @@ fail_cleaner:
 	 * kthreads
 	 */
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
+
+fail_sysfs:
+	btrfs_sysfs_remove_one(fs_info);
 
 fail_block_groups:
 	btrfs_put_block_group_cache(fs_info);
