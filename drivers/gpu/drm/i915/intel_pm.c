@@ -4765,11 +4765,6 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 
 	ilk_init_lp_watermarks(dev);
 
-	/* According to the spec, bit 13 (RCZUNIT) must be set on IVB.
-	 * This implements the WaDisableRCZUnitClockGating:hsw workaround.
-	 */
-	I915_WRITE(GEN6_UCGCTL2, GEN6_RCZUNIT_CLOCK_GATE_DISABLE);
-
 	/* WaApplyL3ControlAndL3ChickenMode:hsw */
 	I915_WRITE(GEN7_L3CNTLREG1,
 			GEN7_WA_FOR_GEN7_L3_CONTROL);
