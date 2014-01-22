@@ -166,7 +166,8 @@ static int bond_changelink(struct net_device *bond_dev,
 			return -EINVAL;
 		}
 
-		err = bond_option_arp_interval_set(bond, arp_interval);
+		bond_opt_initval(&newval, arp_interval);
+		err = __bond_opt_set(bond, BOND_OPT_ARP_INTERVAL, &newval);
 		if (err)
 			return err;
 	}

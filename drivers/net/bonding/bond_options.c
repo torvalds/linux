@@ -66,6 +66,11 @@ static struct bond_opt_value bond_fail_over_mac_tbl[] = {
 	{ NULL,     -1,              0},
 };
 
+static struct bond_opt_value bond_intmax_tbl[] = {
+	{ "off",     0,       BOND_VALFLAG_DEFAULT},
+	{ "maxval",  INT_MAX, BOND_VALFLAG_MAX},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -112,6 +117,15 @@ static struct bond_option bond_opts[] = {
 		.flags = BOND_OPTFLAG_NOSLAVES,
 		.values = bond_fail_over_mac_tbl,
 		.set = bond_option_fail_over_mac_set
+	},
+	[BOND_OPT_ARP_INTERVAL] = {
+		.id = BOND_OPT_ARP_INTERVAL,
+		.name = "arp_interval",
+		.desc = "arp interval in milliseconds",
+		.unsuppmodes = BIT(BOND_MODE_8023AD) | BIT(BOND_MODE_TLB) |
+			       BIT(BOND_MODE_ALB),
+		.values = bond_intmax_tbl,
+		.set = bond_option_arp_interval_set
 	},
 	{ }
 };
@@ -601,22 +615,13 @@ int bond_option_use_carrier_set(struct bonding *bond, int use_carrier)
 	return 0;
 }
 
-int bond_option_arp_interval_set(struct bonding *bond, int arp_interval)
+int bond_option_arp_interval_set(struct bonding *bond,
+				 struct bond_opt_value *newval)
 {
-	if (arp_interval < 0) {
-		pr_err("%s: Invalid arp_interval value %d not in range 0-%d; rejected.\n",
-		       bond->dev->name, arp_interval, INT_MAX);
-		return -EINVAL;
-	}
-	if (BOND_NO_USES_ARP(bond->params.mode)) {
-		pr_info("%s: ARP monitoring cannot be used with ALB/TLB/802.3ad. Only MII monitoring is supported on %s.\n",
-			bond->dev->name, bond->dev->name);
-		return -EINVAL;
-	}
-	pr_info("%s: Setting ARP monitoring interval to %d.\n",
-		bond->dev->name, arp_interval);
-	bond->params.arp_interval = arp_interval;
-	if (arp_interval) {
+	pr_info("%s: Setting ARP monitoring interval to %llu.\n",
+		bond->dev->name, newval->value);
+	bond->params.arp_interval = newval->value;
+	if (newval->value) {
 		if (bond->params.miimon) {
 			pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
 				bond->dev->name, bond->dev->name);
@@ -632,7 +637,7 @@ int bond_option_arp_interval_set(struct bonding *bond, int arp_interval)
 		 * timer will get fired off when the open function
 		 * is called.
 		 */
-		if (!arp_interval) {
+		if (!newval->value) {
 			if (bond->params.arp_validate)
 				bond->recv_probe = NULL;
 			cancel_delayed_work_sync(&bond->arp_work);

@@ -87,7 +87,6 @@
 
 /* monitor all links that often (in milliseconds). <=0 disables monitoring */
 #define BOND_LINK_MON_INTERV	0
-#define BOND_LINK_ARP_INTERV	0
 
 static int max_bonds	= BOND_DEFAULT_MAX_BONDS;
 static int tx_queues	= BOND_DEFAULT_TX_QUEUES;
@@ -103,7 +102,7 @@ static char *lacp_rate;
 static int min_links;
 static char *ad_select;
 static char *xmit_hash_policy;
-static int arp_interval = BOND_LINK_ARP_INTERV;
+static int arp_interval;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS];
 static char *arp_validate;
 static char *arp_all_targets;
@@ -4162,9 +4161,9 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (arp_interval < 0) {
-		pr_warning("Warning: arp_interval module parameter (%d) , not in range 0-%d, so it was reset to %d\n",
-			   arp_interval, INT_MAX, BOND_LINK_ARP_INTERV);
-		arp_interval = BOND_LINK_ARP_INTERV;
+		pr_warning("Warning: arp_interval module parameter (%d) , not in range 0-%d, so it was reset to 0\n",
+			   arp_interval, INT_MAX);
+		arp_interval = 0;
 	}
 
 	for (arp_ip_count = 0, i = 0;
