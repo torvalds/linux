@@ -1032,8 +1032,9 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 			unmap_shared_mapping_range(ip->i_inode.i_mapping, offset, len);
 		rv = filemap_write_and_wait_range(mapping, lstart, end);
 		if (rv)
-			return rv;
-		truncate_inode_pages_range(mapping, lstart, end);
+			goto out;
+		if (rw == WRITE)
+			truncate_inode_pages_range(mapping, lstart, end);
 	}
 
 	rv = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
@@ -1080,30 +1081,22 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bh = bh->b_this_page;
 	} while(bh != head);
 	spin_unlock(&sdp->sd_ail_lock);
-	gfs2_log_unlock(sdp);
 
 	head = bh = page_buffers(page);
 	do {
-		gfs2_log_lock(sdp);
 		bd = bh->b_private;
 		if (bd) {
 			gfs2_assert_warn(sdp, bd->bd_bh == bh);
-			if (!list_empty(&bd->bd_list)) {
-				if (!buffer_pinned(bh))
-					list_del_init(&bd->bd_list);
-				else
-					bd = NULL;
-			}
-			if (bd)
-				bd->bd_bh = NULL;
+			if (!list_empty(&bd->bd_list))
+				list_del_init(&bd->bd_list);
+			bd->bd_bh = NULL;
 			bh->b_private = NULL;
-		}
-		gfs2_log_unlock(sdp);
-		if (bd)
 			kmem_cache_free(gfs2_bufdata_cachep, bd);
+		}
 
 		bh = bh->b_this_page;
 	} while (bh != head);
+	gfs2_log_unlock(sdp);
 
 	return try_to_free_buffers(page);
 
