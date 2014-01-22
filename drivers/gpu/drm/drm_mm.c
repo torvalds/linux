@@ -144,6 +144,20 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	}
 }
 
+/**
+ * drm_mm_reserve_node - insert an pre-initialized node
+ * @mm: drm_mm allocator to insert @node into
+ * @node: drm_mm_node to insert
+ *
+ * This functions inserts an already set-up drm_mm_node into the allocator,
+ * meaning that start, size and color must be set by the caller. This is useful
+ * to initialize the allocator with preallocated objects which must be set-up
+ * before the range allocator can be set-up, e.g. when taking over a firmware
+ * framebuffer.
+ *
+ * Returns:
+ * 0 on success, -ENOSPC if there's no hole where @node is.
+ */
 int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 {
 	struct drm_mm_node *hole;
@@ -185,9 +199,18 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 EXPORT_SYMBOL(drm_mm_reserve_node);
 
 /**
- * Search for free space and insert a preallocated memory node. Returns
- * -ENOSPC if no suitable free area is available. The preallocated memory node
- * must be cleared.
+ * drm_mm_insert_node_generic - search for space and insert @node
+ * @mm: drm_mm to allocate from
+ * @node: preallocate node to insert
+ * @size: size of the allocation
+ * @alignment: alignment of the allocation
+ * @color: opaque tag value to use for this node
+ * @flags: flags to fine-tune the allocation
+ *
+ * The preallocated node must be cleared to 0.
+ *
+ * Returns:
+ * 0 on success, -ENOSPC if there's no suitable hole.
  */
 int drm_mm_insert_node_generic(struct drm_mm *mm, struct drm_mm_node *node,
 			       unsigned long size, unsigned alignment,
@@ -259,9 +282,20 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 }
 
 /**
- * Search for free space and insert a preallocated memory node. Returns
- * -ENOSPC if no suitable free area is available. This is for range
- * restricted allocations. The preallocated memory node must be cleared.
+ * drm_mm_insert_node_in_range_generic - ranged search for space and insert @node
+ * @mm: drm_mm to allocate from
+ * @node: preallocate node to insert
+ * @size: size of the allocation
+ * @alignment: alignment of the allocation
+ * @color: opaque tag value to use for this node
+ * @start: start of the allowed range for this node
+ * @end: end of the allowed range for this node
+ * @flags: flags to fine-tune the allocation
+ *
+ * The preallocated node must be cleared to 0.
+ *
+ * Returns:
+ * 0 on success, -ENOSPC if there's no suitable hole.
  */
 int drm_mm_insert_node_in_range_generic(struct drm_mm *mm, struct drm_mm_node *node,
 					unsigned long size, unsigned alignment, unsigned long color,
@@ -284,7 +318,12 @@ int drm_mm_insert_node_in_range_generic(struct drm_mm *mm, struct drm_mm_node *n
 EXPORT_SYMBOL(drm_mm_insert_node_in_range_generic);
 
 /**
- * Remove a memory node from the allocator.
+ * drm_mm_remove_node - Remove a memory node from the allocator.
+ * @node: drm_mm_node to remove
+ *
+ * This just removes a node from its drm_mm allocator. The node does not need to
+ * be cleared again before it can be re-inserted into this or any other drm_mm
+ * allocator. It is a bug to call this function on a un-allocated node.
  */
 void drm_mm_remove_node(struct drm_mm_node *node)
 {
@@ -421,7 +460,13 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 }
 
 /**
- * Moves an allocation. To be used with embedded struct drm_mm_node.
+ * drm_mm_replace_node - move an allocation from @old to @new
+ * @old: drm_mm_node to remove from the allocator
+ * @new: drm_mm_node which should inherit @old's allocation
+ *
+ * This is useful for when drivers embed the drm_mm_node structure and hence
+ * can't move allocations by reassigning pointers. It's a combination of remove
+ * and insert with the guarantee that the allocation start will match.
  */
 void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 {
@@ -467,12 +512,18 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  */
 
 /**
- * Initializa lru scanning.
+ * drm_mm_init_scan - initialize lru scanning
+ * @mm: drm_mm to scan
+ * @size: size of the allocation
+ * @alignment: alignment of the allocation
+ * @color: opaque tag value to use for the allocation
  *
  * This simply sets up the scanning routines with the parameters for the desired
- * hole.
+ * hole. Note that there's no need to specify allocation flags, since they only
+ * change the place a node is allocated from within a suitable hole.
  *
- * Warning: As long as the scan list is non-empty, no other operations than
+ * Warning:
+ * As long as the scan list is non-empty, no other operations than
  * adding/removing nodes to/from the scan list are allowed.
  */
 void drm_mm_init_scan(struct drm_mm *mm,
@@ -492,12 +543,20 @@ void drm_mm_init_scan(struct drm_mm *mm,
 EXPORT_SYMBOL(drm_mm_init_scan);
 
 /**
- * Initializa lru scanning.
+ * drm_mm_init_scan - initialize range-restricted lru scanning
+ * @mm: drm_mm to scan
+ * @size: size of the allocation
+ * @alignment: alignment of the allocation
+ * @color: opaque tag value to use for the allocation
+ * @start: start of the allowed range for the allocation
+ * @end: end of the allowed range for the allocation
  *
  * This simply sets up the scanning routines with the parameters for the desired
- * hole. This version is for range-restricted scans.
+ * hole. Note that there's no need to specify allocation flags, since they only
+ * change the place a node is allocated from within a suitable hole.
  *
- * Warning: As long as the scan list is non-empty, no other operations than
+ * Warning:
+ * As long as the scan list is non-empty, no other operations than
  * adding/removing nodes to/from the scan list are allowed.
  */
 void drm_mm_init_scan_with_range(struct drm_mm *mm,
@@ -521,12 +580,16 @@ void drm_mm_init_scan_with_range(struct drm_mm *mm,
 EXPORT_SYMBOL(drm_mm_init_scan_with_range);
 
 /**
+ * drm_mm_scan_add_block - add a node to the scan list
+ * @node: drm_mm_node to add
+ *
  * Add a node to the scan list that might be freed to make space for the desired
  * hole.
  *
- * Returns non-zero, if a hole has been found, zero otherwise.
+ * Returns:
+ * True if a hole has been found, false otherwise.
  */
-int drm_mm_scan_add_block(struct drm_mm_node *node)
+bool drm_mm_scan_add_block(struct drm_mm_node *node)
 {
 	struct drm_mm *mm = node->mm;
 	struct drm_mm_node *prev_node;
@@ -566,15 +629,16 @@ int drm_mm_scan_add_block(struct drm_mm_node *node)
 			    mm->scan_size, mm->scan_alignment)) {
 		mm->scan_hit_start = hole_start;
 		mm->scan_hit_end = hole_end;
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 EXPORT_SYMBOL(drm_mm_scan_add_block);
 
 /**
- * Remove a node from the scan list.
+ * drm_mm_scan_remove_block - remove a node from the scan list
+ * @node: drm_mm_node to remove
  *
  * Nodes _must_ be removed in the exact same order from the scan list as they
  * have been added, otherwise the internal state of the memory manager will be
@@ -584,10 +648,11 @@ EXPORT_SYMBOL(drm_mm_scan_add_block);
  * immediately following drm_mm_search_free with !DRM_MM_SEARCH_BEST will then
  * return the just freed block (because its at the top of the free_stack list).
  *
- * Returns one if this block should be evicted, zero otherwise. Will always
- * return zero when no hole has been found.
+ * Returns:
+ * True if this block should be evicted, false otherwise. Will always
+ * return false when no hole has been found.
  */
-int drm_mm_scan_remove_block(struct drm_mm_node *node)
+bool drm_mm_scan_remove_block(struct drm_mm_node *node)
 {
 	struct drm_mm *mm = node->mm;
 	struct drm_mm_node *prev_node;
@@ -608,7 +673,15 @@ int drm_mm_scan_remove_block(struct drm_mm_node *node)
 }
 EXPORT_SYMBOL(drm_mm_scan_remove_block);
 
-int drm_mm_clean(struct drm_mm * mm)
+/**
+ * drm_mm_clean - checks whether an allocator is clean
+ * @mm: drm_mm allocator to check
+ *
+ * Returns:
+ * True if the allocator is completely free, false if there's still a node
+ * allocated in it.
+ */
+bool drm_mm_clean(struct drm_mm * mm)
 {
 	struct list_head *head = &mm->head_node.node_list;
 
@@ -616,6 +689,14 @@ int drm_mm_clean(struct drm_mm * mm)
 }
 EXPORT_SYMBOL(drm_mm_clean);
 
+/**
+ * drm_mm_init - initialize a drm-mm allocator
+ * @mm: the drm_mm structure to initialize
+ * @start: start of the range managed by @mm
+ * @size: end of the range managed by @mm
+ *
+ * Note that @mm must be cleared to 0 before calling this function.
+ */
 void drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 {
 	INIT_LIST_HEAD(&mm->hole_stack);
@@ -637,6 +718,13 @@ void drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 }
 EXPORT_SYMBOL(drm_mm_init);
 
+/**
+ * drm_mm_takedown - clean up a drm_mm allocator
+ * @mm: drm_mm allocator to clean up
+ *
+ * Note that it is a bug to call this function on an allocator which is not
+ * clean.
+ */
 void drm_mm_takedown(struct drm_mm * mm)
 {
 	WARN(!list_empty(&mm->head_node.node_list),
@@ -662,6 +750,11 @@ static unsigned long drm_mm_debug_hole(struct drm_mm_node *entry,
 	return 0;
 }
 
+/**
+ * drm_mm_debug_table - dump allocator state to dmesg
+ * @mm: drm_mm allocator to dump
+ * @prefix: prefix to use for dumping to dmesg
+ */
 void drm_mm_debug_table(struct drm_mm *mm, const char *prefix)
 {
 	struct drm_mm_node *entry;
@@ -700,6 +793,11 @@ static unsigned long drm_mm_dump_hole(struct seq_file *m, struct drm_mm_node *en
 	return 0;
 }
 
+/**
+ * drm_mm_dump_table - dump allocator state to a seq_file
+ * @m: seq_file to dump to
+ * @mm: drm_mm allocator to dump
+ */
 int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
 {
 	struct drm_mm_node *entry;
