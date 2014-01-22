@@ -369,7 +369,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 			he_stat__add_period(&he->stat, period, weight);
 
 			/*
-			 * This mem info was allocated from machine__resolve_mem
+			 * This mem info was allocated from sample__resolve_mem
 			 * and will not be used anymore.
 			 */
 			zfree(&entry->mem_info);

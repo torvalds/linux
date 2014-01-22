@@ -88,7 +88,7 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	if (err)
 		return err;
 
-	mi = machine__resolve_mem(al->machine, al->thread, sample, al->cpumode);
+	mi = sample__resolve_mem(sample, al);
 	if (!mi)
 		return -ENOMEM;
 
