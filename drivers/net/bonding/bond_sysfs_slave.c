@@ -118,7 +118,7 @@ int bond_sysfs_slave_add(struct slave *slave)
 	int err;
 
 	err = kobject_init_and_add(&slave->kobj, &slave_ktype,
-				   &(slave->dev->dev.kobj), "slave");
+				   &(slave->dev->dev.kobj), "bonding_slave");
 	if (err)
 		return err;
 
