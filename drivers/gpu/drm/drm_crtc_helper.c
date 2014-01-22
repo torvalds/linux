@@ -943,6 +943,15 @@ int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 }
 EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
 
+/**
+ * drm_helper_resume_force_mode - force-restore mode setting configuration
+ * @dev: drm_device which should be restored
+ *
+ * Drivers which use the mode setting helpers can use this function to
+ * force-restore the mode setting configuration e.g. on resume or when something
+ * else might have trampled over the hw state (like some overzealous old BIOSen
+ * tended to do).
+ */
 int drm_helper_resume_force_mode(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;

@@ -1151,8 +1151,11 @@ int max_width, max_height;</synopsis>
             This operation is called with the mode config lock held.
           </para>
           <note><para>
-            FIXME: How should set_config interact with DPMS? If the CRTC is
-            suspended, should it be resumed?
+	    Note that the drm core has no notion of restoring the mode setting
+	    state after resume, since all resume handling is in the full
+	    responsibility of the driver. The common mode setting helper library
+	    though provides a helper which can be used for this:
+	    <function>drm_helper_resume_force_mode</function>.
           </para></note>
         </sect4>
         <sect4>
