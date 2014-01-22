@@ -921,9 +921,6 @@ struct netdev_phys_port_id {
  * int (*ndo_del_slave)(struct net_device *dev, struct net_device *slave_dev);
  *	Called to release previously enslaved netdev.
  *
- * int (*ndo_get_slave)(struct net_device *slave_dev, struct sk_buff *skb);
- *	Called to fill netlink skb with slave info.
- *
  *      Feature/offload setting functions.
  * netdev_features_t (*ndo_fix_features)(struct net_device *dev,
  *		netdev_features_t features);
@@ -1096,8 +1093,6 @@ struct net_device_ops {
 						 struct net_device *slave_dev);
 	int			(*ndo_del_slave)(struct net_device *dev,
 						 struct net_device *slave_dev);
-	int			(*ndo_get_slave)(struct net_device *slave_dev,
-						 struct sk_buff *skb);
 	netdev_features_t	(*ndo_fix_features)(struct net_device *dev,
 						    netdev_features_t features);
 	int			(*ndo_set_features)(struct net_device *dev,
