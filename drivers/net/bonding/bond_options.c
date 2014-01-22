@@ -118,6 +118,11 @@ static struct bond_opt_value bond_resend_igmp_tbl[] = {
 	{ NULL,      -1,  0}
 };
 
+static struct bond_opt_value bond_lp_interval_tbl[] = {
+	{ "minval",  1,       BOND_VALFLAG_MIN | BOND_VALFLAG_DEFAULT},
+	{ "maxval",  INT_MAX, BOND_VALFLAG_MAX},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -287,6 +292,13 @@ static struct bond_option bond_opts[] = {
 		.desc = "Number of IGMP membership reports to send on link failure",
 		.values = bond_resend_igmp_tbl,
 		.set = bond_option_resend_igmp_set
+	},
+	[BOND_OPT_LP_INTERVAL] = {
+		.id = BOND_OPT_LP_INTERVAL,
+		.name = "lp_interval",
+		.desc = "The number of seconds between instances where the bonding driver sends learning packets to each slave's peer switch",
+		.values = bond_lp_interval_tbl,
+		.set = bond_option_lp_interval_set
 	},
 	{ }
 };
@@ -1101,15 +1113,10 @@ int bond_option_min_links_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_lp_interval_set(struct bonding *bond, int lp_interval)
+int bond_option_lp_interval_set(struct bonding *bond,
+				struct bond_opt_value *newval)
 {
-	if (lp_interval <= 0) {
-		pr_err("%s: lp_interval must be between 1 and %d\n",
-		       bond->dev->name, INT_MAX);
-		return -EINVAL;
-	}
-
-	bond->params.lp_interval = lp_interval;
+	bond->params.lp_interval = newval->value;
 
 	return 0;
 }

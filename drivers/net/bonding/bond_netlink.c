@@ -301,7 +301,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int lp_interval =
 			nla_get_u32(data[IFLA_BOND_LP_INTERVAL]);
 
-		err = bond_option_lp_interval_set(bond, lp_interval);
+		bond_opt_initval(&newval, lp_interval);
+		err = __bond_opt_set(bond, BOND_OPT_LP_INTERVAL, &newval);
 		if (err)
 			return err;
 	}
