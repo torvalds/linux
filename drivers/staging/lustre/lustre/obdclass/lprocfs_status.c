@@ -98,6 +98,7 @@ static const char * const obd_connect_names[] = {
 	"lightweight_conn",
 	"short_io",
 	"pingless",
+	"flock_deadlock",
 	"unknown",
 	NULL
 };
