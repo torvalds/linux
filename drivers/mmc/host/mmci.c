@@ -1794,35 +1794,34 @@ static void mmci_save(struct mmci_host *host)
 {
 	unsigned long flags;
 
-	if (host->variant->pwrreg_nopower) {
-		spin_lock_irqsave(&host->lock, flags);
+	spin_lock_irqsave(&host->lock, flags);
 
-		writel(0, host->base + MMCIMASK0);
+	writel(0, host->base + MMCIMASK0);
+	if (host->variant->pwrreg_nopower) {
 		writel(0, host->base + MMCIDATACTRL);
 		writel(0, host->base + MMCIPOWER);
 		writel(0, host->base + MMCICLOCK);
-		mmci_reg_delay(host);
-
-		spin_unlock_irqrestore(&host->lock, flags);
 	}
+	mmci_reg_delay(host);
 
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static void mmci_restore(struct mmci_host *host)
 {
 	unsigned long flags;
 
-	if (host->variant->pwrreg_nopower) {
-		spin_lock_irqsave(&host->lock, flags);
+	spin_lock_irqsave(&host->lock, flags);
 
+	if (host->variant->pwrreg_nopower) {
 		writel(host->clk_reg, host->base + MMCICLOCK);
 		writel(host->datactrl_reg, host->base + MMCIDATACTRL);
 		writel(host->pwr_reg, host->base + MMCIPOWER);
-		writel(MCI_IRQENABLE, host->base + MMCIMASK0);
-		mmci_reg_delay(host);
-
-		spin_unlock_irqrestore(&host->lock, flags);
 	}
+	writel(MCI_IRQENABLE, host->base + MMCIMASK0);
+	mmci_reg_delay(host);
+
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static int mmci_runtime_suspend(struct device *dev)
