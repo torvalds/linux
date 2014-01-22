@@ -95,7 +95,7 @@ int xattr_type_filter(struct ll_sb_info *sbi, int xattr_type)
 
 	if (xattr_type == XATTR_USER_T && !(sbi->ll_flags & LL_SBI_USER_XATTR))
 		return -EOPNOTSUPP;
-	if (xattr_type == XATTR_TRUSTED_T && !cfs_capable(CFS_CAP_SYS_ADMIN))
+	if (xattr_type == XATTR_TRUSTED_T && !capable(CFS_CAP_SYS_ADMIN))
 		return -EPERM;
 	if (xattr_type == XATTR_OTHER_T)
 		return -EOPNOTSUPP;

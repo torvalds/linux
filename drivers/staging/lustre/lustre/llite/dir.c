@@ -1085,7 +1085,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	case Q_QUOTAOFF:
 	case Q_SETQUOTA:
 	case Q_SETINFO:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 		break;
@@ -1094,7 +1094,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 		      uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
 		     (type == GRPQUOTA &&
 		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
-		    (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		    (!capable(CFS_CAP_SYS_ADMIN) ||
 		     sbi->ll_flags & LL_SBI_RMT_CLIENT))
 			return -EPERM;
 		break;
@@ -1602,7 +1602,7 @@ out_rmdir:
 		struct obd_quotactl *oqctl;
 		int error = 0;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 
@@ -1626,7 +1626,7 @@ out_rmdir:
 	case OBD_IOC_POLL_QUOTACHECK: {
 		struct if_quotacheck *check;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 

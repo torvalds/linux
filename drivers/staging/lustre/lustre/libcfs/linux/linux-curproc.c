@@ -96,11 +96,6 @@ cfs_cap_t cfs_curproc_cap_pack(void)
 	return cap;
 }
 
-int cfs_capable(cfs_cap_t cap)
-{
-	return capable(cap);
-}
-
 static int cfs_access_process_vm(struct task_struct *tsk, unsigned long addr,
 				 void *buf, int len, int write)
 {
@@ -257,7 +252,6 @@ EXPORT_SYMBOL(cfs_cap_raise);
 EXPORT_SYMBOL(cfs_cap_lower);
 EXPORT_SYMBOL(cfs_cap_raised);
 EXPORT_SYMBOL(cfs_curproc_cap_pack);
-EXPORT_SYMBOL(cfs_capable);
 
 /*
  * Local variables:
