@@ -15,7 +15,6 @@
 	};
 
 	fiq-debugger {
-		serial-id = <2>;
 		status = "okay";
 	};
 
