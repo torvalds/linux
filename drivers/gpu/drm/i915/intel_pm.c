@@ -4861,15 +4861,11 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	 * Sanctuary and Tropics, and apparently anything else with
 	 * alpha test or pixel discard.
 	 *
-	 * According to the spec, bit 11 (RCCUNIT) must also be set,
-	 * but we didn't debug actual testcases to find it out.
-	 *
 	 * According to the spec, bit 13 (RCZUNIT) must be set on IVB.
 	 * This implements the WaDisableRCZUnitClockGating:ivb workaround.
 	 */
 	I915_WRITE(GEN6_UCGCTL2,
-		   GEN6_RCZUNIT_CLOCK_GATE_DISABLE |
-		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
+		   GEN6_RCZUNIT_CLOCK_GATE_DISABLE);
 
 	/* This is required by WaCatErrorRejectionIssue:ivb */
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
