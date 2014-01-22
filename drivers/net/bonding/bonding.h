@@ -465,7 +465,6 @@ int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
 int bond_option_primary_set(struct bonding *bond, const char *primary);
 int bond_option_primary_reselect_set(struct bonding *bond,
 				     int primary_reselect);
-int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac);
 int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp);
 int bond_option_num_peer_notif_set(struct bonding *bond, int num_peer_notif);
 int bond_option_all_slaves_active_set(struct bonding *bond,

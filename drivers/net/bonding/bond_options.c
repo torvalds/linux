@@ -59,6 +59,13 @@ static struct bond_opt_value bond_arp_all_targets_tbl[] = {
 	{ NULL,  -1,                   0},
 };
 
+static struct bond_opt_value bond_fail_over_mac_tbl[] = {
+	{ "none",   BOND_FOM_NONE,   BOND_VALFLAG_DEFAULT},
+	{ "active", BOND_FOM_ACTIVE, 0},
+	{ "follow", BOND_FOM_FOLLOW, 0},
+	{ NULL,     -1,              0},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -97,6 +104,14 @@ static struct bond_option bond_opts[] = {
 		.desc = "fail on any/all arp targets timeout",
 		.values = bond_arp_all_targets_tbl,
 		.set = bond_option_arp_all_targets_set
+	},
+	[BOND_OPT_FAIL_OVER_MAC] = {
+		.id = BOND_OPT_FAIL_OVER_MAC,
+		.name = "fail_over_mac",
+		.desc = "For active-backup, do not set all slaves to the same MAC",
+		.flags = BOND_OPTFLAG_NOSLAVES,
+		.values = bond_fail_over_mac_tbl,
+		.set = bond_option_fail_over_mac_set
 	},
 	{ }
 };
@@ -864,24 +879,12 @@ int bond_option_primary_reselect_set(struct bonding *bond, int primary_reselect)
 	return 0;
 }
 
-int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac)
+int bond_option_fail_over_mac_set(struct bonding *bond,
+				  struct bond_opt_value *newval)
 {
-	if (bond_parm_tbl_lookup(fail_over_mac, fail_over_mac_tbl) < 0) {
-		pr_err("%s: Ignoring invalid fail_over_mac value %d.\n",
-		       bond->dev->name, fail_over_mac);
-		return -EINVAL;
-	}
-
-	if (bond_has_slaves(bond)) {
-		pr_err("%s: Can't alter fail_over_mac with slaves in bond.\n",
-		       bond->dev->name);
-		return -EPERM;
-	}
-
-	bond->params.fail_over_mac = fail_over_mac;
-	pr_info("%s: Setting fail_over_mac to %s (%d).\n",
-		bond->dev->name, fail_over_mac_tbl[fail_over_mac].modename,
-		fail_over_mac);
+	pr_info("%s: Setting fail_over_mac to %s (%llu).\n",
+		bond->dev->name, newval->string, newval->value);
+	bond->params.fail_over_mac = newval->value;
 
 	return 0;
 }

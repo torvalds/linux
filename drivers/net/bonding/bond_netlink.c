@@ -232,7 +232,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int fail_over_mac =
 			nla_get_u8(data[IFLA_BOND_FAIL_OVER_MAC]);
 
-		err = bond_option_fail_over_mac_set(bond, fail_over_mac);
+		bond_opt_initval(&newval, fail_over_mac);
+		err = __bond_opt_set(bond, BOND_OPT_FAIL_OVER_MAC, &newval);
 		if (err)
 			return err;
 	}

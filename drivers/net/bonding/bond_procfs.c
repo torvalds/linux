@@ -77,9 +77,11 @@ static void bond_info_show_master(struct seq_file *seq)
 		   bond_mode_name(bond->params.mode));
 
 	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP &&
-	    bond->params.fail_over_mac)
-		seq_printf(seq, " (fail_over_mac %s)",
-		   fail_over_mac_tbl[bond->params.fail_over_mac].modename);
+	    bond->params.fail_over_mac) {
+		optval = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC,
+					  bond->params.fail_over_mac);
+		seq_printf(seq, " (fail_over_mac %s)", optval->string);
+	}
 
 	seq_printf(seq, "\n");
 

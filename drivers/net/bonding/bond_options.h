@@ -43,6 +43,7 @@ enum {
 	BOND_OPT_XMIT_HASH,
 	BOND_OPT_ARP_VALIDATE,
 	BOND_OPT_ARP_ALL_TARGETS,
+	BOND_OPT_FAIL_OVER_MAC,
 	BOND_OPT_LAST
 };
 
@@ -111,4 +112,6 @@ int bond_option_arp_validate_set(struct bonding *bond,
 				 struct bond_opt_value *newval);
 int bond_option_arp_all_targets_set(struct bonding *bond,
 				    struct bond_opt_value *newval);
+int bond_option_fail_over_mac_set(struct bonding *bond,
+				  struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */

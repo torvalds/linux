@@ -214,13 +214,6 @@ const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	NULL,		-1},
 };
 
-const struct bond_parm_tbl fail_over_mac_tbl[] = {
-{	"none",			BOND_FOM_NONE},
-{	"active",		BOND_FOM_ACTIVE},
-{	"follow",		BOND_FOM_FOLLOW},
-{	NULL,			-1},
-};
-
 const struct bond_parm_tbl pri_reselect_tbl[] = {
 {	"always",		BOND_PRI_RESELECT_ALWAYS},
 {	"better",		BOND_PRI_RESELECT_BETTER},
@@ -4280,14 +4273,15 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (fail_over_mac) {
-		fail_over_mac_value = bond_parse_parm(fail_over_mac,
-						      fail_over_mac_tbl);
-		if (fail_over_mac_value == -1) {
+		bond_opt_initstr(&newval, fail_over_mac);
+		valptr = bond_opt_parse(bond_opt_get(BOND_OPT_FAIL_OVER_MAC),
+					&newval);
+		if (!valptr) {
 			pr_err("Error: invalid fail_over_mac \"%s\"\n",
-			       arp_validate == NULL ? "NULL" : arp_validate);
+			       fail_over_mac);
 			return -EINVAL;
 		}
-
+		fail_over_mac_value = valptr->value;
 		if (bond_mode != BOND_MODE_ACTIVEBACKUP)
 			pr_warning("Warning: fail_over_mac only affects active-backup mode.\n");
 	} else {
