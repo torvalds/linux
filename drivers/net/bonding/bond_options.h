@@ -55,6 +55,7 @@ enum {
 	BOND_OPT_MIIMON,
 	BOND_OPT_PRIMARY,
 	BOND_OPT_PRIMARY_RESELECT,
+	BOND_OPT_USE_CARRIER,
 	BOND_OPT_LAST
 };
 
@@ -147,4 +148,6 @@ int bond_option_primary_set(struct bonding *bond,
 			    struct bond_opt_value *newval);
 int bond_option_primary_reselect_set(struct bonding *bond,
 				     struct bond_opt_value *newval);
+int bond_option_use_carrier_set(struct bonding *bond,
+				struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */

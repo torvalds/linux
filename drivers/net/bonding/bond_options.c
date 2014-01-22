@@ -99,6 +99,12 @@ static struct bond_opt_value bond_primary_reselect_tbl[] = {
 	{ NULL,      -1},
 };
 
+static struct bond_opt_value bond_use_carrier_tbl[] = {
+	{ "off", 0,  0},
+	{ "on",  1,  BOND_VALFLAG_DEFAULT},
+	{ NULL,  -1, 0}
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -230,6 +236,13 @@ static struct bond_option bond_opts[] = {
 		.desc = "Reselect primary slave once it comes up",
 		.values = bond_primary_reselect_tbl,
 		.set = bond_option_primary_reselect_set
+	},
+	[BOND_OPT_USE_CARRIER] = {
+		.id = BOND_OPT_USE_CARRIER,
+		.name = "use_carrier",
+		.desc = "Use netif_carrier_ok (vs MII ioctls) in miimon",
+		.values = bond_use_carrier_tbl,
+		.set = bond_option_use_carrier_set
 	},
 	{ }
 };
@@ -688,16 +701,12 @@ int bond_option_downdelay_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_use_carrier_set(struct bonding *bond, int use_carrier)
+int bond_option_use_carrier_set(struct bonding *bond,
+				struct bond_opt_value *newval)
 {
-	if ((use_carrier == 0) || (use_carrier == 1)) {
-		bond->params.use_carrier = use_carrier;
-		pr_info("%s: Setting use_carrier to %d.\n",
-			bond->dev->name, use_carrier);
-	} else {
-		pr_info("%s: Ignoring invalid use_carrier value %d.\n",
-			bond->dev->name, use_carrier);
-	}
+	pr_info("%s: Setting use_carrier to %llu.\n",
+		bond->dev->name, newval->value);
+	bond->params.use_carrier = newval->value;
 
 	return 0;
 }

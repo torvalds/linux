@@ -156,7 +156,8 @@ static int bond_changelink(struct net_device *bond_dev,
 	if (data[IFLA_BOND_USE_CARRIER]) {
 		int use_carrier = nla_get_u8(data[IFLA_BOND_USE_CARRIER]);
 
-		err = bond_option_use_carrier_set(bond, use_carrier);
+		bond_opt_initval(&newval, use_carrier);
+		err = __bond_opt_set(bond, BOND_OPT_USE_CARRIER, &newval);
 		if (err)
 			return err;
 	}
