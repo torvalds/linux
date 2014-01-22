@@ -38,7 +38,7 @@ static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
 	ha->type = addr_type;
 	ha->refcount = 1;
 	ha->global_use = global;
-	ha->synced = sync;
+	ha->synced = sync ? 1 : 0;
 	ha->sync_cnt = 0;
 	list_add_tail_rcu(&ha->list, &list->list);
 	list->count++;
@@ -48,7 +48,8 @@ static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
 
 static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 			    const unsigned char *addr, int addr_len,
-			    unsigned char addr_type, bool global, bool sync)
+			    unsigned char addr_type, bool global, bool sync,
+			    int sync_count)
 {
 	struct netdev_hw_addr *ha;
 
@@ -66,10 +67,10 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 					ha->global_use = true;
 			}
 			if (sync) {
-				if (ha->synced)
+				if (ha->synced && sync_count)
 					return -EEXIST;
 				else
-					ha->synced = true;
+					ha->synced++;
 			}
 			ha->refcount++;
 			return 0;
@@ -84,7 +85,8 @@ static int __hw_addr_add(struct netdev_hw_addr_list *list,
 			 const unsigned char *addr, int addr_len,
 			 unsigned char addr_type)
 {
-	return __hw_addr_add_ex(list, addr, addr_len, addr_type, false, false);
+	return __hw_addr_add_ex(list, addr, addr_len, addr_type, false, false,
+				0);
 }
 
 static int __hw_addr_del_entry(struct netdev_hw_addr_list *list,
@@ -101,7 +103,7 @@ static int __hw_addr_del_entry(struct netdev_hw_addr_list *list,
 		ha->global_use = false;
 
 	if (sync)
-		ha->synced = false;
+		ha->synced--;
 
 	if (--ha->refcount)
 		return 0;
@@ -139,7 +141,7 @@ static int __hw_addr_sync_one(struct netdev_hw_addr_list *to_list,
 	int err;
 
 	err = __hw_addr_add_ex(to_list, ha->addr, addr_len, ha->type,
-			       false, true);
+			       false, true, ha->sync_cnt);
 	if (err && err != -EEXIST)
 		return err;
 
@@ -581,7 +583,7 @@ static int __dev_mc_add(struct net_device *dev, const unsigned char *addr,
 
 	netif_addr_lock_bh(dev);
 	err = __hw_addr_add_ex(&dev->mc, addr, dev->addr_len,
-			       NETDEV_HW_ADDR_T_MULTICAST, global, false);
+			       NETDEV_HW_ADDR_T_MULTICAST, global, false, 0);
 	if (!err)
 		__dev_set_rx_mode(dev);
 	netif_addr_unlock_bh(dev);
