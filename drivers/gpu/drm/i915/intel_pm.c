@@ -4609,6 +4609,7 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	 * but we didn't debug actual testcases to find it out.
 	 *
 	 * Also apply WaDisableVDSUnitClockGating:snb and
+	 * WaDisableRCCUnitClockGating:snb and
 	 * WaDisableRCPBUnitClockGating:snb.
 	 */
 	I915_WRITE(GEN6_UCGCTL2,
