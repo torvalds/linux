@@ -231,6 +231,7 @@ static int ion_test_release(struct inode *inode, struct file *file)
 static const struct file_operations ion_test_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = ion_test_ioctl,
+	.compat_ioctl = ion_test_ioctl,
 	.open = ion_test_open,
 	.release = ion_test_release,
 };
