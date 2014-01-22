@@ -206,13 +206,6 @@ static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
 
-const struct bond_parm_tbl pri_reselect_tbl[] = {
-{	"always",		BOND_PRI_RESELECT_ALWAYS},
-{	"better",		BOND_PRI_RESELECT_BETTER},
-{	"failure",		BOND_PRI_RESELECT_FAILURE},
-{	NULL,			-1},
-};
-
 /*-------------------------- Forward declarations ---------------------------*/
 
 static int bond_init(struct net_device *bond_dev);
@@ -4248,14 +4241,15 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (primary && primary_reselect) {
-		primary_reselect_value = bond_parse_parm(primary_reselect,
-							 pri_reselect_tbl);
-		if (primary_reselect_value == -1) {
+		bond_opt_initstr(&newval, primary_reselect);
+		valptr = bond_opt_parse(bond_opt_get(BOND_OPT_PRIMARY_RESELECT),
+					&newval);
+		if (!valptr) {
 			pr_err("Error: Invalid primary_reselect \"%s\"\n",
-			       primary_reselect ==
-					NULL ? "NULL" : primary_reselect);
+			       primary_reselect);
 			return -EINVAL;
 		}
+		primary_reselect_value = valptr->value;
 	} else {
 		primary_reselect_value = BOND_PRI_RESELECT_ALWAYS;
 	}

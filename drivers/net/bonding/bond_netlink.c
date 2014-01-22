@@ -236,7 +236,8 @@ static int bond_changelink(struct net_device *bond_dev,
 		int primary_reselect =
 			nla_get_u8(data[IFLA_BOND_PRIMARY_RESELECT]);
 
-		err = bond_option_primary_reselect_set(bond, primary_reselect);
+		bond_opt_initval(&newval, primary_reselect);
+		err = __bond_opt_set(bond, BOND_OPT_PRIMARY_RESELECT, &newval);
 		if (err)
 			return err;
 	}

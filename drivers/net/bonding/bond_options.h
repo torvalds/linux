@@ -54,6 +54,7 @@ enum {
 	BOND_OPT_NUM_PEER_NOTIF,
 	BOND_OPT_MIIMON,
 	BOND_OPT_PRIMARY,
+	BOND_OPT_PRIMARY_RESELECT,
 	BOND_OPT_LAST
 };
 
@@ -144,4 +145,6 @@ int bond_option_num_peer_notif_set(struct bonding *bond,
 int bond_option_miimon_set(struct bonding *bond, struct bond_opt_value *newval);
 int bond_option_primary_set(struct bonding *bond,
 			    struct bond_opt_value *newval);
+int bond_option_primary_reselect_set(struct bonding *bond,
+				     struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */

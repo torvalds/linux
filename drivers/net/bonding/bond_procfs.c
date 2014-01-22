@@ -97,9 +97,12 @@ static void bond_info_show_master(struct seq_file *seq)
 		seq_printf(seq, "Primary Slave: %s",
 			   (bond->primary_slave) ?
 			   bond->primary_slave->dev->name : "None");
-		if (bond->primary_slave)
+		if (bond->primary_slave) {
+			optval = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
+						  bond->params.primary_reselect);
 			seq_printf(seq, " (primary_reselect %s)",
-		   pri_reselect_tbl[bond->params.primary_reselect].modename);
+				   optval->string);
+		}
 
 		seq_printf(seq, "\nCurrently Active Slave: %s\n",
 			   (curr) ? curr->dev->name : "None");

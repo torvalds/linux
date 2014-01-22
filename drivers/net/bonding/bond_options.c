@@ -92,6 +92,13 @@ static struct bond_opt_value bond_num_peer_notif_tbl[] = {
 	{ NULL,      -1,  0}
 };
 
+static struct bond_opt_value bond_primary_reselect_tbl[] = {
+	{ "always",  BOND_PRI_RESELECT_ALWAYS,  BOND_VALFLAG_DEFAULT},
+	{ "better",  BOND_PRI_RESELECT_BETTER,  0},
+	{ "failure", BOND_PRI_RESELECT_FAILURE, 0},
+	{ NULL,      -1},
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -216,6 +223,13 @@ static struct bond_option bond_opts[] = {
 						BIT(BOND_MODE_TLB) |
 						BIT(BOND_MODE_ALB)),
 		.set = bond_option_primary_set
+	},
+	[BOND_OPT_PRIMARY_RESELECT] = {
+		.id = BOND_OPT_PRIMARY_RESELECT,
+		.name = "primary_reselect",
+		.desc = "Reselect primary slave once it comes up",
+		.values = bond_primary_reselect_tbl,
+		.set = bond_option_primary_reselect_set
 	},
 	{ }
 };
@@ -943,18 +957,12 @@ out:
 	return 0;
 }
 
-int bond_option_primary_reselect_set(struct bonding *bond, int primary_reselect)
+int bond_option_primary_reselect_set(struct bonding *bond,
+				     struct bond_opt_value *newval)
 {
-	if (bond_parm_tbl_lookup(primary_reselect, pri_reselect_tbl) < 0) {
-		pr_err("%s: Ignoring invalid primary_reselect value %d.\n",
-		       bond->dev->name, primary_reselect);
-		return -EINVAL;
-	}
-
-	bond->params.primary_reselect = primary_reselect;
-	pr_info("%s: setting primary_reselect to %s (%d).\n",
-		bond->dev->name, pri_reselect_tbl[primary_reselect].modename,
-		primary_reselect);
+	pr_info("%s: setting primary_reselect to %s (%llu).\n",
+		bond->dev->name, newval->string, newval->value);
+	bond->params.primary_reselect = newval->value;
 
 	block_netpoll_tx();
 	write_lock_bh(&bond->curr_slave_lock);

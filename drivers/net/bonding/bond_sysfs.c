@@ -729,35 +729,27 @@ static ssize_t bonding_show_primary_reselect(struct device *d,
 					     char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	struct bond_opt_value *val;
+
+	val = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
+			       bond->params.primary_reselect);
 
 	return sprintf(buf, "%s %d\n",
-		       pri_reselect_tbl[bond->params.primary_reselect].modename,
-		       bond->params.primary_reselect);
+		       val->string, bond->params.primary_reselect);
 }
 
 static ssize_t bonding_store_primary_reselect(struct device *d,
 					      struct device_attribute *attr,
 					      const char *buf, size_t count)
 {
-	int new_value, ret;
 	struct bonding *bond = to_bond(d);
+	int ret;
 
-	new_value = bond_parse_parm(buf, pri_reselect_tbl);
-	if (new_value < 0)  {
-		pr_err("%s: Ignoring invalid primary_reselect value %.*s.\n",
-		       bond->dev->name,
-		       (int) strlen(buf) - 1, buf);
-		return -EINVAL;
-	}
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	ret = bond_option_primary_reselect_set(bond, new_value);
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_PRIMARY_RESELECT,
+				   (char *)buf);
 	if (!ret)
 		ret = count;
 
-	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(primary_reselect, S_IRUGO | S_IWUSR,
