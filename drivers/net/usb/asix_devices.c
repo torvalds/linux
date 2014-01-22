@@ -90,8 +90,12 @@ static void asix_status(struct usbnet *dev, struct urb *urb)
 
 static void asix_set_netdev_dev_addr(struct usbnet *dev, u8 *addr)
 {
-	if (!is_valid_ether_addr(addr))
+	static int if_count = 0;
+
+	if (!is_valid_ether_addr(addr)) {
 		memcpy(addr, asix_mac_addr, ETH_ALEN);
+		addr[0] |= (if_count++) << 4;
+	}
 
 	if (is_valid_ether_addr(addr)) {
 		memcpy(dev->net->dev_addr, addr, ETH_ALEN);
