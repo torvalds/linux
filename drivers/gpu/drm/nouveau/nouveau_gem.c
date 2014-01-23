@@ -463,12 +463,6 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 	list_for_each_entry(nvbo, list, entry) {
 		struct drm_nouveau_gem_pushbuf_bo *b = &pbbo[nvbo->pbbo_index];
 
-		ret = validate_sync(chan, nvbo);
-		if (unlikely(ret)) {
-			NV_ERROR(cli, "fail pre-validate sync\n");
-			return ret;
-		}
-
 		ret = nouveau_gem_set_domain(&nvbo->gem, b->read_domains,
 					     b->write_domains,
 					     b->valid_domains);
