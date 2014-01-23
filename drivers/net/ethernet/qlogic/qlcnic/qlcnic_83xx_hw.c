@@ -1637,7 +1637,7 @@ static void qlcnic_83xx_set_interface_id_promisc(struct qlcnic_adapter *adapter,
 	if (qlcnic_sriov_pf_check(adapter)) {
 		qlcnic_alloc_lb_filters_mem(adapter);
 		qlcnic_pf_set_interface_id_promisc(adapter, interface_id);
-		adapter->rx_mac_learn = 1;
+		adapter->rx_mac_learn = true;
 	} else {
 		if (!qlcnic_sriov_vf_check(adapter))
 			*interface_id = adapter->recv_ctx->context_id << 16;
