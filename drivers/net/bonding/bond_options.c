@@ -727,19 +727,21 @@ int bond_option_miimon_set(struct bonding *bond, struct bond_opt_value *newval)
 
 int bond_option_updelay_set(struct bonding *bond, struct bond_opt_value *newval)
 {
+	int value = newval->value;
+
 	if (!bond->params.miimon) {
 		pr_err("%s: Unable to set up delay as MII monitoring is disabled\n",
 		       bond->dev->name);
 		return -EPERM;
 	}
-	if ((newval->value % bond->params.miimon) != 0) {
-		pr_warn("%s: Warning: up delay (%llu) is not a multiple of miimon (%d), updelay rounded to %llu ms\n",
-			bond->dev->name, newval->value,
+	if ((value % bond->params.miimon) != 0) {
+		pr_warn("%s: Warning: up delay (%d) is not a multiple of miimon (%d), updelay rounded to %d ms\n",
+			bond->dev->name, value,
 			bond->params.miimon,
-			(newval->value / bond->params.miimon) *
+			(value / bond->params.miimon) *
 			bond->params.miimon);
 	}
-	bond->params.updelay = newval->value / bond->params.miimon;
+	bond->params.updelay = value / bond->params.miimon;
 	pr_info("%s: Setting up delay to %d.\n",
 		bond->dev->name,
 		bond->params.updelay * bond->params.miimon);
@@ -750,19 +752,21 @@ int bond_option_updelay_set(struct bonding *bond, struct bond_opt_value *newval)
 int bond_option_downdelay_set(struct bonding *bond,
 			      struct bond_opt_value *newval)
 {
+	int value = newval->value;
+
 	if (!bond->params.miimon) {
 		pr_err("%s: Unable to set down delay as MII monitoring is disabled\n",
 		       bond->dev->name);
 		return -EPERM;
 	}
-	if ((newval->value % bond->params.miimon) != 0) {
-		pr_warn("%s: Warning: down delay (%llu) is not a multiple of miimon (%d), delay rounded to %llu ms\n",
-			bond->dev->name, newval->value,
+	if ((value % bond->params.miimon) != 0) {
+		pr_warn("%s: Warning: down delay (%d) is not a multiple of miimon (%d), delay rounded to %d ms\n",
+			bond->dev->name, value,
 			bond->params.miimon,
-			(newval->value / bond->params.miimon) *
+			(value / bond->params.miimon) *
 			bond->params.miimon);
 	}
-	bond->params.downdelay = newval->value / bond->params.miimon;
+	bond->params.downdelay = value / bond->params.miimon;
 	pr_info("%s: Setting down delay to %d.\n",
 		bond->dev->name,
 		bond->params.downdelay * bond->params.miimon);
