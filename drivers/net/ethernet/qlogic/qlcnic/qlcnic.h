@@ -369,6 +369,7 @@ struct qlcnic_rx_buffer {
  */
 #define QLCNIC_INTR_COAL_TYPE_RX		1
 #define QLCNIC_INTR_COAL_TYPE_TX		2
+#define QLCNIC_INTR_COAL_TYPE_RX_TX		3
 
 #define QLCNIC_DEF_INTR_COALESCE_RX_TIME_US	3
 #define QLCNIC_DEF_INTR_COALESCE_RX_PACKETS	256
@@ -1740,7 +1741,8 @@ struct qlcnic_hardware_ops {
 	int (*change_macvlan) (struct qlcnic_adapter *, u8*, u16, u8);
 	void (*napi_enable) (struct qlcnic_adapter *);
 	void (*napi_disable) (struct qlcnic_adapter *);
-	void (*config_intr_coal) (struct qlcnic_adapter *);
+	int (*config_intr_coal) (struct qlcnic_adapter *,
+				 struct ethtool_coalesce *);
 	int (*config_rss) (struct qlcnic_adapter *, int);
 	int (*config_hw_lro) (struct qlcnic_adapter *, int);
 	int (*config_loopback) (struct qlcnic_adapter *, u8);
@@ -1936,9 +1938,10 @@ static inline void qlcnic_napi_disable(struct qlcnic_adapter *adapter)
 	adapter->ahw->hw_ops->napi_disable(adapter);
 }
 
-static inline void qlcnic_config_intr_coalesce(struct qlcnic_adapter *adapter)
+static inline int qlcnic_config_intr_coalesce(struct qlcnic_adapter *adapter,
+					      struct ethtool_coalesce *ethcoal)
 {
-	adapter->ahw->hw_ops->config_intr_coal(adapter);
+	return adapter->ahw->hw_ops->config_intr_coal(adapter, ethcoal);
 }
 
 static inline int qlcnic_config_rss(struct qlcnic_adapter *adapter, int enable)

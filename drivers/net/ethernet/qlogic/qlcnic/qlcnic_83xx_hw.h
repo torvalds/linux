@@ -547,7 +547,6 @@ int qlcnic_83xx_wrt_reg_indirect(struct qlcnic_adapter *, ulong, u32);
 int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *, u32);
 int qlcnic_83xx_config_hw_lro(struct qlcnic_adapter *, int);
 int qlcnic_83xx_config_rss(struct qlcnic_adapter *, int);
-int qlcnic_83xx_config_intr_coalesce(struct qlcnic_adapter *);
 void qlcnic_83xx_change_l2_filter(struct qlcnic_adapter *, u64 *, u16);
 int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info *);
 int qlcnic_83xx_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
@@ -577,7 +576,9 @@ int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *,
 void qlcnic_free_mbx_args(struct qlcnic_cmd_args *);
 void qlcnic_set_npar_data(struct qlcnic_adapter *, const struct qlcnic_info *,
 			  struct qlcnic_info *);
-void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *);
+int qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *,
+				 struct ethtool_coalesce *);
+int qlcnic_83xx_set_rx_tx_intr_coal(struct qlcnic_adapter *);
 int qlcnic_83xx_get_port_info(struct qlcnic_adapter *);
 void qlcnic_83xx_enable_mbx_interrupt(struct qlcnic_adapter *);
 void qlcnic_83xx_disable_mbx_intr(struct qlcnic_adapter *);

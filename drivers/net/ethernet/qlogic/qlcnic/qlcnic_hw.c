@@ -755,10 +755,7 @@ int qlcnic_82xx_read_phys_port_id(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-/*
- * Send the interrupt coalescing parameter set by ethtool to the card.
- */
-void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter)
+int qlcnic_82xx_set_rx_coalesce(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_nic_req req;
 	int rv;
@@ -780,6 +777,28 @@ void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter)
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
 			"Could not send interrupt coalescing parameters\n");
+
+	return rv;
+}
+
+/* Send the interrupt coalescing parameter set by ethtool to the card. */
+int qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter,
+				     struct ethtool_coalesce *ethcoal)
+{
+	struct qlcnic_nic_intr_coalesce *coal = &adapter->ahw->coal;
+	int rv;
+
+	coal->flag = QLCNIC_INTR_DEFAULT;
+	coal->rx_time_us = ethcoal->rx_coalesce_usecs;
+	coal->rx_packets = ethcoal->rx_max_coalesced_frames;
+
+	rv = qlcnic_82xx_set_rx_coalesce(adapter);
+
+	if (rv)
+		netdev_err(adapter->netdev,
+			   "Failed to set Rx coalescing parametrs\n");
+
+	return rv;
 }
 
 #define QLCNIC_ENABLE_IPV4_LRO		BIT_0

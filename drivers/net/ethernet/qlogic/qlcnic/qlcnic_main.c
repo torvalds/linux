@@ -1701,6 +1701,33 @@ static void qlcnic_get_lro_mss_capability(struct qlcnic_adapter *adapter)
 	}
 }
 
+static int qlcnic_config_def_intr_coalesce(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int err;
+
+	/* Initialize interrupt coalesce parameters */
+	ahw->coal.flag = QLCNIC_INTR_DEFAULT;
+
+	if (qlcnic_83xx_check(adapter)) {
+		ahw->coal.type = QLCNIC_INTR_COAL_TYPE_RX_TX;
+		ahw->coal.tx_time_us = QLCNIC_DEF_INTR_COALESCE_TX_TIME_US;
+		ahw->coal.tx_packets = QLCNIC_DEF_INTR_COALESCE_TX_PACKETS;
+		ahw->coal.rx_time_us = QLCNIC_DEF_INTR_COALESCE_RX_TIME_US;
+		ahw->coal.rx_packets = QLCNIC_DEF_INTR_COALESCE_RX_PACKETS;
+
+		err = qlcnic_83xx_set_rx_tx_intr_coal(adapter);
+	} else {
+		ahw->coal.type = QLCNIC_INTR_COAL_TYPE_RX;
+		ahw->coal.rx_time_us = QLCNIC_DEF_INTR_COALESCE_RX_TIME_US;
+		ahw->coal.rx_packets = QLCNIC_DEF_INTR_COALESCE_RX_PACKETS;
+
+		err = qlcnic_82xx_set_rx_coalesce(adapter);
+	}
+
+	return err;
+}
+
 int __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 {
 	int ring;
@@ -1733,7 +1760,7 @@ int __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 	if (adapter->drv_sds_rings > 1)
 		qlcnic_config_rss(adapter, 1);
 
-	qlcnic_config_intr_coalesce(adapter);
+	qlcnic_config_def_intr_coalesce(adapter);
 
 	if (netdev->features & NETIF_F_LRO)
 		qlcnic_config_hw_lro(adapter, QLCNIC_LRO_ENABLED);
@@ -1901,7 +1928,6 @@ out:
 
 static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 {
-	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int err = 0;
 
 	adapter->recv_ctx = kzalloc(sizeof(struct qlcnic_recv_context),
@@ -1910,15 +1936,7 @@ static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 		err = -ENOMEM;
 		goto err_out;
 	}
-	/* Initialize interrupt coalesce parameters */
-	ahw->coal.flag = QLCNIC_INTR_DEFAULT;
-	ahw->coal.type = QLCNIC_INTR_COAL_TYPE_RX;
-	ahw->coal.rx_time_us = QLCNIC_DEF_INTR_COALESCE_RX_TIME_US;
-	ahw->coal.rx_packets = QLCNIC_DEF_INTR_COALESCE_RX_PACKETS;
-	if (qlcnic_83xx_check(adapter)) {
-		ahw->coal.tx_time_us = QLCNIC_DEF_INTR_COALESCE_TX_TIME_US;
-		ahw->coal.tx_packets = QLCNIC_DEF_INTR_COALESCE_TX_PACKETS;
-	}
+
 	/* clear stats */
 	memset(&adapter->stats, 0, sizeof(adapter->stats));
 err_out:

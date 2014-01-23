@@ -171,7 +171,9 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 void qlcnic_82xx_get_beacon_state(struct qlcnic_adapter *);
 void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter,
 			       u64 *uaddr, u16 vlan_id);
-void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter);
+int qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *,
+				     struct ethtool_coalesce *);
+int qlcnic_82xx_set_rx_coalesce(struct qlcnic_adapter *);
 int qlcnic_82xx_config_rss(struct qlcnic_adapter *adapter, int);
 void qlcnic_82xx_config_ipaddr(struct qlcnic_adapter *adapter,
 			       __be32, int);
