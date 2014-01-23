@@ -941,13 +941,25 @@ EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
  * force-restore the mode setting configuration e.g. on resume or when something
  * else might have trampled over the hw state (like some overzealous old BIOSen
  * tended to do).
+ *
+ * This helper doesn't provide a error return value since restoring the old
+ * config should never fail due to resource allocation issues since the driver
+ * has successfully set the restored configuration already. Hence this should
+ * boil down to the equivalent of a few dpms on calls, which also don't provide
+ * an error code.
+ *
+ * Drivers where simply restoring an old configuration again might fail (e.g.
+ * due to slight differences in allocating shared resources when the
+ * configuration is restored in a different order than when userspace set it up)
+ * need to use their own restore logic.
  */
-int drm_helper_resume_force_mode(struct drm_device *dev)
+void drm_helper_resume_force_mode(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
 	struct drm_crtc_helper_funcs *crtc_funcs;
-	int ret, encoder_dpms;
+	int encoder_dpms;
+	bool ret;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 
@@ -957,6 +969,7 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 		ret = drm_crtc_helper_set_mode(crtc, &crtc->mode,
 					       crtc->x, crtc->y, crtc->fb);
 
+		/* Restoring the old config should never fail! */
 		if (ret == false)
 			DRM_ERROR("failed to set mode on crtc %p\n", crtc);
 
@@ -979,9 +992,9 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 						     drm_helper_choose_crtc_dpms(crtc));
 		}
 	}
+
 	/* disable the unused connectors while restoring the modesetting */
 	drm_helper_disable_unused_functions(dev);
-	return 0;
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
 

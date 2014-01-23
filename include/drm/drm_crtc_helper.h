@@ -160,7 +160,7 @@ static inline void drm_connector_helper_add(struct drm_connector *connector,
 	connector->helper_private = (void *)funcs;
 }
 
-extern int drm_helper_resume_force_mode(struct drm_device *dev);
+extern void drm_helper_resume_force_mode(struct drm_device *dev);
 extern void drm_kms_helper_poll_init(struct drm_device *dev);
 extern void drm_kms_helper_poll_fini(struct drm_device *dev);
 extern bool drm_helper_hpd_irq_event(struct drm_device *dev);
