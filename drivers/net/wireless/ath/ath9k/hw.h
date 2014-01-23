@@ -310,6 +310,8 @@ struct ath9k_ops_config {
 	u8 max_txtrig_level;
 	u16 ani_poll_interval; /* ANI poll interval in ms */
 	u16 hw_hang_checks;
+	u16 rimt_first;
+	u16 rimt_last;
 
 	/* Platform specific config */
 	u32 aspm_l1_fix;
