@@ -384,7 +384,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm);
 int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta,
-			     u32 qmask);
+			     u32 qmask, enum nl80211_iftype iftype);
 void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm,
 			     struct iwl_mvm_int_sta *sta);
 int iwl_mvm_send_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

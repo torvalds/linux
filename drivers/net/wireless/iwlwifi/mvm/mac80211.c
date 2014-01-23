@@ -703,7 +703,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		u32 qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
 		ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta,
-					       qmask);
+					       qmask,
+					       ieee80211_vif_type_p2p(vif));
 		if (ret) {
 			IWL_ERR(mvm, "Failed to allocate bcast sta\n");
 			goto out_release;

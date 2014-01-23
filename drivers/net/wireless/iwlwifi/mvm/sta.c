@@ -175,19 +175,30 @@ static int iwl_mvm_send_add_sta_key_cmd(struct iwl_mvm *mvm,
 				    &sta_cmd);
 }
 
-static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm)
+static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
+				    enum nl80211_iftype iftype)
 {
 	int sta_id;
+	u32 reserved_ids = 0;
 
+	BUILD_BUG_ON(IWL_MVM_STATION_COUNT > 32);
 	WARN_ON_ONCE(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status));
 
 	lockdep_assert_held(&mvm->mutex);
 
+	/* d0i3/d3 assumes the AP's sta_id (of sta vif) is 0. reserve it. */
+	if (iftype != NL80211_IFTYPE_STATION)
+		reserved_ids = BIT(0);
+
 	/* Don't take rcu_read_lock() since we are protected by mvm->mutex */
-	for (sta_id = 0; sta_id < IWL_MVM_STATION_COUNT; sta_id++)
+	for (sta_id = 0; sta_id < IWL_MVM_STATION_COUNT; sta_id++) {
+		if (BIT(sta_id) & reserved_ids)
+			continue;
+
 		if (!rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 					       lockdep_is_held(&mvm->mutex)))
 			return sta_id;
+	}
 	return IWL_MVM_STATION_COUNT;
 }
 
@@ -312,7 +323,8 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-		sta_id = iwl_mvm_find_free_sta_id(mvm);
+		sta_id = iwl_mvm_find_free_sta_id(mvm,
+						  ieee80211_vif_type_p2p(vif));
 	else
 		sta_id = mvm_sta->sta_id;
 
@@ -564,10 +576,10 @@ int iwl_mvm_rm_sta_id(struct iwl_mvm *mvm,
 }
 
 int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta,
-			     u32 qmask)
+			     u32 qmask, enum nl80211_iftype iftype)
 {
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-		sta->sta_id = iwl_mvm_find_free_sta_id(mvm);
+		sta->sta_id = iwl_mvm_find_free_sta_id(mvm, iftype);
 		if (WARN_ON_ONCE(sta->sta_id == IWL_MVM_STATION_COUNT))
 			return -ENOSPC;
 	}
@@ -631,7 +643,8 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Add the aux station, but without any queues */
-	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, 0);
+	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, 0,
+				       NL80211_IFTYPE_UNSPECIFIED);
 	if (ret)
 		return ret;
 
@@ -703,7 +716,8 @@ int iwl_mvm_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	lockdep_assert_held(&mvm->mutex);
 
 	qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
-	ret = iwl_mvm_allocate_int_sta(mvm, bsta, qmask);
+	ret = iwl_mvm_allocate_int_sta(mvm, bsta, qmask,
+				       ieee80211_vif_type_p2p(vif));
 	if (ret)
 		return ret;
 
