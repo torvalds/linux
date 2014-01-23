@@ -1138,9 +1138,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */
-
 	current->self_exec_id++;
-			
 	flush_signal_handlers(current, 0);
 	do_close_on_exec(current->files);
 }
@@ -1171,6 +1169,10 @@ void free_bprm(struct linux_binprm *bprm)
 	if (bprm->cred) {
 		mutex_unlock(&current->signal->cred_guard_mutex);
 		abort_creds(bprm->cred);
+	}
+	if (bprm->file) {
+		allow_write_access(bprm->file);
+		fput(bprm->file);
 	}
 	/* If a binfmt changed the interp, free it. */
 	if (bprm->interp != bprm->filename)
@@ -1424,12 +1426,6 @@ static int exec_binprm(struct linux_binprm *bprm)
 		ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
 		current->did_exec = 1;
 		proc_exec_connector(current);
-
-		if (bprm->file) {
-			allow_write_access(bprm->file);
-			fput(bprm->file);
-			bprm->file = NULL; /* to catch use-after-free */
-		}
 	}
 
 	return ret;
@@ -1492,7 +1488,7 @@ static int do_execve_common(const char *filename,
 
 	retval = bprm_mm_init(bprm);
 	if (retval)
-		goto out_file;
+		goto out_unmark;
 
 	bprm->argc = count(argv, MAX_ARG_STRINGS);
 	if ((retval = bprm->argc) < 0)
@@ -1537,12 +1533,6 @@ out:
 	if (bprm->mm) {
 		acct_arg_size(bprm, 0);
 		mmput(bprm->mm);
-	}
-
-out_file:
-	if (bprm->file) {
-		allow_write_access(bprm->file);
-		fput(bprm->file);
 	}
 
 out_unmark:
