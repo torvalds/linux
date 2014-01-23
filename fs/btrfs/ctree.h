@@ -1360,6 +1360,7 @@ struct btrfs_fs_info {
 
 	u64 generation;
 	u64 last_trans_committed;
+	u64 avg_delayed_ref_runtime;
 
 	/*
 	 * this is updated to the current trans every time a full commit
@@ -3171,6 +3172,8 @@ static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_root *root,
 }
 
 int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root);
+int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root);
 void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,

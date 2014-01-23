@@ -2322,8 +2322,10 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_head *locked_ref = NULL;
 	struct btrfs_delayed_extent_op *extent_op;
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	ktime_t start = ktime_get();
 	int ret;
 	unsigned long count = 0;
+	unsigned long actual_count = 0;
 	int must_insert_reserved = 0;
 
 	delayed_refs = &trans->transaction->delayed_refs;
@@ -2452,6 +2454,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 				 &delayed_refs->href_root);
 			spin_unlock(&delayed_refs->lock);
 		} else {
+			actual_count++;
 			ref->in_tree = 0;
 			rb_erase(&ref->rb_node, &locked_ref->ref_root);
 		}
@@ -2501,6 +2504,26 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		btrfs_put_delayed_ref(ref);
 		count++;
 		cond_resched();
+	}
+
+	/*
+	 * We don't want to include ref heads since we can have empty ref heads
+	 * and those will drastically skew our runtime down since we just do
+	 * accounting, no actual extent tree updates.
+	 */
+	if (actual_count > 0) {
+		u64 runtime = ktime_to_ns(ktime_sub(ktime_get(), start));
+		u64 avg;
+
+		/*
+		 * We weigh the current average higher than our current runtime
+		 * to avoid large swings in the average.
+		 */
+		spin_lock(&delayed_refs->lock);
+		avg = fs_info->avg_delayed_ref_runtime * 3 + runtime;
+		avg = div64_u64(avg, 4);
+		fs_info->avg_delayed_ref_runtime = avg;
+		spin_unlock(&delayed_refs->lock);
 	}
 	return 0;
 }
@@ -2600,7 +2623,7 @@ static inline u64 heads_to_leaves(struct btrfs_root *root, u64 heads)
 	return div64_u64(num_bytes, BTRFS_LEAF_DATA_SIZE(root));
 }
 
-int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
+int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root)
 {
 	struct btrfs_block_rsv *global_rsv;
@@ -2627,6 +2650,22 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
 		ret = 1;
 	spin_unlock(&global_rsv->lock);
 	return ret;
+}
+
+int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	u64 num_entries =
+		atomic_read(&trans->transaction->delayed_refs.num_entries);
+	u64 avg_runtime;
+
+	smp_mb();
+	avg_runtime = fs_info->avg_delayed_ref_runtime;
+	if (num_entries * avg_runtime >= NSEC_PER_SEC)
+		return 1;
+
+	return btrfs_check_space_for_delayed_refs(trans, root);
 }
 
 /*

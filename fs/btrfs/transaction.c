@@ -645,7 +645,7 @@ static int should_end_transaction(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root)
 {
 	if (root->fs_info->global_block_rsv.space_info->full &&
-	    btrfs_should_throttle_delayed_refs(trans, root))
+	    btrfs_check_space_for_delayed_refs(trans, root))
 		return 1;
 
 	return !!btrfs_block_rsv_check(root, &root->fs_info->global_block_rsv, 5);
@@ -710,7 +710,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	trans->delayed_ref_updates = 0;
 	if (!trans->sync && btrfs_should_throttle_delayed_refs(trans, root)) {
-		cur = max_t(unsigned long, cur, 1);
+		cur = max_t(unsigned long, cur, 32);
 		trans->delayed_ref_updates = 0;
 		btrfs_run_delayed_refs(trans, root, cur);
 	}
