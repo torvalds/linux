@@ -1658,13 +1658,18 @@ int pid_revalidate(struct dentry *dentry, unsigned int flags)
 	return 0;
 }
 
+static inline bool proc_inode_is_dead(struct inode *inode)
+{
+	return !proc_pid(inode)->tasks[PIDTYPE_PID].first;
+}
+
 int pid_delete_dentry(const struct dentry *dentry)
 {
 	/* Is the task we represent dead?
 	 * If so, then don't put the dentry on the lru list,
 	 * kill it immediately.
 	 */
-	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
+	return proc_inode_is_dead(dentry->d_inode);
 }
 
 const struct dentry_operations pid_dentry_operations =
@@ -3092,34 +3097,35 @@ out_no_task:
  * In the case of a seek we start with the leader and walk nr
  * threads past it.
  */
-static struct task_struct *first_tid(struct task_struct *leader,
-		int tid, int nr, struct pid_namespace *ns)
+static struct task_struct *first_tid(struct pid *pid, int tid,
+					int nr, struct pid_namespace *ns)
 {
-	struct task_struct *pos;
+	struct task_struct *pos, *task;
 
 	rcu_read_lock();
-	/* Attempt to start with the pid of a thread */
+	task = pid_task(pid, PIDTYPE_PID);
+	if (!task)
+		goto fail;
+
+	/* Attempt to start with the tid of a thread */
 	if (tid && (nr > 0)) {
 		pos = find_task_by_pid_ns(tid, ns);
-		if (pos && (pos->group_leader == leader))
+		if (pos && same_thread_group(pos, task))
 			goto found;
 	}
 
 	/* If nr exceeds the number of threads there is nothing todo */
-	if (nr && nr >= get_nr_threads(leader))
-		goto fail;
-	/* It could be unhashed before we take rcu lock */
-	if (!pid_alive(leader))
+	if (nr && nr >= get_nr_threads(task))
 		goto fail;
 
 	/* If we haven't found our starting place yet start
 	 * with the leader and walk nr threads forward.
 	 */
-	pos = leader;
+	pos = task = task->group_leader;
 	do {
 		if (nr-- <= 0)
 			goto found;
-	} while_each_thread(leader, pos);
+	} while_each_thread(task, pos);
 fail:
 	pos = NULL;
 	goto out;
@@ -3155,25 +3161,16 @@ static struct task_struct *next_tid(struct task_struct *start)
 /* for the /proc/TGID/task/ directories */
 static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct task_struct *leader = NULL;
-	struct task_struct *task = get_proc_task(file_inode(file));
+	struct inode *inode = file_inode(file);
+	struct task_struct *task;
 	struct pid_namespace *ns;
 	int tid;
 
-	if (!task)
-		return -ENOENT;
-	rcu_read_lock();
-	if (pid_alive(task)) {
-		leader = task->group_leader;
-		get_task_struct(leader);
-	}
-	rcu_read_unlock();
-	put_task_struct(task);
-	if (!leader)
+	if (proc_inode_is_dead(inode))
 		return -ENOENT;
 
 	if (!dir_emit_dots(file, ctx))
-		goto out;
+		return 0;
 
 	/* f_version caches the tgid value that the last readdir call couldn't
 	 * return. lseek aka telldir automagically resets f_version to 0.
@@ -3181,7 +3178,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 	ns = file->f_dentry->d_sb->s_fs_info;
 	tid = (int)file->f_version;
 	file->f_version = 0;
-	for (task = first_tid(leader, tid, ctx->pos - 2, ns);
+	for (task = first_tid(proc_pid(inode), tid, ctx->pos - 2, ns);
 	     task;
 	     task = next_tid(task), ctx->pos++) {
 		char name[PROC_NUMBUF];
@@ -3197,8 +3194,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 			break;
 		}
 	}
-out:
-	put_task_struct(leader);
+
 	return 0;
 }
 
