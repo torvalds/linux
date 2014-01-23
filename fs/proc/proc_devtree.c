@@ -74,9 +74,9 @@ __proc_device_tree_add_prop(struct proc_dir_entry *de, struct property *pp,
 		return NULL;
 
 	if (!strncmp(name, "security-", 9))
-		ent->size = 0; /* don't leak number of password chars */
+		proc_set_size(ent, 0); /* don't leak number of password chars */
 	else
-		ent->size = pp->length;
+		proc_set_size(ent, pp->length);
 
 	return ent;
 }
