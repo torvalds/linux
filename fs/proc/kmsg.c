@@ -61,4 +61,4 @@ static int __init proc_kmsg_init(void)
 	proc_create("kmsg", S_IRUSR, NULL, &proc_kmsg_operations);
 	return 0;
 }
-module_init(proc_kmsg_init);
+fs_initcall(proc_kmsg_init);

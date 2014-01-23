@@ -219,4 +219,4 @@ static int __init proc_page_init(void)
 	proc_create("kpageflags", S_IRUSR, NULL, &proc_kpageflags_operations);
 	return 0;
 }
-module_init(proc_page_init);
+fs_initcall(proc_page_init);
