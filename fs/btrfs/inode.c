@@ -2314,7 +2314,7 @@ again:
 		u64 extent_len;
 		struct btrfs_key found_key;
 
-		ret = btrfs_search_slot(trans, root, &key, path, 1, 1);
+		ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 		if (ret < 0)
 			goto out_free_path;
 
