@@ -3231,8 +3231,8 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
 	return 0;
 }
 
-int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
-			 struct kmem_cache *root_cache)
+int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+			     struct kmem_cache *root_cache)
 {
 	size_t size;
 
@@ -3258,6 +3258,11 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
 		s->memcg_params->is_root_cache = true;
 
 	return 0;
+}
+
+void memcg_free_cache_params(struct kmem_cache *s)
+{
+	kfree(s->memcg_params);
 }
 
 void memcg_release_cache(struct kmem_cache *s)
@@ -3288,7 +3293,7 @@ void memcg_release_cache(struct kmem_cache *s)
 
 	css_put(&memcg->css);
 out:
-	kfree(s->memcg_params);
+	memcg_free_cache_params(s);
 }
 
 /*
