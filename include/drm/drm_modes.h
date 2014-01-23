@@ -162,6 +162,14 @@ struct drm_cmdline_mode {
 	enum drm_connector_force force;
 };
 
+/**
+ * drm_mode_is_stereo - check for stereo mode flags
+ * @mode: drm_display_mode to check
+ *
+ * Returns:
+ * True if the mode is one of the stereo modes (like side-by-side), false if
+ * not.
+ */
 static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
 {
 	return mode->flags & DRM_MODE_FLAG_3D_MASK;
