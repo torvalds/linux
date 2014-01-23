@@ -180,6 +180,18 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
 	if (err)
 		goto out_unlock;
 
+	if (memcg) {
+		/*
+		 * Since per-memcg caches are created asynchronously on first
+		 * allocation (see memcg_kmem_get_cache()), several threads can
+		 * try to create the same cache, but only one of them may
+		 * succeed. Therefore if we get here and see the cache has
+		 * already been created, we silently return NULL.
+		 */
+		if (cache_from_memcg_idx(parent_cache, memcg_cache_id(memcg)))
+			goto out_unlock;
+	}
+
 	/*
 	 * Some allocators will constraint the set of valid flags to a subset
 	 * of all flags. We expect them to define CACHE_CREATE_MASK in this
@@ -261,11 +273,11 @@ void kmem_cache_destroy(struct kmem_cache *s)
 		list_del(&s->list);
 
 		if (!__kmem_cache_shutdown(s)) {
+			memcg_unregister_cache(s);
 			mutex_unlock(&slab_mutex);
 			if (s->flags & SLAB_DESTROY_BY_RCU)
 				rcu_barrier();
 
-			memcg_unregister_cache(s);
 			memcg_free_cache_params(s);
 			kfree(s->name);
 			kmem_cache_free(kmem_cache, s);

@@ -3264,6 +3264,12 @@ void memcg_register_cache(struct kmem_cache *s)
 	if (is_root_cache(s))
 		return;
 
+	/*
+	 * Holding the slab_mutex assures nobody will touch the memcg_caches
+	 * array while we are modifying it.
+	 */
+	lockdep_assert_held(&slab_mutex);
+
 	root = s->memcg_params->root_cache;
 	memcg = s->memcg_params->memcg;
 	id = memcg_cache_id(memcg);
@@ -3283,6 +3289,7 @@ void memcg_register_cache(struct kmem_cache *s)
 	 * before adding it to the memcg_slab_caches list, otherwise we can
 	 * fail to convert memcg_params_to_cache() while traversing the list.
 	 */
+	VM_BUG_ON(root->memcg_params->memcg_caches[id]);
 	root->memcg_params->memcg_caches[id] = s;
 
 	mutex_lock(&memcg->slab_caches_mutex);
@@ -3299,6 +3306,12 @@ void memcg_unregister_cache(struct kmem_cache *s)
 	if (is_root_cache(s))
 		return;
 
+	/*
+	 * Holding the slab_mutex assures nobody will touch the memcg_caches
+	 * array while we are modifying it.
+	 */
+	lockdep_assert_held(&slab_mutex);
+
 	root = s->memcg_params->root_cache;
 	memcg = s->memcg_params->memcg;
 	id = memcg_cache_id(memcg);
@@ -3312,6 +3325,7 @@ void memcg_unregister_cache(struct kmem_cache *s)
 	 * after removing it from the memcg_slab_caches list, otherwise we can
 	 * fail to convert memcg_params_to_cache() while traversing the list.
 	 */
+	VM_BUG_ON(!root->memcg_params->memcg_caches[id]);
 	root->memcg_params->memcg_caches[id] = NULL;
 
 	css_put(&memcg->css);
@@ -3464,22 +3478,13 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 						  struct kmem_cache *cachep)
 {
 	struct kmem_cache *new_cachep;
-	int idx;
 
 	BUG_ON(!memcg_can_account_kmem(memcg));
 
-	idx = memcg_cache_id(memcg);
-
 	mutex_lock(&memcg_cache_mutex);
-	new_cachep = cache_from_memcg_idx(cachep, idx);
-	if (new_cachep)
-		goto out;
-
 	new_cachep = kmem_cache_dup(memcg, cachep);
 	if (new_cachep == NULL)
 		new_cachep = cachep;
-
-out:
 	mutex_unlock(&memcg_cache_mutex);
 	return new_cachep;
 }
