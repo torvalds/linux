@@ -192,8 +192,8 @@ tgafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		return -EINVAL;
 
 	/* Some of the acceleration routines assume the line width is
-	   a multiple of 64 bytes.  */
-	if (var->xres * (par->tga_type == TGA_TYPE_8PLANE ? 1 : 4) % 64)
+	   a multiple of 8 bytes.  */
+	if (var->xres * (par->tga_type == TGA_TYPE_8PLANE ? 1 : 4) % 8)
 		return -EINVAL;
 
 	return 0;
@@ -1280,7 +1280,7 @@ tgafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 	bpp = info->var.bits_per_pixel;
 
 	/* Detect copies of the entire line.  */
-	if (width * (bpp >> 3) == line_length) {
+	if (!(line_length & 63) && width * (bpp >> 3) == line_length) {
 		if (bpp == 8)
 			copyarea_line_8bpp(info, dy, sy, height, width);
 		else
