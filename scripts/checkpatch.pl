@@ -4128,6 +4128,31 @@ sub process {
 			}
 		}
 
+# check for case / default statements not preceeded by break/fallthrough/switch
+		if ($line =~ /^.\s*(?:case\s+(?:$Ident|$Constant)\s*|default):/) {
+			my $has_break = 0;
+			my $has_statement = 0;
+			my $count = 0;
+			my $prevline = $linenr;
+			while ($prevline > 1 && $count < 3 && !$has_break) {
+				$prevline--;
+				my $rline = $rawlines[$prevline - 1];
+				my $fline = $lines[$prevline - 1];
+				last if ($fline =~ /^\@\@/);
+				next if ($fline =~ /^\-/);
+				next if ($fline =~ /^.(?:\s*(?:case\s+(?:$Ident|$Constant)[\s$;]*|default):[\s$;]*)*$/);
+				$has_break = 1 if ($rline =~ /fall[\s_-]*(through|thru)/i);
+				next if ($fline =~ /^.[\s$;]*$/);
+				$has_statement = 1;
+				$count++;
+				$has_break = 1 if ($fline =~ /\bswitch\b|\b(?:break\s*;[\s$;]*$|return\b|goto\b|continue\b)/);
+			}
+			if (!$has_break && $has_statement) {
+				WARN("MISSING_BREAK",
+				     "Possible switch case/default not preceeded by break or fallthrough comment\n" . $herecurr);
+			}
+		}
+
 # check for switch/default statements without a break;
 		if ($^V && $^V ge 5.10.0 &&
 		    defined $stat &&
