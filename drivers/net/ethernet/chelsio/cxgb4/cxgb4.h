@@ -387,8 +387,9 @@ struct work_struct;
 
 enum {                                 /* adapter flags */
 	FULL_INIT_DONE     = (1 << 0),
-	USING_MSI          = (1 << 1),
-	USING_MSIX         = (1 << 2),
+	DEV_ENABLED        = (1 << 1),
+	USING_MSI          = (1 << 2),
+	USING_MSIX         = (1 << 3),
 	FW_OK              = (1 << 4),
 	RSS_TNLALLLOOKUP   = (1 << 5),
 	USING_SOFT_PARAMS  = (1 << 6),
