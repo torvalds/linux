@@ -243,6 +243,7 @@ i915_gem_create_context(struct drm_device *dev,
 			struct drm_i915_file_private *file_priv,
 			bool create_vm)
 {
+	const bool is_global_default_ctx = file_priv == NULL;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_context *ctx;
 	int ret = 0;
@@ -253,6 +254,23 @@ i915_gem_create_context(struct drm_device *dev,
 	if (IS_ERR(ctx))
 		return ctx;
 
+	if (is_global_default_ctx) {
+		/* We may need to do things with the shrinker which
+		 * require us to immediately switch back to the default
+		 * context. This can cause a problem as pinning the
+		 * default context also requires GTT space which may not
+		 * be available. To avoid this we always pin the default
+		 * context.
+		 */
+		ret = i915_gem_obj_ggtt_pin(ctx->obj,
+					    get_context_alignment(dev),
+					    false, false);
+		if (ret) {
+			DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
+			goto err_destroy;
+		}
+	}
+
 	if (create_vm) {
 		struct i915_hw_ppgtt *ppgtt = create_vm_for_ctx(dev, ctx);
 
@@ -260,36 +278,19 @@ i915_gem_create_context(struct drm_device *dev,
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
 			ret = PTR_ERR(ppgtt);
-			goto err_destroy;
+			goto err_unpin;
 		} else
 			ctx->vm = &ppgtt->base;
 
 		/* This case is reserved for the global default context and
 		 * should only happen once. */
-		if (!file_priv) {
+		if (is_global_default_ctx) {
 			if (WARN_ON(dev_priv->mm.aliasing_ppgtt)) {
 				ret = -EEXIST;
-				goto err_destroy;
+				goto err_unpin;
 			}
 
 			dev_priv->mm.aliasing_ppgtt = ppgtt;
-
-			/* We may need to do things with the shrinker which
-			 * require us to immediately switch back to the default
-			 * context. This can cause a problem as pinning the
-			 * default context also requires GTT space which may not
-			 * be available. To avoid this we always pin the default
-			 * context.
-			 */
-			ret = i915_gem_obj_ggtt_pin(ctx->obj,
-						    get_context_alignment(dev),
-						    false, false);
-			if (ret) {
-				DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
-				goto err_destroy;
-			}
-
-			ctx->vm = &dev_priv->mm.aliasing_ppgtt->base;
 		}
 	} else if (USES_ALIASING_PPGTT(dev)) {
 		/* For platforms which only have aliasing PPGTT, we fake the
@@ -301,6 +302,9 @@ i915_gem_create_context(struct drm_device *dev,
 
 	return ctx;
 
+err_unpin:
+	if (is_global_default_ctx)
+		i915_gem_object_ggtt_unpin(ctx->obj);
 err_destroy:
 	i915_gem_context_unreference(ctx);
 	return ERR_PTR(ret);
