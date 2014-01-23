@@ -583,6 +583,8 @@ struct Scsi_Host {
 	struct blk_queue_tag	*bqt;
 
 	atomic_t host_busy;		   /* commands actually active on low-level */
+	atomic_t host_blocked;
+
 	unsigned int host_failed;	   /* commands that failed.
 					      protected by host_lock */
 	unsigned int host_eh_scheduled;    /* EH scheduled without command */
@@ -680,11 +682,6 @@ struct Scsi_Host {
 	 * Task management function work queue
 	 */
 	struct workqueue_struct *tmf_work_q;
-
-	/*
-	 * Host has rejected a command because it was busy.
-	 */
-	unsigned int host_blocked;
 
 	/*
 	 * Value host_blocked counts down from

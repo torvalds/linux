@@ -82,6 +82,8 @@ struct scsi_device {
 	struct list_head    same_target_siblings; /* just the devices sharing same target id */
 
 	atomic_t device_busy;		/* commands actually active on LLDD */
+	atomic_t device_blocked;	/* Device returned QUEUE_FULL. */
+
 	spinlock_t list_lock;
 	struct list_head cmd_list;	/* queue of in use SCSI Command structures */
 	struct list_head starved_entry;
@@ -179,8 +181,6 @@ struct scsi_device {
 	DECLARE_BITMAP(pending_events, SDEV_EVT_MAXBITS); /* pending events */
 	struct list_head event_list;	/* asserted events */
 	struct work_struct event_work;
-
-	unsigned int device_blocked;	/* Device returned QUEUE_FULL. */
 
 	unsigned int max_device_blocked; /* what device_blocked counts down from  */
 #define SCSI_DEFAULT_DEVICE_BLOCKED	3
@@ -291,12 +291,13 @@ struct scsi_target {
 						 * the same target will also. */
 	/* commands actually active on LLD. */
 	atomic_t		target_busy;
+	atomic_t		target_blocked;
+
 	/*
 	 * LLDs should set this in the slave_alloc host template callout.
 	 * If set to zero then there is not limit.
 	 */
 	unsigned int		can_queue;
-	unsigned int		target_blocked;
 	unsigned int		max_target_blocked;
 #define SCSI_DEFAULT_TARGET_BLOCKED	3
 

@@ -584,7 +584,6 @@ static int scsi_sdev_check_buf_bit(const char *buf)
 /*
  * Create the actual show/store functions and data structures.
  */
-sdev_rd_attr (device_blocked, "%d\n");
 sdev_rd_attr (type, "%d\n");
 sdev_rd_attr (scsi_level, "%d\n");
 sdev_rd_attr (vendor, "%.8s\n");
@@ -599,6 +598,15 @@ sdev_show_device_busy(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, 20, "%d\n", atomic_read(&sdev->device_busy));
 }
 static DEVICE_ATTR(device_busy, S_IRUGO, sdev_show_device_busy, NULL);
+
+static ssize_t
+sdev_show_device_blocked(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	return snprintf(buf, 20, "%d\n", atomic_read(&sdev->device_blocked));
+}
+static DEVICE_ATTR(device_blocked, S_IRUGO, sdev_show_device_blocked, NULL);
 
 /*
  * TODO: can we make these symlinks to the block layer ones?
