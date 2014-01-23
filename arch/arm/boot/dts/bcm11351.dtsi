@@ -147,7 +147,7 @@
 	};
 
 	pinctrl@35004800 {
-		compatible = "brcm,capri-pinctrl";
+		compatible = "brcm,bcm11351-pinctrl";
 		reg = <0x35004800 0x430>;
 	};
 
