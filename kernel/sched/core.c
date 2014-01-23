@@ -2169,13 +2169,6 @@ static void finish_task_switch(struct rq *rq, struct task_struct *prev)
 
 #ifdef CONFIG_SMP
 
-/* assumes rq->lock is held */
-static inline void pre_schedule(struct rq *rq, struct task_struct *prev)
-{
-	if (prev->sched_class->pre_schedule)
-		prev->sched_class->pre_schedule(rq, prev);
-}
-
 /* rq->lock is NOT held, but preemption is disabled */
 static inline void post_schedule(struct rq *rq)
 {
@@ -2192,10 +2185,6 @@ static inline void post_schedule(struct rq *rq)
 }
 
 #else
-
-static inline void pre_schedule(struct rq *rq, struct task_struct *p)
-{
-}
 
 static inline void post_schedule(struct rq *rq)
 {
@@ -2592,7 +2581,8 @@ pick_next_task(struct rq *rq, struct task_struct *prev)
 	 * Optimization: we know that if all tasks are in
 	 * the fair class we can call that function directly:
 	 */
-	if (likely(rq->nr_running == rq->cfs.h_nr_running)) {
+	if (likely(prev->sched_class == &fair_sched_class &&
+		   rq->nr_running == rq->cfs.h_nr_running)) {
 		p = fair_sched_class.pick_next_task(rq, prev);
 		if (likely(p))
 			return p;
@@ -2693,18 +2683,6 @@ need_resched:
 			}
 		}
 		switch_count = &prev->nvcsw;
-	}
-
-	pre_schedule(rq, prev);
-
-	if (unlikely(!rq->nr_running)) {
-		/*
-		 * We must set idle_stamp _before_ calling idle_balance(), such
-		 * that we measure the duration of idle_balance() as idle time.
-		 */
-		rq->idle_stamp = rq_clock(rq);
-		if (idle_balance(rq))
-			rq->idle_stamp = 0;
 	}
 
 	if (prev->on_rq || rq->skip_clock_update < 0)

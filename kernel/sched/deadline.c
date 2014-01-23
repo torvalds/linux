@@ -944,6 +944,8 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
 	resched_task(rq->curr);
 }
 
+static int pull_dl_task(struct rq *this_rq);
+
 #endif /* CONFIG_SMP */
 
 /*
@@ -997,6 +999,11 @@ struct task_struct *pick_next_task_dl(struct rq *rq, struct task_struct *prev)
 	struct dl_rq *dl_rq;
 
 	dl_rq = &rq->dl;
+
+#ifdef CONFIG_SMP
+	if (dl_task(prev))
+		pull_dl_task(rq);
+#endif
 
 	if (unlikely(!dl_rq->dl_nr_running))
 		return NULL;
@@ -1429,13 +1436,6 @@ skip:
 	return ret;
 }
 
-static void pre_schedule_dl(struct rq *rq, struct task_struct *prev)
-{
-	/* Try to pull other tasks here */
-	if (dl_task(prev))
-		pull_dl_task(rq);
-}
-
 static void post_schedule_dl(struct rq *rq)
 {
 	push_dl_tasks(rq);
@@ -1628,7 +1628,6 @@ const struct sched_class dl_sched_class = {
 	.set_cpus_allowed       = set_cpus_allowed_dl,
 	.rq_online              = rq_online_dl,
 	.rq_offline             = rq_offline_dl,
-	.pre_schedule		= pre_schedule_dl,
 	.post_schedule		= post_schedule_dl,
 	.task_woken		= task_woken_dl,
 #endif
