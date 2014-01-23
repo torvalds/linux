@@ -394,7 +394,10 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(pdata->clk);
 	}
 
-	clk_prepare_enable(pdata->clk);
+	ret = clk_prepare_enable(pdata->clk);
+	if (ret)
+		return ret;
+
 	rate = clk_get_rate(pdata->clk);
 
 	if (rate == 32768)
