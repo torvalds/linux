@@ -595,6 +595,28 @@ void free_snapshot(struct trace_array *tr)
 }
 
 /**
+ * tracing_alloc_snapshot - allocate snapshot buffer.
+ *
+ * This only allocates the snapshot buffer if it isn't already
+ * allocated - it doesn't also take a snapshot.
+ *
+ * This is meant to be used in cases where the snapshot buffer needs
+ * to be set up for events that can't sleep but need to be able to
+ * trigger a snapshot.
+ */
+int tracing_alloc_snapshot(void)
+{
+	struct trace_array *tr = &global_trace;
+	int ret;
+
+	ret = alloc_snapshot(tr);
+	WARN_ON(ret < 0);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(tracing_alloc_snapshot);
+
+/**
  * trace_snapshot_alloc - allocate and take a snapshot of the current buffer.
  *
  * This is similar to trace_snapshot(), but it will allocate the
@@ -607,11 +629,10 @@ void free_snapshot(struct trace_array *tr)
  */
 void tracing_snapshot_alloc(void)
 {
-	struct trace_array *tr = &global_trace;
 	int ret;
 
-	ret = alloc_snapshot(tr);
-	if (WARN_ON(ret < 0))
+	ret = tracing_alloc_snapshot();
+	if (ret < 0)
 		return;
 
 	tracing_snapshot();
@@ -623,6 +644,12 @@ void tracing_snapshot(void)
 	WARN_ONCE(1, "Snapshot feature not enabled, but internal snapshot used");
 }
 EXPORT_SYMBOL_GPL(tracing_snapshot);
+int tracing_alloc_snapshot(void)
+{
+	WARN_ONCE(1, "Snapshot feature not enabled, but snapshot allocation used");
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(tracing_alloc_snapshot);
 void tracing_snapshot_alloc(void)
 {
 	/* Give warning */
@@ -3156,19 +3183,23 @@ tracing_write_stub(struct file *filp, const char __user *ubuf,
 	return count;
 }
 
-static loff_t tracing_seek(struct file *file, loff_t offset, int origin)
+loff_t tracing_lseek(struct file *file, loff_t offset, int whence)
 {
+	int ret;
+
 	if (file->f_mode & FMODE_READ)
-		return seq_lseek(file, offset, origin);
+		ret = seq_lseek(file, offset, whence);
 	else
-		return 0;
+		file->f_pos = ret = 0;
+
+	return ret;
 }
 
 static const struct file_operations tracing_fops = {
 	.open		= tracing_open,
 	.read		= seq_read,
 	.write		= tracing_write_stub,
-	.llseek		= tracing_seek,
+	.llseek		= tracing_lseek,
 	.release	= tracing_release,
 };
 
@@ -4212,12 +4243,6 @@ out:
 	return sret;
 }
 
-static void tracing_pipe_buf_release(struct pipe_inode_info *pipe,
-				     struct pipe_buffer *buf)
-{
-	__free_page(buf->page);
-}
-
 static void tracing_spd_release_pipe(struct splice_pipe_desc *spd,
 				     unsigned int idx)
 {
@@ -4229,7 +4254,7 @@ static const struct pipe_buf_operations tracing_pipe_buf_ops = {
 	.map			= generic_pipe_buf_map,
 	.unmap			= generic_pipe_buf_unmap,
 	.confirm		= generic_pipe_buf_confirm,
-	.release		= tracing_pipe_buf_release,
+	.release		= generic_pipe_buf_release,
 	.steal			= generic_pipe_buf_steal,
 	.get			= generic_pipe_buf_get,
 };
@@ -4913,7 +4938,7 @@ static const struct file_operations snapshot_fops = {
 	.open		= tracing_snapshot_open,
 	.read		= seq_read,
 	.write		= tracing_snapshot_write,
-	.llseek		= tracing_seek,
+	.llseek		= tracing_lseek,
 	.release	= tracing_snapshot_release,
 };
 
@@ -5882,6 +5907,8 @@ allocate_trace_buffer(struct trace_array *tr, struct trace_buffer *buf, int size
 	enum ring_buffer_flags rb_flags;
 
 	rb_flags = trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
+
+	buf->tr = tr;
 
 	buf->buffer = ring_buffer_alloc(size, rb_flags);
 	if (!buf->buffer)
