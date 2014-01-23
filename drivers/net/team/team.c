@@ -2034,6 +2034,10 @@ static void team_setup(struct net_device *dev)
 
 	dev->features |= NETIF_F_LLTX;
 	dev->features |= NETIF_F_GRO;
+
+	/* Don't allow team devices to change network namespaces. */
+	dev->features |= NETIF_F_NETNS_LOCAL;
+
 	dev->hw_features = TEAM_VLAN_FEATURES |
 			   NETIF_F_HW_VLAN_CTAG_TX |
 			   NETIF_F_HW_VLAN_CTAG_RX |
