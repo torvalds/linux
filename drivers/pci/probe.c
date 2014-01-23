@@ -805,10 +805,12 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 		}
 
 		cmax = pci_scan_child_bus(child);
-		if (cmax > max)
-			max = cmax;
-		if (child->busn_res.end > max)
-			max = child->busn_res.end;
+		if (cmax > subordinate)
+			dev_warn(&dev->dev, "bridge has subordinate %02x but max busn %02x\n",
+				 subordinate, cmax);
+		/* subordinate should equal child->busn_res.end */
+		if (subordinate > max)
+			max = subordinate;
 	} else {
 		/*
 		 * We need to assign a number to this bus which we always
