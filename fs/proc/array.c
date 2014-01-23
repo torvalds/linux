@@ -444,8 +444,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 				min_flt += t->min_flt;
 				maj_flt += t->maj_flt;
 				gtime += task_gtime(t);
-				t = next_thread(t);
-			} while (t != task);
+			} while_each_thread(task, t);
 
 			min_flt += sig->min_flt;
 			maj_flt += sig->maj_flt;
