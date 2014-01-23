@@ -105,9 +105,6 @@ static void drm_mode_validate_flag(struct drm_connector *connector,
  * @maxX: max width for modes
  * @maxY: max height for modes
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * Based on the helper callbacks implemented by @connector try to detect all
  * valid modes.  Modes will first be added to the connector's probed_modes list,
  * then culled (based on validity and the @maxX, @maxY parameters) and put into
@@ -130,6 +127,8 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	int count = 0;
 	int mode_flags = 0;
 	bool verbose_prune = true;
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 			drm_get_connector_name(connector));
@@ -218,9 +217,6 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  * drm_helper_encoder_in_use - check if a given encoder is in use
  * @encoder: encoder to check
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * Walk @encoders's DRM device's mode_config and see if it's in use.
  *
  * RETURNS:
@@ -230,6 +226,8 @@ bool drm_helper_encoder_in_use(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		if (connector->encoder == encoder)
 			return true;
@@ -241,9 +239,6 @@ EXPORT_SYMBOL(drm_helper_encoder_in_use);
  * drm_helper_crtc_in_use - check if a given CRTC is in a mode_config
  * @crtc: CRTC to check
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * Walk @crtc's DRM device's mode_config and see if it's in use.
  *
  * RETURNS:
@@ -253,7 +248,8 @@ bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 {
 	struct drm_encoder *encoder;
 	struct drm_device *dev = crtc->dev;
-	/* FIXME: Locking around list access? */
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
 		if (encoder->crtc == crtc && drm_helper_encoder_in_use(encoder))
 			return true;
@@ -282,9 +278,6 @@ drm_encoder_disable(struct drm_encoder *encoder)
  * drm_helper_disable_unused_functions - disable unused objects
  * @dev: DRM device
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * If an connector or CRTC isn't part of @dev's mode_config, it can be disabled
  * by calling its dpms function, which should power it off.
  */
@@ -293,6 +286,8 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
+
+	drm_warn_on_modeset_not_all_locked(dev);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (!connector->encoder)
@@ -354,9 +349,6 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
  * @y: vertical offset into the surface
  * @old_fb: old framebuffer, for cleanup
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * Try to set @mode on @crtc.  Give @crtc and its associated connectors a chance
  * to fixup or reject the mode prior to trying to set it. This is an internal
  * helper that drivers could e.g. use to update properties that require the
@@ -382,6 +374,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	bool saved_enabled;
 	struct drm_encoder *encoder;
 	bool ret = true;
+
+	drm_warn_on_modeset_not_all_locked(dev);
 
 	saved_enabled = crtc->enabled;
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
@@ -559,9 +553,6 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
  * drm_crtc_helper_set_config - set a new config from userspace
  * @set: mode set configuration
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * Setup a new configuration, provided by the upper layers (either an ioctl call
  * from userspace or internally e.g. from the fbdev suppport code) in @set, and
  * enable it. This is the main helper functions for drivers that implement
@@ -610,6 +601,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	}
 
 	dev = set->crtc->dev;
+
+	drm_warn_on_modeset_not_all_locked(dev);
 
 	/*
 	 * Allocate space for the backup of all (non-pointer) encoder and
