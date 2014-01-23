@@ -183,16 +183,9 @@ static int sc18is602_setup_transfer(struct sc18is602 *hw, u32 hz, u8 mode)
 static int sc18is602_check_transfer(struct spi_device *spi,
 				    struct spi_transfer *t, int tlen)
 {
-	int bpw;
 	uint32_t hz;
 
 	if (t && t->len + tlen > SC18IS602_BUFSIZ)
-		return -EINVAL;
-
-	bpw = spi->bits_per_word;
-	if (t && t->bits_per_word)
-		bpw = t->bits_per_word;
-	if (bpw != 8)
 		return -EINVAL;
 
 	hz = spi->max_speed_hz;
@@ -312,6 +305,7 @@ static int sc18is602_probe(struct i2c_client *client,
 	}
 	master->bus_num = client->adapter->nr;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->setup = sc18is602_setup;
 	master->transfer_one_message = sc18is602_transfer_one;
 	master->dev.of_node = np;
