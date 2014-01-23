@@ -1840,6 +1840,7 @@ static int set_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		if (__copy_to_user((void __user *)addr, instructions, 4))
 			return 1;
 		kvm->arch.hv_hypercall = data;
+		mark_page_dirty(kvm, gfn);
 		break;
 	}
 	case HV_X64_MSR_REFERENCE_TSC: {
