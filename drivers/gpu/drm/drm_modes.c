@@ -647,41 +647,6 @@ void drm_mode_set_name(struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_mode_set_name);
 
-/**
- * drm_mode_width - get the width of a mode
- * @mode: mode
- *
- * Return @mode's width (hdisplay) value.
- *
- * FIXME: is this needed?
- *
- * RETURNS:
- * @mode->hdisplay
- */
-int drm_mode_width(const struct drm_display_mode *mode)
-{
-	return mode->hdisplay;
-
-}
-EXPORT_SYMBOL(drm_mode_width);
-
-/**
- * drm_mode_height - get the height of a mode
- * @mode: mode
- *
- * Return @mode's height (vdisplay) value.
- *
- * FIXME: is this needed?
- *
- * RETURNS:
- * @mode->vdisplay
- */
-int drm_mode_height(const struct drm_display_mode *mode)
-{
-	return mode->vdisplay;
-}
-EXPORT_SYMBOL(drm_mode_height);
-
 /** drm_mode_hsync - get the hsync of a mode
  * @mode: mode
  *

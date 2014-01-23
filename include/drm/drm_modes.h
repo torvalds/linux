@@ -195,8 +195,6 @@ int of_get_drm_display_mode(struct device_node *np,
 			    int index);
 
 void drm_mode_set_name(struct drm_display_mode *mode);
-int drm_mode_width(const struct drm_display_mode *mode);
-int drm_mode_height(const struct drm_display_mode *mode);
 int drm_mode_hsync(const struct drm_display_mode *mode);
 int drm_mode_vrefresh(const struct drm_display_mode *mode);
 
