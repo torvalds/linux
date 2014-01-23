@@ -227,9 +227,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
 
-	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
-	dpfc_ctl &= DPFC_RESERVED;
-	dpfc_ctl |= DPFC_CTL_PLANE(intel_crtc->plane);
+	dpfc_ctl = DPFC_CTL_PLANE(intel_crtc->plane);
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
 	else
