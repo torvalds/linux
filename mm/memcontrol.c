@@ -1119,10 +1119,8 @@ skip_node:
 	 * protected by css_get and the tree walk is rcu safe.
 	 */
 	if (next_css) {
-		struct mem_cgroup *mem = mem_cgroup_from_css(next_css);
-
-		if (css_tryget(&mem->css))
-			return mem;
+		if ((next_css->flags & CSS_ONLINE) && css_tryget(next_css))
+			return mem_cgroup_from_css(next_css);
 		else {
 			prev_css = next_css;
 			goto skip_node;
