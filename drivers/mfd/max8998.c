@@ -175,7 +175,7 @@ static inline int max8998_i2c_get_driver_data(struct i2c_client *i2c,
 	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(max8998_dt_match, i2c->dev.of_node);
-		return (int)match->data;
+		return (int)(long)match->data;
 	}
 
 	return (int)id->driver_data;
