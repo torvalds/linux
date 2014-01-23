@@ -503,19 +503,21 @@ nouveau_do_suspend(struct drm_device *dev)
 	if (drm->cechan) {
 		ret = nouveau_channel_idle(drm->cechan);
 		if (ret)
-			return ret;
+			goto fail_display;
 	}
 
 	if (drm->channel) {
 		ret = nouveau_channel_idle(drm->channel);
 		if (ret)
-			return ret;
+			goto fail_display;
 	}
 
 	NV_INFO(drm, "suspending client object trees...\n");
 	if (drm->fence && nouveau_fence(drm)->suspend) {
-		if (!nouveau_fence(drm)->suspend(drm))
-			return -ENOMEM;
+		if (!nouveau_fence(drm)->suspend(drm)) {
+			ret = -ENOMEM;
+			goto fail_display;
+		}
 	}
 
 	list_for_each_entry(cli, &drm->clients, head) {
@@ -537,6 +539,10 @@ fail_client:
 		nouveau_client_init(&cli->base);
 	}
 
+	if (drm->fence && nouveau_fence(drm)->resume)
+		nouveau_fence(drm)->resume(drm);
+
+fail_display:
 	if (dev->mode_config.num_crtc) {
 		NV_INFO(drm, "resuming display...\n");
 		nouveau_display_resume(dev);
