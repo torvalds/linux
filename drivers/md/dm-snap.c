@@ -610,12 +610,12 @@ static struct dm_exception *dm_lookup_exception(struct dm_exception_table *et,
 	return NULL;
 }
 
-static struct dm_exception *alloc_completed_exception(void)
+static struct dm_exception *alloc_completed_exception(gfp_t gfp)
 {
 	struct dm_exception *e;
 
-	e = kmem_cache_alloc(exception_cache, GFP_NOIO);
-	if (!e)
+	e = kmem_cache_alloc(exception_cache, gfp);
+	if (!e && gfp == GFP_NOIO)
 		e = kmem_cache_alloc(exception_cache, GFP_ATOMIC);
 
 	return e;
@@ -697,7 +697,7 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 	struct dm_snapshot *s = context;
 	struct dm_exception *e;
 
-	e = alloc_completed_exception();
+	e = alloc_completed_exception(GFP_KERNEL);
 	if (!e)
 		return -ENOMEM;
 
@@ -1405,7 +1405,7 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 		goto out;
 	}
 
-	e = alloc_completed_exception();
+	e = alloc_completed_exception(GFP_NOIO);
 	if (!e) {
 		down_write(&s->lock);
 		__invalidate_snapshot(s, -ENOMEM);
