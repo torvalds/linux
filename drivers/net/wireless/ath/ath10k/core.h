@@ -238,6 +238,11 @@ struct ath10k_vif {
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;
 
+	bool is_started;
+	bool is_up;
+	u32 aid;
+	u8 bssid[ETH_ALEN];
+
 	struct work_struct wep_key_work;
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
 	u8 def_wep_key_idx;
@@ -247,7 +252,6 @@ struct ath10k_vif {
 
 	union {
 		struct {
-			u8 bssid[ETH_ALEN];
 			u32 uapsd;
 		} sta;
 		struct {
@@ -261,9 +265,6 @@ struct ath10k_vif {
 			u32 noa_len;
 			u8 *noa_data;
 		} ap;
-		struct {
-			u8 bssid[ETH_ALEN];
-		} ibss;
 	} u;
 
 	u8 fixed_rate;
@@ -423,6 +424,9 @@ struct ath10k {
 
 	/* valid during scan; needed for mgmt rx during scan */
 	struct ieee80211_channel *scan_channel;
+
+	/* current operating channel definition */
+	struct cfg80211_chan_def chandef;
 
 	int free_vdev_map;
 	int monitor_vdev_id;
