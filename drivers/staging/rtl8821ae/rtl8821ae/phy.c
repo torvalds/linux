@@ -3088,40 +3088,6 @@ u8 rtl8821ae_phy_sw_chnl(struct ieee80211_hw *hw)
 	return 1;
 }
 
-static u8 _rtl8821ae_phy_path_a_iqk(struct ieee80211_hw *hw, bool config_pathb)
-{
-	u32 reg_eac, reg_e94, reg_e9c, reg_ea4;
-	u8 result = 0x00;
-
-	rtl_set_bbreg(hw, 0xe30, MASKDWORD, 0x10008c1c);
-	rtl_set_bbreg(hw, 0xe34, MASKDWORD, 0x30008c1c);
-	rtl_set_bbreg(hw, 0xe38, MASKDWORD, 0x8214032a);
-	rtl_set_bbreg(hw, 0xe3c, MASKDWORD, 0x28160000);
-
-	rtl_set_bbreg(hw, 0xe4c, MASKDWORD, 0x00462911);
-	rtl_set_bbreg(hw, 0xe48, MASKDWORD, 0xf9000000);
-	rtl_set_bbreg(hw, 0xe48, MASKDWORD, 0xf8000000);
-
-	mdelay(IQK_DELAY_TIME);
-
-	reg_eac = rtl_get_bbreg(hw, 0xeac, MASKDWORD);
-	reg_e94 = rtl_get_bbreg(hw, 0xe94, MASKDWORD);
-	reg_e9c = rtl_get_bbreg(hw, 0xe9c, MASKDWORD);
-	reg_ea4 = rtl_get_bbreg(hw, 0xea4, MASKDWORD);
-
-	if (!(reg_eac & BIT(28)) &&
-	    (((reg_e94 & 0x03FF0000) >> 16) != 0x142) &&
-	    (((reg_e9c & 0x03FF0000) >> 16) != 0x42))
-		result |= 0x01;
-	else
-		return result;
-/*
-	if (!(reg_eac & BIT(27)) &&
-	    (((reg_ea4 & 0x03FF0000) >> 16) != 0x132) &&
-	    (((reg_eac & 0x03FF0000) >> 16) != 0x36))
-		result |= 0x02;*/
-	return result;
-}
 #if 0
 static u8 _rtl8821ae_phy_path_b_iqk(struct ieee80211_hw *hw)
 {
@@ -3234,196 +3200,6 @@ static u8 _rtl8821ae_phy_path_a_rx_iqk(struct ieee80211_hw *hw, bool config_path
 	return result;
 }
 #endif
-static void _rtl8821ae_phy_path_a_fill_iqk_matrix(struct ieee80211_hw *hw,
-					       bool b_iqk_ok, long result[][8],
-					       u8 final_candidate, bool btxonly)
-{
-	u32 oldval_0, x, tx0_a, reg;
-	long y, tx0_c;
-
-	if (final_candidate == 0xFF) {
-		return;
-	} else if (b_iqk_ok) {
-		oldval_0 = (rtl_get_bbreg(hw, ROFDM0_XATXIQIMBALANCE,
-					  MASKDWORD) >> 22) & 0x3FF;
-		x = result[final_candidate][0];
-		if ((x & 0x00000200) != 0)
-			x = x | 0xFFFFFC00;
-		tx0_a = (x * oldval_0) >> 8;
-		rtl_set_bbreg(hw, ROFDM0_XATXIQIMBALANCE, 0x3FF, tx0_a);
-		rtl_set_bbreg(hw, ROFDM0_ECCATHRESHOLD, BIT(31),
-			      ((x * oldval_0 >> 7) & 0x1));
-		y = result[final_candidate][1];
-		if ((y & 0x00000200) != 0)
-			y = y | 0xFFFFFC00;
-		tx0_c = (y * oldval_0) >> 8;
-		rtl_set_bbreg(hw, ROFDM0_XCTXAFE, 0xF0000000,
-			      ((tx0_c & 0x3C0) >> 6));
-		rtl_set_bbreg(hw, ROFDM0_XATXIQIMBALANCE, 0x003F0000,
-			      (tx0_c & 0x3F));
-		rtl_set_bbreg(hw, ROFDM0_ECCATHRESHOLD, BIT(29),
-			      ((y * oldval_0 >> 7) & 0x1));
-		if (btxonly)
-			return;
-		reg = result[final_candidate][2];
-		rtl_set_bbreg(hw, ROFDM0_XARXIQIMBALANCE, 0x3FF, reg);
-		reg = result[final_candidate][3] & 0x3F;
-		rtl_set_bbreg(hw, ROFDM0_XARXIQIMBALANCE, 0xFC00, reg);
-		reg = (result[final_candidate][3] >> 6) & 0xF;
-		rtl_set_bbreg(hw, 0xca0, 0xF0000000, reg);
-	}
-}
-
-
-static void _rtl8821ae_phy_save_adda_registers(struct ieee80211_hw *hw,
-					    u32 *addareg, u32 *addabackup,
-					    u32 registernum)
-{
-	u32 i;
-
-	for (i = 0; i < registernum; i++)
-		addabackup[i] = rtl_get_bbreg(hw, addareg[i], MASKDWORD);
-}
-
-static void _rtl8821ae_phy_save_mac_registers(struct ieee80211_hw *hw,
-					   u32 *macreg, u32 *macbackup)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 i;
-
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
-		macbackup[i] = rtl_read_byte(rtlpriv, macreg[i]);
-	macbackup[i] = rtl_read_dword(rtlpriv, macreg[i]);
-}
-
-static void _rtl8821ae_phy_reload_adda_registers(struct ieee80211_hw *hw,
-					      u32 *addareg, u32 *addabackup,
-					      u32 regiesternum)
-{
-	u32 i;
-
-	for (i = 0; i < regiesternum; i++)
-		rtl_set_bbreg(hw, addareg[i], MASKDWORD, addabackup[i]);
-}
-
-static void _rtl8821ae_phy_reload_mac_registers(struct ieee80211_hw *hw,
-					     u32 *macreg, u32 *macbackup)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 i;
-
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
-		rtl_write_byte(rtlpriv, macreg[i], (u8) macbackup[i]);
-	rtl_write_dword(rtlpriv, macreg[i], macbackup[i]);
-}
-
-static void _rtl8821ae_phy_path_adda_on(struct ieee80211_hw *hw,
-				     u32 *addareg, bool is_patha_on, bool is2t)
-{
-	u32 pathOn;
-	u32 i;
-
-	pathOn = is_patha_on ? 0x04db25a4 : 0x0b1b25a4;
-	if (false == is2t) {
-		pathOn = 0x0bdb25a0;
-		rtl_set_bbreg(hw, addareg[0], MASKDWORD, 0x0b1b25a0);
-	} else {
-		rtl_set_bbreg(hw, addareg[0], MASKDWORD, pathOn);
-	}
-
-	for (i = 1; i < IQK_ADDA_REG_NUM; i++)
-		rtl_set_bbreg(hw, addareg[i], MASKDWORD, pathOn);
-}
-
-static void _rtl8821ae_phy_mac_setting_calibration(struct ieee80211_hw *hw,
-						u32 *macreg, u32 *macbackup)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 i = 0;
-
-	rtl_write_byte(rtlpriv, macreg[i], 0x3F);
-
-	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++)
-		rtl_write_byte(rtlpriv, macreg[i],
-			       (u8) (macbackup[i] & (~BIT(3))));
-	rtl_write_byte(rtlpriv, macreg[i], (u8) (macbackup[i] & (~BIT(5))));
-}
-
-static void _rtl8821ae_phy_path_a_standby(struct ieee80211_hw *hw)
-{
-	rtl_set_bbreg(hw, 0xe28, MASKDWORD, 0x0);
-	rtl_set_bbreg(hw, 0x840, MASKDWORD, 0x00010000);
-	rtl_set_bbreg(hw, 0xe28, MASKDWORD, 0x80800000);
-}
-
-static void _rtl8821ae_phy_pi_mode_switch(struct ieee80211_hw *hw, bool pi_mode)
-{
-	u32 mode;
-
-	mode = pi_mode ? 0x01000100 : 0x01000000;
-	rtl_set_bbreg(hw, 0x820, MASKDWORD, mode);
-	rtl_set_bbreg(hw, 0x828, MASKDWORD, mode);
-}
-
-static bool _rtl8821ae_phy_simularity_compare(struct ieee80211_hw *hw,
-					   long result[][8], u8 c1, u8 c2)
-{
-	u32 i, j, diff, simularity_bitmap, bound;
-	//struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-
-	u8 final_candidate[2] = { 0xFF, 0xFF };
-	bool bresult = true, is2t = true;//= IS_92C_SERIAL(rtlhal->version);
-
-	if (is2t)
-		bound = 8;
-	else
-		bound = 4;
-
-	simularity_bitmap = 0;
-
-	for (i = 0; i < bound; i++) {
-		diff = (result[c1][i] > result[c2][i]) ?
-		    (result[c1][i] - result[c2][i]) :
-		    (result[c2][i] - result[c1][i]);
-
-		if (diff > MAX_TOLERANCE) {
-			if ((i == 2 || i == 6) && !simularity_bitmap) {
-				if (result[c1][i] + result[c1][i + 1] == 0)
-					final_candidate[(i / 4)] = c2;
-				else if (result[c2][i] + result[c2][i + 1] == 0)
-					final_candidate[(i / 4)] = c1;
-				else
-					simularity_bitmap = simularity_bitmap |
-					    (1 << i);
-			} else
-				simularity_bitmap =
-				    simularity_bitmap | (1 << i);
-		}
-	}
-
-	if (simularity_bitmap == 0) {
-		for (i = 0; i < (bound / 4); i++) {
-			if (final_candidate[i] != 0xFF) {
-				for (j = i * 4; j < (i + 1) * 4 - 2; j++)
-					result[3][j] =
-					    result[final_candidate[i]][j];
-				bresult = false;
-			}
-		}
-		return bresult;
-	} else if (!(simularity_bitmap & 0x0F)) {
-		for (i = 0; i < 4; i++)
-			result[3][i] = result[c1][i];
-		return false;
-	} else if (!(simularity_bitmap & 0xF0) && is2t) {
-		for (i = 4; i < 8; i++)
-			result[3][i] = result[c1][i];
-		return false;
-	} else {
-		return false;
-	}
-
-}
 
 u8 _rtl8812ae_get_right_chnl_place_for_iqk(u8 chnl)
 {
@@ -3640,7 +3416,7 @@ void _rtl8812ae_iqk_tx(
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
-	u8 delay_count, cal = 0;
+	u8 delay_count;
 	u8 cal0_retry, cal1_retry;
 	u8 tx0_average = 0, tx1_average = 0, rx0_average = 0, rx1_average = 0;
     	int tx0_x = 0, tx0_y = 0, rx0_x = 0, rx0_y = 0;
@@ -3651,7 +3427,7 @@ void _rtl8812ae_iqk_tx(
 	bool iqk0_ready = false, tx0_finish = false, rx0_finish = false;
 	bool tx1iqkok = false, rx1iqkok = false, tx1_fail = true, rx1_fail;
 	bool iqk1_ready = false, tx1_finish = false, rx1_finish = false, vdf_enable = false;
-	int i, k, vdf_y[3], vdf_x[3], tx_dt[3], rx_dt[3], ii, dx = 0, dy = 0, dt = 0;
+	int i, tx_dt[3], rx_dt[3], ii, dx = 0, dy = 0;
 
 	RT_TRACE(COMP_IQK, DBG_LOUD,
 			("BandWidth = %d.\n",

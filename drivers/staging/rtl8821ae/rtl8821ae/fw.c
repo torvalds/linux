@@ -1289,13 +1289,8 @@ void rtl8812ae_c2h_ra_report_handler(
 	u8 cmd_len
 )
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-
 	u8 rate = cmd_buf[0] & 0x3F;
-	u8 mac_id = cmd_buf[1];
-	bool b_ldpc = cmd_buf[2] & BIT(0);
-	bool b_tx_bf = (cmd_buf[2] & BIT(1)) >> 1;
 
 	rtlhal->current_ra_rate= rtl8812ae_hw_rate_to_mrate(hw, rate);
 

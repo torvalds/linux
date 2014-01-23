@@ -538,7 +538,6 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 			   u8 *pdesc, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_dm *rtldm = rtl_dm(rtl_priv(hw));
 	struct rx_fwinfo_8821ae *p_drvinfo;
 	struct ieee80211_hdr *hdr;
 
