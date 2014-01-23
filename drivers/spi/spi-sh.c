@@ -358,9 +358,6 @@ static int spi_sh_setup(struct spi_device *spi)
 {
 	struct spi_sh_data *ss = spi_master_get_devdata(spi->master);
 
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	pr_debug("%s: enter\n", __func__);
 
 	spi_sh_write(ss, 0xfe, SPI_SH_CR1);	/* SPI sycle stop */
