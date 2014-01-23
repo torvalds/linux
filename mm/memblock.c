@@ -291,6 +291,22 @@ phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
 			  memblock.reserved.max);
 }
 
+#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+
+phys_addr_t __init_memblock get_allocated_memblock_memory_regions_info(
+					phys_addr_t *addr)
+{
+	if (memblock.memory.regions == memblock_memory_init_regions)
+		return 0;
+
+	*addr = __pa(memblock.memory.regions);
+
+	return PAGE_ALIGN(sizeof(struct memblock_region) *
+			  memblock.memory.max);
+}
+
+#endif
+
 /**
  * memblock_double_array - double the size of the memblock regions array
  * @type: memblock type of the regions array being doubled
