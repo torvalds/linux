@@ -74,14 +74,14 @@ nouveau_display_vblank_fini(struct drm_device *dev)
 	struct nouveau_display *disp = nouveau_display(dev);
 	int i;
 
+	drm_vblank_cleanup(dev);
+
 	if (disp->vblank) {
 		for (i = 0; i < dev->mode_config.num_crtc; i++)
 			nouveau_event_ref(NULL, &disp->vblank[i]);
 		kfree(disp->vblank);
 		disp->vblank = NULL;
 	}
-
-	drm_vblank_cleanup(dev);
 }
 
 static int
