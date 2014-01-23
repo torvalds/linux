@@ -550,7 +550,7 @@ static void stub_rx_pdu(struct usbip_device *ud)
 	int ret;
 	struct usbip_header pdu;
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
-	struct device *dev = &sdev->interface->dev;
+	struct device *dev = &sdev->udev->dev;
 
 	usbip_dbg_stub_rx("Enter\n");
 

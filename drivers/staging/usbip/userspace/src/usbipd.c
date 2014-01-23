@@ -159,9 +159,7 @@ static int send_reply_devlist(int connfd)
 {
 	struct usbip_exported_device *edev;
 	struct usbip_usb_device pdu_udev;
-	struct usbip_usb_interface pdu_uinf;
 	struct op_devlist_reply reply;
-	int i;
 	int rc;
 
 	reply.ndev = 0;
@@ -195,19 +193,6 @@ static int send_reply_devlist(int connfd)
 		if (rc < 0) {
 			dbg("usbip_net_send failed: pdu_udev");
 			return -1;
-		}
-
-		for (i = 0; i < edev->udev.bNumInterfaces; i++) {
-			dump_usb_interface(&edev->uinf[i]);
-			memcpy(&pdu_uinf, &edev->uinf[i], sizeof(pdu_uinf));
-			usbip_net_pack_usb_interface(1, &pdu_uinf);
-
-			rc = usbip_net_send(connfd, &pdu_uinf,
-					    sizeof(pdu_uinf));
-			if (rc < 0) {
-				dbg("usbip_net_send failed: pdu_uinf");
-				return -1;
-			}
 		}
 	}
 

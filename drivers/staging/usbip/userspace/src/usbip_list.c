@@ -52,9 +52,8 @@ static int get_exported_devices(char *host, int sockfd)
 	struct op_devlist_reply reply;
 	uint16_t code = OP_REP_DEVLIST;
 	struct usbip_usb_device udev;
-	struct usbip_usb_interface uintf;
 	unsigned int i;
-	int j, rc;
+	int rc;
 
 	rc = usbip_net_send_op_common(sockfd, OP_REQ_DEVLIST, 0);
 	if (rc < 0) {
@@ -104,22 +103,6 @@ static int get_exported_devices(char *host, int sockfd)
 		printf("%11s: %s\n", "", udev.path);
 		printf("%11s: %s\n", "", class_name);
 
-		for (j = 0; j < udev.bNumInterfaces; j++) {
-			rc = usbip_net_recv(sockfd, &uintf, sizeof(uintf));
-			if (rc < 0) {
-				dbg("usbip_net_recv failed: usbip_usb_intf[%d]",
-				    j);
-
-				return -1;
-			}
-			usbip_net_pack_usb_interface(0, &uintf);
-
-			usbip_names_get_class(class_name, sizeof(class_name),
-					      uintf.bInterfaceClass,
-					      uintf.bInterfaceSubClass,
-					      uintf.bInterfaceProtocol);
-			printf("%11s: %2d - %s\n", "", j, class_name);
-		}
 		printf("\n");
 	}
 

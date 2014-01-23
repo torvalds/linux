@@ -93,7 +93,7 @@ struct bus_id_priv {
 extern struct kmem_cache *stub_priv_cache;
 
 /* stub_dev.c */
-extern struct usb_driver stub_driver;
+extern struct usb_device_driver stub_driver;
 
 /* stub_main.c */
 struct bus_id_priv *get_busid_priv(const char *busid);

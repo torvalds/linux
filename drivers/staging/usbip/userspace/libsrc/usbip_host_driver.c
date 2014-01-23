@@ -32,7 +32,6 @@ struct usbip_host_driver *host_driver;
 
 #define SYSFS_OPEN_RETRIES 100
 
-/* only the first interface value is true! */
 static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 {
 	char attrpath[SYSFS_PATH_MAX];
@@ -56,8 +55,8 @@ static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 	 * usbip_status to reappear.
 	 */
 
-	snprintf(attrpath, SYSFS_PATH_MAX, "%s/%s:%d.%d/usbip_status",
-		 udev->path, udev->busid, udev->bConfigurationValue, 0);
+	snprintf(attrpath, SYSFS_PATH_MAX, "%s/usbip_status",
+		 udev->path);
 
 	while (retries > 0) {
 		if (stat(attrpath, &s) == 0)
@@ -168,19 +167,18 @@ static void delete_nothing(void *unused_data)
 
 static int refresh_exported_devices(void)
 {
-	/* sysfs_device of usb_interface */
-	struct sysfs_device	*suintf;
-	struct dlist		*suintf_list;
 	/* sysfs_device of usb_device */
 	struct sysfs_device	*sudev;
 	struct dlist		*sudev_list;
+	struct dlist		*sudev_unique_list;
 	struct usbip_exported_device *edev;
 
-	sudev_list = dlist_new_with_delete(sizeof(struct sysfs_device),
-					   delete_nothing);
+	sudev_unique_list = dlist_new_with_delete(sizeof(struct sysfs_device),
+						  delete_nothing);
 
-	suintf_list = sysfs_get_driver_devices(host_driver->sysfs_driver);
-	if (!suintf_list) {
+	sudev_list = sysfs_get_driver_devices(host_driver->sysfs_driver);
+
+	if (!sudev_list) {
 		/*
 		 * Not an error condition. There are simply no devices bound to
 		 * the driver yet.
@@ -190,23 +188,13 @@ static int refresh_exported_devices(void)
 		return 0;
 	}
 
-	/* collect unique USB devices (not interfaces) */
-	dlist_for_each_data(suintf_list, suintf, struct sysfs_device) {
-		/* get usb device of this usb interface */
-		sudev = sysfs_get_device_parent(suintf);
-		if (!sudev) {
-			dbg("sysfs_get_device_parent failed: %s", suintf->name);
-			continue;
-		}
+	dlist_for_each_data(sudev_list, sudev, struct sysfs_device)
+		if (check_new(sudev_unique_list, sudev))
+			dlist_unshift(sudev_unique_list, sudev);
 
-		if (check_new(sudev_list, sudev)) {
-			/* insert item at head of list */
-			dlist_unshift(sudev_list, sudev);
-		}
-	}
-
-	dlist_for_each_data(sudev_list, sudev, struct sysfs_device) {
+	dlist_for_each_data(sudev_unique_list, sudev, struct sysfs_device) {
 		edev = usbip_exported_device_new(sudev->path);
+
 		if (!edev) {
 			dbg("usbip_exported_device_new failed");
 			continue;
@@ -216,7 +204,7 @@ static int refresh_exported_devices(void)
 		host_driver->ndevs++;
 	}
 
-	dlist_destroy(sudev_list);
+	dlist_destroy(sudev_unique_list);
 
 	return 0;
 }
@@ -356,9 +344,8 @@ int usbip_host_export_device(struct usbip_exported_device *edev, int sockfd)
 	}
 
 	/* only the first interface is true */
-	snprintf(attr_path, sizeof(attr_path), "%s/%s:%d.%d/%s",
-		 edev->udev.path, edev->udev.busid,
-		 edev->udev.bConfigurationValue, 0, attr_name);
+	snprintf(attr_path, sizeof(attr_path), "%s/%s",
+		 edev->udev.path, attr_name);
 
 	attr = sysfs_open_attribute(attr_path);
 	if (!attr) {

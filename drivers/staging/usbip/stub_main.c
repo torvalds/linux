@@ -254,7 +254,7 @@ static int __init usbip_host_init(void)
 		return -ENOMEM;
 	}
 
-	ret = usb_register(&stub_driver);
+	ret = usb_register_device_driver(&stub_driver, THIS_MODULE);
 	if (ret) {
 		pr_err("usb_register failed %d\n", ret);
 		goto err_usb_register;
@@ -271,7 +271,7 @@ static int __init usbip_host_init(void)
 	return ret;
 
 err_create_file:
-	usb_deregister(&stub_driver);
+	usb_deregister_device_driver(&stub_driver);
 err_usb_register:
 	kmem_cache_destroy(stub_priv_cache);
 	return ret;
@@ -286,7 +286,7 @@ static void __exit usbip_host_exit(void)
 	 * deregister() calls stub_disconnect() for all devices. Device
 	 * specific data is cleared in stub_disconnect().
 	 */
-	usb_deregister(&stub_driver);
+	usb_deregister_device_driver(&stub_driver);
 
 	kmem_cache_destroy(stub_priv_cache);
 }

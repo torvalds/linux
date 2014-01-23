@@ -47,12 +47,10 @@ static int unbind_device(char *busid)
 	int verified = 0;
 	int rc, ret = -1;
 
-	char attr_name[] = "bConfigurationValue";
+	char attr_name[] = "unbind";
 	char sysfs_mntpath[SYSFS_PATH_MAX];
-	char busid_attr_path[SYSFS_PATH_MAX];
-	struct sysfs_attribute *busid_attr;
-	char *val = NULL;
-	int len;
+	char unbind_attr_path[SYSFS_PATH_MAX];
+	struct sysfs_attribute *unbind_attr;
 
 	/* verify the busid device is using usbip-host */
 	usbip_host_drv = sysfs_open_driver(bus_type, USBIP_HOST_DRV_NAME);
@@ -99,55 +97,34 @@ static int unbind_device(char *busid)
 		return -1;
 	}
 
-	snprintf(busid_attr_path, sizeof(busid_attr_path), "%s/%s/%s/%s/%s/%s",
-		 sysfs_mntpath, SYSFS_BUS_NAME, bus_type, SYSFS_DEVICES_NAME,
-		 busid, attr_name);
+	snprintf(unbind_attr_path, sizeof(unbind_attr_path), "%s/%s/%s/%s/%s/%s",
+		 sysfs_mntpath, SYSFS_BUS_NAME, bus_type, SYSFS_DRIVERS_NAME,
+		 USBIP_HOST_DRV_NAME, attr_name);
 
 	/* read a device attribute */
-	busid_attr = sysfs_open_attribute(busid_attr_path);
-	if (!busid_attr) {
+	unbind_attr = sysfs_open_attribute(unbind_attr_path);
+	if (!unbind_attr) {
 		err("could not open %s/%s: %s", busid, attr_name,
 		    strerror(errno));
 		return -1;
 	}
-
-	if (sysfs_read_attribute(busid_attr) < 0) {
-		err("problem reading attribute: %s", strerror(errno));
-		goto err_out;
-	}
-
-	len = busid_attr->len;
-	val = malloc(len);
-	*val = *busid_attr->value;
-	sysfs_close_attribute(busid_attr);
 
 	/* notify driver of unbind */
 	rc = modify_match_busid(busid, 0);
 	if (rc < 0) {
 		err("unable to unbind device on %s", busid);
-		goto err_out;
 	}
 
-	/* write the device attribute */
-	busid_attr = sysfs_open_attribute(busid_attr_path);
-	if (!busid_attr) {
-		err("could not open %s/%s: %s", busid, attr_name,
-		    strerror(errno));
-		return -1;
-	}
-
-	rc = sysfs_write_attribute(busid_attr, val, len);
-	if (rc < 0) {
-		err("problem writing attribute: %s", strerror(errno));
-		goto err_out;
-	}
-	sysfs_close_attribute(busid_attr);
+	rc = sysfs_write_attribute(unbind_attr, busid,
+				   SYSFS_BUS_ID_SIZE);
+		if (rc < 0) {
+			dbg("bind driver at %s failed", busid);
+		}
+	sysfs_close_attribute(unbind_attr);
 
 	ret = 0;
 	printf("unbind device on busid %s: complete\n", busid);
 
-err_out:
-	free(val);
 err_close_usbip_host_drv:
 	sysfs_close_driver(usbip_host_drv);
 

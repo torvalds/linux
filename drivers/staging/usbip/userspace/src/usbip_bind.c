@@ -52,12 +52,8 @@ static int bind_usbip(char *busid)
 	char attr_name[] = "bind";
 	char sysfs_mntpath[SYSFS_PATH_MAX];
 	char bind_attr_path[SYSFS_PATH_MAX];
-	char intf_busid[SYSFS_BUS_ID_SIZE];
-	struct sysfs_device *busid_dev;
 	struct sysfs_attribute *bind_attr;
-	struct sysfs_attribute *bConfValue;
-	struct sysfs_attribute *bNumIntfs;
-	int i, failed = 0;
+	int failed = 0;
 	int rc, ret = -1;
 
 	rc = sysfs_get_mnt_path(sysfs_mntpath, SYSFS_PATH_MAX);
@@ -76,39 +72,15 @@ static int bind_usbip(char *busid)
 		return -1;
 	}
 
-	busid_dev = sysfs_open_device(bus_type, busid);
-	if (!busid_dev) {
-		dbg("sysfs_open_device %s failed: %s", busid, strerror(errno));
-		goto err_close_bind_attr;
-	}
-
-	bConfValue = sysfs_get_device_attr(busid_dev, "bConfigurationValue");
-	bNumIntfs  = sysfs_get_device_attr(busid_dev, "bNumInterfaces");
-
-	if (!bConfValue || !bNumIntfs) {
-		dbg("problem getting device attributes: %s",
-		    strerror(errno));
-		goto err_close_busid_dev;
-	}
-
-	for (i = 0; i < atoi(bNumIntfs->value); i++) {
-		snprintf(intf_busid, SYSFS_BUS_ID_SIZE, "%s:%.1s.%d", busid,
-			 bConfValue->value, i);
-
-		rc = sysfs_write_attribute(bind_attr, intf_busid,
-					   SYSFS_BUS_ID_SIZE);
-		if (rc < 0) {
-			dbg("bind driver at %s failed", intf_busid);
-			failed = 1;
-		}
+	rc = sysfs_write_attribute(bind_attr, busid, SYSFS_BUS_ID_SIZE);
+	if (rc < 0) {
+		dbg("bind driver at %s failed", busid);
+		failed = 1;
 	}
 
 	if (!failed)
 		ret = 0;
 
-err_close_busid_dev:
-	sysfs_close_device(busid_dev);
-err_close_bind_attr:
 	sysfs_close_attribute(bind_attr);
 
 	return ret;
@@ -118,15 +90,12 @@ err_close_bind_attr:
 static int unbind_other(char *busid)
 {
 	char bus_type[] = "usb";
-	char intf_busid[SYSFS_BUS_ID_SIZE];
 	struct sysfs_device *busid_dev;
-	struct sysfs_device *intf_dev;
-	struct sysfs_driver *intf_drv;
+	struct sysfs_device *dev;
+	struct sysfs_driver *drv;
 	struct sysfs_attribute *unbind_attr;
-	struct sysfs_attribute *bConfValue;
 	struct sysfs_attribute *bDevClass;
-	struct sysfs_attribute *bNumIntfs;
-	int i, rc;
+	int rc;
 	enum unbind_status status = UNBIND_ST_OK;
 
 	busid_dev = sysfs_open_device(bus_type, busid);
@@ -134,12 +103,11 @@ static int unbind_other(char *busid)
 		dbg("sysfs_open_device %s failed: %s", busid, strerror(errno));
 		return -1;
 	}
+	dbg("busid path: %s", busid_dev->path);
 
-	bConfValue = sysfs_get_device_attr(busid_dev, "bConfigurationValue");
 	bDevClass  = sysfs_get_device_attr(busid_dev, "bDeviceClass");
-	bNumIntfs  = sysfs_get_device_attr(busid_dev, "bNumInterfaces");
-	if (!bConfValue || !bDevClass || !bNumIntfs) {
-		dbg("problem getting device attributes: %s",
+	if (!bDevClass) {
+		dbg("problem getting device attribute: %s",
 		    strerror(errno));
 		goto err_close_busid_dev;
 	}
@@ -149,62 +117,62 @@ static int unbind_other(char *busid)
 		goto err_close_busid_dev;
 	}
 
-	for (i = 0; i < atoi(bNumIntfs->value); i++) {
-		snprintf(intf_busid, SYSFS_BUS_ID_SIZE, "%s:%.1s.%d", busid,
-			 bConfValue->value, i);
-		intf_dev = sysfs_open_device(bus_type, intf_busid);
-		if (!intf_dev) {
-			dbg("could not open interface device: %s",
-			    strerror(errno));
-			goto err_close_busid_dev;
-		}
-
-		dbg("%s -> %s", intf_dev->name,  intf_dev->driver_name);
-
-		if (!strncmp("unknown", intf_dev->driver_name, SYSFS_NAME_LEN))
-			/* unbound interface */
-			continue;
-
-		if (!strncmp(USBIP_HOST_DRV_NAME, intf_dev->driver_name,
-			     SYSFS_NAME_LEN)) {
-			/* already bound to usbip-host */
-			status = UNBIND_ST_USBIP_HOST;
-			continue;
-		}
-
-		/* unbinding */
-		intf_drv = sysfs_open_driver(bus_type, intf_dev->driver_name);
-		if (!intf_drv) {
-			dbg("could not open interface driver on %s: %s",
-			    intf_dev->name, strerror(errno));
-			goto err_close_intf_dev;
-		}
-
-		unbind_attr = sysfs_get_driver_attr(intf_drv, "unbind");
-		if (!unbind_attr) {
-			dbg("problem getting interface driver attribute: %s",
-			    strerror(errno));
-			goto err_close_intf_drv;
-		}
-
-		rc = sysfs_write_attribute(unbind_attr, intf_dev->bus_id,
-					   SYSFS_BUS_ID_SIZE);
-		if (rc < 0) {
-			/* NOTE: why keep unbinding other interfaces? */
-			dbg("unbind driver at %s failed", intf_dev->bus_id);
-			status = UNBIND_ST_FAILED;
-		}
-
-		sysfs_close_driver(intf_drv);
-		sysfs_close_device(intf_dev);
+	dev = sysfs_open_device(bus_type, busid);
+	if (!dev) {
+		dbg("could not open device: %s",
+				strerror(errno));
+		goto err_close_busid_dev;
 	}
+
+	dbg("%s -> %s", dev->name,  dev->driver_name);
+
+	if (!strncmp("unknown", dev->driver_name, SYSFS_NAME_LEN)) {
+		/* unbound interface */
+		sysfs_close_device(dev);
+		goto out;
+	}
+
+	if (!strncmp(USBIP_HOST_DRV_NAME, dev->driver_name,
+				SYSFS_NAME_LEN)) {
+		/* already bound to usbip-host */
+		status = UNBIND_ST_USBIP_HOST;
+		sysfs_close_device(dev);
+		goto out;
+	}
+
+	/* unbinding */
+	drv = sysfs_open_driver(bus_type, dev->driver_name);
+	if (!drv) {
+		dbg("could not open device driver on %s: %s",
+				dev->name, strerror(errno));
+		goto err_close_intf_dev;
+	}
+	dbg("device driver: %s", drv->path);
+
+	unbind_attr = sysfs_get_driver_attr(drv, "unbind");
+	if (!unbind_attr) {
+		dbg("problem getting device driver attribute: %s",
+				strerror(errno));
+		goto err_close_intf_drv;
+	}
+
+	rc = sysfs_write_attribute(unbind_attr, dev->bus_id,
+			SYSFS_BUS_ID_SIZE);
+	if (rc < 0) {
+		/* NOTE: why keep unbinding other interfaces? */
+		dbg("unbind driver at %s failed", dev->bus_id);
+		status = UNBIND_ST_FAILED;
+	}
+
+	sysfs_close_driver(drv);
+	sysfs_close_device(dev);
 
 	goto out;
 
 err_close_intf_drv:
-	sysfs_close_driver(intf_drv);
+	sysfs_close_driver(drv);
 err_close_intf_dev:
-	sysfs_close_device(intf_dev);
+	sysfs_close_device(dev);
 err_close_busid_dev:
 	status = UNBIND_ST_FAILED;
 out:
