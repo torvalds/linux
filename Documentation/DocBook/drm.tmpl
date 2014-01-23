@@ -1060,7 +1060,7 @@ int max_width, max_height;</synopsis>
       <para>
 	The lifetime of a drm framebuffer is controlled with a reference count,
 	drivers can grab additional references with
-	<function>drm_framebuffer_reference</function> </para> and drop them
+	<function>drm_framebuffer_reference</function>and drop them
 	again with <function>drm_framebuffer_unreference</function>. For
 	driver-private framebuffers for which the last reference is never
 	dropped (e.g. for the fbdev framebuffer when the struct
@@ -1068,6 +1068,7 @@ int max_width, max_height;</synopsis>
 	helper struct) drivers can manually clean up a framebuffer at module
 	unload time with
 	<function>drm_framebuffer_unregister_private</function>.
+      </para>
     </sect2>
     <sect2>
       <title>Dumb Buffer Objects</title>
