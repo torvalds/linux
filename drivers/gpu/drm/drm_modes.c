@@ -38,6 +38,8 @@
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
+#include "drm_crtc_internal.h"
+
 /**
  * drm_mode_debug_printmodeline - print a mode to dmesg
  * @mode: mode to print
@@ -55,6 +57,66 @@ void drm_mode_debug_printmodeline(const struct drm_display_mode *mode)
 		mode->vsync_end, mode->vtotal, mode->type, mode->flags);
 }
 EXPORT_SYMBOL(drm_mode_debug_printmodeline);
+
+/**
+ * drm_mode_create - create a new display mode
+ * @dev: DRM device
+ *
+ * Create a new drm_display_mode, give it an ID, and return it.
+ *
+ * RETURNS:
+ * Pointer to new mode on success, NULL on error.
+ */
+struct drm_display_mode *drm_mode_create(struct drm_device *dev)
+{
+	struct drm_display_mode *nmode;
+
+	nmode = kzalloc(sizeof(struct drm_display_mode), GFP_KERNEL);
+	if (!nmode)
+		return NULL;
+
+	if (drm_mode_object_get(dev, &nmode->base, DRM_MODE_OBJECT_MODE)) {
+		kfree(nmode);
+		return NULL;
+	}
+
+	return nmode;
+}
+EXPORT_SYMBOL(drm_mode_create);
+
+/**
+ * drm_mode_destroy - remove a mode
+ * @dev: DRM device
+ * @mode: mode to remove
+ *
+ * Free @mode's unique identifier, then free it.
+ */
+void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
+{
+	if (!mode)
+		return;
+
+	drm_mode_object_put(dev, &mode->base);
+
+	kfree(mode);
+}
+EXPORT_SYMBOL(drm_mode_destroy);
+
+/**
+ * drm_mode_probed_add - add a mode to a connector's probed mode list
+ * @connector: connector the new mode
+ * @mode: mode data
+ *
+ * Add @mode to @connector's mode list for later use.
+ */
+void drm_mode_probed_add(struct drm_connector *connector,
+			 struct drm_display_mode *mode)
+{
+	WARN_ON(!mutex_is_locked(&connector->dev->mode_config.mutex));
+
+	list_add_tail(&mode->head, &connector->probed_modes);
+}
+EXPORT_SYMBOL(drm_mode_probed_add);
 
 /**
  * drm_cvt_mode -create a modeline based on CVT algorithm
