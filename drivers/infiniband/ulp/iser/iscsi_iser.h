@@ -138,6 +138,8 @@
 #define ISER_WSV			0x08
 #define ISER_RSV			0x04
 
+#define ISER_FRWR_LI_WRID		0xffffffffffffffffULL
+
 struct iser_hdr {
 	u8      flags;
 	u8      rsvd[3];

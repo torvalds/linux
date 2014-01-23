@@ -993,18 +993,16 @@ static int iser_drain_tx_cq(struct iser_device  *device, int cq_index)
 		if (wc.status == IB_WC_SUCCESS) {
 			if (wc.opcode == IB_WC_SEND)
 				iser_snd_completion(tx_desc, ib_conn);
-			else if (wc.opcode == IB_WC_LOCAL_INV ||
-				 wc.opcode == IB_WC_FAST_REG_MR) {
-				atomic_dec(&ib_conn->post_send_buf_count);
-				continue;
-			} else
+			else
 				iser_err("expected opcode %d got %d\n",
 					IB_WC_SEND, wc.opcode);
 		} else {
 			iser_err("tx id %llx status %d vend_err %x\n",
-				wc.wr_id, wc.status, wc.vendor_err);
-			atomic_dec(&ib_conn->post_send_buf_count);
-			iser_handle_comp_error(tx_desc, ib_conn);
+				 wc.wr_id, wc.status, wc.vendor_err);
+			if (wc.wr_id != ISER_FRWR_LI_WRID) {
+				atomic_dec(&ib_conn->post_send_buf_count);
+				iser_handle_comp_error(tx_desc, ib_conn);
+			}
 		}
 		completed_tx++;
 	}

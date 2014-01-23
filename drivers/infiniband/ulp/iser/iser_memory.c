@@ -457,8 +457,8 @@ static int iser_fast_reg_mr(struct fast_reg_descriptor *desc,
 
 	if (!desc->valid) {
 		memset(&inv_wr, 0, sizeof(inv_wr));
+		inv_wr.wr_id = ISER_FRWR_LI_WRID;
 		inv_wr.opcode = IB_WR_LOCAL_INV;
-		inv_wr.send_flags = IB_SEND_SIGNALED;
 		inv_wr.ex.invalidate_rkey = desc->data_mr->rkey;
 		wr = &inv_wr;
 		/* Bump the key */
@@ -468,8 +468,8 @@ static int iser_fast_reg_mr(struct fast_reg_descriptor *desc,
 
 	/* Prepare FASTREG WR */
 	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
+	fastreg_wr.wr_id = ISER_FRWR_LI_WRID;
 	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
-	fastreg_wr.send_flags = IB_SEND_SIGNALED;
 	fastreg_wr.wr.fast_reg.iova_start = desc->data_frpl->page_list[0] + offset;
 	fastreg_wr.wr.fast_reg.page_list = desc->data_frpl;
 	fastreg_wr.wr.fast_reg.page_list_len = page_list_len;
@@ -480,20 +480,13 @@ static int iser_fast_reg_mr(struct fast_reg_descriptor *desc,
 					       IB_ACCESS_REMOTE_WRITE |
 					       IB_ACCESS_REMOTE_READ);
 
-	if (!wr) {
+	if (!wr)
 		wr = &fastreg_wr;
-		atomic_inc(&ib_conn->post_send_buf_count);
-	} else {
+	else
 		wr->next = &fastreg_wr;
-		atomic_add(2, &ib_conn->post_send_buf_count);
-	}
 
 	ret = ib_post_send(ib_conn->qp, wr, &bad_wr);
 	if (ret) {
-		if (bad_wr->next)
-			atomic_sub(2, &ib_conn->post_send_buf_count);
-		else
-			atomic_dec(&ib_conn->post_send_buf_count);
 		iser_err("fast registration failed, ret:%d\n", ret);
 		return ret;
 	}
