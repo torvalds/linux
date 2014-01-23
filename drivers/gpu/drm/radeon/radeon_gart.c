@@ -726,6 +726,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 		if (fence == NULL) {
 			/* found a free one */
 			vm->id = i;
+			trace_radeon_vm_grab_id(vm->id, ring);
 			return NULL;
 		}
 
