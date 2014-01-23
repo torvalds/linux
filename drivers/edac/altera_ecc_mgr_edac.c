@@ -16,11 +16,6 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <asm/cacheflush.h>
-#include <asm/system.h>
-
-#include "edac_core.h"
-#include "edac_module.h"
 
 #include <linux/ctype.h>
 #include <linux/edac.h>
@@ -30,52 +25,27 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/slab.h>
 #include <linux/types.h>
-
-/* MPU L2 Register Defines */
-#define ALTR_MPUL2_CONTROL_OFFSET	0x100
-#define ALTR_MPUL2_CTL_CACHE_EN_MASK	0x00000001
-
-/* L2 ECC Management Group Defines */
-#define ALTR_MAN_GRP_L2_ECC_OFFSET	0x00
-#define ALTR_L2_ECC_EN_MASK		0x00000001
-#define ALTR_L2_ECC_INJS_MASK		0x00000002
-#define ALTR_L2_ECC_INJD_MASK		0x00000004
-
-/* OCRAM ECC Management Group Defines */
-#define ALTR_MAN_GRP_OCRAM_ECC_OFFSET	0x04
-#define ALTR_OCR_ECC_EN_MASK		0x00000001
-#define ALTR_OCR_ECC_SERR_MASK		0x00000008
-#define ALTR_OCR_ECC_DERR_MASK		0x00000010
-
-struct ecc_mgr_of_data {
-	int (*setup)(struct platform_device *pdev, void __iomem *base);
-	int ce_clear_mask;
-	int ue_clear_mask;
-};
-
-struct altr_ecc_mgr_dev {
-	void __iomem *base;
-	int sb_irq;
-	int db_irq;
-	const struct ecc_mgr_of_data *data;
-	char *edac_dev_name;
-};
+#include <asm/cacheflush.h>
+#include <asm/system.h>
+#include "altera_edac.h"
+#include "edac_core.h"
+#include "edac_module.h"
 
 static irqreturn_t altr_ecc_mgr_handler(int irq, void *dev_id)
 {
 	struct edac_device_ctl_info *dci = dev_id;
 	struct altr_ecc_mgr_dev *drvdata = dci->pvt_info;
+	const struct ecc_mgr_prv_data *priv = drvdata->data;
 
 	if (irq == drvdata->sb_irq) {
-		if (drvdata->data->ce_clear_mask)
-			writel(drvdata->data->ce_clear_mask, drvdata->base);
+		if (priv->ce_clear_mask)
+			writel(priv->ce_clear_mask, drvdata->base);
 		edac_device_handle_ce(dci, 0, 0, drvdata->edac_dev_name);
 	}
 	if (irq == drvdata->db_irq) {
-		if (drvdata->data->ue_clear_mask)
-			writel(drvdata->data->ue_clear_mask, drvdata->base);
+		if (priv->ue_clear_mask)
+			writel(priv->ue_clear_mask, drvdata->base);
 		edac_device_handle_ue(dci, 0, 0, drvdata->edac_dev_name);
 		panic("\nEDAC:ECC_MGR[Uncorrectable errors]\n");
 	}
@@ -83,30 +53,33 @@ static irqreturn_t altr_ecc_mgr_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#if defined(CONFIG_EDAC_DEBUG) && defined(CONFIG_EDAC_ALTERA_L2_ECC)
-static ssize_t altr_l2_ecc_trig(struct edac_device_ctl_info *edac_dci,
-				const char *buffer, size_t count)
+#ifdef CONFIG_EDAC_DEBUG
+ssize_t altr_ecc_mgr_trig(struct edac_device_ctl_info *edac_dci,
+			  const char *buffer, size_t count)
 {
 	u32 *ptemp, i, error_mask;
 	int result = 0;
 	unsigned long flags;
 	struct altr_ecc_mgr_dev *drvdata = edac_dci->pvt_info;
+	const struct ecc_mgr_prv_data *priv = drvdata->data;
+	void *generic_ptr = edac_dci->dev;
 
-	ptemp = kmalloc(5000, GFP_KERNEL);
+	if (!priv->init_mem)
+		return -ENOMEM;
+
+	/* Note that generic_ptr is initialized to the device * but in
+	 * some init_functions, this is overridden and returns data    */
+	ptemp = priv->init_mem(priv->trig_alloc_sz, &generic_ptr);
 	if (!ptemp) {
 		dev_err(edac_dci->dev,
-			"**EDAC L2 Inject: Buffer Allocation error\n");
+			"**EDAC Error Inject: Buffer Allocation error\n");
 		return -ENOMEM;
 	}
 
-	memset(ptemp, 0, 5000);
-	wmb();
-	flush_cache_all();
-
 	if (count == 3)
-		error_mask = ALTR_L2_ECC_EN_MASK | ALTR_L2_ECC_INJD_MASK;
+		error_mask = priv->ue_set_mask;
 	else
-		error_mask = ALTR_L2_ECC_EN_MASK | ALTR_L2_ECC_INJS_MASK;
+		error_mask = priv->ce_set_mask;
 
 	dev_alert(edac_dci->dev, "%s: Trigger Error Mask (0x%X)\n",
 			__func__, error_mask);
@@ -118,9 +91,9 @@ static ssize_t altr_l2_ecc_trig(struct edac_device_ctl_info *edac_dci,
 		if (ptemp[i])
 			result = -1;
 		rmb();
-		/* Toggle Error bit (it is latched) */
+		/* Toggle Error bit (it is latched), leave ECC enabled */
 		writel(error_mask, drvdata->base);
-		writel(ALTR_L2_ECC_EN_MASK, drvdata->base);
+		writel(priv->ecc_enable_mask, drvdata->base);
 		ptemp[i] = i;
 	}
 	wmb();
@@ -130,14 +103,14 @@ static ssize_t altr_l2_ecc_trig(struct edac_device_ctl_info *edac_dci,
 		dev_alert(edac_dci->dev, "%s: Mem Not Cleared (%d)\n",
 				__func__, result);
 
-	result = 0;
 	/* Read out written data. ECC error caused here */
 	for (i = 0; i < 16; i++)
 		if (ptemp[i] != i)
 			result = -1;
 	rmb();
 
-	kfree(ptemp);
+	if (priv->free_mem)
+		priv->free_mem(ptemp, generic_ptr);
 
 	if (result)
 		dev_alert(edac_dci->dev, "%s: Trigger Match Error (%d)\n",
@@ -146,75 +119,17 @@ static ssize_t altr_l2_ecc_trig(struct edac_device_ctl_info *edac_dci,
 	return count;
 }
 
-static struct edac_dev_sysfs_attribute altr_l2_sysfs_attributes[] = {
-	{
-		.attr = { .name = "altr_l2_trigger",
-			  .mode = (S_IRUGO | S_IWUSR) },
-		.show = NULL,
-		.store = altr_l2_ecc_trig
-	},
-	{
-		.attr = {.name = NULL }
-	}
-};
-
-static void altr_set_sysfs_attr(struct edac_device_ctl_info *edac_dci)
+static void altr_set_sysfs_attr(struct edac_device_ctl_info *edac_dci,
+				struct edac_dev_sysfs_attribute *ecc_attr)
 {
-	edac_dci->sysfs_attributes =  altr_l2_sysfs_attributes;
+	if (ecc_attr)
+		edac_dci->sysfs_attributes =  ecc_attr;
 }
 #else
-static void altr_set_sysfs_attr(struct edac_device_ctl_info *edac_dci)
+static void altr_set_sysfs_attr(struct edac_device_ctl_info *edac_dci,
+				struct edac_dev_sysfs_attribute *ecc_attr)
 {}
-#endif
-
-/*
- * altr_l2_dependencies()
- *	Test for L2 cache ECC dependencies upon entry because
- *	the preloader/UBoot should have initialized the L2
- *	memory and enabled the ECC.
- *	Can't turn on ECC here because accessing un-initialized
- *	memory will cause CE/UE errors possibly causing an ABORT.
- *	Bail if ECC is not on.
- *	Test For 1) L2 ECC is enabled and 2) L2 Cache is enabled.
- */
-static int altr_l2_dependencies(struct platform_device *pdev,
-				void __iomem *base)
-{
-	u32 control;
-	struct regmap *l2_vbase;
-
-	control = readl(base) & ALTR_L2_ECC_EN_MASK;
-	if (!control) {
-		dev_err(&pdev->dev, "L2: No ECC present, or ECC disabled\n");
-		return -ENODEV;
-	}
-
-	l2_vbase = syscon_regmap_lookup_by_compatible("arm,pl310-cache");
-	if (IS_ERR(l2_vbase)) {
-		dev_err(&pdev->dev,
-			"L2 ECC:regmap for arm,pl310-cache lookup failed.\n");
-		return -ENODEV;
-	}
-
-	regmap_read(l2_vbase, ALTR_MPUL2_CONTROL_OFFSET, &control);
-	if (!(control & ALTR_MPUL2_CTL_CACHE_EN_MASK)) {
-		dev_err(&pdev->dev, "L2: Cache disabled\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static const struct ecc_mgr_of_data l2ecc_data = {
-	.setup = altr_l2_dependencies,
-	.ce_clear_mask = 0,
-	.ue_clear_mask = 0,
-};
-
-static const struct ecc_mgr_of_data ocramecc_data = {
-	.ce_clear_mask = (ALTR_OCR_ECC_EN_MASK | ALTR_OCR_ECC_SERR_MASK),
-	.ue_clear_mask = (ALTR_OCR_ECC_EN_MASK | ALTR_OCR_ECC_DERR_MASK),
-};
+#endif	/* #ifdef CONFIG_EDAC_DEBUG */
 
 static const struct of_device_id altr_ecc_mgr_of_match[] = {
 #ifdef CONFIG_EDAC_ALTERA_L2_ECC
@@ -238,6 +153,7 @@ static int altr_ecc_mgr_probe(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *dci;
 	struct altr_ecc_mgr_dev *drvdata;
+	const struct ecc_mgr_prv_data *priv;
 	struct resource *r;
 	int res = 0;
 	struct device_node *np = pdev->dev.of_node;
@@ -282,9 +198,9 @@ static int altr_ecc_mgr_probe(struct platform_device *pdev)
 	}
 
 	/* Check specific dependencies for the module */
-	drvdata->data = of_match_node(altr_ecc_mgr_of_match, np)->data;
-	if (drvdata->data->setup) {
-		res = drvdata->data->setup(pdev, drvdata->base);
+	priv = drvdata->data = of_match_node(altr_ecc_mgr_of_match, np)->data;
+	if (priv->setup) {
+		res = priv->setup(pdev, drvdata->base);
 		if (res < 0)
 			goto err;
 	}
@@ -306,7 +222,7 @@ static int altr_ecc_mgr_probe(struct platform_device *pdev)
 	dci->mod_name = "ECC_MGR";
 	dci->dev_name = drvdata->edac_dev_name;
 
-	altr_set_sysfs_attr(dci);
+	altr_set_sysfs_attr(dci, priv->eccmgr_sysfs_attr);
 
 	if (edac_device_add_device(dci))
 		goto err;
