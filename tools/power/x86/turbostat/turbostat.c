@@ -45,7 +45,7 @@ unsigned int verbose;		/* set with -v */
 unsigned int rapl_verbose;	/* set with -R */
 unsigned int rapl_joules;	/* set with -J */
 unsigned int thermal_verbose;	/* set with -T */
-unsigned int summary_only;	/* set with -s */
+unsigned int summary_only;	/* set with -S */
 unsigned int skip_c0;
 unsigned int skip_c1;
 unsigned int do_nhm_cstates;
@@ -2088,7 +2088,7 @@ void check_cpuid()
 
 void usage()
 {
-	errx(1, "%s: [-v][-R][-T][-p|-P|-S][-c MSR# | -s]][-C MSR#][-m MSR#][-M MSR#][-i interval_sec | command ...]\n",
+	errx(1, "%s: [-v][-R][-T][-p|-P|-S][-c MSR#][-C MSR#][-m MSR#][-M MSR#][-i interval_sec | command ...]\n",
 	     progname);
 }
 
@@ -2377,7 +2377,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+pPSvi:sc:sC:m:M:RJT:")) != -1) {
+	while ((opt = getopt(argc, argv, "+pPSvi:c:C:m:M:RJT:")) != -1) {
 		switch (opt) {
 		case 'p':
 			show_core_only++;
