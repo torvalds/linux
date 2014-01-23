@@ -49,6 +49,10 @@ extern bool i915_gpu_turbo_disable(void);
 #define    SNB_GMCH_GGMS_MASK	0x3
 #define    SNB_GMCH_GMS_SHIFT   3 /* Graphics Mode Select */
 #define    SNB_GMCH_GMS_MASK    0x1f
+#define    BDW_GMCH_GGMS_SHIFT	6
+#define    BDW_GMCH_GGMS_MASK	0x3
+#define    BDW_GMCH_GMS_SHIFT   8
+#define    BDW_GMCH_GMS_MASK    0xff
 
 #define I830_GMCH_CTRL			0x52
 

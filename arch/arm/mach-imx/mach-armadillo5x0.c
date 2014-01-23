@@ -404,8 +404,7 @@ static int armadillo5x0_sdhc1_init(struct device *dev,
 
 	/* When supported the trigger type have to be BOTH */
 	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_ATA_DMACK)),
-			  detect_irq,
-			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
+			  detect_irq, IRQF_TRIGGER_FALLING,
 			  "sdhc-detect", data);
 
 	if (ret)

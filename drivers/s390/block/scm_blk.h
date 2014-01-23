@@ -107,7 +107,7 @@ extern debug_info_t *scm_debug;
 
 static inline void SCM_LOG_HEX(int level, void *data, int length)
 {
-	if (level > scm_debug->level)
+	if (!debug_level_enabled(scm_debug, level))
 		return;
 	while (length > 0) {
 		debug_event(scm_debug, level, data, length);

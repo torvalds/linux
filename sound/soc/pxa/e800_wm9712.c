@@ -150,6 +150,7 @@ static struct platform_driver e800_driver = {
 	.driver		= {
 		.name	= "e800-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= e800_probe,
 	.remove		= e800_remove,

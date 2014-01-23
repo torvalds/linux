@@ -295,13 +295,15 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 		return -ENOMEM;
 	}
 
-	blk_size = card->config.data.block_size;
+	if (card->config_valid) {
+		blk_size = card->config.data.block_size;
+		blk_queue_dma_alignment(card->queue, blk_size - 1);
+		blk_queue_logical_block_size(card->queue, blk_size);
+	}
 
 	blk_queue_make_request(card->queue, rsxx_make_request);
 	blk_queue_bounce_limit(card->queue, BLK_BOUNCE_ANY);
-	blk_queue_dma_alignment(card->queue, blk_size - 1);
 	blk_queue_max_hw_sectors(card->queue, blkdev_max_hw_sectors);
-	blk_queue_logical_block_size(card->queue, blk_size);
 	blk_queue_physical_block_size(card->queue, RSXX_HW_BLK_SIZE);
 
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, card->queue);

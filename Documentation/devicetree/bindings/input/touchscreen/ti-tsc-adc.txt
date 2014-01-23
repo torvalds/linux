@@ -6,7 +6,7 @@ Required properties:
 	ti,wires: Wires refer to application modes i.e. 4/5/8 wire touchscreen
 		  support on the platform.
 	ti,x-plate-resistance: X plate resistance
-	ti,coordiante-readouts: The sequencer supports a total of 16
+	ti,coordinate-readouts: The sequencer supports a total of 16
 				programmable steps each step is used to
 				read a single coordinate. A single
                                 readout is enough but multiple reads can

@@ -308,6 +308,17 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 	return ll_new_hw_segment(q, req, bio);
 }
 
+/*
+ * blk-mq uses req->special to carry normal driver per-request payload, it
+ * does not indicate a prepared command that we cannot merge with.
+ */
+static bool req_no_special_merge(struct request *req)
+{
+	struct request_queue *q = req->q;
+
+	return !q->mq_ops && req->special;
+}
+
 static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 				struct request *next)
 {
@@ -319,7 +330,7 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	 * First check if the either of the requests are re-queued
 	 * requests.  Can't merge them if they are.
 	 */
-	if (req->special || next->special)
+	if (req_no_special_merge(req) || req_no_special_merge(next))
 		return 0;
 
 	/*
@@ -416,7 +427,7 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 
 	if (rq_data_dir(req) != rq_data_dir(next)
 	    || req->rq_disk != next->rq_disk
-	    || next->special)
+	    || req_no_special_merge(next))
 		return 0;
 
 	if (req->cmd_flags & REQ_WRITE_SAME &&
@@ -515,7 +526,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	/* must be same device and not a special request */
-	if (rq->rq_disk != bio->bi_bdev->bd_disk || rq->special)
+	if (rq->rq_disk != bio->bi_bdev->bd_disk || req_no_special_merge(rq))
 		return false;
 
 	/* only merge integrity protected bio into ditto rq */

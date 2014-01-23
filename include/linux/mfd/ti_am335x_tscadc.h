@@ -46,16 +46,24 @@
 /* Step Enable */
 #define STEPENB_MASK		(0x1FFFF << 0)
 #define STEPENB(val)		((val) << 0)
+#define ENB(val)			(1 << (val))
+#define STPENB_STEPENB		STEPENB(0x1FFFF)
+#define STPENB_STEPENB_TC	STEPENB(0x1FFF)
 
 /* IRQ enable */
 #define IRQENB_HW_PEN		BIT(0)
 #define IRQENB_FIFO0THRES	BIT(2)
+#define IRQENB_FIFO0OVRRUN	BIT(3)
+#define IRQENB_FIFO0UNDRFLW	BIT(4)
 #define IRQENB_FIFO1THRES	BIT(5)
+#define IRQENB_FIFO1OVRRUN	BIT(6)
+#define IRQENB_FIFO1UNDRFLW	BIT(7)
 #define IRQENB_PENUP		BIT(9)
 
 /* Step Configuration */
 #define STEPCONFIG_MODE_MASK	(3 << 0)
 #define STEPCONFIG_MODE(val)	((val) << 0)
+#define STEPCONFIG_MODE_SWCNT	STEPCONFIG_MODE(1)
 #define STEPCONFIG_MODE_HWSYNC	STEPCONFIG_MODE(2)
 #define STEPCONFIG_AVG_MASK	(7 << 2)
 #define STEPCONFIG_AVG(val)	((val) << 2)
@@ -123,15 +131,21 @@
 #define ADC_CLK			3000000
 #define TOTAL_STEPS		16
 #define TOTAL_CHANNELS		8
+#define FIFO1_THRESHOLD		19
 
 /*
-* ADC runs at 3MHz, and it takes
-* 15 cycles to latch one data output.
-* Hence the idle time for ADC to
-* process one sample data would be
-* around 5 micro seconds.
-*/
-#define IDLE_TIMEOUT 5 /* microsec */
+ * time in us for processing a single channel, calculated as follows:
+ *
+ * num cycles = open delay + (sample delay + conv time) * averaging
+ *
+ * num cycles: 152 + (1 + 13) * 16 = 376
+ *
+ * clock frequency: 26MHz / 8 = 3.25MHz
+ * clock period: 1 / 3.25MHz = 308ns
+ *
+ * processing time: 376 * 308ns = 116us
+ */
+#define IDLE_TIMEOUT 116 /* microsec */
 
 #define TSCADC_CELLS		2
 
@@ -146,6 +160,7 @@ struct ti_tscadc_dev {
 	struct mfd_cell cells[TSCADC_CELLS];
 	u32 reg_se_cache;
 	spinlock_t reg_lock;
+	unsigned int clk_div;
 
 	/* tsc device */
 	struct titsc *tsc;

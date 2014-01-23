@@ -2478,7 +2478,6 @@ out_release_regions:
 	pci_release_regions(pdev);
 out_disable_dev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return NULL;
 }
 

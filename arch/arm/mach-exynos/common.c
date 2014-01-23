@@ -26,10 +26,9 @@
 #include <linux/export.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
-#include <linux/clocksource.h>
-#include <linux/clk-provider.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/platform_device.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>
@@ -294,6 +293,16 @@ void exynos5_restart(enum reboot_mode mode, const char *cmd)
 	__raw_writel(val, addr);
 }
 
+static struct platform_device exynos_cpuidle = {
+	.name		= "exynos_cpuidle",
+	.id		= -1,
+};
+
+void __init exynos_cpuidle_init(void)
+{
+	platform_device_register(&exynos_cpuidle);
+}
+
 void __init exynos_init_late(void)
 {
 	if (of_machine_is_compatible("samsung,exynos5440"))
@@ -365,12 +374,6 @@ static void __init exynos5_map_io(void)
 
 	if (soc_is_exynos5250())
 		iotable_init(exynos5250_iodesc, ARRAY_SIZE(exynos5250_iodesc));
-}
-
-void __init exynos_init_time(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
 }
 
 struct bus_type exynos_subsys = {

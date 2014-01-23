@@ -2080,7 +2080,8 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* Return subqueue id on this core (one per core). */
-static u16 tile_net_select_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 tile_net_select_queue(struct net_device *dev, struct sk_buff *skb,
+				 void *accel_priv)
 {
 	return smp_processor_id();
 }
@@ -2230,7 +2231,7 @@ static void tile_net_dev_init(const char *name, const uint8_t *mac)
 		nz_addr |= mac[i];
 
 	if (nz_addr) {
-		memcpy(dev->dev_addr, mac, 6);
+		memcpy(dev->dev_addr, mac, ETH_ALEN);
 		dev->addr_len = 6;
 	} else {
 		eth_hw_addr_random(dev);

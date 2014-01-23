@@ -86,9 +86,6 @@ struct comedi32_insnlist_struct {
 static int translated_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	if (!file->f_op)
-		return -ENOTTY;
-
 	if (file->f_op->unlocked_ioctl)
 		return file->f_op->unlocked_ioctl(file, cmd, arg);
 

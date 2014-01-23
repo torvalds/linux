@@ -66,9 +66,8 @@ static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 	pr_debug("CORE_HBA[%d] - TCM FILEIO HBA Driver %s on Generic"
 		" Target Core Stack %s\n", hba->hba_id, FD_VERSION,
 		TARGET_CORE_MOD_VERSION);
-	pr_debug("CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic"
-		" MaxSectors: %u\n",
-		hba->hba_id, fd_host->fd_host_id, FD_MAX_SECTORS);
+	pr_debug("CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic\n",
+		hba->hba_id, fd_host->fd_host_id);
 
 	return 0;
 }
@@ -220,7 +219,8 @@ static int fd_configure_device(struct se_device *dev)
 	}
 
 	dev->dev_attrib.hw_block_size = fd_dev->fd_block_size;
-	dev->dev_attrib.hw_max_sectors = FD_MAX_SECTORS;
+	dev->dev_attrib.max_bytes_per_io = FD_MAX_BYTES;
+	dev->dev_attrib.hw_max_sectors = FD_MAX_BYTES / fd_dev->fd_block_size;
 	dev->dev_attrib.hw_queue_depth = FD_MAX_DEVICE_QUEUE_DEPTH;
 
 	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
@@ -562,7 +562,7 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	} else {
 		ret = fd_do_rw(cmd, sgl, sgl_nents, 1);
 		/*
-		 * Perform implict vfs_fsync_range() for fd_do_writev() ops
+		 * Perform implicit vfs_fsync_range() for fd_do_writev() ops
 		 * for SCSI WRITEs with Forced Unit Access (FUA) set.
 		 * Allow this to happen independent of WCE=0 setting.
 		 */

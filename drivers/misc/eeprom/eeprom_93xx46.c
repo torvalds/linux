@@ -202,7 +202,7 @@ eeprom_93xx46_bin_write(struct file *filp, struct kobject *kobj,
 	edev = dev_get_drvdata(dev);
 
 	if (unlikely(off >= edev->bin.size))
-		return 0;
+		return -EFBIG;
 	if ((off + count) > edev->bin.size)
 		count = edev->bin.size - off;
 	if (unlikely(!count))

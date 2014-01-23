@@ -33,27 +33,42 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 {
 	struct hid_sensor_common *st = iio_trigger_get_drvdata(trig);
 	int state_val;
+	int report_val;
 
-	state_val = state ? 1 : 0;
-	if (IS_ENABLED(CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS))
-		++state_val;
+	if (state) {
+		if (sensor_hub_device_open(st->hsdev))
+			return -EIO;
+		state_val =
+		HID_USAGE_SENSOR_PROP_POWER_STATE_D0_FULL_POWER_ENUM;
+		report_val =
+		HID_USAGE_SENSOR_PROP_REPORTING_STATE_ALL_EVENTS_ENUM;
+
+	} else {
+		sensor_hub_device_close(st->hsdev);
+		state_val =
+		HID_USAGE_SENSOR_PROP_POWER_STATE_D4_POWER_OFF_ENUM;
+		report_val =
+		HID_USAGE_SENSOR_PROP_REPORTING_STATE_NO_EVENTS_ENUM;
+	}
+
 	st->data_ready = state;
+	state_val += st->power_state.logical_minimum;
+	report_val += st->report_state.logical_minimum;
 	sensor_hub_set_feature(st->hsdev, st->power_state.report_id,
 					st->power_state.index,
 					(s32)state_val);
 
 	sensor_hub_set_feature(st->hsdev, st->report_state.report_id,
 					st->report_state.index,
-					(s32)state_val);
+					(s32)report_val);
 
 	return 0;
 }
 
-void hid_sensor_remove_trigger(struct iio_dev *indio_dev)
+void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 {
-	iio_trigger_unregister(indio_dev->trig);
-	iio_trigger_free(indio_dev->trig);
-	indio_dev->trig = NULL;
+	iio_trigger_unregister(attrb->trigger);
+	iio_trigger_free(attrb->trigger);
 }
 EXPORT_SYMBOL(hid_sensor_remove_trigger);
 
@@ -84,7 +99,7 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 		dev_err(&indio_dev->dev, "Trigger Register Failed\n");
 		goto error_free_trig;
 	}
-	indio_dev->trig = trig;
+	indio_dev->trig = attrb->trigger = trig;
 
 	return ret;
 

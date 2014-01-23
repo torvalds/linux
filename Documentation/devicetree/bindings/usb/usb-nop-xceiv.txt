@@ -15,7 +15,7 @@ Optional properties:
 
 - vcc-supply: phandle to the regulator that provides RESET to the PHY.
 
-- reset-supply: phandle to the regulator that provides power to the PHY.
+- reset-gpios: Should specify the GPIO for reset.
 
 Example:
 
@@ -25,10 +25,9 @@ Example:
 		clocks = <&osc 0>;
 		clock-names = "main_clk";
 		vcc-supply = <&hsusb1_vcc_regulator>;
-		reset-supply = <&hsusb1_reset_regulator>;
+		reset-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 	};
 
 hsusb1_phy is a NOP USB PHY device that gets its clock from an oscillator
 and expects that clock to be configured to 19.2MHz by the NOP PHY driver.
-hsusb1_vcc_regulator provides power to the PHY and hsusb1_reset_regulator
-controls RESET.
+hsusb1_vcc_regulator provides power to the PHY and GPIO 7 controls RESET.

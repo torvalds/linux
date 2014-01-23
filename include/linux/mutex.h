@@ -131,7 +131,7 @@ static inline int mutex_is_locked(struct mutex *lock)
 }
 
 /*
- * See kernel/mutex.c for detailed documentation of these APIs.
+ * See kernel/locking/mutex.c for detailed documentation of these APIs.
  * Also see Documentation/mutex-design.txt.
  */
 #ifdef CONFIG_DEBUG_LOCK_ALLOC

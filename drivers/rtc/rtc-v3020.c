@@ -303,7 +303,7 @@ static const struct rtc_class_ops v3020_rtc_ops = {
 
 static int rtc_probe(struct platform_device *pdev)
 {
-	struct v3020_platform_data *pdata = pdev->dev.platform_data;
+	struct v3020_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct v3020 *chip;
 	int retval = -EBUSY;
 	int i;

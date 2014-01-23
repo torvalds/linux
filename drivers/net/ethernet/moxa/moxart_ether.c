@@ -26,7 +26,6 @@
 #include <linux/of_irq.h>
 #include <linux/crc32.h>
 #include <linux/crc32c.h>
-#include <linux/dma-mapping.h>
 
 #include "moxart_ether.h"
 

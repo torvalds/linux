@@ -53,7 +53,7 @@ static ssize_t address_read_file(struct pci_slot *slot, char *buf)
 static const char *pci_bus_speed_strings[] = {
 	"33 MHz PCI",		/* 0x00 */
 	"66 MHz PCI",		/* 0x01 */
-	"66 MHz PCI-X", 	/* 0x02 */
+	"66 MHz PCI-X",		/* 0x02 */
 	"100 MHz PCI-X",	/* 0x03 */
 	"133 MHz PCI-X",	/* 0x04 */
 	NULL,			/* 0x05 */

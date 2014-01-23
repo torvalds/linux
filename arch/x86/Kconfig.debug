@@ -59,6 +59,16 @@ config EARLY_PRINTK_DBGP
 	  with klogd/syslogd or the X server. You should normally N here,
 	  unless you want to debug such a crash. You need usb debug device.
 
+config EARLY_PRINTK_EFI
+	bool "Early printk via the EFI framebuffer"
+	depends on EFI && EARLY_PRINTK
+	select FONT_SUPPORT
+	---help---
+	  Write kernel log output directly into the EFI framebuffer.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized.
+
 config X86_PTDUMP
 	bool "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL

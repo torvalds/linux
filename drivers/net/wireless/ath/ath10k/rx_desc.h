@@ -422,10 +422,30 @@ struct rx_mpdu_end {
 #define RX_MSDU_START_INFO1_IP_FRAG             (1 << 14)
 #define RX_MSDU_START_INFO1_TCP_ONLY_ACK        (1 << 15)
 
+/* The decapped header (rx_hdr_status) contains the following:
+ *  a) 802.11 header
+ *  [padding to 4 bytes]
+ *  b) HW crypto parameter
+ *     - 0 bytes for no security
+ *     - 4 bytes for WEP
+ *     - 8 bytes for TKIP, AES
+ *  [padding to 4 bytes]
+ *  c) A-MSDU subframe header (14 bytes) if appliable
+ *  d) LLC/SNAP (RFC1042, 8 bytes)
+ *
+ * In case of A-MSDU only first frame in sequence contains (a) and (b). */
 enum rx_msdu_decap_format {
-	RX_MSDU_DECAP_RAW           = 0,
-	RX_MSDU_DECAP_NATIVE_WIFI   = 1,
+	RX_MSDU_DECAP_RAW = 0,
+
+	/* Note: QoS frames are reported as non-QoS. The rx_hdr_status in
+	 * htt_rx_desc contains the original decapped 802.11 header. */
+	RX_MSDU_DECAP_NATIVE_WIFI = 1,
+
+	/* Payload contains an ethernet header (struct ethhdr). */
 	RX_MSDU_DECAP_ETHERNET2_DIX = 2,
+
+	/* Payload contains two 48-bit addresses and 2-byte length (14 bytes
+	 * total), followed by an RFC1042 header (8 bytes). */
 	RX_MSDU_DECAP_8023_SNAP_LLC = 3
 };
 

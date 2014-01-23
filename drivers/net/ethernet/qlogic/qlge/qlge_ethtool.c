@@ -181,6 +181,7 @@ static const char ql_gstrings_test[][ETH_GSTRING_LEN] = {
 };
 #define QLGE_TEST_LEN (sizeof(ql_gstrings_test) / ETH_GSTRING_LEN)
 #define QLGE_STATS_LEN ARRAY_SIZE(ql_gstrings_stats)
+#define QLGE_RCV_MAC_ERR_STATS	7
 
 static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 {
@@ -279,6 +280,9 @@ static void ql_update_stats(struct ql_adapter *qdev)
 			*iter = data;
 		iter++;
 	}
+
+	/* Update receive mac error statistics */
+	iter += QLGE_RCV_MAC_ERR_STATS;
 
 	/*
 	 * Get Per-priority TX pause frame counter statistics.

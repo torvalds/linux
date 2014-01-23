@@ -1708,7 +1708,7 @@ static void setautogain(struct gspca_dev *gspca_dev, s32 val)
 
 	reg_r(gspca_dev, 0x1004, 1);
 	if (gspca_dev->usb_buf[0] & 0x04) {	/* if AE_FULL_FRM */
-		sd->ae_res = gspca_dev->width * gspca_dev->height;
+		sd->ae_res = gspca_dev->pixfmt.width * gspca_dev->pixfmt.height;
 	} else {				/* get the AE window size */
 		reg_r(gspca_dev, 0x1011, 8);
 		w = (gspca_dev->usb_buf[1] << 8) + gspca_dev->usb_buf[0]
@@ -1717,7 +1717,8 @@ static void setautogain(struct gspca_dev *gspca_dev, s32 val)
 		  - (gspca_dev->usb_buf[7] << 8) - gspca_dev->usb_buf[6];
 		sd->ae_res = h * w;
 		if (sd->ae_res == 0)
-			sd->ae_res = gspca_dev->width * gspca_dev->height;
+			sd->ae_res = gspca_dev->pixfmt.width *
+					gspca_dev->pixfmt.height;
 	}
 }
 
@@ -1856,21 +1857,21 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, cmd);
 	switch (sd->webcam) {
 	case P35u:
-		if (gspca_dev->width == 320)
+		if (gspca_dev->pixfmt.width == 320)
 			reg_w_buf(gspca_dev, nw801_start_qvga);
 		else
 			reg_w_buf(gspca_dev, nw801_start_vga);
 		reg_w_buf(gspca_dev, nw801_start_2);
 		break;
 	case Kr651us:
-		if (gspca_dev->width == 320)
+		if (gspca_dev->pixfmt.width == 320)
 			reg_w_buf(gspca_dev, kr651_start_qvga);
 		else
 			reg_w_buf(gspca_dev, kr651_start_vga);
 		reg_w_buf(gspca_dev, kr651_start_2);
 		break;
 	case Proscope:
-		if (gspca_dev->width == 320)
+		if (gspca_dev->pixfmt.width == 320)
 			reg_w_buf(gspca_dev, proscope_start_qvga);
 		else
 			reg_w_buf(gspca_dev, proscope_start_vga);

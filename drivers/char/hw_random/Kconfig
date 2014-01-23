@@ -165,6 +165,19 @@ config HW_RANDOM_OMAP
 
  	  If unsure, say Y.
 
+config HW_RANDOM_OMAP3_ROM
+	tristate "OMAP3 ROM Random Number Generator support"
+	depends on HW_RANDOM && ARCH_OMAP3
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on OMAP34xx processors.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omap3-rom-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_OCTEON
 	tristate "Octeon Random Number Generator support"
 	depends on HW_RANDOM && CAVIUM_OCTEON_SOC
@@ -290,6 +303,19 @@ config HW_RANDOM_PSERIES
 
 	  If unsure, say Y.
 
+config HW_RANDOM_POWERNV
+	tristate "PowerNV Random Number Generator support"
+	depends on HW_RANDOM && PPC_POWERNV
+	default HW_RANDOM
+	---help---
+	  This is the driver for Random Number Generator hardware found
+	  in POWER7+ and above machines for PowerNV platform.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called powernv-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_EXYNOS
 	tristate "EXYNOS HW random number generator support"
 	depends on HW_RANDOM && HAS_IOMEM && HAVE_CLK
@@ -312,5 +338,17 @@ config HW_RANDOM_TPM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tpm-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_MSM
+	tristate "Qualcomm MSM Random Number Generator support"
+	depends on HW_RANDOM && ARCH_MSM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Qualcomm MSM SoCs.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called msm-rng.
 
 	  If unsure, say Y.

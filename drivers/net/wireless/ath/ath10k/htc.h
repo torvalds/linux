@@ -276,6 +276,7 @@ struct ath10k_htc_ops {
 struct ath10k_htc_ep_ops {
 	void (*ep_tx_complete)(struct ath10k *, struct sk_buff *);
 	void (*ep_rx_complete)(struct ath10k *, struct sk_buff *);
+	void (*ep_tx_credits)(struct ath10k *);
 };
 
 /* service connection information */
@@ -315,15 +316,11 @@ struct ath10k_htc_ep {
 	int ul_is_polled; /* call HIF to get tx completions */
 	int dl_is_polled; /* call HIF to fetch rx (not implemented) */
 
-	struct sk_buff_head tx_queue;
-
 	u8 seq_no; /* for debugging */
 	int tx_credits;
 	int tx_credit_size;
 	int tx_credits_per_max_message;
 	bool tx_credit_flow_enabled;
-
-	struct work_struct send_work;
 };
 
 struct ath10k_htc_svc_tx_credits {

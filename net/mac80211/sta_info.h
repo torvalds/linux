@@ -301,6 +301,8 @@ struct sta_ampdu_mlme {
  * @chains: chains ever used for RX from this station
  * @chain_signal_last: last signal (per chain)
  * @chain_signal_avg: signal average (per chain)
+ * @known_smps_mode: the smps_mode the client thinks we are in. Relevant for
+ *	AP only.
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -410,6 +412,8 @@ struct sta_info {
 
 	unsigned int lost_packets;
 	unsigned int beacon_loss_count;
+
+	enum ieee80211_smps_mode known_smps_mode;
 
 	/* keep last! */
 	struct ieee80211_sta sta;
@@ -613,6 +617,7 @@ void sta_set_rate_info_rx(struct sta_info *sta,
 			  struct rate_info *rinfo);
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			  unsigned long exp_time);
+u8 sta_info_tx_streams(struct sta_info *sta);
 
 void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);

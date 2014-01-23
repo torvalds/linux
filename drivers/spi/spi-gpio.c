@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 
@@ -467,7 +468,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	}
 #endif
 
-	spi_gpio->bitbang.master = spi_master_get(master);
+	spi_gpio->bitbang.master = master;
 	spi_gpio->bitbang.chipselect = spi_gpio_chipselect;
 
 	if ((master_flags & (SPI_MASTER_NO_TX | SPI_MASTER_NO_RX)) == 0) {
@@ -486,7 +487,6 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	status = spi_bitbang_start(&spi_gpio->bitbang);
 	if (status < 0) {
-		spi_master_put(spi_gpio->bitbang.master);
 gpio_free:
 		if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 			gpio_free(SPI_MISO_GPIO);
@@ -510,13 +510,13 @@ static int spi_gpio_remove(struct platform_device *pdev)
 
 	/* stop() unregisters child devices too */
 	status = spi_bitbang_stop(&spi_gpio->bitbang);
-	spi_master_put(spi_gpio->bitbang.master);
 
 	if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 		gpio_free(SPI_MISO_GPIO);
 	if (SPI_MOSI_GPIO != SPI_GPIO_NO_MOSI)
 		gpio_free(SPI_MOSI_GPIO);
 	gpio_free(SPI_SCK_GPIO);
+	spi_master_put(spi_gpio->bitbang.master);
 
 	return status;
 }

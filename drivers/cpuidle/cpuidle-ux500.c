@@ -111,7 +111,7 @@ static struct cpuidle_driver ux500_idle_driver = {
 	.state_count = 2,
 };
 
-static int __init dbx500_cpuidle_probe(struct platform_device *pdev)
+static int dbx500_cpuidle_probe(struct platform_device *pdev)
 {
 	/* Configure wake up reasons */
 	prcmu_enable_wakeups(PRCMU_WAKEUP(ARM) | PRCMU_WAKEUP(RTC) |

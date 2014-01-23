@@ -27,21 +27,10 @@
 		regulator-max-microvolt = <3000000>;
 	};
 
-	/* HS USB Port 2 RESET */
-	hsusb2_reset: hsusb2_reset_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "hsusb2_reset";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>; /* gpio3_80 HUB_NRESET */
-		startup-delay-us = <70000>;
-		enable-active-high;
-	};
-
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
-		reset-supply = <&hsusb2_reset>;
+		reset-gpios = <&gpio3 16 GPIO_ACTIVE_LOW>; /* gpio3_80 HUB_NRESET */
 	/**
 	  * FIXME
 	  * Put the right clock phandle here when available
@@ -51,21 +40,10 @@
 		clock-frequency = <19200000>;
 	};
 
-	/* HS USB Port 3 RESET */
-	hsusb3_reset: hsusb3_reset_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "hsusb3_reset";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio3 15 GPIO_ACTIVE_HIGH>; /* gpio3_79 ETH_NRESET */
-		startup-delay-us = <70000>;
-		enable-active-high;
-	};
-
 	/* HS USB Host PHY on PORT 3 */
 	hsusb3_phy: hsusb3_phy {
 		compatible = "usb-nop-xceiv";
-		reset-supply = <&hsusb3_reset>;
+		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>; /* gpio3_79 ETH_NRESET */
 	};
 
 	leds {
@@ -84,7 +62,6 @@
 	pinctrl-0 = <
 			&twl6040_pins
 			&mcpdm_pins
-			&dmic_pins
 			&mcbsp1_pins
 			&mcbsp2_pins
 			&usbhost_pins
@@ -93,7 +70,7 @@
 
 	twl6040_pins: pinmux_twl6040_pins {
 		pinctrl-single,pins = <
-			0x18a (PIN_OUTPUT | MUX_MODE6)	/* perslimbus2_clock.gpio5_145 */
+			0x17e (PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
 		>;
 	};
 
@@ -104,15 +81,6 @@
 			0x15e (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abemcpdm_dl_data.abemcpdm_dl_data */
 			0x160 (PIN_INPUT_PULLUP | MUX_MODE0)	/* abemcpdm_frame.abemcpdm_frame */
 			0x162 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abemcpdm_lb_clk.abemcpdm_lb_clk */
-		>;
-	};
-
-	dmic_pins: pinmux_dmic_pins {
-		pinctrl-single,pins = <
-			0x144 (PIN_INPUT | MUX_MODE0)		/* abedmic_din1.abedmic_din1 */
-			0x146 (PIN_INPUT | MUX_MODE0)		/* abedmic_din2.abedmic_din2 */
-			0x148 (PIN_INPUT | MUX_MODE0)		/* abedmic_din3.abedmic_din3 */
-			0x14a (PIN_OUTPUT | MUX_MODE0)		/* abedmic_clk1.abedmic_clk1 */
 		>;
 	};
 
@@ -153,25 +121,25 @@
 			0xbc (PIN_INPUT | MUX_MODE0)		/*  mcspi2_clk */
 			0xbe (PIN_INPUT | MUX_MODE0)		/*  mcspi2_simo */
 			0xc0 (PIN_INPUT_PULLUP | MUX_MODE0)	/*  mcspi2_somi */
-			0xc2 (PIN_OUTPUT | MUX_MODE0)		/*  mcspi2_cs */
+			0xc2 (PIN_OUTPUT | MUX_MODE0)		/*  mcspi2_cs0 */
 		>;
 	};
 
 	mcspi3_pins: pinmux_mcspi3_pins {
 		pinctrl-single,pins = <
-			0x78 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_somi */
-			0x7a (PIN_INPUT | MUX_MODE1)		/*  mcspi2_cs */
-			0x7c (PIN_INPUT | MUX_MODE1)		/*  mcspi2_simo */
-			0x7e (PIN_INPUT | MUX_MODE1)		/*  mcspi2_clk */
+			0x78 (PIN_INPUT | MUX_MODE1)		/*  mcspi3_somi */
+			0x7a (PIN_INPUT | MUX_MODE1)		/*  mcspi3_cs0 */
+			0x7c (PIN_INPUT | MUX_MODE1)		/*  mcspi3_simo */
+			0x7e (PIN_INPUT | MUX_MODE1)		/*  mcspi3_clk */
 		>;
 	};
 
 	mcspi4_pins: pinmux_mcspi4_pins {
 		pinctrl-single,pins = <
-			0x164 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_clk */
-			0x168 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_simo */
-			0x16a (PIN_INPUT | MUX_MODE1)		/*  mcspi2_somi */
-			0x16c (PIN_INPUT | MUX_MODE1)		/*  mcspi2_cs */
+			0x164 (PIN_INPUT | MUX_MODE1)		/*  mcspi4_clk */
+			0x168 (PIN_INPUT | MUX_MODE1)		/*  mcspi4_simo */
+			0x16a (PIN_INPUT | MUX_MODE1)		/*  mcspi4_somi */
+			0x16c (PIN_INPUT | MUX_MODE1)		/*  mcspi4_cs0 */
 		>;
 	};
 
@@ -271,6 +239,14 @@
 		reg = <0x48>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		ti,system-power-controller;
+
+		extcon_usb3: palmas_usb {
+			compatible = "ti,palmas-usb-vid";
+			ti,enable-vbus-detection;
+			ti,enable-id-detection;
+			ti,wakeup;
+		};
 
 		palmas_pmic {
 			compatible = "ti,palmas-pmic";
@@ -334,13 +310,20 @@
 					ti,smps-range = <0x80>;
 				};
 
-				smps10_reg: smps10 {
+				smps10_out2_reg: smps10_out2 {
 					/* VBUS_5V_OTG */
-					regulator-name = "smps10";
+					regulator-name = "smps10_out2";
 					regulator-min-microvolt = <5000000>;
 					regulator-max-microvolt = <5000000>;
 					regulator-always-on;
 					regulator-boot-on;
+				};
+
+				smps10_out1_reg: smps10_out1 {
+					/* VBUS_5V_OTG */
+					regulator-name = "smps10_out1";
+					regulator-min-microvolt = <5000000>;
+					regulator-max-microvolt = <5000000>;
 				};
 
 				ldo1_reg: ldo1 {
@@ -470,6 +453,11 @@
 	phys = <0 &hsusb2_phy &hsusb3_phy>;
 };
 
+&usb3 {
+	extcon = <&extcon_usb3>;
+	vbus-supply = <&smps10_out1_reg>;
+};
+
 &mcspi1 {
 
 };
@@ -502,4 +490,8 @@
 &uart5 {
         pinctrl-names = "default";
         pinctrl-0 = <&uart5_pins>;
+};
+
+&cpu0 {
+	cpu0-supply = <&smps123_reg>;
 };

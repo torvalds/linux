@@ -22,7 +22,7 @@
 
 #include <linux/i2c.h>
 #include <drm/drmP.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 
 #include "intel_bios.h"
 #include "psb_drv.h"
@@ -218,30 +218,6 @@ static const struct drm_encoder_helper_funcs oaktrail_lvds_helper_funcs = {
 	.commit = oaktrail_lvds_commit,
 };
 
-static struct drm_display_mode lvds_configuration_modes[] = {
-	/* hard coded fixed mode for TPO LTPS LPJ040K001A */
-	{ DRM_MODE("800x480",  DRM_MODE_TYPE_DRIVER, 33264, 800, 836,
-		   846, 1056, 0, 480, 489, 491, 525, 0, 0) },
-	/* hard coded fixed mode for LVDS 800x480 */
-	{ DRM_MODE("800x480",  DRM_MODE_TYPE_DRIVER, 30994, 800, 801,
-		   802, 1024, 0, 480, 481, 482, 525, 0, 0) },
-	/* hard coded fixed mode for Samsung 480wsvga LVDS 1024x600@75 */
-	{ DRM_MODE("1024x600", DRM_MODE_TYPE_DRIVER, 53990, 1024, 1072,
-		   1104, 1184, 0, 600, 603, 604, 608, 0, 0) },
-	/* hard coded fixed mode for Samsung 480wsvga LVDS 1024x600@75 */
-	{ DRM_MODE("1024x600", DRM_MODE_TYPE_DRIVER, 53990, 1024, 1104,
-		   1136, 1184, 0, 600, 603, 604, 608, 0, 0) },
-	/* hard coded fixed mode for Sharp wsvga LVDS 1024x600 */
-	{ DRM_MODE("1024x600", DRM_MODE_TYPE_DRIVER, 48885, 1024, 1124,
-		   1204, 1312, 0, 600, 607, 610, 621, 0, 0) },
-	/* hard coded fixed mode for LVDS 1024x768 */
-	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 65000, 1024, 1048,
-		   1184, 1344, 0, 768, 771, 777, 806, 0, 0) },
-	/* hard coded fixed mode for LVDS 1366x768 */
-	{ DRM_MODE("1366x768", DRM_MODE_TYPE_DRIVER, 77500, 1366, 1430,
-		   1558, 1664, 0, 768, 769, 770, 776, 0, 0) },
-};
-
 /* Returns the panel fixed mode from configuration. */
 
 static void oaktrail_lvds_get_configuration_mode(struct drm_device *dev,
@@ -303,10 +279,10 @@ static void oaktrail_lvds_get_configuration_mode(struct drm_device *dev,
 			mode_dev->panel_fixed_mode =
 				drm_mode_duplicate(dev,
 					dev_priv->lfp_lvds_vbt_mode);
-	/* Then guess */
+
+	/* If we still got no mode then bail */
 	if (mode_dev->panel_fixed_mode == NULL)
-		mode_dev->panel_fixed_mode
-			= drm_mode_duplicate(dev, &lvds_configuration_modes[2]);
+		return;
 
 	drm_mode_set_name(mode_dev->panel_fixed_mode);
 	drm_mode_set_crtcinfo(mode_dev->panel_fixed_mode, 0);

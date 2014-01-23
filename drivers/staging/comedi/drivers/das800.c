@@ -66,7 +66,6 @@ cmd triggers supported:
 #include "comedi_fc.h"
 
 #define DAS800_SIZE           8
-#define TIMER_BASE            1000
 #define N_CHAN_AI             8	/*  number of analog input channels */
 
 /* Registers for the das800 */
@@ -356,11 +355,10 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 		int tmp = cmd->convert_arg;
 
 		/* calculate counter values that give desired timing */
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-					       &devpriv->divisor1,
-					       &devpriv->divisor2,
-					       &cmd->convert_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_1MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -630,13 +628,9 @@ static int das800_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct das800_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 	unsigned long irq_flags;
 
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
+	if (comedi_dio_update_state(s, data)) {
 		devpriv->do_bits = s->state << 4;
 
 		spin_lock_irqsave(&dev->spinlock, irq_flags);

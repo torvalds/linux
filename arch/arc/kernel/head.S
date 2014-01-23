@@ -95,7 +95,7 @@ stext:
 ;----------------------------------------------------------------
 ;     First lines of code run by secondary before jumping to 'C'
 ;----------------------------------------------------------------
-	.section .init.text, "ax",@progbits
+	.section .text, "ax",@progbits
 	.type first_lines_of_secondary, @function
 	.globl first_lines_of_secondary
 

@@ -28,32 +28,17 @@
 
 struct inet_hashinfo;
 
-static inline unsigned int inet6_ehashfn(struct net *net,
-				const struct in6_addr *laddr, const u16 lport,
-				const struct in6_addr *faddr, const __be16 fport)
+static inline unsigned int __inet6_ehashfn(const u32 lhash,
+				    const u16 lport,
+				    const u32 fhash,
+				    const __be16 fport,
+				    const u32 initval)
 {
-	u32 ports = (((u32)lport) << 16) | (__force u32)fport;
-
-	return jhash_3words((__force u32)laddr->s6_addr32[3],
-			    ipv6_addr_jhash(faddr),
-			    ports,
-			    inet_ehash_secret + net_hash_mix(net));
+	const u32 ports = (((u32)lport) << 16) | (__force u32)fport;
+	return jhash_3words(lhash, fhash, ports, initval);
 }
 
-static inline int inet6_sk_ehashfn(const struct sock *sk)
-{
-	const struct inet_sock *inet = inet_sk(sk);
-	const struct ipv6_pinfo *np = inet6_sk(sk);
-	const struct in6_addr *laddr = &np->rcv_saddr;
-	const struct in6_addr *faddr = &np->daddr;
-	const __u16 lport = inet->inet_num;
-	const __be16 fport = inet->inet_dport;
-	struct net *net = sock_net(sk);
-
-	return inet6_ehashfn(net, laddr, lport, faddr, fport);
-}
-
-extern int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
+int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
@@ -61,21 +46,19 @@ extern int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
  *
  * The sockhash lock must be held as a reader here.
  */
-extern struct sock *__inet6_lookup_established(struct net *net,
-					   struct inet_hashinfo *hashinfo,
-					   const struct in6_addr *saddr,
-					   const __be16 sport,
-					   const struct in6_addr *daddr,
-					   const u16 hnum,
-					   const int dif);
+struct sock *__inet6_lookup_established(struct net *net,
+					struct inet_hashinfo *hashinfo,
+					const struct in6_addr *saddr,
+					const __be16 sport,
+					const struct in6_addr *daddr,
+					const u16 hnum, const int dif);
 
-extern struct sock *inet6_lookup_listener(struct net *net,
-					  struct inet_hashinfo *hashinfo,
-					  const struct in6_addr *saddr,
-					  const __be16 sport,
-					  const struct in6_addr *daddr,
-					  const unsigned short hnum,
-					  const int dif);
+struct sock *inet6_lookup_listener(struct net *net,
+				   struct inet_hashinfo *hashinfo,
+				   const struct in6_addr *saddr,
+				   const __be16 sport,
+				   const struct in6_addr *daddr,
+				   const unsigned short hnum, const int dif);
 
 static inline struct sock *__inet6_lookup(struct net *net,
 					  struct inet_hashinfo *hashinfo,
@@ -110,9 +93,9 @@ static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,
 			      inet6_iif(skb));
 }
 
-extern struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
-				 const struct in6_addr *saddr, const __be16 sport,
-				 const struct in6_addr *daddr, const __be16 dport,
-				 const int dif);
+struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
+			  const struct in6_addr *saddr, const __be16 sport,
+			  const struct in6_addr *daddr, const __be16 dport,
+			  const int dif);
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif /* _INET6_HASHTABLES_H */

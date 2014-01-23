@@ -45,7 +45,6 @@ static int load_aout_library(struct file*);
  */
 static int aout_core_dump(struct coredump_params *cprm)
 {
-	struct file *file = cprm->file;
 	mm_segment_t fs;
 	int has_dumped = 0;
 	void __user *dump_start;
@@ -85,10 +84,10 @@ static int aout_core_dump(struct coredump_params *cprm)
 
 	set_fs(KERNEL_DS);
 /* struct user */
-	if (!dump_write(file, &dump, sizeof(dump)))
+	if (!dump_emit(cprm, &dump, sizeof(dump)))
 		goto end_coredump;
 /* Now dump all of the user data.  Include malloced stuff as well */
-	if (!dump_seek(cprm->file, PAGE_SIZE - sizeof(dump)))
+	if (!dump_skip(cprm, PAGE_SIZE - sizeof(dump)))
 		goto end_coredump;
 /* now we start writing out the user space info */
 	set_fs(USER_DS);
@@ -96,14 +95,14 @@ static int aout_core_dump(struct coredump_params *cprm)
 	if (dump.u_dsize != 0) {
 		dump_start = START_DATA(dump);
 		dump_size = dump.u_dsize << PAGE_SHIFT;
-		if (!dump_write(file, dump_start, dump_size))
+		if (!dump_emit(cprm, dump_start, dump_size))
 			goto end_coredump;
 	}
 /* Now prepare to dump the stack area */
 	if (dump.u_ssize != 0) {
 		dump_start = START_STACK(dump);
 		dump_size = dump.u_ssize << PAGE_SHIFT;
-		if (!dump_write(file, dump_start, dump_size))
+		if (!dump_emit(cprm, dump_start, dump_size))
 			goto end_coredump;
 	}
 end_coredump:
@@ -221,7 +220,7 @@ static int load_aout_binary(struct linux_binprm * bprm)
 	 * Requires a mmap handler. This prevents people from using a.out
 	 * as part of an exploit attack against /proc-related vulnerabilities.
 	 */
-	if (!bprm->file->f_op || !bprm->file->f_op->mmap)
+	if (!bprm->file->f_op->mmap)
 		return -ENOEXEC;
 
 	fd_offset = N_TXTOFF(ex);
@@ -374,7 +373,7 @@ static int load_aout_library(struct file *file)
 	 * Requires a mmap handler. This prevents people from using a.out
 	 * as part of an exploit attack against /proc-related vulnerabilities.
 	 */
-	if (!file->f_op || !file->f_op->mmap)
+	if (!file->f_op->mmap)
 		goto out;
 
 	if (N_FLAGS(ex))

@@ -195,8 +195,9 @@ static const struct iio_chan_spec_ext_info mcp4725_ext_info[] = {
 		.name = "powerdown",
 		.read = mcp4725_read_powerdown,
 		.write = mcp4725_write_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", false, &mcp4725_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &mcp4725_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &mcp4725_powerdown_mode_enum),
 	{ },
 };
@@ -238,17 +239,15 @@ static int mcp4725_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	struct mcp4725_data *data = iio_priv(indio_dev);
-	unsigned long scale_uv;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		*val = data->dac_value;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (data->vref_mv * 1000) >> 12;
-		*val =  scale_uv / 1000000;
-		*val2 = scale_uv % 1000000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = data->vref_mv;
+		*val2 = 12;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
@@ -321,13 +320,7 @@ static int mcp4725_probe(struct i2c_client *client,
 	data->powerdown_mode = pd ? pd-1 : 2; /* 500kohm_to_gnd */
 	data->dac_value = (inbuf[1] << 4) | (inbuf[2] >> 4);
 
-	err = iio_device_register(indio_dev);
-	if (err)
-		return err;
-
-	dev_info(&client->dev, "MCP4725 DAC registered\n");
-
-	return 0;
+	return iio_device_register(indio_dev);
 }
 
 static int mcp4725_remove(struct i2c_client *client)

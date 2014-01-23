@@ -1001,18 +1001,40 @@ static const struct snd_soc_component_driver davinci_mcasp_component = {
 	.name		= "davinci-mcasp",
 };
 
+/* Some HW specific values and defaults. The rest is filled in from DT. */
+static struct snd_platform_data dm646x_mcasp_pdata = {
+	.tx_dma_offset = 0x400,
+	.rx_dma_offset = 0x400,
+	.asp_chan_q = EVENTQ_0,
+	.version = MCASP_VERSION_1,
+};
+
+static struct snd_platform_data da830_mcasp_pdata = {
+	.tx_dma_offset = 0x2000,
+	.rx_dma_offset = 0x2000,
+	.asp_chan_q = EVENTQ_0,
+	.version = MCASP_VERSION_2,
+};
+
+static struct snd_platform_data omap2_mcasp_pdata = {
+	.tx_dma_offset = 0,
+	.rx_dma_offset = 0,
+	.asp_chan_q = EVENTQ_0,
+	.version = MCASP_VERSION_3,
+};
+
 static const struct of_device_id mcasp_dt_ids[] = {
 	{
 		.compatible = "ti,dm646x-mcasp-audio",
-		.data = (void *)MCASP_VERSION_1,
+		.data = &dm646x_mcasp_pdata,
 	},
 	{
 		.compatible = "ti,da830-mcasp-audio",
-		.data = (void *)MCASP_VERSION_2,
+		.data = &da830_mcasp_pdata,
 	},
 	{
-		.compatible = "ti,omap2-mcasp-audio",
-		.data = (void *)MCASP_VERSION_3,
+		.compatible = "ti,am33xx-mcasp-audio",
+		.data = &omap2_mcasp_pdata,
 	},
 	{ /* sentinel */ }
 };
@@ -1025,9 +1047,9 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 	struct snd_platform_data *pdata = NULL;
 	const struct of_device_id *match =
 			of_match_device(mcasp_dt_ids, &pdev->dev);
+	struct of_phandle_args dma_spec;
 
 	const u32 *of_serial_dir32;
-	u8 *of_serial_dir;
 	u32 val;
 	int i, ret = 0;
 
@@ -1035,19 +1057,12 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 		pdata = pdev->dev.platform_data;
 		return pdata;
 	} else if (match) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata) {
-			ret = -ENOMEM;
-			goto nodata;
-		}
+		pdata = (struct snd_platform_data *) match->data;
 	} else {
 		/* control shouldn't reach here. something is wrong */
 		ret = -EINVAL;
 		goto nodata;
 	}
-
-	if (match->data)
-		pdata->version = (u8)((int)match->data);
 
 	ret = of_property_read_u32(np, "op-mode", &val);
 	if (ret >= 0)
@@ -1065,34 +1080,45 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 		pdata->tdm_slots = val;
 	}
 
-	ret = of_property_read_u32(np, "num-serializer", &val);
-	if (ret >= 0)
-		pdata->num_serializer = val;
-
 	of_serial_dir32 = of_get_property(np, "serial-dir", &val);
 	val /= sizeof(u32);
-	if (val != pdata->num_serializer) {
-		dev_err(&pdev->dev,
-				"num-serializer(%d) != serial-dir size(%d)\n",
-				pdata->num_serializer, val);
-		ret = -EINVAL;
-		goto nodata;
-	}
-
 	if (of_serial_dir32) {
-		of_serial_dir = devm_kzalloc(&pdev->dev,
-						(sizeof(*of_serial_dir) * val),
-						GFP_KERNEL);
+		u8 *of_serial_dir = devm_kzalloc(&pdev->dev,
+						 (sizeof(*of_serial_dir) * val),
+						 GFP_KERNEL);
 		if (!of_serial_dir) {
 			ret = -ENOMEM;
 			goto nodata;
 		}
 
-		for (i = 0; i < pdata->num_serializer; i++)
+		for (i = 0; i < val; i++)
 			of_serial_dir[i] = be32_to_cpup(&of_serial_dir32[i]);
 
+		pdata->num_serializer = val;
 		pdata->serial_dir = of_serial_dir;
 	}
+
+	ret = of_property_match_string(np, "dma-names", "tx");
+	if (ret < 0)
+		goto nodata;
+
+	ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells", ret,
+					 &dma_spec);
+	if (ret < 0)
+		goto nodata;
+
+	pdata->tx_dma_channel = dma_spec.args[0];
+
+	ret = of_property_match_string(np, "dma-names", "rx");
+	if (ret < 0)
+		goto nodata;
+
+	ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells", ret,
+					 &dma_spec);
+	if (ret < 0)
+		goto nodata;
+
+	pdata->rx_dma_channel = dma_spec.args[0];
 
 	ret = of_property_read_u32(np, "tx-num-evt", &val);
 	if (ret >= 0)
@@ -1124,7 +1150,7 @@ nodata:
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct davinci_pcm_dma_params *dma_data;
-	struct resource *mem, *ioarea, *res;
+	struct resource *mem, *ioarea, *res, *dat;
 	struct snd_platform_data *pdata;
 	struct davinci_audio_dev *dev;
 	int ret;
@@ -1145,10 +1171,15 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
 	if (!mem) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
+		dev_warn(dev->dev,
+			 "\"mpu\" mem resource not found, using index 0\n");
+		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!mem) {
+			dev_err(&pdev->dev, "no mem resource?\n");
+			return -ENODEV;
+		}
 	}
 
 	ioarea = devm_request_mem_region(&pdev->dev, mem->start,
@@ -1182,40 +1213,36 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dev->rxnumevt = pdata->rxnumevt;
 	dev->dev = &pdev->dev;
 
+	dat = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dat");
+	if (!dat)
+		dat = mem;
+
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
 	dma_data->sram_pool = pdata->sram_pool;
 	dma_data->sram_size = pdata->sram_size_playback;
-	dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset +
-							mem->start);
+	dma_data->dma_addr = dat->start + pdata->tx_dma_offset;
 
-	/* first TX, then RX */
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
-		ret = -ENODEV;
-		goto err_release_clk;
-	}
-
-	dma_data->channel = res->start;
+	if (res)
+		dma_data->channel = res->start;
+	else
+		dma_data->channel = pdata->tx_dma_channel;
 
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_CAPTURE];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
 	dma_data->sram_pool = pdata->sram_pool;
 	dma_data->sram_size = pdata->sram_size_capture;
-	dma_data->dma_addr = (dma_addr_t)(pdata->rx_dma_offset +
-							mem->start);
+	dma_data->dma_addr = dat->start + pdata->rx_dma_offset;
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
-		ret = -ENODEV;
-		goto err_release_clk;
-	}
+	if (res)
+		dma_data->channel = res->start;
+	else
+		dma_data->channel = pdata->rx_dma_channel;
 
-	dma_data->channel = res->start;
 	dev_set_drvdata(&pdev->dev, dev);
 	ret = snd_soc_register_component(&pdev->dev, &davinci_mcasp_component,
 					 &davinci_mcasp_dai[pdata->op_mode], 1);
@@ -1251,12 +1278,51 @@ static int davinci_mcasp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int davinci_mcasp_suspend(struct device *dev)
+{
+	struct davinci_audio_dev *a = dev_get_drvdata(dev);
+	void __iomem *base = a->base;
+
+	a->context.txfmtctl = mcasp_get_reg(base + DAVINCI_MCASP_TXFMCTL_REG);
+	a->context.rxfmtctl = mcasp_get_reg(base + DAVINCI_MCASP_RXFMCTL_REG);
+	a->context.txfmt = mcasp_get_reg(base + DAVINCI_MCASP_TXFMT_REG);
+	a->context.rxfmt = mcasp_get_reg(base + DAVINCI_MCASP_RXFMT_REG);
+	a->context.aclkxctl = mcasp_get_reg(base + DAVINCI_MCASP_ACLKXCTL_REG);
+	a->context.aclkrctl = mcasp_get_reg(base + DAVINCI_MCASP_ACLKRCTL_REG);
+	a->context.pdir = mcasp_get_reg(base + DAVINCI_MCASP_PDIR_REG);
+
+	return 0;
+}
+
+static int davinci_mcasp_resume(struct device *dev)
+{
+	struct davinci_audio_dev *a = dev_get_drvdata(dev);
+	void __iomem *base = a->base;
+
+	mcasp_set_reg(base + DAVINCI_MCASP_TXFMCTL_REG, a->context.txfmtctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_RXFMCTL_REG, a->context.rxfmtctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_TXFMT_REG, a->context.txfmt);
+	mcasp_set_reg(base + DAVINCI_MCASP_RXFMT_REG, a->context.rxfmt);
+	mcasp_set_reg(base + DAVINCI_MCASP_ACLKXCTL_REG, a->context.aclkxctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_ACLKRCTL_REG, a->context.aclkrctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_PDIR_REG, a->context.pdir);
+
+	return 0;
+}
+#endif
+
+SIMPLE_DEV_PM_OPS(davinci_mcasp_pm_ops,
+		  davinci_mcasp_suspend,
+		  davinci_mcasp_resume);
+
 static struct platform_driver davinci_mcasp_driver = {
 	.probe		= davinci_mcasp_probe,
 	.remove		= davinci_mcasp_remove,
 	.driver		= {
 		.name	= "davinci-mcasp",
 		.owner	= THIS_MODULE,
+		.pm	= &davinci_mcasp_pm_ops,
 		.of_match_table = mcasp_dt_ids,
 	},
 };
@@ -1266,4 +1332,3 @@ module_platform_driver(davinci_mcasp_driver);
 MODULE_AUTHOR("Steve Chen");
 MODULE_DESCRIPTION("TI DAVINCI McASP SoC Interface");
 MODULE_LICENSE("GPL");
-

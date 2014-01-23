@@ -111,6 +111,12 @@ static inline u32 host1x_uclass_wait_syncpt_base_offset_f(u32 v)
 }
 #define HOST1X_UCLASS_WAIT_SYNCPT_BASE_OFFSET_F(v) \
 	host1x_uclass_wait_syncpt_base_offset_f(v)
+static inline u32 host1x_uclass_load_syncpt_base_r(void)
+{
+	return 0xb;
+}
+#define HOST1X_UCLASS_LOAD_SYNCPT_BASE \
+	host1x_uclass_load_syncpt_base_r()
 static inline u32 host1x_uclass_load_syncpt_base_base_indx_f(u32 v)
 {
 	return (v & 0xff) << 24;

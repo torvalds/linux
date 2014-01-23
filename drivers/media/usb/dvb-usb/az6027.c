@@ -254,7 +254,7 @@ static const struct stb0899_s1_reg az6027_stb0899_s1_init_3[] = {
 
 
 
-struct stb0899_config az6027_stb0899_config = {
+static struct stb0899_config az6027_stb0899_config = {
 	.init_dev		= az6027_stb0899_s1_init_1,
 	.init_s2_demod		= stb0899_s2_init_2,
 	.init_s1_demod		= az6027_stb0899_s1_init_3,
@@ -291,7 +291,7 @@ struct stb0899_config az6027_stb0899_config = {
 	.tuner_set_rfsiggain	= NULL,
 };
 
-struct stb6100_config az6027_stb6100_config = {
+static struct stb6100_config az6027_stb6100_config = {
 	.tuner_address	= 0xc0,
 	.refclock	= 27000000,
 };

@@ -18,6 +18,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/nfc.h>
@@ -60,13 +62,13 @@ int nfc_mei_phy_enable(void *phy_id)
 
 	r = mei_cl_enable_device(phy->device);
 	if (r < 0) {
-		pr_err("MEI_PHY: Could not enable device\n");
+		pr_err("Could not enable device\n");
 		return r;
 	}
 
 	r = mei_cl_register_event_cb(phy->device, nfc_mei_event_cb, phy);
 	if (r) {
-		pr_err("MEY_PHY: Event cb registration failed\n");
+		pr_err("Event cb registration failed\n");
 		mei_cl_disable_device(phy->device);
 		phy->powered = 0;
 

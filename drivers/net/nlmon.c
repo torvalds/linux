@@ -47,7 +47,15 @@ static int nlmon_change_mtu(struct net_device *dev, int new_mtu)
 
 static int nlmon_dev_init(struct net_device *dev)
 {
+	int i;
+
 	dev->lstats = alloc_percpu(struct pcpu_lstats);
+
+	for_each_possible_cpu(i) {
+		struct pcpu_lstats *nlmstats;
+		nlmstats = per_cpu_ptr(dev->lstats, i);
+		u64_stats_init(&nlmstats->syncp);
+	}
 
 	return dev->lstats == NULL ? -ENOMEM : 0;
 }

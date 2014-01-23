@@ -1039,7 +1039,7 @@ nvc0_grctx_generate_r406800(struct nvc0_graph_priv *priv)
 			} while (!tpcnr[gpc]);
 			tpc = priv->tpc_nr[gpc] - tpcnr[gpc]--;
 
-			tpc_set |= 1 << ((gpc * 8) + tpc);
+			tpc_set |= 1ULL << ((gpc * 8) + tpc);
 		}
 
 		nv_wr32(priv, 0x406800 + (i * 0x20), lower_32_bits(tpc_set));

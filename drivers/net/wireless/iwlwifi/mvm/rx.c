@@ -300,10 +300,14 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		return 0;
 	}
 
+	/*
+	 * Keep packets with CRC errors (and with overrun) for monitor mode
+	 * (otherwise the firmware discards them) but mark them as bad.
+	 */
 	if (!(rx_pkt_status & RX_MPDU_RES_STATUS_CRC_OK) ||
 	    !(rx_pkt_status & RX_MPDU_RES_STATUS_OVERRUN_OK)) {
 		IWL_DEBUG_RX(mvm, "Bad CRC or FIFO: 0x%08X.\n", rx_pkt_status);
-		return 0;
+		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	}
 
 	/* This will be used in several places later */
@@ -421,6 +425,27 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 		return;
 
 	mvmvif->bf_data.ave_beacon_signal = sig;
+
+	/* BT Coex */
+	if (mvmvif->bf_data.bt_coex_min_thold !=
+	    mvmvif->bf_data.bt_coex_max_thold) {
+		last_event = mvmvif->bf_data.last_bt_coex_event;
+		if (sig > mvmvif->bf_data.bt_coex_max_thold &&
+		    (last_event <= mvmvif->bf_data.bt_coex_min_thold ||
+		     last_event == 0)) {
+			mvmvif->bf_data.last_bt_coex_event = sig;
+			IWL_DEBUG_RX(mvm, "cqm_iterator bt coex high %d\n",
+				     sig);
+			iwl_mvm_bt_rssi_event(mvm, vif, RSSI_EVENT_HIGH);
+		} else if (sig < mvmvif->bf_data.bt_coex_min_thold &&
+			   (last_event >= mvmvif->bf_data.bt_coex_max_thold ||
+			    last_event == 0)) {
+			mvmvif->bf_data.last_bt_coex_event = sig;
+			IWL_DEBUG_RX(mvm, "cqm_iterator bt coex low %d\n",
+				     sig);
+			iwl_mvm_bt_rssi_event(mvm, vif, RSSI_EVENT_LOW);
+		}
+	}
 
 	if (!(vif->driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI))
 		return;

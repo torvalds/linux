@@ -78,7 +78,7 @@
 #define USBDUXSIGMA_NUM_AO_CHAN		4
 
 /* Size of one A/D value */
-#define SIZEADIN          ((sizeof(int32_t)))
+#define SIZEADIN          ((sizeof(uint32_t)))
 
 /*
  * Size of the async input-buffer IN BYTES, the DIO state is transmitted
@@ -93,7 +93,7 @@
 #define NUMOUTCHANNELS    8
 
 /* size of one value for the D/A converter: channel and value */
-#define SIZEDAOUT          ((sizeof(uint8_t)+sizeof(int16_t)))
+#define SIZEDAOUT          ((sizeof(uint8_t)+sizeof(uint16_t)))
 
 /*
  * Size of the output-buffer in bytes
@@ -157,11 +157,11 @@ struct usbduxsigma_private {
 	/* size of the PWM buffer which holds the bit pattern */
 	int pwm_buf_sz;
 	/* input buffer for the ISO-transfer */
-	int32_t *in_buf;
+	uint32_t *in_buf;
 	/* input buffer for single insn */
-	int8_t *insn_buf;
+	uint8_t *insn_buf;
 
-	int8_t ao_chanlist[USBDUXSIGMA_NUM_AO_CHAN];
+	uint8_t ao_chanlist[USBDUXSIGMA_NUM_AO_CHAN];
 	unsigned int ao_readback[USBDUXSIGMA_NUM_AO_CHAN];
 
 	unsigned high_speed:1;
@@ -224,7 +224,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int dio_state;
-	int32_t val;
+	uint32_t val;
 	int ret;
 	int i;
 
@@ -421,7 +421,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 		*datap++ = len;
 		for (i = 0; i < len; i++) {
 			unsigned int chan = devpriv->ao_chanlist[i];
-			short val;
+			unsigned short val;
 
 			ret = comedi_buf_get(s->async, &val);
 			if (ret < 0) {
@@ -784,7 +784,7 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 	}
 
 	for (i = 0; i < insn->n; i++) {
-		int32_t val;
+		uint32_t val;
 
 		ret = usbduxsigma_receive_cmd(dev, USBDUXSIGMA_SINGLE_AD_CMD);
 		if (ret < 0) {
@@ -793,7 +793,7 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 		}
 
 		/* 32 bits big endian from the A/D converter */
-		val = be32_to_cpu(*((int32_t *)((devpriv->insn_buf) + 1)));
+		val = be32_to_cpu(*((uint32_t *)((devpriv->insn_buf) + 1)));
 		val &= 0x00ffffff;	/* strip status byte */
 		val ^= 0x00800000;	/* convert to unsigned */
 
@@ -1059,15 +1059,13 @@ static int usbduxsigma_dio_insn_bits(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 	int ret;
 
 	down(&devpriv->sem);
 
-	s->state &= ~mask;
-	s->state |= (bits & mask);
+	comedi_dio_update_state(s, data);
 
+	/* Always update the hardware. See the (*insn_config). */
 	devpriv->dux_commands[1] = s->io_bits & 0xff;
 	devpriv->dux_commands[4] = s->state & 0xff;
 	devpriv->dux_commands[2] = (s->io_bits >> 8) & 0xff;
@@ -1360,7 +1358,7 @@ static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 		return ret;
 
 	/* 32 bits big endian from the A/D converter */
-	val = be32_to_cpu(*((int32_t *)((devpriv->insn_buf)+1)));
+	val = be32_to_cpu(*((uint32_t *)((devpriv->insn_buf)+1)));
 	val &= 0x00ffffff;	/* strip status byte */
 	val ^= 0x00800000;	/* convert to unsigned */
 

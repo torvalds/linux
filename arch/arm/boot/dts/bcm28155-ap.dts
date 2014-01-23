@@ -40,6 +40,7 @@
 
 	sdio4: sdio@3f1b0000 {
 		max-frequency = <48000000>;
+		cd-gpios = <&gpio 14 0>;
 		status = "okay";
 	};
 };

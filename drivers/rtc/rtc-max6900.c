@@ -164,14 +164,7 @@ static int max6900_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
 
 static int max6900_i2c_clear_write_protect(struct i2c_client *client)
 {
-	int rc;
-	rc = i2c_smbus_write_byte_data(client, MAX6900_REG_CONTROL_WRITE, 0);
-	if (rc < 0) {
-		dev_err(&client->dev, "%s: control register write failed\n",
-			__func__);
-		return -EIO;
-	}
-	return 0;
+	return i2c_smbus_write_byte_data(client, MAX6900_REG_CONTROL_WRITE, 0);
 }
 
 static int

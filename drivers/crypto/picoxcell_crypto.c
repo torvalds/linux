@@ -495,45 +495,29 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 {
 	struct spacc_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct spacc_alg *alg = to_spacc_alg(tfm->base.__crt_alg);
-	struct rtattr *rta = (void *)key;
-	struct crypto_authenc_key_param *param;
-	unsigned int authkeylen, enckeylen;
+	struct crypto_authenc_keys keys;
 	int err = -EINVAL;
 
-	if (!RTA_OK(rta, keylen))
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
+	if (keys.enckeylen > AES_MAX_KEY_SIZE)
 		goto badkey;
 
-	if (RTA_PAYLOAD(rta) < sizeof(*param))
-		goto badkey;
-
-	param = RTA_DATA(rta);
-	enckeylen = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < enckeylen)
-		goto badkey;
-
-	authkeylen = keylen - enckeylen;
-
-	if (enckeylen > AES_MAX_KEY_SIZE)
+	if (keys.authkeylen > sizeof(ctx->hash_ctx))
 		goto badkey;
 
 	if ((alg->ctrl_default & SPACC_CRYPTO_ALG_MASK) ==
 	    SPA_CTRL_CIPH_ALG_AES)
-		err = spacc_aead_aes_setkey(tfm, key + authkeylen, enckeylen);
+		err = spacc_aead_aes_setkey(tfm, keys.enckey, keys.enckeylen);
 	else
-		err = spacc_aead_des_setkey(tfm, key + authkeylen, enckeylen);
+		err = spacc_aead_des_setkey(tfm, keys.enckey, keys.enckeylen);
 
 	if (err)
 		goto badkey;
 
-	memcpy(ctx->hash_ctx, key, authkeylen);
-	ctx->hash_key_len = authkeylen;
+	memcpy(ctx->hash_ctx, keys.authkey, keys.authkeylen);
+	ctx->hash_key_len = keys.authkeylen;
 
 	return 0;
 

@@ -137,7 +137,7 @@ void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *msgdata)
 	char *argv[6];
 	char buf[32];
 
-	snprintf (buf, sizeof buf, "%d", msgdata->msg_line);
+	snprintf(buf, sizeof(buf), "%d", msgdata->msg_line);
 
 	argv[1] = "LBUG";
 	argv[2] = (char *)msgdata->msg_file;

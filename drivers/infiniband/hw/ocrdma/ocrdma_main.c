@@ -452,9 +452,6 @@ static void ocrdma_remove_free(struct rcu_head *rcu)
 {
 	struct ocrdma_dev *dev = container_of(rcu, struct ocrdma_dev, rcu);
 
-	ocrdma_free_resources(dev);
-	ocrdma_cleanup_hw(dev);
-
 	idr_remove(&ocrdma_dev_id, dev->id);
 	kfree(dev->mbx_cmd);
 	ib_dealloc_device(&dev->ibdev);
@@ -470,6 +467,10 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	spin_lock(&ocrdma_devlist_lock);
 	list_del_rcu(&dev->entry);
 	spin_unlock(&ocrdma_devlist_lock);
+
+	ocrdma_free_resources(dev);
+	ocrdma_cleanup_hw(dev);
+
 	call_rcu(&dev->rcu, ocrdma_remove_free);
 }
 

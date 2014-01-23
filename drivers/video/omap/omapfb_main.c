@@ -1602,7 +1602,7 @@ static int omapfb_find_ctrl(struct omapfb_device *fbdev)
 	char name[17];
 	int i;
 
-	conf = fbdev->dev->platform_data;
+	conf = dev_get_platdata(fbdev->dev);
 
 	fbdev->ctrl = NULL;
 
@@ -1674,7 +1674,7 @@ static int omapfb_do_probe(struct platform_device *pdev,
 		goto cleanup;
 	}
 
-	if (pdev->dev.platform_data == NULL) {
+	if (dev_get_platdata(&pdev->dev) == NULL) {
 		dev_err(&pdev->dev, "missing platform data\n");
 		r = -ENOENT;
 		goto cleanup;

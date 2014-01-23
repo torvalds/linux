@@ -128,7 +128,7 @@ static const struct backlight_ops bd6107_backlight_ops = {
 static int bd6107_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
-	struct bd6107_platform_data *pdata = client->dev.platform_data;
+	struct bd6107_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct backlight_device *backlight;
 	struct backlight_properties props;
 	struct bd6107 *bd;
@@ -166,7 +166,8 @@ static int bd6107_probe(struct i2c_client *client,
 	props.brightness = clamp_t(unsigned int, pdata->def_value, 0,
 				   props.max_brightness);
 
-	backlight = backlight_device_register(dev_name(&client->dev),
+	backlight = devm_backlight_device_register(&client->dev,
+					      dev_name(&client->dev),
 					      &bd->client->dev, bd,
 					      &bd6107_backlight_ops, &props);
 	if (IS_ERR(backlight)) {
@@ -186,7 +187,6 @@ static int bd6107_remove(struct i2c_client *client)
 
 	backlight->props.brightness = 0;
 	backlight_update_status(backlight);
-	backlight_device_unregister(backlight);
 
 	return 0;
 }

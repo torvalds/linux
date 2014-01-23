@@ -129,6 +129,9 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_LPC_READ				67
 #define OPAL_LPC_WRITE				68
 #define OPAL_RETURN_CPU				69
+#define OPAL_FLASH_VALIDATE			76
+#define OPAL_FLASH_MANAGE			77
+#define OPAL_FLASH_UPDATE			78
 
 #ifndef __ASSEMBLY__
 
@@ -460,10 +463,12 @@ enum {
 
 enum {
 	OPAL_PHB_ERROR_DATA_TYPE_P7IOC = 1,
+	OPAL_PHB_ERROR_DATA_TYPE_PHB3 = 2
 };
 
 enum {
 	OPAL_P7IOC_NUM_PEST_REGS = 128,
+	OPAL_PHB3_NUM_PEST_REGS = 256
 };
 
 struct OpalIoPhbErrorCommon {
@@ -531,28 +536,94 @@ struct OpalIoP7IOCPhbErrorData {
 	uint64_t pestB[OPAL_P7IOC_NUM_PEST_REGS];
 };
 
+struct OpalIoPhb3ErrorData {
+	struct OpalIoPhbErrorCommon common;
+
+	uint32_t brdgCtl;
+
+	/* PHB3 UTL regs */
+	uint32_t portStatusReg;
+	uint32_t rootCmplxStatus;
+	uint32_t busAgentStatus;
+
+	/* PHB3 cfg regs */
+	uint32_t deviceStatus;
+	uint32_t slotStatus;
+	uint32_t linkStatus;
+	uint32_t devCmdStatus;
+	uint32_t devSecStatus;
+
+	/* cfg AER regs */
+	uint32_t rootErrorStatus;
+	uint32_t uncorrErrorStatus;
+	uint32_t corrErrorStatus;
+	uint32_t tlpHdr1;
+	uint32_t tlpHdr2;
+	uint32_t tlpHdr3;
+	uint32_t tlpHdr4;
+	uint32_t sourceId;
+
+	uint32_t rsv3;
+
+	/* Record data about the call to allocate a buffer */
+	uint64_t errorClass;
+	uint64_t correlator;
+
+	uint64_t nFir;			/* 000 */
+	uint64_t nFirMask;		/* 003 */
+	uint64_t nFirWOF;		/* 008 */
+
+	/* PHB3 MMIO Error Regs */
+	uint64_t phbPlssr;		/* 120 */
+	uint64_t phbCsr;		/* 110 */
+	uint64_t lemFir;		/* C00 */
+	uint64_t lemErrorMask;		/* C18 */
+	uint64_t lemWOF;		/* C40 */
+	uint64_t phbErrorStatus;	/* C80 */
+	uint64_t phbFirstErrorStatus;	/* C88 */
+	uint64_t phbErrorLog0;		/* CC0 */
+	uint64_t phbErrorLog1;		/* CC8 */
+	uint64_t mmioErrorStatus;	/* D00 */
+	uint64_t mmioFirstErrorStatus;	/* D08 */
+	uint64_t mmioErrorLog0;		/* D40 */
+	uint64_t mmioErrorLog1;		/* D48 */
+	uint64_t dma0ErrorStatus;	/* D80 */
+	uint64_t dma0FirstErrorStatus;	/* D88 */
+	uint64_t dma0ErrorLog0;		/* DC0 */
+	uint64_t dma0ErrorLog1;		/* DC8 */
+	uint64_t dma1ErrorStatus;	/* E00 */
+	uint64_t dma1FirstErrorStatus;	/* E08 */
+	uint64_t dma1ErrorLog0;		/* E40 */
+	uint64_t dma1ErrorLog1;		/* E48 */
+	uint64_t pestA[OPAL_PHB3_NUM_PEST_REGS];
+	uint64_t pestB[OPAL_PHB3_NUM_PEST_REGS];
+};
+
 typedef struct oppanel_line {
 	const char * 	line;
 	uint64_t 	line_len;
 } oppanel_line_t;
 
+/* /sys/firmware/opal */
+extern struct kobject *opal_kobj;
+
 /* API functions */
-int64_t opal_console_write(int64_t term_number, int64_t *length,
+int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
-int64_t opal_console_read(int64_t term_number, int64_t *length,
+int64_t opal_console_read(int64_t term_number, __be64 *length,
 			  uint8_t *buffer);
 int64_t opal_console_write_buffer_space(int64_t term_number,
-					int64_t *length);
-int64_t opal_rtc_read(uint32_t *year_month_day,
-		      uint64_t *hour_minute_second_millisecond);
+					__be64 *length);
+int64_t opal_rtc_read(__be32 *year_month_day,
+		      __be64 *hour_minute_second_millisecond);
 int64_t opal_rtc_write(uint32_t year_month_day,
 		       uint64_t hour_minute_second_millisecond);
 int64_t opal_cec_power_down(uint64_t request);
 int64_t opal_cec_reboot(void);
 int64_t opal_read_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
 int64_t opal_write_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
-int64_t opal_handle_interrupt(uint64_t isn, uint64_t *outstanding_event_mask);
-int64_t opal_poll_events(uint64_t *outstanding_event_mask);
+int64_t opal_handle_interrupt(uint64_t isn, __be64 *outstanding_event_mask);
+int64_t opal_poll_events(__be64 *outstanding_event_mask);
 int64_t opal_pci_set_hub_tce_memory(uint64_t hub_id, uint64_t tce_mem_addr,
 				    uint64_t tce_mem_size);
 int64_t opal_pci_set_phb_tce_memory(uint64_t phb_id, uint64_t tce_mem_addr,
@@ -560,9 +631,9 @@ int64_t opal_pci_set_phb_tce_memory(uint64_t phb_id, uint64_t tce_mem_addr,
 int64_t opal_pci_config_read_byte(uint64_t phb_id, uint64_t bus_dev_func,
 				  uint64_t offset, uint8_t *data);
 int64_t opal_pci_config_read_half_word(uint64_t phb_id, uint64_t bus_dev_func,
-				       uint64_t offset, uint16_t *data);
+				       uint64_t offset, __be16 *data);
 int64_t opal_pci_config_read_word(uint64_t phb_id, uint64_t bus_dev_func,
-				  uint64_t offset, uint32_t *data);
+				  uint64_t offset, __be32 *data);
 int64_t opal_pci_config_write_byte(uint64_t phb_id, uint64_t bus_dev_func,
 				   uint64_t offset, uint8_t data);
 int64_t opal_pci_config_write_half_word(uint64_t phb_id, uint64_t bus_dev_func,
@@ -570,14 +641,14 @@ int64_t opal_pci_config_write_half_word(uint64_t phb_id, uint64_t bus_dev_func,
 int64_t opal_pci_config_write_word(uint64_t phb_id, uint64_t bus_dev_func,
 				   uint64_t offset, uint32_t data);
 int64_t opal_set_xive(uint32_t isn, uint16_t server, uint8_t priority);
-int64_t opal_get_xive(uint32_t isn, uint16_t *server, uint8_t *priority);
+int64_t opal_get_xive(uint32_t isn, __be16 *server, uint8_t *priority);
 int64_t opal_register_exception_handler(uint64_t opal_exception,
 					uint64_t handler_address,
 					uint64_t glue_cache_line);
 int64_t opal_pci_eeh_freeze_status(uint64_t phb_id, uint64_t pe_number,
 				   uint8_t *freeze_state,
-				   uint16_t *pci_error_type,
-				   uint64_t *phb_status);
+				   __be16 *pci_error_type,
+				   __be64 *phb_status);
 int64_t opal_pci_eeh_freeze_clear(uint64_t phb_id, uint64_t pe_number,
 				  uint64_t eeh_action_token);
 int64_t opal_pci_shpc(uint64_t phb_id, uint64_t shpc_action, uint8_t *state);
@@ -614,13 +685,13 @@ int64_t opal_pci_msi_eoi(uint64_t phb_id, uint32_t hw_irq);
 int64_t opal_pci_set_xive_pe(uint64_t phb_id, uint32_t pe_number,
 			     uint32_t xive_num);
 int64_t opal_get_xive_source(uint64_t phb_id, uint32_t xive_num,
-			     int32_t *interrupt_source_number);
+			     __be32 *interrupt_source_number);
 int64_t opal_get_msi_32(uint64_t phb_id, uint32_t mve_number, uint32_t xive_num,
-			uint8_t msi_range, uint32_t *msi_address,
-			uint32_t *message_data);
+			uint8_t msi_range, __be32 *msi_address,
+			__be32 *message_data);
 int64_t opal_get_msi_64(uint64_t phb_id, uint32_t mve_number,
 			uint32_t xive_num, uint8_t msi_range,
-			uint64_t *msi_address, uint32_t *message_data);
+			__be64 *msi_address, __be32 *message_data);
 int64_t opal_start_cpu(uint64_t thread_number, uint64_t start_address);
 int64_t opal_query_cpu_status(uint64_t thread_number, uint8_t *thread_status);
 int64_t opal_write_oppanel(oppanel_line_t *lines, uint64_t num_lines);
@@ -642,20 +713,23 @@ int64_t opal_pci_fence_phb(uint64_t phb_id);
 int64_t opal_pci_reinit(uint64_t phb_id, uint8_t reinit_scope);
 int64_t opal_pci_mask_pe_error(uint64_t phb_id, uint16_t pe_number, uint8_t error_type, uint8_t mask_action);
 int64_t opal_set_slot_led_status(uint64_t phb_id, uint64_t slot_id, uint8_t led_type, uint8_t led_action);
-int64_t opal_get_epow_status(uint64_t *status);
+int64_t opal_get_epow_status(__be64 *status);
 int64_t opal_set_system_attention_led(uint8_t led_action);
 int64_t opal_pci_next_error(uint64_t phb_id, uint64_t *first_frozen_pe,
 			    uint16_t *pci_error_type, uint16_t *severity);
 int64_t opal_pci_poll(uint64_t phb_id);
 int64_t opal_return_cpu(void);
 
-int64_t opal_xscom_read(uint32_t gcid, uint32_t pcb_addr, uint64_t *val);
+int64_t opal_xscom_read(uint32_t gcid, uint32_t pcb_addr, __be64 *val);
 int64_t opal_xscom_write(uint32_t gcid, uint32_t pcb_addr, uint64_t val);
 
 int64_t opal_lpc_write(uint32_t chip_id, enum OpalLPCAddressType addr_type,
 		       uint32_t addr, uint32_t data, uint32_t sz);
 int64_t opal_lpc_read(uint32_t chip_id, enum OpalLPCAddressType addr_type,
-		      uint32_t addr, uint32_t *data, uint32_t sz);
+		      uint32_t addr, __be32 *data, uint32_t sz);
+int64_t opal_validate_flash(uint64_t buffer, uint32_t *size, uint32_t *result);
+int64_t opal_manage_flash(uint8_t op);
+int64_t opal_update_flash(uint64_t blk_list);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname, int depth, void *data);
@@ -684,6 +758,7 @@ extern int opal_set_rtc_time(struct rtc_time *tm);
 extern void opal_get_rtc_time(struct rtc_time *tm);
 extern unsigned long opal_get_boot_time(void);
 extern void opal_nvram_init(void);
+extern void opal_flash_init(void);
 
 extern int opal_machine_check(struct pt_regs *regs);
 

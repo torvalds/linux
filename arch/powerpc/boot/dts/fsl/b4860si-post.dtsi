@@ -41,7 +41,7 @@
 
 &rio {
 	compatible = "fsl,srio";
-	interrupts = <16 2 1 11>;
+	interrupts = <16 2 1 20>;
 	#address-cells = <2>;
 	#size-cells = <2>;
 	fsl,iommu-parent = <&pamu0>;

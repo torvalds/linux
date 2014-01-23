@@ -138,6 +138,5 @@ static struct i2c_driver adt7316_driver = {
 module_i2c_driver(adt7316_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
-MODULE_DESCRIPTION("I2C bus driver for Analog Devices ADT7316/7/9 and"
-			"ADT7516/7/8 digital temperature sensor, ADC and DAC");
+MODULE_DESCRIPTION("I2C bus driver for Analog Devices ADT7316/7/9 and ADT7516/7/8 digital temperature sensor, ADC and DAC");
 MODULE_LICENSE("GPL v2");

@@ -1068,7 +1068,7 @@ static int rndis_proc_show(struct seq_file *m, void *v)
 				s = "RNDIS_INITIALIZED"; break;
 			 case RNDIS_DATA_INITIALIZED:
 				s = "RNDIS_DATA_INITIALIZED"; break;
-			}; s; }),
+			} s; }),
 			 param->medium,
 			 (param->media_state) ? 0 : param->speed*100,
 			 (param->media_state) ? "disconnected" : "connected",

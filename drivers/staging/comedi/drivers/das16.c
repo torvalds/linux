@@ -675,21 +675,19 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		unsigned int tmp = cmd->scan_begin_arg;
 		/*  set divisors, correct timing arguments */
-		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
-					       &devpriv->divisor1,
-					       &devpriv->divisor2,
-					       &cmd->scan_begin_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(devpriv->clockbase,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		err += (tmp != cmd->scan_begin_arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		unsigned int tmp = cmd->convert_arg;
 		/*  set divisors, correct timing arguments */
-		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
-					       &devpriv->divisor1,
-					       &devpriv->divisor2,
-					       &cmd->convert_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(devpriv->clockbase,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		err += (tmp != cmd->convert_arg);
 	}
 	if (err)
@@ -725,11 +723,9 @@ static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 	struct das16_private_struct *devpriv = dev->private;
 	unsigned long timer_base = dev->iobase + DAS16_TIMER_BASE_REG;
 
-	i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
-				       &devpriv->divisor1,
-				       &devpriv->divisor2,
-				       &ns,
-				       rounding_flags & TRIG_ROUND_MASK);
+	i8253_cascade_ns_to_timer(devpriv->clockbase,
+				  &devpriv->divisor1, &devpriv->divisor2,
+				  &ns, rounding_flags);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
 	i8254_load(timer_base, 0, 1, devpriv->divisor1, 2);
@@ -850,7 +846,7 @@ static void das16_ai_munge(struct comedi_device *dev,
 			   unsigned int start_chan_index)
 {
 	unsigned int i, num_samples = num_bytes / sizeof(short);
-	short *data = array;
+	unsigned short *data = array;
 
 	for (i = 0; i < num_samples; i++) {
 		data[i] = le16_to_cpu(data[i]);
@@ -952,15 +948,8 @@ static int das16_do_insn_bits(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		outb(s->state, dev->iobase + DAS16_DIO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -1043,14 +1032,15 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		status = inb(dev->iobase + DAS1600_STATUS_REG);
 
 		if (status & DAS1600_STATUS_CLK_10MHZ)
-			devpriv->clockbase = 100;
+			devpriv->clockbase = I8254_OSC_BASE_10MHZ;
 		else
-			devpriv->clockbase = 1000;
+			devpriv->clockbase = I8254_OSC_BASE_1MHZ;
 	} else {
 		if (it->options[3])
-			devpriv->clockbase = 1000 / it->options[3];
+			devpriv->clockbase = I8254_OSC_BASE_1MHZ /
+					     it->options[3];
 		else
-			devpriv->clockbase = 1000;	/*  1 MHz default */
+			devpriv->clockbase = I8254_OSC_BASE_1MHZ;
 	}
 
 	/* initialize dma */

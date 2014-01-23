@@ -267,9 +267,8 @@ _func_enter_;
 
 		rtw_mfree_sta_priv_lock(pstapriv);
 
-		if (pstapriv->pallocated_stainfo_buf) {
+		if (pstapriv->pallocated_stainfo_buf)
 			rtw_vmfree(pstapriv->pallocated_stainfo_buf, sizeof(struct sta_info)*NUM_STA+4);
-		}
 	}
 
 _func_exit_;
@@ -315,7 +314,7 @@ _func_enter_;
 
 		rtw_list_insert_tail(&psta->hash_list, phash_list);
 
-		pstapriv->asoc_sta_count++ ;
+		pstapriv->asoc_sta_count++;
 
 		_exit_critical_bh(&(pstapriv->sta_hash_lock), &irql2);
 
@@ -419,7 +418,7 @@ _func_enter_;
 	_cancel_timer_ex(&psta->addba_retry_timer);
 
 	/* for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer */
-	for (i = 0; i < 16 ; i++) {
+	for (i = 0; i < 16; i++) {
 		unsigned long irql;
 		struct list_head *phead, *plist;
 		union recv_frame *prframe;

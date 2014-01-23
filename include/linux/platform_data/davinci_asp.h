@@ -84,6 +84,8 @@ struct snd_platform_data {
 	u8 version;
 	u8 txnumevt;
 	u8 rxnumevt;
+	int tx_dma_channel;
+	int rx_dma_channel;
 };
 
 enum {

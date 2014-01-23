@@ -126,7 +126,7 @@ nv84_therm_intr(struct nouveau_subdev *subdev)
 
 	spin_lock_irqsave(&priv->sensor.alarm_program_lock, flags);
 
-	intr = nv_rd32(therm, 0x20100);
+	intr = nv_rd32(therm, 0x20100) & 0x3ff;
 
 	/* THRS_4: downclock */
 	if (intr & 0x002) {
@@ -209,6 +209,19 @@ nv84_therm_ctor(struct nouveau_object *parent,
 	return nouveau_therm_preinit(&priv->base.base);
 }
 
+int
+nv84_therm_fini(struct nouveau_object *object, bool suspend)
+{
+	/* Disable PTherm IRQs */
+	nv_wr32(object, 0x20000, 0x00000000);
+
+	/* ACK all PTherm IRQs */
+	nv_wr32(object, 0x20100, 0xffffffff);
+	nv_wr32(object, 0x1100, 0x10000); /* PBUS */
+
+	return _nouveau_therm_fini(object, suspend);
+}
+
 struct nouveau_oclass
 nv84_therm_oclass = {
 	.handle = NV_SUBDEV(THERM, 0x84),
@@ -216,6 +229,6 @@ nv84_therm_oclass = {
 		.ctor = nv84_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
 		.init = _nouveau_therm_init,
-		.fini = _nouveau_therm_fini,
+		.fini = nv84_therm_fini,
 	},
 };

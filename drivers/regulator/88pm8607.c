@@ -391,7 +391,8 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	else
 		config.regmap = chip->regmap_companion;
 
-	info->regulator = regulator_register(&info->desc, &config);
+	info->regulator = devm_regulator_register(&pdev->dev, &info->desc,
+						  &config);
 	if (IS_ERR(info->regulator)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
@@ -399,14 +400,6 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-	return 0;
-}
-
-static int pm8607_regulator_remove(struct platform_device *pdev)
-{
-	struct pm8607_regulator_info *info = platform_get_drvdata(pdev);
-
-	regulator_unregister(info->regulator);
 	return 0;
 }
 
@@ -428,7 +421,6 @@ static struct platform_driver pm8607_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pm8607_regulator_probe,
-	.remove		= pm8607_regulator_remove,
 	.id_table	= pm8607_regulator_driver_ids,
 };
 

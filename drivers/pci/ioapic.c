@@ -37,7 +37,7 @@ static int ioapic_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	char *type;
 	struct resource *res;
 
-	handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	handle = ACPI_HANDLE(&dev->dev);
 	if (!handle)
 		return -EINVAL;
 

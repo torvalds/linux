@@ -372,38 +372,37 @@ extern u32		bnad_rxqs_per_cq;
 /*
  * EXTERN PROTOTYPES
  */
-extern u32 *cna_get_firmware_buf(struct pci_dev *pdev);
+u32 *cna_get_firmware_buf(struct pci_dev *pdev);
 /* Netdev entry point prototypes */
-extern void bnad_set_rx_mode(struct net_device *netdev);
-extern struct net_device_stats *bnad_get_netdev_stats(
-				struct net_device *netdev);
-extern int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
-extern int bnad_enable_default_bcast(struct bnad *bnad);
-extern void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
-extern void bnad_set_ethtool_ops(struct net_device *netdev);
-extern void bnad_cb_completion(void *arg, enum bfa_status status);
+void bnad_set_rx_mode(struct net_device *netdev);
+struct net_device_stats *bnad_get_netdev_stats(struct net_device *netdev);
+int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
+int bnad_enable_default_bcast(struct bnad *bnad);
+void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
+void bnad_set_ethtool_ops(struct net_device *netdev);
+void bnad_cb_completion(void *arg, enum bfa_status status);
 
 /* Configuration & setup */
-extern void bnad_tx_coalescing_timeo_set(struct bnad *bnad);
-extern void bnad_rx_coalescing_timeo_set(struct bnad *bnad);
+void bnad_tx_coalescing_timeo_set(struct bnad *bnad);
+void bnad_rx_coalescing_timeo_set(struct bnad *bnad);
 
-extern int bnad_setup_rx(struct bnad *bnad, u32 rx_id);
-extern int bnad_setup_tx(struct bnad *bnad, u32 tx_id);
-extern void bnad_destroy_tx(struct bnad *bnad, u32 tx_id);
-extern void bnad_destroy_rx(struct bnad *bnad, u32 rx_id);
+int bnad_setup_rx(struct bnad *bnad, u32 rx_id);
+int bnad_setup_tx(struct bnad *bnad, u32 tx_id);
+void bnad_destroy_tx(struct bnad *bnad, u32 tx_id);
+void bnad_destroy_rx(struct bnad *bnad, u32 rx_id);
 
 /* Timer start/stop protos */
-extern void bnad_dim_timer_start(struct bnad *bnad);
+void bnad_dim_timer_start(struct bnad *bnad);
 
 /* Statistics */
-extern void bnad_netdev_qstats_fill(struct bnad *bnad,
-		struct rtnl_link_stats64 *stats);
-extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
-		struct rtnl_link_stats64 *stats);
+void bnad_netdev_qstats_fill(struct bnad *bnad,
+			     struct rtnl_link_stats64 *stats);
+void bnad_netdev_hwstats_fill(struct bnad *bnad,
+			      struct rtnl_link_stats64 *stats);
 
 /* Debugfs */
-void	bnad_debugfs_init(struct bnad *bnad);
-void	bnad_debugfs_uninit(struct bnad *bnad);
+void bnad_debugfs_init(struct bnad *bnad);
+void bnad_debugfs_uninit(struct bnad *bnad);
 
 /* MACROS */
 /* To set & get the stats counters */

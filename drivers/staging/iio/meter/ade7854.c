@@ -100,9 +100,9 @@ static ssize_t ade7854_write_8bit(struct device *dev,
 	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
-	long val;
+	u8 val;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou8(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 	ret = st->write_reg_8(dev, this_attr->address, val);
@@ -121,9 +121,9 @@ static ssize_t ade7854_write_16bit(struct device *dev,
 	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
-	long val;
+	u16 val;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou16(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 	ret = st->write_reg_16(dev, this_attr->address, val);
@@ -142,9 +142,9 @@ static ssize_t ade7854_write_24bit(struct device *dev,
 	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
-	long val;
+	u32 val;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou32(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 	ret = st->write_reg_24(dev, this_attr->address, val);
@@ -163,9 +163,9 @@ static ssize_t ade7854_write_32bit(struct device *dev,
 	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
-	long val;
+	u32 val;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou32(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 	ret = st->write_reg_32(dev, this_attr->address, val);
@@ -550,7 +550,7 @@ int ade7854_probe(struct iio_dev *indio_dev, struct device *dev)
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	/* Get the device into a sane initial state */
 	ret = ade7854_initial_setup(indio_dev);
@@ -561,9 +561,6 @@ int ade7854_probe(struct iio_dev *indio_dev, struct device *dev)
 
 error_unreg_dev:
 	iio_device_unregister(indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-
 	return ret;
 }
 EXPORT_SYMBOL(ade7854_probe);
@@ -571,7 +568,6 @@ EXPORT_SYMBOL(ade7854_probe);
 int ade7854_remove(struct iio_dev *indio_dev)
 {
 	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

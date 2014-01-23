@@ -346,22 +346,17 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	for (i = 0; i < NOUVEAU_DMA_SKIPS; i++)
 		OUT_RING(chan, 0x00000000);
 
-	/* allocate software object class (used for fences on <= nv05, and
-	 * to signal flip completion), bind it to a subchannel.
-	 */
-	if ((device->card_type < NV_E0) || gart /* nve0: want_nvsw */) {
+	/* allocate software object class (used for fences on <= nv05) */
+	if (device->card_type < NV_10) {
 		ret = nouveau_object_new(nv_object(client), chan->handle,
-					 NvSw, nouveau_abi16_swclass(chan->drm),
-					 NULL, 0, &object);
+					 NvSw, 0x006e, NULL, 0, &object);
 		if (ret)
 			return ret;
 
 		swch = (void *)object->parent;
 		swch->flip = nouveau_flip_complete;
 		swch->flip_data = chan;
-	}
 
-	if (device->card_type < NV_C0) {
 		ret = RING_SPACE(chan, 2);
 		if (ret)
 			return ret;

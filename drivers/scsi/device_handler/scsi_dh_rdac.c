@@ -786,6 +786,7 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"IBM", "1742"},
 	{"IBM", "1745"},
 	{"IBM", "1746"},
+	{"IBM", "1813"},
 	{"IBM", "1814"},
 	{"IBM", "1815"},
 	{"IBM", "1818"},

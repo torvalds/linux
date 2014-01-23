@@ -103,8 +103,6 @@ xfs_dq_to_quota_inode(struct xfs_dquot *dqp)
 	return NULL;
 }
 
-extern int	xfs_qm_calc_dquots_per_chunk(struct xfs_mount *mp,
-					     unsigned int nbblks);
 extern void	xfs_trans_mod_dquot(struct xfs_trans *,
 					struct xfs_dquot *, uint, long);
 extern int	xfs_trans_reserve_quota_bydquots(struct xfs_trans *,

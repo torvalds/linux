@@ -173,7 +173,7 @@ static int usb_acpi_find_device(struct device *dev, acpi_handle *handle)
 		}
 
 		/* root hub's parent is the usb hcd. */
-		parent_handle = DEVICE_ACPI_HANDLE(dev->parent);
+		parent_handle = ACPI_HANDLE(dev->parent);
 		*handle = acpi_get_child(parent_handle, udev->portnum);
 		if (!*handle)
 			return -ENODEV;
@@ -194,7 +194,7 @@ static int usb_acpi_find_device(struct device *dev, acpi_handle *handle)
 
 			raw_port_num = usb_hcd_find_raw_port_number(hcd,
 				port_num);
-			*handle = acpi_get_child(DEVICE_ACPI_HANDLE(&udev->dev),
+			*handle = acpi_get_child(ACPI_HANDLE(&udev->dev),
 				raw_port_num);
 			if (!*handle)
 				return -ENODEV;

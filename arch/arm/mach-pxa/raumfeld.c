@@ -539,6 +539,7 @@ static struct platform_pwm_backlight_data raumfeld_pwm_backlight_data = {
 	.dft_brightness	= 100,
 	/* 10000 ns = 10 ms ^= 100 kHz */
 	.pwm_period_ns	= 10000,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device raumfeld_pwm_backlight_device = {

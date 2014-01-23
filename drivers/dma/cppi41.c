@@ -141,6 +141,9 @@ struct cppi41_dd {
 	const struct chan_queues *queues_rx;
 	const struct chan_queues *queues_tx;
 	struct chan_queues td_queue;
+
+	/* context for suspend/resume */
+	unsigned int dma_tdfdq;
 };
 
 #define FIST_COMPLETION_QUEUE	93
@@ -263,6 +266,15 @@ static u32 pd_trans_len(u32 val)
 	return val & ((1 << (DESC_LENGTH_BITS_NUM + 1)) - 1);
 }
 
+static u32 cppi41_pop_desc(struct cppi41_dd *cdd, unsigned queue_num)
+{
+	u32 desc;
+
+	desc = cppi_readl(cdd->qmgr_mem + QMGR_QUEUE_D(queue_num));
+	desc &= ~0x1f;
+	return desc;
+}
+
 static irqreturn_t cppi41_irq(int irq, void *data)
 {
 	struct cppi41_dd *cdd = data;
@@ -300,8 +312,7 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 			q_num = __fls(val);
 			val &= ~(1 << q_num);
 			q_num += 32 * i;
-			desc = cppi_readl(cdd->qmgr_mem + QMGR_QUEUE_D(q_num));
-			desc &= ~0x1f;
+			desc = cppi41_pop_desc(cdd, q_num);
 			c = desc_to_chan(cdd, desc);
 			if (WARN_ON(!c)) {
 				pr_err("%s() q %d desc %08x\n", __func__,
@@ -353,7 +364,7 @@ static enum dma_status cppi41_dma_tx_status(struct dma_chan *chan,
 
 	/* lock */
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (txstate && ret == DMA_SUCCESS)
+	if (txstate && ret == DMA_COMPLETE)
 		txstate->residue = c->residue;
 	/* unlock */
 
@@ -517,15 +528,6 @@ static void cppi41_compute_td_desc(struct cppi41_desc *d)
 	d->pd0 = DESC_TYPE_TEARD << DESC_TYPE;
 }
 
-static u32 cppi41_pop_desc(struct cppi41_dd *cdd, unsigned queue_num)
-{
-	u32 desc;
-
-	desc = cppi_readl(cdd->qmgr_mem + QMGR_QUEUE_D(queue_num));
-	desc &= ~0x1f;
-	return desc;
-}
-
 static int cppi41_tear_down_chan(struct cppi41_channel *c)
 {
 	struct cppi41_dd *cdd = c->cdd;
@@ -561,36 +563,26 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 		c->td_retry = 100;
 	}
 
-	if (!c->td_seen) {
-		unsigned td_comp_queue;
+	if (!c->td_seen || !c->td_desc_seen) {
 
-		if (c->is_tx)
-			td_comp_queue =  cdd->td_queue.complete;
-		else
-			td_comp_queue =  c->q_comp_num;
+		desc_phys = cppi41_pop_desc(cdd, cdd->td_queue.complete);
+		if (!desc_phys)
+			desc_phys = cppi41_pop_desc(cdd, c->q_comp_num);
 
-		desc_phys = cppi41_pop_desc(cdd, td_comp_queue);
-		if (desc_phys) {
-			__iormb();
-
-			if (desc_phys == td_desc_phys) {
-				u32 pd0;
-				pd0 = td->pd0;
-				WARN_ON((pd0 >> DESC_TYPE) != DESC_TYPE_TEARD);
-				WARN_ON(!c->is_tx && !(pd0 & TD_DESC_IS_RX));
-				WARN_ON((pd0 & 0x1f) != c->port_num);
-			} else {
-				WARN_ON_ONCE(1);
-			}
-			c->td_seen = 1;
-		}
-	}
-	if (!c->td_desc_seen) {
-		desc_phys = cppi41_pop_desc(cdd, c->q_comp_num);
-		if (desc_phys) {
-			__iormb();
-			WARN_ON(c->desc_phys != desc_phys);
+		if (desc_phys == c->desc_phys) {
 			c->td_desc_seen = 1;
+
+		} else if (desc_phys == td_desc_phys) {
+			u32 pd0;
+
+			__iormb();
+			pd0 = td->pd0;
+			WARN_ON((pd0 >> DESC_TYPE) != DESC_TYPE_TEARD);
+			WARN_ON(!c->is_tx && !(pd0 & TD_DESC_IS_RX));
+			WARN_ON((pd0 & 0x1f) != c->port_num);
+			c->td_seen = 1;
+		} else if (desc_phys) {
+			WARN_ON_ONCE(1);
 		}
 	}
 	c->td_retry--;
@@ -609,7 +601,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 
 	WARN_ON(!c->td_retry);
 	if (!c->td_desc_seen) {
-		desc_phys = cppi_readl(cdd->qmgr_mem + QMGR_QUEUE_D(c->q_num));
+		desc_phys = cppi41_pop_desc(cdd, c->q_num);
 		WARN_ON(!desc_phys);
 	}
 
@@ -674,14 +666,14 @@ static void cleanup_chans(struct cppi41_dd *cdd)
 	}
 }
 
-static int cppi41_add_chans(struct platform_device *pdev, struct cppi41_dd *cdd)
+static int cppi41_add_chans(struct device *dev, struct cppi41_dd *cdd)
 {
 	struct cppi41_channel *cchan;
 	int i;
 	int ret;
 	u32 n_chans;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "#dma-channels",
+	ret = of_property_read_u32(dev->of_node, "#dma-channels",
 			&n_chans);
 	if (ret)
 		return ret;
@@ -719,7 +711,7 @@ err:
 	return -ENOMEM;
 }
 
-static void purge_descs(struct platform_device *pdev, struct cppi41_dd *cdd)
+static void purge_descs(struct device *dev, struct cppi41_dd *cdd)
 {
 	unsigned int mem_decs;
 	int i;
@@ -731,7 +723,7 @@ static void purge_descs(struct platform_device *pdev, struct cppi41_dd *cdd)
 		cppi_writel(0, cdd->qmgr_mem + QMGR_MEMBASE(i));
 		cppi_writel(0, cdd->qmgr_mem + QMGR_MEMCTRL(i));
 
-		dma_free_coherent(&pdev->dev, mem_decs, cdd->cd,
+		dma_free_coherent(dev, mem_decs, cdd->cd,
 				cdd->descs_phys);
 	}
 }
@@ -741,19 +733,19 @@ static void disable_sched(struct cppi41_dd *cdd)
 	cppi_writel(0, cdd->sched_mem + DMA_SCHED_CTRL);
 }
 
-static void deinit_cpii41(struct platform_device *pdev, struct cppi41_dd *cdd)
+static void deinit_cppi41(struct device *dev, struct cppi41_dd *cdd)
 {
 	disable_sched(cdd);
 
-	purge_descs(pdev, cdd);
+	purge_descs(dev, cdd);
 
 	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM0_BASE);
 	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM0_BASE);
-	dma_free_coherent(&pdev->dev, QMGR_SCRATCH_SIZE, cdd->qmgr_scratch,
+	dma_free_coherent(dev, QMGR_SCRATCH_SIZE, cdd->qmgr_scratch,
 			cdd->scratch_phys);
 }
 
-static int init_descs(struct platform_device *pdev, struct cppi41_dd *cdd)
+static int init_descs(struct device *dev, struct cppi41_dd *cdd)
 {
 	unsigned int desc_size;
 	unsigned int mem_decs;
@@ -777,7 +769,7 @@ static int init_descs(struct platform_device *pdev, struct cppi41_dd *cdd)
 		reg |= ilog2(ALLOC_DECS_NUM) - 5;
 
 		BUILD_BUG_ON(DESCS_AREAS != 1);
-		cdd->cd = dma_alloc_coherent(&pdev->dev, mem_decs,
+		cdd->cd = dma_alloc_coherent(dev, mem_decs,
 				&cdd->descs_phys, GFP_KERNEL);
 		if (!cdd->cd)
 			return -ENOMEM;
@@ -813,12 +805,12 @@ static void init_sched(struct cppi41_dd *cdd)
 	cppi_writel(reg, cdd->sched_mem + DMA_SCHED_CTRL);
 }
 
-static int init_cppi41(struct platform_device *pdev, struct cppi41_dd *cdd)
+static int init_cppi41(struct device *dev, struct cppi41_dd *cdd)
 {
 	int ret;
 
 	BUILD_BUG_ON(QMGR_SCRATCH_SIZE > ((1 << 14) - 1));
-	cdd->qmgr_scratch = dma_alloc_coherent(&pdev->dev, QMGR_SCRATCH_SIZE,
+	cdd->qmgr_scratch = dma_alloc_coherent(dev, QMGR_SCRATCH_SIZE,
 			&cdd->scratch_phys, GFP_KERNEL);
 	if (!cdd->qmgr_scratch)
 		return -ENOMEM;
@@ -827,7 +819,7 @@ static int init_cppi41(struct platform_device *pdev, struct cppi41_dd *cdd)
 	cppi_writel(QMGR_SCRATCH_SIZE, cdd->qmgr_mem + QMGR_LRAM_SIZE);
 	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM1_BASE);
 
-	ret = init_descs(pdev, cdd);
+	ret = init_descs(dev, cdd);
 	if (ret)
 		goto err_td;
 
@@ -835,7 +827,7 @@ static int init_cppi41(struct platform_device *pdev, struct cppi41_dd *cdd)
 	init_sched(cdd);
 	return 0;
 err_td:
-	deinit_cpii41(pdev, cdd);
+	deinit_cppi41(dev, cdd);
 	return ret;
 }
 
@@ -914,11 +906,11 @@ static const struct of_device_id cppi41_dma_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, cppi41_dma_ids);
 
-static const struct cppi_glue_infos *get_glue_info(struct platform_device *pdev)
+static const struct cppi_glue_infos *get_glue_info(struct device *dev)
 {
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(cppi41_dma_ids, pdev->dev.of_node);
+	of_id = of_match_node(cppi41_dma_ids, dev->of_node);
 	if (!of_id)
 		return NULL;
 	return of_id->data;
@@ -927,11 +919,12 @@ static const struct cppi_glue_infos *get_glue_info(struct platform_device *pdev)
 static int cppi41_dma_probe(struct platform_device *pdev)
 {
 	struct cppi41_dd *cdd;
+	struct device *dev = &pdev->dev;
 	const struct cppi_glue_infos *glue_info;
 	int irq;
 	int ret;
 
-	glue_info = get_glue_info(pdev);
+	glue_info = get_glue_info(dev);
 	if (!glue_info)
 		return -EINVAL;
 
@@ -946,14 +939,14 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->ddev.device_issue_pending = cppi41_dma_issue_pending;
 	cdd->ddev.device_prep_slave_sg = cppi41_dma_prep_slave_sg;
 	cdd->ddev.device_control = cppi41_dma_control;
-	cdd->ddev.dev = &pdev->dev;
+	cdd->ddev.dev = dev;
 	INIT_LIST_HEAD(&cdd->ddev.channels);
 	cpp41_dma_info.dma_cap = cdd->ddev.cap_mask;
 
-	cdd->usbss_mem = of_iomap(pdev->dev.of_node, 0);
-	cdd->ctrl_mem = of_iomap(pdev->dev.of_node, 1);
-	cdd->sched_mem = of_iomap(pdev->dev.of_node, 2);
-	cdd->qmgr_mem = of_iomap(pdev->dev.of_node, 3);
+	cdd->usbss_mem = of_iomap(dev->of_node, 0);
+	cdd->ctrl_mem = of_iomap(dev->of_node, 1);
+	cdd->sched_mem = of_iomap(dev->of_node, 2);
+	cdd->qmgr_mem = of_iomap(dev->of_node, 3);
 
 	if (!cdd->usbss_mem || !cdd->ctrl_mem || !cdd->sched_mem ||
 			!cdd->qmgr_mem) {
@@ -961,31 +954,31 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 		goto err_remap;
 	}
 
-	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret)
+	pm_runtime_enable(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
 		goto err_get_sync;
 
 	cdd->queues_rx = glue_info->queues_rx;
 	cdd->queues_tx = glue_info->queues_tx;
 	cdd->td_queue = glue_info->td_queue;
 
-	ret = init_cppi41(pdev, cdd);
+	ret = init_cppi41(dev, cdd);
 	if (ret)
 		goto err_init_cppi;
 
-	ret = cppi41_add_chans(pdev, cdd);
+	ret = cppi41_add_chans(dev, cdd);
 	if (ret)
 		goto err_chans;
 
-	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq)
 		goto err_irq;
 
 	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
 
 	ret = request_irq(irq, glue_info->isr, IRQF_SHARED,
-			dev_name(&pdev->dev), cdd);
+			dev_name(dev), cdd);
 	if (ret)
 		goto err_irq;
 	cdd->irq = irq;
@@ -994,7 +987,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dma_reg;
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(dev->of_node,
 			cppi41_dma_xlate, &cpp41_dma_info);
 	if (ret)
 		goto err_of;
@@ -1009,11 +1002,11 @@ err_irq:
 	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	cleanup_chans(cdd);
 err_chans:
-	deinit_cpii41(pdev, cdd);
+	deinit_cppi41(dev, cdd);
 err_init_cppi:
-	pm_runtime_put(&pdev->dev);
+	pm_runtime_put(dev);
 err_get_sync:
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_disable(dev);
 	iounmap(cdd->usbss_mem);
 	iounmap(cdd->ctrl_mem);
 	iounmap(cdd->sched_mem);
@@ -1033,7 +1026,7 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	free_irq(cdd->irq, cdd);
 	cleanup_chans(cdd);
-	deinit_cpii41(pdev, cdd);
+	deinit_cppi41(&pdev->dev, cdd);
 	iounmap(cdd->usbss_mem);
 	iounmap(cdd->ctrl_mem);
 	iounmap(cdd->sched_mem);
@@ -1044,12 +1037,53 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int cppi41_suspend(struct device *dev)
+{
+	struct cppi41_dd *cdd = dev_get_drvdata(dev);
+
+	cdd->dma_tdfdq = cppi_readl(cdd->ctrl_mem + DMA_TDFDQ);
+	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
+	disable_sched(cdd);
+
+	return 0;
+}
+
+static int cppi41_resume(struct device *dev)
+{
+	struct cppi41_dd *cdd = dev_get_drvdata(dev);
+	struct cppi41_channel *c;
+	int i;
+
+	for (i = 0; i < DESCS_AREAS; i++)
+		cppi_writel(cdd->descs_phys, cdd->qmgr_mem + QMGR_MEMBASE(i));
+
+	list_for_each_entry(c, &cdd->ddev.channels, chan.device_node)
+		if (!c->is_tx)
+			cppi_writel(c->q_num, c->gcr_reg + RXHPCRA0);
+
+	init_sched(cdd);
+
+	cppi_writel(cdd->dma_tdfdq, cdd->ctrl_mem + DMA_TDFDQ);
+	cppi_writel(cdd->scratch_phys, cdd->qmgr_mem + QMGR_LRAM0_BASE);
+	cppi_writel(QMGR_SCRATCH_SIZE, cdd->qmgr_mem + QMGR_LRAM_SIZE);
+	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM1_BASE);
+
+	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(cppi41_pm_ops, cppi41_suspend, cppi41_resume);
+
 static struct platform_driver cpp41_dma_driver = {
 	.probe  = cppi41_dma_probe,
 	.remove = cppi41_dma_remove,
 	.driver = {
 		.name = "cppi41-dma-engine",
 		.owner = THIS_MODULE,
+		.pm = &cppi41_pm_ops,
 		.of_match_table = of_match_ptr(cppi41_dma_ids),
 	},
 };

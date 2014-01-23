@@ -126,19 +126,17 @@ struct mrp_port {
 	struct rcu_head			rcu;
 };
 
-extern int	mrp_register_application(struct mrp_application *app);
-extern void	mrp_unregister_application(struct mrp_application *app);
+int mrp_register_application(struct mrp_application *app);
+void mrp_unregister_application(struct mrp_application *app);
 
-extern int	mrp_init_applicant(struct net_device *dev,
-				    struct mrp_application *app);
-extern void	mrp_uninit_applicant(struct net_device *dev,
-				      struct mrp_application *app);
+int mrp_init_applicant(struct net_device *dev, struct mrp_application *app);
+void mrp_uninit_applicant(struct net_device *dev, struct mrp_application *app);
 
-extern int	mrp_request_join(const struct net_device *dev,
-				  const struct mrp_application *app,
-				  const void *value, u8 len, u8 type);
-extern void	mrp_request_leave(const struct net_device *dev,
-				   const struct mrp_application *app,
-				   const void *value, u8 len, u8 type);
+int mrp_request_join(const struct net_device *dev,
+		     const struct mrp_application *app,
+		     const void *value, u8 len, u8 type);
+void mrp_request_leave(const struct net_device *dev,
+		       const struct mrp_application *app,
+		       const void *value, u8 len, u8 type);
 
 #endif /* _NET_MRP_H */

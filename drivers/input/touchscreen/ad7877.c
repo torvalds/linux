@@ -806,7 +806,6 @@ err_free_irq:
 err_free_mem:
 	input_free_device(input_dev);
 	kfree(ts);
-	spi_set_drvdata(spi, NULL);
 	return err;
 }
 
@@ -823,7 +822,6 @@ static int ad7877_remove(struct spi_device *spi)
 	kfree(ts);
 
 	dev_dbg(&spi->dev, "unregistered touchscreen\n");
-	spi_set_drvdata(spi, NULL);
 
 	return 0;
 }

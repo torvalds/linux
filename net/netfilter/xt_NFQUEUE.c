@@ -147,6 +147,7 @@ nfqueue_tg_v3(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_NFQ_info_v3 *info = par->targinfo;
 	u32 queue = info->queuenum;
+	int ret;
 
 	if (info->queues_total > 1) {
 		if (info->flags & NFQ_FLAG_CPU_FANOUT) {
@@ -157,7 +158,11 @@ nfqueue_tg_v3(struct sk_buff *skb, const struct xt_action_param *par)
 			queue = nfqueue_hash(skb, par);
 	}
 
-	return NF_QUEUE_NR(queue);
+	ret = NF_QUEUE_NR(queue);
+	if (info->flags & NFQ_FLAG_BYPASS)
+		ret |= NF_VERDICT_FLAG_QUEUE_BYPASS;
+
+	return ret;
 }
 
 static struct xt_target nfqueue_tg_reg[] __read_mostly = {

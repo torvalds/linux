@@ -264,6 +264,7 @@ config SPI_FSL_SPI
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
 	select SPI_BITBANG
+	depends on SOC_VF610 || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
 	  mode. VF610 platform uses the controller.
@@ -369,7 +370,7 @@ config SPI_PXA2XX_PCI
 
 config SPI_RSPI
 	tristate "Renesas RSPI controller"
-	depends on SUPERH && SH_DMAE_BASE
+	depends on (SUPERH || ARCH_SHMOBILE) && SH_DMAE_BASE
 	help
 	  SPI driver for Renesas RSPI blocks.
 
@@ -393,7 +394,7 @@ config SPI_S3C24XX_FIQ
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
-	depends on (ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5P64X0 || ARCH_EXYNOS)
+	depends on PLAT_SAMSUNG
 	select S3C64XX_DMA if ARCH_S3C64XX
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.

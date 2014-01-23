@@ -10,11 +10,13 @@
 #ifndef _UAPI_IP_SET_H
 #define _UAPI_IP_SET_H
 
-
 #include <linux/types.h>
 
 /* The protocol version */
 #define IPSET_PROTOCOL		6
+
+/* The maximum permissible comment length we will accept over netlink */
+#define IPSET_MAX_COMMENT_SIZE	255
 
 /* The max length of strings including NUL: set and type identifiers */
 #define IPSET_MAXNAMELEN	32
@@ -110,6 +112,7 @@ enum {
 	IPSET_ATTR_IFACE,
 	IPSET_ATTR_BYTES,
 	IPSET_ATTR_PACKETS,
+	IPSET_ATTR_COMMENT,
 	__IPSET_ATTR_ADT_MAX,
 };
 #define IPSET_ATTR_ADT_MAX	(__IPSET_ATTR_ADT_MAX - 1)
@@ -140,6 +143,7 @@ enum ipset_errno {
 	IPSET_ERR_IPADDR_IPV4,
 	IPSET_ERR_IPADDR_IPV6,
 	IPSET_ERR_COUNTER,
+	IPSET_ERR_COMMENT,
 
 	/* Type specific error codes */
 	IPSET_ERR_TYPE_SPECIFIC = 4352,
@@ -176,6 +180,8 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_NOMATCH	= (1 << IPSET_FLAG_BIT_NOMATCH),
 	IPSET_FLAG_BIT_WITH_COUNTERS = 3,
 	IPSET_FLAG_WITH_COUNTERS = (1 << IPSET_FLAG_BIT_WITH_COUNTERS),
+	IPSET_FLAG_BIT_WITH_COMMENT = 4,
+	IPSET_FLAG_WITH_COMMENT = (1 << IPSET_FLAG_BIT_WITH_COMMENT),
 	IPSET_FLAG_CADT_MAX	= 15,
 };
 
@@ -249,6 +255,14 @@ struct ip_set_req_get_set {
 
 #define IP_SET_OP_GET_BYINDEX	0x00000007	/* Get set name by index */
 /* Uses ip_set_req_get_set */
+
+#define IP_SET_OP_GET_FNAME	0x00000008	/* Get set index and family */
+struct ip_set_req_get_set_family {
+	unsigned int op;
+	unsigned int version;
+	unsigned int family;
+	union ip_set_name_index set;
+};
 
 #define IP_SET_OP_VERSION	0x00000100	/* Ask kernel version */
 struct ip_set_req_version {

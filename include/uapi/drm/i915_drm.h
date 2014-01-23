@@ -38,10 +38,10 @@
  *
  * I915_L3_PARITY_UEVENT - Generated when the driver receives a parity mismatch
  *	event from the gpu l3 cache. Additional information supplied is ROW,
- *	BANK, SUBBANK of the affected cacheline. Userspace should keep track of
- *	these events and if a specific cache-line seems to have a persistent
- *	error remap it with the l3 remapping tool supplied in intel-gpu-tools.
- *	The value supplied with the event is always 1.
+ *	BANK, SUBBANK, SLICE of the affected cacheline. Userspace should keep
+ *	track of these events and if a specific cache-line seems to have a
+ *	persistent error remap it with the l3 remapping tool supplied in
+ *	intel-gpu-tools.  The value supplied with the event is always 1.
  *
  * I915_ERROR_UEVENT - Generated upon error detection, currently only via
  *	hangcheck. The error detection event is a good indicator of when things

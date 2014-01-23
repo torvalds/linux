@@ -70,6 +70,12 @@ Unless otherwise specified, all options default to off.
 
 	See comments at the top of fs/btrfs/check-integrity.c for more info.
 
+  commit=<seconds>
+	Set the interval of periodic commit, 30 seconds by default. Higher
+	values defer data being synced to permanent storage with obvious
+	consequences when the system crashes. The upper bound is not forced,
+	but a warning is printed if it's more than 300 seconds (5 minutes).
+
   compress
   compress=<type>
   compress-force
@@ -154,7 +160,11 @@ Unless otherwise specified, all options default to off.
 	Currently this scans a list of several previous tree roots and tries to 
 	use the first readable.
 
- skip_balance
+  rescan_uuid_tree
+	Force check and rebuild procedure of the UUID tree. This should not
+	normally be needed.
+
+  skip_balance
 	Skip automatic resume of interrupted balance operation after mount.
 	May be resumed with "btrfs balance resume."
 
@@ -234,24 +244,14 @@ available from the git repository at the following location:
 
 These include the following tools:
 
-mkfs.btrfs: create a filesystem
+* mkfs.btrfs: create a filesystem
 
-btrfsctl: control program to create snapshots and subvolumes:
+* btrfs: a single tool to manage the filesystems, refer to the manpage for more details
 
-	mount /dev/sda2 /mnt
-	btrfsctl -s new_subvol_name /mnt
-	btrfsctl -s snapshot_of_default /mnt/default
-	btrfsctl -s snapshot_of_new_subvol /mnt/new_subvol_name
-	btrfsctl -s snapshot_of_a_snapshot /mnt/snapshot_of_new_subvol
-	ls /mnt
-	default snapshot_of_a_snapshot snapshot_of_new_subvol
-	new_subvol_name snapshot_of_default
+* 'btrfsck' or 'btrfs check': do a consistency check of the filesystem
 
-	Snapshots and subvolumes cannot be deleted right now, but you can
-	rm -rf all the files and directories inside them.
+Other tools for specific tasks:
 
-btrfsck: do a limited check of the FS extent trees.
+* btrfs-convert: in-place conversion from ext2/3/4 filesystems
 
-btrfs-debug-tree: print all of the FS metadata in text form.  Example:
-
-	btrfs-debug-tree /dev/sda2 >& big_output_file
+* btrfs-image: dump filesystem metadata for debugging

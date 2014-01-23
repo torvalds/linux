@@ -1671,8 +1671,8 @@ static int tgafb_register(struct device *dev)
 	if (tga_bus_tc)
 		pr_info("tgafb: SFB+ detected, rev=0x%02x\n",
 			par->tga_chip_rev);
-	pr_info("fb%d: %s frame buffer device at 0x%lx\n",
-		info->node, info->fix.id, (long)bar0_start);
+	fb_info(info, "%s frame buffer device at 0x%lx\n",
+		info->fix.id, (long)bar0_start);
 
 	return 0;
 

@@ -88,7 +88,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00queue_start_queues(rt2x00dev);
 	rt2x00link_start_tuner(rt2x00dev);
 	rt2x00link_start_agc(rt2x00dev);
-	if (test_bit(CAPABILITY_VCO_RECALIBRATION, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_vco_recalibration(rt2x00dev))
 		rt2x00link_start_vcocal(rt2x00dev);
 
 	/*
@@ -113,7 +113,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Stop all queues
 	 */
 	rt2x00link_stop_agc(rt2x00dev);
-	if (test_bit(CAPABILITY_VCO_RECALIBRATION, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_vco_recalibration(rt2x00dev))
 		rt2x00link_stop_vcocal(rt2x00dev);
 	rt2x00link_stop_tuner(rt2x00dev);
 	rt2x00queue_stop_queues(rt2x00dev);
@@ -181,6 +181,7 @@ static void rt2x00lib_autowakeup(struct work_struct *work)
 static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
+	struct ieee80211_tx_control control = {};
 	struct rt2x00_dev *rt2x00dev = data;
 	struct sk_buff *skb;
 
@@ -195,7 +196,7 @@ static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
 	 */
 	skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
 	while (skb) {
-		rt2x00mac_tx(rt2x00dev->hw, NULL, skb);
+		rt2x00mac_tx(rt2x00dev->hw, &control, skb);
 		skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
 	}
 }
@@ -234,7 +235,7 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 	 * here as they will fetch the next beacon directly prior to
 	 * transmission.
 	 */
-	if (test_bit(CAPABILITY_PRE_TBTT_INTERRUPT, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_pre_tbtt_interrupt(rt2x00dev))
 		return;
 
 	/* fetch next beacon */
@@ -358,7 +359,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * mac80211 will expect the same data to be present it the
 	 * frame as it was passed to us.
 	 */
-	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_hw_crypto(rt2x00dev))
 		rt2x00crypto_tx_insert_iv(entry->skb, header_length);
 
 	/*

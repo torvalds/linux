@@ -5,6 +5,7 @@ config DRM_MGAG200
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
 	select DRM_TTM
 	help
 	 This is a KMS driver for the MGA G200 server chips, it

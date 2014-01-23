@@ -70,7 +70,8 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
 /**
  * function ttm_eu_reserve_buffers
  *
- * @ticket:  [out] ww_acquire_ctx returned by call.
+ * @ticket:  [out] ww_acquire_ctx filled in by call, or NULL if only
+ *           non-blocking reserves should be tried.
  * @list:    thread private list of ttm_validate_buffer structs.
  *
  * Tries to reserve bos pointed to by the list entries for validation.

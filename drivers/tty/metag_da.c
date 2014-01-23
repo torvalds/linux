@@ -495,7 +495,7 @@ static int dashtty_write(struct tty_struct *tty, const unsigned char *buf,
 	count = dport->xmit_cnt;
 	/* xmit buffer no longer empty? */
 	if (count)
-		INIT_COMPLETION(dport->xmit_empty);
+		reinit_completion(&dport->xmit_empty);
 	mutex_unlock(&dport->xmit_lock);
 
 	if (total) {

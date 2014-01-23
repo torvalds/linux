@@ -5,6 +5,8 @@
 void uhci_reset_hc(struct pci_dev *pdev, unsigned long base);
 int uhci_check_and_reset_hc(struct pci_dev *pdev, unsigned long base);
 int usb_amd_find_chipset_info(void);
+bool usb_amd_hang_symptom_quirk(void);
+bool usb_amd_prefetch_quirk(void);
 void usb_amd_dev_put(void);
 void usb_amd_quirk_pll_disable(void);
 void usb_amd_quirk_pll_enable(void);

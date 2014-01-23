@@ -202,7 +202,7 @@ static int __init init_atmel(void)
 
 	have_region =
 	    (atmel_request_region
-	     (tpm_atmel.base, region_size, "tpm_atmel0") == NULL) ? 0 : 1;
+	     (base, region_size, "tpm_atmel0") == NULL) ? 0 : 1;
 
 	pdev = platform_device_register_simple("tpm_atmel", -1, NULL, 0);
 	if (IS_ERR(pdev)) {

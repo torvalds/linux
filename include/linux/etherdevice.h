@@ -28,27 +28,24 @@
 #include <asm/unaligned.h>
 
 #ifdef __KERNEL__
-extern __be16		eth_type_trans(struct sk_buff *skb, struct net_device *dev);
+__be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev);
 extern const struct header_ops eth_header_ops;
 
-extern int eth_header(struct sk_buff *skb, struct net_device *dev,
-		      unsigned short type,
-		      const void *daddr, const void *saddr, unsigned len);
-extern int eth_rebuild_header(struct sk_buff *skb);
-extern int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr);
-extern int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh, __be16 type);
-extern void eth_header_cache_update(struct hh_cache *hh,
-				    const struct net_device *dev,
-				    const unsigned char *haddr);
-extern int eth_prepare_mac_addr_change(struct net_device *dev, void *p);
-extern void eth_commit_mac_addr_change(struct net_device *dev, void *p);
-extern int eth_mac_addr(struct net_device *dev, void *p);
-extern int eth_change_mtu(struct net_device *dev, int new_mtu);
-extern int eth_validate_addr(struct net_device *dev);
+int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
+	       const void *daddr, const void *saddr, unsigned len);
+int eth_rebuild_header(struct sk_buff *skb);
+int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr);
+int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh,
+		     __be16 type);
+void eth_header_cache_update(struct hh_cache *hh, const struct net_device *dev,
+			     const unsigned char *haddr);
+int eth_prepare_mac_addr_change(struct net_device *dev, void *p);
+void eth_commit_mac_addr_change(struct net_device *dev, void *p);
+int eth_mac_addr(struct net_device *dev, void *p);
+int eth_change_mtu(struct net_device *dev, int new_mtu);
+int eth_validate_addr(struct net_device *dev);
 
-
-
-extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
+struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 					    unsigned int rxqs);
 #define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)
 #define alloc_etherdev_mq(sizeof_priv, count) alloc_etherdev_mqs(sizeof_priv, count, count)

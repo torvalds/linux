@@ -293,7 +293,7 @@ static void serial_hsu_enable_ms(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 }
 
-void hsu_dma_tx(struct uart_hsu_port *up)
+static void hsu_dma_tx(struct uart_hsu_port *up)
 {
 	struct circ_buf *xmit = &up->port.state->xmit;
 	struct hsu_dma_buffer *dbuf = &up->txbuf;
@@ -340,7 +340,8 @@ void hsu_dma_tx(struct uart_hsu_port *up)
 }
 
 /* The buffer is already cache coherent */
-void hsu_dma_start_rx_chan(struct hsu_dma_chan *rxc, struct hsu_dma_buffer *dbuf)
+static void hsu_dma_start_rx_chan(struct hsu_dma_chan *rxc,
+					struct hsu_dma_buffer *dbuf)
 {
 	dbuf->ofs = 0;
 
@@ -386,7 +387,8 @@ static void serial_hsu_stop_tx(struct uart_port *port)
 
 /* This is always called in spinlock protected mode, so
  * modify timeout timer is safe here */
-void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts, unsigned long *flags)
+static void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts,
+			unsigned long *flags)
 {
 	struct hsu_dma_buffer *dbuf = &up->rxbuf;
 	struct hsu_dma_chan *chan = up->rxc;
@@ -1183,7 +1185,7 @@ static struct console serial_hsu_console = {
 #define SERIAL_HSU_CONSOLE	NULL
 #endif
 
-struct uart_ops serial_hsu_pops = {
+static struct uart_ops serial_hsu_pops = {
 	.tx_empty	= serial_hsu_tx_empty,
 	.set_mctrl	= serial_hsu_set_mctrl,
 	.get_mctrl	= serial_hsu_get_mctrl,
@@ -1451,7 +1453,6 @@ static void serial_hsu_remove(struct pci_dev *pdev)
 		uart_remove_one_port(&serial_hsu_reg, &up->port);
 	}
 
-	pci_set_drvdata(pdev, NULL);
 	free_irq(pdev->irq, priv);
 	pci_disable_device(pdev);
 }
@@ -1504,4 +1505,4 @@ module_init(hsu_pci_init);
 module_exit(hsu_pci_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:medfield-hsu");
+MODULE_DEVICE_TABLE(pci, pci_ids);

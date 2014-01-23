@@ -803,8 +803,8 @@ static int sgivwfb_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, info);
 
-	printk(KERN_INFO "fb%d: SGI DBE frame buffer device, using %ldK of video memory at %#lx\n",      
-		info->node, sgivwfb_mem_size >> 10, sgivwfb_mem_phys);
+	fb_info(info, "SGI DBE frame buffer device, using %ldK of video memory at %#lx\n",
+		sgivwfb_mem_size >> 10, sgivwfb_mem_phys);
 	return 0;
 
 fail_register_framebuffer:

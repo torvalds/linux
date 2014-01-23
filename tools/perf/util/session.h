@@ -7,6 +7,7 @@
 #include "machine.h"
 #include "symbol.h"
 #include "thread.h"
+#include "data.h"
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
 
@@ -29,16 +30,13 @@ struct ordered_samples {
 
 struct perf_session {
 	struct perf_header	header;
-	unsigned long		size;
 	struct machines		machines;
 	struct perf_evlist	*evlist;
 	struct pevent		*pevent;
 	struct events_stats	stats;
-	int			fd;
-	bool			fd_pipe;
 	bool			repipe;
 	struct ordered_samples	ordered_samples;
-	char			filename[1];
+	struct perf_data_file	*file;
 };
 
 #define PRINT_IP_OPT_IP		(1<<0)
@@ -49,17 +47,16 @@ struct perf_session {
 
 struct perf_tool;
 
-struct perf_session *perf_session__new(const char *filename, int mode,
-				       bool force, bool repipe,
-				       struct perf_tool *tool);
+struct perf_session *perf_session__new(struct perf_data_file *file,
+				       bool repipe, struct perf_tool *tool);
 void perf_session__delete(struct perf_session *session);
 
-void perf_event_header__bswap(struct perf_event_header *self);
+void perf_event_header__bswap(struct perf_event_header *hdr);
 
-int __perf_session__process_events(struct perf_session *self,
+int __perf_session__process_events(struct perf_session *session,
 				   u64 data_offset, u64 data_size, u64 size,
 				   struct perf_tool *tool);
-int perf_session__process_events(struct perf_session *self,
+int perf_session__process_events(struct perf_session *session,
 				 struct perf_tool *tool);
 
 int perf_session_queue_event(struct perf_session *s, union perf_event *event,
@@ -67,37 +64,38 @@ int perf_session_queue_event(struct perf_session *s, union perf_event *event,
 
 void perf_tool__fill_defaults(struct perf_tool *tool);
 
-int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel *evsel,
+int perf_session__resolve_callchain(struct perf_session *session,
+				    struct perf_evsel *evsel,
 				    struct thread *thread,
 				    struct ip_callchain *chain,
 				    struct symbol **parent);
 
-bool perf_session__has_traces(struct perf_session *self, const char *msg);
+bool perf_session__has_traces(struct perf_session *session, const char *msg);
 
 void mem_bswap_64(void *src, int byte_size);
 void mem_bswap_32(void *src, int byte_size);
 void perf_event__attr_swap(struct perf_event_attr *attr);
 
-int perf_session__create_kernel_maps(struct perf_session *self);
+int perf_session__create_kernel_maps(struct perf_session *session);
 
 void perf_session__set_id_hdr_size(struct perf_session *session);
 
 static inline
-struct machine *perf_session__find_machine(struct perf_session *self, pid_t pid)
+struct machine *perf_session__find_machine(struct perf_session *session, pid_t pid)
 {
-	return machines__find(&self->machines, pid);
+	return machines__find(&session->machines, pid);
 }
 
 static inline
-struct machine *perf_session__findnew_machine(struct perf_session *self, pid_t pid)
+struct machine *perf_session__findnew_machine(struct perf_session *session, pid_t pid)
 {
-	return machines__findnew(&self->machines, pid);
+	return machines__findnew(&session->machines, pid);
 }
 
-struct thread *perf_session__findnew(struct perf_session *self, pid_t pid);
-size_t perf_session__fprintf(struct perf_session *self, FILE *fp);
+struct thread *perf_session__findnew(struct perf_session *session, pid_t pid);
+size_t perf_session__fprintf(struct perf_session *session, FILE *fp);
 
-size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);
+size_t perf_session__fprintf_dsos(struct perf_session *session, FILE *fp);
 
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp,
 					  bool (fn)(struct dso *dso, int parm), int parm);

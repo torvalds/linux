@@ -231,7 +231,7 @@ static void __init mini6410_map_io(void)
 	u32 tmp;
 
 	s3c64xx_init_io(NULL, 0);
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(mini6410_uartcfgs, ARRAY_SIZE(mini6410_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 

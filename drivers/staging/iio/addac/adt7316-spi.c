@@ -146,6 +146,5 @@ static struct spi_driver adt7316_driver = {
 module_spi_driver(adt7316_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
-MODULE_DESCRIPTION("SPI bus driver for Analog Devices ADT7316/7/8 and"
-			"ADT7516/7/9 digital temperature sensor, ADC and DAC");
+MODULE_DESCRIPTION("SPI bus driver for Analog Devices ADT7316/7/8 and ADT7516/7/9 digital temperature sensor, ADC and DAC");
 MODULE_LICENSE("GPL v2");

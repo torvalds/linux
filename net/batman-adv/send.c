@@ -24,12 +24,11 @@
 #include "translation-table.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
-#include "vis.h"
 #include "gateway_common.h"
+#include "gateway_client.h"
 #include "originator.h"
 #include "network-coding.h"
-
-#include <linux/if_ether.h>
+#include "fragmentation.h"
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
@@ -64,10 +63,10 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	ethhdr = eth_hdr(skb);
 	memcpy(ethhdr->h_source, hard_iface->net_dev->dev_addr, ETH_ALEN);
 	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
-	ethhdr->h_proto = __constant_htons(ETH_P_BATMAN);
+	ethhdr->h_proto = htons(ETH_P_BATMAN);
 
 	skb_set_network_header(skb, ETH_HLEN);
-	skb->protocol = __constant_htons(ETH_P_BATMAN);
+	skb->protocol = htons(ETH_P_BATMAN);
 
 	skb->dev = hard_iface->net_dev;
 
@@ -109,7 +108,19 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	/* batadv_find_router() increases neigh_nodes refcount if found. */
 	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
 	if (!neigh_node)
-		return ret;
+		goto out;
+
+	/* Check if the skb is too large to send in one piece and fragment
+	 * it if needed.
+	 */
+	if (atomic_read(&bat_priv->fragmentation) &&
+	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
+		/* Fragment and send packet. */
+		if (batadv_frag_send_packet(skb, orig_node, neigh_node))
+			ret = NET_XMIT_SUCCESS;
+
+		goto out;
+	}
 
 	/* try to network code the packet, if it is received on an interface
 	 * (i.e. being forwarded). If the packet originates from this node or if
@@ -123,9 +134,223 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 		ret = NET_XMIT_SUCCESS;
 	}
 
-	batadv_neigh_node_free_ref(neigh_node);
+out:
+	if (neigh_node)
+		batadv_neigh_node_free_ref(neigh_node);
 
 	return ret;
+}
+
+/**
+ * batadv_send_skb_push_fill_unicast - extend the buffer and initialize the
+ *  common fields for unicast packets
+ * @skb: the skb carrying the unicast header to initialize
+ * @hdr_size: amount of bytes to push at the beginning of the skb
+ * @orig_node: the destination node
+ *
+ * Returns false if the buffer extension was not possible or true otherwise.
+ */
+static bool
+batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
+				  struct batadv_orig_node *orig_node)
+{
+	struct batadv_unicast_packet *unicast_packet;
+	uint8_t ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
+
+	if (batadv_skb_head_push(skb, hdr_size) < 0)
+		return false;
+
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+	unicast_packet->version = BATADV_COMPAT_VERSION;
+	/* batman packet type: unicast */
+	unicast_packet->packet_type = BATADV_UNICAST;
+	/* set unicast ttl */
+	unicast_packet->ttl = BATADV_TTL;
+	/* copy the destination for faster routing */
+	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
+	/* set the destination tt version number */
+	unicast_packet->ttvn = ttvn;
+
+	return true;
+}
+
+/**
+ * batadv_send_skb_prepare_unicast - encapsulate an skb with a unicast header
+ * @skb: the skb containing the payload to encapsulate
+ * @orig_node: the destination node
+ *
+ * Returns false if the payload could not be encapsulated or true otherwise.
+ */
+static bool batadv_send_skb_prepare_unicast(struct sk_buff *skb,
+					    struct batadv_orig_node *orig_node)
+{
+	size_t uni_size = sizeof(struct batadv_unicast_packet);
+
+	return batadv_send_skb_push_fill_unicast(skb, uni_size, orig_node);
+}
+
+/**
+ * batadv_send_skb_prepare_unicast_4addr - encapsulate an skb with a
+ *  unicast 4addr header
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the skb containing the payload to encapsulate
+ * @orig_node: the destination node
+ * @packet_subtype: the unicast 4addr packet subtype to use
+ *
+ * Returns false if the payload could not be encapsulated or true otherwise.
+ */
+bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb,
+					   struct batadv_orig_node *orig,
+					   int packet_subtype)
+{
+	struct batadv_hard_iface *primary_if;
+	struct batadv_unicast_4addr_packet *uc_4addr_packet;
+	bool ret = false;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
+
+	/* Pull the header space and fill the unicast_packet substructure.
+	 * We can do that because the first member of the uc_4addr_packet
+	 * is of type struct unicast_packet
+	 */
+	if (!batadv_send_skb_push_fill_unicast(skb, sizeof(*uc_4addr_packet),
+					       orig))
+		goto out;
+
+	uc_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
+	uc_4addr_packet->u.packet_type = BATADV_UNICAST_4ADDR;
+	memcpy(uc_4addr_packet->src, primary_if->net_dev->dev_addr, ETH_ALEN);
+	uc_4addr_packet->subtype = packet_subtype;
+	uc_4addr_packet->reserved = 0;
+
+	ret = true;
+out:
+	if (primary_if)
+		batadv_hardif_free_ref(primary_if);
+	return ret;
+}
+
+/**
+ * batadv_send_skb_unicast - encapsulate and send an skb via unicast
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: payload to send
+ * @packet_type: the batman unicast packet type to use
+ * @packet_subtype: the unicast 4addr packet subtype (only relevant for unicast
+ *  4addr packets)
+ * @orig_node: the originator to send the packet to
+ * @vid: the vid to be used to search the translation table
+ *
+ * Wrap the given skb into a batman-adv unicast or unicast-4addr header
+ * depending on whether BATADV_UNICAST or BATADV_UNICAST_4ADDR was supplied
+ * as packet_type. Then send this frame to the given orig_node and release a
+ * reference to this orig_node.
+ *
+ * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
+ */
+static int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
+				   struct sk_buff *skb, int packet_type,
+				   int packet_subtype,
+				   struct batadv_orig_node *orig_node,
+				   unsigned short vid)
+{
+	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
+	struct batadv_unicast_packet *unicast_packet;
+	int ret = NET_XMIT_DROP;
+
+	if (!orig_node)
+		goto out;
+
+	switch (packet_type) {
+	case BATADV_UNICAST:
+		if (!batadv_send_skb_prepare_unicast(skb, orig_node))
+			goto out;
+		break;
+	case BATADV_UNICAST_4ADDR:
+		if (!batadv_send_skb_prepare_unicast_4addr(bat_priv, skb,
+							   orig_node,
+							   packet_subtype))
+			goto out;
+		break;
+	default:
+		/* this function supports UNICAST and UNICAST_4ADDR only. It
+		 * should never be invoked with any other packet type
+		 */
+		goto out;
+	}
+
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+
+	/* inform the destination node that we are still missing a correct route
+	 * for this client. The destination will receive this packet and will
+	 * try to reroute it because the ttvn contained in the header is less
+	 * than the current one
+	 */
+	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest, vid))
+		unicast_packet->ttvn = unicast_packet->ttvn - 1;
+
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
+		ret = NET_XMIT_SUCCESS;
+
+out:
+	if (orig_node)
+		batadv_orig_node_free_ref(orig_node);
+	if (ret == NET_XMIT_DROP)
+		kfree_skb(skb);
+	return ret;
+}
+
+/**
+ * batadv_send_skb_via_tt_generic - send an skb via TT lookup
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: payload to send
+ * @packet_type: the batman unicast packet type to use
+ * @packet_subtype: the unicast 4addr packet subtype (only relevant for unicast
+ *  4addr packets)
+ * @vid: the vid to be used to search the translation table
+ *
+ * Look up the recipient node for the destination address in the ethernet
+ * header via the translation table. Wrap the given skb into a batman-adv
+ * unicast or unicast-4addr header depending on whether BATADV_UNICAST or
+ * BATADV_UNICAST_4ADDR was supplied as packet_type. Then send this frame
+ * to the according destination node.
+ *
+ * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
+ */
+int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
+				   struct sk_buff *skb, int packet_type,
+				   int packet_subtype, unsigned short vid)
+{
+	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
+	struct batadv_orig_node *orig_node;
+
+	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
+					     ethhdr->h_dest, vid);
+	return batadv_send_skb_unicast(bat_priv, skb, packet_type,
+				       packet_subtype, orig_node, vid);
+}
+
+/**
+ * batadv_send_skb_via_gw - send an skb via gateway lookup
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: payload to send
+ * @vid: the vid to be used to search the translation table
+ *
+ * Look up the currently selected gateway. Wrap the given skb into a batman-adv
+ * unicast header and send this frame to this gateway node.
+ *
+ * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
+ */
+int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
+			   unsigned short vid)
+{
+	struct batadv_orig_node *orig_node;
+
+	orig_node = batadv_gw_get_selected_orig(bat_priv);
+	return batadv_send_skb_unicast(bat_priv, skb, BATADV_UNICAST, 0,
+				       orig_node, vid);
 }
 
 void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface)
@@ -211,7 +436,7 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 
 	/* as we have a copy now, it is safe to decrease the TTL */
 	bcast_packet = (struct batadv_bcast_packet *)newskb->data;
-	bcast_packet->header.ttl--;
+	bcast_packet->ttl--;
 
 	skb_reset_mac_header(newskb);
 

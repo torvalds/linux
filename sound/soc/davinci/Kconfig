@@ -1,9 +1,10 @@
 config SND_DAVINCI_SOC
-	tristate "SoC Audio for the TI DAVINCI chip"
-	depends on ARCH_DAVINCI
+	tristate "SoC Audio for the TI DAVINCI or AM33XX chip"
+	depends on ARCH_DAVINCI || SOC_AM33XX
 	help
+	  Platform driver for daVinci or AM33xx
 	  Say Y or M if you want to add support for codecs attached to
-	  the DAVINCI AC97 or I2S interface. You will also need
+	  the DAVINCI AC97, I2S, or McASP interface. You will also need
 	  to select the audio interfaces to support below.
 
 config SND_DAVINCI_SOC_I2S
@@ -14,6 +15,17 @@ config SND_DAVINCI_SOC_MCASP
 
 config SND_DAVINCI_SOC_VCIF
 	tristate
+
+config SND_AM33XX_SOC_EVM
+	tristate "SoC Audio for the AM33XX chip based boards"
+	depends on SND_DAVINCI_SOC && SOC_AM33XX
+	select SND_SOC_TLV320AIC3X
+	select SND_DAVINCI_SOC_MCASP
+	help
+	  Say Y or M if you want to add support for SoC audio on AM33XX
+	  boards using McASP and TLV320AIC3X codec. For example AM335X-EVM,
+	  AM335X-EVMSK, and BeagelBone with AudioCape boards have this
+	  setup.
 
 config SND_DAVINCI_SOC_EVM
 	tristate "SoC Audio support for DaVinci DM6446, DM355 or DM365 EVM"

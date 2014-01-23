@@ -24,7 +24,7 @@
 	mflr	r0;			\
 	mfcr	r12;			\
 	std	r0,16(r1);		\
-	std	r12,8(r1);		\
+	stw	r12,8(r1);		\
 	std	r1,PACAR1(r13);		\
 	li	r0,0;			\
 	mfmsr	r12;			\
@@ -34,7 +34,7 @@
 	mtmsrd	r12,1;			\
 	LOAD_REG_ADDR(r0,.opal_return);	\
 	mtlr	r0;			\
-	li	r0,MSR_DR|MSR_IR;	\
+	li	r0,MSR_DR|MSR_IR|MSR_LE;\
 	andc	r12,r12,r0;		\
 	li	r0,token;		\
 	mtspr	SPRN_HSRR1,r12;		\
@@ -45,8 +45,15 @@
 	hrfid
 
 _STATIC(opal_return)
+	/*
+	 * Fixup endian on OPAL return... we should be able to simplify
+	 * this by instead converting the below trampoline to a set of
+	 * bytes (always BE) since MSR:LE will end up fixed up as a side
+	 * effect of the rfid.
+	 */
+	FIXUP_ENDIAN
 	ld	r2,PACATOC(r13);
-	ld	r4,8(r1);
+	lwz	r4,8(r1);
 	ld	r5,16(r1);
 	ld	r6,PACASAVEDMSR(r13);
 	mtspr	SPRN_SRR0,r5;
@@ -116,3 +123,6 @@ OPAL_CALL(opal_xscom_write,			OPAL_XSCOM_WRITE);
 OPAL_CALL(opal_lpc_read,			OPAL_LPC_READ);
 OPAL_CALL(opal_lpc_write,			OPAL_LPC_WRITE);
 OPAL_CALL(opal_return_cpu,			OPAL_RETURN_CPU);
+OPAL_CALL(opal_validate_flash,			OPAL_FLASH_VALIDATE);
+OPAL_CALL(opal_manage_flash,			OPAL_FLASH_MANAGE);
+OPAL_CALL(opal_update_flash,			OPAL_FLASH_UPDATE);

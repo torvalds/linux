@@ -254,9 +254,9 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 	rdev = container_of(wk, struct cfg80211_registered_device,
 			    sched_scan_results_wk);
 
-	request = rdev->sched_scan_req;
-
 	rtnl_lock();
+
+	request = rdev->sched_scan_req;
 
 	/* we don't have sched_scan_req anymore if the scan is stopping */
 	if (request) {

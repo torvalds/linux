@@ -22,13 +22,9 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
+#include "nv04.h"
 
 #define NV04_PFB_CFG0						0x00100200
-
-struct nv04_fb_priv {
-	struct nouveau_fb base;
-};
 
 bool
 nv04_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
@@ -57,30 +53,37 @@ nv04_fb_init(struct nouveau_object *object)
 	return 0;
 }
 
-static int
+int
 nv04_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
 {
+	struct nv04_fb_impl *impl = (void *)oclass;
 	struct nv04_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &nv04_ram_oclass, &priv);
+	ret = nouveau_fb_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.memtype_valid = nv04_fb_memtype_valid;
+	priv->base.tile.regions = impl->tile.regions;
+	priv->base.tile.init = impl->tile.init;
+	priv->base.tile.comp = impl->tile.comp;
+	priv->base.tile.fini = impl->tile.fini;
+	priv->base.tile.prog = impl->tile.prog;
 	return 0;
 }
 
-struct nouveau_oclass
-nv04_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nv04_fb_oclass = &(struct nv04_fb_impl) {
+	.base.base.handle = NV_SUBDEV(FB, 0x04),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_fb_ctor,
 		.dtor = _nouveau_fb_dtor,
 		.init = nv04_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
-};
+	.base.memtype = nv04_fb_memtype_valid,
+	.base.ram = &nv04_ram_oclass,
+}.base.base;

@@ -453,8 +453,8 @@ static void lx_trigger_start(struct lx6464es *chip, struct lx_stream *lx_stream)
 				     lower_32_bits(buf), upper_32_bits(buf),
 				     &buffer_index);
 
-		snd_printdd(LXP "starting: buffer index %x on %p (%d bytes)\n",
-			    buffer_index, (void *)buf, period_bytes);
+		snd_printdd(LXP "starting: buffer index %x on 0x%lx (%d bytes)\n",
+			    buffer_index, (unsigned long)buf, period_bytes);
 		buf += period_bytes;
 	}
 

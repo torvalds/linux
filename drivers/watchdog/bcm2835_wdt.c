@@ -19,7 +19,6 @@
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
-#include <linux/miscdevice.h>
 
 #define PM_RSTC				0x1c
 #define PM_WDOG				0x24
@@ -186,4 +185,3 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 MODULE_AUTHOR("Lubomir Rintel <lkundrak@v3.sk>");
 MODULE_DESCRIPTION("Driver for Broadcom BCM2835 watchdog timer");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

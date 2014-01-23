@@ -355,7 +355,6 @@ struct pcl812_private {
 	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	short *ai_data;		/*  data buffer */
 	unsigned int ai_is16b;	/*  =1 we have 16 bit card */
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
 	unsigned int dmapages[2];	/*  how many pages we have allocated */
@@ -509,19 +508,16 @@ static int pcl812_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	if (comedi_dio_update_state(s, data)) {
 		outb(s->state & 0xff, dev->iobase + PCL812_DO_LO);
 		outb((s->state >> 8), dev->iobase + PCL812_DO_HI);
 	}
+
 	data[1] = s->state;
 
 	return insn->n;
@@ -592,9 +588,9 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(board->i8254_osc_base, &divisor1,
-					  &divisor2, &cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(board->i8254_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < board->ai_ns_min)
 			cmd->convert_arg = board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
@@ -640,8 +636,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			cmd->convert_arg = board->ai_ns_min;
 		i8253_cascade_ns_to_timer(board->i8254_osc_base,
 					  &divisor1, &divisor2,
-					  &cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+					  &cmd->convert_arg, cmd->flags);
 	}
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
@@ -665,7 +660,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_data = s->async->prealloc_buf;
 	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ai_scans = cmd->stop_arg;
 		devpriv->ai_neverending = 0;
@@ -835,7 +829,8 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 ==============================================================================
 */
 static void transfer_from_dma_buf(struct comedi_device *dev,
-				  struct comedi_subdevice *s, short *ptr,
+				  struct comedi_subdevice *s,
+				  unsigned short *ptr,
 				  unsigned int bufptr, unsigned int len)
 {
 	struct pcl812_private *devpriv = dev->private;
@@ -873,9 +868,9 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned long dma_flags;
 	int len, bufptr;
-	short *ptr;
+	unsigned short *ptr;
 
-	ptr = (short *)devpriv->dmabuf[devpriv->next_dma_buf];
+	ptr = (unsigned short *)devpriv->dmabuf[devpriv->next_dma_buf];
 	len = (devpriv->dmabytestomove[devpriv->next_dma_buf] >> 1) -
 	    devpriv->ai_poll_ptr;
 
@@ -1443,40 +1438,40 @@ static void pcl812_detach(struct comedi_device *dev)
 
 static const struct pcl812_board boardtypes[] = {
 	{"pcl812", boardPCL812, 16, 0, 2, 16, 16, 0x0fff,
-	 33000, 500, &range_bipolar10, &range_unipolar5,
+	 33000, I8254_OSC_BASE_2MHZ, &range_bipolar10, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"pcl812pg", boardPCL812PG, 16, 0, 2, 16, 16, 0x0fff,
-	 33000, 500, &range_pcl812pg_ai, &range_unipolar5,
+	 33000, I8254_OSC_BASE_2MHZ, &range_pcl812pg_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"acl8112pg", boardPCL812PG, 16, 0, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_pcl812pg_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_pcl812pg_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"acl8112dg", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_acl8112dg_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
 	{"acl8112hg", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_acl8112hg_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
 	{"a821pgl", boardA821, 16, 8, 1, 16, 16, 0x0fff,
-	 10000, 500, &range_pcl813b_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_pcl813b_ai, &range_unipolar5,
 	 0x000c, 0x00, PCLx1x_IORANGE, 0},
 	{"a821pglnda", boardA821, 16, 8, 0, 0, 0, 0x0fff,
-	 10000, 500, &range_pcl813b_ai, NULL,
+	 10000, I8254_OSC_BASE_2MHZ, &range_pcl813b_ai, NULL,
 	 0x000c, 0x00, PCLx1x_IORANGE, 0},
 	{"a821pgh", boardA821, 16, 8, 1, 16, 16, 0x0fff,
-	 10000, 500, &range_a821pgh_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_a821pgh_ai, &range_unipolar5,
 	 0x000c, 0x00, PCLx1x_IORANGE, 0},
 	{"a822pgl", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_acl8112dg_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"a822pgh", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_acl8112hg_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"a823pgl", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 8000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 8000, I8254_OSC_BASE_2MHZ, &range_acl8112dg_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"a823pgh", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 8000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 8000, I8254_OSC_BASE_2MHZ, &range_acl8112hg_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"pcl813", boardPCL813, 32, 0, 0, 0, 0, 0x0fff,
 	 0, 0, &range_pcl813b_ai, NULL,
@@ -1491,10 +1486,10 @@ static const struct pcl812_board boardtypes[] = {
 	 0, 0, &range_iso813_1_ai, NULL,
 	 0x0000, 0x00, PCLx1x_IORANGE, 0},
 	{"acl8216", boardACL8216, 16, 8, 2, 16, 16, 0xffff,
-	 10000, 500, &range_pcl813b2_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_pcl813b2_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
 	{"a826pg", boardACL8216, 16, 8, 2, 16, 16, 0xffff,
-	 10000, 500, &range_pcl813b2_ai, &range_unipolar5,
+	 10000, I8254_OSC_BASE_2MHZ, &range_pcl813b2_ai, &range_unipolar5,
 	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 };
 

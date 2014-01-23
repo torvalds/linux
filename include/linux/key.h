@@ -22,6 +22,7 @@
 #include <linux/sysctl.h>
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
+#include <linux/assoc_array.h>
 
 #ifdef __KERNEL__
 #include <linux/uidgid.h>
@@ -82,6 +83,12 @@ struct key_owner;
 struct keyring_list;
 struct keyring_name;
 
+struct keyring_index_key {
+	struct key_type		*type;
+	const char		*description;
+	size_t			desc_len;
+};
+
 /*****************************************************************************/
 /*
  * key reference with possession attribute handling
@@ -99,7 +106,7 @@ struct keyring_name;
 typedef struct __key_reference_with_attributes *key_ref_t;
 
 static inline key_ref_t make_key_ref(const struct key *key,
-				     unsigned long possession)
+				     bool possession)
 {
 	return (key_ref_t) ((unsigned long) key | possession);
 }
@@ -109,7 +116,7 @@ static inline struct key *key_ref_to_ptr(const key_ref_t key_ref)
 	return (struct key *) ((unsigned long) key_ref & ~1UL);
 }
 
-static inline unsigned long is_key_possessed(const key_ref_t key_ref)
+static inline bool is_key_possessed(const key_ref_t key_ref)
 {
 	return (unsigned long) key_ref & 1UL;
 }
@@ -129,7 +136,6 @@ struct key {
 		struct list_head graveyard_link;
 		struct rb_node	serial_node;
 	};
-	struct key_type		*type;		/* type of key */
 	struct rw_semaphore	sem;		/* change vs change sem */
 	struct key_user		*user;		/* owner of this key */
 	void			*security;	/* security data for this key */
@@ -162,13 +168,21 @@ struct key {
 #define KEY_FLAG_NEGATIVE	5	/* set if key is negative */
 #define KEY_FLAG_ROOT_CAN_CLEAR	6	/* set if key can be cleared by root without permission */
 #define KEY_FLAG_INVALIDATED	7	/* set if key has been invalidated */
+#define KEY_FLAG_TRUSTED	8	/* set if key is trusted */
+#define KEY_FLAG_TRUSTED_ONLY	9	/* set if keyring only accepts links to trusted keys */
 
-	/* the description string
-	 * - this is used to match a key against search criteria
-	 * - this should be a printable string
+	/* the key type and key description string
+	 * - the desc is used to match a key against search criteria
+	 * - it should be a printable string
 	 * - eg: for krb5 AFS, this might be "afs@REDHAT.COM"
 	 */
-	char			*description;
+	union {
+		struct keyring_index_key index_key;
+		struct {
+			struct key_type	*type;		/* type of key */
+			char		*description;
+		};
+	};
 
 	/* type specific data
 	 * - this is used by the keyring type to index the name
@@ -185,11 +199,14 @@ struct key {
 	 *   whatever
 	 */
 	union {
-		unsigned long		value;
-		void __rcu		*rcudata;
-		void			*data;
-		struct keyring_list __rcu *subscriptions;
-	} payload;
+		union {
+			unsigned long		value;
+			void __rcu		*rcudata;
+			void			*data;
+			void			*data2[2];
+		} payload;
+		struct assoc_array keys;
+	};
 };
 
 extern struct key *key_alloc(struct key_type *type,
@@ -203,16 +220,21 @@ extern struct key *key_alloc(struct key_type *type,
 #define KEY_ALLOC_IN_QUOTA	0x0000	/* add to quota, reject if would overrun */
 #define KEY_ALLOC_QUOTA_OVERRUN	0x0001	/* add to quota, permit even if overrun */
 #define KEY_ALLOC_NOT_IN_QUOTA	0x0002	/* not in quota */
+#define KEY_ALLOC_TRUSTED	0x0004	/* Key should be flagged as trusted */
 
 extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);
 extern void key_put(struct key *key);
 
+static inline struct key *__key_get(struct key *key)
+{
+	atomic_inc(&key->usage);
+	return key;
+}
+
 static inline struct key *key_get(struct key *key)
 {
-	if (key)
-		atomic_inc(&key->usage);
-	return key;
+	return key ? __key_get(key) : key;
 }
 
 static inline void key_ref_put(key_ref_t key_ref)

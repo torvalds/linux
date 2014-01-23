@@ -135,9 +135,6 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 						unsigned int gem_handle,
 						struct drm_file *file_priv);
 
-/* initialize gem object. */
-int exynos_drm_gem_init_object(struct drm_gem_object *obj);
-
 /* free gem object. */
 void exynos_drm_gem_free_object(struct drm_gem_object *gem_obj);
 
