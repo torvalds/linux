@@ -134,7 +134,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc)
 	fbc_ctl |= obj->fence_reg;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
-	DRM_DEBUG_KMS("enabled FBC, pitch %d, yoff %d, plane %c, ",
+	DRM_DEBUG_KMS("enabled FBC, pitch %d, yoff %d, plane %c\n",
 		      cfb_pitch, crtc->y, plane_name(intel_crtc->plane));
 }
 
