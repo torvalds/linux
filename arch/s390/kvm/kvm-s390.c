@@ -52,6 +52,8 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exit_instr_and_program_int", VCPU_STAT(exit_instr_and_program) },
 	{ "instruction_lctlg", VCPU_STAT(instruction_lctlg) },
 	{ "instruction_lctl", VCPU_STAT(instruction_lctl) },
+	{ "instruction_stctl", VCPU_STAT(instruction_stctl) },
+	{ "instruction_stctg", VCPU_STAT(instruction_stctg) },
 	{ "deliver_emergency_signal", VCPU_STAT(deliver_emergency_signal) },
 	{ "deliver_external_call", VCPU_STAT(deliver_external_call) },
 	{ "deliver_service_signal", VCPU_STAT(deliver_service_signal) },

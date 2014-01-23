@@ -789,6 +789,42 @@ int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu)
+{
+	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
+	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
+	u64 ga;
+	u32 val;
+	int reg, rc;
+
+	vcpu->stat.instruction_stctl++;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	ga = kvm_s390_get_base_disp_rs(vcpu);
+
+	if (ga & 3)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+	VCPU_EVENT(vcpu, 5, "stctl r1:%x, r3:%x, addr:%llx", reg1, reg3, ga);
+	trace_kvm_s390_handle_stctl(vcpu, 0, reg1, reg3, ga);
+
+	reg = reg1;
+	do {
+		val = vcpu->arch.sie_block->gcr[reg] &  0x00000000fffffffful;
+		rc = write_guest(vcpu, ga, &val, sizeof(val));
+		if (rc)
+			return kvm_s390_inject_prog_cond(vcpu, rc);
+		ga += 4;
+		if (reg == reg3)
+			break;
+		reg = (reg + 1) % 16;
+	} while (1);
+
+	return 0;
+}
+
 static int handle_lctlg(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
@@ -825,8 +861,45 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int handle_stctg(struct kvm_vcpu *vcpu)
+{
+	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
+	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
+	u64 ga, val;
+	int reg, rc;
+
+	vcpu->stat.instruction_stctg++;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	ga = kvm_s390_get_base_disp_rsy(vcpu);
+
+	if (ga & 7)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+	reg = reg1;
+
+	VCPU_EVENT(vcpu, 5, "stctg r1:%x, r3:%x, addr:%llx", reg1, reg3, ga);
+	trace_kvm_s390_handle_stctl(vcpu, 1, reg1, reg3, ga);
+
+	do {
+		val = vcpu->arch.sie_block->gcr[reg];
+		rc = write_guest(vcpu, ga, &val, sizeof(val));
+		if (rc)
+			return kvm_s390_inject_prog_cond(vcpu, rc);
+		ga += 8;
+		if (reg == reg3)
+			break;
+		reg = (reg + 1) % 16;
+	} while (1);
+
+	return 0;
+}
+
 static const intercept_handler_t eb_handlers[256] = {
 	[0x2f] = handle_lctlg,
+	[0x25] = handle_stctg,
 };
 
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)

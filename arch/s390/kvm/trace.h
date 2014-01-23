@@ -315,6 +315,31 @@ TRACE_EVENT(kvm_s390_handle_lctl,
 			   __entry->reg1, __entry->reg3, __entry->addr)
 	);
 
+TRACE_EVENT(kvm_s390_handle_stctl,
+	    TP_PROTO(VCPU_PROTO_COMMON, int g, int reg1, int reg3, u64 addr),
+	    TP_ARGS(VCPU_ARGS_COMMON, g, reg1, reg3, addr),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    __field(int, g)
+		    __field(int, reg1)
+		    __field(int, reg3)
+		    __field(u64, addr)
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    __entry->g = g;
+		    __entry->reg1 = reg1;
+		    __entry->reg3 = reg3;
+		    __entry->addr = addr;
+		    ),
+
+	    VCPU_TP_PRINTK("%s: storing cr %x-%x to %016llx",
+			   __entry->g ? "stctg" : "stctl",
+			   __entry->reg1, __entry->reg3, __entry->addr)
+	);
+
 TRACE_EVENT(kvm_s390_handle_prefix,
 	    TP_PROTO(VCPU_PROTO_COMMON, int set, u32 address),
 	    TP_ARGS(VCPU_ARGS_COMMON, set, address),
