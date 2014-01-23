@@ -593,7 +593,7 @@ static struct i2c_driver hym8563_driver = {
 		.name	= "rtc-hym8563",
 		.owner	= THIS_MODULE,
 		.pm	= &hym8563_pm_ops,
-		.of_match_table	= of_match_ptr(hym8563_dt_idtable),
+		.of_match_table	= hym8563_dt_idtable,
 	},
 	.probe		= hym8563_probe,
 	.id_table	= hym8563_id,
