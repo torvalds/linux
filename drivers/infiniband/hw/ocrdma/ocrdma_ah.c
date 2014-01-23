@@ -49,7 +49,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 
 	ah->sgid_index = attr->grh.sgid_index;
 
-	vlan_tag = rdma_get_vlan_id(&attr->grh.dgid);
+	vlan_tag = attr->vlan_id;
 	if (!vlan_tag || (vlan_tag > 0xFFF))
 		vlan_tag = dev->pvid;
 	if (vlan_tag && (vlan_tag < 0x1000)) {
@@ -64,7 +64,8 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 		eth_sz = sizeof(struct ocrdma_eth_basic);
 	}
 	memcpy(&eth.smac[0], &dev->nic_info.mac_addr[0], ETH_ALEN);
-	status = ocrdma_resolve_dgid(dev, &attr->grh.dgid, &eth.dmac[0]);
+	memcpy(&eth.dmac[0], attr->dmac, ETH_ALEN);
+	status = ocrdma_resolve_dmac(dev, attr, &eth.dmac[0]);
 	if (status)
 		return status;
 	status = ocrdma_query_gid(&dev->ibdev, 1, attr->grh.sgid_index,

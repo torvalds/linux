@@ -432,7 +432,10 @@ struct mlx4_ib_sriov {
 struct mlx4_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[MLX4_MAX_PORTS];
+	struct net_device      *masters[MLX4_MAX_PORTS];
 	struct notifier_block 	nb;
+	struct notifier_block	nb_inet;
+	struct notifier_block	nb_inet6;
 	union ib_gid		gid_table[MLX4_MAX_PORTS][128];
 };
 
@@ -682,9 +685,6 @@ int __mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 
 int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 			union ib_gid *gid, int netw_view);
-
-int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
-			u8 *mac, int *is_mcast, u8 port);
 
 static inline bool mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 {
