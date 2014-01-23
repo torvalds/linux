@@ -557,6 +557,10 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.io_slot_reset			= qlcnic_82xx_io_slot_reset,
 	.io_resume			= qlcnic_82xx_io_resume,
 	.get_beacon_state		= qlcnic_82xx_get_beacon_state,
+	.enable_sds_intr		= qlcnic_82xx_enable_sds_intr,
+	.disable_sds_intr		= qlcnic_82xx_disable_sds_intr,
+	.enable_tx_intr			= qlcnic_82xx_enable_tx_intr,
+	.disable_tx_intr		= qlcnic_82xx_disable_tx_intr,
 };
 
 static int qlcnic_check_multi_tx_capability(struct qlcnic_adapter *adapter)
@@ -1874,7 +1878,7 @@ void qlcnic_diag_free_res(struct net_device *netdev, int drv_sds_rings)
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			qlcnic_disable_int(sds_ring);
+			qlcnic_disable_sds_intr(adapter, sds_ring);
 		}
 	}
 
@@ -1975,7 +1979,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			qlcnic_enable_int(sds_ring);
+			qlcnic_enable_sds_intr(adapter, sds_ring);
 		}
 	}
 
@@ -2873,7 +2877,7 @@ static irqreturn_t qlcnic_tmp_intr(int irq, void *data)
 
 done:
 	adapter->ahw->diag_cnt++;
-	qlcnic_enable_int(sds_ring);
+	qlcnic_enable_sds_intr(adapter, sds_ring);
 	return IRQ_HANDLED;
 }
 

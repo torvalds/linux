@@ -199,6 +199,11 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.io_slot_reset			= qlcnic_83xx_io_slot_reset,
 	.io_resume			= qlcnic_83xx_io_resume,
 	.get_beacon_state		= qlcnic_83xx_get_beacon_state,
+	.enable_sds_intr		= qlcnic_83xx_enable_sds_intr,
+	.disable_sds_intr		= qlcnic_83xx_disable_sds_intr,
+	.enable_tx_intr			= qlcnic_83xx_enable_tx_intr,
+	.disable_tx_intr		= qlcnic_83xx_disable_tx_intr,
+
 };
 
 static struct qlcnic_nic_template qlcnic_83xx_ops = {
@@ -345,20 +350,6 @@ static inline void qlcnic_83xx_set_legacy_intr_mask(struct qlcnic_adapter *adapt
 		writel(1, adapter->tgt_mask_reg);
 }
 
-/* Enable MSI-x and INT-x interrupts */
-void qlcnic_83xx_enable_intr(struct qlcnic_adapter *adapter,
-			     struct qlcnic_host_sds_ring *sds_ring)
-{
-	writel(0, sds_ring->crb_intr_mask);
-}
-
-/* Disable MSI-x and INT-x interrupts */
-void qlcnic_83xx_disable_intr(struct qlcnic_adapter *adapter,
-			      struct qlcnic_host_sds_ring *sds_ring)
-{
-	writel(1, sds_ring->crb_intr_mask);
-}
-
 static inline void qlcnic_83xx_enable_legacy_msix_mbx_intr(struct qlcnic_adapter
 						    *adapter)
 {
@@ -496,7 +487,7 @@ irqreturn_t qlcnic_83xx_tmp_intr(int irq, void *data)
 
 done:
 	adapter->ahw->diag_cnt++;
-	qlcnic_83xx_enable_intr(adapter, sds_ring);
+	qlcnic_enable_sds_intr(adapter, sds_ring);
 
 	return IRQ_HANDLED;
 }
@@ -1360,7 +1351,7 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			qlcnic_83xx_enable_intr(adapter, sds_ring);
+			qlcnic_enable_sds_intr(adapter, sds_ring);
 		}
 	}
 
@@ -1385,7 +1376,7 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
 			if (adapter->flags & QLCNIC_MSIX_ENABLED)
-				qlcnic_83xx_disable_intr(adapter, sds_ring);
+				qlcnic_disable_sds_intr(adapter, sds_ring);
 		}
 	}
 

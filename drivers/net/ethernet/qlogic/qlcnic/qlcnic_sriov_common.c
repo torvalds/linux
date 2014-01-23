@@ -71,6 +71,8 @@ static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.change_l2_filter		= qlcnic_83xx_change_l2_filter,
 	.get_board_info			= qlcnic_83xx_get_port_info,
 	.free_mac_list			= qlcnic_sriov_vf_free_mac_list,
+	.enable_sds_intr		= qlcnic_83xx_enable_sds_intr,
+	.disable_sds_intr		= qlcnic_83xx_disable_sds_intr,
 };
 
 static struct qlcnic_nic_template qlcnic_sriov_vf_ops = {

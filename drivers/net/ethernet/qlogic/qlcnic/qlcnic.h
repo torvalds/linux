@@ -1756,6 +1756,14 @@ struct qlcnic_hardware_ops {
 	pci_ers_result_t (*io_slot_reset) (struct pci_dev *);
 	void (*io_resume) (struct pci_dev *);
 	void (*get_beacon_state)(struct qlcnic_adapter *);
+	void (*enable_sds_intr) (struct qlcnic_adapter *,
+				 struct qlcnic_host_sds_ring *);
+	void (*disable_sds_intr) (struct qlcnic_adapter *,
+				  struct qlcnic_host_sds_ring *);
+	void (*enable_tx_intr) (struct qlcnic_adapter *,
+				struct qlcnic_host_tx_ring *);
+	void (*disable_tx_intr) (struct qlcnic_adapter *,
+				 struct qlcnic_host_tx_ring *);
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
@@ -2029,6 +2037,54 @@ static inline bool qlcnic_check_multi_tx(struct qlcnic_adapter *adapter)
 	return test_bit(__QLCNIC_MULTI_TX_UNIQUE, &adapter->state);
 }
 
+static inline void
+qlcnic_82xx_enable_tx_intr(struct qlcnic_adapter *adapter,
+			   struct qlcnic_host_tx_ring *tx_ring)
+{
+	if (qlcnic_check_multi_tx(adapter) &&
+	    !adapter->ahw->diag_test)
+		writel(0x0, tx_ring->crb_intr_mask);
+}
+
+static inline void
+qlcnic_82xx_disable_tx_intr(struct qlcnic_adapter *adapter,
+			    struct qlcnic_host_tx_ring *tx_ring)
+{
+	if (qlcnic_check_multi_tx(adapter) &&
+	    !adapter->ahw->diag_test)
+		writel(1, tx_ring->crb_intr_mask);
+}
+
+static inline void
+qlcnic_83xx_enable_tx_intr(struct qlcnic_adapter *adapter,
+			   struct qlcnic_host_tx_ring *tx_ring)
+{
+	writel(0, tx_ring->crb_intr_mask);
+}
+
+static inline void
+qlcnic_83xx_disable_tx_intr(struct qlcnic_adapter *adapter,
+			    struct qlcnic_host_tx_ring *tx_ring)
+{
+	writel(1, tx_ring->crb_intr_mask);
+}
+
+/* Enable MSI-x and INT-x interrupts */
+static inline void
+qlcnic_83xx_enable_sds_intr(struct qlcnic_adapter *adapter,
+			    struct qlcnic_host_sds_ring *sds_ring)
+{
+	writel(0, sds_ring->crb_intr_mask);
+}
+
+/* Disable MSI-x and INT-x interrupts */
+static inline void
+qlcnic_83xx_disable_sds_intr(struct qlcnic_adapter *adapter,
+			     struct qlcnic_host_sds_ring *sds_ring)
+{
+	writel(1, sds_ring->crb_intr_mask);
+}
+
 static inline void qlcnic_disable_multi_tx(struct qlcnic_adapter *adapter)
 {
 	test_and_clear_bit(__QLCNIC_MULTI_TX_UNIQUE, &adapter->state);
@@ -2038,10 +2094,10 @@ static inline void qlcnic_disable_multi_tx(struct qlcnic_adapter *adapter)
 /* When operating in a muti tx mode, driver needs to write 0x1
  * to src register, instead of 0x0 to disable receiving interrupt.
  */
-static inline void qlcnic_disable_int(struct qlcnic_host_sds_ring *sds_ring)
+static inline void
+qlcnic_82xx_disable_sds_intr(struct qlcnic_adapter *adapter,
+			     struct qlcnic_host_sds_ring *sds_ring)
 {
-	struct qlcnic_adapter *adapter = sds_ring->adapter;
-
 	if (qlcnic_check_multi_tx(adapter) &&
 	    !adapter->ahw->diag_test &&
 	    (adapter->flags & QLCNIC_MSIX_ENABLED))
@@ -2050,13 +2106,42 @@ static inline void qlcnic_disable_int(struct qlcnic_host_sds_ring *sds_ring)
 		writel(0, sds_ring->crb_intr_mask);
 }
 
+static inline void qlcnic_enable_sds_intr(struct qlcnic_adapter *adapter,
+					  struct qlcnic_host_sds_ring *sds_ring)
+{
+	if (adapter->ahw->hw_ops->enable_sds_intr)
+		adapter->ahw->hw_ops->enable_sds_intr(adapter, sds_ring);
+}
+
+static inline void
+qlcnic_disable_sds_intr(struct qlcnic_adapter *adapter,
+			struct qlcnic_host_sds_ring *sds_ring)
+{
+	if (adapter->ahw->hw_ops->disable_sds_intr)
+		adapter->ahw->hw_ops->disable_sds_intr(adapter, sds_ring);
+}
+
+static inline void qlcnic_enable_tx_intr(struct qlcnic_adapter *adapter,
+					 struct qlcnic_host_tx_ring *tx_ring)
+{
+	if (adapter->ahw->hw_ops->enable_tx_intr)
+		adapter->ahw->hw_ops->enable_tx_intr(adapter, tx_ring);
+}
+
+static inline void qlcnic_disable_tx_intr(struct qlcnic_adapter *adapter,
+					  struct qlcnic_host_tx_ring *tx_ring)
+{
+	if (adapter->ahw->hw_ops->disable_tx_intr)
+		adapter->ahw->hw_ops->disable_tx_intr(adapter, tx_ring);
+}
+
 /* When operating in a muti tx mode, driver needs to write 0x0
  * to src register, instead of 0x1 to enable receiving interrupts.
  */
-static inline void qlcnic_enable_int(struct qlcnic_host_sds_ring *sds_ring)
+static inline void
+qlcnic_82xx_enable_sds_intr(struct qlcnic_adapter *adapter,
+			    struct qlcnic_host_sds_ring *sds_ring)
 {
-	struct qlcnic_adapter *adapter = sds_ring->adapter;
-
 	if (qlcnic_check_multi_tx(adapter) &&
 	    !adapter->ahw->diag_test &&
 	    (adapter->flags & QLCNIC_MSIX_ENABLED))
