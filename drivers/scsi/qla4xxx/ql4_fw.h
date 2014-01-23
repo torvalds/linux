@@ -410,6 +410,7 @@ struct qla_flt_region {
 #define DDB_DS_LOGIN_IN_PROCESS			0x07
 #define MBOX_CMD_GET_FW_STATE			0x0069
 #define MBOX_CMD_GET_INIT_FW_CTRL_BLOCK_DEFAULTS 0x006A
+#define MBOX_CMD_DIAG_TEST			0x0075
 #define MBOX_CMD_GET_SYS_INFO			0x0078
 #define MBOX_CMD_GET_NVRAM			0x0078	/* For 40xx */
 #define MBOX_CMD_SET_NVRAM			0x0079	/* For 40xx */
@@ -425,7 +426,16 @@ struct qla_flt_region {
 #define MBOX_CMD_GET_IP_ADDR_STATE		0x0091
 #define MBOX_CMD_SEND_IPV6_ROUTER_SOL		0x0092
 #define MBOX_CMD_GET_DB_ENTRY_CURRENT_IP_ADDR	0x0093
+#define MBOX_CMD_SET_PORT_CONFIG		0x0122
+#define MBOX_CMD_GET_PORT_CONFIG		0x0123
+#define MBOX_CMD_SET_LED_CONFIG			0x0125
+#define MBOX_CMD_GET_LED_CONFIG			0x0126
 #define MBOX_CMD_MINIDUMP			0x0129
+
+/* Port Config */
+#define ENABLE_INTERNAL_LOOPBACK		0x04
+#define ENABLE_EXTERNAL_LOOPBACK		0x08
+#define ENABLE_DCBX				0x10
 
 /* Minidump subcommand */
 #define MINIDUMP_GET_SIZE_SUBCOMMAND		0x00
@@ -535,10 +545,6 @@ struct qla_flt_region {
 #define FLASH_OPT_COMMIT	2
 #define FLASH_OPT_RMW_COMMIT	3
 
-/* Loopback type */
-#define ENABLE_INTERNAL_LOOPBACK	0x04
-#define ENABLE_EXTERNAL_LOOPBACK	0x08
-
 /* generic defines to enable/disable params */
 #define QL4_PARAM_DISABLE	0
 #define QL4_PARAM_ENABLE	1
@@ -551,6 +557,7 @@ struct addr_ctrl_blk {
 #define  IFCB_VER_MIN			0x01
 #define  IFCB_VER_MAX			0x02
 	uint8_t control;	/* 01 */
+#define	 CTRLOPT_NEW_CONN_DISABLE	0x0002
 
 	uint16_t fw_options;	/* 02-03 */
 #define	 FWOPT_HEARTBEAT_ENABLE		  0x1000
@@ -582,11 +589,40 @@ struct addr_ctrl_blk {
 	uint32_t shdwreg_addr_hi;	/* 2C-2F */
 
 	uint16_t iscsi_opts;	/* 30-31 */
+#define ISCSIOPTS_HEADER_DIGEST_EN		0x2000
+#define ISCSIOPTS_DATA_DIGEST_EN		0x1000
+#define ISCSIOPTS_IMMEDIATE_DATA_EN		0x0800
+#define ISCSIOPTS_INITIAL_R2T_EN		0x0400
+#define ISCSIOPTS_DATA_SEQ_INORDER_EN		0x0200
+#define ISCSIOPTS_DATA_PDU_INORDER_EN		0x0100
+#define ISCSIOPTS_CHAP_AUTH_EN			0x0080
+#define ISCSIOPTS_SNACK_EN			0x0040
+#define ISCSIOPTS_DISCOVERY_LOGOUT_EN		0x0020
+#define ISCSIOPTS_BIDI_CHAP_EN			0x0010
+#define ISCSIOPTS_DISCOVERY_AUTH_EN		0x0008
+#define ISCSIOPTS_STRICT_LOGIN_COMP_EN		0x0004
+#define ISCSIOPTS_ERL				0x0003
 	uint16_t ipv4_tcp_opts;	/* 32-33 */
+#define TCPOPT_DELAYED_ACK_DISABLE	0x8000
 #define TCPOPT_DHCP_ENABLE		0x0200
+#define TCPOPT_DNS_SERVER_IP_EN		0x0100
+#define TCPOPT_SLP_DA_INFO_EN		0x0080
+#define TCPOPT_NAGLE_ALGO_DISABLE	0x0020
+#define TCPOPT_WINDOW_SCALE_DISABLE	0x0010
+#define TCPOPT_TIMER_SCALE		0x000E
+#define TCPOPT_TIMESTAMP_ENABLE		0x0001
 	uint16_t ipv4_ip_opts;	/* 34-35 */
 #define IPOPT_IPV4_PROTOCOL_ENABLE	0x8000
+#define IPOPT_IPV4_TOS_EN		0x4000
 #define IPOPT_VLAN_TAGGING_ENABLE	0x2000
+#define IPOPT_GRAT_ARP_EN		0x1000
+#define IPOPT_ALT_CID_EN		0x0800
+#define IPOPT_REQ_VID_EN		0x0400
+#define IPOPT_USE_VID_EN		0x0200
+#define IPOPT_LEARN_IQN_EN		0x0100
+#define IPOPT_FRAGMENTATION_DISABLE	0x0010
+#define IPOPT_IN_FORWARD_EN		0x0008
+#define IPOPT_ARP_REDIRECT_EN		0x0004
 
 	uint16_t iscsi_max_pdu_size;	/* 36-37 */
 	uint8_t ipv4_tos;	/* 38 */
@@ -637,15 +673,24 @@ struct addr_ctrl_blk {
 	uint32_t cookie;	/* 200-203 */
 	uint16_t ipv6_port;	/* 204-205 */
 	uint16_t ipv6_opts;	/* 206-207 */
-#define IPV6_OPT_IPV6_PROTOCOL_ENABLE	0x8000
-#define IPV6_OPT_VLAN_TAGGING_ENABLE	0x2000
+#define IPV6_OPT_IPV6_PROTOCOL_ENABLE		0x8000
+#define IPV6_OPT_VLAN_TAGGING_ENABLE		0x2000
+#define IPV6_OPT_GRAT_NEIGHBOR_ADV_EN		0x1000
+#define IPV6_OPT_REDIRECT_EN			0x0004
 
 	uint16_t ipv6_addtl_opts;	/* 208-209 */
+#define IPV6_ADDOPT_IGNORE_ICMP_ECHO_REQ		0x0040
+#define IPV6_ADDOPT_MLD_EN				0x0004
 #define IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE	0x0002 /* Pri ACB
 								  Only */
 #define IPV6_ADDOPT_AUTOCONFIG_LINK_LOCAL_ADDR		0x0001
 
 	uint16_t ipv6_tcp_opts;	/* 20A-20B */
+#define IPV6_TCPOPT_DELAYED_ACK_DISABLE		0x8000
+#define IPV6_TCPOPT_NAGLE_ALGO_DISABLE		0x0020
+#define IPV6_TCPOPT_WINDOW_SCALE_DISABLE	0x0010
+#define IPV6_TCPOPT_TIMER_SCALE			0x000E
+#define IPV6_TCPOPT_TIMESTAMP_EN		0x0001
 	uint8_t ipv6_tcp_wsf;	/* 20C */
 	uint16_t ipv6_flow_lbl;	/* 20D-20F */
 	uint8_t ipv6_dflt_rtr_addr[16]; /* 210-21F */
@@ -1252,7 +1297,88 @@ struct response {
 };
 
 struct ql_iscsi_stats {
-	uint8_t reserved1[656]; /* 0000-028F */
+	uint64_t mac_tx_frames; /* 0000–0007 */
+	uint64_t mac_tx_bytes; /* 0008–000F */
+	uint64_t mac_tx_multicast_frames; /* 0010–0017 */
+	uint64_t mac_tx_broadcast_frames; /* 0018–001F */
+	uint64_t mac_tx_pause_frames; /* 0020–0027 */
+	uint64_t mac_tx_control_frames; /* 0028–002F */
+	uint64_t mac_tx_deferral; /* 0030–0037 */
+	uint64_t mac_tx_excess_deferral; /* 0038–003F */
+	uint64_t mac_tx_late_collision; /* 0040–0047 */
+	uint64_t mac_tx_abort; /* 0048–004F */
+	uint64_t mac_tx_single_collision; /* 0050–0057 */
+	uint64_t mac_tx_multiple_collision; /* 0058–005F */
+	uint64_t mac_tx_collision; /* 0060–0067 */
+	uint64_t mac_tx_frames_dropped; /* 0068–006F */
+	uint64_t mac_tx_jumbo_frames; /* 0070–0077 */
+	uint64_t mac_rx_frames; /* 0078–007F */
+	uint64_t mac_rx_bytes; /* 0080–0087 */
+	uint64_t mac_rx_unknown_control_frames; /* 0088–008F */
+	uint64_t mac_rx_pause_frames; /* 0090–0097 */
+	uint64_t mac_rx_control_frames; /* 0098–009F */
+	uint64_t mac_rx_dribble; /* 00A0–00A7 */
+	uint64_t mac_rx_frame_length_error; /* 00A8–00AF */
+	uint64_t mac_rx_jabber; /* 00B0–00B7 */
+	uint64_t mac_rx_carrier_sense_error; /* 00B8–00BF */
+	uint64_t mac_rx_frame_discarded; /* 00C0–00C7 */
+	uint64_t mac_rx_frames_dropped; /* 00C8–00CF */
+	uint64_t mac_crc_error; /* 00D0–00D7 */
+	uint64_t mac_encoding_error; /* 00D8–00DF */
+	uint64_t mac_rx_length_error_large; /* 00E0–00E7 */
+	uint64_t mac_rx_length_error_small; /* 00E8–00EF */
+	uint64_t mac_rx_multicast_frames; /* 00F0–00F7 */
+	uint64_t mac_rx_broadcast_frames; /* 00F8–00FF */
+	uint64_t ip_tx_packets; /* 0100–0107 */
+	uint64_t ip_tx_bytes; /* 0108–010F */
+	uint64_t ip_tx_fragments; /* 0110–0117 */
+	uint64_t ip_rx_packets; /* 0118–011F */
+	uint64_t ip_rx_bytes; /* 0120–0127 */
+	uint64_t ip_rx_fragments; /* 0128–012F */
+	uint64_t ip_datagram_reassembly; /* 0130–0137 */
+	uint64_t ip_invalid_address_error; /* 0138–013F */
+	uint64_t ip_error_packets; /* 0140–0147 */
+	uint64_t ip_fragrx_overlap; /* 0148–014F */
+	uint64_t ip_fragrx_outoforder; /* 0150–0157 */
+	uint64_t ip_datagram_reassembly_timeout; /* 0158–015F */
+	uint64_t ipv6_tx_packets; /* 0160–0167 */
+	uint64_t ipv6_tx_bytes; /* 0168–016F */
+	uint64_t ipv6_tx_fragments; /* 0170–0177 */
+	uint64_t ipv6_rx_packets; /* 0178–017F */
+	uint64_t ipv6_rx_bytes; /* 0180–0187 */
+	uint64_t ipv6_rx_fragments; /* 0188–018F */
+	uint64_t ipv6_datagram_reassembly; /* 0190–0197 */
+	uint64_t ipv6_invalid_address_error; /* 0198–019F */
+	uint64_t ipv6_error_packets; /* 01A0–01A7 */
+	uint64_t ipv6_fragrx_overlap; /* 01A8–01AF */
+	uint64_t ipv6_fragrx_outoforder; /* 01B0–01B7 */
+	uint64_t ipv6_datagram_reassembly_timeout; /* 01B8–01BF */
+	uint64_t tcp_tx_segments; /* 01C0–01C7 */
+	uint64_t tcp_tx_bytes; /* 01C8–01CF */
+	uint64_t tcp_rx_segments; /* 01D0–01D7 */
+	uint64_t tcp_rx_byte; /* 01D8–01DF */
+	uint64_t tcp_duplicate_ack_retx; /* 01E0–01E7 */
+	uint64_t tcp_retx_timer_expired; /* 01E8–01EF */
+	uint64_t tcp_rx_duplicate_ack; /* 01F0–01F7 */
+	uint64_t tcp_rx_pure_ackr; /* 01F8–01FF */
+	uint64_t tcp_tx_delayed_ack; /* 0200–0207 */
+	uint64_t tcp_tx_pure_ack; /* 0208–020F */
+	uint64_t tcp_rx_segment_error; /* 0210–0217 */
+	uint64_t tcp_rx_segment_outoforder; /* 0218–021F */
+	uint64_t tcp_rx_window_probe; /* 0220–0227 */
+	uint64_t tcp_rx_window_update; /* 0228–022F */
+	uint64_t tcp_tx_window_probe_persist; /* 0230–0237 */
+	uint64_t ecc_error_correction; /* 0238–023F */
+	uint64_t iscsi_pdu_tx; /* 0240-0247 */
+	uint64_t iscsi_data_bytes_tx; /* 0248-024F */
+	uint64_t iscsi_pdu_rx; /* 0250-0257 */
+	uint64_t iscsi_data_bytes_rx; /* 0258-025F */
+	uint64_t iscsi_io_completed; /* 0260-0267 */
+	uint64_t iscsi_unexpected_io_rx; /* 0268-026F */
+	uint64_t iscsi_format_error; /* 0270-0277 */
+	uint64_t iscsi_hdr_digest_error; /* 0278-027F */
+	uint64_t iscsi_data_digest_error; /* 0280-0287 */
+	uint64_t iscsi_sequence_error; /* 0288-028F */
 	uint32_t tx_cmd_pdu; /* 0290-0293 */
 	uint32_t tx_resp_pdu; /* 0294-0297 */
 	uint32_t rx_cmd_pdu; /* 0298-029B */
