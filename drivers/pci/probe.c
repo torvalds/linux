@@ -805,11 +805,10 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 			goto out;
 
 		/*
-		 * If we already got to this bus through a different bridge,
-		 * don't re-add it. This can happen with the i450NX chipset.
-		 *
-		 * However, we continue to descend down the hierarchy and
-		 * scan remaining child buses.
+		 * The bus might already exist for two reasons: Either we are
+		 * rescanning the bus or the bus is reachable through more than
+		 * one bridge. The second case can happen with the i450NX
+		 * chipset.
 		 */
 		child = pci_find_bus(pci_domain_nr(bus), secondary);
 		if (!child) {
