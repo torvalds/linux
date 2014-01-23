@@ -57,7 +57,7 @@ static void __page_cache_release(struct page *page)
 
 		spin_lock_irqsave(&zone->lru_lock, flags);
 		lruvec = mem_cgroup_page_lruvec(page, zone);
-		VM_BUG_ON(!PageLRU(page));
+		VM_BUG_ON_PAGE(!PageLRU(page), page);
 		__ClearPageLRU(page);
 		del_page_from_lru_list(page, lruvec, page_off_lru(page));
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
@@ -130,8 +130,8 @@ static void put_compound_page(struct page *page)
 			 * __split_huge_page_refcount cannot race
 			 * here.
 			 */
-			VM_BUG_ON(!PageHead(page_head));
-			VM_BUG_ON(page_mapcount(page) != 0);
+			VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
+			VM_BUG_ON_PAGE(page_mapcount(page) != 0, page);
 			if (put_page_testzero(page_head)) {
 				/*
 				 * If this is the tail of a slab
@@ -148,7 +148,7 @@ static void put_compound_page(struct page *page)
 				 * the compound page enters the buddy
 				 * allocator.
 				 */
-				VM_BUG_ON(PageSlab(page_head));
+				VM_BUG_ON_PAGE(PageSlab(page_head), page_head);
 				__put_compound_page(page_head);
 			}
 			return;
@@ -199,7 +199,7 @@ out_put_single:
 				__put_single_page(page);
 			return;
 		}
-		VM_BUG_ON(page_head != page->first_page);
+		VM_BUG_ON_PAGE(page_head != page->first_page, page);
 		/*
 		 * We can release the refcount taken by
 		 * get_page_unless_zero() now that
@@ -207,12 +207,12 @@ out_put_single:
 		 * compound_lock.
 		 */
 		if (put_page_testzero(page_head))
-			VM_BUG_ON(1);
+			VM_BUG_ON_PAGE(1, page_head);
 		/* __split_huge_page_refcount will wait now */
-		VM_BUG_ON(page_mapcount(page) <= 0);
+		VM_BUG_ON_PAGE(page_mapcount(page) <= 0, page);
 		atomic_dec(&page->_mapcount);
-		VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
-		VM_BUG_ON(atomic_read(&page->_count) != 0);
+		VM_BUG_ON_PAGE(atomic_read(&page_head->_count) <= 0, page_head);
+		VM_BUG_ON_PAGE(atomic_read(&page->_count) != 0, page);
 		compound_unlock_irqrestore(page_head, flags);
 
 		if (put_page_testzero(page_head)) {
@@ -223,7 +223,7 @@ out_put_single:
 		}
 	} else {
 		/* page_head is a dangling pointer */
-		VM_BUG_ON(PageTail(page));
+		VM_BUG_ON_PAGE(PageTail(page), page);
 		goto out_put_single;
 	}
 }
@@ -264,7 +264,7 @@ bool __get_page_tail(struct page *page)
 			 * page. __split_huge_page_refcount
 			 * cannot race here.
 			 */
-			VM_BUG_ON(!PageHead(page_head));
+			VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
 			__get_page_tail_foll(page, true);
 			return true;
 		} else {
@@ -604,8 +604,8 @@ EXPORT_SYMBOL(__lru_cache_add);
  */
 void lru_cache_add(struct page *page)
 {
-	VM_BUG_ON(PageActive(page) && PageUnevictable(page));
-	VM_BUG_ON(PageLRU(page));
+	VM_BUG_ON_PAGE(PageActive(page) && PageUnevictable(page), page);
+	VM_BUG_ON_PAGE(PageLRU(page), page);
 	__lru_cache_add(page);
 }
 
@@ -846,7 +846,7 @@ void release_pages(struct page **pages, int nr, int cold)
 			}
 
 			lruvec = mem_cgroup_page_lruvec(page, zone);
-			VM_BUG_ON(!PageLRU(page));
+			VM_BUG_ON_PAGE(!PageLRU(page), page);
 			__ClearPageLRU(page);
 			del_page_from_lru_list(page, lruvec, page_off_lru(page));
 		}
@@ -888,9 +888,9 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
 {
 	const int file = 0;
 
-	VM_BUG_ON(!PageHead(page));
-	VM_BUG_ON(PageCompound(page_tail));
-	VM_BUG_ON(PageLRU(page_tail));
+	VM_BUG_ON_PAGE(!PageHead(page), page);
+	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
+	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
 	VM_BUG_ON(NR_CPUS != 1 &&
 		  !spin_is_locked(&lruvec_zone(lruvec)->lru_lock));
 
@@ -929,7 +929,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 	int active = PageActive(page);
 	enum lru_list lru = page_lru(page);
 
-	VM_BUG_ON(PageLRU(page));
+	VM_BUG_ON_PAGE(PageLRU(page), page);
 
 	SetPageLRU(page);
 	add_page_to_lru_list(page, lruvec, lru);
