@@ -320,8 +320,10 @@ static void dspi_chipselect(struct spi_device *spi, int value)
 	switch (value) {
 	case BITBANG_CS_ACTIVE:
 		pushr |= SPI_PUSHR_CONT;
+		break;
 	case BITBANG_CS_INACTIVE:
 		pushr &= ~SPI_PUSHR_CONT;
+		break;
 	}
 
 	writel(pushr, dspi->base + SPI_PUSHR);
