@@ -494,7 +494,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
 	if (!ieee80211_is_data(hdr->frame_control) &&
-	    !ieee80211_is_robust_mgmt_frame(hdr))
+	    !ieee80211_is_robust_mgmt_frame(skb))
 		return RX_CONTINUE;
 
 	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN -
