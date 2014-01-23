@@ -2347,9 +2347,7 @@
 #define VIDEO_DIP_CTL		0x61170
 /* Pre HSW: */
 #define   VIDEO_DIP_ENABLE		(1 << 31)
-#define   VIDEO_DIP_PORT_B		(1 << 29)
-#define   VIDEO_DIP_PORT_C		(2 << 29)
-#define   VIDEO_DIP_PORT_D		(3 << 29)
+#define   VIDEO_DIP_PORT(port)		((port) << 29)
 #define   VIDEO_DIP_PORT_MASK		(3 << 29)
 #define   VIDEO_DIP_ENABLE_GCP		(1 << 25)
 #define   VIDEO_DIP_ENABLE_AVI		(1 << 21)

@@ -425,7 +425,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
 	u32 reg = VIDEO_DIP_CTL;
 	u32 val = I915_READ(reg);
-	u32 port;
+	u32 port = VIDEO_DIP_PORT(intel_dig_port->port);
 
 	assert_hdmi_port_disabled(intel_hdmi);
 
@@ -446,18 +446,6 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 		val &= ~VIDEO_DIP_ENABLE;
 		I915_WRITE(reg, val);
 		POSTING_READ(reg);
-		return;
-	}
-
-	switch (intel_dig_port->port) {
-	case PORT_B:
-		port = VIDEO_DIP_PORT_B;
-		break;
-	case PORT_C:
-		port = VIDEO_DIP_PORT_C;
-		break;
-	default:
-		BUG();
 		return;
 	}
 
@@ -491,7 +479,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
 	u32 reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
-	u32 port;
+	u32 port = VIDEO_DIP_PORT(intel_dig_port->port);
 
 	assert_hdmi_port_disabled(intel_hdmi);
 
@@ -504,21 +492,6 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 		val &= ~VIDEO_DIP_ENABLE;
 		I915_WRITE(reg, val);
 		POSTING_READ(reg);
-		return;
-	}
-
-	switch (intel_dig_port->port) {
-	case PORT_B:
-		port = VIDEO_DIP_PORT_B;
-		break;
-	case PORT_C:
-		port = VIDEO_DIP_PORT_C;
-		break;
-	case PORT_D:
-		port = VIDEO_DIP_PORT_D;
-		break;
-	default:
-		BUG();
 		return;
 	}
 
