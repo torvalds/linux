@@ -40,12 +40,12 @@ static long clk_factor_round_rate(struct clk_hw *hw, unsigned long drate,
 
 	for (i = 0; i < factor->ftbl_cnt; i++) {
 		prev_rate = rate;
-		rate = (((*prate / 10000) * factor->ftbl[i].num) /
-			(factor->ftbl[i].den * factor->masks->factor)) * 10000;
+		rate = (((*prate / 10000) * factor->ftbl[i].den) /
+			(factor->ftbl[i].num * factor->masks->factor)) * 10000;
 		if (rate > drate)
 			break;
 	}
-	if (i == 0)
+	if ((i == 0) || (i == factor->ftbl_cnt))
 		return rate;
 	else
 		return prev_rate;
@@ -85,8 +85,8 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 
 	for (i = 0; i < factor->ftbl_cnt; i++) {
 		prev_rate = rate;
-		rate = (((prate / 10000) * factor->ftbl[i].num) /
-			(factor->ftbl[i].den * factor->masks->factor)) * 10000;
+		rate = (((prate / 10000) * factor->ftbl[i].den) /
+			(factor->ftbl[i].num * factor->masks->factor)) * 10000;
 		if (rate > drate)
 			break;
 	}
