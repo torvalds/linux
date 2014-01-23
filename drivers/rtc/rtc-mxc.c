@@ -391,8 +391,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
 		dev_err(&pdev->dev, "unable to get clock!\n");
-		ret = PTR_ERR(pdata->clk);
-		goto exit_free_pdata;
+		return PTR_ERR(pdata->clk);
 	}
 
 	clk_prepare_enable(pdata->clk);
@@ -446,8 +445,6 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 
 exit_put_clk:
 	clk_disable_unprepare(pdata->clk);
-
-exit_free_pdata:
 
 	return ret;
 }
