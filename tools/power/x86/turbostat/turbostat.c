@@ -46,6 +46,7 @@ unsigned int rapl_verbose;	/* set with -R */
 unsigned int rapl_joules;	/* set with -J */
 unsigned int thermal_verbose;	/* set with -T */
 unsigned int summary_only;	/* set with -S */
+unsigned int dump_only;		/* set with -s */
 unsigned int skip_c0;
 unsigned int skip_c1;
 unsigned int do_nhm_cstates;
@@ -353,51 +354,57 @@ void print_header(void)
 int dump_counters(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p)
 {
-	fprintf(stderr, "t %p, c %p, p %p\n", t, c, p);
+	outp += sprintf(outp, "t %p, c %p, p %p\n", t, c, p);
 
 	if (t) {
-		fprintf(stderr, "CPU: %d flags 0x%x\n", t->cpu_id, t->flags);
-		fprintf(stderr, "TSC: %016llX\n", t->tsc);
-		fprintf(stderr, "aperf: %016llX\n", t->aperf);
-		fprintf(stderr, "mperf: %016llX\n", t->mperf);
-		fprintf(stderr, "c1: %016llX\n", t->c1);
-		fprintf(stderr, "msr0x%x: %08llX\n",
+		outp += sprintf(outp, "CPU: %d flags 0x%x\n",
+			t->cpu_id, t->flags);
+		outp += sprintf(outp, "TSC: %016llX\n", t->tsc);
+		outp += sprintf(outp, "aperf: %016llX\n", t->aperf);
+		outp += sprintf(outp, "mperf: %016llX\n", t->mperf);
+		outp += sprintf(outp, "c1: %016llX\n", t->c1);
+		outp += sprintf(outp, "msr0x%x: %08llX\n",
 			extra_delta_offset32, t->extra_delta32);
-		fprintf(stderr, "msr0x%x: %016llX\n",
+		outp += sprintf(outp, "msr0x%x: %016llX\n",
 			extra_delta_offset64, t->extra_delta64);
-		fprintf(stderr, "msr0x%x: %08llX\n",
+		outp += sprintf(outp, "msr0x%x: %08llX\n",
 			extra_msr_offset32, t->extra_msr32);
-		fprintf(stderr, "msr0x%x: %016llX\n",
+		outp += sprintf(outp, "msr0x%x: %016llX\n",
 			extra_msr_offset64, t->extra_msr64);
 		if (do_smi)
-			fprintf(stderr, "SMI: %08X\n", t->smi_count);
+			outp += sprintf(outp, "SMI: %08X\n", t->smi_count);
 	}
 
 	if (c) {
-		fprintf(stderr, "core: %d\n", c->core_id);
-		fprintf(stderr, "c3: %016llX\n", c->c3);
-		fprintf(stderr, "c6: %016llX\n", c->c6);
-		fprintf(stderr, "c7: %016llX\n", c->c7);
-		fprintf(stderr, "DTS: %dC\n", c->core_temp_c);
+		outp += sprintf(outp, "core: %d\n", c->core_id);
+		outp += sprintf(outp, "c3: %016llX\n", c->c3);
+		outp += sprintf(outp, "c6: %016llX\n", c->c6);
+		outp += sprintf(outp, "c7: %016llX\n", c->c7);
+		outp += sprintf(outp, "DTS: %dC\n", c->core_temp_c);
 	}
 
 	if (p) {
-		fprintf(stderr, "package: %d\n", p->package_id);
-		fprintf(stderr, "pc2: %016llX\n", p->pc2);
-		fprintf(stderr, "pc3: %016llX\n", p->pc3);
-		fprintf(stderr, "pc6: %016llX\n", p->pc6);
-		fprintf(stderr, "pc7: %016llX\n", p->pc7);
-		fprintf(stderr, "pc8: %016llX\n", p->pc8);
-		fprintf(stderr, "pc9: %016llX\n", p->pc9);
-		fprintf(stderr, "pc10: %016llX\n", p->pc10);
-		fprintf(stderr, "Joules PKG: %0X\n", p->energy_pkg);
-		fprintf(stderr, "Joules COR: %0X\n", p->energy_cores);
-		fprintf(stderr, "Joules GFX: %0X\n", p->energy_gfx);
-		fprintf(stderr, "Joules RAM: %0X\n", p->energy_dram);
-		fprintf(stderr, "Throttle PKG: %0X\n", p->rapl_pkg_perf_status);
-		fprintf(stderr, "Throttle RAM: %0X\n", p->rapl_dram_perf_status);
-		fprintf(stderr, "PTM: %dC\n", p->pkg_temp_c);
+		outp += sprintf(outp, "package: %d\n", p->package_id);
+		outp += sprintf(outp, "pc2: %016llX\n", p->pc2);
+		outp += sprintf(outp, "pc3: %016llX\n", p->pc3);
+		outp += sprintf(outp, "pc6: %016llX\n", p->pc6);
+		outp += sprintf(outp, "pc7: %016llX\n", p->pc7);
+		outp += sprintf(outp, "pc8: %016llX\n", p->pc8);
+		outp += sprintf(outp, "pc9: %016llX\n", p->pc9);
+		outp += sprintf(outp, "pc10: %016llX\n", p->pc10);
+		outp += sprintf(outp, "Joules PKG: %0X\n", p->energy_pkg);
+		outp += sprintf(outp, "Joules COR: %0X\n", p->energy_cores);
+		outp += sprintf(outp, "Joules GFX: %0X\n", p->energy_gfx);
+		outp += sprintf(outp, "Joules RAM: %0X\n", p->energy_dram);
+		outp += sprintf(outp, "Throttle PKG: %0X\n",
+			p->rapl_pkg_perf_status);
+		outp += sprintf(outp, "Throttle RAM: %0X\n",
+			p->rapl_dram_perf_status);
+		outp += sprintf(outp, "PTM: %dC\n", p->pkg_temp_c);
 	}
+
+	outp += sprintf(outp, "\n");
+
 	return 0;
 }
 
@@ -2289,7 +2296,7 @@ int initialize_counters(int cpu_id)
 
 void allocate_output_buffer()
 {
-	output_buffer = calloc(1, (1 + topo.num_cpus) * 256);
+	output_buffer = calloc(1, (1 + topo.num_cpus) * 1024);
 	outp = output_buffer;
 	if (outp == NULL)
 		err(-1, "calloc output buffer");
@@ -2303,6 +2310,7 @@ void setup_all_buffers(void)
 	allocate_output_buffer();
 	for_all_proc_cpus(initialize_counters);
 }
+
 void turbostat_init()
 {
 	check_cpuid();
@@ -2371,19 +2379,39 @@ int fork_it(char **argv)
 	return status;
 }
 
+int get_and_dump_counters(void)
+{
+	int status;
+
+	status = for_all_cpus(get_counters, ODD_COUNTERS);
+	if (status)
+		return status;
+
+	status = for_all_cpus(dump_counters, ODD_COUNTERS);
+	if (status)
+		return status;
+
+	flush_stdout();
+
+	return status;
+}
+
 void cmdline(int argc, char **argv)
 {
 	int opt;
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+pPSvi:c:C:m:M:RJT:")) != -1) {
+	while ((opt = getopt(argc, argv, "+pPsSvi:c:C:m:M:RJT:")) != -1) {
 		switch (opt) {
 		case 'p':
 			show_core_only++;
 			break;
 		case 'P':
 			show_pkg_only++;
+			break;
+		case 's':
+			dump_only++;
 			break;
 		case 'S':
 			summary_only++;
@@ -2431,6 +2459,10 @@ int main(int argc, char **argv)
 			" - Len Brown <lenb@kernel.org>\n");
 
 	turbostat_init();
+
+	/* dump counters and exit */
+	if (dump_only)
+		return get_and_dump_counters();
 
 	/*
 	 * if any params left, it must be a command to fork
