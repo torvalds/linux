@@ -862,8 +862,8 @@ static int aty_var_to_crtc(const struct fb_info *info,
 	h_sync_pol = sync & FB_SYNC_HOR_HIGH_ACT ? 0 : 1;
 	v_sync_pol = sync & FB_SYNC_VERT_HIGH_ACT ? 0 : 1;
 
-	if ((xres > 1600) || (yres > 1200)) {
-		FAIL("MACH64 chips are designed for max 1600x1200\n"
+	if ((xres > 1920) || (yres > 1200)) {
+		FAIL("MACH64 chips are designed for max 1920x1200\n"
 		     "select another resolution.");
 	}
 	h_sync_strt = h_disp + var->right_margin;
