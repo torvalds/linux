@@ -389,7 +389,7 @@ static int hym8563_clkout_is_prepared(struct clk_hw *hw)
 	return !(ret & HYM8563_CLKOUT_DISABLE);
 }
 
-const struct clk_ops hym8563_clkout_ops = {
+static const struct clk_ops hym8563_clkout_ops = {
 	.prepare = hym8563_clkout_prepare,
 	.unprepare = hym8563_clkout_unprepare,
 	.is_prepared = hym8563_clkout_is_prepared,
