@@ -538,14 +538,13 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 	if (extent_op && extent_op->update_key)
 		btrfs_disk_key_to_cpu(&op_key, &extent_op->key);
 
-	while ((n = rb_prev(n))) {
+	spin_lock(&head->lock);
+	n = rb_first(&head->ref_root);
+	while (n) {
 		struct btrfs_delayed_ref_node *node;
 		node = rb_entry(n, struct btrfs_delayed_ref_node,
 				rb_node);
-		if (node->bytenr != head->node.bytenr)
-			break;
-		WARN_ON(node->is_head);
-
+		n = rb_next(n);
 		if (node->seq > seq)
 			continue;
 
@@ -612,10 +611,10 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			WARN_ON(1);
 		}
 		if (ret)
-			return ret;
+			break;
 	}
-
-	return 0;
+	spin_unlock(&head->lock);
+	return ret;
 }
 
 /*
@@ -882,15 +881,15 @@ again:
 				btrfs_put_delayed_ref(&head->node);
 				goto again;
 			}
+			spin_unlock(&delayed_refs->lock);
 			ret = __add_delayed_refs(head, time_seq,
 						 &prefs_delayed);
 			mutex_unlock(&head->mutex);
-			if (ret) {
-				spin_unlock(&delayed_refs->lock);
+			if (ret)
 				goto out;
-			}
+		} else {
+			spin_unlock(&delayed_refs->lock);
 		}
-		spin_unlock(&delayed_refs->lock);
 	}
 
 	if (path->slots[0]) {
