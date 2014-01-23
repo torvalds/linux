@@ -2653,7 +2653,8 @@ static int aty_init(struct fb_info *info)
 		      FBINFO_HWACCEL_IMAGEBLIT |
 		      FBINFO_HWACCEL_FILLRECT  |
 		      FBINFO_HWACCEL_COPYAREA  |
-		      FBINFO_HWACCEL_YPAN;
+		      FBINFO_HWACCEL_YPAN      |
+		      FBINFO_READS_FAST;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	if (M64_HAS(G3_PB_1_1) && of_machine_is_compatible("PowerBook1,1")) {
