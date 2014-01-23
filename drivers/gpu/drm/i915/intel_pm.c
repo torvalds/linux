@@ -283,8 +283,6 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	I915_WRITE(IVB_FBC_RT_BASE, i915_gem_obj_ggtt_offset(obj));
-
 	I915_WRITE(ILK_DPFC_CONTROL, DPFC_CTL_EN | DPFC_CTL_LIMIT_1X |
 		   IVB_DPFC_CTL_FENCE_EN |
 		   intel_crtc->plane << IVB_DPFC_CTL_PLANE_SHIFT);
