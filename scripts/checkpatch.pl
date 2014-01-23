@@ -29,6 +29,7 @@ my $mailback = 0;
 my $summary_file = 0;
 my $show_types = 0;
 my $fix = 0;
+my $fix_inplace = 0;
 my $root;
 my %debug;
 my %camelcase = ();
@@ -76,6 +77,9 @@ Options:
                              "<inputfile>.EXPERIMENTAL-checkpatch-fixes"
                              with potential errors corrected to the preferred
                              checkpatch style
+  --fix-inplace              EXPERIMENTAL - may create horrible results
+                             Is the same as --fix, but overwrites the input
+                             file.  It's your fault if there's no backup or git
   --ignore-perl-version      override checking of perl version.  expect
                              runtime errors.
   -h, --help, --version      display this help and exit
@@ -131,6 +135,7 @@ GetOptions(
 	'mailback!'	=> \$mailback,
 	'summary-file!'	=> \$summary_file,
 	'fix!'		=> \$fix,
+	'fix-inplace!'	=> \$fix_inplace,
 	'ignore-perl-version!' => \$ignore_perl_version,
 	'debug=s'	=> \%debug,
 	'test-only=s'	=> \$tst_only,
@@ -139,6 +144,8 @@ GetOptions(
 ) or help(1);
 
 help(0) if ($help);
+
+$fix = 1 if ($fix_inplace);
 
 my $exit = 0;
 
@@ -4388,7 +4395,8 @@ sub process {
 	hash_show_words(\%ignore_type, "Ignored");
 
 	if ($clean == 0 && $fix && "@rawlines" ne "@fixed") {
-		my $newfile = $filename . ".EXPERIMENTAL-checkpatch-fixes";
+		my $newfile = $filename;
+		$newfile .= ".EXPERIMENTAL-checkpatch-fixes" if (!$fix_inplace);
 		my $linecount = 0;
 		my $f;
 
