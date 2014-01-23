@@ -4288,7 +4288,15 @@ static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
 	struct port_info *p = netdev_priv(dev);
 	struct adapter *adapter = p->adapter;
 
+	/* Block retrieving statistics during EEH error
+	 * recovery. Otherwise, the recovery might fail
+	 * and the PCI device will be removed permanently
+	 */
 	spin_lock(&adapter->stats_lock);
+	if (!netif_device_present(dev)) {
+		spin_unlock(&adapter->stats_lock);
+		return ns;
+	}
 	t4_get_port_stats(adapter, p->tx_chan, &stats);
 	spin_unlock(&adapter->stats_lock);
 
@@ -5496,12 +5504,14 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 	rtnl_lock();
 	adap->flags &= ~FW_OK;
 	notify_ulds(adap, CXGB4_STATE_START_RECOVERY);
+	spin_lock(&adap->stats_lock);
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
 
 		netif_device_detach(dev);
 		netif_carrier_off(dev);
 	}
+	spin_unlock(&adap->stats_lock);
 	if (adap->flags & FULL_INIT_DONE)
 		cxgb_down(adap);
 	rtnl_unlock();
