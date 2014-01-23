@@ -548,7 +548,7 @@ static void rspi_receive_init(const struct rspi_data *rspi)
 		rspi_read16(rspi, RSPI_SPDR);	/* dummy read */
 	if (spsr & SPSR_OVRF)
 		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPSR) & ~SPSR_OVRF,
-			    RSPI_SPCR);
+			    RSPI_SPSR);
 }
 
 static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
@@ -984,8 +984,9 @@ static int rspi_probe(struct platform_device *pdev)
 	INIT_WORK(&rspi->ws, rspi_work);
 	init_waitqueue_head(&rspi->wait);
 
-	master->num_chipselect = rspi_pd->num_chipselect;
-	if (!master->num_chipselect)
+	if (rspi_pd && rspi_pd->num_chipselect)
+		master->num_chipselect = rspi_pd->num_chipselect;
+	else
 		master->num_chipselect = 2; /* default */
 
 	master->bus_num = pdev->id;
