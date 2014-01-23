@@ -56,8 +56,11 @@ void autofs4_kill_sb(struct super_block *sb)
 	 * just call kill_anon_super when we are called from
 	 * deactivate_super.
 	 */
-	if (sbi) /* Free wait queues, close pipe */
+	if (sbi) {
+		/* Free wait queues, close pipe */
 		autofs4_catatonic_mode(sbi);
+		put_pid(sbi->oz_pgrp);
+	}
 
 	DPRINTK("shutting down");
 	kill_litter_super(sb);
@@ -80,7 +83,7 @@ static int autofs4_show_options(struct seq_file *m, struct dentry *root)
 	if (!gid_eq(root_inode->i_gid, GLOBAL_ROOT_GID))
 		seq_printf(m, ",gid=%u",
 			from_kgid_munged(&init_user_ns, root_inode->i_gid));
-	seq_printf(m, ",pgrp=%d", sbi->oz_pgrp);
+	seq_printf(m, ",pgrp=%d", pid_vnr(sbi->oz_pgrp));
 	seq_printf(m, ",timeout=%lu", sbi->exp_timeout/HZ);
 	seq_printf(m, ",minproto=%d", sbi->min_proto);
 	seq_printf(m, ",maxproto=%d", sbi->max_proto);
@@ -124,7 +127,8 @@ static const match_table_t tokens = {
 };
 
 static int parse_options(char *options, int *pipefd, kuid_t *uid, kgid_t *gid,
-		pid_t *pgrp, unsigned int *type, int *minproto, int *maxproto)
+			 int *pgrp, bool *pgrp_set, unsigned int *type,
+			 int *minproto, int *maxproto)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -132,7 +136,6 @@ static int parse_options(char *options, int *pipefd, kuid_t *uid, kgid_t *gid,
 
 	*uid = current_uid();
 	*gid = current_gid();
-	*pgrp = task_pgrp_nr(current);
 
 	*minproto = AUTOFS_MIN_PROTO_VERSION;
 	*maxproto = AUTOFS_MAX_PROTO_VERSION;
@@ -171,6 +174,7 @@ static int parse_options(char *options, int *pipefd, kuid_t *uid, kgid_t *gid,
 			if (match_int(args, &option))
 				return 1;
 			*pgrp = option;
+			*pgrp_set = true;
 			break;
 		case Opt_minproto:
 			if (match_int(args, &option))
@@ -206,6 +210,8 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	int pipefd;
 	struct autofs_sb_info *sbi;
 	struct autofs_info *ino;
+	int pgrp;
+	bool pgrp_set = false;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -218,7 +224,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	sbi->pipe = NULL;
 	sbi->catatonic = 1;
 	sbi->exp_timeout = 0;
-	sbi->oz_pgrp = task_pgrp_nr(current);
+	sbi->oz_pgrp = NULL;
 	sbi->sb = s;
 	sbi->version = 0;
 	sbi->sub_version = 0;
@@ -255,10 +261,21 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 
 	/* Can this call block? */
 	if (parse_options(data, &pipefd, &root_inode->i_uid, &root_inode->i_gid,
-				&sbi->oz_pgrp, &sbi->type, &sbi->min_proto,
-				&sbi->max_proto)) {
+			  &pgrp, &pgrp_set, &sbi->type, &sbi->min_proto,
+			  &sbi->max_proto)) {
 		printk("autofs: called with bogus options\n");
 		goto fail_dput;
+	}
+
+	if (pgrp_set) {
+		sbi->oz_pgrp = find_get_pid(pgrp);
+		if (!sbi->oz_pgrp) {
+			pr_warn("autofs: could not find process group %d\n",
+				pgrp);
+			goto fail_dput;
+		}
+	} else {
+		sbi->oz_pgrp = get_task_pid(current, PIDTYPE_PGID);
 	}
 
 	if (autofs_type_trigger(sbi->type))
@@ -284,9 +301,9 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		sbi->version = sbi->max_proto;
 	sbi->sub_version = AUTOFS_PROTO_SUBVERSION;
 
-	DPRINTK("pipe fd = %d, pgrp = %u", pipefd, sbi->oz_pgrp);
+	DPRINTK("pipe fd = %d, pgrp = %u", pipefd, pid_nr(sbi->oz_pgrp));
 	pipe = fget(pipefd);
-	
+
 	if (!pipe) {
 		printk("autofs: could not open pipe file descriptor\n");
 		goto fail_dput;
@@ -316,6 +333,7 @@ fail_dput:
 fail_ino:
 	kfree(ino);
 fail_free:
+	put_pid(sbi->oz_pgrp);
 	kfree(sbi);
 	s->s_fs_info = NULL;
 fail_unlock:
