@@ -79,11 +79,31 @@ struct kvm_fpu {
 	__u64 fprs[16];
 };
 
+#define KVM_GUESTDBG_USE_HW_BP		0x00010000
+
+#define KVM_HW_BP			1
+#define KVM_HW_WP_WRITE			2
+#define KVM_SINGLESTEP			4
+
 struct kvm_debug_exit_arch {
+	__u64 addr;
+	__u8 type;
+	__u8 pad[7]; /* Should be set to 0 */
+};
+
+struct kvm_hw_breakpoint {
+	__u64 addr;
+	__u64 phys_addr;
+	__u64 len;
+	__u8 type;
+	__u8 pad[7]; /* Should be set to 0 */
 };
 
 /* for KVM_SET_GUEST_DEBUG */
 struct kvm_guest_debug_arch {
+	__u32 nr_hw_bp;
+	__u32 pad; /* Should be set to 0 */
+	struct kvm_hw_breakpoint __user *hw_bp;
 };
 
 #define KVM_SYNC_PREFIX (1UL << 0)
