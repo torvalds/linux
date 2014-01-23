@@ -1,4 +1,4 @@
-Broadcom Capri Pin Controller
+Broadcom BCM281xx Pin Controller
 
 This is a pin controller for the Broadcom BCM281xx SoC family, which includes
 BCM11130, BCM11140, BCM11351, BCM28145, and BCM28155 SoCs.
@@ -7,14 +7,14 @@ BCM11130, BCM11140, BCM11351, BCM28145, and BCM28155 SoCs.
 
 Required Properties:
 
-- compatible:	Must be "brcm,capri-pinctrl".
+- compatible:	Must be "brcm,bcm11351-pinctrl"
 - reg:		Base address of the PAD Controller register block and the size
 		of the block.
 
 For example, the following is the bare minimum node:
 
 	pinctrl@35004800 {
-		compatible = "brcm,capri-pinctrl";
+		compatible = "brcm,bcm11351-pinctrl";
 		reg = <0x35004800 0x430>;
 	};
 
@@ -119,7 +119,7 @@ Optional Properties (for HDMI pins):
 Example:
 // pin controller node
 pinctrl@35004800 {
-	compatible = "brcm,capri-pinctrl";
+	compatible = "brcmbcm11351-pinctrl";
 	reg = <0x35004800 0x430>;
 
 	// pin configuration node
