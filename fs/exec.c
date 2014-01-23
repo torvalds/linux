@@ -62,7 +62,6 @@
 
 #include <trace/events/task.h>
 #include "internal.h"
-#include "coredump.h"
 
 #include <trace/events/sched.h>
 
@@ -1609,7 +1608,6 @@ void set_binfmt(struct linux_binfmt *new)
 	if (new)
 		__module_get(new->module);
 }
-
 EXPORT_SYMBOL(set_binfmt);
 
 /*
@@ -1626,22 +1624,6 @@ void set_dumpable(struct mm_struct *mm, int value)
 		old = ACCESS_ONCE(mm->flags);
 		new = (old & ~MMF_DUMPABLE_MASK) | value;
 	} while (cmpxchg(&mm->flags, old, new) != old);
-}
-
-int __get_dumpable(unsigned long mm_flags)
-{
-	return mm_flags & MMF_DUMPABLE_MASK;
-}
-
-/*
- * This returns the actual value of the suid_dumpable flag. For things
- * that are using this for checking for privilege transitions, it must
- * test against SUID_DUMP_USER rather than treating it as a boolean
- * value.
- */
-int get_dumpable(struct mm_struct *mm)
-{
-	return __get_dumpable(mm->flags);
 }
 
 SYSCALL_DEFINE3(execve,
