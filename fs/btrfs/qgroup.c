@@ -1897,9 +1897,17 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
 	for (; slot < btrfs_header_nritems(scratch_leaf); ++slot) {
+		u64 num_bytes;
+
 		btrfs_item_key_to_cpu(scratch_leaf, &found, slot);
-		if (found.type != BTRFS_EXTENT_ITEM_KEY)
+		if (found.type != BTRFS_EXTENT_ITEM_KEY &&
+		    found.type != BTRFS_METADATA_ITEM_KEY)
 			continue;
+		if (found.type == BTRFS_METADATA_ITEM_KEY)
+			num_bytes = fs_info->extent_root->leafsize;
+		else
+			num_bytes = found.offset;
+
 		ret = btrfs_find_all_roots(trans, fs_info, found.objectid,
 					   tree_mod_seq_elem.seq, &roots);
 		if (ret < 0)
@@ -1944,12 +1952,12 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 			struct btrfs_qgroup_list *glist;
 
 			qg = (struct btrfs_qgroup *)(uintptr_t) unode->aux;
-			qg->rfer += found.offset;
-			qg->rfer_cmpr += found.offset;
+			qg->rfer += num_bytes;
+			qg->rfer_cmpr += num_bytes;
 			WARN_ON(qg->tag >= seq);
 			if (qg->refcnt - seq == roots->nnodes) {
-				qg->excl += found.offset;
-				qg->excl_cmpr += found.offset;
+				qg->excl += num_bytes;
+				qg->excl_cmpr += num_bytes;
 			}
 			qgroup_dirty(fs_info, qg);
 
