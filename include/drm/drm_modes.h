@@ -138,7 +138,6 @@ struct drm_display_mode {
 	int crtc_vtotal;
 
 	/* Driver private mode info */
-	int private_size;
 	int *private;
 	int private_flags;
 
