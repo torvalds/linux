@@ -2007,7 +2007,7 @@ qlcnic_reset_hw_context(struct qlcnic_adapter *adapter)
 	netif_device_attach(netdev);
 
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	dev_err(&adapter->pdev->dev, "%s:\n", __func__);
+	netdev_info(adapter->netdev, "%s: soft reset complete\n", __func__);
 	return 0;
 }
 
@@ -2747,11 +2747,57 @@ int qlcnic_check_temp(struct qlcnic_adapter *adapter)
 	return rv;
 }
 
+static inline void dump_tx_ring_desc(struct qlcnic_host_tx_ring *tx_ring)
+{
+	int i;
+	struct cmd_desc_type0 *tx_desc_info;
+
+	for (i = 0; i < tx_ring->num_desc; i++) {
+		tx_desc_info = &tx_ring->desc_head[i];
+		pr_info("TX Desc: %d\n", i);
+		print_hex_dump(KERN_INFO, "TX: ", DUMP_PREFIX_OFFSET, 16, 1,
+			       &tx_ring->desc_head[i],
+			       sizeof(struct cmd_desc_type0), true);
+	}
+}
+
+static void qlcnic_dump_tx_rings(struct qlcnic_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct qlcnic_host_tx_ring *tx_ring;
+	int ring;
+
+	if (!netdev || !netif_running(netdev))
+		return;
+
+	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
+		tx_ring = &adapter->tx_ring[ring];
+		netdev_info(netdev, "Tx ring=%d Context Id=0x%x\n",
+			    ring, tx_ring->ctx_id);
+		netdev_info(netdev,
+			    "xmit_finished=%llu, xmit_called=%llu, xmit_on=%llu, xmit_off=%llu\n",
+			    tx_ring->tx_stats.xmit_finished,
+			    tx_ring->tx_stats.xmit_called,
+			    tx_ring->tx_stats.xmit_on,
+			    tx_ring->tx_stats.xmit_off);
+		netdev_info(netdev,
+			    "crb_intr_mask=%d, hw_producer=%d, sw_producer=%d sw_consumer=%d, hw_consumer=%d\n",
+			    readl(tx_ring->crb_intr_mask),
+			    readl(tx_ring->crb_cmd_producer),
+			    tx_ring->producer, tx_ring->sw_consumer,
+			    le32_to_cpu(*(tx_ring->hw_consumer)));
+
+		netdev_info(netdev, "Total desc=%d, Available desc=%d\n",
+			    tx_ring->num_desc, qlcnic_tx_avail(tx_ring));
+
+		if (netif_msg_tx_done(adapter->ahw))
+			dump_tx_ring_desc(tx_ring);
+	}
+}
+
 static void qlcnic_tx_timeout(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_host_tx_ring *tx_ring;
-	int ring;
 
 	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
 		return;
@@ -2765,22 +2811,7 @@ static void qlcnic_tx_timeout(struct net_device *netdev)
 						      QLCNIC_FORCE_FW_DUMP_KEY);
 	} else {
 		netdev_info(netdev, "Tx timeout, reset adapter context.\n");
-		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
-			tx_ring = &adapter->tx_ring[ring];
-			netdev_info(netdev, "Tx ring=%d\n", ring);
-			netdev_info(netdev,
-				    "crb_intr_mask=%d, producer=%d, sw_consumer=%d, hw_consumer=%d\n",
-				    readl(tx_ring->crb_intr_mask),
-				    readl(tx_ring->crb_cmd_producer),
-				    tx_ring->sw_consumer,
-				    le32_to_cpu(*(tx_ring->hw_consumer)));
-			netdev_info(netdev,
-				    "xmit_finished=%llu, xmit_called=%llu, xmit_on=%llu, xmit_off=%llu\n",
-				    tx_ring->tx_stats.xmit_finished,
-				    tx_ring->tx_stats.xmit_called,
-				    tx_ring->tx_stats.xmit_on,
-				    tx_ring->tx_stats.xmit_off);
-		}
+		qlcnic_dump_tx_rings(adapter);
 		adapter->ahw->reset_context = 1;
 	}
 }
