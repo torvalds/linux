@@ -424,6 +424,9 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 	unsigned long irq_flags;
 	int alloc;
 
+	if (unlikely(tracing_selftest_running || tracing_disabled))
+		return 0;
+
 	alloc = sizeof(*entry) + size + 2; /* possible \n added */
 
 	local_save_flags(irq_flags);
@@ -463,6 +466,9 @@ int __trace_bputs(unsigned long ip, const char *str)
 	struct bputs_entry *entry;
 	unsigned long irq_flags;
 	int size = sizeof(struct bputs_entry);
+
+	if (unlikely(tracing_selftest_running || tracing_disabled))
+		return 0;
 
 	local_save_flags(irq_flags);
 	buffer = global_trace.trace_buffer.buffer;
