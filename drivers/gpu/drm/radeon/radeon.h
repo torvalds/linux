@@ -867,6 +867,8 @@ struct radeon_vm {
 	struct radeon_fence		*fence;
 	/* last flush or NULL if we still need to flush */
 	struct radeon_fence		*last_flush;
+	/* last use of vmid */
+	struct radeon_fence		*last_id_use;
 };
 
 struct radeon_vm_manager {
