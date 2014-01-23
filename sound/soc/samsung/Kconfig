@@ -19,7 +19,7 @@ config SND_S3C_DMA_LEGACY
 
 config SND_S3C24XX_I2S
 	tristate
-	select S3C2410_DMA
+	select S3C24XX_DMA
 
 config SND_S3C_I2SV2_SOC
 	tristate
