@@ -197,7 +197,7 @@ static int hspi_transfer_one_message(struct spi_master *master,
 
 			hspi_write(hspi, SPTBR, tx);
 
-			/* wait recive */
+			/* wait receive */
 			ret = hspi_status_check_timeout(hspi, 0x4, 0x4);
 			if (ret < 0)
 				break;
