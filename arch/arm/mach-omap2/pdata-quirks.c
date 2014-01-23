@@ -92,6 +92,33 @@ static void __init hsmmc2_internal_input_clk(void)
 	omap_ctrl_writel(reg, OMAP343X_CONTROL_DEVCONF1);
 }
 
+static int omap3_sbc_t3730_twl_callback(struct device *dev,
+					   unsigned gpio,
+					   unsigned ngpio)
+{
+	int res;
+
+	res = gpio_request_one(gpio + 2, GPIOF_OUT_INIT_HIGH,
+			       "wlan rst");
+	if (res)
+		return res;
+
+	gpio_export(gpio, 0);
+
+	return 0;
+}
+
+static void __init omap3_sbc_t3730_twl_init(void)
+{
+	twl_gpio_auxdata.setup = omap3_sbc_t3730_twl_callback;
+}
+
+static void __init omap3_sbc_t3730_legacy_init(void)
+{
+	legacy_init_wl12xx(WL12XX_REFCLOCK_38, 0, 136);
+	omap_ads7846_init(1, 57, 0, NULL);
+}
+
 static void __init omap3_igep0020_legacy_init(void)
 {
 	omap3_igep2_display_init_of();
@@ -200,6 +227,9 @@ static struct pdata_init auxdata_quirks[] __initdata = {
 	{ "nokia,n810", omap2420_n8x0_legacy_init, },
 	{ "nokia,n810-wimax", omap2420_n8x0_legacy_init, },
 #endif
+#ifdef CONFIG_ARCH_OMAP3
+	{ "compulab,omap3-sbc-t3730", omap3_sbc_t3730_twl_init, },
+#endif
 	{ /* sentinel */ },
 };
 
@@ -228,6 +258,7 @@ struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
  */
 static struct pdata_init pdata_quirks[] __initdata = {
 #ifdef CONFIG_ARCH_OMAP3
+	{ "compulab,omap3-sbc-t3730", omap3_sbc_t3730_legacy_init, },
 	{ "nokia,omap3-n900", hsmmc2_internal_input_clk, },
 	{ "nokia,omap3-n9", hsmmc2_internal_input_clk, },
 	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
