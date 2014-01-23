@@ -215,7 +215,10 @@ void bch_moving_gc(struct cache_set *c)
 		ca->heap.used = 0;
 
 		for_each_bucket(b, ca) {
-			if (!GC_SECTORS_USED(b))
+			if (GC_MARK(b) == GC_MARK_METADATA ||
+			    !GC_SECTORS_USED(b) ||
+			    GC_SECTORS_USED(b) == ca->sb.bucket_size ||
+			    atomic_read(&b->pin))
 				continue;
 
 			if (!heap_full(&ca->heap)) {
