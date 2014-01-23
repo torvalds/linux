@@ -889,7 +889,6 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
  * @mode_list: list of modes to check
  * @maxX: maximum width
  * @maxY: maximum height
- * @maxPitch: max pitch
  *
  * The DRM device (@dev) has size and pitch limits.  Here we validate the
  * modes we probed for @dev against those limits and set their status as
@@ -897,14 +896,11 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
  */
 void drm_mode_validate_size(struct drm_device *dev,
 			    struct list_head *mode_list,
-			    int maxX, int maxY, int maxPitch)
+			    int maxX, int maxY)
 {
 	struct drm_display_mode *mode;
 
 	list_for_each_entry(mode, mode_list, head) {
-		if (maxPitch > 0 && mode->hdisplay > maxPitch)
-			mode->status = MODE_BAD_WIDTH;
-
 		if (maxX > 0 && mode->hdisplay > maxX)
 			mode->status = MODE_VIRTUAL_X;
 
