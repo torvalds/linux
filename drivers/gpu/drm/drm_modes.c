@@ -39,12 +39,11 @@
 #include <video/videomode.h>
 
 /**
- * drm_mode_debug_printmodeline - debug print a mode
- * @dev: DRM device
+ * drm_mode_debug_printmodeline - print a mode to dmesg
  * @mode: mode to print
  *
  * LOCKING:
- * None.
+ * none.
  *
  * Describe @mode using DRM_DEBUG.
  */
@@ -68,6 +67,7 @@ EXPORT_SYMBOL(drm_mode_debug_printmodeline);
  * @vrefresh  : vrefresh rate
  * @reduced : Whether the GTF calculation is simplified
  * @interlaced:Whether the interlace is supported
+ * @margins: whether to add margins or not
  *
  * LOCKING:
  * none.
@@ -83,11 +83,11 @@ EXPORT_SYMBOL(drm_mode_debug_printmodeline);
  * And it is copied from xf86CVTmode in xserver/hw/xfree86/modes/xf86cvt.c.
  * What I have done is to translate it by using integer calculation.
  */
-#define HV_FACTOR			1000
 struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 				      int vdisplay, int vrefresh,
 				      bool reduced, bool interlaced, bool margins)
 {
+#define HV_FACTOR			1000
 	/* 1) top/bottom margin size (% of height) - default: 1.8, */
 #define	CVT_MARGIN_PERCENTAGE		18
 	/* 2) character cell horizontal granularity (pixels) - default 8 */
@@ -289,7 +289,10 @@ EXPORT_SYMBOL(drm_cvt_mode);
  * @vrefresh	:vrefresh rate.
  * @interlaced	:whether the interlace is supported
  * @margins	:desired margin size
- * @GTF_[MCKJ]  :extended GTF formula parameters
+ * @GTF_M: extended GTF formula parameters
+ * @GTF_2C: extended GTF formula parameters
+ * @GTF_K: extended GTF formula parameters
+ * @GTF_2J: extended GTF formula parameters
  *
  * LOCKING.
  * none.
@@ -499,10 +502,11 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  */
 struct drm_display_mode *
 drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
-	     bool lace, int margins)
+	     bool interlaced, int margins)
 {
-	return drm_gtf_mode_complex(dev, hdisplay, vdisplay, vrefresh, lace,
-				    margins, 600, 40 * 2, 128, 20 * 2);
+	return drm_gtf_mode_complex(dev, hdisplay, vdisplay, vrefresh,
+				    interlaced, margins,
+				    600, 40 * 2, 128, 20 * 2);
 }
 EXPORT_SYMBOL(drm_gtf_mode);
 
@@ -805,7 +809,8 @@ EXPORT_SYMBOL(drm_mode_copy);
 
 /**
  * drm_mode_duplicate - allocate and duplicate an existing mode
- * @m: mode to duplicate
+ * @dev: drm_device to allocate the duplicated mode for
+ * @mode: mode to duplicate
  *
  * LOCKING:
  * None.
@@ -1057,8 +1062,9 @@ EXPORT_SYMBOL(drm_mode_connector_list_update);
 
 /**
  * drm_mode_parse_command_line_for_connector - parse command line for connector
- * @mode_option - per connector mode option
- * @connector - connector to parse line for
+ * @mode_option: per connector mode option
+ * @connector: connector to parse line for
+ * @mode: preallocated mode structure to fill out
  *
  * This parses the connector specific then generic command lines for
  * modes and options to configure the connector.
