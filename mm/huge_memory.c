@@ -661,7 +661,7 @@ out:
 	hugepage_exit_sysfs(hugepage_kobj);
 	return err;
 }
-module_init(hugepage_init)
+subsys_initcall(hugepage_init);
 
 static int __init setup_transparent_hugepage(char *str)
 {
