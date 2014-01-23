@@ -1048,7 +1048,7 @@
 #define   FBC_CTL_IDLE_DEBUG	(3<<2)
 #define   FBC_CTL_CPU_FENCE	(1<<1)
 #define   FBC_CTL_PLANE(plane)	((plane)<<0)
-#define FBC_FENCE_OFF		0x0321b
+#define FBC_FENCE_OFF		0x03218 /* BSpec typo has 321Bh */
 #define FBC_TAG			0x03300
 
 #define FBC_LL_SIZE		(1536)
