@@ -159,7 +159,6 @@ static void g4x_enable_fbc(struct drm_crtc *crtc)
 
 	dpfc_ctl = plane | DPFC_SR_EN | DPFC_CTL_LIMIT_1X;
 	dpfc_ctl |= DPFC_CTL_FENCE_EN | obj->fence_reg;
-	I915_WRITE(DPFC_CHICKEN, DPFC_HT_MODIFY);
 
 	I915_WRITE(DPFC_FENCE_YOFF, crtc->y);
 
@@ -233,7 +232,6 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc)
 	dpfc_ctl |= DPFC_CTL_FENCE_EN;
 	if (IS_GEN5(dev))
 		dpfc_ctl |= obj->fence_reg;
-	I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
 
 	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->y);
 	I915_WRITE(ILK_FBC_RT_BASE, i915_gem_obj_ggtt_offset(obj) | ILK_FBC_RT_VALID);
