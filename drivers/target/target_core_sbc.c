@@ -1131,6 +1131,7 @@ sbc_dif_verify_write(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 			if (rc) {
 				kunmap_atomic(paddr);
 				kunmap_atomic(daddr);
+				cmd->bad_sector = sector;
 				return rc;
 			}
 
@@ -1191,6 +1192,7 @@ sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 			if (rc) {
 				kunmap_atomic(paddr);
 				kunmap_atomic(daddr);
+				cmd->bad_sector = sector;
 				return rc;
 			}
 

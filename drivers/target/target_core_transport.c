@@ -2493,6 +2493,19 @@ static int transport_get_sense_codes(
 	return 0;
 }
 
+static
+void transport_err_sector_info(unsigned char *buffer, sector_t bad_sector)
+{
+	/* Place failed LBA in sense data information descriptor 0. */
+	buffer[SPC_ADD_SENSE_LEN_OFFSET] = 0xc;
+	buffer[SPC_DESC_TYPE_OFFSET] = 0; /* Information */
+	buffer[SPC_ADDITIONAL_DESC_LEN_OFFSET] = 0xa;
+	buffer[SPC_VALIDITY_OFFSET] = 0x80;
+
+	/* Descriptor Information: failing sector */
+	put_unaligned_be64(bad_sector, &buffer[12]);
+}
+
 int
 transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		sense_reason_t reason, int from_transport)
@@ -2695,6 +2708,7 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		/* LOGICAL BLOCK GUARD CHECK FAILED */
 		buffer[SPC_ASC_KEY_OFFSET] = 0x10;
 		buffer[SPC_ASCQ_KEY_OFFSET] = 0x01;
+		transport_err_sector_info(buffer, cmd->bad_sector);
 		break;
 	case TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED:
 		/* CURRENT ERROR */
@@ -2705,6 +2719,7 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		/* LOGICAL BLOCK APPLICATION TAG CHECK FAILED */
 		buffer[SPC_ASC_KEY_OFFSET] = 0x10;
 		buffer[SPC_ASCQ_KEY_OFFSET] = 0x02;
+		transport_err_sector_info(buffer, cmd->bad_sector);
 		break;
 	case TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED:
 		/* CURRENT ERROR */
@@ -2715,6 +2730,7 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		/* LOGICAL BLOCK REFERENCE TAG CHECK FAILED */
 		buffer[SPC_ASC_KEY_OFFSET] = 0x10;
 		buffer[SPC_ASCQ_KEY_OFFSET] = 0x03;
+		transport_err_sector_info(buffer, cmd->bad_sector);
 		break;
 	case TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE:
 	default:

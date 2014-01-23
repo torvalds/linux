@@ -37,6 +37,9 @@
 /* Used by transport_send_check_condition_and_sense() */
 #define SPC_SENSE_KEY_OFFSET			2
 #define SPC_ADD_SENSE_LEN_OFFSET		7
+#define SPC_DESC_TYPE_OFFSET			8
+#define SPC_ADDITIONAL_DESC_LEN_OFFSET		9
+#define SPC_VALIDITY_OFFSET			10
 #define SPC_ASC_KEY_OFFSET			12
 #define SPC_ASCQ_KEY_OFFSET			13
 #define TRANSPORT_IQN_LEN			224
@@ -560,7 +563,7 @@ struct se_cmd {
 	unsigned int		t_prot_nents;
 	enum target_prot_ho	prot_handover;
 	sense_reason_t		pi_err;
-	u32			block_num;
+	sector_t		bad_sector;
 };
 
 struct se_ua {
