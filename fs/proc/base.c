@@ -3109,6 +3109,9 @@ static struct task_struct *first_tid(struct task_struct *leader,
 	pos = NULL;
 	if (nr && nr >= get_nr_threads(leader))
 		goto out;
+	/* It could be unhashed before we take rcu lock */
+	if (!pid_alive(leader))
+		goto out;
 
 	/* If we haven't found our starting place yet start
 	 * with the leader and walk nr threads forward.
