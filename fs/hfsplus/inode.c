@@ -178,64 +178,6 @@ const struct dentry_operations hfsplus_dentry_operations = {
 	.d_compare    = hfsplus_compare_dentry,
 };
 
-static struct dentry *hfsplus_file_lookup(struct inode *dir,
-		struct dentry *dentry, unsigned int flags)
-{
-	struct hfs_find_data fd;
-	struct super_block *sb = dir->i_sb;
-	struct inode *inode = NULL;
-	struct hfsplus_inode_info *hip;
-	int err;
-
-	if (HFSPLUS_IS_RSRC(dir) || strcmp(dentry->d_name.name, "rsrc"))
-		goto out;
-
-	inode = HFSPLUS_I(dir)->rsrc_inode;
-	if (inode)
-		goto out;
-
-	inode = new_inode(sb);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-
-	hip = HFSPLUS_I(inode);
-	inode->i_ino = dir->i_ino;
-	INIT_LIST_HEAD(&hip->open_dir_list);
-	mutex_init(&hip->extents_lock);
-	hip->extent_state = 0;
-	hip->flags = 0;
-	hip->userflags = 0;
-	set_bit(HFSPLUS_I_RSRC, &hip->flags);
-
-	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
-	if (!err) {
-		err = hfsplus_find_cat(sb, dir->i_ino, &fd);
-		if (!err)
-			err = hfsplus_cat_read_inode(inode, &fd);
-		hfs_find_exit(&fd);
-	}
-	if (err) {
-		iput(inode);
-		return ERR_PTR(err);
-	}
-	hip->rsrc_inode = dir;
-	HFSPLUS_I(dir)->rsrc_inode = inode;
-	igrab(dir);
-
-	/*
-	 * __mark_inode_dirty expects inodes to be hashed.  Since we don't
-	 * want resource fork inodes in the regular inode space, we make them
-	 * appear hashed, but do not put on any lists.  hlist_del()
-	 * will work fine and require no locking.
-	 */
-	hlist_add_fake(&inode->i_hash);
-
-	mark_inode_dirty(inode);
-out:
-	d_add(dentry, inode);
-	return NULL;
-}
-
 static void hfsplus_get_perms(struct inode *inode,
 		struct hfsplus_perm *perms, int dir)
 {
@@ -385,7 +327,6 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 }
 
 static const struct inode_operations hfsplus_file_inode_operations = {
-	.lookup		= hfsplus_file_lookup,
 	.setattr	= hfsplus_setattr,
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
