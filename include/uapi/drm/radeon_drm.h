@@ -988,6 +988,10 @@ struct drm_radeon_cs {
 #define RADEON_INFO_SI_BACKEND_ENABLED_MASK	0x19
 /* max engine clock - needed for OpenCL */
 #define RADEON_INFO_MAX_SCLK		0x1a
+/* version of VCE firmware */
+#define RADEON_INFO_VCE_FW_VERSION	0x1b
+/* version of VCE feedback */
+#define RADEON_INFO_VCE_FB_VERSION	0x1c
 
 
 struct drm_radeon_info {

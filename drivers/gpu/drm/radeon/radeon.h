@@ -1606,6 +1606,8 @@ struct radeon_vce {
 	struct radeon_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
+	unsigned		fw_version;
+	unsigned		fb_version;
 	atomic_t		handles[RADEON_MAX_VCE_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_VCE_HANDLES];
 };

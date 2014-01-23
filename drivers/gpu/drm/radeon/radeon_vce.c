@@ -48,8 +48,11 @@ MODULE_FIRMWARE(FIRMWARE_BONAIRE);
  */
 int radeon_vce_init(struct radeon_device *rdev)
 {
-	unsigned long bo_size;
-	const char *fw_name;
+	static const char *fw_version = "[ATI LIB=VCEFW,";
+	static const char *fb_version = "[ATI LIB=VCEFWSTATS,";
+	unsigned long size;
+	const char *fw_name, *c;
+	uint8_t start, mid, end;
 	int i, r;
 
 	switch (rdev->family) {
@@ -70,9 +73,50 @@ int radeon_vce_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->vce_fw->size) +
-		  RADEON_VCE_STACK_SIZE + RADEON_VCE_HEAP_SIZE;
-	r = radeon_bo_create(rdev, bo_size, PAGE_SIZE, true,
+	/* search for firmware version */
+
+	size = rdev->vce_fw->size - strlen(fw_version) - 9;
+	c = rdev->vce_fw->data;
+	for (;size > 0; --size, ++c)
+		if (strncmp(c, fw_version, strlen(fw_version)) == 0)
+			break;
+
+	if (size == 0)
+		return -EINVAL;
+
+	c += strlen(fw_version);
+	if (sscanf(c, "%2hhd.%2hhd.%2hhd]", &start, &mid, &end) != 3)
+		return -EINVAL;
+
+	/* search for feedback version */
+
+	size = rdev->vce_fw->size - strlen(fb_version) - 3;
+	c = rdev->vce_fw->data;
+	for (;size > 0; --size, ++c)
+		if (strncmp(c, fb_version, strlen(fb_version)) == 0)
+			break;
+
+	if (size == 0)
+		return -EINVAL;
+
+	c += strlen(fb_version);
+	if (sscanf(c, "%2u]", &rdev->vce.fb_version) != 1)
+		return -EINVAL;
+
+	DRM_INFO("Found VCE firmware/feedback version %hhd.%hhd.%hhd / %d!\n",
+		 start, mid, end, rdev->vce.fb_version);
+
+	rdev->vce.fw_version = (start << 24) | (mid << 16) | (end << 8);
+
+	/* we can only work with this fw version for now */
+	if (rdev->vce.fw_version != ((40 << 24) | (2 << 16) | (2 << 8)))
+		return -EINVAL;
+
+	/* load firmware into VRAM */
+
+	size = RADEON_GPU_PAGE_ALIGN(rdev->vce_fw->size) +
+	       RADEON_VCE_STACK_SIZE + RADEON_VCE_HEAP_SIZE;
+	r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->vce.vcpu_bo);
 	if (r) {
 		dev_err(rdev->dev, "(%d) failed to allocate VCE bo\n", r);
@@ -83,7 +127,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	memset(rdev->vce.cpu_addr, 0, bo_size);
+	memset(rdev->vce.cpu_addr, 0, size);
 	memcpy(rdev->vce.cpu_addr, rdev->vce_fw->data, rdev->vce_fw->size);
 
 	r = radeon_vce_suspend(rdev);
