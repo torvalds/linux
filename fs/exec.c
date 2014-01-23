@@ -1613,33 +1613,24 @@ void set_binfmt(struct linux_binfmt *new)
 EXPORT_SYMBOL(set_binfmt);
 
 /*
- * set_dumpable converts traditional three-value dumpable to two flags and
- * stores them into mm->flags.
+ * set_dumpable stores three-value SUID_DUMP_* into mm->flags.
  */
 void set_dumpable(struct mm_struct *mm, int value)
 {
 	unsigned long old, new;
 
+	if (WARN_ON((unsigned)value > SUID_DUMP_ROOT))
+		return;
+
 	do {
 		old = ACCESS_ONCE(mm->flags);
-		new = old & ~MMF_DUMPABLE_MASK;
-
-		switch (value) {
-		case SUID_DUMP_ROOT:
-			new |= (1 << MMF_DUMP_SECURELY);
-		case SUID_DUMP_USER:
-			new |= (1<< MMF_DUMPABLE);
-		}
-
+		new = (old & ~MMF_DUMPABLE_MASK) | value;
 	} while (cmpxchg(&mm->flags, old, new) != old);
 }
 
 int __get_dumpable(unsigned long mm_flags)
 {
-	int ret;
-
-	ret = mm_flags & MMF_DUMPABLE_MASK;
-	return (ret > SUID_DUMP_USER) ? SUID_DUMP_ROOT : ret;
+	return mm_flags & MMF_DUMPABLE_MASK;
 }
 
 /*
