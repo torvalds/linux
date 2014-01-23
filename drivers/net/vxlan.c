@@ -1047,6 +1047,15 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (!vs)
 		goto drop;
 
+	/* If the NIC driver gave us an encapsulated packet
+	 * with the encapsulation mark, the device checksummed it
+	 * for us. Otherwise force the upper layers to verify it.
+	 */
+	if (skb->ip_summed != CHECKSUM_UNNECESSARY || !skb->encapsulation)
+		skb->ip_summed = CHECKSUM_NONE;
+
+	skb->encapsulation = 0;
+
 	vs->rcv(vs, skb, vxh->vx_vni);
 	return 0;
 
@@ -1104,17 +1113,6 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 		goto drop;
 
 	skb_reset_network_header(skb);
-
-	/* If the NIC driver gave us an encapsulated packet with
-	 * CHECKSUM_UNNECESSARY and Rx checksum feature is enabled,
-	 * leave the CHECKSUM_UNNECESSARY, the device checksummed it
-	 * for us. Otherwise force the upper layers to verify it.
-	 */
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY || !skb->encapsulation ||
-	    !(vxlan->dev->features & NETIF_F_RXCSUM))
-		skb->ip_summed = CHECKSUM_NONE;
-
-	skb->encapsulation = 0;
 
 	if (oip6)
 		err = IP6_ECN_decapsulate(oip6, skb);
