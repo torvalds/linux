@@ -67,6 +67,7 @@ int get_option(char **str, int *pint)
 
 	return 1;
 }
+EXPORT_SYMBOL(get_option);
 
 /**
  *	get_options - Parse a string into a list of integers
@@ -112,6 +113,7 @@ char *get_options(const char *str, int nints, int *ints)
 	ints[0] = i - 1;
 	return (char *)str;
 }
+EXPORT_SYMBOL(get_options);
 
 /**
  *	memparse - parse a string with mem suffixes into a number
@@ -152,7 +154,4 @@ unsigned long long memparse(const char *ptr, char **retptr)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(memparse);
-EXPORT_SYMBOL(get_option);
-EXPORT_SYMBOL(get_options);
