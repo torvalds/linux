@@ -3626,7 +3626,7 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 		return dai->driver->ops->set_tdm_slot(dai, tx_mask, rx_mask,
 				slots, slot_width);
 	else
-		return -EINVAL;
+		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_tdm_slot);
 
