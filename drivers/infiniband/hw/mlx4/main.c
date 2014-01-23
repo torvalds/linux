@@ -55,6 +55,7 @@
 #define DRV_RELDATE	"April 4, 2008"
 
 #define MLX4_IB_FLOW_MAX_PRIO 0xFFF
+#define MLX4_IB_FLOW_QPN_MASK 0xFFFFFF
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
@@ -92,21 +93,27 @@ static union ib_gid zgid;
 
 static int check_flow_steering_support(struct mlx4_dev *dev)
 {
+	int eth_num_ports = 0;
 	int ib_num_ports = 0;
-	int i;
 
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
-		ib_num_ports++;
+	int dmfs = dev->caps.steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED;
 
-	if (dev->caps.steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
-		if (ib_num_ports || mlx4_is_mfunc(dev)) {
-			pr_warn("Device managed flow steering is unavailable "
-				"for IB ports or in multifunction env.\n");
-			return 0;
+	if (dmfs) {
+		int i;
+		mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH)
+			eth_num_ports++;
+		mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+			ib_num_ports++;
+		dmfs &= (!ib_num_ports ||
+			 (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DMFS_IPOIB)) &&
+			(!eth_num_ports ||
+			 (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FS_EN));
+		if (ib_num_ports && mlx4_is_mfunc(dev)) {
+			pr_warn("Device managed flow steering is unavailable for IB port in multifunction env.\n");
+			dmfs = 0;
 		}
-		return 1;
 	}
-	return 0;
+	return dmfs;
 }
 
 static int mlx4_ib_query_device(struct ib_device *ibdev,
@@ -165,7 +172,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 			props->device_cap_flags |= IB_DEVICE_MEM_WINDOW_TYPE_2B;
 		else
 			props->device_cap_flags |= IB_DEVICE_MEM_WINDOW_TYPE_2A;
-	if (check_flow_steering_support(dev->dev))
+	if (dev->steering_support ==  MLX4_STEERING_MODE_DEVICE_MANAGED)
 		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
 	}
 
@@ -819,6 +826,7 @@ struct mlx4_ib_steering {
 };
 
 static int parse_flow_attr(struct mlx4_dev *dev,
+			   u32 qp_num,
 			   union ib_flow_spec *ib_spec,
 			   struct _rule_hw *mlx4_spec)
 {
@@ -834,6 +842,14 @@ static int parse_flow_attr(struct mlx4_dev *dev,
 		mlx4_spec->eth.vlan_tag = ib_spec->eth.val.vlan_tag;
 		mlx4_spec->eth.vlan_tag_msk = ib_spec->eth.mask.vlan_tag;
 		break;
+	case IB_FLOW_SPEC_IB:
+		type = MLX4_NET_TRANS_RULE_ID_IB;
+		mlx4_spec->ib.l3_qpn =
+			cpu_to_be32(qp_num);
+		mlx4_spec->ib.qpn_mask =
+			cpu_to_be32(MLX4_IB_FLOW_QPN_MASK);
+		break;
+
 
 	case IB_FLOW_SPEC_IPV4:
 		type = MLX4_NET_TRANS_RULE_ID_IPV4;
@@ -865,6 +881,115 @@ static int parse_flow_attr(struct mlx4_dev *dev,
 	return mlx4_hw_rule_sz(dev, type);
 }
 
+struct default_rules {
+	__u32 mandatory_fields[IB_FLOW_SPEC_SUPPORT_LAYERS];
+	__u32 mandatory_not_fields[IB_FLOW_SPEC_SUPPORT_LAYERS];
+	__u32 rules_create_list[IB_FLOW_SPEC_SUPPORT_LAYERS];
+	__u8  link_layer;
+};
+static const struct default_rules default_table[] = {
+	{
+		.mandatory_fields = {IB_FLOW_SPEC_IPV4},
+		.mandatory_not_fields = {IB_FLOW_SPEC_ETH},
+		.rules_create_list = {IB_FLOW_SPEC_IB},
+		.link_layer = IB_LINK_LAYER_INFINIBAND
+	}
+};
+
+static int __mlx4_ib_default_rules_match(struct ib_qp *qp,
+					 struct ib_flow_attr *flow_attr)
+{
+	int i, j, k;
+	void *ib_flow;
+	const struct default_rules *pdefault_rules = default_table;
+	u8 link_layer = rdma_port_get_link_layer(qp->device, flow_attr->port);
+
+	for (i = 0; i < sizeof(default_table)/sizeof(default_table[0]); i++,
+	     pdefault_rules++) {
+		__u32 field_types[IB_FLOW_SPEC_SUPPORT_LAYERS];
+		memset(&field_types, 0, sizeof(field_types));
+
+		if (link_layer != pdefault_rules->link_layer)
+			continue;
+
+		ib_flow = flow_attr + 1;
+		/* we assume the specs are sorted */
+		for (j = 0, k = 0; k < IB_FLOW_SPEC_SUPPORT_LAYERS &&
+		     j < flow_attr->num_of_specs; k++) {
+			union ib_flow_spec *current_flow =
+				(union ib_flow_spec *)ib_flow;
+
+			/* same layer but different type */
+			if (((current_flow->type & IB_FLOW_SPEC_LAYER_MASK) ==
+			     (pdefault_rules->mandatory_fields[k] &
+			      IB_FLOW_SPEC_LAYER_MASK)) &&
+			    (current_flow->type !=
+			     pdefault_rules->mandatory_fields[k]))
+				goto out;
+
+			/* same layer, try match next one */
+			if (current_flow->type ==
+			    pdefault_rules->mandatory_fields[k]) {
+				j++;
+				ib_flow +=
+					((union ib_flow_spec *)ib_flow)->size;
+			}
+		}
+
+		ib_flow = flow_attr + 1;
+		for (j = 0; j < flow_attr->num_of_specs;
+		     j++, ib_flow += ((union ib_flow_spec *)ib_flow)->size)
+			for (k = 0; k < IB_FLOW_SPEC_SUPPORT_LAYERS; k++)
+				/* same layer and same type */
+				if (((union ib_flow_spec *)ib_flow)->type ==
+				    pdefault_rules->mandatory_not_fields[k])
+					goto out;
+
+		return i;
+	}
+out:
+	return -1;
+}
+
+static int __mlx4_ib_create_default_rules(
+		struct mlx4_ib_dev *mdev,
+		struct ib_qp *qp,
+		const struct default_rules *pdefault_rules,
+		struct _rule_hw *mlx4_spec) {
+	int size = 0;
+	int i;
+
+	for (i = 0; i < sizeof(pdefault_rules->rules_create_list)/
+			sizeof(pdefault_rules->rules_create_list[0]); i++) {
+		int ret;
+		union ib_flow_spec ib_spec;
+		switch (pdefault_rules->rules_create_list[i]) {
+		case 0:
+			/* no rule */
+			continue;
+		case IB_FLOW_SPEC_IB:
+			ib_spec.type = IB_FLOW_SPEC_IB;
+			ib_spec.size = sizeof(struct ib_flow_spec_ib);
+
+			break;
+		default:
+			/* invalid rule */
+			return -EINVAL;
+		}
+		/* We must put empty rule, qpn is being ignored */
+		ret = parse_flow_attr(mdev->dev, 0, &ib_spec,
+				      mlx4_spec);
+		if (ret < 0) {
+			pr_info("invalid parsing\n");
+			return -EINVAL;
+		}
+
+		mlx4_spec = (void *)mlx4_spec + ret;
+		size += ret;
+	}
+	return size;
+}
+
 static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_attr,
 			  int domain,
 			  enum mlx4_net_trans_promisc_mode flow_type,
@@ -876,6 +1001,7 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 	struct mlx4_ib_dev *mdev = to_mdev(qp->device);
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_net_trans_rule_hw_ctrl *ctrl;
+	int default_flow;
 
 	static const u16 __mlx4_domain[] = {
 		[IB_FLOW_DOMAIN_USER] = MLX4_DOMAIN_UVERBS,
@@ -910,8 +1036,21 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 
 	ib_flow = flow_attr + 1;
 	size += sizeof(struct mlx4_net_trans_rule_hw_ctrl);
+	/* Add default flows */
+	default_flow = __mlx4_ib_default_rules_match(qp, flow_attr);
+	if (default_flow >= 0) {
+		ret = __mlx4_ib_create_default_rules(
+				mdev, qp, default_table + default_flow,
+				mailbox->buf + size);
+		if (ret < 0) {
+			mlx4_free_cmd_mailbox(mdev->dev, mailbox);
+			return -EINVAL;
+		}
+		size += ret;
+	}
 	for (i = 0; i < flow_attr->num_of_specs; i++) {
-		ret = parse_flow_attr(mdev->dev, ib_flow, mailbox->buf + size);
+		ret = parse_flow_attr(mdev->dev, qp->qp_num, ib_flow,
+				      mailbox->buf + size);
 		if (ret < 0) {
 			mlx4_free_cmd_mailbox(mdev->dev, mailbox);
 			return -EINVAL;
@@ -1682,6 +1821,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	}
 
 	if (check_flow_steering_support(dev)) {
+		ibdev->steering_support = MLX4_STEERING_MODE_DEVICE_MANAGED;
 		ibdev->ib_dev.create_flow	= mlx4_ib_create_flow;
 		ibdev->ib_dev.destroy_flow	= mlx4_ib_destroy_flow;
 
@@ -1710,8 +1850,35 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
 
+	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		ibdev->steer_qpn_count = MLX4_IB_UC_MAX_NUM_QPS;
+		err = mlx4_qp_reserve_range(dev, ibdev->steer_qpn_count,
+					    MLX4_IB_UC_STEER_QPN_ALIGN,
+					    &ibdev->steer_qpn_base);
+		if (err)
+			goto err_counter;
+
+		ibdev->ib_uc_qpns_bitmap =
+			kmalloc(BITS_TO_LONGS(ibdev->steer_qpn_count) *
+				sizeof(long),
+				GFP_KERNEL);
+		if (!ibdev->ib_uc_qpns_bitmap) {
+			dev_err(&dev->pdev->dev, "bit map alloc failed\n");
+			goto err_steer_qp_release;
+		}
+
+		bitmap_zero(ibdev->ib_uc_qpns_bitmap, ibdev->steer_qpn_count);
+
+		err = mlx4_FLOW_STEERING_IB_UC_QP_RANGE(
+				dev, ibdev->steer_qpn_base,
+				ibdev->steer_qpn_base +
+				ibdev->steer_qpn_count - 1);
+		if (err)
+			goto err_steer_free_bitmap;
+	}
+
 	if (ib_register_device(&ibdev->ib_dev, NULL))
-		goto err_counter;
+		goto err_steer_free_bitmap;
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
@@ -1762,6 +1929,13 @@ err_mad:
 err_reg:
 	ib_unregister_device(&ibdev->ib_dev);
 
+err_steer_free_bitmap:
+	kfree(ibdev->ib_uc_qpns_bitmap);
+
+err_steer_qp_release:
+	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED)
+		mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
+				      ibdev->steer_qpn_count);
 err_counter:
 	for (; i; --i)
 		if (ibdev->counters[i - 1] != -1)
@@ -1782,6 +1956,69 @@ err_dealloc:
 	return NULL;
 }
 
+int mlx4_ib_steer_qp_alloc(struct mlx4_ib_dev *dev, int count, int *qpn)
+{
+	int offset;
+
+	WARN_ON(!dev->ib_uc_qpns_bitmap);
+
+	offset = bitmap_find_free_region(dev->ib_uc_qpns_bitmap,
+					 dev->steer_qpn_count,
+					 get_count_order(count));
+	if (offset < 0)
+		return offset;
+
+	*qpn = dev->steer_qpn_base + offset;
+	return 0;
+}
+
+void mlx4_ib_steer_qp_free(struct mlx4_ib_dev *dev, u32 qpn, int count)
+{
+	if (!qpn ||
+	    dev->steering_support != MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return;
+
+	BUG_ON(qpn < dev->steer_qpn_base);
+
+	bitmap_release_region(dev->ib_uc_qpns_bitmap,
+			      qpn - dev->steer_qpn_base,
+			      get_count_order(count));
+}
+
+int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
+			 int is_attach)
+{
+	int err;
+	size_t flow_size;
+	struct ib_flow_attr *flow = NULL;
+	struct ib_flow_spec_ib *ib_spec;
+
+	if (is_attach) {
+		flow_size = sizeof(struct ib_flow_attr) +
+			    sizeof(struct ib_flow_spec_ib);
+		flow = kzalloc(flow_size, GFP_KERNEL);
+		if (!flow)
+			return -ENOMEM;
+		flow->port = mqp->port;
+		flow->num_of_specs = 1;
+		flow->size = flow_size;
+		ib_spec = (struct ib_flow_spec_ib *)(flow + 1);
+		ib_spec->type = IB_FLOW_SPEC_IB;
+		ib_spec->size = sizeof(struct ib_flow_spec_ib);
+		/* Add an empty rule for IB L2 */
+		memset(&ib_spec->mask, 0, sizeof(ib_spec->mask));
+
+		err = __mlx4_ib_create_flow(&mqp->ibqp, flow,
+					    IB_FLOW_DOMAIN_NIC,
+					    MLX4_FS_REGULAR,
+					    &mqp->reg_id);
+	} else {
+		err = __mlx4_ib_destroy_flow(mdev->dev, mqp->reg_id);
+	}
+	kfree(flow);
+	return err;
+}
+
 static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 {
 	struct mlx4_ib_dev *ibdev = ibdev_ptr;
@@ -1795,6 +2032,13 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 			pr_warn("failure unregistering notifier\n");
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
+
+	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
+				      ibdev->steer_qpn_count);
+		kfree(ibdev->ib_uc_qpns_bitmap);
+	}
+
 	iounmap(ibdev->uar_map);
 	for (p = 0; p < ibdev->num_ports; ++p)
 		if (ibdev->counters[p] != -1)

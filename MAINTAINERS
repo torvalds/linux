@@ -2158,6 +2158,11 @@ M:	Nishank Trivedi <nistrive@cisco.com>
 S:	Supported
 F:	drivers/net/ethernet/cisco/enic/
 
+CISCO VIC LOW LATENCY NIC DRIVER
+M:      Upinder Malhi <umalhi@cisco.com>
+S:      Supported
+F:      drivers/infiniband/hw/usnic
+
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
 L:	netdev@vger.kernel.org
@@ -7468,7 +7473,7 @@ S:	Maintained
 F:	drivers/scsi/sr*
 
 SCSI RDMA PROTOCOL (SRP) INITIATOR
-M:	David Dillow <dillowda@ornl.gov>
+M:	Bart Van Assche <bvanassche@acm.org>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 W:	http://www.openfabrics.org

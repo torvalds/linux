@@ -716,6 +716,14 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO)
 			qp->flags |= MLX4_IB_QP_LSO;
 
+		if (init_attr->create_flags & IB_QP_CREATE_NETIF_QP) {
+			if (dev->steering_support ==
+			    MLX4_STEERING_MODE_DEVICE_MANAGED)
+				qp->flags |= MLX4_IB_QP_NETIF;
+			else
+				goto err;
+		}
+
 		err = set_kernel_sq_size(dev, &init_attr->cap, qp_type, qp);
 		if (err)
 			goto err;
@@ -765,7 +773,11 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (init_attr->qp_type == IB_QPT_RAW_PACKET)
 			err = mlx4_qp_reserve_range(dev->dev, 1, 1 << 8, &qpn);
 		else
-			err = mlx4_qp_reserve_range(dev->dev, 1, 1, &qpn);
+			if (qp->flags & MLX4_IB_QP_NETIF)
+				err = mlx4_ib_steer_qp_alloc(dev, 1, &qpn);
+			else
+				err = mlx4_qp_reserve_range(dev->dev, 1, 1,
+							    &qpn);
 		if (err)
 			goto err_proxy;
 	}
@@ -790,8 +802,12 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 
 err_qpn:
-	if (!sqpn)
-		mlx4_qp_release_range(dev->dev, qpn, 1);
+	if (!sqpn) {
+		if (qp->flags & MLX4_IB_QP_NETIF)
+			mlx4_ib_steer_qp_free(dev, qpn, 1);
+		else
+			mlx4_qp_release_range(dev->dev, qpn, 1);
+	}
 err_proxy:
 	if (qp->mlx4_ib_qp_type == MLX4_IB_QPT_PROXY_GSI)
 		free_proxy_bufs(pd->device, qp);
@@ -932,8 +948,12 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 
 	mlx4_qp_free(dev->dev, &qp->mqp);
 
-	if (!is_sqp(dev, qp) && !is_tunnel_qp(dev, qp))
-		mlx4_qp_release_range(dev->dev, qp->mqp.qpn, 1);
+	if (!is_sqp(dev, qp) && !is_tunnel_qp(dev, qp)) {
+		if (qp->flags & MLX4_IB_QP_NETIF)
+			mlx4_ib_steer_qp_free(dev, qp->mqp.qpn, 1);
+		else
+			mlx4_qp_release_range(dev->dev, qp->mqp.qpn, 1);
+	}
 
 	mlx4_mtt_cleanup(dev->dev, &qp->mtt);
 
@@ -987,8 +1007,15 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	 */
 	if (init_attr->create_flags & ~(MLX4_IB_QP_LSO |
 					MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK |
-					MLX4_IB_SRIOV_TUNNEL_QP | MLX4_IB_SRIOV_SQP))
+					MLX4_IB_SRIOV_TUNNEL_QP |
+					MLX4_IB_SRIOV_SQP |
+					MLX4_IB_QP_NETIF))
 		return ERR_PTR(-EINVAL);
+
+	if (init_attr->create_flags & IB_QP_CREATE_NETIF_QP) {
+		if (init_attr->qp_type != IB_QPT_UD)
+			return ERR_PTR(-EINVAL);
+	}
 
 	if (init_attr->create_flags &&
 	    (udata ||
@@ -1235,6 +1262,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	struct mlx4_qp_context *context;
 	enum mlx4_qp_optpar optpar = 0;
 	int sqd_event;
+	int steer_qp = 0;
 	int err = -EINVAL;
 
 	context = kzalloc(sizeof *context, GFP_KERNEL);
@@ -1319,6 +1347,11 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			optpar |= MLX4_QP_OPTPAR_COUNTER_INDEX;
 		} else
 			context->pri_path.counter_index = 0xff;
+
+		if (qp->flags & MLX4_IB_QP_NETIF) {
+			mlx4_ib_steer_qp_reg(dev, qp, 1);
+			steer_qp = 1;
+		}
 	}
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
@@ -1547,9 +1580,14 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		qp->sq_next_wqe = 0;
 		if (qp->rq.wqe_cnt)
 			*qp->db.db  = 0;
+
+		if (qp->flags & MLX4_IB_QP_NETIF)
+			mlx4_ib_steer_qp_reg(dev, qp, 0);
 	}
 
 out:
+	if (err && steer_qp)
+		mlx4_ib_steer_qp_reg(dev, qp, 0);
 	kfree(context);
 	return err;
 }
@@ -2761,6 +2799,9 @@ done:
 
 	if (qp->flags & MLX4_IB_QP_LSO)
 		qp_init_attr->create_flags |= IB_QP_CREATE_IPOIB_UD_LSO;
+
+	if (qp->flags & MLX4_IB_QP_NETIF)
+		qp_init_attr->create_flags |= IB_QP_CREATE_NETIF_QP;
 
 	qp_init_attr->sq_sig_type =
 		qp->sq_signal_bits == cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE) ?

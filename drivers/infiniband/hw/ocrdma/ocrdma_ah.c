@@ -84,6 +84,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	memcpy((u8 *)ah->av + eth_sz, &grh, sizeof(struct ocrdma_grh));
 	if (vlan_enabled)
 		ah->av->valid |= OCRDMA_AV_VLAN_VALID;
+	ah->av->valid = cpu_to_le32(ah->av->valid);
 	return status;
 }
 
