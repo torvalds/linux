@@ -682,6 +682,7 @@ config USB_CONFIGFS_PHONET
 config USB_CONFIGFS_MASS_STORAGE
 	boolean "Mass storage"
 	depends on USB_CONFIGFS
+	depends on BLOCK
 	select USB_F_MASS_STORAGE
 	help
 	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.

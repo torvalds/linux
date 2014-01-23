@@ -243,9 +243,7 @@ static struct tc_action_ops act_pedit_ops = {
 	.act		=	tcf_pedit,
 	.dump		=	tcf_pedit_dump,
 	.cleanup	=	tcf_pedit_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_pedit_init,
-	.walk		=	tcf_generic_walker
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-4)");

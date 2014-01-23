@@ -61,6 +61,7 @@
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_net.h>
 
@@ -1752,10 +1753,14 @@ static const struct net_device_ops emac_netdev_ops = {
 #endif
 };
 
+static const struct of_device_id davinci_emac_of_match[];
+
 static struct emac_platform_data *
 davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 {
 	struct device_node *np;
+	const struct of_device_id *match;
+	const struct emac_platform_data *auxdata;
 	struct emac_platform_data *pdata = NULL;
 	const u8 *mac_addr;
 
@@ -1793,7 +1798,20 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 
 	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
 	if (!priv->phy_node)
-		pdata->phy_id = "";
+		pdata->phy_id = NULL;
+
+	auxdata = pdev->dev.platform_data;
+	if (auxdata) {
+		pdata->interrupt_enable = auxdata->interrupt_enable;
+		pdata->interrupt_disable = auxdata->interrupt_disable;
+	}
+
+	match = of_match_device(davinci_emac_of_match, &pdev->dev);
+	if (match && match->data) {
+		auxdata = match->data;
+		pdata->version = auxdata->version;
+		pdata->hw_ram_addr = auxdata->hw_ram_addr;
+	}
 
 	pdev->dev.platform_data = pdata;
 
@@ -2020,8 +2038,14 @@ static const struct dev_pm_ops davinci_emac_pm_ops = {
 };
 
 #if IS_ENABLED(CONFIG_OF)
+static const struct emac_platform_data am3517_emac_data = {
+	.version		= EMAC_VERSION_2,
+	.hw_ram_addr		= 0x01e20000,
+};
+
 static const struct of_device_id davinci_emac_of_match[] = {
 	{.compatible = "ti,davinci-dm6467-emac", },
+	{.compatible = "ti,am3517-emac", .data = &am3517_emac_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, davinci_emac_of_match);

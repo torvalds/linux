@@ -64,6 +64,9 @@
 #define SLIPORT_ERROR_NO_RESOURCE1	0x2
 #define SLIPORT_ERROR_NO_RESOURCE2	0x9
 
+#define SLIPORT_ERROR_FW_RESET1		0x2
+#define SLIPORT_ERROR_FW_RESET2		0x0
+
 /********* Memory BAR register ************/
 #define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET 	0xfc
 /* Host Interrupt Enable, if set interrupts are enabled although "PCI Interrupt

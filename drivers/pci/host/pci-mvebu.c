@@ -447,6 +447,11 @@ static int mvebu_sw_pci_bridge_read(struct mvebu_pcie_port *port,
 		*value = 0;
 		break;
 
+	case PCI_INTERRUPT_LINE:
+		/* LINE PIN MIN_GNT MAX_LAT */
+		*value = 0;
+		break;
+
 	default:
 		*value = 0xffffffff;
 		return PCIBIOS_BAD_REGISTER_NUMBER;

@@ -125,6 +125,12 @@ static int udl_gem_get_pages(struct udl_gem_object *obj, gfp_t gfpmask)
 
 static void udl_gem_put_pages(struct udl_gem_object *obj)
 {
+	if (obj->base.import_attach) {
+		drm_free_large(obj->pages);
+		obj->pages = NULL;
+		return;
+	}
+
 	drm_gem_put_pages(&obj->base, obj->pages, false, false);
 	obj->pages = NULL;
 }

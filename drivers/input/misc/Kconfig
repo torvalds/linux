@@ -222,6 +222,15 @@ config INPUT_GP2A
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap002a00f.
 
+config INPUT_GPIO_BEEPER
+	tristate "Generic GPIO Beeper support"
+	depends on OF_GPIO
+	help
+	  Say Y here if you have a beeper connected to a GPIO pin.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio-beeper.
+
 config INPUT_GPIO_TILT_POLLED
 	tristate "Polled GPIO tilt switch"
 	depends on GPIOLIB

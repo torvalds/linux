@@ -112,13 +112,15 @@ static int sensor_hub_get_physical_device_count(
 
 static void sensor_hub_fill_attr_info(
 		struct hid_sensor_hub_attribute_info *info,
-		s32 index, s32 report_id, s32 units, s32 unit_expo, s32 size)
+		s32 index, s32 report_id, struct hid_field *field)
 {
 	info->index = index;
 	info->report_id = report_id;
-	info->units = units;
-	info->unit_expo = unit_expo;
-	info->size = size/8;
+	info->units = field->unit;
+	info->unit_expo = field->unit_exponent;
+	info->size = (field->report_size * field->report_count)/8;
+	info->logical_minimum = field->logical_minimum;
+	info->logical_maximum = field->logical_maximum;
 }
 
 static struct hid_sensor_hub_callbacks *sensor_hub_get_callback(
@@ -325,9 +327,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 			if (field->physical == usage_id &&
 				field->logical == attr_usage_id) {
 				sensor_hub_fill_attr_info(info, i, report->id,
-					field->unit, field->unit_exponent,
-					field->report_size *
-							field->report_count);
+							  field);
 				ret = 0;
 			} else {
 				for (j = 0; j < field->maxusage; ++j) {
@@ -336,11 +336,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 					field->usage[j].collection_index ==
 					collection_index) {
 						sensor_hub_fill_attr_info(info,
-							i, report->id,
-							field->unit,
-							field->unit_exponent,
-							field->report_size *
-							field->report_count);
+							  i, report->id, field);
 						ret = 0;
 						break;
 					}
@@ -572,6 +568,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 					ret = -ENOMEM;
 					goto err_free_names;
 			}
+			sd->hid_sensor_hub_client_devs[
+				sd->hid_sensor_client_cnt].id = PLATFORM_DEVID_AUTO;
 			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].name = name;
 			sd->hid_sensor_hub_client_devs[

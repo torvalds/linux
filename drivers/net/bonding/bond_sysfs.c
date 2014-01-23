@@ -1635,12 +1635,12 @@ static ssize_t bonding_show_packets_per_slave(struct device *d,
 					      char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	int packets_per_slave = bond->params.packets_per_slave;
+	unsigned int packets_per_slave = bond->params.packets_per_slave;
 
 	if (packets_per_slave > 1)
 		packets_per_slave = reciprocal_value(packets_per_slave);
 
-	return sprintf(buf, "%d\n", packets_per_slave);
+	return sprintf(buf, "%u\n", packets_per_slave);
 }
 
 static ssize_t bonding_store_packets_per_slave(struct device *d,
