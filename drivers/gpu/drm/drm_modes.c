@@ -42,9 +42,6 @@
  * drm_mode_debug_printmodeline - print a mode to dmesg
  * @mode: mode to print
  *
- * LOCKING:
- * none.
- *
  * Describe @mode using DRM_DEBUG.
  */
 void drm_mode_debug_printmodeline(const struct drm_display_mode *mode)
@@ -68,9 +65,6 @@ EXPORT_SYMBOL(drm_mode_debug_printmodeline);
  * @reduced : Whether the GTF calculation is simplified
  * @interlaced:Whether the interlace is supported
  * @margins: whether to add margins or not
- *
- * LOCKING:
- * none.
  *
  * return the modeline based on CVT algorithm
  *
@@ -294,9 +288,6 @@ EXPORT_SYMBOL(drm_cvt_mode);
  * @GTF_K: extended GTF formula parameters
  * @GTF_2J: extended GTF formula parameters
  *
- * LOCKING.
- * none.
- *
  * return the modeline based on full GTF algorithm.
  *
  * GTF feature blocks specify C and J in multiples of 0.5, so we pass them
@@ -479,9 +470,6 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  * @interlaced	:whether the interlace is supported
  * @margins	:whether the margin is supported
  *
- * LOCKING.
- * none.
- *
  * return the modeline based on GTF algorithm
  *
  * This function is to create the modeline based on the GTF algorithm.
@@ -584,9 +572,6 @@ EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
  * drm_mode_set_name - set the name on a mode
  * @mode: name will be set in this mode
  *
- * LOCKING:
- * None.
- *
  * Set the name of @mode to a standard format.
  */
 void drm_mode_set_name(struct drm_display_mode *mode)
@@ -602,9 +587,6 @@ EXPORT_SYMBOL(drm_mode_set_name);
 /**
  * drm_mode_width - get the width of a mode
  * @mode: mode
- *
- * LOCKING:
- * None.
  *
  * Return @mode's width (hdisplay) value.
  *
@@ -624,9 +606,6 @@ EXPORT_SYMBOL(drm_mode_width);
  * drm_mode_height - get the height of a mode
  * @mode: mode
  *
- * LOCKING:
- * None.
- *
  * Return @mode's height (vdisplay) value.
  *
  * FIXME: is this needed?
@@ -642,9 +621,6 @@ EXPORT_SYMBOL(drm_mode_height);
 
 /** drm_mode_hsync - get the hsync of a mode
  * @mode: mode
- *
- * LOCKING:
- * None.
  *
  * Return @modes's hsync rate in kHz, rounded to the nearest int.
  */
@@ -669,9 +645,6 @@ EXPORT_SYMBOL(drm_mode_hsync);
 /**
  * drm_mode_vrefresh - get the vrefresh of a mode
  * @mode: mode
- *
- * LOCKING:
- * None.
  *
  * Return @mode's vrefresh rate in Hz or calculate it if necessary.
  *
@@ -712,9 +685,6 @@ EXPORT_SYMBOL(drm_mode_vrefresh);
  * drm_mode_set_crtcinfo - set CRTC modesetting parameters
  * @p: mode
  * @adjust_flags: a combination of adjustment flags
- *
- * LOCKING:
- * None.
  *
  * Setup the CRTC modesetting parameters for @p, adjusting if necessary.
  *
@@ -790,9 +760,6 @@ EXPORT_SYMBOL(drm_mode_set_crtcinfo);
  * @dst: mode to overwrite
  * @src: mode to copy
  *
- * LOCKING:
- * None.
- *
  * Copy an existing mode into another mode, preserving the object id and
  * list head of the destination mode.
  */
@@ -811,9 +778,6 @@ EXPORT_SYMBOL(drm_mode_copy);
  * drm_mode_duplicate - allocate and duplicate an existing mode
  * @dev: drm_device to allocate the duplicated mode for
  * @mode: mode to duplicate
- *
- * LOCKING:
- * None.
  *
  * Just allocate a new mode, copy the existing mode into it, and return
  * a pointer to it.  Used to create new instances of established modes.
@@ -837,9 +801,6 @@ EXPORT_SYMBOL(drm_mode_duplicate);
  * drm_mode_equal - test modes for equality
  * @mode1: first mode
  * @mode2: second mode
- *
- * LOCKING:
- * None.
  *
  * Check to see if @mode1 and @mode2 are equivalent.
  *
@@ -868,9 +829,6 @@ EXPORT_SYMBOL(drm_mode_equal);
  * drm_mode_equal_no_clocks_no_stereo - test modes for equality
  * @mode1: first mode
  * @mode2: second mode
- *
- * LOCKING:
- * None.
  *
  * Check to see if @mode1 and @mode2 are equivalent, but
  * don't check the pixel clocks nor the stereo layout.
@@ -907,9 +865,6 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
  * @maxY: maximum height
  * @maxPitch: max pitch
  *
- * LOCKING:
- * Caller must hold a lock protecting @mode_list.
- *
  * The DRM device (@dev) has size and pitch limits.  Here we validate the
  * modes we probed for @dev against those limits and set their status as
  * necessary.
@@ -939,9 +894,6 @@ EXPORT_SYMBOL(drm_mode_validate_size);
  * @mode_list: list of modes to check
  * @verbose: be verbose about it
  *
- * LOCKING:
- * Caller must hold a lock protecting @mode_list.
- *
  * Once mode list generation is complete, a caller can use this routine to
  * remove invalid modes from a mode list.  If any of the modes have a
  * status other than %MODE_OK, they are removed from @mode_list and freed.
@@ -970,9 +922,6 @@ EXPORT_SYMBOL(drm_mode_prune_invalid);
  * @priv: unused
  * @lh_a: list_head for first mode
  * @lh_b: list_head for second mode
- *
- * LOCKING:
- * None.
  *
  * Compare two modes, given by @lh_a and @lh_b, returning a value indicating
  * which is better.
@@ -1007,9 +956,6 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
  * drm_mode_sort - sort mode list
  * @mode_list: list to sort
  *
- * LOCKING:
- * Caller must hold a lock protecting @mode_list.
- *
  * Sort @mode_list by favorability, putting good modes first.
  */
 void drm_mode_sort(struct list_head *mode_list)
@@ -1022,9 +968,6 @@ EXPORT_SYMBOL(drm_mode_sort);
  * drm_mode_connector_list_update - update the mode list for the connector
  * @connector: the connector to update
  *
- * LOCKING:
- * Caller must hold a lock protecting @mode_list.
- *
  * This moves the modes from the @connector probed_modes list
  * to the actual mode list. It compares the probed mode against the current
  * list and only adds different modes. All modes unverified after this point
@@ -1035,6 +978,8 @@ void drm_mode_connector_list_update(struct drm_connector *connector)
 	struct drm_display_mode *mode;
 	struct drm_display_mode *pmode, *pt;
 	int found_it;
+
+	WARN_ON(!mutex_is_locked(&connector->dev->mode_config.mutex));
 
 	list_for_each_entry_safe(pmode, pt, &connector->probed_modes,
 				 head) {

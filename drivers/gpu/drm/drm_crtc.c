@@ -730,6 +730,8 @@ EXPORT_SYMBOL(drm_crtc_index);
 void drm_mode_probed_add(struct drm_connector *connector,
 			 struct drm_display_mode *mode)
 {
+	WARN_ON(!mutex_is_locked(&connector->dev->mode_config.mutex));
+
 	list_add_tail(&mode->head, &connector->probed_modes);
 }
 EXPORT_SYMBOL(drm_mode_probed_add);
