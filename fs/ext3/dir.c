@@ -312,11 +312,11 @@ static void free_rb_tree_fname(struct rb_root *root)
 	struct fname *fname, *next;
 
 	rbtree_postorder_for_each_entry_safe(fname, next, root, rb_hash)
-		while (fname) {
-			struct fname * old = fname;
+		do {
+			struct fname *old = fname;
 			fname = fname->next;
-			kfree (old);
-		}
+			kfree(old);
+		} while (fname);
 
 	*root = RB_ROOT;
 }
