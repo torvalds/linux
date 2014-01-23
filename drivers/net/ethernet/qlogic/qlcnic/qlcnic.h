@@ -105,6 +105,8 @@
 #define QLCNIC_DEF_TX_RINGS		4
 #define QLCNIC_MAX_VNIC_TX_RINGS	4
 #define QLCNIC_MAX_VNIC_SDS_RINGS	4
+#define QLCNIC_83XX_MINIMUM_VECTOR	3
+#define QLCNIC_82XX_MINIMUM_VECTOR	2
 
 enum qlcnic_queue_type {
 	QLCNIC_TX_QUEUE = 1,
@@ -962,6 +964,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_TX_INTR_SHARED		0x10000
 #define QLCNIC_APP_CHANGED_FLAGS	0x20000
 #define QLCNIC_HAS_PHYS_PORT_ID		0x40000
+#define QLCNIC_TSS_RSS			0x80000
 
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
@@ -1057,6 +1060,9 @@ struct qlcnic_adapter {
 
 	u8 drv_tx_rings;  /* max tx rings supported by driver */
 	u8 drv_sds_rings; /* max sds rings supported by driver */
+
+	u8 drv_tss_rings; /* tss ring input */
+	u8 drv_rss_rings; /* rss ring input */
 
 	u8 rx_csum;
 	u8 portnum;
@@ -1574,7 +1580,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *, struct net_device *);
 void qlcnic_set_tx_ring_count(struct qlcnic_adapter *, u8);
 void qlcnic_set_sds_ring_count(struct qlcnic_adapter *, u8);
-int qlcnic_setup_rings(struct qlcnic_adapter *, u8, u8);
+int qlcnic_setup_rings(struct qlcnic_adapter *);
 int qlcnic_validate_rings(struct qlcnic_adapter *, __u32, int);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
@@ -1614,7 +1620,7 @@ void qlcnic_set_vlan_config(struct qlcnic_adapter *,
 			    struct qlcnic_esw_func_cfg *);
 void qlcnic_set_eswitch_port_features(struct qlcnic_adapter *,
 				      struct qlcnic_esw_func_cfg *);
-
+int qlcnic_setup_tss_rss_intr(struct qlcnic_adapter  *);
 void qlcnic_down(struct qlcnic_adapter *, struct net_device *);
 int qlcnic_up(struct qlcnic_adapter *, struct net_device *);
 void __qlcnic_down(struct qlcnic_adapter *, struct net_device *);
@@ -1671,11 +1677,8 @@ static inline int qlcnic_set_real_num_queues(struct qlcnic_adapter *adapter,
 
 	err = netif_set_real_num_tx_queues(netdev, adapter->drv_tx_rings);
 	if (err)
-		dev_err(&adapter->pdev->dev, "failed to set %d Tx queues\n",
-			adapter->drv_tx_rings);
-	else
-		dev_info(&adapter->pdev->dev, "Set %d Tx queues\n",
-			 adapter->drv_tx_rings);
+		netdev_err(netdev, "failed to set %d Tx queues\n",
+			   adapter->drv_tx_rings);
 
 	return err;
 }

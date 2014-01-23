@@ -603,9 +603,6 @@ void qlcnic_set_tx_ring_count(struct qlcnic_adapter *adapter, u8 tx_cnt)
 							 QLCNIC_TX_QUEUE);
 	else
 		adapter->drv_tx_rings = tx_cnt;
-
-	dev_info(&adapter->pdev->dev, "Set %d Tx rings\n",
-		 adapter->drv_tx_rings);
 }
 
 void qlcnic_set_sds_ring_count(struct qlcnic_adapter *adapter, u8 rx_cnt)
@@ -616,24 +613,27 @@ void qlcnic_set_sds_ring_count(struct qlcnic_adapter *adapter, u8 rx_cnt)
 							  QLCNIC_RX_QUEUE);
 	else
 		adapter->drv_sds_rings = rx_cnt;
-
-	dev_info(&adapter->pdev->dev, "Set %d SDS rings\n",
-		 adapter->drv_sds_rings);
 }
 
-int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
+int qlcnic_setup_tss_rss_intr(struct qlcnic_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	int drv_tx_rings, drv_sds_rings, tx_vector;
-	int err = -1, i;
+	int num_msix = 0, err = 0, vector;
 
-	if (adapter->flags & QLCNIC_TX_INTR_SHARED) {
-		drv_tx_rings = 0;
-		tx_vector = 0;
-	} else {
-		drv_tx_rings = adapter->drv_tx_rings;
-		tx_vector = 1;
-	}
+	adapter->flags &= ~QLCNIC_TSS_RSS;
+
+	if (adapter->drv_tss_rings > 0)
+		num_msix += adapter->drv_tss_rings;
+	else
+		num_msix += adapter->drv_tx_rings;
+
+	if (adapter->drv_rss_rings  > 0)
+		num_msix += adapter->drv_rss_rings;
+	else
+		num_msix += adapter->drv_sds_rings;
+
+	if (qlcnic_83xx_check(adapter))
+		num_msix += 1;
 
 	if (!adapter->msix_entries) {
 		adapter->msix_entries = kcalloc(num_msix,
@@ -643,47 +643,94 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 			return -ENOMEM;
 	}
 
-	adapter->drv_sds_rings = QLCNIC_SINGLE_RING;
+restore:
+	for (vector = 0; vector < num_msix; vector++)
+		adapter->msix_entries[vector].entry = vector;
+
+	err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
+	if (err == 0) {
+		adapter->ahw->num_msix = num_msix;
+		if (adapter->drv_tss_rings > 0)
+			adapter->drv_tx_rings = adapter->drv_tss_rings;
+
+		if (adapter->drv_rss_rings > 0)
+			adapter->drv_sds_rings = adapter->drv_rss_rings;
+	} else {
+		netdev_info(adapter->netdev,
+			    "Unable to allocate %d MSI-X vectors, Available vectors %d\n",
+			    num_msix, err);
+
+		num_msix = adapter->drv_tx_rings + adapter->drv_sds_rings;
+
+		/* Set rings to 0 so we can restore original TSS/RSS count */
+		adapter->drv_tss_rings = 0;
+		adapter->drv_rss_rings = 0;
+
+		if (qlcnic_83xx_check(adapter))
+			num_msix += 1;
+
+		netdev_info(adapter->netdev,
+			    "Restoring %d Tx, %d SDS rings for total %d vectors.\n",
+			    adapter->drv_tx_rings, adapter->drv_sds_rings,
+			    num_msix);
+		goto restore;
+
+		err = -EIO;
+	}
+
+	return err;
+}
+
+int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	int err = -1, vector;
+
+	if (!adapter->msix_entries) {
+		adapter->msix_entries = kcalloc(num_msix,
+						sizeof(struct msix_entry),
+						GFP_KERNEL);
+		if (!adapter->msix_entries)
+			return -ENOMEM;
+	}
+
 	adapter->flags &= ~(QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED);
 
 	if (adapter->ahw->msix_supported) {
- enable_msix:
-		for (i = 0; i < num_msix; i++)
-			adapter->msix_entries[i].entry = i;
+enable_msix:
+		for (vector = 0; vector < num_msix; vector++)
+			adapter->msix_entries[vector].entry = vector;
+
 		err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
 		if (err == 0) {
 			adapter->flags |= QLCNIC_MSIX_ENABLED;
-			if (qlcnic_83xx_check(adapter)) {
-				adapter->ahw->num_msix = num_msix;
-				/* subtract mail box and tx ring vectors */
-				adapter->drv_sds_rings = num_msix -
-							 drv_tx_rings - 1;
-			} else {
-				adapter->ahw->num_msix = num_msix;
-				if (qlcnic_check_multi_tx(adapter) &&
-				    !adapter->ahw->diag_test)
-					drv_sds_rings = num_msix - drv_tx_rings;
-				else
-					drv_sds_rings = num_msix;
-
-				adapter->drv_sds_rings = drv_sds_rings;
-			}
+			adapter->ahw->num_msix = num_msix;
 			dev_info(&pdev->dev, "using msi-x interrupts\n");
 			return err;
 		} else if (err > 0) {
 			dev_info(&pdev->dev,
-				 "Unable to allocate %d MSI-X interrupt vectors\n",
-				 num_msix);
-			if (qlcnic_83xx_check(adapter)) {
-				if (err < (QLC_83XX_MINIMUM_VECTOR - tx_vector))
-					return err;
-				err -= drv_tx_rings + 1;
+				 "Unable to allocate %d MSI-X vectors, Available vectors %d\n",
+				 num_msix, err);
+
+			if (qlcnic_82xx_check(adapter)) {
 				num_msix = rounddown_pow_of_two(err);
-				num_msix += drv_tx_rings + 1;
+				if (err < QLCNIC_82XX_MINIMUM_VECTOR)
+					return -EIO;
 			} else {
-				num_msix = rounddown_pow_of_two(err);
-				if (qlcnic_check_multi_tx(adapter))
-					num_msix += drv_tx_rings;
+				num_msix = rounddown_pow_of_two(err - 1);
+				num_msix += 1;
+				if (err < QLCNIC_83XX_MINIMUM_VECTOR)
+					return -EIO;
+			}
+
+			if (qlcnic_82xx_check(adapter) &&
+			    !qlcnic_check_multi_tx(adapter)) {
+				adapter->drv_sds_rings = num_msix;
+				adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
+			} else {
+				/* Distribute vectors equally */
+				adapter->drv_tx_rings = num_msix / 2;
+				adapter->drv_sds_rings = adapter->drv_tx_rings;
 			}
 
 			if (num_msix) {
@@ -694,12 +741,27 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 			}
 		} else {
 			dev_info(&pdev->dev,
-				 "Unable to allocate %d MSI-X interrupt vectors\n",
-				 num_msix);
+				 "Unable to allocate %d MSI-X vectors, err=%d\n",
+				 num_msix, err);
+			return err;
 		}
 	}
 
 	return err;
+}
+
+static int qlcnic_82xx_calculate_msix_vector(struct qlcnic_adapter *adapter)
+{
+	int num_msix;
+
+	num_msix = adapter->drv_sds_rings;
+
+	if (qlcnic_check_multi_tx(adapter))
+		num_msix += adapter->drv_tx_rings;
+	else
+		num_msix += QLCNIC_SINGLE_RING;
+
+	return num_msix;
 }
 
 static int qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
@@ -740,21 +802,25 @@ static int qlcnic_82xx_setup_intr(struct qlcnic_adapter *adapter)
 {
 	int num_msix, err = 0;
 
-	num_msix = adapter->drv_sds_rings;
-
-	if (qlcnic_check_multi_tx(adapter))
-		num_msix += adapter->drv_tx_rings;
-
-	err = qlcnic_enable_msix(adapter, num_msix);
-	if (err == -ENOMEM)
-		return err;
-
-	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
-		qlcnic_disable_multi_tx(adapter);
-
-		err = qlcnic_enable_msi_legacy(adapter);
-		if (!err)
+	if (adapter->flags & QLCNIC_TSS_RSS) {
+		err = qlcnic_setup_tss_rss_intr(adapter);
+		if (err < 0)
 			return err;
+		num_msix = adapter->ahw->num_msix;
+	} else {
+		num_msix = qlcnic_82xx_calculate_msix_vector(adapter);
+
+		err = qlcnic_enable_msix(adapter, num_msix);
+		if (err == -ENOMEM)
+			return err;
+
+		if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
+			qlcnic_disable_multi_tx(adapter);
+
+			err = qlcnic_enable_msi_legacy(adapter);
+			if (!err)
+				return err;
+		}
 	}
 
 	return 0;
@@ -3834,7 +3900,7 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 	return 0;
 }
 
-int qlcnic_setup_rings(struct qlcnic_adapter *adapter, u8 rx_cnt, u8 tx_cnt)
+int qlcnic_setup_rings(struct qlcnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	int err;
@@ -3855,18 +3921,14 @@ int qlcnic_setup_rings(struct qlcnic_adapter *adapter, u8 rx_cnt, u8 tx_cnt)
 
 	qlcnic_teardown_intr(adapter);
 
-	/* compute and set default and max tx/sds rings */
-	qlcnic_set_tx_ring_count(adapter, tx_cnt);
-	qlcnic_set_sds_ring_count(adapter, rx_cnt);
-
-	netif_set_real_num_tx_queues(netdev, adapter->drv_tx_rings);
-
 	err = qlcnic_setup_intr(adapter);
 	if (err) {
 		kfree(adapter->msix_entries);
 		netdev_err(netdev, "failed to setup interrupt\n");
 		return err;
 	}
+
+	netif_set_real_num_tx_queues(netdev, adapter->drv_tx_rings);
 
 	if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_initialize_nic(adapter, 1);

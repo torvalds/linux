@@ -290,10 +290,21 @@ int qlcnic_83xx_wrt_reg_indirect(struct qlcnic_adapter *adapter, ulong addr,
 	}
 }
 
-int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
+static void qlcnic_83xx_enable_legacy(struct qlcnic_adapter *adapter)
 {
-	int err, i, num_msix;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	/* MSI-X enablement failed, use legacy interrupt */
+	adapter->tgt_status_reg = ahw->pci_base0 + QLC_83XX_INTX_PTR;
+	adapter->tgt_mask_reg = ahw->pci_base0 + QLC_83XX_INTX_MASK;
+	adapter->isr_int_vec = ahw->pci_base0 + QLC_83XX_INTX_TRGR;
+	adapter->msix_entries[0].vector = adapter->pdev->irq;
+	dev_info(&adapter->pdev->dev, "using legacy interrupt\n");
+}
+
+static int qlcnic_83xx_calculate_msix_vector(struct qlcnic_adapter *adapter)
+{
+	int num_msix;
 
 	num_msix = adapter->drv_sds_rings;
 
@@ -303,30 +314,44 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 	if (!(adapter->flags & QLCNIC_TX_INTR_SHARED))
 		num_msix += adapter->drv_tx_rings;
 
-	err = qlcnic_enable_msix(adapter, num_msix);
-	if (err == -ENOMEM)
-		return err;
-	if (adapter->flags & QLCNIC_MSIX_ENABLED)
-		num_msix = adapter->ahw->num_msix;
-	else {
-		if (qlcnic_sriov_vf_check(adapter))
-			return -EINVAL;
-		num_msix = 1;
-		adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
+	return num_msix;
+}
+
+int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int err, i, num_msix;
+
+	if (adapter->flags & QLCNIC_TSS_RSS) {
+		err = qlcnic_setup_tss_rss_intr(adapter);
+		if (err < 0)
+			return err;
+		num_msix = ahw->num_msix;
+	} else {
+		num_msix = qlcnic_83xx_calculate_msix_vector(adapter);
+
+		err = qlcnic_enable_msix(adapter, num_msix);
+		if (err == -ENOMEM)
+			return err;
+
+		if (adapter->flags & QLCNIC_MSIX_ENABLED) {
+			num_msix = ahw->num_msix;
+		} else {
+			if (qlcnic_sriov_vf_check(adapter))
+				return -EINVAL;
+			num_msix = 1;
+			adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
+		}
 	}
+
 	/* setup interrupt mapping table for fw */
 	ahw->intr_tbl = vzalloc(num_msix *
 				sizeof(struct qlcnic_intrpt_config));
 	if (!ahw->intr_tbl)
 		return -ENOMEM;
-	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
-		/* MSI-X enablement failed, use legacy interrupt */
-		adapter->tgt_status_reg = ahw->pci_base0 + QLC_83XX_INTX_PTR;
-		adapter->tgt_mask_reg = ahw->pci_base0 + QLC_83XX_INTX_MASK;
-		adapter->isr_int_vec = ahw->pci_base0 + QLC_83XX_INTX_TRGR;
-		adapter->msix_entries[0].vector = adapter->pdev->irq;
-		dev_info(&adapter->pdev->dev, "using legacy interrupt\n");
-	}
+
+	if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+		qlcnic_83xx_enable_legacy(adapter);
 
 	for (i = 0; i < num_msix; i++) {
 		if (adapter->flags & QLCNIC_MSIX_ENABLED)
@@ -336,6 +361,7 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 		ahw->intr_tbl[i].id = i;
 		ahw->intr_tbl[i].src = 0;
 	}
+
 	return 0;
 }
 
@@ -1286,8 +1312,8 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 	/* send the mailbox command*/
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to create Tx ctx in firmware 0x%x\n", err);
+		netdev_err(adapter->netdev,
+			   "Failed to create Tx ctx in firmware 0x%x\n", err);
 		goto out;
 	}
 	mbx_out = (struct qlcnic_tx_mbx_out *)&cmd.rsp.arg[2];
@@ -1298,8 +1324,9 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 		intr_mask = ahw->intr_tbl[adapter->drv_sds_rings + ring].src;
 		tx->crb_intr_mask = ahw->pci_base0 + intr_mask;
 	}
-	dev_info(&adapter->pdev->dev, "Tx Context[0x%x] Created, state:0x%x\n",
-		 tx->ctx_id, mbx_out->state);
+	netdev_info(adapter->netdev,
+		    "Tx Context[0x%x] Created, state:0x%x\n",
+		    tx->ctx_id, mbx_out->state);
 out:
 	qlcnic_free_mbx_args(&cmd);
 	return err;

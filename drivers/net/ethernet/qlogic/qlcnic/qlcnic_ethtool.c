@@ -736,6 +736,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 				   channel->rx_count);
 			return err;
 		}
+		adapter->drv_rss_rings = channel->rx_count;
 	}
 
 	if (channel->tx_count) {
@@ -746,10 +747,12 @@ static int qlcnic_set_channels(struct net_device *dev,
 				   channel->tx_count);
 			return err;
 		}
+		adapter->drv_tss_rings = channel->tx_count;
 	}
 
-	err = qlcnic_setup_rings(adapter, channel->rx_count,
-				 channel->tx_count);
+	adapter->flags |= QLCNIC_TSS_RSS;
+
+	err = qlcnic_setup_rings(adapter);
 	netdev_info(dev, "Allocated %d SDS rings and %d Tx rings\n",
 		    adapter->drv_sds_rings, adapter->drv_tx_rings);
 
