@@ -3178,18 +3178,17 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
 
 	if (num_groups > memcg_limited_groups_array_size) {
 		int i;
+		struct memcg_cache_params *new_params;
 		ssize_t size = memcg_caches_array_size(num_groups);
 
 		size *= sizeof(void *);
 		size += offsetof(struct memcg_cache_params, memcg_caches);
 
-		s->memcg_params = kzalloc(size, GFP_KERNEL);
-		if (!s->memcg_params) {
-			s->memcg_params = cur_params;
+		new_params = kzalloc(size, GFP_KERNEL);
+		if (!new_params)
 			return -ENOMEM;
-		}
 
-		s->memcg_params->is_root_cache = true;
+		new_params->is_root_cache = true;
 
 		/*
 		 * There is the chance it will be bigger than
@@ -3203,7 +3202,7 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
 		for (i = 0; i < memcg_limited_groups_array_size; i++) {
 			if (!cur_params->memcg_caches[i])
 				continue;
-			s->memcg_params->memcg_caches[i] =
+			new_params->memcg_caches[i] =
 						cur_params->memcg_caches[i];
 		}
 
@@ -3216,7 +3215,9 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
 		 * bigger than the others. And all updates will reset this
 		 * anyway.
 		 */
-		kfree(cur_params);
+		rcu_assign_pointer(s->memcg_params, new_params);
+		if (cur_params)
+			kfree_rcu(cur_params, rcu_head);
 	}
 	return 0;
 }
