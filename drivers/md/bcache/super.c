@@ -2072,7 +2072,6 @@ static void bcache_exit(void)
 {
 	bch_debug_exit();
 	bch_request_exit();
-	bch_btree_exit();
 	if (bcache_kobj)
 		kobject_put(bcache_kobj);
 	if (bcache_wq)
@@ -2102,7 +2101,6 @@ static int __init bcache_init(void)
 	if (!(bcache_wq = create_workqueue("bcache")) ||
 	    !(bcache_kobj = kobject_create_and_add("bcache", fs_kobj)) ||
 	    sysfs_create_files(bcache_kobj, files) ||
-	    bch_btree_init() ||
 	    bch_request_init() ||
 	    bch_debug_init(bcache_kobj))
 		goto err;

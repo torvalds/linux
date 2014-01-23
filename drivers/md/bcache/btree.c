@@ -93,8 +93,6 @@
 #define PTR_HASH(c, k)							\
 	(((k)->ptr[0] >> c->bucket_bits) | PTR_GEN(k, 0))
 
-static struct workqueue_struct *btree_io_wq;
-
 #define insert_lock(s, b)	((b)->level <= (s)->lock)
 
 /*
@@ -362,8 +360,7 @@ static void __btree_node_write_done(struct closure *cl)
 	btree_complete_write(b, w);
 
 	if (btree_node_dirty(b))
-		queue_delayed_work(btree_io_wq, &b->work,
-				   msecs_to_jiffies(30000));
+		schedule_delayed_work(&b->work, 30 * HZ);
 
 	closure_return_with_destructor(cl, btree_node_write_unlock);
 }
@@ -535,7 +532,7 @@ static void bch_btree_leaf_dirty(struct btree *b, atomic_t *journal_ref)
 	BUG_ON(!i->keys);
 
 	if (!btree_node_dirty(b))
-		queue_delayed_work(btree_io_wq, &b->work, 30 * HZ);
+		schedule_delayed_work(&b->work, 30 * HZ);
 
 	set_btree_node_dirty(b);
 
@@ -2445,19 +2442,4 @@ void bch_keybuf_init(struct keybuf *buf)
 
 	spin_lock_init(&buf->lock);
 	array_allocator_init(&buf->freelist);
-}
-
-void bch_btree_exit(void)
-{
-	if (btree_io_wq)
-		destroy_workqueue(btree_io_wq);
-}
-
-int __init bch_btree_init(void)
-{
-	btree_io_wq = create_singlethread_workqueue("bch_btree_io");
-	if (!btree_io_wq)
-		return -ENOMEM;
-
-	return 0;
 }

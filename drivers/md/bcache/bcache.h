@@ -962,7 +962,5 @@ void bch_debug_exit(void);
 int bch_debug_init(struct kobject *);
 void bch_request_exit(void);
 int bch_request_init(void);
-void bch_btree_exit(void);
-int bch_btree_init(void);
 
 #endif /* _BCACHE_H */
