@@ -1405,6 +1405,17 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 			continue;
 		}
 
+		/* There are no completions for beacons so wait for next SWBA
+		 * before telling mac80211 to decrement CSA counter
+		 *
+		 * Once CSA counter is completed stop sending beacons until
+		 * actual channel switch is done */
+		if (arvif->vif->csa_active &&
+		    ieee80211_csa_is_complete(arvif->vif)) {
+			ieee80211_csa_finish(arvif->vif);
+			continue;
+		}
+
 		bcn = ieee80211_beacon_get(ar->hw, arvif->vif);
 		if (!bcn) {
 			ath10k_warn("could not get mac80211 beacon\n");
