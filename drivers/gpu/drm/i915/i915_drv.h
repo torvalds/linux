@@ -306,6 +306,7 @@ struct drm_i915_error_state {
 	u32 tail[I915_NUM_RINGS];
 	u32 head[I915_NUM_RINGS];
 	u32 ctl[I915_NUM_RINGS];
+	u32 hws[I915_NUM_RINGS];
 	u32 ipeir[I915_NUM_RINGS];
 	u32 ipehr[I915_NUM_RINGS];
 	u32 instdone[I915_NUM_RINGS];
@@ -334,7 +335,7 @@ struct drm_i915_error_state {
 			int page_count;
 			u32 gtt_offset;
 			u32 *pages[0];
-		} *ringbuffer, *batchbuffer, *ctx;
+		} *ringbuffer, *batchbuffer, *ctx, *hws;
 		struct drm_i915_error_request {
 			long jiffies;
 			u32 seqno;

@@ -243,6 +243,7 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
 	err_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
 	err_printf(m, "  CTL: 0x%08x\n", error->ctl[ring]);
+	err_printf(m, "  HWS: 0x%08x\n", error->hws[ring]);
 	err_printf(m, "  ACTHD: 0x%08x\n", error->acthd[ring]);
 	err_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
 	err_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
@@ -385,6 +386,22 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
+		if ((obj = error->ring[i].hws)) {
+			err_printf(m, "%s --- HW Status = 0x%08x\n",
+				   dev_priv->ring[i].name,
+				   obj->gtt_offset);
+			offset = 0;
+			for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
+				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
+					   offset,
+					   obj->pages[0][elt],
+					   obj->pages[0][elt+1],
+					   obj->pages[0][elt+2],
+					   obj->pages[0][elt+3]);
+					offset += 16;
+			}
+		}
+
 		obj = error->ring[i].ctx;
 		if (obj) {
 			err_printf(m, "%s --- HW Context = 0x%08x\n",
@@ -468,6 +485,7 @@ static void i915_error_state_free(struct kref *error_ref)
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		i915_error_object_free(error->ring[i].batchbuffer);
 		i915_error_object_free(error->ring[i].ringbuffer);
+		i915_error_object_free(error->ring[i].hws);
 		i915_error_object_free(error->ring[i].ctx);
 		kfree(error->ring[i].requests);
 	}
@@ -782,6 +800,35 @@ static void i915_record_ring_state(struct drm_device *dev,
 	error->tail[ring->id] = I915_READ_TAIL(ring);
 	error->ctl[ring->id] = I915_READ_CTL(ring);
 
+	if (I915_NEED_GFX_HWS(dev)) {
+		int mmio;
+
+		if (IS_GEN7(dev)) {
+			switch (ring->id) {
+			default:
+			case RCS:
+				mmio = RENDER_HWS_PGA_GEN7;
+				break;
+			case BCS:
+				mmio = BLT_HWS_PGA_GEN7;
+				break;
+			case VCS:
+				mmio = BSD_HWS_PGA_GEN7;
+				break;
+			case VECS:
+				mmio = VEBOX_HWS_PGA_GEN7;
+				break;
+			}
+		} else if (IS_GEN6(ring->dev)) {
+			mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
+		} else {
+			/* XXX: gen8 returns to sanity */
+			mmio = RING_HWS_PGA(ring->mmio_base);
+		}
+
+		error->hws[ring->id] = I915_READ(mmio);
+	}
+
 	error->cpu_ring_head[ring->id] = ring->head;
 	error->cpu_ring_tail[ring->id] = ring->tail;
 
@@ -829,6 +876,9 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		error->ring[i].ringbuffer =
 			i915_error_ggtt_object_create(dev_priv, ring->obj);
 
+		if (ring->status_page.obj)
+			error->ring[i].hws =
+				i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
 
 		i915_gem_record_active_context(ring, error, &error->ring[i]);
 
