@@ -3403,6 +3403,24 @@ struct wmi_bcn_tx_arg {
 	const void *bcn;
 };
 
+enum wmi_bcn_tx_ref_flags {
+	WMI_BCN_TX_REF_FLAG_DTIM_ZERO = 0x1,
+	WMI_BCN_TX_REF_FLAG_DELIVER_CAB = 0x2,
+};
+
+struct wmi_bcn_tx_ref_cmd {
+	__le32 vdev_id;
+	__le32 data_len;
+	/* physical address of the frame - dma pointer */
+	__le32 data_ptr;
+	/* id for host to track */
+	__le32 msdu_id;
+	/* frame ctrl to setup PPDU desc */
+	__le32 frame_control;
+	/* to control CABQ traffic: WMI_BCN_TX_REF_FLAG_ */
+	__le32 flags;
+} __packed;
+
 /* Beacon filter */
 #define WMI_BCN_FILTER_ALL   0 /* Filter all beacons */
 #define WMI_BCN_FILTER_NONE  1 /* Pass all beacons */
@@ -4223,8 +4241,7 @@ int ath10k_wmi_set_ap_ps_param(struct ath10k *ar, u32 vdev_id, const u8 *mac,
 			       enum wmi_ap_ps_peer_param param_id, u32 value);
 int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 			      const struct wmi_scan_chan_list_arg *arg);
-int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
-				  const struct wmi_bcn_tx_arg *arg);
+int ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif);
 int ath10k_wmi_pdev_set_wmm_params(struct ath10k *ar,
 			const struct wmi_pdev_set_wmm_params_arg *arg);
 int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id);

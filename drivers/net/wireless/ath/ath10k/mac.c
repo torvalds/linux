@@ -837,6 +837,16 @@ static void ath10k_control_beaconing(struct ath10k_vif *arvif,
 		arvif->is_started = false;
 		arvif->is_up = false;
 
+		spin_lock_bh(&arvif->ar->data_lock);
+		if (arvif->beacon) {
+			ath10k_skb_unmap(arvif->ar->dev, arvif->beacon);
+			dev_kfree_skb_any(arvif->beacon);
+
+			arvif->beacon = NULL;
+			arvif->beacon_sent = false;
+		}
+		spin_unlock_bh(&arvif->ar->data_lock);
+
 		return;
 	}
 

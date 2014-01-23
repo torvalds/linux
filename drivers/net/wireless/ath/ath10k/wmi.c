@@ -561,7 +561,6 @@ err_pull:
 
 static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 {
-	struct wmi_bcn_tx_arg arg = {0};
 	int ret;
 
 	lockdep_assert_held(&arvif->ar->data_lock);
@@ -569,18 +568,16 @@ static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 	if (arvif->beacon == NULL)
 		return;
 
-	arg.vdev_id = arvif->vdev_id;
-	arg.tx_rate = 0;
-	arg.tx_power = 0;
-	arg.bcn = arvif->beacon->data;
-	arg.bcn_len = arvif->beacon->len;
+	if (arvif->beacon_sent)
+		return;
 
-	ret = ath10k_wmi_beacon_send_nowait(arvif->ar, &arg);
+	ret = ath10k_wmi_beacon_send_ref_nowait(arvif);
 	if (ret)
 		return;
 
-	dev_kfree_skb_any(arvif->beacon);
-	arvif->beacon = NULL;
+	/* We need to retain the arvif->beacon reference for DMA unmapping and
+	 * freeing the skbuff later. */
+	arvif->beacon_sent = true;
 }
 
 static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
@@ -1237,6 +1234,13 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	tim->bitmap_ctrl = !!__le32_to_cpu(bcn_info->tim_info.tim_mcast);
 	memcpy(tim->virtual_map, arvif->u.ap.tim_bitmap, pvm_len);
 
+	if (tim->dtim_count == 0) {
+		ATH10K_SKB_CB(bcn)->bcn.dtim_zero = true;
+
+		if (__le32_to_cpu(bcn_info->tim_info.tim_mcast) == 1)
+			ATH10K_SKB_CB(bcn)->bcn.deliver_cab = true;
+	}
+
 	ath10k_dbg(ATH10K_DBG_MGMT, "dtim %d/%d mcast %d pvmlen %d\n",
 		   tim->dtim_count, tim->dtim_period,
 		   tim->bitmap_ctrl, pvm_len);
@@ -1427,13 +1431,20 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_update_noa(ar, arvif, bcn, bcn_info);
 
 		spin_lock_bh(&ar->data_lock);
+
 		if (arvif->beacon) {
-			ath10k_warn("SWBA overrun on vdev %d\n",
-				    arvif->vdev_id);
+			if (!arvif->beacon_sent)
+				ath10k_warn("SWBA overrun on vdev %d\n",
+					    arvif->vdev_id);
+
+			ath10k_skb_unmap(ar->dev, arvif->beacon);
 			dev_kfree_skb_any(arvif->beacon);
 		}
 
+		ath10k_skb_map(ar->dev, bcn);
+
 		arvif->beacon = bcn;
+		arvif->beacon_sent = false;
 
 		ath10k_wmi_tx_beacon_nowait(arvif);
 		spin_unlock_bh(&ar->data_lock);
@@ -3442,25 +3453,41 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->peer_assoc_cmdid);
 }
 
-int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
-				  const struct wmi_bcn_tx_arg *arg)
+/* This function assumes the beacon is already DMA mapped */
+int ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif)
 {
-	struct wmi_bcn_tx_cmd *cmd;
+	struct wmi_bcn_tx_ref_cmd *cmd;
 	struct sk_buff *skb;
+	struct sk_buff *beacon = arvif->beacon;
+	struct ath10k *ar = arvif->ar;
+	struct ieee80211_hdr *hdr;
 	int ret;
+	u16 fc;
 
-	skb = ath10k_wmi_alloc_skb(sizeof(*cmd) + arg->bcn_len);
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
 	if (!skb)
 		return -ENOMEM;
 
-	cmd = (struct wmi_bcn_tx_cmd *)skb->data;
-	cmd->hdr.vdev_id  = __cpu_to_le32(arg->vdev_id);
-	cmd->hdr.tx_rate  = __cpu_to_le32(arg->tx_rate);
-	cmd->hdr.tx_power = __cpu_to_le32(arg->tx_power);
-	cmd->hdr.bcn_len  = __cpu_to_le32(arg->bcn_len);
-	memcpy(cmd->bcn, arg->bcn, arg->bcn_len);
+	hdr = (struct ieee80211_hdr *)beacon->data;
+	fc = le16_to_cpu(hdr->frame_control);
 
-	ret = ath10k_wmi_cmd_send_nowait(ar, skb, ar->wmi.cmd->bcn_tx_cmdid);
+	cmd = (struct wmi_bcn_tx_ref_cmd *)skb->data;
+	cmd->vdev_id = __cpu_to_le32(arvif->vdev_id);
+	cmd->data_len = __cpu_to_le32(beacon->len);
+	cmd->data_ptr = __cpu_to_le32(ATH10K_SKB_CB(beacon)->paddr);
+	cmd->msdu_id = 0;
+	cmd->frame_control = __cpu_to_le32(fc);
+	cmd->flags = 0;
+
+	if (ATH10K_SKB_CB(beacon)->bcn.dtim_zero)
+		cmd->flags |= __cpu_to_le32(WMI_BCN_TX_REF_FLAG_DTIM_ZERO);
+
+	if (ATH10K_SKB_CB(beacon)->bcn.deliver_cab)
+		cmd->flags |= __cpu_to_le32(WMI_BCN_TX_REF_FLAG_DELIVER_CAB);
+
+	ret = ath10k_wmi_cmd_send_nowait(ar, skb,
+					 ar->wmi.cmd->pdev_send_bcn_cmdid);
+
 	if (ret)
 		dev_kfree_skb(skb);
 

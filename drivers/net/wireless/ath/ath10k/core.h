@@ -73,6 +73,11 @@ struct ath10k_skb_cb {
 		u8 frag_len;
 		u8 pad_len;
 	} __packed htt;
+
+	struct {
+		bool dtim_zero;
+		bool deliver_cab;
+	} bcn;
 } __packed;
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
@@ -234,6 +239,8 @@ struct ath10k_vif {
 	u32 beacon_interval;
 	u32 dtim_period;
 	struct sk_buff *beacon;
+	/* protected by data_lock */
+	bool beacon_sent;
 
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;
