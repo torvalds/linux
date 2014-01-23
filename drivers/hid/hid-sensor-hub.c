@@ -26,6 +26,8 @@
 #include <linux/hid-sensor-hub.h>
 #include "hid-ids.h"
 
+#define HID_SENSOR_HUB_ENUM_QUIRK	0x01
+
 /**
  * struct sensor_hub_pending - Synchronous read pending information
  * @status:		Pending status true/false.
@@ -64,6 +66,7 @@ struct sensor_hub_data {
 	spinlock_t dyn_callback_lock;
 	struct mfd_cell *hid_sensor_hub_client_devs;
 	int hid_sensor_client_cnt;
+	unsigned long quirks;
 };
 
 /**
@@ -497,6 +500,40 @@ void sensor_hub_device_close(struct hid_sensor_hub_device *hsdev)
 }
 EXPORT_SYMBOL_GPL(sensor_hub_device_close);
 
+static __u8 *sensor_hub_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
+{
+	int index;
+	struct sensor_hub_data *sd =  hid_get_drvdata(hdev);
+	unsigned char report_block[] = {
+				0x0a,  0x16, 0x03, 0x15, 0x00, 0x25, 0x05};
+	unsigned char power_block[] = {
+				0x0a,  0x19, 0x03, 0x15, 0x00, 0x25, 0x05};
+
+	if (!(sd->quirks & HID_SENSOR_HUB_ENUM_QUIRK)) {
+		hid_dbg(hdev, "No Enum quirks\n");
+		return rdesc;
+	}
+
+	/* Looks for power and report state usage id and force to 1 */
+	for (index = 0; index < *rsize; ++index) {
+		if (((*rsize - index) > sizeof(report_block)) &&
+			!memcmp(&rdesc[index], report_block,
+						sizeof(report_block))) {
+			rdesc[index + 4] = 0x01;
+			index += sizeof(report_block);
+		}
+		if (((*rsize - index) > sizeof(power_block)) &&
+			!memcmp(&rdesc[index], power_block,
+						sizeof(power_block))) {
+			rdesc[index + 4] = 0x01;
+			index += sizeof(power_block);
+		}
+	}
+
+	return rdesc;
+}
+
 static int sensor_hub_probe(struct hid_device *hdev,
 				const struct hid_device_id *id)
 {
@@ -520,6 +557,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 		return -ENOMEM;
 	}
 	hid_set_drvdata(hdev, sd);
+	sd->quirks = id->driver_data;
 	sd->hsdev->hdev = hdev;
 	sd->hsdev->vendor_id = hdev->vendor;
 	sd->hsdev->product_id = hdev->product;
@@ -621,6 +659,12 @@ static void sensor_hub_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id sensor_hub_devices[] = {
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_INTEL_0,
+			USB_DEVICE_ID_INTEL_HID_SENSOR),
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_INTEL_1,
+			USB_DEVICE_ID_INTEL_HID_SENSOR),
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, HID_ANY_ID,
 		     HID_ANY_ID) },
 	{ }
@@ -633,6 +677,7 @@ static struct hid_driver sensor_hub_driver = {
 	.probe = sensor_hub_probe,
 	.remove = sensor_hub_remove,
 	.raw_event = sensor_hub_raw_event,
+	.report_fixup = sensor_hub_report_fixup,
 #ifdef CONFIG_PM
 	.suspend = sensor_hub_suspend,
 	.resume = sensor_hub_resume,
