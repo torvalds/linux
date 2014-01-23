@@ -45,10 +45,14 @@ static long clk_factor_round_rate(struct clk_hw *hw, unsigned long drate,
 		if (rate > drate)
 			break;
 	}
-	if ((i == 0) || (i == factor->ftbl_cnt))
+	if ((i == 0) || (i == factor->ftbl_cnt)) {
 		return rate;
-	else
-		return prev_rate;
+	} else {
+		if ((drate - prev_rate) > (rate - drate))
+			return rate;
+		else
+			return prev_rate;
+	}
 }
 
 static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
