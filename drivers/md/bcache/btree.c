@@ -68,14 +68,10 @@
  * alloc_bucket() cannot fail. This should be true but is not completely
  * obvious.
  *
- * Make sure all allocations get charged to the root cgroup
- *
  * Plugging?
  *
  * If data write is less than hard sector size of ssd, round up offset in open
  * bucket to the next whole sector
- *
- * Also lookup by cgroup in get_open_bucket()
  *
  * Superblock needs to be fleshed out for multiple cache devices
  *
