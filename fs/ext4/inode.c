@@ -4586,6 +4586,10 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			if (attr->ia_size > sbi->s_bitmap_maxbytes)
 				return -EFBIG;
 		}
+
+		if (IS_I_VERSION(inode) && attr->ia_size != inode->i_size)
+			inode_inc_iversion(inode);
+
 		if (S_ISREG(inode->i_mode) &&
 		    (attr->ia_size < inode->i_size)) {
 			if (ext4_should_order_data(inode)) {

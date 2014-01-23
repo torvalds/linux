@@ -1593,12 +1593,11 @@ xfs_free_buftarg(
 	kmem_free(btp);
 }
 
-STATIC int
-xfs_setsize_buftarg_flags(
+int
+xfs_setsize_buftarg(
 	xfs_buftarg_t		*btp,
 	unsigned int		blocksize,
-	unsigned int		sectorsize,
-	int			verbose)
+	unsigned int		sectorsize)
 {
 	btp->bt_bsize = blocksize;
 	btp->bt_sshift = ffs(sectorsize) - 1;
@@ -1619,26 +1618,17 @@ xfs_setsize_buftarg_flags(
 }
 
 /*
- *	When allocating the initial buffer target we have not yet
- *	read in the superblock, so don't know what sized sectors
- *	are being used at this early stage.  Play safe.
+ * When allocating the initial buffer target we have not yet
+ * read in the superblock, so don't know what sized sectors
+ * are being used at this early stage.  Play safe.
  */
 STATIC int
 xfs_setsize_buftarg_early(
 	xfs_buftarg_t		*btp,
 	struct block_device	*bdev)
 {
-	return xfs_setsize_buftarg_flags(btp,
-			PAGE_SIZE, bdev_logical_block_size(bdev), 0);
-}
-
-int
-xfs_setsize_buftarg(
-	xfs_buftarg_t		*btp,
-	unsigned int		blocksize,
-	unsigned int		sectorsize)
-{
-	return xfs_setsize_buftarg_flags(btp, blocksize, sectorsize, 1);
+	return xfs_setsize_buftarg(btp, PAGE_SIZE,
+				   bdev_logical_block_size(bdev));
 }
 
 xfs_buftarg_t *
