@@ -1759,36 +1759,6 @@ static int mmci_remove(struct amba_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_SUSPEND
-static int mmci_suspend(struct device *dev)
-{
-	struct amba_device *adev = to_amba_device(dev);
-	struct mmc_host *mmc = amba_get_drvdata(adev);
-
-	if (mmc) {
-		struct mmci_host *host = mmc_priv(mmc);
-		pm_runtime_get_sync(dev);
-		writel(0, host->base + MMCIMASK0);
-	}
-
-	return 0;
-}
-
-static int mmci_resume(struct device *dev)
-{
-	struct amba_device *adev = to_amba_device(dev);
-	struct mmc_host *mmc = amba_get_drvdata(adev);
-
-	if (mmc) {
-		struct mmci_host *host = mmc_priv(mmc);
-		writel(MCI_IRQENABLE, host->base + MMCIMASK0);
-		pm_runtime_put(dev);
-	}
-
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_PM
 static void mmci_save(struct mmci_host *host)
 {
@@ -1856,7 +1826,8 @@ static int mmci_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops mmci_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(mmci_suspend, mmci_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_PM_RUNTIME_PM_OPS(mmci_runtime_suspend, mmci_runtime_resume, NULL)
 };
 
