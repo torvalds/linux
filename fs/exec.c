@@ -1614,43 +1614,24 @@ EXPORT_SYMBOL(set_binfmt);
 
 /*
  * set_dumpable converts traditional three-value dumpable to two flags and
- * stores them into mm->flags.  It modifies lower two bits of mm->flags, but
- * these bits are not changed atomically.  So get_dumpable can observe the
- * intermediate state.  To avoid doing unexpected behavior, get get_dumpable
- * return either old dumpable or new one by paying attention to the order of
- * modifying the bits.
- *
- * dumpable |   mm->flags (binary)
- * old  new | initial interim  final
- * ---------+-----------------------
- *  0    1  |   00      01      01
- *  0    2  |   00      10(*)   11
- *  1    0  |   01      00      00
- *  1    2  |   01      11      11
- *  2    0  |   11      10(*)   00
- *  2    1  |   11      11      01
- *
- * (*) get_dumpable regards interim value of 10 as 11.
+ * stores them into mm->flags.
  */
 void set_dumpable(struct mm_struct *mm, int value)
 {
-	switch (value) {
-	case SUID_DUMP_DISABLE:
-		clear_bit(MMF_DUMPABLE, &mm->flags);
-		smp_wmb();
-		clear_bit(MMF_DUMP_SECURELY, &mm->flags);
-		break;
-	case SUID_DUMP_USER:
-		set_bit(MMF_DUMPABLE, &mm->flags);
-		smp_wmb();
-		clear_bit(MMF_DUMP_SECURELY, &mm->flags);
-		break;
-	case SUID_DUMP_ROOT:
-		set_bit(MMF_DUMP_SECURELY, &mm->flags);
-		smp_wmb();
-		set_bit(MMF_DUMPABLE, &mm->flags);
-		break;
-	}
+	unsigned long old, new;
+
+	do {
+		old = ACCESS_ONCE(mm->flags);
+		new = old & ~MMF_DUMPABLE_MASK;
+
+		switch (value) {
+		case SUID_DUMP_ROOT:
+			new |= (1 << MMF_DUMP_SECURELY);
+		case SUID_DUMP_USER:
+			new |= (1<< MMF_DUMPABLE);
+		}
+
+	} while (cmpxchg(&mm->flags, old, new) != old);
 }
 
 int __get_dumpable(unsigned long mm_flags)
