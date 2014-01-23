@@ -859,11 +859,7 @@ struct i915_suspend_saved_registers {
 	u32 savePFIT_CONTROL;
 	u32 save_palette_a[256];
 	u32 save_palette_b[256];
-	u32 saveDPFC_CB_BASE;
-	u32 saveFBC_CFB_BASE;
-	u32 saveFBC_LL_BASE;
 	u32 saveFBC_CONTROL;
-	u32 saveFBC_CONTROL2;
 	u32 saveIER;
 	u32 saveIIR;
 	u32 saveIMR;
