@@ -1571,8 +1571,7 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			t = p;
 			do {
 				accumulate_thread_rusage(t, r);
-				t = next_thread(t);
-			} while (t != p);
+			} while_each_thread(p, t);
 			break;
 
 		default:
