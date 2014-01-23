@@ -562,8 +562,8 @@ drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
 EXPORT_SYMBOL(drm_gtf_mode);
 
 #ifdef CONFIG_VIDEOMODE_HELPERS
-int drm_display_mode_from_videomode(const struct videomode *vm,
-				    struct drm_display_mode *dmode)
+void drm_display_mode_from_videomode(const struct videomode *vm,
+				     struct drm_display_mode *dmode)
 {
 	dmode->hdisplay = vm->hactive;
 	dmode->hsync_start = dmode->hdisplay + vm->hfront_porch;
@@ -593,8 +593,6 @@ int drm_display_mode_from_videomode(const struct videomode *vm,
 	if (vm->flags & DISPLAY_FLAGS_DOUBLECLK)
 		dmode->flags |= DRM_MODE_FLAG_DBLCLK;
 	drm_mode_set_name(dmode);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_display_mode_from_videomode);
 
