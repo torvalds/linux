@@ -1047,8 +1047,7 @@
 #define   FBC_CTL_IDLE_LINE	(2<<2)
 #define   FBC_CTL_IDLE_DEBUG	(3<<2)
 #define   FBC_CTL_CPU_FENCE	(1<<1)
-#define   FBC_CTL_PLANEA	(0<<0)
-#define   FBC_CTL_PLANEB	(1<<0)
+#define   FBC_CTL_PLANE(plane)	((plane)<<0)
 #define FBC_FENCE_OFF		0x0321b
 #define FBC_TAG			0x03300
 
@@ -1058,9 +1057,8 @@
 #define DPFC_CB_BASE		0x3200
 #define DPFC_CONTROL		0x3208
 #define   DPFC_CTL_EN		(1<<31)
-#define   DPFC_CTL_PLANEA	(0<<30)
-#define   DPFC_CTL_PLANEB	(1<<30)
-#define   IVB_DPFC_CTL_PLANE_SHIFT	(29)
+#define   DPFC_CTL_PLANE(plane)	((plane)<<30)
+#define   IVB_DPFC_CTL_PLANE(plane)	((plane)<<29)
 #define   DPFC_CTL_FENCE_EN	(1<<29)
 #define   IVB_DPFC_CTL_FENCE_EN	(1<<28)
 #define   DPFC_CTL_PERSISTENT_MODE	(1<<25)
