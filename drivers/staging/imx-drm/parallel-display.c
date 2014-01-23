@@ -244,8 +244,6 @@ static int imx_pd_remove(struct platform_device *pdev)
 	struct drm_connector *connector = &imxpd->connector;
 	struct drm_encoder *encoder = &imxpd->encoder;
 
-	drm_mode_connector_detach_encoder(connector, encoder);
-
 	imx_drm_remove_connector(imxpd->imx_drm_connector);
 	imx_drm_remove_encoder(imxpd->imx_drm_encoder);
 
