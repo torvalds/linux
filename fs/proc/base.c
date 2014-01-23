@@ -3106,23 +3106,23 @@ static struct task_struct *first_tid(struct task_struct *leader,
 	}
 
 	/* If nr exceeds the number of threads there is nothing todo */
-	pos = NULL;
 	if (nr && nr >= get_nr_threads(leader))
-		goto out;
+		goto fail;
 	/* It could be unhashed before we take rcu lock */
 	if (!pid_alive(leader))
-		goto out;
+		goto fail;
 
 	/* If we haven't found our starting place yet start
 	 * with the leader and walk nr threads forward.
 	 */
-	for (pos = leader; nr > 0; --nr) {
-		pos = next_thread(pos);
-		if (pos == leader) {
-			pos = NULL;
-			goto out;
-		}
-	}
+	pos = leader;
+	do {
+		if (nr-- <= 0)
+			goto found;
+	} while_each_thread(leader, pos);
+fail:
+	pos = NULL;
+	goto out;
 found:
 	get_task_struct(pos);
 out:
