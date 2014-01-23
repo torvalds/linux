@@ -361,7 +361,7 @@ static void pci_acpi_cleanup(struct device *dev)
 
 static bool pci_acpi_bus_match(struct device *dev)
 {
-	return dev->bus == &pci_bus_type;
+	return dev_is_pci(dev);
 }
 
 static struct acpi_bus_type acpi_pci_bus = {

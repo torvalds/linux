@@ -518,8 +518,16 @@
 #define  PCI_EXP_SLTCTL_CCIE	0x0010	/* Command Completed Interrupt Enable */
 #define  PCI_EXP_SLTCTL_HPIE	0x0020	/* Hot-Plug Interrupt Enable */
 #define  PCI_EXP_SLTCTL_AIC	0x00c0	/* Attention Indicator Control */
+#define  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 /* Attention Indicator on */
+#define  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 /* Attention Indicator blinking */
+#define  PCI_EXP_SLTCTL_ATTN_IND_OFF   0x00c0 /* Attention Indicator off */
 #define  PCI_EXP_SLTCTL_PIC	0x0300	/* Power Indicator Control */
+#define  PCI_EXP_SLTCTL_PWR_IND_ON     0x0100 /* Power Indicator on */
+#define  PCI_EXP_SLTCTL_PWR_IND_BLINK  0x0200 /* Power Indicator blinking */
+#define  PCI_EXP_SLTCTL_PWR_IND_OFF    0x0300 /* Power Indicator off */
 #define  PCI_EXP_SLTCTL_PCC	0x0400	/* Power Controller Control */
+#define  PCI_EXP_SLTCTL_PWR_ON         0x0000 /* Power On */
+#define  PCI_EXP_SLTCTL_PWR_OFF        0x0400 /* Power Off */
 #define  PCI_EXP_SLTCTL_EIC	0x0800	/* Electromechanical Interlock Control */
 #define  PCI_EXP_SLTCTL_DLLSCE	0x1000	/* Data Link Layer State Changed Enable */
 #define PCI_EXP_SLTSTA		26	/* Slot Status */
@@ -677,17 +685,34 @@
 #define PCI_ERR_ROOT_ERR_SRC	52	/* Error Source Identification */
 
 /* Virtual Channel */
-#define PCI_VC_PORT_REG1	4
-#define  PCI_VC_REG1_EVCC	0x7	/* extended VC count */
-#define PCI_VC_PORT_REG2	8
-#define  PCI_VC_REG2_32_PHASE	0x2
-#define  PCI_VC_REG2_64_PHASE	0x4
-#define  PCI_VC_REG2_128_PHASE	0x8
+#define PCI_VC_PORT_CAP1	4
+#define  PCI_VC_CAP1_EVCC	0x00000007	/* extended VC count */
+#define  PCI_VC_CAP1_LPEVCC	0x00000070	/* low prio extended VC count */
+#define  PCI_VC_CAP1_ARB_SIZE	0x00000c00
+#define PCI_VC_PORT_CAP2	8
+#define  PCI_VC_CAP2_32_PHASE		0x00000002
+#define  PCI_VC_CAP2_64_PHASE		0x00000004
+#define  PCI_VC_CAP2_128_PHASE		0x00000008
+#define  PCI_VC_CAP2_ARB_OFF		0xff000000
 #define PCI_VC_PORT_CTRL	12
+#define  PCI_VC_PORT_CTRL_LOAD_TABLE	0x00000001
 #define PCI_VC_PORT_STATUS	14
+#define  PCI_VC_PORT_STATUS_TABLE	0x00000001
 #define PCI_VC_RES_CAP		16
+#define  PCI_VC_RES_CAP_32_PHASE	0x00000002
+#define  PCI_VC_RES_CAP_64_PHASE	0x00000004
+#define  PCI_VC_RES_CAP_128_PHASE	0x00000008
+#define  PCI_VC_RES_CAP_128_PHASE_TB	0x00000010
+#define  PCI_VC_RES_CAP_256_PHASE	0x00000020
+#define  PCI_VC_RES_CAP_ARB_OFF		0xff000000
 #define PCI_VC_RES_CTRL		20
+#define  PCI_VC_RES_CTRL_LOAD_TABLE	0x00010000
+#define  PCI_VC_RES_CTRL_ARB_SELECT	0x000e0000
+#define  PCI_VC_RES_CTRL_ID		0x07000000
+#define  PCI_VC_RES_CTRL_ENABLE		0x80000000
 #define PCI_VC_RES_STATUS	26
+#define  PCI_VC_RES_STATUS_TABLE	0x00000001
+#define  PCI_VC_RES_STATUS_NEGO		0x00000002
 #define PCI_CAP_VC_BASE_SIZEOF		0x10
 #define PCI_CAP_VC_PER_VC_SIZEOF	0x0C
 

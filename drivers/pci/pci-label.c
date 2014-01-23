@@ -34,21 +34,7 @@
 
 #define	DEVICE_LABEL_DSM	0x07
 
-#ifndef CONFIG_DMI
-
-static inline int
-pci_create_smbiosname_file(struct pci_dev *pdev)
-{
-	return -1;
-}
-
-static inline void
-pci_remove_smbiosname_file(struct pci_dev *pdev)
-{
-}
-
-#else
-
+#ifdef CONFIG_DMI
 enum smbios_attr_enum {
 	SMBIOS_ATTR_NONE = 0,
 	SMBIOS_ATTR_LABEL_SHOW,
@@ -156,31 +142,20 @@ pci_remove_smbiosname_file(struct pci_dev *pdev)
 {
 	sysfs_remove_group(&pdev->dev.kobj, &smbios_attr_group);
 }
+#else
+static inline int
+pci_create_smbiosname_file(struct pci_dev *pdev)
+{
+	return -1;
+}
 
+static inline void
+pci_remove_smbiosname_file(struct pci_dev *pdev)
+{
+}
 #endif
 
-#ifndef CONFIG_ACPI
-
-static inline int
-pci_create_acpi_index_label_files(struct pci_dev *pdev)
-{
-	return -1;
-}
-
-static inline int
-pci_remove_acpi_index_label_files(struct pci_dev *pdev)
-{
-	return -1;
-}
-
-static inline bool
-device_has_dsm(struct device *dev)
-{
-	return false;
-}
-
-#else
-
+#ifdef CONFIG_ACPI
 static const char device_label_dsm_uuid[] = {
 	0xD0, 0x37, 0xC9, 0xE5, 0x53, 0x35, 0x7A, 0x4D,
 	0x91, 0x17, 0xEA, 0x4D, 0x19, 0xC3, 0x43, 0x4D
@@ -363,6 +338,24 @@ pci_remove_acpi_index_label_files(struct pci_dev *pdev)
 {
 	sysfs_remove_group(&pdev->dev.kobj, &acpi_attr_group);
 	return 0;
+}
+#else
+static inline int
+pci_create_acpi_index_label_files(struct pci_dev *pdev)
+{
+	return -1;
+}
+
+static inline int
+pci_remove_acpi_index_label_files(struct pci_dev *pdev)
+{
+	return -1;
+}
+
+static inline bool
+device_has_dsm(struct device *dev)
+{
+	return false;
 }
 #endif
 

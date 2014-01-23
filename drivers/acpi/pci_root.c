@@ -599,7 +599,9 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		pci_assign_unassigned_root_bus_resources(root->bus);
 	}
 
+	pci_lock_rescan_remove();
 	pci_bus_add_devices(root->bus);
+	pci_unlock_rescan_remove();
 	return 1;
 
 end:
@@ -611,12 +613,16 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 {
 	struct acpi_pci_root *root = acpi_driver_data(device);
 
+	pci_lock_rescan_remove();
+
 	pci_stop_root_bus(root->bus);
 
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
 
 	pci_remove_root_bus(root->bus);
+
+	pci_unlock_rescan_remove();
 
 	kfree(root);
 }

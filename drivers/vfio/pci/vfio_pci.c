@@ -139,25 +139,14 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	pci_write_config_word(pdev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
 
 	/*
-	 * Careful, device_lock may already be held.  This is the case if
-	 * a driver unbind is blocked.  Try to get the locks ourselves to
-	 * prevent a deadlock.
+	 * Try to reset the device.  The success of this is dependent on
+	 * being able to lock the device, which is not always possible.
 	 */
 	if (vdev->reset_works) {
-		bool reset_done = false;
-
-		if (pci_cfg_access_trylock(pdev)) {
-			if (device_trylock(&pdev->dev)) {
-				__pci_reset_function_locked(pdev);
-				reset_done = true;
-				device_unlock(&pdev->dev);
-			}
-			pci_cfg_access_unlock(pdev);
-		}
-
-		if (!reset_done)
-			pr_warn("%s: Unable to acquire locks for reset of %s\n",
-				__func__, dev_name(&pdev->dev));
+		int ret = pci_try_reset_function(pdev);
+		if (ret)
+			pr_warn("%s: Failed to reset device %s (%d)\n",
+				__func__, dev_name(&pdev->dev), ret);
 	}
 
 	pci_restore_state(pdev);
@@ -514,7 +503,7 @@ static long vfio_pci_ioctl(void *device_data,
 
 	} else if (cmd == VFIO_DEVICE_RESET) {
 		return vdev->reset_works ?
-			pci_reset_function(vdev->pdev) : -EINVAL;
+			pci_try_reset_function(vdev->pdev) : -EINVAL;
 
 	} else if (cmd == VFIO_DEVICE_GET_PCI_HOT_RESET_INFO) {
 		struct vfio_pci_hot_reset_info hdr;
@@ -684,8 +673,8 @@ reset_info_exit:
 						    &info, slot);
 		if (!ret)
 			/* User has access, do the reset */
-			ret = slot ? pci_reset_slot(vdev->pdev->slot) :
-				     pci_reset_bus(vdev->pdev->bus);
+			ret = slot ? pci_try_reset_slot(vdev->pdev->slot) :
+				     pci_try_reset_bus(vdev->pdev->bus);
 
 hot_reset_release:
 		for (i--; i >= 0; i--)
