@@ -732,14 +732,16 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 
 	if (exit_reason >= 0) {
 		rc = 0;
+	} else if (kvm_is_ucontrol(vcpu->kvm)) {
+		vcpu->run->exit_reason = KVM_EXIT_S390_UCONTROL;
+		vcpu->run->s390_ucontrol.trans_exc_code =
+						current->thread.gmap_addr;
+		vcpu->run->s390_ucontrol.pgm_code = 0x10;
+		rc = -EREMOTE;
 	} else {
-		if (kvm_is_ucontrol(vcpu->kvm)) {
-			rc = SIE_INTERCEPT_UCONTROL;
-		} else {
-			VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
-			trace_kvm_s390_sie_fault(vcpu);
-			rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		}
+		VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
+		trace_kvm_s390_sie_fault(vcpu);
+		rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	}
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
@@ -833,16 +835,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		rc = -EINTR;
 	}
 
-#ifdef CONFIG_KVM_S390_UCONTROL
-	if (rc == SIE_INTERCEPT_UCONTROL) {
-		kvm_run->exit_reason = KVM_EXIT_S390_UCONTROL;
-		kvm_run->s390_ucontrol.trans_exc_code =
-			current->thread.gmap_addr;
-		kvm_run->s390_ucontrol.pgm_code = 0x10;
-		rc = 0;
-	}
-#endif
-
 	if (rc == -EOPNOTSUPP) {
 		/* intercept cannot be handled in-kernel, prepare kvm-run */
 		kvm_run->exit_reason         = KVM_EXIT_S390_SIEIC;
@@ -885,10 +877,11 @@ static int __guestcopy(struct kvm_vcpu *vcpu, u64 guestdest, void *from,
  * KVM_S390_STORE_STATUS_NOADDR: -> 0x1200 on 64 bit
  * KVM_S390_STORE_STATUS_PREFIXED: -> prefix
  */
-int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
+int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr)
 {
 	unsigned char archmode = 1;
 	int prefix;
+	u64 clkcomp;
 
 	if (addr == KVM_S390_STORE_STATUS_NOADDR) {
 		if (copy_to_guest_absolute(vcpu, 163ul, &archmode, 1))
@@ -902,15 +895,6 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 		prefix = 1;
 	} else
 		prefix = 0;
-
-	/*
-	 * The guest FPRS and ACRS are in the host FPRS/ACRS due to the lazy
-	 * copying in vcpu load/put. Lets update our copies before we save
-	 * it into the save area
-	 */
-	save_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
-	save_fp_regs(vcpu->arch.guest_fpregs.fprs);
-	save_access_regs(vcpu->run->s.regs.acrs);
 
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, fp_regs),
 			vcpu->arch.guest_fpregs.fprs, 128, prefix))
@@ -941,8 +925,9 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 			&vcpu->arch.sie_block->cputm, 8, prefix))
 		return -EFAULT;
 
+	clkcomp = vcpu->arch.sie_block->ckc >> 8;
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, clk_cmp),
-			&vcpu->arch.sie_block->ckc, 8, prefix))
+			&clkcomp, 8, prefix))
 		return -EFAULT;
 
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, acc_regs),
@@ -954,6 +939,20 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 			&vcpu->arch.sie_block->gcr, 128, prefix))
 		return -EFAULT;
 	return 0;
+}
+
+int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
+{
+	/*
+	 * The guest FPRS and ACRS are in the host FPRS/ACRS due to the lazy
+	 * copying in vcpu load/put. Lets update our copies before we save
+	 * it into the save area
+	 */
+	save_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
+	save_fp_regs(vcpu->arch.guest_fpregs.fprs);
+	save_access_regs(vcpu->run->s.regs.acrs);
+
+	return kvm_s390_store_status_unloaded(vcpu, addr);
 }
 
 static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,

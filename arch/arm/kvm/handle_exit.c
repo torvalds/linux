@@ -26,8 +26,6 @@
 
 #include "trace.h"
 
-#include "trace.h"
-
 typedef int (*exit_handle_fn)(struct kvm_vcpu *, struct kvm_run *);
 
 static int handle_svc_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
