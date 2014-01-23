@@ -47,7 +47,6 @@
 #include <linux/compat.h>
 
 #include <asm/ipl.h>
-#include <asm/uaccess.h>
 #include <asm/facility.h>
 #include <asm/smp.h>
 #include <asm/mmu_context.h>
@@ -63,12 +62,6 @@
 #include <asm/os_info.h>
 #include <asm/sclp.h>
 #include "entry.h"
-
-/*
- * User copy operations.
- */
-struct uaccess_ops uaccess;
-EXPORT_SYMBOL(uaccess);
 
 /*
  * Machine setup..
@@ -1008,8 +1001,6 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) &_etext;
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) &_end;
-
-	uaccess = MACHINE_HAS_MVCOS ? uaccess_mvcos : uaccess_pt;
 
 	parse_early_param();
 	detect_memory_layout(memory_chunk, memory_end);

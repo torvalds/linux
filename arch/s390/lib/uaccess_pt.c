@@ -211,7 +211,7 @@ fault:
 	return 0;
 }
 
-static size_t copy_from_user_pt(void *to, const void __user *from, size_t n)
+size_t copy_from_user_pt(void *to, const void __user *from, size_t n)
 {
 	size_t rc;
 
@@ -223,14 +223,14 @@ static size_t copy_from_user_pt(void *to, const void __user *from, size_t n)
 	return rc;
 }
 
-static size_t copy_to_user_pt(void __user *to, const void *from, size_t n)
+size_t copy_to_user_pt(void __user *to, const void *from, size_t n)
 {
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return copy_in_kernel(to, (void __user *) from, n);
 	return __user_copy_pt((unsigned long) to, (void *) from, n, 1);
 }
 
-static size_t clear_user_pt(void __user *to, size_t n)
+size_t clear_user_pt(void __user *to, size_t n)
 {
 	void *zpage = (void *) empty_zero_page;
 	long done, size, ret;
@@ -253,7 +253,7 @@ static size_t clear_user_pt(void __user *to, size_t n)
 	return 0;
 }
 
-static size_t strnlen_user_pt(const char __user *src, size_t count)
+size_t strnlen_user_pt(const char __user *src, size_t count)
 {
 	unsigned long uaddr = (unsigned long) src;
 	struct mm_struct *mm = current->mm;
@@ -289,8 +289,7 @@ fault:
 	goto retry;
 }
 
-static size_t strncpy_from_user_pt(char *dst, const char __user *src,
-				   size_t count)
+size_t strncpy_from_user_pt(char *dst, const char __user *src, size_t count)
 {
 	size_t done, len, offset, len_str;
 
@@ -315,8 +314,7 @@ static size_t strncpy_from_user_pt(char *dst, const char __user *src,
 	return done;
 }
 
-static size_t copy_in_user_pt(void __user *to, const void __user *from,
-			      size_t n)
+size_t copy_in_user_pt(void __user *to, const void __user *from, size_t n)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long offset_max, uaddr, done, size, error_code;
@@ -411,7 +409,7 @@ static int __futex_atomic_op_pt(int op, u32 __user *uaddr, int oparg, int *old)
 	return ret;
 }
 
-int futex_atomic_op_pt(int op, u32 __user *uaddr, int oparg, int *old)
+int __futex_atomic_op_inuser(int op, u32 __user *uaddr, int oparg, int *old)
 {
 	int ret;
 
@@ -449,8 +447,8 @@ static int __futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
 	return ret;
 }
 
-int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
-			    u32 oldval, u32 newval)
+int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+				  u32 oldval, u32 newval)
 {
 	int ret;
 
@@ -471,14 +469,3 @@ int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
 	put_page(virt_to_page(uaddr));
 	return ret;
 }
-
-struct uaccess_ops uaccess_pt = {
-	.copy_from_user		= copy_from_user_pt,
-	.copy_to_user		= copy_to_user_pt,
-	.copy_in_user		= copy_in_user_pt,
-	.clear_user		= clear_user_pt,
-	.strnlen_user		= strnlen_user_pt,
-	.strncpy_from_user	= strncpy_from_user_pt,
-	.futex_atomic_op	= futex_atomic_op_pt,
-	.futex_atomic_cmpxchg	= futex_atomic_cmpxchg_pt,
-};
