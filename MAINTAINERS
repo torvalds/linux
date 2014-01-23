@@ -3349,7 +3349,6 @@ M:	Jingoo Han <jg1.han@samsung.com>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/exynos/exynos_dp*
-F:	include/video/exynos_dp*
 
 EXYNOS MIPI DISPLAY DRIVERS
 M:	Inki Dae <inki.dae@samsung.com>
