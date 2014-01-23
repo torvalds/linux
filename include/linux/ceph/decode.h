@@ -10,6 +10,7 @@
 
 /* This seemed to be the easiest place to define these */
 
+#ifndef U32_MAX
 #define	U8_MAX	((u8)(~0U))
 #define	U16_MAX	((u16)(~0U))
 #define	U32_MAX	((u32)(~0U))
@@ -24,6 +25,7 @@
 #define	S16_MIN	((s16)(-S16_MAX - 1))
 #define	S32_MIN	((s32)(-S32_MAX - 1))
 #define	S64_MIN	((s64)(-S64_MAX - 1LL))
+#endif /* !U32_MAX */
 
 /*
  * in all cases,
