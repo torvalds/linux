@@ -155,7 +155,11 @@ static void g4x_enable_fbc(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
 
-	dpfc_ctl = DPFC_CTL_PLANE(intel_crtc->plane) | DPFC_SR_EN | DPFC_CTL_LIMIT_1X;
+	dpfc_ctl = DPFC_CTL_PLANE(intel_crtc->plane) | DPFC_SR_EN;
+	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
+		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
+	else
+		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 	dpfc_ctl |= DPFC_CTL_FENCE_EN | obj->fence_reg;
 
 	I915_WRITE(DPFC_FENCE_YOFF, crtc->y);
@@ -225,7 +229,11 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc)
 
 	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
 	dpfc_ctl &= DPFC_RESERVED;
-	dpfc_ctl |= DPFC_CTL_PLANE(intel_crtc->plane) | DPFC_CTL_LIMIT_1X;
+	dpfc_ctl |= DPFC_CTL_PLANE(intel_crtc->plane);
+	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
+		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
+	else
+		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 	dpfc_ctl |= DPFC_CTL_FENCE_EN;
 	if (IS_GEN5(dev))
 		dpfc_ctl |= obj->fence_reg;
@@ -275,10 +283,16 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	u32 dpfc_ctl;
 
-	I915_WRITE(ILK_DPFC_CONTROL, DPFC_CTL_EN | DPFC_CTL_LIMIT_1X |
-		   IVB_DPFC_CTL_FENCE_EN |
-		   IVB_DPFC_CTL_PLANE(intel_crtc->plane));
+	dpfc_ctl = IVB_DPFC_CTL_PLANE(intel_crtc->plane);
+	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
+		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
+	else
+		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
+	dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
+
+	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
 	if (IS_IVYBRIDGE(dev)) {
 		/* WaFbcAsynchFlipDisableFbcQueue:ivb */
