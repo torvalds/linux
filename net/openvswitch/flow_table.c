@@ -57,8 +57,10 @@ static u16 range_n_bytes(const struct sw_flow_key_range *range)
 void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 		       const struct sw_flow_mask *mask)
 {
-	const long *m = (long *)((u8 *)&mask->key + mask->range.start);
-	const long *s = (long *)((u8 *)src + mask->range.start);
+	const long *m = (const long *)((const u8 *)&mask->key +
+				mask->range.start);
+	const long *s = (const long *)((const u8 *)src +
+				mask->range.start);
 	long *d = (long *)((u8 *)dst + mask->range.start);
 	int i;
 
@@ -375,7 +377,7 @@ int ovs_flow_tbl_flush(struct flow_table *flow_table)
 static u32 flow_hash(const struct sw_flow_key *key, int key_start,
 		     int key_end)
 {
-	u32 *hash_key = (u32 *)((u8 *)key + key_start);
+	const u32 *hash_key = (const u32 *)((const u8 *)key + key_start);
 	int hash_u32s = (key_end - key_start) >> 2;
 
 	/* Make sure number of hash bytes are multiple of u32. */
@@ -397,8 +399,8 @@ static bool cmp_key(const struct sw_flow_key *key1,
 		    const struct sw_flow_key *key2,
 		    int key_start, int key_end)
 {
-	const long *cp1 = (long *)((u8 *)key1 + key_start);
-	const long *cp2 = (long *)((u8 *)key2 + key_start);
+	const long *cp1 = (const long *)((const u8 *)key1 + key_start);
+	const long *cp2 = (const long *)((const u8 *)key2 + key_start);
 	long diffs = 0;
 	int i;
 
@@ -513,8 +515,8 @@ static struct sw_flow_mask *mask_alloc(void)
 static bool mask_equal(const struct sw_flow_mask *a,
 		       const struct sw_flow_mask *b)
 {
-	u8 *a_ = (u8 *)&a->key + a->range.start;
-	u8 *b_ = (u8 *)&b->key + b->range.start;
+	const u8 *a_ = (const u8 *)&a->key + a->range.start;
+	const u8 *b_ = (const u8 *)&b->key + b->range.start;
 
 	return  (a->range.end == b->range.end)
 		&& (a->range.start == b->range.start)

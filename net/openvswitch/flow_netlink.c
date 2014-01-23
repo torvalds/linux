@@ -628,8 +628,10 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match,  bool *exact_5tuple
 
 		if (is_mask && exact_5tuple && *exact_5tuple) {
 			if (ipv6_key->ipv6_proto != 0xff ||
-			    !is_all_set((u8 *)ipv6_key->ipv6_src, sizeof(match->key->ipv6.addr.src)) ||
-			    !is_all_set((u8 *)ipv6_key->ipv6_dst, sizeof(match->key->ipv6.addr.dst)))
+			    !is_all_set((const u8 *)ipv6_key->ipv6_src,
+					sizeof(match->key->ipv6.addr.src)) ||
+			    !is_all_set((const u8 *)ipv6_key->ipv6_dst,
+					sizeof(match->key->ipv6.addr.dst)))
 				*exact_5tuple = false;
 		}
 	}
