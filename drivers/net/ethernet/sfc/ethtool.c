@@ -591,7 +591,7 @@ static void efx_ethtool_get_ringparam(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	ring->rx_max_pending = EFX_MAX_DMAQ_SIZE;
-	ring->tx_max_pending = EFX_MAX_DMAQ_SIZE;
+	ring->tx_max_pending = EFX_TXQ_MAX_ENT(efx);
 	ring->rx_pending = efx->rxq_entries;
 	ring->tx_pending = efx->txq_entries;
 }
@@ -604,7 +604,7 @@ static int efx_ethtool_set_ringparam(struct net_device *net_dev,
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending ||
 	    ring->rx_pending > EFX_MAX_DMAQ_SIZE ||
-	    ring->tx_pending > EFX_MAX_DMAQ_SIZE)
+	    ring->tx_pending > EFX_TXQ_MAX_ENT(efx))
 		return -EINVAL;
 
 	if (ring->rx_pending < EFX_RXQ_MIN_ENT) {
