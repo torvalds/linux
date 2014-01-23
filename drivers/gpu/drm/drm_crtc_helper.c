@@ -923,8 +923,8 @@ void drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 }
 EXPORT_SYMBOL(drm_helper_connector_dpms);
 
-int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
-				   struct drm_mode_fb_cmd2 *mode_cmd)
+void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
+				    struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	int i;
 
@@ -937,8 +937,6 @@ int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
 				    &fb->bits_per_pixel);
 	fb->pixel_format = mode_cmd->pixel_format;
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
 
