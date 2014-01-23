@@ -64,7 +64,7 @@ static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
 	num = (val >> masks->num_shift) & masks->num_mask;
 
 	/* calculate denominator */
-	den = (val >> masks->den_shift) & masks->num_mask;
+	den = (val >> masks->den_shift) & masks->den_mask;
 
 	if (!den)
 		return 0;
