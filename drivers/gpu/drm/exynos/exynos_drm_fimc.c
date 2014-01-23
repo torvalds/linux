@@ -345,7 +345,7 @@ static bool fimc_check_ovf(struct fimc_context *ctx)
 
 		fimc_write(cfg, EXYNOS_CIWDOFST);
 
-		dev_err(ippdrv->dev, "occured overflow at %d, status 0x%x.\n",
+		dev_err(ippdrv->dev, "occurred overflow at %d, status 0x%x.\n",
 			ctx->id, status);
 		return true;
 	}

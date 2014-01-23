@@ -2254,7 +2254,7 @@ qla8044_minidump_process_rdmem(struct scsi_qla_host *vha,
 
 	if (r_addr & 0xf) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb0f1,
-		    "[%s]: Read addr 0x%x not 16 bytes alligned\n",
+		    "[%s]: Read addr 0x%x not 16 bytes aligned\n",
 		    __func__, r_addr);
 		return QLA_FUNCTION_FAILED;
 	}

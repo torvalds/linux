@@ -560,7 +560,7 @@ static void __init ixp4xx_clockevent_init(void)
 
 void ixp4xx_restart(enum reboot_mode mode, const char *cmd)
 {
-	if ( 1 && mode == REBOOT_SOFT) {
+	if (mode == REBOOT_SOFT) {
 		/* Jump into ROM at address 0 */
 		soft_restart(0);
 	} else {

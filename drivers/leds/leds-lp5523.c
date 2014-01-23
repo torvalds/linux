@@ -35,7 +35,15 @@
 
 #include "leds-lp55xx-common.h"
 
-#define LP5523_PROGRAM_LENGTH		32
+#define LP5523_PROGRAM_LENGTH		32	/* bytes */
+/* Memory is used like this:
+   0x00 engine 1 program
+   0x10 engine 2 program
+   0x20 engine 3 program
+   0x30 engine 1 muxing info
+   0x40 engine 2 muxing info
+   0x50 engine 3 muxing info
+*/
 #define LP5523_MAX_LEDS			9
 
 /* Registers */

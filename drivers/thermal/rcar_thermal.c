@@ -408,7 +408,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		/* enable temperature comparation */
 		rcar_thermal_common_write(common, ENR, 0x00030303);
 
-		idle = 0; /* polling delaye is not needed */
+		idle = 0; /* polling delay is not needed */
 	}
 
 	for (i = 0;; i++) {

@@ -6,7 +6,7 @@
  */
 
 struct kmem_cache {
-/* 1) Cache tunables. Protected by cache_chain_mutex */
+/* 1) Cache tunables. Protected by slab_mutex */
 	unsigned int batchcount;
 	unsigned int limit;
 	unsigned int shared;

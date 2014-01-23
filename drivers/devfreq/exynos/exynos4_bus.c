@@ -116,7 +116,7 @@ static struct bus_opp_table exynos4210_busclk_table[] = {
 };
 
 /*
- * MIF is the main control knob clock for exynox4x12 MIF/INT
+ * MIF is the main control knob clock for Exynos4x12 MIF/INT
  * clock and voltage of both mif/int are controlled.
  */
 static struct bus_opp_table exynos4x12_mifclk_table[] = {

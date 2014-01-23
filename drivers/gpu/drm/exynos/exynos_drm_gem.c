@@ -652,7 +652,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	int ret;
 
 	/*
-	 * alocate memory to be used for framebuffer.
+	 * allocate memory to be used for framebuffer.
 	 * - this callback would be called by user application
 	 *	with DRM_IOCTL_MODE_CREATE_DUMB command.
 	 */

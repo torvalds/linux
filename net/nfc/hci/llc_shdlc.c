@@ -300,7 +300,7 @@ static void llc_shdlc_rcv_rej(struct llc_shdlc *shdlc, int y_nr)
 {
 	struct sk_buff *skb;
 
-	pr_debug("remote asks retransmition from frame %d\n", y_nr);
+	pr_debug("remote asks retransmission from frame %d\n", y_nr);
 
 	if (llc_shdlc_x_lteq_y_lt_z(shdlc->dnr, y_nr, shdlc->ns)) {
 		if (shdlc->t2_active) {

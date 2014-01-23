@@ -938,7 +938,7 @@ config X86_ANCIENT_MCE
 	depends on X86_32 && X86_MCE
 	---help---
 	  Include support for machine check handling on old Pentium 5 or WinChip
-	  systems. These typically need to be enabled explicitely on the command
+	  systems. These typically need to be enabled explicitly on the command
 	  line.
 
 config X86_MCE_THRESHOLD

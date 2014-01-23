@@ -515,7 +515,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	cgroup_disable= [KNL] Disable a particular controller
 			Format: {name of the controller(s) to disable}
-				{Currently supported controllers - "memory"}
+			The effects of cgroup_disable=foo are:
+			- foo isn't auto-mounted if you mount all cgroups in
+			  a single hierarchy
+			- foo isn't visible as an individually mountable
+			  subsystem
+			{Currently only "memory" controller deal with this and
+			cut the overhead, others just disable the usage. So
+			only cgroup_disable=memory is actually worthy}
 
 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }

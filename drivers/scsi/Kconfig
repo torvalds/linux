@@ -204,9 +204,9 @@ config SCSI_MULTI_LUN
 	  Some devices support more than one LUN (Logical Unit Number) in order
 	  to allow access to several media, e.g. CD jukebox, USB card reader,
 	  mobile phone in mass storage mode. This option forces the kernel to
-	  probe for all LUNs by default. This setting can be overriden by
+	  probe for all LUNs by default. This setting can be overridden by
 	  max_luns boot/module parameter. Note that this option does not affect
-	  devices conforming to SCSI-3 or higher as they can explicitely report
+	  devices conforming to SCSI-3 or higher as they can explicitly report
 	  their number of LUNs. It is safe to say Y here unless you have one of
 	  those rare devices which reacts in an unexpected way when probed for
 	  multiple LUNs.
