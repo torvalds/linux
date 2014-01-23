@@ -49,13 +49,13 @@ static int get_range(char **str, int *pint)
  *	3 - hyphen found to denote a range
  */
 
-int get_option (char **str, int *pint)
+int get_option(char **str, int *pint)
 {
 	char *cur = *str;
 
 	if (!cur || !(*cur))
 		return 0;
-	*pint = simple_strtol (cur, str, 0);
+	*pint = simple_strtol(cur, str, 0);
 	if (cur == *str)
 		return 0;
 	if (**str == ',') {
@@ -84,13 +84,13 @@ int get_option (char **str, int *pint)
  *	the parse to end (typically a null terminator, if @str is
  *	completely parseable).
  */
- 
+
 char *get_options(const char *str, int nints, int *ints)
 {
 	int res, i = 1;
 
 	while (i < nints) {
-		res = get_option ((char **)&str, ints + i);
+		res = get_option((char **)&str, ints + i);
 		if (res == 0)
 			break;
 		if (res == 3) {
@@ -152,7 +152,6 @@ unsigned long long memparse(const char *ptr, char **retptr)
 
 	return ret;
 }
-
 
 EXPORT_SYMBOL(memparse);
 EXPORT_SYMBOL(get_option);
