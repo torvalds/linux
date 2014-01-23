@@ -15,6 +15,7 @@
 #include <linux/types.h>
 
 #define __KVM_S390
+#define __KVM_HAVE_GUEST_DEBUG
 
 /* Device control API: s390-specific devices */
 #define KVM_DEV_FLIC_GET_ALL_IRQS	1

@@ -131,7 +131,13 @@ static void __reset_intercept_indicators(struct kvm_vcpu *vcpu)
 		CPUSTAT_IO_INT | CPUSTAT_EXT_INT | CPUSTAT_STOP_INT,
 		&vcpu->arch.sie_block->cpuflags);
 	vcpu->arch.sie_block->lctl = 0x0000;
-	vcpu->arch.sie_block->ictl &= ~ICTL_LPSW;
+	vcpu->arch.sie_block->ictl &= ~(ICTL_LPSW | ICTL_STCTL | ICTL_PINT);
+
+	if (guestdbg_enabled(vcpu)) {
+		vcpu->arch.sie_block->lctl |= (LCTL_CR0 | LCTL_CR9 |
+					       LCTL_CR10 | LCTL_CR11);
+		vcpu->arch.sie_block->ictl |= (ICTL_STCTL | ICTL_PINT);
+	}
 }
 
 static void __set_cpuflag(struct kvm_vcpu *vcpu, u32 flag)

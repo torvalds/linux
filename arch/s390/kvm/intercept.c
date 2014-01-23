@@ -170,6 +170,8 @@ static void __extract_prog_irq(struct kvm_vcpu *vcpu,
 	}
 }
 
+#define per_event(vcpu) (vcpu->arch.sie_block->iprcc & PGM_PER)
+
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_pgm_info pgm_info;
@@ -177,6 +179,13 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	int rc;
 
 	vcpu->stat.exit_program_interruption++;
+
+	if (guestdbg_enabled(vcpu) && per_event(vcpu)) {
+		kvm_s390_handle_per_event(vcpu);
+		/* the interrupt might have been filtered out completely */
+		if (vcpu->arch.sie_block->iprcc == 0)
+			return 0;
+	}
 
 	/* Restore ITDB to Program-Interruption TDB in guest memory */
 	if (!IS_TE_ENABLED(vcpu) || !IS_ITDB_VALID(vcpu))

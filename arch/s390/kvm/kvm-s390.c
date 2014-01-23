@@ -934,10 +934,40 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	return -EINVAL; /* not implemented yet */
 }
 
+#define VALID_GUESTDBG_FLAGS (KVM_GUESTDBG_SINGLESTEP | \
+			      KVM_GUESTDBG_USE_HW_BP | \
+			      KVM_GUESTDBG_ENABLE)
+
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg)
 {
-	return -EINVAL; /* not implemented yet */
+	int rc = 0;
+
+	vcpu->guest_debug = 0;
+	kvm_s390_clear_bp_data(vcpu);
+
+	if (vcpu->guest_debug & ~VALID_GUESTDBG_FLAGS)
+		return -EINVAL;
+
+	if (dbg->control & KVM_GUESTDBG_ENABLE) {
+		vcpu->guest_debug = dbg->control;
+		/* enforce guest PER */
+		atomic_set_mask(CPUSTAT_P, &vcpu->arch.sie_block->cpuflags);
+
+		if (dbg->control & KVM_GUESTDBG_USE_HW_BP)
+			rc = kvm_s390_import_bp_data(vcpu, dbg);
+	} else {
+		atomic_clear_mask(CPUSTAT_P, &vcpu->arch.sie_block->cpuflags);
+		vcpu->arch.guestdbg.last_bp = 0;
+	}
+
+	if (rc) {
+		vcpu->guest_debug = 0;
+		kvm_s390_clear_bp_data(vcpu);
+		atomic_clear_mask(CPUSTAT_P, &vcpu->arch.sie_block->cpuflags);
+	}
+
+	return rc;
 }
 
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
@@ -1095,6 +1125,11 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 	if (rc)
 		return rc;
 
+	if (guestdbg_enabled(vcpu)) {
+		kvm_s390_backup_guest_per_regs(vcpu);
+		kvm_s390_patch_guest_per_regs(vcpu);
+	}
+
 	vcpu->arch.sie_block->icptcode = 0;
 	cpuflags = atomic_read(&vcpu->arch.sie_block->cpuflags);
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x", cpuflags);
@@ -1110,6 +1145,9 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
 	trace_kvm_s390_sie_exit(vcpu, vcpu->arch.sie_block->icptcode);
+
+	if (guestdbg_enabled(vcpu))
+		kvm_s390_restore_guest_per_regs(vcpu);
 
 	if (exit_reason >= 0) {
 		rc = 0;
@@ -1176,7 +1214,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 		rc = vcpu_post_run(vcpu, exit_reason);
-	} while (!signal_pending(current) && !rc);
+	} while (!signal_pending(current) && !guestdbg_exit_pending(vcpu) && !rc);
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	return rc;
@@ -1186,6 +1224,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int rc;
 	sigset_t sigsaved;
+
+	if (guestdbg_exit_pending(vcpu)) {
+		kvm_s390_prepare_debug_exit(vcpu);
+		return 0;
+	}
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
@@ -1199,6 +1242,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	case KVM_EXIT_S390_RESET:
 	case KVM_EXIT_S390_UCONTROL:
 	case KVM_EXIT_S390_TSCH:
+	case KVM_EXIT_DEBUG:
 		break;
 	default:
 		BUG();
@@ -1222,6 +1266,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (signal_pending(current) && !rc) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		rc = -EINTR;
+	}
+
+	if (guestdbg_exit_pending(vcpu) && !rc)  {
+		kvm_s390_prepare_debug_exit(vcpu);
+		rc = 0;
 	}
 
 	if (rc == -EOPNOTSUPP) {

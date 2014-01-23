@@ -93,13 +93,18 @@ struct kvm_s390_sie_block {
 	__u8	reserved40[4];		/* 0x0040 */
 #define LCTL_CR0	0x8000
 #define LCTL_CR6	0x0200
+#define LCTL_CR9	0x0040
+#define LCTL_CR10	0x0020
+#define LCTL_CR11	0x0010
 #define LCTL_CR14	0x0002
 	__u16   lctl;			/* 0x0044 */
 	__s16	icpua;			/* 0x0046 */
-#define ICTL_LPSW 0x00400000
-#define ICTL_ISKE 0x00004000
-#define ICTL_SSKE 0x00002000
-#define ICTL_RRBE 0x00001000
+#define ICTL_PINT	0x20000000
+#define ICTL_LPSW	0x00400000
+#define ICTL_STCTL	0x00040000
+#define ICTL_ISKE	0x00004000
+#define ICTL_SSKE	0x00002000
+#define ICTL_RRBE	0x00001000
 	__u32	ictl;			/* 0x0048 */
 	__u32	eca;			/* 0x004c */
 #define ICPT_INST	0x04
@@ -306,6 +311,45 @@ struct kvm_s390_float_interrupt {
 	unsigned int irq_count;
 };
 
+struct kvm_hw_wp_info_arch {
+	unsigned long addr;
+	unsigned long phys_addr;
+	int len;
+	char *old_data;
+};
+
+struct kvm_hw_bp_info_arch {
+	unsigned long addr;
+	int len;
+};
+
+/*
+ * Only the upper 16 bits of kvm_guest_debug->control are arch specific.
+ * Further KVM_GUESTDBG flags which an be used from userspace can be found in
+ * arch/s390/include/uapi/asm/kvm.h
+ */
+#define KVM_GUESTDBG_EXIT_PENDING 0x10000000
+
+#define guestdbg_enabled(vcpu) \
+		(vcpu->guest_debug & KVM_GUESTDBG_ENABLE)
+#define guestdbg_sstep_enabled(vcpu) \
+		(vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+#define guestdbg_hw_bp_enabled(vcpu) \
+		(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+#define guestdbg_exit_pending(vcpu) (guestdbg_enabled(vcpu) && \
+		(vcpu->guest_debug & KVM_GUESTDBG_EXIT_PENDING))
+
+struct kvm_guestdbg_info_arch {
+	unsigned long cr0;
+	unsigned long cr9;
+	unsigned long cr10;
+	unsigned long cr11;
+	struct kvm_hw_bp_info_arch *hw_bp_info;
+	struct kvm_hw_wp_info_arch *hw_wp_info;
+	int nr_hw_bp;
+	int nr_hw_wp;
+	unsigned long last_bp;
+};
 
 struct kvm_vcpu_arch {
 	struct kvm_s390_sie_block *sie_block;
@@ -321,6 +365,7 @@ struct kvm_vcpu_arch {
 		u64		stidp_data;
 	};
 	struct gmap *gmap;
+	struct kvm_guestdbg_info_arch guestdbg;
 #define KVM_S390_PFAULT_TOKEN_INVALID	(-1UL)
 	unsigned long pfault_token;
 	unsigned long pfault_select;

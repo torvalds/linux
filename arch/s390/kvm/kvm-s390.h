@@ -211,4 +211,14 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int psw_extint_disabled(struct kvm_vcpu *vcpu);
 void kvm_s390_destroy_adapters(struct kvm *kvm);
 
+/* implemented in guestdbg.c */
+void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);
+void kvm_s390_restore_guest_per_regs(struct kvm_vcpu *vcpu);
+void kvm_s390_patch_guest_per_regs(struct kvm_vcpu *vcpu);
+int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
+			    struct kvm_guest_debug *dbg);
+void kvm_s390_clear_bp_data(struct kvm_vcpu *vcpu);
+void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu);
+void kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
+
 #endif
