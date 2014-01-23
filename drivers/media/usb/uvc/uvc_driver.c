@@ -925,7 +925,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 	case UVC_VC_HEADER:
 		n = buflen >= 12 ? buffer[11] : 0;
 
-		if (buflen < 12 || buflen < 12 + n) {
+		if (buflen < 12 + n) {
 			uvc_trace(UVC_TRACE_DESCR, "device %d videocontrol "
 				"interface %d HEADER error\n", udev->devnum,
 				alts->desc.bInterfaceNumber);
