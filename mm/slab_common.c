@@ -215,7 +215,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
 
 	s->refcount = 1;
 	list_add(&s->list, &slab_caches);
-	memcg_cache_list_add(memcg, s);
+	memcg_register_cache(s);
 
 out_unlock:
 	mutex_unlock(&slab_mutex);
@@ -265,7 +265,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
 			if (s->flags & SLAB_DESTROY_BY_RCU)
 				rcu_barrier();
 
-			memcg_release_cache(s);
+			memcg_unregister_cache(s);
+			memcg_free_cache_params(s);
 			kfree(s->name);
 			kmem_cache_free(kmem_cache, s);
 		} else {

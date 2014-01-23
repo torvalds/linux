@@ -3095,16 +3095,6 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
 		css_put(&memcg->css);
 }
 
-void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-{
-	if (!memcg)
-		return;
-
-	mutex_lock(&memcg->slab_caches_mutex);
-	list_add(&cachep->memcg_params->list, &memcg->memcg_slab_caches);
-	mutex_unlock(&memcg->slab_caches_mutex);
-}
-
 /*
  * helper for acessing a memcg's index. It will be used as an index in the
  * child cache array in kmem_cache, and also to derive its name. This function
@@ -3265,21 +3255,41 @@ void memcg_free_cache_params(struct kmem_cache *s)
 	kfree(s->memcg_params);
 }
 
-void memcg_release_cache(struct kmem_cache *s)
+void memcg_register_cache(struct kmem_cache *s)
 {
 	struct kmem_cache *root;
 	struct mem_cgroup *memcg;
 	int id;
 
-	/*
-	 * This happens, for instance, when a root cache goes away before we
-	 * add any memcg.
-	 */
-	if (!s->memcg_params)
+	if (is_root_cache(s))
 		return;
 
-	if (s->memcg_params->is_root_cache)
-		goto out;
+	root = s->memcg_params->root_cache;
+	memcg = s->memcg_params->memcg;
+	id = memcg_cache_id(memcg);
+
+	css_get(&memcg->css);
+
+	mutex_lock(&memcg->slab_caches_mutex);
+	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
+	mutex_unlock(&memcg->slab_caches_mutex);
+
+	root->memcg_params->memcg_caches[id] = s;
+	/*
+	 * the readers won't lock, make sure everybody sees the updated value,
+	 * so they won't put stuff in the queue again for no reason
+	 */
+	wmb();
+}
+
+void memcg_unregister_cache(struct kmem_cache *s)
+{
+	struct kmem_cache *root;
+	struct mem_cgroup *memcg;
+	int id;
+
+	if (is_root_cache(s))
+		return;
 
 	memcg = s->memcg_params->memcg;
 	id  = memcg_cache_id(memcg);
@@ -3292,8 +3302,6 @@ void memcg_release_cache(struct kmem_cache *s)
 	mutex_unlock(&memcg->slab_caches_mutex);
 
 	css_put(&memcg->css);
-out:
-	memcg_free_cache_params(s);
 }
 
 /*
@@ -3451,26 +3459,13 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 
 	mutex_lock(&memcg_cache_mutex);
 	new_cachep = cache_from_memcg_idx(cachep, idx);
-	if (new_cachep) {
-		css_put(&memcg->css);
+	if (new_cachep)
 		goto out;
-	}
 
 	new_cachep = kmem_cache_dup(memcg, cachep);
-	if (new_cachep == NULL) {
+	if (new_cachep == NULL)
 		new_cachep = cachep;
-		css_put(&memcg->css);
-		goto out;
-	}
 
-	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
-
-	cachep->memcg_params->memcg_caches[idx] = new_cachep;
-	/*
-	 * the readers won't lock, make sure everybody sees the updated value,
-	 * so they won't put stuff in the queue again for no reason
-	 */
-	wmb();
 out:
 	mutex_unlock(&memcg_cache_mutex);
 	return new_cachep;
@@ -3550,6 +3545,7 @@ static void memcg_create_cache_work_func(struct work_struct *w)
 
 	cw = container_of(w, struct create_work, work);
 	memcg_create_kmem_cache(cw->memcg, cw->cachep);
+	css_put(&cw->memcg->css);
 	kfree(cw);
 }
 
