@@ -635,7 +635,7 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 	struct perf_event_attr attr;
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
-	char *unit;
+	const char *unit;
 	double scale;
 
 	pmu = perf_pmu__find(name);
