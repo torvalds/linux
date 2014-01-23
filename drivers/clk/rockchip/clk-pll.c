@@ -369,6 +369,11 @@ static int clk_apll_set_rate(struct clk_hw *hw, unsigned long rate,
 		goto CHANGE_APLL;
 	}
 
+	/* In rk3188, arm_gpll and cpu_gpll share a same gate,
+	 * and aclk_cpu selects cpu_gpll as parent, thus this
+	 * gate must keep enabled.
+	 */
+#if 0
 	if (clk_prepare(arm_gpll)) {
 		clk_err("fail to prepare arm_gpll path\n");
 		clk_unprepare(arm_gpll);
@@ -381,6 +386,7 @@ static int clk_apll_set_rate(struct clk_hw *hw, unsigned long rate,
 		clk_unprepare(arm_gpll);
 		goto CHANGE_APLL;
 	}
+#endif
 
 	arm_gpll_rate = __clk_get_rate(arm_gpll);
 	temp_div = DIV_ROUND_UP(arm_gpll_rate, __clk_get_rate(clk));
@@ -390,8 +396,8 @@ static int clk_apll_set_rate(struct clk_hw *hw, unsigned long rate,
 				CORE_CLK_MAX_DIV);
 		clk_debug("can't get rate %lu from arm_gpll rate %lu\n",
 				__clk_get_rate(clk), arm_gpll_rate);
-		clk_disable(arm_gpll);
-		clk_unprepare(arm_gpll);
+		//clk_disable(arm_gpll);
+		//clk_unprepare(arm_gpll);
 		goto CHANGE_APLL;
 	}
 
@@ -425,7 +431,7 @@ CHANGE_APLL:
 	 * before power down
 	 */
 	//FIXME
-	//if(!sel_gpll)
+	//if (!sel_gpll)
 	cru_writel(PLL_MODE_SLOW(pll->id), CRU_MODE_CON);
 
 	/* PLL power down */
@@ -456,7 +462,7 @@ CHANGE_APLL:
 
 	/* PLL return from slow mode */
 	//FIXME
-	//if(!sel_gpll)
+	//if (!sel_gpll)
 	cru_writel(PLL_MODE_NORM(pll->id), CRU_MODE_CON);
 
 	/* reparent to apll, and set div to 1 */
@@ -477,8 +483,8 @@ CHANGE_APLL:
 
 	if (sel_gpll) {
 		sel_gpll = 0;
-		clk_disable(arm_gpll);
-		clk_unprepare(arm_gpll);
+		//clk_disable(arm_gpll);
+		//clk_unprepare(arm_gpll);
 	}
 
 	//clk_debug("apll set loops_per_jiffy =%lu\n", loops_per_jiffy);
