@@ -1243,10 +1243,11 @@ static int check_unsafe_exec(struct linux_binprm *bprm)
 	if (current->no_new_privs)
 		bprm->unsafe |= LSM_UNSAFE_NO_NEW_PRIVS;
 
+	t = p;
 	n_fs = 1;
 	spin_lock(&p->fs->lock);
 	rcu_read_lock();
-	for (t = next_thread(p); t != p; t = next_thread(t)) {
+	while_each_thread(p, t) {
 		if (t->fs == p->fs)
 			n_fs++;
 	}
