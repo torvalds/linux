@@ -1302,20 +1302,45 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	ret = btrfs_search_slot(NULL, fs_info->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
-	ret = btrfs_previous_item(fs_info->extent_root, path,
-					0, BTRFS_EXTENT_ITEM_KEY);
-	if (ret < 0)
-		return ret;
 
-	btrfs_item_key_to_cpu(path->nodes[0], found_key, path->slots[0]);
+	while (1) {
+		u32 nritems;
+		if (path->slots[0] == 0) {
+			btrfs_set_path_blocking(path);
+			ret = btrfs_prev_leaf(fs_info->extent_root, path);
+			if (ret != 0) {
+				if (ret > 0) {
+					pr_debug("logical %llu is not within "
+						 "any extent\n", logical);
+					ret = -ENOENT;
+				}
+				return ret;
+			}
+		} else {
+			path->slots[0]--;
+		}
+		nritems = btrfs_header_nritems(path->nodes[0]);
+		if (nritems == 0) {
+			pr_debug("logical %llu is not within any extent\n",
+				 logical);
+			return -ENOENT;
+		}
+		if (path->slots[0] == nritems)
+			path->slots[0]--;
+
+		btrfs_item_key_to_cpu(path->nodes[0], found_key,
+				      path->slots[0]);
+		if (found_key->type == BTRFS_EXTENT_ITEM_KEY ||
+		    found_key->type == BTRFS_METADATA_ITEM_KEY)
+			break;
+	}
+
 	if (found_key->type == BTRFS_METADATA_ITEM_KEY)
 		size = fs_info->extent_root->leafsize;
 	else if (found_key->type == BTRFS_EXTENT_ITEM_KEY)
 		size = found_key->offset;
 
-	if ((found_key->type != BTRFS_EXTENT_ITEM_KEY &&
-	     found_key->type != BTRFS_METADATA_ITEM_KEY) ||
-	    found_key->objectid > logical ||
+	if (found_key->objectid > logical ||
 	    found_key->objectid + size <= logical) {
 		pr_debug("logical %llu is not within any extent\n", logical);
 		return -ENOENT;
