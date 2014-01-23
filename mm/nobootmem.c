@@ -45,7 +45,9 @@ static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 	if (!addr)
 		return NULL;
 
-	memblock_reserve(addr, size);
+	if (memblock_reserve(addr, size))
+		return NULL;
+
 	ptr = phys_to_virt(addr);
 	memset(ptr, 0, size);
 	/*
