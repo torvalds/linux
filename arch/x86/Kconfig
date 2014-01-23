@@ -731,6 +731,7 @@ config APB_TIMER
 # The code disables itself when not needed.
 config DMI
 	default y
+	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
 	bool "Enable DMI scanning" if EXPERT
 	---help---
 	  Enabled scanning of DMI to identify machine quirks. Say Y
