@@ -140,24 +140,15 @@ static const char * const task_state_array[] = {
 	"t (tracing stop)",	/*   8 */
 	"Z (zombie)",		/*  16 */
 	"X (dead)",		/*  32 */
-	"x (dead)",		/*  64 */
-	"K (wakekill)",		/* 128 */
-	"W (waking)",		/* 256 */
-	"P (parked)",		/* 512 */
 };
 
 static inline const char *get_task_state(struct task_struct *tsk)
 {
-	unsigned int state = (tsk->state & TASK_REPORT) | tsk->exit_state;
-	const char * const *p = &task_state_array[0];
+	unsigned int state = (tsk->state | tsk->exit_state) & TASK_REPORT;
 
-	BUILD_BUG_ON(1 + ilog2(TASK_STATE_MAX) != ARRAY_SIZE(task_state_array));
+	BUILD_BUG_ON(1 + ilog2(TASK_REPORT) != ARRAY_SIZE(task_state_array)-1);
 
-	while (state) {
-		p++;
-		state >>= 1;
-	}
-	return *p;
+	return task_state_array[fls(state)];
 }
 
 static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
