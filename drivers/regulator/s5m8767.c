@@ -11,11 +11,8 @@
  *
  */
 
-#include <linux/bug.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
@@ -483,6 +480,65 @@ static struct regulator_desc regulators[] = {
 	s5m8767_regulator_desc(BUCK9),
 };
 
+/*
+ * Enable GPIO control over BUCK9 in regulator_config for that regulator.
+ */
+static void s5m8767_regulator_config_ext_control(struct s5m8767_info *s5m8767,
+		struct sec_regulator_data *rdata,
+		struct regulator_config *config)
+{
+	int i, mode = 0;
+
+	if (rdata->id != S5M8767_BUCK9)
+		return;
+
+	/* Check if opmode for regulator matches S5M8767_ENCTRL_USE_GPIO */
+	for (i = 0; i < s5m8767->num_regulators; i++) {
+		const struct sec_opmode_data *opmode = &s5m8767->opmode[i];
+		if (opmode->id == rdata->id) {
+			mode = s5m8767_opmode_reg[rdata->id][opmode->mode];
+			break;
+		}
+	}
+	if (mode != S5M8767_ENCTRL_USE_GPIO) {
+		dev_warn(s5m8767->dev,
+				"ext-control for %s: mismatched op_mode (%x), ignoring\n",
+				rdata->reg_node->name, mode);
+		return;
+	}
+
+	if (!gpio_is_valid(rdata->ext_control_gpio)) {
+		dev_warn(s5m8767->dev,
+				"ext-control for %s: GPIO not valid, ignoring\n",
+				rdata->reg_node->name);
+		return;
+	}
+
+	config->ena_gpio = rdata->ext_control_gpio;
+	config->ena_gpio_flags = GPIOF_OUT_INIT_HIGH;
+}
+
+/*
+ * Turn on GPIO control over BUCK9.
+ */
+static int s5m8767_enable_ext_control(struct s5m8767_info *s5m8767,
+		struct regulator_dev *rdev)
+{
+	int ret, reg, enable_ctrl;
+
+	if (rdev_get_id(rdev) != S5M8767_BUCK9)
+		return -EINVAL;
+
+	ret = s5m8767_get_register(rdev, &reg, &enable_ctrl);
+	if (ret)
+		return ret;
+
+	return regmap_update_bits(s5m8767->iodev->regmap_pmic,
+			reg, S5M8767_ENCTRL_MASK,
+			S5M8767_ENCTRL_USE_GPIO << S5M8767_ENCTRL_SHIFT);
+}
+
+
 #ifdef CONFIG_OF
 static int s5m8767_pmic_dt_parse_dvs_gpio(struct sec_pmic_dev *iodev,
 			struct sec_platform_data *pdata,
@@ -518,6 +574,16 @@ static int s5m8767_pmic_dt_parse_ds_gpio(struct sec_pmic_dev *iodev,
 		pdata->buck_ds[i] = gpio;
 	}
 	return 0;
+}
+
+static void s5m8767_pmic_dt_parse_ext_control_gpio(struct sec_pmic_dev *iodev,
+		struct sec_regulator_data *rdata,
+		struct device_node *reg_np)
+{
+	rdata->ext_control_gpio = of_get_named_gpio(reg_np,
+			"s5m8767,pmic-ext-control-gpios", 0);
+	if (!gpio_is_valid(rdata->ext_control_gpio))
+		rdata->ext_control_gpio = 0;
 }
 
 static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
@@ -573,6 +639,8 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 			reg_np->name);
 			continue;
 		}
+
+		s5m8767_pmic_dt_parse_ext_control_gpio(iodev, rdata, reg_np);
 
 		rdata->id = i;
 		rdata->initdata = of_get_regulator_init_data(
@@ -940,6 +1008,9 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.driver_data = s5m8767;
 		config.regmap = iodev->regmap_pmic;
 		config.of_node = pdata->regulators[i].reg_node;
+		if (pdata->regulators[i].ext_control_gpio)
+			s5m8767_regulator_config_ext_control(s5m8767,
+					&pdata->regulators[i], &config);
 
 		rdev[i] = devm_regulator_register(&pdev->dev, &regulators[id],
 						  &config);
@@ -948,6 +1019,16 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 			dev_err(s5m8767->dev, "regulator init failed for %d\n",
 					id);
 			return ret;
+		}
+
+		if (pdata->regulators[i].ext_control_gpio) {
+			ret = s5m8767_enable_ext_control(s5m8767, rdev[i]);
+			if (ret < 0) {
+				dev_err(s5m8767->dev,
+						"failed to enable gpio control over %s: %d\n",
+						rdev[i]->desc->name, ret);
+				return ret;
+			}
 		}
 	}
 

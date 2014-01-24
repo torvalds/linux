@@ -119,7 +119,8 @@ struct sec_platform_data {
 struct sec_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
-	struct device_node *reg_node;
+	struct device_node		*reg_node;
+	int				ext_control_gpio;
 };
 
 /*

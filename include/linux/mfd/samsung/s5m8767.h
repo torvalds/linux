@@ -183,8 +183,15 @@ enum s5m8767_regulators {
 	S5M8767_REG_MAX,
 };
 
+/* LDO_EN/BUCK_EN field in registers */
 #define S5M8767_ENCTRL_SHIFT		6
 #define S5M8767_ENCTRL_MASK		(0x3 << S5M8767_ENCTRL_SHIFT)
+
+/*
+ * LDO_EN/BUCK_EN register value for controlling this Buck or LDO
+ * by GPIO (PWREN, BUCKEN).
+ */
+#define S5M8767_ENCTRL_USE_GPIO		0x1
 
 /*
  * Values for BUCK_RAMP field in DVS_RAMP register, matching raw values
