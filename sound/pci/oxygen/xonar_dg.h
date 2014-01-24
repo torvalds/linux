@@ -34,6 +34,25 @@ struct dg {
 	u8 hp_vol_att;
 };
 
+/* Xonar DG control routines */
+int cs4245_write_spi(struct oxygen *chip, u8 reg);
+int cs4245_read_spi(struct oxygen *chip, u8 reg);
+int cs4245_shadow_control(struct oxygen *chip, enum cs4245_shadow_operation op);
+void dg_init(struct oxygen *chip);
+void set_cs4245_dac_params(struct oxygen *chip,
+				  struct snd_pcm_hw_params *params);
+void set_cs4245_adc_params(struct oxygen *chip,
+				  struct snd_pcm_hw_params *params);
+unsigned int adjust_dg_dac_routing(struct oxygen *chip,
+					  unsigned int play_routing);
+void dump_cs4245_registers(struct oxygen *chip,
+				struct snd_info_buffer *buffer);
+void dg_suspend(struct oxygen *chip);
+void dg_resume(struct oxygen *chip);
+void dg_cleanup(struct oxygen *chip);
+void cs4245_write(struct oxygen *chip, unsigned int reg, u8 value);
+void cs4245_write_cached(struct oxygen *chip, unsigned int reg, u8 value);
+
 extern struct oxygen_model model_xonar_dg;
 
 #endif
