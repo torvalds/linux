@@ -18,7 +18,14 @@
 #define PLAYBACK_DST_HP_FP	1
 #define PLAYBACK_DST_MULTICH	2
 
+enum cs4245_shadow_operation {
+	CS4245_SAVE_TO_SHADOW,
+	CS4245_LOAD_FROM_SHADOW
+};
+
 struct dg {
+	/* shadow copy of the CS4245 register space */
+	unsigned char cs4245_shadow[17];
 	unsigned int output_sel;
 	s8 input_vol[4][2];
 	unsigned int input_sel;

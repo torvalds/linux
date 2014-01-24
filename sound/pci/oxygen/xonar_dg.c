@@ -64,6 +64,65 @@
 #include "xonar_dg.h"
 #include "cs4245.h"
 
+int cs4245_write_spi(struct oxygen *chip, u8 reg)
+{
+	struct dg *data = chip->model_data;
+	unsigned int packet;
+
+	packet = reg << 8;
+	packet |= (CS4245_SPI_ADDRESS | CS4245_SPI_WRITE) << 16;
+	packet |= data->cs4245_shadow[reg];
+
+	return oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
+				OXYGEN_SPI_DATA_LENGTH_3 |
+				OXYGEN_SPI_CLOCK_1280 |
+				(0 << OXYGEN_SPI_CODEC_SHIFT) |
+				OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
+				packet);
+}
+
+int cs4245_read_spi(struct oxygen *chip, u8 addr)
+{
+	struct dg *data = chip->model_data;
+	int ret;
+
+	ret = oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
+		OXYGEN_SPI_DATA_LENGTH_2 |
+		OXYGEN_SPI_CEN_LATCH_CLOCK_HI |
+		OXYGEN_SPI_CLOCK_1280 | (0 << OXYGEN_SPI_CODEC_SHIFT),
+		((CS4245_SPI_ADDRESS | CS4245_SPI_WRITE) << 8) | addr);
+	if (ret < 0)
+		return ret;
+
+	ret = oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
+		OXYGEN_SPI_DATA_LENGTH_2 |
+		OXYGEN_SPI_CEN_LATCH_CLOCK_HI |
+		OXYGEN_SPI_CLOCK_1280 | (0 << OXYGEN_SPI_CODEC_SHIFT),
+		(CS4245_SPI_ADDRESS | CS4245_SPI_READ) << 8);
+	if (ret < 0)
+		return ret;
+
+	data->cs4245_shadow[addr] = oxygen_read8(chip, OXYGEN_SPI_DATA1);
+
+	return 0;
+}
+
+int cs4245_shadow_control(struct oxygen *chip, enum cs4245_shadow_operation op)
+{
+	struct dg *data = chip->model_data;
+	unsigned char addr;
+	int ret;
+
+	for (addr = 1; addr < ARRAY_SIZE(data->cs4245_shadow); addr++) {
+		ret = (op == CS4245_SAVE_TO_SHADOW ?
+			cs4245_read_spi(chip, addr) :
+			cs4245_write_spi(chip, addr));
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
 static void cs4245_write(struct oxygen *chip, unsigned int reg, u8 value)
 {
 	struct dg *data = chip->model_data;
@@ -73,8 +132,8 @@ static void cs4245_write(struct oxygen *chip, unsigned int reg, u8 value)
 			 OXYGEN_SPI_CLOCK_1280 |
 			 (0 << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
-			 CS4245_SPI_ADDRESS |
-			 CS4245_SPI_WRITE |
+			 CS4245_SPI_ADDRESS_S |
+			 CS4245_SPI_WRITE_S |
 			 (reg << 8) | value);
 	data->cs4245_regs[reg] = value;
 }
