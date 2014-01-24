@@ -1140,11 +1140,13 @@ sba_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 #ifdef CONFIG_NUMA
 	{
+		int node = ioc->node;
 		struct page *page;
-		page = alloc_pages_exact_node(ioc->node == MAX_NUMNODES ?
-		                        numa_node_id() : ioc->node, flags,
-		                        get_order(size));
 
+		if (node == NUMA_NO_NODE)
+			node = numa_node_id();
+
+		page = alloc_pages_exact_node(node, flags, get_order(size));
 		if (unlikely(!page))
 			return NULL;
 
@@ -1914,7 +1916,7 @@ ioc_show(struct seq_file *s, void *v)
 	seq_printf(s, "Hewlett Packard %s IOC rev %d.%d\n",
 		ioc->name, ((ioc->rev >> 4) & 0xF), (ioc->rev & 0xF));
 #ifdef CONFIG_NUMA
-	if (ioc->node != MAX_NUMNODES)
+	if (ioc->node != NUMA_NO_NODE)
 		seq_printf(s, "NUMA node       : %d\n", ioc->node);
 #endif
 	seq_printf(s, "IOVA size       : %ld MB\n", ((ioc->pdir_size >> 3) * iovp_size)/(1024*1024));
@@ -2022,7 +2024,7 @@ sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 	unsigned int node;
 	int pxm;
 
-	ioc->node = MAX_NUMNODES;
+	ioc->node = NUMA_NO_NODE;
 
 	pxm = acpi_get_pxm(handle);
 
@@ -2031,7 +2033,7 @@ sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 
 	node = pxm_to_node(pxm);
 
-	if (node >= MAX_NUMNODES || !node_online(node))
+	if (node == NUMA_NO_NODE || !node_online(node))
 		return;
 
 	ioc->node = node;
