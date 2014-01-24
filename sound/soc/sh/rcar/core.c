@@ -763,15 +763,15 @@ static int rsnd_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = rsnd_ssi_probe(pdev, info, priv);
+	if (ret)
+		return ret;
+
 	ret = rsnd_scu_probe(pdev, info, priv);
 	if (ret)
 		return ret;
 
 	ret = rsnd_adg_probe(pdev, info, priv);
-	if (ret)
-		return ret;
-
-	ret = rsnd_ssi_probe(pdev, info, priv);
 	if (ret)
 		return ret;
 
