@@ -1,7 +1,7 @@
 /*
  * SH RSPI driver
  *
- * Copyright (C) 2012  Renesas Solutions Corp.
+ * Copyright (C) 2012, 2013  Renesas Solutions Corp.
  *
  * Based on spi-sh.c:
  * Copyright (C) 2011 Renesas Solutions Corp.
@@ -183,12 +183,12 @@ struct rspi_data {
 	struct clk *clk;
 	u8 spsr;
 	u16 spcmd;
+	int rx_irq, tx_irq;
 	const struct spi_ops *ops;
 
 	/* for dmaengine */
 	struct dma_chan *chan_tx;
 	struct dma_chan *chan_rx;
-	int irq;
 
 	unsigned dma_width_16bit:1;
 	unsigned dma_callbacked:1;
@@ -440,7 +440,7 @@ static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	struct scatterlist sg;
 	const void *buf = NULL;
 	struct dma_async_tx_descriptor *desc;
-	unsigned len;
+	unsigned int len;
 	int ret = 0;
 
 	if (rspi->dma_width_16bit) {
@@ -478,7 +478,7 @@ static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	 * DMAC needs SPTIE, but if SPTIE is set, this IRQ routine will be
 	 * called. So, this driver disables the IRQ while DMA transfer.
 	 */
-	disable_irq(rspi->irq);
+	disable_irq(rspi->tx_irq);
 
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_TXMD, RSPI_SPCR);
 	rspi_enable_irq(rspi, SPCR_SPTIE);
@@ -497,7 +497,7 @@ static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 		ret = -ETIMEDOUT;
 	rspi_disable_irq(rspi, SPCR_SPTIE);
 
-	enable_irq(rspi->irq);
+	enable_irq(rspi->tx_irq);
 
 end:
 	rspi_dma_unmap_sg(&sg, rspi->chan_tx, DMA_TO_DEVICE);
@@ -536,7 +536,7 @@ static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	struct scatterlist sg, sg_dummy;
 	void *dummy = NULL, *rx_buf = NULL;
 	struct dma_async_tx_descriptor *desc, *desc_dummy;
-	unsigned len;
+	unsigned int len;
 	int ret = 0;
 
 	if (rspi->dma_width_16bit) {
@@ -594,7 +594,9 @@ static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	 * DMAC needs SPTIE, but if SPTIE is set, this IRQ routine will be
 	 * called. So, this driver disables the IRQ while DMA transfer.
 	 */
-	disable_irq(rspi->irq);
+	disable_irq(rspi->tx_irq);
+	if (rspi->rx_irq != rspi->tx_irq)
+		disable_irq(rspi->rx_irq);
 
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_TXMD, RSPI_SPCR);
 	rspi_enable_irq(rspi, SPCR_SPTIE | SPCR_SPRIE);
@@ -617,7 +619,9 @@ static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 		ret = -ETIMEDOUT;
 	rspi_disable_irq(rspi, SPCR_SPTIE | SPCR_SPRIE);
 
-	enable_irq(rspi->irq);
+	enable_irq(rspi->tx_irq);
+	if (rspi->rx_irq != rspi->tx_irq)
+		enable_irq(rspi->rx_irq);
 
 end:
 	rspi_dma_unmap_sg(&sg, rspi->chan_rx, DMA_FROM_DEVICE);
@@ -775,7 +779,7 @@ static int rspi_unprepare_message(struct spi_master *master,
 	return 0;
 }
 
-static irqreturn_t rspi_irq(int irq, void *_sr)
+static irqreturn_t rspi_irq_mux(int irq, void *_sr)
 {
 	struct rspi_data *rspi = _sr;
 	u8 spsr;
@@ -795,6 +799,36 @@ static irqreturn_t rspi_irq(int irq, void *_sr)
 	}
 
 	return ret;
+}
+
+static irqreturn_t rspi_irq_rx(int irq, void *_sr)
+{
+	struct rspi_data *rspi = _sr;
+	u8 spsr;
+
+	rspi->spsr = spsr = rspi_read8(rspi, RSPI_SPSR);
+	if (spsr & SPSR_SPRF) {
+		rspi_disable_irq(rspi, SPCR_SPRIE);
+		wake_up(&rspi->wait);
+		return IRQ_HANDLED;
+	}
+
+	return 0;
+}
+
+static irqreturn_t rspi_irq_tx(int irq, void *_sr)
+{
+	struct rspi_data *rspi = _sr;
+	u8 spsr;
+
+	rspi->spsr = spsr = rspi_read8(rspi, RSPI_SPSR);
+	if (spsr & SPSR_SPTEF) {
+		rspi_disable_irq(rspi, SPCR_SPTIE);
+		wake_up(&rspi->wait);
+		return IRQ_HANDLED;
+	}
+
+	return 0;
 }
 
 static int rspi_request_dma(struct rspi_data *rspi,
@@ -868,12 +902,25 @@ static int rspi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int rspi_request_irq(struct device *dev, unsigned int irq,
+			    irq_handler_t handler, const char *suffix,
+			    void *dev_id)
+{
+	const char *base = dev_name(dev);
+	size_t len = strlen(base) + strlen(suffix) + 2;
+	char *name = devm_kzalloc(dev, len, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+	snprintf(name, len, "%s:%s", base, suffix);
+	return devm_request_irq(dev, irq, handler, 0, name, dev_id);
+}
+
 static int rspi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct spi_master *master;
 	struct rspi_data *rspi;
-	int ret, irq;
+	int ret;
 	char clk_name[16];
 	const struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
 	const struct spi_ops *ops;
@@ -883,12 +930,6 @@ static int rspi_probe(struct platform_device *pdev)
 	/* ops parameter check */
 	if (!ops->set_config_register) {
 		dev_err(&pdev->dev, "there is no set_config_register\n");
-		return -ENODEV;
-	}
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "platform_get_irq error\n");
 		return -ENODEV;
 	}
 
@@ -934,14 +975,41 @@ static int rspi_probe(struct platform_device *pdev)
 	master->unprepare_message = rspi_unprepare_message;
 	master->mode_bits = SPI_CPHA | SPI_CPOL;
 
-	ret = devm_request_irq(&pdev->dev, irq, rspi_irq, 0,
-			       dev_name(&pdev->dev), rspi);
+	ret = platform_get_irq_byname(pdev, "rx");
+	if (ret < 0) {
+		ret = platform_get_irq_byname(pdev, "mux");
+		if (ret < 0)
+			ret = platform_get_irq(pdev, 0);
+		if (ret >= 0)
+			rspi->rx_irq = rspi->tx_irq = ret;
+	} else {
+		rspi->rx_irq = ret;
+		ret = platform_get_irq_byname(pdev, "tx");
+		if (ret >= 0)
+			rspi->tx_irq = ret;
+	}
+	if (ret < 0) {
+		dev_err(&pdev->dev, "platform_get_irq error\n");
+		goto error2;
+	}
+
+	if (rspi->rx_irq == rspi->tx_irq) {
+		/* Single multiplexed interrupt */
+		ret = rspi_request_irq(&pdev->dev, rspi->rx_irq, rspi_irq_mux,
+				       "mux", rspi);
+	} else {
+		/* Multi-interrupt mode, only SPRI and SPTI are used */
+		ret = rspi_request_irq(&pdev->dev, rspi->rx_irq, rspi_irq_rx,
+				       "rx", rspi);
+		if (!ret)
+			ret = rspi_request_irq(&pdev->dev, rspi->tx_irq,
+					       rspi_irq_tx, "tx", rspi);
+	}
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request_irq error\n");
 		goto error2;
 	}
 
-	rspi->irq = irq;
 	ret = rspi_request_dma(rspi, pdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "rspi_request_dma failed.\n");
