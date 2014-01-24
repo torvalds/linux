@@ -156,7 +156,7 @@ void rsnd_dma_stop(struct rsnd_dma *dma)
 static void rsnd_dma_complete(void *data)
 {
 	struct rsnd_dma *dma = (struct rsnd_dma *)data;
-	struct rsnd_priv *priv = dma->priv;
+	struct rsnd_priv *priv = rsnd_mod_to_priv(rsnd_dma_to_mod(dma));
 	unsigned long flags;
 
 	rsnd_lock(priv, flags);
@@ -172,7 +172,7 @@ static void rsnd_dma_complete(void *data)
 static void rsnd_dma_do_work(struct work_struct *work)
 {
 	struct rsnd_dma *dma = container_of(work, struct rsnd_dma, work);
-	struct rsnd_priv *priv = dma->priv;
+	struct rsnd_priv *priv = rsnd_mod_to_priv(rsnd_dma_to_mod(dma));
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_async_tx_descriptor *desc;
 	dma_addr_t buf;
@@ -246,7 +246,6 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 		goto rsnd_dma_init_err;
 
 	dma->dir = is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
-	dma->priv = priv;
 	dma->inquiry = inquiry;
 	dma->complete = complete;
 	INIT_WORK(&dma->work, rsnd_dma_do_work);

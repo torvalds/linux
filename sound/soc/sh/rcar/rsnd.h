@@ -96,7 +96,6 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
  *	R-Car DMA
  */
 struct rsnd_dma {
-	struct rsnd_priv	*priv;
 	struct sh_dmae_slave	slave;
 	struct work_struct	work;
 	struct dma_chan		*chan;
