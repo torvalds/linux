@@ -2890,7 +2890,13 @@ static void early_kmem_cache_node_alloc(int node)
 	init_kmem_cache_node(n);
 	inc_slabs_node(kmem_cache_node, node, page->objects);
 
+	/*
+	 * the lock is for lockdep's sake, not for any actual
+	 * race protection
+	 */
+	spin_lock(&n->list_lock);
 	add_partial(n, page, DEACTIVATE_TO_HEAD);
+	spin_unlock(&n->list_lock);
 }
 
 static void free_kmem_cache_nodes(struct kmem_cache *s)
