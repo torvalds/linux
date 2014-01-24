@@ -37,6 +37,11 @@ enum rsnd_reg {
 	RSND_REG_SRC_TMG_SEL1,		/* for Gen1 */
 	RSND_REG_SRC_TMG_SEL2,		/* for Gen1 */
 	RSND_REG_SRC_ROUTE_CTRL,	/* for Gen1 */
+	RSND_REG_SRC_CTRL,		/* for Gen2 */
+	RSND_REG_SSI_CTRL,		/* for Gen2 */
+	RSND_REG_SSI_CONTROL,
+	RSND_REG_SSI_BUSIF_MODE,	/* for Gen2 */
+	RSND_REG_SSI_BUSIF_ADINR,	/* for Gen2 */
 	RSND_REG_SSI_MODE0,
 	RSND_REG_SSI_MODE1,
 	RSND_REG_INT_ENABLE,		/* for Gen2 */
@@ -49,6 +54,8 @@ enum rsnd_reg {
 	RSND_REG_SRC_IFSVR,
 	RSND_REG_SRC_SRCCR,
 	RSND_REG_SRC_MNFSR,		/* for Gen1 */
+	RSND_REG_SRC_BSDSR,		/* for Gen2 */
+	RSND_REG_SRC_BSISR,		/* for Gen2 */
 
 	/* ADG */
 	RSND_REG_BRRA,
@@ -60,6 +67,16 @@ enum rsnd_reg {
 	RSND_REG_AUDIO_CLK_SEL3,	/* for Gen1 */
 	RSND_REG_AUDIO_CLK_SEL4,	/* for Gen1 */
 	RSND_REG_AUDIO_CLK_SEL5,	/* for Gen1 */
+	RSND_REG_SRCIN_TIMSEL0,		/* for Gen2 */
+	RSND_REG_SRCIN_TIMSEL1,		/* for Gen2 */
+	RSND_REG_SRCIN_TIMSEL2,		/* for Gen2 */
+	RSND_REG_SRCIN_TIMSEL3,		/* for Gen2 */
+	RSND_REG_SRCIN_TIMSEL4,		/* for Gen2 */
+	RSND_REG_SRCOUT_TIMSEL0,	/* for Gen2 */
+	RSND_REG_SRCOUT_TIMSEL1,	/* for Gen2 */
+	RSND_REG_SRCOUT_TIMSEL2,	/* for Gen2 */
+	RSND_REG_SRCOUT_TIMSEL3,	/* for Gen2 */
+	RSND_REG_SRCOUT_TIMSEL4,	/* for Gen2 */
 
 	/* SSI */
 	RSND_REG_SSICR,
@@ -250,6 +267,14 @@ int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
 				  struct rsnd_mod *mod,
 				  unsigned int src_rate,
 				  unsigned int dst_rate);
+int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
+				  struct rsnd_dai *rdai,
+				  struct rsnd_dai_stream *io,
+				  unsigned int src_rate,
+				  unsigned int dst_rate);
+int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
+				     struct rsnd_dai *rdai,
+				     struct rsnd_dai_stream *io);
 
 /*
  *	R-Car sound priv
