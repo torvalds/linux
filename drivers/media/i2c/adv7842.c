@@ -1449,12 +1449,11 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 
 		bt->width = (hdmi_read(sd, 0x07) & 0x0f) * 256 + hdmi_read(sd, 0x08);
 		bt->height = (hdmi_read(sd, 0x09) & 0x0f) * 256 + hdmi_read(sd, 0x0a);
-		freq = (hdmi_read(sd, 0x06) * 1000000) +
-		       ((hdmi_read(sd, 0x3b) & 0x30) >> 4) * 250000;
-
+		freq = ((hdmi_read(sd, 0x51) << 1) + (hdmi_read(sd, 0x52) >> 7)) * 1000000;
+		freq += ((hdmi_read(sd, 0x52) & 0x7f) * 7813);
 		if (is_hdmi(sd)) {
 			/* adjust for deep color mode */
-			freq = freq * 8 / (((hdmi_read(sd, 0x0b) & 0xc0) >> 5) + 8);
+			freq = freq * 8 / (((hdmi_read(sd, 0x0b) & 0xc0) >> 6) * 2 + 8);
 		}
 		bt->pixelclock = freq;
 		bt->hfrontporch = (hdmi_read(sd, 0x20) & 0x03) * 256 +
