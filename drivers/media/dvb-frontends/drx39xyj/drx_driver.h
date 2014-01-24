@@ -2468,9 +2468,6 @@ Exported FUNCTIONS
 
 	int drx_close(struct drx_demod_instance *demod);
 
-	int drx_ctrl(struct drx_demod_instance *demod,
-			     u32 ctrl, void *ctrl_data);
-
 /*-------------------------------------------------------------------------
 THE END
 -------------------------------------------------------------------------*/

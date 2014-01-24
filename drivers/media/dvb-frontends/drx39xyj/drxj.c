@@ -19797,6 +19797,10 @@ rw_error:
 /*=============================================================================
 ===== EXPORTED FUNCTIONS ====================================================*/
 
+static int drx_ctrl_u_code(struct drx_demod_instance *demod,
+		       struct drxu_code_info *mc_info,
+		       enum drxu_code_action action);
+
 /**
 * \fn drxj_open()
 * \brief Open the demod instance, configure device, configure drxdriver
@@ -19807,6 +19811,7 @@ rw_error:
 * rely on SCU or AUD ucode to be present.
 *
 */
+
 int drxj_open(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
@@ -19908,15 +19913,21 @@ int drxj_open(struct drx_demod_instance *demod)
 		common_attr->is_opened = true;
 		ucode_info.mc_file = common_attr->microcode_file;
 
-		rc = drx_ctrl(demod, DRX_CTRL_LOAD_UCODE, &ucode_info);
+		if (DRX_ISPOWERDOWNMODE(demod->my_common_attr->current_power_mode)) {
+			pr_err("Should powerup before loading the firmware.");
+			return -EINVAL;
+		}
+
+		rc = drx_ctrl_u_code(demod, &ucode_info, UCODE_UPLOAD);
 		if (rc != 0) {
-			pr_err("error %d\n", rc);
+			pr_err("error %d while uploading the firmware\n", rc);
 			goto rw_error;
 		}
 		if (common_attr->verify_microcode == true) {
-			rc = drx_ctrl(demod, DRX_CTRL_VERIFY_UCODE, &ucode_info);
+			rc = drx_ctrl_u_code(demod, &ucode_info, UCODE_VERIFY);
 			if (rc != 0) {
-				pr_err("error %d\n", rc);
+				pr_err("error %d while verifying the firmware\n",
+				       rc);
 				goto rw_error;
 			}
 		}
@@ -20454,17 +20465,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 		rc = drx_check_firmware(demod, (u8 *)mc_data_init, size);
 		if (rc)
 			goto release;
-
-		/* After scanning, validate the microcode.
-		   It is also valid if no validation control exists.
-		 */
-		rc = drx_ctrl(demod, DRX_CTRL_VALIDATE_UCODE, NULL);
-		if (rc != 0 && rc != -ENOTSUPP) {
-			pr_err("Validate ucode not supported\n");
-			return rc;
-		}
 		pr_info("Uploading firmware %s\n", mc_file);
-	} else if (action == UCODE_VERIFY) {
+	} else {
 		pr_info("Verifying if firmware upload was ok.\n");
 	}
 
@@ -20579,67 +20581,6 @@ release:
 
 /*============================================================================*/
 
-/**
- * drx_ctrl_version - Build list of version information.
- * @demod: A pointer to a demodulator instance.
- * @version_list: Pointer to linked list of versions.
- *
- * This function returns:
- *	0:		Version information stored in version_list
- *	-EINVAL:	Invalid arguments.
- */
-static int drx_ctrl_version(struct drx_demod_instance *demod,
-			struct drx_version_list **version_list)
-{
-	static char drx_driver_core_module_name[] = "Core driver";
-	static char drx_driver_core_version_text[] =
-	    DRX_VERSIONSTRING(0, 0, 0);
-
-	static struct drx_version drx_driver_core_version;
-	static struct drx_version_list drx_driver_core_version_list;
-
-	struct drx_version_list *demod_version_list = NULL;
-	int return_status = -EIO;
-
-	/* Check arguments */
-	if (version_list == NULL)
-		return -EINVAL;
-
-	/* Get version info list from demod */
-	return_status = (*(demod->my_demod_funct->ctrl_func)) (demod,
-							   DRX_CTRL_VERSION,
-							   (void *)
-							   &demod_version_list);
-
-	/* Always fill in the information of the driver SW . */
-	drx_driver_core_version.module_type = DRX_MODULE_DRIVERCORE;
-	drx_driver_core_version.module_name = drx_driver_core_module_name;
-	drx_driver_core_version.v_major = 0;
-	drx_driver_core_version.v_minor = 0;
-	drx_driver_core_version.v_patch = 0;
-	drx_driver_core_version.v_string = drx_driver_core_version_text;
-
-	drx_driver_core_version_list.version = &drx_driver_core_version;
-	drx_driver_core_version_list.next = (struct drx_version_list *) (NULL);
-
-	if ((return_status == 0) && (demod_version_list != NULL)) {
-		/* Append versioninfo from driver to versioninfo from demod  */
-		/* Return version info in "bottom-up" order. This way, multiple
-		   devices can be handled without using malloc. */
-		struct drx_version_list *current_list_element = demod_version_list;
-		while (current_list_element->next != NULL)
-			current_list_element = current_list_element->next;
-		current_list_element->next = &drx_driver_core_version_list;
-
-		*version_list = demod_version_list;
-	} else {
-		/* Just return versioninfo from driver */
-		*version_list = &drx_driver_core_version_list;
-	}
-
-	return 0;
-}
-
 /*
  * Exported functions
  */
@@ -20710,98 +20651,4 @@ int drx_close(struct drx_demod_instance *demod)
 	DRX_ATTR_ISOPENED(demod) = false;
 
 	return status;
-}
-/**
- * drx_ctrl - Control the device.
- * @demod:    A pointer to a demodulator instance.
- * @ctrl:     Reference to desired control function.
- * @ctrl_data: Pointer to data structure for control function.
- *
- * Data needed or returned by the control function is stored in ctrl_data.
- *
- * This function returns:
- *	0:		Control function completed successfully.
- *	-EIO:		Driver not initialized or error during control demod.
- *	-EINVAL:	Demod instance or ctrl_data has invalid content.
- *	-ENOTSUPP:	Specified control function is not available.
- */
-
-int drx_ctrl(struct drx_demod_instance *demod, u32 ctrl, void *ctrl_data)
-{
-	int status = -EIO;
-
-	if ((demod == NULL) ||
-	    (demod->my_demod_funct == NULL) ||
-	    (demod->my_common_attr == NULL) ||
-	    (demod->my_ext_attr == NULL) || (demod->my_i2c_dev_addr == NULL)
-	    ) {
-		return -EINVAL;
-	}
-
-	if (((!demod->my_common_attr->is_opened) &&
-	     (ctrl != DRX_CTRL_PROBE_DEVICE) && (ctrl != DRX_CTRL_VERSION))
-	    ) {
-		return -EINVAL;
-	}
-
-	if ((DRX_ISPOWERDOWNMODE(demod->my_common_attr->current_power_mode) &&
-	     (ctrl != DRX_CTRL_POWER_MODE) &&
-	     (ctrl != DRX_CTRL_PROBE_DEVICE) &&
-	     (ctrl != DRX_CTRL_NOP) && (ctrl != DRX_CTRL_VERSION)
-	    )
-	    ) {
-		return -ENOTSUPP;
-	}
-
-	/* Fixed control functions */
-	switch (ctrl) {
-      /*======================================================================*/
-	case DRX_CTRL_NOP:
-		/* No operation */
-		return 0;
-		break;
-
-      /*======================================================================*/
-	case DRX_CTRL_VERSION:
-		return drx_ctrl_version(demod, (struct drx_version_list **)ctrl_data);
-		break;
-
-      /*======================================================================*/
-	default:
-		/* Do nothing */
-		break;
-	}
-
-	/* Virtual functions */
-	/* First try calling function from derived class */
-	status = (*(demod->my_demod_funct->ctrl_func)) (demod, ctrl, ctrl_data);
-	if (status == -ENOTSUPP) {
-		/* Now try calling a the base class function */
-		switch (ctrl) {
-	 /*===================================================================*/
-		case DRX_CTRL_LOAD_UCODE:
-			return drx_ctrl_u_code(demod,
-					 (struct drxu_code_info *)ctrl_data,
-					 UCODE_UPLOAD);
-			break;
-
-	 /*===================================================================*/
-		case DRX_CTRL_VERIFY_UCODE:
-			{
-				return drx_ctrl_u_code(demod,
-						 (struct drxu_code_info *)ctrl_data,
-						 UCODE_VERIFY);
-			}
-			break;
-
-	 /*===================================================================*/
-		default:
-			pr_err("control %d not supported\n", ctrl);
-			return -ENOTSUPP;
-		}
-	} else {
-		return status;
-	}
-
-	return 0;
 }

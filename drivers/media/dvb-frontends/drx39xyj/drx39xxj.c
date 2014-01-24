@@ -45,7 +45,7 @@ static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 	else
 		power_mode = DRX_POWER_DOWN;
 
-	result = drx_ctrl(demod, DRX_CTRL_POWER_MODE, &power_mode);
+	result = drxj_ctrl(demod, DRX_CTRL_POWER_MODE, &power_mode);
 	if (result != 0) {
 		pr_err("Power state change failed\n");
 		return 0;
@@ -64,7 +64,7 @@ static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	*status = 0;
 
-	result = drx_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_status);
+	result = drxj_ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_status);
 	if (result != 0) {
 		pr_err("drx39xxj: could not get lock status!\n");
 		*status = 0;
@@ -109,7 +109,7 @@ static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 *ber)
 	int result;
 	struct drx_sig_quality sig_quality;
 
-	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
+	result = drxj_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != 0) {
 		pr_err("drx39xxj: could not get ber!\n");
 		*ber = 0;
@@ -128,7 +128,7 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 	int result;
 	struct drx_sig_quality sig_quality;
 
-	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
+	result = drxj_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != 0) {
 		pr_err("drx39xxj: could not get signal strength!\n");
 		*strength = 0;
@@ -147,7 +147,7 @@ static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 *snr)
 	int result;
 	struct drx_sig_quality sig_quality;
 
-	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
+	result = drxj_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != 0) {
 		pr_err("drx39xxj: could not read snr!\n");
 		*snr = 0;
@@ -165,7 +165,7 @@ static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	int result;
 	struct drx_sig_quality sig_quality;
 
-	result = drx_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
+	result = drxj_ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != 0) {
 		pr_err("drx39xxj: could not get uc blocks!\n");
 		*ucblocks = 0;
@@ -244,7 +244,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 
 	if (standard != state->current_standard || state->powered_up == 0) {
 		/* Set the standard (will be powered up if necessary */
-		result = drx_ctrl(demod, DRX_CTRL_SET_STANDARD, &standard);
+		result = drxj_ctrl(demod, DRX_CTRL_SET_STANDARD, &standard);
 		if (result != 0) {
 			pr_err("Failed to set standard! result=%02x\n",
 			       result);
@@ -261,7 +261,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	channel.constellation = constellation;
 
 	/* program channel */
-	result = drx_ctrl(demod, DRX_CTRL_SET_CHANNEL, &channel);
+	result = drxj_ctrl(demod, DRX_CTRL_SET_CHANNEL, &channel);
 	if (result != 0) {
 		pr_err("Failed to set channel!\n");
 		return -EINVAL;
@@ -269,7 +269,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	/* Just for giggles, let's shut off the LNA again.... */
 	uio_data.uio = DRX_UIO1;
 	uio_data.value = false;
-	result = drx_ctrl(demod, DRX_CTRL_UIO_WRITE, &uio_data);
+	result = drxj_ctrl(demod, DRX_CTRL_UIO_WRITE, &uio_data);
 	if (result != 0) {
 		pr_err("Failed to disable LNA!\n");
 		return 0;
@@ -315,7 +315,7 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		return 0;
 	}
 
-	result = drx_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &i2c_gate_state);
+	result = drxj_ctrl(demod, DRX_CTRL_I2C_BRIDGE, &i2c_gate_state);
 	if (result != 0) {
 		pr_err("drx39xxj: could not open i2c gate [%d]\n",
 		       result);
@@ -423,7 +423,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	uio_cfg.uio = DRX_UIO1;
 	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
 	/* Configure user-I/O #3: enable read/write */
-	result = drx_ctrl(demod, DRX_CTRL_UIO_CFG, &uio_cfg);
+	result = drxj_ctrl(demod, DRX_CTRL_UIO_CFG, &uio_cfg);
 	if (result) {
 		pr_err("Failed to setup LNA GPIO!\n");
 		goto error;
@@ -431,7 +431,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 
 	uio_data.uio = DRX_UIO1;
 	uio_data.value = false;
-	result = drx_ctrl(demod, DRX_CTRL_UIO_WRITE, &uio_data);
+	result = drxj_ctrl(demod, DRX_CTRL_UIO_WRITE, &uio_data);
 	if (result != 0) {
 		pr_err("Failed to disable LNA!\n");
 		goto error;
