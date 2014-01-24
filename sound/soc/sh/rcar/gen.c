@@ -283,7 +283,7 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		return ret;
 
 	dev_dbg(dev, "Gen2 device probed\n");
-	dev_dbg(dev, "SRU  : %08x => %p\n", scu_res->start,
+	dev_dbg(dev, "SCU  : %08x => %p\n", scu_res->start,
 		gen->base[RSND_GEN2_SCU]);
 	dev_dbg(dev, "ADG  : %08x => %p\n", adg_res->start,
 		gen->base[RSND_GEN2_ADG]);
