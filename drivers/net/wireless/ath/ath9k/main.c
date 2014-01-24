@@ -524,7 +524,7 @@ void ath9k_tasklet(unsigned long data)
 			 * successfully after a GTT interrupt, the GTT counter
 			 * gets reset to zero here.
 			 */
-			/* sc->gtt_cnt = 0; */
+			sc->gtt_cnt = 0;
 
 			ath_tx_edma_tasklet(sc);
 		} else {

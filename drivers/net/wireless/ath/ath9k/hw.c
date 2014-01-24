@@ -358,6 +358,14 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 
 	ah->config.rx_intr_mitigation = true;
 
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		ah->config.rimt_last = 500;
+		ah->config.rimt_first = 2000;
+	} else {
+		ah->config.rimt_last = 250;
+		ah->config.rimt_first = 700;
+	}
+
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
 	 * _and_ if on non-uniprocessor systems (Multiprocessor/HT).
@@ -1876,8 +1884,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		REG_WRITE(ah, AR_OBS, 8);
 
 	if (ah->config.rx_intr_mitigation) {
-		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 500);
-		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 2000);
+		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, ah->config.rimt_last);
+		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, ah->config.rimt_first);
 	}
 
 	if (ah->config.tx_intr_mitigation) {
