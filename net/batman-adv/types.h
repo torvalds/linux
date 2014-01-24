@@ -163,7 +163,7 @@ struct batadv_vlan_tt {
 };
 
 /**
- * batadv_orig_node_vlan - VLAN specific data per orig_node
+ * struct batadv_orig_node_vlan - VLAN specific data per orig_node
  * @vid: the VLAN identifier
  * @tt: VLAN specific TT attributes
  * @list: list node for orig_node::vlan_list
@@ -334,7 +334,7 @@ struct batadv_neigh_node {
 };
 
 /**
- * struct batadv_neigh_node_bat_iv - neighbor information per outgoing
+ * struct batadv_neigh_ifinfo_bat_iv - neighbor information per outgoing
  *  interface for BATMAN IV
  * @tq_recv: ring buffer of received TQ values from this neigh node
  * @tq_index: ring buffer index
@@ -544,7 +544,7 @@ struct batadv_priv_bla {
 #endif
 
 /**
- * struct batadv_debug_log - debug logging data
+ * struct batadv_priv_debug_log - debug logging data
  * @log_buff: buffer holding the logs (ring bufer)
  * @log_start: index of next character to read
  * @log_end: index of next character to write
@@ -1004,8 +1004,8 @@ struct batadv_nc_packet {
 };
 
 /**
- * batadv_skb_cb - control buffer structure used to store private data relevant
- *  to batman-adv in the skb->cb buffer in skbs.
+ * struct batadv_skb_cb - control buffer structure used to store private data
+ *  relevant to batman-adv in the skb->cb buffer in skbs.
  * @decoded: Marks a skb as decoded, which is checked when searching for coding
  *  opportunities in network-coding.c
  */
