@@ -209,18 +209,19 @@ static int __add_prelim_ref(struct list_head *head, u64 root_id,
 }
 
 static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
-				struct ulist *parents, int level,
-				struct btrfs_key *key_for_search, u64 time_seq,
-				u64 wanted_disk_byte,
-				const u64 *extent_item_pos)
+			   struct ulist *parents, struct __prelim_ref *ref,
+			   int level, u64 time_seq, const u64 *extent_item_pos)
 {
 	int ret = 0;
 	int slot;
 	struct extent_buffer *eb;
 	struct btrfs_key key;
+	struct btrfs_key *key_for_search = &ref->key_for_search;
 	struct btrfs_file_extent_item *fi;
 	struct extent_inode_elem *eie = NULL, *old = NULL;
 	u64 disk_byte;
+	u64 wanted_disk_byte = ref->wanted_disk_byte;
+	u64 count = 0;
 
 	if (level != 0) {
 		eb = path->nodes[level];
@@ -238,7 +239,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0]))
 		ret = btrfs_next_old_leaf(root, path, time_seq);
 
-	while (!ret) {
+	while (!ret && count < ref->count) {
 		eb = path->nodes[0];
 		slot = path->slots[0];
 
@@ -254,6 +255,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 		if (disk_byte == wanted_disk_byte) {
 			eie = NULL;
 			old = NULL;
+			count++;
 			if (extent_item_pos) {
 				ret = check_extent_in_eb(&key, eb, fi,
 						*extent_item_pos,
@@ -334,9 +336,8 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		eb = path->nodes[level];
 	}
 
-	ret = add_all_parents(root, path, parents, level, &ref->key_for_search,
-				time_seq, ref->wanted_disk_byte,
-				extent_item_pos);
+	ret = add_all_parents(root, path, parents, ref, level, time_seq,
+			      extent_item_pos);
 out:
 	path->lowest_level = 0;
 	btrfs_release_path(path);
