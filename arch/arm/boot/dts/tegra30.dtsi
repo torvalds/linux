@@ -1,5 +1,6 @@
 #include <dt-bindings/clock/tegra30-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
+#include <dt-bindings/pinctrl/pinctrl-tegra.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 #include "skeleton.dtsi"
@@ -16,7 +17,7 @@
 		serial4 = &uarte;
 	};
 
-	pcie-controller {
+	pcie-controller@00003000 {
 		compatible = "nvidia,tegra30-pcie";
 		device_type = "pci";
 		reg = <0x00003000 0x00000800   /* PADS registers */
@@ -89,7 +90,7 @@
 		};
 	};
 
-	host1x {
+	host1x@50000000 {
 		compatible = "nvidia,tegra30-host1x", "simple-bus";
 		reg = <0x50000000 0x00024000>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>, /* syncpt */
@@ -103,7 +104,7 @@
 
 		ranges = <0x54000000 0x54000000 0x04000000>;
 
-		mpe {
+		mpe@54040000 {
 			compatible = "nvidia,tegra30-mpe";
 			reg = <0x54040000 0x00040000>;
 			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
@@ -112,7 +113,7 @@
 			reset-names = "mpe";
 		};
 
-		vi {
+		vi@54080000 {
 			compatible = "nvidia,tegra30-vi";
 			reg = <0x54080000 0x00040000>;
 			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
@@ -121,7 +122,7 @@
 			reset-names = "vi";
 		};
 
-		epp {
+		epp@540c0000 {
 			compatible = "nvidia,tegra30-epp";
 			reg = <0x540c0000 0x00040000>;
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
@@ -130,7 +131,7 @@
 			reset-names = "epp";
 		};
 
-		isp {
+		isp@54100000 {
 			compatible = "nvidia,tegra30-isp";
 			reg = <0x54100000 0x00040000>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
@@ -139,7 +140,7 @@
 			reset-names = "isp";
 		};
 
-		gr2d {
+		gr2d@54140000 {
 			compatible = "nvidia,tegra30-gr2d";
 			reg = <0x54140000 0x00040000>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
@@ -148,7 +149,7 @@
 			clocks = <&tegra_car TEGRA30_CLK_GR2D>;
 		};
 
-		gr3d {
+		gr3d@54180000 {
 			compatible = "nvidia,tegra30-gr3d";
 			reg = <0x54180000 0x00040000>;
 			clocks = <&tegra_car TEGRA30_CLK_GR3D
@@ -189,7 +190,7 @@
 			};
 		};
 
-		hdmi {
+		hdmi@54280000 {
 			compatible = "nvidia,tegra30-hdmi";
 			reg = <0x54280000 0x00040000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
@@ -201,7 +202,7 @@
 			status = "disabled";
 		};
 
-		tvo {
+		tvo@542c0000 {
 			compatible = "nvidia,tegra30-tvo";
 			reg = <0x542c0000 0x00040000>;
 			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
@@ -209,7 +210,7 @@
 			status = "disabled";
 		};
 
-		dsi {
+		dsi@54300000 {
 			compatible = "nvidia,tegra30-dsi";
 			reg = <0x54300000 0x00040000>;
 			clocks = <&tegra_car TEGRA30_CLK_DSIA>;
@@ -227,7 +228,7 @@
 		clocks = <&tegra_car TEGRA30_CLK_TWD>;
 	};
 
-	intc: interrupt-controller {
+	intc: interrupt-controller@50041000 {
 		compatible = "arm,cortex-a9-gic";
 		reg = <0x50041000 0x1000
 		       0x50040100 0x0100>;
@@ -235,7 +236,7 @@
 		#interrupt-cells = <3>;
 	};
 
-	cache-controller {
+	cache-controller@50043000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x50043000 0x1000>;
 		arm,data-latency = <6 6 2>;
@@ -256,14 +257,14 @@
 		clocks = <&tegra_car TEGRA30_CLK_TIMER>;
 	};
 
-	tegra_car: clock {
+	tegra_car: clock@60006000 {
 		compatible = "nvidia,tegra30-car";
 		reg = <0x60006000 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};
 
-	apbdma: dma {
+	apbdma: dma@6000a000 {
 		compatible = "nvidia,tegra30-apbdma", "nvidia,tegra20-apbdma";
 		reg = <0x6000a000 0x1400>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
@@ -304,12 +305,12 @@
 		#dma-cells = <1>;
 	};
 
-	ahb: ahb {
+	ahb: ahb@6000c004 {
 		compatible = "nvidia,tegra30-ahb";
 		reg = <0x6000c004 0x14c>; /* AHB Arbitration + Gizmo Controller */
 	};
 
-	gpio: gpio {
+	gpio: gpio@6000d000 {
 		compatible = "nvidia,tegra30-gpio";
 		reg = <0x6000d000 0x1000>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
@@ -326,7 +327,7 @@
 		interrupt-controller;
 	};
 
-	pinmux: pinmux {
+	pinmux: pinmux@70000868 {
 		compatible = "nvidia,tegra30-pinmux";
 		reg = <0x70000868 0xd4    /* Pad control registers */
 		       0x70003000 0x3e4>; /* Mux registers */
@@ -405,7 +406,7 @@
 		status = "disabled";
 	};
 
-	pwm: pwm {
+	pwm: pwm@7000a000 {
 		compatible = "nvidia,tegra30-pwm", "nvidia,tegra20-pwm";
 		reg = <0x7000a000 0x100>;
 		#pwm-cells = <2>;
@@ -415,7 +416,7 @@
 		status = "disabled";
 	};
 
-	rtc {
+	rtc@7000e000 {
 		compatible = "nvidia,tegra30-rtc", "nvidia,tegra20-rtc";
 		reg = <0x7000e000 0x100>;
 		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
@@ -586,7 +587,7 @@
 		status = "disabled";
 	};
 
-	kbc {
+	kbc@7000e200 {
 		compatible = "nvidia,tegra30-kbc", "nvidia,tegra20-kbc";
 		reg = <0x7000e200 0x100>;
 		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -596,14 +597,14 @@
 		status = "disabled";
 	};
 
-	pmc {
+	pmc@7000e400 {
 		compatible = "nvidia,tegra30-pmc";
 		reg = <0x7000e400 0x400>;
 		clocks = <&tegra_car TEGRA30_CLK_PCLK>, <&clk32k_in>;
 		clock-names = "pclk", "clk32k_in";
 	};
 
-	memory-controller {
+	memory-controller@7000f000 {
 		compatible = "nvidia,tegra30-mc";
 		reg = <0x7000f000 0x010
 		       0x7000f03c 0x1b4
@@ -612,7 +613,7 @@
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	iommu {
+	iommu@7000f010 {
 		compatible = "nvidia,tegra30-smmu";
 		reg = <0x7000f010 0x02c
 		       0x7000f1f0 0x010
@@ -622,7 +623,7 @@
 		nvidia,ahb = <&ahb>;
 	};
 
-	ahub {
+	ahub@70080000 {
 		compatible = "nvidia,tegra30-ahub";
 		reg = <0x70080000 0x200
 		       0x70080200 0x100>;
@@ -784,7 +785,7 @@
 		compatible = "nvidia,tegra30-ehci", "usb-ehci";
 		reg = <0x7d004000 0x4000>;
 		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
-		phy_type = "ulpi";
+		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA30_CLK_USB2>;
 		resets = <&tegra_car 58>;
 		reset-names = "usb";
@@ -794,12 +795,23 @@
 
 	phy2: usb-phy@7d004000 {
 		compatible = "nvidia,tegra30-usb-phy";
-		reg = <0x7d004000 0x4000>;
-		phy_type = "ulpi";
+		reg = <0x7d004000 0x4000 0x7d000000 0x4000>;
+		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA30_CLK_USB2>,
 			 <&tegra_car TEGRA30_CLK_PLL_U>,
-			 <&tegra_car TEGRA30_CLK_CDEV2>;
-		clock-names = "reg", "pll_u", "ulpi-link";
+			 <&tegra_car TEGRA30_CLK_USBD>;
+		clock-names = "reg", "pll_u", "utmi-pads";
+		nvidia,hssync-start-delay = <9>;
+		nvidia,idle-wait-delay = <17>;
+		nvidia,elastic-limit = <16>;
+		nvidia,term-range-adj = <6>;
+		nvidia,xcvr-setup = <51>;
+		nvidia.xcvr-setup-use-fuses;
+		nvidia,xcvr-lsfslew = <2>;
+		nvidia,xcvr-lsrslew = <2>;
+		nvidia,xcvr-hsslew = <32>;
+		nvidia,hssquelch-level = <2>;
+		nvidia,hsdiscon-level = <5>;
 		status = "disabled";
 	};
 

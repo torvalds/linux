@@ -64,8 +64,8 @@
 
 		button@1 {
 			label = "Power push button";
-			linux,code = <116>;
-			gpios = <&gpio1 0 0>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -74,13 +74,13 @@
 
 		red-fail {
 			label = "ns2:red:fail";
-			gpios = <&gpio0 12 0>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
-		gpios = <&gpio0 31 0>;
+		gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
 	};
 
 };

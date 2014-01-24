@@ -110,7 +110,7 @@
 			pinctrl-0 = <&pmx_sdio &pmx_sdio_cd>;
 			pinctrl-names = "default";
 			status = "okay";
-			cd-gpios = <&gpio1 15 1>;
+			cd-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 			/* No WP GPIO */
 		};
 	};
@@ -126,36 +126,36 @@
 
 		health {
 			label = "status:green:health";
-			gpios = <&gpio0 7 1>;
+			gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;
 		};
 
 		user1o {
 			label = "user1:orange";
-			gpios = <&gpio1 8 1>;
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		user1g {
 			label = "user1:green";
-			gpios = <&gpio1 9 1>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		user0o {
 			label = "user0:orange";
-			gpios = <&gpio1 12 1>;
+			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		user0g {
 			label = "user0:green";
-			gpios = <&gpio1 13 1>;
+			gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		misc {
 			label = "status:orange:misc";
-			gpios = <&gpio1 14 1>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 

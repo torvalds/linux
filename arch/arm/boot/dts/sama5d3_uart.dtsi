@@ -12,6 +12,11 @@
 #include <dt-bindings/clk/at91.h>
 
 / {
+	aliases {
+		serial5 = &uart0;
+		serial6 = &uart1;
+	};
+
 	ahb {
 		apb {
 			pinctrl@fffff200 {

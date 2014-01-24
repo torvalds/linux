@@ -107,6 +107,12 @@
 			clocks = <&clk_mmc>;
 			status = "disabled";
 		};
+
+		usb {
+			compatible = "brcm,bcm2835-usb";
+			reg = <0x7e980000 0x10000>;
+			interrupts = <1 9>;
+		};
 	};
 
 	clocks {

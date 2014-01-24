@@ -36,6 +36,7 @@ obj-$(CONFIG_PLAT_SAMSUNG)	+= samsung/
 obj-$(CONFIG_COMMON_CLK_XGENE)  += clk-xgene.o
 obj-$(CONFIG_COMMON_CLK_KEYSTONE)	+= keystone/
 obj-$(CONFIG_COMMON_CLK_AT91)	+= at91/
+obj-$(CONFIG_ARCH_SHMOBILE_MULTI)	+= shmobile/
 
 obj-$(CONFIG_X86)		+= x86/
 
