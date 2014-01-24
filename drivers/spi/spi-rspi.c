@@ -980,7 +980,7 @@ static int rspi_remove(struct platform_device *pdev)
 	struct rspi_data *rspi = platform_get_drvdata(pdev);
 
 	rspi_release_dma(rspi);
-	clk_disable(rspi->clk);
+	clk_disable_unprepare(rspi->clk);
 
 	return 0;
 }
@@ -1041,7 +1041,12 @@ static int rspi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rspi->clk);
 		goto error1;
 	}
-	clk_enable(rspi->clk);
+
+	ret = clk_prepare_enable(rspi->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "unable to prepare/enable clock\n");
+		goto error1;
+	}
 
 	init_waitqueue_head(&rspi->wait);
 
@@ -1112,7 +1117,7 @@ static int rspi_probe(struct platform_device *pdev)
 error3:
 	rspi_release_dma(rspi);
 error2:
-	clk_disable(rspi->clk);
+	clk_disable_unprepare(rspi->clk);
 error1:
 	spi_master_put(master);
 
