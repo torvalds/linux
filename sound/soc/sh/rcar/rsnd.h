@@ -246,10 +246,10 @@ int rsnd_adg_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 void rsnd_adg_remove(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
-int rsnd_adg_set_convert_clk(struct rsnd_priv *priv,
-			     struct rsnd_mod *mod,
-			     unsigned int src_rate,
-			     unsigned int dst_rate);
+int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
+				  struct rsnd_mod *mod,
+				  unsigned int src_rate,
+				  unsigned int dst_rate);
 
 /*
  *	R-Car sound priv

@@ -30,10 +30,10 @@ struct rsnd_adg {
 	     i++, (pos) = adg->clk[i])
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
-static int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
-					 struct rsnd_mod *mod,
-					 unsigned int src_rate,
-					 unsigned int dst_rate)
+int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
+				  struct rsnd_mod *mod,
+				  unsigned int src_rate,
+				  unsigned int dst_rate)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -89,18 +89,6 @@ find_rate:
 	 */
 
 	return 0;
-}
-
-int rsnd_adg_set_convert_clk(struct rsnd_priv *priv,
-			     struct rsnd_mod *mod,
-			     unsigned int src_rate,
-			     unsigned int dst_rate)
-{
-	if (rsnd_is_gen1(priv))
-		return rsnd_adg_set_convert_clk_gen1(priv, mod,
-						     src_rate, dst_rate);
-
-	return -EINVAL;
 }
 
 static void rsnd_adg_set_ssi_clk(struct rsnd_mod *mod, u32 val)

@@ -172,10 +172,8 @@ static int rsnd_src_set_route_if_gen1(
 		{ 0x3, 30, }, /* 8 */
 	};
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
 	u32 mask;
 	u32 val;
-	int shift;
 	int id;
 
 	/*
@@ -197,6 +195,23 @@ static int rsnd_src_set_route_if_gen1(
 
 	rsnd_mod_bset(mod, SRC_ROUTE_SEL, mask, val);
 
+	return 0;
+}
+
+static int rsnd_scu_set_convert_timing_gen1(struct rsnd_mod *mod,
+					    struct rsnd_dai *rdai,
+					    struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	u32 convert_rate = rsnd_scu_convert_rate(scu);
+	u32 mask;
+	u32 val;
+	int shift;
+	int id = rsnd_mod_id(mod);
+	int ret;
+
 	/*
 	 * SRC_TIMING_SELECT
 	 */
@@ -209,12 +224,23 @@ static int rsnd_src_set_route_if_gen1(
 	 * SSI WS is used as source clock if SRC is not used
 	 * (when playback, source/destination become reverse when capture)
 	 */
-	if (rsnd_scu_convert_rate(scu))	/* use ADG */
+	ret = 0;
+	if (convert_rate) {
+		/* use ADG */
 		val = 0;
-	else if (8 == id)		/* use SSI WS, but SRU8 is special */
+		ret = rsnd_adg_set_convert_clk_gen1(priv, mod,
+						    runtime->rate,
+						    convert_rate);
+	} else if (8 == id) {
+		/* use SSI WS, but SRU8 is special */
 		val = id << shift;
-	else				/* use SSI WS */
+	} else {
+		/* use SSI WS */
 		val = (id + 1) << shift;
+	}
+
+	if (ret < 0)
+		return ret;
 
 	switch (id / 4) {
 	case 0:
@@ -284,7 +310,6 @@ static int rsnd_scu_set_convert_rate(struct rsnd_mod *mod,
 
 	if (convert_rate) {
 		u32 fsrate = 0x0400000 / convert_rate * runtime->rate;
-		int ret;
 
 		/* Enable the initial value of IFS */
 		rsnd_mod_write(mod, SRC_IFSCR, 1);
@@ -301,13 +326,6 @@ static int rsnd_scu_set_convert_rate(struct rsnd_mod *mod,
 		if (rsnd_is_gen1(priv)) {
 			/* no SRC_BFSSR settings, since SRC_SRCCR::BUFMD is 0 */
 		}
-
-		/* set convert clock */
-		ret = rsnd_adg_set_convert_clk(priv, mod,
-					       runtime->rate,
-					       convert_rate);
-		if (ret < 0)
-			return ret;
 	}
 
 	/* Cancel the initialization and operate the SRC function */
@@ -337,6 +355,10 @@ static int rsnd_scu_init(struct rsnd_mod *mod,
 		return ret;
 
 	ret = rsnd_scu_set_convert_rate(mod, rdai, io);
+	if (ret < 0)
+		return ret;
+
+	ret = rsnd_scu_set_convert_timing_gen1(mod, rdai, io);
 	if (ret < 0)
 		return ret;
 
