@@ -28,7 +28,8 @@ struct dg {
 	unsigned char cs4245_shadow[17];
 	/* output select: headphone/speakers */
 	unsigned char output_sel;
-	s8 input_vol[4][2];
+	/* volumes for all capture sources */
+	char input_vol[4][2];
 	unsigned int input_sel;
 	u8 hp_vol_att;
 };

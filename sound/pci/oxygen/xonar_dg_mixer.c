@@ -190,6 +190,21 @@ static int hp_mute_put(struct snd_kcontrol *ctl,
 	return changed;
 }
 
+/* capture volume for all sources */
+
+static int input_volume_apply(struct oxygen *chip, char left, char right)
+{
+	struct dg *data = chip->model_data;
+	int ret;
+
+	data->cs4245_shadow[CS4245_PGA_A_CTRL] = left;
+	data->cs4245_shadow[CS4245_PGA_B_CTRL] = right;
+	ret = cs4245_write_spi(chip, CS4245_PGA_A_CTRL);
+	if (ret < 0)
+		return ret;
+	return cs4245_write_spi(chip, CS4245_PGA_B_CTRL);
+}
+
 static int input_vol_info(struct snd_kcontrol *ctl,
 			  struct snd_ctl_elem_info *info)
 {
@@ -221,6 +236,7 @@ static int input_vol_put(struct snd_kcontrol *ctl,
 	struct dg *data = chip->model_data;
 	unsigned int idx = ctl->private_value;
 	int changed = 0;
+	int ret = 0;
 
 	if (value->value.integer.value[0] < 2 * -12 ||
 	    value->value.integer.value[0] > 2 * 12 ||
@@ -234,17 +250,15 @@ static int input_vol_put(struct snd_kcontrol *ctl,
 		data->input_vol[idx][0] = value->value.integer.value[0];
 		data->input_vol[idx][1] = value->value.integer.value[1];
 		if (idx == data->input_sel) {
-			cs4245_write_cached(chip, CS4245_PGA_A_CTRL,
-					    data->input_vol[idx][0]);
-			cs4245_write_cached(chip, CS4245_PGA_B_CTRL,
-					    data->input_vol[idx][1]);
+			ret = input_volume_apply(chip,
+				data->input_vol[idx][0],
+				data->input_vol[idx][1]);
 		}
+		changed = ret >= 0 ? 1 : ret;
 	}
 	mutex_unlock(&chip->mutex);
 	return changed;
 }
-
-static DECLARE_TLV_DB_SCALE(cs4245_pga_db_scale, -1200, 50, 0);
 
 static int input_sel_info(struct snd_kcontrol *ctl,
 			  struct snd_ctl_elem_info *info)
@@ -345,13 +359,16 @@ static int hpf_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 #define INPUT_VOLUME(xname, index) { \
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = xname, \
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
+		  SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
 	.info = input_vol_info, \
 	.get = input_vol_get, \
 	.put = input_vol_put, \
-	.tlv = { .p = cs4245_pga_db_scale }, \
+	.tlv = { .p = pga_db_scale }, \
 	.private_value = index, \
 }
 static const DECLARE_TLV_DB_MINMAX(hp_db_scale, -12550, 0);
+static const DECLARE_TLV_DB_MINMAX(pga_db_scale, -1200, 1200);
 static const struct snd_kcontrol_new dg_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
