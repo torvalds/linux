@@ -87,7 +87,7 @@ void __init omap_barriers_init(void)
 	dram_io_desc[0].virtual = OMAP4_DRAM_BARRIER_VA;
 	dram_io_desc[0].pfn = __phys_to_pfn(paddr);
 	dram_io_desc[0].length = size;
-	dram_io_desc[0].type = MT_MEMORY_SO;
+	dram_io_desc[0].type = MT_MEMORY_RW_SO;
 	iotable_init(dram_io_desc, ARRAY_SIZE(dram_io_desc));
 	dram_sync = (void __iomem *) dram_io_desc[0].virtual;
 	sram_sync = (void __iomem *) OMAP4_SRAM_VA;
