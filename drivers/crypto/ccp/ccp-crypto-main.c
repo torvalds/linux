@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/ccp.h>
@@ -23,6 +24,14 @@ MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
 MODULE_DESCRIPTION("AMD Cryptographic Coprocessor crypto API support");
+
+static unsigned int aes_disable;
+module_param(aes_disable, uint, 0444);
+MODULE_PARM_DESC(aes_disable, "Disable use of AES - any non-zero value");
+
+static unsigned int sha_disable;
+module_param(sha_disable, uint, 0444);
+MODULE_PARM_DESC(sha_disable, "Disable use of SHA - any non-zero value");
 
 
 /* List heads for the supported algorithms */
@@ -337,21 +346,25 @@ static int ccp_register_algs(void)
 {
 	int ret;
 
-	ret = ccp_register_aes_algs(&cipher_algs);
-	if (ret)
-		return ret;
+	if (!aes_disable) {
+		ret = ccp_register_aes_algs(&cipher_algs);
+		if (ret)
+			return ret;
 
-	ret = ccp_register_aes_cmac_algs(&hash_algs);
-	if (ret)
-		return ret;
+		ret = ccp_register_aes_cmac_algs(&hash_algs);
+		if (ret)
+			return ret;
 
-	ret = ccp_register_aes_xts_algs(&cipher_algs);
-	if (ret)
-		return ret;
+		ret = ccp_register_aes_xts_algs(&cipher_algs);
+		if (ret)
+			return ret;
+	}
 
-	ret = ccp_register_sha_algs(&hash_algs);
-	if (ret)
-		return ret;
+	if (!sha_disable) {
+		ret = ccp_register_sha_algs(&hash_algs);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
