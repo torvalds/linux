@@ -22,6 +22,11 @@
 
 #include "pinctrl-mvebu.h"
 
+/* Internal registers can be configured at any 1 MiB aligned address */
+#define INT_REGS_MASK		~(SZ_1M - 1)
+#define MPP4_REGS_OFFS		0xd0440
+#define PMU_REGS_OFFS		0xd802c
+
 #define DOVE_SB_REGS_VIRT_BASE		IOMEM(0xfde00000)
 #define DOVE_MPP_VIRT_BASE		(DOVE_SB_REGS_VIRT_BASE + 0xd0200)
 #define DOVE_PMU_MPP_GENERAL_CTRL	(DOVE_MPP_VIRT_BASE + 0x10)
@@ -52,6 +57,8 @@
 #define CONFIG_PMU	BIT(4)
 
 static void __iomem *mpp_base;
+static void __iomem *mpp4_base;
+static void __iomem *pmu_base;
 
 static int dove_mpp_ctrl_get(unsigned pid, unsigned long *config)
 {
@@ -751,7 +758,8 @@ static struct of_device_id dove_pinctrl_of_match[] = {
 
 static int dove_pinctrl_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct resource *res, *mpp_res;
+	struct resource fb_res;
 	const struct of_device_id *match =
 		of_match_device(dove_pinctrl_of_match, &pdev->dev);
 	pdev->dev.platform_data = (void *)match->data;
@@ -767,10 +775,41 @@ static int dove_pinctrl_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mpp_base = devm_ioremap_resource(&pdev->dev, res);
+	mpp_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mpp_base = devm_ioremap_resource(&pdev->dev, mpp_res);
 	if (IS_ERR(mpp_base))
 		return PTR_ERR(mpp_base);
+
+	/* prepare fallback resource */
+	memcpy(&fb_res, mpp_res, sizeof(struct resource));
+	fb_res.start = 0;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res) {
+		dev_warn(&pdev->dev, "falling back to hardcoded MPP4 resource\n");
+		adjust_resource(&fb_res,
+			(mpp_res->start & INT_REGS_MASK) + MPP4_REGS_OFFS, 0x4);
+		res = &fb_res;
+	}
+
+	mpp4_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mpp4_base))
+		return PTR_ERR(mpp4_base);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	if (!res) {
+		dev_warn(&pdev->dev, "falling back to hardcoded PMU resource\n");
+		adjust_resource(&fb_res,
+			(mpp_res->start & INT_REGS_MASK) + PMU_REGS_OFFS, 0x8);
+		res = &fb_res;
+	}
+
+	pmu_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pmu_base))
+		return PTR_ERR(pmu_base);
+
+	/* Warn on any missing DT resource */
+	WARN(fb_res.start, FW_BUG "Missing pinctrl regs in DTB. Please update your firmware.\n");
 
 	return mvebu_pinctrl_probe(pdev);
 }
