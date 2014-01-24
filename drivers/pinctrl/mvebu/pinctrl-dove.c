@@ -18,7 +18,9 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/mfd/syscon.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/regmap.h>
 
 #include "pinctrl-mvebu.h"
 
@@ -26,6 +28,7 @@
 #define INT_REGS_MASK		~(SZ_1M - 1)
 #define MPP4_REGS_OFFS		0xd0440
 #define PMU_REGS_OFFS		0xd802c
+#define GC_REGS_OFFS		0xe802c
 
 #define DOVE_SB_REGS_VIRT_BASE		IOMEM(0xfde00000)
 #define DOVE_MPP_VIRT_BASE		(DOVE_SB_REGS_VIRT_BASE + 0xd0200)
@@ -59,6 +62,7 @@
 static void __iomem *mpp_base;
 static void __iomem *mpp4_base;
 static void __iomem *pmu_base;
+static struct regmap *gconfmap;
 
 static int dove_mpp_ctrl_get(unsigned pid, unsigned long *config)
 {
@@ -756,6 +760,13 @@ static struct of_device_id dove_pinctrl_of_match[] = {
 	{ }
 };
 
+static struct regmap_config gc_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = 5,
+};
+
 static int dove_pinctrl_probe(struct platform_device *pdev)
 {
 	struct resource *res, *mpp_res;
@@ -807,6 +818,22 @@ static int dove_pinctrl_probe(struct platform_device *pdev)
 	pmu_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pmu_base))
 		return PTR_ERR(pmu_base);
+
+	gconfmap = syscon_regmap_lookup_by_compatible("marvell,dove-global-config");
+	if (IS_ERR(gconfmap)) {
+		void __iomem *gc_base;
+
+		dev_warn(&pdev->dev, "falling back to hardcoded global registers\n");
+		adjust_resource(&fb_res,
+			(mpp_res->start & INT_REGS_MASK) + GC_REGS_OFFS, 0x14);
+		gc_base = devm_ioremap_resource(&pdev->dev, &fb_res);
+		if (IS_ERR(gc_base))
+			return PTR_ERR(gc_base);
+		gconfmap = devm_regmap_init_mmio(&pdev->dev,
+						 gc_base, &gc_regmap_config);
+		if (IS_ERR(gconfmap))
+			return PTR_ERR(gconfmap);
+	}
 
 	/* Warn on any missing DT resource */
 	WARN(fb_res.start, FW_BUG "Missing pinctrl regs in DTB. Please update your firmware.\n");
