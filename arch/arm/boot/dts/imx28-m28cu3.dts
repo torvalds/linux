@@ -116,7 +116,6 @@
 				pinctrl-0 = <&lcdif_24bit_pins_a
 					     &lcdif_pins_m28>;
 				display = <&display>;
-				reset-active-high;
 				status = "okay";
 
 				display: display0 {
