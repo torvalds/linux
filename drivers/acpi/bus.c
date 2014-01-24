@@ -37,8 +37,6 @@
 #include <asm/mpspec.h>
 #endif
 #include <linux/pci.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 #include <acpi/apei.h>
 #include <linux/dmi.h>
 #include <linux/suspend.h>
@@ -51,9 +49,6 @@ ACPI_MODULE_NAME("bus");
 struct acpi_device *acpi_root;
 struct proc_dir_entry *acpi_root_dir;
 EXPORT_SYMBOL(acpi_root_dir);
-
-#define STRUCT_TO_INT(s)	(*((int*)&s))
-
 
 #ifdef CONFIG_X86
 static int set_copy_dsdt(const struct dmi_system_id *id)
@@ -115,18 +110,16 @@ int acpi_bus_get_status(struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	STRUCT_TO_INT(device->status) = (int) sta;
+	acpi_set_device_status(device, sta);
 
 	if (device->status.functional && !device->status.present) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]: "
 		       "functional but not present;\n",
-			device->pnp.bus_id,
-			(u32) STRUCT_TO_INT(device->status)));
+			device->pnp.bus_id, (u32)sta));
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]\n",
-			  device->pnp.bus_id,
-			  (u32) STRUCT_TO_INT(device->status)));
+			  device->pnp.bus_id, (u32)sta));
 	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_get_status);
@@ -339,58 +332,6 @@ static void acpi_bus_osc_support(void)
                              Notification Handling
    -------------------------------------------------------------------------- */
 
-static void acpi_bus_check_device(acpi_handle handle)
-{
-	struct acpi_device *device;
-	acpi_status status;
-	struct acpi_device_status old_status;
-
-	if (acpi_bus_get_device(handle, &device))
-		return;
-	if (!device)
-		return;
-
-	old_status = device->status;
-
-	/*
-	 * Make sure this device's parent is present before we go about
-	 * messing with the device.
-	 */
-	if (device->parent && !device->parent->status.present) {
-		device->status = device->parent->status;
-		return;
-	}
-
-	status = acpi_bus_get_status(device);
-	if (ACPI_FAILURE(status))
-		return;
-
-	if (STRUCT_TO_INT(old_status) == STRUCT_TO_INT(device->status))
-		return;
-
-	/*
-	 * Device Insertion/Removal
-	 */
-	if ((device->status.present) && !(old_status.present)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device insertion detected\n"));
-		/* TBD: Handle device insertion */
-	} else if (!(device->status.present) && (old_status.present)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device removal detected\n"));
-		/* TBD: Handle device removal */
-	}
-}
-
-static void acpi_bus_check_scope(acpi_handle handle)
-{
-	/* Status Change? */
-	acpi_bus_check_device(handle);
-
-	/*
-	 * TBD: Enumerate child devices within this device's scope and
-	 *       run acpi_bus_check_device()'s on them.
-	 */
-}
-
 /**
  * acpi_bus_notify
  * ---------------
@@ -407,19 +348,11 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	switch (type) {
 
 	case ACPI_NOTIFY_BUS_CHECK:
-		acpi_bus_check_scope(handle);
-		/*
-		 * TBD: We'll need to outsource certain events to non-ACPI
-		 *      drivers via the device manager (device.c).
-		 */
+		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		acpi_bus_check_device(handle);
-		/*
-		 * TBD: We'll need to outsource certain events to non-ACPI
-		 *      drivers via the device manager (device.c).
-		 */
+		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:

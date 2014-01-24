@@ -162,8 +162,6 @@ static inline const char *slot_name(struct slot *slot)
 }
 
 #ifdef CONFIG_ACPI
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/pci-acpi.h>
 
 void __init pciehp_acpi_slot_detection_init(void);

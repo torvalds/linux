@@ -172,8 +172,8 @@ static int exynos4_enter_lowpower(struct cpuidle_device *dev,
 {
 	int new_index = index;
 
-	/* This mode only can be entered when other core's are offline */
-	if (num_online_cpus() > 1)
+	/* AFTR can only be entered when cores other than CPU0 are offline */
+	if (num_online_cpus() > 1 || dev->cpu != 0)
 		new_index = drv->safe_state_index;
 
 	if (new_index == 0)
@@ -234,10 +234,6 @@ static int exynos_cpuidle_probe(struct platform_device *pdev)
 	for_each_online_cpu(cpu_id) {
 		device = &per_cpu(exynos4_cpuidle_device, cpu_id);
 		device->cpu = cpu_id;
-
-		/* Support IDLE only */
-		if (cpu_id != 0)
-			device->state_count = 1;
 
 		ret = cpuidle_register_device(device);
 		if (ret) {

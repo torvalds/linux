@@ -494,7 +494,7 @@ static void acpiphp_bus_add(acpi_handle handle)
 
 	acpi_bus_scan(handle);
 	acpi_bus_get_device(handle, &adev);
-	if (adev)
+	if (acpi_device_enumerated(adev))
 		acpi_device_set_power(adev, ACPI_STATE_D0);
 }
 

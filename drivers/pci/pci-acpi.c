@@ -12,9 +12,6 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/pci-aspm.h>
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
@@ -306,10 +303,10 @@ void acpi_pci_remove_bus(struct pci_bus *bus)
 }
 
 /* ACPI bus type */
-static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
+static struct acpi_device *acpi_pci_find_companion(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	bool is_bridge;
+	bool check_children;
 	u64 addr;
 
 	/*
@@ -317,14 +314,12 @@ static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 	 * is set only after acpi_pci_find_device() has been called for the
 	 * given device.
 	 */
-	is_bridge = pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE
+	check_children = pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE
 			|| pci_dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
 	/* Please ref to ACPI spec for the syntax of _ADR */
 	addr = (PCI_SLOT(pci_dev->devfn) << 16) | PCI_FUNC(pci_dev->devfn);
-	*handle = acpi_find_child(ACPI_HANDLE(dev->parent), addr, is_bridge);
-	if (!*handle)
-		return -ENODEV;
-	return 0;
+	return acpi_find_child_device(ACPI_COMPANION(dev->parent), addr,
+				      check_children);
 }
 
 static void pci_acpi_setup(struct device *dev)
@@ -367,7 +362,7 @@ static bool pci_acpi_bus_match(struct device *dev)
 static struct acpi_bus_type acpi_pci_bus = {
 	.name = "PCI",
 	.match = pci_acpi_bus_match,
-	.find_device = acpi_pci_find_device,
+	.find_companion = acpi_pci_find_companion,
 	.setup = pci_acpi_setup,
 	.cleanup = pci_acpi_cleanup,
 };

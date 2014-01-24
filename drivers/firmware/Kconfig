@@ -113,7 +113,7 @@ config DMI_SCAN_MACHINE_NON_EFI_FALLBACK
 
 config ISCSI_IBFT_FIND
 	bool "iSCSI Boot Firmware Table Attributes"
-	depends on X86
+	depends on X86 && ACPI
 	default n
 	help
 	  This option enables the kernel to find the region of memory

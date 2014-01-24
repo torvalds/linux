@@ -35,9 +35,7 @@
 #include <linux/pci-aspm.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/apei.h>
+#include <acpi/apei.h>	/* for acpi_hest_init() */
 
 #include "internal.h"
 
@@ -50,6 +48,12 @@ ACPI_MODULE_NAME("pci_root");
 static int acpi_pci_root_add(struct acpi_device *device,
 			     const struct acpi_device_id *not_used);
 static void acpi_pci_root_remove(struct acpi_device *device);
+
+static int acpi_pci_root_scan_dependent(struct acpi_device *adev)
+{
+	acpiphp_check_host_bridge(adev->handle);
+	return 0;
+}
 
 #define ACPI_PCIE_REQ_SUPPORT (OSC_PCI_EXT_CONFIG_SUPPORT \
 				| OSC_PCI_ASPM_SUPPORT \
@@ -66,7 +70,8 @@ static struct acpi_scan_handler pci_root_handler = {
 	.attach = acpi_pci_root_add,
 	.detach = acpi_pci_root_remove,
 	.hotplug = {
-		.ignore = true,
+		.enabled = true,
+		.scan_dependent = acpi_pci_root_scan_dependent,
 	},
 };
 
@@ -630,116 +635,9 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 void __init acpi_pci_root_init(void)
 {
 	acpi_hest_init();
-
-	if (!acpi_pci_disabled) {
-		pci_acpi_crs_quirks();
-		acpi_scan_add_handler(&pci_root_handler);
-	}
-}
-/* Support root bridge hotplug */
-
-static void handle_root_bridge_insertion(acpi_handle handle)
-{
-	struct acpi_device *device;
-
-	if (!acpi_bus_get_device(handle, &device)) {
-		dev_printk(KERN_DEBUG, &device->dev,
-			   "acpi device already exists; ignoring notify\n");
+	if (acpi_pci_disabled)
 		return;
-	}
 
-	if (acpi_bus_scan(handle))
-		acpi_handle_err(handle, "cannot add bridge to acpi list\n");
-}
-
-static void hotplug_event_root(void *data, u32 type)
-{
-	acpi_handle handle = data;
-	struct acpi_pci_root *root;
-
-	acpi_scan_lock_acquire();
-
-	root = acpi_pci_find_root(handle);
-
-	switch (type) {
-	case ACPI_NOTIFY_BUS_CHECK:
-		/* bus enumerate */
-		acpi_handle_printk(KERN_DEBUG, handle,
-				   "Bus check notify on %s\n", __func__);
-		if (root)
-			acpiphp_check_host_bridge(handle);
-		else
-			handle_root_bridge_insertion(handle);
-
-		break;
-
-	case ACPI_NOTIFY_DEVICE_CHECK:
-		/* device check */
-		acpi_handle_printk(KERN_DEBUG, handle,
-				   "Device check notify on %s\n", __func__);
-		if (!root)
-			handle_root_bridge_insertion(handle);
-		break;
-
-	case ACPI_NOTIFY_EJECT_REQUEST:
-		/* request device eject */
-		acpi_handle_printk(KERN_DEBUG, handle,
-				   "Device eject notify on %s\n", __func__);
-		if (!root)
-			break;
-
-		get_device(&root->device->dev);
-
-		acpi_scan_lock_release();
-
-		acpi_bus_device_eject(root->device, ACPI_NOTIFY_EJECT_REQUEST);
-		return;
-	default:
-		acpi_handle_warn(handle,
-				 "notify_handler: unknown event type 0x%x\n",
-				 type);
-		break;
-	}
-
-	acpi_scan_lock_release();
-}
-
-static void handle_hotplug_event_root(acpi_handle handle, u32 type,
-					void *context)
-{
-	acpi_hotplug_execute(hotplug_event_root, handle, type);
-}
-
-static acpi_status __init
-find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
-{
-	acpi_status status;
-	int *count = (int *)context;
-
-	if (!acpi_is_root_bridge(handle))
-		return AE_OK;
-
-	(*count)++;
-
-	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					handle_hotplug_event_root, NULL);
-	if (ACPI_FAILURE(status))
-		acpi_handle_printk(KERN_DEBUG, handle,
-			"notify handler is not installed, exit status: %u\n",
-			 (unsigned int)status);
-	else
-		acpi_handle_printk(KERN_DEBUG, handle,
-				   "notify handler is installed\n");
-
-	return AE_OK;
-}
-
-void __init acpi_pci_root_hp_init(void)
-{
-	int num = 0;
-
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-		ACPI_UINT32_MAX, find_root_bridges, NULL, &num, NULL);
-
-	printk(KERN_DEBUG "Found %d acpi root devices\n", num);
+	pci_acpi_crs_quirks();
+	acpi_scan_add_handler_with_hotplug(&pci_root_handler, "pci_root");
 }
