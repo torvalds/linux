@@ -47,7 +47,7 @@
 #define RSPI_SPCKD		0x0c	/* Clock Delay Register */
 #define RSPI_SSLND		0x0d	/* Slave Select Negation Delay Register */
 #define RSPI_SPND		0x0e	/* Next-Access Delay Register */
-#define RSPI_SPCR2		0x0f	/* Control Register 2 */
+#define RSPI_SPCR2		0x0f	/* Control Register 2 (SH only) */
 #define RSPI_SPCMD0		0x10	/* Command Register 0 */
 #define RSPI_SPCMD1		0x12	/* Command Register 1 */
 #define RSPI_SPCMD2		0x14	/* Command Register 2 */
@@ -56,10 +56,12 @@
 #define RSPI_SPCMD5		0x1a	/* Command Register 5 */
 #define RSPI_SPCMD6		0x1c	/* Command Register 6 */
 #define RSPI_SPCMD7		0x1e	/* Command Register 7 */
+
+/* RSPI on RZ only */
 #define RSPI_SPBFCR		0x20	/* Buffer Control Register */
 #define RSPI_SPBFDR		0x22	/* Buffer Data Count Setting Register */
 
-/*qspi only */
+/* QSPI only */
 #define QSPI_SPBFCR		0x18	/* Buffer Control Register */
 #define QSPI_SPBDCR		0x1a	/* Buffer Data Count Register */
 #define QSPI_SPBMUL0		0x1c	/* Transfer Data Length Multiplier Setting Register 0 */
@@ -102,7 +104,7 @@
 #define SPSR_PERF		0x08	/* Parity Error Flag */
 #define SPSR_MODF		0x04	/* Mode Fault Error Flag */
 #define SPSR_IDLNF		0x02	/* RSPI Idle Flag */
-#define SPSR_OVRF		0x01	/* Overrun Error Flag */
+#define SPSR_OVRF		0x01	/* Overrun Error Flag (RSPI only) */
 
 /* SPSCR - Sequence Control Register */
 #define SPSCR_SPSLN_MASK	0x07	/* Sequence Length Specification */
@@ -119,13 +121,13 @@
 #define SPDCR_SPLWORD		SPDCR_SPLW1
 #define SPDCR_SPLBYTE		SPDCR_SPLW0
 #define SPDCR_SPLW		0x20	/* Access Width Specification (SH) */
-#define SPDCR_SPRDTD		0x10	/* Receive Transmit Data Select */
+#define SPDCR_SPRDTD		0x10	/* Receive Transmit Data Select (SH) */
 #define SPDCR_SLSEL1		0x08
 #define SPDCR_SLSEL0		0x04
-#define SPDCR_SLSEL_MASK	0x0c	/* SSL1 Output Select */
+#define SPDCR_SLSEL_MASK	0x0c	/* SSL1 Output Select (SH) */
 #define SPDCR_SPFC1		0x02
 #define SPDCR_SPFC0		0x01
-#define SPDCR_SPFC_MASK		0x03	/* Frame Count Setting (1-4) */
+#define SPDCR_SPFC_MASK		0x03	/* Frame Count Setting (1-4) (SH) */
 
 /* SPCKD - Clock Delay Register */
 #define SPCKD_SCKDL_MASK	0x07	/* Clock Delay Setting (1-8) */
@@ -168,8 +170,8 @@
 #define SPCMD_CPHA		0x0001	/* Clock Phase Setting */
 
 /* SPBFCR - Buffer Control Register */
-#define SPBFCR_TXRST		0x80	/* Transmit Buffer Data Reset (qspi only) */
-#define SPBFCR_RXRST		0x40	/* Receive Buffer Data Reset (qspi only) */
+#define SPBFCR_TXRST		0x80	/* Transmit Buffer Data Reset */
+#define SPBFCR_RXRST		0x40	/* Receive Buffer Data Reset */
 #define SPBFCR_TXTRG_MASK	0x30	/* Transmit Buffer Data Triggering Number */
 #define SPBFCR_RXTRG_MASK	0x07	/* Receive Buffer Data Triggering Number */
 
@@ -244,7 +246,7 @@ struct spi_ops {
 };
 
 /*
- * functions for RSPI
+ * functions for RSPI on legacy SH
  */
 static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
 {
@@ -272,6 +274,39 @@ static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
 	/* Sets SPCMD */
 	rspi_write16(rspi, SPCMD_SPB_8_TO_16(access_size) | rspi->spcmd,
 		     RSPI_SPCMD0);
+
+	/* Sets RSPI mode */
+	rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
+
+	return 0;
+}
+
+/*
+ * functions for RSPI on RZ
+ */
+static int rspi_rz_set_config_register(struct rspi_data *rspi, int access_size)
+{
+	int spbr;
+
+	/* Sets output mode */
+	rspi_write8(rspi, 0x00, RSPI_SPPCR);
+
+	/* Sets transfer bit rate */
+	spbr = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz) - 1;
+	rspi_write8(rspi, clamp(spbr, 0, 255), RSPI_SPBR);
+
+	/* Disable dummy transmission, set byte access */
+	rspi_write8(rspi, SPDCR_SPLBYTE, RSPI_SPDCR);
+	rspi->byte_access = 1;
+
+	/* Sets RSPCK, SSL, next-access delay value */
+	rspi_write8(rspi, 0x00, RSPI_SPCKD);
+	rspi_write8(rspi, 0x00, RSPI_SSLND);
+	rspi_write8(rspi, 0x00, RSPI_SPND);
+
+	/* Sets SPCMD */
+	rspi->spcmd |= SPCMD_SPB_8_TO_16(access_size);
+	rspi_write16(rspi, rspi->spcmd, RSPI_SPCMD0);
 
 	/* Sets RSPI mode */
 	rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
@@ -520,6 +555,13 @@ static void rspi_receive_init(const struct rspi_data *rspi)
 			    RSPI_SPSR);
 }
 
+static void rspi_rz_receive_init(const struct rspi_data *rspi)
+{
+	rspi_receive_init(rspi);
+	rspi_write8(rspi, SPBFCR_TXRST | SPBFCR_RXRST, RSPI_SPBFCR);
+	rspi_write8(rspi, 0, RSPI_SPBFCR);
+}
+
 static void qspi_receive_init(const struct rspi_data *rspi)
 {
 	u8 spsr;
@@ -704,6 +746,41 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 		return rspi_receive_dma(rspi, xfer);
 
 	return 0;
+}
+
+static int rspi_rz_transfer_out_in(struct rspi_data *rspi,
+				   struct spi_transfer *xfer)
+{
+	int remain = xfer->len, ret;
+	const u8 *tx_buf = xfer->tx_buf;
+	u8 *rx_buf = xfer->rx_buf;
+	u8 data;
+
+	rspi_rz_receive_init(rspi);
+
+	while (remain > 0) {
+		data = tx_buf ? *tx_buf++ : DUMMY_DATA;
+		ret = rspi_data_out_in(rspi, data);
+		if (ret < 0)
+			return ret;
+		if (rx_buf)
+			*rx_buf++ = ret;
+		remain--;
+	}
+
+	/* Wait for the last transmission */
+	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+
+	return 0;
+}
+
+static int rspi_rz_transfer_one(struct spi_master *master,
+				struct spi_device *spi,
+				struct spi_transfer *xfer)
+{
+	struct rspi_data *rspi = spi_master_get_devdata(master);
+
+	return rspi_rz_transfer_out_in(rspi, xfer);
 }
 
 static int qspi_transfer_out_in(struct rspi_data *rspi,
@@ -1041,6 +1118,11 @@ static struct spi_ops rspi_ops = {
 	.transfer_one =			rspi_transfer_one,
 };
 
+static struct spi_ops rspi_rz_ops = {
+	.set_config_register =		rspi_rz_set_config_register,
+	.transfer_one =			rspi_rz_transfer_one,
+};
+
 static struct spi_ops qspi_ops = {
 	.set_config_register =		qspi_set_config_register,
 	.transfer_one =			qspi_transfer_one,
@@ -1048,6 +1130,7 @@ static struct spi_ops qspi_ops = {
 
 static struct platform_device_id spi_driver_ids[] = {
 	{ "rspi",	(kernel_ulong_t)&rspi_ops },
+	{ "rspi-rz",	(kernel_ulong_t)&rspi_rz_ops },
 	{ "qspi",	(kernel_ulong_t)&qspi_ops },
 	{},
 };
