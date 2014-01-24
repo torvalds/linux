@@ -1611,29 +1611,27 @@ static void pci_pme_list_scan(struct work_struct *work)
 	struct pci_pme_device *pme_dev, *n;
 
 	mutex_lock(&pci_pme_list_mutex);
-	if (!list_empty(&pci_pme_list)) {
-		list_for_each_entry_safe(pme_dev, n, &pci_pme_list, list) {
-			if (pme_dev->dev->pme_poll) {
-				struct pci_dev *bridge;
+	list_for_each_entry_safe(pme_dev, n, &pci_pme_list, list) {
+		if (pme_dev->dev->pme_poll) {
+			struct pci_dev *bridge;
 
-				bridge = pme_dev->dev->bus->self;
-				/*
-				 * If bridge is in low power state, the
-				 * configuration space of subordinate devices
-				 * may be not accessible
-				 */
-				if (bridge && bridge->current_state != PCI_D0)
-					continue;
-				pci_pme_wakeup(pme_dev->dev, NULL);
-			} else {
-				list_del(&pme_dev->list);
-				kfree(pme_dev);
-			}
+			bridge = pme_dev->dev->bus->self;
+			/*
+			 * If bridge is in low power state, the
+			 * configuration space of subordinate devices
+			 * may be not accessible
+			 */
+			if (bridge && bridge->current_state != PCI_D0)
+				continue;
+			pci_pme_wakeup(pme_dev->dev, NULL);
+		} else {
+			list_del(&pme_dev->list);
+			kfree(pme_dev);
 		}
-		if (!list_empty(&pci_pme_list))
-			schedule_delayed_work(&pci_pme_work,
-					      msecs_to_jiffies(PME_TIMEOUT));
 	}
+	if (!list_empty(&pci_pme_list))
+		schedule_delayed_work(&pci_pme_work,
+				      msecs_to_jiffies(PME_TIMEOUT));
 	mutex_unlock(&pci_pme_list_mutex);
 }
 
