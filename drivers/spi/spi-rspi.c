@@ -183,8 +183,9 @@ struct rspi_data {
 	struct spi_master *master;
 	wait_queue_head_t wait;
 	struct clk *clk;
-	u8 spsr;
 	u16 spcmd;
+	u8 spsr;
+	u8 sppcr;
 	int rx_irq, tx_irq;
 	const struct spi_ops *ops;
 
@@ -252,8 +253,8 @@ static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
 {
 	int spbr;
 
-	/* Sets output mode(CMOS) and MOSI signal(from previous transfer) */
-	rspi_write8(rspi, 0x00, RSPI_SPPCR);
+	/* Sets output mode, MOSI signal, and (optionally) loopback */
+	rspi_write8(rspi, rspi->sppcr, RSPI_SPPCR);
 
 	/* Sets transfer bit rate */
 	spbr = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz) - 1;
@@ -288,8 +289,8 @@ static int rspi_rz_set_config_register(struct rspi_data *rspi, int access_size)
 {
 	int spbr;
 
-	/* Sets output mode */
-	rspi_write8(rspi, 0x00, RSPI_SPPCR);
+	/* Sets output mode, MOSI signal, and (optionally) loopback */
+	rspi_write8(rspi, rspi->sppcr, RSPI_SPPCR);
 
 	/* Sets transfer bit rate */
 	spbr = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz) - 1;
@@ -322,8 +323,8 @@ static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
 	u16 spcmd;
 	int spbr;
 
-	/* Sets output mode(CMOS) and MOSI signal(from previous transfer) */
-	rspi_write8(rspi, 0x00, RSPI_SPPCR);
+	/* Sets output mode, MOSI signal, and (optionally) loopback */
+	rspi_write8(rspi, rspi->sppcr, RSPI_SPPCR);
 
 	/* Sets transfer bit rate */
 	spbr = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz);
@@ -829,6 +830,11 @@ static int rspi_setup(struct spi_device *spi)
 	if (spi->mode & SPI_CPHA)
 		rspi->spcmd |= SPCMD_CPHA;
 
+	/* CMOS output mode and MOSI signal from previous transfer */
+	rspi->sppcr = 0;
+	if (spi->mode & SPI_LOOP)
+		rspi->sppcr |= SPPCR_SPLP;
+
 	set_config_register(rspi, 8);
 
 	return 0;
@@ -1050,7 +1056,7 @@ static int rspi_probe(struct platform_device *pdev)
 	master->cleanup = rspi_cleanup;
 	master->prepare_message = rspi_prepare_message;
 	master->unprepare_message = rspi_unprepare_message;
-	master->mode_bits = SPI_CPHA | SPI_CPOL;
+	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LOOP;
 
 	ret = platform_get_irq_byname(pdev, "rx");
 	if (ret < 0) {
