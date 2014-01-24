@@ -136,8 +136,6 @@ static void rsnd_ssi_mode_set(struct rsnd_priv *priv,
 			val = adg;			\
 		else					\
 			val = ext;			\
-		if (flags & RSND_SSI_SYNC)		\
-			val |= sync;			\
 	} while (0)
 
 	flags = rsnd_ssi_mode_flags(ssi);
