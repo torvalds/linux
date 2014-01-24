@@ -548,10 +548,6 @@
 	status = "okay";
 };
 
-&mcbsp3 {
-	status = "disabled";
-};
-
 &dmic {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dmic_pins>;
