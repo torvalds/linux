@@ -325,6 +325,8 @@ static int input_sel_put(struct snd_kcontrol *ctl,
 	return changed;
 }
 
+/* ADC high-pass filter */
+
 static int hpf_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
 	static const char *const names[2] = { "Active", "Frozen" };
@@ -354,8 +356,10 @@ static int hpf_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 	if (value->value.enumerated.item[0])
 		reg |= CS4245_HPF_FREEZE;
 	changed = reg != data->cs4245_shadow[CS4245_ADC_CTRL];
-	if (changed)
-		cs4245_write(chip, CS4245_ADC_CTRL, reg);
+	if (changed) {
+		data->cs4245_shadow[CS4245_ADC_CTRL] = reg;
+		cs4245_write_spi(chip, CS4245_ADC_CTRL);
+	}
 	mutex_unlock(&chip->mutex);
 	return changed;
 }
