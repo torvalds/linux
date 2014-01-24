@@ -140,17 +140,4 @@ void x86_pci_root_bus_resources(int bus, struct list_head *resources);
 #define smt_capable()			(smp_num_siblings > 1)
 #endif
 
-#ifdef CONFIG_NUMA
-extern int get_mp_bus_to_node(int busnum);
-extern void set_mp_bus_to_node(int busnum, int node);
-#else
-static inline int get_mp_bus_to_node(int busnum)
-{
-	return 0;
-}
-static inline void set_mp_bus_to_node(int busnum, int node)
-{
-}
-#endif
-
 #endif /* _ASM_X86_TOPOLOGY_H */

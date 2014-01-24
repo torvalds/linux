@@ -499,10 +499,8 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	pxm = acpi_get_pxm(device->handle);
 	if (pxm >= 0)
 		node = pxm_to_node(pxm);
-	if (node != -1)
-		set_mp_bus_to_node(busnum, node);
-	else
 #endif
+	if (node == -1)
 		node = x86_pci_root_bus_node(busnum);
 
 	if (node != -1 && !node_online(node))
