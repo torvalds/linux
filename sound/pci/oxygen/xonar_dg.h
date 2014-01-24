@@ -30,7 +30,8 @@ struct dg {
 	unsigned char output_sel;
 	/* volumes for all capture sources */
 	char input_vol[4][2];
-	unsigned int input_sel;
+	/* input select: mic/fp mic/line/aux */
+	unsigned char input_sel;
 	u8 hp_vol_att;
 };
 

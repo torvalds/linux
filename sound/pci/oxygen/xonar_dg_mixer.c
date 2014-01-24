@@ -260,11 +260,27 @@ static int input_vol_put(struct snd_kcontrol *ctl,
 	return changed;
 }
 
+/* Capture Source */
+
+static int input_source_apply(struct oxygen *chip)
+{
+	struct dg *data = chip->model_data;
+
+	data->cs4245_shadow[CS4245_ANALOG_IN] &= ~CS4245_SEL_MASK;
+	if (data->input_sel == CAPTURE_SRC_FP_MIC)
+		data->cs4245_shadow[CS4245_ANALOG_IN] |= CS4245_SEL_INPUT_2;
+	else if (data->input_sel == CAPTURE_SRC_LINE)
+		data->cs4245_shadow[CS4245_ANALOG_IN] |= CS4245_SEL_INPUT_4;
+	else if (data->input_sel != CAPTURE_SRC_MIC)
+		data->cs4245_shadow[CS4245_ANALOG_IN] |= CS4245_SEL_INPUT_1;
+	return cs4245_write_spi(chip, CS4245_ANALOG_IN);
+}
+
 static int input_sel_info(struct snd_kcontrol *ctl,
 			  struct snd_ctl_elem_info *info)
 {
 	static const char *const names[4] = {
-		"Mic", "Aux", "Front Mic", "Line"
+		"Mic", "Front Mic", "Line", "Aux"
 	};
 
 	return snd_ctl_enum_info(info, 1, 4, names);
@@ -285,15 +301,10 @@ static int input_sel_get(struct snd_kcontrol *ctl,
 static int input_sel_put(struct snd_kcontrol *ctl,
 			 struct snd_ctl_elem_value *value)
 {
-	static const u8 sel_values[4] = {
-		CS4245_SEL_MIC,
-		CS4245_SEL_INPUT_1,
-		CS4245_SEL_INPUT_2,
-		CS4245_SEL_INPUT_4
-	};
 	struct oxygen *chip = ctl->private_data;
 	struct dg *data = chip->model_data;
 	int changed;
+	int ret;
 
 	if (value->value.enumerated.item[0] > 3)
 		return -EINVAL;
@@ -303,19 +314,12 @@ static int input_sel_put(struct snd_kcontrol *ctl,
 	if (changed) {
 		data->input_sel = value->value.enumerated.item[0];
 
-		cs4245_write(chip, CS4245_ANALOG_IN,
-			     (data->cs4245_shadow[CS4245_ANALOG_IN] &
-							~CS4245_SEL_MASK) |
-			     sel_values[data->input_sel]);
-
-		cs4245_write_cached(chip, CS4245_PGA_A_CTRL,
-				    data->input_vol[data->input_sel][0]);
-		cs4245_write_cached(chip, CS4245_PGA_B_CTRL,
-				    data->input_vol[data->input_sel][1]);
-
-		oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
-				      data->input_sel ? 0 : GPIO_INPUT_ROUTE,
-				      GPIO_INPUT_ROUTE);
+		ret = input_source_apply(chip);
+		if (ret >= 0)
+			ret = input_volume_apply(chip,
+				data->input_vol[data->input_sel][0],
+				data->input_vol[data->input_sel][1]);
+		changed = ret >= 0 ? 1 : ret;
 	}
 	mutex_unlock(&chip->mutex);
 	return changed;
@@ -395,10 +399,10 @@ static const struct snd_kcontrol_new dg_controls[] = {
 		.get = hp_mute_get,
 		.put = hp_mute_put,
 	},
-	INPUT_VOLUME("Mic Capture Volume", 0),
-	INPUT_VOLUME("Aux Capture Volume", 1),
-	INPUT_VOLUME("Front Mic Capture Volume", 2),
-	INPUT_VOLUME("Line Capture Volume", 3),
+	INPUT_VOLUME("Mic Capture Volume", CAPTURE_SRC_MIC),
+	INPUT_VOLUME("Front Mic Capture Volume", CAPTURE_SRC_FP_MIC),
+	INPUT_VOLUME("Line Capture Volume", CAPTURE_SRC_LINE),
+	INPUT_VOLUME("Aux Capture Volume", CAPTURE_SRC_AUX),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Capture Source",
