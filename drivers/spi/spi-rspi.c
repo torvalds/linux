@@ -25,8 +25,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/list.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -181,10 +179,7 @@ struct rspi_data {
 	void __iomem *addr;
 	u32 max_speed_hz;
 	struct spi_master *master;
-	struct list_head queue;
-	struct work_struct ws;
 	wait_queue_head_t wait;
-	spinlock_t lock;
 	struct clk *clk;
 	u8 spsr;
 	u16 spcmd;
@@ -343,16 +338,6 @@ static int rspi_wait_for_interrupt(struct rspi_data *rspi, u8 wait_mask,
 		return -ETIMEDOUT;
 
 	return 0;
-}
-
-static void rspi_assert_ssl(const struct rspi_data *rspi)
-{
-	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_SPE, RSPI_SPCR);
-}
-
-static void rspi_negate_ssl(const struct rspi_data *rspi)
-{
-	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_SPE, RSPI_SPCR);
 }
 
 static int rspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
@@ -739,56 +724,27 @@ static int rspi_is_dma(const struct rspi_data *rspi, struct spi_transfer *t)
 	return 0;
 }
 
-static void rspi_work(struct work_struct *work)
+static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
+			     struct spi_transfer *xfer)
 {
-	struct rspi_data *rspi = container_of(work, struct rspi_data, ws);
-	struct spi_message *mesg;
-	struct spi_transfer *t;
-	unsigned long flags;
-	int ret;
+	struct rspi_data *rspi = spi_master_get_devdata(master);
+	int ret = 0;
 
-	while (1) {
-		spin_lock_irqsave(&rspi->lock, flags);
-		if (list_empty(&rspi->queue)) {
-			spin_unlock_irqrestore(&rspi->lock, flags);
-			break;
-		}
-		mesg = list_entry(rspi->queue.next, struct spi_message, queue);
-		list_del_init(&mesg->queue);
-		spin_unlock_irqrestore(&rspi->lock, flags);
-
-		rspi_assert_ssl(rspi);
-
-		list_for_each_entry(t, &mesg->transfers, transfer_list) {
-			if (t->tx_buf) {
-				if (rspi_is_dma(rspi, t))
-					ret = rspi_send_dma(rspi, t);
-				else
-					ret = send_pio(rspi, t);
-				if (ret < 0)
-					goto error;
-			}
-			if (t->rx_buf) {
-				if (rspi_is_dma(rspi, t))
-					ret = rspi_receive_dma(rspi, t);
-				else
-					ret = receive_pio(rspi, t);
-				if (ret < 0)
-					goto error;
-			}
-			mesg->actual_length += t->len;
-		}
-		rspi_negate_ssl(rspi);
-
-		mesg->status = 0;
-		mesg->complete(mesg->context);
+	if (xfer->tx_buf) {
+		if (rspi_is_dma(rspi, xfer))
+			ret = rspi_send_dma(rspi, xfer);
+		else
+			ret = send_pio(rspi, xfer);
+		if (ret < 0)
+			return ret;
 	}
-
-	return;
-
-error:
-	mesg->status = ret;
-	mesg->complete(mesg->context);
+	if (xfer->rx_buf) {
+		if (rspi_is_dma(rspi, xfer))
+			ret = rspi_receive_dma(rspi, xfer);
+		else
+			ret = receive_pio(rspi, xfer);
+	}
+	return ret;
 }
 
 static int rspi_setup(struct spi_device *spi)
@@ -808,24 +764,26 @@ static int rspi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static int rspi_transfer(struct spi_device *spi, struct spi_message *mesg)
+static void rspi_cleanup(struct spi_device *spi)
 {
-	struct rspi_data *rspi = spi_master_get_devdata(spi->master);
-	unsigned long flags;
+}
 
-	mesg->actual_length = 0;
-	mesg->status = -EINPROGRESS;
+static int rspi_prepare_message(struct spi_master *master,
+				struct spi_message *message)
+{
+	struct rspi_data *rspi = spi_master_get_devdata(master);
 
-	spin_lock_irqsave(&rspi->lock, flags);
-	list_add_tail(&mesg->queue, &rspi->queue);
-	schedule_work(&rspi->ws);
-	spin_unlock_irqrestore(&rspi->lock, flags);
-
+	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_SPE, RSPI_SPCR);
 	return 0;
 }
 
-static void rspi_cleanup(struct spi_device *spi)
+static int rspi_unprepare_message(struct spi_master *master,
+				  struct spi_message *message)
 {
+	struct rspi_data *rspi = spi_master_get_devdata(master);
+
+	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_SPE, RSPI_SPCR);
+	return 0;
 }
 
 static irqreturn_t rspi_irq(int irq, void *_sr)
@@ -972,9 +930,6 @@ static int rspi_probe(struct platform_device *pdev)
 	}
 	clk_enable(rspi->clk);
 
-	INIT_LIST_HEAD(&rspi->queue);
-	spin_lock_init(&rspi->lock);
-	INIT_WORK(&rspi->ws, rspi_work);
 	init_waitqueue_head(&rspi->wait);
 
 	if (rspi_pd && rspi_pd->num_chipselect)
@@ -984,8 +939,10 @@ static int rspi_probe(struct platform_device *pdev)
 
 	master->bus_num = pdev->id;
 	master->setup = rspi_setup;
-	master->transfer = rspi_transfer;
+	master->transfer_one = rspi_transfer_one;
 	master->cleanup = rspi_cleanup;
+	master->prepare_message = rspi_prepare_message;
+	master->unprepare_message = rspi_unprepare_message;
 	master->mode_bits = SPI_CPHA | SPI_CPOL;
 
 	ret = devm_request_irq(&pdev->dev, irq, rspi_irq, 0,
