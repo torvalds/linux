@@ -291,6 +291,28 @@ err_free:
 }
 EXPORT_SYMBOL_GPL(sensor_hub_input_attr_get_raw_value);
 
+int hid_sensor_get_usage_index(struct hid_sensor_hub_device *hsdev,
+				u32 report_id, int field_index, u32 usage_id)
+{
+	struct hid_report *report;
+	struct hid_field *field;
+	int i;
+
+	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
+	if (!report || (field_index >= report->maxfield))
+		goto done_proc;
+
+	field = report->field[field_index];
+	for (i = 0; i < field->maxusage; ++i) {
+		if (field->usage[i].hid == usage_id)
+			return field->usage[i].usage_index;
+	}
+
+done_proc:
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(hid_sensor_get_usage_index);
+
 int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 				u8 type,
 				u32 usage_id,

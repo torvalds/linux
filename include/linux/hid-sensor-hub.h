@@ -218,4 +218,7 @@ int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
 					int *val1, int *val2);
 
+int hid_sensor_get_usage_index(struct hid_sensor_hub_device *hsdev,
+				u32 report_id, int field_index, u32 usage_id);
+
 #endif
