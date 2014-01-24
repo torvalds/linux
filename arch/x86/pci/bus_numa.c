@@ -10,9 +10,6 @@ static struct pci_root_info *x86_find_pci_root_info(int bus)
 {
 	struct pci_root_info *info;
 
-	if (list_empty(&pci_root_infos))
-		return NULL;
-
 	list_for_each_entry(info, &pci_root_infos, list)
 		if (info->busn.start == bus)
 			return info;
