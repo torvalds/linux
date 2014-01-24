@@ -212,23 +212,18 @@ static int oxygen_wait_spi(struct oxygen *chip)
 	return -EIO;
 }
 
-void oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data)
+int oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data)
 {
-	unsigned int count;
-
-	/* should not need more than 30.72 us (24 * 1.28 us) */
-	count = 10;
-	while ((oxygen_read8(chip, OXYGEN_SPI_CONTROL) & OXYGEN_SPI_BUSY)
-	       && count > 0) {
-		udelay(4);
-		--count;
-	}
-
+	/*
+	 * We need to wait AFTER initiating the SPI transaction,
+	 * otherwise read operations will not work.
+	 */
 	oxygen_write8(chip, OXYGEN_SPI_DATA1, data);
 	oxygen_write8(chip, OXYGEN_SPI_DATA2, data >> 8);
 	if (control & OXYGEN_SPI_DATA_LENGTH_3)
 		oxygen_write8(chip, OXYGEN_SPI_DATA3, data >> 16);
 	oxygen_write8(chip, OXYGEN_SPI_CONTROL, control);
+	return oxygen_wait_spi(chip);
 }
 EXPORT_SYMBOL(oxygen_write_spi);
 
