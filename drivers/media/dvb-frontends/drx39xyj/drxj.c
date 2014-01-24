@@ -586,17 +586,6 @@ struct drx_access_func drx_dap_drxj_funct_g = {
 	drxj_dap_read_modify_write_reg32,	/* Not supported   */
 };
 
-/**
-* /var DRXJ_Func_g
-* /brief The driver functions of the drxj
-*/
-struct drx_demod_func drxj_functions_g = {
-	DRXJ_TYPE_ID,
-	drxj_open,
-	drxj_close,
-	drxj_ctrl
-};
-
 struct drxj_data drxj_data_g = {
 	false,			/* has_lna : true if LNA (aka PGA) present      */
 	false,			/* has_oob : true if OOB supported              */
@@ -927,7 +916,6 @@ struct drx_common_attr drxj_default_comm_attr_g = {
 * \brief Default drxj demodulator instance.
 */
 struct drx_demod_instance drxj_default_demod_g = {
-	&drxj_functions_g,	/* demod functions */
 	&DRXJ_DAP,		/* data access protocol functions */
 	NULL,			/* tuner instance */
 	&drxj_default_addr_g,	/* i2c address & device id */
@@ -19822,6 +19810,15 @@ int drxj_open(struct drx_demod_instance *demod)
 	struct drx_cfg_mpeg_output cfg_mpeg_output;
 	int rc;
 
+
+	if ((demod == NULL) ||
+	    (demod->my_common_attr == NULL) ||
+	    (demod->my_ext_attr == NULL) ||
+	    (demod->my_i2c_dev_addr == NULL) ||
+	    (demod->my_common_attr->is_opened)) {
+		return -EINVAL;
+	}
+
 	/* Check arguments */
 	if (demod->my_ext_attr == NULL)
 		return -EINVAL;
@@ -20020,6 +20017,7 @@ int drxj_open(struct drx_demod_instance *demod)
 	/* refresh the audio data structure with default */
 	ext_attr->aud_data = drxj_default_aud_data_g;
 
+	demod->my_common_attr->is_opened = true;
 	return 0;
 rw_error:
 	common_attr->is_opened = false;
@@ -20039,6 +20037,14 @@ int drxj_close(struct drx_demod_instance *demod)
 	struct drx_common_attr *common_attr = demod->my_common_attr;
 	int rc;
 	enum drx_power_mode power_mode = DRX_POWER_UP;
+
+	if ((demod == NULL) ||
+	    (demod->my_common_attr == NULL) ||
+	    (demod->my_ext_attr == NULL) ||
+	    (demod->my_i2c_dev_addr == NULL) ||
+	    (!demod->my_common_attr->is_opened)) {
+		return -EINVAL;
+	}
 
 	/* power up */
 	rc = ctrl_power_mode(demod, &power_mode);
@@ -20084,8 +20090,12 @@ int drxj_close(struct drx_demod_instance *demod)
 		goto rw_error;
 	}
 
+	DRX_ATTR_ISOPENED(demod) = false;
+
 	return 0;
 rw_error:
+	DRX_ATTR_ISOPENED(demod) = false;
+
 	return -EIO;
 }
 
@@ -20577,78 +20587,4 @@ release:
 	demod->firmware = NULL;
 
 	return rc;
-}
-
-/*============================================================================*/
-
-/*
- * Exported functions
- */
-
-/**
- * drx_open - Open a demodulator instance.
- * @demod: A pointer to a demodulator instance.
- *
- * This function returns:
- *	0:		Opened demod instance with succes.
- *	-EIO:		Driver not initialized or unable to initialize
- *			demod.
- *	-EINVAL:	Demod instance has invalid content.
- *
- */
-
-int drx_open(struct drx_demod_instance *demod)
-{
-	int status = 0;
-
-	if ((demod == NULL) ||
-	    (demod->my_demod_funct == NULL) ||
-	    (demod->my_common_attr == NULL) ||
-	    (demod->my_ext_attr == NULL) ||
-	    (demod->my_i2c_dev_addr == NULL) ||
-	    (demod->my_common_attr->is_opened)) {
-		return -EINVAL;
-	}
-
-	status = (*(demod->my_demod_funct->open_func)) (demod);
-
-	if (status == 0)
-		demod->my_common_attr->is_opened = true;
-
-	return status;
-}
-
-/*============================================================================*/
-
-/**
- * drx_close - Close device
- * @demod: A pointer to a demodulator instance.
- *
- * Free resources occupied by device instance.
- * Put device into sleep mode.
- *
- * This function returns:
- *	0:		Closed demod instance with succes.
- *	-EIO:		Driver not initialized or error during close
- *			demod.
- *	-EINVAL:	Demod instance has invalid content.
- */
-int drx_close(struct drx_demod_instance *demod)
-{
-	int status = 0;
-
-	if ((demod == NULL) ||
-	    (demod->my_demod_funct == NULL) ||
-	    (demod->my_common_attr == NULL) ||
-	    (demod->my_ext_attr == NULL) ||
-	    (demod->my_i2c_dev_addr == NULL) ||
-	    (!demod->my_common_attr->is_opened)) {
-		return -EINVAL;
-	}
-
-	status = (*(demod->my_demod_funct->close_func)) (demod);
-
-	DRX_ATTR_ISOPENED(demod) = false;
-
-	return status;
 }

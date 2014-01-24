@@ -413,7 +413,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	demod->my_tuner = NULL;
 	demod->i2c = i2c;
 
-	result = drx_open(demod);
+	result = drxj_open(demod);
 	if (result != 0) {
 		pr_err("DRX open failed!  Aborting\n");
 		goto error;

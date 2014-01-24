@@ -2013,28 +2013,11 @@ struct drx_reg_dump {
 
 struct drx_demod_instance;
 
-	typedef int(*drx_open_func_t) (struct drx_demod_instance *demod);
-	typedef int(*drx_close_func_t) (struct drx_demod_instance *demod);
-	typedef int(*drx_ctrl_func_t) (struct drx_demod_instance *demod,
-					     u32 ctrl,
-					     void *ctrl_data);
-
-/**
-* \struct struct drx_demod_func * \brief A stucture containing all functions of a demodulator.
-*/
-	struct drx_demod_func {
-		u32 type_id;		 /**< Device type identifier.      */
-		drx_open_func_t open_func;	 /**< Pointer to Open() function.  */
-		drx_close_func_t close_func;/**< Pointer to Close() function. */
-		drx_ctrl_func_t ctrl_func;	 /**< Pointer to Ctrl() function.  */};
-
 /**
 * \struct struct drx_demod_instance * \brief Top structure of demodulator instance.
 */
 struct drx_demod_instance {
 	/* type specific demodulator data */
-	struct drx_demod_func *my_demod_funct;
-				/**< demodulator functions                */
 	struct drx_access_func *my_access_funct;
 				/**< data access protocol functions       */
 	struct tuner_instance *my_tuner;
@@ -2459,14 +2442,6 @@ Access macros
 * \retval false std is not DVBT standard
 */
 #define DRX_ISDVBTSTD(std) ((std) == DRX_STANDARD_DVBT)
-
-/*-------------------------------------------------------------------------
-Exported FUNCTIONS
--------------------------------------------------------------------------*/
-
-	int drx_open(struct drx_demod_instance *demod);
-
-	int drx_close(struct drx_demod_instance *demod);
 
 /*-------------------------------------------------------------------------
 THE END
