@@ -41,6 +41,20 @@ struct rsnd_scu {
  */
 
 /*
+ * scu.c is caring...
+ *
+ * Gen1
+ *
+ * [mem] -> [SRU] -> [SSI]
+ *        |--------|
+ *
+ * Gen2
+ *
+ * [mem] -> [SCU] -> [SSIU] -> [SSI]
+ *        |-----------------|
+ */
+
+/*
  *	How to use SRC bypass mode for debugging
  *
  * SRC has bypass mode, and it is useful for debugging.
