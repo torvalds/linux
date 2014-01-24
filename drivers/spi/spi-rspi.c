@@ -356,22 +356,51 @@ static int rspi_wait_for_interrupt(struct rspi_data *rspi, u8 wait_mask,
 	return 0;
 }
 
+static int rspi_data_out(struct rspi_data *rspi, u8 data)
+{
+	if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
+		dev_err(&rspi->master->dev, "transmit timeout\n");
+		return -ETIMEDOUT;
+	}
+	rspi_write_data(rspi, data);
+	return 0;
+}
+
+static int rspi_data_in(struct rspi_data *rspi)
+{
+	u8 data;
+
+	if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
+		dev_err(&rspi->master->dev, "receive timeout\n");
+		return -ETIMEDOUT;
+	}
+	data = rspi_read_data(rspi);
+	return data;
+}
+
+static int rspi_data_out_in(struct rspi_data *rspi, u8 data)
+{
+	int ret;
+
+	ret = rspi_data_out(rspi, data);
+	if (ret < 0)
+		return ret;
+
+	return rspi_data_in(rspi);
+}
+
 static int rspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
-	int remain = t->len;
+	int remain = t->len, ret;
 	const u8 *data = t->tx_buf;
+
 	while (remain > 0) {
 		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_TXMD,
 			    RSPI_SPCR);
 
-		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
-			dev_err(&rspi->master->dev,
-				"%s: tx empty timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
-
-		rspi_write_data(rspi, *data);
-		data++;
+		ret = rspi_data_out(rspi, *data++);
+		if (ret < 0)
+			return ret;
 		remain--;
 	}
 
@@ -383,28 +412,17 @@ static int rspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 
 static int qspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
-	int remain = t->len;
+	int remain = t->len, ret;
 	const u8 *data = t->tx_buf;
 
 	rspi_write8(rspi, SPBFCR_TXRST, QSPI_SPBFCR);
 	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
 
 	while (remain > 0) {
-
-		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
-			dev_err(&rspi->master->dev,
-				"%s: tx empty timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
-		rspi_write_data(rspi, *data++);
-
-		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
-			dev_err(&rspi->master->dev,
-				"%s: receive timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
-		rspi_read_data(rspi);
-
+		/* dummy read */
+		ret = rspi_data_out_in(rspi, *data++);
+		if (ret < 0)
+			return ret;
 		remain--;
 	}
 
@@ -549,32 +567,20 @@ static void rspi_receive_init(const struct rspi_data *rspi)
 
 static int rspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
-	int remain = t->len;
-	u8 *data;
+	int remain = t->len, ret;
+	u8 *data = t->rx_buf;
 
 	rspi_receive_init(rspi);
 
-	data = t->rx_buf;
 	while (remain > 0) {
 		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_TXMD,
 			    RSPI_SPCR);
 
-		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
-			dev_err(&rspi->master->dev,
-				"%s: tx empty timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
-		/* dummy write for generate clock */
-		rspi_write_data(rspi, DUMMY_DATA);
-
-		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
-			dev_err(&rspi->master->dev,
-				"%s: receive timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
-		*data = rspi_read_data(rspi);
-
-		data++;
+		/* dummy write data for generate clock */
+		ret = rspi_data_out_in(rspi, DUMMY_DATA);
+		if (ret < 0)
+			return ret;
+		*data++ = ret;
 		remain--;
 	}
 
@@ -594,28 +600,17 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 
 static int qspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
-	int remain = t->len;
-	u8 *data;
+	int remain = t->len, ret;
+	u8 *data = t->rx_buf;
 
 	qspi_receive_init(rspi);
 
-	data = t->rx_buf;
 	while (remain > 0) {
-
-		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
-			dev_err(&rspi->master->dev,
-				"%s: tx empty timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
 		/* dummy write for generate clock */
-		rspi_write_data(rspi, DUMMY_DATA);
-
-		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
-			dev_err(&rspi->master->dev,
-				"%s: receive timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
-		*data++ = rspi_read_data(rspi);
+		ret = rspi_data_out_in(rspi, DUMMY_DATA);
+		if (ret < 0)
+			return ret;
+		*data++ = ret;
 		remain--;
 	}
 
