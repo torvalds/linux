@@ -16,9 +16,6 @@ struct rsnd_scu {
 	struct clk *clk;
 };
 
-#define rsnd_scu_mode_flags(p) ((p)->info->flags)
-#define rsnd_scu_convert_rate(p) ((p)->info->convert_rate)
-
 #define RSND_SCU_NAME_SIZE 16
 
 /*
@@ -29,6 +26,18 @@ struct rsnd_scu {
 #define OTBL_20		(4 << 16)
 #define OTBL_18		(6 << 16)
 #define OTBL_16		(8 << 16)
+
+#define rsnd_scu_mode_flags(p) ((p)->info->flags)
+#define rsnd_scu_convert_rate(p) ((p)->info->convert_rate)
+#define rsnd_mod_to_scu(_mod)				\
+	container_of((_mod), struct rsnd_scu, mod)
+
+#define for_each_rsnd_scu(pos, priv, i)				\
+	for ((i) = 0;						\
+	     ((i) < rsnd_scu_nr(priv)) &&			\
+	     ((pos) = (struct rsnd_scu *)(priv)->scu + i);	\
+	     i++)
+
 
 /*
  *		image of SRC (Sampling Rate Converter)
@@ -98,15 +107,6 @@ struct rsnd_scu {
  * };
  *
  */
-
-#define rsnd_mod_to_scu(_mod)	\
-	container_of((_mod), struct rsnd_scu, mod)
-
-#define for_each_rsnd_scu(pos, priv, i)					\
-	for ((i) = 0;							\
-	     ((i) < rsnd_scu_nr(priv)) &&				\
-		     ((pos) = (struct rsnd_scu *)(priv)->scu + i);	\
-	     i++)
 
 static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
 				  struct rsnd_dai *rdai,
