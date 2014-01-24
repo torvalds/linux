@@ -22,6 +22,35 @@ config USB_DWC2
 
 if USB_DWC2
 
+choice
+	bool "DWC2 Mode Selection"
+	default USB_DWC2_DUAL_ROLE if (USB && USB_GADGET)
+	default USB_DWC2_HOST if (USB && !USB_GADGET)
+	default USB_DWC2_GADGET if (!USB && USB_GADGET)
+
+config USB_DWC2_HOST
+	bool "Host only mode"
+	depends on USB=y || USB=USB_DWC2
+	help
+	  Select this when you want to use DWC2 in host mode only,
+	  thereby the gadget feature will be regressed.
+
+config USB_DWC2_GADGET
+	bool "Gadget only mode"
+	depends on USB_GADGET=y || USB_GADGET=USB_DWC2
+	help
+	  Select this when you want to use DWC2 in gadget mode only,
+	  thereby the host feature will be regressed.
+
+config USB_DWC2_DUAL_ROLE
+	bool "Dual Role mode"
+	depends on ((USB=y || USB=USB_DWC2) && (USB_GADGET=y || USB_GADGET=USB_DWC2))
+	help
+	  This is the default mode of working of DWC2 controller where
+	  both host and gadget features are enabled.
+
+endchoice
+
 config USB_DWC2_DEBUG
 	bool "Enable Debugging Messages"
 	help

@@ -321,6 +321,7 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 		}
 		/* Change to L0 state */
 		hsotg->lx_state = DWC2_L0;
+		call_gadget(hsotg, resume);
 	} else {
 		if (hsotg->lx_state != DWC2_L1) {
 			u32 pcgcctl = readl(hsotg->regs + PCGCTL);
@@ -370,6 +371,9 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 
 	dev_dbg(hsotg->dev, "USB SUSPEND\n");
 
+	/* Clear interrupt */
+	writel(GINTSTS_USBSUSP, hsotg->regs + GINTSTS);
+
 	if (dwc2_is_device_mode(hsotg)) {
 		/*
 		 * Check the Device status register to determine if the Suspend
@@ -377,10 +381,8 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 		 */
 		dsts = readl(hsotg->regs + DSTS);
 		dev_dbg(hsotg->dev, "DSTS=0x%0x\n", dsts);
-		dev_dbg(hsotg->dev,
-			"DSTS.Suspend Status=%d HWCFG4.Power Optimize=%d\n",
-			!!(dsts & DSTS_SUSPSTS),
-			!!(hsotg->hwcfg4 & GHWCFG4_POWER_OPTIMIZ));
+
+		call_gadget(hsotg, suspend);
 	} else {
 		if (hsotg->op_state == OTG_STATE_A_PERIPHERAL) {
 			dev_dbg(hsotg->dev, "a_peripheral->a_host\n");
@@ -395,16 +397,11 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 
 	/* Change to L2 (suspend) state */
 	hsotg->lx_state = DWC2_L2;
-
-	/* Clear interrupt */
-	writel(GINTSTS_USBSUSP, hsotg->regs + GINTSTS);
 }
-
-#define GINTMSK_COMMON	(GINTSTS_WKUPINT | GINTSTS_SESSREQINT |		\
-			 GINTSTS_CONIDSTSCHNG | GINTSTS_OTGINT |	\
-			 GINTSTS_MODEMIS | GINTSTS_DISCONNINT |		\
-			 GINTSTS_USBSUSP | GINTSTS_RESTOREDONE |	\
-			 GINTSTS_PRTINT)
+/* IRQ flags which will trigger a retry around the IRQ loop */
+#define IRQ_RETRY_MASK (GINTSTS_NPTXFEMP | \
+			GINTSTS_PTXFEMP |  \
+			GINTSTS_RXFLVL)
 
 /*
  * This function returns the Core Interrupt register
@@ -414,7 +411,6 @@ static u32 dwc2_read_common_intr(struct dwc2_hsotg *hsotg)
 	u32 gintsts;
 	u32 gintmsk;
 	u32 gahbcfg;
-	u32 gintmsk_common = GINTMSK_COMMON;
 
 	gintsts = readl(hsotg->regs + GINTSTS);
 	gintmsk = readl(hsotg->regs + GINTMSK);
@@ -428,7 +424,7 @@ static u32 dwc2_read_common_intr(struct dwc2_hsotg *hsotg)
 #endif
 
 	if (gahbcfg & GAHBCFG_GLBL_INTR_EN)
-		return gintsts & gintmsk & gintmsk_common;
+		return gintsts & gintmsk;
 	else
 		return 0;
 }
@@ -450,7 +446,8 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 {
 	struct dwc2_hsotg *hsotg = dev;
 	u32 gintsts;
-	int retval = 0;
+	int retry_count = 8;
+	irqreturn_t retval = IRQ_HANDLED;
 
 	if (dwc2_check_core_status(hsotg) < 0) {
 		dev_warn(hsotg->dev, "Controller is disconnected\n");
@@ -458,10 +455,15 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 	}
 
 	spin_lock(&hsotg->lock);
-
+irq_retry:
 	gintsts = dwc2_read_common_intr(hsotg);
 	if (gintsts & ~GINTSTS_PRTINT)
 		retval = 1;
+
+	if (gintsts & GINTSTS_ENUMDONE) {
+		writel(GINTSTS_ENUMDONE, hsotg->regs + GINTSTS);
+		s3c_hsotg_irq_enumdone(hsotg);
+	}
 
 	if (gintsts & GINTSTS_MODEMIS)
 		dwc2_handle_mode_mismatch_intr(hsotg);
@@ -469,6 +471,75 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 		dwc2_handle_otg_intr(hsotg);
 	if (gintsts & GINTSTS_CONIDSTSCHNG)
 		dwc2_handle_conn_id_status_change_intr(hsotg);
+
+	if (gintsts & (GINTSTS_OEPINT | GINTSTS_IEPINT)) {
+		u32 daint = readl(hsotg->regs + DAINT);
+		u32 daint_out = daint >> DAINT_OUTEP_SHIFT;
+		u32 daint_in = daint & ~(daint_out << DAINT_OUTEP_SHIFT);
+		int ep;
+
+		dev_dbg(hsotg->dev, "%s: daint=%08x\n", __func__, daint);
+		for (ep = 0; ep < 15 && daint_out; ep++, daint_out >>= 1) {
+			if (daint_out & 1)
+				s3c_hsotg_epint(hsotg, ep, 0);
+		}
+
+		for (ep = 0; ep < 15 && daint_in; ep++, daint_in >>= 1) {
+			if (daint_in & 1)
+				s3c_hsotg_epint(hsotg, ep, 1);
+		}
+	}
+
+	if (gintsts & GINTSTS_USBRST) {
+		u32 usb_status = readl(hsotg->regs + GOTGCTL);
+
+		dev_dbg(hsotg->dev, "%s: USBRST\n", __func__);
+		dev_dbg(hsotg->dev, "GNPTXSTS=%08x\n",
+			readl(hsotg->regs + GNPTXSTS));
+
+		writel(GINTSTS_USBRST, hsotg->regs + GINTSTS);
+
+		if (usb_status & GOTGCTL_BSESVLD) {
+			if (time_after(jiffies, hsotg->s3c_hsotg->last_rst +
+				msecs_to_jiffies(200))) {
+				kill_all_requests(hsotg, &hsotg->eps[0],
+					-ECONNRESET, true);
+				s3c_hsotg_core_init(hsotg);
+				hsotg->s3c_hsotg->last_rst = jiffies;
+			}
+		}
+	}
+
+	if (gintsts & GINTSTS_NPTXFEMP) {
+		dev_dbg(hsotg->dev, "NPTXFEMP\n");
+
+		/*
+		 * Disable the interrupt to stop it happening again
+		 * unless one of these endpoint routines decides that
+		 * it needs re-enabling
+		 */
+		s3c_hsotg_disable_gsint(hsotg, GINTSTS_NPTXFEMP);
+		s3c_hsotg_irq_fifoempty(hsotg, false);
+	}
+
+	if (gintsts & GINTSTS_PTXFEMP) {
+		dev_dbg(hsotg->dev, "PTXFEMP\n");
+
+		/* See note in GINTSTS_NPTxFEmp */
+		s3c_hsotg_disable_gsint(hsotg, GINTSTS_PTXFEMP);
+		s3c_hsotg_irq_fifoempty(hsotg, true);
+	}
+
+	if (gintsts & GINTSTS_RXFLVL) {
+		/*
+		 * note, since GINTSTS_RXFLVL doubles as FIFO-not-empty,
+		 * we need to retry s3c_hsotg_handle_rx if this is still
+		 * set.
+		 */
+		s3c_hsotg_handle_rx(hsotg);
+	}
+
+
 	if (gintsts & GINTSTS_DISCONNINT)
 		dwc2_handle_disconnect_intr(hsotg);
 	if (gintsts & GINTSTS_SESSREQINT)
@@ -478,10 +549,26 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 	if (gintsts & GINTSTS_USBSUSP)
 		dwc2_handle_usb_suspend_intr(hsotg);
 
-	if (gintsts & GINTSTS_RESTOREDONE) {
-		gintsts = GINTSTS_RESTOREDONE;
-		writel(gintsts, hsotg->regs + GINTSTS);
-		dev_dbg(hsotg->dev, " --Restore done interrupt received--\n");
+	if (gintsts & GINTSTS_ERLYSUSP) {
+		dev_dbg(hsotg->dev, "GINTSTS_ERLYSUSP\n");
+		writel(GINTSTS_ERLYSUSP, hsotg->regs + GINTSTS);
+	}
+
+	/*
+	 * these next two seem to crop-up occasionally causing the core
+	 * to shutdown the USB transfer, so try clearing them and logging
+	 * the occurrence.
+	 */
+	if (gintsts & GINTSTS_GOUTNAKEFF) {
+		dev_dbg(hsotg->dev, "GOUTNAKEFF triggered\n");
+		writel(DCTL_CGOUTNAK, hsotg->regs + DCTL);
+		s3c_hsotg_dump(hsotg);
+	}
+
+	if (gintsts & GINTSTS_GINNAKEFF) {
+		dev_dbg(hsotg->dev, "GINNAKEFF triggered\n");
+		writel(DCTL_CGNPINNAK, hsotg->regs + DCTL);
+		s3c_hsotg_dump(hsotg);
 	}
 
 	if (gintsts & GINTSTS_PRTINT) {
@@ -497,6 +584,13 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 			retval = 1;
 		}
 	}
+
+	/*
+	 * if we've had fifo events, we should try and go around the
+	 * loop again to see if there's any point in returning yet.
+	 */
+	if (gintsts & IRQ_RETRY_MASK && --retry_count > 0)
+		goto irq_retry;
 
 	spin_unlock(&hsotg->lock);
 out:

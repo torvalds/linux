@@ -41,6 +41,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/usb/otg.h>
 
 #include "core.h"
 #include "hcd.h"
@@ -62,7 +63,14 @@ static int dwc2_driver_remove(struct platform_device *dev)
 {
 	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
 
-	dwc2_hcd_remove(hsotg);
+	if (IS_ENABLED(CONFIG_USB_DWC2_GADGET))
+		s3c_hsotg_remove(hsotg);
+	else if (IS_ENABLED(CONFIG_USB_DWC2_HOST))
+		dwc2_hcd_remove(hsotg);
+	else { /* dual role */
+		s3c_hsotg_remove(hsotg);
+		dwc2_hcd_remove(hsotg);
+	}
 
 	return 0;
 }
@@ -93,6 +101,10 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
 	if (!hsotg)
+		return -ENOMEM;
+
+	hsotg->core_params = kzalloc(sizeof(*hsotg->core_params), GFP_KERNEL);
+	if (!hsotg->core_params)
 		return -ENOMEM;
 
 	hsotg->dev = &dev->dev;
@@ -144,12 +156,28 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		params.dma_desc_enable = prop;
 	}
 
-	retval = dwc2_hcd_init(hsotg, irq, &params);
-	if (retval)
-		return retval;
+	if (IS_ENABLED(CONFIG_USB_DWC2_HOST)) {
+		retval = dwc2_hcd_init(hsotg, irq, &params);
+		if (retval)
+			return retval;
+	} else if (IS_ENABLED(CONFIG_USB_DWC2_GADGET)) {
+		retval = dwc2_gadget_init(hsotg, irq);
+		if (retval)
+			return retval;
+		retval = dwc2_core_init(hsotg, true, irq);
+		if (retval)
+			return retval;
+	} else { /* dual role */
+		retval = dwc2_gadget_init(hsotg, irq);
+		if (retval)
+			return retval;
+		retval = dwc2_hcd_init(hsotg, irq, &params);
+		if (retval)
+			return retval;
+	}
+	spin_lock_init(&hsotg->lock);
 
 	platform_set_drvdata(dev, hsotg);
-
 	return retval;
 }
 

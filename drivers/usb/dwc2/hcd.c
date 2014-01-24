@@ -1315,6 +1315,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		dwc2_core_init(hsotg, false, -1);
 		dwc2_enable_global_interrupts(hsotg);
+		s3c_hsotg_core_init(hsotg);
 	} else {
 		/* A-Device connector (Host Mode) */
 		dev_dbg(hsotg->dev, "connId A\n");
@@ -2795,11 +2796,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 		goto error1;
 	hsotg->last_frame_num = HFNUM_MAX_FRNUM;
 #endif
-
-	hsotg->core_params = kzalloc(sizeof(*hsotg->core_params), GFP_KERNEL);
-	if (!hsotg->core_params)
-		goto error1;
-
 	dwc2_set_all_params(hsotg->core_params, -1);
 
 	/* Validate parameter values */
@@ -2823,7 +2819,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 
 	hcd->has_tt = 1;
 
-	spin_lock_init(&hsotg->lock);
 	((struct wrapper_priv_data *) &hcd->hcd_priv)->hsotg = hsotg;
 	hsotg->priv = hcd;
 

@@ -16,6 +16,8 @@ dwc2-y					+= core.o core_intr.o
 dwc2-y					+= hcd.o hcd_intr.o
 dwc2-y					+= hcd_queue.o hcd_ddma.o
 
+dwc2-y					+= s3c-hsotg.o
+
 ifneq ($(CONFIG_PCI),)
 	obj-$(CONFIG_USB_DWC2)		+= dwc2_pci.o
 endif
