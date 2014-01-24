@@ -211,7 +211,7 @@ static int rsnd_scu_convert_rate_ctrl(struct rsnd_priv *priv,
 	rsnd_mod_write(mod, SRC_SRCIR, 0);
 
 	/* use DMA transfer */
-	rsnd_mod_write(mod, BUSIF_MODE, 1);
+	rsnd_mod_write(mod, SRC_BUSIF_MODE, 1);
 
 	return 0;
 }
