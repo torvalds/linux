@@ -239,8 +239,8 @@ static u16 rspi_read_data(const struct rspi_data *rspi)
 /* optional functions */
 struct spi_ops {
 	int (*set_config_register)(struct rspi_data *rspi, int access_size);
-	int (*send_pio)(struct rspi_data *rspi, struct spi_transfer *t);
-	int (*receive_pio)(struct rspi_data *rspi, struct spi_transfer *t);
+	int (*transfer_one)(struct spi_master *master, struct spi_device *spi,
+			    struct spi_transfer *xfer);
 };
 
 /*
@@ -432,8 +432,6 @@ static int qspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 	return 0;
 }
 
-#define send_pio(spi, t) spi->ops->send_pio(spi, t)
-
 static void rspi_dma_complete(void *arg)
 {
 	struct rspi_data *rspi = arg;
@@ -617,8 +615,6 @@ static int qspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
 	return 0;
 }
 
-#define receive_pio(spi, t) spi->ops->receive_pio(spi, t)
-
 static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	struct scatterlist sg, sg_dummy;
@@ -743,7 +739,7 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 		if (rspi_is_dma(rspi, xfer))
 			ret = rspi_send_dma(rspi, xfer);
 		else
-			ret = send_pio(rspi, xfer);
+			ret = rspi_send_pio(rspi, xfer);
 		if (ret < 0)
 			return ret;
 	}
@@ -751,8 +747,24 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 		if (rspi_is_dma(rspi, xfer))
 			ret = rspi_receive_dma(rspi, xfer);
 		else
-			ret = receive_pio(rspi, xfer);
+			ret = rspi_receive_pio(rspi, xfer);
 	}
+	return ret;
+}
+
+static int qspi_transfer_one(struct spi_master *master, struct spi_device *spi,
+			     struct spi_transfer *xfer)
+{
+	struct rspi_data *rspi = spi_master_get_devdata(master);
+	int ret = 0;
+
+	if (xfer->tx_buf) {
+		ret = qspi_send_pio(rspi, xfer);
+		if (ret < 0)
+			return ret;
+	}
+	if (xfer->rx_buf)
+		ret = qspi_receive_pio(rspi, xfer);
 	return ret;
 }
 
@@ -948,7 +960,7 @@ static int rspi_probe(struct platform_device *pdev)
 
 	master->bus_num = pdev->id;
 	master->setup = rspi_setup;
-	master->transfer_one = rspi_transfer_one;
+	master->transfer_one = ops->transfer_one;
 	master->cleanup = rspi_cleanup;
 	master->prepare_message = rspi_prepare_message;
 	master->unprepare_message = rspi_unprepare_message;
@@ -990,14 +1002,12 @@ error1:
 
 static struct spi_ops rspi_ops = {
 	.set_config_register =		rspi_set_config_register,
-	.send_pio =			rspi_send_pio,
-	.receive_pio =			rspi_receive_pio,
+	.transfer_one =			rspi_transfer_one,
 };
 
 static struct spi_ops qspi_ops = {
 	.set_config_register =		qspi_set_config_register,
-	.send_pio =			qspi_send_pio,
-	.receive_pio =			qspi_receive_pio,
+	.transfer_one =			qspi_transfer_one,
 };
 
 static struct platform_device_id spi_driver_ids[] = {
