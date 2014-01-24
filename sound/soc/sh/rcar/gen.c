@@ -182,14 +182,14 @@ int rsnd_gen_path_init(struct rsnd_priv *priv,
 				       rsnd_dai_is_play(rdai, io));
 	id = rsnd_mod_id(mod);
 
-	/* SSI */
-	mod = rsnd_ssi_mod_get(priv, id);
+	/* SCU */
+	mod = rsnd_scu_mod_get(priv, id);
 	ret = rsnd_dai_connect(rdai, mod, io);
 	if (ret < 0)
 		return ret;
 
-	/* SCU */
-	mod = rsnd_scu_mod_get(priv, id);
+	/* SSI */
+	mod = rsnd_ssi_mod_get(priv, id);
 	ret = rsnd_dai_connect(rdai, mod, io);
 
 	return ret;
