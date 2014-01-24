@@ -97,7 +97,7 @@ extern struct group_info init_groups;
 #ifdef CONFIG_AUDITSYSCALL
 #define INIT_IDS \
 	.loginuid = INVALID_UID, \
-	.sessionid = -1,
+	.sessionid = (unsigned int)-1,
 #else
 #define INIT_IDS
 #endif
