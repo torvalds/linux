@@ -2191,7 +2191,8 @@ static void print_avi_infoframe(struct v4l2_subdev *sd)
 {
 	int i;
 	uint8_t buf[14];
-	uint8_t avi_inf_len;
+	u8 avi_len;
+	u8 avi_ver;
 	struct avi_info_frame avi;
 
 	if (!(hdmi_read(sd, 0x05) & 0x80)) {
@@ -2204,18 +2205,20 @@ static void print_avi_infoframe(struct v4l2_subdev *sd)
 	}
 
 	if (io_read(sd, 0x88) & 0x10) {
-		/* Note: the ADV7842 calculated incorrect checksums for InfoFrames
-		   with a length of 14 or 15. See the ADV7842 Register Settings
-		   Recommendations document for more details. */
-		v4l2_info(sd, "AVI infoframe checksum error\n");
-		return;
+		v4l2_info(sd, "AVI infoframe checksum error has occurred earlier\n");
+		io_write(sd, 0x8a, 0x10); /* clear AVI_INF_CKS_ERR_RAW */
+		if (io_read(sd, 0x88) & 0x10) {
+			v4l2_info(sd, "AVI infoframe checksum error still present\n");
+			io_write(sd, 0x8a, 0x10); /* clear AVI_INF_CKS_ERR_RAW */
+		}
 	}
 
-	avi_inf_len = infoframe_read(sd, 0xe2);
+	avi_len = infoframe_read(sd, 0xe2);
+	avi_ver = infoframe_read(sd, 0xe1);
 	v4l2_info(sd, "AVI infoframe version %d (%d byte)\n",
-		  infoframe_read(sd, 0xe1), avi_inf_len);
+		  avi_ver, avi_len);
 
-	if (infoframe_read(sd, 0xe1) != 0x02)
+	if (avi_ver != 0x02)
 		return;
 
 	for (i = 0; i < 14; i++)
