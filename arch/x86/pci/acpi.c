@@ -473,11 +473,11 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 {
 	struct acpi_device *device = root->device;
-	struct pci_root_info *info = NULL;
+	struct pci_root_info *info;
 	int domain = root->segment;
 	int busnum = root->secondary.start;
 	LIST_HEAD(resources);
-	struct pci_bus *bus = NULL;
+	struct pci_bus *bus;
 	struct pci_sysdata *sd;
 	int node;
 #ifdef CONFIG_ACPI_NUMA
