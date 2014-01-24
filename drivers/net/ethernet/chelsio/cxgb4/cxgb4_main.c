@@ -6163,13 +6163,13 @@ static void remove_one(struct pci_dev *pdev)
 		iounmap(adapter->regs);
 		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
-		kfree(adapter);
 		pci_disable_pcie_error_reporting(pdev);
 		if ((adapter->flags & DEV_ENABLED)) {
 			pci_disable_device(pdev);
 			adapter->flags &= ~DEV_ENABLED;
 		}
 		pci_release_regions(pdev);
+		kfree(adapter);
 	} else
 		pci_release_regions(pdev);
 }
