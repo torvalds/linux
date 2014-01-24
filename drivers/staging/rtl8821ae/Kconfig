@@ -2,6 +2,7 @@ config R8821AE
 	tristate "RealTek RTL8821AE Wireless LAN NIC driver"
 	depends on PCI && WLAN
 	depends on m
+	depends on BROKEN
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select EEPROM_93CX6
