@@ -321,5 +321,6 @@ void rsnd_ssi_remove(struct platform_device *pdev,
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,
 					  int dai_id, int is_play);
+int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
 #endif

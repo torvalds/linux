@@ -75,9 +75,6 @@ struct rsnd_ssi {
 };
 
 struct rsnd_ssiu {
-	u32 ssi_mode0;
-	u32 ssi_mode1;
-
 	int ssi_nr;
 	struct rsnd_ssi *ssi;
 };
@@ -99,70 +96,6 @@ struct rsnd_ssiu {
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 #define rsnd_ssi_to_ssiu(ssi)\
 	(((struct rsnd_ssiu *)((ssi) - rsnd_mod_id(&(ssi)->mod))) - 1)
-
-static void rsnd_ssi_mode_set(struct rsnd_priv *priv,
-			      struct rsnd_dai *rdai,
-			      struct rsnd_ssi *ssi)
-{
-	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_mod *scu;
-	struct rsnd_ssiu *ssiu = rsnd_ssi_to_ssiu(ssi);
-	int id = rsnd_mod_id(&ssi->mod);
-	u32 flags;
-	u32 val;
-
-	scu   = rsnd_scu_mod_get(priv, rsnd_mod_id(&ssi->mod));
-
-	/*
-	 * SSI_MODE0
-	 */
-
-	/* see also BUSIF_MODE */
-	if (rsnd_scu_hpbif_is_enable(scu)) {
-		ssiu->ssi_mode0 &= ~(1 << id);
-		dev_dbg(dev, "SSI%d uses DEPENDENT mode\n", id);
-	} else {
-		ssiu->ssi_mode0 |= (1 << id);
-		dev_dbg(dev, "SSI%d uses INDEPENDENT mode\n", id);
-	}
-
-	/*
-	 * SSI_MODE1
-	 */
-#define ssi_parent_set(p, sync, adg, ext)		\
-	do {						\
-		ssi->parent = ssiu->ssi + p;		\
-		if (rsnd_dai_is_clk_master(rdai))	\
-			val = adg;			\
-		else					\
-			val = ext;			\
-	} while (0)
-
-	flags = rsnd_ssi_mode_flags(ssi);
-	if (flags & RSND_SSI_CLK_PIN_SHARE) {
-
-		val = 0;
-		switch (id) {
-		case 1:
-			ssi_parent_set(0, (1 << 4), (0x2 << 0), (0x1 << 0));
-			break;
-		case 2:
-			ssi_parent_set(0, (1 << 4), (0x2 << 2), (0x1 << 2));
-			break;
-		case 4:
-			ssi_parent_set(3, (1 << 20), (0x2 << 16), (0x1 << 16));
-			break;
-		case 8:
-			ssi_parent_set(7, 0, 0, 0);
-			break;
-		}
-
-		ssiu->ssi_mode1 |= val;
-	}
-
-	rsnd_mod_write(&ssi->mod, SSI_MODE0, ssiu->ssi_mode0);
-	rsnd_mod_write(&ssi->mod, SSI_MODE1, ssiu->ssi_mode1);
-}
 
 static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 				  u32 bit)
@@ -320,7 +253,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	u32 cr;
 
@@ -364,8 +296,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	ssi->io		= io;
 	ssi->cr_own	= cr;
 	ssi->err	= -1; /* ignore 1st error */
-
-	rsnd_ssi_mode_set(priv, rdai, ssi);
 
 	return 0;
 }
@@ -588,6 +518,32 @@ struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
 	return &(((struct rsnd_ssiu *)(priv->ssiu))->ssi + id)->mod;
 }
 
+int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	return !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_CLK_PIN_SHARE);
+}
+
+static void rsnd_ssi_parent_clk_setup(struct rsnd_priv *priv, struct rsnd_ssi *ssi)
+{
+	if (!rsnd_ssi_is_pin_sharing(&ssi->mod))
+		return;
+
+	switch (rsnd_mod_id(&ssi->mod)) {
+	case 1:
+	case 2:
+		ssi->parent = rsnd_mod_to_ssi(rsnd_ssi_mod_get(priv, 0));
+		break;
+	case 4:
+		ssi->parent = rsnd_mod_to_ssi(rsnd_ssi_mod_get(priv, 3));
+		break;
+	case 8:
+		ssi->parent = rsnd_mod_to_ssi(rsnd_ssi_mod_get(priv, 7));
+		break;
+	}
+}
+
 int rsnd_ssi_probe(struct platform_device *pdev,
 		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv)
@@ -668,6 +624,8 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		}
 
 		rsnd_mod_init(priv, &ssi->mod, ops, i);
+
+		rsnd_ssi_parent_clk_setup(priv, ssi);
 	}
 
 	dev_dbg(dev, "ssi probed\n");

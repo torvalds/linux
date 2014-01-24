@@ -49,6 +49,46 @@ struct rsnd_scu {
 		     ((pos) = (struct rsnd_scu *)(priv)->scu + i);	\
 	     i++)
 
+static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
+				  struct rsnd_dai *rdai,
+				  struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	int id = rsnd_mod_id(mod);
+
+	/*
+	 * SSI_MODE0
+	 */
+	rsnd_mod_bset(mod, SSI_MODE0, (1 << id),
+		      rsnd_scu_hpbif_is_enable(mod) ? 0 : (1 << id));
+
+	/*
+	 * SSI_MODE1
+	 */
+	if (rsnd_ssi_is_pin_sharing(rsnd_ssi_mod_get(priv, id))) {
+		int shift = -1;
+		switch (id) {
+		case 1:
+			shift = 0;
+			break;
+		case 2:
+			shift = 2;
+			break;
+		case 4:
+			shift = 16;
+			break;
+		}
+
+		if (shift >= 0)
+			rsnd_mod_bset(mod, SSI_MODE1,
+				      0x3 << shift,
+				      rsnd_dai_is_clk_master(rdai) ?
+				      0x2 << shift : 0x1 << shift);
+	}
+
+	return 0;
+}
+
 /* Gen1 only */
 static int rsnd_src_set_route_if_gen1(
 			      struct rsnd_mod *mod,
@@ -235,6 +275,10 @@ static int rsnd_scu_init(struct rsnd_mod *mod,
 
 	clk_enable(scu->clk);
 
+	ret = rsnd_scu_ssi_mode_init(mod, rdai, io);
+	if (ret < 0)
+		return ret;
+
 	ret = rsnd_src_set_route_if_gen1(mod, rdai, io);
 	if (ret < 0)
 		return ret;
@@ -301,6 +345,7 @@ static struct rsnd_mod_ops rsnd_scu_ops = {
 
 static struct rsnd_mod_ops rsnd_scu_non_ops = {
 	.name	= "scu (non)",
+	.init	= rsnd_scu_ssi_mode_init,
 };
 
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id)
