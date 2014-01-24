@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <asm/facility.h>
 #include <asm/uaccess.h>
 #include <asm/futex.h>
 #include "uaccess.h"
@@ -242,7 +243,7 @@ EXPORT_SYMBOL(__strncpy_from_user);
 
 static int __init uaccess_init(void)
 {
-	if (!MACHINE_HAS_MVCOS)
+	if (IS_ENABLED(CONFIG_32BIT) || !test_facility(27))
 		static_key_slow_dec(&have_mvcos);
 	return 0;
 }
