@@ -519,11 +519,8 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 		chan->omtu = L2CAP_DEFAULT_MTU;
 		break;
 
-	case L2CAP_CHAN_CONN_FIX_A2MP:
-		chan->scid = L2CAP_CID_A2MP;
-		chan->dcid = L2CAP_CID_A2MP;
-		chan->omtu = L2CAP_A2MP_DEFAULT_MTU;
-		chan->imtu = L2CAP_A2MP_DEFAULT_MTU;
+	case L2CAP_CHAN_FIXED:
+		/* Caller will set CID and CID specific MTU values */
 		break;
 
 	default:
@@ -571,7 +568,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 		chan->conn = NULL;
 
-		if (chan->chan_type != L2CAP_CHAN_CONN_FIX_A2MP)
+		if (chan->scid != L2CAP_CID_A2MP)
 			hci_conn_drop(conn->hcon);
 
 		if (mgr && mgr->bredr_chan == chan)
@@ -1310,7 +1307,7 @@ static void l2cap_send_disconn_req(struct l2cap_chan *chan, int err)
 		__clear_ack_timer(chan);
 	}
 
-	if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP) {
+	if (chan->scid == L2CAP_CID_A2MP) {
 		l2cap_state_change(chan, BT_DISCONN);
 		return;
 	}
@@ -1508,7 +1505,7 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 
 		l2cap_chan_lock(chan);
 
-		if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP) {
+		if (chan->scid == L2CAP_CID_A2MP) {
 			l2cap_chan_unlock(chan);
 			continue;
 		}
@@ -7245,7 +7242,7 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 		BT_DBG("chan %p scid 0x%4.4x state %s", chan, chan->scid,
 		       state_to_string(chan->state));
 
-		if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP) {
+		if (chan->scid == L2CAP_CID_A2MP) {
 			l2cap_chan_unlock(chan);
 			continue;
 		}
