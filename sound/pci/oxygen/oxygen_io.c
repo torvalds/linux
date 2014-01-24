@@ -194,6 +194,24 @@ void oxygen_write_ac97_masked(struct oxygen *chip, unsigned int codec,
 }
 EXPORT_SYMBOL(oxygen_write_ac97_masked);
 
+static int oxygen_wait_spi(struct oxygen *chip)
+{
+	unsigned int count;
+
+	/*
+	 * Higher timeout to be sure: 200 us;
+	 * actual transaction should not need more than 40 us.
+	 */
+	for (count = 50; count > 0; count--) {
+		udelay(4);
+		if ((oxygen_read8(chip, OXYGEN_SPI_CONTROL) &
+						OXYGEN_SPI_BUSY) == 0)
+			return 0;
+	}
+	snd_printk(KERN_ERR "oxygen: SPI wait timeout\n");
+	return -EIO;
+}
+
 void oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data)
 {
 	unsigned int count;
