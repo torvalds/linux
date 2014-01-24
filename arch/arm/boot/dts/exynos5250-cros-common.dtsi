@@ -49,6 +49,7 @@
 			pinctrl-0 = <&max77686_irq>;
 			wakeup-source;
 			reg = <0x09>;
+			#clock-cells = <1>;
 
 			voltage-regulators {
 				ldo1_reg: LDO1 {

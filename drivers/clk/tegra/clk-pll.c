@@ -1433,7 +1433,7 @@ struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 }
 
 #if defined(CONFIG_ARCH_TEGRA_114_SOC) || defined(CONFIG_ARCH_TEGRA_124_SOC)
-const struct clk_ops tegra_clk_pllxc_ops = {
+static const struct clk_ops tegra_clk_pllxc_ops = {
 	.is_enabled = clk_pll_is_enabled,
 	.enable = clk_pll_iddq_enable,
 	.disable = clk_pll_iddq_disable,
@@ -1442,7 +1442,7 @@ const struct clk_ops tegra_clk_pllxc_ops = {
 	.set_rate = clk_pllxc_set_rate,
 };
 
-const struct clk_ops tegra_clk_pllm_ops = {
+static const struct clk_ops tegra_clk_pllm_ops = {
 	.is_enabled = clk_pll_is_enabled,
 	.enable = clk_pll_iddq_enable,
 	.disable = clk_pll_iddq_disable,
@@ -1451,7 +1451,7 @@ const struct clk_ops tegra_clk_pllm_ops = {
 	.set_rate = clk_pllm_set_rate,
 };
 
-const struct clk_ops tegra_clk_pllc_ops = {
+static const struct clk_ops tegra_clk_pllc_ops = {
 	.is_enabled = clk_pll_is_enabled,
 	.enable = clk_pllc_enable,
 	.disable = clk_pllc_disable,
@@ -1460,7 +1460,7 @@ const struct clk_ops tegra_clk_pllc_ops = {
 	.set_rate = clk_pllc_set_rate,
 };
 
-const struct clk_ops tegra_clk_pllre_ops = {
+static const struct clk_ops tegra_clk_pllre_ops = {
 	.is_enabled = clk_pll_is_enabled,
 	.enable = clk_pll_iddq_enable,
 	.disable = clk_pll_iddq_disable,
@@ -1469,7 +1469,7 @@ const struct clk_ops tegra_clk_pllre_ops = {
 	.set_rate = clk_pllre_set_rate,
 };
 
-const struct clk_ops tegra_clk_plle_tegra114_ops = {
+static const struct clk_ops tegra_clk_plle_tegra114_ops = {
 	.is_enabled =  clk_pll_is_enabled,
 	.enable = clk_plle_tegra114_enable,
 	.disable = clk_plle_tegra114_disable,
@@ -1731,7 +1731,7 @@ struct clk *tegra_clk_register_plle_tegra114(const char *name,
 #endif
 
 #ifdef CONFIG_ARCH_TEGRA_124_SOC
-const struct clk_ops tegra_clk_pllss_ops = {
+static const struct clk_ops tegra_clk_pllss_ops = {
 	.is_enabled = clk_pll_is_enabled,
 	.enable = clk_pll_iddq_enable,
 	.disable = clk_pll_iddq_disable,

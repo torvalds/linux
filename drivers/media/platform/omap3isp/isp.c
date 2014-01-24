@@ -290,9 +290,11 @@ static int isp_xclk_init(struct isp_device *isp)
 	struct clk_init_data init;
 	unsigned int i;
 
+	for (i = 0; i < ARRAY_SIZE(isp->xclks); ++i)
+		isp->xclks[i].clk = ERR_PTR(-EINVAL);
+
 	for (i = 0; i < ARRAY_SIZE(isp->xclks); ++i) {
 		struct isp_xclk *xclk = &isp->xclks[i];
-		struct clk *clk;
 
 		xclk->isp = isp;
 		xclk->id = i == 0 ? ISP_XCLK_A : ISP_XCLK_B;
@@ -305,10 +307,15 @@ static int isp_xclk_init(struct isp_device *isp)
 		init.num_parents = 1;
 
 		xclk->hw.init = &init;
-
-		clk = devm_clk_register(isp->dev, &xclk->hw);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
+		/*
+		 * The first argument is NULL in order to avoid circular
+		 * reference, as this driver takes reference on the
+		 * sensor subdevice modules and the sensors would take
+		 * reference on this module through clk_get().
+		 */
+		xclk->clk = clk_register(NULL, &xclk->hw);
+		if (IS_ERR(xclk->clk))
+			return PTR_ERR(xclk->clk);
 
 		if (pdata->xclks[i].con_id == NULL &&
 		    pdata->xclks[i].dev_id == NULL)
@@ -320,7 +327,7 @@ static int isp_xclk_init(struct isp_device *isp)
 
 		xclk->lookup->con_id = pdata->xclks[i].con_id;
 		xclk->lookup->dev_id = pdata->xclks[i].dev_id;
-		xclk->lookup->clk = clk;
+		xclk->lookup->clk = xclk->clk;
 
 		clkdev_add(xclk->lookup);
 	}
@@ -334,6 +341,9 @@ static void isp_xclk_cleanup(struct isp_device *isp)
 
 	for (i = 0; i < ARRAY_SIZE(isp->xclks); ++i) {
 		struct isp_xclk *xclk = &isp->xclks[i];
+
+		if (!IS_ERR(xclk->clk))
+			clk_unregister(xclk->clk);
 
 		if (xclk->lookup)
 			clkdev_drop(xclk->lookup);
