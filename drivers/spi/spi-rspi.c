@@ -192,6 +192,7 @@ struct rspi_data {
 
 	unsigned dma_width_16bit:1;
 	unsigned dma_callbacked:1;
+	unsigned byte_access:1;
 };
 
 static void rspi_write8(const struct rspi_data *rspi, u8 data, u16 offset)
@@ -219,10 +220,25 @@ static u16 rspi_read16(const struct rspi_data *rspi, u16 offset)
 	return ioread16(rspi->addr + offset);
 }
 
+static void rspi_write_data(const struct rspi_data *rspi, u16 data)
+{
+	if (rspi->byte_access)
+		rspi_write8(rspi, data, RSPI_SPDR);
+	else /* 16 bit */
+		rspi_write16(rspi, data, RSPI_SPDR);
+}
+
+static u16 rspi_read_data(const struct rspi_data *rspi)
+{
+	if (rspi->byte_access)
+		return rspi_read8(rspi, RSPI_SPDR);
+	else /* 16 bit */
+		return rspi_read16(rspi, RSPI_SPDR);
+}
+
 /* optional functions */
 struct spi_ops {
-	int (*set_config_register)(const struct rspi_data *rspi,
-				   int access_size);
+	int (*set_config_register)(struct rspi_data *rspi, int access_size);
 	int (*send_pio)(struct rspi_data *rspi, struct spi_transfer *t);
 	int (*receive_pio)(struct rspi_data *rspi, struct spi_transfer *t);
 };
@@ -230,8 +246,7 @@ struct spi_ops {
 /*
  * functions for RSPI
  */
-static int rspi_set_config_register(const struct rspi_data *rspi,
-				    int access_size)
+static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
 {
 	int spbr;
 
@@ -242,8 +257,9 @@ static int rspi_set_config_register(const struct rspi_data *rspi,
 	spbr = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz) - 1;
 	rspi_write8(rspi, clamp(spbr, 0, 255), RSPI_SPBR);
 
-	/* Sets number of frames to be used: 1 frame */
-	rspi_write8(rspi, 0x00, RSPI_SPDCR);
+	/* Disable dummy transmission, set 16-bit word access, 1 frame */
+	rspi_write8(rspi, 0, RSPI_SPDCR);
+	rspi->byte_access = 0;
 
 	/* Sets RSPCK, SSL, next-access delay value */
 	rspi_write8(rspi, 0x00, RSPI_SPCKD);
@@ -266,8 +282,7 @@ static int rspi_set_config_register(const struct rspi_data *rspi,
 /*
  * functions for QSPI
  */
-static int qspi_set_config_register(const struct rspi_data *rspi,
-				    int access_size)
+static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
 {
 	u16 spcmd;
 	int spbr;
@@ -279,8 +294,9 @@ static int qspi_set_config_register(const struct rspi_data *rspi,
 	spbr = clk_get_rate(rspi->clk) / (2 * rspi->max_speed_hz);
 	rspi_write8(rspi, clamp(spbr, 0, 255), RSPI_SPBR);
 
-	/* Sets number of frames to be used: 1 frame */
-	rspi_write8(rspi, 0x00, RSPI_SPDCR);
+	/* Disable dummy transmission, set byte access */
+	rspi_write8(rspi, 0, RSPI_SPDCR);
+	rspi->byte_access = 1;
 
 	/* Sets RSPCK, SSL, next-access delay value */
 	rspi_write8(rspi, 0x00, RSPI_SPCKD);
@@ -354,7 +370,7 @@ static int rspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 			return -ETIMEDOUT;
 		}
 
-		rspi_write16(rspi, *data, RSPI_SPDR);
+		rspi_write_data(rspi, *data);
 		data++;
 		remain--;
 	}
@@ -380,14 +396,14 @@ static int qspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 				"%s: tx empty timeout\n", __func__);
 			return -ETIMEDOUT;
 		}
-		rspi_write8(rspi, *data++, RSPI_SPDR);
+		rspi_write_data(rspi, *data++);
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
 			dev_err(&rspi->master->dev,
 				"%s: receive timeout\n", __func__);
 			return -ETIMEDOUT;
 		}
-		rspi_read8(rspi, RSPI_SPDR);
+		rspi_read_data(rspi);
 
 		remain--;
 	}
@@ -525,7 +541,7 @@ static void rspi_receive_init(const struct rspi_data *rspi)
 
 	spsr = rspi_read8(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPRF)
-		rspi_read16(rspi, RSPI_SPDR);	/* dummy read */
+		rspi_read_data(rspi);	/* dummy read */
 	if (spsr & SPSR_OVRF)
 		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPSR) & ~SPSR_OVRF,
 			    RSPI_SPSR);
@@ -549,15 +565,14 @@ static int rspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
 			return -ETIMEDOUT;
 		}
 		/* dummy write for generate clock */
-		rspi_write16(rspi, DUMMY_DATA, RSPI_SPDR);
+		rspi_write_data(rspi, DUMMY_DATA);
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
 			dev_err(&rspi->master->dev,
 				"%s: receive timeout\n", __func__);
 			return -ETIMEDOUT;
 		}
-		/* SPDR allows 16 or 32-bit access only */
-		*data = (u8)rspi_read16(rspi, RSPI_SPDR);
+		*data = rspi_read_data(rspi);
 
 		data++;
 		remain--;
@@ -572,7 +587,7 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 
 	spsr = rspi_read8(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPRF)
-		rspi_read8(rspi, RSPI_SPDR);   /* dummy read */
+		rspi_read_data(rspi);   /* dummy read */
 	rspi_write8(rspi, SPBFCR_TXRST | SPBFCR_RXRST, QSPI_SPBFCR);
 	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
 }
@@ -593,15 +608,14 @@ static int qspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
 			return -ETIMEDOUT;
 		}
 		/* dummy write for generate clock */
-		rspi_write8(rspi, DUMMY_DATA, RSPI_SPDR);
+		rspi_write_data(rspi, DUMMY_DATA);
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
 			dev_err(&rspi->master->dev,
 				"%s: receive timeout\n", __func__);
 			return -ETIMEDOUT;
 		}
-		/* SPDR allows 8, 16 or 32-bit access */
-		*data++ = rspi_read8(rspi, RSPI_SPDR);
+		*data++ = rspi_read_data(rspi);
 		remain--;
 	}
 
