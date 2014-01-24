@@ -95,7 +95,6 @@ struct rsnd_ssiu {
 #define rsnd_ssi_dma_available(ssi) \
 	rsnd_dma_available(rsnd_mod_to_dma(&(ssi)->mod))
 #define rsnd_ssi_clk_from_parent(ssi) ((ssi)->parent)
-#define rsnd_rdai_is_clk_master(rdai) ((rdai)->clk_master)
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 #define rsnd_ssi_to_ssiu(ssi)\
@@ -133,7 +132,7 @@ static void rsnd_ssi_mode_set(struct rsnd_priv *priv,
 #define ssi_parent_set(p, sync, adg, ext)		\
 	do {						\
 		ssi->parent = ssiu->ssi + p;		\
-		if (rsnd_rdai_is_clk_master(rdai))	\
+		if (rsnd_dai_is_clk_master(rdai))	\
 			val = adg;			\
 		else					\
 			val = ext;			\
@@ -252,7 +251,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	if (0 == ssi->usrcnt) {
 		clk_enable(ssi->clk);
 
-		if (rsnd_rdai_is_clk_master(rdai)) {
+		if (rsnd_dai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi))
 				rsnd_ssi_hw_start(ssi->parent, rdai, io);
 			else
@@ -302,7 +301,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 		rsnd_mod_write(&ssi->mod, SSICR, cr);	/* disabled all */
 		rsnd_ssi_status_check(&ssi->mod, IIRQ);
 
-		if (rsnd_rdai_is_clk_master(rdai)) {
+		if (rsnd_dai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi))
 				rsnd_ssi_hw_stop(ssi->parent, rdai);
 			else
@@ -522,7 +521,7 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
 
 	/* enable WS continue */
-	if (rsnd_rdai_is_clk_master(rdai))
+	if (rsnd_dai_is_clk_master(rdai))
 		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
 
 	return 0;
