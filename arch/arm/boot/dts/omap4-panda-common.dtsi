@@ -109,9 +109,6 @@
 &omap4_pmx_core {
 	pinctrl-names = "default";
 	pinctrl-0 = <
-			&twl6040_pins
-			&mcpdm_pins
-			&mcbsp1_pins
 			&dss_dpi_pins
 			&tfp410_pins
 			&dss_hdmi_pins
@@ -300,6 +297,10 @@
 	twl6040: twl@4b {
 		compatible = "ti,twl6040";
 		reg = <0x4b>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&twl6040_pins>;
+
 		/* IRQ# = 119 */
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_2N cascaded to gic */
 		interrupt-parent = <&gic>;
@@ -380,6 +381,12 @@
 	device-handle = <&elpida_ECB240ABACN>;
 };
 
+&mcbsp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp1_pins>;
+	status = "okay";
+};
+
 &mcbsp2 {
 	status = "disabled";
 };
@@ -390,6 +397,12 @@
 
 &dmic {
 	status = "disabled";
+};
+
+&mcpdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
 };
 
 &twl_usb_comparator {
