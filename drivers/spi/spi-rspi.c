@@ -389,27 +389,6 @@ static int rspi_data_out_in(struct rspi_data *rspi, u8 data)
 	return rspi_data_in(rspi);
 }
 
-static int rspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
-{
-	int remain = t->len, ret;
-	const u8 *data = t->tx_buf;
-
-	while (remain > 0) {
-		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_TXMD,
-			    RSPI_SPCR);
-
-		ret = rspi_data_out(rspi, *data++);
-		if (ret < 0)
-			return ret;
-		remain--;
-	}
-
-	/* Waiting for the last transmission */
-	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
-
-	return 0;
-}
-
 static int qspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	int remain = t->len, ret;
@@ -563,28 +542,6 @@ static void rspi_receive_init(const struct rspi_data *rspi)
 			    RSPI_SPSR);
 }
 
-static int rspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
-{
-	int remain = t->len, ret;
-	u8 *data = t->rx_buf;
-
-	rspi_receive_init(rspi);
-
-	while (remain > 0) {
-		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_TXMD,
-			    RSPI_SPCR);
-
-		/* dummy write data for generate clock */
-		ret = rspi_data_out_in(rspi, DUMMY_DATA);
-		if (ret < 0)
-			return ret;
-		*data++ = ret;
-		remain--;
-	}
-
-	return 0;
-}
-
 static void qspi_receive_init(const struct rspi_data *rspi)
 {
 	u8 spsr;
@@ -729,27 +686,61 @@ static int rspi_is_dma(const struct rspi_data *rspi, struct spi_transfer *t)
 	return 0;
 }
 
+static int rspi_transfer_out_in(struct rspi_data *rspi,
+				struct spi_transfer *xfer)
+{
+	int remain = xfer->len, ret;
+	const u8 *tx_buf = xfer->tx_buf;
+	u8 *rx_buf = xfer->rx_buf;
+	u8 spcr, data;
+
+	rspi_receive_init(rspi);
+
+	spcr = rspi_read8(rspi, RSPI_SPCR);
+	if (rx_buf)
+		spcr &= ~SPCR_TXMD;
+	else
+		spcr |= SPCR_TXMD;
+	rspi_write8(rspi, spcr, RSPI_SPCR);
+
+	while (remain > 0) {
+		data = tx_buf ? *tx_buf++ : DUMMY_DATA;
+		ret = rspi_data_out(rspi, data);
+		if (ret < 0)
+			return ret;
+		if (rx_buf) {
+			ret = rspi_data_in(rspi);
+			if (ret < 0)
+				return ret;
+			*rx_buf++ = ret;
+		}
+		remain--;
+	}
+
+	/* Wait for the last transmission */
+	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+
+	return 0;
+}
+
 static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 			     struct spi_transfer *xfer)
 {
 	struct rspi_data *rspi = spi_master_get_devdata(master);
-	int ret = 0;
+	int ret;
+
+	if (!rspi_is_dma(rspi, xfer))
+		return rspi_transfer_out_in(rspi, xfer);
 
 	if (xfer->tx_buf) {
-		if (rspi_is_dma(rspi, xfer))
-			ret = rspi_send_dma(rspi, xfer);
-		else
-			ret = rspi_send_pio(rspi, xfer);
+		ret = rspi_send_dma(rspi, xfer);
 		if (ret < 0)
 			return ret;
 	}
-	if (xfer->rx_buf) {
-		if (rspi_is_dma(rspi, xfer))
-			ret = rspi_receive_dma(rspi, xfer);
-		else
-			ret = rspi_receive_pio(rspi, xfer);
-	}
-	return ret;
+	if (xfer->rx_buf)
+		return rspi_receive_dma(rspi, xfer);
+
+	return 0;
 }
 
 static int qspi_transfer_one(struct spi_master *master, struct spi_device *spi,
