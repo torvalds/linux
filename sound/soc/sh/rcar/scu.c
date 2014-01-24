@@ -218,46 +218,6 @@ static int rsnd_scu_convert_rate_ctrl(
 	return 0;
 }
 
-static int rsnd_scu_transfer_start(struct rsnd_priv *priv,
-				   struct rsnd_mod *mod,
-				   struct rsnd_dai *rdai,
-				   struct rsnd_dai_stream *io)
-{
-	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
-	int id = rsnd_mod_id(mod);
-	u32 val;
-
-	if (rsnd_is_gen1(priv)) {
-		val = (1 << id);
-		rsnd_mod_bset(mod, SRC_ROUTE_CTRL, val, val);
-	}
-
-	if (rsnd_scu_convert_rate(scu))
-		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 1);
-
-	return 0;
-}
-
-static int rsnd_scu_transfer_stop(struct rsnd_priv *priv,
-				  struct rsnd_mod *mod,
-				  struct rsnd_dai *rdai,
-				  struct rsnd_dai_stream *io)
-{
-	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
-	int id = rsnd_mod_id(mod);
-	u32 mask;
-
-	if (rsnd_is_gen1(priv)) {
-		mask = (1 << id);
-		rsnd_mod_bset(mod, SRC_ROUTE_CTRL, mask, 0);
-	}
-
-	if (rsnd_scu_convert_rate(scu))
-		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 0);
-
-	return 0;
-}
-
 bool rsnd_scu_hpbif_is_enable(struct rsnd_mod *mod)
 {
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
@@ -303,8 +263,15 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
+	int id = rsnd_mod_id(mod);
 
-	return rsnd_scu_transfer_start(priv, mod, rdai, io);
+	if (rsnd_is_gen1(priv))
+		rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), (1 << id));
+
+	if (rsnd_scu_convert_rate(scu))
+		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 1);
+
+	return 0;
 }
 
 static int rsnd_scu_stop(struct rsnd_mod *mod,
@@ -313,8 +280,13 @@ static int rsnd_scu_stop(struct rsnd_mod *mod,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
+	int id = rsnd_mod_id(mod);
 
-	rsnd_scu_transfer_stop(priv, mod, rdai, io);
+	if (rsnd_is_gen1(priv))
+		rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), 0);
+
+	if (rsnd_scu_convert_rate(scu))
+		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 0);
 
 	return 0;
 }
