@@ -11216,6 +11216,7 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
 		return;
 
 	wdev->channel = chandef->chan;
+	wdev->preset_chandef = *chandef;
 	nl80211_ch_switch_notify(rdev, dev, chandef, GFP_KERNEL);
 }
 EXPORT_SYMBOL(cfg80211_ch_switch_notify);
