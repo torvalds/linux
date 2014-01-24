@@ -494,7 +494,7 @@ struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,
 		if (rsnd_ssi_dai_id(ssi) != dai_id)
 			continue;
 
-		has_play = !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_PLAY);
+		has_play = rsnd_ssi_is_play(&ssi->mod);
 
 		if (is_play == has_play)
 			return &ssi->mod;
@@ -516,6 +516,13 @@ int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
 	return !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_CLK_PIN_SHARE);
+}
+
+int rsnd_ssi_is_play(struct rsnd_mod *mod)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	return !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_PLAY);
 }
 
 static void rsnd_ssi_parent_clk_setup(struct rsnd_priv *priv, struct rsnd_ssi *ssi)
@@ -582,7 +589,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		if (pinfo->dma_id > 0) {
 			ret = rsnd_dma_init(
 				priv, rsnd_mod_to_dma(&ssi->mod),
-				(rsnd_ssi_mode_flags(ssi) & RSND_SSI_PLAY),
+				rsnd_ssi_is_play(&ssi->mod),
 				pinfo->dma_id,
 				rsnd_ssi_dma_inquiry,
 				rsnd_ssi_dma_complete);
