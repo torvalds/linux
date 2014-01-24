@@ -143,6 +143,9 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	char *name;
 	int ret;
 
+	/* parsing the card name from DT */
+	snd_soc_of_parse_card_name(&priv->snd_card, "simple-audio-card,name");
+
 	/* get CPU/CODEC common format via simple-audio-card,format */
 	priv->daifmt = snd_soc_of_parse_daifmt(node, "simple-audio-card,") &
 		(SND_SOC_DAIFMT_FORMAT_MASK | SND_SOC_DAIFMT_INV_MASK);
@@ -187,7 +190,8 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			    GFP_KERNEL);
 	sprintf(name, "%s-%s", dai_link->cpu_dai_name,
 				dai_link->codec_dai_name);
-	priv->snd_card.name = name;
+	if (!priv->snd_card.name)
+		priv->snd_card.name = name;
 	dai_link->name = dai_link->stream_name = name;
 
 	/* simple-card assumes platform == cpu */
