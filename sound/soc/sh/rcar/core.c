@@ -132,6 +132,7 @@ void rsnd_mod_init(struct rsnd_priv *priv,
 /*
  *	rsnd_dma functions
  */
+static void __rsnd_dma_start(struct rsnd_dma *dma);
 static void rsnd_dma_continue(struct rsnd_dma *dma)
 {
 	/* push next A or B plane */
@@ -143,7 +144,7 @@ void rsnd_dma_start(struct rsnd_dma *dma)
 {
 	/* push both A and B plane*/
 	dma->submit_loop = 2;
-	schedule_work(&dma->work);
+	__rsnd_dma_start(dma);
 }
 
 void rsnd_dma_stop(struct rsnd_dma *dma)
@@ -169,9 +170,8 @@ static void rsnd_dma_complete(void *data)
 	rsnd_unlock(priv, flags);
 }
 
-static void rsnd_dma_do_work(struct work_struct *work)
+static void __rsnd_dma_start(struct rsnd_dma *dma)
 {
-	struct rsnd_dma *dma = container_of(work, struct rsnd_dma, work);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(rsnd_dma_to_mod(dma));
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_async_tx_descriptor *desc;
@@ -202,6 +202,13 @@ static void rsnd_dma_do_work(struct work_struct *work)
 
 		dma_async_issue_pending(dma->chan);
 	}
+}
+
+static void rsnd_dma_do_work(struct work_struct *work)
+{
+	struct rsnd_dma *dma = container_of(work, struct rsnd_dma, work);
+
+	__rsnd_dma_start(dma);
 }
 
 int rsnd_dma_available(struct rsnd_dma *dma)
