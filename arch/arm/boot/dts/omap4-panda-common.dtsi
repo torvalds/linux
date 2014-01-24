@@ -387,18 +387,6 @@
 	status = "okay";
 };
 
-&mcbsp2 {
-	status = "disabled";
-};
-
-&mcbsp3 {
-	status = "disabled";
-};
-
-&dmic {
-	status = "disabled";
-};
-
 &mcpdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
