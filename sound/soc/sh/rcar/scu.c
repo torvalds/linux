@@ -40,6 +40,51 @@ struct rsnd_scu {
  *
  */
 
+/*
+ *	How to use SRC bypass mode for debugging
+ *
+ * SRC has bypass mode, and it is useful for debugging.
+ * In Gen2 case,
+ * SRCm_MODE controls whether SRC is used or not
+ * SSI_MODE0 controls whether SSIU which receives SRC data
+ * is used or not.
+ * Both SRCm_MODE/SSI_MODE0 settings are needed if you use SRC,
+ * but SRC bypass mode needs SSI_MODE0 only.
+ *
+ * This driver request
+ * struct rsnd_scu_platform_info {
+ *	u32 flags;
+ *	u32 convert_rate;
+ * }
+ *
+ * rsnd_scu_hpbif_is_enable() will be true
+ * if flags had RSND_SCU_USE_HPBIF,
+ * and it controls whether SSIU is used or not.
+ *
+ * rsnd_scu_convert_rate() indicates
+ * above convert_rate, and it controls
+ * whether SRC is used or not.
+ *
+ * ex) doesn't use SRC
+ * struct rsnd_scu_platform_info info = {
+ *	.flags = 0,
+ *	.convert_rate = 0,
+ * };
+ *
+ * ex) uses SRC
+ * struct rsnd_scu_platform_info info = {
+ *	.flags = RSND_SCU_USE_HPBIF,
+ *	.convert_rate = 48000,
+ * };
+ *
+ * ex) uses SRC bypass mode
+ * struct rsnd_scu_platform_info info = {
+ *	.flags = RSND_SCU_USE_HPBIF,
+ *	.convert_rate = 0,
+ * };
+ *
+ */
+
 #define rsnd_mod_to_scu(_mod)	\
 	container_of((_mod), struct rsnd_scu, mod)
 
