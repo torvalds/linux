@@ -737,23 +737,23 @@ static int rsnd_probe(struct platform_device *pdev)
 	 *	init each module
 	 */
 	ret = rsnd_gen_probe(pdev, info, priv);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = rsnd_scu_probe(pdev, info, priv);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = rsnd_adg_probe(pdev, info, priv);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = rsnd_ssi_probe(pdev, info, priv);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = rsnd_dai_probe(pdev, info, priv);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	/*
