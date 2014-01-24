@@ -152,10 +152,19 @@ struct rsnd_mod {
 #define rsnd_mod_id(mod) ((mod)->id)
 #define for_each_rsnd_mod(pos, n, io)	\
 	list_for_each_entry_safe(pos, n, &(io)->head, list)
+#define __rsnd_mod_call(mod, func, rdai, io)			\
+({								\
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
+	struct device *dev = rsnd_priv_to_dev(priv);		\
+	dev_dbg(dev, "%s-%d-%s\n",				\
+		rsnd_mod_name(mod), rsnd_mod_id(mod), #func);	\
+	(mod)->ops->func(mod, rdai, io);			\
+})
+
 #define rsnd_mod_call(mod, func, rdai, io)	\
 	(!(mod) ? -ENODEV :			\
 	 !((mod)->ops->func) ? 0 :		\
-	 (mod)->ops->func(mod, rdai, io))
+	 __rsnd_mod_call(mod, func, rdai, io))
 
 void rsnd_mod_init(struct rsnd_priv *priv,
 		   struct rsnd_mod *mod,

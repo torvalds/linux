@@ -300,8 +300,6 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(dev, "%s%d start\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
-
 	return 0;
 }
 

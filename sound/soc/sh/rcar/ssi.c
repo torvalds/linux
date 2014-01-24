@@ -324,7 +324,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	u32 cr;
 
@@ -371,8 +370,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 
 	rsnd_ssi_mode_set(priv, rdai, ssi);
 
-	dev_dbg(dev, "%s.%d init\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
-
 	return 0;
 }
 
@@ -383,8 +380,6 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
-
-	dev_dbg(dev, "%s.%d quit\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	if (ssi->err > 0)
 		dev_warn(dev, "ssi under/over flow err = %d\n", ssi->err);
@@ -450,7 +445,6 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
 
 	/* enable PIO IRQ */
 	ssi->cr_etc = UIEN | OIEN | DIEN;
@@ -461,8 +455,6 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 
 	rsnd_ssi_hw_start(ssi, rdai, io);
 
-	dev_dbg(dev, "%s.%d start\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
-
 	return 0;
 }
 
@@ -470,11 +462,7 @@ static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
 			     struct rsnd_dai *rdai,
 			     struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-
-	dev_dbg(dev, "%s.%d stop\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	ssi->cr_etc = 0;
 
