@@ -90,7 +90,7 @@ config SOC_SAMA5D3
 	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's SAMA5D3 family SoC.
-	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35.
+	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35, SAMA5D36.
 endif
 
 if SOC_SAM_V4_V5

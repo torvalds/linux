@@ -414,6 +414,26 @@ config ARCH_EBSA110
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
+config ARCH_EFM32
+	bool "Energy Micro efm32"
+	depends on !MMU
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_NVIC
+	# CLKSRC_MMIO is wrong here, but needed until a proper fix is merged,
+	# i.e. CLKSRC_EFM32 selecting CLKSRC_MMIO
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	select COMMON_CLK
+	select CPU_V7M
+	select GENERIC_CLOCKEVENTS
+	select NO_DMA
+	select NO_IOPORT
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Support for Energy Micro's (now Silicon Labs) efm32 Giant Gecko
+	  processors.
+
 config ARCH_EP93XX
 	bool "EP93xx-based"
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -635,10 +655,10 @@ config ARCH_PXA
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
-config ARCH_MSM
+config ARCH_MSM_NODT
 	bool "Qualcomm MSM"
+	select ARCH_MSM
 	select ARCH_REQUIRE_GPIOLIB
-	select CLKSRC_OF if OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	help
@@ -648,8 +668,9 @@ config ARCH_MSM
 	  stack and controls some vital subsystems
 	  (clock and power control, etc).
 
-config ARCH_SHMOBILE
-	bool "Renesas SH-Mobile / R-Mobile"
+config ARCH_SHMOBILE_LEGACY
+	bool "Renesas SH-Mobile / R-Mobile (non-multiplatform)"
+	select ARCH_SHMOBILE
 	select ARM_PATCH_PHYS_VIRT
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
@@ -664,7 +685,8 @@ config ARCH_SHMOBILE
 	select PM_GENERIC_DOMAINS if PM
 	select SPARSE_IRQ
 	help
-	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
+	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms using
+	  a non-multiplatform kernel.
 
 config ARCH_RPC
 	bool "RiscPC"
@@ -731,7 +753,7 @@ config ARCH_S3C64XX
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select COMMON_CLK
-	select CPU_V6
+	select CPU_V6K
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
 	select HAVE_S3C2410_I2C if I2C
@@ -913,6 +935,8 @@ source "arch/arm/mach-bcm/Kconfig"
 
 source "arch/arm/mach-bcm2835/Kconfig"
 
+source "arch/arm/mach-berlin/Kconfig"
+
 source "arch/arm/mach-clps711x/Kconfig"
 
 source "arch/arm/mach-cns3xxx/Kconfig"
@@ -928,6 +952,8 @@ source "arch/arm/mach-footbridge/Kconfig"
 source "arch/arm/mach-gemini/Kconfig"
 
 source "arch/arm/mach-highbank/Kconfig"
+
+source "arch/arm/mach-hisi/Kconfig"
 
 source "arch/arm/mach-integrator/Kconfig"
 
@@ -946,6 +972,8 @@ source "arch/arm/mach-kirkwood/Kconfig"
 source "arch/arm/mach-ks8695/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
+
+source "arch/arm/mach-moxart/Kconfig"
 
 source "arch/arm/mach-mv78xx0/Kconfig"
 
@@ -1613,7 +1641,7 @@ config HZ_FIXED
 	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default AT91_TIMER_HZ if ARCH_AT91
-	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
+	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE_LEGACY
 	default 0
 
 choice
@@ -1795,10 +1823,10 @@ config ARCH_WANT_GENERAL_HUGETLB
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
-	int "Maximum zone order" if ARCH_SHMOBILE
-	range 11 64 if ARCH_SHMOBILE
+	int "Maximum zone order" if ARCH_SHMOBILE_LEGACY
+	range 11 64 if ARCH_SHMOBILE_LEGACY
 	default "12" if SOC_AM33XX
-	default "9" if SA1111
+	default "9" if SA1111 || ARCH_EFM32
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
