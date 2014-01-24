@@ -270,23 +270,9 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	int ret;
 
-	/*
-	 * SCU will be used if it has RSND_SCU_USE_HPBIF flags
-	 */
-	if (!rsnd_scu_hpbif_is_enable(mod)) {
-		/* it use PIO transter */
-		dev_dbg(dev, "%s%d is not used\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-		return 0;
-	}
-
 	clk_enable(scu->clk);
-
-	/* it use DMA transter */
 
 	ret = rsnd_src_set_route_if_gen1(priv, mod, rdai, io);
 	if (ret < 0)
@@ -310,9 +296,6 @@ static int rsnd_scu_stop(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
 
-	if (!rsnd_scu_hpbif_is_enable(mod))
-		return 0;
-
 	rsnd_scu_transfer_stop(priv, mod, rdai, io);
 
 	clk_disable(scu->clk);
@@ -324,6 +307,10 @@ static struct rsnd_mod_ops rsnd_scu_ops = {
 	.name	= "scu",
 	.start	= rsnd_scu_start,
 	.stop	= rsnd_scu_stop,
+};
+
+static struct rsnd_mod_ops rsnd_scu_non_ops = {
+	.name	= "scu (non)",
 };
 
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id)
@@ -340,6 +327,7 @@ int rsnd_scu_probe(struct platform_device *pdev,
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_scu *scu;
+	struct rsnd_mod_ops *ops;
 	struct clk *clk;
 	char name[RSND_SCU_NAME_SIZE];
 	int i, nr;
@@ -364,10 +352,14 @@ int rsnd_scu_probe(struct platform_device *pdev,
 		if (IS_ERR(clk))
 			return PTR_ERR(clk);
 
-		rsnd_mod_init(priv, &scu->mod,
-			      &rsnd_scu_ops, i);
 		scu->info = &info->scu_info[i];
 		scu->clk = clk;
+
+		ops = &rsnd_scu_non_ops;
+		if (rsnd_scu_hpbif_is_enable(&scu->mod))
+			ops = &rsnd_scu_ops;
+
+		rsnd_mod_init(priv, &scu->mod, ops, i);
 
 		dev_dbg(dev, "SCU%d probed\n", i);
 	}
