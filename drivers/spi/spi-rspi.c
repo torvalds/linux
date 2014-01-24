@@ -389,28 +389,6 @@ static int rspi_data_out_in(struct rspi_data *rspi, u8 data)
 	return rspi_data_in(rspi);
 }
 
-static int qspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
-{
-	int remain = t->len, ret;
-	const u8 *data = t->tx_buf;
-
-	rspi_write8(rspi, SPBFCR_TXRST, QSPI_SPBFCR);
-	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
-
-	while (remain > 0) {
-		/* dummy read */
-		ret = rspi_data_out_in(rspi, *data++);
-		if (ret < 0)
-			return ret;
-		remain--;
-	}
-
-	/* Waiting for the last transmission */
-	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
-
-	return 0;
-}
-
 static void rspi_dma_complete(void *arg)
 {
 	struct rspi_data *rspi = arg;
@@ -550,26 +528,7 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 	if (spsr & SPSR_SPRF)
 		rspi_read_data(rspi);   /* dummy read */
 	rspi_write8(rspi, SPBFCR_TXRST | SPBFCR_RXRST, QSPI_SPBFCR);
-	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
-}
-
-static int qspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
-{
-	int remain = t->len, ret;
-	u8 *data = t->rx_buf;
-
-	qspi_receive_init(rspi);
-
-	while (remain > 0) {
-		/* dummy write for generate clock */
-		ret = rspi_data_out_in(rspi, DUMMY_DATA);
-		if (ret < 0)
-			return ret;
-		*data++ = ret;
-		remain--;
-	}
-
-	return 0;
+	rspi_write8(rspi, 0, QSPI_SPBFCR);
 }
 
 static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
@@ -743,20 +702,38 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 	return 0;
 }
 
+static int qspi_transfer_out_in(struct rspi_data *rspi,
+				struct spi_transfer *xfer)
+{
+	int remain = xfer->len, ret;
+	const u8 *tx_buf = xfer->tx_buf;
+	u8 *rx_buf = xfer->rx_buf;
+	u8 data;
+
+	qspi_receive_init(rspi);
+
+	while (remain > 0) {
+		data = tx_buf ? *tx_buf++ : DUMMY_DATA;
+		ret = rspi_data_out_in(rspi, data);
+		if (ret < 0)
+			return ret;
+		if (rx_buf)
+			*rx_buf++ = ret;
+		remain--;
+	}
+
+	/* Wait for the last transmission */
+	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+
+	return 0;
+}
+
 static int qspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 			     struct spi_transfer *xfer)
 {
 	struct rspi_data *rspi = spi_master_get_devdata(master);
-	int ret = 0;
 
-	if (xfer->tx_buf) {
-		ret = qspi_send_pio(rspi, xfer);
-		if (ret < 0)
-			return ret;
-	}
-	if (xfer->rx_buf)
-		ret = qspi_receive_pio(rspi, xfer);
-	return ret;
+	return qspi_transfer_out_in(rspi, xfer);
 }
 
 static int rspi_setup(struct spi_device *spi)
