@@ -519,15 +519,12 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	sd->domain = domain;
 	sd->node = node;
 	sd->companion = device;
-	/*
-	 * Maybe the desired pci bus has been already scanned. In such case
-	 * it is unnecessary to scan the pci bus with the given domain,busnum.
-	 */
+
 	bus = pci_find_bus(domain, busnum);
 	if (bus) {
 		/*
-		 * If the desired bus exits, the content of bus->sysdata will
-		 * be replaced by sd.
+		 * If the desired bus has been scanned already, replace
+		 * its bus->sysdata.
 		 */
 		memcpy(bus->sysdata, sd, sizeof(*sd));
 		kfree(info);
