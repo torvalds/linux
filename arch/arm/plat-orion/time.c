@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/sched_clock.h>
+#include <plat/time.h>
 
 /*
  * MBus bridge block registers.
@@ -174,7 +175,7 @@ static irqreturn_t orion_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction orion_timer_irq = {
 	.name		= "orion_tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_TIMER,
 	.handler	= orion_timer_interrupt
 };
 

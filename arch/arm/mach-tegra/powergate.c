@@ -25,6 +25,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/reset.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/clk/tegra.h>
@@ -144,11 +145,12 @@ int tegra_powergate_remove_clamping(int id)
 }
 
 /* Must be called with clk disabled, and returns with clk enabled */
-int tegra_powergate_sequence_power_up(int id, struct clk *clk)
+int tegra_powergate_sequence_power_up(int id, struct clk *clk,
+					struct reset_control *rst)
 {
 	int ret;
 
-	tegra_periph_reset_assert(clk);
+	reset_control_assert(rst);
 
 	ret = tegra_powergate_power_on(id);
 	if (ret)
@@ -165,7 +167,7 @@ int tegra_powergate_sequence_power_up(int id, struct clk *clk)
 		goto err_clamp;
 
 	udelay(10);
-	tegra_periph_reset_deassert(clk);
+	reset_control_deassert(rst);
 
 	return 0;
 

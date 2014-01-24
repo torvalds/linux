@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
+#include <linux/pm_domain.h>
 #include <linux/export.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
@@ -37,14 +38,13 @@
 #include <asm/mach/irq.h>
 #include <asm/cacheflush.h>
 
-#include <mach/regs-irq.h>
-#include <mach/regs-pmu.h>
-
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
+#include "regs-pmu.h"
+
 #define L2_AUX_VAL 0x7C470001
 #define L2_AUX_MASK 0xC200ffff
 
@@ -309,7 +309,7 @@ void __init exynos_init_late(void)
 		/* to be supported later */
 		return;
 
-	exynos_pm_late_initcall();
+	pm_genpd_poweroff_unused();
 }
 
 static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,

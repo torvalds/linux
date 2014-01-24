@@ -28,8 +28,10 @@
 #ifdef CONFIG_SAMSUNG_ATAGS
 #include <mach/hardware.h>
 #include <mach/map.h>
+#ifndef CONFIG_ARCH_EXYNOS
 #include <mach/regs-clock.h>
 #include <mach/regs-irq.h>
+#endif
 #include <mach/irqs.h>
 #endif
 
@@ -182,7 +184,7 @@ void s3c_pm_do_save(struct sleep_save *ptr, int count)
  * restore the UARTs state yet
 */
 
-void s3c_pm_do_restore(struct sleep_save *ptr, int count)
+void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++) {
 		printk(KERN_DEBUG "restore %p (restore %08lx, was %08x)\n",
@@ -203,7 +205,7 @@ void s3c_pm_do_restore(struct sleep_save *ptr, int count)
  * peripherals, as things may be changing!
 */
 
-void s3c_pm_do_restore_core(struct sleep_save *ptr, int count)
+void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++)
 		__raw_writel(ptr->val, ptr->reg);

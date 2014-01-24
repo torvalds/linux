@@ -326,7 +326,7 @@ static int vbus_is_present(struct usba_udc *udc)
 
 #if defined(CONFIG_ARCH_AT91SAM9RL)
 
-#include <mach/at91_pmc.h>
+#include <linux/clk/at91_pmc.h>
 
 static void toggle_bias(int is_on)
 {

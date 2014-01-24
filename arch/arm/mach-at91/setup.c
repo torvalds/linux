@@ -11,6 +11,7 @@
 #include <linux/pm.h>
 #include <linux/of_address.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <asm/system_misc.h>
 #include <asm/mach/map.h>
@@ -18,7 +19,6 @@
 #include <mach/hardware.h>
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
-#include <mach/at91_pmc.h>
 
 #include "at91_shdwc.h"
 #include "soc.h"
@@ -491,7 +491,8 @@ void __init at91rm9200_dt_initialize(void)
 	at91_dt_clock_init();
 
 	/* Register the processor-specific clocks */
-	at91_boot_soc.register_clocks();
+	if (at91_boot_soc.register_clocks)
+		at91_boot_soc.register_clocks();
 
 	at91_boot_soc.init();
 }
@@ -506,7 +507,8 @@ void __init at91_dt_initialize(void)
 	at91_dt_clock_init();
 
 	/* Register the processor-specific clocks */
-	at91_boot_soc.register_clocks();
+	if (at91_boot_soc.register_clocks)
+		at91_boot_soc.register_clocks();
 
 	if (at91_boot_soc.init)
 		at91_boot_soc.init();

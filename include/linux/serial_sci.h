@@ -11,11 +11,11 @@
 #define SCIx_NOT_SUPPORTED	(-1)
 
 enum {
-	SCBRR_ALGO_1,		/* ((clk + 16 * bps) / (16 * bps) - 1) */
-	SCBRR_ALGO_2,		/* ((clk + 16 * bps) / (32 * bps) - 1) */
-	SCBRR_ALGO_3,		/* (((clk * 2) + 16 * bps) / (16 * bps) - 1) */
-	SCBRR_ALGO_4,		/* (((clk * 2) + 16 * bps) / (32 * bps) - 1) */
-	SCBRR_ALGO_5,		/* (((clk * 1000 / 32) / bps) - 1) */
+	SCBRR_ALGO_NONE,	/* Compute sampling rate in the driver */
+	SCBRR_ALGO_1,		/* clk / (16 * bps) */
+	SCBRR_ALGO_2,		/* DIV_ROUND_CLOSEST(clk, 32 * bps) - 1 */
+	SCBRR_ALGO_3,		/* clk / (8 * bps) */
+	SCBRR_ALGO_4,		/* DIV_ROUND_CLOSEST(clk, 16 * bps) - 1 */
 	SCBRR_ALGO_6,		/* HSCIF variable sample rate algorithm */
 };
 
@@ -70,17 +70,6 @@ enum {
 	SCIx_MUX_IRQ = SCIx_NR_IRQS,	/* special case */
 };
 
-/* Offsets into the sci_port->gpios array */
-enum {
-	SCIx_SCK,
-	SCIx_RXD,
-	SCIx_TXD,
-	SCIx_CTS,
-	SCIx_RTS,
-
-	SCIx_NR_FNS,
-};
-
 enum {
 	SCIx_PROBE_REGTYPE,
 
@@ -108,10 +97,10 @@ enum {
 }
 
 #define SCIx_IRQ_IS_MUXED(port)			\
-	((port)->cfg->irqs[SCIx_ERI_IRQ] ==	\
-	 (port)->cfg->irqs[SCIx_RXI_IRQ]) ||	\
-	((port)->cfg->irqs[SCIx_ERI_IRQ] &&	\
-	 !(port)->cfg->irqs[SCIx_RXI_IRQ])
+	((port)->irqs[SCIx_ERI_IRQ] ==	\
+	 (port)->irqs[SCIx_RXI_IRQ]) ||	\
+	((port)->irqs[SCIx_ERI_IRQ] &&	\
+	 ((port)->irqs[SCIx_RXI_IRQ] < 0))
 /*
  * SCI register subset common for all port types.
  * Not all registers will exist on all parts.
@@ -142,20 +131,17 @@ struct plat_sci_port_ops {
 struct plat_sci_port {
 	unsigned long	mapbase;		/* resource base */
 	unsigned int	irqs[SCIx_NR_IRQS];	/* ERI, RXI, TXI, BRI */
-	unsigned int	gpios[SCIx_NR_FNS];	/* SCK, RXD, TXD, CTS, RTS */
 	unsigned int	type;			/* SCI / SCIF / IRDA / HSCIF */
 	upf_t		flags;			/* UPF_* flags */
 	unsigned long	capabilities;		/* Port features/capabilities */
 
+	unsigned int	sampling_rate;
 	unsigned int	scbrr_algo_id;		/* SCBRR calculation algo */
 	unsigned int	scscr;			/* SCSCR initialization */
 
 	/*
 	 * Platform overrides if necessary, defaults otherwise.
 	 */
-	int		overrun_bit;
-	unsigned int	error_mask;
-
 	int		port_reg;
 	unsigned char	regshift;
 	unsigned char	regtype;

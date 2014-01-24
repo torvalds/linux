@@ -280,6 +280,8 @@
 		clocks = <&tegra_car TEGRA20_CLK_I2C3>,
 		       	 <&tegra_car TEGRA20_CLK_PLL_P_OUT3>;
 		clock-names = "div-clk", "fast-clk";
+		resets = <&tegra_car 67>;
+		reset-names = "i2c";
 	};
 
 	i2c@7000d000 {
