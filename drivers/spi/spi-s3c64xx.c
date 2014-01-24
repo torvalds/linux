@@ -555,23 +555,6 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 	writel(chcfg, regs + S3C64XX_SPI_CH_CFG);
 }
 
-static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_device *spi)
-{
-	if (sdd->tgl_spi != NULL) { /* If last device toggled after mssg */
-		if (sdd->tgl_spi != spi) { /* if last mssg on diff device */
-			/* Deselect the last toggled device */
-			if (spi->cs_gpio >= 0)
-				gpio_set_value(spi->cs_gpio,
-					spi->mode & SPI_CS_HIGH ? 0 : 1);
-		}
-		sdd->tgl_spi = NULL;
-	}
-
-	if (spi->cs_gpio >= 0)
-		gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH ? 1 : 0);
-}
-
 static u32 s3c64xx_spi_wait_for_timeout(struct s3c64xx_spi_driver_data *sdd,
 					int timeout_ms)
 {
@@ -689,16 +672,6 @@ static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 	}
 
 	return 0;
-}
-
-static inline void disable_cs(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_device *spi)
-{
-	if (sdd->tgl_spi == spi)
-		sdd->tgl_spi = NULL;
-
-	if (spi->cs_gpio >= 0)
-		gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH ? 0 : 1);
 }
 
 static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
@@ -1092,14 +1065,12 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 	pm_runtime_put(&sdd->pdev->dev);
 	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
-	disable_cs(sdd, spi);
 	return 0;
 
 setup_exit:
 	pm_runtime_put(&sdd->pdev->dev);
 	/* setup() returns with device de-selected */
 	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
-	disable_cs(sdd, spi);
 
 	gpio_free(cs->line);
 	spi_set_ctldata(spi, NULL);
