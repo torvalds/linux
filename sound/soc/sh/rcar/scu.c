@@ -190,10 +190,9 @@ unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
 	return rate;
 }
 
-static int rsnd_scu_convert_rate_ctrl(
-			      struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai,
-			      struct rsnd_dai_stream *io)
+static int rsnd_scu_set_convert_rate(struct rsnd_mod *mod,
+				     struct rsnd_dai *rdai,
+				     struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
@@ -283,7 +282,7 @@ static int rsnd_scu_init(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_scu_convert_rate_ctrl(mod, rdai, io);
+	ret = rsnd_scu_set_convert_rate(mod, rdai, io);
 	if (ret < 0)
 		return ret;
 
