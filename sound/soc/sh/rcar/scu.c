@@ -31,6 +31,8 @@ struct rsnd_scu {
 #define rsnd_scu_convert_rate(p) ((p)->info->convert_rate)
 #define rsnd_mod_to_scu(_mod)				\
 	container_of((_mod), struct rsnd_scu, mod)
+#define rsnd_scu_hpbif_is_enable(scu)	\
+	(rsnd_scu_mode_flags(scu) & RSND_SCU_USE_HPBIF)
 
 #define for_each_rsnd_scu(pos, priv, i)				\
 	for ((i) = 0;						\
@@ -113,13 +115,14 @@ static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
 				  struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
 	int id = rsnd_mod_id(mod);
 
 	/*
 	 * SSI_MODE0
 	 */
 	rsnd_mod_bset(mod, SSI_MODE0, (1 << id),
-		      rsnd_scu_hpbif_is_enable(mod) ? 0 : (1 << id));
+		      rsnd_scu_hpbif_is_enable(scu) ? 0 : (1 << id));
 
 	/*
 	 * SSI_MODE1
@@ -316,14 +319,6 @@ static int rsnd_scu_set_convert_rate(struct rsnd_mod *mod,
 	return 0;
 }
 
-bool rsnd_scu_hpbif_is_enable(struct rsnd_mod *mod)
-{
-	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
-	u32 flags = rsnd_scu_mode_flags(scu);
-
-	return !!(flags & RSND_SCU_USE_HPBIF);
-}
-
 static int rsnd_scu_init(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)
@@ -449,7 +444,7 @@ int rsnd_scu_probe(struct platform_device *pdev,
 		scu->clk = clk;
 
 		ops = &rsnd_scu_non_ops;
-		if (rsnd_scu_hpbif_is_enable(&scu->mod))
+		if (rsnd_scu_hpbif_is_enable(scu))
 			ops = &rsnd_scu_ops;
 
 		rsnd_mod_init(priv, &scu->mod, ops, i);

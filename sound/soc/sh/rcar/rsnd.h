@@ -303,7 +303,6 @@ int rsnd_scu_probe(struct platform_device *pdev,
 void rsnd_scu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
-bool rsnd_scu_hpbif_is_enable(struct rsnd_mod *mod);
 unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_mod *ssi_mod,
 				   struct snd_pcm_runtime *runtime);
