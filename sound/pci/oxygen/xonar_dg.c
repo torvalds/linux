@@ -64,20 +64,6 @@
 #include "xonar_dg.h"
 #include "cs4245.h"
 
-#define GPIO_MAGIC		0x0008
-#define GPIO_HP_DETECT		0x0010
-#define GPIO_INPUT_ROUTE	0x0060
-#define GPIO_HP_REAR		0x0080
-#define GPIO_OUTPUT_ENABLE	0x0100
-
-struct dg {
-	unsigned int output_sel;
-	s8 input_vol[4][2];
-	unsigned int input_sel;
-	u8 hp_vol_att;
-	u8 cs4245_regs[0x11];
-};
-
 static void cs4245_write(struct oxygen *chip, unsigned int reg, u8 value)
 {
 	struct dg *data = chip->model_data;
