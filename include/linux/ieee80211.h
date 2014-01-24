@@ -597,6 +597,20 @@ static inline int ieee80211_is_qos_nullfunc(__le16 fc)
 }
 
 /**
+ * ieee80211_is_bufferable_mmpdu - check if frame is bufferable MMPDU
+ * @fc: frame control field in little-endian byteorder
+ */
+static inline bool ieee80211_is_bufferable_mmpdu(__le16 fc)
+{
+	/* IEEE 802.11-2012, definition of "bufferable management frame";
+	 * note that this ignores the IBSS special case. */
+	return ieee80211_is_mgmt(fc) &&
+	       (ieee80211_is_action(fc) ||
+		ieee80211_is_disassoc(fc) ||
+		ieee80211_is_deauth(fc));
+}
+
+/**
  * ieee80211_is_first_frag - check if IEEE80211_SCTL_FRAG is not set
  * @seq_ctrl: frame sequence control bytes in little-endian byteorder
  */

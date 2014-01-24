@@ -522,11 +522,8 @@ ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 	if (unlikely(tx->flags & IEEE80211_TX_PS_BUFFERED))
 		return TX_CONTINUE;
 
-	/* only deauth, disassoc and action are bufferable MMPDUs */
 	if (ieee80211_is_mgmt(hdr->frame_control) &&
-	    !ieee80211_is_deauth(hdr->frame_control) &&
-	    !ieee80211_is_disassoc(hdr->frame_control) &&
-	    !ieee80211_is_action(hdr->frame_control)) {
+	    !ieee80211_is_bufferable_mmpdu(hdr->frame_control)) {
 		if (tx->flags & IEEE80211_TX_UNICAST)
 			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER;
 		return TX_CONTINUE;
