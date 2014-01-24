@@ -123,29 +123,6 @@ int cs4245_shadow_control(struct oxygen *chip, enum cs4245_shadow_operation op)
 	return 0;
 }
 
-void cs4245_write(struct oxygen *chip, unsigned int reg, u8 value)
-{
-	struct dg *data = chip->model_data;
-
-	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
-			 OXYGEN_SPI_DATA_LENGTH_3 |
-			 OXYGEN_SPI_CLOCK_1280 |
-			 (0 << OXYGEN_SPI_CODEC_SHIFT) |
-			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
-			 CS4245_SPI_ADDRESS_S |
-			 CS4245_SPI_WRITE_S |
-			 (reg << 8) | value);
-	data->cs4245_shadow[reg] = value;
-}
-
-void cs4245_write_cached(struct oxygen *chip, unsigned int reg, u8 value)
-{
-	struct dg *data = chip->model_data;
-
-	if (value != data->cs4245_shadow[reg])
-		cs4245_write(chip, reg, value);
-}
-
 static void cs4245_init(struct oxygen *chip)
 {
 	struct dg *data = chip->model_data;
@@ -171,8 +148,8 @@ static void cs4245_init(struct oxygen *chip)
 		CS4245_PGA_SOFT | CS4245_PGA_ZERO;
 	data->cs4245_shadow[CS4245_PGA_B_CTRL] = 0;
 	data->cs4245_shadow[CS4245_PGA_A_CTRL] = 0;
-	data->cs4245_shadow[CS4245_DAC_A_CTRL] = 4;
-	data->cs4245_shadow[CS4245_DAC_B_CTRL] = 4;
+	data->cs4245_shadow[CS4245_DAC_A_CTRL] = 8;
+	data->cs4245_shadow[CS4245_DAC_B_CTRL] = 8;
 
 	cs4245_shadow_control(chip, CS4245_LOAD_FROM_SHADOW);
 	snd_component_add(chip->card, "CS4245");
@@ -182,15 +159,14 @@ void dg_init(struct oxygen *chip)
 {
 	struct dg *data = chip->model_data;
 
-	data->output_sel = 0;
-	data->input_sel = 3;
-	data->hp_vol_att = 2 * 16;
+	data->output_sel = PLAYBACK_DST_HP_FP;
+	data->input_sel = CAPTURE_SRC_MIC;
 
 	cs4245_init(chip);
 	oxygen_write16(chip, OXYGEN_GPIO_CONTROL,
 		       GPIO_OUTPUT_ENABLE | GPIO_HP_REAR | GPIO_INPUT_ROUTE);
-	oxygen_write16(chip, OXYGEN_GPIO_DATA, GPIO_INPUT_ROUTE);
-	msleep(2500); /* anti-pop delay */
+	/* anti-pop delay, wait some time before enabling the output */
+	msleep(2500);
 	oxygen_write16(chip, OXYGEN_GPIO_DATA,
 		       GPIO_OUTPUT_ENABLE | GPIO_INPUT_ROUTE);
 }

@@ -435,12 +435,17 @@ static int dg_mixer_init(struct oxygen *chip)
 	unsigned int i;
 	int err;
 
+	output_select_apply(chip);
+	input_source_apply(chip);
+	oxygen_update_dac_routing(chip);
+
 	for (i = 0; i < ARRAY_SIZE(dg_controls); ++i) {
 		err = snd_ctl_add(chip->card,
 				  snd_ctl_new1(&dg_controls[i], chip));
 		if (err < 0)
 			return err;
 	}
+
 	return 0;
 }
 

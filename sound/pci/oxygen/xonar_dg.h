@@ -32,7 +32,6 @@ struct dg {
 	char input_vol[4][2];
 	/* input select: mic/fp mic/line/aux */
 	unsigned char input_sel;
-	u8 hp_vol_att;
 };
 
 /* Xonar DG control routines */
@@ -51,8 +50,6 @@ void dump_cs4245_registers(struct oxygen *chip,
 void dg_suspend(struct oxygen *chip);
 void dg_resume(struct oxygen *chip);
 void dg_cleanup(struct oxygen *chip);
-void cs4245_write(struct oxygen *chip, unsigned int reg, u8 value);
-void cs4245_write_cached(struct oxygen *chip, unsigned int reg, u8 value);
 
 extern struct oxygen_model model_xonar_dg;
 
