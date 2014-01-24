@@ -228,11 +228,8 @@ static u16 rspi_read16(const struct rspi_data *rspi, u16 offset)
 struct spi_ops {
 	int (*set_config_register)(const struct rspi_data *rspi,
 				   int access_size);
-	int (*send_pio)(struct rspi_data *rspi, struct spi_message *mesg,
-			struct spi_transfer *t);
-	int (*receive_pio)(struct rspi_data *rspi, struct spi_message *mesg,
-			   struct spi_transfer *t);
-
+	int (*send_pio)(struct rspi_data *rspi, struct spi_transfer *t);
+	int (*receive_pio)(struct rspi_data *rspi, struct spi_transfer *t);
 };
 
 /*
@@ -358,8 +355,7 @@ static void rspi_negate_ssl(const struct rspi_data *rspi)
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_SPE, RSPI_SPCR);
 }
 
-static int rspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
-			 struct spi_transfer *t)
+static int rspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	int remain = t->len;
 	const u8 *data = t->tx_buf;
@@ -384,8 +380,7 @@ static int rspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 	return 0;
 }
 
-static int qspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
-			 struct spi_transfer *t)
+static int qspi_send_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	int remain = t->len;
 	const u8 *data = t->tx_buf;
@@ -418,7 +413,7 @@ static int qspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 	return 0;
 }
 
-#define send_pio(spi, mesg, t) spi->ops->send_pio(spi, mesg, t)
+#define send_pio(spi, t) spi->ops->send_pio(spi, t)
 
 static void rspi_dma_complete(void *arg)
 {
@@ -551,8 +546,7 @@ static void rspi_receive_init(const struct rspi_data *rspi)
 			    RSPI_SPSR);
 }
 
-static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
-			    struct spi_transfer *t)
+static int rspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	int remain = t->len;
 	u8 *data;
@@ -598,8 +592,7 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
 }
 
-static int qspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
-			    struct spi_transfer *t)
+static int qspi_receive_pio(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	int remain = t->len;
 	u8 *data;
@@ -630,7 +623,7 @@ static int qspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 	return 0;
 }
 
-#define receive_pio(spi, mesg, t) spi->ops->receive_pio(spi, mesg, t)
+#define receive_pio(spi, t) spi->ops->receive_pio(spi, t)
 
 static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
@@ -771,7 +764,7 @@ static void rspi_work(struct work_struct *work)
 				if (rspi_is_dma(rspi, t))
 					ret = rspi_send_dma(rspi, t);
 				else
-					ret = send_pio(rspi, mesg, t);
+					ret = send_pio(rspi, t);
 				if (ret < 0)
 					goto error;
 			}
@@ -779,7 +772,7 @@ static void rspi_work(struct work_struct *work)
 				if (rspi_is_dma(rspi, t))
 					ret = rspi_receive_dma(rspi, t);
 				else
-					ret = receive_pio(rspi, mesg, t);
+					ret = receive_pio(rspi, t);
 				if (ret < 0)
 					goto error;
 			}
