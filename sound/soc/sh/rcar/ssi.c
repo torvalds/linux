@@ -64,12 +64,10 @@ struct rsnd_ssi {
 	struct rsnd_mod mod;
 
 	struct rsnd_dai *rdai;
-	struct rsnd_dai_stream *io;
 	u32 cr_own;
 	u32 cr_clk;
 	u32 cr_etc;
 	int err;
-	int dma_offset;
 	unsigned int usrcnt;
 	unsigned int rate;
 };
@@ -286,7 +284,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	 * set ssi parameter
 	 */
 	ssi->rdai	= rdai;
-	ssi->io		= io;
 	ssi->cr_own	= cr;
 	ssi->err	= -1; /* ignore 1st error */
 
@@ -305,7 +302,6 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 		dev_warn(dev, "ssi under/over flow err = %d\n", ssi->err);
 
 	ssi->rdai	= NULL;
-	ssi->io		= NULL;
 	ssi->cr_own	= 0;
 	ssi->err	= 0;
 
@@ -329,8 +325,9 @@ static void rsnd_ssi_record_error(struct rsnd_ssi *ssi, u32 status)
 static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 {
 	struct rsnd_ssi *ssi = data;
-	struct rsnd_dai_stream *io = ssi->io;
-	u32 status = rsnd_mod_read(&ssi->mod, SSISR);
+	struct rsnd_mod *mod = &ssi->mod;
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	u32 status = rsnd_mod_read(mod, SSISR);
 	irqreturn_t ret = IRQ_NONE;
 
 	if (io && (status & DIRQ)) {
@@ -347,9 +344,9 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 		 * see rsnd_ssi_init()
 		 */
 		if (rsnd_dai_is_play(rdai, io))
-			rsnd_mod_write(&ssi->mod, SSITDR, *buf);
+			rsnd_mod_write(mod, SSITDR, *buf);
 		else
-			*buf = rsnd_mod_read(&ssi->mod, SSIRDR);
+			*buf = rsnd_mod_read(mod, SSIRDR);
 
 		rsnd_dai_pointer_update(io, sizeof(*buf));
 
@@ -394,33 +391,6 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.stop	= rsnd_ssi_pio_stop,
 };
 
-static int rsnd_ssi_dma_inquiry(struct rsnd_dma *dma, dma_addr_t *buf, int *len)
-{
-	struct rsnd_ssi *ssi = rsnd_dma_to_ssi(dma);
-	struct rsnd_dai_stream *io = ssi->io;
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-
-	*len = io->byte_per_period;
-	*buf = runtime->dma_addr +
-		rsnd_dai_pointer_offset(io, ssi->dma_offset + *len);
-	ssi->dma_offset = *len; /* it cares A/B plane */
-
-	return 0;
-}
-
-static int rsnd_ssi_dma_complete(struct rsnd_dma *dma)
-{
-	struct rsnd_ssi *ssi = rsnd_dma_to_ssi(dma);
-	struct rsnd_dai_stream *io = ssi->io;
-	u32 status = rsnd_mod_read(&ssi->mod, SSISR);
-
-	rsnd_ssi_record_error(ssi, status);
-
-	rsnd_dai_pointer_update(ssi->io, io->byte_per_period);
-
-	return 0;
-}
-
 static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
@@ -430,7 +400,6 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 
 	/* enable DMA transfer */
 	ssi->cr_etc = DMEN;
-	ssi->dma_offset = 0;
 
 	rsnd_dma_start(dma);
 
@@ -451,6 +420,8 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
 
 	ssi->cr_etc = 0;
+
+	rsnd_ssi_record_error(ssi, rsnd_mod_read(mod, SSISR));
 
 	rsnd_ssi_hw_stop(ssi, rdai);
 
@@ -585,9 +556,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 			ret = rsnd_dma_init(
 				priv, rsnd_mod_to_dma(&ssi->mod),
 				rsnd_ssi_is_play(&ssi->mod),
-				pinfo->dma_id,
-				rsnd_ssi_dma_inquiry,
-				rsnd_ssi_dma_complete);
+				pinfo->dma_id);
 			if (ret < 0)
 				dev_info(dev, "SSI DMA failed. try PIO transter\n");
 			else
