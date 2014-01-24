@@ -2693,9 +2693,15 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 	/* disable I2C access to internal EDID ram from HDMI DDC ports */
 	rep_write_and_or(sd, 0x77, 0xf3, 0x00);
 
-	hdmi_write(sd, 0x69, 0xa3); /* HPA manual */
-	/* HPA disable on port A and B */
-	io_write_and_or(sd, 0x20, 0xcf, 0x00);
+	if (pdata->hpa_auto) {
+		/* HPA auto, HPA 0.5s after Edid set and Cable detect */
+		hdmi_write(sd, 0x69, 0x5c);
+	} else {
+		/* HPA manual */
+		hdmi_write(sd, 0x69, 0xa3);
+		/* HPA disable on port A and B */
+		io_write_and_or(sd, 0x20, 0xcf, 0x00);
+	}
 
 	/* LLC */
 	io_write(sd, 0x19, 0x80 | pdata->llc_dll_phase);
