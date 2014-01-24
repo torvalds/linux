@@ -279,11 +279,15 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 		if (open->op_createmode == NFS4_CREATE_EXCLUSIVE && status == 0)
 			open->op_bmval[1] = (FATTR4_WORD1_TIME_ACCESS |
 							FATTR4_WORD1_TIME_MODIFY);
-	} else {
+	} else
+		/*
+		 * Note this may exit with the parent still locked.
+		 * We will hold the lock until nfsd4_open's final
+		 * lookup, to prevent renames or unlinks until we've had
+		 * a chance to an acquire a delegation if appropriate.
+		 */
 		status = nfsd_lookup(rqstp, current_fh,
 				     open->op_fname.data, open->op_fname.len, *resfh);
-		fh_unlock(current_fh);
-	}
 	if (status)
 		goto out;
 	status = nfsd_check_obj_isreg(*resfh);
