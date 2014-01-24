@@ -1394,10 +1394,12 @@ struct cfg80211_scan_request {
 /**
  * struct cfg80211_match_set - sets of attributes to match
  *
- * @ssid: SSID to be matched
+ * @ssid: SSID to be matched; may be zero-length for no match (RSSI only)
+ * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
  */
 struct cfg80211_match_set {
 	struct cfg80211_ssid ssid;
+	s32 rssi_thold;
 };
 
 /**
@@ -1420,7 +1422,8 @@ struct cfg80211_match_set {
  * @dev: the interface
  * @scan_start: start time of the scheduled scan
  * @channels: channels to scan
- * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
+ * @min_rssi_thold: for drivers only supporting a single threshold, this
+ *	contains the minimum over all matchsets
  */
 struct cfg80211_sched_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1433,7 +1436,7 @@ struct cfg80211_sched_scan_request {
 	u32 flags;
 	struct cfg80211_match_set *match_sets;
 	int n_match_sets;
-	s32 rssi_thold;
+	s32 min_rssi_thold;
 
 	/* internal */
 	struct wiphy *wiphy;
