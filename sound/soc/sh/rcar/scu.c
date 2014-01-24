@@ -264,7 +264,7 @@ bool rsnd_scu_hpbif_is_enable(struct rsnd_mod *mod)
 	return !!(flags & RSND_SCU_USE_HPBIF);
 }
 
-static int rsnd_scu_start(struct rsnd_mod *mod,
+static int rsnd_scu_init(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)
 {
@@ -282,11 +282,28 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_scu_transfer_start(priv, mod, rdai, io);
-	if (ret < 0)
-		return ret;
+	return 0;
+}
+
+static int rsnd_scu_quit(struct rsnd_mod *mod,
+			 struct rsnd_dai *rdai,
+			 struct rsnd_dai_stream *io)
+{
+	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
+
+	clk_disable(scu->clk);
 
 	return 0;
+}
+
+static int rsnd_scu_start(struct rsnd_mod *mod,
+			  struct rsnd_dai *rdai,
+			  struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
+
+	return rsnd_scu_transfer_start(priv, mod, rdai, io);
 }
 
 static int rsnd_scu_stop(struct rsnd_mod *mod,
@@ -298,13 +315,13 @@ static int rsnd_scu_stop(struct rsnd_mod *mod,
 
 	rsnd_scu_transfer_stop(priv, mod, rdai, io);
 
-	clk_disable(scu->clk);
-
 	return 0;
 }
 
 static struct rsnd_mod_ops rsnd_scu_ops = {
 	.name	= "scu",
+	.init	= rsnd_scu_init,
+	.quit	= rsnd_scu_quit,
 	.start	= rsnd_scu_start,
 	.stop	= rsnd_scu_stop,
 };
