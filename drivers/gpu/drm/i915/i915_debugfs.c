@@ -1920,6 +1920,44 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_sink_crc(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+	struct intel_dp *intel_dp = NULL;
+	int ret;
+	u8 crc[6];
+
+	drm_modeset_lock_all(dev);
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+
+		if (connector->base.dpms != DRM_MODE_DPMS_ON)
+			continue;
+
+		encoder = to_intel_encoder(connector->base.encoder);
+		if (encoder->type != INTEL_OUTPUT_EDP)
+			continue;
+
+		intel_dp = enc_to_intel_dp(&encoder->base);
+
+		ret = intel_dp_sink_crc(intel_dp, crc);
+		if (ret)
+			goto out;
+
+		seq_printf(m, "%02x%02x%02x%02x%02x%02x\n",
+			   crc[0], crc[1], crc[2],
+			   crc[3], crc[4], crc[5]);
+		goto out;
+	}
+	ret = -ENODEV;
+out:
+	drm_modeset_unlock_all(dev);
+	return ret;
+}
+
 static int i915_energy_uJ(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -3276,6 +3314,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_dpio", i915_dpio_info, 0},
 	{"i915_llc", i915_llc, 0},
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
+	{"i915_sink_crc_eDP1", i915_sink_crc, 0},
 	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_pc8_status", i915_pc8_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},

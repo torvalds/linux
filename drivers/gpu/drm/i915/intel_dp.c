@@ -2922,6 +2922,35 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 	edp_panel_vdd_off(intel_dp, false);
 }
 
+int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(intel_dig_port->base.base.crtc);
+	u8 buf[1];
+
+	if (!intel_dp_aux_native_read(intel_dp, DP_TEST_SINK_MISC, buf, 1))
+		return -EAGAIN;
+
+	if (!(buf[0] & DP_TEST_CRC_SUPPORTED))
+		return -ENOTTY;
+
+	if (!intel_dp_aux_native_write_1(intel_dp, DP_TEST_SINK,
+					 DP_TEST_SINK_START))
+		return -EAGAIN;
+
+	/* Wait 2 vblanks to be sure we will have the correct CRC value */
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
+
+	if (!intel_dp_aux_native_read(intel_dp, DP_TEST_CRC_R_CR, crc, 6))
+		return -EAGAIN;
+
+	intel_dp_aux_native_write_1(intel_dp, DP_TEST_SINK, 0);
+	return 0;
+}
+
 static bool
 intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
