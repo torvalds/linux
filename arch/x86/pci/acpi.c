@@ -494,17 +494,17 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		return NULL;
 	}
 
-	node = -1;
+	node = NUMA_NO_NODE;
 #ifdef CONFIG_ACPI_NUMA
 	pxm = acpi_get_pxm(device->handle);
 	if (pxm >= 0)
 		node = pxm_to_node(pxm);
 #endif
-	if (node == -1)
+	if (node == NUMA_NO_NODE)
 		node = x86_pci_root_bus_node(busnum);
 
-	if (node != -1 && !node_online(node))
-		node = -1;
+	if (node != NUMA_NO_NODE && !node_online(node))
+		node = NUMA_NO_NODE;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
@@ -570,7 +570,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 			pcie_bus_configure_settings(child);
 	}
 
-	if (bus && node != -1) {
+	if (bus && node != NUMA_NO_NODE) {
 #ifdef CONFIG_ACPI_NUMA
 		if (pxm >= 0)
 			dev_printk(KERN_DEBUG, &bus->dev,
