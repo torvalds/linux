@@ -503,7 +503,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		set_mp_bus_to_node(busnum, node);
 	else
 #endif
-		node = get_mp_bus_to_node(busnum);
+		node = x86_pci_root_bus_node(busnum);
 
 	if (node != -1 && !node_online(node))
 		node = -1;
