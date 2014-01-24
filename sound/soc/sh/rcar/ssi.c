@@ -555,24 +555,8 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 /*
  *		Non SSI
  */
-static int rsnd_ssi_non(struct rsnd_mod *mod,
-			struct rsnd_dai *rdai,
-			struct rsnd_dai_stream *io)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	dev_dbg(dev, "%s\n", __func__);
-
-	return 0;
-}
-
 static struct rsnd_mod_ops rsnd_ssi_non_ops = {
 	.name	= "ssi (non)",
-	.init	= rsnd_ssi_non,
-	.quit	= rsnd_ssi_non,
-	.start	= rsnd_ssi_non,
-	.stop	= rsnd_ssi_non,
 };
 
 /*
