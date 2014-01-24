@@ -149,8 +149,6 @@ posix_acl_valid(const struct posix_acl *acl)
 {
 	const struct posix_acl_entry *pa, *pe;
 	int state = ACL_USER_OBJ;
-	kuid_t prev_uid = INVALID_UID;
-	kgid_t prev_gid = INVALID_GID;
 	int needs_mask = 0;
 
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
@@ -169,10 +167,6 @@ posix_acl_valid(const struct posix_acl *acl)
 					return -EINVAL;
 				if (!uid_valid(pa->e_uid))
 					return -EINVAL;
-				if (uid_valid(prev_uid) &&
-				    uid_lte(pa->e_uid, prev_uid))
-					return -EINVAL;
-				prev_uid = pa->e_uid;
 				needs_mask = 1;
 				break;
 
@@ -188,10 +182,6 @@ posix_acl_valid(const struct posix_acl *acl)
 					return -EINVAL;
 				if (!gid_valid(pa->e_gid))
 					return -EINVAL;
-				if (gid_valid(prev_gid) &&
-				    gid_lte(pa->e_gid, prev_gid))
-					return -EINVAL;
-				prev_gid = pa->e_gid;
 				needs_mask = 1;
 				break;
 
