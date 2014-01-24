@@ -568,11 +568,15 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 static void free_vfsmnt(struct mount *mnt)
 {
 	kfree(mnt->mnt_devname);
-	mnt_free_id(mnt);
 #ifdef CONFIG_SMP
 	free_percpu(mnt->mnt_pcp);
 #endif
 	kmem_cache_free(mnt_cache, mnt);
+}
+
+static void delayed_free_vfsmnt(struct rcu_head *head)
+{
+	free_vfsmnt(container_of(head, struct mount, mnt_rcu));
 }
 
 /* call under rcu_read_lock */
@@ -846,6 +850,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 
 	root = mount_fs(type, flags, name, data);
 	if (IS_ERR(root)) {
+		mnt_free_id(mnt);
 		free_vfsmnt(mnt);
 		return ERR_CAST(root);
 	}
@@ -926,18 +931,9 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	return mnt;
 
  out_free:
+	mnt_free_id(mnt);
 	free_vfsmnt(mnt);
 	return ERR_PTR(err);
-}
-
-static void delayed_free(struct rcu_head *head)
-{
-	struct mount *mnt = container_of(head, struct mount, mnt_rcu);
-	kfree(mnt->mnt_devname);
-#ifdef CONFIG_SMP
-	free_percpu(mnt->mnt_pcp);
-#endif
-	kmem_cache_free(mnt_cache, mnt);
 }
 
 static void mntput_no_expire(struct mount *mnt)
@@ -989,7 +985,7 @@ put_again:
 	dput(mnt->mnt.mnt_root);
 	deactivate_super(mnt->mnt.mnt_sb);
 	mnt_free_id(mnt);
-	call_rcu(&mnt->mnt_rcu, delayed_free);
+	call_rcu(&mnt->mnt_rcu, delayed_free_vfsmnt);
 }
 
 void mntput(struct vfsmount *mnt)
