@@ -135,68 +135,47 @@ static void cs4245_write(struct oxygen *chip, unsigned int reg, u8 value)
 			 CS4245_SPI_ADDRESS_S |
 			 CS4245_SPI_WRITE_S |
 			 (reg << 8) | value);
-	data->cs4245_regs[reg] = value;
+	data->cs4245_shadow[reg] = value;
 }
 
 static void cs4245_write_cached(struct oxygen *chip, unsigned int reg, u8 value)
 {
 	struct dg *data = chip->model_data;
 
-	if (value != data->cs4245_regs[reg])
+	if (value != data->cs4245_shadow[reg])
 		cs4245_write(chip, reg, value);
-}
-
-static void cs4245_registers_init(struct oxygen *chip)
-{
-	struct dg *data = chip->model_data;
-
-	cs4245_write(chip, CS4245_POWER_CTRL, CS4245_PDN);
-	cs4245_write(chip, CS4245_DAC_CTRL_1,
-		     data->cs4245_regs[CS4245_DAC_CTRL_1]);
-	cs4245_write(chip, CS4245_ADC_CTRL,
-		     data->cs4245_regs[CS4245_ADC_CTRL]);
-	cs4245_write(chip, CS4245_SIGNAL_SEL,
-		     data->cs4245_regs[CS4245_SIGNAL_SEL]);
-	cs4245_write(chip, CS4245_PGA_B_CTRL,
-		     data->cs4245_regs[CS4245_PGA_B_CTRL]);
-	cs4245_write(chip, CS4245_PGA_A_CTRL,
-		     data->cs4245_regs[CS4245_PGA_A_CTRL]);
-	cs4245_write(chip, CS4245_ANALOG_IN,
-		     data->cs4245_regs[CS4245_ANALOG_IN]);
-	cs4245_write(chip, CS4245_DAC_A_CTRL,
-		     data->cs4245_regs[CS4245_DAC_A_CTRL]);
-	cs4245_write(chip, CS4245_DAC_B_CTRL,
-		     data->cs4245_regs[CS4245_DAC_B_CTRL]);
-	cs4245_write(chip, CS4245_DAC_CTRL_2,
-		     CS4245_DAC_SOFT | CS4245_DAC_ZERO | CS4245_INVERT_DAC);
-	cs4245_write(chip, CS4245_INT_MASK, 0);
-	cs4245_write(chip, CS4245_POWER_CTRL, 0);
 }
 
 static void cs4245_init(struct oxygen *chip)
 {
 	struct dg *data = chip->model_data;
 
-	data->cs4245_regs[CS4245_DAC_CTRL_1] =
-		CS4245_DAC_FM_SINGLE | CS4245_DAC_DIF_LJUST;
-	data->cs4245_regs[CS4245_ADC_CTRL] =
-		CS4245_ADC_FM_SINGLE | CS4245_ADC_DIF_LJUST;
-	data->cs4245_regs[CS4245_SIGNAL_SEL] =
-		CS4245_A_OUT_SEL_HIZ | CS4245_ASYNCH;
-	data->cs4245_regs[CS4245_PGA_B_CTRL] = 0;
-	data->cs4245_regs[CS4245_PGA_A_CTRL] = 0;
-	data->cs4245_regs[CS4245_ANALOG_IN] =
-		CS4245_PGA_SOFT | CS4245_PGA_ZERO | CS4245_SEL_INPUT_4;
-	data->cs4245_regs[CS4245_DAC_A_CTRL] = 0;
-	data->cs4245_regs[CS4245_DAC_B_CTRL] = 0;
-	cs4245_registers_init(chip);
-	snd_component_add(chip->card, "CS4245");
-}
+	/* save the initial state: codec version, registers */
+	cs4245_shadow_control(chip, CS4245_SAVE_TO_SHADOW);
 
-static void dg_output_enable(struct oxygen *chip)
-{
-	msleep(2500);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, GPIO_OUTPUT_ENABLE);
+	/*
+	 * Power up the CODEC internals, enable soft ramp & zero cross, work in
+	 * async. mode, enable aux output from DAC. Invert DAC output as in the
+	 * Windows driver.
+	 */
+	data->cs4245_shadow[CS4245_POWER_CTRL] = 0;
+	data->cs4245_shadow[CS4245_SIGNAL_SEL] =
+		CS4245_A_OUT_SEL_DAC | CS4245_ASYNCH;
+	data->cs4245_shadow[CS4245_DAC_CTRL_1] =
+		CS4245_DAC_FM_SINGLE | CS4245_DAC_DIF_LJUST;
+	data->cs4245_shadow[CS4245_DAC_CTRL_2] =
+		CS4245_DAC_SOFT | CS4245_DAC_ZERO | CS4245_INVERT_DAC;
+	data->cs4245_shadow[CS4245_ADC_CTRL] =
+		CS4245_ADC_FM_SINGLE | CS4245_ADC_DIF_LJUST;
+	data->cs4245_shadow[CS4245_ANALOG_IN] =
+		CS4245_PGA_SOFT | CS4245_PGA_ZERO;
+	data->cs4245_shadow[CS4245_PGA_B_CTRL] = 0;
+	data->cs4245_shadow[CS4245_PGA_A_CTRL] = 0;
+	data->cs4245_shadow[CS4245_DAC_A_CTRL] = 4;
+	data->cs4245_shadow[CS4245_DAC_B_CTRL] = 4;
+
+	cs4245_shadow_control(chip, CS4245_LOAD_FROM_SHADOW);
+	snd_component_add(chip->card, "CS4245");
 }
 
 static void dg_init(struct oxygen *chip)
@@ -208,14 +187,12 @@ static void dg_init(struct oxygen *chip)
 	data->hp_vol_att = 2 * 16;
 
 	cs4245_init(chip);
-
-	oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL,
-			    GPIO_MAGIC | GPIO_HP_DETECT);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
-			  GPIO_INPUT_ROUTE | GPIO_HP_REAR | GPIO_OUTPUT_ENABLE);
-	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA,
-			    GPIO_INPUT_ROUTE | GPIO_HP_REAR);
-	dg_output_enable(chip);
+	oxygen_write16(chip, OXYGEN_GPIO_CONTROL,
+		       GPIO_OUTPUT_ENABLE | GPIO_HP_REAR | GPIO_INPUT_ROUTE);
+	oxygen_write16(chip, OXYGEN_GPIO_DATA, GPIO_INPUT_ROUTE);
+	msleep(2500); /* anti-pop delay */
+	oxygen_write16(chip, OXYGEN_GPIO_DATA,
+		       GPIO_OUTPUT_ENABLE | GPIO_INPUT_ROUTE);
 }
 
 static void dg_cleanup(struct oxygen *chip)
@@ -230,8 +207,9 @@ static void dg_suspend(struct oxygen *chip)
 
 static void dg_resume(struct oxygen *chip)
 {
-	cs4245_registers_init(chip);
-	dg_output_enable(chip);
+	cs4245_shadow_control(chip, CS4245_LOAD_FROM_SHADOW);
+	msleep(2500);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, GPIO_OUTPUT_ENABLE);
 }
 
 static void set_cs4245_dac_params(struct oxygen *chip,
@@ -240,7 +218,7 @@ static void set_cs4245_dac_params(struct oxygen *chip,
 	struct dg *data = chip->model_data;
 	u8 value;
 
-	value = data->cs4245_regs[CS4245_DAC_CTRL_1] & ~CS4245_DAC_FM_MASK;
+	value = data->cs4245_shadow[CS4245_DAC_CTRL_1] & ~CS4245_DAC_FM_MASK;
 	if (params_rate(params) <= 50000)
 		value |= CS4245_DAC_FM_SINGLE;
 	else if (params_rate(params) <= 100000)
@@ -256,7 +234,7 @@ static void set_cs4245_adc_params(struct oxygen *chip,
 	struct dg *data = chip->model_data;
 	u8 value;
 
-	value = data->cs4245_regs[CS4245_ADC_CTRL] & ~CS4245_ADC_FM_MASK;
+	value = data->cs4245_shadow[CS4245_ADC_CTRL] & ~CS4245_ADC_FM_MASK;
 	if (params_rate(params) <= 50000)
 		value |= CS4245_ADC_FM_SINGLE;
 	else if (params_rate(params) <= 100000)
@@ -333,7 +311,7 @@ static int output_switch_put(struct snd_kcontrol *ctl,
 	if (changed) {
 		data->output_sel = value->value.enumerated.item[0];
 
-		reg = data->cs4245_regs[CS4245_SIGNAL_SEL] &
+		reg = data->cs4245_shadow[CS4245_SIGNAL_SEL] &
 						~CS4245_A_OUT_SEL_MASK;
 		reg |= data->output_sel == 2 ?
 				CS4245_A_OUT_SEL_DAC : CS4245_A_OUT_SEL_HIZ;
@@ -504,7 +482,7 @@ static int input_sel_put(struct snd_kcontrol *ctl,
 		data->input_sel = value->value.enumerated.item[0];
 
 		cs4245_write(chip, CS4245_ANALOG_IN,
-			     (data->cs4245_regs[CS4245_ANALOG_IN] &
+			     (data->cs4245_shadow[CS4245_ANALOG_IN] &
 							~CS4245_SEL_MASK) |
 			     sel_values[data->input_sel]);
 
@@ -534,7 +512,7 @@ static int hpf_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 	struct dg *data = chip->model_data;
 
 	value->value.enumerated.item[0] =
-		!!(data->cs4245_regs[CS4245_ADC_CTRL] & CS4245_HPF_FREEZE);
+		!!(data->cs4245_shadow[CS4245_ADC_CTRL] & CS4245_HPF_FREEZE);
 	return 0;
 }
 
@@ -546,10 +524,10 @@ static int hpf_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 	int changed;
 
 	mutex_lock(&chip->mutex);
-	reg = data->cs4245_regs[CS4245_ADC_CTRL] & ~CS4245_HPF_FREEZE;
+	reg = data->cs4245_shadow[CS4245_ADC_CTRL] & ~CS4245_HPF_FREEZE;
 	if (value->value.enumerated.item[0])
 		reg |= CS4245_HPF_FREEZE;
-	changed = reg != data->cs4245_regs[CS4245_ADC_CTRL];
+	changed = reg != data->cs4245_shadow[CS4245_ADC_CTRL];
 	if (changed)
 		cs4245_write(chip, CS4245_ADC_CTRL, reg);
 	mutex_unlock(&chip->mutex);
@@ -629,7 +607,7 @@ static void dump_cs4245_registers(struct oxygen *chip,
 
 	snd_iprintf(buffer, "\nCS4245:");
 	for (i = 1; i <= 0x10; ++i)
-		snd_iprintf(buffer, " %02x", data->cs4245_regs[i]);
+		snd_iprintf(buffer, " %02x", data->cs4245_shadow[i]);
 	snd_iprintf(buffer, "\n");
 }
 

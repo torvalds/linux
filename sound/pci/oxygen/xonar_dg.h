@@ -30,7 +30,6 @@ struct dg {
 	s8 input_vol[4][2];
 	unsigned int input_sel;
 	u8 hp_vol_att;
-	u8 cs4245_regs[0x11];
 };
 
 extern struct oxygen_model model_xonar_dg;
