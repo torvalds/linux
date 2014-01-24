@@ -121,7 +121,7 @@
 		ti,model = "AM335x-EVMSK";
 		ti,audio-codec = <&tlv320aic3106>;
 		ti,mcasp-controller = <&mcasp1>;
-		ti,codec-clock-rate = <24576000>;
+		ti,codec-clock-rate = <24000000>;
 		ti,audio-routing =
 			"Headphone Jack",       "HPLOUT",
 			"Headphone Jack",       "HPROUT";
