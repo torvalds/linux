@@ -31,8 +31,6 @@
 #define GC_REGS_OFFS		0xe802c
 
 #define DOVE_SB_REGS_VIRT_BASE		IOMEM(0xfde00000)
-#define DOVE_PMU_SIGNAL_SELECT_0	(DOVE_SB_REGS_VIRT_BASE + 0xd802C)
-#define DOVE_PMU_SIGNAL_SELECT_1	(DOVE_SB_REGS_VIRT_BASE + 0xd8030)
 #define DOVE_GLOBAL_CONFIG_1		(DOVE_SB_REGS_VIRT_BASE + 0xe802C)
 #define DOVE_GLOBAL_CONFIG_1		(DOVE_SB_REGS_VIRT_BASE + 0xe802C)
 #define  DOVE_TWSI_ENABLE_OPTION1	BIT(7)
@@ -58,6 +56,10 @@
 #define CAM_GPIO_SEL		BIT(2)
 #define SD1_GPIO_SEL		BIT(1)
 #define SD0_GPIO_SEL		BIT(0)
+
+/* PMU Signal Select registers */
+#define PMU_SIGNAL_SELECT_0	0x00
+#define PMU_SIGNAL_SELECT_1	0x04
 
 #define CONFIG_PMU	BIT(4)
 
@@ -86,7 +88,7 @@ static int dove_pmu_mpp_ctrl_get(unsigned pid, unsigned long *config)
 	if ((pmu & BIT(pid)) == 0)
 		return default_mpp_ctrl_get(mpp_base, pid, config);
 
-	func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
+	func = readl(pmu_base + PMU_SIGNAL_SELECT_0 + off);
 	*config = (func >> shift) & MVEBU_MPP_MASK;
 	*config |= CONFIG_PMU;
 
@@ -106,10 +108,10 @@ static int dove_pmu_mpp_ctrl_set(unsigned pid, unsigned long config)
 	}
 
 	writel(pmu | BIT(pid), mpp_base + PMU_MPP_GENERAL_CTRL);
-	func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
+	func = readl(pmu_base + PMU_SIGNAL_SELECT_0 + off);
 	func &= ~(MVEBU_MPP_MASK << shift);
 	func |= (config & MVEBU_MPP_MASK) << shift;
-	writel(func, DOVE_PMU_SIGNAL_SELECT_0 + off);
+	writel(func, pmu_base + PMU_SIGNAL_SELECT_0 + off);
 
 	return 0;
 }
