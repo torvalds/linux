@@ -480,9 +480,6 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
 	int node;
-#ifdef CONFIG_ACPI_NUMA
-	int pxm;
-#endif
 
 	if (pci_ignore_seg)
 		domain = 0;
@@ -494,12 +491,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		return NULL;
 	}
 
-	node = NUMA_NO_NODE;
-#ifdef CONFIG_ACPI_NUMA
-	pxm = acpi_get_pxm(device->handle);
-	if (pxm >= 0)
-		node = pxm_to_node(pxm);
-#endif
+	node = acpi_get_node(device->handle);
 	if (node == NUMA_NO_NODE)
 		node = x86_pci_root_bus_node(busnum);
 
@@ -570,15 +562,8 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 			pcie_bus_configure_settings(child);
 	}
 
-	if (bus && node != NUMA_NO_NODE) {
-#ifdef CONFIG_ACPI_NUMA
-		if (pxm >= 0)
-			dev_printk(KERN_DEBUG, &bus->dev,
-				   "on NUMA node %d (pxm %d)\n", node, pxm);
-#else
+	if (bus && node != NUMA_NO_NODE)
 		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA node %d\n", node);
-#endif
-	}
 
 	return bus;
 }
