@@ -2,7 +2,7 @@
  * card driver for the Xonar DG/DGX
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- *
+ * Copyright (c) Roman Volkov <v1ron@mail.ru>
  *
  *  This driver is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.
@@ -20,27 +20,35 @@
  * Xonar DG/DGX
  * ------------
  *
+ * CS4245 and CS4361 both will mute all outputs if any clock ratio
+ * is invalid.
+ *
  * CMI8788:
  *
  *   SPI 0 -> CS4245
  *
+ *   Playback:
  *   I²S 1 -> CS4245
  *   I²S 2 -> CS4361 (center/LFE)
  *   I²S 3 -> CS4361 (surround)
  *   I²S 4 -> CS4361 (front)
+ *   Capture:
+ *   I²S ADC 1 <- CS4245
  *
  *   GPIO 3 <- ?
  *   GPIO 4 <- headphone detect
- *   GPIO 5 -> route input jack to line-in (0) or mic-in (1)
- *   GPIO 6 -> route input jack to line-in (0) or mic-in (1)
- *   GPIO 7 -> enable rear headphone amp
+ *   GPIO 5 -> enable ADC analog circuit for the left channel
+ *   GPIO 6 -> enable ADC analog circuit for the right channel
+ *   GPIO 7 -> switch green rear output jack between CS4245 and and the first
+ *             channel of CS4361 (mechanical relay)
  *   GPIO 8 -> enable output to speakers
  *
  * CS4245:
  *
+ *   input 0 <- mic
  *   input 1 <- aux
  *   input 2 <- front mic
- *   input 4 <- line/mic
+ *   input 4 <- line
  *   DAC out -> headphones
  *   aux out -> front panel headphones
  */
