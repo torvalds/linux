@@ -2017,31 +2017,19 @@ sba_connect_bus(struct pci_bus *bus)
 	printk(KERN_WARNING "No IOC for PCI Bus %04x:%02x in ACPI\n", pci_domain_nr(bus), bus->number);
 }
 
-#ifdef CONFIG_NUMA
 static void __init
 sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 {
+#ifdef CONFIG_NUMA
 	unsigned int node;
-	int pxm;
 
-	ioc->node = NUMA_NO_NODE;
-
-	pxm = acpi_get_pxm(handle);
-
-	if (pxm < 0)
-		return;
-
-	node = pxm_to_node(pxm);
-
-	if (node == NUMA_NO_NODE || !node_online(node))
-		return;
+	node = acpi_get_node(handle);
+	if (node != NUMA_NO_NODE && !node_online(node))
+		node = NUMA_NO_NODE;
 
 	ioc->node = node;
-	return;
-}
-#else
-#define sba_map_ioc_to_node(ioc, handle)
 #endif
+}
 
 static int __init
 acpi_sba_ioc_add(struct acpi_device *device,
