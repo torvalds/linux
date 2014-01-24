@@ -211,3 +211,7 @@
 	regulator-max-microvolt = <1800000>;
 	regulator-always-on;
 };
+
+&mcbsp2 {
+	status = "okay";
+};

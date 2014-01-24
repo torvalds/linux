@@ -95,3 +95,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
 };
+
+&mcbsp2 {
+	status = "okay";
+};
