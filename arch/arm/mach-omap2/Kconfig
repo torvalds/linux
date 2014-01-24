@@ -192,19 +192,6 @@ config MACH_OMAP2_TUSB6010
 	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
 
-config MACH_OMAP_H4
-	bool "OMAP 2420 H4 board"
-	depends on SOC_OMAP2420
-	default y
-	select OMAP_DEBUG_DEVICES
-	select OMAP_PACKAGE_ZAF
-
-config MACH_OMAP_2430SDP
-	bool "OMAP 2430 SDP board"
-	depends on SOC_OMAP2430
-	default y
-	select OMAP_PACKAGE_ZAC
-
 config MACH_OMAP3_BEAGLE
 	bool "OMAP3 BEAGLE board"
 	depends on ARCH_OMAP3
