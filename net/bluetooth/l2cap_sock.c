@@ -101,6 +101,15 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	if (!bdaddr_type_is_valid(la.l2_bdaddr_type))
 		return -EINVAL;
 
+	if (la.l2_cid) {
+		/* When the socket gets created it defaults to
+		 * CHAN_CONN_ORIENTED, so we need to overwrite the
+		 * default here.
+		 */
+		chan->chan_type = L2CAP_CHAN_FIXED;
+		chan->omtu = L2CAP_DEFAULT_MTU;
+	}
+
 	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
 		if (!enable_lecoc && la.l2_psm)
 			return -EINVAL;
