@@ -458,8 +458,25 @@ void __init dmi_check_pciprobe(void)
 
 struct pci_bus *pcibios_scan_root(int busnum)
 {
-	return pci_scan_bus_on_node(busnum, &pci_root_ops,
-					get_mp_bus_to_node(busnum));
+	struct pci_bus *bus;
+	struct pci_sysdata *sd;
+	LIST_HEAD(resources);
+
+	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
+	if (!sd) {
+		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busnum);
+		return NULL;
+	}
+	sd->node = get_mp_bus_to_node(busnum);
+	x86_pci_root_bus_resources(busnum, &resources);
+	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
+	bus = pci_scan_root_bus(NULL, busnum, &pci_root_ops, sd, &resources);
+	if (!bus) {
+		pci_free_resource_list(&resources);
+		kfree(sd);
+	}
+
+	return bus;
 }
 
 void __init pcibios_set_cache_line_size(void)
@@ -667,34 +684,6 @@ int pci_ext_cfg_avail(void)
 		return 1;
 	else
 		return 0;
-}
-
-struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
-{
-	LIST_HEAD(resources);
-	struct pci_bus *bus = NULL;
-	struct pci_sysdata *sd;
-
-	/*
-	 * Allocate per-root-bus (not per bus) arch-specific data.
-	 * TODO: leak; this memory is never freed.
-	 * It's arguable whether it's worth the trouble to care.
-	 */
-	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
-	if (!sd) {
-		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busno);
-		return NULL;
-	}
-	sd->node = node;
-	x86_pci_root_bus_resources(busno, &resources);
-	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busno);
-	bus = pci_scan_root_bus(NULL, busno, ops, sd, &resources);
-	if (!bus) {
-		pci_free_resource_list(&resources);
-		kfree(sd);
-	}
-
-	return bus;
 }
 
 /*
