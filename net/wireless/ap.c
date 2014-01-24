@@ -30,6 +30,7 @@ static int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		wdev->channel = NULL;
 		wdev->ssid_len = 0;
 		rdev_set_qos_map(rdev, dev, NULL);
+		nl80211_send_ap_stopped(wdev);
 	}
 
 	return err;
