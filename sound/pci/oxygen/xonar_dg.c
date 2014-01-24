@@ -268,7 +268,7 @@ unsigned int adjust_dg_dac_routing(struct oxygen *chip,
 	struct dg *data = chip->model_data;
 	unsigned int routing = 0;
 
-	switch (data->pcm_output) {
+	switch (data->output_sel) {
 	case PLAYBACK_DST_HP:
 	case PLAYBACK_DST_HP_FP:
 		oxygen_write8_masked(chip, OXYGEN_PLAY_ROUTING,
