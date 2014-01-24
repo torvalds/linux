@@ -280,7 +280,8 @@ struct rsnd_priv {
 	/*
 	 * below value will be filled on rsnd_ssi_probe()
 	 */
-	void *ssiu;
+	void *ssi;
+	int ssi_nr;
 
 	/*
 	 * below value will be filled on rsnd_dai_probe()

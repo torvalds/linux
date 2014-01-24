@@ -74,18 +74,13 @@ struct rsnd_ssi {
 	unsigned int rate;
 };
 
-struct rsnd_ssiu {
-	int ssi_nr;
-	struct rsnd_ssi *ssi;
-};
-
 #define for_each_rsnd_ssi(pos, priv, i)					\
 	for (i = 0;							\
 	     (i < rsnd_ssi_nr(priv)) &&					\
-		((pos) = ((struct rsnd_ssiu *)((priv)->ssiu))->ssi + i); \
+		((pos) = ((struct rsnd_ssi *)(priv)->ssi + i));		\
 	     i++)
 
-#define rsnd_ssi_nr(priv) (((struct rsnd_ssiu *)((priv)->ssiu))->ssi_nr)
+#define rsnd_ssi_nr(priv) ((priv)->ssi_nr)
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_dma_to_ssi(dma)  rsnd_mod_to_ssi(rsnd_dma_to_mod(dma))
 #define rsnd_ssi_pio_available(ssi) ((ssi)->info->pio_irq > 0)
@@ -94,8 +89,6 @@ struct rsnd_ssiu {
 #define rsnd_ssi_clk_from_parent(ssi) ((ssi)->parent)
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
-#define rsnd_ssi_to_ssiu(ssi)\
-	(((struct rsnd_ssiu *)((ssi) - rsnd_mod_id(&(ssi)->mod))) - 1)
 
 static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 				  u32 bit)
@@ -515,7 +508,7 @@ struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_ssi_nr(priv)))
 		id = 0;
 
-	return &(((struct rsnd_ssiu *)(priv->ssiu))->ssi + id)->mod;
+	return &((struct rsnd_ssi *)(priv->ssi) + id)->mod;
 }
 
 int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
@@ -552,7 +545,6 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod_ops *ops;
 	struct clk *clk;
-	struct rsnd_ssiu *ssiu;
 	struct rsnd_ssi *ssi;
 	char name[RSND_SSI_NAME_SIZE];
 	int i, nr, ret;
@@ -561,16 +553,14 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 	 *	init SSI
 	 */
 	nr	= info->ssi_info_nr;
-	ssiu	= devm_kzalloc(dev, sizeof(*ssiu) + (sizeof(*ssi) * nr),
-			       GFP_KERNEL);
-	if (!ssiu) {
+	ssi	= devm_kzalloc(dev, sizeof(*ssi) * nr, GFP_KERNEL);
+	if (!ssi) {
 		dev_err(dev, "SSI allocate failed\n");
 		return -ENOMEM;
 	}
 
-	priv->ssiu	= ssiu;
-	ssiu->ssi	= (struct rsnd_ssi *)(ssiu + 1);
-	ssiu->ssi_nr	= nr;
+	priv->ssi	= ssi;
+	priv->ssi_nr	= nr;
 
 	for_each_rsnd_ssi(ssi, priv, i) {
 		pinfo = &info->ssi_info[i];
