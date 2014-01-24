@@ -14,6 +14,7 @@
 
 #include <syslog.h>
 #include <unistd.h>
+#include <linux/usb/ch9.h>
 
 #ifndef USBIDS_FILE
 #define USBIDS_FILE "/usr/share/hwdata/usb.ids"
@@ -75,13 +76,6 @@ extern int usbip_use_debug ;
 		err("sorry, it's a bug!");		\
 		abort();				\
 	} while (0)
-
-enum usb_device_speed {
-	USB_SPEED_UNKNOWN = 0,                  /* enumerating */
-	USB_SPEED_LOW, USB_SPEED_FULL,          /* usb 1.1 */
-	USB_SPEED_HIGH,                         /* usb 2.0 */
-	USB_SPEED_VARIABLE                      /* wireless (usb 2.5) */
-};
 
 /* FIXME: how to sync with drivers/usbip_common.h ? */
 enum usbip_device_status {
