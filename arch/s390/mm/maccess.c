@@ -128,7 +128,7 @@ void memcpy_absolute(void *dest, void *src, size_t count)
 /*
  * Copy memory from kernel (real) to user (virtual)
  */
-int copy_to_user_real(void __user *dest, void *src, size_t count)
+int copy_to_user_real(void __user *dest, void *src, unsigned long count)
 {
 	int offs = 0, size, rc;
 	char *buf;
@@ -154,7 +154,7 @@ out:
 /*
  * Copy memory from user (virtual) to kernel (real)
  */
-int copy_from_user_real(void *dest, void __user *src, size_t count)
+int copy_from_user_real(void *dest, void __user *src, unsigned long count)
 {
 	int offs = 0, size, rc;
 	char *buf;

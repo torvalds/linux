@@ -30,8 +30,8 @@
 
 static struct static_key have_mvcos = STATIC_KEY_INIT_TRUE;
 
-static inline size_t copy_from_user_mvcos(void *x, const void __user *ptr,
-					  size_t size)
+static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr,
+						 unsigned long size)
 {
 	register unsigned long reg0 asm("0") = 0x81UL;
 	unsigned long tmp1, tmp2;
@@ -70,7 +70,7 @@ static inline size_t copy_from_user_mvcos(void *x, const void __user *ptr,
 	return size;
 }
 
-size_t __copy_from_user(void *to, const void __user *from, size_t n)
+unsigned long __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (static_key_true(&have_mvcos))
 		return copy_from_user_mvcos(to, from, n);
@@ -78,8 +78,8 @@ size_t __copy_from_user(void *to, const void __user *from, size_t n)
 }
 EXPORT_SYMBOL(__copy_from_user);
 
-static inline size_t copy_to_user_mvcos(void __user *ptr, const void *x,
-					size_t size)
+static inline unsigned long copy_to_user_mvcos(void __user *ptr, const void *x,
+					       unsigned long size)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
@@ -108,7 +108,7 @@ static inline size_t copy_to_user_mvcos(void __user *ptr, const void *x,
 	return size;
 }
 
-size_t __copy_to_user(void __user *to, const void *from, size_t n)
+unsigned long __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	if (static_key_true(&have_mvcos))
 		return copy_to_user_mvcos(to, from, n);
@@ -116,8 +116,8 @@ size_t __copy_to_user(void __user *to, const void *from, size_t n)
 }
 EXPORT_SYMBOL(__copy_to_user);
 
-static inline size_t copy_in_user_mvcos(void __user *to, const void __user *from,
-					size_t size)
+static inline unsigned long copy_in_user_mvcos(void __user *to, const void __user *from,
+					       unsigned long size)
 {
 	register unsigned long reg0 asm("0") = 0x810081UL;
 	unsigned long tmp1, tmp2;
@@ -139,7 +139,7 @@ static inline size_t copy_in_user_mvcos(void __user *to, const void __user *from
 	return size;
 }
 
-size_t __copy_in_user(void __user *to, const void __user *from, size_t n)
+unsigned long __copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
 	if (static_key_true(&have_mvcos))
 		return copy_in_user_mvcos(to, from, n);
@@ -147,7 +147,7 @@ size_t __copy_in_user(void __user *to, const void __user *from, size_t n)
 }
 EXPORT_SYMBOL(__copy_in_user);
 
-static inline size_t clear_user_mvcos(void __user *to, size_t size)
+static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
@@ -175,7 +175,7 @@ static inline size_t clear_user_mvcos(void __user *to, size_t size)
 	return size;
 }
 
-size_t __clear_user(void __user *to, size_t size)
+unsigned long __clear_user(void __user *to, unsigned long size)
 {
 	if (static_key_true(&have_mvcos))
 		return clear_user_mvcos(to, size);
@@ -183,14 +183,15 @@ size_t __clear_user(void __user *to, size_t size)
 }
 EXPORT_SYMBOL(__clear_user);
 
-static inline size_t strnlen_user_mvcos(const char __user *src, size_t count)
+static inline unsigned long strnlen_user_mvcos(const char __user *src,
+					       unsigned long count)
 {
-	size_t done, len, offset, len_str;
+	unsigned long done, len, offset, len_str;
 	char buf[256];
 
 	done = 0;
 	do {
-		offset = (size_t)src & ~PAGE_MASK;
+		offset = (unsigned long)src & ~PAGE_MASK;
 		len = min(256UL, PAGE_SIZE - offset);
 		len = min(count - done, len);
 		if (copy_from_user_mvcos(buf, src, len))
@@ -202,7 +203,7 @@ static inline size_t strnlen_user_mvcos(const char __user *src, size_t count)
 	return done + 1;
 }
 
-size_t __strnlen_user(const char __user *src, size_t count)
+unsigned long __strnlen_user(const char __user *src, unsigned long count)
 {
 	if (static_key_true(&have_mvcos))
 		return strnlen_user_mvcos(src, count);
@@ -210,16 +211,16 @@ size_t __strnlen_user(const char __user *src, size_t count)
 }
 EXPORT_SYMBOL(__strnlen_user);
 
-static inline size_t strncpy_from_user_mvcos(char *dst, const char __user *src,
-					     size_t count)
+static inline long strncpy_from_user_mvcos(char *dst, const char __user *src,
+					   long count)
 {
 	unsigned long done, len, offset, len_str;
 
-	if (unlikely(!count))
+	if (unlikely(count <= 0))
 		return 0;
 	done = 0;
 	do {
-		offset = (size_t)src & ~PAGE_MASK;
+		offset = (unsigned long)src & ~PAGE_MASK;
 		len = min(count - done, PAGE_SIZE - offset);
 		if (copy_from_user_mvcos(dst, src, len))
 			return -EFAULT;

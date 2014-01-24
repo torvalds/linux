@@ -111,8 +111,8 @@ int __handle_fault(unsigned long, unsigned long, int);
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-size_t __must_check __copy_from_user(void *to, const void __user *from,
-				     size_t n);
+unsigned long __must_check __copy_from_user(void *to, const void __user *from,
+					    unsigned long n);
 
 /**
  * __copy_to_user: - Copy a block of data into user space, with less checking.
@@ -134,13 +134,13 @@ unsigned long __must_check __copy_to_user(void __user *to, const void *from,
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 
-static inline int __put_user_fn(void *x, void __user *ptr, size_t size)
+static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 {
 	size = __copy_to_user(ptr, x, size);
 	return size ? -EFAULT : 0;
 }
 
-static inline int __get_user_fn(void *x, const void __user *ptr, size_t size)
+static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long size)
 {
 	size = __copy_from_user(x, ptr, size);
 	return size ? -EFAULT : 0;
@@ -308,9 +308,9 @@ strncpy_from_user(char *dst, const char __user *src, long count)
 	return __strncpy_from_user(dst, src, count);
 }
 
-size_t __must_check __strnlen_user(const char __user *src, size_t count);
+unsigned long __must_check __strnlen_user(const char __user *src, unsigned long count);
 
-static inline size_t strnlen_user(const char __user *src, size_t n)
+static inline unsigned long strnlen_user(const char __user *src, unsigned long n)
 {
 	might_fault();
 	return __strnlen_user(src, n);
@@ -335,15 +335,15 @@ static inline size_t strnlen_user(const char __user *src, size_t n)
 /*
  * Zero Userspace
  */
-size_t __must_check __clear_user(void __user *to, size_t size);
+unsigned long __must_check __clear_user(void __user *to, unsigned long size);
 
-static inline size_t __must_check clear_user(void __user *to, size_t n)
+static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {
 	might_fault();
 	return __clear_user(to, n);
 }
 
-int copy_to_user_real(void __user *dest, void *src, size_t count);
-int copy_from_user_real(void *dest, void __user *src, size_t count);
+int copy_to_user_real(void __user *dest, void *src, unsigned long count);
+int copy_from_user_real(void *dest, void __user *src, unsigned long count);
 
 #endif /* __S390_UACCESS_H */

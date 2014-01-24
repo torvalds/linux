@@ -22,7 +22,7 @@
 #define SLR	"slgr"
 #endif
 
-static size_t strnlen_kernel(const char __user *src, size_t count)
+static unsigned long strnlen_kernel(const char __user *src, unsigned long count)
 {
 	register unsigned long reg0 asm("0") = 0UL;
 	unsigned long tmp1, tmp2;
@@ -42,8 +42,8 @@ static size_t strnlen_kernel(const char __user *src, size_t count)
 	return count;
 }
 
-static size_t copy_in_kernel(void __user *to, const void __user *from,
-			     size_t count)
+static unsigned long copy_in_kernel(void __user *to, const void __user *from,
+				    unsigned long count)
 {
 	unsigned long tmp1;
 
@@ -146,8 +146,8 @@ static unsigned long follow_table(struct mm_struct *mm,
 
 #endif /* CONFIG_64BIT */
 
-static __always_inline size_t __user_copy_pt(unsigned long uaddr, void *kptr,
-					     size_t n, int write_user)
+static inline unsigned long __user_copy_pt(unsigned long uaddr, void *kptr,
+					   unsigned long n, int write_user)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long offset, done, size, kaddr;
@@ -189,8 +189,7 @@ fault:
  * Do DAT for user address by page table walk, return kernel address.
  * This function needs to be called with current->mm->page_table_lock held.
  */
-static __always_inline unsigned long __dat_user_addr(unsigned long uaddr,
-						     int write)
+static inline unsigned long __dat_user_addr(unsigned long uaddr, int write)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long kaddr;
@@ -211,9 +210,9 @@ fault:
 	return 0;
 }
 
-size_t copy_from_user_pt(void *to, const void __user *from, size_t n)
+unsigned long copy_from_user_pt(void *to, const void __user *from, unsigned long n)
 {
-	size_t rc;
+	unsigned long rc;
 
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return copy_in_kernel((void __user *) to, from, n);
@@ -223,17 +222,17 @@ size_t copy_from_user_pt(void *to, const void __user *from, size_t n)
 	return rc;
 }
 
-size_t copy_to_user_pt(void __user *to, const void *from, size_t n)
+unsigned long copy_to_user_pt(void __user *to, const void *from, unsigned long n)
 {
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return copy_in_kernel(to, (void __user *) from, n);
 	return __user_copy_pt((unsigned long) to, (void *) from, n, 1);
 }
 
-size_t clear_user_pt(void __user *to, size_t n)
+unsigned long clear_user_pt(void __user *to, unsigned long n)
 {
 	void *zpage = (void *) empty_zero_page;
-	long done, size, ret;
+	unsigned long done, size, ret;
 
 	done = 0;
 	do {
@@ -253,12 +252,12 @@ size_t clear_user_pt(void __user *to, size_t n)
 	return 0;
 }
 
-size_t strnlen_user_pt(const char __user *src, size_t count)
+unsigned long strnlen_user_pt(const char __user *src, unsigned long count)
 {
 	unsigned long uaddr = (unsigned long) src;
 	struct mm_struct *mm = current->mm;
 	unsigned long offset, done, len, kaddr;
-	size_t len_str;
+	unsigned long len_str;
 
 	if (unlikely(!count))
 		return 0;
@@ -289,15 +288,15 @@ fault:
 	goto retry;
 }
 
-size_t strncpy_from_user_pt(char *dst, const char __user *src, size_t count)
+long strncpy_from_user_pt(char *dst, const char __user *src, long count)
 {
-	size_t done, len, offset, len_str;
+	unsigned long done, len, offset, len_str;
 
-	if (unlikely(!count))
+	if (unlikely(count <= 0))
 		return 0;
 	done = 0;
 	do {
-		offset = (size_t)src & ~PAGE_MASK;
+		offset = (unsigned long)src & ~PAGE_MASK;
 		len = min(count - done, PAGE_SIZE - offset);
 		if (segment_eq(get_fs(), KERNEL_DS)) {
 			if (copy_in_kernel((void __user *) dst, src, len))
@@ -314,7 +313,8 @@ size_t strncpy_from_user_pt(char *dst, const char __user *src, size_t count)
 	return done;
 }
 
-size_t copy_in_user_pt(void __user *to, const void __user *from, size_t n)
+unsigned long copy_in_user_pt(void __user *to, const void __user *from,
+			      unsigned long n)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long offset_max, uaddr, done, size, error_code;
