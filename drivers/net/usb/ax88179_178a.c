@@ -48,7 +48,7 @@
 
 #include "ax88179_178a.h"
 
-#define DRV_VERSION	"1.8.0"
+#define DRV_VERSION	"1.9.0"
 
 static char version[] =
 KERN_INFO "ASIX USB Ethernet Adapter:v" DRV_VERSION
@@ -59,11 +59,11 @@ static int msg_enable;
 module_param(msg_enable, int, 0);
 MODULE_PARM_DESC(msg_enable, "usbnet msg_enable");
 
-static int bsize;
+static int bsize = -1;
 module_param(bsize, int, 0);
 MODULE_PARM_DESC(bsize, "RX Bulk IN Queue Size");
 
-static int ifg;
+static int ifg = -1;
 module_param(ifg, int, 0);
 MODULE_PARM_DESC(ifg, "RX Bulk IN Inter Frame Gap");
 
@@ -147,12 +147,12 @@ static int ax88179_read_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
 	int ret;
 
 	if (eflag && (2 == size)) {
-		u16 buf;
+		u16 buf = 0;
 		ret = __ax88179_read_cmd(dev, cmd, value, index, size, &buf, 1);
 		le16_to_cpus(&buf);
 		*((u16 *)data) = buf;
 	} else if (eflag && (4 == size)) {
-		u32 buf;
+		u32 buf = 0;
 		ret = __ax88179_read_cmd(dev, cmd, value, index, size, &buf, 1);
 		le32_to_cpus(&buf);
 		*((u32 *)data) = buf;
@@ -169,7 +169,7 @@ static int ax88179_write_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
 	int ret;
 
 	if (2 == size) {
-		u16 buf;
+		u16 buf = 0;
 		buf = *((u16 *)data);
 		cpu_to_le16s(&buf);
 		ret = __ax88179_write_cmd(dev, cmd, value, index,
@@ -189,12 +189,12 @@ static int ax88179_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	int ret;
 
 	if (eflag && (2 == size)) {
-		u16 buf;
+		u16 buf = 0;
 		ret = __ax88179_read_cmd(dev, cmd, value, index, size, &buf, 0);
 		le16_to_cpus(&buf);
 		*((u16 *)data) = buf;
 	} else if (eflag && (4 == size)) {
-		u32 buf;
+		u32 buf = 0;
 		ret = __ax88179_read_cmd(dev, cmd, value, index, size, &buf, 0);
 		le32_to_cpus(&buf);
 		*((u32 *)data) = buf;
@@ -211,7 +211,7 @@ static int ax88179_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	int ret;
 
 	if (2 == size) {
-		u16 buf;
+		u16 buf = 0;
 		buf = *((u16 *)data);
 		cpu_to_le16s(&buf);
 		ret = __ax88179_write_cmd(dev, cmd, value, index,
@@ -229,7 +229,7 @@ static void ax88179_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value,
 				    u16 index, u16 size, void *data)
 {
 	if (2 == size) {
-		u16 buf;
+		u16 buf = 0;
 		buf = *((u16 *)data);
 		cpu_to_le16s(&buf);
 		usbnet_write_cmd_async(dev, cmd, USB_DIR_OUT | USB_TYPE_VENDOR |
@@ -260,11 +260,11 @@ static void
 ax88179_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 				    u16 size, void *data)
 {
-	struct usb_ctrlrequest *req;
-	int status;
-	struct urb *urb;
+	struct usb_ctrlrequest *req = NULL;
+	int status = 0;
+	struct urb *urb = NULL;
 	void *buf = NULL;
-	u16 buf_le;
+	u16 buf_le = 0;
 
 	if (2 == size) {
 		buf_le = *((u16 *)data);
@@ -348,8 +348,8 @@ ax88179_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 
 static void ax88179_status(struct usbnet *dev, struct urb *urb)
 {
-	struct ax88179_int_data *event;
-	int link;
+	struct ax88179_int_data *event = NULL;
+	int link = 0;
 
 	if (urb->actual_length < 8)
 		return;
@@ -376,7 +376,7 @@ static void ax88179_status(struct usbnet *dev, struct urb *urb)
 static int ax88179_mdio_read(struct net_device *netdev, int phy_id, int loc)
 {
 	struct usbnet *dev = netdev_priv(netdev);
-	u16 res;
+	u16 res = 0;
 
 	ax88179_read_cmd(dev, AX_ACCESS_PHY, phy_id, (__u16)loc, 2, &res, 1);
 	return res;
@@ -399,8 +399,8 @@ static int ax88179_suspend(struct usb_interface *intf,
 #endif
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	u16 tmp16;
-	u8 tmp8;
+	u16 tmp16 = 0;
+	u8 tmp8 = 0;
 
 	usbnet_suspend(intf, message);
 
@@ -432,8 +432,8 @@ static int ax88179_suspend(struct usb_interface *intf,
 static int ax88179_resume(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	u16 tmp16;
-	u8 tmp8;
+	u16 tmp16 = 0;
+	u8 tmp8 = 0;
 
 	netif_carrier_off(dev->net);
 
@@ -462,8 +462,10 @@ static int ax88179_resume(struct usb_interface *intf)
 	msleep(100);
 
 	/* Configure RX control register => start operation */
-	tmp16 = AX_RX_CTL_DROPCRCERR | AX_RX_CTL_IPE | AX_RX_CTL_START |
-		 AX_RX_CTL_AP | AX_RX_CTL_AMALL | AX_RX_CTL_AB;
+	tmp16 = AX_RX_CTL_DROPCRCERR | AX_RX_CTL_START | AX_RX_CTL_AP |
+		 AX_RX_CTL_AMALL | AX_RX_CTL_AB;
+	if (NET_IP_ALIGN == 0)
+		tmp16 |= AX_RX_CTL_IPE;
 	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2, &tmp16);
 
 	return usbnet_resume(intf);
@@ -474,7 +476,7 @@ ax88179_get_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo)
 {
 
 	struct usbnet *dev = netdev_priv(net);
-	u8 *opt;
+	u8 *opt = NULL;
 
 	opt = kmalloc(1, GFP_KERNEL);
 	if (!opt)
@@ -501,7 +503,7 @@ static int
 ax88179_set_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo)
 {
 	struct usbnet *dev = netdev_priv(net);
-	u8 *opt;
+	u8 *opt = NULL;
 
 	opt = kmalloc(1, GFP_KERNEL);
 	if (!opt)
@@ -536,9 +538,9 @@ ax88179_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 		   u8 *data)
 {
 	struct usbnet *dev = netdev_priv(net);
-	u16 *eeprom_buff;
-	int first_word, last_word;
-	int i;
+	u16 *eeprom_buff = NULL;
+	int first_word = 0, last_word = 0;
+	int i = 0;
 
 	if (eeprom->len == 0)
 		return -EINVAL;
@@ -596,7 +598,7 @@ static int ax88179_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
 static int ax88179_netdev_stop(struct net_device *net)
 {
 	struct usbnet *dev = netdev_priv(net);
-	u16 tmp16;
+	u16 tmp16 = 0;
 
 	ax88179_read_cmd(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			 2, 2, &tmp16, 1);
@@ -612,7 +614,7 @@ static int ax88179_netdev_stop(struct net_device *net)
 static int ax88179_set_csums(struct usbnet *dev)
 {
 	struct ax88179_data *ax179_data = (struct ax88179_data *)dev->data;
-	u8 checksum;
+	u8 checksum = 0;
 
 	if (ax179_data->checksum & AX_RX_CHECKSUM)
 		checksum = AX_RXCOE_DEF_CSUM;
@@ -690,7 +692,7 @@ static struct ethtool_ops ax88179_ethtool_ops = {
 	.set_msglevel		= usbnet_set_msglevel,
 	.get_wol		= ax88179_get_wol,
 	.set_wol		= ax88179_set_wol,
-	.get_eeprom_len	= ax88179_get_eeprom_len,
+	.get_eeprom_len		= ax88179_get_eeprom_len,
 	.get_eeprom		= ax88179_get_eeprom,
 	.get_settings		= ax88179_get_settings,
 	.set_settings		= ax88179_set_settings,
@@ -701,6 +703,8 @@ static struct ethtool_ops ax88179_ethtool_ops = {
 	.set_rx_csum		= ax88179_set_rx_csum,
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ax88179_set_tso,
+	.get_sg			= ethtool_op_get_sg,
+	.set_sg			= ethtool_op_set_sg
 #endif
 };
 
@@ -709,7 +713,7 @@ static void ax88179_set_multicast(struct net_device *net)
 	struct usbnet *dev = netdev_priv(net);
 	struct ax88179_data *data = (struct ax88179_data *)&dev->data;
 	u8 *m_filter = ((u8 *)dev->data) + 12;
-	int mc_count;
+	int mc_count = 0;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
 	mc_count = net->mc_count;
@@ -717,7 +721,9 @@ static void ax88179_set_multicast(struct net_device *net)
 	mc_count = netdev_mc_count(net);
 #endif
 
-	data->rxctl = (AX_RX_CTL_START | AX_RX_CTL_AB | AX_RX_CTL_IPE);
+	data->rxctl = (AX_RX_CTL_START | AX_RX_CTL_AB);
+	if (NET_IP_ALIGN == 0)
+		data->rxctl |= AX_RX_CTL_IPE;
 
 	if (net->flags & IFF_PROMISC) {
 		data->rxctl |= AX_RX_CTL_PRO;
@@ -731,11 +737,11 @@ static void ax88179_set_multicast(struct net_device *net)
 		 * for our 8 byte filter buffer
 		 * to avoid allocating memory that
 		 * is tricky to free later */
-		u32 crc_bits;
+		u32 crc_bits = 0;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
 		struct dev_mc_list *mc_list = net->mc_list;
-		int i;
+		int i = 0;
 
 		memset(m_filter, 0, AX_MCAST_FILTER_SIZE);
 
@@ -749,7 +755,7 @@ static void ax88179_set_multicast(struct net_device *net)
 			mc_list = mc_list->next;
 		}
 #else
-		struct netdev_hw_addr *ha;
+		struct netdev_hw_addr *ha = NULL;
 		memset(m_filter, 0, AX_MCAST_FILTER_SIZE);
 		netdev_for_each_mc_addr(ha, net) {
 			crc_bits = ether_crc(ETH_ALEN, ha->addr) >> 26;
@@ -778,7 +784,7 @@ ax88179_set_features(struct net_device *net, u32 features)
 #endif
 
 {
-	u8 tmp;
+	u8 tmp = 0;
 	struct usbnet *dev = netdev_priv(net);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0)
 	netdev_features_t changed = net->features ^ features;
@@ -815,7 +821,7 @@ ax88179_set_features(struct net_device *net, u32 features)
 static int ax88179_change_mtu(struct net_device *net, int new_mtu)
 {
 	struct usbnet *dev = netdev_priv(net);
-	u16 tmp16;
+	u16 tmp16 = 0;
 
 	if (new_mtu <= 0 || new_mtu > 4088)
 		return -EINVAL;
@@ -881,11 +887,11 @@ static const struct net_device_ops ax88179_netdev_ops = {
 
 static int ax88179_check_eeprom(struct usbnet *dev)
 {
-	u8 i;
-	u8 buf[2];
-	u8 eeprom[20];
-	u16 csum, delay = HZ / 10;
-	unsigned long jtimeout;
+	u8 i = 0;
+	u8 buf[2] = {0};
+	u8 eeprom[20] = {0};
+	u16 csum = 0, delay = HZ / 10;
+	unsigned long jtimeout = 0;
 
 	/* Read EEPROM content */
 	for (i = 0 ; i < 6; i++) {
@@ -928,7 +934,7 @@ static int ax88179_check_eeprom(struct usbnet *dev)
 
 static int ax88179_check_efuse(struct usbnet *dev, void *ledmode)
 {
-	u8	i;
+	u8	i = 0;
 	u8	efuse[64] = {0x00};
 	u16	csum = 0;
 
@@ -954,9 +960,9 @@ static int ax88179_check_efuse(struct usbnet *dev, void *ledmode)
 
 static int ax88179_convert_old_led(struct usbnet *dev, u8 efuse, void *ledvalue)
 {
-	u8 ledmode;
-	u16 tmp;
-	u16 led;
+	u8 ledmode = 0;
+	u16 tmp = 0;
+	u16 led = 0;
 
 	/* loaded the old eFuse LED Mode */
 	if (efuse) {
@@ -1006,9 +1012,9 @@ static int ax88179_convert_old_led(struct usbnet *dev, u8 efuse, void *ledvalue)
 
 static int ax88179_led_setting(struct usbnet *dev)
 {
-	u8 ledfd, value = 0;
-	u16 tmp, ledact, ledlink, ledvalue = 0, delay = HZ / 10;
-	unsigned long jtimeout;
+	u8 ledfd = 0, value = 0;
+	u16 tmp = 0, ledact = 0, ledlink = 0, ledvalue = 0, delay = HZ / 10;
+	unsigned long jtimeout = 0;
 
 	/* Check AX88179 version. UA1 or UA2 */
 	ax88179_read_cmd(dev, AX_ACCESS_MAC, GENERAL_STATUS, 1, 1, &value, 0);
@@ -1147,8 +1153,8 @@ static int ax88179_led_setting(struct usbnet *dev)
 
 static int ax88179_AutoDetach(struct usbnet *dev, int in_pm)
 {
-	u16 tmp16;
-	u8 tmp8;
+	u16 tmp16 = 0;
+	u8 tmp8 = 0;
 	int (*fnr)(struct usbnet *, u8, u16, u16, u16, void *, int);
 	int (*fnw)(struct usbnet *, u8, u16, u16, u16, void *);
 
@@ -1181,9 +1187,9 @@ static int ax88179_AutoDetach(struct usbnet *dev, int in_pm)
 
 static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	void *buf;
-	u16 *tmp16;
-	u8 *tmp;
+	void *buf = NULL;
+	u16 *tmp16 = NULL;
+	u8 *tmp = NULL;
 
 	struct ax88179_data *ax179_data = (struct ax88179_data *)dev->data;
 
@@ -1276,6 +1282,11 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 22)
 	dev->net->features |= NETIF_F_IPV6_CSUM;
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
+	if (usb_device_no_sg_constraint(dev->udev))
+		dev->can_dma_sg = 1;
+	dev->net->features |= NETIF_F_SG | NETIF_F_TSO;
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 	dev->net->hw_features |= NETIF_F_IP_CSUM;
@@ -1297,8 +1308,10 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	ax179_data->checksum |= AX_RX_CHECKSUM | AX_TX_CHECKSUM;
 
 	/* Configure RX control register => start operation */
-	*tmp16 = AX_RX_CTL_DROPCRCERR | AX_RX_CTL_IPE | AX_RX_CTL_START |
-			AX_RX_CTL_AP | AX_RX_CTL_AMALL | AX_RX_CTL_AB;
+	*tmp16 = AX_RX_CTL_DROPCRCERR | AX_RX_CTL_START | AX_RX_CTL_AP |
+		 AX_RX_CTL_AMALL | AX_RX_CTL_AB;
+	if (NET_IP_ALIGN == 0)
+		*tmp16 |= AX_RX_CTL_IPE;
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2, tmp16);
 
 	*tmp = AX_MONITOR_MODE_PMETYPE | AX_MONITOR_MODE_PMEPOL |
@@ -1339,8 +1352,8 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 
 static void ax88179_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
-	u16 tmp16;
-	u8 tmp8;
+	u16 tmp16 = 0;
+	u8 tmp8 = 0;
 	struct ax88179_data *ax179_data = (struct ax88179_data *) dev->data;
 
 	if (ax179_data) {
@@ -1378,11 +1391,11 @@ ax88179_rx_checksum(struct sk_buff *skb, u32 *pkt_hdr)
 
 static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
-	struct sk_buff *ax_skb;
-	int pkt_cnt;
-	u32 rx_hdr;
-	u16 hdr_off;
-	u32 *pkt_hdr;
+	struct sk_buff *ax_skb = NULL;
+	int pkt_cnt = 0;
+	u32 rx_hdr = 0;
+	u16 hdr_off = 0;
+	u32 *pkt_hdr = NULL;
 
 	skb_trim(skb, skb->len - 4);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22)
@@ -1410,30 +1423,38 @@ static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			continue;
 		}
 
-		if (pkt_cnt == 0) {
-			/* Skip IP alignment psudo header */
-			skb_pull(skb, 2);
+		if (pkt_cnt == 0) {			
 			skb->len = pkt_len;
+
+			/* Skip IP alignment psudo header */
+			if (NET_IP_ALIGN == 0)
+				skb_pull(skb, 2);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22)
-			skb->tail = skb->data + pkt_len;
+			skb->tail = skb->data + skb->len;
 #else
-			skb_set_tail_pointer(skb, pkt_len);
+			skb_set_tail_pointer(skb, skb->len);
 #endif
-			skb->truesize = pkt_len + sizeof(struct sk_buff);
+			skb->truesize = skb->len + sizeof(struct sk_buff);
 			ax88179_rx_checksum(skb, pkt_hdr);
+
 			return 1;
 		}
 
 		ax_skb = skb_clone(skb, GFP_ATOMIC);
 		if (ax_skb) {
 			ax_skb->len = pkt_len;
-			ax_skb->data = skb->data + 2;
+	
+			/* Skip IP alignment psudo header */
+			if (NET_IP_ALIGN == 0)
+				skb_pull(ax_skb, 2);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22)
-			ax_skb->tail = ax_skb->data + pkt_len;
+			ax_skb->tail = ax_skb->data + ax_skb->len;
 #else
-			skb_set_tail_pointer(ax_skb, pkt_len);
+			skb_set_tail_pointer(ax_skb, ax_skb->len);
 #endif
-			ax_skb->truesize = pkt_len + sizeof(struct sk_buff);
+			ax_skb->truesize = ax_skb->len + sizeof(struct sk_buff);
 			ax88179_rx_checksum(ax_skb, pkt_hdr);
 			usbnet_skb_return(dev, ax_skb);
 		} else {
@@ -1449,21 +1470,25 @@ static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 static struct sk_buff *
 ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 {
-	u32 tx_hdr1, tx_hdr2;
+	u32 tx_hdr1 = 0, tx_hdr2 = 0;
 	int frame_size = dev->maxpacket;
 	int mss = skb_shinfo(skb)->gso_size;
-	int headroom;
-	int tailroom;
+	int headroom = 0;
+	int tailroom = 0;
 
 	tx_hdr1 = skb->len;
 	tx_hdr2 = mss;
-	if (((skb->len + 8) % frame_size) == 0) {
+	if (((skb->len + 8) % frame_size) == 0)
 		tx_hdr2 |= 0x80008000;	/* Enable padding */
-		skb->len += 2;
-	}
 
-	if (skb_linearize(skb))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
+	if (!dev->can_dma_sg && (dev->net->features & NETIF_F_SG) &&
+	    skb_linearize(skb))
 		return NULL;
+#else
+	if ((dev->net->features & NETIF_F_SG) && skb_linearize(skb))
+		return NULL;
+#endif
 
 	headroom = skb_headroom(skb);
 	tailroom = skb_tailroom(skb);
@@ -1478,7 +1503,7 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 #endif
 		}
 	} else {
-		struct sk_buff *skb2;
+		struct sk_buff *skb2 = NULL;
 		skb2 = skb_copy_expand(skb, 8, 0, flags);
 		dev_kfree_skb_any(skb);
 		skb = skb2;
@@ -1508,10 +1533,10 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 static int ax88179_link_reset(struct usbnet *dev)
 {
 	struct ax88179_data *data = (struct ax88179_data *)&dev->data;
-	u8 tmp[5], link_sts;
-	u16 mode, tmp16, delay = HZ/10;
+	u8 tmp[5] = {0}, link_sts = 0;
+	u16 mode = 0, tmp16 = 0, delay = HZ/10;
 	u32 tmp32 = 0x40000000;
-	unsigned long jtimeout;
+	unsigned long jtimeout = 0;
 
 	jtimeout = jiffies + delay;
 
@@ -1558,13 +1583,19 @@ static int ax88179_link_reset(struct usbnet *dev)
 	} else
 		memcpy(tmp, &AX88179_BULKIN_SIZE[3], 5);
 
-	if (bsize != 0) {
+	if (bsize != -1) {
 		if (bsize > 24)
 			bsize = 24;
+
+		else if (bsize == 0) {
+			tmp[1] = 0;
+			tmp[2] = 0;
+		}
+
 		tmp[3] = (u8)bsize;
 	}
 
-	if (ifg != 0) {
+	if (ifg != -1) {
 		if (ifg > 255)
 			ifg = 255;
 		tmp[4] = (u8)ifg;
@@ -1593,11 +1624,20 @@ static int ax88179_link_reset(struct usbnet *dev)
 
 static int ax88179_reset(struct usbnet *dev)
 {
-	void *buf;
-	u16 *tmp16;
-	u8 *tmp;
+	void *buf = NULL;
+	u16 *tmp16 = NULL;
+	u8 *tmp = NULL;
 	struct ax88179_data *ax179_data = (struct ax88179_data *) dev->data;
 	buf = kmalloc(6, GFP_KERNEL);
+
+	if (!buf) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
+		netdev_err(dev->net, "Cannot allocate memory for buffer");
+#else
+		deverr(dev, "Cannot allocate memory for buffer");
+#endif
+		return -ENOMEM;
+	}
 
 	tmp16 = (u16 *)buf;
 	tmp = (u8 *)buf;
@@ -1649,6 +1689,11 @@ static int ax88179_reset(struct usbnet *dev)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 22)
 	dev->net->features |= NETIF_F_IPV6_CSUM;
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
+	if (usb_device_no_sg_constraint(dev->udev))
+		dev->can_dma_sg = 1;
+	dev->net->features |= NETIF_F_SG | NETIF_F_TSO;
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 	dev->net->hw_features |= NETIF_F_IP_CSUM;
@@ -1670,10 +1715,11 @@ static int ax88179_reset(struct usbnet *dev)
 	ax179_data->checksum |= AX_RX_CHECKSUM | AX_TX_CHECKSUM;
 
 	/* Configure RX control register => start operation */
-	*tmp16 = AX_RX_CTL_DROPCRCERR | AX_RX_CTL_IPE | AX_RX_CTL_START |
-			AX_RX_CTL_AP | AX_RX_CTL_AMALL | AX_RX_CTL_AB;
-	ax88179_write_cmd(dev, AX_ACCESS_MAC, 0x0b, 2, 2, tmp16);
-
+	*tmp16 = AX_RX_CTL_DROPCRCERR | AX_RX_CTL_START | AX_RX_CTL_AP |
+		 AX_RX_CTL_AMALL | AX_RX_CTL_AB;
+	if (NET_IP_ALIGN == 0)
+		*tmp16 |= AX_RX_CTL_IPE;
+	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2, tmp16);
 
 	*tmp = AX_MONITOR_MODE_PMETYPE | AX_MONITOR_MODE_PMEPOL |
 						AX_MONITOR_MODE_RWMP;
@@ -1715,7 +1761,7 @@ static int ax88179_reset(struct usbnet *dev)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 static int ax88179_stop(struct usbnet *dev)
 {
-	u16 tmp16;
+	u16 tmp16 = 0;
 
 	ax88179_read_cmd(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			 2, 2, &tmp16, 1);
@@ -1727,7 +1773,7 @@ static int ax88179_stop(struct usbnet *dev)
 #endif
 
 static const struct driver_info ax88179_info = {
-	.description = "ASIX AX88179 USB 3.0 Gigibit Ethernet",
+	.description = "ASIX AX88179 USB 3.0 Gigabit Ethernet",
 	.bind = ax88179_bind,
 	.unbind = ax88179_unbind,
 	.status = ax88179_status,
@@ -1743,7 +1789,7 @@ static const struct driver_info ax88179_info = {
 
 
 static const struct driver_info ax88178a_info = {
-	.description = "ASIX AX88178A USB 2.0 Gigibit Ethernet",
+	.description = "ASIX AX88178A USB 2.0 Gigabit Ethernet",
 	.bind = ax88179_bind,
 	.unbind = ax88179_unbind,
 	.status = ax88179_status,
