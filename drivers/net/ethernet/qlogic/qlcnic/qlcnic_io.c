@@ -131,35 +131,6 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *,
 					    struct qlcnic_host_rds_ring *,
 					    u16, u16);
 
-static inline void qlcnic_enable_tx_intr(struct qlcnic_adapter *adapter,
-				  struct qlcnic_host_tx_ring *tx_ring)
-{
-	if (qlcnic_check_multi_tx(adapter) &&
-	    !adapter->ahw->diag_test)
-		writel(0x0, tx_ring->crb_intr_mask);
-}
-
-
-static inline void qlcnic_disable_tx_int(struct qlcnic_adapter *adapter,
-					 struct qlcnic_host_tx_ring *tx_ring)
-{
-	if (qlcnic_check_multi_tx(adapter) &&
-	    !adapter->ahw->diag_test)
-		writel(1, tx_ring->crb_intr_mask);
-}
-
-static inline void qlcnic_83xx_enable_tx_intr(struct qlcnic_adapter *adapter,
-				       struct qlcnic_host_tx_ring *tx_ring)
-{
-	writel(0, tx_ring->crb_intr_mask);
-}
-
-static inline void qlcnic_83xx_disable_tx_intr(struct qlcnic_adapter *adapter,
-					struct qlcnic_host_tx_ring *tx_ring)
-{
-	writel(1, tx_ring->crb_intr_mask);
-}
-
 static inline u8 qlcnic_mac_hash(u64 mac, u16 vlan)
 {
 	return (u8)((mac & 0xff) ^ ((mac >> 40) & 0xff) ^ (vlan & 0xff));
@@ -885,7 +856,7 @@ static int qlcnic_poll(struct napi_struct *napi, int budget)
 	if ((work_done < budget) && tx_complete) {
 		napi_complete(&sds_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
-			qlcnic_enable_int(sds_ring);
+			qlcnic_enable_sds_intr(adapter, sds_ring);
 			qlcnic_enable_tx_intr(adapter, tx_ring);
 		}
 	}
@@ -926,7 +897,7 @@ static int qlcnic_rx_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
-			qlcnic_enable_int(sds_ring);
+			qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
 
 	return work_done;
@@ -1557,7 +1528,7 @@ void qlcnic_82xx_napi_enable(struct qlcnic_adapter *adapter)
 	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		napi_enable(&sds_ring->napi);
-		qlcnic_enable_int(sds_ring);
+		qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
 
 	if (qlcnic_check_multi_tx(adapter) &&
@@ -1583,7 +1554,7 @@ void qlcnic_82xx_napi_disable(struct qlcnic_adapter *adapter)
 
 	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
-		qlcnic_disable_int(sds_ring);
+		qlcnic_disable_sds_intr(adapter, sds_ring);
 		napi_synchronize(&sds_ring->napi);
 		napi_disable(&sds_ring->napi);
 	}
@@ -1593,7 +1564,7 @@ void qlcnic_82xx_napi_disable(struct qlcnic_adapter *adapter)
 	    qlcnic_check_multi_tx(adapter)) {
 		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
-			qlcnic_disable_tx_int(adapter, tx_ring);
+			qlcnic_disable_tx_intr(adapter, tx_ring);
 			napi_synchronize(&tx_ring->napi);
 			napi_disable(&tx_ring->napi);
 		}
@@ -1856,7 +1827,7 @@ static int qlcnic_83xx_msix_sriov_vf_poll(struct napi_struct *napi, int budget)
 	work_done = qlcnic_83xx_process_rcv_ring(sds_ring, budget);
 	if ((work_done < budget) && tx_complete) {
 		napi_complete(&sds_ring->napi);
-		qlcnic_83xx_enable_intr(adapter, sds_ring);
+		qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
 
 	return work_done;
@@ -1879,7 +1850,7 @@ static int qlcnic_83xx_poll(struct napi_struct *napi, int budget)
 	work_done = qlcnic_83xx_process_rcv_ring(sds_ring, budget);
 	if ((work_done < budget) && tx_complete) {
 		napi_complete(&sds_ring->napi);
-		qlcnic_83xx_enable_intr(adapter, sds_ring);
+		qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
 
 	return work_done;
@@ -1898,7 +1869,7 @@ static int qlcnic_83xx_msix_tx_poll(struct napi_struct *napi, int budget)
 	if (work_done) {
 		napi_complete(&tx_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP , &adapter->state))
-			qlcnic_83xx_enable_tx_intr(adapter, tx_ring);
+			qlcnic_enable_tx_intr(adapter, tx_ring);
 	}
 
 	return work_done;
@@ -1916,7 +1887,7 @@ static int qlcnic_83xx_rx_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
-			qlcnic_83xx_enable_intr(adapter, sds_ring);
+			qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
 
 	return work_done;
@@ -1936,7 +1907,7 @@ void qlcnic_83xx_napi_enable(struct qlcnic_adapter *adapter)
 		sds_ring = &recv_ctx->sds_rings[ring];
 		napi_enable(&sds_ring->napi);
 		if (adapter->flags & QLCNIC_MSIX_ENABLED)
-			qlcnic_83xx_enable_intr(adapter, sds_ring);
+			qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
 
 	if ((adapter->flags & QLCNIC_MSIX_ENABLED) &&
@@ -1944,7 +1915,7 @@ void qlcnic_83xx_napi_enable(struct qlcnic_adapter *adapter)
 		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
 			napi_enable(&tx_ring->napi);
-			qlcnic_83xx_enable_tx_intr(adapter, tx_ring);
+			qlcnic_enable_tx_intr(adapter, tx_ring);
 		}
 	}
 }
@@ -1962,7 +1933,7 @@ void qlcnic_83xx_napi_disable(struct qlcnic_adapter *adapter)
 	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		if (adapter->flags & QLCNIC_MSIX_ENABLED)
-			qlcnic_83xx_disable_intr(adapter, sds_ring);
+			qlcnic_disable_sds_intr(adapter, sds_ring);
 		napi_synchronize(&sds_ring->napi);
 		napi_disable(&sds_ring->napi);
 	}
@@ -1971,7 +1942,7 @@ void qlcnic_83xx_napi_disable(struct qlcnic_adapter *adapter)
 	    !(adapter->flags & QLCNIC_TX_INTR_SHARED)) {
 		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
-			qlcnic_83xx_disable_tx_intr(adapter, tx_ring);
+			qlcnic_disable_tx_intr(adapter, tx_ring);
 			napi_synchronize(&tx_ring->napi);
 			napi_disable(&tx_ring->napi);
 		}

@@ -199,6 +199,11 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.io_slot_reset			= qlcnic_83xx_io_slot_reset,
 	.io_resume			= qlcnic_83xx_io_resume,
 	.get_beacon_state		= qlcnic_83xx_get_beacon_state,
+	.enable_sds_intr		= qlcnic_83xx_enable_sds_intr,
+	.disable_sds_intr		= qlcnic_83xx_disable_sds_intr,
+	.enable_tx_intr			= qlcnic_83xx_enable_tx_intr,
+	.disable_tx_intr		= qlcnic_83xx_disable_tx_intr,
+
 };
 
 static struct qlcnic_nic_template qlcnic_83xx_ops = {
@@ -285,10 +290,21 @@ int qlcnic_83xx_wrt_reg_indirect(struct qlcnic_adapter *adapter, ulong addr,
 	}
 }
 
-int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
+static void qlcnic_83xx_enable_legacy(struct qlcnic_adapter *adapter)
 {
-	int err, i, num_msix;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	/* MSI-X enablement failed, use legacy interrupt */
+	adapter->tgt_status_reg = ahw->pci_base0 + QLC_83XX_INTX_PTR;
+	adapter->tgt_mask_reg = ahw->pci_base0 + QLC_83XX_INTX_MASK;
+	adapter->isr_int_vec = ahw->pci_base0 + QLC_83XX_INTX_TRGR;
+	adapter->msix_entries[0].vector = adapter->pdev->irq;
+	dev_info(&adapter->pdev->dev, "using legacy interrupt\n");
+}
+
+static int qlcnic_83xx_calculate_msix_vector(struct qlcnic_adapter *adapter)
+{
+	int num_msix;
 
 	num_msix = adapter->drv_sds_rings;
 
@@ -298,30 +314,44 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 	if (!(adapter->flags & QLCNIC_TX_INTR_SHARED))
 		num_msix += adapter->drv_tx_rings;
 
-	err = qlcnic_enable_msix(adapter, num_msix);
-	if (err == -ENOMEM)
-		return err;
-	if (adapter->flags & QLCNIC_MSIX_ENABLED)
-		num_msix = adapter->ahw->num_msix;
-	else {
-		if (qlcnic_sriov_vf_check(adapter))
-			return -EINVAL;
-		num_msix = 1;
-		adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
+	return num_msix;
+}
+
+int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int err, i, num_msix;
+
+	if (adapter->flags & QLCNIC_TSS_RSS) {
+		err = qlcnic_setup_tss_rss_intr(adapter);
+		if (err < 0)
+			return err;
+		num_msix = ahw->num_msix;
+	} else {
+		num_msix = qlcnic_83xx_calculate_msix_vector(adapter);
+
+		err = qlcnic_enable_msix(adapter, num_msix);
+		if (err == -ENOMEM)
+			return err;
+
+		if (adapter->flags & QLCNIC_MSIX_ENABLED) {
+			num_msix = ahw->num_msix;
+		} else {
+			if (qlcnic_sriov_vf_check(adapter))
+				return -EINVAL;
+			num_msix = 1;
+			adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
+		}
 	}
+
 	/* setup interrupt mapping table for fw */
 	ahw->intr_tbl = vzalloc(num_msix *
 				sizeof(struct qlcnic_intrpt_config));
 	if (!ahw->intr_tbl)
 		return -ENOMEM;
-	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
-		/* MSI-X enablement failed, use legacy interrupt */
-		adapter->tgt_status_reg = ahw->pci_base0 + QLC_83XX_INTX_PTR;
-		adapter->tgt_mask_reg = ahw->pci_base0 + QLC_83XX_INTX_MASK;
-		adapter->isr_int_vec = ahw->pci_base0 + QLC_83XX_INTX_TRGR;
-		adapter->msix_entries[0].vector = adapter->pdev->irq;
-		dev_info(&adapter->pdev->dev, "using legacy interrupt\n");
-	}
+
+	if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+		qlcnic_83xx_enable_legacy(adapter);
 
 	for (i = 0; i < num_msix; i++) {
 		if (adapter->flags & QLCNIC_MSIX_ENABLED)
@@ -331,6 +361,7 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 		ahw->intr_tbl[i].id = i;
 		ahw->intr_tbl[i].src = 0;
 	}
+
 	return 0;
 }
 
@@ -343,20 +374,6 @@ static inline void qlcnic_83xx_set_legacy_intr_mask(struct qlcnic_adapter *adapt
 {
 	if (adapter->tgt_mask_reg)
 		writel(1, adapter->tgt_mask_reg);
-}
-
-/* Enable MSI-x and INT-x interrupts */
-void qlcnic_83xx_enable_intr(struct qlcnic_adapter *adapter,
-			     struct qlcnic_host_sds_ring *sds_ring)
-{
-	writel(0, sds_ring->crb_intr_mask);
-}
-
-/* Disable MSI-x and INT-x interrupts */
-void qlcnic_83xx_disable_intr(struct qlcnic_adapter *adapter,
-			      struct qlcnic_host_sds_ring *sds_ring)
-{
-	writel(1, sds_ring->crb_intr_mask);
 }
 
 static inline void qlcnic_83xx_enable_legacy_msix_mbx_intr(struct qlcnic_adapter
@@ -496,7 +513,7 @@ irqreturn_t qlcnic_83xx_tmp_intr(int irq, void *data)
 
 done:
 	adapter->ahw->diag_cnt++;
-	qlcnic_83xx_enable_intr(adapter, sds_ring);
+	qlcnic_enable_sds_intr(adapter, sds_ring);
 
 	return IRQ_HANDLED;
 }
@@ -1295,8 +1312,8 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 	/* send the mailbox command*/
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to create Tx ctx in firmware 0x%x\n", err);
+		netdev_err(adapter->netdev,
+			   "Failed to create Tx ctx in firmware 0x%x\n", err);
 		goto out;
 	}
 	mbx_out = (struct qlcnic_tx_mbx_out *)&cmd.rsp.arg[2];
@@ -1307,8 +1324,9 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 		intr_mask = ahw->intr_tbl[adapter->drv_sds_rings + ring].src;
 		tx->crb_intr_mask = ahw->pci_base0 + intr_mask;
 	}
-	dev_info(&adapter->pdev->dev, "Tx Context[0x%x] Created, state:0x%x\n",
-		 tx->ctx_id, mbx_out->state);
+	netdev_info(adapter->netdev,
+		    "Tx Context[0x%x] Created, state:0x%x\n",
+		    tx->ctx_id, mbx_out->state);
 out:
 	qlcnic_free_mbx_args(&cmd);
 	return err;
@@ -1360,7 +1378,7 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			qlcnic_83xx_enable_intr(adapter, sds_ring);
+			qlcnic_enable_sds_intr(adapter, sds_ring);
 		}
 	}
 
@@ -1385,7 +1403,7 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
 			if (adapter->flags & QLCNIC_MSIX_ENABLED)
-				qlcnic_83xx_disable_intr(adapter, sds_ring);
+				qlcnic_disable_sds_intr(adapter, sds_ring);
 		}
 	}
 
@@ -1637,7 +1655,7 @@ static void qlcnic_83xx_set_interface_id_promisc(struct qlcnic_adapter *adapter,
 	if (qlcnic_sriov_pf_check(adapter)) {
 		qlcnic_alloc_lb_filters_mem(adapter);
 		qlcnic_pf_set_interface_id_promisc(adapter, interface_id);
-		adapter->rx_mac_learn = 1;
+		adapter->rx_mac_learn = true;
 	} else {
 		if (!qlcnic_sriov_vf_check(adapter))
 			*interface_id = adapter->recv_ctx->context_id << 16;
@@ -2111,37 +2129,130 @@ int qlcnic_83xx_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac,
 	return err;
 }
 
-void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_set_rx_intr_coal(struct qlcnic_adapter *adapter)
 {
-	int err;
-	u16 temp;
-	struct qlcnic_cmd_args cmd;
 	struct qlcnic_nic_intr_coalesce *coal = &adapter->ahw->coal;
-
-	if (adapter->recv_ctx->state == QLCNIC_HOST_CTX_STATE_FREED)
-		return;
+	struct qlcnic_cmd_args cmd;
+	u16 temp;
+	int err;
 
 	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTR_COAL);
 	if (err)
-		return;
+		return err;
 
-	if (coal->type == QLCNIC_INTR_COAL_TYPE_RX) {
-		temp = adapter->recv_ctx->context_id;
-		cmd.req.arg[1] = QLCNIC_INTR_COAL_TYPE_RX | temp << 16;
-		temp = coal->rx_time_us;
-		cmd.req.arg[2] = coal->rx_packets | temp << 16;
-	} else if (coal->type == QLCNIC_INTR_COAL_TYPE_TX) {
-		temp = adapter->tx_ring->ctx_id;
-		cmd.req.arg[1] = QLCNIC_INTR_COAL_TYPE_TX | temp << 16;
-		temp = coal->tx_time_us;
-		cmd.req.arg[2] = coal->tx_packets | temp << 16;
-	}
+	temp = adapter->recv_ctx->context_id;
+	cmd.req.arg[1] = QLCNIC_INTR_COAL_TYPE_RX | temp << 16;
+	temp = coal->rx_time_us;
+	cmd.req.arg[2] = coal->rx_packets | temp << 16;
 	cmd.req.arg[3] = coal->flag;
+
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err != QLCNIC_RCODE_SUCCESS)
-		dev_info(&adapter->pdev->dev,
-			 "Failed to send interrupt coalescence parameters\n");
+		netdev_err(adapter->netdev,
+			   "failed to set interrupt coalescing parameters\n");
+
 	qlcnic_free_mbx_args(&cmd);
+
+	return err;
+}
+
+static int qlcnic_83xx_set_tx_intr_coal(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_nic_intr_coalesce *coal = &adapter->ahw->coal;
+	struct qlcnic_cmd_args cmd;
+	u16 temp;
+	int err;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTR_COAL);
+	if (err)
+		return err;
+
+	temp = adapter->tx_ring->ctx_id;
+	cmd.req.arg[1] = QLCNIC_INTR_COAL_TYPE_TX | temp << 16;
+	temp = coal->tx_time_us;
+	cmd.req.arg[2] = coal->tx_packets | temp << 16;
+	cmd.req.arg[3] = coal->flag;
+
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err != QLCNIC_RCODE_SUCCESS)
+		netdev_err(adapter->netdev,
+			   "failed to set interrupt coalescing  parameters\n");
+
+	qlcnic_free_mbx_args(&cmd);
+
+	return err;
+}
+
+int qlcnic_83xx_set_rx_tx_intr_coal(struct qlcnic_adapter *adapter)
+{
+	int err = 0;
+
+	err = qlcnic_83xx_set_rx_intr_coal(adapter);
+	if (err)
+		netdev_err(adapter->netdev,
+			   "failed to set Rx coalescing parameters\n");
+
+	err = qlcnic_83xx_set_tx_intr_coal(adapter);
+	if (err)
+		netdev_err(adapter->netdev,
+			   "failed to set Tx coalescing parameters\n");
+
+	return err;
+}
+
+int qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *adapter,
+				 struct ethtool_coalesce *ethcoal)
+{
+	struct qlcnic_nic_intr_coalesce *coal = &adapter->ahw->coal;
+	u32 rx_coalesce_usecs, rx_max_frames;
+	u32 tx_coalesce_usecs, tx_max_frames;
+	int err;
+
+	if (adapter->recv_ctx->state == QLCNIC_HOST_CTX_STATE_FREED)
+		return -EIO;
+
+	tx_coalesce_usecs = ethcoal->tx_coalesce_usecs;
+	tx_max_frames = ethcoal->tx_max_coalesced_frames;
+	rx_coalesce_usecs = ethcoal->rx_coalesce_usecs;
+	rx_max_frames = ethcoal->rx_max_coalesced_frames;
+	coal->flag = QLCNIC_INTR_DEFAULT;
+
+	if ((coal->rx_time_us == rx_coalesce_usecs) &&
+	    (coal->rx_packets == rx_max_frames)) {
+		coal->type = QLCNIC_INTR_COAL_TYPE_TX;
+		coal->tx_time_us = tx_coalesce_usecs;
+		coal->tx_packets = tx_max_frames;
+	} else if ((coal->tx_time_us == tx_coalesce_usecs) &&
+		   (coal->tx_packets == tx_max_frames)) {
+		coal->type = QLCNIC_INTR_COAL_TYPE_RX;
+		coal->rx_time_us = rx_coalesce_usecs;
+		coal->rx_packets = rx_max_frames;
+	} else {
+		coal->type = QLCNIC_INTR_COAL_TYPE_RX_TX;
+		coal->rx_time_us = rx_coalesce_usecs;
+		coal->rx_packets = rx_max_frames;
+		coal->tx_time_us = tx_coalesce_usecs;
+		coal->tx_packets = tx_max_frames;
+	}
+
+	switch (coal->type) {
+	case QLCNIC_INTR_COAL_TYPE_RX:
+		err = qlcnic_83xx_set_rx_intr_coal(adapter);
+		break;
+	case QLCNIC_INTR_COAL_TYPE_TX:
+		err = qlcnic_83xx_set_tx_intr_coal(adapter);
+		break;
+	case QLCNIC_INTR_COAL_TYPE_RX_TX:
+		err = qlcnic_83xx_set_rx_tx_intr_coal(adapter);
+		break;
+	default:
+		err = -EINVAL;
+		netdev_err(adapter->netdev,
+			   "Invalid Interrupt coalescing type\n");
+		break;
+	}
+
+	return err;
 }
 
 static void qlcnic_83xx_handle_link_aen(struct qlcnic_adapter *adapter,

@@ -227,10 +227,10 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 	if (ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY) {
 		adapter->flags |= QLCNIC_ESWITCH_ENABLED;
 		if (adapter->drv_mac_learn)
-			adapter->rx_mac_learn = 1;
+			adapter->rx_mac_learn = true;
 	} else {
 		adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
-		adapter->rx_mac_learn = 0;
+		adapter->rx_mac_learn = false;
 	}
 
 	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_NON_OPER;
