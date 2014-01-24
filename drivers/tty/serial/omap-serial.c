@@ -738,9 +738,6 @@ static int serial_omap_startup(struct uart_port *port)
 			return retval;
 		}
 		disable_irq(up->wakeirq);
-	} else {
-		dev_info(up->port.dev, "no wakeirq for uart%d\n",
-			 up->port.line);
 	}
 
 	dev_dbg(up->port.dev, "serial_omap_startup+%d\n", up->port.line);
@@ -1687,6 +1684,9 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.iotype = UPIO_MEM;
 	up->port.irq = uartirq;
 	up->wakeirq = wakeirq;
+	if (!up->wakeirq)
+		dev_info(up->port.dev, "no wakeirq for uart%d\n",
+			 up->port.line);
 
 	up->port.regshift = 2;
 	up->port.fifosize = 64;
