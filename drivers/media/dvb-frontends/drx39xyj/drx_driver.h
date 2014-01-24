@@ -782,61 +782,6 @@ enum drx_pilot_mode {
 	DRX_PILOT_AUTO = DRX_AUTO /**< Autodetect Pilot     */
 };
 
-#define DRX_CTRL_BASE          ((u32)0)
-
-#define DRX_CTRL_NOP             (DRX_CTRL_BASE +  0)/**< No Operation       */
-#define DRX_CTRL_PROBE_DEVICE    (DRX_CTRL_BASE +  1)/**< Probe device       */
-
-#define DRX_CTRL_LOAD_UCODE      (DRX_CTRL_BASE +  2)/**< Load microcode     */
-#define DRX_CTRL_VERIFY_UCODE    (DRX_CTRL_BASE +  3)/**< Verify microcode   */
-#define DRX_CTRL_SET_CHANNEL     (DRX_CTRL_BASE +  4)/**< Set channel        */
-#define DRX_CTRL_GET_CHANNEL     (DRX_CTRL_BASE +  5)/**< Get channel        */
-#define DRX_CTRL_LOCK_STATUS     (DRX_CTRL_BASE +  6)/**< Get lock status    */
-#define DRX_CTRL_SIG_QUALITY     (DRX_CTRL_BASE +  7)/**< Get signal quality */
-#define DRX_CTRL_SIG_STRENGTH    (DRX_CTRL_BASE +  8)/**< Get signal strength*/
-#define DRX_CTRL_RF_POWER        (DRX_CTRL_BASE +  9)/**< Get RF power       */
-#define DRX_CTRL_CONSTEL         (DRX_CTRL_BASE + 10)/**< Get constel point  */
-#define DRX_CTRL_SCAN_INIT       (DRX_CTRL_BASE + 11)/**< Initialize scan    */
-#define DRX_CTRL_SCAN_NEXT       (DRX_CTRL_BASE + 12)/**< Scan for next      */
-#define DRX_CTRL_SCAN_STOP       (DRX_CTRL_BASE + 13)/**< Stop scan          */
-#define DRX_CTRL_TPS_INFO        (DRX_CTRL_BASE + 14)/**< Get TPS info       */
-#define DRX_CTRL_SET_CFG         (DRX_CTRL_BASE + 15)/**< Set configuration  */
-#define DRX_CTRL_GET_CFG         (DRX_CTRL_BASE + 16)/**< Get configuration  */
-#define DRX_CTRL_VERSION         (DRX_CTRL_BASE + 17)/**< Get version info   */
-#define DRX_CTRL_I2C_BRIDGE      (DRX_CTRL_BASE + 18)/**< Open/close  bridge */
-#define DRX_CTRL_SET_STANDARD    (DRX_CTRL_BASE + 19)/**< Set demod std      */
-#define DRX_CTRL_GET_STANDARD    (DRX_CTRL_BASE + 20)/**< Get demod std      */
-#define DRX_CTRL_SET_OOB         (DRX_CTRL_BASE + 21)/**< Set OOB param      */
-#define DRX_CTRL_GET_OOB         (DRX_CTRL_BASE + 22)/**< Get OOB param      */
-#define DRX_CTRL_AUD_SET_STANDARD (DRX_CTRL_BASE + 23)/**< Set audio param    */
-#define DRX_CTRL_AUD_GET_STANDARD (DRX_CTRL_BASE + 24)/**< Get audio param    */
-#define DRX_CTRL_AUD_GET_STATUS  (DRX_CTRL_BASE + 25)/**< Read RDS           */
-#define DRX_CTRL_AUD_BEEP        (DRX_CTRL_BASE + 26)/**< Read RDS           */
-#define DRX_CTRL_I2C_READWRITE   (DRX_CTRL_BASE + 27)/**< Read/write I2C     */
-#define DRX_CTRL_PROGRAM_TUNER   (DRX_CTRL_BASE + 28)/**< Program tuner      */
-
-	/* Professional */
-#define DRX_CTRL_MB_CFG          (DRX_CTRL_BASE + 29) /**<                   */
-#define DRX_CTRL_MB_READ         (DRX_CTRL_BASE + 30) /**<                   */
-#define DRX_CTRL_MB_WRITE        (DRX_CTRL_BASE + 31) /**<                   */
-#define DRX_CTRL_MB_CONSTEL      (DRX_CTRL_BASE + 32) /**<                   */
-#define DRX_CTRL_MB_MER          (DRX_CTRL_BASE + 33) /**<                   */
-
-	/* Misc */
-#define DRX_CTRL_UIO_CFG         DRX_CTRL_SET_UIO_CFG  /**< Configure UIO     */
-#define DRX_CTRL_SET_UIO_CFG     (DRX_CTRL_BASE + 34) /**< Configure UIO     */
-#define DRX_CTRL_GET_UIO_CFG     (DRX_CTRL_BASE + 35) /**< Configure UIO     */
-#define DRX_CTRL_UIO_READ        (DRX_CTRL_BASE + 36) /**< Read from UIO     */
-#define DRX_CTRL_UIO_WRITE       (DRX_CTRL_BASE + 37) /**< Write to UIO      */
-#define DRX_CTRL_READ_EVENTS     (DRX_CTRL_BASE + 38) /**< Read events       */
-#define DRX_CTRL_HDL_EVENTS      (DRX_CTRL_BASE + 39) /**< Handle events     */
-#define DRX_CTRL_POWER_MODE      (DRX_CTRL_BASE + 40) /**< Set power mode    */
-#define DRX_CTRL_LOAD_FILTER     (DRX_CTRL_BASE + 41) /**< Load chan. filter */
-#define DRX_CTRL_VALIDATE_UCODE  (DRX_CTRL_BASE + 42) /**< Validate ucode    */
-#define DRX_CTRL_DUMP_REGISTERS  (DRX_CTRL_BASE + 43) /**< Dump registers    */
-
-#define DRX_CTRL_MAX             (DRX_CTRL_BASE + 44)	/* never to be used    */
-
 /**
  * enum drxu_code_action - indicate if firmware has to be uploaded or verified.
  * @UCODE_UPLOAD:	Upload the microcode image to device
