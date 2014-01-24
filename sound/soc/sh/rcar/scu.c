@@ -50,7 +50,7 @@ struct rsnd_scu {
 	     i++)
 
 /* Gen1 only */
-static int rsnd_src_set_route_if_gen1(struct rsnd_priv *priv,
+static int rsnd_src_set_route_if_gen1(
 			      struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
@@ -69,6 +69,7 @@ static int rsnd_src_set_route_if_gen1(struct rsnd_priv *priv,
 		{ 0x3, 28, }, /* 7 */
 		{ 0x3, 30, }, /* 8 */
 	};
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
 	u32 mask;
 	u32 val;
@@ -149,11 +150,12 @@ unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
 	return rate;
 }
 
-static int rsnd_scu_convert_rate_ctrl(struct rsnd_priv *priv,
+static int rsnd_scu_convert_rate_ctrl(
 			      struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
 	u32 convert_rate = rsnd_scu_convert_rate(scu);
@@ -268,17 +270,16 @@ static int rsnd_scu_init(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
 	int ret;
 
 	clk_enable(scu->clk);
 
-	ret = rsnd_src_set_route_if_gen1(priv, mod, rdai, io);
+	ret = rsnd_src_set_route_if_gen1(mod, rdai, io);
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_scu_convert_rate_ctrl(priv, mod, rdai, io);
+	ret = rsnd_scu_convert_rate_ctrl(mod, rdai, io);
 	if (ret < 0)
 		return ret;
 
