@@ -39,6 +39,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
@@ -57,6 +58,23 @@
 #endif
 
 #include "sh-sci.h"
+
+/* Offsets into the sci_port->irqs array */
+enum {
+	SCIx_ERI_IRQ,
+	SCIx_RXI_IRQ,
+	SCIx_TXI_IRQ,
+	SCIx_BRI_IRQ,
+	SCIx_NR_IRQS,
+
+	SCIx_MUX_IRQ = SCIx_NR_IRQS,	/* special case */
+};
+
+#define SCIx_IRQ_IS_MUXED(port)			\
+	((port)->irqs[SCIx_ERI_IRQ] ==	\
+	 (port)->irqs[SCIx_RXI_IRQ]) ||	\
+	((port)->irqs[SCIx_ERI_IRQ] &&	\
+	 ((port)->irqs[SCIx_RXI_IRQ] < 0))
 
 struct sci_port {
 	struct uart_port	port;
@@ -1757,17 +1775,6 @@ static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 	if (s->sampling_rate)
 		return DIV_ROUND_CLOSEST(freq, s->sampling_rate * bps) - 1;
 
-	switch (s->cfg->scbrr_algo_id) {
-	case SCBRR_ALGO_1:
-		return freq / (16 * bps);
-	case SCBRR_ALGO_2:
-		return DIV_ROUND_CLOSEST(freq, 32 * bps) - 1;
-	case SCBRR_ALGO_3:
-		return freq / (8 * bps);
-	case SCBRR_ALGO_4:
-		return DIV_ROUND_CLOSEST(freq, 16 * bps) - 1;
-	}
-
 	/* Warn, but use a safe default */
 	WARN_ON(1);
 
@@ -2105,36 +2112,27 @@ static int sci_init_single(struct platform_device *dev,
 	port->iotype	= UPIO_MEM;
 	port->line	= index;
 
-	if (dev->num_resources) {
-		/* Device has resources, use them. */
-		res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-		if (res == NULL)
-			return -ENOMEM;
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (res == NULL)
+		return -ENOMEM;
 
-		port->mapbase = res->start;
+	port->mapbase = res->start;
 
-		for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
-			sci_port->irqs[i] = platform_get_irq(dev, i);
+	for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
+		sci_port->irqs[i] = platform_get_irq(dev, i);
 
-		/* The SCI generates several interrupts. They can be muxed
-		 * together or connected to different interrupt lines. In the
-		 * muxed case only one interrupt resource is specified. In the
-		 * non-muxed case three or four interrupt resources are
-		 * specified, as the BRI interrupt is optional.
-		 */
-		if (sci_port->irqs[0] < 0)
-			return -ENXIO;
+	/* The SCI generates several interrupts. They can be muxed together or
+	 * connected to different interrupt lines. In the muxed case only one
+	 * interrupt resource is specified. In the non-muxed case three or four
+	 * interrupt resources are specified, as the BRI interrupt is optional.
+	 */
+	if (sci_port->irqs[0] < 0)
+		return -ENXIO;
 
-		if (sci_port->irqs[1] < 0) {
-			sci_port->irqs[1] = sci_port->irqs[0];
-			sci_port->irqs[2] = sci_port->irqs[0];
-			sci_port->irqs[3] = sci_port->irqs[0];
-		}
-	} else {
-		/* No resources, use old-style platform data. */
-		port->mapbase = p->mapbase;
-		for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
-			sci_port->irqs[i] = p->irqs[i] ? p->irqs[i] : -ENXIO;
+	if (sci_port->irqs[1] < 0) {
+		sci_port->irqs[1] = sci_port->irqs[0];
+		sci_port->irqs[2] = sci_port->irqs[0];
+		sci_port->irqs[3] = sci_port->irqs[0];
 	}
 
 	if (p->regtype == SCIx_PROBE_REGTYPE) {
@@ -2176,17 +2174,12 @@ static int sci_init_single(struct platform_device *dev,
 		break;
 	}
 
-	/* Set the sampling rate if the baud rate calculation algorithm isn't
-	 * specified.
+	/* SCIFA on sh7723 and sh7724 need a custom sampling rate that doesn't
+	 * match the SoC datasheet, this should be investigated. Let platform
+	 * data override the sampling rate for now.
 	 */
-	if (p->scbrr_algo_id == SCBRR_ALGO_NONE) {
-		/* SCIFA on sh7723 and sh7724 need a custom sampling rate that
-		 * doesn't match the SoC datasheet, this should be investigated.
-		 * Let platform data override the sampling rate for now.
-		 */
-		sci_port->sampling_rate = p->sampling_rate ? p->sampling_rate
-					: sampling_rate;
-	}
+	sci_port->sampling_rate = p->sampling_rate ? p->sampling_rate
+				: sampling_rate;
 
 	if (!early) {
 		sci_port->iclk = clk_get(&dev->dev, "sci_ick");
@@ -2423,6 +2416,83 @@ static int sci_remove(struct platform_device *dev)
 	return 0;
 }
 
+struct sci_port_info {
+	unsigned int type;
+	unsigned int regtype;
+};
+
+static const struct of_device_id of_sci_match[] = {
+	{
+		.compatible = "renesas,scif",
+		.data = (void *)&(const struct sci_port_info) {
+			.type = PORT_SCIF,
+			.regtype = SCIx_SH4_SCIF_REGTYPE,
+		},
+	}, {
+		.compatible = "renesas,scifa",
+		.data = (void *)&(const struct sci_port_info) {
+			.type = PORT_SCIFA,
+			.regtype = SCIx_SCIFA_REGTYPE,
+		},
+	}, {
+		.compatible = "renesas,scifb",
+		.data = (void *)&(const struct sci_port_info) {
+			.type = PORT_SCIFB,
+			.regtype = SCIx_SCIFB_REGTYPE,
+		},
+	}, {
+		.compatible = "renesas,hscif",
+		.data = (void *)&(const struct sci_port_info) {
+			.type = PORT_HSCIF,
+			.regtype = SCIx_HSCIF_REGTYPE,
+		},
+	}, {
+		/* Terminator */
+	},
+};
+MODULE_DEVICE_TABLE(of, of_sci_match);
+
+static struct plat_sci_port *
+sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
+{
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
+	const struct sci_port_info *info;
+	struct plat_sci_port *p;
+	int id;
+
+	if (!IS_ENABLED(CONFIG_OF) || !np)
+		return NULL;
+
+	match = of_match_node(of_sci_match, pdev->dev.of_node);
+	if (!match)
+		return NULL;
+
+	info = match->data;
+
+	p = devm_kzalloc(&pdev->dev, sizeof(struct plat_sci_port), GFP_KERNEL);
+	if (!p) {
+		dev_err(&pdev->dev, "failed to allocate DT config data\n");
+		return NULL;
+	}
+
+	/* Get the line number for the aliases node. */
+	id = of_alias_get_id(np, "serial");
+	if (id < 0) {
+		dev_err(&pdev->dev, "failed to get alias id (%d)\n", id);
+		return NULL;
+	}
+
+	*dev_id = id;
+
+	p->flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
+	p->type = info->type;
+	p->regtype = info->regtype;
+	p->scscr = SCSCR_RE | SCSCR_TE;
+
+	return p;
+}
+
 static int sci_probe_single(struct platform_device *dev,
 				      unsigned int index,
 				      struct plat_sci_port *p,
@@ -2455,8 +2525,9 @@ static int sci_probe_single(struct platform_device *dev,
 
 static int sci_probe(struct platform_device *dev)
 {
-	struct plat_sci_port *p = dev_get_platdata(&dev->dev);
-	struct sci_port *sp = &sci_ports[dev->id];
+	struct plat_sci_port *p;
+	struct sci_port *sp;
+	unsigned int dev_id;
 	int ret;
 
 	/*
@@ -2467,9 +2538,24 @@ static int sci_probe(struct platform_device *dev)
 	if (is_early_platform_device(dev))
 		return sci_probe_earlyprintk(dev);
 
+	if (dev->dev.of_node) {
+		p = sci_parse_dt(dev, &dev_id);
+		if (p == NULL)
+			return -EINVAL;
+	} else {
+		p = dev->dev.platform_data;
+		if (p == NULL) {
+			dev_err(&dev->dev, "no platform data supplied\n");
+			return -EINVAL;
+		}
+
+		dev_id = dev->id;
+	}
+
+	sp = &sci_ports[dev_id];
 	platform_set_drvdata(dev, sp);
 
-	ret = sci_probe_single(dev, dev->id, p, sp);
+	ret = sci_probe_single(dev, dev_id, p, sp);
 	if (ret)
 		return ret;
 
@@ -2521,6 +2607,7 @@ static struct platform_driver sci_driver = {
 		.name	= "sh-sci",
 		.owner	= THIS_MODULE,
 		.pm	= &sci_dev_pm_ops,
+		.of_match_table = of_match_ptr(of_sci_match),
 	},
 };
 

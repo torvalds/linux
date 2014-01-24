@@ -317,6 +317,8 @@ config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARCH_HAS_CPUFREQ
 	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT
+	select AUTO_ZRELADDR
 	select COMMON_CLK
 	select COMMON_CLK_VERSATILE
 	select GENERIC_CLOCKEVENTS
@@ -1083,6 +1085,8 @@ config ARM_TIMER_SP804
 	bool
 	select CLKSRC_MMIO
 	select CLKSRC_OF if OF
+
+source "arch/arm/firmware/Kconfig"
 
 source arch/arm/mm/Kconfig
 

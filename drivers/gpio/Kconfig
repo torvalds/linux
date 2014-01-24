@@ -115,6 +115,13 @@ config GPIO_CLPS711X
 	help
 	  Say yes here to support GPIO on CLPS711X SoCs.
 
+config GPIO_DAVINCI
+	bool "TI Davinci/Keystone GPIO support"
+	default y if ARCH_DAVINCI
+	depends on ARM && (ARCH_DAVINCI || ARCH_KEYSTONE)
+	help
+	  Say yes here to enable GPIO support for TI Davinci/Keystone SoCs.
+
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
 	select GPIO_GENERIC
