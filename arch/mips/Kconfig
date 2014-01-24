@@ -235,7 +235,6 @@ config MACH_JZ4740
 	select IRQ_CPU
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_HAS_EARLY_PRINTK
-	select HAVE_PWM
 	select HAVE_CLK
 	select GENERIC_IRQ_CHIP
 
