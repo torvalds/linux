@@ -25,9 +25,9 @@ static void pci_fixup_i450nx(struct pci_dev *d)
 		dev_dbg(&d->dev, "i450NX PXB %d: %02x/%02x/%02x\n", pxb, busno,
 			suba, subb);
 		if (busno)
-			pci_scan_bus_with_sysdata(busno);	/* Bus A */
+			pcibios_scan_root(busno);	/* Bus A */
 		if (suba < subb)
-			pci_scan_bus_with_sysdata(suba+1);	/* Bus B */
+			pcibios_scan_root(suba+1);	/* Bus B */
 	}
 	pcibios_last_bus = -1;
 }
@@ -42,7 +42,7 @@ static void pci_fixup_i450gx(struct pci_dev *d)
 	u8 busno;
 	pci_read_config_byte(d, 0x4a, &busno);
 	dev_info(&d->dev, "i440KX/GX host bridge; secondary bus %02x\n", busno);
-	pci_scan_bus_with_sysdata(busno);
+	pcibios_scan_root(busno);
 	pcibios_last_bus = -1;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454GX, pci_fixup_i450gx);
