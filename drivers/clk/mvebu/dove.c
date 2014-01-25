@@ -154,12 +154,6 @@ static const struct coreclk_soc_desc dove_coreclks = {
 	.num_ratios = ARRAY_SIZE(dove_coreclk_ratios),
 };
 
-static void __init dove_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &dove_coreclks);
-}
-CLK_OF_DECLARE(dove_core_clk, "marvell,dove-core-clock", dove_coreclk_init);
-
 /*
  * Clock Gating Control
  */
@@ -186,9 +180,14 @@ static const struct clk_gating_soc_desc dove_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init dove_clk_gating_init(struct device_node *np)
+static void __init dove_clk_init(struct device_node *np)
 {
-	mvebu_clk_gating_setup(np, dove_gating_desc);
+	struct device_node *cgnp =
+		of_find_compatible_node(NULL, NULL, "marvell,dove-gating-clock");
+
+	mvebu_coreclk_setup(np, &dove_coreclks);
+
+	if (cgnp)
+		mvebu_clk_gating_setup(cgnp, dove_gating_desc);
 }
-CLK_OF_DECLARE(dove_clk_gating, "marvell,dove-gating-clock",
-	       dove_clk_gating_init);
+CLK_OF_DECLARE(dove_clk, "marvell,dove-core-clock", dove_clk_init);
