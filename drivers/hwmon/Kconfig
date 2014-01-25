@@ -1277,6 +1277,16 @@ config SENSORS_SMM665
 	  This driver can also be built as a module. If so, the module will
 	  be called smm665.
 
+config SENSORS_ADC128D818
+	tristate "Texas Instruments ADC128D818"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  ADC128D818 System Monitor with Temperature Sensor chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adc128d818.
+
 config SENSORS_ADS1015
 	tristate "Texas Instruments ADS1015"
 	depends on I2C
