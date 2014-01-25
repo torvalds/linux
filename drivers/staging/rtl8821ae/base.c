@@ -64,73 +64,73 @@
  *
  *********************************************************/
 static struct ieee80211_channel rtl_channeltable_2g[] = {
-	{.center_freq = 2412,.hw_value = 1,},
-	{.center_freq = 2417,.hw_value = 2,},
-	{.center_freq = 2422,.hw_value = 3,},
-	{.center_freq = 2427,.hw_value = 4,},
-	{.center_freq = 2432,.hw_value = 5,},
-	{.center_freq = 2437,.hw_value = 6,},
-	{.center_freq = 2442,.hw_value = 7,},
-	{.center_freq = 2447,.hw_value = 8,},
-	{.center_freq = 2452,.hw_value = 9,},
-	{.center_freq = 2457,.hw_value = 10,},
-	{.center_freq = 2462,.hw_value = 11,},
-	{.center_freq = 2467,.hw_value = 12,},
-	{.center_freq = 2472,.hw_value = 13,},
-	{.center_freq = 2484,.hw_value = 14,},
+	{.center_freq = 2412, .hw_value = 1,},
+	{.center_freq = 2417, .hw_value = 2,},
+	{.center_freq = 2422, .hw_value = 3,},
+	{.center_freq = 2427, .hw_value = 4,},
+	{.center_freq = 2432, .hw_value = 5,},
+	{.center_freq = 2437, .hw_value = 6,},
+	{.center_freq = 2442, .hw_value = 7,},
+	{.center_freq = 2447, .hw_value = 8,},
+	{.center_freq = 2452, .hw_value = 9,},
+	{.center_freq = 2457, .hw_value = 10,},
+	{.center_freq = 2462, .hw_value = 11,},
+	{.center_freq = 2467, .hw_value = 12,},
+	{.center_freq = 2472, .hw_value = 13,},
+	{.center_freq = 2484, .hw_value = 14,},
 };
 
 static struct ieee80211_channel rtl_channeltable_5g[] = {
-	{.center_freq = 5180,.hw_value = 36,},
-	{.center_freq = 5200,.hw_value = 40,},
-	{.center_freq = 5220,.hw_value = 44,},
-	{.center_freq = 5240,.hw_value = 48,},
-	{.center_freq = 5260,.hw_value = 52,},
-	{.center_freq = 5280,.hw_value = 56,},
-	{.center_freq = 5300,.hw_value = 60,},
-	{.center_freq = 5320,.hw_value = 64,},
-	{.center_freq = 5500,.hw_value = 100,},
-	{.center_freq = 5520,.hw_value = 104,},
-	{.center_freq = 5540,.hw_value = 108,},
-	{.center_freq = 5560,.hw_value = 112,},
-	{.center_freq = 5580,.hw_value = 116,},
-	{.center_freq = 5600,.hw_value = 120,},
-	{.center_freq = 5620,.hw_value = 124,},
-	{.center_freq = 5640,.hw_value = 128,},
-	{.center_freq = 5660,.hw_value = 132,},
-	{.center_freq = 5680,.hw_value = 136,},
-	{.center_freq = 5700,.hw_value = 140,},
-	{.center_freq = 5745,.hw_value = 149,},
-	{.center_freq = 5765,.hw_value = 153,},
-	{.center_freq = 5785,.hw_value = 157,},
-	{.center_freq = 5805,.hw_value = 161,},
-	{.center_freq = 5825,.hw_value = 165,},
+	{.center_freq = 5180, .hw_value = 36,},
+	{.center_freq = 5200, .hw_value = 40,},
+	{.center_freq = 5220, .hw_value = 44,},
+	{.center_freq = 5240, .hw_value = 48,},
+	{.center_freq = 5260, .hw_value = 52,},
+	{.center_freq = 5280, .hw_value = 56,},
+	{.center_freq = 5300, .hw_value = 60,},
+	{.center_freq = 5320, .hw_value = 64,},
+	{.center_freq = 5500, .hw_value = 100,},
+	{.center_freq = 5520, .hw_value = 104,},
+	{.center_freq = 5540, .hw_value = 108,},
+	{.center_freq = 5560, .hw_value = 112,},
+	{.center_freq = 5580, .hw_value = 116,},
+	{.center_freq = 5600, .hw_value = 120,},
+	{.center_freq = 5620, .hw_value = 124,},
+	{.center_freq = 5640, .hw_value = 128,},
+	{.center_freq = 5660, .hw_value = 132,},
+	{.center_freq = 5680, .hw_value = 136,},
+	{.center_freq = 5700, .hw_value = 140,},
+	{.center_freq = 5745, .hw_value = 149,},
+	{.center_freq = 5765, .hw_value = 153,},
+	{.center_freq = 5785, .hw_value = 157,},
+	{.center_freq = 5805, .hw_value = 161,},
+	{.center_freq = 5825, .hw_value = 165,},
 };
 
 static struct ieee80211_rate rtl_ratetable_2g[] = {
-	{.bitrate = 10,.hw_value = 0x00,},
-	{.bitrate = 20,.hw_value = 0x01,},
-	{.bitrate = 55,.hw_value = 0x02,},
-	{.bitrate = 110,.hw_value = 0x03,},
-	{.bitrate = 60,.hw_value = 0x04,},
-	{.bitrate = 90,.hw_value = 0x05,},
-	{.bitrate = 120,.hw_value = 0x06,},
-	{.bitrate = 180,.hw_value = 0x07,},
-	{.bitrate = 240,.hw_value = 0x08,},
-	{.bitrate = 360,.hw_value = 0x09,},
-	{.bitrate = 480,.hw_value = 0x0a,},
-	{.bitrate = 540,.hw_value = 0x0b,},
+	{.bitrate = 10, .hw_value = 0x00,},
+	{.bitrate = 20, .hw_value = 0x01,},
+	{.bitrate = 55, .hw_value = 0x02,},
+	{.bitrate = 110, .hw_value = 0x03,},
+	{.bitrate = 60, .hw_value = 0x04,},
+	{.bitrate = 90, .hw_value = 0x05,},
+	{.bitrate = 120, .hw_value = 0x06,},
+	{.bitrate = 180, .hw_value = 0x07,},
+	{.bitrate = 240, .hw_value = 0x08,},
+	{.bitrate = 360, .hw_value = 0x09,},
+	{.bitrate = 480, .hw_value = 0x0a,},
+	{.bitrate = 540, .hw_value = 0x0b,},
 };
 
 static struct ieee80211_rate rtl_ratetable_5g[] = {
-	{.bitrate = 60,.hw_value = 0x04,},
-	{.bitrate = 90,.hw_value = 0x05,},
-	{.bitrate = 120,.hw_value = 0x06,},
-	{.bitrate = 180,.hw_value = 0x07,},
-	{.bitrate = 240,.hw_value = 0x08,},
-	{.bitrate = 360,.hw_value = 0x09,},
-	{.bitrate = 480,.hw_value = 0x0a,},
-	{.bitrate = 540,.hw_value = 0x0b,},
+	{.bitrate = 60, .hw_value = 0x04,},
+	{.bitrate = 90, .hw_value = 0x05,},
+	{.bitrate = 120, .hw_value = 0x06,},
+	{.bitrate = 180, .hw_value = 0x07,},
+	{.bitrate = 240, .hw_value = 0x08,},
+	{.bitrate = 360, .hw_value = 0x09,},
+	{.bitrate = 480, .hw_value = 0x0a,},
+	{.bitrate = 540, .hw_value = 0x0b,},
 };
 
 static const struct ieee80211_supported_band rtl_band_2ghz = {
@@ -320,7 +320,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	/* <5> set hw caps */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_RX_INCLUDES_FCS |
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0))
 	    IEEE80211_HW_BEACON_FILTER |
 #endif
 	    IEEE80211_HW_AMPDU_AGGREGATION |
@@ -336,7 +336,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	    		/* IEEE80211_HW_SUPPORTS_DYNAMIC_PS | */
 			0;
 /*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	hw->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_AP) |
 	    BIT(NL80211_IFTYPE_STATION) |
@@ -354,11 +354,11 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 /*<delete in kernel start>*/
 #endif
 /*<delete in kernel end>*/
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,39))
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39))
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0))
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 #endif
 
@@ -402,7 +402,7 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 	/* <2> work queue */
 	rtlpriv->works.hw = hw;
 /*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 /*<delete in kernel end>*/
 	rtlpriv->works.rtl_wq = alloc_workqueue(rtlpriv->cfg->name, 0, 0);
 /*<delete in kernel start>*/
@@ -730,7 +730,7 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	u8 hw_rate;
 
-	if ((get_rf_type(rtlphy) == RF_2T2R) && (sta->ht_cap.mcs.rx_mask[1]!=0))
+	if ((get_rf_type(rtlphy) == RF_2T2R) && (sta->ht_cap.mcs.rx_mask[1] != 0))
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS15];
 	else
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS7];
@@ -781,7 +781,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 			if (sta && (sta->ht_cap.ht_supported)) {
 				tcb_desc->hw_rate = _rtl_get_highest_n_rate(hw, sta);
 			} else {
-				if(rtlmac->mode == WIRELESS_MODE_B) {
+				if (rtlmac->mode == WIRELESS_MODE_B) {
 					tcb_desc->hw_rate =
 					    rtlpriv->cfg->maps[RTL_RC_CCK_RATE11M];
 				} else {
@@ -897,7 +897,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 								    hdr->addr3,
 								    tid);
 					if (skb_delba) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 						rx_status.freq = hw->conf.chandef.chan->center_freq;
 						rx_status.band = hw->conf.chandef.chan->band;
 #else
@@ -1184,7 +1184,7 @@ void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
-	rtlpriv->link_info.bcn_rx_inperiod ++;
+	rtlpriv->link_info.bcn_rx_inperiod++;
 }
 
 void rtl_watchdog_wq_callback(void *data)
@@ -1478,13 +1478,13 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		/* rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0); */
 
 		info->control.rates[0].idx = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 		info->band = hw->conf.chandef.chan->band;
 #else
 		info->band = hw->conf.channel->band;
 #endif
 /*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0))
 		info->control.sta = sta;
 		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
 #else
