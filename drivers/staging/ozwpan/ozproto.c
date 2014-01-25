@@ -665,31 +665,29 @@ void oz_binding_add(const char *net_dev)
 	struct oz_binding *binding;
 
 	binding = kmalloc(sizeof(struct oz_binding), GFP_KERNEL);
-	if (binding) {
-		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
-		binding->ptype.func = oz_pkt_recv;
-		if (net_dev && *net_dev) {
-			memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
-			oz_dbg(ON, "Adding binding: %s\n", net_dev);
-			binding->ptype.dev =
-				dev_get_by_name(&init_net, net_dev);
-			if (binding->ptype.dev == NULL) {
-				oz_dbg(ON, "Netdev %s not found\n", net_dev);
-				kfree(binding);
-				binding = NULL;
-			}
-		} else {
-			oz_dbg(ON, "Binding to all netcards\n");
-			memset(binding->name, 0, OZ_MAX_BINDING_LEN);
-			binding->ptype.dev = NULL;
+	if (!binding)
+		return;
+
+	binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
+	binding->ptype.func = oz_pkt_recv;
+	if (net_dev && *net_dev) {
+		memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
+		oz_dbg(ON, "Adding binding: %s\n", net_dev);
+		binding->ptype.dev = dev_get_by_name(&init_net, net_dev);
+		if (binding->ptype.dev == NULL) {
+			oz_dbg(ON, "Netdev %s not found\n", net_dev);
+			kfree(binding);
+			return;
 		}
-		if (binding) {
-			dev_add_pack(&binding->ptype);
-			spin_lock_bh(&g_binding_lock);
-			list_add_tail(&binding->link, &g_binding);
-			spin_unlock_bh(&g_binding_lock);
-		}
+	} else {
+		oz_dbg(ON, "Binding to all netcards\n");
+		memset(binding->name, 0, OZ_MAX_BINDING_LEN);
+		binding->ptype.dev = NULL;
 	}
+	dev_add_pack(&binding->ptype);
+	spin_lock_bh(&g_binding_lock);
+	list_add_tail(&binding->link, &g_binding);
+	spin_unlock_bh(&g_binding_lock);
 }
 
 /*
