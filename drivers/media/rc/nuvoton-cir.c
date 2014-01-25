@@ -330,9 +330,6 @@ static void nvt_cir_wake_ldev_init(struct nvt_dev *nvt)
 	/* Enable CIR Wake via PSOUT# (Pin60) */
 	nvt_set_reg_bit(nvt, CIR_WAKE_ENABLE_BIT, CR_ACPI_CIR_WAKE);
 
-	/* enable cir interrupt of mouse/keyboard IRQ event */
-	nvt_set_reg_bit(nvt, CIR_INTR_MOUSE_IRQ_BIT, CR_ACPI_IRQ_EVENTS);
-
 	/* enable pme interrupt of cir wakeup event */
 	nvt_set_reg_bit(nvt, PME_INTR_CIR_PASS_BIT, CR_ACPI_IRQ_EVENTS2);
 
@@ -456,7 +453,6 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_ACPI);
 	nvt_set_reg_bit(nvt, CIR_WAKE_ENABLE_BIT, CR_ACPI_CIR_WAKE);
-	nvt_set_reg_bit(nvt, CIR_INTR_MOUSE_IRQ_BIT, CR_ACPI_IRQ_EVENTS);
 	nvt_set_reg_bit(nvt, PME_INTR_CIR_PASS_BIT, CR_ACPI_IRQ_EVENTS2);
 
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
