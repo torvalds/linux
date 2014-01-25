@@ -513,6 +513,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 	switch (optname) {
 	case BT_SECURITY:
 		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED &&
+		    chan->chan_type != L2CAP_CHAN_FIXED &&
 		    chan->chan_type != L2CAP_CHAN_RAW) {
 			err = -EINVAL;
 			break;
@@ -769,6 +770,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 	switch (optname) {
 	case BT_SECURITY:
 		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED &&
+		    chan->chan_type != L2CAP_CHAN_FIXED &&
 		    chan->chan_type != L2CAP_CHAN_RAW) {
 			err = -EINVAL;
 			break;
