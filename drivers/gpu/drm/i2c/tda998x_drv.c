@@ -680,10 +680,14 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 	 * There is no detailed info in the datasheet, so we just
 	 * assume 100MHz requires larger divider.
 	 */
+	adiv = AUDIO_DIV_SERCLK_8;
 	if (mode->clock > 100000)
-		adiv = AUDIO_DIV_SERCLK_16;
-	else
-		adiv = AUDIO_DIV_SERCLK_8;
+		adiv++;			/* AUDIO_DIV_SERCLK_16 */
+
+	/* S/PDIF asks for a larger divider */
+	if (p->audio_format == AFMT_SPDIF)
+		adiv++;			/* AUDIO_DIV_SERCLK_16 or _32 */
+
 	reg_write(priv, REG_AUDIO_DIV, adiv);
 
 	/*
