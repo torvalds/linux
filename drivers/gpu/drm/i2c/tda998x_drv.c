@@ -528,10 +528,10 @@ tda998x_write_aif(struct drm_encoder *encoder, struct tda998x_encoder_params *p)
 {
 	uint8_t buf[PB(5) + 1];
 
+	memset(buf, 0, sizeof(buf));
 	buf[HB(0)] = 0x84;
 	buf[HB(1)] = 0x01;
 	buf[HB(2)] = 10;
-	buf[PB(0)] = 0;
 	buf[PB(1)] = p->audio_frame[1] & 0x07; /* CC */
 	buf[PB(2)] = p->audio_frame[2] & 0x1c; /* SF */
 	buf[PB(4)] = p->audio_frame[4];
