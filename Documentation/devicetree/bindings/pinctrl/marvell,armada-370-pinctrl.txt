@@ -5,6 +5,7 @@ part and usage.
 
 Required properties:
 - compatible: "marvell,88f6710-pinctrl"
+- reg: register specifier of MPP registers
 
 Available mpp pins/groups and functions:
 Note: brackets (x) are not part of the mpp name for marvell,function and given
