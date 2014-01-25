@@ -19,6 +19,7 @@
 
 #include <linux/hdmi.h>
 #include <linux/module.h>
+#include <sound/asoundef.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -649,10 +650,11 @@ tda998x_configure_audio(struct drm_encoder *encoder,
 	reg_clear(encoder, REG_AIP_CNTRL_0, AIP_CNTRL_0_RST_CTS);
 
 	/* Write the channel status */
-	buf[0] = 0x04;
+	buf[0] = IEC958_AES0_CON_NOT_COPYRIGHT;
 	buf[1] = 0x00;
-	buf[2] = 0x00;
-	buf[3] = 0xf1;
+	buf[2] = IEC958_AES3_CON_FS_NOTID;
+	buf[3] = IEC958_AES4_CON_ORIGFS_NOTID |
+			IEC958_AES4_CON_MAX_WORDLEN_24;
 	reg_write_range(encoder, REG_CH_STAT_B(0), buf, 4);
 
 	tda998x_audio_mute(encoder, true);
