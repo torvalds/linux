@@ -213,7 +213,7 @@ static int tca6416_keypad_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
 		dev_dbg(&client->dev, "no platform data\n");
 		return -EINVAL;

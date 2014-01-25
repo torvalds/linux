@@ -30,7 +30,6 @@
 
 #include <linux/module.h>
 
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -180,7 +179,7 @@ static irqreturn_t bfin_kpad_isr(int irq, void *dev_id)
 static int bfin_kpad_probe(struct platform_device *pdev)
 {
 	struct bf54x_kpad *bf54x_kpad;
-	struct bfin_kpad_platform_data *pdata = pdev->dev.platform_data;
+	struct bfin_kpad_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct input_dev *input;
 	int i, error;
 
@@ -333,7 +332,7 @@ out:
 
 static int bfin_kpad_remove(struct platform_device *pdev)
 {
-	struct bfin_kpad_platform_data *pdata = pdev->dev.platform_data;
+	struct bfin_kpad_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct bf54x_kpad *bf54x_kpad = platform_get_drvdata(pdev);
 
 	del_timer_sync(&bf54x_kpad->timer);
