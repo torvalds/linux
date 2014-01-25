@@ -2753,7 +2753,7 @@ intel_alloc_context_page(struct drm_device *dev)
 	return ctx;
 
 err_unpin:
-	i915_gem_object_unpin(ctx);
+	i915_gem_object_ggtt_unpin(ctx);
 err_unref:
 	drm_gem_object_unreference(&ctx->base);
 	return NULL;
@@ -3625,13 +3625,13 @@ void ironlake_teardown_rc6(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->ips.renderctx) {
-		i915_gem_object_unpin(dev_priv->ips.renderctx);
+		i915_gem_object_ggtt_unpin(dev_priv->ips.renderctx);
 		drm_gem_object_unreference(&dev_priv->ips.renderctx->base);
 		dev_priv->ips.renderctx = NULL;
 	}
 
 	if (dev_priv->ips.pwrctx) {
-		i915_gem_object_unpin(dev_priv->ips.pwrctx);
+		i915_gem_object_ggtt_unpin(dev_priv->ips.pwrctx);
 		drm_gem_object_unreference(&dev_priv->ips.pwrctx->base);
 		dev_priv->ips.pwrctx = NULL;
 	}

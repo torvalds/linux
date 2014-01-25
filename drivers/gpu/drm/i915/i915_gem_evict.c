@@ -36,7 +36,8 @@
 static bool
 mark_free(struct i915_vma *vma, struct list_head *unwind)
 {
-	if (vma->obj->pin_count)
+	/* Freeing up memory requires no VMAs are pinned */
+	if (i915_gem_obj_is_pinned(vma->obj))
 		return false;
 
 	if (WARN_ON(!list_empty(&vma->exec_list)))
@@ -207,7 +208,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	}
 
 	list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)
-		if (vma->obj->pin_count == 0)
+		if (vma->pin_count == 0)
 			WARN_ON(i915_vma_unbind(vma));
 
 	return 0;

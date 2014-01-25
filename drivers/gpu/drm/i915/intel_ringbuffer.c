@@ -549,7 +549,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 	return 0;
 
 err_unpin:
-	i915_gem_object_unpin(ring->scratch.obj);
+	i915_gem_object_ggtt_unpin(ring->scratch.obj);
 err_unref:
 	drm_gem_object_unreference(&ring->scratch.obj->base);
 err:
@@ -625,7 +625,7 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 
 	if (INTEL_INFO(dev)->gen >= 5) {
 		kunmap(sg_page(ring->scratch.obj->pages->sgl));
-		i915_gem_object_unpin(ring->scratch.obj);
+		i915_gem_object_ggtt_unpin(ring->scratch.obj);
 	}
 
 	drm_gem_object_unreference(&ring->scratch.obj->base);
@@ -1253,7 +1253,7 @@ static void cleanup_status_page(struct intel_ring_buffer *ring)
 		return;
 
 	kunmap(sg_page(obj->pages->sgl));
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 	ring->status_page.obj = NULL;
 }
@@ -1293,7 +1293,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	return 0;
 
 err_unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 err_unref:
 	drm_gem_object_unreference(&obj->base);
 err:
@@ -1390,7 +1390,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 err_unmap:
 	iounmap(ring->virtual_start);
 err_unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 err_unref:
 	drm_gem_object_unreference(&obj->base);
 	ring->obj = NULL;
@@ -1418,7 +1418,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 	iounmap(ring->virtual_start);
 
-	i915_gem_object_unpin(ring->obj);
+	i915_gem_object_ggtt_unpin(ring->obj);
 	drm_gem_object_unreference(&ring->obj->base);
 	ring->obj = NULL;
 	ring->preallocated_lazy_request = NULL;

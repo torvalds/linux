@@ -523,6 +523,57 @@ enum i915_cache_level {
 
 typedef uint32_t gen6_gtt_pte_t;
 
+/**
+ * A VMA represents a GEM BO that is bound into an address space. Therefore, a
+ * VMA's presence cannot be guaranteed before binding, or after unbinding the
+ * object into/from the address space.
+ *
+ * To make things as simple as possible (ie. no refcounting), a VMA's lifetime
+ * will always be <= an objects lifetime. So object refcounting should cover us.
+ */
+struct i915_vma {
+	struct drm_mm_node node;
+	struct drm_i915_gem_object *obj;
+	struct i915_address_space *vm;
+
+	/** This object's place on the active/inactive lists */
+	struct list_head mm_list;
+
+	struct list_head vma_link; /* Link in the object's VMA list */
+
+	/** This vma's place in the batchbuffer or on the eviction list */
+	struct list_head exec_list;
+
+	/**
+	 * Used for performing relocations during execbuffer insertion.
+	 */
+	struct hlist_node exec_node;
+	unsigned long exec_handle;
+	struct drm_i915_gem_exec_object2 *exec_entry;
+
+	/**
+	 * How many users have pinned this object in GTT space. The following
+	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
+	 * (via user_pin_count), execbuffer (objects are not allowed multiple
+	 * times for the same batchbuffer), and the framebuffer code. When
+	 * switching/pageflipping, the framebuffer code has at most two buffers
+	 * pinned per crtc.
+	 *
+	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
+	 * bits with absolutely no headroom. So use 4 bits. */
+	unsigned int pin_count:4;
+#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
+
+	/** Unmap an object from an address space. This usually consists of
+	 * setting the valid PTE entries to a reserved scratch page. */
+	void (*unbind_vma)(struct i915_vma *vma);
+	/* Map an object into an address space with the given cache flags. */
+#define GLOBAL_BIND (1<<0)
+	void (*bind_vma)(struct i915_vma *vma,
+			 enum i915_cache_level cache_level,
+			 u32 flags);
+};
+
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_device *dev;
@@ -604,6 +655,8 @@ struct i915_gtt {
 
 struct i915_hw_ppgtt {
 	struct i915_address_space base;
+	struct kref ref;
+	struct drm_mm_node node;
 	unsigned num_pd_entries;
 	union {
 		struct page **pt_pages;
@@ -620,37 +673,12 @@ struct i915_hw_ppgtt {
 		dma_addr_t *pt_dma_addr;
 		dma_addr_t *gen8_pt_dma_addr[4];
 	};
-	int (*enable)(struct drm_device *dev);
-};
 
-/**
- * A VMA represents a GEM BO that is bound into an address space. Therefore, a
- * VMA's presence cannot be guaranteed before binding, or after unbinding the
- * object into/from the address space.
- *
- * To make things as simple as possible (ie. no refcounting), a VMA's lifetime
- * will always be <= an objects lifetime. So object refcounting should cover us.
- */
-struct i915_vma {
-	struct drm_mm_node node;
-	struct drm_i915_gem_object *obj;
-	struct i915_address_space *vm;
-
-	/** This object's place on the active/inactive lists */
-	struct list_head mm_list;
-
-	struct list_head vma_link; /* Link in the object's VMA list */
-
-	/** This vma's place in the batchbuffer or on the eviction list */
-	struct list_head exec_list;
-
-	/**
-	 * Used for performing relocations during execbuffer insertion.
-	 */
-	struct hlist_node exec_node;
-	unsigned long exec_handle;
-	struct drm_i915_gem_exec_object2 *exec_entry;
-
+	int (*enable)(struct i915_hw_ppgtt *ppgtt);
+	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
+			 struct intel_ring_buffer *ring,
+			 bool synchronous);
+	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
 struct i915_ctx_hang_stats {
@@ -675,9 +703,10 @@ struct i915_hw_context {
 	bool is_initialized;
 	uint8_t remap_slice;
 	struct drm_i915_file_private *file_priv;
-	struct intel_ring_buffer *ring;
+	struct intel_ring_buffer *last_ring;
 	struct drm_i915_gem_object *obj;
 	struct i915_ctx_hang_stats hang_stats;
+	struct i915_address_space *vm;
 
 	struct list_head link;
 };
@@ -1622,18 +1651,6 @@ struct drm_i915_gem_object {
 	 */
 	unsigned int fence_dirty:1;
 
-	/** How many users have pinned this object in GTT space. The following
-	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
-	 * (via user_pin_count), execbuffer (objects are not allowed multiple
-	 * times for the same batchbuffer), and the framebuffer code. When
-	 * switching/pageflipping, the framebuffer code has at most two buffers
-	 * pinned per crtc.
-	 *
-	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
-	 * bits with absolutely no headroom. So use 4 bits. */
-	unsigned int pin_count:4;
-#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
-
 	/**
 	 * Is the object at the current location in the gtt mappable and
 	 * fenceable? Used to avoid costly recalculations.
@@ -1746,7 +1763,7 @@ struct drm_i915_file_private {
 	} mm;
 	struct idr context_idr;
 
-	struct i915_ctx_hang_stats hang_stats;
+	struct i915_hw_context *private_default_ctx;
 	atomic_t rps_wait_boost;
 };
 
@@ -1819,7 +1836,10 @@ struct drm_i915_file_private {
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
-#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >=6 && !IS_VALLEYVIEW(dev))
+#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
+#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev) && !IS_BROADWELL(dev))
+#define USES_ALIASING_PPGTT(dev) intel_enable_ppgtt(dev, false)
+#define USES_FULL_PPGTT(dev)	intel_enable_ppgtt(dev, true)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
@@ -2000,6 +2020,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			 const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
+void i915_init_vm(struct drm_i915_private *dev_priv,
+		  struct i915_address_space *vm);
 void i915_gem_free_object(struct drm_gem_object *obj);
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
@@ -2008,7 +2030,7 @@ int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     uint32_t alignment,
 				     bool map_and_fenceable,
 				     bool nonblocking);
-void i915_gem_object_unpin(struct drm_i915_gem_object *obj);
+void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 int __must_check i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
@@ -2172,6 +2194,13 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 				  struct i915_address_space *vm);
 
 struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj);
+static inline bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj) {
+	struct i915_vma *vma;
+	list_for_each_entry(vma, &obj->vma_list, vma_link)
+		if (vma->pin_count > 0)
+			return true;
+	return false;
+}
 
 /* Some GGTT VM helpers */
 #define obj_to_ggtt(obj) \
@@ -2211,57 +2240,34 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 }
 
 /* i915_gem_context.c */
+#define ctx_to_ppgtt(ctx) container_of((ctx)->vm, struct i915_hw_ppgtt, base)
 int __must_check i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_fini(struct drm_device *dev);
+void i915_gem_context_reset(struct drm_device *dev);
+int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
+int i915_gem_context_enable(struct drm_i915_private *dev_priv);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_ring_buffer *ring,
-			struct drm_file *file, int to_id);
+			struct drm_file *file, struct i915_hw_context *to);
+struct i915_hw_context *
+i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 void i915_gem_context_free(struct kref *ctx_ref);
 static inline void i915_gem_context_reference(struct i915_hw_context *ctx)
 {
-	kref_get(&ctx->ref);
+	if (ctx->obj && HAS_HW_CONTEXTS(ctx->obj->base.dev))
+		kref_get(&ctx->ref);
 }
 
 static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
 {
-	kref_put(&ctx->ref, i915_gem_context_free);
+	if (ctx->obj && HAS_HW_CONTEXTS(ctx->obj->base.dev))
+		kref_put(&ctx->ref, i915_gem_context_free);
 }
 
-struct i915_ctx_hang_stats * __must_check
-i915_gem_context_get_hang_stats(struct drm_device *dev,
-				struct drm_file *file,
-				u32 id);
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file);
-
-/* i915_gem_gtt.c */
-void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev);
-void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
-			    struct drm_i915_gem_object *obj,
-			    enum i915_cache_level cache_level);
-void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
-			      struct drm_i915_gem_object *obj);
-
-void i915_check_and_clear_faults(struct drm_device *dev);
-void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
-void i915_gem_restore_gtt_mappings(struct drm_device *dev);
-int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
-void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
-				enum i915_cache_level cache_level);
-void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj);
-void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
-void i915_gem_init_global_gtt(struct drm_device *dev);
-void i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
-			       unsigned long mappable_end, unsigned long end);
-int i915_gem_gtt_init(struct drm_device *dev);
-static inline void i915_gem_chipset_flush(struct drm_device *dev)
-{
-	if (INTEL_INFO(dev)->gen < 6)
-		intel_gtt_chipset_flush();
-}
-
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev,
@@ -2273,6 +2279,80 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  bool nonblock);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 int i915_gem_evict_everything(struct drm_device *dev);
+
+/* i915_gem_gtt.c */
+void i915_check_and_clear_faults(struct drm_device *dev);
+void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
+void i915_gem_restore_gtt_mappings(struct drm_device *dev);
+int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
+void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
+void i915_gem_init_global_gtt(struct drm_device *dev);
+void i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
+			       unsigned long mappable_end, unsigned long end);
+int i915_gem_gtt_init(struct drm_device *dev);
+static inline void i915_gem_chipset_flush(struct drm_device *dev)
+{
+	if (INTEL_INFO(dev)->gen < 6)
+		intel_gtt_chipset_flush();
+}
+int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
+static inline bool intel_enable_ppgtt(struct drm_device *dev, bool full)
+{
+	if (i915_enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+		return false;
+
+	if (i915_enable_ppgtt == 1 && full)
+		return false;
+
+#ifdef CONFIG_INTEL_IOMMU
+	/* Disable ppgtt on SNB if VT-d is on. */
+	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped) {
+		DRM_INFO("Disabling PPGTT because VT-d is on\n");
+		return false;
+	}
+#endif
+
+	if (full)
+		return HAS_PPGTT(dev);
+	else
+		return HAS_ALIASING_PPGTT(dev);
+}
+
+static inline void ppgtt_release(struct kref *kref)
+{
+	struct i915_hw_ppgtt *ppgtt = container_of(kref, struct i915_hw_ppgtt, ref);
+	struct drm_device *dev = ppgtt->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_address_space *vm = &ppgtt->base;
+
+	if (ppgtt == dev_priv->mm.aliasing_ppgtt ||
+	    (list_empty(&vm->active_list) && list_empty(&vm->inactive_list))) {
+		ppgtt->base.cleanup(&ppgtt->base);
+		return;
+	}
+
+	/*
+	 * Make sure vmas are unbound before we take down the drm_mm
+	 *
+	 * FIXME: Proper refcounting should take care of this, this shouldn't be
+	 * needed at all.
+	 */
+	if (!list_empty(&vm->active_list)) {
+		struct i915_vma *vma;
+
+		list_for_each_entry(vma, &vm->active_list, mm_list)
+			if (WARN_ON(list_empty(&vma->vma_link) ||
+				    list_is_singular(&vma->vma_link)))
+				break;
+
+		i915_gem_evict_vm(&ppgtt->base, true);
+	} else {
+		i915_gem_retire_requests(dev);
+		i915_gem_evict_vm(&ppgtt->base, false);
+	}
+
+	ppgtt->base.cleanup(&ppgtt->base);
+}
 
 /* i915_gem_stolen.c */
 int i915_gem_init_stolen(struct drm_device *dev);

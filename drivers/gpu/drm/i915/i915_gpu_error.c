@@ -481,6 +481,7 @@ static void i915_error_state_free(struct kref *error_ref)
 static struct drm_i915_error_object *
 i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 			       struct drm_i915_gem_object *src,
+			       struct i915_address_space *vm,
 			       const int num_pages)
 {
 	struct drm_i915_error_object *dst;
@@ -494,7 +495,7 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 	if (dst == NULL)
 		return NULL;
 
-	reloc_offset = dst->gtt_offset = i915_gem_obj_ggtt_offset(src);
+	reloc_offset = dst->gtt_offset = i915_gem_obj_offset(src, vm);
 	for (i = 0; i < num_pages; i++) {
 		unsigned long flags;
 		void *d;
@@ -505,7 +506,8 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 
 		local_irq_save(flags);
 		if (reloc_offset < dev_priv->gtt.mappable_end &&
-		    src->has_global_gtt_mapping) {
+		    src->has_global_gtt_mapping &&
+		    i915_is_ggtt(vm)) {
 			void __iomem *s;
 
 			/* Simply ignore tiling or any overlapping fence.
@@ -555,8 +557,12 @@ unwind:
 	kfree(dst);
 	return NULL;
 }
-#define i915_error_object_create(dev_priv, src) \
-	i915_error_object_create_sized((dev_priv), (src), \
+#define i915_error_object_create(dev_priv, src, vm) \
+	i915_error_object_create_sized((dev_priv), (src), (vm), \
+				       (src)->base.size>>PAGE_SHIFT)
+
+#define i915_error_ggtt_object_create(dev_priv, src) \
+	i915_error_object_create_sized((dev_priv), (src), &(dev_priv)->gtt.base, \
 				       (src)->base.size>>PAGE_SHIFT)
 
 static void capture_bo(struct drm_i915_error_buffer *err,
@@ -571,7 +577,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = obj->fence_reg;
 	err->pinned = 0;
-	if (obj->pin_count > 0)
+	if (i915_gem_obj_is_pinned(obj))
 		err->pinned = 1;
 	if (obj->user_pin_count > 0)
 		err->pinned = -1;
@@ -604,7 +610,7 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 	int i = 0;
 
 	list_for_each_entry(obj, head, global_list) {
-		if (obj->pin_count == 0)
+		if (!i915_gem_obj_is_pinned(obj))
 			continue;
 
 		capture_bo(err++, obj);
@@ -648,6 +654,32 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
+/* This assumes all batchbuffers are executed from the PPGTT. It might have to
+ * change in the future. */
+static bool is_active_vm(struct i915_address_space *vm,
+			 struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = vm->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt;
+
+	if (INTEL_INFO(dev)->gen < 7)
+		return i915_is_ggtt(vm);
+
+	/* FIXME: This ignores that the global gtt vm is also on this list. */
+	ppgtt = container_of(vm, struct i915_hw_ppgtt, base);
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		u64 pdp0 = (u64)I915_READ(GEN8_RING_PDP_UDW(ring, 0)) << 32;
+		pdp0 |=  I915_READ(GEN8_RING_PDP_LDW(ring, 0));
+		return pdp0 == ppgtt->pd_dma_addr[0];
+	} else {
+		u32 pp_db;
+		pp_db = I915_READ(RING_PP_DIR_BASE(ring));
+		return (pp_db >> 10) == ppgtt->pd_offset;
+	}
+}
+
 static struct drm_i915_error_object *
 i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			     struct intel_ring_buffer *ring)
@@ -655,6 +687,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	struct i915_address_space *vm;
 	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
+	bool found_active = false;
 	u32 seqno;
 
 	if (!ring->get_seqno)
@@ -669,11 +702,16 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 		obj = ring->scratch.obj;
 		if (acthd >= i915_gem_obj_ggtt_offset(obj) &&
 		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
-			return i915_error_object_create(dev_priv, obj);
+			return i915_error_ggtt_object_create(dev_priv, obj);
 	}
 
 	seqno = ring->get_seqno(ring, false);
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+		if (!is_active_vm(vm, ring))
+			continue;
+
+		found_active = true;
+
 		list_for_each_entry(vma, &vm->active_list, mm_list) {
 			obj = vma->obj;
 			if (obj->ring != ring)
@@ -688,10 +726,11 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			/* We need to copy these to an anonymous buffer as the simplest
 			 * method to avoid being overwritten by userspace.
 			 */
-			return i915_error_object_create(dev_priv, obj);
+			return i915_error_object_create(dev_priv, obj, vm);
 		}
 	}
 
+	WARN_ON(!found_active);
 	return NULL;
 }
 
@@ -765,7 +804,9 @@ static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
 			ering->ctx = i915_error_object_create_sized(dev_priv,
-								    obj, 1);
+								    obj,
+								    &dev_priv->gtt.base,
+								    1);
 			break;
 		}
 	}
@@ -786,7 +827,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			i915_error_first_batchbuffer(dev_priv, ring);
 
 		error->ring[i].ringbuffer =
-			i915_error_object_create(dev_priv, ring->obj);
+			i915_error_ggtt_object_create(dev_priv, ring->obj);
 
 
 		i915_gem_record_active_context(ring, error, &error->ring[i]);
@@ -834,7 +875,7 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 		i++;
 	error->active_bo_count[ndx] = i;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
-		if (obj->pin_count)
+		if (i915_gem_obj_is_pinned(obj))
 			i++;
 	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];
 
@@ -867,11 +908,6 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
 		cnt++;
-
-	if (WARN(cnt > 1, "Multiple VMs not yet supported\n"))
-		cnt = 1;
-
-	vm = &dev_priv->gtt.base;
 
 	error->active_bo = kcalloc(cnt, sizeof(*error->active_bo), GFP_ATOMIC);
 	error->pinned_bo = kcalloc(cnt, sizeof(*error->pinned_bo), GFP_ATOMIC);

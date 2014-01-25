@@ -113,7 +113,8 @@ MODULE_PARM_DESC(enable_hangcheck,
 int i915_enable_ppgtt __read_mostly = -1;
 module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, int, 0400);
 MODULE_PARM_DESC(i915_enable_ppgtt,
-		"Enable PPGTT (default: true)");
+		"Override PPGTT usage. "
+		"(-1=auto [default], 0=disabled, 1=aliasing, 2=full)");
 
 int i915_enable_psr __read_mostly = 0;
 module_param_named(enable_psr, i915_enable_psr, int, 0600);
