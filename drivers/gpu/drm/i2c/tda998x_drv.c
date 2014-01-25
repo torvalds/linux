@@ -918,7 +918,7 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 
 	if (priv->rev == TDA19988) {
 		/* let incoming pixels fill the active space (if any) */
-		reg_write(encoder, REG_ENABLE_SPACE, 0x01);
+		reg_write(encoder, REG_ENABLE_SPACE, 0x00);
 	}
 
 	/* must be last register set: */
