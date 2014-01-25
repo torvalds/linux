@@ -322,7 +322,6 @@ static inline void *nft_expr_priv(const struct nft_expr *expr)
  *	struct nft_rule - nf_tables rule
  *
  *	@list: used internally
- *	@rcu_head: used internally for rcu
  *	@handle: rule handle
  *	@genmask: generation mask
  *	@dlen: length of expression data
@@ -330,7 +329,6 @@ static inline void *nft_expr_priv(const struct nft_expr *expr)
  */
 struct nft_rule {
 	struct list_head		list;
-	struct rcu_head			rcu_head;
 	u64				handle:46,
 					genmask:2,
 					dlen:16;
@@ -391,7 +389,6 @@ enum nft_chain_flags {
  *
  *	@rules: list of rules in the chain
  *	@list: used internally
- *	@rcu_head: used internally
  *	@net: net namespace that this chain belongs to
  *	@table: table that this chain belongs to
  *	@handle: chain handle
@@ -403,7 +400,6 @@ enum nft_chain_flags {
 struct nft_chain {
 	struct list_head		rules;
 	struct list_head		list;
-	struct rcu_head			rcu_head;
 	struct net			*net;
 	struct nft_table		*table;
 	u64				handle;
