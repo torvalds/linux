@@ -363,7 +363,7 @@ fail:
 	return 0;
 }
 
-static void
+static int
 set_page(struct tda998x_priv *priv, uint16_t reg)
 {
 	if (REG2PAGE(reg) != priv->current_page) {
@@ -372,11 +372,14 @@ set_page(struct tda998x_priv *priv, uint16_t reg)
 				REG_CURPAGE, REG2PAGE(reg)
 		};
 		int ret = i2c_master_send(client, buf, sizeof(buf));
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(&client->dev, "Error %d writing to REG_CURPAGE\n", ret);
+			return ret;
+		}
 
 		priv->current_page = REG2PAGE(reg);
 	}
+	return 0;
 }
 
 static int
@@ -386,7 +389,9 @@ reg_read_range(struct tda998x_priv *priv, uint16_t reg, char *buf, int cnt)
 	uint8_t addr = REG2ADDR(reg);
 	int ret;
 
-	set_page(priv, reg);
+	ret = set_page(priv, reg);
+	if (ret < 0)
+		return ret;
 
 	ret = i2c_master_send(client, &addr, sizeof(addr));
 	if (ret < 0)
@@ -413,18 +418,24 @@ reg_write_range(struct tda998x_priv *priv, uint16_t reg, uint8_t *p, int cnt)
 	buf[0] = REG2ADDR(reg);
 	memcpy(&buf[1], p, cnt);
 
-	set_page(priv, reg);
+	ret = set_page(priv, reg);
+	if (ret < 0)
+		return;
 
 	ret = i2c_master_send(client, buf, cnt + 1);
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
 }
 
-static uint8_t
+static int
 reg_read(struct tda998x_priv *priv, uint16_t reg)
 {
 	uint8_t val = 0;
-	reg_read_range(priv, reg, &val, sizeof(val));
+	int ret;
+
+	ret = reg_read_range(priv, reg, &val, sizeof(val));
+	if (ret < 0)
+		return ret;
 	return val;
 }
 
@@ -435,7 +446,9 @@ reg_write(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
 	uint8_t buf[] = {REG2ADDR(reg), val};
 	int ret;
 
-	set_page(priv, reg);
+	ret = set_page(priv, reg);
+	if (ret < 0)
+		return;
 
 	ret = i2c_master_send(client, buf, ARRAY_SIZE(buf));
 	if (ret < 0)
@@ -449,7 +462,9 @@ reg_write16(struct tda998x_priv *priv, uint16_t reg, uint16_t val)
 	uint8_t buf[] = {REG2ADDR(reg), val >> 8, val};
 	int ret;
 
-	set_page(priv, reg);
+	ret = set_page(priv, reg);
+	if (ret < 0)
+		return;
 
 	ret = i2c_master_send(client, buf, ARRAY_SIZE(buf));
 	if (ret < 0)
@@ -459,13 +474,21 @@ reg_write16(struct tda998x_priv *priv, uint16_t reg, uint16_t val)
 static void
 reg_set(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
 {
-	reg_write(priv, reg, reg_read(priv, reg) | val);
+	int old_val;
+
+	old_val = reg_read(priv, reg);
+	if (old_val >= 0)
+		reg_write(priv, reg, old_val | val);
 }
 
 static void
 reg_clear(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
 {
-	reg_write(priv, reg, reg_read(priv, reg) & ~val);
+	int old_val;
+
+	old_val = reg_read(priv, reg);
+	if (old_val >= 0)
+		reg_write(priv, reg, old_val & ~val);
 }
 
 static void
@@ -978,8 +1001,10 @@ read_edid_block(struct drm_encoder *encoder, uint8_t *buf, int blk)
 
 	/* wait for block read to complete: */
 	for (i = 100; i > 0; i--) {
-		uint8_t val = reg_read(priv, REG_INT_FLAGS_2);
-		if (val & INT_FLAGS_2_EDID_BLK_RD)
+		ret = reg_read(priv, REG_INT_FLAGS_2);
+		if (ret < 0)
+			return ret;
+		if (ret & INT_FLAGS_2_EDID_BLK_RD)
 			break;
 		msleep(1);
 	}
@@ -1144,6 +1169,7 @@ tda998x_encoder_init(struct i2c_client *client,
 		    struct drm_encoder_slave *encoder_slave)
 {
 	struct tda998x_priv *priv;
+	int ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1172,8 +1198,11 @@ tda998x_encoder_init(struct i2c_client *client,
 	tda998x_reset(priv);
 
 	/* read version: */
-	priv->rev = reg_read(priv, REG_VERSION_LSB) |
-			reg_read(priv, REG_VERSION_MSB) << 8;
+	ret = reg_read(priv, REG_VERSION_LSB) |
+		(reg_read(priv, REG_VERSION_MSB) << 8);
+	if (ret < 0)
+		goto fail;
+	priv->rev = ret;
 
 	/* mask off feature bits: */
 	priv->rev &= ~0x30; /* not-hdcp and not-scalar bit */
