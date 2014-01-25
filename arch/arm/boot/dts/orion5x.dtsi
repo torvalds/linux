@@ -120,7 +120,6 @@
 			status = "disabled";
 
 			ethernet-port@0 {
-				device_type = "network";
 				compatible = "marvell,orion-eth-port";
 				reg = <0>;
 				/* overwrite MAC address in bootloader */

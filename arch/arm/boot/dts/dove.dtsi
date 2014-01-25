@@ -296,7 +296,6 @@
 				status = "disabled";
 
 				ethernet-port@0 {
-					device_type = "network";
 					compatible = "marvell,orion-eth-port";
 					reg = <0>;
 					interrupts = <29>;
@@ -316,7 +315,6 @@
 				status = "disabled";
 
 				ethphy: ethernet-phy {
-					device_type = "ethernet-phy";
 					/* set phy address in board file */
 				};
 			};

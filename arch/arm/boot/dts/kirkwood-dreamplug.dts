@@ -104,12 +104,10 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 
 	ethphy1: ethernet-phy@1 {
-		device_type = "ethernet-phy";
 		reg = <1>;
 	};
 };

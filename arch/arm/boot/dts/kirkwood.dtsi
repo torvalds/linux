@@ -243,7 +243,6 @@
 			status = "disabled";
 
 			ethernet0-port@0 {
-				device_type = "network";
 				compatible = "marvell,kirkwood-eth-port";
 				reg = <0>;
 				interrupts = <11>;
@@ -275,7 +274,6 @@
 			status = "disabled";
 
 			ethernet1-port@0 {
-				device_type = "network";
 				compatible = "marvell,kirkwood-eth-port";
 				reg = <0>;
 				interrupts = <15>;

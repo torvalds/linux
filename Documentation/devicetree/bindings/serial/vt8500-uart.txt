@@ -1,0 +1,26 @@
+* VIA VT8500 and WonderMedia WM8xxx UART Controller
+
+Required properties:
+- compatible: should be "via,vt8500-uart"
+
+- reg: base physical address of the controller and length of memory mapped
+	region.
+
+- interrupts: hardware interrupt number
+
+- clocks: shall be the input parent clock phandle for the clock. This should
+	be the 24Mhz reference clock.
+
+Aliases may be defined to ensure the correct ordering of the uarts.
+
+Example:
+	aliases {
+		serial0 = &uart0;
+	};
+
+	uart0: serial@d8200000 {
+		compatible = "via,vt8500-uart";
+		reg = <0xd8200000 0x1040>;
+		interrupts = <32>;
+		clocks = <&clkuart0>;
+	};

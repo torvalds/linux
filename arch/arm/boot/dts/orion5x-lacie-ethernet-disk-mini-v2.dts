@@ -58,7 +58,6 @@
 	status = "okay";
 
 	ethphy: ethernet-phy {
-		device_type = "ethernet-phy";
 		reg = <8>;
 	};
 };
