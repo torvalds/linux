@@ -664,7 +664,7 @@ void oz_binding_add(const char *net_dev)
 {
 	struct oz_binding *binding;
 
-	binding = kmalloc(sizeof(struct oz_binding), GFP_KERNEL);
+	binding = kzalloc(sizeof(struct oz_binding), GFP_KERNEL);
 	if (!binding)
 		return;
 
@@ -679,10 +679,6 @@ void oz_binding_add(const char *net_dev)
 			kfree(binding);
 			return;
 		}
-	} else {
-		oz_dbg(ON, "Binding to all netcards\n");
-		memset(binding->name, 0, OZ_MAX_BINDING_LEN);
-		binding->ptype.dev = NULL;
 	}
 	dev_add_pack(&binding->ptype);
 	spin_lock_bh(&g_binding_lock);
