@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2013 Eric Leblond <eric@regit.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,10 +17,16 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/icmp.h>
+#include <net/netfilter/ipv4/nf_reject.h>
+
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
+#include <net/netfilter/ipv6/nf_reject.h>
+#endif
 
 struct nft_reject {
 	enum nft_reject_types	type:8;
 	u8			icmp_code;
+	u8			family;
 };
 
 static void nft_reject_eval(const struct nft_expr *expr,
@@ -27,12 +34,26 @@ static void nft_reject_eval(const struct nft_expr *expr,
 			      const struct nft_pktinfo *pkt)
 {
 	struct nft_reject *priv = nft_expr_priv(expr);
-
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
+	struct net *net = dev_net((pkt->in != NULL) ? pkt->in : pkt->out);
+#endif
 	switch (priv->type) {
 	case NFT_REJECT_ICMP_UNREACH:
-		icmp_send(pkt->skb, ICMP_DEST_UNREACH, priv->icmp_code, 0);
+		if (priv->family == NFPROTO_IPV4)
+			nf_send_unreach(pkt->skb, priv->icmp_code);
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
+		else if (priv->family == NFPROTO_IPV6)
+			nf_send_unreach6(net, pkt->skb, priv->icmp_code,
+				      pkt->ops->hooknum);
+#endif
 		break;
 	case NFT_REJECT_TCP_RST:
+		if (priv->family == NFPROTO_IPV4)
+			nf_send_reset(pkt->skb, pkt->ops->hooknum);
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
+		else if (priv->family == NFPROTO_IPV6)
+			nf_send_reset6(net, pkt->skb, pkt->ops->hooknum);
+#endif
 		break;
 	}
 
@@ -53,6 +74,7 @@ static int nft_reject_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_REJECT_TYPE] == NULL)
 		return -EINVAL;
 
+	priv->family = ctx->afi->family;
 	priv->type = ntohl(nla_get_be32(tb[NFTA_REJECT_TYPE]));
 	switch (priv->type) {
 	case NFT_REJECT_ICMP_UNREACH:

@@ -384,6 +384,7 @@ config AB8500_BM
 config BATTERY_GOLDFISH
 	tristate "Goldfish battery driver"
 	depends on GOLDFISH || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.

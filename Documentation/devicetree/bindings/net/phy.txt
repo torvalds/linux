@@ -19,6 +19,7 @@ Optional Properties:
   specifications. If neither of these are specified, the default is to
   assume clause 22. The compatible list may also contain other
   elements.
+- max-speed: Maximum PHY supported speed (10, 100, 1000...)
 
 Example:
 

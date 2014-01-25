@@ -307,6 +307,8 @@ static const struct nla_policy tbf_policy[TCA_TBF_MAX + 1] = {
 	[TCA_TBF_PTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
 	[TCA_TBF_RATE64]	= { .type = NLA_U64 },
 	[TCA_TBF_PRATE64]	= { .type = NLA_U64 },
+	[TCA_TBF_BURST] = { .type = NLA_U32 },
+	[TCA_TBF_PBURST] = { .type = NLA_U32 },
 };
 
 static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
@@ -358,7 +360,12 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 		rate64 = nla_get_u64(tb[TCA_TBF_RATE64]);
 	psched_ratecfg_precompute(&rate, &qopt->rate, rate64);
 
-	max_size = min_t(u64, psched_ns_t2l(&rate, buffer), ~0U);
+	if (tb[TCA_TBF_BURST]) {
+		max_size = nla_get_u32(tb[TCA_TBF_BURST]);
+		buffer = psched_l2t_ns(&rate, max_size);
+	} else {
+		max_size = min_t(u64, psched_ns_t2l(&rate, buffer), ~0U);
+	}
 
 	if (qopt->peakrate.rate) {
 		if (tb[TCA_TBF_PRATE64])
@@ -366,12 +373,18 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 		psched_ratecfg_precompute(&peak, &qopt->peakrate, prate64);
 		if (peak.rate_bytes_ps <= rate.rate_bytes_ps) {
 			pr_warn_ratelimited("sch_tbf: peakrate %llu is lower than or equals to rate %llu !\n",
-					    peak.rate_bytes_ps, rate.rate_bytes_ps);
+					peak.rate_bytes_ps, rate.rate_bytes_ps);
 			err = -EINVAL;
 			goto done;
 		}
 
-		max_size = min_t(u64, max_size, psched_ns_t2l(&peak, mtu));
+		if (tb[TCA_TBF_PBURST]) {
+			u32 pburst = nla_get_u32(tb[TCA_TBF_PBURST]);
+			max_size = min_t(u32, max_size, pburst);
+			mtu = psched_l2t_ns(&peak, pburst);
+		} else {
+			max_size = min_t(u64, max_size, psched_ns_t2l(&peak, mtu));
+		}
 	}
 
 	if (max_size < psched_mtu(qdisc_dev(sch)))
@@ -391,9 +404,15 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 		q->qdisc = child;
 	}
 	q->limit = qopt->limit;
-	q->mtu = PSCHED_TICKS2NS(qopt->mtu);
+	if (tb[TCA_TBF_PBURST])
+		q->mtu = mtu;
+	else
+		q->mtu = PSCHED_TICKS2NS(qopt->mtu);
 	q->max_size = max_size;
-	q->buffer = PSCHED_TICKS2NS(qopt->buffer);
+	if (tb[TCA_TBF_BURST])
+		q->buffer = buffer;
+	else
+		q->buffer = PSCHED_TICKS2NS(qopt->buffer);
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
 

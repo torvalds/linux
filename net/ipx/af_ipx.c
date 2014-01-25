@@ -1707,7 +1707,7 @@ static int ipx_sendmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct ipx_sock *ipxs = ipx_sk(sk);
-	struct sockaddr_ipx *usipx = (struct sockaddr_ipx *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_ipx *, usipx, msg->msg_name);
 	struct sockaddr_ipx local_sipx;
 	int rc = -EINVAL;
 	int flags = msg->msg_flags;
@@ -1774,7 +1774,7 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct ipx_sock *ipxs = ipx_sk(sk);
-	struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_ipx *, sipx, msg->msg_name);
 	struct ipxhdr *ipx = NULL;
 	struct sk_buff *skb;
 	int copied, rc;

@@ -32,7 +32,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	const unsigned char *dest = skb->data;
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
-	struct br_cpu_netstats *brstats = this_cpu_ptr(br->stats);
+	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	u16 vid = 0;
 
 	rcu_read_lock();
@@ -90,12 +90,12 @@ static int br_dev_init(struct net_device *dev)
 	struct net_bridge *br = netdev_priv(dev);
 	int i;
 
-	br->stats = alloc_percpu(struct br_cpu_netstats);
+	br->stats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!br->stats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct br_cpu_netstats *br_dev_stats;
+		struct pcpu_sw_netstats *br_dev_stats;
 		br_dev_stats = per_cpu_ptr(br->stats, i);
 		u64_stats_init(&br_dev_stats->syncp);
 	}
@@ -135,12 +135,12 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 						struct rtnl_link_stats64 *stats)
 {
 	struct net_bridge *br = netdev_priv(dev);
-	struct br_cpu_netstats tmp, sum = { 0 };
+	struct pcpu_sw_netstats tmp, sum = { 0 };
 	unsigned int cpu;
 
 	for_each_possible_cpu(cpu) {
 		unsigned int start;
-		const struct br_cpu_netstats *bstats
+		const struct pcpu_sw_netstats *bstats
 			= per_cpu_ptr(br->stats, cpu);
 		do {
 			start = u64_stats_fetch_begin_bh(&bstats->syncp);
