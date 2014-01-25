@@ -81,36 +81,6 @@ static struct of_device_id sec_dt_match[] = {
 };
 #endif
 
-int sec_reg_read(struct sec_pmic_dev *sec_pmic, u8 reg, void *dest)
-{
-	return regmap_read(sec_pmic->regmap_pmic, reg, dest);
-}
-EXPORT_SYMBOL_GPL(sec_reg_read);
-
-int sec_bulk_read(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf)
-{
-	return regmap_bulk_read(sec_pmic->regmap_pmic, reg, buf, count);
-}
-EXPORT_SYMBOL_GPL(sec_bulk_read);
-
-int sec_reg_write(struct sec_pmic_dev *sec_pmic, u8 reg, u8 value)
-{
-	return regmap_write(sec_pmic->regmap_pmic, reg, value);
-}
-EXPORT_SYMBOL_GPL(sec_reg_write);
-
-int sec_bulk_write(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf)
-{
-	return regmap_raw_write(sec_pmic->regmap_pmic, reg, buf, count);
-}
-EXPORT_SYMBOL_GPL(sec_bulk_write);
-
-int sec_reg_update(struct sec_pmic_dev *sec_pmic, u8 reg, u8 val, u8 mask)
-{
-	return regmap_update_bits(sec_pmic->regmap_pmic, reg, mask, val);
-}
-EXPORT_SYMBOL_GPL(sec_reg_update);
-
 static bool s2mps11_volatile(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
