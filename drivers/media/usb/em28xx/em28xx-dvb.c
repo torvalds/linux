@@ -212,10 +212,10 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 	if (rc < 0)
 		return rc;
 
-	dprintk(1, "Using %d buffers each with %d x %d bytes\n",
+	dprintk(1, "Using %d buffers each with %d x %d bytes, alternate %d\n",
 		EM28XX_DVB_NUM_BUFS,
 		packet_multiplier,
-		dvb_max_packet_size);
+		dvb_max_packet_size, dvb_alt);
 
 	return em28xx_init_usb_xfer(dev, EM28XX_DIGITAL_MODE,
 				    dev->dvb_xfer_bulk,
