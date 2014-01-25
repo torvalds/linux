@@ -1470,6 +1470,11 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->tx_credits = pchan->tx_credits;
 		chan->rx_credits = pchan->rx_credits;
 
+		if (chan->chan_type == L2CAP_CHAN_FIXED) {
+			chan->scid = pchan->scid;
+			chan->dcid = pchan->scid;
+		}
+
 		security_sk_clone(parent, sk);
 	} else {
 		switch (sk->sk_type) {

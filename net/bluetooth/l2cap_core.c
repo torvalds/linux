@@ -1462,8 +1462,6 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	if (!chan)
 		goto clean;
 
-	chan->dcid = L2CAP_CID_ATT;
-
 	bacpy(&chan->src, &hcon->src);
 	bacpy(&chan->dst, &hcon->dst);
 	chan->src_type = bdaddr_type(hcon, hcon->src_type);
