@@ -273,7 +273,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	message while queuing transfers that arrive in the meantime. When the
  *	driver is finished with this message, it must call
  *	spi_finalize_current_message() so the subsystem can issue the next
- *	transfer
+ *	message
  * @unprepare_transfer_hardware: there are currently no more messages on the
  *	queue so the subsystem notifies the driver that it may relax the
  *	hardware by issuing this call
