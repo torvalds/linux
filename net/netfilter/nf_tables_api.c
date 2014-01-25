@@ -1045,7 +1045,7 @@ static int nf_tables_delchain(struct sock *nlsk, struct sk_buff *skb,
 	if (IS_ERR(chain))
 		return PTR_ERR(chain);
 
-	if (!list_empty(&chain->rules))
+	if (!list_empty(&chain->rules) || chain->use > 0)
 		return -EBUSY;
 
 	list_del(&chain->list);
