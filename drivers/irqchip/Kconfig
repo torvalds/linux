@@ -65,3 +65,7 @@ config VERSATILE_FPGA_IRQ_NR
        int
        default 4
        depends on VERSATILE_FPGA_IRQ
+
+config XTENSA_MX
+	bool
+	select IRQ_DOMAIN
