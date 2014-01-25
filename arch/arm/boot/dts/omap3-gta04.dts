@@ -143,8 +143,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
 	bus-width = <4>;
+	ti,non-removable;
 };
 
 &mmc2 {
