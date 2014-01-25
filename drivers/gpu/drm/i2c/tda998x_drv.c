@@ -336,7 +336,7 @@ cec_write(struct tda998x_priv *priv, uint16_t addr, uint8_t val)
 	uint8_t buf[] = {addr, val};
 	int ret;
 
-	ret = i2c_master_send(client, buf, ARRAY_SIZE(buf));
+	ret = i2c_master_send(client, buf, sizeof(buf));
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to cec:0x%x\n", ret, addr);
 }
@@ -373,7 +373,8 @@ set_page(struct tda998x_priv *priv, uint16_t reg)
 		};
 		int ret = i2c_master_send(client, buf, sizeof(buf));
 		if (ret < 0) {
-			dev_err(&client->dev, "Error %d writing to REG_CURPAGE\n", ret);
+			dev_err(&client->dev, "setpage %04x err %d\n",
+					reg, ret);
 			return ret;
 		}
 
@@ -450,7 +451,7 @@ reg_write(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
 	if (ret < 0)
 		return;
 
-	ret = i2c_master_send(client, buf, ARRAY_SIZE(buf));
+	ret = i2c_master_send(client, buf, sizeof(buf));
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
 }
@@ -466,7 +467,7 @@ reg_write16(struct tda998x_priv *priv, uint16_t reg, uint16_t val)
 	if (ret < 0)
 		return;
 
-	ret = i2c_master_send(client, buf, ARRAY_SIZE(buf));
+	ret = i2c_master_send(client, buf, sizeof(buf));
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
 }
@@ -1014,7 +1015,7 @@ read_edid_block(struct drm_encoder *encoder, uint8_t *buf, int blk)
 
 	ret = reg_read_range(priv, REG_EDID_DATA_0, buf, EDID_LENGTH);
 	if (ret != EDID_LENGTH) {
-		dev_err(encoder->dev->dev, "failed to read edid block %d: %d",
+		dev_err(encoder->dev->dev, "failed to read edid block %d: %d\n",
 				blk, ret);
 		return ret;
 	}
@@ -1028,7 +1029,7 @@ static uint8_t *
 do_get_edid(struct drm_encoder *encoder)
 {
 	struct tda998x_priv *priv = to_tda998x_priv(encoder);
-	int j = 0, valid_extensions = 0;
+	int j, valid_extensions = 0;
 	uint8_t *block, *new;
 	bool print_bad_edid = drm_debug & DRM_UT_KMS;
 
