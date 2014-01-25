@@ -118,6 +118,13 @@ config SPI_BCM63XX
 	help
           Enable support for the SPI controller on the Broadcom BCM63xx SoCs.
 
+config SPI_BCM63XX_HSSPI
+	tristate "Broadcom BCM63XX HS SPI controller driver"
+	depends on BCM63XX || COMPILE_TEST
+	help
+	  This enables support for the High Speed SPI controller present on
+	  newer Broadcom BCM63XX SoCs.
+
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
 	help
@@ -159,7 +166,6 @@ config SPI_DAVINCI
 	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
 	depends on ARCH_DAVINCI || ARCH_KEYSTONE
 	select SPI_BITBANG
-	select TI_EDMA
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
 
@@ -301,6 +307,7 @@ config SPI_OMAP_UWIRE
 
 config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP"
+	depends on ARM || ARM64 || AVR32 || HEXAGON || MIPS || SH
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  SPI master controller for OMAP24XX and later Multichannel SPI
@@ -370,7 +377,7 @@ config SPI_PXA2XX_PCI
 
 config SPI_RSPI
 	tristate "Renesas RSPI controller"
-	depends on (SUPERH || ARCH_SHMOBILE) && SH_DMAE_BASE
+	depends on (SUPERH && SH_DMAE_BASE) || ARCH_SHMOBILE
 	help
 	  SPI driver for Renesas RSPI blocks.
 
@@ -407,7 +414,8 @@ config SPI_SC18IS602
 
 config SPI_SH_MSIOF
 	tristate "SuperH MSIOF SPI controller"
-	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+	depends on HAVE_CLK
+	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 	select SPI_BITBANG
 	help
 	  SPI driver for SuperH and SH Mobile MSIOF blocks.

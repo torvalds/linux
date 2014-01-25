@@ -149,14 +149,14 @@ struct tegra_sflash_data {
 static int tegra_sflash_runtime_suspend(struct device *dev);
 static int tegra_sflash_runtime_resume(struct device *dev);
 
-static inline unsigned long tegra_sflash_readl(struct tegra_sflash_data *tsd,
+static inline u32 tegra_sflash_readl(struct tegra_sflash_data *tsd,
 		unsigned long reg)
 {
 	return readl(tsd->base + reg);
 }
 
 static inline void tegra_sflash_writel(struct tegra_sflash_data *tsd,
-		unsigned long val, unsigned long reg)
+		u32 val, unsigned long reg)
 {
 	writel(val, tsd->base + reg);
 }
@@ -186,7 +186,7 @@ static unsigned tegra_sflash_fill_tx_fifo_from_client_txbuf(
 	struct tegra_sflash_data *tsd, struct spi_transfer *t)
 {
 	unsigned nbytes;
-	unsigned long status;
+	u32 status;
 	unsigned max_n_32bit = tsd->curr_xfer_words;
 	u8 *tx_buf = (u8 *)t->tx_buf + tsd->cur_tx_pos;
 
@@ -197,11 +197,11 @@ static unsigned tegra_sflash_fill_tx_fifo_from_client_txbuf(
 	status = tegra_sflash_readl(tsd, SPI_STATUS);
 	while (!(status & SPI_TXF_FULL)) {
 		int i;
-		unsigned int x = 0;
+		u32 x = 0;
 
 		for (i = 0; nbytes && (i < tsd->bytes_per_word);
 							i++, nbytes--)
-				x |= ((*tx_buf++) << i*8);
+			x |= (u32)(*tx_buf++) << (i * 8);
 		tegra_sflash_writel(tsd, x, SPI_TX_FIFO);
 		if (!nbytes)
 			break;
@@ -215,16 +215,14 @@ static unsigned tegra_sflash_fill_tx_fifo_from_client_txbuf(
 static int tegra_sflash_read_rx_fifo_to_client_rxbuf(
 		struct tegra_sflash_data *tsd, struct spi_transfer *t)
 {
-	unsigned long status;
+	u32 status;
 	unsigned int read_words = 0;
 	u8 *rx_buf = (u8 *)t->rx_buf + tsd->cur_rx_pos;
 
 	status = tegra_sflash_readl(tsd, SPI_STATUS);
 	while (!(status & SPI_RXF_EMPTY)) {
 		int i;
-		unsigned long x;
-
-		x = tegra_sflash_readl(tsd, SPI_RX_FIFO);
+		u32 x = tegra_sflash_readl(tsd, SPI_RX_FIFO);
 		for (i = 0; (i < tsd->bytes_per_word); i++)
 			*rx_buf++ = (x >> (i*8)) & 0xFF;
 		read_words++;
@@ -237,7 +235,7 @@ static int tegra_sflash_read_rx_fifo_to_client_rxbuf(
 static int tegra_sflash_start_cpu_based_transfer(
 		struct tegra_sflash_data *tsd, struct spi_transfer *t)
 {
-	unsigned long val = 0;
+	u32 val = 0;
 	unsigned cur_words;
 
 	if (tsd->cur_direction & DATA_DIR_TX)
@@ -267,7 +265,7 @@ static int tegra_sflash_start_transfer_one(struct spi_device *spi,
 {
 	struct tegra_sflash_data *tsd = spi_master_get_devdata(spi->master);
 	u32 speed;
-	unsigned long command;
+	u32 command;
 
 	speed = t->speed_hz;
 	if (speed != tsd->cur_speed) {
@@ -314,7 +312,7 @@ static int tegra_sflash_start_transfer_one(struct spi_device *spi,
 	tegra_sflash_writel(tsd, command, SPI_COMMAND);
 	tsd->command_reg = command;
 
-	return  tegra_sflash_start_cpu_based_transfer(tsd, t);
+	return tegra_sflash_start_cpu_based_transfer(tsd, t);
 }
 
 static int tegra_sflash_setup(struct spi_device *spi)
