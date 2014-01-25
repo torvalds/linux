@@ -320,6 +320,7 @@ struct perf_event {
 	struct list_head		migrate_entry;
 
 	struct hlist_node		hlist_entry;
+	struct list_head		active_entry;
 	int				nr_siblings;
 	int				group_flags;
 	struct perf_event		*group_leader;

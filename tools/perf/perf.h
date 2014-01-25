@@ -247,13 +247,14 @@ enum perf_call_graph_mode {
 	CALLCHAIN_DWARF
 };
 
-struct perf_record_opts {
+struct record_opts {
 	struct target target;
 	int	     call_graph;
 	bool	     group;
 	bool	     inherit_stat;
-	bool	     no_delay;
+	bool	     no_buffering;
 	bool	     no_inherit;
+	bool	     no_inherit_set;
 	bool	     no_samples;
 	bool	     raw_samples;
 	bool	     sample_address;
@@ -268,6 +269,7 @@ struct perf_record_opts {
 	u64	     user_interval;
 	u16	     stack_dump_size;
 	bool	     sample_transaction;
+	unsigned     initial_delay;
 };
 
 #endif

@@ -125,6 +125,7 @@ config X86
 	select RTC_LIB
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK if X86_64
+	select HAVE_CC_STACKPROTECTOR
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -438,42 +439,26 @@ config X86_INTEL_CE
 	  This option compiles in support for the CE4100 SOC for settop
 	  boxes and media devices.
 
-config X86_WANT_INTEL_MID
+config X86_INTEL_MID
 	bool "Intel MID platform support"
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
-	---help---
-	  Select to build a kernel capable of supporting Intel MID platform
-	  systems which do not have the PCI legacy interfaces (Moorestown,
-	  Medfield). If you are building for a PC class system say N here.
-
-if X86_WANT_INTEL_MID
-
-config X86_INTEL_MID
-	bool
-
-config X86_MDFLD
-       bool "Medfield MID platform"
 	depends on PCI
 	depends on PCI_GOANY
 	depends on X86_IO_APIC
-	select X86_INTEL_MID
 	select SFI
+	select I2C
 	select DW_APB_TIMER
 	select APB_TIMER
-	select I2C
-	select SPI
 	select INTEL_SCU_IPC
-	select X86_PLATFORM_DEVICES
 	select MFD_INTEL_MSIC
 	---help---
-	  Medfield is Intel's Low Power Intel Architecture (LPIA) based Moblin
-	  Internet Device(MID) platform. 
-	  Unlike standard x86 PCs, Medfield does not have many legacy devices
-	  nor standard legacy replacement devices/features. e.g. Medfield does
-	  not contain i8259, i8254, HPET, legacy BIOS, most of the io ports.
+	  Select to build a kernel capable of supporting Intel MID (Mobile
+	  Internet Device) platform systems which do not have the PCI legacy
+	  interfaces. If you are building for a PC class system say N here.
 
-endif
+	  Intel MID platforms are based on an Intel processor and chipset which
+	  consume less power than most of the x86 derivatives.
 
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"
@@ -1080,10 +1065,6 @@ config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
 
-config MICROCODE_INTEL_LIB
-	def_bool y
-	depends on MICROCODE_INTEL
-
 config MICROCODE_INTEL_EARLY
 	def_bool n
 
@@ -1617,22 +1598,6 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
-config CC_STACKPROTECTOR
-	bool "Enable -fstack-protector buffer overflow detection"
-	---help---
-	  This option turns on the -fstack-protector GCC feature. This
-	  feature puts, at the beginning of functions, a canary value on
-	  the stack just before the return address, and validates
-	  the value just before actually returning.  Stack based buffer
-	  overflows (that need to overwrite this return address) now also
-	  overwrite the canary, which gets detected and the attack is then
-	  neutralized via a kernel panic.
-
-	  This feature requires gcc version 4.2 or above, or a distribution
-	  gcc with the feature backported. Older versions are automatically
-	  detected and for those versions, this configuration option is
-	  ignored. (and a warning is printed during bootup)
-
 source kernel/Kconfig.hz
 
 config KEXEC
@@ -1728,16 +1693,67 @@ config RELOCATABLE
 
 	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
 	  it has been loaded at and the compile time physical address
-	  (CONFIG_PHYSICAL_START) is ignored.
+	  (CONFIG_PHYSICAL_START) is used as the minimum location.
 
-# Relocation on x86-32 needs some additional build support
+config RANDOMIZE_BASE
+	bool "Randomize the address of the kernel image"
+	depends on RELOCATABLE
+	depends on !HIBERNATION
+	default n
+	---help---
+	   Randomizes the physical and virtual address at which the
+	   kernel image is decompressed, as a security feature that
+	   deters exploit attempts relying on knowledge of the location
+	   of kernel internals.
+
+	   Entropy is generated using the RDRAND instruction if it is
+	   supported. If RDTSC is supported, it is used as well. If
+	   neither RDRAND nor RDTSC are supported, then randomness is
+	   read from the i8254 timer.
+
+	   The kernel will be offset by up to RANDOMIZE_BASE_MAX_OFFSET,
+	   and aligned according to PHYSICAL_ALIGN. Since the kernel is
+	   built using 2GiB addressing, and PHYSICAL_ALGIN must be at a
+	   minimum of 2MiB, only 10 bits of entropy is theoretically
+	   possible. At best, due to page table layouts, 64-bit can use
+	   9 bits of entropy and 32-bit uses 8 bits.
+
+	   If unsure, say N.
+
+config RANDOMIZE_BASE_MAX_OFFSET
+	hex "Maximum kASLR offset allowed" if EXPERT
+	depends on RANDOMIZE_BASE
+	range 0x0 0x20000000 if X86_32
+	default "0x20000000" if X86_32
+	range 0x0 0x40000000 if X86_64
+	default "0x40000000" if X86_64
+	---help---
+	  The lesser of RANDOMIZE_BASE_MAX_OFFSET and available physical
+	  memory is used to determine the maximal offset in bytes that will
+	  be applied to the kernel when kernel Address Space Layout
+	  Randomization (kASLR) is active. This must be a multiple of
+	  PHYSICAL_ALIGN.
+
+	  On 32-bit this is limited to 512MiB by page table layouts. The
+	  default is 512MiB.
+
+	  On 64-bit this is limited by how the kernel fixmap page table is
+	  positioned, so this cannot be larger than 1GiB currently. Without
+	  RANDOMIZE_BASE, there is a 512MiB to 1.5GiB split between kernel
+	  and modules. When RANDOMIZE_BASE_MAX_OFFSET is above 512MiB, the
+	  modules area will shrink to compensate, up to the current maximum
+	  1GiB to 1GiB split. The default is 1GiB.
+
+	  If unsure, leave at the default value.
+
+# Relocation on x86 needs some additional build support
 config X86_NEED_RELOCS
 	def_bool y
-	depends on X86_32 && RELOCATABLE
+	depends on RANDOMIZE_BASE || (X86_32 && RELOCATABLE)
 
 config PHYSICAL_ALIGN
 	hex "Alignment value to which kernel should be aligned"
-	default "0x1000000"
+	default "0x200000"
 	range 0x2000 0x1000000 if X86_32
 	range 0x200000 0x1000000 if X86_64
 	---help---
@@ -2392,6 +2408,14 @@ config X86_DEV_DMA_OPS
 config X86_DMA_REMAP
 	bool
 	depends on STA2X11
+
+config IOSF_MBI
+	bool
+	depends on PCI
+	---help---
+	  To be selected by modules requiring access to the Intel OnChip System
+	  Fabric (IOSF) Sideband MailBox Interface (MBI). For MBI platforms
+	  enumerable by PCI.
 
 source "net/Kconfig"
 

@@ -71,8 +71,9 @@
 #include <linux/magic.h>
 #include "types.h"
 #include <sys/ttydefaults.h>
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include <termios.h>
+#include <linux/bitops.h>
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
@@ -185,6 +186,8 @@ static inline void *zalloc(size_t size)
 	return calloc(1, size);
 }
 
+#define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
+
 static inline int has_extension(const char *filename, const char *ext)
 {
 	size_t len = strlen(filename);
@@ -253,7 +256,8 @@ bool strlazymatch(const char *str, const char *pat);
 int strtailcmp(const char *s1, const char *s2);
 char *strxfrchar(char *s, char from, char to);
 unsigned long convert_unit(unsigned long value, char *unit);
-int readn(int fd, void *buf, size_t size);
+ssize_t readn(int fd, void *buf, size_t n);
+ssize_t writen(int fd, void *buf, size_t n);
 
 struct perf_event_attr;
 
@@ -278,6 +282,17 @@ static inline unsigned next_pow2(unsigned x)
 	if (!x)
 		return 1;
 	return 1ULL << (32 - __builtin_clz(x - 1));
+}
+
+static inline unsigned long next_pow2_l(unsigned long x)
+{
+#if BITS_PER_LONG == 64
+	if (x <= (1UL << 31))
+		return next_pow2(x);
+	return (unsigned long)next_pow2(x >> 32) << 32;
+#else
+	return next_pow2(x);
+#endif
 }
 
 size_t hex_width(u64 v);
@@ -307,4 +322,11 @@ char *get_srcline(struct dso *dso, unsigned long addr);
 void free_srcline(char *srcline);
 
 int filename__read_int(const char *filename, int *value);
+int filename__read_str(const char *filename, char **buf, size_t *sizep);
+int perf_event_paranoid(void);
+
+void mem_bswap_64(void *src, int byte_size);
+void mem_bswap_32(void *src, int byte_size);
+
+const char *get_filename_for_perf_kvm(void);
 #endif /* GIT_COMPAT_UTIL_H */

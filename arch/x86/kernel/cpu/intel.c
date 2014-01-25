@@ -1,4 +1,3 @@
-#include <linux/init.h>
 #include <linux/kernel.h>
 
 #include <linux/string.h>
@@ -93,7 +92,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
 		if (!check_tsc_unstable())
-			sched_clock_stable = 1;
+			set_sched_clock_stable();
 	}
 
 	/* Penwell and Cloverview have the TSC which doesn't sleep on S3 */
@@ -506,6 +505,7 @@ static unsigned int intel_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 #define TLB_DATA0_2M_4M	0x23
 
 #define STLB_4K		0x41
+#define STLB_4K_2M	0x42
 
 static const struct _tlb_table intel_tlb_table[] = {
 	{ 0x01, TLB_INST_4K,		32,	" TLB_INST 4 KByte pages, 4-way set associative" },
@@ -526,13 +526,20 @@ static const struct _tlb_table intel_tlb_table[] = {
 	{ 0x5b, TLB_DATA_4K_4M,		64,	" TLB_DATA 4 KByte and 4 MByte pages" },
 	{ 0x5c, TLB_DATA_4K_4M,		128,	" TLB_DATA 4 KByte and 4 MByte pages" },
 	{ 0x5d, TLB_DATA_4K_4M,		256,	" TLB_DATA 4 KByte and 4 MByte pages" },
+	{ 0x61, TLB_INST_4K,		48,	" TLB_INST 4 KByte pages, full associative" },
+	{ 0x63, TLB_DATA_1G,		4,	" TLB_DATA 1 GByte pages, 4-way set associative" },
+	{ 0x76, TLB_INST_2M_4M,		8,	" TLB_INST 2-MByte or 4-MByte pages, fully associative" },
 	{ 0xb0, TLB_INST_4K,		128,	" TLB_INST 4 KByte pages, 4-way set associative" },
 	{ 0xb1, TLB_INST_2M_4M,		4,	" TLB_INST 2M pages, 4-way, 8 entries or 4M pages, 4-way entries" },
 	{ 0xb2, TLB_INST_4K,		64,	" TLB_INST 4KByte pages, 4-way set associative" },
 	{ 0xb3, TLB_DATA_4K,		128,	" TLB_DATA 4 KByte pages, 4-way set associative" },
 	{ 0xb4, TLB_DATA_4K,		256,	" TLB_DATA 4 KByte pages, 4-way associative" },
+	{ 0xb5, TLB_INST_4K,		64,	" TLB_INST 4 KByte pages, 8-way set ssociative" },
+	{ 0xb6, TLB_INST_4K,		128,	" TLB_INST 4 KByte pages, 8-way set ssociative" },
 	{ 0xba, TLB_DATA_4K,		64,	" TLB_DATA 4 KByte pages, 4-way associative" },
 	{ 0xc0, TLB_DATA_4K_4M,		8,	" TLB_DATA 4 KByte and 4 MByte pages, 4-way associative" },
+	{ 0xc1, STLB_4K_2M,		1024,	" STLB 4 KByte and 2 MByte pages, 8-way associative" },
+	{ 0xc2, TLB_DATA_2M_4M,		16,	" DTLB 2 MByte/4MByte pages, 4-way associative" },
 	{ 0xca, STLB_4K,		512,	" STLB 4 KByte pages, 4-way associative" },
 	{ 0x00, 0, 0 }
 };
@@ -557,6 +564,20 @@ static void intel_tlb_lookup(const unsigned char desc)
 			tlb_lli_4k[ENTRIES] = intel_tlb_table[k].entries;
 		if (tlb_lld_4k[ENTRIES] < intel_tlb_table[k].entries)
 			tlb_lld_4k[ENTRIES] = intel_tlb_table[k].entries;
+		break;
+	case STLB_4K_2M:
+		if (tlb_lli_4k[ENTRIES] < intel_tlb_table[k].entries)
+			tlb_lli_4k[ENTRIES] = intel_tlb_table[k].entries;
+		if (tlb_lld_4k[ENTRIES] < intel_tlb_table[k].entries)
+			tlb_lld_4k[ENTRIES] = intel_tlb_table[k].entries;
+		if (tlb_lli_2m[ENTRIES] < intel_tlb_table[k].entries)
+			tlb_lli_2m[ENTRIES] = intel_tlb_table[k].entries;
+		if (tlb_lld_2m[ENTRIES] < intel_tlb_table[k].entries)
+			tlb_lld_2m[ENTRIES] = intel_tlb_table[k].entries;
+		if (tlb_lli_4m[ENTRIES] < intel_tlb_table[k].entries)
+			tlb_lli_4m[ENTRIES] = intel_tlb_table[k].entries;
+		if (tlb_lld_4m[ENTRIES] < intel_tlb_table[k].entries)
+			tlb_lld_4m[ENTRIES] = intel_tlb_table[k].entries;
 		break;
 	case TLB_INST_ALL:
 		if (tlb_lli_4k[ENTRIES] < intel_tlb_table[k].entries)
@@ -602,6 +623,10 @@ static void intel_tlb_lookup(const unsigned char desc)
 			tlb_lld_4k[ENTRIES] = intel_tlb_table[k].entries;
 		if (tlb_lld_4m[ENTRIES] < intel_tlb_table[k].entries)
 			tlb_lld_4m[ENTRIES] = intel_tlb_table[k].entries;
+		break;
+	case TLB_DATA_1G:
+		if (tlb_lld_1g[ENTRIES] < intel_tlb_table[k].entries)
+			tlb_lld_1g[ENTRIES] = intel_tlb_table[k].entries;
 		break;
 	}
 }

@@ -1,6 +1,7 @@
 
 header-y +=
 
+generic-y += barrier.h
 generic-y += clkdev.h
 generic-y += trace_clock.h
 generic-y += xor.h
