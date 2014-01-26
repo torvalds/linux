@@ -353,6 +353,10 @@ csum_copy_error:
 	if (continue_call)
 		rxrpc_put_call(continue_call);
 	rxrpc_kill_skb(skb);
+	if (!(flags & MSG_PEEK)) {
+		if (skb_dequeue(&rx->sk.sk_receive_queue) != skb)
+			BUG();
+	}
 	skb_kill_datagram(&rx->sk, skb, flags);
 	rxrpc_put_call(call);
 	return -EAGAIN;
