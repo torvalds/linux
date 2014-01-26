@@ -24,7 +24,6 @@ struct delay_c {
 	struct work_struct flush_expired_bios;
 	struct list_head delayed_bios;
 	atomic_t may_delay;
-	mempool_t *delayed_pool;
 
 	struct dm_dev *dev_read;
 	sector_t start_read;
@@ -40,13 +39,10 @@ struct delay_c {
 struct dm_delay_info {
 	struct delay_c *context;
 	struct list_head list;
-	struct bio *bio;
 	unsigned long expires;
 };
 
 static DEFINE_MUTEX(delayed_bios_lock);
-
-static struct kmem_cache *delayed_cache;
 
 static void handle_delayed_timer(unsigned long data)
 {
@@ -87,13 +83,14 @@ static struct bio *flush_delayed_bios(struct delay_c *dc, int flush_all)
 	mutex_lock(&delayed_bios_lock);
 	list_for_each_entry_safe(delayed, next, &dc->delayed_bios, list) {
 		if (flush_all || time_after_eq(jiffies, delayed->expires)) {
+			struct bio *bio = dm_bio_from_per_bio_data(delayed,
+						sizeof(struct dm_delay_info));
 			list_del(&delayed->list);
-			bio_list_add(&flush_bios, delayed->bio);
-			if ((bio_data_dir(delayed->bio) == WRITE))
+			bio_list_add(&flush_bios, bio);
+			if ((bio_data_dir(bio) == WRITE))
 				delayed->context->writes--;
 			else
 				delayed->context->reads--;
-			mempool_free(delayed, dc->delayed_pool);
 			continue;
 		}
 
@@ -185,12 +182,6 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 out:
-	dc->delayed_pool = mempool_create_slab_pool(128, delayed_cache);
-	if (!dc->delayed_pool) {
-		DMERR("Couldn't create delayed bio pool.");
-		goto bad_dev_write;
-	}
-
 	dc->kdelayd_wq = alloc_workqueue("kdelayd", WQ_MEM_RECLAIM, 0);
 	if (!dc->kdelayd_wq) {
 		DMERR("Couldn't start kdelayd");
@@ -206,12 +197,11 @@ out:
 
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
+	ti->per_bio_data_size = sizeof(struct dm_delay_info);
 	ti->private = dc;
 	return 0;
 
 bad_queue:
-	mempool_destroy(dc->delayed_pool);
-bad_dev_write:
 	if (dc->dev_write)
 		dm_put_device(ti, dc->dev_write);
 bad_dev_read:
@@ -232,7 +222,6 @@ static void delay_dtr(struct dm_target *ti)
 	if (dc->dev_write)
 		dm_put_device(ti, dc->dev_write);
 
-	mempool_destroy(dc->delayed_pool);
 	kfree(dc);
 }
 
@@ -244,10 +233,9 @@ static int delay_bio(struct delay_c *dc, int delay, struct bio *bio)
 	if (!delay || !atomic_read(&dc->may_delay))
 		return 1;
 
-	delayed = mempool_alloc(dc->delayed_pool, GFP_NOIO);
+	delayed = dm_per_bio_data(bio, sizeof(struct dm_delay_info));
 
 	delayed->context = dc;
-	delayed->bio = bio;
 	delayed->expires = expires = jiffies + (delay * HZ / 1000);
 
 	mutex_lock(&delayed_bios_lock);
@@ -356,13 +344,7 @@ static struct target_type delay_target = {
 
 static int __init dm_delay_init(void)
 {
-	int r = -ENOMEM;
-
-	delayed_cache = KMEM_CACHE(dm_delay_info, 0);
-	if (!delayed_cache) {
-		DMERR("Couldn't create delayed bio cache.");
-		goto bad_memcache;
-	}
+	int r;
 
 	r = dm_register_target(&delay_target);
 	if (r < 0) {
@@ -373,15 +355,12 @@ static int __init dm_delay_init(void)
 	return 0;
 
 bad_register:
-	kmem_cache_destroy(delayed_cache);
-bad_memcache:
 	return r;
 }
 
 static void __exit dm_delay_exit(void)
 {
 	dm_unregister_target(&delay_target);
-	kmem_cache_destroy(delayed_cache);
 }
 
 /* Module hooks */

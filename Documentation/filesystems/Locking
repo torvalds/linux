@@ -544,7 +544,7 @@ like the ->fault() handler, but simply return with VM_FAULT_NOPAGE, which
 will cause the VM to retry the fault.
 
 	->access() is called when get_user_pages() fails in
-acces_process_vm(), typically used to debug a process through
+access_process_vm(), typically used to debug a process through
 /proc/pid/mem or ptrace.  This function is needed only for
 VM_IO | VM_PFNMAP VMAs.
 

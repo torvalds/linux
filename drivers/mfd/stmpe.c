@@ -297,14 +297,14 @@ static struct resource stmpe_gpio_resources[] = {
 	},
 };
 
-static struct mfd_cell stmpe_gpio_cell = {
+static const struct mfd_cell stmpe_gpio_cell = {
 	.name		= "stmpe-gpio",
 	.of_compatible	= "st,stmpe-gpio",
 	.resources	= stmpe_gpio_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_gpio_resources),
 };
 
-static struct mfd_cell stmpe_gpio_cell_noirq = {
+static const struct mfd_cell stmpe_gpio_cell_noirq = {
 	.name		= "stmpe-gpio",
 	.of_compatible	= "st,stmpe-gpio",
 	/* gpio cell resources consist of an irq only so no resources here */
@@ -325,7 +325,7 @@ static struct resource stmpe_keypad_resources[] = {
 	},
 };
 
-static struct mfd_cell stmpe_keypad_cell = {
+static const struct mfd_cell stmpe_keypad_cell = {
 	.name		= "stmpe-keypad",
 	.of_compatible  = "st,stmpe-keypad",
 	.resources	= stmpe_keypad_resources,
@@ -409,7 +409,7 @@ static struct resource stmpe_ts_resources[] = {
 	},
 };
 
-static struct mfd_cell stmpe_ts_cell = {
+static const struct mfd_cell stmpe_ts_cell = {
 	.name		= "stmpe-ts",
 	.of_compatible	= "st,stmpe-ts",
 	.resources	= stmpe_ts_resources,
@@ -1064,7 +1064,7 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 	return stmpe_reg_write(stmpe, stmpe->regs[STMPE_IDX_ICR_LSB], icr);
 }
 
-static int stmpe_add_device(struct stmpe *stmpe, struct mfd_cell *cell)
+static int stmpe_add_device(struct stmpe *stmpe, const struct mfd_cell *cell)
 {
 	return mfd_add_devices(stmpe->dev, stmpe->pdata->id, cell, 1,
 			       NULL, stmpe->irq_base, stmpe->domain);

@@ -8,10 +8,10 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk/tegra.h>
 #include <linux/debugfs.h>
 #include <linux/hdmi.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 
 #include "hdmi.h"
 #include "drm.h"
@@ -49,6 +49,7 @@ struct tegra_hdmi {
 
 	struct clk *clk_parent;
 	struct clk *clk;
+	struct reset_control *rst;
 
 	const struct tegra_hdmi_config *config;
 
@@ -731,9 +732,9 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 		return err;
 	}
 
-	tegra_periph_reset_assert(hdmi->clk);
+	reset_control_assert(hdmi->rst);
 	usleep_range(1000, 2000);
-	tegra_periph_reset_deassert(hdmi->clk);
+	reset_control_deassert(hdmi->rst);
 
 	tegra_dc_writel(dc, VSYNC_H_POSITION(1),
 			DC_DISP_DISP_TIMING_OPTIONS);
@@ -912,7 +913,7 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 {
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 
-	tegra_periph_reset_assert(hdmi->clk);
+	reset_control_assert(hdmi->rst);
 	clk_disable(hdmi->clk);
 	regulator_disable(hdmi->pll);
 
@@ -1336,6 +1337,12 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 	if (IS_ERR(hdmi->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return PTR_ERR(hdmi->clk);
+	}
+
+	hdmi->rst = devm_reset_control_get(&pdev->dev, "hdmi");
+	if (IS_ERR(hdmi->rst)) {
+		dev_err(&pdev->dev, "failed to get reset\n");
+		return PTR_ERR(hdmi->rst);
 	}
 
 	err = clk_prepare(hdmi->clk);

@@ -94,6 +94,9 @@ EXPORT_SYMBOL_GPL(kvm_x86_ops);
 static bool ignore_msrs = 0;
 module_param(ignore_msrs, bool, S_IRUGO | S_IWUSR);
 
+unsigned int min_timer_period_us = 500;
+module_param(min_timer_period_us, uint, S_IRUGO | S_IWUSR);
+
 bool kvm_has_tsc_control;
 EXPORT_SYMBOL_GPL(kvm_has_tsc_control);
 u32  kvm_max_guest_tsc_khz;
@@ -719,6 +722,12 @@ unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_get_cr8);
 
+static void kvm_update_dr6(struct kvm_vcpu *vcpu)
+{
+	if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
+		kvm_x86_ops->set_dr6(vcpu, vcpu->arch.dr6);
+}
+
 static void kvm_update_dr7(struct kvm_vcpu *vcpu)
 {
 	unsigned long dr7;
@@ -747,6 +756,7 @@ static int __kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 		if (val & 0xffffffff00000000ULL)
 			return -1; /* #GP */
 		vcpu->arch.dr6 = (val & DR6_VOLATILE) | DR6_FIXED_1;
+		kvm_update_dr6(vcpu);
 		break;
 	case 5:
 		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
@@ -788,7 +798,10 @@ static int _kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
 			return 1;
 		/* fall through */
 	case 6:
-		*val = vcpu->arch.dr6;
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+			*val = vcpu->arch.dr6;
+		else
+			*val = kvm_x86_ops->get_dr6(vcpu);
 		break;
 	case 5:
 		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
@@ -836,11 +849,12 @@ EXPORT_SYMBOL_GPL(kvm_rdpmc);
  * kvm-specific. Those are put in the beginning of the list.
  */
 
-#define KVM_SAVE_MSRS_BEGIN	10
+#define KVM_SAVE_MSRS_BEGIN	12
 static u32 msrs_to_save[] = {
 	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
 	MSR_KVM_SYSTEM_TIME_NEW, MSR_KVM_WALL_CLOCK_NEW,
 	HV_X64_MSR_GUEST_OS_ID, HV_X64_MSR_HYPERCALL,
+	HV_X64_MSR_TIME_REF_COUNT, HV_X64_MSR_REFERENCE_TSC,
 	HV_X64_MSR_APIC_ASSIST_PAGE, MSR_KVM_ASYNC_PF_EN, MSR_KVM_STEAL_TIME,
 	MSR_KVM_PV_EOI_EN,
 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
@@ -1275,8 +1289,6 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	kvm->arch.last_tsc_write = data;
 	kvm->arch.last_tsc_khz = vcpu->arch.virtual_tsc_khz;
 
-	/* Reset of TSC must disable overshoot protection below */
-	vcpu->arch.hv_clock.tsc_timestamp = 0;
 	vcpu->arch.last_guest_tsc = data;
 
 	/* Keep track of which generation this VCPU has synchronized to */
@@ -1484,7 +1496,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	unsigned long flags, this_tsc_khz;
 	struct kvm_vcpu_arch *vcpu = &v->arch;
 	struct kvm_arch *ka = &v->kvm->arch;
-	s64 kernel_ns, max_kernel_ns;
+	s64 kernel_ns;
 	u64 tsc_timestamp, host_tsc;
 	struct pvclock_vcpu_time_info guest_hv_clock;
 	u8 pvclock_flags;
@@ -1543,37 +1555,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	if (!vcpu->pv_time_enabled)
 		return 0;
 
-	/*
-	 * Time as measured by the TSC may go backwards when resetting the base
-	 * tsc_timestamp.  The reason for this is that the TSC resolution is
-	 * higher than the resolution of the other clock scales.  Thus, many
-	 * possible measurments of the TSC correspond to one measurement of any
-	 * other clock, and so a spread of values is possible.  This is not a
-	 * problem for the computation of the nanosecond clock; with TSC rates
-	 * around 1GHZ, there can only be a few cycles which correspond to one
-	 * nanosecond value, and any path through this code will inevitably
-	 * take longer than that.  However, with the kernel_ns value itself,
-	 * the precision may be much lower, down to HZ granularity.  If the
-	 * first sampling of TSC against kernel_ns ends in the low part of the
-	 * range, and the second in the high end of the range, we can get:
-	 *
-	 * (TSC - offset_low) * S + kns_old > (TSC - offset_high) * S + kns_new
-	 *
-	 * As the sampling errors potentially range in the thousands of cycles,
-	 * it is possible such a time value has already been observed by the
-	 * guest.  To protect against this, we must compute the system time as
-	 * observed by the guest and ensure the new system time is greater.
-	 */
-	max_kernel_ns = 0;
-	if (vcpu->hv_clock.tsc_timestamp) {
-		max_kernel_ns = vcpu->last_guest_tsc -
-				vcpu->hv_clock.tsc_timestamp;
-		max_kernel_ns = pvclock_scale_delta(max_kernel_ns,
-				    vcpu->hv_clock.tsc_to_system_mul,
-				    vcpu->hv_clock.tsc_shift);
-		max_kernel_ns += vcpu->last_kernel_ns;
-	}
-
 	if (unlikely(vcpu->hw_tsc_khz != this_tsc_khz)) {
 		kvm_get_time_scale(NSEC_PER_SEC / 1000, this_tsc_khz,
 				   &vcpu->hv_clock.tsc_shift,
@@ -1581,14 +1562,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		vcpu->hw_tsc_khz = this_tsc_khz;
 	}
 
-	/* with a master <monotonic time, tsc value> tuple,
-	 * pvclock clock reads always increase at the (scaled) rate
-	 * of guest TSC - no need to deal with sampling errors.
-	 */
-	if (!use_master_clock) {
-		if (max_kernel_ns > kernel_ns)
-			kernel_ns = max_kernel_ns;
-	}
 	/* With all the info we got, fill in the values */
 	vcpu->hv_clock.tsc_timestamp = tsc_timestamp;
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
@@ -1826,6 +1799,8 @@ static bool kvm_hv_msr_partition_wide(u32 msr)
 	switch (msr) {
 	case HV_X64_MSR_GUEST_OS_ID:
 	case HV_X64_MSR_HYPERCALL:
+	case HV_X64_MSR_REFERENCE_TSC:
+	case HV_X64_MSR_TIME_REF_COUNT:
 		r = true;
 		break;
 	}
@@ -1865,6 +1840,20 @@ static int set_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		if (__copy_to_user((void __user *)addr, instructions, 4))
 			return 1;
 		kvm->arch.hv_hypercall = data;
+		break;
+	}
+	case HV_X64_MSR_REFERENCE_TSC: {
+		u64 gfn;
+		HV_REFERENCE_TSC_PAGE tsc_ref;
+		memset(&tsc_ref, 0, sizeof(tsc_ref));
+		kvm->arch.hv_tsc_page = data;
+		if (!(data & HV_X64_MSR_TSC_REFERENCE_ENABLE))
+			break;
+		gfn = data >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
+		if (kvm_write_guest(kvm, data,
+			&tsc_ref, sizeof(tsc_ref)))
+			return 1;
+		mark_page_dirty(kvm, gfn);
 		break;
 	}
 	default:
@@ -2291,6 +2280,14 @@ static int get_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case HV_X64_MSR_HYPERCALL:
 		data = kvm->arch.hv_hypercall;
 		break;
+	case HV_X64_MSR_TIME_REF_COUNT: {
+		data =
+		     div_u64(get_kernel_ns() + kvm->arch.kvmclock_offset, 100);
+		break;
+	}
+	case HV_X64_MSR_REFERENCE_TSC:
+		data = kvm->arch.hv_tsc_page;
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;
@@ -2604,6 +2601,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
 	case KVM_CAP_ASSIGN_DEV_IRQ:
 	case KVM_CAP_PCI_2_3:
+	case KVM_CAP_HYPERV_TIME:
 #endif
 		r = 1;
 		break;
@@ -2972,8 +2970,11 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 static void kvm_vcpu_ioctl_x86_get_debugregs(struct kvm_vcpu *vcpu,
 					     struct kvm_debugregs *dbgregs)
 {
+	unsigned long val;
+
 	memcpy(dbgregs->db, vcpu->arch.db, sizeof(vcpu->arch.db));
-	dbgregs->dr6 = vcpu->arch.dr6;
+	_kvm_get_dr(vcpu, 6, &val);
+	dbgregs->dr6 = val;
 	dbgregs->dr7 = vcpu->arch.dr7;
 	dbgregs->flags = 0;
 	memset(&dbgregs->reserved, 0, sizeof(dbgregs->reserved));
@@ -2987,7 +2988,9 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 
 	memcpy(vcpu->arch.db, dbgregs->db, sizeof(vcpu->arch.db));
 	vcpu->arch.dr6 = dbgregs->dr6;
+	kvm_update_dr6(vcpu);
 	vcpu->arch.dr7 = dbgregs->dr7;
+	kvm_update_dr7(vcpu);
 
 	return 0;
 }
@@ -5834,6 +5837,11 @@ static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 	kvm_apic_update_tmr(vcpu, tmr);
 }
 
+/*
+ * Returns 1 to let __vcpu_run() continue the guest execution loop without
+ * exiting to the userspace.  Otherwise, the value will be returned to the
+ * userspace.
+ */
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 {
 	int r;
@@ -6089,7 +6097,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		}
 		if (need_resched()) {
 			srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
-			kvm_resched(vcpu);
+			cond_resched();
 			vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
 		}
 	}
@@ -6717,6 +6725,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	memset(vcpu->arch.db, 0, sizeof(vcpu->arch.db));
 	vcpu->arch.dr6 = DR6_FIXED_1;
+	kvm_update_dr6(vcpu);
 	vcpu->arch.dr7 = DR7_FIXED_1;
 	kvm_update_dr7(vcpu);
 

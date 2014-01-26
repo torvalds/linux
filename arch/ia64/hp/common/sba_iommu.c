@@ -255,7 +255,7 @@ static u64 prefetch_spill_page;
 #endif
 
 #ifdef CONFIG_PCI
-# define GET_IOC(dev)	(((dev)->bus == &pci_bus_type)						\
+# define GET_IOC(dev)	((dev_is_pci(dev))						\
 			 ? ((struct ioc *) PCI_CONTROLLER(to_pci_dev(dev))->iommu) : NULL)
 #else
 # define GET_IOC(dev)	NULL

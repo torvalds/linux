@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -28,7 +28,6 @@
  *****************************************************************************/
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -155,9 +154,9 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			ARRAY_SIZE(iwlagn_iface_combinations_dualmode);
 	}
 
-	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
-			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
-			    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
@@ -322,12 +321,6 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	flush_workqueue(priv->workqueue);
 
-	/* User space software may expect getting rfkill changes
-	 * even if interface is down, trans->down will leave the RF
-	 * kill interrupt enabled
-	 */
-	iwl_trans_stop_hw(priv->trans, false);
-
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -413,9 +406,8 @@ static bool iwl_resume_status_fn(struct iwl_notif_wait_data *notif_wait,
 {
 	struct iwl_resume_data *resume_data = data;
 	struct iwl_priv *priv = resume_data->priv;
-	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 
-	if (len - 4 != sizeof(*resume_data->cmd)) {
+	if (iwl_rx_packet_payload_len(pkt) != sizeof(*resume_data->cmd)) {
 		IWL_ERR(priv, "rx wrong size data\n");
 		return true;
 	}

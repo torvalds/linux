@@ -61,11 +61,67 @@
 #include <net/ip6_route.h>
 #endif
 
-static unsigned int ip_tunnel_hash(struct ip_tunnel_net *itn,
-				   __be32 key, __be32 remote)
+static unsigned int ip_tunnel_hash(__be32 key, __be32 remote)
 {
 	return hash_32((__force u32)key ^ (__force u32)remote,
 			 IP_TNL_HASH_BITS);
+}
+
+static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
+			     struct dst_entry *dst)
+{
+	struct dst_entry *old_dst;
+
+	if (dst) {
+		if (dst->flags & DST_NOCACHE)
+			dst = NULL;
+		else
+			dst_clone(dst);
+	}
+	old_dst = xchg((__force struct dst_entry **)&idst->dst, dst);
+	dst_release(old_dst);
+}
+
+static void tunnel_dst_set(struct ip_tunnel *t, struct dst_entry *dst)
+{
+	__tunnel_dst_set(this_cpu_ptr(t->dst_cache), dst);
+}
+
+static void tunnel_dst_reset(struct ip_tunnel *t)
+{
+	tunnel_dst_set(t, NULL);
+}
+
+static void tunnel_dst_reset_all(struct ip_tunnel *t)
+{
+	int i;
+
+	for_each_possible_cpu(i)
+		__tunnel_dst_set(per_cpu_ptr(t->dst_cache, i), NULL);
+}
+
+static struct dst_entry *tunnel_dst_get(struct ip_tunnel *t)
+{
+	struct dst_entry *dst;
+
+	rcu_read_lock();
+	dst = rcu_dereference(this_cpu_ptr(t->dst_cache)->dst);
+	if (dst)
+		dst_hold(dst);
+	rcu_read_unlock();
+	return dst;
+}
+
+static struct dst_entry *tunnel_dst_check(struct ip_tunnel *t, u32 cookie)
+{
+	struct dst_entry *dst = tunnel_dst_get(t);
+
+	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+		tunnel_dst_reset(t);
+		return NULL;
+	}
+
+	return dst;
 }
 
 /* Often modified stats are per cpu, other are shared (netdev->stats) */
@@ -75,7 +131,8 @@ struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
 	int i;
 
 	for_each_possible_cpu(i) {
-		const struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, i);
+		const struct pcpu_sw_netstats *tstats =
+						   per_cpu_ptr(dev->tstats, i);
 		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
 		unsigned int start;
 
@@ -146,7 +203,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 	struct ip_tunnel *t, *cand = NULL;
 	struct hlist_head *head;
 
-	hash = ip_tunnel_hash(itn, key, remote);
+	hash = ip_tunnel_hash(key, remote);
 	head = &itn->tunnels[hash];
 
 	hlist_for_each_entry_rcu(t, head, hash_node) {
@@ -178,7 +235,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 			cand = t;
 	}
 
-	hash = ip_tunnel_hash(itn, key, 0);
+	hash = ip_tunnel_hash(key, 0);
 	head = &itn->tunnels[hash];
 
 	hlist_for_each_entry_rcu(t, head, hash_node) {
@@ -234,7 +291,7 @@ static struct hlist_head *ip_bucket(struct ip_tunnel_net *itn,
 	else
 		remote = 0;
 
-	h = ip_tunnel_hash(itn, parms->i_key, remote);
+	h = ip_tunnel_hash(parms->i_key, remote);
 	return &itn->tunnels[h];
 }
 
@@ -318,11 +375,10 @@ failed:
 	return ERR_PTR(err);
 }
 
-static inline struct rtable *ip_route_output_tunnel(struct net *net,
-						    struct flowi4 *fl4,
-						    int proto,
-						    __be32 daddr, __be32 saddr,
-						    __be32 key, __u8 tos, int oif)
+static inline void init_tunnel_flow(struct flowi4 *fl4,
+				    int proto,
+				    __be32 daddr, __be32 saddr,
+				    __be32 key, __u8 tos, int oif)
 {
 	memset(fl4, 0, sizeof(*fl4));
 	fl4->flowi4_oif = oif;
@@ -331,7 +387,6 @@ static inline struct rtable *ip_route_output_tunnel(struct net *net,
 	fl4->flowi4_tos = tos;
 	fl4->flowi4_proto = proto;
 	fl4->fl4_gre_key = key;
-	return ip_route_output_key(net, fl4);
 }
 
 static int ip_tunnel_bind_dev(struct net_device *dev)
@@ -350,14 +405,14 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 		struct flowi4 fl4;
 		struct rtable *rt;
 
-		rt = ip_route_output_tunnel(tunnel->net, &fl4,
-					    tunnel->parms.iph.protocol,
-					    iph->daddr, iph->saddr,
-					    tunnel->parms.o_key,
-					    RT_TOS(iph->tos),
-					    tunnel->parms.link);
+		init_tunnel_flow(&fl4, iph->protocol, iph->daddr,
+				 iph->saddr, tunnel->parms.o_key,
+				 RT_TOS(iph->tos), tunnel->parms.link);
+		rt = ip_route_output_key(tunnel->net, &fl4);
+
 		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
+			tunnel_dst_set(tunnel, &rt->dst);
 			ip_rt_put(rt);
 		}
 		if (dev->type != ARPHRD_ETHER)
@@ -405,7 +460,7 @@ static struct ip_tunnel *ip_tunnel_create(struct net *net,
 int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 		  const struct tnl_ptk_info *tpi, bool log_ecn_error)
 {
-	struct pcpu_tstats *tstats;
+	struct pcpu_sw_netstats *tstats;
 	const struct iphdr *iph = ip_hdr(skb);
 	int err;
 
@@ -528,10 +583,11 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	struct flowi4 fl4;
 	u8     tos, ttl;
 	__be16 df;
-	struct rtable *rt;		/* Route to the other host */
+	struct rtable *rt = NULL;	/* Route to the other host */
 	unsigned int max_headroom;	/* The extra header space needed */
 	__be32 dst;
 	int err;
+	bool connected = true;
 
 	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
 
@@ -581,27 +637,39 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 #endif
 		else
 			goto tx_error;
+
+		connected = false;
 	}
 
 	tos = tnl_params->tos;
 	if (tos & 0x1) {
 		tos &= ~0x1;
-		if (skb->protocol == htons(ETH_P_IP))
+		if (skb->protocol == htons(ETH_P_IP)) {
 			tos = inner_iph->tos;
-		else if (skb->protocol == htons(ETH_P_IPV6))
+			connected = false;
+		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			tos = ipv6_get_dsfield((const struct ipv6hdr *)inner_iph);
+			connected = false;
+		}
 	}
 
-	rt = ip_route_output_tunnel(tunnel->net, &fl4,
-				    protocol,
-				    dst, tnl_params->saddr,
-				    tunnel->parms.o_key,
-				    RT_TOS(tos),
-				    tunnel->parms.link);
-	if (IS_ERR(rt)) {
-		dev->stats.tx_carrier_errors++;
-		goto tx_error;
+	init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
+			 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link);
+
+	if (connected)
+		rt = (struct rtable *)tunnel_dst_check(tunnel, 0);
+
+	if (!rt) {
+		rt = ip_route_output_key(tunnel->net, &fl4);
+
+		if (IS_ERR(rt)) {
+			dev->stats.tx_carrier_errors++;
+			goto tx_error;
+		}
+		if (connected)
+			tunnel_dst_set(tunnel, &rt->dst);
 	}
+
 	if (rt->dst.dev == dev) {
 		ip_rt_put(rt);
 		dev->stats.collisions++;
@@ -618,6 +686,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 				tunnel->err_time + IPTUNNEL_ERR_TIMEO)) {
 			tunnel->err_count--;
 
+			memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 			dst_link_failure(skb);
 		} else
 			tunnel->err_count = 0;
@@ -647,7 +716,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	if (skb_cow_head(skb, dev->needed_headroom)) {
 		dev->stats.tx_dropped++;
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 		return;
 	}
 
@@ -663,7 +732,7 @@ tx_error_icmp:
 #endif
 tx_error:
 	dev->stats.tx_errors++;
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_xmit);
 
@@ -696,6 +765,7 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 		if (set_mtu)
 			dev->mtu = mtu;
 	}
+	tunnel_dst_reset_all(t);
 	netdev_state_change(dev);
 }
 
@@ -811,6 +881,7 @@ static void ip_tunnel_dev_free(struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 
 	gro_cells_destroy(&tunnel->gro_cells);
+	free_percpu(tunnel->dst_cache);
 	free_percpu(dev->tstats);
 	free_netdev(dev);
 }
@@ -979,18 +1050,25 @@ int ip_tunnel_init(struct net_device *dev)
 	int i, err;
 
 	dev->destructor	= ip_tunnel_dev_free;
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ipt_stats;
+		struct pcpu_sw_netstats *ipt_stats;
 		ipt_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ipt_stats->syncp);
 	}
 
+	tunnel->dst_cache = alloc_percpu(struct ip_tunnel_dst);
+	if (!tunnel->dst_cache) {
+		free_percpu(dev->tstats);
+		return -ENOMEM;
+	}
+
 	err = gro_cells_init(&tunnel->gro_cells, dev);
 	if (err) {
+		free_percpu(tunnel->dst_cache);
 		free_percpu(dev->tstats);
 		return err;
 	}
@@ -1015,6 +1093,8 @@ void ip_tunnel_uninit(struct net_device *dev)
 	/* fb_tunnel_dev will be unregisted in net-exit call. */
 	if (itn->fb_tunnel_dev != dev)
 		ip_tunnel_del(netdev_priv(dev));
+
+	tunnel_dst_reset_all(tunnel);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_uninit);
 

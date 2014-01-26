@@ -18,10 +18,6 @@
 	model = "PineRiver Mini X-Plus";
 	compatible = "pineriver,mini-xplus", "allwinner,sun4i-a10";
 
-	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
-	};
-
 	soc@01c00000 {
 		uart0: serial@01c28000 {
 			pinctrl-names = "default";

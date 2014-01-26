@@ -1166,8 +1166,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 			return;
 	} else if (ieee80211_is_beacon(frame->frame_control) &&
 		   !arg->status && priv->vif &&
-		   !memcmp(ieee80211_get_SA(frame), priv->vif->bss_conf.bssid,
-			   ETH_ALEN)) {
+		   ether_addr_equal(ieee80211_get_SA(frame), priv->vif->bss_conf.bssid)) {
 		const u8 *tim_ie;
 		u8 *ies = ((struct ieee80211_mgmt *)
 			  (skb->data))->u.beacon.variable;

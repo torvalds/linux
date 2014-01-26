@@ -187,6 +187,48 @@ static void clear_regs_spsr_ss(struct pt_regs *regs)
 	regs->pstate = spsr;
 }
 
+/* EL1 Single Step Handler hooks */
+static LIST_HEAD(step_hook);
+DEFINE_RWLOCK(step_hook_lock);
+
+void register_step_hook(struct step_hook *hook)
+{
+	write_lock(&step_hook_lock);
+	list_add(&hook->node, &step_hook);
+	write_unlock(&step_hook_lock);
+}
+
+void unregister_step_hook(struct step_hook *hook)
+{
+	write_lock(&step_hook_lock);
+	list_del(&hook->node);
+	write_unlock(&step_hook_lock);
+}
+
+/*
+ * Call registered single step handers
+ * There is no Syndrome info to check for determining the handler.
+ * So we call all the registered handlers, until the right handler is
+ * found which returns zero.
+ */
+static int call_step_hook(struct pt_regs *regs, unsigned int esr)
+{
+	struct step_hook *hook;
+	int retval = DBG_HOOK_ERROR;
+
+	read_lock(&step_hook_lock);
+
+	list_for_each_entry(hook, &step_hook, node)	{
+		retval = hook->fn(regs, esr);
+		if (retval == DBG_HOOK_HANDLED)
+			break;
+	}
+
+	read_unlock(&step_hook_lock);
+
+	return retval;
+}
+
 static int single_step_handler(unsigned long addr, unsigned int esr,
 			       struct pt_regs *regs)
 {
@@ -214,7 +256,9 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 		 */
 		user_rewind_single_step(current);
 	} else {
-		/* TODO: route to KGDB */
+		if (call_step_hook(regs, esr) == DBG_HOOK_HANDLED)
+			return 0;
+
 		pr_warning("Unexpected kernel single-step exception at EL1\n");
 		/*
 		 * Re-enable stepping since we know that we will be
@@ -226,10 +270,52 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 	return 0;
 }
 
+/*
+ * Breakpoint handler is re-entrant as another breakpoint can
+ * hit within breakpoint handler, especically in kprobes.
+ * Use reader/writer locks instead of plain spinlock.
+ */
+static LIST_HEAD(break_hook);
+DEFINE_RWLOCK(break_hook_lock);
+
+void register_break_hook(struct break_hook *hook)
+{
+	write_lock(&break_hook_lock);
+	list_add(&hook->node, &break_hook);
+	write_unlock(&break_hook_lock);
+}
+
+void unregister_break_hook(struct break_hook *hook)
+{
+	write_lock(&break_hook_lock);
+	list_del(&hook->node);
+	write_unlock(&break_hook_lock);
+}
+
+static int call_break_hook(struct pt_regs *regs, unsigned int esr)
+{
+	struct break_hook *hook;
+	int (*fn)(struct pt_regs *regs, unsigned int esr) = NULL;
+
+	read_lock(&break_hook_lock);
+	list_for_each_entry(hook, &break_hook, node)
+		if ((esr & hook->esr_mask) == hook->esr_val)
+			fn = hook->fn;
+	read_unlock(&break_hook_lock);
+
+	return fn ? fn(regs, esr) : DBG_HOOK_ERROR;
+}
+
 static int brk_handler(unsigned long addr, unsigned int esr,
 		       struct pt_regs *regs)
 {
 	siginfo_t info;
+
+	if (call_break_hook(regs, esr) == DBG_HOOK_HANDLED)
+		return 0;
+
+	pr_warn("unexpected brk exception at %lx, esr=0x%x\n",
+			(long)instruction_pointer(regs), esr);
 
 	if (!user_mode(regs))
 		return -EFAULT;

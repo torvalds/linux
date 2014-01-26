@@ -34,8 +34,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: James Morris <jmorris@intercode.com.au>
  *
@@ -462,14 +461,14 @@ static unsigned char asn1_oid_decode(struct asn1_ctx *ctx,
 	}
 
 	if (subid < 40) {
-		optr [0] = 0;
-		optr [1] = subid;
+		optr[0] = 0;
+		optr[1] = subid;
 	} else if (subid < 80) {
-		optr [0] = 1;
-		optr [1] = subid - 40;
+		optr[0] = 1;
+		optr[1] = subid - 40;
 	} else {
-		optr [0] = 2;
-		optr [1] = subid - 80;
+		optr[0] = 2;
+		optr[1] = subid - 80;
 	}
 
 	*len = 2;

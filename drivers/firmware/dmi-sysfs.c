@@ -553,7 +553,7 @@ static const struct bin_attribute dmi_entry_raw_attr = {
 static void dmi_sysfs_entry_release(struct kobject *kobj)
 {
 	struct dmi_sysfs_entry *entry = to_entry(kobj);
-	sysfs_remove_bin_file(&entry->kobj, &dmi_entry_raw_attr);
+
 	spin_lock(&entry_list_lock);
 	list_del(&entry->list);
 	spin_unlock(&entry_list_lock);
@@ -685,6 +685,7 @@ static void __exit dmi_sysfs_exit(void)
 	pr_debug("dmi-sysfs: unloading.\n");
 	cleanup_entry_list();
 	kset_unregister(dmi_kset);
+	kobject_del(dmi_kobj);
 	kobject_put(dmi_kobj);
 }
 

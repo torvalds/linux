@@ -510,7 +510,7 @@ print_entries:
 
 	free(line);
 out:
-	free(rem_sq_bracket);
+	zfree(&rem_sq_bracket);
 
 	return ret;
 }

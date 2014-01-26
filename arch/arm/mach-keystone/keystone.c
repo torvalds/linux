@@ -41,6 +41,7 @@ static void __init keystone_init(void)
 	if (WARN_ON(!keystone_rstctrl))
 		pr_warn("ti,keystone-reset iomap error\n");
 
+	keystone_pm_runtime_init();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -68,6 +69,9 @@ void keystone_restart(enum reboot_mode mode, const char *cmd)
 }
 
 DT_MACHINE_START(KEYSTONE, "Keystone")
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
+	.dma_zone_size	= SZ_2G,
+#endif
 	.smp		= smp_ops(keystone_smp_ops),
 	.init_machine	= keystone_init,
 	.dt_compat	= keystone_match,

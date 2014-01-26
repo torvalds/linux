@@ -12,26 +12,32 @@ config ARCH_AT91_NONE
 config ARCH_AT91RM9200
 	bool "AT91RM9200"
 	select SOC_AT91RM9200
+	select AT91_USE_OLD_CLK
 
 config ARCH_AT91SAM9260
 	bool "AT91SAM9260 or AT91SAM9XE or AT91SAM9G20"
 	select SOC_AT91SAM9260
+	select AT91_USE_OLD_CLK
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261 or AT91SAM9G10"
 	select SOC_AT91SAM9261
+	select AT91_USE_OLD_CLK
 
 config ARCH_AT91SAM9263
 	bool "AT91SAM9263"
 	select SOC_AT91SAM9263
+	select AT91_USE_OLD_CLK
 
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
 	select SOC_AT91SAM9RL
+	select AT91_USE_OLD_CLK
 
 config ARCH_AT91SAM9G45
 	bool "AT91SAM9G45"
 	select SOC_AT91SAM9G45
+	select AT91_USE_OLD_CLK
 
 config ARCH_AT91X40
 	bool "AT91x40"
@@ -176,12 +182,6 @@ config MACH_AFEB9260
 	  <svn://194.85.238.22/home/users/george/svn/arm9eb>
 	  <http://groups.google.com/group/arm9fpga-evolution-board>
 
-config MACH_QIL_A9260
-	bool "CALAO QIL-A9260 board"
-	help
-	  Select this if you are using a Calao Systems QIL-A9260 Board.
-	  <http://www.calao-systems.com>
-
 config MACH_CPU9260
 	bool "Eukrea CPU9260 board"
 	help
@@ -241,7 +241,7 @@ config MACH_PCONTROL_G20
 	bool "PControl G20 CPU module"
 	help
 	  Select this if you are using taskit's Stamp9G20 CPU module on this
-	  carrier board, beeing the decentralized unit of a building automation
+	  carrier board, being the decentralized unit of a building automation
 	  system; featuring nvram, eth-switch, iso-rs485, display, io
 
 config MACH_GSIA18S

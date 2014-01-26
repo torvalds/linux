@@ -13,20 +13,14 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <linux/reciprocal_div.h>
 #include <linux/if_team.h>
-
-static u32 random_N(unsigned int N)
-{
-	return reciprocal_divide(prandom_u32(), N);
-}
 
 static bool rnd_transmit(struct team *team, struct sk_buff *skb)
 {
 	struct team_port *port;
 	int port_index;
 
-	port_index = random_N(team->en_port_count);
+	port_index = prandom_u32_max(team->en_port_count);
 	port = team_get_port_by_index_rcu(team, port_index);
 	if (unlikely(!port))
 		goto drop;

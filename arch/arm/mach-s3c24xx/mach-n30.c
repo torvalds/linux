@@ -36,6 +36,7 @@
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
+#include <mach/gpio-samsung.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>

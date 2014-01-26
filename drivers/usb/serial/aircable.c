@@ -10,9 +10,9 @@
  *
  * The device works as an standard CDC device, it has 2 interfaces, the first
  * one is for firmware access and the second is the serial one.
- * The protocol is very simply, there are two posibilities reading or writing.
+ * The protocol is very simply, there are two possibilities reading or writing.
  * When writing the first urb must have a Header that starts with 0x20 0x29 the
- * next two bytes must say how much data will be sended.
+ * next two bytes must say how much data will be sent.
  * When reading the process is almost equal except that the header starts with
  * 0x00 0x20.
  *
@@ -31,15 +31,15 @@
  *
  * The driver registers himself with the USB-serial core and the USB Core. I had
  * to implement a probe function against USB-serial, because other way, the
- * driver was attaching himself to both interfaces. I have tryed with different
+ * driver was attaching himself to both interfaces. I have tried with different
  * configurations of usb_serial_driver with out exit, only the probe function
  * could handle this correctly.
  *
  * I have taken some info from a Greg Kroah-Hartman article:
  * http://www.linuxjournal.com/article/6573
  * And from Linux Device Driver Kit CD, which is a great work, the authors taken
- * the work to recompile lots of information an knowladge in drivers development
- * and made it all avaible inside a cd.
+ * the work to recompile lots of information an knowledge in drivers development
+ * and made it all available inside a cd.
  * URL: http://kernel.org/pub/linux/kernel/people/gregkh/ddk/
  *
  */

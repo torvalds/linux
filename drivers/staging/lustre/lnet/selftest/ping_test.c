@@ -45,7 +45,8 @@
 #define LST_PING_TEST_MAGIC     0xbabeface
 
 int ping_srv_workitems = SFW_TEST_WI_MAX;
-CFS_MODULE_PARM(ping_srv_workitems, "i", int, 0644, "# PING server workitems");
+module_param(ping_srv_workitems, int, 0644);
+MODULE_PARM_DESC(ping_srv_workitems, "# PING server workitems");
 
 typedef struct {
 	spinlock_t	pnd_lock;	/* serialize */
@@ -189,7 +190,7 @@ ping_server_handle(struct srpc_server_rpc *rpc)
 	LASSERT (reqstmsg->msg_type == srpc_service2request(sv->sv_id));
 
 	if (req->pnr_magic != LST_PING_TEST_MAGIC) {
-		CERROR ("Unexpect magic %08x from %s\n",
+		CERROR ("Unexpected magic %08x from %s\n",
 			req->pnr_magic, libcfs_id2str(rpc->srpc_peer));
 		return -EINVAL;
 	}

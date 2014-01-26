@@ -62,8 +62,6 @@ config SIR_BFIN_PIO
 	bool "PIO mode"
 endchoice
 
-comment "Dongle support"
-
 config SH_SIR
 	tristate "SuperH SIR on UART"
 	depends on IRDA && SUPERH && \
@@ -73,6 +71,8 @@ config SH_SIR
 	help
 	  Say Y here if your want to enable SIR function on SuperH UART
 	  devices.
+
+comment "Dongle support"
 
 config DONGLE
 	bool "Serial dongle support"

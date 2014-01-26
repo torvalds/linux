@@ -18,7 +18,7 @@
 		__asm__ __volatile__ ( \
 			"mov %0, a0\n" \
 			"mov %1, a1\n" \
-			: "=r"(a0), "=r"(a1) : : ); \
+			: "=r"(a0), "=r"(a1)); \
 		MAKE_PC_FROM_RA(a0, a1); })
 #ifdef CONFIG_FRAME_POINTER
 extern unsigned long return_address(unsigned level);

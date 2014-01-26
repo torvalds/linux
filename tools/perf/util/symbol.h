@@ -52,6 +52,11 @@ static inline char *bfd_demangle(void __maybe_unused *v,
 # define PERF_ELF_C_READ_MMAP ELF_C_READ
 #endif
 
+#ifdef HAVE_LIBELF_SUPPORT
+extern Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
+				GElf_Shdr *shp, const char *name, size_t *idx);
+#endif
+
 #ifndef DMGL_PARAMS
 #define DMGL_PARAMS      (1 << 0)       /* Include function args */
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
@@ -164,6 +169,7 @@ struct mem_info {
 };
 
 struct addr_location {
+	struct machine *machine;
 	struct thread *thread;
 	struct map    *map;
 	struct symbol *sym;
@@ -206,7 +212,8 @@ bool symsrc__possibly_runtime(struct symsrc *ss);
 
 int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter);
 int dso__load_vmlinux(struct dso *dso, struct map *map,
-		      const char *vmlinux, symbol_filter_t filter);
+		      const char *vmlinux, bool vmlinux_allocated,
+		      symbol_filter_t filter);
 int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 			   symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
@@ -220,9 +227,6 @@ struct symbol *dso__first_symbol(struct dso *dso, enum map_type type);
 
 int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
-int kallsyms__parse(const char *filename, void *arg,
-		    int (*process_symbol)(void *arg, const char *name,
-					  char type, u64 start));
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,
 					 u64 start));
@@ -240,6 +244,7 @@ size_t symbol__fprintf(struct symbol *sym, FILE *fp);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 bool symbol__restricted_filename(const char *filename,
 				 const char *restricted_filename);
+bool symbol__is_idle(struct symbol *sym);
 
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, symbol_filter_t filter,
@@ -272,5 +277,8 @@ void kcore_extract__delete(struct kcore_extract *kce);
 
 int kcore_copy(const char *from_dir, const char *to_dir);
 int compare_proc_modules(const char *from, const char *to);
+
+int setup_list(struct strlist **list, const char *list_str,
+	       const char *list_name);
 
 #endif /* __PERF_SYMBOL */

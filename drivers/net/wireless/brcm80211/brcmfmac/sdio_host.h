@@ -164,11 +164,9 @@ struct brcmf_sdio;
 struct brcmf_sdio_dev {
 	struct sdio_func *func[SDIO_MAX_FUNCS];
 	u8 num_funcs;			/* Supported funcs on client */
-	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	u32 sbwad;			/* Save backplane window address */
-	void *bus;
+	struct brcmf_sdio *bus;
 	atomic_t suspend;		/* suspend flag */
-	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;
@@ -185,22 +183,19 @@ struct brcmf_sdio_dev {
 };
 
 /* Register/deregister interrupt handler. */
-int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev);
-int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
 /* sdio device register access interface */
-u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr, u8 data,
-		      int *ret);
-void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
-		      int *ret);
-int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
-			    void *data, bool write);
+u8 brcmf_sdiod_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+u32 brcmf_sdiod_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+void brcmf_sdiod_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr, u8 data,
+		       int *ret);
+void brcmf_sdiod_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
+		       int *ret);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
- *   addr:     backplane address (i.e. >= regsva from attach)
  *   flags:    backplane width, address increment, sync/async
  *   buf:      pointer to memory data buffer
  *   nbytes:   number of bytes to transfer to/from buf
@@ -210,17 +205,14 @@ int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
  * Returns 0 or error code.
  * NOTE: Async operation is not currently supported.
  */
-int brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			  uint flags, struct sk_buff_head *pktq);
-int brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			  uint flags, u8 *buf, uint nbytes);
+int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev,
+			 struct sk_buff_head *pktq);
+int brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes);
 
-int brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			  uint flags, struct sk_buff *pkt);
-int brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			  uint flags, u8 *buf, uint nbytes);
-int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			    uint flags, struct sk_buff_head *pktq, uint totlen);
+int brcmf_sdiod_recv_pkt(struct brcmf_sdio_dev *sdiodev, struct sk_buff *pkt);
+int brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes);
+int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
+			   struct sk_buff_head *pktq, uint totlen);
 
 /* Flags bits */
 
@@ -236,43 +228,16 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
  *   nbytes:   number of bytes to transfer to/from buf
  * Returns 0 or error code.
  */
-int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
-			u8 *buf, uint nbytes);
-int brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
-		     u8 *data, uint size);
+int brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
+		      u8 *data, uint size);
 
 /* Issue an abort to the specified function */
-int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
+int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
-/* platform specific/high level functions */
-int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
-int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
+struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdio_remove(struct brcmf_sdio *bus);
+void brcmf_sdio_isr(struct brcmf_sdio *bus);
 
-/* attach, return handler on success, NULL if failed.
- *  The handler shall be provided by all subsequent calls. No local cache
- *  cfghdl points to the starting address of pci device mapped memory
- */
-int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev);
-void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 
-/* read or write one byte using cmd52 */
-int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint fnc,
-			     uint addr, u8 *byte);
-
-/* read or write 2/4 bytes using cmd53 */
-int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint rw, uint fnc,
-			     uint addr, u32 *word, uint nbyte);
-
-/* Watchdog timer interface for pm ops */
-void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev, bool enable);
-
-void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
-void brcmf_sdbrcm_disconnect(void *ptr);
-void brcmf_sdbrcm_isr(void *arg);
-
-void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
-
-void brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
-			  wait_queue_head_t *wq);
-bool brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev);
 #endif				/* _BRCM_SDH_H_ */

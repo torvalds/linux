@@ -18,3 +18,4 @@ generic-y       += sections.h
 generic-y       += topology.h
 generic-y	+= trace_clock.h
 generic-y       += xor.h
+generic-y	+= hash.h

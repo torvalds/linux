@@ -862,7 +862,6 @@ struct mbx_cmd_32 {
  */
 #define MBC_LOAD_RAM			1	/* Load RAM. */
 #define MBC_EXECUTE_FIRMWARE		2	/* Execute firmware. */
-#define MBC_WRITE_RAM_WORD		4	/* Write RAM word. */
 #define MBC_READ_RAM_WORD		5	/* Read RAM word. */
 #define MBC_MAILBOX_REGISTER_TEST	6	/* Wrap incoming mailboxes */
 #define MBC_VERIFY_CHECKSUM		7	/* Verify checksum. */
@@ -937,6 +936,8 @@ struct mbx_cmd_32 {
 /*
  * ISP24xx mailbox commands
  */
+#define MBC_WRITE_SERDES		0x3	/* Write serdes word. */
+#define MBC_READ_SERDES			0x4	/* Read serdes word. */
 #define MBC_SERDES_PARAMS		0x10	/* Serdes Tx Parameters. */
 #define MBC_GET_IOCB_STATUS		0x12	/* Get IOCB status command. */
 #define MBC_PORT_PARAMS			0x1A	/* Port iDMA Parameters. */
@@ -2734,7 +2735,6 @@ struct req_que {
 	srb_t **outstanding_cmds;
 	uint32_t current_outstanding_cmd;
 	uint16_t num_outstanding_cmds;
-#define	MAX_Q_DEPTH		32
 	int max_q_depth;
 
 	dma_addr_t  dma_fx00;
@@ -3302,12 +3302,7 @@ struct qla_hw_data {
 	struct work_struct nic_core_reset;
 	struct work_struct idc_state_handler;
 	struct work_struct nic_core_unrecoverable;
-
-#define HOST_QUEUE_RAMPDOWN_INTERVAL           (60 * HZ)
-#define HOST_QUEUE_RAMPUP_INTERVAL             (30 * HZ)
-	unsigned long   host_last_rampdown_time;
-	unsigned long   host_last_rampup_time;
-	int             cfg_lun_q_depth;
+	struct work_struct board_disable;
 
 	struct mr_data_fx00 mr;
 
@@ -3372,12 +3367,11 @@ typedef struct scsi_qla_host {
 #define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 #define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
 #define SCR_PENDING		21	/* SCR in target mode */
-#define HOST_RAMP_DOWN_QUEUE_DEPTH     22
-#define HOST_RAMP_UP_QUEUE_DEPTH       23
-#define PORT_UPDATE_NEEDED	24
-#define FX00_RESET_RECOVERY	25
-#define FX00_TARGET_SCAN	26
-#define FX00_CRITEMP_RECOVERY	27
+#define PORT_UPDATE_NEEDED	22
+#define FX00_RESET_RECOVERY	23
+#define FX00_TARGET_SCAN	24
+#define FX00_CRITEMP_RECOVERY	25
+#define FX00_HOST_INFO_RESEND	26
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0

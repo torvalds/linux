@@ -166,6 +166,8 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	if (!s)
 		return NULL;
 
+	INIT_LIST_HEAD(&s->s_mounts);
+
 	if (security_sb_alloc(s))
 		goto fail;
 
@@ -188,7 +190,6 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	if (list_lru_init(&s->s_inode_lru))
 		goto fail;
 
-	INIT_LIST_HEAD(&s->s_mounts);
 	init_rwsem(&s->s_umount);
 	lockdep_set_class(&s->s_umount, &type->s_umount_key);
 	/*

@@ -901,10 +901,6 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	io_fn_t fn;
 	iov_fn_t fnv;
 
-	ret = -EFAULT;
-	if (!access_ok(VERIFY_READ, uvector, nr_segs*sizeof(*uvector)))
-		goto out;
-
 	ret = compat_rw_copy_check_uvector(type, uvector, nr_segs,
 					       UIO_FASTIOV, iovstack, &iov);
 	if (ret <= 0)

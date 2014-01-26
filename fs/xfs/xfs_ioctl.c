@@ -112,15 +112,11 @@ xfs_find_handle(
 		memset(&handle.ha_fid, 0, sizeof(handle.ha_fid));
 		hsize = sizeof(xfs_fsid_t);
 	} else {
-		int		lock_mode;
-
-		lock_mode = xfs_ilock_map_shared(ip);
 		handle.ha_fid.fid_len = sizeof(xfs_fid_t) -
 					sizeof(handle.ha_fid.fid_len);
 		handle.ha_fid.fid_pad = 0;
 		handle.ha_fid.fid_gen = ip->i_d.di_gen;
 		handle.ha_fid.fid_ino = ip->i_ino;
-		xfs_iunlock_map_shared(ip, lock_mode);
 
 		hsize = XFS_HSIZE(handle);
 	}

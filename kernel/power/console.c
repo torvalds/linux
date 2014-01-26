@@ -81,6 +81,7 @@ void pm_vt_switch_unregister(struct device *dev)
 	list_for_each_entry(tmp, &pm_vt_switch_list, head) {
 		if (tmp->dev == dev) {
 			list_del(&tmp->head);
+			kfree(tmp);
 			break;
 		}
 	}

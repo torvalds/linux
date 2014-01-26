@@ -1853,7 +1853,6 @@ static void pch_uart_exit_port(struct eg20t_port *priv)
 		debugfs_remove(priv->debugfs);
 #endif
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
-	pci_set_drvdata(priv->pdev, NULL);
 	free_page((unsigned long)priv->rxbuf.buf);
 }
 
@@ -1907,7 +1906,7 @@ static int pch_uart_pci_resume(struct pci_dev *pdev)
 #define pch_uart_pci_resume NULL
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
+static const struct pci_device_id pch_uart_pci_id[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8811),
 	 .driver_data = pch_et20t_uart0},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8812),

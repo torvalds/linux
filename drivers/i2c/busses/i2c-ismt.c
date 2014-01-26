@@ -344,6 +344,7 @@ static int ismt_process_desc(const struct ismt_desc *desc,
 			data->word = dma_buffer[0] | (dma_buffer[1] << 8);
 			break;
 		case I2C_SMBUS_BLOCK_DATA:
+		case I2C_SMBUS_I2C_BLOCK_DATA:
 			memcpy(&data->block[1], dma_buffer, desc->rxbytes);
 			data->block[0] = desc->rxbytes;
 			break;
@@ -509,6 +510,41 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 		}
 		break;
 
+	case I2C_SMBUS_I2C_BLOCK_DATA:
+		/* Make sure the length is valid */
+		if (data->block[0] < 1)
+			data->block[0] = 1;
+
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX)
+			data->block[0] = I2C_SMBUS_BLOCK_MAX;
+
+		if (read_write == I2C_SMBUS_WRITE) {
+			/* i2c Block Write */
+			dev_dbg(dev, "I2C_SMBUS_I2C_BLOCK_DATA:  WRITE\n");
+			dma_size = data->block[0] + 1;
+			dma_direction = DMA_TO_DEVICE;
+			desc->wr_len_cmd = dma_size;
+			desc->control |= ISMT_DESC_I2C;
+			priv->dma_buffer[0] = command;
+			memcpy(&priv->dma_buffer[1], &data->block[1], dma_size);
+		} else {
+			/* i2c Block Read */
+			dev_dbg(dev, "I2C_SMBUS_I2C_BLOCK_DATA:  READ\n");
+			dma_size = data->block[0];
+			dma_direction = DMA_FROM_DEVICE;
+			desc->rd_len = dma_size;
+			desc->wr_len_cmd = command;
+			desc->control |= (ISMT_DESC_I2C | ISMT_DESC_CWRL);
+			/*
+			 * Per the "Table 15-15. I2C Commands",
+			 * in the External Design Specification (EDS),
+			 * (Document Number: 508084, Revision: 2.0),
+			 * the _rw bit must be 0
+			 */
+			desc->tgtaddr_rw = ISMT_DESC_ADDR_RW(addr, 0);
+		}
+		break;
+
 	default:
 		dev_err(dev, "Unsupported transaction %d\n",
 			size);
@@ -582,6 +618,7 @@ static u32 ismt_func(struct i2c_adapter *adap)
 	       I2C_FUNC_SMBUS_WORD_DATA		|
 	       I2C_FUNC_SMBUS_PROC_CALL		|
 	       I2C_FUNC_SMBUS_BLOCK_DATA	|
+	       I2C_FUNC_SMBUS_I2C_BLOCK		|
 	       I2C_FUNC_SMBUS_PEC;
 }
 

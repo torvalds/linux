@@ -20,8 +20,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -302,6 +301,9 @@ static int nci_open_device(struct nci_dev *ndev)
 	rc = __nci_request(ndev, nci_reset_req, 0,
 			   msecs_to_jiffies(NCI_RESET_TIMEOUT));
 
+	if (ndev->ops->setup(ndev))
+		ndev->ops->setup(ndev);
+
 	if (!rc) {
 		rc = __nci_request(ndev, nci_init_req, 0,
 				   msecs_to_jiffies(NCI_INIT_TIMEOUT));
@@ -362,6 +364,8 @@ static int nci_close_device(struct nci_dev *ndev)
 		      msecs_to_jiffies(NCI_RESET_TIMEOUT));
 	clear_bit(NCI_INIT, &ndev->flags);
 
+	del_timer_sync(&ndev->cmd_timer);
+
 	/* Flush cmd wq */
 	flush_workqueue(ndev->cmd_wq);
 
@@ -409,12 +413,26 @@ static int nci_dev_down(struct nfc_dev *nfc_dev)
 	return nci_close_device(ndev);
 }
 
+int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val)
+{
+	struct nci_set_config_param param;
+
+	if (!val || !len)
+		return 0;
+
+	param.id = id;
+	param.len = len;
+	param.val = val;
+
+	return __nci_request(ndev, nci_set_config_req, (unsigned long)&param,
+			     msecs_to_jiffies(NCI_SET_CONFIG_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_set_config);
+
 static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	struct nci_set_config_param param;
-	__u8 local_gb[NFC_MAX_GT_LEN];
-	int i;
 
 	param.val = nfc_get_local_general_bytes(nfc_dev, &param.len);
 	if ((param.val == NULL) || (param.len == 0))
@@ -423,11 +441,7 @@ static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 	if (param.len > NFC_MAX_GT_LEN)
 		return -EINVAL;
 
-	for (i = 0; i < param.len; i++)
-		local_gb[param.len-1-i] = param.val[i];
-
 	param.id = NCI_PN_ATR_REQ_GEN_BYTES;
-	param.val = local_gb;
 
 	return nci_request(ndev, nci_set_config_req, (unsigned long)&param,
 			   msecs_to_jiffies(NCI_SET_CONFIG_TIMEOUT));

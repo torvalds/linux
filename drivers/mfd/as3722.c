@@ -54,7 +54,7 @@ static const struct resource as3722_adc_resource[] = {
 	},
 };
 
-static struct mfd_cell as3722_devs[] = {
+static const struct mfd_cell as3722_devs[] = {
 	{
 		.name = "as3722-pinctrl",
 	},
@@ -73,6 +73,9 @@ static struct mfd_cell as3722_devs[] = {
 	},
 	{
 		.name = "as3722-power-off",
+	},
+	{
+		.name = "as3722-wdt",
 	},
 };
 

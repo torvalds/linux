@@ -798,7 +798,7 @@ static const struct crystalhd_cmd_tbl	g_crystalhd_cproc_tbl[] = {
  *
  * Current gstreamer frame work does not provide any power management
  * related notification to user mode decoder plug-in. As a work-around
- * we pass on the power mangement notification to our plug-in by completing
+ * we pass on the power management notification to our plug-in by completing
  * all outstanding requests with BC_STS_IO_USER_ABORT return code.
  */
 enum BC_STATUS crystalhd_suspend(struct crystalhd_cmd *ctx,
@@ -1059,7 +1059,7 @@ bool crystalhd_cmd_interrupt(struct crystalhd_cmd *ctx)
 {
 	if (!ctx) {
 		BCMLOG_ERR("Invalid arg..\n");
-		return 0;
+		return false;
 	}
 
 	return crystalhd_hw_interrupt(ctx->adp, &ctx->hw_ctx);

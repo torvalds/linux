@@ -49,7 +49,7 @@ _func_enter_;
 
 	_rtw_memset((u8 *)psta_recvpriv, 0, sizeof (struct sta_recv_priv));
 
-	_rtw_spinlock_init(&psta_recvpriv->lock);
+	spin_lock_init(&psta_recvpriv->lock);
 
 	_rtw_init_queue(&psta_recvpriv->defrag_q);
 
@@ -65,7 +65,7 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	int	res = _SUCCESS;
 
 _func_enter_;
-	_rtw_spinlock_init(&precvpriv->lock);
+	spin_lock_init(&precvpriv->lock);
 
 	_rtw_init_queue(&precvpriv->free_recv_queue);
 	_rtw_init_queue(&precvpriv->recv_pending_queue);
@@ -102,7 +102,7 @@ _func_enter_;
 	}
 	precvpriv->rx_pending_cnt = 1;
 
-	_rtw_init_sema(&precvpriv->allrxreturnevt, 0);
+	sema_init(&precvpriv->allrxreturnevt, 0);
 
 	res = rtw_hal_init_recv_priv(padapter);
 
@@ -118,15 +118,6 @@ _func_exit_;
 	return res;
 }
 
-static void rtw_mfree_recv_priv_lock(struct recv_priv *precvpriv)
-{
-	_rtw_spinlock_free(&precvpriv->lock);
-	_rtw_spinlock_free(&precvpriv->free_recv_queue.lock);
-	_rtw_spinlock_free(&precvpriv->recv_pending_queue.lock);
-
-	_rtw_spinlock_free(&precvpriv->free_recv_buf_queue.lock);
-}
-
 void _rtw_free_recv_priv (struct recv_priv *precvpriv)
 {
 	struct adapter	*padapter = precvpriv->adapter;
@@ -134,8 +125,6 @@ void _rtw_free_recv_priv (struct recv_priv *precvpriv)
 _func_enter_;
 
 	rtw_free_uc_swdec_pending_queue(padapter);
-
-	rtw_mfree_recv_priv_lock(precvpriv);
 
 	rtw_os_recv_resource_free(precvpriv);
 
@@ -181,14 +170,13 @@ _func_exit_;
 
 union recv_frame *rtw_alloc_recvframe (struct __queue *pfree_recv_queue)
 {
-	unsigned long irqL;
 	union recv_frame  *precvframe;
 
-	_enter_critical_bh(&pfree_recv_queue->lock, &irqL);
+	spin_lock_bh(&pfree_recv_queue->lock);
 
 	precvframe = _rtw_alloc_recvframe(pfree_recv_queue);
 
-	_exit_critical_bh(&pfree_recv_queue->lock, &irqL);
+	spin_unlock_bh(&pfree_recv_queue->lock);
 
 	return precvframe;
 }
@@ -203,7 +191,6 @@ void rtw_init_recvframe(union recv_frame *precvframe, struct recv_priv *precvpri
 
 int rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_queue)
 {
-	unsigned long irqL;
 	struct adapter *padapter;
 	struct recv_priv *precvpriv;
 
@@ -217,7 +204,7 @@ _func_enter_;
 		precvframe->u.hdr.pkt = NULL;
 	}
 
-	_enter_critical_bh(&pfree_recv_queue->lock, &irqL);
+	spin_lock_bh(&pfree_recv_queue->lock);
 
 	rtw_list_delete(&(precvframe->u.hdr.list));
 
@@ -230,7 +217,7 @@ _func_enter_;
 				precvpriv->free_recvframe_cnt++;
 	}
 
-      _exit_critical_bh(&pfree_recv_queue->lock, &irqL);
+      spin_unlock_bh(&pfree_recv_queue->lock);
 
 _func_exit_;
 
@@ -260,11 +247,10 @@ _func_exit_;
 int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
 {
 	int ret;
-	unsigned long irqL;
 
-	_enter_critical_bh(&queue->lock, &irqL);
+	spin_lock_bh(&queue->lock);
 	ret = _rtw_enqueue_recvframe(precvframe, queue);
-	_exit_critical_bh(&queue->lock, &irqL);
+	spin_unlock_bh(&queue->lock);
 
 	return ret;
 }
@@ -316,14 +302,12 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter)
 
 int rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue)
 {
-	unsigned long irqL;
-
-	_enter_critical_bh(&queue->lock, &irqL);
+	spin_lock_bh(&queue->lock);
 
 	rtw_list_delete(&precvbuf->list);
 	rtw_list_insert_head(&precvbuf->list, get_list_head(queue));
 
-	_exit_critical_bh(&queue->lock, &irqL);
+	spin_unlock_bh(&queue->lock);
 
 	return _SUCCESS;
 }
@@ -331,12 +315,12 @@ int rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue
 int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue)
 {
 	unsigned long irqL;
-	_enter_critical_ex(&queue->lock, &irqL);
+	spin_lock_irqsave(&queue->lock, irqL);
 
 	rtw_list_delete(&precvbuf->list);
 
 	rtw_list_insert_tail(&precvbuf->list, get_list_head(queue));
-	_exit_critical_ex(&queue->lock, &irqL);
+	spin_unlock_irqrestore(&queue->lock, irqL);
 	return _SUCCESS;
 }
 
@@ -346,7 +330,7 @@ struct recv_buf *rtw_dequeue_recvbuf (struct __queue *queue)
 	struct recv_buf *precvbuf;
 	struct list_head *plist, *phead;
 
-	_enter_critical_ex(&queue->lock, &irqL);
+	spin_lock_irqsave(&queue->lock, irqL);
 
 	if (_rtw_queue_empty(queue)) {
 		precvbuf = NULL;
@@ -360,7 +344,7 @@ struct recv_buf *rtw_dequeue_recvbuf (struct __queue *queue)
 		rtw_list_delete(&precvbuf->list);
 	}
 
-	_exit_critical_ex(&queue->lock, &irqL);
+	spin_unlock_irqrestore(&queue->lock, irqL);
 
 	return precvbuf;
 }
@@ -1108,11 +1092,10 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 		}
 
 		if ((psta->state&WIFI_SLEEP_STATE) && (pstapriv->sta_dz_bitmap&BIT(psta->aid))) {
-			unsigned long irqL;
 			struct list_head *xmitframe_plist, *xmitframe_phead;
 			struct xmit_frame *pxmitframe = NULL;
 
-			_enter_critical_bh(&psta->sleep_q.lock, &irqL);
+			spin_lock_bh(&psta->sleep_q.lock);
 
 			xmitframe_phead = get_list_head(&psta->sleep_q);
 			xmitframe_plist = get_next(xmitframe_phead);
@@ -1133,10 +1116,10 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 
 				pxmitframe->attrib.triggered = 1;
 
-				_exit_critical_bh(&psta->sleep_q.lock, &irqL);
+				spin_unlock_bh(&psta->sleep_q.lock);
 				if (rtw_hal_xmit(padapter, pxmitframe) == true)
 					rtw_os_xmit_complete(padapter, pxmitframe);
-				_enter_critical_bh(&psta->sleep_q.lock, &irqL);
+				spin_lock_bh(&psta->sleep_q.lock);
 
 				if (psta->sleepq_len == 0) {
 					pstapriv->tim_bitmap &= ~BIT(psta->aid);
@@ -1165,7 +1148,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 				}
 			}
 
-			_exit_critical_bh(&psta->sleep_q.lock, &irqL);
+			spin_unlock_bh(&psta->sleep_q.lock);
 		}
 	}
 
@@ -1943,7 +1926,6 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 
 static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *prframe)
 {
-	unsigned long irql;
 	int retval = _SUCCESS;
 	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
 	struct recv_reorder_ctrl *preorder_ctrl = prframe->u.hdr.preorder_ctrl;
@@ -1984,7 +1966,7 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 		}
 	}
 
-	_enter_critical_bh(&ppending_recvframe_queue->lock, &irql);
+	spin_lock_bh(&ppending_recvframe_queue->lock);
 
 	RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_,
 		 ("recv_indicatepkt_reorder: indicate=%d seq=%d\n",
@@ -1994,7 +1976,7 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 	if (!check_indicate_seq(preorder_ctrl, pattrib->seq_num)) {
 		rtw_recv_indicatepkt(padapter, prframe);
 
-		_exit_critical_bh(&ppending_recvframe_queue->lock, &irql);
+		spin_unlock_bh(&ppending_recvframe_queue->lock);
 
 		goto _success_exit;
 	}
@@ -2016,9 +1998,9 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 	/* recv_indicatepkts_in_order(padapter, preorder_ctrl, true); */
 	if (recv_indicatepkts_in_order(padapter, preorder_ctrl, false)) {
 		_set_timer(&preorder_ctrl->reordering_ctrl_timer, REORDER_WAIT_TIME);
-		_exit_critical_bh(&ppending_recvframe_queue->lock, &irql);
+		spin_unlock_bh(&ppending_recvframe_queue->lock);
 	} else {
-		_exit_critical_bh(&ppending_recvframe_queue->lock, &irql);
+		spin_unlock_bh(&ppending_recvframe_queue->lock);
 		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
 	}
 
@@ -2028,14 +2010,13 @@ _success_exit:
 
 _err_exit:
 
-	_exit_critical_bh(&ppending_recvframe_queue->lock, &irql);
+	spin_unlock_bh(&ppending_recvframe_queue->lock);
 
 	return _FAIL;
 }
 
 void rtw_reordering_ctrl_timeout_handler(void *pcontext)
 {
-	unsigned long irql;
 	struct recv_reorder_ctrl *preorder_ctrl = (struct recv_reorder_ctrl *)pcontext;
 	struct adapter *padapter = preorder_ctrl->padapter;
 	struct __queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
@@ -2043,12 +2024,12 @@ void rtw_reordering_ctrl_timeout_handler(void *pcontext)
 	if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 		return;
 
-	_enter_critical_bh(&ppending_recvframe_queue->lock, &irql);
+	spin_lock_bh(&ppending_recvframe_queue->lock);
 
 	if (recv_indicatepkts_in_order(padapter, preorder_ctrl, true) == true)
 		_set_timer(&preorder_ctrl->reordering_ctrl_timer, REORDER_WAIT_TIME);
 
-	_exit_critical_bh(&ppending_recvframe_queue->lock, &irql);
+	spin_unlock_bh(&ppending_recvframe_queue->lock);
 }
 
 static int process_recv_indicatepkts(struct adapter *padapter, union recv_frame *prframe)
