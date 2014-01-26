@@ -1944,8 +1944,6 @@ struct drx_demod_instance {
 	/* type specific demodulator data */
 	struct drx_access_func *my_access_funct;
 				/**< data access protocol functions       */
-	struct tuner_instance *my_tuner;
-				/**< tuner instance,if NULL then baseband */
 	struct i2c_device_addr *my_i2c_dev_addr;
 				/**< i2c address and device identifier    */
 	struct drx_common_attr *my_common_attr;
@@ -2269,7 +2267,6 @@ Access macros
 #define DRX_ATTR_TUNERIFAGCPOL(d)    ((d)->my_common_attr->tuner_if_agc_pol)
 #define DRX_ATTR_TUNERSLOWMODE(d)    ((d)->my_common_attr->tuner_slow_mode)
 #define DRX_ATTR_TUNERSPORTNR(d)     ((d)->my_common_attr->tuner_port_nr)
-#define DRX_ATTR_TUNER(d)           ((d)->my_tuner)
 #define DRX_ATTR_I2CADDR(d)         ((d)->my_i2c_dev_addr->i2c_addr)
 #define DRX_ATTR_I2CDEVID(d)        ((d)->my_i2c_dev_addr->i2c_dev_id)
 #define DRX_ISMCVERTYPE(x) ((x) == AUX_VER_RECORD)

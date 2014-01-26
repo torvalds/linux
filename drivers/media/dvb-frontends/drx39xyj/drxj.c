@@ -945,7 +945,6 @@ struct drx_common_attr drxj_default_comm_attr_g = {
 */
 struct drx_demod_instance drxj_default_demod_g = {
 	&DRXJ_DAP,		/* data access protocol functions */
-	NULL,			/* tuner instance */
 	&drxj_default_addr_g,	/* i2c address & device id */
 	&drxj_default_comm_attr_g,	/* demod common attributes */
 	&drxj_data_g		/* demod device specific attributes */
@@ -16990,16 +16989,12 @@ static int
 ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
 	int rc;
-	s32 tuner_set_freq = 0;
-	s32 tuner_get_freq = 0;
 	s32 tuner_freq_offset = 0;
 	s32 intermediate_freq = 0;
 	struct drxj_data *ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	u32 tuner_mode = 0;
 	struct drx_common_attr *common_attr = NULL;
-	bool bridge_closed = false;
 #ifndef DRXJ_VSB_ONLY
 	u32 min_symbol_rate = 0;
 	u32 max_symbol_rate = 0;
@@ -17206,108 +17201,9 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-   /*== Tune, fast mode ======================================================*/
-	if (demod->my_tuner != NULL) {
-		/* Determine tuner mode and freq to tune to ... */
-		switch (standard) {
-#if 0
-		case DRX_STANDARD_NTSC:	/* fallthrough */
-		case DRX_STANDARD_PAL_SECAM_BG:	/* fallthrough */
-		case DRX_STANDARD_PAL_SECAM_DK:	/* fallthrough */
-		case DRX_STANDARD_PAL_SECAM_I:	/* fallthrough */
-		case DRX_STANDARD_PAL_SECAM_L:	/* fallthrough */
-		case DRX_STANDARD_PAL_SECAM_LP:
-			/* expecting center frequency, not picture carrier so no
-			   conversion .... */
-			tuner_mode |= TUNER_MODE_ANALOG;
-			tuner_set_freq = channel->frequency;
-			break;
-		case DRX_STANDARD_FM:
-			/* center frequency (equals sound carrier) as input,
-			   tune to edge of SAW */
-			tuner_mode |= TUNER_MODE_ANALOG;
-			tuner_set_freq =
-			    channel->frequency + DRXJ_FM_CARRIER_FREQ_OFFSET;
-			break;
-#endif
-		case DRX_STANDARD_8VSB:	/* fallthrough */
-#ifndef DRXJ_VSB_ONLY
-		case DRX_STANDARD_ITU_A:	/* fallthrough */
-		case DRX_STANDARD_ITU_B:	/* fallthrough */
-		case DRX_STANDARD_ITU_C:
-#endif
-			tuner_mode |= TUNER_MODE_DIGITAL;
-			tuner_set_freq = channel->frequency;
-			break;
-		case DRX_STANDARD_UNKNOWN:
-		default:
-			return -EIO;
-		}		/* switch(standard) */
 
-		tuner_mode |= TUNER_MODE_SWITCH;
-		switch (channel->bandwidth) {
-		case DRX_BANDWIDTH_8MHZ:
-			tuner_mode |= TUNER_MODE_8MHZ;
-			break;
-		case DRX_BANDWIDTH_7MHZ:
-			tuner_mode |= TUNER_MODE_7MHZ;
-			break;
-		case DRX_BANDWIDTH_6MHZ:
-			tuner_mode |= TUNER_MODE_6MHZ;
-			break;
-		default:
-			/* TODO: for FM which bandwidth to use ?
-			   also check offset from centre frequency ?
-			   For now using 6MHz.
-			 */
-			tuner_mode |= TUNER_MODE_6MHZ;
-			break;
-			/* return (-EINVAL); */
-		}
-
-		/* store bandwidth for GetChannel() */
-		ext_attr->curr_bandwidth = channel->bandwidth;
-		ext_attr->curr_symbol_rate = channel->symbolrate;
-		ext_attr->frequency = tuner_set_freq;
-		if (common_attr->tuner_port_nr == 1) {
-			/* close tuner bridge */
-			bridge_closed = true;
-			rc = ctrl_i2c_bridge(demod, &bridge_closed);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-			/* set tuner frequency */
-		}
-
-		rc = drxbsp_tuner_set_frequency(demod->my_tuner, tuner_mode, tuner_set_freq);
-		if (rc != 0) {
-			pr_err("error %d\n", rc);
-			goto rw_error;
-		}
-		if (common_attr->tuner_port_nr == 1) {
-			/* open tuner bridge */
-			bridge_closed = false;
-			rc = ctrl_i2c_bridge(demod, &bridge_closed);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-		}
-
-		/* Get actual frequency set by tuner and compute offset */
-		rc = drxbsp_tuner_get_frequency(demod->my_tuner, 0, &tuner_get_freq, &intermediate_freq);
-		if (rc != 0) {
-			pr_err("error %d\n", rc);
-			goto rw_error;
-		}
-		tuner_freq_offset = tuner_get_freq - tuner_set_freq;
-		common_attr->intermediate_freq = intermediate_freq;
-	} else {
-		/* no tuner instance defined, use fixed intermediate frequency */
-		tuner_freq_offset = 0;
-		intermediate_freq = demod->my_common_attr->intermediate_freq;
-	}			/* if ( demod->my_tuner != NULL ) */
+	tuner_freq_offset = 0;
+	intermediate_freq = demod->my_common_attr->intermediate_freq;
 
    /*== Setup demod for specific standard ====================================*/
 	switch (standard) {
@@ -17362,40 +17258,6 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 		return -EIO;
 	}
 
-   /*== Re-tune, slow mode ===================================================*/
-	if (demod->my_tuner != NULL) {
-		/* tune to slow mode */
-		tuner_mode &= ~TUNER_MODE_SWITCH;
-		tuner_mode |= TUNER_MODE_LOCK;
-
-		if (common_attr->tuner_port_nr == 1) {
-			/* close tuner bridge */
-			bridge_closed = true;
-			rc = ctrl_i2c_bridge(demod, &bridge_closed);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-		}
-
-		/* set tuner frequency */
-		rc = drxbsp_tuner_set_frequency(demod->my_tuner, tuner_mode, tuner_set_freq);
-		if (rc != 0) {
-			pr_err("error %d\n", rc);
-			goto rw_error;
-		}
-		if (common_attr->tuner_port_nr == 1) {
-			/* open tuner bridge */
-			bridge_closed = false;
-			rc = ctrl_i2c_bridge(demod, &bridge_closed);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-		}
-	}
-
-	/* if ( demod->my_tuner !=NULL ) */
 	/* flag the packet error counter reset */
 	ext_attr->reset_pkt_err_acc = true;
 
@@ -17459,31 +17321,7 @@ ctrl_get_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 /*   channel->interleaver       = DRX_INTERLEAVER_UNKNOWN;*/
 	channel->ldpc = DRX_LDPC_UNKNOWN;
 
-	if (demod->my_tuner != NULL) {
-		s32 tuner_freq_offset = 0;
-		bool tuner_mirror = common_attr->mirror_freq_spect ? false : true;
-
-		/* Get frequency from tuner */
-		rc = drxbsp_tuner_get_frequency(demod->my_tuner, 0, &(channel->frequency), &intermediate_freq);
-		if (rc != 0) {
-			pr_err("error %d\n", rc);
-			goto rw_error;
-		}
-		tuner_freq_offset = channel->frequency - ext_attr->frequency;
-		if (tuner_mirror) {
-			/* positive image */
-			channel->frequency += tuner_freq_offset;
-		} else {
-			/* negative image */
-			channel->frequency -= tuner_freq_offset;
-		}
-
-		/* Handle sound carrier offset in RF domain */
-		if (standard == DRX_STANDARD_FM)
-			channel->frequency -= DRXJ_FM_CARRIER_FREQ_OFFSET;
-	} else {
-		intermediate_freq = common_attr->intermediate_freq;
-	}
+	intermediate_freq = common_attr->intermediate_freq;
 
 	/* check lock status */
 	rc = ctrl_lock_status(demod, &lock_status);
@@ -19740,33 +19578,6 @@ int drxj_open(struct drx_demod_instance *demod)
 		goto rw_error;
 	}
 
-	/* Open tuner instance */
-	if (demod->my_tuner != NULL) {
-		demod->my_tuner->my_common_attr->my_user_data = (void *)demod;
-
-		if (common_attr->tuner_port_nr == 1) {
-			bool bridge_closed = true;
-			rc = ctrl_i2c_bridge(demod, &bridge_closed);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-		}
-
-		if (common_attr->tuner_port_nr == 1) {
-			bool bridge_closed = false;
-			rc = ctrl_i2c_bridge(demod, &bridge_closed);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-		}
-		common_attr->tuner_min_freq_rf =
-		    ((demod->my_tuner)->my_common_attr->min_freq_rf);
-		common_attr->tuner_max_freq_rf =
-		    ((demod->my_tuner)->my_common_attr->max_freq_rf);
-	}
-
 	/* Initialize scan timeout */
 	common_attr->scan_demod_lock_timeout = DRXJ_SCAN_TIMEOUT;
 	common_attr->scan_desired_lock = DRX_LOCKED;
@@ -19830,7 +19641,6 @@ rw_error:
 int drxj_close(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
-	struct drx_common_attr *common_attr = demod->my_common_attr;
 	int rc;
 	enum drx_power_mode power_mode = DRX_POWER_UP;
 
@@ -19847,26 +19657,6 @@ int drxj_close(struct drx_demod_instance *demod)
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
 		goto rw_error;
-	}
-
-	if (demod->my_tuner != NULL) {
-		/* Check if bridge is used */
-		if (common_attr->tuner_port_nr == 1) {
-			bool bridge_closed = true;
-			rc = ctrl_i2c_bridge(demod, &bridge_closed);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-		}
-		if (common_attr->tuner_port_nr == 1) {
-			bool bridge_closed = false;
-			rc = ctrl_i2c_bridge(demod, &bridge_closed);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-		}
 	}
 
 	rc = DRXJ_DAP.write_reg16func(dev_addr, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE, 0);
@@ -20581,7 +20371,6 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	demod->my_common_attr->intermediate_freq = 5000;
 	demod->my_ext_attr = demod_ext_attr;
 	((struct drxj_data *)demod_ext_attr)->uio_sma_tx_mode = DRX_UIO_MODE_READWRITE;
-	demod->my_tuner = NULL;
 	demod->i2c = i2c;
 
 	result = drxj_open(demod);
