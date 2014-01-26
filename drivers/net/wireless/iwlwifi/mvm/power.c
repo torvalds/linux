@@ -423,6 +423,7 @@ static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 	int ret;
 	bool ba_enable;
 	struct iwl_mac_power_cmd cmd = {};
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return 0;
@@ -439,8 +440,9 @@ static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	ba_enable = !!(cmd.flags &
-		       cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK));
+	ba_enable = !(iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM ||
+		      mvm->ps_prevented || mvm->bound_vif_cnt > 1 ||
+		      !vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif));
 
 	return iwl_mvm_update_beacon_abort(mvm, vif, ba_enable);
 }
