@@ -225,10 +225,6 @@ struct tuner_instance {
 	struct tuner_ops *my_funct;
 };
 
-int drxbsp_tuner_open(struct tuner_instance *tuner);
-
-int drxbsp_tuner_close(struct tuner_instance *tuner);
-
 int drxbsp_tuner_set_frequency(struct tuner_instance *tuner,
 					u32 mode,
 					s32 frequency);
@@ -238,29 +234,12 @@ int drxbsp_tuner_get_frequency(struct tuner_instance *tuner,
 					s32 *r_ffrequency,
 					s32 *i_ffrequency);
 
-int drxbsp_tuner_lock_status(struct tuner_instance *tuner,
-					enum tuner_lock_status *lock_stat);
-
 int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 						struct i2c_device_addr *w_dev_addr,
 						u16 w_count,
 						u8 *wData,
 						struct i2c_device_addr *r_dev_addr,
 						u16 r_count, u8 *r_data);
-
-int drxbsp_hst_init(void);
-
-int drxbsp_hst_term(void);
-
-void *drxbsp_hst_memcpy(void *to, void *from, u32 n);
-
-int drxbsp_hst_memcmp(void *s1, void *s2, u32 n);
-
-u32 drxbsp_hst_clock(void);
-
-int drxbsp_hst_sleep(u32 n);
-
-
 
 /**************
 *

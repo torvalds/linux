@@ -39,7 +39,11 @@
 */
 
 #include "drx_dap_fasi.h"
-#include "drx_driver.h"		/* for drxbsp_hst_memcpy() */
+#include "drx39xxj.h"
+
+#include <linux/delay.h>
+#include <linux/jiffies.h>
+
 
 /*============================================================================*/
 
@@ -170,6 +174,79 @@ static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 						    u32 *dataout)
 {				/* data to receive back         */
 	return -EIO;
+}
+
+
+int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
+				 u16 w_count,
+				 u8 *wData,
+				 struct i2c_device_addr *r_dev_addr,
+				 u16 r_count, u8 *r_data)
+{
+	struct drx39xxj_state *state;
+	struct i2c_msg msg[2];
+	unsigned int num_msgs;
+
+	if (w_dev_addr == NULL) {
+		/* Read only */
+		state = r_dev_addr->user_data;
+		msg[0].addr = r_dev_addr->i2c_addr >> 1;
+		msg[0].flags = I2C_M_RD;
+		msg[0].buf = r_data;
+		msg[0].len = r_count;
+		num_msgs = 1;
+	} else if (r_dev_addr == NULL) {
+		/* Write only */
+		state = w_dev_addr->user_data;
+		msg[0].addr = w_dev_addr->i2c_addr >> 1;
+		msg[0].flags = 0;
+		msg[0].buf = wData;
+		msg[0].len = w_count;
+		num_msgs = 1;
+	} else {
+		/* Both write and read */
+		state = w_dev_addr->user_data;
+		msg[0].addr = w_dev_addr->i2c_addr >> 1;
+		msg[0].flags = 0;
+		msg[0].buf = wData;
+		msg[0].len = w_count;
+		msg[1].addr = r_dev_addr->i2c_addr >> 1;
+		msg[1].flags = I2C_M_RD;
+		msg[1].buf = r_data;
+		msg[1].len = r_count;
+		num_msgs = 2;
+	}
+
+	if (state->i2c == NULL) {
+		pr_err("i2c was zero, aborting\n");
+		return 0;
+	}
+	if (i2c_transfer(state->i2c, msg, num_msgs) != num_msgs) {
+		pr_warn("drx3933: I2C write/read failed\n");
+		return -EREMOTEIO;
+	}
+
+	return 0;
+
+#ifdef DJH_DEBUG
+	struct drx39xxj_state *state = w_dev_addr->user_data;
+
+	struct i2c_msg msg[2] = {
+		{.addr = w_dev_addr->i2c_addr,
+		 .flags = 0, .buf = wData, .len = w_count},
+		{.addr = r_dev_addr->i2c_addr,
+		 .flags = I2C_M_RD, .buf = r_data, .len = r_count},
+	};
+
+	pr_dbg("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
+	       w_dev_addr->i2c_addr, state->i2c, w_count, r_count);
+
+	if (i2c_transfer(state->i2c, msg, 2) != 2) {
+		pr_warn("drx3933: I2C write/read failed\n");
+		return -EREMOTEIO;
+	}
+#endif
+	return 0;
 }
 
 /*============================================================================*/
@@ -515,7 +592,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 			    (data_block_size <
 			     datasize ? data_block_size : datasize);
 		}
-		drxbsp_hst_memcpy(&buf[bufx], data, todo);
+		memcpy(&buf[bufx], data, todo);
 		/* write (address if can do and) data */
 		st = drxbsp_i2c_write_read(dev_addr,
 					  (u16) (bufx + todo),
