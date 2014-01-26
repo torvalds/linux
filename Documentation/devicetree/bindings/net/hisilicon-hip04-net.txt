@@ -1,0 +1,28 @@
+* Hisilicon hip04 Ethernet Controller
+
+Required properties:
+- compatible: should be "hisilicon,hip04-mac".
+- reg: address and length of the register set for the device.
+- interrupts: interrupt for the device.
+- port: port number combined with the controller: range from 0 to 31.
+- speed: 100 (100M) or 1000 (1000M).
+
+Example:
+	ge0: ethernet@2800000 {
+		compatible = "hisilicon,hip04-mac";
+		reg = <0x2800000 0x10000>;
+		interrupts = <0 434 4>;
+		port = <0>;
+		speed = <1000>;
+	};
+
+* Hisilicon hip04 Ethernet ppe: control rx & rx fifos of all ethnet controllers
+
+Required properties:
+- compatible: should be "hisilicon,ppebase".
+
+Example:
+	ppebase: ppebase@28c0000 {
+		compatible = "hisilicon,ppebase";
+		reg = <0x28c0000 0x10000>;
+	};
