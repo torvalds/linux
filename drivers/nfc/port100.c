@@ -27,7 +27,8 @@
 #define PORT100_PROTOCOLS (NFC_PROTO_JEWEL_MASK    | \
 			   NFC_PROTO_MIFARE_MASK   | \
 			   NFC_PROTO_FELICA_MASK   | \
-			   NFC_PROTO_NFC_DEP_MASK)
+			   NFC_PROTO_NFC_DEP_MASK  | \
+			   NFC_PROTO_ISO14443_MASK)
 
 #define PORT100_CAPABILITIES (NFC_DIGITAL_DRV_CAPS_IN_CRC | \
 			      NFC_DIGITAL_DRV_CAPS_TG_CRC)
@@ -296,6 +297,10 @@ in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 		/* nfc_digital_framing_nfca_standard */
 		{ PORT100_IN_PROT_ADD_CRC,   1 },
 		{ PORT100_IN_PROT_CHECK_CRC, 0 },
+		{ PORT100_IN_PROT_END,       0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCA_T4T] = {
+		/* nfc_digital_framing_nfca_standard_with_crc_a */
 		{ PORT100_IN_PROT_END,       0 },
 	},
 	[NFC_DIGITAL_FRAMING_NFCA_NFC_DEP] = {
