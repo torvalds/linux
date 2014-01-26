@@ -30,6 +30,12 @@
 #ifndef __RTL_REGD_H__
 #define __RTL_REGD_H__
 
+#define IEEE80211_CHAN_NO_IBSS		1<<2
+#define IEEE80211_CHAN_PASSIVE_SCAN	1<<1
+#define WIPHY_FLAG_CUSTOM_REGULATORY	BIT(0)
+#define WIPHY_FLAG_STRICT_REGULATORY	BIT(1)
+#define WIPHY_FLAG_DISABLE_BEACON_HINTS	BIT(2)
+
 struct country_code_to_enum_rd {
 	u16 countrycode;
 	const char *iso_name;

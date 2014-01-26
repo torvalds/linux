@@ -1339,7 +1339,7 @@ void rtl8812ae_dm_txpwr_track_set_pwr(struct ieee80211_hw *hw,
 	u32 final_bb_swing_idx[2];
 	u8 pwr_tracking_limit = 26; /*+1.0dB*/
 	u8 tx_rate = 0xFF;
-	char final_ofdm_swing_index = 0;
+	s8 final_ofdm_swing_index = 0;
 
 	if(rtldm->tx_rate != 0xFF)
 		tx_rate = rtl8812ae_hw_rate_to_mrate(hw, rtldm->tx_rate);
@@ -1999,7 +1999,7 @@ void rtl8821ae_dm_txpwr_track_set_pwr(struct ieee80211_hw *hw,
 	u32 final_bb_swing_idx[1];
 	u8 pwr_tracking_limit = 26; /*+1.0dB*/
 	u8 tx_rate = 0xFF;
-	char final_ofdm_swing_index = 0;
+	s8 final_ofdm_swing_index = 0;
 
 	if(rtldm->tx_rate != 0xFF)
 		tx_rate = rtl8812ae_hw_rate_to_mrate(hw, rtldm->tx_rate);
@@ -2599,8 +2599,8 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_dm *rtldm =  rtl_dm(rtl_priv(hw));
 
 	/*Keep past Tx/Rx packet count for RT-to-RT EDCA turbo.*/
-	u64 cur_tx_ok_cnt = 0;
-	u64 cur_rx_ok_cnt = 0;
+	unsigned long cur_tx_ok_cnt = 0;
+	unsigned long cur_rx_ok_cnt = 0;
 	u32 edca_be_ul = 0x5ea42b;
 	u32 edca_be_dl = 0x5ea42b;
 	u32 edca_be = 0x5ea42b;

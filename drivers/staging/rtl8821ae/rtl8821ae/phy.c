@@ -3427,7 +3427,7 @@ void _rtl8812ae_iqk_tx(
 	bool iqk0_ready = false, tx0_finish = false, rx0_finish = false;
 	bool tx1iqkok = false, rx1iqkok = false, tx1_fail = true, rx1_fail;
 	bool iqk1_ready = false, tx1_finish = false, rx1_finish = false, vdf_enable = false;
-	int i, tx_dt[3], rx_dt[3], ii, dx = 0, dy = 0;
+	int i, tx_dt[3] = {0}, rx_dt[3] = {0}, ii, dx = 0, dy = 0;
 
 	RT_TRACE(COMP_IQK, DBG_LOUD,
 			("BandWidth = %d.\n",

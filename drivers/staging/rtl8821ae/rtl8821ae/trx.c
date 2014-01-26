@@ -458,13 +458,13 @@ static void _rtl8821ae_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	memcpy(pstatus->psaddr, psaddr, ETH_ALEN);
 
 	b_packet_matchbssid = ((IEEE80211_FTYPE_CTL != type) &&
-	     (!compare_ether_addr(mac->bssid, (fc & IEEE80211_FCTL_TODS) ?
+	     (!ether_addr_equal(mac->bssid, (fc & IEEE80211_FCTL_TODS) ?
 				  hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS) ?
 				  hdr->addr2 : hdr->addr3)) && (!pstatus->b_hwerror) &&
 				  (!pstatus->b_crc) && (!pstatus->b_icv));
 
 	b_packet_toself = b_packet_matchbssid &&
-	    (!compare_ether_addr(praddr, rtlefuse->dev_addr));
+	    (!ether_addr_equal(praddr, rtlefuse->dev_addr));
 
 	if (ieee80211_is_beacon(fc))
 		b_packet_beacon = true;
