@@ -1540,10 +1540,10 @@ static int rt5640_set_dmic2_event(struct snd_soc_dapm_widget *w,
 }
 
 #if USE_ONEBIT_DEPOP
-void hp_amp_power(struct snd_soc_codec *codec, int on)
+void rt5640_hp_amp_power(struct snd_soc_codec *codec, int on)
 {
 	static int hp_amp_power_count;
-//	printk("one bit hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
+//	printk("one bit rt5640_hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
 
 	if(on) {
 		if(hp_amp_power_count <= 0) {
@@ -1601,7 +1601,7 @@ void hp_amp_power(struct snd_soc_codec *codec, int on)
 
 static void rt5640_pmu_depop(struct snd_soc_codec *codec)
 {
-	hp_amp_power(codec, 1);
+	rt5640_hp_amp_power(codec, 1);
 	/* headphone unmute sequence */
 	msleep(5);
 	snd_soc_update_bits(codec, RT5640_HP_VOL,
@@ -1625,15 +1625,15 @@ static void rt5640_pmd_depop(struct snd_soc_codec *codec)
 		RT5640_L_MUTE | RT5640_R_MUTE,
 		RT5640_L_MUTE | RT5640_R_MUTE);
 	msleep(50);
-	hp_amp_power(codec, 0);
+	rt5640_hp_amp_power(codec, 0);
 	
 }
 
 #else //seq
-void hp_amp_power(struct snd_soc_codec *codec, int on)
+void rt5640_hp_amp_power(struct snd_soc_codec *codec, int on)
 {
 	static int hp_amp_power_count;
-//	printk("hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
+//	printk("rt5640_hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
 
 	if(on) {
 		if(hp_amp_power_count <= 0) {
@@ -1690,7 +1690,7 @@ void hp_amp_power(struct snd_soc_codec *codec, int on)
 
 static void rt5640_pmu_depop(struct snd_soc_codec *codec)
 {
-	hp_amp_power(codec, 1);
+	rt5640_hp_amp_power(codec, 1);
 	/* headphone unmute sequence */
 	snd_soc_update_bits(codec, RT5640_DEPOP_M3,
 		RT5640_CP_FQ1_MASK | RT5640_CP_FQ2_MASK | RT5640_CP_FQ3_MASK,
@@ -1737,7 +1737,7 @@ static void rt5640_pmd_depop(struct snd_soc_codec *codec)
 		RT5640_L_MUTE | RT5640_R_MUTE, RT5640_L_MUTE | RT5640_R_MUTE);
 	msleep(30);
 
-	hp_amp_power(codec, 0);
+	rt5640_hp_amp_power(codec, 0);
 }
 #endif
 
@@ -1795,7 +1795,7 @@ static int rt5640_lout_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		hp_amp_power(codec,1);
+		rt5640_hp_amp_power(codec,1);
 		snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 			RT5640_PWR_LM, RT5640_PWR_LM);
 		snd_soc_update_bits(codec, RT5640_OUTPUT,
@@ -1808,7 +1808,7 @@ static int rt5640_lout_event(struct snd_soc_dapm_widget *w,
 			RT5640_L_MUTE | RT5640_R_MUTE);
 		snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 			RT5640_PWR_LM, 0);
-		hp_amp_power(codec,0);
+		rt5640_hp_amp_power(codec,0);
 		break;
 
 	default:
@@ -3132,7 +3132,7 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 }
 
 /* add by magf for CONFIG_.._CTL_CODEC option */
-void codec_set_spk(bool on)
+void rt5640_codec_set_spk(bool on)
 {
     struct snd_soc_codec *codec = rt5640_codec;
 
@@ -3229,7 +3229,7 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 	ioctl_ops->index_read = rt5640_index_read;
 	ioctl_ops->index_update_bits = rt5640_index_update_bits;
 	ioctl_ops->ioctl_common = rt5640_ioctl_common;
-	realtek_ce_init_hwdep(codec);
+	rt56xx_ce_init_hwdep(codec);
 #endif
 #endif
 
@@ -3257,7 +3257,7 @@ static int rt5640_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int rt5640_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rt5640_suspend(struct snd_soc_codec *codec)
 {
 #if defined(CONFIG_SND_SOC_RT5642_MODULE) || defined(CONFIG_SND_SOC_RT5642)
 	/* After opening LDO of DSP, then close LDO of codec.
@@ -3266,7 +3266,7 @@ static int rt5640_suspend(struct snd_soc_codec *codec, pm_message_t state)
 	 * (3) DSP IIS interface power off
 	 * (4) Toggle pin of codec LDO1 to power off
 	 */
-	rt5640_dsp_suspend(codec, state);
+	rt5640_dsp_suspend(codec);
 #endif
 	rt5640_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

@@ -1287,7 +1287,7 @@ EXPORT_SYMBOL_GPL(rt_codec_dsp_ioctl_common);
 #endif
 
 #ifdef CONFIG_PM
-int rt3261_dsp_suspend(struct snd_soc_codec *codec, pm_message_t state)
+int rt3261_dsp_suspend(struct snd_soc_codec *codec)
 {
 	return 0;
 }

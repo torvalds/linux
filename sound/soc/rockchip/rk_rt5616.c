@@ -1,7 +1,7 @@
 /*
- * rk29_rt5631.c  --  SoC audio for rockchip
+ * rk29_rt5616.c  --  SoC audio for rockchip
  *
- * Driver for rockchip rt5631 audio
+ * Driver for rockchip rt5616 audio
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -13,13 +13,14 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <asm/io.h>
-#include <mach/hardware.h>
-#include "../codecs/rt5631.h"
+
+#include "../codecs/rt5616.h"
 #include "rk_pcm.h"
 #include "rk29_i2s.h"
 
@@ -99,12 +100,12 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 
 		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
 #if 0		//use pll from blck
-          /*Set the pll of rt5631,the Pll source from BITCLK on CPU is master mode*/
+          /*Set the pll of rt5616,the Pll source from BITCLK on CPU is master mode*/
          //bitclk is 64fs           
 		    ret=snd_soc_dai_set_pll(codec_dai,0,params_rate(params)*64,pll_out);
 		    if (ret < 0)
 		    { 
-		       DBG("rk29_hw_params_rt5631:failed to set the pll for codec side\n"); 
+		       DBG("rk29_hw_params_rt5616:failed to set the pll for codec side\n"); 
 		  	   return ret;
 		    }
 #endif	    
@@ -112,7 +113,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		    ret=snd_soc_dai_set_sysclk(codec_dai, 0,pll_out,SND_SOC_CLOCK_IN);
 		    if (ret < 0)
 		    {
-		       DBG("rk29_hw_params_rt5631:failed to set the sysclk for codec side\n"); 
+		       DBG("rk29_hw_params_rt5616:failed to set the sysclk for codec side\n"); 
 		   	   return ret;
 		   	}	    
 		#endif
@@ -137,7 +138,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         return 0;
 }
 
-static const struct snd_soc_dapm_widget rt5631_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget rt5616_dapm_widgets[] = {
 	
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
@@ -160,9 +161,9 @@ static const struct snd_soc_dapm_route audio_map[]={
 } ;
 
 /*
- * Logic for a rt5631 as connected on a rockchip board.
+ * Logic for a rt5616 as connected on a rockchip board.
  */
-static int rk29_rt5631_init(struct snd_soc_pcm_runtime *rtd)
+static int rk29_rt5616_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
@@ -170,8 +171,8 @@ static int rk29_rt5631_init(struct snd_soc_pcm_runtime *rtd)
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
         /* Add specific widgets */
-	snd_soc_dapm_new_controls(dapm, rt5631_dapm_widgets,
-				  ARRAY_SIZE(rt5631_dapm_widgets));
+	snd_soc_dapm_new_controls(dapm, rt5616_dapm_widgets,
+				  ARRAY_SIZE(rt5616_dapm_widgets));
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
         /* Set up specific audio path audio_mapnects */
         snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
@@ -193,55 +194,70 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	.name = "rt5616",
 	.stream_name = "rt5616 PCM",
-	.codec_name = "rt5616.4-001b",
-	.platform_name = "rockchip-audio",
+	.codec_name = "rt5616.0-001b",
+	.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
-	.cpu_dai_name = "rk_i2s.0",
+	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-	.cpu_dai_name = "rk_i2s.1",
+	.cpu_dai_name = "rockchip-i2s.1",
 #else
-	.cpu_dai_name = "rk_i2s.2",
+	.cpu_dai_name = "rockchip-i2s.2",
 #endif
 	.codec_dai_name = "rt5616-aif1",
-	.init = rk29_rt5631_init,
+	.init = rk29_rt5616_init,
 	.ops = &rk29_ops,
 };
 
-static struct snd_soc_card snd_soc_card_rk29 = {
+static struct snd_soc_card rockchip_rt5616_snd_card = {
 	.name = "RK_RT5616",
 	.dai_link = &rk29_dai,
 	.num_links = 1,
 };
 
-static struct platform_device *rk29_snd_device;
-
-static int __init audio_card_init(void)
+static int rockchip_rt5616_audio_probe(struct platform_device *pdev)
 {
-	int ret =0;
+	int ret;
+	struct snd_soc_card *card = &rockchip_rt5616_snd_card;
 
-        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-	rk29_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!rk29_snd_device) {
-		  printk("platform device allocation failed\n");
-		  ret = -ENOMEM;
-		  return ret;
-	}
-	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
-	ret = platform_device_add(rk29_snd_device);
-	if (ret) {
-	        printk("platform device add failed\n");
-	        platform_device_put(rk29_snd_device);
-	}
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
+
+	if (ret)
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
+
 	return ret;
 }
 
-static void __exit audio_card_exit(void)
+static int rockchip_rt5616_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(rk29_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	return 0;
 }
 
-module_init(audio_card_init);
-module_exit(audio_card_exit);
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_rt5616_of_match[] = {
+        { .compatible = "rockchip-rt5616", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_rt5616_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_rt5616_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-rt5616",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_rt5616_of_match),
+        },
+        .probe          = rockchip_rt5616_audio_probe,
+        .remove         = rockchip_rt5616_audio_remove,
+};
+
+module_platform_driver(rockchip_rt5616_audio_driver);
+
 /* Module information */
 MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP i2s ASoC Interface");

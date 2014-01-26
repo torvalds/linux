@@ -28,13 +28,13 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <asm/mach-types.h>
 #include <linux/module.h>
 #include <linux/device.h>
 
-#include <asm/io.h>
-#include <mach/hardware.h>
 #include "../codecs/wm8994.h"
 #include "rk_pcm.h"
 #include "rk29_i2s.h"
@@ -443,13 +443,13 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.name = "AIC3262 I2S1",
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
-		.platform_name = "rockchip-audio",
+		.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
-        .cpu_dai_name = "rk_i2s.0",
+        .cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-		.cpu_dai_name = "rk_i2s.1",
+		.cpu_dai_name = "rockchip-i2s.1",
 #else	
-		.cpu_dai_name = "rk_i2s.2",
+		.cpu_dai_name = "rockchip-i2s.2",
 #endif
 		.codec_dai_name = "aic326x-asi1",
 		.ops = &rk29_aif1_ops,
@@ -460,13 +460,13 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.name = "AIC3262 I2S2",
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
-		.platform_name = "rockchip-audio",
+		.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
-        	.cpu_dai_name = "rk_i2s.0",
+        	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-		.cpu_dai_name = "rk_i2s.1",
+		.cpu_dai_name = "rockchip-i2s.1",
 #else	
-		.cpu_dai_name = "rk_i2s.2",
+		.cpu_dai_name = "rockchip-i2s.2",
 #endif
 		.codec_dai_name = "aic326x-asi2",
 		.ops = &rk29_aif2_ops,
@@ -477,13 +477,13 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.name = "AIC3262 I2S3",
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
-		.platform_name = "rockchip-audio",
+		.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
-        	.cpu_dai_name = "rk_i2s.0",
+        	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-		.cpu_dai_name = "rk_i2s.1",
+		.cpu_dai_name = "rockchip-i2s.1",
 #else	
-		.cpu_dai_name = "rk_i2s.2",
+		.cpu_dai_name = "rockchip-i2s.2",
 #endif
 		.codec_dai_name = "aic326x-asi3",
 		.ops = &rk29_aif3_ops,
@@ -492,45 +492,55 @@ static struct snd_soc_dai_link rk29_dai[] = {
 };
 
 
-static struct snd_soc_card snd_soc_card_rk29 = {
+static struct snd_soc_card rockchip_aic3262_snd_card = {
 	.name = "RK_AIC3262",
 	.dai_link = rk29_dai,
 	.num_links = ARRAY_SIZE(rk29_dai),
 };
 
-static struct platform_device *rk29_snd_device;
-
-static int __init audio_card_init(void)
+static int rockchip_aic3262_audio_probe(struct platform_device *pdev)
 {
-	int ret =0;
+	int ret;
+	struct snd_soc_card *card = &rockchip_aic3262_snd_card;
 
-	DBG_AIC3262("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	card->dev = &pdev->dev;
 
-	rk29_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!rk29_snd_device) {
-		  printk("platform device allocation failed\n");
-		  return -ENOMEM;
-	}
-	
-	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
-	ret = platform_device_add(rk29_snd_device);
-	if (ret) {
-		printk("platform device add failed\n");
-	//	snd_soc_unregister_dai(&rk29_snd_device->dev);
-		platform_device_put(rk29_snd_device);
-		return ret;
-	}
-	
-	return ret;		
+	ret = snd_soc_register_card(card);
+
+	if (ret)
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
+
+	return ret;
 }
 
-static void __exit audio_card_exit(void)
+static int rockchip_aic3262_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(rk29_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	return 0;
 }
 
-module_init(audio_card_init);
-module_exit(audio_card_exit);
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_aic3262_of_match[] = {
+        { .compatible = "rockchip-aic3262", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_aic3262_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_aic3262_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-aic3262",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_aic3262_of_match),
+        },
+        .probe          = rockchip_aic3262_audio_probe,
+        .remove         = rockchip_aic3262_audio_remove,
+};
+
+module_platform_driver(rockchip_aic3262_audio_driver);
 
 /* Module information */
 MODULE_AUTHOR("rockchip");

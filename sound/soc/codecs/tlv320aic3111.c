@@ -34,9 +34,10 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/cdev.h>
-
-#include <linux/proc_fs.h>
+#include <linux/of_gpio.h>
 #include <linux/seq_file.h>
+#include <linux/spi/spi.h>
+#include <linux/clk.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -44,19 +45,21 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
-#include <mach/gpio.h>
+//#include <mach/gpio.h>
 #include "tlv320aic3111.h"
 
 #if 0
-#define AIC3111_DEBUG
 #define	AIC_DBG(x...)	printk(KERN_INFO x)
 #else
 #define	AIC_DBG(x...)	do { } while (0)
 #endif
 
-#define HP_DET_PIN 		RK29_PIN6_PA0
-//#define AIC3111_DEBUG
+#define GPIO_HIGH 1
+#define GPIO_LOW 0
+#define INVALID_GPIO -1
+
 /* codec status */
 #define AIC3110_IS_SHUTDOWN	0
 #define AIC3110_IS_CAPTURE_ON	1
@@ -70,9 +73,12 @@
 #define AIC3110_POWERDOWN_PLAYBACK_CAPTURE	3
 #define JACK_DET_ADLOOP         msecs_to_jiffies(200)
 
-//#define AIC3111_DEBUG
 #define SPK 1
 #define HP 0
+
+int aic3111_spk_ctl_gpio = INVALID_GPIO;
+int aic3111_hp_det_gpio = INVALID_GPIO;
+
 static int aic3111_power_speaker (bool on);
 struct speaker_data {
      struct timer_list timer;
@@ -357,7 +363,7 @@ static int aic3111_write (struct snd_soc_codec *codec, unsigned int reg, unsigne
 	u8 data[2];
 	u8 page;
         //printk("enter %s!!!!!!\n",__FUNCTION__);
-	//printk("RK29_PIN6_PB6 =%d!!!!!!\n",gpio_get_value(RK29_PIN6_PB6));
+	//printk("aic3111_hp_det_gpio =%d!!!!!!\n",gpio_get_value(aic3111_hp_det_gpio));
 	page = reg / 128;
  	data[AIC3111_REG_OFFSET_INDEX] = reg % 128;
 
@@ -425,7 +431,7 @@ static void aic3111_soft_reset (void)
 
 	//aic3111_write (codec, 1, 0x01);
 	aic3111_write (codec, 63, 0x00);
-	gpio_set_value(RK29_PIN6_PB5, GPIO_LOW);
+	gpio_set_value(aic3111_spk_ctl_gpio, GPIO_LOW);
 	msleep(10);
 	aic3111_write (aic3111_codec, (68), 0x01); //disable DRC
 	aic3111_write (aic3111_codec, (128 + 31), 0xc4);
@@ -1043,13 +1049,13 @@ static int aic3111_power_playback (bool on)
 	struct snd_soc_codec *codec = aic3111_codec;
 
 	AIC_DBG ("CODEC::%s>>>>>>%d\n", __FUNCTION__, on);
-	gpio_set_value(RK29_PIN6_PB5, GPIO_LOW);
+	gpio_set_value(aic3111_spk_ctl_gpio, GPIO_LOW);
 	aic3111_power_init();
 
 	if ((on == POWER_STATE_ON) &&
 	    !(aic3111_current_status & AIC3110_IS_PLAYBACK_ON)) {
 //	if(1){
-		//gpio_set_value(RK29_PIN6_PB5, GPIO_HIGH);
+		//gpio_set_value(aic3111_spk_ctl_gpio, GPIO_HIGH);
 
 		/****open HPL and HPR*******/
 		//aic3111_write(codec, (63), 0xfc);
@@ -1094,7 +1100,7 @@ static int aic3111_power_playback (bool on)
 		aic3111_current_status &= ~AIC3110_IS_PLAYBACK_ON;
 	}
 	//mdelay(800);
-	gpio_set_value(RK29_PIN6_PB5, GPIO_HIGH);
+	gpio_set_value(aic3111_spk_ctl_gpio, GPIO_HIGH);
 
 	return 0;
 }
@@ -1331,7 +1337,7 @@ static int aic3111_trigger(struct snd_pcm_substream *substream,
 
 	if(status == 0)
 	{
-		gpio_set_value(RK29_PIN6_PB5, GPIO_LOW);
+		gpio_set_value(aic3111_spk_ctl_gpio, GPIO_LOW);
 		mdelay(10);
 	}
 
@@ -1380,204 +1386,6 @@ static struct snd_soc_dai_driver aic3111_dai[] = {
 	},
 };
 
-#ifdef AIC3111_DEBUG
-static struct class *aic3111_debug_class = NULL;
-static int reg_128_39 = 12, reg_128_43 = 0;
-static int i=52;j=1,k=0;
-static int CheckCommand(const char __user *buffer)
-{
-	switch(*buffer) {
-	case '1':
-		if (*(buffer + 1) == '+') {
-			if (reg_128_39 < 12) {
-				if (reg_128_39 % 2 == 0)
-					printk("write reg 128 + 39 vol + : %ddB -> -%d.5dB\n", (reg_128_39 - 12) / 2, (11 - reg_128_39) / 2);
-				else
-					printk("write reg 128 + 39 vol + : -%d.5dB -> %ddB\n", (12 - reg_128_39) / 2, (reg_128_39 - 11) / 2);
-				reg_128_39++;
-				aic3111_write(aic3111_codec, (128 + 39), 0x04 + (12 - reg_128_39));
-			} else {
-				printk("128 + 39 max vol 0dB\n");
-			}
-		} else if (*(buffer + 1) == '-') {
-			if (reg_128_39 > 0) {
-				if (reg_128_39 % 2 == 0)
-					printk("write reg 128 + 39 vol - : %ddB -> -%d.5dB\n", (reg_128_39 - 12) / 2, (13 - reg_128_39) / 2);
-				else
-					printk("write reg 128 + 39 vol - : -%d.5dB -> %ddB\n", (12 - reg_128_39) / 2, (reg_128_39 - 13) / 2);
-				reg_128_39--;
-				aic3111_write(aic3111_codec, (128 + 39), 0x08 + (12 - reg_128_39));
-			} else {
-				printk("128 + 39 min vol -6dB\n");
-			}
-		}
-		break;
-	case '2':
-		if (*(buffer + 1) == '+') {
-			if (reg_128_43 < 2) {
-				printk("write reg 128 + 43 vol + : %ddB -> %ddB\n", (reg_128_43) * 6, (reg_128_43 + 1) * 6);
-				reg_128_43++;
-				aic3111_write(aic3111_codec, (128 + 43), 0x04 + ((reg_128_43 + 1) << 3));
-			} else {
-				printk("128 + 43 max vol 12dB\n");
-			}
-		} else if (*(buffer + 1) == '-') {
-			if (reg_128_43 > 0) {
-				printk("write reg 128 + 43 vol - : %ddB -> %ddB\n", (reg_128_43) * 6, (reg_128_43 - 1) * 6);
-				reg_128_43--;
-				aic3111_write(aic3111_codec, (128 + 43), 0x04 + ((reg_128_43 + 1) << 3));
-			} else {
-				printk("128 + 43 min vol 0dB\n");
-			}
-		}
-		break;
-	case 'o':
-		aic3111_write(aic3111_codec, (128 + 39), 0x08 + (12 - reg_128_39));
-		aic3111_write(aic3111_codec, (128 + 43), 0x04 + ((reg_128_43 + 1) << 3));
-	case 'l':
-		if (reg_128_39 % 2 == 0)
-			printk("reg 128 + 43 vol : %ddB  reg 128 + 39 vol : %ddB\n", (reg_128_43) * 6, (reg_128_39 - 12) / 2);
-		else
-			printk("reg 128 + 43 vol : %ddB  reg 128 + 39 vol : -%d.5dB\n", (reg_128_43) * 6, (12 - reg_128_39) / 2);
-		break;
-	case 's':
-		aic3111_power_speaker (POWER_STATE_ON);
-		break;
-
-	case 'h':
-		aic3111_power_headphone (POWER_STATE_ON);
-		break;
-
-	case 'q':
-		aic3111_power_speaker (POWER_STATE_OFF);
-		break;
-	
-	case 'w':
-		aic3111_power_headphone (POWER_STATE_OFF);
-		break;
-
-	case 'a':
-		i--;
-		gpio_set_value(RK29_PIN6_PB5, GPIO_HIGH);
-		//printk("reg[128+39]=0x%x\n",aic3111_read(aic3111_codec,(128 + 39)));
-		printk("-db add\n");
-		break;
-	case 'r':
-		i++;
-		gpio_set_value(RK29_PIN6_PB5, GPIO_LOW);
-		//printk("reg[128+39]=0x%x\n",aic3111_read(aic3111_codec,(128 + 39)));
-		printk("-db down\n");
-		break;
-	case 't':
-		
-		printk("PB5 = %d\n",gpio_get_value(RK29_PIN6_PB5));
-		break;
-
-	case 'z':
-		j++;
-		aic3111_write(aic3111_codec, (66), j);
-		printk("DAC db add\n");
-		printk("reg[66]=0x%x\n",aic3111_read(aic3111_codec,66));
-		break;
-	case 'x':
-		j--;
-		aic3111_write(aic3111_codec, (66), j);
-		printk("DAC db down\n");
-		printk("reg[66]=0x%x\n",aic3111_read(aic3111_codec,66));
-		break;
-
-	case 'c':
-		j--;
-		aic3111_write(aic3111_codec, (63), 0xfc);
-		printk("reg[63]=0x%x\n",aic3111_read(aic3111_codec,66));
-		break;
-
-	case 'n':
-		k++;
-		if(k==1)
-		{
-		aic3111_write(aic3111_codec, (128 + 40), 0x0e);
-		aic3111_write(aic3111_codec, (128 + 41), 0x0e);
-		printk("HPR and HPL 1 DB\n",k);
-		}
-		if(k==2)
-		{
-		aic3111_write(aic3111_codec, (128 + 40), 0x1e);
-		aic3111_write(aic3111_codec, (128 + 40), 0x1e);
-		printk("HPR and HPL 3 DB\n",k);
-		}
-		if(k==3)
-		{
-		aic3111_write(aic3111_codec, (128 + 40), 0x2e);
-		aic3111_write(aic3111_codec, (128 + 40), 0x2e);
-		printk("HPR and HPL 5 DB\n",k);
-		}
-		break;
-
-	case 'm':
-		k--;
-		if(k==1)
-		{
-		aic3111_write(aic3111_codec, (128 + 40), 0x0e);
-		aic3111_write(aic3111_codec, (128 + 41), 0x0e);
-		printk("HPR and HPL 1 DB\n",k);
-		}
-		if(k==2)
-		{
-		aic3111_write(aic3111_codec, (128 + 40), 0x1e);
-		aic3111_write(aic3111_codec, (128 + 40), 0x1e);
-		printk("HPR and HPL 3 DB\n",k);
-		}
-		if(k==3)
-		{
-		aic3111_write(aic3111_codec, (128 + 40), 0x2e);
-		aic3111_write(aic3111_codec, (128 + 40), 0x2e);
-		printk("HPR and HPL 5 DB\n",k);
-		}
-		break;
-
-
-	default:
-		printk("Please press '1' '2' 'o' 'l' !\n");
-		break;
-	}
-	return 0;
-}
-
-static int aic3111_proc_write(struct file *file, const char __user *buffer,
-			   unsigned long count, void *data)
-{
-	if (CheckCommand(buffer) != 0) {
-		printk("Write proc error !\n");
-		return -1;
-	}
-
-	return sizeof(buffer);
-}
-static const struct file_operations aic3111_proc_fops = {
-	.owner		= THIS_MODULE,
-	.write		= aic3111_proc_write,
-};
-
-static int aic3111_proc_init(void) {
-
-	struct proc_dir_entry *aic3111_proc_entry;
-        //printk("!!!!!!!!!!!!!!!!!!!!\n");
-	aic3111_proc_entry = create_proc_entry("driver/aic3111_ts", 0777, NULL);
-
-	if (aic3111_proc_entry != NULL) {
-
-		aic3111_proc_entry->write_proc = aic3111_proc_write;
-
-		return -1;
-	}else {
-		printk("create proc error !\n");
-	}
-
-	return 0;
-}
-#endif
-
 struct delayed_work aic3111_speaker_delayed_work;
 int speakeronoff;
 
@@ -1591,9 +1399,9 @@ static void  aic3111_speaker_delayed_work_func(struct work_struct  *work)
 			 //aic3111_write(codec, (128 + 32), 0xc6);
 			//printk("reg 128+32 = %x\n"aic3111_read(codec, (128 + 32)));
 			isHSin = 0;
-			//gpio_set_value(RK29_PIN6_PB5, GPIO_LOW);
+			//gpio_set_value(aic3111_spk_ctl_gpio, GPIO_LOW);
 			aic3111_power_speaker(POWER_STATE_OFF);
-			gpio_set_value(RK29_PIN6_PB5, GPIO_HIGH);
+			gpio_set_value(aic3111_spk_ctl_gpio, GPIO_HIGH);
 			//aic3111_power_headphone(POWER_STATE_ON);
 			//aic3111_write(codec, (128 + 35), 0x88);
 			printk("now hp sound\n");
@@ -1603,7 +1411,7 @@ static void  aic3111_speaker_delayed_work_func(struct work_struct  *work)
 
 			isHSin = 1;
 			//aic3111_power_headphone(POWER_STATE_OFF);
-			gpio_set_value(RK29_PIN6_PB5, GPIO_LOW);
+			gpio_set_value(aic3111_spk_ctl_gpio, GPIO_LOW);
 			aic3111_power_speaker(POWER_STATE_ON);
 			aic3111_write(codec, (128 + 35), 0x44);
 			aic3111_write(codec, (63), 0xfc);
@@ -1621,7 +1429,7 @@ static int speaker_timer(unsigned long _data)
 	struct speaker_data *spk = (struct speaker_data *)_data;
 	int new_status;
 
-	if (gpio_get_value(RK29_PIN6_PB6) == 0) {
+	if (gpio_get_value(aic3111_hp_det_gpio) == 0) {
 		new_status = HP;
 		isHSin = 0;
 		//printk("hp now\n");
@@ -1637,7 +1445,7 @@ static int speaker_timer(unsigned long _data)
 		}
 	}
 
-	if (gpio_get_value(RK29_PIN6_PB6) == 1) {
+	if (gpio_get_value(aic3111_hp_det_gpio) == 1) {
 		new_status = SPK;
 		isHSin = 1;
 		//printk("speak now\n");
@@ -1673,7 +1481,7 @@ static int aic3111_probe (struct snd_soc_codec *codec)
 	aic3111_codec = codec;
 
 #if 1
-	gpio_set_value(RK29_PIN6_PB6,1);
+	gpio_set_value(aic3111_hp_det_gpio,1);
 	struct speaker_data *spk;
 
 	spk = kzalloc(sizeof(struct speaker_data), GFP_KERNEL);
@@ -1688,7 +1496,7 @@ static int aic3111_probe (struct snd_soc_codec *codec)
 	INIT_DELAYED_WORK(&aic3111_speaker_delayed_work, aic3111_speaker_delayed_work_func);
 
 /*********************/
-	//pio_set_value(RK29_PIN6_PB5, GPIO_LOW);
+	//pio_set_value(aic3111_spk_ctl_gpio, GPIO_LOW);
 	//aic3111_power_speaker(POWER_STATE_OFF);
 	//aic3111_power_headphone(POWER_STATE_ON);
 #endif
@@ -1718,7 +1526,7 @@ static int aic3111_probe (struct snd_soc_codec *codec)
 */
 	/* Just Reset codec */
 	aic3111_soft_reset();
-	gpio_set_value(RK29_PIN6_PB5, GPIO_LOW);
+	gpio_set_value(aic3111_spk_ctl_gpio, GPIO_LOW);
 	msleep(10);
 	aic3111_write (aic3111_codec, (68), 0x01); //disable DRC
 	aic3111_write (aic3111_codec, (128 + 31), 0xc4);
@@ -1726,10 +1534,6 @@ static int aic3111_probe (struct snd_soc_codec *codec)
 	aic3111_write (aic3111_codec, (128 + 37), 0x28); //Right Analog Vol to HPL
 	aic3111_write (aic3111_codec, (128 + 40), 0x4f); //HPL driver PGA
 	aic3111_write (aic3111_codec, (128 + 41), 0x4f); //HPR driver PGA
-
-#ifdef AIC3111_DEBUG
-	aic3111_proc_init();
-#endif
 
 	aic3111_set_bias_level (codec, SND_SOC_BIAS_STANDBY);
 
@@ -1763,7 +1567,7 @@ static int aic3111_remove (struct snd_soc_codec *codec)
  *            
  *----------------------------------------------------------------------------
  */
-static int aic3111_suspend (struct snd_soc_codec *codec, pm_message_t state)
+static int aic3111_suspend (struct snd_soc_codec *codec)
 {
 
 	AIC_DBG ("CODEC::%s\n", __FUNCTION__);
@@ -1817,6 +1621,15 @@ static const struct i2c_device_id tlv320aic3111_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tlv320aic3111_i2c_id);
 
+/*
+dts:
+	codec@1a {
+		compatible = "aic3111";
+		reg = <0x1a>;
+		spk-ctl-gpio = <&gpio6 GPIO_B5 GPIO_ACTIVE_HIGH>;
+		hp-det-pio = <&gpio6 GPIO_B6 GPIO_ACTIVE_HIGH>;
+	};
+*/
 static int tlv320aic3111_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
@@ -1828,6 +1641,20 @@ static int tlv320aic3111_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	aic3111_i2c = i2c;
+
+#ifdef CONFIG_OF
+	aic3111_spk_ctl_gpio= of_get_named_gpio_flags(i2c->dev.of_node, "spk-ctl-gpio", 0, NULL);
+	if (aic3111_spk_ctl_gpio < 0) {
+		printk("%s() Can not read property spk-ctl-gpio\n", __FUNCTION__);
+		aic3111_spk_ctl_gpio = INVALID_GPIO;
+	}
+
+	aic3111_hp_det_gpio = of_get_named_gpio_flags(i2c->dev.of_node, "hp-det-pio", 0, NULL);
+	if (aic3111_hp_det_gpio < 0) {
+		printk("%s() Can not read property hp-det-pio\n", __FUNCTION__);
+		aic3111_hp_det_gpio = INVALID_GPIO;
+	}
+#endif //#ifdef CONFIG_OF
 
 	i2c_set_clientdata(i2c, aic3111);
 
@@ -1841,7 +1668,7 @@ static int tlv320aic3111_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int tlv320aic3111_i2c_remove(struct i2c_client *client)
+static int tlv320aic3111_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	kfree(i2c_get_clientdata(client));
@@ -1854,7 +1681,7 @@ struct i2c_driver tlv320aic3111_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tlv320aic3111_i2c_probe,
-	.remove   = __devexit_p(tlv320aic3111_i2c_remove),
+	.remove   = tlv320aic3111_i2c_remove,
 	.id_table = tlv320aic3111_i2c_id,
 };
 
@@ -1870,54 +1697,6 @@ static void __exit tlv320aic3111_exit (void)
 
 module_init (tlv320aic3111_init);
 module_exit (tlv320aic3111_exit);
-
-#ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-static int proc_3110_reg_show (struct seq_file *s, void *v)
-{
-	struct snd_soc_codec *codec = aic3111_codec;
-	int reg;
-	u8 *cache = codec->reg_cache;
-
-	seq_printf (s, "========3110register========\n");
-	for (reg = 0; reg < 256; reg++) {
-		if (reg == 0) seq_printf (s, "Page 0\n");
-		if (reg == 128) seq_printf (s, "\nPage 1\n");
-		if (reg%8 == 0 && reg != 0 && reg != 128) seq_printf (s, "\n");
-		seq_printf (s, "[%d]0x%02x, ",reg,aic3111_read (codec, reg));
-	}
-	seq_printf (s, "\n========3110cache========\n");
-	for (reg = 0; reg < codec->reg_size; reg++) {
-		if (reg == 0) seq_printf (s, "Page 0\n");
-		if (reg == 128) seq_printf (s, "\nPage 1\n");
-		if (reg%16 == 0 && reg != 0 && reg != 128) seq_printf (s, "\n");
-		seq_printf (s, "0x%02x, ",cache[reg]);
-	}
-	printk ("\n==========================\n");
-	return 0;
-}
-
-static int proc_3110_reg_open (struct inode *inode, struct file *file)
-{
-	return single_open (file, proc_3110_reg_show, NULL);
-}
-
-static const struct file_operations proc_3110_reg_fops = {
-	.open		= proc_3110_reg_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int __init codec_proc_init (void)
-{
-	proc_create ("aic3110_register", 0, NULL, &proc_3110_reg_fops);
-
-	return 0;
-}
-late_initcall (codec_proc_init);
-#endif /* CONFIG_PROC_FS */
 
 MODULE_DESCRIPTION (" ASoC TLV320AIC3111 codec driver ");
 MODULE_AUTHOR (" Jaz B John <jazbjohn@mistralsolutions.com> ");

@@ -17,6 +17,8 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/of_gpio.h>
+#include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -24,16 +26,6 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <mach/board.h>
-#include <linux/clk.h>
-#include <mach/iomux.h>
-
-//#define RT3261_PROC
-#ifdef RT3261_PROC
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/vmalloc.h>
-#endif
 
 //#define USE_INT_CLK
 #define DIFFERENTIAL 1
@@ -41,9 +33,23 @@
 #define TWO_SPK 2
 #define ONE_SPK 1
 
+enum {
+	SPK_AMPLIFY_ZERO_POINT_FIVE_WATT=1,
+	SPK_AMPLIFY_ZERO_POINT_SIX_WATT,
+	SPK_AMPLIFY_ZERO_POINT_EIGHT_WATT,
+	SPK_AMPLIFY_ONE_WATT,
+};
+
+enum {
+	LR_NORMAL,
+	LR_SWAP,
+	LEFT_COPY_TO_RIGHT,
+	RIGHT_COPY_LEFT,
+};
+
 static struct snd_soc_codec *rt3261_codec;
 
-#if 0
+#if 1
 #define DBG(x...)	printk(KERN_DEBUG x)
 #else
 #define DBG(x...)
@@ -278,6 +284,7 @@ static unsigned int rt3261_read(struct snd_soc_codec *codec,
 static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		unsigned int value, const void *data, int len)
 {
+	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	if (!snd_soc_codec_volatile_register(codec, reg) &&
@@ -293,11 +300,8 @@ static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
-	ret = i2c_master_normal_send(codec->control_data, data, len,400*1000);
-	if (ret == len)
+	if (i2c_master_send(rt3261->i2c, data, len) == len)
 		return 0;
-	if (ret < 0)
-		return ret;
 	else
 		return -EIO;
 }
@@ -561,9 +565,8 @@ static int rt3261_readable_register(
 	}
 }
 
-void codec_set_spk(bool on)
+static void rt3261_codec_set_spk(bool on)
 {
-
 	struct snd_soc_codec *codec = rt3261_codec;
 	DBG("%s: %d\n", __func__, on);
 
@@ -870,10 +873,10 @@ static int rt3261_mic2_put(struct snd_kcontrol *kcontrol,
 }
 //bard 8-9 e
 
-void hp_amp_power(struct snd_soc_codec *codec, int on)
+void rt3261_hp_amp_power(struct snd_soc_codec *codec, int on)
 {
 	static int hp_amp_power_count;
-	printk("hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
+	printk("rt3261_hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
 //	dump_reg(codec);
 	if(on) {
 		if(hp_amp_power_count <= 0) {
@@ -1839,8 +1842,8 @@ static const struct snd_kcontrol_new rt3261_sdi_mux =
 static int rt3261_adc_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
-	unsigned int val, mask;
+	//struct snd_soc_codec *codec = w->codec;
+	//unsigned int val, mask;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1878,7 +1881,7 @@ static int rt3261_mono_adcl_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	unsigned int val, mask;
+	//unsigned int val, mask;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1902,7 +1905,7 @@ static int rt3261_mono_adcr_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	unsigned int val, mask;
+	//unsigned int val, mask;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1998,7 +2001,7 @@ static void rt3261_pmu_depop(struct snd_soc_codec *codec)
 		RT3261_HP_CO_EN | RT3261_HP_SG_EN);
 	rt3261_index_update_bits(codec, RT3261_CHPUMP_INT_REG1,0x0700, 0x0400); //bard 12-6
 #else
-	hp_amp_power(codec, 1);
+	rt3261_hp_amp_power(codec, 1);
 #endif
 	/* headphone unmute sequence */
 	snd_soc_update_bits(codec, RT3261_DEPOP_M3,
@@ -2071,7 +2074,7 @@ static void rt3261_pmd_depop(struct snd_soc_codec *codec)
 		RT3261_PWR_HP_L | RT3261_PWR_HP_R | RT3261_PWR_HA,
 		0);
 #else
-	hp_amp_power(codec, 0);
+	rt3261_hp_amp_power(codec, 0);
 #endif
 }
 #else //one bit
@@ -2195,7 +2198,7 @@ static int rt3261_lout_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		hp_amp_power(codec,1);
+		rt3261_hp_amp_power(codec,1);
 		snd_soc_update_bits(codec, RT3261_PWR_ANLG1,
 			RT3261_PWR_LM, RT3261_PWR_LM); //bard 10-18
 		snd_soc_update_bits(codec, RT3261_OUTPUT,
@@ -2208,7 +2211,7 @@ static int rt3261_lout_event(struct snd_soc_dapm_widget *w,
 			RT3261_L_MUTE | RT3261_R_MUTE);
 		snd_soc_update_bits(codec, RT3261_PWR_ANLG1,
 			RT3261_PWR_LM, 0); //bard 10-18
-		hp_amp_power(codec,0);
+		rt3261_hp_amp_power(codec,0);
 		break;
 
 	default:
@@ -3349,9 +3352,6 @@ static int rt3261_set_bias_level(struct snd_soc_codec *codec,
 
 	return 0;
 }
-	
-static int rt3261_proc_init(void);
-
 
 static int rt3261_probe(struct snd_soc_codec *codec)
 {
@@ -3370,10 +3370,6 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 	codec->write = rt3261_write;
-	
-	#ifdef RT3261_PROC	
-	rt3261_proc_init();
-	#endif
 
 	#if defined (CONFIG_SND_SOC_RT5623)
 	struct clk *iis_clk;
@@ -3478,7 +3474,7 @@ static int rt3261_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int rt3261_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rt3261_suspend(struct snd_soc_codec *codec)
 {
 #if defined (CONFIG_SND_SOC_RT3261)
 	/* After opening LDO of DSP, then close LDO of codec.
@@ -3487,7 +3483,7 @@ static int rt3261_suspend(struct snd_soc_codec *codec, pm_message_t state)
 	 * (3) DSP IIS interface power off
 	 * (4) Toggle pin of codec LDO1 to power off
 	 */
-	rt3261_dsp_suspend(codec, state);
+	rt3261_dsp_suspend(codec);
 #endif
 	rt3261_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -3581,28 +3577,112 @@ static const struct i2c_device_id rt3261_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt3261_i2c_id);
 
+#ifdef CONFIG_OF
+/*
+dts:
+	codec@1c {
+		compatible = "rt3261";
+		reg = <0x1c>;
+		codec-en-gpio = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;
+		spk-num= <2>;
+		modem-input-mode = <1>;
+		lout-to-modem_mode = <1>;
+		spk-amplify = <2>;
+		playback-if1-data_control = <0>;
+		playback-if2-data_control = <0>;
+	};
+*/
+
+static int rt3261_parse_dt_property(struct device *dev,
+				  struct rt3261_priv *rt3261)
+{
+	struct device_node *node = dev->of_node;
+	int ret;
+	enum of_gpio_flags flags;
+
+	printk("%s()\n", __FUNCTION__);
+
+	if (!node)
+		return -ENODEV;
+
+	rt3261->codec_en_gpio = of_get_named_gpio_flags(node, "codec-en-gpio", 0, &flags);
+	if (rt3261->codec_en_gpio < 0) {
+		DBG("%s() Can not read property codec-en-gpio\n", __FUNCTION__);
+	} else {
+		ret = devm_gpio_request(dev, rt3261->codec_en_gpio, "codec_en_gpio");
+		if(ret){
+			printk("%s() codec_en_gpio request ERROR", __FUNCTION__);
+			return ret;
+		}
+		ret = gpio_direction_output(rt3261->codec_en_gpio , !flags);
+		if(ret){
+			printk("%s() codec_en_gpio set ERROR", __FUNCTION__);
+			return ret;
+		}
+	}
+
+	ret = of_property_read_u32(node, "spk-num", &rt3261->spk_num);
+	if (ret < 0) {
+		DBG("%s() Can not read property spk-num\n", __FUNCTION__);
+		rt3261->spk_num = TWO_SPK;
+	}
+
+	ret = of_property_read_u32(node, "modem-input-mode", &rt3261->modem_input_mode);
+	if (ret < 0) {
+		DBG("%s() Can not read property modem-input-mode\n", __FUNCTION__);
+		rt3261->modem_input_mode = DIFFERENTIAL;
+	}
+
+	ret = of_property_read_u32(node, "lout-to-modem-mode", &rt3261->lout_to_modem_mode);
+	if (ret < 0) {
+		DBG("%s() Can not read property lout-to-modem-mode\n", __FUNCTION__);
+		rt3261->lout_to_modem_mode = DIFFERENTIAL;
+	}
+
+	ret = of_property_read_u32(node, "spk-amplify", &rt3261->spk_amplify);
+	if (ret < 0) {
+		DBG("%s() Can not read property spk-amplify\n", __FUNCTION__);
+		rt3261->spk_amplify = SPK_AMPLIFY_ZERO_POINT_SIX_WATT;
+	}
+
+	ret = of_property_read_u32(node, "playback-if1-data-control", &rt3261->playback_if1_data_control);
+	if (ret < 0) {
+		DBG("%s() Can not read property playback-if1-data-control\n", __FUNCTION__);
+		rt3261->playback_if1_data_control = LR_NORMAL;
+	}
+
+	ret = of_property_read_u32(node, "playback-if2-data-control", &rt3261->playback_if2_data_control);
+	if (ret < 0) {
+		DBG("%s() Can not read property playback-if2-data-control\n", __FUNCTION__);
+		rt3261->playback_if1_data_control = LR_NORMAL;
+	}
+	return 0;
+}
+#else
+static int rt3261_parse_dt_property(struct device *dev,
+				  struct rt3261_priv *rt3261)
+{
+	return -ENOSYS;
+}
+#endif //#ifdef CONFIG_OF
+
 static int rt3261_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	struct rt3261_priv *rt3261;
 	int ret;
-	struct rt3261_platform_data *pdata = pdata = i2c->dev.platform_data;
 
 	rt3261 = kzalloc(sizeof(struct rt3261_priv), GFP_KERNEL);
 	if (NULL == rt3261)
 		return -ENOMEM;
 
-	rt3261->codec_en_gpio = pdata->codec_en_gpio;
-	rt3261->io_init = pdata->io_init;
-	rt3261->spk_num = pdata->spk_num;
-	rt3261->modem_input_mode = pdata->modem_input_mode;
-	rt3261->lout_to_modem_mode = pdata->lout_to_modem_mode;
-	rt3261->spk_amplify = pdata->spk_amplify;
-	rt3261->playback_if1_data_control = pdata->playback_if1_data_control;
-	rt3261->playback_if2_data_control = pdata->playback_if2_data_control;
+	rt3261->i2c = i2c;
 
-	if(rt3261->io_init)
-		rt3261->io_init(pdata->codec_en_gpio, pdata->codec_en_gpio_info.iomux_name, pdata->codec_en_gpio_info.iomux_mode);
+	ret = rt3261_parse_dt_property(&i2c->dev, rt3261);
+	if (ret < 0) {
+		printk("%s() parse device tree property error %d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
 	#if defined (CONFIG_SND_SOC_RT5623)
 	rt3261->modem_is_open = 0;
@@ -3660,176 +3740,3 @@ module_exit(rt3261_modexit);
 MODULE_DESCRIPTION("ASoC RT3261 driver");
 MODULE_AUTHOR("Johnny Hsu <johnnyhsu@realtek.com>");
 MODULE_LICENSE("GPL");
-
-
-#ifdef RT3261_PROC
-
-static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
-		unsigned long len, void *data)
-{
-	char *cookie_pot; 
-	char *p;
-	int reg;
-	int i;
-	int value;
-	#if defined (CONFIG_SND_SOC_RT3261)
-	struct rt3261_dsp_param param;
-	#endif
-
-	cookie_pot = (char *)vmalloc( len );
-	if (!cookie_pot) 
-	{
-		return -ENOMEM;
-	} 
-	else 
-	{
-		if (copy_from_user( cookie_pot, buffer, len )) 
-			return -EFAULT;
-	}
-
-	switch(cookie_pot[0])
-	{
-		case 'r':
-		case 'R':
-			printk("Read reg debug\n");		
-			if(cookie_pot[1] ==':')
-			{
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,",")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					value = rt3261_read(rt3261_codec,reg);
-					printk("rt3261_read:0x%04x = 0x%04x\n",reg,value);
-				}
-				printk("\n");
-			}
-			else
-			{
-				printk("Error Read reg debug.\n");
-				printk("For example: echo r:22,23,24,25>rt3261_ts\n");
-			}
-			break;
-		case 'w':
-		case 'W':
-			printk("Write reg debug\n");		
-			if(cookie_pot[1] ==':')
-			{
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,"=")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					p=strsep(&cookie_pot,",");
-					value = simple_strtol(p,NULL,16);
-					rt3261_write(rt3261_codec,reg,value);
-					printk("rt3261_write:0x%04x = 0x%04x\n",reg,value);
-				}
-				printk("\n");
-			}
-			else
-			{
-				printk("Error Write reg debug.\n");
-				printk("For example: w:22=0,23=0,24=0,25=0>rt3261_ts\n");
-			}
-			break;
-		case 'a':
-			printk("Dump rt3261 index reg \n");		
-
-			for (i = 0; i < 0xb4; i++) 
-			{
-				value = rt3261_index_read(rt3261_codec, i);
-				printk("rt3261_index_read:0x%04x = 0x%04x\n",i,value);
-			}
-			break;	
-		#if defined (CONFIG_SND_SOC_RT3261)
-		case 'b':
-			param.cmd_fmt =  0x00e0;
-			param.cmd = RT3261_DSP_CMD_MW;
-			printk("Write dsp reg debug\n");		
-			if(cookie_pot[1] ==':')
-			{
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,"=")))
-				{
-					param.addr = simple_strtol(p,NULL,16);
-					p=strsep(&cookie_pot,",");
-					param.data = simple_strtol(p,NULL,16);
-					rt3261_dsp_write(rt3261_codec,&param);
-					printk("rt3261_dsp_write:0x%04x = 0x%04x\n",param.addr,param.data);
-				}
-				printk("\n");
-			}
-			break;
-		case 'c':
-			printk("Read dsp reg debug\n");		
-			if(cookie_pot[1] ==':')
-			{
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,",")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					value = rt3261_dsp_read(rt3261_codec,reg);
-					printk("rt3261_dsp_read:0x%04x = 0x%04x\n",reg,value);
-				}
-				printk("\n");
-			}
-			break;
-		#endif
-		case 'd':
-			if(cookie_pot[1] ==':')
-			{
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,"=")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					p=strsep(&cookie_pot,",");
-					value = simple_strtol(p,NULL,16);
-					rt3261_index_write(rt3261_codec,reg,value);
-					printk("rt3261_index_write:0x%04x = 0x%04x\n",reg,value);
-				}
-				printk("\n");
-			}
-			break;
-		case 'e':	
-			if(cookie_pot[1] ==':')
-			{
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,",")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					value = rt3261_index_read(rt3261_codec,reg);
-					printk("rt3261_index_read:0x%04x = 0x%04x\n",reg,value);
-				}
-				printk("\n");
-			}
-			break;
-		default:
-			printk("Help for rt3261_ts .\n-->The Cmd list: \n");
-			printk("-->'d&&D' Open or Off the debug\n");
-			printk("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>rt3261_ts\n");
-			printk("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>rt3261_ts\n");
-			break;
-	}
-
-	return len;
-}
-
-static const struct file_operations rt3261_proc_fops = {
-	.owner		= THIS_MODULE,
-};
-
-static int rt3261_proc_init(void)
-{
-	struct proc_dir_entry *rt3261_proc_entry;
-	rt3261_proc_entry = create_proc_entry("driver/rt3261_ts", 0777, NULL);
-	if(rt3261_proc_entry != NULL)
-	{
-		rt3261_proc_entry->write_proc = rt3261_proc_write;
-		return 0;
-	}
-	else
-	{
-		printk("create proc error !\n");
-		return -1;
-	}
-}
-#endif

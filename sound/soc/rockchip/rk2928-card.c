@@ -18,6 +18,8 @@
  *
  */
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 
@@ -83,8 +85,8 @@ static struct snd_soc_dai_link rk2928_dai[] = {
 	{
 		.name = "RK2928",
 		.stream_name = "RK2928",
-		.cpu_dai_name = "rk_i2s.0",
-		.platform_name = "rockchip-audio",
+		.cpu_dai_name = "rockchip-i2s.0",
+		.platform_name = "rockchip-pcm",
 		.codec_name = "rk2928-codec",
 		.codec_dai_name = "rk2928-codec",
 		.ops = &rk2928_dai_ops,
@@ -92,47 +94,55 @@ static struct snd_soc_dai_link rk2928_dai[] = {
 };
 
 /* Audio machine driver */
-static struct snd_soc_card snd_soc_rk2928 = {
+static struct snd_soc_card rockchip_rk2928_snd_card = {
 	.name = "RK2928",
 	.dai_link = rk2928_dai,
 	.num_links = ARRAY_SIZE(rk2928_dai),
 };
 
-static struct platform_device *rk2928_snd_device;
-
-static int __init rk2928_soc_init(void)
+static int rockchip_rk2928_audio_probe(struct platform_device *pdev)
 {
 	int ret;
+	struct snd_soc_card *card = &rockchip_rk2928_snd_card;
 
-	printk(KERN_INFO "RK2928 SoC init\n");
+	card->dev = &pdev->dev;
 
-	rk2928_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!rk2928_snd_device) {
-		printk(KERN_ERR "Platform device allocation failed\n");
-		return -ENOMEM;
-	}
+	ret = snd_soc_register_card(card);
 
-	platform_set_drvdata(rk2928_snd_device, &snd_soc_rk2928);
-
-	ret = platform_device_add(rk2928_snd_device);
 	if (ret)
-		goto err1;
-
-	return 0;
-
-err1:
-	printk(KERN_ERR "Unable to add platform device\n");
-	platform_device_put(rk2928_snd_device);
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 
 	return ret;
 }
-module_init(rk2928_soc_init);
 
-static void __exit rk2928_soc_exit(void)
+static int rockchip_rk2928_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(rk2928_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	return 0;
 }
-module_exit(rk2928_soc_exit);
+
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_rk2928_of_match[] = {
+        { .compatible = "rockchip-rk2928", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_rk2928_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_rk2928_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-rk2928",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_rk2928_of_match),
+        },
+        .probe          = rockchip_rk2928_audio_probe,
+        .remove         = rockchip_rk2928_audio_remove,
+};
+
+module_platform_driver(rockchip_rk2928_audio_driver);
 
 MODULE_DESCRIPTION("ALSA SoC RK2928");
 MODULE_LICENSE("GPL");

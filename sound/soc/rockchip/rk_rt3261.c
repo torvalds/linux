@@ -18,12 +18,12 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <asm/io.h>
-#include <mach/hardware.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include "../codecs/rt3261.h"
 #include "rk_pcm.h"
 #include "rk29_i2s.h"
-
 
 #if 0
 #define	DBG(x...)	printk(KERN_INFO x)
@@ -31,7 +31,7 @@
 #define	DBG(x...)
 #endif
 
-static int rk29_hw_params(struct snd_pcm_substream *substream,
+static int rockchip_rt3261_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -116,7 +116,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int rt3261_voice_hw_params(struct snd_pcm_substream *substream,
+static int rockchip_rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -170,7 +170,7 @@ static int rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dapm_widget rt3261_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget rockchip_rt3261_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Jack", NULL),	
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
@@ -196,7 +196,7 @@ static const struct snd_soc_dapm_route audio_map[]={
 	{"Headphone Jack", NULL, "HPOR"},
 } ;
 
-static const struct snd_kcontrol_new rk_controls[] = {
+static const struct snd_kcontrol_new rockchip_rt3261_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Jack"),
 	SOC_DAPM_PIN_SWITCH("Ext Spk"),
@@ -206,19 +206,19 @@ static const struct snd_kcontrol_new rk_controls[] = {
 /*
  * Logic for a rt3261 as connected on a rockchip board.
  */
-static int rk29_rt3261_init(struct snd_soc_pcm_runtime *rtd)
+static int rockchip_rt3261_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
-	snd_soc_add_codec_controls(codec, rk_controls,
-			ARRAY_SIZE(rk_controls));
+	snd_soc_add_codec_controls(codec, rockchip_rt3261_controls,
+			ARRAY_SIZE(rockchip_rt3261_controls));
 
 	/* Add specific widgets */
-	snd_soc_dapm_new_controls(dapm, rt3261_dapm_widgets,
-				  ARRAY_SIZE(rt3261_dapm_widgets));
+	snd_soc_dapm_new_controls(dapm, rockchip_rt3261_dapm_widgets,
+				  ARRAY_SIZE(rockchip_rt3261_dapm_widgets));
 	/* Set up specific audio path audio_mapnects */
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
@@ -230,13 +230,13 @@ static int rk29_rt3261_init(struct snd_soc_pcm_runtime *rtd)
 	extern int hdmi_is_insert(void);
 	extern void codec_set_spk(bool on);         
 	if(hdmi_is_insert())                 
-		codec_set_spk(false);
+		rt3261_codec_set_spk(false);
 #endif
 
 #ifdef CONFIG_HDMI_RK30
 	extern int hdmi_get_hotplug(void);
 	if(hdmi_get_hotplug() == 2/*HDMI_HPD_ACTIVED*/)
-		codec_set_spk(false);
+		rt3261_codec_set_spk(false);
 #endif
 
 	snd_soc_dapm_sync(dapm);
@@ -244,83 +244,99 @@ static int rk29_rt3261_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_ops rk29_ops = {
-	.hw_params = rk29_hw_params,
+static struct snd_soc_ops rockchip_rt3261_hifi_ops = {
+	.hw_params = rockchip_rt3261_hifi_hw_params,
 };
 
-static struct snd_soc_ops rt3261_voice_ops = {
-	.hw_params = rt3261_voice_hw_params,
+static struct snd_soc_ops rockchip_rt3261_voice_ops = {
+	.hw_params = rockchip_rt3261_voice_hw_params,
 };
 
-static struct snd_soc_dai_link rk29_dai[] = {
+static struct snd_soc_dai_link rockchip_rt3261_dai[] = {
 	{
 		.name = "RT3261 I2S1",
 		.stream_name = "RT3261 PCM",
 		.codec_name = "rt3261.0-001c",
-		.platform_name = "rockchip-audio",
-		#if defined(CONFIG_SND_RK_SOC_I2S_8CH)    
-			.cpu_dai_name = "rk_i2s.0",
+		.platform_name = "rockchip-pcm",
+		#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
+			.cpu_dai_name = "rockchip-i2s.0",
 		#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-			.cpu_dai_name = "rk_i2s.1",
+			.cpu_dai_name = "rockchip-i2s.1",
 		#endif
 		.codec_dai_name = "rt3261-aif1",
-		.init = rk29_rt3261_init,
-		.ops = &rk29_ops,
+		.init = rockchip_rt3261_init,
+		.ops = &rockchip_rt3261_hifi_ops,
 	},
 	{
 		.name = "RT3261 I2S2",
 		.stream_name = "RT3261 PCM",
 		.codec_name = "rt3261.0-001c",
-		.platform_name = "rockchip-audio",
-		#if defined(CONFIG_SND_RK_SOC_I2S_8CH)    
-			.cpu_dai_name = "rk_i2s.0",
+		.platform_name = "rockchip-pcm",
+		#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
+			.cpu_dai_name = "rockchip-i2s.0",
 		#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-			.cpu_dai_name = "rk_i2s.1",
+			.cpu_dai_name = "rockchip-i2s.1",
 		#endif 
 		.codec_dai_name = "rt3261-aif2",
-		.ops = &rt3261_voice_ops,
+		.ops = &rockchip_rt3261_voice_ops,
 	},
 };
 
-static struct snd_soc_card snd_soc_card_rk29 = {
-	.name = "RK_RT3261",
-	.dai_link = rk29_dai,
-	.num_links = 2,
+static struct snd_soc_card rockchip_rt3261_snd_card = {
+	#if defined (CONFIG_SND_SOC_RT3224)
+	.name = "ROCKCHIP-RT3224",
+	#else
+	.name = "ROCKCHIP-RT3261",
+	#endif
+	.owner = THIS_MODULE,
+	.dai_link = rockchip_rt3261_dai,
+	.num_links = ARRAY_SIZE(rockchip_rt3261_dai),
 };
 
-static struct platform_device *rk29_snd_device;
-
-static int __init audio_card_init(void)
+static int rockchip_rt3261_audio_probe(struct platform_device *pdev)
 {
-	int ret =0;
+	int ret;
+	struct snd_soc_card *card = &rockchip_rt3261_snd_card;
 
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	card->dev = &pdev->dev;
 
-	rk29_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!rk29_snd_device) {
-		  printk("platform device allocation failed\n");
-		  return -ENOMEM;
-	}
+	ret = snd_soc_register_card(card);
 
-	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
-	ret = platform_device_add(rk29_snd_device);
-	if (ret) {
-		printk("platform device add failed\n");
+	if (ret)
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 
-		platform_device_put(rk29_snd_device);
-		return ret;
-	}
-		
-        return ret;
+	return ret;
 }
 
-static void __exit audio_card_exit(void)
+static int rockchip_rt3261_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(rk29_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	return 0;
 }
 
-module_init(audio_card_init);
-module_exit(audio_card_exit);
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_rt3261_of_match[] = {
+        { .compatible = "rockchip-rt3261", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_rt3261_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_rt3261_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-rt3261",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_rt3261_of_match),
+        },
+        .probe          = rockchip_rt3261_audio_probe,
+        .remove         = rockchip_rt3261_audio_remove,
+};
+
+module_platform_driver(rockchip_rt3261_audio_driver);
+
 /* Module information */
 MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP i2s ASoC Interface");

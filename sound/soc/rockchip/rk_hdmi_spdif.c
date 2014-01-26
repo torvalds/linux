@@ -13,11 +13,15 @@
  *
  */
 
+#include <linux/module.h>
+#include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/clk.h>
-
+#include <sound/core.h>
+#include <sound/pcm.h>
 #include <sound/soc.h>
-
-#include <mach/iomux.h>
+#include <sound/soc-dapm.h>
 
 #if 0
 #define RK_SPDIF_DBG(x...) printk(KERN_INFO "rk_hdmi_spdif:"x)
@@ -106,80 +110,62 @@ static struct snd_soc_ops rk_spdif_ops = {
 static struct snd_soc_dai_link rk_dai = {
 	.name = "SPDIF",
 	.stream_name = "SPDIF PCM Playback",
-	.platform_name = "rockchip-audio",
-	.cpu_dai_name = "rk-spdif",
-	.codec_dai_name = "dit-hifi",
-	.codec_name = "spdif-dit",
+	.platform_name = "rockchip-pcm",
+	.cpu_dai_name = "rockchip-spdif",
+	.codec_dai_name = "rk-hdmi-spdif-hifi",
+	.codec_name = "hdmi-spdif",
 	.ops = &rk_spdif_ops,
 };
 
-static struct snd_soc_card rk_spdif = {
+static struct snd_soc_card rockchip_hdmi_spdif_snd_card = {
 	.name = "ROCKCHIP-SPDIF",
 	.dai_link = &rk_dai,
 	.num_links = 1,
 };
 
-static struct platform_device *rk_snd_spdif_dit_device;
-static struct platform_device *rk_snd_spdif_device;
-
-static int __init rk_spdif_init(void)
+static int rockchip_hdmi_spdif_audio_probe(struct platform_device *pdev)
 {
 	int ret;
-	
-	RK_SPDIF_DBG("Entered %s\n", __func__);
-	
-	rk_snd_spdif_dit_device = platform_device_alloc("spdif-dit", -1);
-	if (!rk_snd_spdif_dit_device){
-		printk("spdif:platform_device_alloc spdif-dit\n");
-		return -ENOMEM;
-	}
+	struct snd_soc_card *card = &rockchip_hdmi_spdif_snd_card;
 
-	ret = platform_device_add(rk_snd_spdif_dit_device);
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
+
 	if (ret)
-		goto err1;
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 
-	rk_snd_spdif_device = platform_device_alloc("soc-audio", -3);
-	if (!rk_snd_spdif_device) {
-		printk("spdif:platform_device_alloc rk_soc-audio\n");
-		ret = -ENOMEM;
-		goto err2;
-	}
-	
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	platform_set_drvdata(rk_snd_spdif_device, &rk_spdif);
-#else
-	platform_set_drvdata(rk_snd_spdif_device, &rk_spdif);
-	rk_spdif.dev = &rk_snd_spdif_device->dev;
-#endif
-
-	//platform_set_drvdata(rk_snd_spdif_device, &rk_spdif);
-
-	ret = platform_device_add(rk_snd_spdif_device);
-	if (ret)
-		goto err3;
-	
-	RK_SPDIF_DBG("rk_spdif_init ok\n");
-	return ret;
-err3:
-	platform_device_put(rk_snd_spdif_device);
-err2:
-	platform_device_del(rk_snd_spdif_dit_device);
-err1:
-	platform_device_put(rk_snd_spdif_dit_device);
-	
 	return ret;
 }
 
-static void __exit rk_spdif_exit(void)
+static int rockchip_hdmi_spdif_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(rk_snd_spdif_device);
-	platform_device_unregister(rk_snd_spdif_dit_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	return 0;
 }
 
-//using late_initcall to make sure spdif is after board codec. added by zxg.
-//module_init(rk_spdif_init);
-late_initcall(rk_spdif_init);
-module_exit(rk_spdif_exit);
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_hdmi_spdif_of_match[] = {
+        { .compatible = "rockchip-hdmi-spdif"},
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_hdmi_spdif_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_hdmi_spdif_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-hdmi-spdif",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_hdmi_spdif_of_match),
+        },
+        .probe          = rockchip_hdmi_spdif_audio_probe,
+        .remove         = rockchip_hdmi_spdif_audio_remove,
+};
+
+module_platform_driver(rockchip_hdmi_spdif_audio_driver);
 
 MODULE_AUTHOR("hzb, <hzb@rock-chips.com>");
 MODULE_DESCRIPTION("ALSA SoC RK+S/PDIF");

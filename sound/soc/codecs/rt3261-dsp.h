@@ -34,7 +34,7 @@ unsigned int rt3261_dsp_read(struct snd_soc_codec *codec, unsigned int reg);
 int rt3261_dsp_probe(struct snd_soc_codec *codec);
 int rt_codec_dsp_ioctl_common(struct snd_hwdep *hw, struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_PM
-int rt3261_dsp_suspend(struct snd_soc_codec *codec, pm_message_t state);
+int rt3261_dsp_suspend(struct snd_soc_codec *codec);
 int rt3261_dsp_resume(struct snd_soc_codec *codec);
 #endif
 

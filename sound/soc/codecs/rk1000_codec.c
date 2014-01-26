@@ -29,11 +29,9 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <trace/events/asoc.h>
-#include <mach/gpio.h>
-#include <mach/iomux.h>
 
 #include "rk1000_codec.h"
-#define RK1000_CODEC_PROC
+//#define RK1000_CODEC_PROC
 #ifdef RK1000_CODEC_PROC
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -702,7 +700,7 @@ static struct snd_soc_dai_driver rk1000_codec_dai[] = {
 	}
 };
 
-static int rk1000_codec_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rk1000_codec_suspend(struct snd_soc_codec *codec)
 {
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -1116,7 +1114,8 @@ static int rk1000_control_probe(struct i2c_client *client,
 #if 1
     printk("i2c write ret = 0x%x\n",ret);
 	memset(data,0,sizeof(data));
-    ret = i2c_master_reg8_recv(client, 0, data, (int)4, 20*1000);
+	ret = i2c_master_recv(client, data, 4);
+    //ret = i2c_master_reg8_recv(client, 0, data, (int)4, 20*1000);
     printk("i2c read reg    %x,   %x,   %x,  %x   ret=x%x\n",data[0],data[1],data[2],data[3],ret);
 #endif
 	

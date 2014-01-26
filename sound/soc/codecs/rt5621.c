@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/of_gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -25,7 +26,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-#include <mach/gpio.h>
+//#include <mach/gpio.h>
 
 #include "rt5621.h"
 
@@ -40,8 +41,13 @@
 #define DBG(x...)
 #endif
 
+#define GPIO_HIGH 1
+#define GPIO_LOW 0
+#define INVALID_GPIO -1
+
 #define RT5621_VERSION "0.01 alsa 1.0.24"
 
+int rt5621_spk_ctl_gpio = INVALID_GPIO;
 static int caps_charge = 500;
 module_param(caps_charge, int, 0);
 MODULE_PARM_DESC(caps_charge, "RT5621 cap charge time (msecs)");
@@ -958,7 +964,7 @@ static int rt5621_reg_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
-void codec_set_spk(bool on)
+void rt5621_codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rt5621_codec; 
 
@@ -1046,7 +1052,7 @@ static int rt5621_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int rt5621_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rt5621_suspend(struct snd_soc_codec *codec)
 {
 	rt5621_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -1172,6 +1178,14 @@ static const struct i2c_device_id rt5621_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5621_i2c_id);
 
+/*
+dts:
+	codec@1a {
+		compatible = "rt5621";
+		reg = <0x1a>;
+		spk-ctl-gpio = <&gpio6 GPIO_B6 GPIO_ACTIVE_HIGH>;
+	};
+*/
 static int rt5621_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
@@ -1180,14 +1194,22 @@ static int rt5621_i2c_probe(struct i2c_client *i2c,
 	
 	printk("##################### %s ######################\n", __FUNCTION__);
 
-	ret = gpio_request(RK29_PIN6_PB6, "spk_con");
+#ifdef CONFIG_OF
+	rt5621_spk_ctl_gpio= of_get_named_gpio_flags(i2c->dev.of_node, "spk-ctl-gpio", 0, NULL);
+	if (rt5621_spk_ctl_gpio < 0) {
+		DBG("%s() Can not read property spk-ctl-gpio\n", __FUNCTION__);
+		rt5621_spk_ctl_gpio = INVALID_GPIO;
+	}
+#endif //#ifdef CONFIG_OF
+
+	ret = gpio_request(rt5621_spk_ctl_gpio, "spk_con");
 	if(ret < 0){
 		printk("gpio request spk_con error!\n");
 	}
 	else{
 		printk("########################### set spk_con HIGH ##################################\n");
-		gpio_direction_output(RK29_PIN6_PB6, GPIO_HIGH);
-		gpio_set_value(RK29_PIN6_PB6, GPIO_HIGH);
+		gpio_direction_output(rt5621_spk_ctl_gpio, GPIO_HIGH);
+		gpio_set_value(rt5621_spk_ctl_gpio, GPIO_HIGH);
 	}
 
 	rt5621 = kzalloc(sizeof(struct rt5621_priv), GFP_KERNEL);
@@ -1204,7 +1226,7 @@ static int rt5621_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int rt5621_i2c_remove(struct i2c_client *i2c)
+static int rt5621_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
 	kfree(i2c_get_clientdata(i2c));
@@ -1217,7 +1239,7 @@ struct i2c_driver rt5621_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = rt5621_i2c_probe,
-	.remove   = __devexit_p(rt5621_i2c_remove),
+	.remove   = rt5621_i2c_remove,
 	.id_table = rt5621_i2c_id,
 };
 

@@ -2073,10 +2073,6 @@ enum {
 #define RT3261_HEADSET_DET	BIT(1)
 #define RT3261_HEADPHO_DET	BIT(2)
 
-void codec_set_spk(bool on);
-
-int rt3261_headset_mic_detect(int jack_insert);
-
 /* System Clock Source */
 enum {
 	RT3261_SCLK_S_MCLK,
@@ -2134,6 +2130,7 @@ struct rt3261_pll_code {
 };
 
 struct rt3261_priv {
+	struct i2c_client *i2c;
 	struct snd_soc_codec *codec;
 	struct delayed_work patch_work;
 
@@ -2155,7 +2152,6 @@ struct rt3261_priv {
 	bool dsp_rec_pass;
 
 	unsigned int codec_en_gpio;
-	int (*io_init)(int gpio, char *iomux_name, int iomux_mode);
 
 	unsigned int modem_is_open;
 	unsigned int spk_num;
@@ -2168,5 +2164,8 @@ struct rt3261_priv {
 
 int rt3261_conn_mux_path(struct snd_soc_codec *codec,
 		char *widget_name, char *path_name);
+
+int rt3261_headset_mic_detect(int jack_insert);
+static void rt3261_codec_set_spk(bool on);
 
 #endif /* __RT3261_H__ */

@@ -1926,7 +1926,7 @@ static struct snd_soc_dai_driver rk3026_dai[] = {
 
 };
 
-static int rk3026_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rk3026_suspend(struct snd_soc_codec *codec)
 {
 	if (rk3026_for_mid)
 	{

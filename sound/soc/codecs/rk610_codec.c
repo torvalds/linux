@@ -743,7 +743,7 @@ static struct snd_soc_dai_driver rk610_codec_dai = {
 	.symmetric_rates = 1,
 };
 
-static int rk610_codec_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rk610_codec_suspend(struct snd_soc_codec *codec)
 {
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	rk610_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);

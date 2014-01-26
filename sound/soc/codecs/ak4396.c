@@ -17,7 +17,6 @@
 #include <linux/spi/spi.h>
 #include <sound/asoundef.h>
 #include <linux/delay.h>
-#include <mach/iomux.h>
 
 /* AK4396 registers addresses */
 #define AK4396_REG_CONTROL1		0x00
@@ -72,7 +71,7 @@ static void on_off_ext_amp(int i)
     #endif
 }
 
-void codec_set_spk(bool on)
+void ak4396_codec_set_spk(bool on)
 {
 	on_off_ext_amp(on);
 }
@@ -340,7 +339,7 @@ static int ak4396_remove(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static int ak4396_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int ak4396_suspend(struct snd_soc_codec *codec)
 {	
 	return 0;
 }
@@ -438,7 +437,7 @@ static int ak4396_spi_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int __devexit ak4396_spi_remove(struct spi_device *spi)
+static int ak4396_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
 	kfree(spi_get_drvdata(spi));
@@ -451,7 +450,7 @@ static struct spi_driver ak4396_spi_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe  = ak4396_spi_probe,
-	.remove = __devexit_p(ak4396_spi_remove),
+	.remove = ak4396_spi_remove,
 };
 
 static int __init ak4396_init(void)

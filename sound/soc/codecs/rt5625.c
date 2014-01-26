@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/of_gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -26,9 +27,10 @@
 #include <sound/tlv.h>
 #include <linux/gpio.h>
 #include "rt5625.h"
-#include <mach/board.h>
 
-#define RT5625_PROC
+#define INVALID_GPIO -1
+
+//#define RT5625_PROC
 #ifdef RT5625_PROC
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -2842,7 +2844,7 @@ static int rt5625_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int rt5625_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rt5625_suspend(struct snd_soc_codec *codec)
 {
 	rt5625_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -2942,20 +2944,73 @@ static const struct i2c_device_id rt5625_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5625_i2c_id);
 
+#ifdef CONFIG_OF
+/*
+dts:
+	codec@1e {
+		compatible = "rt5625";
+		reg = <0x1e>;
+		spk-ctr-pin = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;
+		spk-ctr-on = <1>;
+		spk-ctr-off = <0>;
+	};
+*/
+
+static int rt5625_parse_dt_property(struct device *dev,
+				  struct rt5625_priv *rt5625)
+{
+	struct device_node *node = dev->of_node;
+	int ret;
+
+	printk("%s()\n", __FUNCTION__);
+
+	if (!node)
+		return -ENODEV;
+
+	rt5625->spk_ctr_pin= of_get_named_gpio_flags(node, "spk-ctr-pin", 0, NULL);
+	if (rt5625->spk_ctr_pin < 0) {
+		DBG("%s() Can not read property spk-ctr-pin\n", __FUNCTION__);
+		rt5625->spk_ctr_pin = INVALID_GPIO;
+	}
+
+	ret = of_property_read_u32(node, "spk-ctr-on", &rt5625->spk_ctr_on);
+	if (ret < 0) {
+		DBG("%s() Can not read property spk-ctr-on\n", __FUNCTION__);
+		rt5625->spk_ctr_on = 1;
+	}
+
+	ret = of_property_read_u32(node, "spk-ctr-off", &rt5625->spk_ctr_off);
+	if (ret < 0) {
+		DBG("%s() Can not read property spk-ctr-off\n", __FUNCTION__);
+		rt5625->spk_ctr_off = 0;
+	}
+
+	return 0;
+}
+#else
+static int rt5625_parse_dt_property(struct device *dev,
+				  struct rt3261_priv *rt3261)
+{
+	return -ENOSYS;
+}
+#endif //#ifdef CONFIG_OF
+
 static int rt5625_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	struct rt5625_priv *rt5625;
 	int ret;
-	struct rt5625_platform_data *pdata = pdata = i2c->dev.platform_data;
+	//struct rt5625_platform_data *pdata = pdata = i2c->dev.platform_data;
 
 	rt5625 = kzalloc(sizeof(struct rt5625_priv), GFP_KERNEL);
 	if (NULL == rt5625)
 		return -ENOMEM;
 
-	rt5625->spk_ctr_pin = pdata->spk_ctr_pin;
-	rt5625->spk_ctr_on = pdata->spk_ctr_on;
-	rt5625->spk_ctr_off = pdata->spk_ctr_off;
+	ret = rt5625_parse_dt_property(&i2c->dev, rt5625);
+	if (ret < 0) {
+		printk("%s() parse device tree property error %d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
 	if(rt5625->spk_ctr_pin != INVALID_GPIO)
 	{
@@ -2974,7 +3029,7 @@ static int rt5625_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int rt5625_i2c_remove(struct i2c_client *i2c)
+static int rt5625_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
 	kfree(i2c_get_clientdata(i2c));
@@ -2987,7 +3042,7 @@ struct i2c_driver rt5625_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = rt5625_i2c_probe,
-	.remove   = __devexit_p(rt5625_i2c_remove),
+	.remove   = rt5625_i2c_remove,
 	.id_table = rt5625_i2c_id,
 };
 

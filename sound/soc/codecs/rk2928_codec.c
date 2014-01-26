@@ -580,7 +580,7 @@ static int rk2928_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rk2928_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rk2928_suspend(struct snd_soc_codec *codec)
 {
 	DBG("%s", __FUNCTION__);
 	rk2928_set_bias_level(codec, SND_SOC_BIAS_OFF);

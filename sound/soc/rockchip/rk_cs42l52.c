@@ -14,13 +14,13 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <asm/io.h>
-#include <mach/hardware.h>
-#include <mach/rk29_iomap.h>
+
 #include "../codecs/cs42l52.h"
 #include "rk_pcm.h"
 #include "rk29_i2s.h"
@@ -49,8 +49,8 @@ static int rk29_cs42l52_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
         struct snd_soc_pcm_runtime *rtd = substream->private_data;
-        struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-        struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+        struct snd_soc_dai *codec_dai = rtd->codec_dai;
+        struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
         unsigned int pll_out = 0; 
         unsigned int lrclk = 0;
 		int div_bclk,div_mclk;
@@ -59,7 +59,7 @@ static int rk29_cs42l52_hw_params(struct snd_pcm_substream *substream,
           
         if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
         {
-        	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent
+        	ret = codec_dai->driver->ops->hw_params(substream, params, codec_dai); //by Vincent
         }
         else
     	{       
@@ -134,19 +134,18 @@ static int rk29_cs42l52_hw_params(struct snd_pcm_substream *substream,
 
 static int rk29_cs42l52_dai_init(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dai *codec_dai = &codec->dai[0];
-	int ret;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	  
-	snd_soc_dapm_nc_pin(codec, "INPUT1A");
-	snd_soc_dapm_nc_pin(codec, "INPUT2A");
-	snd_soc_dapm_nc_pin(codec, "INPUT3A");
-	snd_soc_dapm_nc_pin(codec, "INPUT4A");
-	snd_soc_dapm_nc_pin(codec, "INPUT1B");
-	snd_soc_dapm_nc_pin(codec, "INPUT2B");
-	snd_soc_dapm_nc_pin(codec, "INPUT3B");
-	snd_soc_dapm_nc_pin(codec, "INPUT4B");
-	snd_soc_dapm_nc_pin(codec, "MICB");
-    snd_soc_dapm_sync(codec);
+	snd_soc_dapm_nc_pin(dapm, "INPUT1A");
+	snd_soc_dapm_nc_pin(dapm, "INPUT2A");
+	snd_soc_dapm_nc_pin(dapm, "INPUT3A");
+	snd_soc_dapm_nc_pin(dapm, "INPUT4A");
+	snd_soc_dapm_nc_pin(dapm, "INPUT1B");
+	snd_soc_dapm_nc_pin(dapm, "INPUT2B");
+	snd_soc_dapm_nc_pin(dapm, "INPUT3B");
+	snd_soc_dapm_nc_pin(dapm, "INPUT4B");
+	snd_soc_dapm_nc_pin(dapm, "MICB");
+	snd_soc_dapm_sync(dapm);
 	return 0;
 }
 
@@ -155,76 +154,72 @@ static struct snd_soc_ops rk29_cs42l52_ops = {
 };
 
 static struct snd_soc_dai_link rk29_cs42l52_dai_link = {
-	  .name = "CS42L52",
-	  .stream_name = "CS42L52 PCM",
-	  .cpu_dai = &rk29_i2s_dai[0],
-	  .codec_dai = &soc_cs42l52_dai,
-	  .init = rk29_cs42l52_dai_init,
-	  .ops = &rk29_cs42l52_ops,
+	.name = "CS42L52",
+	.stream_name = "CS42L52 PCM",
+	.codec_name = "cs42l52.0-004a", 
+	.platform_name = "rockchip-pcm",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
+	.cpu_dai_name = "rockchip-i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+	.cpu_dai_name = "rockchip-i2s.1",
+#else
+	.cpu_dai_name = "rockchip-i2s.2",
+#endif
+	.codec_dai_name = "cs42l52-hifi",
+	.init = rk29_cs42l52_dai_init,
+	.ops = &rk29_cs42l52_ops,
 };
 
-static struct snd_soc_card snd_soc_card_rk29_cs42l52 = {
+static struct snd_soc_card rockchip_cs42l52_snd_card = {
 	  .name = "RK_CS42L52",
-	  .platform = &rk29_soc_platform,
 	  .dai_link = &rk29_cs42l52_dai_link,
 	  .num_links = 1,
 };
 
-
-static struct snd_soc_device rk29_cs42l52_snd_devdata = {
-	  .card = &snd_soc_card_rk29_cs42l52,
-	  .codec_dev = &soc_codec_dev_cs42l52,
-};
-
-static struct platform_device *rk29_cs42l52_snd_device;
-
-static int rk29_cs42l52_probe(struct platform_device *pdev)
+static int rockchip_cs42l52_audio_probe(struct platform_device *pdev)
 {
-	int ret =0;	
-	printk("RK CS42L52 SoC Audio driver\n");
-	rk29_cs42l52_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!rk29_cs42l52_snd_device) {
-		  ret = -ENOMEM;
-		  printk("%s:platform device alloc fail\n",__FUNCTION__);
-		  return ret;
-	}
-	platform_set_drvdata(rk29_cs42l52_snd_device, &rk29_cs42l52_snd_devdata);
-	rk29_cs42l52_snd_devdata.dev = &rk29_cs42l52_snd_device->dev;
-	ret = platform_device_add(rk29_cs42l52_snd_device);
-	if (ret) {
-        platform_device_put(rk29_cs42l52_snd_device);
-		printk("%s:platform device add fail,ret = %d\n",__FUNCTION__,ret);
-	}
+	int ret;
+	struct snd_soc_card *card = &rockchip_cs42l52_snd_card;
+
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
+
+	if (ret)
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
+
 	return ret;
 }
 
-static int rk29_cs42l52_remove(struct platform_device *pdev)
+static int rockchip_cs42l52_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(rk29_cs42l52_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
 	return 0;
 }
 
-static struct platform_driver rk29_cs42l52_driver = {
-	.probe  = rk29_cs42l52_probe,
-	.remove = rk29_cs42l52_remove,
-	.driver = {
-		.name = "rk29_cs42l52",
-		.owner = THIS_MODULE,
-	},
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_cs42l52_of_match[] = {
+        { .compatible = "rockchip-cs42l52", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_cs42l52_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_cs42l52_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-cs42l52",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_cs42l52_of_match),
+        },
+        .probe          = rockchip_cs42l52_audio_probe,
+        .remove         = rockchip_cs42l52_audio_remove,
 };
 
-static int __init rk29_cs42l52_init(void)
-{
-	return platform_driver_register(&rk29_cs42l52_driver);
-}
+module_platform_driver(rockchip_cs42l52_audio_driver);
 
-static void __exit rk29_cs42l52_exit(void)
-{
-	platform_driver_unregister(&rk29_cs42l52_driver);
-}
-
-module_init(rk29_cs42l52_init);
-module_exit(rk29_cs42l52_exit);
 MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP i2s ASoC Interface");
 MODULE_LICENSE("GPL");

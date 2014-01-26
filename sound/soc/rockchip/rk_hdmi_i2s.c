@@ -5,9 +5,14 @@
  * Author: chenjq <chenjq@rock-chips.com>
  */
 
-#include <linux/clk.h>
+#include <linux/module.h>
+#include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
 #include <sound/soc.h>
-#include <mach/iomux.h>
+#include <sound/soc-dapm.h>
 
 #include "rk_pcm.h"
 #include "rk29_i2s.h"
@@ -17,7 +22,6 @@
 #else
 #define DBG(x...) do { } while (0)
 #endif
-
 
 static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -81,74 +85,66 @@ static struct snd_soc_dai_link hdmi_i2s_dai = {
 	.name = "HDMI I2S",
 	.stream_name = "HDMI PCM",
 	.codec_name = "hdmi-i2s",
-	.platform_name = "rockchip-audio",
+	.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)
-	.cpu_dai_name = "rk_i2s.0",
+	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-	.cpu_dai_name = "rk_i2s.1",
+	.cpu_dai_name = "rockchip-i2s.1",
 #endif
 	.codec_dai_name = "rk-hdmi-i2s-hifi",
 	.ops = &hdmi_i2s_hifi_ops,
 };
 
-static struct snd_soc_card snd_soc_card_hdmi_i2s = {
+static struct snd_soc_card rockchip_hdmi_i2s_snd_card = {
 	.name = "RK-HDMI-I2S",
 	.dai_link = &hdmi_i2s_dai,
 	.num_links = 1,
 };
 
-static struct platform_device *hdmi_i2s_snd_device;
-static struct platform_device *hdmi_i2s_device;
-
-static int __init audio_card_init(void)
+static int rockchip_hdmi_i2s_audio_probe(struct platform_device *pdev)
 {
-	int ret =0;
+	int ret;
+	struct snd_soc_card *card = &rockchip_hdmi_i2s_snd_card;
 
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	card->dev = &pdev->dev;
 
-	hdmi_i2s_device = platform_device_alloc("hdmi-i2s", -1);
+	ret = snd_soc_register_card(card);
 
-	if (!hdmi_i2s_device){
-		printk("spdif:platform_device_alloc hdmi-i2s\n");
-		return -ENOMEM;
-	}
+	if (ret)
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 
-	ret = platform_device_add(hdmi_i2s_device);
-	if (ret) {
-		printk("platform device add hdmi-i2s failed\n");
-
-		platform_device_put(hdmi_i2s_device);
-		return ret;
-	}
-
-	hdmi_i2s_snd_device = platform_device_alloc("soc-audio", -3);
-	if (!hdmi_i2s_snd_device) {
-		printk("platform device allocation failed\n");
-
-		platform_device_put(hdmi_i2s_device);
-		return -ENOMEM;
-	}
-
-	platform_set_drvdata(hdmi_i2s_snd_device, &snd_soc_card_hdmi_i2s);
-	ret = platform_device_add(hdmi_i2s_snd_device);
-	if (ret) {
-		printk("platform device add soc-audio failed\n");
-
-		platform_device_put(hdmi_i2s_device);
-		platform_device_put(hdmi_i2s_snd_device);
-		return ret;
-	}
-
-        return ret;
+	return ret;
 }
 
-static void __exit audio_card_exit(void)
+static int rockchip_hdmi_i2s_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(hdmi_i2s_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	return 0;
 }
 
-late_initcall(audio_card_init);
-module_exit(audio_card_exit);
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_hdmi_i2s_of_match[] = {
+        { .compatible = "rockchip-hdmi-i2s", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_hdmi_i2s_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_hdmi_i2s_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-hdmi-i2s",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_hdmi_i2s_of_match),
+        },
+        .probe          = rockchip_hdmi_i2s_audio_probe,
+        .remove         = rockchip_hdmi_i2s_audio_remove,
+};
+
+module_platform_driver(rockchip_hdmi_i2s_audio_driver);
+
 /* Module information */
 MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP hdmi i2s ASoC Interface");

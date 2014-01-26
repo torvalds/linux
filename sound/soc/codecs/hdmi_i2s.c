@@ -5,27 +5,14 @@
  * Author: chenjq <chenjq@rock-chips.com>
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/device.h>
-#include <linux/delay.h>
-#include <linux/clk.h>
-#include <linux/version.h>
-
-#include <asm/dma.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/initval.h>
+#include <linux/moduleparam.h>
+#include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <sound/soc.h>
-#include <asm/io.h>
-
-#include <mach/board.h>
-#include <mach/hardware.h>
-#include <mach/io.h>
-#include <mach/gpio.h>
-#include <mach/iomux.h>
+#include <sound/pcm.h>
+#include <sound/initval.h>
 
 #if 0
 #define DBG(x...) printk(KERN_INFO "hdmi i2s:"x)
@@ -51,50 +38,49 @@ struct snd_soc_dai_driver hdmi_i2s_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_hdmi_i2s;
 
-static int hdmi_i2s_platform_probe(struct platform_device *pdev)
+static int rockchip_hdmi_i2s_audio_probe(struct platform_device *pdev)
 {
-	DBG("Entered %s\n", __func__);
+	int ret;
 
-	return snd_soc_register_codec(&pdev->dev,
+	//set dev name to driver->name for sound card register
+	dev_set_name(&pdev->dev, "%s", pdev->dev.driver->name);
+
+	ret = snd_soc_register_codec(&pdev->dev,
 		&soc_codec_dev_hdmi_i2s,
 		&hdmi_i2s_dai, 1);
+
+	if (ret)
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
+
+	return ret;
 }
 
-static int hdmi_i2s_platform_remove(struct platform_device *pdev)
+static int rockchip_hdmi_i2s_audio_remove(struct platform_device *pdev)
 {
-	DBG("Entered %s\n", __func__);
-
 	snd_soc_unregister_codec(&pdev->dev);
 
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_hdmi_i2s_of_match[] = {
+        { .compatible = "hdmi-i2s", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_hdmi_i2s_of_match);
+#endif /* CONFIG_OF */
 
-static struct platform_driver hdmi_i2s_driver = {
-	.probe = hdmi_i2s_platform_probe,
-	.remove = hdmi_i2s_platform_remove,
-	.driver	= {
-		.name	= "hdmi-i2s",
-		.owner	= THIS_MODULE,
-	},
+static struct platform_driver rockchip_hdmi_i2s_audio_driver = {
+        .driver         = {
+                .name   = "hdmi-i2s",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_hdmi_i2s_of_match),
+        },
+        .probe          = rockchip_hdmi_i2s_audio_probe,
+        .remove         = rockchip_hdmi_i2s_audio_remove,
 };
 
-
-static int __init hdmi_i2s_init(void)
-{
-	DBG("Entered %s\n", __func__);
-
-	return platform_driver_register(&hdmi_i2s_driver);
-}
-
-static void __exit hdmi_i2s_exit(void)
-{
-	DBG("Entered %s\n", __func__);
-
-	platform_driver_unregister(&hdmi_i2s_driver);
-}
-module_init(hdmi_i2s_init);
-module_exit(hdmi_i2s_exit);
+module_platform_driver(rockchip_hdmi_i2s_audio_driver);
 
 MODULE_DESCRIPTION("HDMI I2S Controller Driver");
 MODULE_LICENSE("GPL");

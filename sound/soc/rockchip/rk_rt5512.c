@@ -8,12 +8,12 @@
  */
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <asm/io.h>
-#include <mach/hardware.h>
 #include <sound/jack.h>
 #include <linux/delay.h>    
 #include "rk_pcm.h"
@@ -116,7 +116,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	ret=snd_soc_dai_set_sysclk(codec_dai, 0,pll_out,SND_SOC_CLOCK_IN);
 	if (ret < 0)
 	{
-		DBG("rk29_hw_params_rt5631:failed to set the sysclk for codec side\n"); 
+		DBG("rk29_hw_params_rt5512:failed to set the sysclk for codec side\n"); 
 		return ret;
 	}	    
 
@@ -288,16 +288,16 @@ static struct snd_soc_dai_link rk29_dai[] = {
 	{ /* Primary DAI i/f */
 		.name = "RT5512 AIF1",
 		.stream_name = "RT5512 PCM",
-		.cpu_dai_name = "rk_i2s.1",
+		.cpu_dai_name = "rockchip-i2s.1",
 		.codec_dai_name = "RT5512-aif1",
-		.platform_name = "rockchip-audio",
+		.platform_name = "rockchip-pcm",
 		.codec_name = "rt5512.1-0018",
 		.init = rt5512_init,
 		.ops = &rk29_ops,
 	},
 };
 
-static struct snd_soc_card snd_soc_card_rk29 = {
+static struct snd_soc_card rockchip_rt5512_snd_card = {
 	.name = "RK_RT5512",
 	.dai_link = rk29_dai,
 
@@ -306,28 +306,49 @@ static struct snd_soc_card snd_soc_card_rk29 = {
 	.num_links = ARRAY_SIZE(rk29_dai),
 };
 
-static int __init audio_card_init(void)
+static int rockchip_rt5512_audio_probe(struct platform_device *pdev)
 {
 	int ret;
-	rk29_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!rk29_snd_device)
-		return -ENOMEM;
+	struct snd_soc_card *card = &rockchip_rt5512_snd_card;
 
-	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
+	card->dev = &pdev->dev;
 
-	ret = platform_device_add(rk29_snd_device);
+	ret = snd_soc_register_card(card);
+
 	if (ret)
-		platform_device_put(rk29_snd_device);
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 
 	return ret;
 }
-module_init(audio_card_init);
 
-static void __exit audio_card_exit(void)
+static int rockchip_rt5512_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(rk29_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	return 0;
 }
-module_exit(audio_card_exit);
+
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_rt5512_of_match[] = {
+        { .compatible = "rockchip-rt5512", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_rt5512_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_rt5512_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-rt5512",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_rt5512_of_match),
+        },
+        .probe          = rockchip_rt5512_audio_probe,
+        .remove         = rockchip_rt5512_audio_remove,
+};
+
+module_platform_driver(rockchip_rt5512_audio_driver);
 
 MODULE_DESCRIPTION("ROCKCHIP i2s ASoC Interface");
 MODULE_AUTHOR("cy_huang <cy_huang@richtek.com>");

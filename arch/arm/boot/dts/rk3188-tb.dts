@@ -24,9 +24,27 @@
         	brightness-levels = <0 4 8 16 32 64 128 255>;
 	        default-brightness-level = <6>;
         	gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
-};
+	};
 
+	codec-hdmi-i2s {
+		compatible = "hdmi-i2s";
+	};
 
+	codec-hdmi-spdif {
+		compatible = "hdmi-spdif";
+	};
+
+	rockchip-rt5631 {
+		compatible = "rockchip-rt5631";
+	};
+
+	rockchip-hdmi-i2s {
+		compatible = "rockchip-hdmi-i2s";
+	};
+
+	rockchip-hdmi-spdif {
+		compatible = "rockchip-hdmi-spdif";
+	};
 };
 
 &uart0 {
@@ -39,6 +57,10 @@
 
 &i2c0 {
 	status = "okay";
+	codec@1a {
+		compatible = "rt5631";
+		reg = <0x1a>;
+	};
 };
 
 &i2c1 {

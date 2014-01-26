@@ -13,14 +13,13 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <asm/io.h>
-#include <mach/hardware.h>
-#include <mach/rk29_iomap.h>
-#include <mach/gpio.h>
+
 #include "../codecs/tlv320aic3111.h"
 #include "rk_pcm.h"
 #include "rk29_i2s.h"
@@ -171,48 +170,63 @@ static struct snd_soc_dai_link rk29_dai = {
 	.name = "AIC3111",
 	.stream_name = "AIC3111 PCM",
 	.codec_name = "AIC3111.0-0018",
-	.platform_name = "rockchip-audio",
-	.cpu_dai_name = "rk_i2s.0",
+	.platform_name = "rockchip-pcm",
+	.cpu_dai_name = "rockchip-i2s.0",
 	.codec_dai_name = "AIC3111 HiFi",
 	.init = rk29_aic3111_init,
 	.ops = &rk29_ops,
 };
 
-static struct snd_soc_card snd_soc_card_rk29 = {
+static struct snd_soc_card rockchip_aic3111_snd_card = {
 	.name = "RK_AIC3111",
 	.dai_link = &rk29_dai,
 	.num_links = 1,
 };
 
-static struct platform_device *rk29_snd_device;
-
-static int __init audio_card_init(void)
+static int rockchip_aic3111_audio_probe(struct platform_device *pdev)
 {
-	int ret =0;
+	int ret;
+	struct snd_soc_card *card = &rockchip_aic3111_snd_card;
 
-        AIC_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-	rk29_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!rk29_snd_device) {
-		  AIC_DBG("platform device allocation failed\n");
-		  ret = -ENOMEM;
-		  return ret;
-	}
-	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
-	ret = platform_device_add(rk29_snd_device);
-	if (ret) {
-	        AIC_DBG("platform device add failed\n");
-	        platform_device_put(rk29_snd_device);
-	}
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
+
+	if (ret)
+		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
+
 	return ret;
 }
 
-static void __exit audio_card_exit(void)
+static int rockchip_aic3111_audio_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(rk29_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	return 0;
 }
 
-module_init(audio_card_init);
-module_exit(audio_card_exit);
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_aic3111_of_match[] = {
+        { .compatible = "rockchip-aic3111", },
+        {},
+};
+MODULE_DEVICE_TABLE(of, rockchip_aic3111_of_match);
+#endif /* CONFIG_OF */
+
+static struct platform_driver rockchip_aic3111_audio_driver = {
+        .driver         = {
+                .name   = "rockchip-aic3111",
+                .owner  = THIS_MODULE,
+                .of_match_table = of_match_ptr(rockchip_aic3111_of_match),
+        },
+        .probe          = rockchip_aic3111_audio_probe,
+        .remove         = rockchip_aic3111_audio_remove,
+};
+
+module_platform_driver(rockchip_aic3111_audio_driver);
+
 /* Module information */
 MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP i2s ASoC Interface");

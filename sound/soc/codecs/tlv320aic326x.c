@@ -2302,7 +2302,7 @@ static int aic3262_set_bias_level(struct snd_soc_codec *codec,
  *
  *----------------------------------------------------------------------------
  */
-static int aic3262_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int aic3262_suspend(struct snd_soc_codec *codec)
 {
 	aic3262_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

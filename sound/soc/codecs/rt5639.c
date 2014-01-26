@@ -25,15 +25,6 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-#define RT3261_PROC
-#ifdef RT3261_PROC
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/vmalloc.h>
-char debug_write_read = 0;
-#endif
-static struct snd_soc_codec *rt3261_codec;
-
 #define RTK_IOCTL
 #ifdef RTK_IOCTL
 #if defined(CONFIG_SND_HWDEP) || defined(CONFIG_SND_HWDEP_MODULE)
@@ -41,54 +32,6 @@ static struct snd_soc_codec *rt3261_codec;
 #include "rt5639_ioctl.h"
 #endif
 #endif
-
-static unsigned int rt3261_read(struct snd_soc_codec *codec,
-		unsigned int reg)
-{
-	unsigned int val;
-
-	val = codec->hw_read(codec, reg);
-	return val;
-}
-
-static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int value, const void *data, int len)
-{
-	int ret;
-
-	if (!snd_soc_codec_volatile_register(codec, reg) &&
-			reg < codec->driver->reg_cache_size &&
-			!codec->cache_bypass) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (codec->cache_only) {
-		codec->cache_sync = 1;
-		return 0;
-	}
-
-	ret = codec->hw_write(codec->control_data, data, len);
-	if (ret == len)
-		return 0;
-	if (ret < 0)
-		return ret;
-	else
-		return -EIO;
-}
-
-static int rt3261_write(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int value)
-{
-	u8 data[3];
-
-	data[0] = reg;
-	data[1] = (value >> 8) & 0xff;
-	data[2] = value & 0xff;
-
-	return do_hw_write(codec, reg, value, data, 3);
-}
 
 #include "rt5639.h"
 
@@ -1506,10 +1449,10 @@ static int rt5639_set_dmic2_event(struct snd_soc_dapm_widget *w,
 }
 
 #if USE_ONEBIT_DEPOP
-void hp_amp_power(struct snd_soc_codec *codec, int on)
+void rt5639_hp_amp_power(struct snd_soc_codec *codec, int on)
 {
 	static int hp_amp_power_count;
-//	printk("one bit hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
+//	printk("one bit rt5639_hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
 
 	if(on) {
 		if(hp_amp_power_count <= 0) {
@@ -1567,7 +1510,7 @@ void hp_amp_power(struct snd_soc_codec *codec, int on)
 
 static void rt5639_pmu_depop(struct snd_soc_codec *codec)
 {
-	hp_amp_power(codec, 1);
+	rt5639_hp_amp_power(codec, 1);
 	/* headphone unmute sequence */
 	msleep(5);
 	snd_soc_update_bits(codec, RT5639_HP_VOL,
@@ -1591,15 +1534,15 @@ static void rt5639_pmd_depop(struct snd_soc_codec *codec)
 		RT5639_L_MUTE | RT5639_R_MUTE,
 		RT5639_L_MUTE | RT5639_R_MUTE);
 	msleep(50);
-	hp_amp_power(codec, 0);
+	rt5639_hp_amp_power(codec, 0);
 	
 }
 
 #else //seq
-void hp_amp_power(struct snd_soc_codec *codec, int on)
+void rt5639_hp_amp_power(struct snd_soc_codec *codec, int on)
 {
 	static int hp_amp_power_count;
-//	printk("hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
+//	printk("rt5639_hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
 
 	if(on) {
 		if(hp_amp_power_count <= 0) {
@@ -1656,7 +1599,7 @@ void hp_amp_power(struct snd_soc_codec *codec, int on)
 
 static void rt5639_pmu_depop(struct snd_soc_codec *codec)
 {
-	hp_amp_power(codec, 1);
+	rt5639_hp_amp_power(codec, 1);
 	/* headphone unmute sequence */
 	snd_soc_update_bits(codec, RT5639_DEPOP_M3,
 		RT5639_CP_FQ1_MASK | RT5639_CP_FQ2_MASK | RT5639_CP_FQ3_MASK,
@@ -1703,7 +1646,7 @@ static void rt5639_pmd_depop(struct snd_soc_codec *codec)
 		RT5639_L_MUTE | RT5639_R_MUTE, RT5639_L_MUTE | RT5639_R_MUTE);
 	msleep(30);
 
-	hp_amp_power(codec, 0);
+	rt5639_hp_amp_power(codec, 0);
 }
 #endif
 
@@ -1761,7 +1704,7 @@ static int rt5639_lout_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		hp_amp_power(codec,1);
+		rt5639_hp_amp_power(codec,1);
 		snd_soc_update_bits(codec, RT5639_PWR_ANLG1,
 			RT5639_PWR_LM, RT5639_PWR_LM);
 		snd_soc_update_bits(codec, RT5639_OUTPUT,
@@ -1774,7 +1717,7 @@ static int rt5639_lout_event(struct snd_soc_dapm_widget *w,
 			RT5639_L_MUTE | RT5639_R_MUTE);
 		snd_soc_update_bits(codec, RT5639_PWR_ANLG1,
 			RT5639_PWR_LM, 0);
-		hp_amp_power(codec,0);
+		rt5639_hp_amp_power(codec,0);
 		break;
 
 	default:
@@ -3001,8 +2944,6 @@ static int rt5639_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int rt3261_proc_init(void);
-
 static int rt5639_probe(struct snd_soc_codec *codec)
 {
 	struct rt5639_priv *rt5639 = snd_soc_codec_get_drvdata(codec);
@@ -3015,10 +2956,6 @@ static int rt5639_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
-	
-#ifdef RT3261_PROC	
-	rt3261_proc_init();
-#endif
 
 	rt5639_reset(codec);
 	snd_soc_update_bits(codec, RT5639_PWR_ANLG1,
@@ -3072,7 +3009,7 @@ static int rt5639_probe(struct snd_soc_codec *codec)
 	ioctl_ops->index_read = rt5639_index_read;
 	ioctl_ops->index_update_bits = rt5639_index_update_bits;
 	ioctl_ops->ioctl_common = rt5639_ioctl_common;
-	realtek_ce_init_hwdep(codec);
+	rt56xx_ce_init_hwdep(codec);
 #endif
 #endif
 
@@ -3089,7 +3026,6 @@ static int rt5639_probe(struct snd_soc_codec *codec)
 			"Failed to create codex_reg sysfs files: %d\n", ret);
 		return ret;
 	}
-	rt3261_codec = codec;
 
 	return 0;
 }
@@ -3101,7 +3037,7 @@ static int rt5639_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int rt5639_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rt5639_suspend(struct snd_soc_codec *codec)
 {
 	rt5639_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -3253,125 +3189,3 @@ module_exit(rt5639_modexit);
 MODULE_DESCRIPTION("ASoC RT5639 driver");
 MODULE_AUTHOR("Johnny Hsu <johnnyhsu@realtek.com>");
 MODULE_LICENSE("GPL");
-
-#ifdef RT3261_PROC
-
-static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
-		unsigned long len, void *data)
-{
-	char *cookie_pot; 
-	char *p;
-	int reg;
-	int i;
-	int value;
-
-	cookie_pot = (char *)vmalloc( len );
-	if (!cookie_pot) 
-	{
-		return -ENOMEM;
-	} 
-	else 
-	{
-		if (copy_from_user( cookie_pot, buffer, len )) 
-			return -EFAULT;
-	}
-
-	switch(cookie_pot[0])
-	{
-		case 'd':
-		case 'D':
-			debug_write_read ++;
-			debug_write_read %= 2;
-			if(debug_write_read != 0)
-				printk("Debug read and write reg on\n");
-			else	
-				printk("Debug read and write reg off\n");	
-			break;	
-		case 'r':
-		case 'R':
-			printk("Read reg debug\n");		
-			if(cookie_pot[1] ==':')
-			{
-				debug_write_read = 1;
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,",")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					value = rt3261_read(rt3261_codec,reg);
-					printk("rt3261_read:0x%04x = 0x%04x\n",reg,value);
-				}
-				debug_write_read = 0;
-				printk("\n");
-			}
-			else
-			{
-				printk("Error Read reg debug.\n");
-				printk("For example: echo r:22,23,24,25>rt3261_ts\n");
-			}
-			break;
-		case 'w':
-		case 'W':
-			printk("Write reg debug\n");		
-			if(cookie_pot[1] ==':')
-			{
-				debug_write_read = 1;
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,"=")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					p=strsep(&cookie_pot,",");
-					value = simple_strtol(p,NULL,16);
-					rt3261_write(rt3261_codec,reg,value);
-					printk("rt3261_write:0x%04x = 0x%04x\n",reg,value);
-				}
-				debug_write_read = 0;
-				printk("\n");
-			}
-			else
-			{
-				printk("Error Write reg debug.\n");
-				printk("For example: w:22=0,23=0,24=0,25=0>rt3261_ts\n");
-			}
-			break;
-		/*case 'a':
-			printk("Dump rt3261 dsp reg \n");		
-
-			for (i = 0; i < 0xb4; i++) 
-			{
-				value = rt3261_index_read(rt3261_codec, i);
-				printk("rt3261_index_read:0x%04x = 0x%04x\n",i,value);
-			}
-
-			break;		*/
-		default:
-			printk("Help for rt3261_ts .\n-->The Cmd list: \n");
-			printk("-->'d&&D' Open or Off the debug\n");
-			printk("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>rt3261_ts\n");
-			printk("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>rt3261_ts\n");
-			break;
-	}
-
-	return len;
-}
-
-static const struct file_operations rt3261_proc_fops = {
-	.owner		= THIS_MODULE,
-};
-
-static int rt3261_proc_init(void)
-{
-	struct proc_dir_entry *rt3261_proc_entry;
-	rt3261_proc_entry = create_proc_entry("driver/rt3261_ts", 0777, NULL);
-	if(rt3261_proc_entry != NULL)
-	{
-		rt3261_proc_entry->write_proc = rt3261_proc_write;
-		return 0;
-	}
-	else
-	{
-		printk("create proc error !\n");
-		return -1;
-	}
-}
-#endif
-

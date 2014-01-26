@@ -2085,7 +2085,7 @@ static int cx2070x_remove(struct snd_soc_codec *codec)
     return 0;
 }
 
-static int cx2070x_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int cx2070x_suspend(struct snd_soc_codec *codec)
 {
     INFO("%lu: %s() called\n",jiffies,__func__);
     cx2070x_set_bias_level(codec, SND_SOC_BIAS_OFF);

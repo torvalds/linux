@@ -1398,7 +1398,7 @@ EXPORT_SYMBOL_GPL(rt56xx_dsp_ioctl_common);
 #endif
 
 #ifdef CONFIG_PM
-int rt5640_dsp_suspend(struct snd_soc_codec *codec, pm_message_t state)
+int rt5640_dsp_suspend(struct snd_soc_codec *codec)
 {
 	struct rt5640_dsp_param param;
 	int ret;

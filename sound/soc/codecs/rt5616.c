@@ -641,7 +641,7 @@ static int rt5616_adc_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-void hp_amp_power(struct snd_soc_codec *codec, int on)
+void rt5616_hp_amp_power(struct snd_soc_codec *codec, int on)
 {
 	static int hp_amp_power_count;
 
@@ -701,7 +701,7 @@ void hp_amp_power(struct snd_soc_codec *codec, int on)
 
 static void rt5616_pmu_depop(struct snd_soc_codec *codec)
 {
-	hp_amp_power(codec, 1);
+	rt5616_hp_amp_power(codec, 1);
 
 	/* headphone unmute sequence */
 	snd_soc_update_bits(codec, RT5616_DEPOP_M3,
@@ -753,7 +753,7 @@ static void rt5616_pmd_depop(struct snd_soc_codec *codec)
 		RT5616_L_MUTE | RT5616_R_MUTE, RT5616_L_MUTE | RT5616_R_MUTE);
 	msleep(30);
 
-	hp_amp_power(codec, 0);
+	rt5616_hp_amp_power(codec, 0);
 
 }
 
@@ -785,7 +785,7 @@ static int rt5616_lout_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		hp_amp_power(codec,1);
+		rt5616_hp_amp_power(codec,1);
 		snd_soc_update_bits(codec, RT5616_LOUT_CTRL1,
 			RT5616_L_MUTE | RT5616_R_MUTE, 0);
 		break;
@@ -794,7 +794,7 @@ static int rt5616_lout_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, RT5616_LOUT_CTRL1,
 			RT5616_L_MUTE | RT5616_R_MUTE,
 			RT5616_L_MUTE | RT5616_R_MUTE);
-		hp_amp_power(codec,0);
+		rt5616_hp_amp_power(codec,0);
 		break;
 
 	default:
@@ -1480,7 +1480,7 @@ static int rt5616_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-void codec_set_spk(bool on)
+void rt5616_codec_set_spk(bool on)
 {
 
 	struct snd_soc_codec *codec = rt5616_codec;
@@ -1557,7 +1557,7 @@ static int rt5616_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int rt5616_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rt5616_suspend(struct snd_soc_codec *codec)
 {
 	rt5616_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

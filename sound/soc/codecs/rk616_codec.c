@@ -550,6 +550,10 @@ static int rk616_reset(struct snd_soc_codec *codec)
 	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL1, 0x3f);
 	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL2, 0xff);
 
+	//set ADC Power for MICBIAS
+	snd_soc_update_bits(codec, RK616_PWR_ADD1,
+		RK616_ADC_PWRD, 0);
+
 	return 0;
 }
 
@@ -2356,7 +2360,7 @@ static int rk616_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_write(codec, RK616_PWR_ADD1, rk616_reg_defaults[RK616_PWR_ADD1]);
+		snd_soc_write(codec, RK616_PWR_ADD1, rk616_reg_defaults[RK616_PWR_ADD1] & ~RK616_ADC_PWRD);
 		snd_soc_write(codec, RK616_PWR_ADD2, rk616_reg_defaults[RK616_PWR_ADD2]);
 		snd_soc_write(codec, RK616_PWR_ADD3, rk616_reg_defaults[RK616_PWR_ADD3]);
 		if (!rk616_for_mid)
@@ -2709,7 +2713,7 @@ static struct snd_soc_dai_driver rk616_dai[] = {
 
 };
 
-static int rk616_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rk616_suspend(struct snd_soc_codec *codec)
 {
 	if (rk616_for_mid)
 		rk616_codec_power_down(RK616_CODEC_ALL);

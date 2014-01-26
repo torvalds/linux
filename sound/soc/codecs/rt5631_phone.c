@@ -121,7 +121,7 @@ static const u16 rt5631_reg[RT5631_VENDOR_ID2 + 1] = {
 	[RT5631_PSEUDO_SPATL_CTRL] = 0x0553,
 };
 
-void codec_set_spk(bool on)
+void rt5631_codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rt5631_codec;
 
@@ -2246,7 +2246,7 @@ static int rt5631_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int rt5631_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rt5631_suspend(struct snd_soc_codec *codec)
 {
 	rt5631_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

@@ -23,10 +23,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <asm/io.h>
-#include <mach/board.h>
-#include <mach/io.h>
-#include <mach/iomux.h>
-#include <mach/cru.h>
+
 #include "rk3190_codec.h"
 
 #ifdef CONFIG_RK_HEADSET_DET
@@ -2064,7 +2061,7 @@ static struct snd_soc_dai_driver rk3190_dai[] = {
 
 };
 
-static int rk3190_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int rk3190_suspend(struct snd_soc_codec *codec)
 {
 	if (rk3190_for_mid)
 	{
@@ -2288,7 +2285,7 @@ static int rk3190_platform_probe(struct platform_device *pdev)
 			&soc_codec_dev_rk3190, rk3190_dai, ARRAY_SIZE(rk3190_dai));
 }
 
-static __devexit int rk3190_platform_remove(struct platform_device *pdev)
+static int rk3190_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;

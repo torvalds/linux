@@ -442,6 +442,17 @@
 
 		};
 
+		gpio1_spdif {
+			spdif_tx: spdif-tx {
+				rockchip,pins = <SPDIF_TX>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+		};
+
 		gpio3_pwm {
 			pwm0_pin:pwm0 {
 				rockchip,pins = <PWM0>;
