@@ -18264,6 +18264,7 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 				goto rw_error;
 			}
 		}
+		ext_attr->standard = DRX_STANDARD_UNKNOWN;
 	}
 
 	common_attr->current_power_mode = *mode;
