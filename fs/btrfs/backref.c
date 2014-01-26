@@ -1118,6 +1118,7 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 		if (!node)
 			break;
 		bytenr = node->val;
+		cond_resched();
 	}
 
 	ulist_free(tmp);
