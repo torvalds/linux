@@ -52,12 +52,18 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 	int i, j;
 
 	for (i = 0; i < slit->locality_count; i++) {
-		if (pxm_to_node(i) == NUMA_NO_NODE)
+		const int from_node = pxm_to_node(i);
+
+		if (from_node == NUMA_NO_NODE)
 			continue;
+
 		for (j = 0; j < slit->locality_count; j++) {
-			if (pxm_to_node(j) == NUMA_NO_NODE)
+			const int to_node = pxm_to_node(j);
+
+			if (to_node == NUMA_NO_NODE)
 				continue;
-			numa_set_distance(pxm_to_node(i), pxm_to_node(j),
+
+			numa_set_distance(from_node, to_node,
 				slit->entry[slit->locality_count * i + j]);
 		}
 	}
