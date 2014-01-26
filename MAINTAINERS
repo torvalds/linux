@@ -1409,6 +1409,7 @@ F:	drivers/cpuidle/cpuidle-zynq.c
 N:	zynq
 N:	xilinx
 F:	drivers/clocksource/cadence_ttc_timer.c
+F:	drivers/mmc/host/sdhci-of-arasan.c
 
 ARM SMMU DRIVER
 M:	Will Deacon <will.deacon@arm.com>
@@ -5782,7 +5783,7 @@ F:	drivers/mfd/
 F:	include/linux/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
-M:	Chris Ball <cjb@laptop.org>
+M:	Chris Ball <chris@printf.net>
 L:	linux-mmc@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
 S:	Maintained
@@ -7609,7 +7610,7 @@ S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
-M:	Chris Ball <cjb@laptop.org>
+M:	Chris Ball <chris@printf.net>
 L:	linux-mmc@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
 S:	Maintained
@@ -8768,7 +8769,6 @@ F:	include/linux/toshiba.h
 F:	include/uapi/linux/toshiba.h
 
 TMIO MMC DRIVER
-M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 M:	Ian Molton <ian@mnementh.co.uk>
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
