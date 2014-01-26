@@ -4417,8 +4417,8 @@ rw_error:
 static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd)
 {
 	int rc;
-	u32 start_time = 0;
 	u16 cur_cmd = 0;
+	unsigned long timeout;
 
 	/* Check param */
 	if (cmd == NULL)
@@ -4478,15 +4478,17 @@ static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd
 	}
 
 	/* Wait until SCU has processed command */
-	start_time = jiffies_to_msecs(jiffies);
-	do {
+	timeout = jiffies + msecs_to_jiffies(DRXJ_MAX_WAITTIME);
+	while (time_is_after_jiffies(timeout)) {
 		rc = DRXJ_DAP.read_reg16func(dev_addr, SCU_RAM_COMMAND__A, &cur_cmd, 0);
 		if (rc != 0) {
 			pr_err("error %d\n", rc);
 			goto rw_error;
 		}
-	} while (!(cur_cmd == DRX_SCU_READY)
-		 && ((jiffies_to_msecs(jiffies) - start_time) < DRXJ_MAX_WAITTIME));
+		if (cur_cmd == DRX_SCU_READY)
+			break;
+		usleep_range(1000, 2000);
+	}
 
 	if (cur_cmd != DRX_SCU_READY)
 		return -EIO;
