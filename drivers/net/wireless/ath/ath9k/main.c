@@ -1863,7 +1863,7 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 
 static bool ath9k_has_tx_pending(struct ath_softc *sc)
 {
-	int i, npend;
+	int i, npend = 0;
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (!ATH_TXQ_SETUP(sc, i))
