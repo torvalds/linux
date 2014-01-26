@@ -32,14 +32,18 @@ enum adv7604_ain_sel {
 	ADV7604_AIN9_4_5_6_SYNC_2_1 = 4,
 };
 
-/* Bus rotation and reordering (IO register 0x04, [7:5]) */
-enum adv7604_op_ch_sel {
-	ADV7604_OP_CH_SEL_GBR = 0,
-	ADV7604_OP_CH_SEL_GRB = 1,
-	ADV7604_OP_CH_SEL_BGR = 2,
-	ADV7604_OP_CH_SEL_RGB = 3,
-	ADV7604_OP_CH_SEL_BRG = 4,
-	ADV7604_OP_CH_SEL_RBG = 5,
+/*
+ * Bus rotation and reordering. This is used to specify component reordering on
+ * the board and describes the components order on the bus when the ADV7604
+ * outputs RGB.
+ */
+enum adv7604_bus_order {
+	ADV7604_BUS_ORDER_RGB,		/* No operation	*/
+	ADV7604_BUS_ORDER_GRB,		/* Swap 1-2	*/
+	ADV7604_BUS_ORDER_RBG,		/* Swap 2-3	*/
+	ADV7604_BUS_ORDER_BGR,		/* Swap 1-3	*/
+	ADV7604_BUS_ORDER_BRG,		/* Rotate right	*/
+	ADV7604_BUS_ORDER_GBR,		/* Rotate left	*/
 };
 
 /* Input Color Space (IO register 0x02, [7:4]) */
@@ -55,29 +59,11 @@ enum adv7604_inp_color_space {
 	ADV7604_INP_COLOR_SPACE_AUTO = 0xf,
 };
 
-/* Select output format (IO register 0x03, [7:0]) */
-enum adv7604_op_format_sel {
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_8 = 0x00,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_10 = 0x01,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_12_MODE0 = 0x02,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_12_MODE1 = 0x06,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_12_MODE2 = 0x0a,
-	ADV7604_OP_FORMAT_SEL_DDR_422_8 = 0x20,
-	ADV7604_OP_FORMAT_SEL_DDR_422_10 = 0x21,
-	ADV7604_OP_FORMAT_SEL_DDR_422_12_MODE0 = 0x22,
-	ADV7604_OP_FORMAT_SEL_DDR_422_12_MODE1 = 0x23,
-	ADV7604_OP_FORMAT_SEL_DDR_422_12_MODE2 = 0x24,
-	ADV7604_OP_FORMAT_SEL_SDR_444_24 = 0x40,
-	ADV7604_OP_FORMAT_SEL_SDR_444_30 = 0x41,
-	ADV7604_OP_FORMAT_SEL_SDR_444_36_MODE0 = 0x42,
-	ADV7604_OP_FORMAT_SEL_DDR_444_24 = 0x60,
-	ADV7604_OP_FORMAT_SEL_DDR_444_30 = 0x61,
-	ADV7604_OP_FORMAT_SEL_DDR_444_36 = 0x62,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_16 = 0x80,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_20 = 0x81,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_24_MODE0 = 0x82,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_24_MODE1 = 0x86,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_24_MODE2 = 0x8a,
+/* Select output format (IO register 0x03, [4:2]) */
+enum adv7604_op_format_mode_sel {
+	ADV7604_OP_FORMAT_MODE0 = 0x00,
+	ADV7604_OP_FORMAT_MODE1 = 0x04,
+	ADV7604_OP_FORMAT_MODE2 = 0x08,
 };
 
 enum adv7604_drive_strength {
@@ -105,10 +91,10 @@ struct adv7604_platform_data {
 	enum adv7604_ain_sel ain_sel;
 
 	/* Bus rotation and reordering */
-	enum adv7604_op_ch_sel op_ch_sel;
+	enum adv7604_bus_order bus_order;
 
-	/* Select output format */
-	enum adv7604_op_format_sel op_format_sel;
+	/* Select output format mode */
+	enum adv7604_op_format_mode_sel op_format_mode_sel;
 
 	/* Configuration of the INT1 pin */
 	enum adv7604_int1_config int1_config;
@@ -116,14 +102,12 @@ struct adv7604_platform_data {
 	/* IO register 0x02 */
 	unsigned alt_gamma:1;
 	unsigned op_656_range:1;
-	unsigned rgb_out:1;
 	unsigned alt_data_sat:1;
 
 	/* IO register 0x05 */
 	unsigned blank_data:1;
 	unsigned insert_av_codes:1;
 	unsigned replicate_av_codes:1;
-	unsigned invert_cbcr:1;
 
 	/* IO register 0x06 */
 	unsigned inv_vs_pol:1;
