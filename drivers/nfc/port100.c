@@ -139,6 +139,8 @@ static const struct port100_in_rf_setting in_rf_settings[] = {
 		.in_recv_set_number = 15,
 		.in_recv_comm_type  = PORT100_COMM_TYPE_IN_106A,
 	},
+	/* Ensures the array has NFC_DIGITAL_RF_TECH_LAST elements */
+	[NFC_DIGITAL_RF_TECH_LAST] = { 0 },
 };
 
 /**
@@ -174,6 +176,9 @@ static const struct port100_tg_rf_setting tg_rf_settings[] = {
 		.tg_set_number = 8,
 		.tg_comm_type = PORT100_COMM_TYPE_TG_424F,
 	},
+	/* Ensures the array has NFC_DIGITAL_RF_TECH_LAST elements */
+	[NFC_DIGITAL_RF_TECH_LAST] = { 0 },
+
 };
 
 #define PORT100_IN_PROT_INITIAL_GUARD_TIME      0x00
@@ -330,6 +335,10 @@ in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 	[NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED] = {
 		{ PORT100_IN_PROT_END, 0 },
 	},
+	/* Ensures the array has NFC_DIGITAL_FRAMING_LAST elements */
+	[NFC_DIGITAL_FRAMING_LAST] = {
+		{ PORT100_IN_PROT_END, 0 },
+	},
 };
 
 static struct port100_protocol
@@ -369,6 +378,10 @@ tg_protocols[][PORT100_TG_MAX_NUM_PROTOCOLS + 1] = {
 	},
 	[NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED] = {
 		{ PORT100_TG_PROT_RF_OFF, 1 },
+		{ PORT100_TG_PROT_END,    0 },
+	},
+	/* Ensures the array has NFC_DIGITAL_FRAMING_LAST elements */
+	[NFC_DIGITAL_FRAMING_LAST] = {
 		{ PORT100_TG_PROT_END,    0 },
 	},
 };
