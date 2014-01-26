@@ -61,6 +61,15 @@
 #define DIGITAL_ISO15693_RES_IS_VALID(flags) \
 	(!((flags) & DIGITAL_ISO15693_RES_FLAG_ERROR))
 
+#define DIGITAL_ISO_DEP_I_PCB	 0x02
+#define DIGITAL_ISO_DEP_PNI(pni) ((pni) & 0x01)
+
+#define DIGITAL_ISO_DEP_PCB_TYPE(pcb) ((pcb) & 0xC0)
+
+#define DIGITAL_ISO_DEP_I_BLOCK 0x00
+
+#define DIGITAL_ISO_DEP_BLOCK_HAS_DID(pcb) ((pcb) & 0x08)
+
 static const u8 digital_ats_fsc[] = {
 	 16,  24,  32,  40,  48,  64,  96, 128,
 };
@@ -117,6 +126,54 @@ struct digital_iso15693_inv_res {
 
 static int digital_in_send_sdd_req(struct nfc_digital_dev *ddev,
 				   struct nfc_target *target);
+
+int digital_in_iso_dep_pull_sod(struct nfc_digital_dev *ddev,
+				struct sk_buff *skb)
+{
+	u8 pcb;
+	u8 block_type;
+
+	if (skb->len < 1)
+		return -EIO;
+
+	pcb = *skb->data;
+	block_type = DIGITAL_ISO_DEP_PCB_TYPE(pcb);
+
+	/* No support fo R-block nor S-block */
+	if (block_type != DIGITAL_ISO_DEP_I_BLOCK) {
+		pr_err("ISO_DEP R-block and S-block not supported\n");
+		return -EIO;
+	}
+
+	if (DIGITAL_ISO_DEP_BLOCK_HAS_DID(pcb)) {
+		pr_err("DID field in ISO_DEP PCB not supported\n");
+		return -EIO;
+	}
+
+	skb_pull(skb, 1);
+
+	return 0;
+}
+
+int digital_in_iso_dep_push_sod(struct nfc_digital_dev *ddev,
+				struct sk_buff *skb)
+{
+	/*
+	 * Chaining not supported so skb->len + 1 PCB byte + 2 CRC bytes must
+	 * not be greater than remote FSC
+	 */
+	if (skb->len + 3 > ddev->target_fsc)
+		return -EIO;
+
+	skb_push(skb, 1);
+
+	*skb->data = DIGITAL_ISO_DEP_I_PCB | ddev->curr_nfc_dep_pni;
+
+	ddev->curr_nfc_dep_pni =
+		DIGITAL_ISO_DEP_PNI(ddev->curr_nfc_dep_pni + 1);
+
+	return 0;
+}
 
 static void digital_in_recv_ats(struct nfc_digital_dev *ddev, void *arg,
 				struct sk_buff *resp)

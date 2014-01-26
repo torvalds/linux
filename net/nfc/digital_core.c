@@ -624,20 +624,30 @@ static void digital_in_send_complete(struct nfc_digital_dev *ddev, void *arg,
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
+		resp = NULL;
 		goto done;
 	}
 
-	if (ddev->curr_protocol == NFC_PROTO_MIFARE)
+	if (ddev->curr_protocol == NFC_PROTO_MIFARE) {
 		rc = digital_in_recv_mifare_res(resp);
-	else
-		rc = ddev->skb_check_crc(resp);
+		/* crc check is done in digital_in_recv_mifare_res() */
+		goto done;
+	}
 
+	if (ddev->curr_protocol == NFC_PROTO_ISO14443) {
+		rc = digital_in_iso_dep_pull_sod(ddev, resp);
+		if (rc)
+			goto done;
+	}
+
+	rc = ddev->skb_check_crc(resp);
+
+done:
 	if (rc) {
 		kfree_skb(resp);
 		resp = NULL;
 	}
 
-done:
 	data_exch->cb(data_exch->cb_context, resp, rc);
 
 	kfree(data_exch);
@@ -649,6 +659,7 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 {
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
 	struct digital_data_exch *data_exch;
+	int rc;
 
 	data_exch = kzalloc(sizeof(struct digital_data_exch), GFP_KERNEL);
 	if (!data_exch) {
@@ -661,6 +672,12 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	if (ddev->curr_protocol == NFC_PROTO_NFC_DEP)
 		return digital_in_send_dep_req(ddev, target, skb, data_exch);
+
+	if (ddev->curr_protocol == NFC_PROTO_ISO14443) {
+		rc = digital_in_iso_dep_push_sod(ddev, skb);
+		if (rc)
+			return rc;
+	}
 
 	ddev->skb_add_crc(skb);
 
