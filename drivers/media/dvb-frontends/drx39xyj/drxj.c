@@ -20213,18 +20213,15 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	default:
 		return -EINVAL;
 	}
-
-	if (standard != state->current_standard || state->powered_up == 0) {
-		/* Set the standard (will be powered up if necessary */
-		result = ctrl_set_standard(demod, &standard);
-		if (result != 0) {
-			pr_err("Failed to set standard! result=%02x\n",
-			       result);
-			return -EINVAL;
-		}
-		state->powered_up = 1;
-		state->current_standard = standard;
+	/* Set the standard (will be powered up if necessary */
+	result = ctrl_set_standard(demod, &standard);
+	if (result != 0) {
+		pr_err("Failed to set standard! result=%02x\n",
+			result);
+		return -EINVAL;
 	}
+	state->powered_up = 1;
+	state->current_standard = standard;
 
 	/* set channel parameters */
 	channel = def_channel;
