@@ -622,7 +622,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 	pm_runtime_put(dev);
 
-	if (ret < 0)
+	if (ret < 0 && ret != -EREMOTEIO)
 		dev_err(dev, "error %d : %x\n", ret, priv->flags);
 
 	return ret;
