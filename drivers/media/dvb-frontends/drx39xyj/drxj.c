@@ -10415,107 +10415,122 @@ set_qam_channel(struct drx_demod_instance *demod,
 	switch (channel->constellation) {
 	case DRX_CONSTELLATION_QAM16:
 	case DRX_CONSTELLATION_QAM32:
-	case DRX_CONSTELLATION_QAM64:
 	case DRX_CONSTELLATION_QAM128:
+		return -EINVAL;
+	case DRX_CONSTELLATION_QAM64:
 	case DRX_CONSTELLATION_QAM256:
+		if (ext_attr->standard != DRX_STANDARD_ITU_B)
+			return -EINVAL;
+
 		ext_attr->constellation = channel->constellation;
 		if (channel->mirror == DRX_MIRROR_AUTO)
 			ext_attr->mirror = DRX_MIRROR_NO;
 		else
 			ext_attr->mirror = channel->mirror;
+
 		rc = set_qam(demod, channel, tuner_freq_offset, QAM_SET_OP_ALL);
 		if (rc != 0) {
 			pr_err("error %d\n", rc);
 			goto rw_error;
 		}
 
-		if ((ext_attr->standard == DRX_STANDARD_ITU_B) &&
-		    (channel->constellation == DRX_CONSTELLATION_QAM64)) {
-			rc = qam64auto(demod, channel, tuner_freq_offset, &lock_status);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
-		}
-
-		if ((ext_attr->standard == DRX_STANDARD_ITU_B) &&
-		    (channel->mirror == DRX_MIRROR_AUTO) &&
-		    (channel->constellation == DRX_CONSTELLATION_QAM256)) {
-			rc = qam256auto(demod, channel, tuner_freq_offset, &lock_status);
-			if (rc != 0) {
-				pr_err("error %d\n", rc);
-				goto rw_error;
-			}
+		if (channel->constellation == DRX_CONSTELLATION_QAM64)
+			rc = qam64auto(demod, channel, tuner_freq_offset,
+				       &lock_status);
+		else
+			rc = qam256auto(demod, channel, tuner_freq_offset,
+					&lock_status);
+		if (rc != 0) {
+			pr_err("error %d\n", rc);
+			goto rw_error;
 		}
 		break;
 	case DRX_CONSTELLATION_AUTO:	/* for channel scan */
 		if (ext_attr->standard == DRX_STANDARD_ITU_B) {
+			u16 qam_ctl_ena = 0;
+
 			auto_flag = true;
-			/* try to lock default QAM constellation: QAM64 */
+
+			/* try to lock default QAM constellation: QAM256 */
 			channel->constellation = DRX_CONSTELLATION_QAM256;
 			ext_attr->constellation = DRX_CONSTELLATION_QAM256;
 			if (channel->mirror == DRX_MIRROR_AUTO)
 				ext_attr->mirror = DRX_MIRROR_NO;
 			else
 				ext_attr->mirror = channel->mirror;
-			rc = set_qam(demod, channel, tuner_freq_offset, QAM_SET_OP_ALL);
+			rc = set_qam(demod, channel, tuner_freq_offset,
+				     QAM_SET_OP_ALL);
 			if (rc != 0) {
 				pr_err("error %d\n", rc);
 				goto rw_error;
 			}
-			rc = qam256auto(demod, channel, tuner_freq_offset, &lock_status);
+			rc = qam256auto(demod, channel, tuner_freq_offset,
+					&lock_status);
 			if (rc != 0) {
 				pr_err("error %d\n", rc);
 				goto rw_error;
 			}
 
-			if (lock_status < DRX_LOCKED) {
-				/* QAM254 not locked -> try to lock QAM64 constellation */
-				channel->constellation =
-				    DRX_CONSTELLATION_QAM64;
-				ext_attr->constellation =
-				    DRX_CONSTELLATION_QAM64;
-				if (channel->mirror == DRX_MIRROR_AUTO)
-					ext_attr->mirror = DRX_MIRROR_NO;
-				else
-					ext_attr->mirror = channel->mirror;
-				{
-					u16 qam_ctl_ena = 0;
-					rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena, 0);
-					if (rc != 0) {
-						pr_err("error %d\n", rc);
-						goto rw_error;
-					}
-					rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena & ~SCU_RAM_QAM_CTL_ENA_ACQ__M, 0);
-					if (rc != 0) {
-						pr_err("error %d\n", rc);
-						goto rw_error;
-					}
-					rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2, 0);
-					if (rc != 0) {
-						pr_err("error %d\n", rc);
-						goto rw_error;
-					}	/* force to rate hunting */
-
-					rc = set_qam(demod, channel, tuner_freq_offset, QAM_SET_OP_CONSTELLATION);
-					if (rc != 0) {
-						pr_err("error %d\n", rc);
-						goto rw_error;
-					}
-					rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena, 0);
-					if (rc != 0) {
-						pr_err("error %d\n", rc);
-						goto rw_error;
-					}
-				}
-				rc = qam64auto(demod, channel, tuner_freq_offset, &lock_status);
-				if (rc != 0) {
-					pr_err("error %d\n", rc);
-					goto rw_error;
-				}
+			if (lock_status >= DRX_LOCKED) {
+				channel->constellation = DRX_CONSTELLATION_AUTO;
+				break;
 			}
+
+			/* QAM254 not locked. Try QAM64 constellation */
+			channel->constellation = DRX_CONSTELLATION_QAM64;
+			ext_attr->constellation = DRX_CONSTELLATION_QAM64;
+			if (channel->mirror == DRX_MIRROR_AUTO)
+				ext_attr->mirror = DRX_MIRROR_NO;
+			else
+				ext_attr->mirror = channel->mirror;
+
+			rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr,
+						     SCU_RAM_QAM_CTL_ENA__A,
+						     &qam_ctl_ena, 0);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr,
+						      SCU_RAM_QAM_CTL_ENA__A,
+						      qam_ctl_ena & ~SCU_RAM_QAM_CTL_ENA_ACQ__M, 0);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr,
+						      SCU_RAM_QAM_FSM_STATE_TGT__A,
+						      0x2, 0);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/* force to rate hunting */
+
+			rc = set_qam(demod, channel, tuner_freq_offset,
+				     QAM_SET_OP_CONSTELLATION);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr,
+						      SCU_RAM_QAM_CTL_ENA__A,
+						      qam_ctl_ena, 0);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+
+			rc = qam64auto(demod, channel, tuner_freq_offset,
+				       &lock_status);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+
 			channel->constellation = DRX_CONSTELLATION_AUTO;
 		} else if (ext_attr->standard == DRX_STANDARD_ITU_C) {
+			u16 qam_ctl_ena = 0;
+
 			channel->constellation = DRX_CONSTELLATION_QAM64;
 			ext_attr->constellation = DRX_CONSTELLATION_QAM64;
 			auto_flag = true;
@@ -10524,43 +10539,49 @@ set_qam_channel(struct drx_demod_instance *demod,
 				ext_attr->mirror = DRX_MIRROR_NO;
 			else
 				ext_attr->mirror = channel->mirror;
-			{
-				u16 qam_ctl_ena = 0;
-				rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, &qam_ctl_ena, 0);
-				if (rc != 0) {
-					pr_err("error %d\n", rc);
-					goto rw_error;
-				}
-				rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena & ~SCU_RAM_QAM_CTL_ENA_ACQ__M, 0);
-				if (rc != 0) {
-					pr_err("error %d\n", rc);
-					goto rw_error;
-				}
-				rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_FSM_STATE_TGT__A, 0x2, 0);
-				if (rc != 0) {
-					pr_err("error %d\n", rc);
-					goto rw_error;
-				}	/* force to rate hunting */
-
-				rc = set_qam(demod, channel, tuner_freq_offset, QAM_SET_OP_CONSTELLATION);
-				if (rc != 0) {
-					pr_err("error %d\n", rc);
-					goto rw_error;
-				}
-				rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr, SCU_RAM_QAM_CTL_ENA__A, qam_ctl_ena, 0);
-				if (rc != 0) {
-					pr_err("error %d\n", rc);
-					goto rw_error;
-				}
+			rc = DRXJ_DAP.read_reg16func(demod->my_i2c_dev_addr,
+						     SCU_RAM_QAM_CTL_ENA__A,
+						     &qam_ctl_ena, 0);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
 			}
-			rc = qam64auto(demod, channel, tuner_freq_offset, &lock_status);
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr,
+						      SCU_RAM_QAM_CTL_ENA__A,
+						      qam_ctl_ena & ~SCU_RAM_QAM_CTL_ENA_ACQ__M, 0);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr,
+						      SCU_RAM_QAM_FSM_STATE_TGT__A,
+						      0x2, 0);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}	/* force to rate hunting */
+
+			rc = set_qam(demod, channel, tuner_freq_offset,
+				     QAM_SET_OP_CONSTELLATION);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = DRXJ_DAP.write_reg16func(demod->my_i2c_dev_addr,
+						      SCU_RAM_QAM_CTL_ENA__A,
+						      qam_ctl_ena, 0);
+			if (rc != 0) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
+			rc = qam64auto(demod, channel, tuner_freq_offset,
+				       &lock_status);
 			if (rc != 0) {
 				pr_err("error %d\n", rc);
 				goto rw_error;
 			}
 			channel->constellation = DRX_CONSTELLATION_AUTO;
 		} else {
-			channel->constellation = DRX_CONSTELLATION_AUTO;
 			return -EINVAL;
 		}
 		break;
