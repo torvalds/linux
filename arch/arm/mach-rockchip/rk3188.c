@@ -322,7 +322,7 @@ static void rk3188_restart(char mode, const char *cmd)
 	dsb();
 }
 
-DT_MACHINE_START(RK3188_DT, "Rockchip RK3188 (Flattened Device Tree)")
+DT_MACHINE_START(RK3188_DT, "RK30board")
 	.smp		= smp_ops(rockchip_smp_ops),
 	.map_io		= rk3188_dt_map_io,
 	.init_time	= rk3188_dt_init_timer,
