@@ -74,40 +74,36 @@
 
 #define POWER_KEEP_ALIVE_PERIOD_SEC    25
 
+static
 int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 				   struct iwl_beacon_filter_cmd *cmd,
 				   u32 flags)
 {
-	int ret;
+	IWL_DEBUG_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
+			le32_to_cpu(cmd->ba_enable_beacon_abort));
+	IWL_DEBUG_POWER(mvm, "ba_escape_timer is: %d\n",
+			le32_to_cpu(cmd->ba_escape_timer));
+	IWL_DEBUG_POWER(mvm, "bf_debug_flag is: %d\n",
+			le32_to_cpu(cmd->bf_debug_flag));
+	IWL_DEBUG_POWER(mvm, "bf_enable_beacon_filter is: %d\n",
+			le32_to_cpu(cmd->bf_enable_beacon_filter));
+	IWL_DEBUG_POWER(mvm, "bf_energy_delta is: %d\n",
+			le32_to_cpu(cmd->bf_energy_delta));
+	IWL_DEBUG_POWER(mvm, "bf_escape_timer is: %d\n",
+			le32_to_cpu(cmd->bf_escape_timer));
+	IWL_DEBUG_POWER(mvm, "bf_roaming_energy_delta is: %d\n",
+			le32_to_cpu(cmd->bf_roaming_energy_delta));
+	IWL_DEBUG_POWER(mvm, "bf_roaming_state is: %d\n",
+			le32_to_cpu(cmd->bf_roaming_state));
+	IWL_DEBUG_POWER(mvm, "bf_temp_threshold is: %d\n",
+			le32_to_cpu(cmd->bf_temp_threshold));
+	IWL_DEBUG_POWER(mvm, "bf_temp_fast_filter is: %d\n",
+			le32_to_cpu(cmd->bf_temp_fast_filter));
+	IWL_DEBUG_POWER(mvm, "bf_temp_slow_filter is: %d\n",
+			le32_to_cpu(cmd->bf_temp_slow_filter));
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_BEACON_FILTERING_CMD, flags,
-				   sizeof(struct iwl_beacon_filter_cmd), cmd);
-
-	if (!ret) {
-		IWL_DEBUG_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
-				le32_to_cpu(cmd->ba_enable_beacon_abort));
-		IWL_DEBUG_POWER(mvm, "ba_escape_timer is: %d\n",
-				le32_to_cpu(cmd->ba_escape_timer));
-		IWL_DEBUG_POWER(mvm, "bf_debug_flag is: %d\n",
-				le32_to_cpu(cmd->bf_debug_flag));
-		IWL_DEBUG_POWER(mvm, "bf_enable_beacon_filter is: %d\n",
-				le32_to_cpu(cmd->bf_enable_beacon_filter));
-		IWL_DEBUG_POWER(mvm, "bf_energy_delta is: %d\n",
-				le32_to_cpu(cmd->bf_energy_delta));
-		IWL_DEBUG_POWER(mvm, "bf_escape_timer is: %d\n",
-				le32_to_cpu(cmd->bf_escape_timer));
-		IWL_DEBUG_POWER(mvm, "bf_roaming_energy_delta is: %d\n",
-				le32_to_cpu(cmd->bf_roaming_energy_delta));
-		IWL_DEBUG_POWER(mvm, "bf_roaming_state is: %d\n",
-				le32_to_cpu(cmd->bf_roaming_state));
-		IWL_DEBUG_POWER(mvm, "bf_temp_threshold is: %d\n",
-				le32_to_cpu(cmd->bf_temp_threshold));
-		IWL_DEBUG_POWER(mvm, "bf_temp_fast_filter is: %d\n",
-				le32_to_cpu(cmd->bf_temp_fast_filter));
-		IWL_DEBUG_POWER(mvm, "bf_temp_slow_filter is: %d\n",
-				le32_to_cpu(cmd->bf_temp_slow_filter));
-	}
-	return ret;
+	return iwl_mvm_send_cmd_pdu(mvm, REPLY_BEACON_FILTERING_CMD, flags,
+				    sizeof(struct iwl_beacon_filter_cmd), cmd);
 }
 
 static
@@ -313,7 +309,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	    mvmvif->dbgfs_pm.disable_power_off)
 		cmd->flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
 #endif
-	if (!vif->bss_conf.ps || mvmvif->pm_prevented ||
+	if (!vif->bss_conf.ps || mvm->bound_vif_cnt > 1 ||
 	    iwl_mvm_vif_low_latency(mvmvif))
 		return;
 
@@ -549,11 +545,8 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 static void iwl_mvm_power_binding_iterator(void *_data, u8 *mac,
 					   struct ieee80211_vif *vif)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = _data;
 	int ret;
-
-	mvmvif->pm_prevented = (mvm->bound_vif_cnt <= 1) ? false : true;
 
 	ret = iwl_mvm_power_mac_update_mode(mvm, vif);
 	WARN_ONCE(ret, "Failed to update power parameters on a specific vif\n");
