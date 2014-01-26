@@ -180,7 +180,8 @@ int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (copy > len - copied)
 			copy = len - copied;
 
-		if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
+		if (skb->ip_summed == CHECKSUM_UNNECESSARY ||
+		    skb->ip_summed == CHECKSUM_PARTIAL) {
 			ret = skb_copy_datagram_iovec(skb, offset,
 						      msg->msg_iov, copy);
 		} else {
