@@ -29,9 +29,7 @@
 struct drx39xxj_state {
 	struct i2c_adapter *i2c;
 	struct drx_demod_instance *demod;
-	enum drx_standard current_standard;
 	struct dvb_frontend frontend;
-	unsigned int powered_up:1;
 	unsigned int i2c_gate_open:1;
 	const struct firmware *fw;
 };

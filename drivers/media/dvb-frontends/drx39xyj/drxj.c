@@ -20015,7 +20015,6 @@ static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 		return 0;
 	}
 
-	state->powered_up = enable;
 	return 0;
 }
 
@@ -20222,8 +20221,6 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 			result);
 		return -EINVAL;
 	}
-	state->powered_up = 1;
-	state->current_standard = standard;
 
 	/* set channel parameters */
 	channel = def_channel;
