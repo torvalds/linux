@@ -337,6 +337,11 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		framing = NFC_DIGITAL_FRAMING_ISO15693_TVT;
 		check_crc = digital_skb_check_crc_b;
 		add_crc = digital_skb_add_crc_b;
+
+	case NFC_PROTO_ISO14443:
+		framing = NFC_DIGITAL_FRAMING_NFCA_T4T;
+		check_crc = digital_skb_check_crc_a;
+		add_crc = digital_skb_add_crc_a;
 		break;
 
 	default:
@@ -714,6 +719,8 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 		ddev->protocols |= NFC_PROTO_NFC_DEP_MASK;
 	if (supported_protocols & NFC_PROTO_ISO15693_MASK)
 		ddev->protocols |= NFC_PROTO_ISO15693_MASK;
+	if (supported_protocols & NFC_PROTO_ISO14443_MASK)
+		ddev->protocols |= NFC_PROTO_ISO14443_MASK;
 
 	ddev->tx_headroom = tx_headroom + DIGITAL_MAX_HEADER_LEN;
 	ddev->tx_tailroom = tx_tailroom + DIGITAL_CRC_LEN;

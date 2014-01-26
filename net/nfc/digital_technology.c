@@ -30,6 +30,7 @@
 
 #define DIGITAL_SEL_RES_NFCID1_COMPLETE(sel_res) (!((sel_res) & 0x04))
 #define DIGITAL_SEL_RES_IS_T2T(sel_res) (!((sel_res) & 0x60))
+#define DIGITAL_SEL_RES_IS_T4T(sel_res) ((sel_res) & 0x20)
 #define DIGITAL_SEL_RES_IS_NFC_DEP(sel_res) ((sel_res) & 0x40)
 
 #define DIGITAL_SENS_RES_IS_T1T(sens_res) (((sens_res) & 0x0C00) == 0x0C00)
@@ -59,6 +60,16 @@
 #define DIGITAL_ISO15693_RES_FLAG_ERROR		BIT(0)
 #define DIGITAL_ISO15693_RES_IS_VALID(flags) \
 	(!((flags) & DIGITAL_ISO15693_RES_FLAG_ERROR))
+
+static const u8 digital_ats_fsc[] = {
+	 16,  24,  32,  40,  48,  64,  96, 128,
+};
+
+#define DIGITAL_ATS_FSCI(t0) ((t0) & 0x0F)
+#define DIGITAL_ATS_MAX_FSC  256
+
+#define DIGITAL_RATS_BYTE1 0xE0
+#define DIGITAL_RATS_PARAM 0x80
 
 struct digital_sdd_res {
 	u8 nfcid1[4];
@@ -107,6 +118,63 @@ struct digital_iso15693_inv_res {
 static int digital_in_send_sdd_req(struct nfc_digital_dev *ddev,
 				   struct nfc_target *target);
 
+static void digital_in_recv_ats(struct nfc_digital_dev *ddev, void *arg,
+				struct sk_buff *resp)
+{
+	struct nfc_target *target = arg;
+	u8 fsdi;
+	int rc;
+
+	if (IS_ERR(resp)) {
+		rc = PTR_ERR(resp);
+		resp = NULL;
+		goto exit;
+	}
+
+	if (resp->len < 2) {
+		rc = -EIO;
+		goto exit;
+	}
+
+	fsdi = DIGITAL_ATS_FSCI(resp->data[1]);
+	if (fsdi >= 8)
+		ddev->target_fsc = DIGITAL_ATS_MAX_FSC;
+	else
+		ddev->target_fsc = digital_ats_fsc[fsdi];
+
+	ddev->curr_nfc_dep_pni = 0;
+
+	rc = digital_target_found(ddev, target, NFC_PROTO_ISO14443);
+
+exit:
+	dev_kfree_skb(resp);
+	kfree(target);
+
+	if (rc)
+		digital_poll_next_tech(ddev);
+}
+
+static int digital_in_send_rats(struct nfc_digital_dev *ddev,
+				struct nfc_target *target)
+{
+	int rc;
+	struct sk_buff *skb;
+
+	skb = digital_skb_alloc(ddev, 2);
+	if (!skb)
+		return -ENOMEM;
+
+	*skb_put(skb, 1) = DIGITAL_RATS_BYTE1;
+	*skb_put(skb, 1) = DIGITAL_RATS_PARAM;
+
+	rc = digital_in_send_cmd(ddev, skb, 30, digital_in_recv_ats,
+				 target);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
+}
+
 static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 				    struct sk_buff *resp)
 {
@@ -144,16 +212,25 @@ static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 		goto exit_free_skb;
 	}
 
+	target->sel_res = sel_res;
+
 	if (DIGITAL_SEL_RES_IS_T2T(sel_res)) {
 		nfc_proto = NFC_PROTO_MIFARE;
+	} else if (DIGITAL_SEL_RES_IS_T4T(sel_res)) {
+		rc = digital_in_send_rats(ddev, target);
+		if (rc)
+			goto exit;
+		/*
+		 * Skip target_found and don't free it for now. This will be
+		 * done when receiving the ATS
+		 */
+		goto exit_free_skb;
 	} else if (DIGITAL_SEL_RES_IS_NFC_DEP(sel_res)) {
 		nfc_proto = NFC_PROTO_NFC_DEP;
 	} else {
 		rc = -EOPNOTSUPP;
 		goto exit;
 	}
-
-	target->sel_res = sel_res;
 
 	rc = digital_target_found(ddev, target, nfc_proto);
 

@@ -51,6 +51,7 @@ enum {
 
 	NFC_DIGITAL_FRAMING_NFCA_T1T,
 	NFC_DIGITAL_FRAMING_NFCA_T2T,
+	NFC_DIGITAL_FRAMING_NFCA_T4T,
 	NFC_DIGITAL_FRAMING_NFCA_NFC_DEP,
 
 	NFC_DIGITAL_FRAMING_NFCF,
@@ -207,6 +208,8 @@ struct nfc_digital_dev {
 	u8 curr_protocol;
 	u8 curr_rf_tech;
 	u8 curr_nfc_dep_pni;
+
+	u16 target_fsc;
 
 	int (*skb_check_crc)(struct sk_buff *skb);
 	void (*skb_add_crc)(struct sk_buff *skb);
