@@ -20171,11 +20171,21 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	/* Bring the demod out of sleep */
 	drx39xxj_set_powerstate(fe, 1);
 
-	/* Now make the tuner do it's thing... */
 	if (fe->ops.tuner_ops.set_params) {
+		u32 int_freq;
+
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
+
+		/* Set tuner to desired frequency and standard */
 		fe->ops.tuner_ops.set_params(fe);
+
+		/* Use the tuner's IF */
+		if (fe->ops.tuner_ops.get_if_frequency) {
+			fe->ops.tuner_ops.get_if_frequency(fe, &int_freq);
+			demod->my_common_attr->intermediate_freq = int_freq / 1000;
+		}
+
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
