@@ -128,5 +128,36 @@
 			reg = <0xa000000 0x1000000>;
 			interrupts = <0 372 4>;
 		};
+
+		ppebase: ppebase@28c0000 {
+			compatible = "hisilicon,ppebase";
+			reg = <0x28c0000 0x10000>;
+		};
+
+		fe: ethernet@28b0000 {
+			compatible = "hisilicon,hip04-mac";
+			reg = <0x28b0000 0x10000>;
+			interrupts = <0 413 4>;
+			port = <31>;
+			speed = <100>;
+			id = <0>;
+		};
+
+		ge0: ethernet@2800000 {
+			compatible = "hisilicon,hip04-mac";
+			reg = <0x2800000 0x10000>;
+			interrupts = <0 412 4>;
+			port = <0>;
+			speed = <1000>;
+			id = <1>;
+		};
+		ge8: ethernet@2880000 {
+			compatible = "hisilicon,hip04-mac";
+			reg = <0x2880000 0x10000>;
+			interrupts = <0 420 4>;
+			port = <8>;
+			speed = <1000>;
+			id = <2>;
+		};
 	};
 };
