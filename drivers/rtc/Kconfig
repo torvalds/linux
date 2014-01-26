@@ -414,6 +414,12 @@ config RTC_DRV_TPS65910
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-tps65910.
 
+config  RK808_RTC
+	tristate "rk808 rtc for rk"
+	depends on MFD_RK808
+	help
+		enable rk808 rtc for system
+
 config RTC_DRV_TPS80031
 	tristate "TI TPS80031/TPS80032 RTC driver"
 	depends on MFD_TPS80031

@@ -250,6 +250,18 @@ config REGULATOR_MAX77686
 	  via I2C bus. The provided regulator is suitable for
 	  Exynos-4 chips to control VARM and VINT voltages.
 
+config REGULATOR_ACT8846
+	tristate "Active Semi ACT8846 PMIC regulators"
+	depends on I2C
+	help
+	  Support the voltage and current regulators of the ACT8846 series of PMIC devices.
+
+config ACT8846_SUPPORT_RESET
+	tristate "ACT8846 PMIC SUPPORT RESET"
+	depends on REGULATOR_ACT8846=y
+	help
+	  Support short press key to restart.
+
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP

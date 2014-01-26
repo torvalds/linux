@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
+#include <linux/irqdomain.h>
 
 
 /* RTC Definitions */
@@ -76,7 +77,6 @@ static int rk808_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	struct rk808_rtc *rk808_rtc = dev_get_drvdata(dev);
 	struct rk808 *rk808 = rk808_rtc->rk808;
 	int ret;
-	int count = 0;
 	unsigned char rtc_data[ALL_TIME_REGS + 1];
 	u8 rtc_ctl;
 
@@ -514,22 +514,9 @@ static int rk808_rtc_freeze(struct device *dev)
 #define rk808_rtc_resume NULL
 #define rk808_rtc_freeze NULL
 #endif
-
+extern struct rk808 *g_rk808;
 struct platform_device *rk808_pdev;
-static int rk808_rtc_probe(struct platform_device *pdev)
-{
-	struct rk808 *rk808 = dev_get_drvdata(pdev->dev.parent);
-	struct rk808_rtc *rk808_rtc;
-	int per_irq;
-	int alm_irq;
-	int ret = 0;
-	u8 rtc_ctl;
-
-	printk("%s,line=%d\n", __func__,__LINE__);
-
-	
-	struct rtc_time tm;
-	struct rtc_time tm_def = {	//	2012.1.1 12:00:00 Saturday
+struct rtc_time tm_def = {	//	2012.1.1 12:00:00 Saturday
 			.tm_wday = 6,
 			.tm_year = 112,
 			.tm_mon = 0,
@@ -537,16 +524,26 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 			.tm_hour = 12,
 			.tm_min = 0,
 			.tm_sec = 0,
-		};
+};
 	
+static int rk808_rtc_probe(struct platform_device *pdev)
+{
+	struct rk808 *rk808 = dev_get_drvdata(pdev->dev.parent);
+	struct rk808_rtc *rk808_rtc;
+	struct rtc_time tm;
+	int per_irq;
+	int alm_irq;
+	int ret = 0;
+	u8 rtc_ctl;
+
+	printk("%s,line=%d\n", __func__,__LINE__);
+
 	rk808_rtc = kzalloc(sizeof(*rk808_rtc), GFP_KERNEL);
 	if (rk808_rtc == NULL)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, rk808_rtc);
 	rk808_rtc->rk808 = rk808;
-	per_irq = rk808->irq_base + RK808_IRQ_RTC_PERIOD;
-	alm_irq = rk808->irq_base + RK808_IRQ_RTC_ALARM;
 	
 	/* Take rtc out of reset */
 	/*
@@ -611,9 +608,12 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rk808_rtc->rtc);
 		goto err;
 	}
+	
+	per_irq = irq_create_mapping(rk808->irq_domain, RK808_IRQ_RTC_PERIOD);
+	alm_irq = irq_create_mapping(rk808->irq_domain, RK808_IRQ_RTC_ALARM);	
 
 	/*request rtc and alarm irq of rk808*/
-	ret = request_threaded_irq(per_irq, NULL, rk808_per_irq,
+	ret = devm_request_threaded_irq(rk808->dev,per_irq, NULL, rk808_per_irq,
 				   IRQF_TRIGGER_RISING, "RTC period",
 				   rk808_rtc);
 	if (ret != 0) {
@@ -621,7 +621,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 			per_irq, ret);
 	}
 
-	ret = request_threaded_irq(alm_irq, NULL, rk808_alm_irq,
+	ret = devm_request_threaded_irq(rk808->dev,alm_irq, NULL, rk808_alm_irq,
 				   IRQF_TRIGGER_RISING, "RTC alarm",
 				   rk808_rtc);
 	if (ret != 0) {
@@ -637,7 +637,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 	rk808_set_bits(rk808_rtc->rk808, RK808_INT_STS_MSK_REG1,(0x3 <<5),0);
 */
 
-	enable_irq_wake(alm_irq); // so rk808 alarm irq can wake up system
+//	enable_irq_wake(alm_irq); // so rk808 alarm irq can wake up system
 	rk808_pdev = pdev;
 	
 	printk("%s:ok\n",__func__);
@@ -649,7 +649,7 @@ err:
 	return ret;
 }
 
-static int __devexit rk808_rtc_remove(struct platform_device *pdev)
+static int rk808_rtc_remove(struct platform_device *pdev)
 {
 	struct rk808_rtc *rk808_rtc = platform_get_drvdata(pdev);
 	int per_irq = rk808_rtc->rk808->irq_base + RK808_IRQ_RTC_PERIOD;
@@ -676,7 +676,7 @@ static const struct dev_pm_ops rk808_rtc_pm_ops = {
 
 static struct platform_driver rk808_rtc_driver = {
 	.probe = rk808_rtc_probe,
-	.remove = __devexit_p(rk808_rtc_remove),
+	.remove = rk808_rtc_remove,
 	.driver = {
 		.name = "rk808-rtc",
 		.pm = &rk808_rtc_pm_ops,

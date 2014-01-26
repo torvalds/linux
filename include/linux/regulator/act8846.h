@@ -24,20 +24,39 @@
 #define ACT8846_LDO1 4                //(4+ACT8846_START)
 
 
-#define act8846_NUM_REGULATORS 13
+#define act8846_NUM_REGULATORS 12
 struct act8846;
 
 int act8846_device_shutdown(void);
 
+struct act8846_board {
+	int irq;
+	int irq_base;
+	struct regulator_init_data *act8846_init_data[act8846_NUM_REGULATORS];
+	struct device_node *of_node[act8846_NUM_REGULATORS];
+	int pmic_sleep_gpio; /* */
+	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
+	unsigned int dcdc_mode[3]; /* buckx_voltage in uV */
+	bool pmic_sleep;
+	unsigned int ldo_slp_voltage[7];
+};
+
 struct act8846_regulator_subdev {
 	int id;
 	struct regulator_init_data *initdata;
+	struct device_node *reg_node;
 };
 
 struct act8846_platform_data {
+	int ono;
 	int num_regulators;
 	int (*set_init)(struct act8846 *act8846);
 	struct act8846_regulator_subdev *regulators;
+	
+	int pmic_sleep_gpio; /* */
+	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
+	bool pmic_sleep;
+	unsigned int ldo_slp_voltage[7];
 };
 
 #endif

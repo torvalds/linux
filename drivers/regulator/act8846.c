@@ -17,14 +17,22 @@
 #include <linux/kernel.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/act8846.h>
-#include <mach/gpio.h>
 #include <linux/delay.h>
-#include <mach/iomux.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
-
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/of_irq.h>
+#include <linux/of_gpio.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/regulator/of_regulator.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
+#include <linux/regmap.h>
 
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
@@ -44,8 +52,21 @@ struct act8846 {
 	struct i2c_client *i2c;
 	int num_regulators;
 	struct regulator_dev **rdev;
-	struct early_suspend act8846_suspend;
+//	struct early_suspend act8846_suspend;
+	int irq_base;
+	int chip_irq;
+	int pmic_sleep_gpio; /* */
+	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
+	bool pmic_sleep;
+	struct regmap *regmap;
 };
+
+struct act8846_regulator {
+	struct device		*dev;
+	struct regulator_desc	*desc;
+	struct regulator_dev	*rdev;
+};
+
 
 struct act8846 *g_act8846;
 
@@ -142,7 +163,7 @@ const static int buck_voltage_map[] = {
 	 1500, 1550, 1600, 1650, 1700, 1750, 1800, 
 	 1850, 1900, 1950, 2000, 2050, 2100, 2150, 
 	 2200, 2250, 2300, 2350, 2400, 2500, 2600, 
-	 2700, 2800, 2850, 2900, 3000, 3100, 3200,
+	 2700, 2800, 2900, 3000, 3100, 3200,
 	 3300, 3400, 3500, 3600, 3700, 3800, 3900,
 };
 
@@ -154,7 +175,7 @@ const static int ldo_voltage_map[] = {
 	 1500, 1550, 1600, 1650, 1700, 1750, 1800, 
 	 1850, 1900, 1950, 2000, 2050, 2100, 2150, 
 	 2200, 2250, 2300, 2350, 2400, 2500, 2600, 
-	 2700, 2800, 2850, 2900, 3000, 3100, 3200,
+	 2700, 2800, 2900, 3000, 3100, 3200,
 	 3300, 3400, 3500, 3600, 3700, 3800, 3900,
 };
 
@@ -184,7 +205,7 @@ static int act8846_ldo_enable(struct regulator_dev *dev)
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - ACT8846_LDO1;
 	u16 mask=0x80;	
-	
+
 	return act8846_set_bits(act8846, act8846_LDO_CONTR_REG(ldo), mask, 0x80);
 	
 }
@@ -217,6 +238,7 @@ static int act8846_ldo_set_voltage(struct regulator_dev *dev,
 	const int *vol_map =ldo_voltage_map;
 	u16 val;
 	int ret = 0;
+
 	if (min_vol < vol_map[VOL_MIN_IDX] ||
 	    min_vol > vol_map[VOL_MAX_IDX])
 		return -EINVAL;
@@ -307,6 +329,7 @@ static int act8846_dcdc_enable(struct regulator_dev *dev)
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - ACT8846_DCDC1;
 	u16 mask=0x80;	
+	
 	return act8846_set_bits(act8846, act8846_BUCK_CONTR_REG(buck), mask, 0x80);
 
 }
@@ -329,9 +352,7 @@ static int act8846_dcdc_get_voltage(struct regulator_dev *dev)
 	reg = act8846_reg_read(act8846,act8846_BUCK_SET_VOL_REG(buck));
 	#endif
 	reg &= BUCK_VOL_MASK;
-        DBG("%d\n", reg);
 	val = 1000 * buck_voltage_map[reg];	
-        DBG("%d\n", val);
 	return val;
 }
 static int act8846_dcdc_set_voltage(struct regulator_dev *dev,
@@ -344,7 +365,6 @@ static int act8846_dcdc_set_voltage(struct regulator_dev *dev,
 	u16 val;
 	int ret = 0;
 
-        DBG("%s, min_uV = %d, max_uV = %d!\n", __func__, min_uV, max_uV);
 	if (min_vol < vol_map[VOL_MIN_IDX] ||
 	    min_vol > vol_map[VOL_MAX_IDX])
 		return -EINVAL;
@@ -375,7 +395,6 @@ static int act8846_dcdc_set_sleep_voltage(struct regulator_dev *dev,
 	u16 val;
 	int ret = 0;
 
-        DBG("%s, min_uV = %d, max_uV = %d!\n", __func__, min_uV, max_uV);
 	if (min_vol < vol_map[VOL_MIN_IDX] ||
 	    min_vol > vol_map[VOL_MAX_IDX])
 		return -EINVAL;
@@ -417,6 +436,7 @@ static int act8846_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - ACT8846_DCDC1;
 	u16 mask = 0x80;
+
 	switch(mode)
 	{
 	case REGULATOR_MODE_STANDBY:
@@ -462,7 +482,7 @@ static struct regulator_ops act8846_dcdc_ops = {
 static struct regulator_desc regulators[] = {
 
         {
-		.name = "DCDC1",
+		.name = "ACT_DCDC1",
 		.id = 0,
 		.ops = &act8846_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck_voltage_map),
@@ -470,7 +490,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "DCDC2",
+		.name = "ACT_DCDC2",
 		.id = 1,
 		.ops = &act8846_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck_voltage_map),
@@ -478,7 +498,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "DCDC3",
+		.name = "ACT_DCDC3",
 		.id = 2,
 		.ops = &act8846_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck_voltage_map),
@@ -486,7 +506,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "DCDC4",
+		.name = "ACT_DCDC4",
 		.id = 3,
 		.ops = &act8846_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck_voltage_map),
@@ -495,7 +515,7 @@ static struct regulator_desc regulators[] = {
 	},
 
 	{
-		.name = "LDO1",
+		.name = "ACT_LDO1",
 		.id =4,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -503,7 +523,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "LDO2",
+		.name = "ACT_LDO2",
 		.id = 5,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -511,7 +531,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "LDO3",
+		.name = "ACT_LDO3",
 		.id = 6,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -519,7 +539,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "LDO4",
+		.name = "ACT_LDO4",
 		.id = 7,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -528,7 +548,7 @@ static struct regulator_desc regulators[] = {
 	},
 
 	{
-		.name = "LDO5",
+		.name = "ACT_LDO5",
 		.id =8,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -536,7 +556,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "LDO6",
+		.name = "ACT_LDO6",
 		.id = 9,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -544,7 +564,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "LDO7",
+		.name = "ACT_LDO7",
 		.id = 10,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -552,7 +572,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "LDO8",
+		.name = "ACT_LDO8",
 		.id = 11,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -560,7 +580,7 @@ static struct regulator_desc regulators[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.name = "LDO9",
+		.name = "ACT_LDO9",
 		.id = 12,
 		.ops = &act8846_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo_voltage_map),
@@ -666,38 +686,127 @@ static int act8846_set_bits(struct act8846 *act8846, u8 reg, u16 mask, u16 val)
 
 	return 0;//ret;	
 }
-static int __devinit setup_regulators(struct act8846 *act8846, struct act8846_platform_data *pdata)
-{	
-	int i, err;
 
-	act8846->num_regulators = pdata->num_regulators;
-	act8846->rdev = kcalloc(pdata->num_regulators,
-			       sizeof(struct regulator_dev *), GFP_KERNEL);
-	if (!act8846->rdev) {
-		return -ENOMEM;
-	}
-	/* Instantiate the regulators */
-	for (i = 0; i < pdata->num_regulators; i++) {
-		int id = pdata->regulators[i].id;
-		act8846->rdev[i] = regulator_register(&regulators[id],
-			act8846->dev, pdata->regulators[i].initdata, act8846);
-/*
-		if (IS_ERR(act8846->rdev[i])) {
-			err = PTR_ERR(act8846->rdev[i]);
-			dev_err(act8846->dev, "regulator init failed: %d\n",
-				err);
-			goto error;
-		}*/
-	}
+#ifdef CONFIG_OF
+static struct of_device_id act8846_of_match[] = {
+	{ .compatible = "act,act8846"},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, act8846_of_match);
+#endif
+#ifdef CONFIG_OF
+static struct of_regulator_match act8846_reg_matches[] = {
+	{ .name = "act_dcdc1" ,.driver_data = (void *)0},
+	{ .name = "act_dcdc2" ,.driver_data = (void *)1},
+	{ .name = "act_dcdc3", .driver_data = (void *)2 },
+	{ .name = "act_dcdc4", .driver_data = (void *)3 },
+	{ .name = "act_ldo1", .driver_data = (void *)4 },
+	{ .name = "act_ldo2", .driver_data = (void *)5 },
+	{ .name = "act_ldo3", .driver_data = (void *)6 },
+	{ .name = "act_ldo4", .driver_data = (void *)7 },
+	{ .name = "act_ldo5", .driver_data = (void *)8 },
+	{ .name = "act_ldo6", .driver_data = (void *)9 },
+	{ .name = "act_ldo7", .driver_data = (void *)10 },
+	{ .name = "act_ldo8", .driver_data = (void *)11 },
+};
 
-	return 0;
-error:
-	while (--i >= 0)
-		regulator_unregister(act8846->rdev[i]);
-	kfree(act8846->rdev);
-	act8846->rdev = NULL;
-	return err;
+static struct act8846_board *act8846_parse_dt(struct act8846 *act8846)
+{
+//	struct act8846 *act8846 = i2c->dev.parent;
+	struct act8846_board *pdata;
+	struct device_node *regs;
+	struct device_node *act8846_pmic_np;
+	int i, count,sleep_voltage_nr =1;
+	int gpio;
+	printk("%s,line=%d\n", __func__,__LINE__);	
+	
+	act8846_pmic_np = of_node_get(act8846->dev->of_node);
+	if (!act8846_pmic_np) {
+		printk("could not find pmic sub-node\n");
+		return NULL;
+	}
+	
+	regs = of_find_node_by_name(act8846_pmic_np, "regulators");
+	if (!regs)
+		return NULL;
+	
+	count = of_regulator_match(act8846->dev, regs, act8846_reg_matches,act8846_NUM_REGULATORS);
+	of_node_put(regs);
+
+	if ((count < 0) || (count > act8846_NUM_REGULATORS))
+		return NULL;
+
+	pdata = devm_kzalloc(act8846->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+	for (i = 0; i < count; i++) {
+		if (!act8846_reg_matches[i].init_data || !act8846_reg_matches[i].of_node)
+			continue;
+		pdata->act8846_init_data[i] = act8846_reg_matches[i].init_data;
+		pdata->of_node[i] = act8846_reg_matches[i].of_node;
+	}
+	pdata->irq = act8846->chip_irq;
+	pdata->irq_base = -1;
+
+	if (of_get_property(act8846_pmic_np, "act,pmic-dcdc-sleep-voltage", NULL))
+		pdata->pmic_sleep = true;
+
+	if (of_get_property(act8846_pmic_np, "act,pmic-ldo-sleep-voltage", NULL))
+		pdata->pmic_sleep = true;
+
+	gpio = of_get_named_gpio(act8846_pmic_np,"gpios", 0);
+		if (!gpio_is_valid(gpio)) 
+			printk("invalid gpio: %d\n",gpio);
+	pdata->pmic_sleep_gpio = gpio;
+	
+	if (of_property_read_u32_array(act8846_pmic_np,
+				"act,pmic-dcdc-sleep-voltage",
+				pdata->dcdc_slp_voltage, sleep_voltage_nr)) {
+		printk("dcdc sleep voltages not specified\n");
+	}	
+
+	return pdata;
 }
+static int act8846_dcdc_sleep_voltage_get_val(int min_uV,int buck)
+{
+	int min_vol = min_uV / 1000, max_vol = min_uV / 1000;
+	const int *vol_map = buck_voltage_map;
+	u16 val;
+
+	if (min_vol < vol_map[VOL_MIN_IDX] ||
+	    min_vol > vol_map[VOL_MAX_IDX])
+		return -EINVAL;
+
+	for (val = VOL_MIN_IDX; val <= VOL_MAX_IDX; val++){
+		if (vol_map[val] >= min_vol)
+			break;
+        }
+
+	if (vol_map[val] > max_vol)
+		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
+	return val;
+}
+static int act8846_dts_dcdc_set_mode(unsigned int mode,int buck)
+{
+	struct act8846 *act8846 = g_act8846;
+	u16 mask = 0x80;
+	switch(mode)
+	{
+	case REGULATOR_MODE_STANDBY:
+		return act8846_set_bits(act8846, act8846_BUCK_CONTR_REG(buck), mask, 0);
+	case REGULATOR_MODE_NORMAL:
+		return act8846_set_bits(act8846, act8846_BUCK_CONTR_REG(buck), mask, mask);
+	default:
+		printk("error:pmu_act8846 only powersave and pwm mode\n");
+		return -EINVAL;
+	}
+}
+#else
+static struct act8846_board *act8846_parse_dt(struct i2c_client *i2c)
+{
+	return NULL;
+}
+#endif
 
 
 int act8846_device_shutdown(void)
@@ -751,11 +860,43 @@ __weak void act8846_early_suspend(struct early_suspend *h) {}
 __weak void act8846_late_resume(struct early_suspend *h) {}
 #endif
 
-static int __devinit act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+static bool is_volatile_reg(struct device *dev, unsigned int reg)
+{
+
+	if ((reg >= act8846_BUCK1_SET_VOL_BASE) && (reg <= act8846_LDO8_CONTR_BASE)) {
+		return true;
+	}
+	return true;
+}
+
+static const struct regmap_config act8846_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.volatile_reg = is_volatile_reg,
+	.max_register = act8846_NUM_REGULATORS - 1,
+	.cache_type = REGCACHE_RBTREE,
+};
+static int act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct act8846 *act8846;	
-	struct act8846_platform_data *pdata = i2c->dev.platform_data;
-	int ret;
+	struct act8846_board *pdev ;
+	const struct of_device_id *match;
+	struct regulator_config config = { };
+	struct regulator_dev *act_rdev;
+	struct regulator_init_data *reg_data;
+	const char *rail_name = NULL;
+	int ret,i=0;
+	
+	printk("%s,line=%d\n", __func__,__LINE__);	
+
+	if (i2c->dev.of_node) {
+		match = of_match_device(act8846_of_match, &i2c->dev);
+		if (!match) {
+			printk("Failed to find matching dt id\n");
+			return -EINVAL;
+		}
+	}
+
 	act8846 = kzalloc(sizeof(struct act8846), GFP_KERNEL);
 	if (act8846 == NULL) {
 		ret = -ENOMEM;		
@@ -764,11 +905,20 @@ static int __devinit act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_
 	act8846->i2c = i2c;
 	act8846->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, act8846);
+	g_act8846 = act8846;
+	
+	act8846->regmap = devm_regmap_init_i2c(i2c, &act8846_regmap_config);
+	if (IS_ERR(act8846->regmap)) {
+		ret = PTR_ERR(act8846->regmap);
+		printk("regmap initialization failed: %d\n", ret);
+		return ret;
+	}
+	
 	mutex_init(&act8846->io_lock);	
 
 	ret = act8846_reg_read(act8846,0x22);
 	if ((ret < 0) || (ret == 0xff)){
-		printk("The device is not act8846 \n");
+		printk("The device is not act8846 %x \n",ret);
 		return 0;
 	}
 
@@ -777,24 +927,80 @@ static int __devinit act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_
 		printk("act8846 set 0xf4 error!\n");
 		goto err;
 	}
+
+	if (act8846->dev->of_node)
+		pdev = act8846_parse_dt(act8846);
 	
-	if (pdata) {
-		ret = setup_regulators(act8846, pdata);
-		if (ret < 0)		
-			goto err;
-	} else
-		dev_warn(act8846->dev, "No platform init data supplied\n");
+	/******************************set sleep vol & dcdc mode******************/
+	#ifdef CONFIG_OF
+	act8846->pmic_sleep_gpio = pdev->pmic_sleep_gpio;
+	if (act8846->pmic_sleep_gpio) {
+			ret = gpio_request(act8846->pmic_sleep_gpio, "act8846_pmic_sleep");
+			if (ret < 0) {
+				dev_err(act8846->dev,"Failed to request gpio %d with ret:""%d\n",	act8846->pmic_sleep_gpio, ret);
+				return IRQ_NONE;
+			}
+			gpio_direction_input(act8846->pmic_sleep_gpio);
+			ret = gpio_get_value(act8846->pmic_sleep_gpio);
+			gpio_free(act8846->pmic_sleep_gpio);
+			printk("%s: act8846_pmic_sleep=%x\n", __func__, ret);
+	}
+	for (i = 0;i <4 ; i ++){
+	act8846->dcdc_slp_voltage[i] = pdev->dcdc_slp_voltage[i];
+		if (act8846->dcdc_slp_voltage[i]){
+			if (i ==0)
+				continue;
 
-	g_act8846 = act8846;
-	pdata->set_init(act8846);
+			#ifdef CONFIG_ACT8846_SUPPORT_RESET
+			ret = act8846_set_bits(act8846, act8846_BUCK_SET_VOL_REG(i) ,BUCK_VOL_MASK, act8846_dcdc_sleep_voltage_get_val(act8846->dcdc_slp_voltage[i],i));
+			#else
+			ret = act8846_set_bits(act8846, (act8846_BUCK_SET_VOL_REG(i) +0x01),BUCK_VOL_MASK, act8846_dcdc_sleep_voltage_get_val(act8846->dcdc_slp_voltage[i],i));
+			#endif
+		}
+	}
+	#endif
+	
+	if (pdev) {
+		act8846->num_regulators = act8846_NUM_REGULATORS;
+		act8846->rdev = kcalloc(act8846_NUM_REGULATORS,sizeof(struct regulator_dev *), GFP_KERNEL);
+		if (!act8846->rdev) {
+			return -ENOMEM;
+		}
+		/* Instantiate the regulators */
+		for (i = 0; i < act8846_NUM_REGULATORS; i++) {
+		reg_data = pdev->act8846_init_data[i];
+		if (!reg_data)
+			continue;
+		config.dev = act8846->dev;
+		config.driver_data = act8846;
+		config.regmap = act8846->regmap;
+		if (act8846->dev->of_node)
+			config.of_node = pdev->of_node[i];
 
+			if (reg_data && reg_data->constraints.name)
+				rail_name = reg_data->constraints.name;
+			else
+				rail_name = regulators[i].name;
+			reg_data->supply_regulator = rail_name;
+	
+		config.init_data =reg_data;
+		
+		act_rdev = regulator_register(&regulators[i],&config);
+		if (IS_ERR(act_rdev)) {
+			printk("failed to register %d regulator\n",i);
+		goto err;
+		}
+		act8846->rdev[i] = act_rdev;
+		}
+	}
+	
 	#ifdef CONFIG_HAS_EARLYSUSPEND
 	act8846->act8846_suspend.suspend = act8846_early_suspend,
 	act8846->act8846_suspend.resume = act8846_late_resume,
 	act8846->act8846_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,
 	register_early_suspend(&act8846->act8846_suspend);
-	#endif
-	
+	#endif	
+
 	return 0;
 
 err:
@@ -802,7 +1008,7 @@ err:
 
 }
 
-static int __devexit act8846_i2c_remove(struct i2c_client *i2c)
+static int  act8846_i2c_remove(struct i2c_client *i2c)
 {
 	struct act8846 *act8846 = i2c_get_clientdata(i2c);
 	int i;
@@ -828,9 +1034,10 @@ static struct i2c_driver act8846_i2c_driver = {
 	.driver = {
 		.name = "act8846",
 		.owner = THIS_MODULE,
+		.of_match_table =of_match_ptr(act8846_of_match),
 	},
 	.probe    = act8846_i2c_probe,
-	.remove   = __devexit_p(act8846_i2c_remove),
+	.remove   = act8846_i2c_remove,
 	.id_table = act8846_i2c_id,
 	#ifdef CONFIG_PM
 	.suspend	= act8846_suspend,

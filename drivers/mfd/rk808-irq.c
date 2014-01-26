@@ -21,11 +21,14 @@
 #include <linux/mfd/rk808.h>
 #include <linux/wakelock.h>
 #include <linux/kthread.h>
+#include <linux/irqdomain.h>
+#include <linux/regmap.h>
+
 
 static inline int irq_to_rk808_irq(struct rk808 *rk808,
 							int irq)
 {
-	return (irq - rk808->irq_base);
+	return (irq - rk808->chip_irq);
 }
 
 /*
@@ -43,8 +46,9 @@ static irqreturn_t rk808_irq(int irq, void *irq_data)
 	u32 irq_sts;
 	u32 irq_mask;
 	u8 reg;
-	int i;
-	//printk(" rk808 irq %d \n",irq);	
+	int i, cur_irq;
+//	printk("%s,line=%d\n", __func__,__LINE__);	
+
 	wake_lock(&rk808->irq_wake);	
 	rk808_i2c_read(rk808, RK808_INT_STS_REG1, 1, &reg);
 	irq_sts = reg;
@@ -65,11 +69,12 @@ static irqreturn_t rk808_irq(int irq, void *irq_data)
 	}
 
 	for (i = 0; i < rk808->irq_num; i++) {
-
 		if (!(irq_sts & (1 << i)))
 			continue;
+		cur_irq = irq_find_mapping(rk808->irq_domain, i);
 
-		handle_nested_irq(rk808->irq_base + i);
+		if (cur_irq)
+		handle_nested_irq(cur_irq);
 	}
 
 	/* Write the STS register back to clear IRQs we handled */
@@ -141,23 +146,35 @@ static struct irq_chip rk808_irq_chip = {
 	.irq_enable = rk808_irq_enable,
 	.irq_set_wake = rk808_irq_set_wake,
 };
-
-int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_platform_data *pdata)
+static int rk808_irq_domain_map(struct irq_domain *d, unsigned int irq,
+					irq_hw_number_t hw)
 {
-	int ret, cur_irq;
-	int flags = IRQF_ONESHOT;
+	struct rk808 *rk808 = d->host_data;
+
+	irq_set_chip_data(irq, rk808);
+	irq_set_chip_and_handler(irq, &rk808_irq_chip, handle_edge_irq);
+	irq_set_nested_thread(irq, 1);
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	irq_set_noprobe(irq);
+#endif
+	return 0;
+}
+
+static struct irq_domain_ops rk808_irq_domain_ops = {
+	.map = rk808_irq_domain_map,
+};
+
+int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_board *pdata)
+{
+	struct irq_domain *domain;
+	int ret,val;
 	u8 reg;
 
-	printk("%s,line=%d\n", __func__,__LINE__);
-
-
+//	printk("%s,line=%d\n", __func__,__LINE__);	
 	if (!irq) {
 		dev_warn(rk808->dev, "No interrupt support, no core IRQ\n");
-		return 0;
-	}
-
-	if (!pdata || !pdata->irq_base) {
-		dev_warn(rk808->dev, "No interrupt support, no IRQ base\n");
 		return 0;
 	}
 
@@ -171,35 +188,39 @@ int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_platform_data *pdat
 
 	/* Mask top level interrupts */
 	rk808->irq_mask = 0xFFFFFF;
-
 	mutex_init(&rk808->irq_lock);	
 	wake_lock_init(&rk808->irq_wake, WAKE_LOCK_SUSPEND, "rk808_irq_wake");
-	rk808->chip_irq = irq;
-	rk808->irq_base = pdata->irq_base;
-
 	rk808->irq_num = RK808_NUM_IRQ;
+	rk808->irq_gpio = pdata->irq_gpio;
+	if (rk808->irq_gpio && !rk808->chip_irq) {
+		rk808->chip_irq = gpio_to_irq(rk808->irq_gpio);
 
-	/* Register with genirq */
-	for (cur_irq = rk808->irq_base;
-	     cur_irq < rk808->irq_num + rk808->irq_base;
-	     cur_irq++) {
-		irq_set_chip_data(cur_irq, rk808);
-		irq_set_chip_and_handler(cur_irq, &rk808_irq_chip,
-					 handle_edge_irq);
-		irq_set_nested_thread(cur_irq, 1);
-
-		/* ARM needs us to explicitly flag the IRQ as valid
-		 * and will set them noprobe when we do so. */
-#ifdef CONFIG_ARM
-		set_irq_flags(cur_irq, IRQF_VALID);
-#else
-		irq_set_noprobe(cur_irq);
-#endif
+		if (rk808->irq_gpio) {
+			ret = gpio_request(rk808->irq_gpio, "rk808_pmic_irq");
+			if (ret < 0) {
+				dev_err(rk808->dev,
+					"Failed to request gpio %d with ret:"
+					"%d\n",	rk808->irq_gpio, ret);
+				return IRQ_NONE;
+			}
+			gpio_direction_input(rk808->irq_gpio);
+			val = gpio_get_value(rk808->irq_gpio);
+			gpio_free(rk808->irq_gpio);
+			pr_info("%s: rk808_pmic_irq=%x\n", __func__, val);
+		}
 	}
+	
+	domain = irq_domain_add_linear(NULL, RK808_NUM_IRQ,
+					&rk808_irq_domain_ops, rk808);
+	if (!domain) {
+		dev_err(rk808->dev, "could not create irq domain\n");
+		return -ENODEV;
+	}
+	rk808->irq_domain = domain;
 
-	ret = request_threaded_irq(irq, NULL, rk808_irq, flags, "rk808", rk808);
+	ret = request_threaded_irq(rk808->chip_irq, NULL, rk808_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "rk808", rk808);
 
-	irq_set_irq_type(irq, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(rk808->chip_irq, IRQ_TYPE_LEVEL_LOW);
 
 	if (ret != 0)
 		dev_err(rk808->dev, "Failed to request IRQ: %d\n", ret);

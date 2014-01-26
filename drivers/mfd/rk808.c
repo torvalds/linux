@@ -16,15 +16,22 @@
 #include <linux/regulator/driver.h>
 #include <linux/mfd/rk808.h>
 #include <linux/mfd/core.h>
-#include <mach/gpio.h>
 #include <linux/delay.h>
-#include <mach/iomux.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 #include <linux/interrupt.h>
-
+#include <linux/module.h>
+#include <linux/of_irq.h>
+#include <linux/of_gpio.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/regulator/of_regulator.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
+#include <linux/regmap.h>
 
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
@@ -484,6 +491,7 @@ static int rk808_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 	struct rk808 *rk808 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - RK808_DCDC1;
 	u16 mask = 0x80;
+
 	switch(mode)
 	{
 	case REGULATOR_MODE_FAST:
@@ -633,8 +641,7 @@ static struct regulator_desc regulators[] = {
  int rk808_i2c_read(struct rk808 *rk808, char reg, int count,u8 *dest)
 {
 	struct i2c_client *i2c = rk808->i2c;
-
-      int ret;
+	int ret;
     struct i2c_adapter *adap;
     struct i2c_msg msgs[2];
 
@@ -648,19 +655,19 @@ static struct regulator_desc regulators[] = {
     
     msgs[0].addr = i2c->addr;
     msgs[0].buf = &reg;
-    msgs[0].flags = 0;
+    msgs[0].flags = i2c->flags;
     msgs[0].len = 1;
-    msgs[0].scl_rate = 200*1000;
+    msgs[0].scl_rate = 100*1000;
     
-    msgs[1].buf = dest;
+    msgs[1].buf = (u8 *)dest;
     msgs[1].addr = i2c->addr;
-    msgs[1].flags =  I2C_M_RD;
-    msgs[1].len = count;
-    msgs[1].scl_rate = 200*1000;
+    msgs[1].flags =  i2c->flags |I2C_M_RD;
+    msgs[1].len = 1;
+    msgs[1].scl_rate = 100*1000;
 
     ret = i2c_transfer(adap, msgs, 2);
 
-	DBG("***run in %s %x  % x\n",__FUNCTION__,i2c->addr,msgs[0].buf);
+	DBG("***run in %s %x  % x\n",__FUNCTION__,i2c->addr,*(msgs[1].buf));
     return 0;
 }
 
@@ -685,7 +692,7 @@ int rk808_i2c_write(struct rk808 *rk808, char reg, int count,  const u8 src)
 	msg.buf = &tx_buf[0];
 	msg.len = 1 +1;
 	msg.flags = i2c->flags;   
-	msg.scl_rate = 200*1000;	
+	msg.scl_rate = 100*1000;	
 
 	ret = i2c_transfer(adap, &msg, 1);
 	return ret;	
@@ -766,7 +773,7 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(rk808_clear_bits);
-
+#if 0
 int rk808_bulk_read(struct rk808 *rk808, u8 reg,
 		     int count, u8 *buf)
 {
@@ -828,7 +835,7 @@ int rk808_bulk_write(struct rk808 *rk808, u8 reg,
 
 }
 EXPORT_SYMBOL_GPL(rk808_bulk_write);
-
+#endif
 
 #if 1
 static ssize_t rk808_test_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -911,47 +918,166 @@ static struct rk808_attribute rk808_attrs[] = {
 };
 #endif
 
-static int __devinit setup_regulators(struct rk808 *rk808, struct rk808_platform_data *pdata)
-{	
-	int i, err;
-
-	rk808->num_regulators = pdata->num_regulators;
-	rk808->rdev = kcalloc(pdata->num_regulators,
-			       sizeof(struct regulator_dev *), GFP_KERNEL);
-	if (!rk808->rdev) {
-		return -ENOMEM;
-	}
-	/* Instantiate the regulators */
-	for (i = 0; i < pdata->num_regulators; i++) {
-		int id = pdata->regulators[i].id;
-		rk808->rdev[i] = regulator_register(&regulators[id],
-			rk808->dev, pdata->regulators[i].initdata, rk808);
-/*
-		if (IS_ERR(rk808->rdev[i])) {
-			err = PTR_ERR(rk808->rdev[i]);
-			dev_err(rk808->dev, "regulator init failed: %d\n",
-				err);
-			goto error;
-		}*/
-	}
-
-	return 0;
-error:
-	while (--i >= 0)
-		regulator_unregister(rk808->rdev[i]);
-	kfree(rk808->rdev);
-	rk808->rdev = NULL;
-	return err;
-}
-
 extern void rk28_send_wakeup_key(void);
 static irqreturn_t rk808_vbat_lo_irq(int irq, void *data)
 {
         printk("rk808 vbat low %s:irq=%d\n",__func__,irq);
 	rk808_set_bits(g_rk808,0x4c,(0x1 << 1),(0x1 <<1));
-	rk28_send_wakeup_key();
+//	rk28_send_wakeup_key();
         return IRQ_HANDLED;
 }
+
+#ifdef CONFIG_OF
+static struct of_device_id rk808_of_match[] = {
+	{ .compatible = "rockchip,rk808"},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, rk808_of_match);
+#endif
+
+#ifdef CONFIG_OF
+static struct of_regulator_match rk808_reg_matches[] = {
+	{ .name = "rk_dcdc1", .driver_data = (void *)0 },
+	{ .name = "rk_dcdc2", .driver_data = (void *)1 },
+	{ .name = "rk_dcdc3", .driver_data = (void *)2 },
+	{ .name = "rk_dcdc4", .driver_data = (void *)3 },
+	{ .name = "rk_ldo1", .driver_data = (void *)4 },
+	{ .name = "rk_ldo2", .driver_data = (void *)5 },
+	{ .name = "rk_ldo3", .driver_data = (void *)6 },
+	{ .name = "rk_ldo4", .driver_data = (void *)7 },
+	{ .name = "rk_ldo5", .driver_data = (void *)8 },
+	{ .name = "rk_ldo6", .driver_data = (void *)9 },
+	{ .name = "rk_ldo7", .driver_data = (void *)10 },
+	{ .name = "rk_ldo8", .driver_data = (void *)11 },
+};
+
+static struct rk808_board *rk808_parse_dt(struct rk808 *rk808)
+{
+	struct rk808_board *pdata;
+	struct device_node *regs,*rk808_pmic_np;
+	int i, count;
+
+	rk808_pmic_np = of_node_get(rk808->dev->of_node);
+	if (!rk808_pmic_np) {
+		printk("could not find pmic sub-node\n");
+		return NULL;
+	}
+
+	regs = of_find_node_by_name(rk808_pmic_np, "regulators");
+	if (!regs)
+		return NULL;
+
+	count = of_regulator_match(rk808->dev, regs, rk808_reg_matches,
+				   rk808_NUM_REGULATORS);
+	of_node_put(regs);
+	if ((count < 0) || (count > rk808_NUM_REGULATORS))
+		return NULL;
+
+	pdata = devm_kzalloc(rk808->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+
+	for (i = 0; i < count; i++) {
+		if (!rk808_reg_matches[i].init_data || !rk808_reg_matches[i].of_node)
+			continue;
+
+		pdata->rk808_init_data[i] = rk808_reg_matches[i].init_data;
+		pdata->of_node[i] = rk808_reg_matches[i].of_node;
+	}
+	pdata->irq = rk808->chip_irq;
+	pdata->irq_base = -1;
+	
+	pdata->irq_gpio = of_get_named_gpio(rk808_pmic_np,"gpios",0);
+		if (!gpio_is_valid(pdata->irq_gpio)) {
+			printk("invalid gpio: %d\n",  pdata->irq_gpio);
+			return NULL;
+		}
+
+	if (of_get_property(rk808_pmic_np, "rockchip,pmic-dcdc-sleep-voltage", NULL))
+		pdata->pmic_sleep = true;
+
+	if (of_get_property(rk808_pmic_np, "rockchip,pmic-ldo-sleep-voltage", NULL))
+		pdata->pmic_sleep = true;
+	if (pdata->pmic_sleep){
+		pdata->pmic_sleep_gpio = of_get_named_gpio(rk808_pmic_np,"gpios",1);
+			if (!gpio_is_valid(pdata->pmic_sleep_gpio)) {
+				printk("invalid gpio: %d\n",  pdata->pmic_sleep_gpio);
+			}
+	}
+	if (of_property_read_u32_array(rk808_pmic_np,
+				"rockchip,pmic-dcdc-sleep-voltage",
+				pdata->dcdc_slp_voltage, 4)) {
+		printk("dcdc sleep voltages not specified\n");
+	}
+
+	if (of_property_read_u32_array(rk808_pmic_np,
+				"rockchip,pmic-ldo-sleep-voltage",
+				pdata->ldo_slp_voltage, 8)) {
+		printk("ldo sleep voltages not specified\n");
+	}
+	
+	return pdata;
+}
+static int rk808_dcdc_sleep_voltage_get_val(int min_uV,int buck)
+{
+	u16 vsel =0;
+	
+	if (buck == 0 || buck ==  1){
+		if (min_uV < 700000)
+		vsel = 0;
+		else if (min_uV <= 1500000)
+		vsel = ((min_uV - 700000) / 12500) ;
+		else
+		return -EINVAL;
+	}
+	else if (buck ==3){
+		if (min_uV < 1800000)
+		vsel = 0;
+		else if (min_uV <= 3300000)
+		vsel = ((min_uV - 1800000) / 100000) ;
+		else
+		return -EINVAL;
+	}
+	return vsel;
+}
+static int rk808_ldo_sleep_voltage_get_val(int min_uV,int ldo)
+{
+	const int *vol_map;
+	int min_vol = min_uV / 1000;
+	int num =0;
+	u16 val;
+	
+	if (ldo ==2){
+	vol_map = ldo3_voltage_map;	
+	num = 15;
+	}
+	else if (ldo == 5 || ldo ==6){
+	vol_map = ldo6_voltage_map;		
+	num = 17;
+	}
+	else {
+	vol_map = ldo_voltage_map;
+	num = 16;
+	}
+	
+	if (min_vol < vol_map[0] ||
+	    min_vol > vol_map[num])
+		return -EINVAL;
+
+	for (val = 0; val <= num; val++){
+		if (vol_map[val] >= min_vol)
+			break;	
+        }
+
+	return val;
+}
+#else
+static struct rk808_board *rk808_parse_dt(struct i2c_client *i2c)
+{
+	return NULL;
+}
+#endif
+
 
 int rk808_device_shutdown(void)
 {
@@ -998,20 +1124,47 @@ static int rk808_resume(struct i2c_client *i2c)
 }
 #endif
 
+static bool is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	if ((reg >= RK808_DCDC_EN_REG) && (reg <= RK808_LDO8_SLP_VSEL_REG)) {
+		return true;
+	}
+	return true;
+}
+
+static const struct regmap_config rk808_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.volatile_reg = is_volatile_reg,
+	.max_register = rk808_NUM_REGULATORS - 1,
+	.cache_type = REGCACHE_RBTREE,
+};
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 __weak void rk808_early_suspend(struct early_suspend *h) {}
 __weak void rk808_late_resume(struct early_suspend *h) {}
 #endif
 
- 
-static int __devinit rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct rk808 *rk808;	
-	struct rk808_platform_data *pdata = i2c->dev.platform_data;
-	int ret;
+	struct rk808_board *pdev;
+	const struct of_device_id *match;
+	struct regulator_config config = { };
+	struct regulator_dev *rk808_rdev;
+	struct regulator_init_data *reg_data;
+	const char *rail_name = NULL;
+	int ret,vlow_irq,i=0;
 	
 	printk("%s,line=%d\n", __func__,__LINE__);
+
+	if (i2c->dev.of_node) {
+		match = of_match_device(rk808_of_match, &i2c->dev);
+		if (!match) {
+			dev_err(&i2c->dev,"Failed to find matching dt id\n");
+			return -EINVAL;
+		}
+	}
 
 	rk808 = kzalloc(sizeof(struct rk808), GFP_KERNEL);
 	if (rk808 == NULL) {
@@ -1021,49 +1174,119 @@ static int __devinit rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_de
 	rk808->i2c = i2c;
 	rk808->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, rk808);
-	rk808->read = rk808_i2c_read;
-	rk808->write = rk808_i2c_write;
+//	rk808->read = rk808_i2c_read;
+//	rk808->write = rk808_i2c_write;
+
+	rk808->regmap = devm_regmap_init_i2c(i2c, &rk808_regmap_config);
+	if (IS_ERR(rk808->regmap)) {
+		printk("regmap initialization failed\n");
+		return ret;
+	}
+	
 	mutex_init(&rk808->io_lock);	
+
+	ret = rk808_reg_read(rk808,0x2f);
+	if ((ret < 0) || (ret == 0xff)){
+		printk("The device is not rk808 %d\n",ret);
+		return 0;
+	}
+	rk808_set_bits(rk808,0x21,(1<<4),(1 <<4));
+	rk808_set_bits(rk808,0x21,(7<<0),(7 <<0));
+
+	if (ret < 0)
+		goto err;
+
+	if (rk808->dev->of_node)
+		pdev = rk808_parse_dt(rk808);
+	
+	/******************************set sleep vol & dcdc mode******************/
+	#ifdef CONFIG_OF
+	rk808->pmic_sleep_gpio = pdev->pmic_sleep_gpio;
+	if (rk808->pmic_sleep_gpio) {
+			ret = gpio_request(rk808->pmic_sleep_gpio, "rk808_pmic_sleep");
+			if (ret < 0) {
+				dev_err(rk808->dev,"Failed to request gpio %d with ret:""%d\n",	rk808->pmic_sleep_gpio, ret);
+				return IRQ_NONE;
+			}
+			gpio_direction_input(rk808->pmic_sleep_gpio);
+			ret = gpio_get_value(rk808->pmic_sleep_gpio);
+			gpio_free(rk808->pmic_sleep_gpio);
+			pr_info("%s: rk808_pmic_sleep=%x\n", __func__, ret);
+	}
+	for (i = 0;i <4 ; i ++){
+	rk808->dcdc_slp_voltage[i] = pdev->dcdc_slp_voltage[i];
+	if (rk808->dcdc_slp_voltage[i]){
+		if (i ==2)
+			continue;	
+		ret = rk808_set_bits(rk808, (rk808_BUCK_SET_VOL_REG(i) + 0x01), BUCK_VOL_MASK, rk808_dcdc_sleep_voltage_get_val(rk808->dcdc_slp_voltage[i],i));
+		}
+	}
+	for (i = 0;i <8 ; i ++){
+	rk808->ldo_slp_voltage[i] = pdev->ldo_slp_voltage[i];
+	if (rk808->ldo_slp_voltage[i] ==0)
+		ret = rk808_set_bits(rk808, RK808_LDO_EN_REG, 1 << i, 0);
+	ret = rk808_set_bits(rk808, (rk808_LDO_SET_VOL_REG(i) + 0x01), LDO_VOL_MASK, rk808_ldo_sleep_voltage_get_val(rk808->ldo_slp_voltage[i],i));
+	}	
+	#endif
+	/**********************************************************/
+	
+	if (pdev) {
+		rk808->num_regulators = rk808_NUM_REGULATORS;
+		rk808->rdev = kcalloc(rk808_NUM_REGULATORS,sizeof(struct regulator_dev *), GFP_KERNEL);
+		if (!rk808->rdev) {
+			return -ENOMEM;
+		}
+		/* Instantiate the regulators */
+		for (i = 0; i < rk808_NUM_REGULATORS; i++) {
+		reg_data = pdev->rk808_init_data[i];
+		if (!reg_data)
+			continue;
+		config.dev = rk808->dev;
+		config.driver_data = rk808;
+		config.regmap = rk808->regmap;
+		if (rk808->dev->of_node)
+			config.of_node = pdev->of_node[i];
+		if (reg_data && reg_data->constraints.name)
+				rail_name = reg_data->constraints.name;
+			else
+				rail_name = regulators[i].name;
+			reg_data->supply_regulator = rail_name;
+	
+		config.init_data =reg_data;
+
+		rk808_rdev = regulator_register(&regulators[i],&config);
+		if (IS_ERR(rk808_rdev)) {
+			printk("failed to register %d regulator\n",i);
+		goto err;
+		}
+		rk808->rdev[i] = rk808_rdev;
+		}
+	}
+
+//	rk808->wakeup = pdev->wakeup;
+	rk808->irq_gpio = pdev->irq_gpio;
+	ret = rk808_irq_init(rk808, rk808->irq_gpio, pdev);
+	if (ret < 0)
+		goto err;
 
 	ret = mfd_add_devices(rk808->dev, -1,
 			      rk808s, ARRAY_SIZE(rk808s),
-			      NULL, 0);
-	if (ret < 0)
-		goto err;
-
-     
-	ret = rk808_reg_read(rk808,0x2f);
-	if ((ret < 0) || (ret == 0xff)){
-		printk("The device is not rk808\n");
-		return 0;
-	}
-
-
-	if (pdata) {
-		ret = setup_regulators(rk808, pdata);
-		if (ret < 0)		
-			goto err;
-	} else
-		dev_warn(rk808->dev, "No platform init data supplied\n");
-
-	pdata->pre_init(rk808);
-
-	ret = rk808_irq_init(rk808, pdata->irq, pdata);
-	if (ret < 0)
-		goto err;
+			      NULL, 0,NULL);
+		
 	/********************vbat low int**************/
-	 ret = request_threaded_irq(rk808->irq_base + RK808_IRQ_VB_LO, NULL, rk808_vbat_lo_irq,
+	vlow_irq = irq_create_mapping(rk808->irq_domain, RK808_IRQ_VB_LO);
+	 ret = request_threaded_irq(vlow_irq, NULL, rk808_vbat_lo_irq,
                                    IRQF_TRIGGER_RISING, "rk808_vbatlow",
                                    rk808);
         if (ret != 0) {
                 dev_err(rk808->dev, "Failed to request periodic IRQ %d: %d\n",
-                        rk808->irq_base + RK808_IRQ_VB_LO, ret);
+                        vlow_irq+ RK808_IRQ_VB_LO, ret);
 
         }
 
 	/*********************************************/
+	
 	g_rk808 = rk808;
-	pdata->set_init(rk808);
 
 	#ifdef CONFIG_HAS_EARLYSUSPEND
 	rk808->rk808_suspend.suspend = rk808_early_suspend,
@@ -1073,7 +1296,6 @@ static int __devinit rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_de
 	#endif
 
 	#if 1
-	int i =0;
 	rk808_kobj = kobject_create_and_add("rk808", NULL);
 	if (!rk808_kobj)
 		return -ENOMEM;
@@ -1093,7 +1315,7 @@ err:
 
 }
 
-static int __devexit rk808_i2c_remove(struct i2c_client *i2c)
+static int rk808_i2c_remove(struct i2c_client *i2c)
 {
 	struct rk808 *rk808 = i2c_get_clientdata(i2c);
 	int i;
@@ -1119,9 +1341,10 @@ static struct i2c_driver rk808_i2c_driver = {
 	.driver = {
 		.name = "rk808",
 		.owner = THIS_MODULE,
+		.of_match_table =of_match_ptr(rk808_of_match),
 	},
 	.probe    = rk808_i2c_probe,
-	.remove   = __devexit_p(rk808_i2c_remove),
+	.remove   = rk808_i2c_remove,
 	.id_table = rk808_i2c_id,
 	#ifdef CONFIG_PM
 	.suspend	= rk808_suspend,

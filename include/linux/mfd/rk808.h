@@ -15,8 +15,10 @@
 
 #include <linux/regulator/machine.h>
 #include <linux/wakelock.h>
+#include <linux/regmap.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
-
+#endif
 //#define RK808_START 30
 
 #define RK808_DCDC1  0                     //(0+RK808_START) 
@@ -105,6 +107,19 @@
 #define rk808_NUM_REGULATORS 12
 struct rk808;
 
+struct rk808_board {
+	int irq;
+	int irq_base;
+	int irq_gpio;
+	int wakeup;
+	struct regulator_init_data *rk808_init_data[rk808_NUM_REGULATORS];
+	struct device_node *of_node[rk808_NUM_REGULATORS];
+	int pmic_sleep_gpio; /* */
+	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
+	bool pmic_sleep;
+	unsigned int ldo_slp_voltage[7];
+};
+
 struct rk808_regulator_subdev {
 	int id;
 	struct regulator_init_data *initdata;
@@ -117,14 +132,22 @@ struct rk808 {
 	int num_regulators;
 	struct regulator_dev **rdev;
 	struct wake_lock 	irq_wake;
-	struct early_suspend rk808_suspend;
+//	struct early_suspend rk808_suspend;
 	struct mutex irq_lock;
 	int irq_base;
 	int irq_num;
 	int chip_irq;
+	int irq_gpio;
+	int wakeup;
 	u32 irq_mask;
+	struct regmap *regmap;
+	struct irq_domain *irq_domain;
 	int (*read)(struct rk808 *rk808, u8 reg, int size, void *dest);
 	int (*write)(struct rk808 *rk808, u8 reg, int size, void *src);
+	int pmic_sleep_gpio; /* */
+	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
+	bool pmic_sleep;
+	unsigned int ldo_slp_voltage[7];
 };
 
 struct rk808_platform_data {
@@ -134,9 +157,10 @@ struct rk808_platform_data {
 	struct rk808_regulator_subdev *regulators;
 	int irq;
 	int irq_base;
+	struct irq_domain *irq_domain;
 };
 
-int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_platform_data *pdata);
+int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_board *pdata);
  int rk808_i2c_read(struct rk808 *rk808, char reg, int count,u8 *dest);
 //int rk808_i2c_read(struct i2c_client *i2c, char reg, int count,u16 *dest);
 // int rk808_i2c_read(struct rk808 *rk808 , u8 reg, int bytes,void *dest); 
