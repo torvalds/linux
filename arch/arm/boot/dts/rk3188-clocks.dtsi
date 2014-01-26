@@ -133,21 +133,18 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					aclk_cpu: aclk_cpu_div {
+					aclk_cpu_div: aclk_cpu_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
-						clocks = <&aclk_cpu_mux>;
-						clock-output-names = "aclk_cpu";
-						#clock-cells = <0>;
+						clocks = <&aclk_cpu>;
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
-						#clock-init-cells = <1>;
 					};
 
-					aclk_cpu_mux: aclk_cpu_mux {
+					aclk_cpu: clk_cpu_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <5 1>;
-						clocks = <&clk_apll>, <&clk_gpll>;/*FIXME*/
-						clock-output-names = "aclk_cpu_mux";
+						clocks = <&clk_apll>, <&clk_gpll>;
+						clock-output-names = "aclk_cpu";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -175,7 +172,6 @@
 						rockchip,flags = <(CLK_GET_RATE_NOCACHE |
 									CLK_SET_RATE_NO_REPARENT)>;
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 
 					clk_core_div: clk_core_div {
@@ -222,7 +218,6 @@
 						rockchip,div-type = <CLK_DIVIDER_POWER_OF_TWO>;
 						clock-output-names = "hclk_cpu";
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 
 					/* reg[11:10]: reserved */
@@ -234,7 +229,6 @@
 						rockchip,div-type = <CLK_DIVIDER_POWER_OF_TWO>;
 						clock-output-names = "pclk_cpu";
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 
 					pclk_ahb2apb: pclk_ahb2apb_div {
@@ -244,7 +238,6 @@
 						rockchip,div-type = <CLK_DIVIDER_POWER_OF_TWO>;
 						clock-output-names = "pclk_ahb2apb";
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 
 				};
@@ -262,7 +255,6 @@
 						clocks = <&clk_gpll>, <&clk_cpll>;
 						clock-output-names = "clk_i2s_pll";
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 				};
 
@@ -380,7 +372,6 @@
 						clock-output-names = "aclk_peri";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 
 					/* reg[7:5]: reserved */
@@ -392,7 +383,6 @@
 						clock-output-names = "hclk_peri";
 						rockchip,div-type = <CLK_DIVIDER_POWER_OF_TWO>;
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 
 					/* reg[11:10]: reserved */
@@ -404,7 +394,6 @@
 						clock-output-names = "pclk_peri";
 						rockchip,div-type = <CLK_DIVIDER_POWER_OF_TWO>;
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 
 					/* reg[14]: reserved */
@@ -487,7 +476,6 @@
 						clocks = <&clk_gpll>, <&clk_cpll>;
 						clock-output-names = "clk_uart_pll";
 						#clock-cells = <0>;
-						#clock-init-cells = <1>;
 					};
 				};
 

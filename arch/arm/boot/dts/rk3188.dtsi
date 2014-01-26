@@ -334,23 +334,15 @@
 
 	clocks-init{
 		compatible = "rockchip,clocks-init";
-		rockchip,clocks-init-parent =
-			<&clk_core &clk_apll>,	<&aclk_cpu_mux &clk_gpll>,/*FIXME*/
-			<&aclk_peri_mux &clk_gpll>,	<&clk_i2s_pll_mux &clk_cpll>,
-			<&clk_uart_pll_mux &clk_gpll>;
-		rockchip,clocks-init-rate =
-			<&clk_core 792000000>,	<&clk_gpll 768000000>,
-			<&clk_cpll 594000000>,	<&aclk_cpu 192000000>,
-			<&hclk_cpu 96000000>,	<&pclk_cpu 48000000>,
-			<&pclk_ahb2apb 48000000>,	<&aclk_peri 192000000>,
-			<&hclk_peri 96000000>,	<&pclk_peri 48000000>;
+		rockchip,clocks-init-rate =<&clk_cpll 768000000>,<&clk_gpll 594000000>;
+		rockchip,clocks-init-parent =<&aclk_peri_mux &clk_gpll>,<&aclk_cpu &clk_gpll>;
 	};
 
 	fb: fb{
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
 	};
-
+	
 	lcdc0:lcdc@1010c000 {
 		compatible = "rockchip,rk3188-lcdc";
 		rockchip,prop = <PRMRY>;
