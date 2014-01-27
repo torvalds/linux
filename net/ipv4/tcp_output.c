@@ -229,14 +229,13 @@ void tcp_select_initial_window(int __space, __u32 mss,
 	}
 
 	/* Set initial window to a value enough for senders starting with
-	 * initial congestion window of TCP_DEFAULT_INIT_RCVWND. Place
+	 * initial congestion window of sysctl_tcp_default_init_rwnd. Place
 	 * a limit on the initial window when mss is larger than 1460.
 	 */
 	if (mss > (1 << *rcv_wscale)) {
-		int init_cwnd = TCP_DEFAULT_INIT_RCVWND;
+		int init_cwnd = sysctl_tcp_default_init_rwnd;
 		if (mss > 1460)
-			init_cwnd =
-			max_t(u32, (1460 * TCP_DEFAULT_INIT_RCVWND) / mss, 2);
+			init_cwnd = max_t(u32, (1460 * init_cwnd) / mss, 2);
 		/* when initializing use the value from init_rcv_wnd
 		 * rather than the default from above
 		 */
