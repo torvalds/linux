@@ -68,16 +68,16 @@ MODULE_PARM_DESC(semaphores,
 	"Use semaphores for inter-ring sync "
 	"(default: -1 (use per-chip defaults))");
 
-module_param_named(i915_enable_rc6, i915.enable_rc6, int, 0400);
-MODULE_PARM_DESC(i915_enable_rc6,
+module_param_named(enable_rc6, i915.enable_rc6, int, 0400);
+MODULE_PARM_DESC(enable_rc6,
 	"Enable power-saving render C-state 6. "
 	"Different stages can be selected via bitmask values "
 	"(0 = disable; 1 = enable rc6; 2 = enable deep rc6; 4 = enable deepest rc6). "
 	"For example, 3 would enable rc6 and deep rc6, and 7 would enable everything. "
 	"default: -1 (use per-chip default)");
 
-module_param_named(i915_enable_fbc, i915.enable_fbc, int, 0600);
-MODULE_PARM_DESC(i915_enable_fbc,
+module_param_named(enable_fbc, i915.enable_fbc, int, 0600);
+MODULE_PARM_DESC(enable_fbc,
 	"Enable frame buffer compression for power savings "
 	"(default: -1 (use per-chip default))");
 
@@ -110,8 +110,8 @@ MODULE_PARM_DESC(enable_hangcheck,
 	"WARNING: Disabling this can cause system wide hangs. "
 	"(default: true)");
 
-module_param_named(i915_enable_ppgtt, i915.enable_ppgtt, int, 0400);
-MODULE_PARM_DESC(i915_enable_ppgtt,
+module_param_named(enable_ppgtt, i915.enable_ppgtt, int, 0400);
+MODULE_PARM_DESC(enable_ppgtt,
 	"Override PPGTT usage. "
 	"(-1=auto [default], 0=disabled, 1=aliasing, 2=full)");
 
