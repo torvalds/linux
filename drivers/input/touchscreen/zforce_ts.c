@@ -33,6 +33,7 @@
 #define WAIT_TIMEOUT		msecs_to_jiffies(1000)
 
 #define FRAME_START		0xee
+#define FRAME_MAXSIZE		257
 
 /* Offsets of the different parts of the payload the controller sends */
 #define PAYLOAD_HEADER		0
@@ -464,7 +465,7 @@ static irqreturn_t zforce_interrupt(int irq, void *dev_id)
 	struct i2c_client *client = ts->client;
 	const struct zforce_ts_platdata *pdata = dev_get_platdata(&client->dev);
 	int ret;
-	u8 payload_buffer[512];
+	u8 payload_buffer[FRAME_MAXSIZE];
 	u8 *payload;
 
 	/*
