@@ -397,8 +397,6 @@ static void sh_tmu_register_clockevent(struct sh_tmu_channel *ch,
 	struct clock_event_device *ced = &ch->ced;
 	int ret;
 
-	memset(ced, 0, sizeof(*ced));
-
 	ced->name = name;
 	ced->features = CLOCK_EVT_FEAT_PERIODIC;
 	ced->features |= CLOCK_EVT_FEAT_ONESHOT;
@@ -441,7 +439,6 @@ static int sh_tmu_channel_setup(struct sh_tmu_channel *ch,
 {
 	struct sh_timer_config *cfg = tmu->pdev->dev.platform_data;
 
-	memset(ch, 0, sizeof(*ch));
 	ch->tmu = tmu;
 
 	/*
@@ -475,7 +472,6 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	int ret;
 	ret = -ENXIO;
 
-	memset(tmu, 0, sizeof(*tmu));
 	tmu->pdev = pdev;
 
 	if (!cfg) {
@@ -547,7 +543,7 @@ static int sh_tmu_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	tmu = kmalloc(sizeof(*tmu), GFP_KERNEL);
+	tmu = kzalloc(sizeof(*tmu), GFP_KERNEL);
 	if (tmu == NULL) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		return -ENOMEM;
