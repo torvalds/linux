@@ -762,7 +762,7 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 						    AC_PWRST_D0);
 		}
 		if (enable && path->multi[i])
-			snd_hda_codec_write_cache(codec, nid, 0,
+			snd_hda_codec_update_cache(codec, nid, 0,
 					    AC_VERB_SET_CONNECT_SEL,
 					    path->idx[i]);
 		if (has_amp_in(codec, path, i))
