@@ -33,10 +33,6 @@
 #define SST_STEREO		2
 #define SST_MAX_CAP		5
 
-#define SST_MIN_RATE		8000
-#define SST_MAX_RATE		48000
-#define SST_MIN_CHANNEL		1
-#define SST_MAX_CHANNEL		5
 #define SST_MAX_BUFFER		(800*1024)
 #define SST_MIN_BUFFER		(800*1024)
 #define SST_MIN_PERIOD_BYTES	32

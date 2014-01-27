@@ -951,11 +951,11 @@ static int isabelle_hw_params(struct snd_pcm_substream *substream,
 			ISABELLE_FS_RATE_MASK, fs_val);
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	switch (params_width(params)) {
+	case 20:
 		aif |= ISABELLE_AIF_LENGTH_20;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		aif |= ISABELLE_AIF_LENGTH_32;
 		break;
 	default:
