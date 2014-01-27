@@ -257,7 +257,7 @@ static int zforce_setconfig(struct zforce_ts *ts, char b1)
 static int zforce_start(struct zforce_ts *ts)
 {
 	struct i2c_client *client = ts->client;
-	const struct zforce_ts_platdata *pdata = dev_get_platdata(&client->dev);
+	const struct zforce_ts_platdata *pdata = ts->pdata;
 	int ret;
 
 	dev_dbg(&client->dev, "starting device\n");
@@ -328,7 +328,7 @@ static int zforce_stop(struct zforce_ts *ts)
 static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 {
 	struct i2c_client *client = ts->client;
-	const struct zforce_ts_platdata *pdata = dev_get_platdata(&client->dev);
+	const struct zforce_ts_platdata *pdata = ts->pdata;
 	struct zforce_point point;
 	int count, i, num = 0;
 
@@ -463,7 +463,7 @@ static irqreturn_t zforce_interrupt(int irq, void *dev_id)
 {
 	struct zforce_ts *ts = dev_id;
 	struct i2c_client *client = ts->client;
-	const struct zforce_ts_platdata *pdata = dev_get_platdata(&client->dev);
+	const struct zforce_ts_platdata *pdata = ts->pdata;
 	int ret;
 	u8 payload_buffer[FRAME_MAXSIZE];
 	u8 *payload;
