@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/i2c.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
@@ -669,11 +670,22 @@ static struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
 	.num_dapm_routes = ARRAY_SIZE(aic32x4_dapm_routes),
 };
 
+static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
+		struct device_node *np)
+{
+	aic32x4->swapdacs = false;
+	aic32x4->micpga_routing = 0;
+	aic32x4->rstn_gpio = of_get_named_gpio(np, "reset-gpios", 0);
+
+	return 0;
+}
+
 static int aic32x4_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
 	struct aic32x4_pdata *pdata = i2c->dev.platform_data;
 	struct aic32x4_priv *aic32x4;
+	struct device_node *np = i2c->dev.of_node;
 	int ret;
 
 	aic32x4 = devm_kzalloc(&i2c->dev, sizeof(struct aic32x4_priv),
@@ -692,6 +704,12 @@ static int aic32x4_i2c_probe(struct i2c_client *i2c,
 		aic32x4->swapdacs = pdata->swapdacs;
 		aic32x4->micpga_routing = pdata->micpga_routing;
 		aic32x4->rstn_gpio = pdata->rstn_gpio;
+	} else if (np) {
+		ret = aic32x4_parse_dt(aic32x4, np);
+		if (ret) {
+			dev_err(&i2c->dev, "Failed to parse DT node\n");
+			return ret;
+		}
 	} else {
 		aic32x4->power_cfg = 0;
 		aic32x4->swapdacs = false;
@@ -723,10 +741,17 @@ static const struct i2c_device_id aic32x4_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, aic32x4_i2c_id);
 
+static const struct of_device_id aic32x4_of_id[] = {
+	{ .compatible = "ti,tlv320aic32x4", },
+	{ /* senitel */ }
+};
+MODULE_DEVICE_TABLE(of, aic32x4_of_id);
+
 static struct i2c_driver aic32x4_i2c_driver = {
 	.driver = {
 		.name = "tlv320aic32x4",
 		.owner = THIS_MODULE,
+		.of_match_table = aic32x4_of_id,
 	},
 	.probe =    aic32x4_i2c_probe,
 	.remove =   aic32x4_i2c_remove,
