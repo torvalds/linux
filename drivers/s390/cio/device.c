@@ -1571,6 +1571,18 @@ out:
 	return rc;
 }
 
+static void ccw_device_set_int_class(struct ccw_device *cdev)
+{
+	struct ccw_driver *cdrv = cdev->drv;
+
+	/* Note: we interpret class 0 in this context as an uninitialized
+	 * field since it translates to a non-I/O interrupt class. */
+	if (cdrv->int_class != 0)
+		cdev->private->int_class = cdrv->int_class;
+	else
+		cdev->private->int_class = IRQIO_CIO;
+}
+
 #ifdef CONFIG_CCW_CONSOLE
 int __init ccw_device_enable_console(struct ccw_device *cdev)
 {
@@ -1635,6 +1647,7 @@ struct ccw_device * __init ccw_device_create_console(struct ccw_driver *drv)
 	}
 	cdev->drv = drv;
 	set_io_private(sch, io_priv);
+	ccw_device_set_int_class(cdev);
 	return cdev;
 }
 
@@ -1732,15 +1745,8 @@ ccw_device_probe (struct device *dev)
 	int ret;
 
 	cdev->drv = cdrv; /* to let the driver call _set_online */
-	/* Note: we interpret class 0 in this context as an uninitialized
-	 * field since it translates to a non-I/O interrupt class. */
-	if (cdrv->int_class != 0)
-		cdev->private->int_class = cdrv->int_class;
-	else
-		cdev->private->int_class = IRQIO_CIO;
-
+	ccw_device_set_int_class(cdev);
 	ret = cdrv->probe ? cdrv->probe(cdev) : -ENODEV;
-
 	if (ret) {
 		cdev->drv = NULL;
 		cdev->private->int_class = IRQIO_CIO;
