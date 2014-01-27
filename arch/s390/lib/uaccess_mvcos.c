@@ -241,9 +241,22 @@ long __strncpy_from_user(char *dst, const char __user *src, long count)
 }
 EXPORT_SYMBOL(__strncpy_from_user);
 
+/*
+ * The uaccess page tabe walk variant can be enforced with the "uaccesspt"
+ * kernel parameter. This is mainly for debugging purposes.
+ */
+static int force_uaccess_pt __initdata;
+
+static int __init parse_uaccess_pt(char *__unused)
+{
+	force_uaccess_pt = 1;
+	return 0;
+}
+early_param("uaccesspt", parse_uaccess_pt);
+
 static int __init uaccess_init(void)
 {
-	if (IS_ENABLED(CONFIG_32BIT) || !test_facility(27))
+	if (IS_ENABLED(CONFIG_32BIT) || force_uaccess_pt || !test_facility(27))
 		static_key_slow_dec(&have_mvcos);
 	return 0;
 }
