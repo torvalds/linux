@@ -40,6 +40,7 @@ struct sh_tmu_device;
 struct sh_tmu_channel {
 	struct sh_tmu_device *tmu;
 
+	void __iomem *base;
 	int irq;
 
 	unsigned long rate;
@@ -68,39 +69,35 @@ static DEFINE_RAW_SPINLOCK(sh_tmu_lock);
 
 static inline unsigned long sh_tmu_read(struct sh_tmu_channel *ch, int reg_nr)
 {
-	struct sh_timer_config *cfg = ch->tmu->pdev->dev.platform_data;
-	void __iomem *base = ch->tmu->mapbase;
 	unsigned long offs;
 
 	if (reg_nr == TSTR)
-		return ioread8(base - cfg->channel_offset);
+		return ioread8(ch->tmu->mapbase);
 
 	offs = reg_nr << 2;
 
 	if (reg_nr == TCR)
-		return ioread16(base + offs);
+		return ioread16(ch->base + offs);
 	else
-		return ioread32(base + offs);
+		return ioread32(ch->base + offs);
 }
 
 static inline void sh_tmu_write(struct sh_tmu_channel *ch, int reg_nr,
 				unsigned long value)
 {
-	struct sh_timer_config *cfg = ch->tmu->pdev->dev.platform_data;
-	void __iomem *base = ch->tmu->mapbase;
 	unsigned long offs;
 
 	if (reg_nr == TSTR) {
-		iowrite8(value, base - cfg->channel_offset);
+		iowrite8(value, ch->tmu->mapbase);
 		return;
 	}
 
 	offs = reg_nr << 2;
 
 	if (reg_nr == TCR)
-		iowrite16(value, base + offs);
+		iowrite16(value, ch->base + offs);
 	else
-		iowrite32(value, base + offs);
+		iowrite32(value, ch->base + offs);
 }
 
 static void sh_tmu_start_stop_ch(struct sh_tmu_channel *ch, int start)
@@ -481,12 +478,17 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 		goto err0;
 	}
 
-	/* map memory, let mapbase point to our channel */
-	tmu->mapbase = ioremap_nocache(res->start, resource_size(res));
-	if (tmu->mapbase == NULL) {
+	/*
+	 * Map memory, let channel.base point to our channel and mapbase to the
+	 * start/stop shared register.
+	 */
+	tmu->channel.base = ioremap_nocache(res->start, resource_size(res));
+	if (tmu->channel.base == NULL) {
 		dev_err(&tmu->pdev->dev, "failed to remap I/O memory\n");
 		goto err0;
 	}
+
+	tmu->mapbase = tmu->channel.base - cfg->channel_offset;
 
 	/* get hold of clock */
 	tmu->clk = clk_get(&tmu->pdev->dev, "tmu_fck");
@@ -511,7 +513,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
  err2:
 	clk_put(tmu->clk);
  err1:
-	iounmap(tmu->mapbase);
+	iounmap(tmu->channel.base);
  err0:
 	return ret;
 }
