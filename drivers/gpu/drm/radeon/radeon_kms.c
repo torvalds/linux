@@ -433,6 +433,9 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		case RADEON_CS_RING_UVD:
 			*value = rdev->ring[R600_RING_TYPE_UVD_INDEX].ready;
 			break;
+		case RADEON_CS_RING_VCE:
+			*value = rdev->ring[TN_RING_TYPE_VCE1_INDEX].ready;
+			break;
 		default:
 			return -EINVAL;
 		}
