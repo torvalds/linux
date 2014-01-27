@@ -693,12 +693,55 @@ static int sh_cmt_register(struct sh_cmt_channel *ch, char *name,
 	return 0;
 }
 
+static int sh_cmt_setup_channel(struct sh_cmt_channel *ch,
+				struct sh_cmt_device *cmt)
+{
+	struct sh_timer_config *cfg = cmt->pdev->dev.platform_data;
+	int irq;
+	int ret;
+
+	memset(ch, 0, sizeof(*ch));
+	ch->cmt = cmt;
+
+	irq = platform_get_irq(cmt->pdev, 0);
+	if (irq < 0) {
+		dev_err(&cmt->pdev->dev, "failed to get irq\n");
+		return irq;
+	}
+
+	if (cmt->width == (sizeof(ch->max_match_value) * 8))
+		ch->max_match_value = ~0;
+	else
+		ch->max_match_value = (1 << cmt->width) - 1;
+
+	ch->match_value = ch->max_match_value;
+	raw_spin_lock_init(&ch->lock);
+
+	ret = sh_cmt_register(ch, (char *)dev_name(&cmt->pdev->dev),
+			      cfg->clockevent_rating,
+			      cfg->clocksource_rating);
+	if (ret) {
+		dev_err(&cmt->pdev->dev, "registration failed\n");
+		return ret;
+	}
+	ch->cs_enabled = false;
+
+	ret = request_irq(irq, sh_cmt_interrupt,
+			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			  dev_name(&cmt->pdev->dev), ch);
+	if (ret) {
+		dev_err(&cmt->pdev->dev, "failed to request irq %d\n", irq);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 {
 	struct sh_timer_config *cfg = pdev->dev.platform_data;
-	struct sh_cmt_channel *ch = &cmt->channel;
 	struct resource *res, *res2;
-	int irq, ret;
+	int ret;
 	ret = -ENXIO;
 
 	memset(cmt, 0, sizeof(*cmt));
@@ -717,12 +760,6 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 
 	/* optional resource for the shared timer start/stop register */
 	res2 = platform_get_resource(cmt->pdev, IORESOURCE_MEM, 1);
-
-	irq = platform_get_irq(cmt->pdev, 0);
-	if (irq < 0) {
-		dev_err(&cmt->pdev->dev, "failed to get irq\n");
-		goto err0;
-	}
 
 	/* map memory, let mapbase point to our channel */
 	cmt->mapbase = ioremap_nocache(res->start, resource_size(res));
@@ -775,31 +812,9 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 		cmt->clear_bits = ~0xc000;
 	}
 
-	if (cmt->width == (sizeof(ch->max_match_value) * 8))
-		ch->max_match_value = ~0;
-	else
-		ch->max_match_value = (1 << cmt->width) - 1;
-
-	ch->cmt = cmt;
-	ch->match_value = ch->max_match_value;
-	raw_spin_lock_init(&ch->lock);
-
-	ret = sh_cmt_register(ch, (char *)dev_name(&cmt->pdev->dev),
-			      cfg->clockevent_rating,
-			      cfg->clocksource_rating);
-	if (ret) {
-		dev_err(&cmt->pdev->dev, "registration failed\n");
+	ret = sh_cmt_setup_channel(&cmt->channel, cmt);
+	if (ret < 0)
 		goto err4;
-	}
-	ch->cs_enabled = false;
-
-	ret = request_irq(irq, sh_cmt_interrupt,
-			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
-			  dev_name(&cmt->pdev->dev), ch);
-	if (ret) {
-		dev_err(&cmt->pdev->dev, "failed to request irq %d\n", irq);
-		goto err4;
-	}
 
 	platform_set_drvdata(pdev, cmt);
 
