@@ -511,11 +511,16 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scan_offload_complete *scan_notif = (void *)pkt->data;
 
+	/* scan status must be locked for proper checking */
+	lockdep_assert_held(&mvm->mutex);
+
 	IWL_DEBUG_SCAN(mvm, "Scheduled scan completed, status %s\n",
 		       scan_notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 		       "completed" : "aborted");
 
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
+	/* might already be something else again, don't reset if so */
+	if (mvm->scan_status == IWL_MVM_SCAN_SCHED)
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
 	ieee80211_sched_scan_stopped(mvm->hw);
 
 	return 0;
