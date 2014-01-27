@@ -588,7 +588,9 @@ struct iwl_mvm {
 	u8 bound_vif_cnt;
 
 	/* Indicate if device power save is allowed */
-	bool ps_prevented;
+	bool ps_disabled;
+	/* Indicate if device power management is allowed */
+	bool pm_disabled;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -812,11 +814,8 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init);
 /* power management */
 int iwl_power_legacy_set_cam_mode(struct iwl_mvm *mvm);
 
-int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif);
 int iwl_mvm_power_update_device(struct iwl_mvm *mvm);
-void iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif, bool assign);
+int iwl_mvm_power_update_mac(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				 char *buf, int bufsz);
 

@@ -564,5 +564,5 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_bt_coex_vif_change(mvm);
 
-	return iwl_mvm_power_mac_update_mode(mvm, vif);
+	return iwl_mvm_power_update_mac(mvm, vif);
 }
