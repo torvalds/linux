@@ -209,7 +209,6 @@ getname(const char __user * filename)
 {
 	return getname_flags(filename, 0, NULL);
 }
-EXPORT_SYMBOL(getname);
 
 #ifdef CONFIG_AUDITSYSCALL
 void putname(struct filename *name)
