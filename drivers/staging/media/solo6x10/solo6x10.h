@@ -96,11 +96,6 @@
 
 #define SOLO_DEFAULT_QP			3
 
-#ifndef V4L2_BUF_FLAG_MOTION_ON
-#define V4L2_BUF_FLAG_MOTION_ON		0x10000
-#define V4L2_BUF_FLAG_MOTION_DETECTED	0x20000
-#endif
-
 #define SOLO_CID_CUSTOM_BASE		(V4L2_CID_USER_BASE | 0xf000)
 #define V4L2_CID_MOTION_TRACE		(SOLO_CID_CUSTOM_BASE+2)
 #define V4L2_CID_OSD_TEXT		(SOLO_CID_CUSTOM_BASE+3)
@@ -168,6 +163,8 @@ struct solo_enc_dev {
 	u16			motion_thresh;
 	bool			motion_global;
 	bool			motion_enabled;
+	bool			motion_last_state;
+	u8			frames_since_last_motion;
 	u16			width;
 	u16			height;
 
