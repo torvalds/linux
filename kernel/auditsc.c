@@ -42,6 +42,8 @@
  * and <dustin.kirkland@us.ibm.com> for LSPP certification compliance.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <asm/types.h>
 #include <linux/atomic.h>
@@ -850,16 +852,15 @@ static inline void audit_free_names(struct audit_context *context)
 	if (context->put_count + context->ino_count != context->name_count) {
 		int i = 0;
 
-		printk(KERN_ERR "%s:%d(:%d): major=%d in_syscall=%d"
-		       " name_count=%d put_count=%d"
-		       " ino_count=%d [NOT freeing]\n",
-		       __FILE__, __LINE__,
+		pr_err("%s:%d(:%d): major=%d in_syscall=%d"
+		       " name_count=%d put_count=%d ino_count=%d"
+		       " [NOT freeing]\n", __FILE__, __LINE__,
 		       context->serial, context->major, context->in_syscall,
 		       context->name_count, context->put_count,
 		       context->ino_count);
 		list_for_each_entry(n, &context->names_list, list) {
-			printk(KERN_ERR "names[%d] = %p = %s\n", i++,
-			       n->name, n->name->name ?: "(null)");
+			pr_err("names[%d] = %p = %s\n", i++, n->name,
+			       n->name->name ?: "(null)");
 		}
 		dump_stack();
 		return;
@@ -1550,7 +1551,7 @@ static inline void handle_one(const struct inode *inode)
 	if (likely(put_tree_ref(context, chunk)))
 		return;
 	if (unlikely(!grow_tree_refs(context))) {
-		printk(KERN_WARNING "out of memory, audit has lost a tree reference\n");
+		pr_warn("out of memory, audit has lost a tree reference\n");
 		audit_set_auditable(context);
 		audit_put_chunk(chunk);
 		unroll_tree_refs(context, p, count);
@@ -1609,8 +1610,7 @@ retry:
 			goto retry;
 		}
 		/* too bad */
-		printk(KERN_WARNING
-			"out of memory, audit has lost a tree reference\n");
+		pr_warn("out of memory, audit has lost a tree reference\n");
 		unroll_tree_refs(context, p, count);
 		audit_set_auditable(context);
 		return;
@@ -1682,7 +1682,7 @@ void __audit_getname(struct filename *name)
 
 	if (!context->in_syscall) {
 #if AUDIT_DEBUG == 2
-		printk(KERN_ERR "%s:%d(:%d): ignoring getname(%p)\n",
+		pr_err("%s:%d(:%d): ignoring getname(%p)\n",
 		       __FILE__, __LINE__, context->serial, name);
 		dump_stack();
 #endif
@@ -1721,15 +1721,15 @@ void audit_putname(struct filename *name)
 	BUG_ON(!context);
 	if (!context->in_syscall) {
 #if AUDIT_DEBUG == 2
-		printk(KERN_ERR "%s:%d(:%d): final_putname(%p)\n",
+		pr_err("%s:%d(:%d): final_putname(%p)\n",
 		       __FILE__, __LINE__, context->serial, name);
 		if (context->name_count) {
 			struct audit_names *n;
 			int i = 0;
 
 			list_for_each_entry(n, &context->names_list, list)
-				printk(KERN_ERR "name[%d] = %p = %s\n", i++,
-				       n->name, n->name->name ?: "(null)");
+				pr_err("name[%d] = %p = %s\n", i++, n->name,
+				       n->name->name ?: "(null)");
 			}
 #endif
 		final_putname(name);
@@ -1738,9 +1738,8 @@ void audit_putname(struct filename *name)
 	else {
 		++context->put_count;
 		if (context->put_count > context->name_count) {
-			printk(KERN_ERR "%s:%d(:%d): major=%d"
-			       " in_syscall=%d putname(%p) name_count=%d"
-			       " put_count=%d\n",
+			pr_err("%s:%d(:%d): major=%d in_syscall=%d putname(%p)"
+			       " name_count=%d put_count=%d\n",
 			       __FILE__, __LINE__,
 			       context->serial, context->major,
 			       context->in_syscall, name->name,
