@@ -27,13 +27,12 @@ typedef struct xfs_dq_logitem {
 	xfs_log_item_t		 qli_item;	   /* common portion */
 	struct xfs_dquot	*qli_dquot;	   /* dquot ptr */
 	xfs_lsn_t		 qli_flush_lsn;	   /* lsn at last flush */
-	xfs_dq_logformat_t	 qli_format;	   /* logged structure */
 } xfs_dq_logitem_t;
 
 typedef struct xfs_qoff_logitem {
 	xfs_log_item_t		 qql_item;	/* common portion */
 	struct xfs_qoff_logitem *qql_start_lip; /* qoff-start logitem, if any */
-	xfs_qoff_logformat_t	 qql_format;	/* logged structure */
+	unsigned int		qql_flags;
 } xfs_qoff_logitem_t;
 
 

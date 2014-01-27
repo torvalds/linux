@@ -11,6 +11,8 @@ config ARCH_KEYSTONE
 	select ARM_ERRATA_798181 if SMP
 	select COMMON_CLK_KEYSTONE
 	select TI_EDMA
+	select ARCH_SUPPORTS_BIG_ENDIAN
+	select ZONE_DMA if ARM_LPAE
 	help
 	  Support for boards based on the Texas Instruments Keystone family of
 	  SoCs.

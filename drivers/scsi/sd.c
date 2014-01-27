@@ -110,7 +110,7 @@ static int sd_suspend_runtime(struct device *);
 static int sd_resume(struct device *);
 static void sd_rescan(struct device *);
 static int sd_done(struct scsi_cmnd *);
-static int sd_eh_action(struct scsi_cmnd *, unsigned char *, int, int);
+static int sd_eh_action(struct scsi_cmnd *, int);
 static void sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer);
 static void scsi_disk_release(struct device *cdev);
 static void sd_print_sense_hdr(struct scsi_disk *, struct scsi_sense_hdr *);
@@ -1551,23 +1551,23 @@ static const struct block_device_operations sd_fops = {
 /**
  *	sd_eh_action - error handling callback
  *	@scmd:		sd-issued command that has failed
- *	@eh_cmnd:	The command that was sent during error handling
- *	@eh_cmnd_len:	Length of eh_cmnd in bytes
  *	@eh_disp:	The recovery disposition suggested by the midlayer
  *
- *	This function is called by the SCSI midlayer upon completion of
- *	an error handling command (TEST UNIT READY, START STOP UNIT,
- *	etc.) The command sent to the device by the error handler is
- *	stored in eh_cmnd. The result of sending the eh command is
- *	passed in eh_disp.
+ *	This function is called by the SCSI midlayer upon completion of an
+ *	error test command (currently TEST UNIT READY). The result of sending
+ *	the eh command is passed in eh_disp.  We're looking for devices that
+ *	fail medium access commands but are OK with non access commands like
+ *	test unit ready (so wrongly see the device as having a successful
+ *	recovery)
  **/
-static int sd_eh_action(struct scsi_cmnd *scmd, unsigned char *eh_cmnd,
-			int eh_cmnd_len, int eh_disp)
+static int sd_eh_action(struct scsi_cmnd *scmd, int eh_disp)
 {
 	struct scsi_disk *sdkp = scsi_disk(scmd->request->rq_disk);
 
 	if (!scsi_device_online(scmd->device) ||
-	    !scsi_medium_access_command(scmd))
+	    !scsi_medium_access_command(scmd) ||
+	    host_byte(scmd->result) != DID_TIME_OUT ||
+	    eh_disp != SUCCESS)
 		return eh_disp;
 
 	/*
@@ -1577,9 +1577,7 @@ static int sd_eh_action(struct scsi_cmnd *scmd, unsigned char *eh_cmnd,
 	 * process of recovering or has it suffered an internal failure
 	 * that prevents access to the storage medium.
 	 */
-	if (host_byte(scmd->result) == DID_TIME_OUT && eh_disp == SUCCESS &&
-	    eh_cmnd_len && eh_cmnd[0] == TEST_UNIT_READY)
-		sdkp->medium_access_timed_out++;
+	sdkp->medium_access_timed_out++;
 
 	/*
 	 * If the device keeps failing read/write commands but TEST UNIT
@@ -1628,7 +1626,7 @@ static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
 		end_lba <<= 1;
 	} else {
 		/* be careful ... don't want any overflows */
-		u64 factor = scmd->device->sector_size / 512;
+		unsigned int factor = scmd->device->sector_size / 512;
 		do_div(start_lba, factor);
 		do_div(end_lba, factor);
 	}

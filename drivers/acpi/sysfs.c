@@ -5,7 +5,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 #include "internal.h"
 

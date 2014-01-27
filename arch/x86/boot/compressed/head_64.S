@@ -94,9 +94,11 @@ ENTRY(startup_32)
 	addl	%eax, %ebx
 	notl	%eax
 	andl	%eax, %ebx
-#else
-	movl	$LOAD_PHYSICAL_ADDR, %ebx
+	cmpl	$LOAD_PHYSICAL_ADDR, %ebx
+	jge	1f
 #endif
+	movl	$LOAD_PHYSICAL_ADDR, %ebx
+1:
 
 	/* Target address to relocate to for decompression */
 	addl	$z_extract_offset, %ebx
@@ -269,9 +271,11 @@ preferred_addr:
 	addq	%rax, %rbp
 	notq	%rax
 	andq	%rax, %rbp
-#else
-	movq	$LOAD_PHYSICAL_ADDR, %rbp
+	cmpq	$LOAD_PHYSICAL_ADDR, %rbp
+	jge	1f
 #endif
+	movq	$LOAD_PHYSICAL_ADDR, %rbp
+1:
 
 	/* Target address to relocate to for decompression */
 	leaq	z_extract_offset(%rbp), %rbx
@@ -339,13 +343,13 @@ relocated:
 	movl	$z_input_len, %ecx	/* input_len */
 	movq	%rbp, %r8		/* output target address */
 	movq	$z_output_len, %r9	/* decompressed length */
-	call	decompress_kernel
+	call	decompress_kernel	/* returns kernel location in %rax */
 	popq	%rsi
 
 /*
  * Jump to the decompressed kernel.
  */
-	jmp	*%rbp
+	jmp	*%rax
 
 	.code32
 no_longmode:

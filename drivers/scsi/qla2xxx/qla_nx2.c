@@ -1257,10 +1257,10 @@ exit_start_fw:
 }
 
 void
-qla8044_clear_drv_active(struct scsi_qla_host *vha)
+qla8044_clear_drv_active(struct qla_hw_data *ha)
 {
 	uint32_t drv_active;
-	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *vha = pci_get_drvdata(ha->pdev);
 
 	drv_active = qla8044_rd_direct(vha, QLA8044_CRB_DRV_ACTIVE_INDEX);
 	drv_active &= ~(1 << (ha->portnum));
@@ -1324,7 +1324,7 @@ qla8044_device_bootstrap(struct scsi_qla_host *vha)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_info, vha, 0xb0b3,
 		     "%s: HW State: FAILED\n", __func__);
-		qla8044_clear_drv_active(vha);
+		qla8044_clear_drv_active(ha);
 		qla8044_wr_direct(vha, QLA8044_CRB_DEV_STATE_INDEX,
 		    QLA8XXX_DEV_FAILED);
 		return rval;
@@ -1555,6 +1555,15 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 		qla8044_idc_lock(ha);
 	}
 
+	drv_state = qla8044_rd_direct(vha,
+	    QLA8044_CRB_DRV_STATE_INDEX);
+	drv_active = qla8044_rd_direct(vha,
+	    QLA8044_CRB_DRV_ACTIVE_INDEX);
+
+	ql_log(ql_log_info, vha, 0xb0c5,
+	    "%s(%ld): drv_state = 0x%x, drv_active = 0x%x\n",
+	    __func__, vha->host_no, drv_state, drv_active);
+
 	if (!ha->flags.nic_core_reset_owner) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb0c3,
 		    "%s(%ld): reset acknowledged\n",
@@ -1580,23 +1589,15 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 
 			dev_state = qla8044_rd_direct(vha,
 					QLA8044_CRB_DEV_STATE_INDEX);
-		} while (dev_state == QLA8XXX_DEV_NEED_RESET);
+		} while (((drv_state & drv_active) != drv_active) &&
+		    (dev_state == QLA8XXX_DEV_NEED_RESET));
 	} else {
 		qla8044_set_rst_ready(vha);
 
 		/* wait for 10 seconds for reset ack from all functions */
 		reset_timeout = jiffies + (ha->fcoe_reset_timeout * HZ);
 
-		drv_state = qla8044_rd_direct(vha,
-		    QLA8044_CRB_DRV_STATE_INDEX);
-		drv_active = qla8044_rd_direct(vha,
-		    QLA8044_CRB_DRV_ACTIVE_INDEX);
-
-		ql_log(ql_log_info, vha, 0xb0c5,
-		    "%s(%ld): drv_state = 0x%x, drv_active = 0x%x\n",
-		    __func__, vha->host_no, drv_state, drv_active);
-
-		while (drv_state != drv_active) {
+		while ((drv_state & drv_active) != drv_active) {
 			if (time_after_eq(jiffies, reset_timeout)) {
 				ql_log(ql_log_info, vha, 0xb0c6,
 				    "%s: RESET TIMEOUT!"
@@ -1736,7 +1737,7 @@ qla8044_update_idc_reg(struct scsi_qla_host *vha)
 
 	rval = qla8044_set_idc_ver(vha);
 	if (rval == QLA_FUNCTION_FAILED)
-		qla8044_clear_drv_active(vha);
+		qla8044_clear_drv_active(ha);
 	qla8044_idc_unlock(ha);
 
 exit_update_idc_reg:
@@ -1859,7 +1860,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 			goto exit;
 		case QLA8XXX_DEV_COLD:
 			rval = qla8044_device_bootstrap(vha);
-			goto exit;
+			break;
 		case QLA8XXX_DEV_INITIALIZING:
 			qla8044_idc_unlock(ha);
 			msleep(1000);
@@ -2253,7 +2254,7 @@ qla8044_minidump_process_rdmem(struct scsi_qla_host *vha,
 
 	if (r_addr & 0xf) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb0f1,
-		    "[%s]: Read addr 0x%x not 16 bytes alligned\n",
+		    "[%s]: Read addr 0x%x not 16 bytes aligned\n",
 		    __func__, r_addr);
 		return QLA_FUNCTION_FAILED;
 	}

@@ -1,5 +1,5 @@
 /*
- * kirkwood-sheevaplug-esata.dts - Device tree file for Sheevaplug
+ * kirkwood-sheevaplug.dts - Device tree file for Sheevaplug
  *
  * Copyright (C) 2013 Simon Baatz <gmbnomis@gmail.com>
  *
@@ -31,13 +31,13 @@
 
 		health {
 			label = "sheevaplug:blue:health";
-			gpios = <&gpio1 17 1>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 
 		misc {
 			label = "sheevaplug:red:misc";
-			gpios = <&gpio1 14 1>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

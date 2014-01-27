@@ -577,8 +577,8 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 		pr_debug("word5: max_width %d, max_height %d\n",
 			dtd_get_max_width(dtd), dtd_get_max_height(dtd));
 
-	pr_debug("word6: client specfic attr0 = 0x%08x\n", dtd->client_attr0);
-	pr_debug("word7: client specfic attr1 = 0x%08x\n", dtd->client_attr1);
+	pr_debug("word6: client specific attr0 = 0x%08x\n", dtd->client_attr0);
+	pr_debug("word7: client specific attr1 = 0x%08x\n", dtd->client_attr1);
 }
 
 /*

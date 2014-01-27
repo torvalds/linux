@@ -57,7 +57,7 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 	in->arg = cpu_to_be32(arg);
 	in->register_id = cpu_to_be16(reg_num);
 	err = mlx5_cmd_exec(dev, in, sizeof(*in) + size_in, out,
-			    sizeof(out) + size_out);
+			    sizeof(*out) + size_out);
 	if (err)
 		goto ex2;
 

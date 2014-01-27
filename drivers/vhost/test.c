@@ -104,7 +104,6 @@ static int vhost_test_open(struct inode *inode, struct file *f)
 	struct vhost_test *n = kmalloc(sizeof *n, GFP_KERNEL);
 	struct vhost_dev *dev;
 	struct vhost_virtqueue **vqs;
-	int r;
 
 	if (!n)
 		return -ENOMEM;
@@ -117,12 +116,7 @@ static int vhost_test_open(struct inode *inode, struct file *f)
 	dev = &n->dev;
 	vqs[VHOST_TEST_VQ] = &n->vqs[VHOST_TEST_VQ];
 	n->vqs[VHOST_TEST_VQ].handle_kick = handle_vq_kick;
-	r = vhost_dev_init(dev, vqs, VHOST_TEST_VQ_MAX);
-	if (r < 0) {
-		kfree(vqs);
-		kfree(n);
-		return r;
-	}
+	vhost_dev_init(dev, vqs, VHOST_TEST_VQ_MAX);
 
 	f->private_data = n;
 

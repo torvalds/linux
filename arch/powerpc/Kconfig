@@ -86,6 +86,7 @@ config PPC
 	bool
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BINFMT_ELF
 	select OF
 	select OF_EARLY_FLATTREE
@@ -146,6 +147,10 @@ config GENERIC_CSUM
 config EARLY_PRINTK
 	bool
 	default y
+
+config PANIC_TIMEOUT
+	int
+	default 180
 
 config COMPAT
 	bool
@@ -790,7 +795,7 @@ config HAS_RAPIDIO
 	default n
 
 config RAPIDIO
-	bool "RapidIO support"
+	tristate "RapidIO support"
 	depends on HAS_RAPIDIO || PCI
 	help
 	  If you say Y here, the kernel will include drivers and
@@ -798,7 +803,7 @@ config RAPIDIO
 
 config FSL_RIO
 	bool "Freescale Embedded SRIO Controller support"
-	depends on RAPIDIO && HAS_RAPIDIO
+	depends on RAPIDIO = y && HAS_RAPIDIO
 	default "n"
 	---help---
 	  Include support for RapidIO controller on Freescale embedded

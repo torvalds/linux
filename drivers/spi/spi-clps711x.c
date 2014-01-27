@@ -1,7 +1,7 @@
 /*
  *  CLPS711X SPI bus driver
  *
- *  Copyright (C) 2012 Alexander Shiyan <shc_work@mail.ru>
+ *  Copyright (C) 2012-2014 Alexander Shiyan <shc_work@mail.ru>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -198,7 +198,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 			ret = -EINVAL;
 			goto err_out;
 		}
-		if (gpio_request(hw->chipselect[i], DRIVER_NAME)) {
+		if (devm_gpio_request(&pdev->dev, hw->chipselect[i], NULL)) {
 			dev_err(&pdev->dev, "Can't get CS GPIO %i\n", i);
 			ret = -EINVAL;
 			goto err_out;
@@ -240,26 +240,9 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	dev_err(&pdev->dev, "Failed to register master\n");
 
 err_out:
-	while (--i >= 0)
-		if (gpio_is_valid(hw->chipselect[i]))
-			gpio_free(hw->chipselect[i]);
-
 	spi_master_put(master);
 
 	return ret;
-}
-
-static int spi_clps711x_remove(struct platform_device *pdev)
-{
-	int i;
-	struct spi_master *master = platform_get_drvdata(pdev);
-	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
-
-	for (i = 0; i < master->num_chipselect; i++)
-		if (gpio_is_valid(hw->chipselect[i]))
-			gpio_free(hw->chipselect[i]);
-
-	return 0;
 }
 
 static struct platform_driver clps711x_spi_driver = {
@@ -268,10 +251,10 @@ static struct platform_driver clps711x_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= spi_clps711x_probe,
-	.remove	= spi_clps711x_remove,
 };
 module_platform_driver(clps711x_spi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Shiyan <shc_work@mail.ru>");
 MODULE_DESCRIPTION("CLPS711X SPI bus driver");
+MODULE_ALIAS("platform:" DRIVER_NAME);

@@ -2,7 +2,6 @@ config ACPI_APEI
 	bool "ACPI Platform Error Interface (APEI)"
 	select MISC_FILESYSTEMS
 	select PSTORE
-	select EFI
 	select UEFI_CPER
 	depends on X86
 	help

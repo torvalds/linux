@@ -5,6 +5,7 @@
 #define _LINUX_BOOTMEM_H
 
 #include <linux/mmzone.h>
+#include <linux/mm_types.h>
 #include <asm/dma.h>
 
 /*
@@ -52,7 +53,6 @@ extern void free_bootmem_node(pg_data_t *pgdat,
 			      unsigned long size);
 extern void free_bootmem(unsigned long physaddr, unsigned long size);
 extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
-extern void __free_pages_bootmem(struct page *page, unsigned int order);
 
 /*
  * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
@@ -141,6 +141,157 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
 	__alloc_bootmem_low(x, PAGE_SIZE, 0)
 #define alloc_bootmem_low_pages_node(pgdat, x) \
 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
+
+
+#if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
+
+/* FIXME: use MEMBLOCK_ALLOC_* variants here */
+#define BOOTMEM_ALLOC_ACCESSIBLE	0
+#define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
+
+/* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
+void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
+		phys_addr_t align, phys_addr_t min_addr,
+		phys_addr_t max_addr, int nid);
+void *memblock_virt_alloc_try_nid(phys_addr_t size, phys_addr_t align,
+		phys_addr_t min_addr, phys_addr_t max_addr, int nid);
+void __memblock_free_early(phys_addr_t base, phys_addr_t size);
+void __memblock_free_late(phys_addr_t base, phys_addr_t size);
+
+static inline void * __init memblock_virt_alloc(
+					phys_addr_t size,  phys_addr_t align)
+{
+	return memblock_virt_alloc_try_nid(size, align, BOOTMEM_LOW_LIMIT,
+					    BOOTMEM_ALLOC_ACCESSIBLE,
+					    NUMA_NO_NODE);
+}
+
+static inline void * __init memblock_virt_alloc_nopanic(
+					phys_addr_t size, phys_addr_t align)
+{
+	return memblock_virt_alloc_try_nid_nopanic(size, align,
+						    BOOTMEM_LOW_LIMIT,
+						    BOOTMEM_ALLOC_ACCESSIBLE,
+						    NUMA_NO_NODE);
+}
+
+static inline void * __init memblock_virt_alloc_from_nopanic(
+		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
+{
+	return memblock_virt_alloc_try_nid_nopanic(size, align, min_addr,
+						    BOOTMEM_ALLOC_ACCESSIBLE,
+						    NUMA_NO_NODE);
+}
+
+static inline void * __init memblock_virt_alloc_node(
+						phys_addr_t size, int nid)
+{
+	return memblock_virt_alloc_try_nid(size, 0, BOOTMEM_LOW_LIMIT,
+					    BOOTMEM_ALLOC_ACCESSIBLE, nid);
+}
+
+static inline void * __init memblock_virt_alloc_node_nopanic(
+						phys_addr_t size, int nid)
+{
+	return memblock_virt_alloc_try_nid_nopanic(size, 0, BOOTMEM_LOW_LIMIT,
+						    BOOTMEM_ALLOC_ACCESSIBLE,
+						    nid);
+}
+
+static inline void __init memblock_free_early(
+					phys_addr_t base, phys_addr_t size)
+{
+	__memblock_free_early(base, size);
+}
+
+static inline void __init memblock_free_early_nid(
+				phys_addr_t base, phys_addr_t size, int nid)
+{
+	__memblock_free_early(base, size);
+}
+
+static inline void __init memblock_free_late(
+					phys_addr_t base, phys_addr_t size)
+{
+	__memblock_free_late(base, size);
+}
+
+#else
+
+#define BOOTMEM_ALLOC_ACCESSIBLE	0
+
+
+/* Fall back to all the existing bootmem APIs */
+static inline void * __init memblock_virt_alloc(
+					phys_addr_t size,  phys_addr_t align)
+{
+	if (!align)
+		align = SMP_CACHE_BYTES;
+	return __alloc_bootmem(size, align, BOOTMEM_LOW_LIMIT);
+}
+
+static inline void * __init memblock_virt_alloc_nopanic(
+					phys_addr_t size, phys_addr_t align)
+{
+	if (!align)
+		align = SMP_CACHE_BYTES;
+	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
+}
+
+static inline void * __init memblock_virt_alloc_from_nopanic(
+		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
+{
+	return __alloc_bootmem_nopanic(size, align, min_addr);
+}
+
+static inline void * __init memblock_virt_alloc_node(
+						phys_addr_t size, int nid)
+{
+	return __alloc_bootmem_node(NODE_DATA(nid), size, SMP_CACHE_BYTES,
+				     BOOTMEM_LOW_LIMIT);
+}
+
+static inline void * __init memblock_virt_alloc_node_nopanic(
+						phys_addr_t size, int nid)
+{
+	return __alloc_bootmem_node_nopanic(NODE_DATA(nid), size,
+					     SMP_CACHE_BYTES,
+					     BOOTMEM_LOW_LIMIT);
+}
+
+static inline void * __init memblock_virt_alloc_try_nid(phys_addr_t size,
+	phys_addr_t align, phys_addr_t min_addr, phys_addr_t max_addr, int nid)
+{
+	return __alloc_bootmem_node_high(NODE_DATA(nid), size, align,
+					  min_addr);
+}
+
+static inline void * __init memblock_virt_alloc_try_nid_nopanic(
+			phys_addr_t size, phys_addr_t align,
+			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
+{
+	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
+				min_addr, max_addr);
+}
+
+static inline void __init memblock_free_early(
+					phys_addr_t base, phys_addr_t size)
+{
+	free_bootmem(base, size);
+}
+
+static inline void __init memblock_free_early_nid(
+				phys_addr_t base, phys_addr_t size, int nid)
+{
+	free_bootmem_node(NODE_DATA(nid), base, size);
+}
+
+static inline void __init memblock_free_late(
+					phys_addr_t base, phys_addr_t size)
+{
+	free_bootmem_late(base, size);
+}
+#endif /* defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM) */
 
 #ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
 extern void *alloc_remap(int nid, unsigned long size);

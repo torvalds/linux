@@ -30,6 +30,7 @@ config MICROBLAZE
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS3
 	select CLKSRC_OF
+	select BUILDTIME_EXTABLE_SORT
 
 config SWAP
 	def_bool n

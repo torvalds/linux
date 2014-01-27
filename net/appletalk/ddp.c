@@ -1566,7 +1566,7 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 {
 	struct sock *sk = sock->sk;
 	struct atalk_sock *at = at_sk(sk);
-	struct sockaddr_at *usat = (struct sockaddr_at *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_at *, usat, msg->msg_name);
 	int flags = msg->msg_flags;
 	int loopback = 0;
 	struct sockaddr_at local_satalk, gsat;
@@ -1764,7 +1764,7 @@ static int atalk_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 	err = skb_copy_datagram_iovec(skb, offset, msg->msg_iov, copied);
 
 	if (!err && msg->msg_name) {
-		struct sockaddr_at *sat = msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_at *, sat, msg->msg_name);
 		sat->sat_family      = AF_APPLETALK;
 		sat->sat_port        = ddp->deh_sport;
 		sat->sat_addr.s_node = ddp->deh_snode;

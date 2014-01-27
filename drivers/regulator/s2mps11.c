@@ -70,8 +70,6 @@ static int s2mps11_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 		ramp_delay = s2mps11->ramp_delay2;
 		break;
 	case S2MPS11_BUCK3:
-		ramp_delay = s2mps11->ramp_delay34;
-		break;
 	case S2MPS11_BUCK4:
 		ramp_delay = s2mps11->ramp_delay34;
 		break;

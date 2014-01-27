@@ -459,14 +459,12 @@ xfs_vn_getattr(
 
 static void
 xfs_setattr_mode(
-	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
 {
-	struct inode	*inode = VFS_I(ip);
-	umode_t		mode = iattr->ia_mode;
+	struct inode		*inode = VFS_I(ip);
+	umode_t			mode = iattr->ia_mode;
 
-	ASSERT(tp);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	ip->i_d.di_mode &= S_IFMT;
@@ -474,6 +472,32 @@ xfs_setattr_mode(
 
 	inode->i_mode &= S_IFMT;
 	inode->i_mode |= mode & ~S_IFMT;
+}
+
+static void
+xfs_setattr_time(
+	struct xfs_inode	*ip,
+	struct iattr		*iattr)
+{
+	struct inode		*inode = VFS_I(ip);
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+
+	if (iattr->ia_valid & ATTR_ATIME) {
+		inode->i_atime = iattr->ia_atime;
+		ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
+		ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
+	}
+	if (iattr->ia_valid & ATTR_CTIME) {
+		inode->i_ctime = iattr->ia_ctime;
+		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
+		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
+	}
+	if (iattr->ia_valid & ATTR_MTIME) {
+		inode->i_mtime = iattr->ia_mtime;
+		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
+		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
+	}
 }
 
 int
@@ -630,30 +654,10 @@ xfs_setattr_nonsize(
 		}
 	}
 
-	/*
-	 * Change file access modes.
-	 */
 	if (mask & ATTR_MODE)
-		xfs_setattr_mode(tp, ip, iattr);
-
-	/*
-	 * Change file access or modified times.
-	 */
-	if (mask & ATTR_ATIME) {
-		inode->i_atime = iattr->ia_atime;
-		ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
-		ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
-	}
-	if (mask & ATTR_CTIME) {
-		inode->i_ctime = iattr->ia_ctime;
-		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
-		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
-	}
-	if (mask & ATTR_MTIME) {
-		inode->i_mtime = iattr->ia_mtime;
-		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
-		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
-	}
+		xfs_setattr_mode(ip, iattr);
+	if (mask & (ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
+		xfs_setattr_time(ip, iattr);
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
@@ -868,22 +872,10 @@ xfs_setattr_size(
 		xfs_inode_clear_eofblocks_tag(ip);
 	}
 
-	/*
-	 * Change file access modes.
-	 */
 	if (mask & ATTR_MODE)
-		xfs_setattr_mode(tp, ip, iattr);
-
-	if (mask & ATTR_CTIME) {
-		inode->i_ctime = iattr->ia_ctime;
-		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
-		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
-	}
-	if (mask & ATTR_MTIME) {
-		inode->i_mtime = iattr->ia_mtime;
-		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
-		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
-	}
+		xfs_setattr_mode(ip, iattr);
+	if (mask & (ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
+		xfs_setattr_time(ip, iattr);
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 

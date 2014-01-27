@@ -8,6 +8,7 @@
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/errno.h>
 #include <linux/ieee80211.h>
 #include "ozdbg.h"
@@ -179,7 +180,7 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 		spin_lock_bh(&g_polling_lock);
 		list_for_each(e, &g_pd_list) {
 			pd2 = container_of(e, struct oz_pd, link);
-			if (memcmp(pd2->mac_addr, pd_addr, ETH_ALEN) == 0) {
+			if (ether_addr_equal(pd2->mac_addr, pd_addr)) {
 				free_pd = pd;
 				pd = pd2;
 				break;
@@ -596,7 +597,7 @@ struct oz_pd *oz_pd_find(const u8 *mac_addr)
 	spin_lock_bh(&g_polling_lock);
 	list_for_each(e, &g_pd_list) {
 		pd = container_of(e, struct oz_pd, link);
-		if (memcmp(pd->mac_addr, mac_addr, ETH_ALEN) == 0) {
+		if (ether_addr_equal(pd->mac_addr, mac_addr)) {
 			atomic_inc(&pd->ref_count);
 			spin_unlock_bh(&g_polling_lock);
 			return pd;

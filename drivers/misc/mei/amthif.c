@@ -177,7 +177,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	unsigned long timeout;
 	int i;
 
-	/* Only Posible if we are in timeout */
+	/* Only possible if we are in timeout */
 	if (!cl || cl != &dev->iamthif_cl) {
 		dev_dbg(&dev->pdev->dev, "bad file ext.\n");
 		return -ETIMEDOUT;
@@ -249,7 +249,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	    cb->response_buffer.size);
 	dev_dbg(&dev->pdev->dev, "amthif cb->buf_idx - %lu\n", cb->buf_idx);
 
-	/* length is being turncated to PAGE_SIZE, however,
+	/* length is being truncated to PAGE_SIZE, however,
 	 * the buf_idx may point beyond */
 	length = min_t(size_t, length, (cb->buf_idx - *offset));
 
@@ -316,6 +316,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 		mei_hdr.host_addr = dev->iamthif_cl.host_client_id;
 		mei_hdr.me_addr = dev->iamthif_cl.me_client_id;
 		mei_hdr.reserved = 0;
+		mei_hdr.internal = 0;
 		dev->iamthif_msg_buf_index += mei_hdr.length;
 		ret = mei_write_message(dev, &mei_hdr, dev->iamthif_msg_buf);
 		if (ret)
@@ -477,6 +478,7 @@ int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
 	mei_hdr.reserved = 0;
+	mei_hdr.internal = 0;
 
 	if (*slots >= msg_slots) {
 		mei_hdr.length = len;

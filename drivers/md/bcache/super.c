@@ -1676,7 +1676,7 @@ err:
 static bool can_attach_cache(struct cache *ca, struct cache_set *c)
 {
 	return ca->sb.block_size	== c->sb.block_size &&
-		ca->sb.bucket_size	== c->sb.block_size &&
+		ca->sb.bucket_size	== c->sb.bucket_size &&
 		ca->sb.nr_in_set	== c->sb.nr_in_set;
 }
 

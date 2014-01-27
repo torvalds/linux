@@ -34,11 +34,6 @@ typedef struct xfs_inode_log_item {
 	unsigned short		ili_logged;	   /* flushed logged data */
 	unsigned int		ili_last_fields;   /* fields when flushed */
 	unsigned int		ili_fields;	   /* fields to be logged */
-	struct xfs_bmbt_rec	*ili_extents_buf;  /* array of logged
-						      data exts */
-	struct xfs_bmbt_rec	*ili_aextents_buf; /* array of logged
-						      attr exts */
-	xfs_inode_log_format_t	ili_format;	   /* logged structure */
 } xfs_inode_log_item_t;
 
 static inline int xfs_inode_clean(xfs_inode_t *ip)

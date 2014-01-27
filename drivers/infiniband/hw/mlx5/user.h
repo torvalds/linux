@@ -93,6 +93,9 @@ struct mlx5_ib_create_cq_resp {
 
 struct mlx5_ib_resize_cq {
 	__u64	buf_addr;
+	__u16	cqe_size;
+	__u16	reserved0;
+	__u32	reserved1;
 };
 
 struct mlx5_ib_create_srq {

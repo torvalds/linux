@@ -85,6 +85,8 @@ struct in6_flowlabel_req {
 
 #define IPV6_FL_F_CREATE	1
 #define IPV6_FL_F_EXCL		2
+#define IPV6_FL_F_REFLECT	4
+#define IPV6_FL_F_REMOTE	8
 
 #define IPV6_FL_S_NONE		0
 #define IPV6_FL_S_EXCL		1
@@ -188,6 +190,10 @@ enum {
 #define IPV6_PMTUDISC_WANT		1
 #define IPV6_PMTUDISC_DO		2
 #define IPV6_PMTUDISC_PROBE		3
+/* same as IPV6_PMTUDISC_PROBE, provided for symetry with IPv4
+ * also see comments on IP_PMTUDISC_INTERFACE
+ */
+#define IPV6_PMTUDISC_INTERFACE		4
 
 /* Flowlabel */
 #define IPV6_FLOWLABEL_MGR	32

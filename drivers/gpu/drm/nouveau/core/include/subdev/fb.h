@@ -75,6 +75,11 @@ struct nouveau_fb {
 static inline struct nouveau_fb *
 nouveau_fb(void *obj)
 {
+	/* fbram uses this before device subdev pointer is valid */
+	if (nv_iclass(obj, NV_SUBDEV_CLASS) &&
+	    nv_subidx(obj) == NVDEV_SUBDEV_FB)
+		return obj;
+
 	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_FB];
 }
 

@@ -2713,6 +2713,8 @@ static void gen8_irq_preinstall(struct drm_device *dev)
 #undef GEN8_IRQ_INIT_NDX
 
 	POSTING_READ(GEN8_PCU_IIR);
+
+	ibx_irq_preinstall(dev);
 }
 
 static void ibx_hpd_irq_setup(struct drm_device *dev)

@@ -675,8 +675,10 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 					 || !conf->inactive_blocked),
 					*(conf->hash_locks + hash));
 				conf->inactive_blocked = 0;
-			} else
+			} else {
 				init_stripe(sh, sector, previous);
+				atomic_inc(&sh->count);
+			}
 		} else {
 			spin_lock(&conf->device_lock);
 			if (atomic_read(&sh->count)) {
@@ -687,19 +689,18 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 			} else {
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
-				BUG_ON(list_empty(&sh->lru));
+				BUG_ON(list_empty(&sh->lru) &&
+				       !test_bit(STRIPE_EXPANDING, &sh->state));
 				list_del_init(&sh->lru);
 				if (sh->group) {
 					sh->group->stripes_cnt--;
 					sh->group = NULL;
 				}
 			}
+			atomic_inc(&sh->count);
 			spin_unlock(&conf->device_lock);
 		}
 	} while (sh == NULL);
-
-	if (sh)
-		atomic_inc(&sh->count);
 
 	spin_unlock_irq(conf->hash_locks + hash);
 	return sh;
@@ -2110,6 +2111,7 @@ static void raid5_end_write_request(struct bio *bi, int error)
 			set_bit(R5_MadeGoodRepl, &sh->dev[i].flags);
 	} else {
 		if (!uptodate) {
+			set_bit(STRIPE_DEGRADED, &sh->state);
 			set_bit(WriteErrorSeen, &rdev->flags);
 			set_bit(R5_WriteError, &sh->dev[i].flags);
 			if (!test_and_set_bit(WantReplacement, &rdev->flags))
@@ -3608,7 +3610,7 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 			 */
 			set_bit(R5_Insync, &dev->flags);
 
-		if (rdev && test_bit(R5_WriteError, &dev->flags)) {
+		if (test_bit(R5_WriteError, &dev->flags)) {
 			/* This flag does not apply to '.replacement'
 			 * only to .rdev, so make sure to check that*/
 			struct md_rdev *rdev2 = rcu_dereference(
@@ -3621,7 +3623,7 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 			} else
 				clear_bit(R5_WriteError, &dev->flags);
 		}
-		if (rdev && test_bit(R5_MadeGood, &dev->flags)) {
+		if (test_bit(R5_MadeGood, &dev->flags)) {
 			/* This flag does not apply to '.replacement'
 			 * only to .rdev, so make sure to check that*/
 			struct md_rdev *rdev2 = rcu_dereference(

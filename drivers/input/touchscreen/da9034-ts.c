@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
@@ -299,7 +298,7 @@ static void da9034_touch_close(struct input_dev *dev)
 
 static int da9034_touch_probe(struct platform_device *pdev)
 {
-	struct da9034_touch_pdata *pdata = pdev->dev.platform_data;
+	struct da9034_touch_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct da9034_touch *touch;
 	struct input_dev *input_dev;
 	int ret;

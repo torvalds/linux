@@ -24,7 +24,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -767,7 +766,7 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 			continue;
 
 		dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 	}
 
 	dma_free_coherent(priv->dev, sizeof(struct ftgmac100_descs),
@@ -1149,7 +1148,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 			netdev_dbg(netdev, "tx packet too big\n");
 
 		netdev->stats.tx_dropped++;
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -1160,7 +1159,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 			netdev_err(netdev, "map socket buffer failed\n");
 
 		netdev->stats.tx_dropped++;
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 

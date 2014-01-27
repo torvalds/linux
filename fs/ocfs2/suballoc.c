@@ -113,12 +113,6 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_alloc_context *ac,
 				     struct ocfs2_suballoc_result *res);
 static int ocfs2_test_bg_bit_allocatable(struct buffer_head *bg_bh,
 					 int nr);
-static inline int ocfs2_block_group_set_bits(handle_t *handle,
-					     struct inode *alloc_inode,
-					     struct ocfs2_group_desc *bg,
-					     struct buffer_head *group_bh,
-					     unsigned int bit_off,
-					     unsigned int num_bits);
 static int ocfs2_relink_block_group(handle_t *handle,
 				    struct inode *alloc_inode,
 				    struct buffer_head *fe_bh,
@@ -1343,7 +1337,7 @@ static int ocfs2_block_group_find_clear_bits(struct ocfs2_super *osb,
 	return status;
 }
 
-static inline int ocfs2_block_group_set_bits(handle_t *handle,
+int ocfs2_block_group_set_bits(handle_t *handle,
 					     struct inode *alloc_inode,
 					     struct ocfs2_group_desc *bg,
 					     struct buffer_head *group_bh,
@@ -1388,8 +1382,6 @@ static inline int ocfs2_block_group_set_bits(handle_t *handle,
 	ocfs2_journal_dirty(handle, group_bh);
 
 bail:
-	if (status)
-		mlog_errno(status);
 	return status;
 }
 
@@ -1588,7 +1580,7 @@ static int ocfs2_block_group_search(struct inode *inode,
 	return ret;
 }
 
-static int ocfs2_alloc_dinode_update_counts(struct inode *inode,
+int ocfs2_alloc_dinode_update_counts(struct inode *inode,
 				       handle_t *handle,
 				       struct buffer_head *di_bh,
 				       u32 num_bits,

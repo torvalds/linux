@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -329,10 +327,10 @@ static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
 }
 
-static void batadv_post_gw_deselect(struct net_device *net_dev)
+static void batadv_post_gw_reselect(struct net_device *net_dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	batadv_gw_deselect(bat_priv);
+	batadv_gw_reselect(bat_priv);
 }
 
 static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
@@ -408,7 +406,16 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	batadv_info(net_dev, "Changing gw mode from: %s to: %s\n",
 		    curr_gw_mode_str, buff);
 
-	batadv_gw_deselect(bat_priv);
+	/* Invoking batadv_gw_reselect() is not enough to really de-select the
+	 * current GW. It will only instruct the gateway client code to perform
+	 * a re-election the next time that this is needed.
+	 *
+	 * When gw client mode is being switched off the current GW must be
+	 * de-selected explicitly otherwise no GW_ADD uevent is thrown on
+	 * client mode re-activation. This is operation is performed in
+	 * batadv_gw_check_client_stop().
+	 */
+	batadv_gw_reselect(bat_priv);
 	/* always call batadv_gw_check_client_stop() before changing the gateway
 	 * state
 	 */
@@ -443,6 +450,74 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 	return batadv_gw_bandwidth_set(net_dev, buff, count);
 }
 
+/**
+ * batadv_show_isolation_mark - print the current isolation mark/mask
+ * @kobj: kobject representing the private mesh sysfs directory
+ * @attr: the batman-adv attribute the user is interacting with
+ * @buff: the buffer that will contain the data to send back to the user
+ *
+ * Returns the number of bytes written into 'buff' on success or a negative
+ * error code in case of failure
+ */
+static ssize_t batadv_show_isolation_mark(struct kobject *kobj,
+					  struct attribute *attr, char *buff)
+{
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+
+	return sprintf(buff, "%#.8x/%#.8x\n", bat_priv->isolation_mark,
+		       bat_priv->isolation_mark_mask);
+}
+
+/**
+ * batadv_store_isolation_mark - parse and store the isolation mark/mask entered
+ *  by the user
+ * @kobj: kobject representing the private mesh sysfs directory
+ * @attr: the batman-adv attribute the user is interacting with
+ * @buff: the buffer containing the user data
+ * @count: number of bytes in the buffer
+ *
+ * Returns 'count' on success or a negative error code in case of failure
+ */
+static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
+					   struct attribute *attr, char *buff,
+					   size_t count)
+{
+	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+	uint32_t mark, mask;
+	char *mask_ptr;
+
+	/* parse the mask if it has been specified, otherwise assume the mask is
+	 * the biggest possible
+	 */
+	mask = 0xFFFFFFFF;
+	mask_ptr = strchr(buff, '/');
+	if (mask_ptr) {
+		*mask_ptr = '\0';
+		mask_ptr++;
+
+		/* the mask must be entered in hex base as it is going to be a
+		 * bitmask and not a prefix length
+		 */
+		if (kstrtou32(mask_ptr, 16, &mask) < 0)
+			return -EINVAL;
+	}
+
+	/* the mark can be entered in any base */
+	if (kstrtou32(buff, 0, &mark) < 0)
+		return -EINVAL;
+
+	bat_priv->isolation_mark_mask = mask;
+	/* erase bits not covered by the mask */
+	bat_priv->isolation_mark = mark & bat_priv->isolation_mark_mask;
+
+	batadv_info(net_dev,
+		    "New skb mark for extended isolation: %#.8x/%#.8x\n",
+		    bat_priv->isolation_mark, bat_priv->isolation_mark_mask);
+
+	return count;
+}
+
 BATADV_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
 BATADV_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 #ifdef CONFIG_BATMAN_ADV_BLA
@@ -461,7 +536,7 @@ BATADV_ATTR_SIF_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * BATADV_JITTER,
 BATADV_ATTR_SIF_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, BATADV_TQ_MAX_VALUE,
 		     NULL);
 BATADV_ATTR_SIF_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, BATADV_TQ_MAX_VALUE,
-		     batadv_post_gw_deselect);
+		     batadv_post_gw_reselect);
 static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 		   batadv_store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
@@ -471,6 +546,8 @@ BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
 BATADV_ATTR_SIF_BOOL(network_coding, S_IRUGO | S_IWUSR,
 		     batadv_nc_status_update);
 #endif
+static BATADV_ATTR(isolation_mark, S_IRUGO | S_IWUSR,
+		   batadv_show_isolation_mark, batadv_store_isolation_mark);
 
 static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_aggregated_ogms,
@@ -494,6 +571,7 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 #ifdef CONFIG_BATMAN_ADV_NC
 	&batadv_attr_network_coding,
 #endif
+	&batadv_attr_isolation_mark,
 	NULL,
 };
 

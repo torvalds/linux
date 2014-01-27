@@ -35,7 +35,15 @@
 
 #include "leds-lp55xx-common.h"
 
-#define LP5523_PROGRAM_LENGTH		32
+#define LP5523_PROGRAM_LENGTH		32	/* bytes */
+/* Memory is used like this:
+   0x00 engine 1 program
+   0x10 engine 2 program
+   0x20 engine 3 program
+   0x30 engine 1 muxing info
+   0x40 engine 2 muxing info
+   0x50 engine 3 muxing info
+*/
 #define LP5523_MAX_LEDS			9
 
 /* Registers */
@@ -337,17 +345,11 @@ static int lp5523_update_program_memory(struct lp55xx_chip *chip,
 	if (i % 2)
 		goto err;
 
-	mutex_lock(&chip->lock);
-
 	for (i = 0; i < LP5523_PROGRAM_LENGTH; i++) {
 		ret = lp55xx_write(chip, LP5523_REG_PROG_MEM + i, pattern[i]);
-		if (ret) {
-			mutex_unlock(&chip->lock);
+		if (ret)
 			return -EINVAL;
-		}
 	}
-
-	mutex_unlock(&chip->lock);
 
 	return size;
 
@@ -548,15 +550,17 @@ static ssize_t store_engine_load(struct device *dev,
 {
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
+	int ret;
 
 	mutex_lock(&chip->lock);
 
 	chip->engine_idx = nr;
 	lp5523_load_engine_and_select_page(chip);
+	ret = lp5523_update_program_memory(chip, buf, len);
 
 	mutex_unlock(&chip->lock);
 
-	return lp5523_update_program_memory(chip, buf, len);
+	return ret;
 }
 store_load(1)
 store_load(2)

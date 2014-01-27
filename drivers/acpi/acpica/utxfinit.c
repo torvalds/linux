@@ -122,8 +122,16 @@ acpi_status __init acpi_initialize_subsystem(void)
 
 	/* If configured, initialize the AML debugger */
 
-	ACPI_DEBUGGER_EXEC(status = acpi_db_initialize());
-	return_ACPI_STATUS(status);
+#ifdef ACPI_DEBUGGER
+	status = acpi_db_initialize();
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"During Debugger initialization"));
+		return_ACPI_STATUS(status);
+	}
+#endif
+
+	return_ACPI_STATUS(AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_subsystem)

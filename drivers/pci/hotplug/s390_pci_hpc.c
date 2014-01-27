@@ -80,7 +80,9 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 		goto out_deconfigure;
 
 	pci_scan_slot(slot->zdev->bus, ZPCI_DEVFN);
+	pci_lock_rescan_remove();
 	pci_bus_add_devices(slot->zdev->bus);
+	pci_unlock_rescan_remove();
 
 	return rc;
 
@@ -98,7 +100,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 		return -EIO;
 
 	if (slot->zdev->pdev)
-		pci_stop_and_remove_bus_device(slot->zdev->pdev);
+		pci_stop_and_remove_bus_device_locked(slot->zdev->pdev);
 
 	rc = zpci_disable_device(slot->zdev);
 	if (rc)

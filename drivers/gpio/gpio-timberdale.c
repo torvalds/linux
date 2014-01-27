@@ -275,7 +275,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 	gc->dbg_show = NULL;
 	gc->base = pdata->gpio_base;
 	gc->ngpio = pdata->nr_pins;
-	gc->can_sleep = 0;
+	gc->can_sleep = false;
 
 	err = gpiochip_add(gc);
 	if (err)
@@ -290,8 +290,8 @@ static int timbgpio_probe(struct platform_device *pdev)
 		return 0;
 
 	for (i = 0; i < pdata->nr_pins; i++) {
-		irq_set_chip_and_handler_name(tgpio->irq_base + i,
-			&timbgpio_irqchip, handle_simple_irq, "mux");
+		irq_set_chip_and_handler(tgpio->irq_base + i,
+			&timbgpio_irqchip, handle_simple_irq);
 		irq_set_chip_data(tgpio->irq_base + i, tgpio);
 #ifdef CONFIG_ARM
 		set_irq_flags(tgpio->irq_base + i, IRQF_VALID | IRQF_PROBE);

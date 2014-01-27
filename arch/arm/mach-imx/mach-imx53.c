@@ -31,7 +31,7 @@ static void __init imx53_dt_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char *imx53_dt_board_compat[] __initdata = {
+static const char *imx53_dt_board_compat[] __initconst = {
 	"fsl,imx53",
 	NULL
 };

@@ -2754,9 +2754,9 @@ static int ath6kl_set_bitrate_mask64(struct wmi *wmi, u8 if_idx,
 				mask->control[band].legacy << 4;
 
 		/* copy mcs rate mask */
-		mcsrate = mask->control[band].mcs[1];
+		mcsrate = mask->control[band].ht_mcs[1];
 		mcsrate <<= 8;
-		mcsrate |= mask->control[band].mcs[0];
+		mcsrate |= mask->control[band].ht_mcs[0];
 		ratemask[band] |= mcsrate << 12;
 		ratemask[band] |= mcsrate << 28;
 	}
@@ -2806,7 +2806,7 @@ static int ath6kl_set_bitrate_mask32(struct wmi *wmi, u8 if_idx,
 				mask->control[band].legacy << 4;
 
 		/* copy mcs rate mask */
-		mcsrate = mask->control[band].mcs[0];
+		mcsrate = mask->control[band].ht_mcs[0];
 		ratemask[band] |= mcsrate << 12;
 		ratemask[band] |= mcsrate << 20;
 	}

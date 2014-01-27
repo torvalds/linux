@@ -1907,10 +1907,6 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 			}
 		}
 	}
-	if (op == EPOLL_CTL_DEL && is_file_epoll(tf.file)) {
-		tep = tf.file->private_data;
-		mutex_lock_nested(&tep->mtx, 1);
-	}
 
 	/*
 	 * Try to lookup the file inside our RB tree, Since we grabbed "mtx"

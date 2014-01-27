@@ -28,6 +28,9 @@
 
 #include <linux/export.h>
 #include <linux/types.h>
+#include <linux/ethtool.h>
+#include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_embedded.h>
 #include <linux/bcma/bcma_soc.h>
@@ -225,6 +228,12 @@ void __init plat_mem_setup(void)
 	bcm47xx_board_detect();
 }
 
+static struct fixed_phy_status bcm47xx_fixed_phy_status __initdata = {
+	.link	= 1,
+	.speed	= SPEED_100,
+	.duplex	= DUPLEX_FULL,
+};
+
 static int __init bcm47xx_register_bus_complete(void)
 {
 	switch (bcm47xx_bus_type) {
@@ -239,6 +248,7 @@ static int __init bcm47xx_register_bus_complete(void)
 		break;
 #endif
 	}
+	fixed_phy_add(PHY_POLL, 0, &bcm47xx_fixed_phy_status);
 	return 0;
 }
 device_initcall(bcm47xx_register_bus_complete);

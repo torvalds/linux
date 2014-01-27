@@ -906,14 +906,12 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 		WARN_ON(readq(&gtt_entries[i-1])
 			!= gen8_pte_encode(addr, level, true));
 
-#if 0 /* TODO: Still needed on GEN8? */
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
 	 * have finished.
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
-#endif
 }
 
 /*
@@ -1267,14 +1265,14 @@ static int ggtt_probe_common(struct drm_device *dev,
 			     size_t gtt_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	phys_addr_t gtt_bus_addr;
+	phys_addr_t gtt_phys_addr;
 	int ret;
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */
-	gtt_bus_addr = pci_resource_start(dev->pdev, 0) +
+	gtt_phys_addr = pci_resource_start(dev->pdev, 0) +
 		(pci_resource_len(dev->pdev, 0) / 2);
 
-	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr, gtt_size);
+	dev_priv->gtt.gsm = ioremap_wc(gtt_phys_addr, gtt_size);
 	if (!dev_priv->gtt.gsm) {
 		DRM_ERROR("Failed to map the gtt page table\n");
 		return -ENOMEM;

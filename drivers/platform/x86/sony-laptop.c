@@ -61,9 +61,6 @@
 #include <linux/workqueue.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
-#include <asm/uaccess.h>
 #include <linux/sonypi.h>
 #include <linux/sony-laptop.h>
 #include <linux/rfkill.h>
@@ -71,6 +68,7 @@
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
 #endif
+#include <asm/uaccess.h>
 
 #define dprintk(fmt, ...)			\
 do {						\

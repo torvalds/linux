@@ -1,7 +1,7 @@
 /*
  * DMA driver for Nvidia's Tegra20 APB DMA controller.
  *
- * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2012-2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -29,11 +29,12 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
-#include <linux/clk/tegra.h>
 
 #include "dmaengine.h"
 
@@ -199,6 +200,7 @@ struct tegra_dma_channel {
 	void			*callback_param;
 
 	/* Channel-slave specific configuration */
+	unsigned int slave_id;
 	struct dma_slave_config dma_sconfig;
 	struct tegra_dma_channel_regs	channel_reg;
 };
@@ -208,6 +210,7 @@ struct tegra_dma {
 	struct dma_device		dma_dev;
 	struct device			*dev;
 	struct clk			*dma_clk;
+	struct reset_control		*rst;
 	spinlock_t			global_lock;
 	void __iomem			*base_addr;
 	const struct tegra_dma_chip_data *chip_data;
@@ -339,6 +342,8 @@ static int tegra_dma_slave_config(struct dma_chan *dc,
 	}
 
 	memcpy(&tdc->dma_sconfig, sconfig, sizeof(*sconfig));
+	if (!tdc->slave_id)
+		tdc->slave_id = sconfig->slave_id;
 	tdc->config_init = true;
 	return 0;
 }
@@ -941,7 +946,7 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_slave_sg(
 	ahb_seq |= TEGRA_APBDMA_AHBSEQ_BUS_WIDTH_32;
 
 	csr |= TEGRA_APBDMA_CSR_ONCE | TEGRA_APBDMA_CSR_FLOW;
-	csr |= tdc->dma_sconfig.slave_id << TEGRA_APBDMA_CSR_REQ_SEL_SHIFT;
+	csr |= tdc->slave_id << TEGRA_APBDMA_CSR_REQ_SEL_SHIFT;
 	if (flags & DMA_PREP_INTERRUPT)
 		csr |= TEGRA_APBDMA_CSR_IE_EOC;
 
@@ -1085,7 +1090,7 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 	csr |= TEGRA_APBDMA_CSR_FLOW;
 	if (flags & DMA_PREP_INTERRUPT)
 		csr |= TEGRA_APBDMA_CSR_IE_EOC;
-	csr |= tdc->dma_sconfig.slave_id << TEGRA_APBDMA_CSR_REQ_SEL_SHIFT;
+	csr |= tdc->slave_id << TEGRA_APBDMA_CSR_REQ_SEL_SHIFT;
 
 	apb_seq |= TEGRA_APBDMA_APBSEQ_WRAP_WORD_1;
 
@@ -1205,6 +1210,25 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 		kfree(sg_req);
 	}
 	clk_disable_unprepare(tdma->dma_clk);
+
+	tdc->slave_id = 0;
+}
+
+static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
+					   struct of_dma *ofdma)
+{
+	struct tegra_dma *tdma = ofdma->of_dma_data;
+	struct dma_chan *chan;
+	struct tegra_dma_channel *tdc;
+
+	chan = dma_get_any_slave_channel(&tdma->dma_dev);
+	if (!chan)
+		return NULL;
+
+	tdc = to_tegra_dma_chan(chan);
+	tdc->slave_id = dma_spec->args[0];
+
+	return chan;
 }
 
 /* Tegra20 specific DMA controller information */
@@ -1282,6 +1306,12 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		return PTR_ERR(tdma->dma_clk);
 	}
 
+	tdma->rst = devm_reset_control_get(&pdev->dev, "dma");
+	if (IS_ERR(tdma->rst)) {
+		dev_err(&pdev->dev, "Error: Missing reset\n");
+		return PTR_ERR(tdma->rst);
+	}
+
 	spin_lock_init(&tdma->global_lock);
 
 	pm_runtime_enable(&pdev->dev);
@@ -1302,9 +1332,9 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Reset DMA controller */
-	tegra_periph_reset_assert(tdma->dma_clk);
+	reset_control_assert(tdma->rst);
 	udelay(2);
-	tegra_periph_reset_deassert(tdma->dma_clk);
+	reset_control_deassert(tdma->rst);
 
 	/* Enable global DMA registers */
 	tdma_write(tdma, TEGRA_APBDMA_GENERAL, TEGRA_APBDMA_GENERAL_ENABLE);
@@ -1376,10 +1406,20 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
+	ret = of_dma_controller_register(pdev->dev.of_node,
+					 tegra_dma_of_xlate, tdma);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Tegra20 APB DMA OF registration failed %d\n", ret);
+		goto err_unregister_dma_dev;
+	}
+
 	dev_info(&pdev->dev, "Tegra20 APB DMA driver register %d channels\n",
 			cdata->nr_channels);
 	return 0;
 
+err_unregister_dma_dev:
+	dma_async_device_unregister(&tdma->dma_dev);
 err_irq:
 	while (--i >= 0) {
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
