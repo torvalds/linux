@@ -946,6 +946,13 @@ STD_ENTRY(interrupt_return)
 	bzt     r30, .Lrestore_regs
 3:
 
+	/* We are relying on INT_PERF_COUNT at 33, and AUX_PERF_COUNT at 48 */
+	{
+	 moveli r0, lo16(1 << (INT_PERF_COUNT - 32))
+	 bz     r31, .Lrestore_regs
+	}
+	auli    r0, r0, ha16(1 << (INT_AUX_PERF_COUNT - 32))
+	mtspr   SPR_INTERRUPT_MASK_RESET_K_1, r0
 
 	/*
 	 * We now commit to returning from this interrupt, since we will be
@@ -1171,6 +1178,10 @@ handle_nmi:
 	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
 	}
 	FEEDBACK_REENTER(handle_nmi)
+	{
+	 movei  r30, 1
+	 seq    r31, r0, zero
+	}
 	j       interrupt_return
 	STD_ENDPROC(handle_nmi)
 

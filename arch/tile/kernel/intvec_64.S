@@ -971,6 +971,15 @@ STD_ENTRY(interrupt_return)
 	beqzt   r30, .Lrestore_regs
 3:
 
+#if INT_PERF_COUNT + 1 != INT_AUX_PERF_COUNT
+# error Bad interrupt assumption
+#endif
+	{
+	 movei  r0, 3   /* two adjacent bits for the PERF_COUNT mask */
+	 beqz   r31, .Lrestore_regs
+	}
+	shli    r0, r0, INT_PERF_COUNT
+	mtspr   SPR_INTERRUPT_MASK_RESET_K, r0
 
 	/*
 	 * We now commit to returning from this interrupt, since we will be
@@ -1187,7 +1196,7 @@ handle_nmi:
 	FEEDBACK_REENTER(handle_nmi)
 	{
 	 movei  r30, 1
-	 move   r31, r0
+	 cmpeq  r31, r0, zero
 	}
 	j       interrupt_return
 	STD_ENDPROC(handle_nmi)
