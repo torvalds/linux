@@ -417,13 +417,10 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 }
 
-static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
+static int _iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif)
 {
-	int ret;
-	bool ba_enable;
 	struct iwl_mac_power_cmd cmd = {};
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return 0;
@@ -435,8 +432,19 @@ static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	iwl_mvm_power_log(mvm, &cmd);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, CMD_SYNC,
-				   sizeof(cmd), &cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, CMD_SYNC,
+				    sizeof(cmd), &cmd);
+}
+
+static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif)
+
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	bool ba_enable;
+	int ret;
+
+	ret = _iwl_mvm_power_mac_update_mode(mvm, vif);
 	if (ret)
 		return ret;
 
@@ -544,13 +552,24 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 	return 0;
 }
 
+struct iwl_mvm_power_iterator {
+	struct iwl_mvm *mvm;
+	struct ieee80211_vif *bf_vif;
+};
+
 static void iwl_mvm_power_binding_iterator(void *_data, u8 *mac,
 					   struct ieee80211_vif *vif)
 {
-	struct iwl_mvm *mvm = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_power_iterator *power_iterator = _data;
+	struct iwl_mvm *mvm = power_iterator->mvm;
 	int ret;
 
-	ret = iwl_mvm_power_mac_update_mode(mvm, vif);
+	ret = _iwl_mvm_power_mac_update_mode(mvm, vif);
+
+	if (mvmvif->bf_data.bf_enabled && !WARN_ON(power_iterator->bf_vif))
+		power_iterator->bf_vif = vif;
+
 	WARN_ONCE(ret, "Failed to update power parameters on a specific vif\n");
 }
 
@@ -558,6 +577,14 @@ static void _iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
 					  bool assign)
 {
+	bool ba_enable;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_power_iterator power_it = {
+		.mvm = mvm,
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		int ret = _iwl_mvm_power_update_device(mvm, assign);
 		mvm->ps_prevented = assign;
@@ -567,7 +594,20 @@ static void _iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_power_binding_iterator,
-					    mvm);
+					    &power_it);
+
+	if (!power_it.bf_vif)
+		return;
+
+	vif = power_it.bf_vif;
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	ba_enable = !(iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM ||
+		      mvm->ps_prevented || mvm->bound_vif_cnt > 1 ||
+		      !vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif));
+
+	WARN_ON_ONCE(iwl_mvm_update_beacon_abort(mvm, power_it.bf_vif,
+						 ba_enable));
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
