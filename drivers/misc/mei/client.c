@@ -799,7 +799,6 @@ void mei_cl_all_disconnect(struct mei_device *dev)
 	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
 		cl->state = MEI_FILE_DISCONNECTED;
 		cl->mei_flow_ctrl_creds = 0;
-		cl->read_cb = NULL;
 		cl->timer_count = 0;
 	}
 }
