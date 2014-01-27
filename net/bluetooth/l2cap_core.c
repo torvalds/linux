@@ -482,7 +482,7 @@ static void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 	chan->sdu_len = 0;
 	chan->tx_credits = 0;
 	chan->rx_credits = le_max_credits;
-	chan->mps = min_t(u16, chan->imtu, L2CAP_LE_DEFAULT_MPS);
+	chan->mps = min_t(u16, chan->imtu, le_default_mps);
 
 	skb_queue_head_init(&chan->tx_q);
 }
