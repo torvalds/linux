@@ -84,7 +84,7 @@ static int copy_fp_to_sigcontext32(struct sigcontext32 __user *sc)
 	int err = 0;
 	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
 
-	for (i = 0; i < 32; i += inc) {
+	for (i = 0; i < NUM_FPU_REGS; i += inc) {
 		err |=
 		    __put_user(get_fpr64(&current->thread.fpu.fpr[i], 0),
 			       &sc->sc_fpregs[i]);
@@ -101,7 +101,7 @@ static int copy_fp_from_sigcontext32(struct sigcontext32 __user *sc)
 	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
 	u64 fpr_val;
 
-	for (i = 0; i < 32; i += inc) {
+	for (i = 0; i < NUM_FPU_REGS; i += inc) {
 		err |= __get_user(fpr_val, &sc->sc_fpregs[i]);
 		set_fpr64(&current->thread.fpu.fpr[i], 0, fpr_val);
 	}
