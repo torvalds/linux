@@ -46,9 +46,6 @@ static int (*restore_fp_context)(struct sigcontext __user *sc);
 extern asmlinkage int _save_fp_context(struct sigcontext __user *sc);
 extern asmlinkage int _restore_fp_context(struct sigcontext __user *sc);
 
-extern asmlinkage int fpu_emulator_save_context(struct sigcontext __user *sc);
-extern asmlinkage int fpu_emulator_restore_context(struct sigcontext __user *sc);
-
 struct sigframe {
 	u32 sf_ass[4];		/* argument save space for o32 */
 	u32 sf_pad[2];		/* Was: signal trampoline */
@@ -62,6 +59,40 @@ struct rt_sigframe {
 	struct siginfo rs_info;
 	struct ucontext rs_uc;
 };
+
+/*
+ * Thread saved context copy to/from a signal context presumed to be on the
+ * user stack, and therefore accessed with appropriate macros from uaccess.h.
+ */
+static int copy_fp_to_sigcontext(struct sigcontext __user *sc)
+{
+	int i;
+	int err = 0;
+
+	for (i = 0; i < 32; i++) {
+		err |=
+		    __put_user(get_fpr64(&current->thread.fpu.fpr[i], 0),
+			       &sc->sc_fpregs[i]);
+	}
+	err |= __put_user(current->thread.fpu.fcr31, &sc->sc_fpc_csr);
+
+	return err;
+}
+
+static int copy_fp_from_sigcontext(struct sigcontext __user *sc)
+{
+	int i;
+	int err = 0;
+	u64 fpr_val;
+
+	for (i = 0; i < 32; i++) {
+		err |= __get_user(fpr_val, &sc->sc_fpregs[i]);
+		set_fpr64(&current->thread.fpu.fpr[i], 0, fpr_val);
+	}
+	err |= __get_user(current->thread.fpu.fcr31, &sc->sc_fpc_csr);
+
+	return err;
+}
 
 /*
  * Helper routines
@@ -595,14 +626,14 @@ static int smp_save_fp_context(struct sigcontext __user *sc)
 {
 	return raw_cpu_has_fpu
 	       ? _save_fp_context(sc)
-	       : fpu_emulator_save_context(sc);
+	       : copy_fp_to_sigcontext(sc);
 }
 
 static int smp_restore_fp_context(struct sigcontext __user *sc)
 {
 	return raw_cpu_has_fpu
 	       ? _restore_fp_context(sc)
-	       : fpu_emulator_restore_context(sc);
+	       : copy_fp_from_sigcontext(sc);
 }
 #endif
 
@@ -617,8 +648,8 @@ static int signal_setup(void)
 		save_fp_context = _save_fp_context;
 		restore_fp_context = _restore_fp_context;
 	} else {
-		save_fp_context = fpu_emulator_save_context;
-		restore_fp_context = fpu_emulator_restore_context;
+		save_fp_context = copy_fp_from_sigcontext;
+		restore_fp_context = copy_fp_to_sigcontext;
 	}
 #endif
 
