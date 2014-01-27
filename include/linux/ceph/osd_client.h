@@ -155,11 +155,17 @@ struct ceph_osd_request {
 
 	struct ceph_object_locator r_base_oloc;
 	struct ceph_object_id r_base_oid;
+	struct ceph_object_locator r_target_oloc;
+	struct ceph_object_id r_target_oid;
 
 	u64               r_snapid;
 	unsigned long     r_stamp;            /* send OR check time */
 
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
+};
+
+struct ceph_request_redirect {
+	struct ceph_object_locator oloc;
 };
 
 struct ceph_osd_event {
