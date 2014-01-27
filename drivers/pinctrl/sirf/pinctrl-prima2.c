@@ -413,7 +413,7 @@ static const struct sirfsoc_padmux ac97_padmux = {
 	.funcval = 0,
 };
 
-static const unsigned ac97_pins[] = { 33, 34, 35, 36 };
+static const unsigned ac97_pins[] = { 43, 44, 45, 46 };
 
 static const struct sirfsoc_muxmask spi1_muxmask[] = {
 	{
