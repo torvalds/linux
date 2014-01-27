@@ -2612,6 +2612,11 @@ int r600_cp_resume(struct radeon_device *rdev)
 		ring->ready = false;
 		return r;
 	}
+
+	/* RV7xx+ uses dma for paging */
+	if (rdev->family < CHIP_RV770)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
+
 	return 0;
 }
 
@@ -2895,12 +2900,6 @@ static int r600_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_fence_driver_start_ring(rdev, R600_RING_TYPE_DMA_INDEX);
-	if (r) {
-		dev_err(rdev->dev, "failed initializing DMA fences (%d).\n", r);
-		return r;
-	}
-
 	/* Enable IRQ */
 	if (!rdev->irq.installed) {
 		r = radeon_irq_kms_init(rdev);
@@ -2922,20 +2921,10 @@ static int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
-	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
-	if (r)
-		return r;
-
 	r = r600_cp_load_microcode(rdev);
 	if (r)
 		return r;
 	r = r600_cp_resume(rdev);
-	if (r)
-		return r;
-
-	r = r600_dma_resume(rdev);
 	if (r)
 		return r;
 
@@ -2997,7 +2986,6 @@ int r600_suspend(struct radeon_device *rdev)
 	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
 	r600_cp_stop(rdev);
-	r600_dma_stop(rdev);
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
@@ -3077,9 +3065,6 @@ int r600_init(struct radeon_device *rdev)
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
-	rdev->ring[R600_RING_TYPE_DMA_INDEX].ring_obj = NULL;
-	r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_DMA_INDEX], 64 * 1024);
-
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -3092,7 +3077,6 @@ int r600_init(struct radeon_device *rdev)
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		r600_cp_fini(rdev);
-		r600_dma_fini(rdev);
 		r600_irq_fini(rdev);
 		radeon_wb_fini(rdev);
 		radeon_ib_pool_fini(rdev);
@@ -3109,7 +3093,6 @@ void r600_fini(struct radeon_device *rdev)
 	radeon_pm_fini(rdev);
 	r600_audio_fini(rdev);
 	r600_cp_fini(rdev);
-	r600_dma_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
