@@ -338,7 +338,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	msg_size = 4 + 4 + 8 + 8 + 4+8;
 	msg_size += 2 + 4 + 8 + 4 + 4; /* oloc */
 	msg_size += 1 + 8 + 4 + 4;     /* pg_t */
-	msg_size += 4 + MAX_OBJ_NAME_SIZE;
+	msg_size += 4 + CEPH_MAX_OID_NAME_LEN; /* oid */
 	msg_size += 2 + num_ops*sizeof(struct ceph_osd_op);
 	msg_size += 8;  /* snapid */
 	msg_size += 8;  /* snap_seq */

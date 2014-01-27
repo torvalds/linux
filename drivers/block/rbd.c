@@ -1088,9 +1088,9 @@ static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 	name_format = "%s.%012llx";
 	if (rbd_dev->image_format == 2)
 		name_format = "%s.%016llx";
-	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, name_format,
+	ret = snprintf(name, CEPH_MAX_OID_NAME_LEN + 1, name_format,
 			rbd_dev->header.object_prefix, segment);
-	if (ret < 0 || ret > MAX_OBJ_NAME_SIZE) {
+	if (ret < 0 || ret > CEPH_MAX_OID_NAME_LEN) {
 		pr_err("error formatting segment name for #%llu (%d)\n",
 			segment, ret);
 		kfree(name);
@@ -5350,7 +5350,7 @@ static int rbd_slab_init(void)
 
 	rbd_assert(!rbd_segment_name_cache);
 	rbd_segment_name_cache = kmem_cache_create("rbd_segment_name",
-					MAX_OBJ_NAME_SIZE + 1, 1, 0, NULL);
+					CEPH_MAX_OID_NAME_LEN + 1, 1, 0, NULL);
 	if (rbd_segment_name_cache)
 		return 0;
 out_err:
