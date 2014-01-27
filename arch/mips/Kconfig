@@ -1208,6 +1208,7 @@ config CPU_MIPS32_R2
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_MSA
 	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 2 or later of the
@@ -1243,6 +1244,7 @@ config CPU_MIPS64_R2
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_SUPPORTS_MSA
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
@@ -2081,6 +2083,20 @@ config CPU_MICROMIPS
 	  When this option is enabled the kernel will be built using the
 	  microMIPS ISA
 
+config CPU_HAS_MSA
+	bool "Support for the MIPS SIMD Architecture"
+	depends on CPU_SUPPORTS_MSA
+	default y
+	help
+	  MIPS SIMD Architecture (MSA) introduces 128 bit wide vector registers
+	  and a set of SIMD instructions to operate on them. When this option
+	  is enabled the kernel will support detection of the MSA ASE. If you
+	  know that your kernel will only be running on CPUs which do not
+	  support MSA then you may wish to say N here to reduce the size of
+	  your kernel.
+
+	  If unsure, say Y.
+
 config CPU_HAS_WB
 	bool
 
@@ -2144,6 +2160,9 @@ config SYS_SUPPORTS_SMARTMIPS
 	bool
 
 config SYS_SUPPORTS_MICROMIPS
+	bool
+
+config CPU_SUPPORTS_MSA
 	bool
 
 config ARCH_FLATMEM_ENABLE

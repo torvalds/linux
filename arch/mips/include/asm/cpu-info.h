@@ -49,6 +49,7 @@ struct cpuinfo_mips {
 	unsigned long		ases;
 	unsigned int		processor_id;
 	unsigned int		fpu_id;
+	unsigned int		msa_id;
 	unsigned int		cputype;
 	int			isa_level;
 	int			tlbsize;

@@ -95,6 +95,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_mipsmt)	seq_printf(m, "%s", " mt");
 	if (cpu_has_mmips)	seq_printf(m, "%s", " micromips");
 	if (cpu_has_vz)		seq_printf(m, "%s", " vz");
+	if (cpu_has_msa)	seq_printf(m, "%s", " msa");
 	seq_printf(m, "\n");
 
 	if (cpu_has_mmips) {

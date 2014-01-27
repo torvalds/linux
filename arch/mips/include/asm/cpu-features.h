@@ -299,4 +299,10 @@
 #define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
 #endif
 
+#if defined(CONFIG_CPU_HAS_MSA) && !defined(cpu_has_msa)
+# define cpu_has_msa		(cpu_data[0].ases & MIPS_ASE_MSA)
+#elif !defined(cpu_has_msa)
+# define cpu_has_msa		0
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */
