@@ -35,6 +35,8 @@ struct ceph_pg_pool_info {
 	u8 object_hash;
 	u32 pg_num, pgp_num;
 	int pg_num_mask, pgp_num_mask;
+	s64 read_tier;
+	s64 write_tier; /* wins for read+write ops */
 	u64 flags;
 	char *name;
 };

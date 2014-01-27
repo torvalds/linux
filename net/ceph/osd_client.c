@@ -1250,6 +1250,32 @@ static bool __req_should_be_paused(struct ceph_osd_client *osdc,
 }
 
 /*
+ * Calculate mapping of a request to a PG.  Takes tiering into account.
+ */
+static int __calc_request_pg(struct ceph_osdmap *osdmap,
+			     struct ceph_osd_request *req,
+			     struct ceph_pg *pg_out)
+{
+	if ((req->r_flags & CEPH_OSD_FLAG_IGNORE_OVERLAY) == 0) {
+		struct ceph_pg_pool_info *pi;
+
+		pi = ceph_pg_pool_by_id(osdmap, req->r_oloc.pool);
+		if (pi) {
+			if ((req->r_flags & CEPH_OSD_FLAG_READ) &&
+			    pi->read_tier >= 0)
+				req->r_oloc.pool = pi->read_tier;
+			if ((req->r_flags & CEPH_OSD_FLAG_WRITE) &&
+			    pi->write_tier >= 0)
+				req->r_oloc.pool = pi->write_tier;
+		}
+		/* !pi is caught in ceph_oloc_oid_to_pg() */
+	}
+
+	return ceph_oloc_oid_to_pg(osdmap, &req->r_oloc,
+				   &req->r_oid, pg_out);
+}
+
+/*
  * Pick an osd (the first 'up' osd in the pg), allocate the osd struct
  * (as needed), and set the request r_osd appropriately.  If there is
  * no up osd, set r_osd to NULL.  Move the request to the appropriate list
@@ -1269,8 +1295,8 @@ static int __map_request(struct ceph_osd_client *osdc,
 	bool was_paused;
 
 	dout("map_request %p tid %lld\n", req, req->r_tid);
-	err = ceph_oloc_oid_to_pg(osdc->osdmap, &req->r_oloc, &req->r_oid,
-				  &pgid);
+
+	err = __calc_request_pg(osdc->osdmap, req, &pgid);
 	if (err) {
 		list_move(&req->r_req_lru_item, &osdc->req_notarget);
 		return err;

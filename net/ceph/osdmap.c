@@ -519,8 +519,8 @@ static int __decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 		pr_warning("got v %d < 5 cv %d of ceph_pg_pool\n", ev, cv);
 		return -EINVAL;
 	}
-	if (cv > 7) {
-		pr_warning("got v %d cv %d > 7 of ceph_pg_pool\n", ev, cv);
+	if (cv > 9) {
+		pr_warning("got v %d cv %d > 9 of ceph_pg_pool\n", ev, cv);
 		return -EINVAL;
 	}
 	len = ceph_decode_32(p);
@@ -548,12 +548,34 @@ static int __decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 		*p += len;
 	}
 
-	/* skip removed snaps */
+	/* skip removed_snaps */
 	num = ceph_decode_32(p);
 	*p += num * (8 + 8);
 
 	*p += 8;  /* skip auid */
 	pi->flags = ceph_decode_64(p);
+	*p += 4;  /* skip crash_replay_interval */
+
+	if (ev >= 7)
+		*p += 1;  /* skip min_size */
+
+	if (ev >= 8)
+		*p += 8 + 8;  /* skip quota_max_* */
+
+	if (ev >= 9) {
+		/* skip tiers */
+		num = ceph_decode_32(p);
+		*p += num * 8;
+
+		*p += 8;  /* skip tier_of */
+		*p += 1;  /* skip cache_mode */
+
+		pi->read_tier = ceph_decode_64(p);
+		pi->write_tier = ceph_decode_64(p);
+	} else {
+		pi->read_tier = -1;
+		pi->write_tier = -1;
+	}
 
 	/* ignore the rest */
 
