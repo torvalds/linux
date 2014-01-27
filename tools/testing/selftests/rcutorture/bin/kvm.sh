@@ -175,31 +175,29 @@ fi
 if test -z "$resdir"
 then
 	resdir=$KVM/res
-	if ! test -e $resdir
-	then
-		mkdir $resdir || :
-	fi
-else
+fi
+
+if test "$dryrun" = ""
+then
 	if ! test -e $resdir
 	then
 		mkdir -p "$resdir" || :
 	fi
-fi
-mkdir $resdir/$ds
-if test "$dryrun" = ""
-then
+	mkdir $resdir/$ds
+
 	# Be noisy only if running the script.
 	echo Results directory: $resdir/$ds
 	echo $scriptname $args
-fi
-touch $resdir/$ds/log
-echo $scriptname $args >> $resdir/$ds/log
 
-pwd > $resdir/$ds/testid.txt
-if test -d .git
-then
-	git status >> $resdir/$ds/testid.txt
-	git rev-parse HEAD >> $resdir/$ds/testid.txt
+	touch $resdir/$ds/log
+	echo $scriptname $args >> $resdir/$ds/log
+
+	pwd > $resdir/$ds/testid.txt
+	if test -d .git
+	then
+		git status >> $resdir/$ds/testid.txt
+		git rev-parse HEAD >> $resdir/$ds/testid.txt
+	fi
 fi
 
 # Create a file of test-name/#cpus pairs, sorted by decreasing #cpus.
@@ -371,6 +369,8 @@ then
 	echo RCU_QEMU_CMD="$RCU_QEMU_CMD; export RCU_QEMU_CMD"
 	echo RCU_QEMU_INTERACTIVE="$RCU_QEMU_INTERACTIVE; export RCU_QEMU_INTERACTIVE"
 	echo RCU_QEMU_MAC="$RCU_QEMU_MAC; export RCU_QEMU_MAC"
+	echo "mkdir -p "$resdir" || :"
+	echo "mkdir $resdir/$ds"
 	cat $T/script
 	exit 0
 elif test "$dryrun" = sched
