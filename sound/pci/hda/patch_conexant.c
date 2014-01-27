@@ -3407,6 +3407,11 @@ static const struct snd_pci_quirk cxt5051_fixups[] = {
 	{}
 };
 
+static const struct hda_model_fixup cxt5051_fixup_models[] = {
+	{ .id = CXT_PINCFG_LENOVO_X200, .name = "lenovo-x200" },
+	{}
+};
+
 static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x1025, 0x0543, "Acer Aspire One 522", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT_FIXUP_GPIO1),
@@ -3424,6 +3429,16 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Thinkpad", CXT_FIXUP_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x1c06, 0x2011, "Lemote A1004", CXT_PINCFG_LEMOTE_A1004),
 	SND_PCI_QUIRK(0x1c06, 0x2012, "Lemote A1205", CXT_PINCFG_LEMOTE_A1205),
+	{}
+};
+
+static const struct hda_model_fixup cxt5066_fixup_models[] = {
+	{ .id = CXT_FIXUP_STEREO_DMIC, .name = "stereo-dmic" },
+	{ .id = CXT_FIXUP_GPIO1, .name = "gpio1" },
+	{ .id = CXT_FIXUP_HEADPHONE_MIC_PIN, .name = "headphone-mic-pin" },
+	{ .id = CXT_PINCFG_LENOVO_TP410, .name = "tp410" },
+	{ .id = CXT_FIXUP_THINKPAD_ACPI, .name = "thinkpad" },
+	{ .id = CXT_PINCFG_LEMOTE_A1004, .name = "lemote-a1004" },
 	{}
 };
 
@@ -3474,11 +3489,13 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	case 0x14f15051:
 		add_cx5051_fake_mutes(codec);
 		codec->pin_amp_workaround = 1;
-		snd_hda_pick_fixup(codec, NULL, cxt5051_fixups, cxt_fixups);
+		snd_hda_pick_fixup(codec, cxt5051_fixup_models,
+				   cxt5051_fixups, cxt_fixups);
 		break;
 	default:
 		codec->pin_amp_workaround = 1;
-		snd_hda_pick_fixup(codec, NULL, cxt5066_fixups, cxt_fixups);
+		snd_hda_pick_fixup(codec, cxt5066_fixup_models,
+				   cxt5066_fixups, cxt_fixups);
 		break;
 	}
 
