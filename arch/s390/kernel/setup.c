@@ -287,14 +287,6 @@ static int __init parse_vmalloc(char *arg)
 }
 early_param("vmalloc", parse_vmalloc);
 
-static int __init early_parse_user_mode(char *p)
-{
-	if (!p || strcmp(p, "primary") == 0)
-		return 0;
-	return 1;
-}
-early_param("user_mode", early_parse_user_mode);
-
 void *restart_stack __attribute__((__section__(".data")));
 
 static void __init setup_lowcore(void)
