@@ -42,6 +42,8 @@
 #include "amp.h"
 #include "6lowpan.h"
 
+#define LE_FLOWCTL_MAX_CREDITS 65535
+
 bool disable_ertm;
 
 static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN | L2CAP_FEAT_UCD;
@@ -5473,7 +5475,7 @@ static inline int l2cap_le_credits(struct l2cap_conn *conn,
 {
 	struct l2cap_le_credits *pkt;
 	struct l2cap_chan *chan;
-	u16 cid, credits;
+	u16 cid, credits, max_credits;
 
 	if (cmd_len != sizeof(*pkt))
 		return -EPROTO;
@@ -5487,6 +5489,17 @@ static inline int l2cap_le_credits(struct l2cap_conn *conn,
 	chan = l2cap_get_chan_by_dcid(conn, cid);
 	if (!chan)
 		return -EBADSLT;
+
+	max_credits = LE_FLOWCTL_MAX_CREDITS - chan->tx_credits;
+	if (credits > max_credits) {
+		BT_ERR("LE credits overflow");
+		l2cap_send_disconn_req(chan, ECONNRESET);
+
+		/* Return 0 so that we don't trigger an unnecessary
+		 * command reject packet.
+		 */
+		return 0;
+	}
 
 	chan->tx_credits += credits;
 
