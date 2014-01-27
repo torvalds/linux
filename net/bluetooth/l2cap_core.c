@@ -6635,6 +6635,7 @@ static int l2cap_le_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	if (!chan->rx_credits) {
 		BT_ERR("No credits to receive LE L2CAP data");
+		l2cap_send_disconn_req(chan, ECONNRESET);
 		return -ENOBUFS;
 	}
 
