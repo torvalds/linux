@@ -35,17 +35,28 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 
-struct sh_tmu_priv {
-	void __iomem *mapbase;
-	struct clk *clk;
+struct sh_tmu_priv;
+
+struct sh_tmu_channel {
+	struct sh_tmu_priv *tmu;
+
 	int irq;
-	struct platform_device *pdev;
+
 	unsigned long rate;
 	unsigned long periodic;
 	struct clock_event_device ced;
 	struct clocksource cs;
 	bool cs_enabled;
 	unsigned int enable_count;
+};
+
+struct sh_tmu_priv {
+	struct platform_device *pdev;
+
+	void __iomem *mapbase;
+	struct clk *clk;
+
+	struct sh_tmu_channel channel;
 };
 
 static DEFINE_RAW_SPINLOCK(sh_tmu_lock);
@@ -55,10 +66,10 @@ static DEFINE_RAW_SPINLOCK(sh_tmu_lock);
 #define TCNT 1 /* channel register */
 #define TCR 2 /* channel register */
 
-static inline unsigned long sh_tmu_read(struct sh_tmu_priv *p, int reg_nr)
+static inline unsigned long sh_tmu_read(struct sh_tmu_channel *ch, int reg_nr)
 {
-	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
-	void __iomem *base = p->mapbase;
+	struct sh_timer_config *cfg = ch->tmu->pdev->dev.platform_data;
+	void __iomem *base = ch->tmu->mapbase;
 	unsigned long offs;
 
 	if (reg_nr == TSTR)
@@ -72,11 +83,11 @@ static inline unsigned long sh_tmu_read(struct sh_tmu_priv *p, int reg_nr)
 		return ioread32(base + offs);
 }
 
-static inline void sh_tmu_write(struct sh_tmu_priv *p, int reg_nr,
+static inline void sh_tmu_write(struct sh_tmu_channel *ch, int reg_nr,
 				unsigned long value)
 {
-	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
-	void __iomem *base = p->mapbase;
+	struct sh_timer_config *cfg = ch->tmu->pdev->dev.platform_data;
+	void __iomem *base = ch->tmu->mapbase;
 	unsigned long offs;
 
 	if (reg_nr == TSTR) {
@@ -92,152 +103,152 @@ static inline void sh_tmu_write(struct sh_tmu_priv *p, int reg_nr,
 		iowrite32(value, base + offs);
 }
 
-static void sh_tmu_start_stop_ch(struct sh_tmu_priv *p, int start)
+static void sh_tmu_start_stop_ch(struct sh_tmu_channel *ch, int start)
 {
-	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = ch->tmu->pdev->dev.platform_data;
 	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
 	raw_spin_lock_irqsave(&sh_tmu_lock, flags);
-	value = sh_tmu_read(p, TSTR);
+	value = sh_tmu_read(ch, TSTR);
 
 	if (start)
 		value |= 1 << cfg->timer_bit;
 	else
 		value &= ~(1 << cfg->timer_bit);
 
-	sh_tmu_write(p, TSTR, value);
+	sh_tmu_write(ch, TSTR, value);
 	raw_spin_unlock_irqrestore(&sh_tmu_lock, flags);
 }
 
-static int __sh_tmu_enable(struct sh_tmu_priv *p)
+static int __sh_tmu_enable(struct sh_tmu_channel *ch)
 {
 	int ret;
 
 	/* enable clock */
-	ret = clk_enable(p->clk);
+	ret = clk_enable(ch->tmu->clk);
 	if (ret) {
-		dev_err(&p->pdev->dev, "cannot enable clock\n");
+		dev_err(&ch->tmu->pdev->dev, "cannot enable clock\n");
 		return ret;
 	}
 
 	/* make sure channel is disabled */
-	sh_tmu_start_stop_ch(p, 0);
+	sh_tmu_start_stop_ch(ch, 0);
 
 	/* maximum timeout */
-	sh_tmu_write(p, TCOR, 0xffffffff);
-	sh_tmu_write(p, TCNT, 0xffffffff);
+	sh_tmu_write(ch, TCOR, 0xffffffff);
+	sh_tmu_write(ch, TCNT, 0xffffffff);
 
 	/* configure channel to parent clock / 4, irq off */
-	p->rate = clk_get_rate(p->clk) / 4;
-	sh_tmu_write(p, TCR, 0x0000);
+	ch->rate = clk_get_rate(ch->tmu->clk) / 4;
+	sh_tmu_write(ch, TCR, 0x0000);
 
 	/* enable channel */
-	sh_tmu_start_stop_ch(p, 1);
+	sh_tmu_start_stop_ch(ch, 1);
 
 	return 0;
 }
 
-static int sh_tmu_enable(struct sh_tmu_priv *p)
+static int sh_tmu_enable(struct sh_tmu_channel *ch)
 {
-	if (p->enable_count++ > 0)
+	if (ch->enable_count++ > 0)
 		return 0;
 
-	pm_runtime_get_sync(&p->pdev->dev);
-	dev_pm_syscore_device(&p->pdev->dev, true);
+	pm_runtime_get_sync(&ch->tmu->pdev->dev);
+	dev_pm_syscore_device(&ch->tmu->pdev->dev, true);
 
-	return __sh_tmu_enable(p);
+	return __sh_tmu_enable(ch);
 }
 
-static void __sh_tmu_disable(struct sh_tmu_priv *p)
+static void __sh_tmu_disable(struct sh_tmu_channel *ch)
 {
 	/* disable channel */
-	sh_tmu_start_stop_ch(p, 0);
+	sh_tmu_start_stop_ch(ch, 0);
 
 	/* disable interrupts in TMU block */
-	sh_tmu_write(p, TCR, 0x0000);
+	sh_tmu_write(ch, TCR, 0x0000);
 
 	/* stop clock */
-	clk_disable(p->clk);
+	clk_disable(ch->tmu->clk);
 }
 
-static void sh_tmu_disable(struct sh_tmu_priv *p)
+static void sh_tmu_disable(struct sh_tmu_channel *ch)
 {
-	if (WARN_ON(p->enable_count == 0))
+	if (WARN_ON(ch->enable_count == 0))
 		return;
 
-	if (--p->enable_count > 0)
+	if (--ch->enable_count > 0)
 		return;
 
-	__sh_tmu_disable(p);
+	__sh_tmu_disable(ch);
 
-	dev_pm_syscore_device(&p->pdev->dev, false);
-	pm_runtime_put(&p->pdev->dev);
+	dev_pm_syscore_device(&ch->tmu->pdev->dev, false);
+	pm_runtime_put(&ch->tmu->pdev->dev);
 }
 
-static void sh_tmu_set_next(struct sh_tmu_priv *p, unsigned long delta,
+static void sh_tmu_set_next(struct sh_tmu_channel *ch, unsigned long delta,
 			    int periodic)
 {
 	/* stop timer */
-	sh_tmu_start_stop_ch(p, 0);
+	sh_tmu_start_stop_ch(ch, 0);
 
 	/* acknowledge interrupt */
-	sh_tmu_read(p, TCR);
+	sh_tmu_read(ch, TCR);
 
 	/* enable interrupt */
-	sh_tmu_write(p, TCR, 0x0020);
+	sh_tmu_write(ch, TCR, 0x0020);
 
 	/* reload delta value in case of periodic timer */
 	if (periodic)
-		sh_tmu_write(p, TCOR, delta);
+		sh_tmu_write(ch, TCOR, delta);
 	else
-		sh_tmu_write(p, TCOR, 0xffffffff);
+		sh_tmu_write(ch, TCOR, 0xffffffff);
 
-	sh_tmu_write(p, TCNT, delta);
+	sh_tmu_write(ch, TCNT, delta);
 
 	/* start timer */
-	sh_tmu_start_stop_ch(p, 1);
+	sh_tmu_start_stop_ch(ch, 1);
 }
 
 static irqreturn_t sh_tmu_interrupt(int irq, void *dev_id)
 {
-	struct sh_tmu_priv *p = dev_id;
+	struct sh_tmu_channel *ch = dev_id;
 
 	/* disable or acknowledge interrupt */
-	if (p->ced.mode == CLOCK_EVT_MODE_ONESHOT)
-		sh_tmu_write(p, TCR, 0x0000);
+	if (ch->ced.mode == CLOCK_EVT_MODE_ONESHOT)
+		sh_tmu_write(ch, TCR, 0x0000);
 	else
-		sh_tmu_write(p, TCR, 0x0020);
+		sh_tmu_write(ch, TCR, 0x0020);
 
 	/* notify clockevent layer */
-	p->ced.event_handler(&p->ced);
+	ch->ced.event_handler(&ch->ced);
 	return IRQ_HANDLED;
 }
 
-static struct sh_tmu_priv *cs_to_sh_tmu(struct clocksource *cs)
+static struct sh_tmu_channel *cs_to_sh_tmu(struct clocksource *cs)
 {
-	return container_of(cs, struct sh_tmu_priv, cs);
+	return container_of(cs, struct sh_tmu_channel, cs);
 }
 
 static cycle_t sh_tmu_clocksource_read(struct clocksource *cs)
 {
-	struct sh_tmu_priv *p = cs_to_sh_tmu(cs);
+	struct sh_tmu_channel *ch = cs_to_sh_tmu(cs);
 
-	return sh_tmu_read(p, TCNT) ^ 0xffffffff;
+	return sh_tmu_read(ch, TCNT) ^ 0xffffffff;
 }
 
 static int sh_tmu_clocksource_enable(struct clocksource *cs)
 {
-	struct sh_tmu_priv *p = cs_to_sh_tmu(cs);
+	struct sh_tmu_channel *ch = cs_to_sh_tmu(cs);
 	int ret;
 
-	if (WARN_ON(p->cs_enabled))
+	if (WARN_ON(ch->cs_enabled))
 		return 0;
 
-	ret = sh_tmu_enable(p);
+	ret = sh_tmu_enable(ch);
 	if (!ret) {
-		__clocksource_updatefreq_hz(cs, p->rate);
-		p->cs_enabled = true;
+		__clocksource_updatefreq_hz(cs, ch->rate);
+		ch->cs_enabled = true;
 	}
 
 	return ret;
@@ -245,45 +256,45 @@ static int sh_tmu_clocksource_enable(struct clocksource *cs)
 
 static void sh_tmu_clocksource_disable(struct clocksource *cs)
 {
-	struct sh_tmu_priv *p = cs_to_sh_tmu(cs);
+	struct sh_tmu_channel *ch = cs_to_sh_tmu(cs);
 
-	if (WARN_ON(!p->cs_enabled))
+	if (WARN_ON(!ch->cs_enabled))
 		return;
 
-	sh_tmu_disable(p);
-	p->cs_enabled = false;
+	sh_tmu_disable(ch);
+	ch->cs_enabled = false;
 }
 
 static void sh_tmu_clocksource_suspend(struct clocksource *cs)
 {
-	struct sh_tmu_priv *p = cs_to_sh_tmu(cs);
+	struct sh_tmu_channel *ch = cs_to_sh_tmu(cs);
 
-	if (!p->cs_enabled)
+	if (!ch->cs_enabled)
 		return;
 
-	if (--p->enable_count == 0) {
-		__sh_tmu_disable(p);
-		pm_genpd_syscore_poweroff(&p->pdev->dev);
+	if (--ch->enable_count == 0) {
+		__sh_tmu_disable(ch);
+		pm_genpd_syscore_poweroff(&ch->tmu->pdev->dev);
 	}
 }
 
 static void sh_tmu_clocksource_resume(struct clocksource *cs)
 {
-	struct sh_tmu_priv *p = cs_to_sh_tmu(cs);
+	struct sh_tmu_channel *ch = cs_to_sh_tmu(cs);
 
-	if (!p->cs_enabled)
+	if (!ch->cs_enabled)
 		return;
 
-	if (p->enable_count++ == 0) {
-		pm_genpd_syscore_poweron(&p->pdev->dev);
-		__sh_tmu_enable(p);
+	if (ch->enable_count++ == 0) {
+		pm_genpd_syscore_poweron(&ch->tmu->pdev->dev);
+		__sh_tmu_enable(ch);
 	}
 }
 
-static int sh_tmu_register_clocksource(struct sh_tmu_priv *p,
+static int sh_tmu_register_clocksource(struct sh_tmu_channel *ch,
 				       char *name, unsigned long rating)
 {
-	struct clocksource *cs = &p->cs;
+	struct clocksource *cs = &ch->cs;
 
 	cs->name = name;
 	cs->rating = rating;
@@ -295,43 +306,43 @@ static int sh_tmu_register_clocksource(struct sh_tmu_priv *p,
 	cs->mask = CLOCKSOURCE_MASK(32);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
-	dev_info(&p->pdev->dev, "used as clock source\n");
+	dev_info(&ch->tmu->pdev->dev, "used as clock source\n");
 
 	/* Register with dummy 1 Hz value, gets updated in ->enable() */
 	clocksource_register_hz(cs, 1);
 	return 0;
 }
 
-static struct sh_tmu_priv *ced_to_sh_tmu(struct clock_event_device *ced)
+static struct sh_tmu_channel *ced_to_sh_tmu(struct clock_event_device *ced)
 {
-	return container_of(ced, struct sh_tmu_priv, ced);
+	return container_of(ced, struct sh_tmu_channel, ced);
 }
 
-static void sh_tmu_clock_event_start(struct sh_tmu_priv *p, int periodic)
+static void sh_tmu_clock_event_start(struct sh_tmu_channel *ch, int periodic)
 {
-	struct clock_event_device *ced = &p->ced;
+	struct clock_event_device *ced = &ch->ced;
 
-	sh_tmu_enable(p);
+	sh_tmu_enable(ch);
 
-	clockevents_config(ced, p->rate);
+	clockevents_config(ced, ch->rate);
 
 	if (periodic) {
-		p->periodic = (p->rate + HZ/2) / HZ;
-		sh_tmu_set_next(p, p->periodic, 1);
+		ch->periodic = (ch->rate + HZ/2) / HZ;
+		sh_tmu_set_next(ch, ch->periodic, 1);
 	}
 }
 
 static void sh_tmu_clock_event_mode(enum clock_event_mode mode,
 				    struct clock_event_device *ced)
 {
-	struct sh_tmu_priv *p = ced_to_sh_tmu(ced);
+	struct sh_tmu_channel *ch = ced_to_sh_tmu(ced);
 	int disabled = 0;
 
 	/* deal with old setting first */
 	switch (ced->mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 	case CLOCK_EVT_MODE_ONESHOT:
-		sh_tmu_disable(p);
+		sh_tmu_disable(ch);
 		disabled = 1;
 		break;
 	default:
@@ -340,16 +351,18 @@ static void sh_tmu_clock_event_mode(enum clock_event_mode mode,
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		dev_info(&p->pdev->dev, "used for periodic clock events\n");
-		sh_tmu_clock_event_start(p, 1);
+		dev_info(&ch->tmu->pdev->dev,
+			 "used for periodic clock events\n");
+		sh_tmu_clock_event_start(ch, 1);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
-		dev_info(&p->pdev->dev, "used for oneshot clock events\n");
-		sh_tmu_clock_event_start(p, 0);
+		dev_info(&ch->tmu->pdev->dev,
+			 "used for oneshot clock events\n");
+		sh_tmu_clock_event_start(ch, 0);
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 		if (!disabled)
-			sh_tmu_disable(p);
+			sh_tmu_disable(ch);
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	default:
@@ -360,29 +373,29 @@ static void sh_tmu_clock_event_mode(enum clock_event_mode mode,
 static int sh_tmu_clock_event_next(unsigned long delta,
 				   struct clock_event_device *ced)
 {
-	struct sh_tmu_priv *p = ced_to_sh_tmu(ced);
+	struct sh_tmu_channel *ch = ced_to_sh_tmu(ced);
 
 	BUG_ON(ced->mode != CLOCK_EVT_MODE_ONESHOT);
 
 	/* program new delta value */
-	sh_tmu_set_next(p, delta, 0);
+	sh_tmu_set_next(ch, delta, 0);
 	return 0;
 }
 
 static void sh_tmu_clock_event_suspend(struct clock_event_device *ced)
 {
-	pm_genpd_syscore_poweroff(&ced_to_sh_tmu(ced)->pdev->dev);
+	pm_genpd_syscore_poweroff(&ced_to_sh_tmu(ced)->tmu->pdev->dev);
 }
 
 static void sh_tmu_clock_event_resume(struct clock_event_device *ced)
 {
-	pm_genpd_syscore_poweron(&ced_to_sh_tmu(ced)->pdev->dev);
+	pm_genpd_syscore_poweron(&ced_to_sh_tmu(ced)->tmu->pdev->dev);
 }
 
-static void sh_tmu_register_clockevent(struct sh_tmu_priv *p,
+static void sh_tmu_register_clockevent(struct sh_tmu_channel *ch,
 				       char *name, unsigned long rating)
 {
-	struct clock_event_device *ced = &p->ced;
+	struct clock_event_device *ced = &ch->ced;
 	int ret;
 
 	memset(ced, 0, sizeof(*ced));
@@ -397,27 +410,28 @@ static void sh_tmu_register_clockevent(struct sh_tmu_priv *p,
 	ced->suspend = sh_tmu_clock_event_suspend;
 	ced->resume = sh_tmu_clock_event_resume;
 
-	dev_info(&p->pdev->dev, "used for clock events\n");
+	dev_info(&ch->tmu->pdev->dev, "used for clock events\n");
 
 	clockevents_config_and_register(ced, 1, 0x300, 0xffffffff);
 
-	ret = request_irq(p->irq, sh_tmu_interrupt,
+	ret = request_irq(ch->irq, sh_tmu_interrupt,
 			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
-			  dev_name(&p->pdev->dev), p);
+			  dev_name(&ch->tmu->pdev->dev), ch);
 	if (ret) {
-		dev_err(&p->pdev->dev, "failed to request irq %d\n", p->irq);
+		dev_err(&ch->tmu->pdev->dev, "failed to request irq %d\n",
+			ch->irq);
 		return;
 	}
 }
 
-static int sh_tmu_register(struct sh_tmu_priv *p, char *name,
+static int sh_tmu_register(struct sh_tmu_channel *ch, char *name,
 		    unsigned long clockevent_rating,
 		    unsigned long clocksource_rating)
 {
 	if (clockevent_rating)
-		sh_tmu_register_clockevent(p, name, clockevent_rating);
+		sh_tmu_register_clockevent(ch, name, clockevent_rating);
 	else if (clocksource_rating)
-		sh_tmu_register_clocksource(p, name, clocksource_rating);
+		sh_tmu_register_clocksource(ch, name, clocksource_rating);
 
 	return 0;
 }
@@ -445,8 +459,8 @@ static int sh_tmu_setup(struct sh_tmu_priv *p, struct platform_device *pdev)
 		goto err0;
 	}
 
-	p->irq = platform_get_irq(p->pdev, 0);
-	if (p->irq < 0) {
+	p->channel.irq = platform_get_irq(p->pdev, 0);
+	if (p->channel.irq < 0) {
 		dev_err(&p->pdev->dev, "failed to get irq\n");
 		goto err0;
 	}
@@ -470,10 +484,11 @@ static int sh_tmu_setup(struct sh_tmu_priv *p, struct platform_device *pdev)
 	if (ret < 0)
 		goto err2;
 
-	p->cs_enabled = false;
-	p->enable_count = 0;
+	p->channel.cs_enabled = false;
+	p->channel.enable_count = 0;
+	p->channel.tmu = p;
 
-	ret = sh_tmu_register(p, (char *)dev_name(&p->pdev->dev),
+	ret = sh_tmu_register(&p->channel, (char *)dev_name(&p->pdev->dev),
 			      cfg->clockevent_rating,
 			      cfg->clocksource_rating);
 	if (ret < 0)
