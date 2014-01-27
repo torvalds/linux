@@ -1808,8 +1808,8 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	osd_req->r_callback = rbd_osd_req_callback;
 	osd_req->r_priv = obj_request;
 
-	osd_req->r_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
-	ceph_oid_set_name(&osd_req->r_oid, obj_request->object_name);
+	osd_req->r_base_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
+	ceph_oid_set_name(&osd_req->r_base_oid, obj_request->object_name);
 
 	return osd_req;
 }
@@ -1846,8 +1846,8 @@ rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 	osd_req->r_callback = rbd_osd_req_callback;
 	osd_req->r_priv = obj_request;
 
-	osd_req->r_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
-	ceph_oid_set_name(&osd_req->r_oid, obj_request->object_name);
+	osd_req->r_base_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
+	ceph_oid_set_name(&osd_req->r_base_oid, obj_request->object_name);
 
 	return osd_req;
 }

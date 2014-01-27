@@ -153,8 +153,8 @@ struct ceph_osd_request {
 	struct inode *r_inode;         	      /* for use by callbacks */
 	void *r_priv;			      /* ditto */
 
-	struct ceph_object_locator r_oloc;
-	struct ceph_object_id r_oid;
+	struct ceph_object_locator r_base_oloc;
+	struct ceph_object_id r_base_oid;
 
 	u64               r_snapid;
 	unsigned long     r_stamp;            /* send OR check time */

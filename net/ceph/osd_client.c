@@ -368,7 +368,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	INIT_LIST_HEAD(&req->r_req_lru_item);
 	INIT_LIST_HEAD(&req->r_osd_item);
 
-	req->r_oloc.pool = -1;
+	req->r_base_oloc.pool = -1;
 
 	/* create reply message */
 	if (use_mempool)
@@ -763,11 +763,11 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	if (num_ops > 1)
 		osd_req_op_init(req, 1, CEPH_OSD_OP_STARTSYNC);
 
-	req->r_oloc.pool = ceph_file_layout_pg_pool(*layout);
+	req->r_base_oloc.pool = ceph_file_layout_pg_pool(*layout);
 
-	snprintf(req->r_oid.name, sizeof(req->r_oid.name),
+	snprintf(req->r_base_oid.name, sizeof(req->r_base_oid.name),
 		 "%llx.%08llx", vino.ino, objnum);
-	req->r_oid.name_len = strlen(req->r_oid.name);
+	req->r_base_oid.name_len = strlen(req->r_base_oid.name);
 
 	return req;
 }
@@ -1259,20 +1259,20 @@ static int __calc_request_pg(struct ceph_osdmap *osdmap,
 	if ((req->r_flags & CEPH_OSD_FLAG_IGNORE_OVERLAY) == 0) {
 		struct ceph_pg_pool_info *pi;
 
-		pi = ceph_pg_pool_by_id(osdmap, req->r_oloc.pool);
+		pi = ceph_pg_pool_by_id(osdmap, req->r_base_oloc.pool);
 		if (pi) {
 			if ((req->r_flags & CEPH_OSD_FLAG_READ) &&
 			    pi->read_tier >= 0)
-				req->r_oloc.pool = pi->read_tier;
+				req->r_base_oloc.pool = pi->read_tier;
 			if ((req->r_flags & CEPH_OSD_FLAG_WRITE) &&
 			    pi->write_tier >= 0)
-				req->r_oloc.pool = pi->write_tier;
+				req->r_base_oloc.pool = pi->write_tier;
 		}
 		/* !pi is caught in ceph_oloc_oid_to_pg() */
 	}
 
-	return ceph_oloc_oid_to_pg(osdmap, &req->r_oloc,
-				   &req->r_oid, pg_out);
+	return ceph_oloc_oid_to_pg(osdmap, &req->r_base_oloc,
+				   &req->r_base_oid, pg_out);
 }
 
 /*
@@ -1382,7 +1382,7 @@ static void __send_request(struct ceph_osd_client *osdc,
 	/* fill in message content that changes each time we send it */
 	put_unaligned_le32(osdc->osdmap->epoch, req->r_request_osdmap_epoch);
 	put_unaligned_le32(req->r_flags, req->r_request_flags);
-	put_unaligned_le64(req->r_oloc.pool, req->r_request_pool);
+	put_unaligned_le64(req->r_base_oloc.pool, req->r_request_pool);
 	p = req->r_request_pgid;
 	ceph_encode_64(&p, req->r_pgid.pool);
 	ceph_encode_32(&p, req->r_pgid.seed);
@@ -2144,11 +2144,11 @@ void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
 	ceph_encode_32(&p, -1);  /* preferred */
 
 	/* oid */
-	ceph_encode_32(&p, req->r_oid.name_len);
-	memcpy(p, req->r_oid.name, req->r_oid.name_len);
-	dout("oid '%.*s' len %d\n", req->r_oid.name_len,
-	     req->r_oid.name, req->r_oid.name_len);
-	p += req->r_oid.name_len;
+	ceph_encode_32(&p, req->r_base_oid.name_len);
+	memcpy(p, req->r_base_oid.name, req->r_base_oid.name_len);
+	dout("oid '%.*s' len %d\n", req->r_base_oid.name_len,
+	     req->r_base_oid.name, req->r_base_oid.name_len);
+	p += req->r_base_oid.name_len;
 
 	/* ops--can imply data */
 	ceph_encode_16(&p, (u16)req->r_num_ops);
