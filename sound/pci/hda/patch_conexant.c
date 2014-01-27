@@ -35,7 +35,7 @@
 #include "hda_jack.h"
 #include "hda_generic.h"
 
-#define ENABLE_CXT_STATIC_QUIRKS
+#undef ENABLE_CXT_STATIC_QUIRKS
 
 #define CXT_PIN_DIR_IN              0x00
 #define CXT_PIN_DIR_OUT             0x01
