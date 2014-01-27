@@ -207,4 +207,125 @@
 	 .word	0x41800000 | (\rt << 16) | (\rd << 11) | (\u << 5) | (\sel)
 	.endm
 
+#ifdef TOOLCHAIN_SUPPORTS_MSA
+	.macro	ld_d	wd, off, base
+	.set	push
+	.set	mips32r2
+	.set	msa
+	ld.d	$w\wd, \off(\base)
+	.set	pop
+	.endm
+
+	.macro	st_d	wd, off, base
+	.set	push
+	.set	mips32r2
+	.set	msa
+	st.d	$w\wd, \off(\base)
+	.set	pop
+	.endm
+
+	.macro	copy_u_w	rd, ws, n
+	.set	push
+	.set	mips32r2
+	.set	msa
+	copy_u.w \rd, $w\ws[\n]
+	.set	pop
+	.endm
+
+	.macro	copy_u_d	rd, ws, n
+	.set	push
+	.set	mips64r2
+	.set	msa
+	copy_u.d \rd, $w\ws[\n]
+	.set	pop
+	.endm
+
+	.macro	insert_w	wd, n, rs
+	.set	push
+	.set	mips32r2
+	.set	msa
+	insert.w $w\wd[\n], \rs
+	.set	pop
+	.endm
+
+	.macro	insert_d	wd, n, rs
+	.set	push
+	.set	mips64r2
+	.set	msa
+	insert.d $w\wd[\n], \rs
+	.set	pop
+	.endm
+#else
+	/*
+	 * Temporary until all toolchains in use include MSA support.
+	 */
+	.macro	cfcmsa	rd, cs
+	.set	push
+	.set	noat
+	.word	0x787e0059 | (\cs << 11)
+	move	\rd, $1
+	.set	pop
+	.endm
+
+	.macro	ctcmsa	cd, rs
+	.set	push
+	.set	noat
+	move	$1, \rs
+	.word	0x783e0819 | (\cd << 6)
+	.set	pop
+	.endm
+
+	.macro	ld_d	wd, off, base
+	.set	push
+	.set	noat
+	add	$1, \base, \off
+	.word	0x78000823 | (\wd << 6)
+	.set	pop
+	.endm
+
+	.macro	st_d	wd, off, base
+	.set	push
+	.set	noat
+	add	$1, \base, \off
+	.word	0x78000827 | (\wd << 6)
+	.set	pop
+	.endm
+
+	.macro	copy_u_w	rd, ws, n
+	.set	push
+	.set	noat
+	.word	0x78f00059 | (\n << 16) | (\ws << 11)
+	/* move triggers an assembler bug... */
+	or	\rd, $1, zero
+	.set	pop
+	.endm
+
+	.macro	copy_u_d	rd, ws, n
+	.set	push
+	.set	noat
+	.word	0x78f80059 | (\n << 16) | (\ws << 11)
+	/* move triggers an assembler bug... */
+	or	\rd, $1, zero
+	.set	pop
+	.endm
+
+	.macro	insert_w	wd, n, rs
+	.set	push
+	.set	noat
+	/* move triggers an assembler bug... */
+	or	$1, \rs, zero
+	.word	0x79300819 | (\n << 16) | (\wd << 6)
+	.set	pop
+	.endm
+
+	.macro	insert_d	wd, n, rs
+	.set	push
+	.set	noat
+	/* move triggers an assembler bug... */
+	or	$1, \rs, zero
+	.word	0x79380819 | (\n << 16) | (\wd << 6)
+	.set	pop
+	.endm
+#endif
+
 #endif /* _ASM_ASMMACRO_H */

@@ -119,6 +119,11 @@ cflags-$(CONFIG_CPU_MICROMIPS) += $(call cc-option,-mmicromips)
 cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 				   -fno-omit-frame-pointer
 
+ifeq ($(CONFIG_CPU_HAS_MSA),y)
+toolchain-msa			:= $(call cc-option-yn,-mhard-float -mfp64 -mmsa)
+cflags-$(toolchain-msa)		+= -DTOOLCHAIN_SUPPORTS_MSA
+endif
+
 #
 # CPU-dependent compiler/assembler options for optimization.
 #
