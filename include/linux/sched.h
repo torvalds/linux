@@ -1469,15 +1469,15 @@ struct task_struct {
 	 * Scheduling placement decisions are made based on the these counts.
 	 * The values remain static for the duration of a PTE scan
 	 */
-	unsigned long *numa_faults;
+	unsigned long *numa_faults_memory;
 	unsigned long total_numa_faults;
 
 	/*
 	 * numa_faults_buffer records faults per node during the current
-	 * scan window. When the scan completes, the counts in numa_faults
-	 * decay and these values are copied.
+	 * scan window. When the scan completes, the counts in
+	 * numa_faults_memory decay and these values are copied.
 	 */
-	unsigned long *numa_faults_buffer;
+	unsigned long *numa_faults_buffer_memory;
 
 	/*
 	 * numa_faults_locality tracks if faults recorded during the last
