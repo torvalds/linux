@@ -441,61 +441,60 @@ more menu type controls.</para>
 &v4l2-queryctrl; queryctrl;
 &v4l2-querymenu; querymenu;
 
-static void
-enumerate_menu (void)
+static void enumerate_menu(void)
 {
-	printf ("  Menu items:\n");
+	printf("  Menu items:\n");
 
-	memset (&amp;querymenu, 0, sizeof (querymenu));
+	memset(&amp;querymenu, 0, sizeof(querymenu));
 	querymenu.id = queryctrl.id;
 
 	for (querymenu.index = queryctrl.minimum;
 	     querymenu.index &lt;= queryctrl.maximum;
-	      querymenu.index++) {
-		if (0 == ioctl (fd, &VIDIOC-QUERYMENU;, &amp;querymenu)) {
-			printf ("  %s\n", querymenu.name);
+	     querymenu.index++) {
+		if (0 == ioctl(fd, &VIDIOC-QUERYMENU;, &amp;querymenu)) {
+			printf("  %s\n", querymenu.name);
 		}
 	}
 }
 
-memset (&amp;queryctrl, 0, sizeof (queryctrl));
+memset(&amp;queryctrl, 0, sizeof(queryctrl));
 
 for (queryctrl.id = V4L2_CID_BASE;
      queryctrl.id &lt; V4L2_CID_LASTP1;
      queryctrl.id++) {
-	if (0 == ioctl (fd, &VIDIOC-QUERYCTRL;, &amp;queryctrl)) {
+	if (0 == ioctl(fd, &VIDIOC-QUERYCTRL;, &amp;queryctrl)) {
 		if (queryctrl.flags &amp; V4L2_CTRL_FLAG_DISABLED)
 			continue;
 
-		printf ("Control %s\n", queryctrl.name);
+		printf("Control %s\n", queryctrl.name);
 
 		if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-			enumerate_menu ();
+			enumerate_menu();
 	} else {
 		if (errno == EINVAL)
 			continue;
 
-		perror ("VIDIOC_QUERYCTRL");
-		exit (EXIT_FAILURE);
+		perror("VIDIOC_QUERYCTRL");
+		exit(EXIT_FAILURE);
 	}
 }
 
 for (queryctrl.id = V4L2_CID_PRIVATE_BASE;;
      queryctrl.id++) {
-	if (0 == ioctl (fd, &VIDIOC-QUERYCTRL;, &amp;queryctrl)) {
+	if (0 == ioctl(fd, &VIDIOC-QUERYCTRL;, &amp;queryctrl)) {
 		if (queryctrl.flags &amp; V4L2_CTRL_FLAG_DISABLED)
 			continue;
 
-		printf ("Control %s\n", queryctrl.name);
+		printf("Control %s\n", queryctrl.name);
 
 		if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-			enumerate_menu ();
+			enumerate_menu();
 	} else {
 		if (errno == EINVAL)
 			break;
 
-		perror ("VIDIOC_QUERYCTRL");
-		exit (EXIT_FAILURE);
+		perror("VIDIOC_QUERYCTRL");
+		exit(EXIT_FAILURE);
 	}
 }
 </programlisting>
@@ -508,53 +507,53 @@ for (queryctrl.id = V4L2_CID_PRIVATE_BASE;;
 &v4l2-queryctrl; queryctrl;
 &v4l2-control; control;
 
-memset (&amp;queryctrl, 0, sizeof (queryctrl));
+memset(&amp;queryctrl, 0, sizeof(queryctrl));
 queryctrl.id = V4L2_CID_BRIGHTNESS;
 
-if (-1 == ioctl (fd, &VIDIOC-QUERYCTRL;, &amp;queryctrl)) {
+if (-1 == ioctl(fd, &VIDIOC-QUERYCTRL;, &amp;queryctrl)) {
 	if (errno != EINVAL) {
-		perror ("VIDIOC_QUERYCTRL");
-		exit (EXIT_FAILURE);
+		perror("VIDIOC_QUERYCTRL");
+		exit(EXIT_FAILURE);
 	} else {
-		printf ("V4L2_CID_BRIGHTNESS is not supported\n");
+		printf("V4L2_CID_BRIGHTNESS is not supported\n");
 	}
 } else if (queryctrl.flags &amp; V4L2_CTRL_FLAG_DISABLED) {
-	printf ("V4L2_CID_BRIGHTNESS is not supported\n");
+	printf("V4L2_CID_BRIGHTNESS is not supported\n");
 } else {
-	memset (&amp;control, 0, sizeof (control));
+	memset(&amp;control, 0, sizeof (control));
 	control.id = V4L2_CID_BRIGHTNESS;
 	control.value = queryctrl.default_value;
 
-	if (-1 == ioctl (fd, &VIDIOC-S-CTRL;, &amp;control)) {
-		perror ("VIDIOC_S_CTRL");
-		exit (EXIT_FAILURE);
+	if (-1 == ioctl(fd, &VIDIOC-S-CTRL;, &amp;control)) {
+		perror("VIDIOC_S_CTRL");
+		exit(EXIT_FAILURE);
 	}
 }
 
-memset (&amp;control, 0, sizeof (control));
+memset(&amp;control, 0, sizeof(control));
 control.id = V4L2_CID_CONTRAST;
 
-if (0 == ioctl (fd, &VIDIOC-G-CTRL;, &amp;control)) {
+if (0 == ioctl(fd, &VIDIOC-G-CTRL;, &amp;control)) {
 	control.value += 1;
 
 	/* The driver may clamp the value or return ERANGE, ignored here */
 
-	if (-1 == ioctl (fd, &VIDIOC-S-CTRL;, &amp;control)
+	if (-1 == ioctl(fd, &VIDIOC-S-CTRL;, &amp;control)
 	    &amp;&amp; errno != ERANGE) {
-		perror ("VIDIOC_S_CTRL");
-		exit (EXIT_FAILURE);
+		perror("VIDIOC_S_CTRL");
+		exit(EXIT_FAILURE);
 	}
 /* Ignore if V4L2_CID_CONTRAST is unsupported */
 } else if (errno != EINVAL) {
-	perror ("VIDIOC_G_CTRL");
-	exit (EXIT_FAILURE);
+	perror("VIDIOC_G_CTRL");
+	exit(EXIT_FAILURE);
 }
 
 control.id = V4L2_CID_AUDIO_MUTE;
-control.value = TRUE; /* silence */
+control.value = 1; /* silence */
 
 /* Errors ignored */
-ioctl (fd, VIDIOC_S_CTRL, &amp;control);
+ioctl(fd, VIDIOC_S_CTRL, &amp;control);
 </programlisting>
     </example>
   </section>
@@ -675,12 +674,12 @@ control class is found:</para>
       <informalexample>
 	<programlisting>
 qctrl.id = V4L2_CTRL_CLASS_MPEG | V4L2_CTRL_FLAG_NEXT_CTRL;
-while (0 == ioctl (fd, &VIDIOC-QUERYCTRL;, &amp;qctrl)) {
-	if (V4L2_CTRL_ID2CLASS (qctrl.id) != V4L2_CTRL_CLASS_MPEG)
+while (0 == ioctl(fd, &VIDIOC-QUERYCTRL;, &amp;qctrl)) {
+	if (V4L2_CTRL_ID2CLASS(qctrl.id) != V4L2_CTRL_CLASS_MPEG)
 		break;
 		/* ... */
-		qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
-	}
+	qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+}
 </programlisting>
       </informalexample>
 
