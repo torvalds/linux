@@ -16,6 +16,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/file.h>
 #include <linux/freezer.h>
 #include <linux/fs.h>
@@ -1017,9 +1018,7 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf, size_t start,
 	mutex_lock(&buffer->lock);
 	vaddr = ion_buffer_kmap_get(buffer);
 	mutex_unlock(&buffer->lock);
-	if (IS_ERR(vaddr))
-		return PTR_ERR(vaddr);
-	return 0;
+	return PTR_ERR_OR_ZERO(vaddr);
 }
 
 static void ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf, size_t start,
