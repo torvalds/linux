@@ -66,6 +66,10 @@ config HUGETLB_SUPER_PAGES
 config GENERIC_TIME_VSYSCALL
 	def_bool y
 
+# Enable PMC if PERF_EVENTS, OPROFILE, or WATCHPOINTS are enabled.
+config USE_PMC
+	bool
+
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
