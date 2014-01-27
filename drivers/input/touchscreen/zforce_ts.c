@@ -64,7 +64,7 @@
 #define RESPONSE_STATUS		0X1e
 
 /*
- * Notifications are send by the touch controller without
+ * Notifications are sent by the touch controller without
  * being requested by the driver and include for example
  * touch indications
  */
@@ -103,8 +103,8 @@ struct zforce_point {
  * @suspended		device suspended
  * @access_mutex	serialize i2c-access, to keep multipart reads together
  * @command_done	completion to wait for the command result
- * @command_mutex	serialize commands send to the ic
- * @command_waiting	the id of the command that that is currently waiting
+ * @command_mutex	serialize commands sent to the ic
+ * @command_waiting	the id of the command that is currently waiting
  *			for a result
  * @command_result	returned result of the command
  */
@@ -332,7 +332,7 @@ static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 
 	count = payload[0];
 	if (count > ZFORCE_REPORT_POINTS) {
-		dev_warn(&client->dev, "to many coordinates %d, expected max %d\n",
+		dev_warn(&client->dev, "too many coordinates %d, expected max %d\n",
 			 count, ZFORCE_REPORT_POINTS);
 		count = ZFORCE_REPORT_POINTS;
 	}
@@ -789,7 +789,7 @@ static int zforce_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	/* this gets the firmware version among other informations */
+	/* this gets the firmware version among other information */
 	ret = zforce_command_wait(ts, COMMAND_STATUS);
 	if (ret < 0) {
 		dev_err(&client->dev, "couldn't get status, %d\n", ret);
