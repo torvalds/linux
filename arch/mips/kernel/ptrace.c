@@ -304,10 +304,27 @@ static int fpr_get(struct task_struct *target,
 		   unsigned int pos, unsigned int count,
 		   void *kbuf, void __user *ubuf)
 {
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fpu,
-				   0, sizeof(elf_fpregset_t));
+	unsigned i;
+	int err;
+	u64 fpr_val;
+
 	/* XXX fcr31  */
+
+	if (sizeof(target->thread.fpu.fpr[i]) == sizeof(elf_fpreg_t))
+		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					   &target->thread.fpu,
+					   0, sizeof(elf_fpregset_t));
+
+	for (i = 0; i < NUM_FPU_REGS; i++) {
+		fpr_val = get_fpr64(&target->thread.fpu.fpr[i], 0);
+		err = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  &fpr_val, i * sizeof(elf_fpreg_t),
+					  (i + 1) * sizeof(elf_fpreg_t));
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int fpr_set(struct task_struct *target,
@@ -315,10 +332,27 @@ static int fpr_set(struct task_struct *target,
 		   unsigned int pos, unsigned int count,
 		   const void *kbuf, const void __user *ubuf)
 {
-	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpu,
-				  0, sizeof(elf_fpregset_t));
+	unsigned i;
+	int err;
+	u64 fpr_val;
+
 	/* XXX fcr31  */
+
+	if (sizeof(target->thread.fpu.fpr[i]) == sizeof(elf_fpreg_t))
+		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					  &target->thread.fpu,
+					  0, sizeof(elf_fpregset_t));
+
+	for (i = 0; i < NUM_FPU_REGS; i++) {
+		err = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					 &fpr_val, i * sizeof(elf_fpreg_t),
+					 (i + 1) * sizeof(elf_fpreg_t));
+		if (err)
+			return err;
+		set_fpr64(&target->thread.fpu.fpr[i], 0, fpr_val);
+	}
+
+	return 0;
 }
 
 enum mips_regset {
