@@ -500,6 +500,33 @@ void __init kvm_guest_init(void)
 #endif
 }
 
+static noinline uint32_t __kvm_cpuid_base(void)
+{
+	if (boot_cpu_data.cpuid_level < 0)
+		return 0;	/* So we don't blow up on old processors */
+
+	if (cpu_has_hypervisor)
+		return hypervisor_cpuid_base("KVMKVMKVM\0\0\0", 0);
+
+	return 0;
+}
+
+static inline uint32_t kvm_cpuid_base(void)
+{
+	static int kvm_cpuid_base = -1;
+
+	if (kvm_cpuid_base == -1)
+		kvm_cpuid_base = __kvm_cpuid_base();
+
+	return kvm_cpuid_base;
+}
+
+bool kvm_para_available(void)
+{
+	return kvm_cpuid_base() != 0;
+}
+EXPORT_SYMBOL_GPL(kvm_para_available);
+
 static uint32_t __init kvm_detect(void)
 {
 	return kvm_cpuid_base();
