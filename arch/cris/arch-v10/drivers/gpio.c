@@ -838,13 +838,13 @@ static int __init gpio_init(void)
 	 * in some tests.
 	 */
 	res = request_irq(TIMER0_IRQ_NBR, gpio_poll_timer_interrupt,
-		IRQF_SHARED | IRQF_DISABLED, "gpio poll", gpio_name);
+		IRQF_SHARED, "gpio poll", gpio_name);
 	if (res) {
 		printk(KERN_CRIT "err: timer0 irq for gpio\n");
 		return res;
 	}
 	res = request_irq(PA_IRQ_NBR, gpio_interrupt,
-		IRQF_SHARED | IRQF_DISABLED, "gpio PA", gpio_name);
+		IRQF_SHARED, "gpio PA", gpio_name);
 	if (res)
 		printk(KERN_CRIT "err: PA irq for gpio\n");
 
