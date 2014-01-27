@@ -1825,7 +1825,6 @@ struct drx_aud_data {
 * \struct struct drx_access_func * \brief Interface to an access protocol.
 */
 struct drx_access_func {
-	struct drx_version *protocolVersion;
 	drx_write_block_func_t write_block_func;
 	drx_read_block_func_t read_block_func;
 	drx_write_reg8func_t write_reg8func;

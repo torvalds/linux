@@ -584,23 +584,8 @@ static int drxj_dap_write_reg32(struct i2c_device_addr *dev_addr,
 				       u32 addr,
 				       u32 data, u32 flags);
 
-/* The version structure of this protocol implementation */
-char drx_dap_drxj_module_name[] = "DRXJ Data Access Protocol";
-char drx_dap_drxj_version_text[] = "0.0.0";
-
-struct drx_version drx_dap_drxj_version = {
-	DRX_MODULE_DAP,	      /**< type identifier of the module  */
-	drx_dap_drxj_module_name, /**< name or description of module  */
-
-	0,		      /**< major version number           */
-	0,		      /**< minor version number           */
-	0,		      /**< patch version number           */
-	drx_dap_drxj_version_text /**< version as text string         */
-};
-
 /* The structure containing the protocol interface */
 struct drx_access_func drx_dap_drxj_funct_g = {
-	&drx_dap_drxj_version,
 	drxj_dap_write_block,	/* Supported       */
 	drxj_dap_read_block,	/* Supported       */
 	drxj_dap_write_reg8,	/* Not supported   */

@@ -108,23 +108,8 @@ static int drxdap_fasi_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 						    u32 datain,	/* data to send                 */
 						    u32 *dataout);	/* data to receive back         */
 
-/* The version structure of this protocol implementation */
-char drx_dap_fasi_module_name[] = "FASI Data Access Protocol";
-char drx_dap_fasi_version_text[] = "";
-
-struct drx_version drx_dap_fasi_version = {
-	DRX_MODULE_DAP,	      /**< type identifier of the module */
-	drx_dap_fasi_module_name, /**< name or description of module */
-
-	0,		      /**< major version number */
-	0,		      /**< minor version number */
-	0,		      /**< patch version number */
-	drx_dap_fasi_version_text /**< version as text string */
-};
-
 /* The structure containing the protocol interface */
 struct drx_access_func drx_dap_fasi_funct_g = {
-	&drx_dap_fasi_version,
 	drxdap_fasi_write_block,	/* Supported */
 	drxdap_fasi_read_block,	/* Supported */
 	drxdap_fasi_write_reg8,	/* Not supported */
