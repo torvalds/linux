@@ -1513,12 +1513,9 @@ static void task_numa_placement(struct task_struct *p)
 			long diff, f_diff, f_weight;
 
 			i = task_faults_idx(nid, priv);
-			diff = -p->numa_faults_memory[i];
-			f_diff = -p->numa_faults_cpu[i];
 
 			/* Decay existing window, copy faults since last scan */
-			p->numa_faults_memory[i] >>= 1;
-			p->numa_faults_memory[i] += p->numa_faults_buffer_memory[i];
+			diff = p->numa_faults_buffer_memory[i] - p->numa_faults_memory[i] / 2;
 			fault_types[priv] += p->numa_faults_buffer_memory[i];
 			p->numa_faults_buffer_memory[i] = 0;
 
@@ -1532,13 +1529,12 @@ static void task_numa_placement(struct task_struct *p)
 			f_weight = div64_u64(runtime << 16, period + 1);
 			f_weight = (f_weight * p->numa_faults_buffer_cpu[i]) /
 				   (total_faults + 1);
-			p->numa_faults_cpu[i] >>= 1;
-			p->numa_faults_cpu[i] += f_weight;
+			f_diff = f_weight - p->numa_faults_cpu[i] / 2;
 			p->numa_faults_buffer_cpu[i] = 0;
 
+			p->numa_faults_memory[i] += diff;
+			p->numa_faults_cpu[i] += f_diff;
 			faults += p->numa_faults_memory[i];
-			diff += p->numa_faults_memory[i];
-			f_diff += p->numa_faults_cpu[i];
 			p->total_numa_faults += diff;
 			if (p->numa_group) {
 				/* safe because we can only change our own group */
