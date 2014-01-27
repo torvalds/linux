@@ -89,6 +89,19 @@ struct gpio_port_saved {
 	u32 mux;
 };
 
+/*
+ * struct gpio_pint_saved - PINT registers saved in PM operations
+ *
+ * @assign: ASSIGN register
+ * @edge_set: EDGE_SET register
+ * @invert_set: INVERT_SET register
+ */
+struct gpio_pint_saved {
+	u32 assign;
+	u32 edge_set;
+	u32 invert_set;
+};
+
 /**
  * struct gpio_pint - Pin interrupt controller device. Multiple ADI GPIO
  * banks can be mapped into one Pin interrupt controller.
@@ -114,7 +127,7 @@ struct gpio_pint {
 	int irq;
 	struct irq_domain *domain[2];
 	struct gpio_pint_regs *regs;
-	struct adi_pm_pint_save saved_data;
+	struct gpio_pint_saved saved_data;
 	int map_count;
 	spinlock_t lock;
 
