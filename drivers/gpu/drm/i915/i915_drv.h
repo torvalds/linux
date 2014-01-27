@@ -317,6 +317,7 @@ struct drm_i915_error_state {
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct timeval time;
 	struct drm_i915_error_ring {
+		bool valid;
 		struct drm_i915_error_object {
 			int page_count;
 			u32 gtt_offset;
