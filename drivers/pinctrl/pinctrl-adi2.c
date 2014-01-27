@@ -173,7 +173,7 @@ struct adi_pinctrl {
 struct gpio_port {
 	struct list_head node;
 	void __iomem *base;
-	unsigned int irq_base;
+	int irq_base;
 	unsigned int width;
 	struct gpio_port_t *regs;
 	struct gpio_port_saved saved_data;
