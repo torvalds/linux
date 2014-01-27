@@ -41,6 +41,15 @@ config PWM_AB8500
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-ab8500.
 
+config PWM_ATMEL
+	tristate "Atmel PWM support"
+	depends on ARCH_AT91
+	help
+	  Generic PWM framework driver for Atmel SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-atmel.
+
 config PWM_ATMEL_TCB
 	tristate "Atmel TC Block PWM support"
 	depends on ATMEL_TCLIB && OF
@@ -122,7 +131,8 @@ config PWM_MXS
 
 config PWM_PCA9685
 	tristate "NXP PCA9685 PWM driver"
-	depends on OF && REGMAP_I2C
+	depends on OF && I2C
+	select REGMAP_I2C
 	help
 	  Generic PWM framework driver for NXP PCA9685 LED controller.
 
@@ -149,7 +159,7 @@ config PWM_PXA
 
 config PWM_RENESAS_TPU
 	tristate "Renesas TPU PWM support"
-	depends on ARCH_SHMOBILE
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  This driver exposes the Timer Pulse Unit (TPU) PWM controller found
 	  in Renesas chips through the PWM API.
