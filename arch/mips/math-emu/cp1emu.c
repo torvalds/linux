@@ -884,20 +884,35 @@ static inline int cop1_64bit(struct pt_regs *xcp)
 } while (0)
 
 #define SITOREG(si, x) do {						\
-	if (cop1_64bit(xcp))						\
+	if (cop1_64bit(xcp)) {						\
+		unsigned i;						\
 		set_fpr32(&ctx->fpr[x], 0, si);				\
-	else								\
+		for (i = 1; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)	\
+			set_fpr32(&ctx->fpr[x], i, 0);			\
+	} else {							\
 		set_fpr32(&ctx->fpr[(x) & ~1], (x) & 1, si);		\
+	}								\
 } while (0)
 
 #define SIFROMHREG(si, x)	((si) = get_fpr32(&ctx->fpr[x], 1))
-#define SITOHREG(si, x)		set_fpr32(&ctx->fpr[x], 1, si)
+
+#define SITOHREG(si, x) do {						\
+	unsigned i;							\
+	set_fpr32(&ctx->fpr[x], 1, si);					\
+	for (i = 2; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)		\
+		set_fpr32(&ctx->fpr[x], i, 0);				\
+} while (0)
 
 #define DIFROMREG(di, x) \
 	((di) = get_fpr64(&ctx->fpr[(x) & ~(cop1_64bit(xcp) == 0)], 0))
 
-#define DITOREG(di, x) \
-	set_fpr64(&ctx->fpr[(x) & ~(cop1_64bit(xcp) == 0)], 0, di)
+#define DITOREG(di, x) do {						\
+	unsigned fpr, i;						\
+	fpr = (x) & ~(cop1_64bit(xcp) == 0);				\
+	set_fpr64(&ctx->fpr[fpr], 0, di);				\
+	for (i = 1; i < ARRAY_SIZE(ctx->fpr[x].val64); i++)		\
+		set_fpr64(&ctx->fpr[fpr], i, 0);			\
+} while (0)
 
 #define SPFROMREG(sp, x) SIFROMREG((sp).bits, x)
 #define SPTOREG(sp, x)	SITOREG((sp).bits, x)
