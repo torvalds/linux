@@ -163,8 +163,11 @@ extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 					 u64 *bno, u64 *oxoff, u64 *oxlen);
 
 /* calculate mapping of object to a placement group */
-extern int ceph_calc_ceph_pg(struct ceph_pg *pg, const char *oid,
-			  struct ceph_osdmap *osdmap, uint64_t pool);
+extern int ceph_oloc_oid_to_pg(struct ceph_osdmap *osdmap,
+			       struct ceph_object_locator *oloc,
+			       struct ceph_object_id *oid,
+			       struct ceph_pg *pg_out);
+
 extern int ceph_calc_pg_acting(struct ceph_osdmap *osdmap,
 			       struct ceph_pg pgid,
 			       int *acting);

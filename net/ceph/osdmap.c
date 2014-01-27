@@ -1090,25 +1090,30 @@ invalid:
 EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 
 /*
- * calculate an object layout (i.e. pgid) from an oid,
- * file_layout, and osdmap
+ * Calculate mapping of a (oloc, oid) pair to a PG.  Should only be
+ * called with target's (oloc, oid), since tiering isn't taken into
+ * account.
  */
-int ceph_calc_ceph_pg(struct ceph_pg *pg, const char *oid,
-			struct ceph_osdmap *osdmap, uint64_t pool)
+int ceph_oloc_oid_to_pg(struct ceph_osdmap *osdmap,
+			struct ceph_object_locator *oloc,
+			struct ceph_object_id *oid,
+			struct ceph_pg *pg_out)
 {
-	struct ceph_pg_pool_info *pool_info;
+	struct ceph_pg_pool_info *pi;
 
-	BUG_ON(!osdmap);
-	pool_info = __lookup_pg_pool(&osdmap->pg_pools, pool);
-	if (!pool_info)
+	pi = __lookup_pg_pool(&osdmap->pg_pools, oloc->pool);
+	if (!pi)
 		return -EIO;
-	pg->pool = pool;
-	pg->seed = ceph_str_hash(pool_info->object_hash, oid, strlen(oid));
 
-	dout("%s '%s' pgid %lld.%x\n", __func__, oid, pg->pool, pg->seed);
+	pg_out->pool = oloc->pool;
+	pg_out->seed = ceph_str_hash(pi->object_hash, oid->name,
+				     oid->name_len);
+
+	dout("%s '%.*s' pgid %llu.%x\n", __func__, oid->name_len, oid->name,
+	     pg_out->pool, pg_out->seed);
 	return 0;
 }
-EXPORT_SYMBOL(ceph_calc_ceph_pg);
+EXPORT_SYMBOL(ceph_oloc_oid_to_pg);
 
 static int crush_do_rule_ary(const struct crush_map *map, int ruleno, int x,
 			     int *result, int result_max,

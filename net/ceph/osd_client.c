@@ -1269,8 +1269,8 @@ static int __map_request(struct ceph_osd_client *osdc,
 	bool was_paused;
 
 	dout("map_request %p tid %lld\n", req, req->r_tid);
-	err = ceph_calc_ceph_pg(&pgid, req->r_oid.name, osdc->osdmap,
-				req->r_oloc.pool);
+	err = ceph_oloc_oid_to_pg(osdc->osdmap, &req->r_oloc, &req->r_oid,
+				  &pgid);
 	if (err) {
 		list_move(&req->r_req_lru_item, &osdc->req_notarget);
 		return err;
