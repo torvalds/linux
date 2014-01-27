@@ -389,6 +389,12 @@ struct smb_version_operations {
 			struct cifsFileInfo *target_file, u64 src_off, u64 len,
 			u64 dest_off);
 	int (*validate_negotiate)(const unsigned int, struct cifs_tcon *);
+	ssize_t (*query_all_EAs)(const unsigned int, struct cifs_tcon *,
+			const unsigned char *, const unsigned char *, char *,
+			size_t, const struct nls_table *, int);
+	int (*set_EA)(const unsigned int, struct cifs_tcon *, const char *,
+			const char *, const void *, const __u16,
+			const struct nls_table *, int);
 };
 
 struct smb_version_values {
