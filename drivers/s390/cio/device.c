@@ -1572,10 +1572,13 @@ out:
 }
 
 #ifdef CONFIG_CCW_CONSOLE
-static int ccw_device_console_enable(struct ccw_device *cdev,
-				     struct subchannel *sch)
+int __init ccw_device_enable_console(struct ccw_device *cdev)
 {
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	int rc;
+
+	if (!cdev->drv || !cdev->handler)
+		return -EINVAL;
 
 	io_subchannel_init_fields(sch);
 	rc = cio_commit_config(sch);
@@ -1609,12 +1612,11 @@ out_unlock:
 	return rc;
 }
 
-struct ccw_device *ccw_device_probe_console(struct ccw_driver *drv)
+struct ccw_device * __init ccw_device_create_console(struct ccw_driver *drv)
 {
 	struct io_subchannel_private *io_priv;
 	struct ccw_device *cdev;
 	struct subchannel *sch;
-	int ret;
 
 	sch = cio_probe_console();
 	if (IS_ERR(sch))
@@ -1633,15 +1635,18 @@ struct ccw_device *ccw_device_probe_console(struct ccw_driver *drv)
 	}
 	cdev->drv = drv;
 	set_io_private(sch, io_priv);
-	ret = ccw_device_console_enable(cdev, sch);
-	if (ret) {
-		set_io_private(sch, NULL);
-		put_device(&sch->dev);
-		put_device(&cdev->dev);
-		kfree(io_priv);
-		return ERR_PTR(ret);
-	}
 	return cdev;
+}
+
+void __init ccw_device_destroy_console(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	struct io_subchannel_private *io_priv = to_io_private(sch);
+
+	set_io_private(sch, NULL);
+	put_device(&sch->dev);
+	put_device(&cdev->dev);
+	kfree(io_priv);
 }
 
 /**

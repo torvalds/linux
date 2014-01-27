@@ -790,7 +790,7 @@ struct raw3270 __init *raw3270_setup_console(void)
 	char *ascebc;
 	int rc;
 
-	cdev = ccw_device_probe_console(&raw3270_ccw_driver);
+	cdev = ccw_device_create_console(&raw3270_ccw_driver);
 	if (IS_ERR(cdev))
 		return ERR_CAST(cdev);
 
@@ -800,6 +800,13 @@ struct raw3270 __init *raw3270_setup_console(void)
 	if (rc)
 		return ERR_PTR(rc);
 	set_bit(RAW3270_FLAGS_CONSOLE, &rp->flags);
+
+	rc = ccw_device_enable_console(cdev);
+	if (rc) {
+		ccw_device_destroy_console(cdev);
+		return ERR_PTR(rc);
+	}
+
 	spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
 	do {
 		__raw3270_reset_device(rp);
