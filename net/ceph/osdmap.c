@@ -464,6 +464,11 @@ static struct ceph_pg_pool_info *__lookup_pg_pool(struct rb_root *root, u64 id)
 	return NULL;
 }
 
+struct ceph_pg_pool_info *ceph_pg_pool_by_id(struct ceph_osdmap *map, u64 id)
+{
+	return __lookup_pg_pool(&map->pg_pools, id);
+}
+
 const char *ceph_pg_pool_name_by_id(struct ceph_osdmap *map, u64 id)
 {
 	struct ceph_pg_pool_info *pi;
