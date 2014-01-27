@@ -2833,6 +2833,7 @@ enum {
 	CXT_FIXUP_CAP_MIX_AMP,
 	CXT_FIXUP_TOSHIBA_P105,
 	CXT_FIXUP_HP_530,
+	CXT_FIXUP_CAP_MIX_AMP_5047,
 };
 
 /* for hda_fixup_thinkpad_acpi() */
@@ -3179,6 +3180,20 @@ static void cxt_fixup_cap_mix_amp(struct hda_codec *codec,
 				  (1 << AC_AMPCAP_MUTE_SHIFT));
 }
 
+/*
+ * Fix max input level on mixer widget to 0dB
+ * (originally it has 0x1e steps with 0 dB offset 0x17)
+ */
+static void cxt_fixup_cap_mix_amp_5047(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+	snd_hda_override_amp_caps(codec, 0x10, HDA_INPUT,
+				  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+				  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (1 << AC_AMPCAP_MUTE_SHIFT));
+}
+
 /* ThinkPad X200 & co with cxt5051 */
 static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
@@ -3289,6 +3304,10 @@ static const struct hda_fixup cxt_fixups[] = {
 		.chained = true,
 		.chain_id = CXT_FIXUP_CAP_MIX_AMP,
 	},
+	[CXT_FIXUP_CAP_MIX_AMP_5047] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_cap_mix_amp_5047,
+	},
 };
 
 static const struct snd_pci_quirk cxt5045_fixups[] = {
@@ -3308,6 +3327,18 @@ static const struct hda_model_fixup cxt5045_fixup_models[] = {
 	{ .id = CXT_FIXUP_CAP_MIX_AMP, .name = "cap-mix-amp" },
 	{ .id = CXT_FIXUP_TOSHIBA_P105, .name = "toshiba-p105" },
 	{ .id = CXT_FIXUP_HP_530, .name = "hp-530" },
+	{}
+};
+
+static const struct snd_pci_quirk cxt5047_fixups[] = {
+	/* HP laptops have really bad sound over 0 dB on NID 0x10.
+	 */
+	SND_PCI_QUIRK_VENDOR(0x103c, "HP", CXT_FIXUP_CAP_MIX_AMP_5047),
+	{}
+};
+
+static const struct hda_model_fixup cxt5047_fixup_models[] = {
+	{ .id = CXT_FIXUP_CAP_MIX_AMP_5047, .name = "cap-mix-amp" },
 	{}
 };
 
@@ -3398,6 +3429,8 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	case 0x14f15047:
 		codec->pin_amp_workaround = 1;
 		spec->gen.mixer_nid = 0x19;
+		snd_hda_pick_fixup(codec, cxt5047_fixup_models,
+				   cxt5047_fixups, cxt_fixups);
 		break;
 	case 0x14f15051:
 		add_cx5051_fake_mutes(codec);
