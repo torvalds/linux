@@ -68,6 +68,7 @@ void highbank_set_cpu_jump(int cpu, void *jump_addr)
 #ifdef CONFIG_CACHE_L2X0
 static void highbank_l2x0_disable(void)
 {
+	outer_flush_all();
 	/* Disable PL310 L2 Cache controller */
 	highbank_smc1(0x102, 0x0);
 }
