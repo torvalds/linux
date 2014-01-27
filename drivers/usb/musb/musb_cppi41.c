@@ -448,12 +448,25 @@ static int cppi41_dma_channel_program(struct dma_channel *channel,
 				dma_addr_t dma_addr, u32 len)
 {
 	int ret;
+	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
+	int hb_mult = 0;
 
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
+	if (is_host_active(cppi41_channel->controller->musb)) {
+		if (cppi41_channel->is_tx)
+			hb_mult = cppi41_channel->hw_ep->out_qh->hb_mult;
+		else
+			hb_mult = cppi41_channel->hw_ep->in_qh->hb_mult;
+	}
+
 	channel->status = MUSB_DMA_STATUS_BUSY;
 	channel->actual_len = 0;
+
+	if (hb_mult)
+		packet_sz = hb_mult * (packet_sz & 0x7FF);
+
 	ret = cppi41_configure_channel(channel, packet_sz, mode, dma_addr, len);
 	if (!ret)
 		channel->status = MUSB_DMA_STATUS_FREE;
