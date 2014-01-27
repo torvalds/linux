@@ -1430,28 +1430,16 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 	cleanup_status_page(ring);
 }
 
-static int intel_ring_wait_seqno(struct intel_ring_buffer *ring, u32 seqno)
-{
-	int ret;
-
-	ret = i915_wait_seqno(ring, seqno);
-	if (!ret)
-		i915_gem_retire_requests_ring(ring);
-
-	return ret;
-}
-
 static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 {
 	struct drm_i915_gem_request *request;
-	u32 seqno = 0;
+	u32 seqno = 0, tail;
 	int ret;
-
-	i915_gem_retire_requests_ring(ring);
 
 	if (ring->last_retired_head != -1) {
 		ring->head = ring->last_retired_head;
 		ring->last_retired_head = -1;
+
 		ring->space = ring_space(ring);
 		if (ring->space >= n)
 			return 0;
@@ -1468,6 +1456,7 @@ static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 			space += ring->size;
 		if (space >= n) {
 			seqno = request->seqno;
+			tail = request->tail;
 			break;
 		}
 
@@ -1482,15 +1471,11 @@ static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 	if (seqno == 0)
 		return -ENOSPC;
 
-	ret = intel_ring_wait_seqno(ring, seqno);
+	ret = i915_wait_seqno(ring, seqno);
 	if (ret)
 		return ret;
 
-	if (WARN_ON(ring->last_retired_head == -1))
-		return -ENOSPC;
-
-	ring->head = ring->last_retired_head;
-	ring->last_retired_head = -1;
+	ring->head = tail;
 	ring->space = ring_space(ring);
 	if (WARN_ON(ring->space < n))
 		return -ENOSPC;
