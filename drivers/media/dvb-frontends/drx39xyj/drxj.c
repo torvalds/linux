@@ -2073,27 +2073,12 @@ static int drxdap_fasi_write_reg32(struct i2c_device_addr *dev_addr,
 	return drxdap_fasi_write_block(dev_addr, addr, sizeof(data), buf, flags);
 }
 
-/* The structure containing the protocol interface */
-struct drx_access_func drx_dap_fasi_funct_g = {
-	drxdap_fasi_write_block,	/* Supported */
-	drxdap_fasi_read_block,	/* Supported */
-	drxdap_fasi_write_reg8,	/* Not supported */
-	drxdap_fasi_read_reg8,	/* Not supported */
-	drxdap_fasi_read_modify_write_reg8,	/* Not supported */
-	drxdap_fasi_write_reg16,	/* Supported */
-	drxdap_fasi_read_reg16,	/* Supported */
-	drxdap_fasi_read_modify_write_reg16,	/* Supported */
-	drxdap_fasi_write_reg32,	/* Supported */
-	drxdap_fasi_read_reg32,	/* Supported */
-	drxdap_fasi_read_modify_write_reg32	/* Not supported */
-};
-
 static int drxj_dap_read_block(struct i2c_device_addr *dev_addr,
 				      u32 addr,
 				      u16 datasize,
 				      u8 *data, u32 flags)
 {
-	return drx_dap_fasi_funct_g.read_block_func(dev_addr,
+	return drxdap_fasi_read_block(dev_addr,
 					       addr, datasize, data, flags);
 }
 
@@ -2104,7 +2089,7 @@ static int drxj_dap_read_modify_write_reg8(struct i2c_device_addr *dev_addr,
 						u32 raddr,
 						u8 wdata, u8 *rdata)
 {
-	return drx_dap_fasi_funct_g.read_modify_write_reg8func(dev_addr,
+	return drxdap_fasi_read_modify_write_reg8(dev_addr,
 							 waddr,
 							 raddr, wdata, rdata);
 }
@@ -2143,23 +2128,23 @@ static int drxj_dap_rm_write_reg16short(struct i2c_device_addr *dev_addr,
 		return -EINVAL;
 
 	/* Set RMW flag */
-	rc = drx_dap_fasi_funct_g.write_reg16func(dev_addr,
+	rc = drxdap_fasi_write_reg16(dev_addr,
 					      SIO_HI_RA_RAM_S0_FLG_ACC__A,
 					      SIO_HI_RA_RAM_S0_FLG_ACC_S0_RWM__M,
 					      0x0000);
 	if (rc == 0) {
 		/* Write new data: triggers RMW */
-		rc = drx_dap_fasi_funct_g.write_reg16func(dev_addr, waddr, wdata,
+		rc = drxdap_fasi_write_reg16(dev_addr, waddr, wdata,
 						      0x0000);
 	}
 	if (rc == 0) {
 		/* Read old data */
-		rc = drx_dap_fasi_funct_g.read_reg16func(dev_addr, raddr, rdata,
+		rc = drxdap_fasi_read_reg16(dev_addr, raddr, rdata,
 						     0x0000);
 	}
 	if (rc == 0) {
 		/* Reset RMW flag */
-		rc = drx_dap_fasi_funct_g.write_reg16func(dev_addr,
+		rc = drxdap_fasi_write_reg16(dev_addr,
 						      SIO_HI_RA_RAM_S0_FLG_ACC__A,
 						      0, 0x0000);
 	}
@@ -2179,7 +2164,7 @@ static int drxj_dap_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 	   now long format has higher prio then short because short also
 	   needs virt bnks (not impl yet) for certain audio registers */
 #if (DRXDAPFASI_LONG_ADDR_ALLOWED == 1)
-	return drx_dap_fasi_funct_g.read_modify_write_reg16func(dev_addr,
+	return drxdap_fasi_read_modify_write_reg16(dev_addr,
 							  waddr,
 							  raddr, wdata, rdata);
 #else
@@ -2194,7 +2179,7 @@ static int drxj_dap_read_modify_write_reg32(struct i2c_device_addr *dev_addr,
 						 u32 raddr,
 						 u32 wdata, u32 *rdata)
 {
-	return drx_dap_fasi_funct_g.read_modify_write_reg32func(dev_addr,
+	return drxdap_fasi_read_modify_write_reg32(dev_addr,
 							  waddr,
 							  raddr, wdata, rdata);
 }
@@ -2205,7 +2190,7 @@ static int drxj_dap_read_reg8(struct i2c_device_addr *dev_addr,
 				     u32 addr,
 				     u8 *data, u32 flags)
 {
-	return drx_dap_fasi_funct_g.read_reg8func(dev_addr, addr, data, flags);
+	return drxdap_fasi_read_reg8(dev_addr, addr, data, flags);
 }
 
 /*============================================================================*/
@@ -2311,7 +2296,7 @@ static int drxj_dap_read_reg16(struct i2c_device_addr *dev_addr,
 	if (is_handled_by_aud_tr_if(addr))
 		stat = drxj_dap_read_aud_reg16(dev_addr, addr, data);
 	else
-		stat = drx_dap_fasi_funct_g.read_reg16func(dev_addr,
+		stat = drxdap_fasi_read_reg16(dev_addr,
 							   addr, data, flags);
 
 	return stat;
@@ -2323,7 +2308,7 @@ static int drxj_dap_read_reg32(struct i2c_device_addr *dev_addr,
 				      u32 addr,
 				      u32 *data, u32 flags)
 {
-	return drx_dap_fasi_funct_g.read_reg32func(dev_addr, addr, data, flags);
+	return drxdap_fasi_read_reg32(dev_addr, addr, data, flags);
 }
 
 /*============================================================================*/
@@ -2333,7 +2318,7 @@ static int drxj_dap_write_block(struct i2c_device_addr *dev_addr,
 				       u16 datasize,
 				       u8 *data, u32 flags)
 {
-	return drx_dap_fasi_funct_g.write_block_func(dev_addr,
+	return drxdap_fasi_write_block(dev_addr,
 						addr, datasize, data, flags);
 }
 
@@ -2343,7 +2328,7 @@ static int drxj_dap_write_reg8(struct i2c_device_addr *dev_addr,
 				      u32 addr,
 				      u8 data, u32 flags)
 {
-	return drx_dap_fasi_funct_g.write_reg8func(dev_addr, addr, data, flags);
+	return drxdap_fasi_write_reg8(dev_addr, addr, data, flags);
 }
 
 /*============================================================================*/
@@ -2420,7 +2405,7 @@ static int drxj_dap_write_reg16(struct i2c_device_addr *dev_addr,
 	if (is_handled_by_aud_tr_if(addr))
 		stat = drxj_dap_write_aud_reg16(dev_addr, addr, data);
 	else
-		stat = drx_dap_fasi_funct_g.write_reg16func(dev_addr,
+		stat = drxdap_fasi_write_reg16(dev_addr,
 							    addr, data, flags);
 
 	return stat;
@@ -2432,7 +2417,7 @@ static int drxj_dap_write_reg32(struct i2c_device_addr *dev_addr,
 				       u32 addr,
 				       u32 data, u32 flags)
 {
-	return drx_dap_fasi_funct_g.write_reg32func(dev_addr, addr, data, flags);
+	return drxdap_fasi_write_reg32(dev_addr, addr, data, flags);
 }
 
 /*============================================================================*/
