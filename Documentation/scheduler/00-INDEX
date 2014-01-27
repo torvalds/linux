@@ -10,5 +10,7 @@ sched-nice-design.txt
 	- How and why the scheduler's nice levels are implemented.
 sched-rt-group.txt
 	- real-time group scheduling.
+sched-deadline.txt
+	- deadline scheduling.
 sched-stats.txt
 	- information on schedstats (Linux Scheduler Statistics).
