@@ -1940,8 +1940,6 @@ struct drx_demod_instance;
 * \struct struct drx_demod_instance * \brief Top structure of demodulator instance.
 */
 struct drx_demod_instance {
-	/* type specific demodulator data */
-	struct drx_access_func *my_access_funct;
 				/**< data access protocol functions       */
 	struct i2c_device_addr *my_i2c_dev_addr;
 				/**< i2c address and device identifier    */
