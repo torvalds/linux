@@ -68,18 +68,24 @@ struct aic32x4_priv {
 	int rstn_gpio;
 };
 
-/* 0dB min, 1dB steps */
-static DECLARE_TLV_DB_SCALE(tlv_step_1, 0, 100, 0);
 /* 0dB min, 0.5dB steps */
 static DECLARE_TLV_DB_SCALE(tlv_step_0_5, 0, 50, 0);
+/* -63.5dB min, 0.5dB steps */
+static DECLARE_TLV_DB_SCALE(tlv_pcm, -6350, 50, 0);
+/* -6dB min, 1dB steps */
+static DECLARE_TLV_DB_SCALE(tlv_driver_gain, -600, 100, 0);
+/* -12dB min, 0.5dB steps */
+static DECLARE_TLV_DB_SCALE(tlv_adc_vol, -1200, 50, 0);
 
 static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
-	SOC_DOUBLE_R_TLV("PCM Playback Volume", AIC32X4_LDACVOL,
-			AIC32X4_RDACVOL, 0, 0x30, 0, tlv_step_0_5),
-	SOC_DOUBLE_R_TLV("HP Driver Gain Volume", AIC32X4_HPLGAIN,
-			AIC32X4_HPRGAIN, 0, 0x1D, 0, tlv_step_1),
-	SOC_DOUBLE_R_TLV("LO Driver Gain Volume", AIC32X4_LOLGAIN,
-			AIC32X4_LORGAIN, 0, 0x1D, 0, tlv_step_1),
+	SOC_DOUBLE_R_S_TLV("PCM Playback Volume", AIC32X4_LDACVOL,
+			AIC32X4_RDACVOL, 0, -0x7f, 0x30, 7, 0, tlv_pcm),
+	SOC_DOUBLE_R_S_TLV("HP Driver Gain Volume", AIC32X4_HPLGAIN,
+			AIC32X4_HPRGAIN, 0, -0x6, 0x1d, 5, 0,
+			tlv_driver_gain),
+	SOC_DOUBLE_R_S_TLV("LO Driver Gain Volume", AIC32X4_LOLGAIN,
+			AIC32X4_LORGAIN, 0, -0x6, 0x1d, 5, 0,
+			tlv_driver_gain),
 	SOC_DOUBLE_R("HP DAC Playback Switch", AIC32X4_HPLGAIN,
 			AIC32X4_HPRGAIN, 6, 0x01, 1),
 	SOC_DOUBLE_R("LO DAC Playback Switch", AIC32X4_LOLGAIN,
@@ -90,8 +96,8 @@ static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 	SOC_SINGLE("ADCFGA Left Mute Switch", AIC32X4_ADCFGA, 7, 1, 0),
 	SOC_SINGLE("ADCFGA Right Mute Switch", AIC32X4_ADCFGA, 3, 1, 0),
 
-	SOC_DOUBLE_R_TLV("ADC Level Volume", AIC32X4_LADCVOL,
-			AIC32X4_RADCVOL, 0, 0x28, 0, tlv_step_0_5),
+	SOC_DOUBLE_R_S_TLV("ADC Level Volume", AIC32X4_LADCVOL,
+			AIC32X4_RADCVOL, 0, -0x18, 0x28, 6, 0, tlv_adc_vol),
 	SOC_DOUBLE_R_TLV("PGA Level Volume", AIC32X4_LMICPGAVOL,
 			AIC32X4_RMICPGAVOL, 0, 0x5f, 0, tlv_step_0_5),
 
