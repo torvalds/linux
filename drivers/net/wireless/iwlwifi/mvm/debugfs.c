@@ -531,6 +531,76 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 }
 #undef PRINT_STAT_LE32
 
+static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
+					  char __user *user_buf, size_t count,
+					  loff_t *ppos,
+					  struct iwl_mvm_frame_stats *stats)
+{
+	char *buff;
+	int pos = 0, idx, i;
+	int ret;
+	size_t bufsz = 1024;
+
+	buff = kmalloc(bufsz, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	spin_lock_bh(&mvm->drv_stats_lock);
+	pos += scnprintf(buff + pos, bufsz - pos,
+			 "Legacy/HT/VHT\t:\t%d/%d/%d\n",
+			 stats->legacy_frames,
+			 stats->ht_frames,
+			 stats->vht_frames);
+	pos += scnprintf(buff + pos, bufsz - pos, "20/40/80\t:\t%d/%d/%d\n",
+			 stats->bw_20_frames,
+			 stats->bw_40_frames,
+			 stats->bw_80_frames);
+	pos += scnprintf(buff + pos, bufsz - pos, "NGI/SGI\t\t:\t%d/%d\n",
+			 stats->ngi_frames,
+			 stats->sgi_frames);
+	pos += scnprintf(buff + pos, bufsz - pos, "SISO/MIMO2\t:\t%d/%d\n",
+			 stats->siso_frames,
+			 stats->mimo2_frames);
+	pos += scnprintf(buff + pos, bufsz - pos, "FAIL/SCSS\t:\t%d/%d\n",
+			 stats->fail_frames,
+			 stats->success_frames);
+	pos += scnprintf(buff + pos, bufsz - pos, "MPDUs agg\t:\t%d\n",
+			 stats->agg_frames);
+	pos += scnprintf(buff + pos, bufsz - pos, "A-MPDUs\t\t:\t%d\n",
+			 stats->ampdu_count);
+	pos += scnprintf(buff + pos, bufsz - pos, "Avg MPDUs/A-MPDU:\t%d\n",
+			 stats->ampdu_count > 0 ?
+			 (stats->agg_frames / stats->ampdu_count) : 0);
+
+	pos += scnprintf(buff + pos, bufsz - pos, "Last Rates\n");
+
+	idx = stats->last_frame_idx - 1;
+	for (i = 0; i < ARRAY_SIZE(stats->last_rates); i++) {
+		idx = (idx + 1) % ARRAY_SIZE(stats->last_rates);
+		if (stats->last_rates[idx] == 0)
+			continue;
+		pos += scnprintf(buff + pos, bufsz - pos, "Rate[%d]: ",
+				 (int)(ARRAY_SIZE(stats->last_rates) - i));
+		pos += rs_pretty_print_rate(buff + pos, stats->last_rates[idx]);
+	}
+	spin_unlock_bh(&mvm->drv_stats_lock);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos);
+	kfree(buff);
+
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_drv_rx_stats_read(struct file *file,
+					   char __user *user_buf, size_t count,
+					   loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+
+	return iwl_dbgfs_frame_stats_read(mvm, user_buf, count, ppos,
+					  &mvm->drv_rx_stats);
+}
+
 static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 					  size_t count, loff_t *ppos)
 {
@@ -959,6 +1029,7 @@ MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
+MVM_DEBUGFS_READ_FILE_OPS(drv_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
@@ -990,6 +1061,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 		MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir,
 				     S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(drv_rx_stats, mvm->debugfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,

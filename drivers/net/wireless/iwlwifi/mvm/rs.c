@@ -2240,6 +2240,73 @@ static void rs_vht_set_enabled_rates(struct ieee80211_sta *sta,
 	}
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+static void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm,
+				      struct iwl_mvm_frame_stats *stats)
+{
+	spin_lock_bh(&mvm->drv_stats_lock);
+	memset(stats, 0, sizeof(*stats));
+	spin_unlock_bh(&mvm->drv_stats_lock);
+}
+
+void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm,
+				struct iwl_mvm_frame_stats *stats,
+				u32 rate, bool agg)
+{
+	u8 nss = 0, mcs = 0;
+
+	spin_lock(&mvm->drv_stats_lock);
+
+	if (agg)
+		stats->agg_frames++;
+
+	stats->success_frames++;
+
+	switch (rate & RATE_MCS_CHAN_WIDTH_MSK) {
+	case RATE_MCS_CHAN_WIDTH_20:
+		stats->bw_20_frames++;
+		break;
+	case RATE_MCS_CHAN_WIDTH_40:
+		stats->bw_40_frames++;
+		break;
+	case RATE_MCS_CHAN_WIDTH_80:
+		stats->bw_80_frames++;
+		break;
+	default:
+		WARN_ONCE(1, "bad BW. rate 0x%x", rate);
+	}
+
+	if (rate & RATE_MCS_HT_MSK) {
+		stats->ht_frames++;
+		mcs = rate & RATE_HT_MCS_RATE_CODE_MSK;
+		nss = ((rate & RATE_HT_MCS_NSS_MSK) >> RATE_HT_MCS_NSS_POS) + 1;
+	} else if (rate & RATE_MCS_VHT_MSK) {
+		stats->vht_frames++;
+		mcs = rate & RATE_VHT_MCS_RATE_CODE_MSK;
+		nss = ((rate & RATE_VHT_MCS_NSS_MSK) >>
+		       RATE_VHT_MCS_NSS_POS) + 1;
+	} else {
+		stats->legacy_frames++;
+	}
+
+	if (nss == 1)
+		stats->siso_frames++;
+	else if (nss == 2)
+		stats->mimo2_frames++;
+
+	if (rate & RATE_MCS_SGI_MSK)
+		stats->sgi_frames++;
+	else
+		stats->ngi_frames++;
+
+	stats->last_rates[stats->last_frame_idx] = rate;
+	stats->last_frame_idx = (stats->last_frame_idx + 1) %
+		ARRAY_SIZE(stats->last_rates);
+
+	spin_unlock(&mvm->drv_stats_lock);
+}
+#endif
+
 /*
  * Called after adding a new station to initialize rate scaling
  */
@@ -2334,7 +2401,9 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->dbg_fixed_rate = 0;
 #endif
-
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_mvm_reset_frame_stats(mvm, &mvm->drv_rx_stats);
+#endif
 	rs_initialize_lq(mvm, sta, lq_sta, band, init);
 }
 
@@ -2546,7 +2615,7 @@ static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta,
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static int rs_pretty_print_rate(char *buf, const u32 rate)
+int rs_pretty_print_rate(char *buf, const u32 rate)
 {
 
 	char *type, *bw;

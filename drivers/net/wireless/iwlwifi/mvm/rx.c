@@ -77,6 +77,15 @@ int iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 
 	memcpy(&mvm->last_phy_info, pkt->data, sizeof(mvm->last_phy_info));
 	mvm->ampdu_ref++;
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvm->last_phy_info.phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_AGG)) {
+		spin_lock(&mvm->drv_stats_lock);
+		mvm->drv_rx_stats.ampdu_count++;
+		spin_unlock(&mvm->drv_stats_lock);
+	}
+#endif
+
 	return 0;
 }
 
@@ -391,6 +400,10 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 							    rx_status.band);
 	}
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_mvm_update_frame_stats(mvm, &mvm->drv_rx_stats, rate_n_flags,
+				   rx_status.flag & RX_FLAG_AMPDU_DETAILS);
+#endif
 	iwl_mvm_pass_packet_to_mac80211(mvm, hdr, len, ampdu_status,
 					rxb, &rx_status);
 	return 0;
