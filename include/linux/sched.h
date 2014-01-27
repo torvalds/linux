@@ -1480,6 +1480,13 @@ struct task_struct {
 	unsigned long *numa_faults_buffer_memory;
 
 	/*
+	 * Track the nodes the process was running on when a NUMA hinting
+	 * fault was incurred.
+	 */
+	unsigned long *numa_faults_cpu;
+	unsigned long *numa_faults_buffer_cpu;
+
+	/*
 	 * numa_faults_locality tracks if faults recorded during the last
 	 * scan window were remote/local. The task scan period is adapted
 	 * based on the locality of the faults with different weights
@@ -1582,8 +1589,6 @@ extern void task_numa_fault(int last_node, int node, int pages, int flags);
 extern pid_t task_numa_group_id(struct task_struct *p);
 extern void set_numabalancing_state(bool enabled);
 extern void task_numa_free(struct task_struct *p);
-
-extern unsigned int sysctl_numa_balancing_migrate_deferred;
 #else
 static inline void task_numa_fault(int last_node, int node, int pages,
 				   int flags)

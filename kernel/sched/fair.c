@@ -886,6 +886,7 @@ struct numa_group {
 
 	struct rcu_head rcu;
 	unsigned long total_faults;
+	unsigned long *faults_cpu;
 	unsigned long faults[0];
 };
 
@@ -1368,10 +1369,11 @@ static void task_numa_placement(struct task_struct *p)
 		int priv, i;
 
 		for (priv = 0; priv < 2; priv++) {
-			long diff;
+			long diff, f_diff;
 
 			i = task_faults_idx(nid, priv);
 			diff = -p->numa_faults_memory[i];
+			f_diff = -p->numa_faults_cpu[i];
 
 			/* Decay existing window, copy faults since last scan */
 			p->numa_faults_memory[i] >>= 1;
@@ -1379,12 +1381,18 @@ static void task_numa_placement(struct task_struct *p)
 			fault_types[priv] += p->numa_faults_buffer_memory[i];
 			p->numa_faults_buffer_memory[i] = 0;
 
+			p->numa_faults_cpu[i] >>= 1;
+			p->numa_faults_cpu[i] += p->numa_faults_buffer_cpu[i];
+			p->numa_faults_buffer_cpu[i] = 0;
+
 			faults += p->numa_faults_memory[i];
 			diff += p->numa_faults_memory[i];
+			f_diff += p->numa_faults_cpu[i];
 			p->total_numa_faults += diff;
 			if (p->numa_group) {
 				/* safe because we can only change our own group */
 				p->numa_group->faults[i] += diff;
+				p->numa_group->faults_cpu[i] += f_diff;
 				p->numa_group->total_faults += diff;
 				group_faults += p->numa_group->faults[i];
 			}
@@ -1453,7 +1461,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
 
 	if (unlikely(!p->numa_group)) {
 		unsigned int size = sizeof(struct numa_group) +
-				    2*nr_node_ids*sizeof(unsigned long);
+				    4*nr_node_ids*sizeof(unsigned long);
 
 		grp = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
 		if (!grp)
@@ -1463,8 +1471,10 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
 		spin_lock_init(&grp->lock);
 		INIT_LIST_HEAD(&grp->task_list);
 		grp->gid = p->pid;
+		/* Second half of the array tracks nids where faults happen */
+		grp->faults_cpu = grp->faults + 2 * nr_node_ids;
 
-		for (i = 0; i < 2*nr_node_ids; i++)
+		for (i = 0; i < 4*nr_node_ids; i++)
 			grp->faults[i] = p->numa_faults_memory[i];
 
 		grp->total_faults = p->total_numa_faults;
@@ -1522,7 +1532,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
 
 	double_lock(&my_grp->lock, &grp->lock);
 
-	for (i = 0; i < 2*nr_node_ids; i++) {
+	for (i = 0; i < 4*nr_node_ids; i++) {
 		my_grp->faults[i] -= p->numa_faults_memory[i];
 		grp->faults[i] += p->numa_faults_memory[i];
 	}
@@ -1554,7 +1564,7 @@ void task_numa_free(struct task_struct *p)
 
 	if (grp) {
 		spin_lock(&grp->lock);
-		for (i = 0; i < 2*nr_node_ids; i++)
+		for (i = 0; i < 4*nr_node_ids; i++)
 			grp->faults[i] -= p->numa_faults_memory[i];
 		grp->total_faults -= p->total_numa_faults;
 
@@ -1567,6 +1577,8 @@ void task_numa_free(struct task_struct *p)
 
 	p->numa_faults_memory = NULL;
 	p->numa_faults_buffer_memory = NULL;
+	p->numa_faults_cpu= NULL;
+	p->numa_faults_buffer_cpu = NULL;
 	kfree(numa_faults);
 }
 
@@ -1577,6 +1589,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 {
 	struct task_struct *p = current;
 	bool migrated = flags & TNF_MIGRATED;
+	int this_node = task_node(current);
 	int priv;
 
 	if (!numabalancing_enabled)
@@ -1592,7 +1605,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 
 	/* Allocate buffer to track faults on a per-node basis */
 	if (unlikely(!p->numa_faults_memory)) {
-		int size = sizeof(*p->numa_faults_memory) * 2 * nr_node_ids;
+		int size = sizeof(*p->numa_faults_memory) * 4 * nr_node_ids;
 
 		/* numa_faults and numa_faults_buffer share the allocation */
 		p->numa_faults_memory = kzalloc(size * 2, GFP_KERNEL|__GFP_NOWARN);
@@ -1600,7 +1613,9 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 			return;
 
 		BUG_ON(p->numa_faults_buffer_memory);
-		p->numa_faults_buffer_memory = p->numa_faults_memory + (2 * nr_node_ids);
+		p->numa_faults_cpu = p->numa_faults_memory + (2 * nr_node_ids);
+		p->numa_faults_buffer_memory = p->numa_faults_memory + (4 * nr_node_ids);
+		p->numa_faults_buffer_cpu = p->numa_faults_memory + (6 * nr_node_ids);
 		p->total_numa_faults = 0;
 		memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
 	}
@@ -1630,6 +1645,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 		p->numa_pages_migrated += pages;
 
 	p->numa_faults_buffer_memory[task_faults_idx(node, priv)] += pages;
+	p->numa_faults_buffer_cpu[task_faults_idx(this_node, priv)] += pages;
 	p->numa_faults_locality[!!(flags & TNF_FAULT_LOCAL)] += pages;
 }
 
