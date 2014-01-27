@@ -977,11 +977,11 @@ static int nfs_invalidate_mapping(struct inode *inode, struct address_space *map
 		if (ret < 0)
 			return ret;
 	}
-	spin_lock(&inode->i_lock);
-	nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode)) {
+		spin_lock(&inode->i_lock);
 		memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
-	spin_unlock(&inode->i_lock);
+		spin_unlock(&inode->i_lock);
+	}
 	nfs_inc_stats(inode, NFSIOS_DATAINVALIDATE);
 	nfs_fscache_wait_on_invalidate(inode);
 
@@ -1008,6 +1008,7 @@ static bool nfs_mapping_need_revalidate_inode(struct inode *inode)
 int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
+	unsigned long *bitlock = &nfsi->flags;
 	int ret = 0;
 
 	/* swapfiles are not supposed to be shared. */
@@ -1019,12 +1020,45 @@ int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 		if (ret < 0)
 			goto out;
 	}
+
+	/*
+	 * We must clear NFS_INO_INVALID_DATA first to ensure that
+	 * invalidations that come in while we're shooting down the mappings
+	 * are respected. But, that leaves a race window where one revalidator
+	 * can clear the flag, and then another checks it before the mapping
+	 * gets invalidated. Fix that by serializing access to this part of
+	 * the function.
+	 *
+	 * At the same time, we need to allow other tasks to see whether we
+	 * might be in the middle of invalidating the pages, so we only set
+	 * the bit lock here if it looks like we're going to be doing that.
+	 */
+	for (;;) {
+		ret = wait_on_bit(bitlock, NFS_INO_INVALIDATING,
+				  nfs_wait_bit_killable, TASK_KILLABLE);
+		if (ret)
+			goto out;
+		if (!(nfsi->cache_validity & NFS_INO_INVALID_DATA))
+			goto out;
+		if (!test_and_set_bit_lock(NFS_INO_INVALIDATING, bitlock))
+			break;
+	}
+
+	spin_lock(&inode->i_lock);
 	if (nfsi->cache_validity & NFS_INO_INVALID_DATA) {
+		nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
+		spin_unlock(&inode->i_lock);
 		trace_nfs_invalidate_mapping_enter(inode);
 		ret = nfs_invalidate_mapping(inode, mapping);
 		trace_nfs_invalidate_mapping_exit(inode, ret);
+	} else {
+		/* something raced in and cleared the flag */
+		spin_unlock(&inode->i_lock);
 	}
 
+	clear_bit_unlock(NFS_INO_INVALIDATING, bitlock);
+	smp_mb__after_clear_bit();
+	wake_up_bit(bitlock, NFS_INO_INVALIDATING);
 out:
 	return ret;
 }
