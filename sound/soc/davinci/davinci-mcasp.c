@@ -53,6 +53,9 @@ struct davinci_mcasp {
 	u16	bclk_lrclk_ratio;
 	int	streams;
 
+	int	sysclk_freq;
+	bool	bclk_master;
+
 	/* McASP FIFO related */
 	u8	txnumevt;
 	u8	rxnumevt;
@@ -292,6 +295,7 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDIR_REG, ACLKX | ACLKR);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDIR_REG, AFSX | AFSR);
+		mcasp->bclk_master = 1;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		/* codec is clock master and frame slave */
@@ -303,6 +307,7 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDIR_REG, ACLKX | ACLKR);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDIR_REG, AFSX | AFSR);
+		mcasp->bclk_master = 0;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* codec is clock and frame master */
@@ -314,6 +319,7 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDIR_REG,
 			       ACLKX | AHCLKX | AFSX | ACLKR | AHCLKR | AFSR);
+		mcasp->bclk_master = 0;
 		break;
 
 	default:
@@ -404,6 +410,8 @@ static int davinci_mcasp_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_AHCLKRCTL_REG, AHCLKRE);
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDIR_REG, AHCLKX);
 	}
+
+	mcasp->sysclk_freq = freq;
 
 	return 0;
 }
@@ -607,6 +615,18 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	int channels;
 	struct snd_interval *pcm_channels = hw_param_interval(params,
 					SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	/* If mcasp is BCLK master we need to set BCLK divider */
+	if (mcasp->bclk_master) {
+		unsigned int bclk_freq = snd_soc_params_to_bclk(params);
+		if (mcasp->sysclk_freq % bclk_freq != 0) {
+			dev_err(mcasp->dev, "Can't produce requred BCLK\n");
+			return -EINVAL;
+		}
+		davinci_mcasp_set_clkdiv(
+			cpu_dai, 1, mcasp->sysclk_freq / bclk_freq);
+	}
+
 	channels = pcm_channels->min;
 
 	active_serializers = (channels + slots - 1) / slots;
