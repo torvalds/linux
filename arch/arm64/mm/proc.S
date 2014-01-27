@@ -81,7 +81,7 @@ ENTRY(cpu_do_idle)
 ENDPROC(cpu_do_idle)
 
 /*
- *	cpu_switch_mm(pgd_phys, tsk)
+ *	cpu_do_switch_mm(pgd_phys, tsk)
  *
  *	Set the translation table base pointer to be pgd_phys.
  *
