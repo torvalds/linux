@@ -3218,7 +3218,6 @@ static void batadv_tt_update_orig(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&orig_node->tt_lock);
 
-		tt_change = (struct batadv_tvlv_tt_change *)tt_buff;
 		batadv_tt_update_changes(bat_priv, orig_node, tt_num_changes,
 					 ttvn, tt_change);
 
