@@ -230,8 +230,14 @@ static int __init xilinx_clocksource_init(void)
 static void __init xilinx_timer_init(struct device_node *timer)
 {
 	struct clk *clk;
+	static int initialized;
 	u32 irq;
 	u32 timer_num = 1;
+
+	if (initialized)
+		return;
+
+	initialized = 1;
 
 	timer_baseaddr = of_iomap(timer, 0);
 	if (!timer_baseaddr) {
