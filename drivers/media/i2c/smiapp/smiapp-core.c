@@ -2482,7 +2482,7 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	}
 
 	if (!sensor->platform_data->set_xclk) {
-		sensor->ext_clk = devm_clk_get(&client->dev, "ext_clk");
+		sensor->ext_clk = devm_clk_get(&client->dev, NULL);
 		if (IS_ERR(sensor->ext_clk)) {
 			dev_err(&client->dev, "could not get clock\n");
 			return PTR_ERR(sensor->ext_clk);
