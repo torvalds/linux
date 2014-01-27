@@ -1746,6 +1746,8 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 	p->numa_work.next = &p->numa_work;
 	p->numa_faults_memory = NULL;
 	p->numa_faults_buffer_memory = NULL;
+	p->last_task_numa_placement = 0;
+	p->last_sum_exec_runtime = 0;
 
 	INIT_LIST_HEAD(&p->numa_entry);
 	p->numa_group = NULL;
