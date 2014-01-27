@@ -641,7 +641,7 @@ static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
 		spin_lock_irqsave(&port->lock, flags);
 
 		portmux_setup(port, pin_to_offset(range, pin),
-				 P_FUNCT2MUX(*mux));
+				P_FUNCT2MUX(*mux));
 		port_setup(port, pin_to_offset(range, pin), false);
 		mux++;
 
