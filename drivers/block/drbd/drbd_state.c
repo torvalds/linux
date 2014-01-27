@@ -1011,6 +1011,9 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 		atomic_inc(&device->local_cnt);
 
 	did_remote = drbd_should_do_remote(device->state);
+	if (!is_sync_state(os.conn) && is_sync_state(ns.conn))
+		clear_bit(RS_DONE, &device->flags);
+
 	device->state.i = ns.i;
 	should_do_remote = drbd_should_do_remote(device->state);
 	device->resource->susp = ns.susp;

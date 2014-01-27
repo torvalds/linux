@@ -432,7 +432,11 @@ enum {
 				 * goes into C_CONNECTED state. */
 	CONSIDER_RESYNC,
 
+	RS_PROGRESS,		/* tell worker that resync made significant progress */
+	RS_DONE,		/* tell worker that resync is done */
+
 	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
+
 	SUSPEND_IO,		/* suspend application io */
 	BITMAP_IO,		/* suspend application io;
 				   once no more io in flight, start bitmap io */
@@ -577,6 +581,7 @@ enum {
 				 * and potentially deadlock on, this drbd worker.
 				 */
 	DISCONNECT_SENT,
+	CONN_RS_PROGRESS,	/* tell worker that resync made significant progress */
 };
 
 struct drbd_resource {
@@ -1106,16 +1111,20 @@ struct bm_extent {
 /* in which _bitmap_ extent (resp. sector) the bit for a certain
  * _storage_ sector is located in */
 #define BM_SECT_TO_EXT(x)   ((x)>>(BM_EXT_SHIFT-9))
+#define BM_BIT_TO_EXT(x)    ((x) >> (BM_EXT_SHIFT - BM_BLOCK_SHIFT))
 
-/* how much _storage_ sectors we have per bitmap sector */
+/* first storage sector a bitmap extent corresponds to */
 #define BM_EXT_TO_SECT(x)   ((sector_t)(x) << (BM_EXT_SHIFT-9))
+/* how much _storage_ sectors we have per bitmap extent */
 #define BM_SECT_PER_EXT     BM_EXT_TO_SECT(1)
+/* how many bits are covered by one bitmap extent (resync extent) */
+#define BM_BITS_PER_EXT     (1UL << (BM_EXT_SHIFT - BM_BLOCK_SHIFT))
+
+#define BM_BLOCKS_PER_BM_EXT_MASK  (BM_BITS_PER_EXT - 1)
+
 
 /* in one sector of the bitmap, we have this many activity_log extents. */
 #define AL_EXT_PER_BM_SECT  (1 << (BM_EXT_SHIFT - AL_EXTENT_SHIFT))
-
-#define BM_BLOCKS_PER_BM_EXT_B (BM_EXT_SHIFT - BM_BLOCK_SHIFT)
-#define BM_BLOCKS_PER_BM_EXT_MASK  ((1<<BM_BLOCKS_PER_BM_EXT_B) - 1)
 
 /* the extent in "PER_EXTENT" below is an activity log extent
  * we need that many (long words/bytes) to store the bitmap
@@ -1214,7 +1223,6 @@ extern unsigned long _drbd_bm_find_next(struct drbd_device *device, unsigned lon
 extern unsigned long _drbd_bm_find_next_zero(struct drbd_device *device, unsigned long bm_fo);
 extern unsigned long _drbd_bm_total_weight(struct drbd_device *device);
 extern unsigned long drbd_bm_total_weight(struct drbd_device *device);
-extern int drbd_bm_rs_done(struct drbd_device *device);
 /* for receive_bitmap */
 extern void drbd_bm_merge_lel(struct drbd_device *device, size_t offset,
 		size_t number, unsigned long *buffer);
@@ -1503,14 +1511,17 @@ extern int drbd_rs_del_all(struct drbd_device *device);
 extern void drbd_rs_failed_io(struct drbd_device *device,
 		sector_t sector, int size);
 extern void drbd_advance_rs_marks(struct drbd_device *device, unsigned long still_to_go);
-extern void __drbd_set_in_sync(struct drbd_device *device, sector_t sector,
-		int size, const char *file, const unsigned int line);
+
+enum update_sync_bits_mode { RECORD_RS_FAILED, SET_OUT_OF_SYNC, SET_IN_SYNC };
+extern int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
+		enum update_sync_bits_mode mode,
+		const char *file, const unsigned int line);
 #define drbd_set_in_sync(device, sector, size) \
-	__drbd_set_in_sync(device, sector, size, __FILE__, __LINE__)
-extern int __drbd_set_out_of_sync(struct drbd_device *device, sector_t sector,
-		int size, const char *file, const unsigned int line);
+	__drbd_change_sync(device, sector, size, SET_IN_SYNC, __FILE__, __LINE__)
 #define drbd_set_out_of_sync(device, sector, size) \
-	__drbd_set_out_of_sync(device, sector, size, __FILE__, __LINE__)
+	__drbd_change_sync(device, sector, size, SET_OUT_OF_SYNC, __FILE__, __LINE__)
+#define drbd_rs_failed_io(device, sector, size) \
+	__drbd_change_sync(device, sector, size, RECORD_RS_FAILED, __FILE__, __LINE__)
 extern void drbd_al_shrink(struct drbd_device *device);
 extern int drbd_initialize_al(struct drbd_device *, void *);
 
@@ -1913,6 +1924,15 @@ static inline void _sub_unacked(struct drbd_device *device, int n, const char *f
 {
 	atomic_sub(n, &device->unacked_cnt);
 	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
+}
+
+static inline bool is_sync_state(enum drbd_conns connection_state)
+{
+	return
+	   (connection_state == C_SYNC_SOURCE
+	||  connection_state == C_SYNC_TARGET
+	||  connection_state == C_PAUSED_SYNC_S
+	||  connection_state == C_PAUSED_SYNC_T);
 }
 
 /**
