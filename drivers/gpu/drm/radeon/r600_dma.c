@@ -100,7 +100,8 @@ void r600_dma_stop(struct radeon_device *rdev)
 {
 	u32 rb_cntl = RREG32(DMA_RB_CNTL);
 
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+	if (rdev->asic->copy.copy_ring_index == R600_RING_TYPE_DMA_INDEX)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 
 	rb_cntl &= ~DMA_RB_ENABLE;
 	WREG32(DMA_RB_CNTL, rb_cntl);
@@ -187,7 +188,8 @@ int r600_dma_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
+	if (rdev->asic->copy.copy_ring_index == R600_RING_TYPE_DMA_INDEX)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 
 	return 0;
 }

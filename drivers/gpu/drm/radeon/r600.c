@@ -2254,7 +2254,8 @@ void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
  */
 void r600_cp_stop(struct radeon_device *rdev)
 {
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+	if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
 	WREG32(SCRATCH_UMSK, 0);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
@@ -2613,8 +2614,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	/* RV7xx+ uses dma for paging */
-	if (rdev->family < CHIP_RV770)
+	if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
 		radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 
 	return 0;

@@ -250,7 +250,9 @@ static void cik_sdma_gfx_stop(struct radeon_device *rdev)
 	u32 rb_cntl, reg_offset;
 	int i;
 
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+	if ((rdev->asic->copy.copy_ring_index == R600_RING_TYPE_DMA_INDEX) ||
+	    (rdev->asic->copy.copy_ring_index == CAYMAN_RING_TYPE_DMA1_INDEX))
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 
 	for (i = 0; i < 2; i++) {
 		if (i == 0)
@@ -381,7 +383,9 @@ static int cik_sdma_gfx_resume(struct radeon_device *rdev)
 		}
 	}
 
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
+	if ((rdev->asic->copy.copy_ring_index == R600_RING_TYPE_DMA_INDEX) ||
+	    (rdev->asic->copy.copy_ring_index == CAYMAN_RING_TYPE_DMA1_INDEX))
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 
 	return 0;
 }

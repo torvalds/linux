@@ -1071,7 +1071,8 @@ static void rv770_mc_program(struct radeon_device *rdev)
  */
 void r700_cp_stop(struct radeon_device *rdev)
 {
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+	if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
 	WREG32(SCRATCH_UMSK, 0);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
