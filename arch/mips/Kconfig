@@ -2090,10 +2090,11 @@ config CPU_HAS_MSA
 	help
 	  MIPS SIMD Architecture (MSA) introduces 128 bit wide vector registers
 	  and a set of SIMD instructions to operate on them. When this option
-	  is enabled the kernel will support detection of the MSA ASE. If you
-	  know that your kernel will only be running on CPUs which do not
-	  support MSA then you may wish to say N here to reduce the size of
-	  your kernel.
+	  is enabled the kernel will support allocating & switching MSA
+	  vector register contexts. If you know that your kernel will only be
+	  running on CPUs which do not support MSA or that your userland will
+	  not be making use of it then you may wish to say N here to reduce
+	  the size & complexity of your kernel.
 
 	  If unsure, say Y.
 

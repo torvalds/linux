@@ -32,6 +32,7 @@
 #include <asm/cpu.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
+#include <asm/msa.h>
 #include <asm/pgtable.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
@@ -65,6 +66,8 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	clear_used_math();
 	clear_fpu_owner();
 	init_dsp();
+	clear_thread_flag(TIF_MSA_CTX_LIVE);
+	disable_msa();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
 }
@@ -89,7 +92,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	preempt_disable();
 
-	if (is_fpu_owner())
+	if (is_msa_enabled())
+		save_msa(p);
+	else if (is_fpu_owner())
 		save_fp(p);
 
 	if (cpu_has_dsp)

@@ -96,7 +96,12 @@ extern unsigned int vced_count, vcei_count;
 
 
 #define NUM_FPU_REGS	32
-#define FPU_REG_WIDTH	64
+
+#ifdef CONFIG_CPU_HAS_MSA
+# define FPU_REG_WIDTH	128
+#else
+# define FPU_REG_WIDTH	64
+#endif
 
 union fpureg {
 	__u32	val32[FPU_REG_WIDTH / 32];
@@ -133,6 +138,7 @@ BUILD_FPR_ACCESS(64)
 struct mips_fpu_struct {
 	union fpureg	fpr[NUM_FPU_REGS];
 	unsigned int	fcr31;
+	unsigned int	msacsr;
 };
 
 #define NUM_DSP_REGS   6
@@ -310,6 +316,7 @@ struct thread_struct {
 	.fpu			= {				\
 		.fpr		= {{{0,},},},			\
 		.fcr31		= 0,				\
+		.msacsr		= 0,				\
 	},							\
 	/*							\
 	 * FPU affinity state (null if not FPAFF)		\

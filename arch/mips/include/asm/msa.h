@@ -12,6 +12,9 @@
 
 #include <asm/mipsregs.h>
 
+extern void _save_msa(struct task_struct *);
+extern void _restore_msa(struct task_struct *);
+
 static inline void enable_msa(void)
 {
 	if (cpu_has_msa) {
@@ -34,6 +37,31 @@ static inline int is_msa_enabled(void)
 		return 0;
 
 	return read_c0_config5() & MIPS_CONF5_MSAEN;
+}
+
+static inline int thread_msa_context_live(void)
+{
+	/*
+	 * Check cpu_has_msa only if it's a constant. This will allow the
+	 * compiler to optimise out code for CPUs without MSA without adding
+	 * an extra redundant check for CPUs with MSA.
+	 */
+	if (__builtin_constant_p(cpu_has_msa) && !cpu_has_msa)
+		return 0;
+
+	return test_thread_flag(TIF_MSA_CTX_LIVE);
+}
+
+static inline void save_msa(struct task_struct *t)
+{
+	if (cpu_has_msa)
+		_save_msa(t);
+}
+
+static inline void restore_msa(struct task_struct *t)
+{
+	if (cpu_has_msa)
+		_restore_msa(t);
 }
 
 #ifdef TOOLCHAIN_SUPPORTS_MSA

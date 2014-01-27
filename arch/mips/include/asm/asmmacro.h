@@ -328,4 +328,74 @@
 	.endm
 #endif
 
+	.macro	msa_save_all	thread
+	st_d	0, THREAD_FPR0, \thread
+	st_d	1, THREAD_FPR1, \thread
+	st_d	2, THREAD_FPR2, \thread
+	st_d	3, THREAD_FPR3, \thread
+	st_d	4, THREAD_FPR4, \thread
+	st_d	5, THREAD_FPR5, \thread
+	st_d	6, THREAD_FPR6, \thread
+	st_d	7, THREAD_FPR7, \thread
+	st_d	8, THREAD_FPR8, \thread
+	st_d	9, THREAD_FPR9, \thread
+	st_d	10, THREAD_FPR10, \thread
+	st_d	11, THREAD_FPR11, \thread
+	st_d	12, THREAD_FPR12, \thread
+	st_d	13, THREAD_FPR13, \thread
+	st_d	14, THREAD_FPR14, \thread
+	st_d	15, THREAD_FPR15, \thread
+	st_d	16, THREAD_FPR16, \thread
+	st_d	17, THREAD_FPR17, \thread
+	st_d	18, THREAD_FPR18, \thread
+	st_d	19, THREAD_FPR19, \thread
+	st_d	20, THREAD_FPR20, \thread
+	st_d	21, THREAD_FPR21, \thread
+	st_d	22, THREAD_FPR22, \thread
+	st_d	23, THREAD_FPR23, \thread
+	st_d	24, THREAD_FPR24, \thread
+	st_d	25, THREAD_FPR25, \thread
+	st_d	26, THREAD_FPR26, \thread
+	st_d	27, THREAD_FPR27, \thread
+	st_d	28, THREAD_FPR28, \thread
+	st_d	29, THREAD_FPR29, \thread
+	st_d	30, THREAD_FPR30, \thread
+	st_d	31, THREAD_FPR31, \thread
+	.endm
+
+	.macro	msa_restore_all	thread
+	ld_d	0, THREAD_FPR0, \thread
+	ld_d	1, THREAD_FPR1, \thread
+	ld_d	2, THREAD_FPR2, \thread
+	ld_d	3, THREAD_FPR3, \thread
+	ld_d	4, THREAD_FPR4, \thread
+	ld_d	5, THREAD_FPR5, \thread
+	ld_d	6, THREAD_FPR6, \thread
+	ld_d	7, THREAD_FPR7, \thread
+	ld_d	8, THREAD_FPR8, \thread
+	ld_d	9, THREAD_FPR9, \thread
+	ld_d	10, THREAD_FPR10, \thread
+	ld_d	11, THREAD_FPR11, \thread
+	ld_d	12, THREAD_FPR12, \thread
+	ld_d	13, THREAD_FPR13, \thread
+	ld_d	14, THREAD_FPR14, \thread
+	ld_d	15, THREAD_FPR15, \thread
+	ld_d	16, THREAD_FPR16, \thread
+	ld_d	17, THREAD_FPR17, \thread
+	ld_d	18, THREAD_FPR18, \thread
+	ld_d	19, THREAD_FPR19, \thread
+	ld_d	20, THREAD_FPR20, \thread
+	ld_d	21, THREAD_FPR21, \thread
+	ld_d	22, THREAD_FPR22, \thread
+	ld_d	23, THREAD_FPR23, \thread
+	ld_d	24, THREAD_FPR24, \thread
+	ld_d	25, THREAD_FPR25, \thread
+	ld_d	26, THREAD_FPR26, \thread
+	ld_d	27, THREAD_FPR27, \thread
+	ld_d	28, THREAD_FPR28, \thread
+	ld_d	29, THREAD_FPR29, \thread
+	ld_d	30, THREAD_FPR30, \thread
+	ld_d	31, THREAD_FPR31, \thread
+	.endm
+
 #endif /* _ASM_ASMMACRO_H */
