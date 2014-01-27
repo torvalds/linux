@@ -43,6 +43,18 @@ struct ceph_object_locator {
 	s64 pool;
 };
 
+/*
+ * Maximum supported by kernel client object name length
+ *
+ * (probably outdated: must be >= RBD_MAX_MD_NAME_LEN -- currently 100)
+ */
+#define CEPH_MAX_OID_NAME_LEN 100
+
+struct ceph_object_id {
+	char name[CEPH_MAX_OID_NAME_LEN];
+	int name_len;
+};
+
 struct ceph_pg_mapping {
 	struct rb_node node;
 	struct ceph_pg pgid;
@@ -71,6 +83,30 @@ struct ceph_osdmap {
 	 * the list of osds that store+replicate them. */
 	struct crush_map *crush;
 };
+
+static inline void ceph_oid_set_name(struct ceph_object_id *oid,
+				     const char *name)
+{
+	int len;
+
+	len = strlen(name);
+	if (len > sizeof(oid->name)) {
+		WARN(1, "ceph_oid_set_name '%s' len %d vs %zu, truncating\n",
+		     name, len, sizeof(oid->name));
+		len = sizeof(oid->name);
+	}
+
+	memcpy(oid->name, name, len);
+	oid->name_len = len;
+}
+
+static inline void ceph_oid_copy(struct ceph_object_id *dest,
+				 struct ceph_object_id *src)
+{
+	BUG_ON(src->name_len > sizeof(dest->name));
+	memcpy(dest->name, src->name, src->name_len);
+	dest->name_len = src->name_len;
+}
 
 static inline int ceph_osd_is_up(struct ceph_osdmap *map, int osd)
 {

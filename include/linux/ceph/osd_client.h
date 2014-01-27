@@ -12,12 +12,6 @@
 #include <linux/ceph/auth.h>
 #include <linux/ceph/pagelist.h>
 
-/* 
- * Maximum object name size 
- * (must be at least as big as RBD_MAX_MD_NAME_LEN -- currently 100) 
- */
-#define CEPH_MAX_OID_NAME_LEN 100
-
 struct ceph_msg;
 struct ceph_snap_context;
 struct ceph_osd_request;
@@ -160,9 +154,8 @@ struct ceph_osd_request {
 	void *r_priv;			      /* ditto */
 
 	struct ceph_object_locator r_oloc;
+	struct ceph_object_id r_oid;
 
-	char              r_oid[CEPH_MAX_OID_NAME_LEN];      /* object name */
-	int               r_oid_len;
 	u64               r_snapid;
 	unsigned long     r_stamp;            /* send OR check time */
 
