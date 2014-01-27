@@ -39,6 +39,7 @@ struct sh_cmt_device;
 
 struct sh_cmt_channel {
 	struct sh_cmt_device *cmt;
+	unsigned int index;
 
 	void __iomem *base;
 
@@ -216,7 +217,8 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch, unsigned long *rate)
 	/* enable clock */
 	ret = clk_enable(ch->cmt->clk);
 	if (ret) {
-		dev_err(&ch->cmt->pdev->dev, "cannot enable clock\n");
+		dev_err(&ch->cmt->pdev->dev, "ch%u: cannot enable clock\n",
+			ch->index);
 		goto err0;
 	}
 
@@ -253,7 +255,8 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch, unsigned long *rate)
 	}
 
 	if (sh_cmt_read_cmcnt(ch)) {
-		dev_err(&ch->cmt->pdev->dev, "cannot clear CMCNT\n");
+		dev_err(&ch->cmt->pdev->dev, "ch%u: cannot clear CMCNT\n",
+			ch->index);
 		ret = -ETIMEDOUT;
 		goto err1;
 	}
@@ -371,7 +374,8 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 			delay = 1;
 
 		if (!delay)
-			dev_warn(&ch->cmt->pdev->dev, "too long delay\n");
+			dev_warn(&ch->cmt->pdev->dev, "ch%u: too long delay\n",
+				 ch->index);
 
 	} while (delay);
 }
@@ -379,7 +383,8 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 static void __sh_cmt_set_next(struct sh_cmt_channel *ch, unsigned long delta)
 {
 	if (delta > ch->max_match_value)
-		dev_warn(&ch->cmt->pdev->dev, "delta out of range\n");
+		dev_warn(&ch->cmt->pdev->dev, "ch%u: delta out of range\n",
+			 ch->index);
 
 	ch->next_match_value = delta;
 	sh_cmt_clock_event_program_verify(ch, 0);
@@ -565,7 +570,8 @@ static int sh_cmt_register_clocksource(struct sh_cmt_channel *ch,
 	cs->mask = CLOCKSOURCE_MASK(sizeof(unsigned long) * 8);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
-	dev_info(&ch->cmt->pdev->dev, "used as clock source\n");
+	dev_info(&ch->cmt->pdev->dev, "ch%u: used as clock source\n",
+		 ch->index);
 
 	/* Register with dummy 1 Hz value, gets updated in ->enable() */
 	clocksource_register_hz(cs, 1);
@@ -614,12 +620,12 @@ static void sh_cmt_clock_event_mode(enum clock_event_mode mode,
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		dev_info(&ch->cmt->pdev->dev,
-			 "used for periodic clock events\n");
+			 "ch%u: used for periodic clock events\n", ch->index);
 		sh_cmt_clock_event_start(ch, 1);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		dev_info(&ch->cmt->pdev->dev,
-			 "used for oneshot clock events\n");
+			 "ch%u: used for oneshot clock events\n", ch->index);
 		sh_cmt_clock_event_start(ch, 0);
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
@@ -678,7 +684,8 @@ static void sh_cmt_register_clockevent(struct sh_cmt_channel *ch,
 	ced->suspend = sh_cmt_clock_event_suspend;
 	ced->resume = sh_cmt_clock_event_resume;
 
-	dev_info(&ch->cmt->pdev->dev, "used for clock events\n");
+	dev_info(&ch->cmt->pdev->dev, "ch%u: used for clock events\n",
+		 ch->index);
 	clockevents_register_device(ced);
 }
 
@@ -695,7 +702,7 @@ static int sh_cmt_register(struct sh_cmt_channel *ch, const char *name,
 	return 0;
 }
 
-static int sh_cmt_setup_channel(struct sh_cmt_channel *ch,
+static int sh_cmt_setup_channel(struct sh_cmt_channel *ch, unsigned int index,
 				struct sh_cmt_device *cmt)
 {
 	struct sh_timer_config *cfg = cmt->pdev->dev.platform_data;
@@ -705,10 +712,12 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch,
 	memset(ch, 0, sizeof(*ch));
 	ch->cmt = cmt;
 	ch->base = cmt->mapbase_ch;
+	ch->index = index;
 
 	irq = platform_get_irq(cmt->pdev, 0);
 	if (irq < 0) {
-		dev_err(&cmt->pdev->dev, "failed to get irq\n");
+		dev_err(&cmt->pdev->dev, "ch%u: failed to get irq\n",
+			ch->index);
 		return irq;
 	}
 
@@ -724,7 +733,8 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch,
 			      cfg->clockevent_rating,
 			      cfg->clocksource_rating);
 	if (ret) {
-		dev_err(&cmt->pdev->dev, "registration failed\n");
+		dev_err(&cmt->pdev->dev, "ch%u: registration failed\n",
+			ch->index);
 		return ret;
 	}
 	ch->cs_enabled = false;
@@ -733,7 +743,8 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch,
 			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
 			  dev_name(&cmt->pdev->dev), ch);
 	if (ret) {
-		dev_err(&cmt->pdev->dev, "failed to request irq %d\n", irq);
+		dev_err(&cmt->pdev->dev, "ch%u: failed to request irq %d\n",
+			ch->index, irq);
 		return ret;
 	}
 
@@ -815,7 +826,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 		cmt->clear_bits = ~0xc000;
 	}
 
-	ret = sh_cmt_setup_channel(&cmt->channel, cmt);
+	ret = sh_cmt_setup_channel(&cmt->channel, cfg->timer_bit, cmt);
 	if (ret < 0)
 		goto err4;
 
