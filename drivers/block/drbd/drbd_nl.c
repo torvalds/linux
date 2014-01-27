@@ -967,6 +967,10 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 	if (la_size_changed || md_moved || rs) {
 		u32 prev_flags;
 
+		/* We do some synchronous IO below, which may take some time.
+		 * Clear the timer, to avoid scary "timer expired!" messages,
+		 * "Superblock" is written out at least twice below, anyways. */
+		del_timer(&device->md_sync_timer);
 		drbd_al_shrink(device); /* All extents inactive. */
 
 		prev_flags = md->flags;
