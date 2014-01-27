@@ -22,6 +22,7 @@
 #include <mach/hs-iic.h>
 #include <plat/iic.h>
 #include <mach/regs-gpio.h>
+#include <linux/w1-gpio.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
@@ -38,6 +39,19 @@ static struct   platform_device   odroidxu_ioboard_keyled = {
 #define     GPIO_I2C_BUS_NUM    10
 #define		GPIO_I2C2_SDA	    EXYNOS5410_GPX3(1)
 #define		GPIO_I2C2_SCL	    EXYNOS5410_GPX1(7)
+
+#if defined(CONFIG_W1_MASTER_GPIO) || defined(CONFIG_W1_MASTER_GPIO_MODULE)
+static struct w1_gpio_platform_data w1_gpio_pdata = {
+	.pin			= EXYNOS5410_GPX1(6),
+	.is_open_drain 	= 0,
+};
+
+static struct platform_device odroidxu_w1_device = {
+	.name 				= "w1-gpio",
+	.id					= -1,
+	.dev.platform_data 	= &w1_gpio_pdata;
+};
+#endif
 
 static struct 	i2c_gpio_platform_data 	i2c_gpio_platdata = {
 	.sda_pin = GPIO_I2C2_SDA,   // gpio number
@@ -97,6 +111,9 @@ static struct platform_device *odroidxu_ioboard_devices[] __initdata = {
 	&odroidxu_ioboard_adc,
 	&s3c64xx_device_spi1,
 	&odroidxu_ioboard_spi,
+#if defined(CONFIG_W1_MASTER_GPIO) || defined(CONFIG_W1_MASTER_GPIO_MODULE)
+	&odroidxu_w1_device,
+#endif
 };
 
 void __init exynos5_odroidxu_ioboard_init(void)
