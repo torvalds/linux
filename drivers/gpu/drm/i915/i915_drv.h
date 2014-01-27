@@ -938,6 +938,9 @@ struct intel_gen6_power_mgmt {
 	u8 rp0_delay;
 	u8 hw_max;
 
+	bool rp_up_masked;
+	bool rp_down_masked;
+
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
 

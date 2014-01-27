@@ -3618,6 +3618,9 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
 
+	dev_priv->rps.rp_up_masked = false;
+	dev_priv->rps.rp_down_masked = false;
+
 	gen6_enable_rps_interrupts(dev);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
