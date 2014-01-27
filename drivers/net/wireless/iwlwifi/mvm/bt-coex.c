@@ -378,7 +378,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	flags = iwlwifi_mod_params.bt_coex_active ?
 			BT_COEX_NW : BT_COEX_DISABLE;
-	flags |= BT_CH_PRIMARY_EN | BT_CH_SECONDARY_EN | BT_SYNC_2_BT_DISABLE;
 	bt_cmd->flags = cpu_to_le32(flags);
 
 	bt_cmd->valid_bit_msk = cpu_to_le32(BT_VALID_ENABLE |
@@ -398,6 +397,9 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 					    BT_VALID_TXTX_DELTA_FREQ_THRS |
 					    BT_VALID_TXRX_MAX_FREQ_0 |
 					    BT_VALID_SYNC_TO_SCO);
+
+	if (IWL_MVM_BT_COEX_SYNC2SCO)
+		bt_cmd->flags |= cpu_to_le32(BT_COEX_SYNC2SCO);
 
 	if (mvm->cfg->bt_shared_single_ant)
 		memcpy(&bt_cmd->decision_lut, iwl_single_shared_ant,
