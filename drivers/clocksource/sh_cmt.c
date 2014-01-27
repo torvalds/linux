@@ -40,6 +40,8 @@ struct sh_cmt_device;
 struct sh_cmt_channel {
 	struct sh_cmt_device *cmt;
 
+	void __iomem *base;
+
 	unsigned long flags;
 	unsigned long match_value;
 	unsigned long next_match_value;
@@ -130,12 +132,12 @@ static inline unsigned long sh_cmt_read_cmstr(struct sh_cmt_channel *ch)
 
 static inline unsigned long sh_cmt_read_cmcsr(struct sh_cmt_channel *ch)
 {
-	return ch->cmt->read_control(ch->cmt->mapbase_ch, CMCSR);
+	return ch->cmt->read_control(ch->base, CMCSR);
 }
 
 static inline unsigned long sh_cmt_read_cmcnt(struct sh_cmt_channel *ch)
 {
-	return ch->cmt->read_count(ch->cmt->mapbase_ch, CMCNT);
+	return ch->cmt->read_count(ch->base, CMCNT);
 }
 
 static inline void sh_cmt_write_cmstr(struct sh_cmt_channel *ch,
@@ -147,19 +149,19 @@ static inline void sh_cmt_write_cmstr(struct sh_cmt_channel *ch,
 static inline void sh_cmt_write_cmcsr(struct sh_cmt_channel *ch,
 				      unsigned long value)
 {
-	ch->cmt->write_control(ch->cmt->mapbase_ch, CMCSR, value);
+	ch->cmt->write_control(ch->base, CMCSR, value);
 }
 
 static inline void sh_cmt_write_cmcnt(struct sh_cmt_channel *ch,
 				      unsigned long value)
 {
-	ch->cmt->write_count(ch->cmt->mapbase_ch, CMCNT, value);
+	ch->cmt->write_count(ch->base, CMCNT, value);
 }
 
 static inline void sh_cmt_write_cmcor(struct sh_cmt_channel *ch,
 				      unsigned long value)
 {
-	ch->cmt->write_count(ch->cmt->mapbase_ch, CMCOR, value);
+	ch->cmt->write_count(ch->base, CMCOR, value);
 }
 
 static unsigned long sh_cmt_get_counter(struct sh_cmt_channel *ch,
@@ -702,6 +704,7 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch,
 
 	memset(ch, 0, sizeof(*ch));
 	ch->cmt = cmt;
+	ch->base = cmt->mapbase_ch;
 
 	irq = platform_get_irq(cmt->pdev, 0);
 	if (irq < 0) {
