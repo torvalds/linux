@@ -131,6 +131,13 @@ struct axp_mfd_chip {
 	struct work_struct	irq_work;
 
 	struct blocking_notifier_head notifier_list;
+#ifdef CONFIG_AXP_HWMON
+	s16 temperature; /* range from -1447 to 2648 */
+	unsigned long last_updated;     /* in jiffies */
+	char valid;	/* zero until following fields are valid */
+	struct device *hwmon_dev;
+	char itm_enabled;
+#endif
 };
 
 struct axp_mfd_chip_ops {

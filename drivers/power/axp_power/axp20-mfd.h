@@ -22,6 +22,83 @@
 
 #include "axp-rw.h"
 
+#ifdef CONFIG_AXP_HWMON
+
+#include <linux/hwmon-sysfs.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
+
+static struct axp_mfd_chip *axp20_update_device(struct device *dev);
+
+static ssize_t
+show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct axp_mfd_chip *data = axp20_update_device(dev);
+	if (attr->index == 1)
+		return sprintf(buf, "264800\n");
+	if (attr->index == 2)
+		return sprintf(buf, "-144700\n");
+	return sprintf(buf, "%d\n", data->temperature * 100);
+}
+
+
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO, show_temp, NULL, 2);
+
+static struct attribute *axp20_attributes[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_min.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group axp20_group = {
+	.attrs = axp20_attributes,
+};
+
+
+/*
+ *  * function that update the status of the chips (temperature)
+ *   */
+static struct axp_mfd_chip *axp20_update_device(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct axp_mfd_chip *data = i2c_get_clientdata(client);
+	int err;
+	u8 high, low;
+
+	mutex_lock(&data->lock);
+
+	if (time_after(jiffies, data->last_updated + HZ * 2)
+		|| !data->valid) {
+		dev_dbg(&client->dev, "Updating axp20 data\n");
+		/* AXP202 datasheet page 25, 0x000 means -144.7,
+		 * 0xfff means 264.8, 4096 steps of 0.1 degress */
+		err = __axp_read(client, 0x5E, &high);
+		if (err) {
+			dev_err(dev, "AXP Error while reading high\n");
+			high = 0;
+		}
+
+		err = __axp_read(client, 0x5F, &low);
+		if (err) {
+			dev_err(dev, "AXP Error while reading low\n");
+			low = 0;
+		}
+
+		data->temperature = -1447 + ((high << 4) + (low && 0x0F));
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->lock);
+	return data;
+}
+
+#endif
+
 
 static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 {
@@ -33,6 +110,9 @@ static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 		POWER20_INTSTS3, 0xff, POWER20_INTSTS4, 0xff,
 		POWER20_INTSTS5, 0xff };
 	int err;
+#ifdef CONFIG_AXP_HWMON
+	u8 enabled;
+#endif
 	/*read chip id*/
 	err =  __axp_read(chip->client, POWER20_IC_TYPE, &chip_id);
 	if (err) {
@@ -51,7 +131,39 @@ static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 	dev_info(chip->dev, "AXP (CHIP ID: 0x%02x) detected\n", chip_id);
 	chip->type = AXP20;
 
+#ifdef CONFIG_AXP_HWMON
+	err = __axp_read(chip->client, 0x83, &enabled);
+	if (err) {
+		dev_info(chip->dev, "AXP Cannot get internal temperature monitoring status\n");
+		return err;
+	}
+	if ((enabled & 0x80) > 0) {
+		chip->itm_enabled = 1;
+		dev_info(chip->dev, "AXP internal temperature monitoring enabled\n");
+
+		/* Register sysfs hooks */
+		err = sysfs_create_group(&chip->client->dev.kobj, &axp20_group);
+		if (err)
+			return err;
+
+		chip->hwmon_dev = hwmon_device_register(&chip->client->dev);
+		if (IS_ERR(chip->hwmon_dev)) {
+			err = PTR_ERR(chip->hwmon_dev);
+			goto exit_remove_files;
+		}
+	} else {
+		dev_info(chip->dev, "AXP internal temperature monitoring disabled\n");
+		/* TODO enable it ?*/
+		chip->itm_enabled = 0;
+	}
+#endif
+
 	return 0;
+#ifdef CONFIG_AXP_HWMON
+exit_remove_files:
+	sysfs_remove_group(&chip->client->dev.kobj, &axp20_group);
+	return err;
+#endif
 }
 
 static int axp20_disable_irqs(struct axp_mfd_chip *chip, uint64_t irqs)

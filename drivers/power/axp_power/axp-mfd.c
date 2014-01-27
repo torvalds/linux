@@ -363,6 +363,13 @@ static int __devexit axp_mfd_remove(struct i2c_client *client)
 	pm_power_off = NULL;
 	axp = NULL;
 
+#ifdef CONFIG_AXP_HWMON
+	if (chip->itm_enabled == 1) {
+		hwmon_device_unregister(chip->hwmon_dev);
+		sysfs_remove_group(&client->dev.kobj, &axp20_group);
+	}
+#endif
+
 	axp_mfd_remove_subdevs(chip);
 	kfree(chip);
 	return 0;

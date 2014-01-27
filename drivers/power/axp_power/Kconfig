@@ -36,4 +36,9 @@ config AXP_CHGCHANGE
 	bool "AXP charging current set when suspend\resume\shutdown"
 	default y
 
+config AXP_HWMON
+	depends on HWMON
+	tristate "Enable the internal thermal monitoring support of AXP20X chips"
+	default y
+
 endif # !AW_AXP
