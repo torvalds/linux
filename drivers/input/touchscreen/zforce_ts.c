@@ -29,6 +29,8 @@
 #include <linux/sysfs.h>
 #include <linux/input/mt.h>
 #include <linux/platform_data/zforce_ts.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #define WAIT_TIMEOUT		msecs_to_jiffies(1000)
 
@@ -681,6 +683,45 @@ static void zforce_reset(void *data)
 	gpio_set_value(ts->pdata->gpio_rst, 0);
 }
 
+static struct zforce_ts_platdata *zforce_parse_dt(struct device *dev)
+{
+	struct zforce_ts_platdata *pdata;
+	struct device_node *np = dev->of_node;
+
+	if (!np)
+		return ERR_PTR(-ENOENT);
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "failed to allocate platform data\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pdata->gpio_int = of_get_gpio(np, 0);
+	if (!gpio_is_valid(pdata->gpio_int)) {
+		dev_err(dev, "failed to get interrupt gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata->gpio_rst = of_get_gpio(np, 1);
+	if (!gpio_is_valid(pdata->gpio_rst)) {
+		dev_err(dev, "failed to get reset gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (of_property_read_u32(np, "x-size", &pdata->x_max)) {
+		dev_err(dev, "failed to get x-size property\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (of_property_read_u32(np, "y-size", &pdata->y_max)) {
+		dev_err(dev, "failed to get y-size property\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return pdata;
+}
+
 static int zforce_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -689,8 +730,11 @@ static int zforce_probe(struct i2c_client *client,
 	struct input_dev *input_dev;
 	int ret;
 
-	if (!pdata)
-		return -EINVAL;
+	if (!pdata) {
+		pdata = zforce_parse_dt(&client->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
 	ts = devm_kzalloc(&client->dev, sizeof(struct zforce_ts), GFP_KERNEL);
 	if (!ts)
@@ -826,11 +870,20 @@ static struct i2c_device_id zforce_idtable[] = {
 };
 MODULE_DEVICE_TABLE(i2c, zforce_idtable);
 
+#ifdef CONFIG_OF
+static struct of_device_id zforce_dt_idtable[] = {
+	{ .compatible = "neonode,zforce" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, zforce_dt_idtable);
+#endif
+
 static struct i2c_driver zforce_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "zforce-ts",
 		.pm	= &zforce_pm_ops,
+		.of_match_table	= of_match_ptr(zforce_dt_idtable),
 	},
 	.probe		= zforce_probe,
 	.id_table	= zforce_idtable,
