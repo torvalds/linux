@@ -48,6 +48,7 @@
 #include <linux/slab.h>
 #include <linux/trace_clock.h>
 #include <asm/byteorder.h>
+#include <linux/torture.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@freedesktop.org>");
@@ -320,32 +321,6 @@ rcu_torture_free(struct rcu_torture *p)
 	spin_unlock_bh(&rcu_torture_lock);
 }
 
-struct rcu_random_state {
-	unsigned long rrs_state;
-	long rrs_count;
-};
-
-#define RCU_RANDOM_MULT 39916801  /* prime */
-#define RCU_RANDOM_ADD	479001701 /* prime */
-#define RCU_RANDOM_REFRESH 10000
-
-#define DEFINE_RCU_RANDOM(name) struct rcu_random_state name = { 0, 0 }
-
-/*
- * Crude but fast random-number generator.  Uses a linear congruential
- * generator, with occasional help from cpu_clock().
- */
-static unsigned long
-rcu_random(struct rcu_random_state *rrsp)
-{
-	if (--rrsp->rrs_count < 0) {
-		rrsp->rrs_state += (unsigned long)local_clock();
-		rrsp->rrs_count = RCU_RANDOM_REFRESH;
-	}
-	rrsp->rrs_state = rrsp->rrs_state * RCU_RANDOM_MULT + RCU_RANDOM_ADD;
-	return swahw32(rrsp->rrs_state);
-}
-
 static void
 rcu_stutter_wait(const char *title)
 {
@@ -365,7 +340,7 @@ rcu_stutter_wait(const char *title)
 struct rcu_torture_ops {
 	void (*init)(void);
 	int (*readlock)(void);
-	void (*read_delay)(struct rcu_random_state *rrsp);
+	void (*read_delay)(struct torture_random_state *rrsp);
 	void (*readunlock)(int idx);
 	int (*completed)(void);
 	void (*deferred_free)(struct rcu_torture *p);
@@ -392,7 +367,7 @@ static int rcu_torture_read_lock(void) __acquires(RCU)
 	return 0;
 }
 
-static void rcu_read_delay(struct rcu_random_state *rrsp)
+static void rcu_read_delay(struct torture_random_state *rrsp)
 {
 	const unsigned long shortdelay_us = 200;
 	const unsigned long longdelay_ms = 50;
@@ -401,12 +376,13 @@ static void rcu_read_delay(struct rcu_random_state *rrsp)
 	 * period, and we want a long delay occasionally to trigger
 	 * force_quiescent_state. */
 
-	if (!(rcu_random(rrsp) % (nrealreaders * 2000 * longdelay_ms)))
+	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms)))
 		mdelay(longdelay_ms);
-	if (!(rcu_random(rrsp) % (nrealreaders * 2 * shortdelay_us)))
+	if (!(torture_random(rrsp) % (nrealreaders * 2 * shortdelay_us)))
 		udelay(shortdelay_us);
 #ifdef CONFIG_PREEMPT
-	if (!preempt_count() && !(rcu_random(rrsp) % (nrealreaders * 20000)))
+	if (!preempt_count() &&
+	    !(torture_random(rrsp) % (nrealreaders * 20000)))
 		preempt_schedule();  /* No QS if preempt_disable() in effect */
 #endif
 }
@@ -530,7 +506,7 @@ static int srcu_torture_read_lock(void) __acquires(&srcu_ctl)
 	return srcu_read_lock(&srcu_ctl);
 }
 
-static void srcu_read_delay(struct rcu_random_state *rrsp)
+static void srcu_read_delay(struct torture_random_state *rrsp)
 {
 	long delay;
 	const long uspertick = 1000000 / HZ;
@@ -538,7 +514,8 @@ static void srcu_read_delay(struct rcu_random_state *rrsp)
 
 	/* We want there to be long-running readers, but not all the time. */
 
-	delay = rcu_random(rrsp) % (nrealreaders * 2 * longdelay * uspertick);
+	delay = torture_random(rrsp) %
+		(nrealreaders * 2 * longdelay * uspertick);
 	if (!delay)
 		schedule_timeout_interruptible(longdelay);
 	else
@@ -802,7 +779,7 @@ rcu_torture_writer(void *arg)
 	struct rcu_torture *rp;
 	struct rcu_torture *rp1;
 	struct rcu_torture *old_rp;
-	static DEFINE_RCU_RANDOM(rand);
+	static DEFINE_TORTURE_RANDOM(rand);
 
 	VERBOSE_PRINTK_STRING("rcu_torture_writer task started");
 	set_user_nice(current, 19);
@@ -813,7 +790,7 @@ rcu_torture_writer(void *arg)
 		if (rp == NULL)
 			continue;
 		rp->rtort_pipe_count = 0;
-		udelay(rcu_random(&rand) & 0x3ff);
+		udelay(torture_random(&rand) & 0x3ff);
 		old_rp = rcu_dereference_check(rcu_torture_current,
 					       current == writer_task);
 		rp->rtort_mbtest = 1;
@@ -826,7 +803,7 @@ rcu_torture_writer(void *arg)
 			atomic_inc(&rcu_torture_wcount[i]);
 			old_rp->rtort_pipe_count++;
 			if (gp_normal == gp_exp)
-				exp = !!(rcu_random(&rand) & 0x80);
+				exp = !!(torture_random(&rand) & 0x80);
 			else
 				exp = gp_exp;
 			if (!exp) {
@@ -868,19 +845,19 @@ rcu_torture_writer(void *arg)
 static int
 rcu_torture_fakewriter(void *arg)
 {
-	DEFINE_RCU_RANDOM(rand);
+	DEFINE_TORTURE_RANDOM(rand);
 
 	VERBOSE_PRINTK_STRING("rcu_torture_fakewriter task started");
 	set_user_nice(current, 19);
 
 	do {
-		schedule_timeout_uninterruptible(1 + rcu_random(&rand)%10);
-		udelay(rcu_random(&rand) & 0x3ff);
+		schedule_timeout_uninterruptible(1 + torture_random(&rand)%10);
+		udelay(torture_random(&rand) & 0x3ff);
 		if (cur_ops->cb_barrier != NULL &&
-		    rcu_random(&rand) % (nfakewriters * 8) == 0) {
+		    torture_random(&rand) % (nfakewriters * 8) == 0) {
 			cur_ops->cb_barrier();
 		} else if (gp_normal == gp_exp) {
-			if (rcu_random(&rand) & 0x80)
+			if (torture_random(&rand) & 0x80)
 				cur_ops->sync();
 			else
 				cur_ops->exp_sync();
@@ -921,7 +898,7 @@ static void rcu_torture_timer(unsigned long unused)
 	int idx;
 	int completed;
 	int completed_end;
-	static DEFINE_RCU_RANDOM(rand);
+	static DEFINE_TORTURE_RANDOM(rand);
 	static DEFINE_SPINLOCK(rand_lock);
 	struct rcu_torture *p;
 	int pipe_count;
@@ -980,7 +957,7 @@ rcu_torture_reader(void *arg)
 	int completed;
 	int completed_end;
 	int idx;
-	DEFINE_RCU_RANDOM(rand);
+	DEFINE_TORTURE_RANDOM(rand);
 	struct rcu_torture *p;
 	int pipe_count;
 	struct timer_list t;
@@ -1389,7 +1366,7 @@ rcu_torture_onoff(void *arg)
 	int cpu;
 	unsigned long delta;
 	int maxcpu = -1;
-	DEFINE_RCU_RANDOM(rand);
+	DEFINE_TORTURE_RANDOM(rand);
 	int ret;
 	unsigned long starttime;
 
@@ -1403,7 +1380,7 @@ rcu_torture_onoff(void *arg)
 		VERBOSE_PRINTK_STRING("rcu_torture_onoff end holdoff");
 	}
 	while (!kthread_should_stop()) {
-		cpu = (rcu_random(&rand) >> 4) % (maxcpu + 1);
+		cpu = (torture_random(&rand) >> 4) % (maxcpu + 1);
 		if (cpu_online(cpu) && cpu_is_hotpluggable(cpu)) {
 			if (verbose)
 				pr_alert("%s" TORTURE_FLAG

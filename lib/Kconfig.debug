@@ -1141,9 +1141,14 @@ config SPARSE_RCU_POINTER
 
 	 Say N if you are unsure.
 
+config TORTURE_TEST
+	tristate
+	default n
+
 config RCU_TORTURE_TEST
 	tristate "torture tests for RCU"
 	depends on DEBUG_KERNEL
+	select TORTURE_TEST
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
