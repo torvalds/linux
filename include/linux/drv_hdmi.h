@@ -38,6 +38,7 @@ typedef struct
 	__u8    ws_pol;
 	__u8    just_pol;
 	__u8    channel_num;
+	__u8    sample_bit;
 }hdmi_audio_t;
 
 typedef struct

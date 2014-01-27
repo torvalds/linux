@@ -46,7 +46,7 @@ EXPORT_SYMBOL(audio_set_hdmi_func);
 
 #define SNDHDMI_RATES  (SNDRV_PCM_RATE_8000_192000|SNDRV_PCM_RATE_KNOT)
 #define SNDHDMI_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
-		                     SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE)
+				SNDRV_PCM_FMTBIT_S32_LE)
 
 static int sndhdmi_mute(struct snd_soc_dai *dai, int mute)
 {
@@ -71,6 +71,20 @@ static int sndhdmi_hw_params(struct snd_pcm_substream *substream,
 {
 	hdmi_para.sample_rate = params_rate(params);
 	hdmi_para.channel_num = params_channels(params);
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		hdmi_para.sample_bit = 16;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		hdmi_para.sample_bit = 32;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (4 == hdmi_para.channel_num)
+		hdmi_para.channel_num = 2;
+
 	g_hdmi_func.hdmi_set_audio_para(&hdmi_para);
 	g_hdmi_func.hdmi_audio_enable(1, 1);
 

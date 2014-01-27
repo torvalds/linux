@@ -557,12 +557,14 @@ static struct snd_soc_dai_driver sunxi_hdmiaudio_dai = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SUNXI_I2S_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,},
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE
+	},
 	.capture = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SUNXI_I2S_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,},
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE
+	},
 	.symmetric_rates = 1,
 	.ops = &sunxi_hdmiaudio_dai_ops,
 };

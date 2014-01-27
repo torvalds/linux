@@ -208,6 +208,12 @@ static __s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para)
 	if (!audio_para)
 		return -1;
 
+	if (audio_para->sample_bit != audio_info.sample_bit) {
+		if (hdmi_state >= HDMI_State_Audio_config)
+			hdmi_state = HDMI_State_Audio_config;
+		audio_info.sample_bit = audio_para->sample_bit;
+	}
+
 	if (audio_para->sample_rate != audio_info.sample_rate) {
 		audio_info.sample_rate = audio_para->sample_rate;
 		change = audio_info.audio_en;

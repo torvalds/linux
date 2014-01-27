@@ -580,8 +580,14 @@ __s32 audio_config(void)
 		return 0;
 
 	if (audio_info.channel_num == 1) {
-		/* audio fifo rst and select ddma, 2 ch 16bit pcm */
-		writel(0x00000000, HDMI_AUDIO_UNKNOWN_0);
+		if (audio_info.sample_bit == 32) {
+			/* audio fifo rst and select ddma, 2 ch 32bit pcm */
+			writel(0x000e0000, HDMI_AUDIO_UNKNOWN_0);
+		} else {
+			/* audio fifo rst and select ddma, 2 ch 16bit pcm */
+			writel(0x00000000, HDMI_AUDIO_UNKNOWN_0);
+		}
+
 		/* ddma,pcm layout0 1ch */
 		writel(0x00000000, HDMI_AUDIO_LAYOUT);
 		writel(0x76543200, HDMI_AUDIO_UNKNOWN_1);
@@ -592,8 +598,14 @@ __s32 audio_config(void)
 		writel(0x00000000, HDMI_AUDIO_INFOFRAME + 8);
 		writel(0x00000000, HDMI_AUDIO_INFOFRAME + 12);
 	} else if (audio_info.channel_num == 2) {
-		/* audio fifo rst and select ddma, 2 ch 16bit pcm */
-		writel(0x00000000, HDMI_AUDIO_UNKNOWN_0);
+		if (audio_info.sample_bit == 32) {
+			/* audio fifo rst and select ddma, 2 ch 32bit pcm */
+			writel(0x000e0000, HDMI_AUDIO_UNKNOWN_0);
+		} else {
+			/* audio fifo rst and select ddma, 2 ch 16bit pcm */
+			writel(0x00000000, HDMI_AUDIO_UNKNOWN_0);
+		}
+
 		/* ddma,pcm layout0 2ch */
 		writel(0x00000001, HDMI_AUDIO_LAYOUT);
 		writel(0x76543210, HDMI_AUDIO_UNKNOWN_1);
@@ -604,8 +616,14 @@ __s32 audio_config(void)
 		writel(0x00000000, HDMI_AUDIO_INFOFRAME + 8);
 		writel(0x00000000, HDMI_AUDIO_INFOFRAME + 12);
 	} else if (audio_info.channel_num == 8) {
-		/* audio fifo rst and select ddma, 2 ch 16bit pcm */
-		writel(0x00000000, HDMI_AUDIO_UNKNOWN_0);
+		if (audio_info.sample_bit == 32) {
+			/* audio fifo rst and select ddma, 2 ch 32bit pcm */
+			writel(0x000e0000, HDMI_AUDIO_UNKNOWN_0);
+		} else {
+			/* audio fifo rst and select ddma, 2 ch 16bit pcm */
+			writel(0x00000000, HDMI_AUDIO_UNKNOWN_0);
+		}
+
 		/* ddma,pcm layout1 8ch */
 		writel(0x0000000f, HDMI_AUDIO_LAYOUT);
 		writel(0x76543210, HDMI_AUDIO_UNKNOWN_1);
