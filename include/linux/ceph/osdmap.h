@@ -40,8 +40,7 @@ struct ceph_pg_pool_info {
 };
 
 struct ceph_object_locator {
-	uint64_t pool;
-	char *key;
+	s64 pool;
 };
 
 struct ceph_pg_mapping {

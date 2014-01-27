@@ -159,12 +159,13 @@ struct ceph_osd_request {
 	struct inode *r_inode;         	      /* for use by callbacks */
 	void *r_priv;			      /* ditto */
 
+	struct ceph_object_locator r_oloc;
+
 	char              r_oid[MAX_OBJ_NAME_SIZE];          /* object name */
 	int               r_oid_len;
 	u64               r_snapid;
 	unsigned long     r_stamp;            /* send OR check time */
 
-	struct ceph_file_layout r_file_layout;
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
 };
 

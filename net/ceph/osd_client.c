@@ -368,6 +368,8 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	INIT_LIST_HEAD(&req->r_req_lru_item);
 	INIT_LIST_HEAD(&req->r_osd_item);
 
+	req->r_oloc.pool = -1;
+
 	/* create reply message */
 	if (use_mempool)
 		msg = ceph_msgpool_get(&osdc->msgpool_op_reply, 0);
@@ -761,7 +763,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	if (num_ops > 1)
 		osd_req_op_init(req, 1, CEPH_OSD_OP_STARTSYNC);
 
-	req->r_file_layout = *layout;  /* keep a copy */
+	req->r_oloc.pool = ceph_file_layout_pg_pool(*layout);
 
 	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx",
 		vino.ino, objnum);
@@ -1268,7 +1270,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 
 	dout("map_request %p tid %lld\n", req, req->r_tid);
 	err = ceph_calc_ceph_pg(&pgid, req->r_oid, osdc->osdmap,
-				ceph_file_layout_pg_pool(req->r_file_layout));
+				req->r_oloc.pool);
 	if (err) {
 		list_move(&req->r_req_lru_item, &osdc->req_notarget);
 		return err;
@@ -1354,7 +1356,7 @@ static void __send_request(struct ceph_osd_client *osdc,
 	/* fill in message content that changes each time we send it */
 	put_unaligned_le32(osdc->osdmap->epoch, req->r_request_osdmap_epoch);
 	put_unaligned_le32(req->r_flags, req->r_request_flags);
-	put_unaligned_le64(req->r_pgid.pool, req->r_request_pool);
+	put_unaligned_le64(req->r_oloc.pool, req->r_request_pool);
 	p = req->r_request_pgid;
 	ceph_encode_64(&p, req->r_pgid.pool);
 	ceph_encode_32(&p, req->r_pgid.seed);
