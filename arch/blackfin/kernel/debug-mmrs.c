@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/i2c/bfin_twi.h>
 
 #include <asm/blackfin.h>
 #include <asm/gpio.h>

@@ -21,10 +21,10 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/i2c/bfin_twi.h>
 
-#include <asm/blackfin.h>
-#include <asm/portmux.h>
 #include <asm/irq.h>
+#include <asm/portmux.h>
 #include <asm/bfin_twi.h>
 
 /* SMBus mode*/
