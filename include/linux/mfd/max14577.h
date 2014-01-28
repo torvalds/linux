@@ -25,12 +25,7 @@
 #ifndef __MAX14577_H__
 #define __MAX14577_H__
 
-#include <linux/mfd/max14577-private.h>
 #include <linux/regulator/consumer.h>
-
-/*
- * MAX14577 Regulator
- */
 
 /* MAX14577 regulator IDs */
 enum max14577_regulators {
