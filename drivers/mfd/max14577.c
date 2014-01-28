@@ -25,7 +25,10 @@
 #include <linux/mfd/max14577-private.h>
 
 static struct mfd_cell max14577_devs[] = {
-	{ .name = "max14577-muic", },
+	{
+		.name = "max14577-muic",
+		.of_compatible = "maxim,max14577-muic",
+	},
 	{
 		.name = "max14577-regulator",
 		.of_compatible = "maxim,max14577-regulator",
