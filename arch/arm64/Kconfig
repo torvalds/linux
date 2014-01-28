@@ -218,6 +218,17 @@ config ARMV7_COMPAT
 	 If you want to execute ARMv7 applications, say Y
 
 
+config ARMV7_COMPAT_CP15_BARRIER
+	bool "Allow applications to use the CP15 barrier operations"
+	depends on ARMV7_COMPAT
+	default y
+	help
+	 This option allows applications to use deprecated CP15 barrier
+	 instructions. This is useful because this was the only way to create
+	 a barrier on older ARM processors.
+
+	 If you want to execute ARMv7 applications, say Y
+
 source "mm/Kconfig"
 
 endmenu

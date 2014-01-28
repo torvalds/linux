@@ -160,6 +160,20 @@ ENTRY(__cpu_setup)
 	ret					// return to head.S
 ENDPROC(__cpu_setup)
 
+#ifdef CONFIG_ARMV7_COMPAT_CP15_BARRIER
+	/*
+	 *                 n n            T
+	 *       U E      WT T UD     US IHBS
+	 *       CE0      XWHW CZ     ME TEEA S
+	 * .... .IEE .... NEAI TE.I ..AD DEN0 ACAM
+	 * 0011 0... 1101 ..0. ..0. 10.. .... .... < hardware reserved
+	 * .... .100 .... 01.1 11.1 ..01 0011 1101 < software settings
+	 */
+	.type	crval, #object
+crval:
+	.word	0x030802e2			// clear
+	.word	0x0405d13d			// set
+#else
 	/*
 	 *                 n n            T
 	 *       U E      WT T UD     US IHBS
@@ -172,3 +186,4 @@ ENDPROC(__cpu_setup)
 crval:
 	.word	0x030802e2			// clear
 	.word	0x0405d11d			// set
+#endif
