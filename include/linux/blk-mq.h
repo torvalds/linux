@@ -158,16 +158,16 @@ static inline struct request *blk_mq_tag_to_rq(struct blk_mq_hw_ctx *hctx,
 }
 
 #define queue_for_each_hw_ctx(q, hctx, i)				\
-	for ((i) = 0, hctx = (q)->queue_hw_ctx[0];			\
-	     (i) < (q)->nr_hw_queues; (i)++, hctx = (q)->queue_hw_ctx[i])
+	for ((i) = 0; (i) < (q)->nr_hw_queues &&			\
+	     ({ hctx = (q)->queue_hw_ctx[i]; 1; }); (i)++)
 
 #define queue_for_each_ctx(q, ctx, i)					\
-	for ((i) = 0, ctx = per_cpu_ptr((q)->queue_ctx, 0);		\
-	     (i) < (q)->nr_queues; (i)++, ctx = per_cpu_ptr(q->queue_ctx, (i)))
+	for ((i) = 0; (i) < (q)->nr_queues &&				\
+	     ({ ctx = per_cpu_ptr((q)->queue_ctx, (i)); 1; }); (i)++)
 
 #define hctx_for_each_ctx(hctx, ctx, i)					\
-	for ((i) = 0, ctx = (hctx)->ctxs[0];				\
-	     (i) < (hctx)->nr_ctx; (i)++, ctx = (hctx)->ctxs[(i)])
+	for ((i) = 0; (i) < (hctx)->nr_ctx &&				\
+	     ({ ctx = (hctx)->ctxs[(i)]; 1; }); (i)++)
 
 #define blk_ctx_sum(q, sum)						\
 ({									\
