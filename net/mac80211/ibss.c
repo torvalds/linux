@@ -294,7 +294,6 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	}
 
 	mutex_lock(&local->mtx);
-	ieee80211_vif_release_channel(sdata);
 	if (ieee80211_vif_use_channel(sdata, &chandef,
 				      ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
