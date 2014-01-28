@@ -418,6 +418,17 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	struct mmc_command cmd = {0};
 	unsigned long timeout;
 	u32 status = 0;
+	bool use_r1b_resp = use_busy_signal;
+
+	/*
+	 * If the cmd timeout and the max_busy_timeout of the host are both
+	 * specified, let's validate them. A failure means we need to prevent
+	 * the host from doing hw busy detection, which is done by converting
+	 * to a R1 response instead of a R1B.
+	 */
+	if (timeout_ms && host->max_busy_timeout &&
+		(timeout_ms > host->max_busy_timeout))
+		use_r1b_resp = false;
 
 	cmd.opcode = MMC_SWITCH;
 	cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
@@ -425,13 +436,17 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		  (value << 8) |
 		  set;
 	cmd.flags = MMC_CMD_AC;
-	if (use_busy_signal)
+	if (use_r1b_resp) {
 		cmd.flags |= MMC_RSP_SPI_R1B | MMC_RSP_R1B;
-	else
+		/*
+		 * A busy_timeout of zero means the host can decide to use
+		 * whatever value it finds suitable.
+		 */
+		cmd.busy_timeout = timeout_ms;
+	} else {
 		cmd.flags |= MMC_RSP_SPI_R1 | MMC_RSP_R1;
+	}
 
-
-	cmd.busy_timeout = timeout_ms;
 	if (index == EXT_CSD_SANITIZE_START)
 		cmd.sanitize_busy = true;
 
@@ -447,18 +462,22 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	 * CRC errors shall only be ignored in cases were CMD13 is used to poll
 	 * to detect busy completion.
 	 */
-	if (host->caps & MMC_CAP_WAIT_WHILE_BUSY)
+	if ((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp)
 		ignore_crc = false;
 
+	/* We have an unspecified cmd timeout, use the fallback value. */
+	if (!timeout_ms)
+		timeout_ms = MMC_OPS_TIMEOUT_MS;
+
 	/* Must check status to be sure of no errors. */
-	timeout = jiffies + msecs_to_jiffies(MMC_OPS_TIMEOUT_MS);
+	timeout = jiffies + msecs_to_jiffies(timeout_ms);
 	do {
 		if (send_status) {
 			err = __mmc_send_status(card, &status, ignore_crc);
 			if (err)
 				return err;
 		}
-		if (host->caps & MMC_CAP_WAIT_WHILE_BUSY)
+		if ((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp)
 			break;
 		if (mmc_host_is_spi(host))
 			break;
