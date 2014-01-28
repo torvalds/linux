@@ -571,6 +571,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 			     unsigned int size, int excl, int *opened)
 {
 	const struct qstr *name = &dentry->d_name;
+	struct posix_acl *default_acl, *acl;
 	struct gfs2_holder ghs[2];
 	struct inode *inode = NULL;
 	struct gfs2_inode *dip = GFS2_I(dir), *ip;
@@ -633,10 +634,14 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (!inode)
 		goto fail_gunlock;
 
+	error = posix_acl_create(dir, &mode, &default_acl, &acl);
+	if (error)
+		goto fail_free_vfs_inode;
+
 	ip = GFS2_I(inode);
 	error = gfs2_rs_alloc(ip);
 	if (error)
-		goto fail_free_inode;
+		goto fail_free_acls;
 
 	inode->i_mode = mode;
 	set_nlink(inode, S_ISDIR(mode) ? 2 : 1);
@@ -704,7 +709,16 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	gfs2_set_iop(inode);
 	insert_inode_hash(inode);
 
-	error = gfs2_acl_create(dip, inode);
+	if (default_acl) {
+		error = gfs2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		posix_acl_release(default_acl);
+	}
+	if (acl) {
+		if (!error)
+			error = gfs2_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		posix_acl_release(acl);
+	}
+
 	if (error)
 		goto fail_gunlock3;
 
@@ -738,6 +752,12 @@ fail_free_inode:
 	if (ip->i_gl)
 		gfs2_glock_put(ip->i_gl);
 	gfs2_rs_delete(ip, NULL);
+fail_free_acls:
+	if (default_acl)
+		posix_acl_release(default_acl);
+	if (acl)
+		posix_acl_release(acl);
+fail_free_vfs_inode:
 	free_inode_nonrcu(inode);
 	inode = NULL;
 fail_gunlock:
@@ -1716,10 +1736,11 @@ static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		error = gfs2_setattr_size(inode, attr->ia_size);
 	else if (attr->ia_valid & (ATTR_UID | ATTR_GID))
 		error = setattr_chown(inode, attr);
-	else if ((attr->ia_valid & ATTR_MODE) && IS_POSIXACL(inode))
-		error = gfs2_acl_chmod(ip, attr);
-	else
+	else {
 		error = gfs2_setattr_simple(inode, attr);
+		if (!error && attr->ia_valid & ATTR_MODE)
+			error = posix_acl_chmod(inode, inode->i_mode);
+	}
 
 out:
 	if (!error)
@@ -1879,6 +1900,7 @@ const struct inode_operations gfs2_file_iops = {
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
 	.get_acl = gfs2_get_acl,
+	.set_acl = gfs2_set_acl,
 };
 
 const struct inode_operations gfs2_dir_iops = {
@@ -1900,6 +1922,7 @@ const struct inode_operations gfs2_dir_iops = {
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
 	.get_acl = gfs2_get_acl,
+	.set_acl = gfs2_set_acl,
 	.atomic_open = gfs2_atomic_open,
 };
 
@@ -1915,6 +1938,5 @@ const struct inode_operations gfs2_symlink_iops = {
 	.listxattr = gfs2_listxattr,
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
-	.get_acl = gfs2_get_acl,
 };
 

@@ -2727,6 +2727,9 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	inode = file->f_mapping->host;
 	i_size = i_size_read(inode);
 
+	if ((rw == READ) && (offset > i_size))
+		return 0;
+
 	/* optimization for short read */
 	if (async_dio && rw != WRITE && offset + count > i_size) {
 		if (offset >= i_size)

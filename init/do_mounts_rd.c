@@ -13,7 +13,7 @@
 #include <linux/minix_fs.h>
 #include <linux/ext2_fs.h>
 #include <linux/romfs_fs.h>
-#include <linux/cramfs_fs.h>
+#include <uapi/linux/cramfs_fs.h>
 #include <linux/initrd.h>
 #include <linux/string.h>
 #include <linux/slab.h>

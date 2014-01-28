@@ -123,7 +123,7 @@ xfs_vn_mknod(
 {
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
-	struct posix_acl *default_acl = NULL;
+	struct posix_acl *default_acl, *acl;
 	struct xfs_name	name;
 	int		error;
 
@@ -139,14 +139,9 @@ xfs_vn_mknod(
 		rdev = 0;
 	}
 
-	if (IS_POSIXACL(dir)) {
-		default_acl = xfs_get_acl(dir, ACL_TYPE_DEFAULT);
-		if (IS_ERR(default_acl))
-			return PTR_ERR(default_acl);
-
-		if (!default_acl)
-			mode &= ~current_umask();
-	}
+	error = posix_acl_create(dir, &mode, &default_acl, &acl);
+	if (error)
+		return error;
 
 	xfs_dentry_to_name(&name, dentry, mode);
 	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
@@ -159,22 +154,30 @@ xfs_vn_mknod(
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
+#ifdef CONFIG_XFS_POSIX_ACL
 	if (default_acl) {
-		error = -xfs_inherit_acl(inode, default_acl);
-		default_acl = NULL;
-		if (unlikely(error))
+		error = xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		if (error)
 			goto out_cleanup_inode;
 	}
-
+	if (acl) {
+		error = xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		if (error)
+			goto out_cleanup_inode;
+	}
+#endif
 
 	d_instantiate(dentry, inode);
+ out_free_acl:
+	if (default_acl)
+		posix_acl_release(default_acl);
+	if (acl)
+		posix_acl_release(acl);
 	return -error;
 
  out_cleanup_inode:
 	xfs_cleanup_inode(dir, inode, dentry);
- out_free_acl:
-	posix_acl_release(default_acl);
-	return -error;
+	goto out_free_acl;
 }
 
 STATIC int
@@ -389,18 +392,6 @@ xfs_vn_follow_link(
  out_err:
 	nd_set_link(nd, ERR_PTR(error));
 	return NULL;
-}
-
-STATIC void
-xfs_vn_put_link(
-	struct dentry	*dentry,
-	struct nameidata *nd,
-	void		*p)
-{
-	char		*s = nd_get_link(nd);
-
-	if (!IS_ERR(s))
-		kfree(s);
 }
 
 STATIC int
@@ -688,7 +679,7 @@ xfs_setattr_nonsize(
 	 * 	     Posix ACL code seems to care about this issue either.
 	 */
 	if ((mask & ATTR_MODE) && !(flags & XFS_ATTR_NOACL)) {
-		error = -xfs_acl_chmod(inode);
+		error = -posix_acl_chmod(inode, inode->i_mode);
 		if (error)
 			return XFS_ERROR(error);
 	}
@@ -1045,6 +1036,7 @@ xfs_vn_fiemap(
 
 static const struct inode_operations xfs_inode_operations = {
 	.get_acl		= xfs_get_acl,
+	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -1072,6 +1064,7 @@ static const struct inode_operations xfs_dir_inode_operations = {
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
 	.get_acl		= xfs_get_acl,
+	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -1098,6 +1091,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
 	.get_acl		= xfs_get_acl,
+	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -1110,8 +1104,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 static const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
 	.follow_link		= xfs_vn_follow_link,
-	.put_link		= xfs_vn_put_link,
-	.get_acl		= xfs_get_acl,
+	.put_link		= kfree_put_link,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,

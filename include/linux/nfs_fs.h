@@ -154,10 +154,6 @@ struct nfs_inode {
 	struct rb_root		access_cache;
 	struct list_head	access_cache_entry_lru;
 	struct list_head	access_cache_inode_lru;
-#ifdef CONFIG_NFS_V3_ACL
-	struct posix_acl	*acl_access;
-	struct posix_acl	*acl_default;
-#endif
 
 	/*
 	 * This is the cookie verifier used for NFSv3 readdir
@@ -564,22 +560,16 @@ extern int  nfs_readpage_async(struct nfs_open_context *, struct inode *,
  * linux/fs/nfs3proc.c
  */
 #ifdef CONFIG_NFS_V3_ACL
-extern struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type);
-extern int nfs3_proc_setacl(struct inode *inode, int type,
-			    struct posix_acl *acl);
-extern int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
-		umode_t mode);
-extern void nfs3_forget_cached_acls(struct inode *inode);
+extern struct posix_acl *nfs3_get_acl(struct inode *inode, int type);
+extern int nfs3_set_acl(struct inode *inode, struct posix_acl *acl, int type);
+extern int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
+		struct posix_acl *dfacl);
+extern const struct xattr_handler *nfs3_xattr_handlers[];
 #else
-static inline int nfs3_proc_set_default_acl(struct inode *dir,
-					    struct inode *inode,
-					    umode_t mode)
+static inline int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
+		struct posix_acl *dfacl)
 {
 	return 0;
-}
-
-static inline void nfs3_forget_cached_acls(struct inode *inode)
-{
 }
 #endif /* CONFIG_NFS_V3_ACL */
 

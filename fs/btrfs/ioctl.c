@@ -2686,14 +2686,11 @@ out_unlock:
 #define BTRFS_MAX_DEDUPE_LEN	(16 * 1024 * 1024)
 
 static long btrfs_ioctl_file_extent_same(struct file *file,
-					 void __user *argp)
+			struct btrfs_ioctl_same_args __user *argp)
 {
-	struct btrfs_ioctl_same_args tmp;
 	struct btrfs_ioctl_same_args *same;
 	struct btrfs_ioctl_same_extent_info *info;
-	struct inode *src = file->f_dentry->d_inode;
-	struct file *dst_file = NULL;
-	struct inode *dst;
+	struct inode *src = file_inode(file);
 	u64 off;
 	u64 len;
 	int i;
@@ -2701,6 +2698,7 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 	unsigned long size;
 	u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
 	bool is_admin = capable(CAP_SYS_ADMIN);
+	u16 count;
 
 	if (!(file->f_mode & FMODE_READ))
 		return -EINVAL;
@@ -2709,17 +2707,14 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 	if (ret)
 		return ret;
 
-	if (copy_from_user(&tmp,
-			   (struct btrfs_ioctl_same_args __user *)argp,
-			   sizeof(tmp))) {
+	if (get_user(count, &argp->dest_count)) {
 		ret = -EFAULT;
 		goto out;
 	}
 
-	size = sizeof(tmp) +
-		tmp.dest_count * sizeof(struct btrfs_ioctl_same_extent_info);
+	size = offsetof(struct btrfs_ioctl_same_args __user, info[count]);
 
-	same = memdup_user((struct btrfs_ioctl_same_args __user *)argp, size);
+	same = memdup_user(argp, size);
 
 	if (IS_ERR(same)) {
 		ret = PTR_ERR(same);
@@ -2756,52 +2751,35 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 		goto out;
 
 	/* pre-format output fields to sane values */
-	for (i = 0; i < same->dest_count; i++) {
+	for (i = 0; i < count; i++) {
 		same->info[i].bytes_deduped = 0ULL;
 		same->info[i].status = 0;
 	}
 
-	ret = 0;
-	for (i = 0; i < same->dest_count; i++) {
-		info = &same->info[i];
-
-		dst_file = fget(info->fd);
-		if (!dst_file) {
+	for (i = 0, info = same->info; i < count; i++, info++) {
+		struct inode *dst;
+		struct fd dst_file = fdget(info->fd);
+		if (!dst_file.file) {
 			info->status = -EBADF;
-			goto next;
+			continue;
 		}
+		dst = file_inode(dst_file.file);
 
-		if (!(is_admin || (dst_file->f_mode & FMODE_WRITE))) {
+		if (!(is_admin || (dst_file.file->f_mode & FMODE_WRITE))) {
 			info->status = -EINVAL;
-			goto next;
-		}
-
-		info->status = -EXDEV;
-		if (file->f_path.mnt != dst_file->f_path.mnt)
-			goto next;
-
-		dst = dst_file->f_dentry->d_inode;
-		if (src->i_sb != dst->i_sb)
-			goto next;
-
-		if (S_ISDIR(dst->i_mode)) {
+		} else if (file->f_path.mnt != dst_file.file->f_path.mnt) {
+			info->status = -EXDEV;
+		} else if (S_ISDIR(dst->i_mode)) {
 			info->status = -EISDIR;
-			goto next;
-		}
-
-		if (!S_ISREG(dst->i_mode)) {
+		} else if (!S_ISREG(dst->i_mode)) {
 			info->status = -EACCES;
-			goto next;
+		} else {
+			info->status = btrfs_extent_same(src, off, len, dst,
+							info->logical_offset);
+			if (info->status == 0)
+				info->bytes_deduped += len;
 		}
-
-		info->status = btrfs_extent_same(src, off, len, dst,
-						info->logical_offset);
-		if (info->status == 0)
-			info->bytes_deduped += len;
-
-next:
-		if (dst_file)
-			fput(dst_file);
+		fdput(dst_file);
 	}
 
 	ret = copy_to_user(argp, same, size);
