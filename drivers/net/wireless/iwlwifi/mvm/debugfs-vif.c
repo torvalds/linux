@@ -185,7 +185,7 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 
 	mutex_lock(&mvm->mutex);
 	iwl_dbgfs_update_pm(mvm, vif, param, val);
-	ret = iwl_mvm_power_update_mode(mvm, vif);
+	ret = iwl_mvm_power_mac_update_mode(mvm, vif);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -202,7 +202,7 @@ static ssize_t iwl_dbgfs_pm_params_read(struct file *file,
 	int bufsz = sizeof(buf);
 	int pos;
 
-	pos = iwl_mvm_power_dbgfs_read(mvm, vif, buf, bufsz);
+	pos = iwl_mvm_power_mac_dbgfs_read(mvm, vif, buf, bufsz);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -587,7 +587,8 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return;
 	}
 
-	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM &&
+	if ((mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT) &&
+	    iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM &&
 	    ((vif->type == NL80211_IFTYPE_STATION && !vif->p2p) ||
 	     (vif->type == NL80211_IFTYPE_STATION && vif->p2p &&
 	      mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PS)))

@@ -636,14 +636,6 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&mvm->async_handlers_wk);
 }
 
-static void iwl_mvm_power_update_iterator(void *data, u8 *mac,
-					  struct ieee80211_vif *vif)
-{
-	struct iwl_mvm *mvm = data;
-
-	iwl_mvm_power_update_mode(mvm, vif);
-}
-
 static struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm)
 {
 	u16 i;
@@ -725,7 +717,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_release;
 
-	iwl_mvm_power_disable(mvm, vif);
+	iwl_mvm_power_mac_disable(mvm, vif);
 
 	/* beacon filtering */
 	ret = iwl_mvm_disable_beacon_filter(mvm, vif, CMD_SYNC);
@@ -786,11 +778,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
  out_release:
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
-
-	/* TODO: remove this when legacy PM will be discarded */
-	ieee80211_iterate_active_interfaces(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_power_update_iterator, mvm);
 
 	iwl_mvm_mac_ctxt_release(mvm, vif);
  out_unlock:
@@ -879,11 +866,6 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 
 	if (mvm->vif_count && vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
-
-	/* TODO: remove this when legacy PM will be discarded */
-	ieee80211_iterate_active_interfaces(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_power_update_iterator, mvm);
 
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
@@ -1237,15 +1219,6 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		/* reset rssi values */
 		mvmvif->bf_data.ave_beacon_signal = 0;
 
-		if (!(mvm->fw->ucode_capa.flags &
-					IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)) {
-			/* Workaround for FW bug, otherwise FW disables device
-			 * power save upon disassociation
-			 */
-			ret = iwl_mvm_power_update_mode(mvm, vif);
-			if (ret)
-				IWL_ERR(mvm, "failed to update power mode\n");
-		}
 		iwl_mvm_bt_coex_vif_change(mvm);
 		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_TT,
 				    IEEE80211_SMPS_AUTOMATIC);
@@ -1258,7 +1231,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 					  &mvmvif->time_event_data);
 	} else if (changes & (BSS_CHANGED_PS | BSS_CHANGED_P2P_PS |
 			      BSS_CHANGED_QOS)) {
-		ret = iwl_mvm_power_update_mode(mvm, vif);
+		ret = iwl_mvm_power_mac_update_mode(mvm, vif);
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
 	}

@@ -439,13 +439,16 @@ static int _iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 				    sizeof(cmd), &cmd);
 }
 
-static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
-					 struct ieee80211_vif *vif)
+int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif)
 
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool ba_enable;
 	int ret;
+
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT))
+		return 0;
 
 	ret = _iwl_mvm_power_mac_update_mode(mvm, vif);
 	if (ret)
@@ -458,12 +461,14 @@ static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 	return iwl_mvm_update_beacon_abort(mvm, vif, ba_enable);
 }
 
-static int iwl_mvm_power_mac_disable(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif)
+int iwl_mvm_power_mac_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mac_power_cmd cmd = {};
 	struct iwl_mvm_vif *mvmvif __maybe_unused =
 		iwl_mvm_vif_from_mac80211(vif);
+
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT))
+		return 0;
 
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
@@ -513,8 +518,11 @@ static int _iwl_mvm_power_update_device(struct iwl_mvm *mvm, bool force_disable)
 				    &cmd);
 }
 
-static int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
+int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 {
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT))
+		return 0;
+
 	return _iwl_mvm_power_update_device(mvm, false);
 }
 
@@ -577,9 +585,8 @@ static void iwl_mvm_power_binding_iterator(void *_data, u8 *mac,
 	WARN_ONCE(ret, "Failed to update power parameters on a specific vif\n");
 }
 
-static void _iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
-					  struct ieee80211_vif *vif,
-					  bool assign)
+void iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif, bool assign)
 {
 	bool ba_enable;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -588,6 +595,9 @@ static void _iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
 	};
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT))
+		return;
 
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		int ret = _iwl_mvm_power_update_device(mvm, assign);
@@ -615,13 +625,17 @@ static void _iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-static int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
-					struct ieee80211_vif *vif, char *buf,
-					int bufsz)
+int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif, char *buf,
+				 int bufsz)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mac_power_cmd cmd = {};
 	int pos = 0;
+
+	if (WARN_ON(!(mvm->fw->ucode_capa.flags &
+		      IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)))
+		return 0;
 
 	mutex_lock(&mvm->mutex);
 	memcpy(&cmd, &mvmvif->mac_pwr_cmd, sizeof(cmd));
@@ -863,12 +877,12 @@ int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
 	return iwl_mvm_enable_beacon_filter(mvm, vif, flags);
 }
 
-const struct iwl_mvm_power_ops pm_mac_ops = {
-	.power_update_mode = iwl_mvm_power_mac_update_mode,
-	.power_update_device_mode = iwl_mvm_power_update_device,
-	.power_disable = iwl_mvm_power_mac_disable,
-	.power_update_binding = _iwl_mvm_power_update_binding,
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	.power_dbgfs_read = iwl_mvm_power_mac_dbgfs_read,
-#endif
-};
+int iwl_power_legacy_set_cam_mode(struct iwl_mvm *mvm)
+{
+	struct iwl_powertable_cmd cmd = {
+		.keep_alive_seconds = POWER_KEEP_ALIVE_PERIOD_SEC,
+	};
+
+	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC,
+				    sizeof(cmd), &cmd);
+}

@@ -92,7 +92,6 @@ enum iwl_mvm_tx_fifo {
 };
 
 extern struct ieee80211_ops iwl_mvm_hw_ops;
-extern const struct iwl_mvm_power_ops pm_legacy_ops;
 extern const struct iwl_mvm_power_ops pm_mac_ops;
 
 /**
@@ -158,20 +157,6 @@ enum iwl_power_scheme {
 					 IEEE80211_WMM_IE_STA_QOSINFO_AC_BK |\
 					 IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
 #define IWL_UAPSD_MAX_SP		IEEE80211_WMM_IE_STA_QOSINFO_SP_2
-
-struct iwl_mvm_power_ops {
-	int (*power_update_mode)(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif);
-	int (*power_update_device_mode)(struct iwl_mvm *mvm);
-	int (*power_disable)(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
-	void (*power_update_binding)(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif, bool assign);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	int (*power_dbgfs_read)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				char *buf, int bufsz);
-#endif
-};
-
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 enum iwl_dbgfs_pm_mask {
@@ -590,8 +575,6 @@ struct iwl_mvm {
 	struct iwl_mvm_tt_mgmt thermal_throttle;
 	s32 temperature;	/* Celsius */
 
-	const struct iwl_mvm_power_ops *pm_ops;
-
 #ifdef CONFIG_NL80211_TESTMODE
 	u32 noa_duration;
 	struct ieee80211_vif *noa_vif;
@@ -826,47 +809,22 @@ iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 /* rate scaling */
 int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init);
 
-/* power managment */
-static inline int iwl_mvm_power_update_mode(struct iwl_mvm *mvm,
-					    struct ieee80211_vif *vif)
-{
-	return mvm->pm_ops->power_update_mode(mvm, vif);
-}
+/* power management */
+int iwl_power_legacy_set_cam_mode(struct iwl_mvm *mvm);
 
-static inline int iwl_mvm_power_disable(struct iwl_mvm *mvm,
-					struct ieee80211_vif *vif)
-{
-	return mvm->pm_ops->power_disable(mvm, vif);
-}
-
-static inline int iwl_mvm_power_update_device_mode(struct iwl_mvm *mvm)
-{
-	if (mvm->pm_ops->power_update_device_mode)
-		return mvm->pm_ops->power_update_device_mode(mvm);
-	return 0;
-}
-
-static inline void iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
-						struct ieee80211_vif *vif,
-						bool assign)
-{
-	if (mvm->pm_ops->power_update_binding)
-		mvm->pm_ops->power_update_binding(mvm, vif, assign);
-}
+int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif);
+int iwl_mvm_power_mac_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_power_update_device(struct iwl_mvm *mvm);
+void iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif, bool assign);
+int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				 char *buf, int bufsz);
 
 void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 					     struct iwl_rx_cmd_buffer *rxb,
 					     struct iwl_device_cmd *cmd);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-static inline int iwl_mvm_power_dbgfs_read(struct iwl_mvm *mvm,
-					    struct ieee80211_vif *vif,
-					    char *buf, int bufsz)
-{
-	return mvm->pm_ops->power_dbgfs_read(mvm, vif, buf, bufsz);
-}
-#endif
 
 int iwl_mvm_leds_init(struct iwl_mvm *mvm);
 void iwl_mvm_leds_exit(struct iwl_mvm *mvm);

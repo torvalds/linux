@@ -250,7 +250,7 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 	}
 
 	mutex_lock(&mvm->mutex);
-	ret = iwl_mvm_power_update_device_mode(mvm);
+	ret = iwl_mvm_power_update_device(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
