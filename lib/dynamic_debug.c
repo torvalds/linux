@@ -348,10 +348,8 @@ static int ddebug_parse_query(char *words[], int nwords,
 			}
 			if (last)
 				*last++ = '\0';
-			if (parse_lineno(first, &query->first_lineno) < 0) {
-				pr_err("line-number is <0\n");
+			if (parse_lineno(first, &query->first_lineno) < 0)
 				return -EINVAL;
-			}
 			if (last) {
 				/* range <first>-<last> */
 				if (parse_lineno(last, &query->last_lineno)
