@@ -307,6 +307,12 @@ static void __init register_page_bootmem_info(void)
 
 void __init mem_init(void)
 {
+	/*
+	 * book3s is limited to 16 page sizes due to encoding this in
+	 * a 4-bit field for slices.
+	 */
+	BUILD_BUG_ON(MMU_PAGE_COUNT > 16);
+
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(0);
 #endif
@@ -507,7 +513,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
  * System memory should not be in /proc/iomem but various tools expect it
  * (eg kdump).
  */
-static int add_system_ram_resources(void)
+static int __init add_system_ram_resources(void)
 {
 	struct memblock_region *reg;
 

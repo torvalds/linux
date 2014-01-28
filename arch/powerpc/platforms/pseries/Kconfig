@@ -34,7 +34,7 @@ config PPC_SPLPAR
 
 config PSERIES_MSI
        bool
-       depends on PCI_MSI && EEH
+       depends on PCI_MSI && PPC_PSERIES && EEH
        default y
 
 config PSERIES_ENERGY

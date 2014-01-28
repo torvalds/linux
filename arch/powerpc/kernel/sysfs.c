@@ -86,6 +86,304 @@ __setup("smt-snooze-delay=", setup_smt_snooze_delay);
 
 #endif /* CONFIG_PPC64 */
 
+#ifdef CONFIG_PPC_FSL_BOOK3E
+#define MAX_BIT				63
+
+static u64 pw20_wt;
+static u64 altivec_idle_wt;
+
+static unsigned int get_idle_ticks_bit(u64 ns)
+{
+	u64 cycle;
+
+	if (ns >= 10000)
+		cycle = div_u64(ns + 500, 1000) * tb_ticks_per_usec;
+	else
+		cycle = div_u64(ns * tb_ticks_per_usec, 1000);
+
+	if (!cycle)
+		return 0;
+
+	return ilog2(cycle);
+}
+
+static void do_show_pwrmgtcr0(void *val)
+{
+	u32 *value = val;
+
+	*value = mfspr(SPRN_PWRMGTCR0);
+}
+
+static ssize_t show_pw20_state(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	u32 value;
+	unsigned int cpu = dev->id;
+
+	smp_call_function_single(cpu, do_show_pwrmgtcr0, &value, 1);
+
+	value &= PWRMGTCR0_PW20_WAIT;
+
+	return sprintf(buf, "%u\n", value ? 1 : 0);
+}
+
+static void do_store_pw20_state(void *val)
+{
+	u32 *value = val;
+	u32 pw20_state;
+
+	pw20_state = mfspr(SPRN_PWRMGTCR0);
+
+	if (*value)
+		pw20_state |= PWRMGTCR0_PW20_WAIT;
+	else
+		pw20_state &= ~PWRMGTCR0_PW20_WAIT;
+
+	mtspr(SPRN_PWRMGTCR0, pw20_state);
+}
+
+static ssize_t store_pw20_state(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	u32 value;
+	unsigned int cpu = dev->id;
+
+	if (kstrtou32(buf, 0, &value))
+		return -EINVAL;
+
+	if (value > 1)
+		return -EINVAL;
+
+	smp_call_function_single(cpu, do_store_pw20_state, &value, 1);
+
+	return count;
+}
+
+static ssize_t show_pw20_wait_time(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	u32 value;
+	u64 tb_cycle = 1;
+	u64 time;
+
+	unsigned int cpu = dev->id;
+
+	if (!pw20_wt) {
+		smp_call_function_single(cpu, do_show_pwrmgtcr0, &value, 1);
+		value = (value & PWRMGTCR0_PW20_ENT) >>
+					PWRMGTCR0_PW20_ENT_SHIFT;
+
+		tb_cycle = (tb_cycle << (MAX_BIT - value + 1));
+		/* convert ms to ns */
+		if (tb_ticks_per_usec > 1000) {
+			time = div_u64(tb_cycle, tb_ticks_per_usec / 1000);
+		} else {
+			u32 rem_us;
+
+			time = div_u64_rem(tb_cycle, tb_ticks_per_usec,
+						&rem_us);
+			time = time * 1000 + rem_us * 1000 / tb_ticks_per_usec;
+		}
+	} else {
+		time = pw20_wt;
+	}
+
+	return sprintf(buf, "%llu\n", time > 0 ? time : 0);
+}
+
+static void set_pw20_wait_entry_bit(void *val)
+{
+	u32 *value = val;
+	u32 pw20_idle;
+
+	pw20_idle = mfspr(SPRN_PWRMGTCR0);
+
+	/* Set Automatic PW20 Core Idle Count */
+	/* clear count */
+	pw20_idle &= ~PWRMGTCR0_PW20_ENT;
+
+	/* set count */
+	pw20_idle |= ((MAX_BIT - *value) << PWRMGTCR0_PW20_ENT_SHIFT);
+
+	mtspr(SPRN_PWRMGTCR0, pw20_idle);
+}
+
+static ssize_t store_pw20_wait_time(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	u32 entry_bit;
+	u64 value;
+
+	unsigned int cpu = dev->id;
+
+	if (kstrtou64(buf, 0, &value))
+		return -EINVAL;
+
+	if (!value)
+		return -EINVAL;
+
+	entry_bit = get_idle_ticks_bit(value);
+	if (entry_bit > MAX_BIT)
+		return -EINVAL;
+
+	pw20_wt = value;
+
+	smp_call_function_single(cpu, set_pw20_wait_entry_bit,
+				&entry_bit, 1);
+
+	return count;
+}
+
+static ssize_t show_altivec_idle(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	u32 value;
+	unsigned int cpu = dev->id;
+
+	smp_call_function_single(cpu, do_show_pwrmgtcr0, &value, 1);
+
+	value &= PWRMGTCR0_AV_IDLE_PD_EN;
+
+	return sprintf(buf, "%u\n", value ? 1 : 0);
+}
+
+static void do_store_altivec_idle(void *val)
+{
+	u32 *value = val;
+	u32 altivec_idle;
+
+	altivec_idle = mfspr(SPRN_PWRMGTCR0);
+
+	if (*value)
+		altivec_idle |= PWRMGTCR0_AV_IDLE_PD_EN;
+	else
+		altivec_idle &= ~PWRMGTCR0_AV_IDLE_PD_EN;
+
+	mtspr(SPRN_PWRMGTCR0, altivec_idle);
+}
+
+static ssize_t store_altivec_idle(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	u32 value;
+	unsigned int cpu = dev->id;
+
+	if (kstrtou32(buf, 0, &value))
+		return -EINVAL;
+
+	if (value > 1)
+		return -EINVAL;
+
+	smp_call_function_single(cpu, do_store_altivec_idle, &value, 1);
+
+	return count;
+}
+
+static ssize_t show_altivec_idle_wait_time(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	u32 value;
+	u64 tb_cycle = 1;
+	u64 time;
+
+	unsigned int cpu = dev->id;
+
+	if (!altivec_idle_wt) {
+		smp_call_function_single(cpu, do_show_pwrmgtcr0, &value, 1);
+		value = (value & PWRMGTCR0_AV_IDLE_CNT) >>
+					PWRMGTCR0_AV_IDLE_CNT_SHIFT;
+
+		tb_cycle = (tb_cycle << (MAX_BIT - value + 1));
+		/* convert ms to ns */
+		if (tb_ticks_per_usec > 1000) {
+			time = div_u64(tb_cycle, tb_ticks_per_usec / 1000);
+		} else {
+			u32 rem_us;
+
+			time = div_u64_rem(tb_cycle, tb_ticks_per_usec,
+						&rem_us);
+			time = time * 1000 + rem_us * 1000 / tb_ticks_per_usec;
+		}
+	} else {
+		time = altivec_idle_wt;
+	}
+
+	return sprintf(buf, "%llu\n", time > 0 ? time : 0);
+}
+
+static void set_altivec_idle_wait_entry_bit(void *val)
+{
+	u32 *value = val;
+	u32 altivec_idle;
+
+	altivec_idle = mfspr(SPRN_PWRMGTCR0);
+
+	/* Set Automatic AltiVec Idle Count */
+	/* clear count */
+	altivec_idle &= ~PWRMGTCR0_AV_IDLE_CNT;
+
+	/* set count */
+	altivec_idle |= ((MAX_BIT - *value) << PWRMGTCR0_AV_IDLE_CNT_SHIFT);
+
+	mtspr(SPRN_PWRMGTCR0, altivec_idle);
+}
+
+static ssize_t store_altivec_idle_wait_time(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	u32 entry_bit;
+	u64 value;
+
+	unsigned int cpu = dev->id;
+
+	if (kstrtou64(buf, 0, &value))
+		return -EINVAL;
+
+	if (!value)
+		return -EINVAL;
+
+	entry_bit = get_idle_ticks_bit(value);
+	if (entry_bit > MAX_BIT)
+		return -EINVAL;
+
+	altivec_idle_wt = value;
+
+	smp_call_function_single(cpu, set_altivec_idle_wait_entry_bit,
+				&entry_bit, 1);
+
+	return count;
+}
+
+/*
+ * Enable/Disable interface:
+ * 0, disable. 1, enable.
+ */
+static DEVICE_ATTR(pw20_state, 0600, show_pw20_state, store_pw20_state);
+static DEVICE_ATTR(altivec_idle, 0600, show_altivec_idle, store_altivec_idle);
+
+/*
+ * Set wait time interface:(Nanosecond)
+ * Example: Base on TBfreq is 41MHZ.
+ * 1~48(ns): TB[63]
+ * 49~97(ns): TB[62]
+ * 98~195(ns): TB[61]
+ * 196~390(ns): TB[60]
+ * 391~780(ns): TB[59]
+ * 781~1560(ns): TB[58]
+ * ...
+ */
+static DEVICE_ATTR(pw20_wait_time, 0600,
+			show_pw20_wait_time,
+			store_pw20_wait_time);
+static DEVICE_ATTR(altivec_idle_wait_time, 0600,
+			show_altivec_idle_wait_time,
+			store_altivec_idle_wait_time);
+#endif
+
 /*
  * Enabling PMCs will slow partition context switch times so we only do
  * it the first time we write to the PMCs.
@@ -108,14 +406,14 @@ void ppc_enable_pmcs(void)
 }
 EXPORT_SYMBOL(ppc_enable_pmcs);
 
-#define SYSFS_PMCSETUP(NAME, ADDRESS) \
+#define __SYSFS_SPRSETUP(NAME, ADDRESS, EXTRA) \
 static void read_##NAME(void *val) \
 { \
 	*(unsigned long *)val = mfspr(ADDRESS);	\
 } \
 static void write_##NAME(void *val) \
 { \
-	ppc_enable_pmcs(); \
+	EXTRA; \
 	mtspr(ADDRESS, *(unsigned long *)val);	\
 } \
 static ssize_t show_##NAME(struct device *dev, \
@@ -140,6 +438,10 @@ static ssize_t __used \
 	return count; \
 }
 
+#define SYSFS_PMCSETUP(NAME, ADDRESS)	\
+	__SYSFS_SPRSETUP(NAME, ADDRESS, ppc_enable_pmcs())
+#define SYSFS_SPRSETUP(NAME, ADDRESS)	\
+	__SYSFS_SPRSETUP(NAME, ADDRESS, )
 
 /* Let's define all possible registers, we'll only hook up the ones
  * that are implemented on the current processor
@@ -175,10 +477,10 @@ SYSFS_PMCSETUP(pmc7, SPRN_PMC7);
 SYSFS_PMCSETUP(pmc8, SPRN_PMC8);
 
 SYSFS_PMCSETUP(mmcra, SPRN_MMCRA);
-SYSFS_PMCSETUP(purr, SPRN_PURR);
-SYSFS_PMCSETUP(spurr, SPRN_SPURR);
-SYSFS_PMCSETUP(dscr, SPRN_DSCR);
-SYSFS_PMCSETUP(pir, SPRN_PIR);
+SYSFS_SPRSETUP(purr, SPRN_PURR);
+SYSFS_SPRSETUP(spurr, SPRN_SPURR);
+SYSFS_SPRSETUP(dscr, SPRN_DSCR);
+SYSFS_SPRSETUP(pir, SPRN_PIR);
 
 /*
   Lets only enable read for phyp resources and
@@ -249,34 +551,34 @@ SYSFS_PMCSETUP(pa6t_pmc3, SPRN_PA6T_PMC3);
 SYSFS_PMCSETUP(pa6t_pmc4, SPRN_PA6T_PMC4);
 SYSFS_PMCSETUP(pa6t_pmc5, SPRN_PA6T_PMC5);
 #ifdef CONFIG_DEBUG_KERNEL
-SYSFS_PMCSETUP(hid0, SPRN_HID0);
-SYSFS_PMCSETUP(hid1, SPRN_HID1);
-SYSFS_PMCSETUP(hid4, SPRN_HID4);
-SYSFS_PMCSETUP(hid5, SPRN_HID5);
-SYSFS_PMCSETUP(ima0, SPRN_PA6T_IMA0);
-SYSFS_PMCSETUP(ima1, SPRN_PA6T_IMA1);
-SYSFS_PMCSETUP(ima2, SPRN_PA6T_IMA2);
-SYSFS_PMCSETUP(ima3, SPRN_PA6T_IMA3);
-SYSFS_PMCSETUP(ima4, SPRN_PA6T_IMA4);
-SYSFS_PMCSETUP(ima5, SPRN_PA6T_IMA5);
-SYSFS_PMCSETUP(ima6, SPRN_PA6T_IMA6);
-SYSFS_PMCSETUP(ima7, SPRN_PA6T_IMA7);
-SYSFS_PMCSETUP(ima8, SPRN_PA6T_IMA8);
-SYSFS_PMCSETUP(ima9, SPRN_PA6T_IMA9);
-SYSFS_PMCSETUP(imaat, SPRN_PA6T_IMAAT);
-SYSFS_PMCSETUP(btcr, SPRN_PA6T_BTCR);
-SYSFS_PMCSETUP(pccr, SPRN_PA6T_PCCR);
-SYSFS_PMCSETUP(rpccr, SPRN_PA6T_RPCCR);
-SYSFS_PMCSETUP(der, SPRN_PA6T_DER);
-SYSFS_PMCSETUP(mer, SPRN_PA6T_MER);
-SYSFS_PMCSETUP(ber, SPRN_PA6T_BER);
-SYSFS_PMCSETUP(ier, SPRN_PA6T_IER);
-SYSFS_PMCSETUP(sier, SPRN_PA6T_SIER);
-SYSFS_PMCSETUP(siar, SPRN_PA6T_SIAR);
-SYSFS_PMCSETUP(tsr0, SPRN_PA6T_TSR0);
-SYSFS_PMCSETUP(tsr1, SPRN_PA6T_TSR1);
-SYSFS_PMCSETUP(tsr2, SPRN_PA6T_TSR2);
-SYSFS_PMCSETUP(tsr3, SPRN_PA6T_TSR3);
+SYSFS_SPRSETUP(hid0, SPRN_HID0);
+SYSFS_SPRSETUP(hid1, SPRN_HID1);
+SYSFS_SPRSETUP(hid4, SPRN_HID4);
+SYSFS_SPRSETUP(hid5, SPRN_HID5);
+SYSFS_SPRSETUP(ima0, SPRN_PA6T_IMA0);
+SYSFS_SPRSETUP(ima1, SPRN_PA6T_IMA1);
+SYSFS_SPRSETUP(ima2, SPRN_PA6T_IMA2);
+SYSFS_SPRSETUP(ima3, SPRN_PA6T_IMA3);
+SYSFS_SPRSETUP(ima4, SPRN_PA6T_IMA4);
+SYSFS_SPRSETUP(ima5, SPRN_PA6T_IMA5);
+SYSFS_SPRSETUP(ima6, SPRN_PA6T_IMA6);
+SYSFS_SPRSETUP(ima7, SPRN_PA6T_IMA7);
+SYSFS_SPRSETUP(ima8, SPRN_PA6T_IMA8);
+SYSFS_SPRSETUP(ima9, SPRN_PA6T_IMA9);
+SYSFS_SPRSETUP(imaat, SPRN_PA6T_IMAAT);
+SYSFS_SPRSETUP(btcr, SPRN_PA6T_BTCR);
+SYSFS_SPRSETUP(pccr, SPRN_PA6T_PCCR);
+SYSFS_SPRSETUP(rpccr, SPRN_PA6T_RPCCR);
+SYSFS_SPRSETUP(der, SPRN_PA6T_DER);
+SYSFS_SPRSETUP(mer, SPRN_PA6T_MER);
+SYSFS_SPRSETUP(ber, SPRN_PA6T_BER);
+SYSFS_SPRSETUP(ier, SPRN_PA6T_IER);
+SYSFS_SPRSETUP(sier, SPRN_PA6T_SIER);
+SYSFS_SPRSETUP(siar, SPRN_PA6T_SIAR);
+SYSFS_SPRSETUP(tsr0, SPRN_PA6T_TSR0);
+SYSFS_SPRSETUP(tsr1, SPRN_PA6T_TSR1);
+SYSFS_SPRSETUP(tsr2, SPRN_PA6T_TSR2);
+SYSFS_SPRSETUP(tsr3, SPRN_PA6T_TSR3);
 #endif /* CONFIG_DEBUG_KERNEL */
 #endif /* HAS_PPC_PMC_PA6T */
 
@@ -421,6 +723,15 @@ static void register_cpu_online(unsigned int cpu)
 		device_create_file(s, &dev_attr_pir);
 #endif /* CONFIG_PPC64 */
 
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	if (PVR_VER(cur_cpu_spec->pvr_value) == PVR_VER_E6500) {
+		device_create_file(s, &dev_attr_pw20_state);
+		device_create_file(s, &dev_attr_pw20_wait_time);
+
+		device_create_file(s, &dev_attr_altivec_idle);
+		device_create_file(s, &dev_attr_altivec_idle_wait_time);
+	}
+#endif
 	cacheinfo_cpu_online(cpu);
 }
 
@@ -493,6 +804,15 @@ static void unregister_cpu_online(unsigned int cpu)
 		device_remove_file(s, &dev_attr_pir);
 #endif /* CONFIG_PPC64 */
 
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	if (PVR_VER(cur_cpu_spec->pvr_value) == PVR_VER_E6500) {
+		device_remove_file(s, &dev_attr_pw20_state);
+		device_remove_file(s, &dev_attr_pw20_wait_time);
+
+		device_remove_file(s, &dev_attr_altivec_idle);
+		device_remove_file(s, &dev_attr_altivec_idle_wait_time);
+	}
+#endif
 	cacheinfo_cpu_offline(cpu);
 }
 

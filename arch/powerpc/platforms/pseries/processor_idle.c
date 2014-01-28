@@ -17,7 +17,6 @@
 #include <asm/reg.h>
 #include <asm/machdep.h>
 #include <asm/firmware.h>
-#include <asm/runlatch.h>
 #include <asm/plpar_wrappers.h>
 
 struct cpuidle_driver pseries_idle_driver = {
@@ -62,7 +61,6 @@ static int snooze_loop(struct cpuidle_device *dev,
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while ((!need_resched()) && cpu_online(cpu)) {
-		ppc64_runlatch_off();
 		HMT_low();
 		HMT_very_low();
 	}
@@ -102,7 +100,6 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 	idle_loop_prolog(&in_purr);
 	get_lppaca()->donate_dedicated_cpu = 1;
 
-	ppc64_runlatch_off();
 	HMT_medium();
 	check_and_cede_processor();
 

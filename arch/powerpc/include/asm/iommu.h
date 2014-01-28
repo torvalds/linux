@@ -30,21 +30,18 @@
 #include <asm/machdep.h>
 #include <asm/types.h>
 
-#define IOMMU_PAGE_SHIFT      12
-#define IOMMU_PAGE_SIZE       (ASM_CONST(1) << IOMMU_PAGE_SHIFT)
-#define IOMMU_PAGE_MASK       (~((1 << IOMMU_PAGE_SHIFT) - 1))
-#define IOMMU_PAGE_ALIGN(addr) _ALIGN_UP(addr, IOMMU_PAGE_SIZE)
+#define IOMMU_PAGE_SHIFT_4K      12
+#define IOMMU_PAGE_SIZE_4K       (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K)
+#define IOMMU_PAGE_MASK_4K       (~((1 << IOMMU_PAGE_SHIFT_4K) - 1))
+#define IOMMU_PAGE_ALIGN_4K(addr) _ALIGN_UP(addr, IOMMU_PAGE_SIZE_4K)
+
+#define IOMMU_PAGE_SIZE(tblptr) (ASM_CONST(1) << (tblptr)->it_page_shift)
+#define IOMMU_PAGE_MASK(tblptr) (~((1 << (tblptr)->it_page_shift) - 1))
+#define IOMMU_PAGE_ALIGN(addr, tblptr) _ALIGN_UP(addr, IOMMU_PAGE_SIZE(tblptr))
 
 /* Boot time flags */
 extern int iommu_is_off;
 extern int iommu_force_on;
-
-/* Pure 2^n version of get_order */
-static __inline__ __attribute_const__ int get_iommu_order(unsigned long size)
-{
-	return __ilog2((size - 1) >> IOMMU_PAGE_SHIFT) + 1;
-}
-
 
 /*
  * IOMAP_MAX_ORDER defines the largest contiguous block
@@ -76,10 +73,19 @@ struct iommu_table {
 	struct iommu_pool large_pool;
 	struct iommu_pool pools[IOMMU_NR_POOLS];
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
+	unsigned long  it_page_shift;/* table iommu page size */
 #ifdef CONFIG_IOMMU_API
 	struct iommu_group *it_group;
 #endif
 };
+
+/* Pure 2^n version of get_order */
+static inline __attribute_const__
+int get_iommu_order(unsigned long size, struct iommu_table *tbl)
+{
+	return __ilog2((size - 1) >> tbl->it_page_shift) + 1;
+}
+
 
 struct scatterlist;
 
@@ -101,8 +107,34 @@ extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
  */
 extern struct iommu_table *iommu_init_table(struct iommu_table * tbl,
 					    int nid);
+#ifdef CONFIG_IOMMU_API
 extern void iommu_register_group(struct iommu_table *tbl,
 				 int pci_domain_number, unsigned long pe_num);
+extern int iommu_add_device(struct device *dev);
+extern void iommu_del_device(struct device *dev);
+#else
+static inline void iommu_register_group(struct iommu_table *tbl,
+					int pci_domain_number,
+					unsigned long pe_num)
+{
+}
+
+static inline int iommu_add_device(struct device *dev)
+{
+	return 0;
+}
+
+static inline void iommu_del_device(struct device *dev)
+{
+}
+#endif /* !CONFIG_IOMMU_API */
+
+static inline void set_iommu_table_base_and_group(struct device *dev,
+						  void *base)
+{
+	set_iommu_table_base(dev, base);
+	iommu_add_device(dev);
+}
 
 extern int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			struct scatterlist *sglist, int nelems,

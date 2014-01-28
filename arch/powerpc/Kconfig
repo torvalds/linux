@@ -140,6 +140,7 @@ config PPC
 	select OLD_SIGACTION if PPC32
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select ARCH_USE_CMPXCHG_LOCKREF if PPC64
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -213,9 +214,6 @@ config DEFAULT_UIMAGE
 	help
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
-
-config REDBOOT
-	bool
 
 config ARCH_HIBERNATION_POSSIBLE
 	bool
@@ -384,6 +382,12 @@ config ARCH_HAS_WALK_MEMORY
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 
+config PPC64_SUPPORTS_MEMORY_FAILURE
+	bool "Add support for memory hwpoison"
+	depends on PPC_BOOK3S_64
+	default "y" if PPC_POWERNV
+	select ARCH_SUPPORTS_MEMORY_FAILURE
+
 config KEXEC
 	bool "kexec system call"
 	depends on (PPC_BOOK3S || FSL_BOOKE || (44x && !SMP))
@@ -404,8 +408,7 @@ config KEXEC
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
 	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)
-	select RELOCATABLE if PPC64 || 44x
-	select DYNAMIC_MEMSTART if FSL_BOOKE
+	select RELOCATABLE if PPC64 || 44x || FSL_BOOKE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
 	  The same kernel binary can be used as production kernel and dump
@@ -886,7 +889,7 @@ config DYNAMIC_MEMSTART
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
-	depends on ADVANCED_OPTIONS && FLATMEM && 44x
+	depends on ADVANCED_OPTIONS && FLATMEM && (44x || FSL_BOOKE)
 	select NONSTATIC_KERNEL
 	help
 	  This builds a kernel image that is capable of running at the

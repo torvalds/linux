@@ -145,8 +145,10 @@ static void pnv_shutdown(void)
 	/* Let the PCI code clear up IODA tables */
 	pnv_pci_shutdown();
 
-	/* And unregister all OPAL interrupts so they don't fire
-	 * up while we kexec
+	/*
+	 * Stop OPAL activity: Unregister all OPAL interrupts so they
+	 * don't fire up while we kexec and make sure all potentially
+	 * DMA'ing ops are complete (such as dump retrieval).
 	 */
 	opal_shutdown();
 }

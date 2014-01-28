@@ -217,7 +217,8 @@ static void *eeh_report_mmio_enabled(void *data, void *userdata)
 	if (!driver) return NULL;
 
 	if (!driver->err_handler ||
-	    !driver->err_handler->mmio_enabled) {
+	    !driver->err_handler->mmio_enabled ||
+	    (edev->mode & EEH_DEV_NO_HANDLER)) {
 		eeh_pcid_put(dev);
 		return NULL;
 	}
@@ -258,7 +259,8 @@ static void *eeh_report_reset(void *data, void *userdata)
 	eeh_enable_irq(dev);
 
 	if (!driver->err_handler ||
-	    !driver->err_handler->slot_reset) {
+	    !driver->err_handler->slot_reset ||
+	    (edev->mode & EEH_DEV_NO_HANDLER)) {
 		eeh_pcid_put(dev);
 		return NULL;
 	}
@@ -297,7 +299,9 @@ static void *eeh_report_resume(void *data, void *userdata)
 	eeh_enable_irq(dev);
 
 	if (!driver->err_handler ||
-	    !driver->err_handler->resume) {
+	    !driver->err_handler->resume ||
+	    (edev->mode & EEH_DEV_NO_HANDLER)) {
+		edev->mode &= ~EEH_DEV_NO_HANDLER;
 		eeh_pcid_put(dev);
 		return NULL;
 	}
@@ -476,7 +480,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 /* The longest amount of time to wait for a pci device
  * to come back on line, in seconds.
  */
-#define MAX_WAIT_FOR_RECOVERY 150
+#define MAX_WAIT_FOR_RECOVERY 300
 
 static void eeh_handle_normal_event(struct eeh_pe *pe)
 {
@@ -637,86 +641,92 @@ static void eeh_handle_special_event(void)
 {
 	struct eeh_pe *pe, *phb_pe;
 	struct pci_bus *bus;
-	struct pci_controller *hose, *tmp;
+	struct pci_controller *hose;
 	unsigned long flags;
-	int rc = 0;
+	int rc;
 
-	/*
-	 * The return value from next_error() has been classified as follows.
-	 * It might be good to enumerate them. However, next_error() is only
-	 * supported by PowerNV platform for now. So it would be fine to use
-	 * integer directly:
-	 *
-	 * 4 - Dead IOC           3 - Dead PHB
-	 * 2 - Fenced PHB         1 - Frozen PE
-	 * 0 - No error found
-	 *
-	 */
-	rc = eeh_ops->next_error(&pe);
-	if (rc <= 0)
-		return;
 
-	switch (rc) {
-	case 4:
-		/* Mark all PHBs in dead state */
-		eeh_serialize_lock(&flags);
-		list_for_each_entry_safe(hose, tmp,
-				&hose_list, list_node) {
-			phb_pe = eeh_phb_pe_get(hose);
-			if (!phb_pe) continue;
+	do {
+		rc = eeh_ops->next_error(&pe);
 
-			eeh_pe_state_mark(phb_pe,
-				EEH_PE_ISOLATED | EEH_PE_PHB_DEAD);
+		switch (rc) {
+		case EEH_NEXT_ERR_DEAD_IOC:
+			/* Mark all PHBs in dead state */
+			eeh_serialize_lock(&flags);
+
+			/* Purge all events */
+			eeh_remove_event(NULL);
+
+			list_for_each_entry(hose, &hose_list, list_node) {
+				phb_pe = eeh_phb_pe_get(hose);
+				if (!phb_pe) continue;
+
+				eeh_pe_state_mark(phb_pe,
+					EEH_PE_ISOLATED | EEH_PE_PHB_DEAD);
+			}
+
+			eeh_serialize_unlock(flags);
+
+			break;
+		case EEH_NEXT_ERR_FROZEN_PE:
+		case EEH_NEXT_ERR_FENCED_PHB:
+		case EEH_NEXT_ERR_DEAD_PHB:
+			/* Mark the PE in fenced state */
+			eeh_serialize_lock(&flags);
+
+			/* Purge all events of the PHB */
+			eeh_remove_event(pe);
+
+			if (rc == EEH_NEXT_ERR_DEAD_PHB)
+				eeh_pe_state_mark(pe,
+					EEH_PE_ISOLATED | EEH_PE_PHB_DEAD);
+			else
+				eeh_pe_state_mark(pe,
+					EEH_PE_ISOLATED | EEH_PE_RECOVERING);
+
+			eeh_serialize_unlock(flags);
+
+			break;
+		case EEH_NEXT_ERR_NONE:
+			return;
+		default:
+			pr_warn("%s: Invalid value %d from next_error()\n",
+				__func__, rc);
+			return;
 		}
-		eeh_serialize_unlock(flags);
 
-		/* Purge all events */
-		eeh_remove_event(NULL);
-		break;
-	case 3:
-	case 2:
-	case 1:
-		/* Mark the PE in fenced state */
-		eeh_serialize_lock(&flags);
-		if (rc == 3)
-			eeh_pe_state_mark(pe,
-				EEH_PE_ISOLATED | EEH_PE_PHB_DEAD);
-		else
-			eeh_pe_state_mark(pe,
-				EEH_PE_ISOLATED | EEH_PE_RECOVERING);
-		eeh_serialize_unlock(flags);
+		/*
+		 * For fenced PHB and frozen PE, it's handled as normal
+		 * event. We have to remove the affected PHBs for dead
+		 * PHB and IOC
+		 */
+		if (rc == EEH_NEXT_ERR_FROZEN_PE ||
+		    rc == EEH_NEXT_ERR_FENCED_PHB) {
+			eeh_handle_normal_event(pe);
+		} else {
+			pci_lock_rescan_remove();
+			list_for_each_entry(hose, &hose_list, list_node) {
+				phb_pe = eeh_phb_pe_get(hose);
+				if (!phb_pe ||
+				    !(phb_pe->state & EEH_PE_PHB_DEAD))
+					continue;
 
-		/* Purge all events of the PHB */
-		eeh_remove_event(pe);
-		break;
-	default:
-		pr_err("%s: Invalid value %d from next_error()\n",
-		       __func__, rc);
-		return;
-	}
-
-	/*
-	 * For fenced PHB and frozen PE, it's handled as normal
-	 * event. We have to remove the affected PHBs for dead
-	 * PHB and IOC
-	 */
-	if (rc == 2 || rc == 1)
-		eeh_handle_normal_event(pe);
-	else {
-		pci_lock_rescan_remove();
-		list_for_each_entry_safe(hose, tmp,
-			&hose_list, list_node) {
-			phb_pe = eeh_phb_pe_get(hose);
-			if (!phb_pe || !(phb_pe->state & EEH_PE_PHB_DEAD))
-				continue;
-
-			bus = eeh_pe_bus_get(phb_pe);
-			/* Notify all devices that they're about to go down. */
-			eeh_pe_dev_traverse(pe, eeh_report_failure, NULL);
-			pcibios_remove_pci_devices(bus);
+				/* Notify all devices to be down */
+				bus = eeh_pe_bus_get(phb_pe);
+				eeh_pe_dev_traverse(pe,
+					eeh_report_failure, NULL);
+				pcibios_remove_pci_devices(bus);
+			}
+			pci_unlock_rescan_remove();
 		}
-		pci_unlock_rescan_remove();
-	}
+
+		/*
+		 * If we have detected dead IOC, we needn't proceed
+		 * any more since all PHBs would have been removed
+		 */
+		if (rc == EEH_NEXT_ERR_DEAD_IOC)
+			break;
+	} while (rc != EEH_NEXT_ERR_NONE);
 }
 
 /**

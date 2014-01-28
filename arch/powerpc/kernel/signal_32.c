@@ -519,6 +519,13 @@ static int save_tm_user_regs(struct pt_regs *regs,
 {
 	unsigned long msr = regs->msr;
 
+	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
+	 * just indicates to userland that we were doing a transaction, but we
+	 * don't want to return in transactional state.  This also ensures
+	 * that flush_fp_to_thread won't set TIF_RESTORE_TM again.
+	 */
+	regs->msr &= ~MSR_TS_MASK;
+
 	/* Make sure floating point registers are stored in regs */
 	flush_fp_to_thread(current);
 
@@ -1056,13 +1063,6 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 	/* enter the signal handler in native-endian mode */
 	regs->msr &= ~MSR_LE;
 	regs->msr |= (MSR_KERNEL & MSR_LE);
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
-	 * just indicates to userland that we were doing a transaction, but we
-	 * don't want to return in transactional state:
-	 */
-	regs->msr &= ~MSR_TS_MASK;
-#endif
 	return 1;
 
 badframe:
@@ -1484,13 +1484,6 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 	regs->nip = (unsigned long) ka->sa.sa_handler;
 	/* enter the signal handler in big-endian mode */
 	regs->msr &= ~MSR_LE;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
-	 * just indicates to userland that we were doing a transaction, but we
-	 * don't want to return in transactional state:
-	 */
-	regs->msr &= ~MSR_TS_MASK;
-#endif
 	return 1;
 
 badframe:
