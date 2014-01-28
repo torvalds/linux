@@ -195,7 +195,7 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
  */
 static inline bool ipc_valid_object(struct kern_ipc_perm *perm)
 {
-	return perm->deleted == 0;
+	return !perm->deleted;
 }
 
 struct kern_ipc_perm *ipc_obtain_object_check(struct ipc_ids *ids, int id);
