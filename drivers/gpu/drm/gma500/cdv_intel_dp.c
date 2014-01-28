@@ -678,7 +678,7 @@ cdv_intel_dp_i2c_init(struct gma_connector *connector,
 	return ret;
 }
 
-void cdv_intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
+static void cdv_intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 	struct drm_display_mode *adjusted_mode)
 {
 	adjusted_mode->hdisplay = fixed_mode->hdisplay;
