@@ -899,18 +899,10 @@ static struct dma_chan *mmp_pdma_dma_xlate(struct of_phandle_args *dma_spec,
 {
 	struct mmp_pdma_device *d = ofdma->of_dma_data;
 	struct dma_chan *chan;
-	struct mmp_pdma_chan *c;
 
 	chan = dma_get_any_slave_channel(&d->device);
 	if (!chan)
 		return NULL;
-
-	/* dma_get_slave_channel will return NULL if we lost a race between
-	 * the lookup and the reservation */
-	chan = dma_get_slave_channel(candidate);
-
-	if (!chan)
-		goto retry;
 
 	to_mmp_pdma_chan(chan)->drcmr = dma_spec->args[0];
 
