@@ -142,7 +142,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	struct i915_hw_ppgtt *ppgtt = NULL;
 
 	/* We refcount even the aliasing PPGTT to keep the code symmetric */
-	if (USES_ALIASING_PPGTT(ctx->obj->base.dev))
+	if (USES_PPGTT(ctx->obj->base.dev))
 		ppgtt = ctx_to_ppgtt(ctx);
 
 	/* XXX: Free up the object before tearing down the address space, in
@@ -292,7 +292,7 @@ i915_gem_create_context(struct drm_device *dev,
 
 			dev_priv->mm.aliasing_ppgtt = ppgtt;
 		}
-	} else if (USES_ALIASING_PPGTT(dev)) {
+	} else if (USES_PPGTT(dev)) {
 		/* For platforms which only have aliasing PPGTT, we fake the
 		 * address space and refcounting. */
 		ctx->vm = &dev_priv->mm.aliasing_ppgtt->base;
@@ -375,7 +375,7 @@ int i915_gem_context_init(struct drm_device *dev)
 	}
 
 	dev_priv->ring[RCS].default_context =
-		i915_gem_create_context(dev, NULL, USES_ALIASING_PPGTT(dev));
+		i915_gem_create_context(dev, NULL, USES_PPGTT(dev));
 
 	if (IS_ERR_OR_NULL(dev_priv->ring[RCS].default_context)) {
 		DRM_DEBUG_DRIVER("Disabling HW Contexts; create failed %ld\n",

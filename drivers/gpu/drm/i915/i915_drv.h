@@ -1834,8 +1834,9 @@ struct drm_i915_file_private {
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
-#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev) && !IS_BROADWELL(dev))
-#define USES_ALIASING_PPGTT(dev) intel_enable_ppgtt(dev, false)
+#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev) \
+				 && !IS_BROADWELL(dev))
+#define USES_PPGTT(dev)		intel_enable_ppgtt(dev, false)
 #define USES_FULL_PPGTT(dev)	intel_enable_ppgtt(dev, true)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
