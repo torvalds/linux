@@ -1050,6 +1050,7 @@ int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 	}
 
 	set_bit(NFS_INO_INVALIDATING, bitlock);
+	smp_wmb();
 	nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
 	spin_unlock(&inode->i_lock);
 	trace_nfs_invalidate_mapping_enter(inode);

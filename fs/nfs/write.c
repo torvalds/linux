@@ -915,6 +915,7 @@ static bool nfs_write_pageuptodate(struct page *page, struct inode *inode)
 		goto out;
 	if (nfsi->cache_validity & (NFS_INO_INVALID_DATA|NFS_INO_REVAL_PAGECACHE))
 		return false;
+	smp_rmb();
 	if (test_bit(NFS_INO_INVALIDATING, &nfsi->flags))
 		return false;
 out:

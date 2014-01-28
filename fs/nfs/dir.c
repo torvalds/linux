@@ -274,6 +274,15 @@ out_eof:
 	return -EBADCOOKIE;
 }
 
+static bool
+nfs_readdir_inode_mapping_valid(struct nfs_inode *nfsi)
+{
+	if (nfsi->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA))
+		return false;
+	smp_rmb();
+	return !test_bit(NFS_INO_INVALIDATING, &nfsi->flags);
+}
+
 static
 int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_descriptor_t *desc)
 {
@@ -287,9 +296,8 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 			struct nfs_open_dir_context *ctx = desc->file->private_data;
 
 			new_pos = desc->current_index + i;
-			if (ctx->attr_gencount != nfsi->attr_gencount
-			    || (nfsi->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA))
-			    || test_bit(NFS_INO_INVALIDATING, &nfsi->flags)) {
+			if (ctx->attr_gencount != nfsi->attr_gencount ||
+			    !nfs_readdir_inode_mapping_valid(nfsi)) {
 				ctx->duped = 0;
 				ctx->attr_gencount = nfsi->attr_gencount;
 			} else if (new_pos < desc->ctx->pos) {
