@@ -4866,6 +4866,10 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 
 	gen7_setup_fixed_func_scheduler(dev_priv);
 
+	/* enable HiZ Raw Stall Optimization */
+	I915_WRITE(CACHE_MODE_0_GEN7,
+		   _MASKED_BIT_DISABLE(HIZ_RAW_STALL_OPT_DISABLE));
+
 	/* WaDisable4x2SubspanOptimization:ivb */
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
