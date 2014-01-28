@@ -14,6 +14,7 @@ struct sunrpc_net {
 	struct cache_detail *rsi_cache;
 
 	struct super_block *pipefs_sb;
+	struct rpc_pipe *gssd_dummy;
 	struct mutex pipefs_sb_lock;
 
 	struct list_head all_clients;
@@ -32,8 +33,6 @@ struct sunrpc_net {
 	int pipe_version;
 	atomic_t pipe_users;
 	struct proc_dir_entry *use_gssp_proc;
-
-	unsigned int gssd_running;
 };
 
 extern int sunrpc_net_id;
