@@ -115,20 +115,18 @@ void __init nios2_late_time_init(void)
 	BUG_ON(!timer);
 
 	timer_membase = of_iomap(timer, 0);
-	if (WARN_ON(!timer_membase))
-		return;
+	if (!timer_membase)
+		panic("Unable to map timer resource\n");
 
-	if (of_property_read_u32(timer, "clock-frequency", &timer_freq)) {
-		pr_err("Can't get timer clock-frequency from device tree\n");
-		return;
-	}
+	if (of_property_read_u32(timer, "clock-frequency", &timer_freq))
+		panic("Unable to get timer clock frequency\n");
 
 	irq = irq_of_parse_and_map(timer, 0);
-	if (irq < 0) {
-		pr_err("Can't get timer interrupt\n");
-		return;
-	}
-	setup_irq(irq, &nios2_timer_irq);
+	if (irq < 0)
+		panic("Unable to parse timer irq\n");
+
+	if (setup_irq(irq, &nios2_timer_irq))
+		panic("Unable to setup timer irq\n");
 
 	write_timerperiod(NIOS2_TIMER_PERIOD - 1);
 
