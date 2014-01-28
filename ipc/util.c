@@ -139,19 +139,10 @@ __initcall(ipc_init);
  */
 void ipc_init_ids(struct ipc_ids *ids)
 {
-	init_rwsem(&ids->rwsem);
-
 	ids->in_use = 0;
 	ids->seq = 0;
 	ids->next_id = -1;
-	{
-		int seq_limit = INT_MAX/SEQ_MULTIPLIER;
-		if (seq_limit > USHRT_MAX)
-			ids->seq_max = USHRT_MAX;
-		 else
-			ids->seq_max = seq_limit;
-	}
-
+	init_rwsem(&ids->rwsem);
 	idr_init(&ids->ipcs_idr);
 }
 
@@ -304,7 +295,7 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 
 	if (next_id < 0) {
 		new->seq = ids->seq++;
-		if (ids->seq > ids->seq_max)
+		if (ids->seq > IPCID_SEQ_MAX)
 			ids->seq = 0;
 	} else {
 		new->seq = ipcid_to_seqx(next_id);

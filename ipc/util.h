@@ -100,6 +100,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 
 #define ipcid_to_idx(id) ((id) % SEQ_MULTIPLIER)
 #define ipcid_to_seqx(id) ((id) / SEQ_MULTIPLIER)
+#define IPCID_SEQ_MAX min_t(int, INT_MAX/SEQ_MULTIPLIER, USHRT_MAX)
 
 /* must be called with ids->rwsem acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
