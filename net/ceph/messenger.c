@@ -15,6 +15,7 @@
 #include <linux/dns_resolver.h>
 #include <net/tcp.h>
 
+#include <linux/ceph/ceph_features.h>
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/decode.h>
@@ -1865,7 +1866,9 @@ int ceph_parse_ips(const char *c, const char *end,
 				port = (port * 10) + (*p - '0');
 				p++;
 			}
-			if (port > 65535 || port == 0)
+			if (port == 0)
+				port = CEPH_MON_PORT;
+			else if (port > 65535)
 				goto bad;
 		} else {
 			port = CEPH_MON_PORT;
@@ -1945,7 +1948,8 @@ static int process_connect(struct ceph_connection *con)
 {
 	u64 sup_feat = con->msgr->supported_features;
 	u64 req_feat = con->msgr->required_features;
-	u64 server_feat = le64_to_cpu(con->in_reply.features);
+	u64 server_feat = ceph_sanitize_features(
+				le64_to_cpu(con->in_reply.features));
 	int ret;
 
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
@@ -2853,8 +2857,8 @@ static void con_fault(struct ceph_connection *con)
  */
 void ceph_messenger_init(struct ceph_messenger *msgr,
 			struct ceph_entity_addr *myaddr,
-			u32 supported_features,
-			u32 required_features,
+			u64 supported_features,
+			u64 required_features,
 			bool nocrc)
 {
 	msgr->supported_features = supported_features;
@@ -3126,15 +3130,8 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 	INIT_LIST_HEAD(&m->data);
 
 	/* front */
-	m->front_max = front_len;
 	if (front_len) {
-		if (front_len > PAGE_CACHE_SIZE) {
-			m->front.iov_base = __vmalloc(front_len, flags,
-						      PAGE_KERNEL);
-			m->front_is_vmalloc = true;
-		} else {
-			m->front.iov_base = kmalloc(front_len, flags);
-		}
+		m->front.iov_base = ceph_kvmalloc(front_len, flags);
 		if (m->front.iov_base == NULL) {
 			dout("ceph_msg_new can't allocate %d bytes\n",
 			     front_len);
@@ -3143,7 +3140,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 	} else {
 		m->front.iov_base = NULL;
 	}
-	m->front.iov_len = front_len;
+	m->front_alloc_len = m->front.iov_len = front_len;
 
 	dout("ceph_msg_new %p front %d\n", m, front_len);
 	return m;
@@ -3256,10 +3253,7 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 void ceph_msg_kfree(struct ceph_msg *m)
 {
 	dout("msg_kfree %p\n", m);
-	if (m->front_is_vmalloc)
-		vfree(m->front.iov_base);
-	else
-		kfree(m->front.iov_base);
+	ceph_kvfree(m->front.iov_base);
 	kmem_cache_free(ceph_msg_cache, m);
 }
 
@@ -3301,8 +3295,8 @@ EXPORT_SYMBOL(ceph_msg_last_put);
 
 void ceph_msg_dump(struct ceph_msg *msg)
 {
-	pr_debug("msg_dump %p (front_max %d length %zd)\n", msg,
-		 msg->front_max, msg->data_length);
+	pr_debug("msg_dump %p (front_alloc_len %d length %zd)\n", msg,
+		 msg->front_alloc_len, msg->data_length);
 	print_hex_dump(KERN_DEBUG, "header: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       &msg->hdr, sizeof(msg->hdr), true);
