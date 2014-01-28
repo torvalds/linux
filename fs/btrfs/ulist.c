@@ -5,7 +5,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/export.h>
 #include "ulist.h"
 #include "ctree.h"
 
@@ -51,7 +50,6 @@ void ulist_init(struct ulist *ulist)
 	ulist->root = RB_ROOT;
 	ulist->nnodes = 0;
 }
-EXPORT_SYMBOL(ulist_init);
 
 /**
  * ulist_fini - free up additionally allocated memory for the ulist
@@ -60,7 +58,7 @@ EXPORT_SYMBOL(ulist_init);
  * This is useful in cases where the base 'struct ulist' has been statically
  * allocated.
  */
-void ulist_fini(struct ulist *ulist)
+static void ulist_fini(struct ulist *ulist)
 {
 	struct ulist_node *node;
 	struct ulist_node *next;
@@ -71,7 +69,6 @@ void ulist_fini(struct ulist *ulist)
 	ulist->root = RB_ROOT;
 	INIT_LIST_HEAD(&ulist->nodes);
 }
-EXPORT_SYMBOL(ulist_fini);
 
 /**
  * ulist_reinit - prepare a ulist for reuse
@@ -85,7 +82,6 @@ void ulist_reinit(struct ulist *ulist)
 	ulist_fini(ulist);
 	ulist_init(ulist);
 }
-EXPORT_SYMBOL(ulist_reinit);
 
 /**
  * ulist_alloc - dynamically allocate a ulist
@@ -104,7 +100,6 @@ struct ulist *ulist_alloc(gfp_t gfp_mask)
 
 	return ulist;
 }
-EXPORT_SYMBOL(ulist_alloc);
 
 /**
  * ulist_free - free dynamically allocated ulist
@@ -119,7 +114,6 @@ void ulist_free(struct ulist *ulist)
 	ulist_fini(ulist);
 	kfree(ulist);
 }
-EXPORT_SYMBOL(ulist_free);
 
 static struct ulist_node *ulist_rbtree_search(struct ulist *ulist, u64 val)
 {
@@ -214,7 +208,6 @@ int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 
 	return 1;
 }
-EXPORT_SYMBOL(ulist_add);
 
 /**
  * ulist_next - iterate ulist
@@ -256,4 +249,3 @@ struct ulist_node *ulist_next(struct ulist *ulist, struct ulist_iterator *uiter)
 #endif
 	return node;
 }
-EXPORT_SYMBOL(ulist_next);
