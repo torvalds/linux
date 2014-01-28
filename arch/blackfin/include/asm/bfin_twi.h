@@ -18,7 +18,6 @@ static inline void write_##reg_name(struct bfin_twi_iface *iface, u16 v) \
 	{ bfin_write16(&iface->regs_base->reg, v); }
 
 DEFINE_TWI_REG(CLKDIV, clkdiv)
-DEFINE_TWI_REG(CONTROL, control)
 DEFINE_TWI_REG(SLAVE_CTL, slave_ctl)
 DEFINE_TWI_REG(SLAVE_STAT, slave_stat)
 DEFINE_TWI_REG(SLAVE_ADDR, slave_addr)
@@ -27,7 +26,6 @@ DEFINE_TWI_REG(MASTER_STAT, master_stat)
 DEFINE_TWI_REG(MASTER_ADDR, master_addr)
 DEFINE_TWI_REG(INT_STAT, int_stat)
 DEFINE_TWI_REG(INT_MASK, int_mask)
-DEFINE_TWI_REG(FIFO_CTL, fifo_ctl)
 DEFINE_TWI_REG(FIFO_STAT, fifo_stat)
 DEFINE_TWI_REG(XMT_DATA8, xmt_data8)
 DEFINE_TWI_REG(XMT_DATA16, xmt_data16)
@@ -60,4 +58,25 @@ static inline u16 read_RCV_DATA16(struct bfin_twi_iface *iface)
 }
 #endif
 
+static inline u16 read_FIFO_CTL(struct bfin_twi_iface *iface)
+{
+	return bfin_read16(&iface->regs_base->fifo_ctl);
+}
+
+static inline void write_FIFO_CTL(struct bfin_twi_iface *iface, u16 v)
+{
+	bfin_write16(&iface->regs_base->fifo_ctl, v);
+	SSYNC();
+}
+
+static inline u16 read_CONTROL(struct bfin_twi_iface *iface)
+{
+	return bfin_read16(&iface->regs_base->control);
+}
+
+static inline void write_CONTROL(struct bfin_twi_iface *iface, u16 v)
+{
+	SSYNC();
+	bfin_write16(&iface->regs_base->control, v);
+}
 #endif
