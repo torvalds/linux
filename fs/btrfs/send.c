@@ -4489,6 +4489,21 @@ static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 		extent_end = key->offset +
 			btrfs_file_extent_num_bytes(path->nodes[0], fi);
 	}
+
+	if (path->slots[0] == 0 &&
+	    sctx->cur_inode_last_extent < key->offset) {
+		/*
+		 * We might have skipped entire leafs that contained only
+		 * file extent items for our current inode. These leafs have
+		 * a generation number smaller (older) than the one in the
+		 * current leaf and the leaf our last extent came from, and
+		 * are located between these 2 leafs.
+		 */
+		ret = get_last_extent(sctx, key->offset - 1);
+		if (ret)
+			return ret;
+	}
+
 	if (sctx->cur_inode_last_extent < key->offset)
 		ret = send_hole(sctx, key->offset);
 	sctx->cur_inode_last_extent = extent_end;
