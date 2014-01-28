@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_device.h>
 #include <linux/sh_dma.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/rspi.h>
@@ -985,6 +986,56 @@ static int rspi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct spi_ops rspi_ops = {
+	.set_config_register =		rspi_set_config_register,
+	.transfer_one =			rspi_transfer_one,
+};
+
+static const struct spi_ops rspi_rz_ops = {
+	.set_config_register =		rspi_rz_set_config_register,
+	.transfer_one =			rspi_rz_transfer_one,
+};
+
+static const struct spi_ops qspi_ops = {
+	.set_config_register =		qspi_set_config_register,
+	.transfer_one =			qspi_transfer_one,
+};
+
+#ifdef CONFIG_OF
+static const struct of_device_id rspi_of_match[] = {
+	/* RSPI on legacy SH */
+	{ .compatible = "renesas,rspi", .data = &rspi_ops },
+	/* RSPI on RZ/A1H */
+	{ .compatible = "renesas,rspi-rz", .data = &rspi_rz_ops },
+	/* QSPI on R-Car Gen2 */
+	{ .compatible = "renesas,qspi", .data = &qspi_ops },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, rspi_of_match);
+
+static int rspi_parse_dt(struct device *dev, struct spi_master *master)
+{
+	u32 num_cs;
+	int error;
+
+	/* Parse DT properties */
+	error = of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+	if (error) {
+		dev_err(dev, "of_property_read_u32 num-cs failed %d\n", error);
+		return error;
+	}
+
+	master->num_chipselect = num_cs;
+	return 0;
+}
+#else
+static inline int rspi_parse_dt(struct device *dev, struct spi_master *master)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_OF */
+
 static int rspi_request_irq(struct device *dev, unsigned int irq,
 			    irq_handler_t handler, const char *suffix,
 			    void *dev_id)
@@ -1004,21 +1055,36 @@ static int rspi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct rspi_data *rspi;
 	int ret;
-	const struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
+	const struct of_device_id *of_id;
+	const struct rspi_plat_data *rspi_pd;
 	const struct spi_ops *ops;
-	const struct platform_device_id *id_entry = pdev->id_entry;
-
-	ops = (struct spi_ops *)id_entry->driver_data;
-	/* ops parameter check */
-	if (!ops->set_config_register) {
-		dev_err(&pdev->dev, "there is no set_config_register\n");
-		return -ENODEV;
-	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct rspi_data));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "spi_alloc_master error.\n");
 		return -ENOMEM;
+	}
+
+	of_id = of_match_device(rspi_of_match, &pdev->dev);
+	if (of_id) {
+		ops = of_id->data;
+		ret = rspi_parse_dt(&pdev->dev, master);
+		if (ret)
+			goto error1;
+	} else {
+		ops = (struct spi_ops *)pdev->id_entry->driver_data;
+		rspi_pd = dev_get_platdata(&pdev->dev);
+		if (rspi_pd && rspi_pd->num_chipselect)
+			master->num_chipselect = rspi_pd->num_chipselect;
+		else
+			master->num_chipselect = 2; /* default */
+	};
+
+	/* ops parameter check */
+	if (!ops->set_config_register) {
+		dev_err(&pdev->dev, "there is no set_config_register\n");
+		ret = -ENODEV;
+		goto error1;
 	}
 
 	rspi = spi_master_get_devdata(master);
@@ -1048,11 +1114,6 @@ static int rspi_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&rspi->wait);
 
-	if (rspi_pd && rspi_pd->num_chipselect)
-		master->num_chipselect = rspi_pd->num_chipselect;
-	else
-		master->num_chipselect = 2; /* default */
-
 	master->bus_num = pdev->id;
 	master->setup = rspi_setup;
 	master->transfer_one = ops->transfer_one;
@@ -1060,6 +1121,7 @@ static int rspi_probe(struct platform_device *pdev)
 	master->prepare_message = rspi_prepare_message;
 	master->unprepare_message = rspi_unprepare_message;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LOOP;
+	master->dev.of_node = pdev->dev.of_node;
 
 	ret = platform_get_irq_byname(pdev, "rx");
 	if (ret < 0) {
@@ -1122,21 +1184,6 @@ error1:
 	return ret;
 }
 
-static struct spi_ops rspi_ops = {
-	.set_config_register =		rspi_set_config_register,
-	.transfer_one =			rspi_transfer_one,
-};
-
-static struct spi_ops rspi_rz_ops = {
-	.set_config_register =		rspi_rz_set_config_register,
-	.transfer_one =			rspi_rz_transfer_one,
-};
-
-static struct spi_ops qspi_ops = {
-	.set_config_register =		qspi_set_config_register,
-	.transfer_one =			qspi_transfer_one,
-};
-
 static struct platform_device_id spi_driver_ids[] = {
 	{ "rspi",	(kernel_ulong_t)&rspi_ops },
 	{ "rspi-rz",	(kernel_ulong_t)&rspi_rz_ops },
@@ -1153,6 +1200,7 @@ static struct platform_driver rspi_driver = {
 	.driver		= {
 		.name = "renesas_spi",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(rspi_of_match),
 	},
 };
 module_platform_driver(rspi_driver);
