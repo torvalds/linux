@@ -69,6 +69,15 @@ static DEFINE_RAW_SPINLOCK(sh_tmu_lock);
 #define TCNT 1 /* channel register */
 #define TCR 2 /* channel register */
 
+#define TCR_UNF			(1 << 8)
+#define TCR_UNIE		(1 << 5)
+#define TCR_TPSC_CLK4		(0 << 0)
+#define TCR_TPSC_CLK16		(1 << 0)
+#define TCR_TPSC_CLK64		(2 << 0)
+#define TCR_TPSC_CLK256		(3 << 0)
+#define TCR_TPSC_CLK1024	(4 << 0)
+#define TCR_TPSC_MASK		(7 << 0)
+
 static inline unsigned long sh_tmu_read(struct sh_tmu_channel *ch, int reg_nr)
 {
 	unsigned long offs;
@@ -140,7 +149,7 @@ static int __sh_tmu_enable(struct sh_tmu_channel *ch)
 
 	/* configure channel to parent clock / 4, irq off */
 	ch->rate = clk_get_rate(ch->tmu->clk) / 4;
-	sh_tmu_write(ch, TCR, 0x0000);
+	sh_tmu_write(ch, TCR, TCR_TPSC_CLK4);
 
 	/* enable channel */
 	sh_tmu_start_stop_ch(ch, 1);
@@ -165,7 +174,7 @@ static void __sh_tmu_disable(struct sh_tmu_channel *ch)
 	sh_tmu_start_stop_ch(ch, 0);
 
 	/* disable interrupts in TMU block */
-	sh_tmu_write(ch, TCR, 0x0000);
+	sh_tmu_write(ch, TCR, TCR_TPSC_CLK4);
 
 	/* stop clock */
 	clk_disable(ch->tmu->clk);
@@ -195,7 +204,7 @@ static void sh_tmu_set_next(struct sh_tmu_channel *ch, unsigned long delta,
 	sh_tmu_read(ch, TCR);
 
 	/* enable interrupt */
-	sh_tmu_write(ch, TCR, 0x0020);
+	sh_tmu_write(ch, TCR, TCR_UNIE | TCR_TPSC_CLK4);
 
 	/* reload delta value in case of periodic timer */
 	if (periodic)
@@ -215,9 +224,9 @@ static irqreturn_t sh_tmu_interrupt(int irq, void *dev_id)
 
 	/* disable or acknowledge interrupt */
 	if (ch->ced.mode == CLOCK_EVT_MODE_ONESHOT)
-		sh_tmu_write(ch, TCR, 0x0000);
+		sh_tmu_write(ch, TCR, TCR_TPSC_CLK4);
 	else
-		sh_tmu_write(ch, TCR, 0x0020);
+		sh_tmu_write(ch, TCR, TCR_UNIE | TCR_TPSC_CLK4);
 
 	/* notify clockevent layer */
 	ch->ced.event_handler(&ch->ced);
