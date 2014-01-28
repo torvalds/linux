@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/fs.h>
+#include <arch/svinto.h>
 #include <linux/init.h>
 #include <arch/system.h>
 #include <linux/ptrace.h>
