@@ -257,6 +257,7 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	unsigned long mem_needed;
 	unsigned long mem_auto;
 	unsigned long long size;
+	char *sizes_end;
 	int mem_auto_no;
 	int i;
 
@@ -275,8 +276,8 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	mem_auto_no = 0;
 	for (i = 0; i < xpram_devs; i++) {
 		if (sizes[i]) {
-			size = simple_strtoull(sizes[i], &sizes[i], 0);
-			switch (sizes[i][0]) {
+			size = simple_strtoull(sizes[i], &sizes_end, 0);
+			switch (*sizes_end) {
 			case 'g':
 			case 'G':
 				size <<= 20;
