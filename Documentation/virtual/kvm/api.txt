@@ -2595,6 +2595,10 @@ executed a memory-mapped I/O instruction which could not be satisfied
 by kvm.  The 'data' member contains the written data if 'is_write' is
 true, and should be filled by application code otherwise.
 
+The 'data' member contains, in its first 'len' bytes, the value as it would
+appear if the VCPU performed a load or store of the appropriate width directly
+to the byte array.
+
 NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR,
       KVM_EXIT_PAPR and KVM_EXIT_EPR the corresponding
 operations are complete (and guest state is consistent) only after userspace
