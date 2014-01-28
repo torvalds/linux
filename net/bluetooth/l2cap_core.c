@@ -7126,6 +7126,13 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	l2cap_state_change(chan, BT_CONNECT);
 	__set_chan_timer(chan, chan->ops->get_sndtimeo(chan));
 
+	/* Release chan->sport so that it can be reused by other
+	 * sockets (as it's only used for listening sockets).
+	 */
+	write_lock(&chan_list_lock);
+	chan->sport = 0;
+	write_unlock(&chan_list_lock);
+
 	if (hcon->state == BT_CONNECTED) {
 		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
 			__clear_chan_timer(chan);
