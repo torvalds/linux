@@ -4785,6 +4785,10 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_FF_THREAD_MODE,
 		   I915_READ(GEN7_FF_THREAD_MODE) & ~GEN7_FF_VS_REF_CNT_FFME);
 
+	/* enable HiZ Raw Stall Optimization */
+	I915_WRITE(CACHE_MODE_0_GEN7,
+		   _MASKED_BIT_DISABLE(HIZ_RAW_STALL_OPT_DISABLE));
+
 	/* WaDisable4x2SubspanOptimization:hsw */
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));

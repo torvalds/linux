@@ -935,6 +935,8 @@
 #define   ECO_GATING_CX_ONLY	(1<<3)
 #define   ECO_FLIP_DONE		(1<<0)
 
+#define CACHE_MODE_0_GEN7	0x7000 /* IVB+ */
+#define   HIZ_RAW_STALL_OPT_DISABLE (1<<2)
 #define CACHE_MODE_1		0x7004 /* IVB+ */
 #define   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE (1<<6)
 
