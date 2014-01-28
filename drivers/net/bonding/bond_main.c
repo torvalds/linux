@@ -2346,7 +2346,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 					    arp_work.work);
 	struct slave *slave, *oldcurrent;
 	struct list_head *iter;
-	int do_failover = 0;
+	int do_failover = 0, slave_state_changed = 0;
 
 	if (!bond_has_slaves(bond))
 		goto re_arm;
@@ -2370,7 +2370,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 			    bond_time_in_interval(bond, slave->dev->last_rx, 1)) {
 
 				slave->link  = BOND_LINK_UP;
-				bond_set_active_slave(slave);
+				slave_state_changed = 1;
 
 				/* primary_slave has no meaning in round-robin
 				 * mode. the window of a slave being up and
@@ -2399,7 +2399,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 			    !bond_time_in_interval(bond, slave->dev->last_rx, 2)) {
 
 				slave->link  = BOND_LINK_DOWN;
-				bond_set_backup_slave(slave);
+				slave_state_changed = 1;
 
 				if (slave->link_failure_count < UINT_MAX)
 					slave->link_failure_count++;
@@ -2426,19 +2426,24 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 
 	rcu_read_unlock();
 
-	if (do_failover) {
-		/* the bond_select_active_slave must hold RTNL
-		 * and curr_slave_lock for write.
-		 */
+	if (do_failover || slave_state_changed) {
 		if (!rtnl_trylock())
 			goto re_arm;
-		block_netpoll_tx();
-		write_lock_bh(&bond->curr_slave_lock);
 
-		bond_select_active_slave(bond);
+		if (slave_state_changed) {
+			bond_slave_state_change(bond);
+		} else if (do_failover) {
+			/* the bond_select_active_slave must hold RTNL
+			 * and curr_slave_lock for write.
+			 */
+			block_netpoll_tx();
+			write_lock_bh(&bond->curr_slave_lock);
 
-		write_unlock_bh(&bond->curr_slave_lock);
-		unblock_netpoll_tx();
+			bond_select_active_slave(bond);
+
+			write_unlock_bh(&bond->curr_slave_lock);
+			unblock_netpoll_tx();
+		}
 		rtnl_unlock();
 	}
 
