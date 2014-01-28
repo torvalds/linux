@@ -984,9 +984,6 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
 	if (!align)
 		align = SMP_CACHE_BYTES;
 
-	/* align @size to avoid excessive fragmentation on reserved array */
-	size = round_up(size, align);
-
 	found = memblock_find_in_range_node(size, align, 0, max_addr, nid);
 	if (found && !memblock_reserve(found, size))
 		return found;
@@ -1079,9 +1076,6 @@ static void * __init memblock_virt_alloc_internal(
 
 	if (!align)
 		align = SMP_CACHE_BYTES;
-
-	/* align @size to avoid excessive fragmentation on reserved array */
-	size = round_up(size, align);
 
 again:
 	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
