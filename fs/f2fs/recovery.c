@@ -301,6 +301,9 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	if (recover_inline_data(inode, page))
 		goto out;
 
+	if (recover_xattr_data(inode, page, blkaddr))
+		goto out;
+
 	start = start_bidx_of_node(ofs_of_node(page), fi);
 	if (IS_INODE(page))
 		end = start + ADDRS_PER_INODE(fi);
