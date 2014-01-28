@@ -138,6 +138,7 @@ static void clear_os_lock(void *unused)
 {
 	asm volatile("msr oslar_el1, %0" : : "r" (0));
 	isb();
+	local_dbg_enable();
 }
 
 static int os_lock_notify(struct notifier_block *self,
