@@ -2121,7 +2121,7 @@ EXPORT_SYMBOL_GPL(skb_zerocopy_headlen);
 /**
  *	skb_zerocopy - Zero copy skb to skb
  *	@to: destination buffer
- *	@source: source buffer
+ *	@from: source buffer
  *	@len: number of bytes to copy from source buffer
  *	@hlen: size of linear headroom in destination buffer
  *
