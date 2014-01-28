@@ -24,6 +24,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/suspend.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/clk/tegra.h>
 
 #include <asm/smp_plat.h>
