@@ -1195,8 +1195,11 @@ void cpu_probe(void)
 	else
 		c->srsets = 1;
 
-	if (cpu_has_msa)
+	if (cpu_has_msa) {
 		c->msa_id = cpu_get_msa_id();
+		WARN(c->msa_id & MSA_IR_WRPF,
+		     "Vector register partitioning unimplemented!");
+	}
 
 	cpu_probe_vmbits(c);
 
