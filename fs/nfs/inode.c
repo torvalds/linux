@@ -1038,23 +1038,23 @@ int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 				  nfs_wait_bit_killable, TASK_KILLABLE);
 		if (ret)
 			goto out;
-		if (!(nfsi->cache_validity & NFS_INO_INVALID_DATA))
-			goto out;
-		if (!test_and_set_bit_lock(NFS_INO_INVALIDATING, bitlock))
+		spin_lock(&inode->i_lock);
+		if (test_bit(NFS_INO_INVALIDATING, bitlock)) {
+			spin_unlock(&inode->i_lock);
+			continue;
+		}
+		if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
 			break;
+		spin_unlock(&inode->i_lock);
+		goto out;
 	}
 
-	spin_lock(&inode->i_lock);
-	if (nfsi->cache_validity & NFS_INO_INVALID_DATA) {
-		nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
-		spin_unlock(&inode->i_lock);
-		trace_nfs_invalidate_mapping_enter(inode);
-		ret = nfs_invalidate_mapping(inode, mapping);
-		trace_nfs_invalidate_mapping_exit(inode, ret);
-	} else {
-		/* something raced in and cleared the flag */
-		spin_unlock(&inode->i_lock);
-	}
+	set_bit(NFS_INO_INVALIDATING, bitlock);
+	nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
+	spin_unlock(&inode->i_lock);
+	trace_nfs_invalidate_mapping_enter(inode);
+	ret = nfs_invalidate_mapping(inode, mapping);
+	trace_nfs_invalidate_mapping_exit(inode, ret);
 
 	clear_bit_unlock(NFS_INO_INVALIDATING, bitlock);
 	smp_mb__after_clear_bit();
