@@ -105,14 +105,10 @@ static struct irqaction nios2_timer_irq = {
 	.handler	= timer_interrupt,
 };
 
-void __init nios2_late_time_init(void)
+static void __init nios2_time_init(struct device_node *timer)
 {
 	int irq;
 	unsigned int ctrl;
-	struct device_node *timer =
-		of_find_compatible_node(NULL, NULL, "ALTR,timer-1.0");
-
-	BUG_ON(!timer);
 
 	timer_membase = of_iomap(timer, 0);
 	if (!timer_membase)
@@ -148,5 +144,7 @@ void read_persistent_clock(struct timespec *ts)
 
 void __init time_init(void)
 {
-	late_time_init = nios2_late_time_init;
+	clocksource_of_init();
 }
+
+CLOCKSOURCE_OF_DECLARE(nios2_timer, "ALTR,timer-1.0", nios2_time_init);

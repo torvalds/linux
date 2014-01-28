@@ -16,6 +16,7 @@ config NIOS2
 	select SOC_BUS
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND
+	select CLKSRC_OF
 
 config GENERIC_CSUM
 	def_bool y
