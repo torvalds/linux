@@ -114,9 +114,7 @@ struct sh_cmt_device {
 	struct platform_device *pdev;
 
 	const struct sh_cmt_info *info;
-	bool legacy;
 
-	void __iomem *mapbase_ch;
 	void __iomem *mapbase;
 	struct clk *clk;
 
@@ -792,7 +790,7 @@ static int sh_cmt_register_clockevent(struct sh_cmt_channel *ch,
 	int irq;
 	int ret;
 
-	irq = platform_get_irq(ch->cmt->pdev, ch->cmt->legacy ? 0 : ch->index);
+	irq = platform_get_irq(ch->cmt->pdev, ch->index);
 	if (irq < 0) {
 		dev_err(&ch->cmt->pdev->dev, "ch%u: failed to get irq\n",
 			ch->index);
@@ -863,33 +861,26 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch, unsigned int index,
 	 * Compute the address of the channel control register block. For the
 	 * timers with a per-channel start/stop register, compute its address
 	 * as well.
-	 *
-	 * For legacy configuration the address has been mapped explicitly.
 	 */
-	if (cmt->legacy) {
-		ch->ioctrl = cmt->mapbase_ch;
-	} else {
-		switch (cmt->info->model) {
-		case SH_CMT_16BIT:
-			ch->ioctrl = cmt->mapbase + 2 + ch->hwidx * 6;
-			break;
-		case SH_CMT_32BIT:
-		case SH_CMT_48BIT:
-			ch->ioctrl = cmt->mapbase + 0x10 + ch->hwidx * 0x10;
-			break;
-		case SH_CMT_32BIT_FAST:
-			/*
-			 * The 32-bit "fast" timer has a single channel at hwidx
-			 * 5 but is located at offset 0x40 instead of 0x60 for
-			 * some reason.
-			 */
-			ch->ioctrl = cmt->mapbase + 0x40;
-			break;
-		case SH_CMT_48BIT_GEN2:
-			ch->iostart = cmt->mapbase + ch->hwidx * 0x100;
-			ch->ioctrl = ch->iostart + 0x10;
-			break;
-		}
+	switch (cmt->info->model) {
+	case SH_CMT_16BIT:
+		ch->ioctrl = cmt->mapbase + 2 + ch->hwidx * 6;
+		break;
+	case SH_CMT_32BIT:
+	case SH_CMT_48BIT:
+		ch->ioctrl = cmt->mapbase + 0x10 + ch->hwidx * 0x10;
+		break;
+	case SH_CMT_32BIT_FAST:
+		/*
+		 * The 32-bit "fast" timer has a single channel at hwidx 5 but
+		 * is located at offset 0x40 instead of 0x60 for some reason.
+		 */
+		ch->ioctrl = cmt->mapbase + 0x40;
+		break;
+	case SH_CMT_48BIT_GEN2:
+		ch->iostart = cmt->mapbase + ch->hwidx * 0x100;
+		ch->ioctrl = ch->iostart + 0x10;
+		break;
 	}
 
 	if (cmt->info->width == (sizeof(ch->max_match_value) * 8))
@@ -900,12 +891,7 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch, unsigned int index,
 	ch->match_value = ch->max_match_value;
 	raw_spin_lock_init(&ch->lock);
 
-	if (cmt->legacy) {
-		ch->timer_bit = ch->hwidx;
-	} else {
-		ch->timer_bit = cmt->info->model == SH_CMT_48BIT_GEN2
-			      ? 0 : ch->hwidx;
-	}
+	ch->timer_bit = cmt->info->model == SH_CMT_48BIT_GEN2 ? 0 : ch->hwidx;
 
 	ret = sh_cmt_register(ch, dev_name(&cmt->pdev->dev),
 			      clockevent, clocksource);
@@ -938,60 +924,12 @@ static int sh_cmt_map_memory(struct sh_cmt_device *cmt)
 	return 0;
 }
 
-static int sh_cmt_map_memory_legacy(struct sh_cmt_device *cmt)
-{
-	struct sh_timer_config *cfg = cmt->pdev->dev.platform_data;
-	struct resource *res, *res2;
-
-	/* map memory, let mapbase_ch point to our channel */
-	res = platform_get_resource(cmt->pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&cmt->pdev->dev, "failed to get I/O memory\n");
-		return -ENXIO;
-	}
-
-	cmt->mapbase_ch = ioremap_nocache(res->start, resource_size(res));
-	if (cmt->mapbase_ch == NULL) {
-		dev_err(&cmt->pdev->dev, "failed to remap I/O memory\n");
-		return -ENXIO;
-	}
-
-	/* optional resource for the shared timer start/stop register */
-	res2 = platform_get_resource(cmt->pdev, IORESOURCE_MEM, 1);
-
-	/* map second resource for CMSTR */
-	cmt->mapbase = ioremap_nocache(res2 ? res2->start :
-				       res->start - cfg->channel_offset,
-				       res2 ? resource_size(res2) : 2);
-	if (cmt->mapbase == NULL) {
-		dev_err(&cmt->pdev->dev, "failed to remap I/O second memory\n");
-		iounmap(cmt->mapbase_ch);
-		return -ENXIO;
-	}
-
-	/* identify the model based on the resources */
-	if (resource_size(res) == 6)
-		cmt->info = &sh_cmt_info[SH_CMT_16BIT];
-	else if (res2 && (resource_size(res2) == 4))
-		cmt->info = &sh_cmt_info[SH_CMT_48BIT_GEN2];
-	else
-		cmt->info = &sh_cmt_info[SH_CMT_32BIT];
-
-	return 0;
-}
-
-static void sh_cmt_unmap_memory(struct sh_cmt_device *cmt)
-{
-	iounmap(cmt->mapbase);
-	if (cmt->mapbase_ch)
-		iounmap(cmt->mapbase_ch);
-}
-
 static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 {
 	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	const struct platform_device_id *id = pdev->id_entry;
-	unsigned int hw_channels;
+	unsigned int mask;
+	unsigned int i;
 	int ret;
 
 	memset(cmt, 0, sizeof(*cmt));
@@ -1003,10 +941,9 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	}
 
 	cmt->info = (const struct sh_cmt_info *)id->driver_data;
-	cmt->legacy = cmt->info ? false : true;
 
 	/* Get hold of clock. */
-	cmt->clk = clk_get(&cmt->pdev->dev, cmt->legacy ? "cmt_fck" : "fck");
+	cmt->clk = clk_get(&cmt->pdev->dev, "fck");
 	if (IS_ERR(cmt->clk)) {
 		dev_err(&cmt->pdev->dev, "cannot get clock\n");
 		return PTR_ERR(cmt->clk);
@@ -1016,27 +953,13 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	if (ret < 0)
 		goto err_clk_put;
 
-	/*
-	 * Map the memory resource(s). We need to support both the legacy
-	 * platform device configuration (with one device per channel) and the
-	 * new version (with multiple channels per device).
-	 */
-	if (cmt->legacy)
-		ret = sh_cmt_map_memory_legacy(cmt);
-	else
-		ret = sh_cmt_map_memory(cmt);
-
+	/* Map the memory resource(s). */
+	ret = sh_cmt_map_memory(cmt);
 	if (ret < 0)
 		goto err_clk_unprepare;
 
 	/* Allocate and setup the channels. */
-	if (cmt->legacy) {
-		cmt->num_channels = 1;
-		hw_channels = 0;
-	} else {
-		cmt->num_channels = hweight8(cfg->channels_mask);
-		hw_channels = cfg->channels_mask;
-	}
+	cmt->num_channels = hweight8(cfg->channels_mask);
 
 	cmt->channels = kzalloc(cmt->num_channels * sizeof(*cmt->channels),
 				GFP_KERNEL);
@@ -1045,35 +968,21 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 		goto err_unmap;
 	}
 
-	if (cmt->legacy) {
-		ret = sh_cmt_setup_channel(&cmt->channels[0],
-					   cfg->timer_bit, cfg->timer_bit,
-					   cfg->clockevent_rating != 0,
-					   cfg->clocksource_rating != 0, cmt);
+	/*
+	 * Use the first channel as a clock event device and the second channel
+	 * as a clock source. If only one channel is available use it for both.
+	 */
+	for (i = 0, mask = cfg->channels_mask; i < cmt->num_channels; ++i) {
+		unsigned int hwidx = ffs(mask) - 1;
+		bool clocksource = i == 1 || cmt->num_channels == 1;
+		bool clockevent = i == 0;
+
+		ret = sh_cmt_setup_channel(&cmt->channels[i], i, hwidx,
+					   clockevent, clocksource, cmt);
 		if (ret < 0)
 			goto err_unmap;
-	} else {
-		unsigned int mask = hw_channels;
-		unsigned int i;
 
-		/*
-		 * Use the first channel as a clock event device and the second
-		 * channel as a clock source. If only one channel is available
-		 * use it for both.
-		 */
-		for (i = 0; i < cmt->num_channels; ++i) {
-			unsigned int hwidx = ffs(mask) - 1;
-			bool clocksource = i == 1 || cmt->num_channels == 1;
-			bool clockevent = i == 0;
-
-			ret = sh_cmt_setup_channel(&cmt->channels[i], i, hwidx,
-						   clockevent, clocksource,
-						   cmt);
-			if (ret < 0)
-				goto err_unmap;
-
-			mask &= ~(1 << hwidx);
-		}
+		mask &= ~(1 << hwidx);
 	}
 
 	platform_set_drvdata(pdev, cmt);
@@ -1082,7 +991,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 
 err_unmap:
 	kfree(cmt->channels);
-	sh_cmt_unmap_memory(cmt);
+	iounmap(cmt->mapbase);
 err_clk_unprepare:
 	clk_unprepare(cmt->clk);
 err_clk_put:
@@ -1133,7 +1042,6 @@ static int sh_cmt_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id sh_cmt_id_table[] = {
-	{ "sh_cmt", 0 },
 	{ "sh-cmt-16", (kernel_ulong_t)&sh_cmt_info[SH_CMT_16BIT] },
 	{ "sh-cmt-32", (kernel_ulong_t)&sh_cmt_info[SH_CMT_32BIT] },
 	{ "sh-cmt-32-fast", (kernel_ulong_t)&sh_cmt_info[SH_CMT_32BIT_FAST] },
