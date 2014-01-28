@@ -368,14 +368,16 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		EMIT4_PCREL(0xa7840000, (jit->ret0_ip - jit->prg));
 		/* lhi %r4,0 */
 		EMIT4(0xa7480000);
-		/* dr %r4,%r12 */
-		EMIT2(0x1d4c);
+		/* dlr %r4,%r12 */
+		EMIT4(0xb997004c);
 		break;
-	case BPF_S_ALU_DIV_K: /* A = reciprocal_divide(A, K) */
-		/* m %r4,<d(K)>(%r13) */
-		EMIT4_DISP(0x5c40d000, EMIT_CONST(K));
-		/* lr %r5,%r4 */
-		EMIT2(0x1854);
+	case BPF_S_ALU_DIV_K: /* A /= K */
+		if (K == 1)
+			break;
+		/* lhi %r4,0 */
+		EMIT4(0xa7480000);
+		/* dl %r4,<d(K)>(%r13) */
+		EMIT6_DISP(0xe340d000, 0x0097, EMIT_CONST(K));
 		break;
 	case BPF_S_ALU_MOD_X: /* A %= X */
 		jit->seen |= SEEN_XREG | SEEN_RET0;
@@ -385,16 +387,21 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		EMIT4_PCREL(0xa7840000, (jit->ret0_ip - jit->prg));
 		/* lhi %r4,0 */
 		EMIT4(0xa7480000);
-		/* dr %r4,%r12 */
-		EMIT2(0x1d4c);
+		/* dlr %r4,%r12 */
+		EMIT4(0xb997004c);
 		/* lr %r5,%r4 */
 		EMIT2(0x1854);
 		break;
 	case BPF_S_ALU_MOD_K: /* A %= K */
+		if (K == 1) {
+			/* lhi %r5,0 */
+			EMIT4(0xa7580000);
+			break;
+		}
 		/* lhi %r4,0 */
 		EMIT4(0xa7480000);
-		/* d %r4,<d(K)>(%r13) */
-		EMIT4_DISP(0x5d40d000, EMIT_CONST(K));
+		/* dl %r4,<d(K)>(%r13) */
+		EMIT6_DISP(0xe340d000, 0x0097, EMIT_CONST(K));
 		/* lr %r5,%r4 */
 		EMIT2(0x1854);
 		break;

@@ -423,7 +423,7 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 	 * in the Compressed Filter Tuple.
 	 */
 	if (tp->vlan_shift >= 0 && l2t->vlan != VLAN_NONE)
-		ntuple |= (F_FT_VLAN_VLD | l2t->vlan) << tp->vlan_shift;
+		ntuple |= (u64)(F_FT_VLAN_VLD | l2t->vlan) << tp->vlan_shift;
 
 	if (tp->port_shift >= 0)
 		ntuple |= (u64)l2t->lport << tp->port_shift;

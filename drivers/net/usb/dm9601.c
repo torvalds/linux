@@ -614,6 +614,18 @@ static const struct usb_device_id products[] = {
 	 USB_DEVICE(0x0a46, 0x9621),	/* DM9621A USB to Fast Ethernet Adapter */
 	 .driver_info = (unsigned long)&dm9601_info,
 	},
+	{
+	 USB_DEVICE(0x0a46, 0x9622),	/* DM9622 USB to Fast Ethernet Adapter */
+	 .driver_info = (unsigned long)&dm9601_info,
+	},
+	{
+	 USB_DEVICE(0x0a46, 0x0269),	/* DM962OA USB to Fast Ethernet Adapter */
+	 .driver_info = (unsigned long)&dm9601_info,
+	},
+	{
+	 USB_DEVICE(0x0a46, 0x1269),	/* DM9621A USB to Fast Ethernet Adapter */
+	 .driver_info = (unsigned long)&dm9601_info,
+	},
 	{},			// END
 };
 
