@@ -138,9 +138,7 @@ static void __init pirq_peer_trick(void)
 	for (i = 1; i < 256; i++) {
 		if (!busmap[i] || pci_find_bus(0, i))
 			continue;
-		if (pcibios_scan_root(i))
-			printk(KERN_INFO "PCI: Discovered primary peer "
-			       "bus %02x [IRQ]\n", i);
+		pcibios_scan_root(i);
 	}
 	pcibios_last_bus = -1;
 }

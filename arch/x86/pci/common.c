@@ -456,7 +456,7 @@ void __init dmi_check_pciprobe(void)
 	dmi_check_system(pciprobe_dmi_table);
 }
 
-struct pci_bus *pcibios_scan_root(int busnum)
+void pcibios_scan_root(int busnum)
 {
 	struct pci_bus *bus;
 	struct pci_sysdata *sd;
@@ -465,7 +465,7 @@ struct pci_bus *pcibios_scan_root(int busnum)
 	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
 	if (!sd) {
 		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busnum);
-		return NULL;
+		return;
 	}
 	sd->node = get_mp_bus_to_node(busnum);
 	x86_pci_root_bus_resources(busnum, &resources);
@@ -475,8 +475,6 @@ struct pci_bus *pcibios_scan_root(int busnum)
 		pci_free_resource_list(&resources);
 		kfree(sd);
 	}
-
-	return bus;
 }
 
 void __init pcibios_set_cache_line_size(void)
