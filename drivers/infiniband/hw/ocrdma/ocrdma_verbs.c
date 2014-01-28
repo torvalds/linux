@@ -726,10 +726,10 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 			    u32 num_pbes)
 {
 	struct ocrdma_pbe *pbe;
-	struct ib_umem_chunk *chunk;
+	struct scatterlist *sg;
 	struct ocrdma_pbl *pbl_tbl = mr->hwmr.pbl_table;
 	struct ib_umem *umem = mr->umem;
-	int i, shift, pg_cnt, pages, pbe_cnt, total_num_pbes = 0;
+	int shift, pg_cnt, pages, pbe_cnt, entry, total_num_pbes = 0;
 
 	if (!mr->hwmr.num_pbes)
 		return;
@@ -739,39 +739,37 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 
 	shift = ilog2(umem->page_size);
 
-	list_for_each_entry(chunk, &umem->chunk_list, list) {
-		/* get all the dma regions from the chunk. */
-		for (i = 0; i < chunk->nmap; i++) {
-			pages = sg_dma_len(&chunk->page_list[i]) >> shift;
-			for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
-				/* store the page address in pbe */
-				pbe->pa_lo =
-				    cpu_to_le32(sg_dma_address
-						(&chunk->page_list[i]) +
-						(umem->page_size * pg_cnt));
-				pbe->pa_hi =
-				    cpu_to_le32(upper_32_bits
-						((sg_dma_address
-						  (&chunk->page_list[i]) +
-						  umem->page_size * pg_cnt)));
-				pbe_cnt += 1;
-				total_num_pbes += 1;
-				pbe++;
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
+		pages = sg_dma_len(sg) >> shift;
+		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
+			/* store the page address in pbe */
+			pbe->pa_lo =
+			    cpu_to_le32(sg_dma_address
+					(sg) +
+					(umem->page_size * pg_cnt));
+			pbe->pa_hi =
+			    cpu_to_le32(upper_32_bits
+					((sg_dma_address
+					  (sg) +
+					  umem->page_size * pg_cnt)));
+			pbe_cnt += 1;
+			total_num_pbes += 1;
+			pbe++;
 
-				/* if done building pbes, issue the mbx cmd. */
-				if (total_num_pbes == num_pbes)
-					return;
+			/* if done building pbes, issue the mbx cmd. */
+			if (total_num_pbes == num_pbes)
+				return;
 
-				/* if the given pbl is full storing the pbes,
-				 * move to next pbl.
-				 */
-				if (pbe_cnt ==
-					(mr->hwmr.pbl_size / sizeof(u64))) {
-					pbl_tbl++;
-					pbe = (struct ocrdma_pbe *)pbl_tbl->va;
-					pbe_cnt = 0;
-				}
+			/* if the given pbl is full storing the pbes,
+			 * move to next pbl.
+			 */
+			if (pbe_cnt ==
+				(mr->hwmr.pbl_size / sizeof(u64))) {
+				pbl_tbl++;
+				pbe = (struct ocrdma_pbe *)pbl_tbl->va;
+				pbe_cnt = 0;
 			}
+
 		}
 	}
 }
