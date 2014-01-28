@@ -352,8 +352,10 @@ static int ddebug_parse_query(char *words[], int nwords,
 				return -EINVAL;
 			if (last) {
 				/* range <first>-<last> */
-				if (parse_lineno(last, &query->last_lineno)
-				    < query->first_lineno) {
+				if (parse_lineno(last, &query->last_lineno) < 0)
+					return -EINVAL;
+
+				if (query->last_lineno < query->first_lineno) {
 					pr_err("last-line:%d < 1st-line:%d\n",
 						query->last_lineno,
 						query->first_lineno);
