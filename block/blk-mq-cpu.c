@@ -28,10 +28,6 @@ static int blk_mq_main_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata blk_mq_main_cpu_notifier = {
-	.notifier_call	= blk_mq_main_cpu_notify,
-};
-
 void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier)
 {
 	BUG_ON(!notifier->notify);
@@ -58,5 +54,5 @@ void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
 
 void __init blk_mq_cpu_init(void)
 {
-	register_hotcpu_notifier(&blk_mq_main_cpu_notifier);
+	hotcpu_notifier(blk_mq_main_cpu_notify, 0);
 }
