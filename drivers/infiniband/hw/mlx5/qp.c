@@ -216,7 +216,9 @@ static int sq_overhead(enum ib_qp_type qp_type)
 
 	case IB_QPT_UC:
 		size += sizeof(struct mlx5_wqe_ctrl_seg) +
-			sizeof(struct mlx5_wqe_raddr_seg);
+			sizeof(struct mlx5_wqe_raddr_seg) +
+			sizeof(struct mlx5_wqe_umr_ctrl_seg) +
+			sizeof(struct mlx5_mkey_seg);
 		break;
 
 	case IB_QPT_UD:
