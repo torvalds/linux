@@ -38,7 +38,7 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_PPC
 #include <asm/prom.h>
 #include <asm/machdep.h>
@@ -193,8 +193,7 @@ static int adb_scan_bus(void)
 					break;
 
 				noMovement = 0;
-			}
-			else {
+			} else {
 				/*
 				 * No devices left at address i; move the
 				 * one(s) we moved to `highFree' back to i.
@@ -502,7 +501,7 @@ void
 adb_input(unsigned char *buf, int nb, int autopoll)
 {
 	int i, id;
-	static int dump_adb_input = 0;
+	static int dump_adb_input;
 	unsigned long flags;
 	
 	void (*handler)(unsigned char *, int, int);
@@ -624,8 +623,7 @@ do_adb_query(struct adb_request *req)
 {
 	int	ret = -EINVAL;
 
-	switch(req->data[1])
-	{
+	switch(req->data[1]) {
 	case ADB_QUERY_GETDEVINFO:
 		if (req->nbytes < 3)
 			break;
@@ -697,7 +695,7 @@ static ssize_t adb_read(struct file *file, char __user *buf,
 	int ret = 0;
 	struct adbdev_state *state = file->private_data;
 	struct adb_request *req;
-	DECLARE_WAITQUEUE(wait,current);
+	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
 
 	if (count < 2)
@@ -794,8 +792,8 @@ static ssize_t adb_write(struct file *file, const char __user *buf,
 	}
 	/* Special case for ADB_BUSRESET request, all others are sent to
 	   the controller */
-	else if ((req->data[0] == ADB_PACKET)&&(count > 1)
-		&&(req->data[1] == ADB_BUSRESET)) {
+	else if ((req->data[0] == ADB_PACKET) && (count > 1)
+		&& (req->data[1] == ADB_BUSRESET)) {
 		ret = do_adb_reset_bus();
 		up(&adb_probe_mutex);
 		atomic_dec(&state->n_pending);
