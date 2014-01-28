@@ -28,8 +28,7 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 }
 
 /* and the list better be locked by something too! */
-static struct fsnotify_event *fanotify_merge(struct list_head *list,
-					     struct fsnotify_event *event)
+static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 {
 	struct fsnotify_event *test_event;
 	bool do_merge = false;
@@ -43,7 +42,7 @@ static struct fsnotify_event *fanotify_merge(struct list_head *list,
 	 * one we should check for permission response.
 	 */
 	if (event->mask & FAN_ALL_PERM_EVENTS)
-		return NULL;
+		return 0;
 #endif
 
 	list_for_each_entry_reverse(test_event, list, list) {
@@ -54,10 +53,10 @@ static struct fsnotify_event *fanotify_merge(struct list_head *list,
 	}
 
 	if (!do_merge)
-		return NULL;
+		return 0;
 
 	test_event->mask |= event->mask;
-	return test_event;
+	return 1;
 }
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
@@ -153,7 +152,6 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	int ret = 0;
 	struct fanotify_event_info *event;
 	struct fsnotify_event *fsn_event;
-	struct fsnotify_event *notify_fsn_event;
 
 	BUILD_BUG_ON(FAN_ACCESS != FS_ACCESS);
 	BUILD_BUG_ON(FAN_MODIFY != FS_MODIFY);
@@ -192,13 +190,11 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	event->response = 0;
 #endif
 
-	notify_fsn_event = fsnotify_add_notify_event(group, fsn_event,
-						     fanotify_merge);
-	if (notify_fsn_event) {
+	ret = fsnotify_add_notify_event(group, fsn_event, fanotify_merge);
+	if (ret) {
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
-		if (IS_ERR(notify_fsn_event))
-			return PTR_ERR(notify_fsn_event);
+		ret = 0;
 	}
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
