@@ -461,36 +461,6 @@ int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 	return iwl_mvm_update_beacon_abort(mvm, vif, ba_enable);
 }
 
-int iwl_mvm_power_mac_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	struct iwl_mac_power_cmd cmd = {};
-	struct iwl_mvm_vif *mvmvif __maybe_unused =
-		iwl_mvm_vif_from_mac80211(vif);
-
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT))
-		return 0;
-
-	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
-		return 0;
-
-	cmd.id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
-							   mvmvif->color));
-
-	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
-		cmd.flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_DISABLE_POWER_OFF &&
-	    mvmvif->dbgfs_pm.disable_power_off)
-		cmd.flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
-	memcpy(&mvmvif->mac_pwr_cmd, &cmd, sizeof(cmd));
-#endif
-	iwl_mvm_power_log(mvm, &cmd);
-
-	return iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, CMD_ASYNC,
-				    sizeof(cmd), &cmd);
-}
-
 static int _iwl_mvm_power_update_device(struct iwl_mvm *mvm, bool force_disable)
 {
 	struct iwl_device_power_cmd cmd = {

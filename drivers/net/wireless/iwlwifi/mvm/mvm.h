@@ -814,7 +814,6 @@ int iwl_power_legacy_set_cam_mode(struct iwl_mvm *mvm);
 
 int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif);
-int iwl_mvm_power_mac_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_power_update_device(struct iwl_mvm *mvm);
 void iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif, bool assign);
