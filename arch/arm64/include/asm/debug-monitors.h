@@ -43,23 +43,6 @@ enum debug_el {
 #ifndef __ASSEMBLY__
 struct task_struct;
 
-#define local_dbg_save(flags)							\
-	do {									\
-		typecheck(unsigned long, flags);				\
-		asm volatile(							\
-		"mrs	%0, daif			// local_dbg_save\n"	\
-		"msr	daifset, #8"						\
-		: "=r" (flags) : : "memory");					\
-	} while (0)
-
-#define local_dbg_restore(flags)						\
-	do {									\
-		typecheck(unsigned long, flags);				\
-		asm volatile(							\
-		"msr	daif, %0			// local_dbg_restore\n"	\
-		: : "r" (flags) : "memory");					\
-	} while (0)
-
 #define DBG_ARCH_ID_RESERVED	0	/* In case of ptrace ABI updates. */
 
 #define DBG_HOOK_HANDLED	0
