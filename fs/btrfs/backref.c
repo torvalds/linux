@@ -66,6 +66,16 @@ static int check_extent_in_eb(struct btrfs_key *key, struct extent_buffer *eb,
 	return 0;
 }
 
+static void free_inode_elem_list(struct extent_inode_elem *eie)
+{
+	struct extent_inode_elem *eie_next;
+
+	for (; eie; eie = eie_next) {
+		eie_next = eie->next;
+		kfree(eie);
+	}
+}
+
 static int find_extent_in_eb(struct extent_buffer *eb, u64 wanted_disk_byte,
 				u64 extent_item_pos,
 				struct extent_inode_elem **eie)
@@ -275,6 +285,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 					old = old->next;
 				old->next = eie;
 			}
+			eie = NULL;
 		}
 next:
 		ret = btrfs_next_old_item(root, path, time_seq);
@@ -282,6 +293,8 @@ next:
 
 	if (ret > 0)
 		ret = 0;
+	else if (ret < 0)
+		free_inode_elem_list(eie);
 	return ret;
 }
 
@@ -845,6 +858,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 	struct list_head prefs_delayed;
 	struct list_head prefs;
 	struct __prelim_ref *ref;
+	struct extent_inode_elem *eie = NULL;
 
 	INIT_LIST_HEAD(&prefs);
 	INIT_LIST_HEAD(&prefs_delayed);
@@ -958,7 +972,6 @@ again:
 				goto out;
 		}
 		if (ref->count && ref->parent) {
-			struct extent_inode_elem *eie = NULL;
 			if (extent_item_pos && !ref->inode_list) {
 				u32 bsz;
 				struct extent_buffer *eb;
@@ -993,6 +1006,7 @@ again:
 					eie = eie->next;
 				eie->next = ref->inode_list;
 			}
+			eie = NULL;
 		}
 		list_del(&ref->list);
 		kmem_cache_free(btrfs_prelim_ref_cache, ref);
@@ -1011,7 +1025,8 @@ out:
 		list_del(&ref->list);
 		kmem_cache_free(btrfs_prelim_ref_cache, ref);
 	}
-
+	if (ret < 0)
+		free_inode_elem_list(eie);
 	return ret;
 }
 
@@ -1019,7 +1034,6 @@ static void free_leaf_list(struct ulist *blocks)
 {
 	struct ulist_node *node = NULL;
 	struct extent_inode_elem *eie;
-	struct extent_inode_elem *eie_next;
 	struct ulist_iterator uiter;
 
 	ULIST_ITER_INIT(&uiter);
@@ -1027,10 +1041,7 @@ static void free_leaf_list(struct ulist *blocks)
 		if (!node->aux)
 			continue;
 		eie = (struct extent_inode_elem *)(uintptr_t)node->aux;
-		for (; eie; eie = eie_next) {
-			eie_next = eie->next;
-			kfree(eie);
-		}
+		free_inode_elem_list(eie);
 		node->aux = 0;
 	}
 
