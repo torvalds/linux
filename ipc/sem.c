@@ -225,7 +225,7 @@ static void unmerge_queues(struct sem_array *sma)
 }
 
 /**
- * merge_queues - Merge single semop queues into global queue
+ * merge_queues - merge single semop queues into global queue
  * @sma: semaphore array
  *
  * This function merges all per-semaphore queues into the global queue.
@@ -474,7 +474,6 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
  *
  * Called with sem_ids.rwsem held (as a writer)
  */
-
 static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 {
 	int id;
@@ -682,7 +681,7 @@ static void wake_up_sem_queue_prepare(struct list_head *pt,
 }
 
 /**
- * wake_up_sem_queue_do(pt) - do the actual wake-up
+ * wake_up_sem_queue_do - do the actual wake-up
  * @pt: list of tasks to be woken up
  *
  * Do the actual wake-up.
@@ -748,7 +747,7 @@ static int check_restart(struct sem_array *sma, struct sem_queue *q)
 }
 
 /**
- * wake_const_ops(sma, semnum, pt) - Wake up non-alter tasks
+ * wake_const_ops - wake up non-alter tasks
  * @sma: semaphore array.
  * @semnum: semaphore that was modified.
  * @pt: list head for the tasks that must be woken up.
@@ -798,15 +797,14 @@ static int wake_const_ops(struct sem_array *sma, int semnum,
 }
 
 /**
- * do_smart_wakeup_zero(sma, sops, nsops, pt) - wakeup all wait for zero tasks
+ * do_smart_wakeup_zero - wakeup all wait for zero tasks
  * @sma: semaphore array
  * @sops: operations that were performed
  * @nsops: number of operations
  * @pt: list head of the tasks that must be woken up.
  *
- * do_smart_wakeup_zero() checks all required queue for wait-for-zero
- * operations, based on the actual changes that were performed on the
- * semaphore array.
+ * Checks all required queue for wait-for-zero operations, based
+ * on the actual changes that were performed on the semaphore array.
  * The function returns 1 if at least one operation was completed successfully.
  */
 static int do_smart_wakeup_zero(struct sem_array *sma, struct sembuf *sops,
@@ -850,7 +848,7 @@ static int do_smart_wakeup_zero(struct sem_array *sma, struct sembuf *sops,
 
 
 /**
- * update_queue(sma, semnum): Look for tasks that can be completed.
+ * update_queue - look for tasks that can be completed.
  * @sma: semaphore array.
  * @semnum: semaphore that was modified.
  * @pt: list head for the tasks that must be woken up.
@@ -920,7 +918,7 @@ again:
 }
 
 /**
- * set_semotime(sma, sops) - set sem_otime
+ * set_semotime - set sem_otime
  * @sma: semaphore array
  * @sops: operations that modified the array, may be NULL
  *
@@ -938,7 +936,7 @@ static void set_semotime(struct sem_array *sma, struct sembuf *sops)
 }
 
 /**
- * do_smart_update(sma, sops, nsops, otime, pt) - optimized update_queue
+ * do_smart_update - optimized update_queue
  * @sma: semaphore array
  * @sops: operations that were performed
  * @nsops: number of operations
@@ -1647,7 +1645,7 @@ static struct sem_undo *lookup_undo(struct sem_undo_list *ulp, int semid)
 }
 
 /**
- * find_alloc_undo - Lookup (and if not present create) undo array
+ * find_alloc_undo - lookup (and if not present create) undo array
  * @ns: namespace
  * @semid: semaphore array id
  *
@@ -1737,7 +1735,7 @@ out:
 
 
 /**
- * get_queue_result - Retrieve the result code from sem_queue
+ * get_queue_result - retrieve the result code from sem_queue
  * @q: Pointer to queue structure
  *
  * Retrieve the return code from the pending queue. If IN_WAKEUP is found in
