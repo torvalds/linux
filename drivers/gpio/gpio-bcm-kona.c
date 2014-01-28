@@ -323,7 +323,7 @@ static void bcm_kona_gpio_irq_ack(struct irq_data *d)
 {
 	struct bcm_kona_gpio *kona_gpio;
 	void __iomem *reg_base;
-	int gpio = d->hwirq;
+	unsigned gpio = d->hwirq;
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val;
@@ -344,7 +344,7 @@ static void bcm_kona_gpio_irq_mask(struct irq_data *d)
 {
 	struct bcm_kona_gpio *kona_gpio;
 	void __iomem *reg_base;
-	int gpio = d->hwirq;
+	unsigned gpio = d->hwirq;
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val;
@@ -365,7 +365,7 @@ static void bcm_kona_gpio_irq_unmask(struct irq_data *d)
 {
 	struct bcm_kona_gpio *kona_gpio;
 	void __iomem *reg_base;
-	int gpio = d->hwirq;
+	unsigned gpio = d->hwirq;
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val;
@@ -386,7 +386,7 @@ static int bcm_kona_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct bcm_kona_gpio *kona_gpio;
 	void __iomem *reg_base;
-	int gpio = d->hwirq;
+	unsigned gpio = d->hwirq;
 	u32 lvl_type;
 	u32 val;
 	unsigned long flags;
