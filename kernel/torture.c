@@ -54,6 +54,192 @@ EXPORT_SYMBOL_GPL(fullstop);
 DEFINE_MUTEX(fullstop_mutex);
 EXPORT_SYMBOL_GPL(fullstop_mutex);
 
+#ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Variables for online-offline handling.  Only present if CPU hotplug
+ * is enabled, otherwise does nothing.
+ */
+
+static struct task_struct *onoff_task;
+static long onoff_holdoff;
+static long onoff_interval;
+static long n_offline_attempts;
+static long n_offline_successes;
+static unsigned long sum_offline;
+static int min_offline = -1;
+static int max_offline;
+static long n_online_attempts;
+static long n_online_successes;
+static unsigned long sum_online;
+static int min_online = -1;
+static int max_online;
+
+/*
+ * Execute random CPU-hotplug operations at the interval specified
+ * by the onoff_interval.
+ */
+static int
+torture_onoff(void *arg)
+{
+	int cpu;
+	unsigned long delta;
+	int maxcpu = -1;
+	DEFINE_TORTURE_RANDOM(rand);
+	int ret;
+	unsigned long starttime;
+
+	VERBOSE_TOROUT_STRING("torture_onoff task started");
+	for_each_online_cpu(cpu)
+		maxcpu = cpu;
+	WARN_ON(maxcpu < 0);
+	if (onoff_holdoff > 0) {
+		VERBOSE_TOROUT_STRING("torture_onoff begin holdoff");
+		schedule_timeout_interruptible(onoff_holdoff);
+		VERBOSE_TOROUT_STRING("torture_onoff end holdoff");
+	}
+	while (!torture_must_stop()) {
+		cpu = (torture_random(&rand) >> 4) % (maxcpu + 1);
+		if (cpu_online(cpu) && cpu_is_hotpluggable(cpu)) {
+			if (verbose)
+				pr_alert("%s" TORTURE_FLAG
+					 "torture_onoff task: offlining %d\n",
+					 torture_type, cpu);
+			starttime = jiffies;
+			n_offline_attempts++;
+			ret = cpu_down(cpu);
+			if (ret) {
+				if (verbose)
+					pr_alert("%s" TORTURE_FLAG
+						 "torture_onoff task: offline %d failed: errno %d\n",
+						 torture_type, cpu, ret);
+			} else {
+				if (verbose)
+					pr_alert("%s" TORTURE_FLAG
+						 "torture_onoff task: offlined %d\n",
+						 torture_type, cpu);
+				n_offline_successes++;
+				delta = jiffies - starttime;
+				sum_offline += delta;
+				if (min_offline < 0) {
+					min_offline = delta;
+					max_offline = delta;
+				}
+				if (min_offline > delta)
+					min_offline = delta;
+				if (max_offline < delta)
+					max_offline = delta;
+			}
+		} else if (cpu_is_hotpluggable(cpu)) {
+			if (verbose)
+				pr_alert("%s" TORTURE_FLAG
+					 "torture_onoff task: onlining %d\n",
+					 torture_type, cpu);
+			starttime = jiffies;
+			n_online_attempts++;
+			ret = cpu_up(cpu);
+			if (ret) {
+				if (verbose)
+					pr_alert("%s" TORTURE_FLAG
+						 "torture_onoff task: online %d failed: errno %d\n",
+						 torture_type, cpu, ret);
+			} else {
+				if (verbose)
+					pr_alert("%s" TORTURE_FLAG
+						 "torture_onoff task: onlined %d\n",
+						 torture_type, cpu);
+				n_online_successes++;
+				delta = jiffies - starttime;
+				sum_online += delta;
+				if (min_online < 0) {
+					min_online = delta;
+					max_online = delta;
+				}
+				if (min_online > delta)
+					min_online = delta;
+				if (max_online < delta)
+					max_online = delta;
+			}
+		}
+		schedule_timeout_interruptible(onoff_interval);
+	}
+	VERBOSE_TOROUT_STRING("torture_onoff task stopping");
+	return 0;
+}
+
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+
+/*
+ * Initiate online-offline handling.
+ */
+int torture_onoff_init(long ooholdoff, long oointerval)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	int ret;
+
+	onoff_holdoff = ooholdoff;
+	onoff_interval = oointerval;
+	if (onoff_interval <= 0)
+		return 0;
+	onoff_task = kthread_run(torture_onoff, NULL, "torture_onoff");
+	if (IS_ERR(onoff_task)) {
+		ret = PTR_ERR(onoff_task);
+		onoff_task = NULL;
+		return ret;
+	}
+	torture_shuffle_task_register(onoff_task);
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(torture_onoff_init);
+
+/*
+ * Clean up after online/offline testing.
+ */
+void torture_onoff_cleanup(void)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	if (onoff_task == NULL)
+		return;
+	VERBOSE_TOROUT_STRING("Stopping torture_onoff task");
+	kthread_stop(onoff_task);
+	onoff_task = NULL;
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+}
+EXPORT_SYMBOL_GPL(torture_onoff_cleanup);
+
+/*
+ * Print online/offline testing statistics.
+ */
+char *torture_onoff_stats(char *page)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	page += sprintf(page,
+		       "onoff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
+		       n_online_successes, n_online_attempts,
+		       n_offline_successes, n_offline_attempts,
+		       min_online, max_online,
+		       min_offline, max_offline,
+		       sum_online, sum_offline, HZ);
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+	return page;
+}
+EXPORT_SYMBOL_GPL(torture_onoff_stats);
+
+/*
+ * Were all the online/offline operations successful?
+ */
+bool torture_onoff_failures(void)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	return n_online_successes != n_online_attempts ||
+	       n_offline_successes != n_offline_attempts;
+#else /* #ifdef CONFIG_HOTPLUG_CPU */
+	return false;
+#endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
+}
+EXPORT_SYMBOL_GPL(torture_onoff_failures);
+
 #define TORTURE_RANDOM_MULT	39916801  /* prime */
 #define TORTURE_RANDOM_ADD	479001701 /* prime */
 #define TORTURE_RANDOM_REFRESH	10000

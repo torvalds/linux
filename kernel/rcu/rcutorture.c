@@ -110,9 +110,6 @@ static struct task_struct *stutter_task;
 static struct task_struct *fqs_task;
 static struct task_struct *boost_tasks[NR_CPUS];
 static struct task_struct *shutdown_task;
-#ifdef CONFIG_HOTPLUG_CPU
-static struct task_struct *onoff_task;
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 static struct task_struct *stall_task;
 static struct task_struct **barrier_cbs_tasks;
 static struct task_struct *barrier_task;
@@ -147,16 +144,6 @@ static long n_rcu_torture_boost_rterror;
 static long n_rcu_torture_boost_failure;
 static long n_rcu_torture_boosts;
 static long n_rcu_torture_timers;
-static long n_offline_attempts;
-static long n_offline_successes;
-static unsigned long sum_offline;
-static int min_offline = -1;
-static int max_offline;
-static long n_online_attempts;
-static long n_online_successes;
-static unsigned long sum_online;
-static int min_online = -1;
-static int max_online;
 static long n_barrier_attempts;
 static long n_barrier_successes;
 static struct list_head rcu_torture_removed;
@@ -994,13 +981,7 @@ rcu_torture_printk(char *page)
 		       n_rcu_torture_boost_failure,
 		       n_rcu_torture_boosts,
 		       n_rcu_torture_timers);
-	page += sprintf(page,
-		       "onoff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
-		       n_online_successes, n_online_attempts,
-		       n_offline_successes, n_offline_attempts,
-		       min_online, max_online,
-		       min_offline, max_offline,
-		       sum_online, sum_offline, HZ);
+	page = torture_onoff_stats(page);
 	page += sprintf(page, "barrier: %ld/%ld:%ld",
 		       n_barrier_successes,
 		       n_barrier_attempts,
@@ -1203,140 +1184,6 @@ rcu_torture_shutdown(void *arg)
 	kernel_power_off();	/* Shut down the system. */
 	return 0;
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
-
-/*
- * Execute random CPU-hotplug operations at the interval specified
- * by the onoff_interval.
- */
-static int
-rcu_torture_onoff(void *arg)
-{
-	int cpu;
-	unsigned long delta;
-	int maxcpu = -1;
-	DEFINE_TORTURE_RANDOM(rand);
-	int ret;
-	unsigned long starttime;
-
-	VERBOSE_TOROUT_STRING("rcu_torture_onoff task started");
-	for_each_online_cpu(cpu)
-		maxcpu = cpu;
-	WARN_ON(maxcpu < 0);
-	if (onoff_holdoff > 0) {
-		VERBOSE_TOROUT_STRING("rcu_torture_onoff begin holdoff");
-		schedule_timeout_interruptible(onoff_holdoff * HZ);
-		VERBOSE_TOROUT_STRING("rcu_torture_onoff end holdoff");
-	}
-	while (!kthread_should_stop()) {
-		cpu = (torture_random(&rand) >> 4) % (maxcpu + 1);
-		if (cpu_online(cpu) && cpu_is_hotpluggable(cpu)) {
-			if (verbose)
-				pr_alert("%s" TORTURE_FLAG
-					 "rcu_torture_onoff task: offlining %d\n",
-					 torture_type, cpu);
-			starttime = jiffies;
-			n_offline_attempts++;
-			ret = cpu_down(cpu);
-			if (ret) {
-				if (verbose)
-					pr_alert("%s" TORTURE_FLAG
-						 "rcu_torture_onoff task: offline %d failed: errno %d\n",
-						 torture_type, cpu, ret);
-			} else {
-				if (verbose)
-					pr_alert("%s" TORTURE_FLAG
-						 "rcu_torture_onoff task: offlined %d\n",
-						 torture_type, cpu);
-				n_offline_successes++;
-				delta = jiffies - starttime;
-				sum_offline += delta;
-				if (min_offline < 0) {
-					min_offline = delta;
-					max_offline = delta;
-				}
-				if (min_offline > delta)
-					min_offline = delta;
-				if (max_offline < delta)
-					max_offline = delta;
-			}
-		} else if (cpu_is_hotpluggable(cpu)) {
-			if (verbose)
-				pr_alert("%s" TORTURE_FLAG
-					 "rcu_torture_onoff task: onlining %d\n",
-					 torture_type, cpu);
-			starttime = jiffies;
-			n_online_attempts++;
-			ret = cpu_up(cpu);
-			if (ret) {
-				if (verbose)
-					pr_alert("%s" TORTURE_FLAG
-						 "rcu_torture_onoff task: online %d failed: errno %d\n",
-						 torture_type, cpu, ret);
-			} else {
-				if (verbose)
-					pr_alert("%s" TORTURE_FLAG
-						 "rcu_torture_onoff task: onlined %d\n",
-						 torture_type, cpu);
-				n_online_successes++;
-				delta = jiffies - starttime;
-				sum_online += delta;
-				if (min_online < 0) {
-					min_online = delta;
-					max_online = delta;
-				}
-				if (min_online > delta)
-					min_online = delta;
-				if (max_online < delta)
-					max_online = delta;
-			}
-		}
-		schedule_timeout_interruptible(onoff_interval * HZ);
-	}
-	VERBOSE_TOROUT_STRING("rcu_torture_onoff task stopping");
-	return 0;
-}
-
-static int
-rcu_torture_onoff_init(void)
-{
-	int ret;
-
-	if (onoff_interval <= 0)
-		return 0;
-	onoff_task = kthread_run(rcu_torture_onoff, NULL, "rcu_torture_onoff");
-	if (IS_ERR(onoff_task)) {
-		ret = PTR_ERR(onoff_task);
-		onoff_task = NULL;
-		return ret;
-	}
-	torture_shuffle_task_register(onoff_task);
-	return 0;
-}
-
-static void rcu_torture_onoff_cleanup(void)
-{
-	if (onoff_task == NULL)
-		return;
-	VERBOSE_TOROUT_STRING("Stopping rcu_torture_onoff task");
-	kthread_stop(onoff_task);
-	onoff_task = NULL;
-}
-
-#else /* #ifdef CONFIG_HOTPLUG_CPU */
-
-static int
-rcu_torture_onoff_init(void)
-{
-	return 0;
-}
-
-static void rcu_torture_onoff_cleanup(void)
-{
-}
-
-#endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * CPU-stall kthread.  It waits as specified by stall_cpu_holdoff, then
@@ -1657,7 +1504,7 @@ rcu_torture_cleanup(void)
 		kthread_stop(shutdown_task);
 	}
 	shutdown_task = NULL;
-	rcu_torture_onoff_cleanup();
+	torture_onoff_cleanup();
 
 	/* Wait for all RCU callbacks to fire.  */
 
@@ -1668,8 +1515,7 @@ rcu_torture_cleanup(void)
 
 	if (atomic_read(&n_rcu_torture_error) || n_rcu_torture_barrier_error)
 		rcu_torture_print_module_parms(cur_ops, "End of test: FAILURE");
-	else if (n_online_successes != n_online_attempts ||
-		 n_offline_successes != n_offline_attempts)
+	else if (torture_onoff_failures())
 		rcu_torture_print_module_parms(cur_ops,
 					       "End of test: RCU_HOTPLUG");
 	else
@@ -1935,7 +1781,7 @@ rcu_torture_init(void)
 		torture_shuffle_task_register(shutdown_task);
 		wake_up_process(shutdown_task);
 	}
-	i = rcu_torture_onoff_init();
+	i = torture_onoff_init(onoff_holdoff * HZ, onoff_interval * HZ);
 	if (i != 0) {
 		firsterr = i;
 		goto unwind;
