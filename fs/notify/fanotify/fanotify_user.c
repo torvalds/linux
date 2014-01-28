@@ -319,7 +319,12 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 			if (IS_ERR(kevent))
 				break;
 			ret = copy_event_to_user(group, kevent, buf);
-			fsnotify_destroy_event(group, kevent);
+			/*
+			 * Permission events get destroyed after we
+			 * receive response
+			 */
+			if (!(kevent->mask & FAN_ALL_PERM_EVENTS))
+				fsnotify_destroy_event(group, kevent);
 			if (ret < 0)
 				break;
 			buf += ret;

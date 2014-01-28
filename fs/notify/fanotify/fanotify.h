@@ -4,6 +4,13 @@
 
 extern struct kmem_cache *fanotify_event_cachep;
 
+/*
+ * Lifetime of the structure differs for normal and permission events. In both
+ * cases the structure is allocated in fanotify_handle_event(). For normal
+ * events the structure is freed immediately after reporting it to userspace.
+ * For permission events we free it only after we receive response from
+ * userspace.
+ */
 struct fanotify_event_info {
 	struct fsnotify_event fse;
 	/*

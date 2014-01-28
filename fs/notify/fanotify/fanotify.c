@@ -192,14 +192,17 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 
 	ret = fsnotify_add_notify_event(group, fsn_event, fanotify_merge);
 	if (ret) {
+		BUG_ON(mask & FAN_ALL_PERM_EVENTS);
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
 		ret = 0;
 	}
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	if (mask & FAN_ALL_PERM_EVENTS)
+	if (mask & FAN_ALL_PERM_EVENTS) {
 		ret = fanotify_get_response_from_access(group, event);
+		fsnotify_destroy_event(group, fsn_event);
+	}
 #endif
 	return ret;
 }
