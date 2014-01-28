@@ -35,13 +35,18 @@
 #include <linux/bug.h>
 #include <linux/compiler.h>
 
+/* Definitions for a non-string torture-test module parameter. */
+#define torture_param(type, name, init, msg) \
+	static type name = init; \
+	module_param(name, type, 0444); \
+	MODULE_PARM_DESC(name, msg);
+
+/* Low-rider random number generator. */
 struct torture_random_state {
 	unsigned long trs_state;
 	long trs_count;
 };
-
 #define DEFINE_TORTURE_RANDOM(name) struct torture_random_state name = { 0, 0 }
-
 unsigned long torture_random(struct torture_random_state *trsp);
 
 #endif /* __LINUX_TORTURE_H */

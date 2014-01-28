@@ -59,78 +59,43 @@ MODULE_ALIAS("rcutorture");
 #endif
 #define MODULE_PARAM_PREFIX "rcutorture."
 
-static int fqs_duration;
-module_param(fqs_duration, int, 0444);
-MODULE_PARM_DESC(fqs_duration, "Duration of fqs bursts (us), 0 to disable");
-static int fqs_holdoff;
-module_param(fqs_holdoff, int, 0444);
-MODULE_PARM_DESC(fqs_holdoff, "Holdoff time within fqs bursts (us)");
-static int fqs_stutter = 3;
-module_param(fqs_stutter, int, 0444);
-MODULE_PARM_DESC(fqs_stutter, "Wait time between fqs bursts (s)");
-static bool gp_exp;
-module_param(gp_exp, bool, 0444);
-MODULE_PARM_DESC(gp_exp, "Use expedited GP wait primitives");
-static bool gp_normal;
-module_param(gp_normal, bool, 0444);
-MODULE_PARM_DESC(gp_normal, "Use normal (non-expedited) GP wait primitives");
-static int irqreader = 1;
-module_param(irqreader, int, 0444);
-MODULE_PARM_DESC(irqreader, "Allow RCU readers from irq handlers");
-static int n_barrier_cbs;
-module_param(n_barrier_cbs, int, 0444);
-MODULE_PARM_DESC(n_barrier_cbs, "# of callbacks/kthreads for barrier testing");
-static int nfakewriters = 4;
-module_param(nfakewriters, int, 0444);
-MODULE_PARM_DESC(nfakewriters, "Number of RCU fake writer threads");
-static int nreaders = -1;
-module_param(nreaders, int, 0444);
-MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
-static int object_debug;
-module_param(object_debug, int, 0444);
-MODULE_PARM_DESC(object_debug, "Enable debug-object double call_rcu() testing");
-static int onoff_holdoff;
-module_param(onoff_holdoff, int, 0444);
-MODULE_PARM_DESC(onoff_holdoff, "Time after boot before CPU hotplugs (s)");
-static int onoff_interval;
-module_param(onoff_interval, int, 0444);
-MODULE_PARM_DESC(onoff_interval, "Time between CPU hotplugs (s), 0=disable");
-static int shuffle_interval = 3;
-module_param(shuffle_interval, int, 0444);
-MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
-static int shutdown_secs;
-module_param(shutdown_secs, int, 0444);
-MODULE_PARM_DESC(shutdown_secs, "Shutdown time (s), <= zero to disable.");
-static int stall_cpu;
-module_param(stall_cpu, int, 0444);
-MODULE_PARM_DESC(stall_cpu, "Stall duration (s), zero to disable.");
-static int stall_cpu_holdoff = 10;
-module_param(stall_cpu_holdoff, int, 0444);
-MODULE_PARM_DESC(stall_cpu_holdoff, "Time to wait before starting stall (s).");
-static int stat_interval = 60;
-module_param(stat_interval, int, 0644);
-MODULE_PARM_DESC(stat_interval, "Number of seconds between stats printk()s");
-static int stutter = 5;
-module_param(stutter, int, 0444);
-MODULE_PARM_DESC(stutter, "Number of seconds to run/halt test");
-static int test_boost = 1;
-module_param(test_boost, int, 0444);
-MODULE_PARM_DESC(test_boost, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
-static int test_boost_duration = 4;
-module_param(test_boost_duration, int, 0444);
-MODULE_PARM_DESC(test_boost_duration, "Duration of each boost test, seconds.");
-static int test_boost_interval = 7;
-module_param(test_boost_interval, int, 0444);
-MODULE_PARM_DESC(test_boost_interval, "Interval between boost tests, seconds.");
-static bool test_no_idle_hz = true;
-module_param(test_no_idle_hz, bool, 0444);
-MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
+torture_param(int, fqs_duration, 0,
+	      "Duration of fqs bursts (us), 0 to disable");
+torture_param(int, fqs_holdoff, 0, "Holdoff time within fqs bursts (us)");
+torture_param(int, fqs_stutter, 3, "Wait time between fqs bursts (s)");
+torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
+torture_param(bool, gp_normal, false,
+	     "Use normal (non-expedited) GP wait primitives");
+torture_param(int, irqreader, 1, "Allow RCU readers from irq handlers");
+torture_param(int, n_barrier_cbs, 0,
+	     "# of callbacks/kthreads for barrier testing");
+torture_param(int, nfakewriters, 4, "Number of RCU fake writer threads");
+torture_param(int, nreaders, -1, "Number of RCU reader threads");
+torture_param(int, object_debug, 0,
+	     "Enable debug-object double call_rcu() testing");
+torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
+torture_param(int, onoff_interval, 0,
+	     "Time between CPU hotplugs (s), 0=disable");
+torture_param(int, shuffle_interval, 3, "Number of seconds between shuffles");
+torture_param(int, shutdown_secs, 0, "Shutdown time (s), <= zero to disable.");
+torture_param(int, stall_cpu, 0, "Stall duration (s), zero to disable.");
+torture_param(int, stall_cpu_holdoff, 10,
+	     "Time to wait before starting stall (s).");
+torture_param(int, stat_interval, 60,
+	     "Number of seconds between stats printk()s");
+torture_param(int, stutter, 5, "Number of seconds to run/halt test");
+torture_param(int, test_boost, 1, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
+torture_param(int, test_boost_duration, 4,
+	     "Duration of each boost test, seconds.");
+torture_param(int, test_boost_interval, 7,
+	     "Interval between boost tests, seconds.");
+torture_param(bool, test_no_idle_hz, true,
+	     "Test support for tickless idle CPUs");
+torture_param(bool, verbose, false, "Enable verbose debugging printk()s");
+
 static char *torture_type = "rcu";
 module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, ...)");
-static bool verbose;
-module_param(verbose, bool, 0444);
-MODULE_PARM_DESC(verbose, "Enable verbose debugging printk()s");
 
 #define TORTURE_FLAG "-torture:"
 #define PRINTK_STRING(s) \
