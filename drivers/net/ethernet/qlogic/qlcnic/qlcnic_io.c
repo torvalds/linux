@@ -1150,13 +1150,13 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	u16 lro_length, length, data_offset, t_vid, vid = 0xffff;
 	u32 seq_number;
 
-	if (unlikely(ring > adapter->max_rds_rings))
+	if (unlikely(ring >= adapter->max_rds_rings))
 		return NULL;
 
 	rds_ring = &recv_ctx->rds_rings[ring];
 
 	index = qlcnic_get_lro_sts_refhandle(sts_data0);
-	if (unlikely(index > rds_ring->num_desc))
+	if (unlikely(index >= rds_ring->num_desc))
 		return NULL;
 
 	buffer = &rds_ring->rx_buf_arr[index];
@@ -1662,13 +1662,13 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 	u16 vid = 0xffff;
 	int err;
 
-	if (unlikely(ring > adapter->max_rds_rings))
+	if (unlikely(ring >= adapter->max_rds_rings))
 		return NULL;
 
 	rds_ring = &recv_ctx->rds_rings[ring];
 
 	index = qlcnic_83xx_hndl(sts_data[0]);
-	if (unlikely(index > rds_ring->num_desc))
+	if (unlikely(index >= rds_ring->num_desc))
 		return NULL;
 
 	buffer = &rds_ring->rx_buf_arr[index];
