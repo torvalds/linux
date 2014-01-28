@@ -696,7 +696,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 			goto out_unlock0;
 
 		/* raced with RMID? */
-		if (msq->q_perm.deleted) {
+		if (!ipc_valid_object(&msq->q_perm)) {
 			err = -EIDRM;
 			goto out_unlock0;
 		}
@@ -731,7 +731,8 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		ipc_lock_object(&msq->q_perm);
 
 		ipc_rcu_putref(msq, ipc_rcu_free);
-		if (msq->q_perm.deleted) {
+		/* raced with RMID? */
+		if (!ipc_valid_object(&msq->q_perm)) {
 			err = -EIDRM;
 			goto out_unlock0;
 		}
@@ -909,7 +910,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgfl
 		ipc_lock_object(&msq->q_perm);
 
 		/* raced with RMID? */
-		if (msq->q_perm.deleted) {
+		if (!ipc_valid_object(&msq->q_perm)) {
 			msg = ERR_PTR(-EIDRM);
 			goto out_unlock0;
 		}
