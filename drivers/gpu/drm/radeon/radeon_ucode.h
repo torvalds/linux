@@ -59,6 +59,7 @@
 #define SI_MC_UCODE_SIZE             7769
 #define OLAND_MC_UCODE_SIZE          7863
 #define CIK_MC_UCODE_SIZE            7866
+#define HAWAII_MC_UCODE_SIZE         7933
 
 /* SDMA */
 #define CIK_SDMA_UCODE_SIZE          1050
@@ -142,5 +143,8 @@
 
 #define BONAIRE_SMC_UCODE_START      0x20000
 #define BONAIRE_SMC_UCODE_SIZE       0x1FDEC
+
+#define HAWAII_SMC_UCODE_START       0x20000
+#define HAWAII_SMC_UCODE_SIZE        0x1FDEC
 
 #endif

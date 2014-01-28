@@ -58,7 +58,7 @@
      </sect1>
      <sect1><title>Wait queues and Wake events</title>
 !Iinclude/linux/wait.h
-!Ekernel/wait.c
+!Ekernel/sched/wait.c
      </sect1>
      <sect1><title>High-resolution timers</title>
 !Iinclude/linux/ktime.h
@@ -87,7 +87,10 @@ X!Iinclude/linux/kobject.h
 !Ekernel/printk/printk.c
 !Ekernel/panic.c
 !Ekernel/sys.c
-!Ekernel/rcupdate.c
+!Ekernel/rcu/srcu.c
+!Ekernel/rcu/tree.c
+!Ekernel/rcu/tree_plugin.h
+!Ekernel/rcu/update.c
      </sect1>
 
      <sect1><title>Device Resource Management</title>

@@ -34,7 +34,6 @@ static void __vlan_add_flags(struct net_port_vlans *v, u16 vid, u16 flags)
 
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 {
-	const struct net_device_ops *ops;
 	struct net_bridge_port *p = NULL;
 	struct net_bridge *br;
 	struct net_device *dev;
@@ -53,17 +52,15 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 		br = v->parent.br;
 		dev = br->dev;
 	}
-	ops = dev->netdev_ops;
 
-	if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
+	if (p) {
 		/* Add VLAN to the device filter if it is supported.
 		 * Stricly speaking, this is not necessary now, since
 		 * devices are made promiscuous by the bridge, but if
 		 * that ever changes this code will allow tagged
 		 * traffic to enter the bridge.
 		 */
-		err = ops->ndo_vlan_rx_add_vid(dev, htons(ETH_P_8021Q),
-					       vid);
+		err = vlan_vid_add(dev, htons(ETH_P_8021Q), vid);
 		if (err)
 			return err;
 	}
@@ -82,8 +79,8 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 	return 0;
 
 out_filt:
-	if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
-		ops->ndo_vlan_rx_kill_vid(dev, htons(ETH_P_8021Q), vid);
+	if (p)
+		vlan_vid_del(dev, htons(ETH_P_8021Q), vid);
 	return err;
 }
 
@@ -95,13 +92,8 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 	__vlan_delete_pvid(v, vid);
 	clear_bit(vid, v->untagged_bitmap);
 
-	if (v->port_idx) {
-		struct net_device *dev = v->parent.port->dev;
-		const struct net_device_ops *ops = dev->netdev_ops;
-
-		if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
-			ops->ndo_vlan_rx_kill_vid(dev, htons(ETH_P_8021Q), vid);
-	}
+	if (v->port_idx)
+		vlan_vid_del(v->parent.port->dev, htons(ETH_P_8021Q), vid);
 
 	clear_bit(vid, v->vlan_bitmap);
 	v->num_vlans--;
@@ -398,12 +390,16 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 void nbp_vlan_flush(struct net_bridge_port *port)
 {
 	struct net_port_vlans *pv;
+	u16 vid;
 
 	ASSERT_RTNL();
 
 	pv = rtnl_dereference(port->vlan_info);
 	if (!pv)
 		return;
+
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
+		vlan_vid_del(port->dev, htons(ETH_P_8021Q), vid);
 
 	__vlan_flush(pv);
 }

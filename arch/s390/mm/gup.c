@@ -180,9 +180,15 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	addr = start;
 	len = (unsigned long) nr_pages << PAGE_SHIFT;
 	end = start + len;
-	if ((end < start) || (end > TASK_SIZE))
+	if ((end <= start) || (end > TASK_SIZE))
 		return 0;
-
+	/*
+	 * local_irq_save() doesn't prevent pagetable teardown, but does
+	 * prevent the pagetables from being freed on s390.
+	 *
+	 * So long as we atomically load page table pointers versus teardown,
+	 * we can follow the address down to the the page and take a ref on it.
+	 */
 	local_irq_save(flags);
 	pgdp = pgd_offset(mm, addr);
 	do {
@@ -219,63 +225,22 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long addr, len, end;
-	unsigned long next;
-	pgd_t *pgdp, pgd;
-	int nr = 0;
+	int nr, ret;
 
 	start &= PAGE_MASK;
-	addr = start;
-	len = (unsigned long) nr_pages << PAGE_SHIFT;
-	end = start + len;
-	if ((end < start) || (end > TASK_SIZE))
-		goto slow_irqon;
+	nr = __get_user_pages_fast(start, nr_pages, write, pages);
+	if (nr == nr_pages)
+		return nr;
 
-	/*
-	 * local_irq_disable() doesn't prevent pagetable teardown, but does
-	 * prevent the pagetables from being freed on s390.
-	 *
-	 * So long as we atomically load page table pointers versus teardown,
-	 * we can follow the address down to the the page and take a ref on it.
-	 */
-	local_irq_disable();
-	pgdp = pgd_offset(mm, addr);
-	do {
-		pgd = *pgdp;
-		barrier();
-		next = pgd_addr_end(addr, end);
-		if (pgd_none(pgd))
-			goto slow;
-		if (!gup_pud_range(pgdp, pgd, addr, next, write, pages, &nr))
-			goto slow;
-	} while (pgdp++, addr = next, addr != end);
-	local_irq_enable();
-
-	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
-	return nr;
-
-	{
-		int ret;
-slow:
-		local_irq_enable();
-slow_irqon:
-		/* Try to get the remaining pages with get_user_pages */
-		start += nr << PAGE_SHIFT;
-		pages += nr;
-
-		down_read(&mm->mmap_sem);
-		ret = get_user_pages(current, mm, start,
-			(end - start) >> PAGE_SHIFT, write, 0, pages, NULL);
-		up_read(&mm->mmap_sem);
-
-		/* Have to be a bit careful with return values */
-		if (nr > 0) {
-			if (ret < 0)
-				ret = nr;
-			else
-				ret += nr;
-		}
-
-		return ret;
-	}
+	/* Try to get the remaining pages with get_user_pages */
+	start += nr << PAGE_SHIFT;
+	pages += nr;
+	down_read(&mm->mmap_sem);
+	ret = get_user_pages(current, mm, start,
+			     nr_pages - nr, write, 0, pages, NULL);
+	up_read(&mm->mmap_sem);
+	/* Have to be a bit careful with return values */
+	if (nr > 0)
+		ret = (ret < 0) ? nr : ret + nr;
+	return ret;
 }

@@ -47,8 +47,8 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 			(unsigned long *) vmbus_connection.send_int_page +
 			(channel->offermsg.child_relid >> 5));
 
-		monitorpage = vmbus_connection.monitor_pages;
-		monitorpage++; /* Get the child to parent monitor page */
+		/* Get the child to parent monitor page */
+		monitorpage = vmbus_connection.monitor_pages[1];
 
 		sync_set_bit(channel->monitor_bit,
 			(unsigned long *)&monitorpage->trigger_group
@@ -57,50 +57,6 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 	} else {
 		vmbus_set_event(channel);
 	}
-}
-
-/*
- * vmbus_get_debug_info -Retrieve various channel debug info
- */
-void vmbus_get_debug_info(struct vmbus_channel *channel,
-			      struct vmbus_channel_debug_info *debuginfo)
-{
-	struct hv_monitor_page *monitorpage;
-	u8 monitor_group = (u8)channel->offermsg.monitorid / 32;
-	u8 monitor_offset = (u8)channel->offermsg.monitorid % 32;
-
-	debuginfo->relid = channel->offermsg.child_relid;
-	debuginfo->state = channel->state;
-	memcpy(&debuginfo->interfacetype,
-	       &channel->offermsg.offer.if_type, sizeof(uuid_le));
-	memcpy(&debuginfo->interface_instance,
-	       &channel->offermsg.offer.if_instance,
-	       sizeof(uuid_le));
-
-	monitorpage = (struct hv_monitor_page *)vmbus_connection.monitor_pages;
-
-	debuginfo->monitorid = channel->offermsg.monitorid;
-
-	debuginfo->servermonitor_pending =
-			monitorpage->trigger_group[monitor_group].pending;
-	debuginfo->servermonitor_latency =
-			monitorpage->latency[monitor_group][monitor_offset];
-	debuginfo->servermonitor_connectionid =
-			monitorpage->parameter[monitor_group]
-					[monitor_offset].connectionid.u.id;
-
-	monitorpage++;
-
-	debuginfo->clientmonitor_pending =
-			monitorpage->trigger_group[monitor_group].pending;
-	debuginfo->clientmonitor_latency =
-			monitorpage->latency[monitor_group][monitor_offset];
-	debuginfo->clientmonitor_connectionid =
-			monitorpage->parameter[monitor_group]
-					[monitor_offset].connectionid.u.id;
-
-	hv_ringbuffer_get_debuginfo(&channel->inbound, &debuginfo->inbound);
-	hv_ringbuffer_get_debuginfo(&channel->outbound, &debuginfo->outbound);
 }
 
 /*
@@ -855,6 +811,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	if (signal)
 		vmbus_setevent(channel);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vmbus_recvpacket_raw);

@@ -128,5 +128,10 @@ int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *cdev,
 			       unsigned char command,
 			       const unsigned char *buffer,
 			       int len);
+int snd_usb_caiaq_send_command_bank(struct snd_usb_caiaqdev *cdev,
+			       unsigned char command,
+			       unsigned char bank,
+			       const unsigned char *buffer,
+			       int len);
 
 #endif /* CAIAQ_DEVICE_H */

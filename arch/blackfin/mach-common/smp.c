@@ -146,6 +146,7 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 
 	platform_clear_ipi(cpu, IRQ_SUPPLE_1);
 
+	smp_rmb();
 	bfin_ipi_data = &__get_cpu_var(bfin_ipi);
 	while ((pending = atomic_xchg(&bfin_ipi_data->bits, 0)) != 0) {
 		msg = 0;
@@ -161,18 +162,20 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 			case BFIN_IPI_CALL_FUNC:
 				generic_smp_call_function_interrupt();
 				break;
-
 			case BFIN_IPI_CALL_FUNC_SINGLE:
 				generic_smp_call_function_single_interrupt();
 				break;
-
 			case BFIN_IPI_CPU_STOP:
 				ipi_cpu_stop(cpu);
 				break;
+			default:
+				goto out;
 			}
 			atomic_dec(&bfin_ipi_data->count);
 		} while (msg < BITS_PER_LONG);
+
 	}
+out:
 	return IRQ_HANDLED;
 }
 
@@ -198,10 +201,11 @@ void send_ipi(const struct cpumask *cpumask, enum ipi_message_type msg)
 		bfin_ipi_data = &per_cpu(bfin_ipi, cpu);
 		atomic_set_mask((1 << msg), &bfin_ipi_data->bits);
 		atomic_inc(&bfin_ipi_data->count);
-		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_1);
 	}
-
 	local_irq_restore(flags);
+	smp_wmb();
+	for_each_cpu(cpu, cpumask)
+		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_1);
 }
 
 void arch_send_call_function_single_ipi(int cpu)

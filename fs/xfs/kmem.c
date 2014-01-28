@@ -63,17 +63,6 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
 }
 
 void *
-kmem_zalloc(size_t size, xfs_km_flags_t flags)
-{
-	void	*ptr;
-
-	ptr = kmem_alloc(size, flags);
-	if (ptr)
-		memset((char *)ptr, 0, (int)size);
-	return ptr;
-}
-
-void *
 kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
 {
 	void	*ptr;
@@ -127,15 +116,4 @@ kmem_zone_alloc(kmem_zone_t *zone, xfs_km_flags_t flags)
 					__func__, lflags);
 		congestion_wait(BLK_RW_ASYNC, HZ/50);
 	} while (1);
-}
-
-void *
-kmem_zone_zalloc(kmem_zone_t *zone, xfs_km_flags_t flags)
-{
-	void	*ptr;
-
-	ptr = kmem_zone_alloc(zone, flags);
-	if (ptr)
-		memset((char *)ptr, 0, kmem_cache_size(zone));
-	return ptr;
 }

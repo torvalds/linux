@@ -60,7 +60,7 @@ static enum ip_defrag_users nf_ct_defrag_user(unsigned int hooknum,
 		return IP_DEFRAG_CONNTRACK_OUT + zone;
 }
 
-static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
+static unsigned int ipv4_conntrack_defrag(const struct nf_hook_ops *ops,
 					  struct sk_buff *skb,
 					  const struct net_device *in,
 					  const struct net_device *out,
@@ -83,7 +83,9 @@ static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
 #endif
 	/* Gather fragments. */
 	if (ip_is_fragment(ip_hdr(skb))) {
-		enum ip_defrag_users user = nf_ct_defrag_user(hooknum, skb);
+		enum ip_defrag_users user =
+			nf_ct_defrag_user(ops->hooknum, skb);
+
 		if (nf_ct_ipv4_gather_frags(skb, user))
 			return NF_STOLEN;
 	}

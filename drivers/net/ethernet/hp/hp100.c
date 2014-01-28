@@ -1098,7 +1098,7 @@ static int hp100_open(struct net_device *dev)
 	if (request_irq(dev->irq, hp100_interrupt,
 			lp->bus == HP100_BUS_PCI || lp->bus ==
 			HP100_BUS_EISA ? IRQF_SHARED : 0,
-			"hp100", dev)) {
+			dev->name, dev)) {
 		printk("hp100: %s: unable to get IRQ %d\n", dev->name, dev->irq);
 		return -EAGAIN;
 	}

@@ -86,7 +86,7 @@ void esas2r_targ_db_report_changes(struct esas2r_adapter *a)
 
 	esas2r_trace_enter();
 
-	if (a->flags & AF_DISC_PENDING) {
+	if (test_bit(AF_DISC_PENDING, &a->flags)) {
 		esas2r_trace_exit();
 		return;
 	}

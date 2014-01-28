@@ -328,7 +328,7 @@ static int ak4641_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ak4641->playback_fs = rate;
 		ak4641_set_deemph(codec);
-	};
+	}
 
 	return 0;
 }

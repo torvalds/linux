@@ -567,7 +567,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 		rtStatus  = rtl8192_phy_checkBBAndRF(dev,
 					 (enum hw90_block)eCheckItem,
 					 (enum rf90_radio_path)0);
-		if (rtStatus != true) {
+		if (!rtStatus) {
 			RT_TRACE((COMP_ERR | COMP_PHY), "PHY_RF8256_Config():"
 				 "Check PHY%d Fail!!\n", eCheckItem-1);
 			return rtStatus;
@@ -1425,7 +1425,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 	u8	i = 0, QueueID = 0;
 	struct rtl8192_tx_ring  *ring = NULL;
 
-	if (priv->SetRFPowerStateInProgress == true)
+	if (priv->SetRFPowerStateInProgress)
 		return false;
 	RT_TRACE(COMP_PS, "===========> SetRFPowerState8190()!\n");
 	priv->SetRFPowerStateInProgress = true;
@@ -1443,10 +1443,9 @@ static bool SetRFPowerState8190(struct net_device *dev,
 					InitilizeCount--;
 					priv->RegRfOff = false;
 					rtstatus = NicIFEnableNIC(dev);
-				} while ((rtstatus != true) &&
-					 (InitilizeCount > 0));
+				} while (!rtstatus && (InitilizeCount > 0));
 
-				if (rtstatus != true) {
+				if (!rtstatus) {
 					RT_TRACE(COMP_ERR, "%s():Initialize Ada"
 						 "pter fail,return\n",
 						 __func__);

@@ -20,13 +20,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk/bcm2835.h>
-#include <linux/clk-provider.h>
 #include <linux/of.h>
-
-static const struct of_device_id clk_match[] __initconst = {
-	{ .compatible = "fixed-clock", .data = of_fixed_clk_setup, },
-	{ }
-};
 
 /*
  * These are fixed clocks. They're probably not all root clocks and it may
@@ -63,6 +57,4 @@ void __init bcm2835_init_clocks(void)
 	ret = clk_register_clkdev(clk, NULL, "20215000.uart");
 	if (ret)
 		pr_err("uart1_pclk alias not registered\n");
-
-	of_clk_init(clk_match);
 }

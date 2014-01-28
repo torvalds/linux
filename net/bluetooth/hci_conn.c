@@ -28,8 +28,9 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
-#include <net/bluetooth/a2mp.h>
-#include <net/bluetooth/smp.h>
+
+#include "smp.h"
+#include "a2mp.h"
 
 struct sco_param {
 	u16 pkt_type;
@@ -48,30 +49,6 @@ static const struct sco_param sco_param_wideband[] = {
 	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x000d }, /* T2 */
 	{ EDR_ESCO_MASK | ESCO_EV3,   0x0008 }, /* T1 */
 };
-
-static void hci_le_create_connection(struct hci_conn *conn)
-{
-	struct hci_dev *hdev = conn->hdev;
-	struct hci_cp_le_create_conn cp;
-
-	conn->state = BT_CONNECT;
-	conn->out = true;
-	conn->link_mode |= HCI_LM_MASTER;
-	conn->sec_level = BT_SECURITY_LOW;
-
-	memset(&cp, 0, sizeof(cp));
-	cp.scan_interval = __constant_cpu_to_le16(0x0060);
-	cp.scan_window = __constant_cpu_to_le16(0x0030);
-	bacpy(&cp.peer_addr, &conn->dst);
-	cp.peer_addr_type = conn->dst_type;
-	cp.conn_interval_min = __constant_cpu_to_le16(0x0028);
-	cp.conn_interval_max = __constant_cpu_to_le16(0x0038);
-	cp.supervision_timeout = __constant_cpu_to_le16(0x002a);
-	cp.min_ce_len = __constant_cpu_to_le16(0x0000);
-	cp.max_ce_len = __constant_cpu_to_le16(0x0000);
-
-	hci_send_cmd(hdev, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
-}
 
 static void hci_le_create_connection_cancel(struct hci_conn *conn)
 {
@@ -340,8 +317,10 @@ static void hci_conn_timeout(struct work_struct *work)
 }
 
 /* Enter sniff mode */
-static void hci_conn_enter_sniff_mode(struct hci_conn *conn)
+static void hci_conn_idle(struct work_struct *work)
 {
+	struct hci_conn *conn = container_of(work, struct hci_conn,
+					     idle_work.work);
 	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("hcon %p mode %d", conn, conn->mode);
@@ -375,21 +354,12 @@ static void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 	}
 }
 
-static void hci_conn_idle(unsigned long arg)
+static void hci_conn_auto_accept(struct work_struct *work)
 {
-	struct hci_conn *conn = (void *) arg;
+	struct hci_conn *conn = container_of(work, struct hci_conn,
+					     auto_accept_work.work);
 
-	BT_DBG("hcon %p mode %d", conn, conn->mode);
-
-	hci_conn_enter_sniff_mode(conn);
-}
-
-static void hci_conn_auto_accept(unsigned long arg)
-{
-	struct hci_conn *conn = (void *) arg;
-	struct hci_dev *hdev = conn->hdev;
-
-	hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_REPLY, sizeof(conn->dst),
+	hci_send_cmd(conn->hdev, HCI_OP_USER_CONFIRM_REPLY, sizeof(conn->dst),
 		     &conn->dst);
 }
 
@@ -404,6 +374,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 		return NULL;
 
 	bacpy(&conn->dst, dst);
+	bacpy(&conn->src, &hdev->bdaddr);
 	conn->hdev  = hdev;
 	conn->type  = type;
 	conn->mode  = HCI_CM_ACTIVE;
@@ -437,9 +408,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	INIT_LIST_HEAD(&conn->chan_list);
 
 	INIT_DELAYED_WORK(&conn->disc_work, hci_conn_timeout);
-	setup_timer(&conn->idle_timer, hci_conn_idle, (unsigned long)conn);
-	setup_timer(&conn->auto_accept_timer, hci_conn_auto_accept,
-		    (unsigned long) conn);
+	INIT_DELAYED_WORK(&conn->auto_accept_work, hci_conn_auto_accept);
+	INIT_DELAYED_WORK(&conn->idle_work, hci_conn_idle);
 
 	atomic_set(&conn->refcnt, 0);
 
@@ -460,11 +430,9 @@ int hci_conn_del(struct hci_conn *conn)
 
 	BT_DBG("%s hcon %p handle %d", hdev->name, conn, conn->handle);
 
-	del_timer(&conn->idle_timer);
-
 	cancel_delayed_work_sync(&conn->disc_work);
-
-	del_timer(&conn->auto_accept_timer);
+	cancel_delayed_work_sync(&conn->auto_accept_work);
+	cancel_delayed_work_sync(&conn->idle_work);
 
 	if (conn->type == ACL_LINK) {
 		struct hci_conn *sco = conn->link;
@@ -518,6 +486,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (!test_bit(HCI_UP, &d->flags) ||
 		    test_bit(HCI_RAW, &d->flags) ||
+		    test_bit(HCI_USER_CHANNEL, &d->dev_flags) ||
 		    d->dev_type != HCI_BREDR)
 			continue;
 
@@ -545,40 +514,133 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 }
 EXPORT_SYMBOL(hci_get_route);
 
+static void create_le_conn_complete(struct hci_dev *hdev, u8 status)
+{
+	struct hci_conn *conn;
+
+	if (status == 0)
+		return;
+
+	BT_ERR("HCI request failed to create LE connection: status 0x%2.2x",
+	       status);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+	if (!conn)
+		goto done;
+
+	conn->state = BT_CLOSED;
+
+	mgmt_connect_failed(hdev, &conn->dst, conn->type, conn->dst_type,
+			    status);
+
+	hci_proto_connect_cfm(conn, status);
+
+	hci_conn_del(conn);
+
+done:
+	hci_dev_unlock(hdev);
+}
+
+static int hci_create_le_conn(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_le_create_conn cp;
+	struct hci_request req;
+	int err;
+
+	hci_req_init(&req, hdev);
+
+	memset(&cp, 0, sizeof(cp));
+	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
+	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
+	bacpy(&cp.peer_addr, &conn->dst);
+	cp.peer_addr_type = conn->dst_type;
+	cp.own_address_type = conn->src_type;
+	cp.conn_interval_min = cpu_to_le16(hdev->le_conn_min_interval);
+	cp.conn_interval_max = cpu_to_le16(hdev->le_conn_max_interval);
+	cp.supervision_timeout = __constant_cpu_to_le16(0x002a);
+	cp.min_ce_len = __constant_cpu_to_le16(0x0000);
+	cp.max_ce_len = __constant_cpu_to_le16(0x0000);
+
+	hci_req_add(&req, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
+
+	err = hci_req_run(&req, create_le_conn_complete);
+	if (err) {
+		hci_conn_del(conn);
+		return err;
+	}
+
+	return 0;
+}
+
 static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				    u8 dst_type, u8 sec_level, u8 auth_type)
 {
-	struct hci_conn *le;
+	struct hci_conn *conn;
+	int err;
 
-	if (test_bit(HCI_LE_PERIPHERAL, &hdev->flags))
+	if (test_bit(HCI_ADVERTISING, &hdev->flags))
 		return ERR_PTR(-ENOTSUPP);
 
-	le = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
-	if (!le) {
-		le = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
-		if (le)
-			return ERR_PTR(-EBUSY);
-
-		le = hci_conn_add(hdev, LE_LINK, dst);
-		if (!le)
-			return ERR_PTR(-ENOMEM);
-
-		le->dst_type = bdaddr_to_le(dst_type);
-		hci_le_create_connection(le);
+	/* Some devices send ATT messages as soon as the physical link is
+	 * established. To be able to handle these ATT messages, the user-
+	 * space first establishes the connection and then starts the pairing
+	 * process.
+	 *
+	 * So if a hci_conn object already exists for the following connection
+	 * attempt, we simply update pending_sec_level and auth_type fields
+	 * and return the object found.
+	 */
+	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
+	if (conn) {
+		conn->pending_sec_level = sec_level;
+		conn->auth_type = auth_type;
+		goto done;
 	}
 
-	le->pending_sec_level = sec_level;
-	le->auth_type = auth_type;
+	/* Since the controller supports only one LE connection attempt at a
+	 * time, we return -EBUSY if there is any connection attempt running.
+	 */
+	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+	if (conn)
+		return ERR_PTR(-EBUSY);
 
-	hci_conn_hold(le);
+	conn = hci_conn_add(hdev, LE_LINK, dst);
+	if (!conn)
+		return ERR_PTR(-ENOMEM);
 
-	return le;
+	if (dst_type == BDADDR_LE_PUBLIC)
+		conn->dst_type = ADDR_LE_DEV_PUBLIC;
+	else
+		conn->dst_type = ADDR_LE_DEV_RANDOM;
+
+	conn->src_type = hdev->own_addr_type;
+
+	conn->state = BT_CONNECT;
+	conn->out = true;
+	conn->link_mode |= HCI_LM_MASTER;
+	conn->sec_level = BT_SECURITY_LOW;
+	conn->pending_sec_level = sec_level;
+	conn->auth_type = auth_type;
+
+	err = hci_create_le_conn(conn);
+	if (err)
+		return ERR_PTR(err);
+
+done:
+	hci_conn_hold(conn);
+	return conn;
 }
 
 static struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 						u8 sec_level, u8 auth_type)
 {
 	struct hci_conn *acl;
+
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+		return ERR_PTR(-ENOTSUPP);
 
 	acl = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
 	if (!acl) {
@@ -846,8 +908,8 @@ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
 
 timer:
 	if (hdev->idle_timeout > 0)
-		mod_timer(&conn->idle_timer,
-			  jiffies + msecs_to_jiffies(hdev->idle_timeout));
+		queue_delayed_work(hdev->workqueue, &conn->idle_work,
+				   msecs_to_jiffies(hdev->idle_timeout));
 }
 
 /* Drop all connection on the device */

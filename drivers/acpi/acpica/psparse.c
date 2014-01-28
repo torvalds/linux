@@ -297,7 +297,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 			}
 	}
 
-      cleanup:
+cleanup:
 
 	/* Now we can actually delete the subtree rooted at Op */
 

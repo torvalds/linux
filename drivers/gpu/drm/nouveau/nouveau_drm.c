@@ -37,6 +37,7 @@
 #include <engine/device.h>
 #include <engine/disp.h>
 #include <engine/fifo.h>
+#include <engine/software.h>
 
 #include <subdev/vm.h>
 
@@ -46,7 +47,8 @@
 #include "nouveau_gem.h"
 #include "nouveau_agp.h"
 #include "nouveau_vga.h"
-#include "nouveau_pm.h"
+#include "nouveau_sysfs.h"
+#include "nouveau_hwmon.h"
 #include "nouveau_acpi.h"
 #include "nouveau_bios.h"
 #include "nouveau_ioctl.h"
@@ -77,41 +79,6 @@ int nouveau_runtime_pm = -1;
 module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 
 static struct drm_driver driver;
-
-static int
-nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
-{
-	struct nouveau_drm *drm =
-		container_of(event, struct nouveau_drm, vblank[head]);
-	drm_handle_vblank(drm->dev, head);
-	return NVKM_EVENT_KEEP;
-}
-
-static int
-nouveau_drm_vblank_enable(struct drm_device *dev, int head)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-
-	if (WARN_ON_ONCE(head > ARRAY_SIZE(drm->vblank)))
-		return -EIO;
-	WARN_ON_ONCE(drm->vblank[head].func);
-	drm->vblank[head].func = nouveau_drm_vblank_handler;
-	nouveau_event_get(pdisp->vblank, head, &drm->vblank[head]);
-	return 0;
-}
-
-static void
-nouveau_drm_vblank_disable(struct drm_device *dev, int head)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-	if (drm->vblank[head].func)
-		nouveau_event_put(pdisp->vblank, head, &drm->vblank[head]);
-	else
-		WARN_ON_ONCE(1);
-	drm->vblank[head].func = NULL;
-}
 
 static u64
 nouveau_name(struct pci_dev *pdev)
@@ -177,7 +144,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 	/* initialise synchronisation routines */
 	if      (device->card_type < NV_10) ret = nv04_fence_create(drm);
-	else if (device->chipset   <  0x17) ret = nv10_fence_create(drm);
+	else if (device->card_type < NV_11 ||
+		 device->chipset   <  0x17) ret = nv10_fence_create(drm);
 	else if (device->card_type < NV_50) ret = nv17_fence_create(drm);
 	else if (device->chipset   <  0x84) ret = nv50_fence_create(drm);
 	else if (device->card_type < NV_C0) ret = nv84_fence_create(drm);
@@ -220,6 +188,32 @@ nouveau_accel_init(struct nouveau_drm *drm)
 				  arg0, arg1, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
+		nouveau_accel_fini(drm);
+		return;
+	}
+
+	ret = nouveau_object_new(nv_object(drm), NVDRM_CHAN, NVDRM_NVSW,
+				 nouveau_abi16_swclass(drm), NULL, 0, &object);
+	if (ret == 0) {
+		struct nouveau_software_chan *swch = (void *)object->parent;
+		ret = RING_SPACE(drm->channel, 2);
+		if (ret == 0) {
+			if (device->card_type < NV_C0) {
+				BEGIN_NV04(drm->channel, NvSubSw, 0, 1);
+				OUT_RING  (drm->channel, NVDRM_NVSW);
+			} else
+			if (device->card_type < NV_E0) {
+				BEGIN_NVC0(drm->channel, FermiSw, 0, 1);
+				OUT_RING  (drm->channel, 0x001f0000);
+			}
+		}
+		swch = (void *)object->parent;
+		swch->flip = nouveau_flip_complete;
+		swch->flip_data = drm->channel;
+	}
+
+	if (ret) {
+		NV_ERROR(drm, "failed to allocate software object, %d\n", ret);
 		nouveau_accel_fini(drm);
 		return;
 	}
@@ -418,8 +412,8 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 			goto fail_dispinit;
 	}
 
-	nouveau_pm_init(dev);
-
+	nouveau_sysfs_init(dev);
+	nouveau_hwmon_init(dev);
 	nouveau_accel_init(drm);
 	nouveau_fbcon_init(dev);
 
@@ -455,8 +449,8 @@ nouveau_drm_unload(struct drm_device *dev)
 	pm_runtime_get_sync(dev->dev);
 	nouveau_fbcon_fini(dev);
 	nouveau_accel_fini(drm);
-
-	nouveau_pm_fini(dev);
+	nouveau_hwmon_fini(dev);
+	nouveau_sysfs_fini(dev);
 
 	if (dev->mode_config.num_crtc)
 		nouveau_display_fini(dev);
@@ -496,16 +490,16 @@ nouveau_do_suspend(struct drm_device *dev)
 	int ret;
 
 	if (dev->mode_config.num_crtc) {
-		NV_SUSPEND(drm, "suspending display...\n");
+		NV_INFO(drm, "suspending display...\n");
 		ret = nouveau_display_suspend(dev);
 		if (ret)
 			return ret;
 	}
 
-	NV_SUSPEND(drm, "evicting buffers...\n");
+	NV_INFO(drm, "evicting buffers...\n");
 	ttm_bo_evict_mm(&drm->ttm.bdev, TTM_PL_VRAM);
 
-	NV_SUSPEND(drm, "waiting for kernel channels to go idle...\n");
+	NV_INFO(drm, "waiting for kernel channels to go idle...\n");
 	if (drm->cechan) {
 		ret = nouveau_channel_idle(drm->cechan);
 		if (ret)
@@ -518,7 +512,7 @@ nouveau_do_suspend(struct drm_device *dev)
 			return ret;
 	}
 
-	NV_SUSPEND(drm, "suspending client object trees...\n");
+	NV_INFO(drm, "suspending client object trees...\n");
 	if (drm->fence && nouveau_fence(drm)->suspend) {
 		if (!nouveau_fence(drm)->suspend(drm))
 			return -ENOMEM;
@@ -530,7 +524,7 @@ nouveau_do_suspend(struct drm_device *dev)
 			goto fail_client;
 	}
 
-	NV_SUSPEND(drm, "suspending kernel object tree...\n");
+	NV_INFO(drm, "suspending kernel object tree...\n");
 	ret = nouveau_client_fini(&drm->client.base, true);
 	if (ret)
 		goto fail_client;
@@ -544,7 +538,7 @@ fail_client:
 	}
 
 	if (dev->mode_config.num_crtc) {
-		NV_SUSPEND(drm, "resuming display...\n");
+		NV_INFO(drm, "resuming display...\n");
 		nouveau_display_resume(dev);
 	}
 	return ret;
@@ -563,7 +557,6 @@ int nouveau_pmops_suspend(struct device *dev)
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_fbcon_set_suspend(drm_dev, 1);
 
-	nv_suspend_set_printk_level(NV_DBG_INFO);
 	ret = nouveau_do_suspend(drm_dev);
 	if (ret)
 		return ret;
@@ -571,8 +564,6 @@ int nouveau_pmops_suspend(struct device *dev)
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
-	nv_suspend_set_printk_level(NV_DBG_DEBUG);
-
 	return 0;
 }
 
@@ -582,15 +573,15 @@ nouveau_do_resume(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli;
 
-	NV_SUSPEND(drm, "re-enabling device...\n");
+	NV_INFO(drm, "re-enabling device...\n");
 
 	nouveau_agp_reset(drm);
 
-	NV_SUSPEND(drm, "resuming kernel object tree...\n");
+	NV_INFO(drm, "resuming kernel object tree...\n");
 	nouveau_client_init(&drm->client.base);
 	nouveau_agp_init(drm);
 
-	NV_SUSPEND(drm, "resuming client object trees...\n");
+	NV_INFO(drm, "resuming client object trees...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
 		nouveau_fence(drm)->resume(drm);
 
@@ -599,10 +590,9 @@ nouveau_do_resume(struct drm_device *dev)
 	}
 
 	nouveau_run_vbios_init(dev);
-	nouveau_pm_resume(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_SUSPEND(drm, "resuming display...\n");
+		NV_INFO(drm, "resuming display...\n");
 		nouveau_display_repin(dev);
 	}
 
@@ -626,19 +616,15 @@ int nouveau_pmops_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	nv_suspend_set_printk_level(NV_DBG_INFO);
 	ret = nouveau_do_resume(drm_dev);
-	if (ret) {
-		nv_suspend_set_printk_level(NV_DBG_DEBUG);
+	if (ret)
 		return ret;
-	}
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_fbcon_set_suspend(drm_dev, 0);
 
 	nouveau_fbcon_zfill_all(drm_dev);
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_display_resume(drm_dev);
-	nv_suspend_set_printk_level(NV_DBG_DEBUG);
 	return 0;
 }
 
@@ -648,12 +634,10 @@ static int nouveau_pmops_freeze(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	nv_suspend_set_printk_level(NV_DBG_INFO);
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_fbcon_set_suspend(drm_dev, 1);
 
 	ret = nouveau_do_suspend(drm_dev);
-	nv_suspend_set_printk_level(NV_DBG_DEBUG);
 	return ret;
 }
 
@@ -663,18 +647,14 @@ static int nouveau_pmops_thaw(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	nv_suspend_set_printk_level(NV_DBG_INFO);
 	ret = nouveau_do_resume(drm_dev);
-	if (ret) {
-		nv_suspend_set_printk_level(NV_DBG_DEBUG);
+	if (ret)
 		return ret;
-	}
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_fbcon_set_suspend(drm_dev, 0);
 	nouveau_fbcon_zfill_all(drm_dev);
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_display_resume(drm_dev);
-	nv_suspend_set_printk_level(NV_DBG_DEBUG);
 	return 0;
 }
 
@@ -816,8 +796,8 @@ driver = {
 #endif
 
 	.get_vblank_counter = drm_vblank_count,
-	.enable_vblank = nouveau_drm_vblank_enable,
-	.disable_vblank = nouveau_drm_vblank_disable,
+	.enable_vblank = nouveau_display_vblank_enable,
+	.disable_vblank = nouveau_display_vblank_disable,
 
 	.ioctls = nouveau_ioctls,
 	.num_ioctls = ARRAY_SIZE(nouveau_ioctls),
@@ -834,7 +814,6 @@ driver = {
 	.gem_prime_vmap = nouveau_gem_prime_vmap,
 	.gem_prime_vunmap = nouveau_gem_prime_vunmap,
 
-	.gem_init_object = nouveau_gem_object_new,
 	.gem_free_object = nouveau_gem_object_del,
 	.gem_open_object = nouveau_gem_object_open,
 	.gem_close_object = nouveau_gem_object_close,
@@ -879,6 +858,13 @@ static int nouveau_pmops_runtime_suspend(struct device *dev)
 	if (nouveau_runtime_pm == 0)
 		return -EINVAL;
 
+	/* are we optimus enabled? */
+	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
+		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+		return -EINVAL;
+	}
+
+	nv_debug_level(SILENT);
 	drm_kms_helper_poll_disable(drm_dev);
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 	nouveau_switcheroo_optimus_dsm();
@@ -915,6 +901,7 @@ static int nouveau_pmops_runtime_resume(struct device *dev)
 	nv_mask(device, 0x88488, (1 << 25), (1 << 25));
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
+	nv_debug_level(NORMAL);
 	return ret;
 }
 

@@ -321,7 +321,7 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
-	dprintk("NFS call  create %s\n", dentry->d_name.name);
+	dprintk("NFS call  create %pd\n", dentry);
 
 	data = nfs3_alloc_createdata();
 	if (data == NULL)
@@ -548,7 +548,7 @@ nfs3_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
 	if (len > NFS3_MAXPATHLEN)
 		return -ENAMETOOLONG;
 
-	dprintk("NFS call  symlink %s\n", dentry->d_name.name);
+	dprintk("NFS call  symlink %pd\n", dentry);
 
 	data = nfs3_alloc_createdata();
 	if (data == NULL)
@@ -576,7 +576,7 @@ nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
-	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
+	dprintk("NFS call  mkdir %pd\n", dentry);
 
 	sattr->ia_mode &= ~current_umask();
 
@@ -695,7 +695,7 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
-	dprintk("NFS call  mknod %s %u:%u\n", dentry->d_name.name,
+	dprintk("NFS call  mknod %pd %u:%u\n", dentry,
 			MAJOR(rdev), MINOR(rdev));
 
 	sattr->ia_mode &= ~current_umask();

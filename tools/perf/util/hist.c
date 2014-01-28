@@ -160,6 +160,10 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	hists__new_col_len(hists, HISTC_MEM_LVL, 21 + 3);
 	hists__new_col_len(hists, HISTC_LOCAL_WEIGHT, 12);
 	hists__new_col_len(hists, HISTC_GLOBAL_WEIGHT, 12);
+
+	if (h->transaction)
+		hists__new_col_len(hists, HISTC_TRANSACTION,
+				   hist_entry__transaction_len());
 }
 
 void hists__output_recalc_col_len(struct hists *hists, int max_rows)
@@ -346,7 +350,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
-	int cmp;
+	int64_t cmp;
 
 	p = &hists->entries_in->rb_node;
 
@@ -395,6 +399,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 	if (!he)
 		return NULL;
 
+	hists->nr_entries++;
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, hists->entries_in);
 out:
@@ -402,74 +407,16 @@ out:
 	return he;
 }
 
-struct hist_entry *__hists__add_mem_entry(struct hists *self,
-					  struct addr_location *al,
-					  struct symbol *sym_parent,
-					  struct mem_info *mi,
-					  u64 period,
-					  u64 weight)
-{
-	struct hist_entry entry = {
-		.thread	= al->thread,
-		.ms = {
-			.map	= al->map,
-			.sym	= al->sym,
-		},
-		.stat = {
-			.period	= period,
-			.weight = weight,
-			.nr_events = 1,
-		},
-		.cpu	= al->cpu,
-		.ip	= al->addr,
-		.level	= al->level,
-		.parent = sym_parent,
-		.filtered = symbol__parent_filter(sym_parent),
-		.hists = self,
-		.mem_info = mi,
-		.branch_info = NULL,
-	};
-	return add_hist_entry(self, &entry, al, period, weight);
-}
-
-struct hist_entry *__hists__add_branch_entry(struct hists *self,
-					     struct addr_location *al,
-					     struct symbol *sym_parent,
-					     struct branch_info *bi,
-					     u64 period,
-					     u64 weight)
-{
-	struct hist_entry entry = {
-		.thread	= al->thread,
-		.ms = {
-			.map	= bi->to.map,
-			.sym	= bi->to.sym,
-		},
-		.cpu	= al->cpu,
-		.ip	= bi->to.addr,
-		.level	= al->level,
-		.stat = {
-			.period	= period,
-			.nr_events = 1,
-			.weight = weight,
-		},
-		.parent = sym_parent,
-		.filtered = symbol__parent_filter(sym_parent),
-		.branch_info = bi,
-		.hists	= self,
-		.mem_info = NULL,
-	};
-
-	return add_hist_entry(self, &entry, al, period, weight);
-}
-
-struct hist_entry *__hists__add_entry(struct hists *self,
+struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
-				      struct symbol *sym_parent, u64 period,
-				      u64 weight)
+				      struct symbol *sym_parent,
+				      struct branch_info *bi,
+				      struct mem_info *mi,
+				      u64 period, u64 weight, u64 transaction)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
+		.comm = thread__comm(al->thread),
 		.ms = {
 			.map	= al->map,
 			.sym	= al->sym,
@@ -478,18 +425,19 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		.ip	= al->addr,
 		.level	= al->level,
 		.stat = {
-			.period	= period,
 			.nr_events = 1,
+			.period	= period,
 			.weight = weight,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
-		.hists	= self,
-		.branch_info = NULL,
-		.mem_info = NULL,
+		.hists	= hists,
+		.branch_info = bi,
+		.mem_info = mi,
+		.transaction = transaction,
 	};
 
-	return add_hist_entry(self, &entry, al, period, weight);
+	return add_hist_entry(hists, &entry, al, period, weight);
 }
 
 int64_t
@@ -530,6 +478,7 @@ void hist_entry__free(struct hist_entry *he)
 {
 	free(he->branch_info);
 	free(he->mem_info);
+	free_srcline(he->srcline);
 	free(he);
 }
 
@@ -598,7 +547,7 @@ static void hists__apply_filters(struct hists *hists, struct hist_entry *he)
 	hists__filter_entry_by_symbol(hists, he);
 }
 
-void hists__collapse_resort(struct hists *hists)
+void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 {
 	struct rb_root *root;
 	struct rb_node *next;
@@ -625,6 +574,8 @@ void hists__collapse_resort(struct hists *hists)
 			 */
 			hists__apply_filters(hists, n);
 		}
+		if (prog)
+			ui_progress__update(prog, 1);
 	}
 }
 
@@ -884,7 +835,7 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
-	int cmp;
+	int64_t cmp;
 
 	if (sort__need_collapse)
 		root = &hists->entries_collapsed;

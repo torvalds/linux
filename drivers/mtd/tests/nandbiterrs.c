@@ -349,7 +349,7 @@ static int __init mtd_nandbiterrs_init(void)
 		goto exit_mtddev;
 	}
 
-	if (mtd->type != MTD_NANDFLASH) {
+	if (!mtd_type_is_nand(mtd)) {
 		pr_info("this test requires NAND flash\n");
 		err = -ENODEV;
 		goto exit_nand;

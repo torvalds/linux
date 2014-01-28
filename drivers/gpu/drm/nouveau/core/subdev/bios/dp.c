@@ -89,6 +89,7 @@ nvbios_dpout_parse(struct nouveau_bios *bios, u8 idx,
 		   struct nvbios_dpout *info)
 {
 	u16 data = nvbios_dpout_entry(bios, idx, ver, hdr, cnt, len);
+	memset(info, 0x00, sizeof(*info));
 	if (data && *ver) {
 		info->type = nv_ro16(bios, data + 0x00);
 		info->mask = nv_ro16(bios, data + 0x02);
@@ -99,9 +100,12 @@ nvbios_dpout_parse(struct nouveau_bios *bios, u8 idx,
 			info->script[0] = nv_ro16(bios, data + 0x06);
 			info->script[1] = nv_ro16(bios, data + 0x08);
 			info->lnkcmp    = nv_ro16(bios, data + 0x0a);
-			info->script[2] = nv_ro16(bios, data + 0x0c);
-			info->script[3] = nv_ro16(bios, data + 0x0e);
-			info->script[4] = nv_ro16(bios, data + 0x10);
+			if (*len >= 0x0f) {
+				info->script[2] = nv_ro16(bios, data + 0x0c);
+				info->script[3] = nv_ro16(bios, data + 0x0e);
+			}
+			if (*len >= 0x11)
+				info->script[4] = nv_ro16(bios, data + 0x10);
 			break;
 		case 0x40:
 			info->flags     = nv_ro08(bios, data + 0x04);

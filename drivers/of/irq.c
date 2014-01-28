@@ -31,18 +31,17 @@
  * @dev: Device node of the device whose interrupt is to be mapped
  * @index: Index of the interrupt to map
  *
- * This function is a wrapper that chains of_irq_map_one() and
+ * This function is a wrapper that chains of_irq_parse_one() and
  * irq_create_of_mapping() to make things easier to callers
  */
 unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
 {
-	struct of_irq oirq;
+	struct of_phandle_args oirq;
 
-	if (of_irq_map_one(dev, index, &oirq))
+	if (of_irq_parse_one(dev, index, &oirq))
 		return 0;
 
-	return irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
+	return irq_create_of_mapping(&oirq);
 }
 EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
@@ -79,33 +78,34 @@ struct device_node *of_irq_find_parent(struct device_node *child)
 }
 
 /**
- * of_irq_map_raw - Low level interrupt tree parsing
+ * of_irq_parse_raw - Low level interrupt tree parsing
  * @parent:	the device interrupt parent
- * @intspec:	interrupt specifier ("interrupts" property of the device)
- * @ointsize:   size of the passed in interrupt specifier
- * @addr:	address specifier (start of "reg" property of the device)
- * @out_irq:	structure of_irq filled by this function
+ * @addr:	address specifier (start of "reg" property of the device) in be32 format
+ * @out_irq:	structure of_irq updated by this function
  *
  * Returns 0 on success and a negative number on error
  *
  * This function is a low-level interrupt tree walking function. It
  * can be used to do a partial walk with synthetized reg and interrupts
  * properties, for example when resolving PCI interrupts when no device
- * node exist for the parent.
+ * node exist for the parent. It takes an interrupt specifier structure as
+ * input, walks the tree looking for any interrupt-map properties, translates
+ * the specifier for each map, and then returns the translated map.
  */
-int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
-		   u32 ointsize, const __be32 *addr, struct of_irq *out_irq)
+int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 {
 	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
-	const __be32 *tmp, *imap, *imask;
+	__be32 initial_match_array[MAX_PHANDLE_ARGS];
+	const __be32 *match_array = initial_match_array;
+	const __be32 *tmp, *imap, *imask, dummy_imask[] = { [0 ... MAX_PHANDLE_ARGS] = ~0 };
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
 	int imaplen, match, i;
 
-	pr_debug("of_irq_map_raw: par=%s,intspec=[0x%08x 0x%08x...],ointsize=%d\n",
-		 parent->full_name, be32_to_cpup(intspec),
-		 be32_to_cpup(intspec + 1), ointsize);
+#ifdef DEBUG
+	of_print_phandle_args("of_irq_parse_raw: ", out_irq);
+#endif
 
-	ipar = of_node_get(parent);
+	ipar = of_node_get(out_irq->np);
 
 	/* First get the #interrupt-cells property of the current cursor
 	 * that tells us how to interpret the passed-in intspec. If there
@@ -126,9 +126,9 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 		goto fail;
 	}
 
-	pr_debug("of_irq_map_raw: ipar=%s, size=%d\n", ipar->full_name, intsize);
+	pr_debug("of_irq_parse_raw: ipar=%s, size=%d\n", of_node_full_name(ipar), intsize);
 
-	if (ointsize != intsize)
+	if (out_irq->args_count != intsize)
 		return -EINVAL;
 
 	/* Look for this #address-cells. We have to implement the old linux
@@ -147,6 +147,16 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 
 	pr_debug(" -> addrsize=%d\n", addrsize);
 
+	/* Range check so that the temporary buffer doesn't overflow */
+	if (WARN_ON(addrsize + intsize > MAX_PHANDLE_ARGS))
+		goto fail;
+
+	/* Precalculate the match array - this simplifies match loop */
+	for (i = 0; i < addrsize; i++)
+		initial_match_array[i] = addr ? addr[i] : 0;
+	for (i = 0; i < intsize; i++)
+		initial_match_array[addrsize + i] = cpu_to_be32(out_irq->args[i]);
+
 	/* Now start the actual "proper" walk of the interrupt tree */
 	while (ipar != NULL) {
 		/* Now check if cursor is an interrupt-controller and if it is
@@ -155,13 +165,16 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 		if (of_get_property(ipar, "interrupt-controller", NULL) !=
 				NULL) {
 			pr_debug(" -> got it !\n");
-			for (i = 0; i < intsize; i++)
-				out_irq->specifier[i] =
-						of_read_number(intspec +i, 1);
-			out_irq->size = intsize;
-			out_irq->controller = ipar;
-			of_node_put(old);
 			return 0;
+		}
+
+		/*
+		 * interrupt-map parsing does not work without a reg
+		 * property when #address-cells != 0
+		 */
+		if (addrsize && !addr) {
+			pr_debug(" -> no reg passed in when needed !\n");
+			goto fail;
 		}
 
 		/* Now look for an interrupt-map */
@@ -176,34 +189,16 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 
 		/* Look for a mask */
 		imask = of_get_property(ipar, "interrupt-map-mask", NULL);
-
-		/* If we were passed no "reg" property and we attempt to parse
-		 * an interrupt-map, then #address-cells must be 0.
-		 * Fail if it's not.
-		 */
-		if (addr == NULL && addrsize != 0) {
-			pr_debug(" -> no reg passed in when needed !\n");
-			goto fail;
-		}
+		if (!imask)
+			imask = dummy_imask;
 
 		/* Parse interrupt-map */
 		match = 0;
 		while (imaplen > (addrsize + intsize + 1) && !match) {
 			/* Compare specifiers */
 			match = 1;
-			for (i = 0; i < addrsize && match; ++i) {
-				__be32 mask = imask ? imask[i]
-						    : cpu_to_be32(0xffffffffu);
-				match = ((addr[i] ^ imap[i]) & mask) == 0;
-			}
-			for (; i < (addrsize + intsize) && match; ++i) {
-				__be32 mask = imask ? imask[i]
-						    : cpu_to_be32(0xffffffffu);
-				match =
-				   ((intspec[i-addrsize] ^ imap[i]) & mask) == 0;
-			}
-			imap += addrsize + intsize;
-			imaplen -= addrsize + intsize;
+			for (i = 0; i < (addrsize + intsize); i++, imaplen--)
+				match &= !((match_array[i] ^ *imap++) & imask[i]);
 
 			pr_debug(" -> match=%d (imaplen=%d)\n", match, imaplen);
 
@@ -237,6 +232,8 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 			    newintsize, newaddrsize);
 
 			/* Check for malformed properties */
+			if (WARN_ON(newaddrsize + newintsize > MAX_PHANDLE_ARGS))
+				goto fail;
 			if (imaplen < (newaddrsize + newintsize))
 				goto fail;
 
@@ -248,12 +245,17 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 		if (!match)
 			goto fail;
 
-		of_node_put(old);
-		old = of_node_get(newpar);
+		/*
+		 * Successfully parsed an interrrupt-map translation; copy new
+		 * interrupt specifier into the out_irq structure
+		 */
+		out_irq->np = newpar;
+
+		match_array = imap - newaddrsize - newintsize;
+		for (i = 0; i < newintsize; i++)
+			out_irq->args[i] = be32_to_cpup(imap - newintsize + i);
+		out_irq->args_count = intsize = newintsize;
 		addrsize = newaddrsize;
-		intsize = newintsize;
-		intspec = imap - intsize;
-		addr = intspec - addrsize;
 
 	skiplevel:
 		/* Iterate again with new parent */
@@ -264,45 +266,51 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 	}
  fail:
 	of_node_put(ipar);
-	of_node_put(old);
 	of_node_put(newpar);
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(of_irq_map_raw);
+EXPORT_SYMBOL_GPL(of_irq_parse_raw);
 
 /**
- * of_irq_map_one - Resolve an interrupt for a device
+ * of_irq_parse_one - Resolve an interrupt for a device
  * @device: the device whose interrupt is to be resolved
  * @index: index of the interrupt to resolve
  * @out_irq: structure of_irq filled by this function
  *
- * This function resolves an interrupt, walking the tree, for a given
- * device-tree node. It's the high level pendant to of_irq_map_raw().
+ * This function resolves an interrupt for a node by walking the interrupt tree,
+ * finding which interrupt controller node it is attached to, and returning the
+ * interrupt specifier that can be used to retrieve a Linux IRQ number.
  */
-int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq)
+int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_args *out_irq)
 {
 	struct device_node *p;
 	const __be32 *intspec, *tmp, *addr;
 	u32 intsize, intlen;
-	int res = -EINVAL;
+	int i, res = -EINVAL;
 
-	pr_debug("of_irq_map_one: dev=%s, index=%d\n", device->full_name, index);
+	pr_debug("of_irq_parse_one: dev=%s, index=%d\n", of_node_full_name(device), index);
 
 	/* OldWorld mac stuff is "special", handle out of line */
 	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
-		return of_irq_map_oldworld(device, index, out_irq);
-
-	/* Get the interrupts property */
-	intspec = of_get_property(device, "interrupts", &intlen);
-	if (intspec == NULL)
-		return -EINVAL;
-	intlen /= sizeof(*intspec);
-
-	pr_debug(" intspec=%d intlen=%d\n", be32_to_cpup(intspec), intlen);
+		return of_irq_parse_oldworld(device, index, out_irq);
 
 	/* Get the reg property (if any) */
 	addr = of_get_property(device, "reg", NULL);
+
+	/* Get the interrupts property */
+	intspec = of_get_property(device, "interrupts", &intlen);
+	if (intspec == NULL) {
+		/* Try the new-style interrupts-extended */
+		res = of_parse_phandle_with_args(device, "interrupts-extended",
+						"#interrupt-cells", index, out_irq);
+		if (res)
+			return -EINVAL;
+		return of_irq_parse_raw(addr, out_irq);
+	}
+	intlen /= sizeof(*intspec);
+
+	pr_debug(" intspec=%d intlen=%d\n", be32_to_cpup(intspec), intlen);
 
 	/* Look for the interrupt parent. */
 	p = of_irq_find_parent(device);
@@ -321,14 +329,20 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	if ((index + 1) * intsize > intlen)
 		goto out;
 
-	/* Get new specifier and map it */
-	res = of_irq_map_raw(p, intspec + index * intsize, intsize,
-			     addr, out_irq);
+	/* Copy intspec into irq structure */
+	intspec += index * intsize;
+	out_irq->np = p;
+	out_irq->args_count = intsize;
+	for (i = 0; i < intsize; i++)
+		out_irq->args[i] = be32_to_cpup(intspec++);
+
+	/* Check if there are any interrupt-map translations to process */
+	res = of_irq_parse_raw(addr, out_irq);
  out:
 	of_node_put(p);
 	return res;
 }
-EXPORT_SYMBOL_GPL(of_irq_map_one);
+EXPORT_SYMBOL_GPL(of_irq_parse_one);
 
 /**
  * of_irq_to_resource - Decode a node's IRQ and return it as a resource
@@ -354,8 +368,8 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 					      &name);
 
 		r->start = r->end = irq;
-		r->flags = IORESOURCE_IRQ;
-		r->name = name ? name : dev->full_name;
+		r->flags = IORESOURCE_IRQ | irqd_get_trigger_type(irq_get_irq_data(irq));
+		r->name = name ? name : of_node_full_name(dev);
 	}
 
 	return irq;
@@ -368,9 +382,10 @@ EXPORT_SYMBOL_GPL(of_irq_to_resource);
  */
 int of_irq_count(struct device_node *dev)
 {
+	struct of_phandle_args irq;
 	int nr = 0;
 
-	while (of_irq_to_resource(dev, nr, NULL))
+	while (of_irq_parse_one(dev, nr, &irq) == 0)
 		nr++;
 
 	return nr;

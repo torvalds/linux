@@ -1,0 +1,88 @@
+/*
+ * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2012 Pablo Neira Ayuso <pablo@netfilter.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Development of this code funded by Astaro AG (http://www.astaro.com/)
+ */
+
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/list.h>
+#include <linux/skbuff.h>
+#include <linux/netlink.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter_ipv6.h>
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_ipv6.h>
+#include <net/route.h>
+
+static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
+					struct sk_buff *skb,
+					const struct net_device *in,
+					const struct net_device *out,
+					int (*okfn)(struct sk_buff *))
+{
+	unsigned int ret;
+	struct nft_pktinfo pkt;
+	struct in6_addr saddr, daddr;
+	u_int8_t hop_limit;
+	u32 mark, flowlabel;
+
+	/* malformed packet, drop it */
+	if (nft_set_pktinfo_ipv6(&pkt, ops, skb, in, out) < 0)
+		return NF_DROP;
+
+	/* save source/dest address, mark, hoplimit, flowlabel, priority */
+	memcpy(&saddr, &ipv6_hdr(skb)->saddr, sizeof(saddr));
+	memcpy(&daddr, &ipv6_hdr(skb)->daddr, sizeof(daddr));
+	mark = skb->mark;
+	hop_limit = ipv6_hdr(skb)->hop_limit;
+
+	/* flowlabel and prio (includes version, which shouldn't change either */
+	flowlabel = *((u32 *)ipv6_hdr(skb));
+
+	ret = nft_do_chain_pktinfo(&pkt, ops);
+	if (ret != NF_DROP && ret != NF_QUEUE &&
+	    (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr)) ||
+	     memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr)) ||
+	     skb->mark != mark ||
+	     ipv6_hdr(skb)->hop_limit != hop_limit ||
+	     flowlabel != *((u_int32_t *)ipv6_hdr(skb))))
+		return ip6_route_me_harder(skb) == 0 ? ret : NF_DROP;
+
+	return ret;
+}
+
+static struct nf_chain_type nft_chain_route_ipv6 = {
+	.family		= NFPROTO_IPV6,
+	.name		= "route",
+	.type		= NFT_CHAIN_T_ROUTE,
+	.hook_mask	= (1 << NF_INET_LOCAL_OUT),
+	.fn		= {
+                [NF_INET_LOCAL_OUT]	= nf_route_table_hook,
+        },
+        .me		= THIS_MODULE,
+};
+
+static int __init nft_chain_route_init(void)
+{
+	return nft_register_chain_type(&nft_chain_route_ipv6);
+}
+
+static void __exit nft_chain_route_exit(void)
+{
+	nft_unregister_chain_type(&nft_chain_route_ipv6);
+}
+
+module_init(nft_chain_route_init);
+module_exit(nft_chain_route_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
+MODULE_ALIAS_NFT_CHAIN(AF_INET6, "route");

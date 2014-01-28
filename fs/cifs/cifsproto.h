@@ -360,6 +360,8 @@ extern int CIFSSMBUnixQuerySymLink(const unsigned int xid,
 extern int CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
 			       __u16 fid, char **symlinkinfo,
 			       const struct nls_table *nls_codepage);
+extern int CIFSSMB_set_compression(const unsigned int xid,
+				   struct cifs_tcon *tcon, __u16 fid);
 extern int CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,
@@ -475,9 +477,10 @@ extern int CIFSGetExtAttr(const unsigned int xid, struct cifs_tcon *tcon,
 			const int netfid, __u64 *pExtAttrBits, __u64 *pMask);
 extern void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
 extern bool CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr);
-extern int CIFSCheckMFSymlink(struct cifs_fattr *fattr,
-		const unsigned char *path,
-		struct cifs_sb_info *cifs_sb, unsigned int xid);
+extern int CIFSCheckMFSymlink(unsigned int xid, struct cifs_tcon *tcon,
+			      struct cifs_sb_info *cifs_sb,
+			      struct cifs_fattr *fattr,
+			      const unsigned char *path);
 extern int mdfour(unsigned char *, unsigned char *, int);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 			const struct nls_table *codepage);

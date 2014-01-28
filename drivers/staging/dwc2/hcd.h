@@ -238,6 +238,7 @@ enum dwc2_transaction_type {
  * @interval:           Interval between transfers in (micro)frames
  * @sched_frame:        (Micro)frame to initialize a periodic transfer.
  *                      The transfer executes in the following (micro)frame.
+ * @frame_usecs:        Internal variable used by the microframe scheduler
  * @start_split_frame:  (Micro)frame at which last start split was initialized
  * @ntd:                Actual number of transfer descriptors in a list
  * @dw_align_buf:       Used instead of original buffer if its physical address
@@ -271,6 +272,7 @@ struct dwc2_qh {
 	u16 usecs;
 	u16 interval;
 	u16 sched_frame;
+	u16 frame_usecs[8];
 	u16 start_split_frame;
 	u16 ntd;
 	u8 *dw_align_buf;
@@ -463,6 +465,7 @@ extern void dwc2_hcd_queue_transactions(struct dwc2_hsotg *hsotg,
 
 /* Schedule Queue Functions */
 /* Implemented in hcd_queue.c */
+extern void dwc2_hcd_init_usecs(struct dwc2_hsotg *hsotg);
 extern void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh);
 extern int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh);
 extern void dwc2_hcd_qh_unlink(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh);

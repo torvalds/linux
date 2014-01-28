@@ -154,7 +154,7 @@ struct a2150_private {
 
 	volatile unsigned int count;	/* number of data points left to be taken */
 	unsigned int dma;	/*  dma channel */
-	s16 *dma_buffer;	/*  dma buffer */
+	uint16_t *dma_buffer;	/*  dma buffer */
 	unsigned int dma_transfer_size;	/*  size in bytes of dma transfers */
 	int irq_dma_bits;	/*  irq/dma register bits */
 	int config_bits;	/*  config register bits */
@@ -192,7 +192,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	struct comedi_async *async;
 	struct comedi_cmd *cmd;
 	unsigned int max_points, num_points, residue, leftover;
-	short dpnt;
+	unsigned short dpnt;
 	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
 	if (!dev->attached) {
@@ -684,13 +684,12 @@ static int a2150_set_chanlist(struct comedi_device *dev,
 		devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
 		break;
 	case 2:
-		if (start_channel == 0) {
+		if (start_channel == 0)
 			devpriv->config_bits |= CHANNEL_BITS(0x2);
-		} else if (start_channel == 2) {
+		else if (start_channel == 2)
 			devpriv->config_bits |= CHANNEL_BITS(0x3);
-		} else {
+		else
 			return -1;
-		}
 		break;
 	case 4:
 		devpriv->config_bits |= CHANNEL_BITS(0x1);

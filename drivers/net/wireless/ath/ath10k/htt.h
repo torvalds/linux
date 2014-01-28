@@ -19,12 +19,10 @@
 #define _HTT_H_
 
 #include <linux/bug.h>
+#include <linux/interrupt.h>
 
 #include "htc.h"
 #include "rx_desc.h"
-
-#define HTT_CURRENT_VERSION_MAJOR	2
-#define HTT_CURRENT_VERSION_MINOR	1
 
 enum htt_dbg_stats_type {
 	HTT_DBG_STATS_WAL_PDEV_TXRX = 1 << 0,
@@ -45,6 +43,9 @@ enum htt_h2t_msg_type { /* host-to-target */
 	HTT_H2T_MSG_TYPE_SYNC               = 4,
 	HTT_H2T_MSG_TYPE_AGGR_CFG           = 5,
 	HTT_H2T_MSG_TYPE_FRAG_DESC_BANK_CFG = 6,
+
+	/* This command is used for sending management frames in HTT < 3.0.
+	 * HTT >= 3.0 uses TX_FRM for everything. */
 	HTT_H2T_MSG_TYPE_MGMT_TX            = 7,
 
 	HTT_H2T_NUM_MSGS /* keep this last */
@@ -1268,6 +1269,7 @@ struct ath10k_htt {
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */
 	bool rx_confused;
+	struct tasklet_struct rx_replenish_task;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1308,6 +1310,10 @@ struct htt_rx_desc {
 #define HTT_RX_BUF_SIZE 1920
 #define HTT_RX_MSDU_SIZE (HTT_RX_BUF_SIZE - (int)sizeof(struct htt_rx_desc))
 
+/* Refill a bunch of RX buffers for each refill round so that FW/HW can handle
+ * aggregated traffic more nicely. */
+#define ATH10K_HTT_MAX_NUM_REFILL 16
+
 /*
  * DMA_MAP expects the buffer to be an integral number of cache lines.
  * Rather than checking the actual cache line size, this code makes a
@@ -1327,6 +1333,7 @@ void ath10k_htt_rx_detach(struct ath10k_htt *htt);
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
+int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
 int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt);
 
 void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt);

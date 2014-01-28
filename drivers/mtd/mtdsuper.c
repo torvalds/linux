@@ -17,6 +17,7 @@
 #include <linux/export.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
+#include <linux/major.h>
 
 /*
  * compare superblocks to see if they're equivalent

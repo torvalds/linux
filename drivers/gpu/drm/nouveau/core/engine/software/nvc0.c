@@ -32,13 +32,7 @@
 #include <engine/software.h>
 #include <engine/disp.h>
 
-struct nvc0_software_priv {
-	struct nouveau_software base;
-};
-
-struct nvc0_software_chan {
-	struct nouveau_software_chan base;
-};
+#include "nv50.h"
 
 /*******************************************************************************
  * software object classes
@@ -48,58 +42,24 @@ static int
 nvc0_software_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
 				 void *args, u32 size)
 {
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
 	u64 data = *(u32 *)args;
 	if (mthd == 0x0400) {
-		chan->base.vblank.offset &= 0x00ffffffffULL;
-		chan->base.vblank.offset |= data << 32;
+		chan->vblank.offset &= 0x00ffffffffULL;
+		chan->vblank.offset |= data << 32;
 	} else {
-		chan->base.vblank.offset &= 0xff00000000ULL;
-		chan->base.vblank.offset |= data;
+		chan->vblank.offset &= 0xff00000000ULL;
+		chan->vblank.offset |= data;
 	}
 	return 0;
-}
-
-static int
-nvc0_software_mthd_vblsem_value(struct nouveau_object *object, u32 mthd,
-				void *args, u32 size)
-{
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
-	chan->base.vblank.value = *(u32 *)args;
-	return 0;
-}
-
-static int
-nvc0_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
-				  void *args, u32 size)
-{
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
-	struct nouveau_disp *disp = nouveau_disp(object);
-	u32 crtc = *(u32 *)args;
-
-	if ((nv_device(object)->card_type < NV_E0 && crtc > 1) || crtc > 3)
-		return -EINVAL;
-
-	nouveau_event_get(disp->vblank, crtc, &chan->base.vblank.event);
-	return 0;
-}
-
-static int
-nvc0_software_mthd_flip(struct nouveau_object *object, u32 mthd,
-			void *args, u32 size)
-{
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
-	if (chan->base.flip)
-		return chan->base.flip(chan->base.flip_data);
-	return -EINVAL;
 }
 
 static int
 nvc0_software_mthd_mp_control(struct nouveau_object *object, u32 mthd,
                               void *args, u32 size)
 {
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
-	struct nvc0_software_priv *priv = (void *)nv_object(chan)->engine;
+	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	u32 data = *(u32 *)args;
 
 	switch (mthd) {
@@ -124,9 +84,9 @@ static struct nouveau_omthds
 nvc0_software_omthds[] = {
 	{ 0x0400, 0x0400, nvc0_software_mthd_vblsem_offset },
 	{ 0x0404, 0x0404, nvc0_software_mthd_vblsem_offset },
-	{ 0x0408, 0x0408, nvc0_software_mthd_vblsem_value },
-	{ 0x040c, 0x040c, nvc0_software_mthd_vblsem_release },
-	{ 0x0500, 0x0500, nvc0_software_mthd_flip },
+	{ 0x0408, 0x0408, nv50_software_mthd_vblsem_value },
+	{ 0x040c, 0x040c, nv50_software_mthd_vblsem_release },
+	{ 0x0500, 0x0500, nv50_software_mthd_flip },
 	{ 0x0600, 0x0600, nvc0_software_mthd_mp_control },
 	{ 0x0644, 0x0644, nvc0_software_mthd_mp_control },
 	{ 0x06ac, 0x06ac, nvc0_software_mthd_mp_control },
@@ -144,11 +104,10 @@ nvc0_software_sclass[] = {
  ******************************************************************************/
 
 static int
-nvc0_software_vblsem_release(struct nouveau_eventh *event, int head)
+nvc0_software_vblsem_release(void *data, int head)
 {
-	struct nouveau_software_chan *chan =
-		container_of(event, struct nouveau_software_chan, vblank.event);
-	struct nvc0_software_priv *priv = (void *)nv_object(chan)->engine;
+	struct nv50_software_chan *chan = data;
+	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 
 	nv_wr32(priv, 0x001718, 0x80000000 | chan->vblank.channel);
@@ -160,66 +119,31 @@ nvc0_software_vblsem_release(struct nouveau_eventh *event, int head)
 	return NVKM_EVENT_DROP;
 }
 
-static int
-nvc0_software_context_ctor(struct nouveau_object *parent,
-			   struct nouveau_object *engine,
-			   struct nouveau_oclass *oclass, void *data, u32 size,
-			   struct nouveau_object **pobject)
-{
-	struct nvc0_software_chan *chan;
-	int ret;
-
-	ret = nouveau_software_context_create(parent, engine, oclass, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
-
-	chan->base.vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
-	chan->base.vblank.event.func = nvc0_software_vblsem_release;
-	return 0;
-}
-
-static struct nouveau_oclass
+static struct nv50_software_cclass
 nvc0_software_cclass = {
-	.handle = NV_ENGCTX(SW, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_software_context_ctor,
+	.base.handle = NV_ENGCTX(SW, 0xc0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_software_context_ctor,
 		.dtor = _nouveau_software_context_dtor,
 		.init = _nouveau_software_context_init,
 		.fini = _nouveau_software_context_fini,
 	},
+	.vblank = nvc0_software_vblsem_release,
 };
 
 /*******************************************************************************
  * software engine/subdev functions
  ******************************************************************************/
 
-static int
-nvc0_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 size,
-		   struct nouveau_object **pobject)
-{
-	struct nvc0_software_priv *priv;
-	int ret;
-
-	ret = nouveau_software_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_engine(priv)->cclass = &nvc0_software_cclass;
-	nv_engine(priv)->sclass = nvc0_software_sclass;
-	nv_subdev(priv)->intr = nv04_software_intr;
-	return 0;
-}
-
-struct nouveau_oclass
-nvc0_software_oclass = {
-	.handle = NV_ENGINE(SW, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_software_ctor,
+struct nouveau_oclass *
+nvc0_software_oclass = &(struct nv50_software_oclass) {
+	.base.handle = NV_ENGINE(SW, 0xc0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_software_ctor,
 		.dtor = _nouveau_software_dtor,
 		.init = _nouveau_software_init,
 		.fini = _nouveau_software_fini,
 	},
-};
+	.cclass = &nvc0_software_cclass.base,
+	.sclass =  nvc0_software_sclass,
+}.base;

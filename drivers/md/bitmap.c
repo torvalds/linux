@@ -1654,9 +1654,9 @@ int bitmap_create(struct mddev *mddev)
 	bitmap->mddev = mddev;
 
 	if (mddev->kobj.sd)
-		bm = sysfs_get_dirent(mddev->kobj.sd, NULL, "bitmap");
+		bm = sysfs_get_dirent(mddev->kobj.sd, "bitmap");
 	if (bm) {
-		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, NULL, "can_clear");
+		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, "can_clear");
 		sysfs_put(bm);
 	} else
 		bitmap->sysfs_can_clear = NULL;

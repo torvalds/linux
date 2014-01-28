@@ -278,7 +278,7 @@ static int da9055_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rtc->da9055 = dev_get_drvdata(pdev->dev.parent);
-	pdata = rtc->da9055->dev->platform_data;
+	pdata = dev_get_platdata(rtc->da9055->dev);
 	platform_set_drvdata(pdev, rtc);
 
 	ret = da9055_rtc_device_init(rtc->da9055, pdata);

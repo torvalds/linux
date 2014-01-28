@@ -862,7 +862,7 @@ const struct inode_operations cifs_file_inode_ops = {
 const struct inode_operations cifs_symlink_inode_ops = {
 	.readlink = generic_readlink,
 	.follow_link = cifs_follow_link,
-	.put_link = cifs_put_link,
+	.put_link = kfree_put_link,
 	.permission = cifs_permission,
 	/* BB add the following two eventually */
 	/* revalidate: cifs_revalidate,

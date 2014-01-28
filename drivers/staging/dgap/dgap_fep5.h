@@ -211,7 +211,7 @@ struct bs_t {
 #define SIFLAG		0xea		/* Set UNIX iflags		*/
 #define SFLOWC		0xeb		/* Set flow control characters	*/
 #define STLOW		0xec		/* Set transmit low water mark	*/
-#define RPAUSE		0xee		/* Pause recieve		*/
+#define RPAUSE		0xee		/* Pause receive		*/
 #define RRESUME		0xef		/* Resume receive		*/  
 #define CHRESET		0xf0		/* Reset Channel		*/
 #define BUFSETALL	0xf2		/* Set Tx & Rx buffer size avail*/

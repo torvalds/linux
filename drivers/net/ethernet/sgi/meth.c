@@ -839,7 +839,7 @@ static int meth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo	= timeout;
 	dev->irq		= MACE_ETHERNET_IRQ;
 	dev->base_addr		= (unsigned long)&mace->eth;
-	memcpy(dev->dev_addr, o2meth_eaddr, 6);
+	memcpy(dev->dev_addr, o2meth_eaddr, ETH_ALEN);
 
 	priv = netdev_priv(dev);
 	spin_lock_init(&priv->meth_lock);

@@ -82,7 +82,7 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 			     struct mwifiex_ie_list *ie_list)
 {
 	u16 travel_len, index, mask;
-	s16 input_len;
+	s16 input_len, tlv_len;
 	struct mwifiex_ie *ie;
 	u8 *tmp;
 
@@ -91,11 +91,13 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 
 	ie_list->len = 0;
 
-	while (input_len > 0) {
+	while (input_len >= sizeof(struct mwifiex_ie_types_header)) {
 		ie = (struct mwifiex_ie *)(((u8 *)ie_list) + travel_len);
-		input_len -= le16_to_cpu(ie->ie_length) + MWIFIEX_IE_HDR_SIZE;
-		travel_len += le16_to_cpu(ie->ie_length) + MWIFIEX_IE_HDR_SIZE;
+		tlv_len = le16_to_cpu(ie->ie_length);
+		travel_len += tlv_len + MWIFIEX_IE_HDR_SIZE;
 
+		if (input_len < tlv_len + MWIFIEX_IE_HDR_SIZE)
+			return -1;
 		index = le16_to_cpu(ie->ie_index);
 		mask = le16_to_cpu(ie->mgmt_subtype_mask);
 
@@ -132,6 +134,7 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 		le16_add_cpu(&ie_list->len,
 			     le16_to_cpu(priv->mgmt_ie[index].ie_length) +
 			     MWIFIEX_IE_HDR_SIZE);
+		input_len -= tlv_len + MWIFIEX_IE_HDR_SIZE;
 	}
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP)

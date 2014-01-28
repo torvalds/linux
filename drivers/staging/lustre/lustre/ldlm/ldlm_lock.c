@@ -529,7 +529,7 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 		lock_res_nested(oldres, LRT_NEW);
 	}
 	LASSERT(memcmp(new_resid, &oldres->lr_name,
-		       sizeof oldres->lr_name) != 0);
+		       sizeof(oldres->lr_name)) != 0);
 	lock->l_resource = newres;
 	unlock_res(oldres);
 	unlock_res_and_lock(lock);
@@ -1891,7 +1891,7 @@ static int reprocess_one_queue(struct ldlm_resource *res, void *closure)
 	return LDLM_ITER_CONTINUE;
 }
 
-static int ldlm_reprocess_res(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+static int ldlm_reprocess_res(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			      struct hlist_node *hnode, void *arg)
 {
 	struct ldlm_resource *res = cfs_hash_object(hs, hnode);
@@ -2040,7 +2040,7 @@ struct export_cl_data {
  * Iterator function for ldlm_cancel_locks_for_export.
  * Cancels passed locks.
  */
-int ldlm_cancel_locks_for_export_cb(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+int ldlm_cancel_locks_for_export_cb(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 				    struct hlist_node *hnode, void *data)
 
 {

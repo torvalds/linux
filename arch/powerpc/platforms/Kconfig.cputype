@@ -93,22 +93,23 @@ choice
 
 config GENERIC_CPU
 	bool "Generic"
+	depends on !CPU_LITTLE_ENDIAN
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
-	depends on PPC_BOOK3S_64
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER4_CPU
 	bool "POWER4"
-	depends on PPC_BOOK3S_64
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER5_CPU
 	bool "POWER5"
-	depends on PPC_BOOK3S_64
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER6_CPU
 	bool "POWER6"
-	depends on PPC_BOOK3S_64
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER7_CPU
 	bool "POWER7"
@@ -402,3 +403,28 @@ config PPC_DOORBELL
 	default n
 
 endmenu
+
+choice
+	prompt "Endianness selection"
+	default CPU_BIG_ENDIAN
+	help
+	  This option selects whether a big endian or little endian kernel will
+	  be built.
+
+config CPU_BIG_ENDIAN
+	bool "Build big endian kernel"
+	help
+	  Build a big endian kernel.
+
+	  If unsure, select this option.
+
+config CPU_LITTLE_ENDIAN
+	bool "Build little endian kernel"
+	help
+	  Build a little endian kernel.
+
+	  Note that if cross compiling a little endian kernel,
+	  CROSS_COMPILE must point to a toolchain capable of targeting
+	  little endian powerpc.
+
+endchoice

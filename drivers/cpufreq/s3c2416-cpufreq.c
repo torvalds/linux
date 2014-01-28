@@ -87,16 +87,6 @@ static struct cpufreq_frequency_table s3c2450_freq_table[] = {
 	{ 0, CPUFREQ_TABLE_END },
 };
 
-static int s3c2416_cpufreq_verify_speed(struct cpufreq_policy *policy)
-{
-	struct s3c2416_data *s3c_freq = &s3c2416_cpufreq;
-
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	return cpufreq_frequency_table_verify(policy, s3c_freq->freq_table);
-}
-
 static unsigned int s3c2416_cpufreq_get_speed(unsigned int cpu)
 {
 	struct s3c2416_data *s3c_freq = &s3c2416_cpufreq;
@@ -227,24 +217,15 @@ static int s3c2416_cpufreq_leave_dvs(struct s3c2416_data *s3c_freq, int idx)
 }
 
 static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
-				      unsigned int target_freq,
-				      unsigned int relation)
+				      unsigned int index)
 {
 	struct s3c2416_data *s3c_freq = &s3c2416_cpufreq;
-	struct cpufreq_freqs freqs;
+	unsigned int new_freq;
 	int idx, ret, to_dvs = 0;
-	unsigned int i;
 
 	mutex_lock(&cpufreq_lock);
 
-	pr_debug("cpufreq: to %dKHz, relation %d\n", target_freq, relation);
-
-	ret = cpufreq_frequency_table_target(policy, s3c_freq->freq_table,
-					     target_freq, relation, &i);
-	if (ret != 0)
-		goto out;
-
-	idx = s3c_freq->freq_table[i].driver_data;
+	idx = s3c_freq->freq_table[index].driver_data;
 
 	if (idx == SOURCE_HCLK)
 		to_dvs = 1;
@@ -256,24 +237,13 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 		goto out;
 	}
 
-	freqs.flags = 0;
-	freqs.old = s3c_freq->is_dvs ? FREQ_DVS
-				     : clk_get_rate(s3c_freq->armclk) / 1000;
-
 	/* When leavin dvs mode, always switch the armdiv to the hclk rate
 	 * The S3C2416 has stability issues when switching directly to
 	 * higher frequencies.
 	 */
-	freqs.new = (s3c_freq->is_dvs && !to_dvs)
+	new_freq = (s3c_freq->is_dvs && !to_dvs)
 				? clk_get_rate(s3c_freq->hclk) / 1000
-				: s3c_freq->freq_table[i].frequency;
-
-	pr_debug("cpufreq: Transition %d-%dkHz\n", freqs.old, freqs.new);
-
-	if (!to_dvs && freqs.old == freqs.new)
-		goto out;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+				: s3c_freq->freq_table[index].frequency;
 
 	if (to_dvs) {
 		pr_debug("cpufreq: enter dvs\n");
@@ -282,11 +252,9 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 		pr_debug("cpufreq: leave dvs\n");
 		ret = s3c2416_cpufreq_leave_dvs(s3c_freq, idx);
 	} else {
-		pr_debug("cpufreq: change armdiv to %dkHz\n", freqs.new);
-		ret = s3c2416_cpufreq_set_armdiv(s3c_freq, freqs.new);
+		pr_debug("cpufreq: change armdiv to %dkHz\n", new_freq);
+		ret = s3c2416_cpufreq_set_armdiv(s3c_freq, new_freq);
 	}
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 out:
 	mutex_unlock(&cpufreq_lock);
@@ -486,19 +454,13 @@ static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 		freq++;
 	}
 
-	policy->cur = clk_get_rate(s3c_freq->armclk) / 1000;
-
 	/* Datasheet says PLL stabalisation time must be at least 300us,
 	 * so but add some fudge. (reference in LOCKCON0 register description)
 	 */
-	policy->cpuinfo.transition_latency = (500 * 1000) +
-					     s3c_freq->regulator_latency;
-
-	ret = cpufreq_frequency_table_cpuinfo(policy, s3c_freq->freq_table);
+	ret = cpufreq_generic_init(policy, s3c_freq->freq_table,
+			(500 * 1000) + s3c_freq->regulator_latency);
 	if (ret)
 		goto err_freq_table;
-
-	cpufreq_frequency_table_get_attr(s3c_freq->freq_table, 0);
 
 	register_reboot_notifier(&s3c2416_cpufreq_reboot_notifier);
 
@@ -518,19 +480,14 @@ err_hclk:
 	return ret;
 }
 
-static struct freq_attr *s3c2416_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver s3c2416_cpufreq_driver = {
 	.flags          = 0,
-	.verify		= s3c2416_cpufreq_verify_speed,
-	.target		= s3c2416_cpufreq_set_target,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= s3c2416_cpufreq_set_target,
 	.get		= s3c2416_cpufreq_get_speed,
 	.init		= s3c2416_cpufreq_driver_init,
 	.name		= "s3c2416",
-	.attr		= s3c2416_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int __init s3c2416_cpufreq_init(void)

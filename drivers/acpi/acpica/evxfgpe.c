@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acevents.h"
@@ -471,7 +472,7 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 	if (gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK)
 		*event_status |= ACPI_EVENT_FLAG_HANDLE;
 
-      unlock_and_exit:
+unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
@@ -624,7 +625,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 
 	obj_desc->device.gpe_block = gpe_block;
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }
@@ -679,7 +680,7 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 		obj_desc->device.gpe_block = NULL;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }

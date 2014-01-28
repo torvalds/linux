@@ -820,7 +820,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 			intReturn = true;
 		blInserted = false;
 		/* overwrite PMKID */
-		for (j = 0 ; j < NUM_PMKID_CACHE; j++) {
+		for (j = 0; j < NUM_PMKID_CACHE; j++) {
 			if (!memcmp(psecuritypriv->PMKIDList[j].Bssid,
 			    strIssueBssid, ETH_ALEN)) {
 				/* BSSID is matched, the same AP => rewrite
@@ -845,7 +845,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 				PMKIDIndex].PMKID, pPMK->pmkid, IW_PMKID_LEN);
 			psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].
 				bUsed = true;
-			psecuritypriv->PMKIDIndex++ ;
+			psecuritypriv->PMKIDIndex++;
 			if (psecuritypriv->PMKIDIndex == NUM_PMKID_CACHE)
 				psecuritypriv->PMKIDIndex = 0;
 		}
@@ -1598,7 +1598,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 		wep.Length = wep.KeyLength +
 			     FIELD_OFFSET(struct NDIS_802_11_WEP, KeyMaterial);
 	} else {
-		wep.KeyLength = 0 ;
+		wep.KeyLength = 0;
 		if (keyindex_provided == 1) { /* set key_id only, no given
 					       * KeyMaterial(erq->length==0).*/
 			padapter->securitypriv.PrivacyKeyIndex = key;
@@ -1880,7 +1880,7 @@ static int r8711_wx_write32(struct net_device *dev,
 	u32 data32;
 
 	get_user(addr, (u32 __user *)wrqu->data.pointer);
-	data32 = ((u32)wrqu->data.length<<16) | (u32)wrqu->data.flags ;
+	data32 = ((u32)wrqu->data.length<<16) | (u32)wrqu->data.flags;
 	r8712_write32(padapter, addr, data32);
 	return 0;
 }

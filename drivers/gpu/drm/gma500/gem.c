@@ -29,11 +29,6 @@
 #include <drm/drm_vma_manager.h>
 #include "psb_drv.h"
 
-int psb_gem_init_object(struct drm_gem_object *obj)
-{
-	return -EINVAL;
-}
-
 void psb_gem_free_object(struct drm_gem_object *obj)
 {
 	struct gtt_range *gtt = container_of(obj, struct gtt_range, gem);

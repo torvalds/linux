@@ -75,8 +75,8 @@ struct mdp4_platform_config {
 
 struct mdp4_format {
 	struct msm_format base;
-	enum mpd4_bpc bpc_r, bpc_g, bpc_b;
-	enum mpd4_bpc_alpha bpc_a;
+	enum mdp4_bpc bpc_r, bpc_g, bpc_b;
+	enum mdp4_bpc_alpha bpc_a;
 	uint8_t unpack[4];
 	bool alpha_enable, unpack_tight;
 	uint8_t cpp, unpack_count;
@@ -93,7 +93,7 @@ static inline u32 mdp4_read(struct mdp4_kms *mdp4_kms, u32 reg)
 	return msm_readl(mdp4_kms->mmio + reg);
 }
 
-static inline uint32_t pipe2flush(enum mpd4_pipe pipe)
+static inline uint32_t pipe2flush(enum mdp4_pipe pipe)
 {
 	switch (pipe) {
 	case VG1:      return MDP4_OVERLAY_FLUSH_VG1;
@@ -133,6 +133,48 @@ static inline uint32_t dma2err(enum mdp4_dma dma)
 	}
 }
 
+static inline uint32_t mixercfg(int mixer, enum mdp4_pipe pipe,
+		enum mdp4_mixer_stage_id stage)
+{
+	uint32_t mixer_cfg = 0;
+
+	switch (pipe) {
+	case VG1:
+		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE0(stage) |
+			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE0_MIXER1);
+		break;
+	case VG2:
+		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE1(stage) |
+			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE1_MIXER1);
+		break;
+	case RGB1:
+		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE2(stage) |
+			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE2_MIXER1);
+		break;
+	case RGB2:
+		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE3(stage) |
+			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE3_MIXER1);
+		break;
+	case RGB3:
+		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE4(stage) |
+			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE4_MIXER1);
+		break;
+	case VG3:
+		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE5(stage) |
+			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE5_MIXER1);
+		break;
+	case VG4:
+		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE6(stage) |
+			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE6_MIXER1);
+		break;
+	default:
+		WARN_ON("invalid pipe");
+		break;
+	}
+
+	return mixer_cfg;
+}
+
 int mdp4_disable(struct mdp4_kms *mdp4_kms);
 int mdp4_enable(struct mdp4_kms *mdp4_kms);
 
@@ -146,6 +188,8 @@ void mdp4_irq_unregister(struct mdp4_kms *mdp4_kms, struct mdp4_irq *irq);
 int mdp4_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 void mdp4_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 
+uint32_t mdp4_get_formats(enum mdp4_pipe pipe_id, uint32_t *formats,
+		uint32_t max_formats);
 const struct msm_format *mdp4_get_format(struct msm_kms *kms, uint32_t format);
 
 void mdp4_plane_install_properties(struct drm_plane *plane,
@@ -158,14 +202,16 @@ int mdp4_plane_mode_set(struct drm_plane *plane,
 		unsigned int crtc_w, unsigned int crtc_h,
 		uint32_t src_x, uint32_t src_y,
 		uint32_t src_w, uint32_t src_h);
-enum mpd4_pipe mdp4_plane_pipe(struct drm_plane *plane);
+enum mdp4_pipe mdp4_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp4_plane_init(struct drm_device *dev,
-		enum mpd4_pipe pipe_id, bool private_plane);
+		enum mdp4_pipe pipe_id, bool private_plane);
 
 uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc);
-void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc);
+void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
 void mdp4_crtc_set_config(struct drm_crtc *crtc, uint32_t config);
 void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf);
+void mdp4_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane);
+void mdp4_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane);
 struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, int id, int ovlp_id,
 		enum mdp4_dma dma_id);

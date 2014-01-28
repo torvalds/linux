@@ -186,6 +186,7 @@ static struct platform_pwm_backlight_data mioa701_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 50,
 	.pwm_period_ns	= 4000 * 1024,	/* Fl = 250kHz */
+	.enable_gpio	= -1,
 };
 
 /*

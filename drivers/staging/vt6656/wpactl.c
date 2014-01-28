@@ -227,7 +227,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
 		} else {
 			// Key Table Full
-			if (!compare_ether_addr(&param->addr[0], pDevice->abyBSSID)) {
+			if (ether_addr_equal(param->addr, pDevice->abyBSSID)) {
 				//DBG_PRN_WLAN03(("return NDIS_STATUS_INVALID_DATA -Key Table Full.2\n"));
 				return -EINVAL;
 			} else {

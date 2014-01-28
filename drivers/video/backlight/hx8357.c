@@ -648,7 +648,8 @@ static int hx8357_probe(struct spi_device *spi)
 		lcd->use_im_pins = 0;
 	}
 
-	lcdev = lcd_device_register("mxsfb", &spi->dev, lcd, &hx8357_ops);
+	lcdev = devm_lcd_device_register(&spi->dev, "mxsfb", &spi->dev, lcd,
+					&hx8357_ops);
 	if (IS_ERR(lcdev)) {
 		ret = PTR_ERR(lcdev);
 		return ret;
@@ -660,32 +661,19 @@ static int hx8357_probe(struct spi_device *spi)
 	ret = ((int (*)(struct lcd_device *))match->data)(lcdev);
 	if (ret) {
 		dev_err(&spi->dev, "Couldn't initialize panel\n");
-		goto init_error;
+		return ret;
 	}
 
 	dev_info(&spi->dev, "Panel probed\n");
 
 	return 0;
-
-init_error:
-	lcd_device_unregister(lcdev);
-	return ret;
-}
-
-static int hx8357_remove(struct spi_device *spi)
-{
-	struct lcd_device *lcdev = spi_get_drvdata(spi);
-
-	lcd_device_unregister(lcdev);
-	return 0;
 }
 
 static struct spi_driver hx8357_driver = {
 	.probe  = hx8357_probe,
-	.remove = hx8357_remove,
 	.driver = {
 		.name = "hx8357",
-		.of_match_table = of_match_ptr(hx8357_dt_ids),
+		.of_match_table = hx8357_dt_ids,
 	},
 };
 

@@ -116,7 +116,7 @@ mxm_shadow_dsm(struct nouveau_mxm *mxm, u8 version)
 	acpi_handle handle;
 	int ret;
 
-	handle = DEVICE_ACPI_HANDLE(&device->pdev->dev);
+	handle = ACPI_HANDLE(&device->pdev->dev);
 	if (!handle)
 		return false;
 

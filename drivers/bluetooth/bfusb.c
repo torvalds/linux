@@ -42,7 +42,7 @@
 
 static struct usb_driver bfusb_driver;
 
-static struct usb_device_id bfusb_table[] = {
+static const struct usb_device_id bfusb_table[] = {
 	/* AVM BlueFRITZ! USB */
 	{ USB_DEVICE(0x057c, 0x2200) },
 
@@ -318,7 +318,6 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 			return -ENOMEM;
 		}
 
-		skb->dev = (void *) data->hdev;
 		bt_cb(skb)->pkt_type = pkt_type;
 
 		data->reassembly = skb;
@@ -333,7 +332,7 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 		memcpy(skb_put(data->reassembly, len), buf, len);
 
 	if (hdr & 0x08) {
-		hci_recv_frame(data->reassembly);
+		hci_recv_frame(data->hdev, data->reassembly);
 		data->reassembly = NULL;
 	}
 
@@ -465,25 +464,17 @@ static int bfusb_close(struct hci_dev *hdev)
 	return 0;
 }
 
-static int bfusb_send_frame(struct sk_buff *skb)
+static int bfusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	struct bfusb_data *data;
+	struct bfusb_data *data = hci_get_drvdata(hdev);
 	struct sk_buff *nskb;
 	unsigned char buf[3];
 	int sent = 0, size, count;
 
 	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb, bt_cb(skb)->pkt_type, skb->len);
 
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
-		return -ENODEV;
-	}
-
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
-
-	data = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -542,11 +533,6 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	kfree_skb(skb);
 
 	return 0;
-}
-
-static int bfusb_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
 }
 
 static int bfusb_load_firmware(struct bfusb_data *data,
@@ -699,11 +685,10 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	hci_set_drvdata(hdev, data);
 	SET_HCIDEV_DEV(hdev, &intf->dev);
 
-	hdev->open     = bfusb_open;
-	hdev->close    = bfusb_close;
-	hdev->flush    = bfusb_flush;
-	hdev->send     = bfusb_send_frame;
-	hdev->ioctl    = bfusb_ioctl;
+	hdev->open  = bfusb_open;
+	hdev->close = bfusb_close;
+	hdev->flush = bfusb_flush;
+	hdev->send  = bfusb_send_frame;
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");

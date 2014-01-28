@@ -102,6 +102,7 @@ struct msdos_sb_info {
 	struct hlist_head dir_hashtable[FAT_HASH_SIZE];
 
 	unsigned int dirty;           /* fs state before mount */
+	struct rcu_head rcu;
 };
 
 #define FAT_CACHE_VALID	0	/* special case for valid cache */

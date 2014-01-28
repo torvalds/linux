@@ -166,7 +166,7 @@ static int max1586_pmic_probe(struct i2c_client *client,
 	struct max1586_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct regulator_config config = { };
 	struct max1586_data *max1586;
-	int i, id, ret = -ENOMEM;
+	int i, id;
 
 	max1586 = devm_kzalloc(&client->dev, sizeof(struct max1586_data) +
 			sizeof(struct regulator_dev *) * (MAX1586_V6 + 1),
@@ -193,7 +193,7 @@ static int max1586_pmic_probe(struct i2c_client *client,
 			continue;
 		if (id < MAX1586_V3 || id > MAX1586_V6) {
 			dev_err(&client->dev, "invalid regulator id %d\n", id);
-			goto err;
+			return -EINVAL;
 		}
 
 		if (id == MAX1586_V3) {
@@ -207,32 +207,17 @@ static int max1586_pmic_probe(struct i2c_client *client,
 		config.init_data = pdata->subdevs[i].platform_data;
 		config.driver_data = max1586;
 
-		rdev[i] = regulator_register(&max1586_reg[id], &config);
+		rdev[i] = devm_regulator_register(&client->dev,
+						  &max1586_reg[id], &config);
 		if (IS_ERR(rdev[i])) {
-			ret = PTR_ERR(rdev[i]);
 			dev_err(&client->dev, "failed to register %s\n",
 				max1586_reg[id].name);
-			goto err;
+			return PTR_ERR(rdev[i]);
 		}
 	}
 
 	i2c_set_clientdata(client, max1586);
 	dev_info(&client->dev, "Maxim 1586 regulator driver loaded\n");
-	return 0;
-
-err:
-	while (--i >= 0)
-		regulator_unregister(rdev[i]);
-	return ret;
-}
-
-static int max1586_pmic_remove(struct i2c_client *client)
-{
-	struct max1586_data *max1586 = i2c_get_clientdata(client);
-	int i;
-
-	for (i = 0; i <= MAX1586_V6; i++)
-		regulator_unregister(max1586->rdev[i]);
 	return 0;
 }
 
@@ -244,7 +229,6 @@ MODULE_DEVICE_TABLE(i2c, max1586_id);
 
 static struct i2c_driver max1586_pmic_driver = {
 	.probe = max1586_pmic_probe,
-	.remove = max1586_pmic_remove,
 	.driver		= {
 		.name	= "max1586",
 		.owner	= THIS_MODULE,

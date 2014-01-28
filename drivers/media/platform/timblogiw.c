@@ -403,7 +403,7 @@ static int timblogiw_s_input(struct file *file, void  *priv, unsigned int input)
 	return 0;
 }
 
-static int timblogiw_streamon(struct file *file, void  *priv, unsigned int type)
+static int timblogiw_streamon(struct file *file, void  *priv, enum v4l2_buf_type type)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct timblogiw_fh *fh = priv;
@@ -420,7 +420,7 @@ static int timblogiw_streamon(struct file *file, void  *priv, unsigned int type)
 }
 
 static int timblogiw_streamoff(struct file *file, void  *priv,
-	unsigned int type)
+	enum v4l2_buf_type type)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct timblogiw_fh *fh = priv;
@@ -565,7 +565,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 
 	desc = dmaengine_prep_slave_sg(fh->chan,
 		buf->sg, sg_elems, DMA_DEV_TO_MEM,
-		DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
+		DMA_PREP_INTERRUPT);
 	if (!desc) {
 		spin_lock_irq(&fh->queue_lock);
 		list_del_init(&vb->queue);

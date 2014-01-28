@@ -245,7 +245,7 @@ static int osc_page_cache_add(const struct lu_env *env,
 void osc_index2policy(ldlm_policy_data_t *policy, const struct cl_object *obj,
 		      pgoff_t start, pgoff_t end)
 {
-	memset(policy, 0, sizeof *policy);
+	memset(policy, 0, sizeof(*policy));
 	policy->l_extent.start = cl_offset(obj, start);
 	policy->l_extent.end   = cl_offset(obj, end + 1) - 1;
 }

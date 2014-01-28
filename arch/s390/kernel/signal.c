@@ -57,40 +57,48 @@ static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 
 	/* Copy a 'clean' PSW mask to the user to avoid leaking
 	   information about whether PER is currently on.  */
-	user_sregs.regs.psw.mask = psw_user_bits |
-		(regs->psw.mask & PSW_MASK_USER);
+	user_sregs.regs.psw.mask = PSW_USER_BITS |
+		(regs->psw.mask & (PSW_MASK_USER | PSW_MASK_RI));
 	user_sregs.regs.psw.addr = regs->psw.addr;
 	memcpy(&user_sregs.regs.gprs, &regs->gprs, sizeof(sregs->regs.gprs));
 	memcpy(&user_sregs.regs.acrs, current->thread.acrs,
-	       sizeof(sregs->regs.acrs));
+	       sizeof(user_sregs.regs.acrs));
 	/* 
 	 * We have to store the fp registers to current->thread.fp_regs
 	 * to merge them with the emulated registers.
 	 */
-	save_fp_regs(&current->thread.fp_regs);
+	save_fp_ctl(&current->thread.fp_regs.fpc);
+	save_fp_regs(current->thread.fp_regs.fprs);
 	memcpy(&user_sregs.fpregs, &current->thread.fp_regs,
-	       sizeof(s390_fp_regs));
-	return __copy_to_user(sregs, &user_sregs, sizeof(_sigregs));
+	       sizeof(user_sregs.fpregs));
+	if (__copy_to_user(sregs, &user_sregs, sizeof(_sigregs)))
+		return -EFAULT;
+	return 0;
 }
 
-/* Returns positive number on error */
 static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
-	int err;
 	_sigregs user_sregs;
 
 	/* Alwys make any pending restarted system call return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
-	err = __copy_from_user(&user_sregs, sregs, sizeof(_sigregs));
-	if (err)
-		return err;
-	/* Use regs->psw.mask instead of psw_user_bits to preserve PER bit. */
-	regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
-		(user_sregs.regs.psw.mask & PSW_MASK_USER);
+	if (__copy_from_user(&user_sregs, sregs, sizeof(user_sregs)))
+		return -EFAULT;
+
+	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW_MASK_RI))
+		return -EINVAL;
+
+	/* Loading the floating-point-control word can fail. Do that first. */
+	if (restore_fp_ctl(&user_sregs.fpregs.fpc))
+		return -EINVAL;
+
+	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
+	regs->psw.mask = (regs->psw.mask & ~(PSW_MASK_USER | PSW_MASK_RI)) |
+		(user_sregs.regs.psw.mask & (PSW_MASK_USER | PSW_MASK_RI));
 	/* Check for invalid user address space control. */
-	if ((regs->psw.mask & PSW_MASK_ASC) >= (psw_kernel_bits & PSW_MASK_ASC))
-		regs->psw.mask = (psw_user_bits & PSW_MASK_ASC) |
+	if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_HOME)
+		regs->psw.mask = PSW_ASC_PRIMARY |
 			(regs->psw.mask & ~PSW_MASK_ASC);
 	/* Check for invalid amode */
 	if (regs->psw.mask & PSW_MASK_EA)
@@ -98,14 +106,13 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	regs->psw.addr = user_sregs.regs.psw.addr;
 	memcpy(&regs->gprs, &user_sregs.regs.gprs, sizeof(sregs->regs.gprs));
 	memcpy(&current->thread.acrs, &user_sregs.regs.acrs,
-	       sizeof(sregs->regs.acrs));
+	       sizeof(current->thread.acrs));
 	restore_access_regs(current->thread.acrs);
 
 	memcpy(&current->thread.fp_regs, &user_sregs.fpregs,
-	       sizeof(s390_fp_regs));
-	current->thread.fp_regs.fpc &= FPC_VALID_MASK;
+	       sizeof(current->thread.fp_regs));
 
-	restore_fp_regs(&current->thread.fp_regs);
+	restore_fp_regs(current->thread.fp_regs.fprs);
 	clear_thread_flag(TIF_SYSCALL);	/* No longer in a system call */
 	return 0;
 }
@@ -224,7 +231,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->gprs[15] = (unsigned long) frame;
 	/* Force default amode and default user address space control. */
 	regs->psw.mask = PSW_MASK_EA | PSW_MASK_BA |
-		(psw_user_bits & PSW_MASK_ASC) |
+		(PSW_USER_BITS & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
 	regs->psw.addr = (unsigned long) ka->sa.sa_handler | PSW_ADDR_AMODE;
 
@@ -295,7 +302,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->gprs[15] = (unsigned long) frame;
 	/* Force default amode and default user address space control. */
 	regs->psw.mask = PSW_MASK_EA | PSW_MASK_BA |
-		(psw_user_bits & PSW_MASK_ASC) |
+		(PSW_USER_BITS & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
 	regs->psw.addr = (unsigned long) ka->sa.sa_handler | PSW_ADDR_AMODE;
 

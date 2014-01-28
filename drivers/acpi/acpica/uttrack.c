@@ -130,10 +130,23 @@ void *acpi_ut_allocate_and_track(acpi_size size,
 	struct acpi_debug_mem_block *allocation;
 	acpi_status status;
 
+	/* Check for an inadvertent size of zero bytes */
+
+	if (!size) {
+		ACPI_WARNING((module, line,
+			      "Attempt to allocate zero bytes, allocating 1 byte"));
+		size = 1;
+	}
+
 	allocation =
-	    acpi_ut_allocate(size + sizeof(struct acpi_debug_mem_header),
-			     component, module, line);
+	    acpi_os_allocate(size + sizeof(struct acpi_debug_mem_header));
 	if (!allocation) {
+
+		/* Report allocation error */
+
+		ACPI_WARNING((module, line,
+			      "Could not allocate size %u", (u32)size));
+
 		return (NULL);
 	}
 
@@ -179,9 +192,17 @@ void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
 	struct acpi_debug_mem_block *allocation;
 	acpi_status status;
 
+	/* Check for an inadvertent size of zero bytes */
+
+	if (!size) {
+		ACPI_WARNING((module, line,
+			      "Attempt to allocate zero bytes, allocating 1 byte"));
+		size = 1;
+	}
+
 	allocation =
-	    acpi_ut_allocate_zeroed(size + sizeof(struct acpi_debug_mem_header),
-				    component, module, line);
+	    acpi_os_allocate_zeroed(size +
+				    sizeof(struct acpi_debug_mem_header));
 	if (!allocation) {
 
 		/* Report allocation error */
@@ -409,7 +430,7 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 		element->next = allocation;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	status = acpi_ut_release_mutex(ACPI_MTX_MEMORY);
 	return_ACPI_STATUS(status);
 }

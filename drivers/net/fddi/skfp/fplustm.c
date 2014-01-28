@@ -453,7 +453,7 @@ static void directed_beacon(struct s_smc *smc)
 	 */
 	* (char *) a = (char) ((long)DBEACON_INFO<<24L) ;
 	a[1] = 0 ;
-	memcpy((char *)a+1,(char *) &smc->mib.m[MAC0].fddiMACUpstreamNbr,6) ;
+	memcpy((char *)a+1, (char *) &smc->mib.m[MAC0].fddiMACUpstreamNbr, ETH_ALEN);
 
 	CHECK_NPP() ;
 	 /* set memory address reg for writes */

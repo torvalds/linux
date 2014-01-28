@@ -291,7 +291,7 @@ int cpqhp_get_bus_dev (struct controller *ctrl, u8 * bus_num, u8 * dev_num, u8 s
  *
  * Reads configuration for all slots in a PCI bus and saves info.
  *
- * Note:  For non-hot plug busses, the slot # saved is the device #
+ * Note:  For non-hot plug buses, the slot # saved is the device #
  *
  * returns 0 if success
  */
@@ -455,7 +455,7 @@ int cpqhp_save_config(struct controller *ctrl, int busnumber, int is_hot_plug)
  * cpqhp_save_slot_config
  *
  * Saves configuration info for all PCI devices in a given slot
- * including subordinate busses.
+ * including subordinate buses.
  *
  * returns 0 if success
  */
@@ -1556,4 +1556,3 @@ void cpqhp_destroy_board_resources (struct pci_func * func)
 		kfree(tres);
 	}
 }
-

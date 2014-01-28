@@ -625,7 +625,7 @@ static void imon_incoming_packet(struct imon_context *context,
 	}
 
 	if (debug) {
-		printk(KERN_INFO "raw packet: ");
+		dev_info(dev, "raw packet: ");
 		for (i = 0; i < len; ++i)
 			printk("%02x ", buf[i]);
 		printk("\n");

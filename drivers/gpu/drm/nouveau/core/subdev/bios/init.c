@@ -365,13 +365,13 @@ static u16
 init_script(struct nouveau_bios *bios, int index)
 {
 	struct nvbios_init init = { .bios = bios };
-	u16 data;
+	u16 bmp_ver = bmp_version(bios), data;
 
-	if (bmp_version(bios) && bmp_version(bios) < 0x0510) {
-		if (index > 1)
+	if (bmp_ver && bmp_ver < 0x0510) {
+		if (index > 1 || bmp_ver < 0x0100)
 			return 0x0000;
 
-		data = bios->bmp_offset + (bios->version.major < 2 ? 14 : 18);
+		data = bios->bmp_offset + (bmp_ver < 0x0200 ? 14 : 18);
 		return nv_ro16(bios, data + (index * 2));
 	}
 
@@ -1294,7 +1294,11 @@ init_jump(struct nvbios_init *init)
 	u16 offset = nv_ro16(bios, init->offset + 1);
 
 	trace("JUMP\t0x%04x\n", offset);
-	init->offset = offset;
+
+	if (init_exec(init))
+		init->offset = offset;
+	else
+		init->offset += 3;
 }
 
 /**
@@ -2180,7 +2184,7 @@ nvbios_init(struct nouveau_subdev *subdev, bool execute)
 	u16 data;
 
 	if (execute)
-		nv_suspend(bios, "running init tables\n");
+		nv_info(bios, "running init tables\n");
 	while (!ret && (data = (init_script(bios, ++i)))) {
 		struct nvbios_init init = {
 			.subdev = subdev,
@@ -2210,5 +2214,5 @@ nvbios_init(struct nouveau_subdev *subdev, bool execute)
 		ret = nvbios_exec(&init);
 	}
 
-	return 0;
+	return ret;
 }

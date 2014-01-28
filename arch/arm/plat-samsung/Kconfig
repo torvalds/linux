@@ -382,11 +382,6 @@ config S5P_DEV_TV
 	help
 	  Compile in platform device definition for TV interface
 
-config S5P_DEV_USB_EHCI
-	bool
-	help
-	  Compile in platform device definition for USB EHCI
-
 config S3C24XX_PWM
 	bool "PWM device support"
 	select PWM
@@ -394,11 +389,6 @@ config S3C24XX_PWM
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
-
-config S5P_SETUP_MIPIPHY
-	bool
-	help
-	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
 
 config S3C_SETUP_CAMIF
 	bool

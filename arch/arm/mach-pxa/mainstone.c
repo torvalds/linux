@@ -338,6 +338,7 @@ static struct platform_pwm_backlight_data mainstone_backlight_data = {
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
 	.pwm_period_ns	= 78770,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device mainstone_backlight_device = {

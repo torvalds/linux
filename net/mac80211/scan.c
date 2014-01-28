@@ -394,8 +394,7 @@ static bool ieee80211_can_scan(struct ieee80211_local *local,
 		return false;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    sdata->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
-				  IEEE80211_STA_CONNECTION_POLL))
+	    sdata->u.mgd.flags & IEEE80211_STA_CONNECTION_POLL)
 		return false;
 
 	return true;
@@ -1089,6 +1088,6 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw)
 
 	trace_api_sched_scan_stopped(local);
 
-	ieee80211_queue_work(&local->hw, &local->sched_scan_stopped_work);
+	schedule_work(&local->sched_scan_stopped_work);
 }
 EXPORT_SYMBOL(ieee80211_sched_scan_stopped);

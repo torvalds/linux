@@ -1277,6 +1277,9 @@ skip_linkparms:
 			    ri->prefix_len == 0)
 				continue;
 #endif
+			if (ri->prefix_len == 0 &&
+			    !in6_dev->cnf.accept_ra_defrtr)
+				continue;
 			if (ri->prefix_len > in6_dev->cnf.accept_ra_rt_info_max_plen)
 				continue;
 			rt6_route_rcv(skb->dev, (u8*)p, (p->nd_opt_len) << 3,
@@ -1726,8 +1729,8 @@ int __init ndisc_init(void)
 				    &ndisc_ifinfo_sysctl_change);
 	if (err)
 		goto out_unregister_pernet;
-#endif
 out:
+#endif
 	return err;
 
 #ifdef CONFIG_SYSCTL

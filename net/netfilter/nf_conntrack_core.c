@@ -764,9 +764,10 @@ void nf_conntrack_free(struct nf_conn *ct)
 	struct net *net = nf_ct_net(ct);
 
 	nf_ct_ext_destroy(ct);
-	atomic_dec(&net->ct.count);
 	nf_ct_ext_free(ct);
 	kmem_cache_free(net->ct.nf_conntrack_cachep, ct);
+	smp_mb__before_atomic_dec();
+	atomic_dec(&net->ct.count);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
@@ -1109,12 +1110,14 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 
 acct:
 	if (do_acct) {
-		struct nf_conn_counter *acct;
+		struct nf_conn_acct *acct;
 
 		acct = nf_conn_acct_find(ct);
 		if (acct) {
-			atomic64_inc(&acct[CTINFO2DIR(ctinfo)].packets);
-			atomic64_add(skb->len, &acct[CTINFO2DIR(ctinfo)].bytes);
+			struct nf_conn_counter *counter = acct->counter;
+
+			atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
+			atomic64_add(skb->len, &counter[CTINFO2DIR(ctinfo)].bytes);
 		}
 	}
 }
@@ -1126,13 +1129,15 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 		       int do_acct)
 {
 	if (do_acct) {
-		struct nf_conn_counter *acct;
+		struct nf_conn_acct *acct;
 
 		acct = nf_conn_acct_find(ct);
 		if (acct) {
-			atomic64_inc(&acct[CTINFO2DIR(ctinfo)].packets);
+			struct nf_conn_counter *counter = acct->counter;
+
+			atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
 			atomic64_add(skb->len - skb_network_offset(skb),
-				     &acct[CTINFO2DIR(ctinfo)].bytes);
+				     &counter[CTINFO2DIR(ctinfo)].bytes);
 		}
 	}
 

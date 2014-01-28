@@ -790,16 +790,14 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"MAX8998 SET1 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set1);
-			ret = -EIO;
-			goto err_out;
+			return -EIO;
 		}
 		/* Check if SET2 is not equal to 0 */
 		if (!pdata->buck1_set2) {
 			dev_err(&pdev->dev,
 				"MAX8998 SET2 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set2);
-			ret = -EIO;
-			goto err_out;
+			return -EIO;
 		}
 
 		gpio_request(pdata->buck1_set1, "MAX8998 BUCK1_SET1");
@@ -823,7 +821,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			ret = max8998_write_reg(i2c,
 					MAX8998_REG_BUCK1_VOLTAGE1 + v, i);
 			if (ret)
-				goto err_out;
+				return ret;
 		}
 	}
 
@@ -833,8 +831,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"MAX8998 SET3 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck2_set3);
-			ret = -EIO;
-			goto err_out;
+			return -EIO;
 		}
 		gpio_request(pdata->buck2_set3, "MAX8998 BUCK2_SET3");
 		gpio_direction_output(pdata->buck2_set3,
@@ -852,7 +849,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			ret = max8998_write_reg(i2c,
 					MAX8998_REG_BUCK2_VOLTAGE1 + v, i);
 			if (ret)
-				goto err_out;
+				return ret;
 		}
 	}
 
@@ -875,33 +872,18 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = max8998;
 
-		rdev[i] = regulator_register(&regulators[index], &config);
+		rdev[i] = devm_regulator_register(&pdev->dev,
+						  &regulators[index], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
 			dev_err(max8998->dev, "regulator %s init failed (%d)\n",
 						regulators[index].name, ret);
 			rdev[i] = NULL;
-			goto err;
+			return ret;
 		}
 	}
 
 
-	return 0;
-err:
-	while (--i >= 0)
-		regulator_unregister(rdev[i]);
-err_out:
-	return ret;
-}
-
-static int max8998_pmic_remove(struct platform_device *pdev)
-{
-	struct max8998_data *max8998 = platform_get_drvdata(pdev);
-	struct regulator_dev **rdev = max8998->rdev;
-	int i;
-
-	for (i = 0; i < max8998->num_regulators; i++)
-		regulator_unregister(rdev[i]);
 	return 0;
 }
 
@@ -918,7 +900,6 @@ static struct platform_driver max8998_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8998_pmic_probe,
-	.remove = max8998_pmic_remove,
 	.id_table = max8998_pmic_id,
 };
 

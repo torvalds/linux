@@ -227,7 +227,7 @@ static u32 htcp_recalc_ssthresh(struct sock *sk)
 	return max((tp->snd_cwnd * ca->beta) >> 7, 2U);
 }
 
-static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
+static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 acked, u32 in_flight)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
@@ -236,7 +236,7 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 		return;
 
 	if (tp->snd_cwnd <= tp->snd_ssthresh)
-		tcp_slow_start(tp);
+		tcp_slow_start(tp, acked);
 	else {
 		/* In dangerous area, increase slowly.
 		 * In theory this is tp->snd_cwnd += alpha / tp->snd_cwnd

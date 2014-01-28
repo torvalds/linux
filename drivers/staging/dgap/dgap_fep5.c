@@ -134,7 +134,7 @@ int dgap_after_config_loaded(void)
 		dgap_Board[i]->flipflagbuf = dgap_driver_kzmalloc(MYFLIPLEN, GFP_ATOMIC);
 	}
 
-	return (rc);
+	return rc;
 }
 
 
@@ -150,14 +150,14 @@ static int dgap_usertoboard(struct board_t *brd, char *to_addr, char __user *fro
 	int n = U2BSIZE;
 
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
-		return(-EFAULT);
+		return -EFAULT;
 
 	while (len) {
 		if (n > len)
 			n = len;
 
 		if (copy_from_user((char *) &buf, from_addr, n) == -1 ) {
-			return(-EFAULT);
+			return -EFAULT;
 		}
 
 		/* Copy data from buffer to card memory */
@@ -169,7 +169,7 @@ static int dgap_usertoboard(struct board_t *brd, char *to_addr, char __user *fro
 		from_addr += n;   
 		n = U2BSIZE;
         }
-	return(0);
+	return 0;
 }
 
 
@@ -1155,20 +1155,20 @@ uint dgap_get_custom_baud(struct channel_t *ch)
 	uint value = 0;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC) {
-		return (0);
+		return 0;
 	}
 
 	if (!ch->ch_bd || ch->ch_bd->magic != DGAP_BOARD_MAGIC) {
-		return (0);
+		return 0;
 	}
 
 	if (!(ch->ch_bd->bd_flags & BD_FEP5PLUS))
-		return (0);
+		return 0;
 
 	vaddr = ch->ch_bd->re_map_membase;
 
 	if (!vaddr)
-		return (0);
+		return 0;
 
 	/*
 	 * Go get from fep mem, what the fep
@@ -1178,7 +1178,7 @@ uint dgap_get_custom_baud(struct channel_t *ch)
 		(ch->ch_portnum * 0x28) + LINE_SPEED));
 
 	value = readw(vaddr + offset);
-	return (value);
+	return value;
 }
 
 
@@ -1229,29 +1229,24 @@ int dgap_param(struct tty_struct *tty)
 	uchar	mval;
 	uchar	hflow;
 
-	if (!tty || tty->magic != TTY_MAGIC) {
-		return (-ENXIO);
-	}
+	if (!tty || tty->magic != TTY_MAGIC)
+		return -ENXIO;
 
 	un = (struct un_t *) tty->driver_data;
-	if (!un || un->magic != DGAP_UNIT_MAGIC) {
-		return (-ENXIO);
-	}
+	if (!un || un->magic != DGAP_UNIT_MAGIC)
+		return -ENXIO;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC) {
-		return (-ENXIO);
-	}
+	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
+		return -ENXIO;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGAP_BOARD_MAGIC) {
-		return (-ENXIO);
-	}
+	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
+		return -ENXIO;
 
         bs = ch->ch_bs;
-	if (bs == 0) {
-		return (-ENXIO);
-	}
+	if (!bs)
+		return -ENXIO;
 
 	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
 		ch->ch_tun.un_dev, ch->ch_c_cflag, ch->ch_c_oflag, ch->ch_c_iflag));
@@ -1558,7 +1553,7 @@ int dgap_param(struct tty_struct *tty)
 
 	DPR_PARAM(("param finish\n"));
 
-	return (0);
+	return 0;
 }
 
 
@@ -1675,7 +1670,7 @@ static int dgap_event(struct board_t *bd)
 	int		b1;
 
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (-ENXIO);
+		return -ENXIO;
 
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 
@@ -1683,7 +1678,7 @@ static int dgap_event(struct board_t *bd)
 
 	if (!vaddr) {
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	eaddr = (struct ev_t *) (vaddr + EVBUF);
@@ -1701,7 +1696,7 @@ static int dgap_event(struct board_t *bd)
 		DPR_EVENT(("should be calling xxfail %d\n", __LINE__));
 		/* Let go of board lock */
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	/*
@@ -1949,5 +1944,5 @@ next:
 	writew(tail, &(eaddr->ev_tail));
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	return (0);
+	return 0;
 }               

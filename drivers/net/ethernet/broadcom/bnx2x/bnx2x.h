@@ -520,10 +520,12 @@ struct bnx2x_fastpath {
 #define BNX2X_FP_STATE_IDLE		      0
 #define BNX2X_FP_STATE_NAPI		(1 << 0)    /* NAPI owns this FP */
 #define BNX2X_FP_STATE_POLL		(1 << 1)    /* poll owns this FP */
-#define BNX2X_FP_STATE_NAPI_YIELD	(1 << 2)    /* NAPI yielded this FP */
-#define BNX2X_FP_STATE_POLL_YIELD	(1 << 3)    /* poll yielded this FP */
+#define BNX2X_FP_STATE_DISABLED		(1 << 2)
+#define BNX2X_FP_STATE_NAPI_YIELD	(1 << 3)    /* NAPI yielded this FP */
+#define BNX2X_FP_STATE_POLL_YIELD	(1 << 4)    /* poll yielded this FP */
+#define BNX2X_FP_OWNED	(BNX2X_FP_STATE_NAPI | BNX2X_FP_STATE_POLL)
 #define BNX2X_FP_YIELD	(BNX2X_FP_STATE_NAPI_YIELD | BNX2X_FP_STATE_POLL_YIELD)
-#define BNX2X_FP_LOCKED	(BNX2X_FP_STATE_NAPI | BNX2X_FP_STATE_POLL)
+#define BNX2X_FP_LOCKED	(BNX2X_FP_OWNED | BNX2X_FP_STATE_DISABLED)
 #define BNX2X_FP_USER_PEND (BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_POLL_YIELD)
 	/* protect state */
 	spinlock_t lock;
@@ -613,7 +615,7 @@ static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
 {
 	bool rc = true;
 
-	spin_lock(&fp->lock);
+	spin_lock_bh(&fp->lock);
 	if (fp->state & BNX2X_FP_LOCKED) {
 		WARN_ON(fp->state & BNX2X_FP_STATE_NAPI);
 		fp->state |= BNX2X_FP_STATE_NAPI_YIELD;
@@ -622,7 +624,7 @@ static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
 		/* we don't care if someone yielded */
 		fp->state = BNX2X_FP_STATE_NAPI;
 	}
-	spin_unlock(&fp->lock);
+	spin_unlock_bh(&fp->lock);
 	return rc;
 }
 
@@ -631,14 +633,16 @@ static inline bool bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
 {
 	bool rc = false;
 
-	spin_lock(&fp->lock);
+	spin_lock_bh(&fp->lock);
 	WARN_ON(fp->state &
 		(BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_NAPI_YIELD));
 
 	if (fp->state & BNX2X_FP_STATE_POLL_YIELD)
 		rc = true;
-	fp->state = BNX2X_FP_STATE_IDLE;
-	spin_unlock(&fp->lock);
+
+	/* state ==> idle, unless currently disabled */
+	fp->state &= BNX2X_FP_STATE_DISABLED;
+	spin_unlock_bh(&fp->lock);
 	return rc;
 }
 
@@ -669,7 +673,9 @@ static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
 
 	if (fp->state & BNX2X_FP_STATE_POLL_YIELD)
 		rc = true;
-	fp->state = BNX2X_FP_STATE_IDLE;
+
+	/* state ==> idle, unless currently disabled */
+	fp->state &= BNX2X_FP_STATE_DISABLED;
 	spin_unlock_bh(&fp->lock);
 	return rc;
 }
@@ -677,8 +683,22 @@ static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
 /* true if a socket is polling, even if it did not get the lock */
 static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
 {
-	WARN_ON(!(fp->state & BNX2X_FP_LOCKED));
+	WARN_ON(!(fp->state & BNX2X_FP_OWNED));
 	return fp->state & BNX2X_FP_USER_PEND;
+}
+
+/* false if fp is currently owned */
+static inline bool bnx2x_fp_ll_disable(struct bnx2x_fastpath *fp)
+{
+	int rc = true;
+
+	spin_lock_bh(&fp->lock);
+	if (fp->state & BNX2X_FP_OWNED)
+		rc = false;
+	fp->state |= BNX2X_FP_STATE_DISABLED;
+	spin_unlock_bh(&fp->lock);
+
+	return rc;
 }
 #else
 static inline void bnx2x_fp_init_lock(struct bnx2x_fastpath *fp)
@@ -708,6 +728,10 @@ static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
 static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
 {
 	return false;
+}
+static inline bool bnx2x_fp_ll_disable(struct bnx2x_fastpath *fp)
+{
+	return true;
 }
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
@@ -1250,7 +1274,10 @@ struct bnx2x_slowpath {
 	 * Therefore, if they would have been defined in the same union,
 	 * data can get corrupted.
 	 */
-	struct afex_vif_list_ramrod_data func_afex_rdata;
+	union {
+		struct afex_vif_list_ramrod_data	viflist_data;
+		struct function_update_data		func_update;
+	} func_afex_rdata;
 
 	/* used by dmae command executer */
 	struct dmae_command		dmae[MAX_DMAE_C];
@@ -1376,7 +1403,6 @@ enum {
 	BNX2X_SP_RTNL_RX_MODE,
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
-	BNX2X_SP_RTNL_TX_RESUME,
 };
 
 struct bnx2x_prev_path_list {
@@ -1546,6 +1572,7 @@ struct bnx2x {
 #define IS_VF_FLAG			(1 << 22)
 #define INTERRUPTS_ENABLED_FLAG		(1 << 23)
 #define BC_SUPPORTS_RMMOD_CMD		(1 << 24)
+#define HAS_PHYS_PORT_ID		(1 << 25)
 
 #define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
 
@@ -1876,6 +1903,8 @@ struct bnx2x {
 	u32 dump_preset_idx;
 	bool					stats_started;
 	struct semaphore			stats_sema;
+
+	u8					phys_port_id[ETH_ALEN];
 };
 
 /* Tx queues may be less or equal to Rx queues */
@@ -2232,7 +2261,7 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define BNX2X_NUM_TESTS_SF		7
 #define BNX2X_NUM_TESTS_MF		3
 #define BNX2X_NUM_TESTS(bp)		(IS_MF(bp) ? BNX2X_NUM_TESTS_MF : \
-						     BNX2X_NUM_TESTS_SF)
+					     IS_VF(bp) ? 0 : BNX2X_NUM_TESTS_SF)
 
 #define BNX2X_PHY_LOOPBACK		0
 #define BNX2X_MAC_LOOPBACK		1
@@ -2492,15 +2521,11 @@ enum {
 
 #define NUM_MACS	8
 
-enum bnx2x_pci_bus_speed {
-	BNX2X_PCI_LINK_SPEED_2500 = 2500,
-	BNX2X_PCI_LINK_SPEED_5000 = 5000,
-	BNX2X_PCI_LINK_SPEED_8000 = 8000
-};
-
 void bnx2x_set_local_cmng(struct bnx2x *bp);
 
 #define MCPR_SCRATCH_BASE(bp) \
 	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
+
+#define E1H_MAX_MF_SB_COUNT (HC_SB_MAX_SB_E1X/(E1HVN_MAX * PORT_MAX))
 
 #endif /* bnx2x.h */

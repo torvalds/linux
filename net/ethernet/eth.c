@@ -58,7 +58,7 @@
 #include <net/ipv6.h>
 #include <net/ip.h>
 #include <net/dsa.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 __setup("ether=", netdev_boot_setup);
 
@@ -133,7 +133,7 @@ int eth_rebuild_header(struct sk_buff *skb)
 		return arp_find(eth->h_dest, skb);
 #endif
 	default:
-		printk(KERN_DEBUG
+		netdev_dbg(dev,
 		       "%s: unable to resolve type %X addresses.\n",
 		       dev->name, ntohs(eth->h_proto));
 
@@ -169,20 +169,9 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 		else
 			skb->pkt_type = PACKET_MULTICAST;
 	}
-
-	/*
-	 *      This ALLMULTI check should be redundant by 1.4
-	 *      so don't forget to remove it.
-	 *
-	 *      Seems, you forgot to remove it. All silly devices
-	 *      seems to set IFF_PROMISC.
-	 */
-
-	else if (1 /*dev->flags&IFF_PROMISC */ ) {
-		if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
-						      dev->dev_addr)))
-			skb->pkt_type = PACKET_OTHERHOST;
-	}
+	else if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
+						   dev->dev_addr)))
+		skb->pkt_type = PACKET_OTHERHOST;
 
 	/*
 	 * Some variants of DSA tagging don't have an ethertype field
@@ -190,12 +179,13 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 * variants has been configured on the receiving interface,
 	 * and if so, set skb->protocol without looking at the packet.
 	 */
-	if (netdev_uses_dsa_tags(dev))
+	if (unlikely(netdev_uses_dsa_tags(dev)))
 		return htons(ETH_P_DSA);
-	if (netdev_uses_trailer_tags(dev))
+
+	if (unlikely(netdev_uses_trailer_tags(dev)))
 		return htons(ETH_P_TRAILER);
 
-	if (ntohs(eth->h_proto) >= ETH_P_802_3_MIN)
+	if (likely(ntohs(eth->h_proto) >= ETH_P_802_3_MIN))
 		return eth->h_proto;
 
 	/*
@@ -204,7 +194,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 *      layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
 	 *      won't work for fault tolerant netware but does for the rest.
 	 */
-	if (skb->len >= 2 && *(unsigned short *)(skb->data) == 0xFFFF)
+	if (unlikely(skb->len >= 2 && *(unsigned short *)(skb->data) == 0xFFFF))
 		return htons(ETH_P_802_3);
 
 	/*

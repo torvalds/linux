@@ -289,7 +289,7 @@ static int gmux_switchto(enum vga_switcheroo_client_id id)
 static int gmux_set_discrete_state(struct apple_gmux_data *gmux_data,
 				   enum vga_switcheroo_state state)
 {
-	INIT_COMPLETION(gmux_data->powerchange_done);
+	reinit_completion(&gmux_data->powerchange_done);
 
 	if (state == VGA_SWITCHEROO_ON) {
 		gmux_write8(gmux_data, GMUX_PORT_DISCRETE_POWER, 1);
@@ -519,7 +519,7 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
 
-	gmux_data->dhandle = DEVICE_ACPI_HANDLE(&pnp->dev);
+	gmux_data->dhandle = ACPI_HANDLE(&pnp->dev);
 	if (!gmux_data->dhandle) {
 		pr_err("Cannot find acpi handle for pnp device %s\n",
 		       dev_name(&pnp->dev));

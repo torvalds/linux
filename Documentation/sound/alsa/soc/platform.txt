@@ -1,9 +1,9 @@
 ASoC Platform Driver
 ====================
 
-An ASoC platform driver can be divided into audio DMA and SoC DAI configuration
-and control. The platform drivers only target the SoC CPU and must have no board
-specific code.
+An ASoC platform driver class can be divided into audio DMA drivers, SoC DAI
+drivers and DSP drivers. The platform drivers only target the SoC CPU and must
+have no board specific code.
 
 Audio DMA
 =========
@@ -64,3 +64,16 @@ Each SoC DAI driver must provide the following features:-
  5) Suspend and resume (optional)
 
 Please see codec.txt for a description of items 1 - 4.
+
+
+SoC DSP Drivers
+===============
+
+Each SoC DSP driver usually supplies the following features :-
+
+ 1) DAPM graph
+ 2) Mixer controls
+ 3) DMA IO to/from DSP buffers (if applicable)
+ 4) Definition of DSP front end (FE) PCM devices.
+
+Please see DPCM.txt for a description of item 4.

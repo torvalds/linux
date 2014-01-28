@@ -507,7 +507,7 @@ qlafx00_pci_config(scsi_qla_host_t *vha)
 	pci_write_config_word(ha->pdev, PCI_COMMAND, w);
 
 	/* PCIe -- adjust Maximum Read Request Size (2048). */
-	if (pci_find_capability(ha->pdev, PCI_CAP_ID_EXP))
+	if (pci_is_pcie(ha->pdev))
 		pcie_set_readrq(ha->pdev, 2048);
 
 	ha->chip_revision = ha->pdev->revision;
@@ -660,10 +660,8 @@ char *
 qlafx00_pci_info_str(struct scsi_qla_host *vha, char *str)
 {
 	struct qla_hw_data *ha = vha->hw;
-	int pcie_reg;
 
-	pcie_reg = pci_find_capability(ha->pdev, PCI_CAP_ID_EXP);
-	if (pcie_reg) {
+	if (pci_is_pcie(ha->pdev)) {
 		strcpy(str, "PCIe iSA");
 		return str;
 	}

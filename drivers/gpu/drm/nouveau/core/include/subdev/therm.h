@@ -71,6 +71,8 @@ void _nouveau_therm_dtor(struct nouveau_object *);
 int  _nouveau_therm_init(struct nouveau_object *);
 int  _nouveau_therm_fini(struct nouveau_object *, bool);
 
+int  nouveau_therm_cstate(struct nouveau_therm *, int, int);
+
 extern struct nouveau_oclass nv40_therm_oclass;
 extern struct nouveau_oclass nv50_therm_oclass;
 extern struct nouveau_oclass nv84_therm_oclass;

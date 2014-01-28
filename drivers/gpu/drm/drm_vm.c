@@ -301,7 +301,7 @@ static int drm_do_vm_dma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	offset = (unsigned long)vmf->virtual_address - vma->vm_start;	/* vm_[pg]off[set] should be 0 */
 	page_nr = offset >> PAGE_SHIFT; /* page_nr could just be vmf->pgoff */
-	page = virt_to_page((dma->pagelist[page_nr] + (offset & (~PAGE_MASK))));
+	page = virt_to_page((void *)dma->pagelist[page_nr]);
 
 	get_page(page);
 	vmf->page = page;

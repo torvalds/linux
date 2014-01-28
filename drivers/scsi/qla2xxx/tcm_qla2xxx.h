@@ -45,8 +45,6 @@ struct tcm_qla2xxx_tpg {
 	struct se_portal_group se_tpg;
 };
 
-#define QLA_TPG_ATTRIB(tpg)	(&(tpg)->tpg_attrib)
-
 struct tcm_qla2xxx_fc_loopid {
 	struct se_node_acl *se_nacl;
 };

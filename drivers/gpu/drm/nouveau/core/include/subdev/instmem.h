@@ -50,6 +50,13 @@ struct nouveau_instmem {
 static inline struct nouveau_instmem *
 nouveau_instmem(void *obj)
 {
+	/* nv04/nv40 impls need to create objects in their constructor,
+	 * which is before the subdev pointer is valid
+	 */
+	if (nv_iclass(obj, NV_SUBDEV_CLASS) &&
+	    nv_subidx(obj) == NVDEV_SUBDEV_INSTMEM)
+		return obj;
+
 	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_INSTMEM];
 }
 

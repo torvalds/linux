@@ -999,7 +999,7 @@ void __init plat_mem_setup(void)
 
 	if (total == 0)
 		panic("Unable to allocate memory from "
-		      "cvmx_bootmem_phy_alloc\n");
+		      "cvmx_bootmem_phy_alloc");
 }
 
 /*
@@ -1081,7 +1081,7 @@ void __init device_tree_init(void)
 	/* Copy the default tree from init memory. */
 	initial_boot_params = early_init_dt_alloc_memory_arch(dt_size, 8);
 	if (initial_boot_params == NULL)
-		panic("Could not allocate initial_boot_params\n");
+		panic("Could not allocate initial_boot_params");
 	memcpy(initial_boot_params, fdt, dt_size);
 
 	if (do_prune) {

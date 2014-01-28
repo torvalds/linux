@@ -342,7 +342,6 @@ struct radeonfb_info {
 
 	int			mtrr_hdl;
 
-	int			pm_reg;
 	u32			save_regs[100];
 	int			asleep;
 	int			lock_blank;

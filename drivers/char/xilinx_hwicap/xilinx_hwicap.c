@@ -721,7 +721,7 @@ static int hwicap_remove(struct device *dev)
 {
 	struct hwicap_drvdata *drvdata;
 
-	drvdata = (struct hwicap_drvdata *)dev_get_drvdata(dev);
+	drvdata = dev_get_drvdata(dev);
 
 	if (!drvdata)
 		return 0;
@@ -731,7 +731,6 @@ static int hwicap_remove(struct device *dev)
 	iounmap(drvdata->base_address);
 	release_mem_region(drvdata->mem_start, drvdata->mem_size);
 	kfree(drvdata);
-	dev_set_drvdata(dev, NULL);
 
 	mutex_lock(&icap_sem);
 	probed_devices[MINOR(dev->devt)-XHWICAP_MINOR] = 0;

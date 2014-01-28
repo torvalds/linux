@@ -385,8 +385,8 @@ purge_old(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 
 	status = vfs_rmdir(parent->d_inode, child);
 	if (status)
-		printk("failed to remove client recovery directory %s\n",
-				child->d_name.name);
+		printk("failed to remove client recovery directory %pd\n",
+				child);
 	/* Keep trying, success or failure: */
 	return 0;
 }
@@ -410,15 +410,15 @@ out:
 	nfs4_release_reclaim(nn);
 	if (status)
 		printk("nfsd4: failed to purge old clients from recovery"
-			" directory %s\n", nn->rec_file->f_path.dentry->d_name.name);
+			" directory %pD\n", nn->rec_file);
 }
 
 static int
 load_recdir(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
 	if (child->d_name.len != HEXDIR_LEN - 1) {
-		printk("nfsd4: illegal name %s in recovery directory\n",
-				child->d_name.name);
+		printk("nfsd4: illegal name %pd in recovery directory\n",
+				child);
 		/* Keep trying; maybe the others are OK: */
 		return 0;
 	}
@@ -437,7 +437,7 @@ nfsd4_recdir_load(struct net *net) {
 	status = nfsd4_list_rec_dir(load_recdir, nn);
 	if (status)
 		printk("nfsd4: failed loading clients from recovery"
-			" directory %s\n", nn->rec_file->f_path.dentry->d_name.name);
+			" directory %pD\n", nn->rec_file);
 	return status;
 }
 

@@ -334,7 +334,7 @@ nvc0_graph_mthd(struct nvc0_graph_priv *priv, struct nvc0_graph_mthd *mthds)
 	while ((mthd = &mthds[i++]) && (init = mthd->init)) {
 		u32  addr = 0x80000000 | mthd->oclass;
 		for (data = 0; init->count; init++) {
-			if (data != init->data) {
+			if (init == mthd->init || data != init->data) {
 				nv_wr32(priv, 0x40448c, init->data);
 				data = init->data;
 			}
@@ -1138,7 +1138,7 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x18001000;
+	nv_subdev(priv)->unit = 0x08001000;
 	nv_subdev(priv)->intr = nvc0_graph_intr;
 
 	priv->base.units = nvc0_graph_units;

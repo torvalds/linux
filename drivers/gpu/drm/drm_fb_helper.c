@@ -39,10 +39,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
-MODULE_AUTHOR("David Airlie, Jesse Barnes");
-MODULE_DESCRIPTION("DRM KMS helper");
-MODULE_LICENSE("GPL and additional rights");
-
 static LIST_HEAD(kernel_fb_helper_list);
 
 /**
@@ -844,7 +840,6 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_mode_set *modeset;
-	struct drm_crtc *crtc;
 	int ret = 0;
 	int i;
 
@@ -855,8 +850,6 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	}
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
-		crtc = fb_helper->crtc_info[i].mode_set.crtc;
-
 		modeset = &fb_helper->crtc_info[i].mode_set;
 
 		modeset->x = var->xoffset;
@@ -1352,7 +1345,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	struct drm_connector *connector;
 	struct drm_connector_helper_funcs *connector_funcs;
 	struct drm_encoder *encoder;
-	struct drm_fb_helper_crtc *best_crtc;
 	int my_score, best_score, score;
 	struct drm_fb_helper_crtc **crtcs, *crtc;
 	struct drm_fb_helper_connector *fb_helper_conn;
@@ -1364,7 +1356,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	connector = fb_helper_conn->connector;
 
 	best_crtcs[n] = NULL;
-	best_crtc = NULL;
 	best_score = drm_pick_crtcs(fb_helper, best_crtcs, modes, n+1, width, height);
 	if (modes[n] == NULL)
 		return best_score;
@@ -1413,7 +1404,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 		score = my_score + drm_pick_crtcs(fb_helper, crtcs, modes, n + 1,
 						  width, height);
 		if (score > best_score) {
-			best_crtc = crtc;
 			best_score = score;
 			memcpy(best_crtcs, crtcs,
 			       dev->mode_config.num_connector *
@@ -1580,8 +1570,7 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
-	int count = 0;
-	u32 max_width, max_height, bpp_sel;
+	u32 max_width, max_height;
 
 	if (!fb_helper->fb)
 		return 0;
@@ -1596,10 +1585,8 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 
 	max_width = fb_helper->fb->width;
 	max_height = fb_helper->fb->height;
-	bpp_sel = fb_helper->fb->bits_per_pixel;
 
-	count = drm_fb_helper_probe_connector_modes(fb_helper, max_width,
-						    max_height);
+	drm_fb_helper_probe_connector_modes(fb_helper, max_width, max_height);
 	mutex_unlock(&fb_helper->dev->mode_config.mutex);
 
 	drm_modeset_lock_all(dev);

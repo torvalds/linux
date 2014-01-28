@@ -45,8 +45,8 @@ Additionally, "allwinner,*-gates-clk" clocks require:
 
 Clock consumers should specify the desired clocks they use with a
 "clocks" phandle cell. Consumers that are using a gated clock should
-provide an additional ID in their clock property. The values of this
-ID are documented in sunxi/<soc>-gates.txt.
+provide an additional ID in their clock property. This ID is the
+offset of the bit controlling this particular gate in the register.
 
 For example:
 

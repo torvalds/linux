@@ -485,7 +485,7 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 	return err;
 }
 
-void do_coredump(siginfo_t *siginfo)
+void do_coredump(const siginfo_t *siginfo)
 {
 	struct core_state core_state;
 	struct core_name cn;
@@ -645,7 +645,7 @@ void do_coredump(siginfo_t *siginfo)
 		 */
 		if (!uid_eq(inode->i_uid, current_fsuid()))
 			goto close_fail;
-		if (!cprm.file->f_op || !cprm.file->f_op->write)
+		if (!cprm.file->f_op->write)
 			goto close_fail;
 		if (do_truncate(cprm.file->f_path.dentry, 0, 0, cprm.file))
 			goto close_fail;
@@ -685,40 +685,55 @@ fail:
  * do on a core-file: use only these functions to write out all the
  * necessary info.
  */
-int dump_write(struct file *file, const void *addr, int nr)
+int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 {
-	return !dump_interrupted() &&
-		access_ok(VERIFY_READ, addr, nr) &&
-		file->f_op->write(file, addr, nr, &file->f_pos) == nr;
-}
-EXPORT_SYMBOL(dump_write);
-
-int dump_seek(struct file *file, loff_t off)
-{
-	int ret = 1;
-
-	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
-		if (dump_interrupted() ||
-		    file->f_op->llseek(file, off, SEEK_CUR) < 0)
+	struct file *file = cprm->file;
+	loff_t pos = file->f_pos;
+	ssize_t n;
+	if (cprm->written + nr > cprm->limit)
+		return 0;
+	while (nr) {
+		if (dump_interrupted())
 			return 0;
-	} else {
-		char *buf = (char *)get_zeroed_page(GFP_KERNEL);
-
-		if (!buf)
+		n = __kernel_write(file, addr, nr, &pos);
+		if (n <= 0)
 			return 0;
-		while (off > 0) {
-			unsigned long n = off;
-
-			if (n > PAGE_SIZE)
-				n = PAGE_SIZE;
-			if (!dump_write(file, buf, n)) {
-				ret = 0;
-				break;
-			}
-			off -= n;
-		}
-		free_page((unsigned long)buf);
+		file->f_pos = pos;
+		cprm->written += n;
+		nr -= n;
 	}
-	return ret;
+	return 1;
 }
-EXPORT_SYMBOL(dump_seek);
+EXPORT_SYMBOL(dump_emit);
+
+int dump_skip(struct coredump_params *cprm, size_t nr)
+{
+	static char zeroes[PAGE_SIZE];
+	struct file *file = cprm->file;
+	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
+		if (cprm->written + nr > cprm->limit)
+			return 0;
+		if (dump_interrupted() ||
+		    file->f_op->llseek(file, nr, SEEK_CUR) < 0)
+			return 0;
+		cprm->written += nr;
+		return 1;
+	} else {
+		while (nr > PAGE_SIZE) {
+			if (!dump_emit(cprm, zeroes, PAGE_SIZE))
+				return 0;
+			nr -= PAGE_SIZE;
+		}
+		return dump_emit(cprm, zeroes, nr);
+	}
+}
+EXPORT_SYMBOL(dump_skip);
+
+int dump_align(struct coredump_params *cprm, int align)
+{
+	unsigned mod = cprm->written & (align - 1);
+	if (align & (align - 1))
+		return 0;
+	return mod ? dump_skip(cprm, align - mod) : 1;
+}
+EXPORT_SYMBOL(dump_align);

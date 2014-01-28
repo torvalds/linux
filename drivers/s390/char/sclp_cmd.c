@@ -28,168 +28,6 @@
 
 #include "sclp.h"
 
-#define SCLP_CMDW_READ_SCP_INFO		0x00020001
-#define SCLP_CMDW_READ_SCP_INFO_FORCED	0x00120001
-
-struct read_info_sccb {
-	struct	sccb_header header;	/* 0-7 */
-	u16	rnmax;			/* 8-9 */
-	u8	rnsize;			/* 10 */
-	u8	_reserved0[24 - 11];	/* 11-15 */
-	u8	loadparm[8];		/* 24-31 */
-	u8	_reserved1[48 - 32];	/* 32-47 */
-	u64	facilities;		/* 48-55 */
-	u8	_reserved2[84 - 56];	/* 56-83 */
-	u8	fac84;			/* 84 */
-	u8	fac85;			/* 85 */
-	u8	_reserved3[91 - 86];	/* 86-90 */
-	u8	flags;			/* 91 */
-	u8	_reserved4[100 - 92];	/* 92-99 */
-	u32	rnsize2;		/* 100-103 */
-	u64	rnmax2;			/* 104-111 */
-	u8	_reserved5[4096 - 112];	/* 112-4095 */
-} __attribute__((packed, aligned(PAGE_SIZE)));
-
-static struct init_sccb __initdata early_event_mask_sccb __aligned(PAGE_SIZE);
-static struct read_info_sccb __initdata early_read_info_sccb;
-static int __initdata early_read_info_sccb_valid;
-
-u64 sclp_facilities;
-static u8 sclp_fac84;
-static unsigned long long rzm;
-static unsigned long long rnmax;
-
-static int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
-{
-	int rc;
-
-	__ctl_set_bit(0, 9);
-	rc = sclp_service_call(cmd, sccb);
-	if (rc)
-		goto out;
-	__load_psw_mask(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA |
-			PSW_MASK_BA | PSW_MASK_EXT | PSW_MASK_WAIT);
-	local_irq_disable();
-out:
-	/* Contents of the sccb might have changed. */
-	barrier();
-	__ctl_clear_bit(0, 9);
-	return rc;
-}
-
-static void __init sclp_read_info_early(void)
-{
-	int rc;
-	int i;
-	struct read_info_sccb *sccb;
-	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
-				  SCLP_CMDW_READ_SCP_INFO};
-
-	sccb = &early_read_info_sccb;
-	for (i = 0; i < ARRAY_SIZE(commands); i++) {
-		do {
-			memset(sccb, 0, sizeof(*sccb));
-			sccb->header.length = sizeof(*sccb);
-			sccb->header.function_code = 0x80;
-			sccb->header.control_mask[2] = 0x80;
-			rc = sclp_cmd_sync_early(commands[i], sccb);
-		} while (rc == -EBUSY);
-
-		if (rc)
-			break;
-		if (sccb->header.response_code == 0x10) {
-			early_read_info_sccb_valid = 1;
-			break;
-		}
-		if (sccb->header.response_code != 0x1f0)
-			break;
-	}
-}
-
-static void __init sclp_event_mask_early(void)
-{
-	struct init_sccb *sccb = &early_event_mask_sccb;
-	int rc;
-
-	do {
-		memset(sccb, 0, sizeof(*sccb));
-		sccb->header.length = sizeof(*sccb);
-		sccb->mask_length = sizeof(sccb_mask_t);
-		rc = sclp_cmd_sync_early(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
-	} while (rc == -EBUSY);
-}
-
-void __init sclp_facilities_detect(void)
-{
-	struct read_info_sccb *sccb;
-
-	sclp_read_info_early();
-	if (!early_read_info_sccb_valid)
-		return;
-
-	sccb = &early_read_info_sccb;
-	sclp_facilities = sccb->facilities;
-	sclp_fac84 = sccb->fac84;
-	if (sccb->fac85 & 0x02)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
-	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
-	rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
-	rzm <<= 20;
-
-	sclp_event_mask_early();
-}
-
-bool __init sclp_has_linemode(void)
-{
-	struct init_sccb *sccb = &early_event_mask_sccb;
-
-	if (sccb->header.response_code != 0x20)
-		return 0;
-	if (!(sccb->sclp_send_mask & (EVTYP_OPCMD_MASK | EVTYP_PMSGCMD_MASK)))
-		return 0;
-	if (!(sccb->sclp_receive_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
-		return 0;
-	return 1;
-}
-
-bool __init sclp_has_vt220(void)
-{
-	struct init_sccb *sccb = &early_event_mask_sccb;
-
-	if (sccb->header.response_code != 0x20)
-		return 0;
-	if (sccb->sclp_send_mask & EVTYP_VT220MSG_MASK)
-		return 1;
-	return 0;
-}
-
-unsigned long long sclp_get_rnmax(void)
-{
-	return rnmax;
-}
-
-unsigned long long sclp_get_rzm(void)
-{
-	return rzm;
-}
-
-/*
- * This function will be called after sclp_facilities_detect(), which gets
- * called from early.c code. Therefore the sccb should have valid contents.
- */
-void __init sclp_get_ipl_info(struct sclp_ipl_info *info)
-{
-	struct read_info_sccb *sccb;
-
-	if (!early_read_info_sccb_valid)
-		return;
-	sccb = &early_read_info_sccb;
-	info->is_valid = 1;
-	if (sccb->flags & 0x2)
-		info->has_dump = 1;
-	memcpy(&info->loadparm, &sccb->loadparm, LOADPARM_LEN);
-}
-
 static void sclp_sync_callback(struct sclp_req *req, void *data)
 {
 	struct completion *completion = data;
@@ -356,14 +194,14 @@ struct assign_storage_sccb {
 
 int arch_get_memory_phys_device(unsigned long start_pfn)
 {
-	if (!rzm)
+	if (!sclp_rzm)
 		return 0;
-	return PFN_PHYS(start_pfn) >> ilog2(rzm);
+	return PFN_PHYS(start_pfn) >> ilog2(sclp_rzm);
 }
 
 static unsigned long long rn2addr(u16 rn)
 {
-	return (unsigned long long) (rn - 1) * rzm;
+	return (unsigned long long) (rn - 1) * sclp_rzm;
 }
 
 static int do_assign_storage(sclp_cmdw_t cmd, u16 rn)
@@ -404,7 +242,7 @@ static int sclp_assign_storage(u16 rn)
 	if (rc)
 		return rc;
 	start = rn2addr(rn);
-	storage_key_init_range(start, start + rzm);
+	storage_key_init_range(start, start + sclp_rzm);
 	return 0;
 }
 
@@ -462,7 +300,7 @@ static int sclp_mem_change_state(unsigned long start, unsigned long size,
 		istart = rn2addr(incr->rn);
 		if (start + size - 1 < istart)
 			break;
-		if (start > istart + rzm - 1)
+		if (start > istart + sclp_rzm - 1)
 			continue;
 		if (online)
 			rc |= sclp_assign_storage(incr->rn);
@@ -526,7 +364,7 @@ static void __init add_memory_merged(u16 rn)
 	if (!first_rn)
 		goto skip_add;
 	start = rn2addr(first_rn);
-	size = (unsigned long long ) num * rzm;
+	size = (unsigned long long) num * sclp_rzm;
 	if (start >= VMEM_MAX_PHYS)
 		goto skip_add;
 	if (start + size > VMEM_MAX_PHYS)
@@ -574,7 +412,7 @@ static void __init insert_increment(u16 rn, int standby, int assigned)
 	}
 	if (!assigned)
 		new_incr->rn = last_rn + 1;
-	if (new_incr->rn > rnmax) {
+	if (new_incr->rn > sclp_rnmax) {
 		kfree(new_incr);
 		return;
 	}
@@ -617,7 +455,7 @@ static int __init sclp_detect_standby_memory(void)
 
 	if (OLDMEM_BASE) /* No standby memory in kdump mode */
 		return 0;
-	if (!early_read_info_sccb_valid)
+	if (!sclp_early_read_info_sccb_valid)
 		return 0;
 	if ((sclp_facilities & 0xe00000000000ULL) != 0xe00000000000ULL)
 		return 0;
@@ -661,7 +499,7 @@ static int __init sclp_detect_standby_memory(void)
 	}
 	if (rc || list_empty(&sclp_mem_list))
 		goto out;
-	for (i = 1; i <= rnmax - assigned; i++)
+	for (i = 1; i <= sclp_rnmax - assigned; i++)
 		insert_increment(0, 1, 0);
 	rc = register_memory_notifier(&sclp_mem_nb);
 	if (rc)

@@ -114,3 +114,8 @@ core kernel image or in modules.
 If the tracepoint has to be used in kernel modules, an
 EXPORT_TRACEPOINT_SYMBOL_GPL() or EXPORT_TRACEPOINT_SYMBOL() can be
 used to export the defined tracepoints.
+
+Note: The convenience macro TRACE_EVENT provides an alternative way to
+      define tracepoints. Check http://lwn.net/Articles/379903,
+      http://lwn.net/Articles/381064 and http://lwn.net/Articles/383362
+      for a series of articles with more details.

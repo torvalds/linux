@@ -185,6 +185,9 @@ static int __add_prelim_ref(struct list_head *head, u64 root_id,
 {
 	struct __prelim_ref *ref;
 
+	if (root_id == BTRFS_DATA_RELOC_TREE_OBJECTID)
+		return 0;
+
 	ref = kmem_cache_alloc(btrfs_prelim_ref_cache, gfp_mask);
 	if (!ref)
 		return -ENOMEM;
@@ -323,8 +326,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 
 	eb = path->nodes[level];
 	while (!eb) {
-		if (!level) {
-			WARN_ON(1);
+		if (WARN_ON(!level)) {
 			ret = 1;
 			goto out;
 		}
@@ -1619,7 +1621,7 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 		btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 		btrfs_release_path(path);
 
-		item = btrfs_item_nr(eb, slot);
+		item = btrfs_item_nr(slot);
 		iref = btrfs_item_ptr(eb, slot, struct btrfs_inode_ref);
 
 		for (cur = 0; cur < btrfs_item_size(eb, item); cur += len) {

@@ -238,15 +238,15 @@ static struct irq_chip pl061_irqchip = {
 	.irq_set_type	= pl061_irq_type,
 };
 
-static int pl061_irq_map(struct irq_domain *d, unsigned int virq,
-			 irq_hw_number_t hw)
+static int pl061_irq_map(struct irq_domain *d, unsigned int irq,
+			 irq_hw_number_t hwirq)
 {
 	struct pl061_gpio *chip = d->host_data;
 
-	irq_set_chip_and_handler_name(virq, &pl061_irqchip, handle_simple_irq,
+	irq_set_chip_and_handler_name(irq, &pl061_irqchip, handle_simple_irq,
 				      "pl061");
-	irq_set_chip_data(virq, chip);
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_chip_data(irq, chip);
+	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 
 	return 0;
 }
@@ -286,11 +286,6 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	if (!chip->base)
 		return -ENOMEM;
 
-	chip->domain = irq_domain_add_simple(adev->dev.of_node, PL061_GPIO_NR,
-					     irq_base, &pl061_domain_ops, chip);
-	if (!chip->domain)
-		return -ENODEV;
-
 	spin_lock_init(&chip->lock);
 
 	chip->gc.request = pl061_gpio_request;
@@ -319,6 +314,11 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 
 	irq_set_chained_handler(irq, pl061_irq_handler);
 	irq_set_handler_data(irq, chip);
+
+	chip->domain = irq_domain_add_simple(adev->dev.of_node, PL061_GPIO_NR,
+					     irq_base, &pl061_domain_ops, chip);
+	if (!chip->domain)
+		return -ENODEV;
 
 	for (i = 0; i < PL061_GPIO_NR; i++) {
 		if (pdata) {

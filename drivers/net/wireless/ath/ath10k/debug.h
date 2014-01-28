@@ -27,22 +27,26 @@ enum ath10k_debug_mask {
 	ATH10K_DBG_HTC		= 0x00000004,
 	ATH10K_DBG_HTT		= 0x00000008,
 	ATH10K_DBG_MAC		= 0x00000010,
-	ATH10K_DBG_CORE		= 0x00000020,
+	ATH10K_DBG_BOOT		= 0x00000020,
 	ATH10K_DBG_PCI_DUMP	= 0x00000040,
 	ATH10K_DBG_HTT_DUMP	= 0x00000080,
 	ATH10K_DBG_MGMT		= 0x00000100,
 	ATH10K_DBG_DATA		= 0x00000200,
+	ATH10K_DBG_BMI		= 0x00000400,
 	ATH10K_DBG_ANY		= 0xffffffff,
 };
 
 extern unsigned int ath10k_debug_mask;
 
-extern __printf(1, 2) int ath10k_info(const char *fmt, ...);
-extern __printf(1, 2) int ath10k_err(const char *fmt, ...);
-extern __printf(1, 2) int ath10k_warn(const char *fmt, ...);
+__printf(1, 2) int ath10k_info(const char *fmt, ...);
+__printf(1, 2) int ath10k_err(const char *fmt, ...);
+__printf(1, 2) int ath10k_warn(const char *fmt, ...);
 
 #ifdef CONFIG_ATH10K_DEBUGFS
+int ath10k_debug_start(struct ath10k *ar);
+void ath10k_debug_stop(struct ath10k *ar);
 int ath10k_debug_create(struct ath10k *ar);
+void ath10k_debug_destroy(struct ath10k *ar);
 void ath10k_debug_read_service_map(struct ath10k *ar,
 				   void *service_map,
 				   size_t map_size);
@@ -50,9 +54,22 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 				    struct wmi_stats_event *ev);
 
 #else
+static inline int ath10k_debug_start(struct ath10k *ar)
+{
+	return 0;
+}
+
+static inline void ath10k_debug_stop(struct ath10k *ar)
+{
+}
+
 static inline int ath10k_debug_create(struct ath10k *ar)
 {
 	return 0;
+}
+
+static inline void ath10k_debug_destroy(struct ath10k *ar)
+{
 }
 
 static inline void ath10k_debug_read_service_map(struct ath10k *ar,
@@ -68,7 +85,7 @@ static inline void ath10k_debug_read_target_stats(struct ath10k *ar,
 #endif /* CONFIG_ATH10K_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG
-extern __printf(2, 3) void ath10k_dbg(enum ath10k_debug_mask mask,
+__printf(2, 3) void ath10k_dbg(enum ath10k_debug_mask mask,
 				      const char *fmt, ...);
 void ath10k_dbg_dump(enum ath10k_debug_mask mask,
 		     const char *msg, const char *prefix,

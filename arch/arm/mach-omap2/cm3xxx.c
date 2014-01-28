@@ -636,6 +636,28 @@ void omap3_cm_restore_context(void)
 			       OMAP3_CM_CLKOUT_CTRL_OFFSET);
 }
 
+void omap3_cm_save_scratchpad_contents(u32 *ptr)
+{
+	*ptr++ = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL);
+	*ptr++ = omap2_cm_read_mod_reg(WKUP_MOD, CM_CLKSEL);
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+
+	/*
+	 * As per erratum i671, ROM code does not respect the PER DPLL
+	 * programming scheme if CM_AUTOIDLE_PLL..AUTO_PERIPH_DPLL == 1.
+	 * Then,  in anycase, clear these bits to avoid extra latencies.
+	 */
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE) &
+		~OMAP3430_AUTO_PERIPH_DPLL_MASK;
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL1_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL2_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL3);
+	*ptr++ = omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKEN_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_AUTOIDLE_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL1_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL2_PLL);
+}
+
 /*
  *
  */

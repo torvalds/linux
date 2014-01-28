@@ -165,11 +165,11 @@ struct ptldebug_header {
 #define CDEBUG_DEFAULT_MAX_DELAY (cfs_time_seconds(600))	 /* jiffies */
 #define CDEBUG_DEFAULT_MIN_DELAY ((cfs_time_seconds(1) + 1) / 2) /* jiffies */
 #define CDEBUG_DEFAULT_BACKOFF   2
-typedef struct {
+struct cfs_debug_limit_state {
 	cfs_time_t      cdls_next;
 	unsigned int    cdls_delay;
 	int	     cdls_count;
-} cfs_debug_limit_state_t;
+};
 
 struct libcfs_debug_msg_data {
 	const char	       *msg_file;
@@ -177,7 +177,7 @@ struct libcfs_debug_msg_data {
 	int		      msg_subsys;
 	int		      msg_line;
 	int		      msg_mask;
-	cfs_debug_limit_state_t  *msg_cdls;
+	struct cfs_debug_limit_state  *msg_cdls;
 };
 
 #define LIBCFS_DEBUG_MSG_DATA_INIT(data, mask, cdls)	\
@@ -226,7 +226,7 @@ do {								    \
 
 #define CDEBUG_LIMIT(mask, format, ...)	 \
 do {					    \
-	static cfs_debug_limit_state_t cdls;    \
+	static struct cfs_debug_limit_state cdls;    \
 						\
 	__CDEBUG(&cdls, mask, format, ## __VA_ARGS__);\
 } while (0)

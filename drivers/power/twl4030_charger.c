@@ -495,16 +495,47 @@ static enum power_supply_property twl4030_charger_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
+#ifdef CONFIG_OF
+static const struct twl4030_bci_platform_data *
+twl4030_bci_parse_dt(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct twl4030_bci_platform_data *pdata;
+	u32 num;
+
+	if (!np)
+		return NULL;
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return pdata;
+
+	if (of_property_read_u32(np, "ti,bb-uvolt", &num) == 0)
+		pdata->bb_uvolt = num;
+	if (of_property_read_u32(np, "ti,bb-uamp", &num) == 0)
+		pdata->bb_uamp = num;
+	return pdata;
+}
+#else
+static inline const struct twl4030_bci_platform_data *
+twl4030_bci_parse_dt(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int __init twl4030_bci_probe(struct platform_device *pdev)
 {
 	struct twl4030_bci *bci;
-	struct twl4030_bci_platform_data *pdata = pdev->dev.platform_data;
+	const struct twl4030_bci_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
 	u32 reg;
 
 	bci = kzalloc(sizeof(*bci), GFP_KERNEL);
 	if (bci == NULL)
 		return -ENOMEM;
+
+	if (!pdata)
+		pdata = twl4030_bci_parse_dt(&pdev->dev);
 
 	bci->dev = &pdev->dev;
 	bci->irq_chg = platform_get_irq(pdev, 0);
@@ -581,8 +612,11 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	twl4030_charger_enable_ac(true);
 	twl4030_charger_enable_usb(bci, true);
-	twl4030_charger_enable_backup(pdata->bb_uvolt,
-				      pdata->bb_uamp);
+	if (pdata)
+		twl4030_charger_enable_backup(pdata->bb_uvolt,
+					      pdata->bb_uamp);
+	else
+		twl4030_charger_enable_backup(0, 0);
 
 	return 0;
 
@@ -631,10 +665,17 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id twl_bci_of_match[] = {
+	{.compatible = "ti,twl4030-bci", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, twl_bci_of_match);
+
 static struct platform_driver twl4030_bci_driver = {
 	.driver	= {
 		.name	= "twl4030_bci",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(twl_bci_of_match),
 	},
 	.remove	= __exit_p(twl4030_bci_remove),
 };

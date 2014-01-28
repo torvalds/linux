@@ -77,7 +77,7 @@ static const int nvm_to_read[] = {
 
 /* Default NVM size to read */
 #define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
-#define IWL_MAX_NVM_SECTION_SIZE 6000
+#define IWL_MAX_NVM_SECTION_SIZE 7000
 
 #define NVM_WRITE_OPCODE 1
 #define NVM_READ_OPCODE 0
@@ -259,6 +259,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 #define MAX_NVM_FILE_LEN	16384
 
 /*
+ * Reads external NVM from a file into mvm->nvm_sections
+ *
  * HOW TO CREATE THE NVM FILE FORMAT:
  * ------------------------------
  * 1. create hex file, format:
@@ -277,19 +279,22 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
  *
  * 4. save as "iNVM_xxx.bin" under /lib/firmware
  */
-static int iwl_mvm_load_external_nvm(struct iwl_mvm *mvm)
+static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 {
-	int ret, section_id, section_size;
+	int ret, section_size;
+	u16 section_id;
 	const struct firmware *fw_entry;
 	const struct {
 		__le16 word1;
 		__le16 word2;
 		u8 data[];
 	} *file_sec;
-	const u8 *eof;
+	const u8 *eof, *temp;
 
 #define NVM_WORD1_LEN(x) (8 * (x & 0x03FF))
 #define NVM_WORD2_ID(x) (x >> 12)
+
+	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
 
 	/*
 	 * Obtain NVM image via request_firmware. Since we already used
@@ -362,18 +367,46 @@ static int iwl_mvm_load_external_nvm(struct iwl_mvm *mvm)
 			break;
 		}
 
-		ret = iwl_nvm_write_section(mvm, section_id, file_sec->data,
-					    section_size);
-		if (ret < 0) {
-			IWL_ERR(mvm, "iwl_mvm_send_cmd failed: %d\n", ret);
+		temp = kmemdup(file_sec->data, section_size, GFP_KERNEL);
+		if (!temp) {
+			ret = -ENOMEM;
 			break;
 		}
+		if (WARN_ON(section_id >= NVM_NUM_OF_SECTIONS)) {
+			IWL_ERR(mvm, "Invalid NVM section ID\n");
+			ret = -EINVAL;
+			break;
+		}
+		mvm->nvm_sections[section_id].data = temp;
+		mvm->nvm_sections[section_id].length = section_size;
 
 		/* advance to the next section */
 		file_sec = (void *)(file_sec->data + section_size);
 	}
 out:
 	release_firmware(fw_entry);
+	return ret;
+}
+
+/* Loads the NVM data stored in mvm->nvm_sections into the NIC */
+int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
+{
+	int i, ret;
+	u16 section_id;
+	struct iwl_nvm_section *sections = mvm->nvm_sections;
+
+	IWL_DEBUG_EEPROM(mvm->trans->dev, "'Write to NVM\n");
+
+	for (i = 0; i < ARRAY_SIZE(nvm_to_read); i++) {
+		section_id = nvm_to_read[i];
+		ret = iwl_nvm_write_section(mvm, section_id,
+					    sections[section_id].data,
+					    sections[section_id].length);
+		if (ret < 0) {
+			IWL_ERR(mvm, "iwl_mvm_send_cmd failed: %d\n", ret);
+			break;
+		}
+	}
 	return ret;
 }
 
@@ -385,36 +418,36 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	/* load external NVM if configured */
 	if (iwlwifi_mod_params.nvm_file) {
 		/* move to External NVM flow */
-		ret = iwl_mvm_load_external_nvm(mvm);
+		ret = iwl_mvm_read_external_nvm(mvm);
 		if (ret)
 			return ret;
-	}
+	} else {
+		/* Read From FW NVM */
+		IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
 
-	/* Read From FW NVM */
-	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
-
-	/* TODO: find correct NVM max size for a section */
-	nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
-			     GFP_KERNEL);
-	if (!nvm_buffer)
-		return -ENOMEM;
-	for (i = 0; i < ARRAY_SIZE(nvm_to_read); i++) {
-		section = nvm_to_read[i];
-		/* we override the constness for initial read */
-		ret = iwl_nvm_read_section(mvm, section, nvm_buffer);
-		if (ret < 0)
-			break;
-		temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
-		if (!temp) {
-			ret = -ENOMEM;
-			break;
+		/* TODO: find correct NVM max size for a section */
+		nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
+				     GFP_KERNEL);
+		if (!nvm_buffer)
+			return -ENOMEM;
+		for (i = 0; i < ARRAY_SIZE(nvm_to_read); i++) {
+			section = nvm_to_read[i];
+			/* we override the constness for initial read */
+			ret = iwl_nvm_read_section(mvm, section, nvm_buffer);
+			if (ret < 0)
+				break;
+			temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
+			if (!temp) {
+				ret = -ENOMEM;
+				break;
+			}
+			mvm->nvm_sections[section].data = temp;
+			mvm->nvm_sections[section].length = ret;
 		}
-		mvm->nvm_sections[section].data = temp;
-		mvm->nvm_sections[section].length = ret;
+		kfree(nvm_buffer);
+		if (ret < 0)
+			return ret;
 	}
-	kfree(nvm_buffer);
-	if (ret < 0)
-		return ret;
 
 	mvm->nvm_data = iwl_parse_nvm_sections(mvm);
 	if (!mvm->nvm_data)

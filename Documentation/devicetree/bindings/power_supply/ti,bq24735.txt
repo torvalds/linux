@@ -1,0 +1,32 @@
+TI BQ24735 Charge Controller
+~~~~~~~~~~
+
+Required properties :
+ - compatible : "ti,bq24735"
+
+Optional properties :
+ - interrupts : Specify the interrupt to be used to trigger when the AC
+   adapter is either plugged in or removed.
+ - ti,ac-detect-gpios : This GPIO is optionally used to read the AC adapter
+   presence. This is a Host GPIO that is configured as an input and
+   connected to the bq24735.
+ - ti,charge-current : Used to control and set the charging current. This value
+   must be between 128mA and 8.128A with a 64mA step resolution. The POR value
+   is 0x0000h. This number is in mA (e.g. 8192), see spec for more information
+   about the ChargeCurrent (0x14h) register.
+ - ti,charge-voltage : Used to control and set the charging voltage. This value
+   must be between 1.024V and 19.2V with a 16mV step resolution. The POR value
+   is 0x0000h. This number is in mV (e.g. 19200), see spec for more information
+   about the ChargeVoltage (0x15h) register.
+ - ti,input-current : Used to control and set the charger input current. This
+   value must be between 128mA and 8.064A with a 128mA step resolution. The
+   POR value is 0x1000h. This number is in mA (e.g. 8064), see the spec for
+   more information about the InputCurrent (0x3fh) register.
+
+Example:
+
+	bq24735@9 {
+		compatible = "ti,bq24735";
+		reg = <0x9>;
+		ti,ac-detect-gpios = <&gpio 72 0x1>;
+	}

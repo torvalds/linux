@@ -1,17 +1,16 @@
 config ARCH_VEXPRESS
 	bool "ARM Ltd. Versatile Express family" if ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804
-	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select COMMON_CLK_VERSATILE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_CLK
 	select HAVE_PATA_PLATFORM
 	select HAVE_SMP
 	select ICST
@@ -66,10 +65,22 @@ config ARCH_VEXPRESS_DCSCB
 	  This is needed to provide CPU and cluster power management
 	  on RTSM implementing big.LITTLE.
 
+config ARCH_VEXPRESS_SPC
+	bool "Versatile Express Serial Power Controller (SPC)"
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
+	select PM_OPP
+	help
+	  The TC2 (A15x2 A7x3) versatile express core tile integrates a logic
+	  block called Serial Power Controller (SPC) that provides the interface
+	  between the dual cluster test-chip and the M3 microcontroller that
+	  carries out power management.
+
 config ARCH_VEXPRESS_TC2_PM
 	bool "Versatile Express TC2 power management"
 	depends on MCPM
 	select ARM_CCI
+	select ARCH_VEXPRESS_SPC
 	help
 	  Support for CPU and cluster power management on Versatile Express
 	  with a TC2 (A15x2 A7x3) big.LITTLE core tile.

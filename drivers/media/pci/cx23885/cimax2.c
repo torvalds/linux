@@ -26,6 +26,10 @@
 #include "cx23885.h"
 #include "cimax2.h"
 #include "dvb_ca_en50221.h"
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 /**** Bit definitions for MC417_RWD and MC417_OEN registers  ***
   bits 31-16
 +-----------+
@@ -125,7 +129,7 @@ static int netup_write_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 						u8 *buf, int len)
 {
 	int ret;
-	u8 buffer[len + 1];
+	u8 buffer[MAX_XFER_SIZE];
 
 	struct i2c_msg msg = {
 		.addr	= addr,
@@ -133,6 +137,13 @@ static int netup_write_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 		.buf	= &buffer[0],
 		.len	= len + 1
 	};
+
+	if (1 + len > sizeof(buffer)) {
+		printk(KERN_WARNING
+		       "%s: i2c wr reg=%04x: len=%d is too big!\n",
+		       KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	buffer[0] = reg;
 	memcpy(&buffer[1], buf, len);

@@ -28,7 +28,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/timer.h>
 #include <linux/io.h>
@@ -179,4 +178,3 @@ MODULE_AUTHOR("Ray Lehtiniemi <rayl@mail.com>,"
 MODULE_DESCRIPTION("EP93xx Watchdog");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(WDT_VERSION);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

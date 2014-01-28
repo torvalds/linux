@@ -20,7 +20,6 @@
 
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
-#include <asm/mach-ath79/ar933x_uart_platform.h>
 #include "common.h"
 #include "dev-common.h"
 
@@ -68,15 +67,11 @@ static struct resource ar933x_uart_resources[] = {
 	},
 };
 
-static struct ar933x_uart_platform_data ar933x_uart_data;
 static struct platform_device ar933x_uart_device = {
 	.name		= "ar933x-uart",
 	.id		= -1,
 	.resource	= ar933x_uart_resources,
 	.num_resources	= ARRAY_SIZE(ar933x_uart_resources),
-	.dev = {
-		.platform_data	= &ar933x_uart_data,
-	},
 };
 
 void __init ath79_register_uart(void)
@@ -93,7 +88,6 @@ void __init ath79_register_uart(void)
 		ath79_uart_data[0].uartclk = uart_clk_rate;
 		platform_device_register(&ath79_uart_device);
 	} else if (soc_is_ar933x()) {
-		ar933x_uart_data.uartclk = uart_clk_rate;
 		platform_device_register(&ar933x_uart_device);
 	} else {
 		BUG();

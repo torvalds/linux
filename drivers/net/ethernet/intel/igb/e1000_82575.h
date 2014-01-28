@@ -28,14 +28,14 @@
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
 
-extern void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
-extern void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
-extern void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
-extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
-extern s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
-				u8 dev_addr, u8 *data);
-extern s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
-				 u8 dev_addr, u8 data);
+void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
+void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
+void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
+void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
+s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
+		      u8 *data);
+s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
+		       u8 data);
 
 #define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12) | \
                                      (ID_LED_DEF1_DEF2 <<  8) | \

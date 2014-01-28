@@ -146,15 +146,14 @@ static void __init cache_build_info(void)
 	ct.raw = ecag(EXTRACT_TOPOLOGY, 0, 0);
 	for (level = 0; level < CACHE_MAX_LEVEL; level++) {
 		switch (ct.ci[level].scope) {
-		case CACHE_SCOPE_NOTEXISTS:
-		case CACHE_SCOPE_RESERVED:
-			return;
 		case CACHE_SCOPE_SHARED:
 			private = 0;
 			break;
 		case CACHE_SCOPE_PRIVATE:
 			private = 1;
 			break;
+		default:
+			return;
 		}
 		if (ct.ci[level].type == CACHE_TYPE_SEPARATE) {
 			rc  = cache_add(level, private, CACHE_TYPE_DATA);

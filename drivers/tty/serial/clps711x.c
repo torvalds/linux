@@ -459,7 +459,6 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 	ret = uart_register_driver(&s->uart);
 	if (ret) {
 		dev_err(&pdev->dev, "Registering UART driver failed\n");
-		devm_clk_put(&pdev->dev, s->uart_clk);
 		return ret;
 	}
 
@@ -487,7 +486,6 @@ static int uart_clps711x_remove(struct platform_device *pdev)
 	for (i = 0; i < UART_CLPS711X_NR; i++)
 		uart_remove_one_port(&s->uart, &s->port[i]);
 
-	devm_clk_put(&pdev->dev, s->uart_clk);
 	uart_unregister_driver(&s->uart);
 
 	return 0;

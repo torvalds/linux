@@ -273,7 +273,7 @@ void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt)
 static void ConstructBeacon(struct adapter *adapt, u8 *pframe, u32 *pLength)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u32 rate_len, pktlen;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -360,7 +360,7 @@ static void ConstructPSPoll(struct adapter *adapt, u8 *pframe, u32 *pLength)
 	struct rtw_ieee80211_hdr	*pwlanhdr;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u16 *fctrl;
+	__le16 *fctrl;
 
 	pwlanhdr = (struct rtw_ieee80211_hdr *)pframe;
 
@@ -391,7 +391,7 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 	u8 bForcePowerSave)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u32 pktlen;
 	struct mlme_priv *pmlmepriv = &adapt->mlmepriv;
 	struct wlan_network		*cur_network = &pmlmepriv->cur_network;
@@ -450,7 +450,7 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 static void ConstructProbeRsp(struct adapter *adapt, u8 *pframe, u32 *pLength, u8 *StaAddr, bool bHideSSID)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u8 *mac, *bssid;
 	u32 pktlen;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
@@ -484,7 +484,7 @@ static void ConstructProbeRsp(struct adapter *adapt, u8 *pframe, u32 *pLength, u
 	*pLength = pktlen;
 }
 
-/*  To check if reserved page content is destroyed by beacon beacuse beacon is too large. */
+/*  To check if reserved page content is destroyed by beacon because beacon is too large. */
 /*  2010.06.23. Added by tynli. */
 void CheckFwRsvdPageContent(struct adapter *Adapter)
 {
@@ -496,9 +496,9 @@ void CheckFwRsvdPageContent(struct adapter *Adapter)
 /*			(1)Beacon, (2)Ps-poll, (3)Null data, (4)ProbeRsp. */
 /*	Input: */
 /*	    bDLFinished - false: At the first time we will send all the packets as a large packet to Hw, */
-/*						so we need to set the packet length to total lengh. */
+/*						so we need to set the packet length to total length. */
 /*			      true: At the second time, we should send the first packet (default:beacon) */
-/*						to Hw again and set the lengh in descriptor to the real beacon lengh. */
+/*						to Hw again and set the length in descriptor to the real beacon length. */
 /*  2009.10.15 by tynli. */
 static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 {
@@ -671,7 +671,7 @@ _func_enter_;
 			DBG_88E("%s: 1 Download RSVD success! DLBcnCount:%u, poll:%u\n", __func__, DLBcnCount, poll);
 		/*  */
 		/*  We just can send the reserved page twice during the time that Tx thread is stopped (e.g. pnpsetpower) */
-		/*  becuase we need to free the Tx BCN Desc which is used by the first reserved page packet. */
+		/*  because we need to free the Tx BCN Desc which is used by the first reserved page packet. */
 		/*  At run time, we cannot get the Tx Desc until it is released in TxHandleInterrupt() so we will return */
 		/*  the beacon TCB in the following code. 2011.11.23. by tynli. */
 		/*  */

@@ -182,7 +182,7 @@ struct hidp_session {
 };
 
 /* HIDP init defines */
-extern int __init hidp_init_sockets(void);
-extern void __exit hidp_cleanup_sockets(void);
+int __init hidp_init_sockets(void);
+void __exit hidp_cleanup_sockets(void);
 
 #endif /* __HIDP_H */

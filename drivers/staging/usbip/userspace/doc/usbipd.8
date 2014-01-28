@@ -14,9 +14,21 @@ Devices have to explicitly be exported using
 before usbipd makes them available to other hosts.
 
 The daemon accepts connections from USB/IP clients
-on TCP port 3240.
+on TCP port 3240 by default.
 
 .SH OPTIONS
+.HP
+\fB\-4\fR, \fB\-\-ipv4\fR
+.IP
+Bind to IPv4. Default is both.
+.PP
+
+.HP
+\fB\-6\fR, \fB\-\-ipv6\fR
+.IP
+Bind to IPv6. Default is both.
+.PP
+
 .HP
 \fB\-D\fR, \fB\-\-daemon\fR
 .IP
@@ -27,6 +39,19 @@ Run as a daemon process.
 \fB\-d\fR, \fB\-\-debug\fR
 .IP
 Print debugging information.
+.PP
+
+.HP
+\fB\-PFILE\fR, \fB\-\-pid FILE\fR
+.IP
+Write process id to FILE.
+.br
+If no FILE specified, use /var/run/usbipd.pid
+.PP
+
+\fB\-tPORT\fR, \fB\-\-tcp\-port PORT\fR
+.IP
+Listen on TCP/IP port PORT.
 .PP
 
 \fB\-h\fR, \fB\-\-help\fR

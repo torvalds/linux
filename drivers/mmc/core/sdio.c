@@ -593,23 +593,28 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *card;
 	int err;
 	int retries = 10;
+	u32 rocr = 0;
+	u32 ocr_card = ocr;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	/* to query card if 1.8V signalling is supported */
+	if (mmc_host_uhs(host))
+		ocr |= R4_18V_PRESENT;
 
 try_again:
 	if (!retries) {
 		pr_warning("%s: Skipping voltage switch\n",
 				mmc_hostname(host));
 		ocr &= ~R4_18V_PRESENT;
-		host->ocr &= ~R4_18V_PRESENT;
 	}
 
 	/*
 	 * Inform the card of the voltage
 	 */
 	if (!powered_resume) {
-		err = mmc_send_io_op_cond(host, host->ocr, &ocr);
+		err = mmc_send_io_op_cond(host, ocr, &rocr);
 		if (err)
 			goto err;
 	}
@@ -632,8 +637,8 @@ try_again:
 		goto err;
 	}
 
-	if ((ocr & R4_MEMORY_PRESENT) &&
-	    mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid, NULL) == 0) {
+	if ((rocr & R4_MEMORY_PRESENT) &&
+	    mmc_sd_get_cid(host, ocr & rocr, card->raw_cid, NULL) == 0) {
 		card->type = MMC_TYPE_SD_COMBO;
 
 		if (oldcard && (oldcard->type != MMC_TYPE_SD_COMBO ||
@@ -663,8 +668,9 @@ try_again:
 	 * systems that claim 1.8v signalling in fact do not support
 	 * it.
 	 */
-	if (!powered_resume && (ocr & R4_18V_PRESENT) && mmc_host_uhs(host)) {
-		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+	if (!powered_resume && (rocr & ocr & R4_18V_PRESENT)) {
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180,
+					ocr);
 		if (err == -EAGAIN) {
 			sdio_reset(host);
 			mmc_go_idle(host);
@@ -674,12 +680,10 @@ try_again:
 			goto try_again;
 		} else if (err) {
 			ocr &= ~R4_18V_PRESENT;
-			host->ocr &= ~R4_18V_PRESENT;
 		}
 		err = 0;
 	} else {
 		ocr &= ~R4_18V_PRESENT;
-		host->ocr &= ~R4_18V_PRESENT;
 	}
 
 	/*
@@ -759,6 +763,7 @@ try_again:
 
 		card = oldcard;
 	}
+	card->ocr = ocr_card;
 	mmc_fixup_device(card, NULL);
 
 	if (card->type == MMC_TYPE_SD_COMBO) {
@@ -981,8 +986,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 
 	/* Restore power if needed */
 	if (!mmc_card_keep_power(host)) {
-		mmc_power_up(host);
-		mmc_select_voltage(host, host->ocr);
+		mmc_power_up(host, host->card->ocr);
 		/*
 		 * Tell runtime PM core we just powered up the card,
 		 * since it still believes the card is powered off.
@@ -1000,7 +1004,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host)) {
 		sdio_reset(host);
 		mmc_go_idle(host);
-		err = mmc_sdio_init_card(host, host->ocr, host->card,
+		err = mmc_sdio_init_card(host, host->card->ocr, host->card,
 					mmc_card_keep_power(host));
 	} else if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
 		/* We may have switched to 1-bit mode during suspend */
@@ -1040,7 +1044,6 @@ static int mmc_sdio_resume(struct mmc_host *host)
 static int mmc_sdio_power_restore(struct mmc_host *host)
 {
 	int ret;
-	u32 ocr;
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
@@ -1062,32 +1065,17 @@ static int mmc_sdio_power_restore(struct mmc_host *host)
 	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
 	 * harmless in other situations.
 	 *
-	 * With these steps taken, mmc_select_voltage() is also required to
-	 * restore the correct voltage setting of the card.
 	 */
 
 	sdio_reset(host);
 	mmc_go_idle(host);
 	mmc_send_if_cond(host, host->ocr_avail);
 
-	ret = mmc_send_io_op_cond(host, 0, &ocr);
+	ret = mmc_send_io_op_cond(host, 0, NULL);
 	if (ret)
 		goto out;
 
-	if (host->ocr_avail_sdio)
-		host->ocr_avail = host->ocr_avail_sdio;
-
-	host->ocr = mmc_select_voltage(host, ocr & ~0x7F);
-	if (!host->ocr) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (mmc_host_uhs(host))
-		/* to query card if 1.8V signalling is supported */
-		host->ocr |= R4_18V_PRESENT;
-
-	ret = mmc_sdio_init_card(host, host->ocr, host->card,
+	ret = mmc_sdio_init_card(host, host->card->ocr, host->card,
 				mmc_card_keep_power(host));
 	if (!ret && host->sdio_irqs)
 		mmc_signal_sdio_irq(host);
@@ -1108,7 +1096,7 @@ static int mmc_sdio_runtime_suspend(struct mmc_host *host)
 static int mmc_sdio_runtime_resume(struct mmc_host *host)
 {
 	/* Restore power and re-initialize. */
-	mmc_power_up(host);
+	mmc_power_up(host, host->card->ocr);
 	return mmc_sdio_power_restore(host);
 }
 
@@ -1131,7 +1119,7 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 int mmc_attach_sdio(struct mmc_host *host)
 {
 	int err, i, funcs;
-	u32 ocr;
+	u32 ocr, rocr;
 	struct mmc_card *card;
 
 	BUG_ON(!host);
@@ -1145,23 +1133,13 @@ int mmc_attach_sdio(struct mmc_host *host)
 	if (host->ocr_avail_sdio)
 		host->ocr_avail = host->ocr_avail_sdio;
 
-	/*
-	 * Sanity check the voltages that the card claims to
-	 * support.
-	 */
-	if (ocr & 0x7F) {
-		pr_warning("%s: card claims to support voltages "
-		       "below the defined range. These will be ignored.\n",
-		       mmc_hostname(host));
-		ocr &= ~0x7F;
-	}
 
-	host->ocr = mmc_select_voltage(host, ocr);
+	rocr = mmc_select_voltage(host, ocr);
 
 	/*
 	 * Can we support the voltage(s) of the card(s)?
 	 */
-	if (!host->ocr) {
+	if (!rocr) {
 		err = -EINVAL;
 		goto err;
 	}
@@ -1169,22 +1147,10 @@ int mmc_attach_sdio(struct mmc_host *host)
 	/*
 	 * Detect and init the card.
 	 */
-	if (mmc_host_uhs(host))
-		/* to query card if 1.8V signalling is supported */
-		host->ocr |= R4_18V_PRESENT;
+	err = mmc_sdio_init_card(host, rocr, NULL, 0);
+	if (err)
+		goto err;
 
-	err = mmc_sdio_init_card(host, host->ocr, NULL, 0);
-	if (err) {
-		if (err == -EAGAIN) {
-			/*
-			 * Retry initialization with S18R set to 0.
-			 */
-			host->ocr &= ~R4_18V_PRESENT;
-			err = mmc_sdio_init_card(host, host->ocr, NULL, 0);
-		}
-		if (err)
-			goto err;
-	}
 	card = host->card;
 
 	/*

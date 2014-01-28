@@ -354,7 +354,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_EQ);
 	in->ctx.log_sz_usr_page = cpu_to_be32(ilog2(eq->nent) << 24 | uar->index);
 	in->ctx.intr = vecidx;
-	in->ctx.log_page_size = PAGE_SHIFT - 12;
+	in->ctx.log_page_size = eq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	in->events_mask = cpu_to_be64(mask);
 
 	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));

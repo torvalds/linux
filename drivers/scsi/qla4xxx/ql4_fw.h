@@ -539,6 +539,10 @@ struct qla_flt_region {
 #define ENABLE_INTERNAL_LOOPBACK	0x04
 #define ENABLE_EXTERNAL_LOOPBACK	0x08
 
+/* generic defines to enable/disable params */
+#define QL4_PARAM_DISABLE	0
+#define QL4_PARAM_ENABLE	1
+
 /*************************************************************************/
 
 /* Host Adapter Initialization Control Block (from host) */

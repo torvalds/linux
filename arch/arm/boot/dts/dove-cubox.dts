@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "dove.dtsi"
+#include "dove.dtsi"
 
 / {
 	model = "SolidRun CuBox";
@@ -99,18 +99,12 @@
 			silabs,pll-master;
 		};
 
-		clkout1 {
-			reg = <1>;
+		clkout2 {
+			reg = <2>;
 			silabs,drive-strength = <8>;
 			silabs,multisynth-source = <1>;
 			silabs,clock-source = <0>;
 			silabs,pll-master;
-		};
-
-		clkout2 {
-			reg = <2>;
-			silabs,multisynth-source = <1>;
-			silabs,clock-source = <0>;
 		};
 	};
 };
@@ -131,4 +125,12 @@
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
+};
+
+&audio1 {
+	status = "okay";
+	clocks = <&gate_clk 13>, <&si5351 2>;
+	clock-names = "internal", "extclk";
+	pinctrl-0 = <&pmx_audio1_i2s1_spdifo &pmx_audio1_extclk>;
+	pinctrl-names = "default";
 };

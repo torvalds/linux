@@ -37,3 +37,6 @@ config EFI_VARS_PSTORE_DEFAULT_DISABLE
 	  using the efivars module's pstore_disable parameter.
 
 endmenu
+
+config UEFI_CPER
+	bool

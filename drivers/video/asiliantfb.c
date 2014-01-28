@@ -527,8 +527,8 @@ static int init_asiliant(struct fb_info *p, unsigned long addr)
 		return err;
 	}
 
-	printk(KERN_INFO "fb%d: Asiliant 69000 frame buffer (%dK RAM detected)\n",
-		p->node, p->fix.smem_len / 1024);
+	fb_info(p, "Asiliant 69000 frame buffer (%dK RAM detected)\n",
+		p->fix.smem_len / 1024);
 
 	writeb(0xff, mmio_base + 0x78c);
 	chips_hw_init(p);

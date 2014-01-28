@@ -28,8 +28,7 @@ typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 extern unsigned long *vfacilities;
 
 /* negativ values are error codes, positive values for internal conditions */
-#define SIE_INTERCEPT_RERUNVCPU		(1<<0)
-#define SIE_INTERCEPT_UCONTROL		(1<<1)
+#define SIE_INTERCEPT_UCONTROL		(1<<0)
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
 
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
@@ -91,8 +90,10 @@ static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
 
 static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2)
 {
-	*r1 = (vcpu->arch.sie_block->ipb & 0x00f00000) >> 20;
-	*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
+	if (r1)
+		*r1 = (vcpu->arch.sie_block->ipb & 0x00f00000) >> 20;
+	if (r2)
+		*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
 }
 
 static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)

@@ -23,6 +23,8 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <net/bluetooth/bluetooth.h>
+#include <linux/ctype.h>
+#include <linux/firmware.h>
 
 #define BTM_HEADER_LEN			4
 #define BTM_UPLD_SIZE			2312
@@ -41,6 +43,8 @@ struct btmrvl_thread {
 struct btmrvl_device {
 	void *card;
 	struct hci_dev *hcidev;
+	struct device *dev;
+	const char *cal_data;
 
 	u8 dev_type;
 
@@ -91,6 +95,7 @@ struct btmrvl_private {
 #define BT_CMD_HOST_SLEEP_CONFIG	0x59
 #define BT_CMD_HOST_SLEEP_ENABLE	0x5A
 #define BT_CMD_MODULE_CFG_REQ		0x5B
+#define BT_CMD_LOAD_CONFIG_DATA		0x61
 
 /* Sub-commands: Module Bringup/Shutdown Request/Response */
 #define MODULE_BRINGUP_REQ		0xF1
@@ -116,11 +121,8 @@ struct btmrvl_private {
 #define PS_SLEEP			0x01
 #define PS_AWAKE			0x00
 
-struct btmrvl_cmd {
-	__le16 ocf_ogf;
-	u8 length;
-	u8 data[4];
-} __packed;
+#define BT_CMD_DATA_SIZE		32
+#define BT_CAL_DATA_SIZE		28
 
 struct btmrvl_event {
 	u8 ec;		/* event counter */

@@ -179,11 +179,7 @@ static int vcnl4000_probe(struct i2c_client *client,
 	indio_dev->name = VCNL4000_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return iio_device_register(indio_dev);
 }
 
 static int vcnl4000_remove(struct i2c_client *client)

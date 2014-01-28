@@ -141,35 +141,374 @@ struct ttm_placement vmw_srf_placement = {
 };
 
 struct vmw_ttm_tt {
-	struct ttm_tt ttm;
+	struct ttm_dma_tt dma_ttm;
 	struct vmw_private *dev_priv;
 	int gmr_id;
+	struct sg_table sgt;
+	struct vmw_sg_table vsgt;
+	uint64_t sg_alloc_size;
+	bool mapped;
 };
+
+const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
+
+/**
+ * Helper functions to advance a struct vmw_piter iterator.
+ *
+ * @viter: Pointer to the iterator.
+ *
+ * These functions return false if past the end of the list,
+ * true otherwise. Functions are selected depending on the current
+ * DMA mapping mode.
+ */
+static bool __vmw_piter_non_sg_next(struct vmw_piter *viter)
+{
+	return ++(viter->i) < viter->num_pages;
+}
+
+static bool __vmw_piter_sg_next(struct vmw_piter *viter)
+{
+	return __sg_page_iter_next(&viter->iter);
+}
+
+
+/**
+ * Helper functions to return a pointer to the current page.
+ *
+ * @viter: Pointer to the iterator
+ *
+ * These functions return a pointer to the page currently
+ * pointed to by @viter. Functions are selected depending on the
+ * current mapping mode.
+ */
+static struct page *__vmw_piter_non_sg_page(struct vmw_piter *viter)
+{
+	return viter->pages[viter->i];
+}
+
+static struct page *__vmw_piter_sg_page(struct vmw_piter *viter)
+{
+	return sg_page_iter_page(&viter->iter);
+}
+
+
+/**
+ * Helper functions to return the DMA address of the current page.
+ *
+ * @viter: Pointer to the iterator
+ *
+ * These functions return the DMA address of the page currently
+ * pointed to by @viter. Functions are selected depending on the
+ * current mapping mode.
+ */
+static dma_addr_t __vmw_piter_phys_addr(struct vmw_piter *viter)
+{
+	return page_to_phys(viter->pages[viter->i]);
+}
+
+static dma_addr_t __vmw_piter_dma_addr(struct vmw_piter *viter)
+{
+	return viter->addrs[viter->i];
+}
+
+static dma_addr_t __vmw_piter_sg_addr(struct vmw_piter *viter)
+{
+	return sg_page_iter_dma_address(&viter->iter);
+}
+
+
+/**
+ * vmw_piter_start - Initialize a struct vmw_piter.
+ *
+ * @viter: Pointer to the iterator to initialize
+ * @vsgt: Pointer to a struct vmw_sg_table to initialize from
+ *
+ * Note that we're following the convention of __sg_page_iter_start, so that
+ * the iterator doesn't point to a valid page after initialization; it has
+ * to be advanced one step first.
+ */
+void vmw_piter_start(struct vmw_piter *viter, const struct vmw_sg_table *vsgt,
+		     unsigned long p_offset)
+{
+	viter->i = p_offset - 1;
+	viter->num_pages = vsgt->num_pages;
+	switch (vsgt->mode) {
+	case vmw_dma_phys:
+		viter->next = &__vmw_piter_non_sg_next;
+		viter->dma_address = &__vmw_piter_phys_addr;
+		viter->page = &__vmw_piter_non_sg_page;
+		viter->pages = vsgt->pages;
+		break;
+	case vmw_dma_alloc_coherent:
+		viter->next = &__vmw_piter_non_sg_next;
+		viter->dma_address = &__vmw_piter_dma_addr;
+		viter->page = &__vmw_piter_non_sg_page;
+		viter->addrs = vsgt->addrs;
+		break;
+	case vmw_dma_map_populate:
+	case vmw_dma_map_bind:
+		viter->next = &__vmw_piter_sg_next;
+		viter->dma_address = &__vmw_piter_sg_addr;
+		viter->page = &__vmw_piter_sg_page;
+		__sg_page_iter_start(&viter->iter, vsgt->sgt->sgl,
+				     vsgt->sgt->orig_nents, p_offset);
+		break;
+	default:
+		BUG();
+	}
+}
+
+/**
+ * vmw_ttm_unmap_from_dma - unmap  device addresses previsouly mapped for
+ * TTM pages
+ *
+ * @vmw_tt: Pointer to a struct vmw_ttm_backend
+ *
+ * Used to free dma mappings previously mapped by vmw_ttm_map_for_dma.
+ */
+static void vmw_ttm_unmap_from_dma(struct vmw_ttm_tt *vmw_tt)
+{
+	struct device *dev = vmw_tt->dev_priv->dev->dev;
+
+	dma_unmap_sg(dev, vmw_tt->sgt.sgl, vmw_tt->sgt.nents,
+		DMA_BIDIRECTIONAL);
+	vmw_tt->sgt.nents = vmw_tt->sgt.orig_nents;
+}
+
+/**
+ * vmw_ttm_map_for_dma - map TTM pages to get device addresses
+ *
+ * @vmw_tt: Pointer to a struct vmw_ttm_backend
+ *
+ * This function is used to get device addresses from the kernel DMA layer.
+ * However, it's violating the DMA API in that when this operation has been
+ * performed, it's illegal for the CPU to write to the pages without first
+ * unmapping the DMA mappings, or calling dma_sync_sg_for_cpu(). It is
+ * therefore only legal to call this function if we know that the function
+ * dma_sync_sg_for_cpu() is a NOP, and dma_sync_sg_for_device() is at most
+ * a CPU write buffer flush.
+ */
+static int vmw_ttm_map_for_dma(struct vmw_ttm_tt *vmw_tt)
+{
+	struct device *dev = vmw_tt->dev_priv->dev->dev;
+	int ret;
+
+	ret = dma_map_sg(dev, vmw_tt->sgt.sgl, vmw_tt->sgt.orig_nents,
+			 DMA_BIDIRECTIONAL);
+	if (unlikely(ret == 0))
+		return -ENOMEM;
+
+	vmw_tt->sgt.nents = ret;
+
+	return 0;
+}
+
+/**
+ * vmw_ttm_map_dma - Make sure TTM pages are visible to the device
+ *
+ * @vmw_tt: Pointer to a struct vmw_ttm_tt
+ *
+ * Select the correct function for and make sure the TTM pages are
+ * visible to the device. Allocate storage for the device mappings.
+ * If a mapping has already been performed, indicated by the storage
+ * pointer being non NULL, the function returns success.
+ */
+static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
+{
+	struct vmw_private *dev_priv = vmw_tt->dev_priv;
+	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
+	struct vmw_sg_table *vsgt = &vmw_tt->vsgt;
+	struct vmw_piter iter;
+	dma_addr_t old;
+	int ret = 0;
+	static size_t sgl_size;
+	static size_t sgt_size;
+
+	if (vmw_tt->mapped)
+		return 0;
+
+	vsgt->mode = dev_priv->map_mode;
+	vsgt->pages = vmw_tt->dma_ttm.ttm.pages;
+	vsgt->num_pages = vmw_tt->dma_ttm.ttm.num_pages;
+	vsgt->addrs = vmw_tt->dma_ttm.dma_address;
+	vsgt->sgt = &vmw_tt->sgt;
+
+	switch (dev_priv->map_mode) {
+	case vmw_dma_map_bind:
+	case vmw_dma_map_populate:
+		if (unlikely(!sgl_size)) {
+			sgl_size = ttm_round_pot(sizeof(struct scatterlist));
+			sgt_size = ttm_round_pot(sizeof(struct sg_table));
+		}
+		vmw_tt->sg_alloc_size = sgt_size + sgl_size * vsgt->num_pages;
+		ret = ttm_mem_global_alloc(glob, vmw_tt->sg_alloc_size, false,
+					   true);
+		if (unlikely(ret != 0))
+			return ret;
+
+		ret = sg_alloc_table_from_pages(&vmw_tt->sgt, vsgt->pages,
+						vsgt->num_pages, 0,
+						(unsigned long)
+						vsgt->num_pages << PAGE_SHIFT,
+						GFP_KERNEL);
+		if (unlikely(ret != 0))
+			goto out_sg_alloc_fail;
+
+		if (vsgt->num_pages > vmw_tt->sgt.nents) {
+			uint64_t over_alloc =
+				sgl_size * (vsgt->num_pages -
+					    vmw_tt->sgt.nents);
+
+			ttm_mem_global_free(glob, over_alloc);
+			vmw_tt->sg_alloc_size -= over_alloc;
+		}
+
+		ret = vmw_ttm_map_for_dma(vmw_tt);
+		if (unlikely(ret != 0))
+			goto out_map_fail;
+
+		break;
+	default:
+		break;
+	}
+
+	old = ~((dma_addr_t) 0);
+	vmw_tt->vsgt.num_regions = 0;
+	for (vmw_piter_start(&iter, vsgt, 0); vmw_piter_next(&iter);) {
+		dma_addr_t cur = vmw_piter_dma_addr(&iter);
+
+		if (cur != old + PAGE_SIZE)
+			vmw_tt->vsgt.num_regions++;
+		old = cur;
+	}
+
+	vmw_tt->mapped = true;
+	return 0;
+
+out_map_fail:
+	sg_free_table(vmw_tt->vsgt.sgt);
+	vmw_tt->vsgt.sgt = NULL;
+out_sg_alloc_fail:
+	ttm_mem_global_free(glob, vmw_tt->sg_alloc_size);
+	return ret;
+}
+
+/**
+ * vmw_ttm_unmap_dma - Tear down any TTM page device mappings
+ *
+ * @vmw_tt: Pointer to a struct vmw_ttm_tt
+ *
+ * Tear down any previously set up device DMA mappings and free
+ * any storage space allocated for them. If there are no mappings set up,
+ * this function is a NOP.
+ */
+static void vmw_ttm_unmap_dma(struct vmw_ttm_tt *vmw_tt)
+{
+	struct vmw_private *dev_priv = vmw_tt->dev_priv;
+
+	if (!vmw_tt->vsgt.sgt)
+		return;
+
+	switch (dev_priv->map_mode) {
+	case vmw_dma_map_bind:
+	case vmw_dma_map_populate:
+		vmw_ttm_unmap_from_dma(vmw_tt);
+		sg_free_table(vmw_tt->vsgt.sgt);
+		vmw_tt->vsgt.sgt = NULL;
+		ttm_mem_global_free(vmw_mem_glob(dev_priv),
+				    vmw_tt->sg_alloc_size);
+		break;
+	default:
+		break;
+	}
+	vmw_tt->mapped = false;
+}
 
 static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
-	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
+	struct vmw_ttm_tt *vmw_be =
+		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+	int ret;
+
+	ret = vmw_ttm_map_dma(vmw_be);
+	if (unlikely(ret != 0))
+		return ret;
 
 	vmw_be->gmr_id = bo_mem->start;
 
-	return vmw_gmr_bind(vmw_be->dev_priv, ttm->pages,
+	return vmw_gmr_bind(vmw_be->dev_priv, &vmw_be->vsgt,
 			    ttm->num_pages, vmw_be->gmr_id);
 }
 
 static int vmw_ttm_unbind(struct ttm_tt *ttm)
 {
-	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
+	struct vmw_ttm_tt *vmw_be =
+		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
 
 	vmw_gmr_unbind(vmw_be->dev_priv, vmw_be->gmr_id);
+
+	if (vmw_be->dev_priv->map_mode == vmw_dma_map_bind)
+		vmw_ttm_unmap_dma(vmw_be);
+
 	return 0;
 }
 
 static void vmw_ttm_destroy(struct ttm_tt *ttm)
 {
-	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
+	struct vmw_ttm_tt *vmw_be =
+		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
 
-	ttm_tt_fini(ttm);
+	vmw_ttm_unmap_dma(vmw_be);
+	if (vmw_be->dev_priv->map_mode == vmw_dma_alloc_coherent)
+		ttm_dma_tt_fini(&vmw_be->dma_ttm);
+	else
+		ttm_tt_fini(ttm);
 	kfree(vmw_be);
+}
+
+static int vmw_ttm_populate(struct ttm_tt *ttm)
+{
+	struct vmw_ttm_tt *vmw_tt =
+		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+	struct vmw_private *dev_priv = vmw_tt->dev_priv;
+	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
+	int ret;
+
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	if (dev_priv->map_mode == vmw_dma_alloc_coherent) {
+		size_t size =
+			ttm_round_pot(ttm->num_pages * sizeof(dma_addr_t));
+		ret = ttm_mem_global_alloc(glob, size, false, true);
+		if (unlikely(ret != 0))
+			return ret;
+
+		ret = ttm_dma_populate(&vmw_tt->dma_ttm, dev_priv->dev->dev);
+		if (unlikely(ret != 0))
+			ttm_mem_global_free(glob, size);
+	} else
+		ret = ttm_pool_populate(ttm);
+
+	return ret;
+}
+
+static void vmw_ttm_unpopulate(struct ttm_tt *ttm)
+{
+	struct vmw_ttm_tt *vmw_tt = container_of(ttm, struct vmw_ttm_tt,
+						 dma_ttm.ttm);
+	struct vmw_private *dev_priv = vmw_tt->dev_priv;
+	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
+
+	vmw_ttm_unmap_dma(vmw_tt);
+	if (dev_priv->map_mode == vmw_dma_alloc_coherent) {
+		size_t size =
+			ttm_round_pot(ttm->num_pages * sizeof(dma_addr_t));
+
+		ttm_dma_unpopulate(&vmw_tt->dma_ttm, dev_priv->dev->dev);
+		ttm_mem_global_free(glob, size);
+	} else
+		ttm_pool_unpopulate(ttm);
 }
 
 static struct ttm_backend_func vmw_ttm_func = {
@@ -183,20 +522,28 @@ struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
 				 struct page *dummy_read_page)
 {
 	struct vmw_ttm_tt *vmw_be;
+	int ret;
 
-	vmw_be = kmalloc(sizeof(*vmw_be), GFP_KERNEL);
+	vmw_be = kzalloc(sizeof(*vmw_be), GFP_KERNEL);
 	if (!vmw_be)
 		return NULL;
 
-	vmw_be->ttm.func = &vmw_ttm_func;
+	vmw_be->dma_ttm.ttm.func = &vmw_ttm_func;
 	vmw_be->dev_priv = container_of(bdev, struct vmw_private, bdev);
 
-	if (ttm_tt_init(&vmw_be->ttm, bdev, size, page_flags, dummy_read_page)) {
-		kfree(vmw_be);
-		return NULL;
-	}
+	if (vmw_be->dev_priv->map_mode == vmw_dma_alloc_coherent)
+		ret = ttm_dma_tt_init(&vmw_be->dma_ttm, bdev, size, page_flags,
+				      dummy_read_page);
+	else
+		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bdev, size, page_flags,
+				  dummy_read_page);
+	if (unlikely(ret != 0))
+		goto out_no_init;
 
-	return &vmw_be->ttm;
+	return &vmw_be->dma_ttm.ttm;
+out_no_init:
+	kfree(vmw_be);
+	return NULL;
 }
 
 int vmw_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
@@ -332,8 +679,8 @@ static int vmw_sync_obj_wait(void *sync_obj, bool lazy, bool interruptible)
 
 struct ttm_bo_driver vmw_bo_driver = {
 	.ttm_tt_create = &vmw_ttm_tt_create,
-	.ttm_tt_populate = &ttm_pool_populate,
-	.ttm_tt_unpopulate = &ttm_pool_unpopulate,
+	.ttm_tt_populate = &vmw_ttm_populate,
+	.ttm_tt_unpopulate = &vmw_ttm_unpopulate,
 	.invalidate_caches = vmw_invalidate_caches,
 	.init_mem_type = vmw_init_mem_type,
 	.evict_flags = vmw_evict_flags,

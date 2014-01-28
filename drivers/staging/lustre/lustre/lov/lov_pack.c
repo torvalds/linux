@@ -121,7 +121,7 @@ void lov_dump_lmm(int level, void *lmm)
 do {								    \
 	if (!(test)) lov_dump_lmm(D_ERROR, lmm);			\
 	LASSERT(test); /* so we know what assertion failed */	   \
-} while(0)
+} while (0)
 
 /* Pack LOV object metadata for disk storage.  It is packed in LE byte
  * order and is opaque to the networking layer.
@@ -630,22 +630,22 @@ int lov_getstripe(struct obd_export *exp, struct lov_stripe_md *lsm,
 	/* FIXME: Bug 1185 - copy fields properly when structs change */
 	/* struct lov_user_md_v3 and struct lov_mds_md_v3 must be the same */
 	CLASSERT(sizeof(lum) == sizeof(struct lov_mds_md_v3));
-	CLASSERT(sizeof lum.lmm_objects[0] == sizeof lmmk->lmm_objects[0]);
+	CLASSERT(sizeof(lum.lmm_objects[0]) == sizeof(lmmk->lmm_objects[0]));
 
 	if ((cpu_to_le32(LOV_MAGIC) != LOV_MAGIC) &&
 	    ((lmmk->lmm_magic == cpu_to_le32(LOV_MAGIC_V1)) ||
 	    (lmmk->lmm_magic == cpu_to_le32(LOV_MAGIC_V3)))) {
 		lustre_swab_lov_mds_md(lmmk);
 		lustre_swab_lov_user_md_objects(
-				(struct lov_user_ost_data*)lmmk->lmm_objects,
+				(struct lov_user_ost_data *)lmmk->lmm_objects,
 				lmmk->lmm_stripe_count);
 	}
 	if (lum.lmm_magic == LOV_USER_MAGIC) {
 		/* User request for v1, we need skip lmm_pool_name */
 		if (lmmk->lmm_magic == LOV_MAGIC_V3) {
-			memmove((char*)(&lmmk->lmm_stripe_count) +
+			memmove((char *)(&lmmk->lmm_stripe_count) +
 				sizeof(lmmk->lmm_stripe_count),
-				((struct lov_mds_md_v3*)lmmk)->lmm_objects,
+				((struct lov_mds_md_v3 *)lmmk)->lmm_objects,
 				lmmk->lmm_stripe_count *
 				sizeof(struct lov_ost_data_v1));
 			lmm_size -= LOV_MAXPOOLNAME;

@@ -8,7 +8,8 @@ perf-timechart - Tool to visualize total system behavior during a workload
 SYNOPSIS
 --------
 [verse]
-'perf timechart' {record}
+'perf timechart' record <command>
+'perf timechart' [<options>]
 
 DESCRIPTION
 -----------
@@ -40,6 +41,18 @@ OPTIONS
 
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
+
+EXAMPLES
+--------
+
+$ perf timechart record git pull
+
+  [ perf record: Woken up 13 times to write data ]
+  [ perf record: Captured and wrote 4.253 MB perf.data (~185801 samples) ]
+
+$ perf timechart
+
+  Written 10.2 seconds of trace to output.svg.
 
 SEE ALSO
 --------

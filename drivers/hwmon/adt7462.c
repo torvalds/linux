@@ -700,7 +700,7 @@ static int find_trange_value(int trange)
 		if (trange_values[i] == trange)
 			return i;
 
-	return -ENODEV;
+	return -EINVAL;
 }
 
 static struct adt7462_data *adt7462_update_device(struct device *dev)
@@ -1294,9 +1294,8 @@ static ssize_t set_pwm_tmax(struct device *dev,
 	/* trange = tmax - tmin */
 	tmin = (data->pwm_tmin[attr->index] - 64) * 1000;
 	trange_value = find_trange_value(trange - tmin);
-
 	if (trange_value < 0)
-		return -EINVAL;
+		return trange_value;
 
 	temp = trange_value << ADT7462_PWM_RANGE_SHIFT;
 	temp |= data->pwm_trange[attr->index] & ADT7462_PWM_HYST_MASK;

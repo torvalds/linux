@@ -63,23 +63,19 @@ int snd_hwparams_to_dma_slave_config(const struct snd_pcm_substream *substream,
 	struct dma_slave_config *slave_config)
 {
 	enum dma_slave_buswidth buswidth;
+	int bits;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
-		buswidth = DMA_SLAVE_BUSWIDTH_1_BYTE;
-		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
-		buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
-		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
-	case SNDRV_PCM_FORMAT_S20_3LE:
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
-		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
-		break;
-	default:
+	bits = snd_pcm_format_physical_width(params_format(params));
+	if (bits < 8 || bits > 64)
 		return -EINVAL;
-	}
+	else if (bits == 8)
+		buswidth = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	else if (bits == 16)
+		buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	else if (bits <= 32)
+		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	else
+		buswidth = DMA_SLAVE_BUSWIDTH_8_BYTES;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		slave_config->direction = DMA_MEM_TO_DEV;

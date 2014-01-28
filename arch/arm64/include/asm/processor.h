@@ -107,6 +107,11 @@ static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
 	regs->pstate = COMPAT_PSR_MODE_USR;
 	if (pc & 1)
 		regs->pstate |= COMPAT_PSR_T_BIT;
+
+#ifdef __AARCH64EB__
+	regs->pstate |= COMPAT_PSR_E_BIT;
+#endif
+
 	regs->compat_sp = sp;
 }
 #endif

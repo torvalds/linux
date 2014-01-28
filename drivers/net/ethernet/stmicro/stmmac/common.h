@@ -451,14 +451,14 @@ struct mac_device_info {
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr);
 struct mac_device_info *dwmac100_setup(void __iomem *ioaddr);
 
-extern void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
-				unsigned int high, unsigned int low);
-extern void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
-				unsigned int high, unsigned int low);
+void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
+			 unsigned int high, unsigned int low);
+void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
+			 unsigned int high, unsigned int low);
 
-extern void stmmac_set_mac(void __iomem *ioaddr, bool enable);
+void stmmac_set_mac(void __iomem *ioaddr, bool enable);
 
-extern void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
+void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
 extern const struct stmmac_ring_mode_ops ring_mode_ops;
 extern const struct stmmac_chain_mode_ops chain_mode_ops;
 

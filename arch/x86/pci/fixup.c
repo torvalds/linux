@@ -231,7 +231,7 @@ static int quirk_pcie_aspm_write(struct pci_bus *bus, unsigned int devfn, int wh
 	offset = quirk_aspm_offset[GET_INDEX(bus->self->device, devfn)];
 
 	if ((offset) && (where == offset))
-		value = value & 0xfffffffc;
+		value = value & ~PCI_EXP_LNKCTL_ASPMC;
 
 	return raw_pci_write(pci_domain_nr(bus), bus->number,
 						devfn, where, size, value);
@@ -252,7 +252,7 @@ static struct pci_ops quirk_pcie_aspm_ops = {
  */
 static void pcie_rootport_aspm_quirk(struct pci_dev *pdev)
 {
-	int cap_base, i;
+	int i;
 	struct pci_bus  *pbus;
 	struct pci_dev *dev;
 
@@ -278,7 +278,7 @@ static void pcie_rootport_aspm_quirk(struct pci_dev *pdev)
 		for (i = GET_INDEX(pdev->device, 0); i <= GET_INDEX(pdev->device, 7); ++i)
 			quirk_aspm_offset[i] = 0;
 
-		pbus->ops = pbus->parent->ops;
+		pci_bus_set_ops(pbus, pbus->parent->ops);
 	} else {
 		/*
 		 * If devices are attached to the root port at power-up or
@@ -286,13 +286,15 @@ static void pcie_rootport_aspm_quirk(struct pci_dev *pdev)
 		 * each root port to save the register offsets and replace the
 		 * bus ops.
 		 */
-		list_for_each_entry(dev, &pbus->devices, bus_list) {
+		list_for_each_entry(dev, &pbus->devices, bus_list)
 			/* There are 0 to 8 devices attached to this bus */
-			cap_base = pci_find_capability(dev, PCI_CAP_ID_EXP);
-			quirk_aspm_offset[GET_INDEX(pdev->device, dev->devfn)] = cap_base + 0x10;
-		}
-		pbus->ops = &quirk_pcie_aspm_ops;
+			quirk_aspm_offset[GET_INDEX(pdev->device, dev->devfn)] =
+				dev->pcie_cap + PCI_EXP_LNKCTL;
+
+		pci_bus_set_ops(pbus, &quirk_pcie_aspm_ops);
+		dev_info(&pbus->dev, "writes to ASPM control bits will be ignored\n");
 	}
+
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PA,	pcie_rootport_aspm_quirk);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PA1,	pcie_rootport_aspm_quirk);

@@ -3,7 +3,7 @@
 usbip \- manage USB/IP devices
 .SH SYNOPSIS
 .B usbip
-[\foptions\R] <\fIcommand\fR> <\fIargs\fR>
+[\fIoptions\fR] <\fIcommand\fR> <\fIargs\fR>
 
 .SH DESCRIPTION
 On a USB/IP server, devices can be listed, bound, and unbound using
@@ -21,6 +21,12 @@ Print debugging information.
 \fB\-\-log\fR
 .IP
 Log to syslog.
+.PP
+
+.HP
+\fB\-\-tcp-port PORT\fR
+.IP
+Connect to PORT on remote host (used for attach and list --remote).
 .PP
 
 .SH COMMANDS

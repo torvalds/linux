@@ -245,7 +245,7 @@ static int at91_cf_dt_init(struct platform_device *pdev)
 }
 #endif
 
-static int __init at91_cf_probe(struct platform_device *pdev)
+static int at91_cf_probe(struct platform_device *pdev)
 {
 	struct at91_cf_socket	*cf;
 	struct at91_cf_data	*board = pdev->dev.platform_data;
@@ -354,7 +354,7 @@ fail0a:
 	return status;
 }
 
-static int __exit at91_cf_remove(struct platform_device *pdev)
+static int at91_cf_remove(struct platform_device *pdev)
 {
 	struct at91_cf_socket	*cf = platform_get_drvdata(pdev);
 
@@ -404,14 +404,13 @@ static struct platform_driver at91_cf_driver = {
 		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(at91_cf_dt_ids),
 	},
-	.remove		= __exit_p(at91_cf_remove),
+	.probe		= at91_cf_probe,
+	.remove		= at91_cf_remove,
 	.suspend	= at91_cf_suspend,
 	.resume		= at91_cf_resume,
 };
 
-/*--------------------------------------------------------------------------*/
-
-module_platform_driver_probe(at91_cf_driver, at91_cf_probe);
+module_platform_driver(at91_cf_driver);
 
 MODULE_DESCRIPTION("AT91 Compact Flash Driver");
 MODULE_AUTHOR("David Brownell");

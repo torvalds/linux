@@ -316,7 +316,6 @@ static void mtd_pci_remove(struct pci_dev *dev)
 	map->exit(dev, map);
 	kfree(map);
 
-	pci_set_drvdata(dev, NULL);
 	pci_release_regions(dev);
 }
 

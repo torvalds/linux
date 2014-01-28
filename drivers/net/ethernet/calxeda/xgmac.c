@@ -1060,12 +1060,12 @@ static int xgmac_stop(struct net_device *dev)
 {
 	struct xgmac_priv *priv = netdev_priv(dev);
 
-	netif_stop_queue(dev);
-
 	if (readl(priv->base + XGMAC_DMA_INTR_ENA))
 		napi_disable(&priv->napi);
 
 	writel(0, priv->base + XGMAC_DMA_INTR_ENA);
+
+	netif_tx_disable(dev);
 
 	/* Disable the MAC core */
 	xgmac_mac_disable(priv->base);
@@ -1370,11 +1370,8 @@ static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
 	}
 
 	old_mtu = dev->mtu;
-	dev->mtu = new_mtu;
 
 	/* return early if the buffer sizes will not change */
-	if (old_mtu <= ETH_DATA_LEN && new_mtu <= ETH_DATA_LEN)
-		return 0;
 	if (old_mtu == new_mtu)
 		return 0;
 
@@ -1382,8 +1379,9 @@ static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
 	if (!netif_running(dev))
 		return 0;
 
-	/* Bring the interface down and then back up */
+	/* Bring interface down, change mtu and bring interface back up */
 	xgmac_stop(dev);
+	dev->mtu = new_mtu;
 	return xgmac_open(dev);
 }
 

@@ -34,45 +34,76 @@
 #define PROTO_HOST	(1)
 #define PROTO_GADGET	(2)
 
+enum otg_fsm_timer {
+	/* Standard OTG timers */
+	A_WAIT_VRISE,
+	A_WAIT_VFALL,
+	A_WAIT_BCON,
+	A_AIDL_BDIS,
+	B_ASE0_BRST,
+	A_BIDL_ADIS,
+
+	/* Auxiliary timers */
+	B_SE0_SRP,
+	B_SRP_FAIL,
+	A_WAIT_ENUM,
+
+	NUM_OTG_FSM_TIMERS,
+};
+
 /* OTG state machine according to the OTG spec */
 struct otg_fsm {
 	/* Input */
+	int id;
+	int adp_change;
+	int power_up;
+	int test_device;
+	int a_bus_drop;
+	int a_bus_req;
+	int a_srp_det;
+	int a_vbus_vld;
+	int b_conn;
 	int a_bus_resume;
 	int a_bus_suspend;
 	int a_conn;
+	int b_bus_req;
+	int b_se0_srp;
+	int b_ssend_srp;
+	int b_sess_vld;
+	/* Auxilary inputs */
 	int a_sess_vld;
-	int a_srp_det;
-	int a_vbus_vld;
 	int b_bus_resume;
 	int b_bus_suspend;
-	int b_conn;
-	int b_se0_srp;
-	int b_sess_end;
-	int b_sess_vld;
-	int id;
+
+	/* Output */
+	int data_pulse;
+	int drv_vbus;
+	int loc_conn;
+	int loc_sof;
+	int adp_prb;
+	int adp_sns;
 
 	/* Internal variables */
 	int a_set_b_hnp_en;
 	int b_srp_done;
 	int b_hnp_enable;
+	int a_clr_err;
+
+	/* Informative variables */
+	int a_bus_drop_inf;
+	int a_bus_req_inf;
+	int a_clr_err_inf;
+	int b_bus_req_inf;
+	/* Auxilary informative variables */
+	int a_suspend_req_inf;
 
 	/* Timeout indicator for timers */
 	int a_wait_vrise_tmout;
+	int a_wait_vfall_tmout;
 	int a_wait_bcon_tmout;
 	int a_aidl_bdis_tmout;
 	int b_ase0_brst_tmout;
-
-	/* Informative variables */
-	int a_bus_drop;
-	int a_bus_req;
-	int a_clr_err;
-	int a_suspend_req;
-	int b_bus_req;
-
-	/* Output */
-	int drv_vbus;
-	int loc_conn;
-	int loc_sof;
+	int a_bidl_adis_tmout;
 
 	struct otg_fsm_ops *ops;
 	struct usb_otg *otg;
@@ -83,65 +114,123 @@ struct otg_fsm {
 };
 
 struct otg_fsm_ops {
-	void	(*chrg_vbus)(int on);
-	void	(*drv_vbus)(int on);
-	void	(*loc_conn)(int on);
-	void	(*loc_sof)(int on);
-	void	(*start_pulse)(void);
-	void	(*add_timer)(void *timer);
-	void	(*del_timer)(void *timer);
+	void	(*chrg_vbus)(struct otg_fsm *fsm, int on);
+	void	(*drv_vbus)(struct otg_fsm *fsm, int on);
+	void	(*loc_conn)(struct otg_fsm *fsm, int on);
+	void	(*loc_sof)(struct otg_fsm *fsm, int on);
+	void	(*start_pulse)(struct otg_fsm *fsm);
+	void	(*start_adp_prb)(struct otg_fsm *fsm);
+	void	(*start_adp_sns)(struct otg_fsm *fsm);
+	void	(*add_timer)(struct otg_fsm *fsm, enum otg_fsm_timer timer);
+	void	(*del_timer)(struct otg_fsm *fsm, enum otg_fsm_timer timer);
 	int	(*start_host)(struct otg_fsm *fsm, int on);
 	int	(*start_gadget)(struct otg_fsm *fsm, int on);
 };
 
 
-static inline void otg_chrg_vbus(struct otg_fsm *fsm, int on)
+static inline int otg_chrg_vbus(struct otg_fsm *fsm, int on)
 {
-	fsm->ops->chrg_vbus(on);
+	if (!fsm->ops->chrg_vbus)
+		return -EOPNOTSUPP;
+	fsm->ops->chrg_vbus(fsm, on);
+	return 0;
 }
 
-static inline void otg_drv_vbus(struct otg_fsm *fsm, int on)
+static inline int otg_drv_vbus(struct otg_fsm *fsm, int on)
 {
+	if (!fsm->ops->drv_vbus)
+		return -EOPNOTSUPP;
 	if (fsm->drv_vbus != on) {
 		fsm->drv_vbus = on;
-		fsm->ops->drv_vbus(on);
+		fsm->ops->drv_vbus(fsm, on);
 	}
+	return 0;
 }
 
-static inline void otg_loc_conn(struct otg_fsm *fsm, int on)
+static inline int otg_loc_conn(struct otg_fsm *fsm, int on)
 {
+	if (!fsm->ops->loc_conn)
+		return -EOPNOTSUPP;
 	if (fsm->loc_conn != on) {
 		fsm->loc_conn = on;
-		fsm->ops->loc_conn(on);
+		fsm->ops->loc_conn(fsm, on);
 	}
+	return 0;
 }
 
-static inline void otg_loc_sof(struct otg_fsm *fsm, int on)
+static inline int otg_loc_sof(struct otg_fsm *fsm, int on)
 {
+	if (!fsm->ops->loc_sof)
+		return -EOPNOTSUPP;
 	if (fsm->loc_sof != on) {
 		fsm->loc_sof = on;
-		fsm->ops->loc_sof(on);
+		fsm->ops->loc_sof(fsm, on);
 	}
+	return 0;
 }
 
-static inline void otg_start_pulse(struct otg_fsm *fsm)
+static inline int otg_start_pulse(struct otg_fsm *fsm)
 {
-	fsm->ops->start_pulse();
+	if (!fsm->ops->start_pulse)
+		return -EOPNOTSUPP;
+	if (!fsm->data_pulse) {
+		fsm->data_pulse = 1;
+		fsm->ops->start_pulse(fsm);
+	}
+	return 0;
 }
 
-static inline void otg_add_timer(struct otg_fsm *fsm, void *timer)
+static inline int otg_start_adp_prb(struct otg_fsm *fsm)
 {
-	fsm->ops->add_timer(timer);
+	if (!fsm->ops->start_adp_prb)
+		return -EOPNOTSUPP;
+	if (!fsm->adp_prb) {
+		fsm->adp_sns = 0;
+		fsm->adp_prb = 1;
+		fsm->ops->start_adp_prb(fsm);
+	}
+	return 0;
 }
 
-static inline void otg_del_timer(struct otg_fsm *fsm, void *timer)
+static inline int otg_start_adp_sns(struct otg_fsm *fsm)
 {
-	fsm->ops->del_timer(timer);
+	if (!fsm->ops->start_adp_sns)
+		return -EOPNOTSUPP;
+	if (!fsm->adp_sns) {
+		fsm->adp_sns = 1;
+		fsm->ops->start_adp_sns(fsm);
+	}
+	return 0;
+}
+
+static inline int otg_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer timer)
+{
+	if (!fsm->ops->add_timer)
+		return -EOPNOTSUPP;
+	fsm->ops->add_timer(fsm, timer);
+	return 0;
+}
+
+static inline int otg_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer timer)
+{
+	if (!fsm->ops->del_timer)
+		return -EOPNOTSUPP;
+	fsm->ops->del_timer(fsm, timer);
+	return 0;
+}
+
+static inline int otg_start_host(struct otg_fsm *fsm, int on)
+{
+	if (!fsm->ops->start_host)
+		return -EOPNOTSUPP;
+	return fsm->ops->start_host(fsm, on);
+}
+
+static inline int otg_start_gadget(struct otg_fsm *fsm, int on)
+{
+	if (!fsm->ops->start_gadget)
+		return -EOPNOTSUPP;
+	return fsm->ops->start_gadget(fsm, on);
 }
 
 int otg_statemachine(struct otg_fsm *fsm);
-
-/* Defined by device specific driver, for different timer implementation */
-extern struct fsl_otg_timer *a_wait_vrise_tmr, *a_wait_bcon_tmr,
-	*a_aidl_bdis_tmr, *b_ase0_brst_tmr, *b_se0_srp_tmr, *b_srp_fail_tmr,
-	*a_wait_enum_tmr;

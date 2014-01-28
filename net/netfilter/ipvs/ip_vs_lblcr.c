@@ -130,7 +130,7 @@ static void ip_vs_lblcr_elem_rcu_free(struct rcu_head *head)
 	struct ip_vs_dest_set_elem *e;
 
 	e = container_of(head, struct ip_vs_dest_set_elem, rcu_head);
-	ip_vs_dest_put(e->dest);
+	ip_vs_dest_put_and_free(e->dest);
 	kfree(e);
 }
 

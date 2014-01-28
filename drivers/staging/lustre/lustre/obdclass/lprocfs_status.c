@@ -898,7 +898,7 @@ static void lprocfs_free_client_stats(struct nid_stat *client_stat)
 
 void lprocfs_free_per_client_stats(struct obd_device *obd)
 {
-	cfs_hash_t *hash = obd->obd_nid_stats_hash;
+	struct cfs_hash *hash = obd->obd_nid_stats_hash;
 	struct nid_stat *stat;
 
 	/* we need extra list - because hash_exit called to early */
@@ -1069,7 +1069,7 @@ static int lprocfs_stats_seq_show(struct seq_file *p, void *v)
 		struct timeval now;
 		do_gettimeofday(&now);
 		rc = seq_printf(p, "%-25s %lu.%lu secs.usecs\n",
-				"snapshot_time", now.tv_sec, now.tv_usec);
+				"snapshot_time", now.tv_sec, (unsigned long)now.tv_usec);
 		if (rc < 0)
 			return rc;
 	}
@@ -1422,7 +1422,7 @@ void lprocfs_init_ldlm_stats(struct lprocfs_stats *ldlm_stats)
 }
 EXPORT_SYMBOL(lprocfs_init_ldlm_stats);
 
-int lprocfs_exp_print_uuid(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+int lprocfs_exp_print_uuid(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			   struct hlist_node *hnode, void *data)
 
 {
@@ -1453,7 +1453,7 @@ struct exp_hash_cb_data {
 	bool		first;
 };
 
-int lprocfs_exp_print_hash(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+int lprocfs_exp_print_hash(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			   struct hlist_node *hnode, void *cb_data)
 
 {

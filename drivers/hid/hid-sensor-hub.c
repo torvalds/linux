@@ -112,13 +112,15 @@ static int sensor_hub_get_physical_device_count(
 
 static void sensor_hub_fill_attr_info(
 		struct hid_sensor_hub_attribute_info *info,
-		s32 index, s32 report_id, s32 units, s32 unit_expo, s32 size)
+		s32 index, s32 report_id, struct hid_field *field)
 {
 	info->index = index;
 	info->report_id = report_id;
-	info->units = units;
-	info->unit_expo = unit_expo;
-	info->size = size/8;
+	info->units = field->unit;
+	info->unit_expo = field->unit_exponent;
+	info->size = (field->report_size * field->report_count)/8;
+	info->logical_minimum = field->logical_minimum;
+	info->logical_maximum = field->logical_maximum;
 }
 
 static struct hid_sensor_hub_callbacks *sensor_hub_get_callback(
@@ -325,8 +327,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 			if (field->physical == usage_id &&
 				field->logical == attr_usage_id) {
 				sensor_hub_fill_attr_info(info, i, report->id,
-					field->unit, field->unit_exponent,
-					field->report_size);
+							  field);
 				ret = 0;
 			} else {
 				for (j = 0; j < field->maxusage; ++j) {
@@ -335,10 +336,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 					field->usage[j].collection_index ==
 					collection_index) {
 						sensor_hub_fill_attr_info(info,
-							i, report->id,
-							field->unit,
-							field->unit_exponent,
-							field->report_size);
+							  i, report->id, field);
 						ret = 0;
 						break;
 					}
@@ -425,9 +423,10 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 		hid_dbg(hdev, "%d collection_index:%x hid:%x sz:%x\n",
 				i, report->field[i]->usage->collection_index,
 				report->field[i]->usage->hid,
-				report->field[i]->report_size/8);
-
-		sz = report->field[i]->report_size/8;
+				(report->field[i]->report_size *
+					report->field[i]->report_count)/8);
+		sz = (report->field[i]->report_size *
+					report->field[i]->report_count)/8;
 		if (pdata->pending.status && pdata->pending.attr_usage_id ==
 				report->field[i]->usage->hid) {
 			hid_dbg(hdev, "data was pending ...\n");
@@ -464,6 +463,39 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 
 	return 1;
 }
+
+int sensor_hub_device_open(struct hid_sensor_hub_device *hsdev)
+{
+	int ret = 0;
+	struct sensor_hub_data *data =  hid_get_drvdata(hsdev->hdev);
+
+	mutex_lock(&data->mutex);
+	if (!hsdev->ref_cnt) {
+		ret = hid_hw_open(hsdev->hdev);
+		if (ret) {
+			hid_err(hsdev->hdev, "failed to open hid device\n");
+			mutex_unlock(&data->mutex);
+			return ret;
+		}
+	}
+	hsdev->ref_cnt++;
+	mutex_unlock(&data->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sensor_hub_device_open);
+
+void sensor_hub_device_close(struct hid_sensor_hub_device *hsdev)
+{
+	struct sensor_hub_data *data =  hid_get_drvdata(hsdev->hdev);
+
+	mutex_lock(&data->mutex);
+	hsdev->ref_cnt--;
+	if (!hsdev->ref_cnt)
+		hid_hw_close(hsdev->hdev);
+	mutex_unlock(&data->mutex);
+}
+EXPORT_SYMBOL_GPL(sensor_hub_device_close);
 
 static int sensor_hub_probe(struct hid_device *hdev,
 				const struct hid_device_id *id)
@@ -506,12 +538,6 @@ static int sensor_hub_probe(struct hid_device *hdev,
 		hid_err(hdev, "hw start failed\n");
 		return ret;
 	}
-	ret = hid_hw_open(hdev);
-	if (ret) {
-		hid_err(hdev, "failed to open input interrupt pipe\n");
-		goto err_stop_hw;
-	}
-
 	INIT_LIST_HEAD(&sd->dyn_callback_list);
 	sd->hid_sensor_client_cnt = 0;
 	report_enum = &hdev->report_enum[HID_INPUT_REPORT];
@@ -520,7 +546,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 	if (dev_cnt > HID_MAX_PHY_DEVICES) {
 		hid_err(hdev, "Invalid Physical device count\n");
 		ret = -EINVAL;
-		goto err_close;
+		goto err_stop_hw;
 	}
 	sd->hid_sensor_hub_client_devs = kzalloc(dev_cnt *
 						sizeof(struct mfd_cell),
@@ -528,7 +554,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 	if (sd->hid_sensor_hub_client_devs == NULL) {
 		hid_err(hdev, "Failed to allocate memory for mfd cells\n");
 			ret = -ENOMEM;
-			goto err_close;
+			goto err_stop_hw;
 	}
 	list_for_each_entry(report, &report_enum->report_list, list) {
 		hid_dbg(hdev, "Report id:%x\n", report->id);
@@ -542,6 +568,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 					ret = -ENOMEM;
 					goto err_free_names;
 			}
+			sd->hid_sensor_hub_client_devs[
+				sd->hid_sensor_client_cnt].id = PLATFORM_DEVID_AUTO;
 			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].name = name;
 			sd->hid_sensor_hub_client_devs[
@@ -565,8 +593,6 @@ err_free_names:
 	for (i = 0; i < sd->hid_sensor_client_cnt ; ++i)
 		kfree(sd->hid_sensor_hub_client_devs[i].name);
 	kfree(sd->hid_sensor_hub_client_devs);
-err_close:
-	hid_hw_close(hdev);
 err_stop_hw:
 	hid_hw_stop(hdev);
 

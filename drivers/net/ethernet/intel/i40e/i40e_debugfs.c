@@ -151,9 +151,7 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 				   size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
-	char dump_request_buf[16];
 	bool seid_found = false;
-	int bytes_not_copied;
 	long seid = -1;
 	int buflen = 0;
 	int i, ret;
@@ -163,21 +161,12 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 	/* don't allow partial writes */
 	if (*ppos != 0)
 		return 0;
-	if (count >= sizeof(dump_request_buf))
-		return -ENOSPC;
-
-	bytes_not_copied = copy_from_user(dump_request_buf, buffer, count);
-	if (bytes_not_copied < 0)
-		return bytes_not_copied;
-	if (bytes_not_copied > 0)
-		count -= bytes_not_copied;
-	dump_request_buf[count] = '\0';
 
 	/* decode the SEID given to be dumped */
-	ret = kstrtol(dump_request_buf, 0, &seid);
-	if (ret < 0) {
-		dev_info(&pf->pdev->dev, "bad seid value '%s'\n",
-			 dump_request_buf);
+	ret = kstrtol_from_user(buffer, count, 0, &seid);
+
+	if (ret) {
+		dev_info(&pf->pdev->dev, "bad seid value\n");
 	} else if (seid == 0) {
 		seid_found = true;
 
@@ -245,26 +234,33 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 			memcpy(p, vsi, len);
 			p += len;
 
-			len = (sizeof(struct i40e_q_vector)
-				* vsi->num_q_vectors);
-			memcpy(p, vsi->q_vectors, len);
-			p += len;
-
-			len = (sizeof(struct i40e_ring) * vsi->num_queue_pairs);
-			memcpy(p, vsi->tx_rings, len);
-			p += len;
-			memcpy(p, vsi->rx_rings, len);
-			p += len;
-
-			for (i = 0; i < vsi->num_queue_pairs; i++) {
-				len = sizeof(struct i40e_tx_buffer);
-				memcpy(p, vsi->tx_rings[i].tx_bi, len);
+			if (vsi->num_q_vectors) {
+				len = (sizeof(struct i40e_q_vector)
+					* vsi->num_q_vectors);
+				memcpy(p, vsi->q_vectors, len);
 				p += len;
 			}
-			for (i = 0; i < vsi->num_queue_pairs; i++) {
-				len = sizeof(struct i40e_rx_buffer);
-				memcpy(p, vsi->rx_rings[i].rx_bi, len);
+
+			if (vsi->num_queue_pairs) {
+				len = (sizeof(struct i40e_ring) *
+				      vsi->num_queue_pairs);
+				memcpy(p, vsi->tx_rings, len);
 				p += len;
+				memcpy(p, vsi->rx_rings, len);
+				p += len;
+			}
+
+			if (vsi->tx_rings[0]) {
+				len = sizeof(struct i40e_tx_buffer);
+				for (i = 0; i < vsi->num_queue_pairs; i++) {
+					memcpy(p, vsi->tx_rings[i]->tx_bi, len);
+					p += len;
+				}
+				len = sizeof(struct i40e_rx_buffer);
+				for (i = 0; i < vsi->num_queue_pairs; i++) {
+					memcpy(p, vsi->rx_rings[i]->rx_bi, len);
+					p += len;
+				}
 			}
 
 			/* macvlan filter list */
@@ -484,100 +480,104 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		 "    tx_restart = %d, tx_busy = %d, rx_buf_failed = %d, rx_page_failed = %d\n",
 		 vsi->tx_restart, vsi->tx_busy,
 		 vsi->rx_buf_failed, vsi->rx_page_failed);
-	if (vsi->rx_rings) {
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: desc = %p\n",
-				 i, vsi->rx_rings[i].desc);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: dev = %p, netdev = %p, rx_bi = %p\n",
-				 i, vsi->rx_rings[i].dev,
-				 vsi->rx_rings[i].netdev,
-				 vsi->rx_rings[i].rx_bi);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
-				 i, vsi->rx_rings[i].state,
-				 vsi->rx_rings[i].queue_index,
-				 vsi->rx_rings[i].reg_idx);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: rx_hdr_len = %d, rx_buf_len = %d, dtype = %d\n",
-				 i, vsi->rx_rings[i].rx_hdr_len,
-				 vsi->rx_rings[i].rx_buf_len,
-				 vsi->rx_rings[i].dtype);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
-				 i, vsi->rx_rings[i].hsplit,
-				 vsi->rx_rings[i].next_to_use,
-				 vsi->rx_rings[i].next_to_clean,
-				 vsi->rx_rings[i].ring_active);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: rx_stats: packets = %lld, bytes = %lld, non_eop_descs = %lld\n",
-				 i, vsi->rx_rings[i].rx_stats.packets,
-				 vsi->rx_rings[i].rx_stats.bytes,
-				 vsi->rx_rings[i].rx_stats.non_eop_descs);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: rx_stats: alloc_rx_page_failed = %lld, alloc_rx_buff_failed = %lld\n",
-				 i,
-				 vsi->rx_rings[i].rx_stats.alloc_rx_page_failed,
-				vsi->rx_rings[i].rx_stats.alloc_rx_buff_failed);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: size = %i, dma = 0x%08lx\n",
-				 i, vsi->rx_rings[i].size,
-				 (long unsigned int)vsi->rx_rings[i].dma);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: vsi = %p, q_vector = %p\n",
-				 i, vsi->rx_rings[i].vsi,
-				 vsi->rx_rings[i].q_vector);
-		}
+	rcu_read_lock();
+	for (i = 0; i < vsi->num_queue_pairs; i++) {
+		struct i40e_ring *rx_ring = ACCESS_ONCE(vsi->rx_rings[i]);
+		if (!rx_ring)
+			continue;
+
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: desc = %p\n",
+			 i, rx_ring->desc);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: dev = %p, netdev = %p, rx_bi = %p\n",
+			 i, rx_ring->dev,
+			 rx_ring->netdev,
+			 rx_ring->rx_bi);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
+			 i, rx_ring->state,
+			 rx_ring->queue_index,
+			 rx_ring->reg_idx);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: rx_hdr_len = %d, rx_buf_len = %d, dtype = %d\n",
+			 i, rx_ring->rx_hdr_len,
+			 rx_ring->rx_buf_len,
+			 rx_ring->dtype);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
+			 i, rx_ring->hsplit,
+			 rx_ring->next_to_use,
+			 rx_ring->next_to_clean,
+			 rx_ring->ring_active);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: rx_stats: packets = %lld, bytes = %lld, non_eop_descs = %lld\n",
+			 i, rx_ring->stats.packets,
+			 rx_ring->stats.bytes,
+			 rx_ring->rx_stats.non_eop_descs);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: rx_stats: alloc_rx_page_failed = %lld, alloc_rx_buff_failed = %lld\n",
+			 i,
+			 rx_ring->rx_stats.alloc_rx_page_failed,
+			rx_ring->rx_stats.alloc_rx_buff_failed);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: size = %i, dma = 0x%08lx\n",
+			 i, rx_ring->size,
+			 (long unsigned int)rx_ring->dma);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: vsi = %p, q_vector = %p\n",
+			 i, rx_ring->vsi,
+			 rx_ring->q_vector);
 	}
-	if (vsi->tx_rings) {
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: desc = %p\n",
-				 i, vsi->tx_rings[i].desc);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: dev = %p, netdev = %p, tx_bi = %p\n",
-				 i, vsi->tx_rings[i].dev,
-				 vsi->tx_rings[i].netdev,
-				 vsi->tx_rings[i].tx_bi);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
-				 i, vsi->tx_rings[i].state,
-				 vsi->tx_rings[i].queue_index,
-				 vsi->tx_rings[i].reg_idx);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: dtype = %d\n",
-				 i, vsi->tx_rings[i].dtype);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
-				 i, vsi->tx_rings[i].hsplit,
-				 vsi->tx_rings[i].next_to_use,
-				 vsi->tx_rings[i].next_to_clean,
-				 vsi->tx_rings[i].ring_active);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: tx_stats: packets = %lld, bytes = %lld, restart_queue = %lld\n",
-				 i, vsi->tx_rings[i].tx_stats.packets,
-				 vsi->tx_rings[i].tx_stats.bytes,
-				 vsi->tx_rings[i].tx_stats.restart_queue);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: tx_stats: tx_busy = %lld, completed = %lld, tx_done_old = %lld\n",
-				 i,
-				 vsi->tx_rings[i].tx_stats.tx_busy,
-				 vsi->tx_rings[i].tx_stats.completed,
-				 vsi->tx_rings[i].tx_stats.tx_done_old);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: size = %i, dma = 0x%08lx\n",
-				 i, vsi->tx_rings[i].size,
-				 (long unsigned int)vsi->tx_rings[i].dma);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: vsi = %p, q_vector = %p\n",
-				 i, vsi->tx_rings[i].vsi,
-				 vsi->tx_rings[i].q_vector);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: DCB tc = %d\n",
-				 i, vsi->tx_rings[i].dcb_tc);
-		}
+	for (i = 0; i < vsi->num_queue_pairs; i++) {
+		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[i]);
+		if (!tx_ring)
+			continue;
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: desc = %p\n",
+			 i, tx_ring->desc);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: dev = %p, netdev = %p, tx_bi = %p\n",
+			 i, tx_ring->dev,
+			 tx_ring->netdev,
+			 tx_ring->tx_bi);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
+			 i, tx_ring->state,
+			 tx_ring->queue_index,
+			 tx_ring->reg_idx);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: dtype = %d\n",
+			 i, tx_ring->dtype);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
+			 i, tx_ring->hsplit,
+			 tx_ring->next_to_use,
+			 tx_ring->next_to_clean,
+			 tx_ring->ring_active);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: tx_stats: packets = %lld, bytes = %lld, restart_queue = %lld\n",
+			 i, tx_ring->stats.packets,
+			 tx_ring->stats.bytes,
+			 tx_ring->tx_stats.restart_queue);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: tx_stats: tx_busy = %lld, tx_done_old = %lld\n",
+			 i,
+			 tx_ring->tx_stats.tx_busy,
+			 tx_ring->tx_stats.tx_done_old);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: size = %i, dma = 0x%08lx\n",
+			 i, tx_ring->size,
+			 (long unsigned int)tx_ring->dma);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: vsi = %p, q_vector = %p\n",
+			 i, tx_ring->vsi,
+			 tx_ring->q_vector);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: DCB tc = %d\n",
+			 i, tx_ring->dcb_tc);
 	}
+	rcu_read_unlock();
 	dev_info(&pf->pdev->dev,
 		 "    work_limit = %d, rx_itr_setting = %d (%s), tx_itr_setting = %d (%s)\n",
 		 vsi->work_limit, vsi->rx_itr_setting,
@@ -587,15 +587,6 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 	dev_info(&pf->pdev->dev,
 		 "    max_frame = %d, rx_hdr_len = %d, rx_buf_len = %d dtype = %d\n",
 		 vsi->max_frame, vsi->rx_hdr_len, vsi->rx_buf_len, vsi->dtype);
-	if (vsi->q_vectors) {
-		for (i = 0; i < vsi->num_q_vectors; i++) {
-			dev_info(&pf->pdev->dev,
-				 "    q_vectors[%i]: base index = %ld\n",
-				 i, ((long int)*vsi->q_vectors[i].rx.ring-
-					(long int)*vsi->q_vectors[0].rx.ring)/
-					sizeof(struct i40e_ring));
-		}
-	}
 	dev_info(&pf->pdev->dev,
 		 "    num_q_vectors = %i, base_vector = %i\n",
 		 vsi->num_q_vectors, vsi->base_vector);
@@ -792,9 +783,9 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 		return;
 	}
 	if (is_rx_ring)
-		ring = vsi->rx_rings[ring_id];
+		ring = *vsi->rx_rings[ring_id];
 	else
-		ring = vsi->tx_rings[ring_id];
+		ring = *vsi->tx_rings[ring_id];
 	if (cnt == 2) {
 		dev_info(&pf->pdev->dev, "vsi = %02i %s ring = %02i\n",
 			 vsi_seid, is_rx_ring ? "rx" : "tx", ring_id);
@@ -1028,11 +1019,11 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				      size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
+	char *cmd_buf, *cmd_buf_tmp;
 	int bytes_not_copied;
 	struct i40e_vsi *vsi;
 	u8 *print_buf_start;
 	u8 *print_buf;
-	char *cmd_buf;
 	int vsi_seid;
 	int veb_seid;
 	int cnt;
@@ -1050,6 +1041,12 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	if (bytes_not_copied > 0)
 		count -= bytes_not_copied;
 	cmd_buf[count] = '\0';
+
+	cmd_buf_tmp = strchr(cmd_buf, '\n');
+	if (cmd_buf_tmp) {
+		*cmd_buf_tmp = '\0';
+		count = cmd_buf_tmp - cmd_buf + 1;
+	}
 
 	print_buf_start = kzalloc(I40E_MAX_DEBUG_OUT_BUFFER, GFP_KERNEL);
 	if (!print_buf_start)
@@ -1157,9 +1154,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		i40e_veb_release(pf->veb[i]);
 
 	} else if (strncmp(cmd_buf, "add macaddr", 11) == 0) {
-		u8 ma[6];
-		int vlan = 0;
 		struct i40e_mac_filter *f;
+		int vlan = 0;
+		u8 ma[6];
 		int ret;
 
 		cnt = sscanf(&cmd_buf[11],
@@ -1195,8 +1192,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				 ma, vlan, vsi_seid, f, ret);
 
 	} else if (strncmp(cmd_buf, "del macaddr", 11) == 0) {
-		u8 ma[6];
 		int vlan = 0;
+		u8 ma[6];
 		int ret;
 
 		cnt = sscanf(&cmd_buf[11],
@@ -1232,9 +1229,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				 ma, vlan, vsi_seid, ret);
 
 	} else if (strncmp(cmd_buf, "add pvid", 8) == 0) {
-		int v;
-		u16 vid;
 		i40e_status ret;
+		u16 vid;
+		int v;
 
 		cnt = sscanf(&cmd_buf[8], "%i %u", &vsi_seid, &v);
 		if (cnt != 2) {
@@ -1545,10 +1542,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	} else if ((strncmp(cmd_buf, "add fd_filter", 13) == 0) ||
 		   (strncmp(cmd_buf, "rem fd_filter", 13) == 0)) {
 		struct i40e_fdir_data fd_data;
-		int ret;
 		u16 packet_len, i, j = 0;
 		char *asc_packet;
 		bool add = false;
+		int ret;
 
 		asc_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_LOOKUP,
 				     GFP_KERNEL);
@@ -1636,9 +1633,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			}
 		} else if (strncmp(&cmd_buf[5],
 			   "get local", 9) == 0) {
+			u16 llen, rlen;
 			int ret, i;
 			u8 *buff;
-			u16 llen, rlen;
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
 				goto command_write_done;
@@ -1669,9 +1666,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			kfree(buff);
 			buff = NULL;
 		} else if (strncmp(&cmd_buf[5], "get remote", 10) == 0) {
+			u16 llen, rlen;
 			int ret, i;
 			u8 *buff;
-			u16 llen, rlen;
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
 				goto command_write_done;
@@ -1747,11 +1744,13 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
-		/* Read at least 512 words */
-		if (buffer_len == 0)
-			buffer_len = 512;
+		/* set the max length */
+		buffer_len = min_t(u16, buffer_len, I40E_MAX_AQ_BUF_SIZE/2);
 
 		bytes = 2 * buffer_len;
+
+		/* read at least 1k bytes, no more than 4kB */
+		bytes = clamp(bytes, (u16)1024, (u16)I40E_MAX_AQ_BUF_SIZE);
 		buff = kzalloc(bytes, GFP_KERNEL);
 		if (!buff)
 			goto command_write_done;
@@ -1903,6 +1902,7 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 	struct i40e_pf *pf = filp->private_data;
 	int bytes_not_copied;
 	struct i40e_vsi *vsi;
+	char *buf_tmp;
 	int vsi_seid;
 	int i, cnt;
 
@@ -1920,6 +1920,12 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 	else if (bytes_not_copied > 0)
 		count -= bytes_not_copied;
 	i40e_dbg_netdev_ops_buf[count] = '\0';
+
+	buf_tmp = strchr(i40e_dbg_netdev_ops_buf, '\n');
+	if (buf_tmp) {
+		*buf_tmp = '\0';
+		count = buf_tmp - i40e_dbg_netdev_ops_buf + 1;
+	}
 
 	if (strncmp(i40e_dbg_netdev_ops_buf, "tx_timeout", 10) == 0) {
 		cnt = sscanf(&i40e_dbg_netdev_ops_buf[11], "%i", &vsi_seid);
@@ -1996,7 +2002,7 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 			goto netdev_ops_write_done;
 		}
 		for (i = 0; i < vsi->num_q_vectors; i++)
-			napi_schedule(&vsi->q_vectors[i].napi);
+			napi_schedule(&vsi->q_vectors[i]->napi);
 		dev_info(&pf->pdev->dev, "napi called\n");
 	} else {
 		dev_info(&pf->pdev->dev, "unknown command '%s'\n",
@@ -2024,21 +2030,35 @@ static const struct file_operations i40e_dbg_netdev_ops_fops = {
  **/
 void i40e_dbg_pf_init(struct i40e_pf *pf)
 {
-	struct dentry *pfile __attribute__((unused));
+	struct dentry *pfile;
 	const char *name = pci_name(pf->pdev);
+	const struct device *dev = &pf->pdev->dev;
 
 	pf->i40e_dbg_pf = debugfs_create_dir(name, i40e_dbg_root);
-	if (pf->i40e_dbg_pf) {
-		pfile = debugfs_create_file("command", 0600, pf->i40e_dbg_pf,
-					    pf, &i40e_dbg_command_fops);
-		pfile = debugfs_create_file("dump", 0600, pf->i40e_dbg_pf, pf,
-					    &i40e_dbg_dump_fops);
-		pfile = debugfs_create_file("netdev_ops", 0600, pf->i40e_dbg_pf,
-					    pf, &i40e_dbg_netdev_ops_fops);
-	} else {
-		dev_info(&pf->pdev->dev,
-			 "debugfs entry for %s failed\n", name);
-	}
+	if (!pf->i40e_dbg_pf)
+		return;
+
+	pfile = debugfs_create_file("command", 0600, pf->i40e_dbg_pf, pf,
+				    &i40e_dbg_command_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("dump", 0600, pf->i40e_dbg_pf, pf,
+				    &i40e_dbg_dump_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("netdev_ops", 0600, pf->i40e_dbg_pf, pf,
+				    &i40e_dbg_netdev_ops_fops);
+	if (!pfile)
+		goto create_failed;
+
+	return;
+
+create_failed:
+	dev_info(dev, "debugfs dir/file for %s failed\n", name);
+	debugfs_remove_recursive(pf->i40e_dbg_pf);
+	return;
 }
 
 /**

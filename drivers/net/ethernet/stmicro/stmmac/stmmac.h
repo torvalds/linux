@@ -110,14 +110,14 @@ struct stmmac_priv {
 
 extern int phyaddr;
 
-extern int stmmac_mdio_unregister(struct net_device *ndev);
-extern int stmmac_mdio_register(struct net_device *ndev);
-extern void stmmac_set_ethtool_ops(struct net_device *netdev);
+int stmmac_mdio_unregister(struct net_device *ndev);
+int stmmac_mdio_register(struct net_device *ndev);
+void stmmac_set_ethtool_ops(struct net_device *netdev);
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
 extern const struct stmmac_hwtimestamp stmmac_ptp;
-extern int stmmac_ptp_register(struct stmmac_priv *priv);
-extern void stmmac_ptp_unregister(struct stmmac_priv *priv);
+int stmmac_ptp_register(struct stmmac_priv *priv);
+void stmmac_ptp_unregister(struct stmmac_priv *priv);
 int stmmac_freeze(struct net_device *ndev);
 int stmmac_restore(struct net_device *ndev);
 int stmmac_resume(struct net_device *ndev);

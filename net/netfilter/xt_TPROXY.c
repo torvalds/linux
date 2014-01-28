@@ -200,7 +200,7 @@ nf_tproxy_get_sock_v6(struct net *net, const u8 protocol,
 				     in->ifindex);
 		if (sk) {
 			int connected = (sk->sk_state == TCP_ESTABLISHED);
-			int wildcard = ipv6_addr_any(&inet6_sk(sk)->rcv_saddr);
+			int wildcard = ipv6_addr_any(&sk->sk_v6_rcv_saddr);
 
 			/* NOTE: we return listeners even if bound to
 			 * 0.0.0.0, those are filtered out in

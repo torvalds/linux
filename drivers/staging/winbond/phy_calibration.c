@@ -27,10 +27,12 @@
 #define DEG2RAD(X)      (0.017453 * (X))
 
 static const s32 Angles[] = {
-	FIXED(DEG2RAD(45.0)),     FIXED(DEG2RAD(26.565)),   FIXED(DEG2RAD(14.0362)),
-	FIXED(DEG2RAD(7.12502)),  FIXED(DEG2RAD(3.57633)),  FIXED(DEG2RAD(1.78991)),
-	FIXED(DEG2RAD(0.895174)), FIXED(DEG2RAD(0.447614)), FIXED(DEG2RAD(0.223811)),
-	FIXED(DEG2RAD(0.111906)), FIXED(DEG2RAD(0.055953)), FIXED(DEG2RAD(0.027977))
+	FIXED(DEG2RAD(45.0)),     FIXED(DEG2RAD(26.565)),
+	FIXED(DEG2RAD(14.0362)),  FIXED(DEG2RAD(7.12502)),
+	FIXED(DEG2RAD(3.57633)),  FIXED(DEG2RAD(1.78991)),
+	FIXED(DEG2RAD(0.895174)), FIXED(DEG2RAD(0.447614)),
+	FIXED(DEG2RAD(0.223811)), FIXED(DEG2RAD(0.111906)),
+	FIXED(DEG2RAD(0.055953)), FIXED(DEG2RAD(0.027977))
 };
 
 /****************** LOCAL FUNCTION DECLARATION SECTION **********************/
@@ -42,7 +44,7 @@ static const s32 Angles[] = {
 
 /****************** FUNCTION DEFINITION SECTION *****************************/
 
-s32 _s13_to_s32(u32 data)
+static s32 _s13_to_s32(u32 data)
 {
 	u32     val;
 
@@ -54,22 +56,8 @@ s32 _s13_to_s32(u32 data)
 	return (s32) val;
 }
 
-u32 _s32_to_s13(s32 data)
-{
-	u32     val;
-
-	if (data > 4095)
-		data = 4095;
-	else if (data < -4096)
-		data = -4096;
-
-	val = data & 0x1FFF;
-
-	return val;
-}
-
 /****************************************************************************/
-s32 _s4_to_s32(u32 data)
+static s32 _s4_to_s32(u32 data)
 {
 	s32     val;
 
@@ -81,7 +69,7 @@ s32 _s4_to_s32(u32 data)
 	return val;
 }
 
-u32 _s32_to_s4(s32 data)
+static u32 _s32_to_s4(s32 data)
 {
 	u32     val;
 
@@ -96,7 +84,7 @@ u32 _s32_to_s4(s32 data)
 }
 
 /****************************************************************************/
-s32 _s5_to_s32(u32 data)
+static s32 _s5_to_s32(u32 data)
 {
 	s32     val;
 
@@ -108,7 +96,7 @@ s32 _s5_to_s32(u32 data)
 	return val;
 }
 
-u32 _s32_to_s5(s32 data)
+static u32 _s32_to_s5(s32 data)
 {
 	u32     val;
 
@@ -123,7 +111,7 @@ u32 _s32_to_s5(s32 data)
 }
 
 /****************************************************************************/
-s32 _s6_to_s32(u32 data)
+static s32 _s6_to_s32(u32 data)
 {
 	s32     val;
 
@@ -135,7 +123,7 @@ s32 _s6_to_s32(u32 data)
 	return val;
 }
 
-u32 _s32_to_s6(s32 data)
+static u32 _s32_to_s6(s32 data)
 {
 	u32     val;
 
@@ -150,34 +138,7 @@ u32 _s32_to_s6(s32 data)
 }
 
 /****************************************************************************/
-s32 _s9_to_s32(u32 data)
-{
-	s32     val;
-
-	val = data & 0x00FF;
-
-	if ((data & BIT(8)) != 0)
-		val |= 0xFFFFFF00;
-
-	return val;
-}
-
-u32 _s32_to_s9(s32 data)
-{
-	u32     val;
-
-	if (data > 255)
-		data = 255;
-	else if (data < -256)
-		data = -256;
-
-	val = data & 0x01FF;
-
-	return val;
-}
-
-/****************************************************************************/
-s32 _floor(s32 n)
+static s32 _floor(s32 n)
 {
 	if (n > 0)
 		n += 5;
@@ -193,7 +154,7 @@ s32 _floor(s32 n)
  * sqsum is the input and the output is sq_rt;
  * The maximum of sqsum = 2^27 -1;
  */
-u32 _sqrt(u32 sqsum)
+static u32 _sqrt(u32 sqsum)
 {
 	u32     sq_rt;
 
@@ -261,7 +222,7 @@ u32 _sqrt(u32 sqsum)
 }
 
 /****************************************************************************/
-void _sin_cos(s32 angle, s32 *sin, s32 *cos)
+static void _sin_cos(s32 angle, s32 *sin, s32 *cos)
 {
 	s32 X, Y, TargetAngle, CurrAngle;
 	unsigned    Step;
@@ -296,7 +257,8 @@ void _sin_cos(s32 angle, s32 *sin, s32 *cos)
 	}
 }
 
-static unsigned char hal_get_dxx_reg(struct hw_data *pHwData, u16 number, u32 *pValue)
+static unsigned char hal_get_dxx_reg(struct hw_data *pHwData, u16 number,
+				     u32 *pValue)
 {
 	if (number < 0x1000)
 		number += 0x1000;
@@ -304,7 +266,8 @@ static unsigned char hal_get_dxx_reg(struct hw_data *pHwData, u16 number, u32 *p
 }
 #define hw_get_dxx_reg(_A, _B, _C) hal_get_dxx_reg(_A, _B, (u32 *)_C)
 
-static unsigned char hal_set_dxx_reg(struct hw_data *pHwData, u16 number, u32 value)
+static unsigned char hal_set_dxx_reg(struct hw_data *pHwData, u16 number,
+				     u32 value)
 {
 	unsigned char ret;
 
@@ -316,7 +279,7 @@ static unsigned char hal_set_dxx_reg(struct hw_data *pHwData, u16 number, u32 va
 #define hw_set_dxx_reg(_A, _B, _C) hal_set_dxx_reg(_A, _B, (u32)_C)
 
 
-void _reset_rx_cal(struct hw_data *phw_data)
+static void _reset_rx_cal(struct hw_data *phw_data)
 {
 	u32     val;
 
@@ -336,7 +299,7 @@ void _reset_rx_cal(struct hw_data *phw_data)
 
 
 /**********************************************/
-void _rxadc_dc_offset_cancellation_winbond(struct hw_data *phw_data, u32 frequency)
+static void _rxadc_dc_offset_cancellation_winbond(struct hw_data *phw_data, u32 frequency)
 {
 	u32     reg_agc_ctrl3;
 	u32     reg_a_acq_ctrl;
@@ -407,7 +370,8 @@ void _rxadc_dc_offset_cancellation_winbond(struct hw_data *phw_data, u32 frequen
 	PHY_DEBUG(("[CAL]    ** adc_dc_cal_i = %d (0x%04X)\n",
 			   _s9_to_s32(val&0x000001FF), val&0x000001FF));
 	PHY_DEBUG(("[CAL]    ** adc_dc_cal_q = %d (0x%04X)\n",
-			   _s9_to_s32((val&0x0003FE00)>>9), (val&0x0003FE00)>>9));
+			   _s9_to_s32((val&0x0003FE00)>>9),
+			   (val&0x0003FE00)>>9));
 #endif
 
 	hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &val);
@@ -430,249 +394,8 @@ void _rxadc_dc_offset_cancellation_winbond(struct hw_data *phw_data, u32 frequen
 	hw_set_dxx_reg(phw_data, REG_AGC_CTRL3, reg_agc_ctrl3);
 }
 
-/****************************************************************/
-void _txidac_dc_offset_cancellation_winbond(struct hw_data *phw_data)
-{
-	u32     reg_agc_ctrl3;
-	u32     reg_mode_ctrl;
-	u32     reg_dc_cancel;
-	s32     iqcal_image_i;
-	s32     iqcal_image_q;
-	u32     sqsum;
-	s32     mag_0;
-	s32     mag_1;
-	s32     fix_cancel_dc_i = 0;
-	u32     val;
-	int     loop;
-
-	PHY_DEBUG(("[CAL] -> [2]_txidac_dc_offset_cancellation()\n"));
-
-	/* a. Set to "TX calibration mode" */
-
-	/* 0x01 0xEE3FC2  ; 3B8FF  ; Calibration (6a). enable TX IQ calibration loop circuits */
-	phy_set_rf_data(phw_data, 1, (1<<24)|0xEE3FC2);
-	/* 0x0B 0x1905D6  ; 06417  ; Calibration (6b). enable TX I/Q cal loop squaring circuit */
-	phy_set_rf_data(phw_data, 11, (11<<24)|0x1901D6);
-	/* 0x05 0x24C60A  ; 09318  ; Calibration (6c). setting TX-VGA gain: TXGCH=2 & GPK=110 --> to be optimized */
-	phy_set_rf_data(phw_data, 5, (5<<24)|0x24C48A);
-	/* 0x06 0x06880C  ; 01A20  ; Calibration (6d). RXGCH=00; RXGCL=100 000 (RXVGA=32) --> to be optimized */
-	phy_set_rf_data(phw_data, 6, (6<<24)|0x06890C);
-	/* 0x00 0xFDF1C0  ; 3F7C7  ; Calibration (6e). turn on IQ imbalance/Test mode */
-	phy_set_rf_data(phw_data, 0, (0<<24)|0xFDF1C0);
-
-	hw_set_dxx_reg(phw_data, 0x58, 0x30303030); /* IQ_Alpha Changed */
-
-	/* a. Disable AGC */
-	hw_get_dxx_reg(phw_data, REG_AGC_CTRL3, &reg_agc_ctrl3);
-	reg_agc_ctrl3 &= ~BIT(2);
-	reg_agc_ctrl3 |= (MASK_LNA_FIX_GAIN|MASK_AGC_FIX);
-	hw_set_dxx_reg(phw_data, REG_AGC_CTRL3, reg_agc_ctrl3);
-
-	hw_get_dxx_reg(phw_data, REG_AGC_CTRL5, &val);
-	val |= MASK_AGC_FIX_GAIN;
-	hw_set_dxx_reg(phw_data, REG_AGC_CTRL5, val);
-
-	/* b. set iqcal_mode[1:0] to 0x2 and set iqcal_tone[3:2] to 0 */
-	hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &reg_mode_ctrl);
-
-	PHY_DEBUG(("[CAL]    MODE_CTRL (read) = 0x%08X\n", reg_mode_ctrl));
-	reg_mode_ctrl &= ~(MASK_IQCAL_TONE_SEL|MASK_IQCAL_MODE);
-
-	/* mode=2, tone=0 */
-	/* reg_mode_ctrl |= (MASK_CALIB_START|2); */
-
-	/* mode=2, tone=1 */
-	/* reg_mode_ctrl |= (MASK_CALIB_START|2|(1<<2)); */
-
-	/* mode=2, tone=2 */
-	reg_mode_ctrl |= (MASK_CALIB_START|2|(2<<2));
-	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
-	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-
-	hw_get_dxx_reg(phw_data, 0x5C, &reg_dc_cancel);
-	PHY_DEBUG(("[CAL]    DC_CANCEL (read) = 0x%08X\n", reg_dc_cancel));
-
-	for (loop = 0; loop < LOOP_TIMES; loop++) {
-		PHY_DEBUG(("[CAL] [%d.] ==================================\n", loop));
-
-		/* c. reset cancel_dc_i[9:5] and cancel_dc_q[4:0] in register DC_Cancel */
-		reg_dc_cancel &= ~(0x03FF);
-		PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
-		hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-
-		hw_get_dxx_reg(phw_data, REG_CALIB_READ2, &val);
-		PHY_DEBUG(("[CAL]    CALIB_READ2 = 0x%08X\n", val));
-
-		iqcal_image_i = _s13_to_s32(val & 0x00001FFF);
-		iqcal_image_q = _s13_to_s32((val & 0x03FFE000) >> 13);
-		sqsum = iqcal_image_i*iqcal_image_i + iqcal_image_q*iqcal_image_q;
-		mag_0 = (s32) _sqrt(sqsum);
-		PHY_DEBUG(("[CAL]    mag_0=%d (iqcal_image_i=%d, iqcal_image_q=%d)\n",
-				   mag_0, iqcal_image_i, iqcal_image_q));
-
-		/* d. */
-		reg_dc_cancel |= (1 << CANCEL_DC_I_SHIFT);
-		PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
-		hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-
-		hw_get_dxx_reg(phw_data, REG_CALIB_READ2, &val);
-		PHY_DEBUG(("[CAL]    CALIB_READ2 = 0x%08X\n", val));
-
-		iqcal_image_i = _s13_to_s32(val & 0x00001FFF);
-		iqcal_image_q = _s13_to_s32((val & 0x03FFE000) >> 13);
-		sqsum = iqcal_image_i*iqcal_image_i + iqcal_image_q*iqcal_image_q;
-		mag_1 = (s32) _sqrt(sqsum);
-		PHY_DEBUG(("[CAL]    mag_1=%d (iqcal_image_i=%d, iqcal_image_q=%d)\n",
-				   mag_1, iqcal_image_i, iqcal_image_q));
-
-		/* e. Calculate the correct DC offset cancellation value for I */
-		if (mag_0 != mag_1)
-			fix_cancel_dc_i = (mag_0*10000) / (mag_0*10000 - mag_1*10000);
-		else {
-			if (mag_0 == mag_1)
-				PHY_DEBUG(("[CAL]   ***** mag_0 = mag_1 !!\n"));
-			fix_cancel_dc_i = 0;
-		}
-
-		PHY_DEBUG(("[CAL]    ** fix_cancel_dc_i = %d (0x%04X)\n",
-				   fix_cancel_dc_i, _s32_to_s5(fix_cancel_dc_i)));
-
-		if ((abs(mag_1-mag_0)*6) > mag_0)
-			break;
-	}
-
-	if (loop >= 19)
-		fix_cancel_dc_i = 0;
-
-	reg_dc_cancel &= ~(0x03FF);
-	reg_dc_cancel |= (_s32_to_s5(fix_cancel_dc_i) << CANCEL_DC_I_SHIFT);
-	hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-	PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
-
-	/* g. */
-	reg_mode_ctrl &= ~MASK_CALIB_START;
-	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
-	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-}
-
-/*****************************************************/
-void _txqdac_dc_offset_cacellation_winbond(struct hw_data *phw_data)
-{
-	u32     reg_agc_ctrl3;
-	u32     reg_mode_ctrl;
-	u32     reg_dc_cancel;
-	s32     iqcal_image_i;
-	s32     iqcal_image_q;
-	u32     sqsum;
-	s32     mag_0;
-	s32     mag_1;
-	s32     fix_cancel_dc_q = 0;
-	u32     val;
-	int     loop;
-
-	PHY_DEBUG(("[CAL] -> [3]_txqdac_dc_offset_cacellation()\n"));
-	/*0x01 0xEE3FC2  ; 3B8FF  ; Calibration (6a). enable TX IQ calibration loop circuits */
-	phy_set_rf_data(phw_data, 1, (1<<24)|0xEE3FC2);
-	/* 0x0B 0x1905D6  ; 06417  ; Calibration (6b). enable TX I/Q cal loop squaring circuit */
-	phy_set_rf_data(phw_data, 11, (11<<24)|0x1901D6);
-	/* 0x05 0x24C60A  ; 09318  ; Calibration (6c). setting TX-VGA gain: TXGCH=2 & GPK=110 --> to be optimized */
-	phy_set_rf_data(phw_data, 5, (5<<24)|0x24C48A);
-	/* 0x06 0x06880C  ; 01A20  ; Calibration (6d). RXGCH=00; RXGCL=100 000 (RXVGA=32) --> to be optimized */
-	phy_set_rf_data(phw_data, 6, (6<<24)|0x06890C);
-	/* 0x00 0xFDF1C0  ; 3F7C7  ; Calibration (6e). turn on IQ imbalance/Test mode */
-	phy_set_rf_data(phw_data, 0, (0<<24)|0xFDF1C0);
-
-	hw_set_dxx_reg(phw_data, 0x58, 0x30303030); /* IQ_Alpha Changed */
-
-	/* a. Disable AGC */
-	hw_get_dxx_reg(phw_data, REG_AGC_CTRL3, &reg_agc_ctrl3);
-	reg_agc_ctrl3 &= ~BIT(2);
-	reg_agc_ctrl3 |= (MASK_LNA_FIX_GAIN|MASK_AGC_FIX);
-	hw_set_dxx_reg(phw_data, REG_AGC_CTRL3, reg_agc_ctrl3);
-
-	hw_get_dxx_reg(phw_data, REG_AGC_CTRL5, &val);
-	val |= MASK_AGC_FIX_GAIN;
-	hw_set_dxx_reg(phw_data, REG_AGC_CTRL5, val);
-
-	/* a. set iqcal_mode[1:0] to 0x3 and set iqcal_tone[3:2] to 0 */
-	hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &reg_mode_ctrl);
-	PHY_DEBUG(("[CAL]    MODE_CTRL (read) = 0x%08X\n", reg_mode_ctrl));
-
-	/* reg_mode_ctrl &= ~(MASK_IQCAL_TONE_SEL|MASK_IQCAL_MODE); */
-	reg_mode_ctrl &= ~(MASK_IQCAL_MODE);
-	reg_mode_ctrl |= (MASK_CALIB_START|3);
-	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
-	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-
-	hw_get_dxx_reg(phw_data, 0x5C, &reg_dc_cancel);
-	PHY_DEBUG(("[CAL]    DC_CANCEL (read) = 0x%08X\n", reg_dc_cancel));
-
-	for (loop = 0; loop < LOOP_TIMES; loop++) {
-		PHY_DEBUG(("[CAL] [%d.] ==================================\n", loop));
-
-		/* b. reset cancel_dc_q[4:0] in register DC_Cancel */
-		reg_dc_cancel &= ~(0x001F);
-		PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
-		hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-
-		hw_get_dxx_reg(phw_data, REG_CALIB_READ2, &val);
-		PHY_DEBUG(("[CAL]    CALIB_READ2 = 0x%08X\n", val));
-
-		iqcal_image_i = _s13_to_s32(val & 0x00001FFF);
-		iqcal_image_q = _s13_to_s32((val & 0x03FFE000) >> 13);
-		sqsum = iqcal_image_i*iqcal_image_i + iqcal_image_q*iqcal_image_q;
-		mag_0 = _sqrt(sqsum);
-		PHY_DEBUG(("[CAL]    mag_0=%d (iqcal_image_i=%d, iqcal_image_q=%d)\n",
-				   mag_0, iqcal_image_i, iqcal_image_q));
-
-		/* c. */
-		reg_dc_cancel |= (1 << CANCEL_DC_Q_SHIFT);
-		PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
-		hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-
-		hw_get_dxx_reg(phw_data, REG_CALIB_READ2, &val);
-		PHY_DEBUG(("[CAL]    CALIB_READ2 = 0x%08X\n", val));
-
-		iqcal_image_i = _s13_to_s32(val & 0x00001FFF);
-		iqcal_image_q = _s13_to_s32((val & 0x03FFE000) >> 13);
-		sqsum = iqcal_image_i*iqcal_image_i + iqcal_image_q*iqcal_image_q;
-		mag_1 = _sqrt(sqsum);
-		PHY_DEBUG(("[CAL]    mag_1=%d (iqcal_image_i=%d, iqcal_image_q=%d)\n",
-				   mag_1, iqcal_image_i, iqcal_image_q));
-
-		/* d. Calculate the correct DC offset cancellation value for I */
-		if (mag_0 != mag_1)
-			fix_cancel_dc_q = (mag_0*10000) / (mag_0*10000 - mag_1*10000);
-		else {
-			if (mag_0 == mag_1)
-				PHY_DEBUG(("[CAL]   ***** mag_0 = mag_1 !!\n"));
-			fix_cancel_dc_q = 0;
-		}
-
-		PHY_DEBUG(("[CAL]    ** fix_cancel_dc_q = %d (0x%04X)\n",
-				   fix_cancel_dc_q, _s32_to_s5(fix_cancel_dc_q)));
-
-		if ((abs(mag_1-mag_0)*6) > mag_0)
-			break;
-	}
-
-	if (loop >= 19)
-		fix_cancel_dc_q = 0;
-
-	reg_dc_cancel &= ~(0x001F);
-	reg_dc_cancel |= (_s32_to_s5(fix_cancel_dc_q) << CANCEL_DC_Q_SHIFT);
-	hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-	PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
-
-
-	/* f. */
-	reg_mode_ctrl &= ~MASK_CALIB_START;
-	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
-	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-}
-
 /* 20060612.1.a 20060718.1 Modify */
-u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
+static u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 						   s32 a_2_threshold,
 						   s32 b_2_threshold)
 {
@@ -711,7 +434,8 @@ u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 	loop = LOOP_TIMES;
 
 	while (loop > 0) {
-		PHY_DEBUG(("[CAL] [%d.] <_tx_iq_calibration_loop>\n", (LOOP_TIMES-loop+1)));
+		PHY_DEBUG(("[CAL] [%d.] <_tx_iq_calibration_loop>\n",
+				   (LOOP_TIMES-loop+1)));
 
 		iqcal_tone_i_avg = 0;
 		iqcal_tone_q_avg = 0;
@@ -719,8 +443,8 @@ u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 			return 0;
 		for (capture_time = 0; capture_time < 10; capture_time++) {
 			/*
-			 * a. Set iqcal_mode[1:0] to 0x2 and set "calib_start" to 0x1 to
-			 *    enable "IQ calibration Mode II"
+			 * a. Set iqcal_mode[1:0] to 0x2 and set "calib_start"
+			 *    to 0x1 to enable "IQ calibration Mode II"
 			 */
 			reg_mode_ctrl &= ~(MASK_IQCAL_TONE_SEL|MASK_IQCAL_MODE);
 			reg_mode_ctrl &= ~MASK_IQCAL_MODE;
@@ -749,8 +473,8 @@ u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 			PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
 
 			/*
-			 * d. Set iqcal_mode[1:0] to 0x3 and set "calib_start" to 0x1 to
-			 *    enable "IQ calibration Mode II"
+			 * d. Set iqcal_mode[1:0] to 0x3 and set "calib_start"
+			 *    to 0x1 to enable "IQ calibration Mode II"
 			 */
 			/* hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &val); */
 			hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &reg_mode_ctrl);
@@ -766,7 +490,7 @@ u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 			iqcal_tone_i = _s13_to_s32(val & 0x00001FFF);
 			iqcal_tone_q = _s13_to_s32((val & 0x03FFE000) >> 13);
 			PHY_DEBUG(("[CAL]    ** iqcal_tone_i = %d, iqcal_tone_q = %d\n",
-			iqcal_tone_i, iqcal_tone_q));
+					   iqcal_tone_i, iqcal_tone_q));
 			if (capture_time == 0)
 				continue;
 			else {
@@ -955,7 +679,7 @@ u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 	return 1;
 }
 
-void _tx_iq_calibration_winbond(struct hw_data *phw_data)
+static void _tx_iq_calibration_winbond(struct hw_data *phw_data)
 {
 	u32     reg_agc_ctrl3;
 #ifdef _DEBUG
@@ -1101,7 +825,7 @@ void _tx_iq_calibration_winbond(struct hw_data *phw_data)
 }
 
 /*****************************************************/
-u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 frequency)
+static u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 frequency)
 {
 	u32     reg_mode_ctrl;
 	s32     iqcal_tone_i;
@@ -1146,7 +870,8 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 	/* for (loop = 0; loop < LOOP_TIMES; loop++) */
 	loop = LOOP_TIMES;
 	while (loop > 0) {
-		PHY_DEBUG(("[CAL] [%d.] <_rx_iq_calibration_loop>\n", (LOOP_TIMES-loop+1)));
+		PHY_DEBUG(("[CAL] [%d.] <_rx_iq_calibration_loop>\n",
+				   (LOOP_TIMES-loop+1)));
 		iqcal_tone_i_avg = 0;
 		iqcal_tone_q_avg = 0;
 		iqcal_image_i_avg = 0;
@@ -1199,13 +924,13 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 
 		/* d. */
 		rot_tone_i_b = (iqcal_tone_i * iqcal_tone_i +
-						iqcal_tone_q * iqcal_tone_q) / 1024;
+					iqcal_tone_q * iqcal_tone_q) / 1024;
 		rot_tone_q_b = (iqcal_tone_i * iqcal_tone_q * (-1) +
-						iqcal_tone_q * iqcal_tone_i) / 1024;
+					iqcal_tone_q * iqcal_tone_i) / 1024;
 		rot_image_i_b = (iqcal_image_i * iqcal_tone_i -
-						 iqcal_image_q * iqcal_tone_q) / 1024;
+					iqcal_image_q * iqcal_tone_q) / 1024;
 		rot_image_q_b = (iqcal_image_i * iqcal_tone_q +
-						 iqcal_image_q * iqcal_tone_i) / 1024;
+					iqcal_image_q * iqcal_tone_i) / 1024;
 
 		PHY_DEBUG(("[CAL]    ** rot_tone_i_b  = %d\n", rot_tone_i_b));
 		PHY_DEBUG(("[CAL]    ** rot_tone_q_b  = %d\n", rot_tone_q_b));
@@ -1225,8 +950,10 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 		b_2 = (rot_image_q_b * 32768) / rot_tone_i_b -
 			phw_data->iq_rsdl_phase_tx_d2;
 
-		PHY_DEBUG(("[CAL]    ** iq_rsdl_gain_tx_d2 = %d\n", phw_data->iq_rsdl_gain_tx_d2));
-		PHY_DEBUG(("[CAL]    ** iq_rsdl_phase_tx_d2= %d\n", phw_data->iq_rsdl_phase_tx_d2));
+		PHY_DEBUG(("[CAL]    ** iq_rsdl_gain_tx_d2 = %d\n",
+			   phw_data->iq_rsdl_gain_tx_d2));
+		PHY_DEBUG(("[CAL]    ** iq_rsdl_phase_tx_d2= %d\n",
+			   phw_data->iq_rsdl_phase_tx_d2));
 		PHY_DEBUG(("[CAL]    ***** EPSILON/2 = %d\n", a_2));
 		PHY_DEBUG(("[CAL]    ***** THETA/2   = %d\n", b_2));
 
@@ -1272,7 +999,8 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 
 		/* e. */
 		pwr_tone = (iqcal_tone_i*iqcal_tone_i + iqcal_tone_q*iqcal_tone_q);
-		pwr_image = (iqcal_image_i*iqcal_image_i + iqcal_image_q*iqcal_image_q)*factor;
+		pwr_image = (iqcal_image_i*iqcal_image_i +
+			     iqcal_image_q*iqcal_image_q)*factor;
 
 		PHY_DEBUG(("[CAL]    ** pwr_tone  = %d\n", pwr_tone));
 		PHY_DEBUG(("[CAL]    ** pwr_image  = %d\n", pwr_image));
@@ -1371,7 +1099,7 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 /*************************************************/
 
 /***************************************************************/
-void _rx_iq_calibration_winbond(struct hw_data *phw_data, u32 frequency)
+static void _rx_iq_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 {
 /* figo 20050523 marked this flag for can't compile for release */
 #ifdef _DEBUG
@@ -1569,7 +1297,8 @@ unsigned char adjust_TXVGA_for_iq_mag(struct hw_data *phw_data)
 
 		sqsum = iqcal_tone_i0*iqcal_tone_i0 + iqcal_tone_q0*iqcal_tone_q0;
 		iq_mag_0_tx = (s32) _sqrt(sqsum);
-		PHY_DEBUG(("[CAL]    ** auto_adjust_txvga_for_iq_mag_0_tx=%d\n", iq_mag_0_tx));
+		PHY_DEBUG(("[CAL]    ** auto_adjust_txvga_for_iq_mag_0_tx=%d\n",
+			   iq_mag_0_tx));
 
 		if (iq_mag_0_tx >= 700 && iq_mag_0_tx <= 1750)
 			break;

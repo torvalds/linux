@@ -27,7 +27,7 @@ void cifs_fscache_get_client_cookie(struct TCP_Server_Info *server)
 {
 	server->fscache =
 		fscache_acquire_cookie(cifs_fscache_netfs.primary_index,
-				&cifs_fscache_server_index_def, server);
+				&cifs_fscache_server_index_def, server, true);
 	cifs_dbg(FYI, "%s: (0x%p/0x%p)\n",
 		 __func__, server, server->fscache);
 }
@@ -46,7 +46,7 @@ void cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 
 	tcon->fscache =
 		fscache_acquire_cookie(server->fscache,
-				&cifs_fscache_super_index_def, tcon);
+				&cifs_fscache_super_index_def, tcon, true);
 	cifs_dbg(FYI, "%s: (0x%p/0x%p)\n",
 		 __func__, server->fscache, tcon->fscache);
 }
@@ -69,7 +69,7 @@ static void cifs_fscache_enable_inode_cookie(struct inode *inode)
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_FSCACHE) {
 		cifsi->fscache = fscache_acquire_cookie(tcon->fscache,
-				&cifs_fscache_inode_object_def, cifsi);
+				&cifs_fscache_inode_object_def, cifsi, true);
 		cifs_dbg(FYI, "%s: got FH cookie (0x%p/0x%p)\n",
 			 __func__, tcon->fscache, cifsi->fscache);
 	}
@@ -119,7 +119,7 @@ void cifs_fscache_reset_inode_cookie(struct inode *inode)
 		cifsi->fscache = fscache_acquire_cookie(
 					cifs_sb_master_tcon(cifs_sb)->fscache,
 					&cifs_fscache_inode_object_def,
-					cifsi);
+					cifsi, true);
 		cifs_dbg(FYI, "%s: new cookie 0x%p oldcookie 0x%p\n",
 			 __func__, cifsi->fscache, old);
 	}

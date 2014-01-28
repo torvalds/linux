@@ -522,7 +522,7 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 				memcpy(skb_push(bcsp->rx_skb, HCI_EVENT_HDR_SIZE), &hdr, HCI_EVENT_HDR_SIZE);
 				bt_cb(bcsp->rx_skb)->pkt_type = HCI_EVENT_PKT;
 
-				hci_recv_frame(bcsp->rx_skb);
+				hci_recv_frame(hu->hdev, bcsp->rx_skb);
 			} else {
 				BT_ERR ("Packet for unknown channel (%u %s)",
 					bcsp->rx_skb->data[1] & 0x0f,
@@ -536,7 +536,7 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 		/* Pull out BCSP hdr */
 		skb_pull(bcsp->rx_skb, 4);
 
-		hci_recv_frame(bcsp->rx_skb);
+		hci_recv_frame(hu->hdev, bcsp->rx_skb);
 	}
 
 	bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
@@ -655,7 +655,6 @@ static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 					bcsp->rx_count = 0;
 					return 0;
 				}
-				bcsp->rx_skb->dev = (void *) hu->hdev;
 				break;
 			}
 			break;

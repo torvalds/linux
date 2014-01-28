@@ -664,7 +664,7 @@ static struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.size		= 32,
 		.offset		= 0,
 		.v4l2_type	= V4L2_CTRL_TYPE_INTEGER,
-		.data_type	= UVC_CTRL_DATA_TYPE_UNSIGNED,
+		.data_type	= UVC_CTRL_DATA_TYPE_SIGNED,
 	},
 	{
 		.id		= V4L2_CID_TILT_ABSOLUTE,
@@ -674,7 +674,7 @@ static struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.size		= 32,
 		.offset		= 32,
 		.v4l2_type	= V4L2_CTRL_TYPE_INTEGER,
-		.data_type	= UVC_CTRL_DATA_TYPE_UNSIGNED,
+		.data_type	= UVC_CTRL_DATA_TYPE_SIGNED,
 	},
 	{
 		.id		= V4L2_CID_PRIVACY,

@@ -231,7 +231,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 		master->num_chipselect = pdata->num_chipselect;
 	}
 
-	sp->bitbang.master = spi_master_get(master);
+	sp->bitbang.master = master;
 	sp->bitbang.chipselect = ath79_spi_chipselect;
 	sp->bitbang.txrx_word[SPI_MODE_0] = ath79_spi_txrx_mode0;
 	sp->bitbang.setup_transfer = spi_bitbang_setup_transfer;

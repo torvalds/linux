@@ -293,10 +293,6 @@ struct iwl_mvm_sta {
 	struct iwl_lq_sta lq_sta;
 	struct ieee80211_vif *vif;
 
-#ifdef CONFIG_PM_SLEEP
-	u16 last_seq_ctl;
-#endif
-
 	/* Temporary, until the new TLC will control the Tx protection */
 	s8 tx_protection;
 	bool tt_tx_protection;
