@@ -458,15 +458,6 @@ void __init dmi_check_pciprobe(void)
 
 struct pci_bus *pcibios_scan_root(int busnum)
 {
-	struct pci_bus *bus = NULL;
-
-	while ((bus = pci_find_next_bus(bus)) != NULL) {
-		if (bus->number == busnum) {
-			/* Already scanned */
-			return bus;
-		}
-	}
-
 	return pci_scan_bus_on_node(busnum, &pci_root_ops,
 					get_mp_bus_to_node(busnum));
 }
