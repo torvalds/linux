@@ -150,7 +150,7 @@ void ipc_init_ids(struct ipc_ids *ids)
 		if (seq_limit > USHRT_MAX)
 			ids->seq_max = USHRT_MAX;
 		 else
-		 	ids->seq_max = seq_limit;
+			ids->seq_max = seq_limit;
 	}
 
 	idr_init(&ids->ipcs_idr);
@@ -227,7 +227,7 @@ static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
 }
 
 /**
- *	ipc_get_maxid 	-	get the last assigned id
+ *	ipc_get_maxid	-	get the last assigned id
  *	@ids: IPC identifier set
  *
  *	Called with ipc_ids.rwsem held.
@@ -258,7 +258,7 @@ int ipc_get_maxid(struct ipc_ids *ids)
 }
 
 /**
- *	ipc_addid 	-	add an IPC identifier
+ *	ipc_addid	-	add an IPC identifier
  *	@ids: IPC identifier set
  *	@new: new IPC permission set
  *	@size: limit for the number of used ids
@@ -270,7 +270,7 @@ int ipc_get_maxid(struct ipc_ids *ids)
  *
  *	Called with writer ipc_ids.rwsem held.
  */
-int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
+int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 {
 	kuid_t euid;
 	kgid_t egid;
@@ -463,7 +463,7 @@ void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 void *ipc_alloc(int size)
 {
 	void *out;
-	if(size > PAGE_SIZE)
+	if (size > PAGE_SIZE)
 		out = vmalloc(size);
 	else
 		out = kmalloc(size, GFP_KERNEL);
@@ -479,9 +479,9 @@ void *ipc_alloc(int size)
  *	used in the allocation call.
  */
 
-void ipc_free(void* ptr, int size)
+void ipc_free(void *ptr, int size)
 {
-	if(size > PAGE_SIZE)
+	if (size > PAGE_SIZE)
 		vfree(ptr);
 	else
 		kfree(ptr);
@@ -542,7 +542,7 @@ void ipc_rcu_free(struct rcu_head *head)
  *	Check user, group, other permissions for access
  *	to ipc resources. return 0 if allowed
  *
- * 	@flag will most probably be 0 or S_...UGO from <linux/stat.h>
+ *	@flag will most probably be 0 or S_...UGO from <linux/stat.h>
  */
  
 int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flag)
@@ -581,7 +581,7 @@ int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flag)
  */
  
 
-void kernel_to_ipc64_perm (struct kern_ipc_perm *in, struct ipc64_perm *out)
+void kernel_to_ipc64_perm(struct kern_ipc_perm *in, struct ipc64_perm *out)
 {
 	out->key	= in->key;
 	out->uid	= from_kuid_munged(current_user_ns(), in->uid);
@@ -601,7 +601,7 @@ void kernel_to_ipc64_perm (struct kern_ipc_perm *in, struct ipc64_perm *out)
  *	object and store it into the @out pointer.
  */
  
-void ipc64_perm_to_ipc_perm (struct ipc64_perm *in, struct ipc_perm *out)
+void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out)
 {
 	out->key	= in->key;
 	SET_UID(out->uid, in->uid);
@@ -787,7 +787,7 @@ err:
  *	just the command code.
  */
  
-int ipc_parse_version (int *cmd)
+int ipc_parse_version(int *cmd)
 {
 	if (*cmd & IPC_64) {
 		*cmd ^= IPC_64;
@@ -824,7 +824,7 @@ static struct kern_ipc_perm *sysvipc_find_ipc(struct ipc_ids *ids, loff_t pos,
 	if (total >= ids->in_use)
 		return NULL;
 
-	for ( ; pos < IPCMNI; pos++) {
+	for (; pos < IPCMNI; pos++) {
 		ipc = idr_find(&ids->ipcs_idr, pos);
 		if (ipc != NULL) {
 			*new_pos = pos + 1;
