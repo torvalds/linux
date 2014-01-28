@@ -183,9 +183,8 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 			       NULL,           /* parent dir */
 			       &sysvipc_proc_fops,
 			       iface);
-	if (!pde) {
+	if (!pde)
 		kfree(iface);
-	}
 }
 #endif
 

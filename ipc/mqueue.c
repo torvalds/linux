@@ -1303,11 +1303,11 @@ retry:
 out_fput:
 	fdput(f);
 out:
-	if (sock) {
+	if (sock)
 		netlink_detachskb(sock, nc);
-	} else if (nc) {
+	else if (nc)
 		dev_kfree_skb(nc);
-	}
+
 	return ret;
 }
 

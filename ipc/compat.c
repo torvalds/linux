@@ -288,11 +288,11 @@ static long do_compat_semctl(int first, int second, int third, u32 pad)
 		break;
 
 	case IPC_SET:
-		if (version == IPC_64) {
+		if (version == IPC_64)
 			err = get_compat_semid64_ds(&s64, compat_ptr(pad));
-		} else {
+		else
 			err = get_compat_semid_ds(&s64, compat_ptr(pad));
-		}
+
 		up64 = compat_alloc_user_space(sizeof(s64));
 		if (copy_to_user(up64, &s64, sizeof(s64)))
 			err = -EFAULT;
@@ -515,11 +515,11 @@ long compat_sys_msgctl(int first, int second, void __user *uptr)
 		break;
 
 	case IPC_SET:
-		if (version == IPC_64) {
+		if (version == IPC_64)
 			err = get_compat_msqid64(&m64, uptr);
-		} else {
+		else
 			err = get_compat_msqid(&m64, uptr);
-		}
+
 		if (err)
 			break;
 		p = compat_alloc_user_space(sizeof(m64));
@@ -702,11 +702,11 @@ long compat_sys_shmctl(int first, int second, void __user *uptr)
 
 
 	case IPC_SET:
-		if (version == IPC_64) {
+		if (version == IPC_64)
 			err = get_compat_shmid64_ds(&s64, uptr);
-		} else {
+		else
 			err = get_compat_shmid_ds(&s64, uptr);
-		}
+
 		if (err)
 			break;
 		p = compat_alloc_user_space(sizeof(s64));

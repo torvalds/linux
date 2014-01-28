@@ -492,9 +492,9 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 
 	size = sizeof(*sma) + nsems * sizeof(struct sem);
 	sma = ipc_rcu_alloc(size);
-	if (!sma) {
+	if (!sma)
 		return -ENOMEM;
-	}
+
 	memset(sma, 0, size);
 
 	sma->sem_perm.mode = (semflg & S_IRWXUGO);
@@ -1967,10 +1967,8 @@ sleep_again:
 	 * If queue.status != -EINTR we are woken up by another process.
 	 * Leave without unlink_queue(), but with sem_unlock().
 	 */
-
-	if (error != -EINTR) {
+	if (error != -EINTR)
 		goto out_unlock_free;
-	}
 
 	/*
 	 * If an interrupt occurred we have to clean up the queue
