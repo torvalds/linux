@@ -106,7 +106,6 @@ static struct task_struct *writer_task;
 static struct task_struct **fakewriter_tasks;
 static struct task_struct **reader_tasks;
 static struct task_struct *stats_task;
-static struct task_struct *shuffler_task;
 static struct task_struct *stutter_task;
 static struct task_struct *fqs_task;
 static struct task_struct *boost_tasks[NR_CPUS];
@@ -161,7 +160,6 @@ static int max_online;
 static long n_barrier_attempts;
 static long n_barrier_successes;
 static struct list_head rcu_torture_removed;
-static cpumask_var_t shuffle_tmp_mask;
 
 static int stutter_pause_test;
 
@@ -1080,90 +1078,6 @@ rcu_torture_stats(void *arg)
 	return 0;
 }
 
-static int rcu_idle_cpu;	/* Force all torture tasks off this CPU */
-
-/* Shuffle tasks such that we allow @rcu_idle_cpu to become idle. A special case
- * is when @rcu_idle_cpu = -1, when we allow the tasks to run on all CPUs.
- */
-static void rcu_torture_shuffle_tasks(void)
-{
-	int i;
-
-	cpumask_setall(shuffle_tmp_mask);
-	get_online_cpus();
-
-	/* No point in shuffling if there is only one online CPU (ex: UP) */
-	if (num_online_cpus() == 1) {
-		put_online_cpus();
-		return;
-	}
-
-	if (rcu_idle_cpu != -1)
-		cpumask_clear_cpu(rcu_idle_cpu, shuffle_tmp_mask);
-
-	set_cpus_allowed_ptr(current, shuffle_tmp_mask);
-
-	if (reader_tasks) {
-		for (i = 0; i < nrealreaders; i++)
-			if (reader_tasks[i])
-				set_cpus_allowed_ptr(reader_tasks[i],
-						     shuffle_tmp_mask);
-	}
-	if (fakewriter_tasks) {
-		for (i = 0; i < nfakewriters; i++)
-			if (fakewriter_tasks[i])
-				set_cpus_allowed_ptr(fakewriter_tasks[i],
-						     shuffle_tmp_mask);
-	}
-	if (writer_task)
-		set_cpus_allowed_ptr(writer_task, shuffle_tmp_mask);
-	if (stats_task)
-		set_cpus_allowed_ptr(stats_task, shuffle_tmp_mask);
-	if (stutter_task)
-		set_cpus_allowed_ptr(stutter_task, shuffle_tmp_mask);
-	if (fqs_task)
-		set_cpus_allowed_ptr(fqs_task, shuffle_tmp_mask);
-	if (shutdown_task)
-		set_cpus_allowed_ptr(shutdown_task, shuffle_tmp_mask);
-#ifdef CONFIG_HOTPLUG_CPU
-	if (onoff_task)
-		set_cpus_allowed_ptr(onoff_task, shuffle_tmp_mask);
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
-	if (stall_task)
-		set_cpus_allowed_ptr(stall_task, shuffle_tmp_mask);
-	if (barrier_cbs_tasks)
-		for (i = 0; i < n_barrier_cbs; i++)
-			if (barrier_cbs_tasks[i])
-				set_cpus_allowed_ptr(barrier_cbs_tasks[i],
-						     shuffle_tmp_mask);
-	if (barrier_task)
-		set_cpus_allowed_ptr(barrier_task, shuffle_tmp_mask);
-
-	if (rcu_idle_cpu == -1)
-		rcu_idle_cpu = num_online_cpus() - 1;
-	else
-		rcu_idle_cpu--;
-
-	put_online_cpus();
-}
-
-/* Shuffle tasks across CPUs, with the intent of allowing each CPU in the
- * system to become idle at a time and cut off its timer ticks. This is meant
- * to test the support for such tickless idle CPU in RCU.
- */
-static int
-rcu_torture_shuffle(void *arg)
-{
-	VERBOSE_TOROUT_STRING("rcu_torture_shuffle task started");
-	do {
-		schedule_timeout_interruptible(shuffle_interval * HZ);
-		rcu_torture_shuffle_tasks();
-		torture_shutdown_absorb("rcu_torture_shuffle");
-	} while (!kthread_should_stop());
-	VERBOSE_TOROUT_STRING("rcu_torture_shuffle task stopping");
-	return 0;
-}
-
 /* Cause the rcutorture test to "stutter", starting and stopping all
  * threads periodically.
  */
@@ -1397,6 +1311,7 @@ rcu_torture_onoff_init(void)
 		onoff_task = NULL;
 		return ret;
 	}
+	torture_shuffle_task_register(onoff_task);
 	return 0;
 }
 
@@ -1468,6 +1383,7 @@ static int __init rcu_torture_stall_init(void)
 		stall_task = NULL;
 		return ret;
 	}
+	torture_shuffle_task_register(stall_task);
 	return 0;
 }
 
@@ -1594,6 +1510,7 @@ static int rcu_torture_barrier_init(void)
 			barrier_cbs_tasks[i] = NULL;
 			return ret;
 		}
+		torture_shuffle_task_register(barrier_cbs_tasks[i]);
 	}
 	barrier_task = kthread_run(rcu_torture_barrier, NULL,
 				   "rcu_torture_barrier");
@@ -1602,6 +1519,7 @@ static int rcu_torture_barrier_init(void)
 		VERBOSE_TOROUT_ERRSTRING("Failed to create rcu_torture_barrier");
 		barrier_task = NULL;
 	}
+	torture_shuffle_task_register(barrier_task);
 	return 0;
 }
 
@@ -1674,6 +1592,8 @@ rcu_torture_cleanup(void)
 	fullstop = FULLSTOP_RMMOD;
 	mutex_unlock(&fullstop_mutex);
 	unregister_reboot_notifier(&rcutorture_shutdown_nb);
+
+	torture_shuffle_cleanup(); /* Must be first task cleaned up. */
 	rcu_torture_barrier_cleanup();
 	rcu_torture_stall_cleanup();
 	if (stutter_task) {
@@ -1681,12 +1601,6 @@ rcu_torture_cleanup(void)
 		kthread_stop(stutter_task);
 	}
 	stutter_task = NULL;
-	if (shuffler_task) {
-		VERBOSE_TOROUT_STRING("Stopping rcu_torture_shuffle task");
-		kthread_stop(shuffler_task);
-		free_cpumask_var(shuffle_tmp_mask);
-	}
-	shuffler_task = NULL;
 
 	if (writer_task) {
 		VERBOSE_TOROUT_STRING("Stopping rcu_torture_writer task");
@@ -1904,6 +1818,7 @@ rcu_torture_init(void)
 		writer_task = NULL;
 		goto unwind;
 	}
+	torture_shuffle_task_register(writer_task);
 	wake_up_process(writer_task);
 	fakewriter_tasks = kzalloc(nfakewriters * sizeof(fakewriter_tasks[0]),
 				   GFP_KERNEL);
@@ -1922,6 +1837,7 @@ rcu_torture_init(void)
 			fakewriter_tasks[i] = NULL;
 			goto unwind;
 		}
+		torture_shuffle_task_register(fakewriter_tasks[i]);
 	}
 	reader_tasks = kzalloc(nrealreaders * sizeof(reader_tasks[0]),
 			       GFP_KERNEL);
@@ -1940,6 +1856,7 @@ rcu_torture_init(void)
 			reader_tasks[i] = NULL;
 			goto unwind;
 		}
+		torture_shuffle_task_register(reader_tasks[i]);
 	}
 	if (stat_interval > 0) {
 		VERBOSE_TOROUT_STRING("Creating rcu_torture_stats task");
@@ -1951,26 +1868,12 @@ rcu_torture_init(void)
 			stats_task = NULL;
 			goto unwind;
 		}
+		torture_shuffle_task_register(stats_task);
 	}
 	if (test_no_idle_hz) {
-		rcu_idle_cpu = num_online_cpus() - 1;
-
-		if (!alloc_cpumask_var(&shuffle_tmp_mask, GFP_KERNEL)) {
-			firsterr = -ENOMEM;
-			VERBOSE_TOROUT_ERRSTRING("Failed to alloc mask");
+		firsterr = torture_shuffle_init(shuffle_interval * HZ);
+		if (firsterr)
 			goto unwind;
-		}
-
-		/* Create the shuffler thread */
-		shuffler_task = kthread_run(rcu_torture_shuffle, NULL,
-					  "rcu_torture_shuffle");
-		if (IS_ERR(shuffler_task)) {
-			free_cpumask_var(shuffle_tmp_mask);
-			firsterr = PTR_ERR(shuffler_task);
-			VERBOSE_TOROUT_ERRSTRING("Failed to create shuffler");
-			shuffler_task = NULL;
-			goto unwind;
-		}
 	}
 	if (stutter < 0)
 		stutter = 0;
@@ -1984,6 +1887,7 @@ rcu_torture_init(void)
 			stutter_task = NULL;
 			goto unwind;
 		}
+		torture_shuffle_task_register(stutter_task);
 	}
 	if (fqs_duration < 0)
 		fqs_duration = 0;
@@ -1997,6 +1901,7 @@ rcu_torture_init(void)
 			fqs_task = NULL;
 			goto unwind;
 		}
+		torture_shuffle_task_register(fqs_task);
 	}
 	if (test_boost_interval < 1)
 		test_boost_interval = 1;
@@ -2027,6 +1932,7 @@ rcu_torture_init(void)
 			shutdown_task = NULL;
 			goto unwind;
 		}
+		torture_shuffle_task_register(shutdown_task);
 		wake_up_process(shutdown_task);
 	}
 	i = rcu_torture_onoff_init();

@@ -76,6 +76,157 @@ torture_random(struct torture_random_state *trsp)
 EXPORT_SYMBOL_GPL(torture_random);
 
 /*
+ * Variables for shuffling.  The idea is to ensure that each CPU stays
+ * idle for an extended period to test interactions with dyntick idle,
+ * as well as interactions with any per-CPU varibles.
+ */
+struct shuffle_task {
+	struct list_head st_l;
+	struct task_struct *st_t;
+};
+
+static long shuffle_interval;	/* In jiffies. */
+static struct task_struct *shuffler_task;
+static cpumask_var_t shuffle_tmp_mask;
+static int shuffle_idle_cpu;	/* Force all torture tasks off this CPU */
+static struct list_head shuffle_task_list = LIST_HEAD_INIT(shuffle_task_list);
+static DEFINE_MUTEX(shuffle_task_mutex);
+
+/*
+ * Register a task to be shuffled.  If there is no memory, just splat
+ * and don't bother registering.
+ */
+void torture_shuffle_task_register(struct task_struct *tp)
+{
+	struct shuffle_task *stp;
+
+	if (WARN_ON_ONCE(tp == NULL))
+		return;
+	stp = kmalloc(sizeof(*stp), GFP_KERNEL);
+	if (WARN_ON_ONCE(stp == NULL))
+		return;
+	stp->st_t = tp;
+	mutex_lock(&shuffle_task_mutex);
+	list_add(&stp->st_l, &shuffle_task_list);
+	mutex_unlock(&shuffle_task_mutex);
+}
+EXPORT_SYMBOL_GPL(torture_shuffle_task_register);
+
+/*
+ * Unregister all tasks, for example, at the end of the torture run.
+ */
+static void torture_shuffle_task_unregister_all(void)
+{
+	struct shuffle_task *stp;
+	struct shuffle_task *p;
+
+	mutex_lock(&shuffle_task_mutex);
+	list_for_each_entry_safe(stp, p, &shuffle_task_list, st_l) {
+		list_del(&stp->st_l);
+		kfree(stp);
+	}
+	mutex_unlock(&shuffle_task_mutex);
+}
+
+/* Shuffle tasks such that we allow shuffle_idle_cpu to become idle.
+ * A special case is when shuffle_idle_cpu = -1, in which case we allow
+ * the tasks to run on all CPUs.
+ */
+static void torture_shuffle_tasks(void)
+{
+	struct shuffle_task *stp;
+
+	cpumask_setall(shuffle_tmp_mask);
+	get_online_cpus();
+
+	/* No point in shuffling if there is only one online CPU (ex: UP) */
+	if (num_online_cpus() == 1) {
+		put_online_cpus();
+		return;
+	}
+
+	/* Advance to the next CPU.  Upon overflow, don't idle any CPUs. */
+	shuffle_idle_cpu = cpumask_next(shuffle_idle_cpu, shuffle_tmp_mask);
+	if (shuffle_idle_cpu >= nr_cpu_ids)
+		shuffle_idle_cpu = -1;
+	if (shuffle_idle_cpu != -1) {
+		cpumask_clear_cpu(shuffle_idle_cpu, shuffle_tmp_mask);
+		if (cpumask_empty(shuffle_tmp_mask)) {
+			put_online_cpus();
+			return;
+		}
+	}
+
+	mutex_lock(&shuffle_task_mutex);
+	list_for_each_entry(stp, &shuffle_task_list, st_l)
+		set_cpus_allowed_ptr(stp->st_t, shuffle_tmp_mask);
+	mutex_unlock(&shuffle_task_mutex);
+
+	put_online_cpus();
+}
+
+/* Shuffle tasks across CPUs, with the intent of allowing each CPU in the
+ * system to become idle at a time and cut off its timer ticks. This is meant
+ * to test the support for such tickless idle CPU in RCU.
+ */
+static int torture_shuffle(void *arg)
+{
+	VERBOSE_TOROUT_STRING("torture_shuffle task started");
+	do {
+		schedule_timeout_interruptible(shuffle_interval);
+		torture_shuffle_tasks();
+		torture_shutdown_absorb("torture_shuffle");
+	} while (!torture_must_stop());
+	VERBOSE_TOROUT_STRING("torture_shuffle task stopping");
+	return 0;
+}
+
+/*
+ * Start the shuffler, with shuffint in jiffies.
+ */
+int torture_shuffle_init(long shuffint)
+{
+	int ret;
+
+	shuffle_interval = shuffint;
+
+	shuffle_idle_cpu = -1;
+
+	if (!alloc_cpumask_var(&shuffle_tmp_mask, GFP_KERNEL)) {
+		VERBOSE_TOROUT_ERRSTRING("Failed to alloc mask");
+		return -ENOMEM;
+	}
+
+	/* Create the shuffler thread */
+	shuffler_task = kthread_run(torture_shuffle, NULL, "torture_shuffle");
+	if (IS_ERR(shuffler_task)) {
+		ret = PTR_ERR(shuffler_task);
+		free_cpumask_var(shuffle_tmp_mask);
+		VERBOSE_TOROUT_ERRSTRING("Failed to create shuffler");
+		shuffler_task = NULL;
+		return ret;
+	}
+	torture_shuffle_task_register(shuffler_task);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(torture_shuffle_init);
+
+/*
+ * Stop the shuffling.
+ */
+void torture_shuffle_cleanup(void)
+{
+	torture_shuffle_task_unregister_all();
+	if (shuffler_task) {
+		VERBOSE_TOROUT_STRING("Stopping torture_shuffle task");
+		kthread_stop(shuffler_task);
+		free_cpumask_var(shuffle_tmp_mask);
+	}
+	shuffler_task = NULL;
+}
+EXPORT_SYMBOL_GPL(torture_shuffle_cleanup);
+
+/*
  * Absorb kthreads into a kernel function that won't return, so that
  * they won't ever access module text or data again.
  */

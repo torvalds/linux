@@ -69,6 +69,11 @@ struct torture_random_state {
 #define DEFINE_TORTURE_RANDOM(name) struct torture_random_state name = { 0, 0 }
 unsigned long torture_random(struct torture_random_state *trsp);
 
+/* Task shuffler, which causes CPUs to occasionally go idle. */
+void torture_shuffle_task_register(struct task_struct *tp);
+int torture_shuffle_init(long shuffint);
+void torture_shuffle_cleanup(void);
+
 /* Shutdown task absorption, for when the tasks cannot safely be killed. */
 void torture_shutdown_absorb(const char *title);
 
