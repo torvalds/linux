@@ -587,6 +587,49 @@ static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
 	struct device *dev = master->dev.parent;
 	struct device *tx_dev, *rx_dev;
 	struct spi_transfer *xfer;
+	void *tmp;
+	size_t max_tx, max_rx;
+
+	if (master->flags & (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX)) {
+		max_tx = 0;
+		max_rx = 0;
+
+		list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+			if ((master->flags & SPI_MASTER_MUST_TX) &&
+			    !xfer->tx_buf)
+				max_tx = max(xfer->len, max_tx);
+			if ((master->flags & SPI_MASTER_MUST_RX) &&
+			    !xfer->rx_buf)
+				max_rx = max(xfer->len, max_rx);
+		}
+
+		if (max_tx) {
+			tmp = krealloc(master->dummy_tx, max_tx,
+				       GFP_KERNEL | GFP_DMA);
+			if (!tmp)
+				return -ENOMEM;
+			master->dummy_tx = tmp;
+			memset(tmp, 0, max_tx);
+		}
+
+		if (max_rx) {
+			tmp = krealloc(master->dummy_rx, max_rx,
+				       GFP_KERNEL | GFP_DMA);
+			if (!tmp)
+				return -ENOMEM;
+			master->dummy_rx = tmp;
+		}
+
+		if (max_tx || max_rx) {
+			list_for_each_entry(xfer, &msg->transfers,
+					    transfer_list) {
+				if (!xfer->tx_buf)
+					xfer->tx_buf = master->dummy_tx;
+				if (!xfer->rx_buf)
+					xfer->rx_buf = master->dummy_rx;
+			}
+		}
+	}
 
 	if (msg->is_dma_mapped || !master->can_dma)
 		return 0;
@@ -759,6 +802,10 @@ static void spi_pump_messages(struct kthread_work *work)
 		}
 		master->busy = false;
 		spin_unlock_irqrestore(&master->queue_lock, flags);
+		kfree(master->dummy_rx);
+		master->dummy_rx = NULL;
+		kfree(master->dummy_tx);
+		master->dummy_tx = NULL;
 		if (master->unprepare_transfer_hardware &&
 		    master->unprepare_transfer_hardware(master))
 			dev_err(&master->dev,
