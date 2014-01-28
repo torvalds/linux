@@ -150,11 +150,12 @@ static int part_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
 						 retlen, buf);
 }
 
-static int part_get_user_prot_info(struct mtd_info *mtd,
-		struct otp_info *buf, size_t len)
+static int part_get_user_prot_info(struct mtd_info *mtd, size_t len,
+				   size_t *retlen, struct otp_info *buf)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->_get_user_prot_info(part->master, buf, len);
+	return part->master->_get_user_prot_info(part->master, len, retlen,
+						 buf);
 }
 
 static int part_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
@@ -165,11 +166,12 @@ static int part_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
 						 retlen, buf);
 }
 
-static int part_get_fact_prot_info(struct mtd_info *mtd, struct otp_info *buf,
-		size_t len)
+static int part_get_fact_prot_info(struct mtd_info *mtd, size_t len,
+				   size_t *retlen, struct otp_info *buf)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->_get_fact_prot_info(part->master, buf, len);
+	return part->master->_get_fact_prot_info(part->master, len, retlen,
+						 buf);
 }
 
 static int part_write(struct mtd_info *mtd, loff_t to, size_t len,

@@ -3237,20 +3237,17 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 /**
  * onenand_get_fact_prot_info - [MTD Interface] Read factory OTP info
  * @param mtd		MTD device structure
- * @param buf		the databuffer to put/get data
  * @param len		number of bytes to read
+ * @param retlen	pointer to variable to store the number of read bytes
+ * @param buf		the databuffer to put/get data
  *
  * Read factory OTP info.
  */
-static int onenand_get_fact_prot_info(struct mtd_info *mtd,
-			struct otp_info *buf, size_t len)
+static int onenand_get_fact_prot_info(struct mtd_info *mtd, size_t len,
+				      size_t *retlen, struct otp_info *buf)
 {
-	size_t retlen;
-	int ret;
-
-	ret = onenand_otp_walk(mtd, 0, len, &retlen, (u_char *) buf, NULL, MTD_OTP_FACTORY);
-
-	return ret ? : retlen;
+	return onenand_otp_walk(mtd, 0, len, retlen, (u_char *) buf, NULL,
+				MTD_OTP_FACTORY);
 }
 
 /**
@@ -3272,20 +3269,17 @@ static int onenand_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
 /**
  * onenand_get_user_prot_info - [MTD Interface] Read user OTP info
  * @param mtd		MTD device structure
- * @param buf		the databuffer to put/get data
+ * @param retlen	pointer to variable to store the number of read bytes
  * @param len		number of bytes to read
+ * @param buf		the databuffer to put/get data
  *
  * Read user OTP info.
  */
-static int onenand_get_user_prot_info(struct mtd_info *mtd,
-			struct otp_info *buf, size_t len)
+static int onenand_get_user_prot_info(struct mtd_info *mtd, size_t len,
+				      size_t *retlen, struct otp_info *buf)
 {
-	size_t retlen;
-	int ret;
-
-	ret = onenand_otp_walk(mtd, 0, len, &retlen, (u_char *) buf, NULL, MTD_OTP_USER);
-
-	return ret ? : retlen;
+	return onenand_otp_walk(mtd, 0, len, retlen, (u_char *) buf, NULL,
+				MTD_OTP_USER);
 }
 
 /**
