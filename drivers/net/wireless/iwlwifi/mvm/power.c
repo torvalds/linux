@@ -431,6 +431,9 @@ static int _iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	iwl_mvm_power_log(mvm, &cmd);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	memcpy(&iwl_mvm_vif_from_mac80211(vif)->mac_pwr_cmd, &cmd, sizeof(cmd));
+#endif
 
 	return iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, CMD_SYNC,
 				    sizeof(cmd), &cmd);
@@ -475,6 +478,7 @@ static int iwl_mvm_power_mac_disable(struct iwl_mvm *mvm,
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_DISABLE_POWER_OFF &&
 	    mvmvif->dbgfs_pm.disable_power_off)
 		cmd.flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
+	memcpy(&mvmvif->mac_pwr_cmd, &cmd, sizeof(cmd));
 #endif
 	iwl_mvm_power_log(mvm, &cmd);
 
@@ -615,10 +619,13 @@ static int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif, char *buf,
 					int bufsz)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mac_power_cmd cmd = {};
 	int pos = 0;
 
-	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
+	mutex_lock(&mvm->mutex);
+	memcpy(&cmd, &mvmvif->mac_pwr_cmd, sizeof(cmd));
+	mutex_unlock(&mvm->mutex);
 
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD))
 		pos += scnprintf(buf+pos, bufsz-pos, "disable_power_off = %d\n",
@@ -807,6 +814,9 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 		cmd.skip_dtim_periods = 300 / dtimper_msec;
 	}
 	iwl_mvm_power_log(mvm, &cmd);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	memcpy(&mvmvif->mac_pwr_cmd, &cmd, sizeof(cmd));
+#endif
 	ret = iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, flags,
 				   sizeof(cmd), &cmd);
 	if (ret)
