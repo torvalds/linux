@@ -11,6 +11,10 @@
  */
 #define EFI_READ_CHUNK_SIZE	(1024 * 1024)
 
+/* error code which can't be mistaken for valid address */
+#define EFI_ERROR	(~0UL)
+
+
 struct file_info {
 	efi_file_handle_t *handle;
 	u64 size;
@@ -81,6 +85,32 @@ again:
 fail:
 	*map = m;
 	return status;
+}
+
+
+static unsigned long __init get_dram_base(efi_system_table_t *sys_table_arg)
+{
+	efi_status_t status;
+	unsigned long map_size;
+	unsigned long membase  = EFI_ERROR;
+	struct efi_memory_map map;
+	efi_memory_desc_t *md;
+
+	status = efi_get_memory_map(sys_table_arg, (efi_memory_desc_t **)&map.map,
+				    &map_size, &map.desc_size, NULL, NULL);
+	if (status != EFI_SUCCESS)
+		return membase;
+
+	map.map_end = map.map + map_size;
+
+	for_each_efi_memory_desc(&map, md)
+		if (md->attribute & EFI_MEMORY_WB)
+			if (membase > md->phys_addr)
+				membase = md->phys_addr;
+
+	efi_call_early(free_pool, map.map);
+
+	return membase;
 }
 
 /*
