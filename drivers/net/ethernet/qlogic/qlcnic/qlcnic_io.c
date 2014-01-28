@@ -683,12 +683,17 @@ void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup)
 		adapter->ahw->linkup = 0;
 		netif_carrier_off(netdev);
 	} else if (!adapter->ahw->linkup && linkup) {
-		/* Do not advertise Link up if the port is in loopback mode */
-		if (qlcnic_83xx_check(adapter) && adapter->ahw->lb_mode)
+		adapter->ahw->linkup = 1;
+
+		/* Do not advertise Link up to the stack if device
+		 * is in loopback mode
+		 */
+		if (qlcnic_83xx_check(adapter) && adapter->ahw->lb_mode) {
+			netdev_info(netdev, "NIC Link is up for loopback test\n");
 			return;
+		}
 
 		netdev_info(netdev, "NIC Link is up\n");
-		adapter->ahw->linkup = 1;
 		netif_carrier_on(netdev);
 	}
 }
