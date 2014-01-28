@@ -1391,7 +1391,7 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 }
 #endif
 
-#ifdef CONFIG_MTD_ONENAND
+#if IS_ENABLED(CONFIG_MTD_ONENAND)
 static int gpmc_probe_onenand_child(struct platform_device *pdev,
 				 struct device_node *child)
 {
