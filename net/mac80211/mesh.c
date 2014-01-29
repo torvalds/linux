@@ -1058,6 +1058,7 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_csa_settings *tmp_csa_settings;
 	int ret = 0;
+	int changed = 0;
 
 	/* Reset the TTL value and Initiator flag */
 	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
@@ -1072,11 +1073,11 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
 	if (ret)
 		return -EINVAL;
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
+	changed |= BSS_CHANGED_BEACON;
 
 	mcsa_dbg(sdata, "complete switching to center freq %d MHz",
 		 sdata->vif.bss_conf.chandef.chan->center_freq);
-	return 0;
+	return changed;
 }
 
 int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,

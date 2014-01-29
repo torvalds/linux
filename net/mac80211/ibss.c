@@ -530,7 +530,7 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct cfg80211_bss *cbss;
-	int err;
+	int err, changed = 0;
 	u16 capability;
 
 	sdata_assert_lock(sdata);
@@ -562,10 +562,9 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 	if (err < 0)
 		return err;
 
-	if (err)
-		ieee80211_bss_info_change_notify(sdata, err);
+	changed |= err;
 
-	return 0;
+	return changed;
 }
 
 void ieee80211_ibss_stop(struct ieee80211_sub_if_data *sdata)

@@ -3014,35 +3014,36 @@ static void ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 		ieee80211_hw_config(local, 0);
 	}
 
-	ieee80211_bss_info_change_notify(sdata, changed);
-
 	sdata->vif.csa_active = false;
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
 		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
 		if (err < 0)
 			return;
-
 		changed |= err;
 		kfree(sdata->u.ap.next_beacon);
 		sdata->u.ap.next_beacon = NULL;
-
-		ieee80211_bss_info_change_notify(sdata, err);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		ieee80211_ibss_finish_csa(sdata);
+		err = ieee80211_ibss_finish_csa(sdata);
+		if (err < 0)
+			return;
+		changed |= err;
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
 		err = ieee80211_mesh_finish_csa(sdata);
 		if (err < 0)
 			return;
+		changed |= err;
 		break;
 #endif
 	default:
 		WARN_ON(1);
 		return;
 	}
+
+	ieee80211_bss_info_change_notify(sdata, changed);
 
 	ieee80211_wake_queues_by_reason(&sdata->local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
