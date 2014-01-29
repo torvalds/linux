@@ -97,14 +97,6 @@ static char *torture_type = "rcu";
 module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, ...)");
 
-#define TORTURE_FLAG "-torture:"
-#define TOROUT_STRING(s) \
-	do { pr_alert("%s" TORTURE_FLAG s "\n", torture_type); } while (0)
-#define VERBOSE_TOROUT_STRING(s) \
-	do { if (verbose) pr_alert("%s" TORTURE_FLAG s "\n", torture_type); } while (0)
-#define VERBOSE_TOROUT_ERRSTRING(s) \
-	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! " s "\n", torture_type); } while (0)
-
 static int nrealreaders;
 static struct task_struct *writer_task;
 static struct task_struct **fakewriter_tasks;

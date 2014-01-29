@@ -41,6 +41,14 @@
 	module_param(name, type, 0444); \
 	MODULE_PARM_DESC(name, msg);
 
+#define TORTURE_FLAG "-torture:"
+#define TOROUT_STRING(s) \
+	pr_alert("%s" TORTURE_FLAG s "\n", torture_type)
+#define VERBOSE_TOROUT_STRING(s) \
+	do { if (verbose) pr_alert("%s" TORTURE_FLAG s "\n", torture_type); } while (0)
+#define VERBOSE_TOROUT_ERRSTRING(s) \
+	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! " s "\n", torture_type); } while (0)
+
 /* Low-rider random number generator. */
 struct torture_random_state {
 	unsigned long trs_state;
