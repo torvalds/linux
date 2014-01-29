@@ -290,6 +290,7 @@ static int __init xtavnet_init(void)
 	 * knows whether they set it correctly on the DIP switches.
 	 */
 	pr_info("XTFPGA: Ethernet MAC %pM\n", ethoc_pdata.hwaddr);
+	ethoc_pdata.eth_clkfreq = *(long *)XTFPGA_CLKFRQ_VADDR;
 
 	return 0;
 }
