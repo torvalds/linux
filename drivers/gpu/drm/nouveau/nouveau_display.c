@@ -618,7 +618,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	ret = nouveau_fence_sync(fence, chan);
 	nouveau_fence_unref(&fence);
 	if (ret)
-		goto fail_free;
+		goto fail_unpin;
 
 	ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
 	if (ret)
