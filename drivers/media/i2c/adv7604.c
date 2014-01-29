@@ -1514,29 +1514,66 @@ static int read_stdi(struct v4l2_subdev *sd, struct stdi_readback *stdi)
 static int adv7604_enum_dv_timings(struct v4l2_subdev *sd,
 			struct v4l2_enum_dv_timings *timings)
 {
+	struct adv7604_state *state = to_state(sd);
+
 	if (timings->index >= ARRAY_SIZE(adv7604_timings) - 1)
 		return -EINVAL;
+
+	if (timings->pad >= state->source_pad)
+		return -EINVAL;
+
 	memset(timings->reserved, 0, sizeof(timings->reserved));
 	timings->timings = adv7604_timings[timings->index];
+	return 0;
+}
+
+static int __adv7604_dv_timings_cap(struct v4l2_subdev *sd,
+			struct v4l2_dv_timings_cap *cap,
+			unsigned int pad)
+{
+	cap->type = V4L2_DV_BT_656_1120;
+	cap->bt.max_width = 1920;
+	cap->bt.max_height = 1200;
+	cap->bt.min_pixelclock = 25000000;
+
+	switch (pad) {
+	case ADV7604_PAD_HDMI_PORT_A:
+	case ADV7604_PAD_HDMI_PORT_B:
+	case ADV7604_PAD_HDMI_PORT_C:
+	case ADV7604_PAD_HDMI_PORT_D:
+		cap->bt.max_pixelclock = 225000000;
+		break;
+	case ADV7604_PAD_VGA_RGB:
+	case ADV7604_PAD_VGA_COMP:
+	default:
+		cap->bt.max_pixelclock = 170000000;
+		break;
+	}
+
+	cap->bt.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
+			 V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT;
+	cap->bt.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |
+		V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM;
 	return 0;
 }
 
 static int adv7604_dv_timings_cap(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings_cap *cap)
 {
-	cap->type = V4L2_DV_BT_656_1120;
-	cap->bt.max_width = 1920;
-	cap->bt.max_height = 1200;
-	cap->bt.min_pixelclock = 25000000;
-	if (is_digital_input(sd))
-		cap->bt.max_pixelclock = 225000000;
-	else
-		cap->bt.max_pixelclock = 170000000;
-	cap->bt.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
-			 V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT;
-	cap->bt.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |
-		V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM;
-	return 0;
+	struct adv7604_state *state = to_state(sd);
+
+	return __adv7604_dv_timings_cap(sd, cap, state->selected_input);
+}
+
+static int adv7604_pad_dv_timings_cap(struct v4l2_subdev *sd,
+			struct v4l2_dv_timings_cap *cap)
+{
+	struct adv7604_state *state = to_state(sd);
+
+	if (cap->pad >= state->source_pad)
+		return -EINVAL;
+
+	return __adv7604_dv_timings_cap(sd, cap, cap->pad);
 }
 
 /* Fill the optional fields .standards and .flags in struct v4l2_dv_timings
@@ -2426,6 +2463,8 @@ static const struct v4l2_subdev_pad_ops adv7604_pad_ops = {
 	.set_fmt = adv7604_set_format,
 	.get_edid = adv7604_get_edid,
 	.set_edid = adv7604_set_edid,
+	.dv_timings_cap = adv7604_pad_dv_timings_cap,
+	.enum_dv_timings = adv7604_enum_dv_timings,
 };
 
 static const struct v4l2_subdev_ops adv7604_ops = {
