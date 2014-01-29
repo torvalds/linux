@@ -59,7 +59,6 @@ ENTRY(startup_continue)
 	.long	0			# cr13: home space segment table
 	.long	0xc0000000		# cr14: machine check handling off
 	.long	0			# cr15: linkage stack operations
-.Lmchunk:.long	memory_chunk
 .Lbss_bgn:  .long __bss_start
 .Lbss_end:  .long _end
 .Lparmaddr: .long PARMAREA
