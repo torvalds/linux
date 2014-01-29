@@ -750,7 +750,7 @@ static int get_card_status(struct mmc_card *card, u32 *status, int retries)
 }
 
 static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
-		struct request *req, int *gen_err)
+		bool hw_busy_detect, struct request *req, int *gen_err)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
 	int err = 0;
@@ -769,6 +769,11 @@ static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
 				req->rq_disk->disk_name, __func__, status);
 			*gen_err = 1;
 		}
+
+		/* We may rely on the host hw to handle busy detection.*/
+		if ((card->host->caps & MMC_CAP_WAIT_WHILE_BUSY) &&
+			hw_busy_detect)
+			break;
 
 		/*
 		 * Timeout if the device never becomes ready for data and never
@@ -1209,7 +1214,8 @@ static int mmc_blk_err_check(struct mmc_card *card,
 			gen_err = 1;
 		}
 
-		err = card_busy_detect(card, MMC_BLK_TIMEOUT_MS, req, &gen_err);
+		err = card_busy_detect(card, MMC_BLK_TIMEOUT_MS, false, req,
+					&gen_err);
 		if (err)
 			return MMC_BLK_CMD_ERR;
 	}
