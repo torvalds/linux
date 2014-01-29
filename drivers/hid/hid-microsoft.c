@@ -62,6 +62,9 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 {
 	struct input_dev *input = hi->input;
 
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
+		return 0;
+
 	switch (usage->hid & HID_USAGE) {
 	case 0xfd06: ms_map_key_clear(KEY_CHAT);	break;
 	case 0xfd07: ms_map_key_clear(KEY_PHONE);	break;
@@ -83,6 +86,9 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 static int ms_presenter_8k_quirk(struct hid_input *hi, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
+		return 0;
+
 	set_bit(EV_REP, hi->input->evbit);
 	switch (usage->hid & HID_USAGE) {
 	case 0xfd08: ms_map_key_clear(KEY_FORWARD);	break;
@@ -101,9 +107,6 @@ static int ms_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		unsigned long **bit, int *max)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
-
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
-		return 0;
 
 	if (quirks & MS_ERGONOMY) {
 		int ret = ms_ergonomy_kb_quirk(hi, usage, bit, max);
