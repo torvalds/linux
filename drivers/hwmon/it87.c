@@ -1791,6 +1791,7 @@ static int __init it87_find(unsigned short *address,
 	err = 0;
 	sio_data->revision = superio_inb(DEVREV) & 0x0f;
 	pr_info("Found IT%04x%c chip at 0x%x, revision %d\n", chip_type,
+		chip_type == 0x8771 || chip_type == 0x8772 ||
 		chip_type == 0x8603 ? 'E' : 'F', *address,
 		sio_data->revision);
 
