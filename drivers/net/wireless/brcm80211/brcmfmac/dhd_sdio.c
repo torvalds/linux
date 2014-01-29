@@ -971,8 +971,8 @@ static int
 brcmf_sdio_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
 {
 	int err = 0;
-	brcmf_dbg(TRACE, "Enter\n");
-	brcmf_dbg(SDIO, "request %s currently %s\n",
+
+	brcmf_dbg(SDIO, "Enter: request %s currently %s\n",
 		  (sleep ? "SLEEP" : "WAKE"),
 		  (bus->sleeping ? "SLEEP" : "WAKE"));
 
