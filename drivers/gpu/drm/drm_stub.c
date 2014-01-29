@@ -291,6 +291,17 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 	return 0;
 }
 
+static void drm_minor_free(struct drm_device *dev, unsigned int type)
+{
+	struct drm_minor **slot;
+
+	slot = drm_minor_get_slot(dev, type);
+	if (*slot) {
+		kfree(*slot);
+		*slot = NULL;
+	}
+}
+
 /**
  * drm_get_minor - Register DRM minor
  * @dev: DRM device
@@ -414,26 +425,6 @@ void drm_minor_release(struct drm_minor *minor)
 }
 
 /**
- * drm_put_minor - Destroy DRM minor
- * @minor: Minor to destroy
- *
- * This calls drm_unplug_minor() on the given minor and then frees it. Nothing
- * is done if @minor is NULL. It is fine to call this on already unplugged
- * minors.
- * The global DRM mutex must be held by the caller.
- */
-static void drm_put_minor(struct drm_minor *minor)
-{
-	if (!minor)
-		return;
-
-	DRM_DEBUG("release secondary minor %d\n", minor->index);
-
-	drm_unplug_minor(minor);
-	kfree(minor);
-}
-
-/**
  * Called via drm_exit() at module unload time or when pci device is
  * unplugged.
  *
@@ -554,9 +545,9 @@ err_ctxbitmap:
 err_ht:
 	drm_ht_remove(&dev->map_hash);
 err_minors:
-	drm_put_minor(dev->control);
-	drm_put_minor(dev->render);
-	drm_put_minor(dev->primary);
+	drm_minor_free(dev, DRM_MINOR_LEGACY);
+	drm_minor_free(dev, DRM_MINOR_RENDER);
+	drm_minor_free(dev, DRM_MINOR_CONTROL);
 	kfree(dev);
 	return NULL;
 }
@@ -566,15 +557,15 @@ static void drm_dev_release(struct kref *ref)
 {
 	struct drm_device *dev = container_of(ref, struct drm_device, ref);
 
-	drm_put_minor(dev->control);
-	drm_put_minor(dev->render);
-	drm_put_minor(dev->primary);
-
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);
 
 	drm_ctxbitmap_cleanup(dev);
 	drm_ht_remove(&dev->map_hash);
+
+	drm_minor_free(dev, DRM_MINOR_LEGACY);
+	drm_minor_free(dev, DRM_MINOR_RENDER);
+	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
 	kfree(dev->devname);
 	kfree(dev);
