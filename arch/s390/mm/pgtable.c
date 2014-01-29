@@ -883,8 +883,8 @@ static inline void page_table_free_pgste(unsigned long *table)
 	__free_page(page);
 }
 
-static inline unsigned long page_table_reset_pte(struct mm_struct *mm,
-			pmd_t *pmd, unsigned long addr, unsigned long end)
+static inline unsigned long page_table_reset_pte(struct mm_struct *mm, pmd_t *pmd,
+			unsigned long addr, unsigned long end, bool init_skey)
 {
 	pte_t *start_pte, *pte;
 	spinlock_t *ptl;
@@ -895,6 +895,22 @@ static inline unsigned long page_table_reset_pte(struct mm_struct *mm,
 	do {
 		pgste = pgste_get_lock(pte);
 		pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
+		if (init_skey) {
+			unsigned long address;
+
+			pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
+					      PGSTE_GR_BIT | PGSTE_GC_BIT);
+
+			/* skip invalid and not writable pages */
+			if (pte_val(*pte) & _PAGE_INVALID ||
+			    !(pte_val(*pte) & _PAGE_WRITE)) {
+				pgste_set_unlock(pte, pgste);
+				continue;
+			}
+
+			address = pte_val(*pte) & PAGE_MASK;
+			page_set_storage_key(address, PAGE_DEFAULT_KEY, 1);
+		}
 		pgste_set_unlock(pte, pgste);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap_unlock(start_pte, ptl);
@@ -902,8 +918,8 @@ static inline unsigned long page_table_reset_pte(struct mm_struct *mm,
 	return addr;
 }
 
-static inline unsigned long page_table_reset_pmd(struct mm_struct *mm,
-			pud_t *pud, unsigned long addr, unsigned long end)
+static inline unsigned long page_table_reset_pmd(struct mm_struct *mm, pud_t *pud,
+			unsigned long addr, unsigned long end, bool init_skey)
 {
 	unsigned long next;
 	pmd_t *pmd;
@@ -913,14 +929,14 @@ static inline unsigned long page_table_reset_pmd(struct mm_struct *mm,
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
-		next = page_table_reset_pte(mm, pmd, addr, next);
+		next = page_table_reset_pte(mm, pmd, addr, next, init_skey);
 	} while (pmd++, addr = next, addr != end);
 
 	return addr;
 }
 
-static inline unsigned long page_table_reset_pud(struct mm_struct *mm,
-			pgd_t *pgd, unsigned long addr, unsigned long end)
+static inline unsigned long page_table_reset_pud(struct mm_struct *mm, pgd_t *pgd,
+			unsigned long addr, unsigned long end, bool init_skey)
 {
 	unsigned long next;
 	pud_t *pud;
@@ -930,14 +946,14 @@ static inline unsigned long page_table_reset_pud(struct mm_struct *mm,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		next = page_table_reset_pmd(mm, pud, addr, next);
+		next = page_table_reset_pmd(mm, pud, addr, next, init_skey);
 	} while (pud++, addr = next, addr != end);
 
 	return addr;
 }
 
-void page_table_reset_pgste(struct mm_struct *mm,
-			unsigned long start, unsigned long end)
+void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
+			    unsigned long end, bool init_skey)
 {
 	unsigned long addr, next;
 	pgd_t *pgd;
@@ -949,7 +965,7 @@ void page_table_reset_pgste(struct mm_struct *mm,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		next = page_table_reset_pud(mm, pgd, addr, next);
+		next = page_table_reset_pud(mm, pgd, addr, next, init_skey);
 	} while (pgd++, addr = next, addr != end);
 	up_read(&mm->mmap_sem);
 }
@@ -1009,6 +1025,11 @@ static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm,
 						    unsigned long vmaddr)
 {
 	return NULL;
+}
+
+void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
+			    unsigned long end, bool init_skey)
+{
 }
 
 static inline void page_table_free_pgste(unsigned long *table)
