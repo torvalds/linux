@@ -107,14 +107,14 @@ struct posix_acl *ceph_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static int ceph_set_acl(struct dentry *dentry, struct inode *inode,
-				struct posix_acl *acl, int type)
+int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	int ret = 0, size = 0;
 	const char *name = NULL;
 	char *value = NULL;
 	struct iattr newattrs;
 	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
+	struct dentry *dentry = d_find_alias(inode);
 
 	if (acl) {
 		ret = posix_acl_valid(acl);
@@ -208,8 +208,7 @@ int ceph_init_acl(struct dentry *dentry, struct inode *inode, struct inode *dir)
 
 	if (IS_POSIXACL(dir) && acl) {
 		if (S_ISDIR(inode->i_mode)) {
-			ret = ceph_set_acl(dentry, inode, acl,
-						ACL_TYPE_DEFAULT);
+			ret = ceph_set_acl(inode, acl, ACL_TYPE_DEFAULT);
 			if (ret)
 				goto out_release;
 		}
@@ -217,7 +216,7 @@ int ceph_init_acl(struct dentry *dentry, struct inode *inode, struct inode *dir)
 		if (ret < 0)
 			goto out;
 		else if (ret > 0)
-			ret = ceph_set_acl(dentry, inode, acl, ACL_TYPE_ACCESS);
+			ret = ceph_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		else
 			cache_no_acl(inode);
 	} else {

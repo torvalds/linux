@@ -1303,6 +1303,7 @@ const struct inode_operations ceph_dir_iops = {
 	.listxattr = ceph_listxattr,
 	.removexattr = ceph_removexattr,
 	.get_acl = ceph_get_acl,
+	.set_acl = ceph_set_acl,
 	.mknod = ceph_mknod,
 	.symlink = ceph_symlink,
 	.mkdir = ceph_mkdir,
