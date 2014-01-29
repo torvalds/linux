@@ -1243,8 +1243,9 @@ static int ua101_probe(struct usb_interface *interface,
 		mutex_unlock(&devices_mutex);
 		return -ENOENT;
 	}
-	err = snd_card_create(index[card_index], id[card_index], THIS_MODULE,
-			      sizeof(*ua), &card);
+	err = snd_card_new(&interface->dev,
+			   index[card_index], id[card_index], THIS_MODULE,
+			   sizeof(*ua), &card);
 	if (err < 0) {
 		mutex_unlock(&devices_mutex);
 		return err;
@@ -1282,8 +1283,6 @@ static int ua101_probe(struct usb_interface *interface,
 			goto probe_error;
 		}
 	}
-
-	snd_card_set_dev(card, &interface->dev);
 
 	err = detect_usb_format(ua);
 	if (err < 0)

@@ -124,8 +124,8 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 		snd_printk(KERN_ERR PREFIX "can't set first interface.\n");
 		return -EIO;
 	}
-	ret = snd_card_create(index[regidx], id[regidx], THIS_MODULE,
-			sizeof(struct sfire_chip), &card);
+	ret = snd_card_new(&intf->dev, index[regidx], id[regidx],
+			   THIS_MODULE, sizeof(struct sfire_chip), &card);
 	if (ret < 0) {
 		snd_printk(KERN_ERR PREFIX "cannot create alsa card.\n");
 		return ret;
@@ -134,7 +134,6 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 	strcpy(card->shortname, "TerraTec DMX6FireUSB");
 	sprintf(card->longname, "%s at %d:%d", card->shortname,
 			device->bus->busnum, device->devnum);
-	snd_card_set_dev(card, &intf->dev);
 
 	chip = card->private_data;
 	chips[regidx] = chip;

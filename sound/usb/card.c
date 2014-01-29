@@ -328,7 +328,8 @@ static void remove_trailing_spaces(char *str)
 /*
  * create a chip instance and set its names.
  */
-static int snd_usb_audio_create(struct usb_device *dev, int idx,
+static int snd_usb_audio_create(struct usb_interface *intf,
+				struct usb_device *dev, int idx,
 				const struct snd_usb_audio_quirk *quirk,
 				struct snd_usb_audio **rchip)
 {
@@ -354,7 +355,8 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 		return -ENXIO;
 	}
 
-	err = snd_card_create(index[idx], id[idx], THIS_MODULE, 0, &card);
+	err = snd_card_new(&intf->dev, index[idx], id[idx], THIS_MODULE,
+			   0, &card);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot create card instance %d\n", idx);
 		return err;
@@ -513,10 +515,10 @@ snd_usb_audio_probe(struct usb_device *dev,
 			if (enable[i] && ! usb_chip[i] &&
 			    (vid[i] == -1 || vid[i] == USB_ID_VENDOR(id)) &&
 			    (pid[i] == -1 || pid[i] == USB_ID_PRODUCT(id))) {
-				if (snd_usb_audio_create(dev, i, quirk, &chip) < 0) {
+				if (snd_usb_audio_create(intf, dev, i, quirk,
+							 &chip) < 0) {
 					goto __error;
 				}
-				snd_card_set_dev(chip->card, &intf->dev);
 				chip->pm_intf = intf;
 				break;
 			}
