@@ -596,10 +596,8 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head, struct sk_buff 
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
-		goto found;
 	}
 
-found:
 	type = eh->h_proto;
 
 	rcu_read_lock();
