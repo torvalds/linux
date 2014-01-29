@@ -44,7 +44,7 @@ DEFINE_MUTEX(drm_global_mutex);
 EXPORT_SYMBOL(drm_global_mutex);
 
 static int drm_open_helper(struct inode *inode, struct file *filp,
-			   struct drm_device * dev);
+			   struct drm_minor *minor);
 
 static int drm_setup(struct drm_device * dev)
 {
@@ -110,7 +110,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	filp->f_mapping = dev->dev_mapping;
 	mutex_unlock(&dev->struct_mutex);
 
-	retcode = drm_open_helper(inode, filp, dev);
+	retcode = drm_open_helper(inode, filp, minor);
 	if (retcode)
 		goto err_undo;
 	if (need_setup) {
@@ -196,16 +196,16 @@ static int drm_cpu_valid(void)
  *
  * \param inode device inode.
  * \param filp file pointer.
- * \param dev device.
+ * \param minor acquired minor-object.
  * \return zero on success or a negative number on failure.
  *
  * Creates and initializes a drm_file structure for the file private data in \p
  * filp and add it into the double linked list in \p dev.
  */
 static int drm_open_helper(struct inode *inode, struct file *filp,
-			   struct drm_device * dev)
+			   struct drm_minor *minor)
 {
-	int minor_id = iminor(inode);
+	struct drm_device *dev = minor->dev;
 	struct drm_file *priv;
 	int ret;
 
@@ -216,7 +216,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON && dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return -EINVAL;
 
-	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor_id);
+	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor->index);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -226,11 +226,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	priv->filp = filp;
 	priv->uid = current_euid();
 	priv->pid = get_pid(task_pid(current));
-	priv->minor = idr_find(&drm_minors_idr, minor_id);
-	if (!priv->minor) {
-		ret = -ENODEV;
-		goto out_put_pid;
-	}
+	priv->minor = minor;
 
 	/* for compatibility root is always authenticated */
 	priv->always_authenticated = capable(CAP_SYS_ADMIN);
@@ -336,7 +332,6 @@ out_prime_destroy:
 		drm_prime_destroy_file_private(&priv->prime);
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_release(dev, priv);
-out_put_pid:
 	put_pid(priv->pid);
 	kfree(priv);
 	filp->private_data = NULL;
