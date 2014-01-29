@@ -240,6 +240,18 @@ static bool _is_best_div(struct clk_divider *divider,
 	return now <= rate && now > best;
 }
 
+static int _next_div(struct clk_divider *divider, int div)
+{
+	div++;
+
+	if (divider->flags & CLK_DIVIDER_POWER_OF_TWO)
+		return __roundup_pow_of_two(div);
+	if (divider->table)
+		return _round_up_table(divider->table, div);
+
+	return div;
+}
+
 static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 		unsigned long *best_parent_rate)
 {
@@ -267,7 +279,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	 */
 	maxdiv = min(ULONG_MAX / rate, maxdiv);
 
-	for (i = 1; i <= maxdiv; i++) {
+	for (i = 1; i <= maxdiv; i = _next_div(divider, i)) {
 		if (!_is_valid_div(divider, i))
 			continue;
 		if (rate * i == parent_rate_saved) {
