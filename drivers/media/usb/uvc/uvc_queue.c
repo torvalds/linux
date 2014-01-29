@@ -198,6 +198,18 @@ int uvc_query_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 	return ret;
 }
 
+int uvc_create_buffers(struct uvc_video_queue *queue,
+		       struct v4l2_create_buffers *cb)
+{
+	int ret;
+
+	mutex_lock(&queue->mutex);
+	ret = vb2_create_bufs(&queue->queue, cb);
+	mutex_unlock(&queue->mutex);
+
+	return ret;
+}
+
 int uvc_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 {
 	int ret;
