@@ -74,6 +74,7 @@ static int compat_get_ion_handle_data(
 			struct ion_handle_data __user *data)
 {
 	compat_int_t i;
+	int err;
 
 	err = get_user(i, &data32->handle);
 	err |= put_user(i, &data->handle);
