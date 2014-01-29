@@ -156,6 +156,13 @@ static int get_slot_from_bitmask(int mask, int (*check)(struct module *, int),
 	return mask; /* unchanged */
 }
 
+static int snd_card_do_free(struct snd_card *card);
+
+static void release_card_device(struct device *dev)
+{
+	snd_card_do_free(dev_to_snd_card(dev));
+}
+
 /**
  *  snd_card_new - create and initialize a soundcard structure
  *  @parent: the parent device object
@@ -189,6 +196,8 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	card = kzalloc(sizeof(*card) + extra_size, GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
+	if (extra_size > 0)
+		card->private_data = (char *)card + sizeof(struct snd_card);
 	if (xid)
 		strlcpy(card->id, xid, sizeof(card->id));
 	err = 0;
@@ -208,7 +217,8 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 		mutex_unlock(&snd_card_mutex);
 		snd_printk(KERN_ERR "cannot find the slot for index %d (range 0-%i), error: %d\n",
 			 idx, snd_ecards_limit - 1, err);
-		goto __error;
+		kfree(card);
+		return err;
 	}
 	set_bit(idx, snd_cards_lock);		/* lock it */
 	if (idx >= snd_ecards_limit)
@@ -230,6 +240,15 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	mutex_init(&card->power_lock);
 	init_waitqueue_head(&card->power_sleep);
 #endif
+
+	device_initialize(&card->card_dev);
+	card->card_dev.parent = parent;
+	card->card_dev.class = sound_class;
+	card->card_dev.release = release_card_device;
+	err = kobject_set_name(&card->card_dev.kobj, "card%d", idx);
+	if (err < 0)
+		goto __error;
+
 	/* the control interface cannot be accessed from the user space until */
 	/* snd_cards_bitmask and snd_cards are set with snd_card_register */
 	err = snd_ctl_create(card);
@@ -242,15 +261,13 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 		snd_printk(KERN_ERR "unable to create card info\n");
 		goto __error_ctl;
 	}
-	if (extra_size > 0)
-		card->private_data = (char *)card + sizeof(struct snd_card);
 	*card_ret = card;
 	return 0;
 
       __error_ctl:
 	snd_device_free_all(card, SNDRV_DEV_CMD_PRE);
       __error:
-	kfree(card);
+	put_device(&card->card_dev);
   	return err;
 }
 EXPORT_SYMBOL(snd_card_new);
@@ -407,9 +424,9 @@ int snd_card_disconnect(struct snd_card *card)
 		snd_printk(KERN_ERR "not all devices for card %i can be disconnected\n", card->number);
 
 	snd_info_card_disconnect(card);
-	if (card->card_dev) {
-		device_unregister(card->card_dev);
-		card->card_dev = NULL;
+	if (card->registered) {
+		device_del(&card->card_dev);
+		card->registered = false;
 	}
 #ifdef CONFIG_PM
 	wake_up(&card->power_sleep);
@@ -471,7 +488,7 @@ void snd_card_unref(struct snd_card *card)
 	if (atomic_dec_and_test(&card->refcount)) {
 		wake_up(&card->shutdown_sleep);
 		if (card->free_on_last_close)
-			snd_card_do_free(card);
+			put_device(&card->card_dev);
 	}
 }
 EXPORT_SYMBOL(snd_card_unref);
@@ -489,7 +506,7 @@ int snd_card_free_when_closed(struct snd_card *card)
 
 	card->free_on_last_close = 1;
 	if (atomic_dec_and_test(&card->refcount))
-		snd_card_do_free(card);
+		put_device(&card->card_dev);
 	return 0;
 }
 
@@ -503,7 +520,7 @@ int snd_card_free(struct snd_card *card)
 
 	/* wait, until all devices are ready for the free operation */
 	wait_event(card->shutdown_sleep, !atomic_read(&card->refcount));
-	snd_card_do_free(card);
+	put_device(&card->card_dev);
 	return 0;
 }
 
@@ -694,12 +711,11 @@ int snd_card_register(struct snd_card *card)
 	if (snd_BUG_ON(!card))
 		return -EINVAL;
 
-	if (!card->card_dev) {
-		card->card_dev = device_create(sound_class, card->dev,
-					       MKDEV(0, 0), card,
-					       "card%i", card->number);
-		if (IS_ERR(card->card_dev))
-			card->card_dev = NULL;
+	if (!card->registered) {
+		err = device_add(&card->card_dev);
+		if (err < 0)
+			return err;
+		card->registered = true;
 	}
 
 	if ((err = snd_device_register_all(card)) < 0)
@@ -729,11 +745,11 @@ int snd_card_register(struct snd_card *card)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_REGISTER);
 #endif
-	if (card->card_dev) {
-		err = device_create_file(card->card_dev, &card_id_attrs);
+	if (card->registered) {
+		err = device_create_file(&card->card_dev, &card_id_attrs);
 		if (err < 0)
 			return err;
-		err = device_create_file(card->card_dev, &card_number_attrs);
+		err = device_create_file(&card->card_dev, &card_number_attrs);
 		if (err < 0)
 			return err;
 	}

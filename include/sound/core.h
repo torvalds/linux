@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/device.h>
 #include <linux/sched.h>		/* wake_up() */
 #include <linux/mutex.h>		/* struct mutex */
 #include <linux/rwsem.h>		/* struct rw_semaphore */
@@ -41,8 +42,6 @@
 /* forward declarations */
 struct pci_dev;
 struct module;
-struct device;
-struct device_attribute;
 
 /* device allocation stuff */
 
@@ -135,7 +134,8 @@ struct snd_card {
 	wait_queue_head_t shutdown_sleep;
 	atomic_t refcount;		/* refcount for disconnection */
 	struct device *dev;		/* device assigned to this card */
-	struct device *card_dev;	/* cardX object for sysfs */
+	struct device card_dev;		/* cardX object for sysfs */
+	bool registered;		/* card_dev is registered? */
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
@@ -148,6 +148,8 @@ struct snd_card {
 	int mixer_oss_change_count;
 #endif
 };
+
+#define dev_to_snd_card(p)	container_of(p, struct snd_card, card_dev)
 
 #ifdef CONFIG_PM
 static inline void snd_power_lock(struct snd_card *card)
@@ -197,7 +199,7 @@ struct snd_minor {
 /* return a device pointer linked to each sound device as a parent */
 static inline struct device *snd_card_get_device_link(struct snd_card *card)
 {
-	return card ? card->card_dev : NULL;
+	return card ? &card->card_dev : NULL;
 }
 
 /* sound.c */
