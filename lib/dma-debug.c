@@ -463,7 +463,7 @@ static int active_pfn_set_overlap(unsigned long pfn, int overlap)
 	int i;
 
 	if (overlap > ACTIVE_PFN_MAX_OVERLAP || overlap < 0)
-		return 0;
+		return overlap;
 
 	for (i = RADIX_TREE_MAX_TAGS - 1; i >= 0; i--)
 		if (overlap & 1 << i)
@@ -486,7 +486,7 @@ static void active_pfn_inc_overlap(unsigned long pfn)
 	 * debug_dma_assert_idle() as the pfn may be marked idle
 	 * prematurely.
 	 */
-	WARN_ONCE(overlap == 0,
+	WARN_ONCE(overlap > ACTIVE_PFN_MAX_OVERLAP,
 		  "DMA-API: exceeded %d overlapping mappings of pfn %lx\n",
 		  ACTIVE_PFN_MAX_OVERLAP, pfn);
 }
@@ -517,7 +517,11 @@ static void active_pfn_remove(struct dma_debug_entry *entry)
 	unsigned long flags;
 
 	spin_lock_irqsave(&radix_lock, flags);
-	if (active_pfn_dec_overlap(entry->pfn) == 0)
+	/* since we are counting overlaps the final put of the
+	 * entry->pfn will occur when the overlap count is 0.
+	 * active_pfn_dec_overlap() returns -1 in that case
+	 */
+	if (active_pfn_dec_overlap(entry->pfn) < 0)
 		radix_tree_delete(&dma_active_pfn, entry->pfn);
 	spin_unlock_irqrestore(&radix_lock, flags);
 }
