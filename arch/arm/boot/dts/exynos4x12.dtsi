@@ -209,4 +209,20 @@
 		clock-names = "biu", "ciu";
 		status = "disabled";
 	};
+
+	pmu_reg: syscon@10020000 {
+		compatible = "samsung,exynos4x12-pmu", "syscon";
+		reg = <0x10020000 0x4000>;
+	};
+
+	usb2phy: phy@125B0000 {
+		compatible = "samsung,exynos4x12-usb2-phy";
+		reg = <0x125B0000 0x100>;
+		clocks = <&clock 305>, <&clock 2>;
+		clock-names = "phy", "ref";
+		status = "disabled";
+		#phy-cells = <1>;
+		samsung,sysreg-phandle = <&sys_reg>;
+		samsung,pmureg-phandle = <&pmu_reg>;
+	};
 };

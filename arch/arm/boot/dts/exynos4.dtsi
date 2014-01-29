@@ -253,6 +253,17 @@
 		status = "disabled";
 	};
 
+	usbotg@12480000 {
+		compatible = "samsung,s3c6400-hsotg";
+		reg = <0x12480000 0x20000>;
+		interrupts = <0 71 0>;
+		clocks = <&clock 305>;
+		clock-names = "otg";
+		phys = <&usb2phy 0>;
+		phy-names = "usb2-phy";
+		status = "disabled";
+	};
+
 	ehci@12580000 {
 		compatible = "samsung,exynos4210-ehci";
 		reg = <0x12580000 0x100>;
@@ -260,6 +271,26 @@
 		clocks = <&clock 304>;
 		clock-names = "usbhost";
 		status = "disabled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			phys = <&usb2phy 1>;
+			phy-names = "host";
+			reg = <0>;
+			status = "disabled";
+		};
+		port@1 {
+			phys = <&usb2phy 2>;
+			phy-names = "hsic0";
+			reg = <1>;
+			status = "disabled";
+		};
+		port@2 {
+			phys = <&usb2phy 3>;
+			phy-names = "hsic1";
+			reg = <2>;
+			status = "disabled";
+		};
 	};
 
 	ohci@12590000 {
