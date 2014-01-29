@@ -209,7 +209,9 @@ BITMASK(GC_MARK,	 struct bucket, gc_mark, 0, 2);
 #define GC_MARK_RECLAIMABLE	0
 #define GC_MARK_DIRTY		1
 #define GC_MARK_METADATA	2
-BITMASK(GC_SECTORS_USED, struct bucket, gc_mark, 2, 13);
+#define GC_SECTORS_USED_SIZE	13
+#define MAX_GC_SECTORS_USED	(~(~0ULL << GC_SECTORS_USED_SIZE))
+BITMASK(GC_SECTORS_USED, struct bucket, gc_mark, 2, GC_SECTORS_USED_SIZE);
 BITMASK(GC_MOVE, struct bucket, gc_mark, 15, 1);
 
 #include "journal.h"

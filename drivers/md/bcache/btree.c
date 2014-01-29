@@ -1163,7 +1163,7 @@ uint8_t __bch_btree_mark_key(struct cache_set *c, int level, struct bkey *k)
 		/* guard against overflow */
 		SET_GC_SECTORS_USED(g, min_t(unsigned,
 					     GC_SECTORS_USED(g) + KEY_SIZE(k),
-					     (1 << 14) - 1));
+					     MAX_GC_SECTORS_USED));
 
 		BUG_ON(!GC_SECTORS_USED(g));
 	}
