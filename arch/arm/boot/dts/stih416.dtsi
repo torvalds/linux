@@ -156,5 +156,49 @@
 
 			status		= "disabled";
 		};
+
+		ethernet0: dwmac@fe810000 {
+			device_type 	= "network";
+			compatible	= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
+			status 		= "disabled";
+			reg 		= <0xfe810000 0x8000>, <0x8bc 0x4>;
+			reg-names	= "stmmaceth", "sti-ethconf";
+
+			interrupts = <0 133 0>, <0 134 0>, <0 135 0>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+
+			snps,pbl 	= <32>;
+			snps,mixed-burst;
+
+			st,syscon		= <&syscfg_rear>;
+			resets			= <&softreset STIH416_ETH0_SOFTRESET>;
+			reset-names		= "stmmaceth";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_mii0>;
+			clock-names	= "stmmaceth";
+			clocks		= <&CLK_S_GMAC0_PHY>;
+		};
+
+		ethernet1: dwmac@fef08000 {
+			device_type = "network";
+			compatible		= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
+			status 		= "disabled";
+			reg		= <0xfef08000 0x8000>, <0x7f0 0x4>;
+			reg-names	= "stmmaceth", "sti-ethconf";
+			interrupts = <0 136 0>, <0 137 0>, <0 138 0>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+
+			snps,pbl	= <32>;
+			snps,mixed-burst;
+
+			st,syscon	= <&syscfg_sbc>;
+
+			resets		= <&softreset STIH416_ETH1_SOFTRESET>;
+			reset-names	= "stmmaceth";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_mii1>;
+			clock-names	= "stmmaceth";
+			clocks		= <&CLK_S_ETH1_PHY>;
+		};
 	};
 };
