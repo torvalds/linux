@@ -157,6 +157,7 @@ static int get_slot_from_bitmask(int mask, int (*check)(struct module *, int),
 }
 
 static int snd_card_do_free(struct snd_card *card);
+static const struct attribute_group *card_dev_attr_groups[];
 
 static void release_card_device(struct device *dev)
 {
@@ -245,6 +246,7 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	card->card_dev.parent = parent;
 	card->card_dev.class = sound_class;
 	card->card_dev.release = release_card_device;
+	card->card_dev.groups = card_dev_attr_groups;
 	err = kobject_set_name(&card->card_dev.kobj, "card%d", idx);
 	if (err < 0)
 		goto __error;
@@ -679,8 +681,7 @@ card_id_store_attr(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static struct device_attribute card_id_attrs =
-	__ATTR(id, S_IRUGO | S_IWUSR, card_id_show_attr, card_id_store_attr);
+static DEVICE_ATTR(id, S_IRUGO | S_IWUSR, card_id_show_attr, card_id_store_attr);
 
 static ssize_t
 card_number_show_attr(struct device *dev,
@@ -690,8 +691,22 @@ card_number_show_attr(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%i\n", card ? card->number : -1);
 }
 
-static struct device_attribute card_number_attrs =
-	__ATTR(number, S_IRUGO, card_number_show_attr, NULL);
+static DEVICE_ATTR(number, S_IRUGO, card_number_show_attr, NULL);
+
+static struct attribute *card_dev_attrs[] = {
+	&dev_attr_id.attr,
+	&dev_attr_number.attr,
+	NULL
+};
+
+static struct attribute_group card_dev_attr_group = {
+	.attrs	= card_dev_attrs,
+};
+
+static const struct attribute_group *card_dev_attr_groups[] = {
+	&card_dev_attr_group,
+	NULL
+};
 
 /**
  *  snd_card_register - register the soundcard
@@ -745,15 +760,6 @@ int snd_card_register(struct snd_card *card)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_REGISTER);
 #endif
-	if (card->registered) {
-		err = device_create_file(&card->card_dev, &card_id_attrs);
-		if (err < 0)
-			return err;
-		err = device_create_file(&card->card_dev, &card_number_attrs);
-		if (err < 0)
-			return err;
-	}
-
 	return 0;
 }
 
