@@ -682,8 +682,6 @@ static int ad9389b_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		return -EINVAL;
 	if (edid->blocks == 0 || edid->blocks > 256)
 		return -EINVAL;
-	if (!edid->edid)
-		return -EINVAL;
 	if (!state->edid.segments) {
 		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
 		return -ENODATA;

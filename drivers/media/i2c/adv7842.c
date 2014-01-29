@@ -2036,8 +2036,6 @@ static int adv7842_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		return -EINVAL;
 	if (edid->start_block == 1)
 		edid->blocks = 1;
-	if (!edid->edid)
-		return -EINVAL;
 
 	switch (edid->pad) {
 	case ADV7842_EDID_PORT_A:
@@ -2072,8 +2070,6 @@ static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *e)
 		return -EINVAL;
 	if (e->blocks > 2)
 		return -E2BIG;
-	if (!e->edid)
-		return -EINVAL;
 
 	/* todo, per edid */
 	state->aspect_ratio = v4l2_calc_aspect_ratio(e->edid[0x15],

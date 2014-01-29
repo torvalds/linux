@@ -361,11 +361,27 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			sd, pad, set_selection, subdev_fh, sel);
 	}
 
-	case VIDIOC_G_EDID:
-		return v4l2_subdev_call(sd, pad, get_edid, arg);
+	case VIDIOC_G_EDID: {
+		struct v4l2_subdev_edid *edid = arg;
 
-	case VIDIOC_S_EDID:
-		return v4l2_subdev_call(sd, pad, set_edid, arg);
+		if (edid->pad >= sd->entity.num_pads)
+			return -EINVAL;
+		if (edid->blocks && edid->edid == NULL)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, get_edid, edid);
+	}
+
+	case VIDIOC_S_EDID: {
+		struct v4l2_subdev_edid *edid = arg;
+
+		if (edid->pad >= sd->entity.num_pads)
+			return -EINVAL;
+		if (edid->blocks && edid->edid == NULL)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, set_edid, edid);
+	}
 
 	case VIDIOC_SUBDEV_DV_TIMINGS_CAP: {
 		struct v4l2_dv_timings_cap *cap = arg;
