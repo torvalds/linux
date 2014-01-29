@@ -967,13 +967,13 @@ void brcmf_chip_enter_download(struct brcmf_chip *pub)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	chip = container_of(pub, struct brcmf_chip_priv, pub);
-	arm = brcmf_chip_get_core(pub, BCMA_CORE_ARM_CM3);
+	arm = brcmf_chip_get_core(pub, BCMA_CORE_ARM_CR4);
 	if (arm) {
-		brcmf_chip_cm3_enterdl(chip);
+		brcmf_chip_cr4_enterdl(chip);
 		return;
 	}
 
-	brcmf_chip_cr4_enterdl(chip);
+	brcmf_chip_cm3_enterdl(chip);
 }
 
 bool brcmf_chip_exit_download(struct brcmf_chip *pub, u32 rstvec)
@@ -984,11 +984,11 @@ bool brcmf_chip_exit_download(struct brcmf_chip *pub, u32 rstvec)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	chip = container_of(pub, struct brcmf_chip_priv, pub);
-	arm = brcmf_chip_get_core(pub, BCMA_CORE_ARM_CM3);
+	arm = brcmf_chip_get_core(pub, BCMA_CORE_ARM_CR4);
 	if (arm)
-		return brcmf_chip_cm3_exitdl(chip);
+		return brcmf_chip_cr4_exitdl(chip, rstvec);
 
-	return brcmf_chip_cr4_exitdl(chip, rstvec);
+	return brcmf_chip_cm3_exitdl(chip);
 }
 
 bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
