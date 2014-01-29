@@ -302,18 +302,7 @@ static void drm_minor_free(struct drm_device *dev, unsigned int type)
 	}
 }
 
-/**
- * drm_get_minor - Register DRM minor
- * @dev: DRM device
- * @type: Type of minor
- *
- * Register minor of given type.
- * Caller must hold the global DRM mutex.
- *
- * RETURNS:
- * 0 on success, negative error code on failure.
- */
-static int drm_get_minor(struct drm_device *dev, unsigned int type)
+static int drm_minor_register(struct drm_device *dev, unsigned int type)
 {
 	struct drm_minor *new_minor;
 	int ret;
@@ -362,18 +351,11 @@ err_mem:
 	return ret;
 }
 
-/**
- * drm_unplug_minor - Unplug DRM minor
- * @minor: Minor to unplug
- *
- * Unplugs the given DRM minor but keeps the object. So after this returns,
- * minor->dev is still valid so existing open-files can still access it to get
- * device information from their drm_file ojects.
- * If the minor is already unplugged or if @minor is NULL, nothing is done.
- * The global DRM mutex must be held by the caller.
- */
-static void drm_unplug_minor(struct drm_minor *minor)
+static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 {
+	struct drm_minor *minor;
+
+	minor = *drm_minor_get_slot(dev, type);
 	if (!minor || !minor->kdev)
 		return;
 
@@ -448,11 +430,9 @@ EXPORT_SYMBOL(drm_put_dev);
 void drm_unplug_dev(struct drm_device *dev)
 {
 	/* for a USB device */
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_unplug_minor(dev->control);
-	if (dev->render)
-		drm_unplug_minor(dev->render);
-	drm_unplug_minor(dev->primary);
+	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
+	drm_minor_unregister(dev, DRM_MINOR_RENDER);
+	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 
 	mutex_lock(&drm_global_mutex);
 
@@ -623,15 +603,15 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	mutex_lock(&drm_global_mutex);
 
-	ret = drm_get_minor(dev, DRM_MINOR_CONTROL);
+	ret = drm_minor_register(dev, DRM_MINOR_CONTROL);
 	if (ret)
 		goto err_minors;
 
-	ret = drm_get_minor(dev, DRM_MINOR_RENDER);
+	ret = drm_minor_register(dev, DRM_MINOR_RENDER);
 	if (ret)
 		goto err_minors;
 
-	ret = drm_get_minor(dev, DRM_MINOR_LEGACY);
+	ret = drm_minor_register(dev, DRM_MINOR_LEGACY);
 	if (ret)
 		goto err_minors;
 
@@ -656,9 +636,9 @@ err_unload:
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 err_minors:
-	drm_unplug_minor(dev->control);
-	drm_unplug_minor(dev->render);
-	drm_unplug_minor(dev->primary);
+	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
+	drm_minor_unregister(dev, DRM_MINOR_RENDER);
+	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 out_unlock:
 	mutex_unlock(&drm_global_mutex);
 	return ret;
@@ -690,8 +670,8 @@ void drm_dev_unregister(struct drm_device *dev)
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_rmmap(dev, r_list->map);
 
-	drm_unplug_minor(dev->control);
-	drm_unplug_minor(dev->render);
-	drm_unplug_minor(dev->primary);
+	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
+	drm_minor_unregister(dev, DRM_MINOR_RENDER);
+	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
