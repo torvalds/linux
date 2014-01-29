@@ -33,6 +33,11 @@ static int qeth_l2_send_setdelmac(struct qeth_card *, __u8 *,
 					    unsigned long));
 static void qeth_l2_set_multicast_list(struct net_device *);
 static int qeth_l2_recover(void *);
+static void qeth_bridgeport_query_support(struct qeth_card *card);
+static void qeth_bridge_state_change(struct qeth_card *card,
+					struct qeth_ipa_cmd *cmd);
+static void qeth_bridge_host_event(struct qeth_card *card,
+					struct qeth_ipa_cmd *cmd);
 
 static int qeth_l2_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
@@ -989,6 +994,10 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		rc = -ENODEV;
 		goto out_remove;
 	}
+	qeth_bridgeport_query_support(card);
+	if (card->options.sbp.supported_funcs)
+		dev_info(&card->gdev->dev,
+		"The device represents a HiperSockets Bridge Capable Port\n");
 	qeth_trace_features(card);
 
 	if (!card->dev && qeth_l2_setup_netdev(card)) {
@@ -1233,6 +1242,26 @@ out:
 	return rc;
 }
 
+/* Returns zero if the command is successfully "consumed" */
+static int qeth_l2_control_event(struct qeth_card *card,
+					struct qeth_ipa_cmd *cmd)
+{
+	switch (cmd->hdr.command) {
+	case IPA_CMD_SETBRIDGEPORT:
+		if (cmd->data.sbp.hdr.command_code ==
+				IPA_SBP_BRIDGE_PORT_STATE_CHANGE) {
+			qeth_bridge_state_change(card, cmd);
+			return 0;
+		} else
+			return 1;
+	case IPA_CMD_ADDRESS_CHANGE_NOTIF:
+		qeth_bridge_host_event(card, cmd);
+		return 0;
+	default:
+		return 1;
+	}
+}
+
 struct qeth_discipline qeth_l2_discipline = {
 	.start_poll = qeth_qdio_start_poll,
 	.input_handler = (qdio_handler_t *) qeth_qdio_input_handler,
@@ -1246,6 +1275,7 @@ struct qeth_discipline qeth_l2_discipline = {
 	.freeze = qeth_l2_pm_suspend,
 	.thaw = qeth_l2_pm_resume,
 	.restore = qeth_l2_pm_resume,
+	.control_event_handler = qeth_l2_control_event,
 };
 EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 
@@ -1463,7 +1493,8 @@ static void qeth_bridge_state_change_worker(struct work_struct *work)
 	kfree(data);
 }
 
-void qeth_bridge_state_change(struct qeth_card *card, struct qeth_ipa_cmd *cmd)
+static void qeth_bridge_state_change(struct qeth_card *card,
+					struct qeth_ipa_cmd *cmd)
 {
 	struct qeth_sbp_state_change *qports =
 		 &cmd->data.sbp.data.state_change;
@@ -1488,7 +1519,6 @@ void qeth_bridge_state_change(struct qeth_card *card, struct qeth_ipa_cmd *cmd)
 			sizeof(struct qeth_sbp_state_change) + extrasize);
 	queue_work(qeth_wq, &data->worker);
 }
-EXPORT_SYMBOL(qeth_bridge_state_change);
 
 struct qeth_bridge_host_data {
 	struct work_struct worker;
@@ -1528,7 +1558,8 @@ static void qeth_bridge_host_event_worker(struct work_struct *work)
 	kfree(data);
 }
 
-void qeth_bridge_host_event(struct qeth_card *card, struct qeth_ipa_cmd *cmd)
+static void qeth_bridge_host_event(struct qeth_card *card,
+					struct qeth_ipa_cmd *cmd)
 {
 	struct qeth_ipacmd_addr_change *hostevs =
 		 &cmd->data.addrchange;
@@ -1560,7 +1591,6 @@ void qeth_bridge_host_event(struct qeth_card *card, struct qeth_ipa_cmd *cmd)
 			sizeof(struct qeth_ipacmd_addr_change) + extrasize);
 	queue_work(qeth_wq, &data->worker);
 }
-EXPORT_SYMBOL(qeth_bridge_host_event);
 
 /* SETBRIDGEPORT support; sending commands */
 
@@ -1683,7 +1713,7 @@ static int qeth_bridgeport_query_support_cb(struct qeth_card *card,
  * Sets bitmask of supported setbridgeport subfunctions in the qeth_card
  * strucutre: card->options.sbp.supported_funcs.
  */
-void qeth_bridgeport_query_support(struct qeth_card *card)
+static void qeth_bridgeport_query_support(struct qeth_card *card)
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
@@ -1709,7 +1739,6 @@ void qeth_bridgeport_query_support(struct qeth_card *card)
 	}
 	card->options.sbp.supported_funcs = cbctl.data.supported;
 }
-EXPORT_SYMBOL_GPL(qeth_bridgeport_query_support);
 
 static int qeth_bridgeport_query_ports_cb(struct qeth_card *card,
 	struct qeth_reply *reply, unsigned long data)

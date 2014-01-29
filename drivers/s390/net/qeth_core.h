@@ -738,6 +738,8 @@ struct qeth_discipline {
 	int (*freeze)(struct ccwgroup_device *);
 	int (*thaw) (struct ccwgroup_device *);
 	int (*restore)(struct ccwgroup_device *);
+	int (*control_event_handler)(struct qeth_card *card,
+					struct qeth_ipa_cmd *cmd);
 };
 
 struct qeth_vlan_vid {
@@ -948,13 +950,10 @@ int qeth_query_card_info(struct qeth_card *card,
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	int (*reply_cb)(struct qeth_card *, struct qeth_reply*, unsigned long),
 	void *reply_param);
-void qeth_bridge_state_change(struct qeth_card *card, struct qeth_ipa_cmd *cmd);
-void qeth_bridgeport_query_support(struct qeth_card *card);
 int qeth_bridgeport_query_ports(struct qeth_card *card,
 	enum qeth_sbp_roles *role, enum qeth_sbp_states *state);
 int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role);
 int qeth_bridgeport_an_set(struct qeth_card *card, int enable);
-void qeth_bridge_host_event(struct qeth_card *card, struct qeth_ipa_cmd *cmd);
 int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *, struct sk_buff *, int);
 int qeth_get_elements_for_frags(struct sk_buff *);
