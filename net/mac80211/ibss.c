@@ -382,7 +382,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 					      presp->head_len, 0, GFP_KERNEL);
 	cfg80211_put_bss(local->hw.wiphy, bss);
 	netif_carrier_on(sdata->dev);
-	cfg80211_ibss_joined(sdata->dev, ifibss->bssid, GFP_KERNEL);
+	cfg80211_ibss_joined(sdata->dev, ifibss->bssid, chan, GFP_KERNEL);
 }
 
 static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,

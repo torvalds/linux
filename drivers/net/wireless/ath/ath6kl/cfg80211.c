@@ -790,7 +790,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
 	if (nw_type & ADHOC_NETWORK) {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "ad-hoc %s selected\n",
 			   nw_type & ADHOC_CREATOR ? "creator" : "joiner");
-		cfg80211_ibss_joined(vif->ndev, bssid, GFP_KERNEL);
+		cfg80211_ibss_joined(vif->ndev, bssid, chan, GFP_KERNEL);
 		cfg80211_put_bss(ar->wiphy, bss);
 		return;
 	}
@@ -861,13 +861,9 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 	}
 
 	if (vif->nw_type & ADHOC_NETWORK) {
-		if (vif->wdev.iftype != NL80211_IFTYPE_ADHOC) {
+		if (vif->wdev.iftype != NL80211_IFTYPE_ADHOC)
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 				   "%s: ath6k not in ibss mode\n", __func__);
-			return;
-		}
-		memset(bssid, 0, ETH_ALEN);
-		cfg80211_ibss_joined(vif->ndev, bssid, GFP_KERNEL);
 		return;
 	}
 

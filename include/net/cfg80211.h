@@ -3895,6 +3895,7 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
  *
  * @dev: network device
  * @bssid: the BSSID of the IBSS joined
+ * @channel: the channel of the IBSS joined
  * @gfp: allocation flags
  *
  * This function notifies cfg80211 that the device joined an IBSS or
@@ -3904,7 +3905,8 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
  * with the locally generated beacon -- this guarantees that there is
  * always a scan result for this IBSS. cfg80211 will handle the rest.
  */
-void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp);
+void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
+			  struct ieee80211_channel *channel, gfp_t gfp);
 
 /**
  * cfg80211_notify_new_candidate - notify cfg80211 of a new mesh peer candidate

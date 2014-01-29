@@ -210,6 +210,7 @@ struct cfg80211_event {
 		} dc;
 		struct {
 			u8 bssid[ETH_ALEN];
+			struct ieee80211_channel *channel;
 		} ij;
 	};
 };
@@ -257,7 +258,8 @@ int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
-void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid);
+void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
+			    struct ieee80211_channel *channel);
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev);
 

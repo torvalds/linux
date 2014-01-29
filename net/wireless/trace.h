@@ -2278,11 +2278,6 @@ DECLARE_EVENT_CLASS(cfg80211_rx_evt,
 	TP_printk(NETDEV_PR_FMT ", " MAC_PR_FMT, NETDEV_PR_ARG, MAC_PR_ARG(addr))
 );
 
-DEFINE_EVENT(cfg80211_rx_evt, cfg80211_ibss_joined,
-	TP_PROTO(struct net_device *netdev, const u8 *addr),
-	TP_ARGS(netdev, addr)
-);
-
 DEFINE_EVENT(cfg80211_rx_evt, cfg80211_rx_spurious_frame,
 	TP_PROTO(struct net_device *netdev, const u8 *addr),
 	TP_ARGS(netdev, addr)
@@ -2291,6 +2286,24 @@ DEFINE_EVENT(cfg80211_rx_evt, cfg80211_rx_spurious_frame,
 DEFINE_EVENT(cfg80211_rx_evt, cfg80211_rx_unexpected_4addr_frame,
 	TP_PROTO(struct net_device *netdev, const u8 *addr),
 	TP_ARGS(netdev, addr)
+);
+
+TRACE_EVENT(cfg80211_ibss_joined,
+	TP_PROTO(struct net_device *netdev, const u8 *bssid,
+		 struct ieee80211_channel *channel),
+	TP_ARGS(netdev, bssid, channel),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(bssid)
+		CHAN_ENTRY
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(bssid, bssid);
+		CHAN_ASSIGN(channel);
+	),
+	TP_printk(NETDEV_PR_FMT ", bssid: " MAC_PR_FMT ", " CHAN_PR_FMT,
+		  NETDEV_PR_ARG, MAC_PR_ARG(bssid), CHAN_PR_ARG)
 );
 
 TRACE_EVENT(cfg80211_probe_status,
