@@ -1075,7 +1075,7 @@ static void nvme_abort_cmd(int cmdid, struct nvme_queue *nvmeq)
 		dev_warn(&dev->pci_dev->dev,
 			"I/O %d QID %d timeout, reset controller\n", cmdid,
 								nvmeq->qid);
-		INIT_WORK(&dev->reset_work, nvme_reset_failed_dev);
+		PREPARE_WORK(&dev->reset_work, nvme_reset_failed_dev);
 		queue_work(nvme_workq, &dev->reset_work);
 		return;
 	}
@@ -1757,7 +1757,7 @@ static int nvme_kthread(void *data)
 				list_del_init(&dev->node);
 				dev_warn(&dev->pci_dev->dev,
 					"Failed status, reset controller\n");
-				INIT_WORK(&dev->reset_work,
+				PREPARE_WORK(&dev->reset_work,
 							nvme_reset_failed_dev);
 				queue_work(nvme_workq, &dev->reset_work);
 				continue;
@@ -2460,7 +2460,7 @@ static int nvme_dev_resume(struct nvme_dev *dev)
 		return ret;
 	if (ret == -EBUSY) {
 		spin_lock(&dev_list_lock);
-		INIT_WORK(&dev->reset_work, nvme_remove_disks);
+		PREPARE_WORK(&dev->reset_work, nvme_remove_disks);
 		queue_work(nvme_workq, &dev->reset_work);
 		spin_unlock(&dev_list_lock);
 	}
@@ -2507,6 +2507,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto free;
 
 	INIT_LIST_HEAD(&dev->namespaces);
+	INIT_WORK(&dev->reset_work, nvme_reset_failed_dev);
 	dev->pci_dev = pdev;
 	pci_set_drvdata(pdev, dev);
 	result = nvme_set_instance(dev);
@@ -2605,7 +2606,7 @@ static int nvme_resume(struct device *dev)
 	struct nvme_dev *ndev = pci_get_drvdata(pdev);
 
 	if (nvme_dev_resume(ndev) && !work_busy(&ndev->reset_work)) {
-		INIT_WORK(&ndev->reset_work, nvme_reset_failed_dev);
+		PREPARE_WORK(&ndev->reset_work, nvme_reset_failed_dev);
 		queue_work(nvme_workq, &ndev->reset_work);
 	}
 	return 0;
