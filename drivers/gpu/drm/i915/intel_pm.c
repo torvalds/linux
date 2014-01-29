@@ -3196,16 +3196,10 @@ static void valleyview_disable_rps(struct drm_device *dev)
 
 static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 {
-	if (IS_GEN6(dev))
-		DRM_DEBUG_DRIVER("Sandybridge: deep RC6 disabled\n");
-
-	if (IS_HASWELL(dev))
-		DRM_DEBUG_DRIVER("Haswell: only RC6 available\n");
-
 	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
-			(mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-			(mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-			(mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+		 (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
+		 (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
+		 (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
 }
 
 int intel_enable_rc6(const struct drm_device *dev)
