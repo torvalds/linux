@@ -30,7 +30,7 @@
 #include <soc.h>
 #include "dhd_dbg.h"
 #include "sdio_host.h"
-#include "sdio_chip.h"
+#include "chip.h"
 
 /* chip core base & ramsize */
 /* bcm4329 */
@@ -127,7 +127,7 @@ brcmf_sdio_sb_iscoreup(struct brcmf_sdio_dev *sdiodev,
 				    NULL);
 	regdata &= (SSB_TMSLOW_RESET | SSB_TMSLOW_REJECT |
 		    SSB_IMSTATE_REJECT | SSB_TMSLOW_CLOCK);
-	return (SSB_TMSLOW_CLOCK == regdata);
+	return SSB_TMSLOW_CLOCK == regdata;
 }
 
 static bool

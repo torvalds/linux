@@ -40,7 +40,7 @@
 #include <brcm_hw_ids.h>
 #include <soc.h>
 #include "sdio_host.h"
-#include "sdio_chip.h"
+#include "chip.h"
 #include "nvram.h"
 
 #define DCMD_RESP_TIMEOUT  2000	/* In milli second */

@@ -43,7 +43,6 @@
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
 #include "sdio_host.h"
-#include "sdio_chip.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
