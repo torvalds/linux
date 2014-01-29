@@ -49,6 +49,11 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com>");
 
+int fullstop = FULLSTOP_RMMOD;
+EXPORT_SYMBOL_GPL(fullstop);
+DEFINE_MUTEX(fullstop_mutex);
+EXPORT_SYMBOL_GPL(fullstop_mutex);
+
 #define TORTURE_RANDOM_MULT	39916801  /* prime */
 #define TORTURE_RANDOM_ADD	479001701 /* prime */
 #define TORTURE_RANDOM_REFRESH	10000
@@ -69,3 +74,18 @@ torture_random(struct torture_random_state *trsp)
 	return swahw32(trsp->trs_state);
 }
 EXPORT_SYMBOL_GPL(torture_random);
+
+/*
+ * Absorb kthreads into a kernel function that won't return, so that
+ * they won't ever access module text or data again.
+ */
+void torture_shutdown_absorb(const char *title)
+{
+	while (ACCESS_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
+		pr_notice(
+		       "torture thread %s parking due to system shutdown\n",
+		       title);
+		schedule_timeout_uninterruptible(MAX_SCHEDULE_TIMEOUT);
+	}
+}
+EXPORT_SYMBOL_GPL(torture_shutdown_absorb);
