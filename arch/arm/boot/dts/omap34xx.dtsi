@@ -39,3 +39,7 @@
 		};
 	};
 };
+
+/include/ "omap34xx-omap36xx-clocks.dtsi"
+/include/ "omap36xx-omap3430es2plus-clocks.dtsi"
+/include/ "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"

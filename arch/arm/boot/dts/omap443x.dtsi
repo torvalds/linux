@@ -44,3 +44,5 @@
 		};
 	};
 };
+
+/include/ "omap443x-clocks.dtsi"

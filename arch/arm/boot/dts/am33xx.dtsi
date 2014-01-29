@@ -102,6 +102,32 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
+		prcm: prcm@44e00000 {
+			compatible = "ti,am3-prcm";
+			reg = <0x44e00000 0x4000>;
+
+			prcm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prcm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@44e10000 {
+			compatible = "ti,am3-scrm";
+			reg = <0x44e10000 0x2000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
 		intc: interrupt-controller@48200000 {
 			compatible = "ti,omap2-intc";
 			interrupt-controller;
@@ -794,3 +820,5 @@
 		};
 	};
 };
+
+/include/ "am33xx-clocks.dtsi"

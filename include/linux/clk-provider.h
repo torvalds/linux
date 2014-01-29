@@ -488,6 +488,8 @@ struct clk_onecell_data {
 	unsigned int clk_num;
 };
 
+extern struct of_device_id __clk_of_table;
+
 #define CLK_OF_DECLARE(name, compat, fn)			\
 	static const struct of_device_id __clk_of_table_##name	\
 		__used __section(__clk_of_table)		\

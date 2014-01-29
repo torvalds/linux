@@ -52,3 +52,5 @@
 		};
 	};
 };
+
+/include/ "omap446x-clocks.dtsi"
