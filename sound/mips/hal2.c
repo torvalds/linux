@@ -880,7 +880,7 @@ static int hal2_probe(struct platform_device *pdev)
 	struct snd_hal2 *chip;
 	int err;
 
-	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	err = snd_card_new(&pdev->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
@@ -889,7 +889,6 @@ static int hal2_probe(struct platform_device *pdev)
 		snd_card_free(card);
 		return err;
 	}
-	snd_card_set_dev(card, &pdev->dev);
 
 	err = hal2_pcm_create(chip);
 	if (err < 0) {

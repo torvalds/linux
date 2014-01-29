@@ -601,8 +601,8 @@ static int au1000_ac97_probe(struct platform_device *pdev)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 
-	err = snd_card_create(-1, "AC97", THIS_MODULE,
-				sizeof(struct snd_au1000), &card);
+	err = snd_card_new(&pdev->dev, -1, "AC97", THIS_MODULE,
+			   sizeof(struct snd_au1000), &card);
 	if (err < 0)
 		return err;
 
