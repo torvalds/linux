@@ -294,7 +294,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		READ32(nace);
 
 		if (nace > NFS4_ACL_MAX)
-			return nfserr_resource;
+			return nfserr_fbig;
 
 		*acl = nfs4_acl_new(nace);
 		if (*acl == NULL)
