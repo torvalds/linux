@@ -307,7 +307,8 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 		/* Serially input address */
 		if (column != -1) {
 			/* Adjust columns for 16 bit buswidth */
-			if (this->options & NAND_BUSWIDTH_16)
+			if (this->options & NAND_BUSWIDTH_16 &&
+					!nand_opcode_8bits(command))
 				column >>= 1;
 			ctx->write_byte(mtd, column);
 		}

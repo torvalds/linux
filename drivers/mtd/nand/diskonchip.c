@@ -698,7 +698,8 @@ static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int colu
 		/* Serially input address */
 		if (column != -1) {
 			/* Adjust columns for 16 bit buswidth */
-			if (this->options & NAND_BUSWIDTH_16)
+			if (this->options & NAND_BUSWIDTH_16 &&
+					!nand_opcode_8bits(command))
 				column >>= 1;
 			WriteDOC(column, docptr, Mplus_FlashAddress);
 		}

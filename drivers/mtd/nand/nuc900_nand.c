@@ -151,7 +151,8 @@ static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	if (column != -1 || page_addr != -1) {
 
 		if (column != -1) {
-			if (chip->options & NAND_BUSWIDTH_16)
+			if (chip->options & NAND_BUSWIDTH_16 &&
+					!nand_opcode_8bits(command))
 				column >>= 1;
 			write_addr_reg(nand, column);
 			write_addr_reg(nand, column >> 8 | ENDADDR);
