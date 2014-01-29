@@ -33,6 +33,11 @@
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			reg = <0>;
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 	};
 

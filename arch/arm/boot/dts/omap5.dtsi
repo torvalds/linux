@@ -49,6 +49,12 @@
 				1000000 1060000
 				1500000 1250000
 			>;
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
+
 			/* cooling options */
 			cooling-min-level = <0>;
 			cooling-max-level = <2>;
