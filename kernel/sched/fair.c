@@ -415,12 +415,6 @@ static inline void list_del_leaf_cfs_rq(struct cfs_rq *cfs_rq)
 #define for_each_leaf_cfs_rq(rq, cfs_rq) \
 		for (cfs_rq = &rq->cfs; cfs_rq; cfs_rq = NULL)
 
-static inline struct cfs_rq *
-is_same_group(struct sched_entity *se, struct sched_entity *pse)
-{
-	return cfs_rq_of(se); /* always the same rq */
-}
-
 static inline struct sched_entity *parent_entity(struct sched_entity *se)
 {
 	return NULL;
