@@ -793,7 +793,7 @@ static int beiscsi_get_port_speed(struct Scsi_Host *shost)
 		ihost->port_speed = ISCSI_PORT_SPEED_10MBPS;
 		break;
 	case BE2ISCSI_LINK_SPEED_100MBPS:
-		ihost->port_speed = BE2ISCSI_LINK_SPEED_100MBPS;
+		ihost->port_speed = ISCSI_PORT_SPEED_100MBPS;
 		break;
 	case BE2ISCSI_LINK_SPEED_1GBPS:
 		ihost->port_speed = ISCSI_PORT_SPEED_1GBPS;
