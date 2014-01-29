@@ -392,7 +392,7 @@ void drm_put_dev(struct drm_device *dev)
 	}
 
 	drm_dev_unregister(dev);
-	drm_dev_free(dev);
+	drm_dev_unref(dev);
 }
 EXPORT_SYMBOL(drm_put_dev);
 
@@ -425,6 +425,9 @@ EXPORT_SYMBOL(drm_unplug_dev);
  * Call drm_dev_register() to advertice the device to user space and register it
  * with other core subsystems.
  *
+ * The initial ref-count of the object is 1. Use drm_dev_ref() and
+ * drm_dev_unref() to take and drop further ref-counts.
+ *
  * RETURNS:
  * Pointer to new DRM device, or NULL if out of memory.
  */
@@ -438,6 +441,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	if (!dev)
 		return NULL;
 
+	kref_init(&dev->ref);
 	dev->dev = parent;
 	dev->driver = driver;
 
@@ -481,18 +485,10 @@ err_free:
 }
 EXPORT_SYMBOL(drm_dev_alloc);
 
-/**
- * drm_dev_free - Free DRM device
- * @dev: DRM device to free
- *
- * Free a DRM device that has previously been allocated via drm_dev_alloc().
- * You must not use kfree() instead or you will leak memory.
- *
- * This must not be called once the device got registered. Use drm_put_dev()
- * instead, which then calls drm_dev_free().
- */
-void drm_dev_free(struct drm_device *dev)
+static void drm_dev_release(struct kref *ref)
 {
+	struct drm_device *dev = container_of(ref, struct drm_device, ref);
+
 	drm_put_minor(dev->control);
 	drm_put_minor(dev->render);
 	drm_put_minor(dev->primary);
@@ -506,7 +502,39 @@ void drm_dev_free(struct drm_device *dev)
 	kfree(dev->devname);
 	kfree(dev);
 }
-EXPORT_SYMBOL(drm_dev_free);
+
+/**
+ * drm_dev_ref - Take reference of a DRM device
+ * @dev: device to take reference of or NULL
+ *
+ * This increases the ref-count of @dev by one. You *must* already own a
+ * reference when calling this. Use drm_dev_unref() to drop this reference
+ * again.
+ *
+ * This function never fails. However, this function does not provide *any*
+ * guarantee whether the device is alive or running. It only provides a
+ * reference to the object and the memory associated with it.
+ */
+void drm_dev_ref(struct drm_device *dev)
+{
+	if (dev)
+		kref_get(&dev->ref);
+}
+EXPORT_SYMBOL(drm_dev_ref);
+
+/**
+ * drm_dev_unref - Drop reference of a DRM device
+ * @dev: device to drop reference of or NULL
+ *
+ * This decreases the ref-count of @dev by one. The device is destroyed if the
+ * ref-count drops to zero.
+ */
+void drm_dev_unref(struct drm_device *dev)
+{
+	if (dev)
+		kref_put(&dev->ref, drm_dev_release);
+}
+EXPORT_SYMBOL(drm_dev_unref);
 
 /**
  * drm_dev_register - Register DRM device
@@ -581,7 +609,7 @@ EXPORT_SYMBOL(drm_dev_register);
  *
  * Unregister the DRM device from the system. This does the reverse of
  * drm_dev_register() but does not deallocate the device. The caller must call
- * drm_dev_free() to free all resources.
+ * drm_dev_unref() to drop their final reference.
  */
 void drm_dev_unregister(struct drm_device *dev)
 {
