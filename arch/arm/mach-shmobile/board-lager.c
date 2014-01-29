@@ -408,13 +408,30 @@ static int usbhs_hardware_init(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 	struct usb_phy *phy;
+	int ret;
+
+	/* USB0 Function - use PWEN as GPIO input to detect DIP Switch SW5
+	 * setting to avoid VBUS short circuit due to wrong cable.
+	 * PWEN should be pulled up high if USB Function is selected by SW5
+	 */
+	gpio_request_one(RCAR_GP_PIN(5, 18), GPIOF_IN, NULL); /* USB0_PWEN */
+	if (!gpio_get_value(RCAR_GP_PIN(5, 18))) {
+		pr_warn("Error: USB Function not selected - check SW5 + SW6\n");
+		ret = -ENOTSUPP;
+		goto error;
+	}
 
 	phy = usb_get_phy_dev(&pdev->dev, 0);
-	if (IS_ERR(phy))
-		return PTR_ERR(phy);
+	if (IS_ERR(phy)) {
+		ret = PTR_ERR(phy);
+		goto error;
+	}
 
 	priv->phy = phy;
 	return 0;
+ error:
+	gpio_free(RCAR_GP_PIN(5, 18));
+	return ret;
 }
 
 static int usbhs_hardware_exit(struct platform_device *pdev)
@@ -426,6 +443,8 @@ static int usbhs_hardware_exit(struct platform_device *pdev)
 
 	usb_put_phy(priv->phy);
 	priv->phy = NULL;
+
+	gpio_free(RCAR_GP_PIN(5, 18));
 	return 0;
 }
 
@@ -536,7 +555,7 @@ static const struct pinctrl_map lager_pinctrl_map[] = {
 				  "vin1_clk", "vin1"),
 	/* USB0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs", "pfc-r8a7790",
-				  "usb0", "usb0"),
+				  "usb0_ovc_vbus", "usb0"),
 };
 
 static void __init lager_add_standard_devices(void)
