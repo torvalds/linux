@@ -101,7 +101,7 @@ out:
 int udp_add_offload(struct udp_offload *uo)
 {
 	struct udp_offload_priv __rcu **head = &udp_offload_base;
-	struct udp_offload_priv *new_offload = kzalloc(sizeof(*new_offload), GFP_KERNEL);
+	struct udp_offload_priv *new_offload = kzalloc(sizeof(*new_offload), GFP_ATOMIC);
 
 	if (!new_offload)
 		return -ENOMEM;
