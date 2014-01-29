@@ -953,6 +953,86 @@ end:
 
 }
 
+#ifdef DEBUG
+static inline bool brcmf_sdio_valid_shared_address(u32 addr)
+{
+	return !(addr == 0 || ((~addr >> 16) & 0xffff) == (addr & 0xffff));
+}
+
+static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
+				 struct sdpcm_shared *sh)
+{
+	u32 addr;
+	int rv;
+	u32 shaddr = 0;
+	struct sdpcm_shared_le sh_le;
+	__le32 addr_le;
+
+	shaddr = bus->ci->rambase + bus->ramsize - 4;
+
+	/*
+	 * Read last word in socram to determine
+	 * address of sdpcm_shared structure
+	 */
+	sdio_claim_host(bus->sdiodev->func[1]);
+	brcmf_sdio_bus_sleep(bus, false, false);
+	rv = brcmf_sdiod_ramrw(bus->sdiodev, false, shaddr, (u8 *)&addr_le, 4);
+	sdio_release_host(bus->sdiodev->func[1]);
+	if (rv < 0)
+		return rv;
+
+	addr = le32_to_cpu(addr_le);
+
+	brcmf_dbg(SDIO, "sdpcm_shared address 0x%08X\n", addr);
+
+	/*
+	 * Check if addr is valid.
+	 * NVRAM length at the end of memory should have been overwritten.
+	 */
+	if (!brcmf_sdio_valid_shared_address(addr)) {
+			brcmf_err("invalid sdpcm_shared address 0x%08X\n",
+				  addr);
+			return -EINVAL;
+	}
+
+	/* Read hndrte_shared structure */
+	rv = brcmf_sdiod_ramrw(bus->sdiodev, false, addr, (u8 *)&sh_le,
+			       sizeof(struct sdpcm_shared_le));
+	if (rv < 0)
+		return rv;
+
+	/* Endianness */
+	sh->flags = le32_to_cpu(sh_le.flags);
+	sh->trap_addr = le32_to_cpu(sh_le.trap_addr);
+	sh->assert_exp_addr = le32_to_cpu(sh_le.assert_exp_addr);
+	sh->assert_file_addr = le32_to_cpu(sh_le.assert_file_addr);
+	sh->assert_line = le32_to_cpu(sh_le.assert_line);
+	sh->console_addr = le32_to_cpu(sh_le.console_addr);
+	sh->msgtrace_addr = le32_to_cpu(sh_le.msgtrace_addr);
+
+	if ((sh->flags & SDPCM_SHARED_VERSION_MASK) > SDPCM_SHARED_VERSION) {
+		brcmf_err("sdpcm shared version unsupported: dhd %d dongle %d\n",
+			  SDPCM_SHARED_VERSION,
+			  sh->flags & SDPCM_SHARED_VERSION_MASK);
+		return -EPROTO;
+	}
+
+	return 0;
+}
+
+static void brcmf_sdio_get_console_addr(struct brcmf_sdio *bus)
+{
+	struct sdpcm_shared sh;
+
+	if (brcmf_sdio_readshared(bus, &sh) == 0)
+		bus->console_addr = sh.console_addr;
+}
+#else
+static void brcmf_sdio_get_console_addr(struct brcmf_sdio *bus)
+{
+}
+#endif /* DEBUG */
+
 static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 {
 	u32 intstatus = 0;
@@ -996,6 +1076,12 @@ static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 		else
 			brcmf_dbg(SDIO, "Dongle ready, protocol version %d\n",
 				  bus->sdpcm_ver);
+
+		/*
+		 * Retrieve console state address now that firmware should have
+		 * updated it.
+		 */
+		brcmf_sdio_get_console_addr(bus);
 	}
 
 	/*
@@ -2810,72 +2896,6 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 }
 
 #ifdef DEBUG
-static inline bool brcmf_sdio_valid_shared_address(u32 addr)
-{
-	return !(addr == 0 || ((~addr >> 16) & 0xffff) == (addr & 0xffff));
-}
-
-static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
-				 struct sdpcm_shared *sh)
-{
-	u32 addr;
-	int rv;
-	u32 shaddr = 0;
-	struct sdpcm_shared_le sh_le;
-	__le32 addr_le;
-
-	shaddr = bus->ci->rambase + bus->ramsize - 4;
-
-	/*
-	 * Read last word in socram to determine
-	 * address of sdpcm_shared structure
-	 */
-	sdio_claim_host(bus->sdiodev->func[1]);
-	brcmf_sdio_bus_sleep(bus, false, false);
-	rv = brcmf_sdiod_ramrw(bus->sdiodev, false, shaddr, (u8 *)&addr_le, 4);
-	sdio_release_host(bus->sdiodev->func[1]);
-	if (rv < 0)
-		return rv;
-
-	addr = le32_to_cpu(addr_le);
-
-	brcmf_dbg(SDIO, "sdpcm_shared address 0x%08X\n", addr);
-
-	/*
-	 * Check if addr is valid.
-	 * NVRAM length at the end of memory should have been overwritten.
-	 */
-	if (!brcmf_sdio_valid_shared_address(addr)) {
-			brcmf_err("invalid sdpcm_shared address 0x%08X\n",
-				  addr);
-			return -EINVAL;
-	}
-
-	/* Read hndrte_shared structure */
-	rv = brcmf_sdiod_ramrw(bus->sdiodev, false, addr, (u8 *)&sh_le,
-			       sizeof(struct sdpcm_shared_le));
-	if (rv < 0)
-		return rv;
-
-	/* Endianness */
-	sh->flags = le32_to_cpu(sh_le.flags);
-	sh->trap_addr = le32_to_cpu(sh_le.trap_addr);
-	sh->assert_exp_addr = le32_to_cpu(sh_le.assert_exp_addr);
-	sh->assert_file_addr = le32_to_cpu(sh_le.assert_file_addr);
-	sh->assert_line = le32_to_cpu(sh_le.assert_line);
-	sh->console_addr = le32_to_cpu(sh_le.console_addr);
-	sh->msgtrace_addr = le32_to_cpu(sh_le.msgtrace_addr);
-
-	if ((sh->flags & SDPCM_SHARED_VERSION_MASK) > SDPCM_SHARED_VERSION) {
-		brcmf_err("sdpcm shared version unsupported: dhd %d dongle %d\n",
-			  SDPCM_SHARED_VERSION,
-			  sh->flags & SDPCM_SHARED_VERSION_MASK);
-		return -EPROTO;
-	}
-
-	return 0;
-}
-
 static int brcmf_sdio_dump_console(struct brcmf_sdio *bus,
 				   struct sdpcm_shared *sh, char __user *data,
 				   size_t count)
@@ -3105,6 +3125,8 @@ static void brcmf_sdio_debugfs_create(struct brcmf_sdio *bus)
 	debugfs_create_file("forensics", S_IRUGO, dentry, bus,
 			    &brcmf_sdio_forensic_ops);
 	brcmf_debugfs_create_sdio_count(drvr, &bus->sdcnt);
+	debugfs_create_u32("console_interval", 0644, dentry,
+			   &bus->console_interval);
 }
 #else
 static int brcmf_sdio_checkdied(struct brcmf_sdio *bus)
