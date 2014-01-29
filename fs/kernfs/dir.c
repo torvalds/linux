@@ -187,19 +187,23 @@ static void kernfs_deactivate(struct kernfs_node *kn)
 
 	kn->u.completion = (void *)&wait;
 
-	rwsem_acquire(&kn->dep_map, 0, 0, _RET_IP_);
+	if (kn->flags & KERNFS_LOCKDEP)
+		rwsem_acquire(&kn->dep_map, 0, 0, _RET_IP_);
 	/* atomic_add_return() is a mb(), put_active() will always see
 	 * the updated kn->u.completion.
 	 */
 	v = atomic_add_return(KN_DEACTIVATED_BIAS, &kn->active);
 
 	if (v != KN_DEACTIVATED_BIAS) {
-		lock_contended(&kn->dep_map, _RET_IP_);
+		if (kn->flags & KERNFS_LOCKDEP)
+			lock_contended(&kn->dep_map, _RET_IP_);
 		wait_for_completion(&wait);
 	}
 
-	lock_acquired(&kn->dep_map, _RET_IP_);
-	rwsem_release(&kn->dep_map, 1, _RET_IP_);
+	if (kn->flags & KERNFS_LOCKDEP) {
+		lock_acquired(&kn->dep_map, _RET_IP_);
+		rwsem_release(&kn->dep_map, 1, _RET_IP_);
+	}
 }
 
 /**
