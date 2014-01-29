@@ -1,7 +1,7 @@
 /*
  * w83l785ts.c - Part of lm_sensors, Linux kernel modules for hardware
  *               monitoring
- * Copyright (C) 2003-2009  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2009  Jean Delvare <jdelvare@suse.de>
  *
  * Inspired from the lm83 driver. The W83L785TS-S is a sensor chip made
  * by Winbond. It reports a single external temperature with a 1 deg
@@ -10,7 +10,7 @@
  *   http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/W83L785TS-S.pdf
  *
  * Ported to Linux 2.6 by Wolfgang Ziegler <nuppla@gmx.at> and Jean Delvare
- * <khali@linux-fr.org>.
+ * <jdelvare@suse.de>.
  *
  * Thanks to James Bolt <james@evilpenguin.com> for benchmarking the read
  * error handling mechanism.
@@ -299,6 +299,6 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev)
 
 module_i2c_driver(w83l785ts_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("W83L785TS-S driver");
 MODULE_LICENSE("GPL");
