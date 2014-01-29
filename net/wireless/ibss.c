@@ -122,6 +122,7 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 
 	wdev->ibss_fixed = params->channel_fixed;
 	wdev->ibss_dfs_possible = params->userspace_handles_dfs;
+	wdev->chandef = params->chandef;
 #ifdef CONFIG_CFG80211_WEXT
 	wdev->wext.ibss.chandef = params->chandef;
 #endif
@@ -205,6 +206,7 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 
 	wdev->current_bss = NULL;
 	wdev->ssid_len = 0;
+	memset(&wdev->chandef, 0, sizeof(wdev->chandef));
 #ifdef CONFIG_CFG80211_WEXT
 	if (!nowext)
 		wdev->wext.ibss.ssid_len = 0;

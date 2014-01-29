@@ -3146,8 +3146,8 @@ struct cfg80211_cached_keys;
  * @identifier: (private) Identifier used in nl80211 to identify this
  *	wireless device if it has no netdev
  * @current_bss: (private) Used by the internal configuration code
- * @channel: (private) Used by the internal configuration code to track
- *	the user-set AP, monitor and WDS channel
+ * @chandef: (private) Used by the internal configuration code to track
+ *	the user-set channel definition.
  * @preset_chandef: (private) Used by the internal configuration code to
  *	track the channel to be used for AP later
  * @bssid: (private) Used by the internal configuration code
@@ -3211,9 +3211,7 @@ struct wireless_dev {
 
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
 	struct cfg80211_chan_def preset_chandef;
-
-	/* for AP and mesh channel tracking */
-	struct ieee80211_channel *channel;
+	struct cfg80211_chan_def chandef;
 
 	bool ibss_fixed;
 	bool ibss_dfs_possible;

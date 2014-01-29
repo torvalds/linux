@@ -3281,7 +3281,7 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	if (!err) {
 		wdev->preset_chandef = params.chandef;
 		wdev->beacon_interval = params.beacon_interval;
-		wdev->channel = params.chandef.chan;
+		wdev->chandef = params.chandef;
 		wdev->ssid_len = params.ssid_len;
 		memcpy(wdev->ssid, params.ssid, wdev->ssid_len);
 	}
@@ -5797,7 +5797,7 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 
 	err = rdev->ops->start_radar_detection(&rdev->wiphy, dev, &chandef);
 	if (!err) {
-		wdev->channel = chandef.chan;
+		wdev->chandef = chandef;
 		wdev->cac_started = true;
 		wdev->cac_start_time = jiffies;
 	}
@@ -11215,7 +11215,7 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
 		    wdev->iftype != NL80211_IFTYPE_MESH_POINT))
 		return;
 
-	wdev->channel = chandef->chan;
+	wdev->chandef = *chandef;
 	wdev->preset_chandef = *chandef;
 	nl80211_ch_switch_notify(rdev, dev, chandef, GFP_KERNEL);
 }

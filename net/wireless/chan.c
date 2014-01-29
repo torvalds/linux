@@ -642,7 +642,8 @@ int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 void
 cfg80211_get_chan_state(struct wireless_dev *wdev,
 		        struct ieee80211_channel **chan,
-		        enum cfg80211_chan_mode *chanmode)
+		        enum cfg80211_chan_mode *chanmode,
+		        u8 *radar_detect)
 {
 	*chan = NULL;
 	*chanmode = CHAN_MODE_UNDEFINED;
@@ -660,6 +661,11 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 				     !wdev->ibss_dfs_possible)
 				  ? CHAN_MODE_SHARED
 				  : CHAN_MODE_EXCLUSIVE;
+
+			/* consider worst-case - IBSS can try to return to the
+			 * original user-specified channel as creator */
+			if (wdev->ibss_dfs_possible)
+				*radar_detect |= BIT(wdev->chandef.width);
 			return;
 		}
 		break;
@@ -674,17 +680,26 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
 		if (wdev->cac_started) {
-			*chan = wdev->channel;
+			*chan = wdev->chandef.chan;
 			*chanmode = CHAN_MODE_SHARED;
+			*radar_detect |= BIT(wdev->chandef.width);
 		} else if (wdev->beacon_interval) {
-			*chan = wdev->channel;
+			*chan = wdev->chandef.chan;
 			*chanmode = CHAN_MODE_SHARED;
+
+			if (cfg80211_chandef_dfs_required(wdev->wiphy,
+							  &wdev->chandef))
+				*radar_detect |= BIT(wdev->chandef.width);
 		}
 		return;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (wdev->mesh_id_len) {
-			*chan = wdev->channel;
+			*chan = wdev->chandef.chan;
 			*chanmode = CHAN_MODE_SHARED;
+
+			if (cfg80211_chandef_dfs_required(wdev->wiphy,
+							  &wdev->chandef))
+				*radar_detect |= BIT(wdev->chandef.width);
 		}
 		return;
 	case NL80211_IFTYPE_MONITOR:

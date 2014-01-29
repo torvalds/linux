@@ -1357,7 +1357,7 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 		 */
 		mutex_lock_nested(&wdev_iter->mtx, 1);
 		__acquire(wdev_iter->mtx);
-		cfg80211_get_chan_state(wdev_iter, &ch, &chmode);
+		cfg80211_get_chan_state(wdev_iter, &ch, &chmode, &radar_detect);
 		wdev_unlock(wdev_iter);
 
 		switch (chmode) {
