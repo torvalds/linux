@@ -19,6 +19,7 @@ endif
 # attempt to ensure that our asm(".code16gcc") is first in the asm
 # output.
 CODE16GCC_CFLAGS := -m32 -include $(srctree)/arch/x86/boot/code16gcc.h \
+		    $(call cc-option, -no-integrated-as,)\
 		    $(call cc-option, -fno-toplevel-reorder,\
 		      $(call cc-option, -fno-unit-at-a-time))
 M16_CFLAGS	 := $(call cc-option, -m16, $(CODE16GCC_CFLAGS))
