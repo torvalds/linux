@@ -203,6 +203,37 @@ struct vb2_buffer {
 	struct list_head	done_entry;
 
 	struct vb2_plane	planes[VIDEO_MAX_PLANES];
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	/*
+	 * Counters for how often these buffer-related ops are
+	 * called. Used to check for unbalanced ops.
+	 */
+	u32		cnt_mem_alloc;
+	u32		cnt_mem_put;
+	u32		cnt_mem_get_dmabuf;
+	u32		cnt_mem_get_userptr;
+	u32		cnt_mem_put_userptr;
+	u32		cnt_mem_prepare;
+	u32		cnt_mem_finish;
+	u32		cnt_mem_attach_dmabuf;
+	u32		cnt_mem_detach_dmabuf;
+	u32		cnt_mem_map_dmabuf;
+	u32		cnt_mem_unmap_dmabuf;
+	u32		cnt_mem_vaddr;
+	u32		cnt_mem_cookie;
+	u32		cnt_mem_num_users;
+	u32		cnt_mem_mmap;
+
+	u32		cnt_buf_init;
+	u32		cnt_buf_prepare;
+	u32		cnt_buf_finish;
+	u32		cnt_buf_cleanup;
+	u32		cnt_buf_queue;
+
+	/* This counts the number of calls to vb2_buffer_done() */
+	u32		cnt_buf_done;
+#endif
 };
 
 /**
@@ -366,6 +397,18 @@ struct vb2_queue {
 	unsigned int			retry_start_streaming:1;
 
 	struct vb2_fileio_data		*fileio;
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	/*
+	 * Counters for how often these queue-related ops are
+	 * called. Used to check for unbalanced ops.
+	 */
+	u32				cnt_queue_setup;
+	u32				cnt_wait_prepare;
+	u32				cnt_wait_finish;
+	u32				cnt_start_streaming;
+	u32				cnt_stop_streaming;
+#endif
 };
 
 void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no);
