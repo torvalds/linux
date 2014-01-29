@@ -1022,28 +1022,23 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	tm_frame = &rt_sf->uc_transact.uc_mcontext;
 	if (MSR_TM_ACTIVE(regs->msr)) {
+		if (__put_user((unsigned long)&rt_sf->uc_transact,
+			       &rt_sf->uc.uc_link) ||
+		    __put_user((unsigned long)tm_frame,
+			       &rt_sf->uc_transact.uc_regs))
+			goto badframe;
 		if (save_tm_user_regs(regs, frame, tm_frame, sigret))
 			goto badframe;
 	}
 	else
 #endif
 	{
+		if (__put_user(0, &rt_sf->uc.uc_link))
+			goto badframe;
 		if (save_user_regs(regs, frame, tm_frame, sigret, 1))
 			goto badframe;
 	}
 	regs->link = tramp;
-
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	if (MSR_TM_ACTIVE(regs->msr)) {
-		if (__put_user((unsigned long)&rt_sf->uc_transact,
-			       &rt_sf->uc.uc_link)
-		    || __put_user((unsigned long)tm_frame, &rt_sf->uc_transact.uc_regs))
-			goto badframe;
-	}
-	else
-#endif
-		if (__put_user(0, &rt_sf->uc.uc_link))
-			goto badframe;
 
 	current->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
 
