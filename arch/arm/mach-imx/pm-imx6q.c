@@ -228,8 +228,6 @@ void __init imx6q_pm_init(void)
 		regmap_update_bits(gpr, IOMUXC_GPR1, IMX6Q_GPR1_GINT,
 				   IMX6Q_GPR1_GINT);
 
-	/* Set initial power mode */
-	imx6q_set_lpm(WAIT_CLOCKED);
 
 	suspend_set_ops(&imx6q_pm_ops);
 }

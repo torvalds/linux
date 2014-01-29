@@ -479,6 +479,9 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	if (IS_ENABLED(CONFIG_PCI_IMX6))
 		clk_set_parent(clk[lvds1_sel], clk[sata_ref]);
 
+	/* Set initial power mode */
+	imx6q_set_lpm(WAIT_CLOCKED);
+
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt");
 	base = of_iomap(np, 0);
 	WARN_ON(!base);

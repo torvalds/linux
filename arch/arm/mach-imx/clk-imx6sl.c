@@ -261,6 +261,9 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 		clk_prepare_enable(clks[IMX6SL_CLK_USBPHY2_GATE]);
 	}
 
+	/* Set initial power mode */
+	imx6q_set_lpm(WAIT_CLOCKED);
+
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sl-gpt");
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
