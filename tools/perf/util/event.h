@@ -279,4 +279,7 @@ size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_task(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf(union perf_event *event, FILE *fp);
 
+u64 kallsyms__get_function_start(const char *kallsyms_filename,
+				 const char *symbol_name);
+
 #endif /* __PERF_RECORD_H */
