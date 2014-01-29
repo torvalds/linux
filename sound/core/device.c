@@ -45,6 +45,7 @@ int snd_device_new(struct snd_card *card, enum snd_device_type type,
 		   void *device_data, struct snd_device_ops *ops)
 {
 	struct snd_device *dev;
+	struct list_head *p;
 
 	if (snd_BUG_ON(!card || !device_data || !ops))
 		return -ENXIO;
@@ -53,16 +54,35 @@ int snd_device_new(struct snd_card *card, enum snd_device_type type,
 		dev_err(card->dev, "Cannot allocate device, type=%d\n", type);
 		return -ENOMEM;
 	}
+	INIT_LIST_HEAD(&dev->list);
 	dev->card = card;
 	dev->type = type;
 	dev->state = SNDRV_DEV_BUILD;
 	dev->device_data = device_data;
 	dev->ops = ops;
-	list_add(&dev->list, &card->devices);	/* add to the head of list */
+
+	/* insert the entry in an incrementally sorted list */
+	list_for_each_prev(p, &card->devices) {
+		struct snd_device *pdev = list_entry(p, struct snd_device, list);
+		if ((unsigned int)pdev->type <= (unsigned int)type)
+			break;
+	}
+
+	list_add(&dev->list, p);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_device_new);
+
+static struct snd_device *look_for_dev(struct snd_card *card, void *device_data)
+{
+	struct snd_device *dev;
+
+	list_for_each_entry(dev, &card->devices, list)
+		if (dev->device_data == device_data)
+			return dev;
+
+	return NULL;
+}
 
 /**
  * snd_device_free - release the device from the card
@@ -82,9 +102,8 @@ int snd_device_free(struct snd_card *card, void *device_data)
 	
 	if (snd_BUG_ON(!card || !device_data))
 		return -ENXIO;
-	list_for_each_entry(dev, &card->devices, list) {
-		if (dev->device_data != device_data)
-			continue;
+	dev = look_for_dev(card, device_data);
+	if (dev) {
 		/* unlink */
 		list_del(&dev->list);
 		if (dev->state == SNDRV_DEV_REGISTERED &&
@@ -103,7 +122,6 @@ int snd_device_free(struct snd_card *card, void *device_data)
 		device_data, __builtin_return_address(0));
 	return -ENXIO;
 }
-
 EXPORT_SYMBOL(snd_device_free);
 
 /**
@@ -125,9 +143,8 @@ int snd_device_disconnect(struct snd_card *card, void *device_data)
 
 	if (snd_BUG_ON(!card || !device_data))
 		return -ENXIO;
-	list_for_each_entry(dev, &card->devices, list) {
-		if (dev->device_data != device_data)
-			continue;
+	dev = look_for_dev(card, device_data);
+	if (dev) {
 		if (dev->state == SNDRV_DEV_REGISTERED &&
 		    dev->ops->dev_disconnect) {
 			if (dev->ops->dev_disconnect(dev))
@@ -162,9 +179,8 @@ int snd_device_register(struct snd_card *card, void *device_data)
 
 	if (snd_BUG_ON(!card || !device_data))
 		return -ENXIO;
-	list_for_each_entry(dev, &card->devices, list) {
-		if (dev->device_data != device_data)
-			continue;
+	dev = look_for_dev(card, device_data);
+	if (dev) {
 		if (dev->state == SNDRV_DEV_BUILD && dev->ops->dev_register) {
 			if ((err = dev->ops->dev_register(dev)) < 0)
 				return err;
@@ -177,7 +193,6 @@ int snd_device_register(struct snd_card *card, void *device_data)
 	snd_BUG();
 	return -ENXIO;
 }
-
 EXPORT_SYMBOL(snd_device_register);
 
 /*
@@ -212,7 +227,7 @@ int snd_device_disconnect_all(struct snd_card *card)
 
 	if (snd_BUG_ON(!card))
 		return -ENXIO;
-	list_for_each_entry(dev, &card->devices, list) {
+	list_for_each_entry_reverse(dev, &card->devices, list) {
 		if (snd_device_disconnect(card, dev->device_data) < 0)
 			err = -ENXIO;
 	}
@@ -223,24 +238,17 @@ int snd_device_disconnect_all(struct snd_card *card)
  * release all the devices on the card.
  * called from init.c
  */
-int snd_device_free_all(struct snd_card *card, enum snd_device_cmd cmd)
+int snd_device_free_all(struct snd_card *card)
 {
-	struct snd_device *dev;
-	int err;
-	unsigned int range_low, range_high, type;
+	struct snd_device *dev, *next;
+	int ret = 0;
 
 	if (snd_BUG_ON(!card))
 		return -ENXIO;
-	range_low = (unsigned int)cmd * SNDRV_DEV_TYPE_RANGE_SIZE;
-	range_high = range_low + SNDRV_DEV_TYPE_RANGE_SIZE - 1;
-      __again:
-	list_for_each_entry(dev, &card->devices, list) {
-		type = (unsigned int)dev->type;
-		if (type >= range_low && type <= range_high) {
-			if ((err = snd_device_free(card, dev->device_data)) < 0)
-				return err;
-			goto __again;
-		}
+	list_for_each_entry_safe_reverse(dev, next, &card->devices, list) {
+		int err = snd_device_free(card, dev->device_data);
+		if (err < 0)
+			ret = err;
 	}
-	return 0;
+	return ret;
 }

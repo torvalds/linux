@@ -266,7 +266,7 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	return 0;
 
       __error_ctl:
-	snd_device_free_all(card, SNDRV_DEV_CMD_PRE);
+	snd_device_free_all(card);
       __error:
 	put_device(&card->card_dev);
   	return err;
@@ -454,16 +454,8 @@ static int snd_card_do_free(struct snd_card *card)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_FREE);
 #endif
-	if (snd_device_free_all(card, SNDRV_DEV_CMD_PRE) < 0) {
-		dev_err(card->dev, "unable to free all devices (pre)\n");
-		/* Fatal, but this situation should never occur */
-	}
-	if (snd_device_free_all(card, SNDRV_DEV_CMD_NORMAL) < 0) {
-		dev_err(card->dev, "unable to free all devices (normal)\n");
-		/* Fatal, but this situation should never occur */
-	}
-	if (snd_device_free_all(card, SNDRV_DEV_CMD_POST) < 0) {
-		dev_err(card->dev, "unable to free all devices (post)\n");
+	if (snd_device_free_all(card) < 0) {
+		dev_err(card->dev, "unable to free all devices\n");
 		/* Fatal, but this situation should never occur */
 	}
 	if (card->private_free)

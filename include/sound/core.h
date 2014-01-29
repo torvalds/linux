@@ -46,36 +46,28 @@ struct completion;
 
 /* device allocation stuff */
 
-#define SNDRV_DEV_TYPE_RANGE_SIZE		0x1000
-
+/* type of the object used in snd_device_*()
+ * this also defines the calling order
+ */
 enum snd_device_type {
-	SNDRV_DEV_TOPLEVEL	= 0,
-	SNDRV_DEV_CONTROL	= 1,
-	SNDRV_DEV_LOWLEVEL_PRE	= 2,
-	SNDRV_DEV_LOWLEVEL_NORMAL = 0x1000,
+	SNDRV_DEV_LOWLEVEL,
+	SNDRV_DEV_CONTROL,
+	SNDRV_DEV_INFO,
+	SNDRV_DEV_BUS,
+	SNDRV_DEV_CODEC,
 	SNDRV_DEV_PCM,
+	SNDRV_DEV_COMPRESS,
 	SNDRV_DEV_RAWMIDI,
 	SNDRV_DEV_TIMER,
 	SNDRV_DEV_SEQUENCER,
 	SNDRV_DEV_HWDEP,
-	SNDRV_DEV_INFO,
-	SNDRV_DEV_BUS,
-	SNDRV_DEV_CODEC,
 	SNDRV_DEV_JACK,
-	SNDRV_DEV_COMPRESS,
-	SNDRV_DEV_LOWLEVEL	= 0x2000,
 };
 
 enum snd_device_state {
 	SNDRV_DEV_BUILD,
 	SNDRV_DEV_REGISTERED,
 	SNDRV_DEV_DISCONNECTED,
-};
-
-enum snd_device_cmd {
-	SNDRV_DEV_CMD_PRE,
-	SNDRV_DEV_CMD_NORMAL,
-	SNDRV_DEV_CMD_POST,
 };
 
 struct snd_device;
@@ -320,7 +312,7 @@ int snd_device_register_all(struct snd_card *card);
 int snd_device_disconnect(struct snd_card *card, void *device_data);
 int snd_device_disconnect_all(struct snd_card *card);
 int snd_device_free(struct snd_card *card, void *device_data);
-int snd_device_free_all(struct snd_card *card, enum snd_device_cmd cmd);
+int snd_device_free_all(struct snd_card *card);
 
 /* isadma.c */
 
