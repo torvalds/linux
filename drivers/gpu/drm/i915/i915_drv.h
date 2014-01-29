@@ -2649,8 +2649,7 @@ timespec_to_jiffies_timeout(const struct timespec *value)
 static inline void
 wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 {
-	unsigned long target_jiffies, tmp_jiffies;
-	unsigned int remaining_ms;
+	unsigned long target_jiffies, tmp_jiffies, remaining_jiffies;
 
 	/*
 	 * Don't re-read the value of "jiffies" every time since it may change
@@ -2661,11 +2660,10 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 			 msecs_to_jiffies_timeout(to_wait_ms);
 
 	if (time_after(target_jiffies, tmp_jiffies)) {
-		remaining_ms = jiffies_to_msecs((long)target_jiffies -
-						(long)tmp_jiffies);
-		while (remaining_ms)
-			remaining_ms =
-				schedule_timeout_uninterruptible(remaining_ms);
+		remaining_jiffies = target_jiffies - tmp_jiffies;
+		while (remaining_jiffies)
+			remaining_jiffies =
+			    schedule_timeout_uninterruptible(remaining_jiffies);
 	}
 }
 
