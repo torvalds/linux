@@ -18,6 +18,8 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/miscdevice.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -575,10 +577,10 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			break;
 		case KVM_REG_PPC_FPR0 ... KVM_REG_PPC_FPR31:
 			i = reg->id - KVM_REG_PPC_FPR0;
-			val = get_reg_val(reg->id, vcpu->arch.fpr[i]);
+			val = get_reg_val(reg->id, VCPU_FPR(vcpu, i));
 			break;
 		case KVM_REG_PPC_FPSCR:
-			val = get_reg_val(reg->id, vcpu->arch.fpscr);
+			val = get_reg_val(reg->id, vcpu->arch.fp.fpscr);
 			break;
 #ifdef CONFIG_ALTIVEC
 		case KVM_REG_PPC_VR0 ... KVM_REG_PPC_VR31:
@@ -586,19 +588,30 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 				r = -ENXIO;
 				break;
 			}
-			val.vval = vcpu->arch.vr[reg->id - KVM_REG_PPC_VR0];
+			val.vval = vcpu->arch.vr.vr[reg->id - KVM_REG_PPC_VR0];
 			break;
 		case KVM_REG_PPC_VSCR:
 			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
 				r = -ENXIO;
 				break;
 			}
-			val = get_reg_val(reg->id, vcpu->arch.vscr.u[3]);
+			val = get_reg_val(reg->id, vcpu->arch.vr.vscr.u[3]);
 			break;
 		case KVM_REG_PPC_VRSAVE:
 			val = get_reg_val(reg->id, vcpu->arch.vrsave);
 			break;
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+		case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31:
+			if (cpu_has_feature(CPU_FTR_VSX)) {
+				long int i = reg->id - KVM_REG_PPC_VSR0;
+				val.vsxval[0] = vcpu->arch.fp.fpr[i][0];
+				val.vsxval[1] = vcpu->arch.fp.fpr[i][1];
+			} else {
+				r = -ENXIO;
+			}
+			break;
+#endif /* CONFIG_VSX */
 		case KVM_REG_PPC_DEBUG_INST: {
 			u32 opcode = INS_TW;
 			r = copy_to_user((u32 __user *)(long)reg->addr,
@@ -654,10 +667,10 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			break;
 		case KVM_REG_PPC_FPR0 ... KVM_REG_PPC_FPR31:
 			i = reg->id - KVM_REG_PPC_FPR0;
-			vcpu->arch.fpr[i] = set_reg_val(reg->id, val);
+			VCPU_FPR(vcpu, i) = set_reg_val(reg->id, val);
 			break;
 		case KVM_REG_PPC_FPSCR:
-			vcpu->arch.fpscr = set_reg_val(reg->id, val);
+			vcpu->arch.fp.fpscr = set_reg_val(reg->id, val);
 			break;
 #ifdef CONFIG_ALTIVEC
 		case KVM_REG_PPC_VR0 ... KVM_REG_PPC_VR31:
@@ -665,14 +678,14 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 				r = -ENXIO;
 				break;
 			}
-			vcpu->arch.vr[reg->id - KVM_REG_PPC_VR0] = val.vval;
+			vcpu->arch.vr.vr[reg->id - KVM_REG_PPC_VR0] = val.vval;
 			break;
 		case KVM_REG_PPC_VSCR:
 			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
 				r = -ENXIO;
 				break;
 			}
-			vcpu->arch.vscr.u[3] = set_reg_val(reg->id, val);
+			vcpu->arch.vr.vscr.u[3] = set_reg_val(reg->id, val);
 			break;
 		case KVM_REG_PPC_VRSAVE:
 			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
@@ -682,6 +695,17 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			vcpu->arch.vrsave = set_reg_val(reg->id, val);
 			break;
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+		case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31:
+			if (cpu_has_feature(CPU_FTR_VSX)) {
+				long int i = reg->id - KVM_REG_PPC_VSR0;
+				vcpu->arch.fp.fpr[i][0] = val.vsxval[0];
+				vcpu->arch.fp.fpr[i][1] = val.vsxval[1];
+			} else {
+				r = -ENXIO;
+			}
+			break;
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_KVM_XICS
 		case KVM_REG_PPC_ICP_STATE:
 			if (!vcpu->arch.icp) {
@@ -879,3 +903,9 @@ static void kvmppc_book3s_exit(void)
 
 module_init(kvmppc_book3s_init);
 module_exit(kvmppc_book3s_exit);
+
+/* On 32bit this is our one and only kernel module */
+#ifdef CONFIG_KVM_BOOK3S_32
+MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS("devname:kvm");
+#endif
