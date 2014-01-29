@@ -1654,7 +1654,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* card bind complete so register a sound card */
-	ret = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+	ret = snd_card_new(card->dev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			card->owner, 0, &card->snd_card);
 	if (ret < 0) {
 		dev_err(card->dev,
@@ -1662,7 +1662,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 			card->name, ret);
 		goto base_error;
 	}
-	card->snd_card->dev = card->dev;
 
 	card->dapm.bias_level = SND_SOC_BIAS_OFF;
 	card->dapm.dev = card->dev;
