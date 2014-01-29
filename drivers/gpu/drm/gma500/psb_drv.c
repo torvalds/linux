@@ -407,15 +407,6 @@ static inline void get_brightness(struct backlight_device *bd)
 #endif
 }
 
-static int psb_driver_open(struct drm_device *dev, struct drm_file *priv)
-{
-	return 0;
-}
-
-static void psb_driver_postclose(struct drm_device *dev, struct drm_file *priv)
-{
-}
-
 static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			       unsigned long arg)
 {
@@ -485,10 +476,8 @@ static struct drm_driver driver = {
 			   DRIVER_MODESET | DRIVER_GEM,
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
-	.open = psb_driver_open,
 	.lastclose = psb_driver_lastclose,
 	.preclose = psb_driver_preclose,
-	.postclose = psb_driver_postclose,
 
 	.num_ioctls = DRM_ARRAY_SIZE(psb_ioctls),
 	.device_is_agp = psb_driver_device_is_agp,
