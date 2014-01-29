@@ -949,7 +949,9 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	}
 
 	/* Restart the DCP block. */
-	stmp_reset_block(sdcp->base);
+	ret = stmp_reset_block(sdcp->base);
+	if (ret)
+		goto err_mutex;
 
 	/* Initialize control register. */
 	writel(MXS_DCP_CTRL_GATHER_RESIDUAL_WRITES |
