@@ -1183,9 +1183,6 @@ config MFD_STW481X
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
 
-endmenu
-endif
-
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
@@ -1216,3 +1213,6 @@ config VEXPRESS_CONFIG
 	help
 	  Platform configuration infrastructure for the ARM Ltd.
 	  Versatile Express.
+
+endmenu
+endif
