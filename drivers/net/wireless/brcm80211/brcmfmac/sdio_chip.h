@@ -219,9 +219,6 @@ struct sdpcmd_regs {
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 			   struct brcmf_chip **ci_ptr);
 void brcmf_sdio_chip_detach(struct brcmf_chip **ci_ptr);
-void brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
-				       struct brcmf_chip *ci,
-				       u32 drivestrength);
 u8 brcmf_sdio_chip_getinfidx(struct brcmf_chip *ci, u16 coreid);
 void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
 				    struct brcmf_chip *ci);

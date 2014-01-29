@@ -239,5 +239,6 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus);
 void brcmf_sdio_isr(struct brcmf_sdio *bus);
 
 void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick);
+int brcmf_sdio_buscoreprep(struct brcmf_sdio_dev *sdiodev);
 
 #endif				/* _BRCM_SDH_H_ */
