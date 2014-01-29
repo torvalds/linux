@@ -1257,7 +1257,24 @@ again:
 			pass++;
 			goto again;
 		}
-
+		/*
+		 * Perf does test runs to see if a whole group can be assigned
+		 * together succesfully.  There can be multiple rounds of this.
+		 * Unfortunately, p4_pmu_swap_config_ts touches the hwc->config
+		 * bits, such that the next round of group assignments will
+		 * cause the above p4_should_swap_ts to pass instead of fail.
+		 * This leads to counters exclusive to thread0 being used by
+		 * thread1.
+		 *
+		 * Solve this with a cheap hack, reset the idx back to -1 to
+		 * force a new lookup (p4_next_cntr) to get the right counter
+		 * for the right thread.
+		 *
+		 * This probably doesn't comply with the general spirit of how
+		 * perf wants to work, but P4 is special. :-(
+		 */
+		if (p4_should_swap_ts(hwc->config, cpu))
+			hwc->idx = -1;
 		p4_pmu_swap_config_ts(hwc, cpu);
 		if (assign)
 			assign[i] = cntr_idx;
