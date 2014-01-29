@@ -942,9 +942,8 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate coherent helper block. */
-	sdcp->coh = kzalloc(sizeof(struct dcp_coherent_block), GFP_KERNEL);
+	sdcp->coh = devm_kzalloc(dev, sizeof(*sdcp->coh), GFP_KERNEL);
 	if (!sdcp->coh) {
-		dev_err(dev, "Error allocating coherent block\n");
 		ret = -ENOMEM;
 		goto err_mutex;
 	}
@@ -989,7 +988,7 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	if (IS_ERR(sdcp->thread[DCP_CHAN_HASH_SHA])) {
 		dev_err(dev, "Error starting SHA thread!\n");
 		ret = PTR_ERR(sdcp->thread[DCP_CHAN_HASH_SHA]);
-		goto err_free_coherent;
+		goto err_mutex;
 	}
 
 	sdcp->thread[DCP_CHAN_CRYPTO] = kthread_run(dcp_chan_thread_aes,
@@ -1047,8 +1046,6 @@ err_destroy_aes_thread:
 err_destroy_sha_thread:
 	kthread_stop(sdcp->thread[DCP_CHAN_HASH_SHA]);
 
-err_free_coherent:
-	kfree(sdcp->coh);
 err_mutex:
 	mutex_unlock(&global_mutex);
 	return ret;
@@ -1057,8 +1054,6 @@ err_mutex:
 static int mxs_dcp_remove(struct platform_device *pdev)
 {
 	struct dcp *sdcp = platform_get_drvdata(pdev);
-
-	kfree(sdcp->coh);
 
 	if (sdcp->caps & MXS_DCP_CAPABILITY1_SHA256)
 		crypto_unregister_ahash(&dcp_sha256_alg);
