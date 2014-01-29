@@ -28,6 +28,7 @@
 #include <linux/time.h>
 #include <linux/ctype.h>
 #include <linux/pm.h>
+#include <linux/completion.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -235,8 +236,6 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	INIT_LIST_HEAD(&card->ctl_files);
 	spin_lock_init(&card->files_lock);
 	INIT_LIST_HEAD(&card->files_list);
-	init_waitqueue_head(&card->shutdown_sleep);
-	atomic_set(&card->refcount, 0);
 #ifdef CONFIG_PM
 	mutex_init(&card->power_lock);
 	init_waitqueue_head(&card->power_sleep);
@@ -474,58 +473,36 @@ static int snd_card_do_free(struct snd_card *card)
 		snd_printk(KERN_WARNING "unable to free card info\n");
 		/* Not fatal error */
 	}
+	if (card->release_completion)
+		complete(card->release_completion);
 	kfree(card);
 	return 0;
 }
 
-/**
- * snd_card_unref - release the reference counter
- * @card: the card instance
- *
- * Decrements the reference counter.  When it reaches to zero, wake up
- * the sleeper and call the destructor if needed.
- */
-void snd_card_unref(struct snd_card *card)
-{
-	if (atomic_dec_and_test(&card->refcount)) {
-		wake_up(&card->shutdown_sleep);
-		if (card->free_on_last_close)
-			put_device(&card->card_dev);
-	}
-}
-EXPORT_SYMBOL(snd_card_unref);
-
 int snd_card_free_when_closed(struct snd_card *card)
-{
-	int ret;
-
-	atomic_inc(&card->refcount);
-	ret = snd_card_disconnect(card);
-	if (ret) {
-		atomic_dec(&card->refcount);
-		return ret;
-	}
-
-	card->free_on_last_close = 1;
-	if (atomic_dec_and_test(&card->refcount))
-		put_device(&card->card_dev);
-	return 0;
-}
-
-EXPORT_SYMBOL(snd_card_free_when_closed);
-
-int snd_card_free(struct snd_card *card)
 {
 	int ret = snd_card_disconnect(card);
 	if (ret)
 		return ret;
-
-	/* wait, until all devices are ready for the free operation */
-	wait_event(card->shutdown_sleep, !atomic_read(&card->refcount));
 	put_device(&card->card_dev);
 	return 0;
 }
+EXPORT_SYMBOL(snd_card_free_when_closed);
 
+int snd_card_free(struct snd_card *card)
+{
+	struct completion released;
+	int ret;
+
+	init_completion(&released);
+	card->release_completion = &released;
+	ret = snd_card_free_when_closed(card);
+	if (ret)
+		return ret;
+	/* wait, until all devices are ready for the free operation */
+	wait_for_completion(&released);
+	return 0;
+}
 EXPORT_SYMBOL(snd_card_free);
 
 /* retrieve the last word of shortname or longname */
@@ -932,7 +909,7 @@ int snd_card_file_add(struct snd_card *card, struct file *file)
 		return -ENODEV;
 	}
 	list_add(&mfile->list, &card->files_list);
-	atomic_inc(&card->refcount);
+	get_device(&card->card_dev);
 	spin_unlock(&card->files_lock);
 	return 0;
 }
@@ -975,7 +952,7 @@ int snd_card_file_remove(struct snd_card *card, struct file *file)
 		return -ENOENT;
 	}
 	kfree(found);
-	snd_card_unref(card);
+	put_device(&card->card_dev);
 	return 0;
 }
 

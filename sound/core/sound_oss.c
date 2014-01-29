@@ -55,7 +55,7 @@ void *snd_lookup_oss_minor_data(unsigned int minor, int type)
 	if (mreg && mreg->type == type) {
 		private_data = mreg->private_data;
 		if (private_data && mreg->card_ptr)
-			atomic_inc(&mreg->card_ptr->refcount);
+			get_device(&mreg->card_ptr->card_dev);
 	} else
 		private_data = NULL;
 	mutex_unlock(&sound_oss_mutex);
