@@ -1008,9 +1008,12 @@ struct drm_driver {
 	struct list_head legacy_dev_list;
 };
 
-#define DRM_MINOR_LEGACY 1
-#define DRM_MINOR_CONTROL 2
-#define DRM_MINOR_RENDER 3
+enum drm_minor_type {
+	DRM_MINOR_LEGACY,
+	DRM_MINOR_CONTROL,
+	DRM_MINOR_RENDER,
+	DRM_MINOR_CNT,
+};
 
 /**
  * Info file list entry. This structure represents a debugfs or proc file to
