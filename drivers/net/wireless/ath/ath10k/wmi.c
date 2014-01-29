@@ -420,7 +420,6 @@ static struct wmi_pdev_param_map wmi_pdev_param_map = {
 	.bcnflt_stats_update_period = WMI_PDEV_PARAM_BCNFLT_STATS_UPDATE_PERIOD,
 	.pmf_qos = WMI_PDEV_PARAM_PMF_QOS,
 	.arp_ac_override = WMI_PDEV_PARAM_ARP_AC_OVERRIDE,
-	.arpdhcp_ac_override = WMI_PDEV_PARAM_UNSUPPORTED,
 	.dcs = WMI_PDEV_PARAM_DCS,
 	.ani_enable = WMI_PDEV_PARAM_ANI_ENABLE,
 	.ani_poll_period = WMI_PDEV_PARAM_ANI_POLL_PERIOD,
@@ -472,8 +471,7 @@ static struct wmi_pdev_param_map wmi_10x_pdev_param_map = {
 	.bcnflt_stats_update_period =
 				WMI_10X_PDEV_PARAM_BCNFLT_STATS_UPDATE_PERIOD,
 	.pmf_qos = WMI_10X_PDEV_PARAM_PMF_QOS,
-	.arp_ac_override = WMI_PDEV_PARAM_UNSUPPORTED,
-	.arpdhcp_ac_override = WMI_10X_PDEV_PARAM_ARPDHCP_AC_OVERRIDE,
+	.arp_ac_override = WMI_10X_PDEV_PARAM_ARPDHCP_AC_OVERRIDE,
 	.dcs = WMI_10X_PDEV_PARAM_DCS,
 	.ani_enable = WMI_10X_PDEV_PARAM_ANI_ENABLE,
 	.ani_poll_period = WMI_10X_PDEV_PARAM_ANI_POLL_PERIOD,

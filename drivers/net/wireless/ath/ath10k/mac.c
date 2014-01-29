@@ -2186,6 +2186,23 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		ath10k_warn("could not init WMI_PDEV_PARAM_DYNAMIC_BW (%d)\n",
 			    ret);
 
+	/*
+	 * By default FW set ARP frames ac to voice (6). In that case ARP
+	 * exchange is not working properly for UAPSD enabled AP. ARP requests
+	 * which arrives with access category 0 are processed by network stack
+	 * and send back with access category 0, but FW changes access category
+	 * to 6. Set ARP frames access category to best effort (0) solves
+	 * this problem.
+	 */
+
+	ret = ath10k_wmi_pdev_set_param(ar,
+					ar->wmi.pdev_param->arp_ac_override, 0);
+	if (ret) {
+		ath10k_warn("could not set arp ac override parameter: %d\n",
+			    ret);
+		goto exit;
+	}
+
 	ath10k_regd_update(ar);
 	ret = 0;
 

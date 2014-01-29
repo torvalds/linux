@@ -2277,7 +2277,6 @@ struct wmi_pdev_param_map {
 	u32 bcnflt_stats_update_period;
 	u32 pmf_qos;
 	u32 arp_ac_override;
-	u32 arpdhcp_ac_override;
 	u32 dcs;
 	u32 ani_enable;
 	u32 ani_poll_period;
