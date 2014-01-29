@@ -377,6 +377,7 @@
 #define __NR_process_vm_writev	352
 #define __NR_finit_module	353
 #define __NR_kcmp		354
-
+#define __NR_sched_setattr	355
+#define __NR_sched_getattr	356
 
 #endif /* _UAPI_ASM_POWERPC_UNISTD_H_ */
