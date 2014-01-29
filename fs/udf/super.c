@@ -505,6 +505,7 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 	while ((p = strsep(&options, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
 		int token;
+		unsigned n;
 		if (!*p)
 			continue;
 
@@ -516,7 +517,10 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 		case Opt_bs:
 			if (match_int(&args[0], &option))
 				return 0;
-			uopt->blocksize = option;
+			n = option;
+			if (n != 512 && n != 1024 && n != 2048 && n != 4096)
+				return 0;
+			uopt->blocksize = n;
 			uopt->flags |= (1 << UDF_FLAG_BLOCKSIZE_SET);
 			break;
 		case Opt_unhide:
