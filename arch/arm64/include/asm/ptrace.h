@@ -171,5 +171,13 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
 
+/*
+ * True if instr is a 32-bit thumb instruction. This works if instr
+ * is the first or only half-word of a thumb instruction. It also works
+ * when instr holds all 32-bits of a wide thumb instruction if stored
+ * in the form (first_half<<16)|(second_half)
+ */
+#define is_wide_instruction(instr)	((unsigned)(instr) >= 0xe800)
+
 #endif /* __ASSEMBLY__ */
 #endif
