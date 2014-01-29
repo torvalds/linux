@@ -2187,10 +2187,11 @@ static int ath10k_start(struct ieee80211_hw *hw)
 			    ret);
 
 	ath10k_regd_update(ar);
+	ret = 0;
 
 exit:
 	mutex_unlock(&ar->conf_mutex);
-	return 0;
+	return ret;
 }
 
 static void ath10k_stop(struct ieee80211_hw *hw)
