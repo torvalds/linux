@@ -3291,32 +3291,17 @@ static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus,
 					 const struct firmware *fw)
 {
 	int err;
-	int offset;
-	int address;
-	int len;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	err = 0;
-	offset = 0;
-	address = bus->ci->rambase;
-	while (offset < fw->size) {
-		len = ((offset + MEMBLOCK) < fw->size) ? MEMBLOCK :
-		      fw->size - offset;
-		err = brcmf_sdiod_ramrw(bus->sdiodev, true, address,
-					(u8 *)&fw->data[offset], len);
-		if (err) {
-			brcmf_err("error %d on writing %d membytes at 0x%08x\n",
-				  err, len, address);
-			return err;
-		}
-		offset += len;
-		address += len;
-	}
-	if (!err)
-		if (!brcmf_sdio_verifymemory(bus->sdiodev, bus->ci->rambase,
-					     (u8 *)fw->data, fw->size))
-			err = -EIO;
+	err = brcmf_sdiod_ramrw(bus->sdiodev, true, bus->ci->rambase,
+				(u8 *)fw->data, fw->size);
+	if (err)
+		brcmf_err("error %d on writing %d membytes at 0x%08x\n",
+			  err, (int)fw->size, bus->ci->rambase);
+	else if (!brcmf_sdio_verifymemory(bus->sdiodev, bus->ci->rambase,
+					  (u8 *)fw->data, fw->size))
+		err = -EIO;
 
 	return err;
 }
