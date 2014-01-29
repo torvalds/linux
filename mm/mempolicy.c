@@ -2668,7 +2668,7 @@ static void __init check_numabalancing_enable(void)
 		set_numabalancing_state(numabalancing_override == 1);
 
 	if (nr_node_ids > 1 && !numabalancing_override) {
-		printk(KERN_INFO "%s automatic NUMA balancing. "
+		pr_info("%s automatic NUMA balancing. "
 			"Configure with numa_balancing= or the "
 			"kernel.numa_balancing sysctl",
 			numabalancing_default ? "Enabling" : "Disabling");
@@ -2691,7 +2691,7 @@ static int __init setup_numabalancing(char *str)
 	}
 out:
 	if (!ret)
-		printk(KERN_WARNING "Unable to parse numa_balancing=\n");
+		pr_warn("Unable to parse numa_balancing=\n");
 
 	return ret;
 }
