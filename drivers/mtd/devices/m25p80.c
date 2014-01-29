@@ -304,7 +304,7 @@ static int _wait_till_ready(struct m25p *flash)
 		else if (!(sr & SR_WIP)) {
 			if (flash->check_fsr) {
 				fsr = read_fsr(flash);
-				if (!(fsr & FSR_RDY))
+				if (!(fsr & FSR_READY))
 					return 1;
 			}
 			return 0;
@@ -327,7 +327,7 @@ static int write_ear(struct m25p *flash, u32 addr)
 	int ret;
 
 	/* Wait until finished previous write command. */
-	if (wait_till_ready(flash))
+	if (_wait_till_ready(flash))
 		return 1;
 
 	if (flash->mtd.size <= (0x1000000) << flash->shift)
@@ -734,6 +734,55 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	mutex_unlock(&flash->lock);
 
+	return 0;
+}
+
+static int m25p80_write_ext(struct mtd_info *mtd, loff_t to, size_t len,
+	size_t *retlen, const u_char *buf)
+{
+	struct m25p *flash = mtd_to_m25p(mtd);
+	u32 addr = to;
+	u32 offset = to;
+	u32 write_len = 0;
+	u32 actual_len = 0;
+	u32 write_count = 0;
+	u32 rem_bank_len = 0;
+	u8 bank = 0;
+
+#define OFFSET_16_MB 0x1000000
+
+	mutex_lock(&flash->lock);
+	while (len) {
+		bank = addr / (OFFSET_16_MB << flash->shift);
+		rem_bank_len = ((OFFSET_16_MB << flash->shift) * (bank + 1)) -
+				addr;
+		offset = addr;
+
+		if (flash->isstacked == 1) {
+			if (offset >= (flash->mtd.size / 2)) {
+				offset = offset - (flash->mtd.size / 2);
+				flash->spi->master->flags |= SPI_MASTER_U_PAGE;
+			} else {
+				flash->spi->master->flags &= ~SPI_MASTER_U_PAGE;
+			}
+		}
+		write_ear(flash, (offset >> flash->shift));
+		if (len < rem_bank_len)
+			write_len = len;
+		else
+			write_len = rem_bank_len;
+
+		m25p80_write(mtd, offset, write_len, &actual_len, buf);
+
+		addr += actual_len;
+		len -= actual_len;
+		buf += actual_len;
+		write_count += actual_len;
+	}
+
+	*retlen = write_count;
+
+	mutex_unlock(&flash->lock);
 	return 0;
 }
 
