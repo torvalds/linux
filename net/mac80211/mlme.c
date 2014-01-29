@@ -1012,7 +1012,6 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
-	sdata->vif.csa_active = true;
 
 	mutex_lock(&local->chanctx_mtx);
 	if (local->use_chanctx) {
@@ -1050,6 +1049,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&local->chanctx_mtx);
 
 	sdata->csa_chandef = csa_ie.chandef;
+	sdata->vif.csa_active = true;
 
 	if (csa_ie.mode)
 		ieee80211_stop_queues_by_reason(&local->hw,
