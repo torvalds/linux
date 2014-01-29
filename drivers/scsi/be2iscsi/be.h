@@ -98,6 +98,14 @@ struct be_mcc_obj {
 	struct be_queue_info cq;
 };
 
+struct beiscsi_mcc_tag_state {
+#define MCC_TAG_STATE_COMPLETED 0x00
+#define MCC_TAG_STATE_RUNNING   0x01
+#define MCC_TAG_STATE_TIMEOUT   0x02
+	uint8_t tag_state;
+	struct be_dma_mem tag_mem_state;
+};
+
 struct be_ctrl_info {
 	u8 __iomem *csr;
 	u8 __iomem *db;		/* Door Bell */
@@ -122,6 +130,8 @@ struct be_ctrl_info {
 	unsigned short mcc_alloc_index;
 	unsigned short mcc_free_index;
 	unsigned int mcc_tag_available;
+
+	struct beiscsi_mcc_tag_state ptag_state[MAX_MCC_CMD + 1];
 };
 
 #include "be_cmds.h"

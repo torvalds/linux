@@ -709,7 +709,8 @@ unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba);
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
 
 int beiscsi_mccq_compl(struct beiscsi_hba *phba,
-			uint32_t tag, struct be_mcc_wrb **wrb, void *cmd_va);
+			uint32_t tag, struct be_mcc_wrb **wrb,
+			struct be_dma_mem *mbx_cmd_mem);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);

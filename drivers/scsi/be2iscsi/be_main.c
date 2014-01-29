@@ -228,6 +228,7 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 	struct invalidate_command_table *inv_tbl;
 	struct be_dma_mem nonemb_cmd;
 	unsigned int cid, tag, num_invalidate;
+	int rc;
 
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
@@ -285,9 +286,11 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 		return FAILED;
 	}
 
-	beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
-	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-			    nonemb_cmd.va, nonemb_cmd.dma);
+	rc = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
+	if (rc != -EBUSY)
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
+
 	return iscsi_eh_abort(sc);
 }
 
@@ -303,6 +306,7 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 	struct invalidate_command_table *inv_tbl;
 	struct be_dma_mem nonemb_cmd;
 	unsigned int cid, tag, i, num_invalidate;
+	int rc;
 
 	/* invalidate iocbs */
 	cls_session = starget_to_session(scsi_target(sc->device));
@@ -363,9 +367,10 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 		return FAILED;
 	}
 
-	beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
-	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-			    nonemb_cmd.va, nonemb_cmd.dma);
+	rc = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
+	if (rc != -EBUSY)
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
 	return iscsi_eh_device_reset(sc);
 }
 
@@ -4360,12 +4365,16 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 		goto boot_freemem;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
+	ret = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
 			    "BM_%d : beiscsi_get_session_info Failed");
-		goto boot_freemem;
+
+		if (ret != -EBUSY)
+			goto boot_freemem;
+		else
+			return ret;
 	}
 
 	session_resp = nonemb_cmd.va ;
@@ -5594,6 +5603,8 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		phba->ctrl.mcc_tag[i] = i + 1;
 		phba->ctrl.mcc_numtag[i + 1] = 0;
 		phba->ctrl.mcc_tag_available++;
+		memset(&phba->ctrl.ptag_state[i].tag_mem_state, 0,
+		       sizeof(struct beiscsi_mcc_tag_state));
 	}
 
 	phba->ctrl.mcc_alloc_index = phba->ctrl.mcc_free_index = 0;

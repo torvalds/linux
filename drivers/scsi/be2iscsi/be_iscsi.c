@@ -1153,16 +1153,18 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		return -EAGAIN;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
+	ret = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 			    "BS_%d : mgmt_open_connection Failed");
 
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-			    nonemb_cmd.va, nonemb_cmd.dma);
+		if (ret != -EBUSY)
+			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+					    nonemb_cmd.va, nonemb_cmd.dma);
+
 		beiscsi_free_ep(beiscsi_ep);
-		return -EBUSY;
+		return ret;
 	}
 
 	ptcpcnct_out = (struct tcp_connect_and_offload_out *)nonemb_cmd.va;
