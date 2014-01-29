@@ -400,8 +400,23 @@ static struct be_mcc_compl *be_mcc_compl_get(struct beiscsi_hba *phba)
 	return NULL;
 }
 
-static void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
+/**
+ * be2iscsi_fail_session(): Closing session with appropriate error
+ * @cls_session: ptr to session
+ *
+ * Depending on adapter state appropriate error flag is passed.
+ **/
+void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
 {
+	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	uint32_t iscsi_err_flag;
+
+	if (phba->state & BE_ADAPTER_STATE_SHUTDOWN)
+		iscsi_err_flag = ISCSI_ERR_INVALID_HOST;
+	else
+		iscsi_err_flag = ISCSI_ERR_CONN_FAILED;
+
 	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
 }
 

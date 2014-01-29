@@ -5301,6 +5301,8 @@ static void beiscsi_shutdown(struct pci_dev *pcidev)
 		return;
 	}
 
+	phba->state = BE_ADAPTER_STATE_SHUTDOWN;
+	iscsi_host_for_each_session(phba->shost, be2iscsi_fail_session);
 	beiscsi_quiesce(phba, BEISCSI_CLEAN_UNLOAD);
 	pci_disable_device(pcidev);
 }
