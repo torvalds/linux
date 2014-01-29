@@ -222,6 +222,7 @@ static struct notifier_block cpu_pmu_hotplug_notifier = {
  */
 static struct of_device_id cpu_pmu_of_device_ids[] = {
 	{.compatible = "arm,cortex-a15-pmu",	.data = armv7_a15_pmu_init},
+	{.compatible = "arm,cortex-a12-pmu",	.data = armv7_a12_pmu_init},
 	{.compatible = "arm,cortex-a9-pmu",	.data = armv7_a9_pmu_init},
 	{.compatible = "arm,cortex-a8-pmu",	.data = armv7_a8_pmu_init},
 	{.compatible = "arm,cortex-a7-pmu",	.data = armv7_a7_pmu_init},
