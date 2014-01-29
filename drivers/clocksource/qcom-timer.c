@@ -1,7 +1,7 @@
 /*
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2012,2014, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -25,10 +25,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
-
-#include <asm/mach/time.h>
-
-#include "common.h"
 
 #define TIMER_MATCH_VAL			0x0000
 #define TIMER_COUNT_VAL			0x0004

@@ -1,4 +1,3 @@
-obj-$(CONFIG_MSM_TIMER) += timer.o
 obj-$(CONFIG_MSM_PROC_COMM) += clock.o
 
 obj-$(CONFIG_MSM_VIC) += irq-vic.o

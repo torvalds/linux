@@ -21,7 +21,7 @@ config ARCH_MSM8X60
 	select CPU_V7
 	select HAVE_SMP
 	select MSM_SCM if SMP
-	select MSM_TIMER
+	select CLKSRC_QCOM
 
 config ARCH_MSM8960
 	bool "Enable support for MSM8960"
@@ -29,7 +29,7 @@ config ARCH_MSM8960
 	select CPU_V7
 	select HAVE_SMP
 	select MSM_SCM if SMP
-	select MSM_TIMER
+	select CLKSRC_QCOM
 
 config ARCH_MSM8974
 	bool "Enable support for MSM8974"
@@ -54,7 +54,7 @@ config ARCH_MSM7X00A
 	select MACH_TROUT if !MACH_HALIBUT
 	select MSM_PROC_COMM
 	select MSM_SMD
-	select MSM_TIMER
+	select CLKSRC_QCOM
 	select MSM_SMD_PKG3
 
 config ARCH_MSM7X30
@@ -66,7 +66,7 @@ config ARCH_MSM7X30
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select MSM_SMD
-	select MSM_TIMER
+	select CLKSRC_QCOM
 	select MSM_VIC
 
 config ARCH_QSD8X50
@@ -78,7 +78,7 @@ config ARCH_QSD8X50
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select MSM_SMD
-	select MSM_TIMER
+	select CLKSRC_QCOM
 	select MSM_VIC
 
 endchoice
@@ -151,9 +151,6 @@ config MSM_GPIOMUX
 	  Support for MSM V1 TLMM GPIOMUX architecture.
 
 config MSM_SCM
-	bool
-
-config MSM_TIMER
 	bool
 
 endif
