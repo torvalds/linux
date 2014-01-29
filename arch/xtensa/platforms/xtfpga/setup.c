@@ -135,11 +135,11 @@ static void __init update_local_mac(struct device_node *node)
 
 static int __init machine_setup(void)
 {
-	struct device_node *serial;
+	struct device_node *clock;
 	struct device_node *eth = NULL;
 
-	for_each_compatible_node(serial, NULL, "ns16550a")
-		update_clock_frequency(serial);
+	for_each_node_by_name(clock, "main-oscillator")
+		update_clock_frequency(clock);
 
 	if ((eth = of_find_compatible_node(eth, NULL, "opencores,ethoc")))
 		update_local_mac(eth);
