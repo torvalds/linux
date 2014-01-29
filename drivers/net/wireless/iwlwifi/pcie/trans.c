@@ -89,6 +89,7 @@ static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
+#define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 
 static void iwl_pcie_apm_config(struct iwl_trans *trans)
 {
@@ -443,26 +444,33 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 
 static int iwl_pcie_load_cpu_secured_sections(struct iwl_trans *trans,
 					      const struct fw_img *image,
-					      int cpu)
+					      int cpu,
+					      int *first_ucode_section)
 {
 	int shift_param;
-	u32 first_idx, last_idx;
 	int i, ret = 0;
+	u32 last_read_idx = 0;
 
 	if (cpu == 1) {
 		shift_param = 0;
-		first_idx = 0;
-		last_idx = 2;
+		*first_ucode_section = 0;
 	} else {
 		shift_param = 16;
-		first_idx = 3;
-		last_idx = 5;
+		(*first_ucode_section)++;
 	}
 
-	for (i = first_idx; i <= last_idx; i++) {
-		if (!image->sec[i].data)
+	for (i = *first_ucode_section; i < IWL_UCODE_SECTION_MAX; i++) {
+		last_read_idx = i;
+
+		if (!image->sec[i].data ||
+		    image->sec[i].offset == CPU1_CPU2_SEPARATOR_SECTION) {
+			IWL_DEBUG_FW(trans,
+				     "Break since Data not valid or Empty section, sec = %d\n",
+				     i);
 			break;
-		if (i == first_idx + 1)
+		}
+
+		if (i == (*first_ucode_section) + 1)
 			/* set CPU to started */
 			iwl_set_bits_prph(trans,
 					  CSR_UCODE_LOAD_STATUS_ADDR,
@@ -478,30 +486,39 @@ static int iwl_pcie_load_cpu_secured_sections(struct iwl_trans *trans,
 			  CSR_UCODE_LOAD_STATUS_ADDR,
 			  LMPM_CPU_UCODE_LOADING_COMPLETED << shift_param);
 
+	*first_ucode_section = last_read_idx;
+
 	return 0;
 }
 
 static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 				      const struct fw_img *image,
-				      int cpu)
+				      int cpu,
+				      int *first_ucode_section)
 {
 	int shift_param;
-	u32 first_idx, last_idx;
 	int i, ret = 0;
+	u32 last_read_idx = 0;
 
 	if (cpu == 1) {
 		shift_param = 0;
-		first_idx = 0;
-		last_idx = 1;
+		*first_ucode_section = 0;
 	} else {
 		shift_param = 16;
-		first_idx = 2;
-		last_idx = 3;
+		(*first_ucode_section)++;
 	}
 
-	for (i = first_idx; i <= last_idx; i++) {
-		if (!image->sec[i].data)
+	for (i = *first_ucode_section; i < IWL_UCODE_SECTION_MAX; i++) {
+		last_read_idx = i;
+
+		if (!image->sec[i].data ||
+		    image->sec[i].offset == CPU1_CPU2_SEPARATOR_SECTION) {
+			IWL_DEBUG_FW(trans,
+				     "Break since Data not valid or Empty section, sec = %d\n",
+				     i);
 			break;
+		}
+
 		ret = iwl_pcie_load_section(trans, i, &image->sec[i]);
 		if (ret)
 			return ret;
@@ -515,6 +532,8 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 				   LMPM_CPU_UCODE_LOADING_STARTED) <<
 					shift_param);
 
+	*first_ucode_section = last_read_idx;
+
 	return 0;
 }
 
@@ -522,6 +541,7 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
 	int ret = 0;
+	int first_ucode_section;
 
 	IWL_DEBUG_FW(trans,
 		     "working with %s image\n",
@@ -547,13 +567,15 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 			       LMPM_SECURE_CPU1_HDR_MEM_SPACE);
 
 		/* load to FW the binary Secured sections of CPU1 */
-		ret = iwl_pcie_load_cpu_secured_sections(trans, image, 1);
+		ret = iwl_pcie_load_cpu_secured_sections(trans, image, 1,
+							 &first_ucode_section);
 		if (ret)
 			return ret;
 
 	} else {
 		/* load to FW the binary Non secured sections of CPU1 */
-		ret = iwl_pcie_load_cpu_sections(trans, image, 1);
+		ret = iwl_pcie_load_cpu_sections(trans, image, 1,
+						 &first_ucode_section);
 		if (ret)
 			return ret;
 	}
@@ -566,11 +588,12 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 
 		/* load to FW the binary sections of CPU2 */
 		if (image->is_secure)
-			ret = iwl_pcie_load_cpu_secured_sections(trans,
-								 image,
-								 2);
+			ret = iwl_pcie_load_cpu_secured_sections(
+							trans, image, 2,
+							&first_ucode_section);
 		else
-			ret = iwl_pcie_load_cpu_sections(trans, image, 2);
+			ret = iwl_pcie_load_cpu_sections(trans, image, 2,
+							 &first_ucode_section);
 		if (ret)
 			return ret;
 	}
