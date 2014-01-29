@@ -9,6 +9,7 @@
 #include <linux/namei.h>
 #include <linux/writeback.h>
 #include <linux/vmalloc.h>
+#include <linux/posix_acl.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -1805,7 +1806,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 		__mark_inode_dirty(inode, inode_dirty_flags);
 
 	if (ia_valid & ATTR_MODE) {
-		err = ceph_acl_chmod(dentry, inode);
+		err = posix_acl_chmod(inode, attr->ia_mode);
 		if (err)
 			goto out_put;
 	}

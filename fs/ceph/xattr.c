@@ -6,6 +6,7 @@
 #include <linux/ceph/decode.h>
 
 #include <linux/xattr.h>
+#include <linux/posix_acl_xattr.h>
 #include <linux/slab.h>
 
 #define XATTR_CEPH_PREFIX "ceph."
@@ -17,8 +18,8 @@
  */
 const struct xattr_handler *ceph_xattr_handlers[] = {
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
-	&ceph_xattr_acl_access_handler,
-	&ceph_xattr_acl_default_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 #endif
 	NULL,
 };
