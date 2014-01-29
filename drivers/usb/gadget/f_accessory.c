@@ -261,8 +261,10 @@ static void acc_complete_in(struct usb_ep *ep, struct usb_request *req)
 {
 	struct acc_dev *dev = _acc_dev;
 
-	if (req->status != 0)
+	if (req->status == -ESHUTDOWN) {
+		pr_debug("acc_complete_in set disconnected");
 		acc_set_disconnected(dev);
+	}
 
 	req_put(dev, &dev->tx_idle, req);
 
@@ -274,8 +276,10 @@ static void acc_complete_out(struct usb_ep *ep, struct usb_request *req)
 	struct acc_dev *dev = _acc_dev;
 
 	dev->rx_done = 1;
-	if (req->status != 0)
+	if (req->status == -ESHUTDOWN) {
+		pr_debug("acc_complete_out set disconnected");
 		acc_set_disconnected(dev);
+	}
 
 	wake_up(&dev->read_wq);
 }
@@ -557,8 +561,10 @@ static ssize_t acc_read(struct file *fp, char __user *buf,
 
 	pr_debug("acc_read(%d)\n", count);
 
-	if (dev->disconnected)
+	if (dev->disconnected) {
+		pr_debug("acc_read disconnected");
 		return -ENODEV;
+	}
 
 	if (count > BULK_BUFFER_SIZE)
 		count = BULK_BUFFER_SIZE;
@@ -569,6 +575,12 @@ static ssize_t acc_read(struct file *fp, char __user *buf,
 	if (ret < 0) {
 		r = ret;
 		goto done;
+	}
+
+	if (dev->rx_done) {
+		// last req cancelled. try to get it.
+		req = dev->rx_req[0];
+		goto copy_data;
 	}
 
 requeue_req:
@@ -588,9 +600,17 @@ requeue_req:
 	ret = wait_event_interruptible(dev->read_wq, dev->rx_done);
 	if (ret < 0) {
 		r = ret;
-		usb_ep_dequeue(dev->ep_out, req);
+		ret = usb_ep_dequeue(dev->ep_out, req);
+		if (ret != 0) {
+			// cancel failed. There can be a data already received.
+			// it will be retrieved in the next read.
+			pr_debug("acc_read: cancelling failed %d", ret);
+		}
 		goto done;
 	}
+
+copy_data:
+	dev->rx_done = 0;
 	if (dev->online) {
 		/* If we got a 0-len packet, throw it back and try again. */
 		if (req->actual == 0)
@@ -619,8 +639,10 @@ static ssize_t acc_write(struct file *fp, const char __user *buf,
 
 	pr_debug("acc_write(%d)\n", count);
 
-	if (!dev->online || dev->disconnected)
+	if (!dev->online || dev->disconnected) {
+		pr_debug("acc_write disconnected or not online");
 		return -ENODEV;
+	}
 
 	while (count > 0) {
 		if (!dev->online) {
