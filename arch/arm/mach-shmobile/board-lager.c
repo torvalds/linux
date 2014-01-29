@@ -368,7 +368,6 @@ static const struct platform_device_info sata1_info __initconst = {
 };
 
 /* USBHS */
-#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 static const struct resource usbhs_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6590000, 0x100),
 	DEFINE_RES_IRQ(gic_spi(107)),
@@ -478,9 +477,6 @@ static void __init lager_register_usbhs(void)
 					  &usbhs_priv.info,
 					  sizeof(usbhs_priv.info));
 }
-#else	/* CONFIG_USB_RENESAS_USBHS_UDC */
-static inline void lager_register_usbhs(void) { }
-#endif	/* CONFIG_USB_RENESAS_USBHS_UDC */
 
 /* USBHS PHY */
 static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
