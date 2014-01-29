@@ -62,6 +62,22 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 {
 	struct input_dev *input = hi->input;
 
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_CONSUMER) {
+		switch (usage->hid & HID_USAGE) {
+		/*
+		 * Microsoft uses these 2 reserved usage ids for 2 keys on
+		 * the MS office kb labelled "Office Home" and "Task Pane".
+		 */
+		case 0x29d:
+			ms_map_key_clear(KEY_PROG1);
+			return 1;
+		case 0x29e:
+			ms_map_key_clear(KEY_PROG2);
+			return 1;
+		}
+		return 0;
+	}
+
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
 		return 0;
 
