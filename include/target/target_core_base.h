@@ -552,7 +552,7 @@ struct se_cmd {
 	void			*priv;
 
 	/* Used for lun->lun_ref counting */
-	bool			lun_ref_active;
+	int			lun_ref_active;
 
 	/* DIF related members */
 	enum target_prot_op	prot_op;
