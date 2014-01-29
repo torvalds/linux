@@ -761,8 +761,6 @@ static int snd_als300_create(struct snd_card *card,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*rchip = chip;
 	snd_als300_dbgcallleave();
 	return 0;
@@ -829,7 +827,8 @@ static int snd_als300_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 
 	if (err < 0)
 		return err;

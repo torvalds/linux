@@ -4058,8 +4058,6 @@ int snd_cs46xx_create(struct snd_card *card,
 
 	chip->active_ctrl(chip, -1); /* disable CLKRUN */
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*rchip = chip;
 	return 0;
 }

@@ -595,7 +595,8 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	const struct pci_device_id *pci_id;
 	int err;
 
-	err = snd_card_create(index, id, owner, sizeof(*chip), &card);
+	err = snd_card_new(&pci->dev, index, id, owner,
+			   sizeof(*chip), &card);
 	if (err < 0)
 		return err;
 
@@ -648,7 +649,6 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	}
 
 	pci_set_master(pci);
-	snd_card_set_dev(card, &pci->dev);
 	card->private_free = oxygen_card_free;
 
 	configure_pcie_bridge(pci);

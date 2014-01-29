@@ -1239,7 +1239,6 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 	}
 
 	mgr->chip[idx] = chip;
-	snd_card_set_dev(card, &mgr->pci->dev);
 
 	return 0;
 }
@@ -1638,7 +1637,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 
 		snprintf(tmpid, sizeof(tmpid), "%s-%d",
 			 id[dev] ? id[dev] : card_name, i);
-		err = snd_card_create(idx, tmpid, THIS_MODULE, 0, &card);
+		err = snd_card_new(&pci->dev, idx, tmpid, THIS_MODULE,
+				   0, &card);
 
 		if (err < 0) {
 			snd_printk(KERN_ERR "cannot allocate the card %d\n", i);

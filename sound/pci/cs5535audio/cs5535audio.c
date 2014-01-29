@@ -324,8 +324,6 @@ static int snd_cs5535audio_create(struct snd_card *card,
 				  cs5535au, &ops)) < 0)
 		goto sndfail;
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*rcs5535au = cs5535au;
 	return 0;
 
@@ -353,7 +351,8 @@ static int snd_cs5535audio_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 

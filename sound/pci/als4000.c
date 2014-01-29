@@ -888,9 +888,9 @@ static int snd_card_als4000_probe(struct pci_dev *pci,
 	pci_write_config_word(pci, PCI_COMMAND, word | PCI_COMMAND_IO);
 	pci_set_master(pci);
 	
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 
-			      sizeof(*acard) /* private_data: acard */,
-			      &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(*acard) /* private_data: acard */,
+			   &card);
 	if (err < 0) {
 		pci_release_regions(pci);
 		pci_disable_device(pci);
@@ -920,7 +920,6 @@ static int snd_card_als4000_probe(struct pci_dev *pci,
 
 	chip->pci = pci;
 	chip->alt_port = iobase;
-	snd_card_set_dev(card, &pci->dev);
 
 	snd_als4000_configure(chip);
 

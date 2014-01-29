@@ -965,8 +965,6 @@ snd_ad1889_create(struct snd_card *card,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*rchip = chip;
 
 	return 0;
@@ -996,7 +994,8 @@ snd_ad1889_probe(struct pci_dev *pci,
 	}
 
 	/* (2) */
-	err = snd_card_create(index[devno], id[devno], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[devno], id[devno], THIS_MODULE,
+			   0, &card);
 	/* XXX REVISIT: we can probably allocate chip in this call */
 	if (err < 0)
 		return err;

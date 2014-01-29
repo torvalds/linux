@@ -1843,7 +1843,8 @@ static int snd_ca0106_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 
@@ -1877,8 +1878,6 @@ static int snd_ca0106_probe(struct pci_dev *pci,
 #ifdef CONFIG_PROC_FS
 	snd_ca0106_proc_init(chip);
 #endif
-
-	snd_card_set_dev(card, &pci->dev);
 
 	err = snd_card_register(card);
 	if (err < 0)

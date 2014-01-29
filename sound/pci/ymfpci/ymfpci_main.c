@@ -2487,8 +2487,6 @@ int snd_ymfpci_create(struct snd_card *card,
 
 	snd_ymfpci_proc_init(card, chip);
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*rchip = chip;
 	return 0;
 }
