@@ -209,6 +209,16 @@ static void atombios_enable_crtc_memreq(struct drm_crtc *crtc, int state)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+static const u32 vga_control_regs[6] =
+{
+	AVIVO_D1VGA_CONTROL,
+	AVIVO_D2VGA_CONTROL,
+	EVERGREEN_D3VGA_CONTROL,
+	EVERGREEN_D4VGA_CONTROL,
+	EVERGREEN_D5VGA_CONTROL,
+	EVERGREEN_D6VGA_CONTROL,
+};
+
 static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -216,13 +226,23 @@ static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 	struct radeon_device *rdev = dev->dev_private;
 	int index = GetIndexIntoMasterTable(COMMAND, BlankCRTC);
 	BLANK_CRTC_PS_ALLOCATION args;
+	u32 vga_control = 0;
 
 	memset(&args, 0, sizeof(args));
+
+	if (ASIC_IS_DCE8(rdev)) {
+		vga_control = RREG32(vga_control_regs[radeon_crtc->crtc_id]);
+		WREG32(vga_control_regs[radeon_crtc->crtc_id], vga_control | 1);
+	}
 
 	args.ucCRTC = radeon_crtc->crtc_id;
 	args.ucBlanking = state;
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+	if (ASIC_IS_DCE8(rdev)) {
+		WREG32(vga_control_regs[radeon_crtc->crtc_id], vga_control);
+	}
 }
 
 static void atombios_powergate_crtc(struct drm_crtc *crtc, int state)
