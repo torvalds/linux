@@ -141,8 +141,8 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 
 	I915_WRITE(SPSIZE(pipe, plane), (crtc_h << 16) | crtc_w);
 	I915_WRITE(SPCNTR(pipe, plane), sprctl);
-	I915_MODIFY_DISPBASE(SPSURF(pipe, plane), i915_gem_obj_ggtt_offset(obj) +
-			     sprsurf_offset);
+	I915_WRITE(SPSURF(pipe, plane), i915_gem_obj_ggtt_offset(obj) +
+		   sprsurf_offset);
 	POSTING_READ(SPSURF(pipe, plane));
 }
 
@@ -158,7 +158,7 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	I915_WRITE(SPCNTR(pipe, plane), I915_READ(SPCNTR(pipe, plane)) &
 		   ~SP_ENABLE);
 	/* Activate double buffered register update */
-	I915_MODIFY_DISPBASE(SPSURF(pipe, plane), 0);
+	I915_WRITE(SPSURF(pipe, plane), 0);
 	POSTING_READ(SPSURF(pipe, plane));
 
 	intel_update_sprite_watermarks(dplane, crtc, 0, 0, false, false);
@@ -315,8 +315,8 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (intel_plane->can_scale)
 		I915_WRITE(SPRSCALE(pipe), sprscale);
 	I915_WRITE(SPRCTL(pipe), sprctl);
-	I915_MODIFY_DISPBASE(SPRSURF(pipe),
-			     i915_gem_obj_ggtt_offset(obj) + sprsurf_offset);
+	I915_WRITE(SPRSURF(pipe),
+		   i915_gem_obj_ggtt_offset(obj) + sprsurf_offset);
 	POSTING_READ(SPRSURF(pipe));
 }
 
@@ -333,7 +333,7 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	if (intel_plane->can_scale)
 		I915_WRITE(SPRSCALE(pipe), 0);
 	/* Activate double buffered register update */
-	I915_MODIFY_DISPBASE(SPRSURF(pipe), 0);
+	I915_WRITE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
 
 	/*
@@ -489,8 +489,8 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	I915_WRITE(DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
 	I915_WRITE(DVSSCALE(pipe), dvsscale);
 	I915_WRITE(DVSCNTR(pipe), dvscntr);
-	I915_MODIFY_DISPBASE(DVSSURF(pipe),
-			     i915_gem_obj_ggtt_offset(obj) + dvssurf_offset);
+	I915_WRITE(DVSSURF(pipe),
+		   i915_gem_obj_ggtt_offset(obj) + dvssurf_offset);
 	POSTING_READ(DVSSURF(pipe));
 }
 
@@ -506,7 +506,7 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	/* Disable the scaler */
 	I915_WRITE(DVSSCALE(pipe), 0);
 	/* Flush double buffered register updates */
-	I915_MODIFY_DISPBASE(DVSSURF(pipe), 0);
+	I915_WRITE(DVSSURF(pipe), 0);
 	POSTING_READ(DVSSURF(pipe));
 
 	/*

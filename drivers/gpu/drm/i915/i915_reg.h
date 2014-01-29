@@ -2122,9 +2122,13 @@
  * Please check the detailed lore in the commit message for for experimental
  * evidence.
  */
-#define   PORTD_HOTPLUG_LIVE_STATUS               (1 << 29)
-#define   PORTC_HOTPLUG_LIVE_STATUS               (1 << 28)
-#define   PORTB_HOTPLUG_LIVE_STATUS               (1 << 27)
+#define   PORTD_HOTPLUG_LIVE_STATUS_G4X		(1 << 29)
+#define   PORTC_HOTPLUG_LIVE_STATUS_G4X		(1 << 28)
+#define   PORTB_HOTPLUG_LIVE_STATUS_G4X		(1 << 27)
+/* VLV DP/HDMI bits again match Bspec */
+#define   PORTD_HOTPLUG_LIVE_STATUS_VLV		(1 << 27)
+#define   PORTC_HOTPLUG_LIVE_STATUS_VLV		(1 << 28)
+#define   PORTB_HOTPLUG_LIVE_STATUS_VLV		(1 << 29)
 #define   PORTD_HOTPLUG_INT_STATUS		(3 << 21)
 #define   PORTC_HOTPLUG_INT_STATUS		(3 << 19)
 #define   PORTB_HOTPLUG_INT_STATUS		(3 << 17)
@@ -2138,7 +2142,8 @@
 #define   DP_AUX_CHANNEL_D_INT_STATUS_G4X	(1 << 6)
 #define   DP_AUX_CHANNEL_C_INT_STATUS_G4X	(1 << 5)
 #define   DP_AUX_CHANNEL_B_INT_STATUS_G4X	(1 << 4)
-#define   DP_AUX_CHANNEL_MASK_INT_STATUS_G4X	(1 << 4)
+#define   DP_AUX_CHANNEL_MASK_INT_STATUS_G4X	(7 << 4)
+
 /* SDVO is different across gen3/4 */
 #define   SDVOC_HOTPLUG_INT_STATUS_G4X		(1 << 3)
 #define   SDVOB_HOTPLUG_INT_STATUS_G4X		(1 << 2)
@@ -3573,8 +3578,6 @@
 #define DISP_BASEADDR_MASK	(0xfffff000)
 #define I915_LO_DISPBASE(val)	(val & ~DISP_BASEADDR_MASK)
 #define I915_HI_DISPBASE(val)	(val & DISP_BASEADDR_MASK)
-#define I915_MODIFY_DISPBASE(reg, gfx_addr) \
-		(I915_WRITE((reg), (gfx_addr) | I915_LO_DISPBASE(I915_READ(reg))))
 
 /* VBIOS flags */
 #define SWF00			(dev_priv->info->display_mmio_offset + 0x71410)

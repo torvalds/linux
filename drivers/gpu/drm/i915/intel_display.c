@@ -2114,8 +2114,8 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		      fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
-		I915_MODIFY_DISPBASE(DSPSURF(plane),
-				     i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
+		I915_WRITE(DSPSURF(plane),
+			   i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE(DSPLINOFF(plane), linear_offset);
 	} else
@@ -2205,8 +2205,8 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 		      i915_gem_obj_ggtt_offset(obj), linear_offset, x, y,
 		      fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
-	I915_MODIFY_DISPBASE(DSPSURF(plane),
-			     i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
+	I915_WRITE(DSPSURF(plane),
+		   i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
 	} else {
@@ -2980,6 +2980,30 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	return pending;
+}
+
+bool intel_has_pending_fb_unpin(struct drm_device *dev)
+{
+	struct intel_crtc *crtc;
+
+	/* Note that we don't need to be called with mode_config.lock here
+	 * as our list of CRTC objects is static for the lifetime of the
+	 * device and so cannot disappear as we iterate. Similarly, we can
+	 * happily treat the predicates as racy, atomic checks as userspace
+	 * cannot claim and pin a new fb without at least acquring the
+	 * struct_mutex and so serialising with us.
+	 */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		if (atomic_read(&crtc->unpin_work_count) == 0)
+			continue;
+
+		if (crtc->unpin_work)
+			intel_wait_for_vblank(dev, crtc->pipe);
+
+		return true;
+	}
+
+	return false;
 }
 
 static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)

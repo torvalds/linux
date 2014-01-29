@@ -673,10 +673,12 @@ gen6_add_request(struct intel_ring_buffer *ring)
 	if (ret)
 		return ret;
 
-	for_each_ring(useless, dev_priv, i) {
-		u32 mbox_reg = ring->signal_mbox[i];
-		if (mbox_reg != GEN6_NOSYNC)
-			update_mboxes(ring, mbox_reg);
+	if (i915_semaphore_is_enabled(dev)) {
+		for_each_ring(useless, dev_priv, i) {
+			u32 mbox_reg = ring->signal_mbox[i];
+			if (mbox_reg != GEN6_NOSYNC)
+				update_mboxes(ring, mbox_reg);
+		}
 	}
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);

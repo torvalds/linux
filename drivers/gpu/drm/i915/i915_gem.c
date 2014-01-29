@@ -2330,7 +2330,7 @@ static void i915_set_reset_status(struct intel_ring_buffer *ring,
 
 	if (ring->hangcheck.action != HANGCHECK_WAIT &&
 	    i915_request_guilty(request, acthd, &inside)) {
-		DRM_ERROR("%s hung %s bo (0x%lx ctx %d) at 0x%x\n",
+		DRM_DEBUG("%s hung %s bo (0x%lx ctx %d) at 0x%x\n",
 			  ring->name,
 			  inside ? "inside" : "flushing",
 			  offset,
@@ -2388,16 +2388,6 @@ static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
 static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 					struct intel_ring_buffer *ring)
 {
-	while (!list_empty(&ring->request_list)) {
-		struct drm_i915_gem_request *request;
-
-		request = list_first_entry(&ring->request_list,
-					   struct drm_i915_gem_request,
-					   list);
-
-		i915_gem_free_request(request);
-	}
-
 	while (!list_empty(&ring->active_list)) {
 		struct drm_i915_gem_object *obj;
 
@@ -2406,6 +2396,23 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 				       ring_list);
 
 		i915_gem_object_move_to_inactive(obj);
+	}
+
+	/*
+	 * We must free the requests after all the corresponding objects have
+	 * been moved off active lists. Which is the same order as the normal
+	 * retire_requests function does. This is important if object hold
+	 * implicit references on things like e.g. ppgtt address spaces through
+	 * the request.
+	 */
+	while (!list_empty(&ring->request_list)) {
+		struct drm_i915_gem_request *request;
+
+		request = list_first_entry(&ring->request_list,
+					   struct drm_i915_gem_request,
+					   list);
+
+		i915_gem_free_request(request);
 	}
 }
 
@@ -3099,7 +3106,7 @@ i915_find_fence_reg(struct drm_device *dev)
 	}
 
 	if (avail == NULL)
-		return NULL;
+		goto deadlock;
 
 	/* None available, try to steal one or wait for a user to finish */
 	list_for_each_entry(reg, &dev_priv->mm.fence_list, lru_list) {
@@ -3109,7 +3116,12 @@ i915_find_fence_reg(struct drm_device *dev)
 		return reg;
 	}
 
-	return NULL;
+deadlock:
+	/* Wait for completion of pending flips which consume fences */
+	if (intel_has_pending_fb_unpin(dev))
+		return ERR_PTR(-EAGAIN);
+
+	return ERR_PTR(-EDEADLK);
 }
 
 /**
@@ -3154,8 +3166,8 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 		}
 	} else if (enable) {
 		reg = i915_find_fence_reg(dev);
-		if (reg == NULL)
-			return -EDEADLK;
+		if (IS_ERR(reg))
+			return PTR_ERR(reg);
 
 		if (reg->obj) {
 			struct drm_i915_gem_object *old = reg->obj;

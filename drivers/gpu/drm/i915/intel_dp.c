@@ -2638,7 +2638,6 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 
 		if (cr_tries > 5) {
 			DRM_ERROR("failed to train DP, aborting\n");
-			intel_dp_link_down(intel_dp);
 			break;
 		}
 
@@ -2891,13 +2890,11 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 
 	/* Try to read receiver status if the link appears to be up */
 	if (!intel_dp_get_link_status(intel_dp, link_status)) {
-		intel_dp_link_down(intel_dp);
 		return;
 	}
 
 	/* Now read the DPCD to see if it's actually running */
 	if (!intel_dp_get_dpcd(intel_dp)) {
-		intel_dp_link_down(intel_dp);
 		return;
 	}
 
@@ -3012,18 +3009,34 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 		return status;
 	}
 
-	switch (intel_dig_port->port) {
-	case PORT_B:
-		bit = PORTB_HOTPLUG_LIVE_STATUS;
-		break;
-	case PORT_C:
-		bit = PORTC_HOTPLUG_LIVE_STATUS;
-		break;
-	case PORT_D:
-		bit = PORTD_HOTPLUG_LIVE_STATUS;
-		break;
-	default:
-		return connector_status_unknown;
+	if (IS_VALLEYVIEW(dev)) {
+		switch (intel_dig_port->port) {
+		case PORT_B:
+			bit = PORTB_HOTPLUG_LIVE_STATUS_VLV;
+			break;
+		case PORT_C:
+			bit = PORTC_HOTPLUG_LIVE_STATUS_VLV;
+			break;
+		case PORT_D:
+			bit = PORTD_HOTPLUG_LIVE_STATUS_VLV;
+			break;
+		default:
+			return connector_status_unknown;
+		}
+	} else {
+		switch (intel_dig_port->port) {
+		case PORT_B:
+			bit = PORTB_HOTPLUG_LIVE_STATUS_G4X;
+			break;
+		case PORT_C:
+			bit = PORTC_HOTPLUG_LIVE_STATUS_G4X;
+			break;
+		case PORT_D:
+			bit = PORTD_HOTPLUG_LIVE_STATUS_G4X;
+			break;
+		default:
+			return connector_status_unknown;
+		}
 	}
 
 	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) == 0)
