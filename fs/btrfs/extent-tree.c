@@ -5893,7 +5893,7 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	spin_lock(&delayed_refs->lock);
 	head = btrfs_find_delayed_ref_head(trans, bytenr);
 	if (!head)
-		goto out;
+		goto out_delayed_unlock;
 
 	spin_lock(&head->lock);
 	if (rb_first(&head->ref_root))
@@ -5942,6 +5942,8 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	return ret;
 out:
 	spin_unlock(&head->lock);
+
+out_delayed_unlock:
 	spin_unlock(&delayed_refs->lock);
 	return 0;
 }
