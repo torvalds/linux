@@ -67,6 +67,7 @@
 #include <linux/binfmts.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
+#include <asm/syscall.h>
 #include <linux/capability.h>
 #include <linux/fs_struct.h>
 #include <linux/compat.h>
@@ -2488,11 +2489,9 @@ void __audit_seccomp(unsigned long syscall, long signr, int code)
 	if (unlikely(!ab))
 		return;
 	audit_log_task(ab);
-	audit_log_format(ab, " sig=%ld", signr);
-	audit_log_format(ab, " syscall=%ld", syscall);
-	audit_log_format(ab, " compat=%d", is_compat_task());
-	audit_log_format(ab, " ip=0x%lx", KSTK_EIP(current));
-	audit_log_format(ab, " code=0x%x", code);
+	audit_log_format(ab, " sig=%ld arch=%x syscall=%ld compat=%d ip=0x%lx code=0x%x",
+			 signr, syscall_get_arch(), syscall, is_compat_task(),
+			 KSTK_EIP(current), code);
 	audit_log_end(ab);
 }
 
