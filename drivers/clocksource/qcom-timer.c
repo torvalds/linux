@@ -106,15 +106,6 @@ static notrace cycle_t msm_read_timer_count(struct clocksource *cs)
 	return readl_relaxed(source_base + TIMER_COUNT_VAL);
 }
 
-static notrace cycle_t msm_read_timer_count_shift(struct clocksource *cs)
-{
-	/*
-	 * Shift timer count down by a constant due to unreliable lower bits
-	 * on some targets.
-	 */
-	return msm_read_timer_count(cs) >> MSM_DGT_SHIFT;
-}
-
 static struct clocksource msm_clocksource = {
 	.name	= "dg_timer",
 	.rating	= 300,
@@ -228,7 +219,7 @@ err:
 	sched_clock_register(msm_sched_clock_read, sched_bits, dgt_hz);
 }
 
-#ifdef CONFIG_OF
+#ifdef CONFIG_ARCH_QCOM
 static void __init msm_dt_timer_init(struct device_node *np)
 {
 	u32 freq;
@@ -281,7 +272,7 @@ static void __init msm_dt_timer_init(struct device_node *np)
 }
 CLOCKSOURCE_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
 CLOCKSOURCE_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
-#endif
+#else
 
 static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
 				u32 sts)
@@ -299,6 +290,15 @@ static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
 		sts_base = base + sts;
 
 	return 0;
+}
+
+static notrace cycle_t msm_read_timer_count_shift(struct clocksource *cs)
+{
+	/*
+	 * Shift timer count down by a constant due to unreliable lower bits
+	 * on some targets.
+	 */
+	return msm_read_timer_count(cs) >> MSM_DGT_SHIFT;
 }
 
 void __init msm7x01_timer_init(void)
@@ -327,3 +327,4 @@ void __init qsd8x50_timer_init(void)
 		return;
 	msm_timer_init(19200000 / 4, 32, 7, false);
 }
+#endif
