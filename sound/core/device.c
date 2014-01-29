@@ -41,7 +41,7 @@
  *
  * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_device_new(struct snd_card *card, snd_device_type_t type,
+int snd_device_new(struct snd_card *card, enum snd_device_type type,
 		   void *device_data, struct snd_device_ops *ops)
 {
 	struct snd_device *dev;
@@ -223,7 +223,7 @@ int snd_device_disconnect_all(struct snd_card *card)
  * release all the devices on the card.
  * called from init.c
  */
-int snd_device_free_all(struct snd_card *card, snd_device_cmd_t cmd)
+int snd_device_free_all(struct snd_card *card, enum snd_device_cmd cmd)
 {
 	struct snd_device *dev;
 	int err;
@@ -231,11 +231,11 @@ int snd_device_free_all(struct snd_card *card, snd_device_cmd_t cmd)
 
 	if (snd_BUG_ON(!card))
 		return -ENXIO;
-	range_low = (__force unsigned int)cmd * SNDRV_DEV_TYPE_RANGE_SIZE;
+	range_low = (unsigned int)cmd * SNDRV_DEV_TYPE_RANGE_SIZE;
 	range_high = range_low + SNDRV_DEV_TYPE_RANGE_SIZE - 1;
       __again:
 	list_for_each_entry(dev, &card->devices, list) {
-		type = (__force unsigned int)dev->type;
+		type = (unsigned int)dev->type;
 		if (type >= range_low && type <= range_high) {
 			if ((err = snd_device_free(card, dev->device_data)) < 0)
 				return err;

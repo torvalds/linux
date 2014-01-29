@@ -48,32 +48,35 @@ struct completion;
 
 #define SNDRV_DEV_TYPE_RANGE_SIZE		0x1000
 
-typedef int __bitwise snd_device_type_t;
-#define	SNDRV_DEV_TOPLEVEL	((__force snd_device_type_t) 0)
-#define	SNDRV_DEV_CONTROL	((__force snd_device_type_t) 1)
-#define	SNDRV_DEV_LOWLEVEL_PRE	((__force snd_device_type_t) 2)
-#define	SNDRV_DEV_LOWLEVEL_NORMAL ((__force snd_device_type_t) 0x1000)
-#define	SNDRV_DEV_PCM		((__force snd_device_type_t) 0x1001)
-#define	SNDRV_DEV_RAWMIDI	((__force snd_device_type_t) 0x1002)
-#define	SNDRV_DEV_TIMER		((__force snd_device_type_t) 0x1003)
-#define	SNDRV_DEV_SEQUENCER	((__force snd_device_type_t) 0x1004)
-#define	SNDRV_DEV_HWDEP		((__force snd_device_type_t) 0x1005)
-#define	SNDRV_DEV_INFO		((__force snd_device_type_t) 0x1006)
-#define	SNDRV_DEV_BUS		((__force snd_device_type_t) 0x1007)
-#define	SNDRV_DEV_CODEC		((__force snd_device_type_t) 0x1008)
-#define	SNDRV_DEV_JACK          ((__force snd_device_type_t) 0x1009)
-#define	SNDRV_DEV_COMPRESS	((__force snd_device_type_t) 0x100A)
-#define	SNDRV_DEV_LOWLEVEL	((__force snd_device_type_t) 0x2000)
+enum snd_device_type {
+	SNDRV_DEV_TOPLEVEL	= 0,
+	SNDRV_DEV_CONTROL	= 1,
+	SNDRV_DEV_LOWLEVEL_PRE	= 2,
+	SNDRV_DEV_LOWLEVEL_NORMAL = 0x1000,
+	SNDRV_DEV_PCM,
+	SNDRV_DEV_RAWMIDI,
+	SNDRV_DEV_TIMER,
+	SNDRV_DEV_SEQUENCER,
+	SNDRV_DEV_HWDEP,
+	SNDRV_DEV_INFO,
+	SNDRV_DEV_BUS,
+	SNDRV_DEV_CODEC,
+	SNDRV_DEV_JACK,
+	SNDRV_DEV_COMPRESS,
+	SNDRV_DEV_LOWLEVEL	= 0x2000,
+};
 
-typedef int __bitwise snd_device_state_t;
-#define	SNDRV_DEV_BUILD		((__force snd_device_state_t) 0)
-#define	SNDRV_DEV_REGISTERED	((__force snd_device_state_t) 1)
-#define	SNDRV_DEV_DISCONNECTED	((__force snd_device_state_t) 2)
+enum snd_device_state {
+	SNDRV_DEV_BUILD,
+	SNDRV_DEV_REGISTERED,
+	SNDRV_DEV_DISCONNECTED,
+};
 
-typedef int __bitwise snd_device_cmd_t;
-#define	SNDRV_DEV_CMD_PRE	((__force snd_device_cmd_t) 0)
-#define	SNDRV_DEV_CMD_NORMAL	((__force snd_device_cmd_t) 1)	
-#define	SNDRV_DEV_CMD_POST	((__force snd_device_cmd_t) 2)
+enum snd_device_cmd {
+	SNDRV_DEV_CMD_PRE,
+	SNDRV_DEV_CMD_NORMAL,
+	SNDRV_DEV_CMD_POST,
+};
 
 struct snd_device;
 
@@ -86,8 +89,8 @@ struct snd_device_ops {
 struct snd_device {
 	struct list_head list;		/* list of registered devices */
 	struct snd_card *card;		/* card which holds this device */
-	snd_device_state_t state;	/* state of the device */
-	snd_device_type_t type;		/* device type */
+	enum snd_device_state state;	/* state of the device */
+	enum snd_device_type type;	/* device type */
 	void *device_data;		/* device structure */
 	struct snd_device_ops *ops;	/* operations */
 };
@@ -311,14 +314,14 @@ int snd_card_file_remove(struct snd_card *card, struct file *file);
 
 /* device.c */
 
-int snd_device_new(struct snd_card *card, snd_device_type_t type,
+int snd_device_new(struct snd_card *card, enum snd_device_type type,
 		   void *device_data, struct snd_device_ops *ops);
 int snd_device_register(struct snd_card *card, void *device_data);
 int snd_device_register_all(struct snd_card *card);
 int snd_device_disconnect(struct snd_card *card, void *device_data);
 int snd_device_disconnect_all(struct snd_card *card);
 int snd_device_free(struct snd_card *card, void *device_data);
-int snd_device_free_all(struct snd_card *card, snd_device_cmd_t cmd);
+int snd_device_free_all(struct snd_card *card, enum snd_device_cmd cmd);
 
 /* isadma.c */
 
