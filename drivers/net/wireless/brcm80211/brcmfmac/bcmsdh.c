@@ -826,7 +826,7 @@ brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		}
 		if (!write)
 			memcpy(data, pkt->data, dsize);
-		skb_trim(pkt, dsize);
+		skb_trim(pkt, 0);
 
 		/* Adjust for next transfer (if any) */
 		size -= dsize;
