@@ -497,7 +497,7 @@ struct se_cmd {
 	void			*priv;
 
 	/* Used for lun->lun_ref counting */
-	bool			lun_ref_active;
+	int			lun_ref_active;
 };
 
 struct se_ua {

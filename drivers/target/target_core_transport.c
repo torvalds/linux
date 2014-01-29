@@ -568,10 +568,11 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 {
 	struct se_lun *lun = cmd->se_lun;
 
-	if (!lun || !cmd->lun_ref_active)
+	if (!lun)
 		return;
 
-	percpu_ref_put(&lun->lun_ref);
+	if (cmpxchg(&cmd->lun_ref_active, true, false))
+		percpu_ref_put(&lun->lun_ref);
 }
 
 void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
