@@ -283,9 +283,16 @@ int snd_card_locked(int card);
 extern int (*snd_mixer_oss_notify_callback)(struct snd_card *card, int cmd);
 #endif
 
-int snd_card_create(int idx, const char *id,
-		    struct module *module, int extra_size,
-		    struct snd_card **card_ret);
+int snd_card_new(struct device *parent, int idx, const char *xid,
+		 struct module *module, int extra_size,
+		 struct snd_card **card_ret);
+
+static inline int __deprecated
+snd_card_create(int idx, const char *id, struct module *module, int extra_size,
+		struct snd_card **ret)
+{
+	return snd_card_new(NULL, idx, id, module, extra_size, ret);
+}
 
 int snd_card_disconnect(struct snd_card *card);
 int snd_card_free(struct snd_card *card);
