@@ -22,6 +22,15 @@
 #define CLK_UART1 258
 #define CLK_UART2 259
 #define CLK_UART3 260
+#define CLK_I2C0 261
+#define CLK_I2C1 262
+#define CLK_I2C2 263
+#define CLK_I2C3 264
+#define CLK_I2C4 265
+#define CLK_I2C5 266
+#define CLK_I2C6 267
+#define CLK_I2C7 268
+#define CLK_I2C_HDMI 269
 #define CLK_MCT 315
 #define CLK_MMC0 351
 #define CLK_MMC1 352

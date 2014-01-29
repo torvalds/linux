@@ -2,6 +2,9 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Tarek Dakhran <t.dakhran@samsung.com>
  *
+ * Copyright (c) 2014 Hardkernel Co., Ltd.
+ * Author: Hakjoo Kim <ruppi.kim@hardkernel.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -185,6 +188,16 @@ static struct samsung_gate_clock exynos5410_gate_clks[] __initdata = {
 	GATE(CLK_UART0, "uart0", "aclk66", GATE_IP_PERIC, 0, 0, 0),
 	GATE(CLK_UART1, "uart1", "aclk66", GATE_IP_PERIC, 1, 0, 0),
 	GATE(CLK_UART2, "uart2", "aclk66", GATE_IP_PERIC, 2, 0, 0),
+
+	GATE(CLK_I2C0, "i2c0", "aclk66", GATE_IP_PERIC, 6, 0, 0),
+	GATE(CLK_I2C1, "i2c1", "aclk66", GATE_IP_PERIC, 7, 0, 0),
+	GATE(CLK_I2C2, "i2c2", "aclk66", GATE_IP_PERIC, 8, 0, 0),
+	GATE(CLK_I2C3, "i2c3", "aclk66", GATE_IP_PERIC, 9, 0, 0),
+	GATE(CLK_I2C4, "i2c4", "aclk66", GATE_IP_PERIC, 10, 0, 0),
+	GATE(CLK_I2C5, "i2c5", "aclk66", GATE_IP_PERIC, 11, 0, 0),
+	GATE(CLK_I2C6, "i2c6", "aclk66", GATE_IP_PERIC, 12, 0, 0),
+	GATE(CLK_I2C7, "i2c7", "aclk66", GATE_IP_PERIC, 13, 0, 0),
+	GATE(CLK_I2C_HDMI, "i2c_hdmi", "aclk66", GATE_IP_PERIC, 14, 0, 0),
 
 	GATE(CLK_SCLK_UART0, "sclk_uart0", "div_uart0",
 			SRC_MASK_PERIC0, 0, CLK_SET_RATE_PARENT, 0),
