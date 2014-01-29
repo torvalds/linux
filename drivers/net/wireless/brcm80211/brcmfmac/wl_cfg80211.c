@@ -5192,9 +5192,6 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg,
 				ieee80211_channel_to_frequency(ch.chnum, band);
 			band_chan_arr[index].hw_value = ch.chnum;
 
-			brcmf_err("channel %d: f=%d bw=%d sb=%d\n",
-				  ch.chnum, band_chan_arr[index].center_freq,
-				  ch.bw, ch.sb);
 			if (ch.bw == BRCMU_CHAN_BW_40) {
 				/* assuming the order is HT20, HT40 Upper,
 				 * HT40 lower from chanspecs
