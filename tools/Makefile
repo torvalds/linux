@@ -39,10 +39,10 @@ cpupower: FORCE
 cgroup firewire guest usb virtio vm net: FORCE
 	$(call descend,$@)
 
-liblk: FORCE
-	$(call descend,lib/lk)
+libapikfs: FORCE
+	$(call descend,lib/api)
 
-perf: liblk FORCE
+perf: libapikfs FORCE
 	$(call descend,$@)
 
 selftests: FORCE
@@ -80,10 +80,10 @@ cpupower_clean:
 cgroup_clean firewire_clean lguest_clean usb_clean virtio_clean vm_clean net_clean:
 	$(call descend,$(@:_clean=),clean)
 
-liblk_clean:
-	$(call descend,lib/lk,clean)
+libapikfs_clean:
+	$(call descend,lib/api,clean)
 
-perf_clean: liblk_clean
+perf_clean: libapikfs_clean
 	$(call descend,$(@:_clean=),clean)
 
 selftests_clean:

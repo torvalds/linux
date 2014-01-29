@@ -9,6 +9,7 @@
  * the GNU General Public License (GPL), incorporated herein by reference.
  */
 
+#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/console.h>
 #include <linux/string.h>
@@ -70,7 +71,7 @@ static void nf_poweroff(void)
 		nf_call(id);
 }
 
-void nf_init(void)
+void __init nf_init(void)
 {
 	unsigned long id, version;
 	char buf[256];

@@ -10541,11 +10541,20 @@ static struct intel_quirk intel_quirks[] = {
 	/* Sony Vaio Y cannot use SSC on LVDS */
 	{ 0x0046, 0x104d, 0x9076, quirk_ssc_force_disable },
 
-	/*
-	 * All GM45 Acer (and its brands eMachines and Packard Bell) laptops
-	 * seem to use inverted backlight PWM.
-	 */
-	{ 0x2a42, 0x1025, PCI_ANY_ID, quirk_invert_brightness },
+	/* Acer Aspire 5734Z must invert backlight brightness */
+	{ 0x2a42, 0x1025, 0x0459, quirk_invert_brightness },
+
+	/* Acer/eMachines G725 */
+	{ 0x2a42, 0x1025, 0x0210, quirk_invert_brightness },
+
+	/* Acer/eMachines e725 */
+	{ 0x2a42, 0x1025, 0x0212, quirk_invert_brightness },
+
+	/* Acer/Packard Bell NCL20 */
+	{ 0x2a42, 0x1025, 0x034b, quirk_invert_brightness },
+
+	/* Acer Aspire 4736Z */
+	{ 0x2a42, 0x1025, 0x0260, quirk_invert_brightness },
 
 	/* Dell XPS13 HD Sandy Bridge */
 	{ 0x0116, 0x1028, 0x052e, quirk_no_pcm_pwm_enable },
@@ -11044,10 +11053,10 @@ void intel_modeset_gem_init(struct drm_device *dev)
 
 	intel_setup_overlay(dev);
 
-	drm_modeset_lock_all(dev);
+	mutex_lock(&dev->mode_config.mutex);
 	drm_mode_config_reset(dev);
 	intel_modeset_setup_hw_state(dev, false);
-	drm_modeset_unlock_all(dev);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)

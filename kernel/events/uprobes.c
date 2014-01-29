@@ -73,6 +73,17 @@ struct uprobe {
 	struct inode		*inode;		/* Also hold a ref to inode */
 	loff_t			offset;
 	unsigned long		flags;
+
+	/*
+	 * The generic code assumes that it has two members of unknown type
+	 * owned by the arch-specific code:
+	 *
+	 * 	insn -	copy_insn() saves the original instruction here for
+	 *		arch_uprobe_analyze_insn().
+	 *
+	 *	ixol -	potentially modified instruction to execute out of
+	 *		line, copied to xol_area by xol_get_insn_slot().
+	 */
 	struct arch_uprobe	arch;
 };
 
@@ -83,6 +94,29 @@ struct return_instance {
 	bool			chained;	/* true, if instance is nested */
 
 	struct return_instance	*next;		/* keep as stack */
+};
+
+/*
+ * Execute out of line area: anonymous executable mapping installed
+ * by the probed task to execute the copy of the original instruction
+ * mangled by set_swbp().
+ *
+ * On a breakpoint hit, thread contests for a slot.  It frees the
+ * slot after singlestep. Currently a fixed number of slots are
+ * allocated.
+ */
+struct xol_area {
+	wait_queue_head_t 	wq;		/* if all slots are busy */
+	atomic_t 		slot_count;	/* number of in-use slots */
+	unsigned long 		*bitmap;	/* 0 = free slot */
+	struct page 		*page;
+
+	/*
+	 * We keep the vma's vm_start rather than a pointer to the vma
+	 * itself.  The probed process or a naughty kernel module could make
+	 * the vma go away, and we must handle that reasonably gracefully.
+	 */
+	unsigned long 		vaddr;		/* Page(s) of instruction slots */
 };
 
 /*
@@ -330,7 +364,7 @@ int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned 
 int __weak
 set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	return uprobe_write_opcode(mm, vaddr, *(uprobe_opcode_t *)auprobe->insn);
+	return uprobe_write_opcode(mm, vaddr, *(uprobe_opcode_t *)&auprobe->insn);
 }
 
 static int match_uprobe(struct uprobe *l, struct uprobe *r)
@@ -529,8 +563,8 @@ static int copy_insn(struct uprobe *uprobe, struct file *filp)
 {
 	struct address_space *mapping = uprobe->inode->i_mapping;
 	loff_t offs = uprobe->offset;
-	void *insn = uprobe->arch.insn;
-	int size = MAX_UINSN_BYTES;
+	void *insn = &uprobe->arch.insn;
+	int size = sizeof(uprobe->arch.insn);
 	int len, err = -EIO;
 
 	/* Copy only available bytes, -EIO if nothing was read */
@@ -569,7 +603,7 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 		goto out;
 
 	ret = -ENOTSUPP;
-	if (is_trap_insn((uprobe_opcode_t *)uprobe->arch.insn))
+	if (is_trap_insn((uprobe_opcode_t *)&uprobe->arch.insn))
 		goto out;
 
 	ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, vaddr);
@@ -1264,7 +1298,7 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 
 	/* Initialize the slot */
 	copy_to_page(area->page, xol_vaddr,
-			uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
+			&uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
 	/*
 	 * We probably need flush_icache_user_range() but it needs vma.
 	 * This should work on supported architectures too.
@@ -1403,12 +1437,10 @@ static void uprobe_warn(struct task_struct *t, const char *msg)
 
 static void dup_xol_work(struct callback_head *work)
 {
-	kfree(work);
-
 	if (current->flags & PF_EXITING)
 		return;
 
-	if (!__create_xol_area(current->utask->vaddr))
+	if (!__create_xol_area(current->utask->dup_xol_addr))
 		uprobe_warn(current, "dup xol area");
 }
 
@@ -1419,7 +1451,6 @@ void uprobe_copy_process(struct task_struct *t, unsigned long flags)
 {
 	struct uprobe_task *utask = current->utask;
 	struct mm_struct *mm = current->mm;
-	struct callback_head *work;
 	struct xol_area *area;
 
 	t->utask = NULL;
@@ -1441,14 +1472,9 @@ void uprobe_copy_process(struct task_struct *t, unsigned long flags)
 	if (mm == t->mm)
 		return;
 
-	/* TODO: move it into the union in uprobe_task */
-	work = kmalloc(sizeof(*work), GFP_KERNEL);
-	if (!work)
-		return uprobe_warn(t, "dup xol area");
-
-	t->utask->vaddr = area->vaddr;
-	init_task_work(work, dup_xol_work);
-	task_work_add(t, work, true);
+	t->utask->dup_xol_addr = area->vaddr;
+	init_task_work(&t->utask->dup_xol_work, dup_xol_work);
+	task_work_add(t, &t->utask->dup_xol_work, true);
 }
 
 /*

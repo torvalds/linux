@@ -6827,12 +6827,20 @@ static inline int ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, u16 size)
 	return __ixgbe_maybe_stop_tx(tx_ring, size);
 }
 
-#ifdef IXGBE_FCOE
-static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
+			      void *accel_priv)
 {
+	struct ixgbe_fwd_adapter *fwd_adapter = accel_priv;
+#ifdef IXGBE_FCOE
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_ring_feature *f;
 	int txq;
+#endif
+
+	if (fwd_adapter)
+		return skb->queue_mapping + fwd_adapter->tx_base_queue;
+
+#ifdef IXGBE_FCOE
 
 	/*
 	 * only execute the code below if protocol is FCoE
@@ -6858,9 +6866,11 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 		txq -= f->indices;
 
 	return txq + f->offset;
+#else
+	return __netdev_pick_tx(dev, skb);
+#endif
 }
 
-#endif
 netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 			  struct ixgbe_adapter *adapter,
 			  struct ixgbe_ring *tx_ring)
@@ -7629,27 +7639,11 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 	kfree(fwd_adapter);
 }
 
-static netdev_tx_t ixgbe_fwd_xmit(struct sk_buff *skb,
-				  struct net_device *dev,
-				  void *priv)
-{
-	struct ixgbe_fwd_adapter *fwd_adapter = priv;
-	unsigned int queue;
-	struct ixgbe_ring *tx_ring;
-
-	queue = skb->queue_mapping + fwd_adapter->tx_base_queue;
-	tx_ring = fwd_adapter->real_adapter->tx_ring[queue];
-
-	return __ixgbe_xmit_frame(skb, dev, tx_ring);
-}
-
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
 	.ndo_start_xmit		= ixgbe_xmit_frame,
-#ifdef IXGBE_FCOE
 	.ndo_select_queue	= ixgbe_select_queue,
-#endif
 	.ndo_set_rx_mode	= ixgbe_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ixgbe_set_mac,
@@ -7689,7 +7683,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_bridge_getlink	= ixgbe_ndo_bridge_getlink,
 	.ndo_dfwd_add_station	= ixgbe_fwd_add,
 	.ndo_dfwd_del_station	= ixgbe_fwd_del,
-	.ndo_dfwd_start_xmit	= ixgbe_fwd_xmit,
 };
 
 /**

@@ -2581,7 +2581,7 @@ static int t4_sge_init_soft(struct adapter *adap)
 	#undef READ_FL_BUF
 
 	if (fl_small_pg != PAGE_SIZE ||
-	    (fl_large_pg != 0 && (fl_large_pg <= fl_small_pg ||
+	    (fl_large_pg != 0 && (fl_large_pg < fl_small_pg ||
 				  (fl_large_pg & (fl_large_pg-1)) != 0))) {
 		dev_err(adap->pdev_dev, "bad SGE FL page buffer sizes [%d, %d]\n",
 			fl_small_pg, fl_large_pg);

@@ -70,15 +70,15 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 				     &nat_idx_gen, &nat_hash_info);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
-		p = to_tcf_nat(pc);
 		ret = ACT_P_CREATED;
 	} else {
-		p = to_tcf_nat(pc);
-		if (!ovr) {
-			tcf_hash_release(pc, bind, &nat_hash_info);
+		if (bind)
+			return 0;
+		tcf_hash_release(pc, bind, &nat_hash_info);
+		if (!ovr)
 			return -EEXIST;
-		}
 	}
+	p = to_tcf_nat(pc);
 
 	spin_lock_bh(&p->tcf_lock);
 	p->old_addr = parm->old_addr;

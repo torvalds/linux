@@ -1209,6 +1209,11 @@ static void bnx2x_vfop_rxmode(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		/* next state */
 		vfop->state = BNX2X_VFOP_RXMODE_DONE;
 
+		/* record the accept flags in vfdb so hypervisor can modify them
+		 * if necessary
+		 */
+		bnx2x_vfq(vf, ramrod->cl_id - vf->igu_base_id, accept_flags) =
+			ramrod->rx_accept_flags;
 		vfop->rc = bnx2x_config_rx_mode(bp, ramrod);
 		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
 op_err:
@@ -1224,39 +1229,43 @@ op_pending:
 	return;
 }
 
+static void bnx2x_vf_prep_rx_mode(struct bnx2x *bp, u8 qid,
+				  struct bnx2x_rx_mode_ramrod_params *ramrod,
+				  struct bnx2x_virtf *vf,
+				  unsigned long accept_flags)
+{
+	struct bnx2x_vf_queue *vfq = vfq_get(vf, qid);
+
+	memset(ramrod, 0, sizeof(*ramrod));
+	ramrod->cid = vfq->cid;
+	ramrod->cl_id = vfq_cl_id(vf, vfq);
+	ramrod->rx_mode_obj = &bp->rx_mode_obj;
+	ramrod->func_id = FW_VF_HANDLE(vf->abs_vfid);
+	ramrod->rx_accept_flags = accept_flags;
+	ramrod->tx_accept_flags = accept_flags;
+	ramrod->pstate = &vf->filter_state;
+	ramrod->state = BNX2X_FILTER_RX_MODE_PENDING;
+
+	set_bit(BNX2X_FILTER_RX_MODE_PENDING, &vf->filter_state);
+	set_bit(RAMROD_RX, &ramrod->ramrod_flags);
+	set_bit(RAMROD_TX, &ramrod->ramrod_flags);
+
+	ramrod->rdata = bnx2x_vf_sp(bp, vf, rx_mode_rdata.e2);
+	ramrod->rdata_mapping = bnx2x_vf_sp_map(bp, vf, rx_mode_rdata.e2);
+}
+
 int bnx2x_vfop_rxmode_cmd(struct bnx2x *bp,
 			  struct bnx2x_virtf *vf,
 			  struct bnx2x_vfop_cmd *cmd,
 			  int qid, unsigned long accept_flags)
 {
-	struct bnx2x_vf_queue *vfq = vfq_get(vf, qid);
 	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
 
 	if (vfop) {
 		struct bnx2x_rx_mode_ramrod_params *ramrod =
 			&vf->op_params.rx_mode;
 
-		memset(ramrod, 0, sizeof(*ramrod));
-
-		/* Prepare ramrod parameters */
-		ramrod->cid = vfq->cid;
-		ramrod->cl_id = vfq_cl_id(vf, vfq);
-		ramrod->rx_mode_obj = &bp->rx_mode_obj;
-		ramrod->func_id = FW_VF_HANDLE(vf->abs_vfid);
-
-		ramrod->rx_accept_flags = accept_flags;
-		ramrod->tx_accept_flags = accept_flags;
-		ramrod->pstate = &vf->filter_state;
-		ramrod->state = BNX2X_FILTER_RX_MODE_PENDING;
-
-		set_bit(BNX2X_FILTER_RX_MODE_PENDING, &vf->filter_state);
-		set_bit(RAMROD_RX, &ramrod->ramrod_flags);
-		set_bit(RAMROD_TX, &ramrod->ramrod_flags);
-
-		ramrod->rdata =
-			bnx2x_vf_sp(bp, vf, rx_mode_rdata.e2);
-		ramrod->rdata_mapping =
-			bnx2x_vf_sp_map(bp, vf, rx_mode_rdata.e2);
+		bnx2x_vf_prep_rx_mode(bp, qid, ramrod, vf, accept_flags);
 
 		bnx2x_vfop_opset(BNX2X_VFOP_RXMODE_CONFIG,
 				 bnx2x_vfop_rxmode, cmd->done);
@@ -3202,13 +3211,16 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 		bnx2x_iov_static_resc(bp, vf);
 	}
 
-	/* prepare msix vectors in VF configuration space */
+	/* prepare msix vectors in VF configuration space - the value in the
+	 * PCI configuration space should be the index of the last entry,
+	 * namely one less than the actual size of the table
+	 */
 	for (vf_idx = first_vf; vf_idx < first_vf + req_vfs; vf_idx++) {
 		bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, vf_idx));
 		REG_WR(bp, PCICFG_OFFSET + GRC_CONFIG_REG_VF_MSIX_CONTROL,
-		       num_vf_queues);
+		       num_vf_queues - 1);
 		DP(BNX2X_MSG_IOV, "set msix vec num in VF %d cfg space to %d\n",
-		   vf_idx, num_vf_queues);
+		   vf_idx, num_vf_queues - 1);
 	}
 	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
@@ -3436,10 +3448,18 @@ out:
 
 int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 {
-	struct bnx2x *bp = netdev_priv(dev);
-	int rc, q_logical_state;
-	struct bnx2x_virtf *vf = NULL;
+	struct bnx2x_queue_state_params q_params = {NULL};
+	struct bnx2x_vlan_mac_ramrod_params ramrod_param;
+	struct bnx2x_queue_update_params *update_params;
 	struct pf_vf_bulletin_content *bulletin = NULL;
+	struct bnx2x_rx_mode_ramrod_params rx_ramrod;
+	struct bnx2x *bp = netdev_priv(dev);
+	struct bnx2x_vlan_mac_obj *vlan_obj;
+	unsigned long vlan_mac_flags = 0;
+	unsigned long ramrod_flags = 0;
+	struct bnx2x_virtf *vf = NULL;
+	unsigned long accept_flags;
+	int rc;
 
 	/* sanity and init */
 	rc = bnx2x_vf_ndo_prep(bp, vfidx, &vf, &bulletin);
@@ -3457,104 +3477,118 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 	/* update PF's copy of the VF's bulletin. No point in posting the vlan
 	 * to the VF since it doesn't have anything to do with it. But it useful
 	 * to store it here in case the VF is not up yet and we can only
-	 * configure the vlan later when it does.
+	 * configure the vlan later when it does. Treat vlan id 0 as remove the
+	 * Host tag.
 	 */
-	bulletin->valid_bitmap |= 1 << VLAN_VALID;
+	if (vlan > 0)
+		bulletin->valid_bitmap |= 1 << VLAN_VALID;
+	else
+		bulletin->valid_bitmap &= ~(1 << VLAN_VALID);
 	bulletin->vlan = vlan;
 
 	/* is vf initialized and queue set up? */
-	q_logical_state =
-		bnx2x_get_q_logical_state(bp, &bnx2x_leading_vfq(vf, sp_obj));
-	if (vf->state == VF_ENABLED &&
-	    q_logical_state == BNX2X_Q_LOGICAL_STATE_ACTIVE) {
-		/* configure the vlan in device on this vf's queue */
-		unsigned long ramrod_flags = 0;
-		unsigned long vlan_mac_flags = 0;
-		struct bnx2x_vlan_mac_obj *vlan_obj =
-			&bnx2x_leading_vfq(vf, vlan_obj);
-		struct bnx2x_vlan_mac_ramrod_params ramrod_param;
-		struct bnx2x_queue_state_params q_params = {NULL};
-		struct bnx2x_queue_update_params *update_params;
+	if (vf->state != VF_ENABLED ||
+	    bnx2x_get_q_logical_state(bp, &bnx2x_leading_vfq(vf, sp_obj)) !=
+	    BNX2X_Q_LOGICAL_STATE_ACTIVE)
+		return rc;
 
-		rc = validate_vlan_mac(bp, &bnx2x_leading_vfq(vf, mac_obj));
-		if (rc)
-			return rc;
-		memset(&ramrod_param, 0, sizeof(ramrod_param));
+	/* configure the vlan in device on this vf's queue */
+	vlan_obj = &bnx2x_leading_vfq(vf, vlan_obj);
+	rc = validate_vlan_mac(bp, &bnx2x_leading_vfq(vf, mac_obj));
+	if (rc)
+		return rc;
 
-		/* must lock vfpf channel to protect against vf flows */
-		bnx2x_lock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_VLAN);
+	/* must lock vfpf channel to protect against vf flows */
+	bnx2x_lock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_VLAN);
 
-		/* remove existing vlans */
-		__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
-		rc = vlan_obj->delete_all(bp, vlan_obj, &vlan_mac_flags,
-					  &ramrod_flags);
-		if (rc) {
-			BNX2X_ERR("failed to delete vlans\n");
-			rc = -EINVAL;
-			goto out;
-		}
-
-		/* send queue update ramrod to configure default vlan and silent
-		 * vlan removal
-		 */
-		__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
-		q_params.cmd = BNX2X_Q_CMD_UPDATE;
-		q_params.q_obj = &bnx2x_leading_vfq(vf, sp_obj);
-		update_params = &q_params.params.update;
-		__set_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN_CHNG,
-			  &update_params->update_flags);
-		__set_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM_CHNG,
-			  &update_params->update_flags);
-
-		if (vlan == 0) {
-			/* if vlan is 0 then we want to leave the VF traffic
-			 * untagged, and leave the incoming traffic untouched
-			 * (i.e. do not remove any vlan tags).
-			 */
-			__clear_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN,
-				    &update_params->update_flags);
-			__clear_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM,
-				    &update_params->update_flags);
-		} else {
-			/* configure the new vlan to device */
-			__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
-			ramrod_param.vlan_mac_obj = vlan_obj;
-			ramrod_param.ramrod_flags = ramrod_flags;
-			ramrod_param.user_req.u.vlan.vlan = vlan;
-			ramrod_param.user_req.cmd = BNX2X_VLAN_MAC_ADD;
-			rc = bnx2x_config_vlan_mac(bp, &ramrod_param);
-			if (rc) {
-				BNX2X_ERR("failed to configure vlan\n");
-				rc =  -EINVAL;
-				goto out;
-			}
-
-			/* configure default vlan to vf queue and set silent
-			 * vlan removal (the vf remains unaware of this vlan).
-			 */
-			update_params = &q_params.params.update;
-			__set_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN,
-				  &update_params->update_flags);
-			__set_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM,
-				  &update_params->update_flags);
-			update_params->def_vlan = vlan;
-		}
-
-		/* Update the Queue state */
-		rc = bnx2x_queue_state_change(bp, &q_params);
-		if (rc) {
-			BNX2X_ERR("Failed to configure default VLAN\n");
-			goto out;
-		}
-
-		/* clear the flag indicating that this VF needs its vlan
-		 * (will only be set if the HV configured the Vlan before vf was
-		 * up and we were called because the VF came up later
-		 */
-out:
-		vf->cfg_flags &= ~VF_CFG_VLAN;
-		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_VLAN);
+	/* remove existing vlans */
+	__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+	rc = vlan_obj->delete_all(bp, vlan_obj, &vlan_mac_flags,
+				  &ramrod_flags);
+	if (rc) {
+		BNX2X_ERR("failed to delete vlans\n");
+		rc = -EINVAL;
+		goto out;
 	}
+
+	/* need to remove/add the VF's accept_any_vlan bit */
+	accept_flags = bnx2x_leading_vfq(vf, accept_flags);
+	if (vlan)
+		clear_bit(BNX2X_ACCEPT_ANY_VLAN, &accept_flags);
+	else
+		set_bit(BNX2X_ACCEPT_ANY_VLAN, &accept_flags);
+
+	bnx2x_vf_prep_rx_mode(bp, LEADING_IDX, &rx_ramrod, vf,
+			      accept_flags);
+	bnx2x_leading_vfq(vf, accept_flags) = accept_flags;
+	bnx2x_config_rx_mode(bp, &rx_ramrod);
+
+	/* configure the new vlan to device */
+	memset(&ramrod_param, 0, sizeof(ramrod_param));
+	__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+	ramrod_param.vlan_mac_obj = vlan_obj;
+	ramrod_param.ramrod_flags = ramrod_flags;
+	set_bit(BNX2X_DONT_CONSUME_CAM_CREDIT,
+		&ramrod_param.user_req.vlan_mac_flags);
+	ramrod_param.user_req.u.vlan.vlan = vlan;
+	ramrod_param.user_req.cmd = BNX2X_VLAN_MAC_ADD;
+	rc = bnx2x_config_vlan_mac(bp, &ramrod_param);
+	if (rc) {
+		BNX2X_ERR("failed to configure vlan\n");
+		rc =  -EINVAL;
+		goto out;
+	}
+
+	/* send queue update ramrod to configure default vlan and silent
+	 * vlan removal
+	 */
+	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
+	q_params.cmd = BNX2X_Q_CMD_UPDATE;
+	q_params.q_obj = &bnx2x_leading_vfq(vf, sp_obj);
+	update_params = &q_params.params.update;
+	__set_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN_CHNG,
+		  &update_params->update_flags);
+	__set_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM_CHNG,
+		  &update_params->update_flags);
+	if (vlan == 0) {
+		/* if vlan is 0 then we want to leave the VF traffic
+		 * untagged, and leave the incoming traffic untouched
+		 * (i.e. do not remove any vlan tags).
+		 */
+		__clear_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN,
+			    &update_params->update_flags);
+		__clear_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM,
+			    &update_params->update_flags);
+	} else {
+		/* configure default vlan to vf queue and set silent
+		 * vlan removal (the vf remains unaware of this vlan).
+		 */
+		__set_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN,
+			  &update_params->update_flags);
+		__set_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM,
+			  &update_params->update_flags);
+		update_params->def_vlan = vlan;
+		update_params->silent_removal_value =
+			vlan & VLAN_VID_MASK;
+		update_params->silent_removal_mask = VLAN_VID_MASK;
+	}
+
+	/* Update the Queue state */
+	rc = bnx2x_queue_state_change(bp, &q_params);
+	if (rc) {
+		BNX2X_ERR("Failed to configure default VLAN\n");
+		goto out;
+	}
+
+
+	/* clear the flag indicating that this VF needs its vlan
+	 * (will only be set if the HV configured the Vlan before vf was
+	 * up and we were called because the VF came up later
+	 */
+out:
+	vf->cfg_flags &= ~VF_CFG_VLAN;
+	bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_VLAN);
+
 	return rc;
 }
 

@@ -883,9 +883,6 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		goto out_unlock;
 	}
 
-	/* mmap_sem prevents this happening but warn if that changes */
-	WARN_ON(pmd_trans_migrating(pmd));
-
 	if (unlikely(pmd_trans_splitting(pmd))) {
 		/* split huge page running from under us */
 		spin_unlock(src_ptl);
@@ -1157,7 +1154,7 @@ alloc:
 		new_page = NULL;
 
 	if (unlikely(!new_page)) {
-		if (is_huge_zero_pmd(orig_pmd)) {
+		if (!page) {
 			ret = do_huge_pmd_wp_zero_page_fallback(mm, vma,
 					address, pmd, orig_pmd, haddr);
 		} else {
@@ -1184,7 +1181,7 @@ alloc:
 
 	count_vm_event(THP_FAULT_ALLOC);
 
-	if (is_huge_zero_pmd(orig_pmd))
+	if (!page)
 		clear_huge_page(new_page, haddr, HPAGE_PMD_NR);
 	else
 		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
@@ -1210,7 +1207,7 @@ alloc:
 		page_add_new_anon_rmap(new_page, vma, haddr);
 		set_pmd_at(mm, haddr, pmd, entry);
 		update_mmu_cache_pmd(vma, address, pmd);
-		if (is_huge_zero_pmd(orig_pmd)) {
+		if (!page) {
 			add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
 			put_huge_zero_page();
 		} else {

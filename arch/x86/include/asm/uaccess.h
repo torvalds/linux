@@ -40,22 +40,30 @@
 /*
  * Test whether a block of memory is a valid user space address.
  * Returns 0 if the range is valid, nonzero otherwise.
- *
- * This is equivalent to the following test:
- * (u33)addr + (u33)size > (u33)current->addr_limit.seg (u65 for x86_64)
- *
- * This needs 33-bit (65-bit for x86_64) arithmetic. We have a carry...
  */
+static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, unsigned long limit)
+{
+	/*
+	 * If we have used "sizeof()" for the size,
+	 * we know it won't overflow the limit (but
+	 * it might overflow the 'addr', so it's
+	 * important to subtract the size from the
+	 * limit, not add it to the address).
+	 */
+	if (__builtin_constant_p(size))
+		return addr > limit - size;
+
+	/* Arbitrary sizes? Be careful about overflow */
+	addr += size;
+	if (addr < size)
+		return true;
+	return addr > limit;
+}
 
 #define __range_not_ok(addr, size, limit)				\
 ({									\
-	unsigned long flag, roksum;					\
 	__chk_user_ptr(addr);						\
-	asm("add %3,%1 ; sbb %0,%0 ; cmp %1,%4 ; sbb $0,%0"		\
-	    : "=&r" (flag), "=r" (roksum)				\
-	    : "1" (addr), "g" ((long)(size)),				\
-	      "rm" (limit));						\
-	flag;								\
+	__chk_range_not_ok((unsigned long __force)(addr), size, limit); \
 })
 
 /**
@@ -78,7 +86,7 @@
  * this function, memory access functions may still return -EFAULT.
  */
 #define access_ok(type, addr, size) \
-	(likely(__range_not_ok(addr, size, user_addr_max()) == 0))
+	likely(!__range_not_ok(addr, size, user_addr_max()))
 
 /*
  * The exception table consists of pairs of addresses relative to the

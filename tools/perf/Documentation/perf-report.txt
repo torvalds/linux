@@ -237,6 +237,15 @@ OPTIONS
 	Do not show entries which have an overhead under that percent.
 	(Default: 0).
 
+--header::
+	Show header information in the perf.data file.  This includes
+	various information like hostname, OS and perf version, cpu/mem
+	info, perf command line, event list and so on.  Currently only
+	--stdio output supports this feature.
+
+--header-only::
+	Show only perf.data header (forces --stdio).
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-annotate[1]
