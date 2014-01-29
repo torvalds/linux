@@ -3276,10 +3276,10 @@ static void gen8_enable_rps(struct drm_device *dev)
 	/* 3: Enable RC6 */
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
-	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off");
+	intel_print_rc6_info(dev, rc6_mask);
 	I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
-			GEN6_RC_CTL_EI_MODE(1) |
-			rc6_mask);
+				    GEN6_RC_CTL_EI_MODE(1) |
+				    rc6_mask);
 
 	/* 4 Program defaults and thresholds for RPS*/
 	I915_WRITE(GEN6_RPNSWREQ, HSW_FREQUENCY(10)); /* Request 500 MHz */
