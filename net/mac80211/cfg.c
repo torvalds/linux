@@ -1053,6 +1053,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	int err;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	sdata_assert_lock(sdata);
 
 	/* don't allow changing the beacon while CSA is in place - offset
 	 * of channel switch counter may change
@@ -1079,6 +1080,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	struct beacon_data *old_beacon;
 	struct probe_resp *old_probe_resp;
 	struct cfg80211_chan_def chandef;
+
+	sdata_assert_lock(sdata);
 
 	old_beacon = sdata_dereference(sdata->u.ap.beacon, sdata);
 	if (!old_beacon)
@@ -3002,6 +3005,8 @@ static void ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	int err, changed = 0;
 
+	sdata_assert_lock(sdata);
+
 	mutex_lock(&local->mtx);
 	sdata->radar_required = sdata->csa_radar_required;
 	err = ieee80211_vif_change_channel(sdata, &changed);
@@ -3083,7 +3088,7 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_if_mesh __maybe_unused *ifmsh;
 	int err, num_chanctx, changed = 0;
 
-	lockdep_assert_held(&sdata->wdev.mtx);
+	sdata_assert_lock(sdata);
 
 	if (!list_empty(&local->roc_list) || local->scanning)
 		return -EBUSY;
