@@ -318,7 +318,6 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	if (minor_id < 0)
 		return minor_id;
 
-	new_minor->device = MKDEV(DRM_MAJOR, minor_id);
 	new_minor->index = minor_id;
 
 	idr_replace(&drm_minors_idr, new_minor, minor_id);

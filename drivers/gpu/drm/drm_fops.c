@@ -471,7 +471,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("pid = %d, device = 0x%lx, open_count = %d\n",
 		  task_pid_nr(current),
-		  (long)old_encode_dev(file_priv->minor->device),
+		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
 
 	/* Release any auth tokens that might point to this file_priv,
