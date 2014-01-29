@@ -3491,6 +3491,13 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	}
 }
 
+static void intel_dp_init_panel_power_timestamps(struct intel_dp *intel_dp)
+{
+	intel_dp->last_power_cycle = jiffies;
+	intel_dp->last_power_on = jiffies;
+	intel_dp->last_backlight_off = jiffies;
+}
+
 static void
 intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 				    struct intel_dp *intel_dp,
@@ -3835,8 +3842,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		BUG();
 	}
 
-	if (is_edp(intel_dp))
+	if (is_edp(intel_dp)) {
+		intel_dp_init_panel_power_timestamps(intel_dp);
 		intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
+	}
 
 	error = intel_dp_i2c_init(intel_dp, intel_connector, name);
 	WARN(error, "intel_dp_i2c_init failed with error %d for port %c\n",
