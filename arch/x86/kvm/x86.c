@@ -1581,7 +1581,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	/* With all the info we got, fill in the values */
 	vcpu->hv_clock.tsc_timestamp = tsc_timestamp;
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
-	vcpu->last_kernel_ns = kernel_ns;
 	vcpu->last_guest_tsc = tsc_timestamp;
 
 	/*
