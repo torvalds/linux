@@ -220,7 +220,6 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
 	struct ieee80211_mgmt *mgmt;
 	struct cfg80211_bss *bss;
 	u32 bss_change;
@@ -306,8 +305,6 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&local->mtx);
 
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
-
-	sband = local->hw.wiphy->bands[chan->band];
 
 	presp = ieee80211_ibss_build_presp(sdata, beacon_int, basic_rates,
 					   capability, tsf, &chandef,
