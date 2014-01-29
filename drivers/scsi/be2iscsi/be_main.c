@@ -809,14 +809,23 @@ static void hwi_ring_eq_db(struct beiscsi_hba *phba,
 			   unsigned char rearm, unsigned char event)
 {
 	u32 val = 0;
-	val |= id & DB_EQ_RING_ID_MASK;
+
 	if (rearm)
 		val |= 1 << DB_EQ_REARM_SHIFT;
 	if (clr_interrupt)
 		val |= 1 << DB_EQ_CLR_SHIFT;
 	if (event)
 		val |= 1 << DB_EQ_EVNT_SHIFT;
+
 	val |= num_processed << DB_EQ_NUM_POPPED_SHIFT;
+	/* Setting lower order EQ_ID Bits */
+	val |= (id & DB_EQ_RING_ID_LOW_MASK);
+
+	/* Setting Higher order EQ_ID Bits */
+	val |= (((id >> DB_EQ_HIGH_FEILD_SHIFT) &
+		  DB_EQ_RING_ID_HIGH_MASK)
+		  << DB_EQ_HIGH_SET_SHIFT);
+
 	iowrite32(val, phba->db_va + DB_EQ_OFFSET);
 }
 
@@ -1098,15 +1107,25 @@ free_msix_irqs:
 	return ret;
 }
 
-static void hwi_ring_cq_db(struct beiscsi_hba *phba,
+void hwi_ring_cq_db(struct beiscsi_hba *phba,
 			   unsigned int id, unsigned int num_processed,
 			   unsigned char rearm, unsigned char event)
 {
 	u32 val = 0;
-	val |= id & DB_CQ_RING_ID_MASK;
+
 	if (rearm)
 		val |= 1 << DB_CQ_REARM_SHIFT;
+
 	val |= num_processed << DB_CQ_NUM_POPPED_SHIFT;
+
+	/* Setting lower order CQ_ID Bits */
+	val |= (id & DB_CQ_RING_ID_LOW_MASK);
+
+	/* Setting Higher order CQ_ID Bits */
+	val |= (((id >> DB_CQ_HIGH_FEILD_SHIFT) &
+		  DB_CQ_RING_ID_HIGH_MASK)
+		  << DB_CQ_HIGH_SET_SHIFT);
+
 	iowrite32(val, phba->db_va + DB_CQ_OFFSET);
 }
 

@@ -432,18 +432,6 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 	}
 }
 
-static void beiscsi_cq_notify(struct beiscsi_hba *phba, u16 qid, bool arm,
-		       u16 num_popped)
-{
-	u32 val = 0;
-	val |= qid & DB_CQ_RING_ID_MASK;
-	if (arm)
-		val |= 1 << DB_CQ_REARM_SHIFT;
-	val |= num_popped << DB_CQ_NUM_POPPED_SHIFT;
-	iowrite32(val, phba->db_va + DB_CQ_OFFSET);
-}
-
-
 int beiscsi_process_mcc(struct beiscsi_hba *phba)
 {
 	struct be_mcc_compl *compl;
@@ -474,7 +462,7 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 	}
 
 	if (num)
-		beiscsi_cq_notify(phba, phba->ctrl.mcc_obj.cq.id, true, num);
+		hwi_ring_cq_db(phba, phba->ctrl.mcc_obj.cq.id, num, 1, 0);
 
 	spin_unlock_bh(&phba->ctrl.mcc_cq_lock);
 	return status;
