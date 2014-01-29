@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/mmc/sdio.h>
+#include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
 #include <linux/semaphore.h>
@@ -155,6 +156,33 @@ struct rte_console {
 
 /* manfid tuple length, include tuple, link bytes */
 #define SBSDIO_CIS_MANFID_TUPLE_LEN	6
+
+#define CORE_BUS_REG(base, field) \
+		(base + offsetof(struct sdpcmd_regs, field))
+
+/* SDIO function 1 register CHIPCLKCSR */
+/* Force ALP request to backplane */
+#define SBSDIO_FORCE_ALP		0x01
+/* Force HT request to backplane */
+#define SBSDIO_FORCE_HT			0x02
+/* Force ILP request to backplane */
+#define SBSDIO_FORCE_ILP		0x04
+/* Make ALP ready (power up xtal) */
+#define SBSDIO_ALP_AVAIL_REQ		0x08
+/* Make HT ready (power up PLL) */
+#define SBSDIO_HT_AVAIL_REQ		0x10
+/* Squelch clock requests from HW */
+#define SBSDIO_FORCE_HW_CLKREQ_OFF	0x20
+/* Status: ALP is ready */
+#define SBSDIO_ALP_AVAIL		0x40
+/* Status: HT is ready */
+#define SBSDIO_HT_AVAIL			0x80
+#define SBSDIO_AVBITS		(SBSDIO_HT_AVAIL | SBSDIO_ALP_AVAIL)
+#define SBSDIO_ALPAV(regval)	((regval) & SBSDIO_AVBITS)
+#define SBSDIO_HTAV(regval)	(((regval) & SBSDIO_AVBITS) == SBSDIO_AVBITS)
+#define SBSDIO_ALPONLY(regval)	(SBSDIO_ALPAV(regval) && !SBSDIO_HTAV(regval))
+#define SBSDIO_CLKAV(regval, alponly) \
+	(SBSDIO_ALPAV(regval) && (alponly ? 1 : SBSDIO_HTAV(regval)))
 
 /* intstatus */
 #define I_SMB_SW0	(1 << 0)	/* To SB Mail S/W interrupt 0 */
@@ -665,27 +693,24 @@ static bool data_ok(struct brcmf_sdio *bus)
  * Reads a register in the SDIO hardware block. This block occupies a series of
  * adresses on the 32 bit backplane bus.
  */
-static int
-r_sdreg32(struct brcmf_sdio *bus, u32 *regvar, u32 offset)
+static int r_sdreg32(struct brcmf_sdio *bus, u32 *regvar, u32 offset)
 {
-	u8 idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
+	struct brcmf_core *core;
 	int ret;
 
-	*regvar = brcmf_sdiod_regrl(bus->sdiodev,
-				    bus->ci->c_inf[idx].base + offset, &ret);
+	core = brcmf_chip_get_core(bus->ci, BCMA_CORE_SDIO_DEV);
+	*regvar = brcmf_sdiod_regrl(bus->sdiodev, core->base + offset, &ret);
 
 	return ret;
 }
 
-static int
-w_sdreg32(struct brcmf_sdio *bus, u32 regval, u32 reg_offset)
+static int w_sdreg32(struct brcmf_sdio *bus, u32 regval, u32 reg_offset)
 {
-	u8 idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
+	struct brcmf_core *core;
 	int ret;
 
-	brcmf_sdiod_regwl(bus->sdiodev,
-			  bus->ci->c_inf[idx].base + reg_offset,
-			  regval, &ret);
+	core = brcmf_chip_get_core(bus->ci, BCMA_CORE_SDIO_DEV);
+	brcmf_sdiod_regwl(bus->sdiodev, core->base + reg_offset, regval, &ret);
 
 	return ret;
 }
@@ -2425,14 +2450,13 @@ static inline void brcmf_sdio_clrintr(struct brcmf_sdio *bus)
 
 static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 {
-	u8 idx;
+	struct brcmf_core *buscore;
 	u32 addr;
 	unsigned long val;
 	int n, ret;
 
-	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
-	addr = bus->ci->c_inf[idx].base +
-	       offsetof(struct sdpcmd_regs, intstatus);
+	buscore = brcmf_chip_get_core(bus->ci, BCMA_CORE_SDIO_DEV);
+	addr = buscore->base + offsetof(struct sdpcmd_regs, intstatus);
 
 	val = brcmf_sdiod_regrl(bus->sdiodev, addr, &ret);
 	bus->sdcnt.f1regdata++;
@@ -3344,7 +3368,7 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus)
 	brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
 
 	/* Keep arm in reset */
-	brcmf_sdio_chip_enter_download(bus->sdiodev, bus->ci);
+	brcmf_chip_enter_download(bus->ci);
 
 	fw = brcmf_sdio_get_fw(bus, BRCMF_FIRMWARE_BIN);
 	if (fw == NULL) {
@@ -3376,7 +3400,7 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus)
 	}
 
 	/* Take arm out of reset */
-	if (!brcmf_sdio_chip_exit_download(bus->sdiodev, bus->ci, rstvec)) {
+	if (!brcmf_chip_exit_download(bus->ci, rstvec)) {
 		brcmf_err("error getting out of ARM core reset\n");
 		goto err;
 	}
@@ -3389,40 +3413,6 @@ err:
 	brcmf_sdio_clkctl(bus, CLK_SDONLY, false);
 	sdio_release_host(bus->sdiodev->func[1]);
 	return bcmerror;
-}
-
-static bool brcmf_sdio_sr_capable(struct brcmf_sdio *bus)
-{
-	u32 addr, reg, pmu_cc3_mask = ~0;
-	int err;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	/* old chips with PMU version less than 17 don't support save restore */
-	if (bus->ci->pmurev < 17)
-		return false;
-
-	switch (bus->ci->chip) {
-	case BCM43241_CHIP_ID:
-	case BCM4335_CHIP_ID:
-	case BCM4339_CHIP_ID:
-		/* read PMU chipcontrol register 3 */
-		addr = CORE_CC_REG(bus->ci->c_inf[0].base, chipcontrol_addr);
-		brcmf_sdiod_regwl(bus->sdiodev, addr, 3, NULL);
-		addr = CORE_CC_REG(bus->ci->c_inf[0].base, chipcontrol_data);
-		reg = brcmf_sdiod_regrl(bus->sdiodev, addr, NULL);
-		return (reg & pmu_cc3_mask) != 0;
-	default:
-		addr = CORE_CC_REG(bus->ci->c_inf[0].base, pmucapabilities_ext);
-		reg = brcmf_sdiod_regrl(bus->sdiodev, addr, &err);
-		if ((reg & PCAPEXT_SR_SUPPORTED_MASK) == 0)
-			return false;
-
-		addr = CORE_CC_REG(bus->ci->c_inf[0].base, retention_ctl);
-		reg = brcmf_sdiod_regrl(bus->sdiodev, addr, NULL);
-		return (reg & (PMU_RCTL_MACPHY_DISABLE_MASK |
-			       PMU_RCTL_LOGIC_DISABLE_MASK)) == 0;
-	}
 }
 
 static void brcmf_sdio_sr_init(struct brcmf_sdio *bus)
@@ -3476,7 +3466,7 @@ static int brcmf_sdio_kso_init(struct brcmf_sdio *bus)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* KSO bit added in SDIO core rev 12 */
-	if (bus->ci->c_inf[1].rev < 12)
+	if (brcmf_chip_get_core(bus->ci, BCMA_CORE_SDIO_DEV)->rev < 12)
 		return 0;
 
 	val = brcmf_sdiod_regrb(bus->sdiodev, SBSDIO_FUNC1_SLEEPCSR, &err);
@@ -3507,15 +3497,13 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 	struct brcmf_sdio *bus = sdiodev->bus;
 	uint pad_size;
 	u32 value;
-	u8 idx;
 	int err;
 
 	/* the commands below use the terms tx and rx from
 	 * a device perspective, ie. bus:txglom affects the
 	 * bus transfers from device to host.
 	 */
-	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
-	if (bus->ci->c_inf[idx].rev < 12) {
+	if (brcmf_chip_get_core(bus->ci, BCMA_CORE_SDIO_DEV)->rev < 12) {
 		/* for sdio core rev < 12, disable txgloming */
 		value = 0;
 		err = brcmf_iovar_data_set(dev, "bus:txglom", &value,
@@ -3626,7 +3614,7 @@ static int brcmf_sdio_bus_init(struct device *dev)
 		ret = -ENODEV;
 	}
 
-	if (brcmf_sdio_sr_capable(bus)) {
+	if (brcmf_chip_sr_capable(bus->ci)) {
 		brcmf_sdio_sr_init(bus);
 	} else {
 		/* Restore previous clock setting */
@@ -3775,30 +3763,20 @@ static void brcmf_sdio_dataworker(struct work_struct *work)
 	}
 }
 
-static char *brcmf_sdio_chip_name(uint chipid, char *buf, uint len)
-{
-	const char *fmt;
-
-	fmt = ((chipid > 0xa000) || (chipid < 0x4000)) ? "%d" : "%x";
-	snprintf(buf, len, fmt, chipid);
-	return buf;
-}
-
 static void
 brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
-				  struct brcmf_chip *ci, u32 drivestrength)
+			     struct brcmf_chip *ci, u32 drivestrength)
 {
 	const struct sdiod_drive_str *str_tab = NULL;
 	u32 str_mask;
 	u32 str_shift;
-	char chn[8];
-	u32 base = ci->c_inf[0].base;
+	u32 base;
 	u32 i;
 	u32 drivestrength_sel = 0;
 	u32 cc_data_temp;
 	u32 addr;
 
-	if (!(ci->c_inf[0].caps & CC_CAP_PMU))
+	if (!(ci->cc_caps & CC_CAP_PMU))
 		return;
 
 	switch (SDIOD_DRVSTR_KEY(ci->chip, ci->pmurev)) {
@@ -3821,8 +3799,7 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 			str_shift = 0;
 		} else
 			brcmf_err("Invalid SDIO Drive strength for chip %s, strength=%d\n",
-				  brcmf_sdio_chip_name(ci->chip, chn, 8),
-				  drivestrength);
+				  ci->name, drivestrength);
 		break;
 	case SDIOD_DRVSTR_KEY(BCM43362_CHIP_ID, 13):
 		str_tab = sdiod_drive_strength_tab5_1v8;
@@ -3831,8 +3808,7 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 		break;
 	default:
 		brcmf_err("No SDIO Drive strength init done for chip %s rev %d pmurev %d\n",
-			  brcmf_sdio_chip_name(ci->chip, chn, 8),
-			  ci->chiprev, ci->pmurev);
+			  ci->name, ci->chiprev, ci->pmurev);
 		break;
 	}
 
@@ -3843,6 +3819,7 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 				break;
 			}
 		}
+		base = brcmf_chip_get_chipcommon(ci)->base;
 		addr = CORE_CC_REG(base, chipcontrol_addr);
 		brcmf_sdiod_regwl(sdiodev, addr, 1, NULL);
 		cc_data_temp = brcmf_sdiod_regrl(sdiodev, addr, NULL);
@@ -3856,8 +3833,9 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 	}
 }
 
-int brcmf_sdio_buscoreprep(struct brcmf_sdio_dev *sdiodev)
+static int brcmf_sdio_buscoreprep(void *ctx)
 {
+	struct brcmf_sdio_dev *sdiodev = ctx;
 	int err = 0;
 	u8 clkval, clkset;
 
@@ -3900,6 +3878,55 @@ int brcmf_sdio_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 	return 0;
 }
 
+static void brcmf_sdio_buscore_exitdl(void *ctx, struct brcmf_chip *chip,
+				      u32 rstvec)
+{
+	struct brcmf_sdio_dev *sdiodev = ctx;
+	struct brcmf_core *core;
+	u32 reg_addr;
+
+	/* clear all interrupts */
+	core = brcmf_chip_get_core(chip, BCMA_CORE_SDIO_DEV);
+	reg_addr = core->base + offsetof(struct sdpcmd_regs, intstatus);
+	brcmf_sdiod_regwl(sdiodev, reg_addr, 0xFFFFFFFF, NULL);
+
+	if (rstvec)
+		/* Write reset vector to address 0 */
+		brcmf_sdiod_ramrw(sdiodev, true, 0, (void *)&rstvec,
+				  sizeof(rstvec));
+}
+
+static u32 brcmf_sdio_buscore_read32(void *ctx, u32 addr)
+{
+	struct brcmf_sdio_dev *sdiodev = ctx;
+	u32 val, rev;
+
+	val = brcmf_sdiod_regrl(sdiodev, addr, NULL);
+	if (sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4335_4339 &&
+	    addr == CORE_CC_REG(SI_ENUM_BASE, chipid)) {
+		rev = (val & CID_REV_MASK) >> CID_REV_SHIFT;
+		if (rev >= 2) {
+			val &= ~CID_ID_MASK;
+			val |= BCM4339_CHIP_ID;
+		}
+	}
+	return val;
+}
+
+static void brcmf_sdio_buscore_write32(void *ctx, u32 addr, u32 val)
+{
+	struct brcmf_sdio_dev *sdiodev = ctx;
+
+	brcmf_sdiod_regwl(sdiodev, addr, val, NULL);
+}
+
+static const struct brcmf_buscore_ops brcmf_sdio_buscore_ops = {
+	.prepare = brcmf_sdio_buscoreprep,
+	.exit_dl = brcmf_sdio_buscore_exitdl,
+	.read32 = brcmf_sdio_buscore_read32,
+	.write32 = brcmf_sdio_buscore_write32,
+};
+
 static bool
 brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 {
@@ -3915,7 +3942,7 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 		 brcmf_sdiod_regrl(bus->sdiodev, SI_ENUM_BASE, NULL));
 
 	/*
-	 * Force PLL off until brcmf_sdio_chip_attach()
+	 * Force PLL off until brcmf_chip_attach()
 	 * programs PLL control regs
 	 */
 
@@ -3936,8 +3963,10 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 	 */
 	brcmf_bus_change_state(bus->sdiodev->bus_if, BRCMF_BUS_DOWN);
 
-	if (brcmf_sdio_chip_attach(bus->sdiodev, &bus->ci)) {
-		brcmf_err("brcmf_sdio_chip_attach failed!\n");
+	bus->ci = brcmf_chip_attach(bus->sdiodev, &brcmf_sdio_buscore_ops);
+	if (IS_ERR(bus->ci)) {
+		brcmf_err("brcmf_chip_attach failed!\n");
+		bus->ci = NULL;
 		goto fail;
 	}
 
@@ -3973,23 +4002,17 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 		goto fail;
 
 	/* set PMUControl so a backplane reset does PMU state reload */
-	reg_addr = CORE_CC_REG(bus->ci->c_inf[0].base,
+	reg_addr = CORE_CC_REG(brcmf_chip_get_chipcommon(bus->ci)->base,
 			       pmucontrol);
-	reg_val = brcmf_sdiod_regrl(bus->sdiodev,
-				    reg_addr,
-				    &err);
+	reg_val = brcmf_sdiod_regrl(bus->sdiodev, reg_addr, &err);
 	if (err)
 		goto fail;
 
 	reg_val |= (BCMA_CC_PMU_CTL_RES_RELOAD << BCMA_CC_PMU_CTL_RES_SHIFT);
 
-	brcmf_sdiod_regwl(bus->sdiodev,
-			  reg_addr,
-			  reg_val,
-			  &err);
+	brcmf_sdiod_regwl(bus->sdiodev, reg_addr, reg_val, &err);
 	if (err)
 		goto fail;
-
 
 	sdio_release_host(bus->sdiodev->func[1]);
 
@@ -4223,12 +4246,11 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 				 * all necessary cores.
 				 */
 				msleep(20);
-				brcmf_sdio_chip_enter_download(bus->sdiodev,
-							       bus->ci);
+				brcmf_chip_enter_download(bus->ci);
 				brcmf_sdio_clkctl(bus, CLK_NONE, false);
 				sdio_release_host(bus->sdiodev->func[1]);
 			}
-			brcmf_sdio_chip_detach(&bus->ci);
+			brcmf_chip_detach(bus->ci);
 		}
 
 		brcmu_pkt_buf_free_skb(bus->txglom_sgpad);
