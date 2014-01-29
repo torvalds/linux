@@ -3222,14 +3222,10 @@ int intel_enable_rc6(const struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen == 5)
 		return 0;
 
-	if (IS_HASWELL(dev))
+	if (IS_IVYBRIDGE(dev) || IS_VALLEYVIEW(dev))
+		return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
+	else
 		return INTEL_RC6_ENABLE;
-
-	/* snb/ivb have more than one rc6 state. */
-	if (INTEL_INFO(dev)->gen == 6)
-		return INTEL_RC6_ENABLE;
-
-	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 }
 
 static void gen6_enable_rps_interrupts(struct drm_device *dev)
