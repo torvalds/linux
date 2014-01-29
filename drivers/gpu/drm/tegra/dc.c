@@ -49,7 +49,7 @@ static int tegra_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	window.dst.y = crtc_y;
 	window.dst.w = crtc_w;
 	window.dst.h = crtc_h;
-	window.format = tegra_dc_format(fb->pixel_format);
+	window.format = tegra_dc_format(fb->pixel_format, &window.swap);
 	window.bits_per_pixel = fb->bits_per_pixel;
 	window.bottom_up = tegra_fb_is_bottom_up(fb);
 	window.tiled = tegra_fb_is_tiled(fb);
@@ -117,6 +117,7 @@ static const uint32_t plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_UYVY,
+	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YUV422,
 };
@@ -150,9 +151,9 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 			     struct drm_framebuffer *fb)
 {
-	unsigned int format = tegra_dc_format(fb->pixel_format);
 	struct tegra_bo *bo = tegra_fb_get_plane(fb, 0);
 	unsigned int h_offset = 0, v_offset = 0;
+	unsigned int format, swap;
 	unsigned long value;
 
 	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
@@ -162,7 +163,10 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 
 	tegra_dc_writel(dc, bo->paddr + value, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, fb->pitches[0], DC_WIN_LINE_STRIDE);
+
+	format = tegra_dc_format(fb->pixel_format, &swap);
 	tegra_dc_writel(dc, format, DC_WIN_COLOR_DEPTH);
+	tegra_dc_writel(dc, swap, DC_WIN_BYTE_SWAP);
 
 	if (tegra_fb_is_tiled(fb)) {
 		value = DC_WIN_BUFFER_ADDR_MODE_TILE_UV |
@@ -490,7 +494,7 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
 
 	tegra_dc_writel(dc, window->format, DC_WIN_COLOR_DEPTH);
-	tegra_dc_writel(dc, 0, DC_WIN_BYTE_SWAP);
+	tegra_dc_writel(dc, window->swap, DC_WIN_BYTE_SWAP);
 
 	value = V_POSITION(window->dst.y) | H_POSITION(window->dst.x);
 	tegra_dc_writel(dc, value, DC_WIN_POSITION);
@@ -611,8 +615,12 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	return 0;
 }
 
-unsigned int tegra_dc_format(uint32_t format)
+unsigned int tegra_dc_format(uint32_t format, uint32_t *swap)
 {
+	/* assume no swapping of fetched data */
+	if (swap)
+		*swap = BYTE_SWAP_NOSWAP;
+
 	switch (format) {
 	case DRM_FORMAT_XBGR8888:
 		return WIN_COLOR_DEPTH_R8G8B8A8;
@@ -624,6 +632,12 @@ unsigned int tegra_dc_format(uint32_t format)
 		return WIN_COLOR_DEPTH_B5G6R5;
 
 	case DRM_FORMAT_UYVY:
+		return WIN_COLOR_DEPTH_YCbCr422;
+
+	case DRM_FORMAT_YUYV:
+		if (swap)
+			*swap = BYTE_SWAP_SWAP2;
+
 		return WIN_COLOR_DEPTH_YCbCr422;
 
 	case DRM_FORMAT_YUV420:
@@ -682,7 +696,8 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	window.dst.y = 0;
 	window.dst.w = mode->hdisplay;
 	window.dst.h = mode->vdisplay;
-	window.format = tegra_dc_format(crtc->primary->fb->pixel_format);
+	window.format = tegra_dc_format(crtc->primary->fb->pixel_format,
+					&window.swap);
 	window.bits_per_pixel = crtc->primary->fb->bits_per_pixel;
 	window.stride[0] = crtc->primary->fb->pitches[0];
 	window.base[0] = bo->paddr;

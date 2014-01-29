@@ -156,6 +156,7 @@ struct tegra_dc_window {
 	} dst;
 	unsigned int bits_per_pixel;
 	unsigned int format;
+	unsigned int swap;
 	unsigned int stride[2];
 	unsigned long base[3];
 	bool bottom_up;
@@ -163,7 +164,7 @@ struct tegra_dc_window {
 };
 
 /* from dc.c */
-unsigned int tegra_dc_format(uint32_t format);
+unsigned int tegra_dc_format(uint32_t format, unsigned int *swap);
 int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 			  const struct tegra_dc_window *window);
 void tegra_dc_enable_vblank(struct tegra_dc *dc);
