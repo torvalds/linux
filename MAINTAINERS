@@ -5622,10 +5622,11 @@ F:	mm/page_cgroup.c
 
 MEMORY TECHNOLOGY DEVICES (MTD)
 M:	David Woodhouse <dwmw2@infradead.org>
+M:	Brian Norris <computersforpeace@gmail.com>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
-T:	git git://git.infradead.org/mtd-2.6.git
+T:	git git://git.infradead.org/linux-mtd.git
 S:	Maintained
 F:	drivers/mtd/
 F:	include/linux/mtd/
@@ -6941,6 +6942,12 @@ F:	drivers/usb/gadget/pxa2*
 F:	include/sound/pxa2xx-lib.h
 F:	sound/arm/pxa*
 F:	sound/soc/pxa/
+
+PXA3xx NAND FLASH DRIVER
+M:	Ezequiel Garcia <ezequiel.garcia@free-electrons.com>
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+F:	drivers/mtd/nand/pxa3xx-nand.c
 
 MMP SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
