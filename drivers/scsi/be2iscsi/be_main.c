@@ -679,8 +679,19 @@ static int beiscsi_enable_pci(struct pci_dev *pcidev)
 	}
 
 	pci_set_master(pcidev);
-	if (pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64))) {
-		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(32));
+	ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
+	if (ret) {
+		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
+		if (ret) {
+			dev_err(&pcidev->dev, "Could not set PCI DMA Mask\n");
+			pci_disable_device(pcidev);
+			return ret;
+		} else {
+			ret = pci_set_consistent_dma_mask(pcidev,
+							  DMA_BIT_MASK(32));
+		}
+	} else {
+		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64));
 		if (ret) {
 			dev_err(&pcidev->dev, "Could not set PCI DMA Mask\n");
 			pci_disable_device(pcidev);
