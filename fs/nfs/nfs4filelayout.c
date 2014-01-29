@@ -336,8 +336,7 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 
 	if (test_bit(NFS_IOHDR_REDO, &rdata->header->flags) &&
 	    task->tk_status == 0) {
-		if (rdata->res.seq_res.sr_slot != NULL)
-			nfs41_sequence_done(task, &rdata->res.seq_res);
+		nfs41_sequence_done(task, &rdata->res.seq_res);
 		return;
 	}
 
@@ -446,8 +445,7 @@ static void filelayout_write_call_done(struct rpc_task *task, void *data)
 
 	if (test_bit(NFS_IOHDR_REDO, &wdata->header->flags) &&
 	    task->tk_status == 0) {
-		if (wdata->res.seq_res.sr_slot != NULL)
-			nfs41_sequence_done(task, &wdata->res.seq_res);
+		nfs41_sequence_done(task, &wdata->res.seq_res);
 		return;
 	}
 
