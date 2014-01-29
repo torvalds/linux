@@ -260,21 +260,49 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
+					     unsigned int type)
+{
+	switch (type) {
+	case DRM_MINOR_LEGACY:
+		return &dev->primary;
+	case DRM_MINOR_RENDER:
+		return &dev->render;
+	case DRM_MINOR_CONTROL:
+		return &dev->control;
+	default:
+		return NULL;
+	}
+}
+
+static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
+{
+	struct drm_minor *minor;
+
+	minor = kzalloc(sizeof(*minor), GFP_KERNEL);
+	if (!minor)
+		return -ENOMEM;
+
+	minor->type = type;
+	minor->dev = dev;
+	INIT_LIST_HEAD(&minor->master_list);
+
+	*drm_minor_get_slot(dev, type) = minor;
+	return 0;
+}
+
 /**
- * drm_get_minor - Allocate and register new DRM minor
+ * drm_get_minor - Register DRM minor
  * @dev: DRM device
- * @minor: Pointer to where new minor is stored
  * @type: Type of minor
  *
- * Allocate a new minor of the given type and register it. A pointer to the new
- * minor is returned in @minor.
+ * Register minor of given type.
  * Caller must hold the global DRM mutex.
  *
  * RETURNS:
  * 0 on success, negative error code on failure.
  */
-static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor,
-			 int type)
+static int drm_get_minor(struct drm_device *dev, unsigned int type)
 {
 	struct drm_minor *new_minor;
 	int ret;
@@ -282,21 +310,16 @@ static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor,
 
 	DRM_DEBUG("\n");
 
+	new_minor = *drm_minor_get_slot(dev, type);
+	if (!new_minor)
+		return 0;
+
 	minor_id = drm_minor_get_id(dev, type);
 	if (minor_id < 0)
 		return minor_id;
 
-	new_minor = kzalloc(sizeof(struct drm_minor), GFP_KERNEL);
-	if (!new_minor) {
-		ret = -ENOMEM;
-		goto err_idr;
-	}
-
-	new_minor->type = type;
 	new_minor->device = MKDEV(DRM_MAJOR, minor_id);
-	new_minor->dev = dev;
 	new_minor->index = minor_id;
-	INIT_LIST_HEAD(&new_minor->master_list);
 
 	idr_replace(&drm_minors_idr, new_minor, minor_id);
 
@@ -314,7 +337,6 @@ static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor,
 		       "DRM: Error sysfs_device_add.\n");
 		goto err_debugfs;
 	}
-	*minor = new_minor;
 
 	DRM_DEBUG("new minor assigned %d\n", minor_id);
 	return 0;
@@ -325,10 +347,7 @@ err_debugfs:
 	drm_debugfs_cleanup(new_minor);
 err_mem:
 #endif
-	kfree(new_minor);
-err_idr:
 	idr_remove(&drm_minors_idr, minor_id);
-	*minor = NULL;
 	return ret;
 }
 
@@ -495,8 +514,24 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_minor_alloc(dev, DRM_MINOR_CONTROL);
+		if (ret)
+			goto err_minors;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
+		ret = drm_minor_alloc(dev, DRM_MINOR_RENDER);
+		if (ret)
+			goto err_minors;
+	}
+
+	ret = drm_minor_alloc(dev, DRM_MINOR_LEGACY);
+	if (ret)
+		goto err_minors;
+
 	if (drm_ht_create(&dev->map_hash, 12))
-		goto err_free;
+		goto err_minors;
 
 	ret = drm_ctxbitmap_init(dev);
 	if (ret) {
@@ -518,7 +553,10 @@ err_ctxbitmap:
 	drm_ctxbitmap_cleanup(dev);
 err_ht:
 	drm_ht_remove(&dev->map_hash);
-err_free:
+err_minors:
+	drm_put_minor(dev->control);
+	drm_put_minor(dev->render);
+	drm_put_minor(dev->primary);
 	kfree(dev);
 	return NULL;
 }
@@ -594,26 +632,22 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	mutex_lock(&drm_global_mutex);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
-		if (ret)
-			goto out_unlock;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
-		ret = drm_get_minor(dev, &dev->render, DRM_MINOR_RENDER);
-		if (ret)
-			goto err_control_node;
-	}
-
-	ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY);
+	ret = drm_get_minor(dev, DRM_MINOR_CONTROL);
 	if (ret)
-		goto err_render_node;
+		goto err_minors;
+
+	ret = drm_get_minor(dev, DRM_MINOR_RENDER);
+	if (ret)
+		goto err_minors;
+
+	ret = drm_get_minor(dev, DRM_MINOR_LEGACY);
+	if (ret)
+		goto err_minors;
 
 	if (dev->driver->load) {
 		ret = dev->driver->load(dev, flags);
 		if (ret)
-			goto err_primary_node;
+			goto err_minors;
 	}
 
 	/* setup grouping for legacy outputs */
@@ -630,12 +664,10 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 err_unload:
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
-err_primary_node:
-	drm_unplug_minor(dev->primary);
-err_render_node:
-	drm_unplug_minor(dev->render);
-err_control_node:
+err_minors:
 	drm_unplug_minor(dev->control);
+	drm_unplug_minor(dev->render);
+	drm_unplug_minor(dev->primary);
 out_unlock:
 	mutex_unlock(&drm_global_mutex);
 	return ret;
