@@ -162,6 +162,7 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 	/* probe EDID if a DDC bus is available */
 	if (p->ddc) {
 		struct edid *edid = drm_get_edid(panel->connector, p->ddc);
+		drm_mode_connector_update_edid_property(panel->connector, edid);
 		if (edid) {
 			num += drm_add_edid_modes(panel->connector, edid);
 			kfree(edid);
@@ -316,6 +317,28 @@ static const struct panel_desc auo_b101aw03 = {
 	},
 };
 
+static const struct drm_display_mode chunghwa_claa101wa01a_mode = {
+	.clock = 72070,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 58,
+	.hsync_end = 1366 + 58 + 58,
+	.htotal = 1366 + 58 + 58 + 58,
+	.vdisplay = 768,
+	.vsync_start = 768 + 4,
+	.vsync_end = 768 + 4 + 4,
+	.vtotal = 768 + 4 + 4 + 4,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc chunghwa_claa101wa01a = {
+	.modes = &chunghwa_claa101wa01a_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 220,
+		.height = 120,
+	},
+};
+
 static const struct drm_display_mode chunghwa_claa101wb01_mode = {
 	.clock = 69300,
 	.hdisplay = 1366,
@@ -338,13 +361,41 @@ static const struct panel_desc chunghwa_claa101wb01 = {
 	},
 };
 
+static const struct drm_display_mode samsung_ltn101nt05_mode = {
+	.clock = 54030,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 24,
+	.hsync_end = 1024 + 24 + 136,
+	.htotal = 1024 + 24 + 136 + 160,
+	.vdisplay = 600,
+	.vsync_start = 600 + 3,
+	.vsync_end = 600 + 3 + 6,
+	.vtotal = 600 + 3 + 6 + 61,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc samsung_ltn101nt05 = {
+	.modes = &samsung_ltn101nt05_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 1024,
+		.height = 600,
+	},
+};
+
 static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "auo,b101aw03",
 		.data = &auo_b101aw03,
 	}, {
+		.compatible = "chunghwa,claa101wa01a",
+		.data = &chunghwa_claa101wa01a
+	}, {
 		.compatible = "chunghwa,claa101wb01",
 		.data = &chunghwa_claa101wb01
+	}, {
+		.compatible = "samsung,ltn101nt05",
+		.data = &samsung_ltn101nt05,
 	}, {
 		.compatible = "simple-panel",
 	}, {

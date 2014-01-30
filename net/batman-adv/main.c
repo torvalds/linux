@@ -277,7 +277,7 @@ int batadv_max_header_len(void)
 			   sizeof(struct batadv_coded_packet));
 #endif
 
-	return header_len;
+	return header_len + ETH_HLEN;
 }
 
 /**

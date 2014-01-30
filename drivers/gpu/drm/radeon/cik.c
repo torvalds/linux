@@ -3840,6 +3840,8 @@ static void cik_cp_gfx_enable(struct radeon_device *rdev, bool enable)
 	if (enable)
 		WREG32(CP_ME_CNTL, 0);
 	else {
+		if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
+			radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 		WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT));
 		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	}
@@ -4038,6 +4040,10 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 		return r;
 	}
+
+	if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
+
 	return 0;
 }
 

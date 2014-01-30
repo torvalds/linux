@@ -25,7 +25,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/clock.h>
-#include <subdev/devinit/priv.h>
+#include <subdev/devinit/nv04.h>
 
 #include "pll.h"
 
