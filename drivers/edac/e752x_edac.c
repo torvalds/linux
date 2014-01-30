@@ -1180,7 +1180,7 @@ static int e752x_get_devs(struct pci_dev *pdev, int dev_idx,
 	struct pci_dev *dev;
 
 	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
-				pvt->dev_info->err_dev, pvt->bridge_ck);
+				pvt->dev_info->err_dev, NULL);
 
 	if (pvt->bridge_ck == NULL) {
 		pvt->bridge_ck = pci_scan_single_device(pdev->bus,
