@@ -1390,7 +1390,8 @@ static void cayman_cp_enable(struct radeon_device *rdev, bool enable)
 	if (enable)
 		WREG32(CP_ME_CNTL, 0);
 	else {
-		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+		if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
+			radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 		WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
 		WREG32(SCRATCH_UMSK, 0);
 		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
@@ -1662,6 +1663,9 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 		rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
 		return r;
 	}
+
+	if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 
 	return 0;
 }
