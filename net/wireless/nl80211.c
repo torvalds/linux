@@ -4626,8 +4626,6 @@ static int parse_reg_rule(struct nlattr *tb[],
 		return -EINVAL;
 	if (!tb[NL80211_ATTR_FREQ_RANGE_END])
 		return -EINVAL;
-	if (!tb[NL80211_ATTR_FREQ_RANGE_MAX_BW])
-		return -EINVAL;
 	if (!tb[NL80211_ATTR_POWER_RULE_MAX_EIRP])
 		return -EINVAL;
 
@@ -4637,8 +4635,9 @@ static int parse_reg_rule(struct nlattr *tb[],
 		nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_START]);
 	freq_range->end_freq_khz =
 		nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_END]);
-	freq_range->max_bandwidth_khz =
-		nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_MAX_BW]);
+	if (tb[NL80211_ATTR_FREQ_RANGE_MAX_BW])
+		freq_range->max_bandwidth_khz =
+			nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_MAX_BW]);
 
 	power_rule->max_eirp =
 		nla_get_u32(tb[NL80211_ATTR_POWER_RULE_MAX_EIRP]);
@@ -5108,6 +5107,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 		const struct ieee80211_reg_rule *reg_rule;
 		const struct ieee80211_freq_range *freq_range;
 		const struct ieee80211_power_rule *power_rule;
+		unsigned int max_bandwidth_khz;
 
 		reg_rule = &regdom->reg_rules[i];
 		freq_range = &reg_rule->freq_range;
@@ -5117,6 +5117,11 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 		if (!nl_reg_rule)
 			goto nla_put_failure_rcu;
 
+		max_bandwidth_khz = freq_range->max_bandwidth_khz;
+		if (!max_bandwidth_khz)
+			max_bandwidth_khz = reg_get_max_bandwidth(regdom,
+								  reg_rule);
+
 		if (nla_put_u32(msg, NL80211_ATTR_REG_RULE_FLAGS,
 				reg_rule->flags) ||
 		    nla_put_u32(msg, NL80211_ATTR_FREQ_RANGE_START,
@@ -5124,7 +5129,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 		    nla_put_u32(msg, NL80211_ATTR_FREQ_RANGE_END,
 				freq_range->end_freq_khz) ||
 		    nla_put_u32(msg, NL80211_ATTR_FREQ_RANGE_MAX_BW,
-				freq_range->max_bandwidth_khz) ||
+				max_bandwidth_khz) ||
 		    nla_put_u32(msg, NL80211_ATTR_POWER_RULE_MAX_ANT_GAIN,
 				power_rule->max_antenna_gain) ||
 		    nla_put_u32(msg, NL80211_ATTR_POWER_RULE_MAX_EIRP,
