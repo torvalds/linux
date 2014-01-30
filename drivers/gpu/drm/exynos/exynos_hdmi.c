@@ -45,9 +45,8 @@
 #include <linux/gpio.h>
 #include <media/s5p_hdmi.h>
 
-#define MAX_WIDTH		1920
-#define MAX_HEIGHT		1080
 #define get_hdmi_display(dev)	platform_get_drvdata(to_platform_device(dev))
+#define ctx_from_connector(c)	container_of(c, struct hdmi_context, connector)
 
 /* AVI header and aspect ratio */
 #define HDMI_AVI_VERSION		0x02
@@ -172,6 +171,8 @@ struct hdmi_conf_regs {
 struct hdmi_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
+	struct drm_connector		connector;
+	struct drm_encoder		*encoder;
 	bool				hpd;
 	bool				powered;
 	bool				dvi_mode;
@@ -790,42 +791,46 @@ static void hdmi_reg_infoframe(struct hdmi_context *hdata,
 	}
 }
 
-static int hdmi_initialize(struct exynos_drm_display *display,
-			struct drm_device *drm_dev)
+static enum drm_connector_status hdmi_detect(struct drm_connector *connector,
+				bool force)
 {
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = ctx_from_connector(connector);
 
-	hdata->drm_dev = drm_dev;
-
-	return 0;
+	return hdata->hpd ? connector_status_connected :
+			connector_status_disconnected;
 }
 
-static bool hdmi_is_connected(struct exynos_drm_display *display)
+static void hdmi_connector_destroy(struct drm_connector *connector)
 {
-	struct hdmi_context *hdata = display->ctx;
-
-	return hdata->hpd;
 }
 
-static struct edid *hdmi_get_edid(struct exynos_drm_display *display,
-			struct drm_connector *connector)
+static struct drm_connector_funcs hdmi_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.detect = hdmi_detect,
+	.destroy = hdmi_connector_destroy,
+};
+
+static int hdmi_get_modes(struct drm_connector *connector)
 {
-	struct edid *raw_edid;
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = ctx_from_connector(connector);
+	struct edid *edid;
 
 	if (!hdata->ddc_port)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
-	raw_edid = drm_get_edid(connector, hdata->ddc_port->adapter);
-	if (!raw_edid)
-		return ERR_PTR(-ENODEV);
+	edid = drm_get_edid(connector, hdata->ddc_port->adapter);
+	if (!edid)
+		return -ENODEV;
 
-	hdata->dvi_mode = !drm_detect_hdmi_monitor(raw_edid);
+	hdata->dvi_mode = !drm_detect_hdmi_monitor(edid);
 	DRM_DEBUG_KMS("%s : width[%d] x height[%d]\n",
 		(hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
-		raw_edid->width_cm, raw_edid->height_cm);
+		edid->width_cm, edid->height_cm);
 
-	return raw_edid;
+	drm_mode_connector_update_edid_property(connector, edid);
+
+	return drm_add_edid_modes(connector, edid);
 }
 
 static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
@@ -850,10 +855,10 @@ static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
 	return -EINVAL;
 }
 
-static int hdmi_check_mode(struct exynos_drm_display *display,
+static int hdmi_mode_valid(struct drm_connector *connector,
 			struct drm_display_mode *mode)
 {
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = ctx_from_connector(connector);
 	int ret;
 
 	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%d clock=%d\n",
@@ -863,11 +868,60 @@ static int hdmi_check_mode(struct exynos_drm_display *display,
 
 	ret = mixer_check_mode(mode);
 	if (ret)
-		return ret;
+		return MODE_BAD;
 
 	ret = hdmi_find_phy_conf(hdata, mode->clock * 1000);
 	if (ret < 0)
+		return MODE_BAD;
+
+	return MODE_OK;
+}
+
+static struct drm_encoder *hdmi_best_encoder(struct drm_connector *connector)
+{
+	struct hdmi_context *hdata = ctx_from_connector(connector);
+
+	return hdata->encoder;
+}
+
+static struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
+	.get_modes = hdmi_get_modes,
+	.mode_valid = hdmi_mode_valid,
+	.best_encoder = hdmi_best_encoder,
+};
+
+static int hdmi_create_connector(struct exynos_drm_display *display,
+			struct drm_encoder *encoder)
+{
+	struct hdmi_context *hdata = display->ctx;
+	struct drm_connector *connector = &hdata->connector;
+	int ret;
+
+	hdata->encoder = encoder;
+	connector->interlace_allowed = true;
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
+
+	ret = drm_connector_init(hdata->drm_dev, connector,
+			&hdmi_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
+	if (ret) {
+		DRM_ERROR("Failed to initialize connector with drm\n");
 		return ret;
+	}
+
+	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
+	drm_sysfs_connector_add(connector);
+	drm_mode_connector_attach_encoder(connector, encoder);
+
+	return 0;
+}
+
+static int hdmi_initialize(struct exynos_drm_display *display,
+			struct drm_device *drm_dev)
+{
+	struct hdmi_context *hdata = display->ctx;
+
+	hdata->drm_dev = drm_dev;
+
 	return 0;
 }
 
@@ -883,10 +937,10 @@ static void hdmi_mode_fixup(struct exynos_drm_display *display,
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	mode_ok = hdmi_check_mode(display, adjusted_mode);
+	mode_ok = hdmi_mode_valid(connector, adjusted_mode);
 
 	/* just return if user desired mode exists. */
-	if (mode_ok == 0)
+	if (mode_ok == MODE_OK)
 		return;
 
 	/*
@@ -894,9 +948,9 @@ static void hdmi_mode_fixup(struct exynos_drm_display *display,
 	 * to adjusted_mode.
 	 */
 	list_for_each_entry(m, &connector->modes, head) {
-		mode_ok = hdmi_check_mode(display, m);
+		mode_ok = hdmi_mode_valid(connector, m);
 
-		if (mode_ok == 0) {
+		if (mode_ok == MODE_OK) {
 			DRM_INFO("desired mode doesn't exist so\n");
 			DRM_INFO("use the most suitable mode among modes.\n");
 
@@ -1753,13 +1807,6 @@ static void hdmi_mode_set(struct exynos_drm_display *display,
 		hdmi_v14_mode_set(hdata, mode);
 }
 
-static void hdmi_get_max_resol(struct exynos_drm_display *display,
-			unsigned int *width, unsigned int *height)
-{
-	*width = MAX_WIDTH;
-	*height = MAX_HEIGHT;
-}
-
 static void hdmi_commit(struct exynos_drm_display *display)
 {
 	struct hdmi_context *hdata = display->ctx;
@@ -1854,10 +1901,7 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 
 static struct exynos_drm_display_ops hdmi_display_ops = {
 	.initialize	= hdmi_initialize,
-	.is_connected	= hdmi_is_connected,
-	.get_max_resol	= hdmi_get_max_resol,
-	.get_edid	= hdmi_get_edid,
-	.check_mode	= hdmi_check_mode,
+	.create_connector = hdmi_create_connector,
 	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
 	.dpms		= hdmi_dpms,
